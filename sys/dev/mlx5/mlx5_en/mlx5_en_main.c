@@ -1766,6 +1766,25 @@ mlx5e_close_channels(struct mlx5e_priv *priv)
 static int
 mlx5e_refresh_sq_params(struct mlx5e_priv *priv, struct mlx5e_sq *sq)
 {
+
+	if (MLX5_CAP_GEN(priv->mdev, cq_period_mode_modify)) {
+		uint8_t cq_mode;
+
+		switch (priv->params.tx_cq_moderation_mode) {
+		case 0:
+			cq_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+			break;
+		default:
+			cq_mode = MLX5_CQ_PERIOD_MODE_START_FROM_CQE;
+			break;
+		}
+
+		return (mlx5_core_modify_cq_moderation_mode(priv->mdev, &sq->cq.mcq,
+		    priv->params.tx_cq_moderation_usec,
+		    priv->params.tx_cq_moderation_pkts,
+		    cq_mode));
+	}
+
 	return (mlx5_core_modify_cq_moderation(priv->mdev, &sq->cq.mcq,
 	    priv->params.tx_cq_moderation_usec,
 	    priv->params.tx_cq_moderation_pkts));
@@ -1774,6 +1793,28 @@ mlx5e_refresh_sq_params(struct mlx5e_priv *priv, struct mlx5e_sq *sq)
 static int
 mlx5e_refresh_rq_params(struct mlx5e_priv *priv, struct mlx5e_rq *rq)
 {
+
+	if (MLX5_CAP_GEN(priv->mdev, cq_period_mode_modify)) {
+		uint8_t cq_mode;
+		int retval;
+
+		switch (priv->params.rx_cq_moderation_mode) {
+		case 0:
+			cq_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+			break;
+		default:
+			cq_mode = MLX5_CQ_PERIOD_MODE_START_FROM_CQE;
+			break;
+		}
+
+		retval = mlx5_core_modify_cq_moderation_mode(priv->mdev, &rq->cq.mcq,
+		    priv->params.rx_cq_moderation_usec,
+		    priv->params.rx_cq_moderation_pkts,
+		    cq_mode);
+
+		return (retval);
+	}
+
 	return (mlx5_core_modify_cq_moderation(priv->mdev, &rq->cq.mcq,
 	    priv->params.rx_cq_moderation_usec,
 	    priv->params.rx_cq_moderation_pkts));
