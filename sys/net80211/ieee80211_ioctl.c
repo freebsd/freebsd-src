@@ -2225,7 +2225,7 @@ checkmcs(int mcs)
 		return 1;
 	if ((mcs & IEEE80211_RATE_MCS) == 0)	/* MCS always have 0x80 set */
 		return 0;
-	return (mcs & 0x7f) <= 15;	/* XXX could search ht rate set */
+	return (mcs & 0x7f) <= 31;	/* XXX could search ht rate set */
 }
 
 static int
