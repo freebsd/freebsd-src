@@ -7,9 +7,9 @@
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
 .ifndef LIBCHERI
-.include "${LIBC_SRCTOP}/../../sys/sys/syscall.mk"
+.include "${SRCTOP}/sys/sys/syscall.mk"
 .else
-.include "${LIBC_SRCTOP}/../../sys/compat/cheriabi/cheriabi_syscall.mk"
+.include "${SRCTOP}/sys/compat/cheriabi/cheriabi_syscall.mk"
 MIASM:=	${MIASM:S/^cheriabi_//}
 .endif
 
