@@ -3,7 +3,7 @@
 #
 
 PACKAGE=	lib${LIB}
-OPENBSMDIR=		${.CURDIR}/../../contrib/openbsm
+OPENBSMDIR=		${SRCTOP}/contrib/openbsm
 _LIBBSMDIR=		${OPENBSMDIR}/libbsm
 
 LIB=		bsm
