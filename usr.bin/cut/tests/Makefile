@@ -2,6 +2,7 @@
 
 PACKAGE=	tests
 
+ATF_TESTS_SH+=	cut2_test
 NETBSD_ATF_TESTS_SH=	cut_test
 
 ${PACKAGE}FILES=		d_basic.out
