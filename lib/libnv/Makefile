@@ -8,8 +8,8 @@ SHLIBDIR?= /lib
 LIB=	nv
 SHLIB_MAJOR= 0
 
-.PATH: ${.CURDIR}/../../sys/contrib/libnv ${.CURDIR}/../../sys/sys
-CFLAGS+=-I${.CURDIR}/../../sys -I${.CURDIR}
+.PATH: ${SRCTOP}/sys/contrib/libnv ${SRCTOP}/sys/sys
+CFLAGS+=-I${SRCTOP}/sys -I${.CURDIR}
 
 SRCS=	cnvlist.c
 SRCS+=	dnvlist.c
