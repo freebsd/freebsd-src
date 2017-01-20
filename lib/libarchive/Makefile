@@ -2,7 +2,7 @@
 .include <src.opts.mk>
 
 PACKAGE=lib${LIB}
-_LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
+_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 LIB=	archive
 
