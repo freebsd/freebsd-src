@@ -2,13 +2,13 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../common
+.PATH: ${.CURDIR:H}/common
 
 SRCS=		crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o crt1.o Scrt1.o
-CFLAGS+=	-I${.CURDIR}/../common \
-		-I${.CURDIR}/../../libc/include
+CFLAGS+=	-I${.CURDIR:H}/common \
+		-I${SRCTOP}/lib/libc/include
 .if ${MK_CHERI}	!= "no"
 CFLAGS+=	-DCHERI
 .endif
