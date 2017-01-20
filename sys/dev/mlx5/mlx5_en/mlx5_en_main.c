@@ -1191,7 +1191,6 @@ done:
 		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
 		sq->doorbell.d64 = 0;
 	}
-	return;
 }
 
 void
