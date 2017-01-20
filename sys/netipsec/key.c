@@ -2659,8 +2659,10 @@ key_newsah(struct secasindex *saidx)
 
 	sah = malloc(sizeof(struct secashead), M_IPSEC_SAH,
 	    M_NOWAIT | M_ZERO);
-	if (sah == NULL)
+	if (sah == NULL) {
+		PFKEYSTAT_INC(in_nomem);
 		return (NULL);
+	}
 	TAILQ_INIT(&sah->savtree_larval);
 	TAILQ_INIT(&sah->savtree_alive);
 	sah->saidx = *saidx;
@@ -2746,12 +2748,14 @@ key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
 
 	sav = malloc(sizeof(struct secasvar), M_IPSEC_SA, M_NOWAIT | M_ZERO);
 	if (sav == NULL) {
+		PFKEYSTAT_INC(in_nomem);
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
 		*errp = ENOBUFS;
 		goto done;
 	}
 	sav->lft_c = uma_zalloc(V_key_lft_zone, M_NOWAIT);
 	if (sav->lft_c == NULL) {
+		PFKEYSTAT_INC(in_nomem);
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
 		free(sav, M_IPSEC_SA), sav = NULL;
 		*errp = ENOBUFS;
