@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../mapper_serial
+.PATH: ${.CURDIR:H}/mapper_serial
 
 SHLIB=	mapper_parallel
 SRCS+=	citrus_mapper_serial.c
