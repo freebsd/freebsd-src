@@ -3108,6 +3108,13 @@ key_setsaval(struct secasvar *sav, const struct sadb_msghdr *mhp)
 		sav->alg_auth = sa0->sadb_sa_auth;
 		sav->alg_enc = sa0->sadb_sa_encrypt;
 		sav->flags = sa0->sadb_sa_flags;
+		if ((sav->flags & SADB_KEY_FLAGS_MAX) != sav->flags) {
+			ipseclog((LOG_DEBUG,
+			    "%s: invalid sa_flags 0x%08x.\n", __func__,
+			    sav->flags));
+			error = EINVAL;
+			goto fail;
+		}
 
 		/* Optional replay window */
 		replay = 0;
@@ -3608,9 +3615,8 @@ key_setsadbsa(struct secasvar *sav)
 	p->sadb_sa_state = sav->state;
 	p->sadb_sa_auth = sav->alg_auth;
 	p->sadb_sa_encrypt = sav->alg_enc;
-	p->sadb_sa_flags = sav->flags;
-
-	return m;
+	p->sadb_sa_flags = sav->flags & SADB_KEY_FLAGS_MAX;
+	return (m);
 }
 
 /*
