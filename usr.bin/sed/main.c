@@ -391,7 +391,7 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 		if (inplace != NULL) {
 			if (lstat(fname, &sb) != 0)
 				err(1, "%s", fname);
-			if (!S_ISREG(sb.st_mode))
+			if (!(sb.st_mode & S_IFREG))
 				errx(1, "%s: %s %s", fname,
 				    "in-place editing only",
 				    "works for regular files");
