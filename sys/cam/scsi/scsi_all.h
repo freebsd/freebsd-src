@@ -3039,7 +3039,7 @@ struct scsi_set_timestamp_parameters
 {
 	uint8_t reserved1[4];
 	uint8_t timestamp[6];
-	uint8_t reserved2[4];
+	uint8_t reserved2[2];
 };
 
 struct scsi_report_timestamp_parameter_data
