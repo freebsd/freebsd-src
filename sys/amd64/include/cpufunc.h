@@ -327,6 +327,13 @@ mfence(void)
 }
 
 static __inline void
+sfence(void)
+{
+
+	__asm __volatile("sfence" : : : "memory");
+}
+
+static __inline void
 ia32_pause(void)
 {
 	__asm __volatile("pause");
