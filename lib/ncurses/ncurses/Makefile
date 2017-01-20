@@ -10,7 +10,7 @@ MK_MAN=no
 
 .include <src.opts.mk>
 
-.include "${.CURDIR}/../config.mk"
+.include "${.CURDIR:H}/config.mk"
 
 LIB=		ncurses${LIB_SUFFIX}
 SHLIB_MAJOR=	8

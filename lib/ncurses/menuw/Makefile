@@ -2,4 +2,4 @@
 
 ENABLE_WIDEC=
 
-.include "${.CURDIR}/../menu/Makefile"
+.include "${.CURDIR:H}/menu/Makefile"
