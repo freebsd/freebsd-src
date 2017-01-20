@@ -106,9 +106,11 @@ pdu_new_response(struct pdu *request)
 static void
 pdu_receive_proxy(struct pdu *pdu)
 {
+	struct connection *conn;
 	size_t len;
 
 	assert(proxy_mode);
+	conn = pdu->pdu_connection;
 
 	kernel_receive(pdu);
 
@@ -117,7 +119,7 @@ pdu_receive_proxy(struct pdu *pdu)
 		log_errx(1, "protocol error: non-empty AHS");
 
 	len = pdu_data_segment_length(pdu);
-	assert(len <= pdu->pdu_connection->conn_max_recv_data_segment_length);
+	assert(len <= (size_t)conn->conn_max_recv_data_segment_length);
 	pdu->pdu_data_len = len;
 }
 
@@ -185,7 +187,7 @@ pdu_receive(struct pdu *pdu)
 
 	len = pdu_data_segment_length(pdu);
 	if (len > 0) {
-		if ((int)len > conn->conn_max_recv_data_segment_length) {
+		if (len > (size_t)conn->conn_max_recv_data_segment_length) {
 			log_errx(1, "protocol error: received PDU "
 			    "with DataSegmentLength exceeding %d",
 			    conn->conn_max_recv_data_segment_length);
