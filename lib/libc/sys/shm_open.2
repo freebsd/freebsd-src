@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 13, 2017
+.Dd January 20, 2017
 .Dt SHM_OPEN 2
 .Os
 .Sh NAME
@@ -187,6 +187,11 @@ kernel implementation explicitly includes support for
 and
 .Xr write 2 .
 .Pp
+.Fx
+also supports zero-copy transmission of data from shared memory
+objects with
+.Xr sendfile 2 .
+.Pp
 Neither shared memory objects nor their contents persist across reboots.
 .Pp
 Writes do not extend shared memory objects, so
@@ -281,7 +286,8 @@ requires write permission to the shared memory object.
 .Xr fstat 2 ,
 .Xr ftruncate 2 ,
 .Xr mmap 2 ,
-.Xr munmap 2
+.Xr munmap 2 ,
+.Xr sendfile 2
 .Sh STANDARDS
 The
 .Fn shm_open
