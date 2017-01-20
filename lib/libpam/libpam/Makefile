@@ -36,7 +36,7 @@
 # $FreeBSD$
 
 PACKAGE=lib${LIB}
-OPENPAM=	${.CURDIR}/../../../contrib/openpam
+OPENPAM=	${SRCTOP}/contrib/openpam
 .PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
 # static_libpam will build libpam.a
