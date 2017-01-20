@@ -8,7 +8,7 @@ LIBADD+=	pthread
 
 SRCS=	sqlite3.c
 
-SQLITE=	${.CURDIR}/../../contrib/sqlite3
+SQLITE=	${SRCTOP}/contrib/sqlite3
 .PATH:	${SQLITE}
 
 WARNS=	3
