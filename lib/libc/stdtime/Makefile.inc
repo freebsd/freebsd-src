@@ -1,8 +1,7 @@
 #	Makefile.inc,v 1.2 1994/09/13 21:26:01 wollman Exp
 # $FreeBSD$
 
-.PATH:	${LIBC_SRCTOP}/stdtime ${LIBC_SRCTOP}/../locale \
-	${LIBC_SRCTOP}/../../contrib/tzcode/stdtime
+.PATH:	${LIBC_SRCTOP}/stdtime ${LIBC_SRCTOP}/../../contrib/tzcode/stdtime
 
 SRCS+=	asctime.c difftime.c localtime.c strftime.c strptime.c timelocal.c \
 	time32.c
