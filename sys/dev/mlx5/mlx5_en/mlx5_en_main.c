@@ -1219,8 +1219,25 @@ mlx5e_sq_cev_timeout(void *arg)
 void
 mlx5e_drain_sq(struct mlx5e_sq *sq)
 {
+	int error;
+
+	/*
+	 * Check if already stopped.
+	 *
+	 * NOTE: The "stopped" variable is only written when both the
+	 * priv's configuration lock and the SQ's lock is locked. It
+	 * can therefore safely be read when only one of the two locks
+	 * is locked. This function is always called when the priv's
+	 * configuration lock is locked.
+	 */
+	if (sq->stopped != 0)
+		return;
 
 	mtx_lock(&sq->lock);
+
+	/* don't put more packets into the SQ */
+	sq->stopped = 1;
+
 	/* teardown event factor timer, if any */
 	sq->cev_next_state = MLX5E_CEV_STATE_HOLD_NOPS;
 	callout_stop(&sq->cev_callout);
@@ -1232,14 +1249,29 @@ mlx5e_drain_sq(struct mlx5e_sq *sq)
 	/* make sure it is safe to free the callout */
 	callout_drain(&sq->cev_callout);
 
+	/* wait till SQ is empty or link is down */
+	mtx_lock(&sq->lock);
+	while (sq->cc != sq->pc &&
+	    (sq->priv->media_status_last & IFM_ACTIVE) != 0) {
+		mtx_unlock(&sq->lock);
+		msleep(1);
+		sq->cq.mcq.comp(&sq->cq.mcq);
+		mtx_lock(&sq->lock);
+	}
+	mtx_unlock(&sq->lock);
+
 	/* error out remaining requests */
-	mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY, MLX5_SQC_STATE_ERR);
+	error = mlx5e_modify_sq(sq, MLX5_SQC_STATE_RDY, MLX5_SQC_STATE_ERR);
+	if (error != 0) {
+		if_printf(sq->ifp,
+		    "mlx5e_modify_sq() from RDY to ERR failed: %d\n", error);
+	}
 
 	/* wait till SQ is empty */
 	mtx_lock(&sq->lock);
 	while (sq->cc != sq->pc) {
 		mtx_unlock(&sq->lock);
-		msleep(4);
+		msleep(1);
 		sq->cq.mcq.comp(&sq->cq.mcq);
 		mtx_lock(&sq->lock);
 	}

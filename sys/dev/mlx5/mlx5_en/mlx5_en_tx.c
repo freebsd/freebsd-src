@@ -81,11 +81,15 @@ static struct mlx5e_sq *
 mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 {
 	struct mlx5e_priv *priv = ifp->if_softc;
+	struct mlx5e_channel * volatile *ppch;
+	struct mlx5e_channel *pch;
 	u32 ch;
 	u32 tc;
 
+	ppch = priv->channel;
+
 	/* check if channels are successfully opened */
-	if (unlikely(priv->channel == NULL))
+	if (unlikely(ppch == NULL))
 		return (NULL);
 
 	/* obtain VLAN information if present */
@@ -123,11 +127,11 @@ mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 #endif
 	}
 
-	/* check if channel is allocated */
-	if (unlikely(priv->channel[ch] == NULL))
-		return (NULL);
-
-	return (&priv->channel[ch]->sq[tc]);
+	/* check if channel is allocated and not stopped */
+	pch = ppch[ch];
+	if (likely(pch != NULL && pch->sq[tc].stopped == 0))
+		return (&pch->sq[tc]);
+	return (NULL);
 }
 
 static inline u16
@@ -445,18 +449,21 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 	struct mbuf *next;
 	int err = 0;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		if (mb)
-			err = drbr_enqueue(ifp, sq->br, mb);
-		return (err);
-	}
-
-	if (mb != NULL)
+	if (likely(mb != NULL)) {
 		/*
 		 * If we can't insert mbuf into drbr, try to xmit anyway.
 		 * We keep the error we got so we could return that after xmit.
 		 */
 		err = drbr_enqueue(ifp, sq->br, mb);
+	}
+
+	/*
+	 * Check if the network interface is closed or if the SQ is
+	 * being stopped:
+	 */
+	if (unlikely((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    sq->stopped != 0))
+		return (err);
 
 	/* Process the queue */
 	while ((next = drbr_peek(ifp, sq->br)) != NULL) {
@@ -470,8 +477,6 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 			break;
 		}
 		drbr_advance(ifp, sq->br);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-			break;
 	}
 	/* Check if we need to write the doorbell */
 	if (likely(sq->doorbell.d64 != 0)) {
