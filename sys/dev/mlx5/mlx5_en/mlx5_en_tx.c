@@ -439,7 +439,8 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 
 	sq->cc = sqcc;
 
-	if (atomic_cmpset_int(&sq->queue_state, MLX5E_SQ_FULL, MLX5E_SQ_READY))
+	if (sq->sq_tq != NULL &&
+	    atomic_cmpset_int(&sq->queue_state, MLX5E_SQ_FULL, MLX5E_SQ_READY))
 		taskqueue_enqueue(sq->sq_tq, &sq->sq_task);
 }
 
@@ -498,6 +499,45 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 	return (err);
 }
 
+static int
+mlx5e_xmit_locked_no_br(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
+{
+	int err = 0;
+
+	if (unlikely((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    sq->stopped != 0)) {
+		m_freem(mb);
+		return (ENETDOWN);
+	}
+
+	/* Do transmit */
+	if (mlx5e_sq_xmit(sq, &mb) != 0) {
+		/* NOTE: m_freem() is NULL safe */
+		m_freem(mb);
+		err = ENOBUFS;
+	}
+
+	/* Check if we need to write the doorbell */
+	if (likely(sq->doorbell.d64 != 0)) {
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		sq->doorbell.d64 = 0;
+	}
+
+	/*
+	 * Check if we need to start the event timer which flushes the
+	 * transmit ring on timeout:
+	 */
+	if (unlikely(sq->cev_next_state == MLX5E_CEV_STATE_INITIAL &&
+	    sq->cev_factor != 1)) {
+		/* start the timer */
+		mlx5e_sq_cev_timeout(sq);
+	} else {
+		/* don't send NOPs yet */
+		sq->cev_next_state = MLX5E_CEV_STATE_HOLD_NOPS;
+	}
+	return (err);
+}
+
 int
 mlx5e_xmit(struct ifnet *ifp, struct mbuf *mb)
 {
@@ -510,7 +550,13 @@ mlx5e_xmit(struct ifnet *ifp, struct mbuf *mb)
 		m_freem(mb);
 		return (ENXIO);
 	}
-	if (mtx_trylock(&sq->lock)) {
+
+	if (unlikely(sq->br == NULL)) {
+		/* rate limited traffic */
+		mtx_lock(&sq->lock);
+		ret = mlx5e_xmit_locked_no_br(ifp, sq, mb);
+		mtx_unlock(&sq->lock);
+	} else if (mtx_trylock(&sq->lock)) {
 		ret = mlx5e_xmit_locked(ifp, sq, mb);
 		mtx_unlock(&sq->lock);
 	} else {
