@@ -2,7 +2,7 @@
 
 TESTSDIR= ${TESTSBASE}/lib/libdevdctl
 
-.PATH:	${.CURDIR}/..
+.PATH:	${.CURDIR:H}
 
 PLAIN_TESTS_CXX= libdevdctl_unittest
 
