@@ -40,8 +40,6 @@
                 ..
                 i18n
                 ..
-                private
-                ..
             ..
             libexec
                 bsdinstall
