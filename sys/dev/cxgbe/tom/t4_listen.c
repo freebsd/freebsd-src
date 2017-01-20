@@ -1473,6 +1473,7 @@ found:
 		if (!(synqe->flags & TPF_SYNQE_EXPANDED))
 			send_reset_synqe(tod, synqe);
 		INP_WUNLOCK(inp);
+		CURVNET_RESTORE();
 
 		release_synqe(synqe);	/* extra hold */
 		return (__LINE__);
