@@ -258,7 +258,7 @@ alloc_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg)
 	if (VM_MEMSEG_NAME(mseg)) {
 		sysmem = false;
 		name = malloc(SPECNAMELEN + 1, M_VMMDEV, M_WAITOK);
-		error = copystr(VM_MEMSEG_NAME(mseg), name, SPECNAMELEN + 1, 0);
+		error = copystr(mseg->name, name, SPECNAMELEN + 1, 0);
 		if (error)
 			goto done;
 	}
