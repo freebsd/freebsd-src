@@ -3,9 +3,9 @@
 .include <src.opts.mk>
 
 PACKAGE=	clibs
-_LIBCXXRTDIR=	${.CURDIR}/../../contrib/libcxxrt
-HDRDIR=		${.CURDIR}/../../contrib/libc++/include
-SRCDIR=		${.CURDIR}/../../contrib/libc++/src
+_LIBCXXRTDIR=	${SRCTOP}/contrib/libcxxrt
+HDRDIR=		${SRCTOP}/contrib/libc++/include
+SRCDIR=		${SRCTOP}/contrib/libc++/src
 CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
 .if ${MACHINE_CPUARCH} == "arm"
 STATIC_CXXFLAGS+= -mlong-calls
