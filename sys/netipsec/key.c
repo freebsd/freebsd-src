@@ -7833,7 +7833,8 @@ key_destroy(void)
 	struct secpolicy *sp, *nextsp;
 	struct secacq *acq, *nextacq;
 	struct secspacq *spacq, *nextspacq;
-	struct secashead *sah, *nextsah;
+	struct secashead *sah;
+	struct secasvar *sav;
 	struct secreg *reg;
 	int i;
 
