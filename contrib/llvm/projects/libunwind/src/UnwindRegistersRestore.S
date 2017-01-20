@@ -483,3 +483,5 @@ DEFINE_LIBUNWIND_PRIVATE_FUNCTION(_ZN9libunwind14Registers_or1k6jumptoEv)
 /* RISCVTODO */
 
 #endif
+
+  .section .note.GNU-stack,"",@progbits
