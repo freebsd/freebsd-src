@@ -241,9 +241,11 @@ persist_print_cap(struct scsi_per_res_cap *cap, uint32_t valid_len)
 {
 	uint32_t length;
 	int check_type_mask = 0;
+	uint32_t type_mask;
 
 	length = scsi_2btoul(cap->length);
 	length = MIN(length, valid_len);
+	type_mask = scsi_2btoul(cap->type_mask);
 
 	if (length < __offsetof(struct scsi_per_res_cap, type_mask)) {
 		fprintf(stdout, "Insufficient data (%u bytes) to report "
@@ -345,20 +347,20 @@ persist_print_cap(struct scsi_per_res_cap *cap, uint32_t valid_len)
 		fprintf(stdout, "Supported Persistent Reservation Types:\n");
 		fprintf(stdout, "    Write Exclusive - All Registrants "
 			"(WR_EX_AR): %d\n",
-			(cap->type_mask[0] & SPRI_TM_WR_EX_AR)? 1 : 0);
+			(type_mask & SPRI_TM_WR_EX_AR)? 1 : 0);
 		fprintf(stdout, "    Exclusive Access - Registrants Only "
 			"(EX_AC_RO): %d\n",
-			(cap->type_mask[0] & SPRI_TM_EX_AC_RO) ? 1 : 0);
+			(type_mask & SPRI_TM_EX_AC_RO) ? 1 : 0);
 		fprintf(stdout, "    Write Exclusive - Registrants Only "
 			"(WR_EX_RO): %d\n",
-			(cap->type_mask[0] & SPRI_TM_WR_EX_RO)? 1 : 0);
+			(type_mask & SPRI_TM_WR_EX_RO)? 1 : 0);
 		fprintf(stdout, "    Exclusive Access (EX_AC): %d\n",
-			(cap->type_mask[0] & SPRI_TM_EX_AC) ? 1 : 0);
+			(type_mask & SPRI_TM_EX_AC) ? 1 : 0);
 		fprintf(stdout, "    Write Exclusive (WR_EX): %d\n",
-			(cap->type_mask[0] & SPRI_TM_WR_EX) ? 1 : 0);
+			(type_mask & SPRI_TM_WR_EX) ? 1 : 0);
 		fprintf(stdout, "    Exclusive Access - All Registrants "
 			"(EX_AC_AR): %d\n",
-			(cap->type_mask[1] & SPRI_TM_EX_AC_AR) ? 1 : 0);
+			(type_mask & SPRI_TM_EX_AC_AR) ? 1 : 0);
 	} else {
 		fprintf(stdout, "Persistent Reservation Type Mask is NOT "
 			"valid\n");

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -138,6 +139,8 @@ set_restore_flags(struct cam_device *device, uint8_t *flags, int set_flag,
 	 * Create the control page at the correct point in the mode_buf, it
 	 * starts after the header and the blk description.
 	 */
+	assert(hdr_and_blk_length <=
+	    sizeof(mode_buf) - sizeof(struct scsi_control_ext_page));
 	control_page = (struct scsi_control_ext_page *)&mode_buf
 	    [hdr_and_blk_length];
 	if (set_flag != 0) {
@@ -240,6 +243,7 @@ report_timestamp(struct cam_device *device, uint64_t *ts,
 bailout:
 	if (ccb != NULL)
 		cam_freeccb(ccb);
+	free(report_buf);
 
 	return error;
 }

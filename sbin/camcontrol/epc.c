@@ -783,6 +783,7 @@ epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			warnx("Must specify a timer value (-T time)");
 			error = 1;
 		}
+		/* FALLTHROUGH */
 	case ATA_SF_EPC_SET_STATE:
 		if (enable == -1) {
 			warnx("Must specify enable (-e) or disable (-d)");
