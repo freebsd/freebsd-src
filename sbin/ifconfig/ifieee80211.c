@@ -5602,7 +5602,7 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("stbctx",	1,	set80211stbc),
 	DEF_CMD("-stbctx",	-1,	set80211stbc),
 	DEF_CMD("stbc",		3,	set80211stbc),		/* NB: tx+rx */
-	DEF_CMD("-ampdu",	-3,	set80211stbc),
+	DEF_CMD("-stbc",	-3,	set80211stbc),
 	DEF_CMD("puren",	1,	set80211puren),
 	DEF_CMD("-puren",	0,	set80211puren),
 	DEF_CMD("doth",		1,	set80211doth),
