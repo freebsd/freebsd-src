@@ -8,6 +8,7 @@ PROG=		${LOADER}.sym
 MAN=	
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
+VERSION_FILE=	${.CURDIR}/../loader/version
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
@@ -72,7 +73,7 @@ CFLAGS+=	-I${.CURDIR}/../../.. -D_STAND
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
 
-CLEANFILES=	vers.c ${LOADER} ${LOADER}.bin loader.help
+CLEANFILES=	${LOADER} ${LOADER}.bin loader.help
 
 CFLAGS+=	-Wall
 LDFLAGS=	-static -Ttext 0x0
@@ -92,10 +93,6 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
-
-vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../loader/version
-	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../loader/version \
-		${NEWVERSWHAT}
 
 ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \

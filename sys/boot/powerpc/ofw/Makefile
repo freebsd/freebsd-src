@@ -73,7 +73,7 @@ LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../..
 CFLAGS+=	-I.
 
-CLEANFILES+=	vers.c loader.help
+CLEANFILES+=	loader.help
 
 CFLAGS+=	-ffreestanding -msoft-float
 # load address. set in linker script
@@ -96,9 +96,6 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBOFW} ${LIBFDT} ${LIBSTAND}
-
-vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
-	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
 loader.help: help.common help.ofw ${.CURDIR}/../../fdt/help.fdt
 	cat ${.ALLSRC} | \
