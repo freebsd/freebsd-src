@@ -3,7 +3,7 @@
 
 PACKAGE=lib${LIB}
 LIB=	compat
-CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS -I${.CURDIR}/../libc/locale
+CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS -I${SRCTOP}/lib/libc/locale
 NO_PIC=
 
 WARNS?=	0
