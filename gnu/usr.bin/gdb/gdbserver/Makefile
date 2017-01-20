@@ -9,7 +9,7 @@ WANT_CHERI=	pure
 # Not elf specific so don't install in /usr/libexec/elf
 BINDIR=/usr/bin
 
-GDBDIR=	${.CURDIR}/../../../../contrib/gdb
+GDBDIR=	${SRCTOP}/contrib/gdb
 .PATH:	${GDBDIR}/gdb/signals
 .PATH:	${GDBDIR}/gdb/gdbserver
 .PATH:	${GDBDIR}/gdb
