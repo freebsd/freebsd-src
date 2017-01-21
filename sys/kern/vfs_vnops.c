@@ -1575,12 +1575,12 @@ vn_closefile(fp, td)
 	vp = fp->f_vnode;
 	fp->f_ops = &badfileops;
 
-	if (fp->f_type == DTYPE_VNODE && fp->f_flag & FHASLOCK)
-		vref(vp);
+	if (__predict_false(fp->f_flag & FHASLOCK) && fp->f_type == DTYPE_VNODE)
+		vrefact(vp);
 
 	error = vn_close(vp, fp->f_flag, fp->f_cred, td);
 
-	if (fp->f_type == DTYPE_VNODE && fp->f_flag & FHASLOCK) {
+	if (__predict_false(fp->f_flag & FHASLOCK) && fp->f_type == DTYPE_VNODE) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
