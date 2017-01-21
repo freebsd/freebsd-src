@@ -254,4 +254,10 @@ typedef struct {
 	Elf32_Half	si_flags;	/* per symbol flags */
 } Elf32_Syminfo;
 
+typedef struct {
+	Elf32_Word	ch_type;
+	Elf32_Word	ch_size;
+	Elf32_Word	ch_addralign;
+} Elf32_Chdr;
+
 #endif /* !_SYS_ELF32_H_ */
