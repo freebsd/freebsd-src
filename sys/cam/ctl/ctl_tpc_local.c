@@ -290,7 +290,7 @@ tpcl_resolve(struct ctl_softc *softc, int init_port,
 		port = NULL;
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
 		if (port != NULL &&
-		    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+		    ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		if (lun->lun_devid == NULL)
 			continue;
