@@ -1539,27 +1539,24 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 
 	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
 	    ("vn_lock called with no locktype."));
-	do {
 #ifdef DEBUG_VFS_LOCKS
-		KASSERT(vp->v_holdcnt != 0,
-		    ("vn_lock %p: zero hold count", vp));
+	KASSERT(vp->v_holdcnt != 0,
+			("vn_lock %p: zero hold count", vp));
 #endif
-		error = VOP_LOCK1(vp, flags, file, line);
-		flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
-		KASSERT((flags & LK_RETRY) == 0 || error == 0,
-		    ("LK_RETRY set with incompatible flags (0x%x) or an error occurred (%d)",
-		    flags, error));
-		/*
-		 * Callers specify LK_RETRY if they wish to get dead vnodes.
-		 * If RETRY is not set, we return ENOENT instead.
-		 */
-		if (error == 0 && vp->v_iflag & VI_DOOMED &&
-		    (flags & LK_RETRY) == 0) {
+retry:
+	error = VOP_LOCK1(vp, flags, file, line);
+	flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
+	KASSERT((flags & LK_RETRY) == 0 || error == 0,
+			("LK_RETRY set with incompatible flags (0x%x) or an error occurred (%d)",
+			 flags, error));
+	if (flags & LK_RETRY) {
+		if ((error != 0))
+			goto retry;
+		if ((vp->v_iflag & VI_DOOMED)) {
 			VOP_UNLOCK(vp, 0);
 			error = ENOENT;
-			break;
 		}
-	} while (flags & LK_RETRY && error != 0);
+	}
 	return (error);
 }
 
