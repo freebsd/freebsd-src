@@ -65,26 +65,31 @@ TERM_SRCS=	eqn_term.c \
 		term_ps.c \
 		tbl_term.c
 
-DB_SRCS=	mandocdb.c \
-		mansearch.c \
-		mansearch_const.c \
-		tag.c \
-		manpath.c
+DBM_SRCS=	dbm.c \
+		dbm_map.c \
+		mansearch.c
+
+DBA_SRCS=	dba.c \
+		dba_array.c \
+		dba_read.c \
+		dba_write.c \
+		mandocdb.c
 
 SRCS=		${LIB_SRCS} \
 		${HTML_SRCS} \
 		${MAN_SRCS} \
 		${TERM_SRCS} \
+		${DBM_SRCS} \
+		${DBA_SRCS} \
 		main.c \
+		manpath.c \
 		out.c \
+		tag.c \
 		tree.c
 
-SRCS+=	${DB_SRCS}
-
-WARNS?=	2
+WARNS?=	3
 CFLAGS+= -DHAVE_CONFIG_H \
-	 -I${.CURDIR}/../../lib/libopenbsd/ \
-	 -I${.CURDIR}/../../contrib/sqlite3
-LIBADD=	openbsd sqlite3 z
+	 -I${.CURDIR}/../../lib/libopenbsd/
+LIBADD=	openbsd z
 
 .include <bsd.prog.mk>
