@@ -617,7 +617,7 @@ struct ieee80211_ie_htcap {
 } __packed;
 
 /* HT capability flags (ht_cap) */
-#define	IEEE80211_HTCAP_LDPC		0x0001	/* LDPC supported */
+#define	IEEE80211_HTCAP_LDPC		0x0001	/* LDPC rx supported */
 #define	IEEE80211_HTCAP_CHWIDTH40	0x0002	/* 20/40 supported */
 #define	IEEE80211_HTCAP_SMPS		0x000c	/* SM Power Save mode */
 #define	IEEE80211_HTCAP_SMPS_OFF	0x000c	/* disabled */
