@@ -5939,7 +5939,7 @@ ctl_do_mode_select(union ctl_io *io)
 	int page_len, page_len_offset, page_len_size;
 	union ctl_modepage_info *modepage_info;
 	struct ctl_lun *lun;
-	int *len_left, *len_used;
+	uint16_t *len_left, *len_used;
 	int retval, i;
 
 	ctsio = &io->scsiio;
