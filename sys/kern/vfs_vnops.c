@@ -1549,13 +1549,15 @@ retry:
 	KASSERT((flags & LK_RETRY) == 0 || error == 0,
 	    ("LK_RETRY set with incompatible flags (0x%x) or "
 	    " an error occurred (%d)", flags, error));
-	if (flags & LK_RETRY) {
-		if ((error != 0))
-			goto retry;
-		if ((vp->v_iflag & VI_DOOMED)) {
+
+	if ((flags & LK_RETRY) == 0) {
+		if (error == 0 && vp->v_iflag & VI_DOOMED) {
 			VOP_UNLOCK(vp, 0);
 			error = ENOENT;
 		}
+	} else {
+		if (error != 0)
+			goto retry;
 	}
 	return (error);
 }
