@@ -268,6 +268,8 @@ void _malloc_thread_cleanup(void);
  * thread is exiting, so its thread-local dtors should be called.
  */
 void __cxa_thread_call_dtors(void);
+int __cxa_thread_atexit_hidden(void (*dtor_func)(void *), void *obj,
+    void *dso_symbol) __hidden;
 
 /*
  * These functions are used by the threading libraries in order to protect

@@ -106,6 +106,7 @@ FBSD_1.3 {
 
 FBSD_1.5 {
 	__cxa_thread_atexit;
+	__cxa_thread_atexit_impl;
 };
 
 FBSDprivate_1.0 {
