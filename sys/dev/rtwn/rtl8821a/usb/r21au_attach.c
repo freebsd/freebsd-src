@@ -157,10 +157,11 @@ r21au_adj_devcaps(struct rtwn_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct r12a_softc *rs = sc->sc_priv;
 
+	ic->ic_htcaps |= IEEE80211_HTC_TXLDPC;
 	if (rs->rs_radar != 0)
 		ic->ic_caps |= IEEE80211_C_DFS;
 
-	/* TODO: LDPC etc */
+	/* TODO: VHT */
 }
 
 void
