@@ -78,14 +78,8 @@ struct ctl_modepage_header {
 	int32_t len_left;
 };
 
-struct ctl_modepage_aps {
-	struct ctl_modepage_header header;
-	uint8_t lock_active;
-};
-
 union ctl_modepage_info {
 	struct ctl_modepage_header header;
-	struct ctl_modepage_aps aps;
 };
 
 /*
