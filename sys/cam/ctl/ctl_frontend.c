@@ -70,12 +70,11 @@ ctl_frontend_register(struct ctl_frontend *fe)
 {
 	struct ctl_softc *softc = control_softc;
 	struct ctl_frontend *fe_tmp;
+	int error;
 
 	KASSERT(softc != NULL, ("CTL is not initialized"));
 
-	/*
-	 * Sanity check, make sure this isn't a duplicate registration.
-	 */
+	/* Sanity check, make sure this isn't a duplicate registration. */
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_FOREACH(fe_tmp, &softc->fe_list, links) {
 		if (strcmp(fe_tmp->name, fe->name) == 0) {
@@ -86,11 +85,14 @@ ctl_frontend_register(struct ctl_frontend *fe)
 	mtx_unlock(&softc->ctl_lock);
 	STAILQ_INIT(&fe->port_list);
 
-	/*
-	 * Call the frontend's initialization routine.
-	 */
-	if (fe->init != NULL)
-		fe->init();
+	/* Call the frontend's initialization routine. */
+	if (fe->init != NULL) {
+		if ((error = fe->init()) != 0) {
+			printf("%s frontend init error: %d\n",
+			    fe->name, error);
+			return (error);
+		}
+	}
 
 	mtx_lock(&softc->ctl_lock);
 	softc->num_frontends++;
@@ -103,20 +105,21 @@ int
 ctl_frontend_deregister(struct ctl_frontend *fe)
 {
 	struct ctl_softc *softc = control_softc;
+	int error;
 
-	if (!STAILQ_EMPTY(&fe->port_list))
-		return (-1);
+	/* Call the frontend's shutdown routine.*/
+	if (fe->shutdown != NULL) {
+		if ((error = fe->shutdown()) != 0) {
+			printf("%s frontend shutdown error: %d\n",
+			    fe->name, error);
+			return (error);
+		}
+	}
 
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_REMOVE(&softc->fe_list, fe, ctl_frontend, links);
 	softc->num_frontends--;
 	mtx_unlock(&softc->ctl_lock);
-
-	/*
-	 * Call the frontend's shutdown routine.
-	 */
-	if (fe->shutdown != NULL)
-		fe->shutdown();
 	return (0);
 }
 
