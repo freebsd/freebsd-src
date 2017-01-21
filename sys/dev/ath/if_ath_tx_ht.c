@@ -589,8 +589,14 @@ ath_get_aggr_limit(struct ath_softc *sc, struct ieee80211_node *ni,
 		amin = MIN(amin, bf->bf_state.bfs_rc[i].max4msframelen);
 	}
 
-	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: max frame len= %d\n",
-	    __func__, amin);
+	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
+	    "%s: aggr_limit=%d, iv_ampdu_limit=%d, "
+	    "peer maxrxampdu=%d, max frame len=%d\n",
+	    __func__,
+	    sc->sc_aggr_limit,
+	    vap->iv_ampdu_limit,
+	    MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU),
+	    amin);
 
 	return amin;
 #undef	MS
