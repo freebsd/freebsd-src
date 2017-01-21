@@ -73,14 +73,14 @@ int camxferrate(struct cam_device *device);
 int fwdownload(struct cam_device *device, int argc, char **argv,
 	       char *combinedopt, int printerrors, int retry_count,
 	       int timeout);
-void mode_sense(struct cam_device *device, int mode_page, int page_control,
-		int dbd, int retry_count, int timeout, u_int8_t *data,
+void mode_sense(struct cam_device *device, int dbd, int pc, int page,
+		int subpage, int retry_count, int timeout, uint8_t *data,
 		int datalen);
 void mode_select(struct cam_device *device, int save_pages, int retry_count,
 		 int timeout, u_int8_t *data, int datalen);
-void mode_edit(struct cam_device *device, int page, int page_control, int dbd,
+void mode_edit(struct cam_device *device, int dbd, int pc, int page, int subpage,
 	       int edit, int binary, int retry_count, int timeout);
-void mode_list(struct cam_device *device, int page_control, int dbd,
+void mode_list(struct cam_device *device, int dbd, int pc, int subpages,
 	       int retry_count, int timeout);
 int scsidoinquiry(struct cam_device *device, int argc, char **argv,
 		  char *combinedopt, int retry_count, int timeout);
