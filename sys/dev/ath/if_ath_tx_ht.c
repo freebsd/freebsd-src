@@ -239,7 +239,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 	 * it if any of the rate entries aren't 11n.
 	 */
 	do_ldpc = 0;
-	if ((ni->ni_vap->iv_htcaps & IEEE80211_HTCAP_LDPC) &&
+	if ((ni->ni_vap->iv_flags_ht & IEEE80211_FHT_LDPC_TX) &&
 	    (ni->ni_htcap & IEEE80211_HTCAP_LDPC))
 		do_ldpc = 1;
 
