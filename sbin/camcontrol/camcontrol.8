@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2016
+.Dd January 6, 2017
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -121,7 +121,7 @@
 .Ic modepage
 .Op device id
 .Op generic args
-.Aq Fl m Ar page | Fl l
+.Aq Fl m Ar page[,subpage] | Fl l
 .Op Fl P Ar pgctl
 .Op Fl b | Fl e
 .Op Fl d
@@ -678,9 +678,10 @@ The editor will be invoked if
 detects that standard input is terminal.
 .It Fl l
 Lists all available mode pages.
-.It Fl m Ar mode_page
-This specifies the number of the mode page the user would like to view
-and/or edit.
+If specified more then once, also lists subpages.
+.It Fl m Ar page[,subpage]
+This specifies the number of the mode page and optionally subpage the user
+would like to view and/or edit.
 This argument is mandatory unless
 .Fl l
 is specified.
