@@ -100,10 +100,11 @@ __FBSDID("$FreeBSD$");
  */
 
 static int
-do_buff_decode(u_int8_t *databuf, size_t len,
+do_buff_decode(u_int8_t *buff, size_t len,
 	       void (*arg_put)(void *, int , void *, int, char *),
 	       void *puthook, const char *fmt, va_list *ap)
 {
+	int ind = 0;
 	int assigned = 0;
 	int width;
 	int suppress;
@@ -112,21 +113,17 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 	static u_char mask[] = {0, 0x01, 0x03, 0x07, 0x0f,
 				   0x1f, 0x3f, 0x7f, 0xff};
 	int value;
-	u_char *base = databuf;
 	char *intendp;
 	char letter;
 	char field_name[80];
 
-#	define ARG_PUT(ARG) \
-	do \
-	{ \
-		if (!suppress) \
-		{ \
+#define ARG_PUT(ARG) \
+	do { \
+		if (!suppress) { \
 			if (arg_put) \
-				(*arg_put)(puthook, (letter == 't' ? \
-					'b' : letter), \
-					(void *)((long)(ARG)), width, \
-					field_name); \
+				(*arg_put)(puthook, (letter == 't' ? 'b' : \
+				    letter), (void *)((long)(ARG)), width, \
+				    field_name); \
 			else \
 				*(va_arg(*ap, int *)) = (ARG); \
 			assigned++; \
@@ -187,7 +184,11 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 				done = 1;
 			else {
 				if (shift <= 0) {
-					bits = *databuf++;
+					if (ind >= len) {
+						done = 1;
+						break;
+					}
+					bits = buff[ind++];
 					shift = 8;
 				}
 				value = (bits >> (shift - width)) &
@@ -209,29 +210,31 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 			fmt++;
 			width = strtol(fmt, &intendp, 10);
 			fmt = intendp;
+			if (ind + width > len) {
+				done = 1;
+				break;
+			}
 			switch(width) {
 			case 1:
-				ARG_PUT(*databuf);
-				databuf++;
+				ARG_PUT(buff[ind]);
+				ind++;
 				break;
 
 			case 2:
-				ARG_PUT((*databuf) << 8 | *(databuf + 1));
-				databuf += 2;
+				ARG_PUT(buff[ind] << 8 | buff[ind + 1]);
+				ind += 2;
 				break;
 
 			case 3:
-				ARG_PUT((*databuf) << 16 |
-					(*(databuf + 1)) << 8 | *(databuf + 2));
-				databuf += 3;
+				ARG_PUT(buff[ind] << 16 |
+					buff[ind + 1] << 8 | buff[ind + 2]);
+				ind += 3;
 				break;
 
 			case 4:
-				ARG_PUT((*databuf) << 24 |
-					(*(databuf + 1)) << 16 |
-					(*(databuf + 2)) << 8 |
-					*(databuf + 3));
-				databuf += 4;
+				ARG_PUT(buff[ind] << 24 | buff[ind + 1] << 16 |
+					buff[ind + 2] << 8 | buff[ind + 3]);
+				ind += 4;
 				break;
 
 			default:
@@ -242,32 +245,35 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 			break;
 
 		case 'c':	/* Characters (i.e., not swapped) */
-		case 'z':	/* Characters with zeroed trailing
-					   spaces  */
+		case 'z':	/* Characters with zeroed trailing spaces */
 			shift = 0;
 			fmt++;
 			width = strtol(fmt, &intendp, 10);
 			fmt = intendp;
+			if (ind + width > len) {
+				done = 1;
+				break;
+			}
 			if (!suppress) {
 				if (arg_put)
 					(*arg_put)(puthook,
-						(letter == 't' ? 'b' : letter),
-						databuf, width, field_name);
+					    (letter == 't' ? 'b' : letter),
+					    &buff[ind], width, field_name);
 				else {
 					char *dest;
 					dest = va_arg(*ap, char *);
-					bcopy(databuf, dest, width);
+					bcopy(&buff[ind], dest, width);
 					if (letter == 'z') {
 						char *p;
 						for (p = dest + width - 1;
-						     (p >= (char *)dest)
-						     && (*p == ' '); p--)
+						    p >= dest && *p == ' ';
+						    p--)
 							*p = 0;
 					}
 				}
 				assigned++;
 			}
-			databuf += width;
+			ind += width;
 			field_name[0] = 0;
 			suppress = 0;
 			break;
@@ -295,9 +301,9 @@ do_buff_decode(u_int8_t *databuf, size_t len,
 			}
 
 			if (plus)
-				databuf += width;	/* Relative seek */
+				ind += width;	/* Relative seek */
 			else
-				databuf = base + width;	/* Absolute seek */
+				ind = width;	/* Absolute seek */
 
 			break;
 
