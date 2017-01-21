@@ -104,10 +104,8 @@ struct cpsw_softc {
 	struct resource	*irq_res[CPSW_INTR_COUNT];
 	void		*ih_cookie[CPSW_INTR_COUNT];
 
-	/* An mbuf full of nulls for TX padding. */
-	bus_dmamap_t null_mbuf_dmamap;
-	struct mbuf *null_mbuf;
-	bus_addr_t null_mbuf_paddr;
+	/* A buffer full of nulls for TX padding. */
+	void		*nullpad;
 
 	bus_dma_tag_t	mbuf_dtag;
 
