@@ -2,6 +2,13 @@
 #include <sys/stat.h>
 #include <fts.h>
 #include <stdio.h>
+#include <string.h>
+
+#ifdef FTS_COMPARE_CONST
+int fts_compare(const FTSENT *const *, const FTSENT *const *);
+#else
+int fts_compare(const FTSENT **, const FTSENT **);
+#endif
 
 int
 main(void)
@@ -14,7 +21,7 @@ main(void)
 	argv[1] = (char *)NULL;
 
 	ftsp = fts_open((char * const *)argv,
-	    FTS_PHYSICAL | FTS_NOCHDIR, NULL);
+	    FTS_PHYSICAL | FTS_NOCHDIR, fts_compare);
 
 	if (ftsp == NULL) {
 		perror("fts_open");
@@ -39,4 +46,14 @@ main(void)
 	}
 
 	return 0;
+}
+
+int
+#ifdef FTS_COMPARE_CONST
+fts_compare(const FTSENT *const *a, const FTSENT *const *b)
+#else
+fts_compare(const FTSENT **a, const FTSENT **b)
+#endif
+{
+	return strcmp((*a)->fts_name, (*b)->fts_name);
 }

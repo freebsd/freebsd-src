@@ -1,4 +1,4 @@
-/*	$Id: test-vasprintf.c,v 1.3 2015/10/06 18:32:20 schwarze Exp $	*/
+/*	$Id: test-vasprintf.c,v 1.4 2016/07/18 18:35:05 schwarze Exp $	*/
 /*
  * Copyright (c) 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -23,7 +23,10 @@
 #include <stdio.h>
 #include <string.h>
 
-int
+static int	 testfunc(char **, const char *, ...);
+
+
+static int
 testfunc(char **ret, const char *format, ...)
 {
 	va_list	 ap;
