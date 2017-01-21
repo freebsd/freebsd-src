@@ -557,7 +557,7 @@ editlist_populate(struct cam_device *device, int dbd, int pc, int page,
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
 	struct scsi_mode_page_header_sp *mphsp;
-	int len;
+	size_t len;
 
 	STAILQ_INIT(&editlist);
 
@@ -575,6 +575,7 @@ editlist_populate(struct cam_device *device, int dbd, int pc, int page,
 		mode_pars = (uint8_t *)(mphsp + 1);
 		len = scsi_2btoul(mphsp->page_length);
 	}
+	len = MIN(len, sizeof(data) - (mode_pars - data));
 
 	/* Decode the value data, creating edit_entries for each value. */
 	buff_decode_visit(mode_pars, len, format, editentry_create, 0);
@@ -594,7 +595,7 @@ editlist_save(struct cam_device *device, int dbd, int pc, int page,
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
 	struct scsi_mode_page_header_sp *mphsp;
-	int len, hlen;
+	size_t len, hlen;
 
 	/* Make sure that something changed before continuing. */
 	if (! editlist_changed)
@@ -617,6 +618,7 @@ editlist_save(struct cam_device *device, int dbd, int pc, int page,
 		mode_pars = (uint8_t *)(mphsp + 1);
 		len = scsi_2btoul(mphsp->page_length);
 	}
+	len = MIN(len, sizeof(data) - (mode_pars - data));
 
 	/* Encode the value data to be passed back to the device. */
 	buff_encode_visit(mode_pars, len, format, editentry_save, 0);
@@ -814,7 +816,7 @@ modepage_dump(struct cam_device *device, int dbd, int pc, int page, int subpage,
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
 	struct scsi_mode_page_header_sp *mphsp;
-	int indx, len;
+	size_t indx, len;
 
 	mode_sense(device, dbd, pc, page, subpage, retries, timeout,
 	    data, sizeof(data));
@@ -829,6 +831,7 @@ modepage_dump(struct cam_device *device, int dbd, int pc, int page, int subpage,
 		mode_pars = (uint8_t *)(mphsp + 1);
 		len = scsi_2btoul(mphsp->page_length);
 	}
+	len = MIN(len, sizeof(data) - (mode_pars - data));
 
 	/* Print the raw mode page data with newlines each 8 bytes. */
 	for (indx = 0; indx < len; indx++) {
