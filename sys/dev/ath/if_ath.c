@@ -1638,6 +1638,7 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	 * However, for now that's enforced by the TX path.
 	 */
 	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
+	vap->iv_ampdu_limit = IEEE80211_HTCAP_MAXRXAMPDU_64K;
 
 	avp->av_bslot = -1;
 	if (needbeacon) {
