@@ -1024,7 +1024,7 @@ ctl_isc_ua(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	uint32_t iid = ctl_get_initindex(&msg->hdr.nexus);
 
 	mtx_lock(&softc->ctl_lock);
-	if (msg->hdr.nexus.targ_lun >= CTL_MAX_LUNS ||
+	if (msg->hdr.nexus.targ_mapped_lun >= CTL_MAX_LUNS ||
 	    (lun = softc->ctl_luns[msg->hdr.nexus.targ_mapped_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		return;
@@ -1074,7 +1074,7 @@ ctl_isc_lun_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	    memcmp(&msg->lun.data[0], lun->lun_devid->data, i) != 0)) {
 		mtx_unlock(&lun->lun_lock);
 		printf("%s: Received conflicting HA LUN %d\n",
-		    __func__, msg->hdr.nexus.targ_lun);
+		    __func__, targ_lun);
 		return;
 	} else {
 		/* Record whether peer is primary. */
@@ -1108,7 +1108,7 @@ ctl_isc_lun_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 
 		mtx_unlock(&lun->lun_lock);
 		CTL_DEBUG_PRINT(("%s: Known LUN %d, peer is %s\n",
-		    __func__, msg->hdr.nexus.targ_lun,
+		    __func__, targ_lun,
 		    (msg->lun.flags & CTL_LUN_PRIMARY_SC) ?
 		    "primary" : "secondary"));
 
