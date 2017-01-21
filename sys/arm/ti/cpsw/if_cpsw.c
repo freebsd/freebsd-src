@@ -783,8 +783,7 @@ cpsw_get_fdt_data(struct cpsw_softc *sc, int port)
 static int
 cpsw_attach(device_t dev)
 {
-	bus_dma_segment_t segs[1];
-	int error, i, nsegs;
+	int error, i;
 	struct cpsw_softc *sc;
 	uint32_t reg;
 
@@ -859,15 +858,8 @@ cpsw_attach(device_t dev)
 		return (error);
 	}
 
-	/* Allocate the null mbuf and pre-sync it. */
-	sc->null_mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	memset(sc->null_mbuf->m_data, 0, sc->null_mbuf->m_ext.ext_size);
-	bus_dmamap_create(sc->mbuf_dtag, 0, &sc->null_mbuf_dmamap);
-	bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, sc->null_mbuf_dmamap,
-	    sc->null_mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
-	bus_dmamap_sync(sc->mbuf_dtag, sc->null_mbuf_dmamap,
-	    BUS_DMASYNC_PREWRITE);
-	sc->null_mbuf_paddr = segs[0].ds_addr;
+	/* Allocate a NULL buffer for padding. */
+	sc->nullpad = malloc(ETHER_MIN_LEN, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	cpsw_init_slots(sc);
 
@@ -946,13 +938,9 @@ cpsw_detach(device_t dev)
 	for (i = 0; i < nitems(sc->_slots); ++i)
 		cpsw_free_slot(sc, &sc->_slots[i]);
 
-	/* Free null mbuf. */
-	if (sc->null_mbuf_dmamap) {
-		bus_dmamap_unload(sc->mbuf_dtag, sc->null_mbuf_dmamap);
-		error = bus_dmamap_destroy(sc->mbuf_dtag, sc->null_mbuf_dmamap);
-		KASSERT(error == 0, ("Mapping still active"));
-		m_freem(sc->null_mbuf);
-	}
+	/* Free null padding buffer. */
+	if (sc->nullpad)
+		free(sc->nullpad, M_DEVBUF);
 
 	/* Free DMA tag */
 	if (sc->mbuf_dtag) {
@@ -1829,21 +1817,19 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 			break;
 
 		slot->mbuf = m0;
-		padlen = ETHER_MIN_LEN - slot->mbuf->m_pkthdr.len;
+		padlen = ETHER_MIN_LEN - ETHER_CRC_LEN - m0->m_pkthdr.len;
 		if (padlen < 0)
 			padlen = 0;
+		else if (padlen > 0)
+			m_append(slot->mbuf, padlen, sc->swsc->nullpad);
 
 		/* Create mapping in DMA memory */
 		error = bus_dmamap_load_mbuf_sg(sc->swsc->mbuf_dtag,
 		    slot->dmamap, slot->mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
 		/* If the packet is too fragmented, try to simplify. */
 		if (error == EFBIG ||
-		    (error == 0 &&
-		    nsegs + (padlen > 0 ? 1 : 0) > sc->swsc->tx.avail_queue_len)) {
+		    (error == 0 && nsegs > sc->swsc->tx.avail_queue_len)) {
 			bus_dmamap_unload(sc->swsc->mbuf_dtag, slot->dmamap);
-			if (padlen > 0) /* May as well add padding. */
-				m_append(slot->mbuf, padlen,
-				    sc->swsc->null_mbuf->m_data);
 			m0 = m_defrag(slot->mbuf, M_NOWAIT);
 			if (m0 == NULL) {
 				device_printf(sc->dev,
@@ -1895,7 +1881,7 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 		bd.bufptr = segs[0].ds_addr;
 		bd.bufoff = 0;
 		bd.buflen = segs[0].ds_len;
-		bd.pktlen = m_length(slot->mbuf, NULL) + padlen;
+		bd.pktlen = m_length(slot->mbuf, NULL);
 		bd.flags =  CPDMA_BD_SOP | CPDMA_BD_OWNER;
 		if (sc->swsc->dualemac) {
 			bd.flags |= CPDMA_BD_TO_PORT;
@@ -1920,42 +1906,18 @@ cpswp_tx_enqueue(struct cpswp_softc *sc)
 			bd.pktlen = 0;
 			bd.flags = CPDMA_BD_OWNER;
 		}
+
 		/* Save the final buffer. */
-		if (padlen <= 0)
-			bd.flags |= CPDMA_BD_EOP;
-		else {
-			next = STAILQ_NEXT(slot, next);
-			bd.next = cpsw_cpdma_bd_paddr(sc->swsc, next);
-		}
+		bd.flags |= CPDMA_BD_EOP;
 		cpsw_cpdma_write_bd(sc->swsc, slot, &bd);
 		STAILQ_REMOVE_HEAD(&sc->swsc->tx.avail, next);
 		STAILQ_INSERT_TAIL(&sc->swsc->tx.active, slot, next);
 
-		if (padlen > 0) {
-			slot = STAILQ_FIRST(&sc->swsc->tx.avail);
-
-			/* Setup buffer of null pad bytes (definitely EOP). */
-			bd.next = 0;
-			bd.bufptr = sc->swsc->null_mbuf_paddr;
-			bd.bufoff = 0;
-			bd.buflen = padlen;
-			bd.pktlen = 0;
-			bd.flags = CPDMA_BD_EOP | CPDMA_BD_OWNER;
-			cpsw_cpdma_write_bd(sc->swsc, slot, &bd);
-			++nsegs;
-
-			STAILQ_REMOVE_HEAD(&sc->swsc->tx.avail, next);
-			STAILQ_INSERT_TAIL(&sc->swsc->tx.active, slot, next);
-		}
-
 		last = slot;
-
 		added += nsegs;
 		if (nsegs > sc->swsc->tx.longest_chain)
 			sc->swsc->tx.longest_chain = nsegs;
 
-		// TODO: Should we defer the BPF tap until
-		// after all packets are queued?
 		BPF_MTAP(sc->ifp, m0);
 	}
 
