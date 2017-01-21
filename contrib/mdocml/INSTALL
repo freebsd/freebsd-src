@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.15 2016/07/14 11:09:06 schwarze Exp $
+$Id: INSTALL,v 1.17 2016/07/19 22:40:33 schwarze Exp $
 
 About mdocml, the portable mandoc distribution
 ----------------------------------------------
@@ -35,7 +35,11 @@ To install mandoc manually, the following steps are needed:
 command "echo BUILD_CGI=1 > configure.local".  Then run "cp
 cgi.h.examples cgi.h" and edit cgi.h as desired.
 
-2. Run "./configure".
+2. Define MANPATH_DEFAULT in configure.local
+if /usr/share/man:/usr/X11R6/man:/usr/local/man is not appropriate
+for your operating system.
+
+3. Run "./configure".
 This script attempts autoconfiguration of mandoc for your system.
 Read both its standard output and the file "Makefile.local" it
 generates.  If anything looks wrong or different from what you
@@ -45,28 +49,21 @@ result seems right to you.
 On Solaris 10 and earlier, you may have to run "ksh ./configure"
 because the native /bin/sh lacks some POSIX features.
 
-3. Run "make".
+4. Run "make".
 Any POSIX-compatible make, in particular both BSD make and GNU make,
 should work.  If the build fails, look at "configure.local.example"
 and go back to step 2.
 
-4. Run "make -n install" and check whether everything will be
+5. Run "make -n install" and check whether everything will be
 installed to the intended places.  Otherwise, put some *DIR or *NM*
-variables into "configure.local" and go back to step 2.
+variables into "configure.local" and go back to step 3.
 
-5. Run "sudo make install".  If you intend to build a binary
+6. Run "sudo make install".  If you intend to build a binary
 package using some kind of fake root mechanism, you may need a
 command like "make DESTDIR=... install".  Read the *-install targets
 in the "Makefile" to understand how DESTDIR is used.
 
-6. If you want to use the integrated man(1) and your system uses
-manpath(1), make sure it is configured correctly, in particular,
-it returns all directory trees where manual pages are installed.
-Otherwise, if your system uses man.conf(5), make sure it contains
-a "manpath" line for each directory tree, and the order of these
-lines meets your wishes.
-
-7. If you compiled with database support, run the command "sudo
+7. Run the command "sudo
 makewhatis" to build mandoc.db(5) databases in all the directory
 trees configured in step 6.  Whenever installing new manual pages,
 re-run makewhatis(8) to update the databases, or apropos(1) will
@@ -84,20 +81,9 @@ manual page source.
 
 Understanding mandoc dependencies
 ---------------------------------
-The mandoc(1), man(1), and demandoc(1) utilities only depend
-on the zlib library for decompressing gzipped manual pages,
-but makewhatis(8) and apropos(1) depend on the following
-additional software:
+The following libraries are required:
 
-1. The SQLite database system, see <http://sqlite.org/>.
-The recommended version of SQLite is 3.8.4.3 or newer.  The mandoc
-toolset is known to work with version 3.7.5 or newer.  Versions
-older than 3.8.3 may not achieve full performance due to the
-missing SQLITE_DETERMINISTIC optimization flag.  Versions older
-than 3.8.0 may not show full error information if opening a database
-fails due to the missing sqlite3_errstr() API.  Both are very minor
-problems, apropos(1) is fully usable with SQLite 3.7.5.  Versions
-older than 3.7.5 may or may not work, they have not been tested.
+1. zlib for decompressing gzipped manual pages.
 
 2. The fts(3) directory traversion functions.
 If your system does not have them, the bundled compatibility version

@@ -1,7 +1,7 @@
-/*	$Id: mansearch.c,v 1.65 2016/07/09 15:24:19 schwarze Exp $ */
+/*	$OpenBSD: mansearch.c,v 1.50 2016/07/09 15:23:36 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013, 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -36,121 +36,50 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <sqlite3.h>
-#ifndef SQLITE_DETERMINISTIC
-#define SQLITE_DETERMINISTIC 0
-#endif
-
 #include "mandoc.h"
 #include "mandoc_aux.h"
 #include "mandoc_ohash.h"
 #include "manconf.h"
 #include "mansearch.h"
-
-extern int mansearch_keymax;
-extern const char *const mansearch_keynames[];
-
-#define	SQL_BIND_TEXT(_db, _s, _i, _v) \
-	do { if (SQLITE_OK != sqlite3_bind_text \
-		((_s), (_i)++, (_v), -1, SQLITE_STATIC)) \
-		errx((int)MANDOCLEVEL_SYSERR, "%s", sqlite3_errmsg((_db))); \
-	} while (0)
-#define	SQL_BIND_INT64(_db, _s, _i, _v) \
-	do { if (SQLITE_OK != sqlite3_bind_int64 \
-		((_s), (_i)++, (_v))) \
-		errx((int)MANDOCLEVEL_SYSERR, "%s", sqlite3_errmsg((_db))); \
-	} while (0)
-#define	SQL_BIND_BLOB(_db, _s, _i, _v) \
-	do { if (SQLITE_OK != sqlite3_bind_blob \
-		((_s), (_i)++, (&_v), sizeof(_v), SQLITE_STATIC)) \
-		errx((int)MANDOCLEVEL_SYSERR, "%s", sqlite3_errmsg((_db))); \
-	} while (0)
+#include "dbm.h"
 
 struct	expr {
-	regex_t		 regexp;  /* compiled regexp, if applicable */
-	const char	*substr;  /* to search for, if applicable */
-	struct expr	*next;    /* next in sequence */
-	uint64_t	 bits;    /* type-mask */
-	int		 equal;   /* equality, not subsring match */
-	int		 open;    /* opening parentheses before */
-	int		 and;	  /* logical AND before */
-	int		 close;   /* closing parentheses after */
+	/* Used for terms: */
+	struct dbm_match match;   /* Match type and expression. */
+	uint64_t	 bits;    /* Type mask. */
+	/* Used for OR and AND groups: */
+	struct expr	*next;    /* Next child in the parent group. */
+	struct expr	*child;   /* First child in this group. */
+	enum { EXPR_TERM, EXPR_OR, EXPR_AND } type;
 };
 
-struct	match {
-	uint64_t	 pageid; /* identifier in database */
-	uint64_t	 bits; /* name type mask */
-	char		*desc; /* manual page description */
-	int		 form; /* bit field: formatted, zipped? */
+const char *const mansearch_keynames[KEY_MAX] = {
+	"arch",	"sec",	"Xr",	"Ar",	"Fa",	"Fl",	"Dv",	"Fn",
+	"Ic",	"Pa",	"Cm",	"Li",	"Em",	"Cd",	"Va",	"Ft",
+	"Tn",	"Er",	"Ev",	"Sy",	"Sh",	"In",	"Ss",	"Ox",
+	"An",	"Mt",	"St",	"Bx",	"At",	"Nx",	"Fx",	"Lk",
+	"Ms",	"Bsx",	"Dx",	"Rs",	"Vt",	"Lb",	"Nm",	"Nd"
 };
 
-static	void		 buildnames(const struct mansearch *,
-				struct manpage *, sqlite3 *,
-				sqlite3_stmt *, uint64_t,
-				const char *, int form);
-static	char		*buildoutput(sqlite3 *, sqlite3_stmt *,
-				 uint64_t, uint64_t);
+
+static	struct ohash	*manmerge(struct expr *, struct ohash *);
+static	struct ohash	*manmerge_term(struct expr *, struct ohash *);
+static	struct ohash	*manmerge_or(struct expr *, struct ohash *);
+static	struct ohash	*manmerge_and(struct expr *, struct ohash *);
+static	char		*buildnames(const struct dbm_page *);
+static	char		*buildoutput(size_t, int32_t);
+static	size_t		 lstlen(const char *);
+static	void		 lstcat(char *, size_t *, const char *);
+static	int		 lstmatch(const char *, const char *);
 static	struct expr	*exprcomp(const struct mansearch *,
-				int, char *[]);
+				int, char *[], int *);
+static	struct expr	*expr_and(const struct mansearch *,
+				int, char *[], int *);
+static	struct expr	*exprterm(const struct mansearch *,
+				int, char *[], int *);
 static	void		 exprfree(struct expr *);
-static	struct expr	*exprterm(const struct mansearch *, char *, int);
 static	int		 manpage_compare(const void *, const void *);
-static	void		 sql_append(char **sql, size_t *sz,
-				const char *newstr, int count);
-static	void		 sql_match(sqlite3_context *context,
-				int argc, sqlite3_value **argv);
-static	void		 sql_regexp(sqlite3_context *context,
-				int argc, sqlite3_value **argv);
-static	char		*sql_statement(const struct expr *);
 
-
-int
-mansearch_setup(int start)
-{
-	static void	*pagecache;
-	int		 c;
-
-#define	PC_PAGESIZE	1280
-#define	PC_NUMPAGES	256
-
-	if (start) {
-		if (NULL != pagecache) {
-			warnx("pagecache already enabled");
-			return (int)MANDOCLEVEL_BADARG;
-		}
-
-		pagecache = mmap(NULL, PC_PAGESIZE * PC_NUMPAGES,
-		    PROT_READ | PROT_WRITE,
-		    MAP_SHARED | MAP_ANON, -1, 0);
-
-		if (MAP_FAILED == pagecache) {
-			warn("mmap");
-			pagecache = NULL;
-			return (int)MANDOCLEVEL_SYSERR;
-		}
-
-		c = sqlite3_config(SQLITE_CONFIG_PAGECACHE,
-		    pagecache, PC_PAGESIZE, PC_NUMPAGES);
-
-		if (SQLITE_OK == c)
-			return (int)MANDOCLEVEL_OK;
-
-		warnx("pagecache: %s", sqlite3_errstr(c));
-
-	} else if (NULL == pagecache) {
-		warnx("pagecache missing");
-		return (int)MANDOCLEVEL_BADARG;
-	}
-
-	if (-1 == munmap(pagecache, PC_PAGESIZE * PC_NUMPAGES)) {
-		warn("munmap");
-		pagecache = NULL;
-		return (int)MANDOCLEVEL_SYSERR;
-	}
-
-	pagecache = NULL;
-	return (int)MANDOCLEVEL_OK;
-}
 
 int
 mansearch(const struct mansearch *search,
@@ -158,21 +87,18 @@ mansearch(const struct mansearch *search,
 		int argc, char *argv[],
 		struct manpage **res, size_t *sz)
 {
-	int64_t		 pageid;
-	uint64_t	 outbit, iterbit;
 	char		 buf[PATH_MAX];
-	char		*sql;
+	struct dbm_res	*rp;
+	struct expr	*e;
+	struct dbm_page	*page;
 	struct manpage	*mpage;
-	struct expr	*e, *ep;
-	sqlite3		*db;
-	sqlite3_stmt	*s, *s2;
-	struct match	*mp;
-	struct ohash	 htab;
-	unsigned int	 idx;
-	size_t		 i, j, cur, maxres;
-	int		 c, chdir_status, getcwd_status, indexbit;
+	struct ohash	*htab;
+	size_t		 cur, i, maxres, outkey;
+	unsigned int	 slot;
+	int		 argi, chdir_status, getcwd_status, im;
 
-	if (argc == 0 || (e = exprcomp(search, argc, argv)) == NULL) {
+	argi = 0;
+	if ((e = exprcomp(search, argc, argv, &argi)) == NULL) {
 		*sz = 0;
 		return 0;
 	}
@@ -180,19 +106,14 @@ mansearch(const struct mansearch *search,
 	cur = maxres = 0;
 	*res = NULL;
 
-	if (NULL != search->outkey) {
-		outbit = TYPE_Nd;
-		for (indexbit = 0, iterbit = 1;
-		     indexbit < mansearch_keymax;
-		     indexbit++, iterbit <<= 1) {
+	outkey = KEY_Nd;
+	if (search->outkey != NULL)
+		for (im = 0; im < KEY_MAX; im++)
 			if (0 == strcasecmp(search->outkey,
-			    mansearch_keynames[indexbit])) {
-				outbit = iterbit;
+			    mansearch_keynames[im])) {
+				outkey = im;
 				break;
 			}
-		}
-	} else
-		outbit = 0;
 
 	/*
 	 * Remember the original working directory, if possible.
@@ -207,8 +128,6 @@ mansearch(const struct mansearch *search,
 		(void)strlcpy(buf, strerror(errno), sizeof(buf));
 	} else
 		getcwd_status = 1;
-
-	sql = sql_statement(e);
 
 	/*
 	 * Loop over the directories (containing databases) for us to
@@ -235,123 +154,48 @@ mansearch(const struct mansearch *search,
 		}
 		chdir_status = 1;
 
-		c = sqlite3_open_v2(MANDOC_DB, &db,
-		    SQLITE_OPEN_READONLY, NULL);
-
-		if (SQLITE_OK != c) {
+		if (dbm_open(MANDOC_DB) == -1) {
 			warn("%s/%s", paths->paths[i], MANDOC_DB);
-			sqlite3_close(db);
 			continue;
 		}
 
-		/*
-		 * Define the SQL functions for substring
-		 * and regular expression matching.
-		 */
-
-		c = sqlite3_create_function(db, "match", 2,
-		    SQLITE_UTF8 | SQLITE_DETERMINISTIC,
-		    NULL, sql_match, NULL, NULL);
-		assert(SQLITE_OK == c);
-		c = sqlite3_create_function(db, "regexp", 2,
-		    SQLITE_UTF8 | SQLITE_DETERMINISTIC,
-		    NULL, sql_regexp, NULL, NULL);
-		assert(SQLITE_OK == c);
-
-		j = 1;
-		c = sqlite3_prepare_v2(db, sql, -1, &s, NULL);
-		if (SQLITE_OK != c)
-			errx((int)MANDOCLEVEL_SYSERR,
-			    "%s", sqlite3_errmsg(db));
-
-		for (ep = e; NULL != ep; ep = ep->next) {
-			if (NULL == ep->substr) {
-				SQL_BIND_BLOB(db, s, j, ep->regexp);
-			} else
-				SQL_BIND_TEXT(db, s, j, ep->substr);
-			if (0 == ((TYPE_Nd | TYPE_Nm) & ep->bits))
-				SQL_BIND_INT64(db, s, j, ep->bits);
+		if ((htab = manmerge(e, NULL)) == NULL) {
+			dbm_close();
+			continue;
 		}
 
-		mandoc_ohash_init(&htab, 4, offsetof(struct match, pageid));
+		for (rp = ohash_first(htab, &slot); rp != NULL;
+		    rp = ohash_next(htab, &slot)) {
+			page = dbm_page_get(rp->page);
 
-		/*
-		 * Hash each entry on its [unique] document identifier.
-		 * This is a uint64_t.
-		 * Instead of using a hash function, simply convert the
-		 * uint64_t to a uint32_t, the hash value's type.
-		 * This gives good performance and preserves the
-		 * distribution of buckets in the table.
-		 */
-		while (SQLITE_ROW == (c = sqlite3_step(s))) {
-			pageid = sqlite3_column_int64(s, 2);
-			idx = ohash_lookup_memory(&htab,
-			    (char *)&pageid, sizeof(uint64_t),
-			    (uint32_t)pageid);
-
-			if (NULL != ohash_find(&htab, idx))
+			if (lstmatch(search->sec, page->sect) == 0 ||
+			    lstmatch(search->arch, page->arch) == 0)
 				continue;
 
-			mp = mandoc_calloc(1, sizeof(struct match));
-			mp->pageid = pageid;
-			mp->form = sqlite3_column_int(s, 1);
-			mp->bits = sqlite3_column_int64(s, 3);
-			if (TYPE_Nd == outbit)
-				mp->desc = mandoc_strdup((const char *)
-				    sqlite3_column_text(s, 0));
-			ohash_insert(&htab, idx, mp);
-		}
-
-		if (SQLITE_DONE != c)
-			warnx("%s", sqlite3_errmsg(db));
-
-		sqlite3_finalize(s);
-
-		c = sqlite3_prepare_v2(db,
-		    "SELECT sec, arch, name, pageid FROM mlinks "
-		    "WHERE pageid=? ORDER BY sec, arch, name",
-		    -1, &s, NULL);
-		if (SQLITE_OK != c)
-			errx((int)MANDOCLEVEL_SYSERR,
-			    "%s", sqlite3_errmsg(db));
-
-		c = sqlite3_prepare_v2(db,
-		    "SELECT bits, key, pageid FROM keys "
-		    "WHERE pageid=? AND bits & ?",
-		    -1, &s2, NULL);
-		if (SQLITE_OK != c)
-			errx((int)MANDOCLEVEL_SYSERR,
-			    "%s", sqlite3_errmsg(db));
-
-		for (mp = ohash_first(&htab, &idx);
-				NULL != mp;
-				mp = ohash_next(&htab, &idx)) {
 			if (cur + 1 > maxres) {
 				maxres += 1024;
 				*res = mandoc_reallocarray(*res,
-				    maxres, sizeof(struct manpage));
+				    maxres, sizeof(**res));
 			}
 			mpage = *res + cur;
+			mandoc_asprintf(&mpage->file, "%s/%s",
+			    paths->paths[i], page->file + 1);
+			mpage->names = buildnames(page);
+			mpage->output = (int)outkey == KEY_Nd ?
+			    mandoc_strdup(page->desc) :
+			    buildoutput(outkey, page->addr);
 			mpage->ipath = i;
-			mpage->bits = mp->bits;
-			mpage->sec = 10;
-			mpage->form = mp->form;
-			buildnames(search, mpage, db, s, mp->pageid,
-			    paths->paths[i], mp->form);
-			if (mpage->names != NULL) {
-				mpage->output = TYPE_Nd & outbit ?
-				    mp->desc : outbit ?
-				    buildoutput(db, s2, mp->pageid, outbit) :
-				    NULL;
-				cur++;
-			}
-			free(mp);
+			mpage->bits = rp->bits;
+			mpage->sec = *page->sect - '0';
+			if (mpage->sec < 0 || mpage->sec > 9)
+				mpage->sec = 10;
+			mpage->form = *page->file;
+			free(rp);
+			cur++;
 		}
-
-		sqlite3_finalize(s);
-		sqlite3_finalize(s2);
-		sqlite3_close(db);
-		ohash_delete(&htab);
+		ohash_delete(htab);
+		free(htab);
+		dbm_close();
 
 		/*
 		 * In man(1) mode, prefer matches in earlier trees
@@ -365,9 +209,167 @@ mansearch(const struct mansearch *search,
 	if (chdir_status && getcwd_status && chdir(buf) == -1)
 		warn("%s", buf);
 	exprfree(e);
-	free(sql);
 	*sz = cur;
 	return 1;
+}
+
+/*
+ * Merge the results for the expression tree rooted at e
+ * into the the result list htab.
+ */
+static struct ohash *
+manmerge(struct expr *e, struct ohash *htab)
+{
+	switch (e->type) {
+	case EXPR_TERM:
+		return manmerge_term(e, htab);
+	case EXPR_OR:
+		return manmerge_or(e->child, htab);
+	case EXPR_AND:
+		return manmerge_and(e->child, htab);
+	default:
+		abort();
+	}
+}
+
+static struct ohash *
+manmerge_term(struct expr *e, struct ohash *htab)
+{
+	struct dbm_res	 res, *rp;
+	uint64_t	 ib;
+	unsigned int	 slot;
+	int		 im;
+
+	if (htab == NULL) {
+		htab = mandoc_malloc(sizeof(*htab));
+		mandoc_ohash_init(htab, 4, offsetof(struct dbm_res, page));
+	}
+
+	for (im = 0, ib = 1; im < KEY_MAX; im++, ib <<= 1) {
+		if ((e->bits & ib) == 0)
+			continue;
+
+		switch (ib) {
+		case TYPE_arch:
+			dbm_page_byarch(&e->match);
+			break;
+		case TYPE_sec:
+			dbm_page_bysect(&e->match);
+			break;
+		case TYPE_Nm:
+			dbm_page_byname(&e->match);
+			break;
+		case TYPE_Nd:
+			dbm_page_bydesc(&e->match);
+			break;
+		default:
+			dbm_page_bymacro(im - 2, &e->match);
+			break;
+		}
+
+		/*
+		 * When hashing for deduplication, use the unique
+		 * page ID itself instead of a hash function;
+		 * that is quite efficient.
+		 */
+
+		for (;;) {
+			res = dbm_page_next();
+			if (res.page == -1)
+				break;
+			slot = ohash_lookup_memory(htab,
+			    (char *)&res, sizeof(res.page), res.page);
+			if ((rp = ohash_find(htab, slot)) != NULL) {
+				rp->bits |= res.bits;
+				continue;
+			}
+			rp = mandoc_malloc(sizeof(*rp));
+			*rp = res;
+			ohash_insert(htab, slot, rp);
+		}
+	}
+	return htab;
+}
+
+static struct ohash *
+manmerge_or(struct expr *e, struct ohash *htab)
+{
+	while (e != NULL) {
+		htab = manmerge(e, htab);
+		e = e->next;
+	}
+	return htab;
+}
+
+static struct ohash *
+manmerge_and(struct expr *e, struct ohash *htab)
+{
+	struct ohash	*hand, *h1, *h2;
+	struct dbm_res	*res;
+	unsigned int	 slot1, slot2;
+
+	/* Evaluate the first term of the AND clause. */
+
+	hand = manmerge(e, NULL);
+
+	while ((e = e->next) != NULL) {
+
+		/* Evaluate the next term and prepare for ANDing. */
+
+		h2 = manmerge(e, NULL);
+		if (ohash_entries(h2) < ohash_entries(hand)) {
+			h1 = h2;
+			h2 = hand;
+		} else
+			h1 = hand;
+		hand = mandoc_malloc(sizeof(*hand));
+		mandoc_ohash_init(hand, 4, offsetof(struct dbm_res, page));
+
+		/* Keep all pages that are in both result sets. */
+
+		for (res = ohash_first(h1, &slot1); res != NULL;
+		    res = ohash_next(h1, &slot1)) {
+			if (ohash_find(h2, ohash_lookup_memory(h2,
+			    (char *)res, sizeof(res->page),
+			    res->page)) == NULL)
+				free(res);
+			else
+				ohash_insert(hand, ohash_lookup_memory(hand,
+				    (char *)res, sizeof(res->page),
+				    res->page), res);
+		}
+
+		/* Discard the merged results. */
+
+		for (res = ohash_first(h2, &slot2); res != NULL;
+		    res = ohash_next(h2, &slot2))
+			free(res);
+		ohash_delete(h2);
+		free(h2);
+		ohash_delete(h1);
+		free(h1);
+	}
+
+	/* Merge the result of the AND into htab. */
+
+	if (htab == NULL)
+		return hand;
+
+	for (res = ohash_first(hand, &slot1); res != NULL;
+	    res = ohash_next(hand, &slot1)) {
+		slot2 = ohash_lookup_memory(htab,
+		    (char *)res, sizeof(res->page), res->page);
+		if (ohash_find(htab, slot2) == NULL)
+			ohash_insert(htab, slot2, res);
+		else
+			free(res);
+	}
+
+	/* Discard the merged result. */
+
+	ohash_delete(hand);
+	free(hand);
+	return htab;
 }
 
 void
@@ -396,260 +398,114 @@ manpage_compare(const void *vp1, const void *vp2)
 	    strcasecmp(mp1->names, mp2->names);
 }
 
-static void
-buildnames(const struct mansearch *search, struct manpage *mpage,
-		sqlite3 *db, sqlite3_stmt *s,
-		uint64_t pageid, const char *path, int form)
+static char *
+buildnames(const struct dbm_page *page)
 {
-	glob_t		 globinfo;
-	char		*firstname, *newnames, *prevsec, *prevarch;
-	const char	*oldnames, *sep1, *name, *sec, *sep2, *arch, *fsec;
-	size_t		 i;
-	int		 c, globres;
+	char	*buf;
+	size_t	 i, sz;
 
-	mpage->file = NULL;
-	mpage->names = NULL;
-	firstname = prevsec = prevarch = NULL;
-	i = 1;
-	SQL_BIND_INT64(db, s, i, pageid);
-	while (SQLITE_ROW == (c = sqlite3_step(s))) {
-
-		/* Decide whether we already have some names. */
-
-		if (NULL == mpage->names) {
-			oldnames = "";
-			sep1 = "";
-		} else {
-			oldnames = mpage->names;
-			sep1 = ", ";
-		}
-
-		/* Fetch the next name, rejecting sec/arch mismatches. */
-
-		sec = (const char *)sqlite3_column_text(s, 0);
-		if (search->sec != NULL && strcasecmp(sec, search->sec))
-			continue;
-		arch = (const char *)sqlite3_column_text(s, 1);
-		if (search->arch != NULL && *arch != '\0' &&
-		    strcasecmp(arch, search->arch))
-			continue;
-		name = (const char *)sqlite3_column_text(s, 2);
-
-		/* Remember the first section found. */
-
-		if (9 < mpage->sec && '1' <= *sec && '9' >= *sec)
-			mpage->sec = (*sec - '1') + 1;
-
-		/* If the section changed, append the old one. */
-
-		if (NULL != prevsec &&
-		    (strcmp(sec, prevsec) ||
-		     strcmp(arch, prevarch))) {
-			sep2 = '\0' == *prevarch ? "" : "/";
-			mandoc_asprintf(&newnames, "%s(%s%s%s)",
-			    oldnames, prevsec, sep2, prevarch);
-			free(mpage->names);
-			oldnames = mpage->names = newnames;
-			free(prevsec);
-			free(prevarch);
-			prevsec = prevarch = NULL;
-		}
-
-		/* Save the new section, to append it later. */
-
-		if (NULL == prevsec) {
-			prevsec = mandoc_strdup(sec);
-			prevarch = mandoc_strdup(arch);
-		}
-
-		/* Append the new name. */
-
-		mandoc_asprintf(&newnames, "%s%s%s",
-		    oldnames, sep1, name);
-		free(mpage->names);
-		mpage->names = newnames;
-
-		/* Also save the first file name encountered. */
-
-		if (mpage->file != NULL)
-			continue;
-
-		if (form & FORM_SRC) {
-			sep1 = "man";
-			fsec = sec;
-		} else {
-			sep1 = "cat";
-			fsec = "0";
-		}
-		sep2 = *arch == '\0' ? "" : "/";
-		mandoc_asprintf(&mpage->file, "%s/%s%s%s%s/%s.%s",
-		    path, sep1, sec, sep2, arch, name, fsec);
-		if (access(mpage->file, R_OK) != -1)
-			continue;
-
-		/* Handle unusual file name extensions. */
-
-		if (firstname == NULL)
-			firstname = mpage->file;
-		else
-			free(mpage->file);
-		mandoc_asprintf(&mpage->file, "%s/%s%s%s%s/%s.*",
-		    path, sep1, sec, sep2, arch, name);
-		globres = glob(mpage->file, 0, NULL, &globinfo);
-		free(mpage->file);
-		mpage->file = globres ? NULL :
-		    mandoc_strdup(*globinfo.gl_pathv);
-		globfree(&globinfo);
+	sz = lstlen(page->name) + 1 + lstlen(page->sect) +
+	    (page->arch == NULL ? 0 : 1 + lstlen(page->arch)) + 2;
+	buf = mandoc_malloc(sz);
+	i = 0;
+	lstcat(buf, &i, page->name);
+	buf[i++] = '(';
+	lstcat(buf, &i, page->sect);
+	if (page->arch != NULL) {
+		buf[i++] = '/';
+		lstcat(buf, &i, page->arch);
 	}
-	if (c != SQLITE_DONE)
-		warnx("%s", sqlite3_errmsg(db));
-	sqlite3_reset(s);
+	buf[i++] = ')';
+	buf[i++] = '\0';
+	assert(i == sz);
+	return buf;
+}
 
-	/* If none of the files is usable, use the first name. */
+/*
+ * Count the buffer space needed to print the NUL-terminated
+ * list of NUL-terminated strings, when printing two separator
+ * characters between strings.
+ */
+static size_t
+lstlen(const char *cp)
+{
+	size_t	 sz;
 
-	if (mpage->file == NULL)
-		mpage->file = firstname;
-	else if (mpage->file != firstname)
-		free(firstname);
+	for (sz = 0;; sz++) {
+		if (cp[0] == '\0') {
+			if (cp[1] == '\0')
+				break;
+			sz++;
+		} else if (cp[0] < ' ')
+			sz--;
+		cp++;
+	}
+	return sz;
+}
 
-	/* Append one final section to the names. */
-
-	if (prevsec != NULL) {
-		sep2 = *prevarch == '\0' ? "" : "/";
-		mandoc_asprintf(&newnames, "%s(%s%s%s)",
-		    mpage->names, prevsec, sep2, prevarch);
-		free(mpage->names);
-		mpage->names = newnames;
-		free(prevsec);
-		free(prevarch);
+/*
+ * Print the NUL-terminated list of NUL-terminated strings
+ * into the buffer, seperating strings with a comma and a blank.
+ */
+static void
+lstcat(char *buf, size_t *i, const char *cp)
+{
+	for (;;) {
+		if (cp[0] == '\0') {
+			if (cp[1] == '\0')
+				break;
+			buf[(*i)++] = ',';
+			buf[(*i)++] = ' ';
+		} else if (cp[0] >= ' ')
+			buf[(*i)++] = cp[0];
+		cp++;
 	}
 }
 
-static char *
-buildoutput(sqlite3 *db, sqlite3_stmt *s, uint64_t pageid, uint64_t outbit)
+/*
+ * Return 1 if the string *want occurs in any of the strings
+ * in the NUL-terminated string list *have, or 0 otherwise.
+ * If either argument is NULL or empty, assume no filtering
+ * is desired and return 1.
+ */
+static int
+lstmatch(const char *want, const char *have)
 {
-	char		*output, *newoutput;
-	const char	*oldoutput, *sep1, *data;
-	size_t		 i;
-	int		 c;
+        if (want == NULL || have == NULL || *have == '\0')
+                return 1;
+        while (*have != '\0') {
+                if (strcasestr(have, want) != NULL)
+                        return 1;
+                have = strchr(have, '\0') + 1;
+        }
+        return 0;
+}
+
+/*
+ * Build a list of values taken by the macro im
+ * in the manual page with big-endian address addr.
+ */
+static char *
+buildoutput(size_t im, int32_t addr)
+{
+	const char	*oldoutput, *sep;
+	char		*output, *newoutput, *value;
 
 	output = NULL;
-	i = 1;
-	SQL_BIND_INT64(db, s, i, pageid);
-	SQL_BIND_INT64(db, s, i, outbit);
-	while (SQLITE_ROW == (c = sqlite3_step(s))) {
-		if (NULL == output) {
+	dbm_macro_bypage(im - 2, addr);
+	while ((value = dbm_macro_next()) != NULL) {
+		if (output == NULL) {
 			oldoutput = "";
-			sep1 = "";
+			sep = "";
 		} else {
 			oldoutput = output;
-			sep1 = " # ";
+			sep = " # ";
 		}
-		data = (const char *)sqlite3_column_text(s, 1);
-		mandoc_asprintf(&newoutput, "%s%s%s",
-		    oldoutput, sep1, data);
+		mandoc_asprintf(&newoutput, "%s%s%s", oldoutput, sep, value);
 		free(output);
 		output = newoutput;
 	}
-	if (SQLITE_DONE != c)
-		warnx("%s", sqlite3_errmsg(db));
-	sqlite3_reset(s);
 	return output;
-}
-
-/*
- * Implement substring match as an application-defined SQL function.
- * Using the SQL LIKE or GLOB operators instead would be a bad idea
- * because that would require escaping metacharacters in the string
- * being searched for.
- */
-static void
-sql_match(sqlite3_context *context, int argc, sqlite3_value **argv)
-{
-
-	assert(2 == argc);
-	sqlite3_result_int(context, NULL != strcasestr(
-	    (const char *)sqlite3_value_text(argv[1]),
-	    (const char *)sqlite3_value_text(argv[0])));
-}
-
-/*
- * Implement regular expression match
- * as an application-defined SQL function.
- */
-static void
-sql_regexp(sqlite3_context *context, int argc, sqlite3_value **argv)
-{
-
-	assert(2 == argc);
-	sqlite3_result_int(context, !regexec(
-	    (regex_t *)sqlite3_value_blob(argv[0]),
-	    (const char *)sqlite3_value_text(argv[1]),
-	    0, NULL, 0));
-}
-
-static void
-sql_append(char **sql, size_t *sz, const char *newstr, int count)
-{
-	size_t		 newsz;
-
-	newsz = 1 < count ? (size_t)count : strlen(newstr);
-	*sql = mandoc_realloc(*sql, *sz + newsz + 1);
-	if (1 < count)
-		memset(*sql + *sz, *newstr, (size_t)count);
-	else
-		memcpy(*sql + *sz, newstr, newsz);
-	*sz += newsz;
-	(*sql)[*sz] = '\0';
-}
-
-/*
- * Prepare the search SQL statement.
- */
-static char *
-sql_statement(const struct expr *e)
-{
-	char		*sql;
-	size_t		 sz;
-	int		 needop;
-
-	sql = mandoc_strdup(e->equal ?
-	    "SELECT desc, form, pageid, bits "
-		"FROM mpages NATURAL JOIN names WHERE " :
-	    "SELECT desc, form, pageid, 0 FROM mpages WHERE ");
-	sz = strlen(sql);
-
-	for (needop = 0; NULL != e; e = e->next) {
-		if (e->and)
-			sql_append(&sql, &sz, " AND ", 1);
-		else if (needop)
-			sql_append(&sql, &sz, " OR ", 1);
-		if (e->open)
-			sql_append(&sql, &sz, "(", e->open);
-		sql_append(&sql, &sz,
-		    TYPE_Nd & e->bits
-		    ? (NULL == e->substr
-			? "desc REGEXP ?"
-			: "desc MATCH ?")
-		    : TYPE_Nm == e->bits
-		    ? (NULL == e->substr
-			? "pageid IN (SELECT pageid FROM names "
-			  "WHERE name REGEXP ?)"
-			: e->equal
-			? "name = ? "
-			: "pageid IN (SELECT pageid FROM names "
-			  "WHERE name MATCH ?)")
-		    : (NULL == e->substr
-			? "pageid IN (SELECT pageid FROM keys "
-			  "WHERE key REGEXP ? AND bits & ?)"
-			: "pageid IN (SELECT pageid FROM keys "
-			  "WHERE key MATCH ? AND bits & ?)"), 1);
-		if (e->close)
-			sql_append(&sql, &sz, ")", e->close);
-		needop = 1;
-	}
-
-	return sql;
 }
 
 /*
@@ -658,195 +514,238 @@ sql_statement(const struct expr *e)
  * "(", "foo=bar", etc.).
  */
 static struct expr *
-exprcomp(const struct mansearch *search, int argc, char *argv[])
+exprcomp(const struct mansearch *search, int argc, char *argv[], int *argi)
 {
-	uint64_t	 mask;
-	int		 i, toopen, logic, igncase, toclose;
-	struct expr	*first, *prev, *cur, *next;
+	struct expr	*parent, *child;
+	int		 needterm, nested;
 
-	first = cur = NULL;
-	logic = igncase = toopen = toclose = 0;
-
-	for (i = 0; i < argc; i++) {
-		if (0 == strcmp("(", argv[i])) {
-			if (igncase)
-				goto fail;
-			toopen++;
-			toclose++;
-			continue;
-		} else if (0 == strcmp(")", argv[i])) {
-			if (toopen || logic || igncase || NULL == cur)
-				goto fail;
-			cur->close++;
-			if (0 > --toclose)
-				goto fail;
-			continue;
-		} else if (0 == strcmp("-a", argv[i])) {
-			if (toopen || logic || igncase || NULL == cur)
-				goto fail;
-			logic = 1;
-			continue;
-		} else if (0 == strcmp("-o", argv[i])) {
-			if (toopen || logic || igncase || NULL == cur)
-				goto fail;
-			logic = 2;
-			continue;
-		} else if (0 == strcmp("-i", argv[i])) {
-			if (igncase)
-				goto fail;
-			igncase = 1;
+	if ((nested = *argi) == argc)
+		return NULL;
+	needterm = 1;
+	parent = child = NULL;
+	while (*argi < argc) {
+		if (strcmp(")", argv[*argi]) == 0) {
+			if (needterm)
+				warnx("missing term "
+				    "before closing parenthesis");
+			needterm = 0;
+			if (nested)
+				break;
+			warnx("ignoring unmatched right parenthesis");
+			++*argi;
 			continue;
 		}
-		next = exprterm(search, argv[i], !igncase);
-		if (NULL == next)
-			goto fail;
-		if (NULL == first)
-			first = next;
-		else
-			cur->next = next;
-		prev = cur = next;
-
-		/*
-		 * Searching for descriptions must be split out
-		 * because they are stored in the mpages table,
-		 * not in the keys table.
-		 */
-
-		for (mask = TYPE_Nm; mask <= TYPE_Nd; mask <<= 1) {
-			if (mask & cur->bits && ~mask & cur->bits) {
-				next = mandoc_calloc(1,
-				    sizeof(struct expr));
-				memcpy(next, cur, sizeof(struct expr));
-				prev->open = 1;
-				cur->bits = mask;
-				cur->next = next;
-				cur = next;
-				cur->bits &= ~mask;
+		if (strcmp("-o", argv[*argi]) == 0) {
+			if (needterm) {
+				if (*argi > 0)
+					warnx("ignoring -o after %s",
+					    argv[*argi - 1]);
+				else
+					warnx("ignoring initial -o");
 			}
+			needterm = 1;
+			++*argi;
+			continue;
 		}
-		prev->and = (1 == logic);
-		prev->open += toopen;
-		if (cur != prev)
-			cur->close = 1;
-
-		toopen = logic = igncase = 0;
+		needterm = 0;
+		if (child == NULL) {
+			child = expr_and(search, argc, argv, argi);
+			continue;
+		}
+		if (parent == NULL) {
+			parent = mandoc_calloc(1, sizeof(*parent));
+			parent->type = EXPR_OR;
+			parent->next = NULL;
+			parent->child = child;
+		}
+		child->next = expr_and(search, argc, argv, argi);
+		child = child->next;
 	}
-	if ( ! (toopen || logic || igncase || toclose))
-		return first;
-
-fail:
-	if (NULL != first)
-		exprfree(first);
-	return NULL;
+	if (needterm && *argi)
+		warnx("ignoring trailing %s", argv[*argi - 1]);
+	return parent == NULL ? child : parent;
 }
 
 static struct expr *
-exprterm(const struct mansearch *search, char *buf, int cs)
+expr_and(const struct mansearch *search, int argc, char *argv[], int *argi)
+{
+	struct expr	*parent, *child;
+	int		 needterm;
+
+	needterm = 1;
+	parent = child = NULL;
+	while (*argi < argc) {
+		if (strcmp(")", argv[*argi]) == 0) {
+			if (needterm)
+				warnx("missing term "
+				    "before closing parenthesis");
+			needterm = 0;
+			break;
+		}
+		if (strcmp("-o", argv[*argi]) == 0)
+			break;
+		if (strcmp("-a", argv[*argi]) == 0) {
+			if (needterm) {
+				if (*argi > 0)
+					warnx("ignoring -a after %s",
+					    argv[*argi - 1]);
+				else
+					warnx("ignoring initial -a");
+			}
+			needterm = 1;
+			++*argi;
+			continue;
+		}
+		if (needterm == 0)
+			break;
+		if (child == NULL) {
+			child = exprterm(search, argc, argv, argi);
+			if (child != NULL)
+				needterm = 0;
+			continue;
+		}
+		needterm = 0;
+		if (parent == NULL) {
+			parent = mandoc_calloc(1, sizeof(*parent));
+			parent->type = EXPR_AND;
+			parent->next = NULL;
+			parent->child = child;
+		}
+		child->next = exprterm(search, argc, argv, argi);
+		if (child->next != NULL) {
+			child = child->next;
+			needterm = 0;
+		}
+	}
+	if (needterm && *argi)
+		warnx("ignoring trailing %s", argv[*argi - 1]);
+	return parent == NULL ? child : parent;
+}
+
+static struct expr *
+exprterm(const struct mansearch *search, int argc, char *argv[], int *argi)
 {
 	char		 errbuf[BUFSIZ];
 	struct expr	*e;
 	char		*key, *val;
 	uint64_t	 iterbit;
-	int		 i, irc;
+	int		 cs, i, irc;
 
-	if ('\0' == *buf)
-		return NULL;
+	if (strcmp("(", argv[*argi]) == 0) {
+		++*argi;
+		e = exprcomp(search, argc, argv, argi);
+		if (*argi < argc) {
+			assert(strcmp(")", argv[*argi]) == 0);
+			++*argi;
+		} else
+			warnx("unclosed parenthesis");
+		return e;
+	}
 
-	e = mandoc_calloc(1, sizeof(struct expr));
+	e = mandoc_calloc(1, sizeof(*e));
+	e->type = EXPR_TERM;
+	e->bits = 0;
+	e->next = NULL;
+	e->child = NULL;
 
 	if (search->argmode == ARG_NAME) {
 		e->bits = TYPE_Nm;
-		e->substr = buf;
-		e->equal = 1;
+		e->match.type = DBM_EXACT;
+		e->match.str = argv[(*argi)++];
 		return e;
 	}
 
 	/*
 	 * Separate macro keys from search string.
-	 * If needed, request regular expression handling
-	 * by setting e->substr to NULL.
+	 * If needed, request regular expression handling.
 	 */
 
 	if (search->argmode == ARG_WORD) {
 		e->bits = TYPE_Nm;
-		e->substr = NULL;
+		e->match.type = DBM_REGEX;
 #if HAVE_REWB_BSD
-		mandoc_asprintf(&val, "[[:<:]]%s[[:>:]]", buf);
+		mandoc_asprintf(&val, "[[:<:]]%s[[:>:]]", argv[*argi]);
 #elif HAVE_REWB_SYSV
-		mandoc_asprintf(&val, "\\<%s\\>", buf);
+		mandoc_asprintf(&val, "\\<%s\\>", argv[*argi]);
 #else
 		mandoc_asprintf(&val,
-		    "(^|[^a-zA-Z01-9_])%s([^a-zA-Z01-9_]|$)", buf);
+		    "(^|[^a-zA-Z01-9_])%s([^a-zA-Z01-9_]|$)", argv[*argi]);
 #endif
 		cs = 0;
-	} else if ((val = strpbrk(buf, "=~")) == NULL) {
+	} else if ((val = strpbrk(argv[*argi], "=~")) == NULL) {
 		e->bits = TYPE_Nm | TYPE_Nd;
-		e->substr = buf;
+		e->match.type = DBM_SUB;
+		e->match.str = argv[*argi];
 	} else {
-		if (val == buf)
+		if (val == argv[*argi])
 			e->bits = TYPE_Nm | TYPE_Nd;
-		if ('=' == *val)
-			e->substr = val + 1;
+		if (*val == '=') {
+			e->match.type = DBM_SUB;
+			e->match.str = val + 1;
+		} else
+			e->match.type = DBM_REGEX;
 		*val++ = '\0';
-		if (NULL != strstr(buf, "arch"))
+		if (strstr(argv[*argi], "arch") != NULL)
 			cs = 0;
 	}
 
 	/* Compile regular expressions. */
 
-	if (NULL == e->substr) {
-		irc = regcomp(&e->regexp, val,
+	if (e->match.type == DBM_REGEX) {
+		e->match.re = mandoc_malloc(sizeof(*e->match.re));
+		irc = regcomp(e->match.re, val,
 		    REG_EXTENDED | REG_NOSUB | (cs ? 0 : REG_ICASE));
+		if (irc) {
+			regerror(irc, e->match.re, errbuf, sizeof(errbuf));
+			warnx("regcomp /%s/: %s", val, errbuf);
+		}
 		if (search->argmode == ARG_WORD)
 			free(val);
 		if (irc) {
-			regerror(irc, &e->regexp, errbuf, sizeof(errbuf));
-			warnx("regcomp: %s", errbuf);
+			free(e->match.re);
 			free(e);
+			++*argi;
 			return NULL;
 		}
 	}
 
-	if (e->bits)
+	if (e->bits) {
+		++*argi;
 		return e;
+	}
 
 	/*
 	 * Parse out all possible fields.
 	 * If the field doesn't resolve, bail.
 	 */
 
-	while (NULL != (key = strsep(&buf, ","))) {
+	while (NULL != (key = strsep(&argv[*argi], ","))) {
 		if ('\0' == *key)
 			continue;
-		for (i = 0, iterbit = 1;
-		     i < mansearch_keymax;
-		     i++, iterbit <<= 1) {
-			if (0 == strcasecmp(key,
-			    mansearch_keynames[i])) {
+		for (i = 0, iterbit = 1; i < KEY_MAX; i++, iterbit <<= 1) {
+			if (0 == strcasecmp(key, mansearch_keynames[i])) {
 				e->bits |= iterbit;
 				break;
 			}
 		}
-		if (i == mansearch_keymax) {
-			if (strcasecmp(key, "any")) {
-				free(e);
-				return NULL;
-			}
+		if (i == KEY_MAX) {
+			if (strcasecmp(key, "any"))
+				warnx("treating unknown key "
+				    "\"%s\" as \"any\"", key);
 			e->bits |= ~0ULL;
 		}
 	}
 
+	++*argi;
 	return e;
 }
 
 static void
-exprfree(struct expr *p)
+exprfree(struct expr *e)
 {
-	struct expr	*pp;
-
-	while (NULL != p) {
-		pp = p->next;
-		free(p);
-		p = pp;
-	}
+	if (e->next != NULL)
+		exprfree(e->next);
+	if (e->child != NULL)
+		exprfree(e->child);
+	free(e);
 }

@@ -1,4 +1,4 @@
-/*	$Id: demandoc.c,v 1.27 2016/07/09 15:24:19 schwarze Exp $ */
+/*	$Id: demandoc.c,v 1.28 2017/01/10 13:47:00 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -239,7 +239,7 @@ pmdoc(const struct roff_node *p, int *line, int *col, int list)
 {
 
 	for ( ; p; p = p->next) {
-		if (MDOC_LINE & p->flags)
+		if (NODE_LINE & p->flags)
 			pline(p->line, line, col, list);
 		if (ROFFT_TEXT == p->type)
 			pstring(p->string, p->pos, col, list);
@@ -253,7 +253,7 @@ pman(const struct roff_node *p, int *line, int *col, int list)
 {
 
 	for ( ; p; p = p->next) {
-		if (MAN_LINE & p->flags)
+		if (NODE_LINE & p->flags)
 			pline(p->line, line, col, list);
 		if (ROFFT_TEXT == p->type)
 			pstring(p->string, p->pos, col, list);

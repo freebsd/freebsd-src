@@ -1,5 +1,7 @@
 #!/bin/sh
 #
+# $Id: configure,v 1.55 2017/01/12 15:45:05 schwarze Exp $
+#
 # Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -33,26 +35,34 @@ echo "config.log: writing..."
 
 MANPATH_DEFAULT="/usr/share/man:/usr/X11R6/man:/usr/local/man"
 OSNAME=
+UTF8_LOCALE=
 
-CC=`printf "all:\\n\\t@echo \\\$(CC)\\n" | make -f -`
-CFLAGS="-g -W -Wall -Wstrict-prototypes -Wno-unused-parameter -Wwrite-strings"
+CC=`printf "all:\\n\\t@echo \\\$(CC)\\n" | env -i make -sf -`
+CFLAGS="-g -W -Wall -Wmissing-prototypes -Wstrict-prototypes -Wwrite-strings"
+CFLAGS="${CFLAGS} -Wno-unused-parameter"
 LDADD=
 LDFLAGS=
+LD_NANOSLEEP=
 LD_OHASH=
-LD_SQLITE3=
 STATIC="-static"
 
-BUILD_DB=1
 BUILD_CGI=0
+INSTALL_LIBMANDOC=0
 
 HAVE_DIRENT_NAMLEN=
+HAVE_EFTYPE=
+HAVE_ENDIAN=
 HAVE_ERR=
 HAVE_FTS=
+HAVE_FTS_COMPARE_CONST=
 HAVE_GETLINE=
 HAVE_GETSUBOPT=
 HAVE_ISBLANK=
 HAVE_MKDTEMP=
-HAVE_MMAP=
+HAVE_NANOSLEEP=
+HAVE_NTOHL=
+HAVE_OHASH=
+HAVE_PATH_MAX=
 HAVE_PLEDGE=
 HAVE_PROGNAME=
 HAVE_REALLOCARRAY=
@@ -66,13 +76,9 @@ HAVE_STRLCPY=
 HAVE_STRPTIME=
 HAVE_STRSEP=
 HAVE_STRTONUM=
+HAVE_SYS_ENDIAN=
 HAVE_VASPRINTF=
 HAVE_WCHAR=
-
-HAVE_SQLITE3=
-HAVE_SQLITE3_ERRSTR=
-HAVE_OHASH=
-HAVE_MANPATH=
 
 PREFIX="/usr/local"
 BINDIR=
@@ -125,9 +131,9 @@ COMP="${CC} ${CFLAGS} -Wno-unused -Werror"
 # If yes, use the override, if no, do not decide anything yet.
 # Arguments: lower-case test name, manual value
 ismanual() {
-	[ -z "${2}" ] && return 1
-	echo "${1}: manual (${2})" 1>&2
-	echo "${1}: manual (${2})" 1>&3
+	[ -z "${3}" ] && return 1
+	echo "${1}: manual (HAVE_${2}=${3})" 1>&2
+	echo "${1}: manual (HAVE_${2}=${3})" 1>&3
 	echo 1>&3
 	return 0
 }
@@ -138,27 +144,27 @@ ismanual() {
 # Arguments: lower-case test name, upper-case test name, additional CFLAGS
 singletest() {
 	cat 1>&3 << __HEREDOC__
-${1}: testing...
-${COMP} ${3} -o test-${1} test-${1}.c
+${1}${3}: testing...
+${COMP} -o test-${1} test-${1}.c ${3}
 __HEREDOC__
 
-	if ${COMP} ${3} -o "test-${1}" "test-${1}.c" 1>&3 2>&3; then
-		echo "${1}: ${CC} succeeded" 1>&3
+	if ${COMP} -o "test-${1}" "test-${1}.c" ${3} 1>&3 2>&3; then
+		echo "${1}${3}: ${CC} succeeded" 1>&3
 	else
-		echo "${1}: ${CC} failed with $?" 1>&3
+		echo "${1}${3}: ${CC} failed with $?" 1>&3
 		echo 1>&3
 		return 1
 	fi
 
 	if ./test-${1} 1>&3 2>&3; then
-		echo "${1}: yes" 1>&2
-		echo "${1}: yes" 1>&3
+		echo "${1}${3}: yes" 1>&2
+		echo "${1}${3}: yes" 1>&3
 		echo 1>&3
 		eval HAVE_${2}=1
 		rm "test-${1}"
 		return 0
 	else
-		echo "${1}: execution failed with $?" 1>&3
+		echo "${1}${3}: execution failed with $?" 1>&3
 		echo 1>&3
 		rm "test-${1}"
 		return 1
@@ -170,22 +176,42 @@ __HEREDOC__
 # Arguments: lower case name, upper case name, additional CFLAGS
 runtest() {
 	eval _manual=\${HAVE_${2}}
-	ismanual "${1}" "${_manual}" && return 0
+	ismanual "${1}" "${2}" "${_manual}" && return 0
 	singletest "${1}" "${2}" "${3}" && return 0
-	echo "${1}: no" 1>&2
+	echo "${1}${3}: no" 1>&2
 	eval HAVE_${2}=0
 	return 1
 }
 
+# Select a UTF-8 locale.
+get_locale() {
+	[ -n "${HAVE_WCHAR}" ] && [ "${HAVE_WCHAR}" -eq 0 ] && return 0
+	ismanual UTF8_LOCALE UTF8_LOCALE "$UTF8_LOCALE" && return 0
+	echo "UTF8_LOCALE: testing..." 1>&3
+	UTF8_LOCALE=`locale -a | grep -i '^en_US\.UTF-*8$' | head -n 1`
+	if [ -z "${UTF8_LOCALE}" ]; then
+		UTF8_LOCALE=`locale -a | grep -i '\.UTF-*8' | head -n 1`
+		[ -n "${UTF8_LOCALE}" ] || return 1
+	fi
+	echo "UTF8_LOCALE=${UTF8_LOCALE}" 1>&2
+	echo "UTF8_LOCALE=${UTF8_LOCALE}" 1>&3
+	echo 1>&3
+	return 0;
+}
+
+
 # --- library functions ---
 runtest dirent-namlen	DIRENT_NAMLEN	|| true
+runtest be32toh		ENDIAN		|| true
+runtest be32toh		SYS_ENDIAN	-DSYS_ENDIAN || true
+runtest EFTYPE		EFTYPE		|| true
 runtest err		ERR		|| true
-runtest fts		FTS		|| true
 runtest getline		GETLINE		|| true
 runtest getsubopt	GETSUBOPT	|| true
 runtest isblank		ISBLANK		|| true
 runtest mkdtemp		MKDTEMP		|| true
-runtest mmap		MMAP		|| true
+runtest ntohl		NTOHL		|| true
+runtest PATH_MAX	PATH_MAX	|| true
 runtest pledge		PLEDGE		|| true
 runtest sandbox_init	SANDBOX_INIT	|| true
 runtest progname	PROGNAME	|| true
@@ -200,48 +226,48 @@ runtest strptime	STRPTIME	|| true
 runtest strsep		STRSEP		|| true
 runtest strtonum	STRTONUM	|| true
 runtest vasprintf	VASPRINTF	|| true
-runtest wchar		WCHAR		|| true
 
-# --- sqlite3 ---
-if [ ${BUILD_DB} -eq 0 ]; then
-	echo "BUILD_DB=0 (manual)" 1>&2
-	echo "BUILD_DB=0 (manual)" 1>&3
-	echo 1>&3
-	HAVE_SQLITE3=0
-elif ismanual sqlite3 "${HAVE_SQLITE3}"; then
-	if [ -z "${LD_SQLITE3}" ]; then
-		LD_SQLITE3="-lsqlite3"
-	fi
-elif [ -n "${LD_SQLITE3}" ]; then
-	runtest sqlite3 SQLITE3 "${LD_SQLITE3}" || true
-elif singletest sqlite3 SQLITE3 "-lsqlite3"; then
-	LD_SQLITE3="-lsqlite3"
-elif runtest sqlite3 SQLITE3 \
-		"-I/usr/local/include -L/usr/local/lib -lsqlite3"; then
-	LD_SQLITE3="-L/usr/local/lib -lsqlite3"
-	CFLAGS="${CFLAGS} -I/usr/local/include"
-fi
-if [ ${HAVE_SQLITE3} -eq 0 ]; then
-	LD_SQLITE3=
-	if [ ${BUILD_DB} -gt 0 ]; then
-		echo "BUILD_DB=0 (no sqlite3)" 1>&2
-		echo "BUILD_DB=0 (no sqlite3)" 1>&3
-		echo 1>&3
-		BUILD_DB=0
-	fi
+if [ ${HAVE_ENDIAN} -eq 0 -a \
+     ${HAVE_SYS_ENDIAN} -eq 0 -a \
+     ${HAVE_NTOHL} -eq 0 ]; then
+	echo "FATAL: no endian conversion functions found" 1>&2
+	echo "FATAL: no endian conversion functions found" 1>&3
+	exit 1
 fi
 
-# --- sqlite3_errstr ---
-if [ ${BUILD_DB} -eq 0 ]; then
-	HAVE_SQLITE3_ERRSTR=1
-elif ismanual sqlite3_errstr "${HAVE_SQLITE3_ERRSTR}"; then
-	:
+if ismanual fts FTS ${HAVE_FTS}; then
+	HAVE_FTS_COMPARE_CONST=0
+elif runtest fts FTS_COMPARE_CONST -DFTS_COMPARE_CONST; then
+	HAVE_FTS=1
 else
-	runtest sqlite3_errstr SQLITE3_ERRSTR "${LD_SQLITE3}" || true
+	runtest fts FTS || true
+fi
+
+# --- wide character and locale support ---
+if get_locale; then
+	runtest wchar WCHAR -DUTF8_LOCALE=\"${UTF8_LOCALE}\" || true
+else
+	HAVE_WCHAR=0
+	echo "wchar: no (no UTF8_LOCALE)" 1>&2
+	echo "wchar: no (no UTF8_LOCALE)" 1>&3
+fi
+
+# --- nanosleep ---
+if [ -n "${LD_NANOSLEEP}" ]; then
+	runtest nanosleep NANOSLEEP "${LD_NANOSLEEP}" || true
+elif singletest nanosleep NANOSLEEP; then
+	:
+elif runtest nanosleep NANOSLEEP "-lrt"; then
+	LD_NANOSLEEP="-lrt"
+fi
+if [ "${HAVE_NANOSLEEP}" -eq 0 ]; then
+	echo "FATAL: nanosleep: no" 1>&2
+	echo "FATAL: nanosleep: no" 1>&3
+	exit 1
 fi
 
 # --- ohash ---
-if ismanual ohash "${HAVE_OHASH}"; then
+if ismanual ohash OHASH "${HAVE_OHASH}"; then
 	:
 elif [ -n "${LD_OHASH}" ]; then
 	runtest ohash OHASH "${LD_OHASH}" || true
@@ -255,25 +281,10 @@ if [ "${HAVE_OHASH}" -eq 0 ]; then
 fi
 
 # --- LDADD ---
-LDADD="${LDADD} ${LD_SQLITE3} ${LD_OHASH} -lz"
+LDADD="${LDADD} ${LD_NANOSLEEP} ${LD_OHASH} -lz"
 echo "LDADD=\"${LDADD}\"" 1>&2
 echo "LDADD=\"${LDADD}\"" 1>&3
 echo 1>&3
-
-# --- manpath ---
-if ismanual manpath "${HAVE_MANPATH}"; then
-	:
-elif manpath 1>&3 2>&3; then
-	echo "manpath: yes" 1>&2
-	echo "manpath: yes" 1>&3
-	echo 1>&3
-	HAVE_MANPATH=1
-else
-	echo "manpath: no" 1>&2
-	echo "manpath: no" 1>&3
-	echo 1>&3
-	HAVE_MANPATH=0
-fi
 
 # --- write config.h ---
 
@@ -284,8 +295,9 @@ cat << __HEREDOC__
 #error "Do not use C++.  See the INSTALL file."
 #endif
 
-#ifndef MANDOC_CONFIG_H
-#define MANDOC_CONFIG_H
+#if !defined(__GNUC__) || (__GNUC__ < 4)
+#define __attribute__(x)
+#endif
 
 #if defined(__linux__) || defined(__MINT__)
 #define _GNU_SOURCE	/* See test-*.c what needs this. */
@@ -303,17 +315,26 @@ echo
 echo "#define MAN_CONF_FILE \"/etc/${MANM_MANCONF}\""
 echo "#define MANPATH_DEFAULT \"${MANPATH_DEFAULT}\""
 [ -n "${OSNAME}" ] && echo "#define OSNAME \"${OSNAME}\""
+[ -n "${UTF8_LOCALE}" ] && echo "#define UTF8_LOCALE \"${UTF8_LOCALE}\""
 [ -n "${HOMEBREWDIR}" ] && echo "#define HOMEBREWDIR \"${HOMEBREWDIR}\""
+[ ${HAVE_EFTYPE} -eq 0 ] && echo "#define EFTYPE EINVAL"
+[ ${HAVE_PATH_MAX} -eq 0 ] && echo "#define PATH_MAX 4096"
+if [ ${HAVE_ENDIAN} -eq 0 -a ${HAVE_SYS_ENDIAN} -eq 0 ]; then
+	echo "#define be32toh ntohl"
+	echo "#define htobe32 htonl"
+fi
 
 cat << __HEREDOC__
 #define HAVE_DIRENT_NAMLEN ${HAVE_DIRENT_NAMLEN}
+#define HAVE_ENDIAN ${HAVE_ENDIAN}
 #define HAVE_ERR ${HAVE_ERR}
 #define HAVE_FTS ${HAVE_FTS}
+#define HAVE_FTS_COMPARE_CONST ${HAVE_FTS_COMPARE_CONST}
 #define HAVE_GETLINE ${HAVE_GETLINE}
 #define HAVE_GETSUBOPT ${HAVE_GETSUBOPT}
 #define HAVE_ISBLANK ${HAVE_ISBLANK}
 #define HAVE_MKDTEMP ${HAVE_MKDTEMP}
-#define HAVE_MMAP ${HAVE_MMAP}
+#define HAVE_NTOHL ${HAVE_NTOHL}
 #define HAVE_PLEDGE ${HAVE_PLEDGE}
 #define HAVE_PROGNAME ${HAVE_PROGNAME}
 #define HAVE_REALLOCARRAY ${HAVE_REALLOCARRAY}
@@ -327,12 +348,10 @@ cat << __HEREDOC__
 #define HAVE_STRPTIME ${HAVE_STRPTIME}
 #define HAVE_STRSEP ${HAVE_STRSEP}
 #define HAVE_STRTONUM ${HAVE_STRTONUM}
+#define HAVE_SYS_ENDIAN ${HAVE_SYS_ENDIAN}
 #define HAVE_VASPRINTF ${HAVE_VASPRINTF}
 #define HAVE_WCHAR ${HAVE_WCHAR}
-#define HAVE_SQLITE3 ${HAVE_SQLITE3}
-#define HAVE_SQLITE3_ERRSTR ${HAVE_SQLITE3_ERRSTR}
 #define HAVE_OHASH ${HAVE_OHASH}
-#define HAVE_MANPATH ${HAVE_MANPATH}
 
 #define BINM_APROPOS "${BINM_APROPOS}"
 #define BINM_MAKEWHATIS "${BINM_MAKEWHATIS}"
@@ -369,9 +388,6 @@ fi
 [ ${HAVE_REALLOCARRAY} -eq 0 ] && \
 	echo "extern	void	 *reallocarray(void *, size_t, size_t);"
 
-[ ${BUILD_DB} -gt 0 -a ${HAVE_SQLITE3_ERRSTR} -eq 0 ] &&
-	echo "extern	const char *sqlite3_errstr(int);"
-
 [ ${HAVE_STRCASESTR} -eq 0 ] && \
 	echo "extern	char	 *strcasestr(const char *, const char *);"
 
@@ -389,9 +405,6 @@ fi
 
 [ ${HAVE_VASPRINTF} -eq 0 ] && \
 	echo "extern	int	  vasprintf(char **, const char *, va_list);"
-
-echo
-echo "#endif /* MANDOC_CONFIG_H */"
 
 echo "config.h: written" 1>&2
 echo "config.h: written" 1>&3
@@ -414,16 +427,10 @@ exec > Makefile.local
 [ -z "${INSTALL_MAN}"     ] && INSTALL_MAN="${INSTALL} -m 0444"
 [ -z "${INSTALL_DATA}"    ] && INSTALL_DATA="${INSTALL} -m 0444"
 
-if [ ${BUILD_DB} -eq 0 -a ${BUILD_CGI} -gt 0 ]; then
-	echo "BUILD_CGI=0 (no BUILD_DB)" 1>&2
-	echo "BUILD_CGI=0 (no BUILD_DB)" 1>&3
-	BUILD_CGI=0
-fi
-
-BUILD_TARGETS="base-build"
-[ ${BUILD_CGI} -gt 0 ] && BUILD_TARGETS="${BUILD_TARGETS} cgi-build"
-INSTALL_TARGETS="base-install"
-[ ${BUILD_DB}  -gt 0 ] && INSTALL_TARGETS="${INSTALL_TARGETS} db-install"
+BUILD_TARGETS=
+[ ${BUILD_CGI} -gt 0 ] && BUILD_TARGETS="cgi-build"
+INSTALL_TARGETS=
+[ ${INSTALL_LIBMANDOC} -gt 0 ] && INSTALL_TARGETS="lib-install"
 [ ${BUILD_CGI} -gt 0 ] && INSTALL_TARGETS="${INSTALL_TARGETS} cgi-install"
 
 cat << __HEREDOC__
@@ -460,9 +467,6 @@ INSTALL_LIB	= ${INSTALL_LIB}
 INSTALL_MAN	= ${INSTALL_MAN}
 INSTALL_DATA	= ${INSTALL_DATA}
 __HEREDOC__
-
-[ ${BUILD_DB} -gt 0 ] && \
-	echo "MAIN_OBJS	= \$(BASE_OBJS) \$(DB_OBJS)"
 
 echo "Makefile.local: written" 1>&2
 echo "Makefile.local: written" 1>&3

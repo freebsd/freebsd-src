@@ -1,4 +1,4 @@
-/*	$Id: man.c,v 1.166 2015/10/22 21:54:23 schwarze Exp $ */
+/*	$Id: man.c,v 1.167 2017/01/10 13:47:00 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -149,7 +149,7 @@ man_ptext(struct roff_man *man, int line, char *buf, int offs)
 
 	assert(i);
 	if (mandoc_eos(buf, (size_t)i))
-		man->last->flags |= MAN_EOS;
+		man->last->flags |= NODE_EOS;
 
 	man_descope(man, line, offs);
 	return 1;
@@ -340,7 +340,7 @@ man_state(struct roff_man *man, struct roff_node *n)
 	switch(n->tok) {
 	case MAN_nf:
 	case MAN_EX:
-		if (man->flags & MAN_LITERAL && ! (n->flags & MAN_VALID))
+		if (man->flags & MAN_LITERAL && ! (n->flags & NODE_VALID))
 			mandoc_msg(MANDOCERR_NF_SKIP, man->parse,
 			    n->line, n->pos, "nf");
 		man->flags |= MAN_LITERAL;
@@ -348,7 +348,7 @@ man_state(struct roff_man *man, struct roff_node *n)
 	case MAN_fi:
 	case MAN_EE:
 		if ( ! (man->flags & MAN_LITERAL) &&
-		     ! (n->flags & MAN_VALID))
+		     ! (n->flags & NODE_VALID))
 			mandoc_msg(MANDOCERR_FI_SKIP, man->parse,
 			    n->line, n->pos, "fi");
 		man->flags &= ~MAN_LITERAL;
@@ -356,7 +356,7 @@ man_state(struct roff_man *man, struct roff_node *n)
 	default:
 		break;
 	}
-	man->last->flags |= MAN_VALID;
+	man->last->flags |= NODE_VALID;
 }
 
 void

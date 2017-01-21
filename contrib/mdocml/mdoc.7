@@ -1,7 +1,7 @@
-.\"	$Id: mdoc.7,v 1.257 2015/11/05 12:06:45 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.260 2017/01/09 14:10:53 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010, 2011, 2013 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010, 2011, 2013-2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 5 2015 $
+.Dd $Mdocdate: January 9 2017 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -1831,14 +1831,25 @@ The
 list is the most complicated.
 Its syntax is as follows:
 .Pp
-.D1 Pf \. Sx \&It Ar cell Op <TAB> Ar cell ...
 .D1 Pf \. Sx \&It Ar cell Op Sx \&Ta Ar cell ...
+.D1 Pf \. Sx \&It Ar cell Op <TAB> Ar cell ...
 .Pp
 The arguments consist of one or more lines of text and macros
 representing a complete table line.
-Cells within the line are delimited by tabs or by the special
+Cells within the line are delimited by the special
 .Sx \&Ta
-block macro.
+block macro or by literal tab characters.
+.Pp
+Using literal tabs is strongly discouraged because they are very
+hard to use correctly and
+.Nm
+code using them is very hard to read.
+In particular, a blank character is syntactically significant
+before and after the literal tab character.
+If a word precedes or follows the tab without an intervening blank,
+that word is never interpreted as a macro call, but always output
+literally.
+.Pp
 The tab cell delimiter may only be used within the
 .Sx \&It
 line itself; on following lines, only the
@@ -1853,9 +1864,10 @@ Note that quoted strings may span tab-delimited cells on an
 line.
 For example,
 .Pp
-.Dl .It \(dqcol1 ; <TAB> col2 ;\(dq \&;
+.Dl .It \(dqcol1 ,\& <TAB> col2 ,\(dq \&;
 .Pp
-will preserve the semicolon whitespace except for the last.
+will preserve the whitespace before both commas,
+but not the whitespace before the semicolon.
 .Pp
 See also
 .Sx \&Bl .
@@ -2714,14 +2726,13 @@ Link to another manual
 .Pq Qq cross-reference .
 Its syntax is as follows:
 .Pp
-.D1 Pf \. Sx \&Xr Ar name Op section
+.D1 Pf \. Sx \&Xr Ar name section
 .Pp
 Cross reference the
 .Ar name
 and
 .Ar section
-number of another man page;
-omitting the section number is rarely useful.
+number of another man page.
 .Pp
 Examples:
 .Dl \&.Xr mandoc 1
@@ -3033,7 +3044,7 @@ then the macro accepts an arbitrary number of arguments.
 .It Sx \&Ux  Ta    Yes      Ta    Yes      Ta    n
 .It Sx \&Va  Ta    Yes      Ta    Yes      Ta    n
 .It Sx \&Vt  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Xr  Ta    Yes      Ta    Yes      Ta    >0
+.It Sx \&Xr  Ta    Yes      Ta    Yes      Ta    2
 .It Sx \&br  Ta    \&No     Ta    \&No     Ta    0
 .It Sx \&sp  Ta    \&No     Ta    \&No     Ta    1
 .El
@@ -3217,6 +3228,12 @@ but produces large indentations.
 .Xr mandoc_char 7 ,
 .Xr roff 7 ,
 .Xr tbl 7
+.Pp
+The web page
+.Lk http://mdocml.bsd.lv/mdoc/ "extended documentation for the mdoc language"
+provides a few tutorial-style pages for beginners, an extensive style
+guide for advanced authors, and an alphabetic index helping to choose
+the best macros for various kinds of content.
 .Sh HISTORY
 The
 .Nm

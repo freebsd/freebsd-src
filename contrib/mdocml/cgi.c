@@ -1,7 +1,7 @@
-/*	$Id: cgi.c,v 1.135 2016/07/11 22:48:37 schwarze Exp $ */
+/*	$Id: cgi.c,v 1.144 2017/01/21 01:20:31 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015, 2016 Ingo Schwarze <schwarze@usta.de>
+ * Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@usta.de>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -113,17 +113,18 @@ static	const char *const sec_names[] = {
 static	const int sec_MAX = sizeof(sec_names) / sizeof(char *);
 
 static	const char *const arch_names[] = {
-    "amd64",       "alpha",       "armish",      "armv7",
-    "hppa",        "hppa64",      "i386",        "landisk",
+    "amd64",       "alpha",       "armv7",
+    "hppa",        "i386",        "landisk",
     "loongson",    "luna88k",     "macppc",      "mips64",
-    "octeon",      "sgi",         "socppc",      "sparc",
-    "sparc64",     "zaurus",
-    "amiga",       "arc",         "arm32",       "atari",
-    "aviion",      "beagle",      "cats",        "hp300",       
+    "octeon",      "sgi",         "socppc",      "sparc64",
+    "amiga",       "arc",         "armish",      "arm32",
+    "atari",       "aviion",      "beagle",      "cats",
+    "hppa64",      "hp300",
     "ia64",        "mac68k",      "mvme68k",     "mvme88k",
     "mvmeppc",     "palm",        "pc532",       "pegasos",
-    "pmax",        "powerpc",     "solbourne",   "sun3",
-    "vax",         "wgrisc",      "x68k"
+    "pmax",        "powerpc",     "solbourne",   "sparc",
+    "sun3",        "vax",         "wgrisc",      "x68k",
+    "zaurus"
 };
 static	const int arch_MAX = sizeof(arch_names) / sizeof(char *);
 
@@ -137,7 +138,7 @@ html_putchar(char c)
 
 	switch (c) {
 	case ('"'):
-		printf("&quote;");
+		printf("&quot;");
 		break;
 	case ('&'):
 		printf("&amp;");
@@ -337,6 +338,7 @@ resp_copy(const char *filename)
 		fflush(stdout);
 		while ((sz = read(fd, buf, sizeof(buf))) > 0)
 			write(STDOUT_FILENO, buf, sz);
+		close(fd);
 	}
 }
 
@@ -349,13 +351,12 @@ resp_begin_html(int code, const char *msg)
 	printf("<!DOCTYPE html>\n"
 	       "<html>\n"
 	       "<head>\n"
-	       "<meta charset=\"UTF-8\"/>\n"
-	       "<link rel=\"stylesheet\" href=\"%s/mandoc.css\""
+	       "  <meta charset=\"UTF-8\"/>\n"
+	       "  <link rel=\"stylesheet\" href=\"%s/mandoc.css\""
 	       " type=\"text/css\" media=\"all\">\n"
-	       "<title>%s</title>\n"
+	       "  <title>%s</title>\n"
 	       "</head>\n"
-	       "<body>\n"
-	       "<!-- Begin page content. //-->\n",
+	       "<body>\n",
 	       CSS_DIR, CUSTOMIZE_TITLE);
 
 	resp_copy(MAN_DIR "/header.html");
@@ -376,16 +377,14 @@ resp_searchform(const struct req *req, enum focus focus)
 {
 	int		 i;
 
-	puts("<!-- Begin search form. //-->");
-	printf("<div id=\"mancgi\">\n"
-	       "<form action=\"/%s\" method=\"get\">\n"
-	       "<fieldset>\n"
-	       "<legend>Manual Page Search Parameters</legend>\n",
+	printf("<form action=\"/%s\" method=\"get\">\n"
+	       "  <fieldset>\n"
+	       "    <legend>Manual Page Search Parameters</legend>\n",
 	       scriptname);
 
 	/* Write query input box. */
 
-	printf("<input type=\"text\" name=\"query\" value=\"");
+	printf("    <input type=\"text\" name=\"query\" value=\"");
 	if (req->q.query != NULL)
 		html_print(req->q.query);
 	printf( "\" size=\"40\"");
@@ -395,45 +394,46 @@ resp_searchform(const struct req *req, enum focus focus)
 
 	/* Write submission buttons. */
 
-	printf(	"<button type=\"submit\" name=\"apropos\" value=\"0\">"
+	printf(	"    <button type=\"submit\" name=\"apropos\" value=\"0\">"
 		"man</button>\n"
-		"<button type=\"submit\" name=\"apropos\" value=\"1\">"
-		"apropos</button>\n<br/>\n");
+		"    <button type=\"submit\" name=\"apropos\" value=\"1\">"
+		"apropos</button>\n"
+		"    <br/>\n");
 
 	/* Write section selector. */
 
-	puts("<select name=\"sec\">");
+	puts("    <select name=\"sec\">");
 	for (i = 0; i < sec_MAX; i++) {
-		printf("<option value=\"%s\"", sec_numbers[i]);
+		printf("      <option value=\"%s\"", sec_numbers[i]);
 		if (NULL != req->q.sec &&
 		    0 == strcmp(sec_numbers[i], req->q.sec))
 			printf(" selected=\"selected\"");
 		printf(">%s</option>\n", sec_names[i]);
 	}
-	puts("</select>");
+	puts("    </select>");
 
 	/* Write architecture selector. */
 
-	printf(	"<select name=\"arch\">\n"
-		"<option value=\"default\"");
+	printf(	"    <select name=\"arch\">\n"
+		"      <option value=\"default\"");
 	if (NULL == req->q.arch)
 		printf(" selected=\"selected\"");
 	puts(">All Architectures</option>");
 	for (i = 0; i < arch_MAX; i++) {
-		printf("<option value=\"%s\"", arch_names[i]);
+		printf("      <option value=\"%s\"", arch_names[i]);
 		if (NULL != req->q.arch &&
 		    0 == strcmp(arch_names[i], req->q.arch))
 			printf(" selected=\"selected\"");
 		printf(">%s</option>\n", arch_names[i]);
 	}
-	puts("</select>");
+	puts("    </select>");
 
 	/* Write manpath selector. */
 
 	if (req->psz > 1) {
-		puts("<select name=\"manpath\">");
+		puts("    <select name=\"manpath\">");
 		for (i = 0; i < (int)req->psz; i++) {
-			printf("<option ");
+			printf("      <option ");
 			if (strcmp(req->q.manpath, req->p[i]) == 0)
 				printf("selected=\"selected\" ");
 			printf("value=\"");
@@ -442,13 +442,11 @@ resp_searchform(const struct req *req, enum focus focus)
 			html_print(req->p[i]);
 			puts("</option>");
 		}
-		puts("</select>");
+		puts("    </select>");
 	}
 
-	puts("</fieldset>\n"
-	     "</form>\n"
-	     "</div>");
-	puts("<!-- End search form. //-->");
+	puts("  </fieldset>\n"
+	     "</form>");
 }
 
 static int
@@ -496,9 +494,9 @@ pg_index(const struct req *req)
 	resp_searchform(req, FOCUS_QUERY);
 	printf("<p>\n"
 	       "This web interface is documented in the\n"
-	       "<a href=\"/%s%sman.cgi.8\">man.cgi(8)</a>\n"
+	       "<a class=\"Xr\" href=\"/%s%sman.cgi.8\">man.cgi(8)</a>\n"
 	       "manual, and the\n"
-	       "<a href=\"/%s%sapropos.1\">apropos(1)</a>\n"
+	       "<a class=\"Xr\" href=\"/%s%sapropos.1\">apropos(1)</a>\n"
 	       "manual explains the query syntax.\n"
 	       "</p>\n",
 	       scriptname, *scriptname == '\0' ? "" : "/",
@@ -578,27 +576,21 @@ pg_searchres(const struct req *req, struct manpage *r, size_t sz)
 	    req->q.equal || sz == 1 ? FOCUS_NONE : FOCUS_QUERY);
 
 	if (sz > 1) {
-		puts("<div class=\"results\">");
-		puts("<table>");
-
+		puts("<table class=\"results\">");
 		for (i = 0; i < sz; i++) {
-			printf("<tr>\n"
-			       "<td class=\"title\">\n"
-			       "<a href=\"/%s%s%s/%s",
+			printf("  <tr>\n"
+			       "    <td>"
+			       "<a class=\"Xr\" href=\"/%s%s%s/%s\">",
 			    scriptname, *scriptname == '\0' ? "" : "/",
 			    req->q.manpath, r[i].file);
-			printf("\">");
 			html_print(r[i].names);
-			printf("</a>\n"
-			       "</td>\n"
-			       "<td class=\"desc\">");
+			printf("</a></td>\n"
+			       "    <td><span class=\"Nd\">");
 			html_print(r[i].output);
-			puts("</td>\n"
-			     "</tr>");
+			puts("</span></td>\n"
+			     "  </tr>");
 		}
-
-		puts("</table>\n"
-		     "</div>");
+		puts("</table>");
 	}
 
 	/*
@@ -800,7 +792,8 @@ resp_format(const struct req *req, const char *file)
 	}
 
 	mchars_alloc();
-	mp = mparse_alloc(MPARSE_SO, MANDOCLEVEL_BADARG, NULL, req->q.manpath);
+	mp = mparse_alloc(MPARSE_SO | MPARSE_UTF8 | MPARSE_LATIN1,
+	    MANDOCLEVEL_BADARG, NULL, req->q.manpath);
 	mparse_readfd(mp, fd, file);
 	close(fd);
 

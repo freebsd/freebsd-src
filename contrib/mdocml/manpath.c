@@ -1,4 +1,4 @@
-/*	$Id: manpath.c,v 1.30 2016/05/28 13:44:13 schwarze Exp $	*/
+/*	$Id: manpath.c,v 1.31 2016/07/19 22:40:33 schwarze Exp $	*/
 /*
  * Copyright (c) 2011, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -32,9 +32,7 @@
 #include "mandoc_aux.h"
 #include "manconf.h"
 
-#if !HAVE_MANPATH
 static	void	 manconf_file(struct manconf *, const char *);
-#endif
 static	void	 manpath_add(struct manpaths *, const char *, int);
 static	void	 manpath_parseline(struct manpaths *, char *, int);
 
@@ -43,52 +41,6 @@ void
 manconf_parse(struct manconf *conf, const char *file,
 		char *defp, char *auxp)
 {
-#if HAVE_MANPATH
-	char		 cmd[(PATH_MAX * 3) + 20];
-	FILE		*stream;
-	char		*buf;
-	size_t		 sz, bsz;
-
-	strlcpy(cmd, "manpath", sizeof(cmd));
-	if (file) {
-		strlcat(cmd, " -C ", sizeof(cmd));
-		strlcat(cmd, file, sizeof(cmd));
-	}
-	if (auxp) {
-		strlcat(cmd, " -m ", sizeof(cmd));
-		strlcat(cmd, auxp, sizeof(cmd));
-	}
-	if (defp) {
-		strlcat(cmd, " -M ", sizeof(cmd));
-		strlcat(cmd, defp, sizeof(cmd));
-	}
-
-	/* Open manpath(1).  Ignore errors. */
-
-	stream = popen(cmd, "r");
-	if (NULL == stream)
-		return;
-
-	buf = NULL;
-	bsz = 0;
-
-	/* Read in as much output as we can. */
-
-	do {
-		buf = mandoc_realloc(buf, bsz + 1024);
-		sz = fread(buf + bsz, 1, 1024, stream);
-		bsz += sz;
-	} while (sz > 0);
-
-	if ( ! ferror(stream) && feof(stream) &&
-			bsz && '\n' == buf[bsz - 1]) {
-		buf[bsz - 1] = '\0';
-		manpath_parseline(&conf->manpath, buf, 1);
-	}
-
-	free(buf);
-	pclose(stream);
-#else
 	char		*insert;
 
 	/* Always prepend -m. */
@@ -137,7 +89,6 @@ manconf_parse(struct manconf *conf, const char *file,
 
 	/* MANPATH overrides man.conf(5) completely. */
 	manpath_parseline(&conf->manpath, defp, 0);
-#endif
 }
 
 /*
@@ -204,7 +155,6 @@ manconf_free(struct manconf *conf)
 	free(conf->output.style);
 }
 
-#if !HAVE_MANPATH
 static void
 manconf_file(struct manconf *conf, const char *file)
 {
@@ -270,7 +220,6 @@ out:
 	if (*manpath_default != '\0')
 		manpath_parseline(&conf->manpath, manpath_default, 0);
 }
-#endif
 
 void
 manconf_output(struct manoutput *conf, const char *cp)
