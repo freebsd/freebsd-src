@@ -1547,8 +1547,8 @@ retry:
 	error = VOP_LOCK1(vp, flags, file, line);
 	flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
 	KASSERT((flags & LK_RETRY) == 0 || error == 0,
-			("LK_RETRY set with incompatible flags (0x%x) or an error occurred (%d)",
-			 flags, error));
+	    ("LK_RETRY set with incompatible flags (0x%x) or "
+	    " an error occurred (%d)", flags, error));
 	if (flags & LK_RETRY) {
 		if ((error != 0))
 			goto retry;
