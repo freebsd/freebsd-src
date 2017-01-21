@@ -168,7 +168,15 @@ r12a_read_chipid_vendor(struct rtwn_softc *sc, uint32_t reg_sys_cfg)
 static void
 r12au_adj_devcaps(struct rtwn_softc *sc)
 {
-	/* TODO: LDPC, STBC etc */
+	struct r12a_softc *rs = sc->sc_priv;
+	struct ieee80211com *ic = &sc->sc_ic;
+
+	if (rs->chip & R12A_CHIP_C_CUT) {
+		ic->ic_htcaps |= IEEE80211_HTCAP_LDPC |
+				 IEEE80211_HTC_TXLDPC;
+	}
+
+	/* TODO: STBC, VHT etc */
 }
 
 void

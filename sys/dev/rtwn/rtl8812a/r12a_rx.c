@@ -252,7 +252,9 @@ r12a_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 	rxdw4 = le32toh(stat->rxdw4);
 	rate = MS(rxdw3, R12A_RXDW3_RATE);
 
-	/* TODO: STBC, LDPC */
+	/* TODO: STBC */
+	if (rxdw4 & R12A_RXDW4_LDPC)
+		rxs->c_pktflags |= IEEE80211_RX_F_LDPC;
 	if (rxdw1 & R12A_RXDW1_AMPDU) {
 		if (rxdw0 & R92C_RXDW0_PHYST)
 			rxs->c_pktflags |= IEEE80211_RX_F_AMPDU;
