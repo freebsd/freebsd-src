@@ -1652,6 +1652,14 @@ cpsw_rx_dequeue(struct cpsw_softc *sc)
 			}
 		}
 
+		if (STAILQ_FIRST(&sc->rx.active) != NULL &&
+		    (bd.flags & (CPDMA_BD_EOP | CPDMA_BD_EOQ)) ==
+		    (CPDMA_BD_EOP | CPDMA_BD_EOQ)) {
+			cpsw_write_hdp_slot(sc, &sc->rx,
+			    STAILQ_FIRST(&sc->rx.active));
+			sc->rx.queue_restart++;
+		}
+
 		/* Add mbuf to packet list to be returned. */
 		if (mb_tail) {
 			mb_tail->m_nextpkt = slot->mbuf;
@@ -1684,7 +1692,6 @@ cpsw_rx_enqueue(struct cpsw_softc *sc)
 	struct cpsw_cpdma_bd bd;
 	struct cpsw_slot *first_new_slot, *last_old_slot, *next, *slot;
 	int error, nsegs, added = 0;
-	uint32_t flags;
 
 	/* Register new mbufs with hardware. */
 	first_new_slot = NULL;
@@ -1750,22 +1757,13 @@ cpsw_rx_enqueue(struct cpsw_softc *sc)
 	} else {
 		/* Add buffers to end of current queue. */
 		cpsw_cpdma_write_bd_next(sc, last_old_slot, first_new_slot);
-		/* If underrun, restart queue. */
-		if ((flags = cpsw_cpdma_read_bd_flags(sc, last_old_slot)) &
-		    CPDMA_BD_EOQ) {
-			flags &= ~CPDMA_BD_EOQ;
-			cpsw_cpdma_write_bd_flags(sc, last_old_slot, flags);
-			cpsw_write_hdp_slot(sc, &sc->rx, first_new_slot);
-			sc->rx.queue_restart++;
-		}
 	}
 	sc->rx.queue_adds += added;
 	sc->rx.avail_queue_len -= added;
 	sc->rx.active_queue_len += added;
 	cpsw_write_4(sc, CPSW_CPDMA_RX_FREEBUFFER(0), added);
-	if (sc->rx.active_queue_len > sc->rx.max_active_queue_len) {
+	if (sc->rx.active_queue_len > sc->rx.max_active_queue_len)
 		sc->rx.max_active_queue_len = sc->rx.active_queue_len;
-	}
 }
 
 static void
