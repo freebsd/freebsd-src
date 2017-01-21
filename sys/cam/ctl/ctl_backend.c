@@ -67,11 +67,10 @@ ctl_backend_register(struct ctl_backend_driver *be)
 {
 	struct ctl_softc *softc = control_softc;
 	struct ctl_backend_driver *be_tmp;
+	int error;
 
+	/* Sanity check, make sure this isn't a duplicate registration. */
 	mtx_lock(&softc->ctl_lock);
-	/*
-	 * Sanity check, make sure this isn't a duplicate registration.
-	 */
 	STAILQ_FOREACH(be_tmp, &softc->be_list, links) {
 		if (strcmp(be_tmp->name, be->name) == 0) {
 			mtx_unlock(&softc->ctl_lock);
@@ -79,39 +78,24 @@ ctl_backend_register(struct ctl_backend_driver *be)
 		}
 	}
 	mtx_unlock(&softc->ctl_lock);
-
-	/*
-	 * Call the backend's initialization routine.
-	 */
-	be->init();
-
-	mtx_lock(&softc->ctl_lock);
-	
-	STAILQ_INSERT_TAIL(&softc->be_list, be, links);
-
-	softc->num_backends++;
-
-	/*
-	 * Don't want to increment the usage count for internal consumers,
-	 * we won't be able to unload otherwise.
-	 */
-	/* XXX KDM find a substitute for this? */
-#if 0
-	if ((be->flags & CTL_BE_FLAG_INTERNAL) == 0)
-		MOD_INC_USE_COUNT;
-#endif
-
 #ifdef CS_BE_CONFIG_MOVE_DONE_IS_NOT_USED
 	be->config_move_done = ctl_config_move_done;
 #endif
-	/* XXX KDM fix this! */
 	be->num_luns = 0;
-#if 0
-	atomic_set(&be->num_luns, 0);
-#endif
 
+	/* Call the backend's initialization routine. */
+	if (be->init != NULL) {
+		if ((error = be->init()) != 0) {
+			printf("%s backend init error: %d\n",
+			    be->name, error);
+			return (error);
+		}
+	}
+
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_INSERT_TAIL(&softc->be_list, be, links);
+	softc->num_backends++;
 	mtx_unlock(&softc->ctl_lock);
-
 	return (0);
 }
 
@@ -119,30 +103,21 @@ int
 ctl_backend_deregister(struct ctl_backend_driver *be)
 {
 	struct ctl_softc *softc = control_softc;
+	int error;
 
-	mtx_lock(&softc->ctl_lock);
-
-#if 0
-	if (atomic_read(&be->num_luns) != 0) {
-#endif
-	/* XXX KDM fix this! */
-	if (be->num_luns != 0) {
-		mtx_unlock(&softc->ctl_lock);
-		return (-1);
+	/* Call the backend's shutdown routine. */
+	if (be->shutdown != NULL) {
+		if ((error = be->shutdown()) != 0) {
+			printf("%s backend shutdown error: %d\n",
+			    be->name, error);
+			return (error);
+		}
 	}
 
+	mtx_lock(&softc->ctl_lock);
 	STAILQ_REMOVE(&softc->be_list, be, ctl_backend_driver, links);
-
 	softc->num_backends--;
-
-	/* XXX KDM find a substitute for this? */
-#if 0
-	if ((be->flags & CTL_BE_FLAG_INTERNAL) == 0)
-		MOD_DEC_USE_COUNT;
-#endif
-
 	mtx_unlock(&softc->ctl_lock);
-
 	return (0);
 }
 
