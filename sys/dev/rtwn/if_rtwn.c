@@ -695,6 +695,7 @@ rtwn_ioctl_reset(struct ieee80211vap *vap, u_long cmd)
 	case IEEE80211_IOC_RTSTHRESHOLD:
 	case IEEE80211_IOC_PROTMODE:
 	case IEEE80211_IOC_HTPROTMODE:
+	case IEEE80211_IOC_LDPC:
 		error = 0;
 		break;
 	default:
