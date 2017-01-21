@@ -108,8 +108,8 @@ struct ctl_be_ramdisk_softc {
 static struct ctl_be_ramdisk_softc rd_softc;
 extern struct ctl_softc *control_softc;
 
-int ctl_backend_ramdisk_init(void);
-void ctl_backend_ramdisk_shutdown(void);
+static int ctl_backend_ramdisk_init(void);
+static int ctl_backend_ramdisk_shutdown(void);
 static int ctl_backend_ramdisk_move_done(union ctl_io *io);
 static int ctl_backend_ramdisk_submit(union ctl_io *io);
 static void ctl_backend_ramdisk_continue(union ctl_io *io);
@@ -133,6 +133,7 @@ static struct ctl_backend_driver ctl_be_ramdisk_driver =
 	.name = "ramdisk",
 	.flags = CTL_BE_FLAG_HAS_CONFIG,
 	.init = ctl_backend_ramdisk_init,
+	.shutdown = ctl_backend_ramdisk_shutdown,
 	.data_submit = ctl_backend_ramdisk_submit,
 	.data_move_done = ctl_backend_ramdisk_move_done,
 	.config_read = ctl_backend_ramdisk_config_read,
@@ -170,7 +171,7 @@ ctl_backend_ramdisk_init(void)
 	return (0);
 }
 
-void
+static int
 ctl_backend_ramdisk_shutdown(void)
 {
 	struct ctl_be_ramdisk_softc *softc = &rd_softc;
@@ -192,20 +193,16 @@ ctl_backend_ramdisk_shutdown(void)
 		mtx_lock(&softc->lock);
 	}
 	mtx_unlock(&softc->lock);
-	
+
 #ifdef CTL_RAMDISK_PAGES
 	for (i = 0; i < softc->num_pages; i++)
 		free(softc->ramdisk_pages[i], M_RAMDISK);
-
 	free(softc->ramdisk_pages, M_RAMDISK);
 #else
 	free(softc->ramdisk_buffer, M_RAMDISK);
 #endif
-
-	if (ctl_backend_deregister(&ctl_be_ramdisk_driver) != 0) {
-		printf("ctl_backend_ramdisk_shutdown: "
-		       "ctl_backend_deregister() failed!\n");
-	}
+	mtx_destroy(&softc->lock);
+	return (0);
 }
 
 static int

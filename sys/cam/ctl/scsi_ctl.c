@@ -188,8 +188,8 @@ MALLOC_DEFINE(M_CTLFE, "CAM CTL FE", "CAM CTL FE interface");
 #define PRIV_CCB(io)	((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptrs[0])
 #define PRIV_INFO(io)	((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptrs[1])
 
-int			ctlfeinitialize(void);
-void			ctlfeshutdown(void);
+static int		ctlfeinitialize(void);
+static int		ctlfeshutdown(void);
 static periph_init_t	ctlfeperiphinit;
 static void		ctlfeasync(void *callback_arg, uint32_t code,
 				   struct cam_path *path, void *arg);
@@ -227,13 +227,15 @@ static struct ctl_frontend ctlfe_frontend =
 };
 CTL_FRONTEND_DECLARE(ctlfe, ctlfe_frontend);
 
-void
+static int
 ctlfeshutdown(void)
 {
-	return;
+
+	/* CAM does not support periph driver unregister now. */
+	return (EBUSY);
 }
 
-int
+static int
 ctlfeinitialize(void)
 {
 
@@ -243,7 +245,7 @@ ctlfeinitialize(void)
 	return (0);
 }
 
-void
+static void
 ctlfeperiphinit(void)
 {
 	cam_status status;

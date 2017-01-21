@@ -55,12 +55,13 @@ typedef enum {
 	{ \
 		switch (type) { \
 		case MOD_LOAD: \
-			ctl_backend_register( \
-				(struct ctl_backend_driver *)data); \
+			return (ctl_backend_register( \
+				(struct ctl_backend_driver *)data)); \
 			break; \
 		case MOD_UNLOAD: \
-			printf(#name " module unload - not possible for this module type\n"); \
-			return EINVAL; \
+			return (ctl_backend_deregister( \
+				(struct ctl_backend_driver *)data)); \
+			break; \
 		default: \
 			return EOPNOTSUPP; \
 		} \
@@ -179,10 +180,10 @@ struct ctl_be_lun {
 typedef enum {
 	CTL_BE_FLAG_NONE	= 0x00,	/* no flags */
 	CTL_BE_FLAG_HAS_CONFIG	= 0x01,	/* can do config reads, writes */
-	CTL_BE_FLAG_INTERNAL	= 0x02	/* don't inc mod refcount */
 } ctl_backend_flags;
 
 typedef int (*be_init_t)(void);
+typedef int (*be_shutdown_t)(void);
 typedef int (*be_func_t)(union ctl_io *io);
 typedef void (*be_vfunc_t)(union ctl_io *io);
 typedef int (*be_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
@@ -194,6 +195,7 @@ struct ctl_backend_driver {
 	char		  name[CTL_BE_NAME_LEN]; /* passed to CTL */
 	ctl_backend_flags flags;	         /* passed to CTL */
 	be_init_t	  init;			 /* passed to CTL */
+	be_shutdown_t	  shutdown;		 /* passed to CTL */
 	be_func_t	  data_submit;		 /* passed to CTL */
 	be_func_t	  data_move_done;	 /* passed to CTL */
 	be_func_t	  config_read;		 /* passed to CTL */
