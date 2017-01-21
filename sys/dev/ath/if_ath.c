@@ -1178,7 +1178,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			sc->sc_has_ldpc = 1;
 			device_printf(sc->sc_dev,
 			    "[HT] LDPC transmit/receive enabled\n");
-			ic->ic_htcaps |= IEEE80211_HTCAP_LDPC;
+			ic->ic_htcaps |= IEEE80211_HTCAP_LDPC |
+					 IEEE80211_HTC_TXLDPC;
 		}
 
 
