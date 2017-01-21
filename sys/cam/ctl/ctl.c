@@ -1218,7 +1218,7 @@ ctl_isc_port_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	}
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
-		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+		if (ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		mtx_lock(&lun->lun_lock);
 		ctl_est_ua_all(lun, -1, CTL_UA_INQ_CHANGE);
@@ -2906,18 +2906,18 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		break;
 	}
 	case CTL_DUMP_STRUCTS: {
-		int i, j, k;
+		int j, k;
 		struct ctl_port *port;
 		struct ctl_frontend *fe;
 
 		mtx_lock(&softc->ctl_lock);
 		printf("CTL Persistent Reservation information start:\n");
-		for (i = 0; i < CTL_MAX_LUNS; i++) {
-			lun = softc->ctl_luns[i];
-
-			if ((lun == NULL)
-			 || ((lun->flags & CTL_LUN_DISABLED) != 0))
+		STAILQ_FOREACH(lun, &softc->lun_list, links) {
+			mtx_lock(&lun->lun_lock);
+			if ((lun->flags & CTL_LUN_DISABLED) != 0) {
+				mtx_unlock(&lun->lun_lock);
 				continue;
+			}
 
 			for (j = 0; j < CTL_MAX_PORTS; j++) {
 				if (lun->pr_keys[j] == NULL)
@@ -2925,11 +2925,12 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				for (k = 0; k < CTL_MAX_INIT_PER_PORT; k++){
 					if (lun->pr_keys[j][k] == 0)
 						continue;
-					printf("  LUN %d port %d iid %d key "
-					       "%#jx\n", i, j, k,
+					printf("  LUN %ju port %d iid %d key "
+					       "%#jx\n", lun->lun, j, k,
 					       (uintmax_t)lun->pr_keys[j][k]);
 				}
 			}
+			mtx_unlock(&lun->lun_lock);
 		}
 		printf("CTL Persistent Reservation information end\n");
 		printf("CTL Ports:\n");
@@ -3312,7 +3313,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				sbuf_printf(sb, "\t<lun_map>on</lun_map>\n");
 				for (j = 0; j < CTL_MAX_LUNS; j++) {
 					plun = ctl_lun_map_from_port(port, j);
-					if (plun >= CTL_MAX_LUNS)
+					if (plun == UINT32_MAX)
 						continue;
 					sbuf_printf(sb,
 					    "\t<lun id=\"%u\">%u</lun>\n",
@@ -3380,8 +3381,8 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 		if (port->status & CTL_PORT_STATUS_ONLINE) {
 			STAILQ_FOREACH(lun, &softc->lun_list, links) {
-				if (ctl_lun_map_to_port(port, lun->lun) >=
-				    CTL_MAX_LUNS)
+				if (ctl_lun_map_to_port(port, lun->lun) ==
+				    UINT32_MAX)
 					continue;
 				mtx_lock(&lun->lun_lock);
 				ctl_est_ua_port(lun, lm->port, -1,
@@ -3509,7 +3510,7 @@ ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun)
 	}
 	old = port->lun_map[plun];
 	port->lun_map[plun] = glun;
-	if ((port->status & CTL_PORT_STATUS_ONLINE) && old >= CTL_MAX_LUNS) {
+	if ((port->status & CTL_PORT_STATUS_ONLINE) && old == UINT32_MAX) {
 		if (port->lun_enable != NULL)
 			port->lun_enable(port->targ_lun_arg, plun);
 		ctl_isc_announce_port(port);
@@ -3526,7 +3527,7 @@ ctl_lun_map_unset(struct ctl_port *port, uint32_t plun)
 		return (0);
 	old = port->lun_map[plun];
 	port->lun_map[plun] = UINT32_MAX;
-	if ((port->status & CTL_PORT_STATUS_ONLINE) && old < CTL_MAX_LUNS) {
+	if ((port->status & CTL_PORT_STATUS_ONLINE) && old != UINT32_MAX) {
 		if (port->lun_disable != NULL)
 			port->lun_disable(port->targ_lun_arg, plun);
 		ctl_isc_announce_port(port);
@@ -3540,7 +3541,7 @@ ctl_lun_map_from_port(struct ctl_port *port, uint32_t lun_id)
 
 	if (port == NULL)
 		return (UINT32_MAX);
-	if (port->lun_map == NULL || lun_id >= CTL_MAX_LUNS)
+	if (port->lun_map == NULL || lun_id == UINT32_MAX)
 		return (lun_id);
 	return (port->lun_map[lun_id]);
 }
@@ -7142,7 +7143,7 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 	STAILQ_FOREACH(port, &softc->port_list, links) {
 		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
 			continue;
-		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+		if (ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		num_target_ports++;
 		if (port->status & CTL_PORT_STATUS_HA_SHARED)
@@ -7234,7 +7235,7 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 			if (!softc->is_single &&
 			    (port->status & CTL_PORT_STATUS_HA_SHARED) == 0)
 				continue;
-			if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			if (ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 				continue;
 			scsi_ulto2b(port->targ_port, tpg_desc->descriptors[pc].
 			    relative_target_port_identifier);
@@ -7259,7 +7260,7 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 				continue;
 			if (port->status & CTL_PORT_STATUS_HA_SHARED)
 				continue;
-			if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			if (ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 				continue;
 			scsi_ulto2b(port->targ_port, tpg_desc->descriptors[pc].
 			    relative_target_port_identifier);
@@ -9078,7 +9079,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	mtx_lock(&softc->ctl_lock);
 	num_luns = 0;
 	for (targ_lun_id = 0; targ_lun_id < CTL_MAX_LUNS; targ_lun_id++) {
-		if (ctl_lun_map_from_port(port, targ_lun_id) < CTL_MAX_LUNS)
+		if (ctl_lun_map_from_port(port, targ_lun_id) != UINT32_MAX)
 			num_luns++;
 	}
 	mtx_unlock(&softc->ctl_lock);
@@ -9138,7 +9139,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	mtx_lock(&softc->ctl_lock);
 	for (targ_lun_id = 0, num_filled = 0; targ_lun_id < CTL_MAX_LUNS && num_filled < num_luns; targ_lun_id++) {
 		lun_id = ctl_lun_map_from_port(port, targ_lun_id);
-		if (lun_id >= CTL_MAX_LUNS)
+		if (lun_id == UINT32_MAX)
 			continue;
 		lun = softc->ctl_luns[lun_id];
 		if (lun == NULL)
@@ -9774,7 +9775,7 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
 			continue;
 		if (lun != NULL &&
-		    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+		    ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		num_target_ports++;
 		if (port->init_devid)
@@ -9825,7 +9826,7 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
 			continue;
 		if (lun != NULL &&
-		    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+		    ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		scsi_ulto2b(port->targ_port, pd->relative_port_id);
 		if (port->init_devid) {
@@ -11882,7 +11883,7 @@ ctl_target_reset(struct ctl_softc *softc, union ctl_io *io,
 	port = ctl_io_port(&io->io_hdr);
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
 		if (port != NULL &&
-		    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+		    ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		retval += ctl_do_lun_reset(lun, io, ua_type);
 	}
