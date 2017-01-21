@@ -30,6 +30,8 @@ options 	SYSVSHM
 options 	SYSVMSG
 options 	SYSVSEM
 
+options 	TMPFS			#Efficient memory filesystem
+
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
