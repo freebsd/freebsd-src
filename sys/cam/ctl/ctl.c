@@ -424,7 +424,7 @@ static int ctl_init(void);
 void ctl_shutdown(void);
 static int ctl_open(struct cdev *dev, int flags, int fmt, struct thread *td);
 static int ctl_close(struct cdev *dev, int flags, int fmt, struct thread *td);
-static int ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio);
+static void ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio);
 static void ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 			      struct ctl_ooa *ooa_hdr,
 			      struct ctl_ooa_entry *kern_entries);
@@ -1024,27 +1024,27 @@ ctl_isc_ua(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 	uint32_t iid = ctl_get_initindex(&msg->hdr.nexus);
 
 	mtx_lock(&softc->ctl_lock);
-	if (msg->hdr.nexus.targ_lun < CTL_MAX_LUNS &&
-	    (lun = softc->ctl_luns[msg->hdr.nexus.targ_mapped_lun]) != NULL) {
-		mtx_lock(&lun->lun_lock);
+	if (msg->hdr.nexus.targ_lun >= CTL_MAX_LUNS ||
+	    (lun = softc->ctl_luns[msg->hdr.nexus.targ_mapped_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
-		if (msg->ua.ua_type == CTL_UA_THIN_PROV_THRES &&
-		    msg->ua.ua_set)
-			memcpy(lun->ua_tpt_info, msg->ua.ua_info, 8);
-		if (msg->ua.ua_all) {
-			if (msg->ua.ua_set)
-				ctl_est_ua_all(lun, iid, msg->ua.ua_type);
-			else
-				ctl_clr_ua_all(lun, iid, msg->ua.ua_type);
-		} else {
-			if (msg->ua.ua_set)
-				ctl_est_ua(lun, iid, msg->ua.ua_type);
-			else
-				ctl_clr_ua(lun, iid, msg->ua.ua_type);
-		}
-		mtx_unlock(&lun->lun_lock);
-	} else
-		mtx_unlock(&softc->ctl_lock);
+		return;
+	}
+	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&softc->ctl_lock);
+	if (msg->ua.ua_type == CTL_UA_THIN_PROV_THRES && msg->ua.ua_set)
+		memcpy(lun->ua_tpt_info, msg->ua.ua_info, 8);
+	if (msg->ua.ua_all) {
+		if (msg->ua.ua_set)
+			ctl_est_ua_all(lun, iid, msg->ua.ua_type);
+		else
+			ctl_clr_ua_all(lun, iid, msg->ua.ua_type);
+	} else {
+		if (msg->ua.ua_set)
+			ctl_est_ua(lun, iid, msg->ua.ua_type);
+		else
+			ctl_clr_ua(lun, iid, msg->ua.ua_type);
+	}
+	mtx_unlock(&lun->lun_lock);
 }
 
 static void
@@ -1058,8 +1058,8 @@ ctl_isc_lun_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 
 	targ_lun = msg->hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if ((targ_lun >= CTL_MAX_LUNS) ||
-	    ((lun = softc->ctl_luns[targ_lun]) == NULL)) {
+	if (targ_lun >= CTL_MAX_LUNS ||
+	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		return;
 	}
@@ -1289,8 +1289,8 @@ ctl_isc_mode_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 
 	targ_lun = msg->hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if ((targ_lun >= CTL_MAX_LUNS) ||
-	    ((lun = softc->ctl_luns[targ_lun]) == NULL)) {
+	if (targ_lun >= CTL_MAX_LUNS ||
+	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		return;
 	}
@@ -2193,7 +2193,7 @@ ctl_create_iid(struct ctl_port *port, int iid, uint8_t *buf)
  * command on this side (XFER mode) or tell the other side to execute it
  * (SER_ONLY mode).
  */
-static int
+static void
 ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 {
 	struct ctl_softc *softc = control_softc;
@@ -2201,7 +2201,6 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 	struct ctl_port *port;
 	struct ctl_lun *lun;
 	const struct ctl_cmd_entry *entry;
-	int retval = 0;
 	uint32_t targ_lun;
 
 	targ_lun = ctsio->io_hdr.nexus.targ_mapped_lun;
@@ -2216,30 +2215,28 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 	}
 
 	/* Make sure that we know about this LUN. */
-	if ((targ_lun < CTL_MAX_LUNS) &&
-	    ((lun = softc->ctl_luns[targ_lun]) != NULL)) {
-		mtx_lock(&lun->lun_lock);
+	if (targ_lun >= CTL_MAX_LUNS ||
+	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
-		/*
-		 * If the LUN is invalid, pretend that it doesn't exist.
-		 * It will go away as soon as all pending I/O has been
-		 * completed.
-		 */
-		if (lun->flags & CTL_LUN_DISABLED) {
-			mtx_unlock(&lun->lun_lock);
-			lun = NULL;
-		}
-	} else {
-		mtx_unlock(&softc->ctl_lock);
-		lun = NULL;
-	}
-	if (lun == NULL) {
+
 		/*
 		 * The other node would not send this request to us unless
 		 * received announce that we are primary node for this LUN.
 		 * If this LUN does not exist now, it is probably result of
 		 * a race, so respond to initiator in the most opaque way.
 		 */
+		ctl_set_busy(ctsio);
+		goto badjuju;
+	}
+	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&softc->ctl_lock);
+
+	/*
+	 * If the LUN is invalid, pretend that it doesn't exist.
+	 * It will go away as soon as all pending I/Os completed.
+	 */
+	if (lun->flags & CTL_LUN_DISABLED) {
+		mtx_unlock(&lun->lun_lock);
 		ctl_set_busy(ctsio);
 		goto badjuju;
 	}
@@ -2314,10 +2311,9 @@ badjuju:
 		msg_info.hdr.msg_type = CTL_MSG_BAD_JUJU;
 		ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
 		    sizeof(msg_info.scsi), M_WAITOK);
-		retval = 1;
+		ctl_free_io((union ctl_io *)ctsio);
 		break;
 	}
-	return (retval);
 }
 
 /*
@@ -2685,9 +2681,9 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 
 		mtx_lock(&softc->ctl_lock);
-		if (((ooa_hdr->flags & CTL_OOA_FLAG_ALL_LUNS) == 0)
-		 && ((ooa_hdr->lun_num >= CTL_MAX_LUNS)
-		  || (softc->ctl_luns[ooa_hdr->lun_num] == NULL))) {
+		if ((ooa_hdr->flags & CTL_OOA_FLAG_ALL_LUNS) == 0 &&
+		    (ooa_hdr->lun_num >= CTL_MAX_LUNS ||
+		     softc->ctl_luns[ooa_hdr->lun_num] == NULL)) {
 			mtx_unlock(&softc->ctl_lock);
 			free(entries, M_CTL);
 			printf("%s: CTL_GET_OOA: invalid LUN %ju\n",
@@ -2739,49 +2735,37 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 #ifdef CTL_IO_DELAY
 		mtx_lock(&softc->ctl_lock);
-
-		if ((delay_info->lun_id >= CTL_MAX_LUNS)
-		 || (softc->ctl_luns[delay_info->lun_id] == NULL)) {
+		if (delay_info->lun_id >= CTL_MAX_LUNS ||
+		    (lun = softc->ctl_luns[delay_info->lun_id]) == NULL) {
+			mtx_unlock(&softc->ctl_lock);
 			delay_info->status = CTL_DELAY_STATUS_INVALID_LUN;
-		} else {
-			lun = softc->ctl_luns[delay_info->lun_id];
-			mtx_lock(&lun->lun_lock);
-
-			delay_info->status = CTL_DELAY_STATUS_OK;
-
-			switch (delay_info->delay_type) {
-			case CTL_DELAY_TYPE_CONT:
-				break;
-			case CTL_DELAY_TYPE_ONESHOT:
-				break;
-			default:
-				delay_info->status =
-					CTL_DELAY_STATUS_INVALID_TYPE;
-				break;
-			}
-
-			switch (delay_info->delay_loc) {
-			case CTL_DELAY_LOC_DATAMOVE:
-				lun->delay_info.datamove_type =
-					delay_info->delay_type;
-				lun->delay_info.datamove_delay =
-					delay_info->delay_secs;
-				break;
-			case CTL_DELAY_LOC_DONE:
-				lun->delay_info.done_type =
-					delay_info->delay_type;
-				lun->delay_info.done_delay =
-					delay_info->delay_secs;
-				break;
-			default:
-				delay_info->status =
-					CTL_DELAY_STATUS_INVALID_LOC;
-				break;
-			}
-			mtx_unlock(&lun->lun_lock);
+			break;
 		}
-
+		mtx_lock(&lun->lun_lock);
 		mtx_unlock(&softc->ctl_lock);
+		delay_info->status = CTL_DELAY_STATUS_OK;
+		switch (delay_info->delay_type) {
+		case CTL_DELAY_TYPE_CONT:
+		case CTL_DELAY_TYPE_ONESHOT:
+			break;
+		default:
+			delay_info->status = CTL_DELAY_STATUS_INVALID_TYPE;
+			break;
+		}
+		switch (delay_info->delay_loc) {
+		case CTL_DELAY_LOC_DATAMOVE:
+			lun->delay_info.datamove_type = delay_info->delay_type;
+			lun->delay_info.datamove_delay = delay_info->delay_secs;
+			break;
+		case CTL_DELAY_LOC_DONE:
+			lun->delay_info.done_type = delay_info->delay_type;
+			lun->delay_info.done_delay = delay_info->delay_secs;
+			break;
+		default:
+			delay_info->status = CTL_DELAY_STATUS_INVALID_LOC;
+			break;
+		}
+		mtx_unlock(&lun->lun_lock);
 #else
 		delay_info->status = CTL_DELAY_STATUS_NOT_IMPLEMENTED;
 #endif /* CTL_IO_DELAY */
@@ -2832,8 +2816,8 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		bcopy(err_desc, new_err_desc, sizeof(*new_err_desc));
 
 		mtx_lock(&softc->ctl_lock);
-		lun = softc->ctl_luns[err_desc->lun_id];
-		if (lun == NULL) {
+		if (err_desc->lun_id >= CTL_MAX_LUNS ||
+		    (lun = softc->ctl_luns[err_desc->lun_id]) == NULL) {
 			mtx_unlock(&softc->ctl_lock);
 			free(new_err_desc, M_CTL);
 			printf("%s: CTL_ERROR_INJECT: invalid LUN %ju\n",
@@ -2876,8 +2860,8 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		delete_done = 0;
 
 		mtx_lock(&softc->ctl_lock);
-		lun = softc->ctl_luns[delete_desc->lun_id];
-		if (lun == NULL) {
+		if (delete_desc->lun_id >= CTL_MAX_LUNS ||
+		    (lun = softc->ctl_luns[delete_desc->lun_id]) == NULL) {
 			mtx_unlock(&softc->ctl_lock);
 			printf("%s: CTL_ERROR_INJECT_DELETE: invalid LUN %ju\n",
 			       __func__, (uintmax_t)delete_desc->lun_id);
@@ -8540,8 +8524,8 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 
 	targ_lun = msg->hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if ((targ_lun >= CTL_MAX_LUNS) ||
-	    ((lun = softc->ctl_luns[targ_lun]) == NULL)) {
+	if (targ_lun >= CTL_MAX_LUNS ||
+	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		return;
 	}
@@ -11436,16 +11420,15 @@ ctl_failover_lun(union ctl_io *rio)
 
 	/* Find and lock the LUN. */
 	mtx_lock(&softc->ctl_lock);
-	if ((targ_lun < CTL_MAX_LUNS) &&
-	    ((lun = softc->ctl_luns[targ_lun]) != NULL)) {
-		mtx_lock(&lun->lun_lock);
+	if (targ_lun > CTL_MAX_LUNS ||
+	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
-		if (lun->flags & CTL_LUN_DISABLED) {
-			mtx_unlock(&lun->lun_lock);
-			return;
-		}
-	} else {
-		mtx_unlock(&softc->ctl_lock);
+		return;
+	}
+	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&softc->ctl_lock);
+	if (lun->flags & CTL_LUN_DISABLED) {
+		mtx_unlock(&lun->lun_lock);
 		return;
 	}
 
@@ -11515,15 +11498,13 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 	struct ctl_lun *lun;
 	const struct ctl_cmd_entry *entry;
 	uint32_t initidx, targ_lun;
-	int retval;
-
-	retval = 0;
+	int retval = 0;
 
 	lun = NULL;
-
 	targ_lun = ctsio->io_hdr.nexus.targ_mapped_lun;
-	if ((targ_lun < CTL_MAX_LUNS)
-	 && ((lun = softc->ctl_luns[targ_lun]) != NULL)) {
+	if (targ_lun < CTL_MAX_LUNS)
+		lun = softc->ctl_luns[targ_lun];
+	if (lun) {
 		/*
 		 * If the LUN is invalid, pretend that it doesn't exist.
 		 * It will go away as soon as all pending I/O has been
@@ -11533,29 +11514,22 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 		if (lun->flags & CTL_LUN_DISABLED) {
 			mtx_unlock(&lun->lun_lock);
 			lun = NULL;
-			ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr = NULL;
-			ctsio->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr = NULL;
-		} else {
-			ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr = lun;
-			ctsio->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr =
-				lun->be_lun;
-
-			/*
-			 * Every I/O goes into the OOA queue for a
-			 * particular LUN, and stays there until completion.
-			 */
-#ifdef CTL_TIME_IO
-			if (TAILQ_EMPTY(&lun->ooa_queue)) {
-				lun->idle_time += getsbinuptime() -
-				    lun->last_busy;
-			}
-#endif
-			TAILQ_INSERT_TAIL(&lun->ooa_queue, &ctsio->io_hdr,
-			    ooa_links);
 		}
-	} else {
-		ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr = NULL;
-		ctsio->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr = NULL;
+	}
+	ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr = lun;
+	if (lun) {
+		ctsio->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr =
+		    lun->be_lun;
+
+		/*
+		 * Every I/O goes into the OOA queue for a particular LUN,
+		 * and stays there until completion.
+		 */
+#ifdef CTL_TIME_IO
+		if (TAILQ_EMPTY(&lun->ooa_queue))
+			lun->idle_time += getsbinuptime() - lun->last_busy;
+#endif
+		TAILQ_INSERT_TAIL(&lun->ooa_queue, &ctsio->io_hdr, ooa_links);
 	}
 
 	/* Get command entry and return error if it is unsuppotyed. */
@@ -11972,7 +11946,7 @@ ctl_lun_reset(struct ctl_softc *softc, union ctl_io *io)
 
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if ((targ_lun >= CTL_MAX_LUNS) ||
+	if (targ_lun >= CTL_MAX_LUNS ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -12051,7 +12025,7 @@ ctl_abort_task_set(union ctl_io *io)
 	 */
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if ((targ_lun >= CTL_MAX_LUNS) ||
+	if (targ_lun >= CTL_MAX_LUNS ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -12136,7 +12110,7 @@ ctl_abort_task(union ctl_io *io)
 	 */
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if ((targ_lun >= CTL_MAX_LUNS) ||
+	if (targ_lun >= CTL_MAX_LUNS ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -12261,7 +12235,7 @@ ctl_query_task(union ctl_io *io, int task_set)
 	softc = control_softc;
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if ((targ_lun >= CTL_MAX_LUNS) ||
+	if (targ_lun >= CTL_MAX_LUNS ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -12301,7 +12275,7 @@ ctl_query_async_event(union ctl_io *io)
 	softc = control_softc;
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 	mtx_lock(&softc->ctl_lock);
-	if ((targ_lun >= CTL_MAX_LUNS) ||
+	if (targ_lun >= CTL_MAX_LUNS ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
 		mtx_unlock(&softc->ctl_lock);
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
@@ -12384,29 +12358,25 @@ ctl_run_task(union ctl_io *io)
 static void
 ctl_handle_isc(union ctl_io *io)
 {
-	int free_io;
-	struct ctl_lun *lun;
 	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
+	const struct ctl_cmd_entry *entry;
 	uint32_t targ_lun;
 
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
-	lun = softc->ctl_luns[targ_lun];
-
 	switch (io->io_hdr.msg_type) {
 	case CTL_MSG_SERIALIZE:
-		free_io = ctl_serialize_other_sc_cmd(&io->scsiio);
+		ctl_serialize_other_sc_cmd(&io->scsiio);
 		break;
-	case CTL_MSG_R2R: {
-		const struct ctl_cmd_entry *entry;
-
-		/*
-		 * This is only used in SER_ONLY mode.
-		 */
-		free_io = 0;
+	case CTL_MSG_R2R:		/* Only used in SER_ONLY mode. */
 		entry = ctl_get_cmd_entry(&io->scsiio, NULL);
+		if (targ_lun >= CTL_MAX_LUNS ||
+		    (lun = softc->ctl_luns[targ_lun]) == NULL) {
+			ctl_done(io);
+			break;
+		}
 		mtx_lock(&lun->lun_lock);
-		if (ctl_scsiio_lun_check(lun,
-		    entry, (struct ctl_scsiio *)io) != 0) {
+		if (ctl_scsiio_lun_check(lun, entry, &io->scsiio) != 0) {
 			mtx_unlock(&lun->lun_lock);
 			ctl_done(io);
 			break;
@@ -12415,51 +12385,46 @@ ctl_handle_isc(union ctl_io *io)
 		mtx_unlock(&lun->lun_lock);
 		ctl_enqueue_rtr(io);
 		break;
-	}
 	case CTL_MSG_FINISH_IO:
 		if (softc->ha_mode == CTL_HA_MODE_XFER) {
-			free_io = 0;
 			ctl_done(io);
-		} else {
-			free_io = 1;
-			mtx_lock(&lun->lun_lock);
-			TAILQ_REMOVE(&lun->ooa_queue, &io->io_hdr,
-				     ooa_links);
-			ctl_check_blocked(lun);
-			mtx_unlock(&lun->lun_lock);
+			break;
 		}
+		if (targ_lun >= CTL_MAX_LUNS ||
+		    (lun = softc->ctl_luns[targ_lun]) == NULL) {
+			ctl_free_io(io);
+			break;
+		}
+		mtx_lock(&lun->lun_lock);
+		TAILQ_REMOVE(&lun->ooa_queue, &io->io_hdr, ooa_links);
+		ctl_check_blocked(lun);
+		mtx_unlock(&lun->lun_lock);
+		ctl_free_io(io);
 		break;
 	case CTL_MSG_PERS_ACTION:
 		ctl_hndl_per_res_out_on_other_sc(
 			(union ctl_ha_msg *)&io->presio.pr_msg);
-		free_io = 1;
+		ctl_free_io(io);
 		break;
 	case CTL_MSG_BAD_JUJU:
-		free_io = 0;
 		ctl_done(io);
 		break;
-	case CTL_MSG_DATAMOVE:
-		/* Only used in XFER mode */
-		free_io = 0;
+	case CTL_MSG_DATAMOVE:		/* Only used in XFER mode */
 		ctl_datamove_remote(io);
 		break;
-	case CTL_MSG_DATAMOVE_DONE:
-		/* Only used in XFER mode */
-		free_io = 0;
+	case CTL_MSG_DATAMOVE_DONE:	/* Only used in XFER mode */
 		io->scsiio.be_move_done(io);
 		break;
 	case CTL_MSG_FAILOVER:
 		ctl_failover_lun(io);
-		free_io = 1;
+		ctl_free_io(io);
 		break;
 	default:
-		free_io = 1;
 		printf("%s: Invalid message type %d\n",
 		       __func__, io->io_hdr.msg_type);
+		ctl_free_io(io);
 		break;
 	}
-	if (free_io)
-		ctl_free_io(io);
 
 }
 
@@ -13360,9 +13325,11 @@ ctl_queue_sense(union ctl_io *io)
 	struct ctl_softc *softc;
 	uint32_t initidx, targ_lun;
 
-	softc = control_softc;
-
 	CTL_DEBUG_PRINT(("ctl_queue_sense\n"));
+
+	softc = control_softc;
+	port = ctl_io_port(&ctsio->io_hdr);
+	targ_lun = ctl_lun_map_from_port(port, io->io_hdr.nexus.targ_lun);
 
 	/*
 	 * LUN lookup will likely move to the ctl_work_thread() once we
@@ -13370,27 +13337,21 @@ ctl_queue_sense(union ctl_io *io)
 	 * a per-LUN queue initially).  That is so that we can handle
 	 * things like an INQUIRY to a LUN that we don't have enabled.  We
 	 * can't deal with that right now.
+	 * If we don't have a LUN for this, just toss the sense information.
 	 */
 	mtx_lock(&softc->ctl_lock);
-
-	/*
-	 * If we don't have a LUN for this, just toss the sense
-	 * information.
-	 */
-	port = ctl_io_port(&ctsio->io_hdr);
-	targ_lun = ctl_lun_map_from_port(port, io->io_hdr.nexus.targ_lun);
-	if ((targ_lun < CTL_MAX_LUNS)
-	 && (softc->ctl_luns[targ_lun] != NULL))
-		lun = softc->ctl_luns[targ_lun];
-	else
+	if (targ_lun >= CTL_MAX_LUNS ||
+	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
+		mtx_unlock(&softc->ctl_lock);
 		goto bailout;
-
-	initidx = ctl_get_initindex(&io->io_hdr.nexus);
-
+	}
 	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&softc->ctl_lock);
+
 	/*
 	 * Already have CA set for this LUN...toss the sense information.
 	 */
+	initidx = ctl_get_initindex(&io->io_hdr.nexus);
 	if (ctl_is_set(lun->have_ca, initidx)) {
 		mtx_unlock(&lun->lun_lock);
 		goto bailout;
@@ -13403,10 +13364,7 @@ ctl_queue_sense(union ctl_io *io)
 	mtx_unlock(&lun->lun_lock);
 
 bailout:
-	mtx_unlock(&softc->ctl_lock);
-
 	ctl_free_io(io);
-
 	return (CTL_RETVAL_COMPLETE);
 }
 #endif
