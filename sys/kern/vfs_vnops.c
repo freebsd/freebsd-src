@@ -1538,27 +1538,21 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 	int error;
 
 	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
-	    ("vn_lock called with no locktype."));
-#ifdef DEBUG_VFS_LOCKS
-	KASSERT(vp->v_holdcnt != 0,
-			("vn_lock %p: zero hold count", vp));
-#endif
+	    ("vn_lock: no locktype"));
+	VNASSERT(vp->v_holdcnt != 0, vp, ("vn_lock: zero hold count"));
 retry:
 	error = VOP_LOCK1(vp, flags, file, line);
 	flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
 	KASSERT((flags & LK_RETRY) == 0 || error == 0,
-	    ("LK_RETRY set with incompatible flags (0x%x) or "
-	    " an error occurred (%d)", flags, error));
+	    ("vn_lock: error %d incompatible with flags %#x", error, flags));
 
 	if ((flags & LK_RETRY) == 0) {
-		if (error == 0 && vp->v_iflag & VI_DOOMED) {
+		if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0) {
 			VOP_UNLOCK(vp, 0);
 			error = ENOENT;
 		}
-	} else {
-		if (error != 0)
-			goto retry;
-	}
+	} else if (error != 0)
+		goto retry;
 	return (error);
 }
 
@@ -1566,9 +1560,7 @@ retry:
  * File table vnode close routine.
  */
 static int
-vn_closefile(fp, td)
-	struct file *fp;
-	struct thread *td;
+vn_closefile(struct file *fp, struct thread *td)
 {
 	struct vnode *vp;
 	struct flock lf;
@@ -1577,12 +1569,14 @@ vn_closefile(fp, td)
 	vp = fp->f_vnode;
 	fp->f_ops = &badfileops;
 
-	if (__predict_false(fp->f_flag & FHASLOCK) && fp->f_type == DTYPE_VNODE)
+	if (__predict_false((fp->f_flag & FHASLOCK) != 0) &&
+	    fp->f_type == DTYPE_VNODE)
 		vrefact(vp);
 
 	error = vn_close(vp, fp->f_flag, fp->f_cred, td);
 
-	if (__predict_false(fp->f_flag & FHASLOCK) && fp->f_type == DTYPE_VNODE) {
+	if (__predict_false((fp->f_flag & FHASLOCK) != 0) &&
+	    fp->f_type == DTYPE_VNODE) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;
