@@ -132,6 +132,7 @@ crossmp_vop_unlock(struct vop_unlock_args *ap)
 }
 
 static struct vop_vector crossmp_vnodeops = {
+	.vop_default =		&default_vnodeops,
 	.vop_islocked =		crossmp_vop_islocked,
 	.vop_lock1 =		crossmp_vop_lock1,
 	.vop_unlock =		crossmp_vop_unlock,
