@@ -186,6 +186,9 @@ main(int argc, const char *argv[])
 			case ATH_ALQ_RESUME_BEACON:
 				ath_alq_print_beacon_resume(a);
 				break;
+			case ATH_ALQ_TX_FIFO_PUSH:
+				ath_alq_print_edma_tx_fifo_push(a);
+				break;
 			default:
 				if (be32toh(hdr.sc_hal_magic) == AR5210_MAGIC)
 					ar5210_alq_payload(a);
@@ -195,10 +198,8 @@ main(int argc, const char *argv[])
 					ar5212_alq_payload(a);
 				else if (be32toh(hdr.sc_hal_magic) == AR5416_MAGIC)
 					ar5416_alq_payload(a);
-#if 1
 				else if (be32toh(hdr.sc_hal_magic) == AR9300_MAGIC)
 					ar9300_alq_payload(a);
-#endif
 				else
 					printf("[%d.%06d] [%lld] op: %d; len %d\n",
 					    be32toh(a->hdr.tstamp_sec),
