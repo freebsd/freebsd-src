@@ -62,7 +62,7 @@ ar9300_decode_txstatus(struct if_ath_alq_payload *a)
 	/* XXX assumes txs is smaller than PAYLOAD_LEN! */
 	memcpy(&txs, &a->payload, sizeof(struct ar9300_txs));
 
-	printf("[%u.%06u] [%llu] TXSTATUS TxTimestamp=%d, DescId=0x%04x, QCU=%d\n",
+	printf("[%u.%06u] [%llu] TXSTATUS TxTimestamp=%u, DescId=0x%04x, QCU=%d\n",
 	    (unsigned int) be32toh(a->hdr.tstamp_sec),
 	    (unsigned int) be32toh(a->hdr.tstamp_usec),
 	    (unsigned long long) be64toh(a->hdr.threadid),
@@ -77,7 +77,7 @@ ar9300_decode_txstatus(struct if_ath_alq_payload *a)
 	    MS(txs.ds_info, AR_ctrl_stat),
 	    MS(txs.ds_info, AR_desc_id));
 
-	printf("    TxTimestamp: %d\n", txs.status4);
+	printf("    TxTimestamp: %u\n", txs.status4);
 
 	printf("    TxDone=%d, SeqNo=%d, TxOpExceed=%d, TXBFStatus=%d\n",
 	    MF(txs.status8, AR_tx_done),
