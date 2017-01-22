@@ -41,12 +41,8 @@ static const char rcsid[] =
 static int
 numerics(char const * str)
 {
-	int             rc = isdigit((unsigned char)*str);
 
-	if (rc)
-		while (isdigit((unsigned char)*str) || *str == 'x')
-			++str;
-	return rc && !*str;
+	return (str[strspn(str, "0123456789x")] == '\0');
 }
 
 static int
