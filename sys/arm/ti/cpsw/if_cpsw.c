@@ -1981,7 +1981,8 @@ cpsw_tx_dequeue(struct cpsw_softc *sc)
 			sc->tx.teardown = 1;
 		}
 
-		if ((flags & CPDMA_BD_OWNER) != 0 && sc->tx.teardown == 0)
+		if ((flags & (CPDMA_BD_SOP | CPDMA_BD_OWNER)) ==
+		    (CPDMA_BD_SOP | CPDMA_BD_OWNER) && sc->tx.teardown == 0)
 			break; /* Hardware is still using this packet. */
 
 		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap, BUS_DMASYNC_POSTWRITE);
