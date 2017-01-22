@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 #define	FAULTBUF_CR	22
 #define	FAULTBUF_R14	3
 
+#define	MOREARGS(sp)	((caddr_t)((uintptr_t)(sp) + \
+    sizeof(struct callframe) - 3*sizeof(register_t))) /* more args go here */
+
 static void	trap_fatal(struct trapframe *frame);
 static void	printtrap(u_int vector, struct trapframe *frame, int isfatal,
 		    int user);
