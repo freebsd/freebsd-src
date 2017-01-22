@@ -143,6 +143,7 @@ struct ieee80211_node {
 #define	IEEE80211_NODE_AMSDU_RX	0x040000	/* AMSDU rx enabled */
 #define	IEEE80211_NODE_AMSDU_TX	0x080000	/* AMSDU tx enabled */
 #define	IEEE80211_NODE_VHT	0x100000	/* VHT enabled */
+#define	IEEE80211_NODE_LDPC	0x200000	/* LDPC enabled */
 	uint16_t		ni_associd;	/* association ID */
 	uint16_t		ni_vlan;	/* vlan tag */
 	uint16_t		ni_txpower;	/* current transmit power */

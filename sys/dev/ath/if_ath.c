@@ -1178,7 +1178,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			sc->sc_has_ldpc = 1;
 			device_printf(sc->sc_dev,
 			    "[HT] LDPC transmit/receive enabled\n");
-			ic->ic_htcaps |= IEEE80211_HTCAP_LDPC;
+			ic->ic_htcaps |= IEEE80211_HTCAP_LDPC |
+					 IEEE80211_HTC_TXLDPC;
 		}
 
 
@@ -1638,6 +1639,7 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	 * However, for now that's enforced by the TX path.
 	 */
 	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
+	vap->iv_ampdu_limit = IEEE80211_HTCAP_MAXRXAMPDU_64K;
 
 	avp->av_bslot = -1;
 	if (needbeacon) {

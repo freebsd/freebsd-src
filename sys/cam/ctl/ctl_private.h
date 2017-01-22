@@ -470,7 +470,10 @@ struct ctl_softc {
 	STAILQ_HEAD(, ctl_backend_driver) be_list;
 	struct uma_zone *io_zone;
 	uint32_t cur_pool_id;
+	int shutdown;
 	struct ctl_thread threads[CTL_MAX_THREADS];
+	struct thread *lun_thread;
+	struct thread *thresh_thread;
 	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
 	struct callout tpc_timeout;
 	struct mtx tpc_lock;

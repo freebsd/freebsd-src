@@ -1,7 +1,7 @@
-.\"	$Id: mandoc.1,v 1.164 2015/11/05 17:47:51 schwarze Exp $
+.\"	$Id: mandoc.1,v 1.171 2017/01/21 02:32:39 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2012, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2012, 2014-2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 5 2015 $
+.Dd $Mdocdate: January 21 2017 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -75,6 +75,10 @@ This overrides any earlier
 and
 .Fl l
 options.
+.It Fl h
+Display only the SYNOPSIS lines.
+Implies
+.Fl c .
 .It Fl I Cm os Ns = Ns Ar name
 Override the default operating system
 .Ar name
@@ -85,10 +89,6 @@ and for the
 .Xr man 7
 .Sq \&TH
 macro.
-.It Fl h
-Display only the SYNOPSIS lines.
-Implies
-.Fl c .
 .It Fl K Ar encoding
 Specify the input encoding.
 The supported
@@ -498,7 +498,15 @@ Use
 to show a human readable representation of the syntax tree.
 It is useful for debugging the source code of manual pages.
 The exact format is subject to change, so don't write parsers for it.
-Each output line shows one syntax tree node.
+.Pp
+The first paragraph shows meta data found in the
+.Xr mdoc 7
+prologue, on the
+.Xr man 7
+.Ic \&TH
+line, or the fallbacks used.
+.Pp
+In the tree dump, each output line shows one syntax tree node.
 Child nodes are indented with respect to their parent node.
 The columns are:
 .Pp
@@ -529,6 +537,12 @@ The input column number (starting at one).
 A closing parenthesis if the node is a closing delimiter.
 .It
 A full stop if the node ends a sentence.
+.It
+NOSRC if the node is not in the input file,
+but automatically generated from macros.
+.It
+NOPRT if the node is not supposed to generate output
+for any output format.
 .El
 .El
 .Sh ENVIRONMENT
@@ -809,11 +823,13 @@ This may confuse
 .Xr makewhatis 8
 and
 .Xr apropos 1 .
-.It Sy "NAME section without name"
+.It Sy "NAME section without Nm before Nd"
 .Pq mdoc
 The NAME section does not contain any
 .Ic \&Nm
-child macro.
+child macro before the first
+.Ic \&Nd
+macro.
 .It Sy "NAME section without description"
 .Pq mdoc
 The NAME section lacks the mandatory
@@ -830,6 +846,11 @@ The NAME section contains plain text or macros other than
 .Ic \&Nm
 and
 .Ic \&Nd .
+.It Sy "missing comma before name"
+.Pq mdoc
+The NAME section contains an
+.Ic \&Nm
+macro that is neither the first one nor preceded by a comma.
 .It Sy "missing description line, using \(dq\(dq"
 .Pq mdoc
 The
@@ -1147,6 +1168,13 @@ macro is immediately followed by an
 .Ic \&Re
 macro on the next input line.
 Such an empty block does not produce any output.
+.It Sy "missing section argument"
+.Pq mdoc
+An
+.Ic \&Xr
+macro lacks its second, section number argument.
+The first argument, i.e. the name, is printed, but without subsequent
+parentheses.
 .It Sy "missing -std argument, adding it"
 .Pq mdoc
 An
@@ -1615,8 +1643,8 @@ macro fails to specify the list type.
 .It Sy "missing manual name, using \(dq\(dq"
 .Pq mdoc
 The first call to
-.Ic \&Nm
-lacks the required argument.
+.Ic \&Nm ,
+or any call in the NAME section, lacks the required argument.
 .It Sy "uname(3) system call failed, using UNKNOWN"
 .Pq mdoc
 The
@@ -1812,12 +1840,3 @@ utility was written by
 .An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
 and is maintained by
 .An Ingo Schwarze Aq Mt schwarze@openbsd.org .
-.Sh BUGS
-In
-.Fl T Cm html ,
-the maximum size of an element attribute is determined by
-.Dv BUFSIZ ,
-which is usually 1024 bytes.
-Be aware of this when setting long link
-formats such as
-.Fl O Cm style Ns = Ns Ar really/long/link .

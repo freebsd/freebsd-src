@@ -695,6 +695,7 @@ rtwn_ioctl_reset(struct ieee80211vap *vap, u_long cmd)
 	case IEEE80211_IOC_RTSTHRESHOLD:
 	case IEEE80211_IOC_PROTMODE:
 	case IEEE80211_IOC_HTPROTMODE:
+	case IEEE80211_IOC_LDPC:
 		error = 0;
 		break;
 	default:
@@ -1999,6 +2000,7 @@ rtwn_stop(struct rtwn_softc *sc)
 	sc->fwver = 0;
 	sc->thcal_temp = 0;
 	sc->cur_bcnq_id = RTWN_VAP_ID_INVALID;
+	bzero(&sc->last_physt, sizeof(sc->last_physt));
 
 #ifdef D4054
 	ieee80211_tx_watchdog_stop(&sc->sc_ic);

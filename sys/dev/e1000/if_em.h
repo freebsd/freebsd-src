@@ -436,7 +436,7 @@ struct adapter {
 #define intr_type shared->isc_intr
 	/* FreeBSD operating-system-specific structures. */
 	struct e1000_osdep osdep;
-	struct device	*dev;
+	device_t	dev;
 	struct cdev	*led_dev;
 
         struct em_tx_queue *tx_queues;

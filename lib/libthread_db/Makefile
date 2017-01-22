@@ -15,7 +15,7 @@ CFLAGS+=-I. -I${.CURDIR}
 SYM_MAPS+=${.CURDIR}/Symbol.map
 
 SYMBOL_MAPS=${SYM_MAPS}
-VERSION_DEF=${.CURDIR}/../libc/Versions.def
+VERSION_DEF=${SRCTOP}/lib/libc/Versions.def
 
 # Unfortunately, clang gives an incorrect warning about alignment in
 # arch/i386/libpthread_md.c, so turn that off for now.

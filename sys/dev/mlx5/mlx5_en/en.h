@@ -402,6 +402,7 @@ struct mlx5e_params {
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
   m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
+  m(+1, u64 tx_bufring_disable, "tx_bufring_disable", "0: Enable bufring 1: Disable bufring") \
   m(+1, u64 tx_completion_fact, "tx_completion_fact", "1..MAX: Completion event ratio") \
   m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
@@ -507,10 +508,11 @@ struct mlx5e_sq {
 	u16	bf_offset;
 	u16	cev_counter;		/* completion event counter */
 	u16	cev_factor;		/* completion event factor */
-	u32	cev_next_state;		/* next completion event state */
+	u16	cev_next_state;		/* next completion event state */
 #define	MLX5E_CEV_STATE_INITIAL 0	/* timer not started */
 #define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
 #define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
+	u16	stopped;		/* set if SQ is stopped */
 	struct callout cev_callout;
 	union {
 		u32	d32[2];
