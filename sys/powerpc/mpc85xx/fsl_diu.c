@@ -344,7 +344,7 @@ diu_init(struct diu_softc *sc)
 static int
 diu_attach(device_t dev)
 {
-	struct edid_info *edid;
+	struct edid_info edid;
 	struct diu_softc *sc;
 	const struct videomode *videomode;
 	void *edid_cells;
@@ -384,7 +384,7 @@ diu_attach(device_t dev)
 		}
 	}
 	if (edid_cells != NULL) {
-		if (edid_parse(edid_cells, edid) != 0) {
+		if (edid_parse(edid_cells, &edid) != 0) {
 			device_printf(dev, "Error parsing EDID\n");
 			OF_prop_free(edid_cells);
 			return (ENXIO);
