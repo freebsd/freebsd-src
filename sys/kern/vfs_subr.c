@@ -1491,7 +1491,7 @@ alloc:
 	vp->v_bufobj.bo_ops = &buf_ops_bio;
 #ifdef DIAGNOSTIC
 	if (mp == NULL && vops != &dead_vnodeops)
-		printf("NULL mp in getnewvnode()\n");
+		printf("NULL mp in getnewvnode(9), tag %s\n", tag);
 #endif
 #ifdef MAC
 	mac_vnode_init(vp);
