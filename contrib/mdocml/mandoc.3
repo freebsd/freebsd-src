@@ -1,7 +1,7 @@
-.\"	$Id: mandoc.3,v 1.37 2016/07/07 19:19:01 schwarze Exp $
+.\"	$Id: mandoc.3,v 1.38 2017/01/09 01:37:03 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010-2016 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 7 2016 $
+.Dd $Mdocdate: January 9 2017 $
 .Dt MANDOC 3
 .Os
 .Sh NAME
@@ -34,7 +34,8 @@
 .Nm mparse_reset ,
 .Nm mparse_result ,
 .Nm mparse_strerror ,
-.Nm mparse_strlevel
+.Nm mparse_strlevel ,
+.Nm mparse_updaterc 
 .Nd mandoc macro compiler library
 .Sh SYNOPSIS
 .In sys/types.h
@@ -99,6 +100,11 @@
 .Ft "const char *"
 .Fo mparse_strlevel
 .Fa "enum mandoclevel"
+.Fc
+.Ft void
+.Fo mparse_updaterc
+.Fa "struct mparse *parse"
+.Fa "enum mandoclevel *rc"
 .Fc
 .In roff.h
 .Ft void
@@ -180,6 +186,9 @@ validate it with
 or
 .Fn man_validate ,
 respectively;
+.It
+if information about the validity of the input is needed, fetch it with
+.Fn mparse_updaterc ;
 .It
 iterate over parse nodes with starting from the
 .Fa first
@@ -412,6 +421,22 @@ implemented in
 .Pa read.c .
 .It Fn mparse_strlevel
 Return a statically-allocated string representation of a level code.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
+.It Fn mparse_updaterc
+If the highest warning or error level that occurred during the current
+.Fa parse
+is higher than
+.Pf * Fa rc ,
+update
+.Pf * Fa rc
+accordingly.
+This is useful after calling
+.Fn mdoc_validate
+or
+.Fn man_validate .
 Declared in
 .In mandoc.h ,
 implemented in

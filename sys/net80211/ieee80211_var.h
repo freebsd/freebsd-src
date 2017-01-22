@@ -641,6 +641,8 @@ MALLOC_DECLARE(M_80211_VAP);
 
 /* ic_flags_ht/iv_flags_ht */
 #define	IEEE80211_FHT_NONHT_PR	 0x00000001	/* STATUS: non-HT sta present */
+#define	IEEE80211_FHT_LDPC_TX	 0x00010000	/* CONF: LDPC tx enabled */
+#define	IEEE80211_FHT_LDPC_RX	 0x00020000	/* CONF: LDPC rx enabled */
 #define	IEEE80211_FHT_GF  	 0x00040000	/* CONF: Greenfield enabled */
 #define	IEEE80211_FHT_HT	 0x00080000	/* CONF: HT supported */
 #define	IEEE80211_FHT_AMPDU_TX	 0x00100000	/* CONF: A-MPDU tx supported */

@@ -1283,16 +1283,16 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 			return;
 #endif
 		/*
-		 * Otherwise, do per-cache line flush.  Use the mfence
+		 * Otherwise, do per-cache line flush.  Use the sfence
 		 * instruction to insure that previous stores are
 		 * included in the write-back.  The processor
 		 * propagates flush to other processors in the cache
 		 * coherence domain.
 		 */
-		mfence();
+		sfence();
 		for (; sva < eva; sva += cpu_clflush_line_size)
 			clflushopt(sva);
-		mfence();
+		sfence();
 	} else if ((cpu_feature & CPUID_CLFSH) != 0 &&
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
 #ifdef DEV_APIC
@@ -5300,12 +5300,14 @@ pmap_flush_page(vm_page_t m)
 		eva = sva + PAGE_SIZE;
 
 		/*
-		 * Use mfence despite the ordering implied by
+		 * Use mfence or sfence despite the ordering implied by
 		 * mtx_{un,}lock() because clflush on non-Intel CPUs
 		 * and clflushopt are not guaranteed to be ordered by
 		 * any other instruction.
 		 */
-		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+		if (useclflushopt)
+			sfence();
+		else if (cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
 		for (; sva < eva; sva += cpu_clflush_line_size) {
 			if (useclflushopt)
@@ -5313,7 +5315,9 @@ pmap_flush_page(vm_page_t m)
 			else
 				clflush(sva);
 		}
-		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+		if (useclflushopt)
+			sfence();
+		else if (cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
 		*cmap_pte2 = 0;
 		sched_unpin();

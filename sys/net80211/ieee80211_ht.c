@@ -298,6 +298,11 @@ ieee80211_ht_vattach(struct ieee80211vap *vap)
 			vap->iv_flags_ht |= IEEE80211_FHT_STBC_TX;
 		if (vap->iv_htcaps & IEEE80211_HTCAP_RXSTBC)
 			vap->iv_flags_ht |= IEEE80211_FHT_STBC_RX;
+
+		if (vap->iv_htcaps & IEEE80211_HTCAP_LDPC)
+			vap->iv_flags_ht |= IEEE80211_FHT_LDPC_RX;
+		if (vap->iv_htcaps & IEEE80211_HTC_TXLDPC)
+			vap->iv_flags_ht |= IEEE80211_FHT_LDPC_TX;
 	}
 	/* NB: disable default legacy WDS, too many issues right now */
 	if (vap->iv_flags_ext & IEEE80211_FEXT_WDSLEGACY)
@@ -1650,6 +1655,20 @@ htcap_update_shortgi(struct ieee80211_node *ni)
 }
 
 /*
+ * Update LDPC state according to received htcap
+ * and local settings.
+ */
+static __inline void
+htcap_update_ldpc(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	if ((ni->ni_htcap & IEEE80211_HTCAP_LDPC) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_LDPC_TX))
+		ni->ni_flags |= IEEE80211_NODE_LDPC;
+}
+
+/*
  * Parse and update HT-related state extracted from
  * the HT cap and info ie's.
  *
@@ -1669,6 +1688,7 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
 		htcap_update_mimo_ps(ni);
 	htcap_update_shortgi(ni);
+	htcap_update_ldpc(ni);
 
 	if (htinfoie[0] == IEEE80211_ELEMID_VENDOR)
 		htinfoie += 4;
@@ -1821,6 +1841,7 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
 		htcap_update_mimo_ps(ni);
 	htcap_update_shortgi(ni);
+	htcap_update_ldpc(ni);
 }
 
 /*
@@ -3027,7 +3048,9 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	if ((vap->iv_flags_ht & IEEE80211_FHT_STBC_RX) == 0)
 		caps &= ~IEEE80211_HTCAP_RXSTBC;
 
-	/* XXX TODO: adjust LDPC based on receive capabilities */
+	/* adjust LDPC based on receive capabilites */
+	if ((vap->iv_flags_ht & IEEE80211_FHT_LDPC_RX) == 0)
+		caps &= ~IEEE80211_HTCAP_LDPC;
 
 	ADDSHORT(frm, caps);
 

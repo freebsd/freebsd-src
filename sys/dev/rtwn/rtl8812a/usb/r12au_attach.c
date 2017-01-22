@@ -168,7 +168,15 @@ r12a_read_chipid_vendor(struct rtwn_softc *sc, uint32_t reg_sys_cfg)
 static void
 r12au_adj_devcaps(struct rtwn_softc *sc)
 {
-	/* TODO: LDPC, STBC etc */
+	struct r12a_softc *rs = sc->sc_priv;
+	struct ieee80211com *ic = &sc->sc_ic;
+
+	if (rs->chip & R12A_CHIP_C_CUT) {
+		ic->ic_htcaps |= IEEE80211_HTCAP_LDPC |
+				 IEEE80211_HTC_TXLDPC;
+	}
+
+	/* TODO: STBC, VHT etc */
 }
 
 void
@@ -190,6 +198,7 @@ r12au_attach(struct rtwn_usb_softc *uc)
 	sc->sc_dump_tx_desc		= r12au_dump_tx_desc;
 	sc->sc_tx_radiotap_flags	= r12a_tx_radiotap_flags;
 	sc->sc_rx_radiotap_flags	= r12a_rx_radiotap_flags;
+	sc->sc_get_rx_stats		= r12a_get_rx_stats;
 	sc->sc_get_rssi_cck		= r88e_get_rssi_cck;
 	sc->sc_get_rssi_ofdm		= r88e_get_rssi_ofdm;
 	sc->sc_classify_intr		= r12au_classify_intr;

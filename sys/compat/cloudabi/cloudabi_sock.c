@@ -141,7 +141,7 @@ cloudabi_sys_sock_bind(struct thread *td,
 	struct sockaddr_un sun;
 	int error;
 
-	error = copyin_sockaddr_un(uap->path, uap->pathlen, &sun);
+	error = copyin_sockaddr_un(uap->path, uap->path_len, &sun);
 	if (error != 0)
 		return (error);
 	return (kern_bindat(td, uap->fd, uap->sock, (struct sockaddr *)&sun));
@@ -154,7 +154,7 @@ cloudabi_sys_sock_connect(struct thread *td,
 	struct sockaddr_un sun;
 	int error;
 
-	error = copyin_sockaddr_un(uap->path, uap->pathlen, &sun);
+	error = copyin_sockaddr_un(uap->path, uap->path_len, &sun);
 	if (error != 0)
 		return (error);
 	return (kern_connectat(td, uap->fd, uap->sock,

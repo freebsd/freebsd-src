@@ -23,6 +23,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ratelimit.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -118,6 +119,11 @@ static void	lagg_port2req(struct lagg_port *, struct lagg_reqport *);
 static void	lagg_init(void *);
 static void	lagg_stop(struct lagg_softc *);
 static int	lagg_ioctl(struct ifnet *, u_long, caddr_t);
+#ifdef RATELIMIT
+static int	lagg_snd_tag_alloc(struct ifnet *,
+		    union if_snd_tag_alloc_params *,
+		    struct m_snd_tag **);
+#endif
 static int	lagg_ether_setmulti(struct lagg_softc *);
 static int	lagg_ether_cmdmulti(struct lagg_port *, int);
 static	int	lagg_setflag(struct lagg_port *, int, int,
@@ -503,7 +509,12 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_ioctl = lagg_ioctl;
 	ifp->if_get_counter = lagg_get_counter;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
+#ifdef RATELIMIT
+	ifp->if_snd_tag_alloc = lagg_snd_tag_alloc;
+	ifp->if_capenable = ifp->if_capabilities = IFCAP_HWSTATS | IFCAP_TXRTLMT;
+#else
 	ifp->if_capenable = ifp->if_capabilities = IFCAP_HWSTATS;
+#endif
 
 	/*
 	 * Attach as an ordinary ethernet device, children will be attached
@@ -1548,6 +1559,52 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 	return (error);
 }
+
+#ifdef RATELIMIT
+static int
+lagg_snd_tag_alloc(struct ifnet *ifp,
+    union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **ppmt)
+{
+	struct lagg_softc *sc = (struct lagg_softc *)ifp->if_softc;
+	struct lagg_port *lp;
+	struct lagg_lb *lb;
+	uint32_t p;
+
+	switch (sc->sc_proto) {
+	case LAGG_PROTO_FAILOVER:
+		lp = lagg_link_active(sc, sc->sc_primary);
+		break;
+	case LAGG_PROTO_LOADBALANCE:
+		if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) == 0 ||
+		    params->hdr.flowtype == M_HASHTYPE_NONE)
+			return (EOPNOTSUPP);
+		p = params->hdr.flowid >> sc->flowid_shift;
+		p %= sc->sc_count;
+		lb = (struct lagg_lb *)sc->sc_psc;
+		lp = lb->lb_ports[p];
+		lp = lagg_link_active(sc, lp);
+		break;
+	case LAGG_PROTO_LACP:
+		if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) == 0 ||
+		    params->hdr.flowtype == M_HASHTYPE_NONE)
+			return (EOPNOTSUPP);
+		lp = lacp_select_tx_port_by_hash(sc, params->hdr.flowid);
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+	if (lp == NULL)
+		return (EOPNOTSUPP);
+	ifp = lp->lp_ifp;
+	if (ifp == NULL || ifp->if_snd_tag_alloc == NULL ||
+	    (ifp->if_capenable & IFCAP_TXRTLMT) == 0)
+		return (EOPNOTSUPP);
+
+	/* forward allocation request */
+	return (ifp->if_snd_tag_alloc(ifp, params, ppmt));
+}
+#endif
 
 static int
 lagg_ether_setmulti(struct lagg_softc *sc)

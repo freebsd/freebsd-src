@@ -320,7 +320,7 @@ struct ctl_scsiio {
 	uint8_t	   sense_len;		/* Returned sense length */
 	uint8_t	   scsi_status;		/* SCSI status byte */
 	uint8_t	   sense_residual;	/* Unused. */
-	uint32_t   residual;		/* data residual length */
+	uint32_t   residual;		/* Unused */
 	uint32_t   tag_num;		/* tag number */
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/
 	uint8_t    cdb_len;		/* CDB length */
@@ -373,7 +373,7 @@ struct ctl_taskio {
 /*
  * HA link messages.
  */
-#define	CTL_HA_VERSION		2
+#define	CTL_HA_VERSION		3
 
 /*
  * Used for CTL_MSG_LOGIN.
@@ -469,7 +469,8 @@ struct ctl_ha_msg_dt {
 };
 
 /*
- * Used for CTL_MSG_SERIALIZE, CTL_MSG_FINISH_IO, CTL_MSG_BAD_JUJU.
+ * Used for CTL_MSG_SERIALIZE, CTL_MSG_FINISH_IO, CTL_MSG_BAD_JUJU,
+ * and CTL_MSG_DATAMOVE_DONE.
  */
 struct ctl_ha_msg_scsi {
 	struct ctl_ha_msg_hdr	hdr;
@@ -479,10 +480,9 @@ struct ctl_ha_msg_scsi {
 	uint8_t			cdb_len;	/* CDB length */
 	uint8_t			scsi_status; /* SCSI status byte */
 	uint8_t			sense_len;   /* Returned sense length */
-	uint8_t			sense_residual;	/* sense residual length */
-	uint32_t		residual;    /* data residual length */
-	uint32_t		fetd_status; /* trans status, set by FETD,
+	uint32_t		port_status; /* trans status, set by FETD,
 						0 = good*/
+	uint32_t		kern_data_resid; /* for DATAMOVE_DONE */
 	struct scsi_sense_data	sense_data;  /* sense data */
 };
 

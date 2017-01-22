@@ -1,4 +1,4 @@
-/*	$Id: lib.in,v 1.18 2014/01/06 00:53:33 schwarze Exp $ */
+/*	$Id: lib.in,v 1.19 2016/11/23 20:22:13 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2009, 2012 Joerg Sonnenberger <joerg@netbsd.org>
@@ -85,7 +85,8 @@ LINE("libnpf",		"NPF Packet Filter Library (libnpf, \\-lnpf)")
 LINE("libnv",		"Name/value pairs library (libnv, \\-lnv)")
 LINE("libossaudio",	"OSS Audio Emulation Library (libossaudio, \\-lossaudio)")
 LINE("libpam",		"Pluggable Authentication Module Library (libpam, \\-lpam)")
-LINE("libpcap",		"Packet Capture Library (libpcap, \\-lpcap)")
+LINE("libpanel",	"Z-order for curses windows (libpanel, \\-lpanel)")
+LINE("libpcap",		"Packet capture Library (libpcap, \\-lpcap)")
 LINE("libpci",		"PCI Bus Access Library (libpci, \\-lpci)")
 LINE("libpmc",		"Performance Counters Library (libpmc, \\-lpmc)")
 LINE("libppath",	"Property-List Paths Library (libppath, \\-lppath)")
@@ -96,6 +97,7 @@ LINE("libproc",		"Processor Monitoring and Analysis Library (libproc, \\-lproc)"
 LINE("libprocstat",	"Process and Files Information Retrieval (libprocstat, \\-lprocstat)")
 LINE("libprop",		"Property Container Object Library (libprop, \\-lprop)")
 LINE("libpthread",	"POSIX Threads Library (libpthread, \\-lpthread)")
+LINE("libpthread_dbg",	"POSIX Debug Threads Library (libpthread_dbg, \\-lpthread_dbg)")
 LINE("libpuffs",	"puffs Convenience Library (libpuffs, \\-lpuffs)")
 LINE("libquota",	"Disk Quota Access and Control Library (libquota, \\-lquota)")
 LINE("libradius",	"RADIUS Client Library (libradius, \\-lradius)")
@@ -104,7 +106,8 @@ LINE("libresolv",	"DNS Resolver Library (libresolv, \\-lresolv)")
 LINE("librpcsec_gss",	"RPC GSS-API Authentication Library (librpcsec_gss, \\-lrpcsec_gss)")
 LINE("librpcsvc",	"RPC Service Library (librpcsvc, \\-lrpcsvc)")
 LINE("librt",		"POSIX Real\\-time Library (librt, \\-lrt)")
-LINE("librtld_db",	"Run-time Linker Debugging Library (librtld_db, \\-lrtld_db)")
+LINE("librtld_db",	"Debugging interface to the runtime linker Library (librtld_db, \\-lrtld_db)")
+LINE("librumpclient",	"Clientside Stubs for rump Kernel Remote Protocols (librumpclient, \\-lrumpclient)")
 LINE("libsaslc",	"Simple Authentication and Security Layer client library (libsaslc, \\-lsaslc)")
 LINE("libsbuf",		"Safe String Composition Library (libsbuf, \\-lsbuf)")
 LINE("libsdp",		"Bluetooth Service Discovery Protocol User Library (libsdp, \\-lsdp)")

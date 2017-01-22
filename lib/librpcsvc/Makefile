@@ -3,7 +3,7 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../../include/rpcsvc
+.PATH: ${SRCTOP}/include/rpcsvc
 
 PACKAGE=lib${LIB}
 LIB=    rpcsvc
