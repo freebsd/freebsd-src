@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #define	MS(_v, _f)	( ((_v) & (_f)) >> _f##_S )
 #define	MF(_v, _f) ( !! ((_v) & (_f)))
 
+static uint32_t last_ts = 0;
+
 void
 ath_alq_print_edma_tx_fifo_push(struct if_ath_alq_payload *a)
 {
@@ -62,14 +64,17 @@ ar9300_decode_txstatus(struct if_ath_alq_payload *a)
 	/* XXX assumes txs is smaller than PAYLOAD_LEN! */
 	memcpy(&txs, &a->payload, sizeof(struct ar9300_txs));
 
-	printf("[%u.%06u] [%llu] TXSTATUS TxTimestamp=%u, DescId=0x%04x, QCU=%d\n",
+	printf("[%u.%06u] [%llu] TXSTATUS TxTimestamp=%u (%u), DescId=0x%04x, QCU=%d\n",
 	    (unsigned int) be32toh(a->hdr.tstamp_sec),
 	    (unsigned int) be32toh(a->hdr.tstamp_usec),
 	    (unsigned long long) be64toh(a->hdr.threadid),
 	    txs.status4,
+	    txs.status4 - last_ts,
 	    (unsigned int) MS(txs.status1, AR_tx_desc_id),
 	    (unsigned int) MS(txs.ds_info, AR_tx_qcu_num));
 	printf("    DescId=0x%08x\n", txs.status1);
+
+	last_ts = txs.status4;
 
 	printf("    DescLen=%d, TxQcuNum=%d, CtrlStat=%d, DescId=0x%04x\n",
 	    txs.ds_info & 0xff,
@@ -333,10 +338,12 @@ ar9300_decode_rxstatus(struct if_ath_alq_payload *a)
 	/* XXX assumes rxs is smaller than PAYLOAD_LEN! */
 	memcpy(&rxs, &a->payload, sizeof(struct ar9300_rxs));
 
-	printf("[%u.%06u] [%llu] RXSTATUS\n",
+	printf("[%u.%06u] [%llu] RXSTATUS RxTimestamp: %u (%d)\n",
 	    (unsigned int) be32toh(a->hdr.tstamp_sec),
 	    (unsigned int) be32toh(a->hdr.tstamp_usec),
-	    (unsigned long long) be64toh(a->hdr.threadid));
+	    (unsigned long long) be64toh(a->hdr.threadid),
+	    rxs.status3,
+	    rxs.status3 - last_ts);
 
 	/* status1 */
 	/* .. and status5 */
@@ -358,7 +365,8 @@ ar9300_decode_rxstatus(struct if_ath_alq_payload *a)
 	    MS(rxs.status2, AR_hw_upload_data));
 
 	/* status3 */
-	printf("    RX timestamp: %d\n", rxs.status3);
+	printf("    RX timestamp: %u\n", rxs.status3);
+	last_ts = rxs.status3;
 
 	/* status4 */
 	printf("    GI: %d, 2040: %d, parallel40: %d, stbc=%d\n",
