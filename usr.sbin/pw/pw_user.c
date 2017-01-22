@@ -1697,6 +1697,10 @@ pw_user_mod(int argc, char **argv, char *arg1)
 		edited = true;
 	}
 
+	if (createhome && fstatat(conf.rootfd, pwd->pw_dir, &st, 0) == -1) {
+		docreatehome = true;
+	}
+
 	if (homedir && strcmp(pwd->pw_dir, homedir) != 0) {
 		pwd->pw_dir = homedir;
 		edited = true;
