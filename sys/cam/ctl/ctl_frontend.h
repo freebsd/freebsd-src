@@ -120,7 +120,6 @@ struct ctl_wwpn_iid {
  * port_name:		  A string describing the FETD.  e.g. "LSI 1030T U320"
  *			  or whatever you want to use to describe the driver.
  *
- *
  * physical_port:	  This is the physical port number of this
  * 			  particular port within the driver/hardware.  This
  * 			  number is hardware/driver specific.
@@ -179,11 +178,6 @@ struct ctl_wwpn_iid {
  *			  to request a dump of any debugging information or
  *			  state to the console.
  *
- * max_targets:		  The maximum number of targets that we can create
- *			  per-port.
- *
- * max_target_id:	  The highest target ID that we can use.
- *
  * targ_port:		  The CTL layer assigns a "port number" to every
  *			  FETD.  This port number should be passed back in
  *			  in the header of every ctl_io that is queued to
@@ -234,8 +228,6 @@ struct ctl_port {
 	void		*targ_lun_arg;		/* passed to CTL */
 	void		(*fe_datamove)(union ctl_io *io); /* passed to CTL */
 	void		(*fe_done)(union ctl_io *io); /* passed to CTL */
-	int		max_targets;		/* passed to CTL */
-	int		max_target_id;		/* passed to CTL */
 	int32_t		targ_port;		/* passed back to FETD */
 	void		*ctl_pool_ref;		/* passed back to FETD */
 	uint32_t	max_initiators;		/* passed back to FETD */
