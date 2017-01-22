@@ -389,7 +389,7 @@ diu_attach(device_t dev)
 			OF_prop_free(edid_cells);
 			return (ENXIO);
 		}
-		videomode = edid->edid_preferred_mode;
+		videomode = edid.edid_preferred_mode;
 	} else {
 		/* Parse video-mode kenv variable. */
 		if ((err = sscanf(vm_name, "fslfb:%dx%d@%d", &w, &h, &r)) != 3) {
