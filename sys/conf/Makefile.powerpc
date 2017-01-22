@@ -39,7 +39,8 @@ INCLUDES+= -I$S/contrib/libfdt
 # Force __SPE__, since the builtin will be removed later with -mno-spe
 CFLAGS+= -mabi=spe -D__SPE__
 .endif
-CFLAGS+= -msoft-float -Wa,-many
+CFLAGS+= -msoft-float
+CFLAGS.gcc+= -Wa,-many
 
 # Build position-independent kernel
 CFLAGS+= -fPIC
