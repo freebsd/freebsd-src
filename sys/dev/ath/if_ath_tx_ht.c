@@ -402,7 +402,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
  */
 static int
 ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
-    uint16_t pktlen)
+    uint16_t pktlen, int is_first)
 {
 #define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
@@ -458,11 +458,12 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	 * For AR9380, there's a minimum number of delimeters
 	 * required when doing RTS.
 	 *
-	 * XXX TODO: this is only needed if (a) RTS/CTS is enabled, and
-	 * XXX (b) this is the first sub-frame in the aggregate.
+	 * XXX TODO: this is only needed if (a) RTS/CTS is enabled for
+	 * this exchange, and (b) (done) this is the first sub-frame
+	 * in the aggregate.
 	 */
 	if (sc->sc_use_ent && (sc->sc_ent_cfg & AH_ENT_RTSCTS_DELIM_WAR)
-	    && ndelim < AH_FIRST_DESC_NDELIMS)
+	    && ndelim < AH_FIRST_DESC_NDELIMS && is_first)
 		ndelim = AH_FIRST_DESC_NDELIMS;
 
 	/*
@@ -975,7 +976,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		 */
 		bf->bf_state.bfs_ndelim =
 		    ath_compute_num_delims(sc, bf_first,
-		    bf->bf_state.bfs_pktlen);
+		    bf->bf_state.bfs_pktlen, (bf_first == bf));
 
 		/*
 		 * Calculate the padding needed from this set of delimiters,
