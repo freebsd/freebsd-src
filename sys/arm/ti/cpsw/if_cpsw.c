@@ -1582,14 +1582,19 @@ cpsw_intr_rx(void *arg)
 static struct mbuf *
 cpsw_rx_dequeue(struct cpsw_softc *sc)
 {
+	int nsegs, port, removed;
 	struct cpsw_cpdma_bd bd;
 	struct cpsw_slot *last, *slot;
 	struct cpswp_softc *psc;
-	struct mbuf *mb_head, *mb_tail;
-	int port, removed = 0;
+	struct mbuf *m, *m0, *mb_head, *mb_tail;
+	uint16_t m0_flags;
 
+	nsegs = 0;
+	m0 = NULL;
 	last = NULL;
-	mb_head = mb_tail = NULL;
+	mb_head = NULL;
+	mb_tail = NULL;
+	removed = 0;
 
 	/* Pull completed packets off hardware RX queue. */
 	while ((slot = STAILQ_FIRST(&sc->rx.active)) != NULL) {
@@ -1612,10 +1617,12 @@ cpsw_rx_dequeue(struct cpsw_softc *sc)
 		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap, BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
 
+		m = slot->mbuf;
+		slot->mbuf = NULL;
+
 		if (bd.flags & CPDMA_BD_TDOWNCMPLT) {
 			CPSW_DEBUGF(sc, ("RX teardown is complete"));
-			m_freem(slot->mbuf);
-			slot->mbuf = NULL;
+			m_freem(m);
 			sc->rx.running = 0;
 			sc->rx.teardown = 0;
 			break;
@@ -1627,28 +1634,36 @@ cpsw_rx_dequeue(struct cpsw_softc *sc)
 		psc = device_get_softc(sc->port[port].dev);
 
 		/* Set up mbuf */
-		/* TODO: track SOP/EOP bits to assemble a full mbuf
-		   out of received fragments. */
-		slot->mbuf->m_data += bd.bufoff;
-		slot->mbuf->m_len = bd.buflen;
+		m->m_data += bd.bufoff;
+		m->m_len = bd.buflen;
 		if (bd.flags & CPDMA_BD_SOP) {
-			slot->mbuf->m_pkthdr.len = bd.pktlen;
-			slot->mbuf->m_pkthdr.rcvif = psc->ifp;
-			slot->mbuf->m_flags |= M_PKTHDR;
+			m->m_pkthdr.len = bd.pktlen;
+			m->m_pkthdr.rcvif = psc->ifp;
+			m->m_flags |= M_PKTHDR;
+			m0_flags = bd.flags;
+			m0 = m;
 		}
-		slot->mbuf->m_next = NULL;
-		slot->mbuf->m_nextpkt = NULL;
-		if (bd.flags & CPDMA_BD_PASS_CRC)
-			m_adj(slot->mbuf, -ETHER_CRC_LEN);
+		nsegs++;
+		m->m_next = NULL;
+		m->m_nextpkt = NULL;
+		if (bd.flags & CPDMA_BD_EOP && m0 != NULL) {
+			if (m0_flags & CPDMA_BD_PASS_CRC)
+				m_adj(m0, -ETHER_CRC_LEN);
+			m0_flags = 0;
+			m0 = NULL;
+			if (nsegs > sc->rx.longest_chain)
+				sc->rx.longest_chain = nsegs;
+			nsegs = 0;
+		}
 
 		if ((psc->ifp->if_capenable & IFCAP_RXCSUM) != 0) {
 			/* check for valid CRC by looking into pkt_err[5:4] */
 			if ((bd.flags &
 			    (CPDMA_BD_SOP | CPDMA_BD_PKT_ERR_MASK)) ==
 			    CPDMA_BD_SOP) {
-				slot->mbuf->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-				slot->mbuf->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-				slot->mbuf->m_pkthdr.csum_data = 0xffff;
+				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+				m->m_pkthdr.csum_data = 0xffff;
 			}
 		}
 
@@ -1661,15 +1676,21 @@ cpsw_rx_dequeue(struct cpsw_softc *sc)
 		}
 
 		/* Add mbuf to packet list to be returned. */
-		if (mb_tail) {
-			mb_tail->m_nextpkt = slot->mbuf;
+		if (mb_tail != NULL && (bd.flags & CPDMA_BD_SOP)) {
+			mb_tail->m_nextpkt = m;
+		} else if (mb_tail != NULL) {
+			mb_tail->m_next = m;
+		} else if (mb_tail == NULL && (bd.flags & CPDMA_BD_SOP) == 0) {
+			if (bootverbose)
+				printf(
+				    "%s: %s: discanding fragment packet w/o header\n",
+				    __func__, psc->ifp->if_xname);
+			m_freem(m);
+			continue;
 		} else {
-			mb_head = slot->mbuf;
+			mb_head = m;
 		}
-		mb_tail = slot->mbuf;
-		slot->mbuf = NULL;
-		if (sc->rx_batch > 0 && sc->rx_batch == removed)
-			break;
+		mb_tail = m;
 	}
 
 	if (removed != 0) {
@@ -2685,9 +2706,6 @@ cpsw_add_sysctls(struct cpsw_softc *sc)
 
 	SYSCTL_ADD_INT(ctx, parent, OID_AUTO, "debug",
 	    CTLFLAG_RW, &sc->debug, 0, "Enable switch debug messages");
-
-	SYSCTL_ADD_INT(ctx, parent, OID_AUTO, "rx_batch",
-	    CTLFLAG_RW, &sc->rx_batch, 0, "Set the rx batch size");
 
 	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, "attachedSecs",
 	    CTLTYPE_UINT | CTLFLAG_RD, sc, 0, cpsw_stat_attached, "IU",
