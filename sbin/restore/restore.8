@@ -349,6 +349,8 @@ To prevent this, the
 .Fl u
 (unlink) flag causes restore to remove old entries before attempting
 to create new ones.
+This flag is recommended when using extended attributes
+to avoid improperly accumulating attributes on pre-existing files.
 .It Fl v
 Normally
 .Nm
