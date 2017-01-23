@@ -270,6 +270,7 @@ typedef struct {
 #if defined(JEMALLOC_NO_PTR_BOUNDS) || !defined(__CHERI_PURE_CAPABILITY__)
 #define	BOUND_PTR(ptr, size)	(ptr)
 #else
+void *malloc_area;
 #define	BOUND_PTR(ptr, size)	cheri_csetbounds((ptr), (size))
 #endif
 
@@ -1356,6 +1357,9 @@ malloc_init_hard_a0_locked()
 
 	malloc_initializer = INITIALIZER;
 
+#if !defined(JEMALLOC_NO_PTR_BOUNDS) && defined(__CHERI_PURE_CAPABILITY__)
+	malloc_area = cheri_getdefault();
+#endif
 	if (config_prof)
 		prof_boot0();
 	malloc_conf_init();

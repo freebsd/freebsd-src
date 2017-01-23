@@ -317,9 +317,9 @@ typedef unsigned szind_t;
 #if defined(JEMALLOC_NO_PTR_BOUNDS) || !defined(__CHERI_PURE_CAPABILITY__)
 #define	UNBOUND_PTR(a)	(a)
 #else
+extern void *malloc_area;
 #define	UNBOUND_PTR(a)							\
-	 cheri_setoffset(cheri_getdefault(),				\
-	     (vaddr_t)(a) - (vaddr_t)cheri_getdefault())
+	 cheri_setoffset(malloc_area, (vaddr_t)(a) - (vaddr_t)malloc_area)
 #endif
 
 /* Return the smallest (void *) multiple that is >= a. */
