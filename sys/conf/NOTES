@@ -747,8 +747,7 @@ options 	NETGRAPH_IPFW
 options 	NETGRAPH_KSOCKET
 options 	NETGRAPH_L2TP
 options 	NETGRAPH_LMI
-# MPPC compression requires proprietary files (not included)
-#options 	NETGRAPH_MPPC_COMPRESSION
+options 	NETGRAPH_MPPC_COMPRESSION
 options 	NETGRAPH_MPPC_ENCRYPTION
 options 	NETGRAPH_NETFLOW
 options 	NETGRAPH_NAT

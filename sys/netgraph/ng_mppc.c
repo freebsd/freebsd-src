@@ -66,7 +66,7 @@
 
 #if !defined(NETGRAPH_MPPC_COMPRESSION) && !defined(NETGRAPH_MPPC_ENCRYPTION)
 #ifdef KLD_MODULE
-/* XXX NETGRAPH_MPPC_COMPRESSION isn't functional yet */
+#define NETGRAPH_MPPC_COMPRESSION
 #define NETGRAPH_MPPC_ENCRYPTION
 #else
 /* This case is indicative of an error in sys/conf files */
@@ -81,7 +81,6 @@ static MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node");
 #endif
 
 #ifdef NETGRAPH_MPPC_COMPRESSION
-/* XXX this file doesn't exist yet, but hopefully someday it will... */
 #include <net/mppc.h>
 #endif
 #ifdef NETGRAPH_MPPC_ENCRYPTION
@@ -546,7 +545,7 @@ err1:
 			&destCnt, d->history, flags, 0);
 
 		/* Check return value */
-		KASSERT(rtn != MPPC_INVALID, ("%s: invalid", __func__));
+		/* KASSERT(rtn != MPPC_INVALID, ("%s: invalid", __func__)); */
 		if ((rtn & MPPC_EXPANDED) == 0
 		    && (rtn & MPPC_COMP_OK) == MPPC_COMP_OK) {
 			outlen -= destCnt;     
@@ -808,7 +807,7 @@ failed:
 			&sourceCnt, &destCnt, d->history, flags);
 
 		/* Check return value */
-		KASSERT(rtn != MPPC_INVALID, ("%s: invalid", __func__));
+		/* KASSERT(rtn != MPPC_INVALID, ("%s: invalid", __func__)); */
 		if ((rtn & MPPC_DEST_EXHAUSTED) != 0
 		    || (rtn & MPPC_DECOMP_OK) != MPPC_DECOMP_OK) {
 			log(LOG_ERR, "%s: decomp returned 0x%x",
