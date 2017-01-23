@@ -105,8 +105,6 @@ static void ipi_preempt(void *);
 static void ipi_rendezvous(void *);
 static void ipi_stop(void *);
 
-static int ipi_handler(void *arg);
-
 struct mtx ap_boot_mtx;
 struct pcb stoppcbs[MAXCPU];
 
