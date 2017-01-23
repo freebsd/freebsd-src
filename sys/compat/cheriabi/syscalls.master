@@ -637,7 +637,9 @@
 ; XXX-BD: are mlockall and munlockall ok in CheriABI?
 324	AUE_MLOCKALL	NOPROTO	{ int mlockall(int how); }
 325	AUE_MUNLOCKALL	NOPROTO	{ int munlockall(void); }
-326	AUE_GETCWD	NOPROTO	{ int __getcwd(_In_z_ char *buf, u_int buflen); }
+326	AUE_GETCWD	NOPROTO	{ int __getcwd( \
+				    _Out_writes_z_(buflen) char *buf, \
+				    size_t buflen); }
 
 327	AUE_NULL	NOPROTO	{ int sched_setparam (pid_t pid, \
 				    _In_ const struct sched_param *param); }

@@ -4559,19 +4559,19 @@ CHERIABI_SYS___getcwd_fill_uap(struct thread *td,
 {
 	struct chericap tmpcap;
 
-	/* [1] u_int buflen */
+	/* [1] size_t buflen */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS___getcwd, 1);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->buflen, CHERI_CR_CTEMP0);
 
-	/* [0] _In_z_ char * buf */
+	/* [0] _Out_writes_z_(buflen) char * buf */
 	{
 		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
+		register_t reqperms = (CHERI_PERM_STORE);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS___getcwd, 0);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->buf),
-		    &tmpcap, sizeof(*uap->buf), reqperms, 0);
+		    &tmpcap, (sizeof(*uap->buf) * uap->buflen), reqperms, 0);
 		if (error != 0)
 			return (error);
 	}

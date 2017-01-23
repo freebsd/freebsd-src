@@ -1864,9 +1864,9 @@ SYS_STUB(325, int, munlockall,
 )
 
 SYS_STUB(326, int, __getcwd,
-    /* _protoargs */ (char * buf, u_int buflen),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability char * buf, u_int buflen),
-    /* _protoargs_err */ (__capability int *stub_errno, __capability char * buf, u_int buflen),
+    /* _protoargs */ (char * buf, size_t buflen),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, __capability char * buf, size_t buflen),
+    /* _protoargs_err */ (__capability int *stub_errno, __capability char * buf, size_t buflen),
     /* _callargs */ ((char *)buf, buflen),
     /* _callargs_chk */ (&ret, stub_errno, buf, buflen),
     /* _callargs_err */ (&errno, (char *)buf, buflen),
