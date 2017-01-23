@@ -1410,7 +1410,6 @@ typedef struct {
 #define	DTRACEHIOC_REMOVE	(DTRACEHIOC | 2)	/* remove helper */
 #define	DTRACEHIOC_ADDDOF	(DTRACEHIOC | 3)	/* add helper DOF */
 #else
-#define	DTRACEHIOC_ADD		_IOWR('z', 1, dof_hdr_t)/* add helper */
 #define	DTRACEHIOC_REMOVE	_IOW('z', 2, int)	/* remove helper */
 #define	DTRACEHIOC_ADDDOF	_IOWR('z', 3, dof_helper_t)/* add helper DOF */
 #endif
