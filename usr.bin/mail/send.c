@@ -59,7 +59,7 @@ sendmessage(struct message *mp, FILE *obuf, struct ignoretab *doign,
 	FILE *ibuf;
 	char *cp, *cp2, line[LINESIZE];
 	int ishead, infld, ignoring, dostat, firstline;
-	int c, length, prefixlen;
+	int c = 0, length, prefixlen;
 
 	/*
 	 * Compute the prefix string, without trailing whitespace
