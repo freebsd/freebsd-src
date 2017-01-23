@@ -566,8 +566,13 @@ savemail(char name[], FILE *fi)
 	char buf[BUFSIZ];
 	int i;
 	time_t now;
+	mode_t saved_umask;
 
-	if ((fo = Fopen(name, "a")) == NULL) {
+	saved_umask = umask(077);
+	fo = Fopen(name, "a");
+	umask(saved_umask);
+
+	if (fo == NULL) {
 		warn("%s", name);
 		return (-1);
 	}
