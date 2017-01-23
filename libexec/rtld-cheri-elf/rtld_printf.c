@@ -66,7 +66,7 @@ printf_out(struct snprintf_arg *info)
 
 	if (info->remain == info->buf_total)
 		return;
-	write(info->fd, info->buf, info->buf_total - info->remain);
+	__rtld_write(info->fd, info->buf, info->buf_total - info->remain);
 	info->str = info->buf;
 	info->remain = info->buf_total;
 }

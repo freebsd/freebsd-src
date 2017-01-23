@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 #include <unistd.h>
 
+ssize_t __rtld_write(int fd, const void *buf, size_t count) __hidden;
+
 int rtld_snprintf(char *buf, size_t bufsize, const char *fmt, ...)
     __printflike(3, 4);
 int rtld_vsnprintf(char *buf, size_t bufsize, const char *fmt, va_list ap);
