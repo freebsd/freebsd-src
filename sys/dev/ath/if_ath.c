@@ -1028,12 +1028,16 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * otherwise) to be transmitted.
 	 */
 	sc->sc_txq_data_minfree = 10;
+
 	/*
-	 * Leave this as default to maintain legacy behaviour.
-	 * Shortening the cabq/mcastq may end up causing some
-	 * undesirable behaviour.
+	 * Shorten this to 64 packets, or 1/4 ath_txbuf, whichever
+	 * is smaller.
+	 *
+	 * Anything bigger can potentially see the cabq consume
+	 * almost all buffers, starving everything else, only to
+	 * see most fail to transmit in the given beacon interval.
 	 */
-	sc->sc_txq_mcastq_maxdepth = ath_txbuf;
+	sc->sc_txq_mcastq_maxdepth = MIN(64, ath_txbuf / 4);
 
 	/*
 	 * How deep can the node software TX queue get whilst it's asleep.
@@ -1041,11 +1045,10 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_txq_node_psq_maxdepth = 16;
 
 	/*
-	 * Default the maximum queue depth for a given node
-	 * to 1/4'th the TX buffers, or 64, whichever
-	 * is larger.
+	 * Default the maximum queue to to 1/4'th the TX buffers, or
+	 * 64, whichever is smaller.
 	 */
-	sc->sc_txq_node_maxdepth = MAX(64, ath_txbuf / 4);
+	sc->sc_txq_node_maxdepth = MIN(64, ath_txbuf / 4);
 
 	/* Enable CABQ by default */
 	sc->sc_cabq_enable = 1;
