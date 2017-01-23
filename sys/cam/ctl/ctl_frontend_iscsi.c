@@ -2638,7 +2638,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	 * Complete write underflow.  Not a single byte to read.  Return.
 	 */
 	expected_len = ntohl(bhssc->bhssc_expected_data_transfer_length);
-	if (io->scsiio.kern_rel_offset > expected_len) {
+	if (io->scsiio.kern_rel_offset >= expected_len) {
 		io->scsiio.be_move_done(io);
 		return;
 	}
