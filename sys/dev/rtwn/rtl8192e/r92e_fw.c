@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Andriy Voskoboinyk <avos@FreeBSD.org>
+ * Copyright (c) 2017 Kevin Lo <kevlo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,69 +56,48 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/if_rtwn_debug.h>
 
 #include <dev/rtwn/rtl8188e/r88e.h>
+#include <dev/rtwn/rtl8188e/r88e_reg.h>
 
-#include <dev/rtwn/rtl8812a/r12a.h>
-#include <dev/rtwn/rtl8812a/r12a_reg.h>
-#include <dev/rtwn/rtl8812a/r12a_var.h>
 #include <dev/rtwn/rtl8812a/r12a_fw_cmd.h>
 
+#include <dev/rtwn/rtl8192e/r92e.h>
 
 #ifndef RTWN_WITHOUT_UCODE
 void
-r12a_fw_reset(struct rtwn_softc *sc, int reason)
+r92e_fw_reset(struct rtwn_softc *sc, int reason)
 {
 	/* Reset MCU IO wrapper. */
-	rtwn_setbits_1(sc, R92C_RSV_CTRL, R92C_RSV_CTRL_WLOCK_00, 0);
-	rtwn_setbits_1(sc, R92C_RSV_CTRL + 1, 0x08, 0);
+	rtwn_setbits_1(sc, R92C_RSV_CTRL + 1, 0x01, 0);
 
 	rtwn_setbits_1_shift(sc, R92C_SYS_FUNC_EN,
 	    R92C_SYS_FUNC_EN_CPUEN, 0, 1);
 
 	/* Enable MCU IO wrapper. */
-	rtwn_setbits_1(sc, R92C_RSV_CTRL, R92C_RSV_CTRL_WLOCK_00, 0);
-	rtwn_setbits_1(sc, R92C_RSV_CTRL + 1, 0, 0x08);
+	rtwn_setbits_1(sc, R92C_RSV_CTRL + 1, 0, 0x01);
 
 	rtwn_setbits_1_shift(sc, R92C_SYS_FUNC_EN,
 	    0, R92C_SYS_FUNC_EN_CPUEN, 1);
 }
 
 void
-r12a_fw_download_enable(struct rtwn_softc *sc, int enable)
+r92e_set_media_status(struct rtwn_softc *sc, int macid)
 {
-	if (enable) {
-		/* MCU firmware download enable. */
-		rtwn_setbits_1(sc, R92C_MCUFWDL, 0, R92C_MCUFWDL_EN);
-		/* 8051 reset. */
-		rtwn_setbits_1_shift(sc, R92C_MCUFWDL, R92C_MCUFWDL_ROM_DLEN,
-		    0, 2);
-	} else {
-		/* MCU download disable. */
-		rtwn_setbits_1(sc, R92C_MCUFWDL, R92C_MCUFWDL_EN, 0);
+	struct r88e_fw_cmd_msrrpt status;
+
+	if (macid & RTWN_MACID_VALID)
+		status.msrb0 = R88E_MSRRPT_B0_ASSOC;
+	else
+		status.msrb0 = R88E_MSRRPT_B0_DISASSOC;
+	status.macid = (macid & ~RTWN_MACID_VALID);
+
+	if (r88e_fw_cmd(sc, R88E_CMD_MSR_RPT, &status, sizeof(status)) != 0) {
+		device_printf(sc->sc_dev, "%s: cannot change media status!\n",
+		    __func__);
 	}
 }
 
-void
-r12a_set_media_status(struct rtwn_softc *sc, int macid)
-{
-	struct r12a_fw_cmd_msrrpt status;
-	int error;
-
-	if (macid & RTWN_MACID_VALID)
-		status.msrb0 = R12A_MSRRPT_B0_ASSOC;
-	else
-		status.msrb0 = R12A_MSRRPT_B0_DISASSOC;
-
-	status.macid = (macid & ~RTWN_MACID_VALID);
-	status.macid_end = 0;
-
-	error = r88e_fw_cmd(sc, R12A_CMD_MSR_RPT, &status, sizeof(status));
-	if (error != 0)
-		device_printf(sc->sc_dev, "cannot change media status!\n");
-}
-
 int
-r12a_set_pwrmode(struct rtwn_softc *sc, struct ieee80211vap *vap,
-    int off)
+r92e_set_pwrmode(struct rtwn_softc *sc, struct ieee80211vap *vap, int off)
 {
 	struct r12a_fw_cmd_pwrmode mode;
 	int error;
@@ -145,8 +124,8 @@ r12a_set_pwrmode(struct rtwn_softc *sc, struct ieee80211vap *vap,
 	/* XXX ignored */
 	mode.bcn_pass = 0;
 	mode.queue_uapsd = 0;
-	mode.pwrb5 = R12A_PWRMODE_B5_NO_BTCOEX;
-	error = r88e_fw_cmd(sc, R12A_CMD_SET_PWRMODE, &mode, sizeof(mode));
+	mode.pwrb5 = 0;
+	error = r88e_fw_cmd(sc, R88E_CMD_SET_PWRMODE, &mode, sizeof(mode));
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: CMD_SET_PWRMODE was not sent, error %d\n",
@@ -154,41 +133,5 @@ r12a_set_pwrmode(struct rtwn_softc *sc, struct ieee80211vap *vap,
 	}
 
 	return (error);
-}
-
-void
-r12a_iq_calib_fw(struct rtwn_softc *sc)
-{
-	struct r12a_softc *rs = sc->sc_priv;
-	struct ieee80211_channel *c = sc->sc_ic.ic_curchan;
-	struct r12a_fw_cmd_iq_calib cmd;
-
-	if (rs->rs_flags & R12A_IQK_RUNNING)
-		return;
-
-	RTWN_DPRINTF(sc, RTWN_DEBUG_CALIB, "Starting IQ calibration (FW)\n");
-
-	cmd.chan = rtwn_chan2centieee(c);
-	if (IEEE80211_IS_CHAN_5GHZ(c))
-		cmd.band_bw = RTWN_CMD_IQ_BAND_5GHZ;
-	else
-		cmd.band_bw = RTWN_CMD_IQ_BAND_2GHZ;
-
-	/* TODO: 80/160 MHz. */
-	if (IEEE80211_IS_CHAN_HT40(c))
-		cmd.band_bw |= RTWN_CMD_IQ_CHAN_WIDTH_40;
-	else
-		cmd.band_bw |= RTWN_CMD_IQ_CHAN_WIDTH_20;
-
-	cmd.ext_5g_pa_lna = RTWN_CMD_IQ_EXT_PA_5G(rs->ext_pa_5g);
-	cmd.ext_5g_pa_lna |= RTWN_CMD_IQ_EXT_LNA_5G(rs->ext_lna_5g);
-
-	if (r88e_fw_cmd(sc, R12A_CMD_IQ_CALIBRATE, &cmd, sizeof(cmd)) != 0) {
-		RTWN_DPRINTF(sc, RTWN_DEBUG_CALIB,
-		    "error while sending IQ calibration command to FW!\n");
-		return;
-	}
-
-	rs->rs_flags |= R12A_IQK_RUNNING;
 }
 #endif

@@ -191,6 +191,7 @@ r92ce_attach(struct rtwn_pci_softc *pc)
 	sc->sc_fw_reset			= r92ce_fw_reset;
 	sc->sc_fw_download_enable	= r92c_fw_download_enable;
 #endif
+	sc->sc_llt_init			= r92c_llt_init;
 	sc->sc_set_page_size		= r92c_set_page_size;
 	sc->sc_lc_calib			= r92c_lc_calib;
 	sc->sc_iq_calib			= r92ce_iq_calib;

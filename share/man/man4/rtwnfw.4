@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2015
+.Dd January 24, 2017
 .Dt RTWNFW 4
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@ of the following:
 .Cd "device rtwn-rtl8192cfwE"
 .Cd "device rtwn-rtl8192cfwT"
 .Cd "device rtwn-rtl8192cfwU"
+.Cd "device rtwn-rtl8192eufw"
 .Cd "device rtwn-rtl8812aufw"
 .Cd "device rtwn-rtl8821aufw"
 .Ed
@@ -59,6 +60,7 @@ rtwn-rtl8192cfwE_B_load="YES"
 rtwn-rtl8192cfwE_load="YES"
 rtwn-rtl8192cfwT_load="YES"
 rtwn-rtl8192cfwU_load="YES"
+rtwn-rtl8192eufw_load="YES"
 rtwn-rtl8812aufw_load="YES"
 rtwn-rtl8821aufw_load="YES"
 .Ed
@@ -66,8 +68,8 @@ rtwn-rtl8821aufw_load="YES"
 rtwn-rtl8192cfwE and rtl8192cfwE_B modules provide access
 to firmware sets for the Realtek RTL8188CE chip based PCIe adapters.
 Other modules provide access to firmware sets for the Realtek RTL8188CUS,
-RTL8188CE-VAU, RTL8188EUS, RTL8188RU, RTL8192CU, RTL8812AU and RTL8821AU
-chip based USB WiFi adapters.
+RTL8188CE-VAU, RTL8188EUS, RTL8188RU, RTL8192CU, RTL8192EU, RTL8812AU and
+RTL8821AU chip based USB WiFi adapters.
 They may be
 statically linked into the kernel, or loaded as a modules.
 .Pp

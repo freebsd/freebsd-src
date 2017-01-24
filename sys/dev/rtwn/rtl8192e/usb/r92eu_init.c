@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Andriy Voskoboinyk <avos@FreeBSD.org>
+ * Copyright (c) 2017 Kevin Lo <kevlo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,44 +53,44 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/if_rtwnreg.h>
 #include <dev/rtwn/if_rtwnvar.h>
 
-#include <dev/rtwn/if_rtwn_ridx.h>
+#include <dev/rtwn/rtl8192e/r92e_var.h>
 
-#include <dev/rtwn/rtl8812a/r12a.h>
-#include <dev/rtwn/rtl8812a/r12a_reg.h>
-#include <dev/rtwn/rtl8812a/r12a_tx_desc.h>
-
+#include <dev/rtwn/rtl8192e/usb/r92eu.h>
+#include <dev/rtwn/rtl8192e/usb/r92eu_reg.h>
 
 void
-r12a_beacon_init(struct rtwn_softc *sc, void *buf, int id)
+r92eu_init_rx_agg(struct rtwn_softc *sc)
 {
-	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
+	struct r92e_softc *rs = sc->sc_priv;
 
-	txd->flags0 = R12A_FLAGS0_LSG | R12A_FLAGS0_FSG | R12A_FLAGS0_BMCAST;
-
-	/*
-	 * NB: there is no need to setup HWSEQ_EN bit;
-	 * QSEL_BEACON already implies it.
-	 */
-	txd->txdw1 = htole32(SM(R12A_TXDW1_QSEL, R12A_TXDW1_QSEL_BEACON));
-	txd->txdw1 |= htole32(SM(R12A_TXDW1_MACID, RTWN_MACID_BC));
-
-	txd->txdw3 = htole32(R12A_TXDW3_DRVRATE);
-	txd->txdw3 |= htole32(SM(R12A_TXDW3_SEQ_SEL, id));
-
-	txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE, RTWN_RIDX_CCK1));
-
-	txd->txdw6 = htole32(SM(R21A_TXDW6_MBSSID, id));
+	/* Rx aggregation (USB). */
+	rtwn_setbits_1(sc, R12A_RXDMA_PRO, 0x20, 0x1e);
+	rtwn_write_4(sc, R92C_RXDMA_AGG_PG_TH,
+	    rs->ac_usb_dma_size | (rs->ac_usb_dma_time << 8));
+	rtwn_setbits_1(sc, R92C_TRXDMA_CTRL, 0,
+	    R92C_TRXDMA_CTRL_RXDMA_AGG_EN);
 }
 
 void
-r12a_beacon_set_rate(void *buf, int is5ghz)
+r92eu_post_init(struct rtwn_softc *sc)
 {
-	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
 
-	txd->txdw4 &= ~htole32(R12A_TXDW4_DATARATE_M);
-	if (is5ghz) {
-		txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE,
-		    RTWN_RIDX_OFDM6));
+	/* Setup RTS BW (equal to data BW). */
+	rtwn_setbits_1(sc, R92C_QUEUE_CTRL, 0x08, 0);
+
+	/* Reset USB mode switch setting. */
+	rtwn_write_1(sc, R92C_ACLK_MON, 0);
+
+	rtwn_write_1(sc, R92C_USB_HRPWM, 0);
+
+#ifndef RTWN_WITHOUT_UCODE
+	if (sc->sc_flags & RTWN_FW_LOADED) {
+		if (sc->sc_ratectl_sysctl == RTWN_RATECTL_FW) {
+			/* TODO: implement */
+			sc->sc_ratectl = RTWN_RATECTL_NET80211;
+		} else
+			sc->sc_ratectl = sc->sc_ratectl_sysctl;
 	} else
-		txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE, RTWN_RIDX_CCK1));
+#endif
+		sc->sc_ratectl = RTWN_RATECTL_NONE;
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Andriy Voskoboinyk <avos@FreeBSD.org>
+ * Copyright (c) 2017 Kevin Lo <kevlo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,44 +53,36 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/if_rtwnreg.h>
 #include <dev/rtwn/if_rtwnvar.h>
 
-#include <dev/rtwn/if_rtwn_ridx.h>
+#include <dev/rtwn/rtl8192e/r92e.h>
+#include <dev/rtwn/rtl8192e/r92e_reg.h>
 
-#include <dev/rtwn/rtl8812a/r12a.h>
-#include <dev/rtwn/rtl8812a/r12a_reg.h>
-#include <dev/rtwn/rtl8812a/r12a_tx_desc.h>
-
-
-void
-r12a_beacon_init(struct rtwn_softc *sc, void *buf, int id)
+uint32_t
+r92e_rf_read(struct rtwn_softc *sc, int chain, uint8_t addr)
 {
-	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
+	uint32_t val;
 
-	txd->flags0 = R12A_FLAGS0_LSG | R12A_FLAGS0_FSG | R12A_FLAGS0_BMCAST;
+	val = rtwn_bb_read(sc, R92C_HSSI_PARAM2(chain));
+	rtwn_bb_write(sc, R92C_HSSI_PARAM2(chain),
+	    RW(val, R92C_HSSI_PARAM2_READ_ADDR, addr) &
+	    ~R92C_HSSI_PARAM2_READ_EDGE);
 
-	/*
-	 * NB: there is no need to setup HWSEQ_EN bit;
-	 * QSEL_BEACON already implies it.
-	 */
-	txd->txdw1 = htole32(SM(R12A_TXDW1_QSEL, R12A_TXDW1_QSEL_BEACON));
-	txd->txdw1 |= htole32(SM(R12A_TXDW1_MACID, RTWN_MACID_BC));
+	rtwn_bb_setbits(sc, R92C_HSSI_PARAM2(0), R92C_HSSI_PARAM2_READ_EDGE, 0);
+	rtwn_bb_setbits(sc, R92C_HSSI_PARAM2(0), 0, R92C_HSSI_PARAM2_READ_EDGE);
+	rtwn_delay(sc, 20);
 
-	txd->txdw3 = htole32(R12A_TXDW3_DRVRATE);
-	txd->txdw3 |= htole32(SM(R12A_TXDW3_SEQ_SEL, id));
-
-	txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE, RTWN_RIDX_CCK1));
-
-	txd->txdw6 = htole32(SM(R21A_TXDW6_MBSSID, id));
+	if (rtwn_bb_read(sc, R92C_HSSI_PARAM1(chain)) & R92C_HSSI_PARAM1_PI)
+		val = rtwn_bb_read(sc, R92C_HSPI_READBACK(chain));
+	else
+		val = rtwn_bb_read(sc, R92C_LSSI_READBACK(chain));
+	return (MS(val, R92C_LSSI_READBACK_DATA));
 }
 
 void
-r12a_beacon_set_rate(void *buf, int is5ghz)
+r92e_rf_write(struct rtwn_softc *sc, int chain, uint8_t addr, uint32_t val)
 {
-	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
 
-	txd->txdw4 &= ~htole32(R12A_TXDW4_DATARATE_M);
-	if (is5ghz) {
-		txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE,
-		    RTWN_RIDX_OFDM6));
-	} else
-		txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE, RTWN_RIDX_CCK1));
+	rtwn_bb_setbits(sc, 0x818, 0x20000, 0);
+	rtwn_bb_write(sc, R92C_LSSI_PARAM(chain),
+	    SM(R88E_LSSI_PARAM_ADDR, addr) | SM(R92C_LSSI_PARAM_DATA, val));
+	rtwn_bb_setbits(sc, 0x818, 0, 0x20000);
 }
