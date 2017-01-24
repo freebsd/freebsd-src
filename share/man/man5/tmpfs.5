@@ -54,7 +54,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2017
+.Dd January 20, 2017
 .Dt TMPFS 5
 .Os
 .Sh NAME
@@ -77,7 +77,7 @@ tmpfs_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver implements in-memory, or
+driver implements an in-memory, or
 .Tn tmpfs
 file system.
 The filesystem stores both file metadata and data in main memory.
@@ -85,22 +85,22 @@ This allows very fast and low latency accesses to the data.
 The data is volatile.
 An umount or system reboot invalidates it.
 These properties make the filesystem's mounts suitable for fast
-scratch storage, e.g.
+scratch storage, like
 .Pa /tmp .
 .Pp
 If the system becomes low on memory and swap is configured (see
 .Xr swapon 8 ),
-file data may be written to the swap space, freeing memory
+the system can transfer file data to swap space, freeing memory
 for other needs.
-The current implementation never swaps out metadata, including
-the directory content.
+Metadata, including the directory content, is never swapped out by the
+current implementation.
 Keep this in mind when planning the mount limits, especially when expecting
 to place many small files on a tmpfs mount.
 .Pp
-When a file from a tmpfs mount is mmaped (see
-.Xr mmap 2 )
-into the process address space, the swap VM object which manages the file
-pages is used to implement mapping and to avoid double-copying of
+When 
+.Xr mmap 2
+is used on a file from a tmpfs mount, the swap VM object managing the 
+file pages is used to implement mapping and avoid double-copying of
 the file data.
 This quirk causes process inspection tools, like
 .Xr procstat 1 ,
@@ -120,6 +120,10 @@ Defaults to the mount point's UID.
 .It Cm mode
 Specifies the mode (in octal notation) of the root inode of the file system.
 Defaults to the mount point's mode.
+.It Cm nonc
+Do not use namecache to resolve names to files for the created mount.
+This saves memory, but currently might impair scalability for highly
+used mounts on large machines.
 .It Cm inodes
 Specifies the maximum number of nodes available to the file system.
 If not specified, the file system chooses a reasonable maximum based on

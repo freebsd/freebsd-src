@@ -1317,6 +1317,7 @@ getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 	if (isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
 		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT20 |
 		    IEEE80211_CHAN_VHT20;
+	}
 
 	/* 40MHz */
 	if (ht40) {
@@ -1340,7 +1341,6 @@ getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 		    IEEE80211_CHAN_HT40U | IEEE80211_CHAN_VHT80;
 		flags[nmodes++] = IEEE80211_CHAN_A |
 		    IEEE80211_CHAN_HT40D | IEEE80211_CHAN_VHT80;
-		}
 	}
 
 	/* XXX VHT80+80 */

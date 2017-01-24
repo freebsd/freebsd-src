@@ -68,14 +68,14 @@ void
 r12a_fw_reset(struct rtwn_softc *sc, int reason)
 {
 	/* Reset MCU IO wrapper. */
-	rtwn_setbits_1(sc, R92C_RSV_CTRL, 0x02, 0);
+	rtwn_setbits_1(sc, R92C_RSV_CTRL, R92C_RSV_CTRL_WLOCK_00, 0);
 	rtwn_setbits_1(sc, R92C_RSV_CTRL + 1, 0x08, 0);
 
 	rtwn_setbits_1_shift(sc, R92C_SYS_FUNC_EN,
 	    R92C_SYS_FUNC_EN_CPUEN, 0, 1);
 
 	/* Enable MCU IO wrapper. */
-	rtwn_setbits_1(sc, R92C_RSV_CTRL, 0x02, 0);
+	rtwn_setbits_1(sc, R92C_RSV_CTRL, R92C_RSV_CTRL_WLOCK_00, 0);
 	rtwn_setbits_1(sc, R92C_RSV_CTRL + 1, 0, 0x08);
 
 	rtwn_setbits_1_shift(sc, R92C_SYS_FUNC_EN,
