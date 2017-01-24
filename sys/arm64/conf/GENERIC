@@ -120,7 +120,6 @@ device		mii
 device		miibus		# MII bus support
 device		awg		# Allwinner EMAC Gigabit Ethernet
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
-device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
 device		ix		# Intel 10Gb Ethernet Family
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device  	smc		# SMSC LAN91C111

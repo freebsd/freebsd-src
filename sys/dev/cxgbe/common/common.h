@@ -62,6 +62,12 @@ enum {
 	PAUSE_AUTONEG = 1 << 2
 };
 
+enum {
+	FEC_RS        = 1 << 0,
+	FEC_BASER_RS  = 1 << 1,
+	FEC_RESERVED  = 1 << 2,
+};
+
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
 	u64 tx_frames;            /* all good frames */
@@ -392,12 +398,16 @@ struct trace_params {
 struct link_config {
 	unsigned short supported;        /* link capabilities */
 	unsigned short advertising;      /* advertised capabilities */
-	unsigned int requested_speed;    /* speed user has requested */
-	unsigned int speed;              /* actual link speed */
+	unsigned short lp_advertising;   /* peer advertised capabilities */
+	unsigned int   requested_speed;  /* speed user has requested */
+	unsigned int   speed;            /* actual link speed */
 	unsigned char  requested_fc;     /* flow control user has requested */
 	unsigned char  fc;               /* actual link flow control */
+	unsigned char  requested_fec;    /* FEC user has requested */
+	unsigned char  fec;              /* actual FEC */
 	unsigned char  autoneg;          /* autonegotiating? */
 	unsigned char  link_ok;          /* link up? */
+	unsigned char  link_down_rc;     /* link down reason */
 };
 
 #include "adapter.h"

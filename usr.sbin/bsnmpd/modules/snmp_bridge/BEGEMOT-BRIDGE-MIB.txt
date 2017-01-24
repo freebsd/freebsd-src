@@ -111,7 +111,7 @@ begemotBridgePf			OBJECT IDENTIFIER ::= { begemotBridge 4 }
 begemotBridgeConfigObjects	OBJECT IDENTIFIER ::= { begemotBridge 5 }
 
 -- ---------------------------------------------------------- --
--- the base Bridge interface table 
+-- the base Bridge interface table
 -- ---------------------------------------------------------- --
 
 begemotBridgeBaseTable OBJECT-TYPE
@@ -180,7 +180,7 @@ begemotBridgeBaseType OBJECT-TYPE
 	perform."
     ::= { begemotBridgeBaseEntry 4 }
 
-begemotBridgeBaseStatus OBJECT-TYPE 
+begemotBridgeBaseStatus OBJECT-TYPE
     SYNTAX	RowStatus
     MAX-ACCESS	read-create
     STATUS	current
@@ -190,7 +190,7 @@ begemotBridgeBaseStatus OBJECT-TYPE
     ::= { begemotBridgeBaseEntry 5 }
 
 -- ---------------------------------------------------------- --
--- the base Bridge ports table 
+-- the base Bridge ports table
 -- ---------------------------------------------------------- --
 
 begemotBridgeBasePortTable OBJECT-TYPE
@@ -292,7 +292,7 @@ begemotBridgeBasePortPrivate OBJECT-TYPE
     ::= { begemotBridgeBasePortEntry 7 }
 
 -- ---------------------------------------------------------- --
--- the Bridge interface STP table 
+-- the Bridge interface STP table
 -- ---------------------------------------------------------- --
 
 begemotBridgeStpTable OBJECT-TYPE
@@ -529,7 +529,7 @@ begemotBridgeStpTxHoldCount OBJECT-TYPE
     ::= { begemotBridgeStpEntry 16 }
 
 -- ---------------------------------------------------------- --
--- the Bridge STP ports table 
+-- the Bridge STP ports table
 -- ---------------------------------------------------------- --
 
 begemotBridgeStpPortTable OBJECT-TYPE
@@ -824,7 +824,7 @@ begemotBridgeStpPortAdminPathCost OBJECT-TYPE
     ::= { begemotBridgeStpExtPortEntry 6 }
 
 -- ---------------------------------------------------------- --
--- the Bridge interface Transparent bridging table 
+-- the Bridge interface Transparent bridging table
 -- ---------------------------------------------------------- --
 
 begemotBridgeTpTable OBJECT-TYPE

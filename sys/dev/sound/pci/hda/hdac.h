@@ -707,6 +707,7 @@ enum hdac_device_ivars {
     HDA_IVAR_SUBSYSTEM_ID,
     HDA_IVAR_NODE_TYPE,
     HDA_IVAR_DMA_NOCACHE,
+    HDA_IVAR_STRIPES_MASK,
 };
 
 #define HDA_ACCESSOR(var, ivar, type)					\
@@ -723,6 +724,7 @@ HDA_ACCESSOR(subdevice_id,	SUBDEVICE_ID,	uint16_t);
 HDA_ACCESSOR(subsystem_id,	SUBSYSTEM_ID,	uint32_t);
 HDA_ACCESSOR(node_type,		NODE_TYPE,	uint8_t);
 HDA_ACCESSOR(dma_nocache,	DMA_NOCACHE,	uint8_t);
+HDA_ACCESSOR(stripes_mask,	STRIPES_MASK,	uint8_t);
 
 #define PCIS_MULTIMEDIA_HDA    0x03
 

@@ -906,7 +906,7 @@ archive_read_format_rar_read_header(struct archive_read *a,
                             sizeof(rar->reserved2));
       }
 
-      /* Main header is password encrytped, so we cannot read any
+      /* Main header is password encrypted, so we cannot read any
          file names or any other info about files from the header. */
       if (rar->main_flags & MHD_PASSWORD)
       {

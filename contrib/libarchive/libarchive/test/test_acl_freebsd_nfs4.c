@@ -334,7 +334,7 @@ compare_acls(acl_t acl, struct myacl_t *myacls, const char *filename, int start,
 	/* Dump entries in the myacls array that weren't in the system acl. */
 	for (i = 0; i < n; ++i) {
 		failure(" ACL entry %d missing from %s: "
-		    "type=%d,permset=%x,tag=%d,qual=%d,name=``%s''\n",
+		    "type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s''\n",
 		    marker[i], filename,
 		    myacls[marker[i]].type, myacls[marker[i]].permset,
 		    myacls[marker[i]].tag, myacls[marker[i]].qual,
@@ -386,7 +386,7 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 		}
 
 		failure("ACL entry on file that shouldn't be there: "
-			"type=%d,permset=%x,tag=%d,qual=%d",
+			"type=%#010x,permset=%#010x,tag=%d,qual=%d",
 			type,permset,tag,qual);
 		assert(matched == 1);
 	}
@@ -394,7 +394,7 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 	/* Dump entries in the myacls array that weren't in the system acl. */
 	for (i = 0; i < n; ++i) {
 		failure(" ACL entry %d missing from %s: "
-		    "type=%d,permset=%x,tag=%d,qual=%d,name=``%s''\n",
+		    "type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s''\n",
 		    marker[i], filename,
 		    myacls[marker[i]].type, myacls[marker[i]].permset,
 		    myacls[marker[i]].tag, myacls[marker[i]].qual,

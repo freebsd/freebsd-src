@@ -107,7 +107,7 @@ free_atid(struct adapter *sc, int atid)
 }
 
 /*
- * Active open failed.
+ * Active open succeeded.
  */
 static int
 do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
@@ -126,9 +126,10 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	CTR3(KTR_CXGBE, "%s: atid %u, tid %u", __func__, atid, tid);
 	free_atid(sc, atid);
 
+	CURVNET_SET(toep->vnet);
 	INP_WLOCK(inp);
 	toep->tid = tid;
-	insert_tid(sc, tid, toep);
+	insert_tid(sc, tid, toep, inp->inp_vflag & INP_IPV6 ? 2 : 1);
 	if (inp->inp_flags & INP_DROPPED) {
 
 		/* socket closed by the kernel before hw told us it connected */
@@ -141,6 +142,7 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	make_established(toep, cpl->snd_isn, cpl->rcv_isn, cpl->tcp_opt);
 done:
 	INP_WUNLOCK(inp);
+	CURVNET_RESTORE();
 	return (0);
 }
 
@@ -178,6 +180,7 @@ act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 	free_atid(sc, atid);
 	toep->tid = -1;
 
+	CURVNET_SET(toep->vnet);
 	if (status != EAGAIN)
 		INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
@@ -185,8 +188,12 @@ act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
 	final_cpl_received(toep);	/* unlocks inp */
 	if (status != EAGAIN)
 		INP_INFO_RUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 }
 
+/*
+ * Active open failed.
+ */
 static int
 do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
@@ -357,6 +364,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (wr == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
+	toep->vnet = so->so_vnet;
 	if (sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0)
 		set_tcpddp_ulp_mode(toep);
 	else

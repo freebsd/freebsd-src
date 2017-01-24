@@ -28,15 +28,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_acl_freebsd.c 189427 2009-03-0
 #if defined(__FreeBSD__) && __FreeBSD__ > 4
 #include <sys/acl.h>
 
-struct myacl_t {
-	int type;  /* Type of ACL: "access" or "default" */
-	int permset; /* Permissions for this class of users. */
-	int tag; /* Owner, User, Owning group, group, other, etc. */
-	int qual; /* GID or UID of user/group, depending on tag. */
-	const char *name; /* Name of user/group, depending on tag. */
-};
-
-static struct myacl_t acls2[] = {
+static struct archive_test_acl_t acls2[] = {
 	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_EXECUTE | ARCHIVE_ENTRY_ACL_READ,
 	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
 	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_READ,
@@ -53,21 +45,7 @@ static struct myacl_t acls2[] = {
 	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
 	  ARCHIVE_ENTRY_ACL_WRITE | ARCHIVE_ENTRY_ACL_READ | ARCHIVE_ENTRY_ACL_EXECUTE,
 	  ARCHIVE_ENTRY_ACL_MASK, -1, "" },
-	{ 0, 0, 0, 0, NULL }
 };
-
-static void
-set_acls(struct archive_entry *ae, struct myacl_t *acls)
-{
-	int i;
-
-	archive_entry_acl_clear(ae);
-	for (i = 0; acls[i].name != NULL; i++) {
-		archive_entry_acl_add_entry(ae,
-		    acls[i].type, acls[i].permset, acls[i].tag, acls[i].qual,
-		    acls[i].name);
-	}
-}
 
 static int
 acl_entry_get_perm(acl_entry_t aclent) {
@@ -127,7 +105,7 @@ acl_get_specific_entry(acl_t acl, acl_tag_t requested_tag_type, int requested_ta
 #endif
 
 static int
-acl_match(acl_entry_t aclent, struct myacl_t *myacl)
+acl_match(acl_entry_t aclent, struct archive_test_acl_t *myacl)
 {
 	gid_t g, *gp;
 	uid_t u, *up;
@@ -173,25 +151,20 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 }
 
 static void
-compare_acls(acl_t acl, struct myacl_t *myacls)
+compare_acls(acl_t acl, struct archive_test_acl_t *myacls, int n)
 {
 	int *marker;
 	int entry_id = ACL_FIRST_ENTRY;
 	int matched;
-	int i, n;
+	int i;
 	acl_entry_t acl_entry;
 
 	/* Count ACL entries in myacls array and allocate an indirect array. */
-	for (n = 0; myacls[n].name != NULL; ++n)
-		continue;
-	if (n) {
-		marker = malloc(sizeof(marker[0]) * n);
-		if (marker == NULL)
-			return;
-		for (i = 0; i < n; i++)
-			marker[i] = i;
-	} else
-		marker = NULL;
+	marker = malloc(sizeof(marker[0]) * n);
+	if (marker == NULL)
+		return;
+	for (i = 0; i < n; i++)
+		marker[i] = i;
 
 	/*
 	 * Iterate over acls in system acl object, try to match each
@@ -219,7 +192,7 @@ compare_acls(acl_t acl, struct myacl_t *myacls)
 	/* Dump entries in the myacls array that weren't in the system acl. */
 	for (i = 0; i < n; ++i) {
 		failure(" ACL entry missing from file: "
-		    "type=%d,permset=%d,tag=%d,qual=%d,name=``%s''\n",
+		    "type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s''\n",
 		    myacls[marker[i]].type, myacls[marker[i]].permset,
 		    myacls[marker[i]].tag, myacls[marker[i]].qual,
 		    myacls[marker[i]].name);
@@ -291,7 +264,7 @@ DEFINE_TEST(test_acl_freebsd_posix1e_restore)
 	archive_entry_set_pathname(ae, "test0");
 	archive_entry_set_mtime(ae, 123456, 7890);
 	archive_entry_set_size(ae, 0);
-	set_acls(ae, acls2);
+	archive_test_set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
@@ -304,13 +277,13 @@ DEFINE_TEST(test_acl_freebsd_posix1e_restore)
 	assertEqualInt(st.st_mtime, 123456);
 	acl = acl_get_file("test0", ACL_TYPE_ACCESS);
 	assert(acl != (acl_t)NULL);
-	compare_acls(acl, acls2);
+	compare_acls(acl, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	acl_free(acl);
 #endif
 }
 
 /*
- * Verify ACL reaed-from-disk.  This test is FreeBSD-specific.
+ * Verify ACL read-from-disk.  This test is FreeBSD-specific.
  */
 DEFINE_TEST(test_acl_freebsd_posix1e_read)
 {
@@ -332,7 +305,12 @@ DEFINE_TEST(test_acl_freebsd_posix1e_read)
 	 */
 
 	/* Create a test file f1 with acl1 */
-	acl1_text = "user::rwx,group::rwx,other::rwx,user:1:rw-,group:15:r-x,mask::rwx";
+	acl1_text = "user::rwx\n"
+	    "group::rwx\n"
+	    "other::rwx\n"
+	    "user:1:rw-\n"
+	    "group:15:r-x\n"
+	    "mask::rwx";
 	acl1 = acl_from_text(acl1_text);
 	assert((void *)acl1 != NULL);
 	fd = open("f1", O_WRONLY | O_CREAT | O_EXCL, 0777);
@@ -371,7 +349,12 @@ DEFINE_TEST(test_acl_freebsd_posix1e_read)
 	 * to read ACLs, resulting in reading the ACL from a like-named
 	 * file in the wrong directory.
 	 */
-	acl2_text = "user::rwx,group::rwx,other::---,user:1:r--,group:15:r--,mask::rwx";
+	acl2_text = "user::rwx\n"
+	    "group::rwx\n"
+	    "other::---\n"
+	    "user:1:r--\n"
+	    "group:15:r--\n"
+	    "mask::rwx";
 	acl2 = acl_from_text(acl2_text);
 	assert((void *)acl2 != NULL);
 	fd = open("d/f1", O_WRONLY | O_CREAT | O_EXCL, 0777);
@@ -406,10 +389,10 @@ DEFINE_TEST(test_acl_freebsd_posix1e_read)
 	while (ARCHIVE_OK == archive_read_next_header2(a, ae)) {
 		archive_read_disk_descend(a);
 		if (strcmp(archive_entry_pathname(ae), "./f1") == 0) {
-			assertEqualString(archive_entry_acl_text(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS), acl1_text);
+			assertEqualString(archive_entry_acl_to_text(ae, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS), acl1_text);
 			    
 		} else if (strcmp(archive_entry_pathname(ae), "./d/f1") == 0) {
-			assertEqualString(archive_entry_acl_text(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS), acl2_text);
+			assertEqualString(archive_entry_acl_to_text(ae, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS), acl2_text);
 		}
 	}
 

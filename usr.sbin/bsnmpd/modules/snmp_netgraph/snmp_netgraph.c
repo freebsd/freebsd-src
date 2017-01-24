@@ -173,7 +173,7 @@ ng_unregister_cookie(void *dd)
  * Register a function for hook data.
  */
 void *
-ng_register_hook(const struct lmodule *mod, const char *hook, 
+ng_register_hook(const struct lmodule *mod, const char *hook,
     ng_hook_f *func, void *arg)
 {
 	struct datareg *d;
@@ -893,7 +893,7 @@ ng_peer_hook_id(ng_ID_t node, const char *hook, char *peerhook)
 		else
 			strcpy(peerhook, hooklist->link[i].peerhook);
 
-	} else 
+	} else
 		strcpy(peerhook, hooklist->link[i].peerhook);
 
 	free(resp);
@@ -903,7 +903,7 @@ ng_peer_hook_id(ng_ID_t node, const char *hook, char *peerhook)
 
 
 /*
- * Now the module is started. Select on the sockets, so that we can get 
+ * Now the module is started. Select on the sockets, so that we can get
  * unsolicited input.
  */
 static void
@@ -926,7 +926,7 @@ ng_start(void)
 		return;
 	}
 
-	reg_index = or_register(&oid_begemotNg, 
+	reg_index = or_register(&oid_begemotNg,
 	    "The MIB for the NetGraph access module for SNMP.", module);
 }
 

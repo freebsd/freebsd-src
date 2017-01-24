@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2009
+.Dd January 15, 2017
 .Dt BUS_GENERIC_NEW_PASS 9
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@ It first invokes the
 method for any drivers whose pass level is equal to the new pass level.
 Then, for each attached child device it calls
 .Xr BUS_NEW_PASS 9
-to rescan child busses,
+to rescan child buses,
 and for each unattached child device it calls
 .Xr device_probe_and_attach 9 .
 .Sh SEE ALSO

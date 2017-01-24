@@ -127,7 +127,7 @@ start:		cld				# string ops inc
 		stosl				#  to zero
 		mov drive,%dl			# Store BIOS boot device
 		mov %dl,0x4(%bx)		#  in kargs->bootdev
-		or $KARGS_FLAGS_CD,0x8(%bx)	# kargs->bootflags |=
+		orb $KARGS_FLAGS_CD,0x8(%bx)	# kargs->bootflags |=
 						#  KARGS_FLAGS_CD
 #
 # Load Volume Descriptor

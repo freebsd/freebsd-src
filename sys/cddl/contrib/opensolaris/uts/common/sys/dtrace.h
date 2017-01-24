@@ -32,8 +32,6 @@
 #ifndef _SYS_DTRACE_H
 #define	_SYS_DTRACE_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -308,15 +306,14 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_TOUPPER		44
 #define	DIF_SUBR_TOLOWER		45
 #define	DIF_SUBR_MEMREF			46
-#define	DIF_SUBR_UNUSED			47
-#define	DIF_SUBR_SX_SHARED_HELD		48
-#define	DIF_SUBR_SX_EXCLUSIVE_HELD	49
-#define	DIF_SUBR_SX_ISEXCLUSIVE		50
-#define	DIF_SUBR_MEMSTR			51
-#define	DIF_SUBR_GETF			52
-#define	DIF_SUBR_JSON			53
-#define	DIF_SUBR_STRTOLL		54
-#define	DIF_SUBR_MAX			54	/* max subroutine value */
+#define	DIF_SUBR_SX_SHARED_HELD		47
+#define	DIF_SUBR_SX_EXCLUSIVE_HELD	48
+#define	DIF_SUBR_SX_ISEXCLUSIVE		49
+#define	DIF_SUBR_MEMSTR			50
+#define	DIF_SUBR_GETF			51
+#define	DIF_SUBR_JSON			52
+#define	DIF_SUBR_STRTOLL		53
+#define	DIF_SUBR_MAX			53	/* max subroutine value */
 
 typedef uint32_t dif_instr_t;
 
@@ -1413,7 +1410,6 @@ typedef struct {
 #define	DTRACEHIOC_REMOVE	(DTRACEHIOC | 2)	/* remove helper */
 #define	DTRACEHIOC_ADDDOF	(DTRACEHIOC | 3)	/* add helper DOF */
 #else
-#define	DTRACEHIOC_ADD		_IOWR('z', 1, dof_hdr_t)/* add helper */
 #define	DTRACEHIOC_REMOVE	_IOW('z', 2, int)	/* remove helper */
 #define	DTRACEHIOC_ADDDOF	_IOWR('z', 3, dof_helper_t)/* add helper DOF */
 #endif

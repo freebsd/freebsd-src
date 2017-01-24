@@ -878,7 +878,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	        || zip->entry_encryption == ENCRYPTION_WINZIP_AES256)) {
 
 		memcpy(e, "\001\231\007\000\001\000AE", 8);
-		/* AES vendoer version AE-2 does not store a CRC.
+		/* AES vendor version AE-2 does not store a CRC.
 		 * WinZip 11 uses AE-1, which does store the CRC,
 		 * but it does not store the CRC when the file size
 		 * is less than 20 bytes. So we simulate what
@@ -1013,7 +1013,7 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 	if (zip->entry_flags & ZIP_ENTRY_FLAG_ENCRYPTED) {
 		switch (zip->entry_encryption) {
 		case ENCRYPTION_TRADITIONAL:
-			/* Initialize traditoinal PKWARE encryption context. */
+			/* Initialize traditional PKWARE encryption context. */
 			if (!zip->tctx_valid) {
 				ret = init_traditional_pkware_encryption(a);
 				if (ret != ARCHIVE_OK)
@@ -1499,7 +1499,7 @@ trad_enc_update_keys(struct trad_enc_ctx *ctx, uint8_t c)
 }
 
 static uint8_t
-trad_enc_decypt_byte(struct trad_enc_ctx *ctx)
+trad_enc_decrypt_byte(struct trad_enc_ctx *ctx)
 {
 	unsigned temp = ctx->keys[2] | 2;
 	return (uint8_t)((temp * (temp ^ 1)) >> 8) & 0xff;
@@ -1515,7 +1515,7 @@ trad_enc_encrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
 
 	for (i = 0; i < max; i++) {
 		uint8_t t = in[i];
-		out[i] = t ^ trad_enc_decypt_byte(ctx);
+		out[i] = t ^ trad_enc_decrypt_byte(ctx);
 		trad_enc_update_keys(ctx, t);
 	}
 	return i;
@@ -1626,7 +1626,7 @@ init_winzip_aes_encryption(struct archive_write *a)
 		return (ARCHIVE_FAILED);
         }
 
-	/* Set a passowrd verification value after the 'salt'. */
+	/* Set a password verification value after the 'salt'. */
 	salt[salt_len] = derived_key[key_len * 2];
 	salt[salt_len + 1] = derived_key[key_len * 2 + 1];
 

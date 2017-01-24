@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -518,7 +518,7 @@ snmp_getbulk(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 				/* PDU is full */
 				goto done;
 
-			if (cnt == 0) 
+			if (cnt == 0)
 				result = do_getnext(&context, &pdu->bindings[i],
 				    &resp->bindings[resp->nbindings], pdu);
 			else
@@ -692,7 +692,7 @@ snmp_set(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	if (snmp_pdu_encode_header(resp_b, resp))
 		return (SNMP_RET_IGN);
 
-	/* 
+	/*
 	 * 1. Find all nodes, check that they are writeable and
 	 *    that the syntax is ok, copy over the binding to the response.
 	 */
@@ -970,7 +970,7 @@ snmp_dep_lookup(struct snmp_context *ctx, const struct asn_oid *obj,
 /*
  * Make an error response from a PDU. We do this without decoding the
  * variable bindings. This means we can sent the junk back to a caller
- * that has sent us junk in the first place. 
+ * that has sent us junk in the first place.
  */
 enum snmp_ret
 snmp_make_errresp(const struct snmp_pdu *pdu, struct asn_buf *pdu_b,

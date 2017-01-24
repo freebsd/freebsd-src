@@ -62,6 +62,16 @@ __FBSDID("$FreeBSD$");
 /* mouse device id */
 #define	PS2MOUSE_DEV_ID		0x0
 
+/* mouse data bits */
+#define	PS2M_DATA_Y_OFLOW	0x80
+#define	PS2M_DATA_X_OFLOW	0x40
+#define	PS2M_DATA_Y_SIGN	0x20
+#define	PS2M_DATA_X_SIGN	0x10
+#define	PS2M_DATA_AONE		0x08
+#define	PS2M_DATA_MID_BUTTON	0x04
+#define	PS2M_DATA_RIGHT_BUTTON	0x02
+#define	PS2M_DATA_LEFT_BUTTON	0x01
+
 /* mouse status bits */
 #define	PS2M_STS_REMOTE_MODE	0x40
 #define	PS2M_STS_ENABLE_DEV	0x20
@@ -169,19 +179,20 @@ movement_get(struct ps2mouse_softc *sc)
 
 	assert(pthread_mutex_isowned_np(&sc->mtx));
 
-	val0 = 	sc->status & (PS2M_STS_LEFT_BUTTON |
-	    PS2M_STS_RIGHT_BUTTON | PS2M_STS_MID_BUTTON);
+	val0 = PS2M_DATA_AONE;
+	val0 |= sc->status & (PS2M_DATA_LEFT_BUTTON |
+	    PS2M_DATA_RIGHT_BUTTON | PS2M_DATA_MID_BUTTON);
 
 	if (sc->delta_x >= 0) {
 		if (sc->delta_x > 255) {
-			val0 |= (1 << 6);
+			val0 |= PS2M_DATA_X_OFLOW;
 			val1 = 255;
 		} else
 			val1 = sc->delta_x;
 	} else {
-		val0 |= (1 << 4);
+		val0 |= PS2M_DATA_X_SIGN;
 		if (sc->delta_x < -255) {
-			val0 |= (1 << 6);
+			val0 |= PS2M_DATA_X_OFLOW;
 			val1 = 255;
 		} else
 			val1 = sc->delta_x;
@@ -190,14 +201,14 @@ movement_get(struct ps2mouse_softc *sc)
 
 	if (sc->delta_y >= 0) {
 		if (sc->delta_y > 255) {
-			val0 |= (1 << 7);
+			val0 |= PS2M_DATA_Y_OFLOW;
 			val2 = 255;
 		} else
 			val2 = sc->delta_y;
 	} else {
-		val0 |= (1 << 5);
+		val0 |= PS2M_DATA_Y_SIGN;
 		if (sc->delta_y < -255) {
-			val0 |= (1 << 7);
+			val0 |= PS2M_DATA_Y_OFLOW;
 			val2 = 255;
 		} else
 			val2 = sc->delta_y;

@@ -36,10 +36,6 @@
 #include <time.h>
 #include <stdlib.h>
 
-#ifndef __NetBSD__
-#include <signal.h>
-#endif
-
 ATF_TC(snprintf_c99);
 ATF_TC_HEAD(snprintf_c99, tc)
 {

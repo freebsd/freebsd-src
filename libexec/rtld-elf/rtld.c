@@ -103,6 +103,7 @@ static int load_needed_objects(Obj_Entry *, int);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(const char *, int fd, const Obj_Entry *, int);
 static void map_stacks_exec(RtldLockState *);
+static int obj_enforce_relro(Obj_Entry *);
 static Obj_Entry *obj_from_addr(const void *);
 static void objlist_call_fini(Objlist *, Obj_Entry *, RtldLockState *);
 static void objlist_call_init(Objlist *, RtldLockState *);
@@ -615,6 +616,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     dbg("doing copy relocations");
     if (do_copy_relocations(obj_main) == -1)
+	rtld_die();
+
+    dbg("enforcing main obj relro");
+    if (obj_enforce_relro(obj_main) == -1)
 	rtld_die();
 
     if (getenv(_LD("DUMP_REL_POST")) != NULL) {
@@ -2746,14 +2751,8 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	    reloc_non_plt(obj, rtldobj, flags | SYMLOOK_IFUNC, lockstate))
 		return (-1);
 
-	if (obj->relro_size > 0) {
-		if (mprotect(obj->relro_page, obj->relro_size,
-		    PROT_READ) == -1) {
-			_rtld_error("%s: Cannot enforce relro protection: %s",
-			    obj->path, rtld_strerror(errno));
-			return (-1);
-		}
-	}
+	if (!obj->mainprog && obj_enforce_relro(obj) == -1)
+		return (-1);
 
 	/*
 	 * Set up the magic number and version in the Obj_Entry.  These
@@ -5122,6 +5121,19 @@ _rtld_is_dlopened(void *arg)
 	res = obj->dlopened ? 1 : 0;
 	lock_release(rtld_bind_lock, &lockstate);
 	return (res);
+}
+
+int
+obj_enforce_relro(Obj_Entry *obj)
+{
+
+	if (obj->relro_size > 0 && mprotect(obj->relro_page, obj->relro_size,
+	    PROT_READ) == -1) {
+		_rtld_error("%s: Cannot enforce relro protection: %s",
+		    obj->path, rtld_strerror(errno));
+		return (-1);
+	}
+	return (0);
 }
 
 static void

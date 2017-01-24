@@ -443,8 +443,9 @@ ctl_ha_connect(struct ha_softc *softc)
 
 	memcpy(&sa, &softc->ha_peer_in, sizeof(sa));
 	error = soconnect(so, (struct sockaddr *)&sa, td);
-	if (error != 0 && bootverbose) {
-		printf("%s: soconnect() error %d\n", __func__, error);
+	if (error != 0) {
+		if (bootverbose)
+			printf("%s: soconnect() error %d\n", __func__, error);
 		goto out;
 	}
 	return (0);
@@ -1000,7 +1001,7 @@ ctl_ha_msg_shutdown(struct ctl_softc *ctl_softc)
 		softc->ha_shutdown = 1;
 		softc->ha_wakeup = 1;
 		wakeup(&softc->ha_wakeup);
-		while (softc->ha_shutdown < 2) {
+		while (softc->ha_shutdown < 2 && !SCHEDULER_STOPPED()) {
 			msleep(&softc->ha_wakeup, &softc->ha_lock, 0,
 			    "shutdown", hz);
 		}

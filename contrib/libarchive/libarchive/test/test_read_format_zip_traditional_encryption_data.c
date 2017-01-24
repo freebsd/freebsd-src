@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_read_format_zip_traditional_encryption_data)
 {
-	/* This file is password protected (Traditional PKWARE Enctypted).
+	/* This file is password protected (Traditional PKWARE Encrypted).
 	   The headers are NOT encrypted. Password is "12345678". */
 	const char *refname =
 		"test_read_format_zip_traditional_encryption_data.zip";
@@ -36,7 +36,7 @@ DEFINE_TEST(test_read_format_zip_traditional_encryption_data)
 	struct archive *a;
 	char buff[512];
 
-	/* Check if running system has cryptographic functionarity. */
+	/* Check if running system has cryptographic functionality. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));

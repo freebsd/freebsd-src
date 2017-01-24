@@ -606,7 +606,7 @@ XCFLAGS+=	${BFLAGS}
 .endif
 
 .if ${MK_LIB32} != "no" && (${TARGET_ARCH} == "amd64" || \
-    ${TARGET_ARCH} == "powerpc64")
+    ${TARGET_ARCH} == "powerpc64") || ${TARGET_ARCH:Mmips64*} != ""
 LIBCOMPAT= 32
 .include "Makefile.libcompat"
 .elif ${MK_LIBSOFT} != "no" && ${TARGET_ARCH} == "armv6"
@@ -1694,11 +1694,10 @@ _kerberos5_bootstrap_tools= \
 .endif
 
 # r283777 makewhatis(1) replaced with mandoc version which builds a database.
-.if ${MK_MANDOCDB} != "no" && ${BOOTSTRAPPING} < 1100075
+.if ${MK_MANDOCDB} != "no"
 _libopenbsd?=	lib/libopenbsd
-_makewhatis=	lib/libsqlite3 \
-		usr.bin/mandoc
-${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd ${_bt}-lib/libsqlite3
+_makewhatis=	usr.bin/mandoc
+${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd
 .endif
 
 bootstrap-tools: .PHONY
@@ -1867,6 +1866,7 @@ cross-tools: .MAKE .PHONY
 
 NXBDESTDIR=	${OBJTREE}/nxb-bin
 NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
+		TOOLS_PREFIX= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 NXBMAKE=	${NXBENV} ${MAKE} \
@@ -2155,7 +2155,7 @@ secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
 .if ${MK_LDNS} != "no"
 secure/lib/libssh__L: lib/libldns__L
 .endif
-.if ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 secure/lib/libssh__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
     kerberos5/lib/libhx509__L kerberos5/lib/libasn1__L lib/libcom_err__L \
     lib/libmd__L kerberos5/lib/libroken__L

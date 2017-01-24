@@ -23,13 +23,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2016
+.Dd Jan 3, 2017
 .Dt ATOMIC 9
 .Os
 .Sh NAME
 .Nm atomic_add ,
 .Nm atomic_clear ,
 .Nm atomic_cmpset ,
+.Nm atomic_fcmpset ,
 .Nm atomic_fetchadd ,
 .Nm atomic_load ,
 .Nm atomic_readandclear ,
@@ -48,6 +49,12 @@
 .Fo atomic_cmpset_[acq_|rel_]<type>
 .Fa "volatile <type> *dst"
 .Fa "<type> old"
+.Fa "<type> new"
+.Fc
+.Ft int
+.Fo atomic_fcmpset_[acq_|rel_]<type>
+.Fa "volatile <type> *dst"
+.Fa "<type> *old"
 .Fa "<type> new"
 .Fc
 .Ft <type>
@@ -228,6 +235,45 @@ functions are not implemented for the types
 and
 .Dq Li 16 .
 .Bl -hang
+.It Fn atomic_fcmpset dst *old new
+.El
+.Pp
+On architectures implementing
+.Em Compare And Swap
+operation in hardware, the functionality can be described as
+.Bd -literal -offset indent -compact
+if (*dst == *old) {
+	*dst = new;
+	return (1);
+} else {
+	*old = *dst;
+	return (0);
+}
+.Ed
+On architectures which provide
+.Em Load Linked/Store Conditional
+primitive, the write to
+.Dv *dst
+might also fail for several reasons, most important of which
+is a parallel write to
+.Dv *dst
+cache line by other CPU.
+In this case
+.Fn atomic_fcmpset
+function also returns
+.Dv false ,
+despite
+.Dl *old == *dst .
+.Pp
+The
+.Fn atomic_fcmpset
+functions are not implemented for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li 8 ,
+and
+.Dq Li 16 .
+.Bl -hang
 .It Fn atomic_fetchadd p v
 .Bd -literal -compact
 tmp = *p;
@@ -352,6 +398,16 @@ architectures.
 The
 .Fn atomic_cmpset
 function returns the result of the compare operation.
+The
+.Fn atomic_fcmpset
+function returns
+.Dv true
+if the operation succeeded.
+Otherwise it returns
+.Dv false
+and sets
+.Va *old
+to the found value.
 The
 .Fn atomic_fetchadd ,
 .Fn atomic_load ,

@@ -628,7 +628,7 @@ cd9660_rrip_getname(isodir,outbuf,outlen,inump,imp)
 	struct iso_directory_record *isodir;
 	char *outbuf;
 	u_short *outlen;
-	ino_t *inump;
+	cd_ino_t *inump;
 	struct iso_mnt *imp;
 {
 	ISO_RRIP_ANALYZE analyze;

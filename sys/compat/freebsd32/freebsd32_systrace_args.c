@@ -1960,7 +1960,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct getfsstat_args *p = params;
 		uarg[0] = (intptr_t) p->buf; /* struct statfs * */
 		iarg[1] = p->bufsize; /* long */
-		iarg[2] = p->flags; /* int */
+		iarg[2] = p->mode; /* int */
 		*n_args = 3;
 		break;
 	}

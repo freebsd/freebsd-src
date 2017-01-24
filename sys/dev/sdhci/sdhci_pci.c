@@ -107,8 +107,19 @@ static const struct sdhci_device {
 	    SDHCI_QUIRK_RESET_AFTER_REQUEST },
 	{ 0x16bc14e4,	0xffff,	"Broadcom BCM577xx SDXC/MMC Card Reader",
 	    SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC },
-	{ 0x22948086,	0xffff,	"Intel Braswell Storage Cluster Control MMC Port",
-	    0 },
+	{ 0x0f148086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
+	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	{ 0x0f508086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
+	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	{ 0x22948086,	0xffff,	"Intel Braswell eMMC 4.5.1 Controller",
+	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+	    SDHCI_QUIRK_DATA_TIMEOUT_1MHZ |
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	{ 0x5acc8086,	0xffff,	"Intel Apollo Lake eMMC 5.0 Controller",
+	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
@@ -121,8 +132,8 @@ struct sdhci_pci_softc {
 	int		num_slots;	/* Number of slots on this controller */
 	struct sdhci_slot slots[6];
 	struct resource	*mem_res[6];	/* Memory resource */
-	uint8_t		cfg_freq;	/* Saved mode */
-	uint8_t		cfg_mode;	/* Saved frequency */
+	uint8_t		cfg_freq;	/* Saved frequency */
+	uint8_t		cfg_mode;	/* Saved mode */
 };
 
 static int sdhci_enable_msi = 1;

@@ -125,12 +125,9 @@ typedef enum {
 	CAM_ARG_GET_STDINQ	= 0x00002000,
 	CAM_ARG_GET_XFERRATE	= 0x00004000,
 	CAM_ARG_INQ_MASK	= 0x00007000,
-	CAM_ARG_MODE_EDIT	= 0x00008000,
-	CAM_ARG_PAGE_CNTL	= 0x00010000,
 	CAM_ARG_TIMEOUT		= 0x00020000,
 	CAM_ARG_CMD_IN		= 0x00040000,
 	CAM_ARG_CMD_OUT		= 0x00080000,
-	CAM_ARG_DBD		= 0x00100000,
 	CAM_ARG_ERR_RECOVER	= 0x00200000,
 	CAM_ARG_RETRIES		= 0x00400000,
 	CAM_ARG_START_UNIT	= 0x00800000,
@@ -3182,8 +3179,8 @@ rescan_or_reset_bus(path_id_t bus, int rescan)
 	/*
 	 * The right way to handle this is to modify the xpt so that it can
 	 * handle a wildcarded bus in a rescan or reset CCB.  At the moment
-	 * that isn't implemented, so instead we enumerate the busses and
-	 * send the rescan or reset to those busses in the case where the
+	 * that isn't implemented, so instead we enumerate the buses and
+	 * send the rescan or reset to those buses in the case where the
 	 * given bus is -1 (wildcard).  We don't send a rescan or reset
 	 * to the xpt bus; sending a rescan to the xpt bus is effectively a
 	 * no-op, sending a rescan to the xpt bus would result in a status of
@@ -3987,8 +3984,8 @@ reassignblocks(struct cam_device *device, u_int32_t *blocks, int num_blocks)
 
 #ifndef MINIMALISTIC
 void
-mode_sense(struct cam_device *device, int mode_page, int page_control,
-	   int dbd, int retry_count, int timeout, u_int8_t *data, int datalen)
+mode_sense(struct cam_device *device, int dbd, int pc, int page, int subpage,
+	   int retry_count, int timeout, u_int8_t *data, int datalen)
 {
 	union ccb *ccb;
 	int retval;
@@ -4000,15 +3997,17 @@ mode_sense(struct cam_device *device, int mode_page, int page_control,
 
 	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
-	scsi_mode_sense(&ccb->csio,
+	scsi_mode_sense_subpage(&ccb->csio,
 			/* retries */ retry_count,
 			/* cbfcnp */ NULL,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* dbd */ dbd,
-			/* page_code */ page_control << 6,
-			/* page */ mode_page,
+			/* pc */ pc << 6,
+			/* page */ page,
+			/* subpage */ subpage,
 			/* param_buf */ data,
 			/* param_len */ datalen,
+			/* minimum_cmd_size */ 0,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ timeout ? timeout : 5000);
 
@@ -4089,8 +4088,9 @@ void
 modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	 int retry_count, int timeout)
 {
-	int c, mode_page = -1, page_control = 0;
-	int binary = 0, list = 0;
+	char *str_subpage;
+	int c, page = -1, subpage = -1, pc = 0;
+	int binary = 0, dbd = 0, edit = 0, list = 0;
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -4098,40 +4098,44 @@ modepage(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			binary = 1;
 			break;
 		case 'd':
-			arglist |= CAM_ARG_DBD;
+			dbd = 1;
 			break;
 		case 'e':
-			arglist |= CAM_ARG_MODE_EDIT;
+			edit = 1;
 			break;
 		case 'l':
-			list = 1;
+			list++;
 			break;
 		case 'm':
-			mode_page = strtol(optarg, NULL, 0);
-			if (mode_page < 0)
-				errx(1, "invalid mode page %d", mode_page);
+			str_subpage = optarg;
+			strsep(&str_subpage, ",");
+			page = strtol(optarg, NULL, 0);
+			if (str_subpage)
+			    subpage = strtol(str_subpage, NULL, 0);
+			else
+			    subpage = 0;
+			if (page < 0)
+				errx(1, "invalid mode page %d", page);
+			if (subpage < 0)
+				errx(1, "invalid mode subpage %d", subpage);
 			break;
 		case 'P':
-			page_control = strtol(optarg, NULL, 0);
-			if ((page_control < 0) || (page_control > 3))
-				errx(1, "invalid page control field %d",
-				     page_control);
-			arglist |= CAM_ARG_PAGE_CNTL;
+			pc = strtol(optarg, NULL, 0);
+			if ((pc < 0) || (pc > 3))
+				errx(1, "invalid page control field %d", pc);
 			break;
 		default:
 			break;
 		}
 	}
 
-	if (mode_page == -1 && list == 0)
+	if (page == -1 && list == 0)
 		errx(1, "you must specify a mode page!");
 
-	if (list) {
-		mode_list(device, page_control, arglist & CAM_ARG_DBD,
-		    retry_count, timeout);
+	if (list != 0) {
+		mode_list(device, dbd, pc, list > 1, retry_count, timeout);
 	} else {
-		mode_edit(device, mode_page, page_control,
-		    arglist & CAM_ARG_DBD, arglist & CAM_ARG_MODE_EDIT, binary,
+		mode_edit(device, dbd, pc, page, subpage, edit, binary,
 		    retry_count, timeout);
 	}
 }
@@ -4146,7 +4150,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	u_int8_t cdb[20];
 	u_int8_t atacmd[12];
 	struct get_hook hook;
-	int c, data_bytes = 0;
+	int c, data_bytes = 0, valid_bytes;
 	int cdb_len = 0;
 	int atacmd_len = 0;
 	int dmacmd = 0;
@@ -4450,16 +4454,20 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 	}
 
+	if (cdb_len)
+		valid_bytes = ccb->csio.dxfer_len - ccb->csio.resid;
+	else
+		valid_bytes = ccb->ataio.dxfer_len - ccb->ataio.resid;
 	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 	 && (arglist & CAM_ARG_CMD_IN)
-	 && (data_bytes > 0)) {
+	 && (valid_bytes > 0)) {
 		if (fd_data == 0) {
-			buff_decode_visit(data_ptr, data_bytes, datastr,
+			buff_decode_visit(data_ptr, valid_bytes, datastr,
 					  arg_put, NULL);
 			fprintf(stdout, "\n");
 		} else {
 			ssize_t amt_written;
-			int amt_to_write = data_bytes;
+			int amt_to_write = valid_bytes;
 			u_int8_t *buf_ptr = data_ptr;
 
 			for (amt_written = 0; (amt_to_write > 0) &&
@@ -4474,7 +4482,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			} else if ((amt_written == 0)
 				&& (amt_to_write > 0)) {
 				warnx("only wrote %u bytes out of %u",
-				      data_bytes - amt_to_write, data_bytes);
+				      valid_bytes - amt_to_write, valid_bytes);
 			}
 		}
 	}
@@ -8946,8 +8954,8 @@ usage(int printlong)
 "load        send a Start Unit command to the device with the load bit set\n"
 "eject       send a Stop Unit command to the device with the eject bit set\n"
 "reprobe     update capacity information of the given device\n"
-"rescan      rescan all busses, the given bus, or bus:target:lun\n"
-"reset       reset all busses, the given bus, or bus:target:lun\n"
+"rescan      rescan all buses, the given bus, or bus:target:lun\n"
+"reset       reset all buses, the given bus, or bus:target:lun\n"
 "defects     read the defect list of the specified device\n"
 "modepage    display or edit (-e) the given mode page\n"
 "cmd         send the given SCSI command, may need -i or -o as well\n"

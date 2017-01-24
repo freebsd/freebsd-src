@@ -2484,14 +2484,14 @@ END_DEBUG
 		cpi->initiator_id = SBP_INITIATOR;
 		cpi->bus_id = sim->bus_id;
 		cpi->base_transfer_speed = 400 * 1000 / 8;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "SBP", HBA_IDLEN);
-		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "SBP", HBA_IDLEN);
+		strlcpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
 		cpi->unit_number = sim->unit_number;
-                cpi->transport = XPORT_SPI;	/* XX should have a FireWire */
-                cpi->transport_version = 2;
-                cpi->protocol = PROTO_SCSI;
-                cpi->protocol_version = SCSI_REV_2;
+		cpi->transport = XPORT_SPI;	/* XX should have a FireWire */
+		cpi->transport_version = 2;
+		cpi->protocol = PROTO_SCSI;
+		cpi->protocol_version = SCSI_REV_2;
 
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);

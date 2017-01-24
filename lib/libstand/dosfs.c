@@ -154,7 +154,7 @@ static int fatcnt(DOS_FS *, u_int);
 static int fatget(DOS_FS *, u_int *);
 static int fatend(u_int, u_int);
 static int ioread(DOS_FS *, u_int, void *, u_int);
-static int ioget(struct open_file *, daddr_t, size_t, void *, u_int);
+static int ioget(struct open_file *, daddr_t, void *, u_int);
 
 static void
 dos_read_fat(DOS_FS *fs, struct open_file *fd)
@@ -172,7 +172,7 @@ dos_read_fat(DOS_FS *fs, struct open_file *fd)
 	fat.buf = malloc(secbyt(fs->spf));
 
     if (fat.buf != NULL) {
-	if (ioget(fd, fs->lsnfat, 0, fat.buf, secbyt(fs->spf)) == 0) {
+	if (ioget(fd, fs->lsnfat, fat.buf, secbyt(fs->spf)) == 0) {
 	    fat.size = fs->spf;
 	    fat.unit = dd->d_unit;
 	    return;
@@ -199,7 +199,7 @@ dos_mount(DOS_FS *fs, struct open_file *fd)
     fs->fd = fd;
 
     if ((err = !(buf = malloc(secbyt(1))) ? errno : 0) ||
-        (err = ioget(fs->fd, 0, 0, buf, secbyt(1))) ||
+        (err = ioget(fs->fd, 0, buf, secbyt(1))) ||
         (err = parsebs(fs, (DOS_BS *)buf))) {
 	if (buf != NULL)
 	    free(buf);
@@ -619,7 +619,7 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
         else
             return (EINVAL);
         for (sec = 0; sec < nsec; sec++) {
-            if ((err = ioget(fs->fd, lsec + sec, 0, dir, secbyt(1))))
+            if ((err = ioget(fs->fd, lsec + sec, dir, secbyt(1))))
                 return (err);
             for (ent = 0; ent < DEPSEC; ent++) {
                 if (!*dir[ent].de.name)
@@ -768,8 +768,7 @@ static int
 fatget(DOS_FS *fs, u_int *c)
 {
     u_char buf[4];
-    u_char *s;
-    u_int x, offset, off, n, nbyte, lsec;
+    u_int x, offset, n, nbyte;
     struct devdesc *dd = fs->fd->f_devdata;
     int err = 0;
 
@@ -783,25 +782,9 @@ fatget(DOS_FS *fs, u_int *c)
 	offset = fatoff(fs->fatsz, *c);
 	nbyte = fs->fatsz != 32 ? 2 : 4;
 
-	s = buf;
-	if ((off = offset & (SECSIZ - 1))) {
-	    offset -= off;
-	    lsec = bytsec(offset);
-	    offset += SECSIZ;
-	    if ((n = SECSIZ - off) > nbyte)
-		n = nbyte;
-	    memcpy(s, fat.buf + secbyt(lsec) + off, n);
-	    s += n;
-	    nbyte -= n;
-	}
-	n = nbyte & (SECSIZ - 1);
-	if (nbyte -= n) {
-	    memcpy(s, fat.buf + secbyt(bytsec(offset)), nbyte);
-	    offset += nbyte;
-	    s += nbyte;
-	}
-	if (n)
-	    memcpy(s, fat.buf + secbyt(bytsec(offset)), n);
+	if (offset + nbyte > secbyt(fat.size))
+	    return (EINVAL);
+	memcpy(buf, fat.buf + offset, nbyte);
     }
 
     x = fs->fatsz != 32 ? cv2(buf) : cv4(buf);
@@ -827,28 +810,31 @@ ioread(DOS_FS *fs, u_int offset, void *buf, u_int nbyte)
     char *s;
     u_int off, n;
     int err;
+    u_char local_buf[SECSIZ];
 
     s = buf;
     if ((off = offset & (SECSIZ - 1))) {
         offset -= off;
         if ((n = SECSIZ - off) > nbyte)
             n = nbyte;
-        if ((err = ioget(fs->fd, bytsec(offset), off, s, n)))
+        if ((err = ioget(fs->fd, bytsec(offset), local_buf, sizeof(local_buf))))
             return (err);
+	memcpy(s, local_buf + off, n);
         offset += SECSIZ;
         s += n;
         nbyte -= n;
     }
     n = nbyte & (SECSIZ - 1);
     if (nbyte -= n) {
-        if ((err = ioget(fs->fd, bytsec(offset), 0, s, nbyte)))
+        if ((err = ioget(fs->fd, bytsec(offset), s, nbyte)))
             return (err);
         offset += nbyte;
         s += nbyte;
     }
     if (n) {
-        if ((err = ioget(fs->fd, bytsec(offset), 0, s, n)))
+        if ((err = ioget(fs->fd, bytsec(offset), local_buf, sizeof(local_buf))))
             return (err);
+	memcpy(s, local_buf, n);
     }
     return (0);
 }
@@ -857,8 +843,8 @@ ioread(DOS_FS *fs, u_int offset, void *buf, u_int nbyte)
  * Sector-based I/O primitive
  */
 static int
-ioget(struct open_file *fd, daddr_t lsec, size_t offset, void *buf, u_int size)
+ioget(struct open_file *fd, daddr_t lsec, void *buf, u_int size)
 {
-    return ((fd->f_dev->dv_strategy)(fd->f_devdata, F_READ, lsec, offset,
+    return ((fd->f_dev->dv_strategy)(fd->f_devdata, F_READ, lsec,
 	size, buf, NULL));
 }

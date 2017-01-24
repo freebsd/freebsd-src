@@ -197,26 +197,26 @@ mpr_describe_devinfo(uint32_t devinfo, char *string, int len)
 }
 
 void
-mpr_print_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
+_mpr_print_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 {
-
 	MPR_PRINTFIELD_START(sc, "IOCFacts");
 	MPR_PRINTFIELD(sc, facts, MsgVersion, 0x%x);
 	MPR_PRINTFIELD(sc, facts, HeaderVersion, 0x%x);
 	MPR_PRINTFIELD(sc, facts, IOCNumber, %d);
 	MPR_PRINTFIELD(sc, facts, IOCExceptions, 0x%x);
 	MPR_PRINTFIELD(sc, facts, MaxChainDepth, %d);
-	mpr_dprint_field(sc, MPR_XINFO, "WhoInit: %s\n",
+	mpr_print_field(sc, "WhoInit: %s\n",
 	    mpr_describe_table(mpr_whoinit_names, facts->WhoInit));
 	MPR_PRINTFIELD(sc, facts, NumberOfPorts, %d);
+	MPR_PRINTFIELD(sc, facts, MaxMSIxVectors, %d);
 	MPR_PRINTFIELD(sc, facts, RequestCredit, %d);
 	MPR_PRINTFIELD(sc, facts, ProductID, 0x%x);
-	mpr_dprint_field(sc, MPR_XINFO, "IOCCapabilities: %b\n",
+	mpr_print_field(sc, "IOCCapabilities: %b\n",
 	    facts->IOCCapabilities, "\20" "\3ScsiTaskFull" "\4DiagTrace"
 	    "\5SnapBuf" "\6ExtBuf" "\7EEDP" "\10BiDirTarg" "\11Multicast"
 	    "\14TransRetry" "\15IR" "\16EventReplay" "\17RaidAccel"
 	    "\20MSIXIndex" "\21HostDisc");
-	mpr_dprint_field(sc, MPR_XINFO, "FWVersion= %d-%d-%d-%d\n",
+	mpr_print_field(sc, "FWVersion= %d-%d-%d-%d\n",
 	    facts->FWVersion.Struct.Major,
 	    facts->FWVersion.Struct.Minor,
 	    facts->FWVersion.Struct.Unit,
@@ -226,7 +226,7 @@ mpr_print_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	MPR_PRINTFIELD(sc, facts, MaxTargets, %d);
 	MPR_PRINTFIELD(sc, facts, MaxSasExpanders, %d);
 	MPR_PRINTFIELD(sc, facts, MaxEnclosures, %d);
-	mpr_dprint_field(sc, MPR_XINFO, "ProtocolFlags: %b\n",
+	mpr_print_field(sc, "ProtocolFlags: %b\n",
 	    facts->ProtocolFlags, "\20" "\1ScsiTarg" "\2ScsiInit");
 	MPR_PRINTFIELD(sc, facts, HighPriorityCredit, %d);
 	MPR_PRINTFIELD(sc, facts, MaxReplyDescriptorPostQueueDepth, %d);
@@ -237,7 +237,7 @@ mpr_print_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 }
 
 void
-mpr_print_portfacts(struct mpr_softc *sc, MPI2_PORT_FACTS_REPLY *facts)
+_mpr_print_portfacts(struct mpr_softc *sc, MPI2_PORT_FACTS_REPLY *facts)
 {
 
 	MPR_PRINTFIELD_START(sc, "PortFacts");
@@ -247,24 +247,24 @@ mpr_print_portfacts(struct mpr_softc *sc, MPI2_PORT_FACTS_REPLY *facts)
 }
 
 void
-mpr_print_event(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
+_mpr_print_event(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 {
 
-	MPR_EVENTFIELD_START(sc, "EventReply");
-	MPR_EVENTFIELD(sc, event, EventDataLength, %d);
-	MPR_EVENTFIELD(sc, event, AckRequired, %d);
-	mpr_dprint_field(sc, MPR_EVENT, "Event: %s (0x%x)\n",
+	MPR_PRINTFIELD_START(sc, "EventReply");
+	MPR_PRINTFIELD(sc, event, EventDataLength, %d);
+	MPR_PRINTFIELD(sc, event, AckRequired, %d);
+	mpr_print_field(sc, "Event: %s (0x%x)\n",
 	    mpr_describe_table(mpr_event_names, event->Event), event->Event);
-	MPR_EVENTFIELD(sc, event, EventContext, 0x%x);
+	MPR_PRINTFIELD(sc, event, EventContext, 0x%x);
 }
 
 void
-mpr_print_sasdev0(struct mpr_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
+_mpr_print_sasdev0(struct mpr_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
 {
 	MPR_PRINTFIELD_START(sc, "SAS Device Page 0");
 	MPR_PRINTFIELD(sc, buf, Slot, %d);
 	MPR_PRINTFIELD(sc, buf, EnclosureHandle, 0x%x);
-	mpr_dprint_field(sc, MPR_XINFO, "SASAddress: 0x%jx\n",
+	mpr_print_field(sc, "SASAddress: 0x%jx\n",
 	    mpr_to_u64(&buf->SASAddress));
 	MPR_PRINTFIELD(sc, buf, ParentDevHandle, 0x%x);
 	MPR_PRINTFIELD(sc, buf, PhyNum, %d);
@@ -272,7 +272,7 @@ mpr_print_sasdev0(struct mpr_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
 	MPR_PRINTFIELD(sc, buf, DevHandle, 0x%x);
 	MPR_PRINTFIELD(sc, buf, AttachedPhyIdentifier, 0x%x);
 	MPR_PRINTFIELD(sc, buf, ZoneGroup, %d);
-	mpr_dprint_field(sc, MPR_XINFO, "DeviceInfo: %b,%s\n", buf->DeviceInfo,
+	mpr_print_field(sc, "DeviceInfo: %b,%s\n", buf->DeviceInfo,
 	    "\20" "\4SataHost" "\5SmpInit" "\6StpInit" "\7SspInit"
 	    "\10SataDev" "\11SmpTarg" "\12StpTarg" "\13SspTarg" "\14Direct"
 	    "\15LsiDev" "\16AtapiDev" "\17SepDev",
@@ -280,7 +280,7 @@ mpr_print_sasdev0(struct mpr_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
 	MPR_PRINTFIELD(sc, buf, Flags, 0x%x);
 	MPR_PRINTFIELD(sc, buf, PhysicalPort, %d);
 	MPR_PRINTFIELD(sc, buf, MaxPortConnections, %d);
-	mpr_dprint_field(sc, MPR_XINFO, "DeviceName: 0x%jx\n",
+	mpr_print_field(sc, "DeviceName: 0x%jx\n",
 	    mpr_to_u64(&buf->DeviceName));
 	MPR_PRINTFIELD(sc, buf, PortGroups, %d);
 	MPR_PRINTFIELD(sc, buf, DmaGroup, %d);
@@ -288,10 +288,10 @@ mpr_print_sasdev0(struct mpr_softc *sc, MPI2_CONFIG_PAGE_SAS_DEV_0 *buf)
 }
 
 void
-mpr_print_evt_sas(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
+_mpr_print_evt_sas(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 {
 
-	mpr_print_event(sc, event);
+	_mpr_print_event(sc, event);
 
 	switch(event->Event) {
 	case MPI2_EVENT_SAS_DISCOVERY:
@@ -299,12 +299,12 @@ mpr_print_evt_sas(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 		MPI2_EVENT_DATA_SAS_DISCOVERY *data;
 
 		data = (MPI2_EVENT_DATA_SAS_DISCOVERY *)&event->EventData;
-		mpr_dprint_field(sc, MPR_EVENT, "Flags: %b\n", data->Flags,
+		mpr_print_field(sc, "Flags: %b\n", data->Flags,
 		    "\20" "\1InProgress" "\2DeviceChange");
-		mpr_dprint_field(sc, MPR_EVENT, "ReasonCode: %s\n",
+		mpr_print_field(sc, "ReasonCode: %s\n",
 		    mpr_describe_table(mpr_sasdisc_reason, data->ReasonCode));
-		MPR_EVENTFIELD(sc, data, PhysicalPort, %d);
-		mpr_dprint_field(sc, MPR_EVENT, "DiscoveryStatus: %b\n",
+		MPR_PRINTFIELD(sc, data, PhysicalPort, %d);
+		mpr_print_field(sc, "DiscoveryStatus: %b\n",
 		    data->DiscoveryStatus,  "\20"
 		    "\1Loop" "\2UnaddressableDev" "\3DupSasAddr" "\5SmpTimeout"
 		    "\6ExpRouteFull" "\7RouteIndexError" "\10SmpFailed"
@@ -323,26 +323,26 @@ mpr_print_evt_sas(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 
 		data = (MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST *)
 		    &event->EventData;
-		MPR_EVENTFIELD(sc, data, EnclosureHandle, 0x%x);
-		MPR_EVENTFIELD(sc, data, ExpanderDevHandle, 0x%x);
-		MPR_EVENTFIELD(sc, data, NumPhys, %d);
-		MPR_EVENTFIELD(sc, data, NumEntries, %d);
-		MPR_EVENTFIELD(sc, data, StartPhyNum, %d);
-		mpr_dprint_field(sc, MPR_EVENT, "ExpStatus: %s (0x%x)\n",
+		MPR_PRINTFIELD(sc, data, EnclosureHandle, 0x%x);
+		MPR_PRINTFIELD(sc, data, ExpanderDevHandle, 0x%x);
+		MPR_PRINTFIELD(sc, data, NumPhys, %d);
+		MPR_PRINTFIELD(sc, data, NumEntries, %d);
+		MPR_PRINTFIELD(sc, data, StartPhyNum, %d);
+		mpr_print_field(sc, "ExpStatus: %s (0x%x)\n",
 		    mpr_describe_table(mpr_sastopo_exp, data->ExpStatus),
 		    data->ExpStatus);
-		MPR_EVENTFIELD(sc, data, PhysicalPort, %d);
+		MPR_PRINTFIELD(sc, data, PhysicalPort, %d);
 		for (i = 0; i < data->NumEntries; i++) {
 			phy = &data->PHY[i];
 			phynum = data->StartPhyNum + i;
-			mpr_dprint_field(sc, MPR_EVENT,
+			mpr_print_field(sc,
 			    "PHY[%d].AttachedDevHandle: 0x%04x\n", phynum,
 			    phy->AttachedDevHandle);
-			mpr_dprint_field(sc, MPR_EVENT,
+			mpr_print_field(sc,
 			    "PHY[%d].LinkRate: %s (0x%x)\n", phynum,
 			    mpr_describe_table(mpr_linkrate_names,
 			    (phy->LinkRate >> 4) & 0xf), phy->LinkRate);
-			mpr_dprint_field(sc,MPR_EVENT,"PHY[%d].PhyStatus: %s\n",
+			mpr_print_field(sc, "PHY[%d].PhyStatus: %s\n",
 			    phynum, mpr_describe_table(mpr_phystatus_names,
 			    phy->PhyStatus));
 		}
@@ -354,13 +354,13 @@ mpr_print_evt_sas(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 
 		data = (MPI2_EVENT_DATA_SAS_ENCL_DEV_STATUS_CHANGE *)
 		    &event->EventData;
-		MPR_EVENTFIELD(sc, data, EnclosureHandle, 0x%x);
-		mpr_dprint_field(sc, MPR_EVENT, "ReasonCode: %s\n",
+		MPR_PRINTFIELD(sc, data, EnclosureHandle, 0x%x);
+		mpr_print_field(sc, "ReasonCode: %s\n",
 		    mpr_describe_table(mpr_sastopo_exp, data->ReasonCode));
-		MPR_EVENTFIELD(sc, data, PhysicalPort, %d);
-		MPR_EVENTFIELD(sc, data, NumSlots, %d);
-		MPR_EVENTFIELD(sc, data, StartSlot, %d);
-		MPR_EVENTFIELD(sc, data, PhyBits, 0x%x);
+		MPR_PRINTFIELD(sc, data, PhysicalPort, %d);
+		MPR_PRINTFIELD(sc, data, NumSlots, %d);
+		MPR_PRINTFIELD(sc, data, StartSlot, %d);
+		MPR_PRINTFIELD(sc, data, PhyBits, 0x%x);
 		break;
 	}
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
@@ -369,13 +369,13 @@ mpr_print_evt_sas(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 
 		data = (MPI2_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE *)
 		    &event->EventData;
-		MPR_EVENTFIELD(sc, data, TaskTag, 0x%x);
-		mpr_dprint_field(sc, MPR_EVENT, "ReasonCode: %s\n",
+		MPR_PRINTFIELD(sc, data, TaskTag, 0x%x);
+		mpr_print_field(sc, "ReasonCode: %s\n",
 		    mpr_describe_table(mpr_sasdev_reason, data->ReasonCode));
-		MPR_EVENTFIELD(sc, data, ASC, 0x%x);
-		MPR_EVENTFIELD(sc, data, ASCQ, 0x%x);
-		MPR_EVENTFIELD(sc, data, DevHandle, 0x%x);
-		mpr_dprint_field(sc, MPR_EVENT, "SASAddress: 0x%jx\n",
+		MPR_PRINTFIELD(sc, data, ASC, 0x%x);
+		MPR_PRINTFIELD(sc, data, ASCQ, 0x%x);
+		MPR_PRINTFIELD(sc, data, DevHandle, 0x%x);
+		mpr_print_field(sc, "SASAddress: 0x%jx\n",
 		    mpr_to_u64(&data->SASAddress));
 	}
 	default:
@@ -384,24 +384,24 @@ mpr_print_evt_sas(struct mpr_softc *sc, MPI2_EVENT_NOTIFICATION_REPLY *event)
 }
 
 void
-mpr_print_expander1(struct mpr_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
+_mpr_print_expander1(struct mpr_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
 {
 	MPR_PRINTFIELD_START(sc, "SAS Expander Page 1 #%d", buf->Phy);
 	MPR_PRINTFIELD(sc, buf, PhysicalPort, %d);
 	MPR_PRINTFIELD(sc, buf, NumPhys, %d);
 	MPR_PRINTFIELD(sc, buf, Phy, %d);
 	MPR_PRINTFIELD(sc, buf, NumTableEntriesProgrammed, %d);
-	mpr_dprint_field(sc, MPR_XINFO, "ProgrammedLinkRate: %s (0x%x)\n",
+	mpr_print_field(sc, "ProgrammedLinkRate: %s (0x%x)\n",
 	    mpr_describe_table(mpr_linkrate_names,
 	    (buf->ProgrammedLinkRate >> 4) & 0xf), buf->ProgrammedLinkRate);
-	mpr_dprint_field(sc, MPR_XINFO, "HwLinkRate: %s (0x%x)\n",
+	mpr_print_field(sc, "HwLinkRate: %s (0x%x)\n",
 	    mpr_describe_table(mpr_linkrate_names,
 	    (buf->HwLinkRate >> 4) & 0xf), buf->HwLinkRate);
 	MPR_PRINTFIELD(sc, buf, AttachedDevHandle, 0x%04x);
-	mpr_dprint_field(sc, MPR_XINFO, "PhyInfo Reason: %s (0x%x)\n",
+	mpr_print_field(sc, "PhyInfo Reason: %s (0x%x)\n",
 	    mpr_describe_table(mpr_phyinfo_reason_names,
 	    (buf->PhyInfo >> 16) & 0xf), buf->PhyInfo);
-	mpr_dprint_field(sc, MPR_XINFO, "AttachedDeviceInfo: %b,%s\n",
+	mpr_print_field(sc, "AttachedDeviceInfo: %b,%s\n",
 	    buf->AttachedDeviceInfo, "\20" "\4SATAhost" "\5SMPinit" "\6STPinit"
 	    "\7SSPinit" "\10SATAdev" "\11SMPtarg" "\12STPtarg" "\13SSPtarg"
 	    "\14Direct" "\15LSIdev" "\16ATAPIdev" "\17SEPdev",
@@ -409,14 +409,14 @@ mpr_print_expander1(struct mpr_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
 	    buf->AttachedDeviceInfo & 0x03));
 	MPR_PRINTFIELD(sc, buf, ExpanderDevHandle, 0x%04x);
 	MPR_PRINTFIELD(sc, buf, ChangeCount, %d);
-	mpr_dprint_field(sc, MPR_XINFO, "NegotiatedLinkRate: %s (0x%x)\n",
+	mpr_print_field(sc, "NegotiatedLinkRate: %s (0x%x)\n",
 	    mpr_describe_table(mpr_linkrate_names,
 	    buf->NegotiatedLinkRate & 0xf), buf->NegotiatedLinkRate);
 	MPR_PRINTFIELD(sc, buf, PhyIdentifier, %d);
 	MPR_PRINTFIELD(sc, buf, AttachedPhyIdentifier, %d);
 	MPR_PRINTFIELD(sc, buf, DiscoveryInfo, 0x%x);
 	MPR_PRINTFIELD(sc, buf, AttachedPhyInfo, 0x%x);
-	mpr_dprint_field(sc, MPR_XINFO, "AttachedPhyInfo Reason: %s (0x%x)\n",
+	mpr_print_field(sc, "AttachedPhyInfo Reason: %s (0x%x)\n",
 	    mpr_describe_table(mpr_phyinfo_reason_names,
 	    buf->AttachedPhyInfo & 0xf), buf->AttachedPhyInfo);
 	MPR_PRINTFIELD(sc, buf, ZoneGroup, %d);
@@ -424,27 +424,27 @@ mpr_print_expander1(struct mpr_softc *sc, MPI2_CONFIG_PAGE_EXPANDER_1 *buf)
 }
 
 void
-mpr_print_sasphy0(struct mpr_softc *sc, MPI2_CONFIG_PAGE_SAS_PHY_0 *buf)
+_mpr_print_sasphy0(struct mpr_softc *sc, MPI2_CONFIG_PAGE_SAS_PHY_0 *buf)
 {
 	MPR_PRINTFIELD_START(sc, "SAS PHY Page 0");
 	MPR_PRINTFIELD(sc, buf, OwnerDevHandle, 0x%04x);
 	MPR_PRINTFIELD(sc, buf, AttachedDevHandle, 0x%04x);
 	MPR_PRINTFIELD(sc, buf, AttachedPhyIdentifier, %d);
-	mpr_dprint_field(sc, MPR_XINFO, "AttachedPhyInfo Reason: %s (0x%x)\n",
+	mpr_print_field(sc, "AttachedPhyInfo Reason: %s (0x%x)\n",
 	    mpr_describe_table(mpr_phyinfo_reason_names,
 	    buf->AttachedPhyInfo & 0xf), buf->AttachedPhyInfo);
-	mpr_dprint_field(sc, MPR_XINFO, "ProgrammedLinkRate: %s (0x%x)\n",
+	mpr_print_field(sc, "ProgrammedLinkRate: %s (0x%x)\n",
 	    mpr_describe_table(mpr_linkrate_names,
 	    (buf->ProgrammedLinkRate >> 4) & 0xf), buf->ProgrammedLinkRate);
-	mpr_dprint_field(sc, MPR_XINFO, "HwLinkRate: %s (0x%x)\n",
+	mpr_print_field(sc, "HwLinkRate: %s (0x%x)\n",
 	    mpr_describe_table(mpr_linkrate_names,
 	    (buf->HwLinkRate >> 4) & 0xf), buf->HwLinkRate);
 	MPR_PRINTFIELD(sc, buf, ChangeCount, %d);
 	MPR_PRINTFIELD(sc, buf, Flags, 0x%x);
-	mpr_dprint_field(sc, MPR_XINFO, "PhyInfo Reason: %s (0x%x)\n",
+	mpr_print_field(sc, "PhyInfo Reason: %s (0x%x)\n",
 	    mpr_describe_table(mpr_phyinfo_reason_names,
 	    (buf->PhyInfo >> 16) & 0xf), buf->PhyInfo);
-	mpr_dprint_field(sc, MPR_XINFO, "NegotiatedLinkRate: %s (0x%x)\n",
+	mpr_print_field(sc, "NegotiatedLinkRate: %s (0x%x)\n",
 	    mpr_describe_table(mpr_linkrate_names,
 	    buf->NegotiatedLinkRate & 0xf), buf->NegotiatedLinkRate);
 }

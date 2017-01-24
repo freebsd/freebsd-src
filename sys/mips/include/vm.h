@@ -32,7 +32,11 @@
 #include <machine/pte.h>
 
 /* Memory attributes. */
-#define	VM_MEMATTR_UNCACHEABLE	((vm_memattr_t)PTE_C_UNCACHED)
-#define	VM_MEMATTR_DEFAULT	((vm_memattr_t)PTE_C_CACHE)
+#define	VM_MEMATTR_UNCACHEABLE		((vm_memattr_t)MIPS_CCA_UNCACHED)
+#define	VM_MEMATTR_WRITE_BACK		((vm_memattr_t)MIPS_CCA_CACHED)
+#define	VM_MEMATTR_DEFAULT		VM_MEMATTR_WRITE_BACK
+#ifdef MIPS_CCA_WC
+#define	VM_MEMATTR_WRITE_COMBINING	((vm_memattr_t)MIPS_CCA_WC)
+#endif
 
 #endif /* !_MACHINE_VM_H_ */

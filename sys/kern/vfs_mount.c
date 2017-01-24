@@ -79,6 +79,7 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
+MALLOC_DEFINE(M_STATFS, "statfs", "statfs structure");
 static uma_zone_t mount_zone;
 
 /* List of mounted filesystems. */

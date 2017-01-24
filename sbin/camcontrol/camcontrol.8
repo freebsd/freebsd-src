@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 30, 2016
+.Dd January 20, 2017
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -121,7 +121,7 @@
 .Ic modepage
 .Op device id
 .Op generic args
-.Aq Fl m Ar page | Fl l
+.Aq Fl m Ar page[,subpage] | Fl l
 .Op Fl P Ar pgctl
 .Op Fl b | Fl e
 .Op Fl d
@@ -565,12 +565,12 @@ start bit set and the load/eject bit set.
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit cleared and the load/eject bit set.
 .It Ic rescan
-Tell the kernel to scan all busses in the system (with the
+Tell the kernel to scan all buses in the system (with the
 .Ar all
 argument), the given bus (XPT_SCAN_BUS), or bus:target:lun
 (XPT_SCAN_LUN) for new devices or devices that have gone away.
 The user
-may specify a scan of all busses, a single bus, or a lun.
+may specify a scan of all buses, a single bus, or a lun.
 Scanning all luns
 on a target is not supported.
 .It Ic reprobe
@@ -580,7 +580,7 @@ notify the upper layer,
 This includes sending the SCSI READ CAPACITY command and updating
 the disk size visible to the rest of the system.
 .It Ic reset
-Tell the kernel to reset all busses in the system (with the
+Tell the kernel to reset all buses in the system (with the
 .Ar all
 argument) or the given bus (XPT_RESET_BUS) by issuing a SCSI bus
 reset for that bus, or to reset the given bus:target:lun
@@ -702,9 +702,10 @@ The editor will be invoked if
 detects that standard input is terminal.
 .It Fl l
 Lists all available mode pages.
-.It Fl m Ar mode_page
-This specifies the number of the mode page the user would like to view
-and/or edit.
+If specified more then once, also lists subpages.
+.It Fl m Ar page[,subpage]
+This specifies the number of the mode page and optionally subpage the user
+would like to view and/or edit.
 This argument is mandatory unless
 .Fl l
 is specified.
@@ -2373,6 +2374,20 @@ this power condition will be affected.
 .It state
 Enable or disable a particular power condition.
 .Bl -tag -width 7n
+.It Fl e
+Enable the power condition.
+One of 
+.Fl e
+or
+.Fl d
+is required.
+.It Fl d
+Disable the power condition.
+One of
+.Fl d
+or
+.Fl e
+is required.
 .It Fl p Ar cond
 Specify the power condition: Idle_a, Idle_b, Idle_c, Standby_y, Standby_z.
 This argument is required.
@@ -2556,7 +2571,7 @@ write reallocation settings, among other things.
 .Pp
 .Dl camcontrol rescan all
 .Pp
-Rescan all SCSI busses in the system for devices that have been added,
+Rescan all SCSI buses in the system for devices that have been added,
 removed or changed.
 .Pp
 .Dl camcontrol rescan 0

@@ -1767,6 +1767,9 @@ hdac_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case HDA_IVAR_DMA_NOCACHE:
 		*result = (sc->flags & HDAC_F_DMA_NOCACHE) != 0;
 		break;
+	case HDA_IVAR_STRIPES_MASK:
+		*result = (1 << (1 << sc->num_sdo)) - 1;
+		break;
 	default:
 		return (ENOENT);
 	}

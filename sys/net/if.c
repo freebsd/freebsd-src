@@ -59,6 +59,7 @@
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/priv.h>
+#include <sys/eventhandler.h>
 
 #include <machine/stdarg.h>
 #include <vm/uma.h>
@@ -2218,6 +2219,7 @@ void
 if_down(struct ifnet *ifp)
 {
 
+	EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_DOWN);
 	if_unroute(ifp, IFF_UP, AF_UNSPEC);
 }
 
@@ -2230,6 +2232,7 @@ if_up(struct ifnet *ifp)
 {
 
 	if_route(ifp, IFF_UP, AF_UNSPEC);
+	EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_UP);
 }
 
 /*
@@ -2300,7 +2303,7 @@ static int
 ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 {
 	struct ifreq *ifr;
-	int error = 0;
+	int error = 0, do_ifup = 0;
 	int new_flags, temp_flags;
 	size_t namelen, onamelen;
 	size_t descrlen;
@@ -2427,7 +2430,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			if_down(ifp);
 		} else if (new_flags & IFF_UP &&
 		    (ifp->if_flags & IFF_UP) == 0) {
-			if_up(ifp);
+			do_ifup = 1;
 		}
 		/* See if permanently promiscuous mode bit is about to flip */
 		if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
@@ -2446,6 +2449,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		if (ifp->if_ioctl) {
 			(void) (*ifp->if_ioctl)(ifp, cmd, data);
 		}
+		if (do_ifup)
+			if_up(ifp);
 		getmicrotime(&ifp->if_lastchange);
 		break;
 

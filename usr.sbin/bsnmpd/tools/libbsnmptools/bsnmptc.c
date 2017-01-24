@@ -31,7 +31,7 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h> 
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
@@ -266,13 +266,13 @@ parse_octetstring(struct snmp_value *value, char *val)
 		return (-1);
 	}
 
-	value->v.octetstring.len = len;
-
-	if((value->v.octetstring.octets = malloc(len)) == NULL) {
+	if ((value->v.octetstring.octets = malloc(len)) == NULL) {
+		value->v.octetstring.len = 0;
 		syslog(LOG_ERR, "malloc failed: %s", strerror(errno));
 		return (-1);
 	}
 
+	value->v.octetstring.len = len;
 	memcpy(value->v.octetstring.octets, val, len);
 	value->syntax = SNMP_SYNTAX_OCTETSTRING;
 
@@ -1143,7 +1143,7 @@ parse_bport_id(struct snmp_value *value, char *string)
  **************************************************************
  * TODO: FIXME!!! syrinx: Since we do not support checking the
  * consistency of a varbinding based on the value of a previous
- * one, try to guess the type of address based on the 
+ * one, try to guess the type of address based on the
  * OctetString SIZE - 4 for IPv4, 16 for IPv6, others currently
  * not supported.
  */

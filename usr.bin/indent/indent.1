@@ -30,7 +30,7 @@
 .\"	@(#)indent.1	8.1 (Berkeley) 7/1/93
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2016
+.Dd January 2, 2017
 .Dt INDENT 1
 .Os
 .Sh NAME
@@ -74,6 +74,7 @@
 .Op Fl \&ldi Ns Ar n
 .Op Fl \&lp | Fl nlp
 .Op Fl npro
+.Op Fl P Ns Ar file
 .Op Fl pcs | Fl npcs
 .Op Fl psl | Fl npsl
 .Op Fl sac | Fl nsac
@@ -383,6 +384,9 @@ Causes the profile files,
 and
 .Sq Pa ~/.indent.pro ,
 to be ignored.
+.It Fl P Ns Ar file
+Read profile from
+.Ar file .
 .It Fl pcs , npcs
 If true
 .Pq Fl pcs

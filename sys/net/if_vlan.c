@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_vlan.h"
+#include "opt_ratelimit.h"
 
 #include <sys/param.h>
 #include <sys/eventhandler.h>
@@ -212,6 +213,10 @@ static	void trunk_destroy(struct ifvlantrunk *trunk);
 static	void vlan_init(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
+#ifdef RATELIMIT
+static	int vlan_snd_tag_alloc(struct ifnet *,
+    union if_snd_tag_alloc_params *, struct m_snd_tag **);
+#endif
 static	void vlan_qflush(struct ifnet *ifp);
 static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
     int (*func)(struct ifnet *, int));
@@ -971,6 +976,9 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_transmit = vlan_transmit;
 	ifp->if_qflush = vlan_qflush;
 	ifp->if_ioctl = vlan_ioctl;
+#ifdef RATELIMIT
+	ifp->if_snd_tag_alloc = vlan_snd_tag_alloc;
+#endif
 	ifp->if_flags = VLAN_IFFLAGS;
 	ether_ifattach(ifp, eaddr);
 	/* Now undo some of the damage... */
@@ -1591,6 +1599,15 @@ vlan_capabilities(struct ifvlan *ifv)
 		TOEDEV(ifp) = TOEDEV(p);
 		ifp->if_capenable |= p->if_capenable & IFCAP_TOE;
 	}
+
+#ifdef RATELIMIT
+	/*
+	 * If the parent interface supports ratelimiting, so does the
+	 * VLAN interface.
+	 */
+	ifp->if_capabilities |= (p->if_capabilities & IFCAP_TXRTLMT);
+	ifp->if_capenable |= (p->if_capenable & IFCAP_TXRTLMT);
+#endif
 }
 
 static void
@@ -1801,3 +1818,19 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	return (error);
 }
+
+#ifdef RATELIMIT
+static int
+vlan_snd_tag_alloc(struct ifnet *ifp,
+    union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **ppmt)
+{
+
+	/* get trunk device */
+	ifp = vlan_trunkdev(ifp);
+	if (ifp == NULL || (ifp->if_capenable & IFCAP_TXRTLMT) == 0)
+		return (EOPNOTSUPP);
+	/* forward allocation request */
+	return (ifp->if_snd_tag_alloc(ifp, params, ppmt));
+}
+#endif

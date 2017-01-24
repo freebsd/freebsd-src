@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -421,8 +421,7 @@ AcpiDbExecuteThread (
 
 ACPI_STATUS
 AcpiDbUserCommands (
-    char                    Prompt,
-    ACPI_PARSE_OBJECT       *Op);
+    void);
 
 char *
 AcpiDbGetNextToken (

@@ -1,10 +1,10 @@
-/* 
+/*
  * Copyright (C) 2004-2006
  * 	Hartmut Brandt.
  * 	All rights reserved.
- * 
+ *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -126,9 +126,11 @@ open_node(const SmiNode *n, u_int level, SmiNode **last)
 
 	while (level < n->oidlen - 1) {
 		if (level >= cut) {
+			n1 = smiGetNodeByOID(level + 1, n->oid);
+			if (n1 == NULL)
+				continue;
 			pindent(level);
 			printf("(%u", n->oid[level]);
-			n1 = smiGetNodeByOID(level + 1, n->oid);
 			printf(" ");
 			print_name(n1);
 			printf("\n");
@@ -233,7 +235,7 @@ print_scalar(SmiNode *n, u_int level)
 	printf(" op_%s", p->name);
 
 	print_access(n->access);
-	
+
 	printf(")\n");
 }
 
@@ -397,12 +399,11 @@ static void
 save_typdef(char *name)
 {
 	struct tdef *t;
-	t = malloc(sizeof(struct tdef));
 
+	t = calloc(1, sizeof(struct tdef));
 	if (t == NULL)
 		err(1, NULL);
 
-	memset(t, 0 , sizeof(struct tdef));
 	t->name = name;
 	SLIST_INSERT_HEAD(&tdefs, t, link);
 }
@@ -422,7 +423,7 @@ static void
 print_enum_typedef(SmiType *t)
 {
 	SmiNamedNumber *nnum;
-	
+
 	for (nnum = smiGetFirstNamedNumber(t); nnum != NULL;
 	    nnum = smiGetNextNamedNumber(nnum)) {
 		printf("\t%ld %s\n" , nnum->value.value.integer32, nnum->name);
@@ -434,10 +435,10 @@ print_stype(SmiNode *n)
 {
 	SmiType *type;
 	struct tdef *t = NULL;
-	
+
 	type = smiGetNodeType(n);
 	assert(type != NULL);
-	
+
 	if (type->basetype == SMI_BASETYPE_ENUM) {
 		if (do_typedef == 'e' && type->name != NULL) {
 			SLIST_FOREACH(t, &tdefs, link) {
@@ -450,7 +451,7 @@ print_stype(SmiNode *n)
 			printf("typedef %sType ENUM (\n", n->name);
 		else
 			return;
-		
+
 		print_enum_typedef(type);
 		printf(")\n\n");
 
@@ -476,7 +477,7 @@ static void
 print_typdefs(SmiNode *n)
 {
 	SmiNode *p;
-	
+
 	p = n;
 	n = smiGetFirstChildNode(n);
 	while (n != NULL) {
@@ -559,7 +560,11 @@ main(int argc, char *argv[])
 	level = 0;
 	last = NULL;
 	for (opt = 0; opt < argc; opt++) {
+		if (mods[opt] == NULL) /* smiGetModule failed above */
+			continue;
 		n = smiGetFirstNode(mods[opt], SMI_NODEKIND_ANY);
+		if (n == NULL)
+			continue;
 		for (;;) {
 			if (do_typedef == 0) {
 				level = open_node(n, level, &last);

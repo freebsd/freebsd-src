@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -552,7 +553,7 @@ encode_long(long val)
 static void
 acctwatch(void)
 {
-	struct statfs sb;
+	struct statfs *sp;
 
 	sx_assert(&acct_sx, SX_XLOCKED);
 
@@ -580,21 +581,25 @@ acctwatch(void)
 	 * Stopping here is better than continuing, maybe it will be VBAD
 	 * next time around.
 	 */
-	if (VFS_STATFS(acct_vp->v_mount, &sb) < 0)
+	sp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	if (VFS_STATFS(acct_vp->v_mount, sp) < 0) {
+		free(sp, M_STATFS);
 		return;
+	}
 	if (acct_suspended) {
-		if (sb.f_bavail > (int64_t)(acctresume * sb.f_blocks /
+		if (sp->f_bavail > (int64_t)(acctresume * sp->f_blocks /
 		    100)) {
 			acct_suspended = 0;
 			log(LOG_NOTICE, "Accounting resumed\n");
 		}
 	} else {
-		if (sb.f_bavail <= (int64_t)(acctsuspend * sb.f_blocks /
+		if (sp->f_bavail <= (int64_t)(acctsuspend * sp->f_blocks /
 		    100)) {
 			acct_suspended = 1;
 			log(LOG_NOTICE, "Accounting suspended\n");
 		}
 	}
+	free(sp, M_STATFS);
 }
 
 /*

@@ -185,8 +185,11 @@ MALLOC_DEFINE(M_CTLFE, "CAM CTL FE", "CAM CTL FE interface");
 /* This is only used in the CTIO */
 #define	ccb_atio	ppriv_ptr1
 
-int			ctlfeinitialize(void);
-void			ctlfeshutdown(void);
+#define PRIV_CCB(io)	((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptrs[0])
+#define PRIV_INFO(io)	((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptrs[1])
+
+static int		ctlfeinitialize(void);
+static int		ctlfeshutdown(void);
 static periph_init_t	ctlfeperiphinit;
 static void		ctlfeasync(void *callback_arg, uint32_t code,
 				   struct cam_path *path, void *arg);
@@ -224,13 +227,15 @@ static struct ctl_frontend ctlfe_frontend =
 };
 CTL_FRONTEND_DECLARE(ctlfe, ctlfe_frontend);
 
-void
+static int
 ctlfeshutdown(void)
 {
-	return;
+
+	/* CAM does not support periph driver unregister now. */
+	return (EBUSY);
 }
 
-int
+static int
 ctlfeinitialize(void)
 {
 
@@ -240,7 +245,7 @@ ctlfeinitialize(void)
 	return (0);
 }
 
-void
+static void
 ctlfeperiphinit(void)
 {
 	cam_status status;
@@ -397,12 +402,6 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		port->targ_lun_arg = softc;
 		port->fe_datamove = ctlfe_datamove;
 		port->fe_done = ctlfe_done;
-		/*
-		 * XXX KDM the path inquiry doesn't give us the maximum
-		 * number of targets supported.
-		 */
-		port->max_targets = cpi->max_target;
-		port->max_target_id = cpi->max_target;
 		port->targ_port = -1;
 		
 		/*
@@ -554,7 +553,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 			status = CAM_RESRC_UNAVAIL;
 			break;
 		}
-		new_io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr = cmd_info;
+		PRIV_INFO(new_io) = cmd_info;
 		softc->atios_alloced++;
 		new_ccb->ccb_h.io_ptr = new_io;
 
@@ -702,7 +701,7 @@ ctlfedata(struct ctlfe_lun_softc *softc, union ctl_io *io,
 	size_t off;
 	int i, idx;
 
-	cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+	cmd_info = PRIV_INFO(io);
 	bus_softc = softc->parent_softc;
 
 	/*
@@ -718,15 +717,18 @@ ctlfedata(struct ctlfe_lun_softc *softc, union ctl_io *io,
 	idx = cmd_info->cur_transfer_index;
 	off = cmd_info->cur_transfer_off;
 	cmd_info->flags &= ~CTLFE_CMD_PIECEWISE;
-	if (io->scsiio.kern_sg_entries == 0) {
-		/* No S/G list. */
+	if (io->scsiio.kern_sg_entries == 0) {	/* No S/G list. */
+
+		/* One time shift for SRR offset. */
+		off += io->scsiio.ext_data_filled;
+		io->scsiio.ext_data_filled = 0;
+
 		*data_ptr = io->scsiio.kern_data_ptr + off;
 		if (io->scsiio.kern_data_len - off <= bus_softc->maxio) {
 			*dxfer_len = io->scsiio.kern_data_len - off;
 		} else {
 			*dxfer_len = bus_softc->maxio;
-			cmd_info->cur_transfer_index = -1;
-			cmd_info->cur_transfer_off = bus_softc->maxio;
+			cmd_info->cur_transfer_off += bus_softc->maxio;
 			cmd_info->flags |= CTLFE_CMD_PIECEWISE;
 		}
 		*sglist_cnt = 0;
@@ -735,9 +737,18 @@ ctlfedata(struct ctlfe_lun_softc *softc, union ctl_io *io,
 			*flags |= CAM_DATA_PADDR;
 		else
 			*flags |= CAM_DATA_VADDR;
-	} else {
-		/* S/G list with physical or virtual pointers. */
+	} else {	/* S/G list with physical or virtual pointers. */
 		ctl_sglist = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
+
+		/* One time shift for SRR offset. */
+		while (io->scsiio.ext_data_filled >= ctl_sglist[idx].len - off) {
+			io->scsiio.ext_data_filled -= ctl_sglist[idx].len - off;
+			idx++;
+			off = 0;
+		}
+		off += io->scsiio.ext_data_filled;
+		io->scsiio.ext_data_filled = 0;
+
 		cam_sglist = cmd_info->cam_sglist;
 		*dxfer_len = 0;
 		for (i = 0; i < io->scsiio.kern_sg_entries - idx; i++) {
@@ -806,7 +817,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 	flags = atio->ccb_h.flags &
 		(CAM_DIS_DISCONNECT|CAM_TAG_ACTION_VALID|CAM_DIR_MASK);
-	cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+	cmd_info = PRIV_INFO(io);
 	cmd_info->cur_transfer_index = 0;
 	cmd_info->cur_transfer_off = 0;
 	cmd_info->flags = 0;
@@ -815,18 +826,8 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 		/*
 		 * Datamove call, we need to setup the S/G list.
 		 */
-		scsi_status = 0;
-		csio->cdb_len = atio->cdb_len;
 		ctlfedata(softc, io, &flags, &data_ptr, &dxfer_len,
 		    &csio->sglist_cnt);
-		io->scsiio.ext_data_filled += dxfer_len;
-		if (io->scsiio.ext_data_filled > io->scsiio.kern_total_len) {
-			xpt_print(periph->path, "%s: tag 0x%04x "
-				  "fill len %u > total %u\n",
-				  __func__, io->scsiio.tag_num,
-				  io->scsiio.ext_data_filled,
-				  io->scsiio.kern_total_len);
-		}
 	} else {
 		/*
 		 * We're done, send status back.
@@ -888,8 +889,8 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 		data_ptr = NULL;
 		dxfer_len = 0;
 		csio->sglist_cnt = 0;
-		scsi_status = 0;
 	}
+	scsi_status = 0;
 	if ((io->io_hdr.flags & CTL_FLAG_STATUS_QUEUED) &&
 	    (cmd_info->flags & CTLFE_CMD_PIECEWISE) == 0 &&
 	    ((io->io_hdr.flags & CTL_FLAG_DMA_QUEUED) == 0 ||
@@ -938,7 +939,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 	  && (csio->sglist_cnt != 0))) {
 		printf("%s: tag %04x cdb %02x flags %#x dxfer_len "
 		       "%d sg %u\n", __func__, atio->tag_id,
-		       atio->cdb_io.cdb_bytes[0], flags, dxfer_len,
+		       atio_cdb_ptr(atio)[0], flags, dxfer_len,
 		       csio->sglist_cnt);
 		printf("%s: tag %04x io status %#x\n", __func__,
 		       atio->tag_id, io->io_hdr.status);
@@ -987,7 +988,7 @@ ctlfe_free_ccb(struct cam_periph *periph, union ccb *ccb)
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
 		softc->atios_freed++;
-		cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+		cmd_info = PRIV_INFO(io);
 		free(cmd_info, M_CTLFE);
 		break;
 	case XPT_IMMEDIATE_NOTIFY:
@@ -1024,8 +1025,7 @@ ctlfe_adjust_cdb(struct ccb_accept_tio *atio, uint32_t offset)
 {
 	uint64_t lba;
 	uint32_t num_blocks, nbc;
-	uint8_t *cmdbyt = (atio->ccb_h.flags & CAM_CDB_POINTER)?
-	    atio->cdb_io.cdb_ptr : atio->cdb_io.cdb_bytes;
+	uint8_t *cmdbyt = atio_cdb_ptr(atio);
 
 	nbc = offset >> 9;	/* ASSUMING 512 BYTE BLOCKS */
 
@@ -1154,12 +1154,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		mtx_unlock(mtx);
 		io = done_ccb->ccb_h.io_ptr;
-		cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+		cmd_info = PRIV_INFO(io);
 		ctl_zero_io(io);
 
 		/* Save pointers on both sides */
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = done_ccb;
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr = cmd_info;
+		PRIV_CCB(io) = done_ccb;
+		PRIV_INFO(io) = cmd_info;
 		done_ccb->ccb_h.io_ptr = io;
 
 		/*
@@ -1203,8 +1203,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			       __func__, atio->cdb_len, sizeof(io->scsiio.cdb));
 		}
 		io->scsiio.cdb_len = min(atio->cdb_len, sizeof(io->scsiio.cdb));
-		bcopy(atio->cdb_io.cdb_bytes, io->scsiio.cdb,
-		      io->scsiio.cdb_len);
+		bcopy(atio_cdb_ptr(atio), io->scsiio.cdb, io->scsiio.cdb_len);
 
 #ifdef CTLFEDEBUG
 		printf("%s: %u:%u:%u: tag %04x CDB %02x\n", __func__,
@@ -1245,13 +1244,36 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			    | (done_ccb->csio.msg_ptr[6]);
 		}
 
+		/*
+		 * If we have an SRR and we're still sending data, we
+		 * should be able to adjust offsets and cycle again.
+		 * It is possible only if offset is from this datamove.
+		 */
+		if (srr && (io->io_hdr.flags & CTL_FLAG_DMA_INPROG) &&
+		    srr_off >= io->scsiio.kern_rel_offset &&
+		    srr_off < io->scsiio.kern_rel_offset +
+		     io->scsiio.kern_data_len) {
+			io->scsiio.kern_data_resid =
+			    io->scsiio.kern_rel_offset +
+			    io->scsiio.kern_data_len - srr_off;
+			io->scsiio.ext_data_filled = srr_off;
+			io->scsiio.io_hdr.status = CTL_STATUS_NONE;
+			io->io_hdr.flags |= CTL_FLAG_DMA_QUEUED;
+			softc->ccbs_freed++;
+			xpt_release_ccb(done_ccb);
+			TAILQ_INSERT_HEAD(&softc->work_queue, &atio->ccb_h,
+					  periph_links.tqe);
+			xpt_schedule(periph, /*priority*/ 1);
+			break;
+		}
+
+		/*
+		 * If status was being sent, the back end data is now history.
+		 * Hack it up and resubmit a new command with the CDB adjusted.
+		 * If the SIM does the right thing, all of the resid math
+		 * should work.
+		 */
 		if (srr && (io->io_hdr.flags & CTL_FLAG_DMA_INPROG) == 0) {
-			/*
-			 * If status was being sent, the back end data is now
-			 * history. Hack it up and resubmit a new command with
-			 * the CDB adjusted. If the SIM does the right thing,
-			 * all of the resid math should work.
-			 */
 			softc->ccbs_freed++;
 			xpt_release_ccb(done_ccb);
 			if (ctlfe_adjust_cdb(atio, srr_off) == 0) {
@@ -1261,22 +1283,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			/*
 			 * Fall through to doom....
 			 */
-		} else if (srr) {
-			/*
-			 * If we have an srr and we're still sending data, we
-			 * should be able to adjust offsets and cycle again.
-			 */
-			io->scsiio.kern_rel_offset =
-			    io->scsiio.ext_data_filled = srr_off;
-			io->scsiio.ext_data_len = io->scsiio.kern_total_len -
-			    io->scsiio.kern_rel_offset;
-			softc->ccbs_freed++;
-			io->scsiio.io_hdr.status = CTL_STATUS_NONE;
-			xpt_release_ccb(done_ccb);
-			TAILQ_INSERT_HEAD(&softc->work_queue, &atio->ccb_h,
-					  periph_links.tqe);
-			xpt_schedule(periph, /*priority*/ 1);
-			break;
 		}
 
 		if ((done_ccb->ccb_h.flags & CAM_SEND_STATUS) &&
@@ -1315,20 +1321,10 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			struct ccb_scsiio *csio;
 
 			csio = &done_ccb->csio;
-			cmd_info = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr;
+			cmd_info = PRIV_INFO(io);
 
 			io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
 
-			io->scsiio.ext_data_len += csio->dxfer_len;
-			if (io->scsiio.ext_data_len >
-			    io->scsiio.kern_total_len) {
-				xpt_print(periph->path, "%s: tag 0x%04x "
-					  "done len %u > total %u sent %u\n",
-					  __func__, io->scsiio.tag_num,
-					  io->scsiio.ext_data_len,
-					  io->scsiio.kern_total_len,
-					  io->scsiio.ext_data_filled);
-			}
 			/*
 			 * Translate CAM status to CTL status.  Success
 			 * does not change the overall, ctl_io status.  In
@@ -1338,6 +1334,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			switch (done_ccb->ccb_h.status & CAM_STATUS_MASK) {
 			case CAM_REQ_CMP:
+				io->scsiio.kern_data_resid -= csio->dxfer_len;
 				io->io_hdr.port_status = 0;
 				break;
 			default:
@@ -1367,7 +1364,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			if ((cmd_info->flags & CTLFE_CMD_PIECEWISE)
 			 && (io->io_hdr.port_status == 0)) {
 				ccb_flags flags;
-				uint8_t scsi_status;
 				uint8_t *data_ptr;
 				uint32_t dxfer_len;
 
@@ -1378,14 +1374,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				ctlfedata(softc, io, &flags, &data_ptr,
 				    &dxfer_len, &csio->sglist_cnt);
 
-				scsi_status = 0;
-
 				if (((flags & CAM_SEND_STATUS) == 0)
 				 && (dxfer_len == 0)) {
 					printf("%s: tag %04x no status or "
 					       "len cdb = %02x\n", __func__,
 					       atio->tag_id,
-					atio->cdb_io.cdb_bytes[0]);
+					       atio_cdb_ptr(atio)[0]);
 					printf("%s: tag %04x io status %#x\n",
 					       __func__, atio->tag_id,
 					       io->io_hdr.status);
@@ -1399,7 +1393,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 					       MSG_SIMPLE_Q_TAG : 0,
 					      atio->tag_id,
 					      atio->init_id,
-					      scsi_status,
+					      0,
 					      /*data_ptr*/ data_ptr,
 					      /*dxfer_len*/ dxfer_len,
 					      /*timeout*/ 5 * 1000);
@@ -1444,7 +1438,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		send_ctl_io = 1;
 
 		io->io_hdr.io_type = CTL_IO_TASK;
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr =done_ccb;
+		PRIV_CCB(io) = done_ccb;
 		inot->ccb_h.io_ptr = io;
 		io->io_hdr.nexus.initid = inot->initiator_id;
 		io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
@@ -2002,7 +1996,8 @@ ctlfe_datamove(union ctl_io *io)
 	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
 	    ("Unexpected io_type (%d) in ctlfe_datamove", io->io_hdr.io_type));
 
-	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	io->scsiio.ext_data_filled = 0;
+	ccb = PRIV_CCB(io);
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	cam_periph_lock(periph);
 	softc = (struct ctlfe_lun_softc *)periph->softc;
@@ -2022,7 +2017,7 @@ ctlfe_done(union ctl_io *io)
 	struct cam_periph *periph;
 	struct ctlfe_lun_softc *softc;
 
-	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	ccb = PRIV_CCB(io);
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	cam_periph_lock(periph);
 	softc = (struct ctlfe_lun_softc *)periph->softc;

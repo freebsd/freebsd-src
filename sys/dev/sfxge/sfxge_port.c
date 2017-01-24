@@ -43,6 +43,15 @@ __FBSDID("$FreeBSD$");
 
 #include "sfxge.h"
 
+#define	SFXGE_PARAM_STATS_UPDATE_PERIOD_MS \
+	SFXGE_PARAM(stats_update_period_ms)
+static int sfxge_stats_update_period_ms = SFXGE_STATS_UPDATE_PERIOD_MS;
+TUNABLE_INT(SFXGE_PARAM_STATS_UPDATE_PERIOD_MS,
+	    &sfxge_stats_update_period_ms);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, stats_update_period_ms, CTLFLAG_RDTUN,
+	   &sfxge_stats_update_period_ms, 0,
+	   "netstat interface statistics update period in milliseconds");
+
 static int sfxge_phy_cap_mask(struct sfxge_softc *, int, uint32_t *);
 
 static int
@@ -51,6 +60,7 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 	struct sfxge_port *port = &sc->port;
 	efsys_mem_t *esmp = &(port->mac_stats.dma_buf);
 	clock_t now;
+	unsigned int min_ticks;
 	unsigned int count;
 	int rc;
 
@@ -61,8 +71,10 @@ sfxge_mac_stat_update(struct sfxge_softc *sc)
 		goto out;
 	}
 
+	min_ticks = (unsigned int)hz * port->stats_update_period_ms / 1000;
+
 	now = ticks;
-	if ((unsigned int)(now - port->mac_stats.update_time) < (unsigned int)hz) {
+	if ((unsigned int)(now - port->mac_stats.update_time) < min_ticks) {
 		rc = 0;
 		goto out;
 	}
@@ -311,8 +323,7 @@ sfxge_mac_link_update(struct sfxge_softc *sc, efx_link_mode_t mode)
 	port->link_mode = mode;
 
 	/* Push link state update to the OS */
-	link_state = (port->link_mode != EFX_LINK_DOWN ?
-		      LINK_STATE_UP : LINK_STATE_DOWN);
+	link_state = (SFXGE_LINK_UP(sc) ? LINK_STATE_UP : LINK_STATE_DOWN);
 	sc->ifnet->if_baudrate = sfxge_link_baudrate[port->link_mode];
 	if_link_state_change(sc->ifnet, link_state);
 }
@@ -511,9 +522,10 @@ sfxge_port_start(struct sfxge_softc *sc)
 
 	sfxge_mac_filter_set_locked(sc);
 
-	/* Update MAC stats by DMA every second */
+	/* Update MAC stats by DMA every period */
 	if ((rc = efx_mac_stats_periodic(enp, &port->mac_stats.dma_buf,
-					 1000, B_FALSE)) != 0)
+					 port->stats_update_period_ms,
+					 B_FALSE)) != 0)
 		goto fail6;
 
 	if ((rc = efx_mac_drain(enp, B_FALSE)) != 0)
@@ -670,6 +682,68 @@ sfxge_port_fini(struct sfxge_softc *sc)
 	port->sc = NULL;
 }
 
+static uint16_t
+sfxge_port_stats_update_period_ms(struct sfxge_softc *sc)
+{
+	int period_ms = sfxge_stats_update_period_ms;
+
+	if (period_ms < 0) {
+		device_printf(sc->dev,
+			"treat negative stats update period %d as 0 (disable)\n",
+			 period_ms);
+		period_ms = 0;
+	} else if (period_ms > UINT16_MAX) {
+		device_printf(sc->dev,
+			"treat too big stats update period %d as %u\n",
+			period_ms, UINT16_MAX);
+		period_ms = UINT16_MAX;
+	}
+
+	return period_ms;
+}
+
+static int
+sfxge_port_stats_update_period_ms_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct sfxge_softc *sc;
+	struct sfxge_port *port;
+	unsigned int period_ms;
+	int error;
+
+	sc = arg1;
+	port = &sc->port;
+
+	if (req->newptr != NULL) {
+		error = SYSCTL_IN(req, &period_ms, sizeof(period_ms));
+		if (error != 0)
+			return (error);
+
+		if (period_ms > UINT16_MAX)
+			return (EINVAL);
+
+		SFXGE_PORT_LOCK(port);
+
+		if (port->stats_update_period_ms != period_ms) {
+			if (port->init_state == SFXGE_PORT_STARTED)
+				error = efx_mac_stats_periodic(sc->enp,
+						&port->mac_stats.dma_buf,
+						period_ms, B_FALSE);
+			if (error == 0)
+				port->stats_update_period_ms = period_ms;
+		}
+
+		SFXGE_PORT_UNLOCK(port);
+	} else {
+		SFXGE_PORT_LOCK(port);
+		period_ms = port->stats_update_period_ms;
+		SFXGE_PORT_UNLOCK(port);
+
+		error = SYSCTL_OUT(req, &period_ms, sizeof(period_ms));
+	}
+
+	return (error);
+}
+
 int
 sfxge_port_init(struct sfxge_softc *sc)
 {
@@ -718,7 +792,13 @@ sfxge_port_init(struct sfxge_softc *sc)
 					    M_SFXGE, M_WAITOK | M_ZERO);
 	if ((rc = sfxge_dma_alloc(sc, EFX_MAC_STATS_SIZE, mac_stats_buf)) != 0)
 		goto fail2;
+	port->stats_update_period_ms = sfxge_port_stats_update_period_ms(sc);
 	sfxge_mac_stat_init(sc);
+
+	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+	    "stats_update_period_ms", CTLTYPE_UINT|CTLFLAG_RW, sc, 0,
+	    sfxge_port_stats_update_period_ms_handler, "IU",
+	    "interface statistics refresh period");
 
 	port->init_state = SFXGE_PORT_INITIALIZED;
 

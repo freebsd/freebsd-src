@@ -183,7 +183,7 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 		 * Only do this if we're forced, since it usually is done
 		 * internally, and then we do use the force flag. 
 		 */
-		if (!flags & GV_SETSTATE_FORCE)
+		if (!(flags & GV_SETSTATE_FORCE))
 			return (GV_ERR_SETSTATE);
 		break;
 

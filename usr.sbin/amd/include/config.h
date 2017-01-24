@@ -530,7 +530,7 @@
 /* #undef HAVE_LIBRT */
 
 /* does libwrap exist? */
-#define HAVE_LIBWRAP 1
+/* #undef HAVE_LIBWRAP */
 
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
@@ -1207,7 +1207,7 @@
 #define HAVE_SYS_WAIT_H 1
 
 /* Define to 1 if you have the <tcpd.h> header file. */
-#define HAVE_TCPD_H 1
+/* #undef HAVE_TCPD_H */
 
 /* Define to 1 if you have the <time.h> header file. */
 #define HAVE_TIME_H 1

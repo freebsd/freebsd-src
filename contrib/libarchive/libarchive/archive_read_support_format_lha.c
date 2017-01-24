@@ -1711,7 +1711,7 @@ lha_crc16(uint16_t crc, const void *pp, size_t len)
 	 */
 	for (;len >= 8; len -= 8) {
 		/* This if statement expects compiler optimization will
-		 * remove the stament which will not be executed. */
+		 * remove the statement which will not be executed. */
 #undef bswap16
 #if defined(_MSC_VER) && _MSC_VER >= 1400  /* Visual Studio */
 #  define bswap16(x) _byteswap_ushort(x)

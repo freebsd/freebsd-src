@@ -432,6 +432,7 @@ struct tlv_firmware_options {
 #define TLV_FIRMWARE_VARIANT_HIGH_TX_RATE    MC_CMD_FW_HIGH_TX_RATE
 #define TLV_FIRMWARE_VARIANT_PACKED_STREAM_HASH_MODE_1 \
                                              MC_CMD_FW_PACKED_STREAM_HASH_MODE_1
+#define TLV_FIRMWARE_VARIANT_RULES_ENGINE    MC_CMD_FW_RULES_ENGINE
 };
 
 /* Voltage settings
@@ -797,20 +798,6 @@ struct tlv_tx_event_merging_config {
 #define TLV_TX_EVENT_MERGING_TIMEOUT_NS_DEFAULT (0xffffffff)
 #define TLV_TX_EVENT_MERGING_QEMPTY_TIMEOUT_NS_DEFAULT (0xffffffff)
 
-/* Tx vFIFO Low latency configuration 
- * 
- * To keep the desired booting behaviour for the switch, it just requires to
- * know if the low latency mode is enabled.
- */
-
-#define TLV_TAG_TX_VFIFO_ULL_MODE          (0x10270000)
-struct tlv_tx_vfifo_ull_mode {
-  uint32_t tag;
-  uint32_t length;
-  uint8_t  mode;
-#define TLV_TX_VFIFO_ULL_MODE_DEFAULT    0
-};
-
 /* BIU mode
  *
  * Medford2 tag for selecting VI window decode (see values below)
@@ -856,8 +843,8 @@ typedef struct tlv_tsan_config {
   uint32_t netmask;
   uint32_t gateway;
   uint32_t port;
-  uint32_t bind_retry;
-  uint32_t bind_bkout;
+  uint32_t bind_retry;  /* DEPRECATED */
+  uint32_t bind_bkout;  /* DEPRECATED */
 } tlv_tsan_config_t;
 
 /* TSA Controller IP address configuration
@@ -898,7 +885,7 @@ typedef struct tlv_binding_ticket {
   uint8_t  bytes[];
 } tlv_binding_ticket_t;
 
-/* Solarflare private key
+/* Solarflare private key  (DEPRECATED)
  *
  * Sets the Solareflare private key used for signing during the binding process
  *
@@ -907,7 +894,7 @@ typedef struct tlv_binding_ticket {
  * released code yet.
  */
 
-#define TLV_TAG_TMP_PIK_SF              (0x10250000)
+#define TLV_TAG_TMP_PIK_SF              (0x10250000)    /* DEPRECATED */
 
 typedef struct tlv_pik_sf {
   uint32_t tag;
@@ -932,5 +919,19 @@ typedef struct tlv_ca_root_cert {
   uint32_t length;
   uint8_t  bytes[];
 } tlv_ca_root_cert_t;
+
+/* Tx vFIFO Low latency configuration
+ *
+ * To keep the desired booting behaviour for the switch, it just requires to
+ * know if the low latency mode is enabled.
+ */
+
+#define TLV_TAG_TX_VFIFO_ULL_MODE       (0x10270000)
+struct tlv_tx_vfifo_ull_mode {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  mode;
+#define TLV_TX_VFIFO_ULL_MODE_DEFAULT    0
+};
 
 #endif /* CI_MGMT_TLV_LAYOUT_H */

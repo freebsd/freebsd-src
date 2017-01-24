@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -34,6 +34,7 @@
 #include <sys/queue.h>
 #include <sys/ucred.h>
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <syslog.h>
 #include <string.h>
@@ -55,7 +56,7 @@ static void udp_close_port(struct tport *);
 static int udp_init_port(struct tport *);
 static ssize_t udp_send(struct tport *, const u_char *, size_t,
     const struct sockaddr *, size_t);
-static ssize_t udp_recv(struct port_input *);
+static ssize_t udp_recv(struct tport *, struct port_input *);
 
 /* exported */
 const struct transport_def udp_trans = {
@@ -119,13 +120,15 @@ udp_init_port(struct tport *tp)
 	addr.sin_port = htons(p->port);
 	addr.sin_family = AF_INET;
 	addr.sin_len = sizeof(addr);
-	if (addr.sin_addr.s_addr == INADDR_ANY &&
-	    setsockopt(p->input.fd, IPPROTO_IP, IP_RECVDSTADDR, &on,
-	    sizeof(on)) == -1) {
-		syslog(LOG_ERR, "setsockopt(IP_RECVDSTADDR): %m");
-		close(p->input.fd);
-		p->input.fd = -1;
-		return (SNMP_ERR_GENERR);
+	if (addr.sin_addr.s_addr == INADDR_ANY) {
+		if (setsockopt(p->input.fd, IPPROTO_IP, IP_RECVDSTADDR, &on,
+		    sizeof(on)) == -1) {
+			syslog(LOG_ERR, "setsockopt(IP_RECVDSTADDR): %m");
+			close(p->input.fd);
+			p->input.fd = -1;
+			return (SNMP_ERR_GENERR);
+		}
+		p->recvdstaddr = true;
 	}
 	if (bind(p->input.fd, (struct sockaddr *)&addr, sizeof(addr))) {
 		if (errno == EADDRNOTAVAIL) {
@@ -217,8 +220,35 @@ udp_send(struct tport *tp, const u_char *buf, size_t len,
     const struct sockaddr *addr, size_t addrlen)
 {
 	struct udp_port *p = (struct udp_port *)tp;
+	struct cmsghdr *cmsg;
+	struct msghdr msg;
+	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
+	struct iovec iov;
 
-	return (sendto(p->input.fd, buf, len, 0, addr, addrlen));
+	iov.iov_base = __DECONST(void*, buf);
+	iov.iov_len = len;
+
+	msg.msg_flags = 0;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_name = __DECONST(void *, addr);
+	msg.msg_namelen = addrlen;
+
+	if (p->recvdstaddr) {
+		msg.msg_control = cbuf;
+		msg.msg_controllen = sizeof(cbuf);
+
+		cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_level = IPPROTO_IP;
+		cmsg->cmsg_type = IP_SENDSRCADDR;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
+		memcpy(CMSG_DATA(cmsg), &p->dstaddr, sizeof(struct in_addr));
+	} else {
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
+	}
+
+	return (sendmsg(p->input.fd, &msg, 0));
 }
 
 static void
@@ -237,11 +267,12 @@ check_priv_dgram(struct port_input *pi, struct sockcred *cred)
  * Each receive should return one datagram.
  */
 static ssize_t
-recv_dgram(struct port_input *pi, struct in_addr *laddr)
+udp_recv(struct tport *tp, struct port_input *pi)
 {
 	u_char embuf[1000];
 	char cbuf[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) +
 	    CMSG_SPACE(sizeof(struct in_addr))];
+	struct udp_port *p = (struct udp_port *)tp;
 	struct msghdr msg;
 	struct iovec iov[1];
 	ssize_t len;
@@ -293,7 +324,8 @@ recv_dgram(struct port_input *pi, struct in_addr *laddr)
 	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		if (cmsg->cmsg_level == IPPROTO_IP &&
 		    cmsg->cmsg_type == IP_RECVDSTADDR)
-			memcpy(laddr, CMSG_DATA(cmsg), sizeof(struct in_addr));
+			memcpy(&p->dstaddr, CMSG_DATA(cmsg),
+			    sizeof(struct in_addr));
 		if (cmsg->cmsg_level == SOL_SOCKET &&
 		    cmsg->cmsg_type == SCM_CREDS)
 			cred = (struct sockcred *)CMSG_DATA(cmsg);
@@ -303,39 +335,6 @@ recv_dgram(struct port_input *pi, struct in_addr *laddr)
 		check_priv_dgram(pi, cred);
 
 	return (0);
-}
-
-/*
- * Receive something
- */
-static ssize_t
-udp_recv(struct port_input *pi)
-{
-	struct in_addr *laddr;
-	struct msghdr msg;
-	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
-	struct cmsghdr *cmsgp;
-	ssize_t ret;
-
-	memset(cbuf, 0, sizeof(cbuf));
-
-	msg.msg_control = cbuf;
-	msg.msg_controllen = sizeof(cbuf);
-
-	cmsgp = CMSG_FIRSTHDR(&msg);
-	cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
-	cmsgp->cmsg_level = IPPROTO_IP;
-	cmsgp->cmsg_type = IP_SENDSRCADDR;
-	laddr = (struct in_addr *)CMSG_DATA(cmsgp);
-
-	ret = recv_dgram(pi, laddr);
-
-	if (laddr->s_addr == INADDR_ANY) {
-		msg.msg_control = NULL;
-		msg.msg_controllen = 0;
-	}
-
-	return (ret);
 }
 
 /*

@@ -110,6 +110,9 @@ ATF_TC_BODY(listen_low_port, tc)
 	int sd, val;
 
 	sd = socket(AF_INET, SOCK_STREAM, 0);
+#ifdef	__FreeBSD__
+	ATF_REQUIRE_MSG(sd != -1, "socket failed: %s", strerror(errno));
+#endif
 
 	val = IP_PORTRANGE_LOW;
 	if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE, &val,

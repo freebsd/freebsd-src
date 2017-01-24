@@ -7,7 +7,7 @@
 .\"	All rights reserved.
 .\"
 .\" Author: Harti Brandt <harti@FreeBSD.org>
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -16,7 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,11 +31,14 @@
 .\"
 .\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.12 2005/10/04 08:46:50 brandt_h Exp $
 .\"
-.Dd September 9, 2010
+.Dd December 31, 2016
 .Dt BSNMPCLIENT 3
 .Os
 .Sh NAME
 .Nm snmp_client ,
+.Nm snmp_client_init ,
+.Nm snmp_client_set_host ,
+.Nm snmp_client_set_port ,
 .Nm snmp_send_cb_f ,
 .Nm snmp_timeout_cb_f ,
 .Nm snmp_timeout_start_f ,
@@ -208,13 +211,13 @@ The community name to be used for SET requests.
 The default is
 .Sq private .
 .It Va identifier
-The message indentifier value to be used with SNMPv3 PDUs. Incremented with
+The message identifier value to be used with SNMPv3 PDUs. Incremented with
 each transmitted PDU.
 .It Va security_model
 The security model to be used with SNMPv3 PDUs. Currently only User-Based
 Security model specified by RFC 3414 (value 3) is supported.
 .It Va engine
-The authorative SNMP engine parameters to be used with SNMPv3 PDUs.
+The authoritive SNMP engine parameters to be used with SNMPv3 PDUs.
 .It Va user
 The USM SNMP user credentials to be used with SNMPv3 PDUs.
 .It Va clen
@@ -413,7 +416,7 @@ response is received.
 When a response is received or the retransmission count
 is exceeded the callback
 .Fa func
-is called with the orignal request PDU, the response PDU and the user argument
+is called with the original request PDU, the response PDU and the user argument
 .Fa uarg .
 If the retransmit count is exceeded,
 .Fa func
@@ -648,7 +651,7 @@ If a response was received 0 is returned.
 .Pp
 The function
 .Fn snmp_discover_engine
-is used to discover the authorative snmpEngineId of a remote SNMPv3 agent.
+is used to discover the authoritative snmpEngineId of a remote SNMPv3 agent.
 A request PDU with empty USM user name is sent and the client's engine
 parameters are set according to the snmpEngine parameters received in the
 response PDU.
@@ -656,10 +659,10 @@ If the client is configured to use authentication and/or privacy and the
 snmpEngineBoots and/or snmpEngineTime in the response had zero values, an
 additional request (possibly encrypted) with the appropriate user credentials
 is sent to fetch the missing values.
-Note, that the function blocks until the discovery proccess is completed.
+Note, that the function blocks until the discovery process is completed.
 If no response could be received after all timeouts and retries, or the
 response contained errors the function returns -1.
-If the discovery proccess was completed 0 is returned.
+If the discovery process was completed 0 is returned.
 .Pp
 The function
 .Fn snmp_parse_server

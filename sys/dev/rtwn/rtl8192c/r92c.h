@@ -77,6 +77,7 @@ void	r92c_handle_c2h_report(void *);
 
 /* r92c_init.c */
 int	r92c_check_condition(struct rtwn_softc *, const uint8_t[]);
+int	r92c_llt_init(struct rtwn_softc *);
 int	r92c_set_page_size(struct rtwn_softc *);
 void	r92c_init_bb_common(struct rtwn_softc *);
 int	r92c_init_rf_chain(struct rtwn_softc *,
@@ -86,6 +87,9 @@ void	r92c_init_edca(struct rtwn_softc *);
 void	r92c_init_ampdu(struct rtwn_softc *);
 void	r92c_init_antsel(struct rtwn_softc *);
 void	r92c_pa_bias_init(struct rtwn_softc *);
+
+/* r92c_llt.c */
+int	r92c_llt_write(struct rtwn_softc *, uint32_t, uint32_t);
 
 /* r92c_rf.c */
 uint32_t	r92c_rf_read(struct rtwn_softc *, int, uint8_t);
@@ -99,6 +103,8 @@ void	r92c_parse_rom(struct rtwn_softc *, uint8_t *);
 int8_t	r92c_get_rssi_cck(struct rtwn_softc *, void *);
 int8_t	r92c_get_rssi_ofdm(struct rtwn_softc *, void *);
 uint8_t	r92c_rx_radiotap_flags(const void *);
+void	r92c_get_rx_stats(struct rtwn_softc *, struct ieee80211_rx_stats *,
+	    const void *, const void *);
 
 /* r92c_tx.c */
 void	r92c_tx_enable_ampdu(void *, int);

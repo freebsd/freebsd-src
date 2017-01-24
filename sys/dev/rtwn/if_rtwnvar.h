@@ -25,8 +25,7 @@
 
 #define RTWN_TX_DESC_SIZE	64
 
-#define RTWN_RXBUFSZ		(8 * 1024)
-#define RTWN_TXBUFSZ		(RTWN_TX_DESC_SIZE + IEEE80211_MAX_LEN)
+#define RTWN_TXBUFSZ		(16 * 1024)
 
 #define RTWN_BCN_MAX_SIZE	512
 #define RTWN_CAM_ENTRY_LIMIT	64
@@ -77,6 +76,12 @@ struct rtwn_tx_buf {
 	uint8_t		txd[RTWN_TX_DESC_SIZE];
 } __attribute__((aligned(4)));
 
+#define RTWN_PHY_STATUS_SIZE	32
+struct rtwn_tx_phystat {
+	uint32_t	phydw[RTWN_PHY_STATUS_SIZE / sizeof(uint32_t)];
+};
+
+
 struct rtwn_softc;
 
 union sec_param {
@@ -96,7 +101,8 @@ struct rtwn_cmdq {
 struct rtwn_node {
 	struct ieee80211_node	ni;	/* must be the first */
 	int			id;
-	int8_t			last_rssi;
+
+	struct rtwn_tx_phystat	last_physt;
 	int			avg_pwdb;
 };
 #define RTWN_NODE(ni)		((struct rtwn_node *)(ni))
@@ -109,6 +115,7 @@ struct rtwn_vap {
 
 	struct rtwn_tx_buf	bcn_desc;
 	struct mbuf		*bcn_mbuf;
+	struct timeout_task	tx_beacon_csa;
 
 	struct callout		tsf_sync_adhoc;
 	struct task		tsf_sync_adhoc_task;
@@ -195,7 +202,7 @@ struct rtwn_softc {
 	const char		*name;
 	int			sc_ant;
 
-	int8_t			last_rssi;
+	struct rtwn_tx_phystat	last_physt;
 	uint8_t			thcal_temp;
 	int			cur_bcnq_id;
 
@@ -301,6 +308,7 @@ struct rtwn_softc {
 	void		(*sc_fw_reset)(struct rtwn_softc *, int);
 	void		(*sc_fw_download_enable)(struct rtwn_softc *, int);
 #endif
+	int		(*sc_llt_init)(struct rtwn_softc *);
 	int		(*sc_set_page_size)(struct rtwn_softc *);
 	void		(*sc_lc_calib)(struct rtwn_softc *);
 	void		(*sc_iq_calib)(struct rtwn_softc *);
@@ -336,6 +344,9 @@ struct rtwn_softc {
 			    struct ieee80211vap *, int);
 	void		(*sc_set_rssi)(struct rtwn_softc *);
 #endif
+	void		(*sc_get_rx_stats)(struct rtwn_softc *,
+			    struct ieee80211_rx_stats *, const void *,
+			    const void *);
 	int8_t		(*sc_get_rssi_cck)(struct rtwn_softc *, void *);
 	int8_t		(*sc_get_rssi_ofdm)(struct rtwn_softc *, void *);
 	int		(*sc_classify_intr)(struct rtwn_softc *, void *, int);
@@ -462,8 +473,8 @@ void	rtwn_suspend(struct rtwn_softc *);
 
 /* Aliases. */
 #define	rtwn_bb_write		rtwn_write_4
-#define rtwn_bb_read		rtwn_read_4
-#define rtwn_bb_setbits	rtwn_setbits_4
+#define	rtwn_bb_read		rtwn_read_4
+#define	rtwn_bb_setbits		rtwn_setbits_4
 
 /* Device-specific. */
 #define rtwn_rf_read(_sc, _chain, _addr) \
@@ -478,6 +489,8 @@ void	rtwn_suspend(struct rtwn_softc *);
 	(((_sc)->sc_parse_rom)((_sc), (_rom)))
 #define rtwn_set_led(_sc, _led, _on) \
 	(((_sc)->sc_set_led)((_sc), (_led), (_on)))
+#define rtwn_get_rx_stats(_sc, _rxs, _desc, _physt) \
+	(((_sc)->sc_get_rx_stats((_sc), (_rxs), (_desc), (_physt))))
 #define rtwn_get_rssi_cck(_sc, _physt) \
 	(((_sc)->sc_get_rssi_cck)((_sc), (_physt)))
 #define rtwn_get_rssi_ofdm(_sc, _physt) \
@@ -492,6 +505,8 @@ void	rtwn_suspend(struct rtwn_softc *);
 #define rtwn_fw_download_enable(_sc, _enable) \
 	(((_sc)->sc_fw_download_enable)((_sc), (_enable)))
 #endif
+#define rtwn_llt_init(_sc) \
+	(((_sc)->sc_llt_init)((_sc)))
 #define rtwn_set_page_size(_sc) \
 	(((_sc)->sc_set_page_size)((_sc)))
 #define rtwn_lc_calib(_sc) \

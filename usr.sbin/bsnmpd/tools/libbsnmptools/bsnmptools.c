@@ -31,7 +31,7 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h> 
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
 
@@ -117,7 +117,7 @@ static const struct {
 	{ "Gauge", SNMP_SYNTAX_GAUGE },
 	{ "TimeTicks", SNMP_SYNTAX_TIMETICKS },
 	{ "Counter64", SNMP_SYNTAX_COUNTER64 },
-	{ "Unknown", SNMP_SYNTAX_UNKNOWN }, 
+	{ "Unknown", SNMP_SYNTAX_UNKNOWN },
 };
 
 int
@@ -189,7 +189,7 @@ snmptool_init(struct snmp_toolinfo *snmptoolctx)
 
 #define	OBJECT_IDX_LIST(o)	o->info->table_idx->index_list
 
-/* 
+/*
  * Walk through the file list and import string<->oid mappings from each file.
  */
 int32_t
@@ -287,7 +287,7 @@ free_filelist(struct snmp_toolinfo *snmptoolctx)
 	}
 }
 
-static char 
+static char
 isvalid_fchar(char c, int pos)
 {
 	if (isalpha(c)|| c == '/'|| c == '_' || c == '.' || c == '~' ||
@@ -652,7 +652,7 @@ parse_user_security(struct snmp_toolinfo *snmptoolctx __unused, char *opt_arg)
 				warnx("Suboption 'engine' - no argument");
 				return (-1);
 			}
-			snmp_client.engine.engine_len = parse_ascii(val, 
+			snmp_client.engine.engine_len = parse_ascii(val,
 			    snmp_client.engine.engine_id, SNMP_ENGINE_ID_SIZ);
 			if ((int32_t)snmp_client.engine.engine_len == -1) {
 				warnx("Bad EngineID - %s", val);
@@ -1090,6 +1090,7 @@ snmp_ip2asn_oid(char *str, struct asn_oid *oid)
 	char *endptr, *ptr;
 
 	ptr = str;
+
 	for (i = 0; i < 4; i++) {
 		v = strtoul(ptr, &endptr, 10);
 		if (v > 0xff)
@@ -1465,7 +1466,7 @@ snmp_pdu_add_bindings(struct snmp_toolinfo *snmptoolctx,
 	/* Return 0 in case of no more work todo. */
 	if (SLIST_EMPTY(&snmptoolctx->snmp_objectlist))
 		return (0);
-	
+
 	if (maxcount < 0 || maxcount > SNMP_MAX_BINDINGS) {
 		warnx("maxcount out of range: <0 || >SNMP_MAX_BINDINGS");
 		return (-1);
@@ -2002,20 +2003,25 @@ snmp_output_object(struct snmp_toolinfo *snmptoolctx, struct snmp_object *o)
 void
 snmp_output_err_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 {
+	struct snmp_object *object;
 	char buf[ASN_OIDSTRLEN];
-	struct snmp_object object;
 
 	if (pdu == NULL || (pdu->error_index > (int32_t) pdu->nbindings)) {
-		fprintf(stdout,"Invalid error index in PDU\n");
+		fprintf(stdout, "Invalid error index in PDU\n");
+		return;
+	}
+
+	if ((object = calloc(1, sizeof(struct snmp_object))) == NULL) {
+		fprintf(stdout, "calloc: %s", strerror(errno));
 		return;
 	}
 
 	fprintf(stdout, "Agent %s:%s returned error \n", snmp_client.chost,
 	    snmp_client.cport);
 
-	if (!ISSET_NUMERIC(snmptoolctx) && (snmp_fill_object(snmptoolctx, &object,
+	if (!ISSET_NUMERIC(snmptoolctx) && (snmp_fill_object(snmptoolctx, object,
 	    &(pdu->bindings[pdu->error_index - 1])) > 0))
-		snmp_output_object(snmptoolctx, &object);
+		snmp_output_object(snmptoolctx, object);
 	else {
 		asn_oid2str_r(&(pdu->bindings[pdu->error_index - 1].var), buf);
 		fprintf(stdout,"%s", buf);
@@ -2027,16 +2033,22 @@ snmp_output_err_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 		fprintf(stdout, "%s\n", error_strings[pdu->error_status].str);
 	else
 		fprintf(stdout,"%s\n", error_strings[SNMP_ERR_UNKNOWN].str);
+
+	free(object);
+	object = NULL;
 }
 
 int32_t
 snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu,
     struct asn_oid *root)
 {
-	int32_t error;
+	struct snmp_object *object;
 	char p[ASN_OIDSTRLEN];
+	int32_t error;
 	uint32_t i;
-	struct snmp_object object;
+
+	if ((object = calloc(1, sizeof(struct snmp_object))) == NULL)
+		return (-1);
 
 	i = error = 0;
 	while (i < pdu->nbindings) {
@@ -2046,17 +2058,21 @@ snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu,
 
 		if (GET_OUTPUT(snmptoolctx) != OUTPUT_QUIET) {
 			if (!ISSET_NUMERIC(snmptoolctx) &&
-			    (snmp_fill_object(snmptoolctx, &object,
+			    (snmp_fill_object(snmptoolctx, object,
 			    &(pdu->bindings[i])) > 0))
-				snmp_output_object(snmptoolctx, &object);
+				snmp_output_object(snmptoolctx, object);
 			else {
 				asn_oid2str_r(&(pdu->bindings[i].var), p);
 				fprintf(stdout, "%s", p);
 			}
 		}
-		error |= snmp_output_numval(snmptoolctx, &(pdu->bindings[i]), object.info);
+		error |= snmp_output_numval(snmptoolctx, &(pdu->bindings[i]),
+		    object->info);
 		i++;
 	}
+
+	free(object);
+	object = NULL;
 
 	if (error)
 		return (-1);

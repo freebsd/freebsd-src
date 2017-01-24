@@ -52,25 +52,24 @@ __FBSDID("$FreeBSD$");
 
 #include "inetd.h"
 
-void		chargen_dg(int, struct servtab *);
-void		chargen_stream(int, struct servtab *);
-void		daytime_dg(int, struct servtab *);
-void		daytime_stream(int, struct servtab *);
-void		discard_dg(int, struct servtab *);
-void		discard_stream(int, struct servtab *);
-void		echo_dg(int, struct servtab *);
-void		echo_stream(int, struct servtab *);
+static void	chargen_dg(int, struct servtab *);
+static void	chargen_stream(int, struct servtab *);
+static void	daytime_dg(int, struct servtab *);
+static void	daytime_stream(int, struct servtab *);
+static void	discard_dg(int, struct servtab *);
+static void	discard_stream(int, struct servtab *);
+static void	echo_dg(int, struct servtab *);
+static void	echo_stream(int, struct servtab *);
 static int	get_line(int, char *, int);
-void		iderror(int, int, int, const char *);
-void		ident_stream(int, struct servtab *);
-void		initring(void);
-uint32_t	machtime(void);
-void		machtime_dg(int, struct servtab *);
-void		machtime_stream(int, struct servtab *);
+static void	iderror(int, int, int, const char *);
+static void	ident_stream(int, struct servtab *);
+static void	initring(void);
+static uint32_t	machtime(void);
+static void	machtime_dg(int, struct servtab *);
+static void	machtime_stream(int, struct servtab *);
 
-char ring[128];
-char *endring;
-
+static char ring[128];
+static char *endring;
 
 struct biltin biltins[] = {
 	/* Echo received data */
@@ -105,7 +104,7 @@ struct biltin biltins[] = {
  * any regard for input.
  */
 
-void
+static void
 initring(void)
 {
 	int i;
@@ -122,7 +121,7 @@ initring(void)
  * characters chosen from the range 0 to 512. We send LINESIZ+2.
  */
 /* ARGSUSED */
-void
+static void
 chargen_dg(int s, struct servtab *sep)
 {
 	struct sockaddr_storage ss;
@@ -159,7 +158,7 @@ chargen_dg(int s, struct servtab *sep)
 
 /* Character generator */
 /* ARGSUSED */
-void
+static void
 chargen_stream(int s, struct servtab *sep)
 {
 	int len;
@@ -196,7 +195,7 @@ chargen_stream(int s, struct servtab *sep)
 
 /* Return human-readable time of day */
 /* ARGSUSED */
-void
+static void
 daytime_dg(int s, struct servtab *sep)
 {
 	char buffer[256];
@@ -221,7 +220,7 @@ daytime_dg(int s, struct servtab *sep)
 
 /* Return human-readable time of day */
 /* ARGSUSED */
-void
+static void
 daytime_stream(int s, struct servtab *sep __unused)
 {
 	char buffer[256];
@@ -240,7 +239,7 @@ daytime_stream(int s, struct servtab *sep __unused)
 
 /* Discard service -- ignore data */
 /* ARGSUSED */
-void
+static void
 discard_dg(int s, struct servtab *sep __unused)
 {
 	char buffer[BUFSIZE];
@@ -250,7 +249,7 @@ discard_dg(int s, struct servtab *sep __unused)
 
 /* Discard service -- ignore data */
 /* ARGSUSED */
-void
+static void
 discard_stream(int s, struct servtab *sep)
 {
 	int ret;
@@ -273,7 +272,7 @@ discard_stream(int s, struct servtab *sep)
 
 /* Echo service -- echo data back */
 /* ARGSUSED */
-void
+static void
 echo_dg(int s, struct servtab *sep)
 {
 	char buffer[65536]; /* Should be sizeof(max datagram). */
@@ -294,7 +293,7 @@ echo_dg(int s, struct servtab *sep)
 
 /* Echo service -- echo data back */
 /* ARGSUSED */
-void
+static void
 echo_stream(int s, struct servtab *sep)
 {
 	char buffer[BUFSIZE];
@@ -322,7 +321,7 @@ echo_stream(int s, struct servtab *sep)
 
 /* Generic ident_stream error-sending func */
 /* ARGSUSED */
-void
+static void
 iderror(int lport, int fport, int s, const char *er)
 {
 	char *p;
@@ -340,7 +339,7 @@ iderror(int lport, int fport, int s, const char *er)
 
 /* Ident service (AKA "auth") */
 /* ARGSUSED */
-void
+static void
 ident_stream(int s, struct servtab *sep)
 {
 	struct utsname un;
@@ -688,7 +687,7 @@ printit:
  * some seventy years Bell Labs was asleep.
  */
 
-uint32_t
+static uint32_t
 machtime(void)
 {
 
@@ -698,7 +697,7 @@ machtime(void)
 }
 
 /* ARGSUSED */
-void
+static void
 machtime_dg(int s, struct servtab *sep)
 {
 	uint32_t result;
@@ -719,7 +718,7 @@ machtime_dg(int s, struct servtab *sep)
 }
 
 /* ARGSUSED */
-void
+static void
 machtime_stream(int s, struct servtab *sep __unused)
 {
 	uint32_t result;

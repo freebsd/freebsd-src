@@ -17,7 +17,7 @@ dst="$(realpath .)/acpi_ca_destination"
 fulldirs="common compiler components include os_specific"
 
 # files to remove
-stripdirs="generate libraries tests tools"
+stripdirs="generate libraries parsers preprocessor tests tools"
 stripfiles="Makefile README accygwin.h acdragonfly.h acdragonflyex.h	\
 	acefi.h acefiex.h achaiku.h acintel.h aclinux.h aclinuxex.h	\
 	acmacosx.h acmsvc.h acmsvcex.h acnetbsd.h acos2.h acqnx.h	\

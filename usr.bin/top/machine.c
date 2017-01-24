@@ -413,7 +413,7 @@ format_header(char *uname_field)
 {
 	static char Header[128];
 	const char *prehead;
-	
+
 	if (ps.jail)
 		jidlength = TOP_JID_LEN + 1;	/* +1 for extra left space. */
 	else
@@ -559,7 +559,7 @@ get_system_info(struct system_info *si)
 		arc_stats[5] = arc_stat >> 10;
 		si->arc = arc_stats;
 	}
-		    
+
 	/* set arrays and strings */
 	if (pcpu_stats) {
 		si->cpustates = pcpu_cpu_states;
@@ -585,7 +585,7 @@ get_system_info(struct system_info *si)
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_BOOTTIME;
 	size = sizeof(boottime);
-	if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
+	if (sysctl(mib, nitems(mib), &boottime, &size, NULL, 0) != -1 &&
 	    boottime.tv_sec != 0) {
 		si->boottime = boottime;
 	} else {
@@ -1072,7 +1072,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		}
 	}
 
-	if (ps.jail == 0) 
+	if (ps.jail == 0)
 		jid_buf[0] = '\0';
 	else
 		snprintf(jid_buf, sizeof(jid_buf), "%*d",

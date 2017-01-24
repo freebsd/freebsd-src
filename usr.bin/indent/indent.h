@@ -45,5 +45,5 @@ void	parsefont(struct fstate *, const char *);
 void	pr_comment(void);
 void	set_defaults(void);
 void	set_option(char *);
-void	set_profile(void);
+void	set_profile(const char *);
 void	writefdef(struct fstate *f, int);

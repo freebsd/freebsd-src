@@ -1862,16 +1862,16 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 			return;
 
 		/*
-		 * Otherwise, do per-cache line flush.  Use the mfence
+		 * Otherwise, do per-cache line flush.  Use the sfence
 		 * instruction to insure that previous stores are
 		 * included in the write-back.  The processor
 		 * propagates flush to other processors in the cache
 		 * coherence domain.
 		 */
-		mfence();
+		sfence();
 		for (; sva < eva; sva += cpu_clflush_line_size)
 			clflushopt(sva);
-		mfence();
+		sfence();
 	} else if ((cpu_feature & CPUID_CLFSH) != 0 &&
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
 		if (pmap_kextract(sva) == lapic_paddr)
@@ -1915,7 +1915,9 @@ pmap_invalidate_cache_pages(vm_page_t *pages, int count)
 	    ((cpu_feature & CPUID_CLFSH) == 0 && !useclflushopt))
 		pmap_invalidate_cache();
 	else {
-		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+		if (useclflushopt)
+			sfence();
+		else if (cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
 		for (i = 0; i < count; i++) {
 			daddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pages[i]));
@@ -1927,7 +1929,9 @@ pmap_invalidate_cache_pages(vm_page_t *pages, int count)
 					clflush(daddr);
 			}
 		}
-		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+		if (useclflushopt)
+			sfence();
+		else if (cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
 	}
 }
@@ -6010,7 +6014,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	pdp_entry_t *pdpe;
 	pd_entry_t oldpde, *pde;
 	pt_entry_t *pte, PG_A, PG_G, PG_M, PG_RW, PG_V;
-	vm_offset_t va_next;
+	vm_offset_t va, va_next;
 	vm_page_t m;
 	boolean_t anychanged;
 
@@ -6090,11 +6094,11 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 		}
 		if (va_next > eva)
 			va_next = eva;
+		va = va_next;
 		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
 		    sva += PAGE_SIZE) {
-			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED |
-			    PG_V))
-				continue;
+			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED | PG_V))
+				goto maybe_invlrng;
 			else if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 				if (advice == MADV_DONTNEED) {
 					/*
@@ -6109,12 +6113,22 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 			} else if ((*pte & PG_A) != 0)
 				atomic_clear_long(pte, PG_A);
 			else
-				continue;
-			if ((*pte & PG_G) != 0)
-				pmap_invalidate_page(pmap, sva);
-			else
+				goto maybe_invlrng;
+
+			if ((*pte & PG_G) != 0) {
+				if (va == va_next)
+					va = sva;
+			} else
 				anychanged = TRUE;
+			continue;
+maybe_invlrng:
+			if (va != va_next) {
+				pmap_invalidate_range(pmap, va, sva);
+				va = va_next;
+			}
 		}
+		if (va != va_next)
+			pmap_invalidate_range(pmap, va, sva);
 	}
 	if (anychanged)
 		pmap_invalidate_all(pmap);

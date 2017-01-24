@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -285,7 +285,7 @@ asn_put_real_integer(struct asn_buf *b, u_char type, int64_t ival)
 	enum asn_err ret;
 
 	if (ival < 0) {
-		/* this may fail if |INT64_MIN| > |INT64_MAX| and 
+		/* this may fail if |INT64_MIN| > |INT64_MAX| and
 		 * the value is between * INT64_MIN <= ival < -(INT64_MAX+1) */
 		val = (uint64_t)-(ival + 1);
 		neg = 1;
@@ -890,7 +890,7 @@ asn_slice_oid(struct asn_oid *dest, const struct asn_oid *src,
 	memcpy(dest->subs, &src->subs[from], dest->len * sizeof(dest->subs[0]));
 }
 
-/* 
+/*
  * Append from to to
  */
 void

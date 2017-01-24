@@ -81,9 +81,6 @@ static int read_min = 1;
 SYSCTL_INT(_vfs, OID_AUTO, read_min, CTLFLAG_RW, &read_min, 0,
     "Cluster read min block count");
 
-/* Page expended to mark partially backed buffers */
-extern vm_page_t	bogus_page;
-
 /*
  * Read data to a buf, including read-ahead if we find this to be beneficial.
  * cluster_read replaces bread.

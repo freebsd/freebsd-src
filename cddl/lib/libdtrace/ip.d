@@ -255,8 +255,8 @@ translator ipv4info_t < struct ip *p > {
 	ipv4_tos =	p == NULL ? 0 : p->ip_tos;
 	ipv4_length =	p == NULL ? 0 : ntohs(p->ip_len);
 	ipv4_ident =	p == NULL ? 0 : ntohs(p->ip_id);
-	ipv4_flags =	p == NULL ? 0 : (p->ip_off & 0xe000);
-	ipv4_offset =	p == NULL ? 0 : p->ip_off;
+	ipv4_flags =	p == NULL ? 0 : (ntohs(p->ip_off) & 0xe000) >> 8;
+	ipv4_offset =	p == NULL ? 0 : ntohs(p->ip_off) & 0x1fff;
 	ipv4_ttl =	p == NULL ? 0 : p->ip_ttl;
 	ipv4_protocol =	p == NULL ? 0 : p->ip_p;
 	ipv4_protostr = p == NULL ? "<null>" : protocols[p->ip_p];

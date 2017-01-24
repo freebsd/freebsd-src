@@ -88,6 +88,17 @@
 #define	IEEE80211_TU_TO_TICKS(x)(((uint64_t)(x) * 1024 * hz) / (1000 * 1000))
 
 /*
+ * Technically, vhtflags may be 0 /and/ 11ac is enabled.
+ * At some point ic should just grow a flag somewhere that
+ * says that VHT is supported - and then this macro can be
+ * changed.
+ */
+#define	IEEE80211_CONF_VHT(ic)		((ic)->ic_vhtcaps != 0)
+
+#define	IEEE80211_CONF_SEQNO_OFFLOAD(ic)	\
+	    ((ic)->ic_flags_ext & IEEE80211_FEXT_SEQNO_OFFLOAD)
+
+/*
  * 802.11 control state is split into a common portion that maps
  * 1-1 to a physical device and one or more "Virtual AP's" (VAP)
  * that are bound to an ieee80211com instance and share a single
@@ -232,8 +243,9 @@ struct ieee80211com {
 	/* VHT information */
 	uint32_t		ic_vhtcaps;	/* VHT capabilities */
 	uint32_t		ic_vhtextcaps;	/* VHT extended capabilities (TODO) */
-	struct ieee80211_vht_mcs_info	iv_vht_mcsinfo; /* Support TX/RX VHT MCS */
-	uint32_t		ic_vht_spare[4];
+	struct ieee80211_vht_mcs_info	ic_vht_mcsinfo; /* Support TX/RX VHT MCS */
+	uint32_t		ic_flags_vht;	/* VHT state flags */
+	uint32_t		ic_vht_spare[3];
 
 	/* optional state for Atheros SuperG protocol extensions */
 	struct ieee80211_superg	*ic_superg;
@@ -620,14 +632,17 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_PROBECHAN 0x00020000	/* CONF: probe passive channel*/
 #define	IEEE80211_FEXT_UNIQMAC	 0x00040000	/* CONF: user or computed mac */
 #define	IEEE80211_FEXT_SCAN_OFFLOAD	0x00080000	/* CONF: scan is fully offloaded */
+#define	IEEE80211_FEXT_SEQNO_OFFLOAD	0x00100000	/* CONF: driver does seqno insertion/allocation */
 
 #define	IEEE80211_FEXT_BITS \
 	"\20\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
 	"\0114ADDR\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\16STATEWAIT\17REINIT" \
-	"\20BPF\21WDSLEGACY\22PROBECHAN\23UNIQMAC\24SCAN_OFFLOAD"
+	"\20BPF\21WDSLEGACY\22PROBECHAN\23UNIQMAC\24SCAN_OFFLOAD\25SEQNO_OFFLOAD"
 
 /* ic_flags_ht/iv_flags_ht */
 #define	IEEE80211_FHT_NONHT_PR	 0x00000001	/* STATUS: non-HT sta present */
+#define	IEEE80211_FHT_LDPC_TX	 0x00010000	/* CONF: LDPC tx enabled */
+#define	IEEE80211_FHT_LDPC_RX	 0x00020000	/* CONF: LDPC rx enabled */
 #define	IEEE80211_FHT_GF  	 0x00040000	/* CONF: Greenfield enabled */
 #define	IEEE80211_FHT_HT	 0x00080000	/* CONF: HT supported */
 #define	IEEE80211_FHT_AMPDU_TX	 0x00100000	/* CONF: A-MPDU tx supported */
@@ -650,6 +665,14 @@ MALLOC_DECLARE(M_80211_VAP);
 	"\35HTCOMPAT\36RIFS\37STBC_TX\40STBC_RX"
 
 #define	IEEE80211_FVEN_BITS	"\20"
+
+#define	IEEE80211_FVHT_VHT	0x000000001	/* CONF: VHT supported */
+#define	IEEE80211_FVHT_USEVHT40	0x000000002	/* CONF: Use VHT40 */
+#define	IEEE80211_FVHT_USEVHT80	0x000000004	/* CONF: Use VHT80 */
+#define	IEEE80211_FVHT_USEVHT80P80	0x000000008	/* CONF: Use VHT 80+80 */
+#define	IEEE80211_FVHT_USEVHT160	0x000000010	/* CONF: Use VHT160 */
+#define	IEEE80211_VFHT_BITS \
+	"\20\1VHT\2VHT40\3VHT80\4VHT80P80\5VHT160"
 
 int	ic_printf(struct ieee80211com *, const char *, ...) __printflike(2, 3);
 void	ieee80211_ifattach(struct ieee80211com *);
@@ -822,6 +845,27 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 	return IEEE80211_IS_CHAN_HT40(c) ?
 	    IEEE80211_FHT_HT | IEEE80211_FHT_USEHT40 :
 	    IEEE80211_IS_CHAN_HT(c) ?  IEEE80211_FHT_HT : 0;
+}
+
+/*
+ * Calculate VHT channel promotion flags for a channel.
+ * XXX belongs in ieee80211_vht.h but needs IEEE80211_FVHT_*
+ */
+static __inline int
+ieee80211_vhtchanflags(const struct ieee80211_channel *c)
+{
+
+	if (IEEE80211_IS_CHAN_VHT160(c))
+		return IEEE80211_FVHT_USEVHT160;
+	if (IEEE80211_IS_CHAN_VHT80_80(c))
+		return IEEE80211_FVHT_USEVHT80P80;
+	if (IEEE80211_IS_CHAN_VHT80(c))
+		return IEEE80211_FVHT_USEVHT80;
+	if (IEEE80211_IS_CHAN_VHT40(c))
+		return IEEE80211_FVHT_USEVHT40;
+	if (IEEE80211_IS_CHAN_VHT(c))
+		return IEEE80211_FVHT_VHT;
+	return (0);
 }
 
 /*

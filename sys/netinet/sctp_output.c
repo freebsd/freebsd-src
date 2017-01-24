@@ -4678,7 +4678,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	struct sctp_supported_chunk_types_param *pr_supported;
 	struct sctp_paramhdr *ph;
 	int cnt_inits_to = 0;
-	int ret;
+	int error;
 	uint16_t num_ext, chunk_len, padding_len, parameter_len;
 
 	/* INIT's always go to the primary (and usually ONLY address) */
@@ -4927,14 +4927,21 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		}
 	}
 	SCTPDBG(SCTP_DEBUG_OUTPUT4, "Sending INIT - calls lowlevel_output\n");
-	ret = sctp_lowlevel_chunk_output(inp, stcb, net,
+	if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m, 0, NULL, 0, 0, 0, 0,
 	    inp->sctp_lport, stcb->rport, htonl(0),
 	    net->port, NULL,
 	    0, 0,
-	    so_locked);
-	SCTPDBG(SCTP_DEBUG_OUTPUT4, "lowlevel_output - %d\n", ret);
+	    so_locked))) {
+		SCTPDBG(SCTP_DEBUG_OUTPUT4, "Gak send error %d\n", error);
+		if (error == ENOBUFS) {
+			stcb->asoc.ifp_had_enobuf = 1;
+			SCTP_STAT_INCR(sctps_lowlevelerr);
+		}
+	} else {
+		stcb->asoc.ifp_had_enobuf = 0;
+	}
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	(void)SCTP_GETTIME_TIMEVAL(&net->last_sent_time);
 }
@@ -5502,6 +5509,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	uint16_t his_limit, i_want;
 	int abort_flag;
 	int nat_friendly = 0;
+	int error;
 	struct socket *so;
 	uint16_t num_ext, chunk_len, padding_len, parameter_len;
 
@@ -6116,12 +6124,24 @@ do_a_abort:
 		over_addr = NULL;
 	}
 
-	(void)sctp_lowlevel_chunk_output(inp, NULL, NULL, to, m, 0, NULL, 0, 0,
+	if ((error = sctp_lowlevel_chunk_output(inp, NULL, NULL, to, m, 0, NULL, 0, 0,
 	    0, 0,
 	    inp->sctp_lport, sh->src_port, init_chk->init.initiate_tag,
 	    port, over_addr,
 	    mflowtype, mflowid,
-	    SCTP_SO_NOT_LOCKED);
+	    SCTP_SO_NOT_LOCKED))) {
+		SCTPDBG(SCTP_DEBUG_OUTPUT4, "Gak send error %d\n", error);
+		if (error == ENOBUFS) {
+			if (asoc != NULL) {
+				asoc->ifp_had_enobuf = 1;
+			}
+			SCTP_STAT_INCR(sctps_lowlevelerr);
+		}
+	} else {
+		if (asoc != NULL) {
+			asoc->ifp_had_enobuf = 0;
+		}
+	}
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 }
 
@@ -7060,11 +7080,9 @@ sctp_clean_up_ctl(struct sctp_tcb *stcb, struct sctp_association *asoc, int so_l
 	}
 }
 
-
-static int
-sctp_can_we_split_this(struct sctp_tcb *stcb,
-    uint32_t length,
-    uint32_t goal_mtu, uint32_t frag_point, int eeor_on)
+static uint32_t
+sctp_can_we_split_this(struct sctp_tcb *stcb, uint32_t length,
+    uint32_t space_left, uint32_t frag_point, int eeor_on)
 {
 	/*
 	 * Make a decision on if I should split a msg into multiple parts.
@@ -7076,7 +7094,7 @@ sctp_can_we_split_this(struct sctp_tcb *stcb,
 		 * entire thing, since it might be all the guy is putting in
 		 * the hopper.
 		 */
-		if (goal_mtu >= length) {
+		if (space_left >= length) {
 			/*-
 			 * If we have data outstanding,
 			 * we get another chance when the sack
@@ -7093,7 +7111,7 @@ sctp_can_we_split_this(struct sctp_tcb *stcb,
 
 		} else {
 			/* You can fill the rest */
-			return (goal_mtu);
+			return (space_left);
 		}
 	}
 	/*-
@@ -7104,28 +7122,27 @@ sctp_can_we_split_this(struct sctp_tcb *stcb,
 	if (SCTP_SB_LIMIT_SND(stcb->sctp_socket) < frag_point) {
 		return (length);
 	}
-	if ((length <= goal_mtu) ||
-	    ((length - goal_mtu) < SCTP_BASE_SYSCTL(sctp_min_residual))) {
+	if ((length <= space_left) ||
+	    ((length - space_left) < SCTP_BASE_SYSCTL(sctp_min_residual))) {
 		/* Sub-optimial residual don't split in non-eeor mode. */
 		return (0);
 	}
 	/*
-	 * If we reach here length is larger than the goal_mtu. Do we wish
+	 * If we reach here length is larger than the space_left. Do we wish
 	 * to split it for the sake of packet putting together?
 	 */
-	if (goal_mtu >= min(SCTP_BASE_SYSCTL(sctp_min_split_point), frag_point)) {
+	if (space_left >= min(SCTP_BASE_SYSCTL(sctp_min_split_point), frag_point)) {
 		/* Its ok to split it */
-		return (min(goal_mtu, frag_point));
+		return (min(space_left, frag_point));
 	}
 	/* Nope, can't split */
 	return (0);
-
 }
 
 static uint32_t
 sctp_move_to_outqueue(struct sctp_tcb *stcb,
     struct sctp_stream_out *strq,
-    uint32_t goal_mtu,
+    uint32_t space_left,
     uint32_t frag_point,
     int *giveup,
     int eeor_mode,
@@ -7286,7 +7303,7 @@ re_look:
 			sp->some_taken = 1;
 		}
 	} else {
-		to_move = sctp_can_we_split_this(stcb, length, goal_mtu, frag_point, eeor_mode);
+		to_move = sctp_can_we_split_this(stcb, length, space_left, frag_point, eeor_mode);
 		if (to_move) {
 			/*-
 			 * We use a snapshot of length in case it
@@ -7681,56 +7698,66 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 {
 	struct sctp_association *asoc;
 	struct sctp_stream_out *strq;
-	int goal_mtu, moved_how_much, total_moved = 0, bail = 0;
-	int giveup;
+	uint32_t space_left, moved, total_moved;
+	int bail, giveup;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
+	total_moved = 0;
 	switch (net->ro._l_addr.sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-		goal_mtu = net->mtu - SCTP_MIN_V4_OVERHEAD;
+		space_left = net->mtu - SCTP_MIN_V4_OVERHEAD;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		goal_mtu = net->mtu - SCTP_MIN_OVERHEAD;
+		space_left = net->mtu - SCTP_MIN_OVERHEAD;
 		break;
 #endif
 	default:
 		/* TSNH */
-		goal_mtu = net->mtu;
+		space_left = net->mtu;
 		break;
 	}
 	/* Need an allowance for the data chunk header too */
 	if (stcb->asoc.idata_supported == 0) {
-		goal_mtu -= sizeof(struct sctp_data_chunk);
+		space_left -= sizeof(struct sctp_data_chunk);
 	} else {
-		goal_mtu -= sizeof(struct sctp_idata_chunk);
+		space_left -= sizeof(struct sctp_idata_chunk);
 	}
 
 	/* must make even word boundary */
-	goal_mtu &= 0xfffffffc;
+	space_left &= 0xfffffffc;
 	strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
-	while ((goal_mtu > 0) && strq) {
+	while ((space_left > 0) && (strq != NULL)) {
 		giveup = 0;
 		bail = 0;
-		moved_how_much = sctp_move_to_outqueue(stcb, strq, goal_mtu, frag_point,
+		moved = sctp_move_to_outqueue(stcb, strq, space_left, frag_point,
 		    &giveup, eeor_mode, &bail, so_locked);
-		stcb->asoc.ss_functions.sctp_ss_scheduled(stcb, net, asoc, strq, moved_how_much);
-
-		if ((giveup) || bail) {
+		stcb->asoc.ss_functions.sctp_ss_scheduled(stcb, net, asoc, strq, moved);
+		if ((giveup != 0) || (bail != 0)) {
 			break;
 		}
 		strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
-		if (strq == NULL) {
-			break;
+		total_moved += moved;
+		space_left -= moved;
+		if (stcb->asoc.idata_supported == 0) {
+			if (space_left >= sizeof(struct sctp_data_chunk)) {
+				space_left -= sizeof(struct sctp_data_chunk);
+			} else {
+				space_left = 0;
+			}
+		} else {
+			if (space_left >= sizeof(struct sctp_idata_chunk)) {
+				space_left -= sizeof(struct sctp_idata_chunk);
+			} else {
+				space_left = 0;
+			}
 		}
-		total_moved += moved_how_much;
-		goal_mtu -= (moved_how_much + sizeof(struct sctp_data_chunk));
-		goal_mtu &= 0xfffffffc;
+		space_left &= 0xfffffffc;
 	}
-	if (bail)
+	if (bail != 0)
 		*quit_now = 1;
 
 	stcb->asoc.ss_functions.sctp_ss_packet_done(stcb, net, asoc);
@@ -8821,8 +8848,8 @@ no_data_fill:
 					SCTP_STAT_INCR(sctps_lowlevelerrusr);
 				}
 				if (error == ENOBUFS) {
-					SCTP_STAT_INCR(sctps_lowlevelerr);
 					asoc->ifp_had_enobuf = 1;
+					SCTP_STAT_INCR(sctps_lowlevelerr);
 				}
 				if (error == EHOSTUNREACH) {
 					/*
@@ -9509,8 +9536,14 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 		    chk->whoTo->port, NULL,
 		    0, 0,
 		    so_locked))) {
-			SCTP_STAT_INCR(sctps_lowlevelerr);
+			SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
+			if (error == ENOBUFS) {
+				asoc->ifp_had_enobuf = 1;
+				SCTP_STAT_INCR(sctps_lowlevelerr);
+			}
 			return (error);
+		} else {
+			asoc->ifp_had_enobuf = 0;
 		}
 		endofchain = NULL;
 		auth = NULL;
@@ -9781,8 +9814,14 @@ one_chunk_around:
 			    0, 0,
 			    so_locked))) {
 				/* error, we could not output */
-				SCTP_STAT_INCR(sctps_lowlevelerr);
+				SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
+				if (error == ENOBUFS) {
+					asoc->ifp_had_enobuf = 1;
+					SCTP_STAT_INCR(sctps_lowlevelerr);
+				}
 				return (error);
+			} else {
+				asoc->ifp_had_enobuf = 0;
 			}
 			endofchain = NULL;
 			auth = NULL;
@@ -10872,6 +10911,7 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 	struct sctp_nets *net;
 	uint32_t vtag;
 	uint32_t auth_offset = 0;
+	int error;
 	uint16_t cause_len, chunk_len, padding_len;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
@@ -10943,13 +10983,21 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 			return;
 		}
 	}
-	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
+	if ((error = sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m_out, auth_offset, auth, stcb->asoc.authinfo.active_keyid, 1, 0, 0,
 	    stcb->sctp_ep->sctp_lport, stcb->rport, htonl(vtag),
 	    stcb->asoc.primary_destination->port, NULL,
 	    0, 0,
-	    so_locked);
+	    so_locked))) {
+		SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
+		if (error == ENOBUFS) {
+			stcb->asoc.ifp_had_enobuf = 1;
+			SCTP_STAT_INCR(sctps_lowlevelerr);
+		}
+	} else {
+		stcb->asoc.ifp_had_enobuf = 0;
+	}
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 }
 
@@ -10962,6 +11010,7 @@ sctp_send_shutdown_complete(struct sctp_tcb *stcb,
 	struct mbuf *m_shutdown_comp;
 	struct sctp_shutdown_complete_chunk *shutdown_complete;
 	uint32_t vtag;
+	int error;
 	uint8_t flags;
 
 	m_shutdown_comp = sctp_get_mbuf_for_msg(sizeof(struct sctp_chunkhdr), 0, M_NOWAIT, 1, MT_HEADER);
@@ -10981,14 +11030,22 @@ sctp_send_shutdown_complete(struct sctp_tcb *stcb,
 	shutdown_complete->ch.chunk_flags = flags;
 	shutdown_complete->ch.chunk_length = htons(sizeof(struct sctp_shutdown_complete_chunk));
 	SCTP_BUF_LEN(m_shutdown_comp) = sizeof(struct sctp_shutdown_complete_chunk);
-	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
+	if ((error = sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m_shutdown_comp, 0, NULL, 0, 1, 0, 0,
 	    stcb->sctp_ep->sctp_lport, stcb->rport,
 	    htonl(vtag),
 	    net->port, NULL,
 	    0, 0,
-	    SCTP_SO_NOT_LOCKED);
+	    SCTP_SO_NOT_LOCKED))) {
+		SCTPDBG(SCTP_DEBUG_OUTPUT3, "Gak send error %d\n", error);
+		if (error == ENOBUFS) {
+			stcb->asoc.ifp_had_enobuf = 1;
+			SCTP_STAT_INCR(sctps_lowlevelerr);
+		}
+	} else {
+		stcb->asoc.ifp_had_enobuf = 0;
+	}
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	return;
 }

@@ -92,6 +92,7 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct mlx5e_priv *priv = arg1;
 	uint64_t value;
+	int mode_modify;
 	int was_opened;
 	int error;
 
@@ -114,6 +115,7 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		goto done;
 	}
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	mode_modify = MLX5_CAP_GEN(priv->mdev, cq_period_mode_modify);
 
 	switch (MLX5_PARAM_OFFSET(arg[arg2])) {
 	case MLX5_PARAM_OFFSET(rx_coalesce_usecs):
@@ -266,7 +268,7 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 
 	case MLX5_PARAM_OFFSET(rx_coalesce_mode):
 		/* network interface must be down */
-		if (was_opened)
+		if (was_opened != 0 && mode_modify == 0)
 			mlx5e_close_locked(priv->ifp);
 
 		/* import RX coalesce mode */
@@ -276,13 +278,17 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		    priv->params_ethtool.rx_coalesce_mode;
 
 		/* restart network interface, if any */
-		if (was_opened)
-			mlx5e_open_locked(priv->ifp);
+		if (was_opened != 0) {
+			if (mode_modify == 0)
+				mlx5e_open_locked(priv->ifp);
+			else
+				error = mlx5e_refresh_channel_params(priv);
+		}
 		break;
 
 	case MLX5_PARAM_OFFSET(tx_coalesce_mode):
 		/* network interface must be down */
-		if (was_opened)
+		if (was_opened != 0 && mode_modify == 0)
 			mlx5e_close_locked(priv->ifp);
 
 		/* import TX coalesce mode */
@@ -292,8 +298,12 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		    priv->params_ethtool.tx_coalesce_mode;
 
 		/* restart network interface, if any */
-		if (was_opened)
-			mlx5e_open_locked(priv->ifp);
+		if (was_opened != 0) {
+			if (mode_modify == 0)
+				mlx5e_open_locked(priv->ifp);
+			else
+				error = mlx5e_refresh_channel_params(priv);
+		}
 		break;
 
 	case MLX5_PARAM_OFFSET(hw_lro):
@@ -340,6 +350,18 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		/* restart network interface, if any */
 		if (was_opened)
 			mlx5e_open_locked(priv->ifp);
+		break;
+
+	case MLX5_PARAM_OFFSET(tx_bufring_disable):
+		/* rangecheck input value */
+		priv->params_ethtool.tx_bufring_disable =
+		    priv->params_ethtool.tx_bufring_disable ? 1 : 0;
+
+		/* reconfigure the sendqueues, if any */
+		if (was_opened) {
+			mlx5e_close_locked(priv->ifp);
+			mlx5e_open_locked(priv->ifp);
+		}
 		break;
 
 	case MLX5_PARAM_OFFSET(tx_completion_fact):

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_superg.h>
 #endif
 #include <net80211/ieee80211_wds.h>
+#include <net80211/ieee80211_vht.h>
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
@@ -1745,6 +1746,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	struct ieee80211_frame *wh;
 	uint8_t *frm, *efrm, *sfrm;
 	uint8_t *ssid, *rates, *xrates, *wpa, *rsn, *wme, *ath, *htcap;
+	uint8_t *vhtcap, *vhtinfo;
 	int reassoc, resp;
 	uint8_t rate;
 
@@ -2042,6 +2044,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		if (reassoc)
 			frm += 6;	/* ignore current AP info */
 		ssid = rates = xrates = wpa = rsn = wme = ath = htcap = NULL;
+		vhtcap = vhtinfo = NULL;
 		sfrm = frm;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
@@ -2060,6 +2063,12 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				break;
 			case IEEE80211_ELEMID_HTCAP:
 				htcap = frm;
+				break;
+			case IEEE80211_ELEMID_VHT_CAP:
+				vhtcap = frm;
+				break;
+			case IEEE80211_ELEMID_VHT_OPMODE:
+				vhtinfo = frm;
 				break;
 			case IEEE80211_ELEMID_VENDOR:
 				if (iswpaoui(frm))
@@ -2135,10 +2144,22 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			vap->iv_stats.is_rx_assoc_norate++;
 			return;
 		}
+
 		/*
 		 * Do HT rate set handling and setup HT node state.
 		 */
 		ni->ni_chan = vap->iv_bss->ni_chan;
+
+		/* VHT */
+		if (IEEE80211_IS_CHAN_VHT(ni->ni_chan)) {
+			/* XXX TODO; see below */
+			printf("%s: VHT TODO!\n", __func__);
+			ieee80211_vht_node_init(ni);
+			ieee80211_vht_update_cap(ni, vhtcap, vhtinfo);
+		} else if (ni->ni_flags & IEEE80211_NODE_VHT)
+			ieee80211_vht_node_cleanup(ni);
+
+		/* HT */
 		if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && htcap != NULL) {
 			rate = ieee80211_setup_htrates(ni, htcap,
 				IEEE80211_F_DOFMCS | IEEE80211_F_DONEGO |
@@ -2153,6 +2174,12 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			ieee80211_ht_updatehtcap(ni, htcap);
 		} else if (ni->ni_flags & IEEE80211_NODE_HT)
 			ieee80211_ht_node_cleanup(ni);
+
+		/* Finally - this will use HT/VHT info to change node channel */
+		if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && htcap != NULL) {
+			ieee80211_ht_updatehtcap_final(ni);
+		}
+
 #ifdef IEEE80211_SUPPORT_SUPERG
 		/* Always do ff node cleanup; for A-MSDU */
 		ieee80211_ff_node_cleanup(ni);

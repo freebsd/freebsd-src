@@ -43,11 +43,11 @@ static int dirfd = -1;
 static char *abspath;
 
 static void
-touchat(int dirfd, const char *name)
+touchat(int _dirfd, const char *name)
 {
 	int fd;
 
-	ATF_REQUIRE((fd = openat(dirfd, name, O_CREAT | O_TRUNC | O_WRONLY,
+	ATF_REQUIRE((fd = openat(_dirfd, name, O_CREAT | O_TRUNC | O_WRONLY,
 	    0777)) >= 0);
 	ATF_REQUIRE(close(fd) == 0);
 }
@@ -117,13 +117,14 @@ ATF_TC_HEAD(lookup_cap_dotdot__basic, tc)
 ATF_TC_BODY(lookup_cap_dotdot__basic, tc)
 {
 	cap_rights_t rights;
-	int fd;
 
 	check_capsicum();
 	prepare_dotdot_tests();
 
 	cap_rights_init(&rights, CAP_LOOKUP, CAP_READ);
 	ATF_REQUIRE(cap_rights_limit(dirfd, &rights) >= 0);
+
+	atf_tc_expect_signal(SIGABRT, "needs change done upstream in atf/kyua according to cem: bug 215690");
 
 	ATF_REQUIRE(cap_enter() >= 0);
 
@@ -141,10 +142,11 @@ ATF_TC_HEAD(lookup_cap_dotdot__advanced, tc)
 ATF_TC_BODY(lookup_cap_dotdot__advanced, tc)
 {
 	cap_rights_t rights;
-	int fd;
 
 	check_capsicum();
 	prepare_dotdot_tests();
+
+	atf_tc_expect_signal(SIGABRT, "needs change done upstream in atf/kyua according to cem: bug 215690");
 
 	cap_rights_init(&rights, CAP_LOOKUP, CAP_READ);
 	ATF_REQUIRE(cap_rights_limit(dirfd, &rights) >= 0);
@@ -189,6 +191,8 @@ ATF_TC_BODY(capmode__negative, tc)
 	check_capsicum();
 	prepare_dotdot_tests();
 
+	atf_tc_expect_signal(SIGABRT, "needs change done upstream in atf/kyua according to cem: bug 215690");
+
 	ATF_REQUIRE(cap_enter() == 0);
 
 	/* open() not permitted in capability mode */
@@ -220,13 +224,14 @@ ATF_TC_HEAD(lookup_cap_dotdot__negative, tc)
 ATF_TC_BODY(lookup_cap_dotdot__negative, tc)
 {
 	cap_rights_t rights;
-	int fd;
 
 	check_capsicum();
 	prepare_dotdot_tests();
 
 	cap_rights_init(&rights, CAP_LOOKUP, CAP_READ);
 	ATF_REQUIRE(cap_rights_limit(dirfd, &rights) >= 0);
+
+	atf_tc_expect_signal(SIGABRT, "needs change done upstream in atf/kyua according to cem: bug 215690");
 
 	ATF_REQUIRE(cap_enter() >= 0);
 

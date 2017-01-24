@@ -148,7 +148,9 @@ ck_pr_md_load_##N(const T *target)		\
 }					
 
 CK_PR_DOUBLE_LOAD(uint64_t, 64)
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_DOUBLE_LOAD(double, double)
+#endif
 #undef CK_PR_DOUBLE_LOAD
 #endif
 
@@ -199,7 +201,9 @@ ck_pr_md_store_##N(const T *target, T value)			\
 }
 
 CK_PR_DOUBLE_STORE(uint64_t, 64)
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_DOUBLE_STORE(double, double)
+#endif
 
 #undef CK_PR_DOUBLE_STORE
 
@@ -227,7 +231,9 @@ ck_pr_cas_##N##_value(T *target, T compare, T set, T *value)	\
 }
 
 CK_PR_DOUBLE_CAS_VALUE(uint64_t, 64)
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_DOUBLE_CAS_VALUE(double, double)
+#endif
 
 #undef CK_PR_DOUBLE_CAS_VALUE
 
@@ -271,7 +277,10 @@ ck_pr_cas_##N(T *target, T compare, T set)	\
 }
 
 CK_PR_DOUBLE_CAS(uint64_t, 64)
+#ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_DOUBLE_CAS(double, double)
+#endif
+
 CK_CC_INLINE static bool
 ck_pr_cas_ptr_2(void *target, void *compare, void *set)
 {

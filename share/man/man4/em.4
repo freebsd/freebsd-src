@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2015
+.Dd January 12, 2016
 .Dt EM 4
 .Os
 .Sh NAME
@@ -44,14 +44,6 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device em"
 .Ed
-.Pp
-Optional multiqueue support is available via the following kernel
-compile options:
-.Bd -ragged -offset indent
-.Cd "options EM_MULTIQUEUE"
-.Ed
-.Pp
-Note:  Activating EM_MULTIQUEUE support is not supported by Intel.
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
@@ -253,12 +245,6 @@ If
 .Va hw.em.tx_int_delay
 is non-zero, this tunable limits the maximum delay in which a transmit
 interrupt is generated.
-.It Va hw.em.num_queues
-Number of hardware queues that will be configured on this adapter (maximum of 2)
-Defaults to 1.
-Only valid with kernel configuration
-.Cd "options EM_MULTIQUEUE".
-.El
 .Sh FILES
 .Bl -tag -width /dev/led/em*
 .It Pa /dev/led/em*
@@ -311,5 +297,3 @@ The
 .Nm
 driver was written by
 .An Intel Corporation Aq Mt freebsd@intel.com .
-.Sh BUGS
-Activating EM_MULTIQUEUE support requires MSI-X features.

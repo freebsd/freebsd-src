@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -114,9 +114,11 @@ string_get(struct snmp_value *value, const u_char *ptr, ssize_t len)
 	}
 	if (len == -1)
 		len = strlen(ptr);
-	value->v.octetstring.len = (u_long)len;
-	if ((value->v.octetstring.octets = malloc((size_t)len)) == NULL)
+	if ((value->v.octetstring.octets = malloc((size_t)len)) == NULL) {
+		value->v.octetstring.len = 0;
 		return (SNMP_ERR_RES_UNAVAIL);
+	}
+	value->v.octetstring.len = (u_long)len;
 	memcpy(value->v.octetstring.octets, ptr, (size_t)len);
 	return (SNMP_ERR_NOERROR);
 }
@@ -138,9 +140,11 @@ string_get_max(struct snmp_value *value, const u_char *ptr, ssize_t len,
 		len = strlen(ptr);
 	if ((size_t)len > maxlen)
 		len = maxlen;
-	value->v.octetstring.len = (u_long)len;
-	if ((value->v.octetstring.octets = malloc((size_t)len)) == NULL)
+	if ((value->v.octetstring.octets = malloc((size_t)len)) == NULL) {
+		value->v.octetstring.len = 0;
 		return (SNMP_ERR_RES_UNAVAIL);
+	}
+	value->v.octetstring.len = (u_long)len;
 	memcpy(value->v.octetstring.octets, ptr, (size_t)len);
 	return (SNMP_ERR_NOERROR);
 }
@@ -194,6 +198,7 @@ ip_get(struct snmp_value *value, u_char *valp)
 	value->v.ipaddress[1] = valp[1];
 	value->v.ipaddress[2] = valp[2];
 	value->v.ipaddress[3] = valp[3];
+
 	return (SNMP_ERR_NOERROR);
 }
 

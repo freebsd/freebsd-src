@@ -1283,16 +1283,16 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 			return;
 #endif
 		/*
-		 * Otherwise, do per-cache line flush.  Use the mfence
+		 * Otherwise, do per-cache line flush.  Use the sfence
 		 * instruction to insure that previous stores are
 		 * included in the write-back.  The processor
 		 * propagates flush to other processors in the cache
 		 * coherence domain.
 		 */
-		mfence();
+		sfence();
 		for (; sva < eva; sva += cpu_clflush_line_size)
 			clflushopt(sva);
-		mfence();
+		sfence();
 	} else if ((cpu_feature & CPUID_CLFSH) != 0 &&
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
 #ifdef DEV_APIC
@@ -4216,8 +4216,14 @@ pmap_zero_page(vm_page_t m)
 	invlcaddr(pc->pc_cmap_addr2);
 	pagezero(pc->pc_cmap_addr2);
 	*cmap_pte2 = 0;
-	mtx_unlock(&pc->pc_cmap_lock);
+
+	/*
+	 * Unpin the thread before releasing the lock.  Otherwise the thread
+	 * could be rescheduled while still bound to the current CPU, only
+	 * to unpin itself immediately upon resuming execution.
+	 */
 	sched_unpin();
+	mtx_unlock(&pc->pc_cmap_lock);
 }
 
 /*
@@ -4244,8 +4250,8 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	else
 		bzero(pc->pc_cmap_addr2 + off, size);
 	*cmap_pte2 = 0;
-	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
+	mtx_unlock(&pc->pc_cmap_lock);
 }
 
 /*
@@ -4275,8 +4281,8 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	bcopy(pc->pc_cmap_addr1, pc->pc_cmap_addr2, PAGE_SIZE);
 	*cmap_pte1 = 0;
 	*cmap_pte2 = 0;
-	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
+	mtx_unlock(&pc->pc_cmap_lock);
 }
 
 int unmapped_buf_allowed = 1;
@@ -4323,8 +4329,8 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	}
 	*cmap_pte1 = 0;
 	*cmap_pte2 = 0;
-	mtx_unlock(&pc->pc_cmap_lock);
 	sched_unpin();
+	mtx_unlock(&pc->pc_cmap_lock);
 }
 
 /*
@@ -4905,7 +4911,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
 	pd_entry_t oldpde, *pde;
 	pt_entry_t *pte;
-	vm_offset_t pdnxt;
+	vm_offset_t va, pdnxt;
 	vm_page_t m;
 	boolean_t anychanged, pv_lists_locked;
 
@@ -4966,11 +4972,11 @@ resume:
 		}
 		if (pdnxt > eva)
 			pdnxt = eva;
+		va = pdnxt;
 		for (pte = pmap_pte_quick(pmap, sva); sva != pdnxt; pte++,
 		    sva += PAGE_SIZE) {
-			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED |
-			    PG_V))
-				continue;
+			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED | PG_V))
+				goto maybe_invlrng;
 			else if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 				if (advice == MADV_DONTNEED) {
 					/*
@@ -4985,12 +4991,21 @@ resume:
 			} else if ((*pte & PG_A) != 0)
 				atomic_clear_int((u_int *)pte, PG_A);
 			else
-				continue;
-			if ((*pte & PG_G) != 0)
-				pmap_invalidate_page(pmap, sva);
-			else
+				goto maybe_invlrng;
+			if ((*pte & PG_G) != 0) {
+				if (va == pdnxt)
+					va = sva;
+			} else
 				anychanged = TRUE;
+			continue;
+maybe_invlrng:
+			if (va != pdnxt) {
+				pmap_invalidate_range(pmap, va, sva);
+				va = pdnxt;
+			}
 		}
+		if (va != pdnxt)
+			pmap_invalidate_range(pmap, va, sva);
 	}
 	if (anychanged)
 		pmap_invalidate_all(pmap);
@@ -5285,12 +5300,14 @@ pmap_flush_page(vm_page_t m)
 		eva = sva + PAGE_SIZE;
 
 		/*
-		 * Use mfence despite the ordering implied by
+		 * Use mfence or sfence despite the ordering implied by
 		 * mtx_{un,}lock() because clflush on non-Intel CPUs
 		 * and clflushopt are not guaranteed to be ordered by
 		 * any other instruction.
 		 */
-		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+		if (useclflushopt)
+			sfence();
+		else if (cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
 		for (; sva < eva; sva += cpu_clflush_line_size) {
 			if (useclflushopt)
@@ -5298,11 +5315,13 @@ pmap_flush_page(vm_page_t m)
 			else
 				clflush(sva);
 		}
-		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+		if (useclflushopt)
+			sfence();
+		else if (cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
 		*cmap_pte2 = 0;
-		mtx_unlock(&pc->pc_cmap_lock);
 		sched_unpin();
+		mtx_unlock(&pc->pc_cmap_lock);
 	} else
 		pmap_invalidate_cache();
 }

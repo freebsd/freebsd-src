@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd December 30, 2016
 .Dt ARCHIVE_READ_DISK 3
 .Os
 .Sh NAME
@@ -54,9 +54,9 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_read_disk_set_symlink_physical "struct archive *"
 .Ft int
 .Fn archive_read_disk_set_symlink_hybrid "struct archive *"
-.Ft int
+.Ft const char *
 .Fn archive_read_disk_gname "struct archive *" "gid_t"
-.Ft int
+.Ft const char *
 .Fn archive_read_disk_uname "struct archive *" "uid_t"
 .Ft int
 .Fo archive_read_disk_set_gname_lookup

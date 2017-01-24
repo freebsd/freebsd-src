@@ -167,10 +167,14 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 		if ((uuser = usm_get_user(&val->var, sub)) == NULL &&
 		    val->var.subs[sub - 1] != LEAF_usmUserStatus &&
 		    val->var.subs[sub - 1] != LEAF_usmUserCloneFrom)
-				return (SNMP_ERR_NOSUCHNAME);
+			return (SNMP_ERR_NOSUCHNAME);
 
+		/*
+		 * XXX (ngie): need to investigate the MIB to determine how
+		 * this is possible given some of the transitions below.
+		 */
 		if (community != COMM_INITIALIZE &&
-		    uuser->type == StorageType_readOnly)
+		    uuser != NULL && uuser->type == StorageType_readOnly)
 			return (SNMP_ERR_NOT_WRITEABLE);
 
 		switch (val->var.subs[sub - 1]) {
@@ -179,7 +183,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 
 		case LEAF_usmUserCloneFrom:
 			if (uuser != NULL || usm_user_index_decode(&val->var,
-			    sub, eid, &elen, uname) < 0 || 
+			    sub, eid, &elen, uname) < 0 ||
 			    !(asn_is_suboid(&oid_usmUserSecurityName, &val->v.oid)))
 				return (SNMP_ERR_WRONG_VALUE);
 			if ((clone = usm_get_user(&val->v.oid, sub)) == NULL)
@@ -311,7 +315,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 			} else if (val->v.integer != RowStatus_active &&
 			    val->v.integer != RowStatus_destroy)
 				return (SNMP_ERR_INCONS_VALUE);
-			
+
 			uuser->status = val->v.integer;
 			break;
 		}
@@ -381,7 +385,7 @@ op_usm_users(struct snmp_context *ctx, struct snmp_value *val,
 				usm_delete_user(uuser);
 			break;
 		default:
-			break;	
+			break;
 		}
 		return (SNMP_ERR_NOERROR);
 

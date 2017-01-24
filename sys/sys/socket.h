@@ -158,6 +158,17 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_USER_COOKIE	0x1015		/* user cookie (dummynet etc.) */
 #define	SO_PROTOCOL	0x1016		/* get socket protocol (Linux name) */
 #define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
+#define	SO_TS_CLOCK	0x1017		/* clock type used for SO_TIMESTAMP */
+#define	SO_MAX_PACING_RATE	0x1018	/* socket's max TX pacing rate (Linux name) */
+#endif
+
+#if __BSD_VISIBLE
+#define	SO_TS_REALTIME_MICRO	0	/* microsecond resolution, realtime */
+#define	SO_TS_BINTIME		1	/* sub-nanosecond resolution, realtime */
+#define	SO_TS_REALTIME		2	/* nanosecond resolution, realtime */
+#define	SO_TS_MONOTONIC		3	/* nanosecond resolution, monotonic */
+#define	SO_TS_DEFAULT		SO_TS_REALTIME_MICRO
+#define	SO_TS_CLOCK_MAX		SO_TS_MONOTONIC
 #endif
 
 /*
@@ -414,27 +425,36 @@ struct msghdr {
 	int		 msg_flags;		/* flags on received message */
 };
 
-#define	MSG_OOB		0x1		/* process out-of-band data */
-#define	MSG_PEEK	0x2		/* peek at incoming message */
-#define	MSG_DONTROUTE	0x4		/* send without using routing tables */
-#define	MSG_EOR		0x8		/* data completes record */
-#define	MSG_TRUNC	0x10		/* data discarded before delivery */
-#define	MSG_CTRUNC	0x20		/* control data lost before delivery */
-#define	MSG_WAITALL	0x40		/* wait for full request or error */
-#if __POSIX_VISIBLE >= 200809
-#define	MSG_NOSIGNAL	0x20000		/* do not generate SIGPIPE on EOF */
-#endif
+#define	MSG_OOB		 0x00000001	/* process out-of-band data */
+#define	MSG_PEEK	 0x00000002	/* peek at incoming message */
+#define	MSG_DONTROUTE	 0x00000004	/* send without using routing tables */
+#define	MSG_EOR		 0x00000008	/* data completes record */
+#define	MSG_TRUNC	 0x00000010	/* data discarded before delivery */
+#define	MSG_CTRUNC	 0x00000020	/* control data lost before delivery */
+#define	MSG_WAITALL	 0x00000040	/* wait for full request or error */
 #if __BSD_VISIBLE
-#define	MSG_DONTWAIT	0x80		/* this message should be nonblocking */
-#define	MSG_EOF		0x100		/* data completes connection */
-#define	MSG_NOTIFICATION 0x2000         /* SCTP notification */
-#define	MSG_NBIO	0x4000		/* FIONBIO mode, used by fifofs */
-#define	MSG_COMPAT      0x8000		/* used in sendit() */
-#define	MSG_CMSG_CLOEXEC 0x40000	/* make received fds close-on-exec */
-#define	MSG_WAITFORONE	0x80000		/* for recvmmsg() */
+#define	MSG_DONTWAIT	 0x00000080	/* this message should be nonblocking */
+#define	MSG_EOF		 0x00000100	/* data completes connection */
+/*			 0x00000200	   unused */
+/*			 0x00000400	   unused */
+/*			 0x00000800	   unused */
+/*			 0x00001000	   unused */
+#define	MSG_NOTIFICATION 0x00002000	/* SCTP notification */
+#define	MSG_NBIO	 0x00004000	/* FIONBIO mode, used by fifofs */
+#define	MSG_COMPAT       0x00008000		/* used in sendit() */
 #endif
 #ifdef _KERNEL
-#define	MSG_SOCALLBCK   0x10000		/* for use by socket callbacks - soreceive (TCP) */
+#define	MSG_SOCALLBCK    0x00010000	/* for use by socket callbacks - soreceive (TCP) */
+#endif
+#if __POSIX_VISIBLE >= 200809
+#define	MSG_NOSIGNAL	 0x00020000	/* do not generate SIGPIPE on EOF */
+#endif
+#if __BSD_VISIBLE
+#define	MSG_CMSG_CLOEXEC 0x00040000	/* make received fds close-on-exec */
+#define	MSG_WAITFORONE	 0x00080000	/* for recvmmsg() */
+#endif
+#ifdef _KERNEL
+#define	MSG_MORETOCOME	 0x00100000	/* additional data pending */
 #endif
 
 /*
@@ -533,6 +553,8 @@ struct sockcred {
 #define	SCM_TIMESTAMP	0x02		/* timestamp (struct timeval) */
 #define	SCM_CREDS	0x03		/* process creds (struct cmsgcred) */
 #define	SCM_BINTIME	0x04		/* timestamp (struct bintime) */
+#define	SCM_REALTIME	0x05		/* timestamp (struct timespec) */
+#define	SCM_MONOTONIC	0x06		/* timestamp (struct timespec) */
 #endif
 
 #if __BSD_VISIBLE

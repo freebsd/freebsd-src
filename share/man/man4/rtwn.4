@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2016
+.Dd January 24, 2017
 .Dt RTWN 4
 .Os
 .Sh NAME
@@ -52,9 +52,9 @@ if_rtwn_usb_load="YES"
 The
 .Nm
 driver provides support for wireless network devices based on
-the Realtek RTL8192C, RTL8188E, RTL8812A and RTL8821A programming APIs.
-These APIs are used by a wide variety of chips; most chips with USB
-and some with PCI interface are supported.
+the Realtek RTL8192C, RTL8188E, RTL8192E, RTL8812A and RTL8821A
+programming APIs.  These APIs are used by a wide variety of chips;
+most chips with USB and some with PCI interface are supported.
 .Pp
 To enable use for PCI/PCIe systems, see the rtwn_pci(4) driver;
 for USB devices, use the rtwn_usb(4) driver.
@@ -98,6 +98,7 @@ when an interface is brought up:
 .It Pa /boot/kernel/rtwn-rtl8192cfwE.ko
 .It Pa /boot/kernel/rtwn-rtl8192cfwT.ko
 .It Pa /boot/kernel/rtwn-rtl8192cfwU.ko
+.It Pa /boot/kernel/rtwn-rtl8192eufw.ko
 .It Pa /boot/kernel/rtwn-rtl8812aufw.ko
 .It Pa /boot/kernel/rtwn-rtl8821aufw.ko
 .El

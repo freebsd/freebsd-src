@@ -182,7 +182,7 @@ struct wlan_iface {
 	enum wlanHWMPRootMode		hwmp_root_mode;
 	uint32_t			hwmp_max_hops;
 	struct wlan_mesh_routes		mesh_routelist;
-		
+
 	SLIST_ENTRY(wlan_iface)		w_if;
 };
 

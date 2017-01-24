@@ -54,6 +54,9 @@ begemotIp MODULE-IDENTITY
 	     E-mail:	harti@freebsd.org"
     DESCRIPTION
 	    "The MIB for IP stuff that is not in the official IP MIBs."
+    REVISION	"200602130000Z"
+    DESCRIPTION
+		"Initial revision."
     ::= { begemot 3 }
 
 begemotIpObjects	OBJECT IDENTIFIER ::= { begemotIp 1 }

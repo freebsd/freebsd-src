@@ -688,7 +688,7 @@ test_symname()
 	assertEqualInt(32, archive_read_data(a, buff, sizeof(buff)));
 	assertEqualMem(buff, "hellohellohello\nhellohellohello\n", 32);
 
-	/* Verify symbolic-linke symlinkfile. */
+	/* Verify symbolic-link symlinkfile. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((AE_IFLNK | 0755), archive_entry_mode(ae));
 	assertEqualString("symlinkfile", archive_entry_pathname(ae));

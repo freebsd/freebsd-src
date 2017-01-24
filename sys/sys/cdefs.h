@@ -543,22 +543,6 @@
 	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
 #endif
 
-/*
- * FORTIFY_SOURCE, and perhaps other compiler-specific features, require
- * the use of non-standard inlining.  In general we should try to avoid
- * using these but GCC-compatible compilers tend to support the extensions
- * well enough to use them in limited cases.
- */ 
-#if defined(__GNUC_GNU_INLINE__) || defined(__GNUC_STDC_INLINE__)
-#if __GNUC_PREREQ__(4, 3) || __has_attribute(__artificial__)
-#define	__gnu_inline	__attribute__((__gnu_inline__, __artificial__))
-#else
-#define	__gnu_inline	__attribute__((__gnu_inline__))
-#endif /* artificial */
-#else
-#define	__gnu_inline
-#endif
-
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
 #if defined(__FreeBSD_cc_version) && __FreeBSD_cc_version >= 300001 && \
     defined(__GNUC__) && !defined(__INTEL_COMPILER)
@@ -801,6 +785,21 @@
  */
 #if defined(__arm__) && !defined(__ARM_ARCH)
 #include <machine/acle-compat.h>
+#endif
+
+/*
+ * Nullability qualifiers: currently only supported by Clang.
+ */
+#if !(defined(__clang__) && __has_feature(nullability))
+#define	_Nonnull
+#define	_Nullable
+#define	_Null_unspecified
+#define	__NULLABILITY_PRAGMA_PUSH
+#define	__NULLABILITY_PRAGMA_POP
+#else
+#define	__NULLABILITY_PRAGMA_PUSH _Pragma("clang diagnostic push")	\
+	_Pragma("clang diagnostic ignored \"-Wnullability-completeness\"")
+#define	__NULLABILITY_PRAGMA_POP _Pragma("clang diagnostic pop")
 #endif
 
 /*

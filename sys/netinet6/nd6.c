@@ -910,7 +910,7 @@ nd6_timer(void *arg)
 	struct nd_defrouter *dr, *ndr;
 	struct nd_prefix *pr, *npr;
 	struct in6_ifaddr *ia6, *nia6;
-	bool onlink_locked;
+	uint64_t genid;
 
 	TAILQ_INIT(&drq);
 	LIST_INIT(&prl);
@@ -1022,7 +1022,6 @@ nd6_timer(void *arg)
 	}
 
 	ND6_WLOCK();
-	onlink_locked = false;
 restart:
 	LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, npr) {
 		/*
@@ -1045,22 +1044,19 @@ restart:
 			continue;
 		}
 		if ((pr->ndpr_stateflags & NDPRF_ONLINK) != 0) {
-			if (!onlink_locked) {
-				onlink_locked = ND6_ONLINK_TRYLOCK();
-				if (!onlink_locked) {
-					ND6_WUNLOCK();
-					ND6_ONLINK_LOCK();
-					onlink_locked = true;
-					ND6_WLOCK();
-					goto restart;
-				}
-			}
+			genid = V_nd6_list_genid;
+			nd6_prefix_ref(pr);
+			ND6_WUNLOCK();
+			ND6_ONLINK_LOCK();
 			(void)nd6_prefix_offlink(pr);
+			ND6_ONLINK_UNLOCK();
+			ND6_WLOCK();
+			nd6_prefix_rele(pr);
+			if (genid != V_nd6_list_genid)
+				goto restart;
 		}
 	}
 	ND6_WUNLOCK();
-	if (onlink_locked)
-		ND6_ONLINK_UNLOCK();
 
 	while ((pr = LIST_FIRST(&prl)) != NULL) {
 		LIST_REMOVE(pr, ndpr_entry);

@@ -393,10 +393,10 @@ intpr(void (*pfunc)(char *), int af)
 		case AF_LINK:
 		    {
 			struct sockaddr_dl *sdl;
-			char linknum[10];
+			char linknum[sizeof("<Link#32767>")];
 
 			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-			sprintf(linknum, "<Link#%d>", sdl->sdl_index);
+			snprintf(linknum, sizeof(linknum), "<Link#%d>", sdl->sdl_index);
 			xo_emit("{t:network/%-*.*s} ", net_len, net_len,
 			    linknum);
 			if (sdl->sdl_nlen == 0 &&

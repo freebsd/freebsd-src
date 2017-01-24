@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -19,7 +19,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -492,6 +492,8 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 	b.asn_cptr = buf;
 	b.asn_len = len;
 
+	ret = SNMPD_INPUT_OK;
+
 	/* look whether we have enough bytes for the entire PDU. */
 	switch (sret = snmp_pdu_snoop(&b)) {
 
@@ -519,8 +521,6 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 			goto decoded;
 	}
 	code = snmp_pdu_decode_scoped(&b, pdu, ip);
-
-	ret = SNMPD_INPUT_OK;
 
 decoded:
 	snmpd_stats.inPkts++;
@@ -1040,10 +1040,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 #ifdef USE_TCPWRAPPERS
 	char client[16];
 #endif
-	struct msghdr msg;
-	struct iovec iov[1];
 
-	ret = tport->transport->vtab->recv(pi);
+	ret = tport->transport->vtab->recv(tport, pi);
 	if (ret == -1)
 		return (-1);
 
@@ -1186,21 +1184,15 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	    sndbuf, &sndlen, "SNMP", ierr, vi, NULL);
 
 	if (ferr == SNMPD_INPUT_OK) {
-		msg.msg_name = pi->peer;
-		msg.msg_namelen = pi->peerlen;
-		msg.msg_iov = iov;
-		msg.msg_iovlen = 1;
-		msg.msg_flags = 0;
-		iov[0].iov_base = sndbuf;
-		iov[0].iov_len = sndlen;
-
-		slen = sendmsg(pi->fd, &msg, 0);
+		slen = tport->transport->vtab->send(tport, sndbuf, sndlen,
+		    pi->peer, pi->peerlen);
 		if (slen == -1)
-			syslog(LOG_ERR, "sendmsg: %m");
+			syslog(LOG_ERR, "send*: %m");
 		else if ((size_t)slen != sndlen)
-			syslog(LOG_ERR, "sendmsg: short write %zu/%zu",
-			    sndlen, (size_t)slen);
+			syslog(LOG_ERR, "send*: short write %zu/%zu", sndlen,
+			    (size_t)slen);
 	}
+
 	snmp_pdu_free(&pdu);
 	free(sndbuf);
 	snmp_input_consume(pi);
@@ -2332,13 +2324,12 @@ lm_load(const char *path, const char *section)
 	}
 	m->handle = NULL;
 	m->flags = 0;
-	strcpy(m->section, section);
+	strlcpy(m->section, section, sizeof(m->section));
 
-	if ((m->path = malloc(strlen(path) + 1)) == NULL) {
+	if ((m->path = strdup(path)) == NULL) {
 		syslog(LOG_ERR, "lm_load: %m");
 		goto err;
 	}
-	strcpy(m->path, path);
 
 	/*
 	 * Make index

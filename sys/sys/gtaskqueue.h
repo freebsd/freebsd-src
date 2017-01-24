@@ -32,7 +32,7 @@
 #include <sys/taskqueue.h>
 
 #ifndef _KERNEL
-#error "no user-servicable parts inside"
+#error "no user-serviceable parts inside"
 #endif
 
 struct gtaskqueue;
@@ -95,7 +95,8 @@ taskqgroup_define_##name(void *arg)					\
 									\
 SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
 	taskqgroup_define_##name, NULL)
-#else
+
+#else /* !EARLY_AP_STARTUP */
 #define TASKQGROUP_DEFINE(name, cnt, stride)				\
 									\
 struct taskqgroup *qgroup_##name;					\
@@ -117,9 +118,9 @@ taskqgroup_adjust_##name(void *arg)					\
 									\
 SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
 	taskqgroup_adjust_##name, NULL);				\
-									\
-struct __hack
-#endif
+
+#endif /* EARLY_AP_STARTUP */
+
 TASKQGROUP_DECLARE(net);
 
 #endif /* !_SYS_GTASKQUEUE_H_ */

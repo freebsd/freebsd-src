@@ -79,60 +79,8 @@ extern char edata[];
 					((vm_offset_t)(reg) >= MIPS_KSEG0_START))
 #endif
 
-/*
- * Functions ``special'' enough to print by name
- */
-#ifdef __STDC__
-#define	Name(_fn)  { (void*)_fn, # _fn }
-#else
-#define	Name(_fn) { _fn, "_fn"}
-#endif
-static struct {
-	void *addr;
-	char *name;
-}      names[] = {
-
-	Name(trap),
-	Name(MipsKernGenException),
-	Name(MipsUserGenException),
-	Name(MipsKernIntr),
-	Name(MipsUserIntr),
-	Name(cpu_switch),
-	{
-		0, 0
-	}
-};
-
-/*
- * Map a function address to a string name, if known; or a hex string.
- */
-static const char *
-fn_name(uintptr_t addr)
-{
-	static char buf[17];
-	int i = 0;
-
-	db_expr_t diff;
-	c_db_sym_t sym;
-	const char *symname;
-
-	diff = 0;
-	symname = NULL;
-	sym = db_search_symbol((db_addr_t)addr, DB_STGY_ANY, &diff);
-	db_symbol_values(sym, &symname, NULL);
-	if (symname && diff == 0)
-		return (symname);
-
-	for (i = 0; names[i].name; i++)
-		if (names[i].addr == (void *)addr)
-			return (names[i].name);
-	sprintf(buf, "%jx", (uintmax_t)addr);
-	return (buf);
-}
-
-void
-stacktrace_subr(register_t pc, register_t sp, register_t ra,
-	int (*printfn) (const char *,...))
+static void
+stacktrace_subr(register_t pc, register_t sp, register_t ra)
 {
 	InstFmt i;
 	/*
@@ -141,11 +89,12 @@ stacktrace_subr(register_t pc, register_t sp, register_t ra,
 	 */
 	int valid_args[4];
 	register_t args[4];
-	register_t va, subr;
+	register_t va, subr, cause, badvaddr;
 	unsigned instr, mask;
 	unsigned int frames = 0;
 	int more, stksize, j;
 	register_t	next_ra;
+	bool trapframe;
 
 /* Jump here when done with a frame, to start a new one */
 loop:
@@ -160,15 +109,15 @@ loop:
 	next_ra = 0;
 	stksize = 0;
 	subr = 0;
+	trapframe = false;
 	if (frames++ > 100) {
-		(*printfn) ("\nstackframe count exceeded\n");
-		/* return breaks stackframe-size heuristics with gcc -O2 */
-		goto finish;	/* XXX */
+		db_printf("\nstackframe count exceeded\n");
+		return;
 	}
-	/* check for bad SP: could foul up next frame */
-	/*XXX MIPS64 bad: this hard-coded SP is lame */
+
+	/* Check for bad SP: could foul up next frame. */
 	if (!MIPS_IS_VALID_KERNELADDR(sp)) {
-		(*printfn) ("SP 0x%jx: not in kernel\n", sp);
+		db_printf("SP 0x%jx: not in kernel\n", (uintmax_t)sp);
 		ra = 0;
 		subr = 0;
 		goto done;
@@ -183,17 +132,21 @@ loop:
 	 * preceding "j ra" at the tail of the preceding function. Depends
 	 * on relative ordering of functions in exception.S, swtch.S.
 	 */
-	if (pcBetween(MipsKernGenException, MipsUserGenException))
+	if (pcBetween(MipsKernGenException, MipsUserGenException)) {
 		subr = (uintptr_t)MipsKernGenException;
-	else if (pcBetween(MipsUserGenException, MipsKernIntr))
+		trapframe = true;
+	} else if (pcBetween(MipsUserGenException, MipsKernIntr))
 		subr = (uintptr_t)MipsUserGenException;
-	else if (pcBetween(MipsKernIntr, MipsUserIntr))
+	else if (pcBetween(MipsKernIntr, MipsUserIntr)) {
 		subr = (uintptr_t)MipsKernIntr;
-	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
+		trapframe = true;
+	} else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
 		subr = (uintptr_t)MipsUserIntr;
-	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException))
+	else if (pcBetween(MipsTLBInvalidException, MipsTLBMissException)) {
 		subr = (uintptr_t)MipsTLBInvalidException;
-	else if (pcBetween(fork_trampoline, savectx))
+		if (pc == (uintptr_t)MipsKStackOverflow)
+			trapframe = true;
+	} else if (pcBetween(fork_trampoline, savectx))
 		subr = (uintptr_t)fork_trampoline;
 	else if (pcBetween(savectx, cpu_throw))
 		subr = (uintptr_t)savectx;
@@ -206,20 +159,20 @@ loop:
 		ra = 0;
 		goto done;
 	}
-	/* check for bad PC */
-	/*XXX MIPS64 bad: These hard coded constants are lame */
+
+	/* Check for bad PC. */
 	if (!MIPS_IS_VALID_KERNELADDR(pc)) {
-		(*printfn) ("PC 0x%jx: not in kernel\n", pc);
+		db_printf("PC 0x%jx: not in kernel\n", (uintmax_t)pc);
 		ra = 0;
 		goto done;
 	}
 
 	/*
-	 * For a kernel stack overflow, skip to the output and
-	 * afterwards pull the previous registers out of the trapframe
-	 * instead of decoding the function prologue.
+	 * For a trapframe, skip to the output and afterwards pull the
+	 * previous registers out of the trapframe instead of decoding
+	 * the function prologue.
 	 */
-	if (pc == (uintptr_t)MipsKStackOverflow)
+	if (trapframe)
 		goto done;
 
 	/*
@@ -383,50 +336,50 @@ loop:
 	}
 
 done:
-	(*printfn) ("%s+%x (", fn_name(subr), pc - subr);
+	db_printsym(pc, DB_STGY_PROC);
+	db_printf(" (");
 	for (j = 0; j < 4; j ++) {
 		if (j > 0)
-			(*printfn)(",");
+			db_printf(",");
 		if (valid_args[j])
-			(*printfn)("%jx", (uintmax_t)(u_register_t)args[j]);
+			db_printf("%jx", (uintmax_t)(u_register_t)args[j]);
 		else
-			(*printfn)("?");
+			db_printf("?");
 	}
 
-	(*printfn) (") ra %jx sp %jx sz %d\n",
+	db_printf(") ra %jx sp %jx sz %d\n",
 	    (uintmax_t)(u_register_t) ra,
 	    (uintmax_t)(u_register_t) sp,
 	    stksize);
 
-	if (pc == (uintptr_t)MipsKStackOverflow) {
+	if (trapframe) {
 #define	TF_REG(base, reg)	((base) + CALLFRAME_SIZ + ((reg) * SZREG))
 #if defined(__mips_n64) || defined(__mips_n32)
 		pc = kdbpeekd((int *)TF_REG(sp, PC));
 		ra = kdbpeekd((int *)TF_REG(sp, RA));
 		sp = kdbpeekd((int *)TF_REG(sp, SP));
+		cause = kdbpeekd((int *)TF_REG(sp, CAUSE));
+		badvaddr = kdbpeekd((int *)TF_REG(sp, BADVADDR));
 #else
 		pc = kdbpeek((int *)TF_REG(sp, PC));
 		ra = kdbpeek((int *)TF_REG(sp, RA));
 		sp = kdbpeek((int *)TF_REG(sp, SP));
+		cause = kdbpeek((int *)TF_REG(sp, CAUSE));
+		badvaddr = kdbpeek((int *)TF_REG(sp, BADVADDR));
 #endif
 #undef TF_REG
-		(*printfn) ("--- Kernel Stack Overflow ---\n");
+		db_printf("--- exception, cause %jx badvaddr %jx ---\n",
+		    (uintmax_t)cause, (uintmax_t)badvaddr);
 		goto loop;
 	} else if (ra) {
 		if (pc == ra && stksize == 0)
-			(*printfn) ("stacktrace: loop!\n");
+			db_printf("stacktrace: loop!\n");
 		else {
 			pc = ra;
 			sp += stksize;
 			ra = next_ra;
 			goto loop;
 		}
-	} else {
-finish:
-		if (curproc)
-			(*printfn) ("pid %d\n", curproc->p_pid);
-		else
-			(*printfn) ("curproc NULL\n");
 	}
 }
 
@@ -468,7 +421,7 @@ db_trace_self(void)
 		 "move $31, %1\n" /* restore ra */
 		 : "=r" (pc)
 		 : "r" (ra));
-	stacktrace_subr(pc, sp, ra, db_printf);
+	stacktrace_subr(pc, sp, ra);
 	return;
 }
 
@@ -482,7 +435,7 @@ db_trace_thread(struct thread *thr, int count)
 	sp = (register_t)ctx->pcb_context[PCB_REG_SP];
 	pc = (register_t)ctx->pcb_context[PCB_REG_PC];
 	ra = (register_t)ctx->pcb_context[PCB_REG_RA];
-	stacktrace_subr(pc, sp, ra, db_printf);
+	stacktrace_subr(pc, sp, ra);
 
 	return (0);
 }

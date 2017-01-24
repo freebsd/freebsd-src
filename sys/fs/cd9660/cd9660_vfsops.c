@@ -88,6 +88,7 @@ static struct vfsops cd9660_vfsops = {
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 MODULE_VERSION(cd9660, 1);
 
+static int cd9660_vfs_hash_cmp(struct vnode *vp, void *pino);
 static int iso_mountfs(struct vnode *devvp, struct mount *mp);
 
 /*
@@ -540,7 +541,7 @@ cd9660_root(mp, flags, vpp)
 	struct iso_mnt *imp = VFSTOISOFS(mp);
 	struct iso_directory_record *dp =
 	    (struct iso_directory_record *)imp->root;
-	ino_t ino = isodirino(dp, imp);
+	cd_ino_t ino = isodirino(dp, imp);
 
 	/*
 	 * With RRIP we must use the `.' entry of the root directory.
@@ -617,6 +618,11 @@ cd9660_fhtovp(mp, fhp, flags, vpp)
 	return (0);
 }
 
+/*
+ * Conform to standard VFS interface; can't vget arbitrary inodes beyond 4GB
+ * into media with current inode scheme and 32-bit ino_t.  This shouldn't be
+ * needed for anything other than nfsd, and who exports a mounted DVD over NFS?
+ */
 static int
 cd9660_vget(mp, ino, flags, vpp)
 	struct mount *mp;
@@ -640,10 +646,24 @@ cd9660_vget(mp, ino, flags, vpp)
 	    (struct iso_directory_record *)0));
 }
 
+/* Use special comparator for full 64-bit ino comparison. */
+static int
+cd9660_vfs_hash_cmp(vp, pino)
+	struct vnode *vp;
+	void *pino;
+{
+	struct iso_node *ip;
+	cd_ino_t ino;
+
+	ip = VTOI(vp);
+	ino = *(cd_ino_t *)pino;
+	return (ip->i_number != ino);
+}
+
 int
 cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct mount *mp;
-	ino_t ino;
+	cd_ino_t ino;
 	int flags;
 	struct vnode **vpp;
 	int relocated;
@@ -658,7 +678,8 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct thread *td;
 
 	td = curthread;
-	error = vfs_hash_get(mp, ino, flags, td, vpp, NULL, NULL);
+	error = vfs_hash_get(mp, ino, flags, td, vpp, cd9660_vfs_hash_cmp,
+	    &ino);
 	if (error || *vpp != NULL)
 		return (error);
 
@@ -699,7 +720,8 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		*vpp = NULLVP;
 		return (error);
 	}
-	error = vfs_hash_insert(vp, ino, flags, td, vpp, NULL, NULL);
+	error = vfs_hash_insert(vp, ino, flags, td, vpp, cd9660_vfs_hash_cmp,
+	    &ino);
 	if (error || *vpp != NULL)
 		return (error);
 

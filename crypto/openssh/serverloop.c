@@ -995,7 +995,7 @@ server_request_direct_streamlocal(void)
 
 	/* XXX fine grained permissions */
 	if ((options.allow_streamlocal_forwarding & FORWARD_LOCAL) != 0 &&
-	    !no_port_forwarding_flag) {
+	    !no_port_forwarding_flag && use_privsep) {
 		c = channel_connect_to_path(target,
 		    "direct-streamlocal@openssh.com", "direct-streamlocal");
 	} else {
@@ -1279,7 +1279,7 @@ server_input_global_request(int type, u_int32_t seq, void *ctxt)
 
 		/* check permissions */
 		if ((options.allow_streamlocal_forwarding & FORWARD_REMOTE) == 0
-		    || no_port_forwarding_flag) {
+		    || no_port_forwarding_flag || !use_privsep) {
 			success = 0;
 			packet_send_debug("Server has disabled port forwarding.");
 		} else {

@@ -19,7 +19,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -422,7 +422,7 @@ snmp_create_v1_trap(struct snmp_pdu *pdu, char *com,
     const struct asn_oid *trap_oid)
 {
 	memset(pdu, 0, sizeof(*pdu));
-	strcpy(pdu->community, com);
+	strlcpy(pdu->community, com, sizeof(pdu->community));
 
 	pdu->version = SNMP_V1;
 	pdu->type = SNMP_PDU_TRAP;
@@ -439,7 +439,7 @@ snmp_create_v2_trap(struct snmp_pdu *pdu, char *com,
     const struct asn_oid *trap_oid)
 {
 	memset(pdu, 0, sizeof(*pdu));
-	strcpy(pdu->community, com);
+	strlcpy(pdu->community, com, sizeof(pdu->community));
 
 	pdu->version = SNMP_V2c;
 	pdu->type = SNMP_PDU_TRAP2;

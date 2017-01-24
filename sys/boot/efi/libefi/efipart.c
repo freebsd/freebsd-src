@@ -41,10 +41,8 @@ __FBSDID("$FreeBSD$");
 static EFI_GUID blkio_guid = BLOCK_IO_PROTOCOL;
 
 static int efipart_init(void);
-static int efipart_strategy(void *, int, daddr_t, size_t, size_t, char *,
-    size_t *);
-static int efipart_realstrategy(void *, int, daddr_t, size_t, size_t, char *,
-    size_t *);
+static int efipart_strategy(void *, int, daddr_t, size_t, char *, size_t *);
+static int efipart_realstrategy(void *, int, daddr_t, size_t, char *, size_t *);
 static int efipart_open(struct open_file *, ...);
 static int efipart_close(struct open_file *);
 static int efipart_print(int);
@@ -132,10 +130,13 @@ efipart_init(void)
 		 * we try to find the parent device and add that instead as
 		 * that will be the CD filesystem.
 		 */
-		node = efi_devpath_last_node(devpath);
+		if ((node = efi_devpath_last_node(devpath)) == NULL)
+			continue;
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
 			devpathcpy = efi_devpath_trim(devpath);
+			if (devpathcpy == NULL)
+				continue;
 			tmpdevpath = devpathcpy;
 			status = BS->LocateDevicePath(&blkio_guid, &tmpdevpath,
 			    &handle);
@@ -289,8 +290,8 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 }
 
 static int
-efipart_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+efipart_strategy(void *devdata, int rw, daddr_t blk, size_t size,
+    char *buf, size_t *rsize)
 {
 	struct bcache_devdata bcd;
 	struct devdesc *dev;
@@ -299,13 +300,12 @@ efipart_strategy(void *devdata, int rw, daddr_t blk, size_t offset,
 	bcd.dv_strategy = efipart_realstrategy;
 	bcd.dv_devdata = devdata;
 	bcd.dv_cache = PD(dev).pd_bcache;
-	return (bcache_strategy(&bcd, rw, blk, offset, size,
-	    buf, rsize));
+	return (bcache_strategy(&bcd, rw, blk, size, buf, rsize));
 }
 
 static int
-efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t offset,
-    size_t size, char *buf, size_t *rsize)
+efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
+    char *buf, size_t *rsize)
 {
 	struct devdesc *dev = (struct devdesc *)devdata;
 	EFI_BLOCK_IO *blkio;
