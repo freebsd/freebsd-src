@@ -408,10 +408,13 @@ em_isc_txd_credits_update(void *arg, uint16_t txqid, uint32_t cidx_init, bool cl
 	cidx = cidx_init;
 	buf = &txr->tx_buffers[cidx];
 	tx_desc = &txr->tx_base[cidx];
-        last = buf->eop;
+	last = buf->eop;
+	if (last == -1)
+		return (processed);
 	eop_desc = &txr->tx_base[last];
 
-	DPRINTF(iflib_get_dev(adapter->ctx), "credits_update: cidx_init=%d clear=%d last=%d\n",
+	DPRINTF(iflib_get_dev(adapter->ctx),
+		      "credits_update: cidx_init=%d clear=%d last=%d\n",
 		      cidx_init, clear, last);
 	/*
 	 * What this does is get the index of the
@@ -420,7 +423,7 @@ em_isc_txd_credits_update(void *arg, uint16_t txqid, uint32_t cidx_init, bool cl
 	 * simple comparison on the inner while loop.
 	 */
 	if (++last == scctx->isc_ntxd[0])
-	     last = 0;
+		last = 0;
 	done = last;
 
 
@@ -436,7 +439,7 @@ em_isc_txd_credits_update(void *arg, uint16_t txqid, uint32_t cidx_init, bool cl
 			tx_desc++;
 			buf++;
 			processed++;
-		  
+
 			/* wrap the ring ? */
 			if (++cidx == scctx->isc_ntxd[0]) {
 				cidx = 0;
