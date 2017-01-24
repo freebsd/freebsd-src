@@ -229,8 +229,6 @@ SYSCTL_UINT(_vfs, OID_AUTO, ncneghitsrequeue, CTLFLAG_RW, &ncneghitsrequeue, 0,
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
 static struct mtx       ncneg_shrink_lock;
-MTX_SYSINIT(vfscache_shrink_neg, &ncneg_shrink_lock, "Name Cache shrink neg",
-    MTX_DEF);
 
 struct neglist {
 	struct mtx		nl_lock;
@@ -242,30 +240,29 @@ static struct neglist ncneg_hot;
 
 static int	shrink_list_turn;
 
-static u_int	numneglists;
+#define	numneglists (ncneghash + 1)
+static u_int	ncneghash;
 static inline struct neglist *
 NCP2NEGLIST(struct namecache *ncp)
 {
 
-	return (&neglists[(((uintptr_t)(ncp) >> 8) % numneglists)]);
+	return (&neglists[(((uintptr_t)(ncp) >> 8) & ncneghash)]);
 }
 
-static u_int   numbucketlocks;
+#define	numbucketlocks (ncbuckethash + 1)
+static u_int   ncbuckethash;
 static struct rwlock_padalign  *bucketlocks;
 #define	HASH2BUCKETLOCK(hash) \
-	((struct rwlock *)(&bucketlocks[((hash) % numbucketlocks)]))
+	((struct rwlock *)(&bucketlocks[((hash) & ncbuckethash)]))
 
-static u_int   numvnodelocks;
+#define	numvnodelocks (ncvnodehash + 1)
+static u_int   ncvnodehash;
 static struct mtx *vnodelocks;
 static inline struct mtx *
 VP2VNODELOCK(struct vnode *vp)
 {
-	struct mtx *vlp;
 
-	if (vp == NULL)
-		return (NULL);
-	vlp = &vnodelocks[(((uintptr_t)(vp) >> 8) % numvnodelocks)];
-	return (vlp);
+	return (&vnodelocks[(((uintptr_t)(vp) >> 8) & ncvnodehash)]);
 }
 
 /*
@@ -1107,7 +1104,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	uint32_t hash;
 	int error, ltype;
 
-	if (!doingcache) {
+	if (__predict_false(!doingcache)) {
 		cnp->cn_flags &= ~MAKEENTRY;
 		return (0);
 	}
@@ -1374,8 +1371,8 @@ cache_lock_vnodes_cel_3(struct celockstate *cel, struct vnode *vp)
 	cache_assert_vlp_locked(cel->vlp[1]);
 	MPASS(cel->vlp[2] == NULL);
 
+	MPASS(vp != NULL);
 	vlp = VP2VNODELOCK(vp);
-	MPASS(vlp != NULL);
 
 	ret = true;
 	if (vlp >= cel->vlp[1]) {
@@ -1547,13 +1544,13 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	VNASSERT(dvp == NULL || (dvp->v_iflag & VI_DOOMED) == 0, dvp,
 	    ("cache_enter: Doomed vnode used as src"));
 
-	if (!doingcache)
+	if (__predict_false(!doingcache))
 		return;
 
 	/*
 	 * Avoid blowout in namecache entries.
 	 */
-	if (numcache >= desiredvnodes * ncsizefactor)
+	if (__predict_false(numcache >= desiredvnodes * ncsizefactor))
 		return;
 
 	cache_celockstate_init(&cel);
@@ -1779,21 +1776,21 @@ nchinit(void *dummy __unused)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 
 	nchashtbl = hashinit(desiredvnodes * 2, M_VFSCACHE, &nchash);
-	numbucketlocks = cache_roundup_2(mp_ncpus * 64);
-	if (numbucketlocks > nchash + 1)
-		numbucketlocks = nchash + 1;
+	ncbuckethash = cache_roundup_2(mp_ncpus * 64) - 1;
+	if (ncbuckethash > nchash)
+		ncbuckethash = nchash;
 	bucketlocks = malloc(sizeof(*bucketlocks) * numbucketlocks, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numbucketlocks; i++)
 		rw_init_flags(&bucketlocks[i], "ncbuc", RW_DUPOK | RW_RECURSE);
-	numvnodelocks = cache_roundup_2(mp_ncpus * 64);
+	ncvnodehash = cache_roundup_2(mp_ncpus * 64) - 1;
 	vnodelocks = malloc(sizeof(*vnodelocks) * numvnodelocks, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numvnodelocks; i++)
 		mtx_init(&vnodelocks[i], "ncvn", NULL, MTX_DUPOK | MTX_RECURSE);
 	ncpurgeminvnodes = numbucketlocks;
 
-	numneglists = 4;
+	ncneghash = 3;
 	neglists = malloc(sizeof(*neglists) * numneglists, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numneglists; i++) {
@@ -1802,6 +1799,8 @@ nchinit(void *dummy __unused)
 	}
 	mtx_init(&ncneg_hot.nl_lock, "ncneglh", NULL, MTX_DEF);
 	TAILQ_INIT(&ncneg_hot.nl_list);
+
+	mtx_init(&ncneg_shrink_lock, "ncnegs", NULL, MTX_DEF);
 
 	numcalls = counter_u64_alloc(M_WAITOK);
 	dothits = counter_u64_alloc(M_WAITOK);
@@ -2055,9 +2054,9 @@ kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen,
 	struct vnode *cdir, *rdir;
 	int error;
 
-	if (disablecwd)
+	if (__predict_false(disablecwd))
 		return (ENODEV);
-	if (buflen < 2)
+	if (__predict_false(buflen < 2))
 		return (EINVAL);
 	if (buflen > path_max)
 		buflen = path_max;
@@ -2108,9 +2107,9 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	struct vnode *rdir;
 	int error;
 
-	if (disablefullpath)
+	if (__predict_false(disablefullpath))
 		return (ENODEV);
-	if (vn == NULL)
+	if (__predict_false(vn == NULL))
 		return (EINVAL);
 
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -2142,9 +2141,9 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 	char *buf;
 	int error;
 
-	if (disablefullpath)
+	if (__predict_false(disablefullpath))
 		return (ENODEV);
-	if (vn == NULL)
+	if (__predict_false(vn == NULL))
 		return (EINVAL);
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	error = vn_fullpath1(td, vn, rootvnode, buf, retbuf, MAXPATHLEN);
@@ -2408,7 +2407,7 @@ vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
 	ASSERT_VOP_ELOCKED(vp, __func__);
 
 	/* Return ENODEV if sysctl debug.disablefullpath==1 */
-	if (disablefullpath)
+	if (__predict_false(disablefullpath))
 		return (ENODEV);
 
 	/* Construct global filesystem path from vp. */
