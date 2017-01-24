@@ -100,6 +100,7 @@ void		hn_nvs_sent_xact(struct hn_nvs_sendctx *sndc,
 int		hn_nvs_send_rndis_ctrl(struct vmbus_channel *chan,
 		    struct hn_nvs_sendctx *sndc, struct vmbus_gpa *gpa,
 		    int gpa_cnt);
+void		hn_nvs_set_datapath(struct hn_softc *sc, uint32_t path);
 
 extern struct hn_nvs_sendctx	hn_nvs_sendctx_none;
 
