@@ -178,7 +178,7 @@ clock_ct_to_ts(struct clocktime *ct, struct timespec *ts)
 void
 clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 {
-	int i, year, days;
+	time_t i, year, days;
 	time_t rsec;	/* remainder seconds */
 	time_t secs;
 
@@ -214,6 +214,20 @@ clock_ts_to_ct(struct timespec *ts, struct clocktime *ct)
 		print_ct(ct);
 		printf("\n");
 	}
+
+	KASSERT(ct->year >= 0 && ct->year < 10000,
+	    ("year %d isn't a 4 digit year", ct->year));
+	KASSERT(ct->mon >= 1 && ct->mon <= 12,
+	    ("month %d not in 1-12", ct->mon));
+	KASSERT(ct->day >= 1 && ct->day <= 31,
+	    ("day %d not in 1-31", ct->day));
+	KASSERT(ct->hour >= 0 && ct->hour <= 23,
+	    ("hour %d not in 0-23", ct->hour));
+	KASSERT(ct->min >= 0 && ct->min <= 59,
+	    ("minute %d not in 0-59", ct->min));
+	/* Not sure if this interface needs to handle leapseconds or not. */
+	KASSERT(ct->sec >= 0 && ct->sec <= 60,
+	    ("seconds %d not in 0-60", ct->sec));
 }
 
 int

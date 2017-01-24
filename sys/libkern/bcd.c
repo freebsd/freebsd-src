@@ -6,6 +6,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/libkern.h>
 
 u_char const bcd2bin_data[] = {
@@ -20,6 +21,7 @@ u_char const bcd2bin_data[] = {
 	80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 0, 0, 0, 0, 0, 0,
 	90, 91, 92, 93, 94, 95, 96, 97, 98, 99
 };
+CTASSERT(nitems(bcd2bin_data) == LIBKERN_LEN_BCD2BIN);
 
 u_char const bin2bcd_data[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
@@ -33,6 +35,8 @@ u_char const bin2bcd_data[] = {
 	0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
 	0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99
 };
+CTASSERT(nitems(bin2bcd_data) == LIBKERN_LEN_BIN2BCD);
 
 /* This is actually used with radix [2..36] */
 char const hex2ascii_data[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+CTASSERT(nitems(hex2ascii_data) == LIBKERN_LEN_HEX2ASCII + 1);
