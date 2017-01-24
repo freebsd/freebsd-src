@@ -201,6 +201,7 @@ r21au_attach(struct rtwn_usb_softc *uc)
 	sc->sc_fw_reset			= r21a_fw_reset;
 	sc->sc_fw_download_enable	= r12a_fw_download_enable;
 #endif
+	sc->sc_llt_init			= r92c_llt_init;
 	sc->sc_set_page_size 		= rtwn_nop_int_softc;
 	sc->sc_lc_calib			= rtwn_nop_softc;	/* XXX not used */
 	sc->sc_iq_calib			= r12a_iq_calib;
