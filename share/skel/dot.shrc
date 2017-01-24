@@ -13,8 +13,8 @@
 #
 # umask	022
 
-# Uncomment this and comment the above to enable the builtin vi(1) command
-# line editor in sh(1), e.g. ESC to go into visual mode.
+# Uncomment this to enable the builtin vi(1) command line editor in sh(1),
+# e.g. ESC to go into visual mode.
 # set -o vi
 
 
