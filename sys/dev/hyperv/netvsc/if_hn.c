@@ -4323,6 +4323,7 @@ hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 	KASSERT((rxr->hn_rx_flags & HN_RX_FLAG_ATTACHED) == 0,
 	    ("RX ring %d already attached", idx));
 	rxr->hn_rx_flags |= HN_RX_FLAG_ATTACHED;
+	rxr->hn_chan = chan;
 
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "link RX ring %d to chan%u\n",
