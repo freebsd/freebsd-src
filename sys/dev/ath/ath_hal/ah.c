@@ -1415,6 +1415,9 @@ ath_hal_setcca(struct ath_hal *ah, int ena)
 
 /*
  * Get CCA setting.
+ *
+ * XXX TODO: turn this and the above function into methods
+ * in case there are chipset differences in handling CCA.
  */
 int
 ath_hal_getcca(struct ath_hal *ah)
