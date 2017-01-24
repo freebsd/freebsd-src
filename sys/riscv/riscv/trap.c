@@ -95,7 +95,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	register_t *ap;
 	int nap;
 
-	nap = 8;
+	nap = NARGREG;
 	p = td->td_proc;
 	ap = &td->td_frame->tf_a[0];
 
@@ -116,7 +116,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	sa->narg = sa->callp->sy_narg;
 	memcpy(sa->args, ap, nap * sizeof(register_t));
 	if (sa->narg > nap)
-		panic("TODO: Could we have more then 8 args?");
+		panic("TODO: Could we have more then %d args?", NARGREG);
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;

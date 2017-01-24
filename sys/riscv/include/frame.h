@@ -74,4 +74,7 @@ struct sigframe {
 
 #endif /* !LOCORE */
 
+/* Definitions for syscalls */
+#define	NARGREG		8				/* 8 args in regs */
+
 #endif /* !_MACHINE_FRAME_H_ */
