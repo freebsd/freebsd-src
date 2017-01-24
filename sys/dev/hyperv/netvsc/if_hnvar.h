@@ -85,6 +85,8 @@ struct hn_rx_ring {
 
 	void		*hn_br;		/* TX/RX bufring */
 	struct hyperv_dma hn_br_dma;
+
+	struct vmbus_channel *hn_chan;
 } __aligned(CACHE_LINE_SIZE);
 
 #define HN_TRUST_HCSUM_IP	0x0001
