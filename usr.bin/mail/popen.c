@@ -303,7 +303,7 @@ findchild(pid_t pid, int dont_alloc)
 	    cpp = &(*cpp)->link)
 			;
 	if (*cpp == NULL) {
-	if (dont_alloc)
+		if (dont_alloc)
 			return(NULL);
 		if (child_freelist) {
 			*cpp = child_freelist;
@@ -344,6 +344,8 @@ sigchild(int signo __unused)
 	save_errno = errno;
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
 		cp = findchild(pid, 1);
+		if (cp == NULL)
+			continue;
 		if (cp->free)
 			delchild(cp);
 		else {
