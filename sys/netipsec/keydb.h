@@ -133,61 +133,60 @@ struct comp_algo;
  * to search better candidate. The newer SA (by created time) are placed
  * in the beginning of the savtree list. There is no preference between
  * DYING and MATURE.
+ *
+ * NB: Fields with a tdb_ prefix are part of the "glue" used
+ *     to interface to the OpenBSD crypto support.  This was done
+ *     to distinguish this code from the mainline KAME code.
+ * NB: Fields are sorted on the basis of the frequency of changes, i.e.
+ *     constants and unchangeable fields are going first.
+ * NB: if you want to change this structure, check that this will not break
+ *     key_updateaddresses().
  */
 struct secasvar {
-	TAILQ_ENTRY(secasvar) chain;
-	LIST_ENTRY(secasvar) spihash;
-	LIST_ENTRY(secasvar) drainq;	/* used ONLY by flush callout */
-
 	uint32_t spi;			/* SPI Value, network byte order */
 	uint32_t flags;			/* holder for SADB_KEY_FLAGS */
-
 	uint32_t seq;			/* sequence number */
 	pid_t pid;			/* message's pid */
-
-	uint8_t state;			/* Status of this SA (pfkeyv2.h) */
-	uint8_t alg_auth;		/* Authentication Algorithm Identifier*/
-	uint8_t alg_enc;		/* Cipher Algorithm Identifier */
-	uint8_t alg_comp;		/* Compression Algorithm Identifier */
+	u_int ivlen;			/* length of IV */
 
 	struct secashead *sah;		/* back pointer to the secashead */
 	struct seckey *key_auth;	/* Key for Authentication */
 	struct seckey *key_enc;	        /* Key for Encryption */
 	struct secreplay *replay;	/* replay prevention */
 	struct secnatt *natt;		/* NAT-T config */
-	uint64_t cntr;			/* counter for GCM and CTR */
-	u_int ivlen;			/* length of IV */
+	struct mtx *lock;		/* update/access lock */
 
-	volatile u_int refcnt;		/* reference count */
-
-	uint64_t created;		/* time when SA was created */
-	uint64_t firstused;		/* time when SA was first used */
-	counter_u64_t lft_c;		/* CURRENT lifetime */
-#define	lft_c_allocations	lft_c
-#define	lft_c_bytes		lft_c + 1
-	struct seclifetime *lft_h;	/* HARD lifetime */
-	struct seclifetime *lft_s;	/* SOFT lifetime */
-
-	/*
-	 * NB: Fields with a tdb_ prefix are part of the "glue" used
-	 *     to interface to the OpenBSD crypto support.  This was done
-	 *     to distinguish this code from the mainline KAME code.
-	 */
 	const struct xformsw *tdb_xform;	/* transform */
 	const struct enc_xform *tdb_encalgxform;/* encoding algorithm */
 	const struct auth_hash *tdb_authalgxform;/* authentication algorithm */
 	const struct comp_algo *tdb_compalgxform;/* compression algorithm */
 	uint64_t tdb_cryptoid;		/* crypto session id */
 
-	struct mtx lock;		/* update/access lock */
+	uint8_t alg_auth;		/* Authentication Algorithm Identifier*/
+	uint8_t alg_enc;		/* Cipher Algorithm Identifier */
+	uint8_t alg_comp;		/* Compression Algorithm Identifier */
+	uint8_t state;			/* Status of this SA (pfkeyv2.h) */
+
+	counter_u64_t lft_c;		/* CURRENT lifetime */
+#define	lft_c_allocations	lft_c
+#define	lft_c_bytes		lft_c + 1
+	struct seclifetime *lft_h;	/* HARD lifetime */
+	struct seclifetime *lft_s;	/* SOFT lifetime */
+
+	uint64_t created;		/* time when SA was created */
+	uint64_t firstused;		/* time when SA was first used */
+
+	TAILQ_ENTRY(secasvar) chain;
+	LIST_ENTRY(secasvar) spihash;
+	LIST_ENTRY(secasvar) drainq;	/* used ONLY by flush callout */
+
+	uint64_t cntr;			/* counter for GCM and CTR */
+	volatile u_int refcnt;		/* reference count */
 };
 
-#define	SECASVAR_LOCK_INIT(_sav) \
-	mtx_init(&(_sav)->lock, "ipsec association", NULL, MTX_DEF)
-#define	SECASVAR_LOCK(_sav)		mtx_lock(&(_sav)->lock)
-#define	SECASVAR_UNLOCK(_sav)		mtx_unlock(&(_sav)->lock)
-#define	SECASVAR_LOCK_DESTROY(_sav)	mtx_destroy(&(_sav)->lock)
-#define	SECASVAR_LOCK_ASSERT(_sav)	mtx_assert(&(_sav)->lock, MA_OWNED)
+#define	SECASVAR_LOCK(_sav)		mtx_lock((_sav)->lock)
+#define	SECASVAR_UNLOCK(_sav)		mtx_unlock((_sav)->lock)
+#define	SECASVAR_LOCK_ASSERT(_sav)	mtx_assert((_sav)->lock, MA_OWNED)
 #define	SAV_ISGCM(_sav)							\
 			((_sav)->alg_enc == SADB_X_EALG_AESGCM8 ||	\
 			(_sav)->alg_enc == SADB_X_EALG_AESGCM12 ||	\

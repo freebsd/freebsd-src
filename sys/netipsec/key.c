@@ -336,6 +336,8 @@ static const int minsize[] = {
 	sizeof(struct sadb_address),	/* SADB_X_EXT_NAT_T_OAR */
 	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
 	sizeof(struct sadb_x_sa_replay), /* SADB_X_EXT_SA_REPLAY */
+	sizeof(struct sadb_address),	/* SADB_X_EXT_NEW_ADDRESS_SRC */
+	sizeof(struct sadb_address),	/* SADB_X_EXT_NEW_ADDRESS_DST */
 };
 _Static_assert(sizeof(minsize)/sizeof(int) == SADB_EXT_MAX + 1, "minsize size mismatch");
 
@@ -367,8 +369,17 @@ static const int maxsize[] = {
 	0,				/* SADB_X_EXT_NAT_T_OAR */
 	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
 	sizeof(struct sadb_x_sa_replay), /* SADB_X_EXT_SA_REPLAY */
+	0,				/* SADB_X_EXT_NEW_ADDRESS_SRC */
+	0,				/* SADB_X_EXT_NEW_ADDRESS_DST */
 };
 _Static_assert(sizeof(maxsize)/sizeof(int) == SADB_EXT_MAX + 1, "minsize size mismatch");
+
+/*
+ * Internal values for SA flags:
+ * SADB_X_EXT_F_CLONED means that SA was cloned by key_updateaddresses,
+ *	thus we will not free the most of SA content in key_delsav().
+ */
+#define	SADB_X_EXT_F_CLONED	0x80000000
 
 #define	SADB_CHECKLEN(_mhp, _ext)			\
     ((_mhp)->extlen[(_ext)] < minsize[(_ext)] || (maxsize[(_ext)] != 0 && \
@@ -596,6 +607,9 @@ static struct secasvar *key_getsavbyspi(uint32_t);
 static int key_setnatt(struct secasvar *, const struct sadb_msghdr *);
 static int key_setsaval(struct secasvar *, const struct sadb_msghdr *);
 static int key_updatelifetimes(struct secasvar *, const struct sadb_msghdr *);
+static int key_updateaddresses(struct socket *, struct mbuf *,
+    const struct sadb_msghdr *, struct secasvar *, struct secasindex *);
+
 static struct mbuf *key_setdumpsa(struct secasvar *, u_int8_t,
 	u_int8_t, u_int32_t, u_int32_t);
 static struct mbuf *key_setsadbmsg(u_int8_t, u_int16_t, u_int8_t,
@@ -2748,16 +2762,18 @@ key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
 
 	sav = malloc(sizeof(struct secasvar), M_IPSEC_SA, M_NOWAIT | M_ZERO);
 	if (sav == NULL) {
-		PFKEYSTAT_INC(in_nomem);
-		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
 		*errp = ENOBUFS;
 		goto done;
 	}
+	sav->lock = malloc(sizeof(struct mtx), M_IPSEC_MISC,
+	    M_NOWAIT | M_ZERO);
+	if (sav->lock == NULL) {
+		*errp = ENOBUFS;
+		goto done;
+	}
+	mtx_init(sav->lock, "ipsec association", NULL, MTX_DEF);
 	sav->lft_c = uma_zalloc(V_key_lft_zone, M_NOWAIT);
 	if (sav->lft_c == NULL) {
-		PFKEYSTAT_INC(in_nomem);
-		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
-		free(sav, M_IPSEC_SA), sav = NULL;
 		*errp = ENOBUFS;
 		goto done;
 	}
@@ -2769,7 +2785,6 @@ key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
 	sav->state = SADB_SASTATE_LARVAL;
 	sav->pid = (pid_t)mhp->msg->sadb_msg_pid;
 	SAV_INITREF(sav);
-	SECASVAR_LOCK_INIT(sav);
 again:
 	sah = key_getsah(saidx);
 	if (sah == NULL) {
@@ -2844,12 +2859,21 @@ again:
 done:
 	if (*errp != 0) {
 		if (sav != NULL) {
-			SECASVAR_LOCK_DESTROY(sav);
-			uma_zfree(V_key_lft_zone, sav->lft_c);
+			if (sav->lock != NULL) {
+				mtx_destroy(sav->lock);
+				free(sav->lock, M_IPSEC_MISC);
+			}
+			if (sav->lft_c != NULL)
+				uma_zfree(V_key_lft_zone, sav->lft_c);
 			free(sav, M_IPSEC_SA), sav = NULL;
 		}
 		if (sah != NULL)
 			key_freesah(&sah);
+		if (*errp == ENOBUFS) {
+			ipseclog((LOG_DEBUG, "%s: No more memory.\n",
+			    __func__));
+			PFKEYSTAT_INC(in_nomem);
+		}
 	}
 	return (sav);
 }
@@ -2861,6 +2885,12 @@ static void
 key_cleansav(struct secasvar *sav)
 {
 
+	if (sav->natt != NULL) {
+		free(sav->natt, M_IPSEC_MISC);
+		sav->natt = NULL;
+	}
+	if (sav->flags & SADB_X_EXT_F_CLONED)
+		return;
 	/*
 	 * Cleanup xform state.  Note that zeroize'ing causes the
 	 * keys to be cleared; otherwise we must do it ourself.
@@ -2885,10 +2915,6 @@ key_cleansav(struct secasvar *sav)
 			free(sav->key_enc->key_data, M_IPSEC_MISC);
 		free(sav->key_enc, M_IPSEC_MISC);
 		sav->key_enc = NULL;
-	}
-	if (sav->natt != NULL) {
-		free(sav->natt, M_IPSEC_MISC);
-		sav->natt = NULL;
 	}
 	if (sav->replay != NULL) {
 		if (sav->replay->bitmap != NULL)
@@ -2918,10 +2944,17 @@ key_delsav(struct secasvar *sav)
 	IPSEC_ASSERT(sav->refcnt == 0, ("reference count %u > 0",
 	    sav->refcnt));
 
-	/* SA must be unlinked from the chain and hashtbl */
+	/*
+	 * SA must be unlinked from the chain and hashtbl.
+	 * If SA was cloned, we leave all fields untouched,
+	 * except NAT-T config.
+	 */
 	key_cleansav(sav);
-	SECASVAR_LOCK_DESTROY(sav);
-	uma_zfree(V_key_lft_zone, sav->lft_c);
+	if ((sav->flags & SADB_X_EXT_F_CLONED) == 0) {
+		mtx_destroy(sav->lock);
+		free(sav->lock, M_IPSEC_MISC);
+		uma_zfree(V_key_lft_zone, sav->lft_c);
+	}
 	free(sav, M_IPSEC_SA);
 }
 
@@ -3012,7 +3045,6 @@ key_updatelifetimes(struct secasvar *sav, const struct sadb_msghdr *mhp)
 		}
 		return (0);
 	}
-	/* XXXAE: what should we do with CURRENT lifetime? */
 	/* Both HARD and SOFT extensions must present */
 	if ((SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_HARD) &&
 	    !SADB_CHECKHDR(mhp, SADB_EXT_LIFETIME_SOFT)) ||
@@ -4939,6 +4971,177 @@ key_getsav_tcpmd5(struct secasindex *saidx, uint32_t *spi)
 	return (NULL);
 }
 
+static int
+key_updateaddresses(struct socket *so, struct mbuf *m,
+    const struct sadb_msghdr *mhp, struct secasvar *sav,
+    struct secasindex *saidx)
+{
+	struct sockaddr *newaddr;
+	struct secashead *sah;
+	struct secasvar *newsav, *tmp;
+	struct mbuf *n;
+	int error, isnew;
+
+	/* Check that we need to change SAH */
+	if (!SADB_CHECKHDR(mhp, SADB_X_EXT_NEW_ADDRESS_SRC)) {
+		newaddr = (struct sockaddr *)(
+		    ((struct sadb_address *)
+		    mhp->ext[SADB_X_EXT_NEW_ADDRESS_SRC]) + 1);
+		bcopy(newaddr, &saidx->src, newaddr->sa_len);
+		key_porttosaddr(&saidx->src.sa, 0);
+	}
+	if (!SADB_CHECKHDR(mhp, SADB_X_EXT_NEW_ADDRESS_DST)) {
+		newaddr = (struct sockaddr *)(
+		    ((struct sadb_address *)
+		    mhp->ext[SADB_X_EXT_NEW_ADDRESS_DST]) + 1);
+		bcopy(newaddr, &saidx->dst, newaddr->sa_len);
+		key_porttosaddr(&saidx->dst.sa, 0);
+	}
+	if (!SADB_CHECKHDR(mhp, SADB_X_EXT_NEW_ADDRESS_SRC) ||
+	    !SADB_CHECKHDR(mhp, SADB_X_EXT_NEW_ADDRESS_DST)) {
+		error = key_checksockaddrs(&saidx->src.sa, &saidx->dst.sa);
+		if (error != 0) {
+			ipseclog((LOG_DEBUG, "%s: invalid new sockaddr.\n",
+			    __func__));
+			return (error);
+		}
+
+		sah = key_getsah(saidx);
+		if (sah == NULL) {
+			/* create a new SA index */
+			sah = key_newsah(saidx);
+			if (sah == NULL) {
+				ipseclog((LOG_DEBUG,
+				    "%s: No more memory.\n", __func__));
+				return (ENOBUFS);
+			}
+			isnew = 2; /* SAH is new */
+		} else
+			isnew = 1; /* existing SAH is referenced */
+	} else {
+		/*
+		 * src and dst addresses are still the same.
+		 * Do we want to change NAT-T config?
+		 */
+		if (sav->sah->saidx.proto != IPPROTO_ESP ||
+		    SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_TYPE) ||
+		    SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_SPORT) ||
+		    SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_DPORT)) {
+			ipseclog((LOG_DEBUG,
+			    "%s: invalid message: missing required header.\n",
+			    __func__));
+			return (EINVAL);
+		}
+		/* We hold reference to SA, thus SAH will be referenced too. */
+		sah = sav->sah;
+		isnew = 0;
+	}
+
+	newsav = malloc(sizeof(struct secasvar), M_IPSEC_SA,
+	    M_NOWAIT | M_ZERO);
+	if (newsav == NULL) {
+		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
+		error = ENOBUFS;
+		goto fail;
+	}
+
+	/* Clone SA's content into newsav */
+	SAV_INITREF(newsav);
+	bcopy(sav, newsav, offsetof(struct secasvar, chain));
+	/*
+	 * We create new NAT-T config if it is needed.
+	 * Old NAT-T config will be freed by key_cleansav() when
+	 * last reference to SA will be released.
+	 */
+	newsav->natt = NULL;
+	newsav->sah = sah;
+	newsav->state = SADB_SASTATE_MATURE;
+	error = key_setnatt(sav, mhp);
+	if (error != 0)
+		goto fail;
+
+	SAHTREE_WLOCK();
+	/* Check that SA is still alive */
+	if (sav->state == SADB_SASTATE_DEAD) {
+		/* SA was unlinked */
+		SAHTREE_WUNLOCK();
+		error = ESRCH;
+		goto fail;
+	}
+
+	/* Unlink SA from SAH and SPI hash */
+	IPSEC_ASSERT((sav->flags & SADB_X_EXT_F_CLONED) == 0,
+	    ("SA is already cloned"));
+	IPSEC_ASSERT(sav->state == SADB_SASTATE_MATURE ||
+	    sav->state == SADB_SASTATE_DYING,
+	    ("Wrong SA state %u\n", sav->state));
+	TAILQ_REMOVE(&sav->sah->savtree_alive, sav, chain);
+	LIST_REMOVE(sav, spihash);
+	sav->state = SADB_SASTATE_DEAD;
+
+	/*
+	 * Link new SA with SAH. Keep SAs ordered by
+	 * create time (newer are first).
+	 */
+	TAILQ_FOREACH(tmp, &sah->savtree_alive, chain) {
+		if (newsav->created > tmp->created) {
+			TAILQ_INSERT_BEFORE(tmp, newsav, chain);
+			break;
+		}
+	}
+	if (tmp == NULL)
+		TAILQ_INSERT_TAIL(&sah->savtree_alive, newsav, chain);
+
+	/* Add new SA into SPI hash. */
+	LIST_INSERT_HEAD(SAVHASH_HASH(newsav->spi), newsav, spihash);
+
+	/* Add new SAH into SADB. */
+	if (isnew == 2) {
+		TAILQ_INSERT_HEAD(&V_sahtree, sah, chain);
+		LIST_INSERT_HEAD(SAHADDRHASH_HASH(saidx), sah, addrhash);
+		sah->state = SADB_SASTATE_MATURE;
+		SAH_ADDREF(sah); /* newsav references new SAH */
+	}
+	/*
+	 * isnew == 1 -> @sah was referenced by key_getsah().
+	 * isnew == 0 -> we use the same @sah, that was used by @sav,
+	 *	and we use its reference for @newsav.
+	 */
+	SECASVAR_LOCK(sav);
+	/* XXX: replace cntr with pointer? */
+	newsav->cntr = sav->cntr;
+	sav->flags |= SADB_X_EXT_F_CLONED;
+	SECASVAR_UNLOCK(sav);
+
+	SAHTREE_WUNLOCK();
+
+	KEYDBG(KEY_STAMP,
+	    printf("%s: SA(%p) cloned into SA(%p)\n",
+	    __func__, sav, newsav));
+	KEYDBG(KEY_DATA, kdebug_secasv(newsav));
+
+	key_freesav(&sav); /* release last reference */
+
+	/* set msg buf from mhp */
+	n = key_getmsgbuf_x1(m, mhp);
+	if (n == NULL) {
+		ipseclog((LOG_DEBUG, "%s: No more memory.\n", __func__));
+		return (ENOBUFS);
+	}
+	m_freem(m);
+	key_sendup_mbuf(so, n, KEY_SENDUP_ALL);
+	return (0);
+fail:
+	if (isnew != 0)
+		key_freesah(&sah);
+	if (newsav != NULL) {
+		if (newsav->natt != NULL)
+			free(newsav->natt, M_IPSEC_MISC);
+		free(newsav, M_IPSEC_SA);
+	}
+	return (error);
+}
+
 /*
  * SADB_UPDATE processing
  * receive
@@ -5108,6 +5311,24 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		if (error != 0) {
 			key_freesav(&sav);
 			return (key_senderror(so, m, error));
+		}
+		/*
+		 * This is FreeBSD extension to RFC2367.
+		 * IKEd can specify SADB_X_EXT_NEW_ADDRESS_SRC and/or
+		 * SADB_X_EXT_NEW_ADDRESS_DST when it wants to change
+		 * SA addresses (for example to implement MOBIKE protocol
+		 * as described in RFC4555). Also we allow to change
+		 * NAT-T config.
+		 */
+		if (!SADB_CHECKHDR(mhp, SADB_X_EXT_NEW_ADDRESS_SRC) ||
+		    !SADB_CHECKHDR(mhp, SADB_X_EXT_NEW_ADDRESS_DST) ||
+		    !SADB_CHECKHDR(mhp, SADB_X_EXT_NAT_T_TYPE) ||
+		    sav->natt != NULL) {
+			error = key_updateaddresses(so, m, mhp, sav, &saidx);
+			key_freesav(&sav);
+			if (error != 0)
+				return (key_senderror(so, m, error));
+			return (0);
 		}
 		/* Check that SA is still alive */
 		SAHTREE_WLOCK();
@@ -5558,14 +5779,15 @@ key_getmsgbuf_x1(struct mbuf *m, const struct sadb_msghdr *mhp)
 	IPSEC_ASSERT(mhp->msg != NULL, ("null msg"));
 
 	/* create new sadb_msg to reply. */
-	n = key_gather_mbuf(m, mhp, 1, 14, SADB_EXT_RESERVED,
+	n = key_gather_mbuf(m, mhp, 1, 16, SADB_EXT_RESERVED,
 	    SADB_EXT_SA, SADB_X_EXT_SA2,
 	    SADB_EXT_ADDRESS_SRC, SADB_EXT_ADDRESS_DST,
 	    SADB_EXT_LIFETIME_HARD, SADB_EXT_LIFETIME_SOFT,
 	    SADB_EXT_IDENTITY_SRC, SADB_EXT_IDENTITY_DST,
 	    SADB_X_EXT_NAT_T_TYPE, SADB_X_EXT_NAT_T_SPORT,
 	    SADB_X_EXT_NAT_T_DPORT, SADB_X_EXT_NAT_T_OAI,
-	    SADB_X_EXT_NAT_T_OAR);
+	    SADB_X_EXT_NAT_T_OAR, SADB_X_EXT_NEW_ADDRESS_SRC,
+	    SADB_X_EXT_NEW_ADDRESS_DST);
 	if (!n)
 		return NULL;
 
@@ -7675,6 +7897,8 @@ key_align(struct mbuf *m, struct sadb_msghdr *mhp)
 		case SADB_X_EXT_NAT_T_OAR:
 		case SADB_X_EXT_NAT_T_FRAG:
 		case SADB_X_EXT_SA_REPLAY:
+		case SADB_X_EXT_NEW_ADDRESS_SRC:
+		case SADB_X_EXT_NEW_ADDRESS_DST:
 			/* duplicate check */
 			/*
 			 * XXX Are there duplication payloads of either
@@ -7750,6 +7974,10 @@ key_validate_ext(const struct sadb_ext *ext, int len)
 	case SADB_EXT_ADDRESS_SRC:
 	case SADB_EXT_ADDRESS_DST:
 	case SADB_EXT_ADDRESS_PROXY:
+	case SADB_X_EXT_NAT_T_OAI:
+	case SADB_X_EXT_NAT_T_OAR:
+	case SADB_X_EXT_NEW_ADDRESS_SRC:
+	case SADB_X_EXT_NEW_ADDRESS_DST:
 		baselen = PFKEY_ALIGN8(sizeof(struct sadb_address));
 		checktype = ADDR;
 		break;

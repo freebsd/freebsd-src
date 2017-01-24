@@ -1783,6 +1783,8 @@ pfkey_align(msg, mhp)
 		case SADB_X_EXT_NAT_T_OAR:
 		case SADB_X_EXT_NAT_T_FRAG:
 		case SADB_X_EXT_SA_REPLAY:
+		case SADB_X_EXT_NEW_ADDRESS_SRC:
+		case SADB_X_EXT_NEW_ADDRESS_DST:
 			mhp[ext->sadb_ext_type] = (caddr_t)ext;
 			break;
 		default:
