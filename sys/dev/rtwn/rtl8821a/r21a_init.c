@@ -174,7 +174,7 @@ r21a_power_on(struct rtwn_softc *sc)
 	    R92C_CR_CALTMR_EN));
 
 	if (rtwn_read_4(sc, R92C_SYS_CFG) & R92C_SYS_CFG_TRP_BT_EN)
-		RTWN_CHK(rtwn_setbits_1(sc, 0x07C, 0, 0x40));
+		RTWN_CHK(rtwn_setbits_1(sc, R92C_LDO_SWR_CTRL, 0, 0x40));
 
 	return (0);
 #undef RTWN_CHK

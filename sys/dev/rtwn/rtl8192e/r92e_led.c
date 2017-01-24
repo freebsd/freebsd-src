@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Andriy Voskoboinyk <avos@FreeBSD.org>
+ * Copyright (c) 2017 Kevin Lo <kevlo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,47 +50,20 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
 
-#include <dev/rtwn/if_rtwnreg.h>
 #include <dev/rtwn/if_rtwnvar.h>
 
-#include <dev/rtwn/if_rtwn_ridx.h>
-
-#include <dev/rtwn/rtl8812a/r12a.h>
-#include <dev/rtwn/rtl8812a/r12a_reg.h>
-#include <dev/rtwn/rtl8812a/r12a_tx_desc.h>
-
+#include <dev/rtwn/rtl8192e/r92e.h>
+#include <dev/rtwn/rtl8192e/r92e_reg.h>
 
 void
-r12a_beacon_init(struct rtwn_softc *sc, void *buf, int id)
+r92e_set_led(struct rtwn_softc *sc, int led, int on)
 {
-	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
 
-	txd->flags0 = R12A_FLAGS0_LSG | R12A_FLAGS0_FSG | R12A_FLAGS0_BMCAST;
-
-	/*
-	 * NB: there is no need to setup HWSEQ_EN bit;
-	 * QSEL_BEACON already implies it.
-	 */
-	txd->txdw1 = htole32(SM(R12A_TXDW1_QSEL, R12A_TXDW1_QSEL_BEACON));
-	txd->txdw1 |= htole32(SM(R12A_TXDW1_MACID, RTWN_MACID_BC));
-
-	txd->txdw3 = htole32(R12A_TXDW3_DRVRATE);
-	txd->txdw3 |= htole32(SM(R12A_TXDW3_SEQ_SEL, id));
-
-	txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE, RTWN_RIDX_CCK1));
-
-	txd->txdw6 = htole32(SM(R21A_TXDW6_MBSSID, id));
-}
-
-void
-r12a_beacon_set_rate(void *buf, int is5ghz)
-{
-	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
-
-	txd->txdw4 &= ~htole32(R12A_TXDW4_DATARATE_M);
-	if (is5ghz) {
-		txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE,
-		    RTWN_RIDX_OFDM6));
-	} else
-		txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE, RTWN_RIDX_CCK1));
+	if (led == RTWN_LED_LINK) {
+		if (!on)
+			rtwn_setbits_1(sc, R92C_LEDCFG1, 0, R92C_LEDCFG1_DIS);
+		else
+			rtwn_setbits_1(sc, R92C_LEDCFG1, R92C_LEDCFG1_DIS, 0);
+		sc->ledlink = on;	/* Save LED state. */
+	}
 }
