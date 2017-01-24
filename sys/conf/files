@@ -2674,6 +2674,7 @@ dev/rtwn/rtl8192c/r92c_calib.c	optional rtwn
 dev/rtwn/rtl8192c/r92c_chan.c	optional rtwn
 dev/rtwn/rtl8192c/r92c_fw.c	optional rtwn
 dev/rtwn/rtl8192c/r92c_init.c	optional rtwn
+dev/rtwn/rtl8192c/r92c_llt.c	optional rtwn
 dev/rtwn/rtl8192c/r92c_rf.c	optional rtwn
 dev/rtwn/rtl8192c/r92c_rom.c	optional rtwn
 dev/rtwn/rtl8192c/r92c_rx.c	optional rtwn
@@ -2690,6 +2691,16 @@ dev/rtwn/rtl8192c/usb/r92cu_init.c	optional rtwn_usb
 dev/rtwn/rtl8192c/usb/r92cu_led.c	optional rtwn_usb
 dev/rtwn/rtl8192c/usb/r92cu_rx.c	optional rtwn_usb
 dev/rtwn/rtl8192c/usb/r92cu_tx.c	optional rtwn_usb
+# RTL8192E
+dev/rtwn/rtl8192e/r92e_chan.c	optional rtwn
+dev/rtwn/rtl8192e/r92e_fw.c	optional rtwn
+dev/rtwn/rtl8192e/r92e_init.c	optional rtwn
+dev/rtwn/rtl8192e/r92e_led.c	optional rtwn
+dev/rtwn/rtl8192e/r92e_rf.c	optional rtwn
+dev/rtwn/rtl8192e/r92e_rom.c	optional rtwn
+dev/rtwn/rtl8192e/r92e_rx.c	optional rtwn
+dev/rtwn/rtl8192e/usb/r92eu_attach.c	optional rtwn_usb
+dev/rtwn/rtl8192e/usb/r92eu_init.c	optional rtwn_usb
 # RTL8812A
 dev/rtwn/rtl8812a/r12a_beacon.c	optional rtwn
 dev/rtwn/rtl8812a/r12a_calib.c	optional rtwn
@@ -2788,6 +2799,20 @@ rtwn-rtl8192cfwU.fw		optional rtwn-rtl8192cfwU | rtwnfw	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rtwn-rtl8192cfwU.fw"
+rtwn-rtl8192eufw.c		optional rtwn-rtl8192eufw | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192eufw.fw:rtwn-rtl8192eufw:111 -mrtwn-rtl8192eufw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8192eufw.c"
+rtwn-rtl8192eufw.fwo		optional rtwn-rtl8192eufw | rtwnfw	\
+	dependency	"rtwn-rtl8192eufw.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8192eufw.fwo"
+rtwn-rtl8192eufw.fw		optional rtwn-rtl8192eufw | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8192eufw.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8192eufw.fw"
 rtwn-rtl8812aufw.c		optional rtwn-rtl8812aufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8812aufw.fw:rtwn-rtl8812aufw:111 -mrtwn-rtl8812aufw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\

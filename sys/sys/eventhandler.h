@@ -284,4 +284,11 @@ typedef void (*swapoff_fn)(void *, struct swdevt *);
 EVENTHANDLER_DECLARE(swapon, swapon_fn);
 EVENTHANDLER_DECLARE(swapoff, swapoff_fn);
 
+/* ifup/ifdown events */
+#define IFNET_EVENT_UP		0
+#define IFNET_EVENT_DOWN	1
+struct ifnet;
+typedef void (*ifnet_event_fn)(void *, struct ifnet *ifp, int event);
+EVENTHANDLER_DECLARE(ifnet_event, ifnet_event_fn);
+
 #endif /* _SYS_EVENTHANDLER_H_ */

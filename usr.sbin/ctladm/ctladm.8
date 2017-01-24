@@ -35,7 +35,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2016
+.Dd January 23, 2017
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -941,6 +941,14 @@ Specifies file or device name to use for backing store.
 .It Va num_threads
 Specifies number of backend threads to use for this LUN.
 .El
+.Pp
+Options specific for ramdisk backend:
+.Bl -tag -width 12n
+.It Va capacity
+Specifies capacity of backing store (maximum RAM for data).
+The default value is zero, that disables backing store completely,
+making all writes go to nowhere, while all reads return zeroes.
+.El
 .Sh EXAMPLES
 .Dl ctladm tur 1
 .Pp
@@ -977,7 +985,14 @@ starting at LBA 0xff432140.
 Create a LUN with the
 .Dq fake
 ramdisk as a backing store.
-The LUN will claim to have a size of approximately 10 terabytes.
+The LUN will claim to have a size of approximately 10 terabytes,
+while having no real data store (all written data are lost).
+.Pp
+.Dl ctladm create -b ramdisk -s 10T -o capacity=10G
+.Pp
+Create a thin provisioned LUN with a ramdisk as a backing store.
+The LUN will have maximal backing store capacity of 10 gigabytes,
+while reporting size of 10 terabytes,
 .Pp
 .Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8
 .Pp

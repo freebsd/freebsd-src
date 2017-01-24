@@ -16,7 +16,7 @@ SRCS     = if_rtwn.c if_rtwn_tx.c if_rtwn_rx.c if_rtwn_beacon.c \
 
 .PATH:	   ${.CURDIR}/../../dev/rtwn/rtl8192c
 SRCS	+= r92c_attach.c r92c_beacon.c r92c_calib.c r92c_chan.c r92c_fw.c \
-	   r92c_init.c r92c_rf.c r92c_rom.c r92c_rx.c r92c_tx.c \
+	   r92c_init.c r92c_llt.c r92c_rf.c r92c_rom.c r92c_rx.c r92c_tx.c \
 	   r92c.h r92c_priv.h r92c_reg.h r92c_var.h r92c_rom_defs.h \
 	   r92c_rom_image.h r92c_fw_cmd.h r92c_rx_desc.h r92c_tx_desc.h
 
@@ -25,6 +25,11 @@ SRCS	+= r88e_beacon.c r88e_calib.c r88e_chan.c r88e_fw.c r88e_init.c \
 	   r88e_led.c r88e_rf.c r88e_rom.c r88e_rx.c r88e_tx.c r88e.h \
 	   r88e_priv.h r88e_reg.h r88e_rom_defs.h r88e_rom_image.h \
 	   r88e_fw_cmd.h r88e_rx_desc.h r88e_tx_desc.h
+
+.PATH:	   ${.CURDIR}/../../dev/rtwn/rtl8192e
+SRCS	+= r92e_chan.c r92e_fw.c r92e_init.c r92e_led.c r92e_rf.c \
+	   r92e_rom.c r92e_rx.c r92e.h r92e_priv.h r92e_reg.h \
+	   r92e_rom_image.h r92e_rom_defs.h
 
 .PATH:	   ${.CURDIR}/../../dev/rtwn/rtl8812a
 SRCS	+= r12a_beacon.c r12a_calib.c r12a_caps.c r12a_chan.c r12a_fw.c \
