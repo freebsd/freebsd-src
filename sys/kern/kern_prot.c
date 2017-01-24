@@ -1225,9 +1225,7 @@ sys_issetugid(register struct thread *td, struct issetugid_args *uap)
 	 * a user without an exec - programs cannot know *everything*
 	 * that libc *might* have put in their data segment.
 	 */
-	PROC_LOCK(p);
 	td->td_retval[0] = (p->p_flag & P_SUGID) ? 1 : 0;
-	PROC_UNLOCK(p);
 	return (0);
 }
 
