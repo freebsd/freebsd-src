@@ -996,6 +996,9 @@ hn_set_vf(struct hn_softc *sc, struct ifnet *ifp, bool vf)
 		hn_resume_mgmt(sc);
 	}
 
+	devctl_notify("HYPERV_NIC_VF", if_name(hn_ifp),
+	    vf ? "VF_UP" : "VF_DOWN", NULL);
+
 	if (bootverbose)
 		if_printf(hn_ifp, "Data path is switched %s %s\n",
 		    vf ? "to" : "from", if_name(ifp));
