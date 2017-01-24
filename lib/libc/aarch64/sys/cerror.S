@@ -34,7 +34,7 @@ ENTRY(cerror)
 	stp	x0, lr, [sp]
 	bl	_C_LABEL(__error)
 	ldp	x1, lr, [sp]
-	str	x1, [x0]
+	str	w1, [x0]
 	movn	x0, #0
 	movn	x1, #0
 	add	sp, sp, #16
