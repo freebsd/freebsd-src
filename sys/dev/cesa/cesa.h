@@ -231,6 +231,7 @@ struct cesa_packet {
 struct cesa_softc {
 	device_t			sc_dev;
 	int32_t				sc_cid;
+	uint32_t			sc_soc_id;
 	struct resource			*sc_res[RES_CESA_NUM];
 	void				*sc_icookie;
 	bus_dma_tag_t			sc_data_dtag;
