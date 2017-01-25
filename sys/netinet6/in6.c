@@ -554,8 +554,11 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		 */
 		if ((error = in6_update_ifa(ifp, ifra, ia, 0)) != 0)
 			goto out;
-		if (ia != NULL)
+		if (ia != NULL) {
+			if (ia->ia_ifa.ifa_carp)
+				(*carp_detach_p)(&ia->ia_ifa, true);
 			ifa_free(&ia->ia_ifa);
+		}
 		if ((ia = in6ifa_ifpwithaddr(ifp, &ifra->ifra_addr.sin6_addr))
 		    == NULL) {
 			/*
@@ -622,7 +625,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			 */
 			if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0) {
 				if (carp_attached)
-					(*carp_detach_p)(&ia->ia_ifa);
+					(*carp_detach_p)(&ia->ia_ifa, false);
 				goto out;
 			}
 		}
@@ -1243,7 +1246,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	int plen, error;
 
 	if (ifa->ifa_carp)
-		(*carp_detach_p)(ifa);
+		(*carp_detach_p)(ifa, false);
 
 	/*
 	 * Remove the loopback route to the interface address.
