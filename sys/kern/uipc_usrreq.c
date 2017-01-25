@@ -743,6 +743,9 @@ uipc_listen(struct socket *so, int backlog, struct thread *td)
 	struct unpcb *unp;
 	int error;
 
+	if (so->so_type != SOCK_STREAM && so->so_type != SOCK_SEQPACKET)
+		return (EOPNOTSUPP);
+
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_listen: unp == NULL"));
 
