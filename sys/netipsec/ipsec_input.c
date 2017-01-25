@@ -444,8 +444,6 @@ bad:
 #endif /* INET */
 
 #ifdef INET6
-extern struct protosw inet6sw[];
-
 /*
  * IPSEC_INPUT() method implementation for IPv6.
  *  0 - Permitted by inbound security policy for further processing.
