@@ -1598,6 +1598,14 @@ ahci_execute_transaction(struct ahci_slot *slot)
 		}
 
 		/*
+		 * Some Marvell controllers require additional time
+		 * after soft reset to work properly. Setup delay
+		 * to 50ms after soft reset.
+		 */
+		if (ch->quirks & AHCI_Q_MRVL_SR_DEL)
+			DELAY(50000);
+
+		/*
 		 * Marvell HBAs with non-RAID firmware do not wait for
 		 * readiness after soft reset, so we have to wait here.
 		 * Marvell RAIDs do not have this problem, but instead
