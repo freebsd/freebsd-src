@@ -66,9 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef INET
 #include <netipsec/ipsec.h>
-#endif
 #ifdef INET6
 #include <netipsec/ipsec6.h>
 #endif
