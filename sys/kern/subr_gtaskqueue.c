@@ -740,7 +740,7 @@ taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
 
 	CPU_ZERO(&mask);
 	CPU_SET(cpu, &mask);
-	if (irq != -1 && (smp_started || mp_ncpus == 1))
+	if (irq != -1 && tqg_smp_started)
 		intr_setaffinity(irq, &mask);
 	return (0);
 }
@@ -849,8 +849,8 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 
 	if (cnt < 1 || cnt * stride > mp_ncpus || !tqg_smp_started) {
 		printf("%s: failed cnt: %d stride: %d "
-		       "mp_ncpus: %d smp_started: %d\n",
-			__func__, cnt, stride, mp_ncpus, smp_started);
+		    "mp_ncpus: %d tqg_smp_started: %d\n",
+		    __func__, cnt, stride, mp_ncpus, tqg_smp_started);
 		return (EINVAL);
 	}
 	if (qgroup->tqg_adjusting) {
