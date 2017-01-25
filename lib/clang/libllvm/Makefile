@@ -1146,7 +1146,7 @@ SRCS_MIN+=	Transforms/Vectorize/SLPVectorizer.cpp
 SRCS_EXT+=	Transforms/Vectorize/Vectorize.cpp
 
 SRCS_ALL+=	${SRCS_MIN}
-.if !defined(TOOLS_PREFIX)
+.if !defined(TOOLS_PREFIX) || ${MK_LLD_AS_LD} != "no"
 SRCS_ALL+=	${SRCS_MIW}
 .endif
 .if ${MK_CLANG_EXTRAS} != "no"
