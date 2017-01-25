@@ -152,7 +152,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	if (IPSEC_ENABLED(ipv6)) {
-		if ((error = IPSEC_FORWARD(ipv4, m)) != 0) {
+		if ((error = IPSEC_FORWARD(ipv6, m)) != 0) {
 			/* mbuf consumed by IPsec */
 			m_freem(mcopy);
 			if (error != EINPROGRESS)
