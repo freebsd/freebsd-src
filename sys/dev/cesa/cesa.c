@@ -1242,7 +1242,10 @@ cesa_attach(device_t dev)
 	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0);
+	if (sc->sc_soc_id == MV_DEV_88F6828 ||
+	    sc->sc_soc_id == MV_DEV_88F6820 ||
+	    sc->sc_soc_id == MV_DEV_88F6810)
+		crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0);
 
 	return (0);
 err8:
