@@ -1,6 +1,8 @@
 # $FreeBSD$
 arm/mv/mpic.c			standard
 
+arm/mv/armada/thermal.c		optional fdt
+
 arm/mv/armada38x/armada38x.c	standard
 arm/mv/armada38x/armada38x_mp.c	optional smp
 arm/mv/armada38x/pmsu.c		standard
