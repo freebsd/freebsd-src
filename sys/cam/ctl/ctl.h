@@ -73,10 +73,10 @@ struct ctl_port_entry {
 };
 
 struct ctl_modepage_header {
-	uint8_t page_code;
-	uint8_t subpage;
-	uint16_t len_used;
-	uint16_t len_left;
+	uint8_t			page_code;
+	uint8_t			subpage;
+	uint16_t		len_used;
+	uint16_t		len_left;
 };
 
 union ctl_modepage_info {
