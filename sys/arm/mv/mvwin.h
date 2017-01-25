@@ -324,9 +324,16 @@
 #define MV_PCIE_CONTROL			(0x1a00)
 #define MV_PCIE_ROOT_CMPLX		(1 << 1)
 
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_WIN_SATA_CTRL(n)		(0x10 * (n) + 0x60)
+#define	MV_WIN_SATA_BASE(n)		(0x10 * (n) + 0x64)
+#define	MV_WIN_SATA_SIZE(n)		(0x10 * (n) + 0x68)
+#define	MV_WIN_SATA_MAX			4
+#else
 #define	MV_WIN_SATA_CTRL(n)		(0x10 * (n) + 0x30)
 #define	MV_WIN_SATA_BASE(n)		(0x10 * (n) + 0x34)
 #define	MV_WIN_SATA_MAX			4
+#endif
 
 #if defined(SOC_MV_ARMADA38X)
 #define	MV_BOOTROM_MEM_ADDR	0xFFF00000
