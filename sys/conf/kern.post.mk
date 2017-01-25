@@ -357,8 +357,11 @@ config.o env.o hints.o vers.o vnode_if.o:
 config.ln env.ln hints.ln vers.ln vnode_if.ln:
 	${NORMAL_LINT}
 
+.if ${MK_REPRODUCIBLE_BUILD} != "no"
+REPRO_FLAG="-r"
+.endif
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
-	MAKE=${MAKE} sh $S/conf/newvers.sh ${KERN_IDENT}
+	MAKE=${MAKE} sh $S/conf/newvers.sh ${REPRO_FLAG} ${KERN_IDENT}
 
 vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -c
