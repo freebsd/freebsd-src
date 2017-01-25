@@ -60,6 +60,9 @@ device		scbus
 device		pass
 device		da
 
+# SATA
+device		ahci
+
 # I2C
 device		iic
 device		iicbus
