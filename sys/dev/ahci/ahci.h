@@ -598,6 +598,7 @@ enum ahci_err_type {
 #define AHCI_Q_FORCE_PI		0x00040000
 #define AHCI_Q_RESTORE_CAP	0x00080000
 #define AHCI_Q_NOMSIX		0x00100000
+#define AHCI_Q_MRVL_SR_DEL	0x00200000
 
 #define AHCI_Q_BIT_STRING	\
 	"\020"			\
