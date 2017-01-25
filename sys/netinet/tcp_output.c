@@ -557,11 +557,15 @@ after_sack_rexmit:
 #ifdef INET6
 	if (isipv6 && IPSEC_ENABLED(ipv6))
 		ipsec_optlen = IPSEC_HDRSIZE(ipv6, tp->t_inpcb);
+#ifdef INET
 	else
 #endif
+#endif /* INET6 */
+#ifdef INET
 	if (IPSEC_ENABLED(ipv4))
 		ipsec_optlen = IPSEC_HDRSIZE(ipv4, tp->t_inpcb);
-#endif
+#endif /* INET */
+#endif /* IPSEC */
 #ifdef INET6
 	if (isipv6)
 		ipoptlen = ip6_optlen(tp->t_inpcb);

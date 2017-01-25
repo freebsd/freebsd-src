@@ -474,7 +474,7 @@ ipsec6_input(struct mbuf *m, int offset, int proto)
 	/*
 	 * Enforce IPsec policy checking if we are seeing last header.
 	 */
-	if (ipsec4_in_reject(m, NULL) != 0) {
+	if (ipsec6_in_reject(m, NULL) != 0) {
 		/* Forbidden by inbound security policy */
 		m_freem(m);
 		return (EACCES);

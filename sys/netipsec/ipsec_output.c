@@ -786,6 +786,7 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	}
 
 	key_freesp(&sp), sp = NULL;	/* Release reference to SP */
+#ifdef INET
 	/*
 	 * Do UDP encapsulation if SA requires it.
 	 */
@@ -794,6 +795,7 @@ ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		if (error != 0)
 			goto bad;
 	}
+#endif /* INET */
 	/*
 	 * We're done with IPsec processing, transmit the packet using the
 	 * appropriate network protocol (IP or IPv6).

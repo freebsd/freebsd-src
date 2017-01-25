@@ -929,12 +929,17 @@ findpcb:
 	if (isipv6 && IPSEC_ENABLED(ipv6) &&
 	    IPSEC_CHECK_POLICY(ipv6, m, inp) != 0) {
 		goto dropunlock;
-	} else
+	}
+#ifdef INET
+	else
+#endif
 #endif /* INET6 */
+#ifdef INET
 	if (IPSEC_ENABLED(ipv4) &&
 	    IPSEC_CHECK_POLICY(ipv4, m, inp) != 0) {
 		goto dropunlock;
 	}
+#endif /* INET */
 #endif /* IPSEC */
 
 	/*
