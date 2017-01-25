@@ -914,7 +914,7 @@ esp_output_cb(struct cryptop *crp)
 	/* Emulate man-in-the-middle attack when ipsec_integrity is TRUE. */
 	if (V_ipsec_integrity) {
 		static unsigned char ipseczeroes[AH_HMAC_MAXHASHLEN];
-		struct auth_hash *esph;
+		const struct auth_hash *esph;
 
 		/*
 		 * Corrupt HMAC if we want to test integrity verification of
