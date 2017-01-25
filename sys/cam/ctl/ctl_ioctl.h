@@ -358,8 +358,8 @@ struct ctl_be_arg {
 	unsigned int	vallen;
 	void		*value;
 
-	char	*kname;
-	void	*kvalue;
+	char		*kname;
+	void		*kvalue;
 };
 
 typedef enum {
@@ -591,7 +591,7 @@ typedef enum {
 struct ctl_lun_list {
 	char			backend[CTL_BE_NAME_LEN]; /* passed to kernel*/
 	uint32_t		alloc_len;	/* passed to kernel */
-	char                   *lun_xml;	/* filled in kernel */
+	char			*lun_xml;	/* filled in kernel */
 	uint32_t		fill_len;	/* passed to userland */
 	ctl_lun_list_status	status;		/* passed to userland */
 	char			error_str[CTL_ERROR_STR_LEN];
@@ -753,42 +753,42 @@ struct ctl_iscsi_limits_params {
 
 #ifdef ICL_KERNEL_PROXY
 struct ctl_iscsi_listen_params {
-	int				iser;
-	int				domain;
-	int				socktype;
-	int				protocol;
-	struct sockaddr			*addr;
-	socklen_t			addrlen;
-	int				portal_id;
-	int				spare[4];
+	int			iser;
+	int			domain;
+	int			socktype;
+	int			protocol;
+	struct sockaddr		*addr;
+	socklen_t		addrlen;
+	int			portal_id;
+	int			spare[4];
 };
 
 struct ctl_iscsi_accept_params {
-	int				connection_id;
-	int				portal_id;
-	struct sockaddr			*initiator_addr;
-	socklen_t			initiator_addrlen;
-	int				spare[4];
+	int			connection_id;
+	int			portal_id;
+	struct sockaddr		*initiator_addr;
+	socklen_t		initiator_addrlen;
+	int			spare[4];
 };
 
 struct ctl_iscsi_send_params {
-	int				connection_id;
-	void				*bhs;
-	size_t				spare;
-	void				*spare2;
-	size_t				data_segment_len;
-	void				*data_segment;
-	int				spare3[4];
+	int			connection_id;
+	void			*bhs;
+	size_t			spare;
+	void			*spare2;
+	size_t			data_segment_len;
+	void			*data_segment;
+	int			spare3[4];
 };
 
 struct ctl_iscsi_receive_params {
-	int				connection_id;
-	void				*bhs;
-	size_t				spare;
-	void				*spare2;
-	size_t				data_segment_len;
-	void				*data_segment;
-	int				spare3[4];
+	int			connection_id;
+	void			*bhs;
+	size_t			spare;
+	void			*spare2;
+	size_t			data_segment_len;
+	void			*data_segment;
+	int			spare3[4];
 };
 
 #endif /* ICL_KERNEL_PROXY */
