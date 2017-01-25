@@ -240,9 +240,6 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 
 #ifdef PIC
 	thread_uw_init();
-#endif /* PIC */
-
-#ifdef PIC
 	if (uwl_forcedunwind != NULL) {
 #else
 	if (_Unwind_ForcedUnwind != NULL) {
