@@ -94,7 +94,7 @@ taskqgroup_define_##name(void *arg)					\
 }									\
 									\
 SYSINIT(taskqgroup_##name, SI_SUB_INIT_IF, SI_ORDER_FIRST,		\
-	taskqgroup_define_##name, NULL)
+	taskqgroup_define_##name, NULL)					\
 
 #else /* !EARLY_AP_STARTUP */
 #define TASKQGROUP_DEFINE(name, cnt, stride)				\
@@ -117,7 +117,7 @@ taskqgroup_adjust_##name(void *arg)					\
 }									\
 									\
 SYSINIT(taskqgroup_adj_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
-	taskqgroup_adjust_##name, NULL);				\
+	taskqgroup_adjust_##name, NULL)					\
 
 #endif /* EARLY_AP_STARTUP */
 
