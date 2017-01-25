@@ -100,6 +100,7 @@ int ofw_bus_intr_by_rid(device_t, phandle_t, int, phandle_t *, int *,
 /* Helper to get device status property */
 const char *ofw_bus_get_status(device_t dev);
 int ofw_bus_status_okay(device_t dev);
+int ofw_bus_node_status_okay(phandle_t node);
 
 /* Helper to get node's interrupt parent */
 phandle_t ofw_bus_find_iparent(phandle_t);
