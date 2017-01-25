@@ -274,9 +274,11 @@ SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
 static int ipsec_in_reject(struct secpolicy *, struct inpcb *,
     const struct mbuf *);
 
+#ifdef INET
 static void ipsec4_get_ulp(const struct mbuf *, struct secpolicyindex *, int);
 static void ipsec4_setspidx_ipaddr(const struct mbuf *,
     struct secpolicyindex *);
+#endif
 #ifdef INET6
 static void ipsec6_get_ulp(const struct mbuf *m, struct secpolicyindex *, int);
 static void ipsec6_setspidx_ipaddr(const struct mbuf *,
