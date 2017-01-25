@@ -38,6 +38,7 @@
 #ifndef _SYS_CAPABILITY_H_
 #define	_SYS_CAPABILITY_H_
 
+#warning this file includes <sys/capability.h> which is deprecated
 #include <sys/capsicum.h>
 
 #endif /* !_SYS_CAPABILITY_H_ */
