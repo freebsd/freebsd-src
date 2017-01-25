@@ -44,8 +44,8 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	case DTRACEHIOC_ADDDOF:
 		dhp = (dof_helper_t *)addr;
 		addr = (caddr_t)(uintptr_t)dhp->dofhp_dof;
+		p = curproc;
 		if (p->p_pid == dhp->dofhp_pid) {
-			p = curproc;
 			dof = dtrace_dof_copyin((uintptr_t)addr, &rval);
 		} else {
 			p = pfind(dhp->dofhp_pid);
