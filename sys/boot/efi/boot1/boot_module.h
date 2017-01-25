@@ -64,7 +64,7 @@ typedef struct boot_module_t
 	const char *name;
 
 	/* init is the optional initialiser for the module. */
-	void (*init)();
+	void (*init)(void);
 
 	/*
 	 * probe checks to see if the module can handle dev.
@@ -89,10 +89,10 @@ typedef struct boot_module_t
 	    void **buf, size_t *bufsize);
 
 	/* status outputs information about the probed devices. */
-	void (*status)();
+	void (*status)(void);
 
 	/* valid devices as found by probe. */
-	dev_info_t *(*devices)();
+	dev_info_t *(*devices)(void);
 } boot_module_t;
 
 /* Standard boot modules. */
