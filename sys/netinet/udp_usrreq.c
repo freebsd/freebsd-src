@@ -1007,6 +1007,7 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
+#ifdef INET
 		case UDP_ENCAP:
 			if (!IPSEC_ENABLED(ipv4)) {
 				INP_WUNLOCK(inp);
@@ -1014,7 +1015,8 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 			}
 			error = UDPENCAP_PCBCTL(inp, sopt);
 			break;
-#endif
+#endif /* INET */
+#endif /* IPSEC */
 		case UDPLITE_SEND_CSCOV:
 		case UDPLITE_RECV_CSCOV:
 			if (!isudplite) {
@@ -1052,6 +1054,7 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
+#ifdef INET
 		case UDP_ENCAP:
 			if (!IPSEC_ENABLED(ipv4)) {
 				INP_WUNLOCK(inp);
@@ -1059,7 +1062,8 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 			}
 			error = UDPENCAP_PCBCTL(inp, sopt);
 			break;
-#endif
+#endif /* INET */
+#endif /* IPSEC */
 		case UDPLITE_SEND_CSCOV:
 		case UDPLITE_RECV_CSCOV:
 			if (!isudplite) {
