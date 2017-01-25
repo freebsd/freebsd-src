@@ -622,7 +622,8 @@ enum ahci_err_type {
 	"\0221MSI"              \
 	"\023FORCE_PI"          \
 	"\024RESTORE_CAP"	\
-	"\025NOMSIX"
+	"\025NOMSIX"		\
+	"\026MRVL_SR_DEL"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);
