@@ -2172,6 +2172,10 @@ fdt_win_setup(void)
 
 			soc_node = &soc_nodes[i];
 
+			/* Setup only for enabled devices */
+			if (ofw_bus_node_status_okay(child) == 0)
+				continue;
+
 			if (!ofw_bus_node_is_compatible(child,soc_node->compat))
 				continue;
 
