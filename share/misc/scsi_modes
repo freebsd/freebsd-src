@@ -478,4 +478,17 @@
 	{Current Write Speed Supported (kBps)} i2
 };
 
+0x1d "Timeout and Protect" {
+	{Reserved} *i2
+	{Reserved} *t4
+	{G3Enable} t1
+	{TMOE} t1
+	{DISP} t1
+	{SWPP} t1
+	{Reserved} *i1
+	{Group 1 Minimum Timeout} i2
+	{Group 2 Minimum Timeout} i2
+	{Group 3 Timeout} i2
+};
+
 0x00 "Vendor-Specific";
