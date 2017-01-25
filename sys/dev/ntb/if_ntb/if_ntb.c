@@ -237,6 +237,11 @@ ntb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	int error = 0;
 
 	switch (command) {
+	case SIOCSIFFLAGS:
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		break;
+
 	case SIOCSIFMTU:
 	    {
 		if (ifr->ifr_mtu > sc->mtu - ETHER_HDR_LEN) {
