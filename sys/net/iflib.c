@@ -3733,6 +3733,10 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	if (sctx->isc_flags & IFLIB_SKIP_MSIX) {
 		msix = scctx->isc_vectors;
 	} else if (scctx->isc_msix_bar != 0)
+	       /*
+		* The simple fact that isc_msix_bar is not 0 does not mean we
+		* we have a good value there that is known to work.
+		*/
 		msix = iflib_msix_init(ctx);
 	else {
 		scctx->isc_vectors = 1;
@@ -4779,15 +4783,20 @@ iflib_msix_init(if_ctx_t ctx)
 		uint16_t pci_cmd_word;
 		int msix_ctrl, rid;
 
-		rid = 0;
 		pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
 		pci_cmd_word |= PCIM_CMD_BUSMASTEREN;
 		pci_write_config(dev, PCIR_COMMAND, pci_cmd_word, 2);
-		pci_find_cap(dev, PCIY_MSIX, &rid);
-		rid += PCIR_MSIX_CTRL;
-		msix_ctrl = pci_read_config(dev, rid, 2);
-		msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
-		pci_write_config(dev, rid, msix_ctrl, 2);
+		rid = 0;
+		if (pci_find_cap(dev, PCIY_MSIX, &rid) == 0 && rid != 0) {
+			rid += PCIR_MSIX_CTRL;
+			msix_ctrl = pci_read_config(dev, rid, 2);
+			msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
+			pci_write_config(dev, rid, msix_ctrl, 2);
+		} else {
+			device_printf(dev, "PCIY_MSIX capability not found; "
+			                   "or rid %d == 0.\n", rid);
+			goto msi;
+		}
 	}
 
 	/*
