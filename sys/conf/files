@@ -4207,7 +4207,8 @@ netipsec/xform_ah.c		optional ipsec inet | ipsec inet6
 netipsec/xform_esp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
-	 ipsec inet6 tcp_signature
+	 ipsec inet6 tcp_signature | ipsec_support inet tcp_signature | \
+	 ipsec_support inet6 tcp_signature
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
 netnatm/natm_proto.c		optional natm
