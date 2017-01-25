@@ -536,6 +536,7 @@ EFI_STATUS
 typedef
 EFI_STATUS
 (EFIAPI *EFI_RESERVED_SERVICE) (
+    VOID
     );
 
 typedef
