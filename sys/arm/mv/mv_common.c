@@ -108,7 +108,7 @@ static void decode_win_usb3_dump(u_long);
 static void decode_win_eth_dump(u_long base);
 static void decode_win_idma_dump(u_long base);
 static void decode_win_xor_dump(u_long base);
-static void decode_win_sata_dump(u_long base);
+static void decode_win_ahci_dump(u_long base);
 
 static int fdt_get_ranges(const char *, void *, int, int *, int *);
 #ifdef SOC_MV_ARMADA38X
@@ -141,7 +141,7 @@ static struct soc_node_spec soc_nodes[] = {
 	{ "mrvl,ge", &decode_win_eth_setup, &decode_win_eth_dump },
 	{ "mrvl,usb-ehci", &decode_win_usb_setup, &decode_win_usb_dump },
 	{ "marvell,armada-380-xhci", &decode_win_usb3_setup, &decode_win_usb3_dump },
-	{ "marvell,armada-380-ahci", &decode_win_ahci_setup, &decode_win_sata_dump },
+	{ "marvell,armada-380-ahci", &decode_win_ahci_setup, &decode_win_ahci_dump },
 	{ "mrvl,sata", &decode_win_sata_setup, NULL },
 	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump },
 	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump },
@@ -2007,6 +2007,10 @@ decode_win_sata_setup(u_long base)
 		}
 }
 
+#ifdef SOC_MV_ARMADA38X
+/*
+ * Configure AHCI decoding windows
+ */
 static void
 decode_win_ahci_setup(u_long base)
 {
@@ -2046,7 +2050,7 @@ decode_win_ahci_setup(u_long base)
 }
 
 static void
-decode_win_sata_dump(u_long base)
+decode_win_ahci_dump(u_long base)
 {
 	int i;
 
@@ -2055,6 +2059,22 @@ decode_win_sata_dump(u_long base)
 		    win_sata_cr_read(base, i), win_sata_br_read(base, i),
 		    win_sata_sz_read(base,i));
 }
+
+#else
+/*
+ * Provide dummy functions to satisfy the build
+ * for SoC's not equipped with AHCI controller
+ */
+static void
+decode_win_ahci_setup(u_long base)
+{
+}
+
+static void
+decode_win_ahci_dump(u_long base)
+{
+}
+#endif
 
 static int
 decode_win_sata_valid(void)
