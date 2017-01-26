@@ -54,15 +54,13 @@ struct vmspace;
 	caddr_t pc_cmap1_addr;						\
 	caddr_t pc_cmap2_addr;						\
 	vm_offset_t pc_qmap_addr;					\
-	void *pc_qmap_pte;						\
+	void *pc_qmap_pte2p;						\
 	unsigned int pc_dbreg[32];					\
 	int pc_dbreg_cmd;						\
 	char __pad[27]
 #else
 #define PCPU_MD_FIELDS							\
-	vm_offset_t qmap_addr;						\
-	void *pc_qmap_pte;						\
-	char __pad[149]
+	char __pad[157]
 #endif
 
 #ifdef _KERNEL
