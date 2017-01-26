@@ -1176,9 +1176,31 @@ core_output(struct vnode *vp, void *base, size_t len, off_t offset,
 		panic("shouldn't be here");
 #endif
 	} else {
+		/*
+		 * EFAULT is a non-fatal error that we can get, for example,
+		 * if the segment is backed by a file but extends beyond its
+		 * end.
+		 */
 		error = vn_rdwr_inchunks(UIO_WRITE, vp, base, len, offset,
 		    UIO_USERSPACE, IO_UNIT | IO_DIRECT, active_cred, file_cred,
 		    NULL, td);
+		if (error == EFAULT) {
+			log(LOG_WARNING, "Failed to fully fault in a core file "
+			    "segment at VA %p with size 0x%zx to be written at "
+			    "offset 0x%jx for process %s\n", base, len, offset,
+			    curproc->p_comm);
+
+			/*
+			 * Write a "real" zero byte at the end of the target
+			 * region in the case this is the last segment.
+			 * The intermediate space will be implicitly
+			 * zero-filled.
+			 */
+			error = vn_rdwr_inchunks(UIO_WRITE, vp,
+			    __DECONST(void *, zero_region), 1, offset + len - 1,
+			    UIO_SYSSPACE, IO_UNIT | IO_DIRECT, active_cred,
+			    file_cred, NULL, td);
+		}
 	}
 	return (error);
 }
@@ -2309,7 +2331,16 @@ compress_core (gzFile file, char *inbuf, char *dest_buf, unsigned int len,
 	while (len) {
 		if (inbuf != NULL) {
 			chunk_len = (len > CORE_BUF_SIZE) ? CORE_BUF_SIZE : len;
-			copyin(inbuf, dest_buf, chunk_len);
+
+			/*
+			 * We can get EFAULT error here.  In that case zero out
+			 * the current chunk of the segment.
+			 */
+			error = copyin(inbuf, dest_buf, chunk_len);
+			if (error != 0) {
+				bzero(dest_buf, chunk_len);
+				error = 0;
+			}
 			inbuf += chunk_len;
 		} else {
 			chunk_len = len;
