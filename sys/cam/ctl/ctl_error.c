@@ -129,7 +129,7 @@ ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
 	 * completed.  Therefore we can safely access the LUN structure and
 	 * flags without the lock.
 	 */
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	lun = CTL_LUN(ctsio);
 
 	va_start(ap, ascq);
 	sense_len = 0;

@@ -218,8 +218,7 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 #endif
 
 	CTL_DEBUG_PRINT(("ctl_backend_ramdisk_move_done\n"));
-	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
-		CTL_PRIV_BACKEND_LUN].ptr;
+	cbe_lun = CTL_BACKEND_LUN(io);
 	be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun->be_lun;
 #ifdef CTL_TIME_IO
 	getbinuptime(&cur_bt);
@@ -270,8 +269,7 @@ ctl_backend_ramdisk_submit(union ctl_io *io)
 	struct ctl_be_lun *cbe_lun;
 	struct ctl_lba_len_flags *lbalen;
 
-	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
-		CTL_PRIV_BACKEND_LUN].ptr;
+	cbe_lun = CTL_BACKEND_LUN(io);
 	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 	if (lbalen->flags & CTL_LLF_VERIFY) {
 		ctl_set_success(&io->scsiio);
@@ -845,8 +843,7 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 	struct ctl_be_lun *cbe_lun;
 	int retval;
 
-	cbe_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
-	    CTL_PRIV_BACKEND_LUN].ptr;
+	cbe_lun = CTL_BACKEND_LUN(io);
 	retval = 0;
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
