@@ -1625,9 +1625,10 @@ Value *SCEVExpander::expandCodeFor(const SCEV *SH, Type *Ty) {
   return V;
 }
 
-Value *SCEVExpander::FindValueInExprValueMap(const SCEV *S,
-                                             const Instruction *InsertPt) {
-  SetVector<Value *> *Set = SE.getSCEVValues(S);
+ScalarEvolution::ValueOffsetPair
+SCEVExpander::FindValueInExprValueMap(const SCEV *S,
+                                      const Instruction *InsertPt) {
+  SetVector<ScalarEvolution::ValueOffsetPair> *Set = SE.getSCEVValues(S);
   // If the expansion is not in CanonicalMode, and the SCEV contains any
   // sub scAddRecExpr type SCEV, it is required to expand the SCEV literally.
   if (CanonicalMode || !SE.containsAddRecurrence(S)) {
@@ -1636,21 +1637,21 @@ Value *SCEVExpander::FindValueInExprValueMap(const SCEV *S,
       // Choose a Value from the set which dominates the insertPt.
       // insertPt should be inside the Value's parent loop so as not to break
       // the LCSSA form.
-      for (auto const &Ent : *Set) {
+      for (auto const &VOPair : *Set) {
+        Value *V = VOPair.first;
+        ConstantInt *Offset = VOPair.second;
         Instruction *EntInst = nullptr;
-        if (Ent && isa<Instruction>(Ent) &&
-            (EntInst = cast<Instruction>(Ent)) &&
-            S->getType() == Ent->getType() &&
+        if (V && isa<Instruction>(V) && (EntInst = cast<Instruction>(V)) &&
+            S->getType() == V->getType() &&
             EntInst->getFunction() == InsertPt->getFunction() &&
             SE.DT.dominates(EntInst, InsertPt) &&
             (SE.LI.getLoopFor(EntInst->getParent()) == nullptr ||
-             SE.LI.getLoopFor(EntInst->getParent())->contains(InsertPt))) {
-          return Ent;
-        }
+             SE.LI.getLoopFor(EntInst->getParent())->contains(InsertPt)))
+          return {V, Offset};
       }
     }
   }
-  return nullptr;
+  return {nullptr, nullptr};
 }
 
 // The expansion of SCEV will either reuse a previous Value in ExprValueMap,
@@ -1698,11 +1699,33 @@ Value *SCEVExpander::expand(const SCEV *S) {
   Builder.SetInsertPoint(InsertPt);
 
   // Expand the expression into instructions.
-  Value *V = FindValueInExprValueMap(S, InsertPt);
+  ScalarEvolution::ValueOffsetPair VO = FindValueInExprValueMap(S, InsertPt);
+  Value *V = VO.first;
 
   if (!V)
     V = visit(S);
-
+  else if (VO.second) {
+    if (PointerType *Vty = dyn_cast<PointerType>(V->getType())) {
+      Type *Ety = Vty->getPointerElementType();
+      int64_t Offset = VO.second->getSExtValue();
+      int64_t ESize = SE.getTypeSizeInBits(Ety);
+      if ((Offset * 8) % ESize == 0) {
+        ConstantInt *Idx =
+            ConstantInt::getSigned(VO.second->getType(), -(Offset * 8) / ESize);
+        V = Builder.CreateGEP(Ety, V, Idx, "scevgep");
+      } else {
+        ConstantInt *Idx =
+            ConstantInt::getSigned(VO.second->getType(), -Offset);
+        unsigned AS = Vty->getAddressSpace();
+        V = Builder.CreateBitCast(V, Type::getInt8PtrTy(SE.getContext(), AS));
+        V = Builder.CreateGEP(Type::getInt8Ty(SE.getContext()), V, Idx,
+                              "uglygep");
+        V = Builder.CreateBitCast(V, Vty);
+      }
+    } else {
+      V = Builder.CreateSub(V, VO.second);
+    }
+  }
   // Remember the expanded value for this SCEV at this location.
   //
   // This is independent of PostIncLoops. The mapped value simply materializes
@@ -1887,8 +1910,18 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
   return NumElim;
 }
 
-Value *SCEVExpander::findExistingExpansion(const SCEV *S,
-                                           const Instruction *At, Loop *L) {
+Value *SCEVExpander::getExactExistingExpansion(const SCEV *S,
+                                               const Instruction *At, Loop *L) {
+  Optional<ScalarEvolution::ValueOffsetPair> VO =
+      getRelatedExistingExpansion(S, At, L);
+  if (VO && VO.getValue().second == nullptr)
+    return VO.getValue().first;
+  return nullptr;
+}
+
+Optional<ScalarEvolution::ValueOffsetPair>
+SCEVExpander::getRelatedExistingExpansion(const SCEV *S, const Instruction *At,
+                                          Loop *L) {
   using namespace llvm::PatternMatch;
 
   SmallVector<BasicBlock *, 4> ExitingBlocks;
@@ -1906,22 +1939,23 @@ Value *SCEVExpander::findExistingExpansion(const SCEV *S,
       continue;
 
     if (SE.getSCEV(LHS) == S && SE.DT.dominates(LHS, At))
-      return LHS;
+      return ScalarEvolution::ValueOffsetPair(LHS, nullptr);
 
     if (SE.getSCEV(RHS) == S && SE.DT.dominates(RHS, At))
-      return RHS;
+      return ScalarEvolution::ValueOffsetPair(RHS, nullptr);
   }
 
   // Use expand's logic which is used for reusing a previous Value in
   // ExprValueMap.
-  if (Value *Val = FindValueInExprValueMap(S, At))
-    return Val;
+  ScalarEvolution::ValueOffsetPair VO = FindValueInExprValueMap(S, At);
+  if (VO.first)
+    return VO;
 
   // There is potential to make this significantly smarter, but this simple
   // heuristic already gets some interesting cases.
 
   // Can not find suitable value.
-  return nullptr;
+  return None;
 }
 
 bool SCEVExpander::isHighCostExpansionHelper(
@@ -1930,7 +1964,7 @@ bool SCEVExpander::isHighCostExpansionHelper(
 
   // If we can find an existing value for this scev avaliable at the point "At"
   // then consider the expression cheap.
-  if (At && findExistingExpansion(S, At, L) != nullptr)
+  if (At && getRelatedExistingExpansion(S, At, L))
     return false;
 
   // Zero/One operand expressions
@@ -1978,7 +2012,7 @@ bool SCEVExpander::isHighCostExpansionHelper(
     // involving division. This is just a simple search heuristic.
     if (!At)
       At = &ExitingBB->back();
-    if (!findExistingExpansion(
+    if (!getRelatedExistingExpansion(
             SE.getAddExpr(S, SE.getConstant(S->getType(), 1)), At, L))
       return true;
   }
