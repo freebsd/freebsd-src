@@ -143,16 +143,13 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	int ext_sglist_malloced;
 	int i, j;
 
-	ext_sglist_malloced = 0;
-	ext_sg_start = 0;
-	ext_offset = 0;
-
 	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove\n"));
 
 	/*
 	 * If this flag is set, fake the data transfer.
 	 */
 	if (ctsio->io_hdr.flags & CTL_FLAG_NO_DATAMOVE) {
+		ext_sglist_malloced = 0;
 		ctsio->ext_data_filled = ctsio->ext_data_len;
 		goto bailout;
 	}
@@ -165,7 +162,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		int len_seen;
 
 		ext_sglen = ctsio->ext_sg_entries * sizeof(*ext_sglist);
-
 		ext_sglist = (struct ctl_sg_entry *)malloc(ext_sglen, M_CTL,
 							   M_WAITOK);
 		ext_sglist_malloced = 1;
@@ -174,6 +170,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			goto bailout;
 		}
 		ext_sg_entries = ctsio->ext_sg_entries;
+		ext_sg_start = ext_sg_entries;
+		ext_offset = 0;
 		len_seen = 0;
 		for (i = 0; i < ext_sg_entries; i++) {
 			if ((len_seen + ext_sglist[i].len) >=
@@ -186,6 +184,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		}
 	} else {
 		ext_sglist = &ext_entry;
+		ext_sglist_malloced = 0;
 		ext_sglist->addr = ctsio->ext_data_ptr;
 		ext_sglist->len = ctsio->ext_data_len;
 		ext_sg_entries = 1;
@@ -202,7 +201,6 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		kern_sglist->len = ctsio->kern_data_len;
 		kern_sg_entries = 1;
 	}
-
 
 	kern_watermark = 0;
 	ext_watermark = ext_offset;
@@ -274,10 +272,16 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 			 "kern_data_len = %d\n", ctsio->ext_data_len,
 			 ctsio->kern_data_len));
 
+	/*
+	 * Report write underflow as error, since CTL and backends don't
+	 * really support it.
+	 */
+	if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
+	    j < kern_sg_entries) {
+		ctsio->io_hdr.port_status = 43;
+	}
 
-	/* XXX KDM set residual?? */
 bailout:
-
 	if (ext_sglist_malloced != 0)
 		free(ext_sglist, M_CTL);
 
@@ -397,7 +401,7 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td)
 {
 	union ctl_io *io;
-	void *pool_tmp;
+	void *pool_tmp, *sc_tmp;
 	int retval = 0;
 
 	/*
@@ -414,8 +418,10 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	 * spammed by the user's ctl_io.
 	 */
 	pool_tmp = io->io_hdr.pool;
+	sc_tmp = CTL_SOFTC(io);
 	memcpy(io, (void *)addr, sizeof(*io));
 	io->io_hdr.pool = pool_tmp;
+	CTL_SOFTC(io) = sc_tmp;
 
 	/*
 	 * No status yet, so make sure the status is set properly.
