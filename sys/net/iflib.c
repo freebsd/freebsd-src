@@ -3755,6 +3755,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 		device_printf(dev, "qset structure setup failed %d\n", err);
 		goto fail_queues;
 	}
+
 	/*
 	 * Group taskqueues aren't properly set up until SMP is started,
 	 * so we disable interrupts until we can handle them post
