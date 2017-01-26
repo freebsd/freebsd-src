@@ -3697,33 +3697,14 @@ xpt_path_comp_dev(struct cam_path *path, struct cam_ed *dev)
 void
 xpt_print_path(struct cam_path *path)
 {
+	struct sbuf sb;
+	char buffer[XPT_PRINT_LEN];
 
-	if (path == NULL)
-		printf("(nopath): ");
-	else {
-		if (path->periph != NULL)
-			printf("(%s%d:", path->periph->periph_name,
-			       path->periph->unit_number);
-		else
-			printf("(noperiph:");
-
-		if (path->bus != NULL)
-			printf("%s%d:%d:", path->bus->sim->sim_name,
-			       path->bus->sim->unit_number,
-			       path->bus->sim->bus_id);
-		else
-			printf("nobus:");
-
-		if (path->target != NULL)
-			printf("%d:", path->target->target_id);
-		else
-			printf("X:");
-
-		if (path->device != NULL)
-			printf("%jx): ", (uintmax_t)path->device->lun_id);
-		else
-			printf("X): ");
-	}
+	sbuf_new(&sb, buffer, XPT_PRINT_LEN, SBUF_FIXEDLEN);
+	xpt_path_sbuf(path, &sb);
+	sbuf_finish(&sb);
+	printf("%s", sbuf_data(&sb));
+	sbuf_delete(&sb);
 }
 
 void
@@ -3745,49 +3726,66 @@ void
 xpt_print(struct cam_path *path, const char *fmt, ...)
 {
 	va_list ap;
-	xpt_print_path(path);
+	struct sbuf sb;
+	char buffer[XPT_PRINT_MAXLEN];
+
+	sbuf_new(&sb, buffer, XPT_PRINT_MAXLEN, SBUF_FIXEDLEN);
+
+	xpt_path_sbuf(path, &sb);
 	va_start(ap, fmt);
-	vprintf(fmt, ap);
+	sbuf_vprintf(&sb, fmt, ap);
 	va_end(ap);
+
+	sbuf_finish(&sb);
+	printf("%s", sbuf_data(&sb));
+	sbuf_delete(&sb);
 }
 
 int
 xpt_path_string(struct cam_path *path, char *str, size_t str_len)
 {
 	struct sbuf sb;
+	int len;
 
 	sbuf_new(&sb, str, str_len, 0);
+	len = xpt_path_sbuf(path, &sb);
+	sbuf_finish(&sb);
+	return (len);
+}
+
+int
+xpt_path_sbuf(struct cam_path *path, struct sbuf *sb)
+{
 
 	if (path == NULL)
-		sbuf_printf(&sb, "(nopath): ");
+		sbuf_printf(sb, "(nopath): ");
 	else {
 		if (path->periph != NULL)
-			sbuf_printf(&sb, "(%s%d:", path->periph->periph_name,
+			sbuf_printf(sb, "(%s%d:", path->periph->periph_name,
 				    path->periph->unit_number);
 		else
-			sbuf_printf(&sb, "(noperiph:");
+			sbuf_printf(sb, "(noperiph:");
 
 		if (path->bus != NULL)
-			sbuf_printf(&sb, "%s%d:%d:", path->bus->sim->sim_name,
+			sbuf_printf(sb, "%s%d:%d:", path->bus->sim->sim_name,
 				    path->bus->sim->unit_number,
 				    path->bus->sim->bus_id);
 		else
-			sbuf_printf(&sb, "nobus:");
+			sbuf_printf(sb, "nobus:");
 
 		if (path->target != NULL)
-			sbuf_printf(&sb, "%d:", path->target->target_id);
+			sbuf_printf(sb, "%d:", path->target->target_id);
 		else
-			sbuf_printf(&sb, "X:");
+			sbuf_printf(sb, "X:");
 
 		if (path->device != NULL)
-			sbuf_printf(&sb, "%jx): ",
+			sbuf_printf(sb, "%jx): ",
 			    (uintmax_t)path->device->lun_id);
 		else
-			sbuf_printf(&sb, "X): ");
+			sbuf_printf(sb, "X): ");
 	}
-	sbuf_finish(&sb);
 
-	return(sbuf_len(&sb));
+	return(sbuf_len(sb));
 }
 
 path_id_t
