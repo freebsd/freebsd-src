@@ -630,6 +630,7 @@ taskqgroup_find(struct taskqgroup *qgroup, void *uniq)
 
 	return (idx);
 }
+
 /*
  * smp_started is unusable since it is not set for UP kernels or even for
  * SMP kernels when there is 1 CPU.  This is usually handled by adding a
@@ -643,6 +644,7 @@ taskqgroup_find(struct taskqgroup *qgroup, void *uniq)
  * SI_ORDER_ANY and unclearly after the CPUs are started.  It would be
  * simpler for adjustment to pass a flag indicating if it is delayed.
  */ 
+
 static int tqg_smp_started;
 
 static void
@@ -670,7 +672,7 @@ taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
 	qgroup->tqg_queue[qid].tgc_cnt++;
 	LIST_INSERT_HEAD(&qgroup->tqg_queue[qid].tgc_tasks, gtask, gt_list);
 	gtask->gt_taskqueue = qgroup->tqg_queue[qid].tgc_taskq;
-	if (irq != -1 && tqg_smp_started ) {
+	if (irq != -1 && tqg_smp_started) {
 		gtask->gt_cpu = qgroup->tqg_queue[qid].tgc_cpu;
 		CPU_ZERO(&mask);
 		CPU_SET(qgroup->tqg_queue[qid].tgc_cpu, &mask);
