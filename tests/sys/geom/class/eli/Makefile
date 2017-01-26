@@ -9,6 +9,7 @@ TAP_TESTS_SH+= detach_l_test
 TAP_TESTS_SH+= init_B_test
 TAP_TESTS_SH+= init_J_test
 TAP_TESTS_SH+= init_a_test
+TAP_TESTS_SH+= init_alias_test
 TAP_TESTS_SH+= init_i_P_test
 TAP_TESTS_SH+= init_test
 TAP_TESTS_SH+= integrity_copy_test
