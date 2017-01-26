@@ -3727,9 +3727,9 @@ xpt_print(struct cam_path *path, const char *fmt, ...)
 {
 	va_list ap;
 	struct sbuf sb;
-	char buffer[XPT_PRINT_MAXLEN];
+	char buffer[XPT_PRINT_LEN];
 
-	sbuf_new(&sb, buffer, XPT_PRINT_MAXLEN, SBUF_FIXEDLEN);
+	sbuf_new(&sb, buffer, XPT_PRINT_LEN, SBUF_FIXEDLEN);
 
 	xpt_path_sbuf(path, &sb);
 	va_start(ap, fmt);
