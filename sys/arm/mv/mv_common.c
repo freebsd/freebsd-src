@@ -149,7 +149,12 @@ static struct soc_node_spec soc_nodes[] = {
 	{ NULL, NULL, NULL },
 };
 
-struct fdt_pm_mask_entry fdt_pm_mask_table[] = {
+struct fdt_pm_mask_entry {
+	char		*compat;
+	uint32_t	mask;
+};
+
+static struct fdt_pm_mask_entry fdt_pm_mask_table[] = {
 	{ "mrvl,ge",		CPU_PM_CTRL_GE(0) },
 	{ "mrvl,ge",		CPU_PM_CTRL_GE(1) },
 	{ "mrvl,usb-ehci",	CPU_PM_CTRL_USB(0) },
