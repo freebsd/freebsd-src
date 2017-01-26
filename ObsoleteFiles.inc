@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20161229: Three files from gnop tests consolidated into one
+OLD_FILES+=usr/tests/sys/geom/class/nop/1_test
+OLD_FILES+=usr/tests/sys/geom/class/nop/2_test
+OLD_FILES+=usr/tests/sys/geom/class/nop/conf.sh
 # 20161121: Hyper-V manuals only apply to amd64 and i386.
 .if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386"
 OLD_FILES+=usr/share/man/man4/hv_kvp.4.gz
