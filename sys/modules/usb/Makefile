@@ -70,9 +70,12 @@ _uath=		uath
 _zyd=		zyd
 _kue=		kue
 _run=		run
-_runfw=		runfw
 _rsu=		rsu
+
+.if ${MACHINE_CPUARCH} != "mips"
 _rsufw=		rsufw
+_runfw=		runfw
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
