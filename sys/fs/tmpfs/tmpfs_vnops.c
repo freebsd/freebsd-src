@@ -1107,7 +1107,6 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 
 	/* No vnode should be allocated for this entry from this point */
 	TMPFS_NODE_LOCK(node);
-	TMPFS_ASSERT_ELOCKED(node);
 	node->tn_links--;
 	node->tn_dir.tn_parent = NULL;
 	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED |
@@ -1116,7 +1115,6 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	TMPFS_NODE_UNLOCK(node);
 
 	TMPFS_NODE_LOCK(dnode);
-	TMPFS_ASSERT_ELOCKED(dnode);
 	dnode->tn_links--;
 	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED |
 	    TMPFS_NODE_MODIFIED;
@@ -1270,7 +1268,6 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	cache_purge(vp);
 
 	TMPFS_NODE_LOCK(node);
-	TMPFS_ASSERT_ELOCKED(node);
 	tmpfs_free_vp(vp);
 
 	/* If the node referenced by this vnode was deleted by the user,
