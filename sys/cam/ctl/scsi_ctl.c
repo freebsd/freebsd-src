@@ -941,7 +941,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 	  && (csio->sglist_cnt != 0))) {
 		printf("%s: tag %04x cdb %02x flags %#x dxfer_len "
 		       "%d sg %u\n", __func__, atio->tag_id,
-		       atio->cdb_io.cdb_bytes[0], flags, dxfer_len,
+		       atio_cdb_ptr(atio)[0], flags, dxfer_len,
 		       csio->sglist_cnt);
 		printf("%s: tag %04x io status %#x\n", __func__,
 		       atio->tag_id, io->io_hdr.status);
@@ -1027,8 +1027,7 @@ ctlfe_adjust_cdb(struct ccb_accept_tio *atio, uint32_t offset)
 {
 	uint64_t lba;
 	uint32_t num_blocks, nbc;
-	uint8_t *cmdbyt = (atio->ccb_h.flags & CAM_CDB_POINTER)?
-	    atio->cdb_io.cdb_ptr : atio->cdb_io.cdb_bytes;
+	uint8_t *cmdbyt = atio_cdb_ptr(atio);
 
 	nbc = offset >> 9;	/* ASSUMING 512 BYTE BLOCKS */
 
@@ -1206,8 +1205,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			       __func__, atio->cdb_len, sizeof(io->scsiio.cdb));
 		}
 		io->scsiio.cdb_len = min(atio->cdb_len, sizeof(io->scsiio.cdb));
-		bcopy(atio->cdb_io.cdb_bytes, io->scsiio.cdb,
-		      io->scsiio.cdb_len);
+		bcopy(atio_cdb_ptr(atio), io->scsiio.cdb, io->scsiio.cdb_len);
 
 #ifdef CTLFEDEBUG
 		printf("%s: %u:%u:%u: tag %04x CDB %02x\n", __func__,
@@ -1388,7 +1386,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 					printf("%s: tag %04x no status or "
 					       "len cdb = %02x\n", __func__,
 					       atio->tag_id,
-					atio->cdb_io.cdb_bytes[0]);
+					       atio_cdb_ptr(atio)[0]);
 					printf("%s: tag %04x io status %#x\n",
 					       __func__, atio->tag_id,
 					       io->io_hdr.status);
