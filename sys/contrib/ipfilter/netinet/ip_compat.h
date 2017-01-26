@@ -165,6 +165,7 @@ struct  ether_addr {
 #    define	READ_ENTER(x)		rw_rlock(&(x)->ipf_lk)
 #    define	WRITE_ENTER(x)		rw_wlock(&(x)->ipf_lk)
 #    define	MUTEX_DOWNGRADE(x)	rw_downgrade(&(x)->ipf_lk)
+#    define	MUTEX_TRY_UPGRADE(x)	rw_try_upgrade(&(x)->ipf_lk)
 #    define	RWLOCK_INIT(x,y)	rw_init(&(x)->ipf_lk, (y))
 #    define	RW_DESTROY(x)		rw_destroy(&(x)->ipf_lk)
 #    define	RWLOCK_EXIT(x)		do { \
@@ -421,6 +422,8 @@ extern	void	freembt __P((mb_t *));
 
 # define	MUTEX_DOWNGRADE(x)	eMrwlock_downgrade(&(x)->ipf_emu, \
 							   __FILE__, __LINE__)
+# define	MUTEX_TRY_UPGRADE(x)	eMrwlock_try_upgrade(&(x)->ipf_emu, \
+							   __FILE__, __LINE__)
 # define	READ_ENTER(x)		eMrwlock_read_enter(&(x)->ipf_emu, \
 							    __FILE__, __LINE__)
 # define	RWLOCK_INIT(x, y)	eMrwlock_init(&(x)->ipf_emu, y)
@@ -671,6 +674,7 @@ extern	char	*ipf_getifname __P((struct ifnet *, char *));
 # define	READ_ENTER(x)		;
 # define	WRITE_ENTER(x)		;
 # define	MUTEX_DOWNGRADE(x)	;
+# define	MUTEX_TRY_UPGRADE(x)	;
 # define	RWLOCK_INIT(x, y)	;
 # define	RWLOCK_EXIT(x)		;
 # define	RW_DESTROY(x)		;
