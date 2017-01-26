@@ -1160,11 +1160,11 @@ pmap_bootstrap(vm_offset_t firstaddr)
 	 * Local CMAP1/CMAP2 are used for zeroing and copying pages.
 	 * Local CMAP2 is also used for data cache cleaning.
 	 */
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
 	SYSMAP(caddr_t, pc->pc_cmap1_pte2p, pc->pc_cmap1_addr, 1);
 	SYSMAP(caddr_t, pc->pc_cmap2_pte2p, pc->pc_cmap2_addr, 1);
-	SYSMAP(vm_offset_t, unused, pc->pc_qmap_addr, 1);
+	SYSMAP(vm_offset_t, pc->pc_qmap_pte2p, pc->pc_qmap_addr, 1);
 
 	/*
 	 * Crashdump maps.
@@ -1217,6 +1217,7 @@ pmap_init_reserved_pages(void)
 			panic("%s: unable to allocate KVA", __func__);
 		pc->pc_cmap1_pte2p = pt2map_entry(pages);
 		pc->pc_cmap2_pte2p = pt2map_entry(pages + PAGE_SIZE);
+		pc->pc_qmap_pte2p = pt2map_entry(pages + (PAGE_SIZE * 2));
 		pc->pc_cmap1_addr = (caddr_t)pages;
 		pc->pc_cmap2_addr = (caddr_t)(pages + PAGE_SIZE);
 		pc->pc_qmap_addr = pages + (PAGE_SIZE * 2);
@@ -1584,7 +1585,7 @@ pmap_pt2pg_zero(vm_page_t m)
 	 *      to sync it even if the sync is only DSB.
 	 */
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap2_pte2p = pc->pc_cmap2_pte2p;
 	mtx_lock(&pc->pc_cmap_lock);
 	if (pte2_load(cmap2_pte2p) != 0)
@@ -5661,7 +5662,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	if (ma != oma) {
 		pa = VM_PAGE_TO_PHYS(m);
 		sched_pin();
-		pc = pcpu_find(curcpu);
+		pc = get_pcpu();
 		cmap2_pte2p = pc->pc_cmap2_pte2p;
 		mtx_lock(&pc->pc_cmap_lock);
 		if (pte2_load(cmap2_pte2p) != 0)
@@ -5754,7 +5755,7 @@ pmap_zero_page(vm_page_t m)
 	struct pcpu *pc;
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap2_pte2p = pc->pc_cmap2_pte2p;
 	mtx_lock(&pc->pc_cmap_lock);
 	if (pte2_load(cmap2_pte2p) != 0)
@@ -5781,7 +5782,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	struct pcpu *pc;
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap2_pte2p = pc->pc_cmap2_pte2p;
 	mtx_lock(&pc->pc_cmap_lock);
 	if (pte2_load(cmap2_pte2p) != 0)
@@ -5811,7 +5812,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	struct pcpu *pc;
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap1_pte2p = pc->pc_cmap1_pte2p;
 	cmap2_pte2p = pc->pc_cmap2_pte2p;
 	mtx_lock(&pc->pc_cmap_lock);
@@ -5846,7 +5847,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	int cnt;
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap1_pte2p = pc->pc_cmap1_pte2p;
 	cmap2_pte2p = pc->pc_cmap2_pte2p;
 	mtx_lock(&pc->pc_cmap_lock);
@@ -5885,34 +5886,34 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 vm_offset_t
 pmap_quick_enter_page(vm_page_t m)
 {
+	struct pcpu *pc;
 	pt2_entry_t *pte2p;
-	vm_offset_t qmap_addr;
 
 	critical_enter();
-	qmap_addr = PCPU_GET(qmap_addr);
-	pte2p = pt2map_entry(qmap_addr);
+	pc = get_pcpu();
+	pte2p = pc->pc_qmap_pte2p;
 
 	KASSERT(pte2_load(pte2p) == 0, ("%s: PTE2 busy", __func__));
 
 	pte2_store(pte2p, PTE2_KERN_NG(VM_PAGE_TO_PHYS(m), PTE2_AP_KRW,
 	    vm_page_pte2_attr(m)));
-	return (qmap_addr);
+	return (pc->pc_qmap_addr);
 }
 
 void
 pmap_quick_remove_page(vm_offset_t addr)
 {
+	struct pcpu *pc;
 	pt2_entry_t *pte2p;
-	vm_offset_t qmap_addr;
 
-	qmap_addr = PCPU_GET(qmap_addr);
-	pte2p = pt2map_entry(qmap_addr);
+	pc = get_pcpu();
+	pte2p = pc->pc_qmap_pte2p;
 
-	KASSERT(addr == qmap_addr, ("%s: invalid address", __func__));
+	KASSERT(addr == pc->pc_qmap_addr, ("%s: invalid address", __func__));
 	KASSERT(pte2_load(pte2p) != 0, ("%s: PTE2 not in use", __func__));
 
 	pte2_clear(pte2p);
-	tlb_flush(qmap_addr);
+	tlb_flush(pc->pc_qmap_addr);
 	critical_exit();
 }
 
@@ -6212,7 +6213,7 @@ pmap_dcache_wb_pou(vm_paddr_t pa, vm_size_t size, uint32_t attr)
 	    ("%s: not on single page", __func__));
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap2_pte2p = pc->pc_cmap2_pte2p;
 	mtx_lock(&pc->pc_cmap_lock);
 	if (pte2_load(cmap2_pte2p) != 0)
@@ -6477,7 +6478,7 @@ pmap_zero_page_check(vm_page_t m)
 	struct pcpu *pc;
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap2_pte2p = pc->pc_cmap2_pte2p;
 	mtx_lock(&pc->pc_cmap_lock);
 	if (pte2_load(cmap2_pte2p) != 0)
