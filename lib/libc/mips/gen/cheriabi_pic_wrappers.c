@@ -36,6 +36,7 @@
  */
 #include <sys/types.h>
 #include <setjmp.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
 
