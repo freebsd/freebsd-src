@@ -587,8 +587,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 			       __func__, csio->cdb_len, sizeof(io->scsiio.cdb));
 		}
 		io->scsiio.cdb_len = min(csio->cdb_len, sizeof(io->scsiio.cdb));
-		bcopy(csio->cdb_io.cdb_bytes, io->scsiio.cdb,
-		      io->scsiio.cdb_len);
+		bcopy(scsiio_cdb_ptr(csio), io->scsiio.cdb, io->scsiio.cdb_len);
 
 		ccb->ccb_h.status |= CAM_SIM_QUEUED;
 		err = ctl_queue(io);
