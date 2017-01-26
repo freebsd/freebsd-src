@@ -408,8 +408,7 @@ static void flushfilter(arg, filter)
 		}
 		closedevice();
 		return;
-	}
-	else if (strchr(arg, 'i') || strchr(arg, 'I'))
+	} else if (strchr(arg, 'i') || strchr(arg, 'I'))
 		fl = FR_INQUE;
 	else if (strchr(arg, 'o') || strchr(arg, 'O'))
 		fl = FR_OUTQUE;
