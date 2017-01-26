@@ -1,6 +1,11 @@
 .\"-
 .\" Copyright (c) 2007 Xin LI
+.\" Copyright (c) 2017 The FreeBSD Foundation, Inc.
 .\" All rights reserved.
+.\"
+.\" Part of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -49,12 +54,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2012
+.Dd January 17, 2017
 .Dt TMPFS 5
 .Os
 .Sh NAME
 .Nm tmpfs
-.Nd "efficient memory file system"
+.Nd "in-memory file system"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -72,17 +77,40 @@ tmpfs_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver will permit the
-.Fx
-kernel to access
+driver implements an in-memory, or
 .Tn tmpfs
-file systems.
+file system.
+The filesystem stores both file metadata and data in main memory.
+This allows very fast and low latency accesses to the data.
+The data is volatile.
+An umount or system reboot invalidates it.
+These properties make the filesystem's mounts suitable for fast
+scratch storage, like
+.Pa /tmp .
+.Pp
+If the system becomes low on memory and swap is configured (see
+.Xr swapon 8 ),
+the system can transfer file data to swap space, freeing memory
+for other needs.
+Metadata, including the directory content, is never swapped out by the
+current implementation.
+Keep this in mind when planning the mount limits, especially when expecting
+to place many small files on a tmpfs mount.
+.Pp
+When 
+.Xr mmap 2
+is used on a file from a tmpfs mount, the swap VM object managing the 
+file pages is used to implement mapping and avoid double-copying of
+the file data.
+This quirk causes process inspection tools, like
+.Xr procstat 1 ,
+to report anonymous memory mappings instead of file mappings.
 .Sh OPTIONS
 The following options are available when
 mounting
 .Nm
 file systems:
-.Bl -tag -width indent
+.Bl -tag -width "It Cm maxfilesize"
 .It Cm gid
 Specifies the group ID of the root inode of the file system.
 Defaults to the mount point's GID.
@@ -114,11 +142,15 @@ memory file system:
 .Pp
 .Dl "mount -t tmpfs tmpfs /tmp"
 .Sh SEE ALSO
+.Xr procstat 1 ,
 .Xr nmount 2 ,
+.Xr mmap 2 ,
 .Xr unmount 2 ,
 .Xr fstab 5 ,
 .Xr mdmfs 8 ,
-.Xr mount 8
+.Xr mount 8 ,
+.Xr swapinfo 8 ,
+.Xr swapon 8
 .Sh HISTORY
 The
 .Nm
@@ -130,7 +162,7 @@ The
 .Nm
 kernel implementation was written by
 .An Julio M. Merino Vidal Aq jmmv@NetBSD.org
-as a Google SoC project.
+as a Google Summer of Code project.
 .Pp
 .An Rohit Jalan
 and others ported it from
@@ -140,5 +172,3 @@ to
 .Pp
 This manual page was written by
 .An Xin LI Aq delphij@FreeBSD.org .
-.Sh BUGS
-Some file system mount time options may not be well-supported.
