@@ -4593,6 +4593,8 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 				printf("ctl: requested LUN ID %d is already "
 				       "in use\n", be_lun->req_lun_id);
 			}
+fail:
+			free(lun->lun_devid, M_CTL);
 			if (lun->flags & CTL_LUN_MALLOCED)
 				free(lun, M_CTL);
 			be_lun->lun_config_status(be_lun->be_lun,
@@ -4605,14 +4607,11 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		if (lun_number == -1) {
 			mtx_unlock(&ctl_softc->ctl_lock);
 			printf("ctl: can't allocate LUN, out of LUNs\n");
-			if (lun->flags & CTL_LUN_MALLOCED)
-				free(lun, M_CTL);
-			be_lun->lun_config_status(be_lun->be_lun,
-						  CTL_LUN_CONFIG_FAILURE);
-			return (ENOSPC);
+			goto fail;
 		}
 	}
 	ctl_set_mask(ctl_softc->ctl_lun_mask, lun_number);
+	mtx_unlock(&ctl_softc->ctl_lock);
 
 	mtx_init(&lun->lun_lock, "CTL LUN", NULL, MTX_DEF);
 	lun->lun = lun_number;
@@ -4664,22 +4663,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	ctl_init_page_index(lun);
 	ctl_init_log_page_index(lun);
 
-	/*
-	 * Now, before we insert this lun on the lun list, set the lun
-	 * inventory changed UA for all other luns.
-	 */
-	STAILQ_FOREACH(nlun, &ctl_softc->lun_list, links) {
-		mtx_lock(&nlun->lun_lock);
-		ctl_est_ua_all(nlun, -1, CTL_UA_LUN_CHANGE);
-		mtx_unlock(&nlun->lun_lock);
-	}
-
-	STAILQ_INSERT_TAIL(&ctl_softc->lun_list, lun, links);
-
-	ctl_softc->ctl_luns[lun_number] = lun;
-
-	ctl_softc->num_luns++;
-
 	/* Setup statistics gathering */
 #ifdef CTL_LEGACY_STATS
 	lun->legacy_stats.device_type = be_lun->lun_type;
@@ -4692,6 +4675,19 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 #endif /* CTL_LEGACY_STATS */
 	lun->stats.item = lun_number;
 
+	/*
+	 * Now, before we insert this lun on the lun list, set the lun
+	 * inventory changed UA for all other luns.
+	 */
+	mtx_lock(&ctl_softc->ctl_lock);
+	STAILQ_FOREACH(nlun, &ctl_softc->lun_list, links) {
+		mtx_lock(&nlun->lun_lock);
+		ctl_est_ua_all(nlun, -1, CTL_UA_LUN_CHANGE);
+		mtx_unlock(&nlun->lun_lock);
+	}
+	STAILQ_INSERT_TAIL(&ctl_softc->lun_list, lun, links);
+	ctl_softc->ctl_luns[lun_number] = lun;
+	ctl_softc->num_luns++;
 	mtx_unlock(&ctl_softc->ctl_lock);
 
 	lun->be_lun->lun_config_status(lun->be_lun->be_lun, CTL_LUN_CONFIG_OK);
