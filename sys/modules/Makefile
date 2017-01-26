@@ -265,7 +265,6 @@ SUBDIR=	\
 	${_nctgpio} \
 	${_ncv} \
 	${_ndis} \
-	netfpga10g \
 	${_netgraph} \
 	${_nfe} \
 	nfscl \
