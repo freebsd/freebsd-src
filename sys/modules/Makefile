@@ -503,13 +503,16 @@ _bce=		bce
 _fatm=		fatm
 _fxp=		fxp
 _ispfw=		ispfw
+_sf=		sf
+_ti=		ti
+_txp=		txp
+
+.if ${MACHINE_CPUARCH} != "mips"
 _mwlfw=		mwlfw
 _otusfw=	otusfw
 _ralfw=		ralfw
 _rtwnfw=	rtwnfw
-_sf=		sf
-_ti=		ti
-_txp=		txp
+.endif
 .endif
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
