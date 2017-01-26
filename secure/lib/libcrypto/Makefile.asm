@@ -6,7 +6,7 @@
 
 .include "Makefile.inc"
 
-.if ${MACHINE_CPUARCH} == "amd64"
+.if defined(ASM_amd64)
 
 .PATH:	${LCRYPTO_SRC}/crypto \
 	${LCRYPTO_SRC}/crypto/aes/asm \
@@ -73,7 +73,7 @@ ${s}.S: ${s}.s
 	cat ${s}.s ) > ${.TARGET}
 .endfor
 
-.elif ${MACHINE_CPUARCH} == "i386"
+.elif defined(ASM_i386)
 
 .PATH:	${LCRYPTO_SRC}/crypto \
 	${LCRYPTO_SRC}/crypto/aes/asm \

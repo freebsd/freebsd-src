@@ -42,9 +42,9 @@ extern "C" {
 #ifndef OPENSSL_THREADS
 # define OPENSSL_THREADS
 #endif
-#ifndef OPENSSL_NO_ASM
-# define OPENSSL_NO_ASM
-#endif
+%%NO_ASM%%#ifndef OPENSSL_NO_ASM
+%%NO_ASM%%# define OPENSSL_NO_ASM
+%%NO_ASM%%#endif
 #ifndef OPENSSL_NO_STATIC_ENGINE
 # define OPENSSL_NO_STATIC_ENGINE
 #endif
@@ -83,6 +83,8 @@ extern "C" {
 # endif
 #endif
 
+%%ASM%%#define OPENSSL_CPUID_OBJ
+%%ASM%%
 /* crypto/opensslconf.h.in */
 
 /* Generate 80386 code? */
