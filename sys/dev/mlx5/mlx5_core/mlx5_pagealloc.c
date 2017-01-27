@@ -27,6 +27,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <dev/mlx5/driver.h>
 #include "mlx5_core.h"
 
@@ -282,6 +283,7 @@ retry:
 		goto out_alloc;
 	}
 	dev->priv.fw_pages += npages;
+	dev->priv.pages_per_func[func_id] += npages;
 
 	if (out.hdr.status) {
 		err = mlx5_cmd_status_to_err(&out.hdr);
@@ -355,7 +357,7 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 		*nclaimed = num_claimed;
 
 	dev->priv.fw_pages -= num_claimed;
-
+	dev->priv.pages_per_func[func_id] -= num_claimed;
 	for (i = 0; i < num_claimed; i++) {
 		addr = be64_to_cpu(out->pas[i]);
 		free_4k(dev, addr);
@@ -422,6 +424,31 @@ int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot)
 enum {
 	MLX5_BLKS_FOR_RECLAIM_PAGES = 12
 };
+
+s64 mlx5_wait_for_reclaim_vfs_pages(struct mlx5_core_dev *dev)
+{
+	int end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
+	s64 prevpages = 0;
+	s64 npages = 0;
+
+	while (!time_after(jiffies, end)) {
+		/* exclude own function, VFs only */
+		npages = dev->priv.fw_pages - dev->priv.pages_per_func[0];
+		if (!npages)
+			break;
+
+		if (npages != prevpages)
+			end = end + msecs_to_jiffies(100);
+
+		prevpages = npages;
+		msleep(1);
+	}
+
+	if (npages)
+		mlx5_core_warn(dev, "FW did not return all VFs pages, will cause to memory leak\n");
+
+	return -npages;
+}
 
 static int optimal_reclaimed_pages(void)
 {
