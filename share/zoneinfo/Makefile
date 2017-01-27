@@ -67,6 +67,10 @@ TZBUILDSUBDIRS=	\
 		Pacific \
 		SystemV
 
+.if defined(OLDTIMEZONES)
+TZBUILDSUBDIRS+= US Mexico Chile Canada Brazil
+.endif
+
 all: zoneinfo
 
 .PHONY: zoneinfo
