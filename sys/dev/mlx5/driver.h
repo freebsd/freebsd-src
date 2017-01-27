@@ -713,6 +713,7 @@ struct mlx5_cmd_work_ent {
 	u64			ts1;
 	u64			ts2;
 	u16			op;
+	u8			busy;
 };
 
 struct mlx5_pas {
@@ -791,6 +792,7 @@ static inline void *mlx5_vmalloc(unsigned long size)
 	return rtn;
 }
 
+void mlx5_enter_error_state(struct mlx5_core_dev *dev);
 int mlx5_cmd_init(struct mlx5_core_dev *dev);
 void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
@@ -862,6 +864,7 @@ void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
 void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u32 vector);
+void mlx5_trigger_cmd_completions(struct mlx5_core_dev *dev);
 void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name, struct mlx5_uar *uar);
