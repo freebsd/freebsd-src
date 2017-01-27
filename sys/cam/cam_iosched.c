@@ -112,7 +112,7 @@ typedef enum {
 	bandwidth,			/* Limit bandwidth to the drive */
 	limiter_max
 } io_limiter;
-	
+
 static const char *cam_iosched_limiter_names[] =
     { "none", "queue_depth", "iops", "bandwidth" };
 
@@ -131,7 +131,7 @@ typedef int l_tick_t(struct iop_stats *);
  * Called to see if the limiter thinks this IOP can be allowed to
  * proceed. If so, the limiter assumes that the while IOP proceeded
  * and makes any accounting of it that's needed.
- */ 
+ */
 typedef int l_iop_t(struct iop_stats *, struct bio *);
 
 /*
@@ -157,8 +157,7 @@ static l_tick_t cam_iosched_bw_tick;
 static l_iop_t cam_iosched_bw_caniop;
 static l_iop_t cam_iosched_bw_iop;
 
-struct limswitch 
-{
+struct limswitch {
 	l_init_t	*l_init;
 	l_tick_t	*l_tick;
 	l_iop_t		*l_iop;
@@ -195,8 +194,7 @@ struct limswitch
 	},
 };
 
-struct iop_stats 
-{
+struct iop_stats {
 	/*
 	 * sysctl state for this subnode.
 	 */
@@ -212,7 +210,6 @@ struct iop_stats
 	int		current;	/* Current rate limiter */
 	int		l_value1;	/* per-limiter scratch value 1. */
 	int		l_value2;	/* per-limiter scratch value 2. */
-	
 
 	/*
 	 * Debug information about counts of I/Os that have gone through the
@@ -223,7 +220,7 @@ struct iop_stats
 	int		total;		/* Total for all time -- wraps */
 	int		in;		/* number queued all time -- wraps */
 	int		out;		/* number completed all time -- wraps */
-	
+
 	/*
 	 * Statistics on different bits of the process.
 	 */
@@ -251,8 +248,7 @@ typedef enum {
 static const char *cam_iosched_control_type_names[] =
     { "set_max", "read_latency" };
 
-struct control_loop
-{
+struct control_loop {
 	/*
 	 * sysctl state for this subnode.
 	 */
@@ -272,8 +268,7 @@ struct control_loop
 
 #endif
 
-struct cam_iosched_softc
-{
+struct cam_iosched_softc {
 	struct bio_queue_head bio_queue;
 	struct bio_queue_head trim_queue;
 				/* scheduler flags < 16, user flags >= 16 */
@@ -385,7 +380,7 @@ cam_iosched_limiter_iodone(struct iop_stats *ios, struct bio *bp)
 static int
 cam_iosched_qd_iop(struct iop_stats *ios, struct bio *bp)
 {
-		
+
 	if (ios->current <= 0 || ios->pending < ios->current)
 		return 0;
 
@@ -395,7 +390,7 @@ cam_iosched_qd_iop(struct iop_stats *ios, struct bio *bp)
 static int
 cam_iosched_qd_caniop(struct iop_stats *ios, struct bio *bp)
 {
-		
+
 	if (ios->current <= 0 || ios->pending < ios->current)
 		return 0;
 
@@ -405,7 +400,7 @@ cam_iosched_qd_caniop(struct iop_stats *ios, struct bio *bp)
 static int
 cam_iosched_qd_iodone(struct iop_stats *ios, struct bio *bp)
 {
-		
+
 	if (ios->current <= 0 || ios->pending != ios->current)
 		return 0;
 
@@ -773,7 +768,7 @@ cam_iosched_limiter_sysctl(SYSCTL_HANDLER_ARGS)
 	struct cam_iosched_softc *isc;
 	int value, i, error;
 	const char *p;
-	
+
 	ios = arg1;
 	isc = ios->softc;
 	value = ios->limiter;
@@ -781,7 +776,7 @@ cam_iosched_limiter_sysctl(SYSCTL_HANDLER_ARGS)
 		p = "UNKNOWN";
 	else
 		p = cam_iosched_limiter_names[value];
-	
+
 	strlcpy(buf, p, sizeof(buf));
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
@@ -819,7 +814,7 @@ cam_iosched_control_type_sysctl(SYSCTL_HANDLER_ARGS)
 	struct cam_iosched_softc *isc;
 	int value, i, error;
 	const char *p;
-	
+
 	clp = arg1;
 	isc = clp->softc;
 	value = clp->type;
@@ -827,7 +822,7 @@ cam_iosched_control_type_sysctl(SYSCTL_HANDLER_ARGS)
 		p = "UNKNOWN";
 	else
 		p = cam_iosched_control_type_names[value];
-	
+
 	strlcpy(buf, p, sizeof(buf));
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
@@ -852,7 +847,7 @@ cam_iosched_sbintime_sysctl(SYSCTL_HANDLER_ARGS)
 	sbintime_t value;
 	int error;
 	uint64_t us;
-	
+
 	value = *(sbintime_t *)arg1;
 	us = (uint64_t)value / SBT_1US;
 	snprintf(buf, sizeof(buf), "%ju", (intmax_t)us);
@@ -969,7 +964,7 @@ cam_iosched_cl_sysctl_init(struct cam_iosched_softc *isc)
 	struct sysctl_oid_list *n;
 	struct sysctl_ctx_list *ctx;
 	struct control_loop *clp;
-	
+
 	clp = &isc->cl;
 	clp->sysctl_tree = SYSCTL_ADD_NODE(&isc->sysctl_ctx,
 	    SYSCTL_CHILDREN(isc->sysctl_tree), OID_AUTO, "control",
@@ -1007,7 +1002,7 @@ cam_iosched_cl_sysctl_fini(struct control_loop *clp)
 			printf("can't remove iosched sysctl control loop context\n");
 }
 #endif
-	    
+
 /*
  * Allocate the iosched structure. This also insulates callers from knowing
  * sizeof struct cam_iosched_softc.
@@ -1069,7 +1064,6 @@ cam_iosched_fini(struct cam_iosched_softc *isc)
 			callout_drain(&isc->ticker);
 			isc->flags &= ~ CAM_IOSCHED_FLAG_CALLOUT_ACTIVE;
 		}
-			
 #endif
 		free(isc, M_CAMSCHED);
 	}
@@ -1328,7 +1322,7 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 #endif
 	return bp;
 }
-	
+
 /*
  * Driver has been given some work to do by the block layer. Tell the
  * scheduler about it and have it queue the work up. The scheduler module
@@ -1385,7 +1379,7 @@ cam_iosched_queue_work(struct cam_iosched_softc *isc, struct bio *bp)
 	}
 }
 
-/* 
+/*
  * If we have work, get it scheduled. Called with the periph lock held.
  */
 void
@@ -1525,7 +1519,7 @@ isqrt64(uint64_t val)
 			res >>= 1;
 		bit >>= 2;
 	}
-	
+
 	return res;
 }
 
@@ -1635,7 +1629,6 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
 	iop->sd = (int64_t)var < 0 ? 0 : isqrt64(var);
 }
 
-#ifdef CAM_IOSCHED_DYNAMIC
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
     sbintime_t sim_latency, int cmd, size_t size)
@@ -1655,7 +1648,6 @@ cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
 		break;
 	}
 }
-#endif
 
 #ifdef DDB
 static int biolen(struct bio_queue_head *bq)
@@ -1707,7 +1699,7 @@ DB_SHOW_COMMAND(iosched, cam_iosched_db_show)
 	db_printf("Current Q len      %d\n", biolen(&isc->trim_queue));
 	db_printf("read_bias:         %d\n", isc->read_bias);
 	db_printf("current_read_bias: %d\n", isc->current_read_bias);
-	db_printf("Trim active?       %s\n", 
+	db_printf("Trim active?       %s\n",
 	    (isc->flags & CAM_IOSCHED_FLAG_TRIM_ACTIVE) ? "yes" : "no");
 }
 #endif
