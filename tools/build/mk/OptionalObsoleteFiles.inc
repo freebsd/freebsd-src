@@ -221,7 +221,7 @@ OLD_DIRS+=usr/share/examples/bhyve
 
 .if ${MK_BINUTILS} == no
 OLD_FILES+=usr/bin/as
-.if ${MK_LLD_AS_LD} == no
+.if ${MK_LLD_IS_LD} == no
 OLD_FILES+=usr/bin/ld
 .endif
 OLD_FILES+=usr/bin/ld.bfd
