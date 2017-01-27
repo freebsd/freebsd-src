@@ -93,10 +93,13 @@
  * says that VHT is supported - and then this macro can be
  * changed.
  */
-#define	IEEE80211_CONF_VHT(ic)		((ic)->ic_vhtcaps != 0)
+#define	IEEE80211_CONF_VHT(ic)			\
+	    ((ic)->ic_flags_ext & IEEE80211_FEXT_VHT)
 
 #define	IEEE80211_CONF_SEQNO_OFFLOAD(ic)	\
 	    ((ic)->ic_flags_ext & IEEE80211_FEXT_SEQNO_OFFLOAD)
+#define	IEEE80211_CONF_FRAG_OFFLOAD(ic)	\
+	    ((ic)->ic_flags_ext & IEEE80211_FEXT_FRAG_OFFLOAD)
 
 /*
  * 802.11 control state is split into a common portion that maps
@@ -633,11 +636,14 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_UNIQMAC	 0x00040000	/* CONF: user or computed mac */
 #define	IEEE80211_FEXT_SCAN_OFFLOAD	0x00080000	/* CONF: scan is fully offloaded */
 #define	IEEE80211_FEXT_SEQNO_OFFLOAD	0x00100000	/* CONF: driver does seqno insertion/allocation */
+#define	IEEE80211_FEXT_FRAG_OFFLOAD	0x00200000	/* CONF: hardware does 802.11 fragmentation + assignment */
+#define	IEEE80211_FEXT_VHT	0x00400000	/* CONF: VHT support */
 
 #define	IEEE80211_FEXT_BITS \
 	"\20\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
 	"\0114ADDR\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\16STATEWAIT\17REINIT" \
-	"\20BPF\21WDSLEGACY\22PROBECHAN\23UNIQMAC\24SCAN_OFFLOAD\25SEQNO_OFFLOAD"
+	"\20BPF\21WDSLEGACY\22PROBECHAN\23UNIQMAC\24SCAN_OFFLOAD\25SEQNO_OFFLOAD" \
+	"\26VHT"
 
 /* ic_flags_ht/iv_flags_ht */
 #define	IEEE80211_FHT_NONHT_PR	 0x00000001	/* STATUS: non-HT sta present */
