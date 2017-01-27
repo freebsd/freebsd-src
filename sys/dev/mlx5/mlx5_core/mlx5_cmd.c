@@ -760,7 +760,7 @@ static void cmd_work_handler(struct work_struct *work)
 		poll_timeout(ent);
 		/* make sure we read the descriptor after ownership is SW */
 		rmb();
-		mlx5_cmd_comp_handler(dev, 1UL << ent->idx);
+		mlx5_cmd_comp_handler(dev, 1U << ent->idx);
 	}
 }
 
@@ -1104,7 +1104,7 @@ static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg)
 	}
 }
 
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector)
+void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u32 vector)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
@@ -1112,60 +1112,63 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector)
 	void *context;
 	int err;
 	int i;
+	struct semaphore *sem;
 	s64 ds;
 	struct mlx5_cmd_stats *stats;
 	unsigned long flags;
 
-	for (i = 0; i < (1 << cmd->log_sz); i++) {
-		if (test_bit(i, &vector)) {
-			struct semaphore *sem;
-
-			ent = cmd->ent_arr[i];
-			if (ent->page_queue)
-				sem = &cmd->pages_sem;
+	while (vector != 0) {
+		i = ffs(vector) - 1;
+		vector &= ~(1U << i);
+		ent = cmd->ent_arr[i];
+		if (ent->page_queue)
+			sem = &cmd->pages_sem;
+		else
+			sem = &cmd->sem;
+		ent->ts2 = ktime_get_ns();
+		memcpy(ent->out->first.data, ent->lay->out,
+		       sizeof(ent->lay->out));
+		dump_command(dev, ent, 0);
+		if (!ent->ret) {
+			if (!cmd->checksum_disabled)
+				ent->ret = verify_signature(ent);
 			else
-				sem = &cmd->sem;
-			ent->ts2 = ktime_get_ns();
-			memcpy(ent->out->first.data, ent->lay->out, sizeof(ent->lay->out));
-			dump_command(dev, ent, 0);
-			if (!ent->ret) {
-				if (!cmd->checksum_disabled)
-					ent->ret = verify_signature(ent);
-				else
-					ent->ret = 0;
-				ent->status = ent->lay->status_own >> 1;
-				mlx5_core_dbg(dev, "command completed. ret 0x%x, delivery status %s(0x%x)\n",
-					      ent->ret, deliv_status_to_str(ent->status), ent->status);
-			}
-			free_ent(cmd, ent->idx);
-			if (ent->callback) {
-				ds = ent->ts2 - ent->ts1;
-				if (ent->op < ARRAY_SIZE(cmd->stats)) {
-					stats = &cmd->stats[ent->op];
-					spin_lock_irqsave(&stats->lock, flags);
-					stats->sum += ds;
-					++stats->n;
-					spin_unlock_irqrestore(&stats->lock, flags);
-				}
-
-				callback = ent->callback;
-				context = ent->context;
-				err = ent->ret;
-				if (!err)
-					err = mlx5_copy_from_msg(ent->uout,
-								 ent->out,
-								 ent->uout_size);
-
-				mlx5_free_cmd_msg(dev, ent->out);
-				free_msg(dev, ent->in);
-
-				free_cmd(ent);
-				callback(err, context);
-			} else {
-				complete(&ent->done);
-			}
-			up(sem);
+				ent->ret = 0;
+			ent->status = ent->lay->status_own >> 1;
+			mlx5_core_dbg(dev,
+				      "FW command ret 0x%x, status %s(0x%x)\n",
+				      ent->ret,
+				      deliv_status_to_str(ent->status),
+				      ent->status);
 		}
+		free_ent(cmd, ent->idx);
+		if (ent->callback) {
+			ds = ent->ts2 - ent->ts1;
+			if (ent->op < ARRAY_SIZE(cmd->stats)) {
+				stats = &cmd->stats[ent->op];
+				spin_lock_irqsave(&stats->lock, flags);
+				stats->sum += ds;
+				++stats->n;
+				spin_unlock_irqrestore(&stats->lock, flags);
+			}
+
+			callback = ent->callback;
+			context = ent->context;
+			err = ent->ret;
+			if (!err)
+				err = mlx5_copy_from_msg(ent->uout,
+							 ent->out,
+							 ent->uout_size);
+
+			mlx5_free_cmd_msg(dev, ent->out);
+			free_msg(dev, ent->in);
+
+			free_cmd(ent);
+			callback(err, context);
+		} else {
+			complete(&ent->done);
+		}
+		up(sem);
 	}
 }
 EXPORT_SYMBOL(mlx5_cmd_comp_handler);
