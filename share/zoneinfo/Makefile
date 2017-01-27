@@ -82,6 +82,8 @@ zoneinfo: yearistype ${TDATA}
 	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
 
 beforeinstall:
+	mkdir -p ${DESTDIR}/usr/share/zoneinfo
+	cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS}
 	cd ${TZBUILDDIR} && \
 	    find -s * -type f -print -exec ${INSTALL} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
