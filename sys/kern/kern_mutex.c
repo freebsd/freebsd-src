@@ -140,7 +140,7 @@ struct lock_class lock_class_mtx_spin = {
 #ifdef ADAPTIVE_MUTEXES
 static SYSCTL_NODE(_debug, OID_AUTO, mtx, CTLFLAG_RD, NULL, "mtx debugging");
 
-static struct lock_delay_config mtx_delay = {
+static struct lock_delay_config __read_mostly mtx_delay = {
 	.initial	= 1000,
 	.step		= 500,
 	.min		= 100,
@@ -171,7 +171,7 @@ LOCK_DELAY_SYSINIT(mtx_delay_sysinit);
 static SYSCTL_NODE(_debug, OID_AUTO, mtx_spin, CTLFLAG_RD, NULL,
     "mtx spin debugging");
 
-static struct lock_delay_config mtx_spin_delay = {
+static struct lock_delay_config __read_mostly mtx_spin_delay = {
 	.initial        = 1000,
 	.step           = 500,
 	.min            = 100,
