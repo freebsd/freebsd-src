@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -103,6 +103,7 @@ __mlx5_mask(typ, fld))
 enum {
 	MLX5_MAX_COMMANDS		= 32,
 	MLX5_CMD_DATA_BLOCK_SIZE	= 512,
+	MLX5_CMD_MBOX_SIZE		= 1024,
 	MLX5_PCI_CMD_XPORT		= 7,
 	MLX5_MKEY_BSF_OCTO_SIZE		= 4,
 	MLX5_MAX_PSVS			= 4,
@@ -522,6 +523,11 @@ struct mlx5_cmd_prot_block {
 	u8		ctrl_sig;
 	u8		sig;
 };
+
+#define	MLX5_NUM_CMDS_IN_ADAPTER_PAGE \
+	(MLX5_ADAPTER_PAGE_SIZE / MLX5_CMD_MBOX_SIZE)
+CTASSERT(MLX5_CMD_MBOX_SIZE >= sizeof(struct mlx5_cmd_prot_block));
+CTASSERT(MLX5_CMD_MBOX_SIZE <= MLX5_ADAPTER_PAGE_SIZE);
 
 enum {
 	MLX5_CQE_SYND_FLUSHED_IN_ERROR = 5,
