@@ -559,6 +559,16 @@ mlx5e_update_stats_work(struct work_struct *work)
 
 free_out:
 	kvfree(out);
+
+	/* Update diagnostics, if any */
+	if (priv->params_ethtool.diag_pci_enable ||
+	    priv->params_ethtool.diag_general_enable) {
+		int error = mlx5_core_get_diagnostics_full(mdev,
+		    priv->params_ethtool.diag_pci_enable ? &priv->params_pci : NULL,
+		    priv->params_ethtool.diag_general_enable ? &priv->params_general : NULL);
+		if (error != 0)
+			if_printf(priv->ifp, "Failed reading diagnostics: %d\n", error);
+	}
 	PRIV_UNLOCK(priv);
 }
 
