@@ -475,14 +475,21 @@ int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 		p = rb_first(&dev->priv.page_root);
 		if (p) {
 			fwp = rb_entry(p, struct mlx5_fw_page, rb_node);
-			err = reclaim_pages(dev, fwp->func_id,
-					    optimal_reclaimed_pages(),
-					    &nclaimed);
-			if (err) {
-				mlx5_core_warn(dev, "failed reclaiming pages (%d)\n",
-					       err);
-				return err;
+			if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+				--dev->priv.fw_pages;
+				free_4k(dev, fwp->addr);
+				nclaimed = 1;
+			} else {
+				err = reclaim_pages(dev, fwp->func_id,
+						    optimal_reclaimed_pages(),
+						    &nclaimed);
+				if (err) {
+					mlx5_core_warn(dev, "failed reclaiming pages (%d)\n",
+						       err);
+					return err;
+				}
 			}
+
 			if (nclaimed)
 				end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
 		}
