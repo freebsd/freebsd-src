@@ -15156,6 +15156,7 @@ static const struct mips_cpu_info mips_cpu_info_table[] =
 
   /* Cavium Networks Octeon CPU core */
   { "octeon",         0,      ISA_MIPS64R2,   CPU_OCTEON },
+  { "octeon+",        0,      ISA_MIPS64R2,   CPU_OCTEON },
 
   /* End marker */
   { NULL, 0, 0, 0 }

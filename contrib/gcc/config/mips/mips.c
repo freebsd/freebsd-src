@@ -765,6 +765,7 @@ const struct mips_cpu_info mips_cpu_info_table[] = {
 
   /* MIPS64R2 */
   { "octeon", PROCESSOR_OCTEON, 65 },
+  { "octeon+", PROCESSOR_OCTEON, 65 },
 
   /* End marker */
   { 0, 0, 0 }
