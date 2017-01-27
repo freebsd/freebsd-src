@@ -37,7 +37,7 @@ struct mlx5_pages_req {
 	struct work_struct work;
 };
 
-struct fw_page {
+struct mlx5_fw_page {
 	struct rb_node		rb_node;
 	u64			addr;
 	struct page	       *page;
@@ -76,13 +76,13 @@ static int insert_page(struct mlx5_core_dev *dev, u64 addr, struct page *page, u
 	struct rb_root *root = &dev->priv.page_root;
 	struct rb_node **new = &root->rb_node;
 	struct rb_node *parent = NULL;
-	struct fw_page *nfp;
-	struct fw_page *tfp;
+	struct mlx5_fw_page *nfp;
+	struct mlx5_fw_page *tfp;
 	int i;
 
 	while (*new) {
 		parent = *new;
-		tfp = rb_entry(parent, struct fw_page, rb_node);
+		tfp = rb_entry(parent, struct mlx5_fw_page, rb_node);
 		if (tfp->addr < addr)
 			new = &parent->rb_left;
 		else if (tfp->addr > addr)
@@ -107,15 +107,15 @@ static int insert_page(struct mlx5_core_dev *dev, u64 addr, struct page *page, u
 	return 0;
 }
 
-static struct fw_page *find_fw_page(struct mlx5_core_dev *dev, u64 addr)
+static struct mlx5_fw_page *find_fw_page(struct mlx5_core_dev *dev, u64 addr)
 {
 	struct rb_root *root = &dev->priv.page_root;
 	struct rb_node *tmp = root->rb_node;
-	struct fw_page *result = NULL;
-	struct fw_page *tfp;
+	struct mlx5_fw_page *result = NULL;
+	struct mlx5_fw_page *tfp;
 
 	while (tmp) {
-		tfp = rb_entry(tmp, struct fw_page, rb_node);
+		tfp = rb_entry(tmp, struct mlx5_fw_page, rb_node);
 		if (tfp->addr < addr) {
 			tmp = tmp->rb_left;
 		} else if (tfp->addr > addr) {
@@ -155,13 +155,13 @@ static int mlx5_cmd_query_pages(struct mlx5_core_dev *dev, u16 *func_id,
 
 static int alloc_4k(struct mlx5_core_dev *dev, u64 *addr)
 {
-	struct fw_page *fp;
+	struct mlx5_fw_page *fp;
 	unsigned n;
 
 	if (list_empty(&dev->priv.free_list))
 		return -ENOMEM;
 
-	fp = list_entry(dev->priv.free_list.next, struct fw_page, list);
+	fp = list_entry(dev->priv.free_list.next, struct mlx5_fw_page, list);
 	n = find_first_bit(&fp->bitmask, 8 * sizeof(fp->bitmask));
 	if (n >= MLX5_NUM_4K_IN_PAGE) {
 		mlx5_core_warn(dev, "alloc 4k bug\n");
@@ -179,7 +179,7 @@ static int alloc_4k(struct mlx5_core_dev *dev, u64 *addr)
 
 static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 {
-	struct fw_page *fwp;
+	struct mlx5_fw_page *fwp;
 	int n;
 
 	fwp = find_fw_page(dev, addr & PAGE_MASK);
@@ -439,7 +439,7 @@ static int optimal_reclaimed_pages(void)
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 {
 	int end = jiffies + msecs_to_jiffies(MAX_RECLAIM_TIME_MSECS);
-	struct fw_page *fwp;
+	struct mlx5_fw_page *fwp;
 	struct rb_node *p;
 	int nclaimed = 0;
 	int err;
@@ -447,7 +447,7 @@ int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev)
 	do {
 		p = rb_first(&dev->priv.page_root);
 		if (p) {
-			fwp = rb_entry(p, struct fw_page, rb_node);
+			fwp = rb_entry(p, struct mlx5_fw_page, rb_node);
 			err = reclaim_pages(dev, fwp->func_id,
 					    optimal_reclaimed_pages(),
 					    &nclaimed);
