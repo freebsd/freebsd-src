@@ -100,7 +100,7 @@ static SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL,
 SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
 SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
 
-static struct lock_delay_config rw_delay = {
+static struct lock_delay_config __read_mostly rw_delay = {
 	.initial	= 1000,
 	.step		= 500,
 	.min		= 100,

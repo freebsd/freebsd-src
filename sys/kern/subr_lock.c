@@ -213,7 +213,7 @@ struct lock_prof_cpu {
 
 struct lock_prof_cpu *lp_cpu[MAXCPU];
 
-volatile int lock_prof_enable = 0;
+volatile int __read_mostly lock_prof_enable;
 static volatile int lock_prof_resetting;
 
 #define LPROF_SBUF_SIZE		256

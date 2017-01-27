@@ -148,7 +148,7 @@ static SYSCTL_NODE(_debug, OID_AUTO, sx, CTLFLAG_RD, NULL, "sxlock debugging");
 SYSCTL_UINT(_debug_sx, OID_AUTO, retries, CTLFLAG_RW, &asx_retries, 0, "");
 SYSCTL_UINT(_debug_sx, OID_AUTO, loops, CTLFLAG_RW, &asx_loops, 0, "");
 
-static struct lock_delay_config sx_delay = {
+static struct lock_delay_config __read_mostly sx_delay = {
 	.initial	= 1000,
 	.step           = 500,
 	.min		= 100,
