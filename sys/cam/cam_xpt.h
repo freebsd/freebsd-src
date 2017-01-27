@@ -32,8 +32,10 @@
 #ifndef _CAM_CAM_XPT_H
 #define _CAM_CAM_XPT_H 1
 
+#ifdef _KERNEL
 #include <sys/cdefs.h>
 #include "opt_printf.h"
+#endif
 
 /* Forward Declarations */
 union ccb;
