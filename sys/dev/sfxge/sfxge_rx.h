@@ -155,7 +155,6 @@ struct sfxge_rxq {
 	struct sfxge_softc		*sc __aligned(CACHE_LINE_SIZE);
 	unsigned int			index;
 	efsys_mem_t			mem;
-	unsigned int			buf_base_id;
 	enum sfxge_rxq_state		init_state;
 	unsigned int			entries;
 	unsigned int			ptr_mask;
@@ -175,6 +174,7 @@ struct sfxge_rxq {
 	unsigned int			refill_delay;
 
 	volatile enum sfxge_flush_state	flush_state __aligned(CACHE_LINE_SIZE);
+	unsigned int			buf_base_id;
 };
 
 /*
