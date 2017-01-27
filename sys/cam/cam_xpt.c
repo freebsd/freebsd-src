@@ -3062,8 +3062,8 @@ call_sim:
 	case XPT_TERM_IO:
 	case XPT_ENG_INQ:
 		/* XXX Implement */
-		xpt_print_path(start_ccb->ccb_h.path);
-		printf("%s: CCB type %#x %s not supported\n", __func__,
+		xpt_print(start_ccb->ccb_h.path,
+		    "%s: CCB type %#x %s not supported\n", __func__,
 		    start_ccb->ccb_h.func_code,
 		    xpt_action_name(start_ccb->ccb_h.func_code));
 		start_ccb->ccb_h.status = CAM_PROVIDE_FAIL;
@@ -3944,8 +3944,8 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 			}
 		}
 		if (new_bus->xport == NULL) {
-			xpt_print_path(path);
-			printf("No transport found for %d\n", cpi.transport);
+			xpt_print(path,
+			    "No transport found for %d\n", cpi.transport);
 			xpt_release_bus(new_bus);
 			free(path, M_CAMXPT);
 			return (CAM_RESRC_UNAVAIL);
