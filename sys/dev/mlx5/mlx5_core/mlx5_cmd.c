@@ -723,6 +723,9 @@ static void complete_command(struct mlx5_cmd_work_ent *ent)
 	struct mlx5_cmd *cmd = ent->cmd;
 	struct mlx5_core_dev *dev = container_of(cmd, struct mlx5_core_dev,
 						 cmd);
+	mlx5_cmd_cbk_t callback;
+	void *context;
+
 	s64 ds;
 	struct mlx5_cmd_stats *stats;
 	unsigned long flags;
@@ -744,6 +747,8 @@ static void complete_command(struct mlx5_cmd_work_ent *ent)
 			spin_unlock_irqrestore(&stats->lock, flags);
 		}
 
+		callback = ent->callback;
+		context = ent->context;
 		err = ent->ret;
 		if (!err)
 			err = mlx5_copy_from_msg(ent->uout,
@@ -754,7 +759,7 @@ static void complete_command(struct mlx5_cmd_work_ent *ent)
 		free_msg(dev, ent->in);
 
 		free_cmd(ent);
-		ent->callback(err, ent->context);
+		callback(err, context);
 	} else {
 		complete(&ent->done);
 	}
