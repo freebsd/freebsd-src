@@ -1629,7 +1629,6 @@ cam_iosched_update(struct iop_stats *iop, sbintime_t sim_latency)
 	iop->sd = (int64_t)var < 0 ? 0 : isqrt64(var);
 }
 
-#ifdef CAM_IOSCHED_DYNAMIC
 static void
 cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
     sbintime_t sim_latency, int cmd, size_t size)
@@ -1649,7 +1648,6 @@ cam_iosched_io_metric_update(struct cam_iosched_softc *isc,
 		break;
 	}
 }
-#endif
 
 #ifdef DDB
 static int biolen(struct bio_queue_head *bq)
