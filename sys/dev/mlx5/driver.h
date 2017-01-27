@@ -518,7 +518,7 @@ struct mlx5_priv {
 	/* pages stuff */
 	struct workqueue_struct *pg_wq;
 	struct rb_root		page_root;
-	int			fw_pages;
+	s64			fw_pages;
 	atomic_t		reg_pages;
 	struct list_head	free_list;
 
