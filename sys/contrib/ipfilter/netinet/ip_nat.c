@@ -4704,8 +4704,8 @@ ipf_nat_lookupredir(np)
 				}
 			}
 
-			np->nl_realip = nat->nat_ndstip;
-			np->nl_realport = nat->nat_ndport;
+			np->nl_realip = nat->nat_odstip;
+			np->nl_realport = nat->nat_odport;
 		}
  	}
 

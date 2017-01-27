@@ -2521,8 +2521,8 @@ ipf_nat6_lookupredir(np)
 				}
 			}
 
-			np->nl_realip6 = nat->nat_ndst6.in6;
-			np->nl_realport = nat->nat_ndport;
+			np->nl_realip6 = nat->nat_odst6.in6;
+			np->nl_realport = nat->nat_odport;
 		}
  	}
 
