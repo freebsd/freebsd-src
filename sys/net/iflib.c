@@ -4781,12 +4781,9 @@ iflib_msix_init(if_ctx_t ctx)
 	** successfully initialize us.
 	*/
 	{
-		uint16_t pci_cmd_word;
 		int msix_ctrl, rid;
 
-		pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-		pci_cmd_word |= PCIM_CMD_BUSMASTEREN;
-		pci_write_config(dev, PCIR_COMMAND, pci_cmd_word, 2);
+ 		pci_enable_busmaster(dev);
 		rid = 0;
 		if (pci_find_cap(dev, PCIY_MSIX, &rid) == 0 && rid != 0) {
 			rid += PCIR_MSIX_CTRL;
