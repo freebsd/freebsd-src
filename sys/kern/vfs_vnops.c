@@ -2460,10 +2460,12 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 	}
 #ifdef HWPMC_HOOKS
 	/* Inform hwpmc(4) if an executable is being mapped. */
-	if (error == 0 && (prot & VM_PROT_EXECUTE) != 0) {
-		pkm.pm_file = vp;
-		pkm.pm_address = (uintptr_t) *addr;
-		PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
+	if (PMC_HOOK_INSTALLED(PMC_FN_MMAP)) {
+		if ((prot & VM_PROT_EXECUTE) != 0 && error == 0) {
+			pkm.pm_file = vp;
+			pkm.pm_address = (uintptr_t) *addr;
+			PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
+		}
 	}
 #endif
 	return (error);
