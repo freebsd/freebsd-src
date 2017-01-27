@@ -39,6 +39,11 @@
 
 #include "mlx5_core.h"
 
+static int mlx5_copy_from_msg(void *to, struct mlx5_cmd_msg *from, int size);
+static void mlx5_free_cmd_msg(struct mlx5_core_dev *dev,
+			      struct mlx5_cmd_msg *msg);
+static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg);
+
 enum {
 	CMD_IF_REV = 5,
 };
@@ -110,18 +115,27 @@ static u8 alloc_token(struct mlx5_cmd *cmd)
 	return token;
 }
 
-static int alloc_ent(struct mlx5_cmd *cmd)
+static int alloc_ent(struct mlx5_cmd_work_ent *ent)
 {
 	unsigned long flags;
-	int ret;
+	struct mlx5_cmd *cmd = ent->cmd;
+	int ret = cmd->max_reg_cmds;
 
 	spin_lock_irqsave(&cmd->alloc_lock, flags);
-	ret = find_first_bit(&cmd->bitmask, cmd->max_reg_cmds);
-	if (ret < cmd->max_reg_cmds)
-		clear_bit(ret, &cmd->bitmask);
+	if (!ent->page_queue) {
+		ret = find_first_bit(&cmd->bitmask, cmd->max_reg_cmds);
+		if (ret >= cmd->max_reg_cmds)
+			ret = -1;
+	}
+
+	if (ret != -1) {
+		ent->idx = ret;
+		clear_bit(ent->idx, &cmd->bitmask);
+		cmd->ent_arr[ent->idx] = ent;
+	}
 	spin_unlock_irqrestore(&cmd->alloc_lock, flags);
 
-	return ret < cmd->max_reg_cmds ? ret : -1;
+	return ret;
 }
 
 static void free_ent(struct mlx5_cmd *cmd, int idx)
@@ -704,6 +718,49 @@ static void dump_command(struct mlx5_core_dev *dev,
 		pr_debug("\n");
 }
 
+static void complete_command(struct mlx5_cmd_work_ent *ent)
+{
+	struct mlx5_cmd *cmd = ent->cmd;
+	struct mlx5_core_dev *dev = container_of(cmd, struct mlx5_core_dev,
+						 cmd);
+	s64 ds;
+	struct mlx5_cmd_stats *stats;
+	unsigned long flags;
+	int err;
+	struct semaphore *sem;
+
+	if (ent->page_queue)
+		sem = &cmd->pages_sem;
+	else
+		sem = &cmd->sem;
+
+	if (ent->callback) {
+		ds = ent->ts2 - ent->ts1;
+		if (ent->op < ARRAY_SIZE(cmd->stats)) {
+			stats = &cmd->stats[ent->op];
+			spin_lock_irqsave(&stats->lock, flags);
+			stats->sum += ds;
+			++stats->n;
+			spin_unlock_irqrestore(&stats->lock, flags);
+		}
+
+		err = ent->ret;
+		if (!err)
+			err = mlx5_copy_from_msg(ent->uout,
+						 ent->out,
+						 ent->uout_size);
+
+		mlx5_free_cmd_msg(dev, ent->out);
+		free_msg(dev, ent->in);
+
+		free_cmd(ent);
+		ent->callback(err, ent->context);
+	} else {
+		complete(&ent->done);
+	}
+	up(sem);
+}
+
 static void cmd_work_handler(struct work_struct *work)
 {
 	struct mlx5_cmd_work_ent *ent = container_of(work, struct mlx5_cmd_work_ent, work);
@@ -719,19 +776,13 @@ static void cmd_work_handler(struct work_struct *work)
 	}
 
 	down(sem);
-	if (!ent->page_queue) {
-		ent->idx = alloc_ent(cmd);
-		if (ent->idx < 0) {
-			mlx5_core_err(dev, "failed to allocate command entry\n");
-			up(sem);
-			return;
-		}
-	} else {
-		ent->idx = cmd->max_reg_cmds;
+
+	if (alloc_ent(ent) < 0) {
+		complete_command(ent);
+		return;
 	}
 
 	ent->token = alloc_token(cmd);
-	cmd->ent_arr[ent->idx] = ent;
 	lay = get_inst(cmd, ent->idx);
 	ent->lay = lay;
 	memset(lay, 0, sizeof(*lay));
@@ -1108,23 +1159,12 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u32 vector)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
-	mlx5_cmd_cbk_t callback;
-	void *context;
-	int err;
 	int i;
-	struct semaphore *sem;
-	s64 ds;
-	struct mlx5_cmd_stats *stats;
-	unsigned long flags;
 
 	while (vector != 0) {
 		i = ffs(vector) - 1;
 		vector &= ~(1U << i);
 		ent = cmd->ent_arr[i];
-		if (ent->page_queue)
-			sem = &cmd->pages_sem;
-		else
-			sem = &cmd->sem;
 		ent->ts2 = ktime_get_ns();
 		memcpy(ent->out->first.data, ent->lay->out,
 		       sizeof(ent->lay->out));
@@ -1142,33 +1182,7 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u32 vector)
 				      ent->status);
 		}
 		free_ent(cmd, ent->idx);
-		if (ent->callback) {
-			ds = ent->ts2 - ent->ts1;
-			if (ent->op < ARRAY_SIZE(cmd->stats)) {
-				stats = &cmd->stats[ent->op];
-				spin_lock_irqsave(&stats->lock, flags);
-				stats->sum += ds;
-				++stats->n;
-				spin_unlock_irqrestore(&stats->lock, flags);
-			}
-
-			callback = ent->callback;
-			context = ent->context;
-			err = ent->ret;
-			if (!err)
-				err = mlx5_copy_from_msg(ent->uout,
-							 ent->out,
-							 ent->uout_size);
-
-			mlx5_free_cmd_msg(dev, ent->out);
-			free_msg(dev, ent->in);
-
-			free_cmd(ent);
-			callback(err, context);
-		} else {
-			complete(&ent->done);
-		}
-		up(sem);
+		complete_command(ent);
 	}
 }
 EXPORT_SYMBOL(mlx5_cmd_comp_handler);
