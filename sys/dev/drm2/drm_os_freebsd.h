@@ -80,7 +80,6 @@ typedef void			irqreturn_t;
 
 #define	__init
 #define	__exit
-#define	__read_mostly
 
 #define	BUILD_BUG_ON(x)		CTASSERT(!(x))
 #define	BUILD_BUG_ON_NOT_POWER_OF_2(x)

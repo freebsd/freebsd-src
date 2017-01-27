@@ -129,6 +129,12 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #define	SCHEDULER_STOPPED() __predict_false(curthread->td_stopsched)
 
 /*
+ * Align variables.
+ */
+#define	__read_mostly		__section(".data.read_mostly")
+#define	__exclusive_cache_line	__aligned(CACHE_LINE_SIZE) \
+				    __section(".data.exclusive_cache_line")
+/*
  * XXX the hints declarations are even more misplaced than most declarations
  * in this file, since they are needed in one file (per arch) and only used
  * in two files.
