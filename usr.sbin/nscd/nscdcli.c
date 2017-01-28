@@ -189,7 +189,7 @@ open_nscd_connection__(struct nscd_connection_params const *params)
 	TRACE_IN(open_nscd_connection);
 	assert(params != NULL);
 
-	client_socket = socket(PF_LOCAL, SOCK_STREAM|SOCK_NONBLOCK, 0);
+	client_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
 	client_address.sun_family = PF_LOCAL;
 	strlcpy(client_address.sun_path, params->socket_path,
 		sizeof(client_address.sun_path));
@@ -203,6 +203,7 @@ open_nscd_connection__(struct nscd_connection_params const *params)
 		TRACE_OUT(open_nscd_connection);
 		return (NULL);
 	}
+	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 
 	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);

@@ -9,7 +9,7 @@ LINKS=	${BINDIR}/ed ${BINDIR}/red
 MLINKS=	ed.1 red.1
 
 .if ${MK_OPENSSL} != "no" && ${MK_ED_CRYPTO} != "no"
-CFLAGS+=-DDES -I/usr/include/private/openssl
+CFLAGS+=-DDES
 LIBADD=	crypto
 .endif
 

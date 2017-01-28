@@ -54,10 +54,10 @@ INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
 .for _dev in ${PRINTERDEVICE:Mascii}
-ROFF.ascii?=	nroff -Tascii -P-c ${TRFLAGS} -mtty-char ${MACROS} ${PAGES:C/^/-o/1}
+ROFF.ascii?=	groff -Tascii -P-c ${TRFLAGS} -mtty-char ${MACROS} ${PAGES:C/^/-o/1}
 .endfor
 .for _dev in ${PRINTERDEVICE:Nascii}
-ROFF.${_dev}?=	nroff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1}
+ROFF.${_dev}?=	groff -T${_dev} ${TRFLAGS} ${MACROS} ${PAGES:C/^/-o/1}
 .endfor
 SOELIM?=	soelim
 TBL?=		tbl
