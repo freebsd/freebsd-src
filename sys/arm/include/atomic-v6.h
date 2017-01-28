@@ -198,12 +198,11 @@ atomic_fcmpset_32(volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 	int ret;
 
 	__asm __volatile(
-	    "1: mov 	%0, #1		\n"
+	    "   mov 	%0, #1		\n"
 	    "   ldrex	%1, [%2]	\n"
 	    "   cmp	%1, %3		\n"
 	    "   it	eq		\n"
 	    "   strexeq	%0, %4, [%2]	\n"
-	    "2:"
 	    : "=&r" (ret), "=&r" (tmp), "+r" (p), "+r" (_cmpval), "+r" (newval)
 	    : : "cc", "memory");
 	*cmpval = tmp;
