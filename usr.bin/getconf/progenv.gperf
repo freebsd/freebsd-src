@@ -30,14 +30,11 @@ static const struct map *in_word_set(const char *str);
  * be updated.  (We cheat here and define the supported environments
  * statically.)
  */
-#if defined(__alpha__) || defined(__sparc64__)
+#if defined(__sparc64__) || defined(__amd64__)
 #define	have_LP64_OFF64		NULL
-#elif defined(__APPLE__)
-#define	have_LP64_OFF64		NULL
-#define	have_LPBIG_OFFBIG	NULL
 #endif
 
-#if defined(__i386__) || defined(__powerpc__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__powerpc__)
 #define	have_ILP32_OFFBIG	NULL
 #endif
 
@@ -47,11 +44,11 @@ struct map { const char *name; const char *alt_path; int valid; };
 POSIX_V6_ILP32_OFF32, notdef
 POSIX_V6_ILP32_OFFBIG, have_ILP32_OFFBIG
 POSIX_V6_LP64_OFF64, have_LP64_OFF64
-POSIX_V6_LPBIG_OFFBIG, have_LPBIG_OFFBIG
+POSIX_V6_LPBIG_OFFBIG, notdef
 _POSIX_V6_ILP32_OFF32, notdef
 _POSIX_V6_ILP32_OFFBIG, have_ILP32_OFFBIG
 _POSIX_V6_LP64_OFF64, have_LP64_OFF64
-_POSIX_V6_LPBIG_OFFBIG, have_LPBIG_OFFBIG
+_POSIX_V6_LPBIG_OFFBIG, notdef
 %%
 int
 find_progenv(const char *name, const char **alt_path)

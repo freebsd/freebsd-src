@@ -187,3 +187,4 @@ do_pathconf(const char *name, int key, const char *path)
 	else
 		printf("%ld\n", value);
 }
+

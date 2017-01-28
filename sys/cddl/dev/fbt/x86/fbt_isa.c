@@ -34,8 +34,6 @@
 
 #include <sys/dtrace.h>
 
-#include <machine/cpu.h>
-
 #include "fbt.h"
 
 #define	FBT_PUSHL_EBP		0x55
