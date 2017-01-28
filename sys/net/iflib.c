@@ -1536,8 +1536,8 @@ iflib_rxsd_alloc(iflib_rxq_t rxq)
 				goto fail;
 			}
 		}
-	}
 #endif
+	}
 	return (0);
 
 fail:
