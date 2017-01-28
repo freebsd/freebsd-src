@@ -672,14 +672,6 @@ AcpiGetData (
 
 ACPI_EXTERNAL_RETURN_STATUS (
 ACPI_STATUS
-AcpiGetDataFull (
-    ACPI_HANDLE             Object,
-    ACPI_OBJECT_HANDLER     Handler,
-    void                    **Data,
-    void (*Callback)(void *)))
-
-ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
 AcpiDebugTrace (
     const char              *Name,
     UINT32                  DebugLevel,
