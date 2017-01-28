@@ -167,7 +167,7 @@ init_runtime_env(struct configuration *config)
 	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
-	retval->sockfd = socket(PF_LOCAL, SOCK_STREAM, 0);
+	retval->sockfd = socket(PF_LOCAL, SOCK_STREAM|SOCK_NONBLOCK, 0);
 
 	if (config->force_unlink == 1)
 		unlink(config->socket_path);
@@ -198,7 +198,6 @@ init_runtime_env(struct configuration *config)
 	 */
 	chmod(config->socket_path, config->socket_mode);
 	listen(retval->sockfd, -1);
-	fcntl(retval->sockfd, F_SETFL, O_NONBLOCK);
 
 	retval->queue = kqueue();
 	assert(retval->queue != -1);

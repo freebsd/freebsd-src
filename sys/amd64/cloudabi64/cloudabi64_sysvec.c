@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -38,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/vmparam.h>
+#include <machine/cpu.h>
 
 #include <compat/cloudabi/cloudabi_util.h>
 
