@@ -276,7 +276,6 @@ found:
 	case IFT_ISO88025:
 	case IFT_ATM:
 	case IFT_IEEE1394:
-	case IFT_IEEE80211:
 		/* IEEE802/EUI64 cases - what others? */
 		/* IEEE1394 uses 16byte length address starting with EUI64 */
 		if (addrlen > 8)

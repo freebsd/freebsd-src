@@ -113,7 +113,7 @@ typedef enum {
 	IFT_QLLC	= 0x44,		/* SNA QLLC			*/
 	IFT_FASTETHERFX	= 0x45,		/* Fast Ethernet (100BaseFX)	*/
 	IFT_CHANNEL	= 0x46,		/* channel			*/
-	IFT_IEEE80211	= 0x47,		/* radio spread spectrum	*/
+	IFT_IEEE80211	= 0x47,		/* radio spread spectrum (unused) */
 	IFT_IBM370PARCHAN = 0x48,	/* IBM System 360/370 OEMI Channel */
 	IFT_ESCON	= 0x49,		/* IBM Enterprise Systems Connection */
 	IFT_DLSW	= 0x4a,		/* Data Link Switching */

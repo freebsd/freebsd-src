@@ -2259,7 +2259,6 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 		case IFT_ETHER:
 		case IFT_FDDI:
 		case IFT_L2VLAN:
-		case IFT_IEEE80211:
 		case IFT_BRIDGE:
 		case IFT_ISO88025:
 			ETHER_MAP_IPV6_MULTICAST(&dst6->sin6_addr,
@@ -2527,7 +2526,6 @@ nd6_need_cache(struct ifnet *ifp)
 	case IFT_FDDI:
 	case IFT_IEEE1394:
 	case IFT_L2VLAN:
-	case IFT_IEEE80211:
 	case IFT_INFINIBAND:
 	case IFT_BRIDGE:
 	case IFT_PROPVIRTUAL:
