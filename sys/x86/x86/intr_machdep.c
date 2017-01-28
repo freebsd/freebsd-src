@@ -61,11 +61,7 @@
 #include <machine/frame.h>
 #include <dev/ic/i8259.h>
 #include <x86/isa/icu.h>
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
-#else
 #include <isa/isareg.h>
-#endif
 #endif
 
 #define	MAX_STRAY_LOG	5

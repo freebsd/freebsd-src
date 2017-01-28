@@ -120,12 +120,6 @@ vm86phystk:	.long	0		/* PA of vm86/bios stack */
 vm86paddr:	.long	0		/* address of vm86 region */
 vm86pa:		.long	0		/* phys addr of vm86 region */
 
-#ifdef PC98
-	.globl	pc98_system_parameter
-pc98_system_parameter:
-	.space	0x240
-#endif
-
 /**********************************************************************
  *
  * Some handy macros
@@ -183,18 +177,8 @@ pc98_system_parameter:
  */
 NON_GPROF_ENTRY(btext)
 
-#ifdef PC98
-	/* save SYSTEM PARAMETER for resume (NS/T or other) */
-	movl	$0xa1400,%esi
-	movl	$R(pc98_system_parameter),%edi
-	movl	$0x0240,%ecx
-	cld
-	rep
-	movsb
-#else	/* IBM-PC */
 /* Tell the bios to warmboot next time */
 	movw	$0x1234,0x472
-#endif	/* PC98 */
 
 /* Set up a real frame in case the double return in newboot is executed. */
 	pushl	%ebp
@@ -239,33 +223,6 @@ NON_GPROF_ENTRY(btext)
  * returns via the old frame.
  */
 	movl	$R(tmpstk),%esp
-
-#ifdef PC98
-	/* pc98_machine_type & M_EPSON_PC98 */
-	testb	$0x02,R(pc98_system_parameter)+220
-	jz	3f
-	/* epson_machine_id <= 0x0b */
-	cmpb	$0x0b,R(pc98_system_parameter)+224
-	ja	3f
-
-	/* count up memory */
-	movl	$0x100000,%eax		/* next, talley remaining memory */
-	movl	$0xFFF-0x100,%ecx
-1:	movl	0(%eax),%ebx		/* save location to check */
-	movl	$0xa55a5aa5,0(%eax)	/* write test pattern */
-	cmpl	$0xa55a5aa5,0(%eax)	/* does not check yet for rollover */
-	jne	2f
-	movl	%ebx,0(%eax)		/* restore memory */
-	addl	$PAGE_SIZE,%eax
-	loop	1b
-2:	subl	$0x100000,%eax
-	shrl	$17,%eax
-	movb	%al,R(pc98_system_parameter)+1
-3:
-
-	movw	R(pc98_system_parameter+0x86),%ax
-	movw	%ax,R(cpu_id)
-#endif
 
 	call	identify_cpu
 	call	create_pagetables

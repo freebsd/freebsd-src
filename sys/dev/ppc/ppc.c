@@ -67,11 +67,6 @@ static void ppcintr(void *arg);
 #define LOG_PPC(function, ppc, string) \
 		if (bootverbose) printf("%s: %s\n", function, string)
 
-#if defined(__i386__) && defined(PC98)
-#define	PC98_IEEE_1284_DISABLE	0x100
-#define	PC98_IEEE_1284_PORT	0x140
-#endif
-
 #define DEVTOSOFTC(dev) ((struct ppc_data *)device_get_softc(dev))
 
 /*
@@ -1667,10 +1662,6 @@ ppc_probe(device_t dev, int rid)
 {
 #ifdef __i386__
 	static short next_bios_ppc = 0;
-#ifdef PC98
-	unsigned int pc98_ieee_mode = 0x00;
-	unsigned int tmp;
-#endif
 #endif
 	struct ppc_data *ppc;
 	int error;
@@ -1692,16 +1683,6 @@ ppc_probe(device_t dev, int rid)
 	 * If port not specified, use bios list.
 	 */
 	if (error) {
-#ifdef PC98
-		if (next_bios_ppc == 0) {
-			/* Use default IEEE-1284 port of NEC PC-98x1 */
-			port = PC98_IEEE_1284_PORT;
-			next_bios_ppc += 1;
-			if (bootverbose)
-				device_printf(dev,
-				    "parallel port found at 0x%jx\n", port);
-		}
-#else
 		if ((next_bios_ppc < BIOS_MAX_PPC) &&
 		    (*(BIOS_PORTS + next_bios_ppc) != 0)) {
 			port = *(BIOS_PORTS + next_bios_ppc++);
@@ -1712,7 +1693,6 @@ ppc_probe(device_t dev, int rid)
 			device_printf(dev, "parallel port not found.\n");
 			return (ENXIO);
 		}
-#endif	/* PC98 */
 		bus_set_resource(dev, SYS_RES_IOPORT, rid, port,
 				 IO_LPTSIZE_EXTENDED);
 	}
@@ -1771,30 +1751,6 @@ ppc_probe(device_t dev, int rid)
 
 	ppc->ppc_type = PPC_TYPE_GENERIC;
 
-#if defined(__i386__) && defined(PC98)
-	/*
-	 * IEEE STD 1284 Function Check and Enable
-	 * for default IEEE-1284 port of NEC PC-98x1
-	 */
-	if (ppc->ppc_base == PC98_IEEE_1284_PORT &&
-	    !(ppc->ppc_flags & PC98_IEEE_1284_DISABLE)) {
-		tmp = inb(ppc->ppc_base + PPC_1284_ENABLE);
-		pc98_ieee_mode = tmp;
-		if ((tmp & 0x10) == 0x10) {
-			outb(ppc->ppc_base + PPC_1284_ENABLE, tmp & ~0x10);
-			tmp = inb(ppc->ppc_base + PPC_1284_ENABLE);
-			if ((tmp & 0x10) == 0x10)
-				goto error;
-		} else {
-			outb(ppc->ppc_base + PPC_1284_ENABLE, tmp | 0x10);
-			tmp = inb(ppc->ppc_base + PPC_1284_ENABLE);
-			if ((tmp & 0x10) != 0x10)
-				goto error;
-		}
-		outb(ppc->ppc_base + PPC_1284_ENABLE, pc98_ieee_mode | 0x10);
-	}
-#endif
-
 	/*
 	 * Try to detect the chipset and its mode.
 	 */
@@ -1804,12 +1760,6 @@ ppc_probe(device_t dev, int rid)
 	return (0);
 
 error:
-#if defined(__i386__) && defined(PC98)
-	if (ppc->ppc_base == PC98_IEEE_1284_PORT &&
-	    !(ppc->ppc_flags & PC98_IEEE_1284_DISABLE)) {
-		outb(ppc->ppc_base + PPC_1284_ENABLE, pc98_ieee_mode);
-	}
-#endif
 	if (ppc->res_irq != 0) {
 		bus_release_resource(dev, SYS_RES_IRQ, ppc->rid_irq,
 				     ppc->res_irq);
