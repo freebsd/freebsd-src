@@ -41,6 +41,11 @@ SYSINCS+=	stat.h
 SRCS+=		futimens.c utimensat.c
 .endif
 
+.if !exists(/usr/include/capsicum_helpers.h)
+.PATH:		${.CURDIR}/../../lib/libcapsicum/
+INCS+=		capsicum_helpers.h
+.endif
+
 .if empty(SRCS)
 SRCS=		dummy.c
 .endif

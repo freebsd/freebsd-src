@@ -150,7 +150,7 @@ struct ctl_lun_io_stats {
 	uint64_t			lun_number;
 	uint32_t			blocksize;
 	ctl_lun_stats_flags		flags;
-	struct ctl_lun_io_port_stats	ports[CTL_MAX_PORTS];
+	struct ctl_lun_io_port_stats	*ports;
 };
 
 struct ctl_stats {
