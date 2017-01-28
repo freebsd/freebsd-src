@@ -53,6 +53,8 @@
 #include <sys/thr.h>
 #include <pthread.h>
 
+__NULLABILITY_PRAGMA_PUSH
+
 #define	SYM_FB10(sym)			__CONCAT(sym, _fb10)
 #define	SYM_FBP10(sym)			__CONCAT(sym, _fbp10)
 #define	WEAK_REF(sym, alias)		__weak_reference(sym, alias)
@@ -835,11 +837,10 @@ void	_pthread_cleanup_pop(int);
 void	_pthread_exit_mask(void *status, sigset_t *mask) __dead2 __hidden;
 void	_pthread_cancel_enter(int maycancel);
 void 	_pthread_cancel_leave(int maycancel);
-int	_pthread_mutex_consistent(pthread_mutex_t *) __nonnull(1);
-int	_pthread_mutexattr_getrobust(pthread_mutexattr_t *__restrict,
-	    int *__restrict) __nonnull_all;
-int	_pthread_mutexattr_setrobust(pthread_mutexattr_t *, int)
-	    __nonnull(1);
+int	_pthread_mutex_consistent(pthread_mutex_t * _Nonnull);
+int	_pthread_mutexattr_getrobust(pthread_mutexattr_t * _Nonnull __restrict,
+	    int * _Nonnull __restrict);
+int	_pthread_mutexattr_setrobust(pthread_mutexattr_t * _Nonnull, int);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
@@ -984,5 +985,6 @@ void __thr_pshared_atfork_pre(void) __hidden;
 void __thr_pshared_atfork_post(void) __hidden;
 
 __END_DECLS
+__NULLABILITY_PRAGMA_POP
 
 #endif  /* !_THR_PRIVATE_H */
