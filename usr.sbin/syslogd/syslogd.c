@@ -2908,7 +2908,8 @@ socksetup(struct peer *pe)
 			/* Only AF_LOCAL in secure mode. */
 			continue;
 		}
-		if (family != AF_UNSPEC && res->ai_family != family)
+		if (family != AF_UNSPEC &&
+		    res->ai_family != AF_LOCAL && res->ai_family != family)
 			continue;
 
 		s = socket(res->ai_family, res->ai_socktype,
