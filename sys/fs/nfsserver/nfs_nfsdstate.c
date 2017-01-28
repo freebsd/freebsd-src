@@ -3081,7 +3081,7 @@ tryagain:
 			new_deleg->ls_stateid.other[2] = delegstateidp->other[2]
 			    = nfsrv_nextstateindex(clp);
 			if (writedeleg && !NFSVNO_EXRDONLY(exp) &&
-			    (nfsrv_writedelegifpos || !readonly) &&
+			    (nfsrv_writedelegifpos && !readonly) &&
 			    (new_stp->ls_flags & NFSLCK_WANTRDELEG) == 0) {
 			    new_deleg->ls_flags = (NFSLCK_DELEGWRITE |
 				NFSLCK_READACCESS | NFSLCK_WRITEACCESS);
@@ -3153,7 +3153,7 @@ tryagain:
 				    delegstateidp->other[2]
 				    = nfsrv_nextstateindex(clp);
 				if (writedeleg && !NFSVNO_EXRDONLY(exp) &&
-				    (nfsrv_writedelegifpos || !readonly) &&
+				    (nfsrv_writedelegifpos && !readonly) &&
 				    ((nd->nd_flag & ND_NFSV41) == 0 ||
 				     (new_stp->ls_flags & NFSLCK_WANTRDELEG) ==
 				     0)) {

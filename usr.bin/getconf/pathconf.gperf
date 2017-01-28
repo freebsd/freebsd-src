@@ -9,6 +9,9 @@
 
 #include <string.h>
 #include <unistd.h>
+#ifdef APPLE_GETCONF_UNDERSCORE
+#include <alloca.h>
+#endif /* APPLE_GETCONF_UNDERSCORE */
 
 #include "getconf.h"
 
@@ -20,17 +23,10 @@ static const struct map *in_word_set(const char *str);
 %}
 struct map { const char *name; int key; int valid; };
 %%
-ACL_EXTENDED, _PC_ACL_EXTENDED
-ACL_NFS4, _PC_ACL_NFS4
-ACL_PATH_MAX, _PC_ACL_PATH_MAX
-CAP_PRESENT, _PC_CAP_PRESENT
 FILESIZEBITS, _PC_FILESIZEBITS
-INF_PRESENT, _PC_INF_PRESENT
 LINK_MAX, _PC_LINK_MAX
-MAC_PRESENT, _PC_MAC_PRESENT
 MAX_CANON, _PC_MAX_CANON
 MAX_INPUT, _PC_MAX_INPUT
-MIN_HOLE_SIZE, _PC_MIN_HOLE_SIZE
 NAME_MAX, _PC_NAME_MAX
 PATH_MAX, _PC_PATH_MAX
 PIPE_BUF, _PC_PIPE_BUF
@@ -39,24 +35,28 @@ POSIX_REC_INCR_XFER_SIZE, _PC_REC_INCR_XFER_SIZE
 POSIX_REC_MAX_XFER_SIZE, _PC_REC_MAX_XFER_SIZE
 POSIX_REC_MIN_XFER_SIZE, _PC_REC_MIN_XFER_SIZE
 POSIX_REC_XFER_ALIGN, _PC_REC_XFER_ALIGN
+POSIX2_SYMLINKS, _PC_2_SYMLINKS
 SYMLINK_MAX, _PC_SYMLINK_MAX
 TRUSTEDBSD_ACL_EXTENDED, _PC_ACL_EXTENDED
-TRUSTEDBSD_ACL_NFS4, _PC_ACL_NFS4
 TRUSTEDBSD_ACL_PATH_MAX, _PC_ACL_PATH_MAX
 TRUSTEDBSD_CAP_PRESENT, _PC_CAP_PRESENT
 TRUSTEDBSD_INF_PRESENT, _PC_INF_PRESENT
 TRUSTEDBSD_MAC_PRESENT, _PC_MAC_PRESENT
+_POSIX_ASYNC_IO, _PC_ASYNC_IO
 _POSIX_CHOWN_RESTRICTED, _PC_CHOWN_RESTRICTED
 _POSIX_NO_TRUNC, _PC_NO_TRUNC
-_POSIX_VDISABLE, _PC_VDISABLE
-_POSIX_ASYNC_IO, _PC_ASYNC_IO
+_POSIX_PATH_MAX, _PC_PATH_MAX
 _POSIX_PRIO_IO, _PC_PRIO_IO
 _POSIX_SYNC_IO, _PC_SYNC_IO
+_POSIX_VDISABLE, _PC_VDISABLE
 %%
 int
 find_pathconf(const char *name, int *key)
 {
 	const struct map *rv;
+#ifdef APPLE_GETCONF_UNDERSCORE
+	char *alt;
+#endif /* APPLE_GETCONF_UNDERSCORE */
 
 	rv = in_word_set(name);
 	if (rv != NULL) {
@@ -66,5 +66,23 @@ find_pathconf(const char *name, int *key)
 		}
 		return -1;
 	}
+#ifdef APPLE_GETCONF_UNDERSCORE
+	if(*name == '_')
+		alt = (char *)name + 1;
+	else {
+		if((alt = (char *)alloca(strlen(name) + 2)) == NULL)
+			return 0;
+		*alt = '_';
+		strcpy(alt + 1, name);
+	}
+	rv = in_word_set(alt);
+	if (rv != NULL) {
+		if (rv->valid) {
+			*key = rv->key;
+			return 1;
+		}
+		return -1;
+	}
+#endif /* APPLE_GETCONF_UNDERSCORE */
 	return 0;
 }

@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/sysent.h>
 
-#include <linux/slab.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_core.h>
 #include <dev/drm2/drm_global.h>
@@ -212,7 +211,7 @@ int drm_lastclose(struct drm_device * dev)
 			if (entry->bound)
 				drm_unbind_agp(entry->memory);
 			drm_free_agp(entry->memory, entry->pages);
-			kfree(entry);
+			free(entry, DRM_MEM_AGPLISTS);
 		}
 		INIT_LIST_HEAD(&dev->agp->memory);
 

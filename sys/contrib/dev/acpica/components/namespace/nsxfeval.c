@@ -1022,23 +1022,25 @@ ACPI_EXPORT_SYMBOL (AcpiDetachData)
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiGetData
+ * FUNCTION:    AcpiGetDataFull
  *
  * PARAMETERS:  ObjHandle           - Namespace node
- *              Handler             - Handler used in call to AttachData
+ *              Handle              - Handler used in call to attach_data
  *              Data                - Where the data is returned
+ *              Callback            - function to execute before returning
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Retrieve data that was previously attached to a namespace node.
+ * DESCRIPTION: Retrieve data that was previously attached to a namespace node
+ *              and execute a callback before returning.
  *
  ******************************************************************************/
-
 ACPI_STATUS
-AcpiGetData (
+AcpiGetDataFull (
     ACPI_HANDLE             ObjHandle,
     ACPI_OBJECT_HANDLER     Handler,
-    void                    **Data)
+    void                    **Data,
+    void (*Callback)(void *))
 {
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
@@ -1069,10 +1071,34 @@ AcpiGetData (
     }
 
     Status = AcpiNsGetAttachedData (Node, Handler, Data);
-
+    if (ACPI_SUCCESS(Status) && Callback) {
+		Callback(*Data);
+    }
 UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return (Status);
 }
+ACPI_EXPORT_SYMBOL (AcpiGetDataFull)
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiGetData
+ *
+ * PARAMETERS:  ObjHandle           - Namespace node
+ *              Handler             - Handler used in call to AttachData
+ *              Data                - Where the data is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Retrieve data that was previously attached to a namespace node.
+ *
+ ******************************************************************************/
+ACPI_STATUS
+AcpiGetData (
+    ACPI_HANDLE             ObjHandle,
+    ACPI_OBJECT_HANDLER     Handler,
+    void                    **Data)
+{
+	return (AcpiGetDataFull(ObjHandle, Handler, Data, NULL));
+}
 ACPI_EXPORT_SYMBOL (AcpiGetData)

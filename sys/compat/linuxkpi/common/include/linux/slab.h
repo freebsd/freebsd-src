@@ -72,6 +72,14 @@ struct linux_kmem_cache {
 };
 
 #define	SLAB_HWCACHE_ALIGN	0x0001
+static inline void *
+kmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	if (size != 0 && n > SIZE_MAX / size)
+		return (NULL);
+	return kmalloc(n * size, flags);
+}
+}
 
 static inline int
 linux_kmem_ctor(void *mem, int size, void *arg, int flags)

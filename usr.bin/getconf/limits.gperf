@@ -9,6 +9,9 @@
 
 #include <string.h>
 #include <limits.h>
+#ifdef APPLE_GETCONF_UNDERSCORE
+#include <alloca.h>
+#endif /* APPLE_GETCONF_UNDERSCORE */
 
 #include "getconf.h"
 
@@ -20,11 +23,11 @@ static const struct map *in_word_set(const char *str);
 %}
 struct map { const char *name; intmax_t value; int valid; };
 %%
-_POSIX_CLOCKRES_MIN, _POSIX_CLOCKRES_MIN
 _POSIX_AIO_LISTIO_MAX, _POSIX_AIO_LISTIO_MAX
 _POSIX_AIO_MAX, _POSIX_AIO_MAX
 _POSIX_ARG_MAX, _POSIX_ARG_MAX
 _POSIX_CHILD_MAX, _POSIX_CHILD_MAX
+_POSIX_CLOCKRES_MIN, _POSIX_CLOCKRES_MIN
 _POSIX_DELAYTIMER_MAX, _POSIX_DELAYTIMER_MAX
 _POSIX_HOST_NAME_MAX, _POSIX_HOST_NAME_MAX
 _POSIX_LINK_MAX, _POSIX_LINK_MAX
@@ -64,7 +67,7 @@ _POSIX2_BC_SCALE_MAX, _POSIX2_BC_SCALE_MAX
 _POSIX2_BC_STRING_MAX, _POSIX2_BC_STRING_MAX
 _POSIX2_CHARCLASS_NAME_MAX, _POSIX2_CHARCLASS_NAME_MAX
 _POSIX2_COLL_WEIGHTS_MAX, _POSIX2_COLL_WEIGHTS_MAX
-_POSIX2_EXPR_NEXT_MAX, _POSIX2_EXPR_NEST_MAX
+_POSIX2_EXPR_NEST_MAX, _POSIX2_EXPR_NEST_MAX
 _POSIX2_LINE_MAX, _POSIX2_LINE_MAX
 _POSIX2_RE_DUP_MAX, _POSIX2_RE_DUP_MAX
 _XOPEN_IOV_MAX, _XOPEN_IOV_MAX
@@ -105,6 +108,9 @@ int
 find_limit(const char *name, intmax_t *value)
 {
 	const struct map *rv;
+#ifdef APPLE_GETCONF_UNDERSCORE
+	char *alt;
+#endif /* APPLE_GETCONF_UNDERSCORE */
 
 	rv = in_word_set(name);
 	if (rv != NULL) {
@@ -114,5 +120,23 @@ find_limit(const char *name, intmax_t *value)
 		}
 		return -1;
 	}
+#ifdef APPLE_GETCONF_UNDERSCORE
+	if(*name == '_')
+		alt = (char *)name + 1;
+	else {
+		if((alt = (char *)alloca(strlen(name) + 2)) == NULL)
+			return 0;
+		*alt = '_';
+		strcpy(alt + 1, name);
+	}
+	rv = in_word_set(alt);
+	if (rv != NULL) {
+		if (rv->valid) {
+			*value = rv->value;
+			return 1;
+		}
+		return -1;
+	}
+#endif /* APPLE_GETCONF_UNDERSCORE */
 	return 0;
 }

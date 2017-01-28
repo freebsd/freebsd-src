@@ -219,6 +219,7 @@ bool		db_stop_at_pc(int type, int code, bool *is_breakpoint,
 		    bool *is_watchpoint);
 #define		db_strcpy	strcpy
 void		db_trace_self(void);
+void		db_trace_self_depth(int);
 int		db_trace_thread(struct thread *, int);
 bool		db_value_of_name(const char *name, db_expr_t *valuep);
 bool		db_value_of_name_pcpu(const char *name, db_expr_t *valuep);

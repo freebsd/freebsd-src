@@ -722,6 +722,14 @@ vpanic(const char *fmt, va_list ap)
 
 	spinlock_enter();
 
+#if 0
+/***** DEBUGGING DRM *****/
+
+	doadump(0);
+	EVENTHANDLER_INVOKE(shutdown_final, RB_NOSYNC);
+
+/************************/
+#endif
 #ifdef SMP
 	/*
 	 * stop_cpus_hard(other_cpus) should prevent multiple CPUs from
