@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_core.h>
+#include <linux/slab.h>
 
 #ifdef DRM_DEBUG_DEFAULT_ON
 unsigned int drm_debug = (DRM_DEBUGBITS_DEBUG | DRM_DEBUGBITS_KMS |
@@ -315,7 +316,7 @@ void drm_cancel_fill_in_dev(struct drm_device *dev)
 				  DRM_MTRR_WC);
 		DRM_DEBUG("mtrr_del=%d\n", retval);
 	}
-	free(dev->agp, DRM_MEM_AGPLISTS);
+	kfree(dev->agp);
 	dev->agp = NULL;
 
 	drm_ht_remove(&dev->map_hash);
@@ -467,7 +468,7 @@ void drm_put_dev(struct drm_device *dev)
 	drm_sysctl_cleanup(dev);
 
 	if (drm_core_has_AGP(dev) && dev->agp) {
-		free(dev->agp, DRM_MEM_AGPLISTS);
+		kfree(dev->agp);
 		dev->agp = NULL;
 	}
 
