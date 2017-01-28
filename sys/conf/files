@@ -789,7 +789,6 @@ dev/ata/ata-dma.c		optional ata | atacore
 dev/ata/ata-lowlevel.c		optional ata | atacore
 dev/ata/ata-sata.c		optional ata | atacore
 dev/ata/ata-card.c		optional ata pccard | atapccard
-dev/ata/ata-cbus.c		optional ata pc98 | atapc98
 dev/ata/ata-isa.c		optional ata isa | ataisa
 dev/ata/ata-pci.c		optional ata pci | atapci
 dev/ata/chipsets/ata-acard.c	optional ata pci | ataacard
@@ -3458,8 +3457,6 @@ geom/geom_kern.c		standard
 geom/geom_map.c			optional geom_map
 geom/geom_mbr.c			optional geom_mbr
 geom/geom_mbr_enc.c		optional geom_mbr
-geom/geom_pc98.c		optional geom_pc98
-geom/geom_pc98_enc.c		optional geom_pc98
 geom/geom_redboot.c		optional geom_redboot
 geom/geom_slice.c		standard
 geom/geom_subr.c		standard
@@ -3493,7 +3490,6 @@ geom/part/g_part_ebr.c		optional geom_part_ebr
 geom/part/g_part_gpt.c		optional geom_part_gpt
 geom/part/g_part_ldm.c		optional geom_part_ldm
 geom/part/g_part_mbr.c		optional geom_part_mbr
-geom/part/g_part_pc98.c		optional geom_part_pc98
 geom/part/g_part_vtoc8.c	optional geom_part_vtoc8
 geom/raid/g_raid.c		optional geom_raid
 geom/raid/g_raid_ctl.c		optional geom_raid

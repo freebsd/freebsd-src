@@ -827,9 +827,7 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     SET_FOREACH(fnpp, Xficl_compile_set)
 	(*fnpp)(pSys);
 
-#if defined(PC98)
-    ficlSetEnv(pSys, "arch-pc98",         FICL_TRUE);
-#elif defined(__i386__)
+#if defined(__i386__)
     ficlSetEnv(pSys, "arch-i386",         FICL_TRUE);
     ficlSetEnv(pSys, "arch-powerpc",      FICL_FALSE);
 #elif defined(__powerpc__)

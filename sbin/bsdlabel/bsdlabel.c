@@ -164,8 +164,7 @@ main(int argc, char *argv[])
 				break;
 			case 'm':
 				if (!strcmp(optarg, "i386") ||
-				    !strcmp(optarg, "amd64") ||
-				    !strcmp(optarg, "pc98")) {
+				    !strcmp(optarg, "amd64")) {
 					labelsoffset = 1;
 					labeloffset = 0;
 					bbsize = 8192;

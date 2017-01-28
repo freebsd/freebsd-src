@@ -112,7 +112,6 @@ icelandic.iso)			echo is;;
 it.iso)				echo it;;
 jp.106x)			echo jp.capsctrl;;
 jp.106)				echo jp;;
-#?? jp.pc98.iso)		echo jp.pc98;;
 kk.pt154.io)			echo kz.io;;
 kk.pt154.kst)			echo kz.kst;;
 latinamerican.iso.acc)		echo latinamerican.acc;;
