@@ -76,3 +76,4 @@ _dtbinstall:
 
 .include <bsd.dep.mk>
 .include <bsd.obj.mk>
+.include <bsd.links.mk>
