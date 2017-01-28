@@ -100,7 +100,7 @@ __FBSDID("$FreeBSD$");
 #define CHECK_POINTS
  */
 
-#if defined(CHECK_POINTS) && !defined(PC98)
+#if defined(CHECK_POINTS)
 #define CHECK_READ(A)	 (outb(CMOS_REG, (A)), inb(CMOS_DATA))
 #define CHECK_WRITE(A,D) (outb(CMOS_REG, (A)), outb(CMOS_DATA, (D)))
 
@@ -309,9 +309,7 @@ init_secondary(void)
 static int
 start_all_aps(void)
 {
-#ifndef PC98
 	u_char mpbiosreason;
-#endif
 	u_int32_t mpbioswarmvec;
 	int apic_id, cpu, i;
 
@@ -322,10 +320,8 @@ start_all_aps(void)
 
 	/* save the current value of the warm-start vector */
 	mpbioswarmvec = *((u_int32_t *) WARMBOOT_OFF);
-#ifndef PC98
 	outb(CMOS_REG, BIOS_RESET);
 	mpbiosreason = inb(CMOS_DATA);
-#endif
 
 	/* set up temporary P==V mapping for AP boot */
 	/* XXX this is a hack, we should boot the AP on its own stack/PTD */
@@ -346,10 +342,8 @@ start_all_aps(void)
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);
-#ifndef PC98
 		outb(CMOS_REG, BIOS_RESET);
 		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
-#endif
 
 		bootSTK = (char *)bootstacks[cpu] + kstack_pages *
 		    PAGE_SIZE - 4;
@@ -373,10 +367,8 @@ start_all_aps(void)
 	/* restore the warmstart vector */
 	*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
 
-#ifndef PC98
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, mpbiosreason);
-#endif
 
 	/* Undo V==P hack from above */
 	for (i = TMPMAP_START; i < NKPT; i++)

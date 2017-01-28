@@ -2585,15 +2585,8 @@ xpt_action_default(union ccb *start_ccb)
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
 			break;
 		}
-#if defined(PC98) || defined(__sparc64__)
+#if defined(__sparc64__)
 		/*
-		 * In a PC-98 system, geometry translation depens on
-		 * the "real" device geometry obtained from mode page 4.
-		 * SCSI geometry translation is performed in the
-		 * initialization routine of the SCSI BIOS and the result
-		 * stored in host memory.  If the translation is available
-		 * in host memory, use it.  If not, rely on the default
-		 * translation the device driver performs.
 		 * For sparc64, we may need adjust the geometry of large
 		 * disks in order to fit the limitations of the 16-bit
 		 * fields of the VTOC8 disk label.
