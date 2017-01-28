@@ -207,7 +207,7 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 int
 vga_pci_repost(device_t dev)
 {
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
+#if defined(__amd64__) || defined(__i386__)
 	x86regs_t regs;
 
 	if (!vga_pci_is_boot_display(dev))

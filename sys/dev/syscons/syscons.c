@@ -316,7 +316,6 @@ static char
 	{ KD_CGA,	{ "CGA",	"CGA" } },
 	{ KD_EGA,	{ "EGA",	"EGA (mono)" } },
 	{ KD_VGA,	{ "VGA",	"VGA (mono)" } },
-	{ KD_PC98,	{ "PC-98x1",	"PC-98x1" } },
 	{ KD_TGA,	{ "TGA",	"TGA" } },
 	{ -1,		{ "Unknown",	"Unknown" } },
     };
@@ -2012,9 +2011,7 @@ sccnupdate(scr_stat *scp)
 static void
 scrn_timer(void *arg)
 {
-#ifndef PC98
     static time_t kbd_time_stamp = 0;
-#endif
     sc_softc_t *sc;
     scr_stat *scp;
     int again, rate;
@@ -2034,7 +2031,6 @@ scrn_timer(void *arg)
     if (suspend_in_progress || sc->font_loading_in_progress)
 	goto done;
 
-#ifndef PC98
     if ((sc->kbd == NULL) && (sc->config & SC_AUTODETECT_KBD)) {
 	/* try to allocate a keyboard automatically */
 	if (kbd_time_stamp != time_uptime) {
@@ -2049,7 +2045,6 @@ scrn_timer(void *arg)
 	    }
 	}
     }
-#endif /* PC98 */
 
     /* should we stop the screen saver? */
     if (kdb_active || panicstr || shutdown_in_progress)
@@ -2809,11 +2804,7 @@ exchange_scr(sc_softc_t *sc)
 
     /* set up the video for the new screen */
     scp = sc->cur_scp = sc->new_scp;
-#ifdef PC98
-    if (sc->old_scp->mode != scp->mode || ISUNKNOWNSC(sc->old_scp) || ISUNKNOWNSC(sc->new_scp))
-#else
     if (sc->old_scp->mode != scp->mode || ISUNKNOWNSC(sc->old_scp))
-#endif
 	set_mode(scp);
 #ifndef __sparc64__
     else
@@ -2988,11 +2979,7 @@ scinit(int unit, int flags)
      * static buffers for the console.  This is less than ideal, 
      * but is necessry evil for the time being.  XXX
      */
-#ifdef PC98
-    static u_short sc_buffer[ROW*COL*2];/* XXX */
-#else
     static u_short sc_buffer[ROW*COL];	/* XXX */
-#endif
 #ifndef SC_NO_FONT_LOADING
     static u_char font_8[256*8];
     static u_char font_14[256*14];
@@ -3193,9 +3180,6 @@ scinit(int unit, int flags)
     /* initialize mapscrn arrays to a one to one map */
     for (i = 0; i < sizeof(sc->scr_map); i++)
 	sc->scr_map[i] = sc->scr_rmap[i] = i;
-#ifdef PC98
-    sc->scr_map[0x5c] = (u_char)0xfc;	/* for backslash */
-#endif
 
     sc->flags |= SC_INIT_DONE;
 }

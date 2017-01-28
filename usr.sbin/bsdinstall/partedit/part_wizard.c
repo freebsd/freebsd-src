@@ -280,7 +280,7 @@ query:
 		gpart_partition(disk, scheme);
 	}
 
-	if (strcmp(scheme, "PC98") == 0 || strcmp(scheme, "MBR") == 0) {
+	if (strcmp(scheme, "MBR") == 0) {
 		struct gmesh submesh;
 		geom_gettree(&submesh);
 		gpart_create(provider_for_name(&submesh, disk),

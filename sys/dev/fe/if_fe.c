@@ -37,14 +37,6 @@ __FBSDID("$FreeBSD$");
  * other types of Ethernet cards, but the author is not sure whether
  * they are useful.
  *
- * This version also includes some alignments to support RE1000,
- * C-NET(98)P2 and so on. These cards are not for AT-compatibles,
- * but for NEC PC-98 bus -- a proprietary bus architecture available
- * only in Japan. Confusingly, it is different from the Microsoft's
- * PC98 architecture. :-{
- * Further work for PC-98 version will be available as a part of
- * FreeBSD(98) project.
- *
  * This software is a derivative work of if_ed.c version 1.56 by David
  * Greenman available as a part of FreeBSD 2.0 RELEASE source distribution.
  *
@@ -61,7 +53,6 @@ __FBSDID("$FreeBSD$");
 /*
  * TODO:
  *  o   To support ISA PnP auto configuration for FMV-183/184.
- *  o   To support REX-9886/87(PC-98 only).
  *  o   To reconsider mbuf usage.
  *  o   To reconsider transmission buffer usage, including
  *      transmission buffer size (currently 4KB x 2) and pros-and-

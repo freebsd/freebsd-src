@@ -349,7 +349,6 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		armeb/arm \
 		armv6/arm \
 		i386 \
-		i386/pc98 \
 		mips \
 		mipsel/mips \
 		mips64el/mips \

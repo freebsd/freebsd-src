@@ -108,13 +108,8 @@ static int pir_interrupt_weight[NUM_ISA_INTERRUPTS];
 SYSCTL_DECL(_hw_pci);
 
 /* XXX this likely should live in a header file */
-#ifdef PC98
-/* IRQs 3, 5, 7, 9, 10, 11, 12, 13 */
-#define PCI_IRQ_OVERRIDE_MASK 0x3e68
-#else
 /* IRQs 3, 4, 5, 6, 7, 9, 10, 11, 12, 14, 15 */
 #define PCI_IRQ_OVERRIDE_MASK 0xdef8
-#endif
 
 static uint32_t pci_irq_override_mask = PCI_IRQ_OVERRIDE_MASK;
 SYSCTL_INT(_hw_pci, OID_AUTO, irq_override_mask, CTLFLAG_RDTUN,

@@ -578,7 +578,7 @@ compat/x86bios/x86bios.c	optional x86bios | dpms | pci | vesa
 dev/bvm/bvm_console.c		optional	bvmconsole
 dev/bvm/bvm_dbg.c		optional	bvmdebug
 #
-# x86 shared code between IA32, AMD64 and PC98 architectures
+# x86 shared code between IA32 and AMD64 architectures
 #
 x86/acpica/OsdEnvironment.c	optional acpi
 x86/acpica/acpi_apm.c		optional acpi

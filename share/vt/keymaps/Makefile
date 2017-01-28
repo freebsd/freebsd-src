@@ -48,8 +48,6 @@ FILES=	INDEX.keymaps \
 	it.kbd \
 	jp.capsctrl.kbd \
 	jp.kbd \
-	jp.pc98.iso.kbd \
-	jp.pc98.kbd \
 	kz.io.kbd \
 	kz.kst.kbd \
 	latinamerican.acc.kbd \

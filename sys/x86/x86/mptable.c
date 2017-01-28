@@ -66,13 +66,8 @@ __FBSDID("$FreeBSD$");
 #define	MAX_LAPIC_ID		31	/* Max local APIC ID for HTT fixup */
 #endif
 
-#ifdef PC98
-#define BIOS_BASE		(0xe8000)
-#define BIOS_SIZE		(0x18000)
-#else
 #define BIOS_BASE		(0xf0000)
 #define BIOS_SIZE		(0x10000)
-#endif
 #define BIOS_COUNT		(BIOS_SIZE/4)
 
 typedef	void mptable_entry_handler(u_char *entry, void *arg);
@@ -635,20 +630,18 @@ conforming_trigger(u_char src_bus, u_char src_bus_irq)
 	KASSERT(src_bus <= mptable_maxbusid, ("bus id %d too large", src_bus));
 	switch (busses[src_bus].bus_type) {
 	case ISA:
-#ifndef PC98
 		if (elcr_found)
 			return (elcr_read_trigger(src_bus_irq));
 		else
-#endif
 			return (INTR_TRIGGER_EDGE);
 	case PCI:
 		return (INTR_TRIGGER_LEVEL);
-#ifndef PC98
+
 	case EISA:
 		KASSERT(src_bus_irq < 16, ("Invalid EISA IRQ %d", src_bus_irq));
 		KASSERT(elcr_found, ("Missing ELCR"));
 		return (elcr_read_trigger(src_bus_irq));
-#endif
+
 	default:
 		panic("%s: unknown bus type %d", __func__,
 		    busses[src_bus].bus_type);

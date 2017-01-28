@@ -24,15 +24,7 @@ ioctl_includes=$(
 		awk '{printf("#include <%s>\\n", $1)}'
 )
 
-: ${MACHINE=$(uname -m)}
-case "${MACHINE}" in
-*pc98*)
-	ioctl_includes="$ioctl_includes#include <sys/diskpc98.h>\\n"
-	;;
-*)
-	ioctl_includes="$ioctl_includes#include <sys/diskmbr.h>\\n"
-	;;
-esac
+ioctl_includes="$ioctl_includes#include <sys/diskmbr.h>\\n"
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
 	$CPP -nostdinc -I$includedir -dM -DCOMPAT_43TTY - |

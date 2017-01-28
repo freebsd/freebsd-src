@@ -441,16 +441,6 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 				break;
 		}
 
-		/* Same thing if we are inside a PC98 */
-		error = g_getattr("PC98::type", cp, &i);
-		if (!error) {
-			if (i != 0xc494 && flags == G_TF_NORMAL)
-				break;
-			error = g_getattr("PC98::offset", cp, &ms->mbroffset);
-			if (error)
-				break;
-		}
-
 		/* Same thing if we are inside a GPT */
 		error = g_getattr("GPT::type", cp, &uuid);
 		if (!error) {

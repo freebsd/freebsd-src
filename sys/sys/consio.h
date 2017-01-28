@@ -405,12 +405,6 @@ typedef struct vt_mode vtmode_t;
 #define SW_VGA_CG640	_IO('S', M_VGA_CG640)
 #define SW_VGA_MODEX	_IO('S', M_VGA_MODEX)
 
-#define SW_PC98_80x25		_IO('S', M_PC98_80x25)
-#define SW_PC98_80x30		_IO('S', M_PC98_80x30)
-#define SW_PC98_EGC640x400	_IO('S', M_PC98_EGC640x400)
-#define SW_PC98_PEGC640x400	_IO('S', M_PC98_PEGC640x400)
-#define SW_PC98_PEGC640x480	_IO('S', M_PC98_PEGC640x480)
-
 #define SW_VGA_C90x25	_IO('S', M_VGA_C90x25)
 #define SW_VGA_M90x25	_IO('S', M_VGA_M90x25)
 #define SW_VGA_C90x30	_IO('S', M_VGA_C90x30)

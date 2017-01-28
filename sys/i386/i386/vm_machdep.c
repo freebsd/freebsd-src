@@ -89,11 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
-#else
 #include <isa/isareg.h>
-#endif
 
 #ifdef XBOX
 #include <machine/xbox.h>
@@ -676,9 +672,7 @@ static void
 cpu_reset_real()
 {
 	struct region_descriptor null_idt;
-#ifndef PC98
 	int b;
-#endif
 
 	disable_intr();
 #ifdef CPU_ELAN
@@ -692,16 +686,6 @@ cpu_reset_real()
 		outl(0xcfc, 0xf);
 	}
 
-#ifdef PC98
-	/*
-	 * Attempt to do a CPU reset via CPU reset port.
-	 */
-	if ((inb(0x35) & 0xa0) != 0xa0) {
-		outb(0x37, 0x0f);		/* SHUT0 = 0. */
-		outb(0x37, 0x0b);		/* SHUT1 = 0. */
-	}
-	outb(0xf0, 0x00);		/* Reset. */
-#else
 #if !defined(BROKEN_KEYBOARD_RESET)
 	/*
 	 * Attempt to do a CPU reset via the keyboard controller,
@@ -740,7 +724,6 @@ cpu_reset_real()
 		outb(0x92, b | 0x1);
 		DELAY(500000);  /* wait 0.5 sec to see if that did it */
 	}
-#endif /* PC98 */
 
 	printf("No known reset method worked, attempting CPU shutdown\n");
 	DELAY(1000000); /* wait 1 sec for printf to complete */

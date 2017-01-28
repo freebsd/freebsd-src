@@ -1028,7 +1028,6 @@ static const char
 	{ KD_CGA,	"CGA" },
 	{ KD_EGA,	"EGA" },
 	{ KD_VGA,	"VGA" },
-	{ KD_PC98,	"PC-98xx" },
 	{ KD_TGA,	"TGA" },
 	{ -1,		"Unknown" },
     };
@@ -1190,18 +1189,9 @@ show_info(char *arg)
 static void
 test_frame(void)
 {
-	int i, cur_mode, fore;
+	int i, fore;
 
 	fore = 15;
-
-	if (ioctl(0, CONS_GET, &cur_mode) < 0)
-		err(1, "must be on a virtual console");
-	switch (cur_mode) {
-	case M_PC98_80x25:
-	case M_PC98_80x30:
-		fore = 7;
-		break;
-	}
 
 	fprintf(stdout, "\033[=0G\n\n");
 	for (i=0; i<8; i++) {

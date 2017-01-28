@@ -543,11 +543,6 @@ The
 option enables backward compatibility for partition names
 in the EBR scheme.
 It also prevents any type of actions on such partitions.
-.It Cm PC98
-An MBR variant for NEC PC-98 and compatible computers.
-Requires the
-.Cm GEOM_PART_PC98
-kernel option.
 .It Cm VTOC8
 Sun's SMI Volume Table Of Contents, used by
 .Tn SPARC64
@@ -944,12 +939,6 @@ without using EFI.
 The scheme-specific attributes for MBR:
 .Bl -tag -width ".Cm active"
 .It Cm active
-.El
-.Pp
-The scheme-specific attributes for PC98:
-.Bl -tag -width ".Cm bootable"
-.It Cm active
-.It Cm bootable
 .El
 .Sh BOOTSTRAPPING
 .Fx

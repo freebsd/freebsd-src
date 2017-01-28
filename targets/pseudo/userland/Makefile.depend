@@ -878,11 +878,6 @@ DIRDEPS.mips= \
 	sbin/bsdlabel \
 	sbin/fdisk
 
-DIRDEPS.pc98= \
-	sbin/bsdlabel \
-	sbin/fdisk_pc98 \
-	sbin/sconfig
-
 DIRDEPS.sparc64= \
 	sbin/bsdlabel \
 	sbin/sunlabel \
