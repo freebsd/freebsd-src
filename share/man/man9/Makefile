@@ -158,6 +158,9 @@ MAN=	accept_filter.9 \
 	ieee80211_regdomain.9 \
 	ieee80211_scan.9 \
 	ieee80211_vap.9 \
+	iflibdd.9 \
+	iflibdi.9 \
+	iflibtxrx.9 \
 	ifnet.9 \
 	inittodr.9 \
 	insmntque.9 \
