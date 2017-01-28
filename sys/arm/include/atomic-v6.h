@@ -201,9 +201,8 @@ atomic_fcmpset_32(volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 	    "1: mov 	%0, #1		\n"
 	    "   ldrex	%1, [%2]	\n"
 	    "   cmp	%1, %3		\n"
-	    "   it	ne		\n"
-	    "   bne	2f		\n"
-	    "   strex	%0, %4, [%2]	\n"
+	    "   it	eq		\n"
+	    "   strexeq	%0, %4, [%2]	\n"
 	    "2:"
 	    : "=&r" (ret), "=&r" (tmp), "+r" (p), "+r" (_cmpval), "+r" (newval)
 	    : : "cc", "memory");
