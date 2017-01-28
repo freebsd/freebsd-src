@@ -36,6 +36,7 @@ options 	CAPABILITY_MODE
 options 	CAPABILITIES
 
 options 	COMPAT_FREEBSD10
+options 	COMPAT_FREEBSD11
 
 options 	SCHED_ULE
 
