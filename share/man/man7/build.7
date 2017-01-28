@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2016
+.Dd January 28, 2017
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -517,10 +517,10 @@ This is analogous to the
 .Dq Nm uname Fl m
 output.
 This is necessary to cross-build some target architectures.
-For example, cross-building for PC98 machines requires
-.Va TARGET_ARCH Ns = Ns Li i386
+For example, cross-building for ARM64 machines requires
+.Va TARGET_ARCH Ns = Ns Li aarch64
 and
-.Va TARGET Ns = Ns Li pc98 .
+.Va TARGET Ns = Ns Li arm64 .
 If not set,
 .Va TARGET
 defaults to the current hardware platform.
