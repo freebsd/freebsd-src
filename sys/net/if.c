@@ -59,7 +59,6 @@
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/priv.h>
-#include <sys/eventhandler.h>
 
 #include <machine/stdarg.h>
 #include <vm/uma.h>
