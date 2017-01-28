@@ -304,14 +304,6 @@ npx_probe(void)
 			 */
 			control &= ~(1 << 2);	/* enable divide by 0 trap */
 			fldcw(control);
-#ifdef FPU_ERROR_BROKEN
-			/*
-			 * FPU error signal doesn't work on some CPU
-			 * accelerator board.
-			 */
-			hw_float = 1;
-			return (1);
-#endif
 			npx_traps_while_probing = 0;
 			fp_divide_by_0();
 			if (npx_traps_while_probing != 0) {
