@@ -35,7 +35,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
-#include <linux/slab.h>
 
 #if __OS_HAS_AGP
 
@@ -209,13 +208,15 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
-	if (!(entry = kzalloc(sizeof(*entry), GFP_KERNEL)))
+	if (!(entry = malloc(sizeof(*entry), DRM_MEM_AGPLISTS, M_NOWAIT)))
 		return -ENOMEM;
+
+	memset(entry, 0, sizeof(*entry));
 
 	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
 	type = (u32) request->type;
 	if (!(memory = agp_alloc_memory(dev->agp->bridge, type, pages << PAGE_SHIFT))) {
-		kfree(entry);
+		free(entry, DRM_MEM_AGPLISTS);
 		return -ENOMEM;
 	}
 
@@ -375,7 +376,7 @@ int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request)
 	list_del(&entry->head);
 
 	drm_free_agp(entry->memory, entry->pages);
-	kfree(entry);
+	free(entry, DRM_MEM_AGPLISTS);
 	return 0;
 }
 EXPORT_SYMBOL(drm_agp_free);
@@ -403,11 +404,12 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
 	struct drm_agp_head *head = NULL;
 
-	if (!(head = kzalloc(sizeof(*head), GFP_KERNEL)))
+	if (!(head = malloc(sizeof(*head), DRM_MEM_AGPLISTS, M_NOWAIT)))
 		return NULL;
+	memset((void *)head, 0, sizeof(*head));
 	head->bridge = agp_find_device();
 	if (!head->bridge) {
-		kfree(head);
+		free(head, DRM_MEM_AGPLISTS);
 		return NULL;
 	} else {
 		agp_get_info(head->bridge, &head->agp_info);
