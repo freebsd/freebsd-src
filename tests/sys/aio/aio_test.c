@@ -188,31 +188,31 @@ aio_context_init(struct aio_context *ac, int read_fd,
 
 static ssize_t
 poll(struct aiocb *aio) {
-	int err;
+	int error;
 
-	while ((err = aio_error(aio)) == EINPROGRESS && !aio_timedout)
+	while ((error = aio_error(aio)) == EINPROGRESS && !aio_timedout)
 		usleep(25000);
-	switch (err) {
+	switch (error) {
 		case EINPROGRESS:
 			errno = EINTR;
 			return (-1);
 		case 0:
 			return (aio_return(aio));
 		default:
-			return (err);
+			return (error);
 	}
 }
 
 static ssize_t
 suspend(struct aiocb *aio) {
 	const struct aiocb *const iocbs[] = {aio};
-	int err;
+	int error;
 
-	err = aio_suspend(iocbs, 1, NULL);
-	if (err == 0)
+	error = aio_suspend(iocbs, 1, NULL);
+	if (error == 0)
 		return (aio_return(aio));
 	else
-		return (err);
+		return (error);
 }
 
 static ssize_t
