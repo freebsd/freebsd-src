@@ -57,13 +57,6 @@ module at boot time, place the following line in
 if_le_load="YES"
 .Ed
 .Pp
-For C-Bus non-PnP adapters, the port address and the IRQ number have to be
-specified in
-.Pa /boot/device.hints :
-.Cd hint.le.0.at="isa"
-.Cd hint.le.0.port="0x03d0"
-.Cd hint.le.0.irq="6"
-.Pp
 For ISA non-PnP adapters, the port address as well as the IRQ and the DRQ
 numbers have to be specified in
 .Pa /boot/device.hints :
