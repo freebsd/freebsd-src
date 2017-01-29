@@ -52,7 +52,7 @@ CFLAGS=		-ffreestanding			\
 		-I${.CURDIR}/../../../..	\
 		-D_KERNEL			\
 		-Wall				\
-		-G0 -Xassembler -G0		\
+		-G0 				\
 		-fno-pic -mno-abicalls		\
 		-msoft-float			\
 		-g
