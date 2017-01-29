@@ -259,7 +259,7 @@ mmc_suspend(device_t dev)
 
 	err = bus_generic_suspend(dev);
 	if (err)
-	        return (err);
+		return (err);
 	mmc_power_down(sc);
 	return (0);
 }
@@ -980,10 +980,14 @@ mmc_decode_csd_sd(uint32_t *raw_csd, struct mmc_csd *csd)
 		csd->write_blk_misalign = mmc_get_bits(raw_csd, 128, 78, 1);
 		csd->read_blk_misalign = mmc_get_bits(raw_csd, 128, 77, 1);
 		csd->dsr_imp = mmc_get_bits(raw_csd, 128, 76, 1);
-		csd->vdd_r_curr_min = cur_min[mmc_get_bits(raw_csd, 128, 59, 3)];
-		csd->vdd_r_curr_max = cur_max[mmc_get_bits(raw_csd, 128, 56, 3)];
-		csd->vdd_w_curr_min = cur_min[mmc_get_bits(raw_csd, 128, 53, 3)];
-		csd->vdd_w_curr_max = cur_max[mmc_get_bits(raw_csd, 128, 50, 3)];
+		csd->vdd_r_curr_min =
+		    cur_min[mmc_get_bits(raw_csd, 128, 59, 3)];
+		csd->vdd_r_curr_max =
+		    cur_max[mmc_get_bits(raw_csd, 128, 56, 3)];
+		csd->vdd_w_curr_min =
+		    cur_min[mmc_get_bits(raw_csd, 128, 53, 3)];
+		csd->vdd_w_curr_max =
+		    cur_max[mmc_get_bits(raw_csd, 128, 50, 3)];
 		m = mmc_get_bits(raw_csd, 128, 62, 12);
 		e = mmc_get_bits(raw_csd, 128, 47, 3);
 		csd->capacity = ((1 + m) << (e + 2)) * csd->read_bl_len;
@@ -1008,8 +1012,8 @@ mmc_decode_csd_sd(uint32_t *raw_csd, struct mmc_csd *csd)
 		csd->write_blk_misalign = mmc_get_bits(raw_csd, 128, 78, 1);
 		csd->read_blk_misalign = mmc_get_bits(raw_csd, 128, 77, 1);
 		csd->dsr_imp = mmc_get_bits(raw_csd, 128, 76, 1);
-		csd->capacity = ((uint64_t)mmc_get_bits(raw_csd, 128, 48, 22) + 1) *
-		    512 * 1024;
+		csd->capacity = ((uint64_t)mmc_get_bits(raw_csd, 128, 48, 22) +
+		    1) * 512 * 1024;
 		csd->erase_blk_en = mmc_get_bits(raw_csd, 128, 46, 1);
 		csd->erase_sector = mmc_get_bits(raw_csd, 128, 39, 7) + 1;
 		csd->wp_grp_size = mmc_get_bits(raw_csd, 128, 32, 7);
@@ -1307,18 +1311,21 @@ mmc_discover_cards(struct mmc_softc *sc)
 			break;
 		}
 		newcard = 1;
-		if ((err = device_get_children(sc->dev, &devlist, &devcount)) != 0)
+		if ((err = device_get_children(sc->dev, &devlist,
+		    &devcount)) != 0)
 			return;
 		for (i = 0; i < devcount; i++) {
 			ivar = device_get_ivars(devlist[i]);
-			if (memcmp(ivar->raw_cid, raw_cid, sizeof(raw_cid)) == 0) {
+			if (memcmp(ivar->raw_cid, raw_cid, sizeof(raw_cid)) ==
+			    0) {
 				newcard = 0;
 				break;
 			}
 		}
 		free(devlist, M_TEMP);
 		if (bootverbose || mmc_debug) {
-			device_printf(sc->dev, "%sard detected (CID %08x%08x%08x%08x)\n",
+			device_printf(sc->dev,
+			    "%sard detected (CID %08x%08x%08x%08x)\n",
 			    newcard ? "New c" : "C",
 			    raw_cid[0], raw_cid[1], raw_cid[2], raw_cid[3]);
 		}
@@ -1370,7 +1377,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			mmc_app_decode_scr(ivar->raw_scr, &ivar->scr);
 			/* Get card switch capabilities (command class 10). */
 			if ((ivar->scr.sda_vsn >= 1) &&
-			    (ivar->csd.ccc & (1<<10))) {
+			    (ivar->csd.ccc & (1 << 10))) {
 				mmc_sd_switch(sc, SD_SWITCH_MODE_CHECK,
 				    SD_SWITCH_GROUP1, SD_SWITCH_NOCHANGE,
 				    switch_res);
@@ -1537,7 +1544,8 @@ mmc_rescan_cards(struct mmc_softc *sc)
 		ivar = device_get_ivars(devlist[i]);
 		if (mmc_select_card(sc, ivar->rca)) {
 			if (bootverbose || mmc_debug)
-				device_printf(sc->dev, "Card at relative address %d lost.\n",
+				device_printf(sc->dev,
+				    "Card at relative address %d lost.\n",
 				    ivar->rca);
 			device_delete_child(sc->dev, devlist[i]);
 			free(ivar, M_DEVBUF);
@@ -1559,7 +1567,8 @@ mmc_delete_cards(struct mmc_softc *sc)
 	for (i = 0; i < devcount; i++) {
 		ivar = device_get_ivars(devlist[i]);
 		if (bootverbose || mmc_debug)
-			device_printf(sc->dev, "Card at relative address %d deleted.\n",
+			device_printf(sc->dev,
+			    "Card at relative address %d deleted.\n",
 			    ivar->rca);
 		device_delete_child(sc->dev, devlist[i]);
 		free(ivar, M_DEVBUF);
@@ -1589,7 +1598,8 @@ mmc_go_discovery(struct mmc_softc *sc)
 		mmc_idle_cards(sc);
 		err = mmc_send_if_cond(sc, 1);
 		if ((bootverbose || mmc_debug) && err == 0)
-			device_printf(sc->dev, "SD 2.0 interface conditions: OK\n");
+			device_printf(sc->dev,
+			    "SD 2.0 interface conditions: OK\n");
 		if (mmc_send_app_op_cond(sc, 0, &ocr) != MMC_ERR_NONE) {
 			if (bootverbose || mmc_debug)
 				device_printf(sc->dev, "SD probe: failed\n");
@@ -1599,13 +1609,15 @@ mmc_go_discovery(struct mmc_softc *sc)
 			mmcbr_set_mode(dev, mode_mmc);
 			if (mmc_send_op_cond(sc, 0, &ocr) != MMC_ERR_NONE) {
 				if (bootverbose || mmc_debug)
-					device_printf(sc->dev, "MMC probe: failed\n");
+					device_printf(sc->dev,
+					    "MMC probe: failed\n");
 				ocr = 0; /* Failed both, powerdown. */
 			} else if (bootverbose || mmc_debug)
 				device_printf(sc->dev,
 				    "MMC probe: OK (OCR: 0x%08x)\n", ocr);
 		} else if (bootverbose || mmc_debug)
-			device_printf(sc->dev, "SD probe: OK (OCR: 0x%08x)\n", ocr);
+			device_printf(sc->dev, "SD probe: OK (OCR: 0x%08x)\n",
+			    ocr);
 		sc->squelched--;
 
 		mmcbr_set_ocr(dev, mmc_select_vdd(sc, ocr));
@@ -1622,7 +1634,8 @@ mmc_go_discovery(struct mmc_softc *sc)
 	 * one card on the bus.
 	 */
 	if (bootverbose || mmc_debug)
-		device_printf(sc->dev, "Current OCR: 0x%08x\n", mmcbr_get_ocr(dev));
+		device_printf(sc->dev, "Current OCR: 0x%08x\n",
+		    mmcbr_get_ocr(dev));
 	if (mmcbr_get_ocr(dev) == 0) {
 		device_printf(sc->dev, "No compatible cards found on bus\n");
 		mmc_delete_cards(sc);
@@ -1760,6 +1773,7 @@ mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 static int
 mmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 {
+
 	/*
 	 * None are writable ATM
 	 */
