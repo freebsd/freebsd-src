@@ -202,9 +202,15 @@ stf_clone_match(struct if_clone *ifc, const char *name)
 static int
 stf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
-	int err, unit;
+	char *dp;
+	int err, unit, wildcard;
 	struct stf_softc *sc;
 	struct ifnet *ifp;
+
+	err = ifc_name2unit(name, &unit);
+	if (err != 0)
+		return (err);
+	wildcard = (unit < 0);
 
 	/*
 	 * We can only have one unit, but since unit allocation is
@@ -229,7 +235,20 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	/*
 	 * Set the name manually rather then using if_initname because
 	 * we don't conform to the default naming convention for interfaces.
+	 * In the wildcard case, we need to update the name.
 	 */
+	if (wildcard) {
+		for (dp = name; *dp != '\0'; dp++);
+		if (snprintf(dp, len - (dp-name), "%d", unit) >
+		    len - (dp-name) - 1) {
+			/*
+			 * This can only be a programmer error and
+			 * there's no straightforward way to recover if
+			 * it happens.
+			 */
+			panic("if_clone_create(): interface name too long");
+		}
+	}
 	strlcpy(ifp->if_xname, name, IFNAMSIZ);
 	ifp->if_dname = stfname;
 	ifp->if_dunit = IF_DUNIT_NONE;
