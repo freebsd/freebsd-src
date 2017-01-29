@@ -301,20 +301,6 @@ jp.capsctrl.kbd:pt:Japonês 106x
 jp.capsctrl.kbd:es:Japonés 106x
 jp.capsctrl.kbd:uk:Японська 106x
 
-jp.pc98.kbd:en:Japanese PC-98x1
-jp.pc98.kbd:de:Japanisch PC-98x1
-jp.pc98.kbd:fr:Japonais PC-98x1
-jp.pc98.kbd:pt:Japonês PC-98x1
-jp.pc98.kbd:es:Japonés PC-98x1
-jp.pc98.kbd:uk:Японська PC-98x1
-
-jp.pc98.iso.kbd:en:Japanese PC-98x1 (ISO)
-jp.pc98.iso.kbd:de:Japanisch PC-98x1 (ISO)
-jp.pc98.iso.kbd:fr:Japonais PC-98x1 (ISO)
-jp.pc98.iso.kbd:pt:Japonês PC-98x1 (ISO)
-jp.pc98.iso.kbd:es:Japonés PC-98x1 (ISO)
-jp.pc98.iso.kbd:uk:Японська PC-98x1 (ISO)
-
 kz.kst.kbd:en:Kazakh
 kz.kst.kbd:de:Kasachisch
 kz.kst.kbd:fr:Kazakh

@@ -77,7 +77,7 @@ static char *sdhci_ids[] = {
 struct sdhci_acpi_softc {
 	u_int		quirks;		/* Chip specific quirks */
 	struct resource *irq_res;	/* IRQ resource */
-	void 		*intrhand;	/* Interrupt handle */
+	void		*intrhand;	/* Interrupt handle */
 
 	struct sdhci_slot slot;
 	struct resource	*mem_res;	/* Memory resource */
@@ -97,7 +97,8 @@ sdhci_acpi_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_acpi_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t val)
+sdhci_acpi_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint8_t val)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
@@ -117,7 +118,8 @@ sdhci_acpi_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_acpi_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_t val)
+sdhci_acpi_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint16_t val)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
@@ -137,7 +139,8 @@ sdhci_acpi_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_acpi_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32_t val)
+sdhci_acpi_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint32_t val)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
@@ -237,7 +240,7 @@ sdhci_acpi_attach(device_t dev)
 		sdhci_acpi_detach(dev);
 		return (ENOMEM);
 	}
-		
+
 	sc->slot.quirks = sc->quirks;
 
 	err = sdhci_init_slot(dev, &sc->slot, 0);
@@ -337,9 +340,9 @@ static device_method_t sdhci_methods[] = {
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
 
 	/* mmcbr_if */
-	DEVMETHOD(mmcbr_update_ios,     sdhci_generic_update_ios),
-	DEVMETHOD(mmcbr_request,        sdhci_generic_request),
-	DEVMETHOD(mmcbr_get_ro,         sdhci_generic_get_ro),
+	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
+	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
+	DEVMETHOD(mmcbr_get_ro,		sdhci_generic_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,   sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,   sdhci_generic_release_host),
 

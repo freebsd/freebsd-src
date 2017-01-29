@@ -2585,15 +2585,8 @@ xpt_action_default(union ccb *start_ccb)
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
 			break;
 		}
-#if defined(PC98) || defined(__sparc64__)
+#if defined(__sparc64__)
 		/*
-		 * In a PC-98 system, geometry translation depens on
-		 * the "real" device geometry obtained from mode page 4.
-		 * SCSI geometry translation is performed in the
-		 * initialization routine of the SCSI BIOS and the result
-		 * stored in host memory.  If the translation is available
-		 * in host memory, use it.  If not, rely on the default
-		 * translation the device driver performs.
 		 * For sparc64, we may need adjust the geometry of large
 		 * disks in order to fit the limitations of the 16-bit
 		 * fields of the VTOC8 disk label.
@@ -3062,8 +3055,8 @@ call_sim:
 	case XPT_TERM_IO:
 	case XPT_ENG_INQ:
 		/* XXX Implement */
-		xpt_print_path(start_ccb->ccb_h.path);
-		printf("%s: CCB type %#x %s not supported\n", __func__,
+		xpt_print(start_ccb->ccb_h.path,
+		    "%s: CCB type %#x %s not supported\n", __func__,
 		    start_ccb->ccb_h.func_code,
 		    xpt_action_name(start_ccb->ccb_h.func_code));
 		start_ccb->ccb_h.status = CAM_PROVIDE_FAIL;
@@ -3944,8 +3937,8 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 			}
 		}
 		if (new_bus->xport == NULL) {
-			xpt_print_path(path);
-			printf("No transport found for %d\n", cpi.transport);
+			xpt_print(path,
+			    "No transport found for %d\n", cpi.transport);
 			xpt_release_bus(new_bus);
 			free(path, M_CAMXPT);
 			return (CAM_RESRC_UNAVAIL);

@@ -41,6 +41,8 @@
 #include <sys/_ucontext.h>
 #endif
 
+__NULLABILITY_PRAGMA_PUSH
+
 #if __BSD_VISIBLE
 /*
  * XXX should enlarge these, if only to give empty names instead of bounds
@@ -82,10 +84,11 @@ int	sigdelset(sigset_t *, int);
 int	sigemptyset(sigset_t *);
 int	sigfillset(sigset_t *);
 int	sigismember(const sigset_t *, int);
-int	sigpending(sigset_t *);
+int	sigpending(sigset_t * _Nonnull);
 int	sigprocmask(int, const sigset_t * __restrict, sigset_t * __restrict);
-int	sigsuspend(const sigset_t *);
-int	sigwait(const sigset_t * __restrict, int * __restrict);
+int	sigsuspend(const sigset_t * _Nonnull);
+int	sigwait(const sigset_t * _Nonnull __restrict,
+	    int * _Nonnull __restrict);
 #endif
 
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600
@@ -104,7 +107,7 @@ int	sighold(int);
 int	sigignore(int);
 int	sigpause(int);
 int	sigrelse(int);
-void	(*sigset(int, void (*)(int)))(int);
+void	(* _Nullable sigset(int, void (* _Nullable)(int)))(int);
 int	xsi_sigpause(int);
 #endif
 
@@ -124,5 +127,6 @@ int	sigstack(const struct sigstack *, struct sigstack *);
 int	sigvec(int, struct sigvec *, struct sigvec *);
 #endif
 __END_DECLS
+__NULLABILITY_PRAGMA_POP
 
 #endif /* !_SIGNAL_H_ */

@@ -169,9 +169,7 @@ options 	GEOM_PART_EBR_COMPAT	# Backward compatible partition names
 options 	GEOM_PART_GPT		# GPT partitioning
 options 	GEOM_PART_LDM		# Logical Disk Manager
 options 	GEOM_PART_MBR		# MBR partitioning
-options 	GEOM_PART_PC98		# PC-9800 disk partitioning
 options 	GEOM_PART_VTOC8		# SMI VTOC8 disk label
-options 	GEOM_PC98		# NEC PC9800 partitioning
 options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_RAID3		# RAID3 functionality.
 options 	GEOM_SHSEC		# Shared secret.
@@ -1535,7 +1533,7 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
-# aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
+# aic: Adaptec 6260/6360, APA-1460 (PC Card)
 # bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
 #      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
 # esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
@@ -1759,7 +1757,6 @@ device		ata
 # Modular ATA
 #device		atacore		# Core ATA functionality
 #device		atacard		# CARDBUS support
-#device		atabus		# PC98 cbus support
 #device		ataisa		# ISA bus support
 #device		atapci		# PCI bus support; only generic chipset support
 
@@ -2838,7 +2835,7 @@ options 	U3G_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	UKBD_DFLT_KEYMAP=jp.pc98
+makeoptions	UKBD_DFLT_KEYMAP=jp
 
 # options for uplcom:
 options 	UPLCOM_INTR_INTERVAL=100	# interrupt pipe interval
