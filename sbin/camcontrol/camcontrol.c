@@ -4145,7 +4145,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	u_int8_t cdb[20];
 	u_int8_t atacmd[12];
 	struct get_hook hook;
-	int c, data_bytes = 0;
+	int c, data_bytes = 0, valid_bytes;
 	int cdb_len = 0;
 	int atacmd_len = 0;
 	int dmacmd = 0;
@@ -4449,16 +4449,20 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		}
 	}
 
+	if (cdb_len)
+		valid_bytes = ccb->csio.dxfer_len - ccb->csio.resid;
+	else
+		valid_bytes = ccb->ataio.dxfer_len - ccb->ataio.resid;
 	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 	 && (arglist & CAM_ARG_CMD_IN)
-	 && (data_bytes > 0)) {
+	 && (valid_bytes > 0)) {
 		if (fd_data == 0) {
-			buff_decode_visit(data_ptr, data_bytes, datastr,
+			buff_decode_visit(data_ptr, valid_bytes, datastr,
 					  arg_put, NULL);
 			fprintf(stdout, "\n");
 		} else {
 			ssize_t amt_written;
-			int amt_to_write = data_bytes;
+			int amt_to_write = valid_bytes;
 			u_int8_t *buf_ptr = data_ptr;
 
 			for (amt_written = 0; (amt_to_write > 0) &&
@@ -4473,7 +4477,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			} else if ((amt_written == 0)
 				&& (amt_to_write > 0)) {
 				warnx("only wrote %u bytes out of %u",
-				      data_bytes - amt_to_write, data_bytes);
+				      valid_bytes - amt_to_write, valid_bytes);
 			}
 		}
 	}
