@@ -2855,6 +2855,9 @@ SDValue AMDGPUTargetLowering::performFNegCombine(SDNode *N,
   SDLoc SL(N);
   switch (Opc) {
   case ISD::FADD: {
+    if (!mayIgnoreSignedZero(N0))
+      return SDValue();
+
     // (fneg (fadd x, y)) -> (fadd (fneg x), (fneg y))
     SDValue LHS = N0.getOperand(0);
     SDValue RHS = N0.getOperand(1);
@@ -2895,6 +2898,9 @@ SDValue AMDGPUTargetLowering::performFNegCombine(SDNode *N,
   }
   case ISD::FMA:
   case ISD::FMAD: {
+    if (!mayIgnoreSignedZero(N0))
+      return SDValue();
+
     // (fneg (fma x, y, z)) -> (fma x, (fneg y), (fneg z))
     SDValue LHS = N0.getOperand(0);
     SDValue MHS = N0.getOperand(1);
@@ -3272,6 +3278,7 @@ const char* AMDGPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(CONST_DATA_PTR)
   NODE_NAME_CASE(PC_ADD_REL_OFFSET)
   NODE_NAME_CASE(KILL)
+  NODE_NAME_CASE(DUMMY_CHAIN)
   case AMDGPUISD::FIRST_MEM_OPCODE_NUMBER: break;
   NODE_NAME_CASE(SENDMSG)
   NODE_NAME_CASE(SENDMSGHALT)
