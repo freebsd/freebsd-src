@@ -129,6 +129,8 @@ VNET_DEFINE(int,			 pf_tcp_secret_init);
 #define	V_pf_tcp_secret_init		 VNET(pf_tcp_secret_init)
 VNET_DEFINE(int,			 pf_tcp_iss_off);
 #define	V_pf_tcp_iss_off		 VNET(pf_tcp_iss_off)
+VNET_DECLARE(int,			 pf_vnet_active);
+#define	V_pf_vnet_active		 VNET(pf_vnet_active)
 
 /*
  * Queue for pf_intr() sends.
@@ -1439,6 +1441,12 @@ pf_purge_thread(void *unused __unused)
 			pf_end_threads++;
 			wakeup(pf_purge_thread);
 			kproc_exit(0);
+		}
+
+		/* Wait while V_pf_default_rule.timeout is initialized. */
+		if (V_pf_vnet_active == 0) {
+			CURVNET_RESTORE();
+			continue;
 		}
 
 		/* Process 1/interval fraction of the state table every run. */
