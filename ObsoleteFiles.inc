@@ -40,6 +40,8 @@
 
 # 20170128: remove pc98 support
 OLD_FILES+=usr/include/dev/ic/i8251.h
+OLD_FILES+=usr/include/dev/ic/i8255.h
+OLD_FILES+=usr/include/dev/ic/rsa.h
 OLD_FILES+=usr/include/dev/ic/wd33c93reg.h
 OLD_FILES+=usr/include/sys/disk/pc98.h
 OLD_FILES+=usr/include/sys/diskpc98.h
