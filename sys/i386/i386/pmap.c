@@ -507,7 +507,14 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	for (i = 1; i < NKPT; i++)
 		PTD[i] = 0;
 
-	/* Initialize the PAT MSR if present. */
+	/*
+	 * Initialize the PAT MSR if present.
+	 * pmap_init_pat() clears and sets CR4_PGE, which, as a
+	 * side-effect, invalidates stale PG_G TLB entries that might
+	 * have been created in our pre-boot environment.  We assume
+	 * that PAT support implies PGE and in reverse, PGE presence
+	 * comes with PAT.  Both features were added for Pentium Pro.
+	 */
 	pmap_init_pat();
 
 	/* Turn on PG_G on kernel page(s) */
@@ -564,7 +571,10 @@ pmap_init_pat(void)
 	pat_table[PAT_WRITE_PROTECTED] = 3;
 	pat_table[PAT_UNCACHED] = 3;
 
-	/* Bail if this CPU doesn't implement PAT. */
+	/*
+	 * Bail if this CPU doesn't implement PAT.
+	 * We assume that PAT support implies PGE.
+	 */
 	if ((cpu_feature & CPUID_PAT) == 0) {
 		for (i = 0; i < PAT_INDEX_SIZE; i++)
 			pat_index[i] = pat_table[i];
@@ -2620,6 +2630,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	vm_paddr_t mptepa;
 	vm_page_t mpte;
 	struct spglist free;
+	vm_offset_t sva;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	oldpde = *pde;
@@ -2640,8 +2651,9 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		    va >> PDRSHIFT, VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL |
 		    VM_ALLOC_WIRED)) == NULL) {
 			SLIST_INIT(&free);
-			pmap_remove_pde(pmap, pde, trunc_4mpage(va), &free);
-			pmap_invalidate_page(pmap, trunc_4mpage(va));
+			sva = trunc_4mpage(va);
+			pmap_remove_pde(pmap, pde, sva, &free);
+			pmap_invalidate_range(pmap, sva, sva + NBPDR - 1);
 			pmap_free_zero_pages(&free);
 			CTR2(KTR_PMAP, "pmap_demote_pde: failure for va %#x"
 			    " in pmap %p", va, pmap);
@@ -2811,9 +2823,24 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 	/*
 	 * Machines that don't support invlpg, also don't support
 	 * PG_G.
+	 *
+	 * When workaround_erratum383 is false, a promotion to a 2M/4M
+	 * page mapping does not invalidate the 512/1024 4K page mappings
+	 * from the TLB.  Consequently, at this point, the TLB may
+	 * hold both 4K and 2M/4M page mappings.  Therefore, the entire
+	 * range of addresses must be invalidated here.  In contrast,
+	 * when workaround_erratum383 is true, a promotion does
+	 * invalidate the 512/1024 4K page mappings, and so a single INVLPG
+	 * suffices to invalidate the 2M/4M page mapping.
 	 */
-	if (oldpde & PG_G)
-		pmap_invalidate_page(kernel_pmap, sva);
+	if ((oldpde & PG_G) != 0) {
+		if (workaround_erratum383)
+			pmap_invalidate_page(kernel_pmap, sva);
+		else
+			pmap_invalidate_range(kernel_pmap, sva,
+			    sva + NBPDR - 1);
+	}
+
 	pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 	if (oldpde & PG_MANAGED) {
 		pvh = pa_to_pvh(oldpde & PG_PS_FRAME);
@@ -3122,9 +3149,14 @@ retry:
 	if (newpde != oldpde) {
 		if (!pde_cmpset(pde, oldpde, newpde))
 			goto retry;
-		if (oldpde & PG_G)
-			pmap_invalidate_page(pmap, sva);
-		else
+		if (oldpde & PG_G) {
+			/* See pmap_remove_pde() for explanation. */
+			if (workaround_erratum383)
+				pmap_invalidate_page(kernel_pmap, sva);
+			else
+				pmap_invalidate_range(kernel_pmap, sva,
+				    sva + NBPDR - 1);
+		} else
 			anychanged = TRUE;
 	}
 	return (anychanged);
