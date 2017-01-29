@@ -96,8 +96,10 @@ static void sdhci_card_task(void *, int);
 /*
  * Broadcom BCM577xx Controller Constants
  */
-#define BCM577XX_DEFAULT_MAX_DIVIDER	256		/* Maximum divider supported by the default clock source. */
-#define BCM577XX_ALT_CLOCK_BASE		63000000	/* Alternative clock's base frequency. */
+/* Maximum divider supported by the default clock source. */
+#define BCM577XX_DEFAULT_MAX_DIVIDER	256
+/* Alternative clock's base frequency. */
+#define BCM577XX_ALT_CLOCK_BASE		63000000
 
 #define BCM577XX_HOST_CONTROL		0x198
 #define BCM577XX_CTRL_CLKSEL_MASK	0xFFFFCFFF
@@ -122,7 +124,7 @@ slot_printf(struct sdhci_slot *slot, const char * fmt, ...)
 	va_list ap;
 	int retval;
 
-    	retval = printf("%s-slot%d: ",
+	retval = printf("%s-slot%d: ",
 	    device_get_nameunit(slot->bus), slot->num);
 
 	va_start(ap, fmt);
@@ -266,20 +268,25 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	/* If no clock requested - left it so. */
 	if (clock == 0)
 		return;
-	
+
 	/* Determine the clock base frequency */
 	clk_base = slot->max_clk;
 	if (slot->quirks & SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC) {
-		clk_sel = RD2(slot, BCM577XX_HOST_CONTROL) & BCM577XX_CTRL_CLKSEL_MASK;
+		clk_sel = RD2(slot, BCM577XX_HOST_CONTROL) &
+		    BCM577XX_CTRL_CLKSEL_MASK;
 
-		/* Select clock source appropriate for the requested frequency. */
+		/*
+		 * Select clock source appropriate for the requested frequency.
+		 */
 		if ((clk_base / BCM577XX_DEFAULT_MAX_DIVIDER) > clock) {
 			clk_base = BCM577XX_ALT_CLOCK_BASE;
-			clk_sel |= (BCM577XX_CTRL_CLKSEL_64MHZ << BCM577XX_CTRL_CLKSEL_SHIFT);
+			clk_sel |= (BCM577XX_CTRL_CLKSEL_64MHZ <<
+			    BCM577XX_CTRL_CLKSEL_SHIFT);
 		} else {
-			clk_sel |= (BCM577XX_CTRL_CLKSEL_DEFAULT << BCM577XX_CTRL_CLKSEL_SHIFT);
+			clk_sel |= (BCM577XX_CTRL_CLKSEL_DEFAULT <<
+			    BCM577XX_CTRL_CLKSEL_SHIFT);
 		}
-		
+
 		WR2(slot, BCM577XX_HOST_CONTROL, clk_sel);
 	}
 
@@ -303,8 +310,8 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 		if (clock >= clk_base)
 			div = 0;
 		else {
-			for (div = 2; div < SDHCI_300_MAX_DIVIDER; div += 2) { 
-				if ((clk_base / div) <= clock) 
+			for (div = 2; div < SDHCI_300_MAX_DIVIDER; div += 2) {
+				if ((clk_base / div) <= clock)
 					break;
 			}
 		}
@@ -312,7 +319,7 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	}
 
 	if (bootverbose || sdhci_debug)
-		slot_printf(slot, "Divider %d for freq %d (base %d)\n", 
+		slot_printf(slot, "Divider %d for freq %d (base %d)\n",
 			div, clock, clk_base);
 
 	/* Now we have got divider, set it. */
@@ -329,7 +336,7 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	while (!((clk = RD2(slot, SDHCI_CLOCK_CONTROL))
 		& SDHCI_CLOCK_INT_STABLE)) {
 		if (timeout == 0) {
-			slot_printf(slot, 
+			slot_printf(slot,
 			    "Internal clock never stabilised.\n");
 			sdhci_dumpregs(slot);
 			return;
@@ -555,7 +562,7 @@ sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present)
 	SDHCI_UNLOCK(slot);
 }
 
-static void 
+static void
 sdhci_card_poll(void *arg)
 {
 	struct sdhci_slot *slot = arg;
@@ -565,7 +572,7 @@ sdhci_card_poll(void *arg)
 	callout_reset(&slot->card_poll_callout, SDHCI_CARD_PRESENT_TICKS,
 	    sdhci_card_poll, slot);
 }
- 
+
 int
 sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 {
@@ -611,7 +618,7 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 
 	/* Initialize slot. */
 	sdhci_init(slot);
-	slot->version = (RD2(slot, SDHCI_HOST_VERSION) 
+	slot->version = (RD2(slot, SDHCI_HOST_VERSION)
 		>> SDHCI_SPEC_VER_SHIFT) & SDHCI_SPEC_VER_MASK;
 	if (slot->quirks & SDHCI_QUIRK_MISSING_CAPS)
 		caps = slot->caps;
@@ -621,7 +628,7 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	if (slot->version >= SDHCI_SPEC_300)
 		freq = (caps & SDHCI_CLOCK_V3_BASE_MASK) >>
 		    SDHCI_CLOCK_BASE_SHIFT;
-	else	
+	else
 		freq = (caps & SDHCI_CLOCK_BASE_MASK) >>
 		    SDHCI_CLOCK_BASE_SHIFT;
 	if (freq != 0)
@@ -634,7 +641,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	if (slot->max_clk == 0) {
 		slot->max_clk = SDHCI_DEFAULT_MAX_FREQ * 1000000;
 		device_printf(dev, "Hardware doesn't specify base clock "
-		    "frequency, using %dMHz as default.\n", SDHCI_DEFAULT_MAX_FREQ);
+		    "frequency, using %dMHz as default.\n",
+		    SDHCI_DEFAULT_MAX_FREQ);
 	}
 	/* Calculate/set timeout clock frequency. */
 	if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
@@ -642,8 +650,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	} else if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_1MHZ) {
 		slot->timeout_clk = 1000;
 	} else {
-		slot->timeout_clk =
-			(caps & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
+		slot->timeout_clk = (caps & SDHCI_TIMEOUT_CLK_MASK) >>
+		    SDHCI_TIMEOUT_CLK_SHIFT;
 		if (caps & SDHCI_TIMEOUT_CLK_UNIT)
 			slot->timeout_clk *= 1000;
 	}
@@ -687,7 +695,7 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	if (slot->quirks & SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE)
 		slot->opt |= SDHCI_NON_REMOVABLE;
 
-	/* 
+	/*
 	 * Use platform-provided transfer backend
 	 * with PIO as a fallback mechanism
 	 */
@@ -825,7 +833,7 @@ sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 	} else {
 		panic("Invalid bus width: %d", ios->bus_width);
 	}
-	if (ios->timing == bus_timing_hs && 
+	if (ios->timing == bus_timing_hs &&
 	    !(slot->quirks & SDHCI_QUIRK_DONT_SET_HISPD_BIT))
 		slot->hostctrl |= SDHCI_CTRL_HISPD;
 	else
@@ -839,7 +847,7 @@ sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 	return (0);
 }
 
-static void 
+static void
 sdhci_req_done(struct sdhci_slot *slot)
 {
 	struct mmc_request *req;
@@ -852,8 +860,8 @@ sdhci_req_done(struct sdhci_slot *slot)
 		req->done(req);
 	}
 }
- 
-static void 
+
+static void
 sdhci_timeout(void *arg)
 {
 	struct sdhci_slot *slot = arg;
@@ -868,7 +876,7 @@ sdhci_timeout(void *arg)
 		slot_printf(slot, " Spurious timeout - no active command\n");
 	}
 }
- 
+
 static void
 sdhci_set_transfer_mode(struct sdhci_slot *slot,
 	struct mmc_data *data)
@@ -970,7 +978,7 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 		flags |= SDHCI_CMD_TYPE_ABORT;
 	/* Prepare data. */
 	sdhci_start_data(slot, cmd->data);
-	/* 
+	/*
 	 * Interrupt aggregation: To reduce total number of interrupts
 	 * group response interrupt with data interrupt when possible.
 	 * If there going to be data interrupt, mask response one.
@@ -994,6 +1002,8 @@ static void
 sdhci_finish_command(struct sdhci_slot *slot)
 {
 	int i;
+	uint32_t val;
+	uint8_t extra;
 
 	slot->cmd_done = 1;
 	/* Interrupt aggregation: Restore command interrupt.
@@ -1011,13 +1021,14 @@ sdhci_finish_command(struct sdhci_slot *slot)
 	if (slot->curcmd->flags & MMC_RSP_PRESENT) {
 		if (slot->curcmd->flags & MMC_RSP_136) {
 			/* CRC is stripped so we need one byte shift. */
-			uint8_t extra = 0;
+			extra = 0;
 			for (i = 0; i < 4; i++) {
-				uint32_t val = RD4(slot, SDHCI_RESPONSE + i * 4);
-				if (slot->quirks & SDHCI_QUIRK_DONT_SHIFT_RESPONSE)
+				val = RD4(slot, SDHCI_RESPONSE + i * 4);
+				if (slot->quirks &
+				    SDHCI_QUIRK_DONT_SHIFT_RESPONSE)
 					slot->curcmd->resp[3 - i] = val;
 				else {
-					slot->curcmd->resp[3 - i] = 
+					slot->curcmd->resp[3 - i] =
 					    (val << 8) | extra;
 					extra = val >> 24;
 				}
@@ -1056,7 +1067,7 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 			current_timeout <<= 1;
 		}
 		/* Compensate for an off-by-one error in the CaFe chip.*/
-		if (div < 0xE && 
+		if (div < 0xE &&
 		    (slot->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL)) {
 			++div;
 		}
@@ -1080,13 +1091,13 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 	/* Load DMA buffer. */
 	if (slot->flags & SDHCI_USE_DMA) {
 		if (data->flags & MMC_DATA_READ)
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			bus_dmamap_sync(slot->dmatag, slot->dmamap,
 			    BUS_DMASYNC_PREREAD);
 		else {
 			memcpy(slot->dmamem, data->data,
-			    (data->len < DMA_BLOCK_SIZE) ? 
+			    (data->len < DMA_BLOCK_SIZE) ?
 			    data->len : DMA_BLOCK_SIZE);
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			bus_dmamap_sync(slot->dmatag, slot->dmamap,
 			    BUS_DMASYNC_PREWRITE);
 		}
 		WR4(slot, SDHCI_DMA_ADDRESS, slot->paddr);
@@ -1101,8 +1112,8 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 	/* Current data offset for both PIO and DMA. */
 	slot->offset = 0;
 	/* Set block size and request IRQ on 4K border. */
-	WR2(slot, SDHCI_BLOCK_SIZE,
-	    SDHCI_MAKE_BLKSZ(DMA_BOUNDARY, (data->len < 512)?data->len:512));
+	WR2(slot, SDHCI_BLOCK_SIZE, SDHCI_MAKE_BLKSZ(DMA_BOUNDARY,
+	    (data->len < 512) ? data->len : 512));
 	/* Set block count. */
 	WR2(slot, SDHCI_BLOCK_COUNT, (data->len + 511) / 512);
 }
@@ -1123,12 +1134,12 @@ sdhci_finish_data(struct sdhci_slot *slot)
 	if (!slot->data_done && (slot->flags & SDHCI_USE_DMA)) {
 		if (data->flags & MMC_DATA_READ) {
 			size_t left = data->len - slot->offset;
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			bus_dmamap_sync(slot->dmatag, slot->dmamap,
 			    BUS_DMASYNC_POSTREAD);
 			memcpy((u_char*)data->data + slot->offset, slot->dmamem,
-			    (left < DMA_BLOCK_SIZE)?left:DMA_BLOCK_SIZE);
+			    (left < DMA_BLOCK_SIZE) ? left : DMA_BLOCK_SIZE);
 		} else
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			bus_dmamap_sync(slot->dmatag, slot->dmamap,
 			    BUS_DMASYNC_POSTWRITE);
 	}
 	slot->data_done = 1;
@@ -1187,9 +1198,10 @@ sdhci_generic_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 		return (EBUSY);
 	}
 	if (sdhci_debug > 1) {
-		slot_printf(slot, "CMD%u arg %#x flags %#x dlen %u dflags %#x\n",
-    		    req->cmd->opcode, req->cmd->arg, req->cmd->flags,
-    		    (req->cmd->data)?(u_int)req->cmd->data->len:0,
+		slot_printf(slot,
+		    "CMD%u arg %#x flags %#x dlen %u dflags %#x\n",
+		    req->cmd->opcode, req->cmd->arg, req->cmd->flags,
+		    (req->cmd->data)?(u_int)req->cmd->data->len:0,
 		    (req->cmd->data)?req->cmd->data->flags:0);
 	}
 	slot->req = req;
@@ -1270,6 +1282,8 @@ sdhci_cmd_irq(struct sdhci_slot *slot, uint32_t intmask)
 static void
 sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 {
+	struct mmc_data *data;
+	size_t left;
 
 	if (!slot->curcmd) {
 		slot_printf(slot, "Got data interrupt 0x%08x, but "
@@ -1304,17 +1318,17 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 
 	/* Handle PIO interrupt. */
 	if (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL)) {
-		if ((slot->opt & SDHCI_PLATFORM_TRANSFER) && 
+		if ((slot->opt & SDHCI_PLATFORM_TRANSFER) &&
 		    SDHCI_PLATFORM_WILL_HANDLE(slot->bus, slot)) {
-			SDHCI_PLATFORM_START_TRANSFER(slot->bus, slot, &intmask);
+			SDHCI_PLATFORM_START_TRANSFER(slot->bus, slot,
+			    &intmask);
 			slot->flags |= PLATFORM_DATA_STARTED;
 		} else
 			sdhci_transfer_pio(slot);
 	}
 	/* Handle DMA border. */
 	if (intmask & SDHCI_INT_DMA_END) {
-		struct mmc_data *data = slot->curcmd->data;
-		size_t left;
+		data = slot->curcmd->data;
 
 		/* Unload DMA buffer... */
 		left = data->len - slot->offset;
@@ -1322,7 +1336,7 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 			bus_dmamap_sync(slot->dmatag, slot->dmamap,
 			    BUS_DMASYNC_POSTREAD);
 			memcpy((u_char*)data->data + slot->offset, slot->dmamem,
-			    (left < DMA_BLOCK_SIZE)?left:DMA_BLOCK_SIZE);
+			    (left < DMA_BLOCK_SIZE) ? left : DMA_BLOCK_SIZE);
 		} else {
 			bus_dmamap_sync(slot->dmatag, slot->dmamap,
 			    BUS_DMASYNC_POSTWRITE);
@@ -1335,7 +1349,7 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 			    BUS_DMASYNC_PREREAD);
 		} else {
 			memcpy(slot->dmamem, (u_char*)data->data + slot->offset,
-			    (left < DMA_BLOCK_SIZE)?left:DMA_BLOCK_SIZE);
+			    (left < DMA_BLOCK_SIZE)? left : DMA_BLOCK_SIZE);
 			bus_dmamap_sync(slot->dmatag, slot->dmamap,
 			    BUS_DMASYNC_PREWRITE);
 		}
@@ -1363,7 +1377,6 @@ done:
 			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
 		} else
 			sdhci_finish_data(slot);
-		return;
 	}
 }
 
@@ -1371,7 +1384,7 @@ static void
 sdhci_acmd_irq(struct sdhci_slot *slot)
 {
 	uint16_t err;
-	
+
 	err = RD4(slot, SDHCI_ACMD12_ERR);
 	if (!slot->curcmd) {
 		slot_printf(slot, "Got AutoCMD12 error 0x%04x, but "
@@ -1387,7 +1400,7 @@ void
 sdhci_generic_intr(struct sdhci_slot *slot)
 {
 	uint32_t intmask, present;
-	
+
 	SDHCI_LOCK(slot);
 	/* Read slot interrupt status. */
 	intmask = RD4(slot, SDHCI_INT_STATUS);
@@ -1407,7 +1420,7 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 		    SDHCI_INT_CARD_INSERT;
 		WR4(slot, SDHCI_INT_ENABLE, slot->intmask);
 		WR4(slot, SDHCI_SIGNAL_ENABLE, slot->intmask);
-		WR4(slot, SDHCI_INT_STATUS, intmask & 
+		WR4(slot, SDHCI_INT_STATUS, intmask &
 		    (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE));
 		sdhci_handle_card_present_locked(slot, present);
 		intmask &= ~(SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE);
@@ -1446,12 +1459,13 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 		    intmask);
 		sdhci_dumpregs(slot);
 	}
-	
+
 	SDHCI_UNLOCK(slot);
 }
 
 int
-sdhci_generic_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
+sdhci_generic_read_ivar(device_t bus, device_t child, int which,
+    uintptr_t *result)
 {
 	struct sdhci_slot *slot = device_get_ivars(child);
 
@@ -1505,7 +1519,8 @@ sdhci_generic_read_ivar(device_t bus, device_t child, int which, uintptr_t *resu
 }
 
 int
-sdhci_generic_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
+sdhci_generic_write_ivar(device_t bus, device_t child, int which,
+    uintptr_t value)
 {
 	struct sdhci_slot *slot = device_get_ivars(child);
 
