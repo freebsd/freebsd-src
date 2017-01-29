@@ -59,7 +59,6 @@
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/priv.h>
-#include <sys/eventhandler.h>
 
 #include <machine/stdarg.h>
 #include <vm/uma.h>
@@ -3531,7 +3530,6 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_BRIDGE:
 	case IFT_ARCNET:
 	case IFT_IEEE8023ADLAG:
-	case IFT_IEEE80211:
 		bcopy(lladdr, LLADDR(sdl), len);
 		ifa_free(ifa);
 		break;

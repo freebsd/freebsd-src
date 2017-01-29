@@ -33,10 +33,6 @@
  * $FreeBSD$
  */
 
-#ifdef PC98
-#error isareg.h is included from PC-9801 source
-#endif
-
 #ifndef _ISA_ISA_H_
 #define	_ISA_ISA_H_
 

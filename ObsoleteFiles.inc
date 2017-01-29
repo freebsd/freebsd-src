@@ -151,6 +151,19 @@ OLD_FILES+=usr/lib/clang/3.9.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.9.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.9.1/lib
 OLD_DIRS+=usr/lib/clang/3.9.1
+# 20170128: remove pc98 support
+OLD_FILES+=usr/include/dev/ic/i8251.h
+OLD_FILES+=usr/include/dev/ic/i8255.h
+OLD_FILES+=usr/include/dev/ic/rsa.h
+OLD_FILES+=usr/include/dev/ic/wd33c93reg.h
+OLD_FILES+=usr/include/sys/disk/pc98.h
+OLD_FILES+=usr/include/sys/diskpc98.h
+OLD_FILES+=usr/share/man/man4/i386/ct.4.gz
+OLD_FILES+=usr/share/man/man4/i386/snc.4.gz
+OLD_FILES+=usr/share/syscons/keymaps/jp.pc98.iso.kbd
+OLD_FILES+=usr/share/syscons/keymaps/jp.pc98.kbd
+OLD_FILES+=usr/share/vt/keymaps/jp.pc98.iso.kbd
+OLD_FILES+=usr/share/vt/keymaps/jp.pc98.kbd
 # 20170110: Four files from ggate tests consolidated into one
 OLD_FILES+=usr/tests/sys/geom/class/gate/1_test
 OLD_FILES+=usr/tests/sys/geom/class/gate/2_test

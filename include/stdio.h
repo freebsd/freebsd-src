@@ -40,6 +40,8 @@
 #include <sys/_null.h>
 #include <sys/_types.h>
 
+__NULLABILITY_PRAGMA_PUSH
+
 typedef	__off_t		fpos_t;
 
 #ifndef _SIZE_T_DECLARED
@@ -123,10 +125,10 @@ struct __sFILE {
 
 	/* operations */
 	void	*_cookie;	/* (*) cookie passed to io functions */
-	int	(*_close)(void *);
-	int	(*_read)(void *, char *, int);
-	fpos_t	(*_seek)(void *, fpos_t, int);
-	int	(*_write)(void *, const char *, int);
+	int	(* _Nullable _close)(void *);
+	int	(* _Nullable _read)(void *, char *, int);
+	fpos_t	(* _Nullable _seek)(void *, fpos_t, int);
+	int	(* _Nullable _write)(void *, const char *, int);
 
 	/* separate buffer for long sequences of ungetc() */
 	struct	__sbuf _ub;	/* ungetc buffer */
@@ -390,10 +392,10 @@ extern const char * const sys_errlist[];
  * Stdio function-access interface.
  */
 FILE	*funopen(const void *,
-	    int (*)(void *, char *, int),
-	    int (*)(void *, const char *, int),
-	    fpos_t (*)(void *, fpos_t, int),
-	    int (*)(void *));
+	    int (* _Nullable)(void *, char *, int),
+	    int (* _Nullable)(void *, const char *, int),
+	    fpos_t (* _Nullable)(void *, fpos_t, int),
+	    int (* _Nullable)(void *));
 #define	fropen(cookie, fn) funopen(cookie, fn, 0, 0, 0)
 #define	fwopen(cookie, fn) funopen(cookie, 0, fn, 0, 0)
 
@@ -506,4 +508,6 @@ extern int __isthreaded;
 #endif /* __cplusplus */
 
 __END_DECLS
+__NULLABILITY_PRAGMA_POP
+
 #endif /* !_STDIO_H_ */
