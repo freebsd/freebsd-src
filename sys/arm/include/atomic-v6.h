@@ -220,7 +220,7 @@ atomic_fcmpset_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 	    "1:	mov	%[ret], #1				\n"
 	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
 	    "   teq	%Q[tmp], %Q[_cmpval]			\n"
-	    "   itee	eq					\n"
+	    "   ite	eq					\n"
 	    "   teqeq	%R[tmp], %R[_cmpval]			\n"
 	    "   bne	2f					\n"
 	    "   strexd	%[ret], %Q[newval], %R[newval], [%[ptr]]\n"
