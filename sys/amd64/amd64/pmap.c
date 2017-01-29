@@ -1040,7 +1040,12 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	virtual_avail = va;
 
-	/* Initialize the PAT MSR. */
+	/*
+	 * Initialize the PAT MSR.
+	 * pmap_init_pat() clears and sets CR4_PGE, which, as a
+	 * side-effect, invalidates stale PG_G TLB entries that might
+	 * have been created in our pre-boot environment.
+	 */
 	pmap_init_pat();
 
 	/* Initialize TLB Context Id. */
@@ -3428,6 +3433,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	vm_paddr_t mptepa;
 	vm_page_t mpte;
 	struct spglist free;
+	vm_offset_t sva;
 	int PG_PTE_CACHE;
 
 	PG_G = pmap_global_bit(pmap);
@@ -3464,9 +3470,9 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 		    DMAP_MAX_ADDRESS ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL) |
 		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 			SLIST_INIT(&free);
-			pmap_remove_pde(pmap, pde, trunc_2mpage(va), &free,
-			    lockp);
-			pmap_invalidate_page(pmap, trunc_2mpage(va));
+			sva = trunc_2mpage(va);
+			pmap_remove_pde(pmap, pde, sva, &free, lockp);
+			pmap_invalidate_range(pmap, sva, sva + NBPDR - 1);
 			pmap_free_zero_pages(&free);
 			CTR2(KTR_PMAP, "pmap_demote_pde: failure for va %#lx"
 			    " in pmap %p", va, pmap);
@@ -3608,11 +3614,23 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		pmap->pm_stats.wired_count -= NBPDR / PAGE_SIZE;
 
 	/*
-	 * Machines that don't support invlpg, also don't support
-	 * PG_G.
+	 * When workaround_erratum383 is false, a promotion to a 2M
+	 * page mapping does not invalidate the 512 4K page mappings
+	 * from the TLB.  Consequently, at this point, the TLB may
+	 * hold both 4K and 2M page mappings.  Therefore, the entire
+	 * range of addresses must be invalidated here.  In contrast,
+	 * when workaround_erratum383 is true, a promotion does
+	 * invalidate the 512 4K page mappings, and so a single INVLPG
+	 * suffices to invalidate the 2M page mapping.
 	 */
-	if (oldpde & PG_G)
-		pmap_invalidate_page(kernel_pmap, sva);
+	if ((oldpde & PG_G) != 0) {
+		if (workaround_erratum383)
+			pmap_invalidate_page(kernel_pmap, sva);
+		else
+			pmap_invalidate_range(kernel_pmap, sva,
+			    sva + NBPDR - 1);
+	}
+
 	pmap_resident_count_dec(pmap, NBPDR / PAGE_SIZE);
 	if (oldpde & PG_MANAGED) {
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, oldpde & PG_PS_FRAME);
@@ -3994,9 +4012,14 @@ retry:
 	if (newpde != oldpde) {
 		if (!atomic_cmpset_long(pde, oldpde, newpde))
 			goto retry;
-		if (oldpde & PG_G)
-			pmap_invalidate_page(pmap, sva);
-		else
+		if (oldpde & PG_G) {
+			/* See pmap_remove_pde() for explanation. */
+			if (workaround_erratum383)
+				pmap_invalidate_page(kernel_pmap, sva);
+			else
+				pmap_invalidate_range(kernel_pmap, sva,
+				    sva + NBPDR - 1);
+		} else
 			anychanged = TRUE;
 	}
 	return (anychanged);
