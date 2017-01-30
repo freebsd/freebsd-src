@@ -163,7 +163,7 @@ ${PROG_INSTALL}: ${PROG}
 
 .if defined(WANT_DUMP) && ${WANT_DUMP} != "no"
 ${PROGNAME}.dump: ${PROG_FULL}
-	${OBJDUMP} -xrsSd ${PROG_FULL} > ${.TARGET}
+	${OBJDUMP} ${OBJDUMP_FLAGS} ${PROG_FULL} > ${.TARGET}
 .endif
 
 .if defined(LLVM_LINK)
