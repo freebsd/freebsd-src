@@ -1,4 +1,4 @@
-/*	$NetBSD: chartype.h,v 1.23 2016/02/24 17:20:01 christos Exp $	*/
+/*	$NetBSD: chartype.h,v 1.25 2016/03/07 00:05:20 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -12,13 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -70,6 +63,7 @@
 #define FUNW(type)		type ## _w
 #define TYPE(type)		type ## W
 #define FSTR			"%ls"
+#define FSTARSTR		"%.*ls"
 #define STR(x)			L ## x
 #define UC(c)			c
 #define Isalpha(x)  iswalpha(x)
@@ -122,6 +116,7 @@ Width(wchar_t c)
 #define FUNW(type)		type
 #define TYPE(type)		type
 #define FSTR			"%s"
+#define FSTARSTR		"%.*s"
 #define STR(x)			x
 #define UC(c)			(unsigned char)(c)
 
