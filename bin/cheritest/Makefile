@@ -41,7 +41,8 @@ CFLAGS+=	-DCHERI_C_TESTS \
 
 .ifndef BOOTSTRAPPING
 
-CFLAGS+=	-DTEST_CUSTOM_FRAMEWORK -I${CHERITEST_DIR}
+CFLAGS+=	-DTEST_CUSTOM_FRAMEWORK -I${CHERITEST_DIR} \
+		-DHAVE_MALLOC_USUABLE_SIZE
 TEST_SRCS!=	grep ^DECLARE_TEST ${CHERI_C_TESTS_DIR}/cheri_c_testdecls.h | \
 		    sed -e 's/.*(\([^,]*\),.*/\1.c/'
 SRCS+=	test_runtime.c	\
