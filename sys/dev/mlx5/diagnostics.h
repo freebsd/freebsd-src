@@ -33,7 +33,7 @@
 #define	MLX5_CORE_DIAGNOSTICS_ENTRY(n, s, t) { #s, (t) },
 
 struct mlx5_core_diagnostics_entry {
-	const char *const desc;
+	const char *desc;
 	u16	counter_id;
 };
 
