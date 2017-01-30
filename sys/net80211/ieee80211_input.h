@@ -149,6 +149,12 @@ ishtinfooui(const uint8_t *frm)
  * (as the seqnum wraps), handle that special case so packets aren't
  * incorrectly dropped - ie, if the next packet is sequence number 0
  * but a retransmit since the initial packet didn't make it.
+ *
+ * XXX TODO: handle sequence number space wrapping with dropped frames;
+ * especially in high interference conditions under high traffic load
+ * The RX AMPDU reorder code also needs it.
+ *
+ * XXX TODO: update for 802.11-2012 9.3.2.10 Duplicate Detection and Recovery.
  */
 static __inline int
 ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
@@ -173,6 +179,13 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 	 * are always treated valid.
 	 */
 	if (! IEEE80211_HAS_SEQ(type, subtype))
+		return 1;
+
+	/*
+	 * Always allow multicast frames for now - QoS (any TID)
+	 * or not.
+	 */
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		return 1;
 
 	tid = ieee80211_gettid(wh);
