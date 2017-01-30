@@ -1,4 +1,4 @@
-/*	$NetBSD: histedit.h,v 1.53 2014/06/18 18:12:28 christos Exp $	*/
+/*	$NetBSD: histedit.h,v 1.55 2016/02/17 19:47:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -130,7 +130,7 @@ unsigned char	_el_fn_sh_complete(EditLine *, int);
  * For operations that support set or set/get, the argument types listed are for
  * the "set" operation. For "get", each listed type must be a pointer.
  * E.g. EL_EDITMODE takes an int when set, but an int* when get.
- * 
+ *
  * Operations that only support "get" have the correct argument types listed.
  */
 #define	EL_PROMPT	0	/* , prompt_func);		      set/get */
@@ -143,7 +143,7 @@ unsigned char	_el_fn_sh_complete(EditLine *, int);
 #define	EL_ECHOTC	7	/* , const Char *, ..., NULL);        set     */
 #define	EL_SETTY	8	/* , const Char *, ..., NULL);        set     */
 #define	EL_ADDFN	9	/* , const Char *, const Char,        set     */
-				/*   el_func_t);		 	      */
+				/*   el_func_t);			      */
 #define	EL_HIST		10	/* , hist_fun_t, const void *);	      set     */
 #define	EL_EDITMODE	11	/* , int);			      set/get */
 #define	EL_RPROMPT	12	/* , prompt_func);		      set/get */
@@ -251,19 +251,8 @@ int		 tok_str(Tokenizer *, const char *,
 /*
  * Begin Wide Character Support
  */
-#ifdef __linux__
-/* Apparently we need _GNU_SOURCE defined to get access to wcsdup on Linux */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#endif
-
 #include <wchar.h>
 #include <wctype.h>
-
-/*
- * Wide character versions
- */
 
 /*
  * ==== Editing ====

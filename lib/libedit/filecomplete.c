@@ -1,4 +1,4 @@
-/*	$NetBSD: filecomplete.c,v 1.34 2014/10/18 15:07:02 riz Exp $	*/
+/*	$NetBSD: filecomplete.c,v 1.40 2016/02/17 19:47:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,27 +31,24 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: filecomplete.c,v 1.34 2014/10/18 15:07:02 riz Exp $");
+__RCSID("$NetBSD: filecomplete.c,v 1.40 2016/02/17 19:47:49 christos Exp $");
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdio.h>
 #include <dirent.h>
-#include <string.h>
-#include <pwd.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <limits.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "el.h"
-#include "fcns.h"		/* for EL_NUM_FCNS */
-#include "histedit.h"
 #include "filecomplete.h"
 
 static const Char break_chars[] = { ' ', '\t', '\n', '"', '\\', '\'', '`', '@',
@@ -100,9 +97,9 @@ fn_tilde_expand(const char *txt)
 	}
 	if (temp[0] == 0) {
 #ifdef HAVE_GETPW_R_POSIX
- 		if (getpwuid_r(getuid(), &pwres, pwbuf, sizeof(pwbuf),
+		if (getpwuid_r(getuid(), &pwres, pwbuf, sizeof(pwbuf),
 		    &pass) != 0)
- 			pass = NULL;
+			pass = NULL;
 #elif HAVE_GETPW_R_DRAFT
 		pass = getpwuid_r(getuid(), &pwres, pwbuf, sizeof(pwbuf));
 #else
@@ -484,7 +481,7 @@ fn_complete(EditLine *el,
 		    cur_off - (int)len, cur_off);
 	} else
 		matches = NULL;
-	if (!attempted_completion_function || 
+	if (!attempted_completion_function ||
 	    (over != NULL && !*over && !matches))
 		matches = completion_matches(
 		    ct_encode_string(dequoted_temp ? dequoted_temp : temp,
@@ -543,7 +540,7 @@ fn_complete(EditLine *el,
 			}
 			/* matches[1] through matches[i-1] are available */
 			matches_num = (size_t)(i - 1);
-				
+
 			/* newline to get on next line from command line */
 			(void)fprintf(el->el_outfile, "\n");
 

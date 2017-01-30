@@ -1,4 +1,4 @@
-/*	$NetBSD: tokenizer.c,v 1.22 2016/01/30 04:02:51 christos Exp $	*/
+/*	$NetBSD: tokenizer.c,v 1.24 2016/02/17 19:47:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tokenizer.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tokenizer.c,v 1.22 2016/01/30 04:02:51 christos Exp $");
+__RCSID("$NetBSD: tokenizer.c,v 1.24 2016/02/17 19:47:49 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -47,8 +47,9 @@ __FBSDID("$FreeBSD$");
 /*
  * tokenize.c: Bourne shell like tokenizer
  */
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "histedit.h"
 #include "chartype.h"
 
@@ -415,8 +416,10 @@ FUN(tok,line)(TYPE(Tokenizer) *tok, const TYPE(LineInfo) *line,
 			Char **p;
 			tok->amax += AINCR;
 			p = tok_realloc(tok->argv, tok->amax * sizeof(*p));
-			if (p == NULL)
+			if (p == NULL) {
+				tok->amax -= AINCR;
 				return -1;
+			}
 			tok->argv = p;
 		}
 	}
