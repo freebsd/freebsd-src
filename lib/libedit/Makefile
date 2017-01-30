@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.55 2016/02/24 14:25:38 christos Exp $
+#	$NetBSD: Makefile,v 1.56 2016/03/02 19:24:20 christos Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
@@ -38,8 +38,8 @@ INCS=	histedit.h
 SRCS+=	tokenizern.c historyn.c
 CLEANFILES+=	tokenizern.c historyn.c
 CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit -DWIDECHAR
-CFLAGS+= #-DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
-CFLAGS+= #-DDEBUG_PASTE -DDEBUG_EDIT
+#CFLAGS+= -DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
+#CFLAGS+= -DDEBUG_PASTE -DDEBUG_EDIT
 
 WARNS?=	1
 

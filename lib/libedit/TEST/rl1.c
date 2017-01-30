@@ -1,4 +1,4 @@
-/*	$NetBSD: rl1.c,v 1.1 2010/09/16 20:08:51 christos Exp $	*/
+/*	$NetBSD: rl1.c,v 1.2 2016/02/29 00:54:19 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include <sys/cdefs.h>
 #if !defined(lint)
-__RCSID("$NetBSD: rl1.c,v 1.1 2010/09/16 20:08:51 christos Exp $");
+__RCSID("$NetBSD: rl1.c,v 1.2 2016/02/29 00:54:19 christos Exp $");
 #endif /* not lint  */
 __FBSDID("$FreeBSD$");
 
