@@ -926,7 +926,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			 * and gets mapped RO by the appropriate startup
 			 * code after initalization.
 			 */
-			if (brand_info->machine == EM_MIPS_CHERI &&
+			/* XXXAR: use PT_GNU_RELRO once we change to lld? */
+			if ((brand_info->sysvec->sv_flags & SV_CHERI) &&
 			    !(prot & PF_W)) {
 				prot |= PF_W;
 				/*
