@@ -138,6 +138,8 @@ SUBDIR=	\
 	${_hptnr} \
 	${_hptrr} \
 	hwpmc \
+	${_hwpmc_mips24k} \
+	${_hwpmc_mips74k} \
 	${_hyperv} \
 	i2c \
         ${_ibcore} \
@@ -518,6 +520,11 @@ _cxgbe=		cxgbe
 
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 SUBDIR+=	zfs
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+	_hwpmc_mips24k=	hwpmc_mips24k
+	_hwpmc_mips74k=	hwpmc_mips74k
 .endif
 
 .if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "arm" && \
