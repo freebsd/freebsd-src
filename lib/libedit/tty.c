@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.58 2016/02/27 18:13:21 christos Exp $	*/
+/*	$NetBSD: tty.c,v 1.59 2016/03/22 01:34:32 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tty.c,v 1.58 2016/02/27 18:13:21 christos Exp $");
+__RCSID("$NetBSD: tty.c,v 1.59 2016/03/22 01:34:32 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -500,9 +500,11 @@ tty_setup(EditLine *el)
 {
 	int rst = 1;
 
-	el->el_tty.t_initialized = 0;
 	if (el->el_flags & EDIT_DISABLED)
 		return 0;
+
+	if (el->el_tty.t_initialized)
+		return -1;
 
 	if (!isatty(el->el_outfd)) {
 #ifdef DEBUG_TTY
@@ -573,6 +575,7 @@ tty_init(EditLine *el)
 
 	el->el_tty.t_mode = EX_IO;
 	el->el_tty.t_vdisable = _POSIX_VDISABLE;
+	el->el_tty.t_initialized = 0;
 	(void) memcpy(el->el_tty.t_t, ttyperm, sizeof(ttyperm_t));
 	(void) memcpy(el->el_tty.t_c, ttychar, sizeof(ttychar_t));
 	return tty_setup(el);
@@ -589,7 +592,7 @@ tty_end(EditLine *el)
 	if (el->el_flags & EDIT_DISABLED)
 		return;
 
-	if (el->el_tty.t_initialized)
+	if (!el->el_tty.t_initialized)
 		return;
 
 	if (tty_setty(el, TCSAFLUSH, &el->el_tty.t_or) == -1) {
