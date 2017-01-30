@@ -124,6 +124,10 @@ print_utrace_rtld(FILE *fp, void *p)
 		fprintf(fp, "RTLD: %p = dlsym(%p, %s)", ut->mapbase, ut->handle,
 		    ut->name);
 		break;
+	case UTRACE_RTLD_ERROR:
+		fprintf(fp, "RTLD: error: %s\n", ut->name);
+		break;
+
 	default:
 		return (0);
 	}
