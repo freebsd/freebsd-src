@@ -1,4 +1,4 @@
-/*	$NetBSD: common.c,v 1.39 2016/02/24 14:25:38 christos Exp $	*/
+/*	$NetBSD: common.c,v 1.40 2016/03/02 19:24:20 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)common.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: common.c,v 1.39 2016/02/24 14:25:38 christos Exp $");
+__RCSID("$NetBSD: common.c,v 1.40 2016/03/02 19:24:20 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -147,8 +147,9 @@ ed_delete_next_char(EditLine *el, wint_t c __attribute__((__unused__)))
 {
 #ifdef DEBUG_EDIT
 #define	EL	el->el_line
-	(void) fprintf(el->el_errlfile,
-	    "\nD(b: %x(%s)  c: %x(%s) last: %x(%s) limit: %x(%s)\n",
+	(void) fprintf(el->el_errfile,
+	    "\nD(b: %p(" FSTR ")  c: %p(" FSTR ") last: %p(" FSTR
+	    ") limit: %p(" FSTR ")\n",
 	    EL.buffer, EL.buffer, EL.cursor, EL.cursor, EL.lastchar,
 	    EL.lastchar, EL.limit, EL.limit);
 #endif

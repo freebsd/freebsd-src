@@ -1,4 +1,4 @@
-/*	$NetBSD: vi.c,v 1.54 2016/02/17 19:47:49 christos Exp $	*/
+/*	$NetBSD: vi.c,v 1.55 2016/03/02 19:24:20 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: vi.c,v 1.54 2016/02/17 19:47:49 christos Exp $");
+__RCSID("$NetBSD: vi.c,v 1.55 2016/03/02 19:24:20 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -103,7 +103,8 @@ cv_paste(EditLine *el, wint_t c)
 	if (k->buf == NULL || len == 0)
 		return CC_ERROR;
 #ifdef DEBUG_PASTE
-	(void) fprintf(el->el_errfile, "Paste: \"%.*s\"\n", (int)len, k->buf);
+	(void) fprintf(el->el_errfile, "Paste: \"" FSTARSTR "\"\n", (int)len,
+	    k->buf);
 #endif
 
 	cv_undo(el);

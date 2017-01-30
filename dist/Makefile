@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.55 2016/02/24 14:25:38 christos Exp $
+#	$NetBSD: Makefile,v 1.56 2016/03/02 19:24:20 christos Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 USE_SHLIBDIR=	yes
@@ -53,8 +53,8 @@ CLEANFILES+=help.c.tmp help.h.tmp vi.h.tmp tc1.o tc1
 CLEANFILES+=tokenizern.c.tmp tokenizern.c tokenizerw.c.tmp tokenizerw.c
 CPPFLAGS+=-I. -I${LIBEDITDIR}
 CPPFLAGS+=-I. -I${.CURDIR}
-CPPFLAGS+=#-DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
-CPPFLAGS+=#-DDEBUG_PASTE -DDEBUG_EDIT
+#CPPFLAGS+=-DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
+#CPPFLAGS+=-DDEBUG_PASTE -DDEBUG_EDIT
 
 AHDR=vi.h emacs.h common.h
 ASRC=${LIBEDITDIR}/vi.c ${LIBEDITDIR}/emacs.c ${LIBEDITDIR}/common.c

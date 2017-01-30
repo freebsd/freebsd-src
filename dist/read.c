@@ -1,4 +1,4 @@
-/*	$NetBSD: read.c,v 1.85 2016/02/24 17:20:01 christos Exp $	*/
+/*	$NetBSD: read.c,v 1.86 2016/03/02 19:24:20 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: read.c,v 1.85 2016/02/24 17:20:01 christos Exp $");
+__RCSID("$NetBSD: read.c,v 1.86 2016/03/02 19:24:20 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -615,7 +615,7 @@ FUN(el,gets)(EditLine *el, int *nread)
 					break;
 			if (b->name)
 				(void) fprintf(el->el_errfile,
-				    "Executing %s\n", b->name);
+				    "Executing " FSTR "\n", b->name);
 			else
 				(void) fprintf(el->el_errfile,
 				    "Error command = %d\n", cmdnum);
