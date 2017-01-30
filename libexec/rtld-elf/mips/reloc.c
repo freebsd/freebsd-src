@@ -215,7 +215,6 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 			sym = symtab + r_symndx;
 			assert(ELF_ST_BIND(sym->st_info) == STB_LOCAL);
 			val += relocbase;
-			store_ptr(where, val, sizeof(Elf_Sword));
 			dbg("REL32/L(%p) %p -> %p in <self>",
 			    where, (void *)old, (void *)val);
 			store_ptr(where, val, rlen);
