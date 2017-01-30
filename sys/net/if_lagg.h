@@ -261,6 +261,8 @@ struct lagg_port {
 	void				*lh_cookie;	/* if state hook */
 	void				*lp_psc;	/* protocol data */
 	int				lp_detaching;	/* ifnet is detaching */
+#define	LAGG_PORT_DETACH		0x01		/* detach lagg port */
+#define	LAGG_CLONE_DESTROY		0x02		/* destroy lagg clone */
 
 	SLIST_HEAD(__mclhd, lagg_mc)	lp_mc_head;	/* multicast addresses */
 
