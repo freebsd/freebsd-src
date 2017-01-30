@@ -1,4 +1,4 @@
-/*	$NetBSD: terminal.h,v 1.4 2012/03/24 20:09:30 christos Exp $	*/
+/*	$NetBSD: terminal.h,v 1.7 2016/02/16 15:53:48 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -40,8 +40,6 @@
  */
 #ifndef _h_el_terminal
 #define	_h_el_terminal
-
-#include "histedit.h"
 
 typedef struct {		/* Symbolic function key bindings	*/
 	const Char	*name;	/* name of the key			*/
@@ -105,8 +103,8 @@ protected int	terminal_settc(EditLine *, int, const Char **);
 protected int	terminal_gettc(EditLine *, int, char **);
 protected int	terminal_telltc(EditLine *, int, const Char **);
 protected int	terminal_echotc(EditLine *, int, const Char **);
-protected void	terminal_writec(EditLine *, Int);
-protected int	terminal__putc(EditLine *, Int);
+protected void	terminal_writec(EditLine *, wint_t);
+protected int	terminal__putc(EditLine *, wint_t);
 protected void	terminal__flush(EditLine *);
 
 /*
