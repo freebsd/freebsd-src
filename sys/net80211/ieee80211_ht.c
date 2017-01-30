@@ -827,6 +827,16 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
 		 */
 		return PROCESS;
 	}
+
+	/*
+	 * 802.11-2012 9.3.2.10 - Duplicate detection and recovery.
+	 *
+	 * Multicast QoS data frames are checked against a different
+	 * counter, not the per-TID counter.
+	 */
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		return PROCESS;
+
 	if (IEEE80211_IS_DSTODS(wh))
 		tid = ((struct ieee80211_qosframe_addr4 *)wh)->i_qos[0];
 	else
