@@ -1,4 +1,4 @@
-/*	$NetBSD: refresh.h,v 1.9 2016/02/16 15:53:48 christos Exp $	*/
+/*	$NetBSD: parse.h,v 1.7 2009/12/30 22:37:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -31,27 +31,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)refresh.h	8.1 (Berkeley) 6/4/93
+ *	@(#)parse.h	8.1 (Berkeley) 6/4/93
  */
 
 /*
- * el.refresh.h: Screen refresh functions
+ * el.parse.h: Parser functions
  */
-#ifndef _h_el_refresh
-#define	_h_el_refresh
+#ifndef _h_el_parse
+#define	_h_el_parse
 
-typedef struct {
-	coord_t	r_cursor;	/* Refresh cursor position	*/
-	int	r_oldcv;	/* Vertical locations		*/
-	int	r_newcv;
-} el_refresh_t;
+protected int	 parse_line(EditLine *, const Char *);
+protected int	 parse__escape(const Char **);
+protected Char	*parse__string(Char *, const Char *);
+protected int	 parse_cmd(EditLine *, const Char *);
 
-protected void	re_putc(EditLine *, wint_t, int);
-protected void	re_clear_lines(EditLine *);
-protected void	re_clear_display(EditLine *);
-protected void	re_refresh(EditLine *);
-protected void	re_refresh_cursor(EditLine *);
-protected void	re_fastaddc(EditLine *);
-protected void	re_goto_bottom(EditLine *);
-
-#endif /* _h_el_refresh */
+#endif /* _h_el_parse */

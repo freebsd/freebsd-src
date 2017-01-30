@@ -1,4 +1,4 @@
-/*	$NetBSD: refresh.h,v 1.9 2016/02/16 15:53:48 christos Exp $	*/
+/*	$NetBSD: map.h,v 1.10 2014/07/06 18:15:34 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -31,27 +31,47 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)refresh.h	8.1 (Berkeley) 6/4/93
+ *	@(#)map.h	8.1 (Berkeley) 6/4/93
  */
 
 /*
- * el.refresh.h: Screen refresh functions
+ * el.map.h:	Editor maps
  */
-#ifndef _h_el_refresh
-#define	_h_el_refresh
+#ifndef _h_el_map
+#define	_h_el_map
 
-typedef struct {
-	coord_t	r_cursor;	/* Refresh cursor position	*/
-	int	r_oldcv;	/* Vertical locations		*/
-	int	r_newcv;
-} el_refresh_t;
+typedef struct el_bindings_t {	/* for the "bind" shell command */
+	const Char	*name;		/* function name for bind command */
+	int		 func;		/* function numeric value */
+	const Char	*description;	/* description of function */
+} el_bindings_t;
 
-protected void	re_putc(EditLine *, wint_t, int);
-protected void	re_clear_lines(EditLine *);
-protected void	re_clear_display(EditLine *);
-protected void	re_refresh(EditLine *);
-protected void	re_refresh_cursor(EditLine *);
-protected void	re_fastaddc(EditLine *);
-protected void	re_goto_bottom(EditLine *);
 
-#endif /* _h_el_refresh */
+typedef struct el_map_t {
+	el_action_t	*alt;		/* The current alternate key map */
+	el_action_t	*key;		/* The current normal key map	*/
+	el_action_t	*current;	/* The keymap we are using	*/
+	const el_action_t *emacs;	/* The default emacs key map	*/
+	const el_action_t *vic;		/* The vi command mode key map	*/
+	const el_action_t *vii;		/* The vi insert mode key map	*/
+	int		 type;		/* Emacs or vi			*/
+	el_bindings_t	*help;		/* The help for the editor functions */
+	el_func_t	*func;		/* List of available functions	*/
+	size_t		 nfunc;		/* The number of functions/help items */
+} el_map_t;
+
+#define	MAP_EMACS	0
+#define	MAP_VI		1
+
+#define N_KEYS      256
+
+protected int	map_bind(EditLine *, int, const Char **);
+protected int	map_init(EditLine *);
+protected void	map_end(EditLine *);
+protected void	map_init_vi(EditLine *);
+protected void	map_init_emacs(EditLine *);
+protected int	map_set_editor(EditLine *, Char *);
+protected int	map_get_editor(EditLine *, const Char **);
+protected int	map_addfunc(EditLine *, const Char *, const Char *, el_func_t);
+
+#endif /* _h_el_map */

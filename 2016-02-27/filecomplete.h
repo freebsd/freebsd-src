@@ -1,11 +1,11 @@
-/*	$NetBSD: rl1.c,v 1.1 2010/09/16 20:08:51 christos Exp $	*/
+/*	$NetBSD: filecomplete.h,v 1.9 2009/12/30 22:37:40 christos Exp $	*/
 
 /*-
- * Copyright (c) 2010 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Christos Zoulas.
+ * by Jaromir Dolecek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -35,25 +28,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef _FILECOMPLETE_H_
+#define _FILECOMPLETE_H_
 
-#include <sys/cdefs.h>
-#if !defined(lint)
-__RCSID("$NetBSD: rl1.c,v 1.1 2010/09/16 20:08:51 christos Exp $");
-#endif /* not lint  */
+int fn_complete(EditLine *,
+    char *(*)(const char *, int),
+    char **(*)(const char *, int, int),
+    const Char *, const Char *, const char *(*)(const char *), size_t,
+    int *, int *, int *, int *);
 
-/*
- * test.c: A little test program
- */
-#include <stdio.h>
-#include <readline/readline.h>
+void fn_display_match_list(EditLine *, char **, size_t, size_t);
+char *fn_tilde_expand(const char *);
+char *fn_filename_completion_function(const char *, int);
 
-int
-main(int argc, char *argv[])
-{
-	char *p;
-	while ((p = readline("hi$")) != NULL) {
-		add_history(p);
-		printf("%d %s\n", history_length, p);
-	}
-	return 0;
-}
+#endif
