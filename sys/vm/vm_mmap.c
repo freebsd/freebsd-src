@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#ifdef CPU_CHERI
+#include <sys/cheriabi.h>
+#endif
 #include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -341,7 +344,8 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 		if (CHERI_ALIGN_SHIFT(size) > PAGE_SHIFT) {
 			flags |= MAP_ALIGNED(CHERI_ALIGN_SHIFT(size));
 
-			if (size & CHERI_ALIGN_MASK(size)) {
+			if (size & CHERI_ALIGN_MASK(size) &&
+			    cheriabi_mmap_precise_bounds) {
 #ifdef KTRACE
 				if (KTRPOINT(td, KTR_SYSERRCAUSE))
 					ktrsyserrcause("%s: MAP_ALIGNED_CHERI "
@@ -363,7 +367,8 @@ kern_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
 		if (CHERI_SEAL_ALIGN_SHIFT(size) > PAGE_SHIFT) {
 			flags |= MAP_ALIGNED(CHERI_SEAL_ALIGN_SHIFT(size));
 
-			if (size & CHERI_SEAL_ALIGN_MASK(size)) {
+			if (size & CHERI_SEAL_ALIGN_MASK(size) &&
+			    cheriabi_mmap_precise_bounds) {
 #ifdef KTRACE
 				if (KTRPOINT(td, KTR_SYSERRCAUSE))
 					ktrsyserrcause("%s: "

@@ -49,4 +49,6 @@ struct cheriabi_execdata {
 #endif
 };
 
+extern int	cheriabi_mmap_precise_bounds;
+
 #endif /* _SYS_CHERIABI_H_ */

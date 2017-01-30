@@ -135,6 +135,13 @@ CTASSERT(sizeof(struct msghdr32) == 28);
 CTASSERT(sizeof(struct sigaction32) == 24);
 #endif
 
+static SYSCTL_NODE(_compat, OID_AUTO, cheriabi, CTLFLAG_RW, 0, "CheriABI mode");
+
+int	cheriabi_mmap_precise_bounds = 1;
+SYSCTL_INT(_compat_cheriabi, OID_AUTO, mmap_precise_bounds,
+    CTLFLAG_RWTUN, &cheriabi_mmap_precise_bounds, 0,
+    "Require that bounds on returned capabilities be precise.");
+
 static int cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count);
 static register_t cheriabi_mmap_prot2perms(int prot);
