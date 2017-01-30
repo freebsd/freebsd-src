@@ -37,6 +37,11 @@ SED_STATUSARG=		-e 's:@STATUSARG@:${STATUSARG}:g'
 DISTPREFIX?=	${PKG}-${VERSION}
 DISTFILEGZ?=	${DISTPREFIX}.tar.gz
 DISTFILE?=	${DISTPREFIX}.tar.xz
+DISTINFO=	${DISTFILE}.distinfo
+DISTINFOSIGN=	${DISTINFO}.asc
+CKSUM?=		cksum -a SHA256
+PGP?=		netpgp
+
 FOSSILID?=	current
 
 .SUFFIXES: .in
@@ -53,7 +58,7 @@ clean:
 	rm -f ${TARGET}
 
 distclean: clean
-	rm -f config.mk ${DISTFILE}
+	rm -f config.mk ${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}
 
 installdirs:
 
@@ -83,3 +88,11 @@ dist:
 	fossil tarball --name ${DISTPREFIX} ${FOSSILID} ${DISTFILEGZ}
 	gunzip -c ${DISTFILEGZ} | xz >${DISTFILE}
 	rm ${DISTFILEGZ}
+
+distinfo: dist
+	rm -f ${DISTINFO} ${DISTINFOSIGN}
+	${CKSUM} ${DISTFILE} >${DISTINFO}
+	#printf "SIZE (${DISTFILE}) = %s\n" $$(wc -c <${DISTFILE}) >>${DISTINFO}
+	${PGP} --clearsign --output=${DISTINFOSIGN} ${DISTINFO}
+	chmod 644 ${DISTINFOSIGN}
+	ls -l ${DISTFILE} ${DISTINFO} ${DISTINFOSIGN}

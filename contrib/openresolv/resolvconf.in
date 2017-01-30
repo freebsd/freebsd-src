@@ -25,12 +25,18 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 RESOLVCONF="$0"
-OPENRESOLV_VERSION="3.8.1"
+OPENRESOLV_VERSION="3.9.0"
 SYSCONFDIR=@SYSCONFDIR@
 LIBEXECDIR=@LIBEXECDIR@
 VARDIR=@VARDIR@
 RCDIR=@RCDIR@
 RESTARTCMD=@RESTARTCMD@
+
+if [ "$1" = "--version" ]; then
+	echo "openresolv $OPENRESOLV_VERSION"
+	echo "Copyright (c) 2007-2016 Roy Marples"
+	exit 0
+fi
 
 # Disregard dhcpcd setting
 unset interface_order state_dir
@@ -90,6 +96,7 @@ usage()
 	                   that match the specified pattern
 
 	  -u               Run updates from our current DNS information
+	  --version        Echo the ${RESOLVCONF##*/} version
 
 	Options:
 	  -f               Ignore non existent interfaces
@@ -129,6 +136,34 @@ strip_trailing_dots()
 	printf "\n"
 }
 
+private_iface()
+{
+	local p
+
+	# Allow expansion
+	cd "$IFACEDIR"
+
+	# Public interfaces override private ones.
+	for p in $public_interfaces; do
+		case "$iface" in
+		"$p"|"$p":*) return 1;;
+		esac
+	done
+
+	if [ -e "$PRIVATEDIR/$iface" ]; then
+		return 0
+	fi
+	
+	for p in $private_interfaces; do
+		case "$iface" in
+		"$p"|"$p":*) return 0;;
+		esac
+	done
+
+	# Not a private interface
+	return 1
+}
+
 # Parse resolv.conf's and make variables
 # for domain name servers, search name servers and global nameservers
 parse_resolv()
@@ -144,20 +179,10 @@ parse_resolv()
 			if ${new}; then
 				iface="${line#\# resolv.conf from *}"
 				new=false
-				if [ -e "$PRIVATEDIR/$iface" ]; then
+				if private_iface "$iface"; then
 					private=true
 				else
-					# Allow expansion
-					cd "$IFACEDIR"
 					private=false
-					for p in $private_interfaces; do
-						case "$iface" in
-						"$p"|"$p":*)
-							private=true
-							break
-							;;
-						esac
-					done
 				fi
 			fi
 			;;
@@ -301,9 +326,9 @@ fi"
 	/usr/sbin/service \$1 restart;
 fi"
 	elif [ -x /bin/sv ]; then
-		RESTARTCMD="/bin/sv try-restart \$1"
+		RESTARTCMD="/bin/sv status \$1 >/dev/null 2>&1 && /bin/sv try-restart \$1"
 	elif [ -x /usr/bin/sv ]; then
-		RESTARTCMD="/usr/bin/sv try-restart \$1"
+		RESTARTCMD="/usr/bin/sv status \$1 >/dev/null 2>&1 && /usr/bin/sv try-restart \$1"
 	elif [ -e /etc/arch-release -a -d /etc/rc.d ]; then
 		RCDIR=/etc/rc.d
 		RESTARTCMD="if [ -e /var/run/daemons/\$1 ]; then
@@ -378,6 +403,14 @@ list_resolv()
 			done
 		fi
 		excl=true
+		cd "$IFACEDIR"
+		for i in $inclusive_interfaces; do
+			if [ -f "$i" -a "$list" = "$i" ]; then
+				list=
+				excl=false
+				break
+			fi
+		done
 		;;
 	*)
 		excl=false
@@ -418,7 +451,6 @@ list_resolv()
 
 	cd "$IFACEDIR"
 	retval=1
-	excl=true
 	for i in $(uniqify $list); do
 		# Only list interfaces which we really have
 		if ! [ -f "$i" ]; then
@@ -432,8 +464,7 @@ list_resolv()
 		if [ "$cmd" = i -o "$cmd" = "-i" ]; then
 			printf %s "$i "
 		else
-			echo_resolv "$i"
-			echo
+			echo_resolv "$i" && echo
 		fi
 		[ $? = 0 -a "$retval" = 1 ] && retval=0
 	done

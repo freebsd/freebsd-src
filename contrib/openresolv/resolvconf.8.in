@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 7, 2016
+.Dd November 29, 2016
 .Dt RESOLVCONF 8
 .Os
 .Sh NAME
@@ -45,6 +45,8 @@
 .Fl il Ar pattern
 .Nm
 .Fl u
+.Nm
+.Fl Fl version
 .Sh DESCRIPTION
 .Nm
 manages
@@ -106,7 +108,7 @@ See
 .Xr resolvconf.conf 5
 for how to configure
 .Nm
-to use a local name server.
+to use a local name server and how to remove the private marking.
 .Pp
 .Nm
 can mark an interfaces
@@ -126,7 +128,7 @@ on the
 .Ar interface .
 .Pp
 Here are some options for the above commands:-
-.Bl -tag -width indent
+.Bl -tag -width pattern_opt
 .It Fl f
 Ignore non existent interfaces.
 Only really useful for deleting interfaces.
@@ -146,7 +148,7 @@ as exclusive when adding, otherwise only use the latest exclusive interface.
 .Pp
 .Nm
 has some more commands for general usage:-
-.Bl -tag -width indent
+.Bl -tag -width pattern_opt
 .It Fl i Ar pattern
 List the interfaces and protocols, optionally matching
 .Ar pattern ,
@@ -168,12 +170,15 @@ to update all its subscribers.
 .Nm
 does not update the subscribers when adding a resolv.conf that matches
 what it already has for that interface.
+.It Fl Fl version
+Echo the resolvconf version to
+.Em stdout .
 .El
 .Pp
 .Nm
 also has some commands designed to be used by it's subscribers and
 system startup:-
-.Bl -tag -width indent
+.Bl -tag -width pattern_opt
 .It Fl I
 Initialise the state directory
 .Pa @VARDIR@ .
@@ -223,7 +228,7 @@ Here are some suggested protocol tags to use for each
 .Pa resolv.conf
 file registered on an
 .Ar interface Ns No :-
-.Bl -tag -width indent
+.Bl -tag -width pattern_opt
 .It dhcp
 Dynamic Host Configuration Protocol.
 Initial versions of

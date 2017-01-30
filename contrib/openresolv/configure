@@ -120,14 +120,21 @@ echo "Configuring openresolv for ... $OS"
 rm -rf $CONFIG_MK
 echo "# $OS" >$CONFIG_MK
 
-# On FreeBSD, /etc/init.d/foo status returns 0 if foo is not enabled
-# regardless of if it's not running.
-# So we force onestatus to work around this silly bug.
-if [ -z "$STATUSARG" ]; then
-	case "$OS" in
-	freebsd*)	STATUSARG="onestatus";;
-	esac
-fi
+case "$OS" in
+freebsd*)
+	# On FreeBSD, /etc/init.d/foo status returns 0 if foo is not enabled
+	# regardless of if it's not running.
+	# So we force onestatus to work around this silly bug.
+	if [ -z "$STATUSARG" ]; then
+		STATUSARG="onestatus"
+	fi
+	;;
+linux*)
+	# cksum does't support -a and netpgp is rare
+	echo "CKSUM=		sha256sum --tag" >>$CONFIG_MK
+	echo "PGP=		gpg2" >>$CONFIG_MK
+	;;
+esac
 
 for x in SYSCONFDIR SBINDIR LIBEXECDIR VARDIR MANDIR RESTARTCMD RCDIR STATUSARG
 do
