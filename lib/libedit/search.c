@@ -1,4 +1,4 @@
-/*	$NetBSD: search.c,v 1.31 2016/01/30 04:02:51 christos Exp $	*/
+/*	$NetBSD: search.c,v 1.39 2016/02/24 14:25:38 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)search.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: search.c,v 1.31 2016/01/30 04:02:51 christos Exp $");
+__RCSID("$NetBSD: search.c,v 1.39 2016/02/24 14:25:38 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
@@ -47,12 +47,15 @@ __FBSDID("$FreeBSD$");
  * search.c: History and character search functions
  */
 #include <stdlib.h>
+#include <string.h>
 #if defined(REGEX)
 #include <regex.h>
 #elif defined(REGEXP)
 #include <regexp.h>
 #endif
+
 #include "el.h"
+#include "common.h"
 
 /*
  * Adjust cursor in vi mode to include the character under it
@@ -211,8 +214,9 @@ ce_inc_search(EditLine *el, int dir)
 	     STRbck[] = {'b', 'c', 'k', '\0'};
 	static Char pchar = ':';/* ':' = normal, '?' = failed */
 	static Char endcmd[2] = {'\0', '\0'};
-	Char ch, *ocursor = el->el_line.cursor, oldpchar = pchar;
+	Char *ocursor = el->el_line.cursor, oldpchar = pchar, ch;
 	const Char *cp;
+	wchar_t wch;
 
 	el_action_t ret = CC_NORM;
 
@@ -251,8 +255,10 @@ ce_inc_search(EditLine *el, int dir)
 		*el->el_line.lastchar = '\0';
 		re_refresh(el);
 
-		if (FUN(el,getc)(el, &ch) != 1)
+		if (el_wgetc(el, &wch) != 1)
 			return ed_end_of_file(el, 0);
+
+		ch = (Char)wch;
 
 		switch (el->el_map.current[(unsigned char) ch]) {
 		case ED_INSERT:
@@ -347,14 +353,14 @@ ce_inc_search(EditLine *el, int dir)
 
 			/* Can't search if unmatched '[' */
 			for (cp = &el->el_search.patbuf[el->el_search.patlen-1],
-			    ch = ']';
+			    ch = L']';
 			    cp >= &el->el_search.patbuf[LEN];
 			    cp--)
 				if (*cp == '[' || *cp == ']') {
 					ch = *cp;
 					break;
 				}
-			if (el->el_search.patlen > LEN && ch != '[') {
+			if (el->el_search.patlen > LEN && ch != L'[') {
 				if (redo && newdir == dir) {
 					if (pchar == '?') { /* wrap around */
 						el->el_history.eventno =
@@ -569,7 +575,7 @@ ce_search_line(EditLine *el, int dir)
  *	Vi repeat search
  */
 protected el_action_t
-cv_repeat_srch(EditLine *el, Int c)
+cv_repeat_srch(EditLine *el, wint_t c)
 {
 
 #ifdef SDEBUG
@@ -595,35 +601,33 @@ cv_repeat_srch(EditLine *el, Int c)
  *	Vi character search
  */
 protected el_action_t
-cv_csearch(EditLine *el, int direction, Int ch, int count, int tflag)
+cv_csearch(EditLine *el, int direction, wint_t ch, int count, int tflag)
 {
 	Char *cp;
 
 	if (ch == 0)
 		return CC_ERROR;
 
-	if (ch == (Int)-1) {
-		Char c;
-		if (FUN(el,getc)(el, &c) != 1)
+	if (ch == (wint_t)-1) {
+		if (el_wgetc(el, &ch) != 1)
 			return ed_end_of_file(el, 0);
-		ch = c;
 	}
 
 	/* Save for ';' and ',' commands */
-	el->el_search.chacha = ch;
+	el->el_search.chacha = (Char)ch;
 	el->el_search.chadir = direction;
 	el->el_search.chatflg = (char)tflag;
 
 	cp = el->el_line.cursor;
 	while (count--) {
-		if ((Int)*cp == ch)
+		if ((wint_t)*cp == ch)
 			cp += direction;
 		for (;;cp += direction) {
 			if (cp >= el->el_line.lastchar)
 				return CC_ERROR;
 			if (cp < el->el_line.buffer)
 				return CC_ERROR;
-			if ((Int)*cp == ch)
+			if ((wint_t)*cp == ch)
 				break;
 		}
 	}
