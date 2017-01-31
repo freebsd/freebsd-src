@@ -678,18 +678,18 @@ atomic_fcmpset_int(volatile u_int *p, u_int *cmpval, u_int newval)
 	int	ret;
 
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %3\n\t"	/* load old value */
+		"lwarx %0, 0, %3\n\t"	/* load old value */
 		"cmplw %4, %0\n\t"		/* compare */
-		"bne 2f\n\t"			/* exit if not equal */
+		"bne 1f\n\t"			/* exit if not equal */
 		"stwcx. %5, 0, %3\n\t"      	/* attempt to store */
-		"bne- 1b\n\t"			/* spin if failed */
+		"bne- 1f\n\t"			/* exit if failed */
 		"li %0, 1\n\t"			/* success - retval = 1 */
-		"b 3f\n\t"			/* we've succeeded */
-		"2:\n\t"
+		"b 2f\n\t"			/* we've succeeded */
+		"1:\n\t"
 		"stwcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
 		"stwx %0, 0, %7\n\t"
 		"li %0, 0\n\t"			/* failure - retval = 0 */
-		"3:\n\t"
+		"2:\n\t"
 		: "=&r" (ret), "=m" (*p), "=m" (*cmpval)
 		: "r" (p), "r" (*cmpval), "r" (newval), "m" (*p), "r"(cmpval)
 		: "cr0", "memory");
@@ -703,20 +703,20 @@ atomic_fcmpset_long(volatile u_long *p, u_long *cmpval, u_long newval)
 
 	__asm __volatile (
 	    #ifdef __powerpc64__
-		"1:\tldarx %0, 0, %3\n\t"	/* load old value */
+		"ldarx %0, 0, %3\n\t"	/* load old value */
 		"cmpld %4, %0\n\t"		/* compare */
-		"bne 2f\n\t"			/* exit if not equal */
+		"bne 1f\n\t"			/* exit if not equal */
 		"stdcx. %5, 0, %3\n\t"		/* attempt to store */
 	    #else
-		"1:\tlwarx %0, 0, %3\n\t"	/* load old value */
+		"lwarx %0, 0, %3\n\t"	/* load old value */
 		"cmplw %4, %0\n\t"		/* compare */
-		"bne 2f\n\t"			/* exit if not equal */
+		"bne 1f\n\t"			/* exit if not equal */
 		"stwcx. %5, 0, %3\n\t"		/* attempt to store */
 	    #endif
-		"bne- 1b\n\t"			/* spin if failed */
+		"bne- 1f\n\t"			/* exit if failed */
 		"li %0, 1\n\t"			/* success - retval = 1 */
-		"b 3f\n\t"			/* we've succeeded */
-		"2:\n\t"
+		"b 2f\n\t"			/* we've succeeded */
+		"1:\n\t"
 	    #ifdef __powerpc64__
 		"stdcx. %0, 0, %3\n\t"		/* clear reservation (74xx) */
 		"stdx %0, 0, %7\n\t"
@@ -725,7 +725,7 @@ atomic_fcmpset_long(volatile u_long *p, u_long *cmpval, u_long newval)
 		"stwx %0, 0, %7\n\t"
 	    #endif
 		"li %0, 0\n\t"			/* failure - retval = 0 */
-		"3:\n\t"
+		"2:\n\t"
 		: "=&r" (ret), "=m" (*p), "=m" (*cmpval)
 		: "r" (p), "r" (*cmpval), "r" (newval), "m" (*p), "r"(cmpval)
 		: "cr0", "memory");
