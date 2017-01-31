@@ -523,8 +523,8 @@ SUBDIR+=	zfs
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
-	_hwpmc_mips24k=	hwpmc_mips24k
-	_hwpmc_mips74k=	hwpmc_mips74k
+_hwpmc_mips24k=	hwpmc_mips24k
+_hwpmc_mips74k=	hwpmc_mips74k
 .endif
 
 .if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "arm" && \
