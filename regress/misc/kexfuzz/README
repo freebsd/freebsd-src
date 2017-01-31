@@ -26,3 +26,7 @@ A comprehensive KEX fuzz run would fuzz every packet in both
 directions for each key exchange type and every hostkey type.
 This will take some time.
 
+Limitations: kexfuzz can't change the ordering of packets at
+present. It is limited to replacing individual packets with
+fuzzed variants with the same type. It really should allow
+insertion, deletion on replacement of packets too.

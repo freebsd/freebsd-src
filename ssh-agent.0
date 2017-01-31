@@ -5,7 +5,7 @@ NAME
 
 SYNOPSIS
      ssh-agent [-c | -s] [-Dd] [-a bind_address] [-E fingerprint_hash]
-               [-t life] [command [arg ...]]
+               [-P pkcs11_whitelist] [-t life] [command [arg ...]]
      ssh-agent [-c | -s] -k
 
 DESCRIPTION
@@ -45,6 +45,14 @@ DESCRIPTION
 
      -k      Kill the current agent (given by the SSH_AGENT_PID environment
              variable).
+
+     -P pkcs11_whitelist
+             Specify a pattern-list of acceptable paths for PKCS#11 shared
+             libraries that may be added using the -s option to ssh-add(1).
+             The default is to allow loading PKCS#11 libraries from
+             M-bM-^@M-^\/usr/lib/*,/usr/local/lib/*M-bM-^@M-^].  PKCS#11 libraries that do not
+             match the whitelist will be refused.  See PATTERNS in
+             ssh_config(5) for a description of pattern-list syntax.
 
      -s      Generate Bourne shell commands on stdout.  This is the default if
              SHELL does not look like it's a csh style of shell.
@@ -109,4 +117,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.0                    November 15, 2015                   OpenBSD 6.0
+OpenBSD 6.0                    November 30, 2016                   OpenBSD 6.0

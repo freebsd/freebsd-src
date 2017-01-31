@@ -1,5 +1,3 @@
-/* $Id: bsd-statvfs.c,v 1.2 2014/01/17 07:10:59 dtucker Exp $ */
-
 /*
  * Copyright (c) 2008,2014 Darren Tucker <dtucker@zip.com.au>
  *

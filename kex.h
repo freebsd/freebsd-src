@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.78 2016/05/02 10:26:04 djm Exp $ */
+/* $OpenBSD: kex.h,v 1.81 2016/09/28 21:44:52 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -50,17 +50,18 @@
 
 #define KEX_COOKIE_LEN	16
 
-#define	KEX_DH1			"diffie-hellman-group1-sha1"
-#define	KEX_DH14_SHA1		"diffie-hellman-group14-sha1"
-#define	KEX_DH14_SHA256		"diffie-hellman-group14-sha256"
-#define	KEX_DH16_SHA512		"diffie-hellman-group16-sha512"
-#define	KEX_DH18_SHA512		"diffie-hellman-group18-sha512"
-#define	KEX_DHGEX_SHA1		"diffie-hellman-group-exchange-sha1"
-#define	KEX_DHGEX_SHA256	"diffie-hellman-group-exchange-sha256"
-#define	KEX_ECDH_SHA2_NISTP256	"ecdh-sha2-nistp256"
-#define	KEX_ECDH_SHA2_NISTP384	"ecdh-sha2-nistp384"
-#define	KEX_ECDH_SHA2_NISTP521	"ecdh-sha2-nistp521"
-#define	KEX_CURVE25519_SHA256	"curve25519-sha256@libssh.org"
+#define	KEX_DH1				"diffie-hellman-group1-sha1"
+#define	KEX_DH14_SHA1			"diffie-hellman-group14-sha1"
+#define	KEX_DH14_SHA256			"diffie-hellman-group14-sha256"
+#define	KEX_DH16_SHA512			"diffie-hellman-group16-sha512"
+#define	KEX_DH18_SHA512			"diffie-hellman-group18-sha512"
+#define	KEX_DHGEX_SHA1			"diffie-hellman-group-exchange-sha1"
+#define	KEX_DHGEX_SHA256		"diffie-hellman-group-exchange-sha256"
+#define	KEX_ECDH_SHA2_NISTP256		"ecdh-sha2-nistp256"
+#define	KEX_ECDH_SHA2_NISTP384		"ecdh-sha2-nistp384"
+#define	KEX_ECDH_SHA2_NISTP521		"ecdh-sha2-nistp521"
+#define	KEX_CURVE25519_SHA256		"curve25519-sha256"
+#define	KEX_CURVE25519_SHA256_OLD	"curve25519-sha256@libssh.org"
 
 #define COMP_NONE	0
 #define COMP_ZLIB	1

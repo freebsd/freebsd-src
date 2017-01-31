@@ -247,7 +247,7 @@ cat > pkginfo << _EOF
 PKG=$PKGNAME
 NAME="OpenSSH Portable for ${UNAME_S}"
 DESC="Secure Shell remote access utility; replaces telnet and rlogin/rsh."
-VENDOR="OpenSSH Portable Team - http://www.openssh.com/portable.html"
+VENDOR="OpenSSH Portable Team - https://www.openssh.com/portable.html"
 ARCH=$ARCH
 VERSION=$VERSION$REV
 CATEGORY="Security,application"

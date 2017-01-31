@@ -32,12 +32,12 @@ DESCRIPTION
 
      AddressFamily
              Specifies which address family should be used by sshd(8).  Valid
-             arguments are M-bM-^@M-^\anyM-bM-^@M-^], M-bM-^@M-^\inetM-bM-^@M-^] (use IPv4 only), or M-bM-^@M-^\inet6M-bM-^@M-^] (use IPv6
-             only).  The default is M-bM-^@M-^\anyM-bM-^@M-^].
+             arguments are any (the default), inet (use IPv4 only), or inet6
+             (use IPv6 only).
 
      AllowAgentForwarding
              Specifies whether ssh-agent(1) forwarding is permitted.  The
-             default is M-bM-^@M-^\yesM-bM-^@M-^].  Note that disabling agent forwarding does not
+             default is yes.  Note that disabling agent forwarding does not
              improve security unless users are also denied shell access, as
              they can always install their own forwarders.
 
@@ -53,25 +53,24 @@ DESCRIPTION
 
              See PATTERNS in ssh_config(5) for more information on patterns.
 
-     AllowTcpForwarding
-             Specifies whether TCP forwarding is permitted.  The available
-             options are M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\allM-bM-^@M-^] to allow TCP forwarding, M-bM-^@M-^\noM-bM-^@M-^] to
-             prevent all TCP forwarding, M-bM-^@M-^\localM-bM-^@M-^] to allow local (from the
-             perspective of ssh(1)) forwarding only or M-bM-^@M-^\remoteM-bM-^@M-^] to allow
-             remote forwarding only.  The default is M-bM-^@M-^\yesM-bM-^@M-^].  Note that
-             disabling TCP forwarding does not improve security unless users
-             are also denied shell access, as they can always install their
-             own forwarders.
-
      AllowStreamLocalForwarding
              Specifies whether StreamLocal (Unix-domain socket) forwarding is
-             permitted.  The available options are M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\allM-bM-^@M-^] to allow
-             StreamLocal forwarding, M-bM-^@M-^\noM-bM-^@M-^] to prevent all StreamLocal
-             forwarding, M-bM-^@M-^\localM-bM-^@M-^] to allow local (from the perspective of
-             ssh(1)) forwarding only or M-bM-^@M-^\remoteM-bM-^@M-^] to allow remote forwarding
-             only.  The default is M-bM-^@M-^\yesM-bM-^@M-^].  Note that disabling StreamLocal
-             forwarding does not improve security unless users are also denied
-             shell access, as they can always install their own forwarders.
+             permitted.  The available options are yes (the default) or all to
+             allow StreamLocal forwarding, no to prevent all StreamLocal
+             forwarding, local to allow local (from the perspective of ssh(1))
+             forwarding only or remote to allow remote forwarding only.  Note
+             that disabling StreamLocal forwarding does not improve security
+             unless users are also denied shell access, as they can always
+             install their own forwarders.
+
+     AllowTcpForwarding
+             Specifies whether TCP forwarding is permitted.  The available
+             options are yes (the default) or all to allow TCP forwarding, no
+             to prevent all TCP forwarding, local to allow local (from the
+             perspective of ssh(1)) forwarding only or remote to allow remote
+             forwarding only.  Note that disabling TCP forwarding does not
+             improve security unless users are also denied shell access, as
+             they can always install their own forwarders.
 
      AllowUsers
              This keyword can be followed by a list of user name patterns,
@@ -92,53 +91,42 @@ DESCRIPTION
              Specifies the authentication methods that must be successfully
              completed for a user to be granted access.  This option must be
              followed by one or more comma-separated lists of authentication
-             method names, or by the single string M-bM-^@M-^\anyM-bM-^@M-^] to indicate the
-             default behaviour of accepting any single authentication method.
-             if the default is overridden, then successful authentication
-             requires completion of every method in at least one of these
-             lists.
+             method names, or by the single string any to indicate the default
+             behaviour of accepting any single authentication method.  If the
+             default is overridden, then successful authentication requires
+             completion of every method in at least one of these lists.
 
-             For example, an argument of M-bM-^@M-^\publickey,password
-             publickey,keyboard-interactiveM-bM-^@M-^] would require the user to
-             complete public key authentication, followed by either password
-             or keyboard interactive authentication.  Only methods that are
-             next in one or more lists are offered at each stage, so for this
-             example, it would not be possible to attempt password or
-             keyboard-interactive authentication before public key.
+             For example, "publickey,password publickey,keyboard-interactive"
+             would require the user to complete public key authentication,
+             followed by either password or keyboard interactive
+             authentication.  Only methods that are next in one or more lists
+             are offered at each stage, so for this example it would not be
+             possible to attempt password or keyboard-interactive
+             authentication before public key.
 
              For keyboard interactive authentication it is also possible to
              restrict authentication to a specific device by appending a colon
-             followed by the device identifier M-bM-^@M-^\bsdauthM-bM-^@M-^], M-bM-^@M-^\pamM-bM-^@M-^], or M-bM-^@M-^\skeyM-bM-^@M-^],
+             followed by the device identifier bsdauth, pam, or skey,
              depending on the server configuration.  For example,
-             M-bM-^@M-^\keyboard-interactive:bsdauthM-bM-^@M-^] would restrict keyboard
-             interactive authentication to the M-bM-^@M-^\bsdauthM-bM-^@M-^] device.
+             "keyboard-interactive:bsdauth" would restrict keyboard
+             interactive authentication to the bsdauth device.
 
-             If the M-bM-^@M-^\publickeyM-bM-^@M-^] method is listed more than once, sshd(8)
+             If the publickey method is listed more than once, sshd(8)
              verifies that keys that have been used successfully are not
-             reused for subsequent authentications.  For example, an
-             AuthenticationMethods of M-bM-^@M-^\publickey,publickeyM-bM-^@M-^] will require
-             successful authentication using two different public keys.
+             reused for subsequent authentications.  For example,
+             "publickey,publickey" requires successful authentication using
+             two different public keys.
 
-             This option will yield a fatal error if enabled if protocol 1 is
-             also enabled.  Note that each authentication method listed should
-             also be explicitly enabled in the configuration.  The default
-             M-bM-^@M-^\anyM-bM-^@M-^] is not to require multiple authentication; successful
-             completion of a single authentication method is sufficient.
+             Note that each authentication method listed should also be
+             explicitly enabled in the configuration.
 
      AuthorizedKeysCommand
              Specifies a program to be used to look up the user's public keys.
              The program must be owned by root, not writable by group or
-             others and specified by an absolute path.
-
-             Arguments to AuthorizedKeysCommand may be provided using the
-             following tokens, which will be expanded at runtime: %% is
-             replaced by a literal '%', %u is replaced by the username being
-             authenticated, %h is replaced by the home directory of the user
-             being authenticated, %t is replaced with the key type offered for
-             authentication, %f is replaced with the fingerprint of the key,
-             and %k is replaced with the key being offered for authentication.
-             If no arguments are specified then the username of the target
-             user will be supplied.
+             others and specified by an absolute path.  Arguments to
+             AuthorizedKeysCommand accept the tokens described in the TOKENS
+             section.  If no arguments are specified then the username of the
+             target user is used.
 
              The program should produce on standard output zero or more lines
              of authorized_keys output (see AUTHORIZED_KEYS in sshd(8)).  If a
@@ -155,31 +143,24 @@ DESCRIPTION
              is not, then sshd(8) will refuse to start.
 
      AuthorizedKeysFile
-             Specifies the file that contains the public keys that can be used
-             for user authentication.  The format is described in the
-             AUTHORIZED_KEYS FILE FORMAT section of sshd(8).
-             AuthorizedKeysFile may contain tokens of the form %T which are
-             substituted during connection setup.  The following tokens are
-             defined: %% is replaced by a literal '%', %h is replaced by the
-             home directory of the user being authenticated, and %u is
-             replaced by the username of that user.  After expansion,
-             AuthorizedKeysFile is taken to be an absolute path or one
-             relative to the user's home directory.  Multiple files may be
+             Specifies the file that contains the public keys used for user
+             authentication.  The format is described in the AUTHORIZED_KEYS
+             FILE FORMAT section of sshd(8).  Arguments to AuthorizedKeysFile
+             accept the tokens described in the TOKENS section.  After
+             expansion, AuthorizedKeysFile is taken to be an absolute path or
+             one relative to the user's home directory.  Multiple files may be
              listed, separated by whitespace.  Alternately this option may be
-             set to M-bM-^@M-^\noneM-bM-^@M-^] to skip checking for user keys in files.  The
-             default is M-bM-^@M-^\.ssh/authorized_keys .ssh/authorized_keys2M-bM-^@M-^].
+             set to none to skip checking for user keys in files.  The default
+             is ".ssh/authorized_keys .ssh/authorized_keys2".
 
      AuthorizedPrincipalsCommand
              Specifies a program to be used to generate the list of allowed
              certificate principals as per AuthorizedPrincipalsFile.  The
              program must be owned by root, not writable by group or others
-             and specified by an absolute path.
-
-             Arguments to AuthorizedPrincipalsCommand may be provided using
-             the following tokens, which will be expanded at runtime: %% is
-             replaced by a literal '%', %u is replaced by the username being
-             authenticated and %h is replaced by the home directory of the
-             user being authenticated.
+             and specified by an absolute path.  Arguments to
+             AuthorizedPrincipalsCommand accept the tokens described in the
+             TOKENS section.  If no arguments are specified then the username
+             of the target user is used.
 
              The program should produce on standard output zero or more lines
              of AuthorizedPrincipalsFile output.  If either
@@ -205,31 +186,27 @@ DESCRIPTION
              options (as described in AUTHORIZED_KEYS FILE FORMAT in sshd(8)).
              Empty lines and comments starting with M-bM-^@M-^X#M-bM-^@M-^Y are ignored.
 
-             AuthorizedPrincipalsFile may contain tokens of the form %T which
-             are substituted during connection setup.  The following tokens
-             are defined: %% is replaced by a literal '%', %h is replaced by
-             the home directory of the user being authenticated, and %u is
-             replaced by the username of that user.  After expansion,
-             AuthorizedPrincipalsFile is taken to be an absolute path or one
-             relative to the user's home directory.
+             Arguments to AuthorizedPrincipalsFile accept the tokens described
+             in the TOKENS section.  After expansion, AuthorizedPrincipalsFile
+             is taken to be an absolute path or one relative to the user's
+             home directory.  The default is none, i.e. not to use a
+             principals file M-bM-^@M-^S in this case, the username of the user must
+             appear in a certificate's principals list for it to be accepted.
 
-             The default is M-bM-^@M-^\noneM-bM-^@M-^], i.e. not to use a principals file M-bM-^@M-^S in
-             this case, the username of the user must appear in a
-             certificate's principals list for it to be accepted.  Note that
-             AuthorizedPrincipalsFile is only used when authentication
-             proceeds using a CA listed in TrustedUserCAKeys and is not
-             consulted for certification authorities trusted via
+             Note that AuthorizedPrincipalsFile is only used when
+             authentication proceeds using a CA listed in TrustedUserCAKeys
+             and is not consulted for certification authorities trusted via
              ~/.ssh/authorized_keys, though the principals= key option offers
              a similar facility (see sshd(8) for details).
 
      Banner  The contents of the specified file are sent to the remote user
-             before authentication is allowed.  If the argument is M-bM-^@M-^\noneM-bM-^@M-^] then
+             before authentication is allowed.  If the argument is none then
              no banner is displayed.  By default, no banner is displayed.
 
      ChallengeResponseAuthentication
              Specifies whether challenge-response authentication is allowed
              (e.g. via PAM or through authentication styles supported in
-             login.conf(5)) The default is M-bM-^@M-^\yesM-bM-^@M-^].
+             login.conf(5)) The default is yes.
 
      ChrootDirectory
              Specifies the pathname of a directory to chroot(2) to after
@@ -237,31 +214,25 @@ DESCRIPTION
              components of the pathname are root-owned directories which are
              not writable by any other user or group.  After the chroot,
              sshd(8) changes the working directory to the user's home
-             directory.
-
-             The pathname may contain the following tokens that are expanded
-             at runtime once the connecting user has been authenticated: %% is
-             replaced by a literal '%', %h is replaced by the home directory
-             of the user being authenticated, and %u is replaced by the
-             username of that user.
+             directory.  Arguments to ChrootDirectory accept the tokens
+             described in the TOKENS section.
 
              The ChrootDirectory must contain the necessary files and
              directories to support the user's session.  For an interactive
              session this requires at least a shell, typically sh(1), and
              basic /dev nodes such as null(4), zero(4), stdin(4), stdout(4),
              stderr(4), and tty(4) devices.  For file transfer sessions using
-             M-bM-^@M-^\sftpM-bM-^@M-^], no additional configuration of the environment is
-             necessary if the in-process sftp server is used, though sessions
-             which use logging may require /dev/log inside the chroot
-             directory on some operating systems (see sftp-server(8) for
-             details).
+             SFTP no additional configuration of the environment is necessary
+             if the in-process sftp-server is used, though sessions which use
+             logging may require /dev/log inside the chroot directory on some
+             operating systems (see sftp-server(8) for details).
 
              For safety, it is very important that the directory hierarchy be
              prevented from modification by other processes on the system
              (especially those outside the jail).  Misconfiguration can lead
              to unsafe environments which sshd(8) cannot detect.
 
-             The default is M-bM-^@M-^\noneM-bM-^@M-^], indicating not to chroot(2).
+             The default is none, indicating not to chroot(2).
 
      Ciphers
              Specifies the ciphers allowed.  Multiple ciphers must be comma-
@@ -293,26 +264,25 @@ DESCRIPTION
                    aes128-ctr,aes192-ctr,aes256-ctr,
                    aes128-gcm@openssh.com,aes256-gcm@openssh.com
 
-             The list of available ciphers may also be obtained using the -Q
-             option of ssh(1) with an argument of M-bM-^@M-^\cipherM-bM-^@M-^].
+             The list of available ciphers may also be obtained using "ssh -Q
+             cipher".
 
      ClientAliveCountMax
-             Sets the number of client alive messages (see below) which may be
-             sent without sshd(8) receiving any messages back from the client.
-             If this threshold is reached while client alive messages are
-             being sent, sshd will disconnect the client, terminating the
-             session.  It is important to note that the use of client alive
-             messages is very different from TCPKeepAlive (below).  The client
-             alive messages are sent through the encrypted channel and
-             therefore will not be spoofable.  The TCP keepalive option
-             enabled by TCPKeepAlive is spoofable.  The client alive mechanism
-             is valuable when the client or server depend on knowing when a
-             connection has become inactive.
+             Sets the number of client alive messages which may be sent
+             without sshd(8) receiving any messages back from the client.  If
+             this threshold is reached while client alive messages are being
+             sent, sshd will disconnect the client, terminating the session.
+             It is important to note that the use of client alive messages is
+             very different from TCPKeepAlive.  The client alive messages are
+             sent through the encrypted channel and therefore will not be
+             spoofable.  The TCP keepalive option enabled by TCPKeepAlive is
+             spoofable.  The client alive mechanism is valuable when the
+             client or server depend on knowing when a connection has become
+             inactive.
 
-             The default value is 3.  If ClientAliveInterval (see below) is
-             set to 15, and ClientAliveCountMax is left at the default,
-             unresponsive SSH clients will be disconnected after approximately
-             45 seconds.
+             The default value is 3.  If ClientAliveInterval is set to 15, and
+             ClientAliveCountMax is left at the default, unresponsive SSH
+             clients will be disconnected after approximately 45 seconds.
 
      ClientAliveInterval
              Sets a timeout interval in seconds after which if no data has
@@ -322,9 +292,9 @@ DESCRIPTION
              not be sent to the client.
 
      Compression
-             Specifies whether compression is allowed, or delayed until the
-             user has authenticated successfully.  The argument must be M-bM-^@M-^\yesM-bM-^@M-^],
-             M-bM-^@M-^\delayedM-bM-^@M-^], or M-bM-^@M-^\noM-bM-^@M-^].  The default is M-bM-^@M-^\delayedM-bM-^@M-^].
+             Specifies whether compression is enabled after the user has
+             authenticated successfully.  The argument must be yes, delayed (a
+             legacy synonym for yes) or no.  The default is yes.
 
      DenyGroups
              This keyword can be followed by a list of group name patterns,
@@ -352,9 +322,14 @@ DESCRIPTION
 
              See PATTERNS in ssh_config(5) for more information on patterns.
 
+     DisableForwarding
+             Disables all forwarding features, including X11, ssh-agent(1),
+             TCP and StreamLocal.  This option overrides all other forwarding-
+             related options and may simplify restricted configurations.
+
      FingerprintHash
              Specifies the hash algorithm used when logging key fingerprints.
-             Valid options are: M-bM-^@M-^\md5M-bM-^@M-^] and M-bM-^@M-^\sha256M-bM-^@M-^].  The default is M-bM-^@M-^\sha256M-bM-^@M-^].
+             Valid options are: md5 and sha256.  The default is sha256.
 
      ForceCommand
              Forces the execution of the command specified by ForceCommand,
@@ -364,9 +339,9 @@ DESCRIPTION
              execution.  It is most useful inside a Match block.  The command
              originally supplied by the client is available in the
              SSH_ORIGINAL_COMMAND environment variable.  Specifying a command
-             of M-bM-^@M-^\internal-sftpM-bM-^@M-^] will force the use of an in-process sftp
-             server that requires no support files when used with
-             ChrootDirectory.  The default is M-bM-^@M-^\noneM-bM-^@M-^].
+             of internal-sftp will force the use of an in-process SFTP server
+             that requires no support files when used with ChrootDirectory.
+             The default is none.
 
      GatewayPorts
              Specifies whether remote hosts are allowed to connect to ports
@@ -375,28 +350,28 @@ DESCRIPTION
              hosts from connecting to forwarded ports.  GatewayPorts can be
              used to specify that sshd should allow remote port forwardings to
              bind to non-loopback addresses, thus allowing other hosts to
-             connect.  The argument may be M-bM-^@M-^\noM-bM-^@M-^] to force remote port
-             forwardings to be available to the local host only, M-bM-^@M-^\yesM-bM-^@M-^] to
-             force remote port forwardings to bind to the wildcard address, or
-             M-bM-^@M-^\clientspecifiedM-bM-^@M-^] to allow the client to select the address to
-             which the forwarding is bound.  The default is M-bM-^@M-^\noM-bM-^@M-^].
+             connect.  The argument may be no to force remote port forwardings
+             to be available to the local host only, yes to force remote port
+             forwardings to bind to the wildcard address, or clientspecified
+             to allow the client to select the address to which the forwarding
+             is bound.  The default is no.
 
      GSSAPIAuthentication
              Specifies whether user authentication based on GSSAPI is allowed.
-             The default is M-bM-^@M-^\noM-bM-^@M-^].
+             The default is no.
 
      GSSAPICleanupCredentials
              Specifies whether to automatically destroy the user's credentials
-             cache on logout.  The default is M-bM-^@M-^\yesM-bM-^@M-^].
+             cache on logout.  The default is yes.
 
      GSSAPIStrictAcceptorCheck
              Determines whether to be strict about the identity of the GSSAPI
-             acceptor a client authenticates against.  If set to M-bM-^@M-^\yesM-bM-^@M-^] then
-             the client must authenticate against the host service on the
-             current hostname.  If set to M-bM-^@M-^\noM-bM-^@M-^] then the client may
-             authenticate against any service key stored in the machine's
-             default store.  This facility is provided to assist with
-             operation on multi homed machines.  The default is M-bM-^@M-^\yesM-bM-^@M-^].
+             acceptor a client authenticates against.  If set to yes then the
+             client must authenticate against the host service on the current
+             hostname.  If set to no then the client may authenticate against
+             any service key stored in the machine's default store.  This
+             facility is provided to assist with operation on multi homed
+             machines.  The default is yes.
 
      HostbasedAcceptedKeyTypes
              Specifies the key types that will be accepted for hostbased
@@ -413,21 +388,22 @@ DESCRIPTION
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 ssh-ed25519,ssh-rsa
 
-             The -Q option of ssh(1) may be used to list supported key types.
+             The list of available key types may also be obtained using "ssh
+             -Q key".
 
      HostbasedAuthentication
              Specifies whether rhosts or /etc/hosts.equiv authentication
              together with successful public key client host authentication is
-             allowed (host-based authentication).  The default is M-bM-^@M-^\noM-bM-^@M-^].
+             allowed (host-based authentication).  The default is no.
 
      HostbasedUsesNameFromPacketOnly
              Specifies whether or not the server will attempt to perform a
              reverse name lookup when matching the name in the ~/.shosts,
              ~/.rhosts, and /etc/hosts.equiv files during
-             HostbasedAuthentication.  A setting of M-bM-^@M-^\yesM-bM-^@M-^] means that sshd(8)
+             HostbasedAuthentication.  A setting of yes means that sshd(8)
              uses the name supplied by the client rather than attempting to
              resolve the name from the TCP connection itself.  The default is
-             M-bM-^@M-^\noM-bM-^@M-^].
+             no.
 
      HostCertificate
              Specifies a file containing a public host certificate.  The
@@ -437,25 +413,23 @@ DESCRIPTION
 
      HostKey
              Specifies a file containing a private host key used by SSH.  The
-             default is /etc/ssh/ssh_host_key for protocol version 1, and
-             /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_ecdsa_key,
-             /etc/ssh/ssh_host_ed25519_key and /etc/ssh/ssh_host_rsa_key for
-             protocol version 2.
+             defaults are /etc/ssh/ssh_host_dsa_key,
+             /etc/ssh/ssh_host_ecdsa_key, /etc/ssh/ssh_host_ed25519_key and
+             /etc/ssh/ssh_host_rsa_key.
 
              Note that sshd(8) will refuse to use a file if it is group/world-
              accessible and that the HostKeyAlgorithms option restricts which
              of the keys are actually used by sshd(8).
 
-             It is possible to have multiple host key files.  M-bM-^@M-^\rsa1M-bM-^@M-^] keys are
-             used for version 1 and M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^] or M-bM-^@M-^\rsaM-bM-^@M-^] are
-             used for version 2 of the SSH protocol.  It is also possible to
-             specify public host key files instead.  In this case operations
-             on the private key will be delegated to an ssh-agent(1).
+             It is possible to have multiple host key files.  It is also
+             possible to specify public host key files instead.  In this case
+             operations on the private key will be delegated to an
+             ssh-agent(1).
 
      HostKeyAgent
              Identifies the UNIX-domain socket used to communicate with an
              agent that has access to the private host keys.  If the string
-             M-bM-^@M-^\SSH_AUTH_SOCKM-bM-^@M-^] is specified, the location of the socket will be
+             "SSH_AUTH_SOCK" is specified, the location of the socket will be
              read from the SSH_AUTH_SOCK environment variable.
 
      HostKeyAlgorithms
@@ -470,60 +444,59 @@ DESCRIPTION
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 ssh-ed25519,ssh-rsa
 
-             The list of available key types may also be obtained using the -Q
-             option of ssh(1) with an argument of M-bM-^@M-^\keyM-bM-^@M-^].
+             The list of available key types may also be obtained using "ssh
+             -Q key".
 
      IgnoreRhosts
              Specifies that .rhosts and .shosts files will not be used in
-             RhostsRSAAuthentication or HostbasedAuthentication.
+             HostbasedAuthentication.
 
              /etc/hosts.equiv and /etc/shosts.equiv are still used.  The
-             default is M-bM-^@M-^\yesM-bM-^@M-^].
+             default is yes.
 
      IgnoreUserKnownHosts
              Specifies whether sshd(8) should ignore the user's
-             ~/.ssh/known_hosts during RhostsRSAAuthentication or
-             HostbasedAuthentication.  The default is M-bM-^@M-^\noM-bM-^@M-^].
+             ~/.ssh/known_hosts during HostbasedAuthentication.  The default
+             is no.
 
      IPQoS   Specifies the IPv4 type-of-service or DSCP class for the
-             connection.  Accepted values are M-bM-^@M-^\af11M-bM-^@M-^], M-bM-^@M-^\af12M-bM-^@M-^], M-bM-^@M-^\af13M-bM-^@M-^], M-bM-^@M-^\af21M-bM-^@M-^],
-             M-bM-^@M-^\af22M-bM-^@M-^], M-bM-^@M-^\af23M-bM-^@M-^], M-bM-^@M-^\af31M-bM-^@M-^], M-bM-^@M-^\af32M-bM-^@M-^], M-bM-^@M-^\af33M-bM-^@M-^], M-bM-^@M-^\af41M-bM-^@M-^], M-bM-^@M-^\af42M-bM-^@M-^], M-bM-^@M-^\af43M-bM-^@M-^],
-             M-bM-^@M-^\cs0M-bM-^@M-^], M-bM-^@M-^\cs1M-bM-^@M-^], M-bM-^@M-^\cs2M-bM-^@M-^], M-bM-^@M-^\cs3M-bM-^@M-^], M-bM-^@M-^\cs4M-bM-^@M-^], M-bM-^@M-^\cs5M-bM-^@M-^], M-bM-^@M-^\cs6M-bM-^@M-^], M-bM-^@M-^\cs7M-bM-^@M-^], M-bM-^@M-^\efM-bM-^@M-^],
-             M-bM-^@M-^\lowdelayM-bM-^@M-^], M-bM-^@M-^\throughputM-bM-^@M-^], M-bM-^@M-^\reliabilityM-bM-^@M-^], or a numeric value.
-             This option may take one or two arguments, separated by
-             whitespace.  If one argument is specified, it is used as the
-             packet class unconditionally.  If two values are specified, the
-             first is automatically selected for interactive sessions and the
-             second for non-interactive sessions.  The default is M-bM-^@M-^\lowdelayM-bM-^@M-^]
-             for interactive sessions and M-bM-^@M-^\throughputM-bM-^@M-^] for non-interactive
-             sessions.
+             connection.  Accepted values are af11, af12, af13, af21, af22,
+             af23, af31, af32, af33, af41, af42, af43, cs0, cs1, cs2, cs3,
+             cs4, cs5, cs6, cs7, ef, lowdelay, throughput, reliability, or a
+             numeric value.  This option may take one or two arguments,
+             separated by whitespace.  If one argument is specified, it is
+             used as the packet class unconditionally.  If two values are
+             specified, the first is automatically selected for interactive
+             sessions and the second for non-interactive sessions.  The
+             default is lowdelay for interactive sessions and throughput for
+             non-interactive sessions.
 
      KbdInteractiveAuthentication
              Specifies whether to allow keyboard-interactive authentication.
-             The argument to this keyword must be M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\noM-bM-^@M-^].  The default
-             is to use whatever value ChallengeResponseAuthentication is set
-             to (by default M-bM-^@M-^\yesM-bM-^@M-^]).
+             The argument to this keyword must be yes or no.  The default is
+             to use whatever value ChallengeResponseAuthentication is set to
+             (by default yes).
 
      KerberosAuthentication
              Specifies whether the password provided by the user for
              PasswordAuthentication will be validated through the Kerberos
              KDC.  To use this option, the server needs a Kerberos servtab
              which allows the verification of the KDC's identity.  The default
-             is M-bM-^@M-^\noM-bM-^@M-^].
+             is no.
 
      KerberosGetAFSToken
              If AFS is active and the user has a Kerberos 5 TGT, attempt to
              acquire an AFS token before accessing the user's home directory.
-             The default is M-bM-^@M-^\noM-bM-^@M-^].
+             The default is no.
 
      KerberosOrLocalPasswd
              If password authentication through Kerberos fails then the
              password will be validated via any additional local mechanism
-             such as /etc/passwd.  The default is M-bM-^@M-^\yesM-bM-^@M-^].
+             such as /etc/passwd.  The default is yes.
 
      KerberosTicketCleanup
              Specifies whether to automatically destroy the user's ticket
-             cache file on logout.  The default is M-bM-^@M-^\yesM-bM-^@M-^].
+             cache file on logout.  The default is yes.
 
      KexAlgorithms
              Specifies the available KEX (Key Exchange) algorithms.  Multiple
@@ -532,6 +505,7 @@ DESCRIPTION
              will be appended to the default set instead of replacing them.
              The supported algorithms are:
 
+                   curve25519-sha256
                    curve25519-sha256@libssh.org
                    diffie-hellman-group1-sha1
                    diffie-hellman-group14-sha1
@@ -543,21 +517,13 @@ DESCRIPTION
 
              The default is:
 
-                   curve25519-sha256@libssh.org,
+                   curve25519-sha256,curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
                    diffie-hellman-group-exchange-sha256,
                    diffie-hellman-group14-sha1
 
              The list of available key exchange algorithms may also be
-             obtained using the -Q option of ssh(1) with an argument of M-bM-^@M-^\kexM-bM-^@M-^].
-
-     KeyRegenerationInterval
-             In protocol version 1, the ephemeral server key is automatically
-             regenerated after this many seconds (if it has been used).  The
-             purpose of regeneration is to prevent decrypting captured
-             sessions by later breaking into the machine and stealing the
-             keys.  The key is never stored anywhere.  If the value is 0, the
-             key is never regenerated.  The default is 3600 (seconds).
+             obtained using "ssh -Q kex".
 
      ListenAddress
              Specifies the local addresses sshd(8) should listen on.  The
@@ -591,7 +557,7 @@ DESCRIPTION
              algorithms will be appended to the default set instead of
              replacing them.
 
-             The algorithms that contain M-bM-^@M-^\-etmM-bM-^@M-^] calculate the MAC after
+             The algorithms that contain "-etm" calculate the MAC after
              encryption (encrypt-then-mac).  These are considered safer and
              their use recommended.  The supported MACs are:
 
@@ -623,7 +589,7 @@ DESCRIPTION
                    hmac-sha2-256,hmac-sha2-512,hmac-sha1
 
              The list of available MAC algorithms may also be obtained using
-             the -Q option of ssh(1) with an argument of M-bM-^@M-^\macM-bM-^@M-^].
+             "ssh -Q mac".
 
      Match   Introduces a conditional block.  If all of the criteria on the
              Match line are satisfied, the keywords on the following lines
@@ -640,12 +606,12 @@ DESCRIPTION
              operators described in the PATTERNS section of ssh_config(5).
 
              The patterns in an Address criteria may additionally contain
-             addresses to match in CIDR address/masklen format, e.g.
-             M-bM-^@M-^\192.0.2.0/24M-bM-^@M-^] or M-bM-^@M-^\3ffe:ffff::/32M-bM-^@M-^].  Note that the mask length
+             addresses to match in CIDR address/masklen format, such as
+             192.0.2.0/24 or 2001:db8::/32.  Note that the mask length
              provided must be consistent with the address - it is an error to
              specify a mask length that is too long for the address or one
              with bits set in this host portion of the address.  For example,
-             M-bM-^@M-^\192.0.2.0/33M-bM-^@M-^] and M-bM-^@M-^\192.0.2.0/8M-bM-^@M-^] respectively.
+             192.0.2.0/33 and 192.0.2.0/8, respectively.
 
              Only a subset of keywords may be used on the lines following a
              Match keyword.  Available keywords are AcceptEnv,
@@ -654,7 +620,8 @@ DESCRIPTION
              AuthorizedKeysCommand, AuthorizedKeysCommandUser,
              AuthorizedKeysFile, AuthorizedPrincipalsCommand,
              AuthorizedPrincipalsCommandUser, AuthorizedPrincipalsFile,
-             Banner, ChrootDirectory, DenyGroups, DenyUsers, ForceCommand,
+             Banner, ChrootDirectory, ClientAliveCountMax,
+             ClientAliveInterval, DenyGroups, DenyUsers, ForceCommand,
              GatewayPorts, GSSAPIAuthentication, HostbasedAcceptedKeyTypes,
              HostbasedAuthentication, HostbasedUsesNameFromPacketOnly, IPQoS,
              KbdInteractiveAuthentication, KerberosAuthentication,
@@ -662,9 +629,8 @@ DESCRIPTION
              PermitEmptyPasswords, PermitOpen, PermitRootLogin, PermitTTY,
              PermitTunnel, PermitUserRC, PubkeyAcceptedKeyTypes,
              PubkeyAuthentication, RekeyLimit, RevokedKeys,
-             RhostsRSAAuthentication, RSAAuthentication, StreamLocalBindMask,
-             StreamLocalBindUnlink, TrustedUserCAKeys, X11DisplayOffset,
-             X11Forwarding and X11UseLocalHost.
+             StreamLocalBindMask, StreamLocalBindUnlink, TrustedUserCAKeys,
+             X11DisplayOffset, X11Forwarding and X11UseLocalHost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -687,21 +653,21 @@ DESCRIPTION
              expires for a connection.  The default is 10:30:100.
 
              Alternatively, random early drop can be enabled by specifying the
-             three colon separated values M-bM-^@M-^\start:rate:fullM-bM-^@M-^] (e.g. "10:30:60").
+             three colon separated values start:rate:full (e.g. "10:30:60").
              sshd(8) will refuse connection attempts with a probability of
-             M-bM-^@M-^\rate/100M-bM-^@M-^] (30%) if there are currently M-bM-^@M-^\startM-bM-^@M-^] (10)
-             unauthenticated connections.  The probability increases linearly
-             and all connection attempts are refused if the number of
-             unauthenticated connections reaches M-bM-^@M-^\fullM-bM-^@M-^] (60).
+             rate/100 (30%) if there are currently start (10) unauthenticated
+             connections.  The probability increases linearly and all
+             connection attempts are refused if the number of unauthenticated
+             connections reaches full (60).
 
      PasswordAuthentication
              Specifies whether password authentication is allowed.  The
-             default is M-bM-^@M-^\yesM-bM-^@M-^].
+             default is yes.
 
      PermitEmptyPasswords
              When password authentication is allowed, it specifies whether the
              server allows login to accounts with empty password strings.  The
-             default is M-bM-^@M-^\noM-bM-^@M-^].
+             default is no.
 
      PermitOpen
              Specifies the destinations to which TCP port forwarding is
@@ -713,58 +679,57 @@ DESCRIPTION
                    PermitOpen [IPv6_addr]:port
 
              Multiple forwards may be specified by separating them with
-             whitespace.  An argument of M-bM-^@M-^\anyM-bM-^@M-^] can be used to remove all
+             whitespace.  An argument of any can be used to remove all
              restrictions and permit any forwarding requests.  An argument of
-             M-bM-^@M-^\noneM-bM-^@M-^] can be used to prohibit all forwarding requests.  The
-             wildcard M-bM-^@M-^\*M-bM-^@M-^] can be used for host or port to allow all hosts or
+             none can be used to prohibit all forwarding requests.  The
+             wildcard M-bM-^@M-^X*M-bM-^@M-^Y can be used for host or port to allow all hosts or
              ports, respectively.  By default all port forwarding requests are
              permitted.
 
      PermitRootLogin
              Specifies whether root can log in using ssh(1).  The argument
-             must be M-bM-^@M-^\yesM-bM-^@M-^], M-bM-^@M-^\prohibit-passwordM-bM-^@M-^], M-bM-^@M-^\without-passwordM-bM-^@M-^],
-             M-bM-^@M-^\forced-commands-onlyM-bM-^@M-^], or M-bM-^@M-^\noM-bM-^@M-^].  The default is
-             M-bM-^@M-^\prohibit-passwordM-bM-^@M-^].
+             must be yes, prohibit-password, without-password,
+             forced-commands-only, or no.  The default is prohibit-password.
 
-             If this option is set to M-bM-^@M-^\prohibit-passwordM-bM-^@M-^] or
-             M-bM-^@M-^\without-passwordM-bM-^@M-^], password and keyboard-interactive
-             authentication are disabled for root.
+             If this option is set to prohibit-password or without-password,
+             password and keyboard-interactive authentication are disabled for
+             root.
 
-             If this option is set to M-bM-^@M-^\forced-commands-onlyM-bM-^@M-^], root login with
+             If this option is set to forced-commands-only, root login with
              public key authentication will be allowed, but only if the
              command option has been specified (which may be useful for taking
              remote backups even if root login is normally not allowed).  All
              other authentication methods are disabled for root.
 
-             If this option is set to M-bM-^@M-^\noM-bM-^@M-^], root is not allowed to log in.
+             If this option is set to no, root is not allowed to log in.
+
+     PermitTTY
+             Specifies whether pty(4) allocation is permitted.  The default is
+             yes.
 
      PermitTunnel
              Specifies whether tun(4) device forwarding is allowed.  The
-             argument must be M-bM-^@M-^\yesM-bM-^@M-^], M-bM-^@M-^\point-to-pointM-bM-^@M-^] (layer 3), M-bM-^@M-^\ethernetM-bM-^@M-^]
-             (layer 2), or M-bM-^@M-^\noM-bM-^@M-^].  Specifying M-bM-^@M-^\yesM-bM-^@M-^] permits both
-             M-bM-^@M-^\point-to-pointM-bM-^@M-^] and M-bM-^@M-^\ethernetM-bM-^@M-^].  The default is M-bM-^@M-^\noM-bM-^@M-^].
+             argument must be yes, point-to-point (layer 3), ethernet (layer
+             2), or no.  Specifying yes permits both point-to-point and
+             ethernet.  The default is no.
 
              Independent of this setting, the permissions of the selected
              tun(4) device must allow access to the user.
 
-     PermitTTY
-             Specifies whether pty(4) allocation is permitted.  The default is
-             M-bM-^@M-^\yesM-bM-^@M-^].
-
      PermitUserEnvironment
              Specifies whether ~/.ssh/environment and environment= options in
              ~/.ssh/authorized_keys are processed by sshd(8).  The default is
-             M-bM-^@M-^\noM-bM-^@M-^].  Enabling environment processing may enable users to bypass
+             no.  Enabling environment processing may enable users to bypass
              access restrictions in some configurations using mechanisms such
              as LD_PRELOAD.
 
      PermitUserRC
              Specifies whether any ~/.ssh/rc file is executed.  The default is
-             M-bM-^@M-^\yesM-bM-^@M-^].
+             yes.
 
      PidFile
              Specifies the file that contains the process ID of the SSH
-             daemon, or M-bM-^@M-^\noneM-bM-^@M-^] to not write one.  The default is
+             daemon, or none to not write one.  The default is
              /var/run/sshd.pid.
 
      Port    Specifies the port number that sshd(8) listens on.  The default
@@ -774,24 +739,12 @@ DESCRIPTION
      PrintLastLog
              Specifies whether sshd(8) should print the date and time of the
              last user login when a user logs in interactively.  The default
-             is M-bM-^@M-^\yesM-bM-^@M-^].
+             is yes.
 
      PrintMotd
              Specifies whether sshd(8) should print /etc/motd when a user logs
              in interactively.  (On some systems it is also printed by the
-             shell, /etc/profile, or equivalent.)  The default is M-bM-^@M-^\yesM-bM-^@M-^].
-
-     Protocol
-             Specifies the protocol versions sshd(8) supports.  The possible
-             values are M-bM-^@M-^X1M-bM-^@M-^Y and M-bM-^@M-^X2M-bM-^@M-^Y.  Multiple versions must be comma-
-             separated.  The default is M-bM-^@M-^X2M-bM-^@M-^Y.  Protocol 1 suffers from a number
-             of cryptographic weaknesses and should not be used.  It is only
-             offered to support legacy devices.
-
-             Note that the order of the protocol list does not indicate
-             preference, because the client selects among multiple protocol
-             versions offered by the server.  Specifying M-bM-^@M-^\2,1M-bM-^@M-^] is identical to
-             M-bM-^@M-^\1,2M-bM-^@M-^].
+             shell, /etc/profile, or equivalent.)  The default is yes.
 
      PubkeyAcceptedKeyTypes
              Specifies the key types that will be accepted for public key
@@ -808,11 +761,12 @@ DESCRIPTION
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 ssh-ed25519,ssh-rsa
 
-             The -Q option of ssh(1) may be used to list supported key types.
+             The list of available key types may also be obtained using "ssh
+             -Q key".
 
      PubkeyAuthentication
              Specifies whether public key authentication is allowed.  The
-             default is M-bM-^@M-^\yesM-bM-^@M-^].
+             default is yes.
 
      RekeyLimit
              Specifies the maximum amount of data that may be transmitted
@@ -824,33 +778,19 @@ DESCRIPTION
              M-bM-^@M-^X1GM-bM-^@M-^Y and M-bM-^@M-^X4GM-bM-^@M-^Y, depending on the cipher.  The optional second
              value is specified in seconds and may use any of the units
              documented in the TIME FORMATS section.  The default value for
-             RekeyLimit is M-bM-^@M-^\default noneM-bM-^@M-^], which means that rekeying is
+             RekeyLimit is default none, which means that rekeying is
              performed after the cipher's default amount of data has been sent
              or received and no time based rekeying is done.
 
      RevokedKeys
-             Specifies revoked public keys file, or M-bM-^@M-^\noneM-bM-^@M-^] to not use one.
-             Keys listed in this file will be refused for public key
+             Specifies revoked public keys file, or none to not use one.  Keys
+             listed in this file will be refused for public key
              authentication.  Note that if this file is not readable, then
              public key authentication will be refused for all users.  Keys
              may be specified as a text file, listing one public key per line,
              or as an OpenSSH Key Revocation List (KRL) as generated by
              ssh-keygen(1).  For more information on KRLs, see the KEY
              REVOCATION LISTS section in ssh-keygen(1).
-
-     RhostsRSAAuthentication
-             Specifies whether rhosts or /etc/hosts.equiv authentication
-             together with successful RSA host authentication is allowed.  The
-             default is M-bM-^@M-^\noM-bM-^@M-^].  This option applies to protocol version 1 only.
-
-     RSAAuthentication
-             Specifies whether pure RSA authentication is allowed.  The
-             default is M-bM-^@M-^\yesM-bM-^@M-^].  This option applies to protocol version 1
-             only.
-
-     ServerKeyBits
-             Defines the number of bits in the ephemeral protocol version 1
-             server key.  The default and minimum value is 1024.
 
      StreamLocalBindMask
              Sets the octal file creation mode mask (umask) used when creating
@@ -871,14 +811,14 @@ DESCRIPTION
              domain socket file.  This option is only used for port forwarding
              to a Unix-domain socket file.
 
-             The argument must be M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\noM-bM-^@M-^].  The default is M-bM-^@M-^\noM-bM-^@M-^].
+             The argument must be yes or no.  The default is no.
 
      StrictModes
              Specifies whether sshd(8) should check file modes and ownership
              of the user's files and home directory before accepting login.
              This is normally desirable because novices sometimes accidentally
              leave their directory or files world-writable.  The default is
-             M-bM-^@M-^\yesM-bM-^@M-^].  Note that this does not apply to ChrootDirectory, whose
+             yes.  Note that this does not apply to ChrootDirectory, whose
              permissions and ownership are checked unconditionally.
 
      Subsystem
@@ -886,12 +826,12 @@ DESCRIPTION
              Arguments should be a subsystem name and a command (with optional
              arguments) to execute upon subsystem request.
 
-             The command sftp-server(8) implements the M-bM-^@M-^\sftpM-bM-^@M-^] file transfer
+             The command sftp-server implements the SFTP file transfer
              subsystem.
 
-             Alternately the name M-bM-^@M-^\internal-sftpM-bM-^@M-^] implements an in-process
-             M-bM-^@M-^\sftpM-bM-^@M-^] server.  This may simplify configurations using
-             ChrootDirectory to force a different filesystem root on clients.
+             Alternately the name internal-sftp implements an in-process SFTP
+             server.  This may simplify configurations using ChrootDirectory
+             to force a different filesystem root on clients.
 
              By default no subsystems are defined.
 
@@ -908,23 +848,22 @@ DESCRIPTION
              this means that connections will die if the route is down
              temporarily, and some people find it annoying.  On the other
              hand, if TCP keepalives are not sent, sessions may hang
-             indefinitely on the server, leaving M-bM-^@M-^\ghostM-bM-^@M-^] users and consuming
+             indefinitely on the server, leaving "ghost" users and consuming
              server resources.
 
-             The default is M-bM-^@M-^\yesM-bM-^@M-^] (to send TCP keepalive messages), and the
+             The default is yes (to send TCP keepalive messages), and the
              server will notice if the network goes down or the client host
              crashes.  This avoids infinitely hanging sessions.
 
-             To disable TCP keepalive messages, the value should be set to
-             M-bM-^@M-^\noM-bM-^@M-^].
+             To disable TCP keepalive messages, the value should be set to no.
 
      TrustedUserCAKeys
              Specifies a file containing public keys of certificate
              authorities that are trusted to sign user certificates for
-             authentication, or M-bM-^@M-^\noneM-bM-^@M-^] to not use one.  Keys are listed one
-             per line; empty lines and comments starting with M-bM-^@M-^X#M-bM-^@M-^Y are allowed.
-             If a certificate is presented for authentication and has its
-             signing CA key listed in this file, then it may be used for
+             authentication, or none to not use one.  Keys are listed one per
+             line; empty lines and comments starting with M-bM-^@M-^X#M-bM-^@M-^Y are allowed.  If
+             a certificate is presented for authentication and has its signing
+             CA key listed in this file, then it may be used for
              authentication for any user listed in the certificate's
              principals list.  Note that certificates that lack a list of
              principals will not be permitted for authentication using
@@ -935,20 +874,12 @@ DESCRIPTION
              and to check that the resolved host name for the remote IP
              address maps back to the very same IP address.
 
-             If this option is set to M-bM-^@M-^\noM-bM-^@M-^] (the default) then only addresses
-             and not host names may be used in ~/.ssh/authorized_keys from and
+             If this option is set to no (the default) then only addresses and
+             not host names may be used in ~/.ssh/authorized_keys from and
              sshd_config Match Host directives.
 
-     UseLogin
-             Specifies whether login(1) is used for interactive login
-             sessions.  The default is M-bM-^@M-^\noM-bM-^@M-^].  Note that login(1) is never used
-             for remote command execution.  Note also, that if this is
-             enabled, X11Forwarding will be disabled because login(1) does not
-             know how to handle xauth(1) cookies.  If UsePrivilegeSeparation
-             is specified, it will be disabled after authentication.
-
      UsePAM  Enables the Pluggable Authentication Module interface.  If set to
-             M-bM-^@M-^\yesM-bM-^@M-^] this will enable PAM authentication using
+             yes this will enable PAM authentication using
              ChallengeResponseAuthentication and PasswordAuthentication in
              addition to PAM account and session module processing for all
              authentication types.
@@ -958,7 +889,7 @@ DESCRIPTION
              either PasswordAuthentication or ChallengeResponseAuthentication.
 
              If UsePAM is enabled, you will not be able to run sshd(8) as a
-             non-root user.  The default is M-bM-^@M-^\noM-bM-^@M-^].
+             non-root user.  The default is no.
 
      UsePrivilegeSeparation
              Specifies whether sshd(8) separates privileges by creating an
@@ -967,15 +898,15 @@ DESCRIPTION
              that has the privilege of the authenticated user.  The goal of
              privilege separation is to prevent privilege escalation by
              containing any corruption within the unprivileged processes.  The
-             argument must be M-bM-^@M-^\yesM-bM-^@M-^], M-bM-^@M-^\noM-bM-^@M-^], or M-bM-^@M-^\sandboxM-bM-^@M-^].  If
-             UsePrivilegeSeparation is set to M-bM-^@M-^\sandboxM-bM-^@M-^] then the pre-
-             authentication unprivileged process is subject to additional
-             restrictions.  The default is M-bM-^@M-^\sandboxM-bM-^@M-^].
+             argument must be yes, no, or sandbox.  If UsePrivilegeSeparation
+             is set to sandbox then the pre-authentication unprivileged
+             process is subject to additional restrictions.  The default is
+             sandbox.
 
      VersionAddendum
              Optionally specifies additional text to append to the SSH
              protocol banner sent by the server upon connection.  The default
-             is M-bM-^@M-^\noneM-bM-^@M-^].
+             is none.
 
      X11DisplayOffset
              Specifies the first display number available for sshd(8)'s X11
@@ -984,41 +915,39 @@ DESCRIPTION
 
      X11Forwarding
              Specifies whether X11 forwarding is permitted.  The argument must
-             be M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\noM-bM-^@M-^].  The default is M-bM-^@M-^\noM-bM-^@M-^].
+             be yes or no.  The default is no.
 
              When X11 forwarding is enabled, there may be additional exposure
              to the server and to client displays if the sshd(8) proxy display
              is configured to listen on the wildcard address (see
-             X11UseLocalhost below), though this is not the default.
-             Additionally, the authentication spoofing and authentication data
-             verification and substitution occur on the client side.  The
-             security risk of using X11 forwarding is that the client's X11
-             display server may be exposed to attack when the SSH client
-             requests forwarding (see the warnings for ForwardX11 in
-             ssh_config(5)).  A system administrator may have a stance in
-             which they want to protect clients that may expose themselves to
-             attack by unwittingly requesting X11 forwarding, which can
-             warrant a M-bM-^@M-^\noM-bM-^@M-^] setting.
+             X11UseLocalhost), though this is not the default.  Additionally,
+             the authentication spoofing and authentication data verification
+             and substitution occur on the client side.  The security risk of
+             using X11 forwarding is that the client's X11 display server may
+             be exposed to attack when the SSH client requests forwarding (see
+             the warnings for ForwardX11 in ssh_config(5)).  A system
+             administrator may have a stance in which they want to protect
+             clients that may expose themselves to attack by unwittingly
+             requesting X11 forwarding, which can warrant a no setting.
 
              Note that disabling X11 forwarding does not prevent users from
              forwarding X11 traffic, as users can always install their own
-             forwarders.  X11 forwarding is automatically disabled if UseLogin
-             is enabled.
+             forwarders.
 
      X11UseLocalhost
              Specifies whether sshd(8) should bind the X11 forwarding server
              to the loopback address or to the wildcard address.  By default,
              sshd binds the forwarding server to the loopback address and sets
              the hostname part of the DISPLAY environment variable to
-             M-bM-^@M-^\localhostM-bM-^@M-^].  This prevents remote hosts from connecting to the
+             localhost.  This prevents remote hosts from connecting to the
              proxy display.  However, some older X11 clients may not function
-             with this configuration.  X11UseLocalhost may be set to M-bM-^@M-^\noM-bM-^@M-^] to
+             with this configuration.  X11UseLocalhost may be set to no to
              specify that the forwarding server should be bound to the
-             wildcard address.  The argument must be M-bM-^@M-^\yesM-bM-^@M-^] or M-bM-^@M-^\noM-bM-^@M-^].  The
-             default is M-bM-^@M-^\yesM-bM-^@M-^].
+             wildcard address.  The argument must be yes or no.  The default
+             is yes.
 
      XAuthLocation
-             Specifies the full pathname of the xauth(1) program, or M-bM-^@M-^\noneM-bM-^@M-^] to
+             Specifies the full pathname of the xauth(1) program, or none to
              not use one.  The default is /usr/X11R6/bin/xauth.
 
 TIME FORMATS
@@ -1043,6 +972,33 @@ TIME FORMATS
            10m     10 minutes
            1h30m   1 hour 30 minutes (90 minutes)
 
+TOKENS
+     Arguments to some keywords can make use of tokens, which are expanded at
+     runtime:
+
+           %%    A literal M-bM-^@M-^X%M-bM-^@M-^Y.
+           %F    The fingerprint of the CA key.
+           %f    The fingerprint of the key or certificate.
+           %h    The home directory of the user.
+           %i    The key ID in the certificate.
+           %K    The base64-encoded CA key.
+           %k    The base64-encoded key or certificate for authentication.
+           %s    The serial number of the certificate.
+           %T    The type of the CA key.
+           %t    The key or certificate type.
+           %u    The username.
+
+     AuthorizedKeysCommand accepts the tokens %%, %f, %h, %t, and %u.
+
+     AuthorizedKeysFile accepts the tokens %%, %h, and %u.
+
+     AuthorizedPrincipalsCommand accepts the tokens %%, %F, %f, %K, %k, %h,
+     %i, %s, %T, %t, and %u.
+
+     AuthorizedPrincipalsFile accepts the tokens %%, %h, and %u.
+
+     ChrootDirectory accepts the tokens %%, %h, and %u.
+
 FILES
      /etc/ssh/sshd_config
              Contains configuration data for sshd(8).  This file should be
@@ -1050,7 +1006,7 @@ FILES
              necessary) that it be world-readable.
 
 SEE ALSO
-     sshd(8)
+     sftp-server(8), sshd(8)
 
 AUTHORS
      OpenSSH is a derivative of the original and free ssh 1.2.12 release by
@@ -1060,4 +1016,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.0                      July 19, 2016                     OpenBSD 6.0
+OpenBSD 6.0                    November 30, 2016                   OpenBSD 6.0

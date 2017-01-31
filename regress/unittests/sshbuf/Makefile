@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.1 2014/04/30 05:32:00 djm Exp $
+#	$OpenBSD: Makefile,v 1.5 2016/11/01 13:43:27 tb Exp $
 
 PROG=test_sshbuf
 SRCS=tests.c

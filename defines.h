@@ -25,9 +25,6 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.183 2014/09/02 19:33:26 djm Exp $ */
-
-
 /* Constants */
 
 #if defined(HAVE_DECL_SHUT_RD) && HAVE_DECL_SHUT_RD == 0
@@ -834,6 +831,13 @@ struct winsize {
 #ifndef SSH_IOBUFSZ
 # define SSH_IOBUFSZ 8192
 #endif
+
+/*
+ * We want functions in openbsd-compat, if enabled, to override system ones.
+ * We no-op out the weak symbol definition rather than remove it to reduce
+ * future sync problems.
+ */
+#define DEF_WEAK(x)
 
 /*
  * Platforms that have arc4random_uniform() and not arc4random_stir()

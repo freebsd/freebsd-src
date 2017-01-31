@@ -1,4 +1,4 @@
-/* $OpenBSD: chacha.h,v 1.3 2014/05/02 03:27:54 djm Exp $ */
+/* $OpenBSD: chacha.h,v 1.4 2016/08/27 04:04:56 guenther Exp $ */
 
 /*
 chacha-merged.c version 20080118
@@ -10,6 +10,7 @@ Public domain.
 #define CHACHA_H
 
 #include <sys/types.h>
+#include <stdlib.h>
 
 struct chacha_ctx {
 	u_int input[16];

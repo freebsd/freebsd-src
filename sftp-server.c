@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.109 2016/02/15 09:47:49 dtucker Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.110 2016/09/12 01:22:38 deraadt Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -17,7 +17,6 @@
 
 #include "includes.h"
 
-#include <sys/param.h>	/* MIN */
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef HAVE_SYS_TIME_H
@@ -505,7 +504,7 @@ status_to_message(u_int32_t status)
 		"Operation unsupported",	/* SSH_FX_OP_UNSUPPORTED */
 		"Unknown error"			/* Others */
 	};
-	return (status_messages[MIN(status,SSH2_FX_MAX)]);
+	return (status_messages[MINIMUM(status,SSH2_FX_MAX)]);
 }
 
 static void

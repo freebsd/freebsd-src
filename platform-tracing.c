@@ -20,6 +20,9 @@
 #if defined(HAVE_SYS_PRCTL_H)
 #include <sys/prctl.h>	/* For prctl() and PR_SET_DUMPABLE */
 #endif
+#ifdef HAVE_SYS_PTRACE_H
+#include <sys/ptrace.h>
+#endif
 #ifdef HAVE_PRIV_H
 #include <priv.h> /* For setpflags() and __PROC_PROTECT  */
 #endif
@@ -39,5 +42,10 @@ platform_disable_tracing(int strict)
 	/* On Solaris, we should make this process untraceable */
 	if (setpflags(__PROC_PROTECT, 1) != 0 && strict)
 		fatal("unable to make the process untraceable");
+#endif
+#ifdef PT_DENY_ATTACH
+	/* Mac OS X */
+	if (ptrace(PT_DENY_ATTACH, 0, 0, 0) == -1 && strict)
+		fatal("unable to set PT_DENY_ATTACH");
 #endif
 }

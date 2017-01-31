@@ -1,5 +1,3 @@
-/* $Id: platform.h,v 1.9 2013/09/22 09:02:40 dtucker Exp $ */
-
 /*
  * Copyright (c) 2006 Darren Tucker.  All rights reserved.
  *
