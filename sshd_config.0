@@ -80,9 +80,11 @@ DESCRIPTION
              valid; a numerical user ID is not recognized.  By default, login
              is allowed for all users.  If the pattern takes the form
              USER@HOST then USER and HOST are separately checked, restricting
-             logins to particular users from particular hosts.  The allow/deny
-             directives are processed in the following order: DenyUsers,
-             AllowUsers, DenyGroups, and finally AllowGroups.
+             logins to particular users from particular hosts.  HOST criteria
+             may additionally contain addresses to match in CIDR
+             address/masklen format.  The allow/deny directives are processed
+             in the following order: DenyUsers, AllowUsers, DenyGroups, and
+             finally AllowGroups.
 
              See PATTERNS in ssh_config(5) for more information on patterns.
 
@@ -90,8 +92,11 @@ DESCRIPTION
              Specifies the authentication methods that must be successfully
              completed for a user to be granted access.  This option must be
              followed by one or more comma-separated lists of authentication
-             method names.  Successful authentication requires completion of
-             every method in at least one of these lists.
+             method names, or by the single string M-bM-^@M-^\anyM-bM-^@M-^] to indicate the
+             default behaviour of accepting any single authentication method.
+             if the default is overridden, then successful authentication
+             requires completion of every method in at least one of these
+             lists.
 
              For example, an argument of M-bM-^@M-^\publickey,password
              publickey,keyboard-interactiveM-bM-^@M-^] would require the user to
@@ -116,9 +121,9 @@ DESCRIPTION
 
              This option will yield a fatal error if enabled if protocol 1 is
              also enabled.  Note that each authentication method listed should
-             also be explicitly enabled in the configuration.  The default is
-             not to require multiple authentication; successful completion of
-             a single authentication method is sufficient.
+             also be explicitly enabled in the configuration.  The default
+             M-bM-^@M-^\anyM-bM-^@M-^] is not to require multiple authentication; successful
+             completion of a single authentication method is sufficient.
 
      AuthorizedKeysCommand
              Specifies a program to be used to look up the user's public keys.
@@ -339,9 +344,11 @@ DESCRIPTION
              numerical user ID is not recognized.  By default, login is
              allowed for all users.  If the pattern takes the form USER@HOST
              then USER and HOST are separately checked, restricting logins to
-             particular users from particular hosts.  The allow/deny
-             directives are processed in the following order: DenyUsers,
-             AllowUsers, DenyGroups, and finally AllowGroups.
+             particular users from particular hosts.  HOST criteria may
+             additionally contain addresses to match in CIDR address/masklen
+             format.  The allow/deny directives are processed in the following
+             order: DenyUsers, AllowUsers, DenyGroups, and finally
+             AllowGroups.
 
              See PATTERNS in ssh_config(5) for more information on patterns.
 
@@ -447,7 +454,7 @@ DESCRIPTION
 
      HostKeyAgent
              Identifies the UNIX-domain socket used to communicate with an
-             agent that has access to the private host keys.  If
+             agent that has access to the private host keys.  If the string
              M-bM-^@M-^\SSH_AUTH_SOCKM-bM-^@M-^] is specified, the location of the socket will be
              read from the SSH_AUTH_SOCK environment variable.
 
@@ -708,8 +715,10 @@ DESCRIPTION
              Multiple forwards may be specified by separating them with
              whitespace.  An argument of M-bM-^@M-^\anyM-bM-^@M-^] can be used to remove all
              restrictions and permit any forwarding requests.  An argument of
-             M-bM-^@M-^\noneM-bM-^@M-^] can be used to prohibit all forwarding requests.  By
-             default all port forwarding requests are permitted.
+             M-bM-^@M-^\noneM-bM-^@M-^] can be used to prohibit all forwarding requests.  The
+             wildcard M-bM-^@M-^\*M-bM-^@M-^] can be used for host or port to allow all hosts or
+             ports, respectively.  By default all port forwarding requests are
+             permitted.
 
      PermitRootLogin
              Specifies whether root can log in using ssh(1).  The argument
@@ -927,7 +936,7 @@ DESCRIPTION
              address maps back to the very same IP address.
 
              If this option is set to M-bM-^@M-^\noM-bM-^@M-^] (the default) then only addresses
-             and not host names may be used in ~/.ssh/known_hosts from and
+             and not host names may be used in ~/.ssh/authorized_keys from and
              sshd_config Match Host directives.
 
      UseLogin
@@ -1051,4 +1060,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.9                    February 17, 2016                   OpenBSD 5.9
+OpenBSD 6.0                      July 19, 2016                     OpenBSD 6.0

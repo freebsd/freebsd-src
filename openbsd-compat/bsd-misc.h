@@ -126,4 +126,15 @@ pid_t getpgid(pid_t);
 int pledge(const char *promises, const char *paths[]);
 #endif
 
+/* bsd-err.h */
+#ifndef HAVE_ERR
+void err(int, const char *, ...) __attribute__((format(printf, 2, 3)));
+#endif
+#ifndef HAVE_ERRX
+void errx(int, const char *, ...) __attribute__((format(printf, 2, 3)));
+#endif
+#ifndef HAVE_WARN
+void warn(const char *, ...) __attribute__((format(printf, 1, 2)));
+#endif
+
 #endif /* _BSD_MISC_H */

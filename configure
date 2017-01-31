@@ -1305,6 +1305,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-largefile     omit support for large files
+  --disable-pkcs11        disable PKCS#11 support code [no]
   --disable-strip         Disable calling strip(1) on install
   --disable-etc-default-login Disable using PATH from /etc/default/login no
   --disable-lastlog       disable use of lastlog even if detected no
@@ -7441,6 +7442,9 @@ fi
 
 
 
+
+
+
 for ac_header in  \
 	blf.h \
 	bstring.h \
@@ -7449,6 +7453,7 @@ for ac_header in  \
 	dirent.h \
 	endian.h \
 	elf.h \
+	err.h \
 	features.h \
 	fcntl.h \
 	floatingpoint.h \
@@ -7457,6 +7462,7 @@ for ac_header in  \
 	ia.h \
 	iaf.h \
 	inttypes.h \
+	langinfo.h \
 	limits.h \
 	locale.h \
 	login.h \
@@ -7509,6 +7515,7 @@ for ac_header in  \
 	utmp.h \
 	utmpx.h \
 	vis.h \
+	wchar.h \
 
 do
 as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
@@ -8981,11 +8988,6 @@ _ACEOF
 
 
 cat >>confdefs.h <<\_ACEOF
-#define NO_IPPORT_RESERVED_CONCEPT 1
-_ACEOF
-
-
-cat >>confdefs.h <<\_ACEOF
 #define DISABLE_FD_PASSING 1
 _ACEOF
 
@@ -10374,6 +10376,30 @@ echo $ECHO_N "checking for seccomp architecture... $ECHO_C" >&6; }
 	aarch64*-*)
 		seccomp_audit_arch=AUDIT_ARCH_AARCH64
 		;;
+	s390x-*)
+		seccomp_audit_arch=AUDIT_ARCH_S390X
+		;;
+	s390-*)
+		seccomp_audit_arch=AUDIT_ARCH_S390
+		;;
+	powerpc64-*)
+		seccomp_audit_arch=AUDIT_ARCH_PPC64
+		;;
+	powerpc64le-*)
+		seccomp_audit_arch=AUDIT_ARCH_PPC64LE
+		;;
+	mips-*)
+		seccomp_audit_arch=AUDIT_ARCH_MIPS
+		;;
+	mipsel-*)
+		seccomp_audit_arch=AUDIT_ARCH_MIPSEL
+		;;
+	mips64-*)
+		seccomp_audit_arch=AUDIT_ARCH_MIPS64
+		;;
+	mips64el-*)
+		seccomp_audit_arch=AUDIT_ARCH_MIPSEL64
+		;;
 	esac
 	if test "x$seccomp_audit_arch" != "x" ; then
 		{ echo "$as_me:$LINENO: result: \"$seccomp_audit_arch\"" >&5
@@ -10401,6 +10427,7 @@ _ACEOF
 	if test "x$withval" != "xno" ; then
 		need_dash_r=1
 	fi
+	CPPFLAGS="$CPPFLAGS -D_OPENBSD_SOURCE"
 
 cat >>confdefs.h <<\_ACEOF
 #define SSH_TUN_FREEBSD 1
@@ -10866,6 +10893,100 @@ _ACEOF
 		{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 	fi
+
+for ac_func in setpflags
+do
+as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for $ac_func" >&5
+echo $ECHO_N "checking for $ac_func... $ECHO_C" >&6; }
+if { as_var=$as_ac_var; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+/* Define $ac_func to an innocuous variant, in case <limits.h> declares $ac_func.
+   For example, HP-UX 11i <limits.h> declares gettimeofday.  */
+#define $ac_func innocuous_$ac_func
+
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char $ac_func (); below.
+    Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
+    <limits.h> exists even on freestanding compilers.  */
+
+#ifdef __STDC__
+# include <limits.h>
+#else
+# include <assert.h>
+#endif
+
+#undef $ac_func
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char $ac_func ();
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined __stub_$ac_func || defined __stub___$ac_func
+choke me
+#endif
+
+int
+main ()
+{
+return $ac_func ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  eval "$as_ac_var=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	eval "$as_ac_var=no"
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+fi
+ac_res=`eval echo '${'$as_ac_var'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_var'}'` = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define `echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
 
 for ac_func in setppriv
 do
@@ -15446,6 +15567,70 @@ fi
 
 
 
+{ echo "$as_me:$LINENO: checking whether VIS_ALL is declared" >&5
+echo $ECHO_N "checking whether VIS_ALL is declared... $ECHO_C" >&6; }
+if test "${ac_cv_have_decl_VIS_ALL+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <vis.h>
+
+int
+main ()
+{
+#ifndef VIS_ALL
+  (void) VIS_ALL;
+#endif
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_cv_have_decl_VIS_ALL=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_have_decl_VIS_ALL=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_have_decl_VIS_ALL" >&5
+echo "${ECHO_T}$ac_cv_have_decl_VIS_ALL" >&6; }
+if test $ac_cv_have_decl_VIS_ALL = yes; then
+  :
+else
+
+cat >>confdefs.h <<\_ACEOF
+#define BROKEN_STRNVIS 1
+_ACEOF
+
+fi
+
+
 { echo "$as_me:$LINENO: checking whether struct dirent allocates space for d_name" >&5
 echo $ECHO_N "checking whether struct dirent allocates space for d_name... $ECHO_C" >&6; }
 if test "$cross_compiling" = yes; then
@@ -15616,7 +15801,7 @@ fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
-                 	{ echo "$as_me:$LINENO: checking if skeychallenge takes 4 arguments" >&5
+			{ echo "$as_me:$LINENO: checking if skeychallenge takes 4 arguments" >&5
 echo $ECHO_N "checking if skeychallenge takes 4 arguments... $ECHO_C" >&6; }
 			cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
@@ -15871,7 +16056,7 @@ fi
 			if test "x$PKGCONFIG" != "xno"; then
 				{ echo "$as_me:$LINENO: checking if $PKGCONFIG knows about libedit" >&5
 echo $ECHO_N "checking if $PKGCONFIG knows about libedit... $ECHO_C" >&6; }
-			 	if "$PKGCONFIG" libedit; then
+				if "$PKGCONFIG" libedit; then
 					{ echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6; }
 					use_pkgconfig_for_libedit=yes
@@ -16384,7 +16569,7 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 		if test "$sol2ver" -ge 11; then
-		   	SSHDLIBS="$SSHDLIBS -lscf"
+			SSHDLIBS="$SSHDLIBS -lscf"
 
 cat >>confdefs.h <<\_ACEOF
 #define BROKEN_BSM_API 1
@@ -16895,6 +17080,8 @@ fi
 
 
 
+
+
 for ac_func in  \
 	Blowfish_initstate \
 	Blowfish_expandstate \
@@ -16914,6 +17101,8 @@ for ac_func in  \
 	closefrom \
 	dirfd \
 	endgrent \
+	err \
+	errx \
 	explicit_bzero \
 	fchmod \
 	fchown \
@@ -16940,7 +17129,6 @@ for ac_func in  \
 	inet_ntop \
 	innetgr \
 	login_getcapbool \
-	mblen \
 	md5_crypt \
 	memmove \
 	memset_s \
@@ -17005,6 +17193,7 @@ for ac_func in  \
 	vasprintf \
 	vsnprintf \
 	waitpid \
+	warn \
 
 do
 as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
@@ -17099,6 +17288,107 @@ fi
 done
 
 
+saved_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -D_XOPEN_SOURCE"
+
+
+
+
+for ac_func in mblen mbtowc nl_langinfo wcwidth
+do
+as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for $ac_func" >&5
+echo $ECHO_N "checking for $ac_func... $ECHO_C" >&6; }
+if { as_var=$as_ac_var; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+/* Define $ac_func to an innocuous variant, in case <limits.h> declares $ac_func.
+   For example, HP-UX 11i <limits.h> declares gettimeofday.  */
+#define $ac_func innocuous_$ac_func
+
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char $ac_func (); below.
+    Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
+    <limits.h> exists even on freestanding compilers.  */
+
+#ifdef __STDC__
+# include <limits.h>
+#else
+# include <assert.h>
+#endif
+
+#undef $ac_func
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char $ac_func ();
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined __stub_$ac_func || defined __stub___$ac_func
+choke me
+#endif
+
+int
+main ()
+{
+return $ac_func ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  eval "$as_ac_var=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	eval "$as_ac_var=no"
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+fi
+ac_res=`eval echo '${'$as_ac_var'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_var'}'` = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define `echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+CFLAGS="$saved_CFLAGS"
+
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -17148,8 +17438,20 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 
+disable_pkcs11=
+# Check whether --enable-pkcs11 was given.
+if test "${enable_pkcs11+set}" = set; then
+  enableval=$enable_pkcs11;
+		if test "x$enableval" = "xno" ; then
+			disable_pkcs11=1
+		fi
+
+
+fi
+
+
 # PKCS11 depends on OpenSSL.
-if test "x$openssl" = "xyes" ; then
+if test "x$openssl" = "xyes" && test "x$disable_pkcs11" = "x"; then
 	# PKCS#11 support requires dlopen() and co
 	{ echo "$as_me:$LINENO: checking for library containing dlopen" >&5
 echo $ECHO_N "checking for library containing dlopen... $ECHO_C" >&6; }
@@ -21388,8 +21690,9 @@ main ()
 		if(fd == NULL)
 			exit(1);
 
-		if ((rc = fprintf(fd ,"%08lx (%s)\n",
-		    (unsigned long)OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
+		if ((rc = fprintf(fd, "%08lx (%s)\n",
+		    (unsigned long)OPENSSL_VERSION_NUMBER,
+		     OPENSSL_VERSION_TEXT)) < 0)
 			exit(1);
 
 		exit(0);
@@ -21476,8 +21779,8 @@ main ()
 		if(fd == NULL)
 			exit(1);
 
-		if ((rc = fprintf(fd ,"%08x (%s)\n", SSLeay(),
-		    SSLeay_version(SSLEAY_VERSION))) <0)
+		if ((rc = fprintf(fd, "%08lx (%s)\n", (unsigned long)SSLeay(),
+		    SSLeay_version(SSLEAY_VERSION))) < 0)
 			exit(1);
 
 		exit(0);
@@ -22110,7 +22413,8 @@ sed 's/^/| /' conftest.$ac_ext >&5
 			{ echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 			unsupported_algorithms="$unsupported_cipers \
-			   aes128-gcm@openssh.com aes256-gcm@openssh.com"
+			   aes128-gcm@openssh.com \
+			   aes256-gcm@openssh.com"
 
 
 fi
@@ -22606,9 +22910,11 @@ _ACEOF
 
 else
   unsupported_algorithms="$unsupported_algorithms \
-		hmac-sha2-256 hmac-sha2-512 \
+		hmac-sha2-256 \
+		hmac-sha2-512 \
 		diffie-hellman-group-exchange-sha256 \
-		hmac-sha2-256-etm@openssh.com hmac-sha2-512-etm@openssh.com"
+		hmac-sha2-256-etm@openssh.com \
+		hmac-sha2-512-etm@openssh.com"
 
 
 fi
@@ -22708,8 +23014,8 @@ _ACEOF
 
 else
   unsupported_algorithms="$unsupported_algorithms \
-		hmac-ripemd160
-		hmac-ripemd160@openssh.com
+		hmac-ripemd160 \
+		hmac-ripemd160@openssh.com \
 		hmac-ripemd160-etm@openssh.com"
 
 
@@ -22996,8 +23302,10 @@ _ACEOF
 		TEST_SSH_ECC=yes
 		COMMENT_OUT_ECC=""
 	else
-		unsupported_algorithms="$unsupported_algorithms ecdsa-sha2-nistp256 \
-		    ecdh-sha2-nistp256 ecdsa-sha2-nistp256-cert-v01@openssh.com"
+		unsupported_algorithms="$unsupported_algorithms \
+			ecdsa-sha2-nistp256 \
+			ecdh-sha2-nistp256 \
+			ecdsa-sha2-nistp256-cert-v01@openssh.com"
 	fi
 	if test x$enable_nistp384 = x1; then
 
@@ -23008,8 +23316,10 @@ _ACEOF
 		TEST_SSH_ECC=yes
 		COMMENT_OUT_ECC=""
 	else
-		unsupported_algorithms="$unsupported_algorithms ecdsa-sha2-nistp384 \
-		    ecdh-sha2-nistp384 ecdsa-sha2-nistp384-cert-v01@openssh.com"
+		unsupported_algorithms="$unsupported_algorithms \
+			ecdsa-sha2-nistp384 \
+			ecdh-sha2-nistp384 \
+			ecdsa-sha2-nistp384-cert-v01@openssh.com"
 	fi
 	if test x$enable_nistp521 = x1; then
 
@@ -23020,8 +23330,10 @@ _ACEOF
 		TEST_SSH_ECC=yes
 		COMMENT_OUT_ECC=""
 	else
-		unsupported_algorithms="$unsupported_algorithms ecdh-sha2-nistp521 \
-		    ecdsa-sha2-nistp521 ecdsa-sha2-nistp521-cert-v01@openssh.com"
+		unsupported_algorithms="$unsupported_algorithms \
+			ecdh-sha2-nistp521 \
+			ecdsa-sha2-nistp521 \
+			ecdsa-sha2-nistp521-cert-v01@openssh.com"
 	fi
 
 
@@ -32808,7 +33120,6 @@ sed 's/^/| /' conftest.$ac_ext >&5
 echo "${ECHO_T}no" >&6; }
 					 K5LIBS="-lkrb5 -lk5crypto -lcom_err"
 
-
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
@@ -34471,7 +34782,7 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
 
-	 	    maildir_what=`awk -F: '{print $1}' conftest.maildir`
+		    maildir_what=`awk -F: '{print $1}' conftest.maildir`
 		    maildir=`awk -F: '{print $2}' conftest.maildir \
 			| sed 's|/$||'`
 		    { echo "$as_me:$LINENO: result: Using: $maildir from $maildir_what" >&5

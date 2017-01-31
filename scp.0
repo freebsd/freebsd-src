@@ -94,8 +94,9 @@ DESCRIPTION
                    HostKeyAlgorithms
                    HostKeyAlias
                    HostName
-                   IdentityFile
                    IdentitiesOnly
+                   IdentityAgent
+                   IdentityFile
                    IPQoS
                    KbdInteractiveAuthentication
                    KbdInteractiveDevices
@@ -110,6 +111,7 @@ DESCRIPTION
                    PreferredAuthentications
                    Protocol
                    ProxyCommand
+                   ProxyJump
                    PubkeyAcceptedKeyTypes
                    PubkeyAuthentication
                    RekeyLimit
@@ -163,4 +165,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 5.9                   September 25, 2015                   OpenBSD 5.9
+OpenBSD 6.0                      July 16, 2016                     OpenBSD 6.0

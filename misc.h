@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.54 2014/07/15 15:54:14 millert Exp $ */
+/* $OpenBSD: misc.h,v 1.57 2016/07/15 00:24:30 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -27,6 +27,8 @@ struct Forward {
 	int	  handle;		/* Handle for dynamic listen ports */
 };
 
+int forward_equals(const struct Forward *, const struct Forward *);
+
 /* Common server and client forwarding options. */
 struct ForwardOptions {
 	int	 gateway_ports; /* Allow remote connects to forwarded ports. */
@@ -47,6 +49,7 @@ char	*put_host_port(const char *, u_short);
 char	*hpdelim(char **);
 char	*cleanhostname(char *);
 char	*colon(char *);
+int	 parse_user_host_port(const char *, char **, char **, int *);
 long	 convtime(const char *);
 char	*tilde_expand_filename(const char *, uid_t);
 char	*percent_expand(const char *, ...) __attribute__((__sentinel__));
@@ -55,6 +58,7 @@ void	 sanitise_stdfd(void);
 void	 ms_subtract_diff(struct timeval *, int *);
 void	 ms_to_timeval(struct timeval *, int);
 time_t	 monotime(void);
+double	 monotime_double(void);
 void	 lowercase(char *s);
 int	 unix_listener(const char *, int, int);
 

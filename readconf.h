@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.113 2016/01/14 16:17:40 markus Exp $ */
+/* $OpenBSD: readconf.h,v 1.117 2016/07/15 00:24:30 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -101,6 +101,7 @@ typedef struct {
 	struct sshkey *certificates[SSH_MAX_CERTIFICATE_FILES];
 
 	int	add_keys_to_agent;
+	char   *identity_agent;		/* Optional path to ssh-agent socket */
 
 	/* Local TCP/IP forward requests. */
 	int     num_local_forwards;
@@ -110,6 +111,10 @@ typedef struct {
 	int     num_remote_forwards;
 	struct Forward *remote_forwards;
 	int	clear_forwardings;
+
+	/* stdio forwarding (-W) host and port */
+	char   *stdio_forward_host;
+	int	stdio_forward_port;
 
 	int	enable_ssh_keysign;
 	int64_t rekey_limit;
@@ -158,6 +163,11 @@ typedef struct {
 	char   *hostbased_key_types;
 	char   *pubkey_key_types;
 
+	char   *jump_user;
+	char   *jump_host;
+	int	jump_port;
+	char   *jump_extra;
+
 	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
 }       Options;
 
@@ -179,6 +189,7 @@ typedef struct {
 #define SSHCONF_CHECKPERM	1  /* check permissions on config file */
 #define SSHCONF_USERCONF	2  /* user provided config file not system */
 #define SSHCONF_POSTCANON	4  /* After hostname canonicalisation */
+#define SSHCONF_NEVERMATCH	8  /* Match/Host never matches; internal only */
 
 #define SSH_UPDATE_HOSTKEYS_NO	0
 #define SSH_UPDATE_HOSTKEYS_YES	1
@@ -192,6 +203,7 @@ int	 process_config_line(Options *, struct passwd *, const char *,
 int	 read_config_file(const char *, struct passwd *, const char *,
     const char *, Options *, int);
 int	 parse_forward(struct Forward *, const char *, int, int);
+int	 parse_jump(const char *, Options *, int);
 int	 default_ssh_port(void);
 int	 option_clear_or_none(const char *);
 void	 dump_client_config(Options *o, const char *host);

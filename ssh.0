@@ -6,10 +6,11 @@ NAME
 SYNOPSIS
      ssh [-1246AaCfGgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]
          [-D [bind_address:]port] [-E log_file] [-e escape_char]
-         [-F configfile] [-I pkcs11] [-i identity_file] [-L address]
-         [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]
-         [-Q query_option] [-R address] [-S ctl_path] [-W host:port]
-         [-w local_tun[:remote_tun]] [user@]hostname [command]
+         [-F configfile] [-I pkcs11] [-i identity_file]
+         [-J [user@]host[:port]] [-L address] [-l login_name] [-m mac_spec]
+         [-O ctl_cmd] [-o option] [-p port] [-Q query_option] [-R address]
+         [-S ctl_path] [-W host:port] [-w local_tun[:remote_tun]]
+         [user@]hostname [command]
 
 DESCRIPTION
      ssh (SSH client) is a program for logging into a remote machine and for
@@ -147,6 +148,13 @@ DESCRIPTION
              information from the filename obtained by appending -cert.pub to
              identity filenames.
 
+     -J [user@]host[:port]
+             Connect to the target host by first making a ssh connection to
+             the jump host and then establishing a TCP forwarding to the
+             ultimate destination from there.  Multiple jump hops may be
+             specified separated by comma characters.  This is a shortcut to
+             specify a ProxyJump configuration directive.
+
      -K      Enables GSSAPI-based authentication and forwarding (delegation)
              of GSSAPI credentials to the server.
 
@@ -264,8 +272,10 @@ DESCRIPTION
                    HostKeyAlgorithms
                    HostKeyAlias
                    HostName
-                   IdentityFile
                    IdentitiesOnly
+                   IdentityAgent
+                   IdentityFile
+                   Include
                    IPQoS
                    KbdInteractiveAuthentication
                    KbdInteractiveDevices
@@ -284,6 +294,7 @@ DESCRIPTION
                    PreferredAuthentications
                    Protocol
                    ProxyCommand
+                   ProxyJump
                    ProxyUseFdpass
                    PubkeyAcceptedKeyTypes
                    PubkeyAuthentication
@@ -384,7 +395,9 @@ DESCRIPTION
      -W host:port
              Requests that standard input and output on the client be
              forwarded to host on port over the secure channel.  Implies -N,
-             -T, ExitOnForwardFailure and ClearAllForwardings.
+             -T, ExitOnForwardFailure and ClearAllForwardings, though these
+             can be overridden in the configuration file or using -o command
+             line options.
 
      -w local_tun[:remote_tun]
              Requests tunnel device forwarding with the specified tun(4)
@@ -955,4 +968,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.9                    February 17, 2016                   OpenBSD 5.9
+OpenBSD 6.0                      July 16, 2016                     OpenBSD 6.0

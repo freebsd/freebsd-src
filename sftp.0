@@ -130,8 +130,9 @@ DESCRIPTION
                    HostKeyAlgorithms
                    HostKeyAlias
                    HostName
-                   IdentityFile
                    IdentitiesOnly
+                   IdentityAgent
+                   IdentityFile
                    IPQoS
                    KbdInteractiveAuthentication
                    KbdInteractiveDevices
@@ -146,6 +147,7 @@ DESCRIPTION
                    PreferredAuthentications
                    Protocol
                    ProxyCommand
+                   ProxyJump
                    PubkeyAuthentication
                    RekeyLimit
                    RhostsRSAAuthentication
@@ -381,4 +383,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 5.9                   September 25, 2015                   OpenBSD 5.9
+OpenBSD 6.0                      July 16, 2016                     OpenBSD 6.0
