@@ -349,7 +349,6 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 		ni->ni_fhindex = 1;
 	}
 	if (vap->iv_opmode == IEEE80211_M_IBSS) {
-		vap->iv_flags |= IEEE80211_F_SIBSS;
 		ni->ni_capinfo |= IEEE80211_CAPINFO_IBSS;	/* XXX */
 		if (vap->iv_flags & IEEE80211_F_DESBSSID)
 			IEEE80211_ADDR_COPY(ni->ni_bssid, vap->iv_des_bssid);
