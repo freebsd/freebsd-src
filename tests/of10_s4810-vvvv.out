@@ -377,7 +377,7 @@ IP (tos 0x0, ttl 64, id 53101, offset 0, flags [DF], proto TCP (6), length 4156)
 	 match dl_dst 00:11:22:33:00:15 [|openflow]
 IP (tos 0x0, ttl 64, id 53104, offset 0, flags [DF], proto TCP (6), length 180)
     10.0.0.20.6633 > 10.0.0.81.56068: Flags [P.], cksum 0x150b (incorrect -> 0x8ec7), seq 4241:4369, ack 677, win 139, options [nop,nop,TS val 47836527 ecr 1], length 128: OpenFlow
-	version unknown (0x00), type 0x00, length 0, xid 0x00000000 (corrupt)
+	version unknown (0x00), type 0x00, length 0, xid 0x00000000 (invalid)
 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 52)
     10.0.0.81.56068 > 10.0.0.20.6633: Flags [.], cksum 0xfaa7 (correct), seq 677, ack 2873, win 952, options [nop,nop,TS val 1 ecr 47836527], length 0
 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 52)
@@ -858,7 +858,7 @@ IP (tos 0x0, ttl 64, id 53581, offset 0, flags [DF], proto TCP (6), length 1500)
 	  duration_sec 0, duration_nsec 0, priority 65535, idle_timeout 0, hard_timeout 0, cookie 0x0000000000000025, packet_count 0 [|openflow]
 IP (tos 0x0, ttl 64, id 53582, offset 0, flags [DF], proto TCP (6), length 1040)
     10.0.0.81.56068 > 10.0.0.20.6633: Flags [P.], cksum 0x395e (correct), seq 8113:9101, ack 4545, win 1035, options [nop,nop,TS val 2 ecr 47837000], length 988: OpenFlow
-	version unknown (0x00), type 0x00, length 0, xid 0x00000000 (corrupt)
+	version unknown (0x00), type 0x00, length 0, xid 0x00000000 (invalid)
 IP (tos 0x0, ttl 64, id 53111, offset 0, flags [DF], proto TCP (6), length 52)
     10.0.0.20.6633 > 10.0.0.81.56068: Flags [.], cksum 0x148b (incorrect -> 0xd387), seq 4641, ack 9101, win 302, options [nop,nop,TS val 47837000 ecr 2], length 0
 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 52)
@@ -886,11 +886,11 @@ IP (tos 0x0, ttl 64, id 53604, offset 0, flags [DF], proto TCP (6), length 189)
 	 buffer_id NONE, total_len 119, in_port 1, reason ACTION
 	 data (119 octets), frame decoding below
 STP 802.1s, Rapid STP, CIST Flags [Proposal, Learn, Forward, Agreement], length 102
-	port-role Designated, CIST root-id 8000.08:9e:01:62:d5:f4, CIST ext-pathcost 0 
-	CIST regional-root-id 8000.08:9e:01:62:d5:f4, CIST port-id 8034, 
+	port-role Designated, CIST root-id 8000.08:9e:01:62:d5:f4, CIST ext-pathcost 0
+	CIST regional-root-id 8000.08:9e:01:62:d5:f4, CIST port-id 8034,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
-	v3len 64, MCID Name pica8, rev 0, 
-		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0, 
+	v3len 64, MCID Name pica8, rev 0,
+		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:9e:01:62:d5:f4, CIST remaining-hops 20
 IP (tos 0x0, ttl 64, id 53605, offset 0, flags [DF], proto TCP (6), length 168)
     10.0.0.81.56068 > 10.0.0.20.6633: Flags [P.], cksum 0x4a03 (correct), seq 10350:10466, ack 4641, win 1035, options [nop,nop,TS val 3 ecr 47837000], length 116: OpenFlow
@@ -1236,6 +1236,10 @@ IP (tos 0x0, ttl 64, id 53123, offset 0, flags [DF], proto TCP (6), length 144)
 	 action type OUTPUT, len 8, port 1
 	 data (60 octets), frame decoding below
 67:68:00:00:00:00 > 61:62:63:64:65:66 Null Information, send seq 0, rcv seq 0, Flags [Command], length 46
+	0x0000:  0000 0000 0000 0000 0000 0000 0000 0000  ................
+	0x0010:  0000 0000 0000 0000 0000 0000 0000 0000  ................
+	0x0020:  0000 0000 0000 0000 0000 0000 0000 0112  ................
+	0x0030:  0008 0000 0045                           .....E
 	version 1.0, type BARRIER_REQUEST, length 8, xid 0x00000045
 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 60)
     10.0.0.81.56068 > 10.0.0.20.6633: Flags [P.], cksum 0xb6f1 (correct), seq 14734:14742, ack 4821, win 1035, options [nop,nop,TS val 3 ecr 47837403], length 8: OpenFlow
@@ -1315,11 +1319,11 @@ IP (tos 0x0, ttl 64, id 53775, offset 0, flags [DF], proto TCP (6), length 189)
 	 buffer_id NONE, total_len 119, in_port 1, reason NO_MATCH
 	 data (119 octets), frame decoding below
 STP 802.1s, Rapid STP, CIST Flags [Proposal, Learn, Forward, Agreement], length 102
-	port-role Designated, CIST root-id 8000.08:9e:01:62:d5:f4, CIST ext-pathcost 0 
-	CIST regional-root-id 8000.08:9e:01:62:d5:f4, CIST port-id 8034, 
+	port-role Designated, CIST root-id 8000.08:9e:01:62:d5:f4, CIST ext-pathcost 0
+	CIST regional-root-id 8000.08:9e:01:62:d5:f4, CIST port-id 8034,
 	message-age 0.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
-	v3len 64, MCID Name pica8, rev 0, 
-		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0, 
+	v3len 64, MCID Name pica8, rev 0,
+		digest ac36177f50283cd4b83821d8ab26de62, CIST int-root-pathcost 0,
 	CIST bridge-id 8000.08:9e:01:62:d5:f4, CIST remaining-hops 20
 IP (tos 0x0, ttl 64, id 53128, offset 0, flags [DF], proto TCP (6), length 52)
     10.0.0.20.6633 > 10.0.0.81.56068: Flags [.], cksum 0x148b (incorrect -> 0xb3e0), seq 4857, ack 14903, win 331, options [nop,nop,TS val 47839052 ecr 6], length 0

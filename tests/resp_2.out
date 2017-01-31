@@ -1,0 +1,14 @@
+IP 127.0.0.1.35934 > 127.0.0.1.6379: Flags [S], seq 270581733, win 43690, options [mss 65495,sackOK,TS val 2004413385 ecr 0,nop,wscale 7], length 0
+IP 127.0.0.1.6379 > 127.0.0.1.35934: Flags [S.], seq 3524975383, ack 270581734, win 43690, options [mss 65495,sackOK,TS val 2004413385 ecr 2004413385,nop,wscale 7], length 0
+IP 127.0.0.1.35934 > 127.0.0.1.6379: Flags [.], ack 1, win 342, options [nop,nop,TS val 2004413385 ecr 2004413385], length 0
+IP 127.0.0.1.35934 > 127.0.0.1.6379: Flags [P.], seq 1:13, ack 1, win 342, options [nop,nop,TS val 2004413683 ecr 2004413385], length 12: RESP "set test 1"
+IP 127.0.0.1.6379 > 127.0.0.1.35934: Flags [.], ack 13, win 342, options [nop,nop,TS val 2004413683 ecr 2004413683], length 0
+IP 127.0.0.1.35934 > 127.0.0.1.6379: Flags [P.], seq 13:157, ack 1, win 342, options [nop,nop,TS val 2004413683 ecr 2004413683], length 144: RESP "incr test" "set test2 redis" "get test2" "lpush test3 r" "lpush test3 e" "lpush test3 d" "lpush test3 i" "lpush test3 s" "lrange test3 0 -1" "del test4"
+IP 127.0.0.1.6379 > 127.0.0.1.35934: Flags [.], ack 157, win 350, options [nop,nop,TS val 2004413683 ecr 2004413683], length 0
+IP 127.0.0.1.35934 > 127.0.0.1.6379: Flags [P.], seq 157:168, ack 1, win 342, options [nop,nop,TS val 2004413683 ecr 2004413683], length 11: RESP "get test4"
+IP 127.0.0.1.6379 > 127.0.0.1.35934: Flags [.], ack 168, win 350, options [nop,nop,TS val 2004413683 ecr 2004413683], length 0
+IP 127.0.0.1.6379 > 127.0.0.1.35934: Flags [P.], seq 1:1289, ack 168, win 350, options [nop,nop,TS val 2004413683 ecr 2004413683], length 1288: RESP "OK" "2" "OK" "redis" "170" "171" "172" "173" "174" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "i" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "d" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "s" "i" "d" "e" "r" "i" "s" "i" "e" "r" "s" "i" "d" "e" "r" "0" null
+IP 127.0.0.1.35934 > 127.0.0.1.6379: Flags [.], ack 1289, win 1365, options [nop,nop,TS val 2004413683 ecr 2004413683], length 0
+IP 127.0.0.1.35934 > 127.0.0.1.6379: Flags [F.], seq 168, ack 1289, win 1365, options [nop,nop,TS val 2004413984 ecr 2004413683], length 0
+IP 127.0.0.1.6379 > 127.0.0.1.35934: Flags [F.], seq 1289, ack 169, win 350, options [nop,nop,TS val 2004413984 ecr 2004413984], length 0
+IP 127.0.0.1.35934 > 127.0.0.1.6379: Flags [.], ack 1290, win 1365, options [nop,nop,TS val 2004413984 ecr 2004413984], length 0

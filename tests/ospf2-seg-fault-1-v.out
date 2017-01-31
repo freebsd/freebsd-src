@@ -1,0 +1,9 @@
+IP (tos 0xc0, ttl 1, id 4106, offset 0, flags [none], proto OSPF (89), length 172)
+    40.35.1.2 > 224.0.0.5: OSPFv2, LS-Update, length 152
+	Router-ID 10.255.245.35, Backbone Area, Authentication Type: none (0), 1 LSA
+	  LSA #1
+	  Advertising Router 10.255.245.37, seq 0x80000002, age 9s, length 104
+	    Area Local Opaque LSA (10), Opaque-Type Traffic Engineering LSA (1), Opaque-ID 9
+	    Options: [External]
+	    Link TLV (2), length: 100
+	      Bandwidth Constraints subTLV (17), length: 1 < 4 (invalid)

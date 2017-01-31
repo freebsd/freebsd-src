@@ -1,0 +1,20 @@
+MEDSA 0.2:0: STP 802.1d, Config, Flags [none], bridge-id 8000.26:a1:fb:92:da:73.8001, length 43
+MEDSA 0.3:0: IP 10.0.0.12.59483 > 198.110.48.12.123: NTPv4, Client, length 48
+MEDSA 0.3:0: IP 198.110.48.12.123 > 10.0.0.12.59483: NTPv4, Server, length 48
+MEDSA 0.2:0: STP 802.1d, Config, Flags [none], bridge-id 8000.26:a1:fb:92:da:73.8001, length 43
+MEDSA 0.2:0: STP 802.1d, Config, Flags [none], bridge-id 8000.26:a1:fb:92:da:73.8001, length 43
+MEDSA 0.3:0: IP 10.0.0.12.59809 > 66.228.42.59.123: NTPv4, Client, length 48
+MEDSA 0.3:0: IP 10.0.0.12.58880 > 199.102.46.76.123: NTPv4, Client, length 48
+MEDSA 0.3:0: IP 199.102.46.76.123 > 10.0.0.12.58880: NTPv4, Server, length 48
+MEDSA 0.3:0: IP 66.228.42.59.123 > 10.0.0.12.59809: NTPv4, Server, length 48
+MEDSA 0.2:0: STP 802.1d, Config, Flags [none], bridge-id 8000.26:a1:fb:92:da:73.8001, length 43
+MEDSA 0.3:0: IP 10.0.0.12.41068 > 208.97.140.69.123: NTPv4, Client, length 48
+MEDSA 0.3:0: IP 208.97.140.69.123 > 10.0.0.12.41068: NTPv4, Server, length 48
+MEDSA 0.2:0: STP 802.1d, Config, Flags [none], bridge-id 8000.26:a1:fb:92:da:73.8001, length 43
+MEDSA 0.2:0: STP 802.1d, Config, Flags [none], bridge-id 8000.26:a1:fb:92:da:73.8001, length 43
+MEDSA 0.3:0: IP 10.0.0.12.68 > 10.0.0.1.67: BOOTP/DHCP, Request from 94:10:3e:80:bc:f3, length 300
+MEDSA 0.3:0: IP 10.0.0.1.67 > 10.0.0.12.68: BOOTP/DHCP, Reply, length 300
+MEDSA 0.2:0: STP 802.1d, Config, Flags [none], bridge-id 8000.26:a1:fb:92:da:73.8001, length 43
+MEDSA 0.2:0: STP 802.1d, Config, Flags [none], bridge-id 8000.26:a1:fb:92:da:73.8001, length 43
+MEDSA 0.3:0: IP 10.0.0.12.45651 > 171.66.97.126.123: NTPv4, Client, length 48
+MEDSA 0.3:0: IP 171.66.97.126.123 > 10.0.0.12.45651: NTPv4, Server, length 48

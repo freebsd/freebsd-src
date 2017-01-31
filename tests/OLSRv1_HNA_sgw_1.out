@@ -1,0 +1,13 @@
+IP (tos 0x10, ttl 1, id 25245, offset 0, flags [DF], proto UDP (17), length 100)
+    172.29.175.220.698 > 255.255.255.255.698: OLSRv4, seq 0xce93, length 72
+	HNA Message (0x04), originator 172.31.175.220, ttl 255, hop 0
+	  vtime 288.000s, msg-seq 0x6ce5, length 28
+	  Advertised networks (total 2)
+	    Smart-Gateway: LINKSPEED IPV4 IPV4-NAT 10000/10000, 10.175.220.0/24
+	Hello-LQ Message (0xc9), originator 172.31.175.220, ttl 1, hop 0
+	  vtime 3.000s, msg-seq 0x6ce6, length 40
+	  hello-time 1.000s, MPR willingness 3
+	    link-type Symmetric, neighbor-type Symmetric, len 12
+	      neighbor 172.29.175.221, link-quality 0.00%, neighbor-link-quality 0.00%
+	    link-type Unspecified, neighbor-type Symmetric, len 12
+	      neighbor 172.31.175.221, link-quality 0.00%, neighbor-link-quality 0.00%

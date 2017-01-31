@@ -41,8 +41,8 @@ RSC=rc.exe
 # PROP Intermediate_Dir "Release"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /W3 /GX /O2 /I "../../../winpcap/wpcap/libpcap/bpf" /I "../../../winpcap/wpcap/libpcap" /I "../../../winpcap/wpcap/libpcap/Win32/Include" /I "../../../winpcap/wpcap/libpcap/Win32/Include/net" /I "../../Win32/Include" /I "../../linux-Include" /I "../../lbl" /I "../../" /I "../../../winpcap/wpcap/win32-extensions" /D "NDEBUG" /D "INET6" /D "WIN32" /D "_MBCS" /D "_CONSOLE" /D "__STDC__" /D "WPCAP" /D HAVE_ADDRINFO=1 /D HAVE_SOCKADDR_STORAGE=1 /D HAVE_PCAP_LIST_DATALINKS=1 /D HAVE_PCAP_SET_DATALINK=1 /D HAVE_PCAP_DATALINK_NAME_TO_VAL=1 /D HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION=1 /D HAVE_PCAP_DUMP_FTELL=1 /D HAVE_BPF_DUMP=1 /D HAVE_PCAP_DUMP_FLUSH=1 /D HAVE_PCAP_FINDALLDEVS=1 /D HAVE_PCAP_IF_T=1 /D HAVE_PCAP_LIB_VERSION=1 /D "HAVE_REMOTE" /D _U_= /DUSE_ETHER_NTOHOST /YX /FD /c
+# ADD BASE CPP /nologo /W3 /GX /O2 /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
+# ADD CPP /nologo /W3 /GX /O2 /I "../../../winpcap/wpcap/libpcap/bpf" /I "../../../winpcap/wpcap/libpcap" /I "../../../winpcap/wpcap/libpcap/Win32/Include" /I "../../../winpcap/wpcap/libpcap/Win32/Include/net" /I "../../lbl" /I "../../" /I "../../../winpcap/wpcap/win32-extensions" /D "NDEBUG" /D "_MBCS" /D "_CONSOLE" /D "__STDC__" /D "WPCAP" /D HAVE_PCAP_LIST_DATALINKS=1 /D HAVE_PCAP_SET_DATALINK=1 /D HAVE_PCAP_DATALINK_NAME_TO_VAL=1 /D HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION=1 /D HAVE_PCAP_DUMP_FTELL=1 /D HAVE_BPF_DUMP=1 /D HAVE_PCAP_DUMP_FLUSH=1 /D HAVE_PCAP_FINDALLDEVS=1 /D HAVE_PCAP_IF_T=1 /D HAVE_PCAP_LIB_VERSION=1 /D "HAVE_REMOTE" /D _U_= /DUSE_ETHER_NTOHOST /YX /FD /c
 # ADD BASE RSC /l 0x410 /d "NDEBUG"
 # ADD RSC /l 0x410 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -65,8 +65,8 @@ LINK32=link.exe
 # PROP Intermediate_Dir "Debug"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /W3 /Gm /Gi /GX /ZI /I "../../../winpcap/wpcap/libpcap/bpf" /I "../../../winpcap/wpcap/libpcap" /I "../../../winpcap/wpcap/libpcap/Win32/Include" /I "../../../winpcap/wpcap/libpcap/Win32/Include/net" /I "../../Win32/Include" /I "../../linux-Include" /I "../../lbl" /I "../../" /I "../../../winpcap/wpcap/win32-extensions" /D "_DEBUG" /D "_WINDOWS" /D "INET6" /D "WIN32" /D "_MBCS" /D "_CONSOLE" /D "__STDC__" /D "WPCAP" /D HAVE_ADDRINFO=1 /D HAVE_SOCKADDR_STORAGE=1 /D HAVE_PCAP_LIST_DATALINKS=1 /D HAVE_PCAP_SET_DATALINK=1 /D HAVE_PCAP_DATALINK_NAME_TO_VAL=1 /D HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION=1 /D HAVE_PCAP_DUMP_FTELL=1 /D HAVE_BPF_DUMP=1 /D HAVE_PCAP_DUMP_FLUSH=1 /D HAVE_PCAP_FINDALLDEVS=1 /D HAVE_PCAP_IF_T=1 /D HAVE_PCAP_LIB_VERSION=1 /D "HAVE_REMOTE" /D _U_= /DUSE_ETHER_NTOHOST /FR /YX /FD /c
+# ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
+# ADD CPP /nologo /W3 /Gm /Gi /GX /ZI /I "../../../winpcap/wpcap/libpcap/bpf" /I "../../../winpcap/wpcap/libpcap" /I "../../../winpcap/wpcap/libpcap/Win32/Include" /I "../../../winpcap/wpcap/libpcap/Win32/Include/net" /I "../../Win32/Include" /I "../../lbl" /I "../../" /I "../../../winpcap/wpcap/win32-extensions" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_CONSOLE" /D "__STDC__" /D "WPCAP" /D HAVE_PCAP_LIST_DATALINKS=1 /D HAVE_PCAP_SET_DATALINK=1 /D HAVE_PCAP_DATALINK_NAME_TO_VAL=1 /D HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION=1 /D HAVE_PCAP_DUMP_FTELL=1 /D HAVE_BPF_DUMP=1 /D HAVE_PCAP_DUMP_FLUSH=1 /D HAVE_PCAP_FINDALLDEVS=1 /D HAVE_PCAP_IF_T=1 /D HAVE_PCAP_LIB_VERSION=1 /D "HAVE_REMOTE" /D _U_= /DUSE_ETHER_NTOHOST /FR /YX /FD /c
 # ADD BASE RSC /l 0x410 /d "_DEBUG"
 # ADD RSC /l 0x410 /d "_DEBUG"
 BSC32=bscmake.exe
@@ -89,7 +89,15 @@ SOURCE=..\..\addrtoname.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\addrtostr.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\af.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\ascii_strcasecmp.c
 # End Source File
 # Begin Source File
 
@@ -125,15 +133,7 @@ SOURCE=..\..\gmt2local.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\missing\inet_aton.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\missing\inet_ntop.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\missing\inet_pton.c
+SOURCE=..\..\in_cksum.c
 # End Source File
 # Begin Source File
 
@@ -165,11 +165,23 @@ SOURCE="..\..\print-802_11.c"
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\print-802_15_4.c
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-ah.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-ahcp.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-aodv.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-aoe.c"
 # End Source File
 # Begin Source File
 
@@ -197,6 +209,10 @@ SOURCE="..\..\print-atm.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-babel.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-beep.c"
 # End Source File
 # Begin Source File
@@ -214,6 +230,14 @@ SOURCE="..\..\print-bootp.c"
 # Begin Source File
 
 SOURCE="..\..\print-bt.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-calm-fast.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-carp.c"
 # End Source File
 # Begin Source File
 
@@ -289,6 +313,10 @@ SOURCE="..\..\print-fddi.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-forces.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-fr.c"
 # End Source File
 # Begin Source File
@@ -297,11 +325,27 @@ SOURCE="..\..\print-frag6.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-ftp.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-geneve.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-geonet.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-gre.c"
 # End Source File
 # Begin Source File
 
 SOURCE="..\..\print-hsrp.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-http.c"
 # End Source File
 # Begin Source File
 
@@ -338,6 +382,10 @@ SOURCE="..\..\print-ipcomp.c"
 # Begin Source File
 
 SOURCE="..\..\print-ipfc.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-ipnet.c"
 # End Source File
 # Begin Source File
 
@@ -385,6 +433,10 @@ SOURCE="..\..\print-lmp.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-loopback.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-lspping.c"
 # End Source File
 # Begin Source File
@@ -394,6 +446,14 @@ SOURCE="..\..\print-lwapp.c"
 # Begin Source File
 
 SOURCE="..\..\print-lwres.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-m3ua.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-medsa.c"
 # End Source File
 # Begin Source File
 
@@ -413,11 +473,19 @@ SOURCE="..\..\print-mpls.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-mptcp.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-msdp.c"
 # End Source File
 # Begin Source File
 
-SOURCE="..\..\print-netbios.c"
+SOURCE="..\..\print-msnlb.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-nflog.c"
 # End Source File
 # Begin Source File
 
@@ -437,6 +505,14 @@ SOURCE="..\..\print-olsr.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-openflow-1.0.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-openflow.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-ospf.c"
 # End Source File
 # Begin Source File
@@ -445,11 +521,23 @@ SOURCE="..\..\print-ospf6.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-otv.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-pgm.c"
 # End Source File
 # Begin Source File
 
 SOURCE="..\..\print-pim.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-pktap.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-ppi.c"
 # End Source File
 # Begin Source File
 
@@ -497,6 +585,10 @@ SOURCE="..\..\print-rt6.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-rtsp.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-rx.c"
 # End Source File
 # Begin Source File
@@ -529,11 +621,19 @@ SOURCE="..\..\print-smb.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-smtp.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-snmp.c"
 # End Source File
 # Begin Source File
 
 SOURCE="..\..\print-stp.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\missing\strdup.c"
 # End Source File
 # Begin Source File
 
@@ -569,6 +669,10 @@ SOURCE="..\..\print-timed.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-tipc.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-token.c"
 # End Source File
 # Begin Source File
@@ -578,6 +682,10 @@ SOURCE="..\..\print-udld.c"
 # Begin Source File
 
 SOURCE="..\..\print-udp.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-usb.c"
 # End Source File
 # Begin Source File
 
@@ -597,6 +705,10 @@ SOURCE="..\..\print-vtp.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\..\print-vxlan.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\..\print-wb.c"
 # End Source File
 # Begin Source File
@@ -613,10 +725,6 @@ SOURCE=..\..\smbutil.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\strcasecmp.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\missing\strlcat.c
 # End Source File
 # Begin Source File
@@ -629,11 +737,31 @@ SOURCE=..\..\missing\strsep.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\Tcpdump.c
+SOURCE=..\..\tcpdump.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\Src\ether_ntohost.c
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print-zeromq.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\print.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\signature.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\strtoaddr.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\util-print.c"
 # End Source File
 # Begin Source File
 

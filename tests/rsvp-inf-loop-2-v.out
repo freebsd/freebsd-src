@@ -1,0 +1,12 @@
+IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto RSVP (46), length 268, options (RA))
+    10.31.0.1 > 10.33.0.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 244, ttl: 254, checksum: 0x0ca3
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 10.33.0.1, Tunnel ID: 0x0004, Extended Tunnel ID: 10.31.0.1
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.1.2.1, Logical Interface Handle: 0x98006700
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 30000ms
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 36
+	    Subobject Type: IPv4 prefix, length 8, Strict, 10.1.2.2/32, Flags: [none]
+	    Subobject Type: IPv4 prefix, length 8 ERROR: Prefix length 70 != 32 (invalid)

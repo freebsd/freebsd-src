@@ -18,23 +18,23 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * Format and print ntp packets.
  *	By Jeffrey Mogul/DECWRL
  *	loosely based on print-bootp.c
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Network Time Protocol (NTP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #ifdef HAVE_STRFTIME
 #include <time.h>
 #endif
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -207,7 +207,7 @@ ntp_print(netdissect_options *ndo,
 	register const struct ntpdata *bp;
 	int mode, version, leapind;
 
-	bp = (struct ntpdata *)cp;
+	bp = (const struct ntpdata *)cp;
 
 	ND_TCHECK(bp->status);
 
@@ -261,7 +261,7 @@ ntp_print(netdissect_options *ndo,
 		break;
 
 	case PRIM_REF:
-		if (fn_printn(ndo, (u_char *)&(bp->refid), 4, ndo->ndo_snapend))
+		if (fn_printn(ndo, (const u_char *)&(bp->refid), 4, ndo->ndo_snapend))
 			goto trunc;
 		break;
 
@@ -327,12 +327,12 @@ p_sfix(netdissect_options *ndo,
 {
 	register int i;
 	register int f;
-	register float ff;
+	register double ff;
 
 	i = EXTRACT_16BITS(&sfp->int_part);
 	f = EXTRACT_16BITS(&sfp->fraction);
-	ff = f / 65536.0;	/* shift radix point by 16 bits */
-	f = ff * 1000000.0;	/* Treat fraction as parts per million */
+	ff = f / 65536.0;		/* shift radix point by 16 bits */
+	f = (int)(ff * 1000000.0);	/* Treat fraction as parts per million */
 	ND_PRINT((ndo, "%d.%06d", i, f));
 }
 
@@ -345,15 +345,15 @@ p_ntp_time(netdissect_options *ndo,
 	register int32_t i;
 	register uint32_t uf;
 	register uint32_t f;
-	register float ff;
+	register double ff;
 
 	i = EXTRACT_32BITS(&lfp->int_part);
 	uf = EXTRACT_32BITS(&lfp->fraction);
 	ff = uf;
 	if (ff < 0.0)		/* some compilers are buggy */
 		ff += FMAXINT;
-	ff = ff / FMAXINT;	/* shift radix point by 32 bits */
-	f = ff * 1000000000.0;	/* treat fraction as parts per billion */
+	ff = ff / FMAXINT;			/* shift radix point by 32 bits */
+	f = (uint32_t)(ff * 1000000000.0);	/* treat fraction as parts per billion */
 	ND_PRINT((ndo, "%u.%09d", i, f));
 
 #ifdef HAVE_STRFTIME
@@ -382,7 +382,7 @@ p_ntp_delta(netdissect_options *ndo,
 	register uint32_t u, uf;
 	register uint32_t ou, ouf;
 	register uint32_t f;
-	register float ff;
+	register double ff;
 	int signbit;
 
 	u = EXTRACT_32BITS(&lfp->int_part);
@@ -420,8 +420,8 @@ p_ntp_delta(netdissect_options *ndo,
 	ff = f;
 	if (ff < 0.0)		/* some compilers are buggy */
 		ff += FMAXINT;
-	ff = ff / FMAXINT;	/* shift radix point by 32 bits */
-	f = ff * 1000000000.0;	/* treat fraction as parts per billion */
+	ff = ff / FMAXINT;			/* shift radix point by 32 bits */
+	f = (uint32_t)(ff * 1000000000.0);	/* treat fraction as parts per billion */
 	ND_PRINT((ndo, "%s%d.%09d", signbit ? "-" : "+", i, f));
 }
 

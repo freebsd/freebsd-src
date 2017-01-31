@@ -1,0 +1,36 @@
+IP (tos 0x0, ttl 255, id 9459, offset 0, flags [none], proto UDP (17), length 422)
+    62.12.173.121.67 > 62.12.173.114.67: [udp sum ok] BOOTP/DHCP, Request from b8:27:eb:b8:53:c8, length 394, hops 1, xid 0x68c4847, Flags [none] (0x0000)
+	  Client-IP 62.12.173.123
+	  Gateway-IP 62.12.173.121
+	  Client-Ethernet-Address b8:27:eb:b8:53:c8
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message Option 53, length 1: Request
+	    Client-ID Option 61, length 7: ether b8:27:eb:b8:53:c8
+	    MSZ Option 57, length 2: 1472
+	    MUD-URL Option 161, length 54: "https://mudctl.example.com/.well-known/mud/v1/rasbp101"
+	    Vendor-Class Option 60, length 45: "dhcpcd-6.11.5:Linux-4.1.18-v7+:armv7l:BCM2709"
+	    Hostname Option 12, length 11: "raspberrypi"
+	    T145 Option 145, length 1: 1
+	    Parameter-Request Option 55, length 16: 
+	      Subnet-Mask, Classless-Static-Route, Static-Route, Default-Gateway
+	      Domain-Name-Server, Hostname, Domain-Name, BR
+	      NTP, Lease-Time, Server-ID, RN
+	      RB, POSIX-TZ, TZ-Name, Option 119
+IP (tos 0x0, ttl 64, id 10305, offset 0, flags [DF], proto UDP (17), length 338)
+    62.12.173.114.67 > 62.12.173.121.67: [udp sum ok] BOOTP/DHCP, Reply, length 310, hops 1, xid 0x68c4847, Flags [none] (0x0000)
+	  Client-IP 62.12.173.123
+	  Your-IP 62.12.173.123
+	  Server-IP 62.12.173.114
+	  Gateway-IP 62.12.173.121
+	  Client-Ethernet-Address b8:27:eb:b8:53:c8
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message Option 53, length 1: ACK
+	    Server-ID Option 54, length 4: 62.12.173.114
+	    Lease-Time Option 51, length 4: 600
+	    Subnet-Mask Option 1, length 4: 255.255.255.248
+	    Default-Gateway Option 3, length 4: 62.12.173.121
+	    Domain-Name-Server Option 6, length 4: 62.12.173.114
+	    Domain-Name Option 15, length 19: "ofcourseimright.com"
+	    TZ-Name Option 101, length 13: "Europe/Berlin"

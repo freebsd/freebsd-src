@@ -1,0 +1,8 @@
+IS-IS, length 43
+	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
+	  lsp-id: 1280.9201.9098.00-00, seq: 0x000001e2, lifetime:     0s
+	  chksum: 0x0000 (unverified), PDU length: 43, Flags: [ L2 IS ]
+	    Purge Originator Identifier TLV #13, length: 7
+	      Purge Originator System-ID: 1280.9202.0074
+	    Hostname TLV #137, length: 5
+	      Hostname: P2_re

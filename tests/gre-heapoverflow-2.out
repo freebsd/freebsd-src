@@ -1,0 +1,6 @@
+30:30:30:30:30:30 > 30:30:30:30:30:30, ethertype Unknown (0x3030), length 808464432: 
+	0x0000:  3030 3030 3030 3030 3030 3030 3030 3030  0000000000000000
+	0x0010:  3030 3030 3030 3030 3030 3030 3030 3030  0000000000000000
+	0x0020:  3030                                     00
+IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto GRE (47), length 12336, bad cksum 3030 (->697f)!)
+    48.48.48.48 > 48.48.48.48: GREv0, Flags [checksum present, routing present], sum 0x3030, off 0x3030, (rtaf=0x3030)[|gre]

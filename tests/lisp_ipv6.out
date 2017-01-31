@@ -1,0 +1,24 @@
+IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 168)
+    192.168.0.105.4342 > 127.0.0.1.4342: LISP-Map-Register, flags [I-xTR-ID-Present, M-Want-Map-Notify],
+    2 record(s), Authentication SHA1,
+    Authentication-Data: 0x0000:  4bbb 9614 a67a 8604 0407 7995 4537 1906
+    Authentication-Data: 0x0010:  836c d1d6
+      Record TTL 1440, Authoritative, No-Action, Map Version: 0, EID 2001:db8:85a3::8a2e:370:7334/80, 1 locator(s)
+        LOC 20.20.8.253
+          Priority/Weight 1/100, Multicast Priority/Weight 1/100, flags [none],
+      Record TTL 1440, Authoritative, No-Action, Map Version: 0, EID 2001:db8:95a3::8a2e:370:7334/80, 1 locator(s)
+        LOC 20.20.8.251
+          Priority/Weight 1/100, Multicast Priority/Weight 1/100, flags [none],
+    xTR-ID: 0x0000:  9787 ad75 3caf 58a7 13fa 6920 e6d2 7a8f
+    SITE-ID: 0
+IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 144)
+    192.168.0.105.4342 > 127.0.0.1.4342: LISP-Map-Notify, flags [none],
+    2 record(s), Authentication SHA1,
+    Authentication-Data: 0x0000:  4bbb 9614 a67a 8604 0407 7995 4537 1906
+    Authentication-Data: 0x0010:  836c d1d6
+      Record TTL 1440, Authoritative, No-Action, Map Version: 0, EID 2001:db8:85a3::8a2e:370:7334/80, 1 locator(s)
+        LOC 20.20.8.253
+          Priority/Weight 1/100, Multicast Priority/Weight 1/100, flags [none],
+      Record TTL 1440, Authoritative, No-Action, Map Version: 0, EID 2001:db8:95a3::8a2e:370:7334/80, 1 locator(s)
+        LOC 20.20.8.251
+          Priority/Weight 1/100, Multicast Priority/Weight 1/100, flags [none],

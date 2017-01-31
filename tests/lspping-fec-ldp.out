@@ -1,0 +1,13 @@
+MPLS (label 100656, exp 6, [S], ttl 64) IP 12.4.4.4.4100 > 12.8.8.8.179: Flags [P.], seq 1860641958:1860641977, ack 2969468967, win 16384, options [nop,nop,TS val 84784152 ecr 84770238], length 19: BGP
+MPLS (label 100688, exp 7, [S], ttl 255) IP 12.4.4.4.4786 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 1, length: 48
+IP 10.20.0.1.3503 > 12.4.4.4.4786: LSP-PINGv1, MPLS Echo Reply, seq 1, length: 32
+MPLS (label 100704, exp 6, [S], ttl 64) IP 12.4.4.4.2006 > 12.1.1.1.179: Flags [P.], seq 399708866:399708885, ack 708613212, win 16384, options [nop,nop,TS val 84784455 ecr 130411], length 19: BGP
+MPLS (label 100704, exp 6, [S], ttl 64) IP 12.4.4.4.2006 > 12.1.1.1.179: Flags [.], ack 20, win 16384, options [nop,nop,TS val 84784465 ecr 133413], length 0
+MPLS (label 100688, exp 7, [S], ttl 255) IP 12.4.4.4.4786 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 2, length: 48
+IP 10.20.0.1.3503 > 12.4.4.4.4786: LSP-PINGv1, MPLS Echo Reply, seq 2, length: 32
+MPLS (label 100688, exp 7, [S], ttl 255) IP 12.4.4.4.4786 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 3, length: 48
+IP 10.20.0.1.3503 > 12.4.4.4.4786: LSP-PINGv1, MPLS Echo Reply, seq 3, length: 32
+MPLS (label 100688, exp 7, [S], ttl 255) IP 12.4.4.4.4786 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 4, length: 48
+IP 10.20.0.1.3503 > 12.4.4.4.4786: LSP-PINGv1, MPLS Echo Reply, seq 4, length: 32
+MPLS (label 100688, exp 7, [S], ttl 255) IP 12.4.4.4.4786 > 127.0.0.1.3503: LSP-PINGv1, MPLS Echo Request, seq 5, length: 48
+IP 10.20.0.1.3503 > 12.4.4.4.4786: LSP-PINGv1, MPLS Echo Reply, seq 5, length: 32

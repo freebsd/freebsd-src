@@ -10,7 +10,7 @@ then
 	# Reading the secret(s) from a file does not work with Capsicum.
 	if grep '^#define HAVE_CAPSICUM 1$' ../config.h >/dev/null
 	then
-		FORMAT='    %-30s: TEST SKIPPED (compiled w/Capsicum)\n'
+		FORMAT='    %-35s: TEST SKIPPED (compiled w/Capsicum)\n'
 		printf "$FORMAT" esp4
 		printf "$FORMAT" esp5
 		printf "$FORMAT" espudp1
@@ -24,7 +24,7 @@ then
 		./TESTonce isakmp4 isakmp4500.pcap isakmp4.out '-t -E "file esp-secrets.txt"'
 	fi
 else
-	FORMAT='    %-30s: TEST SKIPPED (compiled w/o OpenSSL)\n'
+	FORMAT='    %-35s: TEST SKIPPED (compiled w/o OpenSSL)\n'
 	printf "$FORMAT" esp1
 	printf "$FORMAT" esp2
 	printf "$FORMAT" esp3

@@ -1,0 +1,222 @@
+IS-IS, length 1497
+	L1 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
+	  source-id: 3333.3333.3333,  holding time: 10s, Flags: [unknown circuit type 0x21]
+	  lan-id:    3333.5a33.3333.02, Priority: 64, PDU length: 1497
+	    Multi-Topology Capability TLV #144, length: 1
+	      O: 1, RES: 4, MTID(s): 3073
+	      unknown subTLV #4, length: 3
+	      unknown subTLV #73, length: 0
+	      unknown subTLV #10, length: 132
+	      unknown subTLV #4, length: 10
+	      unknown subTLV #0, length: 10
+	      unknown subTLV #0, length: 55
+	      SPBM Service Identifier and Unicast Address subTLV #3, length: 0
+	        BMAC: 00000606c201, RES: 2, VID: 2456
+	      unknown subTLV #204, length: 83
+	      unknown subTLV #8, length: 191
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #82, length: 0
+	      unknown subTLV #0, length: 86
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #37, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 37
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 108
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #37, length: 0
+	      unknown subTLV #48, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #37, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #172, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #76, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 90
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 90
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #37, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 107
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 37
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #2, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #37, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 92
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #113, length: 90
+	      unknown subTLV #0, length: 230
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #79, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #234, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #64, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #37, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #37, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #2, length: 0
+	      unknown subTLV #0, length: 0
+	      unknown subTLV #0, length: 0
+	    Area address(es) TLV #1, length: 4
+	      Area address (length: 3): 49.000a
+	    IPv4 Interface address(es) TLV #132, length: 4
+	      IPv4 interface address: 10.0.10.0
+	    unknown TLV #55, length: 3
+		0x0000:  0000 00
+	    IS Neighbor(s) TLV #6, length: 6
+	      SNPA: c201.2998.cc53
+	    Padding TLV #8, length: 191
+	    unknown TLV #0, length: 0
+	    unknown TLV #0, length: 0
+	    unknown TLV #0, length: 0
+	    unknown TLV #0, length: 0
+	    unknown TLV #0, length: 0
+	    unknown TLV #0, length: 37
+		0x0000:  0000 0000 0000 0025 0000 0000 0000 0000
+		0x0010:  0000 0002 0000 0000 0000 0000 0000 0000
+		0x0020:  0000 7300 1e
+	    unknown TLV #0, length: 0
+	    unknown TLV #0, length: 170
+		0x0000:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0010:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0020:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0030:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0040:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0050:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0060:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0070:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0080:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0090:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x00a0:  aaaa aaaa aaaa aaaa aaaa
+	    unknown TLV #170, length: 170
+		0x0000:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0010:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0020:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0030:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0040:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0050:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0060:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0070:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0080:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0090:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x00a0:  aaaa aaaa aaaa aaaa aaaa
+	    unknown TLV #170, length: 170
+		0x0000:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0010:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0020:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0030:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0040:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0050:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0060:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0070:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0080:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0090:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x00a0:  aaaa aaaa aaaa aaaa aaaa
+	    unknown TLV #170, length: 170
+		0x0000:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0010:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0020:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0030:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0040:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0050:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0060:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0070:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0080:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0090:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x00a0:  aaaa aaaa aaaa aaaa aaaa
+	    unknown TLV #170, length: 170
+		0x0000:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0010:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0020:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0030:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0040:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0050:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0060:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0070:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0080:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0090:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x00a0:  aaaa aaaa aaaa aaaa aaaa
+	    unknown TLV #170, length: 170
+		0x0000:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0010:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0020:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0030:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0040:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0050:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0060:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0070:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0080:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x0090:  aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa
+		0x00a0:  aaaa aaaa aaaa aaaa aaaa
+	      164 straggler bytes

@@ -1,0 +1,24 @@
+Q.922, invalid address
+UI 00! Q.922, hdr-len 4, DLCI 5769024, Flags [none], NLPID unknown (0x11), length 41: 
+	0x0000:  886b 68                                  .kh
+Q.922, invalid address
+UI 00! Q.922, hdr-len 4, DLCI 5769024, Flags [none], NLPID unknown (0x14), length 160: 
+	0x0000:  a530 b0                                  .0.
+Q.922, invalid address
+UI 00! Q.922, hdr-len 4, DLCI 5801792, Flags [none], NLPID unknown (0x11), length 179: 
+	0x0000:  886b 68                                  .kh
+Q.922, invalid address
+UI 00! Q.922, hdr-len 4, DLCI 5769024, Flags [none], NLPID unknown (0x14), length 30: 
+	0x0000:  a530 b0                                  .0.
+Q.922, invalid address
+UI 00! Q.922, hdr-len 4, DLCI 1856, Flags [none], NLPID unknown (0x11), length 85: 
+	0x0000:  886b 68                                  .kh
+Q.922, invalid address
+Q.922, invalid address
+UI 00! Q.922, hdr-len 4, DLCI 526144, Flags [none], NLPID unknown (0x14), length 46: 
+	0x0000:  a530 b0                                  .0.
+Q.922, invalid address
+UI 2c! Pad! Q.922, hdr-len 2, DLCI 288, Flags [none], NLPID NULL (0x00), length 24: 
+	0x0000:  1188 6b68                                ..kh
+Q.922, invalid address
+UI 2c! Pad! Q.933, CCITT, codeset 0[|q.933]

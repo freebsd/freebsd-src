@@ -1,0 +1,53 @@
+IP6 (hlim 1, next-header UDP (17) payload length: 32) fe80::218:f3ff:fea9:914e.8231 > ff02::11.8231: [udp sum ok] hncp (24)
+	Node endpoint (12) NID: 31:da:78:d2 EPID: 03000000
+	Network state (12) hash: 2ae5f77255200bcc
+IP6 (hlim 64, next-header UDP (17) payload length: 12) fe80::21e:64ff:fe23:4d34.8231 > fe80::218:f3ff:fea9:914e.8231: [udp sum ok] hncp (4)
+	Request network state (4)
+IP6 (hlim 64, next-header UDP (17) payload length: 80) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [udp sum ok] hncp (72)
+	Node endpoint (12) NID: 31:da:78:d2 EPID: 03000000
+	Network state (12) hash: 2ae5f77255200bcc
+	Node state (24) NID: 31:da:78:d2 seqno: 19 160.088s hash: 800088c8e0714638
+	Node state (24) NID: 61:69:ed:63 seqno: 12 969.681s hash: 011fffa1da966148
+IP6 (hlim 64, next-header UDP (17) payload length: 16) fe80::21e:64ff:fe23:4d34.8231 > fe80::218:f3ff:fea9:914e.8231: [udp sum ok] hncp (8)
+	Request node state (8) NID: 31:da:78:d2
+IP6 (hlim 64, next-header UDP (17) payload length: 16) fe80::21e:64ff:fe23:4d34.8231 > fe80::218:f3ff:fea9:914e.8231: [udp sum ok] hncp (8)
+	Request node state (8) NID: 61:69:ed:63
+IP6 (hlim 64, next-header UDP (17) payload length: 332) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [udp sum ok] hncp (324)
+	Node endpoint (12) NID: 31:da:78:d2 EPID: 03000000
+	Node state (312) NID: 31:da:78:d2 seqno: 19 160.105s hash: 800088c8e0714638
+		Peer (16) Peer-NID: 61:69:ed:63 Peer-EPID: 01000000 Local-EPID: 01000000
+		HNCP-Version (22) M: 0 P: 4 H: 4 L: 4 User-agent: hnetd/cac971d
+		External-Connection (52)
+			Delegated-Prefix (36) VLSO: 0.599s PLSO: 0.299s Prefix: 10.0.0.0/8
+				Prefix-Policy (5) type: Internet connectivity
+			DHCPv4-Data (10)
+				DNS-server (6) 192.168.1.254
+		Assigned-Prefix (18) EPID: 03000000 Prty: 2 Prefix: fd1f:f88c:e207:dbbc::/64
+		Assigned-Prefix (25) EPID: 01000000 Prty: 2 Prefix: 10.0.99.0/24
+		Assigned-Prefix (25) EPID: 03000000 Prty: 2 Prefix: 10.0.101.0/24
+		Node-Address (24) EPID: 01000000 IP Address: 10.0.99.2
+		Node-Address (24) EPID: 01000000 IP Address: fd1f:f88c:e207::2
+		Node-Address (24) EPID: 03000000 IP Address: 10.0.101.27
+		Node-Address (24) EPID: 03000000 IP Address: fd1f:f88c:e207:dbbc::1b
+		Node-Name (23) IP-Address: 10.0.101.27 Name: "r1"
+IP6 (hlim 64, next-header UDP (17) payload length: 564) fe80::218:f3ff:fea9:914e.8231 > fe80::21e:64ff:fe23:4d34.8231: [udp sum ok] hncp (556)
+	Node endpoint (12) NID: 31:da:78:d2 EPID: 03000000
+	Node state (544) NID: 61:69:ed:63 seqno: 12 969.699s hash: 011fffa1da966148
+		Peer (16) Peer-NID: 31:da:78:d2 Peer-EPID: 01000000 Local-EPID: 01000000
+		HNCP-Version (22) M: 0 P: 4 H: 4 L: 4 User-agent: hnetd/cac971d
+		External-Connection (23)
+			Delegated-Prefix (19) VLSO: 0.599s PLSO: 0.299s Prefix: fd1f:f88c:e207::/48
+		Assigned-Prefix (18) EPID: 01000000 Prty: 2 Prefix: fd1f:f88c:e207::/64
+		Assigned-Prefix (18) EPID: 03000000 Prty: 2 Prefix: fd1f:f88c:e207:17::/64
+		Assigned-Prefix (25) EPID: 03000000 Prty: 2 Prefix: 10.0.116.0/24
+		Node-Address (24) EPID: 01000000 IP Address: 10.0.99.41
+		Node-Address (24) EPID: 01000000 IP Address: fd1f:f88c:e207::69
+		Node-Address (24) EPID: 03000000 IP Address: 10.0.116.44
+		Node-Address (24) EPID: 03000000 IP Address: fd1f:f88c:e207:17::6c
+		DNS-Delegated-Zone (33) IP-Address: fd1f:f88c:e207::69 lb- lan.r.home
+		DNS-Delegated-Zone (35) IP-Address: fd1f:f88c:e207:17::6c lb- wlan0.r.home
+		DNS-Delegated-Zone (44) IP-Address: fd1f:f88c:e207:17::6c --- 116.0.10.in-addr.arpa
+		DNS-Delegated-Zone (63) IP-Address: fd1f:f88c:e207::69 --- 0.0.0.0.7.0.2.e.c.8.8.f.f.1.d.f.ip6.arpa
+		DNS-Delegated-Zone (63) IP-Address: fd1f:f88c:e207:17::6c --- 7.1.0.0.7.0.2.e.c.8.8.f.f.1.d.f.ip6.arpa
+		Node-Name (22) IP-Address: 10.0.116.44 Name: "r"
+		Node-Name (22) IP-Address: fd1f:f88c:e207:17::6c Name: "r"

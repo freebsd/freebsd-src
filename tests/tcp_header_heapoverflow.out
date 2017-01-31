@@ -1,0 +1,2 @@
+IP (tos 0x30, ttl 48, id 12336, offset 0, flags [none], proto TCP (6), length 12336, bad cksum 3030 (->69a8)!)
+    48.48.48.48.12336 > 48.48.48.48.12336: [|tcp]

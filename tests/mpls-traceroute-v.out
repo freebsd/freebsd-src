@@ -1,0 +1,81 @@
+MPLS (label 100704, exp 0, [S], ttl 1)
+	IP (tos 0x0, ttl 1, id 42316, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33435: UDP, length 12
+IP (tos 0x0, ttl 255, id 5014, offset 0, flags [DF], proto ICMP (1), length 168)
+    10.5.0.1 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+	IP (tos 0x0, ttl 1, id 42316, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33435: UDP, length 12
+	MPLS extension v2, checksum 0xc55f (correct), length 12
+	  MPLS Stack Entry Object (1), Class-Type: 1, length 8
+	    label 100704, exp 0, [S], ttl 1
+MPLS (label 100704, exp 0, [S], ttl 1)
+	IP (tos 0x0, ttl 1, id 42317, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33436: UDP, length 12
+IP (tos 0x0, ttl 255, id 5015, offset 0, flags [DF], proto ICMP (1), length 168)
+    10.5.0.1 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+	IP (tos 0x0, ttl 1, id 42317, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33436: UDP, length 12
+	MPLS extension v2, checksum 0xc55f (correct), length 12
+	  MPLS Stack Entry Object (1), Class-Type: 1, length 8
+	    label 100704, exp 0, [S], ttl 1
+MPLS (label 100704, exp 0, [S], ttl 1)
+	IP (tos 0x0, ttl 1, id 42318, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33437: UDP, length 12
+IP (tos 0x0, ttl 255, id 5016, offset 0, flags [DF], proto ICMP (1), length 168)
+    10.5.0.1 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+	IP (tos 0x0, ttl 1, id 42318, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33437: UDP, length 12
+	MPLS extension v2, checksum 0xc55f (correct), length 12
+	  MPLS Stack Entry Object (1), Class-Type: 1, length 8
+	    label 100704, exp 0, [S], ttl 1
+MPLS (label 100704, exp 0, [S], ttl 2)
+	IP (tos 0x0, ttl 2, id 42319, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33438: UDP, length 12
+IP (tos 0x0, ttl 254, id 59166, offset 0, flags [DF], proto ICMP (1), length 168)
+    10.4.0.2 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+	IP (tos 0x0, ttl 1, id 42319, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33438: UDP, length 12
+	MPLS extension v2, checksum 0xc4e4 (correct), length 12
+	  MPLS Stack Entry Object (1), Class-Type: 1, length 8
+	    label 102672, exp 0, [S], ttl 1
+MPLS (label 100704, exp 0, [S], ttl 2)
+	IP (tos 0x0, ttl 2, id 42320, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33439: UDP, length 12
+IP (tos 0x0, ttl 254, id 59167, offset 0, flags [DF], proto ICMP (1), length 168)
+    10.4.0.2 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+	IP (tos 0x0, ttl 1, id 42320, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33439: UDP, length 12
+	MPLS extension v2, checksum 0xc4e4 (correct), length 12
+	  MPLS Stack Entry Object (1), Class-Type: 1, length 8
+	    label 102672, exp 0, [S], ttl 1
+MPLS (label 100704, exp 0, [S], ttl 2)
+	IP (tos 0x0, ttl 2, id 42321, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33440: UDP, length 12
+IP (tos 0x0, ttl 254, id 59168, offset 0, flags [DF], proto ICMP (1), length 168)
+    10.4.0.2 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+	IP (tos 0x0, ttl 1, id 42321, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33440: UDP, length 12
+	MPLS extension v2, checksum 0xc4e4 (correct), length 12
+	  MPLS Stack Entry Object (1), Class-Type: 1, length 8
+	    label 102672, exp 0, [S], ttl 1
+MPLS (label 100704, exp 0, [S], ttl 3)
+	IP (tos 0x0, ttl 3, id 42322, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33441: UDP, length 12
+IP (tos 0x0, ttl 253, id 50599, offset 0, flags [DF], proto ICMP (1), length 56)
+    12.1.1.1 > 12.4.4.4: ICMP 12.1.1.1 udp port 33441 unreachable, length 36
+	IP (tos 0x0, ttl 1, id 42322, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33441: UDP, length 12
+MPLS (label 100704, exp 0, [S], ttl 3)
+	IP (tos 0x0, ttl 3, id 42323, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33442: UDP, length 12
+IP (tos 0x0, ttl 253, id 50600, offset 0, flags [DF], proto ICMP (1), length 56)
+    12.1.1.1 > 12.4.4.4: ICMP 12.1.1.1 udp port 33442 unreachable, length 36
+	IP (tos 0x0, ttl 1, id 42323, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33442: UDP, length 12
+MPLS (label 100704, exp 0, [S], ttl 3)
+	IP (tos 0x0, ttl 3, id 42324, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33443: UDP, length 12
+IP (tos 0x0, ttl 253, id 50601, offset 0, flags [DF], proto ICMP (1), length 56)
+    12.1.1.1 > 12.4.4.4: ICMP 12.1.1.1 udp port 33443 unreachable, length 36
+	IP (tos 0x0, ttl 1, id 42324, offset 0, flags [none], proto UDP (17), length 40)
+    12.4.4.4.42315 > 12.1.1.1.33443: UDP, length 12

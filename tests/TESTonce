@@ -36,11 +36,11 @@ else {
 }
 
 if($r == 0) {
-  printf "    %-30s: passed\n", $name;
+  printf "    %-35s: passed\n", $name;
   unlink "DIFF/$output.diff";
   exit 0;
 }
-printf "    %-30s: TEST FAILED", $name;
+printf "    %-35s: TEST FAILED", $name;
 open FOUT, '>>failure-outputs.txt';
 printf FOUT "Failed test: $name\n\n";
 close FOUT;
@@ -56,6 +56,8 @@ if($r == -1) {
 # this is not working right, $r == 0x8b00 when there is a core dump.
 # clearly, we need some platform specific perl magic to take this apart, so look for "core"
 # too.
+# In particular, on Solaris 10 SPARC an alignment problem results in SIGILL,
+# a core dump and $r set to 0x00008a00 ($? == 138 in the shell).
 if($r & 127 || -f "core") {
     my $with = ($r & 128) ? 'with' : 'without';
     if(-f "core") {

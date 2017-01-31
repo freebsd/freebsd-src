@@ -6,5 +6,5 @@ if grep '^#define HAVE_PCAP_NFLOG_H 1$' ../config.h >/dev/null
 then
   ./TESTonce nflog-e nflog.pcap nflog-e.out '-t -e'
 else
-	printf '    %-30s: TEST SKIPPED (compiled w/o NFLOG)\n' 'nflog-e'
+	printf '    %-35s: TEST SKIPPED (compiled w/o NFLOG)\n' 'nflog-e'
 fi
