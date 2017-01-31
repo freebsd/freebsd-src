@@ -15,14 +15,15 @@
  * Original code by Ola Martin Lykkja (ola.lykkja@q-free.com)
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Communication access for land mobiles (CALM) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 
 /*
@@ -36,19 +37,33 @@
  * to the calm header of the packet.
  */
 void
-calm_fast_print(netdissect_options *ndo, const u_char *eth, const u_char *bp, u_int length)
+calm_fast_print(netdissect_options *ndo, const u_char *bp, u_int length, const struct lladdr_info *src)
 {
-	int srcNwref = bp[0];
-	int dstNwref = bp[1];
+	int srcNwref;
+	int dstNwref;
+
+	ND_TCHECK2(*bp, 2);
+	if (length < 2)
+		goto trunc;
+	srcNwref = bp[0];
+	dstNwref = bp[1];
 	length -= 2;
 	bp += 2;
 
-	ND_PRINT((ndo, "CALM FAST src:%s; ", etheraddr_string(ndo, eth+6)));
+	ND_PRINT((ndo, "CALM FAST"));
+	if (src != NULL)
+		ND_PRINT((ndo, " src:%s", (src->addr_string)(ndo, src->addr)));
+	ND_PRINT((ndo, "; "));
 	ND_PRINT((ndo, "SrcNwref:%d; ", srcNwref));
 	ND_PRINT((ndo, "DstNwref:%d; ", dstNwref));
 
 	if (ndo->ndo_vflag)
 		ND_DEFAULTPRINT(bp, length);
+	return;
+
+trunc:
+	ND_PRINT((ndo, "[|calm fast]"));
+	return;
 }
 
 

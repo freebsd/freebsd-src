@@ -1,3 +1,5 @@
+# The Option -n is useless in TESTLIST. It is already set in TESTonce.
+
 # Various flags applied to a TCP session.
 #
 # We cannot rely on, for example, "print-x.out" and
@@ -20,12 +22,14 @@ print-AA	print-flags.pcap	print-AA.out	-t -AA
 bgp_vpn_attrset bgp_vpn_attrset.pcap bgp_vpn_attrset.out -t -v
 mpbgp-linklocal-nexthop mpbgp-linklocal-nexthop.pcap mpbgp-linklocal-nexthop.out -t -v
 bgp_infloop-v		bgp-infinite-loop.pcap		bgp_infloop-v.out	-t -v
+bgp-aigp	bgp-aigp.pcap	bgp-aigp.out	-t -v
+bgp-large-community bgp-large-community.pcap bgp-large-community.out -t -v
 
 # EAP tests
 eapon1 eapon1.pcap eapon1.out -t
 
 # ESP tests
-esp0 02-sunrise-sunset-esp.pcap esp0.out -t -n
+esp0 02-sunrise-sunset-esp.pcap esp0.out -t
 # more ESP tests in crypto.sh
 
 # ISAKMP tests
@@ -42,6 +46,14 @@ lmp		lmp.pcap		lmp.out -t -T lmp
 # MPLS tests
 mpls-ldp-hello	mpls-ldp-hello.pcap	mpls-ldp-hello.out -t -v
 ldp_infloop	ldp-infinite-loop.pcap	ldp_infloop.out -t
+lspping-fec-ldp    lspping-fec-ldp.pcap lspping-fec-ldp.out -t
+lspping-fec-ldp-v  lspping-fec-ldp.pcap lspping-fec-ldp-v.out -t -v
+lspping-fec-ldp-vv lspping-fec-ldp.pcap lspping-fec-ldp-vv.out -t -vv
+lspping-fec-rsvp    lspping-fec-rsvp.pcap lspping-fec-rsvp.out -t
+lspping-fec-rsvp-v  lspping-fec-rsvp.pcap lspping-fec-rsvp-v.out -t -v
+lspping-fec-rsvp-vv lspping-fec-rsvp.pcap lspping-fec-rsvp-vv.out -t -vv
+mpls-traceroute   mpls-traceroute.pcap mpls-traceroute.out -t
+mpls-traceroute-v mpls-traceroute.pcap mpls-traceroute-v.out -t -v
 
 # OSPF tests
 ospf-gmpls	ospf-gmpls.pcap				ospf-gmpls.out		-t -v
@@ -50,12 +62,16 @@ ospf3_auth-vv	ospf3_auth.pcap				ospf3_auth-vv.out 	-t -v -v
 ospf3_bc-vv	OSPFv3_broadcast_adjacency.pcap		ospf3_bc-vv.out		-t -v -v
 ospf3_mp-vv	OSPFv3_multipoint_adjacencies.pcap	ospf3_mp-vv.out		-t -v -v
 ospf3_nbma-vv	OSPFv3_NBMA_adjacencies.pcap		ospf3_nbma-vv.out	-t -v -v
+# fuzzed pcap
+ospf2-seg-fault-1-v  ospf2-seg-fault-1.pcap  ospf2-seg-fault-1-v.out  -t -v
 
 # IKEv2 tests
 ikev2four	ikev2four.pcap		ikev2four.out	-t -v
 ikev2fourv	ikev2four.pcap		ikev2fourv.out	-t -v -v -v
 ikev2fourv4	ikev2four.pcap		ikev2fourv4.out	-t -v -v -v -v
 # ikev2pI2 test in crypto.sh
+ikev2pI2-segfault	ikev2pI2-segfault.pcap	ikev2pI2-segfault.out	-t
+ikev2pI2-segfault-v	ikev2pI2-segfault.pcap	ikev2pI2-segfault-v.out	-t -v
 
 # IETF ROLL RPL packets
 dio02           rpl-19-pickdag.pcap         rpl-19-pickdag.out  -t -v -v
@@ -96,6 +112,9 @@ pppoe           pppoe.pcap             pppoe.out       -t
 pppoes          pppoes.pcap            pppoes.out      -t
 pppoes_id       pppoes.pcap            pppoes_id.out   -t pppoes 0x3b
 
+# PPP tests
+truncated_aack  truncated-aack.pcap    trunc_aack.out  -t
+
 # IGMP tests
 igmpv1		IGMP_V1.pcap		igmpv1.out		-t
 igmpv2		IGMP_V2.pcap		igmpv2.out		-t
@@ -112,6 +131,7 @@ spb	            spb.pcap	            spb.out -t
 
 # SPB BPDUv4 tests
 spb_bpduv4      spb_bpduv4.pcap       spb_bpduv4.out -t
+spb_bpduv4-v	spb_bpduv4.pcap       spb_bpduv4-v.out -t -v
 
 # DCB Tests
 dcb_ets         dcb_ets.pcap          dcb_ets.out   -t -vv
@@ -139,6 +159,7 @@ dhcpv6-ia-ta	dhcpv6-ia-ta.pcap	dhcpv6-ia-ta.out	-t -v
 dhcpv6-ntp-server	dhcpv6-ntp-server.pcap	dhcpv6-ntp-server.out	-t -v
 dhcpv6-sip-server-d	dhcpv6-sip-server-d.pcap	dhcpv6-sip-server-d.out -t -v
 dhcpv6-domain-list	dhcpv6-domain-list.pcap	dhcpv6-domain-list.out	-t -v
+dhcpv6-mud	dhcpv6-mud.pcap		dhcpv6-mud.out -t -vv
 
 # ZeroMQ/PGM tests
 # ZMTP/1.0 over TCP
@@ -151,6 +172,8 @@ epgmv		epgm_zmtp1.pcap		epgmv.out	-t -v -T pgm
 pgm_zmtp1v	pgm_zmtp1.pcap		pgm_zmtp1v.out	-t -v -T pgm_zmtp1
 # ZMTP/1.0 inside UDP-encapsulated PGM
 epgm_zmtp1v	epgm_zmtp1.pcap		epgm_zmtp1v.out	-t -v -T pgm_zmtp1
+# fuzzed pcap
+zmtp1-inf-loop-1 zmtp1-inf-loop-1.pcap zmtp1-inf-loop-1.out -t -T zmtp1
 
 # MS NLB tests
 msnlb		msnlb.pcap		msnlb.out	-t
@@ -161,6 +184,8 @@ mptcp		mptcp.pcap		mptcp.out		-t
 mptcp-fclose	mptcp-fclose.pcap	mptcp-fclose.out	-t
 # TFO tests
 tfo		tfo-5c1fa7f9ae91.pcap	tfo.out		-t
+# SCPS
+scps_invalid	scps_invalid.pcap	scps_invalid.out	-t
 
 # IEEE 802.11 tests
 802.11_exthdr	ieee802.11_exthdr.pcap	ieee802.11_exthdr.out	-t -v
@@ -174,7 +199,7 @@ of10_7050q-v	of10_7050q.pcap		of10_7050q-v.out	-t -v
 of10_7050sx_bsn-vv	of10_7050sx_bsn.pcap		of10_7050sx_bsn-vv.out	-t -vv
 
 # GeoNetworking and CALM FAST tests
-geonet-calm-fast	geonet_and_calm_fast.pcap	geonet_and_calm_fast.out	-t -vv -n
+geonet-calm-fast	geonet_and_calm_fast.pcap	geonet_and_calm_fast.out	-t -vv
 
 # M3UA tests
 m3ua isup.pcap isup.out -t
@@ -185,8 +210,11 @@ m3ua-vv isup.pcap isupvv.out -t -vv
 # syslog test case
 syslog-v	syslog_udp.pcap		syslog-v.out		-t -v
 
+# DNSSEC from https://bugzilla.redhat.com/show_bug.cgi?id=205842, -vv exposes EDNS DO
+dnssec-vv	dnssec.pcap		dnssec-vv.out		-t -vv
+
 #IPv6 tests
-ipv6-bad-version.pcap	ipv6-bad-version.pcap 	ipv6-bad-version.out	-t
+ipv6-bad-version	ipv6-bad-version.pcap 	ipv6-bad-version.out	-t
 ipv6-routing-header	ipv6-routing-header.pcap	ipv6-routing-header.out -t -v
 
 # Loopback/CTP test case
@@ -217,9 +245,22 @@ pimv2_hellos-v		PIMv2_hellos.pcap		pimv2_hellos-v.out	-t -v
 
 # IS-IS tests
 isis_infloop-v	isis-infinite-loop.pcap		isis_infloop-v.out	-t -v
+isis_poi-v      isis_poi.pcap                   isis_poi.out            -t -v
+isis_poi2-v     isis_poi2.pcap                  isis_poi2.out           -t -v
+isis_1		ISIS_external_lsp.pcap		isis_1.out	-t
+isis_1-v	ISIS_external_lsp.pcap		isis_1-v.out	-t -v
+isis_2-v	ISIS_level1_adjacency.pcap	isis_2-v.out	-t -v
+isis_3-v	ISIS_level2_adjacency.pcap	isis_3-v.out	-t -v
+isis_4-v	ISIS_p2p_adjacency.pcap		isis_4-v.out	-t -v
+# fuzzed pcap
+# isis-seg-fault-1-v is now conditionally handled by isis-seg-fault-1-v.sh
+isis-seg-fault-2-v isis-seg-fault-2.pcap isis-seg-fault-2-v.out -t -v
+isis-seg-fault-3-v isis-seg-fault-3.pcap isis-seg-fault-3-v.out -t -v
 
 # RSVP tests
 rsvp_infloop-v	rsvp-infinite-loop.pcap		rsvp_infloop-v.out	-t -v
+# fuzzed pcap
+rsvp-inf-loop-2-v rsvp-inf-loop-2.pcap rsvp-inf-loop-2-v.out -t -v
 
 # HDLC tests
 hdlc1	chdlc-slarp.pcap	hdlc1.out	-t
@@ -234,6 +275,7 @@ decnet		DECnet_Phone.pcap	decnet.out	-t
 radius-v	RADIUS.pcap	radius-v.out	-t -v
 radius-rfc4675	RADIUS-RFC4675.pcap	radius-rfc4675-v.out	-t -v
 radius-rfc5176	RADIUS-RFC5176.pcap	radius-rfc5176-v.out	-t -v
+radius-port1700	RADIUS-port1700.pcap	radius-port1700-v.out	-t -v
 
 # link-level protocols
 dtp-v		DTP.pcap		dtp-v.out		-t -v
@@ -241,19 +283,16 @@ lacp-ev		LACP.pcap		lacp-ev.out		-t -e -v
 lldp_cdp-ev	LLDP_and_CDP.pcap	lldp_cdp-ev.out		-t -e -v
 cdp-v		3560_CDP.pcap		cdp-v.out		-t -v
 udld-v		UDLD.pcap		udld-v.out		-t -v
+lldp_mud-v	lldp_mudurl.pcap	lldp_mudurl-v.out	-t -e -v
+lldp_mud-vv	lldp_mudurl.pcap	lldp_mudurl-vv.out	-t -e -vv
+# fuzzed pcap
+udld-inf-loop-1-v  udld-inf-loop-1.pcap  udld-inf-loop-1-v.out  -t -v
 
 # EIGRP tests
 eigrp1-v	EIGRP_adjacency.pcap	eigrp1-v.out	-t -v
 eigrp2-v	EIGRP_goodbye.pcap	eigrp2-v.out	-t -v
 eigrp3-v	EIGRP_subnet_down.pcap	eigrp3-v.out	-t -v
 eigrp4-v	EIGRP_subnet_up.pcap	eigrp4-v.out	-t -v
-
-# IS-IS tests
-isis_1		ISIS_external_lsp.pcap		isis_1.out	-t
-isis_1-v	ISIS_external_lsp.pcap		isis_1-v.out	-t -v
-isis_2-v	ISIS_level1_adjacency.pcap	isis_2-v.out	-t -v
-isis_3-v	ISIS_level2_adjacency.pcap	isis_3-v.out	-t -v
-isis_4-v	ISIS_p2p_adjacency.pcap		isis_4-v.out	-t -v
 
 # ATA-over-Ethernet tests
 aoe_1		AoE_Linux.pcap		aoe_1.out	-t
@@ -267,25 +306,140 @@ geneve-tcp	geneve.pcap		geneve-tcp.out	-t "geneve && tcp"
 # DHCP tests
 dhcp-rfc3004	dhcp-rfc3004.pcap	dhcp-rfc3004-v.out	-t -v
 dhcp-rfc5859	dhcp-rfc5859.pcap	dhcp-rfc5859-v.out	-t -v
+dhcp-mud	dhcp-mud.pcap		dhcp-mud.out	-t -vv
+
+# MEDSA tests
+medsa		medsa.pcap		medsa.out	-t
+medsa-e		medsa.pcap		medsa-e.out	-t -e
+
+# VXLAN tests
+vxlan  vxlan.pcap  vxlan.out  -# -t -e
+
+# CVEs 2014 malformed packets from Steffen Bauch
+cve-2014-8767-OLSR cve-2014-8767-OLSR.pcap cve-2014-8767-OLSR.out -t -v
+cve-2014-8768-Geonet cve-2014-8768-Geonet.pcap cve-2014-8768-Geonet.out -t -v
+cve-2014-8769-AODV cve-2014-8769-AODV.pcap cve-2014-8769-AODV.out -t -v
 
 # bad packets from Kevin Day
-# cve-2015-2155 -- futz testing on FORCES printer
+# cve-2015-2155 -- fuzz testing on FORCES printer
 kday1           kday1.pcap              kday1.out       -t -v
-# cve-2015-2153 -- futz testing on TCP printer
+# cve-2015-2153 -- fuzz testing on TCP printer
 kday2           kday2.pcap              kday2.out       -t -v
-# cve-2015-2153 -- futz testing on TCP printer
+# cve-2015-2153 -- fuzz testing on TCP printer
 kday3           kday3.pcap              kday3.out       -t -v
-# cve-2015-2153 -- futz testing on TCP printer
+# cve-2015-2153 -- fuzz testing on TCP printer
 kday4           kday4.pcap              kday4.out       -t -v
-# cve-2015-2153 -- futz testing on TCP printer
+# cve-2015-2153 -- fuzz testing on TCP printer
 kday5           kday5.pcap              kday5.out       -t -v
 # cve-2015-2154 -- ethernet printer
 kday6           kday6.pcap              kday6.out       -t -v
-# cve-2015-2153 -- futz testing on TCP printer
+# cve-2015-2153 -- fuzz testing on TCP printer
 kday7           kday7.pcap              kday7.out       -t -v
-# cve-2015-2153 -- futz testing on TCP printer
+# cve-2015-2153 -- fuzz testing on TCP printer
 kday8           kday8.pcap              kday8.out       -t -v
 
 # bad packets from reversex86.
 cve2015-0261_01    cve2015-0261-ipv6.pcap       cve2015-0261-ipv6.out -t -v
 cve2015-0261_02    cve2015-0261-crash.pcap      cve2015-0261-crash.out -t -v
+
+# OLSRv1 tests
+olsrv1_1	OLSRv1_HNA_sgw_1.pcap		OLSRv1_HNA_sgw_1.out	-t -v
+
+# tests with unaligned data, to make sure they work on SPARC
+unaligned-nfs-1	unaligned-nfs-1.pcap	unaligned-nfs-1.out	-t -v
+
+# LISP tests
+lisp_eid_notify		lisp_eid_notify.pcap	lisp_eid_notify.out	-t -v
+lisp_eid_register	lisp_eid_register.pcap	lisp_eid_register.out	-t -v
+lisp_ipv6_eid		lisp_ipv6.pcap		lisp_ipv6.out		-t -v
+
+# pcap invalid versions (first: version = 1.4 ; second: version = 2.5)
+pcap-invalid-version-1 pcap-invalid-version-1.pcap pcap-invalid-version-1.out -t
+pcap-invalid-version-2 pcap-invalid-version-2.pcap pcap-invalid-version-2.out -t
+
+# pcap-ng invalid version (first: version = 0.1 ; second: version = 1.1)
+pcap-ng-invalid-vers-1 pcap-ng-invalid-vers-1.pcap pcap-ng-invalid-vers-1.out -t
+pcap-ng-invalid-vers-2 pcap-ng-invalid-vers-2.pcap pcap-ng-invalid-vers-2.out -t
+
+# NSH over VxLAN-GPE
+nsh-over-vxlan-gpe     nsh-over-vxlan-gpe.pcap nsh-over-vxlan-gpe.out     -t
+nsh-over-vxlan-gpe-v   nsh-over-vxlan-gpe.pcap nsh-over-vxlan-gpe-v.out   -t -v
+nsh-over-vxlan-gpe-vv  nsh-over-vxlan-gpe.pcap nsh-over-vxlan-gpe-vv.out  -t -vv
+nsh-over-vxlan-gpe-vvv nsh-over-vxlan-gpe.pcap nsh-over-vxlan-gpe-vvv.out -t -vvv
+
+# RESP tests
+resp_1 resp_1_benchmark.pcap resp_1.out -t
+resp_2 resp_2_inline.pcap    resp_2.out -t
+resp_3 resp_3_malicious.pcap resp_3.out -t
+
+# HNCP tests
+hncp hncp.pcap hncp.out -vvv -t
+
+# BFD tests with authentication fields
+bfd-raw-auth-simple bfd-raw-auth-simple.pcap bfd-raw-auth-simple.out -t
+bfd-raw-auth-simple-v bfd-raw-auth-simple.pcap bfd-raw-auth-simple-v.out -t -v
+bfd-raw-auth-md5 bfd-raw-auth-md5.pcap bfd-raw-auth-md5.out -t
+bfd-raw-auth-md5-v bfd-raw-auth-md5.pcap bfd-raw-auth-md5-v.out -t -v
+bfd-raw-auth-sha1 bfd-raw-auth-sha1.pcap bfd-raw-auth-sha1.out -t
+bfd-raw-auth-sha1-v bfd-raw-auth-sha1.pcap bfd-raw-auth-sha1-v.out -t -v
+
+# bad packets from Hanno Böck
+heap-overflow-1	heap-overflow-1.pcap		heap-overflow-1.out	-t -v -n
+heap-overflow-2	heap-overflow-2.pcap		heap-overflow-2.out	-t -v -n
+heapoverflow-atalk_print	heapoverflow-atalk_print.pcap	heapoverflow-atalk_print.out	-t -v -n
+heapoverflow-EXTRACT_16BITS	heapoverflow-EXTRACT_16BITS.pcap	heapoverflow-EXTRACT_16BITS.out	-t -v -n
+heapoverflow-ppp_hdlc_if_print	heapoverflow-ppp_hdlc_if_print.pcap	heapoverflow-ppp_hdlc_if_print.out	-t -v -n
+heapoverflow-q933_printq	heapoverflow-q933_printq.pcap	heapoverflow-q933_printq.out	-t -v -n
+heapoverflow-sl_if_print	heapoverflow-sl_if_print.pcap	heapoverflow-sl_if_print.out	-t -v -n
+heapoverflow-ip_print_demux	heapoverflow-ip_print_demux.pcap	heapoverflow-ip_print_demux.out	-t -v -n
+heapoverflow-in_checksum	heapoverflow-in_checksum.pcap	heapoverflow-in_checksum.out	-t -v -n
+heapoverflow-tcp_print	heapoverflow-tcp_print.pcap	heapoverflow-tcp_print.out	-t -v -n
+gre-heapoverflow-1	gre-heapoverflow-1.pcap	gre-heapoverflow-1.out	-t -v -n
+gre-heapoverflow-2	gre-heapoverflow-2.pcap	gre-heapoverflow-2.out	-t -v -n
+calm-fast-mac-lookup-heapoverflow	calm-fast-mac-lookup-heapoverflow.pcap	calm-fast-mac-lookup-heapoverflow.out	-t -v -n
+geonet-mac-lookup-heapoverflow	geonet-mac-lookup-heapoverflow.pcap	geonet-mac-lookup-heapoverflow.out	-t -v -n
+radiotap-heapoverflow	radiotap-heapoverflow.pcap	radiotap-heapoverflow.out -t -v -n
+isoclns-heapoverflow	isoclns-heapoverflow.pcap	isoclns-heapoverflow.out	-t -v -n
+tcp-auth-heapoverflow	tcp-auth-heapoverflow.pcap	tcp-auth-heapoverflow.out	-t -v -n
+frf15-heapoverflow	frf15-heapoverflow.pcap	frf15-heapoverflow.out	-t -v -n
+atm-oam-heapoverflow	atm-oam-heapoverflow.pcap	atm-oam-heapoverflow.out	-t -v -n
+tcp_header_heapoverflow	tcp_header_heapoverflow.pcap	tcp_header_heapoverflow.out	-t -v -n
+ipcomp-heapoverflow	ipcomp-heapoverflow.pcap	ipcomp-heapoverflow.out	-t -v -n
+llc-xid-heapoverflow	llc-xid-heapoverflow.pcap	llc-xid-heapoverflow.out	-t -v -n
+udp-length-heapoverflow	udp-length-heapoverflow.pcap	udp-length-heapoverflow.out	-t -v -n
+aarp-heapoverflow-1	aarp-heapoverflow-1.pcap	aarp-heapoverflow-1.out	-t -v -n
+aarp-heapoverflow-2	aarp-heapoverflow-2.pcap	aarp-heapoverflow-2.out	-t -v -n
+mpls-label-heapoverflow	mpls-label-heapoverflow.pcap	mpls-label-heapoverflow.out	-t -v -n
+bad-ipv4-version-pgm-heapoverflow	bad-ipv4-version-pgm-heapoverflow.pcap	bad-ipv4-version-pgm-heapoverflow.out	-t -v -n
+stp-heapoverflow-1	stp-heapoverflow-1.pcap	stp-heapoverflow-1.out	-t -v -n
+stp-heapoverflow-2	stp-heapoverflow-2.pcap	stp-heapoverflow-2.out	-t -v -n
+stp-heapoverflow-3	stp-heapoverflow-3.pcap	stp-heapoverflow-3.out	-t -v -n
+stp-heapoverflow-4	stp-heapoverflow-4.pcap	stp-heapoverflow-4.out	-t -v -n
+stp-heapoverflow-5	stp-heapoverflow-5.pcap	stp-heapoverflow-5.out	-t -v -n
+arp-too-long-tha	arp-too-long-tha.pcap	arp-too-long-tha.out	-t -v -n
+juniper_header-heapoverflow	juniper_header-heapoverflow.pcap	juniper_header-heapoverflow.out	-t -v -n
+tftp-heapoverflow	tftp-heapoverflow.pcap	tftp-heapoverflow.out	-t -v -n
+relts-0x80000000	relts-0x80000000.pcap	relts-0x80000000.out	-t -v -n
+
+# bad packets from Brian Carpenter
+ipv6hdr-heapoverflow	ipv6hdr-heapoverflow.pcap	ipv6hdr-heapoverflow.out	-t
+ipv6hdr-heapoverflow-v	ipv6hdr-heapoverflow.pcap	ipv6hdr-heapoverflow-v.out	-t -v
+otv-heapoverflow-1	otv-heapoverflow-1.pcap		otv-heapoverflow-1.out		-t -c10
+otv-heapoverflow-2	otv-heapoverflow-2.pcap		otv-heapoverflow-2.out		-t -c10
+q933-heapoverflow-2	q933-heapoverflow-2.pcap	q933-heapoverflow-2.out		-t
+atm-heapoverflow	atm-heapoverflow.pcap		atm-heapoverflow.out		-t -c1 -e
+
+# bad packets from Kamil Frankowicz
+snmp-heapoverflow-1	snmp-heapoverflow-1.pcap	snmp-heapoverflow-1.out		-t
+snmp-heapoverflow-2	snmp-heapoverflow-2.pcap	snmp-heapoverflow-2.out		-t
+isoclns-heapoverflow-2	isoclns-heapoverflow-2.pcap	isoclns-heapoverflow-2.out	-t -e -c1
+isoclns-heapoverflow-3	isoclns-heapoverflow-3.pcap	isoclns-heapoverflow-3.out	-t -e -c1
+
+# RTP tests
+# fuzzed pcap
+rtp-seg-fault-1  rtp-seg-fault-1.pcap  rtp-seg-fault-1.out  -t -v -T rtp
+rtp-seg-fault-2  rtp-seg-fault-2.pcap  rtp-seg-fault-2.out  -t -v -T rtp
+
+# NFS tests
+# fuzzed pcap
+nfs-seg-fault-1  nfs-seg-fault-1.pcap  nfs-seg-fault-1.out  -t

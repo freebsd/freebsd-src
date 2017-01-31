@@ -1,0 +1,2 @@
+IP (tos 0x0, ttl 63, id 38810, offset 0, flags [DF], proto TCP (6), length 168)
+    128.112.130.130.2049 > 140.180.226.200.1023: Flags [P.], cksum 0x6f82 (correct), seq 271994717:271994833, ack 3625862383, win 12274, options [nop,nop,TS val 801481683 ecr 243357584], length 116: NFS reply xid 3532485149 reply ok 112

@@ -1,0 +1,62 @@
+00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
+	Chassis ID TLV (1), length 7
+	  Subtype MAC address (4): 00:23:54:c2:57:02
+	Port ID TLV (2), length 7
+	  Subtype MAC address (3): 00:23:54:c2:57:02
+	Time to Live TLV (3), length 2: TTL 120s
+	System Name TLV (5), length 28: upstairs.ofcourseimright.com
+	System Description TLV (6), length 92
+	  Ubuntu 14.04.5 LTS Linux 3.13.0-106-generic #153-Ubuntu SMP Tue Dec 6 15:45:13 UTC 2016 i686
+	System Capabilities TLV (7), length 4
+	  System  Capabilities [Bridge, WLAN AP, Router, Station Only] (0x009c)
+	  Enabled Capabilities [WLAN AP] (0x0008)
+	Management Address TLV (8), length 12
+	  Management Address length 5, AFI IPv4 (1): 62.12.173.114
+	  Interface Index Interface Numbering (2): 2
+	Management Address TLV (8), length 24
+	  Management Address length 17, AFI IPv6 (2): 2001:8a8:1006:4:223:54ff:fec2:5702
+	  Interface Index Interface Numbering (2): 2
+	Port Description TLV (4), length 4: eth0
+	Organization specific TLV (127), length 9: OUI IEEE 802.3 Private (0x00120f)
+	  Link aggregation Subtype (3)
+	    aggregation status [supported], aggregation port ID 0
+	Organization specific TLV (127), length 9: OUI IEEE 802.3 Private (0x00120f)
+	  MAC/PHY configuration/status Subtype (1)
+	    autonegotiation [supported, enabled] (0x03)
+	    PMD autoneg capability [10BASE-T hdx, 10BASE-T fdx, 100BASE-TX hdx, 100BASE-TX fdx, Pause for fdx links, Asym PAUSE for fdx, 1000BASE-T hdx, 1000BASE-T fdx] (0xecc3)
+	    MAU type 100BASETX fdx (0x0010)
+	Organization specific TLV (127), length 64: OUI IANA (0x00005e)
+	  MUD-URL Subtype (1)
+	  MUD-URL=https://imright.mud.example.com/.well-known/mud/v1/vomitv2.0
+	End TLV (0), length 0
+00:23:54:c2:57:02 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 302: LLDP, length 288
+	Chassis ID TLV (1), length 7
+	  Subtype MAC address (4): 00:23:54:c2:57:02
+	Port ID TLV (2), length 7
+	  Subtype MAC address (3): 00:23:54:c2:57:02
+	Time to Live TLV (3), length 2: TTL 120s
+	System Name TLV (5), length 28: upstairs.ofcourseimright.com
+	System Description TLV (6), length 92
+	  Ubuntu 14.04.5 LTS Linux 3.13.0-106-generic #153-Ubuntu SMP Tue Dec 6 15:45:13 UTC 2016 i686
+	System Capabilities TLV (7), length 4
+	  System  Capabilities [Bridge, WLAN AP, Router, Station Only] (0x009c)
+	  Enabled Capabilities [WLAN AP] (0x0008)
+	Management Address TLV (8), length 12
+	  Management Address length 5, AFI IPv4 (1): 62.12.173.114
+	  Interface Index Interface Numbering (2): 2
+	Management Address TLV (8), length 24
+	  Management Address length 17, AFI IPv6 (2): 2001:8a8:1006:4:223:54ff:fec2:5702
+	  Interface Index Interface Numbering (2): 2
+	Port Description TLV (4), length 4: eth0
+	Organization specific TLV (127), length 9: OUI IEEE 802.3 Private (0x00120f)
+	  Link aggregation Subtype (3)
+	    aggregation status [supported], aggregation port ID 0
+	Organization specific TLV (127), length 9: OUI IEEE 802.3 Private (0x00120f)
+	  MAC/PHY configuration/status Subtype (1)
+	    autonegotiation [supported, enabled] (0x03)
+	    PMD autoneg capability [10BASE-T hdx, 10BASE-T fdx, 100BASE-TX hdx, 100BASE-TX fdx, Pause for fdx links, Asym PAUSE for fdx, 1000BASE-T hdx, 1000BASE-T fdx] (0xecc3)
+	    MAU type 100BASETX fdx (0x0010)
+	Organization specific TLV (127), length 64: OUI IANA (0x00005e)
+	  MUD-URL Subtype (1)
+	  MUD-URL=https://imright.mud.example.com/.well-known/mud/v1/vomitv2.0
+	End TLV (0), length 0

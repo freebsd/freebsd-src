@@ -5,7 +5,7 @@ IP (tos 0x0, ttl 64, id 20820, offset 0, flags [none], proto UDP (17), length 10
 	  User-Password Attribute (2), length: 18, Value: 
 	  NAS-IP-Address Attribute (4), length: 6, Value: 127.0.0.1
 	  NAS-Port Attribute (5), length: 6, Value: 1
-	  Message-Authenticator Attribute (80), length: 18, Value: .....b..7-...b.
+	  Message-Authenticator Attribute (80), length: 18, Value: .....b..7-....b.
 IP (tos 0x0, ttl 64, id 20821, offset 0, flags [none], proto UDP (17), length 81)
     127.0.0.1.1812 > 127.0.0.1.53334: RADIUS, length: 53
 	Access-Accept (2), id: 0x46, Authenticator: 766a0314eaf4b95f1ec271ae19cb3bdc

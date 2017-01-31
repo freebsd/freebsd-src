@@ -19,18 +19,19 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Routing Information Protocol (RIP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <stdio.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
-#include "extract.h"			/* must come after interface.h */
+#include "extract.h"
 
 #include "af.h"
 
@@ -102,14 +103,14 @@ rip_entry_print_v1(netdissect_options *ndo,
 	family = EXTRACT_16BITS(&ni->rip_family);
 	if (family != BSD_AFNUM_INET && family != 0) {
 		ND_PRINT((ndo, "\n\t AFI %s, ", tok2str(bsd_af_values, "Unknown (%u)", family)));
-		print_unknown_data(ndo, (uint8_t *)&ni->rip_family, "\n\t  ", RIP_ROUTELEN);
+		print_unknown_data(ndo, (const uint8_t *)&ni->rip_family, "\n\t  ", RIP_ROUTELEN);
 		return;
 	}
 	if (EXTRACT_16BITS(&ni->rip_tag) ||
 	    EXTRACT_32BITS(&ni->rip_dest_mask) ||
 	    EXTRACT_32BITS(&ni->rip_router)) {
 		/* MBZ fields not zero */
-                print_unknown_data(ndo, (uint8_t *)&ni->rip_family, "\n\t  ", RIP_ROUTELEN);
+                print_unknown_data(ndo, (const uint8_t *)&ni->rip_family, "\n\t  ", RIP_ROUTELEN);
 		return;
 	}
 	if (family == 0) {
@@ -133,31 +134,31 @@ rip_entry_print_v2(netdissect_options *ndo,
 	if (family == 0xFFFF) { /* variable-sized authentication structures */
 		uint16_t auth_type = EXTRACT_16BITS(&ni->rip_tag);
 		if (auth_type == 2) {
-			register u_char *p = (u_char *)&ni->rip_dest;
+			register const u_char *p = (const u_char *)&ni->rip_dest;
 			u_int i = 0;
 			ND_PRINT((ndo, "\n\t  Simple Text Authentication data: "));
 			for (; i < RIP_AUTHLEN; p++, i++)
 				ND_PRINT((ndo, "%c", ND_ISPRINT(*p) ? *p : '.'));
 		} else if (auth_type == 3) {
 			ND_PRINT((ndo, "\n\t  Auth header:"));
-			ND_PRINT((ndo, " Packet Len %u,", EXTRACT_16BITS((uint8_t *)ni + 4)));
-			ND_PRINT((ndo, " Key-ID %u,", *((uint8_t *)ni + 6)));
-			ND_PRINT((ndo, " Auth Data Len %u,", *((uint8_t *)ni + 7)));
+			ND_PRINT((ndo, " Packet Len %u,", EXTRACT_16BITS((const uint8_t *)ni + 4)));
+			ND_PRINT((ndo, " Key-ID %u,", *((const uint8_t *)ni + 6)));
+			ND_PRINT((ndo, " Auth Data Len %u,", *((const uint8_t *)ni + 7)));
 			ND_PRINT((ndo, " SeqNo %u,", EXTRACT_32BITS(&ni->rip_dest_mask)));
 			ND_PRINT((ndo, " MBZ %u,", EXTRACT_32BITS(&ni->rip_router)));
 			ND_PRINT((ndo, " MBZ %u", EXTRACT_32BITS(&ni->rip_metric)));
 		} else if (auth_type == 1) {
 			ND_PRINT((ndo, "\n\t  Auth trailer:"));
-			print_unknown_data(ndo, (uint8_t *)&ni->rip_dest, "\n\t  ", remaining);
+			print_unknown_data(ndo, (const uint8_t *)&ni->rip_dest, "\n\t  ", remaining);
 			return remaining; /* AT spans till the packet end */
 		} else {
 			ND_PRINT((ndo, "\n\t  Unknown (%u) Authentication data:",
 			       EXTRACT_16BITS(&ni->rip_tag)));
-			print_unknown_data(ndo, (uint8_t *)&ni->rip_dest, "\n\t  ", remaining);
+			print_unknown_data(ndo, (const uint8_t *)&ni->rip_dest, "\n\t  ", remaining);
 		}
 	} else if (family != BSD_AFNUM_INET && family != 0) {
 		ND_PRINT((ndo, "\n\t  AFI %s", tok2str(bsd_af_values, "Unknown (%u)", family)));
-                print_unknown_data(ndo, (uint8_t *)&ni->rip_tag, "\n\t  ", RIP_ROUTELEN-2);
+                print_unknown_data(ndo, (const uint8_t *)&ni->rip_tag, "\n\t  ", RIP_ROUTELEN-2);
 	} else { /* BSD_AFNUM_INET or AFI 0 */
 		ND_PRINT((ndo, "\n\t  AFI %s, %15s/%-2d, tag 0x%04x, metric: %u, next-hop: ",
                        tok2str(bsd_af_values, "%u", family),
@@ -194,7 +195,7 @@ rip_print(netdissect_options *ndo,
 	}
 	i -= sizeof(*rp);
 
-	rp = (struct rip *)dat;
+	rp = (const struct rip *)dat;
 
 	ND_PRINT((ndo, "%sRIPv%u",
                (ndo->ndo_vflag >= 1) ? "\n\t" : "",
@@ -213,7 +214,7 @@ rip_print(netdissect_options *ndo,
 		 *
 		 * so perhaps we should just dump the packet, in hex.
 		 */
-                print_unknown_data(ndo, (uint8_t *)&rp->rip_cmd, "\n\t", length);
+                print_unknown_data(ndo, (const uint8_t *)&rp->rip_cmd, "\n\t", length);
 		break;
 	default:
                 /* dump version and lets see if we know the commands name*/
@@ -231,7 +232,7 @@ rip_print(netdissect_options *ndo,
 		case RIPCMD_RESPONSE:
 			j = length / sizeof(*ni);
 			ND_PRINT((ndo, ", routes: %u%s", j, rp->rip_vers == 2 ? " or less" : ""));
-			ni = (struct rip_netinfo *)(rp + 1);
+			ni = (const struct rip_netinfo *)(rp + 1);
 			for (; i >= sizeof(*ni); ++ni) {
 				if (rp->rip_vers == 1)
 				{
@@ -256,14 +257,14 @@ rip_print(netdissect_options *ndo,
                     /* fall through */
 	        default:
                     if (ndo->ndo_vflag <= 1) {
-                        if(!print_unknown_data(ndo, (uint8_t *)rp, "\n\t", length))
+                        if(!print_unknown_data(ndo, (const uint8_t *)rp, "\n\t", length))
                             return;
                     }
                     break;
                 }
                 /* do we want to see an additionally hexdump ? */
                 if (ndo->ndo_vflag> 1) {
-                    if(!print_unknown_data(ndo, (uint8_t *)rp, "\n\t", length))
+                    if(!print_unknown_data(ndo, (const uint8_t *)rp, "\n\t", length))
                         return;
                 }
         }

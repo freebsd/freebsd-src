@@ -1,0 +1,20 @@
+IP (tos 0xc0, ttl 64, id 35063, offset 0, flags [none], proto TCP (6), length 182)
+    172.16.20.5.59631 > 172.16.20.3.179: Flags [P.], cksum 0xe112 (correct), seq 3923783171:3923783301, ack 3341773693, win 16384, options [nop,nop,TS val 32734022 ecr 32695671], length 130: BGP
+	Update Message (2), length: 100
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [T]: empty
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Community (8), length: 4, Flags [OT]: 65000:11201
+	  Originator ID (9), length: 4, Flags [O]: 172.16.21.4
+	  Cluster List (10), length: 4, Flags [O]: 172.16.20.5
+	  Accumulated IGP Metric (26), length: 11, Flags [O]: 
+	    AIGP TLV (1), length 11, metric 2000
+	  Multi-Protocol Reach NLRI (14), length: 17, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled Unicast (4)
+	    nexthop: 172.16.20.5, nh-length: 4, no SNPA
+	      172.16.21.4/32, label:300096 (bottom)
+	Update Message (2), length: 30
+	  Multi-Protocol Unreach NLRI (15), length: 3, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled Unicast (4)
+	      End-of-Rib Marker (empty NLRI)

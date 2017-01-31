@@ -1,0 +1,5 @@
+IP (tos 0x0, ttl 64, id 16419, offset 0, flags [DF], proto UDP (17), length 92)
+    127.0.0.1.4790 > 127.0.0.1.4790: [udp sum ok] VXLAN-GPE, flags [IP], vni 16777215
+    NSH, ver 0, flags [OC], next-protocol 0x1, service-path-id 0xffffff, service-index 0xff
+    IP (tos 0x0, ttl 255, id 54321, offset 0, flags [none], proto UDP (17), length 32)
+    192.168.0.1.10000 > 192.168.0.2.20000: [udp sum ok] UDP, length 4

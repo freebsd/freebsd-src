@@ -1,0 +1,4 @@
+IP (tos 0x0, ttl 64, id 44978, offset 0, flags [none], proto UDP (17), length 53)
+    127.0.0.1.42172 > 127.0.0.1.1700: RADIUS, length: 25
+	CoA-Request (43), id: 0xa6, Authenticator: 7fbf02c6662b5990838a5e6e331b3ff0
+	  User-Name Attribute (1), length: 5, Value: bob

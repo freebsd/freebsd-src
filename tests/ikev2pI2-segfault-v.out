@@ -1,0 +1,8 @@
+IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 536, bad cksum 0 (->f48e)!)
+    192.1.2.45.500 > 192.1.2.23.500: isakmp 2.0 msgid 00000000: parent_sa ikev2_init[I]:
+    (sa[C]: len=240
+        (p: #1 protoid=isakmp transform=4 len=40
+            (t: #1 type=encr id=#26380 )
+            (t: #2 type=integ id=hmac-sha )
+            (t: #3 type=prf id=hmac-sha )
+            (v2e)) [|v2sa]) [|v2ke]

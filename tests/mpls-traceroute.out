@@ -1,0 +1,18 @@
+MPLS (label 100704, exp 0, [S], ttl 1) IP 12.4.4.4.42315 > 12.1.1.1.33435: UDP, length 12
+IP 10.5.0.1 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+MPLS (label 100704, exp 0, [S], ttl 1) IP 12.4.4.4.42315 > 12.1.1.1.33436: UDP, length 12
+IP 10.5.0.1 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+MPLS (label 100704, exp 0, [S], ttl 1) IP 12.4.4.4.42315 > 12.1.1.1.33437: UDP, length 12
+IP 10.5.0.1 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+MPLS (label 100704, exp 0, [S], ttl 2) IP 12.4.4.4.42315 > 12.1.1.1.33438: UDP, length 12
+IP 10.4.0.2 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+MPLS (label 100704, exp 0, [S], ttl 2) IP 12.4.4.4.42315 > 12.1.1.1.33439: UDP, length 12
+IP 10.4.0.2 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+MPLS (label 100704, exp 0, [S], ttl 2) IP 12.4.4.4.42315 > 12.1.1.1.33440: UDP, length 12
+IP 10.4.0.2 > 12.4.4.4: ICMP time exceeded in-transit, length 148
+MPLS (label 100704, exp 0, [S], ttl 3) IP 12.4.4.4.42315 > 12.1.1.1.33441: UDP, length 12
+IP 12.1.1.1 > 12.4.4.4: ICMP 12.1.1.1 udp port 33441 unreachable, length 36
+MPLS (label 100704, exp 0, [S], ttl 3) IP 12.4.4.4.42315 > 12.1.1.1.33442: UDP, length 12
+IP 12.1.1.1 > 12.4.4.4: ICMP 12.1.1.1 udp port 33442 unreachable, length 36
+MPLS (label 100704, exp 0, [S], ttl 3) IP 12.4.4.4.42315 > 12.1.1.1.33443: UDP, length 12
+IP 12.1.1.1 > 12.4.4.4: ICMP 12.1.1.1 udp port 33443 unreachable, length 36

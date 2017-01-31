@@ -1,0 +1,111 @@
+MPLS (label 100656, exp 6, [S], ttl 64)
+	IP (tos 0xc0, ttl 64, id 40719, offset 0, flags [none], proto TCP (6), length 71)
+    12.4.4.4.4100 > 12.8.8.8.179: Flags [P.], cksum 0xfd1b (correct), seq 1860641958:1860641977, ack 2969468967, win 16384, options [nop,nop,TS val 84784152 ecr 84770238], length 19: BGP
+	Keepalive Message (4), length: 19
+MPLS (label 100688, exp 7, [S], ttl 255)
+	IP (tos 0x0, ttl 64, id 40723, offset 0, flags [none], proto UDP (17), length 76)
+    12.4.4.4.4786 > 127.0.0.1.3503: 
+	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 48
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: No return code or return code contained in the Error Code TLV (0)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 1
+	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Target FEC Stack TLV (1), length: 12
+	    LDP IPv4 prefix subTLV (1), length: 5
+	      12.1.1.1/32
+IP (tos 0xc0, ttl 62, id 50878, offset 0, flags [none], proto UDP (17), length 60)
+    10.20.0.1.3503 > 12.4.4.4.4786: 
+	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 1
+	  Sender Timestamp: Receiver Timestamp: 
+MPLS (label 100704, exp 6, [S], ttl 64)
+	IP (tos 0xc0, ttl 64, id 40725, offset 0, flags [none], proto TCP (6), length 71)
+    12.4.4.4.2006 > 12.1.1.1.179: Flags [P.], cksum 0x6c0d (correct), seq 399708866:399708885, ack 708613212, win 16384, options [nop,nop,TS val 84784455 ecr 130411], length 19: BGP
+	Keepalive Message (4), length: 19
+MPLS (label 100704, exp 6, [S], ttl 64)
+	IP (tos 0xc0, ttl 64, id 40726, offset 0, flags [none], proto TCP (6), length 52)
+    12.4.4.4.2006 > 12.1.1.1.179: Flags [.], cksum 0x6451 (correct), ack 20, win 16384, options [nop,nop,TS val 84784465 ecr 133413], length 0
+MPLS (label 100688, exp 7, [S], ttl 255)
+	IP (tos 0x0, ttl 64, id 40727, offset 0, flags [none], proto UDP (17), length 76)
+    12.4.4.4.4786 > 127.0.0.1.3503: 
+	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 48
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: No return code or return code contained in the Error Code TLV (0)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 2
+	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Target FEC Stack TLV (1), length: 12
+	    LDP IPv4 prefix subTLV (1), length: 5
+	      12.1.1.1/32
+IP (tos 0xc0, ttl 62, id 50880, offset 0, flags [none], proto UDP (17), length 60)
+    10.20.0.1.3503 > 12.4.4.4.4786: 
+	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 2
+	  Sender Timestamp: Receiver Timestamp: 
+MPLS (label 100688, exp 7, [S], ttl 255)
+	IP (tos 0x0, ttl 64, id 40729, offset 0, flags [none], proto UDP (17), length 76)
+    12.4.4.4.4786 > 127.0.0.1.3503: 
+	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 48
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: No return code or return code contained in the Error Code TLV (0)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 3
+	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Target FEC Stack TLV (1), length: 12
+	    LDP IPv4 prefix subTLV (1), length: 5
+	      12.1.1.1/32
+IP (tos 0xc0, ttl 62, id 50882, offset 0, flags [none], proto UDP (17), length 60)
+    10.20.0.1.3503 > 12.4.4.4.4786: 
+	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 3
+	  Sender Timestamp: Receiver Timestamp: 
+MPLS (label 100688, exp 7, [S], ttl 255)
+	IP (tos 0x0, ttl 64, id 40731, offset 0, flags [none], proto UDP (17), length 76)
+    12.4.4.4.4786 > 127.0.0.1.3503: 
+	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 48
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: No return code or return code contained in the Error Code TLV (0)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 4
+	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Target FEC Stack TLV (1), length: 12
+	    LDP IPv4 prefix subTLV (1), length: 5
+	      12.1.1.1/32
+IP (tos 0xc0, ttl 62, id 50883, offset 0, flags [none], proto UDP (17), length 60)
+    10.20.0.1.3503 > 12.4.4.4.4786: 
+	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 4
+	  Sender Timestamp: Receiver Timestamp: 
+MPLS (label 100688, exp 7, [S], ttl 255)
+	IP (tos 0x0, ttl 64, id 40733, offset 0, flags [none], proto UDP (17), length 76)
+    12.4.4.4.4786 > 127.0.0.1.3503: 
+	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 48
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: No return code or return code contained in the Error Code TLV (0)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 5
+	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Target FEC Stack TLV (1), length: 12
+	    LDP IPv4 prefix subTLV (1), length: 5
+	      12.1.1.1/32
+IP (tos 0xc0, ttl 62, id 50886, offset 0, flags [none], proto UDP (17), length 60)
+    10.20.0.1.3503 > 12.4.4.4.4786: 
+	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 5
+	  Sender Timestamp: Receiver Timestamp: 

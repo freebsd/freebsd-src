@@ -1,0 +1,9 @@
+UDLDv1, Code Probe message (1), Flags [RT, RSY] (0x01), length 80
+	Checksum 0x3956 (unverified)
+	Device-ID TLV (0x0001) TLV, length 15, FOC1031Z7JG
+	Port-ID TLV (0x0002) TLV, length 9, Gi0/1
+	Echo TLV (0x0003) TLV, length 28, ^@^@^@^A^@^KFOC1025X4W3^@^EFa0/1
+	Message Interval TLV (0x0004) TLV, length 5, 15s
+	Timeout Interval TLV (0x0005) TLV, length 5, 5s
+	Device Name TLV (0x0006) TLV, length 6, S1
+	Sequence Number TLV (0x0007) TLV, length 0 (invalid)

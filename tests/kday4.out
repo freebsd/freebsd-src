@@ -3,6 +3,10 @@ IP (tos 0x10, ttl 64, id 63177, offset 0, flags [none], proto unknown (240), len
 IP (tos 0x10, ttl 62, id 64806, offset 0, flags [DF], proto TCP (6), length 52, bad cksum 3da6 (->35a6)!)
     212.9.51.132.50079 > 204.9.54.80.22: Flags [.], cksum 0x8611 (incorrect -> 0x4811), ack 1819218606, win 17918, options [nop,nop,TS val 941371903 ecr 1340592074], length 0
 84:b5:9c:be:30:48 Unknown SSAP 0x10 > 0c:c4:7a:08:e9:12 Unknown DSAP 0x44 Information, send seq 0, rcv seq 26, Flags [Command], length 52
+	0x0000:  4510 0034 f5c8 4000 3e06 4504 cc09 3384  E..4..@.>.E...3.
+	0x0010:  cc09 3650 c39f 0016 49d1 c854 6c6f 1322  ..6P....I..Tlo."
+	0x0020:  8010 0ffc 858b 0000 0101 080a 381c 3209  ............8.2.
+	0x0030:  4fe7 cfd4                                O...
 IP (tos 0x0, ttl 64, id 63178, offset 0, flags [DF], proto TCP (6), length 52)
     204.9.54.80.55936 > 204.9.55.10.443: Flags [.], cksum 0x0594 (incorrect -> 0x725a), ack 3589495407, win 1040, options [nop,nop,TS val 647770294 ecr 2364779354], length 0
 IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, bad cksum a46b (->a474)!)
@@ -14,10 +18,7 @@ IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, 
 	  0x0030:  afc4 39a4 0db9 7aa5 6873 33e8
 	RPKI-RTRv65, Error Report PDU (10), length: 66
 	  Error code: Unknown (66), Encapsulated PDU length: 37
-	    -----encapsulated PDU-----|trunc|trunc
-	RPKI-RTRv115, Error Report PDU (10), length: 66
-	  Error code: Unknown (66), Encapsulated PDU length: 12
-	    -----encapsulated PDU-----|trunc|trunc
+	    -----encapsulated PDU-----
 	[|RPKI-RTR]
 IP (tos 0x10, ttl 62, id 64806, offset 0, flags [DF], proto TCP (6), length 52)
     204.9.51.132.50079 > 204.9.54.80.22: Flags [.], cksum 0x8611 (incorrect -> 0xa678), ack 1819218606, win 4094, options [nop,nop,TS val 941371775 ecr 4294967242], length 0
@@ -34,10 +35,7 @@ IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, 
 	  0x0030:  afc4 39a4 0db9 7aa5 6873 33e8
 	RPKI-RTRv65, Error Report PDU (10), length: 66
 	  Error code: Unknown (66), Encapsulated PDU length: 37
-	    -----encapsulated PDU-----|trunc|trunc
-	RPKI-RTRv115, Error Report PDU (10), length: 66
-	  Error code: Unknown (66), Encapsulated PDU length: 12
-	    -----encapsulated PDU-----|trunc|trunc
+	    -----encapsulated PDU-----
 	[|RPKI-RTR]
 IP truncated-ip - 768 bytes missing! (tos 0x10, ttl 62, id 64806, offset 0, flags [DF], proto TCP (6), length 820, bad cksum 3da6 (->3aa6)!)
     204.9.51.132.50079 > 204.9.54.80.22: Flags [.], seq 0:768, ack 1, win 4094, options [nop,nop,TS val 941371775 ecr 4294967242], length 768
@@ -55,6 +53,6 @@ IP (tos 0x0, ttl 64, id 36752, offset 0, flags [DF], proto TCP (6), length 399, 
 	RPKI-RTRv65, Error Report PDU (10), length: 66
 	  Error code: Unknown (66), Encapsulated PDU length: 100
 	  Error text: ^@^@^@M-^?M-^?^_^[pM-xWM-nhMM-}M_M-YM-=M-G^I0M-,M-^AvM-3mM-L^Q:M-?^RM-^QM-q^FNM-^aM-tbM-^WM-/M-D9M-$^MM-9zM-%hs3M-hA^J^@B^@^@^@B^@^@^@%M-Dz^HM-i^RM-^DM-5M-^\M->0H^H^@E^P^@4M-}&@^@>^F
-	RPKI-RTRv115, Error Report PDU (10), length: 66|trunc
+	RPKI-RTRv115, Error Report PDU (10), length: 66
 	[|RPKI-RTR]
 EXIT CODE 00000100

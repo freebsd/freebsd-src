@@ -14,3 +14,4 @@
  */
 
 extern const struct tok l2vpn_encaps_values[];
+extern const struct tok mpls_pw_types_values[];

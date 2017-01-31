@@ -1,0 +1,2 @@
+IP truncated-ip - 58880 bytes missing! (tos 0x0, ttl 64, id 62335, offset 0, flags [DF], proto UDP (17), length 58941, bad cksum 30c6 (->49c3)!)
+    10.1.1.104.654 > 10.2.2.2.3328:  aodv rerr  [items 0] [19192]:

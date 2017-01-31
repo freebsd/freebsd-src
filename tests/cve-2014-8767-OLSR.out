@@ -1,0 +1,4 @@
+IP (tos 0x15,ECT(1), ttl 77, id 62335, offset 0, flags [DF], proto UDP (17), length 61, bad cksum 30c6 (->22af)!)
+    10.1.1.104.698 > 10.2.2.2.514: OLSRv4, seq 0x0202, length 33
+	TC Message (0x02), originator 2.2.2.2, ttl 2, hop 2
+	  vtime 0.070s, msg-seq 0x0202, length 2 (invalid)
