@@ -1,5 +1,3 @@
-/* $Id: platform.c,v 1.22 2014/07/18 04:11:26 djm Exp $ */
-
 /*
  * Copyright (c) 2006 Darren Tucker.  All rights reserved.
  *

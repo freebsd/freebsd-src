@@ -94,6 +94,3 @@ added to sshd's session stack which will prevent users from starting shell
 sessions.  Alternatively, pam_nologin can be added to either the auth or
 account stacks which will prevent authentication entirely, but will still
 return the output from pam_nologin to the client.
-
-
-$Id: README.platform,v 1.10 2009/08/28 23:14:48 dtucker Exp $

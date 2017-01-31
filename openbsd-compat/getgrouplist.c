@@ -1,4 +1,4 @@
-/*	from OpenBSD: getgrouplist.c,v 1.12 2005/08/08 08:05:34 espie Exp */
+/*	$OpenBSD: getgrouplist.c,v 1.12 2005/08/08 08:05:34 espie Exp */
 /*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.

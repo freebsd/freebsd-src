@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.30 2015/05/04 06:10:48 djm Exp $ */
+/* $OpenBSD: match.c,v 1.33 2016/11/06 05:46:37 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -191,11 +191,10 @@ match_host_and_ip(const char *host, const char *ipaddr,
 {
 	int mhost, mip;
 
-	/* error in ipaddr match */
 	if ((mip = addr_match_list(ipaddr, patterns)) == -2)
-		return -1;
-	else if (mip == -1) /* negative ip address match */
-		return 0;
+		return -1; /* error in ipaddr match */
+	else if (host == NULL || ipaddr == NULL || mip == -1)
+		return 0; /* negative ip address match, or testing pattern */
 
 	/* negative hostname match */
 	if ((mhost = match_hostname(host, patterns)) == -1)
@@ -207,7 +206,9 @@ match_host_and_ip(const char *host, const char *ipaddr,
 }
 
 /*
- * match user, user@host_or_ip, user@host_or_ip_list against pattern
+ * Match user, user@host_or_ip, user@host_or_ip_list against pattern.
+ * If user, host and ipaddr are all NULL then validate pattern/
+ * Returns -1 on invalid pattern, 0 on no match, 1 on match.
  */
 int
 match_user(const char *user, const char *host, const char *ipaddr,
@@ -215,6 +216,14 @@ match_user(const char *user, const char *host, const char *ipaddr,
 {
 	char *p, *pat;
 	int ret;
+
+	/* test mode */
+	if (user == NULL && host == NULL && ipaddr == NULL) {
+		if ((p = strchr(pattern, '@')) != NULL &&
+		    match_host_and_ip(NULL, NULL, p + 1) < 0)
+			return -1;
+		return 0;
+	}
 
 	if ((p = strchr(pattern,'@')) == NULL)
 		return match_pattern(user, pattern);

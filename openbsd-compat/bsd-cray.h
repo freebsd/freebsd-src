@@ -1,8 +1,6 @@
-/* $Id: bsd-cray.h,v 1.12 2005/02/02 06:10:11 dtucker Exp $ */
-
 /*
  * Copyright (c) 2002, Cray Inc.  (Wendy Palm <wendyp@cray.com>)
- * Significant portions provided by 
+ * Significant portions provided by
  *          Wayne Schroeder, SDSC <schroeder@sdsc.edu>
  *          William Jones, UTexas <jones@tacc.utexas.edu>
  *

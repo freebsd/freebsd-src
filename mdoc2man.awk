@@ -321,6 +321,8 @@ function add(str) {
       w=nwords
     } else if(match(words[w],"^El$")) {
       optlist=oldoptlist
+      if(!optlist)
+        add(".PP")
     } else if(match(words[w],"^Bk$")) {
       if(match(words[w+1],"-words")) {
 	w++
