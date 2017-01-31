@@ -74,7 +74,11 @@ ggatel_file_body()
 
 	atf_check ggatel create -u $us work
 
-	dd if=src of=/dev/ggate${us} bs=1m count=1 conv=notrunc
+	ggate_dev=/dev/ggate${us}
+
+	wait_for_ggate_device ${ggate_dev}
+
+	dd if=src of=${ggate_dev} bs=1m count=1 conv=notrunc
 
 	checksum src work
 }
@@ -104,7 +108,11 @@ ggatel_md_body()
 
 	atf_check ggatel create -u $us /dev/$work
 
-	dd if=/dev/$src of=/dev/ggate${us} bs=1m count=1 conv=notrunc
+	ggate_dev=/dev/ggate${us}
+
+	wait_for_ggate_device ${ggate_dev}
+
+	dd if=/dev/$src of=${ggate_dev} bs=1m count=1 conv=notrunc
 
 	checksum /dev/$src /dev/$work
 }
@@ -190,4 +198,15 @@ common_cleanup()
 		rm md.devs
 	fi
 	true
+}
+
+# Bug 204616: ggatel(8) creates /dev/ggate* asynchronously if `ggatel create`
+#             isn't called with `-v`.
+wait_for_ggate_device()
+{
+	ggate_device=$1
+
+	while [ ! -c $ggate_device ]; do
+		sleep 0.5
+	done
 }
