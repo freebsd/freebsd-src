@@ -1733,9 +1733,7 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 		printf(ARGS(getppid, ""));
 #endif
 
-	PROC_LOCK(td->td_proc);
-	td->td_retval[0] = td->td_proc->p_pptr->p_pid;
-	PROC_UNLOCK(td->td_proc);
+	td->td_retval[0] = kern_getppid(td);
 	return (0);
 }
 
