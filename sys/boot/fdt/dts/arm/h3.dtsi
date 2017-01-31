@@ -69,10 +69,10 @@
 			reg = <0x01c30000 0x104>, <0x01c00030 0x4>;
 			reg-names = "emac", "syscon";
 			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&ahb_rst 17>;
-			reset-names = "ahb";
-			clocks = <&bus_gates 17>;
-			clock-names = "ahb";
+			resets = <&ahb_rst 17>, <&ahb_rst 66>;
+			reset-names = "ahb", "ephy";
+			clocks = <&bus_gates 17>, <&bus_gates 128>;
+			clock-names = "ahb", "ephy";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
