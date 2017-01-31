@@ -2481,10 +2481,10 @@ em_setup_interface(if_ctx_t ctx)
 	INIT_DEBUGOUT("em_setup_interface: begin");
 
 	/* TSO parameters */
-	ifp->if_hw_tsomax = IP_MAXPACKET;
+	if_sethwtsomax(ifp, IP_MAXPACKET);
 	/* Take m_pullup(9)'s in em_xmit() w/ TSO into acount. */
-	ifp->if_hw_tsomaxsegcount = EM_MAX_SCATTER - 5;
-	ifp->if_hw_tsomaxsegsize = EM_TSO_SEG_SIZE;
+	if_sethwtsomaxsegcount(ifp, EM_MAX_SCATTER - 5);
+	if_sethwtsomaxsegsize(ifp, EM_TSO_SEG_SIZE);
 
 	/* Single Queue */
         if (adapter->tx_num_queues == 1) {
