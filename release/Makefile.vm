@@ -58,8 +58,8 @@ cw-${_CW:tl}:
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
-		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW}_FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW}IMAGE} -c ${${_CW}CONF}
+		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW:tu}_FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}IMAGE} -c ${${_CW}CONF}
 	touch ${.TARGET}
 
 cw${_CW:tl}-package:
