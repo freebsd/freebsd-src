@@ -532,6 +532,22 @@ DESCRIPTION
              situations where ssh-agent offers many different identities.  The
              default is M-bM-^@M-^\noM-bM-^@M-^].
 
+     IdentityAgent
+             Specifies the UNIX-domain socket used to communicate with the
+             authentication agent.
+
+             This option overrides the M-bM-^@M-^\SSH_AUTH_SOCKM-bM-^@M-^] environment variable
+             and can be used to select a specific agent.  Setting the socket
+             name to M-bM-^@M-^\noneM-bM-^@M-^] disables the use of an authentication agent.  If
+             the string M-bM-^@M-^\SSH_AUTH_SOCKM-bM-^@M-^] is specified, the location of the
+             socket will be read from the SSH_AUTH_SOCK environment variable.
+
+             The socket name may use the tilde syntax to refer to a user's
+             home directory or one of the following escape characters: M-bM-^@M-^X%dM-bM-^@M-^Y
+             (local user's home directory), M-bM-^@M-^X%uM-bM-^@M-^Y (local user name), M-bM-^@M-^X%lM-bM-^@M-^Y
+             (local host name), M-bM-^@M-^X%hM-bM-^@M-^Y (remote host name) or M-bM-^@M-^X%rM-bM-^@M-^Y (remote user
+             name).
+
      IdentityFile
              Specifies a file from which the user's DSA, ECDSA, Ed25519 or RSA
              authentication identity is read.  The default is ~/.ssh/identity
@@ -568,6 +584,16 @@ DESCRIPTION
              unrecognised by ssh(1).  It is recommended that IgnoreUnknown be
              listed early in the configuration file as it will not be applied
              to unknown options that appear before it.
+
+     Include
+             Include the specified configuration file(s).  Multiple pathnames
+             may be specified and each pathname may contain glob(3) wildcards
+             and, for user configurations, shell-like M-bM-^@M-^\~M-bM-^@M-^] references to user
+             home directories.  Files without absolute paths are assumed to be
+             in ~/.ssh if included in a user configuration file or /etc/ssh if
+             included from the system configuration file.  Include directive
+             may appear inside a Match or Host block to perform conditional
+             inclusion.
 
      IPQoS   Specifies the IPv4 type-of-service or DSCP class for connections.
              Accepted values are M-bM-^@M-^\af11M-bM-^@M-^], M-bM-^@M-^\af12M-bM-^@M-^], M-bM-^@M-^\af13M-bM-^@M-^], M-bM-^@M-^\af21M-bM-^@M-^], M-bM-^@M-^\af22M-bM-^@M-^],
@@ -745,6 +771,18 @@ DESCRIPTION
              an HTTP proxy at 192.0.2.0:
 
                 ProxyCommand /usr/bin/nc -X connect -x 192.0.2.0:8080 %h %p
+
+     ProxyJump
+             Specifies one or more jump proxies as [user@]host[:port].
+             Multiple proxies may be separated by comma characters and will be
+             visited sequentially.  Setting this option will cause ssh(1) to
+             connect to the target host by first making a ssh(1) connection to
+             the specified ProxyJump host and then establishing a TCP
+             forwarding to the ultimate target from there.
+
+             Note that this option will compete with the ProxyCommand option -
+             whichever is specified first will prevent later instances of the
+             other from taking effect.
 
      ProxyUseFdpass
              Specifies that ProxyCommand will pass a connected file descriptor
@@ -1049,4 +1087,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.9                    February 20, 2016                   OpenBSD 5.9
+OpenBSD 6.0                      July 22, 2016                     OpenBSD 6.0

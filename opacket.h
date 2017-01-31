@@ -144,10 +144,6 @@ void	packet_disconnect(const char *, ...)
 	ssh_packet_get_state(active_state, m)
 #define packet_set_state(m) \
 	ssh_packet_set_state(active_state, m)
-#if 0
-#define get_remote_ipaddr() \
-	ssh_remote_ipaddr(active_state)
-#endif
 #define packet_get_raw(lenp) \
         sshpkt_ptr(active_state, lenp)
 #define packet_get_ecpoint(c,p) \

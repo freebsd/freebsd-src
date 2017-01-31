@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.172 2016/02/15 09:47:49 dtucker Exp $ */
+/* $OpenBSD: sftp.c,v 1.175 2016/07/22 03:47:36 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -49,6 +49,7 @@ typedef void EditLine;
 #endif
 #include <limits.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -63,6 +64,7 @@ typedef void EditLine;
 #include "log.h"
 #include "pathnames.h"
 #include "misc.h"
+#include "utf8.h"
 
 #include "sftp.h"
 #include "ssherr.h"
@@ -335,7 +337,7 @@ local_do_ls(const char *args)
 
 /* Strip one path (usually the pwd) from the start of another */
 static char *
-path_strip(char *path, char *strip)
+path_strip(const char *path, const char *strip)
 {
 	size_t len;
 
@@ -353,7 +355,7 @@ path_strip(char *path, char *strip)
 }
 
 static char *
-make_absolute(char *p, char *pwd)
+make_absolute(char *p, const char *pwd)
 {
 	char *abs_str;
 
@@ -551,7 +553,7 @@ parse_no_flags(const char *cmd, char **argv, int argc)
 }
 
 static int
-is_dir(char *path)
+is_dir(const char *path)
 {
 	struct stat sb;
 
@@ -563,7 +565,7 @@ is_dir(char *path)
 }
 
 static int
-remote_is_dir(struct sftp_conn *conn, char *path)
+remote_is_dir(struct sftp_conn *conn, const char *path)
 {
 	Attrib *a;
 
@@ -577,7 +579,7 @@ remote_is_dir(struct sftp_conn *conn, char *path)
 
 /* Check whether path returned from glob(..., GLOB_MARK, ...) is a directory */
 static int
-pathname_is_dir(char *pathname)
+pathname_is_dir(const char *pathname)
 {
 	size_t l = strlen(pathname);
 
@@ -585,8 +587,8 @@ pathname_is_dir(char *pathname)
 }
 
 static int
-process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd,
-    int pflag, int rflag, int resume, int fflag)
+process_get(struct sftp_conn *conn, const char *src, const char *dst,
+    const char *pwd, int pflag, int rflag, int resume, int fflag)
 {
 	char *abs_src = NULL;
 	char *abs_dst = NULL;
@@ -644,9 +646,11 @@ process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd,
 
 		resume |= global_aflag;
 		if (!quiet && resume)
-			printf("Resuming %s to %s\n", g.gl_pathv[i], abs_dst);
+			mprintf("Resuming %s to %s\n",
+			    g.gl_pathv[i], abs_dst);
 		else if (!quiet && !resume)
-			printf("Fetching %s to %s\n", g.gl_pathv[i], abs_dst);
+			mprintf("Fetching %s to %s\n",
+			    g.gl_pathv[i], abs_dst);
 		if (pathname_is_dir(g.gl_pathv[i]) && (rflag || global_rflag)) {
 			if (download_dir(conn, g.gl_pathv[i], abs_dst, NULL,
 			    pflag || global_pflag, 1, resume,
@@ -669,8 +673,8 @@ out:
 }
 
 static int
-process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd,
-    int pflag, int rflag, int resume, int fflag)
+process_put(struct sftp_conn *conn, const char *src, const char *dst,
+    const char *pwd, int pflag, int rflag, int resume, int fflag)
 {
 	char *tmp_dst = NULL;
 	char *abs_dst = NULL;
@@ -735,10 +739,11 @@ process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd,
 
                 resume |= global_aflag;
 		if (!quiet && resume)
-			printf("Resuming upload of %s to %s\n", g.gl_pathv[i], 
-				abs_dst);
+			mprintf("Resuming upload of %s to %s\n",
+			    g.gl_pathv[i], abs_dst);
 		else if (!quiet && !resume)
-			printf("Uploading %s to %s\n", g.gl_pathv[i], abs_dst);
+			mprintf("Uploading %s to %s\n",
+			    g.gl_pathv[i], abs_dst);
 		if (pathname_is_dir(g.gl_pathv[i]) && (rflag || global_rflag)) {
 			if (upload_dir(conn, g.gl_pathv[i], abs_dst,
 			    pflag || global_pflag, 1, resume,
@@ -779,7 +784,8 @@ sdirent_comp(const void *aa, const void *bb)
 
 /* sftp ls.1 replacement for directories */
 static int
-do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
+do_ls_dir(struct sftp_conn *conn, const char *path,
+    const char *strip_path, int lflag)
 {
 	int n;
 	u_int c = 1, colspace = 0, columns = 1;
@@ -839,12 +845,12 @@ do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
 				attrib_to_stat(&d[n]->a, &sb);
 				lname = ls_file(fname, &sb, 1,
 				    (lflag & LS_SI_UNITS));
-				printf("%s\n", lname);
+				mprintf("%s\n", lname);
 				free(lname);
 			} else
-				printf("%s\n", d[n]->longname);
+				mprintf("%s\n", d[n]->longname);
 		} else {
-			printf("%-*s", colspace, fname);
+			mprintf("%-*s", colspace, fname);
 			if (c >= columns) {
 				printf("\n");
 				c = 1;
@@ -864,8 +870,8 @@ do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
 
 /* sftp ls.1 replacement which handles path globs */
 static int
-do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
-    int lflag)
+do_globbed_ls(struct sftp_conn *conn, const char *path,
+    const char *strip_path, int lflag)
 {
 	char *fname, *lname;
 	glob_t g;
@@ -925,10 +931,10 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 			}
 			lname = ls_file(fname, g.gl_statv[i], 1,
 			    (lflag & LS_SI_UNITS));
-			printf("%s\n", lname);
+			mprintf("%s\n", lname);
 			free(lname);
 		} else {
-			printf("%-*s", colspace, fname);
+			mprintf("%-*s", colspace, fname);
 			if (c >= columns) {
 				printf("\n");
 				c = 1;
@@ -949,7 +955,7 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 }
 
 static int
-do_df(struct sftp_conn *conn, char *path, int hflag, int iflag)
+do_df(struct sftp_conn *conn, const char *path, int hflag, int iflag)
 {
 	struct sftp_statvfs st;
 	char s_used[FMT_SCALED_STRSIZE];
@@ -1205,7 +1211,7 @@ makeargv(const char *arg, int *argcp, int sloppy, char *lastquote,
 
 static int
 parse_args(const char **cpp, int *ignore_errors, int *aflag,
-	  int *fflag, int *hflag, int *iflag, int *lflag, int *pflag, 
+	  int *fflag, int *hflag, int *iflag, int *lflag, int *pflag,
 	  int *rflag, int *sflag,
     unsigned long *n_arg, char **path1, char **path2)
 {
@@ -1397,7 +1403,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
     int err_abort)
 {
 	char *path1, *path2, *tmp;
-	int ignore_errors = 0, aflag = 0, fflag = 0, hflag = 0, 
+	int ignore_errors = 0, aflag = 0, fflag = 0, hflag = 0,
 	iflag = 0;
 	int lflag = 0, pflag = 0, rflag = 0, sflag = 0;
 	int cmdnum, i;
@@ -1456,7 +1462,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		remote_glob(conn, path1, GLOB_NOCHECK, NULL, &g);
 		for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
 			if (!quiet)
-				printf("Removing %s\n", g.gl_pathv[i]);
+				mprintf("Removing %s\n", g.gl_pathv[i]);
 			err = do_rm(conn, g.gl_pathv[i]);
 			if (err != 0 && err_abort)
 				break;
@@ -1556,7 +1562,8 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		remote_glob(conn, path1, GLOB_NOCHECK, NULL, &g);
 		for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
 			if (!quiet)
-				printf("Changing mode on %s\n", g.gl_pathv[i]);
+				mprintf("Changing mode on %s\n",
+				    g.gl_pathv[i]);
 			err = do_setstat(conn, g.gl_pathv[i], &a);
 			if (err != 0 && err_abort)
 				break;
@@ -1586,12 +1593,12 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 			aa->flags &= SSH2_FILEXFER_ATTR_UIDGID;
 			if (cmdnum == I_CHOWN) {
 				if (!quiet)
-					printf("Changing owner on %s\n",
+					mprintf("Changing owner on %s\n",
 					    g.gl_pathv[i]);
 				aa->uid = n_arg;
 			} else {
 				if (!quiet)
-					printf("Changing group on %s\n",
+					mprintf("Changing group on %s\n",
 					    g.gl_pathv[i]);
 				aa->gid = n_arg;
 			}
@@ -1601,7 +1608,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		}
 		break;
 	case I_PWD:
-		printf("Remote working directory: %s\n", *pwd);
+		mprintf("Remote working directory: %s\n", *pwd);
 		break;
 	case I_LPWD:
 		if (!getcwd(path_buf, sizeof(path_buf))) {
@@ -1609,7 +1616,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 			err = -1;
 			break;
 		}
-		printf("Local working directory: %s\n", path_buf);
+		mprintf("Local working directory: %s\n", path_buf);
 		break;
 	case I_QUIT:
 		/* Processed below */
@@ -1678,7 +1685,7 @@ complete_display(char **list, u_int len)
 	for (y = 0; list[y]; y++) {
 		llen = strlen(list[y]);
 		tmp = llen > len ? list[y] + len : "";
-		printf("%-*s", colspace, tmp);
+		mprintf("%-*s", colspace, tmp);
 		if (m >= columns) {
 			printf("\n");
 			m = 1;
@@ -2062,7 +2069,7 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 
 		if (remote_is_dir(conn, dir) && file2 == NULL) {
 			if (!quiet)
-				printf("Changing to: %s\n", dir);
+				mprintf("Changing to: %s\n", dir);
 			snprintf(cmd, sizeof cmd, "cd \"%s\"", dir);
 			if (parse_dispatch_command(conn, cmd,
 			    &remote_path, 1) != 0) {
@@ -2106,7 +2113,7 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 				break;
 			}
 			if (!interactive) { /* Echo command */
-				printf("sftp> %s", cmd);
+				mprintf("sftp> %s", cmd);
 				if (strlen(cmd) > 0 &&
 				    cmd[strlen(cmd) - 1] != '\n')
 					printf("\n");

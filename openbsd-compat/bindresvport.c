@@ -64,6 +64,7 @@ bindresvport_sa(int sd, struct sockaddr *sa)
 	if (sa == NULL) {
 		memset(&myaddr, 0, sizeof(myaddr));
 		sa = (struct sockaddr *)&myaddr;
+		salen = sizeof(myaddr);
 
 		if (getsockname(sd, sa, &salen) == -1)
 			return -1;	/* errno is correctly set */
