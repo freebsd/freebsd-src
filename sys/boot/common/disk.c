@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 struct open_disk {
 	struct ptable		*table;
-	off_t			mediasize;
+	uint64_t		mediasize;
 	u_int			sectorsize;
 	u_int			flags;
 	int			rcnt;
@@ -64,7 +64,7 @@ struct dentry {
 	int			d_partition;
 
 	struct open_disk	*od;
-	off_t			d_offset;
+	uint64_t		d_offset;
 	STAILQ_ENTRY(dentry)	entry;
 #ifdef DISK_DEBUG
 	uint32_t		count;
@@ -171,7 +171,7 @@ display_size(uint64_t size, u_int sectorsize)
 }
 
 int
-ptblread(void *d, void *buf, size_t blocks, off_t offset)
+ptblread(void *d, void *buf, size_t blocks, uint64_t offset)
 {
 	struct disk_devdesc *dev;
 	struct open_disk *od;
@@ -238,7 +238,7 @@ disk_print(struct disk_devdesc *dev, char *prefix, int verbose)
 }
 
 int
-disk_read(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
+disk_read(struct disk_devdesc *dev, void *buf, uint64_t offset, u_int blocks)
 {
 	struct open_disk *od;
 	int ret;
@@ -251,7 +251,7 @@ disk_read(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
 }
 
 int
-disk_write(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
+disk_write(struct disk_devdesc *dev, void *buf, uint64_t offset, u_int blocks)
 {
 	struct open_disk *od;
 	int ret;
@@ -274,7 +274,7 @@ disk_ioctl(struct disk_devdesc *dev, u_long cmd, void *buf)
 }
 
 int
-disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize,
+disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize,
     u_int flags)
 {
 	struct open_disk *od;
