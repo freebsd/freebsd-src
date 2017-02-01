@@ -24,12 +24,12 @@
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 int32_t thiszone;		/* seconds offset from gmt to local time */
 

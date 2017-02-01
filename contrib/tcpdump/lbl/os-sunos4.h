@@ -166,12 +166,10 @@ int	sscanf(char *, const char *, ...);
 int	stat(const char *, struct stat *);
 int	statfs(char *, struct statfs *);
 char	*strerror(int);
-int	strcasecmp(const char *, const char *);
 #ifdef __STDC__
 struct	tm;
 #endif
 int	strftime(char *, int, char *, struct tm *);
-int	strncasecmp(const char *, const char *, int);
 long	strtol(const char *, char **, int);
 void	sync(void);
 void	syslog(int, const char *, ...);

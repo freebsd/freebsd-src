@@ -27,17 +27,17 @@
  * SUCH DAMAGE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: IPv6 header option printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#ifdef INET6
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include "ip6.h"
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -170,10 +170,16 @@ trunc:
     ND_PRINT((ndo, "[trunc] "));
 }
 
-int
+void
 hbhopt_print(netdissect_options *ndo, register const u_char *bp)
 {
-    const struct ip6_hbh *dp = (struct ip6_hbh *)bp;
+    INVOKE_DISSECTOR(_hbhopt_print, ndo, bp);
+}
+
+int
+_hbhopt_print(netdissect_options *ndo, register const u_char *bp)
+{
+    const struct ip6_hbh *dp = (const struct ip6_hbh *)bp;
     int hbhlen = 0;
 
     ND_TCHECK(dp->ip6h_len);
@@ -190,10 +196,16 @@ hbhopt_print(netdissect_options *ndo, register const u_char *bp)
     return(-1);
 }
 
-int
+void
 dstopt_print(netdissect_options *ndo, register const u_char *bp)
 {
-    const struct ip6_dest *dp = (struct ip6_dest *)bp;
+    INVOKE_DISSECTOR(_dstopt_print, ndo, bp);
+}
+
+int
+_dstopt_print(netdissect_options *ndo, register const u_char *bp)
+{
+    const struct ip6_dest *dp = (const struct ip6_dest *)bp;
     int dstoptlen = 0;
 
     ND_TCHECK(dp->ip6d_len);
@@ -211,4 +223,3 @@ dstopt_print(netdissect_options *ndo, register const u_char *bp)
     ND_PRINT((ndo, "[|DSTOPT]"));
     return(-1);
 }
-#endif /* INET6 */

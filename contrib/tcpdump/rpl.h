@@ -22,7 +22,7 @@ enum ND_RPL_CODE {
     ND_RPL_SEC_DAG_IO = 0x81,
     ND_RPL_SEC_DAG    = 0x82,
     ND_RPL_SEC_DAG_ACK= 0x83,
-    ND_RPL_SEC_CONSIST= 0x84,
+    ND_RPL_SEC_CONSIST= 0x8A
 };
 
 enum ND_RPL_DIO_FLAGS {
@@ -31,7 +31,7 @@ enum ND_RPL_DIO_FLAGS {
         ND_RPL_DIO_DASUPPORT= 0x20,
         ND_RPL_DIO_RES4     = 0x10,
         ND_RPL_DIO_RES3     = 0x08,
-        ND_RPL_DIO_PRF_MASK = 0x07,  /* 3-bit preference */
+        ND_RPL_DIO_PRF_MASK = 0x07  /* 3-bit preference */
 };
 
 #define DAGID_LEN 16
@@ -81,7 +81,7 @@ enum RPL_DIO_MOP {
     RPL_DIO_NONSTORING= 0x0,
     RPL_DIO_STORING   = 0x1,
     RPL_DIO_NONSTORING_MULTICAST = 0x2,
-    RPL_DIO_STORING_MULTICAST    = 0x3,
+    RPL_DIO_STORING_MULTICAST    = 0x3
 };
 
 enum RPL_SUBOPT {
@@ -93,7 +93,7 @@ enum RPL_SUBOPT {
         RPL_DAO_RPLTARGET   = 5,
         RPL_DAO_TRANSITINFO = 6,
         RPL_DIO_DESTPREFIX  = 8,
-        RPL_DAO_RPLTARGET_DESC=9,
+        RPL_DAO_RPLTARGET_DESC=9
 };
 
 struct rpl_dio_genoption {

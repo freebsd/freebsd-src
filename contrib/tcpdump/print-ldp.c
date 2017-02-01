@@ -14,14 +14,15 @@
  *  and Steinar Haug (sthaug@nethelp.no)
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Label Distribution Protocol (LDP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"
 
@@ -285,12 +286,10 @@ ldp_tlv_print(netdissect_options *ndo,
         TLV_TCHECK(4);
         ND_PRINT((ndo, "\n\t      IPv4 Transport Address: %s", ipaddr_string(ndo, tptr)));
         break;
-#ifdef INET6
     case LDP_TLV_IPV6_TRANSPORT_ADDR:
         TLV_TCHECK(16);
         ND_PRINT((ndo, "\n\t      IPv6 Transport Address: %s", ip6addr_string(ndo, tptr)));
         break;
-#endif
     case LDP_TLV_CONFIG_SEQ_NUMBER:
         TLV_TCHECK(4);
         ND_PRINT((ndo, "\n\t      Sequence Number: %u", EXTRACT_32BITS(tptr)));
@@ -312,7 +311,6 @@ ldp_tlv_print(netdissect_options *ndo,
 		tptr+=sizeof(struct in_addr);
 	    }
             break;
-#ifdef INET6
         case AFNUM_INET6:
 	    while(tlv_tlen >= sizeof(struct in6_addr)) {
 		ND_TCHECK2(*tptr, sizeof(struct in6_addr));
@@ -321,7 +319,6 @@ ldp_tlv_print(netdissect_options *ndo,
 		tptr+=sizeof(struct in6_addr);
 	    }
             break;
-#endif
         default:
             /* unknown AF */
             break;
@@ -366,7 +363,6 @@ ldp_tlv_print(netdissect_options *ndo,
 		else
 		    ND_PRINT((ndo, ": IPv4 prefix %s", buf));
 	    }
-#ifdef INET6
 	    else if (af == AFNUM_INET6) {
 		i=decode_prefix6(ndo, tptr, tlv_tlen, buf, sizeof(buf));
 		if (i == -2)
@@ -378,7 +374,6 @@ ldp_tlv_print(netdissect_options *ndo,
 		else
 		    ND_PRINT((ndo, ": IPv6 prefix %s", buf));
 	    }
-#endif
 	    else
 		ND_PRINT((ndo, ": Address family %u prefix", af));
 	    break;
@@ -386,16 +381,20 @@ ldp_tlv_print(netdissect_options *ndo,
 	    break;
 	case LDP_FEC_MARTINI_VC:
             /*
+             * We assume the type was supposed to be one of the MPLS
+             * Pseudowire Types.
+             */
+            TLV_TCHECK(7);
+            vc_info_len = *(tptr+2);
+
+            /*
 	     * According to RFC 4908, the VC info Length field can be zero,
 	     * in which case not only are there no interface parameters,
 	     * there's no VC ID.
 	     */
-            TLV_TCHECK(7);
-            vc_info_len = *(tptr+2);
-
             if (vc_info_len == 0) {
                 ND_PRINT((ndo, ": %s, %scontrol word, group-ID %u, VC-info-length: %u",
-                       tok2str(l2vpn_encaps_values, "Unknown", EXTRACT_16BITS(tptr)&0x7fff),
+                       tok2str(mpls_pw_types_values, "Unknown", EXTRACT_16BITS(tptr)&0x7fff),
                        EXTRACT_16BITS(tptr)&0x8000 ? "" : "no ",
                        EXTRACT_32BITS(tptr+3),
                        vc_info_len));
@@ -405,7 +404,7 @@ ldp_tlv_print(netdissect_options *ndo,
             /* Make sure we have the VC ID as well */
             TLV_TCHECK(11);
 	    ND_PRINT((ndo, ": %s, %scontrol word, group-ID %u, VC-ID %u, VC-info-length: %u",
-		   tok2str(l2vpn_encaps_values, "Unknown", EXTRACT_16BITS(tptr)&0x7fff),
+		   tok2str(mpls_pw_types_values, "Unknown", EXTRACT_16BITS(tptr)&0x7fff),
 		   EXTRACT_16BITS(tptr)&0x8000 ? "" : "no ",
                    EXTRACT_32BITS(tptr+3),
 		   EXTRACT_32BITS(tptr+7),

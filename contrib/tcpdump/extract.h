@@ -103,7 +103,7 @@ EXTRACT_32BITS(const void *p)
 static inline uint64_t
 EXTRACT_64BITS(const void *p)
 {
-	return ((uint64_t)(((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 0)->val)) << 32 | \
+	return ((uint64_t)(((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 0)->val)) << 32 |
 		((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 1)->val)) << 0));
 }
 
@@ -153,7 +153,7 @@ EXTRACT_32BITS(const void *p)
 static inline uint64_t
 EXTRACT_64BITS(const void *p)
 {
-	return ((uint64_t)(((uint64_t)ntohl(*((const uint32_t *)(p) + 0))) << 32 | \
+	return ((uint64_t)(((uint64_t)ntohl(*((const uint32_t *)(p) + 0))) << 32 |
 		((uint64_t)ntohl(*((const uint32_t *)(p) + 1))) << 0));
 
 }
@@ -215,3 +215,30 @@ EXTRACT_64BITS(const void *p)
 	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 8) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 0)) << 0)))
+
+/*
+ * Macros to check the presence of the values in question.
+ */
+#define ND_TTEST_8BITS(p) ND_TTEST2(*(p), 1)
+#define ND_TCHECK_8BITS(p) ND_TCHECK2(*(p), 1)
+
+#define ND_TTEST_16BITS(p) ND_TTEST2(*(p), 2)
+#define ND_TCHECK_16BITS(p) ND_TCHECK2(*(p), 2)
+
+#define ND_TTEST_24BITS(p) ND_TTEST2(*(p), 3)
+#define ND_TCHECK_24BITS(p) ND_TCHECK2(*(p), 3)
+
+#define ND_TTEST_32BITS(p) ND_TTEST2(*(p), 4)
+#define ND_TCHECK_32BITS(p) ND_TCHECK2(*(p), 4)
+
+#define ND_TTEST_40BITS(p) ND_TTEST2(*(p), 5)
+#define ND_TCHECK_40BITS(p) ND_TCHECK2(*(p), 5)
+
+#define ND_TTEST_48BITS(p) ND_TTEST2(*(p), 6)
+#define ND_TCHECK_48BITS(p) ND_TCHECK2(*(p), 6)
+
+#define ND_TTEST_56BITS(p) ND_TTEST2(*(p), 7)
+#define ND_TCHECK_56BITS(p) ND_TCHECK2(*(p), 7)
+
+#define ND_TTEST_64BITS(p) ND_TTEST2(*(p), 8)
+#define ND_TCHECK_64BITS(p) ND_TCHECK2(*(p), 8)

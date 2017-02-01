@@ -1,32 +1,24 @@
-/*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden).
+/*-
+ * Copyright (c) 2017 SRI International
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- *
- * 4. Neither the name of the Institute nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -36,18 +28,39 @@
  * SUCH DAMAGE.
  */
 
-#include <tcpdump-stdinc.h>
-
-/* Minimal implementation of inet_aton.
- * Cannot distinguish between failure and a local broadcast address. */
-
-#ifndef INADDR_NONE
-#define INADDR_NONE 0xffffffff
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
+#include <netdissect-stdinc.h>
+#include "netdissect.h"
+
 int
-inet_aton(const char *cp, struct in_addr *addr)
+nd_init(char *errbuf _U_, size_t errbuf_size _U_)
 {
-  addr->s_addr = inet_addr(cp);
-  return (addr->s_addr == INADDR_NONE) ? 0 : 1;
+
+	return (0);
+}
+
+void
+nd_cleanup(void)
+{
+}
+
+int
+nd_have_smi_support(void)
+{
+	return (0);
+}
+
+int
+nd_load_smi_module(const char *module, char *errbuf, size_t errbuf_size)
+{
+	return (-1);
+}
+
+const char *
+nd_smi_version_string(void)
+{
+	return (NULL);
 }

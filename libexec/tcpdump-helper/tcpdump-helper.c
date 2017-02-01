@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2015 SRI International
+ * Copyright (c) 2014-2017 SRI International
  * Copyright (c) 2012-2016 Robert N. M. Watson
  * All rights reserved.
  *
@@ -67,16 +67,14 @@
 #include <string.h>
 #include <md5.h>
 
-#include "tcpdump-stdinc.h"
+#include "netdissect-stdinc.h"
 #include "netdissect.h"
+#include "addrtoname.h"
 #include "interface.h"
 #include "print.h"
 
 #include "tcpdump-helper.h"
 
-static struct print_info printinfo;
-static netdissect_options Gndo;
-netdissect_options *gndo = &Gndo;
 struct cheri_object g_next_object;
 struct cheri_object cheri_tcpdump;
 
@@ -94,41 +92,16 @@ invoke(void)
 }
 
 int
-cheri_tcpdump_sandbox_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
-    uint32_t timezone_offset, const netdissect_options *ndo,
+cheri_tcpdump_sandbox_init(netdissect_options *ndo, bpf_u_int32 localnet, 
+    bpf_u_int32 netmask, uint32_t timezone_offset,
     struct cheri_object next_sandbox)
 {
 
 	program_name = "tcpdump-helper"; /* XXX: copy from parent? */
 
-	/*
-	 * Make a copy of the parent's netdissect_options.  Most of the
-	 * items are unchanged until the next init or per-packet.
-	 */
-	memcpy_c(gndo, ndo, sizeof(netdissect_options));
-	gndo->ndo_printf = tcpdump_printf;
-	gndo->ndo_default_print = ndo_default_print;
-	gndo->ndo_error = ndo_error;
-	gndo->ndo_warning = ndo_warning;
-
-	init_print(localnet, netmask, timezone_offset);
-
-	printinfo.ndo_type = 1;
-	printinfo.ndo = gndo;
-	printinfo.p.ndo_printer = lookup_ndo_printer(gndo->ndo_dlt);
-	if (printinfo.p.ndo_printer == NULL) {
-		printinfo.p.printer = lookup_printer(gndo->ndo_dlt);
-		printinfo.ndo_type = 0;
-		if (printinfo.p.printer == NULL) {
-			gndo->ndo_dltname =
-			    pcap_datalink_val_to_name(gndo->ndo_dlt);
-			if (gndo->ndo_dltname != NULL)
-				error("packet printing is not supported for link type %s: use -w",
-				      gndo->ndo_dltname);
-		else
-			error("packet printing is not supported for link type %d: use -w", gndo->ndo_dlt);
-		}
-	}
+	thiszone = timezone_offset;
+	init_addrtoname(ndo, localnet, netmask);
+	init_checksum();
 
 	g_next_object = next_sandbox;
 
@@ -143,12 +116,10 @@ cheri_sandbox_has_printer(int type)
 }
 
 int
-cheri_sandbox_pretty_print_packet(const struct pcap_pkthdr *h,
-    const u_char *sp)
+cheri_sandbox_pretty_print_packet(netdissect_options *ndo,
+    const struct pcap_pkthdr *h, const u_char *sp)
 {
-	int ret;
-
-	ret = 0;
+	u_int hdrlen;
 
 #ifdef DEBUG
 	printf("printing a packet of length 0x%x\n", h->caplen);
@@ -158,20 +129,21 @@ cheri_sandbox_pretty_print_packet(const struct pcap_pkthdr *h,
 	    cheri_getoffset((void *)sp));
 #endif
 
-	gndo->ndo_packetp = sp;
-	gndo->ndo_snapend = gndo->ndo_packetp + h->caplen;
+	hdrlen = (ndo->ndo_if_printer)(ndo, h, sp);
 
-	if (printinfo.ndo_type)
-		ret = (*printinfo.p.ndo_printer)(printinfo.ndo,
-		     h, gndo->ndo_packetp);
-	else
-		ret = (*printinfo.p.printer)(h, gndo->ndo_packetp);
+	return (hdrlen);
+}
 
-	/* XXX: what else to reset? */
-	gndo->ndo_packetp = NULL;
-	snapend = NULL;
+void
+cheri_tcpdump_sandbox_set_if_printer(netdissect_options *ndo, int type)
+{
+	ndo_set_if_printer(ndo, type);
+}
 
-	return (ret);
+void
+cheri_tcpdump_sandbox_set_function_pointers(netdissect_options *ndo)
+{
+	ndo_set_function_pointers(ndo);
 }
 
 void

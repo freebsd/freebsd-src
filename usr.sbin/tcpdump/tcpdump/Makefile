@@ -11,11 +11,14 @@ TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 
 PROG=	tcpdump
 
-SRCS=	gmt2local.c \
+SRCS=	\
+	ascii_strcasecmp.c \
+	gmt2local.c \
 	machdep.c \
+	netdissect.c \
 	setsignal.c \
+	strtoaddr.c \
 	tcpdump.c \
-	util.c \
 	version.c
 CLEANFILES+=	version.c
 

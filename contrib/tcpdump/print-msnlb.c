@@ -26,14 +26,15 @@
  * SUCH DAMAGE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: MS Network Load Balancing's (NLB) heartbeat printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
@@ -47,17 +48,17 @@ struct msnlb_heartbeat_pkt {
 };
 
 void
-msnlb_print(netdissect_options *ndo, const u_char *bp, u_int length)
+msnlb_print(netdissect_options *ndo, const u_char *bp)
 {
-	INVOKE_DISSECTOR(_msnlb_print, ndo, bp, length);
+	INVOKE_DISSECTOR(_msnlb_print, ndo, bp);
 }
 
 void
-_msnlb_print(netdissect_options *ndo, const u_char *bp, u_int length _U_)
+_msnlb_print(netdissect_options *ndo, const u_char *bp)
 {
 	const struct msnlb_heartbeat_pkt *hb;
 
-	hb = (struct msnlb_heartbeat_pkt *)bp;
+	hb = (const struct msnlb_heartbeat_pkt *)bp;
 	ND_TCHECK(*hb);
 
 	ND_PRINT((ndo, "MS NLB heartbeat, host priority: %u,",

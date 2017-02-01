@@ -32,28 +32,30 @@
 /*
  * Include the appropriate OS header files on Windows and various flavors
  * of UNIX, include various non-OS header files on Windows, and define
- * various items as needed, to isolate most of tcpdump's platform
+ * various items as needed, to isolate most of netdissect's platform
  * differences to this one file.
  */
 
-#ifndef tcpdump_stdinc_h
-#define tcpdump_stdinc_h
+#ifndef netdissect_stdinc_h
+#define netdissect_stdinc_h
 
 #include <errno.h>
 
-#ifdef WIN32
+#ifdef _WIN32
+
+/*
+ * Includes and definitions for Windows.
+ */
 
 #include <stdint.h>
 #include <stdio.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include "bittypes.h"   /* in wpcap's Win32/include */
 #include <ctype.h>
 #include <time.h>
 #include <io.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <net/netdb.h>  /* in wpcap's Win32/include */
 
 #ifndef uint8_t
 #define uint8_t		unsigned char
@@ -133,6 +135,17 @@
 
 #endif /* _MSC_EXTENSIONS */
 
+/*
+ * Suppress definition of intN_t in bittypes.h, as included by <pcap/pcap.h>
+ * on Windows.
+ * (Yes, HAVE_U_INTn_T, as the definition guards are UN*X-oriented, and
+ * we check for u_intN_t in the UN*X configure script.)
+ */
+#define HAVE_U_INT8_T
+#define HAVE_U_INT16_T
+#define HAVE_U_INT32_T
+#define HAVE_U_INT64_T
+
 #ifdef _MSC_VER
 #define stat _stat
 #define open _open
@@ -142,18 +155,15 @@
 #define O_RDONLY _O_RDONLY
 #endif  /* _MSC_VER */
 
-/* Protos for missing/x.c functions (ideally <missing/addrinfo.h>
- * should be used, but it clashes with <ws2tcpip.h>).
- */
-extern const char *inet_ntop (int, const void *, char *, size_t);
-extern int inet_pton (int, const char *, void *);
-extern int inet_aton (const char *cp, struct in_addr *addr);
-
 /*
  * With MSVC, for C, __inline is used to make a function an inline.
  */
 #ifdef _MSC_VER
 #define inline __inline
+#endif
+
+#ifdef AF_INET6
+#define HAVE_OS_IPV6_SUPPORT
 #endif
 
 #ifndef INET6_ADDRSTRLEN
@@ -171,12 +181,15 @@ typedef char* caddr_t;
 #endif /* caddr_t */
 
 #define MAXHOSTNAMELEN	64
-#define	NI_MAXHOST	1025
 #define snprintf _snprintf
 #define vsnprintf _vsnprintf
 #define RETSIGTYPE void
 
-#else /* WIN32 */
+#else /* _WIN32 */
+
+/*
+ * Includes and definitions for various flavors of UN*X.
+ */
 
 #include <ctype.h>
 #include <unistd.h>
@@ -198,7 +211,7 @@ typedef char* caddr_t;
 
 #include <arpa/inet.h>
 
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
 #ifndef HAVE___ATTRIBUTE__
 #define __attribute__(x)
@@ -241,7 +254,10 @@ typedef char* caddr_t;
 #define UNALIGNED	__attribute__((packed))
 #endif
 
-#if defined(WIN32) || defined(MSDOS)
+/*
+ * fopen() read and write modes for text files and binary files.
+ */
+#if defined(_WIN32) || defined(MSDOS)
   #define FOPEN_READ_TXT   "rt"
   #define FOPEN_READ_BIN   "rb"
   #define FOPEN_WRITE_TXT  "wt"
@@ -253,6 +269,16 @@ typedef char* caddr_t;
   #define FOPEN_WRITE_BIN  FOPEN_WRITE_TXT
 #endif
 
+/*
+ * Inline x86 assembler-language versions of ntoh[ls]() and hton[ls](),
+ * defined if the OS doesn't provide them.  These assume no more than
+ * an 80386, so, for example, it avoids the bswap instruction added in
+ * the 80486.
+ *
+ * (We don't use them on OS X; Apple provides their own, which *doesn't*
+ * avoid the bswap instruction, as OS X only supports machines that
+ * have it.)
+ */
 #if defined(__GNUC__) && defined(__i386__) && !defined(__APPLE__) && !defined(__ntohl)
   #undef ntohl
   #undef ntohs
@@ -282,6 +308,32 @@ typedef char* caddr_t;
             : "=q" (x) : "0" (x));
     return (x);
   }
+#endif
+
+/*
+ * If the OS doesn't define AF_INET6 and struct in6_addr:
+ *
+ * define AF_INET6, so we can use it internally as a "this is an
+ * IPv6 address" indication;
+ *
+ * define struct in6_addr so that we can use it for IPv6 addresses.
+ */
+#ifndef HAVE_OS_IPV6_SUPPORT
+#ifndef AF_INET6
+#define AF_INET6	24
+
+struct in6_addr {
+	union {
+		__uint8_t   __u6_addr8[16];
+		__uint16_t  __u6_addr16[8];
+		__uint32_t  __u6_addr32[4];
+	} __u6_addr;			/* 128-bit IP6 address */
+};
+#endif
+#endif
+
+#ifndef NI_MAXHOST
+#define	NI_MAXHOST	1025
 #endif
 
 #ifndef INET_ADDRSTRLEN
@@ -349,4 +401,4 @@ typedef char* caddr_t;
 #define max(a,b) ((b)>(a)?(b):(a))
 #endif
 
-#endif /* tcpdump_stdinc_h */
+#endif /* netdissect_stdinc_h */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  *
@@ -17,7 +17,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
+ *      HÃ¶gskolan and its contributors.
  *
  * 4. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
@@ -40,9 +40,11 @@
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
+#include "addrtostr.h"
 
 #include <stdio.h>
+#include <string.h>
 
 /*
  *
@@ -56,13 +58,12 @@
 #define INT16SZ     2    /* word size */
 #endif
 
-static const char *
-inet_ntop_v4 (const void *src, char *dst, size_t size)
+const char *
+addrtostr (const void *src, char *dst, size_t size)
 {
+    const u_char *srcaddr = (const u_char *)src;
     const char digits[] = "0123456789";
     int i;
-    struct in_addr *addr = (struct in_addr *)src;
-    u_long a = ntohl(addr->s_addr);
     const char *orig_dst = dst;
 
     if (size < INET_ADDRSTRLEN) {
@@ -70,7 +71,7 @@ inet_ntop_v4 (const void *src, char *dst, size_t size)
 	return NULL;
     }
     for (i = 0; i < 4; ++i) {
-	int n = (a >> (24 - i * 8)) & 0xFF;
+    	int n = *srcaddr++;
 	int non_zerop = 0;
 
 	if (non_zerop || n / 100 > 0) {
@@ -91,12 +92,11 @@ inet_ntop_v4 (const void *src, char *dst, size_t size)
     return orig_dst;
 }
 
-#ifdef INET6
 /*
  * Convert IPv6 binary address into presentation (printable) format.
  */
-static const char *
-inet_ntop_v6 (const u_char *src, char *dst, size_t size)
+const char *
+addrtostr6 (const void *src, char *dst, size_t size)
 {
   /*
    * Note that int32_t and int16_t need only be "at least" large enough
@@ -105,14 +105,16 @@ inet_ntop_v6 (const u_char *src, char *dst, size_t size)
    * Keep this in mind if you think this function should have been coded
    * to use pointer overlays.  All the world's not a VAX.
    */
-  char  tmp [INET6_ADDRSTRLEN+1];
-  char *tp;
+  const u_char *srcaddr = (const u_char *)src;
+  char *dp;
+  size_t space_left, added_space;
+  int snprintfed;
   struct {
     long base;
     long len;
   } best, cur;
   u_long words [IN6ADDRSZ / INT16SZ];
-  int    i;
+  int  i;
 
   /* Preprocess:
    *  Copy the input (bytewise) array into a wordwise array.
@@ -120,7 +122,7 @@ inet_ntop_v6 (const u_char *src, char *dst, size_t size)
    */
   memset (words, 0, sizeof(words));
   for (i = 0; i < IN6ADDRSZ; i++)
-      words[i/2] |= (src[i] << ((1 - (i % 2)) << 3));
+      words[i/2] |= (srcaddr[i] << ((1 - (i % 2)) << 3));
 
   best.len = 0;
   best.base = -1;
@@ -148,7 +150,17 @@ inet_ntop_v6 (const u_char *src, char *dst, size_t size)
 
   /* Format the result.
    */
-  tp = tmp;
+  dp = dst;
+  space_left = size;
+#define APPEND_CHAR(c) \
+    { \
+        if (space_left == 0) { \
+            errno = ENOSPC; \
+            return (NULL); \
+        } \
+        *dp++ = c; \
+        space_left--; \
+    }
   for (i = 0; i < (IN6ADDRSZ / INT16SZ); i++)
   {
     /* Are we inside the best run of 0x00's?
@@ -156,61 +168,47 @@ inet_ntop_v6 (const u_char *src, char *dst, size_t size)
     if (best.base != -1 && i >= best.base && i < (best.base + best.len))
     {
       if (i == best.base)
-         *tp++ = ':';
+      	 APPEND_CHAR(':');
       continue;
     }
 
     /* Are we following an initial run of 0x00s or any real hex?
      */
     if (i != 0)
-       *tp++ = ':';
+       APPEND_CHAR(':');
 
     /* Is this address an encapsulated IPv4?
      */
     if (i == 6 && best.base == 0 &&
         (best.len == 6 || (best.len == 5 && words[5] == 0xffff)))
     {
-      if (!inet_ntop_v4(src+12, tp, sizeof(tmp) - (tp - tmp)))
+      if (!addrtostr(srcaddr+12, dp, space_left))
       {
         errno = ENOSPC;
         return (NULL);
       }
-      tp += strlen(tp);
+      added_space = strlen(dp);
+      dp += added_space;
+      space_left -= added_space;
       break;
     }
-    tp += sprintf (tp, "%lx", words[i]);
+    snprintfed = snprintf (dp, space_left, "%lx", words[i]);
+    if (snprintfed < 0)
+        return (NULL);
+    if ((size_t) snprintfed >= space_left)
+    {
+        errno = ENOSPC;
+        return (NULL);
+    }
+    dp += snprintfed;
+    space_left -= snprintfed;
   }
 
   /* Was it a trailing run of 0x00's?
    */
   if (best.base != -1 && (best.base + best.len) == (IN6ADDRSZ / INT16SZ))
-     *tp++ = ':';
-  *tp++ = '\0';
+     APPEND_CHAR(':');
+  APPEND_CHAR('\0');
 
-  /* Check for overflow, copy, and we're done.
-   */
-  if ((size_t)(tp - tmp) > size)
-  {
-    errno = ENOSPC;
-    return (NULL);
-  }
-  return strcpy (dst, tmp);
-}
-#endif   /* INET6 */
-
-
-const char *
-inet_ntop(int af, const void *src, char *dst, size_t size)
-{
-    switch (af) {
-    case AF_INET :
-	return inet_ntop_v4 (src, dst, size);
-#ifdef INET6
-    case AF_INET6:
-         return inet_ntop_v6 ((const u_char*)src, dst, size);
-#endif
-    default :
-	errno = EAFNOSUPPORT;
-	return NULL;
-    }
+  return (dst);
 }

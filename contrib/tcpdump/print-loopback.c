@@ -1,9 +1,4 @@
 /*
- * This module implements decoding of the Loopback Protocol, originally
- * defined as the Configuration Testing Protocol. It is based on the following
- * specification:
- * http://www.mit.edu/people/jhawk/ctp.pdf
- *
  * Copyright (c) 2014 The TCPDUMP project
  * All rights reserved.
  *
@@ -30,20 +25,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Loopback Protocol printer */
+
+/*
+ * originally defined as the Ethernet Configuration Testing Protocol.
+ * specification: http://www.mit.edu/people/jhawk/ctp.pdf
+ */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "ether.h"
 #include "addrtoname.h"
 
 static const char tstr[] = " [|loopback]";
-static const char cstr[] = " (corrupt)";
 
 #define LOOPBACK_REPLY   1
 #define LOOPBACK_FWDDATA 2
@@ -61,7 +61,7 @@ loopback_message_print(netdissect_options *ndo, const u_char *cp, const u_int le
 	uint16_t function;
 
 	if (len < 2)
-		goto corrupt;
+		goto invalid;
 	/* function */
 	ND_TCHECK2(*cp, 2);
 	function = EXTRACT_LE_16BITS(cp);
@@ -71,7 +71,7 @@ loopback_message_print(netdissect_options *ndo, const u_char *cp, const u_int le
 	switch (function) {
 		case LOOPBACK_REPLY:
 			if (len < 4)
-				goto corrupt;
+				goto invalid;
 			/* receipt number */
 			ND_TCHECK2(*cp, 2);
 			ND_PRINT((ndo, ", receipt number %u", EXTRACT_LE_16BITS(cp)));
@@ -82,7 +82,7 @@ loopback_message_print(netdissect_options *ndo, const u_char *cp, const u_int le
 			break;
 		case LOOPBACK_FWDDATA:
 			if (len < 8)
-				goto corrupt;
+				goto invalid;
 			/* forwarding address */
 			ND_TCHECK2(*cp, ETHER_ADDR_LEN);
 			ND_PRINT((ndo, ", forwarding address %s", etheraddr_string(ndo, cp)));
@@ -97,8 +97,8 @@ loopback_message_print(netdissect_options *ndo, const u_char *cp, const u_int le
 	}
 	return;
 
-corrupt:
-	ND_PRINT((ndo, "%s", cstr));
+invalid:
+	ND_PRINT((ndo, "%s", istr));
 	ND_TCHECK2(*cp, ep - cp);
 	return;
 trunc:
@@ -113,7 +113,7 @@ loopback_print(netdissect_options *ndo, const u_char *cp, const u_int len)
 
 	ND_PRINT((ndo, "Loopback"));
 	if (len < 2)
-		goto corrupt;
+		goto invalid;
 	/* skipCount */
 	ND_TCHECK2(*cp, 2);
 	skipCount = EXTRACT_LE_16BITS(cp);
@@ -122,12 +122,12 @@ loopback_print(netdissect_options *ndo, const u_char *cp, const u_int len)
 	if (skipCount % 8)
 		ND_PRINT((ndo, " (bogus)"));
 	if (skipCount > len - 2)
-		goto corrupt;
+		goto invalid;
 	loopback_message_print(ndo, cp + skipCount, len - 2 - skipCount);
 	return;
 
-corrupt:
-	ND_PRINT((ndo, "%s", cstr));
+invalid:
+	ND_PRINT((ndo, "%s", istr));
 	ND_TCHECK2(*cp, ep - cp);
 	return;
 trunc:

@@ -15,14 +15,15 @@
  * Guy Harris.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Session Initiation Protocol (SIP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 
 static const char *sipcmds[] = {

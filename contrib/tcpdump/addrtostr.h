@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska H�gskolan
+ * Copyright (c) 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  *
@@ -17,7 +17,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *      This product includes software developed by the Kungliga Tekniska
- *      H�gskolan and its contributors.
+ *      Högskolan and its contributors.
  *
  * 4. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
@@ -36,14 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include <tcpdump-stdinc.h>
+/* Address to printable string translation routines. */
 
-int
-inet_pton(int af, const char *src, void *dst)
-{
-    if (af != AF_INET) {
-	errno = EAFNOSUPPORT;
-	return -1;
-    }
-    return inet_aton (src, dst);
-}
+extern const char *addrtostr(const void *src, char *dst, size_t size);
+extern const char *addrtostr6(const void *src, char *dst, size_t size);

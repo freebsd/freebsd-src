@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 char *
 strdup(str)

@@ -41,10 +41,10 @@
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 #include <stdio.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 #define ASCII_LINELENGTH 300
 #define HEXDUMP_BYTES_PER_LINE 16
@@ -176,6 +176,9 @@ hex_print(netdissect_options *ndo,const char *ident, const u_char *cp, u_int len
   hex_print_with_offset(ndo, ident, cp, length, 0);
 }
 
+void
+raw_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
+    const u_char *sp, u_int hdrlen);
 void
 raw_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
     const u_char *sp, u_int hdrlen)

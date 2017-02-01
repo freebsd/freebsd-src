@@ -35,12 +35,13 @@
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <pcap.h>
 #include <string.h>
 
 #include "pcap-missing.h"
+#include "ascii_strcasecmp.h"
 
 struct dlt_choice {
 	const char *name;
@@ -137,7 +138,7 @@ pcap_datalink_name_to_val(const char *name)
 	int i;
 
 	for (i = 0; dlt_choices[i].name != NULL; i++) {
-		if (strcasecmp(dlt_choices[i].name + sizeof("DLT_") - 1,
+		if (ascii_strcasecmp(dlt_choices[i].name + sizeof("DLT_") - 1,
 		    name) == 0)
 			return (dlt_choices[i].dlt);
 	}

@@ -12,11 +12,13 @@ PROG=	cheri_tcpdump
 MAN=
 
 SRCS=	\
+	ascii_strcasecmp.c \
+	bittok2str.c \
 	gmt2local.c \
 	machdep.c \
+	netdissect.c \
 	setsignal.c \
 	tcpdump.c \
-	util.c \
 	print.c \
 	print-ascii.c \
 	ts_print.c \
@@ -45,7 +47,6 @@ LIBADD=	cheri l pcap
 #.endif
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	crypto
-CFLAGS+=	-I${DESTDIR}/usr/include/openssl
 CFLAGS+=	-DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .endif
 

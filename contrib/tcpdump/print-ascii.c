@@ -36,15 +36,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: ASCII packet dump printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 #include <stdio.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 #define ASCII_LINELENGTH 300
 #define HEXDUMP_BYTES_PER_LINE 16
@@ -186,70 +187,6 @@ void
 hex_print(netdissect_options *ndo,const char *ident, const u_char *cp, u_int length)
 {
   hex_print_with_offset(ndo, ident, cp, length, 0);
-}
-
-void
-raw_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
-    const u_char *sp, u_int hdrlen)
-{
-
-       if (ndo->ndo_Xflag) {
-                /*
-                 * Print the raw packet data in hex and ASCII.
-                 */
-                if (ndo->ndo_Xflag > 1) {
-                        /*
-                         * Include the link-layer header.
-                         */
-                        hex_and_ascii_print(ndo, "\n\t", sp, h->caplen);
-                } else {
-                        /*
-                         * Don't include the link-layer header - and if
-                         * we have nothing past the link-layer header,
-                         * print nothing.
-                         */
-                        if (h->caplen > hdrlen)
-                                hex_and_ascii_print(ndo, "\n\t", sp + hdrlen,
-                                    h->caplen - hdrlen);
-                }
-        } else if (ndo->ndo_xflag) {
-                /*
-                 * Print the raw packet data in hex.
-                 */
-                if (ndo->ndo_xflag > 1) {
-                        /*
-                         * Include the link-layer header.
-                         */
-                        hex_print(ndo, "\n\t", sp, h->caplen);
-                } else {
-                        /*
-                         * Don't include the link-layer header - and if
-                         * we have nothing past the link-layer header,
-                         * print nothing.
-                         */
-                        if (h->caplen > hdrlen)
-                                hex_print(ndo, "\n\t", sp + hdrlen,
-                                          h->caplen - hdrlen);
-                }
-        } else if (ndo->ndo_Aflag) {
-                /*
-                 * Print the raw packet data in ASCII.
-                 */
-                if (ndo->ndo_Aflag > 1) {
-                        /*
-                         * Include the link-layer header.
-                         */
-                        ascii_print(ndo, sp, h->caplen);
-                } else {
-                        /*
-                         * Don't include the link-layer header - and if
-                         * we have nothing past the link-layer header,
-                         * print nothing.
-                         */
-                        if (h->caplen > hdrlen)
-                                ascii_print(ndo, sp + hdrlen, h->caplen - hdrlen);
-                }
-        }
 }
 
 #ifdef MAIN

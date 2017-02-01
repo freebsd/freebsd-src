@@ -28,15 +28,15 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 /*
  * Copy src to string dst of size siz.  At most siz-1 characters

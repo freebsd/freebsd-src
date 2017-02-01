@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2015 SRI International
+ * Copyright (c) 2014-2017 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -50,7 +50,7 @@
 
 #include <assert.h>
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -59,7 +59,7 @@
 
 #include "cheri_tcpdump_control.h"
 
-#include "tcpdump-stdinc.h"
+#include "netdissect-stdinc.h"
 #include "extract.h"
 #include "netdissect.h"
 #include "interface.h"
@@ -220,11 +220,8 @@ tcpdump_sandbox_reset(struct tcpdump_sandbox *sb)
 
 	if (sb->tds_current_invokes == 0)
 		return (0);
-	if (sandbox_object_reset(sb->tds_sandbox_object) < 0) {
-		fprintf(stderr, "failed to reset sandbox object: %s",
-		    strerror(errno));
-		return (-1);
-	}
+	if (sandbox_object_reset(sb->tds_sandbox_object) < 0)
+		err(1, "failed to reset sandbox object");
 	if (sb->tds_proto_sandboxes != NULL)
 		for (i = 0; i < sb->tds_num_proto_sandboxes; i++)
 			tcpdump_sandbox_reset(sb->tds_proto_sandboxes[i]);
@@ -390,7 +387,7 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 		default_sandbox = sb;
 		break;
 	default:
-		error("unknown sandbox mode %d", mode);
+		errx(1, "unknown sandbox mode %d", mode);
 	}
 	/* Given non _cap ccalls somewhere to go. */
 	cheri_tcpdump = sandbox_object_getobject(
@@ -441,7 +438,7 @@ tcpdump_sandbox_find(struct tcpdump_sandbox_list *list, int dlt, size_t len,
 }
 
 static int
-tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
+tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb, netdissect_options *ndo,
     const struct pcap_pkthdr *hdr, __capability const u_char *data)
 {
 	int i, ret;
@@ -465,21 +462,21 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		if (ctdc->ctdc_sb_max_lifetime > 0)
 			gettimeofday(&sb->tds_current_start, NULL);
 
-		save_packetp = gndo->ndo_packetp;
-		save_snapend = gndo->ndo_snapend;
-		gndo->ndo_packetp = NULL;
-		gndo->ndo_snapend = NULL;
+		save_packetp = ndo->ndo_packetp;
+		save_snapend = ndo->ndo_snapend;
+		ndo->ndo_packetp = NULL;
+		ndo->ndo_snapend = NULL;
 
 		ret = cheri_tcpdump_sandbox_init_cap(
 		    sandbox_object_getobject(sb->tds_sandbox_object),
-		    g_localnet, g_mask, g_timezone_offset,
-		    cheri_ptrperm(gndo, sizeof(netdissect_options),
+		    cheri_ptrperm(ndo, sizeof(*ndo),
 		    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
+		    g_localnet, g_mask, g_timezone_offset,
 		    sb->tds_num_proto_sandboxes == 0 ? null_sandbox :
 		    sandbox_object_getobject(
 		    sb->tds_proto_sandboxes[0]->tds_sandbox_object));
 		if (ret != 0)
-			error("failed to initialize sandbox: %d \n",
+			errx(1, "failed to initialize sandbox: %d",
 			    ret);
 		if (sb->tds_proto_sandboxes != NULL) {
 			for (i = 0; i < sb->tds_num_proto_sandboxes; i++) {
@@ -487,21 +484,21 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 				sobj = sandbox_object_getobject(
 				    sb->tds_proto_sandboxes[i]->tds_sandbox_object);
 				ret = cheri_tcpdump_sandbox_init_cap(sobj,
-				    g_localnet, g_mask, g_timezone_offset,
-				    cheri_ptrperm(gndo, sizeof(netdissect_options),
+				    cheri_ptrperm(ndo, sizeof(*ndo),
 				    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
+				    g_localnet, g_mask, g_timezone_offset,
 				    i + 1 >= sb->tds_num_proto_sandboxes ?
 				    null_sandbox :
 				    sandbox_object_getobject(
 				    sb->tds_proto_sandboxes[i+1]->tds_sandbox_object));
 				if (ret != 0)
-					error("failed to initialize "
+					errx(1, "failed to initialize "
 					    "per-protocol sandbox %d: %d \n",
 					    i, ret);
 			}
 		}
-		gndo->ndo_snapend = save_snapend;
-		gndo->ndo_packetp = save_packetp;
+		ndo->ndo_snapend = save_snapend;
+		ndo->ndo_packetp = save_packetp;
 	}
 
 	/* Invoke */
@@ -511,10 +508,11 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		ualarm(g_timeout, 0);
 	ret = cheri_sandbox_pretty_print_packet_cap(
 	    sandbox_object_getobject(sb->tds_sandbox_object),
+	    cheri_ptrperm((void *)ndo, sizeof(*ndo),
+		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_ptrperm((void *)hdr, sizeof(*hdr),
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-	    cheri_ptrperm((void *)data, hdr->caplen,
-		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP));
+	    data);
 	if (ret == SANDBOX_STACK_UNWOUND) {
 		printf("<sandbox-timeout>");
 		/* XXX: dump hex here? */
@@ -537,8 +535,7 @@ tcpdump_sandbox_object_setup()
 
 	if (sandbox_class_new("/usr/libexec/tcpdump-helper",
 	    8*1024*1024, &tcpdump_classp) < 0) {
-		fprintf(stderr, "failed to create sandbox class: %s",
-		    strerror(errno));
+		err(1, "failed to create sandbox class");
 		return (-1);
 	}
 
@@ -609,7 +606,8 @@ poll_ctdc_config(void)
 }
 
 void
-init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
+init_print(netdissect_options *ndo, uint32_t localnet, uint32_t mask,
+    uint32_t timezone_offset)
 {
 	char *control_file;
 	int control_fd = -1, i;
@@ -645,22 +643,22 @@ init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 
 	if (tcpdump_classp == NULL) {
 		if (tcpdump_sandbox_object_setup() != 0)
-			error("failure setting up sandbox object");
+			errx(1, "failure setting up sandbox object");
 	}
 
 	sigstk.ss_size = max(getpagesize(), SIGSTKSZ);
 	if ((sigstk.ss_sp = mmap(NULL, sigstk.ss_size, PROT_READ | PROT_WRITE,
 	    MAP_ANON, -1, 0)) == MAP_FAILED)
-		error("failure allocating alternative signal stack");
+		err(1, "failure allocating alternative signal stack");
 	sigstk.ss_flags = 0;
 	if (sigaltstack(&sigstk, NULL) < 0)
-		error("sigaltstack");
+		err(1, "sigaltstack");
 
 	sa.sa_sigaction = handle_alarm;
 	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
 	sigemptyset(&sa.sa_mask);
 	if (sigaction(SIGALRM, &sa, NULL) < 0)
-		error("sigaction(SIGALRM)");
+		err(1, "sigaction(SIGALRM)");
 }
 
 int
@@ -674,24 +672,8 @@ has_printer(int type)
 	return (cheri_sandbox_has_printer(type));
 }
 
-struct print_info
-get_print_info(int type)
-{
-        struct print_info printinfo;
-
-	/* If the type changes we need to reinit all the sandboxes */
-	if (g_type != -1 && type != g_type)
-		tcpdump_sandboxes_reset_all(&sandboxes);
-	gndo->ndo_dlt = g_type = type;
-
-	/* Not used, contents don't matter */
-	memset(&printinfo, 0, sizeof(printinfo));
-
-	return printinfo;
-}
-
 void
-pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
+pretty_print_packet(netdissect_options *ndo, const struct pcap_pkthdr *h,
     __capability const u_char *sp, u_int packets_captured)
 {
 	int ret;
@@ -702,10 +684,10 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 	if (ctdc->ctdc_colorize)
 		set_color_default();
 
-	if (print_info->ndo->ndo_packet_number)
+	if (ndo->ndo_packet_number)
 		printf("%5u  ", packets_captured);
 
-	ts_print(print_info->ndo, &h->ts);
+	ts_print(ndo, &h->ts);
 
 	sb = tcpdump_sandbox_find(&sandboxes, g_type, h->caplen, sp);
 	if (sb == NULL) {
@@ -715,7 +697,7 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 	printf("[%s] ", sb->tds_name);
 	if (ctdc->ctdc_colorize)
 		printf("%s", sb->tds_text_color_str);
-	ret = tcpdump_sandbox_invoke(sb, h, sp);
+	ret = tcpdump_sandbox_invoke(sb, ndo, h, sp);
 	if (ret < 0) {
 		printf("%s\nSANDBOX FAULTED. RESETTING.\n",
 		    ctdc->ctdc_colorize ? SB_FAIL_COLOR : "");
@@ -723,39 +705,25 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 	}
 	if (ctdc->ctdc_colorize)
 		set_color_default();
-
-	/* XXX-BD: cast should be safe as we're unsandboxed */
-	raw_print(print_info->ndo, h, (const u_char *)sp, (ret >= 0 && (u_int)ret <= h->caplen) ? ret : 0);
-}
-
-/*
- * The following functions are stubs and should never be called outside
- * the print code.  They exist to limit modifictions to the core code.
- */
-int
-tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
-{
-
-	abort();
 }
 
 void
-ndo_default_print(netdissect_options *ndo _U_, const u_char *bp, u_int length)
+ndo_set_if_printer(netdissect_options *ndo, int type)
 {
 
-	abort();
+	cheri_tcpdump_sandbox_set_if_printer_cap(
+	    sandbox_object_getobject(default_sandbox->tds_sandbox_object),
+	    cheri_ptrperm(ndo, sizeof(*ndo), CHERI_PERM_LOAD |
+	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE | CHERI_PERM_STORE_CAP),
+	    type);
 }
 
 void
-ndo_error(netdissect_options *ndo _U_, const char *fmt, ...)
+ndo_set_function_pointers(netdissect_options *ndo)
 {
 
-	abort();
-}
-
-void
-ndo_warning(netdissect_options *ndo _U_, const char *fmt, ...)
-{
-
-	abort();
+	cheri_tcpdump_sandbox_set_function_pointers_cap(
+	    sandbox_object_getobject(default_sandbox->tds_sandbox_object),
+	    cheri_ptrperm(ndo, sizeof(*ndo), CHERI_PERM_LOAD |
+	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE | CHERI_PERM_STORE_CAP));
 }

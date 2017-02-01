@@ -7,11 +7,12 @@ NEED_CHERI=	sandbox
 .include <src.opts.mk>
 
 PROG=	tcpdump-helper
-SRCS=	tcpdump-helper.c			\
+SRCS=	ascii_strcasecmp.c			\
+	netdissect.c				\
+	tcpdump-helper.c			\
 	pcap_datalink_val_to_name.c		\
 	pcap-eproto_db.c			\
-	stub.c					\
-	util.c
+	stub.c
 
 .include "${.CURDIR}/../../usr.sbin/tcpdump/tcpdump/Makefile.print"
 

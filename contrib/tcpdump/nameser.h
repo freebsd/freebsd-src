@@ -71,20 +71,6 @@
 #define RRFIXEDSZ	10
 
 /*
- * Internet nameserver port number
- */
-#define NAMESERVER_PORT	53
-
-/*
- * Port for multicast DNS; see
- *
- *	http://files.multicastdns.org/draft-cheshire-dnsext-multicastdns.txt
- *
- * for the current mDNS spec.
- */
-#define MULTICASTDNS_PORT	5353
-
-/*
  * Currently defined opcodes
  */
 #define QUERY		0x0		/* standard query */

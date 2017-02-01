@@ -25,52 +25,26 @@
  *	Seth Webster <swebster@sst.ll.mit.edu>
  */
 
-/* $FreeBSD$ */
-
 #include <sys/cdefs.h>
 
 #if !__has_feature(capabilities)
 #define	__capability
 #endif
 
-/* XXX: Could be opaque to tcpdump.c */
-struct print_info {
-        netdissect_options *ndo;
-        union {
-                if_printer     printer;
-                if_ndo_printer ndo_printer;
-        } p;
-        int ndo_type;
-};
+#ifndef print_h
+#define print_h
 
+void	init_print(netdissect_options *ndo, uint32_t localnet, uint32_t mask,
+	    uint32_t timezone_offset);
 
 int	has_printer(int type);
 
-/* XXX: should be hidden */
-int	tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
-	    __attribute ((format (printf, 2, 3)));
+void	ndo_set_if_printer(netdissect_options *ndo, int type);
 
-/* XXX: should return a malloced pointer */
-struct print_info	get_print_info(int type);
-
-void	pretty_print_packet(struct print_info *print_info,
+void	pretty_print_packet(netdissect_options *ndo,
 	    const struct pcap_pkthdr *h, __capability const u_char *sp,
 	    u_int packets_captured);
 
-void	ndo_default_print(netdissect_options *ndo, const u_char *bp,
-	    u_int length);
-void	default_print(const u_char *bp, u_int length);
+void	ndo_set_function_pointers(netdissect_options *ndo);
 
-void ndo_error(netdissect_options *ndo, const char *fmt, ...)
-	__attribute__((noreturn))
-#ifdef __ATTRIBUTE___FORMAT_OK
-	__attribute__((format (printf, 2, 3)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-    ;
-void ndo_warning(netdissect_options *ndo, const char *fmt, ...)
-#ifdef __ATTRIBUTE___FORMAT_OK
-	__attribute__((format (printf, 2, 3)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-    ;
-
-void	init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset);
+#endif /* print_h */
