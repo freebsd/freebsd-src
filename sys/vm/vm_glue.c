@@ -381,7 +381,7 @@ retrylookup:
 
 	for (;;) {
 		m = vm_page_alloc_contig(ksobj, 0, allocflags,
-		    atop(KSTACK_PAGE_SIZE), 0ul, ~0ul, KSTACK_PAGE_SIZE * 2, 0,
+		    atop(KSTACK_PAGE_SIZE), 0ul, ~0ul, KSTACK_PAGE_SIZE, 0,
 		    VM_MEMATTR_DEFAULT);
 		if (m != NULL)
 			break;
