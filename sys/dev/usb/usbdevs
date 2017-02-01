@@ -587,6 +587,7 @@ vendor CCYU		0x1065	CCYU Technology
 vendor CURITEL		0x106c	Curitel Communications Inc
 vendor SILABS2		0x10a6	SILABS2
 vendor USI		0x10ab	USI
+vendor HONEYWELL	0x10ac	Honeywell
 vendor LIEBERT2		0x10af	Liebert
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
@@ -594,6 +595,7 @@ vendor SILABS		0x10c4	Silicon Labs
 vendor SILABS3		0x10c5	Silicon Labs
 vendor SILABS4		0x10ce	Silicon Labs
 vendor ACTIONS		0x10d6  Actions
+vendor MOXA		0x110a	Moxa
 vendor ANALOG		0x1110	Analog Devices
 vendor TENX		0x1130	Ten X Technology, Inc.
 vendor ISSC		0x1131	Integrated System Solution Corp.
@@ -698,6 +700,7 @@ vendor ELV		0x18ef	ELV
 vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor QUALCOMM3	0x19f5	Qualcomm, Inc.
+vendor ABBOTT		0x1a61	Abbott Diabetics
 vendor BAYER		0x1a79	Bayer
 vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
@@ -805,6 +808,10 @@ product 3COMUSR OFFICECONN	0x0082	3Com OfficeConnect Analog Modem
 product 3COMUSR USRISDN		0x008f	3Com U.S. Robotics Pro ISDN TA
 product 3COMUSR HOMECONN	0x009d	3Com HomeConnect Camera
 product 3COMUSR USR56K		0x3021	U.S. Robotics 56000 Voice FaxModem Pro
+
+/* Abbott Diabetics */
+product ABBOTT STEREO_PLUG	0x3410	Abbott Diabetics Stereo Plug
+product ABBOTT STRIP_PORT	0x3420	Abbott Diabetics Strip Port
 
 /* AboCom products */
 product ABOCOM XX1		0x110c	XX1
@@ -2290,6 +2297,9 @@ product HITACHI DVDCAM_USB	0x001e	DVDCAM USB HS Interface
 /* Holtek products */
 product HOLTEK F85		0xa030	Holtek USB gaming keyboard
 
+/* Honeywell */
+product HONEYWELL HGI80		0x0102	Honeywell HGI80 Wireless USB Gateway
+
 /* HP products */
 product HP 895C			0x0004	DeskJet 895C
 product HP 4100C		0x0101	Scanjet 4100C
@@ -2448,6 +2458,9 @@ product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
 
 /* IBM Corporation */
 product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
+product IBM USB4543		0x4543	TI IBM USB 4543 Modem
+product IBM USB454B		0x454b	TI IBM USB 454B Modem
+product IBM USB454C		0x454c	TI IBM USB 454C Modem
 
 /* Icom products */
 product ICOM SP1		0x0004	FTDI compatible adapter
@@ -3222,12 +3235,27 @@ product MOTOROLA2 MB886		0x710f	MB886 Mobile Phone (Atria HD)
 product MOTOROLA4 RT2770	0x9031	RT2770
 product MOTOROLA4 RT3070	0x9032	RT3070
 
+/* Moxa */
+product MOXA MXU1_1110		0x1110	Moxa Uport 1110
+product MOXA MXU1_1130		0x1130	Moxa Uport 1130
+product MOXA MXU1_1131		0x1131	Moxa Uport 1131
+product MOXA MXU1_1150		0x1150	Moxa Uport 1150
+product MOXA MXU1_1151		0x1151	Moxa Uport 1151
+
 /* MpMan products */
 product MPMAN MPF400_2		0x25a8	MPF400 Music Player 2Go
 product MPMAN MPF400_1		0x36d0	MPF400 Music Player 1Go
 
 /* MultiTech products */
+product MULTITECH MT9234ZBA_2	0x0319	MT9234ZBA USB modem (alt)
 product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
+product MULTITECH GSM		0xf108	GSM USB Modem
+product MULTITECH CDMA		0xf109	CDMA USB Modem
+product MULTITECH CDMA_FW	0xf110	CDMA USB Modem firmware running
+product	MULTITECH GSM_FW	0xf111	GSM USB Modem firmware running
+product MULTITECH EDGE		0xf112	Edge USB Modem
+product MULTITECH MT9234MU	0xf114	MT9234 MU
+product MULTITECH MT9234ZBA	0xf115	MT9234 ZBA
 
 /* Mustek products */
 product MUSTEK 1200CU		0x0001	1200 CU scanner
@@ -4466,6 +4494,13 @@ product TENX UAUDIO0		0xf211	USB audio headset
 /* Texas Intel products */
 product TI UTUSB41		0x1446	UT-USB41 hub
 product TI TUSB2046		0x2046	TUSB2046 hub
+product TI USB3410		0x3410	TI USB 3410 Modem
+product TI USB5052		0x5052	TI USB 5250 Modem
+product TI FRI2			0x5053	TI Fish River Island II
+product TI USB5052_EEPROM	0x505a	TI USB 5250 Modem w/Eeprom
+product TI USB5052_FW		0x505f	TI USB 5250 Modme w/Firmware running
+product TI USB5152		0x5152	TI USB 5152 Modem
+product TI EZ430		0xf430	TI ex430 development tool
 
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
