@@ -41,18 +41,17 @@
 #define	ETHER_ADDR_LEN		6
 
 /*
- * Structure of a DEC/Intel/Xerox or 802.3 Ethernet header.
+ * Structure of an Ethernet header.
  */
 struct	ether_header {
 	uint8_t		ether_dhost[ETHER_ADDR_LEN];
 	uint8_t		ether_shost[ETHER_ADDR_LEN];
-	uint16_t	ether_type;
+	uint16_t	ether_length_type;
 };
 
 /*
- * Length of a DEC/Intel/Xerox or 802.3 Ethernet header; note that some
- * compilers may pad "struct ether_header" to a multiple of 4 bytes,
- * for example, so "sizeof (struct ether_header)" may not give the right
- * answer.
+ * Length of an Ethernet header; note that some compilers may pad
+ * "struct ether_header" to a multiple of 4 bytes, for example, so
+ * "sizeof (struct ether_header)" may not give the right answer.
  */
 #define ETHER_HDRLEN		14

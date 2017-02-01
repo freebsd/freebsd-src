@@ -143,14 +143,14 @@ umass_disk_ioctl(struct open_file *f __unused, u_long cmd, void *buf)
 	uint32_t blocksize;
 
 	switch (cmd) {
-	case IOCTL_GET_BLOCK_SIZE:
-	case IOCTL_GET_BLOCKS:
+	case DIOCGSECTORSIZE:
+	case DIOCGMEDIASIZE:
 		if (usb_msc_read_capacity(umass_uaa.device, 0,
 		    &nblock, &blocksize) != 0)
 			return (EINVAL);
 
-		if (cmd == IOCTL_GET_BLOCKS)
-			*(uint32_t*)buf = nblock;
+		if (cmd == DIOCGMEDIASIZE)
+			*(uint64_t*)buf = nblock;
 		else
 			*(uint32_t*)buf = blocksize;
 

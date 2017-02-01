@@ -417,7 +417,7 @@ struct zfs_probe_args {
 };
 
 static int
-zfs_diskread(void *arg, void *buf, size_t blocks, off_t offset)
+zfs_diskread(void *arg, void *buf, size_t blocks, uint64_t offset)
 {
 	struct zfs_probe_args *ppa;
 

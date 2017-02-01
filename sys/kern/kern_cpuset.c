@@ -976,18 +976,26 @@ struct cpuset_setid_args {
 int
 sys_cpuset_setid(struct thread *td, struct cpuset_setid_args *uap)
 {
+
+	return (kern_cpuset_setid(td, uap->which, uap->id, uap->setid));
+}
+
+int
+kern_cpuset_setid(struct thread *td, cpuwhich_t which,
+    id_t id, cpusetid_t setid)
+{
 	struct cpuset *set;
 	int error;
 
 	/*
 	 * Presently we only support per-process sets.
 	 */
-	if (uap->which != CPU_WHICH_PID)
+	if (which != CPU_WHICH_PID)
 		return (EINVAL);
-	set = cpuset_lookup(uap->setid, td);
+	set = cpuset_lookup(setid, td);
 	if (set == NULL)
 		return (ESRCH);
-	error = cpuset_setproc(uap->id, set, NULL);
+	error = cpuset_setproc(id, set, NULL);
 	cpuset_rel(set);
 	return (error);
 }
@@ -1003,19 +1011,28 @@ struct cpuset_getid_args {
 int
 sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 {
+
+	return (kern_cpuset_getid(td, uap->level, uap->which, uap->id,
+	    uap->setid));
+}
+
+int
+kern_cpuset_getid(struct thread *td, cpulevel_t level, cpuwhich_t which,
+    id_t id, cpusetid_t *setid)
+{
 	struct cpuset *nset;
 	struct cpuset *set;
 	struct thread *ttd;
 	struct proc *p;
-	cpusetid_t id;
+	cpusetid_t tmpid;
 	int error;
 
-	if (uap->level == CPU_LEVEL_WHICH && uap->which != CPU_WHICH_CPUSET)
+	if (level == CPU_LEVEL_WHICH && which != CPU_WHICH_CPUSET)
 		return (EINVAL);
-	error = cpuset_which(uap->which, uap->id, &p, &ttd, &set);
+	error = cpuset_which(which, id, &p, &ttd, &set);
 	if (error)
 		return (error);
-	switch (uap->which) {
+	switch (which) {
 	case CPU_WHICH_TID:
 	case CPU_WHICH_PID:
 		thread_lock(ttd);
@@ -1030,7 +1047,7 @@ sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 	case CPU_WHICH_DOMAIN:
 		return (EINVAL);
 	}
-	switch (uap->level) {
+	switch (level) {
 	case CPU_LEVEL_ROOT:
 		nset = cpuset_refroot(set);
 		cpuset_rel(set);
@@ -1041,10 +1058,10 @@ sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 	case CPU_LEVEL_WHICH:
 		break;
 	}
-	id = set->cs_id;
+	tmpid = set->cs_id;
 	cpuset_rel(set);
 	if (error == 0)
-		error = copyout(&id, uap->setid, sizeof(id));
+		error = copyout(&tmpid, setid, sizeof(id));
 
 	return (error);
 }

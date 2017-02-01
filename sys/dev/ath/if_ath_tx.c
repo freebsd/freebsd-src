@@ -2979,7 +2979,9 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	M_SEQNO_SET(m0, seqno);
 
 	/* Return so caller can do something with it if needed */
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s:  -> seqno=%d\n", __func__, seqno);
+	DPRINTF(sc, ATH_DEBUG_SW_TX,
+	    "%s:  -> subtype=0x%x, tid=%d, seqno=%d\n",
+	    __func__, subtype, tid, seqno);
 	return seqno;
 }
 

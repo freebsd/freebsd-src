@@ -7,7 +7,7 @@ DTS=	\
 	ufw.dts
 
 LINKS= \
-	${DTBDIR}/am3335x-bone.dtb ${DTBDIR}/beaglebone.dtb \
-	${DTBDIR}/am3335x-boneblack.dtb ${DTBDIR}/beaglebone-black.dtb
+	${DTBDIR}/am335x-bone.dtb ${DTBDIR}/beaglebone.dtb \
+	${DTBDIR}/am335x-boneblack.dtb ${DTBDIR}/beaglebone-black.dtb
 
 .include <bsd.dtb.mk>

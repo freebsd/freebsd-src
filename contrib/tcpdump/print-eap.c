@@ -16,19 +16,17 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * Format and print EAP packets.
- *
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Extensible Authentication Protocol (EAP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 
 #define	EAP_FRAME_TYPE_PACKET		0
@@ -151,7 +149,7 @@ static const struct tok eap_aka_subtype_values[] = {
 void
 eap_print(netdissect_options *ndo,
           register const u_char *cp,
-          u_int length _U_)
+          u_int length)
 {
     const struct eap_frame_t *eap;
     const u_char *tptr;

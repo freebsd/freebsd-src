@@ -1,5 +1,5 @@
 /*	$NetBSD: getopt.h,v 1.4 2000/07/07 10:43:54 ad Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: projects/clang400-import/contrib/tcpdump/getopt_long.h 276788 2015-01-07 19:55:18Z delphij $ */
 
 /*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.

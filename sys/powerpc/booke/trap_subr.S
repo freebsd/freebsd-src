@@ -794,6 +794,22 @@ interrupt_vector_top:
 INTERRUPT(int_debug)
 	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
+	bl	int_debug_int
+	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
+	rfci
+
+INTERRUPT(int_debug_ed)
+	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_DSRR0, SPR_DSRR1)
+	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
+	bl	int_debug_int
+	FRAME_LEAVE(SPR_DSRR0, SPR_DSRR1)
+	rfdi
+	/* .long 0x4c00004e */
+
+/* Internal helper for debug interrupt handling. */
+/* Common code between e500v1/v2 and e500mc-based cores. */
+int_debug_int:
+	mflr	%r14
 	GET_CPUINFO(%r3)
 	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0)(%r3)
 	bl	0f
@@ -819,7 +835,8 @@ INTERRUPT(int_debug)
 	mtspr	SPR_SRR0, %r3
 	lwz	%r4, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR1+8)(%r4);
 	mtspr	SPR_SRR1, %r4
-	b	9f
+	mtlr	%r14
+	blr
 1:
 	addi	%r3, %r1, 8
 	bl	CNAME(trap)
@@ -828,10 +845,6 @@ INTERRUPT(int_debug)
 	 * We actually need to return to the process with an rfi.
 	 */
 	b	trapexit
-9:
-	FRAME_LEAVE(SPR_CSRR0, SPR_CSRR1)
-	rfci
-
 
 /*****************************************************************************
  * Common trap code

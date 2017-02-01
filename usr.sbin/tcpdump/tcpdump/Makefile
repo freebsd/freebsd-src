@@ -8,7 +8,9 @@ TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 PROG=	tcpdump
 
 SRCS=	addrtoname.c \
+	addrtostr.c \
 	af.c \
+	ascii_strcasecmp.c \
 	checksum.c \
 	cpack.c \
 	gmpls.c \
@@ -17,9 +19,11 @@ SRCS=	addrtoname.c \
 	ipproto.c \
 	l2vpn.c \
 	machdep.c \
+	netdissect.c \
 	nlpid.c \
 	oui.c \
 	parsenfsfh.c \
+	print.c \
 	print-802_11.c \
 	print-802_15_4.c \
 	print-ah.c \
@@ -62,6 +66,7 @@ SRCS=	addrtoname.c \
 	print-geneve.c \
 	print-geonet.c \
 	print-gre.c \
+	print-hncp.c \
 	print-hsrp.c \
 	print-http.c \
 	print-icmp.c \
@@ -80,6 +85,7 @@ SRCS=	addrtoname.c \
 	print-l2tp.c \
 	print-lane.c \
 	print-ldp.c \
+	print-lisp.c \
 	print-llc.c \
 	print-lldp.c \
 	print-lmp.c \
@@ -88,6 +94,7 @@ SRCS=	addrtoname.c \
 	print-lwapp.c \
 	print-lwres.c \
 	print-m3ua.c \
+	print-medsa.c \
 	print-mobile.c \
 	print-mpcp.c \
 	print-mpls.c \
@@ -95,6 +102,7 @@ SRCS=	addrtoname.c \
 	print-msdp.c \
 	print-msnlb.c \
 	print-nfs.c \
+	print-nsh.c \
 	print-ntp.c \
 	print-null.c \
 	print-olsr.c \
@@ -111,6 +119,7 @@ SRCS=	addrtoname.c \
 	print-pptp.c \
 	print-radius.c \
 	print-raw.c \
+	print-resp.c \
 	print-rip.c \
 	print-rpki-rtr.c \
 	print-rrcp.c \
@@ -144,14 +153,16 @@ SRCS=	addrtoname.c \
 	print-vrrp.c \
 	print-vtp.c \
 	print-vxlan.c \
+	print-vxlan-gpe.c \
 	print-wb.c \
 	print-zephyr.c \
 	print-zeromq.c \
 	setsignal.c \
 	signature.c \
 	smbutil.c \
+	strtoaddr.c \
 	tcpdump.c \
-	util.c \
+	util-print.c \
 	version.c
 CLEANFILES+=	version.c
 
@@ -169,7 +180,7 @@ SRCS+=	print-babel.c \
 	print-ospf6.c \
 	print-ripng.c \
 	print-rt6.c
-CFLAGS+=	-DINET6
+CFLAGS+=	-DINET6 -DHAVE_OS_IPV6_SUPPORT
 .endif
 .if ${MACHINE_CPUARCH} != "i386"
 CFLAGS+=	-DLBL_ALIGN
@@ -190,7 +201,7 @@ CFLAGS+= -DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .if ${MK_PF} != "no"
 SRCS+=	print-pflog.c \
 	print-pfsync.c
-CFLAGS+= -DHAVE_NET_PFVAR_H
+CFLAGS+= -DHAVE_NET_PFVAR_H -DHAVE_NET_IF_PFLOG_H
 .endif
 
 version.c: ${TCPDUMP_DISTDIR}/VERSION
