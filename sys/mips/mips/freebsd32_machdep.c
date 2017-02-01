@@ -369,7 +369,9 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct proc *p;
 	struct thread *td;
+#if defined(CPU_HAVEFPU)
 	struct fpreg32 fpregs;
+#endif
 	struct reg32 regs;
 	struct sigacts *psp;
 	struct sigframe32 sf, *sfp;
