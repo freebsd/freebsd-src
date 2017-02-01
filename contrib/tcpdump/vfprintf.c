@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 /*
  * Stock 4.3 doesn't have vfprintf.
