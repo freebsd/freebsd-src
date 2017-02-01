@@ -74,6 +74,7 @@ struct pcpu;
 register struct pcb *curpcb __asm__(__XSTRING(PCB_REG));
 register struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));
 
+#define	get_pcpu()		(pcpup)
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 
 static __inline __pure2 struct thread *
