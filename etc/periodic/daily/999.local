@@ -20,7 +20,12 @@ do
     echo ''
     case "$script" in
 	/*)
-	    if [ -f "$script" ]
+	    if [ -x "$script" ]
+	    then
+		echo "Running $script:"
+
+		$script || rc=3
+	    elif [ -f "$script" ]
 	    then
 		echo "Running $script:"
 
