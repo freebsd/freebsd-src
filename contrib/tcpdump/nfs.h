@@ -35,7 +35,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  *	@(#)nfsproto.h	8.2 (Berkeley) 3/30/95
  */
 

@@ -27,18 +27,20 @@
  * SUCH DAMAGE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: IPv6 mobility printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#ifdef INET6
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include "ip6.h"
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
-#include "extract.h"		/* must come after interface.h */
+#include "extract.h"
+
+static const char tstr[] = "[|MOBILITY]";
 
 /* Mobility header */
 struct ip6_mobility {
@@ -71,6 +73,18 @@ struct ip6_mobility {
 #define IP6M_BINDING_ERROR	7	/* Binding Error */
 #define IP6M_MAX		7
 
+static const struct tok ip6m_str[] = {
+	{ IP6M_BINDING_REQUEST,  "BRR"  },
+	{ IP6M_HOME_TEST_INIT,   "HoTI" },
+	{ IP6M_CAREOF_TEST_INIT, "CoTI" },
+	{ IP6M_HOME_TEST,        "HoT"  },
+	{ IP6M_CAREOF_TEST,      "CoT"  },
+	{ IP6M_BINDING_UPDATE,   "BU"   },
+	{ IP6M_BINDING_ACK,      "BA"   },
+	{ IP6M_BINDING_ERROR,    "BE"   },
+	{ 0, NULL }
+};
+
 static const unsigned ip6m_hdrlen[IP6M_MAX + 1] = {
 	IP6M_MINLEN,      /* IP6M_BINDING_REQUEST  */
 	IP6M_MINLEN + 8,  /* IP6M_HOME_TEST_INIT   */
@@ -81,11 +95,6 @@ static const unsigned ip6m_hdrlen[IP6M_MAX + 1] = {
 	IP6M_MINLEN + 4,  /* IP6M_BINDING_ACK      */
 	IP6M_MINLEN + 16, /* IP6M_BINDING_ERROR    */
 };
-
-/* XXX: unused */
-#define IP6MOPT_BU_MINLEN	10
-#define IP6MOPT_BA_MINLEN	13
-#define IP6MOPT_BR_MINLEN	2
 
 /* Mobility Header Options */
 #define IP6MOPT_MINLEN		2
@@ -100,7 +109,7 @@ static const unsigned ip6m_hdrlen[IP6M_MAX + 1] = {
 #define IP6MOPT_AUTH          0x5	/* Binding Authorization Data */
 #define IP6MOPT_AUTH_MINLEN    12
 
-static void
+static int
 mobility_opt_print(netdissect_options *ndo,
                    const u_char *bp, const unsigned len)
 {
@@ -174,10 +183,10 @@ mobility_opt_print(netdissect_options *ndo,
 			break;
 		}
 	}
-	return;
+	return 0;
 
 trunc:
-	ND_PRINT((ndo, "[trunc] "));
+	return 1;
 }
 
 /*
@@ -192,7 +201,7 @@ mobility_print(netdissect_options *ndo,
 	unsigned mhlen, hlen;
 	uint8_t type;
 
-	mh = (struct ip6_mobility *)bp;
+	mh = (const struct ip6_mobility *)bp;
 
 	/* 'ep' points to the end of available data. */
 	ep = ndo->ndo_snapend;
@@ -223,17 +232,15 @@ mobility_print(netdissect_options *ndo,
 		ND_PRINT((ndo, "(header length %u is too small for type %u)", mhlen, type));
 		goto trunc;
 	}
+	ND_PRINT((ndo, "mobility: %s", tok2str(ip6m_str, "type-#%u", type)));
 	switch (type) {
 	case IP6M_BINDING_REQUEST:
-		ND_PRINT((ndo, "mobility: BRR"));
 		hlen = IP6M_MINLEN;
 		break;
 	case IP6M_HOME_TEST_INIT:
 	case IP6M_CAREOF_TEST_INIT:
-		ND_PRINT((ndo, "mobility: %soTI",
-			type == IP6M_HOME_TEST_INIT ? "H" : "C"));
 		hlen = IP6M_MINLEN;
-    		if (ndo->ndo_vflag) {
+		if (ndo->ndo_vflag) {
 			ND_TCHECK2(*mh, hlen + 8);
 			ND_PRINT((ndo, " %s Init Cookie=%08x:%08x",
 			       type == IP6M_HOME_TEST_INIT ? "Home" : "Care-of",
@@ -244,12 +251,10 @@ mobility_print(netdissect_options *ndo,
 		break;
 	case IP6M_HOME_TEST:
 	case IP6M_CAREOF_TEST:
-		ND_PRINT((ndo, "mobility: %soT",
-			type == IP6M_HOME_TEST ? "H" : "C"));
 		ND_TCHECK(mh->ip6m_data16[0]);
 		ND_PRINT((ndo, " nonce id=0x%x", EXTRACT_16BITS(&mh->ip6m_data16[0])));
 		hlen = IP6M_MINLEN;
-    		if (ndo->ndo_vflag) {
+		if (ndo->ndo_vflag) {
 			ND_TCHECK2(*mh, hlen + 8);
 			ND_PRINT((ndo, " %s Init Cookie=%08x:%08x",
 			       type == IP6M_HOME_TEST ? "Home" : "Care-of",
@@ -257,7 +262,7 @@ mobility_print(netdissect_options *ndo,
 			       EXTRACT_32BITS(&bp[hlen + 4])));
 		}
 		hlen += 8;
-    		if (ndo->ndo_vflag) {
+		if (ndo->ndo_vflag) {
 			ND_TCHECK2(*mh, hlen + 8);
 			ND_PRINT((ndo, " %s Keygen Token=%08x:%08x",
 			       type == IP6M_HOME_TEST ? "Home" : "Care-of",
@@ -267,7 +272,6 @@ mobility_print(netdissect_options *ndo,
 		hlen += 8;
 		break;
 	case IP6M_BINDING_UPDATE:
-		ND_PRINT((ndo, "mobility: BU"));
 		ND_TCHECK(mh->ip6m_data16[0]);
 		ND_PRINT((ndo, " seq#=%u", EXTRACT_16BITS(&mh->ip6m_data16[0])));
 		hlen = IP6M_MINLEN;
@@ -292,7 +296,6 @@ mobility_print(netdissect_options *ndo,
 		hlen += 2;
 		break;
 	case IP6M_BINDING_ACK:
-		ND_PRINT((ndo, "mobility: BA"));
 		ND_TCHECK(mh->ip6m_data8[0]);
 		ND_PRINT((ndo, " status=%u", mh->ip6m_data8[0]));
 		if (mh->ip6m_data8[1] & 0x80)
@@ -308,7 +311,6 @@ mobility_print(netdissect_options *ndo,
 		hlen += 2;
 		break;
 	case IP6M_BINDING_ERROR:
-		ND_PRINT((ndo, "mobility: BE"));
 		ND_TCHECK(mh->ip6m_data8[0]);
 		ND_PRINT((ndo, " status=%u", mh->ip6m_data8[0]));
 		/* Reserved */
@@ -318,17 +320,17 @@ mobility_print(netdissect_options *ndo,
 		hlen += 16;
 		break;
 	default:
-		ND_PRINT((ndo, "mobility: type-#%u len=%u", type, mh->ip6m_len));
+		ND_PRINT((ndo, " len=%u", mh->ip6m_len));
 		return(mhlen);
 		break;
 	}
-    	if (ndo->ndo_vflag)
-		mobility_opt_print(ndo, &bp[hlen], mhlen - hlen);
+	if (ndo->ndo_vflag)
+		if (mobility_opt_print(ndo, &bp[hlen], mhlen - hlen))
+			goto trunc;;
 
 	return(mhlen);
 
  trunc:
-	ND_PRINT((ndo, "[|MOBILITY]"));
+	ND_PRINT((ndo, "%s", tstr));
 	return(mhlen);
 }
-#endif /* INET6 */
