@@ -65,4 +65,12 @@ EFI_STATUS main(int argc, CHAR16 *argv[]);
 void exit(EFI_STATUS status);
 void delay(int usecs);
 
+/* EFI environment initialization. */
+void efi_init_environment(void);
+
+/* CHAR16 utility functions. */
+int wcscmp(CHAR16 *, CHAR16 *);
+void cpy8to16(const char *, CHAR16 *, size_t);
+void cpy16to8(const CHAR16 *, char *, size_t);
+
 #endif	/* _LOADER_EFILIB_H */
