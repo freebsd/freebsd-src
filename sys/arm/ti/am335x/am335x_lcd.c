@@ -343,15 +343,46 @@ static void
 am335x_read_hdmi_property(device_t dev)
 {
 	phandle_t node;
+	phandle_t endpoint;
 	phandle_t hdmi_xref;
 	struct am335x_lcd_softc *sc;
 
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
-	if (OF_getencprop(node, "hdmi", &hdmi_xref, sizeof(hdmi_xref)) == -1)
-		sc->sc_hdmi_framer = 0;
-	else
-		sc->sc_hdmi_framer = hdmi_xref; 
+	sc->sc_hdmi_framer = 0;
+
+	/*
+	 * Old FreeBSD way of referencing to HDMI framer
+	 */
+	if (OF_getencprop(node, "hdmi", &hdmi_xref, sizeof(hdmi_xref)) != -1) {
+		sc->sc_hdmi_framer = hdmi_xref;
+		return;
+	}
+
+	/*
+	 * Use bindings described in Linux docs:
+	 * bindings/media/video-interfaces.txt
+	 * We assume that the only endpoint in LCDC node
+	 * is HDMI framer.
+	 */
+	node = ofw_bus_find_child(node, "port");
+
+	/* No media bindings */
+	if (node == 0)
+		return;
+
+	for (endpoint = OF_child(node); endpoint != 0; endpoint = OF_peer(endpoint)) {
+		if (OF_getencprop(endpoint, "remote-endpoint", &node, sizeof(node)) != -1) {
+			/* port node of remote endpoint */
+			node = OF_node_from_xref(node);
+			/* port/ node */
+			node = OF_parent(node);
+			/* actual owner of port/endpoint, in our case HDMI framer */
+			sc->sc_hdmi_framer = OF_parent(node);
+			if (sc->sc_hdmi_framer != 0)
+				return;
+		}
+	}
 }
 
 static int
