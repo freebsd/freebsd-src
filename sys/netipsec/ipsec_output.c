@@ -167,10 +167,8 @@ next:
 			 * IPsec processing, i.e. return EJUSTRETURN.
 			 * But first check if there is some bundled transform.
 			 */
-			if (sp->tcount > (*pidx)) {
-				(*pidx)++;
+			if (sp->tcount > ++(*pidx))
 				goto next;
-			}
 			*error = EJUSTRETURN;
 		}
 		return (NULL);
@@ -487,10 +485,8 @@ next:
 			 * IPsec processing, i.e. return EJUSTRETURN.
 			 * But first check if there is some bundled transform.
 			 */
-			if (sp->tcount > (*pidx)) {
-				(*pidx)++;
+			if (sp->tcount > ++(*pidx))
 				goto next;
-			}
 			*error = EJUSTRETURN;
 		}
 		return (NULL);
