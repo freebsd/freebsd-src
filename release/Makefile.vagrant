@@ -1,8 +1,20 @@
 #
 # $FreeBSD$
 #
+# Makefile for producing and uploading Vagrant boxes to Hashicorp Atlas
 #
-# Makefile for uploading Vagrant boxes to Hashicorp Atlas
+# Usage Example:
+#   Create a Vagrant image for VirtualBox:
+#     make vagrant-box WITH_VMIMAGES=y WITH_CLOUDWARE=y \
+#       CLOUDWARE=vagrant-virtualbox VMFORMATS=vmdk
+#
+#   To create a Vagrant image for VMWare and Upload it to Atlas:
+#     VAGRANT_KEY is your Atlas API Token
+#     VAGRANT_USERNAME is your Atlas Username
+#     env VAGRANT_KEY=foo VAGRANT_USERNAME=bar make vagrant-upload \
+#       WITH_VMIMAGES=y WITH_CLOUDWARE=y CLOUDWARE=vagrant-vmware \
+#       VMFORMATS=vmdk
+#     For more info: https://www.vagrantup.com/docs/other/atlas.html
 #
 
 VAGRANT_IMG?=		${.OBJDIR}/vagrant.vmdk
