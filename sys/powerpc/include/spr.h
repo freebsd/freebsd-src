@@ -671,6 +671,8 @@
 #define	SPR_CSRR1		0x03b	/* ..8 59 Critical SRR1 */
 #define	SPR_MCSRR0		0x23a	/* ..8 570 Machine check SRR0 */
 #define	SPR_MCSRR1		0x23b	/* ..8 571 Machine check SRR1 */
+#define	SPR_DSRR0		0x23e	/* ..8 574 Debug SRR0<E.ED> */
+#define	SPR_DSRR1		0x23f	/* ..8 575 Debug SRR1<E.ED> */
 
 #define	SPR_MMUCR		0x3b2	/* 4.. MMU Control Register */
 #define	  MMUCR_SWOA		(0x80000000 >> 7)
