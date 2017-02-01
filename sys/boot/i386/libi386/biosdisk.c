@@ -493,7 +493,7 @@ bd_ioctl(struct open_file *f, u_long cmd, void *data)
 		*(u_int *)data = BD(dev).bd_sectorsize;
 		break;
 	case DIOCGMEDIASIZE:
-		*(off_t *)data = BD(dev).bd_sectors * BD(dev).bd_sectorsize;
+		*(uint64_t *)data = BD(dev).bd_sectors * BD(dev).bd_sectorsize;
 		break;
 	default:
 		return (ENOTTY);

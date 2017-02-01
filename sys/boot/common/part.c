@@ -584,7 +584,7 @@ out:
 #endif /* LOADER_VTOC8_SUPPORT */
 
 struct ptable*
-ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
+ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
     diskread_t *dread)
 {
 	struct dos_partition *dp;

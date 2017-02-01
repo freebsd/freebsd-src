@@ -282,7 +282,7 @@ stor_ioctl(struct open_file *f, u_long cmd, void *data)
 		*(u_int *)data = SI(dev).bsize;
 		break;
 	case DIOCGMEDIASIZE:
-		*(off_t *)data = SI(dev).bsize * SI(dev).blocks;
+		*(uint64_t *)data = SI(dev).bsize * SI(dev).blocks;
 		break;
 	default:
 		return (ENOTTY);
