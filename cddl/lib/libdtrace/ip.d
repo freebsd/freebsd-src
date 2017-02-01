@@ -238,6 +238,24 @@ translator ipinfo_t < uint8_t *p > {
 	    inet_ntoa6(&((struct ip6_hdr *)p)->ip6_dst);
 };
 
+#pragma D binding "1.13" translator
+translator ipinfo_t < struct mbuf *m > {
+	ip_ver =	m == NULL ? 0 : ((struct ip *)m->m_data)->ip_v;
+	ip_plength =	m == NULL ? 0 :
+	    ((struct ip *)m->m_data)->ip_v == 4 ?
+	    ntohs(((struct ip *)m->m_data)->ip_len) - 
+			(((struct ip *)m->m_data)->ip_hl << 2):
+	    ntohs(((struct ip6_hdr *)m->m_data)->ip6_ctlun.ip6_un1.ip6_un1_plen);
+	ip_saddr =	m == NULL ? 0 :
+	    ((struct ip *)m->m_data)->ip_v == 4 ?
+	    inet_ntoa(&((struct ip *)m->m_data)->ip_src.s_addr) :
+	    inet_ntoa6(&((struct ip6_hdr *)m->m_data)->ip6_src);
+	ip_daddr =	m == NULL ? 0 :
+	    ((struct ip *)m->m_data)->ip_v == 4 ?
+	    inet_ntoa(&((struct ip *)m->m_data)->ip_dst.s_addr) :
+	    inet_ntoa6(&((struct ip6_hdr *)m->m_data)->ip6_dst);
+};
+
 #pragma D binding "1.5" IFF_LOOPBACK
 inline int IFF_LOOPBACK =	0x8;
 

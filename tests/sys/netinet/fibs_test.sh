@@ -75,9 +75,9 @@ arpresolve_checks_interface_fib_body()
 	get_fibs 2
 
 	# Configure TAP interfaces
-	setup_tap "$FIB0" ${ADDR0} ${MASK0}
+	setup_tap "$FIB0" inet ${ADDR0} ${MASK0}
 	TAP0=$TAP
-	setup_tap "$FIB1" ${ADDR1} ${MASK1}
+	setup_tap "$FIB1" inet ${ADDR1} ${MASK1}
 	TAP1=$TAP
 
 	# Simulate a crossover cable
@@ -112,7 +112,7 @@ arpresolve_checks_interface_fib_cleanup()
 atf_test_case loopback_and_network_routes_on_nondefault_fib cleanup
 loopback_and_network_routes_on_nondefault_fib_head()
 {
-	atf_set "descr" "When creating and deleting loopback routes, use the interface's fib"
+	atf_set "descr" "When creating and deleting loopback IPv4 routes, use the interface's fib"
 	atf_set "require.user" "root"
 	atf_set "require.config" "fibs"
 }
@@ -132,7 +132,7 @@ loopback_and_network_routes_on_nondefault_fib_body()
 	get_fibs 1
 
 	# Configure a TAP interface
-	setup_tap ${FIB0} ${ADDR} ${MASK}
+	setup_tap ${FIB0} inet ${ADDR} ${MASK}
 
 	# Check whether the host route exists in only the correct FIB
 	setfib ${FIB0} netstat -rn -f inet | grep -q "^${ADDR}.*UHS.*lo0"
@@ -156,7 +156,7 @@ loopback_and_network_routes_on_nondefault_fib_body()
 	setfib 0 netstat -rn -f inet | \
 		grep -q "^${SUBNET}/${MASK}.*${TAPD}"
 	if [ 0 -eq $? ]; then
-		setfib ${FIB0} netstat -rn -f inet
+		setfib 0 netstat -rn -f inet
 		atf_fail "Network route appeared in the wrong FIB"
 	fi
 }
@@ -166,12 +166,70 @@ loopback_and_network_routes_on_nondefault_fib_cleanup()
 	cleanup_tap
 }
 
+atf_test_case loopback_and_network_routes_on_nondefault_fib_inet6 cleanup
+loopback_and_network_routes_on_nondefault_fib_inet6_head()
+{
+	atf_set "descr" "When creating and deleting loopback IPv6 routes, use the interface's fib"
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs"
+}
+
+loopback_and_network_routes_on_nondefault_fib_inet6_body()
+{
+	atf_expect_fail "PR196361 IPv6 network routes don't respect net.add_addr_allfibs=0"
+	# Configure the TAP interface to use a nonrouteable RFC3849
+	# address and a non-default fib
+	ADDR="2001:db8::2"
+	SUBNET="2001:db8::"
+	MASK="64"
+
+	# Check system configuration
+	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
+		atf_skip "This test requires net.add_addr_allfibs=0"
+	fi
+	get_fibs 1
+
+	# Configure a TAP interface
+	setup_tap ${FIB0} inet6 ${ADDR} ${MASK}
+
+	# Check whether the host route exists in only the correct FIB
+	setfib ${FIB0} netstat -rn -f inet6 | grep -q "^${ADDR}.*UHS.*lo0"
+	if [ 0 -ne $? ]; then
+		setfib ${FIB0} netstat -rn -f inet6
+		atf_fail "Host route did not appear in the correct FIB"
+	fi
+	setfib 0 netstat -rn -f inet6 | grep -q "^${ADDR}.*UHS.*lo0"
+	if [ 0 -eq $? ]; then
+		setfib 0 netstat -rn -f inet6
+		atf_fail "Host route appeared in the wrong FIB"
+	fi
+
+	# Check whether the network route exists in only the correct FIB
+	setfib ${FIB0} netstat -rn -f inet6 | \
+		grep -q "^${SUBNET}/${MASK}.*${TAPD}"
+	if [ 0 -ne $? ]; then
+		setfib ${FIB0} netstat -rn -f inet6
+		atf_fail "Network route did not appear in the correct FIB"
+	fi
+	setfib 0 netstat -rn -f inet6 | \
+		grep -q "^${SUBNET}/${MASK}.*${TAPD}"
+	if [ 0 -eq $? ]; then
+		setfib 0 netstat -rn -f inet6
+		atf_fail "Network route appeared in the wrong FIB"
+	fi
+}
+
+loopback_and_network_routes_on_nondefault_fib_inet6_cleanup()
+{
+	cleanup_tap
+}
+
 
 # Regression test for kern/187552
 atf_test_case default_route_with_multiple_fibs_on_same_subnet cleanup
 default_route_with_multiple_fibs_on_same_subnet_head()
 {
-	atf_set "descr" "Multiple interfaces on the same subnet but with different fibs can both have default routes"
+	atf_set "descr" "Multiple interfaces on the same subnet but with different fibs can both have default IPv4 routes"
 	atf_set "require.user" "root"
 	atf_set "require.config" "fibs"
 }
@@ -193,9 +251,9 @@ default_route_with_multiple_fibs_on_same_subnet_body()
 	get_fibs 2
 
 	# Configure TAP interfaces
-	setup_tap "$FIB0" ${ADDR0} ${MASK}
+	setup_tap "$FIB0" inet ${ADDR0} ${MASK}
 	TAP0=$TAP
-	setup_tap "$FIB1" ${ADDR1} ${MASK}
+	setup_tap "$FIB1" inet ${ADDR1} ${MASK}
 	TAP1=$TAP
 
 	# Attempt to add default routes
@@ -215,6 +273,53 @@ default_route_with_multiple_fibs_on_same_subnet_cleanup()
 	cleanup_tap
 }
 
+atf_test_case default_route_with_multiple_fibs_on_same_subnet_inet6 cleanup
+default_route_with_multiple_fibs_on_same_subnet_inet6_head()
+{
+	atf_set "descr" "Multiple interfaces on the same subnet but with different fibs can both have default IPv6 routes"
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs"
+}
+
+default_route_with_multiple_fibs_on_same_subnet_inet6_body()
+{
+	# Configure the TAP interfaces to use nonrouteable RFC3849
+	# addresses and non-default FIBs
+	ADDR0="2001:db8::2"
+	ADDR1="2001:db8::3"
+	GATEWAY="2001:db8::1"
+	SUBNET="2001:db8::"
+	MASK="64"
+
+	# Check system configuration
+	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
+		atf_skip "This test requires net.add_addr_allfibs=0"
+	fi
+	get_fibs 2
+
+	# Configure TAP interfaces
+	setup_tap "$FIB0" inet6 ${ADDR0} ${MASK}
+	TAP0=$TAP
+	setup_tap "$FIB1" inet6 ${ADDR1} ${MASK}
+	TAP1=$TAP
+
+	# Attempt to add default routes
+	setfib ${FIB0} route -6 add default ${GATEWAY}
+	setfib ${FIB1} route -6 add default ${GATEWAY}
+
+	# Verify that the default route exists for both fibs, with their
+	# respective interfaces.
+	atf_check -o match:"^default.*${TAP0}$" \
+		setfib ${FIB0} netstat -rn -f inet6
+	atf_check -o match:"^default.*${TAP1}$" \
+		setfib ${FIB1} netstat -rn -f inet6
+}
+
+default_route_with_multiple_fibs_on_same_subnet_inet6_cleanup()
+{
+	cleanup_tap
+}
+
 
 # Regression test for PR kern/189089
 # Create two tap interfaces and assign them both the same IP address but with
@@ -223,7 +328,7 @@ default_route_with_multiple_fibs_on_same_subnet_cleanup()
 atf_test_case same_ip_multiple_ifaces_fib0 cleanup
 same_ip_multiple_ifaces_fib0_head()
 {
-	atf_set "descr" "Can remove an IP alias from an interface when the same IP is also assigned to another interface."
+	atf_set "descr" "Can remove an IPv4 alias from an interface when the same IPv4 is also assigned to another interface."
 	atf_set "require.user" "root"
 	atf_set "require.config" "fibs"
 }
@@ -237,16 +342,16 @@ same_ip_multiple_ifaces_fib0_body()
 	# of net.add_addr_allfibs
 
 	# Setup the interfaces, then remove one alias.  It should not panic.
-	setup_tap 0 ${ADDR} ${MASK0}
+	setup_tap 0 inet ${ADDR} ${MASK0}
 	TAP0=${TAP}
-	setup_tap 0 ${ADDR} ${MASK1}
+	setup_tap 0 inet ${ADDR} ${MASK1}
 	TAP1=${TAP}
 	ifconfig ${TAP1} -alias ${ADDR}
 
 	# Do it again, in the opposite order.  It should not panic.
-	setup_tap 0 ${ADDR} ${MASK0}
+	setup_tap 0 inet ${ADDR} ${MASK0}
 	TAP0=${TAP}
-	setup_tap 0 ${ADDR} ${MASK1}
+	setup_tap 0 inet ${ADDR} ${MASK1}
 	TAP1=${TAP}
 	ifconfig ${TAP0} -alias ${ADDR}
 }
@@ -266,7 +371,7 @@ same_ip_multiple_ifaces_fib0_cleanup()
 atf_test_case same_ip_multiple_ifaces cleanup
 same_ip_multiple_ifaces_head()
 {
-	atf_set "descr" "Can remove an IP alias from an interface when the same IP is also assigned to another interface, on non-default FIBs."
+	atf_set "descr" "Can remove an IPv4 alias from an interface when the same address is also assigned to another interface, on non-default FIBs."
 	atf_set "require.user" "root"
 	atf_set "require.config" "fibs"
 }
@@ -282,18 +387,18 @@ same_ip_multiple_ifaces_body()
 	get_fibs 2
 
 	# Setup the interfaces, then remove one alias.  It should not panic.
-	setup_tap ${FIB0} ${ADDR} ${MASK0}
+	setup_tap ${FIB0} inet ${ADDR} ${MASK0}
 	TAP0=${TAP}
-	setup_tap ${FIB1} ${ADDR} ${MASK1}
+	setup_tap ${FIB1} inet ${ADDR} ${MASK1}
 	TAP1=${TAP}
 	ifconfig ${TAP1} -alias ${ADDR}
 	atf_check -o not-match:"^${ADDR}[[:space:]]" \
 		setfib ${FIB1} netstat -rn -f inet
 
 	# Do it again, in the opposite order.  It should not panic.
-	setup_tap ${FIB0} ${ADDR} ${MASK0}
+	setup_tap ${FIB0} inet ${ADDR} ${MASK0}
 	TAP0=${TAP}
-	setup_tap ${FIB1} ${ADDR} ${MASK1}
+	setup_tap ${FIB1} inet ${ADDR} ${MASK1}
 	TAP1=${TAP}
 	ifconfig ${TAP0} -alias ${ADDR}
 	atf_check -o not-match:"^${ADDR}[[:space:]]" \
@@ -304,15 +409,58 @@ same_ip_multiple_ifaces_cleanup()
 	# Due to PR kern/189088, we must destroy the interfaces in LIFO order
 	# in order for the routes to be correctly cleaned up.
 	for TAPD in `tail -r "tap_devices_to_cleanup"`; do
+		echo ifconfig ${TAPD} destroy
 		ifconfig ${TAPD} destroy
 	done
+}
+
+atf_test_case same_ip_multiple_ifaces_inet6 cleanup
+same_ip_multiple_ifaces_inet6_head()
+{
+	atf_set "descr" "Can remove an IPv6 alias from an interface when the same address is also assigned to another interface, on non-default FIBs."
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs"
+}
+same_ip_multiple_ifaces_inet6_body()
+{
+	ADDR="2001:db8::2"
+	MASK0="64"
+	MASK1="128"
+
+	# Unlike most of the tests in this file, this is applicable regardless
+	# of net.add_addr_allfibs
+	get_fibs 2
+
+	# Setup the interfaces, then remove one alias.  It should not panic.
+	setup_tap ${FIB0} inet6 ${ADDR} ${MASK0}
+	TAP0=${TAP}
+	setup_tap ${FIB1} inet6 ${ADDR} ${MASK1}
+	TAP1=${TAP}
+	atf_check -s exit:0 ifconfig ${TAP1} inet6 ${ADDR} -alias
+	atf_check -o not-match:"^${ADDR}[[:space:]]" \
+		setfib ${FIB1} netstat -rn -f inet6
+	ifconfig ${TAP1} destroy
+	ifconfig ${TAP0} destroy
+
+	# Do it again, in the opposite order.  It should not panic.
+	setup_tap ${FIB0} inet6 ${ADDR} ${MASK0}
+	TAP0=${TAP}
+	setup_tap ${FIB1} inet6 ${ADDR} ${MASK1}
+	TAP1=${TAP}
+	atf_check -s exit:0 ifconfig ${TAP0} inet6 ${ADDR} -alias
+	atf_check -o not-match:"^${ADDR}[[:space:]]" \
+		setfib ${FIB0} netstat -rn -f inet6
+}
+same_ip_multiple_ifaces_inet6_cleanup()
+{
+	cleanup_tap
 }
 
 # Regression test for kern/187550
 atf_test_case subnet_route_with_multiple_fibs_on_same_subnet cleanup
 subnet_route_with_multiple_fibs_on_same_subnet_head()
 {
-	atf_set "descr" "Multiple FIBs can have subnet routes for the same subnet"
+	atf_set "descr" "Multiple FIBs can have IPv4 subnet routes for the same subnet"
 	atf_set "require.user" "root"
 	atf_set "require.config" "fibs"
 }
@@ -333,8 +481,8 @@ subnet_route_with_multiple_fibs_on_same_subnet_body()
 	get_fibs 2
 
 	# Configure TAP interfaces
-	setup_tap "$FIB0" ${ADDR0} ${MASK}
-	setup_tap "$FIB1" ${ADDR1} ${MASK}
+	setup_tap "$FIB0" inet ${ADDR0} ${MASK}
+	setup_tap "$FIB1" inet ${ADDR1} ${MASK}
 
 	# Check that a subnet route exists on both fibs
 	atf_check -o ignore setfib "$FIB0" route get $ADDR1
@@ -342,6 +490,43 @@ subnet_route_with_multiple_fibs_on_same_subnet_body()
 }
 
 subnet_route_with_multiple_fibs_on_same_subnet_cleanup()
+{
+	cleanup_tap
+}
+
+atf_test_case subnet_route_with_multiple_fibs_on_same_subnet_inet6 cleanup
+subnet_route_with_multiple_fibs_on_same_subnet_inet6_head()
+{
+	atf_set "descr" "Multiple FIBs can have IPv6 subnet routes for the same subnet"
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs"
+}
+
+subnet_route_with_multiple_fibs_on_same_subnet_inet6_body()
+{
+	# Configure the TAP interfaces to use a RFC3849 nonrouteable addresses
+	# and a non-default fib
+	ADDR0="2001:db8::2"
+	ADDR1="2001:db8::3"
+	SUBNET="2001:db8::"
+	MASK="64"
+
+	# Check system configuration
+	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
+		atf_skip "This test requires net.add_addr_allfibs=0"
+	fi
+	get_fibs 2
+
+	# Configure TAP interfaces
+	setup_tap "$FIB0" inet6 ${ADDR0} ${MASK}
+	setup_tap "$FIB1" inet6 ${ADDR1} ${MASK}
+
+	# Check that a subnet route exists on both fibs
+	atf_check -o ignore setfib "$FIB0" route -6 get $ADDR1
+	atf_check -o ignore setfib "$FIB1" route -6 get $ADDR0
+}
+
+subnet_route_with_multiple_fibs_on_same_subnet_inet6_cleanup()
 {
 	cleanup_tap
 }
@@ -386,9 +571,9 @@ udp_dontroute_body()
 	get_fibs 2
 
 	# Configure the TAP interfaces
-	setup_tap ${FIB0} ${ADDR0} ${MASK}
+	setup_tap ${FIB0} inet ${ADDR0} ${MASK}
 	TARGET_TAP=${TAP}
-	setup_tap ${FIB1} ${ADDR1} ${MASK}
+	setup_tap ${FIB1} inet ${ADDR1} ${MASK}
 
 	# Send a UDP packet with SO_DONTROUTE.  In the failure case, it will
 	# return ENETUNREACH, or send the packet to the wrong tap
@@ -397,8 +582,8 @@ udp_dontroute_body()
 	cleanup_tap
 
 	# Repeat, but this time target the other tap
-	setup_tap ${FIB0} ${ADDR0} ${MASK}
-	setup_tap ${FIB1} ${ADDR1} ${MASK}
+	setup_tap ${FIB0} inet ${ADDR0} ${MASK}
+	setup_tap ${FIB1} inet ${ADDR1} ${MASK}
 	TARGET_TAP=${TAP}
 
 	atf_check -o ignore setfib ${FIB1} \
@@ -415,10 +600,14 @@ atf_init_test_cases()
 {
 	atf_add_test_case arpresolve_checks_interface_fib
 	atf_add_test_case loopback_and_network_routes_on_nondefault_fib
+	atf_add_test_case loopback_and_network_routes_on_nondefault_fib_inet6
 	atf_add_test_case default_route_with_multiple_fibs_on_same_subnet
+	atf_add_test_case default_route_with_multiple_fibs_on_same_subnet_inet6
 	atf_add_test_case same_ip_multiple_ifaces_fib0
 	atf_add_test_case same_ip_multiple_ifaces
+	atf_add_test_case same_ip_multiple_ifaces_inet6
 	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet
+	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet_inet6
 	atf_add_test_case udp_dontroute
 }
 
@@ -464,24 +653,27 @@ get_tap()
 # Create a tap(4) interface, configure it, and register it for cleanup.
 # parameters:
 # fib
+# Protocol (inet or inet6)
 # IP address
 # Netmask in number of bits (eg 24 or 8)
 # Return: the tap interface name as the env variable TAP
 setup_tap()
 {
 	local FIB=$1
-	local ADDR=$2
-	local MASK=$3
+	local PROTO=$2
+	local ADDR=$3
+	local MASK=$4
 	get_tap
-	echo setfib ${FIB} ifconfig $TAP ${ADDR}/${MASK} fib $FIB
-	setfib ${FIB} ifconfig $TAP ${ADDR}/${MASK} fib $FIB
+	echo setfib ${FIB} ifconfig $TAP ${PROTO} ${ADDR}/${MASK} fib $FIB
+	setfib ${FIB} ifconfig $TAP ${PROTO} ${ADDR}/${MASK} fib $FIB
 }
 
 cleanup_tap()
 {
 	if [ -f tap_devices_to_cleanup ]; then
 		for tap_device in $(cat tap_devices_to_cleanup); do
-			ifconfig "${tap_device}" destroy
+			echo ifconfig "${tap_device}" destroy
+			ifconfig "${tap_device}" destroy 2>/dev/null || true
 		done
 		rm -f tap_devices_to_cleanup
 	fi

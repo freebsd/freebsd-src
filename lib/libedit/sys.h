@@ -1,4 +1,4 @@
-/*	$NetBSD: sys.h,v 1.17 2011/09/28 14:08:04 christos Exp $	*/
+/*	$NetBSD: sys.h,v 1.23 2016/02/17 19:47:49 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -58,7 +58,7 @@
 #  define __END_DECLS
 # endif
 #endif
- 
+
 #ifndef public
 # define public		/* Externally visible functions/variables */
 #endif
@@ -88,14 +88,9 @@ size_t	strlcat(char *dst, const char *src, size_t size);
 size_t	strlcpy(char *dst, const char *src, size_t size);
 #endif
 
-#ifndef HAVE_FGETLN
-#define	fgetln libedit_fgetln
-char	*fgetln(FILE *fp, size_t *len);
-#endif
-
-#ifndef HAVE_WCSDUP
-#include <wchar.h>
-wchar_t *wcsdup(const wchar_t *);
+#ifndef HAVE_GETLINE
+#define	getline libedit_getline
+ssize_t	getline(char **line, size_t *len, FILE *fp);
 #endif
 
 #ifndef _DIAGASSERT
@@ -110,12 +105,17 @@ wchar_t *wcsdup(const wchar_t *);
 typedef unsigned int	u_int32_t;
 #endif
 
-#ifndef SIZE_T_MAX
-#define SIZE_T_MAX	((size_t)-1)
+#ifndef HAVE_SIZE_MAX
+#define SIZE_MAX	((size_t)-1)
 #endif
 
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
+
+#ifndef WIDECHAR
+#define	setlocale(c, l)		/*LINTED*/NULL
+#define	nl_langinfo(i)		""
+#endif
 
 #if defined(__sun)
 extern int tgetent(char *, const char *);
