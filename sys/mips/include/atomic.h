@@ -362,7 +362,7 @@ atomic_load_64(__volatile uint64_t *p, uint64_t *v)
  * zero if the compare failed, nonzero otherwise.
  */
 static __inline uint32_t
-atomic_cmpset_32(__volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
+atomic_cmpset_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
 	uint32_t ret;
 
@@ -405,6 +405,46 @@ atomic_cmpset_rel_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 	return (atomic_cmpset_32(p, cmpval, newval));
 }
 
+static __inline uint32_t
+atomic_fcmpset_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
+{
+	uint32_t ret;
+
+	__asm __volatile (
+		"1:\n\t"
+		"ll	%0, %1\n\t"		/* load old value */
+		"bne	%0, %4, 2f\n\t"		/* compare */
+		"move	%0, %3\n\t"		/* value to store */
+		"sc	%0, %1\n\t"		/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* if it failed, spin */
+		"j	3f\n\t"
+		"2:\n\t"
+		"sw	%0, %2\n\t"		/* save old value */
+		"li	%0, 0\n\t"
+		"3:\n"
+		: "=&r" (ret), "+m" (*p), "=m" (*cmpval)
+		: "r" (newval), "r" (*cmpval)
+		: "memory");
+	return ret;
+}
+
+static __inline uint32_t
+atomic_fcmpset_acq_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
+{
+	int retval;
+
+	retval = atomic_fcmpset_32(p, cmpval, newval);
+	mips_sync();
+	return (retval);
+}
+
+static __inline uint32_t
+atomic_fcmpset_rel_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
+{
+	mips_sync();
+	return (atomic_fcmpset_32(p, cmpval, newval));
+}
+
 /*
  * Atomically add the value of v to the integer pointed to by p and return
  * the previous value of *p.
@@ -431,7 +471,7 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
  * zero if the compare failed, nonzero otherwise.
  */
 static __inline uint64_t
-atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
+atomic_cmpset_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 {
 	uint64_t ret;
 
@@ -473,6 +513,47 @@ atomic_cmpset_rel_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 {
 	mips_sync();
 	return (atomic_cmpset_64(p, cmpval, newval));
+}
+
+static __inline uint32_t
+atomic_fcmpset_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
+{
+        uint32_t ret;
+
+        __asm __volatile (
+                "1:\n\t"
+		"lld	%0, %1\n\t"		/* load old value */
+                "bne	%0, %4, 2f\n\t"		/* compare */
+                "move	%0, %3\n\t"		/* value to store */
+                "scd	%0, %1\n\t"		/* attempt to store */
+                "beqz	%0, 1b\n\t"		/* if it failed, spin */
+                "j	3f\n\t"
+                "2:\n\t"
+                "sw	%0, %2\n\t"		/* save old value */
+                "li	%0, 0\n\t"
+                "3:\n"
+                : "=&r" (ret), "+m" (*p), "=m" (*cmpval)
+                : "r" (newval), "r" (*cmpval)
+                : "memory");
+
+	return ret;
+}
+
+static __inline uint64_t
+atomic_fcmpset_acq_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
+{
+	int retval;
+
+	retval = atomic_fcmpset_64(p, cmpval, newval);
+	mips_sync();
+	return (retval);
+}
+
+static __inline uint64_t
+atomic_fcmpset_rel_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
+{
+	mips_sync();
+	return (atomic_fcmpset_64(p, cmpval, newval));
 }
 
 /*
@@ -568,6 +649,9 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_cmpset_int	atomic_cmpset_32
 #define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
 #define	atomic_cmpset_rel_int	atomic_cmpset_rel_32
+#define	atomic_fcmpset_int	atomic_fcmpset_32
+#define	atomic_fcmpset_acq_int	atomic_fcmpset_acq_32
+#define	atomic_fcmpset_rel_int	atomic_fcmpset_rel_32
 #define	atomic_load_acq_int	atomic_load_acq_32
 #define	atomic_store_rel_int	atomic_store_rel_32
 #define	atomic_readandclear_int	atomic_readandclear_32
@@ -597,6 +681,9 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_cmpset_long	atomic_cmpset_64
 #define	atomic_cmpset_acq_long	atomic_cmpset_acq_64
 #define	atomic_cmpset_rel_long	atomic_cmpset_rel_64
+#define	atomic_fcmpset_long	atomic_fcmpset_64
+#define	atomic_fcmpset_acq_long	atomic_fcmpset_acq_64
+#define	atomic_fcmpset_rel_long	atomic_fcmpset_rel_64
 #define	atomic_load_acq_long	atomic_load_acq_64
 #define	atomic_store_rel_long	atomic_store_rel_64
 #define	atomic_fetchadd_long	atomic_fetchadd_64
@@ -638,6 +725,15 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_cmpset_rel_long(p, cmpval, newval)			\
 	atomic_cmpset_rel_32((volatile u_int *)(p), (u_int)(cmpval),	\
 	    (u_int)(newval))
+#define	atomic_fcmpset_long(p, cmpval, newval)				\
+	atomic_fcmpset_32((volatile u_int *)(p), (u_int *)(cmpval),	\
+	    (u_int)(newval))
+#define	atomic_fcmpset_acq_long(p, cmpval, newval)			\
+	atomic_fcmpset_acq_32((volatile u_int *)(p), (u_int *)(cmpval),	\
+	    (u_int)(newval))
+#define	atomic_fcmpset_rel_long(p, cmpval, newval)			\
+	atomic_fcmpset_rel_32((volatile u_int *)(p), (u_int *)(cmpval),	\
+	    (u_int)(newval))
 #define	atomic_load_acq_long(p)						\
 	(u_long)atomic_load_acq_32((volatile u_int *)(p))
 #define	atomic_store_rel_long(p, v)					\
@@ -665,6 +761,9 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_cmpset_ptr	atomic_cmpset_long
 #define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_long
 #define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_long
+#define	atomic_fcmpset_ptr	atomic_fcmpset_long
+#define	atomic_fcmpset_acq_ptr	atomic_fcmpset_acq_long
+#define	atomic_fcmpset_rel_ptr	atomic_fcmpset_rel_long
 #define	atomic_load_acq_ptr	atomic_load_acq_long
 #define	atomic_store_rel_ptr	atomic_store_rel_long
 #define	atomic_readandclear_ptr	atomic_readandclear_long
