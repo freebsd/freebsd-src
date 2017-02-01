@@ -519,12 +519,15 @@ ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp, u_int idx)
 		goto bad;
 	}
 
+	/* Fix IP length in case if it is not set yet. */
+	ip6 = mtod(m, struct ip6_hdr *);
+	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
+
 	IPSEC_INIT_CTX(&ctx, &m, sav, AF_INET6, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
 		goto bad;
 
-	ip6 = mtod(m, struct ip6_hdr *);
-	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
+	ip6 = mtod(m, struct ip6_hdr *); /* pfil can change mbuf */
 	dst = &sav->sah->saidx.dst;
 
 	/* Do the appropriate encapsulation, if necessary */
