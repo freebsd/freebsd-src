@@ -860,14 +860,18 @@ bridge_mutecaps(struct bridge_softc *sc)
 		mask &= bif->bif_savedcaps;
 	}
 
+	BRIDGE_XLOCK(sc);
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		enabled = bif->bif_ifp->if_capenable;
 		enabled &= ~BRIDGE_IFCAPS_STRIP;
 		/* strip off mask bits and enable them again if allowed */
 		enabled &= ~BRIDGE_IFCAPS_MASK;
 		enabled |= mask;
+		BRIDGE_UNLOCK(sc);
 		bridge_set_ifcap(sc, bif, enabled);
+		BRIDGE_LOCK(sc);
 	}
+	BRIDGE_XDROP(sc);
 
 }
 
@@ -877,6 +881,8 @@ bridge_set_ifcap(struct bridge_softc *sc, struct bridge_iflist *bif, int set)
 	struct ifnet *ifp = bif->bif_ifp;
 	struct ifreq ifr;
 	int error;
+
+	BRIDGE_UNLOCK_ASSERT(sc);
 
 	bzero(&ifr, sizeof(ifr));
 	ifr.ifr_reqcap = set;
