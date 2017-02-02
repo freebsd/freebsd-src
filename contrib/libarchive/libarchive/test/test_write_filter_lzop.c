@@ -43,12 +43,12 @@ DEFINE_TEST(test_write_filter_lzop)
 
 	assert((a = archive_write_new()) != NULL);
 	r = archive_write_add_filter_lzop(a);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 	if (r != ARCHIVE_OK) {
 		if (canLzop() && r == ARCHIVE_WARN)
 			use_prog = 1;
 		else {
 			skipping("lzop writing not supported on this platform");
-			assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 			return;
 		}
 	}
@@ -92,7 +92,7 @@ DEFINE_TEST(test_write_filter_lzop)
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	r = archive_read_support_filter_lzop(a);
-	if (r == ARCHIVE_WARN) {
+	if (r == ARCHIVE_WARN && !use_prog) {
 		skipping("Can't verify lzop writing by reading back;"
 		    " lzop reading not fully supported on this platform");
 	} else {
@@ -212,7 +212,7 @@ DEFINE_TEST(test_write_filter_lzop)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	r = archive_read_support_filter_lzop(a);
-	if (r == ARCHIVE_WARN) {
+	if (r == ARCHIVE_WARN && !use_prog) {
 		skipping("lzop reading not fully supported on this platform");
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK,
