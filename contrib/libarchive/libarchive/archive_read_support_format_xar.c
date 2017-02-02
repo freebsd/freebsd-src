@@ -933,6 +933,7 @@ xar_cleanup(struct archive_read *a)
 	}
 	for (i = 0; i < xar->file_queue.used; i++)
 		file_free(xar->file_queue.files[i]);
+	free(xar->file_queue.files);
 	while (xar->unknowntags != NULL) {
 		struct unknown_tag *tag;
 
@@ -3047,7 +3048,7 @@ xml2_read_cb(void *context, char *buffer, int len)
 	struct xar *xar;
 	const void *d;
 	size_t outbytes;
-	size_t used;
+	size_t used = 0;
 	int r;
 
 	a = (struct archive_read *)context;
@@ -3171,6 +3172,9 @@ expat_xmlattr_setup(struct archive_read *a,
 		value = strdup(atts[1]);
 		if (attr == NULL || name == NULL || value == NULL) {
 			archive_set_error(&a->archive, ENOMEM, "Out of memory");
+			free(attr);
+			free(name);
+			free(value);
 			return (ARCHIVE_FATAL);
 		}
 		attr->name = name;

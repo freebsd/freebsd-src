@@ -53,6 +53,8 @@ verify_padded_archive(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+
+	free(p);
 }
 
 /*

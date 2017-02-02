@@ -39,13 +39,16 @@ DEFINE_TEST(test_read_filter_lzop)
 	assert((a = archive_read_new()) != NULL);
 	r = archive_read_support_filter_lzop(a);
 	if (r != ARCHIVE_OK) {
-		if (r == ARCHIVE_WARN && !canLzop()) {
+		if (!canLzop()) {
 			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 			skipping("lzop compression is not supported "
 			    "on this platform");
-		} else
+			return;
+		} else if (r != ARCHIVE_WARN) {
 			assertEqualIntA(a, ARCHIVE_OK, r);
-		return;
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+			return;
+		}
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,

@@ -905,6 +905,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 				archive_wstrcat(&s, wp);
 				archive_wstrappend_wchar(&s, L'/');
 				archive_entry_copy_pathname_w(entry, s.s);
+				archive_wstring_free(&s);
 			}
 		} else {
 			cp = archive_entry_pathname(entry);
@@ -915,6 +916,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 				archive_strcat(&s, cp);
 				archive_strappend_char(&s, '/');
 				archive_entry_set_pathname(entry, s.s);
+				archive_string_free(&s);
 			}
 		}
 	}

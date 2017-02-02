@@ -56,6 +56,7 @@ struct archive_acl {
 void archive_acl_clear(struct archive_acl *);
 void archive_acl_copy(struct archive_acl *, struct archive_acl *);
 int archive_acl_count(struct archive_acl *, int);
+int archive_acl_types(struct archive_acl *);
 int archive_acl_reset(struct archive_acl *, int);
 int archive_acl_next(struct archive *, struct archive_acl *, int,
     int *, int *, int *, int *, const char **);

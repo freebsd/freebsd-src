@@ -1864,7 +1864,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 		if ((file->utf16be_name = malloc(name_len)) == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "No memory for file name");
-			return (NULL);
+			goto fail;
 		}
 		memcpy(file->utf16be_name, p, name_len);
 		file->utf16be_bytes = name_len;
@@ -1943,10 +1943,8 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			file->symlink_continues = 0;
 			rr_start += iso9660->suspOffset;
 			r = parse_rockridge(a, file, rr_start, rr_end);
-			if (r != ARCHIVE_OK) {
-				free(file);
-				return (NULL);
-			}
+			if (r != ARCHIVE_OK)
+				goto fail;
 			/*
 			 * A file size of symbolic link files in ISO images
 			 * made by makefs is not zero and its location is
@@ -1990,7 +1988,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge RE");
-				return (NULL);
+				goto fail;
 			}
 			/*
 			 * Sanity check: file does not have "CL" extension.
@@ -1999,7 +1997,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge RE and CL");
-				return (NULL);
+				goto fail;
 			}
 			/*
 			 * Sanity check: The file type must be a directory.
@@ -2008,7 +2006,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge RE");
-				return (NULL);
+				goto fail;
 			}
 		} else if (parent != NULL && parent->rr_moved)
 			file->rr_moved_has_re_only = 0;
@@ -2022,7 +2020,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge CL");
-				return (NULL);
+				goto fail;
 			}
 			/*
 			 * Sanity check: The file type must be a regular file.
@@ -2031,7 +2029,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge CL");
-				return (NULL);
+				goto fail;
 			}
 			parent->subdirs++;
 			/* Overwrite an offset and a number of this "CL" entry
@@ -2049,7 +2047,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 					archive_set_error(&a->archive,
 					    ARCHIVE_ERRNO_MISC,
 					    "Invalid Rockridge CL");
-					return (NULL);
+					goto fail;
 				}
 			}
 			if (file->cl_offset == file->offset ||
@@ -2057,7 +2055,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "Invalid Rockridge CL");
-				return (NULL);
+				goto fail;
 			}
 		}
 	}
@@ -2088,6 +2086,10 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 #endif
 	register_file(iso9660, file);
 	return (file);
+fail:
+	archive_string_free(&file->name);
+	free(file);
+	return (NULL);
 }
 
 static int

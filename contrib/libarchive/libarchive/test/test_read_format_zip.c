@@ -126,6 +126,7 @@ test_basic(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 31));
 	verify_basic(a, 0);
+	free(p);
 }
 
 /*
@@ -195,6 +196,7 @@ test_info_zip_ux(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 108));
 	verify_info_zip_ux(a, 0);
+	free(p);
 }
 
 /*
@@ -258,6 +260,7 @@ test_extract_length_at_end(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 108));
 	verify_extract_length_at_end(a, 0);
+	free(p);
 }
 
 static void
@@ -294,6 +297,8 @@ test_symlink(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+
+	free(p);
 }
 
 DEFINE_TEST(test_read_format_zip)

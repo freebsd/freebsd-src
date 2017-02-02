@@ -56,6 +56,7 @@ DEFINE_TEST(test_write_filter_lz4)
 	} else {
 		assertEqualInt(ARCHIVE_OK, r);
 	}
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
@@ -299,6 +300,7 @@ test_options(const char *options)
 	} else {
 		assertEqualInt(ARCHIVE_OK, r);
 	}
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));

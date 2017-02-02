@@ -944,7 +944,7 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 {
 	const struct archive_entry_header_ustar *header;
 	size_t size;
-	int err;
+	int err, acl_type;
 	int64_t type;
 	char *acl, *p;
 
@@ -989,11 +989,12 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	switch ((int)type & ~0777777) {
 	case 01000000:
 		/* POSIX.1e ACL */
+		acl_type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
 		break;
 	case 03000000:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Solaris NFSv4 ACLs not supported");
-		return (ARCHIVE_WARN);
+		/* NFSv4 ACL */
+		acl_type = ARCHIVE_ENTRY_ACL_TYPE_NFS4;
+		break;
 	default:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Malformed Solaris ACL attribute (unsupported type %o)",
@@ -1023,7 +1024,7 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 	}
 	archive_strncpy(&(tar->localname), acl, p - acl);
 	err = archive_acl_from_text_l(archive_entry_acl(entry),
-	    tar->localname.s, ARCHIVE_ENTRY_ACL_TYPE_ACCESS, tar->sconv_acl);
+	    tar->localname.s, acl_type, tar->sconv_acl);
 	if (err != ARCHIVE_OK) {
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,

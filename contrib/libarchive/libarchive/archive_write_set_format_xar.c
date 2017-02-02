@@ -1961,6 +1961,7 @@ file_free(struct file *file)
 	archive_string_free(&(file->basename));
 	archive_string_free(&(file->symlink));
 	archive_string_free(&(file->script));
+	archive_entry_free(file->entry);
 	free(file);
 }
 
