@@ -225,9 +225,9 @@ atomic_fcmpset_int(volatile u_int *dst, u_int *expect, u_int src)
 	"	cmpxchgl %3,%1 ;	"
 	"       sete	%0 ;		"
 	"# atomic_cmpset_int"
-	: "=r" (res),			/* 0 */
+	: "=q" (res),			/* 0 */
 	  "+m" (*dst),			/* 1 */
-	  "+a" (*expect)			/* 2 */
+	  "+a" (*expect)		/* 2 */
 	: "r" (src)			/* 3 */
 	: "memory", "cc");
 	return (res);
