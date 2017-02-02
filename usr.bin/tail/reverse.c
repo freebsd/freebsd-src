@@ -117,6 +117,7 @@ r_reg(FILE *fp, const char *fn, enum STYLE style, off_t off, struct stat *sbp)
 	map.start = NULL;
 	map.mapoff = map.maxoff = size;
 	map.fd = fileno(fp);
+	map.maplen = 0;
 
 	/*
 	 * Last char is special, ignore whether newline or not. Note that
@@ -205,7 +206,13 @@ r_buf(FILE *fp, const char *fn)
 		    (tl->l = malloc(BSZ)) == NULL) {
 			if (!mark)
 				err(1, "malloc");
-			tl = enomem ? tl->next : mark;
+			if (enomem)
+				tl = tl->next;
+			else {
+				if (tl)
+					free(tl);
+				tl = mark;
+			}
 			enomem += tl->len;
 		} else if (mark) {
 			tl->next = mark;
