@@ -219,7 +219,7 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	/* DFS functions */
 	ah->ah_enableDfs		= ar9300_enable_dfs;
 	ah->ah_getDfsThresh		= ar9300_get_dfs_thresh;
-	ah->ah_getDfsDefaultThresh	= ar9300_freebsd_get_dfs_default_thresh;
+	ah->ah_getDfsDefaultThresh	= ar9300_get_default_dfs_thresh;
 	// procradarevent
 	ah->ah_isFastClockEnabled	= ar9300_is_fast_clock_enabled;
 	ah->ah_get11nExtBusy	= ar9300_get_11n_ext_busy;
@@ -692,16 +692,6 @@ ar9300_freebsd_get_mib_cycle_counts(struct ath_hal *ah,
     HAL_SURVEY_SAMPLE *hs)
 
 {
-
-	return (AH_FALSE);
-}
-
-HAL_BOOL
-ar9300_freebsd_get_dfs_default_thresh(struct ath_hal *ah,
-    HAL_PHYERR_PARAM *pe)
-{
-
-	/* XXX not yet */
 
 	return (AH_FALSE);
 }
