@@ -4,7 +4,6 @@ PIDFILE=ggated.pid
 PLAINFILES=plainfiles
 PORT=33080
 CONF=gg.exports
-RETRIES=16
 
 atf_test_case ggated cleanup
 ggated_head()
@@ -21,31 +20,23 @@ ggated_body()
 	work=$(alloc_md)
 	src=$(alloc_md)
 
-	dd if=/dev/random of=/dev/$work bs=1m count=1 conv=notrunc
-	dd if=/dev/random of=/dev/$src bs=1m count=1 conv=notrunc
+	atf_check -e ignore -o ignore \
+	    dd if=/dev/random of=/dev/$work bs=1m count=1 conv=notrunc
+	atf_check -e ignore -o ignore \
+	    dd if=/dev/random of=/dev/$src bs=1m count=1 conv=notrunc
 
 	echo $CONF >> $PLAINFILES
 	echo "127.0.0.1 RW /dev/$work" > $CONF
 
 	atf_check ggated -p $PORT -F $PIDFILE $CONF
-	for try in `jot $RETRIES`; do
-		ggatec create -p $PORT -u $us 127.0.0.1 /dev/$work && break
-		# wait for ggated to be ready
-		sleep 0.25
-	done
-	if [ "$try" -eq "$RETRIES" ]; then
-		atf_fail "ggatec create failed"
-	fi
+	atf_check ggatec create -p $PORT -u $us 127.0.0.1 /dev/$work
 
-	for try in `jot $RETRIES`; do
-		dd if=/dev/${src} of=/dev/ggate${us} bs=1m count=1 conv=notrunc\
-			&& break
-		# Wait for /dev/ggate${us} to be ready
-		sleep 0.25
-	done
-	if [ "$try" -eq "$RETRIES" ]; then
-		atf_fail "dd failed; /dev/ggate${us} isn't working"
-	fi
+	ggate_dev=/dev/ggate${us}
+
+	wait_for_ggate_device ${ggate_dev}
+
+	atf_check -e ignore -o ignore \
+	    dd if=/dev/${src} of=${ggate_dev} bs=1m count=1 conv=notrunc
 
 	checksum /dev/$src /dev/$work
 }
@@ -78,7 +69,8 @@ ggatel_file_body()
 
 	wait_for_ggate_device ${ggate_dev}
 
-	dd if=src of=${ggate_dev} bs=1m count=1 conv=notrunc
+	atf_check -e ignore -o ignore \
+	    dd if=src of=${ggate_dev} bs=1m count=1 conv=notrunc
 
 	checksum src work
 }
@@ -103,8 +95,10 @@ ggatel_md_body()
 	work=$(alloc_md)
 	src=$(alloc_md)
 
-	dd if=/dev/random of=$work bs=1m count=1 conv=notrunc
-	dd if=/dev/random of=$src bs=1m count=1 conv=notrunc
+	atf_check -e ignore -o ignore \
+	    dd if=/dev/random of=$work bs=1m count=1 conv=notrunc
+	atf_check -e ignore -o ignore \
+	    dd if=/dev/random of=$src bs=1m count=1 conv=notrunc
 
 	atf_check ggatel create -u $us /dev/$work
 
@@ -112,7 +106,8 @@ ggatel_md_body()
 
 	wait_for_ggate_device ${ggate_dev}
 
-	dd if=/dev/$src of=${ggate_dev} bs=1m count=1 conv=notrunc
+	atf_check -e ignore -o ignore \
+	    dd if=/dev/$src of=${ggate_dev} bs=1m count=1 conv=notrunc
 
 	checksum /dev/$src /dev/$work
 }
