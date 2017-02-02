@@ -140,7 +140,6 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 #include <machine/smp.h>
 #endif
-
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
 #endif
@@ -431,7 +430,9 @@ encode_ttb_flags(int idx)
 		reg |= (inner & 0x1) << 6;
 	reg |= (inner & 0x2) >> 1;
 #ifdef SMP
-	reg |= 1 << 1;
+	ARM_SMP_UP(
+		reg |= 1 << 1,
+	);
 #endif
 	return reg;
 }
@@ -485,8 +486,9 @@ pmap_set_tex(void)
 
 	/* Add shareable bits for normal memory in SMP case. */
 #ifdef SMP
-	if (ARM_USE_MP_EXTENSIONS)
-		prrr |= PRRR_NS1;
+	ARM_SMP_UP(
+		prrr |= PRRR_NS1,
+	);
 #endif
 	cp15_prrr_set(prrr);
 	cp15_nmrr_set(nmrr);

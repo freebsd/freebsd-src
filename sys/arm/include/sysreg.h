@@ -140,7 +140,7 @@
 /*
  * CP15 C7 registers
  */
-#if __ARM_ARCH >= 7
+#if __ARM_ARCH >= 7 && defined(SMP)
 /* From ARMv7: */
 #define	CP15_ICIALLUIS		p15, 0, r0, c7, c1,  0 /* Instruction cache invalidate all PoU, IS */
 #define	CP15_BPIALLIS		p15, 0, r0, c7, c1,  6 /* Branch predictor invalidate all IS */
@@ -205,7 +205,7 @@
 /*
  * CP15 C8 registers
  */
-#if __ARM_ARCH >= 7
+#if __ARM_ARCH >= 7 && defined(SMP)
 /* From ARMv7: */
 #define	CP15_TLBIALLIS		p15, 0, r0, c8, c3, 0 /* Invalidate entire unified TLB IS */
 #define	CP15_TLBIMVAIS(rr)	p15, 0, rr, c8, c3, 1 /* Invalidate unified TLB by MVA IS */
