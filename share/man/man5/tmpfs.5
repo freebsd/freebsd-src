@@ -54,7 +54,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2017
+.Dd January 20, 2017
 .Dt TMPFS 5
 .Os
 .Sh NAME
@@ -120,6 +120,10 @@ Defaults to the mount point's UID.
 .It Cm mode
 Specifies the mode (in octal notation) of the root inode of the file system.
 Defaults to the mount point's mode.
+.It Cm nonc
+Do not use namecache to resolve names to files for the created mount.
+This saves memory, but currently might impair scalability for highly
+used mounts on large machines.
 .It Cm inodes
 Specifies the maximum number of nodes available to the file system.
 If not specified, the file system chooses a reasonable maximum based on
