@@ -935,6 +935,8 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 
 	if ((sc->pcie_slot_cap & PCIEM_SLOT_CAP_HPC) == 0)
 		return;
+	if ((sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE) == 0)
+		return;
 
 	/*
 	 * Some devices report that they have an MRL when they actually
