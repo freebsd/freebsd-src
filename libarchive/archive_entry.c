@@ -1447,7 +1447,7 @@ archive_entry_acl_add_entry_w(struct archive_entry *entry,
 int
 archive_entry_acl_types(struct archive_entry *entry)
 {
-	return ((&entry->acl)->acl_types);
+	return (archive_acl_types(&entry->acl));
 }
 
 /*

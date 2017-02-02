@@ -140,6 +140,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 		} else {
 			/* Leave fmtbuff pointing to the truncated
 			 * string in fmtbuff_stack. */
+			fmtbuff = fmtbuff_stack;
 			length = sizeof(fmtbuff_stack) - 1;
 			break;
 		}

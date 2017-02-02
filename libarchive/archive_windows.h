@@ -218,16 +218,20 @@
 #define	S_IWUSR	     _S_IWUSR
 #define	S_IRUSR	     _S_IRUSR
 #endif
+#ifndef S_IRWXG
 #define	S_IRWXG        _S_IRWXG
 #define	S_IXGRP        _S_IXGRP
 #define	S_IWGRP        _S_IWGRP
+#endif
 #ifndef S_IRGRP
 #define	S_IRGRP        _S_IRGRP
 #endif
+#ifndef S_IRWXO
 #define	S_IRWXO        _S_IRWXO
 #define	S_IXOTH        _S_IXOTH
 #define	S_IWOTH        _S_IWOTH
 #define	S_IROTH        _S_IROTH
+#endif
 
 #endif
 

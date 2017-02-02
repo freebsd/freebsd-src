@@ -326,6 +326,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `acl_set_file' function. */
 #cmakedefine HAVE_ACL_SET_FILE 1
 
+/* True for FreeBSD with NFSv4 ACL support */
+#cmakedefine HAVE_ACL_TYPE_NFS4 1
+
+/* True for MacOS ACL support */
+#cmakedefine HAVE_ACL_TYPE_EXTENDED 1
+
 /* True for systems with POSIX ACL support */
 #cmakedefine HAVE_ACL_USER 1
 

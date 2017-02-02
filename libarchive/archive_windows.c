@@ -891,7 +891,7 @@ __la_dosmaperr(unsigned long e)
 		return;
 	}
 
-	for (i = 0; i < (int)sizeof(doserrors)/sizeof(doserrors[0]); i++)
+	for (i = 0; i < (int)(sizeof(doserrors)/sizeof(doserrors[0])); i++)
 	{
 		if (doserrors[i].winerr == e)
 		{

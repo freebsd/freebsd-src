@@ -379,9 +379,9 @@ if test "x$with_lzma" != "xno"; then
 fi
 
 AC_ARG_WITH([lzo2],
-  AS_HELP_STRING([--without-lzo2], [Don't build support for lzop through liblzo2]))
+  AS_HELP_STRING([--with-lzo2], [Build with LZO support from liblzo2]))
 
-if test "x$with_lzo2" != "xno"; then
+if test "x$with_lzo2" == "xyes"; then
   AC_CHECK_HEADERS([lzo/lzoconf.h lzo/lzo1x.h])
   AC_CHECK_LIB(lzo2,lzo1x_decompress_safe)
 fi
@@ -724,12 +724,31 @@ if test "x$enable_acl" != "xno"; then
 	#endif
 	])
 
+    # Check for ACL_TYPE_NFS4
+    AC_CHECK_DECL([ACL_TYPE_NFS4],
+		[AC_DEFINE(HAVE_ACL_TYPE_NFS4, 1, [True for FreeBSD with NFSv4 ACL support])],
+		[],
+		[#include <sys/acl.h>])
+
     # MacOS has an acl.h that isn't POSIX.  It can be detected by
     # checking for ACL_USER
     AC_CHECK_DECL([ACL_USER],
 		[AC_DEFINE(HAVE_ACL_USER, 1, [True for systems with POSIX ACL support])],
 		[],
 		[#include <sys/acl.h>])
+
+    # MacOS has ACL_TYPE_EXTENDED instead
+    AC_CHECK_DECL([ACL_TYPE_EXTENDED],
+		[AC_DEFINE(HAVE_ACL_TYPE_EXTENDED, 1, [True for MacOS ACL support])],
+		[],
+		[#include <sys/types.h>
+		#include <sys/acl.h>])
+
+    # Solaris and derivates ACLs
+    AC_CHECK_LIB([sec], [acl_get])
+    AC_CHECK_TYPES([aclent_t], [], [], [[#include <sys/acl.h>]])
+    AC_CHECK_TYPES([ace_t], [], [], [[#include <sys/acl.h>]])
+    AC_CHECK_FUNCS(acl_get facl_get acl_set facl_set)
 fi
 
 # Additional requirements

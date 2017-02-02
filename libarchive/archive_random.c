@@ -80,7 +80,7 @@ archive_random(void *buf, size_t nbytes)
 
 	success = CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
 	    CRYPT_VERIFYCONTEXT);
-	if (!success && GetLastError() == NTE_BAD_KEYSET) {
+	if (!success && GetLastError() == (DWORD)NTE_BAD_KEYSET) {
 		success = CryptAcquireContext(&hProv, NULL, NULL,
 		    PROV_RSA_FULL, CRYPT_NEWKEYSET);
 	}

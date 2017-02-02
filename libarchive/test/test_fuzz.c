@@ -406,10 +406,12 @@ DEFINE_TEST(test_fuzz_tar)
 		"test_read_format_tar_empty_filename.tar",
 		NULL
 	};
+#if HAVE_LIBLZO2 && HAVE_LZO_LZO1X_H && HAVE_LZO_LZOCONF_H
 	static const char *fileset9[] = {
 		"test_compat_lzop_1.tar.lzo",
 		NULL
 	};
+#endif
 	static const struct files filesets[] = {
 		{0, fileset1}, /* Exercise bzip2 decompressor. */
 		{1, fileset1},
@@ -420,7 +422,9 @@ DEFINE_TEST(test_fuzz_tar)
 		{0, fileset6}, /* Exercise xz decompressor. */
 		{0, fileset7},
 		{0, fileset8},
+#if HAVE_LIBLZO2 && HAVE_LZO_LZO1X_H && HAVE_LZO_LZOCONF_H
 		{0, fileset9}, /* Exercise lzo decompressor. */
+#endif
 		{1, NULL}
 	};
 	test_fuzz(filesets);

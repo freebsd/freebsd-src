@@ -72,6 +72,9 @@ DEFINE_TEST(test_write_disk_secure746a)
 
 	/* Verify that target file contents are unchanged. */
 	assertTextFileContents("unmodified", "../target/foo");
+
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_close(a));
+	archive_write_free(a);
 #endif
 }
 
