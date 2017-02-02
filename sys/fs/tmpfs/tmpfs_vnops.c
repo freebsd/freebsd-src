@@ -82,7 +82,8 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 	struct vnode **vpp = v->a_vpp;
 	struct componentname *cnp = v->a_cnp;
 	struct tmpfs_dirent *de;
-	struct tmpfs_node *dnode;
+	struct tmpfs_node *dnode, *pnode;
+	struct tmpfs_mount *tm;
 	int error;
 
 	dnode = VP_TO_TMPFS_DIR(dvp);
@@ -104,8 +105,12 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		goto out;
 	}
 	if (cnp->cn_flags & ISDOTDOT) {
+		tm = VFS_TO_TMPFS(dvp->v_mount);
+		pnode = dnode->tn_dir.tn_parent;
+		tmpfs_ref_node(pnode);
 		error = vn_vget_ino_gen(dvp, tmpfs_vn_get_ino_alloc,
-		    dnode->tn_dir.tn_parent, cnp->cn_lkflags, vpp);
+		    pnode, cnp->cn_lkflags, vpp);
+		tmpfs_free_node(tm, pnode);
 		if (error != 0)
 			goto out;
 	} else if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
