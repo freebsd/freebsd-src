@@ -293,7 +293,16 @@ mips_proc0_init(void)
 	KASSERT((kstack0 & ((KSTACK_PAGE_SIZE * 2) - 1)) == 0,
 		("kstack0 is not aligned on a page (0x%0lx) boundary: 0x%0lx",
 		(long)(KSTACK_PAGE_SIZE * 2), (long)kstack0));
+#ifdef KSTACK_LARGE_PAGE
+	/*
+	 * For 16K page size the stack uses the odd page
+	 * and kstack0 was allocated on the 32K boundary.
+	 * So we bump up the address to the odd page boundary.
+	 */
+	thread0.td_kstack = kstack0 + KSTACK_PAGE_SIZE;
+#else
 	thread0.td_kstack = kstack0;
+#endif
 	thread0.td_kstack_pages = KSTACK_PAGES;
 	/* 
 	 * Do not use cpu_thread_alloc to initialize these fields 
