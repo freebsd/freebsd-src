@@ -858,7 +858,7 @@ lagg_port_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (error);
 
 fallback:
-	if (lp->lp_ioctl != NULL)
+	if (lp != NULL && lp->lp_ioctl != NULL)
 		return ((*lp->lp_ioctl)(ifp, cmd, data));
 
 	return (EINVAL);
