@@ -1056,6 +1056,7 @@ out:
 		mpr_free_command(sc, cm);
 	else if (error == 0)
 		error = EWOULDBLOCK;
+	cm->cm_data = NULL;
 	free(buffer, M_MPR);
 	return (error);
 }
@@ -1196,18 +1197,18 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 			continue;
 		}
 
-		ccb = xpt_alloc_ccb_nowait();
-		if (ccb == NULL) {
-			mpr_dprint(sc, MPR_FAULT, "Unable to alloc CCB to stop "
-			    "unit.\n");
-			return;
-		}
-
 		/*
 		 * The stop_at_shutdown flag will be set if this device is
 		 * a SATA direct-access end device.
 		 */
 		if (target->stop_at_shutdown) {
+			ccb = xpt_alloc_ccb_nowait();
+			if (ccb == NULL) {
+				mpr_dprint(sc, MPR_FAULT, "Unable to alloc CCB to stop "
+				    "unit.\n");
+				return;
+			}
+
 			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
 			    pathid, targetid, CAM_LUN_WILDCARD) !=
 			    CAM_REQ_CMP) {
