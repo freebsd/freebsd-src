@@ -9,10 +9,10 @@ IF(ENABLE_TEST)
     main.c
     read_open_memory.c
     test.h
-    test_acl_freebsd_nfs4.c
-    test_acl_freebsd_posix1e.c
     test_acl_nfs4.c
     test_acl_pax.c
+    test_acl_platform_nfs4.c
+    test_acl_platform_posix1e.c
     test_acl_posix1e.c
     test_acl_text.c
     test_archive_api_feature.c

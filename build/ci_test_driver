@@ -104,8 +104,8 @@ trap "st=141; $do_exit" 13
 trap "st=143; $do_exit" 15
 
 # Test script is run here.
-"$@" | tee $log_file 2>&1
-estatus=$?
+( "$@"; echo "$?" > $log_file.s ) | tee $log_file 2>&1
+estatus=`cat $log_file.s`
 
 if test $enable_hard_errors = no && test $estatus -eq 99; then
   tweaked_estatus=1

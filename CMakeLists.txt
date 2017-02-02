@@ -179,13 +179,15 @@ include(CTest)
 
 OPTION(ENABLE_NETTLE "Enable use of Nettle" ON)
 OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
-OPTION(ENABLE_LZMA "Enable the use of the system found LZMA library if found" ON)
-OPTION(ENABLE_ZLIB "Enable the use of the system found ZLIB library if found" ON)
-OPTION(ENABLE_BZip2 "Enable the use of the system found BZip2 library if found" ON)
-OPTION(ENABLE_LIBXML2 "Enable the use of the system found libxml2 library if found" ON)
-OPTION(ENABLE_EXPAT "Enable the use of the system found EXPAT library if found" ON)
-OPTION(ENABLE_PCREPOSIX "Enable the use of the system found PCREPOSIX library if found" ON)
-OPTION(ENABLE_LibGCC "Enable the use of the system found LibGCC library if found" ON)
+OPTION(ENABLE_LZO "Enable the use of the system LZO library if found" OFF)
+OPTION(ENABLE_LZMA "Enable the use of the system LZMA library if found" ON)
+
+OPTION(ENABLE_ZLIB "Enable the use of the system ZLIB library if found" ON)
+OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
+OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
+OPTION(ENABLE_EXPAT "Enable the use of the system EXPAT library if found" ON)
+OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found" ON)
+OPTION(ENABLE_LibGCC "Enable the use of the system LibGCC library if found" ON)
 # CNG is used for encrypt/decrypt Zip archives on Windows.
 OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
 
@@ -477,15 +479,19 @@ ENDIF(LIBLZMA_FOUND)
 #
 # Find LZO2
 #
-IF (LZO2_INCLUDE_DIR)
-  # Already in cache, be silent
-  SET(LZO2_FIND_QUIETLY TRUE)
-ENDIF (LZO2_INCLUDE_DIR)
+IF(ENABLE_LZO)
+  IF (LZO2_INCLUDE_DIR)
+    # Already in cache, be silent
+    SET(LZO2_FIND_QUIETLY TRUE)
+  ENDIF (LZO2_INCLUDE_DIR)
 
-FIND_PATH(LZO2_INCLUDE_DIR lzo/lzoconf.h)
-FIND_LIBRARY(LZO2_LIBRARY NAMES lzo2 liblzo2)
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(LZO2 DEFAULT_MSG LZO2_LIBRARY LZO2_INCLUDE_DIR)
+  FIND_PATH(LZO2_INCLUDE_DIR lzo/lzoconf.h)
+  FIND_LIBRARY(LZO2_LIBRARY NAMES lzo2 liblzo2)
+  INCLUDE(FindPackageHandleStandardArgs)
+  FIND_PACKAGE_HANDLE_STANDARD_ARGS(LZO2 DEFAULT_MSG LZO2_LIBRARY LZO2_INCLUDE_DIR)
+ELSE(ENABLE_LZO)
+  SET(LIBZMA_FOUND FALSE) # Override cached value
+ENDIF(ENABLE_LZO)
 IF(LZO2_FOUND)
   SET(HAVE_LIBLZO2 1)
   SET(HAVE_LZO_LZOCONF_H 1)
@@ -608,7 +614,7 @@ IF(ENABLE_CNG)
 ELSE(ENABLE_CNG)
   UNSET(HAVE_BCRYPT_H CACHE)
 ENDIF(ENABLE_CNG)
-# Following files need windwos.h, so we should test it after windows.h test.
+# Following files need windows.h, so we should test it after windows.h test.
 LA_CHECK_INCLUDE_FILE("wincrypt.h" HAVE_WINCRYPT_H)
 LA_CHECK_INCLUDE_FILE("winioctl.h" HAVE_WINIOCTL_H)
 
@@ -1605,10 +1611,29 @@ IF(ENABLE_ACL)
   CHECK_FUNCTION_EXISTS(acl_get_link_np HAVE_ACL_GET_LINK_NP)
   CHECK_FUNCTION_EXISTS(acl_is_trivial_np HAVE_ACL_IS_TRIVIAL_NP)
   CHECK_FUNCTION_EXISTS(acl_set_link_np HAVE_ACL_SET_LINK_NP)
+  CHECK_SYMBOL_EXISTS(ACL_TYPE_NFS4 "${INCLUDES}" HAVE_ACL_TYPE_NFS4)
 
   # MacOS has an acl.h that isn't POSIX.  It can be detected by
   # checking for ACL_USER
   CHECK_SYMBOL_EXISTS(ACL_USER "${INCLUDES}" HAVE_ACL_USER)
+  CHECK_C_SOURCE_COMPILES("#include <sys/types.h>
+#include <sys/acl.h>
+int main(void) { return ACL_TYPE_EXTENDED; }" HAVE_ACL_TYPE_EXTENDED)
+
+  # Solaris and derivates ACLs
+  CHECK_LIBRARY_EXISTS(sec "acl_get" "" HAVE_LIBSEC)
+  IF(HAVE_LIBSEC)
+    SET(CMAKE_REQUIRED_LIBRARIES "sec")
+    FIND_LIBRARY(SEC_LIBRARY NAMES sec)
+    LIST(APPEND ADDITIONAL_LIBS ${SEC_LIBRARY})
+  ENDIF(HAVE_LIBSEC)
+  #
+  CHECK_TYPE_EXISTS(aclent_t "${INCLUDES}" HAVE_ACLENT_T)
+  CHECK_TYPE_EXISTS(ace_t "${INCLUDES}" HAVE_ACE_T)
+  CHECK_FUNCTION_EXISTS(acl_get HAVE_FACL_GET)
+  CHECK_FUNCTION_EXISTS(facl_get HAVE_FACL_GET)
+  CHECK_FUNCTION_EXISTS(acl_set HAVE_FACL_SET)
+  CHECK_FUNCTION_EXISTS(facl_set HAVE_FACL_SET)
 ELSE(ENABLE_ACL)
   # If someone runs cmake, then disables ACL support, we need
   # to forcibly override the cached values for these.
@@ -1623,7 +1648,15 @@ ELSE(ENABLE_ACL)
   SET(HAVE_ACL_SET_FD FALSE)
   SET(HAVE_ACL_SET_FD_NP FALSE)
   SET(HAVE_ACL_SET_FILE FALSE)
+  SET(HAVE_ACL_TYPE_NFS4 FALSE)
   SET(HAVE_ACL_USER FALSE)
+  SET(HAVE_ACL_TYPE_EXTENDED FALSE)
+  SET(HAVE_ACL_GET FALSE)
+  SET(HAVE_ACLENT_T FALSE)
+  SET(HAVE_ACE_T FALSE)
+  SET(HAVE_FACL_GET FALSE)
+  SET(HAVE_ACL_SET FALSE)
+  SET(HAVE_FACL_SET FALSE)
 ENDIF(ENABLE_ACL)
 
 #
