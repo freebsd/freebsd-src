@@ -222,6 +222,7 @@
 #define AR_PHY_TIMING5_RSSI_THR1A_ENA (0x1 << 15)
 /* BB_radar_detection) */
 #define AR_PHY_RADAR_0_ENA  0x00000001  /* Enable radar detection */
+#define AR_PHY_RADAR_0_ENA_S  0
 #define AR_PHY_RADAR_0_FFT_ENA  0x80000000  /* Enable FFT data */
 #define AR_PHY_RADAR_0_INBAND   0x0000003e  /* Inband pulse threshold */
 #define AR_PHY_RADAR_0_INBAND_S 1
