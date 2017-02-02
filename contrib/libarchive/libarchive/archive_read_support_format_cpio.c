@@ -434,7 +434,8 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	 * header.  XXX */
 
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
-	if (namelength == 11 && strcmp((const char *)h, "TRAILER!!!") == 0) {
+	if (namelength == 11 && memcmp((const char *)h, "TRAILER!!!",
+	    11) == 0) {
 		/* TODO: Store file location of start of block. */
 		archive_clear_error(&a->archive);
 		return (ARCHIVE_EOF);

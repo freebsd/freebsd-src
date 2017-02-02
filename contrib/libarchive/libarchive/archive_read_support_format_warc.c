@@ -534,7 +534,7 @@ xstrpisotime(const char *s, char **endptr)
 
 	/* as a courtesy to our callers, and since this is a non-standard
 	 * routine, we skip leading whitespace */
-	while (isspace((unsigned char)*s))
+	while (isblank((unsigned char)*s))
 		++s;
 
 	/* read year */
