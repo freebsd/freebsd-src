@@ -2164,8 +2164,7 @@ i386_kdb_init(void)
 }
 
 register_t
-init386(first)
-	int first;
+init386(int first)
 {
 	struct gate_descriptor *gdp;
 	int gsel_tss, metadata_missing, x, pa;
