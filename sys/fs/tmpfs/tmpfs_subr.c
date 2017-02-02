@@ -332,11 +332,6 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 	TMPFS_UNLOCK(tmp);
 
 	switch (node->tn_type) {
-	case VNON:
-		/* Do not do anything.  VNON is provided to let the
-		 * allocation routine clean itself easily by avoiding
-		 * duplicating code in it. */
-		/* FALLTHROUGH */
 	case VBLK:
 		/* FALLTHROUGH */
 	case VCHR:
