@@ -171,10 +171,6 @@
 #define	MIPS_CCA_CACHED		MIPS_CCA_CCS
 #endif
 
-#if defined(CPU_XBURST)
-#define	MIPS_CCA_UA		0x01
-#endif
-
 #ifndef	MIPS_CCA_UNCACHED
 #define	MIPS_CCA_UNCACHED	MIPS_CCA_UC
 #endif
@@ -189,16 +185,6 @@
 #define	MIPS_CCA_CACHED	MIPS_CCA_CC
 #else
 #define	MIPS_CCA_CACHED	MIPS_CCA_C
-#endif
-#endif
-
-/*
- * Use uncached-accelerated mode for write-combining maps, if one is defined,
- * otherwise fall back to uncached
- */
-#ifndef MIPS_CCA_WC
-#ifdef MIPS_CCA_UA
-#define	MIPS_CCA_WC MIPS_CCA_UA
 #endif
 #endif
 

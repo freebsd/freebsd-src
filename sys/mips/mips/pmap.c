@@ -189,10 +189,10 @@ static void pmap_update_page_action(void *arg);
  * The highmem area does not have a KSEG0 mapping, and we need a mechanism to
  * do temporary per-CPU mappings for pmap_zero_page, pmap_copy_page etc.
  *
- * At bootup, we reserve 2 virtual pages per CPU for mapping highmem pages. To
+ * At bootup, we reserve 2 virtual pages per CPU for mapping highmem pages. To 
  * access a highmem physical address on a CPU, we map the physical address to
- * the reserved virtual address for the CPU in the kernel pagetable.  This is
- * done with interrupts disabled(although a spinlock and sched_pin would be
+ * the reserved virtual address for the CPU in the kernel pagetable.  This is 
+ * done with interrupts disabled(although a spinlock and sched_pin would be 
  * sufficient).
  */
 struct local_sysmaps {
@@ -303,7 +303,7 @@ pmap_lmem_map2(vm_paddr_t phys1, vm_paddr_t phys2)
 	return (0);
 }
 
-static __inline vm_offset_t
+static __inline vm_offset_t 
 pmap_lmem_unmap(void)
 {
 
@@ -312,18 +312,12 @@ pmap_lmem_unmap(void)
 #endif /* !__mips_n64 */
 
 static __inline int
-pmap_pte_cache_bits(vm_paddr_t pa, vm_page_t m)
+is_cacheable_page(vm_paddr_t pa, vm_page_t m)
 {
-	vm_memattr_t ma;
 
-	ma = pmap_page_get_memattr(m);
-	if (ma == VM_MEMATTR_WRITE_BACK && !is_cacheable_mem(pa))
-		ma = VM_MEMATTR_UNCACHEABLE;
-	return PTE_C(ma);
-}
-#define PMAP_PTE_SET_CACHE_BITS(pte, pa, m) {	\
-	pte &= ~PTE_C_MASK;			\
-	pte |= pmap_pte_cache_bits(pa, m);	\
+	return ((m->md.pv_flags & PV_MEMATTR_UNCACHEABLE) == 0 &&
+	    is_cacheable_mem(pa));
+
 }
 
 /*
@@ -365,7 +359,7 @@ pmap_pdpe_to_pde(pd_entry_t *pdpe, vm_offset_t va)
 	return (pdpe);
 }
 
-static __inline
+static __inline 
 pd_entry_t *pmap_pde(pmap_t pmap, vm_offset_t va)
 {
 
@@ -429,7 +423,7 @@ pmap_steal_memory(vm_size_t size)
  * Bootstrap the system enough to run with virtual memory.  This
  * assumes that the phys_avail array has been initialized.
  */
-static void
+static void 
 pmap_create_kernel_pagetable(void)
 {
 	int i, j;
@@ -492,7 +486,7 @@ void
 pmap_bootstrap(void)
 {
 	int i;
-	int need_local_mappings = 0;
+	int need_local_mappings = 0; 
 
 	/* Sort. */
 again:
@@ -612,7 +606,8 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
-	m->md.pv_flags = VM_MEMATTR_DEFAULT << PV_MEMATTR_SHIFT;
+	m->md.pv_flags = 0;
+	m->md.pv_memattr = VM_MEMATTR_DEFAULT;
 }
 
 /*
@@ -647,8 +642,8 @@ pmap_call_on_active_cpus(pmap_t pmap, void (*fn)(void *), void *arg)
 			pmap->pm_asid[cpu].gen = 0;
 	}
 	cpuid = PCPU_GET(cpuid);
-	/*
-	 * XXX: barrier/locking for active?
+	/* 
+	 * XXX: barrier/locking for active? 
 	 *
 	 * Take a snapshot of active here, any further changes are ignored.
 	 * tlb update/invalidate should be harmless on inactive CPUs
@@ -831,7 +826,7 @@ retry:
  * add a wired page to the kva
  */
 void
-pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
+pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr)
 {
 	pt_entry_t *pte;
 	pt_entry_t opte, npte;
@@ -842,7 +837,7 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 
 	pte = pmap_pte(kernel_pmap, va);
 	opte = *pte;
-	npte = TLBLO_PA_TO_PFN(pa) | PTE_C(ma) | PTE_D | PTE_VALID | PTE_G;
+	npte = TLBLO_PA_TO_PFN(pa) | attr | PTE_D | PTE_VALID | PTE_G;
 	*pte = npte;
 	if (pte_test(&opte, PTE_VALID) && opte != npte)
 		pmap_update_page(kernel_pmap, va, npte);
@@ -855,7 +850,7 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	KASSERT(is_cacheable_mem(pa),
 		("pmap_kenter: memory at 0x%lx is not cacheable", (u_long)pa));
 
-	pmap_kenter_attr(va, pa, VM_MEMATTR_DEFAULT);
+	pmap_kenter_attr(va, pa, PTE_C_CACHE);
 }
 
 /*
@@ -1156,11 +1151,11 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, u_int flags)
 		int segindex = ptepindex >> (SEGSHIFT - PDRSHIFT);
 		int pdeindex = ptepindex & (NPDEPG - 1);
 		vm_page_t pg;
-
+		
 		pdep = &pmap->pm_segtab[segindex];
-		if (*pdep == NULL) {
+		if (*pdep == NULL) { 
 			/* recurse for allocating page dir */
-			if (_pmap_allocpte(pmap, NUPDE + segindex,
+			if (_pmap_allocpte(pmap, NUPDE + segindex, 
 			    flags) == NULL) {
 				/* alloc failed, release current */
 				--m->wire_count;
@@ -1692,7 +1687,7 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_page_t mpte, vm_offset_t va,
  * pmap_remove_pte: do the things to unmap a page in a process
  */
 static int
-pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va,
+pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va, 
     pd_entry_t pde)
 {
 	pt_entry_t oldpte;
@@ -1876,7 +1871,7 @@ pmap_remove_all(vm_page_t m)
 		PMAP_LOCK(pmap);
 
 		/*
-		 * If it's last mapping writeback all caches from
+		 * If it's last mapping writeback all caches from 
 		 * the page being destroyed
 	 	 */
 		if (TAILQ_NEXT(pv, pv_next) == NULL)
@@ -2042,7 +2037,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		newpte |= PTE_W;
 	if (is_kernel_pmap(pmap))
 		newpte |= PTE_G;
-	PMAP_PTE_SET_CACHE_BITS(newpte, pa, m);
+	if (is_cacheable_page(pa, m))
+		newpte |= PTE_C_CACHE;
+	else
+		newpte |= PTE_C_UNCACHED;
 #ifdef CPU_CHERI
 	if ((flags & PMAP_ENTER_NOLOADTAGS) != 0)
 		newpte |= PTE_LC;
@@ -2233,7 +2231,7 @@ static vm_page_t
 pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, vm_page_t mpte)
 {
-	pt_entry_t *pte, npte;
+	pt_entry_t *pte;
 	vm_paddr_t pa;
 
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
@@ -2314,14 +2312,16 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	*pte = PTE_RO | TLBLO_PA_TO_PFN(pa) | PTE_VALID;
 	if ((m->oflags & VPO_UNMANAGED) == 0)
-		npte |= PTE_MANAGED;
+		*pte |= PTE_MANAGED;
 
-	PMAP_PTE_SET_CACHE_BITS(npte, pa, m);
+	if (is_cacheable_page(pa, m))
+		*pte |= PTE_C_CACHE;
+	else
+		*pte |= PTE_C_UNCACHED;
 
 	if (is_kernel_pmap(pmap))
-		*pte = npte | PTE_G;
+		*pte |= PTE_G;
 	else {
-		*pte = npte;
 		/*
 		 * Sync I & D caches.  Do this only if the target pmap
 		 * belongs to the current process.  Otherwise, an
@@ -2705,12 +2705,12 @@ pmap_quick_enter_page(vm_page_t m)
 #else
 	vm_paddr_t pa;
 	struct local_sysmaps *sysm;
-	pt_entry_t *pte, npte;
+	pt_entry_t *pte;
 
 	pa = VM_PAGE_TO_PHYS(m);
 
 	if (MIPS_DIRECT_MAPPABLE(pa)) {
-		if (pmap_page_get_memattr(m) != VM_MEMATTR_WRITE_BACK)
+		if (m->md.pv_flags & PV_MEMATTR_UNCACHEABLE)
 			return (MIPS_PHYS_TO_DIRECT_UNCACHED(pa));
 		else
 			return (MIPS_PHYS_TO_DIRECT(pa));
@@ -2721,9 +2721,8 @@ pmap_quick_enter_page(vm_page_t m)
 	KASSERT(sysm->valid1 == 0, ("pmap_quick_enter_page: PTE busy"));
 
 	pte = pmap_pte(kernel_pmap, sysm->base);
-	npte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G;
-	PMAP_PTE_SET_CACHE_BITS(npte, pa, m);
-	*pte = npte;
+	*pte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G |
+	    (is_cacheable_page(pa, m) ? PTE_C_CACHE : PTE_C_UNCACHED);
 	sysm->valid1 = 1;
 
 	return (sysm->base);
@@ -3236,26 +3235,26 @@ pmap_is_referenced(vm_page_t m)
  * Use XKPHYS uncached for 64 bit, and KSEG1 where possible for 32 bit.
  */
 void *
-pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
+pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
         vm_offset_t va, tmpva, offset;
 
-	/*
-	 * KSEG1 maps only first 512M of phys address space. For
+	/* 
+	 * KSEG1 maps only first 512M of phys address space. For 
 	 * pa > 0x20000000 we should make proper mapping * using pmap_kenter.
 	 */
-	if (MIPS_DIRECT_MAPPABLE(pa + size - 1) && ma == VM_MEMATTR_UNCACHEABLE)
+	if (MIPS_DIRECT_MAPPABLE(pa + size - 1))
 		return ((void *)MIPS_PHYS_TO_DIRECT_UNCACHED(pa));
 	else {
 		offset = pa & PAGE_MASK;
 		size = roundup(size + offset, PAGE_SIZE);
-
+        
 		va = kva_alloc(size);
 		if (!va)
 			panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 		pa = trunc_page(pa);
 		for (tmpva = va; size > 0;) {
-			pmap_kenter_attr(tmpva, pa, ma);
+			pmap_kenter_attr(tmpva, pa, PTE_C_UNCACHED);
 			size -= PAGE_SIZE;
 			tmpva += PAGE_SIZE;
 			pa += PAGE_SIZE;
@@ -3263,12 +3262,6 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	}
 
 	return ((void *)(va + offset));
-}
-
-void *
-pmap_mapdev(vm_paddr_t pa, vm_size_t size)
-{
-	return pmap_mapdev_attr(pa, size, VM_MEMATTR_UNCACHEABLE);
 }
 
 void
@@ -3316,7 +3309,7 @@ retry:
 		 * This may falsely report the given address as
 		 * MINCORE_REFERENCED.  Unfortunately, due to the lack of
 		 * per-PTE reference information, it is impossible to
-		 * determine if the address is MINCORE_REFERENCED.
+		 * determine if the address is MINCORE_REFERENCED.  
 		 */
 		m = PHYS_TO_VM_PAGE(pa);
 		if ((m->aflags & PGA_REFERENCED) != 0)
@@ -3608,7 +3601,7 @@ pmap_kextract(vm_offset_t va)
 	mapped = (va >= MIPS_KSEG2_START || va < MIPS_KSEG2_END);
 #if defined(__mips_n64)
 	mapped = mapped || (va >= MIPS_XKSEG_START || va < MIPS_XKSEG_END);
-#endif
+#endif 
 	/*
 	 * Kernel virtual.
 	 */
@@ -3632,7 +3625,7 @@ pmap_kextract(vm_offset_t va)
 }
 
 
-void
+void 
 pmap_flush_pvcache(vm_page_t m)
 {
 	pv_entry_t pv;
@@ -3659,85 +3652,12 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	if (TAILQ_FIRST(&m->md.pv_list) != NULL)
 		panic("Can't change memattr on page with existing mappings");
 
-	/* Clean memattr portion of pv_flags */
-	m->md.pv_flags &= ~PV_MEMATTR_MASK;
-	m->md.pv_flags |= (ma << PV_MEMATTR_SHIFT) & PV_MEMATTR_MASK;
-}
-
-static __inline void
-pmap_pte_attr(pt_entry_t *pte, vm_memattr_t ma)
-{
-	u_int npte;
-
-	npte = *(u_int *)pte;
-	npte &= ~PTE_C_MASK;
-	npte |= PTE_C(ma);
-	*pte = npte;
-}
-
-int
-pmap_change_attr(vm_offset_t sva, vm_size_t size, vm_memattr_t ma)
-{
-	pd_entry_t *pde, *pdpe;
-	pt_entry_t *pte;
-	vm_offset_t ova, eva, va, va_next;
-	pmap_t pmap;
-
-	ova = sva;
-	eva = sva + size;
-	if (eva < sva)
-		return (EINVAL);
-
-	pmap = kernel_pmap;
-	PMAP_LOCK(pmap);
-
-	for (; sva < eva; sva = va_next) {
-		pdpe = pmap_segmap(pmap, sva);
-#ifdef __mips_n64
-		if (*pdpe == 0) {
-			va_next = (sva + NBSEG) & ~SEGMASK;
-			if (va_next < sva)
-				va_next = eva;
-			continue;
-		}
-#endif
-		va_next = (sva + NBPDR) & ~PDRMASK;
-		if (va_next < sva)
-			va_next = eva;
-
-		pde = pmap_pdpe_to_pde(pdpe, sva);
-		if (*pde == NULL)
-			continue;
-
-		/*
-		 * Limit our scan to either the end of the va represented
-		 * by the current page table page, or to the end of the
-		 * range being removed.
-		 */
-		if (va_next > eva)
-			va_next = eva;
-
-		va = va_next;
-		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
-		    sva += PAGE_SIZE) {
-			if (!pte_test(pte, PTE_VALID) || pte_cache_bits(pte) == ma) {
-				if (va != va_next) {
-					pmap_invalidate_range(pmap, va, sva);
-					va = va_next;
-				}
-				continue;
-			}
-			if (va == va_next)
-				va = sva;
-
-			pmap_pte_attr(pte, ma);
-		}
-		if (va != va_next)
-			pmap_invalidate_range(pmap, va, sva);
-	}
-	PMAP_UNLOCK(pmap);
-
-	/* Flush caches to be in the safe side */
-	mips_dcache_wbinv_range(ova, size);
-	return 0;
+	/*
+	 * The only memattr we support is UNCACHEABLE, translate the (semi-)MI
+	 * representation of that into our internal flag in the page MD struct.
+	 */
+	if (ma == VM_MEMATTR_UNCACHEABLE)
+		m->md.pv_flags |= PV_MEMATTR_UNCACHEABLE;
+	else
+		m->md.pv_flags &= ~PV_MEMATTR_UNCACHEABLE;
 }
