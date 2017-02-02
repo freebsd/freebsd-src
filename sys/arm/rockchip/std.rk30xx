@@ -1,7 +1,7 @@
 # Rockchip rk30xx common options
 #$FreeBSD$
 
-cpu		CPU_CORTEXA_MP
+cpu		CPU_CORTEXA
 machine		arm armv6
 makeoptions	CONF_CFLAGS="-march=armv7a"
 
