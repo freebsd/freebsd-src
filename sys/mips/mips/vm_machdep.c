@@ -322,8 +322,13 @@ cpu_thread_alloc(struct thread *td)
 {
 	pt_entry_t *pte;
 
+#ifdef KSTACK_LARGE_PAGE
+	KASSERT((td->td_kstack & (KSTACK_PAGE_SIZE - 1) ) == 0,
+	    ("kernel stack must be aligned to 16K boundary."));
+#else
 	KASSERT((td->td_kstack & ((KSTACK_PAGE_SIZE * 2) - 1) ) == 0,
 	    ("kernel stack must be aligned."));
+#endif
 	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = &td->td_pcb->pcb_regs;
