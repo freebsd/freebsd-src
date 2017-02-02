@@ -89,13 +89,12 @@ main(int argc, char **argv)
 	for (i = 0; i < argc; i++) {
 		fd = open(argv[i], O_RDONLY);
 		if (fd < 0 && errno == ENOENT && *argv[i] != '/') {
-			sprintf(buf, "%s%s", _PATH_DEV, argv[i]);
+			snprintf(buf, BUFSIZ, "%s%s", _PATH_DEV, argv[i]);
 			fd = open(buf, O_RDONLY);
 		}
 		if (fd < 0) {
 			warn("%s", argv[i]);
-			exitval = 1;
-			goto out;
+			exit(1);
 		}
 		error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
 		if (error) {
@@ -176,7 +175,8 @@ rdsect(int fd, off_t blockno, u_int sectorsize)
 {
 	int error;
 
-	lseek(fd, (off_t)blockno * sectorsize, SEEK_SET);
+	if (lseek(fd, (off_t)blockno * sectorsize, SEEK_SET) == -1)
+		err(1, "lseek");
 	error = read(fd, sector, sectorsize);
 	if (error == -1)
 		err(1, "read");
@@ -241,6 +241,9 @@ speeddisk(int fd, off_t mediasize, u_int sectorsize)
 	off_t b0, b1, sectorcount, step;
 
 	sectorcount = mediasize / sectorsize;
+	if (sectorcount <= 0)
+		return;		/* Can't test devices with no sectors */
+
 	step = 1ULL << (flsll(sectorcount / (4 * 200)) - 1);
 	if (step > 16384)
 		step = 16384;
