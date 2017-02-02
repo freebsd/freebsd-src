@@ -1,4 +1,4 @@
-/* $Id: defs.h,v 1.54 2016/12/02 19:27:56 tom Exp $ */
+/* $Id: defs.h,v 1.56 2017/02/02 00:44:38 tom Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -313,6 +313,7 @@ extern const char *const trailer[];
 
 extern char *code_file_name;
 extern char *input_file_name;
+extern size_t input_file_name_len;
 extern char *defines_file_name;
 extern char *externs_file_name;
 
