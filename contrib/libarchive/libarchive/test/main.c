@@ -216,6 +216,12 @@ invalid_parameter_handler(const wchar_t * expression,
     unsigned int line, uintptr_t pReserved)
 {
 	/* nop */
+	// Silence unused-parameter compiler warnings.
+	(void)expression;
+	(void)function;
+	(void)file;
+	(void)line;
+	(void)pReserved;
 }
 #endif
 
@@ -1412,6 +1418,8 @@ assertion_file_mode(const char *file, int line, const char *pathname, int expect
 	failure_start(file, line, "assertFileMode not yet implemented for Windows");
 	(void)mode; /* UNUSED */
 	(void)r; /* UNUSED */
+	(void)pathname; /* UNUSED */
+	(void)expected_mode; /* UNUSED */
 #else
 	{
 		struct stat st;
