@@ -1406,6 +1406,132 @@ tmpfs_whiteout(struct vop_whiteout_args *ap)
 	}
 }
 
+static int
+tmpfs_vptocnp_dir(struct tmpfs_node *tn, struct tmpfs_node *tnp,
+    struct tmpfs_dirent **pde)
+{
+	struct tmpfs_dir_cursor dc;
+	struct tmpfs_dirent *de;
+
+	for (de = tmpfs_dir_first(tnp, &dc); de != NULL;
+	     de = tmpfs_dir_next(tnp, &dc)) {
+		if (de->td_node == tn) {
+			*pde = de;
+			return (0);
+		}
+	}
+	return (ENOENT);
+}
+
+static int
+tmpfs_vptocnp_fill(struct vnode *vp, struct tmpfs_node *tn,
+    struct tmpfs_node *tnp, char *buf, int *buflen, struct vnode **dvp)
+{
+	struct tmpfs_dirent *de;
+	int error, i;
+
+	error = vn_vget_ino_gen(vp, tmpfs_vn_get_ino_alloc, tnp, LK_SHARED,
+	    dvp);
+	if (error != 0)
+		return (error);
+	error = tmpfs_vptocnp_dir(tn, tnp, &de);
+	if (error == 0) {
+		i = *buflen;
+		i -= de->td_namelen;
+		if (i < 0) {
+			error = ENOMEM;
+		} else {
+			bcopy(de->ud.td_name, buf + i, de->td_namelen);
+			*buflen = i;
+		}
+	}
+	if (error == 0) {
+		if (vp != *dvp)
+			VOP_UNLOCK(*dvp, 0);
+	} else {
+		if (vp != *dvp)
+			vput(*dvp);
+		else
+			vrele(vp);
+	}
+	return (error);
+}
+
+static int
+tmpfs_vptocnp(struct vop_vptocnp_args *ap)
+{
+	struct vnode *vp, **dvp;
+	struct tmpfs_node *tn, *tnp, *tnp1;
+	struct tmpfs_dirent *de;
+	struct tmpfs_mount *tm;
+	char *buf;
+	int *buflen;
+	int error;
+
+	vp = ap->a_vp;
+	dvp = ap->a_vpp;
+	buf = ap->a_buf;
+	buflen = ap->a_buflen;
+
+	tm = VFS_TO_TMPFS(vp->v_mount);
+	tn = VP_TO_TMPFS_NODE(vp);
+	if (tn->tn_type == VDIR) {
+		tnp = tn->tn_dir.tn_parent;
+		if (tnp == NULL)
+			return (ENOENT);
+		tmpfs_ref_node(tnp);
+		error = tmpfs_vptocnp_fill(vp, tn, tn->tn_dir.tn_parent, buf,
+		    buflen, dvp);
+		tmpfs_free_node(tm, tnp);
+		return (error);
+	}
+restart:
+	TMPFS_LOCK(tm);
+	LIST_FOREACH_SAFE(tnp, &tm->tm_nodes_used, tn_entries, tnp1) {
+		if (tnp->tn_type != VDIR)
+			continue;
+		TMPFS_NODE_LOCK(tnp);
+		tmpfs_ref_node_locked(tnp);
+
+		/*
+		 * tn_vnode cannot be instantiated while we hold the
+		 * node lock, so the directory cannot be changed while
+		 * we iterate over it.  Do this to avoid instantiating
+		 * vnode for directories which cannot point to our
+		 * node.
+		 */
+		error = tnp->tn_vnode == NULL ? tmpfs_vptocnp_dir(tn, tnp,
+		    &de) : 0;
+
+		if (error == 0) {
+			TMPFS_NODE_UNLOCK(tnp);
+			TMPFS_UNLOCK(tm);
+			error = tmpfs_vptocnp_fill(vp, tn, tnp, buf, buflen,
+			    dvp);
+			if (error == 0) {
+				tmpfs_free_node(tm, tnp);
+				return (0);
+			}
+			if ((vp->v_iflag & VI_DOOMED) != 0) {
+				tmpfs_free_node(tm, tnp);
+				return (ENOENT);
+			}
+			TMPFS_LOCK(tm);
+			TMPFS_NODE_LOCK(tnp);
+		}
+		if (tmpfs_free_node_locked(tm, tnp, false)) {
+			goto restart;
+		} else {
+			KASSERT(tnp->tn_refcount > 0,
+			    ("node %p refcount zero", tnp));
+			tnp1 = LIST_NEXT(tnp, tn_entries);
+			TMPFS_NODE_UNLOCK(tnp);
+		}
+	}
+	TMPFS_UNLOCK(tm);
+	return (ENOENT);
+}
+
 /*
  * Vnode operations vector used for files stored in a tmpfs file system.
  */
@@ -1438,5 +1564,6 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_vptofh =			tmpfs_vptofh,
 	.vop_whiteout =			tmpfs_whiteout,
 	.vop_bmap =			VOP_EOPNOTSUPP,
+	.vop_vptocnp =			tmpfs_vptocnp,
 };
 
