@@ -147,8 +147,8 @@ MALLOC_DECLARE(M_QLA83XXBUF);
 /*
  * Locks
  */
-#define QLA_LOCK(ha, str, no_delay) qla_lock(ha, str, no_delay)
-#define QLA_UNLOCK(ha, str) qla_unlock(ha, str)
+#define QLA_LOCK(ha, str, no_delay)	mtx_lock(&ha->hw_lock)
+#define QLA_UNLOCK(ha, str)		mtx_unlock(&ha->hw_lock)
  
 #define QLA_TX_LOCK(ha)		mtx_lock(&ha->tx_lock);
 #define QLA_TX_UNLOCK(ha)	mtx_unlock(&ha->tx_lock);
