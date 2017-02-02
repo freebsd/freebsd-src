@@ -432,6 +432,7 @@ struct ath_tx_radiotap_header {
 #define	SPECTRAL_PARAM_SS_SHORT_RPT	4
 #define	SPECTRAL_PARAM_ENABLED		5
 #define	SPECTRAL_PARAM_ACTIVE		6
+#define	SPECTRAL_PARAM_SS_SPECTRAL_PRI	7
 
 /*
  * Spectral control parameters
