@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2017
+.Dd February 3, 2017
 .Dt if_ipsec 4
 .Os
 .Sh NAME
@@ -33,18 +33,18 @@
 .Sh SYNOPSIS
 The
 .Cm if_ipsec
-network interface is a part of 
+network interface is a part of the
 .Fx
 IPsec implementation.
-To compile it into the kernel, place the following line in the kernel
+To compile it into the kernel, place this line in the kernel
 configuration file:
 .Bd -ragged -offset indent
 .Cd "options IPSEC"
 .Ed
 .Pp
-Alternatively, it can be loaded as part of
+It can also be loaded as part of the
 .Cm ipsec
-kernel module, if the kernel was compiled with:
+kernel module if the kernel was compiled with
 .Bd -ragged -offset indent
 .Cd "options IPSEC_SUPPORT"
 .Ed
@@ -52,7 +52,8 @@ kernel module, if the kernel was compiled with:
 The
 .Nm
 network interface is targeted for creating route-based VPNs.
-It can tunnel IPv[46] traffic over IPv[46] and secure it using ESP.
+It can tunnel IPv4 and IPv6 traffic over either IPv4 or IPv6 and secure
+it with ESP.
 .Pp
 .Nm
 interfaces are dynamically created and destroyed with the
@@ -61,23 +62,23 @@ interfaces are dynamically created and destroyed with the
 and
 .Cm destroy
 subcommands.
-The administrator needs to configure IPsec
+The administrator must configure IPsec
 .Cm tunnel
-endpoints addresses.
-These addresses will be used for the outer IP header of ESP packets. 
-The administrator also can configure the protocol and addresses for the inner
+endpoint addresses.
+These addresses will be used for the outer IP header of ESP packets.
+The administrator can also configure the protocol and addresses for the inner
 IP header with
 .Xr ifconfig 8 ,
 and modify the routing table to route the packets through the
 .Nm
 interface.
 .Pp
-When 
+When the
 .Nm
-interface is configured, it automatically creates special security policies,
-that may be used to acquire security associations from IKE daemon, needed for
-establishing an IPsec tunnel.
-Also it is possible to create needed security associations manually using
+interface is configured, it automatically creates special security policies.
+These policies can be used to acquire security associations from the IKE daemon,
+which are needed for establishing an IPsec tunnel.
+It is also possible to create needed security associations manually with the
 .Xr setkey 8
 utility.
 .Pp
@@ -87,21 +88,22 @@ interface has additional numeric configuration option
 .Cm reqid Ar id .
 This
 .Ar id
-used to distinguish traffic and security policies between several
+is used to distinguish traffic and security policies between several
 .Nm
 interfaces.
 The
 .Cm reqid
-can be specified on interface creating and changed later.
-If it is not specified, it will be automatically assigned.
-Note that changing of
+can be specified on interface creation and changed later.
+If not specified, it will be automatically assigned.
+Note that changing
 .Cm reqid
 will lead to generation of new security policies, and this
-may require creating of new security associations.
+may require creating new security associations.
 .Sh EXAMPLES
-The example below shows how to manually configure IPsec tunnel
-between two FreeBSD hosts. Assuming host A has the IP address
-192.168.0.3, and host B has the IP address 192.168.0.5.
+The example below shows manual configuration of an IPsec tunnel
+between two FreeBSD hosts.
+Host A has the IP address 192.168.0.3, and host B has the IP address
+192.168.0.5.
 .Pp
 On host A:
 .Bd -literal -offset indent
@@ -126,8 +128,7 @@ add 192.168.0.5 192.168.0.3 esp 10001 -m tunnel -u 200 -E rijndael-cbc "VerySecu
 .Ed
 .Pp
 Note the value 100 on host A and value 200 on host B are used as reqid.
-The same values should be used as identifier of the policy entry in 
-the
+The same values must be used as identifier of the policy entry in the
 .Xr setkey 8
 command.
 .Sh SEE ALSO
