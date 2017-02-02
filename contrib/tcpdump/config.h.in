@@ -9,8 +9,8 @@
 /* Define to 1 if you have the `bpf_dump' function. */
 #undef HAVE_BPF_DUMP
 
-/* Casper library support available */
-#undef HAVE_CASPER
+/* capsicum support available */
+#undef HAVE_CAPSICUM
 
 /* Define to 1 if you have the `cap_enter' function. */
 #undef HAVE_CAP_ENTER
