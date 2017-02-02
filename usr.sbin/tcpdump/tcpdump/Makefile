@@ -36,6 +36,7 @@ SRCS=	addrtoname.c \
 	print-ascii.c \
 	print-atalk.c \
 	print-atm.c \
+	print-babel.c \
 	print-beep.c \
 	print-bfd.c \
 	print-bgp.c \
@@ -50,6 +51,7 @@ SRCS=	addrtoname.c \
 	print-cnfp.c \
 	print-dccp.c \
 	print-decnet.c \
+	print-dhcp6.c \
 	print-domain.c \
 	print-dtp.c \
 	print-dvmrp.c \
@@ -62,6 +64,7 @@ SRCS=	addrtoname.c \
 	print-fddi.c \
 	print-forces.c \
 	print-fr.c \
+	print-frag6.c \
 	print-ftp.c \
 	print-geneve.c \
 	print-geonet.c \
@@ -70,10 +73,12 @@ SRCS=	addrtoname.c \
 	print-hsrp.c \
 	print-http.c \
 	print-icmp.c \
+	print-icmp6.c \
 	print-igmp.c \
 	print-igrp.c \
 	print-ip.c \
 	print-ip6.c \
+	print-ip6opts.c \
 	print-ipcomp.c \
 	print-ipfc.c \
 	print-ipnet.c \
@@ -96,6 +101,7 @@ SRCS=	addrtoname.c \
 	print-m3ua.c \
 	print-medsa.c \
 	print-mobile.c \
+	print-mobility.c \
 	print-mpcp.c \
 	print-mpls.c \
 	print-mptcp.c \
@@ -109,6 +115,7 @@ SRCS=	addrtoname.c \
 	print-openflow.c \
 	print-openflow-1.0.c \
 	print-ospf.c \
+	print-ospf6.c \
 	print-otv.c \
 	print-pgm.c \
 	print-pim.c \
@@ -121,9 +128,11 @@ SRCS=	addrtoname.c \
 	print-raw.c \
 	print-resp.c \
 	print-rip.c \
+	print-ripng.c \
 	print-rpki-rtr.c \
 	print-rrcp.c \
 	print-rsvp.c \
+	print-rt6.c \
 	print-rtsp.c \
 	print-rx.c \
 	print-sctp.c \
@@ -171,15 +180,6 @@ CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -D_U_="__attribute__((unused))"
 
 .if ${MK_INET6_SUPPORT} != "no"
-SRCS+=	print-babel.c \
-	print-dhcp6.c \
-	print-frag6.c \
-	print-icmp6.c \
-	print-ip6opts.c \
-	print-mobility.c \
-	print-ospf6.c \
-	print-ripng.c \
-	print-rt6.c
 CFLAGS+=	-DINET6 -DHAVE_OS_IPV6_SUPPORT
 .endif
 .if ${MACHINE_CPUARCH} != "i386"
