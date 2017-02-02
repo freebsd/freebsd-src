@@ -276,8 +276,7 @@ void	sheeva_l2cache_wbinv_all	(void);
 #if defined(CPU_MV_PJ4B)
 void	armv6_idcache_wbinv_all		(void);
 #endif
-#if defined(CPU_CORTEXA8) || defined(CPU_CORTEXA_MP) || \
-    defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
+#if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 void	armv7_idcache_wbinv_all		(void);
 void	armv7_cpu_sleep			(int);
 void	armv7_setup			(void);
