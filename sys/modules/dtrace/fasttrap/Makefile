@@ -10,6 +10,7 @@ SRCS+=		vnode_if.h
 
 CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
 		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
+		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common/dtrace \
 		-I${SYSDIR}
 
 .if ${MACHINE_CPUARCH} == "amd64" ||  ${MACHINE_CPUARCH} == "i386"
