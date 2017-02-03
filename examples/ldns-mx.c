@@ -40,6 +40,15 @@ main(int argc, char *argv[])
 			usage(stdout, argv[0]);
 			exit(EXIT_FAILURE);
 		}
+		if (! ldns_dname_str_absolute(argv[1]) &&
+		    ldns_dname_absolute(domain)) {
+
+			/* ldns_dname_new_frm_str makes absolute dnames always!
+			 * So deabsolutify domain.
+			 * TODO: Create ldns_dname_new_frm_str_relative? Yuck!
+			 */
+			ldns_rdf_set_size(domain, ldns_rdf_size(domain) - 1);
+		}
 	}
 
 	/* create a new resolver from /etc/resolv.conf */
@@ -52,11 +61,11 @@ main(int argc, char *argv[])
 	/* use the resolver to send a query for the mx 
 	 * records of the domain given on the command line
 	 */
-	p = ldns_resolver_query(res,
-	                        domain,
-	                        LDNS_RR_TYPE_MX,
-	                        LDNS_RR_CLASS_IN,
-	                        LDNS_RD);
+	p = ldns_resolver_search(res,
+	                         domain,
+	                         LDNS_RR_TYPE_MX,
+	                         LDNS_RR_CLASS_IN,
+	                         LDNS_RD);
 
 	ldns_rdf_deep_free(domain);
 	

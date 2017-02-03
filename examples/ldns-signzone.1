@@ -121,11 +121,11 @@ Number of hash iterations
 .SH ENGINE OPTIONS
 You can modify the possible engines, if supported, by setting an
 OpenSSL configuration file. This is done through the environment
-variable OPENSSL_CONF. If you use -E with a non-existent engine name,
+variable OPENSSL_CONF. If you use \-E with a non-existent engine name,
 ldns-signzone will print a list of engines supported by your
 configuration.
 
-The key options (-k and -K) work as follows; you specify a key id, and a DNSSEC algorithm number (for instance, 5 for RSASHA1). The key id can be any of the following:
+The key options (\-k and \-K) work as follows; you specify a key id, and a DNSSEC algorithm number (for instance, 5 for RSASHA1). The key id can be any of the following:
 
     <id>
     <slot>:<id>

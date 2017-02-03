@@ -58,37 +58,45 @@
 
 /* int verbosity = 3; */
 
-void
+static void
 print_usage(const char* progname)
 {
+#ifdef USE_DANE_VERIY
 	printf("Usage: %s [OPTIONS] verify <name> <port>\n", progname);
 	printf("   or: %s [OPTIONS] -t <tlsafile> verify\n", progname);
 	printf("\n\tVerify the TLS connection at <name>:<port> or"
 	       "\n\tuse TLSA record(s) from <tlsafile> to verify the\n"
 			"\tTLS service they reference.\n");
 	printf("\n   or: %s [OPTIONS] create <name> <port> [<usage> "
+#else
+	printf("Usage: %s [OPTIONS] create <name> <port> [<usage> "
+#endif
 			"[<selector> [<type>]]]\n", progname);
 	printf("\n\tUse the TLS connection(s) to <name> <port> "
 			"to create the TLSA\n\t"
 			"resource record(s) that would "
 			"authenticate the connection.\n");
 	printf("\n\t<usage>"
-			"\t\t0: CA constraint\n"
-			"\t\t\t1: Service certificate constraint\n"
-			"\t\t\t2: Trust anchor assertion\n"
-			"\t\t\t3: Domain-issued certificate (default)\n");
+			"\t\t0 | PKIX-TA  : CA constraint\n"
+			"\t\t\t1 | PKIX-EE  : Service certificate constraint\n"
+			"\t\t\t2 | DANE-TA  : Trust anchor assertion\n"
+			"\t\t\t3 | DANE-EE  : Domain-issued certificate "
+			"(default)\n");
 	printf("\n\t<selector>"
-			"\t0: Full certificate (default)\n"
-			"\t\t\t1: SubjectPublicKeyInfo\n");
+			"\t0 | Cert     : Full certificate\n"
+			"\t\t\t1 | SPKI     : SubjectPublicKeyInfo "
+			"(default)\n");
 	printf("\n\t<type>"
-			"\t\t0: No hash used\n"
-			"\t\t\t1: SHA-256 (default)\n"
-			"\t\t\t2: SHA-512\n");
+			"\t\t0 | Full     : No hash used\n"
+			"\t\t\t1 | SHA2-256 : SHA-256 (default)\n"
+			"\t\t\t2 | SHA2-512 : SHA-512\n");
 
 	printf("OPTIONS:\n");
 	printf("\t-h\t\tshow this text\n");
 	printf("\t-4\t\tTLS connect IPv4 only\n");
 	printf("\t-6\t\tTLS connect IPv6 only\n");
+	printf("\t-r <address>\t"
+	       "use resolver at <address> instead of local resolver\n");
 	printf("\t-a <address>\t"
 	       "don't resolve <name>, but connect to <address>(es)\n");
 	printf("\t-b\t\t"
@@ -133,7 +141,7 @@ print_usage(const char* progname)
 	exit(EXIT_SUCCESS);
 }
 
-int
+static int
 dane_int_within_range(const char* arg, int max, const char* name)
 {
 	char* endptr; /* utility var for strtol usage */
@@ -157,30 +165,52 @@ struct dane_param_choice_struct {
 typedef struct dane_param_choice_struct dane_param_choice;
 
 dane_param_choice dane_certificate_usage_table[] = {
-	{ "CA constraint"			, 0 },
-	{ "CA-constraint"			, 0 },
-	{ "Service certificate constraint"	, 1 },
-	{ "Service-certificate-constraint"	, 1 },
-	{ "Trust anchor assertion"		, 2 },
-	{ "Trust-anchor-assertion"		, 2 },
-	{ "anchor"				, 2 },
-	{ "Domain-issued certificate"		, 3 },
-	{ "Domain-issued-certificate"		, 3 },
+	{ "PKIX-TA"				,   0 },
+	{ "CA constraint"			,   0 },
+	{ "CA-constraint"			,   0 },
+	{ "PKIX-EE"				,   1 },
+	{ "Service certificate constraint"	,   1 },
+	{ "Service-certificate-constraint"	,   1 },
+	{ "DANE-TA"				,   2 },
+	{ "Trust anchor assertion"		,   2 },
+	{ "Trust-anchor-assertion"		,   2 },
+	{ "anchor"				,   2 },
+	{ "DANE-EE"				,   3 },
+	{ "Domain-issued certificate"		,   3 },
+	{ "Domain-issued-certificate"		,   3 },
+	{ "PrivCert"				, 255 },
 	{ NULL, -1 }
 };
 
 dane_param_choice dane_selector_table[] = {
-	{ "Full certificate"	, 0 },
-	{ "Full-certificate"	, 0 },
-	{ "certificate"		, 0 },
-	{ "SubjectPublicKeyInfo", 1 },
-	{ "PublicKey"		, 1 },
-	{ "pubkey"		, 1 },
-	{ "key"			, 1 },
+	{ "Cert"		,   0 },
+	{ "Full certificate"	,   0 },
+	{ "Full-certificate"	,   0 },
+	{ "certificate"		,   0 },
+	{ "SPKI"		,   1 },
+	{ "SubjectPublicKeyInfo",   1 },
+	{ "PublicKey"		,   1 },
+	{ "pubkey"		,   1 },
+	{ "key"			,   1 },
+	{ "PrivSel"		, 255 },
 	{ NULL, -1 }
 };
 
-int
+dane_param_choice dane_matching_type_table[] = {
+	{ "Full"		,   0 },
+	{ "no-hash-used"	,   0 },
+	{ "no hash used"	,   0 },
+	{ "SHA2-256"		,   1 },
+	{ "sha256"		,   1 },
+	{ "sha-256"		,   1 },
+	{ "SHA2-512"		,   2 },
+	{ "sha512"		,   2 },
+	{ "sha-512"		,   2 },
+	{ "PrivMatch"		, 255 },
+	{ NULL, -1 }
+};
+
+static int
 dane_int_within_range_table(const char* arg, int max, const char* name,
 		dane_param_choice table[])
 {
@@ -196,7 +226,7 @@ dane_int_within_range_table(const char* arg, int max, const char* name,
 	return dane_int_within_range(arg, max, name);
 }
 
-void
+static void
 ssl_err(const char* s)
 {
 	fprintf(stderr, "error: %s\n", s);
@@ -204,7 +234,7 @@ ssl_err(const char* s)
 	exit(EXIT_FAILURE);
 }
 
-void
+static void
 ldns_err(const char* s, ldns_status err)
 {
 	if (err == LDNS_STATUS_SSL_ERR) {
@@ -215,7 +245,7 @@ ldns_err(const char* s, ldns_status err)
 	}
 }
 
-ldns_status
+static ldns_status
 ssl_connect_and_get_cert_chain(
 		X509** cert, STACK_OF(X509)** extra_certs,
 	       	SSL* ssl, const char* name_str,
@@ -296,7 +326,8 @@ ssl_connect_and_get_cert_chain(
 }
 
 
-void
+#ifdef USE_DANE_VERIFY
+static void
 ssl_interact(SSL* ssl)
 {
 	fd_set rfds;
@@ -382,9 +413,10 @@ ssl_interact(SSL* ssl)
 
 	} /* for (;;) */
 }
+#endif /* USE_DANE_VERIFY */
 
 
-ldns_rr_list*
+static ldns_rr_list*
 rr_list_filter_rr_type(ldns_rr_list* l, ldns_rr_type t)
 {
 	size_t i;
@@ -414,7 +446,7 @@ rr_list_filter_rr_type(ldns_rr_list* l, ldns_rr_type t)
  *
  * This to check what would happen if PKIX validation was successfull always.
  */
-ldns_rr_list*
+static ldns_rr_list*
 dane_no_pkix_transform(const ldns_rr_list* tlas)
 {
 	size_t i;
@@ -476,7 +508,7 @@ dane_no_pkix_transform(const ldns_rr_list* tlas)
 	return r;
 }
 
-void
+static void
 print_rr_as_TYPEXXX(FILE* out, ldns_rr* rr)
 {
 	size_t i, sz;
@@ -507,7 +539,7 @@ print_rr_as_TYPEXXX(FILE* out, ldns_rr* rr)
 	LDNS_FREE(str);
 }
 
-void
+static void
 print_rr_list_as_TYPEXXX(FILE* out, ldns_rr_list* l)
 {
 	size_t i;
@@ -517,7 +549,7 @@ print_rr_list_as_TYPEXXX(FILE* out, ldns_rr_list* l)
 	}
 }
 
-ldns_status
+static ldns_status
 read_key_file(const char *filename, ldns_rr_list *keys)
 {
 	ldns_status status = LDNS_STATUS_ERR;
@@ -556,15 +588,24 @@ read_key_file(const char *filename, ldns_rr_list *keys)
 }
 
 
-ldns_status
-dane_setup_resolver(ldns_resolver** res,
+static ldns_status
+dane_setup_resolver(ldns_resolver** res, ldns_rdf* nameserver_addr,
 		ldns_rr_list* keys, bool dnssec_off)
 {
-	ldns_status s;
+	ldns_status s = LDNS_STATUS_OK;
 
 	assert(res != NULL);
 
-	s = ldns_resolver_new_frm_file(res, NULL);
+	if (nameserver_addr) {
+		*res = ldns_resolver_new();
+		if (*res) {
+			s = ldns_resolver_push_nameserver(*res, nameserver_addr);
+		} else {
+			s = LDNS_STATUS_MEM_ERR;
+		}
+	} else {
+	        s = ldns_resolver_new_frm_file(res, NULL);
+	}
 	if (s == LDNS_STATUS_OK) {
 		ldns_resolver_set_dnssec(*res, ! dnssec_off);
 
@@ -578,7 +619,7 @@ dane_setup_resolver(ldns_resolver** res,
 }
 
 
-ldns_status
+static ldns_status
 dane_query(ldns_rr_list** rrs, ldns_resolver* r,
 		ldns_rdf *name, ldns_rr_type t, ldns_rr_class c,
 		bool insecure_is_ok)
@@ -597,7 +638,7 @@ dane_query(ldns_rr_list** rrs, ldns_resolver* r,
 	}
 	*rrs = ldns_pkt_rr_list_by_type(p, t, LDNS_SECTION_ANSWER);
 
-	if (! ldns_resolver_dnssec(r)) { /* DNSSEC explicitely disabled,
+	if (! ldns_resolver_dnssec(r)) { /* DNSSEC explicitly disabled,
 					    anything goes */
 		ldns_pkt_free(p);
 		return LDNS_STATUS_OK;
@@ -683,7 +724,7 @@ cleanup:
 }
 
 
-ldns_rr_list*
+static ldns_rr_list*
 dane_lookup_addresses(ldns_resolver* res, ldns_rdf* dname,
 		int ai_family)
 {
@@ -750,7 +791,7 @@ dane_lookup_addresses(ldns_resolver* res, ldns_rdf* dname,
 	return r;
 }
 
-ldns_status
+static ldns_status
 dane_read_tlsas_from_file(ldns_rr_list** tlsas,
 		char* filename, ldns_rdf* origin)
 {
@@ -842,7 +883,7 @@ error:
 	return s;
 }
 
-bool
+static bool
 dane_wildcard_label_cmp(uint8_t iw, const char* w, uint8_t il, const char* l)
 {
 	if (iw == 0) { /* End of match label */
@@ -885,7 +926,7 @@ dane_wildcard_label_cmp(uint8_t iw, const char* w, uint8_t il, const char* l)
 	return iw == 0 && il == 0;
 }
 
-bool
+static bool
 dane_label_matches_label(ldns_rdf* w, ldns_rdf* l)
 {
 	uint8_t iw;
@@ -898,7 +939,7 @@ dane_label_matches_label(ldns_rdf* w, ldns_rdf* l)
 			il, (const char*)ldns_rdf_data(l) + 1);
 }
 
-bool
+static bool
 dane_name_matches_server_name(const char* name_str, ldns_rdf* server_name)
 {
 	ldns_rdf* name;
@@ -938,7 +979,7 @@ dane_name_matches_server_name(const char* name_str, ldns_rdf* server_name)
 	return true;
 }
 
-bool
+static bool
 dane_X509_any_subject_alt_name_matches_server_name(
 		X509 *cert, ldns_rdf* server_name)
 {
@@ -972,7 +1013,7 @@ dane_X509_any_subject_alt_name_matches_server_name(
 	return false;
 }
 
-bool
+static bool
 dane_X509_subject_name_matches_server_name(X509 *cert, ldns_rdf* server_name)
 {
 	X509_NAME* subject_name;
@@ -1000,7 +1041,7 @@ dane_X509_subject_name_matches_server_name(X509 *cert, ldns_rdf* server_name)
 	}
 }
 
-bool
+static bool
 dane_verify_server_name(X509* cert, ldns_rdf* server_name)
 {
 	ldns_rdf* server_name_lc;
@@ -1018,7 +1059,7 @@ dane_verify_server_name(X509* cert, ldns_rdf* server_name)
 	return r;
 }
 
-void
+static void
 dane_create(ldns_rr_list* tlsas, ldns_rdf* tlsa_owner,
 		ldns_tlsa_certificate_usage certificate_usage, int offset,
 		ldns_tlsa_selector          selector,
@@ -1047,7 +1088,7 @@ dane_create(ldns_rr_list* tlsas, ldns_rdf* tlsa_owner,
 			selected_cert);
 	LDNS_ERR(s, "could not create tlsa rr");
 
-	ldns_rr_set_owner(tlsa_rr, tlsa_owner);
+	ldns_rr_set_owner(tlsa_rr, ldns_rdf_clone(tlsa_owner));
 			     
 	if (! ldns_rr_list_contains_rr(tlsas, tlsa_rr)) {
 		if (! ldns_rr_list_push_rr(tlsas, tlsa_rr)) {
@@ -1056,7 +1097,8 @@ dane_create(ldns_rr_list* tlsas, ldns_rdf* tlsa_owner,
 	}
 }
 
-bool
+#if defined(USE_DANE_VERIFY) && ( OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL) )
+static bool
 dane_verify(ldns_rr_list* tlsas, ldns_rdf* address,
 		X509* cert, STACK_OF(X509)* extra_certs,
 		X509_STORE* validate_store,
@@ -1096,6 +1138,22 @@ dane_verify(ldns_rr_list* tlsas, ldns_rdf* address,
 			ldns_get_errorstr_by_id(s));
 	return false;
 }
+#endif /* defined(USE_DANE_VERIFY) && OPENSSL_VERSION_NUMBER < 0x10100000 */
+
+/**
+ * Return either an A or AAAA rdf, based on the given
+ * string. If it it not a valid ip address, return null.
+ *
+ * Caller receives ownership of returned rdf (if not null),
+ * and must free it.
+ */
+static inline ldns_rdf* rdf_addr_frm_str(const char* str) {
+	ldns_rdf *a = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_A, str);
+	if (!a) {
+		a = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_AAAA, str);
+	}
+	return a;
+}
 
 
 int
@@ -1106,6 +1164,11 @@ main(int argc, char* const* argv)
 
 	ldns_status   s;
 	size_t        i;
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000 && ! defined(HAVE_LIBRESSL)
+	size_t        j, usable_tlsas = 0;
+	X509_STORE_CTX *store_ctx = NULL;
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000 */
 
 	bool print_tlsa_as_type52   = false;
 	bool assume_dnssec_validity = false;
@@ -1143,6 +1206,7 @@ main(int argc, char* const* argv)
 	uint16_t      port = 0;		/* supress uninitialized warning */
 
 	ldns_resolver* res            = NULL;
+	ldns_rdf*      nameserver_rdf = NULL;
 	ldns_rdf*      tlsa_owner     = NULL;
 	char*          tlsa_owner_str = NULL;
 	ldns_rr_list*  tlsas          = NULL;
@@ -1178,7 +1242,7 @@ main(int argc, char* const* argv)
 	if (! keys || ! addresses) {
 		MEMERR("ldns_rr_list_new");
 	}
-	while((c = getopt(argc, argv, "46a:bc:df:hik:no:p:sSt:TuvV:")) != -1){
+	while((c = getopt(argc, argv, "46a:bc:df:hik:no:p:r:sSt:TuvV:")) != -1){
 		switch(c) {
 		case 'h':
 			print_usage("ldns-dane");
@@ -1188,6 +1252,19 @@ main(int argc, char* const* argv)
 			break;
 		case '6':
 			ai_family = AF_INET6;
+			break;
+		case 'r':
+			if (nameserver_rdf) {
+				fprintf(stderr, "Can only specify -r once\n");
+				exit(EXIT_FAILURE);
+			}
+			nameserver_rdf = rdf_addr_frm_str(optarg);
+			if (!nameserver_rdf) {
+				fprintf(stderr,
+				        "Could not interpret address %s\n",
+				        optarg);
+				exit(EXIT_FAILURE);
+			}
 			break;
 		case 'a':
 			s = ldns_str2rdf_a(&address, optarg);
@@ -1336,6 +1413,7 @@ main(int argc, char* const* argv)
 		argc--;
 		argv++;
 
+#ifdef USE_DANE_VERIFY
 	} else if (strncasecmp(*argv, "verify", strlen(*argv)) == 0) {
 
 		mode = VERIFY;
@@ -1344,9 +1422,20 @@ main(int argc, char* const* argv)
 
 	} else {
 		fprintf(stderr, "Specify create or verify mode\n");
+#else
+	} else {
+		fprintf(stderr, "Specify create mode\n");
+#endif
 		exit(EXIT_FAILURE);
 	}
 
+#ifndef USE_DANE_VERIFY
+	(void)transport_str;
+	(void)transport_rdf;
+	(void)port_str;
+	(void)port_rdf;
+	(void)interact;
+#else
 	if (mode == VERIFY && argc == 0) {
 
 		if (! tlsas_file) {
@@ -1446,7 +1535,9 @@ main(int argc, char* const* argv)
 		}
 
 
-	} else if (argc < 2) {
+	} else 
+#endif /* USE_DANE_VERIFY */
+		if (argc < 2) {
 
 		print_usage("ldns-dane");
 
@@ -1480,8 +1571,8 @@ main(int argc, char* const* argv)
 			LDNS_ERR(s, "could not read tlas from file");
 		} else {
 			/* lookup tlsas */
-			s = dane_setup_resolver(&res, keys,
-					assume_dnssec_validity);
+			s = dane_setup_resolver(&res, nameserver_rdf,
+			                        keys, assume_dnssec_validity);
 			LDNS_ERR(s, "could not dane_setup_resolver");
 			s = dane_query(&tlsas, res, tlsa_owner,
 					LDNS_RR_TYPE_TLSA, LDNS_RR_CLASS_IN,
@@ -1532,8 +1623,7 @@ main(int argc, char* const* argv)
 					dane_certificate_usage_table);
 			argc--;
 		} else {
-			certificate_usage =
-				LDNS_TLSA_USAGE_DOMAIN_ISSUED_CERTIFICATE;
+			certificate_usage = LDNS_TLSA_USAGE_DANE_EE;
 		}
 		if (argc > 0) {
 			selector = dane_int_within_range_table(
@@ -1541,35 +1631,16 @@ main(int argc, char* const* argv)
 					dane_selector_table);
 			argc--;
 		} else {
-			selector = LDNS_TLSA_SELECTOR_FULL_CERTIFICATE;
+			selector = LDNS_TLSA_SELECTOR_SPKI;
 		}
 		if (argc > 0) {
-			if (*argv && /* strlen(argv) > 0 */
-					(strncasecmp(*argv, "no-hash-used",
-						strlen(*argv)) == 0 ||
-					strncasecmp(*argv, "no hash used",
-						strlen(*argv)) == 0 )) {
-				matching_type =
-					LDNS_TLSA_MATCHING_TYPE_NO_HASH_USED;
+			matching_type = dane_int_within_range_table(
+					*argv++, 2, "matching type",
+					dane_matching_type_table);
 
-			} else if (strcasecmp(*argv, "sha256") == 0 ||
-					strcasecmp(*argv, "sha-256") == 0) {
-
-				matching_type = LDNS_TLSA_MATCHING_TYPE_SHA256;
-
-			} else if (strcasecmp(*argv, "sha512") == 0 ||
-					strcasecmp(*argv, "sha-512") == 0) {
-
-				matching_type = LDNS_TLSA_MATCHING_TYPE_SHA512;
-
-			} else {
-				matching_type = dane_int_within_range(
-						*argv, 2, "matching type");
-			}
-			argv++;
 			argc--;
 		} else {
-			matching_type = LDNS_TLSA_MATCHING_TYPE_SHA256;
+			matching_type = LDNS_TLSA_MATCHING_TYPE_SHA2_256;
 		}
 		if (argc > 0) {
 
@@ -1617,7 +1688,14 @@ main(int argc, char* const* argv)
 		}
 	}
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 	ctx =  SSL_CTX_new(SSLv23_client_method());
+#else
+	ctx =  SSL_CTX_new(TLS_client_method());
+	if (ctx && SSL_CTX_dane_enable(ctx) <= 0) {
+		ssl_err("could not SSL_CTX_dane_enable");
+	}
+#endif
 	if (! ctx) {
 		ssl_err("could not SSL_CTX_new");
 	}
@@ -1636,16 +1714,23 @@ main(int argc, char* const* argv)
 		if (! cert) {
 			ssl_err("could not SSL_get_certificate");
 		}
+#ifndef SSL_CTX_get_extra_chain_certs
 #ifndef S_SPLINT_S
 		extra_certs = ctx->extra_certs;
+#endif /* splint */
+#else
+		if(!SSL_CTX_get_extra_chain_certs(ctx, &extra_certs)) {
+			ssl_err("could not SSL_CTX_get_extra_chain_certs");
+		}
 #endif
-
 		switch (mode) {
 		case CREATE: dane_create(tlsas, tlsa_owner, certificate_usage,
 					     offset, selector, matching_type,
 					     cert, extra_certs, store,
 					     verify_server_name, name);
 			     break;
+#ifdef USE_DANE_VERIFY
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 		case VERIFY: if (! dane_verify(tlsas, NULL,
 			                       cert, extra_certs, store,
 					       verify_server_name, name,
@@ -1653,6 +1738,82 @@ main(int argc, char* const* argv)
 				     success = false;
 			     }
 			     break;
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000 */
+		case VERIFY: 
+			     usable_tlsas = 0;
+			     SSL_set_connect_state(ssl);
+			     if (SSL_dane_enable(ssl, name_str) <= 0) {
+			     	ssl_err("could not SSL_dane_enable");
+			     }
+			     if (!verify_server_name) {
+			     	SSL_dane_set_flags(ssl, DANE_FLAG_NO_DANE_EE_NAMECHECKS);
+			     }
+			     for (j = 0; j < ldns_rr_list_rr_count(tlsas); j++) {
+			     	int ret;
+			     	ldns_rr *tlsa_rr = ldns_rr_list_rr(tlsas, j);
+
+			     	if (ldns_rr_get_type(tlsa_rr) != LDNS_RR_TYPE_TLSA) {
+			     		fprintf(stderr, "Skipping non TLSA RR: ");
+			     		ldns_rr_print(stderr, tlsa_rr);
+			     		fprintf(stderr, "\n");
+			     		continue;
+			     	}
+			     	if (ldns_rr_rd_count(tlsa_rr) != 4) {
+			     		fprintf(stderr, "Skipping TLSA with wrong rdata RR: ");
+			     		ldns_rr_print(stderr, tlsa_rr);
+			     		fprintf(stderr, "\n");
+			     		continue;
+			     	}
+			     	ret = SSL_dane_tlsa_add(ssl,
+			     			ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 0)),
+			     			ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 1)),
+			     			ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 2)),
+			     			ldns_rdf_data(ldns_rr_rdf(tlsa_rr, 3)),
+			     			ldns_rdf_size(ldns_rr_rdf(tlsa_rr, 3)));
+			     	if (ret < 0) {
+			     		ssl_err("could not SSL_dane_tlsa_add");
+			     	}
+			     	if (ret == 0) {
+			     		fprintf(stderr, "Skipping unusable TLSA RR: ");
+			     		ldns_rr_print(stderr, tlsa_rr);
+			     		fprintf(stderr, "\n");
+			     		continue;
+			     	}
+			     	usable_tlsas += 1;
+			     }
+			     if (!usable_tlsas) {
+			     	fprintf(stderr, "No usable TLSA records were found.\n"
+			     			"PKIX validation without DANE will be performed.\n");
+			     }
+			     if (!(store_ctx = X509_STORE_CTX_new())) {
+				     ssl_err("could not SSL_new");
+			     }
+			     if (!X509_STORE_CTX_init(store_ctx, store, cert, extra_certs)) {
+				     ssl_err("could not X509_STORE_CTX_init");
+			     }
+			     X509_STORE_CTX_set_default(store_ctx,
+					     SSL_is_server(ssl) ? "ssl_client" : "ssl_server");
+			     X509_VERIFY_PARAM_set1(X509_STORE_CTX_get0_param(store_ctx),
+					     SSL_get0_param(ssl));
+			     X509_STORE_CTX_set0_dane(store_ctx, SSL_get0_dane(ssl));
+			     X509_NAME_print_ex_fp(stdout,
+					     X509_get_subject_name(cert), 0, 0);
+			     if (X509_verify_cert(store_ctx)) {
+				fprintf(stdout, " %s-validated successfully\n",
+						  usable_tlsas 
+						? "dane" : "PKIX");
+			     } else {
+				fprintf(stdout, " did not dane-validate, because: %s\n",
+						X509_verify_cert_error_string(
+							X509_STORE_CTX_get_error(store_ctx)));
+				success = false;
+			     }
+			     if (store_ctx) {
+				     X509_STORE_CTX_free(store_ctx);
+			     }
+			     break;
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000 */
+#endif /* ifdef USE_DANE_VERIFY */
 		default:     break; /* suppress warning */
 		}
 		SSL_free(ssl);
@@ -1661,8 +1822,8 @@ main(int argc, char* const* argv)
 
 		/* We need addresses to connect to */
 		if (ldns_rr_list_rr_count(addresses) == 0) {
-			s = dane_setup_resolver(&res, keys,
-					assume_dnssec_validity);
+			s = dane_setup_resolver(&res, nameserver_rdf,
+			                        keys, assume_dnssec_validity);
 			LDNS_ERR(s, "could not dane_setup_resolver");
 			ldns_rr_list_free(addresses);
 			addresses =dane_lookup_addresses(res, name, ai_family);
@@ -1683,7 +1844,54 @@ main(int argc, char* const* argv)
 			address = ldns_rr_a_address(
 					ldns_rr_list_rr(addresses, i));
 			assert(address != NULL);
-			
+#if OPENSSL_VERSION_NUMBER >= 0x10100000  && ! defined(HAVE_LIBRESSL)
+			if (mode == VERIFY) {
+				usable_tlsas = 0;
+				if (SSL_dane_enable(ssl, name_str) <= 0) {
+					ssl_err("could not SSL_dane_enable");
+				}
+				if (!verify_server_name) {
+					SSL_dane_set_flags(ssl, DANE_FLAG_NO_DANE_EE_NAMECHECKS);
+				}
+				for (j = 0; j < ldns_rr_list_rr_count(tlsas); j++) {
+					int ret;
+					ldns_rr *tlsa_rr = ldns_rr_list_rr(tlsas, j);
+
+					if (ldns_rr_get_type(tlsa_rr) != LDNS_RR_TYPE_TLSA) {
+						fprintf(stderr, "Skipping non TLSA RR: ");
+						ldns_rr_print(stderr, tlsa_rr);
+						fprintf(stderr, "\n");
+						continue;
+					}
+					if (ldns_rr_rd_count(tlsa_rr) != 4) {
+						fprintf(stderr, "Skipping TLSA with wrong rdata RR: ");
+						ldns_rr_print(stderr, tlsa_rr);
+						fprintf(stderr, "\n");
+						continue;
+					}
+					ret = SSL_dane_tlsa_add(ssl,
+							ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 0)),
+							ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 1)),
+							ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 2)),
+							ldns_rdf_data(ldns_rr_rdf(tlsa_rr, 3)),
+							ldns_rdf_size(ldns_rr_rdf(tlsa_rr, 3)));
+					if (ret < 0) {
+						ssl_err("could not SSL_dane_tlsa_add");
+					}
+					if (ret == 0) {
+						fprintf(stderr, "Skipping unusable TLSA RR: ");
+						ldns_rr_print(stderr, tlsa_rr);
+						fprintf(stderr, "\n");
+						continue;
+					}
+					usable_tlsas += 1;
+				}
+				if (!usable_tlsas) {
+					fprintf(stderr, "No usable TLSA records were found.\n"
+							"PKIX validation without DANE will be performed.\n");
+				}
+			}
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000 */
 			s = ssl_connect_and_get_cert_chain(&cert, &extra_certs,
 					ssl, name_str, address,port, transport);
 			if (s == LDNS_STATUS_NETWORK_ERR) {
@@ -1696,8 +1904,27 @@ main(int argc, char* const* argv)
 				continue;
 			}
 			LDNS_ERR(s, "could not get cert chain from ssl");
-			switch (mode) {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000 && ! defined(HAVE_LIBRESSL)
 
+			if (mode == VERIFY) {
+				char *address_str = ldns_rdf2str(address);
+				long verify_result = SSL_get_verify_result(ssl);
+
+				fprintf(stdout, "%s", address_str ? address_str : "<address>");
+				free(address_str);
+
+				if (verify_result == X509_V_OK) {
+					fprintf(stdout, " %s-validated successfully\n",
+							  usable_tlsas 
+							? "dane" : "PKIX");
+				} else {
+					fprintf(stdout, " did not dane-validate, because: %s\n",
+							X509_verify_cert_error_string(verify_result));
+					success = false;
+				}
+			}
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000 */
+			switch (mode) {
 			case CREATE: dane_create(tlsas, tlsa_owner,
 						     certificate_usage, offset,
 						     selector, matching_type,
@@ -1705,16 +1932,23 @@ main(int argc, char* const* argv)
 						     verify_server_name, name);
 				     break;
 
-			case VERIFY: if (! dane_verify(tlsas, address,
+#ifdef USE_DANE_VERIFY
+			case VERIFY:
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+				     if (! dane_verify(tlsas, address,
 						cert, extra_certs, store,
 						verify_server_name, name,
 						assume_pkix_validity)) {
 					success = false;
 
-				     } else if (interact) {
+				     }
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000 */
+				     if (success && interact) {
 					     ssl_interact(ssl);
 				     }
 				     break;
+#endif /* USE_DANE_VERIFY */
+
 			default:     break; /* suppress warning */
 			}
 			while (SSL_shutdown(ssl) == 0);
@@ -1734,6 +1968,9 @@ main(int argc, char* const* argv)
 	/* cleanup */
 	SSL_CTX_free(ctx);
 
+	if (nameserver_rdf) {
+		ldns_rdf_deep_free(nameserver_rdf);
+	}
 	if (store) {
 		X509_STORE_free(store);
 	}
@@ -1768,6 +2005,9 @@ main(int argc, char **argv)
 int
 main(int argc, char **argv)
 {
+	(void)argc;
+	(void)argv;
+
 	fprintf(stderr, "dane support was disabled with this build of ldns, "
 			"and has not been compiled in\n");
 	return 1;

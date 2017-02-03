@@ -27,13 +27,14 @@ extern "C" {
 /**
  * create an update packet from zone name, class and the rr lists
  * \param[in] zone_rdf name of the zone
+ *            The returned packet will take ownership of zone_rdf, so the caller should not free it
  * \param[in] clas zone class
  * \param[in] pr_rrlist list of Prerequisite Section RRs
  * \param[in] up_rrlist list of Updates Section RRs
  * \param[in] ad_rrlist list of Additional Data Section RRs (currently unused)
  * \return the new packet
  */
-ldns_pkt *ldns_update_pkt_new(ldns_rdf *zone_rdf, ldns_rr_class clas, ldns_rr_list *pr_rrlist, ldns_rr_list *up_rrlist, ldns_rr_list *ad_rrlist);
+ldns_pkt *ldns_update_pkt_new(ldns_rdf *zone_rdf, ldns_rr_class clas, const ldns_rr_list *pr_rrlist, const ldns_rr_list *up_rrlist, const ldns_rr_list *ad_rrlist);
 
 /**
  * add tsig credentials to
@@ -43,7 +44,7 @@ ldns_pkt *ldns_update_pkt_new(ldns_rdf *zone_rdf, ldns_rr_class clas, ldns_rr_li
  *
  * \return status wether successfull or not
  */
-ldns_status ldns_update_pkt_tsig_add(ldns_pkt *p, ldns_resolver *r);
+ldns_status ldns_update_pkt_tsig_add(ldns_pkt *p, const ldns_resolver *r);
 
 /* access functions */
 

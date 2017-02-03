@@ -26,17 +26,17 @@ Show usage
 
 .TP
 \fB-p\fR
-Show the total number of correct DNS packets, and percentage of -u and
--c values  (of the total of matching on the -f filter. if no filter is
+Show the total number of correct DNS packets, and percentage of \-u and
+\-c values  (of the total of matching on the \-f filter. if no filter is
 given, percentages are on all correct dns packets)
 
 .TP
 \fB-of\fR \fIfile\fR
-Write all packets that match the -f flag to file, as pcap data.
+Write all packets that match the \-f flag to file, as pcap data.
 
 .TP
 \fB-ofh\fR \fIfile\fR
-Write all packets that match the -f flag to file, in hexadecimal format,
+Write all packets that match the \-f flag to file, in hexadecimal format,
 readable by drill.
 
 .TP
@@ -49,8 +49,8 @@ show possible match operators and values for name
 
 .TP
 \fB-sf\fR
-Only evaluate packets (in representation format) that match the -f filter.
-If no -f was given, evaluate all correct dns packets.
+Only evaluate packets (in representation format) that match the \-f filter.
+If no \-f was given, evaluate all correct dns packets.
 
 .TP
 \fB-u\fR \fImatchnamelist\fR
@@ -58,15 +58,15 @@ Count every occurence of every value of the matchname (for instance, count all p
 
 .TP
 \fB-ua\fR
-For every matchname in -u, show the average value of all matches. Behaviour for match types that do not have an integer value is undefined.
+For every matchname in \-u, show the average value of all matches. Behaviour for match types that do not have an integer value is undefined.
 
 .TP
 \fB-uac\fR
-For every matchname in -u, show the average number of times this value was encountered.
+For every matchname in \-u, show the average number of times this value was encountered.
 
 .TP
 \fB-um\fR \fInumber\fR
-Only show the results from -u for values that occurred more than <number> times.
+Only show the results from \-u for values that occurred more than <number> times.
 
 .TP
 \fB-v\fR \fIlevel\fR
@@ -86,7 +86,7 @@ Show version and exit
 
 .SH LIST AND MATCHES
 
-A <matchnamelist> is a comma separated list of match names (use -s to see possible match names).
+A <matchnamelist> is a comma separated list of match names (use \-s to see possible match names).
 A <expressionlist> is a comma separated list of expressions.
 
 An expression has the following form:
@@ -106,36 +106,36 @@ An expression has the following form:
 	<=	lesser than or equal to <value>
 	~=	contains <value>
 
-See the -s option for possible matchnames, operators and values.
+See the \-s option for possible matchnames, operators and values.
 
 .SH EXAMPLES
 
 .TP
-ldns-dpa -u packetsize -p test.tr
+ldns-dpa \-u packetsize \-p test.tr
 Count all different packetsizes in test.tr and show the precentages.
 
 .TP
-ldns-dpa -f "edns=1&qr=0" -of edns.tr test.tr
+ldns-dpa \-f "edns=1&qr=0" \-of edns.tr test.tr
 Filter out all edns enable queries in test.tr and put them in edns.tr
 
 .TP
-ldns-dpa -f edns=1 -c tc=1 -u rcode test.tr
+ldns-dpa \-f edns=1 \-c tc=1 \-u rcode test.tr
 For all edns packets, count the number of truncated packets and all their rcodes in test.tr.
 
 .TP
-ldns-dpa -c tc=1,qr=0,qr=1,opcode=QUERY test.tr
+ldns-dpa \-c tc=1,qr=0,qr=1,opcode=QUERY test.tr
 For all packets, count the number of truncated packets, the number of packets with qr=0, the number of packets with qr=1 and the number of queries in test.tr.
 
 .TP
-ldns-dpa -u packetsize -ua test.tr
+ldns-dpa \-u packetsize \-ua test.tr
 Show all packet sizes and the average packet size per packet.
 
 .TP
-ldns-dpa -u srcaddress -uac test.tr
+ldns-dpa \-u srcaddress \-uac test.tr
 Show all packet source addresses and the average number of packets sent from this address.
 
 .TP
-sudo tcpdump -i eth0 -s 0 -U -w - port 53 | ldns-dpa -f qr=0 -sf 
+sudo tcpdump \-i eth0 \-s 0 \-U \-w \- port 53 | ldns-dpa \-f qr=0 \-sf
 Print all query packets seen on the specified interface.
 
 

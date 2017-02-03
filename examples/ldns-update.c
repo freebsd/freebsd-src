@@ -262,7 +262,7 @@ main(int argc, char **argv)
 	ldns_tsig_credentials	tsig_cr, *tsig_cred;
 	int		c = 2;
 	uint32_t	defttl = 300;
-	uint32_t 	port = 5353;
+	uint32_t 	port = 53;
 	
 	prog = strdup(argv[0]);
 

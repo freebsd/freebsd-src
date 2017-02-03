@@ -12,24 +12,36 @@ resource record per line, and no pretty-printing makeup.
 
 .SH OPTIONS
 .TP
-\fB-c\fR
-Canonicalize all resource records in the zone before printing
-
-.TP
-\fB-d\fR
-Only print DNSSEC data from the zone. This option skips every record
-that is not of type NSEC, NSEC3, RRSIG or DNSKEY. DS records are not
-printed.
+\fB-0\fR
+Print a (null) for the RRSIG inception, expiry and key data. This option
+can be used when comparing different signing systems that use the same
+DNSKEYs for signing but would have a slightly different timings/jitter.
 
 .TP
 \fB-b\fR
 Include Bubble Babble encoding of DS's.
 
 .TP
-\fB-0\fR
-Print a (null) for the RRSIG inception, expiry and key data. This option
-can be used when comparing different signing systems that use the same
-DNSKEYs for signing but would have a slightly different timings/jitter.
+\fB-c\fR
+Canonicalize all resource records in the zone before printing
+
+.TP
+\fB-d\fR
+Only print DNSSEC data from the zone. This option skips every record
+that is not of type NSEC, NSEC3 or RRSIG. DNSKEY and DS records are not
+printed.
+
+.TP
+\fB-e\fR \fIRR type\fR
+Do not print RRs of the given \fIrr type\fR.
+This option may be given multiple times.
+\fB-e\fR is not meant to be used together with \fB-E\fR.
+
+.TP
+\fB-E\fR \fIRR type\fR
+Print only RRs of the given \fIrr type\fR.
+This option may be given multiple times.
+\fB-E\fR is not meant to be used together with \fB-e\fR.
 
 .TP
 \fB-h\fR
@@ -47,7 +59,7 @@ take ten characters. This is useful for in file serial number increments.
 .TP
 \fB-s\fR
 Strip DNSSEC data from the zone. This option skips every record
-that is of type NSEC, NSEC3, RRSIG or DNSKEY. DS records are still
+that is of type NSEC, NSEC3 or RRSIG. DNSKEY and DS records are still
 printed.
 
 .TP
@@ -86,7 +98,7 @@ Show the version and exit
 
 .TP
 \fB-z\fR
-Sort the zone before printing (this implies -c)
+Sort the zone before printing (this implies \-c)
 
 
 .SH AUTHOR

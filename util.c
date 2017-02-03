@@ -626,7 +626,7 @@ ldns_b32_pton_base(const char* src, size_t src_sz,
 				ch = *src++;
 				--src_sz;
 
-			} while (isspace(ch) && src_sz > 0);
+			} while (isspace((unsigned char)ch) && src_sz > 0);
 
 			if (ch == '=' || ch == '\0')
 				break;
@@ -731,7 +731,7 @@ ldns_b32_pton_base(const char* src, size_t src_sz,
 					ch = *src++;
 					src_sz--;
 
-				} while (isspace(ch));
+				} while (isspace((unsigned char)ch));
 
 				if (ch != '=')
 					return -1;

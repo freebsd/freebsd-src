@@ -5,9 +5,8 @@ use strict;
 use warnings;
 
 use DNS::LDNS ':all';
-use Carp 'croak';
 
-our $VERSION = '0.06';
+our $VERSION = '0.52';
 
 sub new {
     my $class = shift;
@@ -19,17 +18,19 @@ sub new {
 	$rr = _new;
     }
     elsif (scalar(@_) == 1) {
-	$rr = _new_from_str($_[0], $DNS::LDNS::DEFAULT_TTL, 
-	    $DNS::LDNS::DEFAULT_ORIGIN, $status);
+	$rr = _new_from_str($_[0], 0, 
+	    undef, undef,
+	    $status);
     }
     else {
 	my %args = @_;
 
 	if ($args{str}) {
 	    $rr = _new_from_str($args{str}, 
-				$args{default_ttl} || $DNS::LDNS::DEFAULT_TTL, 
-				$args{origin} || $DNS::LDNS::DEFAULT_ORIGIN, 
-				$status);
+		$args{default_ttl} || 0,
+		$args{origin},
+		$args{prev} ? ${$args{prev}} : undef,
+		$status);
 	}
 	elsif ($args{filename} or $args{file}) {
 	    my $line_nr = 0;
@@ -43,10 +44,13 @@ sub new {
 		$file = \*FILE;
 	    }
 
+	    my $ttl = 0;
 	    $rr = _new_from_file($file, 
-				 $args{default_ttl} || $DNS::LDNS::DEFAULT_TTL, 
-				 $args{origin} || $DNS::LDNS::DEFAULT_ORIGIN, 
-				 $status, $line_nr);
+		 $args{default_ttl} ? ${$args{default_ttl}} : $ttl,
+		 $args{origin} ? ${$args{origin}} : undef,
+		 $args{prev} ? ${$args{prev}} : undef,
+		 $status,
+		 $line_nr);
 	    if ($args{filename}) {
 		close $file;
 	    }
@@ -56,11 +60,11 @@ sub new {
 	elsif ($args{type}) {
 	    $rr = _new_from_type($args{type});
 	    if ($args{owner}) {
-		$rr->set_owner(new DNS::LDNS::RData(
-		    &LDNS_RDF_TYPE_DNAME, $args{owner}));
+		$rr->set_owner(ref $args{owner} ? $args{owner} : 
+		    new DNS::LDNS::RData(&LDNS_RDF_TYPE_DNAME, $args{owner}));
 	    }
-	    $rr->set_ttl($args{ttl} || $DNS::LDNS::DEFAULT_TTL);
-	    $rr->set_class($args{class} || $DNS::LDNS::DEFAULT_CLASS);
+	    $rr->set_ttl($args{ttl}) if ($args{ttl});
+	    $rr->set_class($args{class}) if ($args{class});
 
 	    if ($args{rdata}) {
 		if (!$rr->set_rdata(@{$args{rdata}})) {
@@ -369,21 +373,26 @@ DNS::LDNS::RR - Resource record
   my rr = new DNS::LDNS::RR('mylabel 3600 IN A 168.10.10.10')
   my rr = new DNS::LDNS::RR(
     str => 'mylabel 3600 IN A 168.10.10.10',
-    default_ttl => 3600, # optional,
-    origin => new DNS::LDNS::RData(LDNS_RDF_TYPE_NAME, 'myzone.'), " # optional
+    default_ttl => 3600,     # optional
+    origin => $origin_rdata, # optional
+    prev => \$prev_rdata,    # optional
   )
   my rr = new DNS::LDNS::RR(
     filename => '/path/to/rr',
-    origin => ...)
+    default_ttl => \$ttl,     # optional
+    origin => \$origin_rdata, # optional
+    prev => \$prev_rdata)     # optional
   my rr = new DNS::LDNS::RR(
     file => \*FILE,
-    origin => ...)
+    default_ttl => \$ttl,     # optional
+    origin => \$origin_rdata, # optional
+    prev => \$prev_rdata)     # optional
   my rr = new DNS::LDNS::RR(
     type => LDNS_RR_TYPE_A,
     rdata => [new DNS::LDNS::RData(...), new DNS::LDNS::RData(...), ...],
     class => LDNS_RR_CLASS_IN, # optional
     ttl => 3600, # optional
-    owner => new DNS::LDNS::RData(LDNS_RDF_TYPE_NAME, 'mylabel'), # optional)
+    owner => new DNS::LDNS::RData(LDNS_RDF_TYPE_DNAME, 'mylabel'), # optional)
   my rr = new DNS::LDNS::RR
 
   rr2 = rr->clone

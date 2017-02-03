@@ -17,9 +17,9 @@ ldns-dane \- verify or create TLS authentication with DANE (RFC6698)
 
 .B ldns-dane
 .IR [OPTIONS]
+.IR create
 .IR name
 .IR port
-.IR create
 .PP
           [
 .IR Certificate-usage
@@ -55,37 +55,34 @@ The parameters for TLSA rr creation are:
 .PD 0
 .I Certificate-usage\fR:
 .RS
-.IP 0
+.IP "0 | PKIX-TA"
 CA constraint
-.IP 1
+.IP "1 | PKIX-EE"
 Service certificate constraint
-.IP 2
+.IP "2 | DANE-TA"
 Trust anchor assertion
-.IP 3
+.IP "3 | DANE-EE"
 Domain-issued certificate (default)
 .RE
 
 .I Selector\fR:
 .RS
-.IP 0
-Full certificate (default)
-.IP 1
-SubjectPublicKeyInfo
+.IP "0 | Cert"
+Full certificate
+.IP "1 | SPKI"
+SubjectPublicKeyInfo (default)
 .RE
 
 .I Matching-type\fR:
 .RS
-.IP 0
+.IP "0 | Full"
 No hash used
-.IP 1
+.IP "1 | SHA2-256"
 SHA-256 (default)
-.IP 2
+.IP "2 | SHA2-512"
 SHA-512
 .RE
 .PD 1
-
-In stead of numbers the first few letters of the value may be used.
-Except for the hash algorithm name, where the full name must be specified.
 
 .SH OPTIONS
 .IP -4
@@ -128,7 +125,7 @@ select the \fIoffset\fRth certificate offset from the end
 of the validation chain. 0 means the last certificate, 1 the one but last,
 2 the second but last, etc.
 
-When \fIoffset\fR is -1 (the default), the last certificate
+When \fIoffset\fR is \-1 (the default), the last certificate
 is used (like with 0) that MUST be self-signed. This can help to make
 sure that the intended (self signed) trust anchor is actually present
 in the server certificate chain (which is a DANE requirement).

@@ -49,7 +49,7 @@ Defaults to 100.
 .TP
 \fB-S\fR
 Chase signature(s) to a known key.
-The network may be accessed to validate the zone's DNSKEYs. (implies -k)
+The network may be accessed to validate the zone's DNSKEYs. (implies \-k)
 
 .TP
 \fB-t\fR \fIYYYYMMDDhhmmss | [+|-]offset\fR

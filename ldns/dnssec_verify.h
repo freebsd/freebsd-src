@@ -294,23 +294,6 @@ void ldns_dnssec_derive_trust_tree_dnskey_rrset_time(
 	    ldns_rr *cur_rr, ldns_rr *cur_sig_rr,
 	    time_t check_time);
 
-
-/**
- * Sub function for derive_trust_tree that is used for DNSKEY rrsets
- *
- * \param[in] new_tree The trust tree that we are building
- * \param[in] data_chain The data chain containing the data for the trust tree
- * \param[in] cur_rr The currently relevant DNSKEY RR
- * \param[in] cur_sig_rr The currently relevant signature
- * \param[in] check_time the time for which the validation is performed
- */
-void ldns_dnssec_derive_trust_tree_dnskey_rrset_time(
-         ldns_dnssec_trust_tree *new_tree,
-	    ldns_dnssec_data_chain *data_chain,
-	    ldns_rr *cur_rr, ldns_rr *cur_sig_rr,
-	    time_t check_time);
-
-
 /**
  * Sub function for derive_trust_tree that is used for DS rrsets
  *
@@ -404,8 +387,8 @@ ldns_status ldns_verify(ldns_rr_list *rrset,
  *                        are added to it
  * \return status LDNS_STATUS_OK if there is at least one correct key
  */
-ldns_status ldns_verify_time(ldns_rr_list *rrset,
-				    ldns_rr_list *rrsig,
+ldns_status ldns_verify_time(const ldns_rr_list *rrset,
+				    const ldns_rr_list *rrsig,
 				    const ldns_rr_list *keys,
 				    time_t check_time,
 				    ldns_rr_list *good_keys);	
@@ -683,7 +666,7 @@ ldns_status ldns_verify_rrsig_keylist(ldns_rr_list *rrset,
  * status LDNS_STATUS_OK if at least one key matched. Else an error.
  */
 ldns_status ldns_verify_rrsig_keylist_time(
-		ldns_rr_list *rrset, ldns_rr *rrsig, 
+		const ldns_rr_list *rrset, const ldns_rr *rrsig, 
 		const ldns_rr_list *keys, time_t check_time,
 	       	ldns_rr_list *good_keys);
 
@@ -699,8 +682,8 @@ ldns_status ldns_verify_rrsig_keylist_time(
  * \return a list of keys which validate the rrsig + rrset. Returns
  * status LDNS_STATUS_OK if at least one key matched. Else an error.
  */
-ldns_status ldns_verify_rrsig_keylist_notime(ldns_rr_list *rrset,
-							   ldns_rr *rrsig,
+ldns_status ldns_verify_rrsig_keylist_notime(const ldns_rr_list *rrset,
+							   const ldns_rr *rrsig,
 							   const ldns_rr_list *keys,
 							   ldns_rr_list *good_keys);
 
@@ -752,9 +735,9 @@ ldns_status ldns_verify_rrsig_evp(ldns_buffer *sig,
  * \param[in] key the EVP key structure
  * \param[in] digest_type The digest type of the signature
  */
-ldns_status ldns_verify_rrsig_evp_raw(unsigned char *sig,
+ldns_status ldns_verify_rrsig_evp_raw(const unsigned char *sig,
 							   size_t siglen,
-							   ldns_buffer *rrset,
+							   const ldns_buffer *rrset,
 							   EVP_PKEY *key,
 							   const EVP_MD *digest_type);
 #endif

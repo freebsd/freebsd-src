@@ -1,14 +1,35 @@
 use 5.014002;
 use ExtUtils::MakeMaker;
+
+use Devel::CheckLib;
+
+check_lib_or_exit( 
+    lib      => 'ldns', 
+    header   => 'ldns/ldns.h', 
+    function => 'if(atof(ldns_version()) >= 1.6) return 0; else return 1;'
+);
+
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 WriteMakefile(
     NAME              => 'DNS::LDNS',
     VERSION_FROM      => 'lib/DNS/LDNS.pm', # finds $VERSION
-    PREREQ_PM         => {}, # e.g., Module::Name => 1.1
+    CONFIGURE_REQUIRES => {
+        'Devel::CheckLib'    => 0,
+        'ExtUtils::MakeMaker' => 0,
+    },
+    BUILD_REQUIRES    => { # Actually required only by the tests
+	'FindBin'         => 0,
+        'Test::More'      => 0,
+	'Test::Exception' => 0,
+    },
+    PREREQ_PM         => {
+        'XSLoader'        => 0,
+    },
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/DNS/LDNS.pm', # retrieve abstract from module
-       AUTHOR         => 'Erik Pihl Ostlyngen <erik.ostlyngen@uninett.no>') : ()),
+       AUTHOR         => 'Erik Pihl Ostlyngen <erik.ostlyngen@uninett.no>',
+       LICENSE        => 'perl') : ()),
     LIBS              => ['-lldns'],
     DEFINE            => '',
     INC               => '-I.',

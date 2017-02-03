@@ -10,6 +10,9 @@
 
 #include <ldns/ldns.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <errno.h>
 
 #ifdef HAVE_SSL
@@ -28,7 +31,7 @@ usage(FILE *fp, char *prog) {
 	fprintf(fp, "  The following files will be created:\n");
 	fprintf(fp, "    K<name>+<alg>+<id>.key\tPublic key in RR format\n");
 	fprintf(fp, "    K<name>+<alg>+<id>.private\tPrivate key in key format\n");
-	fprintf(fp, "    K<name>+<alg>+<id>.ds\tDS in RR format (only for DNSSEC keys)\n");
+	fprintf(fp, "    K<name>+<alg>+<id>.ds\tDS in RR format (only for DNSSEC KSK keys)\n");
 	fprintf(fp, "  The base name (K<name>+<alg>+<id> will be printed to stdout\n");
 }
 
@@ -48,11 +51,13 @@ int
 main(int argc, char *argv[])
 {
 	int c;
+	int fd;
 	char *prog;
 
 	/* default key size */
 	uint16_t def_bits = 1024;
 	uint16_t bits = def_bits;
+	bool had_bits = false;
 	bool ksk;
 
 	FILE *file;
@@ -94,7 +99,8 @@ main(int argc, char *argv[])
 			if (bits == 0) {
 				fprintf(stderr, "%s: %s %d", prog, "Can not parse the -b argument, setting it to the default\n", (int) def_bits);
 				bits = def_bits;
-			}
+			} else
+				had_bits = true;
 			break;
 		case 'k':
 			ksk = true;
@@ -133,16 +139,20 @@ main(int argc, char *argv[])
 	switch (algorithm) {
 	case LDNS_SIGN_RSAMD5:
 	case LDNS_SIGN_RSASHA1:
+	case LDNS_SIGN_RSASHA1_NSEC3:
+	case LDNS_SIGN_RSASHA256:
+	case LDNS_SIGN_RSASHA512:
 		if (bits < 512 || bits > 4096) {
 			fprintf(stderr, "For RSA, the key size must be between ");
-			fprintf(stderr, " 512 and 4096 bytes. Aborting.\n");
+			fprintf(stderr, " 512 and 4096 bits. Aborting.\n");
 			exit(1);
 		}
 		break;
 	case LDNS_SIGN_DSA:
-		if (bits < 512 || bits > 4096) {
+	case LDNS_SIGN_DSA_NSEC3:
+		if (bits < 512 || bits > 1024) {
 			fprintf(stderr, "For DSA, the key size must be between ");
-			fprintf(stderr, " 512 and 1024 bytes. Aborting.\n");
+			fprintf(stderr, " 512 and 1024 bits. Aborting.\n");
 			exit(1);
 		}
 		break;
@@ -157,10 +167,66 @@ main(int argc, char *argv[])
 #ifdef USE_ECDSA
 	case LDNS_SIGN_ECDSAP256SHA256:
 	case LDNS_SIGN_ECDSAP384SHA384:
+		break;
 #endif
 	case LDNS_SIGN_HMACMD5:
+		if (!had_bits) {
+			bits = 512;
+		} else if (bits < 1 || bits > 512) {
+			fprintf(stderr, "For hmac-md5, the key size must be ");
+			fprintf(stderr, "between 1 and 512 bits. Aborting.\n");
+			exit(1);
+		}
+		break;
 	case LDNS_SIGN_HMACSHA1:
+		if (!had_bits) {
+			bits = 160;
+		} else if (bits < 1 || bits > 160) {
+			fprintf(stderr, "For hmac-sha1, the key size must be ");
+			fprintf(stderr, "between 1 and 160 bits. Aborting.\n");
+			exit(1);
+		}
+		break;
+
+	case LDNS_SIGN_HMACSHA224:
+		if (!had_bits) {
+			bits = 224;
+		} else if (bits < 1 || bits > 224) {
+			fprintf(stderr, "For hmac-sha224, the key size must be ");
+			fprintf(stderr, "between 1 and 224 bits. Aborting.\n");
+			exit(1);
+		}
+		break;
+
 	case LDNS_SIGN_HMACSHA256:
+		if (!had_bits) {
+			bits = 256;
+		} else if (bits < 1 || bits > 256) {
+			fprintf(stderr, "For hmac-sha256, the key size must be ");
+			fprintf(stderr, "between 1 and 256 bits. Aborting.\n");
+			exit(1);
+		}
+		break;
+
+	case LDNS_SIGN_HMACSHA384:
+		if (!had_bits) {
+			bits = 384;
+		} else if (bits < 1 || bits > 384) {
+			fprintf(stderr, "For hmac-sha384, the key size must be ");
+			fprintf(stderr, "between 1 and 384 bits. Aborting.\n");
+			exit(1);
+		}
+		break;
+
+	case LDNS_SIGN_HMACSHA512:
+		if (!had_bits) {
+			bits = 512;
+		} else if (bits < 1 || bits > 512) {
+			fprintf(stderr, "For hmac-sha512, the key size must be ");
+			fprintf(stderr, "between 1 and 512 bits. Aborting.\n");
+			exit(1);
+		}
+		break;
 	default:
 		break;
 	}
@@ -181,6 +247,11 @@ main(int argc, char *argv[])
 
 	/* generate a new key */
 	key = ldns_key_new_frm_algorithm(algorithm, bits);
+	if(!key) {
+		fprintf(stderr, "cannot generate key of algorithm %s\n",
+			ldns_pkt_algorithm2str((ldns_algorithm)algorithm));
+		exit(EXIT_FAILURE);
+	}
 
 	/* set the owner name in the key - this is a /separate/ step */
 	ldns_key_set_pubkey_owner(key, domain);
@@ -209,6 +280,12 @@ main(int argc, char *argv[])
 		ds = ldns_key_rr2ds(pubkey, LDNS_SHA384);
 		break;
 	case LDNS_SIGN_ECDSAP256SHA256:
+#endif
+#ifdef USE_ED25519
+	case LDNS_SIGN_ED25519:
+#endif
+#ifdef USE_ED448
+	case LDNS_SIGN_ED448:
 #endif
 	case LDNS_SIGN_RSASHA256:
 	case LDNS_SIGN_RSASHA512:
@@ -250,25 +327,28 @@ main(int argc, char *argv[])
 	/* print the priv key to stderr */
 	filename = LDNS_XMALLOC(char, strlen(owner) + 21);
 	snprintf(filename, strlen(owner) + 20, "K%s+%03u+%05u.private", owner, algorithm, (unsigned int) ldns_key_keytag(key));
-	file = fopen(filename, "w");
-	if (!file) {
-		fprintf(stderr, "Unable to open %s: %s\n", filename, strerror(errno));
-		ldns_key_deep_free(key);
-		free(owner);
-		ldns_rr_free(pubkey);
-		ldns_rr_free(ds);
-		LDNS_FREE(filename);
-		exit(EXIT_FAILURE);
-	} else {
-		ldns_key_print(file, key);
-		fclose(file);
-		LDNS_FREE(filename);
+	/* use open() here to prevent creating world-readable private keys (CVE-2014-3209)*/
+	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (fd < 0) {
+		goto fail;
 	}
 
+	file = fdopen(fd, "w");
+	if (!file) {
+		goto fail;
+	}
+
+	ldns_key_print(file, key);
+	fclose(file);
+	LDNS_FREE(filename);
+
 	/* print the DS to .ds */
-	if (algorithm != LDNS_SIGN_HMACMD5 &&
+	if (ksk && algorithm != LDNS_SIGN_HMACMD5 &&
 		algorithm != LDNS_SIGN_HMACSHA1 &&
-		algorithm != LDNS_SIGN_HMACSHA256) {
+		algorithm != LDNS_SIGN_HMACSHA224 &&
+		algorithm != LDNS_SIGN_HMACSHA256 &&
+		algorithm != LDNS_SIGN_HMACSHA384 &&
+		algorithm != LDNS_SIGN_HMACSHA512) {
 		filename = LDNS_XMALLOC(char, strlen(owner) + 16);
 		snprintf(filename, strlen(owner) + 15, "K%s+%03u+%05u.ds", owner, algorithm, (unsigned int) ldns_key_keytag(key));
 		file = fopen(filename, "w");
@@ -296,6 +376,15 @@ main(int argc, char *argv[])
 	ldns_rr_free(pubkey);
 	ldns_rr_free(ds);
 	exit(EXIT_SUCCESS);
+
+fail:
+	fprintf(stderr, "Unable to open %s: %s\n", filename, strerror(errno));
+	ldns_key_deep_free(key);
+	free(owner);
+	ldns_rr_free(pubkey);
+	ldns_rr_free(ds);
+	LDNS_FREE(filename);
+	exit(EXIT_FAILURE);
 }
 #else
 int

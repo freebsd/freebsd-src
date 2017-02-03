@@ -42,7 +42,9 @@ INSTALLATION
 If you are building from the repository you will need to have (gnu)
 autotools like libtool and autoreconf installed. A list of all the commands
 needed to build everything can be found in README.git. Note that the actual
-commands may be a little bit different on your machine. Most notable, you'll need to run libtoolize (or glibtoolize), if you skip this step, you'll get an error about missing config.sub.
+commands may be a little bit different on your machine. Most notably, you'll
+need to run libtoolize (or glibtoolize). If you skip this step, you'll get
+an error about missing config.sub.
 
 * Developers
 ldns is developed by the ldns team at NLnet Labs. This team currently
@@ -85,7 +87,7 @@ for more information.
 
 SOLARIS
 
-In Solaris multi-architecture systems (that have both 32-bit and
+In Solaris multi-architecture systems (which have both 32-bit and
 64-bit support), it can be a bit taxing to convince the system to
 compile in 64-bit mode. Jakob Schlyter has kindly contributed a build
 script that sets the right build and link options. You can find it in
@@ -99,13 +101,13 @@ http://www.nlnetlabs.nl/projects/ldns/bugs
 * pyldns
 Compiling pyldns produces many ``unused parameter'' warnings.  Those are
 harmless and may safely be ignored.
-Also when building with Swig which version is before 2.0.4, compiling
+Also, when building with SWIG older than 2.0.4, compiling
 pyldns produces many ``missing initializer'' warnings. Those are harmless
 too.
 
 Your Support
-NLnet Labs offers all of its software products as open source, most are
-published under a BDS license. You can download them, not only from the
+NLnet Labs offers all of its software products as open source, most
+published under a BSD license. You can download them, not only from the
 NLnet Labs website but also through the various OS distributions for
 which NSD, ldns, and Unbound are packaged. We therefore have little idea
 who uses our software in production environments and have no direct ties

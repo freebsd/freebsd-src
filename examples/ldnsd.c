@@ -30,7 +30,7 @@
 
 #define INBUF_SIZE 4096
 
-void usage(FILE *output)
+static void usage(FILE *output)
 {
 	fprintf(output, "Usage: ldnsd <address> <port> <zone> <zonefile>\n");
 	fprintf(output, "Listens on the specified port and answers queries for the given zone\n");
@@ -63,7 +63,7 @@ static int udp_bind(int sock, int port, const char *my_address)
 }
 
 /* this will probably be moved to a better place in the library itself */
-ldns_rr_list *
+static ldns_rr_list *
 get_rrset(const ldns_zone *zone, const ldns_rdf *owner_name, const ldns_rr_type qtype, const ldns_rr_class qclass)
 {
 	uint16_t i;

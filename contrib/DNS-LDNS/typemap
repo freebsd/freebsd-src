@@ -46,7 +46,7 @@ LDNS_GENERIC_STRUCT_OPT
                 $var = INT2PTR($type, tmp);
                 }
         else
-                croak(\"$var is not of type ${(my $ntt=$ntype)=~s/__/::/g;\$ntt}\")
+                croak(\"$var is not of type ${(my $ntt=$ntype)=~s/__/::/g;$ntt=~s/::Opt$//;\$ntt}\")
 
 INPUT
 LDNS_GENERIC_STRUCT
@@ -60,6 +60,10 @@ LDNS_GENERIC_STRUCT
 OUTPUT
 LDNS_GENERIC_STRUCT
 	sv_setref_pv($arg, \"${(my $ntt=$ntype)=~s/__/::/g;\$ntt}\", (void*)$var);
+
+OUTPUT
+LDNS_GENERIC_STRUCT_OPT
+	sv_setref_pv($arg, \"${(my $ntt=$ntype)=~s/__/::/g;$ntt=~s/::Opt$//;\$ntt}\", (void*)$var);
 
 OUTPUT
 Mortal_PV

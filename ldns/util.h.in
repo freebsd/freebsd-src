@@ -70,9 +70,9 @@ INLINE uint16_t
 ldns_read_uint16(const void *src)
 {
 #ifdef ALLOW_UNALIGNED_ACCESSES
-	return ntohs(*(uint16_t *) src);
+	return ntohs(*(const uint16_t *) src);
 #else
-	uint8_t *p = (uint8_t *) src;
+	const uint8_t *p = (const uint8_t *) src;
 	return ((uint16_t) p[0] << 8) | (uint16_t) p[1];
 #endif
 }
@@ -81,9 +81,9 @@ INLINE uint32_t
 ldns_read_uint32(const void *src)
 {
 #ifdef ALLOW_UNALIGNED_ACCESSES
-	return ntohl(*(uint32_t *) src);
+	return ntohl(*(const uint32_t *) src);
 #else
-	uint8_t *p = (uint8_t *) src;
+	const uint8_t *p = (const uint8_t *) src;
 	return (  ((uint32_t) p[0] << 24)
 		| ((uint32_t) p[1] << 16)
 		| ((uint32_t) p[2] << 8)
@@ -276,7 +276,7 @@ time_t mktime_from_utc(const struct tm *tm);
  * The function interprets time as the number of seconds since epoch
  * with respect to now using serial arithmitics (rfc1982).
  * That number of seconds is then converted to broken-out time information.
- * This is especially usefull when converting the inception and expiration
+ * This is especially useful when converting the inception and expiration
  * fields of RRSIG records.
  *
  * \param[in] time number of seconds since epoch (midnight, January 1st, 1970)

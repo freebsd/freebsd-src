@@ -39,6 +39,7 @@ usage(FILE *fp, const char *prog) {
 	fprintf(fp, "  -o <domain>\torigin for the zone\n");
 	fprintf(fp, "  -v\t\tprint version and exit\n");
 	fprintf(fp, "  -A\t\tsign DNSKEY with all keys instead of minimal\n");
+	fprintf(fp, "  -U\t\tSign with every unique algorithm in the provided keys\n");
 	fprintf(fp, "  -E <name>\tuse <name> as the crypto engine for signing\n");
 	fprintf(fp, "           \tThis can have a lot of extra options, see the manual page for more info\n");
 	fprintf(fp, "  -k <id>,<int>\tuse key id with algorithm int from engine\n");
@@ -287,29 +288,6 @@ find_or_create_pubkey(const char *keyfile_name_base, ldns_key *key, ldns_zone *o
 	}
 }
 
-void
-strip_dnssec_records(ldns_zone *zone)
-{
-	ldns_rr_list *new_list;
-	ldns_rr *cur_rr;
-	
-	new_list = ldns_rr_list_new();
-	
-	while ((cur_rr = ldns_rr_list_pop_rr(ldns_zone_rrs(zone)))) {
-		if (ldns_rr_get_type(cur_rr) == LDNS_RR_TYPE_RRSIG ||
-		    ldns_rr_get_type(cur_rr) == LDNS_RR_TYPE_NSEC ||
-		    ldns_rr_get_type(cur_rr) == LDNS_RR_TYPE_NSEC3
-		   ) {
-			
-			ldns_rr_free(cur_rr);
-		} else {
-			ldns_rr_list_push_rr(new_list, cur_rr);
-		}
-	}
-	ldns_rr_list_free(ldns_zone_rrs(zone));
-	ldns_zone_set_rrs(zone, new_list);
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -376,9 +354,7 @@ main(int argc, char *argv[])
 	
 	keys = ldns_key_list_new();
 
-	OPENSSL_config(NULL);
-
-	while ((c = getopt(argc, argv, "a:bde:f:i:k:no:ps:t:vAE:K:")) != -1) {
+	while ((c = getopt(argc, argv, "a:bde:f:i:k:no:ps:t:vAUE:K:")) != -1) {
 		switch (c) {
 		case 'a':
 			nsec3_algorithm = (uint8_t) atoi(optarg);
@@ -473,7 +449,9 @@ main(int argc, char *argv[])
 		case 'E':
 			ENGINE_load_builtin_engines();
 			ENGINE_load_dynamic();
+#ifdef HAVE_ENGINE_LOAD_CRYPTODEV
 			ENGINE_load_cryptodev();
+#endif
 			engine = ENGINE_by_id(optarg);
 			if (!engine) {
 				printf("No such engine: %s\n", optarg);
@@ -566,6 +544,9 @@ main(int argc, char *argv[])
 		case 'K':
 			printf("Not implemented yet\n");
 			exit(EXIT_FAILURE);
+			break;
+		case 'U':
+			signflags |= LDNS_SIGN_WITH_ALL_ALGORITHMS;
 			break;
 		case 's':
 			if (strlen(optarg) % 2 != 0) {

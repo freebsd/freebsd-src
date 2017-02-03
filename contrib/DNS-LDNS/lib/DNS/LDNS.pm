@@ -651,7 +651,7 @@ our @EXPORT = qw(
 	read_anchor_file
 );
 
-our $VERSION = '0.06';
+our $VERSION = '0.52';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()
@@ -705,15 +705,6 @@ require DNS::LDNS::Key;
 require DNS::LDNS::KeyList;
 require DNS::LDNS::DNSSecDataChain;
 require DNS::LDNS::DNSSecTrustTree;
-
-# Some default values used by the constructors
-our $DEFAULT_CLASS = &LDNS_RR_CLASS_IN;
-our $DEFAULT_TTL = 86400;         # 1d
-our $DEFAULT_ORIGIN = new DNS::LDNS::RData(&LDNS_RDF_TYPE_DNAME, '.');
-our $DEFAULT_SOA_REFRESH = 86400; # 1d
-our $DEFAULT_SOA_RETRY = 3600;    # 1h
-our $DEFAULT_SOA_EXPIRE = 604800; # 1w
-our $DEFAULT_SOA_MINIMUM = 10800; # 3h
 
 # Autoload methods go after =cut, and are processed by the autosplit program.
 
@@ -778,7 +769,7 @@ Represents a parsed zonefile (maps to the ldns_zone struct)
 =item B<DNS::LDNS::RRList>
 
 Represents a list of RRs. This class is also used to represent an
-RRSet  all the dnames and types are equal, (maps to the the
+RRSet if all the dnames and types are equal, (maps to the the
 ldns_rr_list struct)
 
 =item B<DNS::LDNS::RR>
@@ -909,15 +900,13 @@ freed.
 
 The purpose for writing this wrapper class has been to be able to
 process zone file data with good time performance. Data checking and
-error handling is a bit sparse. Calling a method with wrong argument
-types will some times kill the application with an intelligible error
-message, in other cases it may provoke a segmentation fault. Using
-out-of-range data values, e.g. in array indexes, may also cause
-unexpected results.
+error handling is a bit sparse.
 
-Most constructors and all methods returning a status will update the
-static DNS::LDNS::last_status variable. Most methods do not return a
-status and will not reset this variable even though they succeeds.
+Most constructors will update the DNS::LDNS::last_status variable if 
+they fail (return undef). Wrapper methods to ldns functions which would 
+return a status will update the static DNS::LDNS::last_status variable. 
+Most methods do not return a status and will not reset this variable 
+even though they succeeds.
 
 =head2 EXPORT
 
@@ -1286,10 +1275,9 @@ None by default.
 
 =head1 BUGS
 
-This package is currently in a very early stage of development. There
-are probably some bugs. You may also expect that method names and
-behaviour could still change without much considerations to backward
-compatibility.
+This package is still in the beta stage of development. There no known bugs, 
+although parts of the code has not yet been very well tested. Bugreports will 
+be greatly appreciated.
 
 =head1 SEE ALSO
 

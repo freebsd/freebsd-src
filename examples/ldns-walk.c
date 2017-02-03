@@ -27,7 +27,7 @@ usage(FILE *fp, char *prog) {
 	return 0;
 }
 
-ldns_rdf *
+static ldns_rdf *
 create_dname_plus_1(ldns_rdf *dname)
 {
 	uint8_t *wire;
@@ -94,7 +94,7 @@ create_dname_plus_1(ldns_rdf *dname)
 	return newdname;
 }
 
-ldns_rdf *
+static ldns_rdf *
 create_plus_1_dname(ldns_rdf *dname)
 {
 	ldns_rdf *label;
@@ -120,7 +120,7 @@ create_plus_1_dname(ldns_rdf *dname)
 	return label;
 }
 
-ldns_status
+static ldns_status
 query_type_bitmaps(ldns_resolver *res, 
                    uint16_t res_flags,
                    const ldns_rdf *name,
@@ -259,7 +259,7 @@ main(int argc, char *argv[])
 				full = true;
 			} else if (strncmp(argv[i], "-s", 3) == 0) {
 				if (i + 1 < argc) {
-					if (!ldns_str2rdf_dname(&startpoint, argv[i + 1]) == LDNS_STATUS_OK) {
+					if (ldns_str2rdf_dname(&startpoint, argv[i + 1]) != LDNS_STATUS_OK) {
 						printf("Bad start point name: %s\n", argv[i + 1]);
 						exit(1);
 					}

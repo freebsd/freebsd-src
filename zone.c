@@ -44,16 +44,15 @@ ldns_zone_set_rrs(ldns_zone *z, ldns_rr_list *rrlist)
 }
 
 bool
-ldns_zone_push_rr_list(ldns_zone *z, ldns_rr_list *list)
+ldns_zone_push_rr_list(ldns_zone *z, const ldns_rr_list *list)
 {
 	return ldns_rr_list_cat(ldns_zone_rrs(z), list);
-
 }
 
 bool
 ldns_zone_push_rr(ldns_zone *z, ldns_rr *rr)
 {
-	return ldns_rr_list_push_rr( ldns_zone_rrs(z), rr);
+	return ldns_rr_list_push_rr(ldns_zone_rrs(z), rr);
 }
 
 
@@ -185,14 +184,14 @@ ldns_zone_new(void)
  * $TTL, $ORIGIN
  */
 ldns_status
-ldns_zone_new_frm_fp(ldns_zone **z, FILE *fp, ldns_rdf *origin, uint32_t ttl, ldns_rr_class c)
+ldns_zone_new_frm_fp(ldns_zone **z, FILE *fp, const ldns_rdf *origin, uint32_t ttl, ldns_rr_class c)
 {
 	return ldns_zone_new_frm_fp_l(z, fp, origin, ttl, c, NULL);
 }
 
 /* XXX: class is never used */
 ldns_status
-ldns_zone_new_frm_fp_l(ldns_zone **z, FILE *fp, ldns_rdf *origin, uint32_t ttl, 
+ldns_zone_new_frm_fp_l(ldns_zone **z, FILE *fp, const ldns_rdf *origin, uint32_t ttl,
         ldns_rr_class ATTR_UNUSED(c), int *line_nr)
 {
 	ldns_zone *newzone;

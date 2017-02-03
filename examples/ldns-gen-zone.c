@@ -28,7 +28,7 @@ usage(FILE *fp, char *prog) {
         fprintf(fp, "\n\nUsage: %s [-hsv] [-ap NUM] [-o ORIGIN] [<zonefile>]\n", prog);
         fprintf(fp, "\tReads a zonefile and add some artificial NS RRsets and DS records.\n");
         fprintf(fp, "\tIf no zonefile is given, the zone is read from stdin.\n");
-        fprintf(fp, "\t-a <NUM> add NUM artifical delegations (NS RRSets) to output.\n");
+        fprintf(fp, "\t-a <NUM> add NUM artificial delegations (NS RRSets) to output.\n");
         fprintf(fp, "\t-p <NUM> add NUM percent of DS RRset's to the NS RRsets (1-%d RR's per DS RRset).\n", NUM_DS);
         fprintf(fp, "\t-o ORIGIN sets an $ORIGIN, which can be handy if the one in the zonefile is set to @.\n");
         fprintf(fp, "\t-s if input zone file is already sorted and canonicalized (ie all lowercase),\n\t   use this option to speed things up while inserting DS records.\n");

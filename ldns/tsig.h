@@ -25,17 +25,17 @@ extern "C" {
 */
 typedef struct ldns_tsig_credentials_struct
 {
-    char *algorithm;
-    char *keyname;
-    char *keydata;
+    const char *algorithm;
+    const char *keyname;
+    const char *keydata;
     /* XXX More eventually. */
 } ldns_tsig_credentials;
 
-char *ldns_tsig_algorithm(ldns_tsig_credentials *);
-char *ldns_tsig_keyname(ldns_tsig_credentials *);
-char *ldns_tsig_keydata(ldns_tsig_credentials *);
-char *ldns_tsig_keyname_clone(ldns_tsig_credentials *);
-char *ldns_tsig_keydata_clone(ldns_tsig_credentials *);
+const char *ldns_tsig_algorithm(const ldns_tsig_credentials *);
+const char *ldns_tsig_keyname(const ldns_tsig_credentials *);
+const char *ldns_tsig_keydata(const ldns_tsig_credentials *);
+char *ldns_tsig_keyname_clone(const ldns_tsig_credentials *);
+char *ldns_tsig_keydata_clone(const ldns_tsig_credentials *);
 
 /**
  * verifies the tsig rr for the given packet and key.
@@ -48,7 +48,7 @@ char *ldns_tsig_keydata_clone(ldns_tsig_credentials *);
  * \param[in] mac original mac
  * \return true if tsig is correct, false if not, or if tsig is not set
  */
-bool ldns_pkt_tsig_verify(ldns_pkt *pkt, uint8_t *wire, size_t wire_size, const char *key_name, const char *key_data, ldns_rdf *mac);
+bool ldns_pkt_tsig_verify(ldns_pkt *pkt, const uint8_t *wire, size_t wire_size, const char *key_name, const char *key_data, const ldns_rdf *mac);
 
 /**
  * verifies the tsig rr for the given packet and key.
@@ -63,7 +63,7 @@ bool ldns_pkt_tsig_verify(ldns_pkt *pkt, uint8_t *wire, size_t wire_size, const 
    components are used to verify the _mac. If non-zero, only the TSIG timers are used to verify the mac.
  * \return true if tsig is correct, false if not, or if tsig is not set
  */
-bool ldns_pkt_tsig_verify_next(ldns_pkt *pkt, uint8_t *wire, size_t wire_size, const char *key_name, const char *key_data, ldns_rdf *mac,
+bool ldns_pkt_tsig_verify_next(ldns_pkt *pkt, const uint8_t *wire, size_t wire_size, const char *key_name, const char *key_data, const ldns_rdf *mac,
     int tsig_timers_only);
 
 /**
@@ -77,7 +77,7 @@ bool ldns_pkt_tsig_verify_next(ldns_pkt *pkt, uint8_t *wire, size_t wire_size, c
  * \return status (OK if success)
  */
 ldns_status ldns_pkt_tsig_sign(ldns_pkt *pkt, const char *key_name, const char *key_data, uint16_t fudge,
-    const char *algorithm_name, ldns_rdf *query_mac);
+    const char *algorithm_name, const ldns_rdf *query_mac);
 
 /**
  * creates a tsig rr for the given packet and key.
@@ -92,7 +92,7 @@ ldns_status ldns_pkt_tsig_sign(ldns_pkt *pkt, const char *key_name, const char *
  * \return status (OK if success)
  */
 ldns_status ldns_pkt_tsig_sign_next(ldns_pkt *pkt, const char *key_name, const char *key_data, uint16_t fudge,
-    const char *algorithm_name, ldns_rdf *query_mac, int tsig_timers_only);
+    const char *algorithm_name, const ldns_rdf *query_mac, int tsig_timers_only);
 
 #ifdef __cplusplus
 }
