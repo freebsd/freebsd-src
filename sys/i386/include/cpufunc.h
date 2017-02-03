@@ -175,6 +175,13 @@ mfence(void)
 	__asm __volatile("mfence" : : : "memory");
 }
 
+static __inline void
+sfence(void)
+{
+
+	__asm __volatile("sfence" : : : "memory");
+}
+
 #ifdef _KERNEL
 
 #define	HAVE_INLINE_FFS

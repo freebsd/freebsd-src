@@ -1222,9 +1222,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 
 	if ((cpu_feature & CPUID_SS) != 0 && !force)
 		; /* If "Self Snoop" is supported and allowed, do nothing. */
-	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
+	else if ((cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0 &&
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
-
 #ifdef DEV_APIC
 		/*
 		 * XXX: Some CPUs fault, hang, or trash the local APIC
@@ -1236,16 +1235,29 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 			return;
 #endif
 		/*
-		 * Otherwise, do per-cache line flush.  Use the mfence
+		 * Otherwise, do per-cache line flush.  Use the sfence
 		 * instruction to insure that previous stores are
 		 * included in the write-back.  The processor
 		 * propagates flush to other processors in the cache
 		 * coherence domain.
 		 */
-		mfence();
+		sfence();
+		for (; sva < eva; sva += cpu_clflush_line_size)
+			clflushopt(sva);
+		sfence();
+	} else if ((cpu_feature & CPUID_CLFSH) != 0 &&
+	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
+		if (pmap_kextract(sva) == lapic_paddr)
+			return;
+		/*
+		 * Writes are ordered by CLFLUSH on Intel CPUs.
+		 */
+		if (cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
 		for (; sva < eva; sva += cpu_clflush_line_size)
 			clflush(sva);
-		mfence();
+		if (cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
 	} else {
 
 		/*
@@ -5316,8 +5328,10 @@ pmap_flush_page(vm_page_t m)
 {
 	struct sysmaps *sysmaps;
 	vm_offset_t sva, eva;
+	bool useclflushopt;
 
-	if ((cpu_feature & CPUID_CLFSH) != 0) {
+	useclflushopt = (cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0;
+	if (useclflushopt || (cpu_feature & CPUID_CLFSH) != 0) {
 		sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
 		mtx_lock(&sysmaps->lock);
 		if (*sysmaps->CMAP2)
@@ -5330,14 +5344,25 @@ pmap_flush_page(vm_page_t m)
 		eva = sva + PAGE_SIZE;
 
 		/*
-		 * Use mfence despite the ordering implied by
-		 * mtx_{un,}lock() because clflush is not guaranteed
-		 * to be ordered by any other instruction.
+		 * Use mfence or sfence despite the ordering implied by
+		 * mtx_{un,}lock() because clflush on non-Intel CPUs
+		 * and clflushopt are not guaranteed to be ordered by
+		 * any other instruction.
 		 */
-		mfence();
-		for (; sva < eva; sva += cpu_clflush_line_size)
-			clflush(sva);
-		mfence();
+		if (useclflushopt)
+			sfence();
+		else if (cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
+		for (; sva < eva; sva += cpu_clflush_line_size) {
+			if (useclflushopt)
+				clflushopt(sva);
+			else
+				clflush(sva);
+		}
+		if (useclflushopt)
+			sfence();
+		else if (cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
 		*sysmaps->CMAP2 = 0;
 		sched_unpin();
 		mtx_unlock(&sysmaps->lock);
