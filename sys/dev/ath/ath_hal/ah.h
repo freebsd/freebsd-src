@@ -1395,6 +1395,7 @@ struct ath_hal {
 				struct ath_rx_status *rxs, uint64_t fulltsf,
 				const char *buf, HAL_DFS_EVENT *event);
 	HAL_BOOL  __ahdecl(*ah_isFastClockEnabled)(struct ath_hal *ah);
+	void	  __ahdecl(*ah_setDfsCacTxQuiet)(struct ath_hal *, HAL_BOOL);
 
 	/* Spectral Scan functions */
 	void	__ahdecl(*ah_spectralConfigure)(struct ath_hal *ah,
@@ -1658,6 +1659,11 @@ void __ahdecl ath_hal_setcca(struct ath_hal *ah, int ena);
  * Get CCA setting.
  */
 int __ahdecl ath_hal_getcca(struct ath_hal *ah);
+
+/*
+ * Enable/disable and get self-gen frame (ACK, CTS) for CAC.
+ */
+void __ahdecl ath_hal_set_dfs_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL ena);
 
 /*
  * Read EEPROM data from ah_eepromdata
