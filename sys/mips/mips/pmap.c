@@ -558,9 +558,16 @@ again:
 	 * XXX There should be a better way of getting aligned memory
 	 * with pmap_steal_memory().
 	 */
+#ifdef KSTACK_LARGE_PAGE
+	kstack0 = pmap_steal_memory(((KSTACK_PAGES + KSTACK_GUARD_PAGES) * 2) \
+					<< PAGE_SHIFT);
+#else
 	kstack0 = pmap_steal_memory((KSTACK_PAGES + KSTACK_GUARD_PAGES) \
 					<< PAGE_SHIFT);
+#endif
 	kstack0 = roundup2(kstack0, (KSTACK_PAGE_SIZE * 2));
+
+
 
 	virtual_avail = VM_MIN_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
