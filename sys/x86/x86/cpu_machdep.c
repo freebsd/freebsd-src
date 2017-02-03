@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_mp_watchdog.h"
 #include "opt_platform.h"
 #ifdef __i386__
-#include "opt_npx.h"
 #include "opt_apic.h"
 #include "opt_xbox.h"
 #endif
