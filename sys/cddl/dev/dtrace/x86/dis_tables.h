@@ -81,6 +81,7 @@ typedef struct dis86 {
 	uint_t		d86_opnd_size;
 	uint_t		d86_addr_size;
 	uint_t		d86_got_modrm;
+	uint_t		d86_vsib;		/* Has a VSIB */
 	struct d86opnd	d86_opnd[4];		/* up to 4 operands */
 	int		(*d86_check_func)(void *);
 	int		(*d86_get_byte)(void *);
