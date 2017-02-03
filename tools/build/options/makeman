@@ -8,7 +8,7 @@ export LC_ALL=C
 ident='$FreeBSD$'
 
 t=$(mktemp -d -t makeman)
-# trap 'test -d $t && rm -rf $t' exit
+trap 'test -d $t && rm -rf $t' exit
 
 srcdir=$(realpath ../../..)
 make="make -C $srcdir -m $srcdir/share/mk"
