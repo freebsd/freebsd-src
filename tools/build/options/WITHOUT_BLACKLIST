@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set this if you do not want to build blacklistd / blacklistctl.
+Set this if you do not want to build blacklistd/blacklistctl.

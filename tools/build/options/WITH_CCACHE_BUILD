@@ -5,9 +5,9 @@ for the build.
 No configuration is required except to install the
 .Sy devel/ccache
 package.
-Using with
-.Xr distcc 1
-should set
+When using with
+.Xr distcc 1 ,
+set
 .Sy CCACHE_PREFIX=/usr/local/bin/distcc .
 The default cache directory of
 .Pa $HOME/.ccache

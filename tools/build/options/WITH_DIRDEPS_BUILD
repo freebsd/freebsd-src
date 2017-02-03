@@ -11,23 +11,24 @@ Makefile.depend files found in each directory.
 .Pp
 The build can be started from anywhere, and behaves the same.
 The initial instance of
-.Xr make 1 
+.Xr make 1
 recursively reads
 .Va DIRDEPS
-from Makefile.depend
+from
+.Pa Makefile.depend ,
 computing a graph of tree dependencies from the current origin.
 Setting
 .Va NO_DIRDEPS
-will skip checking dirdep dependencies and will only build in the current
+skips checking dirdep dependencies and will only build in the current
 and child directories.
 .Va NO_DIRDEPS_BELOW
-will skip building any dirdeps and only build the current directory.
+skips building any dirdeps and only build the current directory.
 .Pp
 This also utilizes the
 .Va WITH_META_MODE
 logic for incremental builds.
 .Pp
-The build will hide commands ran unless
+The build hides commands executed unless
 .Va NO_SILENT
 is defined.
 .Pp
