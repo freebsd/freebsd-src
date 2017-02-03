@@ -1798,11 +1798,11 @@ void
 t4_uninit_cpl_io_handlers(void)
 {
 
-	t4_register_cpl_handler(CPL_PEER_CLOSE, do_peer_close);
-	t4_register_cpl_handler(CPL_CLOSE_CON_RPL, do_close_con_rpl);
-	t4_register_cpl_handler(CPL_ABORT_REQ_RSS, do_abort_req);
-	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, do_abort_rpl);
-	t4_register_cpl_handler(CPL_RX_DATA, do_rx_data);
-	t4_register_cpl_handler(CPL_FW4_ACK, do_fw4_ack);
+	t4_register_cpl_handler(CPL_PEER_CLOSE, NULL);
+	t4_register_cpl_handler(CPL_CLOSE_CON_RPL, NULL);
+	t4_register_cpl_handler(CPL_ABORT_REQ_RSS, NULL);
+	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, NULL);
+	t4_register_cpl_handler(CPL_RX_DATA, NULL);
+	t4_register_cpl_handler(CPL_FW4_ACK, NULL);
 }
 #endif
