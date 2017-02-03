@@ -94,14 +94,16 @@ efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 	status = RS->GetVariable(varnamearg, matchguid, &attr,
 	    &datasz, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL) {
-		printf("Can't get the variable: error %#lx\n", status);
+		printf("Can't get the variable: error %#lx\n",
+		    EFI_ERROR_CODE(status));
 		return (CMD_ERROR);
 	}
 	data = malloc(datasz);
 	status = RS->GetVariable(varnamearg, matchguid, &attr,
 	    &datasz, data);
 	if (status != EFI_SUCCESS) {
-		printf("Can't get the variable: error %#lx\n", status);
+		printf("Can't get the variable: error %#lx\n",
+		    EFI_ERROR_CODE(status));
 		return (CMD_ERROR);
 	}
 	uuid_to_string((uuid_t *)matchguid, &str, &uuid_status);
