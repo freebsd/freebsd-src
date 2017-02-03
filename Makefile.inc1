@@ -1950,6 +1950,7 @@ native-xtools: .PHONY
     usr.bin/mktemp \
     usr.bin/mt \
     usr.bin/patch \
+    usr.bin/readelf \
     usr.bin/sed \
     usr.bin/sort \
     usr.bin/tar \
