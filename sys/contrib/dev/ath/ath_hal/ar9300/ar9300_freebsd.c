@@ -417,7 +417,8 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_getDfsDefaultThresh	= ar9300_get_default_dfs_thresh;
 	ah->ah_procRadarEvent		= ar9300_freebsd_proc_radar_event;
 	ah->ah_isFastClockEnabled	= ar9300_is_fast_clock_enabled;
-	ah->ah_get11nExtBusy	= ar9300_get_11n_ext_busy;
+	ah->ah_get11nExtBusy		= ar9300_get_11n_ext_busy;
+	ah->ah_setDfsCacTxQuiet		= ar9300_cac_tx_quiet;
 
 	/* Spectral Scan Functions */
 	ah->ah_spectralConfigure	= ar9300_configure_spectral_scan;
