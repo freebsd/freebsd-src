@@ -1429,6 +1429,21 @@ ath_hal_getcca(struct ath_hal *ah)
 }
 
 /*
+ * Set the current state of self-generated ACK and RTS/CTS frames.
+ *
+ * For correct DFS operation, the device should not even /ACK/ frames
+ * that are sent to it during CAC or CSA.
+ */
+void
+ath_hal_set_dfs_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL ena)
+{
+
+	if (ah->ah_setDfsCacTxQuiet == NULL)
+		return;
+	ah->ah_setDfsCacTxQuiet(ah, ena);
+}
+
+/*
  * This routine is only needed when supporting EEPROM-in-RAM setups
  * (eg embedded SoCs and on-board PCI/PCIe devices.)
  */
