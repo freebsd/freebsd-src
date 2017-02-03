@@ -105,6 +105,7 @@ config_create(void)
 	cfg->ssl_port = 853;
 	cfg->ssl_upstream = 0;
 	cfg->use_syslog = 1;
+	cfg->log_identity = NULL; /* changed later with argv[0] */
 	cfg->log_time_ascii = 0;
 	cfg->log_queries = 0;
 #ifndef USE_WINSOCK
@@ -170,6 +171,7 @@ config_create(void)
 	cfg->out_ifs = NULL;
 	cfg->stubs = NULL;
 	cfg->forwards = NULL;
+	cfg->views = NULL;
 	cfg->acls = NULL;
 	cfg->harden_short_bufsize = 0;
 	cfg->harden_large_queries = 0;
@@ -202,6 +204,7 @@ config_create(void)
 	cfg->val_log_squelch = 0;
 	cfg->val_permissive_mode = 0;
 	cfg->ignore_cd = 0;
+	cfg->serve_expired = 0;
 	cfg->add_holddown = 30*24*3600;
 	cfg->del_holddown = 30*24*3600;
 	cfg->keep_missing = 366*24*3600; /* one year plus a little leeway */
@@ -247,6 +250,7 @@ config_create(void)
 	cfg->ratelimit_below_domain = NULL;
 	cfg->ratelimit_factor = 10;
 	cfg->qname_minimisation = 0;
+	cfg->qname_minimisation_strict = 0;
 	return cfg;
 error_exit:
 	config_delete(cfg); 
@@ -367,6 +371,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	  log_set_time_asc(cfg->log_time_ascii); }
 	else S_SIZET_NONZERO("max-udp-size:", max_udp_size)
 	else S_YNO("use-syslog:", use_syslog)
+	else S_STR("log-identity:", log_identity)
 	else S_YNO("extended-statistics:", stat_extended)
 	else S_YNO("statistics-cumulative:", stat_cumulative)
 	else S_YNO("do-ip4:", do_ip4)
@@ -453,6 +458,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("log-queries:", log_queries)
 	else S_YNO("val-permissive-mode:", val_permissive_mode)
 	else S_YNO("ignore-cd-flag:", ignore_cd)
+	else S_YNO("serve-expired:", serve_expired)
 	else S_STR("val-nsec3-keysize-iterations:", val_nsec3_key_iterations)
 	else S_UNSIGNED_OR_ZERO("add-holddown:", add_holddown)
 	else S_UNSIGNED_OR_ZERO("del-holddown:", del_holddown)
@@ -486,6 +492,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_POW2("ratelimit-slabs:", ratelimit_slabs)
 	else S_NUMBER_OR_ZERO("ratelimit-factor:", ratelimit_factor)
 	else S_YNO("qname-minimisation:", qname_minimisation)
+	else S_YNO("qname-minimisation-strict:", qname_minimisation_strict)
 	else if(strcmp(opt, "define-tag:") ==0) {
 		return config_add_tag(cfg, val);
 	/* val_sig_skew_min and max are copied into val_env during init,
@@ -509,10 +516,11 @@ int config_set_option(struct config_file* cfg, const char* opt,
 		/* unknown or unsupported (from the set_option interface):
 		 * interface, outgoing-interface, access-control, 
 		 * stub-zone, name, stub-addr, stub-host, stub-prime
-		 * forward-first, stub-first,
-		 * forward-zone, name, forward-addr, forward-host,
+		 * forward-first, stub-first, forward-ssl-upstream,
+		 * stub-ssl-upstream, forward-zone,
+		 * name, forward-addr, forward-host,
 		 * ratelimit-for-domain, ratelimit-below-domain,
-		 * local-zone-tag */
+		 * local-zone-tag, access-control-view */
 		return 0;
 	}
 	return 1;
@@ -675,6 +683,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "statistics-cumulative", stat_cumulative)
 	else O_YNO(opt, "extended-statistics", stat_extended)
 	else O_YNO(opt, "use-syslog", use_syslog)
+	else O_STR(opt, "log-identity", log_identity)
 	else O_YNO(opt, "log-time-ascii", log_time_ascii)
 	else O_DEC(opt, "num-threads", num_threads)
 	else O_IFC(opt, "interface", num_ifs, ifs)
@@ -748,6 +757,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_DEC(opt, "val-log-level", val_log_level)
 	else O_YNO(opt, "val-permissive-mode", val_permissive_mode)
 	else O_YNO(opt, "ignore-cd-flag", ignore_cd)
+	else O_YNO(opt, "serve-expired", serve_expired)
 	else O_STR(opt, "val-nsec3-keysize-iterations",val_nsec3_key_iterations)
 	else O_UNS(opt, "add-holddown", add_holddown)
 	else O_UNS(opt, "del-holddown", del_holddown)
@@ -791,12 +801,14 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_DEC(opt, "val-sig-skew-min", val_sig_skew_min)
 	else O_DEC(opt, "val-sig-skew-max", val_sig_skew_max)
 	else O_YNO(opt, "qname-minimisation", qname_minimisation)
+	else O_YNO(opt, "qname-minimisation-strict", qname_minimisation_strict)
 	else O_IFC(opt, "define-tag", num_tags, tagname)
 	else O_LTG(opt, "local-zone-tag", local_zone_tags)
 	else O_LTG(opt, "access-control-tag", acl_tags)
 	else O_LS3(opt, "local-zone-override", local_zone_overrides)
 	else O_LS3(opt, "access-control-tag-action", acl_tag_actions)
 	else O_LS3(opt, "access-control-tag-data", acl_tag_datas)
+	else O_LS2(opt, "access-control-view", acl_view)
 	/* not here:
 	 * outgoing-permit, outgoing-avoid - have list of ports
 	 * local-zone - zones and nodefault variables
@@ -983,6 +995,27 @@ config_delstubs(struct config_stub* p)
 	}
 }
 
+void
+config_delview(struct config_view* p)
+{
+	if(!p) return;
+	free(p->name);
+	config_deldblstrlist(p->local_zones);
+	config_delstrlist(p->local_zones_nodefault);
+	config_delstrlist(p->local_data);
+	free(p);
+}
+
+void
+config_delviews(struct config_view* p)
+{
+	struct config_view* np;
+	while(p) {
+		np = p->next;
+		config_delview(p);
+		p = np;
+	}
+}
 /** delete string array */
 static void
 config_del_strarray(char** array, int num)
@@ -1021,10 +1054,12 @@ config_delete(struct config_file* cfg)
 	free(cfg->target_fetch_policy);
 	free(cfg->ssl_service_key);
 	free(cfg->ssl_service_pem);
+	free(cfg->log_identity);
 	config_del_strarray(cfg->ifs, cfg->num_ifs);
 	config_del_strarray(cfg->out_ifs, cfg->num_out_ifs);
 	config_delstubs(cfg->stubs);
 	config_delstubs(cfg->forwards);
+	config_delviews(cfg->views);
 	config_delstrlist(cfg->donotqueryaddrs);
 	config_delstrlist(cfg->root_hints);
 	free(cfg->identity);

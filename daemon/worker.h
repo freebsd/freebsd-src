@@ -61,6 +61,7 @@ struct ub_randstate;
 struct regional;
 struct tube;
 struct daemon_remote;
+struct query_info;
 
 /** worker commands */
 enum worker_commands {

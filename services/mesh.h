@@ -180,6 +180,8 @@ struct mesh_state {
 	/** if this state is in the forever list, jostle list, or neither */
 	enum mesh_list_select { mesh_no_list, mesh_forever_list, 
 		mesh_jostle_list } list_select;
+	/** pointer to this state for uniqueness or NULL */
+	struct mesh_state* unique;
 
 	/** true if replies have been sent out (at end for alignment) */
 	uint8_t replies_sent;
@@ -214,6 +216,8 @@ struct mesh_reply {
 	uint16_t qflags;
 	/** qname from this query. len same as mesh qinfo. */
 	uint8_t* qname;
+	/** same as that in query_info. */
+	struct local_rrset* local_alias;
 };
 
 /** 
@@ -415,6 +419,21 @@ struct mesh_state* mesh_state_create(struct module_env* env,
 	struct query_info* qinfo, uint16_t qflags, int prime, int valrec);
 
 /**
+ * Check if the mesh state is unique.
+ * A unique mesh state uses it's unique member to point to itself, else NULL.
+ * @param mstate: mesh state to check.
+ * @return true if the mesh state is unique, false otherwise.
+ */
+int mesh_state_is_unique(struct mesh_state* mstate);
+
+/**
+ * Make a mesh state unique.
+ * A unique mesh state uses it's unique member to point to itself.
+ * @param mstate: mesh state to check.
+ */
+void mesh_state_make_unique(struct mesh_state* mstate);
+
+/**
  * Cleanup a mesh state and its query state. Does not do rbtree or 
  * reference cleanup.
  * @param mstate: mesh state to cleanup. Its pointer may no longer be used
@@ -459,11 +478,12 @@ int mesh_state_attachment(struct mesh_state* super, struct mesh_state* sub);
  * @param rep: comm point reply info.
  * @param qid: ID of reply.
  * @param qflags: original query flags.
- * @param qname: original query name.
+ * @param qinfo: original query info.
  * @return: 0 on alloc error.
  */
-int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns, 
-	struct comm_reply* rep, uint16_t qid, uint16_t qflags, uint8_t* qname);
+int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
+	struct comm_reply* rep, uint16_t qid, uint16_t qflags,
+	const struct query_info* qinfo);
 
 /**
  * Create new callback structure and attach it to a mesh state.

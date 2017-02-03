@@ -1,4 +1,4 @@
-.TH "libunbound" "3" "Sep 27, 2016" "NLnet Labs" "unbound 1.5.10"
+.TH "libunbound" "3" "Dec 15, 2016" "NLnet Labs" "unbound 1.6.0"
 .\"
 .\" libunbound.3 -- unbound library functions manual
 .\"
@@ -43,7 +43,7 @@
 .B ub_ctx_zone_remove,
 .B ub_ctx_data_add,
 .B ub_ctx_data_remove
-\- Unbound DNS validating resolver 1.5.10 functions.
+\- Unbound DNS validating resolver 1.6.0 functions.
 .SH "SYNOPSIS"
 .B #include <unbound.h>
 .LP
@@ -180,7 +180,7 @@ and
 .B ub_ctx_hosts
 to read them.
 Before you call this, use the openssl functions CRYPTO_set_id_callback and
-CRYPTO_set_locking_callback to set up asyncronous operation if you use
+CRYPTO_set_locking_callback to set up asynchronous operation if you use
 lib openssl (the application calls these functions once for initialisation).
 Openssl 1.0.0 or later uses the CRYPTO_THREADID_set_callback function.
 .TP

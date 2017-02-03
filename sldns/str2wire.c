@@ -328,7 +328,7 @@ rrinternal_write_typeclassttl(sldns_buffer* strbuf, uint8_t* rr, size_t len,
 
 /** find delimiters for type */
 static const char*
-rrinternal_get_delims(sldns_rdf_type rdftype, uint16_t r_cnt, uint16_t r_max)
+rrinternal_get_delims(sldns_rdf_type rdftype, size_t r_cnt, size_t r_max)
 {
 	switch(rdftype) {
 	case LDNS_RDF_TYPE_B64        :
@@ -463,7 +463,7 @@ rrinternal_parse_unknown(sldns_buffer* strbuf, char* token, size_t token_len,
 static int
 rrinternal_parse_rdf(sldns_buffer* strbuf, char* token, size_t token_len,
 	uint8_t* rr, size_t rr_len, size_t* rr_cur_len, sldns_rdf_type rdftype,
-	uint16_t rr_type, uint16_t r_cnt, uint16_t r_max, size_t dname_len,
+	uint16_t rr_type, size_t r_cnt, size_t r_max, size_t dname_len,
 	uint8_t* origin, size_t origin_len)
 {
 	size_t len;
@@ -613,7 +613,7 @@ rrinternal_parse_rdata(sldns_buffer* strbuf, char* token, size_t token_len,
 	uint8_t* origin, size_t origin_len)
 {
 	const sldns_rr_descriptor *desc = sldns_rr_descript((uint16_t)rr_type);
-	uint16_t r_cnt, r_min, r_max;
+	size_t r_cnt, r_min, r_max;
 	size_t rr_cur_len = dname_len + 10, pre_data_pos, token_strlen;
 	int was_unknown_rr_format = 0, parens = 0, status, quoted;
 	const char* delimiters;
@@ -693,7 +693,7 @@ rrinternal_parse_rdata(sldns_buffer* strbuf, char* token, size_t token_len,
 				sldns_buffer_position(strbuf));
 	}
 	/* write rdata length */
-	sldns_write_uint16(rr+dname_len+8, rr_cur_len-dname_len-10);
+	sldns_write_uint16(rr+dname_len+8, (uint16_t)(rr_cur_len-dname_len-10));
 	*rr_len = rr_cur_len;
 	return LDNS_WIREPARSE_ERR_OK;
 }
@@ -1369,7 +1369,7 @@ int sldns_str2wire_time_buf(const char* str, uint8_t* rd, size_t* len)
 		if (tm.tm_sec < 0 || tm.tm_sec > 59)
 			return LDNS_WIREPARSE_ERR_SYNTAX_TIME;
 
-		sldns_write_uint32(rd, sldns_mktime_from_utc(&tm));
+		sldns_write_uint32(rd, (uint32_t)sldns_mktime_from_utc(&tm));
 	} else {
 		/* handle it as 32 bits timestamp */
 		char *end;
@@ -1932,7 +1932,7 @@ int sldns_str2wire_tag_buf(const char* str, uint8_t* rd, size_t* len)
 		if(!isalnum((unsigned char)*ptr))
 			return RET_ERR(LDNS_WIREPARSE_ERR_SYNTAX_TAG, ptr-str);
 	}
-	rd[0] = slen;
+	rd[0] = (uint8_t)slen;
 	memmove(rd+1, str, slen);
 	*len = slen+1;
 	return LDNS_WIREPARSE_ERR_OK;
@@ -2000,7 +2000,7 @@ int sldns_str2wire_hip_buf(const char* str, uint8_t* rd, size_t* len)
 		return RET_ERR_SHIFT(e, s-(char*)str);
 	if(pklen > 65535)
 		return RET_ERR(LDNS_WIREPARSE_ERR_LABEL_OVERFLOW, s-(char*)str+65535);
-	sldns_write_uint16(rd+2, pklen);
+	sldns_write_uint16(rd+2, (uint16_t)pklen);
 
 	*len = 4 + hitlen + pklen;
 	return LDNS_WIREPARSE_ERR_OK;

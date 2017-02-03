@@ -112,8 +112,10 @@ int pythonmod_init(struct module_env* env, int id)
 {
    /* Initialize module */
    FILE* script_py = NULL;
-   PyObject* py_cfg, *res;
+   PyObject* py_init_arg, *res;
    PyGILState_STATE gil;
+   int init_standard = 1;
+
    struct pythonmod_env* pe = (struct pythonmod_env*)calloc(1, sizeof(struct pythonmod_env));
    if (!pe) 
    {
@@ -156,10 +158,10 @@ int pythonmod_init(struct module_env* env, int id)
    PyRun_SimpleString("import sys \n");
    PyRun_SimpleString("sys.path.append('.') \n");
    if(env->cfg->directory && env->cfg->directory[0]) {
-   	char wdir[1524];
-   	snprintf(wdir, sizeof(wdir), "sys.path.append('%s') \n",
-		env->cfg->directory);
-   	PyRun_SimpleString(wdir);
+      char wdir[1524];
+      snprintf(wdir, sizeof(wdir), "sys.path.append('%s') \n",
+      env->cfg->directory);
+      PyRun_SimpleString(wdir);
    }
    PyRun_SimpleString("sys.path.append('"RUN_DIR"') \n");
    PyRun_SimpleString("sys.path.append('"SHARE_DIR"') \n");
@@ -198,11 +200,15 @@ int pythonmod_init(struct module_env* env, int id)
 
    fclose(script_py);
 
-   if ((pe->func_init = PyDict_GetItemString(pe->dict, "init")) == NULL) 
+   if ((pe->func_init = PyDict_GetItemString(pe->dict, "init_standard")) == NULL)
    {
-      log_err("pythonmod: function init is missing in %s", pe->fname);
-      PyGILState_Release(gil);
-      return 0;
+      init_standard = 0;
+      if ((pe->func_init = PyDict_GetItemString(pe->dict, "init")) == NULL) 
+      {
+         log_err("pythonmod: function init is missing in %s", pe->fname);
+         PyGILState_Release(gil);
+         return 0;
+      }
    }
    if ((pe->func_deinit = PyDict_GetItemString(pe->dict, "deinit")) == NULL) 
    {
@@ -223,16 +229,28 @@ int pythonmod_init(struct module_env* env, int id)
       return 0;
    }
 
-   py_cfg = SWIG_NewPointerObj((void*) env->cfg, SWIGTYPE_p_config_file, 0);
-   res = PyObject_CallFunction(pe->func_init, "iO", id, py_cfg);
+   if (init_standard)
+   {
+      py_init_arg = SWIG_NewPointerObj((void*) env, SWIGTYPE_p_module_env, 0);
+   }
+   else
+   {
+      py_init_arg = SWIG_NewPointerObj((void*) env->cfg,
+        SWIGTYPE_p_config_file, 0);
+   }
+   res = PyObject_CallFunction(pe->func_init, "iO", id, py_init_arg);
    if (PyErr_Occurred()) 
    {
       log_err("pythonmod: Exception occurred in function init");
       PyErr_Print();
+      Py_XDECREF(res);
+      Py_XDECREF(py_init_arg);
+      PyGILState_Release(gil);
+      return 0;
    }
 
    Py_XDECREF(res);
-   Py_XDECREF(py_cfg);
+   Py_XDECREF(py_init_arg);
    PyGILState_Release(gil);
 
    return 1;

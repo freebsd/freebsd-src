@@ -1,0 +1,210 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+
+	access-control: 10.10.10.0/24 allow
+	access-control-view: 10.10.10.10/32 "view1"
+	access-control-view: 10.10.10.20/32 "view2"
+	access-control-view: 10.10.10.30/32 "view3"
+	access-control-view: 10.10.10.40/32 "view4"
+
+	local-zone: "example.com." redirect
+	local-data: 'example.com. IN TXT "global"'
+
+view:
+	name: "view1"
+	local-zone: "nomatch.example.com." redirect
+	local-data: 'nomatch.example.com. IN TXT "view 1"'
+	view-first: no
+	
+view:
+	name: "view2"
+	local-zone: "example.com." redirect
+	local-data: 'example.com. IN TXT "view 2"'
+	; view-first default = no
+	
+view:
+	name: "view3"
+	local-zone: "nomatch.example.com." redirect
+	local-data: 'nomatch.example.com. IN TXT "view 3"'
+	view-first: yes
+
+view:
+	name: "view4"
+	local-zone: "example.com." redirect
+	local-data: 'example.com. IN TXT "view 4"'
+	view-first: yes
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+SCENARIO_BEGIN Test view specific local-zone and local-data elements
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN TXT
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN TXT
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN TXT
+SECTION ANSWER
+example.com. IN TXT 	"auth data"
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY ADDRESS 10.10.10.10
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.com. IN TXT
+ENTRY_END
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA
+SECTION QUESTION
+example.com. IN TXT
+SECTION ANSWER
+example.com. IN TXT "auth data"
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+STEP 3 QUERY ADDRESS 10.10.10.20
+ENTRY_BEGIN
+SECTION QUESTION
+example.com. IN TXT
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+example.com. IN TXT
+SECTION ANSWER
+example.com. IN TXT "view 2"
+ENTRY_END
+
+STEP 5 QUERY ADDRESS 10.10.10.30
+ENTRY_BEGIN
+SECTION QUESTION
+example.com. IN TXT
+ENTRY_END
+STEP 6 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+example.com. IN TXT
+SECTION ANSWER
+example.com. IN TXT "global"
+ENTRY_END
+
+STEP 7 QUERY ADDRESS 10.10.10.40
+ENTRY_BEGIN
+SECTION QUESTION
+example.com. IN TXT
+ENTRY_END
+STEP 8 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+example.com. IN TXT
+SECTION ANSWER
+example.com. IN TXT "view 4"
+ENTRY_END
+
+STEP 9 QUERY ADDRESS 10.10.10.50
+ENTRY_BEGIN
+SECTION QUESTION
+example.com. IN TXT
+ENTRY_END
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA
+SECTION QUESTION
+example.com. IN TXT
+SECTION ANSWER
+example.com. IN TXT "global"
+ENTRY_END
+
+SCENARIO_END

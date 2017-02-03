@@ -219,7 +219,7 @@ val_find_signer(enum val_classification subtype, struct query_info* qinf,
 {
 	size_t i;
 	
-	if(subtype == VAL_CLASS_POSITIVE || subtype == VAL_CLASS_ANY) {
+	if(subtype == VAL_CLASS_POSITIVE) {
 		/* check for the answer rrset */
 		for(i=skip; i<rep->an_numrrsets; i++) {
 			if(query_dname_compare(qinf->qname, 
@@ -271,6 +271,29 @@ val_find_signer(enum val_classification subtype, struct query_info* qinf,
 					signer_name, signer_len, &matchcount);
 			}
 		}
+	} else if(subtype == VAL_CLASS_ANY) {
+		/* check for one of the answer rrset that has signatures,
+		 * or potentially a DNAME is in use with a different qname */
+		for(i=skip; i<rep->an_numrrsets; i++) {
+			if(query_dname_compare(qinf->qname, 
+				rep->rrsets[i]->rk.dname) == 0) {
+				val_find_rrset_signer(rep->rrsets[i], 
+					signer_name, signer_len);
+				if(*signer_name)
+					return;
+			}
+		}
+		/* no answer RRSIGs with qname, try a DNAME */
+		if(skip < rep->an_numrrsets &&
+			ntohs(rep->rrsets[skip]->rk.type) ==
+			LDNS_RR_TYPE_DNAME) {
+			val_find_rrset_signer(rep->rrsets[skip], 
+				signer_name, signer_len);
+			if(*signer_name)
+				return;
+		}
+		*signer_name = NULL;
+		*signer_len = 0;
 	} else if(subtype == VAL_CLASS_REFERRAL) {
 		/* find keys for the item at skip */
 		if(skip < rep->rrset_count) {
@@ -1115,6 +1138,7 @@ val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t c,
 	qinfo.qname_len = nmlen;
 	qinfo.qtype = LDNS_RR_TYPE_DS;
 	qinfo.qclass = c;
+	qinfo.local_alias = NULL;
 	/* do not add SOA to reply message, it is going to be used internal */
 	msg = val_neg_getmsg(env->neg_cache, &qinfo, region, env->rrset_cache,
 		env->scratch_buffer, *env->now, 0, topname);

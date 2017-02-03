@@ -1,7 +1,6 @@
 /*
  * interface.i: unbound python module
  */
-
 %module unboundmodule
 %{
 /**
@@ -34,10 +33,10 @@
    #include "sldns/pkthdr.h"
 %}
 
-%include "stdint.i" // uint_16_t can be known type now
+%include "stdint.i"  /* uint_16_t can be known type now */
 
 %inline %{
-   //converts [len][data][len][data][0] string to a List of labels (PyBytes)
+   /* converts [len][data][len][data][0] string to a List of labels (PyBytes) */
    PyObject* GetNameAsLabelList(const char* name, int len) {
      PyObject* list;
      int cnt=0, i;
@@ -202,13 +201,16 @@ struct packed_rrset_key {
    char*    dname;
    size_t   dname_len;
    uint32_t flags; 
-   uint16_t type;  //rrset type in network format
-   uint16_t rrset_class; //rrset class in network format
+   uint16_t type;  /* rrset type in network format */
+   uint16_t rrset_class;  /* rrset class in network format */
    %mutable;
 };
 
-//This subroutine converts values between the host and network byte order. 
-//Specifically, ntohs() converts 16-bit quantities from network byte order to host byte order.
+/**
+ * This subroutine converts values between the host and network byte order.
+ * Specifically, ntohs() converts 16-bit quantities from network byte order to
+ * host byte order.
+ */
 uint16_t ntohs(uint16_t netshort);
 
 %inline %{
@@ -269,17 +271,24 @@ struct lruhash_entry {
 %ignore packed_rrset_data::rr_data;
 
 struct packed_rrset_data {
-  uint32_t ttl; //TTL (in seconds like time())
+  /* TTL (in seconds like time()) */
+  uint32_t ttl;
 
-  size_t count; //number of rrs
-  size_t rrsig_count; //number of rrsigs
+  /* number of rrs */
+  size_t count;
+  /* number of rrsigs */
+  size_t rrsig_count;
 
   enum rrset_trust trust; 
   enum sec_status security;
 
-  size_t* rr_len;   //length of every rr's rdata
-  uint32_t *rr_ttl; //ttl of every rr
-  uint8_t** rr_data; //array of pointers to every rr's rdata; The rr_data[i] rdata is stored in uncompressed wireformat. 
+  /* length of every rr's rdata */
+  size_t* rr_len;
+  /* ttl of every rr */
+  uint32_t *rr_ttl;
+  /* array of pointers to every rr's rdata. The rr_data[i] rdata is stored in
+   * uncompressed wireformat. */
+  uint8_t** rr_data;
 };
 
 %pythoncode %{
@@ -359,10 +368,10 @@ struct reply_info {
    size_t an_numrrsets;
    size_t ns_numrrsets;
    size_t ar_numrrsets;
-   size_t rrset_count; // an_numrrsets + ns_numrrsets + ar_numrrsets
+   size_t rrset_count;  /* an_numrrsets + ns_numrrsets + ar_numrrsets */
 
    struct ub_packed_rrset_key** rrsets;
-   struct rrset_ref ref[1]; //?
+   struct rrset_ref ref[1];  /* ? */
 };
 
 struct rrset_ref {
@@ -396,11 +405,11 @@ struct dns_msg {
 
    struct rrset_ref* _rrset_ref_get(struct reply_info* r, int idx) {
      if ((r != NULL) && (idx >= 0) && ((size_t)idx < r->rrset_count)) {
-//printf("_rrset_ref_get: %lX key:%lX\n", r->ref + idx, r->ref[idx].key);
+/* printf("_rrset_ref_get: %lX key:%lX\n", r->ref + idx, r->ref[idx].key); */
              return &(r->ref[idx]);
-//        return &(r->ref[idx]);
+/*        return &(r->ref[idx]); */
      }
-//printf("_rrset_ref_get: NULL\n");
+/* printf("_rrset_ref_get: NULL\n"); */
      return NULL;
    }
 %}
@@ -479,30 +488,166 @@ struct comm_reply {
         if _newclass:family = _swig_property(_family_get)
    %}
 }
+
 /* ************************************************************************************ * 
+   Structure edns_option
+ * ************************************************************************************ */
+/* Rename the members to follow the python convention of marking them as
+ * private. Access to the opt_code and opt_data members is given by the later
+ * python defined code and data members respectively. */
+%rename(_next) edns_option::next;
+%rename(_opt_code) edns_option::opt_code;
+%rename(_opt_len) edns_option::opt_len;
+%rename(_opt_data) edns_option::opt_data;
+struct edns_option {
+	struct edns_option* next;
+	uint16_t opt_code;
+	size_t opt_len;
+	uint8_t* opt_data;
+};
+
+%inline %{
+    PyObject* _edns_option_opt_code_get(struct edns_option* option) {
+        uint16_t opt_code = option->opt_code;
+        return PyInt_FromLong(opt_code);
+    }
+
+    PyObject* _edns_option_opt_data_get(struct edns_option* option) {
+        return PyByteArray_FromStringAndSize((uint8_t*)option->opt_data,
+            option->opt_len);
+    }
+%}
+%extend edns_option {
+    %pythoncode %{
+        def _opt_code_get(self): return _edns_option_opt_code_get(self)
+        __swig_getmethods__["code"] = _opt_code_get
+        if _newclass: opt_code = _swig_property(_opt_code_get)
+
+        def _opt_data_get(self): return _edns_option_opt_data_get(self)
+        __swig_getmethods__["data"] = _opt_data_get
+        if _newclass: opt_data = _swig_property(_opt_data_get)
+    %}
+}
+
+/* ************************************************************************************ * 
+   Structure edns_data
+ * ************************************************************************************ */
+/* This is ignored because we will pass a double pointer of this to Python
+ * with custom getmethods. This is done to bypass Swig's behavior to pass NULL
+ * pointers as None. */
+%ignore edns_data::opt_list;
+struct edns_data {
+	int edns_present;
+	uint8_t ext_rcode;
+	uint8_t edns_version;
+	uint16_t bits;
+	uint16_t udp_size;
+	struct edns_option* opt_list;
+};
+%inline %{
+    struct edns_option** _edns_data_opt_list_get(struct edns_data* edns) {
+       return &edns->opt_list;
+    }
+%}
+%extend edns_data {
+    %pythoncode %{
+        def _opt_list_iter(self): return EdnsOptsListIter(self.opt_list)
+        __swig_getmethods__["opt_list_iter"] = _opt_list_iter
+        if _newclass:opt_list_iter = _swig_property(_opt_list_iter)
+        def _opt_list(self): return _edns_data_opt_list_get(self)
+        __swig_getmethods__["opt_list"] = _opt_list
+        if _newclass:opt_list = _swig_property(_opt_list)
+    %}
+}
+
+/* ************************************************************************************ *
+   Structure module_env
+ * ************************************************************************************ */
+struct module_env {
+	struct config_file* cfg;
+	struct slabhash* msg_cache;
+	struct rrset_cache* rrset_cache;
+	struct infra_cache* infra_cache;
+	struct key_cache* key_cache;
+
+	/* --- services --- */
+	struct outbound_entry* (*send_query)(struct query_info* qinfo,
+		uint16_t flags, int dnssec, int want_dnssec, int nocaps,
+		struct sockaddr_storage* addr, socklen_t addrlen,
+		uint8_t* zone, size_t zonelen, int ssl_upstream,
+		struct module_qstate* q);
+	void (*detach_subs)(struct module_qstate* qstate);
+	int (*attach_sub)(struct module_qstate* qstate, 
+		struct query_info* qinfo, uint16_t qflags, int prime, 
+		int valrec, struct module_qstate** newq);
+	void (*kill_sub)(struct module_qstate* newq);
+	int (*detect_cycle)(struct module_qstate* qstate, 
+		struct query_info* qinfo, uint16_t flags, int prime,
+		int valrec);
+
+	struct regional* scratch;
+	struct sldns_buffer* scratch_buffer;
+	struct worker* worker;
+	struct mesh_area* mesh;
+	struct alloc_cache* alloc;
+	struct ub_randstate* rnd;
+	time_t* now;
+	struct timeval* now_tv;
+	int need_to_validate;
+	struct val_anchors* anchors;
+	struct val_neg_cache* neg_cache;
+	struct comm_timer* probe_timer;
+	struct iter_forwards* fwds;
+	struct iter_hints* hints;
+	void* modinfo[MAX_MODULE];
+
+	void* inplace_cb_lists[inplace_cb_types_total];
+	struct edns_known_option* edns_known_options;
+	size_t edns_known_options_num;
+};
+
+
+/* ************************************************************************************ *
    Structure module_qstate
  * ************************************************************************************ */
 %ignore module_qstate::ext_state;
 %ignore module_qstate::minfo;
 
+/* These are ignored because we will pass a double pointer of them to Python
+ * with custom getmethods. This is done to bypass Swig's behavior to pass NULL
+ * pointers as None. */
+%ignore module_qstate::edns_opts_front_in;
+%ignore module_qstate::edns_opts_back_out;
+%ignore module_qstate::edns_opts_back_in;
+%ignore module_qstate::edns_opts_front_out;
+
 /* Query state */
 struct module_qstate {
    struct query_info qinfo;
-   uint16_t query_flags; //See QF_BIT_xx constants
-   int      is_priming;
+   uint16_t query_flags;  /* See QF_BIT_xx constants */
+   int is_priming;
+   int is_valrec;
 
    struct comm_reply* reply;
    struct dns_msg* return_msg;
-   int    return_rcode;
+   int return_rcode;
    struct regional* region; /* unwrapped */
 
-   int    curmod;
+   int curmod;
 
-   enum   module_ext_state ext_state[MAX_MODULE];
-   void*  minfo[MAX_MODULE];
+   enum module_ext_state ext_state[MAX_MODULE];
+   void* minfo[MAX_MODULE];
+   time_t prefetch_leeway;
 
    struct module_env* env;         /* unwrapped */
    struct mesh_state* mesh_info;
+
+   struct edns_option* edns_opts_front_in;
+   struct edns_option* edns_opts_back_out;
+   struct edns_option* edns_opts_back_in;
+   struct edns_option* edns_opts_front_out;
+   int no_cache_lookup;
+   int no_cache_store;
 };
 
 %constant int MODULE_COUNT = MAX_MODULE;
@@ -540,6 +685,25 @@ struct module_qstate {
         def __getitem__(self, index): return _unboundmodule._ext_state_get(self.obj, index)
         def __setitem__(self, index, value): _unboundmodule._ext_state_set(self.obj, index, value)
         def __len__(self): return _unboundmodule.MODULE_COUNT
+
+    class EdnsOptsListIter:
+        def __init__(self, obj):
+            self._current = obj
+            self._temp = None
+        def __iter__(self): return self
+        def __next__(self):
+            """Python 3 compatibility"""
+            return self._get_next()
+        def next(self):
+            """Python 2 compatibility"""
+            return self._get_next()
+        def _get_next(self):
+            if not edns_opt_list_is_empty(self._current):
+                self._temp = self._current
+                self._current = _p_p_edns_option_get_next(self._current)
+                return _dereference_edns_option(self._temp)
+            else:
+                raise StopIteration
 %}
 
 %inline %{
@@ -549,11 +713,41 @@ struct module_qstate {
      } 
      return 0;
    }
-  
+
    void _ext_state_set(struct module_qstate* q, int idx, enum module_ext_state state) {
      if ((q != NULL) && (idx >= 0) && (idx < MAX_MODULE)) {
         q->ext_state[idx] = state;
      } 
+   }
+
+   int edns_opt_list_is_empty(struct edns_option** opt) {
+        if (!opt || !(*opt)) return 1;
+        return 0;
+   }
+
+   struct edns_option* _dereference_edns_option(struct edns_option** opt) {
+        if (!opt) return NULL;
+        return *opt;
+   }
+
+   struct edns_option** _p_p_edns_option_get_next(struct edns_option** opt) {
+        return &(*opt)->next;
+   }
+
+   struct edns_option** _edns_opts_front_in_get(struct module_qstate* q) {
+        return &q->edns_opts_front_in;
+   }
+
+   struct edns_option** _edns_opts_back_out_get(struct module_qstate* q) {
+        return &q->edns_opts_back_out;
+   }
+
+   struct edns_option** _edns_opts_back_in_get(struct module_qstate* q) {
+        return &q->edns_opts_back_in;
+   }
+
+   struct edns_option** _edns_opts_front_out_get(struct module_qstate* q) {
+        return &q->edns_opts_front_out;
    }
 %}
 
@@ -566,6 +760,32 @@ struct module_qstate {
         def __ext_state_get(self): return ExtState(self)
         __swig_getmethods__["ext_state"] = __ext_state_get
         if _newclass:ext_state = _swig_property(__ext_state_get)#, __ext_state_set)
+
+        def _edns_opts_front_in_iter(self): return EdnsOptsListIter(self.edns_opts_front_in)
+        __swig_getmethods__["edns_opts_front_in_iter"] = _edns_opts_front_in_iter
+        if _newclass:edns_opts_front_in_iter = _swig_property(_edns_opts_front_in_iter)
+        def _edns_opts_back_out_iter(self): return EdnsOptsListIter(self.edns_opts_back_out)
+        __swig_getmethods__["edns_opts_back_out_iter"] = _edns_opts_back_out_iter
+        if _newclass:edns_opts_back_out_iter = _swig_property(_edns_opts_back_out_iter)
+        def _edns_opts_back_in_iter(self): return EdnsOptsListIter(self.edns_opts_back_in)
+        __swig_getmethods__["edns_opts_back_in_iter"] = _edns_opts_back_in_iter
+        if _newclass:edns_opts_back_in_iter = _swig_property(_edns_opts_back_in_iter)
+        def _edns_opts_front_out_iter(self): return EdnsOptsListIter(self.edns_opts_front_out)
+        __swig_getmethods__["edns_opts_front_out_iter"] = _edns_opts_front_out_iter
+        if _newclass:edns_opts_front_out_iter = _swig_property(_edns_opts_front_out_iter)
+
+        def _edns_opts_front_in(self): return _edns_opts_front_in_get(self)
+        __swig_getmethods__["edns_opts_front_in"] = _edns_opts_front_in
+        if _newclass:edns_opts_front_in = _swig_property(_edns_opts_front_in)
+        def _edns_opts_back_out(self): return _edns_opts_back_out_get(self)
+        __swig_getmethods__["edns_opts_back_out"] = _edns_opts_back_out
+        if _newclass:edns_opts_back_out = _swig_property(_edns_opts_back_out)
+        def _edns_opts_back_in(self): return _edns_opts_back_in_get(self)
+        __swig_getmethods__["edns_opts_back_in"] = _edns_opts_back_in
+        if _newclass:edns_opts_back_in = _swig_property(_edns_opts_back_in)
+        def _edns_opts_front_out(self): return _edns_opts_front_out_get(self)
+        __swig_getmethods__["edns_opts_front_out"] = _edns_opts_front_out
+        if _newclass:edns_opts_front_out = _swig_property(_edns_opts_front_out)
    %}
 }
 
@@ -1037,8 +1257,9 @@ struct delegpt* find_delegation(struct module_qstate* qstate, char *nm, size_t n
 /* ************************************************************************************ * 
    Functions
  * ************************************************************************************ */
-
-// Various debuging functions
+/******************************
+ * Various debuging functions *
+ ******************************/
 void verbose(enum verbosity_value level, const char* format, ...);
 void log_info(const char* format, ...);
 void log_err(const char* format, ...);
@@ -1048,24 +1269,166 @@ void log_dns_msg(const char* str, struct query_info* qinfo, struct reply_info* r
 void log_query_info(enum verbosity_value v, const char* str, struct query_info* qinf);
 void regional_log_stats(struct regional *r);
 
-// Free allocated memory from marked sources returning corresponding types
+/***************************************************************************
+ * Free allocated memory from marked sources returning corresponding types *
+ ***************************************************************************/
 %typemap(newfree, noblock = 1) char * {
   free($1);
 }
 
-// Mark as source returning newly allocated memory
+/***************************************************
+ * Mark as source returning newly allocated memory *
+ ***************************************************/
 %newobject sldns_wire2str_type;
 %newobject sldns_wire2str_class;
 
-// LDNS functions
+/******************
+ * LDNS functions *
+ ******************/
 char *sldns_wire2str_type(const uint16_t atype);
 char *sldns_wire2str_class(const uint16_t aclass);
 
-// Functions from pythonmod_utils
+/**********************************
+ * Functions from pythonmod_utils *
+ **********************************/
 int storeQueryInCache(struct module_qstate* qstate, struct query_info* qinfo, struct reply_info* msgrep, int is_referral);
 void invalidateQueryInCache(struct module_qstate* qstate, struct query_info* qinfo);
 
-// Module conversion functions
+/*******************************
+ * Module conversion functions *
+ *******************************/
 const char* strextstate(enum module_ext_state s);
 const char* strmodulevent(enum module_ev e);
 
+/**************************
+ * Edns related functions *
+ **************************/
+struct edns_option* edns_opt_list_find(struct edns_option* list, uint16_t code);
+int edns_register_option(uint16_t opt_code, int bypass_cache_stage,
+    int no_aggregation, struct module_env* env);
+
+%pythoncode %{
+    def register_edns_option(env, code, bypass_cache_stage=False,
+                             no_aggregation=False):
+        """Wrapper function to provide keyword attributes."""
+        return edns_register_option(code, bypass_cache_stage,
+                                    no_aggregation, env)
+%}
+
+/******************************
+ * Callback related functions *
+ ******************************/
+/* typemap to check if argument is callable */
+%typemap(in) PyObject *py_cb {
+  if (!PyCallable_Check($input)) {
+      SWIG_exception_fail(SWIG_TypeError, "Need a callable object!");
+      return NULL;
+  }
+  $1 = $input;
+}
+/* typemap to get content/size from a bytearray  */
+%typemap(in) (size_t len, uint8_t* py_bytearray_data) {
+    if (!PyByteArray_CheckExact($input)) {
+        SWIG_exception_fail(SWIG_TypeError, "Expected bytearray!");
+        return NULL;
+    }
+    $2 = PyByteArray_AsString($input);
+    $1 = PyByteArray_Size($input);
+}
+
+int edns_opt_list_remove(struct edns_option** list, uint16_t code);
+int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
+    uint8_t* py_bytearray_data, struct regional* region);
+
+%{
+    /* This function is called by unbound in order to call the python
+     * callback function. */
+    int python_inplace_cb_reply_generic(struct query_info* qinfo,
+        struct module_qstate* qstate, struct reply_info* rep, int rcode,
+        struct edns_data* edns, struct edns_option** opt_list_out,
+        struct regional* region, void* python_callback)
+    {
+        PyObject *func, *py_edns, *py_qstate, *py_opt_list_out, *py_qinfo;
+        PyObject *py_rep, *py_region;
+        PyObject *result;
+        int res = 0;
+
+        func = (PyObject *) python_callback;
+        PyGILState_STATE gstate = PyGILState_Ensure();
+        py_edns = SWIG_NewPointerObj((void*) edns, SWIGTYPE_p_edns_data, 0);
+        py_qstate = SWIG_NewPointerObj((void*) qstate,
+            SWIGTYPE_p_module_qstate, 0);
+        py_opt_list_out = SWIG_NewPointerObj((void*) opt_list_out,
+            SWIGTYPE_p_p_edns_option, 0);
+        py_qinfo = SWIG_NewPointerObj((void*) qinfo, SWIGTYPE_p_query_info, 0);
+        py_rep = SWIG_NewPointerObj((void*) rep, SWIGTYPE_p_reply_info, 0);
+        py_region = SWIG_NewPointerObj((void*) region, SWIGTYPE_p_regional, 0);
+        result = PyObject_CallFunction(func, "OOOiOOO", py_qinfo, py_qstate,
+            py_rep, rcode, py_edns, py_opt_list_out, py_region);
+        Py_XDECREF(py_edns);
+        Py_XDECREF(py_qstate);
+        Py_XDECREF(py_opt_list_out);
+        Py_XDECREF(py_qinfo);
+        Py_XDECREF(py_rep);
+        Py_XDECREF(py_region);
+        if (result) {
+            res = PyInt_AsLong(result);
+        }
+        Py_XDECREF(result);
+        PyGILState_Release(gstate);
+        return res;
+    }
+
+    /* Swig implementations for Python */
+    static int register_inplace_cb_reply(PyObject* py_cb,
+        struct module_env* env)
+    {
+        int ret = inplace_cb_reply_register(
+            python_inplace_cb_reply_generic, (void*) py_cb, env);
+        if (ret) Py_INCREF(py_cb);
+        return ret;
+    }
+    static int register_inplace_cb_reply_cache(PyObject* py_cb,
+        struct module_env* env)
+    {
+        int ret = inplace_cb_reply_cache_register(
+            python_inplace_cb_reply_generic, (void*) py_cb, env);
+        if (ret) Py_INCREF(py_cb);
+        return ret;
+    }
+    static int register_inplace_cb_reply_local(PyObject* py_cb,
+        struct module_env* env)
+    {
+        int ret = inplace_cb_reply_local_register(
+            python_inplace_cb_reply_generic, (void*) py_cb, env);
+        if (ret) Py_INCREF(py_cb);
+        return ret;
+    }
+    static int register_inplace_cb_reply_servfail(PyObject* py_cb,
+        struct module_env* env)
+    {
+        int ret = inplace_cb_reply_servfail_register(
+            python_inplace_cb_reply_generic, (void*) py_cb, env);
+        if (ret) Py_INCREF(py_cb);
+        return ret;
+    }
+%}
+/* C declarations */
+int inplace_cb_reply_register(
+    inplace_cb_reply_func_t* cb, void* cb_arg, struct module_env* env);
+int inplace_cb_reply_cache_register(
+    inplace_cb_reply_func_t* cb, void* cb_arg, struct module_env* env);
+int inplace_cb_reply_local_register(
+    inplace_cb_reply_func_t* cb, void* cb_arg, struct module_env* env);
+int inplace_cb_reply_servfail_register(
+    inplace_cb_reply_func_t* cb, void* cb_arg, struct module_env* env);
+
+/* Swig declarations */
+static int register_inplace_cb_reply(PyObject* py_cb,
+    struct module_env* env);
+static int register_inplace_cb_reply_cache(PyObject* py_cb,
+    struct module_env* env);
+static int register_inplace_cb_reply_local(PyObject* py_cb,
+    struct module_env* env);
+static int register_inplace_cb_reply_servfail(PyObject* py_cb,
+    struct module_env* env);

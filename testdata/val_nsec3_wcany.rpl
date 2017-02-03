@@ -10,7 +10,7 @@ stub-zone:
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
 CONFIG_END
 
-SCENARIO_BEGIN Test validator with NSEC3 wilcard qtype ANY response.
+SCENARIO_BEGIN Test validator with NSEC3 wildcard qtype ANY response.
 
 ; K.ROOT-SERVERS.NET.
 RANGE_BEGIN 0 100

@@ -236,6 +236,7 @@ printstats(rbtree_t* tree)
 int main(int argc, const char* argv[])
 {
 	rbtree_t* tree = 0;
+	log_init(NULL, 0, 0);
 	if(argc != 2) {
 		usage();
 	}

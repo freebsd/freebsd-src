@@ -128,6 +128,9 @@ write_q(int fd, int udp, SSL* ssl, sldns_buffer* buf, uint16_t id,
 	qinfo.qtype = sldns_get_rr_type_by_name(strtype);
 	qinfo.qclass = sldns_get_rr_class_by_name(strclass);
 
+	/* clear local alias */
+	qinfo.local_alias = NULL;
+
 	/* make query */
 	qinfo_query_encode(buf, &qinfo);
 	sldns_buffer_write_u16_at(buf, 0, id);

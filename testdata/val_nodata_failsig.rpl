@@ -130,8 +130,10 @@ SECTION ANSWER
 SECTION AUTHORITY
 ; SOA record is missing in reply.
 ; Denies A, note this is the end of the NSEC chain.
+; this RRSIG is failed, we set to 0 base64 data to make this easy to detect
 www.example.com.	IN	NSEC	example.com. RRSIG NSEC
-www.example.com.        3600    IN      RRSIG   NSEC 3 3 3600 20070926135752 20070829135752 2854 example.com. MC0CFDA8yqBITvLruoQjn/eqjYjwCwySAhUAk5/f3H1HKMsvM+spmmswwFtndyY= ;{id = 2854}
+;www.example.com.        3600    IN      RRSIG   NSEC 3 3 3600 20070926135752 20070829135752 2854 example.com. MC0CFDA8yqBITvLruoQjn/eqjYjwCwySAhUAk5/f3H1HKMsvM+spmmswwFtndyY= ;{id = 2854}
+www.example.com.        3600    IN      RRSIG   NSEC 3 3 3600 20070926135752 20070829135752 2854 example.com. 
 ; Denies wildcard
 example.com.	IN	NSEC	ns.example.com. NS SOA RRSIG NSEC DNSKEY
 example.com.    3600    IN      RRSIG   NSEC 3 2 3600 20070926135752 20070829135752 2854 example.com. MCwCFGlz/gvGdVxEo3Kpr+MijEGCZgwaAhRU7qbF13vmCVgR8dFw7LQFKopV6w== ;{id = 2854}

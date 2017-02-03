@@ -59,6 +59,9 @@ struct sldns_buffer;
 struct serviced_query;
 struct dt_env;
 struct edns_option;
+struct module_env;
+struct module_qstate;
+struct query_info;
 
 /**
  * Send queries to outside servers and wait for answers from servers.
@@ -471,10 +474,7 @@ void pending_delete(struct outside_network* outnet, struct pending* p);
  * Perform a serviced query to the authoritative servers.
  * Duplicate efforts are detected, and EDNS, TCP and UDP retry is performed.
  * @param outnet: outside network, with rbtree of serviced queries.
- * @param qname: what qname to query.
- * @param qnamelen: length of qname in octets including 0 root label.
- * @param qtype: rrset type to query (host format)
- * @param qclass: query class. (host format)
+ * @param qinfo: query info.
  * @param flags: flags u16 (host format), includes opcode, CD bit.
  * @param dnssec: if set, DO bit is set in EDNS queries.
  *	If the value includes BIT_CD, CD bit is set when in EDNS queries.
@@ -484,27 +484,28 @@ void pending_delete(struct outside_network* outnet, struct pending* p);
  * @param nocaps: ignore use_caps_for_id and use unperturbed qname.
  * @param tcp_upstream: use TCP for upstream queries.
  * @param ssl_upstream: use SSL for upstream queries.
- * @param opt_list: pass edns option list (deep copied into serviced query)
- *	these options are set on the outgoing packets.
- * @param callback: callback function.
- * @param callback_arg: user argument to callback function.
  * @param addr: to which server to send the query.
  * @param addrlen: length of addr.
  * @param zone: name of the zone of the delegation point. wireformat dname.
 	This is the delegation point name for which the server is deemed
 	authoritative.
  * @param zonelen: length of zone.
+ * @param qstate: module qstate. Mainly for inspecting the available
+ *	edns_opts_lists.
+ * @param callback: callback function.
+ * @param callback_arg: user argument to callback function.
  * @param buff: scratch buffer to create query contents in. Empty on exit.
+ * @param env: the module environment.
  * @return 0 on error, or pointer to serviced query that is used to answer
  *	this serviced query may be shared with other callbacks as well.
  */
 struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
-	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
-	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
-	int tcp_upstream, int ssl_upstream, struct edns_option* opt_list,
+	struct query_info* qinfo, uint16_t flags, int dnssec, int want_dnssec,
+	int nocaps, int tcp_upstream, int ssl_upstream,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, comm_point_callback_t* callback, void* callback_arg,
-	struct sldns_buffer* buff);
+	size_t zonelen, struct module_qstate* qstate,
+	comm_point_callback_t* callback, void* callback_arg,
+	struct sldns_buffer* buff, struct module_env* env);
 
 /**
  * Remove service query callback.
