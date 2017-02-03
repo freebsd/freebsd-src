@@ -1015,16 +1015,14 @@ callout_handle_init(struct callout_handle *handle)
 static const char *
 callout_retvalstring(callout_ret_t retval)
 {
-	switch (retval.value) {
-	case CALLOUT_RET_DRAINING:
+	if (retval.value == CALLOUT_RET_DRAINING)
 		return ("callout cannot be stopped and needs drain");
-	case CALLOUT_RET_CANCELLED:
+	else if (retval.value == CALLOUT_RET_CANCELLED)
 		return ("callout was successfully stopped");
-	case CALLOUT_RET_CANCELLED_AND_DRAINING:
+	else if (retval.value == CALLOUT_RET_CANCELLED_AND_DRAINING)
 		return ("callout was successfully stopped while being serviced");
-	default:
+	else
 		return ("callout was already stopped");
-	}
 }
 #endif
 
