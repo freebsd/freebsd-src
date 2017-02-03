@@ -298,12 +298,14 @@ void release_lip(struct tom_data *, struct clip_entry *);
 
 /* t4_connect.c */
 void t4_init_connect_cpl_handlers(void);
+void t4_uninit_connect_cpl_handlers(void);
 int t4_connect(struct toedev *, struct socket *, struct rtentry *,
     struct sockaddr *);
 void act_open_failure_cleanup(struct adapter *, u_int, u_int);
 
 /* t4_listen.c */
 void t4_init_listen_cpl_handlers(void);
+void t4_uninit_listen_cpl_handlers(void);
 int t4_listen_start(struct toedev *, struct tcpcb *);
 int t4_listen_stop(struct toedev *, struct tcpcb *);
 void t4_syncache_added(struct toedev *, void *);

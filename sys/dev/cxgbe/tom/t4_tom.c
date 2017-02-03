@@ -1225,6 +1225,10 @@ t4_tom_mod_unload(void)
 
 	t4_ddp_mod_unload();
 
+	t4_uninit_connect_cpl_handlers();
+	t4_uninit_listen_cpl_handlers();
+	t4_uninit_cpl_io_handlers();
+
 	return (0);
 }
 #endif	/* TCP_OFFLOAD */

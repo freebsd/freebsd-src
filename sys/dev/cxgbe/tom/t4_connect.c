@@ -275,6 +275,14 @@ t4_init_connect_cpl_handlers(void)
 	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, do_act_open_rpl);
 }
 
+void
+t4_uninit_connect_cpl_handlers(void)
+{
+
+	t4_register_cpl_handler(CPL_ACT_ESTABLISH, NULL);
+	t4_register_cpl_handler(CPL_ACT_OPEN_RPL, NULL);
+}
+
 #define DONT_OFFLOAD_ACTIVE_OPEN(x)	do { \
 	reason = __LINE__; \
 	rc = (x); \
