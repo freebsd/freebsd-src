@@ -152,10 +152,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/xbox.h>
 #endif
 
-#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
-#endif
-
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
 #endif
@@ -4217,11 +4213,9 @@ pagezero(void *page)
 {
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686) {
-#if defined(CPU_ENABLE_SSE)
 		if (cpu_feature & CPUID_SSE2)
 			sse2_pagezero(page);
 		else
-#endif
 			i686_pagezero(page);
 	} else
 #endif

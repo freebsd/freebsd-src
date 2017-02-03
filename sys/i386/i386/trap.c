@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
 #include "opt_kdb.h"
-#include "opt_npx.h"
 #include "opt_stack.h"
 #include "opt_trap.h"
 
@@ -335,13 +334,9 @@ user_trctrap_out:
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
-#ifdef DEV_NPX
 			ucode = npxtrap_x87();
 			if (ucode == -1)
 				goto userout;
-#else
-			ucode = 0;
-#endif
 			i = SIGFPE;
 			break;
 
@@ -475,13 +470,11 @@ user_trctrap_out:
 			break;
 
 		case T_DNA:
-#ifdef DEV_NPX
 			KASSERT(PCB_USER_FPU(td->td_pcb),
 			    ("kernel FPU ctx has leaked"));
 			/* transparent fault (due to context switch "late") */
 			if (npxdna())
 				goto userout;
-#endif
 			uprintf("pid %d killed due to lack of floating point\n",
 				p->p_pid);
 			i = SIGKILL;
@@ -494,13 +487,9 @@ user_trctrap_out:
 			break;
 
 		case T_XMMFLT:		/* SIMD floating-point exception */
-#if defined(DEV_NPX) && !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
 			ucode = npxtrap_sse();
 			if (ucode == -1)
 				goto userout;
-#else
-			ucode = 0;
-#endif
 			i = SIGFPE;
 			break;
 #ifdef KDTRACE_HOOKS
@@ -524,12 +513,10 @@ user_trctrap_out:
 			goto out;
 
 		case T_DNA:
-#ifdef DEV_NPX
 			if (PCB_USER_FPU(td->td_pcb))
 				panic("Unregistered use of FPU in kernel");
 			if (npxdna())
 				goto out;
-#endif
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */

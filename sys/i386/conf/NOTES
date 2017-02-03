@@ -115,15 +115,6 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # reorder).  This option should not be used if you use memory mapped
 # I/O device(s).
 #
-# CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32
-# machines.  VmWare 3.x seems to emulate this instruction poorly, causing
-# the guest OS to run very slowly.  This problem appears to be fixed in
-# VmWare 4.x, at least in version 4.5.2, so that enabling this option with
-# VmWare 4.x will result in locking operations to be 20-30 times slower.
-# Enabling this with an SMP kernel will cause the kernel to be unusable.
-#
-# CPU_DISABLE_SSE explicitly prevents I686_CPU from turning on SSE.
-#
 # CPU_ELAN enables support for AMDs ElanSC520 CPU.
 #    CPU_ELAN_PPS enables precision timestamp code.
 #    CPU_ELAN_XTAL sets the clock crystal frequency in Hz.
@@ -201,8 +192,6 @@ options 	CPU_BLUELIGHTNING_FPU_OP_CACHE
 options 	CPU_BTB_EN
 options 	CPU_DIRECT_MAPPED_CACHE
 options 	CPU_DISABLE_5X86_LSSER
-options 	CPU_DISABLE_CMPXCHG
-#options 	CPU_DISABLE_SSE
 options 	CPU_ELAN
 options 	CPU_ELAN_PPS
 options 	CPU_ELAN_XTAL=32768000
@@ -313,7 +302,7 @@ device		apm_saver	# Requires APM
 #
 # ISA bus
 #
-device		isa		# Required by npx(4)
+device		isa
 
 #
 # Options for `isa':
@@ -395,8 +384,7 @@ device		dpms		# DPMS suspend & resume via VESA BIOS
 options 	X86BIOS
 
 #
-# The Numeric Processing eXtension driver.  This is non-optional.
-device		npx
+# Hints for the non-optional Numeric Processing eXtension driver.
 hint.npx.0.flags="0x0"
 hint.npx.0.irq="13"
 

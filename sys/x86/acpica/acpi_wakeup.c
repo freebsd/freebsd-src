@@ -35,9 +35,6 @@ __FBSDID("$FreeBSD$");
 #else
 #include "opt_apic.h"
 #endif
-#ifdef __i386__
-#include "opt_npx.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -213,7 +210,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	if (savectx(pcb)) {
 #ifdef __amd64__
 		fpususpend(susppcbs[0]->sp_fpususpend);
-#elif defined(DEV_NPX)
+#else
 		npxsuspend(susppcbs[0]->sp_fpususpend);
 #endif
 #ifdef SMP
@@ -250,7 +247,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	} else {
 #ifdef __amd64__
 		fpuresume(susppcbs[0]->sp_fpususpend);
-#elif defined(DEV_NPX)
+#else
 		npxresume(susppcbs[0]->sp_fpususpend);
 #endif
 	}

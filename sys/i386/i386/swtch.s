@@ -32,7 +32,6 @@
  * $FreeBSD$
  */
 
-#include "opt_npx.h"
 #include "opt_sched.h"
 
 #include <machine/asmacros.h>
@@ -150,7 +149,6 @@ ENTRY(cpu_switch)
 	movl    %eax,PCB_DR0(%edx)
 1:
 
-#ifdef DEV_NPX
 	/* have we used fp, and need a save? */
 	cmpl	%ecx,PCPU(FPCURTHREAD)
 	jne	1f
@@ -158,7 +156,6 @@ ENTRY(cpu_switch)
 	call	npxsave				/* do it in a big C function */
 	popl	%eax
 1:
-#endif
 
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
 	movl	4(%esp),%edi

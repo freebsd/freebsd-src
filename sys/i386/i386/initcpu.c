@@ -44,10 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
-#endif
-
 #ifdef I486_CPU
 static void init_5x86(void);
 static void init_bluelightning(void);
@@ -742,12 +738,10 @@ initializecpu(void)
 	default:
 		break;
 	}
-#if defined(CPU_ENABLE_SSE)
 	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
 		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
 		cpu_fxsr = hw_instruction_sse = 1;
 	}
-#endif
 #if defined(PAE) || defined(PAE_TABLES)
 	if ((amd_feature & AMDID_NX) != 0) {
 		uint64_t msr;
