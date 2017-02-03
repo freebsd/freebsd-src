@@ -4263,11 +4263,11 @@ ar9300_init_user_settings(struct ath_hal *ah)
     if (ahp->ah_beacon_rssi_threshold != 0) {
         ar9300_set_hw_beacon_rssi_threshold(ah, ahp->ah_beacon_rssi_threshold);
     }
-#ifdef ATH_SUPPORT_DFS
+//#ifdef ATH_SUPPORT_DFS
     if (ahp->ah_cac_quiet_enabled) {
         ar9300_cac_tx_quiet(ah, 1);
     }
-#endif /* ATH_SUPPORT_DFS */
+//#endif /* ATH_SUPPORT_DFS */
 }
 
 int
