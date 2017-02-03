@@ -879,7 +879,7 @@ ipsec_set_addresses(struct ifnet *ifp, struct sockaddr *src,
 
 	}
 	/*
-	 * We can not service IPsec tunnel when source address is
+	 * We cannot service IPsec tunnel when source address is
 	 * not our own.
 	 */
 #ifdef INET

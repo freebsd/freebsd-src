@@ -28,7 +28,7 @@
 .\"     @(#)udp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2016
+.Dd February 3, 2017
 .Dt UDP 4
 .Os
 .Sh NAME
@@ -106,9 +106,9 @@ level to encapsulate
 .Tn ESP
 packets in
 .Tn UDP .
-The only one supported value for this option is
+Only one value is supported for this option:
 .Tn UDP_ENCAP_ESPINUDP
-from RFC 3948 defined in
+from RFC 3948, defined in
 .In netinet/udp.h .
 .Sh MIB VARIABLES
 The

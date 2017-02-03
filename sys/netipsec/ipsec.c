@@ -182,10 +182,10 @@ SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_NETLEV, ah_net_deflev,
 	"AH tunnel mode default level.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_AH_CLEARTOS, ah_cleartos,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ah_cleartos), 0,
-	"If set clear type-of-service field when doing AH computation.");
+	"If set, clear type-of-service field when doing AH computation.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_AH_OFFSETMASK, ah_offsetmask,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ah_offsetmask), 0,
-	"If not set clear offset field mask when doing AH computation.");
+	"If not set, clear offset field mask when doing AH computation.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DFBIT, dfbit,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ipsec_dfbit), 0,
 	"Do not fragment bit on encap.");
@@ -203,7 +203,7 @@ SYSCTL_INT(_net_inet_ipsec, OID_AUTO, natt_cksum_policy,
 	"Method to fix TCP/UDP checksum for transport mode IPsec after NAT.");
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO, filtertunnel,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_filtertunnel), 0,
-	"If set filter packets from an IPsec tunnel.");
+	"If set, filter packets from an IPsec tunnel.");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipsec, OID_AUTO, ipsecstats, struct ipsecstat,
     ipsec4stat, "IPsec IPv4 statistics.");
 
@@ -266,7 +266,7 @@ SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_ECN, ecn,
 	"Explicit Congestion Notification handling.");
 SYSCTL_INT(_net_inet6_ipsec6, OID_AUTO, filtertunnel,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_filtertunnel),  0,
-	"If set filter packets from an IPsec tunnel.");
+	"If set, filter packets from an IPsec tunnel.");
 SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
     struct ipsecstat, ipsec6stat, "IPsec IPv6 statistics.");
 #endif /* INET6 */

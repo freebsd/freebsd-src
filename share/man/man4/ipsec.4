@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2017
+.Dd February 3, 2017
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -152,13 +152,13 @@ Refer to
 .Xr setkey 8
 on how to use it.
 .Pp
-Depending from the socket's address family, IPPROTO_IP or IPPROTO_IPV6
+Depending on the socket's address family, IPPROTO_IP or IPPROTO_IPV6
 transport level and IP_IPSEC_POLICY or IPV6_IPSEC_POLICY socket options
 may be used to configure per-socket security policies.
-The properly formed IPsec policy specification structure can be
+A properly-formed IPsec policy specification structure can be
 created using
 .Xr ipsec_set_policy 3
-function and used as socket option value for
+function and used as socket option value for the
 .Xr setsockopt 2
 call.
 .Pp
@@ -284,23 +284,22 @@ talks more about the behavior.
 If set to non-zero, debug messages will be generated via
 .Xr syslog 3 .
 .It Li ipsec.natt_cksum_policy
-This variable controls how the kernel handles TCP and UDP checksums
-when ESP in UDP encapsulation is used for IPsec transport mode.
-If set to non-zero value, the kernel fully recomputes checksums for 
+Controls how the kernel handles TCP and UDP checksums when ESP in UDP
+encapsulation is used for IPsec transport mode.
+If set to a non-zero value, the kernel fully recomputes checksums for
 inbound TCP segments and UDP datagrams after they are decapsulated and
-decrypted. 
+decrypted.
 If set to 0 and original addresses were configured for corresponding SA
-by the IKE daemon, the kernel will incrementally recompute checksums for
-inbound TCP segments and UDP datagrams. 
-If addresses weren't configured, the checksums will be ignored.
+by the IKE daemon, the kernel incrementally recomputes checksums for
+inbound TCP segments and UDP datagrams.
+If addresses were not configured, the checksums are ignored.
 .It Li ipsec.check_policy_history
-This variable enables strict policy checking for inbound packets.
-The default behavior for inbound security policies is just make sure,
-that a handled by IPsec packet was decrypted and authenticated.
-If this variable is set to non-zero value, each handled by IPsec packet
-will be checked against the history of used IPsec security associations.
-The check requires matching of the IPsec security protocol, mode, and SA
-addresses.
+Enables strict policy checking for inbound packets.
+By default, inbound security policies check that packets handled by IPsec
+have been decrypted and authenticated.
+If this variable is set to a non-zero value, each packet handled by IPsec
+is checked against the history of IPsec security associations.
+The IPsec security protocol, mode, and SA addresses must match.
 .El
 .Pp
 Variables under the

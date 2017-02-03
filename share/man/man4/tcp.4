@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 1, 2017
+.Dd February 3, 2017
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -273,9 +273,9 @@ This option enables the use of MD5 digests (also known as TCP-MD5)
 on writes to the specified socket.
 Outgoing traffic is digested;
 digests on incoming traffic are verified.
-When socket has enabled this option, all outgoing TCP segments
+When this option is enabled on a socket, all outgoing TCP segments
 must be signed with MD5 digests, and all inbound TCP segments
-also must be signed.
+must also be signed.
 .Pp
 One common use for this in a
 .Fx
@@ -291,10 +291,9 @@ utility.
 This entry can only be specified on a per-host basis at this time.
 .Pp
 If an SADB entry cannot be found for the destination,
-the system will not send any outgoing segments and will drop any
-inbound segments.
+the system does not send any outgoing segments and drops any inbound segments.
 .Pp
-Each dropped segment will be taken into account in the TCP protocol statistics.
+Each dropped segment is taken into account in the TCP protocol statistics.
 .El
 .Pp
 The option level for the

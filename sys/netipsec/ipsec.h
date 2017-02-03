@@ -112,10 +112,10 @@ struct secpolicy {
  * PCB security policies.
  * Application can setup private security policies for socket.
  * Such policies can have IPSEC, BYPASS and ENTRUST type.
- * By default policies set to NULL, this mean that they have ENTRUST type.
- * When application sets BYPASS or IPSEC type policy, flags field
- * also updated. In case when flags is not set, the system could store
- * used security policy into the sp_in/sp_out pointer to speedup further
+ * By default, policies are set to NULL. This means that they have ENTRUST type.
+ * When application sets BYPASS or IPSEC type policy, the flags field
+ * is also updated. When flags is not set, the system could store
+ * used security policy into the sp_in/sp_out pointer to speed up further
  * lookups.
  */
 struct inpcbpolicy {

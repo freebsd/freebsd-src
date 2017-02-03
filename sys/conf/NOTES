@@ -630,8 +630,8 @@ options 	TCP_OFFLOAD		# TCP offload support.
 # your kernel configuration
 options 	IPSEC			#IP security (requires device crypto)
 
-# Option IPSEC_SUPPORT doesn't enable IPsec, but makes it possible to 
-# load it as kernel module. You still MUST add device crypto to your kernel
+# Option IPSEC_SUPPORT does not enable IPsec, but makes it possible to 
+# load it as a kernel module. You still MUST add device crypto to your kernel
 # configuration.
 options		IPSEC_SUPPORT
 #options 	IPSEC_DEBUG		#debug for IP security
@@ -1029,7 +1029,7 @@ options 	ACCEPT_FILTER_HTTP
 # carried in TCP option 19. This option is commonly used to protect
 # TCP sessions (e.g. BGP) where IPSEC is not available nor desirable.
 # This is enabled on a per-socket basis using the TCP_MD5SIG socket option.
-# This requires the use of 'device crypto' and one of 'options IPSEC' or
+# This requires the use of 'device crypto' and either 'options IPSEC' or
 # 'options IPSEC_SUPPORT'.
 options 	TCP_SIGNATURE		#include support for RFC 2385
 
