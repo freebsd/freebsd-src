@@ -1,4 +1,4 @@
-#	$NetBSD: t_ipv6address.sh,v 1.7 2016/08/10 21:33:52 kre Exp $
+#	$NetBSD: t_ipv6address.sh,v 1.12 2016/12/14 02:50:42 ozaki-r Exp $
 #
 # Copyright (c) 2015 Internet Initiative Japan Inc.
 # All rights reserved.
@@ -24,8 +24,9 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-SERVER="rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpnet_shmif -lrumpdev"
-SERVER6="$SERVER -lrumpnet_netinet6"
+SERVER="rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet"
+SERVER="${SERVER} -lrumpnet_shmif -lrumpdev"
+SERVER6="${SERVER} -lrumpnet_netinet6"
 
 SOCKSRC=unix://commsock1
 SOCKFWD=unix://commsock2
@@ -40,7 +41,7 @@ BUS2=bus2
 BUSSRC=bus_src
 BUSDST=bus_dst
 
-DEBUG=true
+DEBUG=${DEBUG:-true}
 TIMEOUT=3
 
 atf_test_case linklocal cleanup
@@ -118,41 +119,41 @@ setup_route()
 {
 	local tmp_rump_server=$RUMP_SERVER
 
-	local src_if0_lladdr=`get_lladdr ${SOCKSRC} shmif0`
-	local dst_if0_lladdr=`get_lladdr ${SOCKDST} shmif0`
-	local fwd_if0_lladdr=`get_lladdr ${SOCKFWD} shmif0`
-	local fwd_if1_lladdr=`get_lladdr ${SOCKFWD} shmif1`
+	local src_if0_lladdr=`get_linklocal_addr ${SOCKSRC} shmif0`
+	local dst_if0_lladdr=`get_linklocal_addr ${SOCKDST} shmif0`
+	local fwd_if0_lladdr=`get_linklocal_addr ${SOCKFWD} shmif0`
+	local fwd_if1_lladdr=`get_linklocal_addr ${SOCKFWD} shmif1`
 
 	export RUMP_SERVER=${SOCKSRC}
-	atf_check -s ignore -o ignore -e ignore rump.route delete -inet6 default \
-	    ${fwd_if0_lladdr}%shmif0
-	atf_check -s exit:0 -o match:"add net default:" rump.route add -inet6 default \
-	    ${fwd_if0_lladdr}%shmif0
+	atf_check -s ignore -o ignore -e ignore \
+	    rump.route delete -inet6 default ${fwd_if0_lladdr}%shmif0
+	atf_check -s exit:0 -o match:"add net default:" \
+	    rump.route add    -inet6 default ${fwd_if0_lladdr}%shmif0
 	atf_check -s exit:0 rump.ifconfig shmif1 inet6 ${IP6SRC}
 	atf_check -s exit:0 -o ignore rump.ifconfig -w 10
 	$DEBUG && rump.netstat -rn -f inet6
 	unset RUMP_SERVER
 
 	export RUMP_SERVER=${SOCKDST}
-	atf_check -s ignore -o ignore -e ignore rump.route delete -inet6 default \
-	    ${fwd_if1_lladdr}%shmif0
-	atf_check -s exit:0 -o match:"add net default:" rump.route add -inet6 default \
-	    ${fwd_if1_lladdr}%shmif0
+	atf_check -s ignore -o ignore -e ignore \
+	    rump.route delete -inet6 default ${fwd_if1_lladdr}%shmif0
+	atf_check -s exit:0 -o match:"add net default:" \
+	    rump.route add    -inet6 default ${fwd_if1_lladdr}%shmif0
 	atf_check -s exit:0 rump.ifconfig shmif1 inet6 ${IP6DST}
 	atf_check -s exit:0 -o ignore rump.ifconfig -w 10
 	$DEBUG && rump.netstat -rn -f inet6
 	unset RUMP_SERVER
 
 	export RUMP_SERVER=${SOCKFWD}
-	atf_check -s ignore -o ignore -e ignore rump.route delete -inet6 ${IP6SRCNW} \
-	    ${src_if0_lladdr}%shmif0
-	atf_check -s exit:0 -o match:"add net" rump.route add -inet6 ${IP6SRCNW} \
-	    ${src_if0_lladdr}%shmif0
+	atf_check -s ignore -o ignore -e ignore \
+	    rump.route delete -inet6 ${IP6SRCNW} ${src_if0_lladdr}%shmif0
+	atf_check -s exit:0 -o match:"add net" \
+	    rump.route add    -inet6 ${IP6SRCNW} ${src_if0_lladdr}%shmif0
 
-	atf_check -s ignore -o ignore -e ignore rump.route delete -inet6 ${IP6DSTNW} \
-	    ${dst_if0_lladdr}%shmif1
-	atf_check -s exit:0 -o match:"add net" rump.route add -inet6 ${IP6DSTNW} \
-	    ${dst_if0_lladdr}%shmif1
+	atf_check -s ignore -o ignore -e ignore \
+	    rump.route delete -inet6 ${IP6DSTNW} ${dst_if0_lladdr}%shmif1
+	atf_check -s exit:0 -o match:"add net" \
+	    rump.route add    -inet6 ${IP6DSTNW} ${dst_if0_lladdr}%shmif1
 	atf_check -s exit:0 -o ignore rump.ifconfig -w 10
 	$DEBUG && rump.netstat -rn -f inet6
 	unset RUMP_SERVER
@@ -197,17 +198,6 @@ cleanup_bus()
 	export RUMP_SERVER=$tmp_rump_server
 }
 
-
-get_lladdr()
-{
-	export RUMP_SERVER=${1}
-	rump.ifconfig ${2} inet6 | grep "fe80" \
-	    | awk '{print $2}' | sed -e "s/%$2//g"
-	unset RUMP_SERVER
-
-	return 0
-}
-
 cleanup_rump_servers()
 {
 
@@ -221,11 +211,11 @@ dump_bus()
 
 	shmif_dumpbus -p - ${BUSSRC} 2>/dev/null| tcpdump -n -e -r -
 	shmif_dumpbus -p - ${BUSDST} 2>/dev/null| tcpdump -n -e -r -
-	shmif_dumpbus -p - ${BUS1} 2>/dev/null| tcpdump -n -e -r -
-	shmif_dumpbus -p - ${BUS2} 2>/dev/null| tcpdump -n -e -r -
+	shmif_dumpbus -p - ${BUS1}   2>/dev/null| tcpdump -n -e -r -
+	shmif_dumpbus -p - ${BUS2}   2>/dev/null| tcpdump -n -e -r -
 }
 
-dump()
+_dump()
 {
 
 	export RUMP_SERVER=${SOCKSRC}
@@ -242,19 +232,21 @@ dump()
 
 linklocal_head()
 {
-	atf_set "descr" "Test for bassically function of the IPv6 linklocal address"
-	atf_set "require.progs" "rump_server rump.route rump.ifconfig rump.ping6"
+	atf_set "descr" \
+	    "Test for bassically function of the IPv6 linklocal address"
+	atf_set "require.progs" \
+	    "rump_server rump.route rump.ifconfig rump.ping6"
 }
 
 linklocal_body()
 {
 	setup
 
-	local src_if0_lladdr=`get_lladdr ${SOCKSRC} shmif0`
-	local src_if1_lladdr=`get_lladdr ${SOCKSRC} shmif1`
-	local dst_if0_lladdr=`get_lladdr ${SOCKDST} shmif0`
-	local fwd_if0_lladdr=`get_lladdr ${SOCKFWD} shmif0`
-	local fwd_if1_lladdr=`get_lladdr ${SOCKFWD} shmif1`
+	local src_if0_lladdr=`get_linklocal_addr ${SOCKSRC} shmif0`
+	local src_if1_lladdr=`get_linklocal_addr ${SOCKSRC} shmif1`
+	local dst_if0_lladdr=`get_linklocal_addr ${SOCKDST} shmif0`
+	local fwd_if0_lladdr=`get_linklocal_addr ${SOCKFWD} shmif0`
+	local fwd_if1_lladdr=`get_linklocal_addr ${SOCKFWD} shmif1`
 
 	export RUMP_SERVER=${SOCKSRC}
 	$DEBUG && rump.ifconfig
@@ -271,7 +263,7 @@ linklocal_body()
 	atf_check -s ignore -o empty -e ignore \
 	    -x "shmif_dumpbus -p - ${BUSSRC} | tcpdump -r - -n -p icmp6"
 	atf_check -s ignore -o not-empty -e ignore \
-	    -x "shmif_dumpbus -p - ${BUS1} | tcpdump -r - -n -p icmp6"
+	    -x "shmif_dumpbus -p - ${BUS1}   | tcpdump -r - -n -p icmp6"
 
 	cleanup_bus
 
@@ -279,7 +271,7 @@ linklocal_body()
 	    rump.ping6 -c 1 -X $TIMEOUT -n -S ${src_if1_lladdr}%shmif1 \
 	    ${fwd_if0_lladdr}%shmif0
 	atf_check -s ignore -o not-match:"${src_if1_lladdr}" -e ignore \
-	    -x "shmif_dumpbus -p - ${BUS1} | tcpdump -r - -n -p icmp6"
+	    -x   "shmif_dumpbus -p - ${BUS1} | tcpdump -r - -n -p icmp6"
 	$DEBUG && shmif_dumpbus -p - ${BUS1} | tcpdump -r - -n -p icmp6
 	unset RUMP_SERVER
 
@@ -290,16 +282,16 @@ linklocal_body()
 	unset RUMP_SERVER
 
 	export RUMP_SERVER=${SOCKSRC}
-	atf_check -s exit:0 -o match:"add net default:" rump.route add -inet6 default \
-	    ${fwd_if0_lladdr}%shmif0
+	atf_check -s exit:0 -o match:"add net default:" \
+	    rump.route add -inet6 default ${fwd_if0_lladdr}%shmif0
 	atf_check -s exit:0 -o ignore rump.ifconfig -w 10
 
 	$DEBUG && rump.ifconfig shmif0
-	$DEBUG && dump
+	$DEBUG && _dump
 
 	export RUMP_SERVER=${SOCKSRC}
 	atf_check -s exit:0 -o match:"0.0% packet loss" \
-	    rump.ping6 -c 1 -X $TIMEOUT -n -S ${src_if0_lladdr}%shmif0 ${IP6FWD0}
+	  rump.ping6 -c 1 -X $TIMEOUT -n -S ${src_if0_lladdr}%shmif0 ${IP6FWD0}
 	unset RUMP_SERVER
 
 	export RUMP_SERVER=${SOCKFWD}
@@ -340,7 +332,7 @@ linklocal_body()
 linklocal_cleanup()
 {
 
-	$DEBUG && dump
+	$DEBUG && _dump
 	$DEBUG && dump_bus
 	cleanup_rump_servers
 }
@@ -348,7 +340,8 @@ linklocal_cleanup()
 linklocal_ops_head()
 {
 
-	atf_set "descr" "Test for various operations to IPv6 linklocal addresses"
+	atf_set "descr" \
+	    "Test for various operations to IPv6 linklocal addresses"
 	atf_set "require.progs" "rump_server rump.route rump.ndp"
 }
 
@@ -358,7 +351,7 @@ linklocal_ops_body()
 
 	setup
 
-	src_if0_lladdr=`get_lladdr ${SOCKSRC} shmif0`
+	src_if0_lladdr=`get_linklocal_addr ${SOCKSRC} shmif0`
 
 	export RUMP_SERVER=${SOCKSRC}
 

@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_athvar.h>
 #include <dev/ath/if_ath_spectral.h>
+#include <dev/ath/if_ath_misc.h>
 
 #include <dev/ath/ath_hal/ah_desc.h>
 
@@ -191,6 +192,10 @@ ath_ioctl_spectral(struct ath_softc *sc, struct ath_diag *ad)
 	if (! ath_hal_spectral_supported(sc->sc_ah))
 		return (EINVAL);
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 	if (ad->ad_id & ATH_DIAG_IN) {
 		/*
 		 * Copy in data.
@@ -285,6 +290,10 @@ bad:
 		free(indata, M_TEMP);
 	if ((ad->ad_id & ATH_DIAG_DYN) && outdata != NULL)
 		free(outdata, M_TEMP);
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
 	return (error);
 }
 

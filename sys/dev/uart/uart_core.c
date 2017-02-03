@@ -677,7 +677,6 @@ uart_bus_attach(device_t dev)
 	 * safest thing to do.
 	 */
 	if (filt != FILTER_SCHEDULE_THREAD && !uart_force_poll) {
-		sc->sc_irid = 0;
 		sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		    &sc->sc_irid, RF_ACTIVE | RF_SHAREABLE);
 	}

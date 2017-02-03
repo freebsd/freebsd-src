@@ -1,4 +1,4 @@
-# $NetBSD: t_ifconfig.sh,v 1.11 2016/08/10 22:30:02 kre Exp $
+# $NetBSD: t_ifconfig.sh,v 1.14 2016/10/01 22:15:04 kre Exp $
 #
 # Copyright (c) 2015 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -33,6 +33,9 @@ RUMP_FLAGS=\
 RUMP_FLAGS="${RUMP_FLAGS} -lrumpdev"
 
 TIMEOUT=3
+
+anycast="[Aa][Nn][Yy][Cc][Aa][Ss][Tt]"
+deprecated="[Dd][Ee][Pp][Rr][Ee][Cc][Aa][Tt][Ee][Dd]"
 
 atf_test_case ifconfig_create_destroy cleanup
 ifconfig_create_destroy_head()
@@ -227,16 +230,17 @@ ifconfig_parameters_body()
 	    rump.ifconfig shmif0
 	# down, up
 	atf_check -s exit:0 rump.ifconfig shmif0 down
-	atf_check -s ignore -o ignore -e match:'down' rump.ping -c 1 \
+	atf_check -s not-exit:0 -o ignore -e ignore rump.ping -c 1 \
 	    -w $TIMEOUT -n 192.168.0.2
 	atf_check -s exit:0 rump.ifconfig shmif0 up
+	atf_check -s exit:0 rump.ifconfig -w 10
 	atf_check -s exit:0 -o ignore rump.ping -c 1 -w $TIMEOUT -n 192.168.0.2
 
 	# alias
 	atf_check -s exit:0 rump.ifconfig shmif0 inet 192.168.1.1/24 alias
-	atf_check -s exit:0 -o match:'alias 192.168.1.1' rump.ifconfig shmif0
+	atf_check -s exit:0 -o match:'192.168.1.1/24' rump.ifconfig shmif0
 	atf_check -s exit:0 rump.ifconfig shmif0 inet 192.168.1.1/24 -alias
-	atf_check -s exit:0 -o not-match:'192.168.1.1' rump.ifconfig shmif0
+	atf_check -s exit:0 -o not-match:'192.168.1.1/24' rump.ifconfig shmif0
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 fc00::1
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 fc00::2
 	atf_check -s exit:0 -o match:'fc00::1' rump.ifconfig shmif0 inet6
@@ -290,22 +294,22 @@ ifconfig_parameters_body()
 
 	# anycast
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 fc00::2 anycast
-	atf_check -s exit:0 -o match:'fc00::2.+anycast' rump.ifconfig shmif0 inet6
+	atf_check -s exit:0 -o match:"fc00::2.+$anycast" rump.ifconfig shmif0 inet6
 
 	# deprecated
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 fc00::3 deprecated
 	# Not deprecated immediately. Need to wait nd6_timer that does it is scheduled.
 	interval=$(sysctl -n net.inet6.icmp6.nd6_prune)
 	atf_check -s exit:0 sleep $((interval + 1))
-	atf_check -s exit:0 -o match:'fc00::3.+deprecated' rump.ifconfig shmif0 inet6
+	atf_check -s exit:0 -o match:"fc00::3.+$deprecated" rump.ifconfig shmif0 inet6
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 fc00::3 -deprecated
-	atf_check -s exit:0 -o not-match:'fc00::3.+deprecated' rump.ifconfig shmif0 inet6
+	atf_check -s exit:0 -o not-match:"fc00::3.+$deprecated" rump.ifconfig shmif0 inet6
 
 	# pltime
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 fc00::3 pltime 3
-	atf_check -s exit:0 -o not-match:'fc00::3.+deprecated' rump.ifconfig shmif0 inet6
+	atf_check -s exit:0 -o not-match:"fc00::3.+$deprecated" rump.ifconfig shmif0 inet6
 	atf_check -s exit:0 sleep 5
-	atf_check -s exit:0 -o match:'fc00::3.+deprecated' rump.ifconfig shmif0 inet6
+	atf_check -s exit:0 -o match:"fc00::3.+$deprecated" rump.ifconfig shmif0 inet6
 
 	# eui64
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 fc00:1::0 eui64

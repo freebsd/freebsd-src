@@ -42,8 +42,6 @@ struct atu_opt {
  * Definitions for the Marvell 88E6000 series Ethernet Switch.
  */
 
-#define CPU_PORT			0x5
-
 /*
  * Switch Registers
  */
@@ -167,19 +165,21 @@ struct atu_opt {
 
 #define PHY_PAGE_REG			22
 
-#define E6000SW_NUM_PHYS		5
+/*
+ * Scratch and Misc register accessed via
+ * 'Switch Global Registers' (REG_GLOBAL2)
+ */
+#define SCR_AND_MISC_REG		0x1a
+
+#define SCR_AND_MISC_PTR_CFG		0x7000
+#define SCR_AND_MISC_DATA_CFG_MASK	0xf0
+
 #define E6000SW_NUM_PHY_REGS		29
-#define E6000SW_CPUPORTS_MASK		((1 << 5) | (1 << 6))
 #define E6000SW_NUM_VGROUPS		8
-#define E6000SW_NUM_PORTS		7
+#define E6000SW_MAX_PORTS		10
 #define E6000SW_PORT_NO_VGROUP		-1
 #define E6000SW_DEFAULT_AGETIME		20
 #define E6000SW_RETRIES			100
-
-
-/* Default vlangroups */
-#define E6000SW_DEF_VLANGROUP0		(1 | (1 << 1) | (1 << 2) | (1 << 3) | \
-    (1 << 6))
-#define E6000SW_DEF_VLANGROUP1		((1 << 4) | (1 << 5))
+#define E6000SW_SMI_TIMEOUT		16
 
 #endif /* _E6000SWREG_H_ */

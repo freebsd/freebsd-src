@@ -90,6 +90,32 @@ r92c_check_condition(struct rtwn_softc *sc, const uint8_t cond[])
 }
 
 int
+r92c_llt_init(struct rtwn_softc *sc)
+{
+	int i, error;
+
+	/* Reserve pages [0; page_count]. */
+	for (i = 0; i < sc->page_count; i++) {
+		if ((error = r92c_llt_write(sc, i, i + 1)) != 0)
+			return (error);
+	}
+	/* NB: 0xff indicates end-of-list. */
+	if ((error = r92c_llt_write(sc, i, 0xff)) != 0)
+		return (error);
+	/*
+	 * Use pages [page_count + 1; pktbuf_count - 1]
+	 * as ring buffer.
+	 */
+	for (++i; i < sc->pktbuf_count - 1; i++) {
+		if ((error = r92c_llt_write(sc, i, i + 1)) != 0)
+			return (error);
+	}
+	/* Make the last page point to the beginning of the ring buffer. */
+	error = r92c_llt_write(sc, i, sc->page_count + 1);
+	return (error);
+}
+
+int
 r92c_set_page_size(struct rtwn_softc *sc)
 {
 	return (rtwn_write_1(sc, R92C_PBP, SM(R92C_PBP_PSRX, R92C_PBP_128) |
@@ -159,6 +185,9 @@ r92c_init_bb_common(struct rtwn_softc *sc)
 			rtwn_delay(sc, 1);
 		}
 	}
+
+	if (rtwn_bb_read(sc, R92C_HSSI_PARAM2(0)) & R92C_HSSI_PARAM2_CCK_HIPWR)
+		sc->sc_flags |= RTWN_FLAG_CCK_HIPWR;
 }
 
 int

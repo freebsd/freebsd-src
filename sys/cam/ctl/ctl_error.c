@@ -129,7 +129,7 @@ ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
 	 * completed.  Therefore we can safely access the LUN structure and
 	 * flags without the lock.
 	 */
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	lun = CTL_LUN(ctsio);
 
 	va_start(ap, ascq);
 	sense_len = 0;
@@ -639,6 +639,18 @@ ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
 		      /*type*/ (sks_valid != 0) ? SSD_ELEM_SKS : SSD_ELEM_SKIP,
 		      /*size*/ sizeof(sks),
 		      /*data*/ sks,
+		      SSD_ELEM_NONE);
+}
+void
+ctl_set_invalid_field_ciu(struct ctl_scsiio *ctsio)
+{
+
+	/* "Invalid field in command information unit" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_ABORTED_COMMAND,
+		      /*ascq*/ 0x0E,
+		      /*ascq*/ 0x03,
 		      SSD_ELEM_NONE);
 }
 

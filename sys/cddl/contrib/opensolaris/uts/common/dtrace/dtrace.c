@@ -4335,7 +4335,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		regs[rd] = LOCK_CLASS(l.li)->lc_owner(l.li, &lowner);
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_MUTEX_OWNER:
@@ -4345,7 +4347,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		LOCK_CLASS(l.li)->lc_owner(l.li, &lowner);
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		regs[rd] = (uintptr_t)lowner;
 		break;
 
@@ -4356,9 +4360,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
-		/* XXX - should be only LC_SLEEPABLE? */
-		regs[rd] = (LOCK_CLASS(l.li)->lc_flags &
-		    (LC_SLEEPLOCK | LC_SLEEPABLE)) != 0;
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
+		regs[rd] = (LOCK_CLASS(l.li)->lc_flags & LC_SLEEPLOCK) != 0;
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_MUTEX_TYPE_SPIN:
@@ -4368,7 +4372,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		regs[rd] = (LOCK_CLASS(l.li)->lc_flags & LC_SPINLOCK) != 0;
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_RW_READ_HELD: 
@@ -4379,8 +4385,10 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		regs[rd] = LOCK_CLASS(l.li)->lc_owner(l.li, &lowner) &&
 		    lowner == NULL;
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_RW_WRITE_HELD:
@@ -4391,8 +4399,10 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr(tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		regs[rd] = LOCK_CLASS(l.li)->lc_owner(l.li, &lowner) &&
 		    lowner != NULL;
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
 	case DIF_SUBR_RW_ISWRITER:
@@ -4403,7 +4413,9 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 			break;
 		}
 		l.lx = dtrace_loadptr(tupregs[0].dttk_value);
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 		LOCK_CLASS(l.li)->lc_owner(l.li, &lowner);
+		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		regs[rd] = (lowner == curthread);
 		break;
 #endif /* illumos */
@@ -16243,18 +16255,11 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 }
 
 static int
-#ifdef __FreeBSD__
 dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp, struct proc *p)
-#else
-dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
-#endif
 {
 	dtrace_helpers_t *help;
 	dtrace_vstate_t *vstate;
 	dtrace_enabling_t *enab = NULL;
-#ifndef __FreeBSD__
-	proc_t *p = curproc;
-#endif
 	int i, gen, rv, nhelpers = 0, nprovs = 0, destroy = 1;
 	uintptr_t daddr = (uintptr_t)dof;
 
@@ -16265,8 +16270,8 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 
 	vstate = &help->dthps_vstate;
 
-	if ((rv = dtrace_dof_slurp(dof, vstate, NULL, &enab,
-	    dhp != NULL ? dhp->dofhp_addr : 0, B_FALSE)) != 0) {
+	if ((rv = dtrace_dof_slurp(dof, vstate, NULL, &enab, dhp->dofhp_addr,
+	    B_FALSE)) != 0) {
 		dtrace_dof_destroy(dof);
 		return (rv);
 	}
@@ -16274,22 +16279,20 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 	/*
 	 * Look for helper providers and validate their descriptions.
 	 */
-	if (dhp != NULL) {
-		for (i = 0; i < dof->dofh_secnum; i++) {
-			dof_sec_t *sec = (dof_sec_t *)(uintptr_t)(daddr +
-			    dof->dofh_secoff + i * dof->dofh_secsize);
+	for (i = 0; i < dof->dofh_secnum; i++) {
+		dof_sec_t *sec = (dof_sec_t *)(uintptr_t)(daddr +
+		    dof->dofh_secoff + i * dof->dofh_secsize);
 
-			if (sec->dofs_type != DOF_SECT_PROVIDER)
-				continue;
+		if (sec->dofs_type != DOF_SECT_PROVIDER)
+			continue;
 
-			if (dtrace_helper_provider_validate(dof, sec) != 0) {
-				dtrace_enabling_destroy(enab);
-				dtrace_dof_destroy(dof);
-				return (-1);
-			}
-
-			nprovs++;
+		if (dtrace_helper_provider_validate(dof, sec) != 0) {
+			dtrace_enabling_destroy(enab);
+			dtrace_dof_destroy(dof);
+			return (-1);
 		}
+
+		nprovs++;
 	}
 
 	/*
@@ -16330,7 +16333,7 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 	gen = help->dthps_generation++;
 	dtrace_enabling_destroy(enab);
 
-	if (dhp != NULL && nprovs > 0) {
+	if (nprovs > 0) {
 		/*
 		 * Now that this is in-kernel, we change the sense of the
 		 * members:  dofhp_dof denotes the in-kernel copy of the DOF

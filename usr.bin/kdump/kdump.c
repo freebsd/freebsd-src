@@ -943,7 +943,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
-				print_mask_arg(sysdecode_getfsstat_flags, *ip);
+				print_integer_arg(sysdecode_getfsstat_mode, *ip);
 				ip++;
 				narg--;
 				break;

@@ -635,6 +635,22 @@ args_parse(args_info *args, int argc, char **argv)
 	// Then from the command line
 	parse_real(args, argc, argv);
 
+	// If encoder or decoder support was omitted at build time,
+	// show an error now so that the rest of the code can rely on
+	// that whatever is in opt_mode is also supported.
+#ifndef HAVE_ENCODERS
+	if (opt_mode == MODE_COMPRESS)
+		message_fatal(_("Compression support was disabled "
+				"at build time"));
+#endif
+#ifndef HAVE_DECODERS
+	// Even MODE_LIST cannot work without decoder support so MODE_COMPRESS
+	// is the only valid choice.
+	if (opt_mode != MODE_COMPRESS)
+		message_fatal(_("Decompression support was disabled "
+				"at build time"));
+#endif
+
 	// Never remove the source file when the destination is not on disk.
 	// In test mode the data is written nowhere, but setting opt_stdout
 	// will make the rest of the code behave well.

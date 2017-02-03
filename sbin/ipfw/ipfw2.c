@@ -591,7 +591,7 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
  * Returns 0 on success or errno otherwise.
  */
 int
-do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
+do_set3(int optname, ip_fw3_opheader *op3, size_t optlen)
 {
 
 	if (co.test_only)
@@ -621,6 +621,7 @@ int
 do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 {
 	int error;
+	socklen_t len;
 
 	if (co.test_only)
 		return (0);
@@ -632,8 +633,9 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 
 	op3->opcode = optname;
 
-	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3,
-	    (socklen_t *)optlen);
+	len = *optlen;
+	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, &len);
+	*optlen = len;
 
 	return (error);
 }

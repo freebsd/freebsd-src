@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2010 Tim Kientzle
+ * Copyright (c) 2016 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,23 +56,31 @@ static struct archive_acl_entry *acl_new_entry(struct archive_acl *acl,
 static int	archive_acl_add_entry_len_l(struct archive_acl *acl,
 		    int type, int permset, int tag, int id, const char *name,
 		    size_t len, struct archive_string_conv *sc);
+static int	archive_acl_text_want_type(struct archive_acl *acl, int flags);
+static ssize_t	archive_acl_text_len(struct archive_acl *acl, int want_type,
+		    int flags, int wide, struct archive *a,
+		    struct archive_string_conv *sc);
 static int	isint_w(const wchar_t *start, const wchar_t *end, int *result);
 static int	ismode_w(const wchar_t *start, const wchar_t *end, int *result);
+static int	is_nfs4_flags_w(const wchar_t *start, const wchar_t *end,
+		    int *result);
+static int	is_nfs4_perms_w(const wchar_t *start, const wchar_t *end,
+		    int *result);
 static void	next_field_w(const wchar_t **wp, const wchar_t **start,
 		    const wchar_t **end, wchar_t *sep);
-static int	prefix_w(const wchar_t *start, const wchar_t *end,
-		    const wchar_t *test);
-static void	append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
-		    const wchar_t *wname, int perm, int id);
+static void	append_entry_w(wchar_t **wp, const wchar_t *prefix, int type,
+		    int tag, int flags, const wchar_t *wname, int perm, int id);
 static void	append_id_w(wchar_t **wp, int id);
 static int	isint(const char *start, const char *end, int *result);
 static int	ismode(const char *start, const char *end, int *result);
+static int	is_nfs4_flags(const char *start, const char *end,
+		    int *result);
+static int	is_nfs4_perms(const char *start, const char *end,
+		    int *result);
 static void	next_field(const char **p, const char **start,
 		    const char **end, char *sep);
-static int	prefix_c(const char *start, const char *end,
-		    const char *test);
-static void	append_entry(char **p, const char *prefix, int tag,
-		    const char *name, int perm, int id);
+static void	append_entry(char **p, const char *prefix, int type,
+		    int tag, int flags, const char *name, int perm, int id);
 static void	append_id(char **p, int id);
 
 void
@@ -340,6 +349,15 @@ archive_acl_count(struct archive_acl *acl, int want_type)
 }
 
 /*
+ * Return a bitmask of stored ACL types in an ACL list
+ */
+int
+archive_acl_types(struct archive_acl *acl)
+{
+	return (acl->acl_types);
+}
+
+/*
  * Prepare for reading entries from the ACL data.  Returns a count
  * of entries matching "want_type", or zero if there are no
  * non-extended ACL entries of that type.
@@ -375,8 +393,8 @@ archive_acl_reset(struct archive_acl *acl, int want_type)
  * standard permissions and include them in the returned list.
  */
 int
-archive_acl_next(struct archive *a, struct archive_acl *acl, int want_type, int *type,
-    int *permset, int *tag, int *id, const char **name)
+archive_acl_next(struct archive *a, struct archive_acl *acl, int want_type,
+    int *type, int *permset, int *tag, int *id, const char **name)
 {
 	*name = NULL;
 	*id = -1;
@@ -441,130 +459,273 @@ archive_acl_next(struct archive *a, struct archive_acl *acl, int want_type, int 
 }
 
 /*
- * Generate a text version of the ACL.  The flags parameter controls
- * the style of the generated ACL.
+ * Determine what type of ACL do we want
  */
-const wchar_t *
-archive_acl_text_w(struct archive *a, struct archive_acl *acl, int flags)
+static int
+archive_acl_text_want_type(struct archive_acl *acl, int flags)
+{
+	int want_type;
+
+	/* Check if ACL is NFSv4 */
+	if ((acl->acl_types & ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0) {
+		/* NFSv4 should never mix with POSIX.1e */
+		if ((acl->acl_types & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0)
+			return (0);
+		else
+			return (ARCHIVE_ENTRY_ACL_TYPE_NFS4);
+	}
+
+	/* Now deal with POSIX.1e ACLs */
+
+	want_type = 0;
+	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)
+		want_type |= ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0)
+		want_type |= ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
+
+	/* By default we want both access and default ACLs */
+	if (want_type == 0)
+		return (ARCHIVE_ENTRY_ACL_TYPE_POSIX1E);
+
+	return (want_type);
+}
+
+/*
+ * Calculate ACL text string length
+ */
+static ssize_t
+archive_acl_text_len(struct archive_acl *acl, int want_type, int flags,
+    int wide, struct archive *a, struct archive_string_conv *sc) {
+	struct archive_acl_entry *ap;
+	const char *name;
+	const wchar_t *wname;
+	int count, idlen, tmp, r;
+	ssize_t length;
+	size_t len;
+
+	count = 0;
+	length = 0;
+	for (ap = acl->acl_head; ap != NULL; ap = ap->next) {
+		if ((ap->type & want_type) == 0)
+			continue;
+		/*
+		 * Filemode-mapping ACL entries are stored exclusively in
+		 * ap->mode so they should not be in the list
+		 */
+		if ((ap->type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS)
+		    && (ap->tag == ARCHIVE_ENTRY_ACL_USER_OBJ
+		    || ap->tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ
+		    || ap->tag == ARCHIVE_ENTRY_ACL_OTHER))
+			continue;
+		count++;
+		if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0
+		    && (ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0)
+			length += 8; /* "default:" */
+		switch (ap->tag) {
+		case ARCHIVE_ENTRY_ACL_USER_OBJ:
+			if (want_type == ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
+				length += 6; /* "owner@" */
+				break;
+			}
+			/* FALLTHROUGH */
+		case ARCHIVE_ENTRY_ACL_USER:
+		case ARCHIVE_ENTRY_ACL_MASK:
+			length += 4; /* "user", "mask" */
+			break;
+		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
+			if (want_type == ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
+				length += 6; /* "group@" */
+				break;
+			}
+			/* FALLTHROUGH */
+		case ARCHIVE_ENTRY_ACL_GROUP:
+		case ARCHIVE_ENTRY_ACL_OTHER:
+			length += 5; /* "group", "other" */
+			break;
+		case ARCHIVE_ENTRY_ACL_EVERYONE:
+			length += 9; /* "everyone@" */
+			break;
+		}
+		length += 1; /* colon after tag */
+		if (ap->tag == ARCHIVE_ENTRY_ACL_USER ||
+		    ap->tag == ARCHIVE_ENTRY_ACL_GROUP) {
+			if (wide) {
+				r = archive_mstring_get_wcs(a, &ap->name,
+				    &wname);
+				if (r == 0 && wname != NULL)
+					length += wcslen(wname);
+				else if (r < 0 && errno == ENOMEM)
+					return (0);
+				else
+					length += sizeof(uid_t) * 3 + 1;
+			} else {
+				r = archive_mstring_get_mbs_l(&ap->name, &name,
+				    &len, sc);
+				if (r != 0)
+					return (0);
+				if (len > 0 && name != NULL)
+					length += len;
+				else
+					length += sizeof(uid_t) * 3 + 1;
+			}
+			length += 1; /* colon after user or group name */
+		} else if (want_type != ARCHIVE_ENTRY_ACL_TYPE_NFS4)
+			length += 1; /* 2nd colon empty user,group or other */
+
+		if (((flags & ARCHIVE_ENTRY_ACL_STYLE_SOLARIS) != 0)
+		    && ((want_type & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0)
+		    && (ap->tag == ARCHIVE_ENTRY_ACL_OTHER
+		    || ap->tag == ARCHIVE_ENTRY_ACL_MASK)) {
+			/* Solaris has no colon after other: and mask: */
+			length = length - 1;
+		}
+
+		if (want_type == ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
+			/* rwxpdDaARWcCos:fdinSFI:deny */
+			length += 27;
+			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DENY) == 0)
+				length += 1; /* allow, alarm, audit */
+		} else
+			length += 3; /* rwx */
+
+		if ((ap->tag == ARCHIVE_ENTRY_ACL_USER ||
+		    ap->tag == ARCHIVE_ENTRY_ACL_GROUP) &&
+		    (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID) != 0) {
+			length += 1; /* colon */
+			/* ID digit count */
+			idlen = 1;
+			tmp = ap->id;
+			while (tmp > 9) {
+				tmp = tmp / 10;
+				idlen++;
+			}
+			length += idlen;
+		}
+		length ++; /* entry separator */
+	}
+
+	/* Add filemode-mapping access entries to the length */
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+		if ((flags & ARCHIVE_ENTRY_ACL_STYLE_SOLARIS) != 0) {
+			/* "user::rwx\ngroup::rwx\nother:rwx\n" */
+			length += 31;
+		} else {
+			/* "user::rwx\ngroup::rwx\nother::rwx\n" */
+			length += 32;
+		}
+	} else if (count == 0)
+		return (0);
+
+	/* The terminating character is included in count */
+	return (length);
+}
+
+/*
+ * Generate a wide text version of the ACL. The flags parameter controls
+ * the type and style of the generated ACL.
+ */
+wchar_t *
+archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
+    struct archive *a)
 {
 	int count;
-	size_t length;
+	ssize_t length;
+	size_t len;
 	const wchar_t *wname;
 	const wchar_t *prefix;
 	wchar_t separator;
 	struct archive_acl_entry *ap;
-	int id, r;
-	wchar_t *wp;
+	int id, r, want_type;
+	wchar_t *wp, *ws;
 
-	if (acl->acl_text_w != NULL) {
-		free (acl->acl_text_w);
-		acl->acl_text_w = NULL;
-	}
+	want_type = archive_acl_text_want_type(acl, flags);
 
-	separator = L',';
-	count = 0;
-	length = 0;
-	ap = acl->acl_head;
-	while (ap != NULL) {
-		if ((ap->type & flags) != 0) {
-			count++;
-			if ((flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT) &&
-			    (ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT))
-				length += 8; /* "default:" */
-			length += 5; /* tag name */
-			length += 1; /* colon */
-			r = archive_mstring_get_wcs(a, &ap->name, &wname);
-			if (r == 0 && wname != NULL)
-				length += wcslen(wname);
-			else if (r < 0 && errno == ENOMEM)
-				return (NULL);
-			else
-				length += sizeof(uid_t) * 3 + 1;
-			length ++; /* colon */
-			length += 3; /* rwx */
-			length += 1; /* colon */
-			length += max(sizeof(uid_t), sizeof(gid_t)) * 3 + 1;
-			length ++; /* newline */
-		}
-		ap = ap->next;
-	}
-
-	if (count > 0 && ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)) {
-		length += 10; /* "user::rwx\n" */
-		length += 11; /* "group::rwx\n" */
-		length += 11; /* "other::rwx\n" */
-	}
-
-	if (count == 0)
+	/* Both NFSv4 and POSIX.1 types found */
+	if (want_type == 0)
 		return (NULL);
+
+	if (want_type == ARCHIVE_ENTRY_ACL_TYPE_POSIX1E)
+		flags |= ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT;
+
+	length = archive_acl_text_len(acl, want_type, flags, 1, a, NULL);
+
+	if (length == 0)
+		return (NULL);
+
+	if (flags & ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA)
+		separator = L',';
+	else
+		separator = L'\n';
 
 	/* Now, allocate the string and actually populate it. */
-	wp = acl->acl_text_w = (wchar_t *)malloc(length * sizeof(wchar_t));
-	if (wp == NULL)
+	wp = ws = (wchar_t *)malloc(length * sizeof(wchar_t));
+	if (wp == NULL) {
+		if (errno == ENOMEM)
+			__archive_errx(1, "No memory");
 		return (NULL);
+	}
 	count = 0;
-	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
-		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_USER_OBJ, NULL,
+
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+		    ARCHIVE_ENTRY_ACL_USER_OBJ, flags, NULL,
 		    acl->mode & 0700, -1);
-		*wp++ = ',';
-		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_GROUP_OBJ, NULL,
+		*wp++ = separator;
+		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+		    ARCHIVE_ENTRY_ACL_GROUP_OBJ, flags, NULL,
 		    acl->mode & 0070, -1);
-		*wp++ = ',';
-		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_OTHER, NULL,
+		*wp++ = separator;
+		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+		    ARCHIVE_ENTRY_ACL_OTHER, flags, NULL,
 		    acl->mode & 0007, -1);
 		count += 3;
-
-		ap = acl->acl_head;
-		while (ap != NULL) {
-			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
-				r = archive_mstring_get_wcs(a, &ap->name, &wname);
-				if (r == 0) {
-					*wp++ = separator;
-					if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
-						id = ap->id;
-					else
-						id = -1;
-					append_entry_w(&wp, NULL, ap->tag, wname,
-					    ap->permset, id);
-					count++;
-				} else if (r < 0 && errno == ENOMEM)
-					return (NULL);
-			}
-			ap = ap->next;
-		}
 	}
 
-
-	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
-		if (flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT)
+	for (ap = acl->acl_head; ap != NULL; ap = ap->next) {
+		if ((ap->type & want_type) == 0)
+			continue;
+		/*
+		 * Filemode-mapping ACL entries are stored exclusively in
+		 * ap->mode so they should not be in the list
+		 */
+		if ((ap->type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS)
+		    && (ap->tag == ARCHIVE_ENTRY_ACL_USER_OBJ
+		    || ap->tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ
+		    || ap->tag == ARCHIVE_ENTRY_ACL_OTHER))
+			continue;
+		if (ap->type == ARCHIVE_ENTRY_ACL_TYPE_DEFAULT &&
+		    (flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT) != 0)
 			prefix = L"default:";
 		else
 			prefix = NULL;
-		ap = acl->acl_head;
-		count = 0;
-		while (ap != NULL) {
-			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
-				r = archive_mstring_get_wcs(a, &ap->name, &wname);
-				if (r == 0) {
-					if (count > 0)
-						*wp++ = separator;
-					if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
-						id = ap->id;
-					else
-						id = -1;
-					append_entry_w(&wp, prefix, ap->tag,
-					    wname, ap->permset, id);
-					count ++;
-				} else if (r < 0 && errno == ENOMEM)
-					return (NULL);
-			}
-			ap = ap->next;
-		}
+		r = archive_mstring_get_wcs(a, &ap->name, &wname);
+		if (r == 0) {
+			if (count > 0)
+				*wp++ = separator;
+			if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+				id = ap->id;
+			else
+				id = -1;
+			append_entry_w(&wp, prefix, ap->type, ap->tag, flags,
+			    wname, ap->permset, id);
+			count++;
+		} else if (r < 0 && errno == ENOMEM)
+			return (NULL);
 	}
 
-	return (acl->acl_text_w);
-}
+	/* Add terminating character */
+	*wp++ = L'\0';
 
+	len = wcslen(ws);
+
+	if ((ssize_t)len > (length - 1))
+		__archive_errx(1, "Buffer overrun");
+
+	if (text_len != NULL)
+		*text_len = len;
+
+	return (ws);
+}
 
 static void
 append_id_w(wchar_t **wp, int id)
@@ -577,8 +738,8 @@ append_id_w(wchar_t **wp, int id)
 }
 
 static void
-append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
-    const wchar_t *wname, int perm, int id)
+append_entry_w(wchar_t **wp, const wchar_t *prefix, int type,
+    int tag, int flags, const wchar_t *wname, int perm, int id)
 {
 	if (prefix != NULL) {
 		wcscpy(*wp, prefix);
@@ -588,6 +749,10 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
 	case ARCHIVE_ENTRY_ACL_USER_OBJ:
 		wname = NULL;
 		id = -1;
+		if ((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0) {
+			wcscpy(*wp, L"owner@");
+			break;
+		}
 		/* FALLTHROUGH */
 	case ARCHIVE_ENTRY_ACL_USER:
 		wcscpy(*wp, L"user");
@@ -595,6 +760,10 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
 	case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
 		wname = NULL;
 		id = -1;
+		if ((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0) {
+			wcscpy(*wp, L"group@");
+			break;
+		}
 		/* FALLTHROUGH */
 	case ARCHIVE_ENTRY_ACL_GROUP:
 		wcscpy(*wp, L"group");
@@ -609,154 +778,210 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
 		wname = NULL;
 		id = -1;
 		break;
+	case ARCHIVE_ENTRY_ACL_EVERYONE:
+		wcscpy(*wp, L"everyone@");
+		wname = NULL;
+		id = -1;
+		break;
 	}
 	*wp += wcslen(*wp);
 	*(*wp)++ = L':';
-	if (wname != NULL) {
-		wcscpy(*wp, wname);
-		*wp += wcslen(*wp);
-	} else if (tag == ARCHIVE_ENTRY_ACL_USER
-	    || tag == ARCHIVE_ENTRY_ACL_GROUP) {
-		append_id_w(wp, id);
-		id = -1;
+	if (((type & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0) ||
+	    tag == ARCHIVE_ENTRY_ACL_USER ||
+	    tag == ARCHIVE_ENTRY_ACL_GROUP) {
+		if (wname != NULL) {
+			wcscpy(*wp, wname);
+			*wp += wcslen(*wp);
+		} else if (tag == ARCHIVE_ENTRY_ACL_USER
+		    || tag == ARCHIVE_ENTRY_ACL_GROUP) {
+			append_id_w(wp, id);
+			if ((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) == 0)
+				id = -1;
+		}
+		/* Solaris style has no second colon after other and mask */
+		if (((flags & ARCHIVE_ENTRY_ACL_STYLE_SOLARIS) == 0)
+		    || (tag != ARCHIVE_ENTRY_ACL_OTHER
+		    && tag != ARCHIVE_ENTRY_ACL_MASK))
+			*(*wp)++ = L':';
 	}
-	*(*wp)++ = L':';
-	*(*wp)++ = (perm & 0444) ? L'r' : L'-';
-	*(*wp)++ = (perm & 0222) ? L'w' : L'-';
-	*(*wp)++ = (perm & 0111) ? L'x' : L'-';
+	if ((type & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0) {
+		/* POSIX.1e ACL perms */
+		*(*wp)++ = (perm & 0444) ? L'r' : L'-';
+		*(*wp)++ = (perm & 0222) ? L'w' : L'-';
+		*(*wp)++ = (perm & 0111) ? L'x' : L'-';
+	} else {
+		/* NFS4 ACL perms */
+		*(*wp)++ = (perm & (ARCHIVE_ENTRY_ACL_READ_DATA |
+		    ARCHIVE_ENTRY_ACL_LIST_DIRECTORY)) ? L'r' : L'-';
+		*(*wp)++ = (perm & (ARCHIVE_ENTRY_ACL_WRITE_DATA |
+		    ARCHIVE_ENTRY_ACL_ADD_FILE)) ? L'w' : L'-';
+		*(*wp)++ = (perm & ARCHIVE_ENTRY_ACL_EXECUTE) ? L'x' : L'-';
+		*(*wp)++ = (perm & (ARCHIVE_ENTRY_ACL_APPEND_DATA |
+		    ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY)) ? L'p' : L'-';
+		*(*wp)++ = (perm & ARCHIVE_ENTRY_ACL_DELETE) ? L'd' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_DELETE_CHILD) ? L'D' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES) ? L'a' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES) ? L'A' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS) ? L'R' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS) ? L'W' : L'-';
+		*(*wp)++ = (perm & ARCHIVE_ENTRY_ACL_READ_ACL) ? L'c' : L'-';
+		*(*wp)++ = (perm & ARCHIVE_ENTRY_ACL_WRITE_ACL) ? L'C' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_WRITE_OWNER) ? L'o' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_SYNCHRONIZE) ? L's' : L'-';
+		*(*wp)++ = L':';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT) ? L'f' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT) ? L'd' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY) ? L'i' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT) ? L'n' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS) ? L'S' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS) ? L'F' : L'-';
+		*(*wp)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_INHERITED) ? L'I' : L'-';
+		*(*wp)++ = L':';
+		switch (type) {
+		case ARCHIVE_ENTRY_ACL_TYPE_ALLOW:
+			wcscpy(*wp, L"allow");
+			break;
+		case ARCHIVE_ENTRY_ACL_TYPE_DENY:
+			wcscpy(*wp, L"deny");
+			break;
+		case ARCHIVE_ENTRY_ACL_TYPE_AUDIT:
+			wcscpy(*wp, L"audit");
+			break;
+		case ARCHIVE_ENTRY_ACL_TYPE_ALARM:
+			wcscpy(*wp, L"alarm");
+			break;
+		default:
+			break;
+		}
+		*wp += wcslen(*wp);
+	}
 	if (id != -1) {
 		*(*wp)++ = L':';
 		append_id_w(wp, id);
 	}
-	**wp = L'\0';
 }
 
-int
-archive_acl_text_l(struct archive_acl *acl, int flags,
-    const char **acl_text, size_t *acl_text_len,
+/*
+ * Generate a text version of the ACL. The flags parameter controls
+ * the type and style of the generated ACL.
+ */
+char *
+archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
     struct archive_string_conv *sc)
 {
 	int count;
-	size_t length;
+	ssize_t length;
+	size_t len;
 	const char *name;
 	const char *prefix;
 	char separator;
 	struct archive_acl_entry *ap;
-	size_t len;
-	int id, r;
-	char *p;
+	int id, r, want_type;
+	char *p, *s;
 
-	if (acl->acl_text != NULL) {
-		free (acl->acl_text);
-		acl->acl_text = NULL;
-	}
+	want_type = archive_acl_text_want_type(acl, flags);
 
-	*acl_text = NULL;
-	if (acl_text_len != NULL)
-		*acl_text_len = 0;
-	separator = ',';
-	count = 0;
-	length = 0;
-	ap = acl->acl_head;
-	while (ap != NULL) {
-		if ((ap->type & flags) != 0) {
-			count++;
-			if ((flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT) &&
-			    (ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT))
-				length += 8; /* "default:" */
-			length += 5; /* tag name */
-			length += 1; /* colon */
-			r = archive_mstring_get_mbs_l(
-			    &ap->name, &name, &len, sc);
-			if (r != 0)
-				return (-1);
-			if (len > 0 && name != NULL)
-				length += len;
-			else
-				length += sizeof(uid_t) * 3 + 1;
-			length ++; /* colon */
-			length += 3; /* rwx */
-			length += 1; /* colon */
-			length += max(sizeof(uid_t), sizeof(gid_t)) * 3 + 1;
-			length ++; /* newline */
-		}
-		ap = ap->next;
-	}
+	/* Both NFSv4 and POSIX.1 types found */
+	if (want_type == 0)
+		return (NULL);
 
-	if (count > 0 && ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)) {
-		length += 10; /* "user::rwx\n" */
-		length += 11; /* "group::rwx\n" */
-		length += 11; /* "other::rwx\n" */
-	}
+	if (want_type == ARCHIVE_ENTRY_ACL_TYPE_POSIX1E)
+		flags |= ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT;
 
-	if (count == 0)
-		return (0);
+	length = archive_acl_text_len(acl, want_type, flags, 0, NULL, sc);
+
+	if (length == 0)
+		return (NULL);
+
+	if (flags & ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA)
+		separator = ',';
+	else
+		separator = '\n';
 
 	/* Now, allocate the string and actually populate it. */
-	p = acl->acl_text = (char *)malloc(length);
-	if (p == NULL)
-		return (-1);
+	p = s = (char *)malloc(length * sizeof(char));
+	if (p == NULL) {
+		if (errno == ENOMEM)
+			__archive_errx(1, "No memory");
+		return (NULL);
+	}
 	count = 0;
-	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
-		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_USER_OBJ, NULL,
+
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+		    ARCHIVE_ENTRY_ACL_USER_OBJ, flags, NULL,
 		    acl->mode & 0700, -1);
-		*p++ = ',';
-		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_GROUP_OBJ, NULL,
+		*p++ = separator;
+		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+		    ARCHIVE_ENTRY_ACL_GROUP_OBJ, flags, NULL,
 		    acl->mode & 0070, -1);
-		*p++ = ',';
-		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_OTHER, NULL,
+		*p++ = separator;
+		append_entry(&p, NULL, ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+		    ARCHIVE_ENTRY_ACL_OTHER, flags, NULL,
 		    acl->mode & 0007, -1);
 		count += 3;
-
-		for (ap = acl->acl_head; ap != NULL; ap = ap->next) {
-			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) == 0)
-				continue;
-			r = archive_mstring_get_mbs_l(
-			    &ap->name, &name, &len, sc);
-			if (r != 0)
-				return (-1);
-			*p++ = separator;
-			if (name == NULL || (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)) {
-				id = ap->id;
-			} else {
-				id = -1;
-			}
-			append_entry(&p, NULL, ap->tag, name,
-			    ap->permset, id);
-			count++;
-		}
 	}
 
-
-	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
-		if (flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT)
+	for (ap = acl->acl_head; ap != NULL; ap = ap->next) {
+		if ((ap->type & want_type) == 0)
+			continue;
+		/*
+		 * Filemode-mapping ACL entries are stored exclusively in
+		 * ap->mode so they should not be in the list
+		 */
+		if ((ap->type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS)
+		    && (ap->tag == ARCHIVE_ENTRY_ACL_USER_OBJ
+		    || ap->tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ
+		    || ap->tag == ARCHIVE_ENTRY_ACL_OTHER))
+			continue;
+		if (ap->type == ARCHIVE_ENTRY_ACL_TYPE_DEFAULT &&
+		    (flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT) != 0)
 			prefix = "default:";
 		else
 			prefix = NULL;
-		count = 0;
-		for (ap = acl->acl_head; ap != NULL; ap = ap->next) {
-			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) == 0)
-				continue;
-			r = archive_mstring_get_mbs_l(
-			    &ap->name, &name, &len, sc);
-			if (r != 0)
-				return (-1);
-			if (count > 0)
-				*p++ = separator;
-			if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
-				id = ap->id;
-			else
-				id = -1;
-			append_entry(&p, prefix, ap->tag,
-			    name, ap->permset, id);
-			count ++;
+		r = archive_mstring_get_mbs_l(
+		    &ap->name, &name, &len, sc);
+		if (r != 0)
+			return (NULL);
+		if (count > 0)
+			*p++ = separator;
+		if (name == NULL ||
+		    (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)) {
+			id = ap->id;
+		} else {
+			id = -1;
 		}
+		append_entry(&p, prefix, ap->type, ap->tag, flags, name,
+		    ap->permset, id);
+		count++;
 	}
 
-	*acl_text = acl->acl_text;
-	if (acl_text_len != NULL)
-		*acl_text_len = strlen(acl->acl_text);
-	return (0);
+	/* Add terminating character */
+	*p++ = '\0';
+
+	len = strlen(s);
+
+	if ((ssize_t)len > (length - 1))
+		__archive_errx(1, "Buffer overrun");
+
+	if (text_len != NULL)
+		*text_len = len;
+
+	return (s);
 }
 
 static void
@@ -770,8 +995,8 @@ append_id(char **p, int id)
 }
 
 static void
-append_entry(char **p, const char *prefix, int tag,
-    const char *name, int perm, int id)
+append_entry(char **p, const char *prefix, int type,
+    int tag, int flags, const char *name, int perm, int id)
 {
 	if (prefix != NULL) {
 		strcpy(*p, prefix);
@@ -781,6 +1006,10 @@ append_entry(char **p, const char *prefix, int tag,
 	case ARCHIVE_ENTRY_ACL_USER_OBJ:
 		name = NULL;
 		id = -1;
+		if ((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0) {
+			strcpy(*p, "owner@");
+			break;
+		}
 		/* FALLTHROUGH */
 	case ARCHIVE_ENTRY_ACL_USER:
 		strcpy(*p, "user");
@@ -788,6 +1017,10 @@ append_entry(char **p, const char *prefix, int tag,
 	case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
 		name = NULL;
 		id = -1;
+		if ((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0) {
+			strcpy(*p, "group@");
+			break;
+		}
 		/* FALLTHROUGH */
 	case ARCHIVE_ENTRY_ACL_GROUP:
 		strcpy(*p, "group");
@@ -802,48 +1035,147 @@ append_entry(char **p, const char *prefix, int tag,
 		name = NULL;
 		id = -1;
 		break;
+	case ARCHIVE_ENTRY_ACL_EVERYONE:
+		strcpy(*p, "everyone@");
+		name = NULL;
+		id = -1;
+		break;
 	}
 	*p += strlen(*p);
 	*(*p)++ = ':';
-	if (name != NULL) {
-		strcpy(*p, name);
-		*p += strlen(*p);
-	} else if (tag == ARCHIVE_ENTRY_ACL_USER
-	    || tag == ARCHIVE_ENTRY_ACL_GROUP) {
-		append_id(p, id);
-		id = -1;
+	if (((type & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0) ||
+	    tag == ARCHIVE_ENTRY_ACL_USER ||
+	    tag == ARCHIVE_ENTRY_ACL_GROUP) {
+		if (name != NULL) {
+			strcpy(*p, name);
+			*p += strlen(*p);
+		} else if (tag == ARCHIVE_ENTRY_ACL_USER
+		    || tag == ARCHIVE_ENTRY_ACL_GROUP) {
+			append_id(p, id);
+			if ((type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) == 0)
+				id = -1;
+		}
+		/* Solaris style has no second colon after other and mask */
+		if (((flags & ARCHIVE_ENTRY_ACL_STYLE_SOLARIS) == 0)
+		    || (tag != ARCHIVE_ENTRY_ACL_OTHER
+		    && tag != ARCHIVE_ENTRY_ACL_MASK))
+			*(*p)++ = ':';
 	}
-	*(*p)++ = ':';
-	*(*p)++ = (perm & 0444) ? 'r' : '-';
-	*(*p)++ = (perm & 0222) ? 'w' : '-';
-	*(*p)++ = (perm & 0111) ? 'x' : '-';
+	if ((type & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0) {
+		/* POSIX.1e ACL perms */
+		*(*p)++ = (perm & 0444) ? 'r' : '-';
+		*(*p)++ = (perm & 0222) ? 'w' : '-';
+		*(*p)++ = (perm & 0111) ? 'x' : '-';
+	} else {
+		/* NFS4 ACL perms */
+		*(*p)++ = (perm & (ARCHIVE_ENTRY_ACL_READ_DATA |
+		    ARCHIVE_ENTRY_ACL_LIST_DIRECTORY)) ? 'r' : '-';
+		*(*p)++ = (perm & (ARCHIVE_ENTRY_ACL_WRITE_DATA |
+		    ARCHIVE_ENTRY_ACL_ADD_FILE)) ? 'w' : '-';
+		*(*p)++ = (perm & (ARCHIVE_ENTRY_ACL_EXECUTE)) ? 'x' : '-';
+		*(*p)++ = (perm & (ARCHIVE_ENTRY_ACL_APPEND_DATA |
+		    ARCHIVE_ENTRY_ACL_ADD_SUBDIRECTORY)) ? 'p' : '-';
+		*(*p)++ = (perm & ARCHIVE_ENTRY_ACL_DELETE) ? 'd' : '-';
+		*(*p)++ = (perm & ARCHIVE_ENTRY_ACL_DELETE_CHILD) ? 'D' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES) ? 'a' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES) ? 'A' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS) ? 'R' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS) ? 'W' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_READ_ACL) ? 'c' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_WRITE_ACL) ? 'C' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_WRITE_OWNER) ? 'o' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_SYNCHRONIZE) ? 's' : '-';
+		*(*p)++ = ':';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT) ? 'f' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT) ? 'd' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY) ? 'i' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT) ? 'n' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS) ? 'S' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS) ? 'F' : '-';
+		*(*p)++ = (perm &
+		    ARCHIVE_ENTRY_ACL_ENTRY_INHERITED) ? 'I' : '-';
+		*(*p)++ = ':';
+		switch (type) {
+		case ARCHIVE_ENTRY_ACL_TYPE_ALLOW:
+			strcpy(*p, "allow");
+			break;
+		case ARCHIVE_ENTRY_ACL_TYPE_DENY:
+			strcpy(*p, "deny");
+			break;
+		case ARCHIVE_ENTRY_ACL_TYPE_AUDIT:
+			strcpy(*p, "audit");
+			break;
+		case ARCHIVE_ENTRY_ACL_TYPE_ALARM:
+			strcpy(*p, "alarm");
+			break;
+		}
+		*p += strlen(*p);
+	}
 	if (id != -1) {
 		*(*p)++ = ':';
 		append_id(p, id);
 	}
-	**p = '\0';
 }
 
 /*
- * Parse a textual ACL.  This automatically recognizes and supports
- * extensions described above.  The 'type' argument is used to
- * indicate the type that should be used for any entries not
- * explicitly marked as "default:".
+ * Parse a wide ACL text string.
+ *
+ * The want_type argument may be one of the following:
+ * ARCHIVE_ENTRY_ACL_TYPE_ACCESS - text is a POSIX.1e ACL of type ACCESS
+ * ARCHIVE_ENTRY_ACL_TYPE_DEFAULT - text is a POSIX.1e ACL of type DEFAULT
+ * ARCHIVE_ENTRY_ACL_TYPE_NFS4 - text is as a NFSv4 ACL
+ *
+ * POSIX.1e ACL entries prefixed with "default:" are treated as
+ * ARCHIVE_ENTRY_ACL_TYPE_DEFAULT unless type is ARCHIVE_ENTRY_ACL_TYPE_NFS4
  */
 int
-archive_acl_parse_w(struct archive_acl *acl,
-    const wchar_t *text, int default_type)
+archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
+    int want_type)
 {
 	struct {
 		const wchar_t *start;
 		const wchar_t *end;
-	} field[4], name;
+	} field[6], name;
 
-	int fields, n;
-	int type, tag, permset, id;
+	const wchar_t *s, *st;
+
+	int numfields, fields, n, r, sol, ret;
+	int type, types, tag, permset, id;
+	size_t len;
 	wchar_t sep;
 
-	while (text != NULL  &&  *text != L'\0') {
+	ret = ARCHIVE_OK;
+	types = 0;
+
+	switch (want_type) {
+	case ARCHIVE_ENTRY_ACL_TYPE_POSIX1E:
+		want_type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+	case ARCHIVE_ENTRY_ACL_TYPE_ACCESS:
+	case ARCHIVE_ENTRY_ACL_TYPE_DEFAULT:
+		numfields = 5;
+		break;
+	case ARCHIVE_ENTRY_ACL_TYPE_NFS4:
+		numfields = 6;
+		break;
+	default:
+		return (ARCHIVE_FATAL);
+	}
+
+	while (text != NULL && *text != L'\0') {
 		/*
 		 * Parse the fields out of the next entry,
 		 * advance 'text' to start of next entry.
@@ -852,7 +1184,7 @@ archive_acl_parse_w(struct archive_acl *acl,
 		do {
 			const wchar_t *start, *end;
 			next_field_w(&text, &start, &end, &sep);
-			if (fields < 4) {
+			if (fields < numfields) {
 				field[fields].start = start;
 				field[fields].end = end;
 			}
@@ -860,78 +1192,210 @@ archive_acl_parse_w(struct archive_acl *acl,
 		} while (sep == L':');
 
 		/* Set remaining fields to blank. */
-		for (n = fields; n < 4; ++n)
+		for (n = fields; n < numfields; ++n)
 			field[n].start = field[n].end = NULL;
 
-		/* Check for a numeric ID in field 1 or 3. */
+		if (field[0].start != NULL && *(field[0].start) == L'#') {
+			/* Comment, skip entry */
+			continue;
+		}
+
+		n = 0;
+		sol = 0;
 		id = -1;
-		isint_w(field[1].start, field[1].end, &id);
-		/* Field 3 is optional. */
-		if (id == -1 && fields > 3)
-			isint_w(field[3].start, field[3].end, &id);
-
-		/*
-		 * Solaris extension:  "defaultuser::rwx" is the
-		 * default ACL corresponding to "user::rwx", etc.
-		 */
-		if (field[0].end - field[0].start > 7
-		    && wmemcmp(field[0].start, L"default", 7) == 0) {
-			type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
-			field[0].start += 7;
-		} else
-			type = default_type;
-
+		permset = 0;
 		name.start = name.end = NULL;
-		if (prefix_w(field[0].start, field[0].end, L"user")) {
-			if (!ismode_w(field[2].start, field[2].end, &permset))
-				return (ARCHIVE_WARN);
-			if (id != -1 || field[1].start < field[1].end) {
-				tag = ARCHIVE_ENTRY_ACL_USER;
+
+		if (want_type != ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
+			/* POSIX.1e ACLs */
+			/*
+			 * Default keyword "default:user::rwx"
+			 * if found, we have one more field
+			 *
+			 * We also support old Solaris extension:
+			 * "defaultuser::rwx" is the default ACL corresponding
+			 * to "user::rwx", etc. valid only for first field
+			 */
+			s = field[0].start;
+			len = field[0].end - field[0].start;
+			if (*s == L'd' && (len == 1 || (len >= 7
+			    && wmemcmp((s + 1), L"efault", 6) == 0))) {
+				type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
+				if (len > 7)
+					field[0].start += 7;
+				else
+					n = 1;
+			} else
+				type = want_type;
+
+			/* Check for a numeric ID in field n+1 or n+3. */
+			isint_w(field[n + 1].start, field[n + 1].end, &id);
+			/* Field n+3 is optional. */
+			if (id == -1 && fields > n+3)
+				isint_w(field[n + 3].start, field[n + 3].end,
+				    &id);
+
+			tag = 0;
+			s = field[n].start;
+			st = field[n].start + 1;
+			len = field[n].end - field[n].start;
+
+			switch (*s) {
+			case L'u':
+				if (len == 1 || (len == 4
+				    && wmemcmp(st, L"ser", 3) == 0))
+					tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
+				break;
+			case L'g':
+				if (len == 1 || (len == 5
+				    && wmemcmp(st, L"roup", 4) == 0))
+					tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+				break;
+			case L'o':
+				if (len == 1 || (len == 5
+				    && wmemcmp(st, L"ther", 4) == 0))
+					tag = ARCHIVE_ENTRY_ACL_OTHER;
+				break;
+			case L'm':
+				if (len == 1 || (len == 4
+				    && wmemcmp(st, L"ask", 3) == 0))
+					tag = ARCHIVE_ENTRY_ACL_MASK;
+				break;
+			default:
+					break;
+			}
+
+			switch (tag) {
+			case ARCHIVE_ENTRY_ACL_OTHER:
+			case ARCHIVE_ENTRY_ACL_MASK:
+				if (fields == (n + 2)
+				    && field[n + 1].start < field[n + 1].end
+				    && ismode_w(field[n + 1].start,
+				    field[n + 1].end, &permset)) {
+					/* This is Solaris-style "other:rwx" */
+					sol = 1;
+				} else if (fields == (n + 3) &&
+				    field[n + 1].start < field[n + 1].end) {
+					/* Invalid mask or other field */
+					ret = ARCHIVE_WARN;
+					continue;
+				}
+				break;
+			case ARCHIVE_ENTRY_ACL_USER_OBJ:
+			case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
+				if (id != -1 ||
+				    field[n + 1].start < field[n + 1].end) {
+					name = field[n + 1];
+					if (tag == ARCHIVE_ENTRY_ACL_USER_OBJ)
+						tag = ARCHIVE_ENTRY_ACL_USER;
+					else
+						tag = ARCHIVE_ENTRY_ACL_GROUP;
+				}
+				break;
+			default:
+				/* Invalid tag, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+
+			/*
+			 * Without "default:" we expect mode in field 2
+			 * Exception: Solaris other and mask fields
+			 */
+			if (permset == 0 && !ismode_w(field[n + 2 - sol].start,
+			    field[n + 2 - sol].end, &permset)) {
+				/* Invalid mode, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+		} else {
+			/* NFS4 ACLs */
+			s = field[0].start;
+			len = field[0].end - field[0].start;
+			tag = 0;
+
+			switch (len) {
+			case 4:
+				if (wmemcmp(s, L"user", 4) == 0)
+					tag = ARCHIVE_ENTRY_ACL_USER;
+				break;
+			case 5:
+				if (wmemcmp(s, L"group", 5) == 0)
+					tag = ARCHIVE_ENTRY_ACL_GROUP;
+				break;
+			case 6:
+				if (wmemcmp(s, L"owner@", 6) == 0)
+					tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
+				else if (wmemcmp(s, L"group@", len) == 0)
+					tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+				break;
+			case 9:
+				if (wmemcmp(s, L"everyone@", 9) == 0)
+					tag = ARCHIVE_ENTRY_ACL_EVERYONE;
+			default:
+				break;
+			}
+
+			if (tag == 0) {
+				/* Invalid tag, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			} else if (tag == ARCHIVE_ENTRY_ACL_USER ||
+			    tag == ARCHIVE_ENTRY_ACL_GROUP) {
+				n = 1;
 				name = field[1];
+				isint_w(name.start, name.end, &id);
 			} else
-				tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
-		} else if (prefix_w(field[0].start, field[0].end, L"group")) {
-			if (!ismode_w(field[2].start, field[2].end, &permset))
-				return (ARCHIVE_WARN);
-			if (id != -1 || field[1].start < field[1].end) {
-				tag = ARCHIVE_ENTRY_ACL_GROUP;
-				name = field[1];
-			} else
-				tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
-		} else if (prefix_w(field[0].start, field[0].end, L"other")) {
-			if (fields == 2
-			    && field[1].start < field[1].end
-			    && ismode_w(field[1].start, field[1].end, &permset)) {
-				/* This is Solaris-style "other:rwx" */
-			} else if (fields == 3
-			    && field[1].start == field[1].end
-			    && field[2].start < field[2].end
-			    && ismode_w(field[2].start, field[2].end, &permset)) {
-				/* This is FreeBSD-style "other::rwx" */
-			} else
-				return (ARCHIVE_WARN);
-			tag = ARCHIVE_ENTRY_ACL_OTHER;
-		} else if (prefix_w(field[0].start, field[0].end, L"mask")) {
-			if (fields == 2
-			    && field[1].start < field[1].end
-			    && ismode_w(field[1].start, field[1].end, &permset)) {
-				/* This is Solaris-style "mask:rwx" */
-			} else if (fields == 3
-			    && field[1].start == field[1].end
-			    && field[2].start < field[2].end
-			    && ismode_w(field[2].start, field[2].end, &permset)) {
-				/* This is FreeBSD-style "mask::rwx" */
-			} else
-				return (ARCHIVE_WARN);
-			tag = ARCHIVE_ENTRY_ACL_MASK;
-		} else
-			return (ARCHIVE_WARN);
+				n = 0;
+
+			if (!is_nfs4_perms_w(field[1 + n].start,
+			    field[1 + n].end, &permset)) {
+				/* Invalid NFSv4 perms, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+			if (!is_nfs4_flags_w(field[2 + n].start,
+			    field[2 + n].end, &permset)) {
+				/* Invalid NFSv4 flags, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+			s = field[3 + n].start;
+			len = field[3 + n].end - field[3 + n].start;
+			type = 0;
+			if (len == 4) {
+				if (wmemcmp(s, L"deny", 4) == 0)
+					type = ARCHIVE_ENTRY_ACL_TYPE_DENY;
+			} else if (len == 5) {
+				if (wmemcmp(s, L"allow", 5) == 0)
+					type = ARCHIVE_ENTRY_ACL_TYPE_ALLOW;
+				else if (wmemcmp(s, L"audit", 5) == 0)
+					type = ARCHIVE_ENTRY_ACL_TYPE_AUDIT;
+				else if (wmemcmp(s, L"alarm", 5) == 0)
+					type = ARCHIVE_ENTRY_ACL_TYPE_ALARM;
+			}
+			if (type == 0) {
+				/* Invalid entry type, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+			isint_w(field[4 + n].start, field[4 + n].end, &id);
+		}
 
 		/* Add entry to the internal list. */
-		archive_acl_add_entry_w_len(acl, type, permset,
+		r = archive_acl_add_entry_w_len(acl, type, permset,
 		    tag, id, name.start, name.end - name.start);
+		if (r < ARCHIVE_WARN)
+			return (r);
+		if (r != ARCHIVE_OK)
+			ret = ARCHIVE_WARN;
+		types |= type;
 	}
-	return (ARCHIVE_OK);
+
+	/* Reset ACL */
+	archive_acl_reset(acl, types);
+
+	return (ret);
 }
 
 /*
@@ -977,16 +1441,128 @@ ismode_w(const wchar_t *start, const wchar_t *end, int *permset)
 	*permset = 0;
 	while (p < end) {
 		switch (*p++) {
-		case 'r': case 'R':
+		case L'r': case L'R':
 			*permset |= ARCHIVE_ENTRY_ACL_READ;
 			break;
-		case 'w': case 'W':
+		case L'w': case L'W':
 			*permset |= ARCHIVE_ENTRY_ACL_WRITE;
 			break;
-		case 'x': case 'X':
+		case L'x': case L'X':
 			*permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
 			break;
-		case '-':
+		case L'-':
+			break;
+		default:
+			return (0);
+		}
+	}
+	return (1);
+}
+
+/*
+ * Parse a string as a NFS4 ACL permission field.
+ * Returns true if the string is non-empty and consists only of NFS4 ACL
+ * permission characters, false otherwise
+ */
+static int
+is_nfs4_perms_w(const wchar_t *start, const wchar_t *end, int *permset)
+{
+	const wchar_t *p;
+
+	if (start >= end)
+		return (0);
+	p = start;
+	while (p < end) {
+		switch (*p++) {
+		case L'r':
+			*permset |= ARCHIVE_ENTRY_ACL_READ_DATA;
+			break;
+		case L'w':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_DATA;
+			break;
+		case L'x':
+			*permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
+			break;
+		case L'p':
+			*permset |= ARCHIVE_ENTRY_ACL_APPEND_DATA;
+			break;
+		case L'D':
+			*permset |= ARCHIVE_ENTRY_ACL_DELETE_CHILD;
+			break;
+		case L'd':
+			*permset |= ARCHIVE_ENTRY_ACL_DELETE;
+			break;
+		case L'a':
+			*permset |= ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES;
+			break;
+		case L'A':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES;
+			break;
+		case L'R':
+			*permset |= ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS;
+			break;
+		case L'W':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS;
+			break;
+		case L'c':
+			*permset |= ARCHIVE_ENTRY_ACL_READ_ACL;
+			break;
+		case L'C':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_ACL;
+			break;
+		case L'o':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_OWNER;
+			break;
+		case L's':
+			*permset |= ARCHIVE_ENTRY_ACL_SYNCHRONIZE;
+			break;
+		case L'-':
+			break;
+		default:
+			return(0);
+		}
+	}
+	return (1);
+}
+
+/*
+ * Parse a string as a NFS4 ACL flags field.
+ * Returns true if the string is non-empty and consists only of NFS4 ACL
+ * flag characters, false otherwise
+ */
+static int
+is_nfs4_flags_w(const wchar_t *start, const wchar_t *end, int *permset)
+{
+	const wchar_t *p;
+
+	if (start >= end)
+		return (0);
+	p = start;
+	while (p < end) {
+		switch(*p++) {
+		case L'f':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT;
+			break;
+		case L'd':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT;
+			break;
+		case L'i':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY;
+			break;
+		case L'n':
+			*permset |=
+			    ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT;
+			break;
+		case L'S':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS;
+			break;
+		case L'F':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS;
+			break;
+		case L'I':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_INHERITED;
+			break;
+		case L'-':
 			break;
 		default:
 			return (0);
@@ -1033,45 +1609,47 @@ next_field_w(const wchar_t **wp, const wchar_t **start,
 }
 
 /*
- * Return true if the characters [start...end) are a prefix of 'test'.
- * This makes it easy to handle the obvious abbreviations: 'u' for 'user', etc.
- */
-static int
-prefix_w(const wchar_t *start, const wchar_t *end, const wchar_t *test)
-{
-	if (start == end)
-		return (0);
-
-	if (*start++ != *test++)
-		return (0);
-
-	while (start < end  &&  *start++ == *test++)
-		;
-
-	if (start < end)
-		return (0);
-
-	return (1);
-}
-
-/*
- * Parse a textual ACL.  This automatically recognizes and supports
- * extensions described above.  The 'type' argument is used to
- * indicate the type that should be used for any entries not
- * explicitly marked as "default:".
+ * Parse an ACL text string.
+ *
+ * The want_type argument may be one of the following:
+ * ARCHIVE_ENTRY_ACL_TYPE_ACCESS - text is a POSIX.1e ACL of type ACCESS
+ * ARCHIVE_ENTRY_ACL_TYPE_DEFAULT - text is a POSIX.1e ACL of type DEFAULT
+ * ARCHIVE_ENTRY_ACL_TYPE_NFS4 - text is as a NFSv4 ACL
+ *
+ * POSIX.1e ACL entries prefixed with "default:" are treated as
+ * ARCHIVE_ENTRY_ACL_TYPE_DEFAULT unless type is ARCHIVE_ENTRY_ACL_TYPE_NFS4
  */
 int
-archive_acl_parse_l(struct archive_acl *acl,
-    const char *text, int default_type, struct archive_string_conv *sc)
+archive_acl_from_text_l(struct archive_acl *acl, const char *text,
+    int want_type, struct archive_string_conv *sc)
 {
 	struct {
 		const char *start;
 		const char *end;
-	} field[4], name;
+	} field[6], name;
 
-	int fields, n, r, ret = ARCHIVE_OK;
-	int type, tag, permset, id;
+	const char *s, *st;
+	int numfields, fields, n, r, sol, ret;
+	int type, types, tag, permset, id;
+	size_t len;
 	char sep;
+
+	switch (want_type) {
+	case ARCHIVE_ENTRY_ACL_TYPE_POSIX1E:
+		want_type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+	case ARCHIVE_ENTRY_ACL_TYPE_ACCESS:
+	case ARCHIVE_ENTRY_ACL_TYPE_DEFAULT:
+		numfields = 5;
+		break;
+	case ARCHIVE_ENTRY_ACL_TYPE_NFS4:
+		numfields = 6;
+		break;
+	default:
+		return (ARCHIVE_FATAL);
+	}
+
+	ret = ARCHIVE_OK;
+	types = 0;
 
 	while (text != NULL  &&  *text != '\0') {
 		/*
@@ -1082,7 +1660,7 @@ archive_acl_parse_l(struct archive_acl *acl,
 		do {
 			const char *start, *end;
 			next_field(&text, &start, &end, &sep);
-			if (fields < 4) {
+			if (fields < numfields) {
 				field[fields].start = start;
 				field[fields].end = end;
 			}
@@ -1090,72 +1668,197 @@ archive_acl_parse_l(struct archive_acl *acl,
 		} while (sep == ':');
 
 		/* Set remaining fields to blank. */
-		for (n = fields; n < 4; ++n)
+		for (n = fields; n < numfields; ++n)
 			field[n].start = field[n].end = NULL;
 
-		/* Check for a numeric ID in field 1 or 3. */
+		if (field[0].start != NULL && *(field[0].start) == '#') {
+			/* Comment, skip entry */
+			continue;
+		}
+
+		n = 0;
+		sol = 0;
 		id = -1;
-		isint(field[1].start, field[1].end, &id);
-		/* Field 3 is optional. */
-		if (id == -1 && fields > 3)
-			isint(field[3].start, field[3].end, &id);
-
-		/*
-		 * Solaris extension:  "defaultuser::rwx" is the
-		 * default ACL corresponding to "user::rwx", etc.
-		 */
-		if (field[0].end - field[0].start > 7
-		    && memcmp(field[0].start, "default", 7) == 0) {
-			type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
-			field[0].start += 7;
-		} else
-			type = default_type;
-
+		permset = 0;
 		name.start = name.end = NULL;
-		if (prefix_c(field[0].start, field[0].end, "user")) {
-			if (!ismode(field[2].start, field[2].end, &permset))
-				return (ARCHIVE_WARN);
-			if (id != -1 || field[1].start < field[1].end) {
-				tag = ARCHIVE_ENTRY_ACL_USER;
+
+		if (want_type != ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
+			/* POSIX.1e ACLs */
+			/*
+			 * Default keyword "default:user::rwx"
+			 * if found, we have one more field
+			 *
+			 * We also support old Solaris extension:
+			 * "defaultuser::rwx" is the default ACL corresponding
+			 * to "user::rwx", etc. valid only for first field
+			 */
+			s = field[0].start;
+			len = field[0].end - field[0].start;
+			if (*s == 'd' && (len == 1 || (len >= 7
+			    && memcmp((s + 1), "efault", 6) == 0))) {
+				type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
+				if (len > 7)
+					field[0].start += 7;
+				else
+					n = 1;
+			} else
+				type = want_type;
+
+			/* Check for a numeric ID in field n+1 or n+3. */
+			isint(field[n + 1].start, field[n + 1].end, &id);
+			/* Field n+3 is optional. */
+			if (id == -1 && fields > (n + 3))
+				isint(field[n + 3].start, field[n + 3].end,
+				    &id);
+
+			tag = 0;
+			s = field[n].start;
+			st = field[n].start + 1;
+			len = field[n].end - field[n].start;
+
+			switch (*s) {
+			case 'u':
+				if (len == 1 || (len == 4
+				    && memcmp(st, "ser", 3) == 0))
+					tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
+				break;
+			case 'g':
+				if (len == 1 || (len == 5
+				    && memcmp(st, "roup", 4) == 0))
+					tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+				break;
+			case 'o':
+				if (len == 1 || (len == 5
+				    && memcmp(st, "ther", 4) == 0))
+					tag = ARCHIVE_ENTRY_ACL_OTHER;
+				break;
+			case 'm':
+				if (len == 1 || (len == 4
+				    && memcmp(st, "ask", 3) == 0))
+					tag = ARCHIVE_ENTRY_ACL_MASK;
+				break;
+			default:
+					break;
+			}
+
+			switch (tag) {
+			case ARCHIVE_ENTRY_ACL_OTHER:
+			case ARCHIVE_ENTRY_ACL_MASK:
+				if (fields == (n + 2)
+				    && field[n + 1].start < field[n + 1].end
+				    && ismode(field[n + 1].start,
+				    field[n + 1].end, &permset)) {
+					/* This is Solaris-style "other:rwx" */
+					sol = 1;
+				} else if (fields == (n + 3) &&
+				    field[n + 1].start < field[n + 1].end) {
+					/* Invalid mask or other field */
+					ret = ARCHIVE_WARN;
+					continue;
+				}
+				break;
+			case ARCHIVE_ENTRY_ACL_USER_OBJ:
+			case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
+				if (id != -1 ||
+				    field[n + 1].start < field[n + 1].end) {
+					name = field[n + 1];
+					if (tag == ARCHIVE_ENTRY_ACL_USER_OBJ)
+						tag = ARCHIVE_ENTRY_ACL_USER;
+					else
+						tag = ARCHIVE_ENTRY_ACL_GROUP;
+				}
+				break;
+			default:
+				/* Invalid tag, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+
+			/*
+			 * Without "default:" we expect mode in field 3
+			 * Exception: Solaris other and mask fields
+			 */
+			if (permset == 0 && !ismode(field[n + 2 - sol].start,
+			    field[n + 2 - sol].end, &permset)) {
+				/* Invalid mode, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+		} else {
+			/* NFS4 ACLs */
+			s = field[0].start;
+			len = field[0].end - field[0].start;
+			tag = 0;
+
+			switch (len) {
+			case 4:
+				if (memcmp(s, "user", 4) == 0)
+					tag = ARCHIVE_ENTRY_ACL_USER;
+				break;
+			case 5:
+				if (memcmp(s, "group", 5) == 0)
+					tag = ARCHIVE_ENTRY_ACL_GROUP;
+				break;
+			case 6:
+				if (memcmp(s, "owner@", 6) == 0)
+					tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
+				else if (memcmp(s, "group@", 6) == 0)
+					tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+				break;
+			case 9:
+				if (memcmp(s, "everyone@", 9) == 0)
+					tag = ARCHIVE_ENTRY_ACL_EVERYONE;
+				break;
+			default:
+				break;
+			}
+
+			if (tag == 0) {
+				/* Invalid tag, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			} else if (tag == ARCHIVE_ENTRY_ACL_USER ||
+			    tag == ARCHIVE_ENTRY_ACL_GROUP) {
+				n = 1;
 				name = field[1];
+				isint(name.start, name.end, &id);
 			} else
-				tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
-		} else if (prefix_c(field[0].start, field[0].end, "group")) {
-			if (!ismode(field[2].start, field[2].end, &permset))
-				return (ARCHIVE_WARN);
-			if (id != -1 || field[1].start < field[1].end) {
-				tag = ARCHIVE_ENTRY_ACL_GROUP;
-				name = field[1];
-			} else
-				tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
-		} else if (prefix_c(field[0].start, field[0].end, "other")) {
-			if (fields == 2
-			    && field[1].start < field[1].end
-			    && ismode(field[1].start, field[1].end, &permset)) {
-				/* This is Solaris-style "other:rwx" */
-			} else if (fields == 3
-			    && field[1].start == field[1].end
-			    && field[2].start < field[2].end
-			    && ismode(field[2].start, field[2].end, &permset)) {
-				/* This is FreeBSD-style "other::rwx" */
-			} else
-				return (ARCHIVE_WARN);
-			tag = ARCHIVE_ENTRY_ACL_OTHER;
-		} else if (prefix_c(field[0].start, field[0].end, "mask")) {
-			if (fields == 2
-			    && field[1].start < field[1].end
-			    && ismode(field[1].start, field[1].end, &permset)) {
-				/* This is Solaris-style "mask:rwx" */
-			} else if (fields == 3
-			    && field[1].start == field[1].end
-			    && field[2].start < field[2].end
-			    && ismode(field[2].start, field[2].end, &permset)) {
-				/* This is FreeBSD-style "mask::rwx" */
-			} else
-				return (ARCHIVE_WARN);
-			tag = ARCHIVE_ENTRY_ACL_MASK;
-		} else
-			return (ARCHIVE_WARN);
+				n = 0;
+
+			if (!is_nfs4_perms(field[1 + n].start,
+			    field[1 + n].end, &permset)) {
+				/* Invalid NFSv4 perms, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+			if (!is_nfs4_flags(field[2 + n].start,
+			    field[2 + n].end, &permset)) {
+				/* Invalid NFSv4 flags, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+			s = field[3 + n].start;
+			len = field[3 + n].end - field[3 + n].start;
+			type = 0;
+			if (len == 4) {
+				if (memcmp(s, "deny", 4) == 0)
+					type = ARCHIVE_ENTRY_ACL_TYPE_DENY;
+			} else if (len == 5) {
+				if (memcmp(s, "allow", 5) == 0)
+					type = ARCHIVE_ENTRY_ACL_TYPE_ALLOW;
+				else if (memcmp(s, "audit", 5) == 0)
+					type = ARCHIVE_ENTRY_ACL_TYPE_AUDIT;
+				else if (memcmp(s, "alarm", 5) == 0)
+					type = ARCHIVE_ENTRY_ACL_TYPE_ALARM;
+			}
+			if (type == 0) {
+				/* Invalid entry type, skip entry */
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+			isint(field[4 + n].start, field[4 + n].end,
+			    &id);
+		}
 
 		/* Add entry to the internal list. */
 		r = archive_acl_add_entry_len_l(acl, type, permset,
@@ -1164,7 +1867,12 @@ archive_acl_parse_l(struct archive_acl *acl,
 			return (r);
 		if (r != ARCHIVE_OK)
 			ret = ARCHIVE_WARN;
+		types |= type;
 	}
+
+	/* Reset ACL */
+	archive_acl_reset(acl, types);
+
 	return (ret);
 }
 
@@ -1230,6 +1938,118 @@ ismode(const char *start, const char *end, int *permset)
 }
 
 /*
+ * Parse a string as a NFS4 ACL permission field.
+ * Returns true if the string is non-empty and consists only of NFS4 ACL
+ * permission characters, false otherwise
+ */
+static int
+is_nfs4_perms(const char *start, const char *end, int *permset)
+{
+	const char *p;
+
+	if (start >= end)
+		return (0);
+	p = start;
+	while (p < end) {
+		switch (*p++) {
+		case 'r':
+			*permset |= ARCHIVE_ENTRY_ACL_READ_DATA;
+			break;
+		case 'w':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_DATA;
+			break;
+		case 'x':
+			*permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
+			break;
+		case 'p':
+			*permset |= ARCHIVE_ENTRY_ACL_APPEND_DATA;
+			break;
+		case 'D':
+			*permset |= ARCHIVE_ENTRY_ACL_DELETE_CHILD;
+			break;
+		case 'd':
+			*permset |= ARCHIVE_ENTRY_ACL_DELETE;
+			break;
+		case 'a':
+			*permset |= ARCHIVE_ENTRY_ACL_READ_ATTRIBUTES;
+			break;
+		case 'A':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_ATTRIBUTES;
+			break;
+		case 'R':
+			*permset |= ARCHIVE_ENTRY_ACL_READ_NAMED_ATTRS;
+			break;
+		case 'W':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_NAMED_ATTRS;
+			break;
+		case 'c':
+			*permset |= ARCHIVE_ENTRY_ACL_READ_ACL;
+			break;
+		case 'C':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_ACL;
+			break;
+		case 'o':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE_OWNER;
+			break;
+		case 's':
+			*permset |= ARCHIVE_ENTRY_ACL_SYNCHRONIZE;
+			break;
+		case '-':
+			break;
+		default:
+			return(0);
+		}
+	}
+	return (1);
+}
+
+/*
+ * Parse a string as a NFS4 ACL flags field.
+ * Returns true if the string is non-empty and consists only of NFS4 ACL
+ * flag characters, false otherwise
+ */
+static int
+is_nfs4_flags(const char *start, const char *end, int *permset)
+{
+	const char *p;
+
+	if (start >= end)
+		return (0);
+	p = start;
+	while (p < end) {
+		switch(*p++) {
+		case 'f':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT;
+			break;
+		case 'd':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT;
+			break;
+		case 'i':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY;
+			break;
+		case 'n':
+			*permset |=
+			    ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT;
+			break;
+		case 'S':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS;
+			break;
+		case 'F':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS;
+			break;
+		case 'I':
+			*permset |= ARCHIVE_ENTRY_ACL_ENTRY_INHERITED;
+			break;
+		case '-':
+			break;
+		default:
+			return (0);
+		}
+	}
+	return (1);
+}
+
+/*
  * Match "[:whitespace:]*(.*)[:whitespace:]*[:,\n]".  *wp is updated
  * to point to just after the separator.  *start points to the first
  * character of the matched text and *end just after the last
@@ -1263,26 +2083,4 @@ next_field(const char **p, const char **start,
 	/* Adjust scanner location. */
 	if (**p != '\0')
 		(*p)++;
-}
-
-/*
- * Return true if the characters [start...end) are a prefix of 'test'.
- * This makes it easy to handle the obvious abbreviations: 'u' for 'user', etc.
- */
-static int
-prefix_c(const char *start, const char *end, const char *test)
-{
-	if (start == end)
-		return (0);
-
-	if (*start++ != *test++)
-		return (0);
-
-	while (start < end  &&  *start++ == *test++)
-		;
-
-	if (start < end)
-		return (0);
-
-	return (1);
 }

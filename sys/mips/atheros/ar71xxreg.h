@@ -111,6 +111,10 @@
 #define PCI_WINDOW7_CONF_ADDR		0x07000000
 
 #define	AR71XX_UART_ADDR		0x18020000
+#define		AR71XX_UART_THR		0x0
+#define		AR71XX_UART_LSR		0x14
+#define		AR71XX_UART_LSR_THRE	(1 << 5)
+#define		AR71XX_UART_LSR_TEMT	(1 << 6)
 
 #define	AR71XX_USB_CTRL_FLADJ		0x18030000
 #define		USB_CTRL_FLADJ_HOST_SHIFT	12
@@ -527,7 +531,10 @@ typedef enum {
     *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
 
 #define ATH_WRITE_REG(reg, val) \
-    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
+    do { \
+      *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val); \
+      (void) ATH_READ_REG(reg); \
+    } while (0)
 
 static inline void
 ar71xx_ddr_flush(uint32_t reg)

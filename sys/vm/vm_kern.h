@@ -61,7 +61,7 @@
  */
 
 #ifndef _VM_VM_KERN_H_
-#define _VM_VM_KERN_H_ 1
+#define	_VM_VM_KERN_H_
 
 /* Kernel memory management definitions. */
 extern vm_map_t kernel_map;
@@ -74,5 +74,7 @@ extern struct vmem *transient_arena;
 extern struct vmem *memguard_arena;
 extern vm_offset_t swapbkva;
 extern u_long vm_kmem_size;
+extern u_int exec_map_entries;
+extern u_int exec_map_entry_size;
 
-#endif				/* _VM_VM_KERN_H_ */
+#endif /* _VM_VM_KERN_H_ */

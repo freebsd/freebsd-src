@@ -158,6 +158,16 @@ The default for each port will be the value of
 .Va hw.sfxge.mcdi_logging.
 The logging may also be enabled or disabled after the driver is loaded using the sysctl
 .Va dev.sfxge.%d.mcdi_logging.
+.It Va hw.sfxge.stats_update_period_ms
+Period in milliseconds to refresh interface statistics from hardware.
+The accepted range is 0 to 65535, the default is 1000 (1 second).
+Use zero value to disable periodic statistics update.
+Supported on SFN8xxx series adapters with firmware v6.2.1.1033 and later and
+SFN5xxx and SFN6xxx series adapters.
+SFN7xxx series adapters and SFN8xxx series with earlier firmware use a
+fixed 1000 milliseconds statistics update period.
+The period may also be changed after the driver is loaded using the sysctl
+.Va dev.sfxge.%d.stats_update_period_ms .
 .El
 .Sh SUPPORT
 For general information and support,

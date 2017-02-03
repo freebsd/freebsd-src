@@ -59,10 +59,10 @@ MALLOC_DEFINE(M_PMCHOOKS, "pmchooks", "Memory space for PMC hooks");
 const int pmc_kernel_version = PMC_KERNEL_VERSION;
 
 /* Hook variable. */
-int (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
+int __read_mostly (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
 
 /* Interrupt handler */
-int (*pmc_intr)(int cpu, struct trapframe *tf) = NULL;
+int __read_mostly (*pmc_intr)(int cpu, struct trapframe *tf) = NULL;
 
 /* Bitmask of CPUs requiring servicing at hardclock time */
 volatile cpuset_t pmc_cpumask;

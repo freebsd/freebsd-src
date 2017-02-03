@@ -19,6 +19,10 @@ opt_inet.h:
 opt_inet6.h:
 	@echo "#define INET6 1" > ${.TARGET}
 .endif
+.if ${MK_RATELIMIT} != "no"
+opt_ratelimit.h:
+	@echo "#define RATELIMIT 1" > ${.TARGET}
+.endif
 .if ${MK_EISA} != "no"
 opt_eisa.h:
 	@echo "#define DEV_EISA 1" > ${.TARGET}
@@ -34,7 +38,6 @@ opt_wlan.h:
 	echo "#define IEEE80211_AMPDU_AGE 1" >> ${.TARGET}
 	echo "#define IEEE80211_SUPPORT_MESH 1" >> ${.TARGET}
 KERN_OPTS.i386=NEW_PCIB DEV_PCI
-KERN_OPTS.pc98=NEW_PCIB DEV_PCI
 KERN_OPTS.amd64=NEW_PCIB DEV_PCI
 KERN_OPTS.powerpc=NEW_PCIB DEV_PCI
 KERN_OPTS=MROUTING NATM IEEE80211_DEBUG \

@@ -594,8 +594,8 @@
                 ..
             ..
         ..
-	bsdcat
-	..
+        bsdcat
+        ..
         calendar
         ..
         cmp
@@ -643,6 +643,8 @@
             ..
         ..
         soelim
+        ..
+        tail
         ..
         tar
         ..

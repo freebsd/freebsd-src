@@ -1932,8 +1932,6 @@ DRIVER_MODULE(agp_i810, vgapci, agp_i810_driver, agp_devclass, 0, 0);
 MODULE_DEPEND(agp_i810, agp, 1, 1, 1);
 MODULE_DEPEND(agp_i810, pci, 1, 1, 1);
 
-extern vm_page_t bogus_page;
-
 void
 agp_intel_gtt_clear_range(device_t dev, u_int first_entry, u_int num_entries)
 {

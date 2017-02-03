@@ -100,7 +100,16 @@ void	ah_stats(u_long, const char *, int, int);
 void	ipcomp_stats(u_long, const char *, int, int);
 #endif
 
+#ifdef INET
+struct in_addr;
+
+char	*inetname(struct in_addr *);
+#endif
+
 #ifdef INET6
+struct in6_addr;
+
+char	*inet6name(struct in6_addr *);
 void	ip6_stats(u_long, const char *, int, int);
 void	ip6_ifstats(char *);
 void	icmp6_stats(u_long, const char *, int, int);

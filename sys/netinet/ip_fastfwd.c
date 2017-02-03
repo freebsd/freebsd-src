@@ -400,8 +400,9 @@ passout:
 				 */
 				m_clrprotoflags(m);
 
-				IP_PROBE(send, NULL, NULL, ip, nh.nh_ifp,
-				    ip, NULL);
+				IP_PROBE(send, NULL, NULL,
+				    mtod(m, struct ip *), nh.nh_ifp,
+				    mtod(m, struct ip *), NULL);
 				/* XXX: we can use cached route here */
 				error = (*nh.nh_ifp->if_output)(nh.nh_ifp, m,
 				    (struct sockaddr *)&dst, NULL);

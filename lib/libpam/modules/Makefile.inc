@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/openpam
+PAMDIR=		${SRCTOP}/contrib/openpam
 
 MK_INSTALLLIB=	no
 MK_PROFILE=	no
 
-CFLAGS+= -I${PAMDIR}/include -I${.CURDIR}/../../libpam
+CFLAGS+= -I${PAMDIR}/include -I${SRCTOP}/lib/libpam
 
 SHLIB_NAME?=	${LIB}.so.${SHLIB_MAJOR}
 LIBADD+=	pam

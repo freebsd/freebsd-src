@@ -3039,7 +3039,7 @@ struct scsi_set_timestamp_parameters
 {
 	uint8_t reserved1[4];
 	uint8_t timestamp[6];
-	uint8_t reserved2[4];
+	uint8_t reserved2[2];
 };
 
 struct scsi_report_timestamp_parameter_data
@@ -3977,21 +3977,24 @@ void		scsi_inquiry(struct ccb_scsiio *csio, u_int32_t retries,
 			     u_int8_t sense_len, u_int32_t timeout);
 
 void		scsi_mode_sense(struct ccb_scsiio *csio, u_int32_t retries,
-				void (*cbfcnp)(struct cam_periph *,
-					       union ccb *),
-				u_int8_t tag_action, int dbd,
-				u_int8_t page_code, u_int8_t page,
-				u_int8_t *param_buf, u_int32_t param_len,
-				u_int8_t sense_len, u_int32_t timeout);
+		    void (*cbfcnp)(struct cam_periph *, union ccb *),
+		    uint8_t tag_action, int dbd, uint8_t pc, uint8_t page,
+		    uint8_t *param_buf, uint32_t param_len,
+		    uint8_t sense_len, uint32_t timeout);
 
 void		scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
-				    void (*cbfcnp)(struct cam_periph *,
-						   union ccb *),
-				    u_int8_t tag_action, int dbd,
-				    u_int8_t page_code, u_int8_t page,
-				    u_int8_t *param_buf, u_int32_t param_len,
-				    int minimum_cmd_size, u_int8_t sense_len,
-				    u_int32_t timeout);
+		    void (*cbfcnp)(struct cam_periph *, union ccb *),
+		    uint8_t tag_action, int dbd, uint8_t pc, uint8_t page,
+		    uint8_t *param_buf, uint32_t param_len,
+		    int minimum_cmd_size, uint8_t sense_len, uint32_t timeout);
+
+void		scsi_mode_sense_subpage(struct ccb_scsiio *csio,
+		    uint32_t retries,
+		    void (*cbfcnp)(struct cam_periph *, union ccb *),
+		    uint8_t tag_action, int dbd, uint8_t pc,
+		    uint8_t page, uint8_t subpage,
+		    uint8_t *param_buf, uint32_t param_len,
+		    int minimum_cmd_size, uint8_t sense_len, uint32_t timeout);
 
 void		scsi_mode_select(struct ccb_scsiio *csio, u_int32_t retries,
 				 void (*cbfcnp)(struct cam_periph *,

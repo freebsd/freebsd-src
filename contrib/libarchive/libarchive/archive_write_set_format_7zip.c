@@ -1358,7 +1358,7 @@ make_header(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 	if (r < 0)
 		return (r);
 
-	/* Write Nume size. */
+	/* Write Name size. */
 	r = enc_uint64(a, zip->total_bytes_entry_name+1);
 	if (r < 0)
 		return (r);

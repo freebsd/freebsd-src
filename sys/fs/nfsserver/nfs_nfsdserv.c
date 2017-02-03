@@ -2035,14 +2035,14 @@ nfsrvd_statfs(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int32_t *tl;
 	int getret = 1;
 	struct nfsvattr at;
-	struct statfs sfs;
 	u_quad_t tval;
 
+	sf = NULL;
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
-	sf = &sfs;
+	sf = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	nd->nd_repstat = nfsvno_statfs(vp, sf);
 	getret = nfsvno_getattr(vp, &at, nd->nd_cred, p, 1);
 	vput(vp);
@@ -2078,6 +2078,7 @@ nfsrvd_statfs(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 
 out:
+	free(sf, M_STATFS);
 	NFSEXITCODE2(0, nd);
 	return (0);
 }
@@ -3603,19 +3604,20 @@ nfsrvd_verify(struct nfsrv_descript *nd, int isdgram,
 {
 	int error = 0, ret, fhsize = NFSX_MYFH;
 	struct nfsvattr nva;
-	struct statfs sf;
+	struct statfs *sf;
 	struct nfsfsinfo fs;
 	fhandle_t fh;
 
+	sf = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	nd->nd_repstat = nfsvno_getattr(vp, &nva, nd->nd_cred, p, 1);
 	if (!nd->nd_repstat)
-		nd->nd_repstat = nfsvno_statfs(vp, &sf);
+		nd->nd_repstat = nfsvno_statfs(vp, sf);
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getfh(vp, &fh, p);
 	if (!nd->nd_repstat) {
 		nfsvno_getfs(&fs, isdgram);
 		error = nfsv4_loadattr(nd, vp, &nva, NULL, &fh, fhsize, NULL,
-		    &sf, NULL, &fs, NULL, 1, &ret, NULL, NULL, p, nd->nd_cred);
+		    sf, NULL, &fs, NULL, 1, &ret, NULL, NULL, p, nd->nd_cred);
 		if (!error) {
 			if (nd->nd_procnum == NFSV4OP_NVERIFY) {
 				if (ret == 0)
@@ -3627,6 +3629,7 @@ nfsrvd_verify(struct nfsrv_descript *nd, int isdgram,
 		}
 	}
 	vput(vp);
+	free(sf, M_STATFS);
 	NFSEXITCODE2(error, nd);
 	return (error);
 }

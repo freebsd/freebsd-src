@@ -1156,12 +1156,11 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp == NULL || (inp->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
-	TCP_PROBE3(debug__output, tp, th, mtod(m, const char *));
+	TCP_PROBE3(debug__output, tp, th, m);
 	if (flags & TH_RST)
-		TCP_PROBE5(accept__refused, NULL, NULL, mtod(m, const char *),
-		    tp, nth);
+		TCP_PROBE5(accept__refused, NULL, NULL, m, tp, nth);
 
-	TCP_PROBE5(send, NULL, tp, mtod(m, const char *), tp, nth);
+	TCP_PROBE5(send, NULL, tp, m, tp, nth);
 #ifdef INET6
 	if (isipv6)
 		(void) ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);

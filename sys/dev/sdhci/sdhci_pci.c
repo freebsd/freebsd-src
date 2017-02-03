@@ -81,34 +81,45 @@ static const struct sdhci_device {
 	const char	*desc;
 	u_int		quirks;
 } sdhci_devices[] = {
-	{ 0x08221180, 	0xffff,	"RICOH R5C822 SD",
+	{ 0x08221180,	0xffff,	"RICOH R5C822 SD",
 	    SDHCI_QUIRK_FORCE_DMA },
-	{ 0xe8221180, 	0xffff,	"RICOH R5CE822 SD",
+	{ 0xe8221180,	0xffff,	"RICOH R5CE822 SD",
 	    SDHCI_QUIRK_FORCE_DMA |
 	    SDHCI_QUIRK_LOWER_FREQUENCY },
-	{ 0xe8231180, 	0xffff,	"RICOH R5CE823 SD",
+	{ 0xe8231180,	0xffff,	"RICOH R5CE823 SD",
 	    SDHCI_QUIRK_LOWER_FREQUENCY },
-	{ 0x8034104c, 	0xffff, "TI XX21/XX11 SD",
+	{ 0x8034104c,	0xffff, "TI XX21/XX11 SD",
 	    SDHCI_QUIRK_FORCE_DMA },
-	{ 0x05501524, 	0xffff, "ENE CB712 SD",
+	{ 0x05501524,	0xffff, "ENE CB712 SD",
 	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x05511524, 	0xffff, "ENE CB712 SD 2",
+	{ 0x05511524,	0xffff, "ENE CB712 SD 2",
 	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x07501524, 	0xffff, "ENE CB714 SD",
+	{ 0x07501524,	0xffff, "ENE CB714 SD",
 	    SDHCI_QUIRK_RESET_ON_IOS |
 	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x07511524, 	0xffff, "ENE CB714 SD 2",
+	{ 0x07511524,	0xffff, "ENE CB714 SD 2",
 	    SDHCI_QUIRK_RESET_ON_IOS |
 	    SDHCI_QUIRK_BROKEN_TIMINGS },
-	{ 0x410111ab, 	0xffff, "Marvell CaFe SD",
+	{ 0x410111ab,	0xffff, "Marvell CaFe SD",
 	    SDHCI_QUIRK_INCR_TIMEOUT_CONTROL },
-	{ 0x2381197B, 	0xffff,	"JMicron JMB38X SD",
+	{ 0x2381197B,	0xffff,	"JMicron JMB38X SD",
 	    SDHCI_QUIRK_32BIT_DMA_SIZE |
 	    SDHCI_QUIRK_RESET_AFTER_REQUEST },
 	{ 0x16bc14e4,	0xffff,	"Broadcom BCM577xx SDXC/MMC Card Reader",
 	    SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC },
-	{ 0x22948086,	0xffff,	"Intel Braswell Storage Cluster Control MMC Port",
-	    0 },
+	{ 0x0f148086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
+	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	{ 0x0f508086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
+	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	{ 0x22948086,	0xffff,	"Intel Braswell eMMC 4.5.1 Controller",
+	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+	    SDHCI_QUIRK_DATA_TIMEOUT_1MHZ |
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	{ 0x5acc8086,	0xffff,	"Intel Apollo Lake eMMC 5.0 Controller",
+	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
@@ -116,13 +127,13 @@ static const struct sdhci_device {
 struct sdhci_pci_softc {
 	u_int		quirks;		/* Chip specific quirks */
 	struct resource *irq_res;	/* IRQ resource */
-	void 		*intrhand;	/* Interrupt handle */
+	void		*intrhand;	/* Interrupt handle */
 
 	int		num_slots;	/* Number of slots on this controller */
 	struct sdhci_slot slots[6];
 	struct resource	*mem_res[6];	/* Memory resource */
-	uint8_t		cfg_freq;	/* Saved mode */
-	uint8_t		cfg_mode;	/* Saved frequency */
+	uint8_t		cfg_freq;	/* Saved frequency */
+	uint8_t		cfg_mode;	/* Saved mode */
 };
 
 static int sdhci_enable_msi = 1;
@@ -140,7 +151,8 @@ sdhci_pci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_pci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t val)
+sdhci_pci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint8_t val)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -160,7 +172,8 @@ sdhci_pci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_pci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_t val)
+sdhci_pci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint16_t val)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -180,7 +193,8 @@ sdhci_pci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_pci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32_t val)
+sdhci_pci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint32_t val)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -335,7 +349,8 @@ sdhci_pci_attach(device_t dev)
 		sc->mem_res[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 		    &rid, RF_ACTIVE);
 		if (sc->mem_res[i] == NULL) {
-			device_printf(dev, "Can't allocate memory for slot %d\n", i);
+			device_printf(dev,
+			    "Can't allocate memory for slot %d\n", i);
 			continue;
 		}
 		
@@ -452,9 +467,9 @@ static device_method_t sdhci_methods[] = {
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
 
 	/* mmcbr_if */
-	DEVMETHOD(mmcbr_update_ios,     sdhci_generic_update_ios),
-	DEVMETHOD(mmcbr_request,        sdhci_generic_request),
-	DEVMETHOD(mmcbr_get_ro,         sdhci_generic_get_ro),
+	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
+	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
+	DEVMETHOD(mmcbr_get_ro,		sdhci_generic_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,   sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,   sdhci_generic_release_host),
 

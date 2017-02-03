@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2016
+.Dd January 2, 2017
 .Dt sysdecode_mask 3
 .Os
 .Sh NAME
@@ -36,7 +36,6 @@
 .Nm sysdecode_fileflags ,
 .Nm sysdecode_filemode ,
 .Nm sysdecode_flock_operation ,
-.Nm sysdecode_getfsstat_flags ,
 .Nm sysdecode_mlockall_flags ,
 .Nm sysdecode_mmap_flags ,
 .Nm sysdecode_mmap_prot ,
@@ -153,7 +152,6 @@ Most of these functions decode an argument passed to a system call:
 .It Fn sysdecode_fileflags Ta Xr chflags 2 Ta Fa flags
 .It Fn sysdecode_filemode Ta Xr chmod 2 , Xr open 2 Ta mode
 .It Fn sysdecode_flock_operation Ta Xr flock 2 Ta Fa operation
-.It Fn sysdecode_getfsstat_flags Ta Xr getfsstatflags 2 Ta Fa flags
 .It Fn sysdecode_mlockall_flags Ta Xr mlockall 2 Ta Fa flags
 .It Fn sysdecode_mmap_flags Ta Xr mmap 2 Ta Fa flags
 .It Fn sysdecode_mmap_prot Ta Xr mmap 2 Ta Fa prot

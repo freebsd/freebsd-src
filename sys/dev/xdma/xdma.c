@@ -73,9 +73,9 @@ static struct mtx xdma_mtx;
 /*
  * Per channel locks.
  */
-#define	XCHAN_LOCK(xchan)		mtx_lock(&xchan->mtx_lock)
-#define	XCHAN_UNLOCK(xchan)		mtx_unlock(&xchan->mtx_lock)
-#define	XCHAN_ASSERT_LOCKED(xchan)	mtx_assert(&xchan->mtx_lock, MA_OWNED)
+#define	XCHAN_LOCK(xchan)		mtx_lock(&(xchan)->mtx_lock)
+#define	XCHAN_UNLOCK(xchan)		mtx_unlock(&(xchan)->mtx_lock)
+#define	XCHAN_ASSERT_LOCKED(xchan)	mtx_assert(&(xchan)->mtx_lock, MA_OWNED)
 
 /*
  * Allocate virtual xDMA channel.
@@ -412,7 +412,7 @@ xdma_prep_memcpy(xdma_channel_t *xchan, uintptr_t src_addr,
 	if (ret != 0) {
 		device_printf(xdma->dev,
 		    "%s: Can't prepare memcpy transfer.\n", __func__);
-		XDMA_UNLOCK();
+		XCHAN_UNLOCK(xchan);
 
 		return (-1);
 	}
@@ -460,7 +460,8 @@ xdma_prep_cyclic(xdma_channel_t *xchan, enum xdma_direction dir,
 	if (ret != 0) {
 		device_printf(xdma->dev,
 		    "%s: Can't prepare cyclic transfer.\n", __func__);
-		XDMA_UNLOCK();
+		XCHAN_UNLOCK(xchan);
+
 		return (-1);
 	}
 

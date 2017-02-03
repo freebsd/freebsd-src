@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003, 2004, 2005, 2008 Silicon Graphics International Corp.
- * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2014-2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,10 +56,10 @@
 #define CTL_POOL_ENTRIES_OTHER_SC   200
 
 struct ctl_io_pool {
-	char				name[64];
-	uint32_t			id;
-	struct ctl_softc		*ctl_softc;
-	struct uma_zone			*zone;
+	char			name[64];
+	uint32_t		id;
+	struct ctl_softc	*ctl_softc;
+	struct uma_zone		*zone;
 };
 
 typedef enum {
@@ -404,7 +404,10 @@ struct ctl_lun {
 	struct callout			ie_callout;	/* INTERVAL TIMER */
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;
-	struct ctl_lun_io_stats		stats;
+#ifdef CTL_LEGACY_STATS
+	struct ctl_lun_io_stats		legacy_stats;
+#endif /* CTL_LEGACY_STATS */
+	struct ctl_io_stats		stats;
 	uint32_t			res_idx;
 	uint32_t			pr_generation;
 	uint64_t			*pr_keys[CTL_MAX_PORTS];
@@ -412,7 +415,7 @@ struct ctl_lun {
 	uint32_t			pr_res_idx;
 	uint8_t				pr_res_type;
 	int				prevent_count;
-	uint32_t			prevent[(CTL_MAX_INITIATORS+31)/32];
+	uint32_t			*prevent;
 	uint8_t				*write_buffer;
 	struct ctl_devid		*lun_devid;
 	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
@@ -436,41 +439,44 @@ struct ctl_thread {
 
 struct tpc_token;
 struct ctl_softc {
-	struct mtx ctl_lock;
-	struct cdev *dev;
-	int num_luns;
-	ctl_gen_flags flags;
-	ctl_ha_mode ha_mode;
-	int ha_id;
-	int is_single;
-	ctl_ha_link_state ha_link;
-	int port_min;
-	int port_max;
-	int port_cnt;
-	int init_min;
-	int init_max;
-	struct sysctl_ctx_list sysctl_ctx;
-	struct sysctl_oid *sysctl_tree;
-	void *othersc_pool;
-	struct proc *ctl_proc;
-	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
-	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
-	uint32_t ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
-	STAILQ_HEAD(, ctl_lun) lun_list;
-	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
-	uint32_t num_frontends;
-	STAILQ_HEAD(, ctl_frontend) fe_list;
-	uint32_t num_ports;
-	STAILQ_HEAD(, ctl_port) port_list;
-	struct ctl_port *ctl_ports[CTL_MAX_PORTS];
-	uint32_t num_backends;
-	STAILQ_HEAD(, ctl_backend_driver) be_list;
-	struct uma_zone *io_zone;
-	uint32_t cur_pool_id;
-	struct ctl_thread threads[CTL_MAX_THREADS];
-	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
-	struct callout tpc_timeout;
-	struct mtx tpc_lock;
+	struct mtx		ctl_lock;
+	struct cdev		*dev;
+	int			num_luns;
+	ctl_gen_flags		flags;
+	ctl_ha_mode		ha_mode;
+	int			ha_id;
+	int			is_single;
+	ctl_ha_link_state	ha_link;
+	int			port_min;
+	int			port_max;
+	int			port_cnt;
+	int			init_min;
+	int			init_max;
+	struct sysctl_ctx_list	sysctl_ctx;
+	struct sysctl_oid	*sysctl_tree;
+	void			*othersc_pool;
+	struct proc		*ctl_proc;
+	uint32_t		ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
+	struct ctl_lun		*ctl_luns[CTL_MAX_LUNS];
+	uint32_t		ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
+	STAILQ_HEAD(, ctl_lun)	lun_list;
+	STAILQ_HEAD(, ctl_be_lun)	pending_lun_queue;
+	uint32_t		num_frontends;
+	STAILQ_HEAD(, ctl_frontend)	fe_list;
+	uint32_t		num_ports;
+	STAILQ_HEAD(, ctl_port)	port_list;
+	struct ctl_port		*ctl_ports[CTL_MAX_PORTS];
+	uint32_t		num_backends;
+	STAILQ_HEAD(, ctl_backend_driver)	be_list;
+	struct uma_zone		*io_zone;
+	uint32_t		cur_pool_id;
+	int			shutdown;
+	struct ctl_thread	threads[CTL_MAX_THREADS];
+	struct thread		*lun_thread;
+	struct thread		*thresh_thread;
+	TAILQ_HEAD(tpc_tokens, tpc_token)	tpc_tokens;
+	struct callout		tpc_timeout;
+	struct mtx		tpc_lock;
 };
 
 #ifdef _KERNEL

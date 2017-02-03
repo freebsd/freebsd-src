@@ -161,7 +161,7 @@ _start:
 	mov	r2, #0
 
 1:	cmp	r0, r1
-	bgt	2f
+	bge	2f
 	str	r2, [r0], #4
 	b	1b
 2:

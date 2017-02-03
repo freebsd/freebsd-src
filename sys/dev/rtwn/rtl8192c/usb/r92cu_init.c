@@ -78,10 +78,6 @@ r92cu_init_bb(struct rtwn_softc *sc)
 	rtwn_write_1(sc, R92C_AFE_XTAL_CTRL + 1, 0x80);
 
 	r92c_init_bb_common(sc);
-
-	if (rtwn_bb_read(sc, R92C_HSSI_PARAM2(0)) &
-	    R92C_HSSI_PARAM2_CCK_HIPWR)
-		sc->sc_flags |= RTWN_FLAG_CCK_HIPWR;
 }
 
 int

@@ -306,7 +306,6 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 	uint16_t tcpopt = be16toh(opt);
 	struct flowc_tx_params ftxp;
 
-	CURVNET_SET(so->so_vnet);
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(tp->t_state == TCPS_SYN_SENT ||
 	    tp->t_state == TCPS_SYN_RECEIVED,
@@ -357,7 +356,6 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 	send_flowc_wr(toep, &ftxp);
 
 	soisconnected(so);
-	CURVNET_RESTORE();
 }
 
 static int
@@ -1146,6 +1144,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
+	CURVNET_SET(toep->vnet);
 	INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
@@ -1191,6 +1190,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		tcp_twstart(tp);
 		INP_UNLOCK_ASSERT(inp);	 /* safe, we have a ref on the inp */
 		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 
 		INP_WLOCK(inp);
 		final_cpl_received(toep);
@@ -1203,6 +1203,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 done:
 	INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 	return (0);
 }
 
@@ -1229,6 +1230,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
+	CURVNET_SET(toep->vnet);
 	INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
@@ -1248,6 +1250,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 release:
 		INP_UNLOCK_ASSERT(inp);	/* safe, we have a ref on the  inp */
 		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 
 		INP_WLOCK(inp);
 		final_cpl_received(toep);	/* no more CPLs expected */
@@ -1272,6 +1275,7 @@ release:
 done:
 	INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 	return (0);
 }
 
@@ -1345,6 +1349,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	inp = toep->inp;
+	CURVNET_SET(toep->vnet);
 	INP_INFO_RLOCK(&V_tcbinfo);	/* for tcp_close */
 	INP_WLOCK(inp);
 
@@ -1380,6 +1385,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	final_cpl_received(toep);
 done:
 	INP_INFO_RUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 	send_abort_rpl(sc, ofld_txq, tid, CPL_ABORT_NO_RST);
 	return (0);
 }
@@ -1501,18 +1507,21 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			DDP_UNLOCK(toep);
 		INP_WUNLOCK(inp);
 
+		CURVNET_SET(toep->vnet);
 		INP_INFO_RLOCK(&V_tcbinfo);
 		INP_WLOCK(inp);
 		tp = tcp_drop(tp, ECONNRESET);
 		if (tp)
 			INP_WUNLOCK(inp);
 		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 
 		return (0);
 	}
 
 	/* receive buffer autosize */
-	CURVNET_SET(so->so_vnet);
+	MPASS(toep->vnet == so->so_vnet);
+	CURVNET_SET(toep->vnet);
 	if (sb->sb_flags & SB_AUTOSIZE &&
 	    V_tcp_do_autorcvbuf &&
 	    sb->sb_hiwat < V_tcp_autorcvbuf_max &&
@@ -1713,10 +1722,12 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    tid);
 #endif
 		toep->flags &= ~TPF_TX_SUSPENDED;
+		CURVNET_SET(toep->vnet);
 		if (toep->ulp_mode == ULP_MODE_ISCSI)
 			t4_push_pdus(sc, toep, plen);
 		else
 			t4_push_frames(sc, toep, plen);
+		CURVNET_RESTORE();
 	} else if (plen > 0) {
 		struct sockbuf *sb = &so->so_snd;
 		int sbu;
@@ -1837,12 +1848,12 @@ void
 t4_uninit_cpl_io_handlers(void)
 {
 
-	t4_register_cpl_handler(CPL_PEER_CLOSE, do_peer_close);
-	t4_register_cpl_handler(CPL_CLOSE_CON_RPL, do_close_con_rpl);
-	t4_register_cpl_handler(CPL_ABORT_REQ_RSS, do_abort_req);
-	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, do_abort_rpl);
-	t4_register_cpl_handler(CPL_RX_DATA, do_rx_data);
-	t4_register_cpl_handler(CPL_FW4_ACK, do_fw4_ack);
+	t4_register_cpl_handler(CPL_PEER_CLOSE, NULL);
+	t4_register_cpl_handler(CPL_CLOSE_CON_RPL, NULL);
+	t4_register_cpl_handler(CPL_ABORT_REQ_RSS, NULL);
+	t4_register_cpl_handler(CPL_ABORT_RPL_RSS, NULL);
+	t4_register_cpl_handler(CPL_RX_DATA, NULL);
+	t4_register_cpl_handler(CPL_FW4_ACK, NULL);
 }
 
 /*
@@ -2143,7 +2154,7 @@ t4_aiotx_task(void *context, int pending)
 	struct socket *so = inp->inp_socket;
 	struct kaiocb *job;
 
-	CURVNET_SET(so->so_vnet);
+	CURVNET_SET(toep->vnet);
 	SOCKBUF_LOCK(&so->so_snd);
 	while (!TAILQ_EMPTY(&toep->aiotx_jobq) && sowriteable(so)) {
 		job = TAILQ_FIRST(&toep->aiotx_jobq);

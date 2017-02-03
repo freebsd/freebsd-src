@@ -492,6 +492,8 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 	b.asn_cptr = buf;
 	b.asn_len = len;
 
+	ret = SNMPD_INPUT_OK;
+
 	/* look whether we have enough bytes for the entire PDU. */
 	switch (sret = snmp_pdu_snoop(&b)) {
 
@@ -519,8 +521,6 @@ snmp_input_start(const u_char *buf, size_t len, const char *source,
 			goto decoded;
 	}
 	code = snmp_pdu_decode_scoped(&b, pdu, ip);
-
-	ret = SNMPD_INPUT_OK;
 
 decoded:
 	snmpd_stats.inPkts++;
@@ -2324,13 +2324,12 @@ lm_load(const char *path, const char *section)
 	}
 	m->handle = NULL;
 	m->flags = 0;
-	strcpy(m->section, section);
+	strlcpy(m->section, section, sizeof(m->section));
 
-	if ((m->path = malloc(strlen(path) + 1)) == NULL) {
+	if ((m->path = strdup(path)) == NULL) {
 		syslog(LOG_ERR, "lm_load: %m");
 		goto err;
 	}
-	strcpy(m->path, path);
 
 	/*
 	 * Make index

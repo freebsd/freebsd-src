@@ -51,6 +51,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170127:
+	The WITH_LLD_AS_LD / WITHOUT_LLD_AS_LD build knobs have been renamed
+	WITH_LLD_IS_LD / WITHOUT_LLD_IS_LD, for consistency with CLANG_IS_CC.
+
+20170112:
+	The EM_MULTIQUEUE kernel configuration option is deprecated now that
+	the em(4) driver conforms to iflib specifications.
+
+20170109:
+	The igb(4), em(4) and lem(4) ethernet drivers are now implemented via
+	IFLIB.  If you have a custom kernel configuration that excludes em(4)
+	but you use igb(4), you need to re-add em(4) to your custom configuration.
+
 20161217:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.1.
 	Please see the 20141231 entry below for information about prerequisites

@@ -77,6 +77,7 @@ void	ieee80211_promisc(struct ieee80211vap *, bool);
 void	ieee80211_allmulti(struct ieee80211vap *, bool);
 void	ieee80211_syncflag(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ht(struct ieee80211vap *, int flag);
+void	ieee80211_syncflag_vht(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 
 #define	ieee80211_input(ni, m, rssi, nf) \
@@ -361,7 +362,8 @@ struct ieee80211_beacon_offsets {
 	uint8_t		*bo_csa;	/* start of CSA element */
 	uint8_t		*bo_quiet;	/* start of Quiet element */
 	uint8_t		*bo_meshconf;	/* start of MESHCONF element */
-	uint8_t		*bo_spare[3];
+	uint8_t		*bo_vhtinfo;	/* start of VHT info element (XXX VHTCAP?) */
+	uint8_t		*bo_spare[2];
 };
 struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *);
 

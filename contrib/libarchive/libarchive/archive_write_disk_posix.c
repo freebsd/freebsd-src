@@ -110,6 +110,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl1.h>
 #endif
 
+/*
+ * Macro to cast st_mtime and time_t to an int64 so that 2 numbers can reliably be compared.
+ *
+ * It assumes that the input is an integer type of no more than 64 bits.
+ * If the number is less than zero, t must be a signed type, so it fits in
+ * int64_t. Otherwise, it's a nonnegative value so we can cast it to uint64_t
+ * without loss. But it could be a large unsigned value, so we have to clip it
+ * to INT64_MAX.*
+ */
+#define to_int64_time(t) \
+   ((t) < 0 ? (int64_t)(t) : (uint64_t)(t) > (uint64_t)INT64_MAX ? INT64_MAX : (int64_t)(t))
+
 #if __APPLE__
 #include <TargetConditionals.h>
 #if TARGET_OS_MAC && !TARGET_OS_EMBEDDED && HAVE_QUARANTINE_H
@@ -308,7 +320,7 @@ struct archive_write_disk {
 #define	MAXIMUM_DIR_MODE 0775
 
 /*
- * Maxinum uncompressed size of a decmpfs block.
+ * Maximum uncompressed size of a decmpfs block.
  */
 #define MAX_DECMPFS_BLOCK_SIZE	(64 * 1024)
 /*
@@ -323,7 +335,7 @@ struct archive_write_disk {
 #define RSRC_F_SIZE	50	/* Size of Resource fork footer. */
 /* Size to write compressed data to resource fork. */
 #define COMPRESSED_W_SIZE	(64 * 1024)
-/* decmpfs difinitions. */
+/* decmpfs definitions. */
 #define MAX_DECMPFS_XATTR_SIZE		3802
 #ifndef DECMPFS_XATTR_NAME
 #define DECMPFS_XATTR_NAME		"com.apple.decmpfs"
@@ -632,9 +644,9 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		/*
 		 * NOTE: UF_COMPRESSED is ignored even if the filesystem
 		 * supports HFS+ Compression because the file should
-		 * have at least an extended attriute "com.apple.decmpfs"
+		 * have at least an extended attribute "com.apple.decmpfs"
 		 * before the flag is set to indicate that the file have
-		 * been compressed. If hte filesystem does not support
+		 * been compressed. If the filesystem does not support
 		 * HFS+ Compression the system call will fail.
 		 */
 		if (a->fd < 0 || fchflags(a->fd, UF_COMPRESSED) != 0)
@@ -1247,7 +1259,7 @@ hfs_drive_compressor(struct archive_write_disk *a, const char *buff,
 		ret = hfs_write_compressed_data(a, bytes_used + rsrc_size);
 		a->compressed_buffer_remaining = a->compressed_buffer_size;
 
-		/* If the compressed size is not enouph smaller than
+		/* If the compressed size is not enough smaller than
 		 * the uncompressed size. cancel HFS+ compression.
 		 * TODO: study a behavior of ditto utility and improve
 		 * the condition to fall back into no HFS+ compression. */
@@ -1352,7 +1364,7 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		    (uint32_t *)(a->resource_fork + RSRC_H_SIZE);
 		/* Set the block count to the resource fork. */
 		archive_le32enc(a->decmpfs_block_info++, block_count);
-		/* Get the position where we are goint to set compressed
+		/* Get the position where we are going to set compressed
 		 * data. */
 		a->compressed_rsrc_position =
 		    RSRC_H_SIZE + 4 + (block_count * 8);
@@ -1425,7 +1437,7 @@ hfs_write_data_block(struct archive_write_disk *a, const char *buff,
 		bytes_to_write = size;
 		/* Seek if necessary to the specified offset. */
 		if (a->offset < a->fd_offset) {
-			/* Can't support backword move. */
+			/* Can't support backward move. */
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Seek failed");
 			return (ARCHIVE_FATAL);
@@ -1690,10 +1702,25 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * ACLs that prevent attribute changes (including time).
 	 */
 	if (a->todo & TODO_ACLS) {
-		int r2 = archive_write_disk_set_acls(&a->archive, a->fd,
-				  archive_entry_pathname(a->entry),
-				  archive_entry_acl(a->entry));
+		int r2;
+#ifdef HAVE_DARWIN_ACL
+		/*
+		 * On Mac OS, platform ACLs are stored also in mac_metadata by
+		 * the operating system. If mac_metadata is present it takes
+		 * precedence and we skip extracting libarchive NFSv4 ACLs
+		 */
+		const void *metadata;
+		size_t metadata_size;
+		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
+		if (metadata == NULL || metadata_size == 0) {
+#endif
+		r2 = archive_write_disk_set_acls(&a->archive, a->fd,
+		    archive_entry_pathname(a->entry),
+		    archive_entry_acl(a->entry));
 		if (r2 < ret) ret = r2;
+#ifdef HAVE_DARWIN_ACL
+		}
+#endif
 	}
 
 finish_metadata:
@@ -2065,6 +2092,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			archive_set_error(&a->archive, error_number, "%s",
 			    error_string.s);
 			free(linkname_copy);
+			archive_string_free(&error_string);
 			/*
 			 * EPERM is more appropriate than error_number for our
 			 * callers
@@ -2077,6 +2105,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			archive_set_error(&a->archive, error_number, "%s",
 			    error_string.s);
 			free(linkname_copy);
+			archive_string_free(&error_string);
 			/*
 			 * EPERM is more appropriate than error_number for our
 			 * callers
@@ -2084,6 +2113,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			return (EPERM);
 		}
 		free(linkname_copy);
+		archive_string_free(&error_string);
 		r = link(linkname, a->name) ? errno : 0;
 		/*
 		 * New cpio and pax formats allow hardlink entries
@@ -2252,8 +2282,12 @@ _archive_write_disk_close(struct archive *_a)
 		if (p->fixup & TODO_MODE_BASE)
 			chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
-			archive_write_disk_set_acls(&a->archive,
-						    -1, p->name, &p->acl);
+#ifdef HAVE_DARWIN_ACL
+			if (p->mac_metadata == NULL ||
+			    p->mac_metadata_size == 0)
+#endif
+				archive_write_disk_set_acls(&a->archive,
+				    -1, p->name, &p->acl);
 		if (p->fixup & TODO_FFLAGS)
 			set_fflags_platform(a, -1, p->name,
 			    p->mode, p->fflags_set, 0);
@@ -4125,10 +4159,10 @@ older(struct stat *st, struct archive_entry *entry)
 {
 	/* First, test the seconds and return if we have a definite answer. */
 	/* Definitely older. */
-	if (st->st_mtime < archive_entry_mtime(entry))
+	if (to_int64_time(st->st_mtime) < to_int64_time(archive_entry_mtime(entry)))
 		return (1);
 	/* Definitely younger. */
-	if (st->st_mtime > archive_entry_mtime(entry))
+	if (to_int64_time(st->st_mtime) > to_int64_time(archive_entry_mtime(entry)))
 		return (0);
 	/* If this platform supports fractional seconds, try those. */
 #if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC

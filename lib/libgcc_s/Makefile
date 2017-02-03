@@ -8,6 +8,7 @@ MK_SSP=		no
 WARNS?=	2
 
 LDFLAGS+=	-nodefaultlibs
+LIBADD+=	c
 VERSION_MAP=	${.CURDIR}/Version.map
 
 .include "../libcompiler_rt/Makefile.inc"

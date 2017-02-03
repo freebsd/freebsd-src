@@ -161,14 +161,12 @@ INLINE_LIMIT?=	8000
 # Also explicitly disable Altivec instructions inside the kernel.
 #
 .if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-mno-altivec
-CFLAGS.clang+=	-mllvm -disable-ppc-float-in-variadic=true
-CFLAGS.gcc+=	-msoft-float
+CFLAGS+=	-mno-altivec -msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
 .if ${MACHINE_ARCH} == "powerpcspe"
-CFLAGS+=	-mno-spe
+CFLAGS.gcc+=	-mno-spe
 .endif
 
 #
@@ -184,7 +182,7 @@ CFLAGS.gcc+=	-mcall-aixdesc
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
-.if ${TARGET_ARCH:Mmips*hf} != ""
+.if ${MACHINE_ARCH:Mmips*hf} != ""
 CFLAGS+= -DCPU_HAVEFPU
 .endif
 .endif

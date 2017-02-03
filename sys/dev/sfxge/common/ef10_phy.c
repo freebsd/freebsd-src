@@ -278,7 +278,6 @@ fail1:
 ef10_phy_reconfigure(
 	__in		efx_nic_t *enp)
 {
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_port_t *epp = &(enp->en_port);
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_SET_LINK_IN_LEN,
@@ -286,9 +285,12 @@ ef10_phy_reconfigure(
 	uint32_t cap_mask;
 	unsigned int led_mode;
 	unsigned int speed;
+	boolean_t supported;
 	efx_rc_t rc;
 
-	if (~encp->enc_func_flags & EFX_NIC_FUNC_LINKCTRL)
+	if ((rc = efx_mcdi_link_control_supported(enp, &supported)) != 0)
+		goto fail1;
+	if (supported == B_FALSE)
 		goto out;
 
 	(void) memset(payload, 0, sizeof (payload));
@@ -349,7 +351,7 @@ ef10_phy_reconfigure(
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail1;
+		goto fail2;
 	}
 
 	/* And set the blink mode */
@@ -385,11 +387,13 @@ ef10_phy_reconfigure(
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail2;
+		goto fail3;
 	}
 out:
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
@@ -473,5 +477,158 @@ ef10_phy_stats_update(
 }
 
 #endif	/* EFSYS_OPT_PHY_STATS */
+
+#if EFSYS_OPT_BIST
+
+	__checkReturn		efx_rc_t
+ef10_bist_enable_offline(
+	__in			efx_nic_t *enp)
+{
+	efx_rc_t rc;
+
+	if ((rc = efx_mcdi_bist_enable_offline(enp)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+ef10_bist_start(
+	__in			efx_nic_t *enp,
+	__in			efx_bist_type_t type)
+{
+	efx_rc_t rc;
+
+	if ((rc = efx_mcdi_bist_start(enp, type)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+ef10_bist_poll(
+	__in			efx_nic_t *enp,
+	__in			efx_bist_type_t type,
+	__out			efx_bist_result_t *resultp,
+	__out_opt __drv_when(count > 0, __notnull)
+	uint32_t *value_maskp,
+	__out_ecount_opt(count)	__drv_when(count > 0, __notnull)
+	unsigned long *valuesp,
+	__in			size_t count)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_POLL_BIST_IN_LEN,
+			    MCDI_CTL_SDU_LEN_MAX)];
+	uint32_t value_mask = 0;
+	uint32_t result;
+	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(type))
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_POLL_BIST;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_POLL_BIST_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MCDI_CTL_SDU_LEN_MAX;
+
+	efx_mcdi_execute(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (req.emr_out_length_used < MC_CMD_POLL_BIST_OUT_RESULT_OFST + 4) {
+		rc = EMSGSIZE;
+		goto fail2;
+	}
+
+	if (count > 0)
+		(void) memset(valuesp, '\0', count * sizeof (unsigned long));
+
+	result = MCDI_OUT_DWORD(req, POLL_BIST_OUT_RESULT);
+
+	if (result == MC_CMD_POLL_BIST_FAILED &&
+	    req.emr_out_length >= MC_CMD_POLL_BIST_OUT_MEM_LEN &&
+	    count > EFX_BIST_MEM_ECC_FATAL) {
+		if (valuesp != NULL) {
+			valuesp[EFX_BIST_MEM_TEST] =
+			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MEM_TEST);
+			valuesp[EFX_BIST_MEM_ADDR] =
+			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MEM_ADDR);
+			valuesp[EFX_BIST_MEM_BUS] =
+			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MEM_BUS);
+			valuesp[EFX_BIST_MEM_EXPECT] =
+			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MEM_EXPECT);
+			valuesp[EFX_BIST_MEM_ACTUAL] =
+			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MEM_ACTUAL);
+			valuesp[EFX_BIST_MEM_ECC] =
+			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MEM_ECC);
+			valuesp[EFX_BIST_MEM_ECC_PARITY] =
+			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MEM_ECC_PARITY);
+			valuesp[EFX_BIST_MEM_ECC_FATAL] =
+			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MEM_ECC_FATAL);
+		}
+		value_mask |= (1 << EFX_BIST_MEM_TEST) |
+		    (1 << EFX_BIST_MEM_ADDR) |
+		    (1 << EFX_BIST_MEM_BUS) |
+		    (1 << EFX_BIST_MEM_EXPECT) |
+		    (1 << EFX_BIST_MEM_ACTUAL) |
+		    (1 << EFX_BIST_MEM_ECC) |
+		    (1 << EFX_BIST_MEM_ECC_PARITY) |
+		    (1 << EFX_BIST_MEM_ECC_FATAL);
+	} else if (result == MC_CMD_POLL_BIST_FAILED &&
+	    encp->enc_phy_type == EFX_PHY_XFI_FARMI &&
+	    req.emr_out_length >= MC_CMD_POLL_BIST_OUT_MRSFP_LEN &&
+	    count > EFX_BIST_FAULT_CODE) {
+		if (valuesp != NULL)
+			valuesp[EFX_BIST_FAULT_CODE] =
+			    MCDI_OUT_DWORD(req, POLL_BIST_OUT_MRSFP_TEST);
+		value_mask |= 1 << EFX_BIST_FAULT_CODE;
+	}
+
+	if (value_maskp != NULL)
+		*value_maskp = value_mask;
+
+	EFSYS_ASSERT(resultp != NULL);
+	if (result == MC_CMD_POLL_BIST_RUNNING)
+		*resultp = EFX_BIST_RESULT_RUNNING;
+	else if (result == MC_CMD_POLL_BIST_PASSED)
+		*resultp = EFX_BIST_RESULT_PASSED;
+	else
+		*resultp = EFX_BIST_RESULT_FAILED;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+			void
+ef10_bist_stop(
+	__in		efx_nic_t *enp,
+	__in		efx_bist_type_t type)
+{
+	/* There is no way to stop BIST on EF10. */
+	_NOTE(ARGUNUSED(enp, type))
+}
+
+#endif	/* EFSYS_OPT_BIST */
 
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */

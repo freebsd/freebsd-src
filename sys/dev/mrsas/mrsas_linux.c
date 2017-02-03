@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #if (__FreeBSD_version >= 1001511)
 #include <sys/capsicum.h>
 #elif (__FreeBSD_version > 900000)
-#include <sys/capabilty.h>
+#include <sys/capability.h>
 #endif
 
 #include <sys/conf.h>

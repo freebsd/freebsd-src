@@ -244,50 +244,14 @@ statfs_scale_blocks(struct statfs *sf, long max_size)
 	sf->f_bavail >>= shift;
 }
 
-/*
- * Get filesystem statistics.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct statfs_args {
-	char *path;
-	struct statfs *buf;
-};
-#endif
-int
-sys_statfs(td, uap)
-	struct thread *td;
-	register struct statfs_args /* {
-		char *path;
-		struct statfs *buf;
-	} */ *uap;
+static int
+kern_do_statfs(struct thread *td, struct mount *mp, struct statfs *buf)
 {
-	struct statfs sf;
+	struct statfs *sp;
 	int error;
 
-	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
-	if (error == 0)
-		error = copyout(&sf, uap->buf, sizeof(sf));
-	return (error);
-}
-
-int
-kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
-    struct statfs *buf)
-{
-	struct mount *mp;
-	struct statfs *sp, sb;
-	struct nameidata nd;
-	int error;
-
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
-	    pathseg, path, td);
-	error = namei(&nd);
-	if (error != 0)
-		return (error);
-	mp = nd.ni_vp->v_mount;
-	vfs_ref(mp);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_vp);
+	if (mp == NULL)
+		return (EBADF);
 	error = vfs_busy(mp, 0);
 	vfs_rel(mp);
 	if (error != 0)
@@ -307,16 +271,62 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	error = VFS_STATFS(mp, sp);
 	if (error != 0)
 		goto out;
-	if (priv_check(td, PRIV_VFS_GENERATION)) {
-		bcopy(sp, &sb, sizeof(sb));
-		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-		prison_enforce_statfs(td->td_ucred, mp, &sb);
-		sp = &sb;
-	}
 	*buf = *sp;
+	if (priv_check(td, PRIV_VFS_GENERATION)) {
+		buf->f_fsid.val[0] = buf->f_fsid.val[1] = 0;
+		prison_enforce_statfs(td->td_ucred, mp, buf);
+	}
 out:
 	vfs_unbusy(mp);
 	return (error);
+}
+
+/*
+ * Get filesystem statistics.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct statfs_args {
+	char *path;
+	struct statfs *buf;
+};
+#endif
+int
+sys_statfs(td, uap)
+	struct thread *td;
+	register struct statfs_args /* {
+		char *path;
+		struct statfs *buf;
+	} */ *uap;
+{
+	struct statfs *sfp;
+	int error;
+
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, sfp);
+	if (error == 0)
+		error = copyout(sfp, uap->buf, sizeof(struct statfs));
+	free(sfp, M_STATFS);
+	return (error);
+}
+
+int
+kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
+    struct statfs *buf)
+{
+	struct mount *mp;
+	struct nameidata nd;
+	int error;
+
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
+	    pathseg, path, td);
+	error = namei(&nd);
+	if (error != 0)
+		return (error);
+	mp = nd.ni_vp->v_mount;
+	vfs_ref(mp);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vput(nd.ni_vp);
+	return (kern_do_statfs(td, mp, buf));
 }
 
 /*
@@ -336,12 +346,14 @@ sys_fstatfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
-	struct statfs sf;
+	struct statfs *sfp;
 	int error;
 
-	error = kern_fstatfs(td, uap->fd, &sf);
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fstatfs(td, uap->fd, sfp);
 	if (error == 0)
-		error = copyout(&sf, uap->buf, sizeof(sf));
+		error = copyout(sfp, uap->buf, sizeof(struct statfs));
+	free(sfp, M_STATFS);
 	return (error);
 }
 
@@ -350,7 +362,6 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 {
 	struct file *fp;
 	struct mount *mp;
-	struct statfs *sp, sb;
 	struct vnode *vp;
 	cap_rights_t rights;
 	int error;
@@ -365,44 +376,11 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	AUDIT_ARG_VNODE1(vp);
 #endif
 	mp = vp->v_mount;
-	if (mp)
+	if (mp != NULL)
 		vfs_ref(mp);
 	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
-	if (mp == NULL) {
-		error = EBADF;
-		goto out;
-	}
-	error = vfs_busy(mp, 0);
-	vfs_rel(mp);
-	if (error != 0)
-		return (error);
-#ifdef MAC
-	error = mac_mount_check_stat(td->td_ucred, mp);
-	if (error != 0)
-		goto out;
-#endif
-	/*
-	 * Set these in case the underlying filesystem fails to do so.
-	 */
-	sp = &mp->mnt_stat;
-	sp->f_version = STATFS_VERSION;
-	sp->f_namemax = NAME_MAX;
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp);
-	if (error != 0)
-		goto out;
-	if (priv_check(td, PRIV_VFS_GENERATION)) {
-		bcopy(sp, &sb, sizeof(sb));
-		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-		prison_enforce_statfs(td->td_ucred, mp, &sb);
-		sp = &sb;
-	}
-	*buf = *sp;
-out:
-	if (mp)
-		vfs_unbusy(mp);
-	return (error);
+	return (kern_do_statfs(td, mp, buf));
 }
 
 /*
@@ -446,7 +424,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
     size_t *countp, enum uio_seg bufseg, int mode)
 {
 	struct mount *mp, *nmp;
-	struct statfs *sfsp, *sp, sb, *tofree;
+	struct statfs *sfsp, *sp, *sptmp, *tofree;
 	size_t count, maxcount;
 	int error;
 
@@ -455,6 +433,8 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	case MNT_NOWAIT:
 		break;
 	default:
+		if (bufseg == UIO_SYSSPACE)
+			*buf = NULL;
 		return (EINVAL);
 	}
 restart:
@@ -475,7 +455,7 @@ restart:
 		if (maxcount > count)
 			maxcount = count;
 		tofree = sfsp = *buf = malloc(maxcount * sizeof(struct statfs),
-		    M_TEMP, M_WAITOK);
+		    M_STATFS, M_WAITOK);
 	}
 	count = 0;
 	mtx_lock(&mountlist_mtx);
@@ -500,7 +480,7 @@ restart:
 				 * no other choice than to start over.
 				 */
 				mtx_unlock(&mountlist_mtx);
-				free(tofree, M_TEMP);
+				free(tofree, M_STATFS);
 				goto restart;
 			}
 		} else {
@@ -509,7 +489,7 @@ restart:
 				continue;
 			}
 		}
-		if (sfsp && count < maxcount) {
+		if (sfsp != NULL && count < maxcount) {
 			sp = &mp->mnt_stat;
 			/*
 			 * Set these in case the underlying filesystem
@@ -532,15 +512,20 @@ restart:
 				}
 			}
 			if (priv_check(td, PRIV_VFS_GENERATION)) {
-				bcopy(sp, &sb, sizeof(sb));
-				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-				prison_enforce_statfs(td->td_ucred, mp, &sb);
-				sp = &sb;
-			}
-			if (bufseg == UIO_SYSSPACE)
+				sptmp = malloc(sizeof(struct statfs), M_STATFS,
+				    M_WAITOK);
+				*sptmp = *sp;
+				sptmp->f_fsid.val[0] = sptmp->f_fsid.val[1] = 0;
+				prison_enforce_statfs(td->td_ucred, mp, sptmp);
+				sp = sptmp;
+			} else
+				sptmp = NULL;
+			if (bufseg == UIO_SYSSPACE) {
 				bcopy(sp, sfsp, sizeof(*sp));
-			else /* if (bufseg == UIO_USERSPACE) */ {
+				free(sptmp, M_STATFS);
+			} else /* if (bufseg == UIO_USERSPACE) */ {
 				error = copyout(sp, sfsp, sizeof(*sp));
+				free(sptmp, M_STATFS);
 				if (error != 0) {
 					vfs_unbusy(mp);
 					return (error);
@@ -554,7 +539,7 @@ restart:
 		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
-	if (sfsp && count > maxcount)
+	if (sfsp != NULL && count > maxcount)
 		*countp = maxcount;
 	else
 		*countp = count;
@@ -582,14 +567,17 @@ freebsd4_statfs(td, uap)
 	} */ *uap;
 {
 	struct ostatfs osb;
-	struct statfs sf;
+	struct statfs *sfp;
 	int error;
 
-	error = kern_statfs(td, uap->path, UIO_USERSPACE, &sf);
-	if (error != 0)
-		return (error);
-	cvtstatfs(&sf, &osb);
-	return (copyout(&osb, uap->buf, sizeof(osb)));
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, sfp);
+	if (error == 0) {
+		cvtstatfs(sfp, &osb);
+		error = copyout(&osb, uap->buf, sizeof(osb));
+	}
+	free(sfp, M_STATFS);
+	return (error);
 }
 
 /*
@@ -610,14 +598,17 @@ freebsd4_fstatfs(td, uap)
 	} */ *uap;
 {
 	struct ostatfs osb;
-	struct statfs sf;
+	struct statfs *sfp;
 	int error;
 
-	error = kern_fstatfs(td, uap->fd, &sf);
-	if (error != 0)
-		return (error);
-	cvtstatfs(&sf, &osb);
-	return (copyout(&osb, uap->buf, sizeof(osb)));
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fstatfs(td, uap->fd, sfp);
+	if (error == 0) {
+		cvtstatfs(sfp, &osb);
+		error = copyout(&osb, uap->buf, sizeof(osb));
+	}
+	free(sfp, M_STATFS);
+	return (error);
 }
 
 /*
@@ -662,7 +653,7 @@ freebsd4_getfsstat(td, uap)
 			uap->buf++;
 			count--;
 		}
-		free(buf, M_TEMP);
+		free(buf, M_STATFS);
 	}
 	return (error);
 }
@@ -685,18 +676,21 @@ freebsd4_fhstatfs(td, uap)
 	} */ *uap;
 {
 	struct ostatfs osb;
-	struct statfs sf;
+	struct statfs *sfp;
 	fhandle_t fh;
 	int error;
 
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error != 0)
 		return (error);
-	error = kern_fhstatfs(td, fh, &sf);
-	if (error != 0)
-		return (error);
-	cvtstatfs(&sf, &osb);
-	return (copyout(&osb, uap->buf, sizeof(osb)));
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fhstatfs(td, fh, sfp);
+	if (error == 0) {
+		cvtstatfs(sfp, &osb);
+		error = copyout(&osb, uap->buf, sizeof(osb));
+	}
+	free(sfp, M_STATFS);
+	return (error);
 }
 
 /*
@@ -1812,25 +1806,25 @@ struct lseek_args {
 };
 #endif
 int
-sys_lseek(td, uap)
-	struct thread *td;
-	register struct lseek_args /* {
-		int fd;
-		int pad;
-		off_t offset;
-		int whence;
-	} */ *uap;
+sys_lseek(struct thread *td, struct lseek_args *uap)
+{
+
+	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
+}
+
+int
+kern_lseek(struct thread *td, int fd, off_t offset, int whence)
 {
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
 
-	AUDIT_ARG_FD(uap->fd);
-	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_SEEK), &fp);
+	AUDIT_ARG_FD(fd);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_SEEK), &fp);
 	if (error != 0)
 		return (error);
 	error = (fp->f_ops->fo_flags & DFLAG_SEEKABLE) != 0 ?
-	    fo_seek(fp, uap->offset, uap->whence, td) : ESPIPE;
+	    fo_seek(fp, offset, whence, td) : ESPIPE;
 	fdrop(fp, td);
 	return (error);
 }
@@ -1847,41 +1841,20 @@ struct olseek_args {
 };
 #endif
 int
-olseek(td, uap)
-	struct thread *td;
-	register struct olseek_args /* {
-		int fd;
-		long offset;
-		int whence;
-	} */ *uap;
+olseek(struct thread *td, struct olseek_args *uap)
 {
-	struct lseek_args /* {
-		int fd;
-		int pad;
-		off_t offset;
-		int whence;
-	} */ nuap;
 
-	nuap.fd = uap->fd;
-	nuap.offset = uap->offset;
-	nuap.whence = uap->whence;
-	return (sys_lseek(td, &nuap));
+	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
 }
 #endif /* COMPAT_43 */
 
 #if defined(COMPAT_FREEBSD6)
 /* Version with the 'pad' argument */
 int
-freebsd6_lseek(td, uap)
-	struct thread *td;
-	register struct freebsd6_lseek_args *uap;
+freebsd6_lseek(struct thread *td, struct freebsd6_lseek_args *uap)
 {
-	struct lseek_args ouap;
 
-	ouap.fd = uap->fd;
-	ouap.offset = uap->offset;
-	ouap.whence = uap->whence;
-	return (sys_lseek(td, &ouap));
+	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
 }
 #endif
 
@@ -3337,22 +3310,10 @@ struct otruncate_args {
 };
 #endif
 int
-otruncate(td, uap)
-	struct thread *td;
-	register struct otruncate_args /* {
-		char *path;
-		long length;
-	} */ *uap;
+otruncate(struct thread *td, struct otruncate_args *uap)
 {
-	struct truncate_args /* {
-		char *path;
-		int pad;
-		off_t length;
-	} */ nuap;
 
-	nuap.path = uap->path;
-	nuap.length = uap->length;
-	return (sys_truncate(td, &nuap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
 #endif /* COMPAT_43 */
 
@@ -3361,21 +3322,15 @@ otruncate(td, uap)
 int
 freebsd6_truncate(struct thread *td, struct freebsd6_truncate_args *uap)
 {
-	struct truncate_args ouap;
 
-	ouap.path = uap->path;
-	ouap.length = uap->length;
-	return (sys_truncate(td, &ouap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
 
 int
 freebsd6_ftruncate(struct thread *td, struct freebsd6_ftruncate_args *uap)
 {
-	struct ftruncate_args ouap;
 
-	ouap.fd = uap->fd;
-	ouap.length = uap->length;
-	return (sys_ftruncate(td, &ouap));
+	return (kern_ftruncate(td, uap->fd, uap->length));
 }
 #endif
 
@@ -4431,17 +4386,19 @@ sys_fhstatfs(td, uap)
 		struct statfs *buf;
 	} */ *uap;
 {
-	struct statfs sf;
+	struct statfs *sfp;
 	fhandle_t fh;
 	int error;
 
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error != 0)
 		return (error);
-	error = kern_fhstatfs(td, fh, &sf);
-	if (error != 0)
-		return (error);
-	return (copyout(&sf, uap->buf, sizeof(sf)));
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fhstatfs(td, fh, sfp);
+	if (error == 0)
+		error = copyout(sfp, uap->buf, sizeof(*sfp));
+	free(sfp, M_STATFS);
+	return (error);
 }
 
 int

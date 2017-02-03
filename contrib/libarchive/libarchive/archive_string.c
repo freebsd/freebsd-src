@@ -219,6 +219,12 @@ archive_wstring_append(struct archive_wstring *as, const wchar_t *p, size_t s)
 	return (as);
 }
 
+struct archive_string *
+archive_array_append(struct archive_string *as, const char *p, size_t s)
+{
+	return archive_string_append(as, p, s);
+}
+
 void
 archive_string_concat(struct archive_string *dest, struct archive_string *src)
 {
@@ -597,7 +603,7 @@ archive_wstring_append_from_mbs(struct archive_wstring *dest,
 	wcs = dest->s + dest->length;
 	/*
 	 * We cannot use mbsrtowcs/mbstowcs here because those may convert
-	 * extra MBS when strlen(p) > len and one wide character consis of
+	 * extra MBS when strlen(p) > len and one wide character consists of
 	 * multi bytes.
 	 */
 	while (*mbs && mbs_length > 0) {
@@ -1248,7 +1254,7 @@ create_sconv_object(const char *fc, const char *tc,
 		sc->cd = iconv_open(tc, fc);
 		if (sc->cd == (iconv_t)-1 && (sc->flag & SCONV_BEST_EFFORT)) {
 			/*
-			 * Unfortunaly, all of iconv implements do support 
+			 * Unfortunately, all of iconv implements do support
 			 * "CP932" character-set, so we should use "SJIS"
 			 * instead if iconv_open failed.
 			 */
@@ -1261,7 +1267,7 @@ create_sconv_object(const char *fc, const char *tc,
 		/*
 		 * archive_mstring on Windows directly convert multi-bytes
 		 * into archive_wstring in order not to depend on locale
-		 * so that you can do a I18N programing. This will be
+		 * so that you can do a I18N programming. This will be
 		 * used only in archive_mstring_copy_mbs_len_l so far.
 		 */
 		if (flag & SCONV_FROM_CHARSET) {
@@ -1726,7 +1732,7 @@ archive_string_conversion_from_charset(struct archive *a, const char *charset,
  * in tar or zip files. But mbstowcs/wcstombs(CRT) usually use CP_ACP
  * unless you use setlocale(LC_ALL, ".OCP")(specify CP_OEMCP).
  * So we should make a string conversion between CP_ACP and CP_OEMCP
- * for compatibillty.
+ * for compatibility.
  */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 struct archive_string_conv *
@@ -2220,7 +2226,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 
 	/*
 	 * If a character is ASCII, this just copies it. If not, this
-	 * assigns '?' charater instead but in UTF-8 locale this assigns
+	 * assigns '?' character instead but in UTF-8 locale this assigns
 	 * byte sequence 0xEF 0xBD 0xBD, which are code point U+FFFD,
 	 * a Replacement Character in Unicode.
 	 */
@@ -2554,7 +2560,7 @@ utf16_to_unicode(uint32_t *pwc, const char *s, size_t n, int be)
 
 	/*
 	 * Surrogate pair values(0xd800 through 0xdfff) are only
-	 * used by UTF-16, so, after above culculation, the code
+	 * used by UTF-16, so, after above calculation, the code
 	 * must not be surrogate values, and Unicode has no codes
 	 * larger than 0x10ffff. Thus, those are not legal Unicode
 	 * values.
@@ -2903,7 +2909,7 @@ get_nfc(uint32_t uc, uint32_t uc2)
 /*
  * Normalize UTF-8/UTF-16BE characters to Form C and copy the result.
  *
- * TODO: Convert composition exclusions,which are never converted
+ * TODO: Convert composition exclusions, which are never converted
  * from NFC,NFD,NFKC and NFKD, to Form C.
  */
 static int
@@ -3437,7 +3443,7 @@ strncat_from_utf8_libarchive2(struct archive_string *as,
 		}
 
 		/*
-		 * As libarchie 2.x, translates the UTF-8 characters into
+		 * As libarchive 2.x, translates the UTF-8 characters into
 		 * wide-characters in the assumption that WCS is Unicode.
 		 */
 		if (n < 0) {
@@ -3947,7 +3953,7 @@ archive_mstring_get_mbs_l(struct archive_mstring *aes,
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/*
-	 * Internationalization programing on Windows must use Wide
+	 * Internationalization programming on Windows must use Wide
 	 * characters because Windows platform cannot make locale UTF-8.
 	 */
 	if (sc != NULL && (aes->aes_set & AES_SET_WCS) != 0) {
@@ -4079,7 +4085,7 @@ archive_mstring_copy_mbs_len_l(struct archive_mstring *aes,
 	archive_string_empty(&(aes->aes_utf8));
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/*
-	 * Internationalization programing on Windows must use Wide
+	 * Internationalization programming on Windows must use Wide
 	 * characters because Windows platform cannot make locale UTF-8.
 	 */
 	if (sc == NULL) {

@@ -29,7 +29,6 @@ node [color=grey62, style=filled, bgcolor=black];
 
 # Alumni go here.. Try to keep things sorted.
 
-adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16\n2006/09/25"]
 asami [label="Satoshi Asami\nasami@FreeBSD.org\n1994/11/18\n2001/09/11"]
 billf [label="Bill Fumerola\nbillf@FreeBSD.org\n1998/11/11\n2006/12/14"]
 jmallett [label="Juli Mallett\njmallett@FreeBSD.org\n2003/01/16\n2006/08/10"]
@@ -43,6 +42,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1994/11/15"]
 acm [label="Jose Alonso Cardenas Marquez\nacm@FreeBSD.org\n2006/07/18"]
+adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29"]
 ak [label="Alex Kozlov\nak@FreeBSD.org\n2012/02/29"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
@@ -90,6 +90,7 @@ delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25"]
+dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2017/01/10"]
 dvl [label="Dan Langille\ndvl@FreeBSD.org\n2014/08/10"]
 eadler [label="Eitan Adler\neadler@FreeBSD.org\n2011/08/17"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
@@ -124,6 +125,7 @@ jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jhale [label="Jason E. Hale\njhale@FreeBSD.org\n2012/09/10"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
+jmd [label="Johannes M. Dieterich\njmd@FreeBSD.org\n2017/01/09"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1994/08/22"]
 johans [label="Johan Selst\njohans@FreeBSD.org\n2006/04/01"]
@@ -144,6 +146,7 @@ laszlof [label="Frank Laszlo\nlaszlof@FreeBSD.org\n2006/11/07"]
 lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
 lbr [label="Lars Balker Rasmussen\nlbr@FreeBSD.org\n2006/04/30"]
 leeym [label="Yen-Ming Lee\nleeym@FreeBSD.org\n2002/08/14"]
+ler [label="Larry Rosenman\nler@FreeBSD.org\n2017/01/09"]
 lev [label="Lev Serebryakov\nlev@FreeBSD.org\n2003/06/17"]
 lifanov [label="Nikolai Lifanov\nlifanov@FreeBSD.org\n2016/12/11"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2003/10/23"]
@@ -193,6 +196,7 @@ philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
+rezny [label="Matthew Rezny\nrezny@FreeBSD.org\n2017/01/09"]
 riggs [label="Thomas Zander\nriggs@FreeBSD.org\n2014/01/09"]
 rm [label="Ruslan Makhmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
@@ -252,6 +256,7 @@ znerd [label="Ernst de Haan\nznerd@FreeBSD.org\n2001/11/15"]
 
 adamw -> ahze
 adamw -> jylefort
+adamw -> ler
 adamw -> mezz
 adamw -> pav
 adamw -> woodsb02
@@ -262,6 +267,8 @@ ahze -> shaun
 ahze -> tmclaugh
 
 amdmi3 -> jrm
+
+antoine -> dumbbell
 
 araujo -> lippe
 araujo -> pclin
@@ -281,6 +288,7 @@ bdrewery -> trociny
 
 bapt -> bdrewery
 bapt -> bofh
+bapt -> dumbbell
 bapt -> eadler
 bapt -> grembo
 bapt -> jbeich
@@ -364,6 +372,7 @@ erwin -> simon
 
 feld -> brnrd
 feld -> junovitch
+feld -> rezny
 
 fjoe -> danfe
 fjoe -> flo
@@ -554,6 +563,8 @@ rene -> bar
 rene -> cmt
 rene -> crees
 rene -> jgh
+rene -> jmd
+rene -> ler
 rene -> olivierd
 
 rm -> koobs
@@ -585,9 +596,11 @@ stas -> araujo
 steve -> netchild
 
 swills -> feld
+swills -> jmd
 swills -> jrm
 swills -> milki
 swills -> pclin
+swills -> rezny
 swills -> robak
 swills -> rpaulo
 swills -> tz

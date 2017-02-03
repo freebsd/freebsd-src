@@ -105,7 +105,7 @@ enum {
 	RUN_DEBUG_RSSI		= 0x00004000,	/* dump RSSI lookups */
 	RUN_DEBUG_RESET		= 0x00008000,	/* initialization progress */
 	RUN_DEBUG_CALIB		= 0x00010000,	/* calibration progress */
-	RUN_DEBUG_CMD		= 0x00010000,	/* command queue */
+	RUN_DEBUG_CMD		= 0x00020000,	/* command queue */
 	RUN_DEBUG_ANY		= 0xffffffff
 };
 

@@ -697,32 +697,26 @@ goout:
 int
 linux_socket(struct thread *td, struct linux_socket_args *args)
 {
-	struct socket_args /* {
-		int domain;
-		int type;
-		int protocol;
-	} */ bsd_args;
-	int retval_socket;
+	int domain, retval_socket, type;
 
-	bsd_args.protocol = args->protocol;
-	bsd_args.type = args->type & LINUX_SOCK_TYPE_MASK;
-	if (bsd_args.type < 0 || bsd_args.type > LINUX_SOCK_MAX)
+	type = args->type & LINUX_SOCK_TYPE_MASK;
+	if (type < 0 || type > LINUX_SOCK_MAX)
 		return (EINVAL);
 	retval_socket = linux_set_socket_flags(args->type & ~LINUX_SOCK_TYPE_MASK,
-		&bsd_args.type);
+		&type);
 	if (retval_socket != 0)
 		return (retval_socket);
-	bsd_args.domain = linux_to_bsd_domain(args->domain);
-	if (bsd_args.domain == -1)
+	domain = linux_to_bsd_domain(args->domain);
+	if (domain == -1)
 		return (EAFNOSUPPORT);
 
-	retval_socket = sys_socket(td, &bsd_args);
+	retval_socket = kern_socket(td, domain, type, args->protocol);
 	if (retval_socket)
 		return (retval_socket);
 
-	if (bsd_args.type == SOCK_RAW
-	    && (bsd_args.protocol == IPPROTO_RAW || bsd_args.protocol == 0)
-	    && bsd_args.domain == PF_INET) {
+	if (type == SOCK_RAW
+	    && (args->protocol == IPPROTO_RAW || args->protocol == 0)
+	    && domain == PF_INET) {
 		/* It's a raw IP socket: set the IP_HDRINCL option. */
 		int hdrincl;
 
@@ -738,7 +732,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	 * For simplicity we do this unconditionally of the net.inet6.ip6.v6only
 	 * sysctl value.
 	 */
-	if (bsd_args.domain == PF_INET6) {
+	if (domain == PF_INET6) {
 		int v6only;
 
 		v6only = 0;
@@ -775,6 +769,7 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	cap_rights_t rights;
 	struct socket *so;
 	struct sockaddr *sa;
+	struct file *fp;
 	u_int fflag;
 	int error;
 
@@ -792,38 +787,31 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * Linux doesn't return EISCONN the first time it occurs,
 	 * when on a non-blocking socket. Instead it returns the
 	 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
-	 *
-	 * XXXRW: Instead of using fgetsock(), check that it is a
-	 * socket and use the file descriptor reference instead of
-	 * creating a new one.
 	 */
-	error = fgetsock(td, args->s, cap_rights_init(&rights, CAP_CONNECT),
-	    &so, &fflag);
-	if (error == 0) {
-		error = EISCONN;
-		if (fflag & FNONBLOCK) {
-			SOCK_LOCK(so);
-			if (so->so_emuldata == 0)
-				error = so->so_error;
-			so->so_emuldata = (void *)1;
-			SOCK_UNLOCK(so);
-		}
-		fputsock(so);
+	error = getsock_cap(td, args->s, cap_rights_init(&rights, CAP_CONNECT),
+	    &fp, &fflag, NULL);
+	if (error != 0)
+		return (error);
+
+	error = EISCONN;
+	so = fp->f_data;
+	if (fflag & FNONBLOCK) {
+		SOCK_LOCK(so);
+		if (so->so_emuldata == 0)
+			error = so->so_error;
+		so->so_emuldata = (void *)1;
+		SOCK_UNLOCK(so);
 	}
+	fdrop(fp, td);
+
 	return (error);
 }
 
 int
 linux_listen(struct thread *td, struct linux_listen_args *args)
 {
-	struct listen_args /* {
-		int s;
-		int backlog;
-	} */ bsd_args;
 
-	bsd_args.s = args->s;
-	bsd_args.backlog = args->backlog;
-	return (sys_listen(td, &bsd_args));
+	return (kern_listen(td, args->s, args->backlog));
 }
 
 static int
@@ -1524,14 +1512,8 @@ linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
 int
 linux_shutdown(struct thread *td, struct linux_shutdown_args *args)
 {
-	struct shutdown_args /* {
-		int s;
-		int how;
-	} */ bsd_args;
 
-	bsd_args.s = args->s;
-	bsd_args.how = args->how;
-	return (sys_shutdown(td, &bsd_args));
+	return (kern_shutdown(td, args->s, args->how));
 }
 
 int

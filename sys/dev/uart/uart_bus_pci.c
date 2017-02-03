@@ -45,12 +45,14 @@ __FBSDID("$FreeBSD$");
 #define	DEFAULT_RCLK	1843200
 
 static int uart_pci_probe(device_t dev);
+static int uart_pci_attach(device_t dev);
+static int uart_pci_detach(device_t dev);
 
 static device_method_t uart_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		uart_pci_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
+	DEVMETHOD(device_attach,	uart_pci_attach),
+	DEVMETHOD(device_detach,	uart_pci_detach),
 	DEVMETHOD(device_resume,	uart_bus_resume),
 	DEVMETHOD_END
 };
@@ -207,6 +209,42 @@ uart_pci_probe(device_t dev)
 	if (id->desc)
 		device_set_desc(dev, id->desc);
 	return (result);
+}
+
+static int
+uart_pci_attach(device_t dev)
+{
+	struct uart_softc *sc;
+	int count;
+
+	sc = device_get_softc(dev);
+
+	/*
+	 * Use MSI in preference to legacy IRQ if available.
+	 * Whilst some PCIe UARTs support >1 MSI vector, use only the first.
+	 */
+	if (pci_msi_count(dev) > 0) {
+		count = 1;
+		if (pci_alloc_msi(dev, &count) == 0) {
+			sc->sc_irid = 1;
+			device_printf(dev, "Using %d MSI message\n", count);
+		}
+	}
+
+	return (uart_bus_attach(dev));
+}
+
+static int
+uart_pci_detach(device_t dev)
+{
+	struct uart_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->sc_irid != 0)
+		pci_release_msi(dev);
+
+	return (uart_bus_detach(dev));
 }
 
 DRIVER_MODULE(uart, pci, uart_pci_driver, uart_devclass, NULL, NULL);

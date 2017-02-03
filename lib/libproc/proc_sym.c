@@ -143,10 +143,12 @@ load_symtab(Elf *e, struct symtab *symtab, u_long sh_type)
 	if (scn == NULL)
 		return (-1);
 
-	if ((symtab->data = elf_getdata(scn, NULL)) == NULL)
+	nsyms = shdr.sh_size / shdr.sh_entsize;
+	if (nsyms > (1 << 20))
 		return (-1);
 
-	nsyms = shdr.sh_size / shdr.sh_entsize;
+	if ((symtab->data = elf_getdata(scn, NULL)) == NULL)
+		return (-1);
 
 	symtab->index = calloc(nsyms, sizeof(u_int));
 	if (symtab->index == NULL)

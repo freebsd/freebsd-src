@@ -9,8 +9,8 @@ SRCS=	errno.c flags.c ioctl.c signal.c syscallnames.c utrace.c
 INCS=	sysdecode.h
 
 CFLAGS+= -I${.OBJDIR}
-CFLAGS+= -I${.CURDIR}/../../sys
-CFLAGS+= -I${.CURDIR}/../../libexec/rtld-elf
+CFLAGS+= -I${SRCTOP}/sys
+CFLAGS+= -I${SRCTOP}/libexec/rtld-elf
 
 MAN=	sysdecode.3 \
 	sysdecode_abi_to_freebsd_errno.3 \
@@ -30,6 +30,7 @@ MLINKS+=sysdecode_enum.3 sysdecode_acltype.3 \
 	sysdecode_enum.3 sysdecode_extattrnamespace.3 \
 	sysdecode_enum.3 sysdecode_fadvice.3 \
 	sysdecode_enum.3 sysdecode_fcntl_cmd.3 \
+	sysdecode_enum.3 sysdecode_getfsstat_mode.3 \
 	sysdecode_enum.3 sysdecode_idtype.3 \
 	sysdecode_enum.3 sysdecode_ipproto.3 \
 	sysdecode_enum.3 sysdecode_kldsym_cmd.3 \
@@ -70,7 +71,6 @@ MLINKS+=sysdecode_mask.3 sysdecode_accessmode.3 \
 	sysdecode_mask.3 sysdecode_fileflags.3 \
 	sysdecode_mask.3 sysdecode_filemode.3 \
 	sysdecode_mask.3 sysdecode_flock_operation.3 \
-	sysdecode_mask.3 sysdecode_getfsstat_flags.3 \
 	sysdecode_mask.3 sysdecode_mlockall_flags.3 \
 	sysdecode_mask.3 sysdecode_mmap_flags.3 \
 	sysdecode_mask.3 sysdecode_mmap_prot.3 \
@@ -120,7 +120,7 @@ tables.h: mktables
 ioctl.c: .PHONY
 .endif
 ioctl.c: mkioctls .META
-	env MACHINE=${MACHINE} CPP="${CPP}" \
+	env CPP="${CPP}" \
 		/bin/sh ${.CURDIR}/mkioctls ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
 
 beforedepend: ioctl.c tables.h

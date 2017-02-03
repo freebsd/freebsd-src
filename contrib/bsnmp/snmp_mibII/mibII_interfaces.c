@@ -77,7 +77,7 @@ ifchange_func(struct snmp_context *ctx __unused, struct snmp_dependency *dep,
 	switch (op) {
 
 	  case SNMP_DEPOP_COMMIT:
-		strncpy(ifr.ifr_name, ifp->name, sizeof(ifr.ifr_name));
+		strlcpy(ifr.ifr_name, ifp->name, sizeof(ifr.ifr_name));
 		if (ioctl(mib_netsock, SIOCGIFFLAGS, &ifr) == -1) {
 			syslog(LOG_ERR, "GIFFLAGS(%s): %m", ifp->name);
 			return (SNMP_ERR_GENERR);
@@ -95,7 +95,7 @@ ifchange_func(struct snmp_context *ctx __unused, struct snmp_dependency *dep,
 			ifc->rb |= IFRB_FLAGS;
 		}
 		if (ifc->rb & IFRB_FLAGS) {
-			strncpy(ifr1.ifr_name, ifp->name, sizeof(ifr1.ifr_name));
+			strlcpy(ifr1.ifr_name, ifp->name, sizeof(ifr1.ifr_name));
 			if (ioctl(mib_netsock, SIOCGIFFLAGS, &ifr1) == -1) {
 				syslog(LOG_ERR, "GIFFLAGS(%s): %m", ifp->name);
 				return (SNMP_ERR_GENERR);
@@ -116,7 +116,7 @@ ifchange_func(struct snmp_context *ctx __unused, struct snmp_dependency *dep,
 
 	  case SNMP_DEPOP_ROLLBACK:
 		if (ifc->rb & IFRB_FLAGS) {
-			strncpy(ifr.ifr_name, ifp->name, sizeof(ifr.ifr_name));
+			strlcpy(ifr.ifr_name, ifp->name, sizeof(ifr.ifr_name));
 			ifr.ifr_flags = ifc->rb_flags;
 			if (ioctl(mib_netsock, SIOCSIFFLAGS, &ifr) == -1) {
 				syslog(LOG_ERR, "SIFFLAGS(%s): %m", ifp->name);

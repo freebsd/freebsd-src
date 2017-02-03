@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_mesh.h>
 #include <net80211/ieee80211_ratectl.h>
+#include <net80211/ieee80211_vht.h>
 
 #include <net/bpf.h>
 
@@ -348,7 +349,6 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 		ni->ni_fhindex = 1;
 	}
 	if (vap->iv_opmode == IEEE80211_M_IBSS) {
-		vap->iv_flags |= IEEE80211_F_SIBSS;
 		ni->ni_capinfo |= IEEE80211_CAPINFO_IBSS;	/* XXX */
 		if (vap->iv_flags & IEEE80211_F_DESBSSID)
 			IEEE80211_ADDR_COPY(ni->ni_bssid, vap->iv_des_bssid);
@@ -412,7 +412,11 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 	/* XXX TODO: other bits and pieces - eg fast-frames? */
 
 	/* If we're an 11n channel then initialise the 11n bits */
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
+	if (IEEE80211_IS_CHAN_VHT(ni->ni_chan)) {
+		/* XXX what else? */
+		ieee80211_ht_node_init(ni);
+		ieee80211_vht_node_init(ni);
+	} else if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
 		/* XXX what else? */
 		ieee80211_ht_node_init(ni);
 	}
@@ -708,9 +712,42 @@ gethtadjustflags(struct ieee80211com *ic)
 }
 
 /*
+ * Calculate VHT channel promotion flags for all vaps.
+ * This assumes ni_chan have been setup for each vap.
+ */
+static int
+getvhtadjustflags(struct ieee80211com *ic)
+{
+	struct ieee80211vap *vap;
+	int flags;
+
+	flags = 0;
+	/* XXX locking */
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		if (vap->iv_state < IEEE80211_S_RUN)
+			continue;
+		switch (vap->iv_opmode) {
+		case IEEE80211_M_WDS:
+		case IEEE80211_M_STA:
+		case IEEE80211_M_AHDEMO:
+		case IEEE80211_M_HOSTAP:
+		case IEEE80211_M_IBSS:
+		case IEEE80211_M_MBSS:
+			flags |= ieee80211_vhtchanflags(vap->iv_bss->ni_chan);
+			break;
+		default:
+			break;
+		}
+	}
+	return flags;
+}
+
+/*
  * Check if the current channel needs to change based on whether
  * any vap's are using HT20/HT40.  This is used to sync the state
  * of ic_curchan after a channel width change on a running vap.
+ *
+ * Same applies for VHT.
  */
 void
 ieee80211_sync_curchan(struct ieee80211com *ic)
@@ -718,6 +755,8 @@ ieee80211_sync_curchan(struct ieee80211com *ic)
 	struct ieee80211_channel *c;
 
 	c = ieee80211_ht_adjust_channel(ic, ic->ic_curchan, gethtadjustflags(ic));
+	c = ieee80211_vht_adjust_channel(ic, c, getvhtadjustflags(ic));
+
 	if (c != ic->ic_curchan) {
 		ic->ic_curchan = c;
 		ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
@@ -743,10 +782,23 @@ ieee80211_setupcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 		 * set of running vap's.  This assumes we are called
 		 * after ni_chan is setup for each vap.
 		 */
+		/* XXX VHT? */
 		/* NB: this assumes IEEE80211_FHT_USEHT40 > IEEE80211_FHT_HT */
 		if (flags > ieee80211_htchanflags(c))
 			c = ieee80211_ht_adjust_channel(ic, c, flags);
 	}
+
+	/*
+	 * VHT promotion - this will at least promote to VHT20/40
+	 * based on what HT has done; it may further promote the
+	 * channel to VHT80 or above.
+	 */
+	if (ic->ic_vhtcaps != 0) {
+		int flags = getvhtadjustflags(ic);
+		if (flags > ieee80211_vhtchanflags(c))
+			c = ieee80211_vht_adjust_channel(ic, c, flags);
+	}
+
 	ic->ic_bsschan = ic->ic_curchan = c;
 	ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
 	ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
@@ -849,6 +901,7 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni;
+	int do_ht = 0;
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, se->se_macaddr);
 	if (ni == NULL) {
@@ -896,9 +949,13 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 		if (ni->ni_ies.tdma_ie != NULL)
 			ieee80211_parse_tdma(ni, ni->ni_ies.tdma_ie);
 #endif
+		if (ni->ni_ies.vhtcap_ie != NULL)
+			ieee80211_parse_vhtcap(ni, ni->ni_ies.vhtcap_ie);
+		if (ni->ni_ies.vhtopmode_ie != NULL)
+			ieee80211_parse_vhtopmode(ni, ni->ni_ies.vhtopmode_ie);
 
-		/* XXX parse VHT IEs */
 		/* XXX parse BSSLOAD IE */
+		/* XXX parse TXPWRENV IE */
 		/* XXX parse APCHANREP IE */
 	}
 
@@ -926,10 +983,43 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 		ieee80211_ht_updateparams(ni,
 		    ni->ni_ies.htcap_ie,
 		    ni->ni_ies.htinfo_ie);
+		do_ht = 1;
+	}
+
+	/*
+	 * Setup VHT state for this node if it's available.
+	 * Same as the above.
+	 *
+	 * For now, don't allow 2GHz VHT operation.
+	 */
+	if (ni->ni_ies.vhtopmode_ie != NULL &&
+	    ni->ni_ies.vhtcap_ie != NULL &&
+	    vap->iv_flags_vht & IEEE80211_FVHT_VHT) {
+		if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
+			printf("%s: BSS %6D: 2GHz channel, VHT info; ignoring\n",
+			    __func__,
+			    ni->ni_macaddr,
+			    ":");
+		} else {
+			ieee80211_vht_node_init(ni);
+			ieee80211_vht_updateparams(ni,
+			    ni->ni_ies.vhtcap_ie,
+			    ni->ni_ies.vhtopmode_ie);
+			ieee80211_setup_vht_rates(ni, ni->ni_ies.vhtcap_ie,
+			    ni->ni_ies.vhtopmode_ie);
+			do_ht = 1;
+		}
+	}
+
+	/* Finally do the node channel change */
+	if (do_ht) {
+		ieee80211_ht_updateparams_final(ni, ni->ni_ies.htcap_ie,
+		    ni->ni_ies.htinfo_ie);
 		ieee80211_setup_htrates(ni, ni->ni_ies.htcap_ie,
 		    IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
 		ieee80211_setup_basic_htrates(ni, ni->ni_ies.htinfo_ie);
 	}
+
 	/* XXX else check for ath FF? */
 	/* XXX QoS? Difficult given that WME config is specific to a master */
 
@@ -1102,8 +1192,10 @@ node_cleanup(struct ieee80211_node *ni)
 		    "power save mode off, %u sta's in ps mode", vap->iv_ps_sta);
 	}
 	/*
-	 * Cleanup any HT-related state.
+	 * Cleanup any VHT and HT-related state.
 	 */
+	if (ni->ni_flags & IEEE80211_NODE_VHT)
+		ieee80211_vht_node_cleanup(ni);
 	if (ni->ni_flags & IEEE80211_NODE_HT)
 		ieee80211_ht_node_cleanup(ni);
 #ifdef IEEE80211_SUPPORT_SUPERG
@@ -1423,6 +1515,7 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 		if (vap->iv_flags & IEEE80211_F_FF)
 			ni->ni_flags |= IEEE80211_NODE_FF;
 #endif
+		/* XXX VHT */
 		if ((ic->ic_htcaps & IEEE80211_HTC_HT) &&
 		    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 			/*
@@ -1431,6 +1524,9 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 			 * ni_chan will be adjusted to an HT channel.
 			 */
 			ieee80211_ht_wds_init(ni);
+			if (vap->iv_flags_vht & IEEE80211_FVHT_VHT) {
+				printf("%s: TODO: vht_wds_init\n", __func__);
+			}
 		} else {
 			struct ieee80211_channel *c = ni->ni_chan;
 			/*
@@ -1638,7 +1734,7 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 	const struct ieee80211_frame *wh,
 	const struct ieee80211_scanparams *sp)
 {
-	int do_ht_setup = 0;
+	int do_ht_setup = 0, do_vht_setup = 0;
 
 	ni->ni_esslen = sp->ssid[1];
 	memcpy(ni->ni_essid, sp->ssid + 2, sp->ssid[1]);
@@ -1670,11 +1766,23 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 		if (ni->ni_ies.htinfo_ie != NULL)
 			ieee80211_parse_htinfo(ni, ni->ni_ies.htinfo_ie);
 
+		if (ni->ni_ies.vhtcap_ie != NULL)
+			ieee80211_parse_vhtcap(ni, ni->ni_ies.vhtcap_ie);
+		if (ni->ni_ies.vhtopmode_ie != NULL)
+			ieee80211_parse_vhtopmode(ni, ni->ni_ies.vhtopmode_ie);
+
 		if ((ni->ni_ies.htcap_ie != NULL) &&
 		    (ni->ni_ies.htinfo_ie != NULL) &&
 		    (ni->ni_vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 			do_ht_setup = 1;
 		}
+
+		if ((ni->ni_ies.vhtcap_ie != NULL) &&
+		    (ni->ni_ies.vhtopmode_ie != NULL) &&
+		    (ni->ni_vap->iv_flags_vht & IEEE80211_FVHT_VHT)) {
+			do_vht_setup = 1;
+		}
+
 	}
 
 	/* NB: must be after ni_chan is setup */
@@ -1692,15 +1800,40 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 		ieee80211_ht_updateparams(ni,
 		    ni->ni_ies.htcap_ie,
 		    ni->ni_ies.htinfo_ie);
+
+		if (do_vht_setup) {
+			if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
+				printf("%s: BSS %6D: 2GHz channel, VHT info; ignoring\n",
+				    __func__,
+				    ni->ni_macaddr,
+				    ":");
+			} else {
+				ieee80211_vht_node_init(ni);
+				ieee80211_vht_updateparams(ni,
+				    ni->ni_ies.vhtcap_ie,
+				    ni->ni_ies.vhtopmode_ie);
+				ieee80211_setup_vht_rates(ni,
+				    ni->ni_ies.vhtcap_ie,
+				    ni->ni_ies.vhtopmode_ie);
+			}
+		}
+
+		/*
+		 * Finally do the channel upgrade/change based
+		 * on the HT/VHT configuration.
+		 */
+		ieee80211_ht_updateparams_final(ni, ni->ni_ies.htcap_ie,
+		    ni->ni_ies.htinfo_ie);
 		ieee80211_setup_htrates(ni,
 		    ni->ni_ies.htcap_ie,
 		    IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
 		ieee80211_setup_basic_htrates(ni,
 		    ni->ni_ies.htinfo_ie);
+
 		ieee80211_node_setuptxparms(ni);
 		ieee80211_ratectl_node_init(ni);
 
-		/* Reassociate; we're now 11n */
+		/* Reassociate; we're now 11n/11ac */
 		/*
 		 * XXX TODO: this is the wrong thing to do -
 		 * we're calling it with isnew=1 so the ath(4)
@@ -2365,6 +2498,7 @@ ieee80211_node_timeout(void *arg)
 		IEEE80211_LOCK(ic);
 		ieee80211_erp_timeout(ic);
 		ieee80211_ht_timeout(ic);
+		ieee80211_vht_timeout(ic);
 		IEEE80211_UNLOCK(ic);
 	}
 	callout_reset(&ic->ic_inact, IEEE80211_INACT_WAIT*hz,
@@ -2462,8 +2596,12 @@ ieee80211_dump_node(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 	printf("\thtcap %x htparam %x htctlchan %u ht2ndchan %u\n",
 		ni->ni_htcap, ni->ni_htparam,
 		ni->ni_htctlchan, ni->ni_ht2ndchan);
-	printf("\thtopmode %x htstbc %x chw %u\n",
+	printf("\thtopmode %x htstbc %x htchw %u\n",
 		ni->ni_htopmode, ni->ni_htstbc, ni->ni_chw);
+	printf("\tvhtcap %x freq1 %d freq2 %d vhtbasicmcs %x\n",
+		ni->ni_vhtcap, (int) ni->ni_vht_chan1, (int) ni->ni_vht_chan2,
+		(int) ni->ni_vht_basicmcs);
+	/* XXX VHT state */
 }
 
 void
@@ -2594,6 +2732,8 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 
 		if (IEEE80211_IS_CHAN_HT(ic->ic_bsschan))
 			ieee80211_ht_node_join(ni);
+		if (IEEE80211_IS_CHAN_VHT(ic->ic_bsschan))
+			ieee80211_vht_node_join(ni);
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_bsschan) &&
 		    IEEE80211_IS_CHAN_FULL(ic->ic_bsschan))
 			ieee80211_node_join_11g(ni);
@@ -2603,6 +2743,9 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 	} else
 		newassoc = 0;
 
+	/*
+	 * XXX VHT - should log VHT channel width, etc
+	 */
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG, ni,
 	    "station associated at aid %d: %s preamble, %s slot time%s%s%s%s%s%s%s%s",
 	    IEEE80211_NODE_AID(ni),
@@ -2610,6 +2753,7 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 	    ic->ic_flags & IEEE80211_F_SHSLOT ? "short" : "long",
 	    ic->ic_flags & IEEE80211_F_USEPROT ? ", protection" : "",
 	    ni->ni_flags & IEEE80211_NODE_QOS ? ", QoS" : "",
+	    /* XXX update for VHT string */
 	    ni->ni_flags & IEEE80211_NODE_HT ?
 		(ni->ni_chw == 40 ? ", HT40" : ", HT20") : "",
 	    ni->ni_flags & IEEE80211_NODE_AMPDU ? " (+AMPDU)" : "",
@@ -2774,6 +2918,8 @@ ieee80211_node_leave(struct ieee80211_node *ni)
 	vap->iv_sta_assoc--;
 	ic->ic_sta_assoc--;
 
+	if (IEEE80211_IS_CHAN_VHT(ic->ic_bsschan))
+		ieee80211_vht_node_leave(ni);
 	if (IEEE80211_IS_CHAN_HT(ic->ic_bsschan))
 		ieee80211_ht_node_leave(ni);
 	if (IEEE80211_IS_CHAN_ANYG(ic->ic_bsschan) &&

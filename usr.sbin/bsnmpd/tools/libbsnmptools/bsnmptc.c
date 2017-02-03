@@ -266,13 +266,13 @@ parse_octetstring(struct snmp_value *value, char *val)
 		return (-1);
 	}
 
-	value->v.octetstring.len = len;
-
-	if((value->v.octetstring.octets = malloc(len)) == NULL) {
+	if ((value->v.octetstring.octets = malloc(len)) == NULL) {
+		value->v.octetstring.len = 0;
 		syslog(LOG_ERR, "malloc failed: %s", strerror(errno));
 		return (-1);
 	}
 
+	value->v.octetstring.len = len;
 	memcpy(value->v.octetstring.octets, val, len);
 	value->syntax = SNMP_SYNTAX_OCTETSTRING;
 

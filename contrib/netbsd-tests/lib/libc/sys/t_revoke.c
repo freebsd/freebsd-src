@@ -176,6 +176,9 @@ ATF_TC_BODY(revoke_perm, tc)
 	if (WIFEXITED(sta) == 0 || WEXITSTATUS(sta) != EXIT_SUCCESS)
 		atf_tc_fail("revoke(2) did not obey permissions");
 
+#ifdef	__FreeBSD__
+	(void)close(fd);
+#endif
 	ATF_REQUIRE(unlink(path) == 0);
 }
 

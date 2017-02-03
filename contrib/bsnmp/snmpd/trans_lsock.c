@@ -146,16 +146,14 @@ lsock_open_port(u_char *name, size_t namelen, struct lsock_port **pp,
 		return (SNMP_ERR_BADVALUE);
 	}
 
-	if ((port = malloc(sizeof(*port))) == NULL)
+	if ((port = calloc(1, sizeof(*port))) == NULL)
 		return (SNMP_ERR_GENERR);
 
-	memset(port, 0, sizeof(*port));
 	if (!is_stream) {
-		if ((peer = malloc(sizeof(*peer))) == NULL) {
+		if ((peer = calloc(1, sizeof(*peer))) == NULL) {
 			free(port);
 			return (SNMP_ERR_GENERR);
 		}
-		memset(peer, 0, sizeof(*peer));
 	}
 	if ((port->name = malloc(namelen + 1)) == NULL) {
 		free(port);
@@ -261,12 +259,11 @@ lsock_listen_input(int fd, void *udata)
 	struct lsock_port *p = udata;
 	struct lsock_peer *peer;
 
-	if ((peer = malloc(sizeof(*peer))) == NULL) {
+	if ((peer = calloc(1, sizeof(*peer))) == NULL) {
 		syslog(LOG_WARNING, "%s: peer malloc failed", p->name);
 		(void)close(accept(fd, NULL, NULL));
 		return;
 	}
-	memset(peer, 0, sizeof(*peer));
 
 	peer->port = p;
 
@@ -308,10 +305,9 @@ lsock_init_port(struct tport *tp)
 			return (SNMP_ERR_RES_UNAVAIL);
 		}
 
-		strcpy(sa.sun_path, p->name);
+		strlcpy(sa.sun_path, p->name, sizeof(sa.sun_path));
 		sa.sun_family = AF_LOCAL;
-		sa.sun_len = strlen(p->name) +
-		    offsetof(struct sockaddr_un, sun_path);
+		sa.sun_len = SUN_LEN(&sa);
 
 		(void)remove(p->name);
 
@@ -363,10 +359,9 @@ lsock_init_port(struct tport *tp)
 			return (SNMP_ERR_GENERR);
 		}
 
-		strcpy(sa.sun_path, p->name);
+		strlcpy(sa.sun_path, p->name, sizeof(sa.sun_path));
 		sa.sun_family = AF_LOCAL;
-		sa.sun_len = strlen(p->name) +
-		    offsetof(struct sockaddr_un, sun_path);
+		sa.sun_len = SUN_LEN(&sa);
 
 		(void)remove(p->name);
 

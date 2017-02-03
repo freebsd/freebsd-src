@@ -728,8 +728,11 @@ snmp_table_fetch_async(const struct snmp_table *descr, void *list,
 	work->last_change = 0;
 	table_init_pdu(descr, &work->pdu);
 
-	if (snmp_pdu_send(&work->pdu, table_cb, work) == -1)
+	if (snmp_pdu_send(&work->pdu, table_cb, work) == -1) {
+		free(work);
+		work = NULL;
 		return (-1);
+	}
 	return (0);
 }
 
@@ -1231,7 +1234,7 @@ snmp_send_packet(struct snmp_pdu * pdu)
 	struct asn_buf b;
 	ssize_t ret;
 
-	if ((buf = malloc(snmp_client.txbuflen)) == NULL) {
+	if ((buf = calloc(1, snmp_client.txbuflen)) == NULL) {
 		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
@@ -1256,7 +1259,7 @@ snmp_send_packet(struct snmp_pdu * pdu)
 	}
 	free(buf);
 
-	return pdu->request_id;
+	return (pdu->request_id);
 }
 
 /*
@@ -1352,7 +1355,7 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 	socklen_t optlen;
 #endif
 
-	if ((buf = malloc(snmp_client.rxbuflen)) == NULL) {
+	if ((buf = calloc(1, snmp_client.rxbuflen)) == NULL) {
 		seterr(&snmp_client, "%s", strerror(errno));
 		return (-1);
 	}
@@ -1793,12 +1796,14 @@ snmp_discover_engine(char *passwd)
 		return (0);
 	}
 
+	snmp_pdu_free(&req);
+
 	snmp_pdu_create(&req, SNMP_PDU_GET);
 	req.engine.engine_boots = 0;
 	req.engine.engine_time = 0;
 
 	if (snmp_dialog(&req, &resp) == -1)
-		 return (-1);
+		return (-1);
 
 	if (resp.version != req.version) {
 		seterr(&snmp_client, "wrong version");
@@ -1812,6 +1817,9 @@ snmp_discover_engine(char *passwd)
 
 	snmp_client.engine.engine_boots = resp.engine.engine_boots;
 	snmp_client.engine.engine_time = resp.engine.engine_time;
+
+	snmp_pdu_free(&req);
+	snmp_pdu_free(&resp);
 
 	return (0);
 }
@@ -1937,20 +1945,18 @@ snmp_parse_server(struct snmp_client *sc, const char *str)
 		}
 		/* port */
 		free(sc->cport);
-		if ((sc->cport = malloc(strlen(p + 1) + 1)) == NULL) {
+		if ((sc->cport = strdup(p + 1)) == NULL) {
 			seterr(sc, "%s", strerror(errno));
 			return (-1);
 		}
-		strcpy(sc->cport, p + 1);
 
 	} else if (p > s) {
 		/* host */
 		free(sc->chost);
-		if ((sc->chost = malloc(strlen(s) + 1)) == NULL) {
+		if ((sc->chost = strdup(s)) == NULL) {
 			seterr(sc, "%s", strerror(errno));
 			return (-1);
 		}
-		strcpy(sc->chost, s);
 	}
 	return (0);
 }

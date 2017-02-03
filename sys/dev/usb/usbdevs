@@ -587,6 +587,7 @@ vendor CCYU		0x1065	CCYU Technology
 vendor CURITEL		0x106c	Curitel Communications Inc
 vendor SILABS2		0x10a6	SILABS2
 vendor USI		0x10ab	USI
+vendor HONEYWELL	0x10ac	Honeywell
 vendor LIEBERT2		0x10af	Liebert
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
@@ -594,6 +595,7 @@ vendor SILABS		0x10c4	Silicon Labs
 vendor SILABS3		0x10c5	Silicon Labs
 vendor SILABS4		0x10ce	Silicon Labs
 vendor ACTIONS		0x10d6  Actions
+vendor MOXA		0x110a	Moxa
 vendor ANALOG		0x1110	Analog Devices
 vendor TENX		0x1130	Ten X Technology, Inc.
 vendor ISSC		0x1131	Integrated System Solution Corp.
@@ -698,6 +700,7 @@ vendor ELV		0x18ef	ELV
 vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor QUALCOMM3	0x19f5	Qualcomm, Inc.
+vendor ABBOTT		0x1a61	Abbott Diabetics
 vendor BAYER		0x1a79	Bayer
 vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
@@ -805,6 +808,10 @@ product 3COMUSR OFFICECONN	0x0082	3Com OfficeConnect Analog Modem
 product 3COMUSR USRISDN		0x008f	3Com U.S. Robotics Pro ISDN TA
 product 3COMUSR HOMECONN	0x009d	3Com HomeConnect Camera
 product 3COMUSR USR56K		0x3021	U.S. Robotics 56000 Voice FaxModem Pro
+
+/* Abbott Diabetics */
+product ABBOTT STEREO_PLUG	0x3410	Abbott Diabetics Stereo Plug
+product ABBOTT STRIP_PORT	0x3420	Abbott Diabetics Strip Port
 
 /* AboCom products */
 product ABOCOM XX1		0x110c	XX1
@@ -1318,6 +1325,7 @@ product BELKIN RTL8188CU	0x1102  RTL8188CU Wireless Adapter
 product BELKIN F9L1103		0x1103	F9L1103 Wireless Adapter
 product BELKIN RTL8192CU	0x2102	RTL8192CU Wireless Adapter
 product BELKIN F7D2102		0x2103  F7D2102 Wireless Adapter
+product BELKIN F5U258		0x258A	F5U258 Host to Host cable
 product BELKIN ZD1211B		0x4050	ZD1211B
 product BELKIN F5D5055		0x5055	F5D5055
 product BELKIN F5D7050		0x7050	F5D7050 Wireless Adapter
@@ -1441,6 +1449,9 @@ product CLIPSAL 5500PCU		0x0303	5500PCU C-Bus Interface
 product CLIPSAL 5000CT2		0x0304	5000CT2 C-Bus Touch Screen
 product CLIPSAL C5000CT2	0x0305	C5000CT2 C-Bus Touch Screen
 product CLIPSAL L51xx		0x0401	L51xx C-Bus Dimmer
+
+/* C-Media products */
+product CMEDIA CM6206		0x0102	CM106 compatible sound device
 
 /* CMOTECH products */
 product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
@@ -2286,6 +2297,9 @@ product HITACHI DVDCAM_USB	0x001e	DVDCAM USB HS Interface
 /* Holtek products */
 product HOLTEK F85		0xa030	Holtek USB gaming keyboard
 
+/* Honeywell */
+product HONEYWELL HGI80		0x0102	Honeywell HGI80 Wireless USB Gateway
+
 /* HP products */
 product HP 895C			0x0004	DeskJet 895C
 product HP 4100C		0x0101	Scanjet 4100C
@@ -2444,6 +2458,9 @@ product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
 
 /* IBM Corporation */
 product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
+product IBM USB4543		0x4543	TI IBM USB 4543 Modem
+product IBM USB454B		0x454b	TI IBM USB 454B Modem
+product IBM USB454C		0x454c	TI IBM USB 454C Modem
 
 /* Icom products */
 product ICOM SP1		0x0004	FTDI compatible adapter
@@ -3218,12 +3235,27 @@ product MOTOROLA2 MB886		0x710f	MB886 Mobile Phone (Atria HD)
 product MOTOROLA4 RT2770	0x9031	RT2770
 product MOTOROLA4 RT3070	0x9032	RT3070
 
+/* Moxa */
+product MOXA MXU1_1110		0x1110	Moxa Uport 1110
+product MOXA MXU1_1130		0x1130	Moxa Uport 1130
+product MOXA MXU1_1131		0x1131	Moxa Uport 1131
+product MOXA MXU1_1150		0x1150	Moxa Uport 1150
+product MOXA MXU1_1151		0x1151	Moxa Uport 1151
+
 /* MpMan products */
 product MPMAN MPF400_2		0x25a8	MPF400 Music Player 2Go
 product MPMAN MPF400_1		0x36d0	MPF400 Music Player 1Go
 
 /* MultiTech products */
+product MULTITECH MT9234ZBA_2	0x0319	MT9234ZBA USB modem (alt)
 product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
+product MULTITECH GSM		0xf108	GSM USB Modem
+product MULTITECH CDMA		0xf109	CDMA USB Modem
+product MULTITECH CDMA_FW	0xf110	CDMA USB Modem firmware running
+product	MULTITECH GSM_FW	0xf111	GSM USB Modem firmware running
+product MULTITECH EDGE		0xf112	Edge USB Modem
+product MULTITECH MT9234MU	0xf114	MT9234 MU
+product MULTITECH MT9234ZBA	0xf115	MT9234 ZBA
 
 /* Mustek products */
 product MUSTEK 1200CU		0x0001	1200 CU scanner
@@ -3811,6 +3843,7 @@ product REALTEK DUMMY		0x0000	Dummy product
 product REALTEK USB20CRW	0x0158	USB20CRW Card Reader
 product REALTEK RTL8188ETV	0x0179	RTL8188ETV
 product REALTEK RTL8188CTV      0x018a  RTL8188CTV
+product REALTEK RTL8188RU_2	0x317f	RTL8188RU
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
 product REALTEK RTL8152		0x8152	RTL8152 USB Ethernet
 product REALTEK RTL8153		0x8153	RTL8153 USB Ethernet
@@ -3820,26 +3853,27 @@ product REALTEK RTL8172		0x8172	RTL8172
 product REALTEK RTL8173		0x8173	RTL8173
 product REALTEK RTL8174		0x8174	RTL8174
 product REALTEK RTL8188CU_0	0x8176	RTL8188CU
+product REALTEK RTL8191CU	0x8177	RTL8191CU
+product REALTEK RTL8192CU	0x8178	RTL8192CU
 product REALTEK RTL8188EU	0x8179	RTL8188EU
-product REALTEK RTL8188CE_1	0x817e	RTL8188CE
 product REALTEK RTL8188CU_1	0x817a	RTL8188CU
 product REALTEK RTL8188CU_2	0x817b	RTL8188CU
+product REALTEK RTL8192CE	0x817c	RTL8192CE
+product REALTEK RTL8188RU_1	0x817d	RTL8188RU
+product REALTEK RTL8188CE_1	0x817e	RTL8188CE
+product REALTEK RTL8188RU_3	0x817f	RTL8188RU
 product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
 product REALTEK RTL8187B_0	0x8189	RTL8187B Wireless Adapter
+product REALTEK RTL8188CUS	0x818a	RTL8188CUS
+product REALTEK RTL8192EU	0x818b	RTL8192EU
 product REALTEK RTL8188CU_3	0x8191	RTL8188CU
 product REALTEK RTL8196EU	0x8196	RTL8196EU
 product REALTEK RTL8187B_1	0x8197	RTL8187B Wireless Adapter
 product REALTEK RTL8187B_2	0x8198	RTL8187B Wireless Adapter
-product REALTEK RTL8188CUS	0x818a	RTL8188CUS
-product REALTEK RTL8188CU_COMBO	0x8754	RTL8188CU
-product REALTEK RTL8191CU	0x8177	RTL8191CU
-product REALTEK RTL8192CU	0x8178	RTL8192CU
-product REALTEK RTL8192CE	0x817c	RTL8192CE
-product REALTEK RTL8188RU_1	0x817d	RTL8188RU
-product REALTEK RTL8188RU_3	0x817f	RTL8188RU
 product REALTEK RTL8712		0x8712	RTL8712
-product REALTEK RTL8713		0x8712	RTL8713
-product REALTEK RTL8188RU_2	0x317f	RTL8188RU
+product REALTEK RTL8713		0x8713	RTL8713
+product REALTEK RTL8188CU_COMBO	0x8754	RTL8188CU
+product REALTEK RTL8723BU	0xb720	RTL8723BU
 product REALTEK RTL8192SU	0xc512	RTL8192SU
 
 /* RedOctane products */
@@ -4460,6 +4494,13 @@ product TENX UAUDIO0		0xf211	USB audio headset
 /* Texas Intel products */
 product TI UTUSB41		0x1446	UT-USB41 hub
 product TI TUSB2046		0x2046	TUSB2046 hub
+product TI USB3410		0x3410	TI USB 3410 Modem
+product TI USB5052		0x5052	TI USB 5250 Modem
+product TI FRI2			0x5053	TI Fish River Island II
+product TI USB5052_EEPROM	0x505a	TI USB 5250 Modem w/Eeprom
+product TI USB5052_FW		0x505f	TI USB 5250 Modme w/Firmware running
+product TI USB5152		0x5152	TI USB 5152 Modem
+product TI EZ430		0xf430	TI ex430 development tool
 
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
@@ -4479,6 +4520,7 @@ product TOSHIBA TRANSMEMORY	0x6545	USB ThumbDrive
 
 /* TP-Link products */
 product TPLINK T4U		0x0101	Archer T4U
+product TPLINK WN822NV4		0x0108	TL-WN822N v4
 product TPLINK WN823NV2		0x0109	TL-WN823N v2
 
 /* Trek Technology products */

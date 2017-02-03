@@ -48,9 +48,7 @@
 #ifdef __NetBSD__
 static void s_print(struct re_guts *, FILE *);
 static char *regchar(int);
-#endif
 
-#ifdef __NetBSD__
 /*
  * regprint - print a regexp for debugging
  */

@@ -252,35 +252,6 @@
 	more information.</para>
     </sect2>
 
-    <sect2 xml:id="proc-pc98">
-      <title>pc98</title>
-
-      <para>NEC PC-9801/9821 series with almost all &i386;-compatible
-	processors, including 80486, &pentium;, &pentium; Pro,
-	&pentium; II, and variants.  All &i386;-compatible processors
-	by AMD, Cyrix, IBM, and IDT are also supported.</para>
-
-      <para>NEC FC-9801/9821 series, and NEC SV-98 series (both of
-	them are compatible with PC-9801/9821 series) should be
-	supported.</para>
-
-      <para>EPSON PC-386/486/586 series, which are compatible with NEC
-	PC-9801 series are supported.</para>
-
-      <para>High-resolution mode is not supported.  NEC
-	PC-98XA/XL/RL/XL^2, and NEC PC-H98 series are supported in
-	normal (PC-9801 compatible) mode only.</para>
-
-      <para>Although there are some multi-processor systems (such as
-	Rs20/B20), SMP-related features of &os; are not supported
-	yet.</para>
-
-      <para>PC-9801/9821 standard bus (called C-Bus), PC-9801NOTE
-	expansion bus (110pin), and PCI bus are supported.  New Extend
-	Standard Architecture (NESA) bus (used in PC-H98, SV-H98, and
-	FC-H98 series) is not supported.</para>
-    </sect2>
-
     <sect2 xml:id="proc-powerpc">
       <title>powerpc</title>
 
@@ -636,16 +607,8 @@
     <sect2 xml:id="disk">
       <title>Disk Controllers</title>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;, &arch.sparc64;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.sparc64;]
 	IDE/ATA controllers (&man.ata.4; driver)</para>
-
-      <para>[&arch.pc98;] IDE/ATA controllers (wdc driver)</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>On-board IDE controller</para>
-	</listitem>
-      </itemizedlist>
 
       &hwlist.aac;
 
@@ -672,8 +635,6 @@
       &hwlist.bt;
 
       &hwlist.ciss;
-
-      &hwlist.ct;
 
       &hwlist.dpt;
 
@@ -894,8 +855,6 @@
 
       &hwlist.sn;
 
-      &hwlist.snc;
-
       &hwlist.ste;
 
       &hwlist.stge;
@@ -904,7 +863,7 @@
 
       &hwlist.tl;
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] SMC 83c17x
+      <para>[&arch.amd64;, &arch.i386;] SMC 83c17x
 	(EPIC)-based Ethernet NICs (&man.tx.4; driver)</para>
 
       &hwlist.txp;
@@ -934,8 +893,7 @@
     <sect2 xml:id="fddi">
       <title>FDDI Interfaces</title>
 
-      <para>[&arch.i386;, &arch.pc98;] DEC DEFPA PCI (&man.fpa.4;
-	driver)</para>
+      <para>[&arch.i386;] DEC DEFPA PCI (&man.fpa.4; driver)</para>
 
       <para>[&arch.i386;] DEC DEFEA EISA (&man.fpa.4; driver)</para>
     </sect2>
@@ -943,28 +901,28 @@
     <sect2 xml:id="atm">
       <title>ATM Interfaces</title>
 
-      <para>[&arch.i386;, &arch.pc98;] Midway-based ATM interfaces
+      <para>[&arch.i386;] Midway-based ATM interfaces
 	(&man.en.4; driver)</para>
 
-      <para>[&arch.i386;, &arch.pc98; &arch.sparc64;] FORE Systems,
+      <para>[&arch.i386;, &arch.sparc64;] FORE Systems,
 	Inc. PCA-200E ATM PCI Adapters (hfa and &man.fatm.4;
 	drivers)</para>
 
-      <para>[&arch.i386;, &arch.pc98;] IDT NICStAR 77201/211-based ATM
+      <para>[&arch.i386;] IDT NICStAR 77201/211-based ATM
 	Adapters (&man.idt.4; driver)</para>
 
-      <para>[&arch.i386;, &arch.pc98; &arch.sparc64;] FORE Systems,
+      <para>[&arch.i386;, &arch.sparc64;] FORE Systems,
 	Inc. HE155 and HE622 ATM interfaces (&man.hatm.4;
 	driver)</para>
 
-      <para>[&arch.i386;, &arch.pc98;] IDT77252-based ATM cards
+      <para>[&arch.i386;] IDT77252-based ATM cards
 	(&man.patm.4; driver)</para>
     </sect2>
 
     <sect2 xml:id="wlan">
       <title>Wireless Network Interfaces</title>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Cisco/Aironet
+      <para>[&arch.amd64;, &arch.i386;] Cisco/Aironet
 	802.11b wireless adapters (&man.an.4; driver)</para>
 
       &hwlist.ath;
@@ -1016,7 +974,7 @@
 
       &hwlist.urtw;
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Lucent
+      <para>[&arch.amd64;, &arch.i386;] Lucent
 	Technologies WaveLAN/IEEE 802.11b wireless network adapters
 	and workalikes using the Lucent Hermes, Intersil PRISM-II,
 	Intersil PRISM-2.5, Intersil Prism-3, and Symbol Spectrum24
@@ -1214,77 +1172,6 @@
 
       &hwlist.rc;
 
-      <para>[&arch.pc98;] Internel serial interfaces (&man.sio.4;
-	driver)</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>PC-9801 on-board</para>
-	</listitem>
-	<listitem>
-	  <para>PC-9821 2'nd CCU (flags 0x12000000)</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>[&arch.pc98;] NEC PC-9861K, PC-9801-101 and Midori-Denshi
-	MDC-926Rs (&man.sio.4; driver)</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>COM2 (flags 0x01000000)</para>
-	</listitem>
-
-	<listitem>
-	  <para>COM3 (flags 0x02000000)</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>[&arch.pc98;] NEC PC-9801-120 (&man.sio.4; driver)</para>
-
-      <note>
-	<para>"flags 0x11000000" is necessary in kernel
-	  configuration.</para>
-      </note>
-
-      <para>[&arch.pc98;] Microcore MC-16550, MC-16550II, MC-RS98
-	(&man.sio.4; driver)</para>
-
-      <note>
-	<para>"flags 0x14000?01" is necessary in kernel
-	  configuration.</para>
-      </note>
-
-      <para>[&arch.pc98;] Media Intelligent RSB-2000, RSB-3000 and
-	AIWA B98-02 (&man.sio.4; driver)</para>
-
-      <note>
-	<para>"flags 0x15000?01" is necessary in kernel
-	configuration.</para>
-      </note>
-
-      <para>[&arch.pc98;] Media Intelligent RSB-384 (&man.sio.4;
-	driver)</para>
-
-      <note>
-	<para>"flags 0x16000001" is necessary in kernel
-	  configuration.</para>
-      </note>
-
-      <para>[&arch.pc98;] I-O DATA RSA-98III (&man.sio.4;
-	driver)</para>
-
-      <note>
-	<para>"flags 0x18000?01" is necessary in kernel
-	  configuration.</para>
-      </note>
-
-      <para>[&arch.pc98;] Hayes ESP98 (&man.sio.4; driver)</para>
-
-      <note>
-	<para>"options COM_ESP" and "flags 0x19000000" are necessary
-	  in kernel configuration.</para>
-      </note>
-
     </sect2>
 
     <sect2 xml:id="sound">
@@ -1350,35 +1237,6 @@
 
       &hwlist.snd.vibes;
 
-      <para>[&arch.pc98;] NEC PC-9801-73, 86 and compatibles (nss
-	driver)</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>NEC A-MATE internal sound</para>
-	</listitem>
-
-	<listitem>
-	  <para>Q-Vision WaveStar, WaveMaster</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>[&arch.pc98;] NEC X-MATE, CanBe, ValueStar internal (mss
-	driver)</para>
-
-      <para>[&arch.pc98;] Creative Technologies SoundBlaster(98)
-	(&man.sb.4; driver)</para>
-
-      <para>[&arch.pc98;] I-O DATA CD-BOX (&man.sb.4; driver)</para>
-
-      <para>[&arch.pc98;] MPU-401 and compatible interfaces (mpu
-	driver)</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>Q-Vision WaveStar</para>
-	</listitem>
-      </itemizedlist>
     </sect2>
 
     <sect2 xml:id="camera">
@@ -1392,7 +1250,7 @@
     <sect2 xml:id="usb">
       <title>USB Devices</title>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] A
+      <para>[&arch.amd64;, &arch.i386;] A
 	range of USB peripherals are supported; devices known to work
 	are listed in this section.  Owing to the generic nature of
 	most USB devices, with some exceptions any device of a given
@@ -1400,14 +1258,14 @@
 	here.</para>
 
       <note>
-	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
+	<para>[&arch.amd64;, &arch.i386;]
 	  USB Ethernet adapters can be found in the section listing
 	  <link linkend="ethernet">Ethernet
 	    interfaces</link>.</para>
       </note>
 
       <note>
-	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
+	<para>[&arch.amd64;, &arch.i386;]
 	  USB Bluetooth adapters can be found in <link linkend="bluetooth">Bluetooth</link> section.</para>
       </note>
 
@@ -1415,18 +1273,15 @@
 
       &hwlist.uhci;
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] USB
+      <para>[&arch.amd64;, &arch.i386;] USB
 	2.0 controllers using the EHCI interface (&man.ehci.4;
 	driver)</para>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
-	Hubs</para>
+      <para>[&arch.amd64;, &arch.i386;] Hubs</para>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
-	Keyboards (&man.ukbd.4; driver)</para>
+      <para>[&arch.amd64;, &arch.i386;] Keyboards (&man.ukbd.4; driver)</para>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
-	Miscellaneous</para>
+      <para>[&arch.amd64;, &arch.i386;] Miscellaneous</para>
 
       <itemizedlist>
 	<listitem>
@@ -1454,8 +1309,7 @@
 
       &hwlist.umodem;
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Mice
-	(&man.ums.4; driver)</para>
+      <para>[&arch.amd64;, &arch.i386;] Mice (&man.ums.4; driver)</para>
 
       &hwlist.ulpt;
 
@@ -1471,7 +1325,7 @@
 
       &hwlist.umass;
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Audio Devices
+      <para>[&arch.amd64;, &arch.i386;] Audio Devices
 	(&man.uaudio.4; driver)</para>
 
       &hwlist.uvisor;
@@ -1507,8 +1361,7 @@
     <sect2 xml:id="misc">
       <title>Miscellaneous</title>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
-	FAX-Modem/PCCARD</para>
+      <para>[&arch.amd64;, &arch.i386;] FAX-Modem/PCCARD</para>
 
       <itemizedlist>
 	<listitem>
@@ -1521,7 +1374,7 @@
 	</listitem>
       </itemizedlist>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Floppy drives
+      <para>[&arch.amd64;, &arch.i386;] Floppy drives
 	(&man.fdc.4; driver)</para>
 
       <para>[&arch.amd64;, &arch.i386;] VGA-compatible video cards
@@ -1533,8 +1386,7 @@
 	  found at <uri xlink:href="http://www.x.org/">http://www.x.org/</uri>.</para>
       </note>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
-	Keyboards including:</para>
+      <para>[&arch.amd64;, &arch.i386;] Keyboards including:</para>
 
       <itemizedlist>
 	<listitem>
@@ -1548,21 +1400,17 @@
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.pc98;] Standard keyboards</para>
-	</listitem>
-
-	<listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
+	  <para>[&arch.amd64;, &arch.i386;]
 	    USB keyboards (&man.ukbd.4; driver)</para>
 	</listitem>
       </itemizedlist>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;]
 	Pointing devices including:</para>
 
       <itemizedlist>
 	<listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Bus mice and
+	  <para>[&arch.amd64;, &arch.i386;] Bus mice and
 	    compatible devices (&man.mse.4; driver)</para>
 	</listitem>
 
@@ -1577,7 +1425,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
+	  <para>[&arch.amd64;, &arch.i386;]
 	    USB mice (&man.ums.4; driver)</para>
 	</listitem>
       </itemizedlist>
@@ -1591,17 +1439,10 @@
       <para>[&arch.amd64;, &arch.i386;] <quote>PC standard</quote>
 	parallel ports (&man.ppc.4; driver)</para>
 
-      <para>[&arch.pc98;] <quote>PC-9821 standard</quote> parallel
-	ports (&man.ppc.4; driver)</para>
-
       <para>[&arch.i386;, &arch.amd64;] PC-compatible joysticks
 	(&man.joy.4; driver)</para>
 
-      <para>[&arch.pc98;] Joystick port of SoundBlaster(98)
-	(&man.joy.4; driver)</para>
-
-      <para>[&arch.i386;, &arch.pc98;] PHS Data Communication
-	Card/PCCARD</para>
+      <para>[&arch.i386;] PHS Data Communication Card/PCCARD</para>
 
       <itemizedlist>
 	<listitem>
@@ -1621,8 +1462,6 @@
 	cards compatible with the HOT1 from <link xlink:href="http://www.vcc.com/">Virtual Computers</link> (xrpu
 	driver).</para>
 
-      <para>[&arch.pc98;] Power Management Controller of NEC PC-98
-	Note (pmc driver)</para>
     </sect2>
   </sect1>
 </article>

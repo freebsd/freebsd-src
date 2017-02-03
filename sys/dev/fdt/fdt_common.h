@@ -71,12 +71,6 @@ extern vm_paddr_t fdt_immr_pa;
 extern vm_offset_t fdt_immr_va;
 extern vm_offset_t fdt_immr_size;
 
-struct fdt_pm_mask_entry {
-	char		*compat;
-	uint32_t	mask;
-};
-extern struct fdt_pm_mask_entry fdt_pm_mask_table[];
-
 #if defined(FDT_DTB_STATIC)
 extern u_char fdt_static_dtb;
 #endif

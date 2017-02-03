@@ -573,6 +573,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_OFDM4, "OFDM/4.5Mbps" },			\
 	{ IFM_IEEE80211_OFDM27, "OFDM/27Mbps" },			\
 	{ IFM_IEEE80211_MCS, "MCS" },					\
+	{ IFM_IEEE80211_VHT, "VHT" },					\
 	{ 0, NULL },							\
 }
 
@@ -612,6 +613,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_OFDM4, "OFDM4.5" },				\
 	{ IFM_IEEE80211_OFDM27, "OFDM27" },				\
 	{ IFM_IEEE80211_MCS, "MCS" },					\
+	{ IFM_IEEE80211_VHT, "VHT" },					\
 	{ 0, NULL },							\
 }
 
@@ -634,6 +636,8 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_FH, "fh" },					\
 	{ IFM_IEEE80211_11NA, "11na" },					\
 	{ IFM_IEEE80211_11NG, "11ng" },					\
+	{ IFM_IEEE80211_VHT5G, "11ac" },				\
+	{ IFM_IEEE80211_VHT2G, "11ac2" },				\
 	{ 0, NULL },							\
 }
 

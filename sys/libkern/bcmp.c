@@ -44,7 +44,7 @@ typedef const unsigned long	*culp;
 int
 bcmp(b1, b2, length)
 	const void *b1, *b2;
-	register size_t length;
+	size_t length;
 {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	/*

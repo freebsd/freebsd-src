@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <libgen.h>
 #include <pwd.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,11 +64,20 @@ static void	a_uid(const char *);
 static void	chownerr(const char *);
 static uid_t	id(const char *, const char *);
 static void	usage(void);
+static void	print_info(const FTSENT *, int);
 
 static uid_t uid;
 static gid_t gid;
 static int ischown;
 static const char *gname;
+static volatile sig_atomic_t siginfo;
+
+static void
+siginfo_handler(int sig __unused)
+{
+
+	siginfo = 1;
+}
 
 int
 main(int argc, char **argv)
@@ -118,6 +128,8 @@ main(int argc, char **argv)
 
 	if (argc < 2)
 		usage();
+
+	(void)signal(SIGINFO, siginfo_handler);
 
 	if (Rflag) {
 		if (hflag && (Hflag || Lflag))
@@ -189,6 +201,10 @@ main(int argc, char **argv)
 		default:
 			break;
 		}
+		if (siginfo) {
+			print_info(p, 2);
+			siginfo = 0;
+		}
 		if ((uid == (uid_t)-1 || uid == p->fts_statp->st_uid) &&
 		    (gid == (gid_t)-1 || gid == p->fts_statp->st_gid))
 			continue;
@@ -196,35 +212,8 @@ main(int argc, char **argv)
 		    == -1 && !fflag) {
 			chownerr(p->fts_path);
 			rval = 1;
-		} else if (vflag) {
-			printf("%s", p->fts_path);
-			if (vflag > 1) {
-				if (ischown) {
-					printf(": %ju:%ju -> %ju:%ju",
-					    (uintmax_t)
-					    p->fts_statp->st_uid, 
-					    (uintmax_t)
-					    p->fts_statp->st_gid,
-					    (uid == (uid_t)-1) ? 
-					    (uintmax_t)
-					    p->fts_statp->st_uid : 
-					    (uintmax_t)uid,
-					    (gid == (gid_t)-1) ? 
-					    (uintmax_t)
-					    p->fts_statp->st_gid :
-					    (uintmax_t)gid);
-				} else {
-					printf(": %ju -> %ju",
-					    (uintmax_t)
-					    p->fts_statp->st_gid,
-					    (gid == (gid_t)-1) ? 
-					    (uintmax_t)
-					    p->fts_statp->st_gid : 
-					    (uintmax_t)gid);
-				}
-			}
-			printf("\n");
-		}
+		} else if (vflag)
+			print_info(p, vflag);
 	}
 	if (errno)
 		err(1, "fts_read");
@@ -314,4 +303,27 @@ usage(void)
 		(void)fprintf(stderr, "%s\n",
 		    "usage: chgrp [-fhvx] [-R [-H | -L | -P]] group file ...");
 	exit(1);
+}
+
+static void
+print_info(const FTSENT *p, int vflag)
+{
+
+	printf("%s", p->fts_path);
+	if (vflag > 1) {
+		if (ischown) {
+			printf(": %ju:%ju -> %ju:%ju",
+			    (uintmax_t)p->fts_statp->st_uid, 
+			    (uintmax_t)p->fts_statp->st_gid,
+			    (uid == (uid_t)-1) ? 
+			    (uintmax_t)p->fts_statp->st_uid : (uintmax_t)uid,
+			    (gid == (gid_t)-1) ? 
+			    (uintmax_t)p->fts_statp->st_gid : (uintmax_t)gid);
+		} else {
+			printf(": %ju -> %ju", (uintmax_t)p->fts_statp->st_gid,
+			    (gid == (gid_t)-1) ? 
+			    (uintmax_t)p->fts_statp->st_gid : (uintmax_t)gid);
+		}
+	}
+	printf("\n");
 }

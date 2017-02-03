@@ -127,8 +127,11 @@ struct socket {
 	int so_fibnum;		/* routing domain for this socket */
 	uint32_t so_user_cookie;
 
-	void *so_pspare[2];	/* packet pacing / general use */
-	int so_ispare[2];	/* packet pacing / general use */
+	int so_ts_clock;	/* type of the clock used for timestamps */
+	uint32_t so_max_pacing_rate;	/* (f) TX rate limit in bytes/s */
+
+	void *so_pspare[2];	/* general use */
+	int so_ispare[2];	/* general use */
 };
 
 /*

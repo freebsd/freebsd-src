@@ -1,4 +1,4 @@
-#	$NetBSD: t_route.sh,v 1.7 2016/08/10 23:00:39 roy Exp $
+#	$NetBSD: t_route.sh,v 1.10 2016/12/21 02:46:08 ozaki-r Exp $
 #
 # Copyright (c) 2016 Internet Initiative Japan Inc.
 # All rights reserved.
@@ -25,9 +25,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-RUMP_LIBS="-lrumpdev -lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpnet_shmif"
-RUMP_LIBS_IPV6="$RUMP_LIBS -lrumpnet_netinet6"
-
 # non_subnet_gateway
 SOCK_CLIENT=unix://commsock1
 SOCK_GW=unix://commsock2
@@ -49,7 +46,7 @@ IP6DST=fc00:0:0:2::2
 BUS_SRCGW=bus1
 BUS_DSTGW=bus2
 
-DEBUG=false
+DEBUG=${DEBUG:-false}
 TIMEOUT=1
 PING_OPTS="-n -c 1 -w $TIMEOUT"
 
@@ -64,13 +61,11 @@ route_non_subnet_gateway_head()
 route_non_subnet_gateway_body()
 {
 
-	atf_check -s exit:0 rump_server ${RUMP_LIBS} ${SOCK_CLIENT}
-	atf_check -s exit:0 rump_server ${RUMP_LIBS} ${SOCK_GW}
+	rump_server_start $SOCK_CLIENT
+	rump_server_start $SOCK_GW
 
 	export RUMP_SERVER=${SOCK_GW}
-
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr $BUS
+	rump_server_add_iface $SOCK_GW shmif0 $BUS
 	atf_check -s exit:0 rump.ifconfig shmif0 192.168.0.1
 	atf_check -s exit:0 rump.ifconfig shmif0 up
 
@@ -81,11 +76,10 @@ route_non_subnet_gateway_body()
 	$DEBUG && rump.netstat -nr -f inet
 
 	export RUMP_SERVER=${SOCK_CLIENT}
-
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr $BUS
+	rump_server_add_iface $SOCK_CLIENT shmif0 $BUS
 	atf_check -s exit:0 rump.ifconfig shmif0 10.0.0.1/32
 	atf_check -s exit:0 rump.ifconfig shmif0 up
+	atf_check -s exit:0 rump.ifconfig -w 10
 
 	$DEBUG && rump.netstat -nr -f inet
 
@@ -104,15 +98,14 @@ route_non_subnet_gateway_body()
 	# Be reachable to the gateway
 	atf_check -s exit:0 -o ignore rump.ping $PING_OPTS 192.168.0.1
 
-	unset RUMP_SERVER
+	rump_server_destroy_ifaces
 }
 
 route_non_subnet_gateway_cleanup()
 {
 
-	$DEBUG && shmif_dumpbus -p - $BUS 2>/dev/null | tcpdump -n -e -r -
-	env RUMP_SERVER=$SOCK_CLIENT rump.halt
-	env RUMP_SERVER=$SOCK_GW rump.halt
+	$DEBUG && dump
+	cleanup
 }
 
 atf_test_case route_command_get cleanup
@@ -140,8 +133,7 @@ setup_endpoint()
 	local gw=${5}
 
 	export RUMP_SERVER=${sock}
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr ${bus}
+	rump_server_add_iface $sock shmif0 $bus
 	if [ $mode = "ipv6" ]; then
 		atf_check -s exit:0 rump.ifconfig shmif0 inet6 ${addr}
 		atf_check -s exit:0 -o ignore rump.route add -inet6 default ${gw}
@@ -150,6 +142,7 @@ setup_endpoint()
 		atf_check -s exit:0 -o ignore rump.route add default ${gw}
 	fi
 	atf_check -s exit:0 rump.ifconfig shmif0 up
+	atf_check -s exit:0 rump.ifconfig -w 10
 
 	if $DEBUG; then
 		rump.ifconfig shmif0
@@ -161,13 +154,10 @@ setup_forwarder()
 {
 	mode=${1}
 
+	rump_server_add_iface $SOCKFWD shmif0 $BUS_SRCGW
+	rump_server_add_iface $SOCKFWD shmif1 $BUS_DSTGW
+
 	export RUMP_SERVER=$SOCKFWD
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr $BUS_SRCGW
-
-	atf_check -s exit:0 rump.ifconfig shmif1 create
-	atf_check -s exit:0 rump.ifconfig shmif1 linkstr $BUS_DSTGW
-
 	if [ $mode = "ipv6" ]; then
 		atf_check -s exit:0 rump.ifconfig shmif0 inet6 ${IP6SRCGW}
 		atf_check -s exit:0 rump.ifconfig shmif1 inet6 ${IP6DSTGW}
@@ -178,6 +168,7 @@ setup_forwarder()
 
 	atf_check -s exit:0 rump.ifconfig shmif0 up
 	atf_check -s exit:0 rump.ifconfig shmif1 up
+	atf_check -s exit:0 rump.ifconfig -w 10
 
 	if $DEBUG; then
 		rump.netstat -nr
@@ -204,9 +195,9 @@ setup_forwarding6()
 setup()
 {
 
-	atf_check -s exit:0 rump_server $RUMP_LIBS $SOCKSRC
-	atf_check -s exit:0 rump_server $RUMP_LIBS $SOCKFWD
-	atf_check -s exit:0 rump_server $RUMP_LIBS $SOCKDST
+	rump_server_start $SOCKSRC
+	rump_server_start $SOCKFWD
+	rump_server_start $SOCKDST
 
 	setup_endpoint $SOCKSRC $IP4SRC $BUS_SRCGW ipv4 $IP4SRCGW
 	setup_endpoint $SOCKDST $IP4DST $BUS_DSTGW ipv4 $IP4DSTGW
@@ -216,9 +207,9 @@ setup()
 setup6()
 {
 
-	atf_check -s exit:0 rump_server $RUMP_LIBS_IPV6 $SOCKSRC
-	atf_check -s exit:0 rump_server $RUMP_LIBS_IPV6 $SOCKFWD
-	atf_check -s exit:0 rump_server $RUMP_LIBS_IPV6 $SOCKDST
+	rump_server_start $SOCKSRC netinet6
+	rump_server_start $SOCKFWD netinet6
+	rump_server_start $SOCKDST netinet6
 
 	setup_endpoint $SOCKSRC $IP6SRC $BUS_SRCGW ipv6 $IP6SRCGW
 	setup_endpoint $SOCKDST $IP6DST $BUS_DSTGW ipv6 $IP6DSTGW
@@ -380,6 +371,7 @@ route_command_get_body()
 	setup
 	setup_forwarding
 	test_route_get
+	rump_server_destroy_ifaces
 }
 
 route_command_get6_body()
@@ -388,36 +380,20 @@ route_command_get6_body()
 	setup6
 	setup_forwarding6
 	test_route_get6
-}
-
-dump()
-{
-
-	env RUMP_SERVER=$SOCKSRC rump.netstat -nr
-	env RUMP_SERVER=$SOCKFWD rump.netstat -nr
-	env RUMP_SERVER=$SOCKDST rump.netstat -nr
-
-	shmif_dumpbus -p - bus1 2>/dev/null| tcpdump -n -e -r -
-	shmif_dumpbus -p - bus2 2>/dev/null| tcpdump -n -e -r -
-}
-
-cleanup()
-{
-
-	env RUMP_SERVER=$SOCKSRC rump.halt
-	env RUMP_SERVER=$SOCKFWD rump.halt
-	env RUMP_SERVER=$SOCKDST rump.halt
+	rump_server_destroy_ifaces
 }
 
 route_command_get_cleanup()
 {
+
 	$DEBUG && dump
 	cleanup
 }
 
 route_command_get6_cleanup()
 {
-	dump
+
+	$DEBUG && dump
 	cleanup
 }
 

@@ -28,7 +28,7 @@
 .\"     @(#)fs.5	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2016
+.Dd January 16, 2017
 .Dt FS 5
 .Os
 .Sh NAME
@@ -388,18 +388,19 @@ For further information, see the include file
 The format of an external attribute is defined by the extattr structure:
 .Bd -literal
 struct extattr {
-	int32_t	ea_length;	    /* length of this attribute */
-	int8_t	ea_namespace;	    /* name space of this attribute */
-	int8_t	ea_contentpadlen;   /* padding at end of attribute */
-	int8_t	ea_namelength;	    /* length of attribute name */
-	char	ea_name[1];	    /* null-terminated attribute name */
+	uint32_t ea_length;	    /* length of this attribute */
+	uint8_t	ea_namespace;	    /* name space of this attribute */
+	uint8_t	ea_contentpadlen;   /* bytes of padding at end of attribute */
+	uint8_t	ea_namelength;	    /* length of attribute name */
+	char	ea_name[1];	    /* attribute name (NOT nul-terminated) */
+	/* padding, if any, to align attribute content to 8 byte boundary */
 	/* extended attribute content follows */
 };
 .Ed
 .Pp
 Several macros are defined to manipulate these structures.
 Each macro takes a pointer to an extattr structure.
-.Bl -tag -width ".Dv EXTATTR_SET_LENGTHS(eap, size)"
+.Bl -tag -width ".Dv EXTATTR_CONTENT_SIZE(eap)"
 .It Dv EXTATTR_NEXT(eap)
 Returns a pointer to the next extended attribute following
 .Fa eap .
@@ -409,34 +410,18 @@ Returns a pointer to the extended attribute content referenced by
 .It Dv EXTATTR_CONTENT_SIZE(eap)
 Returns the size of the extended attribute content referenced by
 .Fa eap .
-.It Dv EXTATTR_SET_LENGTHS(eap, size)
-Called with the size of the attribute content after initializing
-the attribute name to calculate and set the
-.Fa ea_length ,
-.Fa ea_namelength ,
-and
-.Fa ea_contentpadlen
-fields of the extended attribute structure.
 .El
 .Pp
 The following code identifies an ACL:
 .Bd -literal
 	if (eap->ea_namespace == EXTATTR_NAMESPACE_SYSTEM &&
-	    !strcmp(eap->ea_name, POSIX1E_ACL_ACCESS_EXTATTR_NAME) {
+            eap->ea_namelength == sizeof(POSIX1E_ACL_ACCESS_EXTATTR_NAME) - 1 &&
+	    strncmp(eap->ea_name, POSIX1E_ACL_ACCESS_EXTATTR_NAME,
+             sizeof(POSIX1E_ACL_ACCESS_EXTATTR_NAME) - 1) == 0) {
 		aclp = EXTATTR_CONTENT(eap);
 		acllen = EXTATTR_CONTENT_SIZE(eap);
 		...
 	}
-.Ed
-.Pp
-The following code creates an extended attribute
-containing a copy of a structure
-.Fa mygif :
-.Bd -literal
-	eap->ea_namespace = EXTATTR_NAMESPACE_USER;
-	strcpy(eap->ea_name, "filepic.gif");
-	EXTATTR_SET_LENGTHS(eap, sizeof(struct mygif));
-	memcpy(EXTATTR_CONTENT(eap), &mygif, sizeof(struct mygif));
 .Ed
 .Sh HISTORY
 A super-block structure named filsys appeared in

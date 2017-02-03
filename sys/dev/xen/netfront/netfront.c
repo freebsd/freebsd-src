@@ -168,7 +168,7 @@ struct netfront_rxq {
 	xen_intr_handle_t	xen_intr_handle;
 
 	grant_ref_t 		gref_head;
-	grant_ref_t 		grant_ref[NET_TX_RING_SIZE + 1];
+	grant_ref_t 		grant_ref[NET_RX_RING_SIZE + 1];
 
 	struct mbuf		*mbufs[NET_RX_RING_SIZE + 1];
 

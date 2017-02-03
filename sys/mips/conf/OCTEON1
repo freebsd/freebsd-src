@@ -195,7 +195,6 @@ device		octm
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
-device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
 device		ix		# Intel PRO/10GbE PF PCIE Ethernet Family
 device		ixv		# Intel PRO/10GbE VF PCIE Ethernet Family
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet

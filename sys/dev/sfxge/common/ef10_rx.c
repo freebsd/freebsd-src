@@ -297,13 +297,13 @@ efx_mcdi_rss_context_set_flags(
 
 	MCDI_IN_POPULATE_DWORD_4(req, RSS_CONTEXT_SET_FLAGS_IN_FLAGS,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_IPV4_EN,
-	    (type & (1U << EFX_RX_HASH_IPV4)) ? 1 : 0,
+	    (type & EFX_RX_HASH_IPV4) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_TCPV4_EN,
-	    (type & (1U << EFX_RX_HASH_TCPIPV4)) ? 1 : 0,
+	    (type & EFX_RX_HASH_TCPIPV4) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_IPV6_EN,
-	    (type & (1U << EFX_RX_HASH_IPV6)) ? 1 : 0,
+	    (type & EFX_RX_HASH_IPV6) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_TCPV6_EN,
-	    (type & (1U << EFX_RX_HASH_TCPIPV6)) ? 1 : 0);
+	    (type & EFX_RX_HASH_TCPIPV6) ? 1 : 0);
 
 	efx_mcdi_execute(enp, &req);
 
@@ -769,12 +769,10 @@ ef10_rx_qcreate(
 	}
 
 	/* Scatter can only be disabled if the firmware supports doing so */
-	if ((type != EFX_RXQ_TYPE_SCATTER) &&
-	    enp->en_nic_cfg.enc_rx_disable_scatter_supported) {
-		disable_scatter = B_TRUE;
-	} else {
+	if (type == EFX_RXQ_TYPE_SCATTER)
 		disable_scatter = B_FALSE;
-	}
+	else
+		disable_scatter = encp->enc_rx_disable_scatter_supported;
 
 	if ((rc = efx_mcdi_init_rxq(enp, n, eep->ee_index, label, index,
 	    esmp, disable_scatter)) != 0)

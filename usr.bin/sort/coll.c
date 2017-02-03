@@ -105,11 +105,26 @@ clean_keys_array(const struct bwstring *s, struct keys_array *ka)
 {
 
 	if (ka) {
-		for (size_t i = 0; i < keys_num; ++i)
-			if (ka->key[i].k && ka->key[i].k != s)
-				bwsfree(ka->key[i].k);
+		for (size_t i = 0; i < keys_num; ++i) {
+			const struct key_value *kv;
+
+			kv = get_key_from_keys_array(ka, i);
+			if (kv->k && kv->k != s)
+				bwsfree(kv->k);
+		}
 		memset(ka, 0, keys_array_size());
 	}
+}
+
+/*
+ * Get pointer to a key value in the keys set
+ */
+struct key_value *
+get_key_from_keys_array(struct keys_array *ka, size_t ind)
+{
+
+	return ((struct key_value *)((caddr_t)ka->key +
+	    ind * (sizeof(struct key_value) + key_hint_size())));
 }
 
 /*
@@ -122,7 +137,7 @@ set_key_on_keys_array(struct keys_array *ka, struct bwstring *s, size_t ind)
 	if (ka && keys_num > ind) {
 		struct key_value *kv;
 
-		kv = &(ka->key[ind]);
+		kv = get_key_from_keys_array(ka, ind);
 
 		if (kv->k && kv->k != s)
 			bwsfree(kv->k);
@@ -156,9 +171,9 @@ sort_list_item_size(struct sort_list_item *si)
 		if (si->str)
 			ret += bws_memsize(si->str);
 		for (size_t i = 0; i < keys_num; ++i) {
-			struct key_value *kv;
+			const struct key_value *kv;
 
-			kv = &(si->ka.key[i]);
+			kv = get_key_from_keys_array(&si->ka, i);
 
 			if (kv->k != si->str)
 				ret += bws_memsize(kv->k);
@@ -475,16 +490,19 @@ get_sort_func(struct sort_mods *sm)
 int
 key_coll(struct keys_array *ps1, struct keys_array *ps2, size_t offset)
 {
+	struct key_value *kv1, *kv2;
 	struct sort_mods *sm;
 	int res = 0;
 
 	for (size_t i = 0; i < keys_num; ++i) {
+		kv1 = get_key_from_keys_array(ps1, i);
+		kv2 = get_key_from_keys_array(ps2, i);
 		sm = &(keys[i].sm);
 
 		if (sm->rflag)
-			res = sm->func(&(ps2->key[i]), &(ps1->key[i]), offset);
+			res = sm->func(kv2, kv1, offset);
 		else
-			res = sm->func(&(ps1->key[i]), &(ps2->key[i]), offset);
+			res = sm->func(kv1, kv2, offset);
 
 		if (res)
 			break;
@@ -1087,7 +1105,7 @@ cmp_nans(double d1, double d2)
 
 	if (d1 < d2)
 		return (-1);
-	if (d2 > d2)
+	if (d1 > d2)
 		return (+1);
 	return (0);
 }

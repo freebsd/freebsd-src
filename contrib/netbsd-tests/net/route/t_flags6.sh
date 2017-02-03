@@ -1,4 +1,4 @@
-#	$NetBSD: t_flags6.sh,v 1.7 2016/08/10 23:00:39 roy Exp $
+#	$NetBSD: t_flags6.sh,v 1.12 2016/12/21 02:46:08 ozaki-r Exp $
 #
 # Copyright (c) 2016 Internet Initiative Japan Inc.
 # All rights reserved.
@@ -25,9 +25,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-RUMP_OPTS="-lrumpdev -lrumpnet -lrumpnet_net"
-RUMP_OPTS="$RUMP_OPTS -lrumpnet_netinet -lrumpnet_netinet6"
-RUMP_OPTS="$RUMP_OPTS -lrumpnet_shmif"
 SOCK_LOCAL=unix://commsock1
 SOCK_PEER=unix://commsock2
 SOCK_GW=unix://commsock3
@@ -37,18 +34,18 @@ BUS2=bus2
 IP6_LOCAL=fc00::2
 IP6_PEER=fc00::1
 
-DEBUG=false
+DEBUG=${DEBUG:-false}
 
 setup_local()
 {
 
-	atf_check -s exit:0 rump_server ${RUMP_OPTS} ${SOCK_LOCAL}
+	rump_server_start $SOCK_LOCAL netinet6
+	rump_server_add_iface $SOCK_LOCAL shmif0 $BUS
 
 	export RUMP_SERVER=$SOCK_LOCAL
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 create
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 linkstr ${BUS}
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 inet6 $IP6_LOCAL
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 up
+	atf_check -s exit:0 -o ignore rump.ifconfig -w 10
 
 	$DEBUG && rump.ifconfig
 	$DEBUG && rump.netstat -rn -f inet6
@@ -57,43 +54,16 @@ setup_local()
 setup_peer()
 {
 
-	atf_check -s exit:0 rump_server ${RUMP_OPTS} ${SOCK_PEER}
+	rump_server_start $SOCK_PEER netinet6
+	rump_server_add_iface $SOCK_PEER shmif0 $BUS
 
 	export RUMP_SERVER=$SOCK_PEER
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 create
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 linkstr ${BUS}
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 inet6 $IP6_PEER
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 up
+	atf_check -s exit:0 -o ignore rump.ifconfig -w 10
 
 	$DEBUG && rump.ifconfig
 	$DEBUG && rump.netstat -rn -f inet6
-}
-
-check_entry_flags()
-{
-	local ip=$(echo $1 |sed 's/\./\\./g')
-	local flags=$2
-
-	atf_check -s exit:0 -o match:" $flags " -e ignore -x \
-	    "rump.netstat -rn -f inet6 | grep ^'$ip'"
-}
-
-check_entry_gw()
-{
-	local ip=$(echo $1 |sed 's/\./\\./g')
-	local gw=$2
-
-	atf_check -s exit:0 -o match:" $gw " -e ignore -x \
-	    "rump.netstat -rn -f inet6 | grep ^'$ip'"
-}
-
-check_entry_fail()
-{
-	ip=$(echo $1 |sed 's/\./\\./g')
-	flags=$2  # Not used currently
-
-	atf_check -s not-exit:0 -e ignore -x \
-	    "rump.netstat -rn -f inet6 | grep ^'$ip'"
 }
 
 test_lo6()
@@ -102,10 +72,10 @@ test_lo6()
 	export RUMP_SERVER=$SOCK_LOCAL
 
 	# Up, Host, local
-	check_entry_flags fe80::1 UHl
+	check_route_flags fe80::1 UHl
 
-	# Up, Host
-	check_entry_flags ::1 UH
+	# Up, Host, local
+	check_route_flags ::1 UHl
 }
 
 test_connected6()
@@ -114,10 +84,10 @@ test_connected6()
 	export RUMP_SERVER=$SOCK_LOCAL
 
 	# Up, Host, local
-	check_entry_flags $IP6_LOCAL UHl
+	check_route_flags $IP6_LOCAL UHl
 
 	# Up, Connected
-	check_entry_flags fc00::/64 UC
+	check_route_flags fc00::/64 UC
 }
 
 test_default_gateway6()
@@ -129,7 +99,7 @@ test_default_gateway6()
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Up, Gateway, Static
-	check_entry_flags default UGS
+	check_route_flags default UGS
 }
 
 test_static6()
@@ -143,7 +113,7 @@ test_static6()
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Up, Gateway, Host, Static
-	check_entry_flags fc00::1:1 UGHS
+	check_route_flags fc00::1:1 UGHS
 
 	# Static route to network
 	atf_check -s exit:0 -o ignore \
@@ -151,7 +121,7 @@ test_static6()
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Up, Gateway, Static
-	check_entry_flags fc00::/24 UGS
+	check_route_flags fc00::/24 UGS
 }
 
 test_blackhole6()
@@ -171,14 +141,14 @@ test_blackhole6()
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Up, Gateway, Blackhole, Static
-	check_entry_flags fc00::/64 UGBS
+	check_route_flags fc00::/64 UGBS
 
 	atf_check -s not-exit:0 -o match:'100.0% packet loss' \
 	    rump.ping6 -n -X 1 -c 1 $IP6_PEER
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Shouldn't be created
-	check_entry_fail $IP6_PEER UH
+	check_route_no_entry $IP6_PEER
 }
 
 test_reject6()
@@ -195,14 +165,14 @@ test_reject6()
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Up, Gateway, Reject, Static
-	check_entry_flags fc00::/64 UGRS
+	check_route_flags fc00::/64 UGRS
 
 	atf_check -s not-exit:0 -o ignore -e match:'No route to host' \
 	    rump.ping6 -n -X 1 -c 1 $IP6_PEER
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Shouldn't be created
-	check_entry_fail $IP6_PEER UH
+	check_route_no_entry $IP6_PEER
 
 	# Gateway is lo0 (RTF_GATEWAY)
 
@@ -215,14 +185,14 @@ test_reject6()
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Up, Gateway, Reject, Static
-	check_entry_flags fc00::/64 UGRS
+	check_route_flags fc00::/64 UGRS
 
 	atf_check -s not-exit:0 -o ignore -e match:'Network is unreachable' \
 	    rump.ping6 -n -X 1 -c 1 $IP6_PEER
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Shouldn't be created
-	check_entry_fail $IP6_PEER UH
+	check_route_no_entry $IP6_PEER
 
 	# Gateway is lo0 (RTF_HOST)
 
@@ -235,7 +205,7 @@ test_reject6()
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Up, Host, Reject, Static
-	check_entry_flags fc00:: UHRS
+	check_route_flags fc00:: UHRS
 
 	atf_check -s not-exit:0 -o ignore -e match:'No route to host' \
 	    rump.ping6 -n -X 1 -c 1 $IP6_PEER
@@ -257,17 +227,9 @@ test_announce6()
 	$DEBUG && rump.netstat -rn -f inet6
 
 	# Up, Gateway, Static, proxy
-	check_entry_flags fc00::/64 UGSp
+	check_route_flags fc00::/64 UGSp
 
 	# TODO test its behavior
-}
-
-cleanup()
-{
-	$DEBUG && /usr/bin/shmif_dumpbus -p - $BUS 2>/dev/null | \
-	    /usr/sbin/tcpdump -n -e -r -
-	env RUMP_SERVER=$SOCK_LOCAL rump.halt
-	env RUMP_SERVER=$SOCK_PEER rump.halt
 }
 
 add_test()
@@ -284,8 +246,10 @@ add_test()
 			setup_local; \
 			setup_peer; \
 			test_${name}; \
+			rump_server_destroy_ifaces; \
 		}; \
 	    route_flags_${name}_cleanup() { \
+			$DEBUG && dump; \
 			cleanup; \
 		}"
 	atf_add_test_case "route_flags_${name}"

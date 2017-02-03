@@ -65,6 +65,14 @@
 #define	SDHCI_QUIRK_DONT_SET_HISPD_BIT			(1<<15)
 /* Alternate clock source is required when supplying a 400 KHz clock. */
 #define	SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC		(1<<16)
+/* Card insert/remove interrupts don't work, polling required. */
+#define	SDHCI_QUIRK_POLL_CARD_PRESENT			(1<<17)
+/* All controller slots are non-removable. */
+#define	SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE		(1<<18)
+/* Issue custom Intel controller reset sequence after power-up. */
+#define	SDHCI_QUIRK_INTEL_POWER_UP_RESET		(1<<19)
+/* Data timeout is invalid, use 1 MHz clock instead. */
+#define	SDHCI_QUIRK_DATA_TIMEOUT_1MHZ			(1<<20)
 
 /*
  * Controller registers
@@ -122,7 +130,7 @@
 #define  SDHCI_STATE_DAT_MASK	0x00f00000
 #define  SDHCI_STATE_CMD	0x01000000
 
-#define SDHCI_HOST_CONTROL 	0x28
+#define SDHCI_HOST_CONTROL	0x28
 #define  SDHCI_CTRL_LED		0x01
 #define  SDHCI_CTRL_4BITBUS	0x02
 #define  SDHCI_CTRL_HISPD	0x04
@@ -196,7 +204,7 @@
 #define  SDHCI_INT_NORMAL_MASK	0x00007FFF
 #define  SDHCI_INT_ERROR_MASK	0xFFFF8000
 
-#define  SDHCI_INT_CMD_ERROR_MASK 	(SDHCI_INT_TIMEOUT | \
+#define  SDHCI_INT_CMD_ERROR_MASK	(SDHCI_INT_TIMEOUT | \
 		SDHCI_INT_CRC | SDHCI_INT_END_BIT | SDHCI_INT_INDEX)
 
 #define  SDHCI_INT_CMD_MASK	(SDHCI_INT_RESPONSE | SDHCI_INT_CMD_ERROR_MASK)
@@ -273,23 +281,26 @@ struct sdhci_slot {
 	device_t	dev;		/* Slot device */
 	u_char		num;		/* Slot number */
 	u_char		opt;		/* Slot options */
-#define SDHCI_HAVE_DMA			1
-#define SDHCI_PLATFORM_TRANSFER		2
+#define	SDHCI_HAVE_DMA			0x01
+#define	SDHCI_PLATFORM_TRANSFER		0x02
+#define	SDHCI_NON_REMOVABLE		0x04
 	u_char		version;
 	int		timeout;	/* Transfer timeout */
 	uint32_t	max_clk;	/* Max possible freq */
 	uint32_t	timeout_clk;	/* Timeout freq */
-	bus_dma_tag_t 	dmatag;
-	bus_dmamap_t 	dmamap;
+	bus_dma_tag_t	dmatag;
+	bus_dmamap_t	dmamap;
 	u_char		*dmamem;
 	bus_addr_t	paddr;		/* DMA buffer address */
 	struct task	card_task;	/* Card presence check task */
-	struct callout	card_callout;	/* Card insert delay callout */
+	struct timeout_task
+			card_delayed_task;/* Card insert delayed task */
+	struct callout	card_poll_callout;/* Card present polling callout */
 	struct callout	timeout_callout;/* Card command/data response timeout */
 	struct mmc_host host;		/* Host parameters */
 	struct mmc_request *req;	/* Current request */
 	struct mmc_command *curcmd;	/* Current command of current request */
-	
+
 	uint32_t	intmask;	/* Current interrupt mask */
 	uint32_t	clock;		/* Current clock freq. */
 	size_t		offset;		/* Data buffer offset */
@@ -302,12 +313,14 @@ struct sdhci_slot {
 #define CMD_STARTED		1
 #define STOP_STARTED		2
 #define SDHCI_USE_DMA		4	/* Use DMA for this req. */
-#define PLATFORM_DATA_STARTED	8	/* Data transfer is handled by platform */
+#define PLATFORM_DATA_STARTED	8	/* Data xfer is handled by platform */
 	struct mtx	mtx;		/* Slot mutex */
 };
 
-int sdhci_generic_read_ivar(device_t bus, device_t child, int which, uintptr_t *result);
-int sdhci_generic_write_ivar(device_t bus, device_t child, int which, uintptr_t value);
+int sdhci_generic_read_ivar(device_t bus, device_t child, int which,
+    uintptr_t *result);
+int sdhci_generic_write_ivar(device_t bus, device_t child, int which,
+    uintptr_t value);
 int sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num);
 void sdhci_start_slot(struct sdhci_slot *slot);
 /* performs generic clean-up for platform transfers */
@@ -316,11 +329,14 @@ int sdhci_cleanup_slot(struct sdhci_slot *slot);
 int sdhci_generic_suspend(struct sdhci_slot *slot);
 int sdhci_generic_resume(struct sdhci_slot *slot);
 int sdhci_generic_update_ios(device_t brdev, device_t reqdev);
-int sdhci_generic_request(device_t brdev, device_t reqdev, struct mmc_request *req);
+int sdhci_generic_request(device_t brdev, device_t reqdev,
+    struct mmc_request *req);
 int sdhci_generic_get_ro(device_t brdev, device_t reqdev);
 int sdhci_generic_acquire_host(device_t brdev, device_t reqdev);
 int sdhci_generic_release_host(device_t brdev, device_t reqdev);
 void sdhci_generic_intr(struct sdhci_slot *slot);
 uint32_t sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot);
+bool sdhci_generic_get_card_present(device_t brdev, struct sdhci_slot *slot);
+void sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present);
 
 #endif	/* __SDHCI_H__ */

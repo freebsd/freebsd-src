@@ -291,12 +291,18 @@ efinet_dev_init()
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
 	handles2 = (EFI_HANDLE *)malloc(sz);
+	if (handles2 == NULL) {
+		free(handles);
+		return (ENOMEM);
+	}
 	nifs = 0;
 	for (i = 0; i < sz / sizeof(EFI_HANDLE); i++) {
 		devpath = efi_lookup_devpath(handles[i]);
 		if (devpath == NULL)
 			continue;
-		node = efi_devpath_last_node(devpath);
+		if ((node = efi_devpath_last_node(devpath)) == NULL)
+			continue;
+
 		if (DevicePathType(node) != MESSAGING_DEVICE_PATH ||
 		    DevicePathSubType(node) != MSG_MAC_ADDR_DP)
 			continue;
@@ -318,20 +324,24 @@ efinet_dev_init()
 	}
 	free(handles);
 	if (nifs == 0) {
-		free(handles2);
-		return (ENOENT);
+		err = ENOENT;
+		goto done;
 	}
 
 	err = efi_register_handles(&efinet_dev, handles2, NULL, nifs);
-	if (err != 0) {
-		free(handles2);
-		return (err);
-	}
+	if (err != 0)
+		goto done;
 
-	efinetif.netif_nifs = nifs;
 	efinetif.netif_ifs = calloc(nifs, sizeof(struct netif_dif));
-
 	stats = calloc(nifs, sizeof(struct netif_stats));
+	if (efinetif.netif_ifs == NULL || stats == NULL) {
+		free(efinetif.netif_ifs);
+		free(stats);
+		efinetif.netif_ifs = NULL;
+		err = ENOMEM;
+		goto done;
+	}
+	efinetif.netif_nifs = nifs;
 
 	for (i = 0; i < nifs; i++) {
 
@@ -341,9 +351,9 @@ efinet_dev_init()
 		dif->dif_stats = &stats[i];
 		dif->dif_private = handles2[i];
 	}
+done:
 	free(handles2);
-
-	return (0);
+	return (err);
 }
 
 static int

@@ -79,9 +79,17 @@ struct hyperv_guid {
 
 #define HYPERV_GUID_STRLEN		40
 
-int		hyperv_guid2str(const struct hyperv_guid *, char *, size_t);
+typedef uint64_t			(*hyperv_tc64_t)(void);
 
-extern u_int	hyperv_features;	/* CPUID_HV_MSR_ */
+int			hyperv_guid2str(const struct hyperv_guid *, char *,
+			    size_t);
+
+/*
+ * hyperv_tc64 could be NULL, if there were no suitable Hyper-V
+ * specific timecounter.
+ */
+extern hyperv_tc64_t	hyperv_tc64;
+extern u_int		hyperv_features;	/* CPUID_HV_MSR_ */
 
 #endif	/* _KERNEL */
 

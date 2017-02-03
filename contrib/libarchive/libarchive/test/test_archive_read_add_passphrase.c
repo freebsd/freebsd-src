@@ -191,7 +191,7 @@ DEFINE_TEST(test_archive_read_add_passphrase_set_callback3)
 	/* Fist call, we should get "passCallBack" as a passphrase. */
 	assertEqualString("passCallBack", __archive_read_next_passphrase(ar));
 	__archive_read_reset_passphrase(ar);
-	/* After reset passphrase, we should get "passCallBack"passphrase. */
+	/* After reset passphrase, we should get "passCallBack" passphrase. */
 	assertEqualString("passCallBack", __archive_read_next_passphrase(ar));
 	/* Second call, we should get NULL which means all the passphrases
 	 * are passed already. */

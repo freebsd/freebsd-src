@@ -76,6 +76,7 @@ void	r21au_attach(struct rtwn_usb_softc *);
 static void
 r21a_postattach(struct rtwn_softc *sc)
 {
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct r12a_softc *rs = sc->sc_priv;
 
 	if (rs->board_type == R92C_BOARD_TYPE_MINICARD ||
@@ -85,17 +86,51 @@ r21a_postattach(struct rtwn_softc *sc)
 	else
 		sc->sc_set_led = r21a_set_led;
 
-	sc->sc_ic.ic_ioctl = r12a_ioctl_net;
+	TIMEOUT_TASK_INIT(taskqueue_thread, &rs->rs_chan_check, 0,
+	    r21au_chan_check, sc);
+
+	/* RXCKSUM */
+	ic->ic_ioctl = r12a_ioctl_net;
+	/* DFS */
+	rs->rs_scan_start = ic->ic_scan_start;
+	ic->ic_scan_start = r21au_scan_start;
+	rs->rs_scan_end = ic->ic_scan_end;
+	ic->ic_scan_end = r21au_scan_end;
+}
+
+static void
+r21au_vap_preattach(struct rtwn_softc *sc, struct ieee80211vap *vap)
+{
+	struct rtwn_vap *rvp = RTWN_VAP(vap);
+	struct r12a_softc *rs = sc->sc_priv;
+
+	r12a_vap_preattach(sc, vap);
+
+	/* Install DFS newstate handler (non-monitor vaps only). */
+	if (rvp->id != RTWN_VAP_ID_INVALID) {
+		KASSERT(rvp->id >= 0 && rvp->id <= nitems(rs->rs_newstate),
+		    ("%s: wrong vap id %d\n", __func__, rvp->id));
+
+		rs->rs_newstate[rvp->id] = vap->iv_newstate;
+		vap->iv_newstate = r21au_newstate;
+	}
 }
 
 static void
 r21a_attach_private(struct rtwn_softc *sc)
 {
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 	struct r12a_softc *rs;
 
 	rs = malloc(sizeof(struct r12a_softc), M_RTWN_PRIV, M_WAITOK | M_ZERO);
 
 	rs->rs_flags			= R12A_RXCKSUM_EN | R12A_RXCKSUM6_EN;
+
+	rs->rs_radar = 0;
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "radar_detection", CTLFLAG_RDTUN, &rs->rs_radar,
+	    rs->rs_radar, "Enable radar detection (untested)");
 
 	rs->rs_fix_spur			= rtwn_nop_softc_chan;
 	rs->rs_set_band_2ghz		= r21a_set_band_2ghz;
@@ -119,7 +154,14 @@ r21a_attach_private(struct rtwn_softc *sc)
 static void
 r21au_adj_devcaps(struct rtwn_softc *sc)
 {
-	/* TODO: DFS, LDPC etc */
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct r12a_softc *rs = sc->sc_priv;
+
+	ic->ic_htcaps |= IEEE80211_HTC_TXLDPC;
+	if (rs->rs_radar != 0)
+		ic->ic_caps |= IEEE80211_C_DFS;
+
+	/* TODO: VHT */
 }
 
 void
@@ -141,6 +183,7 @@ r21au_attach(struct rtwn_usb_softc *uc)
 	sc->sc_dump_tx_desc		= r12au_dump_tx_desc;
 	sc->sc_tx_radiotap_flags	= r12a_tx_radiotap_flags;
 	sc->sc_rx_radiotap_flags	= r12a_rx_radiotap_flags;
+	sc->sc_get_rx_stats		= r12a_get_rx_stats;
 	sc->sc_get_rssi_cck		= r21a_get_rssi_cck;
 	sc->sc_get_rssi_ofdm		= r88e_get_rssi_ofdm;
 	sc->sc_classify_intr		= r12au_classify_intr;
@@ -158,12 +201,13 @@ r21au_attach(struct rtwn_usb_softc *uc)
 	sc->sc_fw_reset			= r21a_fw_reset;
 	sc->sc_fw_download_enable	= r12a_fw_download_enable;
 #endif
+	sc->sc_llt_init			= r92c_llt_init;
 	sc->sc_set_page_size 		= rtwn_nop_int_softc;
 	sc->sc_lc_calib			= rtwn_nop_softc;	/* XXX not used */
 	sc->sc_iq_calib			= r12a_iq_calib;
 	sc->sc_read_chipid_vendor	= rtwn_nop_softc_uint32;
 	sc->sc_adj_devcaps		= r21au_adj_devcaps;
-	sc->sc_vap_preattach		= r12a_vap_preattach;
+	sc->sc_vap_preattach		= r21au_vap_preattach;
 	sc->sc_postattach		= r21a_postattach;
 	sc->sc_detach_private		= r12a_detach_private;
 #ifndef RTWN_WITHOUT_UCODE

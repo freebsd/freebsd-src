@@ -26,7 +26,7 @@ void	rtwn_get_rates(struct rtwn_softc *, const struct ieee80211_rateset *,
 	    const struct ieee80211_htrateset *, uint32_t *, int *, int);
 void	rtwn_set_basicrates(struct rtwn_softc *, uint32_t);
 struct ieee80211_node *	rtwn_rx_common(struct rtwn_softc *, struct mbuf *,
-	    void *, int8_t *);
+	    void *);
 void	rtwn_adhoc_recv_mgmt(struct ieee80211_node *, struct mbuf *, int,
 	    const struct ieee80211_rx_stats *, int, int);
 void	rtwn_set_multi(struct rtwn_softc *);

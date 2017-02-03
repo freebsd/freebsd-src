@@ -497,7 +497,8 @@ static	__checkReturn	efx_rc_t
 efx_mcdi_get_capabilities(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *flagsp,
-	__out		uint32_t *flags2p)
+	__out		uint32_t *flags2p,
+	__out		uint32_t *tso2ncp)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
@@ -525,10 +526,14 @@ efx_mcdi_get_capabilities(
 
 	*flagsp = MCDI_OUT_DWORD(req, GET_CAPABILITIES_OUT_FLAGS1);
 
-	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
+	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V2_OUT_LEN) {
 		*flags2p = 0;
-	else
+		*tso2ncp = 0;
+	} else {
 		*flags2p = MCDI_OUT_DWORD(req, GET_CAPABILITIES_V2_OUT_FLAGS2);
+		*tso2ncp = MCDI_OUT_WORD(req,
+				GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS);
+	}
 
 	return (0);
 
@@ -956,6 +961,50 @@ ef10_nic_pio_unlink(
 	return (efx_mcdi_unlink_piobuf(enp, vi_index));
 }
 
+static	__checkReturn	efx_rc_t
+ef10_mcdi_get_pf_count(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *pf_countp)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_PF_COUNT_IN_LEN,
+			    MC_CMD_GET_PF_COUNT_OUT_LEN)];
+	efx_rc_t rc;
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_PF_COUNT;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_PF_COUNT_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_PF_COUNT_OUT_LEN;
+
+	efx_mcdi_execute(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (req.emr_out_length_used < MC_CMD_GET_PF_COUNT_OUT_LEN) {
+		rc = EMSGSIZE;
+		goto fail2;
+	}
+
+	*pf_countp = *MCDI_OUT(req, uint8_t,
+				MC_CMD_GET_PF_COUNT_OUT_PF_COUNT_OFST);
+
+	EFSYS_ASSERT(*pf_countp != 0);
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 	__checkReturn	efx_rc_t
 ef10_get_datapath_caps(
 	__in		efx_nic_t *enp)
@@ -963,9 +1012,14 @@ ef10_get_datapath_caps(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t flags;
 	uint32_t flags2;
+	uint32_t tso2nc;
 	efx_rc_t rc;
 
-	if ((rc = efx_mcdi_get_capabilities(enp, &flags, &flags2)) != 0)
+	if ((rc = efx_mcdi_get_capabilities(enp, &flags, &flags2,
+					    &tso2nc)) != 0)
+		goto fail1;
+
+	if ((rc = ef10_mcdi_get_pf_count(enp, &encp->enc_hw_pf_count)) != 0)
 		goto fail1;
 
 #define	CAP_FLAG(flags1, field)		\
@@ -991,6 +1045,10 @@ ef10_get_datapath_caps(
 	/* Check if the firmware supports FATSOv2 */
 	encp->enc_fw_assisted_tso_v2_enabled =
 	    CAP_FLAG2(flags2, TX_TSO_V2) ? B_TRUE : B_FALSE;
+
+	/* Get the number of TSO contexts (FATSOv2) */
+	encp->enc_fw_assisted_tso_v2_n_contexts =
+		CAP_FLAG2(flags2, TX_TSO_V2) ? tso2nc : 0;
 
 	/* Check if the firmware has vadapter/vport/vswitch support */
 	encp->enc_datapath_cap_evb =
@@ -1032,6 +1090,32 @@ ef10_get_datapath_caps(
 	 */
 	encp->enc_init_evq_v2_supported =
 		CAP_FLAG2(flags2, INIT_EVQ_V2) ? B_TRUE : B_FALSE;
+
+	/*
+	 * Check if firmware provides packet memory and Rx datapath
+	 * counters.
+	 */
+	encp->enc_pm_and_rxdp_counters =
+	    CAP_FLAG(flags, PM_AND_RXDP_COUNTERS) ? B_TRUE : B_FALSE;
+
+	/*
+	 * Check if the 40G MAC hardware is capable of reporting
+	 * statistics for Tx size bins.
+	 */
+	encp->enc_mac_stats_40g_tx_size_bins =
+	    CAP_FLAG2(flags2, MAC_STATS_40G_TX_SIZE_BINS) ? B_TRUE : B_FALSE;
+
+	/*
+	 * Check if firmware-verified NVRAM updates must be used.
+	 *
+	 * The firmware trusted installer requires all NVRAM updates to use
+	 * version 2 of MC_CMD_NVRAM_UPDATE_START (to enable verified update)
+	 * and version 2 of MC_CMD_NVRAM_UPDATE_FINISH (to verify the updated
+	 * partition and report the result).
+	 */
+	encp->enc_fw_verified_nvram_update_required =
+	    CAP_FLAG2(flags2, NVRAM_UPDATE_REPORT_VERIFY_RESULT) ?
+	    B_TRUE : B_FALSE;
 
 #undef CAP_FLAG
 #undef CAP_FLAG2

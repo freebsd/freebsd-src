@@ -472,11 +472,15 @@ sysdecode_flock_operation(FILE *fp, int operation, int *rem)
 	return (print_mask_int(fp, flockops, operation, rem));
 }
 
-bool
-sysdecode_getfsstat_flags(FILE *fp, int flags, int *rem)
+static struct name_table getfsstatmode[] = {
+	X(MNT_WAIT) X(MNT_NOWAIT) XEND
+};
+
+const char *
+sysdecode_getfsstat_mode(int mode)
 {
 
-	return (print_mask_int(fp, getfsstatflags, flags, rem));
+	return (lookup_value(getfsstatmode, mode));
 }
 
 const char *

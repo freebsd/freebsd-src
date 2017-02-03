@@ -21,7 +21,7 @@ cd /sys
 init=false
 
 # Which kernels you want to check
-kernels="LINT GENERIC GENERIC98"
+kernels="LINT GENERIC"
 
 NO_MODULES=yes
 export NO_MODULES
@@ -60,14 +60,6 @@ echo "Configuring kernels"
 	fi
 	config LINT
 	config GENERIC
-)
-(
-	cd pc98/conf
-	cp -f GENERIC GENERIC98
-	if $init ; then
-		rm -rf ../../compile/GENERIC98
-	fi
-	config GENERIC98
 )
 
 for i in $kernels

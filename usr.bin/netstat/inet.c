@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include "netstat.h"
 #include "nl_defs.h"
 
-char	*inetname(struct in_addr *);
 void	inetprint(const char *, struct in_addr *, int, const char *, int,
     const int);
 #ifdef INET6
@@ -751,6 +750,12 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/ignored RSTs in the window%s}\n");
 	p(tcps_connects, "\t{:connections-established/%ju} "
 	    "{N:/connection%s established (including accepts)}\n");
+	p(tcps_usedrtt, "\t\t{:connections-hostcache-rtt/%ju} "
+	    "{N:/time%s used RTT from hostcache}\n");
+	p(tcps_usedrttvar, "\t\t{:connections-hostcache-rttvar/%ju} "
+	    "{N:/time%s used RTT variance from hostcache}\n");
+	p(tcps_usedssthresh, "\t\t{:connections-hostcache-ssthresh/%ju} "
+	    "{N:/time%s used slow-start threshold from hostcache}\n");
 	p2(tcps_closed, tcps_drops, "\t{:connections-closed/%ju} "
 	    "{N:/connection%s closed (including} "
 	    "{:connection-drops/%ju} {N:/drop%s})\n");
@@ -1407,21 +1412,26 @@ inetprint(const char *container, struct in_addr *in, int port,
 	struct servent *sp = 0;
 	char line[80], *cp;
 	int width;
+	size_t alen, plen;
 
 	if (container)
 		xo_open_container(container);
 
 	if (Wflag)
-	    sprintf(line, "%s.", inetname(in));
+	    snprintf(line, sizeof(line), "%s.", inetname(in));
 	else
-	    sprintf(line, "%.*s.", (Aflag && !num_port) ? 12 : 16, inetname(in));
-	cp = strchr(line, '\0');
+	    snprintf(line, sizeof(line), "%.*s.",
+		(Aflag && !num_port) ? 12 : 16, inetname(in));
+	alen = strlen(line);
+	cp = line + alen;
 	if (!num_port && port)
 		sp = getservbyport((int)port, proto);
 	if (sp || port == 0)
-		sprintf(cp, "%.15s ", sp ? sp->s_name : "*");
+		snprintf(cp, sizeof(line) - alen,
+		    "%.15s ", sp ? sp->s_name : "*");
 	else
-		sprintf(cp, "%d ", ntohs((u_short)port));
+		snprintf(cp, sizeof(line) - alen,
+		    "%d ", ntohs((u_short)port));
 	width = (Aflag && !Wflag) ? 18 :
 		((!Wflag || af1 == AF_INET) ? 22 : 45);
 	if (Wflag)
@@ -1429,7 +1439,8 @@ inetprint(const char *container, struct in_addr *in, int port,
 	else
 		xo_emit("{d:target/%-*.*s} ", width, width, line);
 
-	int alen = cp - line - 1, plen = strlen(cp) - 1;
+	plen = strlen(cp) - 1;
+	alen--;
 	xo_emit("{e:address/%*.*s}{e:port/%*.*s}", alen, alen, line, plen,
 	    plen, cp);
 
@@ -1475,8 +1486,9 @@ inetname(struct in_addr *inp)
 	} else {
 		inp->s_addr = ntohl(inp->s_addr);
 #define	C(x)	((u_int)((x) & 0xff))
-		sprintf(line, "%u.%u.%u.%u", C(inp->s_addr >> 24),
-		    C(inp->s_addr >> 16), C(inp->s_addr >> 8), C(inp->s_addr));
+		snprintf(line, sizeof(line), "%u.%u.%u.%u",
+		    C(inp->s_addr >> 24), C(inp->s_addr >> 16),
+		    C(inp->s_addr >> 8), C(inp->s_addr));
 	}
 	return (line);
 }

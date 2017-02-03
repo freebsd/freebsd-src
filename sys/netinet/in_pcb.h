@@ -181,6 +181,7 @@ struct	icmp6_filter;
  * read-lock usage during modification, this model can be applied to other
  * protocols (especially SCTP).
  */
+struct m_snd_tag;
 struct inpcb {
 	LIST_ENTRY(inpcb) inp_hash;	/* (h/i) hash list */
 	LIST_ENTRY(inpcb) inp_pcbgrouphash;	/* (g/i) hash list */
@@ -202,11 +203,11 @@ struct inpcb {
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
 	u_int	inp_refcount;		/* (i) refcount */
-	void	*inp_pspare[5];		/* (x) packet pacing / general use */
+	struct m_snd_tag *inp_snd_tag;	/* (i) send tag for outgoing mbufs */
+	void	*inp_pspare[4];		/* (x) general use */
 	uint32_t inp_flowtype;		/* (x) M_HASHTYPE value */
 	uint32_t inp_rss_listen_bucket;	/* (x) overridden RSS listen bucket */
-	u_int	inp_ispare[4];		/* (x) packet pacing / user cookie /
-					 *     general use */
+	u_int	inp_ispare[4];		/* (x) user cookie / general use */
 
 	/* Local and foreign ports, local and foreign addr. */
 	struct	in_conninfo inp_inc;	/* (i) list for PCB's local port */
@@ -616,6 +617,7 @@ short	inp_so_options(const struct inpcb *inp);
 #define	INP_RSS_BUCKET_SET	0x00000080 /* IP_RSS_LISTEN_BUCKET is set */
 #define	INP_RECVFLOWID		0x00000100 /* populate recv datagram with flow info */
 #define	INP_RECVRSSBUCKETID	0x00000200 /* populate recv datagram with bucket id */
+#define	INP_RATE_LIMIT_CHANGED	0x00000400 /* rate limit needs attention */
 
 /*
  * Flags passed to in_pcblookup*() functions.
@@ -736,6 +738,14 @@ int	in_getsockaddr(struct socket *so, struct sockaddr **nam);
 struct sockaddr *
 	in_sockaddr(in_port_t port, struct in_addr *addr);
 void	in_pcbsosetlabel(struct socket *so);
+#ifdef RATELIMIT
+int	in_pcbattach_txrtlmt(struct inpcb *, struct ifnet *, uint32_t, uint32_t, uint32_t);
+void	in_pcbdetach_txrtlmt(struct inpcb *);
+int	in_pcbmodify_txrtlmt(struct inpcb *, uint32_t);
+int	in_pcbquery_txrtlmt(struct inpcb *, uint32_t *);
+void	in_pcboutput_txrtlmt(struct inpcb *, struct ifnet *, struct mbuf *);
+void	in_pcboutput_eagain(struct inpcb *);
+#endif
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */

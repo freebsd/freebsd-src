@@ -44,6 +44,7 @@ enum {
 	RTWN_DEBUG_RSSI		= 0x00004000,	/* dump RSSI lookups */
 	RTWN_DEBUG_RESET	= 0x00008000,	/* initialization progress */
 	RTWN_DEBUG_CALIB	= 0x00010000,	/* calibration progress */
+	RTWN_DEBUG_RADAR	= 0x00020000,	/* radar detection status */
 	RTWN_DEBUG_ANY		= 0xffffffff
 };
 

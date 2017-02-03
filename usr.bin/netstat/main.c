@@ -427,6 +427,9 @@ main(int argc, char *argv[])
 	if (xflag && Tflag)
 		xo_errx(1, "-x and -T are incompatible, pick one.");
 
+	/* Load all necessary kvm symbols */
+	kresolve_list(nl);
+
 	if (Bflag) {
 		if (!live)
 			usage();
@@ -506,9 +509,6 @@ main(int argc, char *argv[])
 		xo_finish();
 		exit(0);
 	}
-
-	/* Load all necessary kvm symbols */
-	kresolve_list(nl);
 
 	if (tp) {
 		xo_open_container("statistics");

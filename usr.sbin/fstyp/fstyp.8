@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2016
+.Dd January 13, 2017
 .Dt FSTYP 8
 .Os
 .Sh NAME
@@ -51,15 +51,18 @@ flag is specified,
 also recognizes certain additional metadata formats that cannot be
 handled using
 .Xr mount 8 ,
-such as ZFS pools and
+such as exFAT filesystems,
 .Xr geli 8
-providers.
+providers, and
+ZFS pools.
 .Pp
 The filesystem name is printed to the standard output
 as, respectively:
 .Bl -item -offset indent -compact
 .It
 cd9660
+.It
+exfat
 .It
 ext2fs
 .It

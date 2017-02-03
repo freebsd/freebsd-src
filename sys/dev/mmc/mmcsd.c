@@ -113,7 +113,7 @@ static int mmcsd_probe(device_t dev);
 /* disk routines */
 static int mmcsd_close(struct disk *dp);
 static int mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
-	off_t offset, size_t length);
+    off_t offset, size_t length);
 static int mmcsd_open(struct disk *dp);
 static void mmcsd_strategy(struct bio *bp);
 static void mmcsd_task(void *arg);
@@ -122,14 +122,14 @@ static int mmcsd_bus_bit_width(device_t dev);
 static daddr_t mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp);
 static daddr_t mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp);
 
-#define MMCSD_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	MMCSD_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	MMCSD_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
-#define MMCSD_LOCK_INIT(_sc) \
+#define	MMCSD_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
 	    "mmcsd", MTX_DEF)
-#define MMCSD_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define MMCSD_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define MMCSD_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define	MMCSD_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define	MMCSD_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define	MMCSD_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
 static int
 mmcsd_probe(device_t dev)
@@ -170,6 +170,7 @@ mmcsd_attach(device_t dev)
 	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	strlcpy(d->d_ident, mmc_get_card_sn_string(dev), sizeof(d->d_ident));
 	strlcpy(d->d_descr, mmc_get_card_id_string(dev), sizeof(d->d_descr));
+	d->d_rotation_rate = DISK_RR_NON_ROTATING;
 
 	/*
 	 * Display in most natural units.  There's no cards < 1MB.  The SD
@@ -207,7 +208,7 @@ mmcsd_attach(device_t dev)
 	sc->running = 1;
 	sc->suspend = 0;
 	sc->eblock = sc->eend = 0;
-	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "%s: mmc/sd card", 
+	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "%s: mmc/sd card",
 	    device_get_nameunit(dev));
 
 	return (0);
@@ -310,6 +311,7 @@ mmcsd_strategy(struct bio *bp)
 static const char *
 mmcsd_errmsg(int e)
 {
+
 	if (e < 0 || e > MMC_ERR_MAX)
 		return "Bad error code";
 	return errmsg[e];
@@ -324,17 +326,18 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 	struct mmc_request req;
 	struct mmc_data data;
 	device_t dev = sc->dev;
-	int sz = sc->disk->d_sectorsize;
+	int numblocks, sz;
 	device_t mmcbr = device_get_parent(dev);
+	char *vaddr;
 
 	block = bp->bio_pblkno;
+	sz = sc->disk->d_sectorsize;
 	end = bp->bio_pblkno + (bp->bio_bcount / sz);
 	while (block < end) {
-		char *vaddr = bp->bio_data +
-		    (block - bp->bio_pblkno) * sz;
-		int numblocks = min(end - block, mmc_get_max_data(dev));
+		vaddr = bp->bio_data + (block - bp->bio_pblkno) * sz;
+		numblocks = min(end - block, mmc_get_max_data(dev));
 		memset(&req, 0, sizeof(req));
-    		memset(&cmd, 0, sizeof(cmd));
+		memset(&cmd, 0, sizeof(cmd));
 		memset(&stop, 0, sizeof(stop));
 		memset(&data, 0, sizeof(data));
 		cmd.mrq = &req;
@@ -372,10 +375,11 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 		}
 		MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
 		if (req.cmd->error != MMC_ERR_NONE) {
-			if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS)) {
+			if (ppsratecheck(&sc->log_time, &sc->log_count,
+			    LOG_PPS))
 				device_printf(dev, "Error indicated: %d %s\n",
-				    req.cmd->error, mmcsd_errmsg(req.cmd->error));
-			}
+				    req.cmd->error,
+				    mmcsd_errmsg(req.cmd->error));
 			break;
 		}
 		block += numblocks;
@@ -406,7 +410,7 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 	start = block + erase_sector - 1;	 /* Round up. */
 	start -= start % erase_sector;
 	stop = end;				/* Round down. */
-	stop -= end % erase_sector;	 
+	stop -= end % erase_sector;
 	/* We can't erase area smaller then sector, store it for later. */
 	if (start >= stop) {
 		sc->eblock = block;
@@ -474,8 +478,8 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 }
 
 static int
-mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
-	off_t offset, size_t length)
+mmcsd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
+    size_t length)
 {
 	struct disk *disk = arg;
 	struct mmcsd_softc *sc = (struct mmcsd_softc *)disk->d_drv1;
@@ -545,6 +549,8 @@ mmcsd_task(void *arg)
 			bp->bio_error = EIO;
 			bp->bio_resid = (end - block) * sz;
 			bp->bio_flags |= BIO_ERROR;
+		} else {
+			bp->bio_resid = 0;
 		}
 		biodone(bp);
 	}
