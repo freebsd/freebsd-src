@@ -21,15 +21,16 @@
  * Initial contribution from Francis Dupont (francis.dupont@inria.fr)
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Interior Gateway Routing Protocol (IGRP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
-#include "extract.h"			/* must come after interface.h */
+#include "netdissect.h"
+#include "extract.h"
 
 /* Cisco IGRP definitions */
 
@@ -65,7 +66,7 @@ struct igrprte {
 #define IGRP_RTE_SIZE	14	/* don't believe sizeof ! */
 
 static void
-igrp_entry_print(netdissect_options *ndo, register struct igrprte *igr,
+igrp_entry_print(netdissect_options *ndo, register const struct igrprte *igr,
     register int is_interior, register int is_exterior)
 {
 	register u_int delay, bandwidth;
@@ -103,12 +104,12 @@ static const struct tok op2str[] = {
 void
 igrp_print(netdissect_options *ndo, register const u_char *bp, u_int length)
 {
-	register struct igrphdr *hdr;
-	register u_char *cp;
+	register const struct igrphdr *hdr;
+	register const u_char *cp;
 	u_int nint, nsys, next;
 
-	hdr = (struct igrphdr *)bp;
-	cp = (u_char *)(hdr + 1);
+	hdr = (const struct igrphdr *)bp;
+	cp = (const u_char *)(hdr + 1);
 	ND_PRINT((ndo, "igrp:"));
 
 	/* Header */
@@ -130,15 +131,15 @@ igrp_print(netdissect_options *ndo, register const u_char *bp, u_int length)
 	while (length >= IGRP_RTE_SIZE) {
 		if (nint > 0) {
 			ND_TCHECK2(*cp, IGRP_RTE_SIZE);
-			igrp_entry_print(ndo, (struct igrprte *)cp, 1, 0);
+			igrp_entry_print(ndo, (const struct igrprte *)cp, 1, 0);
 			--nint;
 		} else if (nsys > 0) {
 			ND_TCHECK2(*cp, IGRP_RTE_SIZE);
-			igrp_entry_print(ndo, (struct igrprte *)cp, 0, 0);
+			igrp_entry_print(ndo, (const struct igrprte *)cp, 0, 0);
 			--nsys;
 		} else if (next > 0) {
 			ND_TCHECK2(*cp, IGRP_RTE_SIZE);
-			igrp_entry_print(ndo, (struct igrprte *)cp, 0, 1);
+			igrp_entry_print(ndo, (const struct igrprte *)cp, 0, 1);
 			--next;
 		} else {
 			ND_PRINT((ndo, " [extra bytes %d]", length));

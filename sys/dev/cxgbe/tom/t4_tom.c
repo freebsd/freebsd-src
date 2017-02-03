@@ -273,8 +273,6 @@ undo_offload_socket(struct socket *so)
 	mtx_lock(&td->toep_list_lock);
 	TAILQ_REMOVE(&td->toep_list, toep, link);
 	mtx_unlock(&td->toep_list_lock);
-
-	free_toepcb(toep);
 }
 
 static void
@@ -1228,6 +1226,10 @@ t4_tom_mod_unload(void)
 	}
 
 	t4_ddp_mod_unload();
+
+	t4_uninit_connect_cpl_handlers();
+	t4_uninit_listen_cpl_handlers();
+	t4_uninit_cpl_io_handlers();
 
 	return (0);
 }

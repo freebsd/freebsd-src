@@ -65,6 +65,7 @@ extern char pcpu_space[MAXCPU][PAGE_SIZE * 2];
 extern struct pcpu *pcpup;
 #define	PCPUP	pcpup
 
+#define	get_pcpu()		(pcpup)
 #define	PCPU_ADD(member, value)	(PCPUP->pc_ ## member += (value))
 #define	PCPU_GET(member)	(PCPUP->pc_ ## member)
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)

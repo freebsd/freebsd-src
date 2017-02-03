@@ -349,7 +349,6 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		armeb/arm \
 		armv6/arm \
 		i386 \
-		i386/pc98 \
 		mips \
 		mipsel/mips \
 		mips64el/mips \
@@ -516,7 +515,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		MK_GDB=no MK_TESTS=no MK_LLD_AS_LD=no
+		MK_GDB=no MK_TESTS=no MK_LLD_IS_LD=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \

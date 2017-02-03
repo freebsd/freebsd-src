@@ -32,11 +32,17 @@
 #ifndef _CAM_CAM_XPT_H
 #define _CAM_CAM_XPT_H 1
 
+#ifdef _KERNEL
+#include <sys/cdefs.h>
+#include "opt_printf.h"
+#endif
+
 /* Forward Declarations */
 union ccb;
 struct cam_periph;
 struct cam_ed;
 struct cam_sim;
+struct sbuf;
 
 /*
  * Definition of a CAM path.  Paths are created from bus, target, and lun ids
@@ -48,6 +54,15 @@ struct cam_path;
 /* Path functions */
 
 #ifdef _KERNEL
+
+/* Wild guess based on not wanting to grow the stack too much */
+#define XPT_PRINT_MAXLEN	512
+#ifdef PRINTF_BUFR_SIZE
+#define XPT_PRINT_LEN	PRINTF_BUFR_SIZE
+#else
+#define XPT_PRINT_LEN	128
+#endif
+_Static_assert(XPT_PRINT_LEN <= XPT_PRINT_MAXLEN, "XPT_PRINT_LEN is too large");
 
 /*
  * Definition of an async handler callback block.  These are used to add
@@ -102,6 +117,7 @@ void			xpt_print_device(struct cam_ed *device);
 void			xpt_print(struct cam_path *path, const char *fmt, ...);
 int			xpt_path_string(struct cam_path *path, char *str,
 					size_t str_len);
+int			xpt_path_sbuf(struct cam_path *path, struct sbuf *sb);
 path_id_t		xpt_path_path_id(struct cam_path *path);
 target_id_t		xpt_path_target_id(struct cam_path *path);
 lun_id_t		xpt_path_lun_id(struct cam_path *path);

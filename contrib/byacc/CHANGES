@@ -1,3 +1,33 @@
+2017-02-01  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* test/btyacc/expr.oxout.error, test/btyacc/expr.oxout.output, test/btyacc/expr.oxout.tab.c, test/btyacc/expr.oxout.tab.h, test/yacc/expr.oxout.error, test/yacc/expr.oxout.output, test/yacc/expr.oxout.tab.c, test/yacc/expr.oxout.tab.h:
+	RCS_BASE
+
+	* package/debian/copyright: update copyright
+
+	* reader.c, defs.h, main.c:
+	avoid using regex.h since some low-end platforms do not have this
+
+	* test/expr.oxout.y: RCS_BASE
+
+	* configure: regen
+
+	* aclocal.m4: quiet a strict gcc warning in CF_MKSTEMP
+
+2017-02-01  Tom.Shields
+
+	* main.c, reader.c, defs.h:
+	process #line directives, like bison and flex
+
+2017-02-01  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+2016-12-31  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* config.guess, config.sub: 2017-01-01
+
 2016-12-02  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* test/btyacc/quote_calc4-s.tab.c, test/btyacc/varsyntax_calc1.tab.c, test/btyacc/error.tab.c, test/btyacc/grammar.tab.c, test/btyacc/inherit0.tab.c, test/btyacc/inherit1.tab.c, test/btyacc/inherit2.tab.c, test/btyacc/ok_syntax1.tab.c, test/btyacc/pure_calc.tab.c, test/btyacc/pure_error.tab.c, test/btyacc/quote_calc-s.tab.c, test/btyacc/quote_calc.tab.c, test/btyacc/quote_calc2-s.tab.c, test/btyacc/quote_calc2.tab.c, test/btyacc/quote_calc3-s.tab.c, test/btyacc/quote_calc3.tab.c, test/btyacc/quote_calc4.tab.c, test/btyacc/calc.tab.c, test/btyacc/calc1.tab.c, test/btyacc/calc2.tab.c, test/btyacc/calc3.tab.c, test/btyacc/code_calc.code.c, test/btyacc/code_error.code.c, test/btyacc/empty.tab.c, test/btyacc/err_inherit3.tab.c, test/btyacc/err_inherit4.tab.c, test/btyacc/err_syntax10.tab.c, test/btyacc/err_syntax11.tab.c, test/btyacc/err_syntax12.tab.c, test/btyacc/err_syntax18.tab.c, test/btyacc/err_syntax20.tab.c, test/btyacc/rename_debug.c, test/btyacc/btyacc_calc1.tab.c, test/btyacc/btyacc_demo.tab.c, test/btyacc/btyacc_destroy1.tab.c, test/btyacc/btyacc_destroy2.tab.c, test/btyacc/btyacc_destroy3.tab.c, btyaccpar.c:

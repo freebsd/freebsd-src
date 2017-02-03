@@ -59,7 +59,6 @@
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/priv.h>
-#include <sys/eventhandler.h>
 
 #include <machine/stdarg.h>
 #include <vm/uma.h>
@@ -3531,7 +3530,6 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_BRIDGE:
 	case IFT_ARCNET:
 	case IFT_IEEE8023ADLAG:
-	case IFT_IEEE80211:
 		bcopy(lladdr, LLADDR(sdl), len);
 		ifa_free(ifa);
 		break;
@@ -4103,6 +4101,51 @@ if_vlancap(if_t ifh)
 {
 	struct ifnet *ifp = (struct ifnet *)ifh;
 	VLAN_CAPABILITIES(ifp);
+}
+
+int
+if_sethwtsomax(if_t ifp, u_int if_hw_tsomax)
+{
+
+	((struct ifnet *)ifp)->if_hw_tsomax = if_hw_tsomax;
+        return (0);
+}
+
+int
+if_sethwtsomaxsegcount(if_t ifp, u_int if_hw_tsomaxsegcount)
+{
+
+	((struct ifnet *)ifp)->if_hw_tsomaxsegcount = if_hw_tsomaxsegcount;
+        return (0);
+}
+
+int
+if_sethwtsomaxsegsize(if_t ifp, u_int if_hw_tsomaxsegsize)
+{
+
+	((struct ifnet *)ifp)->if_hw_tsomaxsegsize = if_hw_tsomaxsegsize;
+        return (0);
+}
+
+u_int
+if_gethwtsomax(if_t ifp)
+{
+
+	return (((struct ifnet *)ifp)->if_hw_tsomax);
+}
+
+u_int
+if_gethwtsomaxsegcount(if_t ifp)
+{
+
+	return (((struct ifnet *)ifp)->if_hw_tsomaxsegcount);
+}
+
+u_int
+if_gethwtsomaxsegsize(if_t ifp)
+{
+
+	return (((struct ifnet *)ifp)->if_hw_tsomaxsegsize);
 }
 
 void

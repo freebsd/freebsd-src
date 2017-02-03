@@ -210,31 +210,19 @@ linux_open(struct thread *td, struct linux_open_args *args)
 int
 linux_lseek(struct thread *td, struct linux_lseek_args *args)
 {
-	struct lseek_args /* {
-		int fd;
-		int pad;
-		off_t offset;
-		int whence;
-	} */ tmp_args;
-	int error;
 
 #ifdef DEBUG
 	if (ldebug(lseek))
 		printf(ARGS(lseek, "%d, %ld, %d"),
 		    args->fdes, (long)args->off, args->whence);
 #endif
-	tmp_args.fd = args->fdes;
-	tmp_args.offset = (off_t)args->off;
-	tmp_args.whence = args->whence;
-	error = sys_lseek(td, &tmp_args);
-	return (error);
+	return (kern_lseek(td, args->fdes, args->off, args->whence));
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_llseek(struct thread *td, struct linux_llseek_args *args)
 {
-	struct lseek_args bsd_args;
 	int error;
 	off_t off;
 
@@ -245,14 +233,12 @@ linux_llseek(struct thread *td, struct linux_llseek_args *args)
 #endif
 	off = (args->olow) | (((off_t) args->ohigh) << 32);
 
-	bsd_args.fd = args->fd;
-	bsd_args.offset = off;
-	bsd_args.whence = args->whence;
-
-	if ((error = sys_lseek(td, &bsd_args)))
+	error = kern_lseek(td, args->fd, off, args->whence);
+	if (error != 0)
 		return (error);
 
-	if ((error = copyout(td->td_retval, args->res, sizeof (off_t))))
+	error = copyout(td->td_retval, args->res, sizeof(off_t));
+	if (error != 0)
 		return (error);
 
 	td->td_retval[0] = 0;
@@ -939,15 +925,8 @@ linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 int
 linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 {
-	struct ftruncate_args /* {
-		int fd;
-		int pad;
-		off_t length;
-		} */ nuap;
 
-	nuap.fd = args->fd;
-	nuap.length = args->length;
-	return (sys_ftruncate(td, &nuap));
+	return (kern_ftruncate(td, args->fd, args->length));
 }
 
 int
@@ -1018,20 +997,13 @@ linux_fdatasync(td, uap)
 }
 
 int
-linux_pread(td, uap)
-	struct thread *td;
-	struct linux_pread_args *uap;
+linux_pread(struct thread *td, struct linux_pread_args *uap)
 {
-	struct pread_args bsd;
 	cap_rights_t rights;
 	struct vnode *vp;
 	int error;
 
-	bsd.fd = uap->fd;
-	bsd.buf = uap->buf;
-	bsd.nbyte = uap->nbyte;
-	bsd.offset = uap->offset;
-	error = sys_pread(td, &bsd);
+	error = kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset);
 	if (error == 0) {
 		/* This seems to violate POSIX but linux does it */
 		error = fgetvp(td, uap->fd,
@@ -1048,17 +1020,10 @@ linux_pread(td, uap)
 }
 
 int
-linux_pwrite(td, uap)
-	struct thread *td;
-	struct linux_pwrite_args *uap;
+linux_pwrite(struct thread *td, struct linux_pwrite_args *uap)
 {
-	struct pwrite_args bsd;
 
-	bsd.fd = uap->fd;
-	bsd.buf = uap->buf;
-	bsd.nbyte = uap->nbyte;
-	bsd.offset = uap->offset;
-	return (sys_pwrite(td, &bsd));
+	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
 
 int

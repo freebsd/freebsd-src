@@ -377,6 +377,24 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			mlx5e_open_locked(priv->ifp);
 		break;
 
+	case MLX5_PARAM_OFFSET(diag_pci_enable):
+		priv->params_ethtool.diag_pci_enable =
+		    priv->params_ethtool.diag_pci_enable ? 1 : 0;
+
+		error = -mlx5_core_set_diagnostics_full(priv->mdev,
+		    priv->params_ethtool.diag_pci_enable,
+		    priv->params_ethtool.diag_general_enable);
+		break;
+
+	case MLX5_PARAM_OFFSET(diag_general_enable):
+		priv->params_ethtool.diag_general_enable =
+		    priv->params_ethtool.diag_general_enable ? 1 : 0;
+
+		error = -mlx5_core_set_diagnostics_full(priv->mdev,
+		    priv->params_ethtool.diag_pci_enable,
+		    priv->params_ethtool.diag_general_enable);
+		break;
+
 	default:
 		break;
 	}
@@ -624,6 +642,45 @@ mlx5e_ethtool_debug_stats(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+static void
+mlx5e_create_diagnostics(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_diagnostics_entry entry;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *node;
+	int x;
+
+	/* sysctl context we are using */
+	ctx = &priv->sysctl_ctx;
+
+	/* create root node */
+	node = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(priv->sysctl_ifnet), OID_AUTO,
+	    "diagnostics", CTLFLAG_RD, NULL, "Diagnostics");
+	if (node == NULL)
+		return;
+
+	/* create PCI diagnostics */
+	for (x = 0; x != MLX5_CORE_PCI_DIAGNOSTICS_NUM; x++) {
+		entry = mlx5_core_pci_diagnostics_table[x];
+		if (mlx5_core_supports_diagnostics(priv->mdev, entry.counter_id) == 0)
+			continue;
+		SYSCTL_ADD_UQUAD(ctx, SYSCTL_CHILDREN(node), OID_AUTO,
+		    entry.desc, CTLFLAG_RD, priv->params_pci.array + x,
+		    "PCI diagnostics counter");
+	}
+
+	/* create general diagnostics */
+	for (x = 0; x != MLX5_CORE_GENERAL_DIAGNOSTICS_NUM; x++) {
+		entry = mlx5_core_general_diagnostics_table[x];
+		if (mlx5_core_supports_diagnostics(priv->mdev, entry.counter_id) == 0)
+			continue;
+		SYSCTL_ADD_UQUAD(ctx, SYSCTL_CHILDREN(node), OID_AUTO,
+		    entry.desc, CTLFLAG_RD, priv->params_general.array + x,
+		    "General diagnostics counter");
+	}
+}
+
 void
 mlx5e_create_ethtool(struct mlx5e_priv *priv)
 {
@@ -705,4 +762,7 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO, "eeprom_info",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
 	    mlx5e_read_eeprom, "I", "EEPROM information");
+
+	/* Diagnostics support */
+	mlx5e_create_diagnostics(priv);
 }

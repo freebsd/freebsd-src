@@ -304,14 +304,6 @@ npx_probe(void)
 			 */
 			control &= ~(1 << 2);	/* enable divide by 0 trap */
 			fldcw(control);
-#ifdef FPU_ERROR_BROKEN
-			/*
-			 * FPU error signal doesn't work on some CPU
-			 * accelerator board.
-			 */
-			hw_float = 1;
-			return (1);
-#endif
 			npx_traps_while_probing = 0;
 			fp_divide_by_0();
 			if (npx_traps_while_probing != 0) {
@@ -550,8 +542,7 @@ SYSINIT(npxinitstate, SI_SUB_DRIVERS, SI_ORDER_ANY, npxinitstate, NULL);
  * Free coprocessor (if we have it).
  */
 void
-npxexit(td)
-	struct thread *td;
+npxexit(struct thread *td)
 {
 
 	critical_enter();
@@ -581,7 +572,7 @@ npxexit(td)
 }
 
 int
-npxformat()
+npxformat(void)
 {
 
 	if (!hw_float)
@@ -961,7 +952,7 @@ npxresume(union savefpu *addr)
 }
 
 void
-npxdrop()
+npxdrop(void)
 {
 	struct thread *td;
 
@@ -1297,8 +1288,7 @@ fpu_clean_state(void)
 #endif /* CPU_ENABLE_SSE */
 
 static void
-fpurstor(addr)
-	union savefpu *addr;
+fpurstor(union savefpu *addr)
 {
 
 #ifdef CPU_ENABLE_SSE
@@ -1357,9 +1347,7 @@ static driver_t npxisa_driver = {
 static devclass_t npxisa_devclass;
 
 DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
-#ifndef PC98
 DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
-#endif
 #endif /* DEV_ISA */
 
 static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",

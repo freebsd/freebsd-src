@@ -404,6 +404,11 @@ EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
 /* Interface link state change event */
 typedef void (*ifnet_link_event_handler_t)(void *, struct ifnet *, int);
 EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
+/* Interface up/down event */
+#define IFNET_EVENT_UP		0
+#define IFNET_EVENT_DOWN	1
+typedef void (*ifnet_event_fn)(void *, struct ifnet *ifp, int event);
+EVENTHANDLER_DECLARE(ifnet_event, ifnet_event_fn);
 #endif /* _SYS_EVENTHANDLER_H_ */
 
 /*
@@ -653,6 +658,12 @@ int if_getflags(if_t ifp);
 int if_sendq_empty(if_t ifp);
 int if_setsendqready(if_t ifp);
 int if_setsendqlen(if_t ifp, int tx_desc_count);
+int if_sethwtsomax(if_t ifp, u_int if_hw_tsomax);
+int if_sethwtsomaxsegcount(if_t ifp, u_int if_hw_tsomaxsegcount);
+int if_sethwtsomaxsegsize(if_t ifp, u_int if_hw_tsomaxsegsize);
+u_int if_gethwtsomax(if_t ifp);
+u_int if_gethwtsomaxsegcount(if_t ifp);
+u_int if_gethwtsomaxsegsize(if_t ifp);
 int if_input(if_t ifp, struct mbuf* sendmp);
 int if_sendq_prepend(if_t ifp, struct mbuf *m);
 struct mbuf *if_dequeue(if_t ifp);
