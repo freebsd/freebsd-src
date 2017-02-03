@@ -470,7 +470,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	/* perform asyncronous calls */
+	/* perform asynchronous calls */
 	num_wait = argc;
 	for(i=0; i<argc; i++) {
 		lookups[i].name = argv[i];

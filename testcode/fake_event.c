@@ -1036,13 +1036,13 @@ pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
 }
 
 struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
-        uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
-	uint16_t flags, int dnssec, int ATTR_UNUSED(want_dnssec),
-	int ATTR_UNUSED(nocaps), int ATTR_UNUSED(tcp_upstream),
-	int ATTR_UNUSED(ssl_upstream), struct edns_option* opt_list,
+	struct query_info* qinfo, uint16_t flags, int dnssec,
+	int ATTR_UNUSED(want_dnssec), int ATTR_UNUSED(nocaps),
+	int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, comm_point_callback_t* callback, void* callback_arg,
-	sldns_buffer* ATTR_UNUSED(buff))
+	size_t zonelen, struct module_qstate* qstate,
+	comm_point_callback_t* callback, void* callback_arg,
+	sldns_buffer* ATTR_UNUSED(buff), struct module_env* ATTR_UNUSED(env))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;
 	struct fake_pending* pend = (struct fake_pending*)calloc(1,
@@ -1050,7 +1050,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	char z[256];
 	log_assert(pend);
 	log_nametypeclass(VERB_OPS, "pending serviced query", 
-		qname, qtype, qclass);
+		qinfo->qname, qinfo->qtype, qinfo->qclass);
 	dname_str(zone, z);
 	verbose(VERB_OPS, "pending serviced query zone %s flags%s%s%s%s", 
 		z, (flags&BIT_RD)?" RD":"", (flags&BIT_CD)?" CD":"",
@@ -1065,9 +1065,9 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	sldns_buffer_write_u16(pend->buffer, 0); /* ancount */
 	sldns_buffer_write_u16(pend->buffer, 0); /* nscount */
 	sldns_buffer_write_u16(pend->buffer, 0); /* arcount */
-	sldns_buffer_write(pend->buffer, qname, qnamelen);
-	sldns_buffer_write_u16(pend->buffer, qtype);
-	sldns_buffer_write_u16(pend->buffer, qclass);
+	sldns_buffer_write(pend->buffer, qinfo->qname, qinfo->qname_len);
+	sldns_buffer_write_u16(pend->buffer, qinfo->qtype);
+	sldns_buffer_write_u16(pend->buffer, qinfo->qclass);
 	sldns_buffer_flip(pend->buffer);
 	if(1) {
 		/* add edns */
@@ -1077,7 +1077,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 		edns.edns_version = EDNS_ADVERTISED_VERSION;
 		edns.udp_size = EDNS_ADVERTISED_SIZE;
 		edns.bits = 0;
-		edns.opt_list = opt_list;
+		edns.opt_list = qstate->edns_opts_back_out;
 		if(dnssec)
 			edns.bits = EDNS_DO;
 		attach_edns_record(pend->buffer, &edns);
@@ -1086,7 +1086,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	pend->addrlen = addrlen;
 	pend->zone = memdup(zone, zonelen);
 	pend->zonelen = zonelen;
-	pend->qtype = (int)qtype;
+	pend->qtype = (int)qinfo->qtype;
 	log_assert(pend->zone);
 	pend->callback = callback;
 	pend->cb_arg = callback_arg;

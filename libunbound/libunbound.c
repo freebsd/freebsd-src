@@ -132,6 +132,15 @@ static struct ub_ctx* ub_ctx_create_nopipe(void)
 		errno = ENOMEM;
 		return NULL;
 	}
+	/* init edns_known_options */
+	if(!edns_known_options_init(ctx->env)) {
+		config_delete(ctx->env->cfg);
+		free(ctx->env);
+		ub_randfree(ctx->seed_rnd);
+		free(ctx);
+		errno = ENOMEM;
+		return NULL;
+	}
 	ctx->env->alloc = &ctx->superalloc;
 	ctx->env->worker = NULL;
 	ctx->env->need_to_validate = 0;
@@ -151,6 +160,7 @@ ub_ctx_create(void)
 		ub_randfree(ctx->seed_rnd);
 		config_delete(ctx->env->cfg);
 		modstack_desetup(&ctx->mods, ctx->env);
+		edns_known_options_delete(ctx->env);
 		free(ctx->env);
 		free(ctx);
 		errno = e;
@@ -162,6 +172,7 @@ ub_ctx_create(void)
 		ub_randfree(ctx->seed_rnd);
 		config_delete(ctx->env->cfg);
 		modstack_desetup(&ctx->mods, ctx->env);
+		edns_known_options_delete(ctx->env);
 		free(ctx->env);
 		free(ctx);
 		errno = e;
@@ -298,6 +309,8 @@ ub_ctx_delete(struct ub_ctx* ctx)
 		rrset_cache_delete(ctx->env->rrset_cache);
 		infra_delete(ctx->env->infra_cache);
 		config_delete(ctx->env->cfg);
+		edns_known_options_delete(ctx->env);
+		inplace_cb_lists_delete(ctx->env);
 		free(ctx->env);
 	}
 	ub_randfree(ctx->seed_rnd);

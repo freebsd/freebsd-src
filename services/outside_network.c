@@ -1879,7 +1879,7 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 		return 0;
 	}
 #ifdef USE_DNSTAP
-	if(outnet->dtenv &&
+	if(error == NETEVENT_NOERROR && outnet->dtenv &&
 	   (outnet->dtenv->log_resolver_response_messages ||
 	    outnet->dtenv->log_forwarder_response_messages))
 		dt_msg_send_outside_response(outnet->dtenv, &sq->addr, c->type,
@@ -1986,17 +1986,22 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 
 struct serviced_query* 
 outnet_serviced_query(struct outside_network* outnet,
-	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
-	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
-	int tcp_upstream, int ssl_upstream, struct edns_option* opt_list,
+	struct query_info* qinfo, uint16_t flags, int dnssec, int want_dnssec,
+	int nocaps, int tcp_upstream, int ssl_upstream,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, comm_point_callback_t* callback, void* callback_arg,
-	sldns_buffer* buff)
+	size_t zonelen, struct module_qstate* qstate,
+	comm_point_callback_t* callback, void* callback_arg, sldns_buffer* buff,
+	struct module_env* env)
 {
 	struct serviced_query* sq;
 	struct service_callback* cb;
-	serviced_gen_query(buff, qname, qnamelen, qtype, qclass, flags);
-	sq = lookup_serviced(outnet, buff, dnssec, addr, addrlen, opt_list);
+	if(!inplace_cb_query_call(env, qinfo, flags, addr, addrlen, zone, zonelen,
+		qstate, qstate->region))
+			return NULL;
+	serviced_gen_query(buff, qinfo->qname, qinfo->qname_len, qinfo->qtype,
+		qinfo->qclass, flags);
+	sq = lookup_serviced(outnet, buff, dnssec, addr, addrlen,
+		qstate->edns_opts_back_out);
 	/* duplicate entries are included in the callback list, because
 	 * there is a counterpart registration by our caller that needs to
 	 * be doubly-removed (with callbacks perhaps). */
@@ -2006,7 +2011,7 @@ outnet_serviced_query(struct outside_network* outnet,
 		/* make new serviced query entry */
 		sq = serviced_create(outnet, buff, dnssec, want_dnssec, nocaps,
 			tcp_upstream, ssl_upstream, addr, addrlen, zone,
-			zonelen, (int)qtype, opt_list);
+			zonelen, (int)qinfo->qtype, qstate->edns_opts_back_out);
 		if(!sq) {
 			free(cb);
 			return NULL;

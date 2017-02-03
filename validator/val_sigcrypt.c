@@ -1291,7 +1291,7 @@ adjust_ttl(struct val_env* ve, uint32_t unow,
 	 */
 	if(MIN_TTL > (time_t)origttl && d->ttl > MIN_TTL) {
 		verbose(VERB_QUERY, "rrset TTL larger than original and minimum"
-			" TTL, adjusting TTL downwards to mimimum ttl");
+			" TTL, adjusting TTL downwards to minimum ttl");
 		d->ttl = MIN_TTL;
 	}
 	else if(MIN_TTL <= origttl && d->ttl > (time_t)origttl) {

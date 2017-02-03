@@ -1,0 +1,491 @@
+; config options
+server:
+	# put unbound.conf config options here.
+
+	access-control: 127.0.0.1/32 allow_snoop #allow queries with RD bit
+
+	# DNSSEC trust anchor taken from a real world example.  Used for
+	# DNSSEC-signed CNAME target.
+	trust-anchor: "infoblox.com. 172800 IN DNSKEY 257 3 5 AwEAAerW6xQkJIb5wxm48RoHD/LE8r/GzmdIGOam0lQczIth+I9ctltV dDJXz5BH8j4TOaOH1gBRCXhsPDyPom/eLEkdUuXNuhV6QnWGHOtz1fuY EO+kBqaI79jR0K31OmevR/H/F3C8gi4T6//6G9qsftvcl6m7+V1vI2+c cgxiiOlMrZZb4YAhue1+tRw57f3aVOSNtcrONO/Jffgb9jbDTKRi33oT fDznyPa1lCWMbuybr/LaCU0LP6fG4BII/FDWFi5rQxMHygWfscdYX06c eGUzHqiuNNGL8Jze6johni71T/hJGtLMozkY7qxOLfWBXOu9kr1MBQh5 6hfibOZMZJM="
+	# Use a fixed and faked date for DNSSEC validation to avoid run-time
+	# re-signing test signatures.
+	val-override-date: "20161001003725"
+
+	define-tag: "cname cname2 nx servfail sec ambiguous"
+	access-control-tag: 127.0.0.1/32 "cname cname2 nx servfail sec"
+
+	# Basic case: one CNAME whose target exists.
+	local-zone: example.com static
+	local-zone-tag: example.com "cname"
+	access-control-tag: 127.0.0.1/32 "cname"
+	access-control-tag-action: 127.0.0.1/32 "cname" redirect
+	access-control-tag-data: 127.0.0.1/32 "cname" "CNAME example.org."
+
+	# Similar to the above, but different original query name.
+	local-zone: another.example.com static
+	local-zone-tag: another.example.com "cname2"
+	access-control-tag: 127.0.0.1/32 "cname2"
+	access-control-tag-action: 127.0.0.1/32 "cname2" redirect
+	access-control-tag-data: 127.0.0.1/32 "cname2" "CNAME example.org."
+
+	# CNAME target is expected to be nonexistent.
+	local-zone: nx.example.com static
+	local-zone-tag: nx.example.com "nx"
+	access-control-tag: 127.0.0.1/32 "nx"
+	access-control-tag-action: 127.0.0.1/32 "nx" redirect
+	access-control-tag-data: 127.0.0.1/32 "nx" "CNAME nx.example.org."
+
+	# Resolution of this CNAME target will result in SERVFAIL.
+	local-zone: servfail.example.com static
+	local-zone-tag: servfail.example.com "servfail"
+	access-control-tag-action: 127.0.0.1/32 "servfail" redirect
+	access-control-tag-data: 127.0.0.1/32 "servfail" "CNAME servfail.example.org."
+
+	# CNAME target is supposed to be DNSSEC-signed.
+	local-zone: sec.example.com static
+	local-zone-tag: sec.example.com "sec"
+	access-control-tag-action: 127.0.0.1/32 "sec" redirect
+	access-control-tag-data: 127.0.0.1/32 "sec" "CNAME www.infoblox.com."
+
+	# Test setup for non-tag based redirect
+	local-zone: example.net redirect
+	local-data: "example.net. IN CNAME cname.example.org."
+
+	### template zone and tag intended to be used for tests with CNAME and
+	### other data.
+	##local-zone: ambiguous.example.com redirect
+	##@LOCALDATA1@
+	##@LOCALDATA2@
+	##local-zone-tag: ambiguous.example.com "ambiguous"
+	##access-control-tag-action: 127.0.0.1/32 "ambiguous" redirect
+	##@TAGDATA1@
+	##@TAGDATA2@
+
+
+
+        target-fetch-policy: "0 0 0 0 0"
+
+# send the queries to the test server (see the 10.0.10.3 entries below)
+forward-zone:
+	name: "."
+	forward-addr: 10.0.10.3
+CONFIG_END
+
+; short one-line description of scenario:
+SCENARIO_BEGIN Test local-data CNAME aliases
+
+; Specification of the answers that the upstream server provides to unbound
+RANGE_BEGIN 0 1000
+	ADDRESS 10.0.10.3
+; put entries here with answers to specific qname, qtype
+
+; infoblox.com
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+infoblox.com. IN DNSKEY
+SECTION ANSWER
+infoblox.com. 172800 IN DNSKEY 256 3 5 AwEAAbi2VnVHFm5rO2EiawNWhTTRPPzaA+VEdpGOc+CtwIZq86C4Ndbp 0M7XTi0wru0Pgh54oGZ3ty9WllYEnVfoA1rcGwFJmAln7KKAuQP+dlGE yHPJYduAjG/JFA6Qq0zj18AmWgks+qvethASMm3PtihQkNytjmQWjiL6 6h8cQwFP
+infoblox.com. 172800 IN DNSKEY 257 3 5 AwEAAerW6xQkJIb5wxm48RoHD/LE8r/GzmdIGOam0lQczIth+I9ctltV dDJXz5BH8j4TOaOH1gBRCXhsPDyPom/eLEkdUuXNuhV6QnWGHOtz1fuY EO+kBqaI79jR0K31OmevR/H/F3C8gi4T6//6G9qsftvcl6m7+V1vI2+c cgxiiOlMrZZb4YAhue1+tRw57f3aVOSNtcrONO/Jffgb9jbDTKRi33oT fDznyPa1lCWMbuybr/LaCU0LP6fG4BII/FDWFi5rQxMHygWfscdYX06c eGUzHqiuNNGL8Jze6johni71T/hJGtLMozkY7qxOLfWBXOu9kr1MBQh5 6hfibOZMZJM=
+infoblox.com. 172800 IN RRSIG DNSKEY 5 2 172800 20161004003725 20160930000830 31651 infoblox.com. Ds7LZY2W59fq9cWgqi3W6so1NGFa7JdjO8zlhK3hGu2a2WG1W/rVftom rCf0gdI5q4BZJnq2o0SdLd/U7he1uWz8ATntEETiNs9/8G7myNK17wQu AN/+3gol+qT4DX0CA3Boz7Z+xFQbTwnnJJvGASa/1jPMIYU8DiyNx3Pe SSh9lbyU/4YI0mshn5ZC2HCFChxr+aVJxk4UHjaPfHhWwVu9oM4IbEfn KD9x4ltKjjy0pXMYqVlNs9+tG2nXdwr/6Q4G+yfRBAcW+cWeW5w4igxf xYFq4Y5gkZetGOReoNODZ9YC9WvcxBo+qY/iUN2k+lEFq+oL8+DthAGH uA1krw==
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.infoblox.com. IN A
+SECTION ANSWER
+www.infoblox.com. 3600 IN A 161.47.10.70
+www.infoblox.com. 3600 IN RRSIG A 5 3 3600 20161003223322 20160929221122 14916 infoblox.com. WbO9ydRAoRTPvdK18atTdLEkkMGoOjuwbcb6vVI0d6Sea3xkcBMNmtst Wdzr+pKEJqO2bfm167X6uhcOHanHZRnirlTnEbuTdsP0HCiIEGQD5iHg UNH2FJSKGNYBmgZKJpuLhDca7oqtkl8EyGA+UEt6Rtq6aW8V0wpkhPHi Pug='
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+; example.org
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.org. IN A
+SECTION ANSWER
+example.org. IN A 192.0.2.1
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+cname.example.org. IN A
+SECTION ANSWER
+cname.example.org. IN A 192.0.2.2
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.org. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+example.org. IN SOA ns.example.org. hostmaster.example.org. 2016101900 28800 7200 604800 3600
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NXDOMAIN
+SECTION QUESTION
+nx.example.org. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.org. IN SOA ns.example.org. hostmaster.example.org. 2016101900 28800 7200 604800 3600
+SECTION ADDITIONAL
+ENTRY_END
+
+; for norec query
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.org. IN NS
+SECTION ANSWER
+example.org. IN NS ns.example.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR SERVFAIL
+SECTION QUESTION
+servfail.example.org. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+; end of entries with answers from upstream server
+RANGE_END
+; Steps where queries are sent, one at a time, to unbound.
+; QUERY is what the downstream client sends to unbound.
+; CHECK_ANSWER contains the response from unbound.
+
+
+; Basic case: both exact and subdomain matches result in the same CNAME
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.com. IN CNAME
+ENTRY_END
+
+; For type-CNAME queries, the CNAME itself will be returned
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+example.com. IN CNAME
+SECTION ANSWER
+example.com. IN CNAME example.org.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+alias.example.com. IN CNAME
+ENTRY_END
+
+; For type-CNAME queries, the CNAME itself will be returned
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+alias.example.com. IN CNAME
+SECTION ANSWER
+alias.example.com. IN CNAME example.org.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+; Basic case: both exact and subdomain matches result in the same CNAME
+; For other types, a complete CNAME chain will have to be returned
+STEP 50 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.com. IN A
+ENTRY_END
+
+STEP 60 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION ANSWER
+example.com. IN CNAME example.org.
+example.org. IN A 192.0.2.1
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 70 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+alias.example.com. IN A
+ENTRY_END
+
+STEP 80 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+alias.example.com. IN A
+SECTION ANSWER
+alias.example.com. IN CNAME example.org.
+example.org. IN A 192.0.2.1
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+; Basic case: both exact and subdomain matches result in the same CNAME.
+; The result is the same for non-recursive query as long as a
+; complete chain is cached.
+STEP 90 QUERY
+ENTRY_BEGIN
+REPLY 
+SECTION QUESTION
+example.com. IN A
+ENTRY_END
+
+STEP 100 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NOERROR
+SECTION QUESTION
+example.com. IN A
+SECTION ANSWER
+example.com. IN CNAME example.org.
+example.org. IN A 192.0.2.1
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 110 QUERY
+ENTRY_BEGIN
+REPLY 
+SECTION QUESTION
+alias.example.com. IN A
+ENTRY_END
+
+STEP 120 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NOERROR
+SECTION QUESTION
+alias.example.com. IN A
+SECTION ANSWER
+alias.example.com. IN CNAME example.org.
+example.org. IN A 192.0.2.1
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+; Similar to the above, but these are local-zone redirect, instead of
+; tag-based policies.
+STEP 130 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.net. IN CNAME
+ENTRY_END
+
+; For type-CNAME queries, the CNAME itself will be returned
+STEP 140 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+example.net. IN CNAME
+SECTION ANSWER
+example.net. IN CNAME cname.example.org.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 150 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+alias.example.net. IN CNAME
+ENTRY_END
+
+; For type-CNAME queries, the CNAME itself will be returned
+STEP 160 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+alias.example.net. IN CNAME
+SECTION ANSWER
+alias.example.net. IN CNAME cname.example.org.
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 170 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.net. IN A
+ENTRY_END
+
+STEP 180 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+example.net. IN A
+SECTION ANSWER
+example.net. IN CNAME cname.example.org.
+cname.example.org. IN A 192.0.2.2
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+STEP 190 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+alias.example.net. IN A
+ENTRY_END
+
+STEP 200 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+alias.example.net. IN A
+SECTION ANSWER
+alias.example.net. IN CNAME cname.example.org.
+cname.example.org. IN A 192.0.2.2
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+
+; Relatively minor cases follow
+
+; query type doesn't exist for the CNAME target.  The original query
+; succeeds with an "incomplete" chain only containing the CNAME.
+STEP 210 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+example.com. IN AAAA
+ENTRY_END
+
+STEP 220 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+example.com. IN AAAA
+SECTION ANSWER
+example.com. IN CNAME example.org.
+SECTION AUTHORITY
+example.org.    3600    IN      SOA     ns.example.org. hostmaster.example.org. 2016101900 28800 7200 604800 3600
+SECTION ADDITIONAL
+ENTRY_END
+
+; The CNAME target name doesn't exist.  NXDOMAIN with the CNAME will
+; be returned.
+STEP 230 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+nx.example.com. IN A
+ENTRY_END
+
+STEP 240 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NXDOMAIN
+SECTION QUESTION
+nx.example.com. IN A
+SECTION ANSWER
+nx.example.com. IN CNAME nx.example.org.
+SECTION AUTHORITY
+example.org.    3600    IN      SOA     ns.example.org. hostmaster.example.org. 2016101900 28800 7200 604800 3600
+SECTION ADDITIONAL
+ENTRY_END
+
+; Resolution for the CNAME target will result in SERVFAIL.  It will
+; be forwarded to the original query.  The answer section should be
+; empty.
+STEP 250 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+servfail.example.com. IN A
+ENTRY_END
+
+STEP 260 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+servfail.example.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+; The CNAME target is DNSSEC-signed and it's validated.  If the original
+; query enabled the DNSSEC, the RRSIGs will be included in the answer,
+; but the response should have the AD bit off
+STEP 270 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+sec.example.com. IN A
+ENTRY_END
+
+STEP 280 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD DO RA AA NOERROR
+SECTION QUESTION
+sec.example.com. IN A
+SECTION ANSWER
+sec.example.com. IN CNAME www.infoblox.com.
+www.infoblox.com. 3600 IN A 161.47.10.70
+www.infoblox.com. 3600 IN RRSIG A 5 3 3600 20161003223322 20160929221122 14916 infoblox.com. WbO9ydRAoRTPvdK18atTdLEkkMGoOjuwbcb6vVI0d6Sea3xkcBMNmtst Wdzr+pKEJqO2bfm167X6uhcOHanHZRnirlTnEbuTdsP0HCiIEGQD5iHg UNH2FJSKGNYBmgZKJpuLhDca7oqtkl8EyGA+UEt6Rtq6aW8V0wpkhPHi Pug='
+SECTION AUTHORITY
+SECTION ADDITIONAL
+ENTRY_END
+
+
+SCENARIO_END
