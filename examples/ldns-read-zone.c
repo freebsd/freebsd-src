@@ -15,15 +15,23 @@
 
 #include <errno.h>
 
-void print_usage(const char* progname)
+static void print_usage(const char* progname)
 {
 	printf("Usage: %s [OPTIONS] <zonefile>\n", progname);
 	printf("\tReads the zonefile and prints it.\n");
 	printf("\tThe RR count of the zone is printed to stderr.\n");
-	printf("\t-b include Bubble Babble encoding of DS's.\n");
 	printf("\t-0 zeroize timestamps and signature in RRSIG records.\n");
+	printf("\t-b include Bubble Babble encoding of DS's.\n");
 	printf("\t-c canonicalize all rrs in the zone.\n");
 	printf("\t-d only show DNSSEC data from the zone\n");
+	printf("\t-e <rr type>\n");
+	printf("\t\tDo not print RRs of the given <rr type>.\n");
+	printf("\t\tThis option may be given multiple times.\n");
+	printf("\t\t-e is not meant to be used together with -E.\n");
+	printf("\t-E <rr type>\n");
+	printf("\t\tPrint only RRs of the given <rr type>.\n");
+	printf("\t\tThis option may be given multiple times.\n");
+	printf("\t\t-E is not meant to be used together with -e.\n");
 	printf("\t-h show this text\n");
 	printf("\t-n do not print the SOA record\n");
 	printf("\t-p prepend SOA serial with spaces so"
@@ -61,6 +69,46 @@ void print_usage(const char* progname)
 	exit(EXIT_SUCCESS);
 }
 
+static void exclude_type(ldns_rdf **show_types, ldns_rr_type t)
+{
+	ldns_status s;
+
+	assert(show_types != NULL);
+
+	if (! *show_types && LDNS_STATUS_OK !=
+			(s = ldns_rdf_bitmap_known_rr_types(show_types)))
+		goto fail;
+
+	s =  ldns_nsec_bitmap_clear_type(*show_types, t);
+	if (s == LDNS_STATUS_OK)
+		return;
+fail:
+	fprintf(stderr, "Cannot exclude rr type %s: %s\n"
+	              , ldns_rr_descript(t)->_name
+		      , ldns_get_errorstr_by_id(s));
+	exit(EXIT_FAILURE);
+}
+
+static void include_type(ldns_rdf **show_types, ldns_rr_type t)
+{
+	ldns_status s;
+
+	assert(show_types != NULL);
+
+	if (! *show_types && LDNS_STATUS_OK !=
+			(s = ldns_rdf_bitmap_known_rr_types_space(show_types)))
+		goto fail;
+
+	s =  ldns_nsec_bitmap_set_type(*show_types, t);
+	if (s == LDNS_STATUS_OK)
+		return;
+fail:
+	fprintf(stderr, "Cannot exclude all rr types except %s: %s\n"
+	              , ldns_rr_descript(t)->_name
+		      , ldns_get_errorstr_by_id(s));
+	exit(EXIT_FAILURE);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -71,38 +119,43 @@ main(int argc, char **argv)
 	int c;
 	bool canonicalize = false;
 	bool sort = false;
-	bool strip = false;
-	bool only_dnssec = false;
 	bool print_soa = true;
 	ldns_status s;
 	size_t i;
 	ldns_rr_list *stripped_list;
 	ldns_rr *cur_rr;
-	ldns_rr_type cur_rr_type;
 	ldns_output_format_storage fmt_storage;
 	ldns_output_format* fmt = ldns_output_format_init(&fmt_storage);
+	ldns_rdf *show_types = NULL;
 
 	ldns_soa_serial_increment_func_t soa_serial_increment_func = NULL;
 	int soa_serial_increment_func_data = 0;
 
-        while ((c = getopt(argc, argv, "0bcdhnpsu:U:vzS:")) != -1) {
+        while ((c = getopt(argc, argv, "0bcde:E:hnpsS:u:U:vz")) != -1) {
                 switch(c) {
+			case '0':
+				fmt->flags |= LDNS_FMT_ZEROIZE_RRSIGS;
+				break;
 			case 'b':
 				fmt->flags |= 
 					( LDNS_COMMENT_BUBBLEBABBLE |
 					  LDNS_COMMENT_FLAGS        );
 				break;
-			case '0':
-				fmt->flags |= LDNS_FMT_ZEROIZE_RRSIGS;
-				break;
                 	case 'c':
                 		canonicalize = true;
                 		break;
                 	case 'd':
-                		only_dnssec = true;
-                		if (strip) {
-                			fprintf(stderr, "Warning: stripping both DNSSEC and non-DNSSEC records. Output will be sparse.\n");
-				}
+				include_type(&show_types, LDNS_RR_TYPE_RRSIG);
+				include_type(&show_types, LDNS_RR_TYPE_NSEC);
+				include_type(&show_types, LDNS_RR_TYPE_NSEC3);
+				break;
+			case 'e':
+				exclude_type(&show_types, 
+					ldns_get_rr_type_by_name(optarg));
+				break;
+			case 'E':
+				include_type(&show_types, 
+					ldns_get_rr_type_by_name(optarg));
 				break;
 			case 'h':
 				print_usage("ldns-read-zone");
@@ -113,12 +166,37 @@ main(int argc, char **argv)
 			case 'p':
 				fmt->flags |= LDNS_FMT_PAD_SOA_SERIAL;
 				break;
-                        case 's':
-                        	strip = true;
-                		if (only_dnssec) {
-                			fprintf(stderr, "Warning: stripping both DNSSEC and non-DNSSEC records. Output will be sparse.\n");
+			case 's':
+			case 'S':
+				exclude_type(&show_types, LDNS_RR_TYPE_RRSIG);
+				exclude_type(&show_types, LDNS_RR_TYPE_NSEC);
+				exclude_type(&show_types, LDNS_RR_TYPE_NSEC3);
+				if (c == 's') break;
+				if (*optarg == '+' || *optarg == '-') {
+					soa_serial_increment_func_data =
+						atoi(optarg);
+					soa_serial_increment_func =
+						ldns_soa_serial_increment_by;
+				} else if (! strtok(optarg, "0123456789")) {
+					soa_serial_increment_func_data =
+						atoi(optarg);
+					soa_serial_increment_func =
+						ldns_soa_serial_identity;
+				} else if (!strcasecmp(optarg, "YYYYMMDDxx")){
+					soa_serial_increment_func =
+						ldns_soa_serial_datecounter;
+				} else if (!strcasecmp(optarg, "unixtime")){
+					soa_serial_increment_func =
+						ldns_soa_serial_unixtime;
+				} else {
+					fprintf(stderr, "-S expects a number "
+						"optionally preceded by a "
+						"+ or - sign to indicate an "
+						"offset, or the text YYYYMM"
+						"DDxx or unixtime\n");
+					exit(EXIT_FAILURE);
 				}
-                        	break;
+				break;
 			case 'u':
 				s = ldns_output_format_set_type(fmt,
 					ldns_get_rr_type_by_name(optarg));
@@ -159,36 +237,8 @@ main(int argc, char **argv)
                 		canonicalize = true;
                                 sort = true;
                                 break;
-			case 'S':
-				strip = true;
-				if (*optarg == '+' || *optarg == '-') {
-					soa_serial_increment_func_data =
-						atoi(optarg);
-					soa_serial_increment_func =
-						ldns_soa_serial_increment_by;
-				} else if (! strtok(optarg, "0123456789")) {
-					soa_serial_increment_func_data =
-						atoi(optarg);
-					soa_serial_increment_func =
-						ldns_soa_serial_identity;
-				} else if (!strcasecmp(optarg, "YYYYMMDDxx")){
-					soa_serial_increment_func =
-						ldns_soa_serial_datecounter;
-				} else if (!strcasecmp(optarg, "unixtime")){
-					soa_serial_increment_func =
-						ldns_soa_serial_unixtime;
-				} else {
-					fprintf(stderr, "-S expects a number "
-						"optionally preceded by a "
-						"+ or - sign to indicate an "
-						"offset, or the text YYYYMM"
-						"DDxx or unixtime\n");
-					exit(EXIT_FAILURE);
-				}
-				break;
 		}
 	}
-
 	argc -= optind;
 	argv += optind;
 
@@ -214,38 +264,17 @@ main(int argc, char **argv)
                 exit(EXIT_FAILURE);
 	}
 
-
-	if (strip) {
+	if (show_types) {
+		if (print_soa)
+			print_soa = ldns_nsec_bitmap_covers_type(show_types,
+					LDNS_RR_TYPE_SOA);
 		stripped_list = ldns_rr_list_new();
-		while ((cur_rr = ldns_rr_list_pop_rr(ldns_zone_rrs(z)))) {
-			cur_rr_type = ldns_rr_get_type(cur_rr);
-			if (cur_rr_type == LDNS_RR_TYPE_RRSIG ||
-			    cur_rr_type == LDNS_RR_TYPE_NSEC ||
-			    cur_rr_type == LDNS_RR_TYPE_NSEC3 ||
-			    cur_rr_type == LDNS_RR_TYPE_NSEC3PARAM
-			   ) {
-				ldns_rr_free(cur_rr);
-			} else {
+		while ((cur_rr = ldns_rr_list_pop_rr(ldns_zone_rrs(z))))
+			if (ldns_nsec_bitmap_covers_type(show_types,
+						ldns_rr_get_type(cur_rr)))
 				ldns_rr_list_push_rr(stripped_list, cur_rr);
-			}
-		}
-		ldns_rr_list_free(ldns_zone_rrs(z));
-		ldns_zone_set_rrs(z, stripped_list);
-	}
-	if (only_dnssec) {
-		stripped_list = ldns_rr_list_new();
-		while ((cur_rr = ldns_rr_list_pop_rr(ldns_zone_rrs(z)))) {
-			cur_rr_type = ldns_rr_get_type(cur_rr);
-			if (cur_rr_type == LDNS_RR_TYPE_RRSIG ||
-			    cur_rr_type == LDNS_RR_TYPE_NSEC ||
-			    cur_rr_type == LDNS_RR_TYPE_NSEC3 ||
-			    cur_rr_type == LDNS_RR_TYPE_NSEC3PARAM
-			   ) {
-				ldns_rr_list_push_rr(stripped_list, cur_rr);
-			} else {
+			else
 				ldns_rr_free(cur_rr);
-			}
-		}
 		ldns_rr_list_free(ldns_zone_rrs(z));
 		ldns_zone_set_rrs(z, stripped_list);
 	}

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.56)
-AC_INIT(ldns, 1.6.17, libdns@nlnetlabs.nl,libdns)
+AC_INIT(ldns, 1.7.0, libdns@nlnetlabs.nl,libdns)
 AC_CONFIG_SRCDIR([drill.c])
 sinclude(../acx_nlnetlabs.m4)
 
@@ -257,9 +257,6 @@ AH_BOTTOM([
 #ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
 #endif
-
-extern char *optarg;
-extern int optind, opterr;
 
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE  1

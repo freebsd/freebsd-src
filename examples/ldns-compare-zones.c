@@ -25,14 +25,15 @@
 static void 
 usage(char *prog)
 {
-	printf("Usage: %s [-v] [-i] [-d] [-c] [-s] <zonefile1> <zonefile2>\n",
-		prog);
+	printf("Usage: %s [-v] [-i] [-d] [-c] [-s] [-e] "
+	       "<zonefile1> <zonefile2>\n", prog);
 	printf("       -i - print inserted\n");
 	printf("       -d - print deleted\n");
 	printf("       -c - print changed\n");
 	printf("       -a - print all differences (-i -d -c)\n");
 	printf("       -s - do not exclude SOA record from comparison\n");
 	printf("       -z - do not sort zones\n");
+	printf("       -e - exit with status 2 on changed zones\n");
 	printf("       -h - show usage and exit\n");
 	printf("       -v - show the version and exit\n");
 }
@@ -54,9 +55,10 @@ main(int argc, char **argv)
 	int		c;
 	bool		opt_deleted = false, opt_inserted = false, opt_changed = false;
         bool		sort = true, inc_soa = false;
+	bool		opt_exit_status = false;
 	char		op = 0;
 
-	while ((c = getopt(argc, argv, "ahvdicsz")) != -1) {
+	while ((c = getopt(argc, argv, "ahvdicesz")) != -1) {
 		switch (c) {
 		case 'h':
 			usage(argv[0]);
@@ -68,6 +70,9 @@ main(int argc, char **argv)
 				  LDNS_VERSION,
 				  ldns_version());
 			exit(EXIT_SUCCESS);
+			break;
+		case 'e':
+			opt_exit_status = true;
 			break;
 		case 's':
 			inc_soa = true;
@@ -281,5 +286,5 @@ main(int argc, char **argv)
 	ldns_zone_deep_free(z2);
 	ldns_zone_deep_free(z1);
 
-	return 0;
+	return opt_exit_status && (num_ins || num_del || num_chg) ? 2 : 0;
 }

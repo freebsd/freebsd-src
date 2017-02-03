@@ -116,7 +116,7 @@ This class can contains all types of keys that are used in DNSSEC. Mostly used t
             #retvals: ldns_rr *
 
         def print_to_file(self, file):
-            """print a private key to the file ouput
+            """print a private key to the file output
                
                :param file: output file pointer
             """

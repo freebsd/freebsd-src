@@ -89,6 +89,22 @@ ldns_rr_list *ldns_validate_domain_dnskey_time(
 ldns_rr_list *ldns_validate_domain_ds_time(
                 const ldns_resolver *res, const ldns_rdf *domain, 
                 const ldns_rr_list * keys, time_t check_time);
+ldns_status ldns_verify_rrsig_keylist_time(
+                ldns_rr_list *rrset, ldns_rr *rrsig, 
+                const ldns_rr_list *keys, time_t check_time,
+                ldns_rr_list *good_keys);
+ldns_status ldns_verify_trusted_time(
+                ldns_resolver *res, ldns_rr_list *rrset, 
+                ldns_rr_list *rrsigs, time_t check_time,
+                ldns_rr_list *validating_keys);
+ldns_status ldns_verify_rrsig_time(
+                ldns_rr_list *rrset, ldns_rr *rrsig, 
+                ldns_rr *key, time_t check_time);
+ldns_status ldns_verify_time(ldns_rr_list *rrset,
+                                    ldns_rr_list *rrsig,
+                                    const ldns_rr_list *keys,
+                                    time_t check_time,
+                                    ldns_rr_list *good_keys);   
 
 ldns_dnssec_trust_tree *ldns_dnssec_derive_trust_tree_time(
                 ldns_dnssec_data_chain *data_chain, 
@@ -114,6 +130,33 @@ ldns_rr_list *ldns_validate_domain_ds_time(
     Perl_croak(aTHX_ "function ldns_validate_domain_ds_time is not implemented in this version of ldns");
 }
 
+ldns_status ldns_verify_rrsig_keylist_time(
+                ldns_rr_list *rrset, ldns_rr *rrsig, 
+                const ldns_rr_list *keys, time_t check_time,
+                ldns_rr_list *good_keys) {
+    Perl_croak(aTHX_ "function ldns_verify_rrsig_keylist_time is not implemented in this version of ldns");
+}
+
+ldns_status ldns_verify_trusted_time(
+                ldns_resolver *res, ldns_rr_list *rrset, 
+                ldns_rr_list *rrsigs, time_t check_time,
+                ldns_rr_list *validating_keys) {
+    Perl_croak(aTHX_ "function ldns_verify_trusted_time is not implemented in this version of ldns");
+}
+
+ldns_status ldns_verify_rrsig_time(
+                ldns_rr_list *rrset, ldns_rr *rrsig, 
+                ldns_rr *key, time_t check_time) {
+    Perl_croak(aTHX_ "function ldns_verify_rrsig_time is not implemented in this version of ldns");
+}
+
+ldns_status ldns_verify_time(ldns_rr_list *rrset,
+                                    ldns_rr_list *rrsig,
+                                    const ldns_rr_list *keys,
+                                    time_t check_time,
+                                    ldns_rr_list *good_keys) {
+    Perl_croak(aTHX_ "function ldns_verify_time is not implemented in this version of ldns");
+}
 
 #endif
 
@@ -709,45 +752,70 @@ ldns_rr_new_frm_type(t)
 	_new_from_type = 1
 
 DNS__LDNS__RR
-_new_from_str(str, default_ttl, origin, s)
+_new_from_str(str, default_ttl, origin, prev, s)
 	const char* str;
 	uint32_t default_ttl;
 	DNS__LDNS__RData__Opt origin;
+	DNS__LDNS__RData__Opt prev;
 	LDNS_Status s;
 	PREINIT:
 	    DNS__LDNS__RR rr = NULL;
+	    ldns_rdf *pclone = NULL;
 	CODE:
-	s = ldns_rr_new_frm_str(&rr, str, default_ttl, origin, NULL);
+
+	if (prev != NULL) {
+	    pclone = ldns_rdf_clone(prev);
+        }
+
+	s = ldns_rr_new_frm_str(&rr, str, default_ttl, origin, &prev);
+	if (prev != NULL) {
+	    prev = pclone;
+	}
+
 	if (s == LDNS_STATUS_OK) {
 	    RETVAL = rr;
 	}
 	OUTPUT:
 	RETVAL
 	s
+	prev
 
 DNS__LDNS__RR
-_new_from_file(fp, origin, default_ttl, s, line_nr)
+_new_from_file(fp, default_ttl, origin, prev, s, line_nr)
 	FILE*         fp;
-	DNS__LDNS__RData__Opt origin;
 	uint32_t      default_ttl;
+	DNS__LDNS__RData__Opt origin;
+	DNS__LDNS__RData__Opt prev;
 	LDNS_Status   s;
 	int           line_nr;
         PREINIT:
             ldns_rr *rr;
 	    ldns_rdf *oclone = NULL;
+	    ldns_rdf *pclone = NULL;
         CODE:
-	RETVAL = NULL;
-	/* Clone the origin object because the call may change/replace it and 
-	   then it must be freed */
-	if (origin) {
+
+	/* Must clone origin and prev because new_frm_fp_l may change 
+ 	   them and may not (we do not know for certain). The perl layer 
+	   will take care of freeing the old structs. */
+	if (origin != NULL) {
 	    oclone = ldns_rdf_clone(origin);
         }
-	s = ldns_rr_new_frm_fp_l(&rr, fp, &default_ttl, &oclone, NULL, 
+	if (prev != NULL) {
+	    pclone = ldns_rdf_clone(prev);
+        }
+
+	RETVAL = NULL;
+	s = ldns_rr_new_frm_fp_l(&rr, fp, &default_ttl, &oclone, &pclone, 
 	    &line_nr);
 
-	if (oclone) {
-	    ldns_rdf_deep_free(oclone);
-        }
+	/* Replace the input origin with our new clone. The perl layer will
+	   take care of freeing it later. */
+	if (origin != NULL) {
+	    origin = oclone;
+	}
+	if (prev != NULL) {
+	    prev = pclone;
+	}
 
 	if (s == LDNS_STATUS_OK) {
 	    RETVAL = rr;
@@ -757,6 +825,9 @@ _new_from_file(fp, origin, default_ttl, s, line_nr)
         RETVAL
 	s
 	line_nr
+        default_ttl
+        origin
+	prev
 
 DNS__LDNS__RR
 ldns_rr_clone(rr)
@@ -1223,7 +1294,7 @@ ldns_rdf_clone(rdf)
 	ALIAS:
 	clone = 1
 
-const char*
+Mortal_PV
 ldns_rdf2str(rdf)
 	DNS__LDNS__RData rdf;
 	ALIAS:
@@ -2113,7 +2184,7 @@ ldns_resolver_nameservers_randomize(resolver)
 	ALIAS:
 	nameservers_randomize = 1
 
-char*
+const char*
 ldns_resolver_tsig_keyname(resolver)
 	DNS__LDNS__Resolver resolver;
 	ALIAS:
@@ -2126,7 +2197,7 @@ ldns_resolver_set_tsig_keyname(resolver, tsig_keyname)
 	ALIAS:
 	set_tsig_keyname = 1
 
-char*
+const char*
 ldns_resolver_tsig_algorithm(resolver)
 	DNS__LDNS__Resolver resolver;
 	ALIAS:
@@ -2139,7 +2210,7 @@ ldns_resolver_set_tsig_algorithm(resolver, tsig_algorithm)
 	ALIAS:
 	set_tsig_algorithm = 1
 
-char*
+const char*
 ldns_resolver_tsig_keydata(resolver)
 	DNS__LDNS__Resolver resolver;
 	ALIAS:

@@ -2,14 +2,17 @@
 .SH NAME
 ldns-update \- send a dynamic update packet
 .SH SYNOPSIS
-.B ldns-update 
+.B ldns-update
+.IR name
 [
 .IR zone
 ]
-.IR ip
 [
-.IR tsig_name 
-.IR tsig_als 
+.IR ip
+]
+[
+.IR tsig_name
+.IR tsig_alg
 .IR tsig_hmac
 ] 
 
@@ -18,12 +21,17 @@ ldns-update \- send a dynamic update packet
 
 .SH OPTIONS
 .TP
+\fBname\fR
+The domainname to associate with the given \fBip\fR address.
+
+.TP
 \fBzone\fR
-Use this zone instead of trying to read it from the zonefile's SOA record.
+When given uses this \fBzone\fR instead of trying to find and process \fBdomain\fR's SOA record.
 
 .TP
 \fBip\fR
-Send the update to this IP address
+Send the update to this IP address.
+Or, when the literal text \fBnone\fR is given, remove any previous addresses.
 
 .TP
 \fBtsig_name tsig_alg tsig_hmac\fR

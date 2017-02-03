@@ -113,9 +113,9 @@
 %rename(__ldns_resolver_tsig_algorithm) ldns_resolver_tsig_algorithm;
 %inline
 %{
-  char * _ldns_resolver_tsig_algorithm(const ldns_resolver *res)
+  const char * _ldns_resolver_tsig_algorithm(const ldns_resolver *res)
   {
-    char *str;
+    const char *str;
     str = ldns_resolver_tsig_algorithm(res);
     if (str != NULL) {
       str = strdup(str);
@@ -128,9 +128,9 @@
 %rename(__ldns_resolver_tsig_keydata) ldns_resolver_tsig_keydata;
 %inline
 %{
-  char * _ldns_resolver_tsig_keydata(const ldns_resolver *res)
+  const char * _ldns_resolver_tsig_keydata(const ldns_resolver *res)
   {
-    char *str;
+    const char *str;
     str = ldns_resolver_tsig_keydata(res);
     if (str != NULL) {
       str = strdup(str);
@@ -143,9 +143,9 @@
 %rename(__ldns_resolver_tsig_keyname) ldns_resolver_tsig_keyname;
 %inline
 %{
-  char * _ldns_resolver_tsig_keyname(const ldns_resolver *res)
+  const char * _ldns_resolver_tsig_keyname(const ldns_resolver *res)
   {
-    char *str;
+    const char *str;
     str = ldns_resolver_tsig_keyname(res);
     if (str != NULL) {
       str = strdup(str);

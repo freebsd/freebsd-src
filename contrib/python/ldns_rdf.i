@@ -221,6 +221,11 @@
                         case LDNS_RDF_TYPE_EUI64:      return "EUI64";
                         case LDNS_RDF_TYPE_TAG:        return "TAG";
                         case LDNS_RDF_TYPE_LONG_STR:   return "LONG_STR";
+                        case LDNS_RDF_TYPE_CERTIFICATE_USAGE:
+                            return "CERTIFICATE_USAGE";
+                        case LDNS_RDF_TYPE_SELECTOR:   return "SELECTOR";
+                        case LDNS_RDF_TYPE_MATCHING_TYPE:
+                            return "MATCHING_TYPE";
 			}
 		}
 		return 0;

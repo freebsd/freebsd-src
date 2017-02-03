@@ -14,7 +14,7 @@ ldns-compare-zones \- read and compare two zonefiles and print differences
 \fBldns-compare-zones\fR reads two DNS zone files and prints number of differences.
 .nf
 Output is formated to:
-        +NUM_INS        -NUM_DEL        ~NUM_CHG
+        +NUM_INS        \-NUM_DEL        ~NUM_CHG
 
 .fi
 The major comparison is based on the owner name. If an owner name is present in zonefile 1, but not in zonefile 2, the resource records with this owner name are considered deleted, and counted as NUM_DEL. If an owner name is present in zonefile 2, but not in zonefile 1, the resource records with this owner name are considered inserted, and counted as NUM_INS. If an owner name is present in both, but there is a difference in the amount or content of the records, these are considered changed, and counted as NUM_CHG.
@@ -30,8 +30,8 @@ Print resource records whose owner names are present only in ZONEFILE2 (a.k.a. i
 Print resource records whose owner names are present only in ZONEFILE1 (a.k.a. deleted)
 .TP
 \fB-a\fR
-Print all changes. Specifying this option is the same as specifying -c -i
-amd -d.
+Print all changes. Specifying this option is the same as specifying \-c \-i
+amd \-d.
 .TP
 \fB-z\fR
 Suppress zone sorting; this option is not recommended; it can cause records
@@ -41,6 +41,9 @@ to be incorrectly marked as changed, depending of the nature of the changes.
 Do not exclude the SOA record from the comparison.  The SOA record may
 then show up as changed due to a new serial number.  Off by default since
 you may be interested to know if (other zone apex elements) have changed.
+.TP
+\fB-e\fR
+Exit with status code 2 when zones differ.
 .TP
 \fB-h\fR
 Show usage and exit

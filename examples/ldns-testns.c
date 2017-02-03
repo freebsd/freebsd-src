@@ -150,7 +150,7 @@ struct sockaddr_storage;
 
 #define INBUF_SIZE 4096         /* max size for incoming queries */
 #define DEFAULT_PORT 53		/* default if no -p port is specified */
-#define CONN_BACKLOG 5		/* 5 connections queued up for tcp */
+#define CONN_BACKLOG 256	/* connections queued up for tcp */
 static const char* prog_name = "ldns-testns";
 static FILE* logfile = 0;
 static int do_verbose = 0;
@@ -188,6 +188,7 @@ static void error(const char* msg, ...)
 	exit(EXIT_FAILURE);
 }
 
+void verbose(int lvl, const char* msg, ...) ATTR_FORMAT(printf, 2, 3);
 void verbose(int ATTR_UNUSED(lvl), const char* msg, ...)
 {
 	va_list args;
@@ -279,6 +280,10 @@ read_n_bytes(int sock, uint8_t* buf, size_t sz)
 		ssize_t nb = recv(sock, (void*)(buf+count), sz-count, 0);
 		if(nb < 0) {
 			log_msg("recv(): %s\n", strerror(errno));
+			return;
+		} else if(nb == 0) {
+			log_msg("recv: remote end closed the channel\n");
+			memset(buf+count, 0, sz-count);
 			return;
 		}
 		count += nb;

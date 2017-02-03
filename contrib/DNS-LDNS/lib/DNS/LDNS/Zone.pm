@@ -6,7 +6,7 @@ use warnings;
 
 use DNS::LDNS ':all';
 
-our $VERSION = '0.06';
+our $VERSION = '0.52';
 
 sub new {
     my ($class, %args) = @_;
@@ -25,12 +25,15 @@ sub new {
 
 	$file = \*FILE;
     }
+    elsif ($args{file}) {
+	$file = $args{file};
+    }
 
     if ($file) {
 	$zone = _new_from_file($file, 
-			       $args{origin} || $DNS::LDNS::DEFAULT_ORIGIN, 
-			       $args{default_ttl} || $DNS::LDNS::DEFAULT_TTL, 
-			       $args{class} || $DNS::LDNS::DEFAULT_CLASS, 
+			       $args{origin},
+			       $args{default_ttl} || 0,
+			       $args{class} || 0,
 			       $status, $line_nr);
     }
     else {

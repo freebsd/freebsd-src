@@ -62,13 +62,13 @@ Show version and exit.
 .SH EXAMPLES
 
 .TP
-\fBldns-gen-zone -a 100000 -p 10 -s ./zonefile.txt\fR
+\fBldns-gen-zone \-a 100000 \-p 10 \-s ./zonefile.txt\fR
 Read a zonefile, add 100.000 artificial NS RRSets and 10% of DS records,
 print it to standard output. Don't sort (will only work well if the input
 zonefile is already sorted and canonicalized).
 
 .TP
-\fBldns-gen-zone -p 10 -s -o nl zonefile.txt | named-compilezone -s relative -i none -o zonefile_10.txt nl /dev/stdin\fR
+\fBldns-gen-zone \-p 10 \-s \-o nl zonefile.txt | named-compilezone \-s relative \-i none \-o zonefile_10.txt nl /dev/stdin\fR
 This creates a nicely formatted zone file with the help of \fBnamed-compilezone\fR.
 It adds 10% DS records to the .nl zone, reformats it and saves it as \fBzonefile_10.txt\fR.
 

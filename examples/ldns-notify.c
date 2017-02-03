@@ -182,6 +182,7 @@ main(int argc, char **argv)
 	uint8_t *wire = NULL;
 	size_t wiresize = 0;
 	const char *port = "53";
+	char *keydata;
 
 	srandom(time(NULL) ^ getpid());
 
@@ -203,14 +204,14 @@ main(int argc, char **argv)
                 case 'y':
 			tsig_cred.algorithm = (char*)"hmac-md5.sig-alg.reg.int.";
 			tsig_cred.keyname = optarg;
-			tsig_cred.keydata = strchr(optarg, ':');
-			if (tsig_cred.keydata == NULL) {
+			keydata = strchr(optarg, ':');
+			if (keydata == NULL) {
 				printf("TSIG argument is not in form "
 					"key:data: %s\n", optarg);
 				exit(1);
 			}
-			*tsig_cred.keydata = '\0';
-			tsig_cred.keydata++;
+			*keydata++ = '\0';
+			tsig_cred.keydata = keydata;
 			printf("Sign with %s : %s\n", tsig_cred.keyname,
 				tsig_cred.keydata);
 			break;
@@ -306,7 +307,7 @@ main(int argc, char **argv)
 
 	for(i=0; i<argc; i++)
 	{
-		struct addrinfo hints, *res0, *res;
+		struct addrinfo hints, *res0, *ai_res;
 		int error;
 		int default_family = AF_INET;
 
@@ -322,13 +323,13 @@ main(int argc, char **argv)
 				gai_strerror(error));
 			continue;
 		}
-		for (res = res0; res; res = res->ai_next) {
-			int s = socket(res->ai_family, res->ai_socktype, 
-				res->ai_protocol);
+		for (ai_res = res0; ai_res; ai_res = ai_res->ai_next) {
+			int s = socket(ai_res->ai_family, ai_res->ai_socktype, 
+				ai_res->ai_protocol);
 			if(s == -1)
 				continue;
 			/* send the notify */
-			notify_host(s, res, wire, wiresize, argv[i]);
+			notify_host(s, ai_res, wire, wiresize, argv[i]);
 		}
 		freeaddrinfo(res0);
 	}

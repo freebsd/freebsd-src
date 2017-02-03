@@ -55,7 +55,7 @@ print_type(FILE* stream, ldns_rr_type type)
 	}
 }
 
-ldns_status
+static ldns_status
 read_key_file(const char *filename, ldns_rr_list *keys)
 {
 	ldns_status status = LDNS_STATUS_ERR;
@@ -655,6 +655,46 @@ error:
 	return result;
 }
 
+static void print_usage(FILE *out, const char *progname)
+{
+	fprintf(out, "Usage: %s [OPTIONS] <zonefile>\n", progname);
+	fprintf(out, "\tReads the zonefile and checks for DNSSEC errors.\n");
+	fprintf(out, "\nIt checks whether NSEC(3)s are present, "
+	       "and verifies all signatures\n");
+	fprintf(out, "It also checks the NSEC(3) chain, but it "
+	       "will error on opted-out delegations\n");
+	fprintf(out, "\nOPTIONS:\n");
+	fprintf(out, "\t-h\t\tshow this text\n");
+	fprintf(out, "\t-a\t\tapex only, check only the zone apex\n");
+	fprintf(out, "\t-e <period>\tsignatures may not expire "
+	       "within this period.\n\t\t\t"
+	       "(default no period is used)\n");
+	fprintf(out, "\t-i <period>\tsignatures must have been "
+	       "valid at least this long.\n\t\t\t"
+	       "(default signatures should just be valid now)\n");
+	fprintf(out, "\t-k <file>\tspecify a file that contains a "
+	       "trusted DNSKEY or DS rr.\n\t\t\t"
+	       "This option may be given more than once.\n"
+	       "\t\t\tDefault is %s\n", LDNS_TRUST_ANCHOR_FILE);
+	fprintf(out, "\t-p [0-100]\tonly checks this percentage of "
+	       "the zone.\n\t\t\tDefaults to 100\n");
+	fprintf(out, "\t-S\t\tchase signature(s) to a known key. "
+	       "The network may be\n\t\t\taccessed to "
+	       "validate the zone's DNSKEYs. (implies -k)\n");
+	fprintf(out, "\t-t YYYYMMDDhhmmss | [+|-]offset\n\t\t\t"
+	       "set the validation time either by an "
+	       "absolute time\n\t\t\tvalue or as an "
+	       "offset in seconds from <now>.\n\t\t\t"
+	       "For data that came from the network (while "
+	       "chasing),\n\t\t\tsystem time will be used "
+	       "for validating it regardless.\n");
+	fprintf(out, "\t-v\t\tshows the version and exits\n");
+	fprintf(out, "\t-V [0-5]\tset verbosity level (default 3)\n");
+	fprintf(out, "\n<period>s are given in ISO 8601 duration format: "
+	       "P[n]Y[n]M[n]DT[n]H[n]M[n]S\n");
+	fprintf(out, "\nif no file is given standard input is read\n");
+}
+
 int
 main(int argc, char **argv)
 {
@@ -671,6 +711,7 @@ main(int argc, char **argv)
 	ldns_duration_type *duration;
 	ldns_rr_list *keys = ldns_rr_list_new();
 	size_t nkeys = 0;
+	const char *progname = argv[0];
 
 	check_time = ldns_time(NULL);
 	myout = stdout;
@@ -682,48 +723,7 @@ main(int argc, char **argv)
                         apexonly = true;
                         break;
 		case 'h':
-			printf("Usage: %s [OPTIONS] <zonefile>\n", argv[0]);
-			printf("\tReads the zonefile and checks for DNSSEC "
-			       "errors.\n");
-			printf("\nIt checks whether NSEC(3)s are present, "
-			       "and verifies all signatures\n");
-			printf("It also checks the NSEC(3) chain, but it "
-			       "will error on opted-out delegations\n");
-			printf("\nOPTIONS:\n");
-			printf("\t-h\t\tshow this text\n");
-			printf("\t-a\t\tapex only, "
-			       "check only the zone apex\n");
-			printf("\t-e <period>\tsignatures may not expire "
-			       "within this period.\n\t\t\t"
-			       "(default no period is used)\n");
-			printf("\t-i <period>\tsignatures must have been "
-			       "valid at least this long.\n\t\t\t"
-			       "(default signatures should just be valid "
-			       "now)\n");
-			printf("\t-k <file>\tspecify a file that contains a "
-			       "trusted DNSKEY or DS rr.\n\t\t\t"
-			       "This option may be given more than once.\n"
-			       "\t\t\tDefault is %s", LDNS_TRUST_ANCHOR_FILE);
-			printf("\t-p [0-100]\tonly checks this percentage of "
-			       "the zone.\n\t\t\tDefaults to 100\n");
-			printf("\t-S\t\tchase signature(s) to a known key. "
-			       "The network may be\n\t\t\taccessed to "
-			       "validate the zone's DNSKEYs. (implies -k)\n");
-			printf("\t-t YYYYMMDDhhmmss | [+|-]offset\n\t\t\t"
-			       "set the validation time either by an "
-			       "absolute time\n\t\t\tvalue or as an "
-			       "offset in seconds from <now>.\n\t\t\t"
-			       "For data that came from the network (while "
-			       "chasing),\n\t\t\tsystem time will be used "
-			       "for validating it regardless.\n");
-			printf("\t-v\t\tshows the version and exits\n");
-			printf("\t-V [0-5]\tset verbosity level (default 3)\n"
-			      );
-			printf("\n<period>s are given "
-			       "in ISO 8601 duration format: "
-			       "P[n]Y[n]M[n]DT[n]H[n]M[n]S\n");
-			printf("\nif no file is given "
-			       "standard input is read\n");
+			print_usage(stdout, progname);
 			exit(EXIT_SUCCESS);
 			break;
 		case 'e':
@@ -833,7 +833,7 @@ main(int argc, char **argv)
 
 	if (argc == 0) {
 		fp = stdin;
-	} else {
+	} else if (argc == 1) {
 		filename = argv[0];
 
 		fp = fopen(filename, "r");
@@ -844,6 +844,9 @@ main(int argc, char **argv)
 			}
 			exit(EXIT_FAILURE);
 		}
+	} else {
+		print_usage(stderr, progname);
+		exit(EXIT_FAILURE);
 	}
 
 	s = ldns_dnssec_zone_new_frm_fp_l(&dnssec_zone, fp, NULL, 0,

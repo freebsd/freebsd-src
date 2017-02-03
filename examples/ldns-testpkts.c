@@ -31,12 +31,8 @@ struct sockaddr_storage;
 /** string to show in warnings and errors */
 static const char* prog_name = "ldns-testpkts";
 
-#ifndef UTIL_LOG_H
-/** verbosity definition for compat */
-enum verbosity_value { NO_VERBOSE=0 };
-#endif
 /** logging routine, provided by caller */
-void verbose(enum verbosity_value lvl, const char* msg, ...) ATTR_FORMAT(printf, 2, 3);
+void verbose(int lvl, const char* msg, ...) ATTR_FORMAT(printf, 2, 3);
 
 /** print error and exit */
 static void error(const char* msg, ...)
@@ -929,7 +925,7 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 }
 
 /** delete the list of reply packets */
-void delete_replylist(struct reply_packet* replist)
+static void delete_replylist(struct reply_packet* replist)
 {
 	struct reply_packet *p=replist, *np;
 	while(p) {

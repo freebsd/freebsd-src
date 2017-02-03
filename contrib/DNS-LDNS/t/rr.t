@@ -1,4 +1,6 @@
-use Test::More tests => 14;
+use Test::More tests => 19;
+
+use FindBin qw/$Bin/;
 
 use DNS::LDNS ':all';
 
@@ -22,6 +24,7 @@ $rr1 = new DNS::LDNS::RR(
 	new DNS::LDNS::RData(LDNS_RDF_TYPE_PERIOD, '87654')
     ],
 );
+
 isa_ok($rr1, 'DNS::LDNS::RR', 'Create SOA rr with rdata');
 
 like($rr1->to_string, qr/^myzone\.org\.\s+1234\s+CH\s+SOA\s+hostmaster\.myzone\.org\.\s+master\.myzone\.org\.\s+2012113030\s+12345\s+1827\s+2345678\s+87654$/,
@@ -45,3 +48,27 @@ my $rr3 = new DNS::LDNS::RR(str => 'ozone.org. 1234 IN SOA hostmaster.ozone.org.
 ok($rr3->compare_dname($rr1) > 0, 'Compare dname, greater than');
 ok($rr1->compare_dname($rr3) < 0, 'Compare dname, less than');
 is($rr1->compare_dname($rr2), 0, 'Compare dname, equal');
+
+# Read records from a zonefile
+my $origin = new DNS::LDNS::RData(LDNS_RDF_TYPE_DNAME, '.');
+my $prev = $origin->clone;
+my $ttl = 0;
+my $count = 0;
+open(ZONE, "$Bin/testdata/myzone.org");
+my $rr4 = new DNS::LDNS::RR(file => \*ZONE, default_ttl => \$ttl,
+    origin => \$origin, prev => \$prev);
+is($DNS::LDNS::last_status, LDNS_STATUS_SYNTAX_TTL, "Read ttl statement.");
+is($ttl, 4500, "TTL is 4500");
+
+$rr4 = new DNS::LDNS::RR(file => \*ZONE, default_ttl => \$ttl,
+    origin => \$origin, prev => \$prev);
+is($DNS::LDNS::last_status, LDNS_STATUS_SYNTAX_ORIGIN, "Read origin statement.");
+is($origin->to_string, "myzone.org.", "Origin is myzone.org.");
+
+while (!eof(\*ZONE)) {
+    $rr4 = new DNS::LDNS::RR(file => \*ZONE, default_ttl => \$ttl,
+        origin => \$origin, prev => \$prev);
+    last unless ($rr4);
+    $count++;
+}
+is($count, 6);

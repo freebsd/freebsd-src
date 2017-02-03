@@ -126,6 +126,9 @@ uint32_t ldns_read_timeval_usec(struct timeval* t) {
 %immutable ldns_struct_rr_descriptor::_name;
 %immutable ldns_error_str;
 %immutable ldns_signing_algorithms;
+%immutable ldns_tsig_credentials_struct::algorithm;
+%immutable ldns_tsig_credentials_struct::keyname;
+%immutable ldns_tsig_credentials_struct::keydata;
 
 //*_new_frm_fp_l
 %apply int *OUTPUT { (int *line_nr) };
@@ -138,6 +141,8 @@ uint32_t ldns_read_timeval_usec(struct timeval* t) {
 %include "ldns_packet.i"
 %include "ldns_resolver.i"
 %include "ldns_rr.i"
+
+%include <ldns/rr.h>
 
 %inline %{
 int Python_str_Check(PyObject *o) {
@@ -168,7 +173,6 @@ int Python_str_Check(PyObject *o) {
   %include <ldns/packet.h>
   %include <ldns/rdata.h>
   %include <ldns/resolver.h>
-  %include <ldns/rr.h>
 %include <ldns/str2host.h>
 %include <ldns/tsig.h>
   %include <ldns/update.h>

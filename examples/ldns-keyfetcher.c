@@ -377,7 +377,7 @@ retrieve_dnskeys(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 		authority_list = NULL;
 		
 		if (loop_count++ > 20) {
-			/* unlikely that we are doing something usefull */
+			/* unlikely that we are doing something useful */
 			fprintf(stderr, "Looks like we are looping");
 			ldns_pkt_free(p); 
 			return NULL;
@@ -507,7 +507,7 @@ retrieve_dnskeys(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
  * for the root zone and A records for those NS RRs.
  * Read them, check them, and append the a records to the rr list given.
  */
-ldns_rr_list *
+static ldns_rr_list *
 read_root_hints(const char *filename)
 {
 	FILE *fp = NULL;
@@ -725,7 +725,6 @@ main(int argc, char *argv[])
 		fprintf(stderr, "no answer packet received, stub resolver config:\n");
 		ldns_resolver_print(stderr, res);
 	}
-	printf("\n");
 
 	ldns_rdf_deep_free(domain);
 	ldns_resolver_deep_free(res);

@@ -6,7 +6,7 @@ use warnings;
 
 use DNS::LDNS;
 
-our $VERSION = '0.06';
+our $VERSION = '0.52';
 
 sub add_parent {
     my ($self, $parent, $sig, $parent_status) = @_;

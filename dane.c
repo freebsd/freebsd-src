@@ -327,8 +327,8 @@ ldns_dane_pkix_get_last_self_signed(X509** out_cert,
 
 	}
 	(void) X509_verify_cert(vrfy_ctx);
-	if (vrfy_ctx->error == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN ||
-	    vrfy_ctx->error == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT){
+	if (X509_STORE_CTX_get_error(vrfy_ctx) == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN ||
+	    X509_STORE_CTX_get_error(vrfy_ctx) == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT){
 
 		*out_cert = X509_STORE_CTX_get_current_cert( vrfy_ctx);
 		s = LDNS_STATUS_OK;
@@ -356,7 +356,7 @@ ldns_dane_select_certificate(X509** selected_cert,
 	assert(selected_cert != NULL);
 	assert(cert != NULL);
 
-	/* With PKIX validation explicitely turned off (pkix_validation_store
+	/* With PKIX validation explicitly turned off (pkix_validation_store
 	 *  == NULL), treat the "CA constraint" and "Service certificate
 	 * constraint" the same as "Trust anchor assertion" and "Domain issued
 	 * certificate" respectively.
@@ -504,6 +504,7 @@ memerror:
 }
 
 
+#ifdef USE_DANE_VERIFY
 /* Return tlsas that actually are TLSA resource records with known values
  * for the Certificate usage, Selector and Matching type rdata fields.
  */
@@ -535,6 +536,7 @@ ldns_dane_filter_unusable_records(const ldns_rr_list* tlsas)
 }
 
 
+#if !defined(USE_DANE_TA_USAGE)
 /* Return whether cert/selector/matching_type matches data.
  */
 static ldns_status
@@ -591,34 +593,108 @@ ldns_dane_match_any_cert_with_data(STACK_OF(X509)* chain,
 	}
 	return s;
 }
+#endif /* !defined(USE_DANE_TA_USAGE) */
+#endif /* USE_DANE_VERIFY */
 
-
+#ifdef USE_DANE_VERIFY
 ldns_status
 ldns_dane_verify_rr(const ldns_rr* tlsa_rr,
 		X509* cert, STACK_OF(X509)* extra_certs,
 		X509_STORE* pkix_validation_store)
 {
-	ldns_status s;
-
+#if defined(USE_DANE_TA_USAGE)
+	SSL_CTX *ssl_ctx = NULL;
+	SSL *ssl = NULL;
+	X509_STORE_CTX *store_ctx = NULL;
+#else
 	STACK_OF(X509)* pkix_validation_chain = NULL;
+#endif
+	ldns_status s = LDNS_STATUS_OK;
 
-	ldns_tlsa_certificate_usage cert_usage;
+	ldns_tlsa_certificate_usage usage;
 	ldns_tlsa_selector          selector;
-	ldns_tlsa_matching_type     matching_type;
+	ldns_tlsa_matching_type     mtype;
 	ldns_rdf*                   data;
 
-	if (! tlsa_rr) {
-		/* No TLSA, so regular PKIX validation
+	if (! tlsa_rr || ldns_rr_get_type(tlsa_rr) != LDNS_RR_TYPE_TLSA ||
+			ldns_rr_rd_count(tlsa_rr) != 4 ||
+			ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 0)) > 3 ||
+			ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 1)) > 1 ||
+			ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 2)) > 2 ) {
+		/* No (usable) TLSA, so regular PKIX validation
 		 */
 		return ldns_dane_pkix_validate(cert, extra_certs,
 				pkix_validation_store);
 	}
-	cert_usage    = ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 0));
-	selector      = ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 1));
-	matching_type = ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 2));
-	data          =                      ldns_rr_rdf(tlsa_rr, 3) ;
+	usage    = ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 0));
+	selector = ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 1));
+	mtype    = ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 2));
+	data     =                      ldns_rr_rdf(tlsa_rr, 3) ;
 
-	switch (cert_usage) {
+#if defined(USE_DANE_TA_USAGE)
+	/* Rely on OpenSSL dane functions.
+	 *
+	 * OpenSSL does not provide offline dane verification.  The dane unit
+	 * tests within openssl use the undocumented SSL_get0_dane() and 
+	 * X509_STORE_CTX_set0_dane() to convey dane parameters set on SSL and
+	 * SSL_CTX to a X509_STORE_CTX that can be used to do offline
+	 * verification.  We use these undocumented means with the ldns
+	 * dane function prototypes which did only offline dane verification.
+	 */
+	if (!(ssl_ctx = SSL_CTX_new(TLS_client_method())))
+		s = LDNS_STATUS_MEM_ERR;
+
+	else if (SSL_CTX_dane_enable(ssl_ctx) <= 0)
+		s = LDNS_STATUS_SSL_ERR;
+
+	else if (SSL_CTX_dane_set_flags(
+				ssl_ctx, DANE_FLAG_NO_DANE_EE_NAMECHECKS),
+			!(ssl = SSL_new(ssl_ctx)))
+		s = LDNS_STATUS_MEM_ERR;
+
+	else if (SSL_set_connect_state(ssl),
+			(SSL_dane_enable(ssl, NULL) <= 0))
+		s = LDNS_STATUS_SSL_ERR;
+
+	else if (SSL_dane_tlsa_add(ssl, usage, selector, mtype,
+				ldns_rdf_data(data), ldns_rdf_size(data)) <= 0)
+		s = LDNS_STATUS_SSL_ERR;
+
+	else if (!(store_ctx =  X509_STORE_CTX_new()))
+		s = LDNS_STATUS_MEM_ERR;
+
+	else if (!X509_STORE_CTX_init(store_ctx, pkix_validation_store, cert, extra_certs))
+		s = LDNS_STATUS_SSL_ERR;
+
+	else {
+		int ret;
+
+		X509_STORE_CTX_set_default(store_ctx,
+				SSL_is_server(ssl) ? "ssl_client" : "ssl_server");
+		X509_VERIFY_PARAM_set1(X509_STORE_CTX_get0_param(store_ctx),
+				SSL_get0_param(ssl));
+		X509_STORE_CTX_set0_dane(store_ctx, SSL_get0_dane(ssl));
+		if (SSL_get_verify_callback(ssl))
+			X509_STORE_CTX_set_verify_cb(store_ctx, SSL_get_verify_callback(ssl));
+
+		ret = X509_verify_cert(store_ctx);
+		if (!ret) {
+			if (X509_STORE_CTX_get_error(store_ctx) == X509_V_ERR_DANE_NO_MATCH)
+				s = LDNS_STATUS_DANE_TLSA_DID_NOT_MATCH;
+			else
+				s = LDNS_STATUS_DANE_PKIX_DID_NOT_VALIDATE;
+		}
+		X509_STORE_CTX_cleanup(store_ctx);
+	}
+	if (store_ctx)
+		X509_STORE_CTX_free(store_ctx);
+	if (ssl)
+		SSL_free(ssl);
+	if (ssl_ctx)
+		SSL_CTX_free(ssl_ctx);
+	return s;
+#else
+	switch (usage) {
 	case LDNS_TLSA_USAGE_CA_CONSTRAINT:
 		s = ldns_dane_pkix_validate_and_get_chain(
 				&pkix_validation_chain, 
@@ -638,7 +714,7 @@ ldns_dane_verify_rr(const ldns_rr* tlsa_rr,
 			 */
 			s = ldns_dane_match_any_cert_with_data(
 					pkix_validation_chain,
-					selector, matching_type, data, true);
+					selector, mtype, data, true);
 
 			if (s == LDNS_STATUS_OK) {
 				/* A TLSA record did match a cert from the
@@ -653,15 +729,16 @@ ldns_dane_verify_rr(const ldns_rr* tlsa_rr,
 
 			s = ldns_dane_match_any_cert_with_data(
 					pkix_validation_chain,
-					selector, matching_type, data, true);
+					selector, mtype, data, true);
 		}
 		sk_X509_pop_free(pkix_validation_chain, X509_free);
 		return s;
 		break;
 
 	case LDNS_TLSA_USAGE_SERVICE_CERTIFICATE_CONSTRAINT:
+
 		s = ldns_dane_match_cert_with_data(cert,
-				selector, matching_type, data);
+				selector, mtype, data);
 
 		if (s == LDNS_STATUS_OK) {
 			return ldns_dane_pkix_validate(cert, extra_certs,
@@ -671,78 +748,194 @@ ldns_dane_verify_rr(const ldns_rr* tlsa_rr,
 		break;
 
 	case LDNS_TLSA_USAGE_TRUST_ANCHOR_ASSERTION:
+#if 0
 		s = ldns_dane_pkix_get_chain(&pkix_validation_chain,
 				cert, extra_certs);
 
 		if (s == LDNS_STATUS_OK) {
 			s = ldns_dane_match_any_cert_with_data(
 					pkix_validation_chain,
-					selector, matching_type, data, false);
+					selector, mtype, data, false);
 
 		} else if (! pkix_validation_chain) {
 			return s;
 		}
 		sk_X509_pop_free(pkix_validation_chain, X509_free);
 		return s;
+#else
+		return LDNS_STATUS_DANE_NEED_OPENSSL_GE_1_1_FOR_DANE_TA;
+#endif
 		break;
 
 	case LDNS_TLSA_USAGE_DOMAIN_ISSUED_CERTIFICATE:
 		return ldns_dane_match_cert_with_data(cert,
-				selector, matching_type, data);
+				selector, mtype, data);
 		break;
 
 	default:
 		break;
 	}
+#endif
 	return LDNS_STATUS_DANE_UNKNOWN_CERTIFICATE_USAGE;
 }
 
 
 ldns_status
-ldns_dane_verify(ldns_rr_list* tlsas,
+ldns_dane_verify(const ldns_rr_list* tlsas,
 		X509* cert, STACK_OF(X509)* extra_certs,
 		X509_STORE* pkix_validation_store)
 {
+#if defined(USE_DANE_TA_USAGE)
+	SSL_CTX *ssl_ctx = NULL;
+	ldns_rdf *basename_rdf = NULL;
+	char *basename = NULL;
+	SSL *ssl = NULL;
+	X509_STORE_CTX *store_ctx = NULL;
+#else
+	ldns_status ps;
+#endif
 	size_t i;
 	ldns_rr* tlsa_rr;
-	ldns_status s = LDNS_STATUS_OK, ps;
+	ldns_rr_list *usable_tlsas;
+	ldns_status s = LDNS_STATUS_OK;
 
 	assert(cert != NULL);
 
-	if (tlsas && ldns_rr_list_rr_count(tlsas) > 0) {
-		tlsas = ldns_dane_filter_unusable_records(tlsas);
-		if (! tlsas) {
-			return LDNS_STATUS_MEM_ERR;
-		}
-	}
-	if (! tlsas || ldns_rr_list_rr_count(tlsas) == 0) {
+	if (! tlsas || ldns_rr_list_rr_count(tlsas) == 0)
 		/* No TLSA's, so regular PKIX validation
 		 */
 		return ldns_dane_pkix_validate(cert, extra_certs,
 				pkix_validation_store);
-	} else {
-		for (i = 0; i < ldns_rr_list_rr_count(tlsas); i++) {
-			tlsa_rr = ldns_rr_list_rr(tlsas, i);
-			ps = s;
-			s = ldns_dane_verify_rr(tlsa_rr, cert, extra_certs,
-					pkix_validation_store);
 
-			if (s != LDNS_STATUS_DANE_TLSA_DID_NOT_MATCH &&
-			    s != LDNS_STATUS_DANE_PKIX_DID_NOT_VALIDATE) {
+/* To enable name checks (which we don't) */
+#if defined(USE_DANE_TA_USAGE) && 0
+	else if (!(basename_rdf = ldns_dname_clone_from(
+					ldns_rr_list_owner(tlsas), 2)))
+		/* Could nog get DANE base name */
+		s = LDNS_STATUS_ERR;
 
-				/* which would be LDNS_STATUS_OK (match)
-				 * or some fatal error preventing use from
-				 * trying the next TLSA record.
-				 */
-				break;
-			}
-			s = (s > ps ? s : ps); /* prefer PKIX_DID_NOT_VALIDATE
-						* over   TLSA_DID_NOT_MATCH
-						*/
-		}
-		ldns_rr_list_free(tlsas);
+	else if (!(basename = ldns_rdf2str(basename_rdf)))
+		s = LDNS_STATUS_MEM_ERR;
+
+	else if (strlen(basename) && (basename[strlen(basename)-1]  = 0))
+		s = LDNS_STATUS_ERR; /* Intended to be unreachable */
+#endif
+
+	else if (!(usable_tlsas = ldns_dane_filter_unusable_records(tlsas)))
+		return LDNS_STATUS_MEM_ERR;
+
+	else if (ldns_rr_list_rr_count(usable_tlsas) == 0) {
+		/* No TLSA's, so regular PKIX validation
+		 */
+		ldns_rr_list_free(usable_tlsas);
+		return ldns_dane_pkix_validate(cert, extra_certs,
+				pkix_validation_store);
 	}
+#if defined(USE_DANE_TA_USAGE)
+	/* Rely on OpenSSL dane functions.
+	 *
+	 * OpenSSL does not provide offline dane verification.  The dane unit
+	 * tests within openssl use the undocumented SSL_get0_dane() and 
+	 * X509_STORE_CTX_set0_dane() to convey dane parameters set on SSL and
+	 * SSL_CTX to a X509_STORE_CTX that can be used to do offline
+	 * verification.  We use these undocumented means with the ldns
+	 * dane function prototypes which did only offline dane verification.
+	 */
+	if (!(ssl_ctx = SSL_CTX_new(TLS_client_method())))
+		s = LDNS_STATUS_MEM_ERR;
+
+	else if (SSL_CTX_dane_enable(ssl_ctx) <= 0)
+		s = LDNS_STATUS_SSL_ERR;
+
+	else if (SSL_CTX_dane_set_flags(
+				ssl_ctx, DANE_FLAG_NO_DANE_EE_NAMECHECKS),
+			!(ssl = SSL_new(ssl_ctx)))
+		s = LDNS_STATUS_MEM_ERR;
+
+	else if (SSL_set_connect_state(ssl),
+			(SSL_dane_enable(ssl, basename) <= 0))
+		s = LDNS_STATUS_SSL_ERR;
+
+	else for (i = 0; i < ldns_rr_list_rr_count(usable_tlsas); i++) {
+		ldns_tlsa_certificate_usage usage;
+		ldns_tlsa_selector          selector;
+		ldns_tlsa_matching_type     mtype;
+		ldns_rdf*                   data;
+
+		tlsa_rr = ldns_rr_list_rr(usable_tlsas, i);
+		usage   = ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr,0));
+		selector= ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr,1));
+		mtype   = ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr,2));
+		data    =                      ldns_rr_rdf(tlsa_rr,3) ;
+
+		if (SSL_dane_tlsa_add(ssl, usage, selector, mtype,
+					ldns_rdf_data(data),
+					ldns_rdf_size(data)) <= 0) {
+			s = LDNS_STATUS_SSL_ERR;
+			break;
+		}
+	}
+	if (!s && !(store_ctx =  X509_STORE_CTX_new()))
+		s = LDNS_STATUS_MEM_ERR;
+
+	else if (!X509_STORE_CTX_init(store_ctx, pkix_validation_store, cert, extra_certs))
+		s = LDNS_STATUS_SSL_ERR;
+
+	else {
+		int ret;
+
+		X509_STORE_CTX_set_default(store_ctx,
+				SSL_is_server(ssl) ? "ssl_client" : "ssl_server");
+		X509_VERIFY_PARAM_set1(X509_STORE_CTX_get0_param(store_ctx),
+				SSL_get0_param(ssl));
+		X509_STORE_CTX_set0_dane(store_ctx, SSL_get0_dane(ssl));
+		if (SSL_get_verify_callback(ssl))
+			X509_STORE_CTX_set_verify_cb(store_ctx, SSL_get_verify_callback(ssl));
+
+		ret = X509_verify_cert(store_ctx);
+		if (!ret) {
+			if (X509_STORE_CTX_get_error(store_ctx) == X509_V_ERR_DANE_NO_MATCH)
+				s = LDNS_STATUS_DANE_TLSA_DID_NOT_MATCH;
+			else
+				s = LDNS_STATUS_DANE_PKIX_DID_NOT_VALIDATE;
+		}
+		X509_STORE_CTX_cleanup(store_ctx);
+	}
+	if (store_ctx)
+		X509_STORE_CTX_free(store_ctx);
+	if (ssl)
+		SSL_free(ssl);
+	if (ssl_ctx)
+		SSL_CTX_free(ssl_ctx);
+	if (basename)
+		free(basename);
+	ldns_rdf_deep_free(basename_rdf);
+#else
+	for (i = 0; i < ldns_rr_list_rr_count(usable_tlsas); i++) {
+		tlsa_rr = ldns_rr_list_rr(usable_tlsas, i);
+		ps = s;
+		s = ldns_dane_verify_rr(tlsa_rr, cert, extra_certs,
+				pkix_validation_store);
+
+		if (s != LDNS_STATUS_DANE_TLSA_DID_NOT_MATCH &&
+		    s != LDNS_STATUS_DANE_PKIX_DID_NOT_VALIDATE &&
+		    s != LDNS_STATUS_DANE_NEED_OPENSSL_GE_1_1_FOR_DANE_TA) {
+
+			/* which would be LDNS_STATUS_OK (match)
+			 * or some fatal error preventing use from
+			 * trying the next TLSA record.
+			 */
+			break;
+		}
+		s = (s > ps ? s : ps); /* pref NEED_OPENSSL_GE_1_1_FOR_DANE_TA
+		                        * over PKIX_DID_NOT_VALIDATE
+					* over TLSA_DID_NOT_MATCH
+					*/
+	}
+#endif
+	ldns_rr_list_free(usable_tlsas);
 	return s;
 }
+#endif /* USE_DANE_VERIFY */
 #endif /* HAVE_SSL */
 #endif /* USE_DANE */

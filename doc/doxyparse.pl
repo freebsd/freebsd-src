@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# Doxygen is usefull for html documentation, but sucks 
+# Doxygen is useful for html documentation, but sucks
 # in making manual pages. Still tool also parses the .h
 # files with the doxygen documentation and creates
 # the man page we want
@@ -35,7 +35,7 @@ my %see_also;
 
 my $BASE="doc/man";
 my $MAN_SECTION = "3";
-my $MAN_HEADER = ".TH ldns $MAN_SECTION \"30 May 2006\"\n";
+my $MAN_HEADER = ".ad l\n.TH ldns $MAN_SECTION \"30 May 2006\"\n";
 my $MAN_MIDDLE = ".SH AUTHOR
 The ldns team at NLnet Labs. Which consists out of
 Jelte Jansen and Miek Gieben.
@@ -53,14 +53,19 @@ MERCHANTABILITY or
 FITNESS FOR A PARTICULAR PURPOSE.
 ";
 my $MAN_FOOTER = ".SH REMARKS
-This manpage was automaticly generated from the ldns source code by
+This manpage was automatically generated from the ldns source code by
 use of Doxygen and some perl.
 ";
 
-getopts("m:",\%options);
+getopts("em:",\%options);
 # if -m manpage file is given process that file
 # parse the file which tells us what manpages go together
-my $functions, $see_also;
+my $functions, $see_also, $shorts;
+my $i = 0;
+my $report_errors = defined $options{'e'};
+my $errors = 0;
+my %unique;
+
 if (defined $options{'m'}) {
 	# process
 	open(MAN, "<$options{'m'}") or die "Cannot open $options{'m'}";
@@ -68,18 +73,41 @@ if (defined $options{'m'}) {
 		# func1, func2, .. | see_also1, see_also2, ...
 		while(<MAN>) {
 			chomp;
+			$i += 1;
 			if (/^#/) { next; }
 			if (/^$/) { next; }
-			($functions, $see_also) = split /[\t ]*\|[\t ]*/, $_;
+			my @parts = split /[\t ]*\|[\t ]*/, $_;
+			$functions = shift @parts;
+			@parts = split /[\t ]*-[\t ]*/, join ', ', @parts;
+			$see_also = shift @parts;
+			if (! $see_also) {
+				@parts = split /[\t ]*-[\t ]*/, $_;
+				$functions = shift @parts;
+			}
 			#print "{$functions}\n";
 			#print "{$see_also}\n";
 			my @funcs = split /[\t ]*,[\t ]*/, $functions;
 			my @also = split /[\t ]*,[\t ]*/, $see_also;
 			$manpages{$funcs[0]} = \@funcs;
 			$see_also{$funcs[0]} = \@also;
+			$shorts{$funcs[0]} = join '', @parts;
+			foreach (@funcs) {
+				if ($unique{$_}) {
+					push @{$unique{$_}}, ($i,);
+				} else {
+					$unique{$_} = [$i];
+				}
+			}
 			#print "[", $funcs[0], "]\n";
 		}
 	close(MAN);
+	while (($func, $lines) = each %unique ) {
+		if (scalar @$lines > 1) {
+			print STDERR "$func in function_manpages on lines: "
+			    . join(", ",@$lines) . "\n" if $report_errors;
+			$errors += 1;
+		}
+	}
 } else {
 	print "Need -m file to process the .h files\n";
 	exit 1;
@@ -95,7 +123,7 @@ mkdir "doc/man";
 mkdir "doc/man/man$MAN_SECTION";
 
 $state = 0;
-my $i;
+$i = 0;
 my @lines = <STDIN>;
 my $max = @lines;
 
@@ -227,6 +255,7 @@ while($i < $max) {
 foreach (keys %manpages) {
 	$name = $manpages{$_};
 	$also = $see_also{$_};
+	my $shrt = $shorts{$_};
 
 	$filename = @$name[0];
 	$filename = "$BASE/man$MAN_SECTION/$filename.$MAN_SECTION";
@@ -239,6 +268,9 @@ foreach (keys %manpages) {
 	print MAN  $MAN_HEADER;
 	print MAN  ".SH NAME\n";
 	print MAN  join ", ", @$name;
+	if ($shrt) {
+		print MAN " \\- $shrt";
+	}
 	print MAN  "\n\n";
 	print MAN  ".SH SYNOPSIS\n";
 
@@ -273,7 +305,7 @@ foreach (keys %manpages) {
 
 	print MAN $MAN_MIDDLE;
 
-	if (defined(@$also)) {
+	if (@$also) {
 		print MAN "\n.SH SEE ALSO\n\\fI";
 		print MAN join "\\fR, \\fI", @$also;
 		print MAN "\\fR.\nAnd ";
@@ -290,7 +322,7 @@ foreach (keys %manpages) {
 	# create symlinks
 	chdir("$BASE/man$MAN_SECTION");
 	foreach (@$name) {
-		print STDERR $_,"\n";
+		print STDOUT $_,"\n";
 		my $new_file = $_ . "." . $MAN_SECTION;
 		if ($new_file eq $symlink_file) {
 			next;
@@ -301,3 +333,12 @@ foreach (keys %manpages) {
 	chdir("../../.."); # and back, tricky and fragile...
 	close(MAN);
 }
+foreach (keys %api) {
+	next if (/ / || /^$/);
+	if (not $unique{$_}) {
+		print STDERR "no man page for $_\n" if $report_errors;
+		#$errors += 1;
+	}
+}
+
+exit ($report_errors and $errors != 0);

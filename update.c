@@ -25,7 +25,7 @@
 
 ldns_pkt *
 ldns_update_pkt_new(ldns_rdf *zone_rdf, ldns_rr_class c,
-    ldns_rr_list *pr_rrlist, ldns_rr_list *up_rrlist, ldns_rr_list *ad_rrlist)
+    const ldns_rr_list *pr_rrlist, const ldns_rr_list *up_rrlist, const ldns_rr_list *ad_rrlist)
 {
 	ldns_pkt *p;
 
@@ -67,7 +67,7 @@ ldns_update_pkt_new(ldns_rdf *zone_rdf, ldns_rr_class c,
 }
 
 ldns_status
-ldns_update_pkt_tsig_add(ldns_pkt *p, ldns_resolver *r)
+ldns_update_pkt_tsig_add(ldns_pkt *p, const ldns_resolver *r)
 {
 #ifdef HAVE_SSL
 	uint16_t fudge = 300; /* Recommended fudge. [RFC2845 6.4]  */
@@ -135,6 +135,7 @@ ldns_update_soa_zone_mname(const char *fqdn, ldns_resolver *r,
 	ldns_rdf	*ipaddr, *fqdn_rdf, *tmp;
 	ldns_rdf	**nslist;
 	ldns_pkt	*query, *resp;
+	ldns_resolver   *tmp_r;
 	size_t		i;
 
 	/* 
@@ -201,8 +202,11 @@ ldns_update_soa_zone_mname(const char *fqdn, ldns_resolver *r,
 	ipaddr = ldns_rr_rdf(rr, 0);
 
 	/* Put the SOA mname IP first in the nameserver list. */
-	nslist = ldns_resolver_nameservers(r);
-	for (i = 0; i < ldns_resolver_nameserver_count(r); i++) {
+	if (!(tmp_r = ldns_resolver_clone(r))) {
+		return LDNS_STATUS_MEM_ERR;
+	}
+	nslist = ldns_resolver_nameservers(tmp_r);
+	for (i = 0; i < ldns_resolver_nameserver_count(tmp_r); i++) {
 		if (ldns_rdf_compare(ipaddr, nslist[i]) == 0) {
 			if (i) {
 				tmp = nslist[0];
@@ -212,11 +216,11 @@ ldns_update_soa_zone_mname(const char *fqdn, ldns_resolver *r,
 			break;
 		}
 	}
-	if (i >= ldns_resolver_nameserver_count(r)) {
+	if (i >= ldns_resolver_nameserver_count(tmp_r)) {
 		/* SOA mname was not part of the resolver so add it first. */
-		(void) ldns_resolver_push_nameserver(r, ipaddr);
-		nslist = ldns_resolver_nameservers(r);
-		i = ldns_resolver_nameserver_count(r) - 1;
+		(void) ldns_resolver_push_nameserver(tmp_r, ipaddr);
+		nslist = ldns_resolver_nameservers(tmp_r);
+		i = ldns_resolver_nameserver_count(tmp_r) - 1;
 		tmp = nslist[0];
 		nslist[0] = nslist[i];
 		nslist[i] = tmp;
@@ -224,21 +228,24 @@ ldns_update_soa_zone_mname(const char *fqdn, ldns_resolver *r,
 	ldns_pkt_free(resp);
 
 	/* Make sure to ask the first in the list, i.e SOA mname */
-	ldns_resolver_set_random(r, false);
+	ldns_resolver_set_random(tmp_r, false);
 
 	/* Step 3 - Redo SOA query, sending to SOA MNAME directly. */
 	fqdn_rdf = ldns_dname_new_frm_str(fqdn);
 	query = ldns_pkt_query_new(fqdn_rdf, LDNS_RR_TYPE_SOA, c, LDNS_RD);
 	if (!query) {
+		ldns_resolver_free(tmp_r);
 		return LDNS_STATUS_ERR;
 	}
 	fqdn_rdf = NULL;
 
 	ldns_pkt_set_random_id(query);
-	if (ldns_resolver_send_pkt(&resp, r, query) != LDNS_STATUS_OK) {
+	if (ldns_resolver_send_pkt(&resp, tmp_r, query) != LDNS_STATUS_OK) {
 		ldns_pkt_free(query);
+		ldns_resolver_free(tmp_r);
 		return LDNS_STATUS_ERR;
 	}
+	ldns_resolver_free(tmp_r);
 	ldns_pkt_free(query);
 	if (!resp) {
 		return LDNS_STATUS_ERR;

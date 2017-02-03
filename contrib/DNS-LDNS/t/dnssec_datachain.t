@@ -18,39 +18,43 @@ my $p = $r->query(
     new DNS::LDNS::RData(LDNS_RDF_TYPE_DNAME, 'iis.se.'),
     LDNS_RR_TYPE_SOA, LDNS_RR_CLASS_IN, LDNS_RD);
 
-isa_ok($p, 'DNS::LDNS::Packet');
+SKIP: {
+    skip "Resolver is not dnssec able. Skip this test.", 9 unless ($p->ad);
 
-my $rrset = $p->rr_list_by_type(LDNS_RR_TYPE_SOA, LDNS_SECTION_ANSWER);
+    isa_ok($p, 'DNS::LDNS::Packet');
 
-ok($rrset->rr_count > 0, 'Got an answer with some content');
+    my $rrset = $p->rr_list_by_type(LDNS_RR_TYPE_SOA, LDNS_SECTION_ANSWER);
 
-my $chain = $r->build_data_chain(LDNS_RD, $rrset, $p, undef);
+    ok($rrset->rr_count > 0, 'Got an answer with some content');
 
-isa_ok($chain, 'DNS::LDNS::DNSSecDataChain');
+    my $chain = $r->build_data_chain(LDNS_RD, $rrset, $p, undef);
 
-isa_ok($chain->parent, 'DNS::LDNS::DNSSecDataChain');
+    isa_ok($chain, 'DNS::LDNS::DNSSecDataChain');
 
-dies_ok { 
-    my $new_rr = new DNS::LDNS::RR(str => 'test.test. 1234 IN A 10.0.0.1');
-    my $t = $chain->derive_trust_tree($new_rr); 
-} 'Making a trust tree with foreign rr fails.';
+    isa_ok($chain->parent, 'DNS::LDNS::DNSSecDataChain');
 
-my $rr = $chain->rrset->rr(0);
+    dies_ok { 
+        my $new_rr = new DNS::LDNS::RR(str => 'test.test. 1234 IN A 10.0.0.1');
+        my $t = $chain->derive_trust_tree($new_rr); 
+    } 'Making a trust tree with foreign rr fails.';
 
-my $tree = $chain->derive_trust_tree($rr);
+    my $rr = $chain->rrset->rr(0);
 
-isa_ok($tree, 'DNS::LDNS::DNSSecTrustTree');
+    my $tree = $chain->derive_trust_tree($rr);
 
-# Get root keys.
-my $root_keys_pk = $r->query(
-    new DNS::LDNS::RData(LDNS_RDF_TYPE_DNAME, '.'),
-    LDNS_RR_TYPE_DNSKEY, LDNS_RR_CLASS_IN, LDNS_RD);
-my $root_keys = $root_keys_pk->rr_list_by_type(
-    LDNS_RR_TYPE_DNSKEY, LDNS_SECTION_ANSWER);
+    isa_ok($tree, 'DNS::LDNS::DNSSecTrustTree');
 
-is($tree->contains_keys($root_keys), LDNS_STATUS_OK, 
-   'Root key found in trust chain');
+    # Get root keys.
+    my $root_keys_pk = $r->query(
+        new DNS::LDNS::RData(LDNS_RDF_TYPE_DNAME, '.'),
+        LDNS_RR_TYPE_DNSKEY, LDNS_RR_CLASS_IN, LDNS_RD);
+    my $root_keys = $root_keys_pk->rr_list_by_type(
+        LDNS_RR_TYPE_DNSKEY, LDNS_SECTION_ANSWER);
 
-ok($tree->depth > 1, 'The trust tree is more than one node.');
+    is($tree->contains_keys($root_keys), LDNS_STATUS_OK, 
+        'Root key found in trust chain');
 
-isa_ok($tree->parent(0), 'DNS::LDNS::DNSSecTrustTree');
+    ok($tree->depth > 1, 'The trust tree is more than one node.');
+
+    isa_ok($tree->parent(0), 'DNS::LDNS::DNSSecTrustTree');
+}
