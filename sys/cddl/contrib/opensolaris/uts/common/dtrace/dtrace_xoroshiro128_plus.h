@@ -1,6 +1,11 @@
 /*-
- * Copyright (c) 2012 Olivier Houchard <cognet@FreeBSD.org>
+ * Copyright (c) 2016 (Graeme Jenkinson)
  * All rights reserved.
+ *
+ * This software was developed by BAE Systems, the University of Cambridge
+ * Computer Laboratory, and Memorial University under DARPA/AFRL contract
+ * FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent Computing
+ * (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,41 +28,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
-#ifndef	_MACHINE_ASMACROS_H_
-#define	_MACHINE_ASMACROS_H_
-
-#include <machine/asm.h>
-
-#ifdef _KERNEL
-
-#ifdef LOCORE
-
-#if __ARM_ARCH >= 6
-#define GET_CURTHREAD_PTR(tmp) \
-    	mrc	p15, 0, tmp, c13, c0, 4
-#else
-#define GET_CURTHREAD_PTR(tmp)	\
-	ldr	tmp, =_C_LABEL(__pcpu);\
-	ldr	tmp, [tmp, #PC_CURTHREAD]
+#ifndef _DTRACE_XOROSHIRO128_PLUS_H
+#define _DTRACE_XOROSHIRO128_PLUS_H
 #endif
 
-#define	ELFNOTE(section, type, vendor, desctype, descdata...)	  \
-	.pushsection section					; \
-	    .balign 4						; \
-	    .long 2f - 1f		/* namesz */		; \
-	    .long 4f - 3f		/* descsz */		; \
-	    .long type			/* type */		; \
-	    1: .asciz vendor		/* vendor name */	; \
-	    2: .balign 4					; \
-	    3:  desctype descdata	/* node */		; \
-	    4: .balign 4					; \
-	.popsection
+#include <sys/types.h>
 
-#endif /* LOCORE */
-
-#endif /* _KERNEL */
-
-#endif /* !_MACHINE_ASMACROS_H_ */
+extern void dtrace_xoroshiro128_plus_jump(uint64_t * const, uint64_t * const);
+extern uint64_t dtrace_xoroshiro128_plus_next(uint64_t * const);

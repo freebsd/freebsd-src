@@ -26,6 +26,7 @@ SRCS+=	time_event.c
 # of a short. There's no good cast to use here so just ignore the
 # warnings for now.
 CWARNFLAGS.efinet.c+=	-Wno-format
+CWARNFLAGS.env.c+=	-Wno-format
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-msoft-float -mgeneral-regs-only

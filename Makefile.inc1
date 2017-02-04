@@ -242,13 +242,11 @@ SUBDIR+=	${_DIR}
 # of a LOCAL_DIRS directory.  This allows LOCAL_DIRS=foo and
 # LOCAL_LIB_DIRS=foo/lib to behave as expected.
 .for _DIR in ${LOCAL_DIRS:M*/} ${LOCAL_DIRS:N*/:S|$|/|}
-_REDUNDENT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
+_REDUNDANT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
 .endfor
 .for _DIR in ${LOCAL_LIB_DIRS}
-.if empty(_REDUNDENT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile)
+.if empty(_REDUNDANT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile)
 SUBDIR+=	${_DIR}
-.else
-.warning ${_DIR} not added to SUBDIR list.  See UPDATING 20141121.
 .endif
 .endfor
 
@@ -1950,6 +1948,7 @@ native-xtools: .PHONY
     usr.bin/mktemp \
     usr.bin/mt \
     usr.bin/patch \
+    usr.bin/readelf \
     usr.bin/sed \
     usr.bin/sort \
     usr.bin/tar \
