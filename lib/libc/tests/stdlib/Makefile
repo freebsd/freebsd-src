@@ -11,6 +11,14 @@ ATF_TESTS_CXX+=		cxa_thread_atexit_test
 ATF_TESTS_CXX+=		cxa_thread_atexit_nothr_test
 .endif
 
+# Not sure why this isn't defined for all architectures, since most
+# have long double.
+.if ${MACHINE_CPUARCH} == "aarch64" || \
+    ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
+CFLAGS+=	-D__HAVE_LONG_DOUBLE
+.endif
+
 # TODO: t_getenv_thread, t_mi_vector_hash, t_strtoi
 NETBSD_ATF_TESTS_C+=	abs_test
 NETBSD_ATF_TESTS_C+=	atoi_test
