@@ -76,8 +76,3 @@ LDADD=	-lkvm -ldevinfo -lm -lgeom -lmemstat
 
 printcap.So: printcap.c
 	${CC} ${PICFLAG} -DPIC ${CFLAGS:C/^-W.*//} -c ${.IMPSRC} -o ${.TARGET}
-
-smilint: .PHONY
-smilint: ${BMIBS}
-	env SMIPATH=.:/usr/share/snmp/mibs:/usr/local/share/snmp/mibs \
-	    smilint -c /dev/null -l6 -i group-membership ${.ALLSRC}

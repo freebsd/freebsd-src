@@ -24,4 +24,18 @@ FILESGROUPS+=	BMIBS
 BMIBSDIR=	${SHAREDIR}/snmp/mibs
 .endif
 
+.if !target(smilint) && !empty(BMIBS)
+LOCALBASE?=	/usr/local
+
+SMILINT?=	${LOCALBASE}/bin/smilint
+
+SMIPATH?=	${BMIBSDIR}:${LOCALBASE}/share/snmp/mibs
+
+SMILINT_FLAGS?=	-c /dev/null -l6 -i group-membership
+
+smilint: ${BMIBS}
+	SMIPATH=${SMIPATH} ${SMILINT} ${SMILINT_FLAGS} ${.ALLSRC}
+.endif
+smilint: .PHONY
+
 .include <bsd.lib.mk>
