@@ -27,7 +27,7 @@ CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	ssh_namespace.h
 
 # pam should always happen before ssh here for static linking
-LIBADD=	pam ssh util wrap
+LIBADD=	pam ssh util
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
@@ -51,6 +51,11 @@ LDFLAGS+=-L${LIBBLACKLISTDIR}
 CFLAGS+= -include krb5_config.h
 SRCS+=	krb5_config.h
 LIBADD+=	gssapi_krb5 gssapi krb5
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DLIBWRAP
+LIBADD+=	wrap
 .endif
 
 LIBADD+=	crypto
