@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 RPCDIR=	${.CURDIR}/../../include/rpcsvc
 .PATH: ${RPCDIR}
 
@@ -8,12 +10,15 @@ MAN=	ypserv.8 ypinit.8
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
 	ypxfr_clnt.c yp.h yp_main.c yp_error.c yp_access.c yp_svc_udp.c
 
-CFLAGS+= -DDB_CACHE -DTCP_WRAPPER -I.
+CFLAGS+= -DDB_CACHE -I.
 
 WARNS?=	0
 
-DPADD=	${LIBWRAP}
-LDADD=	-lwrap
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DTCP_WRAPPER
+DPADD+=		${LIBWRAP}
+LDADD+=		-lwrap
+.endif
 
 CLEANFILES= yp_svc.c ypxfr_clnt.c yp.h
 
