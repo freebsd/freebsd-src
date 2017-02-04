@@ -192,8 +192,7 @@ ATF_TC_WITHOUT_HEAD(mmap__dev_zero_private);
 ATF_TC_BODY(mmap__dev_zero_private, tc)
 {
 	char *p1, *p2, *p3;
-	size_t i;
-	int fd, pagesize;
+	int fd, i, pagesize;
 
 	ATF_REQUIRE((pagesize = getpagesize()) > 0);
 	ATF_REQUIRE((fd = open("/dev/zero", O_RDONLY)) >= 0);
@@ -205,7 +204,7 @@ ATF_TC_BODY(mmap__dev_zero_private, tc)
 	ATF_REQUIRE(p2 != MAP_FAILED);
 
 	for (i = 0; i < pagesize; i++)
-		ATF_REQUIRE_EQ_MSG(0, p1[i], "byte at p1[%zu] is %x", i, p1[i]);
+		ATF_REQUIRE_EQ_MSG(0, p1[i], "byte at p1[%d] is %x", i, p1[i]);
 
 	ATF_REQUIRE(memcmp(p1, p2, pagesize) == 0);
 
@@ -232,8 +231,7 @@ ATF_TC_WITHOUT_HEAD(mmap__dev_zero_shared);
 ATF_TC_BODY(mmap__dev_zero_shared, tc)
 {
 	char *p1, *p2, *p3;
-	size_t i;
-	int fd, pagesize;
+	int fd, i, pagesize;
 
 	ATF_REQUIRE((pagesize = getpagesize()) > 0);
 	ATF_REQUIRE((fd = open("/dev/zero", O_RDWR)) >= 0);
@@ -245,7 +243,7 @@ ATF_TC_BODY(mmap__dev_zero_shared, tc)
 	ATF_REQUIRE(p2 != MAP_FAILED);
 
 	for (i = 0; i < pagesize; i++)
-		ATF_REQUIRE_EQ_MSG(0, p1[i], "byte at p1[%zu] is %x", i, p1[i]);
+		ATF_REQUIRE_EQ_MSG(0, p1[i], "byte at p1[%d] is %x", i, p1[i]);
 
 	ATF_REQUIRE(memcmp(p1, p2, pagesize) == 0);
 
