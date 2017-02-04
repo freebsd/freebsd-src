@@ -100,7 +100,7 @@ struct mmc_command {
 #define	MMC_ERR_FAILED	4
 #define	MMC_ERR_INVALID	5
 #define	MMC_ERR_NO_MEMORY 6
-#define MMC_ERR_MAX	6
+#define	MMC_ERR_MAX	6
 	struct mmc_data	*data;		/* Data segment with cmd */
 	struct mmc_request *mrq;	/* backpointer to request */
 };
@@ -291,47 +291,47 @@ struct mmc_request {
 /*
  * EXT_CSD fields
  */
-#define EXT_CSD_ERASE_GRP_DEF	175	/* R/W */
-#define EXT_CSD_BUS_WIDTH	183	/* R/W */
-#define EXT_CSD_HS_TIMING	185	/* R/W */
-#define EXT_CSD_CARD_TYPE	196	/* RO */
-#define EXT_CSD_REV		192	/* RO */
-#define EXT_CSD_SEC_CNT		212	/* RO, 4 bytes */
-#define EXT_CSD_ERASE_TO_MULT	223	/* RO */
-#define EXT_CSD_ERASE_GRP_SIZE	224	/* RO */
+#define	EXT_CSD_ERASE_GRP_DEF	175	/* R/W */
+#define	EXT_CSD_BUS_WIDTH	183	/* R/W */
+#define	EXT_CSD_HS_TIMING	185	/* R/W */
+#define	EXT_CSD_CARD_TYPE	196	/* RO */
+#define	EXT_CSD_REV		192	/* RO */
+#define	EXT_CSD_SEC_CNT		212	/* RO, 4 bytes */
+#define	EXT_CSD_ERASE_TO_MULT	223	/* RO */
+#define	EXT_CSD_ERASE_GRP_SIZE	224	/* RO */
 
 /*
  * EXT_CSD field definitions
  */
-#define EXT_CSD_CMD_SET_NORMAL		1
-#define EXT_CSD_CMD_SET_SECURE		2
-#define EXT_CSD_CMD_SET_CPSECURE	4
+#define	EXT_CSD_CMD_SET_NORMAL		1
+#define	EXT_CSD_CMD_SET_SECURE		2
+#define	EXT_CSD_CMD_SET_CPSECURE	4
 
-#define EXT_CSD_CARD_TYPE_26	1
-#define EXT_CSD_CARD_TYPE_52	2
+#define	EXT_CSD_CARD_TYPE_26	1
+#define	EXT_CSD_CARD_TYPE_52	2
 
-#define EXT_CSD_BUS_WIDTH_1	0
-#define EXT_CSD_BUS_WIDTH_4	1
-#define EXT_CSD_BUS_WIDTH_8	2
+#define	EXT_CSD_BUS_WIDTH_1	0
+#define	EXT_CSD_BUS_WIDTH_4	1
+#define	EXT_CSD_BUS_WIDTH_8	2
 
-#define MMC_TYPE_26_MAX_HS	26000000
-#define MMC_TYPE_52_MAX_HS	52000000
+#define	MMC_TYPE_26_MAX_HS	26000000
+#define	MMC_TYPE_52_MAX_HS	52000000
 
 /*
  * SD bus widths
  */
-#define SD_BUS_WIDTH_1		0
-#define SD_BUS_WIDTH_4		2
+#define	SD_BUS_WIDTH_1		0
+#define	SD_BUS_WIDTH_4		2
 
 /*
  * SD Switch
  */
-#define SD_SWITCH_MODE_CHECK	0
-#define SD_SWITCH_MODE_SET	1
-#define SD_SWITCH_GROUP1	0
-#define SD_SWITCH_NORMAL_MODE	0
-#define SD_SWITCH_HS_MODE	1
-#define SD_SWITCH_NOCHANGE	0xF
+#define	SD_SWITCH_MODE_CHECK	0
+#define	SD_SWITCH_MODE_SET	1
+#define	SD_SWITCH_GROUP1	0
+#define	SD_SWITCH_NORMAL_MODE	0
+#define	SD_SWITCH_HS_MODE	1
+#define	SD_SWITCH_NOCHANGE	0xF
 
 #define	SD_CLR_CARD_DETECT	0
 #define	SD_SET_CARD_DETECT	1
@@ -419,8 +419,8 @@ struct mmc_scr
 {
 	unsigned char		sda_vsn;
 	unsigned char		bus_widths;
-#define SD_SCR_BUS_WIDTH_1	(1<<0)
-#define SD_SCR_BUS_WIDTH_4	(1<<2)
+#define	SD_SCR_BUS_WIDTH_1	(1 << 0)
+#define	SD_SCR_BUS_WIDTH_4	(1 << 2)
 };
 
 struct mmc_sd_status
@@ -443,6 +443,6 @@ struct mmc_sd_status
  * byte sector size anywhere, so we assume that such cards are very rare
  * and only note their existence in passing here...
  */
-#define MMC_SECTOR_SIZE	512
+#define	MMC_SECTOR_SIZE	512
 
 #endif /* DEV_MMCREG_H */
