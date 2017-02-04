@@ -37,7 +37,7 @@ NIS=	-DNIS
 MAPS=	-DMAP_REGEX -DDNSMAP
 
 CFLAGS+= -I${SMDIR} -I${SENDMAIL_DIR}/include -I.
-CFLAGS+= ${DBMDEF} ${NIS} -DTCPWRAPPERS ${MAPS}
+CFLAGS+= ${DBMDEF} ${NIS} ${MAPS}
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DNETINET6 -DIPV6_FULL=0
@@ -45,8 +45,8 @@ CFLAGS+= -DNETINET6 -DIPV6_FULL=0
 
 WARNS?=	0
 
-DPADD=	${LIBUTIL} ${LIBWRAP}
-LDADD=	-lutil -lwrap
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 LIBSMDIR=	${.OBJDIR}/../../lib/libsm
 LIBSM=		${LIBSMDIR}/libsm.a
@@ -65,6 +65,12 @@ CLEANFILES+=sm_os.h
 CFLAGS+=	-DSTARTTLS -D_FFR_TLS_1
 DPADD+=		${LIBSSL} ${LIBCRYPTO}
 LDADD+=		-lssl -lcrypto
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DTCPWRAPPERS
+DPADD+=		${LIBWRAP}
+LDADD+=		-lwrap
 .endif
 
 # User customizations to the sendmail build environment
