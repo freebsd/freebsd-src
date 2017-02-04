@@ -111,14 +111,15 @@ struct mmc_ivars {
 	char card_sn_string[16];/* Formatted serial # for disk->d_ident */
 };
 
-#define CMD_RETRIES	3
+#define	CMD_RETRIES	3
 
 #define	CARD_ID_FREQUENCY 400000 /* Spec requires 400kHz max during ID phase. */
 
 static SYSCTL_NODE(_hw, OID_AUTO, mmc, CTLFLAG_RD, NULL, "mmc driver");
 
 static int mmc_debug;
-SYSCTL_INT(_hw_mmc, OID_AUTO, debug, CTLFLAG_RWTUN, &mmc_debug, 0, "Debug level");
+SYSCTL_INT(_hw_mmc, OID_AUTO, debug, CTLFLAG_RWTUN, &mmc_debug, 0,
+    "Debug level");
 
 /* bus entry points */
 static int mmc_acquire_bus(device_t busdev, device_t dev);
@@ -137,14 +138,14 @@ static int mmc_wait_for_request(device_t brdev, device_t reqdev,
 static int mmc_write_ivar(device_t bus, device_t child, int which,
     uintptr_t value);
 
-#define MMC_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	MMC_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	MMC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define MMC_LOCK_INIT(_sc)					\
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev),	\
+#define	MMC_LOCK_INIT(_sc)						\
+	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->dev),	\
 	    "mmc", MTX_DEF)
-#define MMC_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define MMC_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define MMC_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define	MMC_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx);
+#define	MMC_ASSERT_LOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED);
+#define	MMC_ASSERT_UNLOCKED(_sc) mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED);
 
 static int mmc_all_send_cid(struct mmc_softc *sc, uint32_t *rawcid);
 static void mmc_app_decode_scr(uint32_t *raw_scr, struct mmc_scr *scr);
@@ -744,9 +745,9 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 static int
 mmc_set_timing(struct mmc_softc *sc, int timing)
 {
+	u_char switch_res[64];
 	int err;
 	uint8_t	value;
-	u_char switch_res[64];
 
 	switch (timing) {
 	case bus_timing_normal:
@@ -1161,9 +1162,9 @@ mmc_app_send_scr(struct mmc_softc *sc, uint16_t rca, uint32_t *rawscr)
 static int
 mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd)
 {
-	int err;
 	struct mmc_command cmd;
 	struct mmc_data data;
+	int err;
 
 	memset(&cmd, 0, sizeof(cmd));
 	memset(&data, 0, sizeof(data));
@@ -1185,9 +1186,9 @@ mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd)
 static int
 mmc_app_sd_status(struct mmc_softc *sc, uint16_t rca, uint32_t *rawsdstatus)
 {
-	int err, i;
 	struct mmc_command cmd;
 	struct mmc_data data;
+	int err, i;
 
 	memset(&cmd, 0, sizeof(cmd));
 	memset(&data, 0, sizeof(data));
@@ -1393,7 +1394,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			 * commands, although the state tables / diagrams in the
 			 * standard suggest they go back to the transfer state.
 			 * Other cards don't become deselected, and if we
-			 * atttempt to blindly re-select them, we get timeout
+			 * attempt to blindly re-select them, we get timeout
 			 * errors from some controllers.  So we deselect then
 			 * reselect to handle all situations.  The only thing we
 			 * use from the sd_status is the erase sector size, but
@@ -1534,7 +1535,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 static void
 mmc_rescan_cards(struct mmc_softc *sc)
 {
-	struct mmc_ivars *ivar = NULL;
+	struct mmc_ivars *ivar;
 	device_t *devlist;
 	int err, i, devcount;
 
@@ -1664,14 +1665,13 @@ mmc_go_discovery(struct mmc_softc *sc)
 static int
 mmc_calculate_clock(struct mmc_softc *sc)
 {
-	int max_dtr, max_hs_dtr, max_timing;
-	int nkid, i, f_max;
 	device_t *kids;
 	struct mmc_ivars *ivar;
+	int i, f_max, max_dtr, max_hs_dtr, max_timing, nkid;
 
 	f_max = mmcbr_get_f_max(sc->dev);
 	max_dtr = max_hs_dtr = f_max;
-	if ((mmcbr_get_caps(sc->dev) & MMC_CAP_HSPEED))
+	if (mmcbr_get_caps(sc->dev) & MMC_CAP_HSPEED)
 		max_timing = bus_timing_hs;
 	else
 		max_timing = bus_timing_normal;

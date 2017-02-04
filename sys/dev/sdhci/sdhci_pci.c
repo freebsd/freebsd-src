@@ -58,13 +58,13 @@ __FBSDID("$FreeBSD$");
  * PCI registers
  */
 
-#define PCI_SDHCI_IFPIO			0x00
-#define PCI_SDHCI_IFDMA			0x01
-#define PCI_SDHCI_IFVENDOR		0x02
+#define	PCI_SDHCI_IFPIO			0x00
+#define	PCI_SDHCI_IFDMA			0x01
+#define	PCI_SDHCI_IFVENDOR		0x02
 
-#define PCI_SLOT_INFO			0x40	/* 8 bits */
-#define PCI_SLOT_INFO_SLOTS(x)		(((x >> 4) & 7) + 1)
-#define PCI_SLOT_INFO_FIRST_BAR(x)	((x) & 7)
+#define	PCI_SLOT_INFO			0x40	/* 8 bits */
+#define	PCI_SLOT_INFO_SLOTS(x)		(((x >> 4) & 7) + 1)
+#define	PCI_SLOT_INFO_FIRST_BAR(x)	((x) & 7)
 
 /*
  * RICOH specific PCI registers
@@ -300,6 +300,7 @@ static int
 sdhci_pci_attach(device_t dev)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
+	struct sdhci_slot *slot;
 	uint32_t model;
 	uint16_t subvendor;
 	int bar, err, rid, slots, i;
@@ -342,7 +343,7 @@ sdhci_pci_attach(device_t dev)
 	}
 	/* Scan all slots. */
 	for (i = 0; i < slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[sc->num_slots];
+		slot = &sc->slots[sc->num_slots];
 
 		/* Allocate memory. */
 		rid = PCIR_BAR(bar + i);
@@ -353,7 +354,7 @@ sdhci_pci_attach(device_t dev)
 			    "Can't allocate memory for slot %d\n", i);
 			continue;
 		}
-		
+
 		slot->quirks = sc->quirks;
 
 		if (sdhci_init_slot(dev, slot, i) != 0)
@@ -369,11 +370,8 @@ sdhci_pci_attach(device_t dev)
 		device_printf(dev, "Can't setup IRQ\n");
 	pci_enable_busmaster(dev);
 	/* Process cards detection. */
-	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-
-		sdhci_start_slot(slot);
-	}
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_start_slot(&sc->slots[i]);
 
 	return (0);
 }
@@ -390,9 +388,7 @@ sdhci_pci_detach(device_t dev)
 	pci_release_msi(dev);
 
 	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-
-		sdhci_cleanup_slot(slot);
+		sdhci_cleanup_slot(&sc->slots[i]);
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem_res[i]), sc->mem_res[i]);
 	}
@@ -447,20 +443,18 @@ sdhci_pci_intr(void *arg)
 	struct sdhci_pci_softc *sc = (struct sdhci_pci_softc *)arg;
 	int i;
 
-	for (i = 0; i < sc->num_slots; i++) {
-		struct sdhci_slot *slot = &sc->slots[i];
-		sdhci_generic_intr(slot);
-	}
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_generic_intr(&sc->slots[i]);
 }
 
 static device_method_t sdhci_methods[] = {
 	/* device_if */
-	DEVMETHOD(device_probe, sdhci_pci_probe),
-	DEVMETHOD(device_attach, sdhci_pci_attach),
-	DEVMETHOD(device_detach, sdhci_pci_detach),
-	DEVMETHOD(device_shutdown, sdhci_pci_shutdown),
-	DEVMETHOD(device_suspend, sdhci_pci_suspend),
-	DEVMETHOD(device_resume, sdhci_pci_resume),
+	DEVMETHOD(device_probe,		sdhci_pci_probe),
+	DEVMETHOD(device_attach,	sdhci_pci_attach),
+	DEVMETHOD(device_detach,	sdhci_pci_detach),
+	DEVMETHOD(device_shutdown,	sdhci_pci_shutdown),
+	DEVMETHOD(device_suspend,	sdhci_pci_suspend),
+	DEVMETHOD(device_resume,	sdhci_pci_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
