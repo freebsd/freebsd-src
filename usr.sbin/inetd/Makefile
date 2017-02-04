@@ -16,8 +16,14 @@ CFLAGS+= -DLOGIN_CAP
 CFLAGS+= -DINET6
 .endif
 
-DPADD=	${LIBUTIL} ${LIBWRAP}
-LDADD=	-lutil -lwrap
+DPADD+=		${LIBUTIL}
+LDADD+=		-lutil
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DLIBWRAP
+DPADD+=		${LIBWRAP}
+LDADD+=		-lwrap
+.endif
 
 # XXX for src/release/picobsd
 .if !defined(RELEASE_CRUNCH)

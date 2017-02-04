@@ -138,7 +138,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sysexits.h>
 #include <syslog.h>
+#ifdef LIBWRAP
 #include <tcpd.h>
+#endif
 #include <unistd.h>
 
 #include "inetd.h"
@@ -297,6 +299,7 @@ getvalue(const char *arg, int *value, const char *whine)
 	return 0;				/* success */
 }
 
+#ifdef LIBWRAP
 static sa_family_t
 whichaf(struct request_info *req)
 {
@@ -310,6 +313,7 @@ whichaf(struct request_info *req)
 		return AF_INET;
 	return sa->sa_family;
 }
+#endif
 
 int
 main(int argc, char **argv)
@@ -324,9 +328,11 @@ main(int argc, char **argv)
 #ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
 #endif
+#ifdef LIBWRAP
 	struct request_info req;
 	int denied;
 	char *service = NULL;
+#endif
 	struct sockaddr_storage peer;
 	int i;
 	struct addrinfo hints, *res;
@@ -736,6 +742,7 @@ main(int argc, char **argv)
 					    _exit(0);
 				    }
 			    }
+#ifdef LIBWRAP
 			    if (ISWRAP(sep)) {
 				inetd_setproctitle("wrapping", ctrl);
 				service = sep->se_server_name ?
@@ -764,6 +771,7 @@ main(int argc, char **argv)
 					(whichaf(&req) == AF_INET6) ? "6" : "");
 				}
 			    }
+#endif
 			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
 			    } else {
