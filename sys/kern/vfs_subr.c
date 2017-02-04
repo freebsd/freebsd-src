@@ -1489,12 +1489,14 @@ alloc:
 	vp->v_op = vops;
 	v_init_counters(vp);
 	vp->v_bufobj.bo_ops = &buf_ops_bio;
+#ifdef DIAGNOSTIC
+	if (mp == NULL && vops != &dead_vnodeops)
+		printf("NULL mp in getnewvnode(9), tag %s\n", tag);
+#endif
 #ifdef MAC
 	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
 		mac_vnode_associate_singlelabel(mp, vp);
-	else if (mp == NULL && vops != &dead_vnodeops)
-		printf("NULL mp in getnewvnode()\n");
 #endif
 	if (mp != NULL) {
 		vp->v_bufobj.bo_bsize = mp->mnt_stat.f_iosize;

@@ -719,13 +719,9 @@ start_again:
 	if (num_mk) {
 		SCTPDBG(SCTP_DEBUG_TIMER1, "LAST TSN marked was %x\n",
 		    tsnlast);
-		SCTPDBG(SCTP_DEBUG_TIMER1, "Num marked for retransmission was %d peer-rwd:%ld\n",
-		    num_mk, (u_long)stcb->asoc.peers_rwnd);
-		SCTPDBG(SCTP_DEBUG_TIMER1, "LAST TSN marked was %x\n",
-		    tsnlast);
-		SCTPDBG(SCTP_DEBUG_TIMER1, "Num marked for retransmission was %d peer-rwd:%d\n",
+		SCTPDBG(SCTP_DEBUG_TIMER1, "Num marked for retransmission was %d peer-rwd:%u\n",
 		    num_mk,
-		    (int)stcb->asoc.peers_rwnd);
+		    stcb->asoc.peers_rwnd);
 	}
 #endif
 	*num_marked = num_mk;

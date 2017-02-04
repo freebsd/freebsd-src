@@ -1,7 +1,7 @@
-/*	$Id: term.c,v 1.257 2016/04/12 15:30:00 schwarze Exp $ */
+/*	$Id: term.c,v 1.259 2017/01/08 18:16:58 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -504,7 +504,9 @@ term_word(struct termp *p, const char *word)
 				}
 			}
 			/* Trim trailing backspace/blank pair. */
-			if (p->col > 2 && p->buf[p->col - 1] == ' ')
+			if (p->col > 2 &&
+			    (p->buf[p->col - 1] == ' ' ||
+			     p->buf[p->col - 1] == '\t'))
 				p->col -= 2;
 			continue;
 		default:
@@ -568,7 +570,7 @@ encode1(struct termp *p, int c)
 	    p->fontq[p->fonti] : TERMFONT_NONE;
 
 	if (p->flags & TERMP_BACKBEFORE) {
-		if (p->buf[p->col - 1] == ' ')
+		if (p->buf[p->col - 1] == ' ' || p->buf[p->col - 1] == '\t')
 			p->col--;
 		else
 			p->buf[p->col++] = 8;
@@ -604,8 +606,20 @@ encode(struct termp *p, const char *word, size_t sz)
 		if (ASCII_HYPH == word[i] ||
 		    isgraph((unsigned char)word[i]))
 			encode1(p, word[i]);
-		else
+		else {
 			p->buf[p->col++] = word[i];
+
+			/*
+			 * Postpone the effect of \z while handling
+			 * an overstrike sequence from ascii_uc2str().
+			 */
+
+			if (word[i] == '\b' &&
+			    (p->flags & TERMP_BACKBEFORE)) {
+				p->flags &= ~TERMP_BACKBEFORE;
+				p->flags |= TERMP_BACKAFTER;
+			}
+		}
 	}
 }
 

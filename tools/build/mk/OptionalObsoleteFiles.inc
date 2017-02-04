@@ -221,7 +221,7 @@ OLD_DIRS+=usr/share/examples/bhyve
 
 .if ${MK_BINUTILS} == no
 OLD_FILES+=usr/bin/as
-.if ${MK_LLD_AS_LD} == no
+.if ${MK_LLD_IS_LD} == no
 OLD_FILES+=usr/bin/ld
 .endif
 OLD_FILES+=usr/bin/ld.bfd
@@ -7577,8 +7577,6 @@ OLD_FILES+=usr/share/syscons/keymaps/it.iso.kbd
 OLD_FILES+=usr/share/syscons/keymaps/iw.iso8.kbd
 OLD_FILES+=usr/share/syscons/keymaps/jp.106.kbd
 OLD_FILES+=usr/share/syscons/keymaps/jp.106x.kbd
-OLD_FILES+=usr/share/syscons/keymaps/jp.pc98.iso.kbd
-OLD_FILES+=usr/share/syscons/keymaps/jp.pc98.kbd
 OLD_FILES+=usr/share/syscons/keymaps/kk.pt154.io.kbd
 OLD_FILES+=usr/share/syscons/keymaps/kk.pt154.kst.kbd
 OLD_FILES+=usr/share/syscons/keymaps/latinamerican.iso.acc.kbd

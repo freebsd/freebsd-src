@@ -124,6 +124,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/ptrace.h>
+#include <sys/random.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -135,6 +136,8 @@
 #include "dtrace_cddl.h"
 #include "dtrace_debug.c"
 #endif
+
+#include "dtrace_xoroshiro128_plus.h"
 
 /*
  * DTrace Tunable Variables
@@ -298,7 +301,6 @@ static kmutex_t		dtrace_meta_lock;	/* meta-provider state lock */
 #define vuprintf	vprintf
 #define ttoproc(_a)	((_a)->td_proc)
 #define crgetzoneid(_a)	0
-#define	NCPU		MAXCPU
 #define SNOCD		0
 #define CPU_ON_INTR(_a)	0
 
@@ -4236,7 +4238,8 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 
 	switch (subr) {
 	case DIF_SUBR_RAND:
-		regs[rd] = (dtrace_gethrtime() * 2416 + 374441) % 1771875;
+		regs[rd] = dtrace_xoroshiro128_plus_next(
+		    state->dts_rstate[curcpu]);
 		break;
 
 #ifdef illumos
@@ -14495,6 +14498,7 @@ dtrace_state_create(struct cdev *dev, struct ucred *cred __unused)
 	dtrace_state_t *state;
 	dtrace_optval_t *opt;
 	int bufsize = NCPU * sizeof (dtrace_buffer_t), i;
+	int cpu_it;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
 	ASSERT(MUTEX_HELD(&cpu_lock));
@@ -14549,6 +14553,21 @@ dtrace_state_create(struct cdev *dev, struct ucred *cred __unused)
 	 */
 	state->dts_buffer = kmem_zalloc(bufsize, KM_SLEEP);
 	state->dts_aggbuffer = kmem_zalloc(bufsize, KM_SLEEP);
+
+	/*
+         * Allocate and initialise the per-process per-CPU random state.
+	 * SI_SUB_RANDOM < SI_SUB_DTRACE_ANON therefore entropy device is
+         * assumed to be seeded at this point (if from Fortuna seed file).
+	 */
+	(void) read_random(&state->dts_rstate[0], 2 * sizeof(uint64_t));
+	for (cpu_it = 1; cpu_it < NCPU; cpu_it++) {
+		/*
+		 * Each CPU is assigned a 2^64 period, non-overlapping
+		 * subsequence.
+		 */
+		dtrace_xoroshiro128_plus_jump(state->dts_rstate[cpu_it-1],
+		    state->dts_rstate[cpu_it]); 
+	}
 
 #ifdef illumos
 	state->dts_cleaner = CYCLIC_NONE;
@@ -16255,18 +16274,11 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 }
 
 static int
-#ifdef __FreeBSD__
 dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp, struct proc *p)
-#else
-dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
-#endif
 {
 	dtrace_helpers_t *help;
 	dtrace_vstate_t *vstate;
 	dtrace_enabling_t *enab = NULL;
-#ifndef __FreeBSD__
-	proc_t *p = curproc;
-#endif
 	int i, gen, rv, nhelpers = 0, nprovs = 0, destroy = 1;
 	uintptr_t daddr = (uintptr_t)dof;
 
@@ -16277,8 +16289,8 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 
 	vstate = &help->dthps_vstate;
 
-	if ((rv = dtrace_dof_slurp(dof, vstate, NULL, &enab,
-	    dhp != NULL ? dhp->dofhp_addr : 0, B_FALSE)) != 0) {
+	if ((rv = dtrace_dof_slurp(dof, vstate, NULL, &enab, dhp->dofhp_addr,
+	    B_FALSE)) != 0) {
 		dtrace_dof_destroy(dof);
 		return (rv);
 	}
@@ -16286,22 +16298,20 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 	/*
 	 * Look for helper providers and validate their descriptions.
 	 */
-	if (dhp != NULL) {
-		for (i = 0; i < dof->dofh_secnum; i++) {
-			dof_sec_t *sec = (dof_sec_t *)(uintptr_t)(daddr +
-			    dof->dofh_secoff + i * dof->dofh_secsize);
+	for (i = 0; i < dof->dofh_secnum; i++) {
+		dof_sec_t *sec = (dof_sec_t *)(uintptr_t)(daddr +
+		    dof->dofh_secoff + i * dof->dofh_secsize);
 
-			if (sec->dofs_type != DOF_SECT_PROVIDER)
-				continue;
+		if (sec->dofs_type != DOF_SECT_PROVIDER)
+			continue;
 
-			if (dtrace_helper_provider_validate(dof, sec) != 0) {
-				dtrace_enabling_destroy(enab);
-				dtrace_dof_destroy(dof);
-				return (-1);
-			}
-
-			nprovs++;
+		if (dtrace_helper_provider_validate(dof, sec) != 0) {
+			dtrace_enabling_destroy(enab);
+			dtrace_dof_destroy(dof);
+			return (-1);
 		}
+
+		nprovs++;
 	}
 
 	/*
@@ -16342,7 +16352,7 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 	gen = help->dthps_generation++;
 	dtrace_enabling_destroy(enab);
 
-	if (dhp != NULL && nprovs > 0) {
+	if (nprovs > 0) {
 		/*
 		 * Now that this is in-kernel, we change the sense of the
 		 * members:  dofhp_dof denotes the in-kernel copy of the DOF

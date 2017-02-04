@@ -47,7 +47,7 @@
 #define CHECK_POINTS
  */
 
-#if defined(CHECK_POINTS) && !defined(PC98)
+#if defined(CHECK_POINTS)
 
 #define CMOS_REG	(0x70)
 #define CMOS_DATA	(0x71)

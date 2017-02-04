@@ -1415,6 +1415,9 @@ ath_hal_setcca(struct ath_hal *ah, int ena)
 
 /*
  * Get CCA setting.
+ *
+ * XXX TODO: turn this and the above function into methods
+ * in case there are chipset differences in handling CCA.
  */
 int
 ath_hal_getcca(struct ath_hal *ah)
@@ -1423,6 +1426,21 @@ ath_hal_getcca(struct ath_hal *ah)
 	if (ath_hal_getcapability(ah, HAL_CAP_DIAG, 0, &diag) != HAL_OK)
 		return 1;
 	return ((diag & 0x500000) == 0);
+}
+
+/*
+ * Set the current state of self-generated ACK and RTS/CTS frames.
+ *
+ * For correct DFS operation, the device should not even /ACK/ frames
+ * that are sent to it during CAC or CSA.
+ */
+void
+ath_hal_set_dfs_cac_tx_quiet(struct ath_hal *ah, HAL_BOOL ena)
+{
+
+	if (ah->ah_setDfsCacTxQuiet == NULL)
+		return;
+	ah->ah_setDfsCacTxQuiet(ah, ena);
 }
 
 /*

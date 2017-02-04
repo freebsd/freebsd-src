@@ -62,11 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/tmpfs/tmpfs_fifoops.h>
 #include <fs/tmpfs/tmpfs_vnops.h>
 
-struct tmpfs_dir_cursor {
-	struct tmpfs_dirent	*tdc_current;
-	struct tmpfs_dirent	*tdc_tree;
-};
-
 SYSCTL_NODE(_vfs, OID_AUTO, tmpfs, CTLFLAG_RW, 0, "tmpfs file system");
 
 static long tmpfs_pages_reserved = TMPFS_PAGES_MINRESERVED;
@@ -136,6 +131,26 @@ tmpfs_pages_check_avail(struct tmpfs_mount *tmp, size_t req_pages)
 	return (1);
 }
 
+void
+tmpfs_ref_node(struct tmpfs_node *node)
+{
+
+	TMPFS_NODE_LOCK(node);
+	tmpfs_ref_node_locked(node);
+	TMPFS_NODE_UNLOCK(node);
+}
+
+void
+tmpfs_ref_node_locked(struct tmpfs_node *node)
+{
+
+	TMPFS_NODE_ASSERT_LOCKED(node);
+	KASSERT(node->tn_refcount > 0, ("node %p zero refcount", node));
+	KASSERT(node->tn_refcount < UINT_MAX, ("node %p refcount %u", node,
+	    node->tn_refcount));
+	node->tn_refcount++;
+}
+
 /*
  * Allocates a new node of type 'type' inside the 'tmp' mount point, with
  * its owner set to 'uid', its group to 'gid' and its mode set to 'mode',
@@ -198,8 +213,8 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 		return (EBUSY);
 	}
 
-	nnode = (struct tmpfs_node *)uma_zalloc_arg(
-				tmp->tm_node_pool, tmp, M_WAITOK);
+	nnode = (struct tmpfs_node *)uma_zalloc_arg(tmp->tm_node_pool, tmp,
+	    M_WAITOK);
 
 	/* Generic initialization. */
 	nnode->tn_type = type;
@@ -210,6 +225,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 	nnode->tn_gid = gid;
 	nnode->tn_mode = mode;
 	nnode->tn_id = alloc_unr(tmp->tm_ino_unr);
+	nnode->tn_refcount = 1;
 
 	/* Type-specific initialization. */
 	switch (nnode->tn_type) {
@@ -257,58 +273,65 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 		break;
 
 	default:
-		panic("tmpfs_alloc_node: type %p %d", nnode, (int)nnode->tn_type);
+		panic("tmpfs_alloc_node: type %p %d", nnode,
+		    (int)nnode->tn_type);
 	}
 
 	TMPFS_LOCK(tmp);
 	LIST_INSERT_HEAD(&tmp->tm_nodes_used, nnode, tn_entries);
+	nnode->tn_attached = true;
 	tmp->tm_nodes_inuse++;
+	tmp->tm_refcount++;
 	TMPFS_UNLOCK(tmp);
 
 	*node = nnode;
-	return 0;
+	return (0);
 }
 
 /*
  * Destroys the node pointed to by node from the file system 'tmp'.
- * If the node does not belong to the given mount point, the results are
- * unpredicted.
- *
- * If the node references a directory; no entries are allowed because
- * their removal could need a recursive algorithm, something forbidden in
- * kernel space.  Furthermore, there is not need to provide such
- * functionality (recursive removal) because the only primitives offered
- * to the user are the removal of empty directories and the deletion of
- * individual files.
- *
- * Note that nodes are not really deleted; in fact, when a node has been
- * allocated, it cannot be deleted during the whole life of the file
- * system.  Instead, they are moved to the available list and remain there
- * until reused.
+ * If the node references a directory, no entries are allowed.
  */
 void
 tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 {
-	vm_object_t uobj;
-
-#ifdef INVARIANTS
-	TMPFS_NODE_LOCK(node);
-	MPASS(node->tn_vnode == NULL);
-	MPASS((node->tn_vpstate & TMPFS_VNODE_ALLOCATING) == 0);
-	TMPFS_NODE_UNLOCK(node);
-#endif
 
 	TMPFS_LOCK(tmp);
-	LIST_REMOVE(node, tn_entries);
-	tmp->tm_nodes_inuse--;
+	TMPFS_NODE_LOCK(node);
+	if (!tmpfs_free_node_locked(tmp, node, false)) {
+		TMPFS_NODE_UNLOCK(node);
+		TMPFS_UNLOCK(tmp);
+	}
+}
+
+bool
+tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
+    bool detach)
+{
+	vm_object_t uobj;
+
+	TMPFS_MP_ASSERT_LOCKED(tmp);
+	TMPFS_NODE_ASSERT_LOCKED(node);
+	KASSERT(node->tn_refcount > 0, ("node %p refcount zero", node));
+
+	node->tn_refcount--;
+	if (node->tn_attached && (detach || node->tn_refcount == 0)) {
+		MPASS(tmp->tm_nodes_inuse > 0);
+		tmp->tm_nodes_inuse--;
+		LIST_REMOVE(node, tn_entries);
+		node->tn_attached = false;
+	}
+	if (node->tn_refcount > 0)
+		return (false);
+
+#ifdef INVARIANTS
+	MPASS(node->tn_vnode == NULL);
+	MPASS((node->tn_vpstate & TMPFS_VNODE_ALLOCATING) == 0);
+#endif
+	TMPFS_NODE_UNLOCK(node);
 	TMPFS_UNLOCK(tmp);
 
 	switch (node->tn_type) {
-	case VNON:
-		/* Do not do anything.  VNON is provided to let the
-		 * allocation routine clean itself easily by avoiding
-		 * duplicating code in it. */
-		/* FALLTHROUGH */
 	case VBLK:
 		/* FALLTHROUGH */
 	case VCHR:
@@ -340,6 +363,9 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 
 	free_unr(tmp->tm_ino_unr, node->tn_id);
 	uma_zfree(tmp->tm_node_pool, node);
+	TMPFS_LOCK(tmp);
+	tmpfs_free_tmp(tmp);
+	return (true);
 }
 
 static __inline uint32_t
@@ -485,13 +511,16 @@ tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
     struct vnode **vpp)
 {
 	struct vnode *vp;
+	struct tmpfs_mount *tm;
 	vm_object_t object;
 	int error;
 
 	error = 0;
-loop:
+	tm = VFS_TO_TMPFS(mp);
 	TMPFS_NODE_LOCK(node);
-loop1:
+	tmpfs_ref_node_locked(node);
+loop:
+	TMPFS_NODE_ASSERT_LOCKED(node);
 	if ((vp = node->tn_vnode) != NULL) {
 		MPASS((node->tn_vpstate & TMPFS_VNODE_DOOMED) == 0);
 		VI_LOCK(vp);
@@ -511,12 +540,14 @@ loop1:
 				msleep(&node->tn_vnode, TMPFS_NODE_MTX(node),
 				    0, "tmpfsE", 0);
 			}
-			goto loop1;
+			goto loop;
 		}
 		TMPFS_NODE_UNLOCK(node);
 		error = vget(vp, lkflag | LK_INTERLOCK, curthread);
-		if (error == ENOENT)
+		if (error == ENOENT) {
+			TMPFS_NODE_LOCK(node);
 			goto loop;
+		}
 		if (error != 0) {
 			vp = NULL;
 			goto out;
@@ -528,6 +559,7 @@ loop1:
 		 */
 		if (node->tn_vnode == NULL || node->tn_vnode != vp) {
 			vput(vp);
+			TMPFS_NODE_LOCK(node);
 			goto loop;
 		}
 
@@ -549,11 +581,9 @@ loop1:
 	if (node->tn_vpstate & TMPFS_VNODE_ALLOCATING) {
 		node->tn_vpstate |= TMPFS_VNODE_WANT;
 		error = msleep((caddr_t) &node->tn_vpstate,
-		    TMPFS_NODE_MTX(node), PDROP | PCATCH,
-		    "tmpfs_alloc_vp", 0);
-		if (error)
-			return error;
-
+		    TMPFS_NODE_MTX(node), 0, "tmpfs_alloc_vp", 0);
+		if (error != 0)
+			goto out;
 		goto loop;
 	} else
 		node->tn_vpstate |= TMPFS_VNODE_ALLOCATING;
@@ -561,7 +591,8 @@ loop1:
 	TMPFS_NODE_UNLOCK(node);
 
 	/* Get a new vnode and associate it with our node. */
-	error = getnewvnode("tmpfs", mp, &tmpfs_vnodeop_entries, &vp);
+	error = getnewvnode("tmpfs", mp, VFS_TO_TMPFS(mp)->tm_nonc ?
+	    &tmpfs_vnodeop_nonc_entries : &tmpfs_vnodeop_entries, &vp);
 	if (error != 0)
 		goto unlock;
 	MPASS(vp != NULL);
@@ -609,7 +640,7 @@ loop1:
 		VN_LOCK_ASHARE(vp);
 
 	error = insmntque1(vp, mp, tmpfs_insmntque_dtr, NULL);
-	if (error)
+	if (error != 0)
 		vp = NULL;
 
 unlock:
@@ -627,18 +658,19 @@ unlock:
 		TMPFS_NODE_UNLOCK(node);
 
 out:
-	*vpp = vp;
+	if (error == 0) {
+		*vpp = vp;
 
 #ifdef INVARIANTS
-	if (error == 0) {
 		MPASS(*vpp != NULL && VOP_ISLOCKED(*vpp));
 		TMPFS_NODE_LOCK(node);
 		MPASS(*vpp == node->tn_vnode);
 		TMPFS_NODE_UNLOCK(node);
-	}
 #endif
+	}
+	tmpfs_free_node(tm, node);
 
-	return error;
+	return (error);
 }
 
 /*
@@ -681,7 +713,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	struct tmpfs_node *node;
 	struct tmpfs_node *parent;
 
-	MPASS(VOP_ISLOCKED(dvp));
+	ASSERT_VOP_ELOCKED(dvp, "tmpfs_alloc_file");
 	MPASS(cnp->cn_flags & HASBUF);
 
 	tmp = VFS_TO_TMPFS(dvp->v_mount);
@@ -706,8 +738,8 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 
 	/* Allocate a node that represents the new file. */
 	error = tmpfs_alloc_node(dvp->v_mount, tmp, vap->va_type,
-	    cnp->cn_cred->cr_uid,
-	    dnode->tn_gid, vap->va_mode, parent, target, vap->va_rdev, &node);
+	    cnp->cn_cred->cr_uid, dnode->tn_gid, vap->va_mode, parent,
+	    target, vap->va_rdev, &node);
 	if (error != 0)
 		return (error);
 
@@ -736,7 +768,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	return (0);
 }
 
-static struct tmpfs_dirent *
+struct tmpfs_dirent *
 tmpfs_dir_first(struct tmpfs_node *dnode, struct tmpfs_dir_cursor *dc)
 {
 	struct tmpfs_dirent *de;
@@ -750,7 +782,7 @@ tmpfs_dir_first(struct tmpfs_node *dnode, struct tmpfs_dir_cursor *dc)
 	return (dc->tdc_current);
 }
 
-static struct tmpfs_dirent *
+struct tmpfs_dirent *
 tmpfs_dir_next(struct tmpfs_node *dnode, struct tmpfs_dir_cursor *dc)
 {
 	struct tmpfs_dirent *de;
@@ -1115,9 +1147,8 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
 	 * Return ENOENT if the current node is already removed.
 	 */
 	TMPFS_ASSERT_LOCKED(node);
-	if (node->tn_dir.tn_parent == NULL) {
+	if (node->tn_dir.tn_parent == NULL)
 		return (ENOENT);
-	}
 
 	TMPFS_NODE_LOCK(node->tn_dir.tn_parent);
 	dent.d_fileno = node->tn_dir.tn_parent->tn_id;

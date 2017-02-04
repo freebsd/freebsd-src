@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2014
+.Dd January 28, 2017
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -242,20 +242,20 @@ environment variables.
 For example, if
 .Ev MACHINE_ARCH
 is set to
-.Dq Li i386
+.Dq Li aarch64
 and
 .Ev MACHINE
 is set to
-.Dq Li pc98 ,
+.Dq Li arm64 ,
 .Nm
 will search the following paths when considering section 4 manual pages in
 .Pa /usr/share/man :
 .Pp
 .Bl -item -offset indent -compact
 .It
-.Pa /usr/share/man/man4/pc98
+.Pa /usr/share/man/man4/aarch64
 .It
-.Pa /usr/share/man/man4/i386
+.Pa /usr/share/man/man4/arm64
 .It
 .Pa /usr/share/man/man4
 .El

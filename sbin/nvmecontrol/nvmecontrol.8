@@ -75,6 +75,24 @@
 .Op Fl l
 .Op Fl p power_state
 .Op fl w workload_hint
+.Nm
+.Ic wdc cap-diag
+.Op Fl o path_template
+.Aq device id
+.Nm
+.Ic wdc drive-log
+.Op Fl o path_template
+.Aq device id
+.Nm
+.Ic wdc get-crash-dump
+.Op Fl o path_template
+.Aq device id
+.\" .Nm
+.\" .Ic wdc purge
+.\" .Aq device id
+.\" .Nm
+.\" .Ic wdc purge-monitor
+.\" .Aq device id
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.

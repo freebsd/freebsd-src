@@ -45,6 +45,8 @@
 #include <sys/queue.h>
 #include <sys/stdint.h>		/* for people using printf mainly */
 
+__NULLABILITY_PRAGMA_PUSH
+
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern int suspend_blocked;	/* block suspend due to pending shutdown */
 extern int rebooting;		/* kern_reboot() has been called. */
@@ -128,6 +130,12 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
  */
 #define	SCHEDULER_STOPPED() __predict_false(curthread->td_stopsched)
 
+/*
+ * Align variables.
+ */
+#define	__read_mostly		__section(".data.read_mostly")
+#define	__exclusive_cache_line	__aligned(CACHE_LINE_SIZE) \
+				    __section(".data.exclusive_cache_line")
 /*
  * XXX the hints declarations are even more misplaced than most declarations
  * in this file, since they are needed in one file (per arch) and only used
@@ -227,12 +235,12 @@ int	vsnprintf(char *, size_t, const char *, __va_list) __printflike(3, 0);
 int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0);
 int	vsprintf(char *buf, const char *, __va_list) __printflike(2, 0);
 int	ttyprintf(struct tty *, const char *, ...) __printflike(2, 3);
-int	sscanf(const char *, char const *, ...) __nonnull(1) __nonnull(2) __scanflike(2, 3);
-int	vsscanf(const char *, char const *, __va_list) __nonnull(1) __nonnull(2) __scanflike(2, 0);
-long	strtol(const char *, char **, int) __nonnull(1);
-u_long	strtoul(const char *, char **, int) __nonnull(1);
-quad_t	strtoq(const char *, char **, int) __nonnull(1);
-u_quad_t strtouq(const char *, char **, int) __nonnull(1);
+int	sscanf(const char *, char const * _Nonnull, ...) __scanflike(2, 3);
+int	vsscanf(const char * _Nonnull, char const * _Nonnull, __va_list)  __scanflike(2, 0);
+long	strtol(const char *, char **, int);
+u_long	strtoul(const char *, char **, int);
+quad_t	strtoq(const char *, char **, int);
+u_quad_t strtouq(const char *, char **, int);
 void	tprintf(struct proc *p, int pri, const char *, ...) __printflike(3, 4);
 void	vtprintf(struct proc *, int, const char *, __va_list) __printflike(3, 0);
 void	hexdump(const void *ptr, int length, const char *hdr, int flags);
@@ -243,27 +251,27 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define	HD_OMIT_CHARS	(1 << 18)
 
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
-void	bcopy(const void *from, void *to, size_t len) __nonnull(1) __nonnull(2);
-void	bzero(void *buf, size_t len) __nonnull(1);
-void	explicit_bzero(void *, size_t) __nonnull(1);
+void	bcopy(const void * _Nonnull from, void * _Nonnull to, size_t len);
+void	bzero(void * _Nonnull buf, size_t len);
+void	explicit_bzero(void * _Nonnull, size_t);
 
-void	*memcpy(void *to, const void *from, size_t len) __nonnull(1) __nonnull(2);
-void	*memmove(void *dest, const void *src, size_t n) __nonnull(1) __nonnull(2);
+void	*memcpy(void * _Nonnull to, const void * _Nonnull from, size_t len);
+void	*memmove(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 
-int	copystr(const void * __restrict kfaddr, void * __restrict kdaddr,
-	    size_t len, size_t * __restrict lencopied)
-	    __nonnull(1) __nonnull(2);
-int	copyinstr(const void * __restrict udaddr, void * __restrict kaddr,
-	    size_t len, size_t * __restrict lencopied)
-	    __nonnull(1) __nonnull(2);
-int	copyin(const void * __restrict udaddr, void * __restrict kaddr,
-	    size_t len) __nonnull(1) __nonnull(2);
-int	copyin_nofault(const void * __restrict udaddr, void * __restrict kaddr,
-	    size_t len) __nonnull(1) __nonnull(2);
-int	copyout(const void * __restrict kaddr, void * __restrict udaddr,
-	    size_t len) __nonnull(1) __nonnull(2);
-int	copyout_nofault(const void * __restrict kaddr, void * __restrict udaddr,
-	    size_t len) __nonnull(1) __nonnull(2);
+int	copystr(const void * _Nonnull __restrict kfaddr,
+	    void * _Nonnull __restrict kdaddr, size_t len,
+	    size_t * __restrict lencopied);
+int	copyinstr(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len,
+	    size_t * __restrict lencopied);
+int	copyin(const void * _Nonnull __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len);
+int	copyin_nofault(const void * _Nonnull __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len);
+int	copyout(const void * _Nonnull __restrict kaddr,
+	    void * _Nonnull __restrict udaddr, size_t len);
+int	copyout_nofault(const void * _Nonnull __restrict kaddr,
+	    void * _Nonnull __restrict udaddr, size_t len);
 
 int	fubyte(volatile const void *base);
 long	fuword(volatile const void *base);
@@ -374,16 +382,16 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  * Common `proc' functions are declared here so that proc.h can be included
  * less often.
  */
-int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
-	   sbintime_t sbt, sbintime_t pr, int flags) __nonnull(1);
+int	_sleep(void * _Nonnull chan, struct lock_object *lock, int pri,
+	   const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags);
 #define	msleep(chan, mtx, pri, wmesg, timo)				\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
 #define	msleep_sbt(chan, mtx, pri, wmesg, bt, pr, flags)		\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (bt), (pr),	\
 	    (flags))
-int	msleep_spin_sbt(void *chan, struct mtx *mtx, const char *wmesg,
-	    sbintime_t sbt, sbintime_t pr, int flags) __nonnull(1);
+int	msleep_spin_sbt(void * _Nonnull chan, struct mtx *mtx,
+	    const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags);
 #define	msleep_spin(chan, mtx, wmesg, timo)				\
 	msleep_spin_sbt((chan), (mtx), (wmesg), tick_sbt * (timo),	\
 	    0, C_HARDCLOCK)
@@ -396,8 +404,8 @@ int	pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr,
 	    0, C_HARDCLOCK)
 #define	tsleep_sbt(chan, pri, wmesg, bt, pr, flags)			\
 	_sleep((chan), NULL, (pri), (wmesg), (bt), (pr), (flags))
-void	wakeup(void *chan) __nonnull(1);
-void	wakeup_one(void *chan) __nonnull(1);
+void	wakeup(void * chan);
+void	wakeup_one(void * chan);
 
 /*
  * Common `struct cdev *' stuff are declared here to avoid #include poisoning
@@ -444,5 +452,7 @@ void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
 extern void (*softdep_ast_cleanup)(void);
 
 void counted_warning(unsigned *counter, const char *msg);
+
+__NULLABILITY_PRAGMA_POP
 
 #endif /* !_SYS_SYSTM_H_ */

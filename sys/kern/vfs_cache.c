@@ -200,48 +200,47 @@ struct	namecache_ts {
  */
 #define NCHHASH(hash) \
 	(&nchashtbl[(hash) & nchash])
-static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
-static u_long	nchash;			/* size of hash table */
+static __read_mostly LIST_HEAD(nchashhead, namecache) *nchashtbl;/* Hash Table */
+static u_long __read_mostly	nchash;			/* size of hash table */
 SYSCTL_ULONG(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0,
     "Size of namecache hash table");
-static u_long	ncnegfactor = 16;	/* ratio of negative entries */
+static u_long __read_mostly	ncnegfactor = 16; /* ratio of negative entries */
 SYSCTL_ULONG(_vfs, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0,
     "Ratio of negative namecache entries");
-static u_long	numneg;			/* number of negative entries allocated */
+static u_long __exclusive_cache_line	numneg;	/* number of negative entries allocated */
 SYSCTL_ULONG(_debug, OID_AUTO, numneg, CTLFLAG_RD, &numneg, 0,
     "Number of negative entries in namecache");
-static u_long	numcache;		/* number of cache entries allocated */
+static u_long __exclusive_cache_line	numcache;/* number of cache entries allocated */
 SYSCTL_ULONG(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0,
     "Number of namecache entries");
-static u_long	numcachehv;		/* number of cache entries with vnodes held */
+static u_long __exclusive_cache_line	numcachehv;/* number of cache entries with vnodes held */
 SYSCTL_ULONG(_debug, OID_AUTO, numcachehv, CTLFLAG_RD, &numcachehv, 0,
     "Number of namecache entries with vnodes held");
-u_int	ncsizefactor = 2;
+u_int __read_mostly	ncsizefactor = 2;
 SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
     "Size factor for namecache");
-static u_int	ncpurgeminvnodes;
+static u_int __read_mostly	ncpurgeminvnodes;
 SYSCTL_UINT(_vfs, OID_AUTO, ncpurgeminvnodes, CTLFLAG_RW, &ncpurgeminvnodes, 0,
     "Number of vnodes below which purgevfs ignores the request");
-static u_int	ncneghitsrequeue = 8;
+static u_int __read_mostly	ncneghitsrequeue = 8;
 SYSCTL_UINT(_vfs, OID_AUTO, ncneghitsrequeue, CTLFLAG_RW, &ncneghitsrequeue, 0,
     "Number of hits to requeue a negative entry in the LRU list");
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
 static struct mtx       ncneg_shrink_lock;
+static int	shrink_list_turn;
 
 struct neglist {
 	struct mtx		nl_lock;
 	TAILQ_HEAD(, namecache) nl_list;
 } __aligned(CACHE_LINE_SIZE);
 
-static struct neglist *neglists;
+static struct neglist __read_mostly	*neglists;
 static struct neglist ncneg_hot;
 
-static int	shrink_list_turn;
-
 #define	numneglists (ncneghash + 1)
-static u_int	ncneghash;
+static u_int __read_mostly	ncneghash;
 static inline struct neglist *
 NCP2NEGLIST(struct namecache *ncp)
 {
@@ -250,14 +249,14 @@ NCP2NEGLIST(struct namecache *ncp)
 }
 
 #define	numbucketlocks (ncbuckethash + 1)
-static u_int   ncbuckethash;
-static struct rwlock_padalign  *bucketlocks;
+static u_int __read_mostly  ncbuckethash;
+static struct rwlock_padalign __read_mostly  *bucketlocks;
 #define	HASH2BUCKETLOCK(hash) \
 	((struct rwlock *)(&bucketlocks[((hash) & ncbuckethash)]))
 
 #define	numvnodelocks (ncvnodehash + 1)
-static u_int   ncvnodehash;
-static struct mtx *vnodelocks;
+static u_int __read_mostly  ncvnodehash;
+static struct mtx __read_mostly *vnodelocks;
 static inline struct mtx *
 VP2VNODELOCK(struct vnode *vp)
 {
@@ -272,10 +271,10 @@ VP2VNODELOCK(struct vnode *vp)
  * most common.  The large cache is used for entries which are too big to
  * fit in the small cache.
  */
-static uma_zone_t cache_zone_small;
-static uma_zone_t cache_zone_small_ts;
-static uma_zone_t cache_zone_large;
-static uma_zone_t cache_zone_large_ts;
+static uma_zone_t __read_mostly cache_zone_small;
+static uma_zone_t __read_mostly cache_zone_small_ts;
+static uma_zone_t __read_mostly cache_zone_large;
+static uma_zone_t __read_mostly cache_zone_large_ts;
 
 #define	CACHE_PATH_CUTOFF	35
 
@@ -341,7 +340,7 @@ cache_out_ts(struct namecache *ncp, struct timespec *tsp, int *ticksp)
 		*ticksp = ((struct namecache_ts *)ncp)->nc_ticks;
 }
 
-static int	doingcache = 1;		/* 1 => enable the cache */
+static int __read_mostly	doingcache = 1;	/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0,
     "VFS namecache enabled");
 
@@ -357,7 +356,7 @@ static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW, 0,
 #define STATNODE_ULONG(name, descr)	\
 	SYSCTL_ULONG(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, 0, descr);
 #define STATNODE_COUNTER(name, descr)	\
-	static counter_u64_t name;	\
+	static counter_u64_t __read_mostly name; \
 	SYSCTL_COUNTER_U64(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, descr);
 STATNODE_ULONG(numneg, "Number of negative cache entries");
 STATNODE_ULONG(numcache, "Number of cache entries");
@@ -1125,7 +1124,7 @@ retry:
 				timespecclear(tsp);
 			if (ticksp != NULL)
 				*ticksp = ticks;
-			VREF(*vpp);
+			vrefact(*vpp);
 			/*
 			 * When we lookup "." we still can be asked to lock it
 			 * differently...
@@ -2032,7 +2031,7 @@ vfs_cache_lookup(struct vop_lookup_args *ap)
 /*
  * XXX All of these sysctls would probably be more productive dead.
  */
-static int disablecwd;
+static int __read_mostly disablecwd;
 SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0,
    "Disable the getcwd syscall");
 
@@ -2091,7 +2090,7 @@ kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen,
  * Thus begins the fullpath magic.
  */
 
-static int disablefullpath;
+static int __read_mostly disablefullpath;
 SYSCTL_INT(_debug, OID_AUTO, disablefullpath, CTLFLAG_RW, &disablefullpath, 0,
     "Disable the vn_fullpath function");
 
@@ -2116,7 +2115,7 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
 	rdir = fdp->fd_rdir;
-	VREF(rdir);
+	vrefact(rdir);
 	FILEDESC_SUNLOCK(fdp);
 	error = vn_fullpath1(td, vn, rdir, buf, retbuf, MAXPATHLEN);
 	vrele(rdir);

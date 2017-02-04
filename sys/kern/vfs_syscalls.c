@@ -1806,25 +1806,25 @@ struct lseek_args {
 };
 #endif
 int
-sys_lseek(td, uap)
-	struct thread *td;
-	register struct lseek_args /* {
-		int fd;
-		int pad;
-		off_t offset;
-		int whence;
-	} */ *uap;
+sys_lseek(struct thread *td, struct lseek_args *uap)
+{
+
+	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
+}
+
+int
+kern_lseek(struct thread *td, int fd, off_t offset, int whence)
 {
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
 
-	AUDIT_ARG_FD(uap->fd);
-	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_SEEK), &fp);
+	AUDIT_ARG_FD(fd);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_SEEK), &fp);
 	if (error != 0)
 		return (error);
 	error = (fp->f_ops->fo_flags & DFLAG_SEEKABLE) != 0 ?
-	    fo_seek(fp, uap->offset, uap->whence, td) : ESPIPE;
+	    fo_seek(fp, offset, whence, td) : ESPIPE;
 	fdrop(fp, td);
 	return (error);
 }
@@ -1841,41 +1841,20 @@ struct olseek_args {
 };
 #endif
 int
-olseek(td, uap)
-	struct thread *td;
-	register struct olseek_args /* {
-		int fd;
-		long offset;
-		int whence;
-	} */ *uap;
+olseek(struct thread *td, struct olseek_args *uap)
 {
-	struct lseek_args /* {
-		int fd;
-		int pad;
-		off_t offset;
-		int whence;
-	} */ nuap;
 
-	nuap.fd = uap->fd;
-	nuap.offset = uap->offset;
-	nuap.whence = uap->whence;
-	return (sys_lseek(td, &nuap));
+	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
 }
 #endif /* COMPAT_43 */
 
 #if defined(COMPAT_FREEBSD6)
 /* Version with the 'pad' argument */
 int
-freebsd6_lseek(td, uap)
-	struct thread *td;
-	register struct freebsd6_lseek_args *uap;
+freebsd6_lseek(struct thread *td, struct freebsd6_lseek_args *uap)
 {
-	struct lseek_args ouap;
 
-	ouap.fd = uap->fd;
-	ouap.offset = uap->offset;
-	ouap.whence = uap->whence;
-	return (sys_lseek(td, &ouap));
+	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
 }
 #endif
 
@@ -3331,22 +3310,10 @@ struct otruncate_args {
 };
 #endif
 int
-otruncate(td, uap)
-	struct thread *td;
-	register struct otruncate_args /* {
-		char *path;
-		long length;
-	} */ *uap;
+otruncate(struct thread *td, struct otruncate_args *uap)
 {
-	struct truncate_args /* {
-		char *path;
-		int pad;
-		off_t length;
-	} */ nuap;
 
-	nuap.path = uap->path;
-	nuap.length = uap->length;
-	return (sys_truncate(td, &nuap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
 #endif /* COMPAT_43 */
 
@@ -3355,21 +3322,15 @@ otruncate(td, uap)
 int
 freebsd6_truncate(struct thread *td, struct freebsd6_truncate_args *uap)
 {
-	struct truncate_args ouap;
 
-	ouap.path = uap->path;
-	ouap.length = uap->length;
-	return (sys_truncate(td, &ouap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
 
 int
 freebsd6_ftruncate(struct thread *td, struct freebsd6_ftruncate_args *uap)
 {
-	struct ftruncate_args ouap;
 
-	ouap.fd = uap->fd;
-	ouap.length = uap->length;
-	return (sys_ftruncate(td, &ouap));
+	return (kern_ftruncate(td, uap->fd, uap->length));
 }
 #endif
 

@@ -66,6 +66,7 @@ Freeze the settings, open the archive, and prepare for writing entries.
 This is the most generic form of this function, which accepts
 pointers to three callback functions which will be invoked by
 the compression layer to write the constructed archive.
+This does not alter the default archive padding.
 .It Fn archive_write_open_fd
 A convenience form of
 .Fn archive_write_open
@@ -123,12 +124,21 @@ is currently in use.
 You should be careful to ensure that this variable
 remains allocated until after the archive is
 closed.
+This function will disable padding unless you
+have specifically set the block size.
 .El
 More information about the
 .Va struct archive
 object and the overall design of the library can be found in the
 .Xr libarchive 3
 overview.
+.Pp
+Note that the convenience forms above vary in how
+they block the output.
+See
+.Xr archive_write_blocksize 3
+if you need to control the block size used for writes
+or the end-of-file padding behavior.
 .\"
 .Sh CLIENT CALLBACKS
 To use this library, you will need to define and register
@@ -226,6 +236,7 @@ functions.
 .Xr tar 1 ,
 .Xr libarchive 3 ,
 .Xr archive_write 3 ,
+.Xr archive_write_blocksize 3 ,
 .Xr archive_write_filter 3 ,
 .Xr archive_write_format 3 ,
 .Xr archive_write_new 3 ,

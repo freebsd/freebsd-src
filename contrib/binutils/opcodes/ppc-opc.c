@@ -2789,6 +2789,7 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "crnor",   XL(19,33),	XL_MASK,	COM,		{ BT, BA, BB } },
 { "rfmci",    X(19,38), 0xffffffff,	PPCRFMCI,	{ 0 } },
 
+{ "rfdi",    XL(19,39),	0xffffffff,     BOOKE,          { 0 } },
 { "rfi",     XL(19,50),	0xffffffff,	COM,		{ 0 } },
 { "rfci",    XL(19,51),	0xffffffff,	PPC403 | BOOKE,	{ 0 } },
 

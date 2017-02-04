@@ -65,7 +65,7 @@ struct tpcl_softc {
 static struct tpcl_softc tpcl_softc;
 
 static int tpcl_init(void);
-static void tpcl_shutdown(void);
+static int tpcl_shutdown(void);
 static void tpcl_datamove(union ctl_io *io);
 static void tpcl_done(union ctl_io *io);
 
@@ -84,7 +84,7 @@ tpcl_init(void)
 	struct tpcl_softc *tsoftc = &tpcl_softc;
 	struct ctl_port *port;
 	struct scsi_transportid_spi *tid;
-	int len;
+	int error, len;
 
 	memset(tsoftc, 0, sizeof(*tsoftc));
 
@@ -95,14 +95,12 @@ tpcl_init(void)
 	port->port_name = "tpc";
 	port->fe_datamove = tpcl_datamove;
 	port->fe_done = tpcl_done;
-	port->max_targets = 1;
-	port->max_target_id = 0;
 	port->targ_port = -1;
 	port->max_initiators = 1;
 
-	if (ctl_port_register(port) != 0) {
-		printf("%s: ctl_port_register() failed with error\n", __func__);
-		return (0);
+	if ((error = ctl_port_register(port)) != 0) {
+		printf("%s: tpc port registration failed\n", __func__);
+		return (error);
 	}
 
 	len = sizeof(struct scsi_transportid_spi);
@@ -118,16 +116,17 @@ tpcl_init(void)
 	return (0);
 }
 
-void
+static int
 tpcl_shutdown(void)
 {
 	struct tpcl_softc *tsoftc = &tpcl_softc;
-	struct ctl_port *port;
+	struct ctl_port *port = &tsoftc->port;
+	int error;
 
-	port = &tsoftc->port;
 	ctl_port_offline(port);
-	if (ctl_port_deregister(&tsoftc->port) != 0)
-		printf("%s: ctl_frontend_deregister() failed\n", __func__);
+	if ((error = ctl_port_deregister(port)) != 0)
+		printf("%s: tpc port deregistration failed\n", __func__);
+	return (error);
 }
 
 static void

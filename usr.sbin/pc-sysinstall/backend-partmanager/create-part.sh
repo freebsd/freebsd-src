@@ -60,7 +60,6 @@ case $TYPE in
 	apm|APM) ;;
 	bsd|BSD) ;;
 	ebr|EBR) ;;
-      pc98|pc98) ;;
 	gpt|GPT) ;;
 	mbr|MBR) ;;
     vtoc8|VTOC8) ;;

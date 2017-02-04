@@ -406,7 +406,7 @@ im0:
 	mtctr %r1			/* load counter */
 im1:
 	lwzu %r1, 8(%r2)		/* get next pte */
-	cmp 0, %r1, %r3			/* see if found pte */
+	cmp 0, 0, %r1, %r3		/* see if found pte */
 	bdnzf 2, im1			/* dec count br if cmp ne and if
 					 * count not zero */
 	bne instr_sec_hash		/* if not found set up second hash

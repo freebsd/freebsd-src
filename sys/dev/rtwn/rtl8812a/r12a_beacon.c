@@ -77,6 +77,8 @@ r12a_beacon_init(struct rtwn_softc *sc, void *buf, int id)
 	txd->txdw3 = htole32(R12A_TXDW3_DRVRATE);
 	txd->txdw3 |= htole32(SM(R12A_TXDW3_SEQ_SEL, id));
 
+	txd->txdw4 = htole32(SM(R12A_TXDW4_DATARATE, RTWN_RIDX_CCK1));
+
 	txd->txdw6 = htole32(SM(R21A_TXDW6_MBSSID, id));
 }
 

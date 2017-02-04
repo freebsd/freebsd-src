@@ -889,6 +889,10 @@ MAN+=		iscsi_initiator.4
 MAN+=		iser.4
 .endif
 
+.if ${MK_OFED} != "no"
+MAN+=		mlx4ib.4
+.endif
+
 .if ${MK_TESTS} != "no"
 ATF=            ${.CURDIR}/../../../contrib/atf
 .PATH:          ${ATF}/doc

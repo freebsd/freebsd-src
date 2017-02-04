@@ -37,8 +37,6 @@
  * Jeffrey C. Mogul
  * Digital Equipment Corporation
  * Western Research Laboratory
- *	$FreeBSD$
- *	$NetBSD: nfsfh.h,v 1.1.1.2 1997/10/03 17:25:13 christos Exp $
  */
 
 /*
@@ -65,4 +63,4 @@ typedef	struct {
 #define	fsid_eq(a,b)	((a.fsid_code == b.fsid_code) &&\
 			 dev_eq(a.Fsid_dev, b.Fsid_dev))
 
-extern void Parse_fh(const unsigned char *, int, my_fsid *, uint32_t *, const char **, const char **, int);
+extern void Parse_fh(const unsigned char *, u_int, my_fsid *, uint32_t *, const char **, const char **, int);

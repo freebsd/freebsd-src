@@ -65,9 +65,9 @@ cloudabi64_sys_thread_create(struct thread *td,
 		return (error);
 
 	/* Remove some space on the top of the stack for the TCB. */
-	args.tcb = rounddown(args.attr.stack + args.attr.stack_size -
+	args.tcb = rounddown(args.attr.stack + args.attr.stack_len -
 	    sizeof(cloudabi64_tcb_t), _Alignof(cloudabi64_tcb_t));
-	args.attr.stack_size = args.tcb - args.attr.stack;
+	args.attr.stack_len = args.tcb - args.attr.stack;
 
 	error = thread_create(td, NULL, initialize_thread, &args);
 	if (error != 0)

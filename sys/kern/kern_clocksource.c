@@ -207,7 +207,7 @@ handleevents(sbintime_t now, int fake)
 		}
 	} else
 		state->nextprof = state->nextstat;
-	if (now >= state->nextcallopt) {
+	if (now >= state->nextcallopt || now >= state->nextcall) {
 		state->nextcall = state->nextcallopt = SBT_MAX;
 		callout_process(now);
 	}

@@ -19,18 +19,21 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: BSD time daemon protocol printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 
 /*
  * Time Synchronization Protocol
+ *
+ * http://docs.freebsd.org/44doc/smm/12.timed/paper.pdf
  */
 
 struct tsp_timeval {
@@ -95,7 +98,7 @@ void
 timed_print(netdissect_options *ndo,
             register const u_char *bp)
 {
-	struct tsp *tsp = (struct tsp *)bp;
+	const struct tsp *tsp = (const struct tsp *)bp;
 	long sec, usec;
 
 	ND_TCHECK(tsp->tsp_type);
@@ -124,7 +127,7 @@ timed_print(netdissect_options *ndo,
 		usec = EXTRACT_32BITS(&tsp->tsp_time.tv_usec);
 		/* XXX The comparison below is always false? */
 		if (usec < 0)
-			/* corrupt, skip the rest of the packet */
+			/* invalid, skip the rest of the packet */
 			return;
 		ND_PRINT((ndo, " time "));
 		if (sec < 0 && usec != 0) {
@@ -138,7 +141,7 @@ timed_print(netdissect_options *ndo,
 	}
 	ND_TCHECK(tsp->tsp_name);
 	ND_PRINT((ndo, " name "));
-	if (fn_print(ndo, (u_char *)tsp->tsp_name, (u_char *)tsp->tsp_name + sizeof(tsp->tsp_name)))
+	if (fn_print(ndo, (const u_char *)tsp->tsp_name, (const u_char *)tsp->tsp_name + sizeof(tsp->tsp_name)))
 		goto trunc;
 	return;
 

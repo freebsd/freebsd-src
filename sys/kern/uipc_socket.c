@@ -159,16 +159,10 @@ static void	filt_sordetach(struct knote *kn);
 static int	filt_soread(struct knote *kn, long hint);
 static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
-static int	filt_solisten(struct knote *kn, long hint);
 static int inline hhook_run_socket(struct socket *so, void *hctx, int32_t h_id);
 static int	filt_soempty(struct knote *kn, long hint);
 fo_kqfilter_t	soo_kqfilter;
 
-static struct filterops solisten_filtops = {
-	.f_isfd = 1,
-	.f_detach = filt_sordetach,
-	.f_event = filt_solisten,
-};
 static struct filterops soread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_sordetach,
@@ -2699,6 +2693,14 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			so->so_ts_clock = optval;
 			break;
 
+		case SO_MAX_PACING_RATE:
+			error = sooptcopyin(sopt, &val32, sizeof(val32),
+			    sizeof(val32));
+			if (error)
+				goto bad;
+			so->so_max_pacing_rate = val32;
+			break;
+
 		default:
 			if (V_socket_hhh[HHOOK_SOCKET_OPT]->hhh_nhooks > 0)
 				error = hhook_run_socket(so, sopt,
@@ -2888,6 +2890,10 @@ integer:
 
 		case SO_TS_CLOCK:
 			optval = so->so_ts_clock;
+			goto integer;
+
+		case SO_MAX_PACING_RATE:
+			optval = so->so_max_pacing_rate;
 			goto integer;
 
 		default:
@@ -3095,10 +3101,7 @@ soo_kqfilter(struct file *fp, struct knote *kn)
 
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
-		if (so->so_options & SO_ACCEPTCONN)
-			kn->kn_fop = &solisten_filtops;
-		else
-			kn->kn_fop = &soread_filtops;
+		kn->kn_fop = &soread_filtops;
 		sb = &so->so_rcv;
 		break;
 	case EVFILT_WRITE:
@@ -3309,6 +3312,11 @@ filt_soread(struct knote *kn, long hint)
 	struct socket *so;
 
 	so = kn->kn_fp->f_data;
+	if (so->so_options & SO_ACCEPTCONN) {
+		kn->kn_data = so->so_qlen;
+		return (!TAILQ_EMPTY(&so->so_comp));
+
+	}
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 
 	kn->kn_data = sbavail(&so->so_rcv) - so->so_rcv.sb_ctl;
@@ -3321,11 +3329,9 @@ filt_soread(struct knote *kn, long hint)
 
 	if (kn->kn_sfflags & NOTE_LOWAT) {
 		if (kn->kn_data >= kn->kn_sdata)
-			return 1;
-	} else {
-		if (sbavail(&so->so_rcv) >= so->so_rcv.sb_lowat)
-			return 1;
-	}
+			return (1);
+	} else if (sbavail(&so->so_rcv) >= so->so_rcv.sb_lowat)
+		return (1);
 
 	/* This hook returning non-zero indicates an event, not error */
 	return (hhook_run_socket(so, NULL, HHOOK_FILT_SOREAD));
@@ -3383,16 +3389,6 @@ filt_soempty(struct knote *kn, long hint)
 		return (1);
 	else
 		return (0);
-}
-
-/*ARGSUSED*/
-static int
-filt_solisten(struct knote *kn, long hint)
-{
-	struct socket *so = kn->kn_fp->f_data;
-
-	kn->kn_data = so->so_qlen;
-	return (!TAILQ_EMPTY(&so->so_comp));
 }
 
 int

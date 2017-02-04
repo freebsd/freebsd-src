@@ -20,8 +20,8 @@
 
 ident		GENERIC
 
-cpu		CPU_CORTEXA_MP
-cpu		CPU_CORTEXA8
+cpu		CPU_CORTEXA
+options 	SMP_ON_UP
 machine 	arm armv6
 makeoptions	CONF_CFLAGS="-march=armv7a"
 

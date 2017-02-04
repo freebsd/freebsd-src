@@ -121,9 +121,6 @@ static int		rtwn_run(struct rtwn_softc *,
 static void		rtwn_watchdog(void *);
 #endif
 static void		rtwn_parent(struct ieee80211com *);
-static int		rtwn_llt_write(struct rtwn_softc *, uint32_t,
-			    uint32_t);
-static int		rtwn_llt_init(struct rtwn_softc *);
 static int		rtwn_dma_init(struct rtwn_softc *);
 static int		rtwn_mac_init(struct rtwn_softc *);
 static void		rtwn_mrr_init(struct rtwn_softc *);
@@ -695,6 +692,7 @@ rtwn_ioctl_reset(struct ieee80211vap *vap, u_long cmd)
 	case IEEE80211_IOC_RTSTHRESHOLD:
 	case IEEE80211_IOC_PROTMODE:
 	case IEEE80211_IOC_HTPROTMODE:
+	case IEEE80211_IOC_LDPC:
 		error = 0;
 		break;
 	default:
@@ -1382,54 +1380,6 @@ rtwn_parent(struct ieee80211com *ic)
 		rtwn_stop(sc);
 }
 
-
-static int
-rtwn_llt_write(struct rtwn_softc *sc, uint32_t addr, uint32_t data)
-{
-	int ntries, error;
-
-	error = rtwn_write_4(sc, R92C_LLT_INIT,
-	    SM(R92C_LLT_INIT_OP, R92C_LLT_INIT_OP_WRITE) |
-	    SM(R92C_LLT_INIT_ADDR, addr) |
-	    SM(R92C_LLT_INIT_DATA, data));
-	if (error != 0)
-		return (error);
-	/* Wait for write operation to complete. */
-	for (ntries = 0; ntries < 20; ntries++) {
-		if (MS(rtwn_read_4(sc, R92C_LLT_INIT), R92C_LLT_INIT_OP) ==
-		    R92C_LLT_INIT_OP_NO_ACTIVE)
-			return (0);
-		rtwn_delay(sc, 10);
-	}
-	return (ETIMEDOUT);
-}
-
-static int
-rtwn_llt_init(struct rtwn_softc *sc)
-{
-	int i, error;
-
-	/* Reserve pages [0; page_count]. */
-	for (i = 0; i < sc->page_count; i++) {
-		if ((error = rtwn_llt_write(sc, i, i + 1)) != 0)
-			return (error);
-	}
-	/* NB: 0xff indicates end-of-list. */
-	if ((error = rtwn_llt_write(sc, i, 0xff)) != 0)
-		return (error);
-	/*
-	 * Use pages [page_count + 1; pktbuf_count - 1]
-	 * as ring buffer.
-	 */
-	for (++i; i < sc->pktbuf_count - 1; i++) {
-		if ((error = rtwn_llt_write(sc, i, i + 1)) != 0)
-			return (error);
-	}
-	/* Make the last page point to the beginning of the ring buffer. */
-	error = rtwn_llt_write(sc, i, sc->page_count + 1);
-	return (error);
-}
-
 static int
 rtwn_dma_init(struct rtwn_softc *sc)
 {
@@ -1999,6 +1949,7 @@ rtwn_stop(struct rtwn_softc *sc)
 	sc->fwver = 0;
 	sc->thcal_temp = 0;
 	sc->cur_bcnq_id = RTWN_VAP_ID_INVALID;
+	bzero(&sc->last_physt, sizeof(sc->last_physt));
 
 #ifdef D4054
 	ieee80211_tx_watchdog_stop(&sc->sc_ic);

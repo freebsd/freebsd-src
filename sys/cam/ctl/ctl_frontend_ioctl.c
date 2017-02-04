@@ -76,7 +76,7 @@ struct cfi_softc {
 static struct cfi_softc cfi_softc;
 
 static int cfi_init(void);
-static void cfi_shutdown(void);
+static int cfi_shutdown(void);
 static void cfi_datamove(union ctl_io *io);
 static void cfi_done(union ctl_io *io);
 
@@ -93,6 +93,7 @@ cfi_init(void)
 {
 	struct cfi_softc *isoftc = &cfi_softc;
 	struct ctl_port *port;
+	int error = 0;
 
 	memset(isoftc, 0, sizeof(*isoftc));
 
@@ -103,29 +104,28 @@ cfi_init(void)
 	port->port_name = "ioctl";
 	port->fe_datamove = cfi_datamove;
 	port->fe_done = cfi_done;
-	port->max_targets = 1;
-	port->max_target_id = 0;
 	port->targ_port = -1;
 	port->max_initiators = 1;
 
-	if (ctl_port_register(port) != 0) {
+	if ((error = ctl_port_register(port)) != 0) {
 		printf("%s: ioctl port registration failed\n", __func__);
-		return (0);
+		return (error);
 	}
 	ctl_port_online(port);
 	return (0);
 }
 
-void
+static int
 cfi_shutdown(void)
 {
 	struct cfi_softc *isoftc = &cfi_softc;
-	struct ctl_port *port;
+	struct ctl_port *port = &isoftc->port;
+	int error = 0;
 
-	port = &isoftc->port;
 	ctl_port_offline(port);
-	if (ctl_port_deregister(&isoftc->port) != 0)
-		printf("%s: ctl_frontend_deregister() failed\n", __func__);
+	if ((error = ctl_port_deregister(port)) != 0)
+		printf("%s: ioctl port deregistration failed\n", __func__);
+	return (error);
 }
 
 /*

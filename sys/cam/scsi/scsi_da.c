@@ -829,6 +829,11 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*quirks*/DA_Q_4K
 	},
 	{
+		/* Micron Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "Micron 5100 MTFDDAK*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
 		/* Samsung Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG HD155UI*", "*" },
 		/*quirks*/DA_Q_4K
@@ -1147,6 +1152,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "INTEL SSDSC2BW*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Intel S3610 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "INTEL SSDSC2BX*", "*" },
 		/*quirks*/DA_Q_4K
 	},
 	{

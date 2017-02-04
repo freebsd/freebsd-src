@@ -1,7 +1,7 @@
-/*	$Id: mdoc.c,v 1.256 2015/10/30 19:04:16 schwarze Exp $ */
+/*	$Id: mdoc.c,v 1.258 2017/01/10 13:47:00 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012-2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2012-2016 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -140,8 +140,8 @@ mdoc_endbody_alloc(struct roff_man *mdoc, int line, int pos, int tok,
 {
 	struct roff_node *p;
 
-	body->flags |= MDOC_ENDED;
-	body->parent->flags |= MDOC_ENDED;
+	body->flags |= NODE_ENDED;
+	body->parent->flags |= NODE_ENDED;
 	p = roff_node_alloc(mdoc, line, pos, ROFFT_BODY, tok);
 	p->body = body;
 	p->norm = body->norm;
@@ -219,29 +219,19 @@ mdoc_ptext(struct roff_man *mdoc, int line, char *buf, int offs)
 	struct roff_node *n;
 	char		 *c, *ws, *end;
 
-	assert(mdoc->last);
 	n = mdoc->last;
 
 	/*
-	 * Divert directly to list processing if we're encountering a
-	 * columnar ROFFT_BLOCK with or without a prior ROFFT_BLOCK entry
-	 * (a ROFFT_BODY means it's already open, in which case we should
-	 * process within its context in the normal way).
+	 * If a column list contains plain text, assume an implicit item
+	 * macro.  This can happen one or more times at the beginning
+	 * of such a list, intermixed with non-It mdoc macros and with
+	 * nodes generated on the roff level, for example by tbl.
 	 */
 
-	if (n->tok == MDOC_Bl && n->type == ROFFT_BODY &&
-	    n->end == ENDBODY_NOT && n->norm->Bl.type == LIST_column) {
-		/* `Bl' is open without any children. */
-		mdoc->flags |= MDOC_FREECOL;
-		mdoc_macro(mdoc, MDOC_It, line, offs, &offs, buf);
-		return 1;
-	}
-
-	if (n->tok == MDOC_It && n->type == ROFFT_BLOCK &&
-	    NULL != n->parent &&
-	    MDOC_Bl == n->parent->tok &&
-	    LIST_column == n->parent->norm->Bl.type) {
-		/* `Bl' has block-level `It' children. */
+	if ((n->tok == MDOC_Bl && n->type == ROFFT_BODY &&
+	     n->end == ENDBODY_NOT && n->norm->Bl.type == LIST_column) ||
+	    (n->parent != NULL && n->parent->tok == MDOC_Bl &&
+	     n->parent->norm->Bl.type == LIST_column)) {
 		mdoc->flags |= MDOC_FREECOL;
 		mdoc_macro(mdoc, MDOC_It, line, offs, &offs, buf);
 		return 1;
@@ -302,7 +292,7 @@ mdoc_ptext(struct roff_man *mdoc, int line, char *buf, int offs)
 		 * behaviour that we want to work around it.
 		 */
 		roff_elem_alloc(mdoc, line, offs, MDOC_sp);
-		mdoc->last->flags |= MDOC_VALID | MDOC_ENDED;
+		mdoc->last->flags |= NODE_VALID | NODE_ENDED;
 		mdoc->next = ROFF_NEXT_SIBLING;
 		return 1;
 	}
@@ -321,7 +311,7 @@ mdoc_ptext(struct roff_man *mdoc, int line, char *buf, int offs)
 	assert(buf < end);
 
 	if (mandoc_eos(buf+offs, (size_t)(end-buf-offs)))
-		mdoc->last->flags |= MDOC_EOS;
+		mdoc->last->flags |= NODE_EOS;
 	return 1;
 }
 
@@ -393,36 +383,23 @@ mdoc_pmacro(struct roff_man *mdoc, int ln, char *buf, int offs)
 	 * into macro processing.
 	 */
 
-	if (NULL == mdoc->last || MDOC_It == tok || MDOC_El == tok) {
+	n = mdoc->last;
+	if (n == NULL || tok == MDOC_It || tok == MDOC_El) {
 		mdoc_macro(mdoc, tok, ln, sv, &offs, buf);
 		return 1;
 	}
 
-	n = mdoc->last;
-	assert(mdoc->last);
-
 	/*
-	 * If the first macro of a `Bl -column', open an `It' block
-	 * context around the parsed macro.
+	 * If a column list contains a non-It macro, assume an implicit
+	 * item macro.  This can happen one or more times at the
+	 * beginning of such a list, intermixed with text lines and
+	 * with nodes generated on the roff level, for example by tbl.
 	 */
 
-	if (n->tok == MDOC_Bl && n->type == ROFFT_BODY &&
-	    n->end == ENDBODY_NOT && n->norm->Bl.type == LIST_column) {
-		mdoc->flags |= MDOC_FREECOL;
-		mdoc_macro(mdoc, MDOC_It, ln, sv, &sv, buf);
-		return 1;
-	}
-
-	/*
-	 * If we're following a block-level `It' within a `Bl -column'
-	 * context (perhaps opened in the above block or in ptext()),
-	 * then open an `It' block context around the parsed macro.
-	 */
-
-	if (n->tok == MDOC_It && n->type == ROFFT_BLOCK &&
-	    NULL != n->parent &&
-	    MDOC_Bl == n->parent->tok &&
-	    LIST_column == n->parent->norm->Bl.type) {
+	if ((n->tok == MDOC_Bl && n->type == ROFFT_BODY &&
+	     n->end == ENDBODY_NOT && n->norm->Bl.type == LIST_column) ||
+	    (n->parent != NULL && n->parent->tok == MDOC_Bl &&
+	     n->parent->norm->Bl.type == LIST_column)) {
 		mdoc->flags |= MDOC_FREECOL;
 		mdoc_macro(mdoc, MDOC_It, ln, sv, &sv, buf);
 		return 1;

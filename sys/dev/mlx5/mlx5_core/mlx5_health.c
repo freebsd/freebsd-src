@@ -122,6 +122,9 @@ static void poll_health(unsigned long data)
 	int next;
 	u32 count;
 
+	if (dev->state != MLX5_DEVICE_STATE_UP)
+		return;
+
 	count = ioread32be(health->health_counter);
 	if (count == health->prev)
 		++health->miss_counter;

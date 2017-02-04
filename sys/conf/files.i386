@@ -530,7 +530,7 @@ i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
 i386/isa/elink.c		optional ep | ie
-i386/isa/npx.c			optional npx
+i386/isa/npx.c			standard
 i386/isa/pmtimer.c		optional pmtimer
 i386/isa/prof_machdep.c		optional profiling-routine
 i386/linux/imgact_linux.c	optional compat_linux
@@ -554,6 +554,11 @@ kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
 kern/subr_sfbuf.c		standard
+crc32_sse42.o			standard				\
+	dependency	"$S/libkern/x86/crc32_sse42.c"			\
+	compile-with	"${CC} -c ${CFLAGS:N-nostdinc} ${WERROR} ${PROF} -msse4 ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"crc32_sse42.o"
 libkern/divdi3.c		standard
 libkern/ffsll.c			standard
 libkern/flsll.c			standard
@@ -578,7 +583,7 @@ compat/x86bios/x86bios.c	optional x86bios | dpms | pci | vesa
 dev/bvm/bvm_console.c		optional	bvmconsole
 dev/bvm/bvm_dbg.c		optional	bvmdebug
 #
-# x86 shared code between IA32, AMD64 and PC98 architectures
+# x86 shared code between IA32 and AMD64 architectures
 #
 x86/acpica/OsdEnvironment.c	optional acpi
 x86/acpica/acpi_apm.c		optional acpi

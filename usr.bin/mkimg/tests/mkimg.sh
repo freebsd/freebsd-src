@@ -3,12 +3,12 @@
 mkimg_blksz_list="512 4096"
 mkimg_format_list="qcow qcow2 raw vhd vhdf vmdk"
 mkimg_geom_list="1x1 63x255"
-mkimg_scheme_list="apm bsd ebr gpt mbr pc98 vtoc8"
+mkimg_scheme_list="apm bsd ebr gpt mbr vtoc8"
 
 bootcode()
 {
     case $1 in
-      bsd|pc98)	echo 8192 ;;
+      bsd)	echo 8192 ;;
       gpt|mbr)	echo 512 ;;
       *)	echo 0 ;;
     esac
@@ -106,7 +106,7 @@ mkimg_test()
     format=$4
 
     case $scheme in
-      ebr|mbr|pc98)
+      ebr|mbr)
 	bsd=`makeimage raw bsd $blksz $geom _tmp`
 	partinfo="freebsd:=$bsd"
 	;;

@@ -1452,37 +1452,25 @@ freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatf
 int
 freebsd32_pread(struct thread *td, struct freebsd32_pread_args *uap)
 {
-	struct pread_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	return (sys_pread(td, &ap));
+	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte,
+	    PAIR32TO64(off_t, uap->offset)));
 }
 
 int
 freebsd32_pwrite(struct thread *td, struct freebsd32_pwrite_args *uap)
 {
-	struct pwrite_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	return (sys_pwrite(td, &ap));
+	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte,
+	    PAIR32TO64(off_t, uap->offset)));
 }
 
 #ifdef COMPAT_43
 int
 ofreebsd32_lseek(struct thread *td, struct ofreebsd32_lseek_args *uap)
 {
-	struct lseek_args nuap;
 
-	nuap.fd = uap->fd;
-	nuap.offset = uap->offset;
-	nuap.whence = uap->whence;
-	return (sys_lseek(td, &nuap));
+	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
 }
 #endif
 
@@ -1490,13 +1478,10 @@ int
 freebsd32_lseek(struct thread *td, struct freebsd32_lseek_args *uap)
 {
 	int error;
-	struct lseek_args ap;
 	off_t pos;
 
-	ap.fd = uap->fd;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	ap.whence = uap->whence;
-	error = sys_lseek(td, &ap);
+	error = kern_lseek(td, uap->fd, PAIR32TO64(off_t, uap->offset),
+	    uap->whence);
 	/* Expand the quad return into two parts for eax and edx */
 	pos = td->td_uretoff.tdu_off;
 	td->td_retval[RETVAL_LO] = pos & 0xffffffff;	/* %eax */
@@ -1507,21 +1492,16 @@ freebsd32_lseek(struct thread *td, struct freebsd32_lseek_args *uap)
 int
 freebsd32_truncate(struct thread *td, struct freebsd32_truncate_args *uap)
 {
-	struct truncate_args ap;
 
-	ap.path = uap->path;
-	ap.length = PAIR32TO64(off_t,uap->length);
-	return (sys_truncate(td, &ap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE,
+	    PAIR32TO64(off_t, uap->length)));
 }
 
 int
 freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 {
-	struct ftruncate_args ap;
 
-	ap.fd = uap->fd;
-	ap.length = PAIR32TO64(off_t,uap->length);
-	return (sys_ftruncate(td, &ap));
+	return (kern_ftruncate(td, uap->fd, PAIR32TO64(off_t, uap->length)));
 }
 
 #ifdef COMPAT_43
@@ -1571,38 +1551,27 @@ freebsd32_getdirentries(struct thread *td,
 int
 freebsd6_freebsd32_pread(struct thread *td, struct freebsd6_freebsd32_pread_args *uap)
 {
-	struct pread_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	return (sys_pread(td, &ap));
+	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte,
+	    PAIR32TO64(off_t, uap->offset)));
 }
 
 int
 freebsd6_freebsd32_pwrite(struct thread *td, struct freebsd6_freebsd32_pwrite_args *uap)
 {
-	struct pwrite_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	return (sys_pwrite(td, &ap));
+	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte,
+	    PAIR32TO64(off_t, uap->offset)));
 }
 
 int
 freebsd6_freebsd32_lseek(struct thread *td, struct freebsd6_freebsd32_lseek_args *uap)
 {
 	int error;
-	struct lseek_args ap;
 	off_t pos;
 
-	ap.fd = uap->fd;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	ap.whence = uap->whence;
-	error = sys_lseek(td, &ap);
+	error = kern_lseek(td, uap->fd, PAIR32TO64(off_t, uap->offset),
+	    uap->whence);
 	/* Expand the quad return into two parts for eax and edx */
 	pos = *(off_t *)(td->td_retval);
 	td->td_retval[RETVAL_LO] = pos & 0xffffffff;	/* %eax */
@@ -1613,21 +1582,16 @@ freebsd6_freebsd32_lseek(struct thread *td, struct freebsd6_freebsd32_lseek_args
 int
 freebsd6_freebsd32_truncate(struct thread *td, struct freebsd6_freebsd32_truncate_args *uap)
 {
-	struct truncate_args ap;
 
-	ap.path = uap->path;
-	ap.length = PAIR32TO64(off_t,uap->length);
-	return (sys_truncate(td, &ap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE,
+	    PAIR32TO64(off_t, uap->length)));
 }
 
 int
 freebsd6_freebsd32_ftruncate(struct thread *td, struct freebsd6_freebsd32_ftruncate_args *uap)
 {
-	struct ftruncate_args ap;
 
-	ap.fd = uap->fd;
-	ap.length = PAIR32TO64(off_t,uap->length);
-	return (sys_ftruncate(td, &ap));
+	return (kern_ftruncate(td, uap->fd, PAIR32TO64(off_t, uap->length)));
 }
 #endif /* COMPAT_FREEBSD6 */
 
@@ -2572,27 +2536,18 @@ int
 freebsd32_cpuset_setid(struct thread *td,
     struct freebsd32_cpuset_setid_args *uap)
 {
-	struct cpuset_setid_args ap;
 
-	ap.which = uap->which;
-	ap.id = PAIR32TO64(id_t,uap->id);
-	ap.setid = uap->setid;
-
-	return (sys_cpuset_setid(td, &ap));
+	return (kern_cpuset_setid(td, uap->which,
+	    PAIR32TO64(id_t, uap->id), uap->setid));
 }
 
 int
 freebsd32_cpuset_getid(struct thread *td,
     struct freebsd32_cpuset_getid_args *uap)
 {
-	struct cpuset_getid_args ap;
 
-	ap.level = uap->level;
-	ap.which = uap->which;
-	ap.id = PAIR32TO64(id_t,uap->id);
-	ap.setid = uap->setid;
-
-	return (sys_cpuset_getid(td, &ap));
+	return (kern_cpuset_getid(td, uap->level, uap->which,
+	    PAIR32TO64(id_t, uap->id), uap->setid));
 }
 
 int
