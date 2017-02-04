@@ -478,6 +478,7 @@ DoFile(const char *savedir, const char *device)
 	bool isencrypted, ret;
 
 	bounds = getbounds();
+	dumpkey = NULL;
 	mediasize = 0;
 	status = STATUS_UNKNOWN;
 
@@ -816,6 +817,7 @@ nuke:
 	}
 	xo_close_container_h(xostdout, "crashdump");
 	xo_finish_h(xostdout);
+	free(dumpkey);
 	free(temp);
 	close(fd);
 	return;
@@ -824,6 +826,7 @@ closeall:
 	fclose(fp);
 
 closefd:
+	free(dumpkey);
 	free(temp);
 	close(fd);
 }
