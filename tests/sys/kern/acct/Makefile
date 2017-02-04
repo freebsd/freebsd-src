@@ -13,6 +13,7 @@ acct_test.o: convert.c
 
 convert.c: ${.CURDIR:H:H:H:H}/sys/kern/kern_acct.c
 	sed -n -e 's/log(/syslog(/g' \
+	       -e 's/exp/exponent/g' \
 	       -e '/FLOAT_CONVERSION_START/,/FLOAT_CONVERSION_END/p' ${.ALLSRC} >${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}
 
