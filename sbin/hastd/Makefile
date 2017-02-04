@@ -31,11 +31,7 @@ CFLAGS+=-DINET
 CFLAGS+=-DINET6
 .endif
 
-LIBADD=	geom pthread util
-.if ${MK_OPENSSL} != "no"
-LIBADD+=	crypto
-CFLAGS+=-DHAVE_CRYPTO
-.endif
+LIBADD=	geom md pthread util
 
 YFLAGS+=-v
 
