@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-.PATH: ${LIBC_SRCTOP}/../libmd
+.PATH: ${SRCTOP}/lib/libmd
 
 SRCS+=	md5c.c
