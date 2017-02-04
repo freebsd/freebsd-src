@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/endian.h>
 #include <sys/kerneldump.h>
-#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 
@@ -232,8 +231,6 @@ decrypt(const char *privkeyfile, const char *keyfile, const char *input,
 			pjdlog_errno(LOG_ERR, "Unable to read data from %s",
 			    input);
 			goto failed;
-		} else if (bytes == 0) {
-			break;
 		}
 
 		if (bytes > 0) {
@@ -249,10 +246,7 @@ decrypt(const char *privkeyfile, const char *keyfile, const char *input,
 			}
 		}
 
-		if (olen == 0)
-			continue;
-
-		if (write(ofd, buf, olen) != olen) {
+		if (olen > 0 && write(ofd, buf, olen) != olen) {
 			pjdlog_errno(LOG_ERR, "Unable to write data to %s",
 			    output);
 			goto failed;
@@ -274,7 +268,6 @@ int
 main(int argc, char **argv)
 {
 	char core[PATH_MAX], encryptedcore[PATH_MAX], keyfile[PATH_MAX];
-	struct stat sb;
 	const char *crashdir, *dumpnr, *privatekey;
 	int ch, debug;
 	size_t ii;
@@ -297,16 +290,23 @@ main(int argc, char **argv)
 			usesyslog = true;
 			break;
 		case 'c':
-			strncpy(core, optarg, sizeof(core));
+			if (strlcpy(core, optarg, sizeof(core)) >= sizeof(core))
+				pjdlog_exitx(1, "Core file path is too long.");
 			break;
 		case 'd':
 			crashdir = optarg;
 			break;
 		case 'e':
-			strncpy(encryptedcore, optarg, sizeof(encryptedcore));
+			if (strlcpy(encryptedcore, optarg,
+			    sizeof(encryptedcore)) >= sizeof(encryptedcore)) {
+				pjdlog_exitx(1, "Encrypted core file path is too long.");
+			}
 			break;
 		case 'k':
-			strncpy(keyfile, optarg, sizeof(keyfile));
+			if (strlcpy(keyfile, optarg, sizeof(keyfile)) >=
+			    sizeof(keyfile)) {
+				pjdlog_exitx(1, "Key file path is too long.");
+			}
 			break;
 		case 'n':
 			dumpnr = optarg;
@@ -362,7 +362,7 @@ main(int argc, char **argv)
 	pjdlog_debug_set(debug);
 
 	if (!decrypt(privatekey, keyfile, encryptedcore, core)) {
-		if (stat(core, &sb) == 0 && unlink(core) != 0)
+		if (unlink(core) == -1 && errno != ENOENT)
 			pjdlog_exit(1, "Unable to remove core");
 		exit(1);
 	}
