@@ -94,7 +94,7 @@ wdc_append_serial_name(int fd, char *buf, size_t len, const char *suffix)
 	walker = sn + NVME_SERIAL_NUMBER_LENGTH - 1;
 	while (walker > sn && *walker == ' ')
 		walker--;
-	*walker = '\0';
+	*++walker = '\0';
 	snprintf(buf, len, "%s%s.bin", sn, suffix);
 }
 
