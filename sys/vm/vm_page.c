@@ -421,17 +421,16 @@ vm_page_domain_init(struct vm_domain *vmd)
 /*
  *	vm_page_startup:
  *
- *	Initializes the resident memory module.
- *
- *	Allocates memory for the page cells, and
- *	for the object/offset-to-page hash table headers.
- *	Each page cell is initialized and placed on the free list.
+ *	Initializes the resident memory module.  Allocates physical memory for
+ *	bootstrapping UMA and some data structures that are used to manage
+ *	physical pages.  Initializes these structures, and populates the free
+ *	page queues.
  */
 vm_offset_t
 vm_page_startup(vm_offset_t vaddr)
 {
 	vm_offset_t mapped;
-	vm_paddr_t page_range;
+	vm_paddr_t high_avail, low_avail, page_range, size;
 	vm_paddr_t new_end;
 	int i;
 	vm_paddr_t pa;
@@ -439,7 +438,6 @@ vm_page_startup(vm_offset_t vaddr)
 	char *list, *listend;
 	vm_paddr_t end;
 	vm_paddr_t biggestsize;
-	vm_paddr_t low_water, high_water;
 	int biggestone;
 	int pages_per_zone;
 
@@ -451,27 +449,12 @@ vm_page_startup(vm_offset_t vaddr)
 		phys_avail[i] = round_page(phys_avail[i]);
 		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
 	}
-
-	low_water = phys_avail[0];
-	high_water = phys_avail[1];
-
-	for (i = 0; i < vm_phys_nsegs; i++) {
-		if (vm_phys_segs[i].start < low_water)
-			low_water = vm_phys_segs[i].start;
-		if (vm_phys_segs[i].end > high_water)
-			high_water = vm_phys_segs[i].end;
-	}
 	for (i = 0; phys_avail[i + 1]; i += 2) {
-		vm_paddr_t size = phys_avail[i + 1] - phys_avail[i];
-
+		size = phys_avail[i + 1] - phys_avail[i];
 		if (size > biggestsize) {
 			biggestone = i;
 			biggestsize = size;
 		}
-		if (phys_avail[i] < low_water)
-			low_water = phys_avail[i];
-		if (phys_avail[i + 1] > high_water)
-			high_water = phys_avail[i + 1];
 	}
 
 	end = phys_avail[biggestone+1];
@@ -486,7 +469,7 @@ vm_page_startup(vm_offset_t vaddr)
 		vm_page_domain_init(&vm_dom[i]);
 
 	/*
-	 * Almost all of the pages needed for boot strapping UMA are used
+	 * Almost all of the pages needed for bootstrapping UMA are used
 	 * for zone structures, so if the number of CPUs results in those
 	 * structures taking more than one page each, we set aside more pages
 	 * in proportion to the zone structure size.
@@ -537,6 +520,16 @@ vm_page_startup(vm_offset_t vaddr)
 	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);
 	bzero((void *)vm_page_dump, vm_page_dump_size);
 #endif
+#if defined(__aarch64__) || defined(__amd64__) || defined(__mips__)
+	/*
+	 * Include the UMA bootstrap pages and vm_page_dump in a crash dump.
+	 * When pmap_map() uses the direct map, they are not automatically 
+	 * included.
+	 */
+	for (pa = new_end; pa < end; pa += PAGE_SIZE)
+		dump_add_page(pa);
+#endif
+	phys_avail[biggestone + 1] = new_end;
 #ifdef __amd64__
 	/*
 	 * Request that the physical pages underlying the message buffer be
@@ -552,20 +545,48 @@ vm_page_startup(vm_offset_t vaddr)
 #endif
 	/*
 	 * Compute the number of pages of memory that will be available for
-	 * use (taking into account the overhead of a page structure per
-	 * page).
+	 * use, taking into account the overhead of a page structure per page.
+	 * In other words, solve
+	 *	"available physical memory" - round_page(page_range *
+	 *	    sizeof(struct vm_page)) = page_range * PAGE_SIZE 
+	 * for page_range.  
 	 */
-	first_page = low_water / PAGE_SIZE;
-#ifdef VM_PHYSSEG_SPARSE
-	page_range = 0;
+	low_avail = phys_avail[0];
+	high_avail = phys_avail[1];
 	for (i = 0; i < vm_phys_nsegs; i++) {
-		page_range += atop(vm_phys_segs[i].end -
-		    vm_phys_segs[i].start);
+		if (vm_phys_segs[i].start < low_avail)
+			low_avail = vm_phys_segs[i].start;
+		if (vm_phys_segs[i].end > high_avail)
+			high_avail = vm_phys_segs[i].end;
 	}
+	/* Skip the first chunk.  It is already accounted for. */
+	for (i = 2; phys_avail[i + 1] != 0; i += 2) {
+		if (phys_avail[i] < low_avail)
+			low_avail = phys_avail[i];
+		if (phys_avail[i + 1] > high_avail)
+			high_avail = phys_avail[i + 1];
+	}
+	first_page = low_avail / PAGE_SIZE;
+#ifdef VM_PHYSSEG_SPARSE
+	size = 0;
+	for (i = 0; i < vm_phys_nsegs; i++)
+		size += vm_phys_segs[i].end - vm_phys_segs[i].start;
 	for (i = 0; phys_avail[i + 1] != 0; i += 2)
-		page_range += atop(phys_avail[i + 1] - phys_avail[i]);
+		size += phys_avail[i + 1] - phys_avail[i];
+	page_range = size / (PAGE_SIZE + sizeof(struct vm_page));
 #elif defined(VM_PHYSSEG_DENSE)
-	page_range = high_water / PAGE_SIZE - first_page;
+	/*
+	 * In the VM_PHYSSEG_DENSE case, the number of pages can account for
+	 * the overhead of a page structure per page only if vm_page_array is
+	 * allocated from the last physical memory chunk.  Otherwise, we must
+	 * allocate page structures representing the physical memory
+	 * underlying vm_page_array, even though they will not be used.
+	 */
+	if (new_end == high_avail)
+		page_range = (high_avail - low_avail) / (PAGE_SIZE +
+		    sizeof(struct vm_page));
+	else
+		page_range = high_avail / PAGE_SIZE - first_page;
 #else
 #error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
 #endif
@@ -573,12 +594,13 @@ vm_page_startup(vm_offset_t vaddr)
 
 	/*
 	 * Reserve an unmapped guard page to trap access to vm_page_array[-1].
+	 * However, because this page is allocated from KVM, out-of-bounds
+	 * accesses using the direct map will not be trapped.
 	 */
 	vaddr += PAGE_SIZE;
 
 	/*
-	 * Initialize the mem entry structures now, and put them in the free
-	 * queue.
+	 * Allocate physical memory for the page structures, and map it.
 	 */
 	new_end = trunc_page(end - page_range * sizeof(struct vm_page));
 	mapped = pmap_map(&vaddr, new_end, end,
@@ -586,19 +608,18 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_page_array = (vm_page_t) mapped;
 #if VM_NRESERVLEVEL > 0
 	/*
-	 * Allocate memory for the reservation management system's data
-	 * structures.
+	 * Allocate physical memory for the reservation management system's
+	 * data structures, and map it.
 	 */
-	new_end = vm_reserv_startup(&vaddr, new_end, high_water);
+	if (high_avail == end)
+		high_avail = new_end;
+	new_end = vm_reserv_startup(&vaddr, new_end, high_avail);
 #endif
 #if defined(__aarch64__) || defined(__amd64__) || defined(__mips__)
 	/*
-	 * pmap_map on arm64, amd64, and mips can come out of the direct-map,
-	 * not kvm like i386, so the pages must be tracked for a crashdump to
-	 * include this data.  This includes the vm_page_array and the early
-	 * UMA bootstrap pages.
+	 * Include vm_page_array and vm_reserv_array in a crash dump.
 	 */
-	for (pa = new_end; pa < phys_avail[biggestone + 1]; pa += PAGE_SIZE)
+	for (pa = new_end; pa < end; pa += PAGE_SIZE)
 		dump_add_page(pa);
 #endif
 	phys_avail[biggestone + 1] = new_end;
