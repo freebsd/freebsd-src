@@ -350,6 +350,82 @@ If foo has multiple source files, add the line:
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+The include file, <bsd.snmpmod.mk>, handles building MIB modules for bsnmpd
+from one or more source files, along with their manual pages.  It has a
+limited number of suffixes, consistent with the current needs of the BSD
+tree.
+
+bsd.snmpmod.mk leverages bsd.lib.mk for building MIB modules and
+bsd.files.mk for installing MIB description and definition files.
+
+It implements the following additional targets:
+
+	smilint:
+		execute smilint on the MIBs defined by BMIBS.
+
+		The net-mgmt/libsmi package must be installed before
+		executing this target. The net-mgmt/net-snmp package
+		should be installed as well to reduce false positives
+		from smilint.
+
+It sets/uses the following variables:
+
+BMIBS		The MIB definitions to install.
+
+BMIBSDIR	The directory where the MIB definitions are installed.
+		This defaults to `${SHAREDIR}/snmp/mibs`.
+
+DEFS		The MIB description files to install.
+
+DEFSDIR		The directory where MIB description files are installed.
+		This defaults to `${SHAREDIR}/snmp/defs`.
+
+EXTRAMIBDEFS	Extra MIB description files to use as input when
+		generating ${MOD}_oid.h and ${MOD}_tree.[ch].
+
+EXTRAMIBSYMS	Extra MIB definition files used only for extracting
+		symbols.
+
+		EXTRAMIBSYMS are useful when resolving inter-module
+		dependencies and are useful with files containing only
+		enum-definitions.
+
+		See ${MOD}_oid.h for more details.
+
+LOCALBASE	The package root where smilint and the net-snmp
+		definitions can be found
+
+MOD		The bsnmpd module name.
+
+SMILINT		smilint binary to use with the smilint make target.
+
+SMILINT_FLAGS	flags to pass to smilint.
+
+SMIPATH		A colon-separated directory path where MIBs definitions
+		can be found. See "SMIPATH" in smi_config for more
+		details.
+
+XSYM		MIB names to extract symbols for. See ${MOD}_oid.h for
+		more details.
+
+It generates the following files:
+
+${MOD}_tree.c	A source file and header which programmatically describes
+${MOD}_tree.h	the MIB (type, OID name, ACCESS attributes, etc).
+
+		The files are generated via "gensnmptree -p".
+
+		See gensnmptree(1) for more details.
+
+${MOD}_oid.h	A header which programmatically describes the MIB root and
+		MIB tables.
+
+		The files are generated via "gensnmptree -e".
+
+		See gensnmptree(1) for more details.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 The include file <bsd.subdir.mk> contains the default targets for building
 subdirectories.  It has the same seven targets as <bsd.prog.mk>: all, clean,
 cleandir, depend, install, lint, and tags.  For all of the directories

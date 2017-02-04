@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/../../../contrib/bsnmp/snmpd
+.PATH: ${SRCTOP}/contrib/bsnmp/snmpd
 
 .if ${MK_ATM} != "no"
 _snmp_atm= snmp_atm
@@ -34,5 +34,7 @@ SUBDIR+=snmp_wlan
 
 INCS=	snmpmod.h
 INCSDIR= ${INCLUDEDIR}/bsnmp
+
+SUBDIR_TARGETS+=	smilint
 
 .include <bsd.prog.mk>
