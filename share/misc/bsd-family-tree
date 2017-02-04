@@ -339,7 +339,11 @@ FreeBSD 5.2           |      |                 |                       |
  |  FreeBSD           |      |            OpenBSD 5.9                  |
  |   10.3             |      |                 |                       |
  |                    |      |                 |                       |
-FreeBSD 11 -current   |  NetBSD -current  OpenBSD -current     DragonFly -current
+ *--FreeBSD           |      |                 |                       |
+ |   11.0             |      |                 |                       |
+ |                    |      |                 |                       |
+ |                    |      |                 |                       |
+FreeBSD 12 -current   |  NetBSD -current  OpenBSD -current     DragonFly -current
  |                    |      |                 |                       |
  v                    v      v                 v                       v
 
@@ -687,6 +691,8 @@ OpenBSD 5.8		2015-10-18 [OBD]
 DragonFly 4.4.1		2015-12-07 [DFB]
 OpenBSD 5.9		2016-03-29 [OBD]
 FreeBSD 10.3		2016-04-04 [FBD]
+FreeBSD 11.0		2016-06-08 [FBD]
+FreeBSD 12.0		2016-06-09 [FBD]
 
 Bibliography
 ------------------------
