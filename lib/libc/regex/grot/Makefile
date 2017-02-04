@@ -5,7 +5,7 @@
 # Do not take -DPOSIX_MISTAKE out.  REGCFLAGS isn't important to you (it's
 # for my use in some special contexts).
 
-PATHS= ${.CURDIR}/.. ${.CURDIR}/../../locale ${.CURDIR}/../../../../include
+PATHS= ${.CURDIR:H} ${.CURDIR:H:H}/locale ${SRCTOP}/include
 .PATH: ${PATHS}
 
 CFLAGS+= -static -DPOSIX_MISTAKE -DREDEBUG $(REGCFLAGS)
