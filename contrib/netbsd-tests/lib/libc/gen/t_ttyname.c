@@ -1,4 +1,4 @@
-/*	$NetBSD: t_ttyname.c,v 1.3 2011/05/01 18:14:01 jruoho Exp $ */
+/*	$NetBSD: t_ttyname.c,v 1.4 2017/01/10 15:33:40 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_ttyname.c,v 1.3 2011/05/01 18:14:01 jruoho Exp $");
+__RCSID("$NetBSD: t_ttyname.c,v 1.4 2017/01/10 15:33:40 christos Exp $");
 
 #include <atf-c.h>
 #include <errno.h>
@@ -78,9 +78,7 @@ ATF_TC_BODY(ttyname_err, tc)
 
 		ATF_REQUIRE(ttyname(fd) == NULL);
 		ATF_REQUIRE(errno == ENOTTY);
-#ifdef	__FreeBSD__
 		(void)close(fd);
-#endif
 	}
 }
 
