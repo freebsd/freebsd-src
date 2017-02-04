@@ -73,8 +73,6 @@ scheme_supports_labels(const char *scheme)
 		return (1);
 	if (strcmp(scheme, "GPT") == 0)
 		return (1);
-	if (strcmp(scheme, "PC98") == 0)
-		return (1);
 
 	return (0);
 }
@@ -221,8 +219,6 @@ choose_part_type(const char *def_scheme)
 		    "Bootable on most x86 systems and EFI aware ARM64", 0 },
 		{"MBR", "DOS Partitions",
 		    "Bootable on most x86 systems", 0 },
-		{"PC98", "NEC PC9801 Partition Table",
-		    "Bootable on NEC PC9801 systems", 0 },
 		{"VTOC8", "Sun VTOC8 Partition Table",
 		    "Bootable on Sun SPARC systems", 0 },
 	};
@@ -325,8 +321,7 @@ gpart_activate(struct gprovider *pp)
 		}
 	}
 
-	if (strcmp(scheme, "MBR") == 0 || strcmp(scheme, "EBR") == 0 ||
-	    strcmp(scheme, "PC98") == 0)
+	if (strcmp(scheme, "MBR") == 0 || strcmp(scheme, "EBR") == 0)
 		attribute = "active";
 	else
 		return;
@@ -979,7 +974,7 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	items[1].text = sizestr;
 
 	/* Special-case the MBR default type for nested partitions */
-	if (strcmp(scheme, "MBR") == 0 || strcmp(scheme, "PC98") == 0) {
+	if (strcmp(scheme, "MBR") == 0) {
 		items[0].text = "freebsd";
 		items[0].help = "Filesystem type (e.g. freebsd, fat32)";
 	}

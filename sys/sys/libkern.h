@@ -49,9 +49,36 @@ extern u_char const	bcd2bin_data[];
 extern u_char const	bin2bcd_data[];
 extern char const	hex2ascii_data[];
 
-#define	bcd2bin(bcd)	(bcd2bin_data[bcd])
-#define	bin2bcd(bin)	(bin2bcd_data[bin])
-#define	hex2ascii(hex)	(hex2ascii_data[hex])
+#define	LIBKERN_LEN_BCD2BIN	154
+#define	LIBKERN_LEN_BIN2BCD	100
+#define	LIBKERN_LEN_HEX2ASCII	36
+
+static inline u_char
+bcd2bin(int bcd)
+{
+
+	KASSERT(bcd >= 0 && bcd < LIBKERN_LEN_BCD2BIN,
+	    ("invalid bcd %d", bcd));
+	return (bcd2bin_data[bcd]);
+}
+
+static inline u_char
+bin2bcd(int bin)
+{
+
+	KASSERT(bin >= 0 && bin < LIBKERN_LEN_BIN2BCD,
+	    ("invalid bin %d", bin));
+	return (bin2bcd_data[bin]);
+}
+
+static inline char
+hex2ascii(int hex)
+{
+
+	KASSERT(hex >= 0 && hex < LIBKERN_LEN_HEX2ASCII,
+	    ("invalid hex %d", hex));
+	return (hex2ascii_data[hex]);
+}
 
 static __inline int imax(int a, int b) { return (a > b ? a : b); }
 static __inline int imin(int a, int b) { return (a < b ? a : b); }
@@ -178,6 +205,11 @@ crc32(const void *buf, size_t size)
 uint32_t
 calculate_crc32c(uint32_t crc32c, const unsigned char *buffer,
     unsigned int length);
+#ifdef _KERNEL
+#if defined(__amd64__) || defined(__i386__)
+uint32_t sse42_crc32c(uint32_t, const unsigned char *, unsigned);
+#endif
+#endif
 
 
 LIBKERN_INLINE void *memset(void *, int, size_t);

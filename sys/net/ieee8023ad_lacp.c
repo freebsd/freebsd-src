@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ratelimit.h"
+
 #include <sys/param.h>
 #include <sys/callout.h>
 #include <sys/eventhandler.h>
@@ -526,9 +528,6 @@ lacp_port_create(struct lagg_port *lgp)
 	struct ifmultiaddr *rifma = NULL;
 	int error;
 
-	boolean_t active = TRUE; /* XXX should be configurable */
-	boolean_t fast = FALSE; /* Configurable via ioctl */ 
-
 	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 
@@ -557,9 +556,7 @@ lacp_port_create(struct lagg_port *lgp)
 
 	lacp_fill_actorinfo(lp, &lp->lp_actor);
 	lacp_fill_markerinfo(lp, &lp->lp_marker);
-	lp->lp_state =
-	    (active ? LACP_STATE_ACTIVITY : 0) |
-	    (fast ? LACP_STATE_TIMEOUT : 0);
+	lp->lp_state = LACP_STATE_ACTIVITY;
 	lp->lp_aggregator = NULL;
 	lacp_sm_rx_set_expired(lp);
 	LACP_UNLOCK(lsc);
@@ -853,6 +850,35 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 
 	return (lp->lp_lagg);
 }
+
+#ifdef RATELIMIT
+struct lagg_port *
+lacp_select_tx_port_by_hash(struct lagg_softc *sc, uint32_t flowid)
+{
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
+	struct lacp_portmap *pm;
+	struct lacp_port *lp;
+	uint32_t hash;
+
+	if (__predict_false(lsc->lsc_suppress_distributing)) {
+		LACP_DPRINTF((NULL, "%s: waiting transit\n", __func__));
+		return (NULL);
+	}
+
+	pm = &lsc->lsc_pmap[lsc->lsc_activemap];
+	if (pm->pm_count == 0) {
+		LACP_DPRINTF((NULL, "%s: no active aggregator\n", __func__));
+		return (NULL);
+	}
+
+	hash = flowid >> sc->flowid_shift;
+	hash %= pm->pm_count;
+	lp = pm->pm_map[hash];
+
+	return (lp->lp_lagg);
+}
+#endif
+
 /*
  * lacp_suppress_distributing: drop transmit packets for a while
  * to preserve packet ordering.

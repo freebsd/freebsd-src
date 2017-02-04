@@ -94,15 +94,14 @@ struct cfcs_softc {
 	CAM_SNS_BUF_PHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |		\
 	CAM_SENSE_PHYS)
 
-int cfcs_init(void);
+static int cfcs_init(void);
+static int cfcs_shutdown(void);
 static void cfcs_poll(struct cam_sim *sim);
 static void cfcs_online(void *arg);
 static void cfcs_offline(void *arg);
 static void cfcs_datamove(union ctl_io *io);
 static void cfcs_done(union ctl_io *io);
 void cfcs_action(struct cam_sim *sim, union ccb *ccb);
-static void cfcs_async(void *callback_arg, uint32_t code,
-		       struct cam_path *path, void *arg);
 
 struct cfcs_softc cfcs_softc;
 /*
@@ -121,14 +120,14 @@ static struct ctl_frontend cfcs_frontend =
 {
 	.name = "camsim",
 	.init = cfcs_init,
+	.shutdown = cfcs_shutdown,
 };
 CTL_FRONTEND_DECLARE(ctlcfcs, cfcs_frontend);
 
-int
+static int
 cfcs_init(void)
 {
 	struct cfcs_softc *softc;
-	struct ccb_setasync csa;
 	struct ctl_port *port;
 	int retval;
 
@@ -148,11 +147,6 @@ cfcs_init(void)
 	port->onoff_arg = softc;
 	port->fe_datamove = cfcs_datamove;
 	port->fe_done = cfcs_done;
-
-	/* XXX KDM what should we report here? */
-	/* XXX These should probably be fetched from CTL. */
-	port->max_targets = 1;
-	port->max_target_id = 15;
 	port->targ_port = -1;
 
 	retval = ctl_port_register(port);
@@ -214,13 +208,6 @@ cfcs_init(void)
 		goto bailout;
 	}
 
-	xpt_setup_ccb(&csa.ccb_h, softc->path, CAM_PRIORITY_NONE);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_LOST_DEVICE;
-	csa.callback = cfcs_async;
-        csa.callback_arg = softc->sim;
-        xpt_action((union ccb *)&csa);
-
 	mtx_unlock(&softc->lock);
 
 	return (retval);
@@ -234,6 +221,27 @@ bailout:
 	mtx_destroy(&softc->lock);
 
 	return (retval);
+}
+
+static int
+cfcs_shutdown(void)
+{
+	struct cfcs_softc *softc = &cfcs_softc;
+	struct ctl_port *port = &softc->port;
+	int error;
+
+	ctl_port_offline(port);
+
+	mtx_lock(&softc->lock);
+	xpt_free_path(softc->path);
+	xpt_bus_deregister(cam_sim_path(softc->sim));
+	cam_sim_free(softc->sim, /*free_devq*/ TRUE);
+	mtx_unlock(&softc->lock);
+	mtx_destroy(&softc->lock);
+
+	if ((error = ctl_port_deregister(port)) != 0)
+		printf("%s: cam_sim port deregistration failed\n", __func__);
+	return (error);
 }
 
 static void
@@ -800,10 +808,4 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		break;
 	}
-}
-
-static void
-cfcs_async(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
-{
-
 }

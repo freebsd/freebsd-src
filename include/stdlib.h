@@ -37,6 +37,8 @@
 #include <sys/_null.h>
 #include <sys/_types.h>
 
+__NULLABILITY_PRAGMA_PUSH
+
 #if __BSD_VISIBLE
 #ifndef _RUNE_T_DECLARED
 typedef	__rune_t	rune_t;
@@ -81,12 +83,12 @@ extern int ___mb_cur_max(void);
 
 _Noreturn void	 abort(void);
 int	 abs(int) __pure2;
-int	 atexit(void (*)(void));
+int	 atexit(void (* _Nonnull)(void));
 double	 atof(const char *);
 int	 atoi(const char *);
 long	 atol(const char *);
 void	*bsearch(const void *, const void *, size_t,
-	    size_t, int (*)(const void *, const void *));
+	    size_t, int (*)(const void * _Nonnull, const void *));
 void	*calloc(size_t, size_t) __malloc_like __result_use_check
 	     __alloc_size(1) __alloc_size(2);
 div_t	 div(int, int) __pure2;
@@ -100,7 +102,7 @@ int	 mblen(const char *, size_t);
 size_t	 mbstowcs(wchar_t * __restrict , const char * __restrict, size_t);
 int	 mbtowc(wchar_t * __restrict, const char * __restrict, size_t);
 void	 qsort(void *, size_t, size_t,
-	    int (*)(const void *, const void *));
+	    int (* _Nonnull)(const void *, const void *));
 int	 rand(void);
 void	*realloc(void *, size_t) __result_use_check __alloc_size(2);
 void	 srand(unsigned);
@@ -256,9 +258,9 @@ void	 arc4random_stir(void);
 __uint32_t 
 	 arc4random_uniform(__uint32_t);
 #ifdef __BLOCKS__
-int	 atexit_b(void (^)(void));
+int	 atexit_b(void (^ _Nonnull)(void));
 void	*bsearch_b(const void *, const void *, size_t,
-	    size_t, int (^)(const void *, const void *));
+	    size_t, int (^ _Nonnull)(const void *, const void *));
 #endif
 char	*getbsize(int *, long *);
 					/* getcap(3) functions */
@@ -282,11 +284,13 @@ int	 getloadavg(double [], int);
 const char *
 	 getprogname(void);
 
-int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
+int	 heapsort(void *, size_t, size_t,
+	    int (* _Nonnull)(const void *, const void *));
 #ifdef __BLOCKS__
-int	 heapsort_b(void *, size_t, size_t, int (^)(const void *, const void *));
+int	 heapsort_b(void *, size_t, size_t,
+	    int (^ _Nonnull)(const void *, const void *));
 void	 qsort_b(void *, size_t, size_t,
-	    int (^)(const void *, const void *));
+	    int (^ _Nonnull)(const void *, const void *));
 #endif
 int	 l64a_r(long, char *, int);
 int	 mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
@@ -320,5 +324,6 @@ __uint64_t
 extern char *suboptarg;			/* getsubopt(3) external variable */
 #endif /* __BSD_VISIBLE */
 __END_DECLS
+__NULLABILITY_PRAGMA_POP
 
 #endif /* !_STDLIB_H_ */

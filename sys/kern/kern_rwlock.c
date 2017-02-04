@@ -100,7 +100,7 @@ static SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL,
 SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
 SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
 
-static struct lock_delay_config rw_delay = {
+static struct lock_delay_config __read_mostly rw_delay = {
 	.initial	= 1000,
 	.step		= 500,
 	.min		= 100,
@@ -132,9 +132,12 @@ LOCK_DELAY_SYSINIT(rw_delay_sysinit);
  * Return a pointer to the owning thread if the lock is write-locked or
  * NULL if the lock is unlocked or read-locked.
  */
-#define	rw_wowner(rw)							\
-	((rw)->rw_lock & RW_LOCK_READ ? NULL :				\
-	    (struct thread *)RW_OWNER((rw)->rw_lock))
+
+#define	lv_rw_wowner(v)							\
+	((v) & RW_LOCK_READ ? NULL :					\
+	 (struct thread *)RW_OWNER((v)))
+
+#define	rw_wowner(rw)	lv_rw_wowner(RW_READ_VALUE(rw))
 
 /*
  * Returns if a write owner is recursed.  Write ownership is not assured
@@ -415,7 +418,10 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 
 #ifdef KDTRACE_HOOKS
 	all_time -= lockstat_nsecs(&rw->lock_object);
-	state = rw->rw_lock;
+#endif
+	v = RW_READ_VALUE(rw);
+#ifdef KDTRACE_HOOKS
+	state = v;
 #endif
 	for (;;) {
 		/*
@@ -428,7 +434,6 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 		 * completely unlocked rwlock since such a lock is encoded
 		 * as a read lock with no waiters.
 		 */
-		v = rw->rw_lock;
 		if (RW_CAN_READ(v)) {
 			/*
 			 * The RW_LOCK_READ_WAITERS flag should only be set
@@ -444,6 +449,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 					    (void *)(v + RW_ONE_READER));
 				break;
 			}
+			v = RW_READ_VALUE(rw);
 			continue;
 		}
 #ifdef KDTRACE_HOOKS
@@ -471,9 +477,11 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 				KTR_STATE1(KTR_SCHED, "thread",
 				    sched_tdname(curthread), "spinning",
 				    "lockname:\"%s\"", rw->lock_object.lo_name);
-				while ((struct thread*)RW_OWNER(rw->rw_lock) ==
-				    owner && TD_IS_RUNNING(owner))
+				do {
 					lock_delay(&lda);
+					v = RW_READ_VALUE(rw);
+					owner = lv_rw_wowner(v);
+				} while (owner != NULL && TD_IS_RUNNING(owner));
 				KTR_STATE0(KTR_SCHED, "thread",
 				    sched_tdname(curthread), "running");
 				continue;
@@ -484,11 +492,12 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			    "spinning", "lockname:\"%s\"",
 			    rw->lock_object.lo_name);
 			for (i = 0; i < rowner_loops; i++) {
-				v = rw->rw_lock;
+				v = RW_READ_VALUE(rw);
 				if ((v & RW_LOCK_READ) == 0 || RW_CAN_READ(v))
 					break;
 				cpu_spinwait();
 			}
+			v = RW_READ_VALUE(rw);
 #ifdef KDTRACE_HOOKS
 			lda.spin_cnt += rowner_loops - i;
 #endif
@@ -511,7 +520,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 		 * The lock might have been released while we spun, so
 		 * recheck its state and restart the loop if needed.
 		 */
-		v = rw->rw_lock;
+		v = RW_READ_VALUE(rw);
 		if (RW_CAN_READ(v)) {
 			turnstile_cancel(ts);
 			continue;
@@ -549,6 +558,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			if (!atomic_cmpset_ptr(&rw->rw_lock, v,
 			    v | RW_LOCK_READ_WAITERS)) {
 				turnstile_cancel(ts);
+				v = RW_READ_VALUE(rw);
 				continue;
 			}
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -574,6 +584,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
 			    __func__, rw);
+		v = RW_READ_VALUE(rw);
 	}
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&rw->lock_object);
@@ -657,13 +668,12 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	LOCK_LOG_LOCK("RUNLOCK", &rw->lock_object, 0, 0, file, line);
 
 	/* TODO: drop "owner of record" here. */
-
+	x = RW_READ_VALUE(rw);
 	for (;;) {
 		/*
 		 * See if there is more than one read lock held.  If so,
 		 * just drop one and return.
 		 */
-		x = rw->rw_lock;
 		if (RW_READERS(x) > 1) {
 			if (atomic_cmpset_rel_ptr(&rw->rw_lock, x,
 			    x - RW_ONE_READER)) {
@@ -674,6 +684,7 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 					    (void *)(x - RW_ONE_READER));
 				break;
 			}
+			x = RW_READ_VALUE(rw);
 			continue;
 		}
 		/*
@@ -690,6 +701,7 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 					    __func__, rw);
 				break;
 			}
+			x = RW_READ_VALUE(rw);
 			continue;
 		}
 		/*
@@ -725,6 +737,7 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 		if (!atomic_cmpset_rel_ptr(&rw->rw_lock, RW_READERS_LOCK(1) | v,
 		    x)) {
 			turnstile_chain_unlock(&rw->lock_object);
+			x = RW_READ_VALUE(rw);
 			continue;
 		}
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -790,8 +803,9 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	lock_delay_arg_init(&lda, NULL);
 #endif
 	rw = rwlock2rw(c);
+	v = RW_READ_VALUE(rw);
 
-	if (rw_wlocked(rw)) {
+	if (__predict_false(lv_rw_wowner(v) == (struct thread *)tid)) {
 		KASSERT(rw->lock_object.lo_flags & LO_RECURSABLE,
 		    ("%s: recursing but non-recursive rw %s @ %s:%d\n",
 		    __func__, rw->lock_object.lo_name, file, line));
@@ -807,11 +821,15 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 
 #ifdef KDTRACE_HOOKS
 	all_time -= lockstat_nsecs(&rw->lock_object);
-	state = rw->rw_lock;
+	state = v;
 #endif
 	for (;;) {
-		if (rw->rw_lock == RW_UNLOCKED && _rw_write_lock(rw, tid))
-			break;
+		if (v == RW_UNLOCKED) {
+			if (_rw_write_lock(rw, tid))
+				break;
+			v = RW_READ_VALUE(rw);
+			continue;
+		}
 #ifdef KDTRACE_HOOKS
 		lda.spin_cnt++;
 #endif
@@ -826,8 +844,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		 * running on another CPU, spin until the owner stops
 		 * running or the state of the lock changes.
 		 */
-		v = rw->rw_lock;
-		owner = (struct thread *)RW_OWNER(v);
+		owner = lv_rw_wowner(v);
 		if (!(v & RW_LOCK_READ) && TD_IS_RUNNING(owner)) {
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
@@ -835,9 +852,11 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 			KTR_STATE1(KTR_SCHED, "thread", sched_tdname(curthread),
 			    "spinning", "lockname:\"%s\"",
 			    rw->lock_object.lo_name);
-			while ((struct thread*)RW_OWNER(rw->rw_lock) == owner &&
-			    TD_IS_RUNNING(owner))
+			do {
 				lock_delay(&lda);
+				v = RW_READ_VALUE(rw);
+				owner = lv_rw_wowner(v);
+			} while (owner != NULL && TD_IS_RUNNING(owner));
 			KTR_STATE0(KTR_SCHED, "thread", sched_tdname(curthread),
 			    "running");
 			continue;
@@ -847,6 +866,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 			if (!(v & RW_LOCK_WRITE_SPINNER)) {
 				if (!atomic_cmpset_ptr(&rw->rw_lock, v,
 				    v | RW_LOCK_WRITE_SPINNER)) {
+					v = RW_READ_VALUE(rw);
 					continue;
 				}
 			}
@@ -861,6 +881,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 			}
 			KTR_STATE0(KTR_SCHED, "thread", sched_tdname(curthread),
 			    "running");
+			v = RW_READ_VALUE(rw);
 #ifdef KDTRACE_HOOKS
 			lda.spin_cnt += rowner_loops - i;
 #endif
@@ -869,7 +890,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		}
 #endif
 		ts = turnstile_trywait(&rw->lock_object);
-		v = rw->rw_lock;
+		v = RW_READ_VALUE(rw);
 
 #ifdef ADAPTIVE_RWLOCKS
 		/*
@@ -905,6 +926,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 				break;
 			}
 			turnstile_cancel(ts);
+			v = RW_READ_VALUE(rw);
 			continue;
 		}
 		/*
@@ -916,6 +938,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 			if (!atomic_cmpset_ptr(&rw->rw_lock, v,
 			    v | RW_LOCK_WRITE_WAITERS)) {
 				turnstile_cancel(ts);
+				v = RW_READ_VALUE(rw);
 				continue;
 			}
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -943,6 +966,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 #ifdef ADAPTIVE_RWLOCKS
 		spintries = 0;
 #endif
+		v = RW_READ_VALUE(rw);
 	}
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&rw->lock_object);

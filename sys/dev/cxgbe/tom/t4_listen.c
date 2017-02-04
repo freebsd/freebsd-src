@@ -1418,6 +1418,7 @@ found:
 		if (!(synqe->flags & TPF_SYNQE_EXPANDED))
 			send_reset_synqe(tod, synqe);
 		INP_WUNLOCK(inp);
+		CURVNET_RESTORE();
 
 		release_synqe(synqe);	/* extra hold */
 		return (__LINE__);
@@ -1620,5 +1621,15 @@ t4_init_listen_cpl_handlers(void)
 	t4_register_cpl_handler(CPL_CLOSE_LISTSRV_RPL, do_close_server_rpl);
 	t4_register_cpl_handler(CPL_PASS_ACCEPT_REQ, do_pass_accept_req);
 	t4_register_cpl_handler(CPL_PASS_ESTABLISH, do_pass_establish);
+}
+
+void
+t4_uninit_listen_cpl_handlers(void)
+{
+
+	t4_register_cpl_handler(CPL_PASS_OPEN_RPL, NULL);
+	t4_register_cpl_handler(CPL_CLOSE_LISTSRV_RPL, NULL);
+	t4_register_cpl_handler(CPL_PASS_ACCEPT_REQ, NULL);
+	t4_register_cpl_handler(CPL_PASS_ESTABLISH, NULL);
 }
 #endif

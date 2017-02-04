@@ -130,6 +130,14 @@ struct m_tag {
 };
 
 /*
+ * Static network interface owned tag.
+ * Allocated through ifp->if_snd_tag_alloc().
+ */
+struct m_snd_tag {
+	struct ifnet *ifp;		/* network interface tag belongs to */
+};
+
+/*
  * Record/packet header in first mbuf of chain; valid only if M_PKTHDR is set.
  * Size ILP32: 48
  *	 LP64: 56
@@ -137,7 +145,10 @@ struct m_tag {
  * they are correct.
  */
 struct pkthdr {
-	struct ifnet	*rcvif;		/* rcv interface */
+	union {
+		struct m_snd_tag *snd_tag;	/* send tag, if any */
+		struct ifnet	*rcvif;		/* rcv interface */
+	};
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 	int32_t		 len;		/* total packet length */
 

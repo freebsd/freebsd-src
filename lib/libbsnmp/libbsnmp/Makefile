@@ -4,7 +4,7 @@
 
 .include <src.opts.mk>
 
-CONTRIB= ${.CURDIR}/../../../contrib/bsnmp/lib
+CONTRIB= ${SRCTOP}/contrib/bsnmp/lib
 .PATH: ${CONTRIB}
 
 LIB=	bsnmp

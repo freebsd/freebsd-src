@@ -53,6 +53,7 @@ typedef enum {
 	CTL_PORT_INTERNAL	= 0x08,
 	CTL_PORT_ISCSI		= 0x10,
 	CTL_PORT_SAS		= 0x20,
+	CTL_PORT_UMASS		= 0x40,
 	CTL_PORT_ALL		= 0xff,
 	CTL_PORT_ISC		= 0x100 // FC port for inter-shelf communication
 } ctl_port_type;
@@ -72,10 +73,10 @@ struct ctl_port_entry {
 };
 
 struct ctl_modepage_header {
-	uint8_t page_code;
-	uint8_t subpage;
-	uint16_t len_used;
-	uint16_t len_left;
+	uint8_t			page_code;
+	uint8_t			subpage;
+	uint16_t		len_used;
+	uint16_t		len_left;
 };
 
 union ctl_modepage_info {

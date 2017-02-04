@@ -764,6 +764,7 @@ _rtld_error(const char *fmt, ...)
     rtld_vsnprintf(buf, sizeof buf, fmt, ap);
     error_message = buf;
     va_end(ap);
+    LD_UTRACE(UTRACE_RTLD_ERROR, NULL, NULL, 0, 0, error_message);
 }
 
 /*

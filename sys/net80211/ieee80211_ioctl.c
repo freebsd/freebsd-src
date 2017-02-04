@@ -1136,6 +1136,13 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		if (vap->iv_flags_ht & IEEE80211_FHT_STBC_RX)
 			ireq->i_val |= 2;
 		break;
+	case IEEE80211_IOC_LDPC:
+		ireq->i_val = 0;
+		if (vap->iv_flags_ht & IEEE80211_FHT_LDPC_TX)
+			ireq->i_val |= 1;
+		if (vap->iv_flags_ht & IEEE80211_FHT_LDPC_RX)
+			ireq->i_val |= 2;
+		break;
 
 	/* VHT */
 	case IEEE80211_IOC_VHTCONF:
@@ -2225,7 +2232,7 @@ checkmcs(int mcs)
 		return 1;
 	if ((mcs & IEEE80211_RATE_MCS) == 0)	/* MCS always have 0x80 set */
 		return 0;
-	return (mcs & 0x7f) <= 15;	/* XXX could search ht rate set */
+	return (mcs & 0x7f) <= 31;	/* XXX could search ht rate set */
 }
 
 static int
@@ -3367,6 +3374,31 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 			vap->iv_flags_ht |= IEEE80211_FHT_STBC_RX;
 		else
 			vap->iv_flags_ht &= ~IEEE80211_FHT_STBC_RX;
+
+		/* NB: reset only if we're operating on an 11n channel */
+		if (isvapht(vap))
+			error = ERESTART;
+		break;
+	case IEEE80211_IOC_LDPC:
+		/* Check if we can do LDPC TX/RX before changing the setting */
+		if ((ireq->i_val & 1) &&
+		    (vap->iv_htcaps & IEEE80211_HTC_TXLDPC) == 0)
+			return EOPNOTSUPP;
+		if ((ireq->i_val & 2) &&
+		    (vap->iv_htcaps & IEEE80211_HTCAP_LDPC) == 0)
+			return EOPNOTSUPP;
+
+		/* TX */
+		if (ireq->i_val & 1)
+			vap->iv_flags_ht |= IEEE80211_FHT_LDPC_TX;
+		else
+			vap->iv_flags_ht &= ~IEEE80211_FHT_LDPC_TX;
+
+		/* RX */
+		if (ireq->i_val & 2)
+			vap->iv_flags_ht |= IEEE80211_FHT_LDPC_RX;
+		else
+			vap->iv_flags_ht &= ~IEEE80211_FHT_LDPC_RX;
 
 		/* NB: reset only if we're operating on an 11n channel */
 		if (isvapht(vap))

@@ -1096,7 +1096,7 @@ sfxge_rx_start(struct sfxge_softc *sc)
 	encp = efx_nic_cfg_get(sc->enp);
 	sc->rx_buffer_size = EFX_MAC_PDU(sc->ifnet->if_mtu);
 
-	/* Calculate the receive packet buffer size. */	
+	/* Calculate the receive packet buffer size. */
 	sc->rx_prefix_size = encp->enc_rx_prefix_size;
 
 	/* Ensure IP headers are 32bit aligned */

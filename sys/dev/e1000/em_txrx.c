@@ -62,6 +62,7 @@ static int lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
 
 static void lem_receive_checksum(int status, int errors, if_rxd_info_t ri);
 static void em_receive_checksum(uint32_t status, if_rxd_info_t ri);
+static int em_determine_rsstype(u32 pkt_info);
 extern int em_intr(void *arg);
 
 struct if_txrx em_txrx  = {
@@ -408,10 +409,13 @@ em_isc_txd_credits_update(void *arg, uint16_t txqid, uint32_t cidx_init, bool cl
 	cidx = cidx_init;
 	buf = &txr->tx_buffers[cidx];
 	tx_desc = &txr->tx_base[cidx];
-        last = buf->eop;
+	last = buf->eop;
+	if (last == -1)
+		return (processed);
 	eop_desc = &txr->tx_base[last];
 
-	DPRINTF(iflib_get_dev(adapter->ctx), "credits_update: cidx_init=%d clear=%d last=%d\n",
+	DPRINTF(iflib_get_dev(adapter->ctx),
+		      "credits_update: cidx_init=%d clear=%d last=%d\n",
 		      cidx_init, clear, last);
 	/*
 	 * What this does is get the index of the
@@ -420,7 +424,7 @@ em_isc_txd_credits_update(void *arg, uint16_t txqid, uint32_t cidx_init, bool cl
 	 * simple comparison on the inner while loop.
 	 */
 	if (++last == scctx->isc_ntxd[0])
-	     last = 0;
+		last = 0;
 	done = last;
 
 
@@ -436,7 +440,7 @@ em_isc_txd_credits_update(void *arg, uint16_t txqid, uint32_t cidx_init, bool cl
 			tx_desc++;
 			buf++;
 			processed++;
-		  
+
 			/* wrap the ring ? */
 			if (++cidx == scctx->isc_ntxd[0]) {
 				cidx = 0;
@@ -642,6 +646,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	union e1000_rx_desc_extended *rxd;
 
 	u16                      len; 
+	u32                      pkt_info;
 	u32                      staterr = 0;
 	bool                     eop;
 	int                      i, cidx, vtag;
@@ -652,6 +657,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	do {
 		rxd = &rxr->rx_base[cidx];
 		staterr = le32toh(rxd->wb.upper.status_error);	
+		pkt_info = le32toh(rxd->wb.lower.mrq);
 	
 		/* Error Checking then decrement count */
 		MPASS ((staterr & E1000_RXD_STAT_DD) != 0);
@@ -687,10 +693,14 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	} 
 	
 	ri->iri_vtag = vtag;
-	ri->iri_nfrags = i;
 	if (vtag)
 		ri->iri_flags |= M_VLANTAG;
 		
+        ri->iri_flowid =
+                le32toh(rxd->wb.lower.hi_dword.rss);
+        ri->iri_rsstype = em_determine_rsstype(pkt_info);
+
+	ri->iri_nfrags = i;
 	return (0);
 }
 
@@ -718,6 +728,31 @@ lem_receive_checksum(int status, int errors, if_rxd_info_t ri)
 	}
 }
 
+/********************************************************************
+ *
+ *  Parse the packet type to determine the appropriate hash
+ *
+ ******************************************************************/
+static int
+em_determine_rsstype(u32 pkt_info)
+{
+        switch (pkt_info & E1000_RXDADV_RSSTYPE_MASK) {
+        case E1000_RXDADV_RSSTYPE_IPV4_TCP:
+                return M_HASHTYPE_RSS_TCP_IPV4;
+        case E1000_RXDADV_RSSTYPE_IPV4:
+                return M_HASHTYPE_RSS_IPV4;
+        case E1000_RXDADV_RSSTYPE_IPV6_TCP:
+                return M_HASHTYPE_RSS_TCP_IPV6;
+        case E1000_RXDADV_RSSTYPE_IPV6_EX: 
+                return M_HASHTYPE_RSS_IPV6_EX;
+        case E1000_RXDADV_RSSTYPE_IPV6:
+                return M_HASHTYPE_RSS_IPV6;
+        case E1000_RXDADV_RSSTYPE_IPV6_TCP_EX:
+                return M_HASHTYPE_RSS_TCP_IPV6_EX;
+        default:
+                return M_HASHTYPE_OPAQUE;
+        }
+}
 static void
 em_receive_checksum(uint32_t status, if_rxd_info_t ri)
 {

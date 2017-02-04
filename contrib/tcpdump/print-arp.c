@@ -17,24 +17,23 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
  */
 
-#define NETDISSECT_REWORKED
+/* \summary: Address Resolution Protocol (ARP) printer */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "ether.h"
 #include "ethertype.h"
-#include "extract.h"			/* must come after interface.h */
+#include "extract.h"
 
 static const char tstr[] = "[|ARP]";
 
@@ -178,7 +177,17 @@ struct  atmarp_pkthdr {
 #define ATMTSA(ap) (aar_tsa(ap))
 #define ATMTPA(ap) (aar_tpa(ap))
 
-static u_char ezero[6];
+static int
+isnonzero(const u_char *a, size_t len)
+{
+	while (len > 0) {
+		if (*a != 0)
+			return (1);
+		a++;
+		len--;
+	}
+	return (0);
+}
 
 static void
 atmarp_addr_print(netdissect_options *ndo,
@@ -359,7 +368,7 @@ arp_print(netdissect_options *ndo,
 
 	case ARPOP_REQUEST:
 		ND_PRINT((ndo, "who-has %s", ipaddr_string(ndo, TPA(ap))));
-		if (memcmp((const char *)ezero, (const char *)THA(ap), HRD_LEN(ap)) != 0)
+		if (isnonzero((const u_char *)THA(ap), HRD_LEN(ap)))
 			ND_PRINT((ndo, " (%s)",
 				  linkaddr_string(ndo, THA(ap), linkaddr, HRD_LEN(ap))));
 		ND_PRINT((ndo, " tell %s", ipaddr_string(ndo, SPA(ap))));

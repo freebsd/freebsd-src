@@ -3,6 +3,7 @@
 .include <src.opts.mk>
 
 .if ${MK_FORTH} != "no"
+CFLAGS+= -DBOOT_FORTH
 .include "${.CURDIR}/../../Makefile.ficl"
 .endif
 
@@ -10,16 +11,13 @@ LIB=	efi
 INTERNALLIB=
 WARNS?=	2
 
-SRCS=	delay.c devpath.c efi_console.c efinet.c efipart.c errno.c \
-	handles.c libefi.c
+SRCS=	delay.c devpath.c efi_console.c efinet.c efipart.c env.c errno.c \
+	handles.c wchar.c libefi.c
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCS+=	time.c
 .elif ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm"
 SRCS+=	time_event.c
-.endif
-.if ${MK_FORTH} != "no"
-SRCS+=	env.c
 .endif
 
 # We implement a slightly non-standard %S in that it always takes a
@@ -28,6 +26,7 @@ SRCS+=	env.c
 # of a short. There's no good cast to use here so just ignore the
 # warnings for now.
 CWARNFLAGS.efinet.c+=	-Wno-format
+CWARNFLAGS.env.c+=	-Wno-format
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-msoft-float -mgeneral-regs-only

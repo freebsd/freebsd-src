@@ -634,6 +634,17 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 #endif
 
 	/*
+	 * Force the chip awake during setup, just to keep
+	 * the HAL/driver power tracking happy.
+	 *
+	 * There are some methods (eg ath_hal_setmac())
+	 * that poke the hardware.
+	 */
+	ATH_LOCK(sc);
+	ath_power_setpower(sc, HAL_PM_AWAKE, 1);
+	ATH_UNLOCK(sc);
+
+	/*
 	 * Setup the DMA/EDMA functions based on the current
 	 * hardware support.
 	 *
@@ -1010,6 +1021,28 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_rx_lnamixer = ath_hal_hasrxlnamixer(ah);
 	sc->sc_hasdivcomb = ath_hal_hasdivantcomb(ah);
 
+	/*
+	 * Some WB335 cards do not support antenna diversity. Since
+	 * we use a hardcoded value for AR9565 instead of using the
+	 * EEPROM/OTP data, remove the combining feature from
+	 * the HW capabilities bitmap.
+	 */
+	/*
+	 * XXX TODO: check reference driver and ath9k for what to do
+	 * here for WB335.  I think we have to actually disable the
+	 * LNA div processing in the HAL and instead use the hard
+	 * coded values; and then use BT diversity.
+	 *
+	 * .. but also need to setup MCI too for WB335..
+	 */
+#if 0
+	if (sc->sc_pci_devinfo & (ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_AR9565_2ANT)) {
+		device_printf(sc->sc_dev, "%s: WB335: disabling LNA mixer diversity\n",
+		    __func__);
+		sc->sc_dolnadiv = 0;
+	}
+#endif
+
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
 	wmodes = ath_hal_getwirelessmodes(ah);
@@ -1028,12 +1061,16 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * otherwise) to be transmitted.
 	 */
 	sc->sc_txq_data_minfree = 10;
+
 	/*
-	 * Leave this as default to maintain legacy behaviour.
-	 * Shortening the cabq/mcastq may end up causing some
-	 * undesirable behaviour.
+	 * Shorten this to 64 packets, or 1/4 ath_txbuf, whichever
+	 * is smaller.
+	 *
+	 * Anything bigger can potentially see the cabq consume
+	 * almost all buffers, starving everything else, only to
+	 * see most fail to transmit in the given beacon interval.
 	 */
-	sc->sc_txq_mcastq_maxdepth = ath_txbuf;
+	sc->sc_txq_mcastq_maxdepth = MIN(64, ath_txbuf / 4);
 
 	/*
 	 * How deep can the node software TX queue get whilst it's asleep.
@@ -1041,11 +1078,10 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_txq_node_psq_maxdepth = 16;
 
 	/*
-	 * Default the maximum queue depth for a given node
-	 * to 1/4'th the TX buffers, or 64, whichever
-	 * is larger.
+	 * Default the maximum queue to to 1/4'th the TX buffers, or
+	 * 64, whichever is smaller.
 	 */
-	sc->sc_txq_node_maxdepth = MAX(64, ath_txbuf / 4);
+	sc->sc_txq_node_maxdepth = MIN(64, ath_txbuf / 4);
 
 	/* Enable CABQ by default */
 	sc->sc_cabq_enable = 1;
@@ -1178,7 +1214,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			sc->sc_has_ldpc = 1;
 			device_printf(sc->sc_dev,
 			    "[HT] LDPC transmit/receive enabled\n");
-			ic->ic_htcaps |= IEEE80211_HTCAP_LDPC;
+			ic->ic_htcaps |= IEEE80211_HTCAP_LDPC |
+					 IEEE80211_HTC_TXLDPC;
 		}
 
 
@@ -1347,6 +1384,7 @@ bad2:
 	ath_desc_free(sc);
 	ath_txdma_teardown(sc);
 	ath_rxdma_teardown(sc);
+
 bad:
 	if (ah)
 		ath_hal_detach(ah);
@@ -1638,6 +1676,7 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	 * However, for now that's enforced by the TX path.
 	 */
 	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
+	vap->iv_ampdu_limit = IEEE80211_HTCAP_MAXRXAMPDU_64K;
 
 	avp->av_bslot = -1;
 	if (needbeacon) {
@@ -3605,6 +3644,8 @@ ath_mode_init(struct ath_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	u_int32_t rfilt;
+
+	/* XXX power state? */
 
 	/* configure rx filter */
 	rfilt = ath_calcrxfilter(sc);
@@ -5649,6 +5690,56 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	 */
 	IEEE80211_LOCK_ASSERT(ic);
 
+	/*
+	 * XXX TODO: if nstate is _S_CAC, then we should disable
+	 * ACK processing until CAC is completed.
+	 */
+
+	/*
+	 * XXX TODO: if we're on a passive channel, then we should
+	 * not allow any ACKs or self-generated frames until we hear
+	 * a beacon.  Unfortunately there isn't a notification from
+	 * net80211 so perhaps we could slot that particular check
+	 * into the mgmt receive path and just ensure that we clear
+	 * it on RX of beacons in passive mode (and only clear it
+	 * once, obviously.)
+	 */
+
+	/*
+	 * XXX TODO: net80211 should be tracking whether channels
+	 * have heard beacons and are thus considered "OK" for
+	 * transmitting - and then inform the driver about this
+	 * state change.  That way if we hear an AP go quiet
+	 * (and nothing else is beaconing on a channel) the
+	 * channel can go back to being passive until another
+	 * beacon is heard.
+	 */
+
+	/*
+	 * XXX TODO: if nstate is _S_CAC, then we should disable
+	 * ACK processing until CAC is completed.
+	 */
+
+	/*
+	 * XXX TODO: if we're on a passive channel, then we should
+	 * not allow any ACKs or self-generated frames until we hear
+	 * a beacon.  Unfortunately there isn't a notification from
+	 * net80211 so perhaps we could slot that particular check
+	 * into the mgmt receive path and just ensure that we clear
+	 * it on RX of beacons in passive mode (and only clear it
+	 * once, obviously.)
+	 */
+
+	/*
+	 * XXX TODO: net80211 should be tracking whether channels
+	 * have heard beacons and are thus considered "OK" for
+	 * transmitting - and then inform the driver about this
+	 * state change.  That way if we hear an AP go quiet
+	 * (and nothing else is beaconing on a channel) the
+	 * channel can go back to being passive until another
+	 * beacon is heard.
+	 */
+
 	if (nstate == IEEE80211_S_RUN) {
 		/* NB: collect bss node again, it may have changed */
 		ieee80211_free_node(ni);
@@ -5670,6 +5761,14 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		case IEEE80211_M_HOSTAP:
 		case IEEE80211_M_IBSS:
 		case IEEE80211_M_MBSS:
+
+			/*
+			 * TODO: Enable ACK processing (ie, clear AR_DIAG_ACK_DIS.)
+			 * For channels that are in CAC, we may have disabled
+			 * this during CAC to ensure we don't ACK frames
+			 * sent to us.
+			 */
+
 			/*
 			 * Allocate and setup the beacon frame.
 			 *
@@ -6274,6 +6373,15 @@ ath_dfs_tasklet(void *p, int npending)
 	 */
 	if (ath_dfs_process_radar_event(sc, sc->sc_curchan)) {
 		/* DFS event found, initiate channel change */
+
+		/*
+		 * XXX TODO: immediately disable ACK processing
+		 * on the current channel.  This would be done
+		 * by setting AR_DIAG_ACK_DIS (AR5212; may be
+		 * different for others) until we are out of
+		 * CAC.
+		 */
+
 		/*
 		 * XXX doesn't currently tell us whether the event
 		 * XXX was found in the primary or extension

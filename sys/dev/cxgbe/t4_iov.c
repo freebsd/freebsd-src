@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_iov.h>
 #endif
 
+#include "common/common.h"
 #include "t4_if.h"
 
 struct t4iov_softc {
@@ -106,6 +107,9 @@ t4iov_probe(device_t dev)
 	uint16_t d;
 	size_t i;
 
+	if (pci_get_vendor(dev) != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
+
 	d = pci_get_device(dev);
 	for (i = 0; i < nitems(t4iov_pciids); i++) {
 		if (d == t4iov_pciids[i].device) {
@@ -123,6 +127,9 @@ t5iov_probe(device_t dev)
 	uint16_t d;
 	size_t i;
 
+	if (pci_get_vendor(dev) != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
+
 	d = pci_get_device(dev);
 	for (i = 0; i < nitems(t5iov_pciids); i++) {
 		if (d == t5iov_pciids[i].device) {
@@ -139,6 +146,9 @@ t6iov_probe(device_t dev)
 {
 	uint16_t d;
 	size_t i;
+
+	if (pci_get_vendor(dev) != PCI_VENDOR_ID_CHELSIO)
+		return (ENXIO);
 
 	d = pci_get_device(dev);
 	for (i = 0; i < nitems(t6iov_pciids); i++) {
@@ -161,6 +171,8 @@ t4iov_attach(device_t dev)
 
 	sc->sc_main = pci_find_dbsf(pci_get_domain(dev), pci_get_bus(dev),
 	    pci_get_slot(dev), 4);
+	if (sc->sc_main == NULL)
+		return (ENXIO);
 	if (T4_IS_MAIN_READY(sc->sc_main) == 0)
 		return (t4iov_attach_child(dev));
 	return (0);

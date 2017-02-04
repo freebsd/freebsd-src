@@ -953,11 +953,13 @@ cesa_execute(struct cesa_softc *sc)
 	ctd = STAILQ_FIRST(&cr->cr_tdesc);
 
 	CESA_TDMA_WRITE(sc, CESA_TDMA_ND, ctd->ctd_cthd_paddr);
-#if defined (SOC_MV_ARMADA38X)
-	CESA_REG_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE | CESA_SA_CMD_SHA2);
-#else
-	CESA_REG_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE);
-#endif
+
+	if (sc->sc_soc_id == MV_DEV_88F6828 ||
+	    sc->sc_soc_id == MV_DEV_88F6820 ||
+	    sc->sc_soc_id == MV_DEV_88F6810)
+		CESA_REG_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE | CESA_SA_CMD_SHA2);
+	else
+		CESA_REG_WRITE(sc, CESA_SA_CMD, CESA_SA_CMD_ACTVATE);
 
 	CESA_UNLOCK(sc, requests);
 }
@@ -968,6 +970,7 @@ cesa_setup_sram(struct cesa_softc *sc)
 	phandle_t sram_node;
 	ihandle_t sram_ihandle;
 	pcell_t sram_handle, sram_reg[2];
+	void *sram_va;
 	int rv;
 
 	rv = OF_getencprop(ofw_bus_get_node(sc->sc_dev), "sram-handle",
@@ -986,15 +989,17 @@ cesa_setup_sram(struct cesa_softc *sc)
 	/* Store SRAM size to be able to unmap in detach() */
 	sc->sc_sram_size = sram_reg[1];
 
-#if defined(SOC_MV_ARMADA38X)
-	void *sram_va;
+	if (sc->sc_soc_id != MV_DEV_88F6828 &&
+	    sc->sc_soc_id != MV_DEV_88F6820 &&
+	    sc->sc_soc_id != MV_DEV_88F6810)
+		return (0);
 
 	/* SRAM memory was not mapped in platform_sram_devmap(), map it now */
 	sram_va = pmap_mapdev(sc->sc_sram_base_pa, sc->sc_sram_size);
 	if (sram_va == NULL)
 		return (ENOMEM);
 	sc->sc_sram_base_va = (vm_offset_t)sram_va;
-#endif
+
 	return (0);
 }
 
@@ -1018,7 +1023,7 @@ static int
 cesa_attach(device_t dev)
 {
 	struct cesa_softc *sc;
-	uint32_t d, r;
+	uint32_t d, r, val;
 	int error;
 	int i;
 
@@ -1027,33 +1032,39 @@ cesa_attach(device_t dev)
 	sc->sc_error = 0;
 	sc->sc_dev = dev;
 
-	/* Check if CESA peripheral device has power turned on */
-#if defined(SOC_MV_KIRKWOOD)
-	if (soc_power_ctrl_get(CPU_PM_CTRL_CRYPTO) == CPU_PM_CTRL_CRYPTO) {
-		device_printf(dev, "not powered on\n");
-		return (ENXIO);
-	}
-#else
-	if (soc_power_ctrl_get(CPU_PM_CTRL_CRYPTO) != CPU_PM_CTRL_CRYPTO) {
-		device_printf(dev, "not powered on\n");
-		return (ENXIO);
-	}
-#endif
 	soc_id(&d, &r);
 
 	switch (d) {
 	case MV_DEV_88F6281:
 	case MV_DEV_88F6282:
+		/* Check if CESA peripheral device has power turned on */
+		if (soc_power_ctrl_get(CPU_PM_CTRL_CRYPTO) ==
+		    CPU_PM_CTRL_CRYPTO) {
+			device_printf(dev, "not powered on\n");
+			return (ENXIO);
+		}
+		sc->sc_tperr = 0;
+		break;
 	case MV_DEV_88F6828:
+	case MV_DEV_88F6820:
+	case MV_DEV_88F6810:
 		sc->sc_tperr = 0;
 		break;
 	case MV_DEV_MV78100:
 	case MV_DEV_MV78100_Z0:
+		/* Check if CESA peripheral device has power turned on */
+		if (soc_power_ctrl_get(CPU_PM_CTRL_CRYPTO) !=
+		    CPU_PM_CTRL_CRYPTO) {
+			device_printf(dev, "not powered on\n");
+			return (ENXIO);
+		}
 		sc->sc_tperr = CESA_ICR_TPERR;
 		break;
 	default:
 		return (ENXIO);
 	}
+
+	sc->sc_soc_id = d;
 
 	/* Initialize mutexes */
 	mtx_init(&sc->sc_sc_lock, device_get_nameunit(dev),
@@ -1189,12 +1200,15 @@ cesa_attach(device_t dev)
 	 * - Outstanding reads enabled,
 	 * - No byte-swap.
 	 */
-	CESA_TDMA_WRITE(sc, CESA_TDMA_CR, CESA_TDMA_CR_DBL128 |
-	    CESA_TDMA_CR_SBL128 | CESA_TDMA_CR_ORDEN | CESA_TDMA_CR_NBS |
-#if defined (SOC_MV_ARMADA38X)
-	    CESA_TDMA_NUM_OUTSTAND |
-#endif
-	    CESA_TDMA_CR_ENABLE);
+	val = CESA_TDMA_CR_DBL128 | CESA_TDMA_CR_SBL128 |
+	    CESA_TDMA_CR_ORDEN | CESA_TDMA_CR_NBS | CESA_TDMA_CR_ENABLE;
+
+	if (sc->sc_soc_id == MV_DEV_88F6828 ||
+	    sc->sc_soc_id == MV_DEV_88F6820 ||
+	    sc->sc_soc_id == MV_DEV_88F6810)
+		val |= CESA_TDMA_NUM_OUTSTAND;
+
+	CESA_TDMA_WRITE(sc, CESA_TDMA_CR, val);
 
 	/*
 	 * Initialize SA:
@@ -1228,7 +1242,10 @@ cesa_attach(device_t dev)
 	crypto_register(sc->sc_cid, CRYPTO_MD5_HMAC, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_SHA1, 0, 0);
 	crypto_register(sc->sc_cid, CRYPTO_SHA1_HMAC, 0, 0);
-	crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0);
+	if (sc->sc_soc_id == MV_DEV_88F6828 ||
+	    sc->sc_soc_id == MV_DEV_88F6820 ||
+	    sc->sc_soc_id == MV_DEV_88F6810)
+		crypto_register(sc->sc_cid, CRYPTO_SHA2_256_HMAC, 0, 0);
 
 	return (0);
 err8:
@@ -1246,9 +1263,10 @@ err4:
 err3:
 	bus_teardown_intr(dev, sc->sc_res[RES_CESA_IRQ], sc->sc_icookie);
 err2:
-#if defined(SOC_MV_ARMADA38X)
-	pmap_unmapdev(sc->sc_sram_base_va, sc->sc_sram_size);
-#endif
+	if (sc->sc_soc_id == MV_DEV_88F6828 ||
+	    sc->sc_soc_id == MV_DEV_88F6820 ||
+	    sc->sc_soc_id == MV_DEV_88F6810)
+		pmap_unmapdev(sc->sc_sram_base_va, sc->sc_sram_size);
 err1:
 	bus_release_resources(dev, cesa_res_spec, sc->sc_res);
 err0:
@@ -1296,10 +1314,12 @@ cesa_detach(device_t dev)
 	/* Relase I/O and IRQ resources */
 	bus_release_resources(dev, cesa_res_spec, sc->sc_res);
 
-#if defined(SOC_MV_ARMADA38X)
 	/* Unmap SRAM memory */
-	pmap_unmapdev(sc->sc_sram_base_va, sc->sc_sram_size);
-#endif
+	if (sc->sc_soc_id == MV_DEV_88F6828 ||
+	    sc->sc_soc_id == MV_DEV_88F6820 ||
+	    sc->sc_soc_id == MV_DEV_88F6810)
+		pmap_unmapdev(sc->sc_sram_base_va, sc->sc_sram_size);
+
 	/* Destroy mutexes */
 	mtx_destroy(&sc->sc_sessions_lock);
 	mtx_destroy(&sc->sc_requests_lock);

@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
-#include "opt_npx.h"
 #include "opt_perfmon.h"
 #include "opt_platform.h"
 #include "opt_xbox.h"
@@ -109,11 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #endif
 
-#ifdef PC98
-#include <pc98/pc98/pc98_machdep.h>
-#else
 #include <isa/rtc.h>
-#endif
 
 #include <net/netisr.h>
 
@@ -166,10 +161,6 @@ CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 extern register_t init386(int first);
 extern void dblfault_handler(void);
 
-#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
-#endif
-
 static void cpu_startup(void *);
 static void fpstate_drop(struct thread *td);
 static void get_fpcontext(struct thread *td, mcontext_t *mcp,
@@ -184,14 +175,6 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 int	_udatasel, _ucodesel;
 u_int	basemem;
-
-#ifdef PC98
-int	need_pre_dma_flush;	/* If 1, use wbinvd befor DMA transfer. */
-int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
-
-static int	ispc98 = 1;
-SYSCTL_INT(_machdep, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
-#endif
 
 int cold = 1;
 
@@ -249,7 +232,6 @@ cpu_startup(dummy)
 	uintmax_t memsize;
 	char *sysenv;
 
-#ifndef PC98
 	/*
 	 * On MacBooks, we need to disallow the legacy USB circuit to
 	 * generate an SMI# because this can cause several problems,
@@ -275,7 +257,6 @@ cpu_startup(dummy)
 		}
 		freeenv(sysenv);
 	}
-#endif /* !PC98 */
 
 	/*
 	 * Good {morning,afternoon,evening,night}.
@@ -635,14 +616,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
-#ifdef CPU_ENABLE_SSE
 	if (cpu_max_ext_state_size > sizeof(union savefpu) && use_xsave) {
 		xfpusave_len = cpu_max_ext_state_size - sizeof(union savefpu);
 		xfpusave = __builtin_alloca(xfpusave_len);
 	} else {
-#else
-	{
-#endif
 		xfpusave_len = 0;
 		xfpusave = NULL;
 	}
@@ -1618,7 +1595,6 @@ sdtossd(sd, ssd)
 	ssd->ssd_gran  = sd->sd_gran;
 }
 
-#if !defined(PC98)
 static int
 add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
     int *physmap_idxp)
@@ -1725,7 +1701,6 @@ add_smap_entries(struct bios_smap *smapbase, vm_paddr_t *physmap,
 		if (!add_smap_entry(smap, physmap, physmap_idxp))
 			break;
 }
-#endif /* !PC98 */
 
 static void
 basemem_setup(void)
@@ -1788,269 +1763,6 @@ basemem_setup(void)
  *
  * XXX first should be vm_paddr_t.
  */
-#ifdef PC98
-static void
-getmemsize(int first)
-{
-	int off, physmap_idx, pa_indx, da_indx;
-	u_long physmem_tunable, memtest;
-	vm_paddr_t physmap[PHYSMAP_SIZE];
-	pt_entry_t *pte;
-	quad_t dcons_addr, dcons_size;
-	int i;
-	int pg_n;
-	u_int extmem;
-	u_int under16;
-	vm_paddr_t pa;
-
-	bzero(physmap, sizeof(physmap));
-
-	/* XXX - some of EPSON machines can't use PG_N */
-	pg_n = PG_N;
-	if (pc98_machine_type & M_EPSON_PC98) {
-		switch (epson_machine_id) {
-#ifdef WB_CACHE
-		default:
-#endif
-		case EPSON_PC486_HX:
-		case EPSON_PC486_HG:
-		case EPSON_PC486_HA:
-			pg_n = 0;
-			break;
-		}
-	}
-
-	under16 = pc98_getmemsize(&basemem, &extmem);
-	basemem_setup();
-
-	physmap[0] = 0;
-	physmap[1] = basemem * 1024;
-	physmap_idx = 2;
-	physmap[physmap_idx] = 0x100000;
-	physmap[physmap_idx + 1] = physmap[physmap_idx] + extmem * 1024;
-
-	/*
-	 * Now, physmap contains a map of physical memory.
-	 */
-
-#ifdef SMP
-	/* make hole for AP bootstrap code */
-	physmap[1] = mp_bootaddress(physmap[1]);
-#endif
-
-	/*
-	 * Maxmem isn't the "maximum memory", it's one larger than the
-	 * highest page of the physical address space.  It should be
-	 * called something like "Maxphyspage".  We may adjust this 
-	 * based on ``hw.physmem'' and the results of the memory test.
-	 */
-	Maxmem = atop(physmap[physmap_idx + 1]);
-
-#ifdef MAXMEM
-	Maxmem = MAXMEM / 4;
-#endif
-
-	if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable))
-		Maxmem = atop(physmem_tunable);
-
-	/*
-	 * By default keep the memtest enabled.  Use a general name so that
-	 * one could eventually do more with the code than just disable it.
-	 */
-	memtest = 1;
-	TUNABLE_ULONG_FETCH("hw.memtest.tests", &memtest);
-
-	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
-	    (boothowto & RB_VERBOSE))
-		printf("Physical memory use set to %ldK\n", Maxmem * 4);
-
-	/*
-	 * If Maxmem has been increased beyond what the system has detected,
-	 * extend the last memory segment to the new limit.
-	 */ 
-	if (atop(physmap[physmap_idx + 1]) < Maxmem)
-		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
-
-	/*
-	 * We need to divide chunk if Maxmem is larger than 16MB and
-	 * under 16MB area is not full of memory.
-	 * (1) system area (15-16MB region) is cut off
-	 * (2) extended memory is only over 16MB area (ex. Melco "HYPERMEMORY")
-	 */
-	if ((under16 != 16 * 1024) && (extmem > 15 * 1024)) {
-		/* 15M - 16M region is cut off, so need to divide chunk */
-		physmap[physmap_idx + 1] = under16 * 1024;
-		physmap_idx += 2;
-		physmap[physmap_idx] = 0x1000000;
-		physmap[physmap_idx + 1] = physmap[2] + extmem * 1024;
-	}
-
-	/* call pmap initialization to make new kernel address space */
-	pmap_bootstrap(first);
-
-	/*
-	 * Size up each available chunk of physical memory.
-	 */
-	physmap[0] = PAGE_SIZE;		/* mask off page 0 */
-	pa_indx = 0;
-	da_indx = 1;
-	phys_avail[pa_indx++] = physmap[0];
-	phys_avail[pa_indx] = physmap[0];
-	dump_avail[da_indx] = physmap[0];
-	pte = CMAP3;
-
-	/*
-	 * Get dcons buffer address
-	 */
-	if (getenv_quad("dcons.addr", &dcons_addr) == 0 ||
-	    getenv_quad("dcons.size", &dcons_size) == 0)
-		dcons_addr = 0;
-
-	/*
-	 * physmap is in bytes, so when converting to page boundaries,
-	 * round up the start address and round down the end address.
-	 */
-	for (i = 0; i <= physmap_idx; i += 2) {
-		vm_paddr_t end;
-
-		end = ptoa((vm_paddr_t)Maxmem);
-		if (physmap[i + 1] < end)
-			end = trunc_page(physmap[i + 1]);
-		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
-			int tmp, page_bad, full;
-			int *ptr = (int *)CADDR3;
-
-			full = FALSE;
-			/*
-			 * block out kernel memory as not available.
-			 */
-			if (pa >= KERNLOAD && pa < first)
-				goto do_dump_avail;
-
-			/*
-			 * block out dcons buffer
-			 */
-			if (dcons_addr > 0
-			    && pa >= trunc_page(dcons_addr)
-			    && pa < dcons_addr + dcons_size)
-				goto do_dump_avail;
-
-			page_bad = FALSE;
-			if (memtest == 0)
-				goto skip_memtest;
-
-			/*
-			 * map page into kernel: valid, read/write,non-cacheable
-			 */
-			*pte = pa | PG_V | PG_RW | pg_n;
-			invltlb();
-
-			tmp = *(int *)ptr;
-			/*
-			 * Test for alternating 1's and 0's
-			 */
-			*(volatile int *)ptr = 0xaaaaaaaa;
-			if (*(volatile int *)ptr != 0xaaaaaaaa)
-				page_bad = TRUE;
-			/*
-			 * Test for alternating 0's and 1's
-			 */
-			*(volatile int *)ptr = 0x55555555;
-			if (*(volatile int *)ptr != 0x55555555)
-				page_bad = TRUE;
-			/*
-			 * Test for all 1's
-			 */
-			*(volatile int *)ptr = 0xffffffff;
-			if (*(volatile int *)ptr != 0xffffffff)
-				page_bad = TRUE;
-			/*
-			 * Test for all 0's
-			 */
-			*(volatile int *)ptr = 0x0;
-			if (*(volatile int *)ptr != 0x0)
-				page_bad = TRUE;
-			/*
-			 * Restore original value.
-			 */
-			*(int *)ptr = tmp;
-
-skip_memtest:
-			/*
-			 * Adjust array of valid/good pages.
-			 */
-			if (page_bad == TRUE)
-				continue;
-			/*
-			 * If this good page is a continuation of the
-			 * previous set of good pages, then just increase
-			 * the end pointer. Otherwise start a new chunk.
-			 * Note that "end" points one higher than end,
-			 * making the range >= start and < end.
-			 * If we're also doing a speculative memory
-			 * test and we at or past the end, bump up Maxmem
-			 * so that we keep going. The first bad page
-			 * will terminate the loop.
-			 */
-			if (phys_avail[pa_indx] == pa) {
-				phys_avail[pa_indx] += PAGE_SIZE;
-			} else {
-				pa_indx++;
-				if (pa_indx == PHYS_AVAIL_ARRAY_END) {
-					printf(
-		"Too many holes in the physical address space, giving up\n");
-					pa_indx--;
-					full = TRUE;
-					goto do_dump_avail;
-				}
-				phys_avail[pa_indx++] = pa;	/* start */
-				phys_avail[pa_indx] = pa + PAGE_SIZE; /* end */
-			}
-			physmem++;
-do_dump_avail:
-			if (dump_avail[da_indx] == pa) {
-				dump_avail[da_indx] += PAGE_SIZE;
-			} else {
-				da_indx++;
-				if (da_indx == DUMP_AVAIL_ARRAY_END) {
-					da_indx--;
-					goto do_next;
-				}
-				dump_avail[da_indx++] = pa;	/* start */
-				dump_avail[da_indx] = pa + PAGE_SIZE; /* end */
-			}
-do_next:
-			if (full)
-				break;
-		}
-	}
-	*pte = 0;
-	invltlb();
-	
-	/*
-	 * XXX
-	 * The last chunk must contain at least one page plus the message
-	 * buffer to avoid complicating other code (message buffer address
-	 * calculation, etc.).
-	 */
-	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
-	    round_page(msgbufsize) >= phys_avail[pa_indx]) {
-		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
-		phys_avail[pa_indx--] = 0;
-		phys_avail[pa_indx--] = 0;
-	}
-
-	Maxmem = atop(phys_avail[pa_indx]);
-
-	/* Trim off space for the message buffer. */
-	phys_avail[pa_indx] -= round_page(msgbufsize);
-
-	/* Map the message buffer. */
-	for (off = 0; off < round_page(msgbufsize); off += PAGE_SIZE)
-		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
-		    off);
-}
-#else /* PC98 */
 static void
 getmemsize(int first)
 {
@@ -2428,7 +2140,6 @@ do_next:
 		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
 		    off);
 }
-#endif /* PC98 */
 
 static void
 i386_kdb_init(void)
@@ -2444,15 +2155,12 @@ i386_kdb_init(void)
 }
 
 register_t
-init386(first)
-	int first;
+init386(int first)
 {
 	struct gate_descriptor *gdp;
 	int gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
-#ifdef CPU_ENABLE_SSE
 	struct xstate_hdr *xhdr;
-#endif
 	int late_console;
 
 	thread0.td_kstack = proc0kstack;
@@ -2463,13 +2171,6 @@ init386(first)
  	 * components in it. If so just link td->td_proc here.
 	 */
 	proc_linkup0(&proc0, &thread0);
-
-#ifdef PC98
-	/*
-	 * Initialize DMAC
-	 */
-	pc98_init_dmac();
-#endif
 
 	metadata_missing = 0;
 	if (bootinfo.bi_modulep) {
@@ -2666,9 +2367,7 @@ init386(first)
 	/* Initialize the PIC early for vm86 calls. */
 #ifdef DEV_ISA
 #ifdef DEV_ATPIC
-#ifndef PC98
 	elcr_probe();
-#endif
 	atpic_startup();
 #else
 	/* Reset and mask the atpics and leave them shut down. */
@@ -2714,9 +2413,7 @@ init386(first)
 		i386_kdb_init();
 
 	msgbufinit(msgbufp, msgbufsize);
-#ifdef DEV_NPX
 	npxinit(true);
-#endif
 	/*
 	 * Set up thread0 pcb after npxinit calculated pcb + fpu save
 	 * area size.  Zero out the extended state header in fpu save
@@ -2724,13 +2421,11 @@ init386(first)
 	 */
 	thread0.td_pcb = get_pcb_td(&thread0);
 	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
-#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(get_pcb_user_save_td(&thread0) +
 		    1);
 		xhdr->xstate_bv = xsave_mask;
 	}
-#endif
 	PCPU_SET(curpcb, thread0.td_pcb);
 	/* Move esp0 in the tss to its final place. */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
@@ -2787,7 +2482,6 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	pcpu->pc_acpi_id = 0xffffffff;
 }
 
-#ifndef PC98
 static int
 smap_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
@@ -2823,7 +2517,6 @@ smap_sysctl_handler(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_machdep, OID_AUTO, smap, CTLTYPE_OPAQUE|CTLFLAG_RD, NULL, 0,
     smap_sysctl_handler, "S,bios_smap_xattr", "Raw BIOS SMAP data");
-#endif /* !PC98 */
 
 void
 spinlock_enter(void)
@@ -2999,17 +2692,11 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 	KASSERT(td == curthread || TD_IS_SUSPENDED(td) ||
 	    P_SHOULDSTOP(td->td_proc),
 	    ("not suspended thread %p", td));
-#ifdef DEV_NPX
 	npxgetregs(td);
-#else
-	bzero(fpregs, sizeof(*fpregs));
-#endif
-#ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
 		npx_fill_fpregs_xmm(&get_pcb_user_save_td(td)->sv_xmm,
 		    (struct save87 *)fpregs);
 	else
-#endif /* CPU_ENABLE_SSE */
 		bcopy(&get_pcb_user_save_td(td)->sv_87, fpregs,
 		    sizeof(*fpregs));
 	return (0);
@@ -3019,17 +2706,13 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-#ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
 		npx_set_fpregs_xmm((struct save87 *)fpregs,
 		    &get_pcb_user_save_td(td)->sv_xmm);
 	else
-#endif /* CPU_ENABLE_SSE */
 		bcopy(fpregs, &get_pcb_user_save_td(td)->sv_87,
 		    sizeof(*fpregs));
-#ifdef DEV_NPX
 	npxuserinited(td);
-#endif
 	return (0);
 }
 
@@ -3138,20 +2821,12 @@ static void
 get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
     size_t xfpusave_len)
 {
-#ifdef CPU_ENABLE_SSE
 	size_t max_len, len;
-#endif
 
-#ifndef DEV_NPX
-	mcp->mc_fpformat = _MC_FPFMT_NODEV;
-	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
-	bzero(mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
-#else
 	mcp->mc_ownedfp = npxgetregs(td);
 	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = npxformat();
-#ifdef CPU_ENABLE_SSE
 	if (!use_xsave || xfpusave_len == 0)
 		return;
 	max_len = cpu_max_ext_state_size - sizeof(union savefpu);
@@ -3163,8 +2838,6 @@ get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
 	mcp->mc_flags |= _MC_HASFPXSTATE;
 	mcp->mc_xfpustate_len = len;
 	bcopy(get_pcb_user_save_td(td) + 1, xfpusave, len);
-#endif
-#endif
 }
 
 static int
@@ -3185,16 +2858,10 @@ set_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpustate,
 		error = 0;
 	} else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-#ifdef DEV_NPX
 		fpstate = (union savefpu *)&mcp->mc_fpstate;
-#ifdef CPU_ENABLE_SSE
 		if (cpu_fxsr)
 			fpstate->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
-#endif
 		error = npxsetregs(td, fpstate, xfpustate, xfpustate_len);
-#else
-		error = EINVAL;
-#endif
 	} else
 		return (EINVAL);
 	return (error);
@@ -3206,10 +2873,8 @@ fpstate_drop(struct thread *td)
 
 	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
 	critical_enter();
-#ifdef DEV_NPX
 	if (PCPU_GET(fpcurthread) == td)
 		npxdrop();
-#endif
 	/*
 	 * XXX force a full drop of the npx.  The above only drops it if we
 	 * owned it.  npxgetregs() has the same bug in the !cpu_fxsr case.

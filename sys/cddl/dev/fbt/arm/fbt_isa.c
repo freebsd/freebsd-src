@@ -61,7 +61,7 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 
 			/* Get 5th parameter from stack */
 			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
-			fifthparam = *(register_t *)frame->tf_usr_sp;
+			fifthparam = *(register_t *)frame->tf_svc_sp;
 			DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT | CPU_DTRACE_BADADDR);
 
 			dtrace_probe(fbt->fbtp_id, frame->tf_r0,

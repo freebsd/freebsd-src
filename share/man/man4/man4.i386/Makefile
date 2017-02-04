@@ -8,7 +8,6 @@ MAN=	aic.4 \
 	cp.4 \
 	CPU_ELAN.4 \
 	cs.4 \
-	ct.4 \
 	ctau.4 \
 	cx.4 \
 	ep.4 \
@@ -26,7 +25,6 @@ MAN=	aic.4 \
 	pnpbios.4 \
 	sbni.4 \
 	smapi.4 \
-	snc.4 \
 	streams.4 \
 	svr4.4 \
 	vpd.4 \

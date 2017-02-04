@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.37 2009/01/18 12:17:49 lukem Exp $
+#	$NetBSD: Makefile,v 1.56 2016/03/02 19:24:20 christos Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
@@ -7,7 +7,7 @@ LIB=	edit
 SHLIB_MAJOR=	7
 SHLIBDIR?= /lib
 
-OSRCS=	chared.c common.c el.c emacs.c fcns.c filecomplete.c help.c \
+OSRCS=	chared.c common.c el.c eln.c emacs.c fcns.c filecomplete.c help.c \
 	hist.c keymacro.c map.c chartype.c \
 	parse.c prompt.c read.c refresh.c search.c sig.c terminal.c tty.c vi.c
 
@@ -35,12 +35,11 @@ CLEANFILES+= common.h editline.c emacs.h fcns.c fcns.h help.c help.h vi.h
 
 INCS=	histedit.h
 
-OSRCS+=	eln.c
 SRCS+=	tokenizern.c historyn.c
 CLEANFILES+=	tokenizern.c historyn.c
 CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/edit -DWIDECHAR
-CFLAGS+= #-DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
-CFLAGS+= #-DDEBUG_PASTE -DDEBUG_EDIT
+#CFLAGS+= -DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
+#CFLAGS+= -DDEBUG_PASTE -DDEBUG_EDIT
 
 WARNS?=	1
 

@@ -593,6 +593,11 @@ compat/ndis/subr_pe.c		optional	ndisapi pci
 compat/ndis/subr_usbd.c		optional	ndisapi pci
 compat/ndis/winx64_wrap.S	optional	ndisapi pci
 #
+crc32_sse42.o			standard				\
+	dependency	"$S/libkern/x86/crc32_sse42.c"			\
+	compile-with	"${CC} -c ${CFLAGS:N-nostdinc} ${WERROR} ${PROF} -msse4 ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"crc32_sse42.o"
 libkern/memmove.c		standard
 libkern/memset.c		standard
 #
@@ -606,7 +611,7 @@ contrib/x86emu/x86emu.c		optional x86bios | dpms | pci | vesa
 dev/bvm/bvm_console.c		optional	bvmconsole
 dev/bvm/bvm_dbg.c		optional	bvmdebug
 #
-# x86 shared code between IA32, AMD64 and PC98 architectures
+# x86 shared code between IA32 and AMD64 architectures
 #
 x86/acpica/OsdEnvironment.c	optional	acpi
 x86/acpica/acpi_apm.c		optional	acpi
