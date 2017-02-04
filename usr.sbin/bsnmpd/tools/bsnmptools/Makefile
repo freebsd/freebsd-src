@@ -8,7 +8,9 @@
 PROG=	bsnmpget
 
 LIBADD=	bsnmp bsnmptools
-CFLAGS+=	-I${.CURDIR}/../libbsnmptools
+
+CFLAGS+=	-I${.CURDIR:H}/libbsnmptools
+LDFLAGS+=	-L${.OBJDIR:H}/libbsnmptools
 
 LINKS=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpwalk
 LINKS+=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpset
