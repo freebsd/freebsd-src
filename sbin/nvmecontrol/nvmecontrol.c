@@ -54,6 +54,7 @@ static struct nvme_function funcs[] = {
 	{"logpage",	logpage,	LOGPAGE_USAGE},
 	{"firmware",	firmware,	FIRMWARE_USAGE},
 	{"power",	power,		POWER_USAGE},
+	{"wdc",		wdc,		WDC_USAGE},
 	{NULL,		NULL,		NULL},
 };
 
