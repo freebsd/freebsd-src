@@ -31,6 +31,14 @@
 
 #include <dev/nvme/nvme.h>
 
+typedef void (*nvme_fn_t)(int argc, char *argv[]);
+
+struct nvme_function {
+	const char	*name;
+	nvme_fn_t	fn;
+	const char	*usage;
+};
+
 #define NVME_CTRLR_PREFIX	"nvme"
 #define NVME_NS_PREFIX		"ns"
 
@@ -73,6 +81,8 @@ void read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata);
 void print_hex(void *data, uint32_t length);
 void read_logpage(int fd, uint8_t log_page, int nsid, void *payload,
     uint32_t payload_size);
+void gen_usage(struct nvme_function *);
+void dispatch(int argc, char *argv[], struct nvme_function *f);
 
 #endif
 
