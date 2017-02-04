@@ -201,7 +201,7 @@ intr_restore(register_t msr)
 }
 
 static __inline struct pcpu *
-get_pcpu(void)
+powerpc_get_pcpup(void)
 {
 	struct pcpu *ret;
 

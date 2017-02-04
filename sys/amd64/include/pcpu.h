@@ -78,7 +78,6 @@
 
 extern struct pcpu *pcpup;
 
-#define	get_pcpu()		(pcpup)
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 #define	PCPU_ADD(member, val)	(pcpup->pc_ ## member += (val))
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)
@@ -203,15 +202,6 @@ extern struct pcpu *pcpup;
 		*__PCPU_PTR(name) = __val;				\
 	}								\
 }
-
-#define	get_pcpu() __extension__ ({					\
-	struct pcpu *__pc;						\
-									\
-	__asm __volatile("movq %%gs:%1,%0"				\
-	    : "=r" (__pc)						\
-	    : "m" (*(struct pcpu *)(__pcpu_offset(pc_prvspace))));	\
-	__pc;								\
-})
 
 #define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
 #define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)
