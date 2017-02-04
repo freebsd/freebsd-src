@@ -33,11 +33,7 @@ CFLAGS+=-DINET6
 CFLAGS+=-DYY_NO_UNPUT
 CFLAGS+=-DYY_NO_INPUT
 
-LIBADD=	util
-.if ${MK_OPENSSL} != "no"
-LIBADD+=	crypto
-CFLAGS+=-DHAVE_CRYPTO
-.endif
+LIBADD=	md util
 
 YFLAGS+=-v
 
