@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
-#include <tcpd.h>
 #include <unistd.h>
 
 #include "tftp-file.h"
@@ -74,6 +73,10 @@ __FBSDID("$FreeBSD$");
 #include "tftp-utils.h"
 #include "tftp-transfer.h"
 #include "tftp-options.h"
+
+#ifdef	LIBWRAP
+#include <tcpd.h>
+#endif
 
 static void	tftp_wrq(int peer, char *, ssize_t);
 static void	tftp_rrq(int peer, char *, ssize_t);
@@ -281,6 +284,7 @@ main(int argc, char *argv[])
 		}
 	}
 
+#ifdef	LIBWRAP
 	/*
 	 * See if the client is allowed to talk to me.
 	 * (This needs to be done before the chroot())
@@ -329,6 +333,7 @@ main(int argc, char *argv[])
 				    "Full access allowed"
 				    "in /etc/hosts.allow");
 	}
+#endif
 
 	/*
 	 * Since we exit here, we should do that only after the above
