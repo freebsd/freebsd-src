@@ -784,6 +784,7 @@ typedef struct dof_relodesc {
 
 #define	DOF_RELO_NONE	0		/* empty relocation entry */
 #define	DOF_RELO_SETX	1		/* relocate setx value */
+#define	DOF_RELO_DOFREL	2		/* relocate DOF-relative value */
 
 typedef struct dof_optdesc {
 	uint32_t dofo_option;		/* option identifier */

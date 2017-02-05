@@ -429,7 +429,8 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 			return (EBUSY);
 		}
 
-		if (dtrace_dof_slurp(dof, vstate, td->td_ucred, &enab, 0, B_TRUE) != 0) {
+		if (dtrace_dof_slurp(dof, vstate, td->td_ucred, &enab, 0, 0,
+		    B_TRUE) != 0) {
 			mutex_exit(&dtrace_lock);
 			mutex_exit(&cpu_lock);
 			dtrace_dof_destroy(dof);
