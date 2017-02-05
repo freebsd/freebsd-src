@@ -276,29 +276,6 @@ sx_destroy(struct sx *sx)
 }
 
 int
-_sx_slock(struct sx *sx, int opts, const char *file, int line)
-{
-	int error = 0;
-
-	if (SCHEDULER_STOPPED())
-		return (0);
-	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
-	    ("sx_slock() by idle thread %p on sx %s @ %s:%d",
-	    curthread, sx->lock_object.lo_name, file, line));
-	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
-	    ("sx_slock() of destroyed sx @ %s:%d", file, line));
-	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER, file, line, NULL);
-	error = __sx_slock(sx, opts, file, line);
-	if (!error) {
-		LOCK_LOG_LOCK("SLOCK", &sx->lock_object, 0, 0, file, line);
-		WITNESS_LOCK(&sx->lock_object, 0, file, line);
-		TD_LOCKS_INC(curthread);
-	}
-
-	return (error);
-}
-
-int
 sx_try_slock_(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
@@ -388,21 +365,6 @@ sx_try_xlock_(struct sx *sx, const char *file, int line)
 	}
 
 	return (rval);
-}
-
-void
-_sx_sunlock(struct sx *sx, const char *file, int line)
-{
-
-	if (SCHEDULER_STOPPED())
-		return;
-	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
-	    ("sx_sunlock() of destroyed sx @ %s:%d", file, line));
-	_sx_assert(sx, SA_SLOCKED, file, line);
-	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
-	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
-	__sx_sunlock(sx, file, line);
-	TD_LOCKS_DEC(curthread);
 }
 
 void
@@ -840,14 +802,8 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 		kick_proc0();
 }
 
-/*
- * This function represents the so-called 'hard case' for sx_slock
- * operation.  All 'easy case' failures are redirected to this.  Note
- * that ideally this would be a static function, but it needs to be
- * accessible from at least sx.h.
- */
 int
-_sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
+_sx_slock(struct sx *sx, int opts, const char *file, int line)
 {
 	GIANT_DECLARE;
 #ifdef ADAPTIVE_SX
@@ -1051,14 +1007,8 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 	return (error);
 }
 
-/*
- * This function represents the so-called 'hard case' for sx_sunlock
- * operation.  All 'easy case' failures are redirected to this.  Note
- * that ideally this would be a static function, but it needs to be
- * accessible from at least sx.h.
- */
 void
-_sx_sunlock_hard(struct sx *sx, const char *file, int line)
+_sx_sunlock(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
 	int wakeup_swapper;
@@ -1066,6 +1016,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
+	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
 	x = SX_READ_VALUE(sx);
 	for (;;) {
 		/*
