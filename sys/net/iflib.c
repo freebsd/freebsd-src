@@ -3422,8 +3422,6 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		ctx->ifc_if_flags = if_getflags(ifp);
 		CTX_UNLOCK(ctx);
 		break;
-
-		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {

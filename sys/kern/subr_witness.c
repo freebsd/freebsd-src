@@ -1732,15 +1732,14 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 				continue;
 			if (n == 0) {
 				va_start(ap, fmt);
-				witness_voutput(fmt, ap);
+				vprintf(fmt, ap);
 				va_end(ap);
-				witness_output(
-				    " with the following %slocks held:\n",
+				printf(" with the following %slocks held:\n",
 				    (flags & WARN_SLEEPOK) != 0 ?
 				    "non-sleepable " : "");
 			}
 			n++;
-			witness_list_lock(lock1, witness_output);
+			witness_list_lock(lock1, printf);
 		}
 
 	/*
@@ -1765,11 +1764,11 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 			return (0);
 
 		va_start(ap, fmt);
-		witness_voutput(fmt, ap);
+		vprintf(fmt, ap);
 		va_end(ap);
-		witness_output(" with the following %slocks held:\n",
+		printf(" with the following %slocks held:\n",
 		    (flags & WARN_SLEEPOK) != 0 ?  "non-sleepable " : "");
-		n += witness_list_locks(&lock_list, witness_output);
+		n += witness_list_locks(&lock_list, printf);
 	} else
 		sched_unpin();
 	if (flags & WARN_PANIC && n)
