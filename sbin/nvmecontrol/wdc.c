@@ -127,7 +127,8 @@ wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 {
 	int fd2;
 	uint8_t *buf;
-	uint32_t len, resid, offset;
+	uint32_t len, offset;
+	ssize_t resid;
 
 	wdc_append_serial_name(fd, tmpl, MAXPATHLEN, suffix);
 
