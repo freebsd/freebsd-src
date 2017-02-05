@@ -782,6 +782,7 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 #ifdef KDTRACE_HOOKS
 	spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
 #endif
+	v = MTX_UNOWNED;
 	for (;;) {
 retry:
 		spinlock_enter();
