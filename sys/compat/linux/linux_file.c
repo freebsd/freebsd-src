@@ -1537,11 +1537,16 @@ linux_pipe(struct thread *td, struct linux_pipe_args *args)
 #endif
 
 	error = kern_pipe(td, fildes, 0, NULL, NULL);
-	if (error)
+	if (error != 0)
 		return (error);
 
-	/* XXX: Close descriptors on error. */
-	return (copyout(fildes, args->pipefds, sizeof(fildes)));
+	error = copyout(fildes, args->pipefds, sizeof(fildes));
+	if (error != 0) {
+		(void)kern_close(td, fildes[0]);
+		(void)kern_close(td, fildes[1]);
+	}
+
+	return (error);
 }
 
 int
@@ -1564,11 +1569,16 @@ linux_pipe2(struct thread *td, struct linux_pipe2_args *args)
 	if ((args->flags & LINUX_O_CLOEXEC) != 0)
 		flags |= O_CLOEXEC;
 	error = kern_pipe(td, fildes, flags, NULL, NULL);
-	if (error)
+	if (error != 0)
 		return (error);
 
-	/* XXX: Close descriptors on error. */
-	return (copyout(fildes, args->pipefds, sizeof(fildes)));
+	error = copyout(fildes, args->pipefds, sizeof(fildes));
+	if (error != 0) {
+		(void)kern_close(td, fildes[0]);
+		(void)kern_close(td, fildes[1]);
+	}
+
+	return (error);
 }
 
 int
