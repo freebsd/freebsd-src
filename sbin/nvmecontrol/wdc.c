@@ -69,7 +69,7 @@ static void wdc_purge_monitor(int argc, char *argv[]);
 #define WDC_DRIVE_LOG_USAGE	"\tnvmecontrol wdc drive-log [-o path-template]\n"
 #define WDC_GET_CRASH_DUMP_USAGE "\tnvmecontrol wdc get-crash-dump [-o path-template]\n"
 #define WDC_PURGE_USAGE		"\tnvmecontrol wdc purge [-o path-template]\n"
-#define WDC_PURGE_MONITOR_USAGE	"\tnvmecontrol wdc purge-montor\n"
+#define WDC_PURGE_MONITOR_USAGE	"\tnvmecontrol wdc purge-monitor\n"
 
 static struct nvme_function wdc_funcs[] = {
 	{"cap-diag",		wdc_cap_diag,		WDC_CAP_DIAG_USAGE},
@@ -94,7 +94,7 @@ wdc_append_serial_name(int fd, char *buf, size_t len, const char *suffix)
 	walker = sn + NVME_SERIAL_NUMBER_LENGTH - 1;
 	while (walker > sn && *walker == ' ')
 		walker--;
-	*walker = '\0';
+	*++walker = '\0';
 	snprintf(buf, len, "%s%s.bin", sn, suffix);
 }
 
@@ -127,7 +127,8 @@ wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 {
 	int fd2;
 	uint8_t *buf;
-	uint32_t len, resid, offset;
+	uint32_t len, offset;
+	ssize_t resid;
 
 	wdc_append_serial_name(fd, tmpl, MAXPATHLEN, suffix);
 

@@ -74,6 +74,12 @@ kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key)
 	return bad;
 }
 
+static void
+print_bin(void *data, uint32_t length)
+{
+	write(STDOUT_FILENO, data, length);
+}
+
 /*
  * 128-bit integer augments to standard values. On i386 this
  * doesn't exist, so we use 64-bit values. The 128-bit counters
@@ -846,6 +852,8 @@ static struct logpage_function {
 	 sizeof(struct nvme_firmware_page)},
 	{HGST_INFO_LOG,			"hgst",	print_hgst_info_log,
 	 DEFAULT_SIZE},
+	{HGST_INFO_LOG,			"wdc",	print_hgst_info_log,
+	 DEFAULT_SIZE},
 	{INTEL_LOG_TEMP_STATS,		"intel", print_intel_temp_stats,
 	 sizeof(struct intel_log_temp_stats)},
 	{INTEL_LOG_READ_LAT_LOG,	"intel", print_intel_read_lat_log,
@@ -870,7 +878,7 @@ logpage(int argc, char *argv[])
 {
 	int				fd, nsid;
 	int				log_page = 0, pageflag = false;
-	int				hexflag = false, ns_specified;
+	int				binflag = false, hexflag = false, ns_specified;
 	char				ch, *p;
 	char				cname[64];
 	uint32_t			size;
@@ -880,8 +888,11 @@ logpage(int argc, char *argv[])
 	struct nvme_controller_data	cdata;
 	print_fn_t			print_fn;
 
-	while ((ch = getopt(argc, argv, "p:xv:")) != -1) {
+	while ((ch = getopt(argc, argv, "bp:xv:")) != -1) {
 		switch (ch) {
+		case 'b':
+			binflag = true;
+			break;
 		case 'p':
 			/* TODO: Add human-readable ASCII page IDs */
 			log_page = strtol(optarg, &p, 0);
@@ -940,7 +951,9 @@ logpage(int argc, char *argv[])
 
 	print_fn = print_hex;
 	size = DEFAULT_SIZE;
-	if (!hexflag) {
+	if (binflag)
+		print_fn = print_bin;
+	if (!binflag && !hexflag) {
 		/*
 		 * See if there is a pretty print function for the specified log
 		 * page.  If one isn't found, we just revert to the default
