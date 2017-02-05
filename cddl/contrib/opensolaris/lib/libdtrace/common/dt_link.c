@@ -1205,6 +1205,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	key_t objkey;
 	dt_link_pair_t *pair, *bufs = NULL;
 	dt_strtab_t *strtab;
+	void *tmp;
 
 	if ((fd = open64(obj, O_RDWR)) == -1) {
 		return (dt_link_error(dtp, elf, fd, bufs,
@@ -1463,7 +1464,9 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			bufs = pair;
 
 			bcopy(data_str->d_buf, pair->dlp_str, data_str->d_size);
+			tmp = data_str->d_buf;
 			data_str->d_buf = pair->dlp_str;
+			pair->dlp_str = tmp;
 			data_str->d_size += len;
 			(void) elf_flagdata(data_str, ELF_C_SET, ELF_F_DIRTY);
 
@@ -1471,7 +1474,9 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			(void) gelf_update_shdr(scn_str, &shdr_str);
 
 			bcopy(data_sym->d_buf, pair->dlp_sym, data_sym->d_size);
+			tmp = data_sym->d_buf;
 			data_sym->d_buf = pair->dlp_sym;
+			pair->dlp_sym = tmp;
 			data_sym->d_size += nsym * symsize;
 			(void) elf_flagdata(data_sym, ELF_C_SET, ELF_F_DIRTY);
 
@@ -1657,9 +1662,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	(void) elf_end(elf);
 	(void) close(fd);
 
-#ifndef illumos
-	if (nsym > 0)
-#endif
 	while ((pair = bufs) != NULL) {
 		bufs = pair->dlp_next;
 		dt_free(dtp, pair->dlp_str);
