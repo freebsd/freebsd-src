@@ -99,10 +99,6 @@ __FBSDID("$FreeBSD$");
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
-#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
-#endif
-
 _Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
     "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
 _Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
@@ -152,18 +148,14 @@ void *
 alloc_fpusave(int flags)
 {
 	void *res;
-#ifdef CPU_ENABLE_SSE
 	struct savefpu_ymm *sf;
-#endif
 
 	res = malloc(cpu_max_ext_state_size, M_DEVBUF, flags);
-#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		sf = (struct savefpu_ymm *)res;
 		bzero(&sf->sv_xstate.sx_hd, sizeof(sf->sv_xstate.sx_hd));
 		sf->sv_xstate.sx_hd.xstate_bv = xsave_mask;
 	}
-#endif
 	return (res);
 }
 /*
@@ -172,11 +164,7 @@ alloc_fpusave(int flags)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(td1, p2, td2, flags)
-	register struct thread *td1;
-	register struct proc *p2;
-	struct thread *td2;
-	int flags;
+cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	register struct proc *p1;
 	struct pcb *pcb2;
@@ -207,12 +195,10 @@ cpu_fork(td1, p2, td2, flags)
 	/* Ensure that td1's pcb is up to date. */
 	if (td1 == curthread)
 		td1->td_pcb->pcb_gs = rgs();
-#ifdef DEV_NPX
 	critical_enter();
 	if (PCPU_GET(fpcurthread) == td1)
 		npxsave(td1->td_pcb->pcb_save);
 	critical_exit();
-#endif
 
 	/* Point the pcb to the top of the stack */
 	pcb2 = get_pcb_td(td2);
@@ -350,12 +336,10 @@ void
 cpu_thread_exit(struct thread *td)
 {
 
-#ifdef DEV_NPX
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread))
 		npxdrop();
 	critical_exit();
-#endif
 
 	/* Disable any hardware breakpoints. */
 	if (td->td_pcb->pcb_flags & PCB_DBREGS) {
@@ -396,21 +380,17 @@ void
 cpu_thread_alloc(struct thread *td)
 {
 	struct pcb *pcb;
-#ifdef CPU_ENABLE_SSE
 	struct xstate_hdr *xhdr;
-#endif
 
 	td->td_pcb = pcb = get_pcb_td(td);
 	td->td_frame = (struct trapframe *)((caddr_t)pcb - 16) - 1;
 	pcb->pcb_ext = NULL; 
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
-#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
 		bzero(xhdr, sizeof(*xhdr));
 		xhdr->xstate_bv = xsave_mask;
 	}
-#endif
 }
 
 void

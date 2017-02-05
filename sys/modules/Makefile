@@ -522,7 +522,7 @@ _cxgbe=		cxgbe
 SUBDIR+=	zfs
 .endif
 
-.if ${MACHINE_CPUARCH} == "mips"
+.if (${MACHINE_CPUARCH} == "mips" && ${MACHINE_ARCH:Mmips64} == "")
 _hwpmc_mips24k=	hwpmc_mips24k
 _hwpmc_mips74k=	hwpmc_mips74k
 .endif

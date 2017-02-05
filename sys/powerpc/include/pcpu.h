@@ -142,7 +142,7 @@ struct pvo_entry;
 
 #ifdef _KERNEL
 
-#define pcpup	(get_pcpu())
+#define pcpup	((struct pcpu *) powerpc_get_pcpup())
 
 static __inline __pure2 struct thread *
 __curthread(void)

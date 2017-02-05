@@ -2016,16 +2016,23 @@ ieee80211_add_supportedchannels(uint8_t *frm, struct ieee80211com *ic)
  * Add an 11h Quiet time element to a frame.
  */
 static uint8_t *
-ieee80211_add_quiet(uint8_t *frm, struct ieee80211vap *vap)
+ieee80211_add_quiet(uint8_t *frm, struct ieee80211vap *vap, int update)
 {
 	struct ieee80211_quiet_ie *quiet = (struct ieee80211_quiet_ie *) frm;
 
 	quiet->quiet_ie = IEEE80211_ELEMID_QUIET;
 	quiet->len = 6;
-	if (vap->iv_quiet_count_value == 1)
-		vap->iv_quiet_count_value = vap->iv_quiet_count;
-	else if (vap->iv_quiet_count_value > 1)
-		vap->iv_quiet_count_value--;
+
+	/*
+	 * Only update every beacon interval - otherwise probe responses
+	 * would update the quiet count value.
+	 */
+	if (update) {
+		if (vap->iv_quiet_count_value == 1)
+			vap->iv_quiet_count_value = vap->iv_quiet_count;
+		else if (vap->iv_quiet_count_value > 1)
+			vap->iv_quiet_count_value--;
+	}
 
 	if (vap->iv_quiet_count_value == 0) {
 		/* value 0 is reserved as per 802.11h standerd */
@@ -2812,7 +2819,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
 		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
 			if (vap->iv_quiet)
-				frm = ieee80211_add_quiet(frm, vap);
+				frm = ieee80211_add_quiet(frm, vap, 0);
 		}
 	}
 	if (IEEE80211_IS_CHAN_ANYG(bss->ni_chan))
@@ -3161,7 +3168,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
 		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
 			if (vap->iv_quiet)
-				frm = ieee80211_add_quiet(frm,vap);
+				frm = ieee80211_add_quiet(frm,vap, 0);
 		}
 	} else
 		bo->bo_quiet = frm;
@@ -3596,7 +3603,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
 		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS) ){
 			if (vap->iv_quiet)
-				ieee80211_add_quiet(bo->bo_quiet, vap);
+				ieee80211_add_quiet(bo->bo_quiet, vap, 1);
 		}
 		if (isset(bo->bo_flags, IEEE80211_BEACON_ERP)) {
 			/*

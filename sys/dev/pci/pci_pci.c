@@ -918,6 +918,7 @@ static void
 pcib_probe_hotplug(struct pcib_softc *sc)
 {
 	device_t dev;
+	uint32_t link_cap;
 	uint16_t link_sta, slot_sta;
 
 	if (!pci_enable_pcie_hp)
@@ -930,10 +931,12 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 	if (!(pcie_read_config(dev, PCIER_FLAGS, 2) & PCIEM_FLAGS_SLOT))
 		return;
 
-	sc->pcie_link_cap = pcie_read_config(dev, PCIER_LINK_CAP, 4);
 	sc->pcie_slot_cap = pcie_read_config(dev, PCIER_SLOT_CAP, 4);
 
 	if ((sc->pcie_slot_cap & PCIEM_SLOT_CAP_HPC) == 0)
+		return;
+	link_cap = pcie_read_config(dev, PCIER_LINK_CAP, 4);
+	if ((link_cap & PCIEM_LINK_CAP_DL_ACTIVE) == 0)
 		return;
 
 	/*
@@ -945,8 +948,7 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 	 * If there is an open MRL but the Data Link Layer is active,
 	 * the MRL is not real.
 	 */
-	if ((sc->pcie_slot_cap & PCIEM_SLOT_CAP_MRLSP) != 0 &&
-	    (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE) != 0) {
+	if ((sc->pcie_slot_cap & PCIEM_SLOT_CAP_MRLSP) != 0) {
 		link_sta = pcie_read_config(dev, PCIER_LINK_STA, 2);
 		slot_sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
 		if ((slot_sta & PCIEM_SLOT_STA_MRLSS) != 0 &&
@@ -1059,10 +1061,8 @@ pcib_hotplug_present(struct pcib_softc *sc)
 		return (0);
 
 	/* Require the Data Link Layer to be active. */
-	if (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE) {
-		if (!(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE))
-			return (0);
-	}
+	if (!(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE))
+		return (0);
 
 	return (-1);
 }
@@ -1119,20 +1119,18 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	 * changed on this interrupt.  Stop any scheduled timer if
 	 * the Data Link Layer is active.
 	 */
-	if (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE) {
-		if (card_inserted &&
-		    !(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE) &&
-		    sc->pcie_slot_sta &
-		    (PCIEM_SLOT_STA_MRLSC | PCIEM_SLOT_STA_PDC)) {
-			if (cold)
-				device_printf(sc->dev,
-				    "Data Link Layer inactive\n");
-			else
-				callout_reset(&sc->pcie_dll_timer, hz,
-				    pcib_pcie_dll_timeout, sc);
-		} else if (sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE)
-			callout_stop(&sc->pcie_dll_timer);
-	}
+	if (card_inserted &&
+	    !(sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE) &&
+	    sc->pcie_slot_sta &
+	    (PCIEM_SLOT_STA_MRLSC | PCIEM_SLOT_STA_PDC)) {
+		if (cold)
+			device_printf(sc->dev,
+			    "Data Link Layer inactive\n");
+		else
+			callout_reset(&sc->pcie_dll_timer, hz,
+			    pcib_pcie_dll_timeout, sc);
+	} else if (sc->pcie_link_sta & PCIEM_LINK_STA_DL_ACTIVE)
+		callout_stop(&sc->pcie_dll_timer);
 
 	pcib_pcie_hotplug_command(sc, val, mask);
 
@@ -1382,7 +1380,7 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 	mask = PCIEM_SLOT_CTL_DLLSCE | PCIEM_SLOT_CTL_HPIE |
 	    PCIEM_SLOT_CTL_CCIE | PCIEM_SLOT_CTL_PDCE | PCIEM_SLOT_CTL_MRLSCE |
 	    PCIEM_SLOT_CTL_PFDE | PCIEM_SLOT_CTL_ABPE;
-	val = PCIEM_SLOT_CTL_PDCE | PCIEM_SLOT_CTL_HPIE;
+	val = PCIEM_SLOT_CTL_DLLSCE | PCIEM_SLOT_CTL_HPIE | PCIEM_SLOT_CTL_PDCE;
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_APB)
 		val |= PCIEM_SLOT_CTL_ABPE;
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_PCP)
@@ -1391,8 +1389,6 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 		val |= PCIEM_SLOT_CTL_MRLSCE;
 	if (!(sc->pcie_slot_cap & PCIEM_SLOT_CAP_NCCS))
 		val |= PCIEM_SLOT_CTL_CCIE;
-	if (sc->pcie_link_cap & PCIEM_LINK_CAP_DL_ACTIVE)
-		val |= PCIEM_SLOT_CTL_DLLSCE;
 
 	/* Turn the attention indicator off. */
 	if (sc->pcie_slot_cap & PCIEM_SLOT_CAP_AIP) {

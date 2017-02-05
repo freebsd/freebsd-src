@@ -170,33 +170,6 @@ struct __hack
  * Returns 0 on failure, non-zero on success
  */
 
-#ifdef CPU_DISABLE_CMPXCHG
-
-static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
-{
-	u_char res;
-
-	__asm __volatile(
-	"	pushfl ;		"
-	"	cli ;			"
-	"	cmpl	%3,%1 ;		"
-	"	jne	1f ;		"
-	"	movl	%2,%1 ;		"
-	"1:				"
-	"       sete	%0 ;		"
-	"	popfl ;			"
-	"# atomic_cmpset_int"
-	: "=q" (res),			/* 0 */
-	  "+m" (*dst)			/* 1 */
-	: "r" (src),			/* 2 */
-	  "r" (expect)			/* 3 */
-	: "memory");
-	return (res);
-}
-
-#else /* !CPU_DISABLE_CMPXCHG */
-
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 {
@@ -225,15 +198,13 @@ atomic_fcmpset_int(volatile u_int *dst, u_int *expect, u_int src)
 	"	cmpxchgl %3,%1 ;	"
 	"       sete	%0 ;		"
 	"# atomic_cmpset_int"
-	: "=r" (res),			/* 0 */
+	: "=q" (res),			/* 0 */
 	  "+m" (*dst),			/* 1 */
-	  "+a" (*expect)			/* 2 */
+	  "+a" (*expect)		/* 2 */
 	: "r" (src)			/* 3 */
 	: "memory", "cc");
 	return (res);
 }
-
-#endif /* CPU_DISABLE_CMPXCHG */
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return

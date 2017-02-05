@@ -75,18 +75,18 @@ The Regents of the University of California.  All rights reserved.\n";
  * to compile if <pcap.h> has already been included; including the headers
  * in the opposite order works fine.
  */
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 #include <sys/capsicum.h>
 #include <sys/sysctl.h>
+#include <sys/nv.h>
+#include <sys/ioccom.h>
+#include <net/bpf.h>
 #include <libgen.h>
 #ifdef HAVE_CASPER
 #include <libcasper.h>
 #include <casper/cap_dns.h>
-#include <sys/nv.h>
-#include <sys/ioccom.h>
-#include <net/bpf.h>
 #endif	/* HAVE_CASPER */
-#endif /* __FreeBSD__ */
+#endif	/* HAVE_CAPSICUM */
 #include <pcap.h>
 #include <signal.h>
 #include <stdio.h>
@@ -249,7 +249,7 @@ struct dump_info {
 	char	*CurrentFileName;
 	pcap_t	*pd;
 	pcap_dumper_t *p;
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 	int	dirfd;
 #endif
 };
@@ -789,7 +789,7 @@ tstamp_precision_to_string(int precision)
 }
 #endif
 
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 /*
  * Ensure that, on a dump file's descriptor, we have all the rights
  * necessary to make the standard I/O library work with an fdopen()ed
@@ -1188,10 +1188,10 @@ main(int argc, char **argv)
 #endif
 	int status;
 	FILE *VFile;
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 	cap_rights_t rights;
-#endif	/* !__FreeBSD__ */
 	int cansandbox;
+#endif	/* HAVE_CAPSICUM */
 	int Oflag = 1;			/* run filter code optimizer */
 	int yflag_dlt = -1;
 	const char *yflag_dlt_name = NULL;
@@ -1685,7 +1685,7 @@ main(int argc, char **argv)
 
 		if (pd == NULL)
 			error("%s", ebuf);
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 		cap_rights_init(&rights, CAP_READ);
 		if (cap_rights_limit(fileno(pcap_file(pd)), &rights) < 0 &&
 		    errno != ENOSYS) {
@@ -1916,7 +1916,7 @@ main(int argc, char **argv)
 
 	if (pcap_setfilter(pd, &fcode) < 0)
 		error("%s", pcap_geterr(pd));
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 	if (RFileName == NULL && VFileName == NULL) {
 		static const unsigned long cmds[] = { BIOCGSTATS, BIOCROTZBUF };
 
@@ -1966,11 +1966,11 @@ main(int argc, char **argv)
 #endif /* HAVE_LIBCAP_NG */
 		if (p == NULL)
 			error("%s", pcap_geterr(pd));
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 		set_dumper_capsicum_rights(p);
 #endif
 		if (Cflag != 0 || Gflag != 0) {
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 			dumpinfo.WFileName = strdup(basename(WFileName));
 			if (dumpinfo.WFileName == NULL) {
 				error("Unable to allocate memory for file %s",
@@ -1992,7 +1992,7 @@ main(int argc, char **argv)
 			    errno != ENOSYS) {
 				error("unable to limit dump descriptor fcntls");
 			}
-#else	/* !__FreeBSD__ */
+#else	/* !HAVE_CAPSICUM */
 			dumpinfo.WFileName = WFileName;
 #endif
 			callback = dump_packet_and_trunc;
@@ -2064,7 +2064,7 @@ main(int argc, char **argv)
 		(void)fflush(stderr);
 	}
 
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 	cansandbox = (VFileName == NULL && zflag == NULL);
 #ifdef HAVE_CASPER
 	cansandbox = (cansandbox && (ndo->ndo_nflag || capdns != NULL));
@@ -2073,7 +2073,7 @@ main(int argc, char **argv)
 #endif	/* HAVE_CASPER */
 	if (cansandbox && cap_enter() < 0 && errno != ENOSYS)
 		error("unable to enter the capability mode");
-#endif	/* __FreeBSD __ */
+#endif	/* HAVE_CAPSICUM */
 
 	do {
 		status = pcap_loop(pd, cnt, callback, pcap_userdata);
@@ -2124,7 +2124,7 @@ main(int argc, char **argv)
 				pd = pcap_open_offline(RFileName, ebuf);
 				if (pd == NULL)
 					error("%s", ebuf);
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 				cap_rights_init(&rights, CAP_READ);
 				if (cap_rights_limit(fileno(pcap_file(pd)),
 				    &rights) < 0 && errno != ENOSYS) {
@@ -2378,7 +2378,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 
 		/* If the time is greater than the specified window, rotate */
 		if (t - Gflag_time >= Gflag) {
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 			FILE *fp;
 			int fd;
 #endif
@@ -2437,7 +2437,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 			capng_update(CAPNG_ADD, CAPNG_EFFECTIVE, CAP_DAC_OVERRIDE);
 			capng_apply(CAPNG_SELECT_BOTH);
 #endif /* HAVE_LIBCAP_NG */
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 			fd = openat(dump_info->dirfd,
 			    dump_info->CurrentFileName,
 			    O_CREAT | O_WRONLY | O_TRUNC, 0644);
@@ -2451,7 +2451,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 				    dump_info->CurrentFileName);
 			}
 			dump_info->p = pcap_dump_fopen(dump_info->pd, fp);
-#else	/* !__FreeBSD__ */
+#else	/* !HAVE_CAPSICUM */
 			dump_info->p = pcap_dump_open(dump_info->pd, dump_info->CurrentFileName);
 #endif
 #ifdef HAVE_LIBCAP_NG
@@ -2460,7 +2460,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 #endif /* HAVE_LIBCAP_NG */
 			if (dump_info->p == NULL)
 				error("%s", pcap_geterr(pd));
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 			set_dumper_capsicum_rights(dump_info->p);
 #endif
 		}
@@ -2477,7 +2477,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 		if (size == -1)
 			error("ftell fails on output file");
 		if (size > Cflag) {
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 			FILE *fp;
 			int fd;
 #endif
@@ -2509,7 +2509,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 			capng_update(CAPNG_ADD, CAPNG_EFFECTIVE, CAP_DAC_OVERRIDE);
 			capng_apply(CAPNG_SELECT_BOTH);
 #endif /* HAVE_LIBCAP_NG */
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 			fd = openat(dump_info->dirfd, dump_info->CurrentFileName,
 			    O_CREAT | O_WRONLY | O_TRUNC, 0644);
 			if (fd < 0) {
@@ -2522,7 +2522,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 				    dump_info->CurrentFileName);
 			}
 			dump_info->p = pcap_dump_fopen(dump_info->pd, fp);
-#else	/* !__FreeBSD__ */
+#else	/* !HAVE_CAPSICUM */
 			dump_info->p = pcap_dump_open(dump_info->pd, dump_info->CurrentFileName);
 #endif
 #ifdef HAVE_LIBCAP_NG
@@ -2531,7 +2531,7 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 #endif /* HAVE_LIBCAP_NG */
 			if (dump_info->p == NULL)
 				error("%s", pcap_geterr(pd));
-#ifdef __FreeBSD__
+#ifdef HAVE_CAPSICUM
 			set_dumper_capsicum_rights(dump_info->p);
 #endif
 		}

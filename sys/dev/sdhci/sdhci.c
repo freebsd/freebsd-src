@@ -55,18 +55,19 @@ __FBSDID("$FreeBSD$");
 SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
 
 static int sdhci_debug;
-SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RWTUN, &sdhci_debug, 0, "Debug level");
+SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RWTUN, &sdhci_debug, 0,
+    "Debug level");
 
-#define RD1(slot, off)	SDHCI_READ_1((slot)->bus, (slot), (off))
-#define RD2(slot, off)	SDHCI_READ_2((slot)->bus, (slot), (off))
-#define RD4(slot, off)	SDHCI_READ_4((slot)->bus, (slot), (off))
-#define RD_MULTI_4(slot, off, ptr, count)	\
+#define	RD1(slot, off)	SDHCI_READ_1((slot)->bus, (slot), (off))
+#define	RD2(slot, off)	SDHCI_READ_2((slot)->bus, (slot), (off))
+#define	RD4(slot, off)	SDHCI_READ_4((slot)->bus, (slot), (off))
+#define	RD_MULTI_4(slot, off, ptr, count)	\
     SDHCI_READ_MULTI_4((slot)->bus, (slot), (off), (ptr), (count))
 
-#define WR1(slot, off, val)	SDHCI_WRITE_1((slot)->bus, (slot), (off), (val))
-#define WR2(slot, off, val)	SDHCI_WRITE_2((slot)->bus, (slot), (off), (val))
-#define WR4(slot, off, val)	SDHCI_WRITE_4((slot)->bus, (slot), (off), (val))
-#define WR_MULTI_4(slot, off, ptr, count)	\
+#define	WR1(slot, off, val)	SDHCI_WRITE_1((slot)->bus, (slot), (off), (val))
+#define	WR2(slot, off, val)	SDHCI_WRITE_2((slot)->bus, (slot), (off), (val))
+#define	WR4(slot, off, val)	SDHCI_WRITE_4((slot)->bus, (slot), (off), (val))
+#define	WR_MULTI_4(slot, off, ptr, count)	\
     SDHCI_WRITE_MULTI_4((slot)->bus, (slot), (off), (ptr), (count))
 
 static void sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock);
@@ -77,13 +78,13 @@ static void sdhci_card_poll(void *);
 static void sdhci_card_task(void *, int);
 
 /* helper routines */
-#define SDHCI_LOCK(_slot)		mtx_lock(&(_slot)->mtx)
+#define	SDHCI_LOCK(_slot)		mtx_lock(&(_slot)->mtx)
 #define	SDHCI_UNLOCK(_slot)		mtx_unlock(&(_slot)->mtx)
-#define SDHCI_LOCK_INIT(_slot) \
+#define	SDHCI_LOCK_INIT(_slot) \
 	mtx_init(&_slot->mtx, "SD slot mtx", "sdhci", MTX_DEF)
-#define SDHCI_LOCK_DESTROY(_slot)	mtx_destroy(&_slot->mtx);
-#define SDHCI_ASSERT_LOCKED(_slot)	mtx_assert(&_slot->mtx, MA_OWNED);
-#define SDHCI_ASSERT_UNLOCKED(_slot)	mtx_assert(&_slot->mtx, MA_NOTOWNED);
+#define	SDHCI_LOCK_DESTROY(_slot)	mtx_destroy(&_slot->mtx);
+#define	SDHCI_ASSERT_LOCKED(_slot)	mtx_assert(&_slot->mtx, MA_OWNED);
+#define	SDHCI_ASSERT_UNLOCKED(_slot)	mtx_assert(&_slot->mtx, MA_NOTOWNED);
 
 #define	SDHCI_DEFAULT_MAX_FREQ	50
 
@@ -97,20 +98,20 @@ static void sdhci_card_task(void *, int);
  * Broadcom BCM577xx Controller Constants
  */
 /* Maximum divider supported by the default clock source. */
-#define BCM577XX_DEFAULT_MAX_DIVIDER	256
+#define	BCM577XX_DEFAULT_MAX_DIVIDER	256
 /* Alternative clock's base frequency. */
-#define BCM577XX_ALT_CLOCK_BASE		63000000
+#define	BCM577XX_ALT_CLOCK_BASE		63000000
 
-#define BCM577XX_HOST_CONTROL		0x198
-#define BCM577XX_CTRL_CLKSEL_MASK	0xFFFFCFFF
-#define BCM577XX_CTRL_CLKSEL_SHIFT	12
-#define BCM577XX_CTRL_CLKSEL_DEFAULT	0x0
-#define BCM577XX_CTRL_CLKSEL_64MHZ	0x3
-
+#define	BCM577XX_HOST_CONTROL		0x198
+#define	BCM577XX_CTRL_CLKSEL_MASK	0xFFFFCFFF
+#define	BCM577XX_CTRL_CLKSEL_SHIFT	12
+#define	BCM577XX_CTRL_CLKSEL_DEFAULT	0x0
+#define	BCM577XX_CTRL_CLKSEL_64MHZ	0x3
 
 static void
 sdhci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
+
 	if (error != 0) {
 		printf("getaddr: error %d\n", error);
 		return;
@@ -136,6 +137,7 @@ slot_printf(struct sdhci_slot *slot, const char * fmt, ...)
 static void
 sdhci_dumpregs(struct sdhci_slot *slot)
 {
+
 	slot_printf(slot,
 	    "============== REGISTER DUMP ==============\n");
 
@@ -498,9 +500,10 @@ sdhci_transfer_pio(struct sdhci_slot *slot)
 }
 
 static void
-sdhci_card_task(void *arg, int pending)
+sdhci_card_task(void *arg, int pending __unused)
 {
 	struct sdhci_slot *slot = arg;
+	device_t d;
 
 	SDHCI_LOCK(slot);
 	if (SDHCI_GET_CARD_PRESENT(slot->bus, slot)) {
@@ -519,7 +522,7 @@ sdhci_card_task(void *arg, int pending)
 			/* If no card present - detach mmc bus. */
 			if (bootverbose || sdhci_debug)
 				slot_printf(slot, "Card removed\n");
-			device_t d = slot->dev;
+			d = slot->dev;
 			slot->dev = NULL;
 			SDHCI_UNLOCK(slot);
 			device_delete_child(slot->bus, d);
@@ -739,6 +742,7 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 void
 sdhci_start_slot(struct sdhci_slot *slot)
 {
+
 	sdhci_card_task(slot, 0);
 }
 
@@ -774,6 +778,7 @@ sdhci_cleanup_slot(struct sdhci_slot *slot)
 int
 sdhci_generic_suspend(struct sdhci_slot *slot)
 {
+
 	sdhci_reset(slot, SDHCI_RESET_ALL);
 
 	return (0);
@@ -782,6 +787,7 @@ sdhci_generic_suspend(struct sdhci_slot *slot)
 int
 sdhci_generic_resume(struct sdhci_slot *slot)
 {
+
 	sdhci_init(slot);
 
 	return (0);
@@ -790,6 +796,7 @@ sdhci_generic_resume(struct sdhci_slot *slot)
 uint32_t
 sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot)
 {
+
 	if (slot->version >= SDHCI_SPEC_300)
 		return (slot->max_clk / SDHCI_300_MAX_DIVIDER);
 	else
@@ -869,7 +876,7 @@ sdhci_timeout(void *arg)
 	if (slot->curcmd != NULL) {
 		slot_printf(slot, " Controller timeout\n");
 		sdhci_dumpregs(slot);
-		sdhci_reset(slot, SDHCI_RESET_CMD|SDHCI_RESET_DATA);
+		sdhci_reset(slot, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 		slot->curcmd->error = MMC_ERR_TIMEOUT;
 		sdhci_req_done(slot);
 	} else {
@@ -1122,6 +1129,7 @@ void
 sdhci_finish_data(struct sdhci_slot *slot)
 {
 	struct mmc_data *data = slot->curcmd->data;
+	size_t left;
 
 	/* Interrupt aggregation: Restore command interrupt.
 	 * Auxiliary restore point for the case when data interrupt
@@ -1133,7 +1141,7 @@ sdhci_finish_data(struct sdhci_slot *slot)
 	/* Unload rest of data from DMA buffer. */
 	if (!slot->data_done && (slot->flags & SDHCI_USE_DMA)) {
 		if (data->flags & MMC_DATA_READ) {
-			size_t left = data->len - slot->offset;
+			left = data->len - slot->offset;
 			bus_dmamap_sync(slot->dmatag, slot->dmamap,
 			    BUS_DMASYNC_POSTREAD);
 			memcpy((u_char*)data->data + slot->offset, slot->dmamem,
@@ -1433,7 +1441,7 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 	/* Handle data interrupts. */
 	if (intmask & SDHCI_INT_DATA_MASK) {
 		WR4(slot, SDHCI_INT_STATUS, intmask & SDHCI_INT_DATA_MASK);
-		/* Dont call data_irq in case of errored command */
+		/* Don't call data_irq in case of errored command. */
 		if ((intmask & SDHCI_INT_CMD_ERROR_MASK) == 0)
 			sdhci_data_irq(slot, intmask & SDHCI_INT_DATA_MASK);
 	}

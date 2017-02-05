@@ -36,7 +36,7 @@ skeleton.c with the bug report.  Do not expect rapid responses.
 
 Files: aclocal.m4
 Licence: other-BSD
-Copyright:  2004-2015,2016 by Thomas E. Dickey
+Copyright:  2004-2016,2017 by Thomas E. Dickey
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the
     "Software"), to deal in the Software without restriction, including

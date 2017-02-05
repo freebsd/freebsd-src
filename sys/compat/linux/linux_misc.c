@@ -2102,7 +2102,6 @@ linux_sched_getaffinity(struct thread *td,
 {
 	int error;
 	struct thread *tdt;
-	struct cpuset_getaffinity_args cga;
 
 #ifdef DEBUG
 	if (ldebug(sched_getaffinity))
@@ -2117,13 +2116,10 @@ linux_sched_getaffinity(struct thread *td,
 		return (ESRCH);
 
 	PROC_UNLOCK(tdt->td_proc);
-	cga.level = CPU_LEVEL_WHICH;
-	cga.which = CPU_WHICH_TID;
-	cga.id = tdt->td_tid;
-	cga.cpusetsize = sizeof(cpuset_t);
-	cga.mask = (cpuset_t *) args->user_mask_ptr;
 
-	if ((error = sys_cpuset_getaffinity(td, &cga)) == 0)
+	error = kern_cpuset_getaffinity(td, CPU_LEVEL_WHICH, CPU_WHICH_TID,
+	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *)args->user_mask_ptr);
+	if (error == 0)
 		td->td_retval[0] = sizeof(cpuset_t);
 
 	return (error);
@@ -2136,7 +2132,6 @@ int
 linux_sched_setaffinity(struct thread *td,
     struct linux_sched_setaffinity_args *args)
 {
-	struct cpuset_setaffinity_args csa;
 	struct thread *tdt;
 
 #ifdef DEBUG
@@ -2152,13 +2147,9 @@ linux_sched_setaffinity(struct thread *td,
 		return (ESRCH);
 
 	PROC_UNLOCK(tdt->td_proc);
-	csa.level = CPU_LEVEL_WHICH;
-	csa.which = CPU_WHICH_TID;
-	csa.id = tdt->td_tid;
-	csa.cpusetsize = sizeof(cpuset_t);
-	csa.mask = (cpuset_t *) args->user_mask_ptr;
 
-	return (sys_cpuset_setaffinity(td, &csa));
+	return (kern_cpuset_setaffinity(td, CPU_LEVEL_WHICH, CPU_WHICH_TID,
+	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *) args->user_mask_ptr));
 }
 
 struct linux_rlimit64 {

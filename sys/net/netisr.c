@@ -1268,7 +1268,9 @@ netisr_start_swi(u_int cpuid, struct pcpu *pc)
 static void
 netisr_init(void *arg)
 {
+#ifdef EARLY_AP_STARTUP
 	struct pcpu *pc;
+#endif
 
 	NETISR_LOCK_INIT();
 	if (netisr_maxthreads == 0 || netisr_maxthreads < -1 )
@@ -1306,8 +1308,7 @@ netisr_init(void *arg)
 		netisr_start_swi(pc->pc_cpuid, pc);
 	}
 #else
-	pc = get_pcpu();
-	netisr_start_swi(pc->pc_cpuid, pc);
+	netisr_start_swi(curcpu, pcpu_find(curcpu));
 #endif
 }
 SYSINIT(netisr_init, SI_SUB_SOFTINTR, SI_ORDER_FIRST, netisr_init, NULL);
