@@ -530,15 +530,14 @@ sx_downgrade_(struct sx *sx, const char *file, int line)
  * accessible from at least sx.h.
  */
 int
-_sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
-    int line)
+_sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
+    const char *file, int line)
 {
 	GIANT_DECLARE;
 #ifdef ADAPTIVE_SX
 	volatile struct thread *owner;
 	u_int i, spintries = 0;
 #endif
-	uintptr_t x;
 #ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
 	int contested = 0;
@@ -563,8 +562,6 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 	lock_delay_arg_init(&lda, NULL);
 #endif
 
-	x = SX_READ_VALUE(sx);
-
 	/* If we already hold an exclusive lock, then recurse. */
 	if (__predict_false(lv_sx_owner(x) == (struct thread *)tid)) {
 		KASSERT((sx->lock_object.lo_flags & LO_RECURSABLE) != 0,
@@ -587,9 +584,8 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 #endif
 	for (;;) {
 		if (x == SX_LOCK_UNLOCKED) {
-			if (atomic_cmpset_acq_ptr(&sx->sx_lock, x, tid))
+			if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, tid))
 				break;
-			x = SX_READ_VALUE(sx);
 			continue;
 		}
 #ifdef KDTRACE_HOOKS
@@ -902,7 +898,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		 */
 		if (x & SX_LOCK_SHARED) {
 			MPASS(!(x & SX_LOCK_SHARED_WAITERS));
-			if (atomic_cmpset_acq_ptr(&sx->sx_lock, x,
+			if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x,
 			    x + SX_ONE_SHARER)) {
 				if (LOCK_LOG_TEST(&sx->lock_object, 0))
 					CTR4(KTR_LOCK,
@@ -911,7 +907,6 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 					    (void *)(x + SX_ONE_SHARER));
 				break;
 			}
-			x = SX_READ_VALUE(sx);
 			continue;
 		}
 #ifdef KDTRACE_HOOKS
@@ -1085,7 +1080,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		 * so, just drop one and return.
 		 */
 		if (SX_SHARERS(x) > 1) {
-			if (atomic_cmpset_rel_ptr(&sx->sx_lock, x,
+			if (atomic_fcmpset_rel_ptr(&sx->sx_lock, &x,
 			    x - SX_ONE_SHARER)) {
 				if (LOCK_LOG_TEST(&sx->lock_object, 0))
 					CTR4(KTR_LOCK,
@@ -1094,8 +1089,6 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 					    (void *)(x - SX_ONE_SHARER));
 				break;
 			}
-
-			x = SX_READ_VALUE(sx);
 			continue;
 		}
 
@@ -1105,14 +1098,14 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		 */
 		if (!(x & SX_LOCK_EXCLUSIVE_WAITERS)) {
 			MPASS(x == SX_SHARERS_LOCK(1));
-			if (atomic_cmpset_rel_ptr(&sx->sx_lock,
-			    SX_SHARERS_LOCK(1), SX_LOCK_UNLOCKED)) {
+			x = SX_SHARERS_LOCK(1);
+			if (atomic_fcmpset_rel_ptr(&sx->sx_lock,
+			    &x, SX_LOCK_UNLOCKED)) {
 				if (LOCK_LOG_TEST(&sx->lock_object, 0))
 					CTR2(KTR_LOCK, "%s: %p last succeeded",
 					    __func__, sx);
 				break;
 			}
-			x = SX_READ_VALUE(sx);
 			continue;
 		}
 
