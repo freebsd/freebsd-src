@@ -440,7 +440,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 			 * if the lock has been unlocked and write waiters
 			 * were present.
 			 */
-			if (atomic_cmpset_acq_ptr(&rw->rw_lock, v,
+			if (atomic_fcmpset_acq_ptr(&rw->rw_lock, &v,
 			    v + RW_ONE_READER)) {
 				if (LOCK_LOG_TEST(&rw->lock_object, 0))
 					CTR4(KTR_LOCK,
@@ -449,7 +449,6 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 					    (void *)(v + RW_ONE_READER));
 				break;
 			}
-			v = RW_READ_VALUE(rw);
 			continue;
 		}
 #ifdef KDTRACE_HOOKS
@@ -675,7 +674,7 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 		 * just drop one and return.
 		 */
 		if (RW_READERS(x) > 1) {
-			if (atomic_cmpset_rel_ptr(&rw->rw_lock, x,
+			if (atomic_fcmpset_rel_ptr(&rw->rw_lock, &x,
 			    x - RW_ONE_READER)) {
 				if (LOCK_LOG_TEST(&rw->lock_object, 0))
 					CTR4(KTR_LOCK,
@@ -684,7 +683,6 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 					    (void *)(x - RW_ONE_READER));
 				break;
 			}
-			x = RW_READ_VALUE(rw);
 			continue;
 		}
 		/*
@@ -694,14 +692,13 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 		if (!(x & RW_LOCK_WAITERS)) {
 			MPASS((x & ~RW_LOCK_WRITE_SPINNER) ==
 			    RW_READERS_LOCK(1));
-			if (atomic_cmpset_rel_ptr(&rw->rw_lock, x,
+			if (atomic_fcmpset_rel_ptr(&rw->rw_lock, &x,
 			    RW_UNLOCKED)) {
 				if (LOCK_LOG_TEST(&rw->lock_object, 0))
 					CTR2(KTR_LOCK, "%s: %p last succeeded",
 					    __func__, rw);
 				break;
 			}
-			x = RW_READ_VALUE(rw);
 			continue;
 		}
 		/*
@@ -769,8 +766,8 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
  * read or write lock.
  */
 void
-__rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
-    int line)
+__rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
+    const char *file, int line)
 {
 	struct rwlock *rw;
 	struct turnstile *ts;
@@ -779,7 +776,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	int spintries = 0;
 	int i;
 #endif
-	uintptr_t v, x;
+	uintptr_t x;
 #ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
 	int contested = 0;
@@ -803,7 +800,6 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	lock_delay_arg_init(&lda, NULL);
 #endif
 	rw = rwlock2rw(c);
-	v = RW_READ_VALUE(rw);
 
 	if (__predict_false(lv_rw_wowner(v) == (struct thread *)tid)) {
 		KASSERT(rw->lock_object.lo_flags & LO_RECURSABLE,
@@ -825,9 +821,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 #endif
 	for (;;) {
 		if (v == RW_UNLOCKED) {
-			if (_rw_write_lock(rw, tid))
+			if (_rw_write_lock_fetch(rw, &v, tid))
 				break;
-			v = RW_READ_VALUE(rw);
 			continue;
 		}
 #ifdef KDTRACE_HOOKS
