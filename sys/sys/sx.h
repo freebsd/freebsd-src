@@ -145,21 +145,19 @@ struct sx_args {
  * deferred to 'tougher' functions.
  */
 
+#if	(LOCK_DEBUG == 0) && !defined(SX_NOINLINE)
 /* Acquire an exclusive lock. */
 static __inline int
 __sx_xlock(struct sx *sx, struct thread *td, int opts, const char *file,
     int line)
 {
 	uintptr_t tid = (uintptr_t)td;
-	uintptr_t v;
+	uintptr_t v = SX_LOCK_UNLOCKED;
 	int error = 0;
 
-	v = SX_LOCK_UNLOCKED;
-	if (!atomic_fcmpset_acq_ptr(&sx->sx_lock, &v, tid))
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(sx__acquire) ||
+	    !atomic_fcmpset_acq_ptr(&sx->sx_lock, &v, tid)))
 		error = _sx_xlock_hard(sx, v, tid, opts, file, line);
-	else 
-		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
-		    0, 0, file, line, LOCKSTAT_WRITER);
 
 	return (error);
 }
@@ -170,12 +168,11 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 {
 	uintptr_t tid = (uintptr_t)td;
 
-	if (sx->sx_recurse == 0)
-		LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx,
-		    LOCKSTAT_WRITER);
-	if (!atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(sx__release) ||
+	    !atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED)))
 		_sx_xunlock_hard(sx, tid, file, line);
 }
+#endif
 
 /*
  * Public interface for lock operations.

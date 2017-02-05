@@ -310,6 +310,7 @@ sx_try_slock_(struct sx *sx, const char *file, int line)
 int
 _sx_xlock(struct sx *sx, int opts, const char *file, int line)
 {
+	uintptr_t tid, x;
 	int error = 0;
 
 	if (SCHEDULER_STOPPED())
@@ -321,7 +322,13 @@ _sx_xlock(struct sx *sx, int opts, const char *file, int line)
 	    ("sx_xlock() of destroyed sx @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line, NULL);
-	error = __sx_xlock(sx, curthread, opts, file, line);
+	tid = (uintptr_t)curthread;
+	x = SX_LOCK_UNLOCKED;
+	if (!atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, tid))
+		error = _sx_xlock_hard(sx, x, tid, opts, file, line);
+	else
+		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
+		    0, 0, file, line, LOCKSTAT_WRITER);
 	if (!error) {
 		LOCK_LOG_LOCK("XLOCK", &sx->lock_object, 0, sx->sx_recurse,
 		    file, line);
@@ -379,7 +386,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	WITNESS_UNLOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("XUNLOCK", &sx->lock_object, 0, sx->sx_recurse, file,
 	    line);
-	__sx_xunlock(sx, curthread, file, line);
+	_sx_xunlock_hard(sx, (uintptr_t)curthread, file, line);
 	TD_LOCKS_DEC(curthread);
 }
 
@@ -757,8 +764,13 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 
 	MPASS(!(sx->sx_lock & SX_LOCK_SHARED));
 
-	/* If the lock is recursed, then unrecurse one level. */
-	if (sx_xlocked(sx) && sx_recursed(sx)) {
+	if (!sx_recursed(sx)) {
+		LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx,
+		    LOCKSTAT_WRITER);
+		if (atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
+			return;
+	} else {
+		/* The lock is recursed, unrecurse one level. */
 		if ((--sx->sx_recurse) == 0)
 			atomic_clear_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
