@@ -336,10 +336,7 @@ struct cesa_chain_info {
 #define CESA_TDMA_CR_ENABLE		(1 << 12)
 #define CESA_TDMA_CR_FETCHND		(1 << 13)
 #define CESA_TDMA_CR_ACTIVE		(1 << 14)
-
-#if defined (SOC_MV_ARMADA38X)
 #define CESA_TDMA_NUM_OUTSTAND		(2 << 16)
-#endif
 
 #define CESA_TDMA_ECR			0x08C8
 #define CESA_TDMA_ECR_MISS		(1 << 0)
@@ -361,10 +358,7 @@ struct cesa_chain_info {
 /* CESA SA registers definitions */
 #define CESA_SA_CMD			0x0E00
 #define CESA_SA_CMD_ACTVATE		(1 << 0)
-
-#if defined (SOC_MV_ARMADA38X)
 #define CESA_SA_CMD_SHA2		(1 << 31)
-#endif
 
 #define CESA_SA_DPR			0x0E04
 

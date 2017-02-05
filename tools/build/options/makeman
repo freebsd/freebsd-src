@@ -124,6 +124,7 @@ show()
 
 main()
 {
+	echo "building src.conf.5 man page from files in ${PWD}" >&2
 
 	ident=${ident#$}
 	ident=${ident% $}
@@ -217,11 +218,11 @@ even if they would be set to
 .Dq Li FALSE
 or
 .Dq Li NO .
-Just the existence of an option will cause
-it to be honoured by
+The presence of an option causes
+it to be honored by
 .Xr make 1 .
 .Pp
-The following list provides a name and short description for variables
+This list provides a name and short description for variables
 that can be used for source builds.
 .Bl -tag -width indent
 EOF
@@ -246,7 +247,7 @@ EOF
 		sed -e's/\$\(FreeBSD: .*\) \$/from \1/' ${opt}
 		if [ -n "${targets}" ] ; then
 			echo '.Pp'
-			echo 'It is a default setting on'
+			echo 'This is a default setting on'
 			echo $(echo ${targets} | sed -e's/ /, /g' -e's/\(.*\), /\1 and /').
 		fi
 
@@ -278,7 +279,7 @@ EOF
 		havedeps=0
 		if [ -s $t/deps ] ; then
 			havedeps=1
-			echo 'When set, it also enforces the following options:'
+			echo 'When set, it enforces these options:'
 			echo '.Pp'
 			echo '.Bl -item -compact'
 			while read opt2 ; do
@@ -292,7 +293,7 @@ EOF
 			if [ ${havedeps} -eq 1 ] ; then
 				echo '.Pp'
 			fi
-			echo 'When set, the following options are also in effect:'
+			echo 'When set, these options are also in effect:'
 			echo '.Pp'
 			echo '.Bl -inset -compact'
 			while read opt2 ; do

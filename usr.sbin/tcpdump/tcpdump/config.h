@@ -13,6 +13,9 @@
 /* Define to 1 if you have the `bpf_dump' function. */
 #define HAVE_BPF_DUMP 1
 
+/* capsicum support available */
+#define HAVE_CAPSICUM 1
+
 /* Casper library support available */
 /* See Makefile */
 /* #undef HAVE_CASPER */

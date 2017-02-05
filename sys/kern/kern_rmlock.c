@@ -156,7 +156,7 @@ unlock_rm(struct lock_object *lock)
 		 */
 		critical_enter();
 		td = curthread;
-		pc = get_pcpu();
+		pc = pcpu_find(curcpu);
 		for (queue = pc->pc_rm_queue.rmq_next;
 		    queue != &pc->pc_rm_queue; queue = queue->rmq_next) {
 			tracker = (struct rm_priotracker *)queue;
@@ -258,7 +258,7 @@ rm_cleanIPI(void *arg)
 	struct rmlock *rm = arg;
 	struct rm_priotracker *tracker;
 	struct rm_queue *queue;
-	pc = get_pcpu();
+	pc = pcpu_find(curcpu);
 
 	for (queue = pc->pc_rm_queue.rmq_next; queue != &pc->pc_rm_queue;
 	    queue = queue->rmq_next) {
@@ -355,7 +355,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	struct pcpu *pc;
 
 	critical_enter();
-	pc = get_pcpu();
+	pc = pcpu_find(curcpu);
 
 	/* Check if we just need to do a proper critical_exit. */
 	if (!CPU_ISSET(pc->pc_cpuid, &rm->rm_writecpus)) {
@@ -416,7 +416,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	}
 
 	critical_enter();
-	pc = get_pcpu();
+	pc = pcpu_find(curcpu);
 	CPU_CLR(pc->pc_cpuid, &rm->rm_writecpus);
 	rm_tracker_add(pc, tracker);
 	sched_pin();
@@ -641,7 +641,7 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 #ifdef INVARIANTS
 	if (!(rm->lock_object.lo_flags & LO_RECURSABLE) && !trylock) {
 		critical_enter();
-		KASSERT(rm_trackers_present(get_pcpu(), rm,
+		KASSERT(rm_trackers_present(pcpu_find(curcpu), rm,
 		    curthread) == 0,
 		    ("rm_rlock: recursed on non-recursive rmlock %s @ %s:%d\n",
 		    rm->lock_object.lo_name, file, line));
@@ -771,7 +771,7 @@ _rm_assert(const struct rmlock *rm, int what, const char *file, int line)
 		}
 
 		critical_enter();
-		count = rm_trackers_present(get_pcpu(), rm, curthread);
+		count = rm_trackers_present(pcpu_find(curcpu), rm, curthread);
 		critical_exit();
 
 		if (count == 0)
@@ -797,7 +797,7 @@ _rm_assert(const struct rmlock *rm, int what, const char *file, int line)
 			    rm->lock_object.lo_name, file, line);
 
 		critical_enter();
-		count = rm_trackers_present(get_pcpu(), rm, curthread);
+		count = rm_trackers_present(pcpu_find(curcpu), rm, curthread);
 		critical_exit();
 
 		if (count != 0)

@@ -45,13 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-typedef void (*nvme_fn_t)(int argc, char *argv[]);
 
-static struct nvme_function {
-	const char	*name;
-	nvme_fn_t	fn;
-	const char	*usage;
-} funcs[] = {
+static struct nvme_function funcs[] = {
 	{"devlist",	devlist,	DEVLIST_USAGE},
 	{"identify",	identify,	IDENTIFY_USAGE},
 	{"perftest",	perftest,	PERFTEST_USAGE},
@@ -59,21 +54,35 @@ static struct nvme_function {
 	{"logpage",	logpage,	LOGPAGE_USAGE},
 	{"firmware",	firmware,	FIRMWARE_USAGE},
 	{"power",	power,		POWER_USAGE},
+	{"wdc",		wdc,		WDC_USAGE},
 	{NULL,		NULL,		NULL},
 };
 
-static void
-usage(void)
+void
+gen_usage(struct nvme_function *f)
 {
-	struct nvme_function *f;
 
-	f = funcs;
 	fprintf(stderr, "usage:\n");
 	while (f->name != NULL) {
 		fprintf(stderr, "%s", f->usage);
 		f++;
 	}
 	exit(1);
+}
+
+void
+dispatch(int argc, char *argv[], struct nvme_function *tbl)
+{
+	struct nvme_function *f = tbl;
+
+	while (f->name != NULL) {
+		if (strcmp(argv[1], f->name) == 0)
+			f->fn(argc-1, &argv[1]);
+		f++;
+	}
+
+	fprintf(stderr, "Unknown command: %s\n", argv[1]);
+	gen_usage(tbl);
 }
 
 static void
@@ -217,19 +226,11 @@ parse_ns_str(const char *ns_str, char *ctrlr_str, int *nsid)
 int
 main(int argc, char *argv[])
 {
-	struct nvme_function *f;
 
 	if (argc < 2)
-		usage();
+		gen_usage(funcs);
 
-	f = funcs;
-	while (f->name != NULL) {
-		if (strcmp(argv[1], f->name) == 0)
-			f->fn(argc-1, &argv[1]);
-		f++;
-	}
-
-	usage();
+	dispatch(argc, argv, funcs);
 
 	return (0);
 }
