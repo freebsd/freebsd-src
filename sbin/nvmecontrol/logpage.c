@@ -846,6 +846,8 @@ static struct logpage_function {
 	 sizeof(struct nvme_firmware_page)},
 	{HGST_INFO_LOG,			"hgst",	print_hgst_info_log,
 	 DEFAULT_SIZE},
+	{HGST_INFO_LOG,			"wdc",	print_hgst_info_log,
+	 DEFAULT_SIZE},
 	{INTEL_LOG_TEMP_STATS,		"intel", print_intel_temp_stats,
 	 sizeof(struct intel_log_temp_stats)},
 	{INTEL_LOG_READ_LAT_LOG,	"intel", print_intel_read_lat_log,
