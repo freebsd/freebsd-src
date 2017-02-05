@@ -833,6 +833,12 @@ _sx_slock(struct sx *sx, int opts, const char *file, int line)
 #elif defined(KDTRACE_HOOKS)
 	lock_delay_arg_init(&lda, NULL);
 #endif
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	    ("sx_slock() by idle thread %p on sx %s @ %s:%d",
+	    curthread, sx->lock_object.lo_name, file, line));
+	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
+	    ("sx_slock() of destroyed sx @ %s:%d", file, line));
+	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER, file, line, NULL);
 #ifdef KDTRACE_HOOKS
 	all_time -= lockstat_nsecs(&sx->lock_object);
 #endif
@@ -1000,9 +1006,13 @@ _sx_slock(struct sx *sx, int opts, const char *file, int line)
 		    LOCKSTAT_READER, (state & SX_LOCK_SHARED) == 0,
 		    (state & SX_LOCK_SHARED) == 0 ? 0 : SX_SHARERS(state));
 #endif
-	if (error == 0)
+	if (error == 0) {
 		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
 		    contested, waittime, file, line, LOCKSTAT_READER);
+		LOCK_LOG_LOCK("SLOCK", &sx->lock_object, 0, 0, file, line);
+		WITNESS_LOCK(&sx->lock_object, 0, file, line);
+		TD_LOCKS_INC(curthread);
+	}
 	GIANT_RESTORE();
 	return (error);
 }
@@ -1016,6 +1026,11 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
+	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
+	    ("sx_sunlock() of destroyed sx @ %s:%d", file, line));
+	_sx_assert(sx, SA_SLOCKED, file, line);
+	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
+	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
 	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
 	x = SX_READ_VALUE(sx);
 	for (;;) {
@@ -1091,6 +1106,7 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 			kick_proc0();
 		break;
 	}
+	TD_LOCKS_DEC(curthread);
 }
 
 #ifdef INVARIANT_SUPPORT
