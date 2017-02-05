@@ -109,19 +109,52 @@ DUMMY(inotify_init1);
 /* linux 2.6.30: */
 DUMMY(preadv);
 DUMMY(pwritev);
-/* linux 2.6.31 */
-DUMMY(rt_tsigqueueinfo);
+/* linux 2.6.31: */
+DUMMY(rt_tgsigqueueinfo);
 DUMMY(perf_event_open);
 /* linux 2.6.33: */
 DUMMY(fanotify_init);
 DUMMY(fanotify_mark);
-/* later: */
+/* linux 2.6.39: */
 DUMMY(name_to_handle_at);
 DUMMY(open_by_handle_at);
 DUMMY(clock_adjtime);
+/* linux 3.0: */
 DUMMY(setns);
+/* linux 3.2: */
 DUMMY(process_vm_readv);
 DUMMY(process_vm_writev);
+/* linux 3.5: */
+DUMMY(kcmp);
+/* linux 3.8: */
+DUMMY(finit_module);
+DUMMY(sched_setattr);
+DUMMY(sched_getattr);
+/* linux 3.14: */
+DUMMY(renameat2);
+/* linux 3.15: */
+DUMMY(seccomp);
+DUMMY(getrandom);
+DUMMY(memfd_create);
+/* linux 3.18: */
+DUMMY(bpf);
+/* linux 3.19: */
+DUMMY(execveat);
+/* linux 4.2: */
+DUMMY(userfaultfd);
+/* linux 4.3: */
+DUMMY(membarrier);
+/* linux 4.4: */
+DUMMY(mlock2);
+/* linux 4.5: */
+DUMMY(copy_file_range);
+/* linux 4.6: */
+DUMMY(preadv2);
+DUMMY(pwritev2);
+/* linux 4.8: */
+DUMMY(pkey_mprotect);
+DUMMY(pkey_alloc);
+DUMMY(pkey_free);
 
 #define DUMMY_XATTR(s)						\
 int								\
