@@ -2263,17 +2263,34 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_preadv */
 	case 333: {
-		*n_args = 0;
+		struct linux_preadv_args *p = params;
+		iarg[0] = p->fd; /* l_ulong */
+		uarg[1] = (intptr_t) p->vec; /* struct iovec * */
+		iarg[2] = p->vlen; /* l_ulong */
+		iarg[3] = p->pos_l; /* l_ulong */
+		iarg[4] = p->pos_h; /* l_ulong */
+		*n_args = 5;
 		break;
 	}
 	/* linux_pwritev */
 	case 334: {
-		*n_args = 0;
+		struct linux_pwritev_args *p = params;
+		iarg[0] = p->fd; /* l_ulong */
+		uarg[1] = (intptr_t) p->vec; /* struct iovec * */
+		iarg[2] = p->vlen; /* l_ulong */
+		iarg[3] = p->pos_l; /* l_ulong */
+		iarg[4] = p->pos_h; /* l_ulong */
+		*n_args = 5;
 		break;
 	}
-	/* linux_rt_tsigqueueinfo */
+	/* linux_rt_tgsigqueueinfo */
 	case 335: {
-		*n_args = 0;
+		struct linux_rt_tgsigqueueinfo_args *p = params;
+		iarg[0] = p->tgid; /* l_pid_t */
+		iarg[1] = p->tid; /* l_pid_t */
+		iarg[2] = p->sig; /* l_int */
+		uarg[3] = (intptr_t) p->uinfo; /* l_siginfo_t * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_perf_event_open */
@@ -2351,12 +2368,352 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_process_vm_readv */
 	case 347: {
-		*n_args = 0;
+		struct linux_process_vm_readv_args *p = params;
+		iarg[0] = p->pid; /* l_pid_t */
+		uarg[1] = (intptr_t) p->lvec; /* const struct iovec * */
+		iarg[2] = p->liovcnt; /* l_ulong */
+		uarg[3] = (intptr_t) p->rvec; /* const struct iovec * */
+		iarg[4] = p->riovcnt; /* l_ulong */
+		iarg[5] = p->flags; /* l_ulong */
+		*n_args = 6;
 		break;
 	}
 	/* linux_process_vm_writev */
 	case 348: {
-		*n_args = 0;
+		struct linux_process_vm_writev_args *p = params;
+		iarg[0] = p->pid; /* l_pid_t */
+		uarg[1] = (intptr_t) p->lvec; /* const struct iovec * */
+		iarg[2] = p->liovcnt; /* l_ulong */
+		uarg[3] = (intptr_t) p->rvec; /* const struct iovec * */
+		iarg[4] = p->riovcnt; /* l_ulong */
+		iarg[5] = p->flags; /* l_ulong */
+		*n_args = 6;
+		break;
+	}
+	/* linux_kcmp */
+	case 349: {
+		struct linux_kcmp_args *p = params;
+		iarg[0] = p->pid1; /* l_pid_t */
+		iarg[1] = p->pid2; /* l_pid_t */
+		iarg[2] = p->type; /* l_int */
+		iarg[3] = p->idx1; /* l_ulong */
+		iarg[4] = p->idx; /* l_ulong */
+		*n_args = 5;
+		break;
+	}
+	/* linux_finit_module */
+	case 350: {
+		struct linux_finit_module_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->uargs; /* const char * */
+		iarg[2] = p->flags; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_sched_setattr */
+	case 351: {
+		struct linux_sched_setattr_args *p = params;
+		iarg[0] = p->pid; /* l_pid_t */
+		uarg[1] = (intptr_t) p->attr; /* void * */
+		iarg[2] = p->flags; /* l_uint */
+		*n_args = 3;
+		break;
+	}
+	/* linux_sched_getattr */
+	case 352: {
+		struct linux_sched_getattr_args *p = params;
+		iarg[0] = p->pid; /* l_pid_t */
+		uarg[1] = (intptr_t) p->attr; /* void * */
+		iarg[2] = p->size; /* l_uint */
+		iarg[3] = p->flags; /* l_uint */
+		*n_args = 4;
+		break;
+	}
+	/* linux_renameat2 */
+	case 353: {
+		struct linux_renameat2_args *p = params;
+		iarg[0] = p->oldfd; /* l_int */
+		uarg[1] = (intptr_t) p->oldname; /* const char * */
+		iarg[2] = p->newfd; /* l_int */
+		uarg[3] = (intptr_t) p->newname; /* const char * */
+		uarg[4] = p->flags; /* unsigned int */
+		*n_args = 5;
+		break;
+	}
+	/* linux_seccomp */
+	case 354: {
+		struct linux_seccomp_args *p = params;
+		iarg[0] = p->op; /* l_uint */
+		iarg[1] = p->flags; /* l_uint */
+		uarg[2] = (intptr_t) p->uargs; /* const char * */
+		*n_args = 3;
+		break;
+	}
+	/* linux_getrandom */
+	case 355: {
+		struct linux_getrandom_args *p = params;
+		uarg[0] = (intptr_t) p->buf; /* char * */
+		iarg[1] = p->count; /* l_size_t */
+		iarg[2] = p->flags; /* l_uint */
+		*n_args = 3;
+		break;
+	}
+	/* linux_memfd_create */
+	case 356: {
+		struct linux_memfd_create_args *p = params;
+		uarg[0] = (intptr_t) p->uname_ptr; /* const char * */
+		iarg[1] = p->flags; /* l_uint */
+		*n_args = 2;
+		break;
+	}
+	/* linux_bpf */
+	case 357: {
+		struct linux_bpf_args *p = params;
+		iarg[0] = p->cmd; /* l_int */
+		uarg[1] = (intptr_t) p->attr; /* void * */
+		iarg[2] = p->size; /* l_uint */
+		*n_args = 3;
+		break;
+	}
+	/* linux_execveat */
+	case 358: {
+		struct linux_execveat_args *p = params;
+		iarg[0] = p->dfd; /* l_int */
+		uarg[1] = (intptr_t) p->filename; /* const char * */
+		uarg[2] = (intptr_t) p->argv; /* const char ** */
+		uarg[3] = (intptr_t) p->envp; /* const char ** */
+		iarg[4] = p->flags; /* l_int */
+		*n_args = 5;
+		break;
+	}
+	/* linux_socket */
+	case 359: {
+		struct linux_socket_args *p = params;
+		iarg[0] = p->domain; /* l_int */
+		iarg[1] = p->type; /* l_int */
+		iarg[2] = p->protocol; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_socketpair */
+	case 360: {
+		struct linux_socketpair_args *p = params;
+		iarg[0] = p->domain; /* l_int */
+		iarg[1] = p->type; /* l_int */
+		iarg[2] = p->protocol; /* l_int */
+		iarg[3] = p->rsv; /* l_uintptr_t */
+		*n_args = 4;
+		break;
+	}
+	/* linux_bind */
+	case 361: {
+		struct linux_bind_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->name; /* l_uintptr_t */
+		iarg[2] = p->namelen; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_connect */
+	case 362: {
+		struct linux_connect_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->name; /* l_uintptr_t */
+		iarg[2] = p->namelen; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_listen */
+	case 363: {
+		struct linux_listen_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->backlog; /* l_int */
+		*n_args = 2;
+		break;
+	}
+	/* linux_accept4 */
+	case 364: {
+		struct linux_accept4_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->addr; /* l_uintptr_t */
+		iarg[2] = p->namelen; /* l_uintptr_t */
+		iarg[3] = p->flags; /* l_int */
+		*n_args = 4;
+		break;
+	}
+	/* linux_getsockopt */
+	case 365: {
+		struct linux_getsockopt_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->level; /* l_int */
+		iarg[2] = p->optname; /* l_int */
+		iarg[3] = p->optval; /* l_uintptr_t */
+		iarg[4] = p->optlen; /* l_uintptr_t */
+		*n_args = 5;
+		break;
+	}
+	/* linux_setsockopt */
+	case 366: {
+		struct linux_setsockopt_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->level; /* l_int */
+		iarg[2] = p->optname; /* l_int */
+		iarg[3] = p->optval; /* l_uintptr_t */
+		iarg[4] = p->optlen; /* l_int */
+		*n_args = 5;
+		break;
+	}
+	/* linux_getsockname */
+	case 367: {
+		struct linux_getsockname_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->addr; /* l_uintptr_t */
+		iarg[2] = p->namelen; /* l_uintptr_t */
+		*n_args = 3;
+		break;
+	}
+	/* linux_getpeername */
+	case 368: {
+		struct linux_getpeername_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->addr; /* l_uintptr_t */
+		iarg[2] = p->namelen; /* l_uintptr_t */
+		*n_args = 3;
+		break;
+	}
+	/* linux_sendto */
+	case 369: {
+		struct linux_sendto_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->msg; /* l_uintptr_t */
+		iarg[2] = p->len; /* l_int */
+		iarg[3] = p->flags; /* l_int */
+		iarg[4] = p->to; /* l_uintptr_t */
+		iarg[5] = p->tolen; /* l_int */
+		*n_args = 6;
+		break;
+	}
+	/* linux_sendmsg */
+	case 370: {
+		struct linux_sendmsg_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->msg; /* l_uintptr_t */
+		iarg[2] = p->flags; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_recvfrom */
+	case 371: {
+		struct linux_recvfrom_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->buf; /* l_uintptr_t */
+		iarg[2] = p->len; /* l_size_t */
+		iarg[3] = p->flags; /* l_int */
+		iarg[4] = p->from; /* l_uintptr_t */
+		iarg[5] = p->fromlen; /* l_uintptr_t */
+		*n_args = 6;
+		break;
+	}
+	/* linux_recvmsg */
+	case 372: {
+		struct linux_recvmsg_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->msg; /* l_uintptr_t */
+		iarg[2] = p->flags; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_shutdown */
+	case 373: {
+		struct linux_shutdown_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		iarg[1] = p->how; /* l_int */
+		*n_args = 2;
+		break;
+	}
+	/* linux_userfaultfd */
+	case 374: {
+		struct linux_userfaultfd_args *p = params;
+		iarg[0] = p->flags; /* l_int */
+		*n_args = 1;
+		break;
+	}
+	/* linux_membarrier */
+	case 375: {
+		struct linux_membarrier_args *p = params;
+		iarg[0] = p->cmd; /* l_int */
+		iarg[1] = p->flags; /* l_int */
+		*n_args = 2;
+		break;
+	}
+	/* linux_mlock2 */
+	case 376: {
+		struct linux_mlock2_args *p = params;
+		iarg[0] = p->start; /* l_ulong */
+		iarg[1] = p->len; /* l_size_t */
+		iarg[2] = p->flags; /* l_int */
+		*n_args = 3;
+		break;
+	}
+	/* linux_copy_file_range */
+	case 377: {
+		struct linux_copy_file_range_args *p = params;
+		iarg[0] = p->fd_in; /* l_int */
+		uarg[1] = (intptr_t) p->off_in; /* l_loff_t * */
+		iarg[2] = p->fd_out; /* l_int */
+		uarg[3] = (intptr_t) p->off_out; /* l_loff_t * */
+		iarg[4] = p->len; /* l_size_t */
+		iarg[5] = p->flags; /* l_uint */
+		*n_args = 6;
+		break;
+	}
+	/* linux_preadv2 */
+	case 378: {
+		struct linux_preadv2_args *p = params;
+		iarg[0] = p->fd; /* l_ulong */
+		uarg[1] = (intptr_t) p->vec; /* const struct iovec * */
+		iarg[2] = p->vlen; /* l_ulong */
+		iarg[3] = p->pos_l; /* l_ulong */
+		iarg[4] = p->pos_h; /* l_ulong */
+		iarg[5] = p->flags; /* l_int */
+		*n_args = 6;
+		break;
+	}
+	/* linux_pwritev2 */
+	case 379: {
+		struct linux_pwritev2_args *p = params;
+		iarg[0] = p->fd; /* l_ulong */
+		uarg[1] = (intptr_t) p->vec; /* const struct iovec * */
+		iarg[2] = p->vlen; /* l_ulong */
+		iarg[3] = p->pos_l; /* l_ulong */
+		iarg[4] = p->pos_h; /* l_ulong */
+		iarg[5] = p->flags; /* l_int */
+		*n_args = 6;
+		break;
+	}
+	/* linux_pkey_mprotect */
+	case 380: {
+		struct linux_pkey_mprotect_args *p = params;
+		iarg[0] = p->start; /* l_ulong */
+		iarg[1] = p->len; /* l_size_t */
+		iarg[2] = p->prot; /* l_ulong */
+		iarg[3] = p->pkey; /* l_int */
+		*n_args = 4;
+		break;
+	}
+	/* linux_pkey_alloc */
+	case 381: {
+		struct linux_pkey_alloc_args *p = params;
+		iarg[0] = p->flags; /* l_ulong */
+		iarg[1] = p->init_val; /* l_ulong */
+		*n_args = 2;
+		break;
+	}
+	/* linux_pkey_free */
+	case 382: {
+		struct linux_pkey_free_args *p = params;
+		iarg[0] = p->pkey; /* l_int */
+		*n_args = 1;
 		break;
 	}
 	default:
@@ -5737,12 +6094,66 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_preadv */
 	case 333:
+		switch(ndx) {
+		case 0:
+			p = "l_ulong";
+			break;
+		case 1:
+			p = "userland struct iovec *";
+			break;
+		case 2:
+			p = "l_ulong";
+			break;
+		case 3:
+			p = "l_ulong";
+			break;
+		case 4:
+			p = "l_ulong";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_pwritev */
 	case 334:
+		switch(ndx) {
+		case 0:
+			p = "l_ulong";
+			break;
+		case 1:
+			p = "userland struct iovec *";
+			break;
+		case 2:
+			p = "l_ulong";
+			break;
+		case 3:
+			p = "l_ulong";
+			break;
+		case 4:
+			p = "l_ulong";
+			break;
+		default:
+			break;
+		};
 		break;
-	/* linux_rt_tsigqueueinfo */
+	/* linux_rt_tgsigqueueinfo */
 	case 335:
+		switch(ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "l_pid_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "userland l_siginfo_t *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_perf_event_open */
 	case 336:
@@ -5837,9 +6248,657 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_process_vm_readv */
 	case 347:
+		switch(ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "userland const struct iovec *";
+			break;
+		case 2:
+			p = "l_ulong";
+			break;
+		case 3:
+			p = "userland const struct iovec *";
+			break;
+		case 4:
+			p = "l_ulong";
+			break;
+		case 5:
+			p = "l_ulong";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_process_vm_writev */
 	case 348:
+		switch(ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "userland const struct iovec *";
+			break;
+		case 2:
+			p = "l_ulong";
+			break;
+		case 3:
+			p = "userland const struct iovec *";
+			break;
+		case 4:
+			p = "l_ulong";
+			break;
+		case 5:
+			p = "l_ulong";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_kcmp */
+	case 349:
+		switch(ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "l_pid_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "l_ulong";
+			break;
+		case 4:
+			p = "l_ulong";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_finit_module */
+	case 350:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_sched_setattr */
+	case 351:
+		switch(ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "userland void *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_sched_getattr */
+	case 352:
+		switch(ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "userland void *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_renameat2 */
+	case 353:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "userland const char *";
+			break;
+		case 4:
+			p = "unsigned int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_seccomp */
+	case 354:
+		switch(ndx) {
+		case 0:
+			p = "l_uint";
+			break;
+		case 1:
+			p = "l_uint";
+			break;
+		case 2:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_getrandom */
+	case 355:
+		switch(ndx) {
+		case 0:
+			p = "userland char *";
+			break;
+		case 1:
+			p = "l_size_t";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_memfd_create */
+	case 356:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_bpf */
+	case 357:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland void *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_execveat */
+	case 358:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland const char **";
+			break;
+		case 3:
+			p = "userland const char **";
+			break;
+		case 4:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_socket */
+	case 359:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_socketpair */
+	case 360:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "l_uintptr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_bind */
+	case 361:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_uintptr_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_connect */
+	case 362:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_uintptr_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_listen */
+	case 363:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_accept4 */
+	case 364:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_uintptr_t";
+			break;
+		case 2:
+			p = "l_uintptr_t";
+			break;
+		case 3:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_getsockopt */
+	case 365:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "l_uintptr_t";
+			break;
+		case 4:
+			p = "l_uintptr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_setsockopt */
+	case 366:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "l_uintptr_t";
+			break;
+		case 4:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_getsockname */
+	case 367:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_uintptr_t";
+			break;
+		case 2:
+			p = "l_uintptr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_getpeername */
+	case 368:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_uintptr_t";
+			break;
+		case 2:
+			p = "l_uintptr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_sendto */
+	case 369:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_uintptr_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "l_int";
+			break;
+		case 4:
+			p = "l_uintptr_t";
+			break;
+		case 5:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_sendmsg */
+	case 370:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_uintptr_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_recvfrom */
+	case 371:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_uintptr_t";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		case 3:
+			p = "l_int";
+			break;
+		case 4:
+			p = "l_uintptr_t";
+			break;
+		case 5:
+			p = "l_uintptr_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_recvmsg */
+	case 372:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_uintptr_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_shutdown */
+	case 373:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_userfaultfd */
+	case 374:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_membarrier */
+	case 375:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_mlock2 */
+	case 376:
+		switch(ndx) {
+		case 0:
+			p = "l_ulong";
+			break;
+		case 1:
+			p = "l_size_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_copy_file_range */
+	case 377:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland l_loff_t *";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "userland l_loff_t *";
+			break;
+		case 4:
+			p = "l_size_t";
+			break;
+		case 5:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_preadv2 */
+	case 378:
+		switch(ndx) {
+		case 0:
+			p = "l_ulong";
+			break;
+		case 1:
+			p = "userland const struct iovec *";
+			break;
+		case 2:
+			p = "l_ulong";
+			break;
+		case 3:
+			p = "l_ulong";
+			break;
+		case 4:
+			p = "l_ulong";
+			break;
+		case 5:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_pwritev2 */
+	case 379:
+		switch(ndx) {
+		case 0:
+			p = "l_ulong";
+			break;
+		case 1:
+			p = "userland const struct iovec *";
+			break;
+		case 2:
+			p = "l_ulong";
+			break;
+		case 3:
+			p = "l_ulong";
+			break;
+		case 4:
+			p = "l_ulong";
+			break;
+		case 5:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_pkey_mprotect */
+	case 380:
+		switch(ndx) {
+		case 0:
+			p = "l_ulong";
+			break;
+		case 1:
+			p = "l_size_t";
+			break;
+		case 2:
+			p = "l_ulong";
+			break;
+		case 3:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_pkey_alloc */
+	case 381:
+		switch(ndx) {
+		case 0:
+			p = "l_ulong";
+			break;
+		case 1:
+			p = "l_ulong";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_pkey_free */
+	case 382:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	default:
 		break;
@@ -7109,10 +8168,19 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 332:
 	/* linux_preadv */
 	case 333:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_pwritev */
 	case 334:
-	/* linux_rt_tsigqueueinfo */
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_rt_tgsigqueueinfo */
 	case 335:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_perf_event_open */
 	case 336:
 	/* linux_recvmmsg */
@@ -7149,8 +8217,184 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 346:
 	/* linux_process_vm_readv */
 	case 347:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_process_vm_writev */
 	case 348:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_kcmp */
+	case 349:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_finit_module */
+	case 350:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sched_setattr */
+	case 351:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sched_getattr */
+	case 352:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_renameat2 */
+	case 353:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_seccomp */
+	case 354:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getrandom */
+	case 355:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_memfd_create */
+	case 356:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_bpf */
+	case 357:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_execveat */
+	case 358:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_socket */
+	case 359:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_socketpair */
+	case 360:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_bind */
+	case 361:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_connect */
+	case 362:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_listen */
+	case 363:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_accept4 */
+	case 364:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getsockopt */
+	case 365:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_setsockopt */
+	case 366:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getsockname */
+	case 367:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_getpeername */
+	case 368:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sendto */
+	case 369:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_sendmsg */
+	case 370:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_recvfrom */
+	case 371:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_recvmsg */
+	case 372:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_shutdown */
+	case 373:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_userfaultfd */
+	case 374:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_membarrier */
+	case 375:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_mlock2 */
+	case 376:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_copy_file_range */
+	case 377:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_preadv2 */
+	case 378:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pwritev2 */
+	case 379:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pkey_mprotect */
+	case 380:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pkey_alloc */
+	case 381:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_pkey_free */
+	case 382:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	default:
 		break;
 	};
