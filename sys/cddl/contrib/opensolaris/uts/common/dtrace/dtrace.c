@@ -13346,8 +13346,11 @@ dtrace_dof_property(const char *name)
 
 	data += strlen(name) + 1; /* skip past the '=' */
 	len = eol - data;
+	if (len % 2 != 0) {
+		dtrace_dof_error(NULL, "invalid DOF encoding length");
+		goto doferr;
+	}
 	bytes = len / 2;
-
 	if (bytes < sizeof(dof_hdr_t)) {
 		dtrace_dof_error(NULL, "truncated header");
 		goto doferr;
