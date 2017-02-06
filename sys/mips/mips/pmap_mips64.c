@@ -4144,6 +4144,18 @@ pmap_copy_pages_tags(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 }
 #endif
 
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+	return MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	mips_dcache_wbinv_range(addr, PAGE_SIZE);
+}
+
 /*
  * Returns true if the pmap's pv is one of the first
  * 16 pvs linked to from this page.  This count may
