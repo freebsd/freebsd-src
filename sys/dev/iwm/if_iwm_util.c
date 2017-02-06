@@ -437,8 +437,8 @@ iwm_fw_valid_tx_ant(struct iwm_softc *sc)
 	tx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_TX_CHAIN)
 	    >> IWM_FW_PHY_CFG_TX_CHAIN_POS);
 
-	if (sc->sc_nvm.valid_tx_ant)
-		tx_ant &= sc->sc_nvm.valid_tx_ant;
+	if (sc->nvm_data->valid_tx_ant)
+		tx_ant &= sc->nvm_data->valid_tx_ant;
 
 	return tx_ant;
 }
@@ -451,8 +451,8 @@ iwm_fw_valid_rx_ant(struct iwm_softc *sc)
 	rx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_RX_CHAIN)
 	    >> IWM_FW_PHY_CFG_RX_CHAIN_POS);
 
-	if (sc->sc_nvm.valid_rx_ant)
-		rx_ant &= sc->sc_nvm.valid_rx_ant;
+	if (sc->nvm_data->valid_rx_ant)
+		rx_ant &= sc->nvm_data->valid_rx_ant;
 
 	return rx_ant;
 }

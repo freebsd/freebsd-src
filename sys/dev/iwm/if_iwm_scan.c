@@ -407,7 +407,7 @@ iwm_mvm_fill_probe_req(struct iwm_softc *sc, struct iwm_scan_probe_req *preq)
 		remain -= 3;
 	}
 
-	if (sc->sc_nvm.sku_cap_band_52GHz_enable) {
+	if (sc->nvm_data->sku_cap_band_52GHz_enable) {
 		/* Fill in 5GHz IEs. */
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11A];
 		if (rs->rs_nrates > IEEE80211_RATE_SIZE) {
@@ -674,7 +674,7 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 		req->scan_flags |= htole32(IWM_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
 
 	req->flags = htole32(IWM_PHY_BAND_24);
-	if (sc->sc_nvm.sku_cap_band_52GHz_enable)
+	if (sc->nvm_data->sku_cap_band_52GHz_enable)
 		req->flags |= htole32(IWM_PHY_BAND_5);
 	req->filter_flags =
 	    htole32(IWM_MAC_FILTER_ACCEPT_GRP | IWM_MAC_FILTER_IN_BEACON);
