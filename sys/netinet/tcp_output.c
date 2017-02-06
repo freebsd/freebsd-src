@@ -1252,8 +1252,8 @@ send:
 #ifdef INET6
 	if (isipv6) {
 		/*
-		 * ip6_plen is not need to be filled now, and will be filled
-		 * in ip6_output.
+		 * There is no need to fill in ip6_plen right now.
+		 * It will be filled later by ip6_output.
 		 */
 		m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
 		th->th_sum = in6_cksum_pseudo(ip6, sizeof(struct tcphdr) +
