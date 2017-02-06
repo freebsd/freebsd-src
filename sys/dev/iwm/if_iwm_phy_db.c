@@ -310,8 +310,10 @@ iwm_phy_db_free(struct iwm_phy_db *phy_db)
 
 int
 iwm_phy_db_set_section(struct iwm_phy_db *phy_db,
-		       struct iwm_calib_res_notif_phy_db *phy_db_notif)
+		       struct iwm_rx_packet *pkt)
 {
+	struct iwm_calib_res_notif_phy_db *phy_db_notif =
+			(struct iwm_calib_res_notif_phy_db *)pkt->data;
 	enum iwm_phy_db_section_type type = le16toh(phy_db_notif->type);
         uint16_t size  = le16toh(phy_db_notif->length);
         struct iwm_phy_db_entry *entry;
