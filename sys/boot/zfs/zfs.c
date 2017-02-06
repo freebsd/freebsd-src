@@ -483,7 +483,7 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 {
 	struct ptable *table;
 	struct zfs_probe_args pa;
-	off_t mediasz;
+	uint64_t mediasz;
 	int ret;
 
 	pa.fd = open(devname, O_RDONLY);
