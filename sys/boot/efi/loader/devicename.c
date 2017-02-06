@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include <sys/param.h>
 #include <bootstrap.h>
+#include <disk.h>
 #ifdef EFI_ZFS_BOOT
 #include <libzfs.h>
 #endif
@@ -90,7 +91,7 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 	struct devsw *dv;
 	char *cp;
 	const char *np;
-	int i;
+	int i, err;
 
 	/* minimum length check */
 	if (strlen(devspec) < 2)
@@ -106,11 +107,26 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 		return (ENOENT);
 
 	np = devspec + strlen(dv->dv_name);
+	err = 0;
+
+	switch (dv->dv_type) {
+	case DEVT_NONE:
+		break;
+
+	case DEVT_DISK:
+		idev = malloc(sizeof(struct disk_devdesc));
+		if (idev == NULL)
+			return (ENOMEM);
+
+		err = disk_parsedev((struct disk_devdesc *)idev, np, path);
+		if (err != 0) {
+			free(idev);
+			return (err);
+		}
+		break;
 
 #ifdef EFI_ZFS_BOOT
-	if (dv->dv_type == DEVT_ZFS) {
-		int err;
-
+	case DEVT_ZFS:
 		idev = malloc(sizeof(struct zfs_devdesc));
 		if (idev == NULL)
 			return (ENOMEM);
@@ -120,34 +136,35 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 			free(idev);
 			return (err);
 		}
-		cp = strchr(np + 1, ':');
-	} else
+		break;
 #endif
-	{
+	default:
 		idev = malloc(sizeof(struct devdesc));
 		if (idev == NULL)
 			return (ENOMEM);
 
-		idev->d_dev = dv;
-		idev->d_type = dv->dv_type;
 		idev->d_unit = -1;
+		cp = (char *)np;
 		if (*np != '\0' && *np != ':') {
 			idev->d_unit = strtol(np, &cp, 0);
 			if (cp == np) {
-				idev->d_unit = -1;
 				free(idev);
 				return (EUNIT);
 			}
 		}
+		if (*cp != '\0' && *cp != ':') {
+			free(idev);
+			return (EINVAL);
+		}
+
+		if (path != NULL)
+			*path = (*cp == 0) ? cp : cp + 1;
+		break;
 	}
 
-	if (*cp != '\0' && *cp != ':') {
-		free(idev);
-		return (EINVAL);
-	}
+	idev->d_dev = dv;
+	idev->d_type = dv->dv_type;
 
-	if (path != NULL)
-		*path = (*cp == 0) ? cp : cp + 1;
 	if (dev != NULL)
 		*dev = idev;
 	else
@@ -162,14 +179,17 @@ efi_fmtdev(void *vdev)
 	static char buf[SPECNAMELEN + 1];
 
 	switch(dev->d_type) {
-#ifdef EFI_ZFS_BOOT
-	case DEVT_ZFS:
-		return (zfs_fmtdev(dev));
-#endif
 	case DEVT_NONE:
 		strcpy(buf, "(no device)");
 		break;
 
+	case DEVT_DISK:
+		return (disk_fmtdev(vdev));
+
+#ifdef EFI_ZFS_BOOT
+	case DEVT_ZFS:
+		return (zfs_fmtdev(dev));
+#endif
 	default:
 		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
 		break;
