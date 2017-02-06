@@ -495,6 +495,8 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts,
 	lock_delay_arg_init(&lda, NULL);
 #endif
 	m = mtxlock2mtx(c);
+	if (__predict_false(v == MTX_UNOWNED))
+		v = MTX_READ_VALUE(m);
 
 	if (__predict_false(lv_mtx_owner(v) == (struct thread *)tid)) {
 		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||

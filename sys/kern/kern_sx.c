@@ -531,6 +531,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, uintptr_t tid, int opts,
 	lock_delay_arg_init(&lda, NULL);
 #endif
 
+	if (__predict_false(x == SX_LOCK_UNLOCKED))
+		x = SX_READ_VALUE(sx);
+
 	/* If we already hold an exclusive lock, then recurse. */
 	if (__predict_false(lv_sx_owner(x) == (struct thread *)tid)) {
 		KASSERT((sx->lock_object.lo_flags & LO_RECURSABLE) != 0,
