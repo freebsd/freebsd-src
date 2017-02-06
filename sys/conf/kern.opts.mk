@@ -34,6 +34,7 @@ __DEFAULT_YES_OPTIONS = \
     INET \
     INET6 \
     IPFILTER \
+    IPSEC_SUPPORT \
     ISCSI \
     KERNEL_SYMBOLS \
     NETGRAPH \

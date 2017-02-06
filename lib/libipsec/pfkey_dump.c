@@ -220,6 +220,9 @@ pfkey_sadump(m)
 	struct sadb_ident *m_sid, *m_did;
 	struct sadb_sens *m_sens;
 	struct sadb_x_sa_replay *m_sa_replay;
+	struct sadb_x_nat_t_type *natt_type;
+	struct sadb_x_nat_t_port *natt_sport, *natt_dport;
+	struct sadb_address *natt_oai, *natt_oar;
 
 	/* check pfkey message. */
 	if (pfkey_align(m, mhp)) {
@@ -245,33 +248,46 @@ pfkey_sadump(m)
 	m_did = (struct sadb_ident *)mhp[SADB_EXT_IDENTITY_DST];
 	m_sens = (struct sadb_sens *)mhp[SADB_EXT_SENSITIVITY];
 	m_sa_replay = (struct sadb_x_sa_replay *)mhp[SADB_X_EXT_SA_REPLAY];
+	natt_type = (struct sadb_x_nat_t_type *)mhp[SADB_X_EXT_NAT_T_TYPE];
+	natt_sport = (struct sadb_x_nat_t_port *)mhp[SADB_X_EXT_NAT_T_SPORT];
+	natt_dport = (struct sadb_x_nat_t_port *)mhp[SADB_X_EXT_NAT_T_DPORT];
+	natt_oai = (struct sadb_address *)mhp[SADB_X_EXT_NAT_T_OAI];
+	natt_oar = (struct sadb_address *)mhp[SADB_X_EXT_NAT_T_OAR];
+
 
 	/* source address */
 	if (m_saddr == NULL) {
 		printf("no ADDRESS_SRC extension.\n");
 		return;
 	}
-	printf("%s ", str_ipaddr((struct sockaddr *)(m_saddr + 1)));
+	printf("%s", str_ipaddr((struct sockaddr *)(m_saddr + 1)));
+	if (natt_type != NULL && natt_sport != NULL)
+		printf("[%u]", ntohs(natt_sport->sadb_x_nat_t_port_port));
 
 	/* destination address */
 	if (m_daddr == NULL) {
-		printf("no ADDRESS_DST extension.\n");
+		printf("\nno ADDRESS_DST extension.\n");
 		return;
 	}
-	printf("%s ", str_ipaddr((struct sockaddr *)(m_daddr + 1)));
+	printf(" %s", str_ipaddr((struct sockaddr *)(m_daddr + 1)));
+	if (natt_type != NULL && natt_dport != NULL)
+		printf("[%u]", ntohs(natt_dport->sadb_x_nat_t_port_port));
 
 	/* SA type */
 	if (m_sa == NULL) {
-		printf("no SA extension.\n");
+		printf("\nno SA extension.\n");
 		return;
 	}
 	if (m_sa2 == NULL) {
-		printf("no SA2 extension.\n");
+		printf("\nno SA2 extension.\n");
 		return;
 	}
 	printf("\n\t");
 
-	GETMSGSTR(str_satype, m->sadb_msg_satype);
+	if (m->sadb_msg_satype == SADB_SATYPE_ESP && natt_type != NULL)
+		printf("esp-udp ");
+	else
+		GETMSGSTR(str_satype, m->sadb_msg_satype);
 
 	printf("mode=");
 	GETMSGSTR(str_mode, m_sa2->sadb_x_sa2_mode);
@@ -281,6 +297,18 @@ pfkey_sadump(m)
 		(u_int32_t)ntohl(m_sa->sadb_sa_spi),
 		(u_int32_t)m_sa2->sadb_x_sa2_reqid,
 		(u_int32_t)m_sa2->sadb_x_sa2_reqid);
+
+	/* other NAT-T information */
+	if (natt_type != NULL && (natt_oai != NULL || natt_oar != NULL)) {
+		printf("\tNAT:");
+		if (natt_oai != NULL)
+			printf(" OAI=%s",
+			    str_ipaddr((struct sockaddr *)(natt_oai + 1)));
+		if (natt_oar != NULL)
+			printf(" OAR=%s",
+			    str_ipaddr((struct sockaddr *)(natt_oar + 1)));
+		printf("\n");
+	}
 
 	/* encryption key */
 	if (m->sadb_msg_satype == SADB_X_SATYPE_IPCOMP) {

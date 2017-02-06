@@ -98,11 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
 
-
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/key.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -305,8 +301,8 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 		goto out;
 	mac_inpcb_create(so, inp);
 #endif
-#ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->inp_sp);
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	error = ipsec_init_pcbpolicy(inp);
 	if (error != 0) {
 #ifdef MAC
 		mac_inpcb_destroy(inp);
@@ -1284,7 +1280,7 @@ in_pcbfree(struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 
 	/* XXXRW: Do as much as possible here. */
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	if (inp->inp_sp != NULL)
 		ipsec_delete_pcbpolicy(inp);
 #endif

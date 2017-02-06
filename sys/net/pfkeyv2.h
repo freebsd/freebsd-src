@@ -320,7 +320,9 @@ _Static_assert(sizeof(struct sadb_x_sa_replay) == 8, "struct size mismatch");
 #define SADB_X_EXT_NAT_T_OAR          24	/* Peer's NAT_OA for dst of SA. */
 #define SADB_X_EXT_NAT_T_FRAG         25	/* Manual MTU override. */
 #define SADB_X_EXT_SA_REPLAY          26	/* Replay window override. */
-#define SADB_EXT_MAX                  26
+#define	SADB_X_EXT_NEW_ADDRESS_SRC    27
+#define	SADB_X_EXT_NEW_ADDRESS_DST    28
+#define	SADB_EXT_MAX                  28
 
 #define SADB_SATYPE_UNSPEC	0
 #define SADB_SATYPE_AH		2
