@@ -137,10 +137,20 @@ umass_disk_open(struct open_file *f,...)
 }
 
 static int
-umass_disk_ioctl(struct open_file *f __unused, u_long cmd, void *buf)
+umass_disk_ioctl(struct open_file *f, u_long cmd, void *buf)
 {
+	struct disk_devdesc *dev;
 	uint32_t nblock;
 	uint32_t blocksize;
+	int rc;
+
+	dev = (struct disk_devdesc *)(f->f_devdata);
+	if (dev == NULL)
+		return (EINVAL);
+
+	rc = disk_ioctl(dev, cmd, buf);
+	if (rc != ENOTTY)
+		return (rc);
 
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
