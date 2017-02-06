@@ -181,6 +181,7 @@ struct iwm_fw_info {
 			uint32_t fws_devoff;
 		} fw_sect[IWM_UCODE_SECTION_MAX];
 		int fw_count;
+		uint32_t paging_mem_size;
 	} fw_sects[IWM_UCODE_TYPE_MAX];
 
 	uint32_t phy_config;
