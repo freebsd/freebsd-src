@@ -185,6 +185,7 @@ find_currdev(EFI_LOADED_IMAGE *img)
 	int unit;
 	uint64_t extra;
 
+#ifdef EFI_ZFS_BOOT
 	/* Did efi_zfs_probe() detect the boot pool? */
 	if (pool_guid != 0) {
 		struct zfs_devdesc currdev;
@@ -203,6 +204,7 @@ find_currdev(EFI_LOADED_IMAGE *img)
 		    env_nounset);
 		return (0);
 	}
+#endif /* EFI_ZFS_BOOT */
 
 	/* We have device lists for hd, cd, fd, walk them all. */
 	pdi_list = efiblk_get_pdinfo_list(&efipart_hddev);
