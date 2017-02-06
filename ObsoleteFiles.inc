@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170206: merged projects/ipsec
+OLD_FILES+=usr/include/netinet/ip_ipsec.h
+OLD_FILES+=usr/include/netinet6/ip6_ipsec.h
 # 20170128: remove pc98 support
 OLD_FILES+=usr/include/dev/ic/i8251.h
 OLD_FILES+=usr/include/dev/ic/i8255.h
