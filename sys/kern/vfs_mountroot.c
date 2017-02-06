@@ -171,9 +171,6 @@ root_mount_hold(const char *identifier)
 {
 	struct root_hold_token *h;
 
-	if (root_mounted())
-		return (NULL);
-
 	h = malloc(sizeof *h, M_DEVBUF, M_ZERO | M_WAITOK);
 	h->who = identifier;
 	mtx_lock(&root_holds_mtx);
@@ -186,8 +183,8 @@ void
 root_mount_rel(struct root_hold_token *h)
 {
 
-	if (h == NULL)
-		return;
+	KASSERT(h != NULL, ("%s: NULL token", __func__));
+
 	mtx_lock(&root_holds_mtx);
 	LIST_REMOVE(h, list);
 	wakeup(&root_holds);
