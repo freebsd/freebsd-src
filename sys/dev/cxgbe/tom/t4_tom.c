@@ -730,12 +730,12 @@ search_lip(struct tom_data *td, struct in6_addr *lip)
 }
 
 struct clip_entry *
-hold_lip(struct tom_data *td, struct in6_addr *lip)
+hold_lip(struct tom_data *td, struct in6_addr *lip, struct clip_entry *ce)
 {
-	struct clip_entry *ce;
 
 	mtx_lock(&td->clip_table_lock);
-	ce = search_lip(td, lip);
+	if (ce == NULL)
+		ce = search_lip(td, lip);
 	if (ce != NULL)
 		ce->refcount++;
 	mtx_unlock(&td->clip_table_lock);

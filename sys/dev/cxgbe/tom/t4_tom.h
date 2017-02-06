@@ -321,7 +321,8 @@ uint64_t calc_opt0(struct socket *, struct vi_info *, struct l2t_entry *,
 uint64_t select_ntuple(struct vi_info *, struct l2t_entry *);
 void set_tcpddp_ulp_mode(struct toepcb *);
 int negative_advice(int);
-struct clip_entry *hold_lip(struct tom_data *, struct in6_addr *);
+struct clip_entry *hold_lip(struct tom_data *, struct in6_addr *,
+    struct clip_entry *);
 void release_lip(struct tom_data *, struct clip_entry *);
 
 /* t4_connect.c */
