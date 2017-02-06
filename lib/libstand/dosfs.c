@@ -154,7 +154,7 @@ static int fatcnt(DOS_FS *, u_int);
 static int fatget(DOS_FS *, u_int *);
 static int fatend(u_int, u_int);
 static int ioread(DOS_FS *, u_int, void *, u_int);
-static int ioget(struct open_file *, daddr_t, size_t, void *, u_int);
+static int ioget(struct open_file *, daddr_t, void *, u_int);
 
 static void
 dos_read_fat(DOS_FS *fs, struct open_file *fd)
@@ -172,7 +172,7 @@ dos_read_fat(DOS_FS *fs, struct open_file *fd)
 	fat.buf = malloc(secbyt(fs->spf));
 
     if (fat.buf != NULL) {
-	if (ioget(fd, fs->lsnfat, 0, fat.buf, secbyt(fs->spf)) == 0) {
+	if (ioget(fd, fs->lsnfat, fat.buf, secbyt(fs->spf)) == 0) {
 	    fat.size = fs->spf;
 	    fat.unit = dd->d_unit;
 	    return;
@@ -199,12 +199,12 @@ dos_mount(DOS_FS *fs, struct open_file *fd)
     fs->fd = fd;
 
     if ((err = !(buf = malloc(secbyt(1))) ? errno : 0) ||
-        (err = ioget(fs->fd, 0, 0, buf, secbyt(1))) ||
+        (err = ioget(fs->fd, 0, buf, secbyt(1))) ||
         (err = parsebs(fs, (DOS_BS *)buf))) {
 	if (buf != NULL)
 	    free(buf);
         (void)dosunmount(fs);
-        return(err);
+        return (err);
     }
     free(buf);
 
@@ -219,7 +219,7 @@ dos_mount(DOS_FS *fs, struct open_file *fd)
         fs->root.dex.h_clus[0] = (fs->rdcl >> 16) & 0xff;
         fs->root.dex.h_clus[1] = (fs->rdcl >> 24) & 0xff;
     }
-    return 0;
+    return (0);
 }
 
 /*
@@ -231,10 +231,10 @@ dos_unmount(DOS_FS *fs)
     int err;
 
     if (fs->links)
-        return(EBUSY);
+        return (EBUSY);
     if ((err = dosunmount(fs)))
-        return(err);
-    return 0;
+        return (err);
+    return (0);
 }
 
 /*
@@ -244,7 +244,7 @@ static int
 dosunmount(DOS_FS *fs)
 {
     free(fs);
-    return(0);
+    return (0);
 }
 
 /*
@@ -285,7 +285,7 @@ dos_open(const char *path, struct open_file *fd)
     fd->f_fsdata = (void *)f;
 
  out:
-    return(err);
+    return (err);
 }
 
 /*
@@ -307,7 +307,7 @@ dos_read(struct open_file *fd, void *buf, size_t nbyte, size_t *resid)
     twiddle(4);
     nb = (u_int)nbyte;
     if ((size = fsize(f->fs, &f->de)) == -1)
-	return EINVAL;
+	return (EINVAL);
     if (nb > (n = size - f->offset))
 	nb = n;
     off = f->offset;
@@ -344,7 +344,7 @@ dos_read(struct open_file *fd, void *buf, size_t nbyte, size_t *resid)
  out:
     if (resid)
 	*resid = nbyte - nb + cnt;
-    return(err);
+    return (err);
 }
 
 /*
@@ -370,16 +370,16 @@ dos_seek(struct open_file *fd, off_t offset, int whence)
         break;
     default:
 	errno = EINVAL;
-	return(-1);
+	return (-1);
     }
     off += offset;
     if (off < 0 || off > size) {
 	errno = EINVAL;
-        return(-1);
+        return (-1);
     }
     f->offset = (u_int)off;
     f->c = 0;
-    return(off);
+    return (off);
 }
 
 /*
@@ -394,7 +394,7 @@ dos_close(struct open_file *fd)
     f->fs->links--;
     free(f);
     dos_unmount(fs);
-    return 0;
+    return (0);
 }
 
 /*
@@ -411,7 +411,7 @@ dos_stat(struct open_file *fd, struct stat *sb)
     sb->st_uid = 0;
     sb->st_gid = 0;
     if ((sb->st_size = fsize(f->fs, &f->de)) == -1)
-	return EINVAL;
+	return (EINVAL);
     return (0);
 }
 
@@ -501,7 +501,7 @@ dos_readdir(struct open_file *fd, struct dirent *d)
     d->d_reclen = sizeof(*d);
     d->d_type = (dd.de.attr & FA_DIR) ? DT_DIR : DT_REG;
     memcpy(d->d_name, fn, sizeof(d->d_name));
-    return(0);
+    return (0);
 }
 
 /*
@@ -516,41 +516,41 @@ parsebs(DOS_FS *fs, DOS_BS *bs)
          bs->jmp[0] != 0xe9 &&
          (bs->jmp[0] != 0xeb || bs->jmp[2] != 0x90)) ||
         bs->bpb.media < 0xf0)
-        return EINVAL;
+        return (EINVAL);
     if (cv2(bs->bpb.secsiz) != SECSIZ)
-        return EINVAL;
+        return (EINVAL);
     if (!(fs->spc = bs->bpb.spc) || fs->spc & (fs->spc - 1))
-        return EINVAL;
+        return (EINVAL);
     fs->bsize = secbyt(fs->spc);
     fs->bshift = ffs(fs->bsize) - 1;
     if ((fs->spf = cv2(bs->bpb.spf))) {
         if (bs->bpb.fats != 2)
-            return EINVAL;
+            return (EINVAL);
         if (!(fs->dirents = cv2(bs->bpb.dirents)))
-            return EINVAL;
+            return (EINVAL);
     } else {
         if (!(fs->spf = cv4(bs->bpb.lspf)))
-            return EINVAL;
+            return (EINVAL);
         if (!bs->bpb.fats || bs->bpb.fats > 16)
-            return EINVAL;
+            return (EINVAL);
         if ((fs->rdcl = cv4(bs->bpb.rdcl)) < LOCLUS)
-            return EINVAL;
+            return (EINVAL);
     }
     if (!(fs->lsnfat = cv2(bs->bpb.ressec)))
-        return EINVAL;
+        return (EINVAL);
     fs->lsndir = fs->lsnfat + fs->spf * bs->bpb.fats;
     fs->lsndta = fs->lsndir + entsec(fs->dirents);
     if (!(sc = cv2(bs->bpb.secs)) && !(sc = cv4(bs->bpb.lsecs)))
-        return EINVAL;
+        return (EINVAL);
     if (fs->lsndta > sc)
-        return EINVAL;
+        return (EINVAL);
     if ((fs->xclus = secblk(fs, sc - fs->lsndta) + 1) < LOCLUS)
-        return EINVAL;
+        return (EINVAL);
     fs->fatsz = fs->dirents ? fs->xclus < 0xff6 ? 12 : 16 : 32;
     sc = (secbyt(fs->spf) << 1) / (fs->fatsz >> 2) - 1;
     if (fs->xclus > sc)
         fs->xclus = sc;
-    return 0;
+    return (0);
 }
 
 /*
@@ -575,17 +575,17 @@ namede(DOS_FS *fs, const char *path, DOS_DE **dep)
         if (!(s = strchr(path, '/')))
             s = strchr(path, 0);
         if ((n = s - path) > 255)
-            return ENAMETOOLONG;
+            return (ENAMETOOLONG);
         memcpy(name, path, n);
         name[n] = 0;
         path = s;
         if (!(de->attr & FA_DIR))
-            return ENOTDIR;
+            return (ENOTDIR);
         if ((err = lookup(fs, stclus(fs->fatsz, de), name, &de)))
-            return err;
+            return (err);
     }
     *dep = de;
-    return 0;
+    return (0);
 }
 
 /*
@@ -604,7 +604,7 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
         for (ent = 0; ent < 2; ent++)
             if (!strcasecmp(name, dotstr[ent])) {
                 *dep = dot + ent;
-                return 0;
+                return (0);
             }
     if (!clus && fs->fatsz == 32)
         clus = fs->rdcl;
@@ -617,13 +617,13 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
         else if (okclus(fs, clus))
             lsec = blklsn(fs, clus);
         else
-            return EINVAL;
+            return (EINVAL);
         for (sec = 0; sec < nsec; sec++) {
-            if ((err = ioget(fs->fd, lsec + sec, 0, dir, secbyt(1))))
-                return err;
+            if ((err = ioget(fs->fd, lsec + sec, dir, secbyt(1))))
+                return (err);
             for (ent = 0; ent < DEPSEC; ent++) {
                 if (!*dir[ent].de.name)
-                    return ENOENT;
+                    return (ENOENT);
                 if (*dir[ent].de.name != 0xe5) {
                     if ((dir[ent].de.attr & FA_MASK) == FA_XDE) {
                         x = dir[ent].xde.seq;
@@ -651,7 +651,7 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
                         }
                         if (ok) {
                             *dep = &dir[ent].de;
-                            return 0;
+                            return (0);
                         }
                     }
 		}
@@ -661,11 +661,11 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
         if (!clus)
             break;
         if ((err = fatget(fs, &clus)))
-            return err;
+            return (err);
         if (fatend(fs->fatsz, clus))
             break;
     }
-    return ENOENT;
+    return (ENOENT);
 }
 
 /*
@@ -739,11 +739,11 @@ fsize(DOS_FS *fs, DOS_DE *de)
          size = fs->dirents * sizeof(DOS_DE);
       else {
          if ((n = fatcnt(fs, c)) == -1)
-            return n;
+            return (n);
          size = blkbyt(fs, n);
       }
    }
-   return size;
+   return (size);
 }
 
 /*
@@ -756,8 +756,8 @@ fatcnt(DOS_FS *fs, u_int c)
 
    for (n = 0; okclus(fs, c); n++)
       if (fatget(fs, &c))
-	  return -1;
-   return fatend(fs->fatsz, c) ? n : -1;
+	  return (-1);
+   return (fatend(fs->fatsz, c) ? n : -1);
 }
 
 /*
@@ -768,8 +768,7 @@ static int
 fatget(DOS_FS *fs, u_int *c)
 {
     u_char buf[4];
-    u_char *s;
-    u_int x, offset, off, n, nbyte, lsec;
+    u_int x, offset, n, nbyte;
     struct devdesc *dd = fs->fd->f_devdata;
     int err = 0;
 
@@ -783,25 +782,9 @@ fatget(DOS_FS *fs, u_int *c)
 	offset = fatoff(fs->fatsz, *c);
 	nbyte = fs->fatsz != 32 ? 2 : 4;
 
-	s = buf;
-	if ((off = offset & (SECSIZ - 1))) {
-	    offset -= off;
-	    lsec = bytsec(offset);
-	    offset += SECSIZ;
-	    if ((n = SECSIZ - off) > nbyte)
-		n = nbyte;
-	    memcpy(s, fat.buf + secbyt(lsec) + off, n);
-	    s += n;
-	    nbyte -= n;
-	}
-	n = nbyte & (SECSIZ - 1);
-	if (nbyte -= n) {
-	    memcpy(s, fat.buf + secbyt(bytsec(offset)), nbyte);
-	    offset += nbyte;
-	    s += nbyte;
-	}
-	if (n)
-	    memcpy(s, fat.buf + secbyt(bytsec(offset)), n);
+	if (offset + nbyte > secbyt(fat.size))
+	    return (EINVAL);
+	memcpy(buf, fat.buf + offset, nbyte);
     }
 
     x = fs->fatsz != 32 ? cv2(buf) : cv4(buf);
@@ -815,7 +798,7 @@ fatget(DOS_FS *fs, u_int *c)
 static int
 fatend(u_int sz, u_int c)
 {
-    return c > (sz == 12 ? 0xff7U : sz == 16 ? 0xfff7U : 0xffffff7);
+    return (c > (sz == 12 ? 0xff7U : sz == 16 ? 0xfff7U : 0xffffff7));
 }
 
 /*
@@ -827,38 +810,41 @@ ioread(DOS_FS *fs, u_int offset, void *buf, u_int nbyte)
     char *s;
     u_int off, n;
     int err;
+    u_char local_buf[SECSIZ];
 
     s = buf;
     if ((off = offset & (SECSIZ - 1))) {
         offset -= off;
         if ((n = SECSIZ - off) > nbyte)
             n = nbyte;
-        if ((err = ioget(fs->fd, bytsec(offset), off, s, n)))
-            return err;
+        if ((err = ioget(fs->fd, bytsec(offset), local_buf, sizeof(local_buf))))
+            return (err);
+	memcpy(s, local_buf + off, n);
         offset += SECSIZ;
         s += n;
         nbyte -= n;
     }
     n = nbyte & (SECSIZ - 1);
     if (nbyte -= n) {
-        if ((err = ioget(fs->fd, bytsec(offset), 0, s, nbyte)))
-            return err;
+        if ((err = ioget(fs->fd, bytsec(offset), s, nbyte)))
+            return (err);
         offset += nbyte;
         s += nbyte;
     }
     if (n) {
-        if ((err = ioget(fs->fd, bytsec(offset), 0, s, n)))
-            return err;
+        if ((err = ioget(fs->fd, bytsec(offset), local_buf, sizeof(local_buf))))
+            return (err);
+	memcpy(s, local_buf, n);
     }
-    return 0;
+    return (0);
 }
 
 /*
  * Sector-based I/O primitive
  */
 static int
-ioget(struct open_file *fd, daddr_t lsec, size_t offset, void *buf, u_int size)
+ioget(struct open_file *fd, daddr_t lsec, void *buf, u_int size)
 {
-    return ((fd->f_dev->dv_strategy)(fd->f_devdata, F_READ, lsec, offset,
+    return ((fd->f_dev->dv_strategy)(fd->f_devdata, F_READ, lsec,
 	size, buf, NULL));
 }
