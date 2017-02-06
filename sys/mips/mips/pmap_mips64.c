@@ -213,7 +213,6 @@ static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
 static void pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
     vm_offset_t va);
-static vm_page_t pmap_alloc_direct_page(unsigned int index, int req);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte,  struct rwlock **lockp);
 static void reserve_pv_entries(pmap_t pmap, int needed,
@@ -1260,30 +1259,6 @@ pmap_pinit0(pmap_t pmap)
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
 
-void
-pmap_grow_direct_page_cache()
-{
-
-	vm_pageout_grow_cache(3, 0, MIPS_XKPHYS_LARGEST_PHYS);
-}
-
-static vm_page_t
-pmap_alloc_direct_page(unsigned int index, int req)
-{
-	vm_page_t m;
-
-	m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, req | VM_ALLOC_WIRED |
-	    VM_ALLOC_ZERO);
-	if (m == NULL)
-		return (NULL);
-
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
-
-	m->pindex = index;
-	return (m);
-}
-
 /*-
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
@@ -1298,10 +1273,11 @@ pmap_pinit(pmap_t pmap)
 	/*
 	 * allocate the page directory page
 	 */
-	while ((ptdpg = pmap_alloc_direct_page(NUSERPGTBLS, VM_ALLOC_NOOBJ |
-	    VM_ALLOC_NORMAL)) == NULL) {
-	       pmap_grow_direct_page_cache();
-	}
+	while ((ptdpg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
+		VM_WAIT;
+	if ((ptdpg->flags & PG_ZERO) == 0)
+		pmap_zero_page(ptdpg);
 
 	ptdva = MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(ptdpg));
 	pmap->pm_segtab = (pd_entry_t *)ptdva;
