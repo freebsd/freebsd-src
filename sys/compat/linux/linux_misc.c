@@ -585,10 +585,8 @@ select_out:
 int
 linux_mremap(struct thread *td, struct linux_mremap_args *args)
 {
-	struct munmap_args /* {
-		void *addr;
-		size_t len;
-	} */ bsd_args;
+	uintptr_t addr;
+	size_t len;
 	int error = 0;
 
 #ifdef DEBUG
@@ -623,10 +621,9 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 	}
 
 	if (args->new_len < args->old_len) {
-		bsd_args.addr =
-		    (caddr_t)((uintptr_t)args->addr + args->new_len);
-		bsd_args.len = args->old_len - args->new_len;
-		error = sys_munmap(td, &bsd_args);
+		addr = args->addr + args->new_len;
+		len = args->old_len - args->new_len;
+		error = kern_vm_munmap(td, addr, len);
 	}
 
 	td->td_retval[0] = error ? 0 : (uintptr_t)args->addr;
@@ -640,13 +637,9 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 int
 linux_msync(struct thread *td, struct linux_msync_args *args)
 {
-	struct msync_args bsd_args;
 
-	bsd_args.addr = (caddr_t)(uintptr_t)args->addr;
-	bsd_args.len = (uintptr_t)args->len;
-	bsd_args.flags = args->fl & ~LINUX_MS_SYNC;
-
-	return (sys_msync(td, &bsd_args));
+	return (kern_vm_msync(td, args->addr, args->len,
+	    args->fl & ~LINUX_MS_SYNC));
 }
 
 int
