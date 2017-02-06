@@ -82,16 +82,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/key.h>
-#endif				/* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 #ifdef INET6
 #include <sys/domain.h>
-#ifdef IPSEC
-#include <netipsec/ipsec6.h>
-#endif
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
