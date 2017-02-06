@@ -2704,6 +2704,29 @@ pmap_copy_pages_internal(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	}
 }
 
+/*
+ * As with pmap_copy_page(), CHERI requires tagged and non-tagged versions
+ * depending on the circumstances.
+ */
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+
+	pmap_copy_pages_internal(ma, a_offset, mb, b_offset, xfersize, 0);
+}
+
+#ifdef CPU_CHERI
+void
+pmap_copy_pages_tags(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+
+	pmap_copy_pages_internal(ma, a_offset, mb, b_offset, xfersize,
+	    PMAP_COPY_TAGS);
+}
+#endif
+
 vm_offset_t
 pmap_quick_enter_page(vm_page_t m)
 {
@@ -2762,29 +2785,6 @@ pmap_quick_remove_page(vm_offset_t addr)
 	critical_exit();
 #endif
 }
-
-/*
- * As with pmap_copy_page(), CHERI requires tagged and non-tagged versions
- * depending on the circumstances.
- */
-void
-pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
-    vm_offset_t b_offset, int xfersize)
-{
-
-	pmap_copy_pages_internal(ma, a_offset, mb, b_offset, xfersize, 0);
-}
-
-#ifdef CPU_CHERI
-void
-pmap_copy_pages_tags(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
-    vm_offset_t b_offset, int xfersize)
-{
-
-	pmap_copy_pages_internal(ma, a_offset, mb, b_offset, xfersize,
-	    PMAP_COPY_TAGS);
-}
-#endif
 
 /*
  * Returns true if the pmap's pv is one of the first
