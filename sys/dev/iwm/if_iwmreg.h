@@ -297,6 +297,16 @@
 #define IWM_CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
 #define IWM_CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
 
+/**
+ *  hw_rev values
+ */
+enum {
+	IWM_SILICON_A_STEP = 0,
+	IWM_SILICON_B_STEP,
+	IWM_SILICON_C_STEP,
+};
+
+
 #define IWM_CSR_HW_REV_TYPE_MSK		(0x000FFF0)
 #define IWM_CSR_HW_REV_TYPE_5300	(0x0000020)
 #define IWM_CSR_HW_REV_TYPE_5350	(0x0000030)
