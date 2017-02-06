@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170206: remove bdes(1)
+OLD_FILES+=usr/bin/bdes
+OLD_FILES+=usr/lib/debug/usr/bin/bdes.debug
+OLD_FILES+=usr/share/man/man1/bdes.1.gz
 # 20170206: merged projects/ipsec
 OLD_FILES+=usr/include/netinet/ip_ipsec.h
 OLD_FILES+=usr/include/netinet6/ip6_ipsec.h
