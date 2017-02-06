@@ -1949,15 +1949,15 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 		}
 
 		/*
-		 * NB: We defer alignment checks to kern_mmap where we
+		 * NB: We defer alignment checks to kern_vm_mmap where we
 		 * can account for file mapping with oddly aligned
 		 * that match the offset alignment.
 		 */
 
 	}
 
-	return (kern_mmap(td, reqaddr, cap_base + cap_len, uap->len, uap->prot,
-	    flags, uap->fd, uap->pos));
+	return (kern_vm_mmap(td, reqaddr, cap_base + cap_len, uap->len,
+	    uap->prot, flags, uap->fd, uap->pos));
 }
 
 
@@ -1983,7 +1983,8 @@ cheriabi_mprotect(struct thread *td, struct cheriabi_mprotect_args *uap)
 	if ((perms & reqperms) != reqperms)
 		return (EPROT);
 
-	return (kern_mprotect(td, uap->addr, uap->len, uap->prot));
+	return (kern_vm_mprotect(td, (vm_offset_t)uap->addr, uap->len,
+	    uap->prot));
 }
 
 #define	PERM_READ	(CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP)
