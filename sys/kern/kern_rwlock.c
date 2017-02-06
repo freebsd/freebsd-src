@@ -812,6 +812,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	lock_delay_arg_init(&lda, NULL);
 #endif
 	rw = rwlock2rw(c);
+	if (__predict_false(v == RW_UNLOCKED))
+		v = RW_READ_VALUE(rw);
 
 	if (__predict_false(lv_rw_wowner(v) == (struct thread *)tid)) {
 		KASSERT(rw->lock_object.lo_flags & LO_RECURSABLE,
