@@ -88,7 +88,7 @@ arm64/arm64/disassem.c		optional	ddb
 arm64/arm64/dump_machdep.c	standard
 arm64/arm64/elf_machdep.c	standard
 arm64/arm64/exception.S		standard
-arm64/arm64/gicv3_its.c		optional	intrng
+arm64/arm64/gicv3_its.c		optional	intrng fdt
 arm64/arm64/gic_v3.c		standard
 arm64/arm64/gic_v3_fdt.c	optional	fdt
 arm64/arm64/identcpu.c		standard
