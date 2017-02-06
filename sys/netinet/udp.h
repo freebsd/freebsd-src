@@ -58,7 +58,7 @@ struct udphdr {
  */
 /* Encapsulation types. */
 #define	UDP_ENCAP_ESPINUDP_NON_IKE	1 /* draft-ietf-ipsec-nat-t-ike-00/01 */
-#define	UDP_ENCAP_ESPINUDP		2 /* draft-ietf-ipsec-udp-encaps-02+ */
+#define	UDP_ENCAP_ESPINUDP		2 /* RFC3948 */
 
 /* Default ESP in UDP encapsulation port. */
 #define	UDP_ENCAP_ESPINUDP_PORT		500
