@@ -36,7 +36,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 struct devsw *devsw[] = {
-	&efipart_dev,
+	&efipart_fddev,
+	&efipart_cddev,
+	&efipart_hddev,
 	&efinet_dev,
 #ifdef EFI_ZFS_BOOT
 	&zfs_dev,
