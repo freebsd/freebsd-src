@@ -209,7 +209,7 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct vi_info *vi)
 	    !IN6_ARE_ADDR_EQUAL(&in6addr_any, &inp->in6p_laddr)) {
 		struct tom_data *td = sc->tom_softc;
 
-		lctx->ce = hold_lip(td, &inp->in6p_laddr);
+		lctx->ce = hold_lip(td, &inp->in6p_laddr, NULL);
 		if (lctx->ce == NULL) {
 			free(lctx, M_CXGBE);
 			return (NULL);
@@ -1584,6 +1584,8 @@ reset:
 	INP_WLOCK_ASSERT(new_inp);
 	MPASS(so->so_vnet == lctx->vnet);
 	toep->vnet = lctx->vnet;
+	if (inc.inc_flags & INC_ISIPV6)
+		toep->ce = hold_lip(sc->tom_softc, &inc.inc6_laddr, lctx->ce);
 
 	/*
 	 * This is for the unlikely case where the syncache entry that we added
