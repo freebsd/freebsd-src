@@ -449,42 +449,30 @@ freebsd32_fexecve(struct thread *td, struct freebsd32_fexecve_args *uap)
 int
 freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
 {
-	struct mprotect_args ap;
+	int prot;
 
-	ap.addr = PTRIN(uap->addr);
-	ap.len = uap->len;
-	ap.prot = uap->prot;
+	prot = uap->prot;
 #if defined(__amd64__)
-	if (i386_read_exec && (ap.prot & PROT_READ) != 0)
-		ap.prot |= PROT_EXEC;
+	if (i386_read_exec && (prot & PROT_READ) != 0)
+		prot |= PROT_EXEC;
 #endif
-	return (sys_mprotect(td, &ap));
+	return (kern_vm_mprotect(td, (vm_offset_t)PTRIN(uap->addr),
+	    uap->len, prot));
 }
 
 int
 freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 {
-	struct mmap_args ap;
-	vm_offset_t addr = (vm_offset_t) uap->addr;
-	vm_size_t len	 = uap->len;
-	int prot	 = uap->prot;
-	int flags	 = uap->flags;
-	int fd		 = uap->fd;
-	off_t pos	 = PAIR32TO64(off_t,uap->pos);
+	int prot;
 
+	prot = uap->prot;
 #if defined(__amd64__)
 	if (i386_read_exec && (prot & PROT_READ))
 		prot |= PROT_EXEC;
 #endif
 
-	ap.addr = (void *) addr;
-	ap.len = len;
-	ap.prot = prot;
-	ap.flags = flags;
-	ap.fd = fd;
-	ap.pos = pos;
-
-	return (sys_mmap(td, &ap));
+	return (kern_vm_mmap(td, (vm_offset_t)uap->addr, uap->len, prot,
+	    uap->flags, uap->fd, PAIR32TO64(off_t, uap->pos)));
 }
 
 #ifdef COMPAT_FREEBSD6
