@@ -6,7 +6,6 @@
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
 # XXX Use GNU versions: diff ld patch
-# Moved to secure: bdes
 #
 
 SUBDIR=	alias \
