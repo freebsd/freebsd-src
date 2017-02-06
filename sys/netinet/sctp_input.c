@@ -5790,7 +5790,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	} else if (stcb == NULL) {
 		inp_decr = inp;
 	}
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*-
 	 * I very much doubt any of the IPSEC stuff will work but I have no
 	 * idea, so I will leave it in place.
@@ -5799,17 +5799,23 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		switch (dst->sa_family) {
 #ifdef INET
 		case AF_INET:
-			if (ipsec4_in_reject(m, &inp->ip_inp.inp)) {
-				SCTP_STAT_INCR(sctps_hdrops);
-				goto out;
+			if (IPSEC_ENABLED(ipv4)) {
+				if (IPSEC_CHECK_POLICY(ipv4, m,
+				    &inp->ip_inp.inp) != 0) {
+					SCTP_STAT_INCR(sctps_hdrops);
+					goto out;
+				}
 			}
 			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
-			if (ipsec6_in_reject(m, &inp->ip_inp.inp)) {
-				SCTP_STAT_INCR(sctps_hdrops);
-				goto out;
+			if (IPSEC_ENABLED(ipv6)) {
+				if (IPSEC_CHECK_POLICY(ipv6, m,
+				    &inp->ip_inp.inp) != 0) {
+					SCTP_STAT_INCR(sctps_hdrops);
+					goto out;
+				}
 			}
 			break;
 #endif
@@ -5817,7 +5823,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			break;
 		}
 	}
-#endif
+#endif /* IPSEC */
 	SCTPDBG(SCTP_DEBUG_INPUT1, "Ok, Common input processing called, m:%p iphlen:%d offset:%d length:%d stcb:%p\n",
 	    (void *)m, iphlen, offset, length, (void *)stcb);
 	if (stcb) {
