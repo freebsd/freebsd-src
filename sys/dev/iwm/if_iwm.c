@@ -554,6 +554,8 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	enum iwm_ucode_tlv_type tlv_type;
 	const struct firmware *fwp;
 	const uint8_t *data;
+	uint32_t usniffer_img;
+	uint32_t paging_mem_size;
 	int error = 0;
 	size_t len;
 
@@ -832,6 +834,38 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			    IWM_UCODE_REGULAR_USNIFFER, tlv_data,
 			    tlv_len)) != 0)
 				goto parse_out;
+			break;
+
+		case IWM_UCODE_TLV_PAGING:
+			if (tlv_len != sizeof(uint32_t)) {
+				error = EINVAL;
+				goto parse_out;
+			}
+			paging_mem_size = le32toh(*(const uint32_t *)tlv_data);
+
+			IWM_DPRINTF(sc, IWM_DEBUG_FIRMWARE_TLV,
+			    "%s: Paging: paging enabled (size = %u bytes)\n",
+			    __func__, paging_mem_size);
+			if (paging_mem_size > IWM_MAX_PAGING_IMAGE_SIZE) {
+				device_printf(sc->sc_dev,
+					"%s: Paging: driver supports up to %u bytes for paging image\n",
+					__func__, IWM_MAX_PAGING_IMAGE_SIZE);
+				error = EINVAL;
+				goto out;
+			}
+			if (paging_mem_size & (IWM_FW_PAGING_SIZE - 1)) {
+				device_printf(sc->sc_dev,
+				    "%s: Paging: image isn't multiple %u\n",
+				    __func__, IWM_FW_PAGING_SIZE);
+				error = EINVAL;
+				goto out;
+			}
+
+			sc->sc_fw.fw_sects[IWM_UCODE_REGULAR].paging_mem_size =
+			    paging_mem_size;
+			usniffer_img = IWM_UCODE_REGULAR_USNIFFER;
+			sc->sc_fw.fw_sects[usniffer_img].paging_mem_size =
+			    paging_mem_size;
 			break;
 
 		case IWM_UCODE_TLV_N_SCAN_CHANNELS:
