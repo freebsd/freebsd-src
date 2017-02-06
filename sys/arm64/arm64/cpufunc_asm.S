@@ -103,19 +103,6 @@ ENTRY(arm64_tlb_flushID)
 	ret
 END(arm64_tlb_flushID)
 
-ENTRY(arm64_tlb_flushID_SE)
-	ldr	x1, .Lpage_mask
-	bic	x0, x0, x1
-#ifdef SMP
-	tlbi	vae1is, x0
-#else
-	tlbi	vae1, x0
-#endif
-	dsb	ish
-	isb
-	ret
-END(arm64_tlb_flushID_SE)
-
 /*
  * void arm64_dcache_wb_range(vm_offset_t, vm_size_t)
  */
