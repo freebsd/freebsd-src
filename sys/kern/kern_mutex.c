@@ -140,63 +140,27 @@ struct lock_class lock_class_mtx_spin = {
 #ifdef ADAPTIVE_MUTEXES
 static SYSCTL_NODE(_debug, OID_AUTO, mtx, CTLFLAG_RD, NULL, "mtx debugging");
 
-static struct lock_delay_config __read_mostly mtx_delay = {
-	.initial	= 1000,
-	.step		= 500,
-	.min		= 100,
-	.max		= 5000,
-};
+static struct lock_delay_config __read_mostly mtx_delay;
 
-SYSCTL_INT(_debug_mtx, OID_AUTO, delay_initial, CTLFLAG_RW, &mtx_delay.initial,
-    0, "");
-SYSCTL_INT(_debug_mtx, OID_AUTO, delay_step, CTLFLAG_RW, &mtx_delay.step,
-    0, "");
-SYSCTL_INT(_debug_mtx, OID_AUTO, delay_min, CTLFLAG_RW, &mtx_delay.min,
+SYSCTL_INT(_debug_mtx, OID_AUTO, delay_base, CTLFLAG_RW, &mtx_delay.base,
     0, "");
 SYSCTL_INT(_debug_mtx, OID_AUTO, delay_max, CTLFLAG_RW, &mtx_delay.max,
     0, "");
 
-static void
-mtx_delay_sysinit(void *dummy)
-{
-
-	mtx_delay.initial = mp_ncpus * 25;
-	mtx_delay.step = (mp_ncpus * 25) / 2;
-	mtx_delay.min = mp_ncpus * 5;
-	mtx_delay.max = mp_ncpus * 25 * 10;
-}
-LOCK_DELAY_SYSINIT(mtx_delay_sysinit);
+LOCK_DELAY_SYSINIT_DEFAULT(mtx_delay);
 #endif
 
 static SYSCTL_NODE(_debug, OID_AUTO, mtx_spin, CTLFLAG_RD, NULL,
     "mtx spin debugging");
 
-static struct lock_delay_config __read_mostly mtx_spin_delay = {
-	.initial        = 1000,
-	.step           = 500,
-	.min            = 100,
-	.max            = 5000,
-};
+static struct lock_delay_config __read_mostly mtx_spin_delay;
 
-SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_initial, CTLFLAG_RW,
-    &mtx_spin_delay.initial, 0, "");
-SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_step, CTLFLAG_RW, &mtx_spin_delay.step,
-    0, "");
-SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_min, CTLFLAG_RW, &mtx_spin_delay.min,
-    0, "");
-SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_max, CTLFLAG_RW, &mtx_spin_delay.max,
-    0, "");
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_base, CTLFLAG_RW,
+    &mtx_spin_delay.base, 0, "");
+SYSCTL_INT(_debug_mtx_spin, OID_AUTO, delay_max, CTLFLAG_RW,
+    &mtx_spin_delay.max, 0, "");
 
-static void
-mtx_spin_delay_sysinit(void *dummy)
-{
-
-	mtx_spin_delay.initial = mp_ncpus * 25;
-	mtx_spin_delay.step = (mp_ncpus * 25) / 2;
-	mtx_spin_delay.min = mp_ncpus * 5;
-	mtx_spin_delay.max = mp_ncpus * 25 * 10;
-}
-LOCK_DELAY_SYSINIT(mtx_spin_delay_sysinit);
+LOCK_DELAY_SYSINIT_DEFAULT(mtx_spin_delay);
 
 /*
  * System-wide mutexes
