@@ -287,7 +287,7 @@ static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 #define F_WALL		6		/* everyone logged on */
 #define F_PIPE		7		/* pipe to program */
 
-static const char *TypeNames[8] = {
+static const char *TypeNames[] = {
 	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
 	"FORW",		"USERS",	"WALL",		"PIPE"
 };
