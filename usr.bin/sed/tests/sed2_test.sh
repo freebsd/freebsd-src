@@ -47,8 +47,6 @@ inplace_symlink_src_head()
 }
 inplace_symlink_src_body()
 {
-	atf_expect_fail "Check for S_IFREG reverted in r312404"
-
 	echo foo > a
 	atf_check ln -s a b
 	atf_check -e not-empty -s not-exit:0 sed -i '' -e 's,foo,bar,g' b
