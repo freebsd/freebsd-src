@@ -529,7 +529,7 @@ atomic_fcmpset_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
                 "beqz	%0, 1b\n\t"		/* if it failed, spin */
                 "j	3f\n\t"
                 "2:\n\t"
-                "sw	%0, %2\n\t"		/* save old value */
+                "sd	%0, %2\n\t"		/* save old value */
                 "li	%0, 0\n\t"
                 "3:\n"
                 : "=&r" (ret), "+m" (*p), "=m" (*cmpval)

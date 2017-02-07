@@ -294,8 +294,7 @@ u_int cpu_pfr(int num)
 void
 identify_arm_cpu(void)
 {
-	u_int cpuid;
-	u_int8_t ctrl;
+	u_int cpuid, ctrl;
 	int i;
 
 	ctrl = cpu_get_control();
