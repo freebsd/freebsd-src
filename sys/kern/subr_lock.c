@@ -128,7 +128,7 @@ lock_delay(struct lock_delay_arg *la)
 	if (__predict_false(la->delay > lc->max))
 		la->delay = lc->max;
 
-	for (i = la->delay; i > 0; i++)
+	for (i = la->delay; i > 0; i--)
 		cpu_spinwait();
 
 	la->spin_cnt += la->delay;
