@@ -26,6 +26,8 @@ makeoptions	MODULES_OVERRIDE=""
 makeoptions	WERROR="-Werror"
 
 options 	SCHED_ULE		# ULE scheduler
+options 	PLATFORM		# Platform based SoC
+options 	PLATFORM_SMP
 options 	SMP			# Enable multiple cores
 
 # NFS root from boopt/dhcp

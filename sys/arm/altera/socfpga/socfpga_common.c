@@ -43,27 +43,3 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/altera/socfpga/socfpga_rstmgr.h>
 
-void
-cpu_reset(void)
-{
-	uint32_t paddr;
-	bus_addr_t vaddr;
-	phandle_t node;
-
-	if (rstmgr_warmreset() == 0)
-		goto end;
-
-	node = OF_finddevice("rstmgr");
-	if (node == -1)
-		goto end;
-
-	if ((OF_getencprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
-		if (bus_space_map(fdtbus_bs_tag, paddr, 0x8, 0, &vaddr) == 0) {
-			bus_space_write_4(fdtbus_bs_tag, vaddr,
-			    RSTMGR_CTRL, CTRL_SWWARMRSTREQ);
-		}
-	}
-
-end:
-	while (1);
-}
