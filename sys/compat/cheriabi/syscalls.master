@@ -1118,7 +1118,7 @@
 				    _Inout_opt_ struct msqid_ds_c *buf); }
 ; XXX: technically buf is sometimes _In_ and sometimes _Out_
 512	AUE_SHMCTL	NOSTD|NOPROTO	{ int shmctl(int shmid, int cmd, \
-				    _Inout_ struct shmid_ds *buf); }
+				    _Inout_opt_ struct shmid_ds *buf); }
 513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(_In_z_ const char *path, \
 				    int name); }
 514	AUE_NULL	OBSOL	cap_new

@@ -9137,14 +9137,14 @@ CHERIABI_SYS_shmctl_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->cmd, CHERI_CR_CTEMP0);
 
-	/* [2] _Inout_ struct shmid_ds * buf */
+	/* [2] _Inout_opt_ struct shmid_ds * buf */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_shmctl, 2);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->buf),
-		    &tmpcap, sizeof(*uap->buf), reqperms, 0);
+		    &tmpcap, sizeof(*uap->buf), reqperms, 1);
 		if (error != 0)
 			return (error);
 	}
