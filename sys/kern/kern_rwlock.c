@@ -312,6 +312,7 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 	if (rw_wlocked(rw) &&
 	    (rw->lock_object.lo_flags & LO_RECURSABLE) != 0) {
 		rw->rw_recurse++;
+		atomic_set_ptr(&rw->rw_lock, RW_LOCK_WRITER_RECURSED);
 		rval = 1;
 	} else
 		rval = atomic_cmpset_acq_ptr(&rw->rw_lock, RW_UNLOCKED,
@@ -345,10 +346,8 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	WITNESS_UNLOCK(&rw->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, rw->rw_recurse, file,
 	    line);
-	if (rw->rw_recurse)
-		rw->rw_recurse--;
-	else
-		_rw_wunlock_hard(rw, (uintptr_t)curthread, file, line);
+
+	_rw_wunlock_hard(rw, (uintptr_t)curthread, file, line);
 
 	TD_LOCKS_DEC(curthread);
 }
@@ -802,6 +801,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 		    ("%s: recursing but non-recursive rw %s @ %s:%d\n",
 		    __func__, rw->lock_object.lo_name, file, line));
 		rw->rw_recurse++;
+		atomic_set_ptr(&rw->rw_lock, RW_LOCK_WRITER_RECURSED);
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p recursing", __func__, rw);
 		return;
@@ -994,12 +994,17 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		return;
 
 	rw = rwlock2rw(c);
-	MPASS(!rw_recursed(rw));
 
-	LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw,
-	    LOCKSTAT_WRITER);
-	if (_rw_write_unlock(rw, tid))
+	if (!rw_recursed(rw)) {
+		LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw,
+		    LOCKSTAT_WRITER);
+		if (_rw_write_unlock(rw, tid))
+			return;
+	} else {
+		if (--(rw->rw_recurse) == 0)
+			atomic_clear_ptr(&rw->rw_lock, RW_LOCK_WRITER_RECURSED);
 		return;
+	}
 
 	KASSERT(rw->rw_lock & (RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS),
 	    ("%s: neither of the waiter flags are set", __func__));

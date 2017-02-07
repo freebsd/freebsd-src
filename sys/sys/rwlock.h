@@ -58,9 +58,10 @@
 #define	RW_LOCK_READ_WAITERS	0x02
 #define	RW_LOCK_WRITE_WAITERS	0x04
 #define	RW_LOCK_WRITE_SPINNER	0x08
+#define	RW_LOCK_WRITER_RECURSED	0x10
 #define	RW_LOCK_FLAGMASK						\
 	(RW_LOCK_READ | RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS |	\
-	RW_LOCK_WRITE_SPINNER)
+	RW_LOCK_WRITE_SPINNER | RW_LOCK_WRITER_RECURSED)
 #define	RW_LOCK_WAITERS		(RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS)
 
 #define	RW_OWNER(x)		((x) & ~RW_LOCK_FLAGMASK)
@@ -111,13 +112,9 @@
 #define	__rw_wunlock(rw, tid, file, line) do {				\
 	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
-	if ((rw)->rw_recurse)						\
-		(rw)->rw_recurse--;					\
-	else {								\
-		if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__release) ||\
-		    !_rw_write_unlock((rw), _tid)))			\
-			_rw_wunlock_hard((rw), _tid, (file), (line));	\
-	}								\
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__release) ||	\
+	    !_rw_write_unlock((rw), _tid)))				\
+		_rw_wunlock_hard((rw), _tid, (file), (line));		\
 } while (0)
 
 /*
