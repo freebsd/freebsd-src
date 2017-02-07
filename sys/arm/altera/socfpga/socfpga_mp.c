@@ -28,6 +28,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
@@ -45,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
+
+#include <arm/altera/socfpga/socfpga_mp.h>
 
 #define	SCU_PHYSBASE			0xFFFEC000
 #define	SCU_SIZE			0x100
@@ -85,7 +90,7 @@ socfpga_trampoline(void)
 }
 
 void
-platform_mp_setmaxid(void)
+socfpga_mp_setmaxid(platform_t plat)
 {
 	int hwcpu, ncpu;
 
@@ -105,7 +110,7 @@ platform_mp_setmaxid(void)
 }
 
 void
-platform_mp_start_ap(void)
+socfpga_mp_start_ap(platform_t plat)
 {
 	bus_space_handle_t scu, rst, ram;
 	int reg;
