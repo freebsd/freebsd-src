@@ -641,6 +641,18 @@ ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
 		      /*data*/ sks,
 		      SSD_ELEM_NONE);
 }
+void
+ctl_set_invalid_field_ciu(struct ctl_scsiio *ctsio)
+{
+
+	/* "Invalid field in command information unit" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_ABORTED_COMMAND,
+		      /*ascq*/ 0x0E,
+		      /*ascq*/ 0x03,
+		      SSD_ELEM_NONE);
+}
 
 void
 ctl_set_invalid_opcode(struct ctl_scsiio *ctsio)

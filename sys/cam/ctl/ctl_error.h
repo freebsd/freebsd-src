@@ -66,6 +66,7 @@ void ctl_set_overlapped_cmd(struct ctl_scsiio *ctsio);
 void ctl_set_overlapped_tag(struct ctl_scsiio *ctsio, uint8_t tag);
 void ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
 			   int field, int bit_valid, int bit);
+void ctl_set_invalid_field_ciu(struct ctl_scsiio *ctsio);
 void ctl_set_invalid_opcode(struct ctl_scsiio *ctsio);
 void ctl_set_param_len_error(struct ctl_scsiio *ctsio);
 void ctl_set_already_locked(struct ctl_scsiio *ctsio);

@@ -137,7 +137,7 @@ tpcl_datamove(union ctl_io *io)
 	struct ctl_sg_entry ext_entry, kern_entry;
 	int ext_sg_entries, kern_sg_entries;
 	int ext_sg_start, ext_offset;
-	int len_to_copy, len_copied;
+	int len_to_copy;
 	int kern_watermark, ext_watermark;
 	struct ctl_scsiio *ctsio;
 	int i, j;
@@ -196,7 +196,6 @@ tpcl_datamove(union ctl_io *io)
 
 	kern_watermark = 0;
 	ext_watermark = ext_offset;
-	len_copied = 0;
 	for (i = ext_sg_start, j = 0;
 	     i < ext_sg_entries && j < kern_sg_entries;) {
 		uint8_t *ext_ptr, *kern_ptr;
@@ -218,9 +217,6 @@ tpcl_datamove(union ctl_io *io)
 			kern_ptr = (uint8_t *)kern_sglist[j].addr;
 		kern_ptr = kern_ptr + kern_watermark;
 
-		kern_watermark += len_to_copy;
-		ext_watermark += len_to_copy;
-		
 		if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
 		     CTL_FLAG_DATA_IN) {
 			CTL_DEBUG_PRINT(("%s: copying %d bytes to user\n",
@@ -236,27 +232,27 @@ tpcl_datamove(union ctl_io *io)
 			memcpy(kern_ptr, ext_ptr, len_to_copy);
 		}
 
-		len_copied += len_to_copy;
+		ctsio->ext_data_filled += len_to_copy;
+		ctsio->kern_data_resid -= len_to_copy;
 
+		ext_watermark += len_to_copy;
 		if (ext_sglist[i].len == ext_watermark) {
 			i++;
 			ext_watermark = 0;
 		}
 
+		kern_watermark += len_to_copy;
 		if (kern_sglist[j].len == kern_watermark) {
 			j++;
 			kern_watermark = 0;
 		}
 	}
 
-	ctsio->ext_data_filled += len_copied;
-
 	CTL_DEBUG_PRINT(("%s: ext_sg_entries: %d, kern_sg_entries: %d\n",
 			 __func__, ext_sg_entries, kern_sg_entries));
 	CTL_DEBUG_PRINT(("%s: ext_data_len = %d, kern_data_len = %d\n",
 			 __func__, ctsio->ext_data_len, ctsio->kern_data_len));
 
-	/* XXX KDM set residual?? */
 bailout:
 	io->scsiio.be_move_done(io);
 }
