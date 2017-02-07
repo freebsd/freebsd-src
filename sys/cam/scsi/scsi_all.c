@@ -1370,7 +1370,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x0E, 0x02, SS_RDEF,	/* XXX TBD */
 	    "Information unit too long") },
 	/* DT P R MAEBK F */
-	{ SST(0x0E, 0x03, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0E, 0x03, SS_FATAL | EINVAL,
 	    "Invalid field in command information unit") },
 	/* D   W O   BK   */
 	{ SST(0x10, 0x00, SS_RDEF,
