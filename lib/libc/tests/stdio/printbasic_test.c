@@ -111,6 +111,11 @@ ATF_TC_BODY(int_within_limits, tc)
 	testfmt("-1", "%jd", (intmax_t)-1);
 	testfmt(S_UINT64MAX, "%ju", UINT64_MAX);
 
+	if (sizeof(ptrdiff_t) != sizeof(uintmax_t))
+		atf_tc_expect_fail("the %%t qualifier is broken on 32-bit "
+		    "platforms where there's a mismatch between ptrdiff_t and "
+		    "uintmax_t's type width; bug # 191674");
+
 	testfmt("-1", "%td", (ptrdiff_t)-1);
 	testfmt(S_SIZEMAX, "%tu", (size_t)-1);
 
