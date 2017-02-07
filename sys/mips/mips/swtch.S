@@ -249,38 +249,6 @@ getpc:
 	SAVE_U_PCB_CHERIKFRAME(a0);
 #endif
 
-#ifdef CPU_QEMU_MALTA
-	/*
-	 * If per-thread tracing is disabled, skip this block and don't muck
-	 * with emulator state.
-	 */
-	PTR_LA	t2, _C_LABEL(qemu_trace_perthread)	# Load address of var
-	PTR_L	t2, 0(t2)				# Load var value
-	beqz	t2, done_qemu_tracing			# Skip if value is 0
-	nop
-
-	/*
-	 * If per-thread tracing is enabled, update Qemu-internal state to
-	 * reflect the thread we are switching to.  Don't disable before
-	 * checking, so we can ensure that we get a full trace if both the
-	 * 'old' and 'new' threads have tracing enabled.
-	 */
-	lw	t2, TD_MDFLAGS(a1)			# Get new->md_flags
-	andi	t2, t2, MDTD_QTRACE			# Mask Qemu trace bit
-	beqz	t2, disable_qemu_tracing		# Branch if not set
-	nop
-
-enable_qemu_tracing:
-	li	$0, 0xbeef
-	b	done_qemu_tracing
-	nop
-
-disable_qemu_tracing:
-	li	$0, 0xdead
-
-done_qemu_tracing:
-#endif
-
 #ifdef CPU_CNMIPS
 
 	lw	t2, TD_MDFLAGS(a3)		# get md_flags
@@ -340,6 +308,38 @@ cop2_untouched:
 	PTR_S	a2, TD_LOCK(a3)			# Switchout td_lock 
 
 mips_sw1:
+#ifdef CPU_QEMU_MALTA
+	/*
+	 * If per-thread tracing is disabled, skip this block and don't muck
+	 * with emulator state.
+	 */
+	PTR_LA	t2, _C_LABEL(qemu_trace_perthread)	# Load address of var
+	PTR_L	t2, 0(t2)				# Load var value
+	beqz	t2, done_qemu_tracing			# Skip if value is 0
+	nop
+
+	/*
+	 * If per-thread tracing is enabled, update Qemu-internal state to
+	 * reflect the thread we are switching to.  Don't disable before
+	 * checking, so we can ensure that we get a full trace if both the
+	 * 'old' and 'new' threads have tracing enabled.
+	 */
+	lw	t2, TD_MDFLAGS(a1)			# Get new->md_flags
+	andi	t2, t2, MDTD_QTRACE			# Mask Qemu trace bit
+	beqz	t2, disable_qemu_tracing		# Branch if not set
+	nop
+
+enable_qemu_tracing:
+	li	$0, 0xbeef
+	b	done_qemu_tracing
+	nop
+
+disable_qemu_tracing:
+	li	$0, 0xdead
+
+done_qemu_tracing:
+#endif
+
 #if defined(SMP) && defined(SCHED_ULE)
 	PTR_LA	t0, _C_LABEL(blocked_lock)
 blocked_loop:
