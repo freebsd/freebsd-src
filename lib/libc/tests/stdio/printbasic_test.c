@@ -78,22 +78,19 @@ _testfmt(const char *result, const char *argstr, const char *fmt,...)
 	va_copy(ap2, ap);
 	smash_stack();
 	vsnprintf(s, sizeof(s), fmt, ap);
-	if (strcmp(result, s) != 0) {
-		atf_tc_fail(
-		    "printf(\"%s\", %s) ==> [%s], expected [%s]",
-		    fmt, argstr, s, result);
-	}
+	ATF_CHECK_MSG(strcmp(result, s) == 0,
+	    "printf(\"%s\", %s) ==> [%s], expected [%s]",
+	    fmt, argstr, s, result);
 
 	smash_stack();
 	mbstowcs(ws, s, BUF - 1);
 	mbstowcs(wfmt, fmt, BUF - 1);
 	mbstowcs(wresult, result, BUF - 1);
 	vswprintf(ws, sizeof(ws) / sizeof(ws[0]), wfmt, ap2);
-	if (wcscmp(wresult, ws) != 0) {
-		atf_tc_fail(
-		    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]",
-		    wfmt, argstr, ws, wresult);
-	}
+	ATF_CHECK_MSG(wcscmp(wresult, ws) == 0,
+	    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]",
+	    wfmt, argstr, ws, wresult);
+
 	va_end(ap);
 	va_end(ap2);
 }
