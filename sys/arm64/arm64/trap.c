@@ -257,7 +257,7 @@ print_registers(struct trapframe *frame)
 	printf("  sp: %16lx\n", frame->tf_sp);
 	printf("  lr: %16lx\n", frame->tf_lr);
 	printf(" elr: %16lx\n", frame->tf_elr);
-	printf("spsr: %16lx\n", frame->tf_spsr);
+	printf("spsr:         %8x\n", frame->tf_spsr);
 }
 
 void
@@ -267,7 +267,7 @@ do_el1h_sync(struct trapframe *frame)
 	uint64_t esr, far;
 
 	/* Read the esr register to get the exception details */
-	esr = READ_SPECIALREG(esr_el1);
+	esr = frame->tf_esr;
 	exception = ESR_ELx_EXCEPTION(esr);
 
 #ifdef KDTRACE_HOOKS
@@ -352,7 +352,7 @@ do_el0_sync(struct trapframe *frame)
 	td = curthread;
 	td->td_frame = frame;
 
-	esr = READ_SPECIALREG(esr_el1);
+	esr = frame->tf_esr;
 	exception = ESR_ELx_EXCEPTION(esr);
 	switch (exception) {
 	case EXCP_UNKNOWN:

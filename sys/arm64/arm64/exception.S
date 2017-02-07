@@ -56,10 +56,12 @@ __FBSDID("$FreeBSD$");
 	stp	x0,  x1,  [sp, #(TF_X + 0  * 8)]
 	mrs	x10, elr_el1
 	mrs	x11, spsr_el1
+	mrs	x12, esr_el1
 .if \el == 0
 	mrs	x18, sp_el0
 .endif
-	stp	x10, x11, [sp, #(TF_ELR)]
+	str	x10, [sp, #(TF_ELR)]
+	stp	w11, w12, [sp, #(TF_SPSR)]
 	stp	x18,  lr, [sp, #(TF_SP)]
 	mrs	x18, tpidr_el1
 	add	x29, sp, #(TF_SIZE)
