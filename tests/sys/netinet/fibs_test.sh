@@ -595,6 +595,61 @@ udp_dontroute_cleanup()
 	cleanup_tap
 }
 
+atf_test_case udp_dontroute6 cleanup
+udp_dontroute6_head()
+{
+	atf_set "descr" "Source address selection for UDP IPv6 packets with SO_DONTROUTE on non-default FIBs works"
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs"
+}
+
+udp_dontroute6_body()
+{
+	# Configure the TAP interface to use an RFC3849 nonrouteable address
+	# and a non-default fib
+	ADDR0="2001:db8::2"
+	ADDR1="2001:db8::3"
+	SUBNET="2001:db8::"
+	MASK="64"
+	# Use a different IP on the same subnet as the target
+	TARGET="2001:db8::100"
+	SRCDIR=`atf_get_srcdir`
+
+	atf_expect_fail "PR196361 IPv6 network routes don't respect net.add_addr_allfibs=0"
+
+	# Check system configuration
+	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
+		atf_skip "This test requires net.add_addr_allfibs=0"
+	fi
+	get_fibs 2
+
+	# Configure the TAP interfaces.  Use no_dad so the addresses will be
+	# ready right away and won't be marked as tentative until DAD
+	# completes.
+	setup_tap ${FIB0} inet6 ${ADDR0} ${MASK} no_dad
+	TARGET_TAP=${TAP}
+	setup_tap ${FIB1} inet6 ${ADDR1} ${MASK} no_dad
+
+	# Send a UDP packet with SO_DONTROUTE.  In the failure case, it will
+	# return ENETUNREACH, or send the packet to the wrong tap
+	atf_check -o ignore setfib ${FIB0} \
+		${SRCDIR}/udp_dontroute -6 ${TARGET} /dev/${TARGET_TAP}
+	cleanup_tap
+
+	# Repeat, but this time target the other tap
+	setup_tap ${FIB0} inet6 ${ADDR0} ${MASK} no_dad
+	setup_tap ${FIB1} inet6 ${ADDR1} ${MASK} no_dad
+	TARGET_TAP=${TAP}
+
+	atf_check -o ignore setfib ${FIB1} \
+		${SRCDIR}/udp_dontroute -6 ${TARGET} /dev/${TARGET_TAP}
+}
+
+udp_dontroute6_cleanup()
+{
+	cleanup_tap
+}
+
 
 atf_init_test_cases()
 {
@@ -609,6 +664,7 @@ atf_init_test_cases()
 	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet
 	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet_inet6
 	atf_add_test_case udp_dontroute
+	atf_add_test_case udp_dontroute6
 }
 
 # Looks up one or more fibs from the configuration data and validates them.
@@ -656,6 +712,7 @@ get_tap()
 # Protocol (inet or inet6)
 # IP address
 # Netmask in number of bits (eg 24 or 8)
+# Extra flags
 # Return: the tap interface name as the env variable TAP
 setup_tap()
 {
@@ -663,9 +720,10 @@ setup_tap()
 	local PROTO=$2
 	local ADDR=$3
 	local MASK=$4
+	local FLAGS=$5
 	get_tap
-	echo setfib ${FIB} ifconfig $TAP ${PROTO} ${ADDR}/${MASK} fib $FIB
-	setfib ${FIB} ifconfig $TAP ${PROTO} ${ADDR}/${MASK} fib $FIB
+	echo setfib ${FIB} ifconfig $TAP ${PROTO} ${ADDR}/${MASK} fib $FIB $FLAGS
+	setfib ${FIB} ifconfig $TAP ${PROTO} ${ADDR}/${MASK} fib $FIB $FLAGS
 }
 
 cleanup_tap()
