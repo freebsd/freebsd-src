@@ -202,9 +202,7 @@ extern struct lock_class lock_class_lockmgr;
 extern struct lock_class *lock_classes[];
 
 struct lock_delay_config {
-	u_int initial;
-	u_int step;
-	u_int min;
+	u_int base;
 	u_int max;
 };
 
@@ -215,19 +213,25 @@ struct lock_delay_arg {
 };
 
 static inline void
-lock_delay_arg_init(struct lock_delay_arg *la, struct lock_delay_config *lc) {
+lock_delay_arg_init(struct lock_delay_arg *la, struct lock_delay_config *lc)
+{
 	la->config = lc;
-	la->delay = 0;
+	la->delay = lc->base;
 	la->spin_cnt = 0;
 }
 
 #define	LOCK_DELAY_SYSINIT(func) \
 	SYSINIT(func##_ld, SI_SUB_LOCK, SI_ORDER_ANY, func, NULL)
 
+#define	LOCK_DELAY_SYSINIT_DEFAULT(lc) \
+	SYSINIT(lock_delay_##lc##_ld, SI_SUB_LOCK, SI_ORDER_ANY, \
+	    lock_delay_default_init, &lc)
+
 void	lock_init(struct lock_object *, struct lock_class *,
 	    const char *, const char *, int);
 void	lock_destroy(struct lock_object *);
 void	lock_delay(struct lock_delay_arg *);
+void	lock_delay_default_init(struct lock_delay_config *);
 void	spinlock_enter(void);
 void	spinlock_exit(void);
 void	witness_init(struct lock_object *, const char *);
