@@ -2469,8 +2469,8 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		SCTP_INP_INFO_WUNLOCK();
 		return (ENOBUFS);
 	}
-#ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->ip_inp.inp.inp_sp);
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	error = ipsec_init_pcbpolicy(&inp->ip_inp.inp);
 	if (error != 0) {
 		crfree(inp->ip_inp.inp.inp_cred);
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
@@ -2504,7 +2504,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EOPNOTSUPP);
 		so->so_pcb = NULL;
 		crfree(inp->ip_inp.inp.inp_cred);
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 		ipsec_delete_pcbpolicy(&inp->ip_inp.inp);
 #endif
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
@@ -2527,7 +2527,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, ENOBUFS);
 		so->so_pcb = NULL;
 		crfree(inp->ip_inp.inp.inp_cred);
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 		ipsec_delete_pcbpolicy(&inp->ip_inp.inp);
 #endif
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
@@ -3641,7 +3641,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	 * macro here since le_next will get freed as part of the
 	 * sctp_free_assoc() call.
 	 */
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	ipsec_delete_pcbpolicy(ip_pcb);
 #endif
 	if (ip_pcb->inp_options) {

@@ -2461,11 +2461,11 @@ vfs_refcount_acquire_if_not_zero(volatile u_int *count)
 {
 	u_int old;
 
+	old = *count;
 	for (;;) {
-		old = *count;
 		if (old == 0)
 			return (0);
-		if (atomic_cmpset_int(count, old, old + 1))
+		if (atomic_fcmpset_int(count, &old, old + 1))
 			return (1);
 	}
 }
@@ -2475,11 +2475,11 @@ vfs_refcount_release_if_not_last(volatile u_int *count)
 {
 	u_int old;
 
+	old = *count;
 	for (;;) {
-		old = *count;
 		if (old == 1)
 			return (0);
-		if (atomic_cmpset_int(count, old, old - 1))
+		if (atomic_fcmpset_int(count, &old, old - 1))
 			return (1);
 	}
 }

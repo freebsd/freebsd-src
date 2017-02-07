@@ -120,10 +120,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/udp6_var.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -157,11 +154,13 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 		INP_RLOCK(inp);
 		return (in_pcbrele_rlocked(inp));
 	}
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/* Check AH/ESP integrity. */
-	if (ipsec6_in_reject(n, inp)) {
-		m_freem(n);
-		return (0);
+	if (IPSEC_ENABLED(ipv6)) {
+		if (IPSEC_CHECK_POLICY(ipv6, n, inp) != 0) {
+			m_freem(n);
+			return (0);
+		}
 	}
 #endif /* IPSEC */
 #ifdef MAC

@@ -297,6 +297,16 @@
 #define IWM_CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
 #define IWM_CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
 
+/**
+ *  hw_rev values
+ */
+enum {
+	IWM_SILICON_A_STEP = 0,
+	IWM_SILICON_B_STEP,
+	IWM_SILICON_C_STEP,
+};
+
+
 #define IWM_CSR_HW_REV_TYPE_MSK		(0x000FFF0)
 #define IWM_CSR_HW_REV_TYPE_5300	(0x0000020)
 #define IWM_CSR_HW_REV_TYPE_5350	(0x0000030)
@@ -877,6 +887,28 @@ struct iwm_fw_cipher_scheme {
 	uint8_t mic_len;
 	uint8_t hw_cipher;
 } __packed;
+
+/*
+ * Block paging calculations
+ */
+#define IWM_PAGE_2_EXP_SIZE 12 /* 4K == 2^12 */
+#define IWM_FW_PAGING_SIZE (1 << IWM_PAGE_2_EXP_SIZE) /* page size is 4KB */
+#define IWM_PAGE_PER_GROUP_2_EXP_SIZE 3
+/* 8 pages per group */
+#define IWM_NUM_OF_PAGE_PER_GROUP (1 << IWM_PAGE_PER_GROUP_2_EXP_SIZE)
+/* don't change, support only 32KB size */
+#define IWM_PAGING_BLOCK_SIZE (IWM_NUM_OF_PAGE_PER_GROUP * IWM_FW_PAGING_SIZE)
+/* 32K == 2^15 */
+#define IWM_BLOCK_2_EXP_SIZE (IWM_PAGE_2_EXP_SIZE + IWM_PAGE_PER_GROUP_2_EXP_SIZE)
+
+/*
+ * Image paging calculations
+ */
+#define IWM_BLOCK_PER_IMAGE_2_EXP_SIZE 5
+/* 2^5 == 32 blocks per image */
+#define IWM_NUM_OF_BLOCK_PER_IMAGE (1 << IWM_BLOCK_PER_IMAGE_2_EXP_SIZE)
+/* maximum image size 1024KB */
+#define IWM_MAX_PAGING_IMAGE_SIZE (IWM_NUM_OF_BLOCK_PER_IMAGE * IWM_PAGING_BLOCK_SIZE)
 
 /**
  * struct iwm_fw_cscheme_list - a cipher scheme list
@@ -2003,45 +2035,6 @@ struct iwm_phy_cfg_cmd {
 #define IWM_PHY_CFG_RX_CHAIN_B	(1 << 13)
 #define IWM_PHY_CFG_RX_CHAIN_C	(1 << 14)
 
-/*
- * PHY db
- */
-
-enum iwm_phy_db_section_type {
-	IWM_PHY_DB_CFG = 1,
-	IWM_PHY_DB_CALIB_NCH,
-	IWM_PHY_DB_UNUSED,
-	IWM_PHY_DB_CALIB_CHG_PAPD,
-	IWM_PHY_DB_CALIB_CHG_TXP,
-	IWM_PHY_DB_MAX
-};
-
-#define IWM_PHY_DB_CMD 0x6c /* TEMP API - The actual is 0x8c */
-
-/*
- * phy db - configure operational ucode
- */
-struct iwm_phy_db_cmd {
-	uint16_t type;
-	uint16_t length;
-	uint8_t data[];
-} __packed;
-
-/* for parsing of tx power channel group data that comes from the firmware */
-struct iwm_phy_db_chg_txp {
-	uint32_t space;
-	uint16_t max_channel_idx;
-} __packed;
-
-/*
- * phy db - Receive phy db chunk after calibrations
- */
-struct iwm_calib_res_notif_phy_db {
-	uint16_t type;
-	uint16_t length;
-	uint8_t data[];
-} __packed;
-
 
 /* Target of the IWM_NVM_ACCESS_CMD */
 enum {
@@ -2052,18 +2045,13 @@ enum {
 
 /* Section types for IWM_NVM_ACCESS_CMD */
 enum {
-	IWM_NVM_SECTION_TYPE_HW = 0,
-	IWM_NVM_SECTION_TYPE_SW,
-	IWM_NVM_SECTION_TYPE_PAPD,
-	IWM_NVM_SECTION_TYPE_REGULATORY,
-	IWM_NVM_SECTION_TYPE_CALIBRATION,
-	IWM_NVM_SECTION_TYPE_PRODUCTION,
-	IWM_NVM_SECTION_TYPE_POST_FCS_CALIB,
-	/* 7, 8, 9 unknown */
-	IWM_NVM_SECTION_TYPE_HW_8000 = 10,
-	IWM_NVM_SECTION_TYPE_MAC_OVERRIDE,
-	IWM_NVM_SECTION_TYPE_PHY_SKU,
-	IWM_NVM_NUM_OF_SECTIONS,
+	IWM_NVM_SECTION_TYPE_SW = 1,
+	IWM_NVM_SECTION_TYPE_REGULATORY = 3,
+	IWM_NVM_SECTION_TYPE_CALIBRATION = 4,
+	IWM_NVM_SECTION_TYPE_PRODUCTION = 5,
+	IWM_NVM_SECTION_TYPE_MAC_OVERRIDE = 11,
+	IWM_NVM_SECTION_TYPE_PHY_SKU = 12,
+	IWM_NVM_MAX_NUM_SECTIONS = 13,
 };
 
 /**

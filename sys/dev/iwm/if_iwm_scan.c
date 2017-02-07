@@ -172,7 +172,7 @@ iwm_mvm_scan_rx_chain(struct iwm_softc *sc)
 	uint16_t rx_chain;
 	uint8_t rx_ant;
 
-	rx_ant = iwm_fw_valid_rx_ant(sc);
+	rx_ant = iwm_mvm_get_valid_rx_ant(sc);
 	rx_chain = rx_ant << IWM_PHY_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << IWM_PHY_RX_CHAIN_FORCE_MIMO_SEL_POS;
 	rx_chain |= rx_ant << IWM_PHY_RX_CHAIN_FORCE_SEL_POS;
@@ -209,7 +209,7 @@ iwm_mvm_scan_rate_n_flags(struct iwm_softc *sc, int flags, int no_cck)
 	for (i = 0, ind = sc->sc_scan_last_antenna;
 	    i < IWM_RATE_MCS_ANT_NUM; i++) {
 		ind = (ind + 1) % IWM_RATE_MCS_ANT_NUM;
-		if (iwm_fw_valid_tx_ant(sc) & (1 << ind)) {
+		if (iwm_mvm_get_valid_tx_ant(sc) & (1 << ind)) {
 			sc->sc_scan_last_antenna = ind;
 			break;
 		}
@@ -407,7 +407,7 @@ iwm_mvm_fill_probe_req(struct iwm_softc *sc, struct iwm_scan_probe_req *preq)
 		remain -= 3;
 	}
 
-	if (sc->sc_nvm.sku_cap_band_52GHz_enable) {
+	if (sc->nvm_data->sku_cap_band_52GHz_enable) {
 		/* Fill in 5GHz IEs. */
 		rs = &ic->ic_sup_rates[IEEE80211_MODE_11A];
 		if (rs->rs_nrates > IEEE80211_RATE_SIZE) {
@@ -469,8 +469,8 @@ iwm_mvm_config_umac_scan(struct iwm_softc *sc)
 	if (scan_config == NULL)
 		return ENOMEM;
 
-	scan_config->tx_chains = htole32(iwm_fw_valid_tx_ant(sc));
-	scan_config->rx_chains = htole32(iwm_fw_valid_rx_ant(sc));
+	scan_config->tx_chains = htole32(iwm_mvm_get_valid_tx_ant(sc));
+	scan_config->rx_chains = htole32(iwm_mvm_get_valid_rx_ant(sc));
 	scan_config->legacy_rates = htole32(rates |
 	    IWM_SCAN_CONFIG_SUPPORTED_RATE(rates));
 
@@ -674,7 +674,7 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 		req->scan_flags |= htole32(IWM_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
 
 	req->flags = htole32(IWM_PHY_BAND_24);
-	if (sc->sc_nvm.sku_cap_band_52GHz_enable)
+	if (sc->nvm_data->sku_cap_band_52GHz_enable)
 		req->flags |= htole32(IWM_PHY_BAND_5);
 	req->filter_flags =
 	    htole32(IWM_MAC_FILTER_ACCEPT_GRP | IWM_MAC_FILTER_IN_BEACON);
