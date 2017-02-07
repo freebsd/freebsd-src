@@ -79,17 +79,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
 #include <sys/queue.h>
-#include <sys/uio.h>
-#include <sys/un.h>
-#include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/syslimits.h>
+#include <sys/uio.h>
+#include <sys/wait.h>
+#include <sys/time.h>
+#include <sys/un.h>
 
-#if defined(INET) || defined(INET6) 
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif
