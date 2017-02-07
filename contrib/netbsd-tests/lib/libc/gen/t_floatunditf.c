@@ -119,6 +119,11 @@ ATF_TC_BODY(floatunditf, tc)
 #else
 	size_t i;
 
+#if defined(__FreeBSD__) && defined(__i386__)
+	atf_tc_expect_fail("the floating point error on FreeBSD/i386 doesn't "
+	    "match the expected floating point error on NetBSD");
+#endif
+
 	for (i = 0; i < __arraycount(testcases); ++i)
 		ATF_CHECK_MSG(
 		    testcases[i].ld == (long double)testcases[i].u64,
