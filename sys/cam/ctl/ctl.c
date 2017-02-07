@@ -424,7 +424,7 @@ static void ctl_isc_event_handler(ctl_ha_channel chanel, ctl_ha_event event,
 static void ctl_copy_sense_data(union ctl_ha_msg *src, union ctl_io *dest);
 static void ctl_copy_sense_data_back(union ctl_io *src, union ctl_ha_msg *dest);
 static int ctl_init(void);
-void ctl_shutdown(void);
+static int ctl_shutdown(void);
 static int ctl_open(struct cdev *dev, int flags, int fmt, struct thread *td);
 static int ctl_close(struct cdev *dev, int flags, int fmt, struct thread *td);
 static void ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio);
@@ -520,6 +520,8 @@ static const struct ctl_cmd_entry *
     ctl_validate_command(struct ctl_scsiio *ctsio);
 static int ctl_cmd_applicable(uint8_t lun_type,
     const struct ctl_cmd_entry *entry);
+static int ctl_ha_init(void);
+static int ctl_ha_shutdown(void);
 
 static uint64_t ctl_get_prkey(struct ctl_lun *lun, uint32_t residx);
 static void ctl_clr_prkey(struct ctl_lun *lun, uint32_t residx);
@@ -561,6 +563,49 @@ MODULE_VERSION(ctl, 1);
 static struct ctl_frontend ha_frontend =
 {
 	.name = "ha",
+	.init = ctl_ha_init,
+	.shutdown = ctl_ha_shutdown,
+};
+
+static int
+ctl_ha_init(void)
+{
+	struct ctl_softc *softc = control_softc;
+
+	if (ctl_pool_create(softc, "othersc", CTL_POOL_ENTRIES_OTHER_SC,
+	                    &softc->othersc_pool) != 0)
+		return (ENOMEM);
+	if (ctl_ha_msg_init(softc) != CTL_HA_STATUS_SUCCESS) {
+		ctl_pool_free(softc->othersc_pool);
+		return (EIO);
+	}
+	if (ctl_ha_msg_register(CTL_HA_CHAN_CTL, ctl_isc_event_handler)
+	    != CTL_HA_STATUS_SUCCESS) {
+		ctl_ha_msg_destroy(softc);
+		ctl_pool_free(softc->othersc_pool);
+		return (EIO);
+	}
+	return (0);
+};
+
+static int
+ctl_ha_shutdown(void)
+{
+	struct ctl_softc *softc = control_softc;
+	struct ctl_port *port;
+
+	ctl_ha_msg_shutdown(softc);
+	if (ctl_ha_msg_deregister(CTL_HA_CHAN_CTL) != CTL_HA_STATUS_SUCCESS)
+		return (EIO);
+	if (ctl_ha_msg_destroy(softc) != CTL_HA_STATUS_SUCCESS)
+		return (EIO);
+	ctl_pool_free(softc->othersc_pool);
+	while ((port = STAILQ_FIRST(&ha_frontend.port_list)) != NULL) {
+		ctl_port_deregister(port);
+		free(port->port_name, M_CTL);
+		free(port, M_CTL);
+	}
+	return (0);
 };
 
 static void
@@ -1782,7 +1827,6 @@ ctl_init(void)
 {
 	struct make_dev_args args;
 	struct ctl_softc *softc;
-	void *other_pool;
 	int i, error;
 
 	softc = control_softc = malloc(sizeof(*control_softc), M_DEVBUF,
@@ -1855,15 +1899,6 @@ ctl_init(void)
 	STAILQ_INIT(&softc->be_list);
 	ctl_tpc_init(softc);
 
-	if (ctl_pool_create(softc, "othersc", CTL_POOL_ENTRIES_OTHER_SC,
-	                    &other_pool) != 0)
-	{
-		printf("ctl: can't allocate %d entry other SC pool, "
-		       "exiting\n", CTL_POOL_ENTRIES_OTHER_SC);
-		return (ENOMEM);
-	}
-	softc->othersc_pool = other_pool;
-
 	if (worker_threads <= 0)
 		worker_threads = max(1, mp_ncpus / 4);
 	if (worker_threads > CTL_MAX_THREADS)
@@ -1883,22 +1918,19 @@ ctl_init(void)
 		    &softc->ctl_proc, &thr->thread, 0, 0, "ctl", "work%d", i);
 		if (error != 0) {
 			printf("error creating CTL work thread!\n");
-			ctl_pool_free(other_pool);
 			return (error);
 		}
 	}
 	error = kproc_kthread_add(ctl_lun_thread, softc,
-	    &softc->ctl_proc, NULL, 0, 0, "ctl", "lun");
+	    &softc->ctl_proc, &softc->lun_thread, 0, 0, "ctl", "lun");
 	if (error != 0) {
 		printf("error creating CTL lun thread!\n");
-		ctl_pool_free(other_pool);
 		return (error);
 	}
 	error = kproc_kthread_add(ctl_thresh_thread, softc,
-	    &softc->ctl_proc, NULL, 0, 0, "ctl", "thresh");
+	    &softc->ctl_proc, &softc->thresh_thread, 0, 0, "ctl", "thresh");
 	if (error != 0) {
 		printf("error creating CTL threshold thread!\n");
-		ctl_pool_free(other_pool);
 		return (error);
 	}
 
@@ -1907,58 +1939,54 @@ ctl_init(void)
 	    softc, 0, ctl_ha_role_sysctl, "I", "HA role for this head");
 
 	if (softc->is_single == 0) {
-		ctl_frontend_register(&ha_frontend);
-		if (ctl_ha_msg_init(softc) != CTL_HA_STATUS_SUCCESS) {
-			printf("ctl_init: ctl_ha_msg_init failed.\n");
+		if (ctl_frontend_register(&ha_frontend) != 0)
 			softc->is_single = 1;
-		} else
-		if (ctl_ha_msg_register(CTL_HA_CHAN_CTL, ctl_isc_event_handler)
-		    != CTL_HA_STATUS_SUCCESS) {
-			printf("ctl_init: ctl_ha_msg_register failed.\n");
-			softc->is_single = 1;
-		}
 	}
 	return (0);
 }
 
-void
+static int
 ctl_shutdown(void)
 {
 	struct ctl_softc *softc = control_softc;
-	struct ctl_lun *lun, *next_lun;
+	int i;
 
-	if (softc->is_single == 0) {
-		ctl_ha_msg_shutdown(softc);
-		if (ctl_ha_msg_deregister(CTL_HA_CHAN_CTL)
-		    != CTL_HA_STATUS_SUCCESS)
-			printf("%s: ctl_ha_msg_deregister failed.\n", __func__);
-		if (ctl_ha_msg_destroy(softc) != CTL_HA_STATUS_SUCCESS)
-			printf("%s: ctl_ha_msg_destroy failed.\n", __func__);
+	if (softc->is_single == 0)
 		ctl_frontend_deregister(&ha_frontend);
+
+	destroy_dev(softc->dev);
+
+	/* Shutdown CTL threads. */
+	softc->shutdown = 1;
+	for (i = 0; i < worker_threads; i++) {
+		struct ctl_thread *thr = &softc->threads[i];
+		while (thr->thread != NULL) {
+			wakeup(thr);
+			if (thr->thread != NULL)
+				pause("CTL thr shutdown", 1);
+		}
+		mtx_destroy(&thr->queue_lock);
 	}
-
-	mtx_lock(&softc->ctl_lock);
-
-	STAILQ_FOREACH_SAFE(lun, &softc->lun_list, links, next_lun)
-		ctl_free_lun(lun);
-
-	mtx_unlock(&softc->ctl_lock);
-
-#if 0
-	ctl_shutdown_thread(softc->work_thread);
-	mtx_destroy(&softc->queue_lock);
-#endif
+	while (softc->lun_thread != NULL) {
+		wakeup(&softc->pending_lun_queue);
+		if (softc->lun_thread != NULL)
+			pause("CTL thr shutdown", 1);
+	}
+	while (softc->thresh_thread != NULL) {
+		wakeup(softc->thresh_thread);
+		if (softc->thresh_thread != NULL)
+			pause("CTL thr shutdown", 1);
+	}
 
 	ctl_tpc_shutdown(softc);
 	uma_zdestroy(softc->io_zone);
 	mtx_destroy(&softc->ctl_lock);
 
-	destroy_dev(softc->dev);
-
 	sysctl_ctx_free(&softc->sysctl_ctx);
 
 	free(softc, M_DEVBUF);
 	control_softc = NULL;
+	return (0);
 }
 
 static int
@@ -1969,7 +1997,7 @@ ctl_module_event_handler(module_t mod, int what, void *arg)
 	case MOD_LOAD:
 		return (ctl_init());
 	case MOD_UNLOAD:
-		return (EBUSY);
+		return (ctl_shutdown());
 	default:
 		return (EOPNOTSUPP);
 	}
@@ -13268,7 +13296,7 @@ ctl_work_thread(void *arg)
 
 	CTL_DEBUG_PRINT(("ctl_work_thread starting\n"));
 
-	for (;;) {
+	while (!softc->shutdown) {
 		/*
 		 * We handle the queues in this order:
 		 * - ISC
@@ -13318,6 +13346,8 @@ ctl_work_thread(void *arg)
 		/* Sleep until we have something to do. */
 		mtx_sleep(thr, &thr->queue_lock, PDROP | PRIBIO, "-", 0);
 	}
+	thr->thread = NULL;
+	kthread_exit();
 }
 
 static void
@@ -13328,7 +13358,7 @@ ctl_lun_thread(void *arg)
 
 	CTL_DEBUG_PRINT(("ctl_lun_thread starting\n"));
 
-	for (;;) {
+	while (!softc->shutdown) {
 		mtx_lock(&softc->ctl_lock);
 		be_lun = STAILQ_FIRST(&softc->pending_lun_queue);
 		if (be_lun != NULL) {
@@ -13342,6 +13372,8 @@ ctl_lun_thread(void *arg)
 		mtx_sleep(&softc->pending_lun_queue, &softc->ctl_lock,
 		    PDROP | PRIBIO, "-", 0);
 	}
+	softc->lun_thread = NULL;
+	kthread_exit();
 }
 
 static void
@@ -13357,7 +13389,7 @@ ctl_thresh_thread(void *arg)
 
 	CTL_DEBUG_PRINT(("ctl_thresh_thread starting\n"));
 
-	for (;;) {
+	while (!softc->shutdown) {
 		mtx_lock(&softc->ctl_lock);
 		STAILQ_FOREACH(lun, &softc->lun_list, links) {
 			if ((lun->flags & CTL_LUN_DISABLED) ||
@@ -13442,9 +13474,11 @@ ctl_thresh_thread(void *arg)
 				mtx_lock(&softc->ctl_lock);
 			}
 		}
-		mtx_unlock(&softc->ctl_lock);
-		pause("-", CTL_LBP_PERIOD * hz);
+		mtx_sleep(&softc->thresh_thread, &softc->ctl_lock,
+		    PDROP | PRIBIO, "-", CTL_LBP_PERIOD * hz);
 	}
+	softc->thresh_thread = NULL;
+	kthread_exit();
 }
 
 static void
