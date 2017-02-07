@@ -178,7 +178,7 @@ extern int YYPARSE_DECL();
 #define ID 257
 #define CONST 258
 #define YYERRCODE 256
-typedef short YYINT;
+typedef int YYINT;
 static const YYINT expr.oxout_lhs[] = {                  -1,
     2,    0,    1,    3,    3,    3,    3,    3,    3,    3,
 };
