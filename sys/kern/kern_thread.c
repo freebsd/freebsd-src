@@ -281,7 +281,7 @@ threadinit(void)
 
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
-	    MAX(16 - 1, UMA_ALIGN_PTR), UMA_ZONE_NOFREE);
+	    MAX(32 - 1, UMA_ALIGN_PTR), UMA_ZONE_NOFREE);
 	tidhashtbl = hashinit(maxproc / 2, M_TIDHASH, &tidhash);
 	rw_init(&tidhash_lock, "tidhash");
 }
