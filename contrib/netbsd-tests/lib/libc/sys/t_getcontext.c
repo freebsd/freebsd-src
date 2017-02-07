@@ -133,6 +133,9 @@ ATF_TC_BODY(setcontext_link, tc)
 		/* FreeBSD/mips only permits up to 6 arguments. */
 		makecontext(&uc[i], (void *)run, 6, i,
 			0, 1, 2, 3, 4);
+#else
+		makecontext(&uc[i], (void *)run, 10, i,
+			0, 1, 2, 3, 4, 5, 6, 7, 8);
 #endif
 #else
 		makecontext(&uc[i], (void *)run, 10, i,
