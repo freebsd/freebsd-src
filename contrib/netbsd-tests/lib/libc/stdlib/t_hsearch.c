@@ -337,6 +337,9 @@ ATF_TC_BODY(hsearch_r_nonexistent, tc)
 
 	REQUIRE_ERRNO(hcreate_r(16, &t));
 
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("behavior doesn't match docs; see bug # 216872");
+#endif
 	e.key = __UNCONST("A");
 	ATF_REQUIRE(hsearch_r(e, FIND, &ep, &t) == 1);
 	ATF_REQUIRE_EQ(ep, NULL);
