@@ -49,7 +49,7 @@ typedef enum {
 } ctl_port_status;
 
 typedef int (*fe_init_t)(void);
-typedef void (*fe_shutdown_t)(void);
+typedef int (*fe_shutdown_t)(void);
 typedef void (*port_func_t)(void *onoff_arg);
 typedef int (*port_info_func_t)(void *onoff_arg, struct sbuf *sb);
 typedef	int (*lun_func_t)(void *arg, int lun_id);
@@ -61,12 +61,13 @@ typedef int (*fe_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	{ \
 		switch (type) { \
 		case MOD_LOAD: \
-			ctl_frontend_register( \
-				(struct ctl_frontend *)data); \
+			return (ctl_frontend_register( \
+				(struct ctl_frontend *)data)); \
 			break; \
 		case MOD_UNLOAD: \
-			printf(#name " module unload - not possible for this module type\n"); \
-			return EINVAL; \
+			return (ctl_frontend_deregister( \
+				(struct ctl_frontend *)data)); \
+			break; \
 		default: \
 			return EOPNOTSUPP; \
 		} \

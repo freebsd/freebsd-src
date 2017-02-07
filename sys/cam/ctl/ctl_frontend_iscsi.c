@@ -144,7 +144,8 @@ SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, maxcmdsn_delta, CTLFLAG_RWTUN,
 #define	PDU_TOTAL_TRANSFER_LEN(X)	(X)->ip_prv1
 #define	PDU_R2TSN(X)			(X)->ip_prv2
 
-int		cfiscsi_init(void);
+static int	cfiscsi_init(void);
+static int	cfiscsi_shutdown(void);
 static void	cfiscsi_online(void *arg);
 static void	cfiscsi_offline(void *arg);
 static int	cfiscsi_info(void *arg, struct sbuf *sb);
@@ -182,6 +183,7 @@ static struct ctl_frontend cfiscsi_frontend =
 	.name = "iscsi",
 	.init = cfiscsi_init,
 	.ioctl = cfiscsi_ioctl,
+	.shutdown = cfiscsi_shutdown,
 };
 CTL_FRONTEND_DECLARE(ctlcfiscsi, cfiscsi_frontend);
 MODULE_DEPEND(ctlcfiscsi, icl, 1, 1, 1);
@@ -1321,7 +1323,7 @@ cfiscsi_session_delete(struct cfiscsi_session *cs)
 	free(cs, M_CFISCSI);
 }
 
-int
+static int
 cfiscsi_init(void)
 {
 	struct cfiscsi_softc *softc;
@@ -1341,6 +1343,23 @@ cfiscsi_init(void)
 	    sizeof(struct cfiscsi_data_wait), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 
+	return (0);
+}
+
+static int
+cfiscsi_shutdown(void)
+{
+	struct cfiscsi_softc *softc = &cfiscsi_softc;
+
+	if (!TAILQ_EMPTY(&softc->sessions) || !TAILQ_EMPTY(&softc->targets))
+		return (EBUSY);
+
+	uma_zdestroy(cfiscsi_data_wait_zone);
+#ifdef ICL_KERNEL_PROXY
+	cv_destroy(&softc->accept_cv);
+#endif
+	cv_destroy(&softc->sessions_cv);
+	mtx_destroy(&softc->lock);
 	return (0);
 }
 
