@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2015
+.Dd February 6, 2017
 .Dt HCREATE 3
 .Os
 .Sh NAME
@@ -265,9 +265,9 @@ main(void)
 .Ed
 .Sh ERRORS
 The
-.Fn hcreate
+.Fn hcreate ,
 .Fn hcreate_r ,
-.Fn hsearch
+.Fn hsearch ,
 and
 .Fn hsearch_r
 functions will fail if:
@@ -281,7 +281,7 @@ The
 and
 .Fn hsearch_r
 functions will also fail if the action is
-.Dv SEARCH
+.Dv FIND
 and the element is not found:
 .Bl -tag -width Er
 .It Bq Er ESRCH
