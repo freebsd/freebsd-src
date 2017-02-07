@@ -51,6 +51,11 @@ volatile long double y = 1;
 
 ATF_TC_BODY(t_precision, tc)
 {
+#ifdef	__FreeBSD__
+#ifdef	__i386__
+	atf_tc_expect_fail("the __HAVE_LONG_DOUBLE checks fail on i386");
+#endif
+#endif
 	x += DBL_EPSILON;
 	ATF_CHECK(x != 1.0);
 	x -= 1;
@@ -73,11 +78,6 @@ ATF_TC_BODY(t_precision, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-#ifdef	__FreeBSD__
-#ifdef	__i386__
-	atf_tc_expect_fail("the __HAVE_LONG_DOUBLE checks fail on i386");
-#endif
-#endif
 	ATF_TP_ADD_TC(tp, t_precision);
 
 	return atf_no_error();
