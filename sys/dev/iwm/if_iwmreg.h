@@ -1949,6 +1949,25 @@ enum {
 	IWM_REPLY_MAX = 0xff,
 };
 
+enum iwm_phy_ops_subcmd_ids {
+	IWM_CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+	IWM_CTDP_CONFIG_CMD = 0x03,
+	IWM_TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
+	IWM_CT_KILL_NOTIFICATION = 0xFE,
+	IWM_DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
+};
+
+/* command groups */
+enum {
+	IWM_LEGACY_GROUP = 0x0,
+	IWM_LONG_GROUP = 0x1,
+	IWM_SYSTEM_GROUP = 0x2,
+	IWM_MAC_CONF_GROUP = 0x3,
+	IWM_PHY_OPS_GROUP = 0x4,
+	IWM_DATA_PATH_GROUP = 0x5,
+	IWM_PROT_OFFLOAD_GROUP = 0xb,
+};
+
 /**
  * struct iwm_cmd_response - generic response struct for most commands
  * @status: status of the command asked, changes for each one
