@@ -1,4 +1,4 @@
-/* $NetBSD: t_wait.c,v 1.7 2016/11/06 15:04:14 kamil Exp $ */
+/* $NetBSD: t_wait.c,v 1.8 2017/01/13 19:28:55 christos Exp $ */
 
 /*-
  * Copyright (c) 2016 The NetBSD Foundation, Inc.
@@ -29,24 +29,21 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_wait.c,v 1.7 2016/11/06 15:04:14 kamil Exp $");
+__RCSID("$NetBSD: t_wait.c,v 1.8 2017/01/13 19:28:55 christos Exp $");
 
 #include <sys/wait.h>
 #include <sys/resource.h>
 
-#include <stdio.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 #include <atf-c.h>
-
-#ifdef __FreeBSD__
-#define	wrusage	__wrusage
-#endif
 
 ATF_TC(wait6_invalid);
 ATF_TC_HEAD(wait6_invalid, tc)

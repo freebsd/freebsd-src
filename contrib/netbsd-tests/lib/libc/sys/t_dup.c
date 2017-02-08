@@ -1,4 +1,4 @@
-/* $NetBSD: t_dup.c,v 1.8 2012/03/18 07:00:51 jruoho Exp $ */
+/* $NetBSD: t_dup.c,v 1.9 2017/01/13 20:31:53 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_dup.c,v 1.8 2012/03/18 07:00:51 jruoho Exp $");
+__RCSID("$NetBSD: t_dup.c,v 1.9 2017/01/13 20:31:53 christos Exp $");
 
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -39,15 +39,12 @@ __RCSID("$NetBSD: t_dup.c,v 1.8 2012/03/18 07:00:51 jruoho Exp $");
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sysexits.h>
-
-#ifdef __FreeBSD__
-#include <stdbool.h>
-#endif
 
 static char	path[] = "dup";
 #ifdef __NetBSD__

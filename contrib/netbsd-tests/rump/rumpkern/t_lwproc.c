@@ -1,4 +1,4 @@
-/*	$NetBSD: t_lwproc.c,v 1.8 2017/01/10 22:36:29 christos Exp $	*/
+/*	$NetBSD: t_lwproc.c,v 1.9 2017/01/13 21:30:43 christos Exp $	*/
 
 /*
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -44,7 +44,7 @@
 #include <unistd.h>
 #include <util.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(makelwp);
 ATF_TC_HEAD(makelwp, tc)
