@@ -1,4 +1,4 @@
-/*	$NetBSD: t_snapshot_v2.c,v 1.2 2013/02/06 09:05:01 hannken Exp $	*/
+/*	$NetBSD: t_snapshot_v2.c,v 1.3 2017/01/13 21:30:39 christos Exp $	*/
 
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -15,7 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define IMGNAME "ffs.img"
 #define NEWFS "newfs -F -s 10000 -O 2 " IMGNAME

@@ -1,4 +1,4 @@
-/* $NetBSD: t_sigqueue.c,v 1.6 2016/08/04 06:43:43 christos Exp $ */
+/* $NetBSD: t_sigqueue.c,v 1.7 2017/01/13 20:44:10 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -30,19 +30,16 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_sigqueue.c,v 1.6 2016/08/04 06:43:43 christos Exp $");
+__RCSID("$NetBSD: t_sigqueue.c,v 1.7 2017/01/13 20:44:10 christos Exp $");
 
 #include <atf-c.h>
+#include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sched.h>
 #include <unistd.h>
-
-#ifdef __FreeBSD__
-#include <err.h>
-#include <stdio.h>
-#endif
 
 static void	handler(int, siginfo_t *, void *);
 
@@ -50,11 +47,7 @@ static void	handler(int, siginfo_t *, void *);
 static int value;
 
 static void
-#ifdef __FreeBSD__
-handler(int signo __unused, siginfo_t *info __unused, void *data __unused)
-#else
-handler(int signo, siginfo_t *info, void *data)
-#endif
+handler(int signo __unused, siginfo_t *info, void *data __unused)
 {
 	value = info->si_value.sival_int;
 	kill(0, SIGINFO);
@@ -123,12 +116,10 @@ static sig_atomic_t count = 0;
 static int delivered[CNT];
 
 static void
-myhandler(int signo, siginfo_t *info, void *context)
+myhandler(int signo, siginfo_t *info, void *context __unused)
 {
 	delivered[count++] = signo;
-#ifdef __FreeBSD__
 	printf("Signal #%zu: signo: %d\n", (size_t)count, signo);
-#endif
 }
 
 static int
@@ -213,12 +204,8 @@ ATF_TC_BODY(sigqueue_rt, tc)
 	sigset_t mask, orig;
 	sigemptyset(&mask);
 	for (size_t i = 0; i < CNT; i++)
-#ifdef __FreeBSD__
 		if (sigaddset(&mask, signals[i]) == -1)
 			warn("sigaddset");
-#else
-		sigaddset(&mask, signals[i]);
-#endif
 
 	ATF_REQUIRE(sigprocmask(SIG_BLOCK, &mask, &orig) != -1);
 	
@@ -227,23 +214,16 @@ ATF_TC_BODY(sigqueue_rt, tc)
 	
 	ATF_REQUIRE(sigprocmask(SIG_UNBLOCK, &mask, &orig) != -1);
 	sleep(1);
-#ifdef __FreeBSD__
 	ATF_CHECK_MSG((size_t)count == ndelivered,
 	    "count %zu != ndelivered %zu", (size_t)count, ndelivered);
-#else
-	ATF_REQUIRE_MSG((size_t)count == ndelivered,
-	    "count %zu != ndelivered %zu", (size_t)count, ndelivered);
-#endif
 	for (size_t i = 0; i < ndelivered; i++)
 		ATF_REQUIRE_MSG(ordered[i] == delivered[i],
 		    "%zu: ordered %d != delivered %d",
 		    i, ordered[i], delivered[i]);
 
-#ifdef __FreeBSD__
-	if (count > ndelivered)
-		for (size_t i = ndelivered; i < count; i++)
+	if ((size_t)count > ndelivered)
+		for (size_t i = ndelivered; i < (size_t)count; i++)
 			printf("Undelivered signal #%zu: %d\n", i, ordered[i]);
-#endif
 
 	for (size_t i = 0; i < ndelivered; i++)
 		ATF_REQUIRE(sigaction(signals[i], &oact[i], NULL) != -1);

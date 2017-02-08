@@ -1,4 +1,4 @@
-/* $NetBSD: t_sem.c,v 1.2 2010/11/08 13:05:49 njoly Exp $ */
+/* $NetBSD: t_sem.c,v 1.3 2017/01/14 20:58:20 christos Exp $ */
 
 /*
  * Copyright (c) 2008, 2010 The NetBSD Foundation, Inc.
@@ -58,7 +58,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008, 2010\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_sem.c,v 1.2 2010/11/08 13:05:49 njoly Exp $");
+__RCSID("$NetBSD: t_sem.c,v 1.3 2017/01/14 20:58:20 christos Exp $");
 
 #include <sys/wait.h>
 
@@ -72,7 +72,7 @@ __RCSID("$NetBSD: t_sem.c,v 1.2 2010/11/08 13:05:49 njoly Exp $");
 
 #define NCHILDREN 10
 
-ATF_TC(basic);
+ATF_TC_WITH_CLEANUP(basic);
 ATF_TC_HEAD(basic, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Checks basic functionality of POSIX "
@@ -86,9 +86,6 @@ ATF_TC_BODY(basic, tc)
 	if (sysconf(_SC_SEMAPHORES) == -1)
 		atf_tc_skip("POSIX semaphores not supported");
 
-#ifdef __FreeBSD__
-	sem_unlink("/sem_b");
-#endif
 	sem_b = sem_open("/sem_b", O_CREAT | O_EXCL, 0644, 0);
 	ATF_REQUIRE(sem_b != SEM_FAILED);
 
@@ -111,8 +108,12 @@ ATF_TC_BODY(basic, tc)
 	ATF_REQUIRE_EQ(sem_close(sem_b), 0);
 	ATF_REQUIRE_EQ(sem_unlink("/sem_b"), 0);
 }
+ATF_TC_CLEANUP(basic, tc)
+{
+	(void)sem_unlink("/sem_b");
+}
 
-ATF_TC(child);
+ATF_TC_WITH_CLEANUP(child);
 ATF_TC_HEAD(child, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Checks using semaphores to synchronize "
@@ -127,12 +128,9 @@ ATF_TC_BODY(child, tc)
 
 	pid_t pid;
 
-	if (sysconf(_SC_SEMAPHORES) == -1)         
+	if (sysconf(_SC_SEMAPHORES) == -1)
 		atf_tc_skip("POSIX semaphores not supported");
 
-#ifdef __FreeBSD__
-	sem_unlink("/sem_a");
-#endif
 	sem_a = sem_open("/sem_a", O_CREAT | O_EXCL, 0644, 0);
 	ATF_REQUIRE(sem_a != SEM_FAILED);
 
@@ -169,6 +167,10 @@ ATF_TC_BODY(child, tc)
 
 	ATF_REQUIRE_EQ(sem_close(sem_a), 0);
 	ATF_REQUIRE_EQ(sem_unlink("/sem_a"), 0);
+}
+ATF_TC_CLEANUP(child, tc)
+{
+	(void)sem_unlink("/sem_a");
 }
 
 ATF_TP_ADD_TCS(tp)
