@@ -224,12 +224,12 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     caddr_t			p_buf;
     uint32_t			*marker;
 
-    marker = (uint32_t *)(bc->bcache_data + bc->bcache_nblks * bcache_blksize);
-
     if (bc == NULL) {
 	errno = ENODEV;
 	return (-1);
     }
+
+    marker = (uint32_t *)(bc->bcache_data + bc->bcache_nblks * bcache_blksize);
 
     if (rsize != NULL)
 	*rsize = 0;
@@ -290,10 +290,9 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
      * And secondly, this way we get the most conservative setup for the ra.
      *
      * The selection of multiple of 16 blocks (8KB) is quite arbitrary, however,
-     * we want to have the CD (2K) and the 4K disks to be covered.
-     * Also, as we have 32 blocks to be allocated as the fallback value in the
-     * bcache_allocate(), the 16 ra blocks will allow the read ahead
-     * to be used even with bcache this small.
+     * we want to cover CDs (2K) and 4K disks.
+     * bcache_allocate() will always fall back to a minimum of 32 blocks.
+     * Our choice of 16 read ahead blocks will always fit inside the bcache.
      */
 
     ra = bc->bcache_nblks - BHASH(bc, p_blk + p_size);
