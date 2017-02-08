@@ -390,7 +390,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 struct getfsstat_args {
 	struct statfs *buf;
 	long bufsize;
-	int flags;
+	int mode;
 };
 #endif
 int
@@ -399,7 +399,7 @@ sys_getfsstat(td, uap)
 	register struct getfsstat_args /* {
 		struct statfs *buf;
 		long bufsize;
-		int flags;
+		int mode;
 	} */ *uap;
 {
 	size_t count;
@@ -408,7 +408,7 @@ sys_getfsstat(td, uap)
 	if (uap->bufsize < 0 || uap->bufsize > SIZE_MAX)
 		return (EINVAL);
 	error = kern_getfsstat(td, &uap->buf, uap->bufsize, &count,
-	    UIO_USERSPACE, uap->flags);
+	    UIO_USERSPACE, uap->mode);
 	if (error == 0)
 		td->td_retval[0] = count;
 	return (error);
@@ -421,13 +421,20 @@ sys_getfsstat(td, uap)
  */
 int
 kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
-    size_t *countp, enum uio_seg bufseg, int flags)
+    size_t *countp, enum uio_seg bufseg, int mode)
 {
 	struct mount *mp, *nmp;
 	struct statfs *sfsp, *sp, *sptmp, *tofree;
 	size_t count, maxcount;
 	int error;
 
+	switch (mode) {
+	case MNT_WAIT:
+	case MNT_NOWAIT:
+		break;
+	default:
+		return (EINVAL);
+	}
 restart:
 	maxcount = bufsize / sizeof(struct statfs);
 	if (bufsize == 0) {
@@ -461,7 +468,7 @@ restart:
 			continue;
 		}
 #endif
-		if (flags == MNT_WAIT) {
+		if (mode == MNT_WAIT) {
 			if (vfs_busy(mp, MBF_MNTLSTLOCK) != 0) {
 				/*
 				 * If vfs_busy() failed, and MBF_NOWAIT
@@ -490,10 +497,10 @@ restart:
 			sp->f_namemax = NAME_MAX;
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 			/*
-			 * If MNT_NOWAIT or MNT_LAZY is specified, do not
-			 * refresh the fsstat cache.
+			 * If MNT_NOWAIT is specified, do not refresh
+			 * the fsstat cache.
 			 */
-			if (flags != MNT_LAZY && flags != MNT_NOWAIT) {
+			if (mode != MNT_NOWAIT) {
 				error = VFS_STATFS(mp, sp);
 				if (error != 0) {
 					mtx_lock(&mountlist_mtx);
@@ -609,7 +616,7 @@ freebsd4_fstatfs(td, uap)
 struct freebsd4_getfsstat_args {
 	struct ostatfs *buf;
 	long bufsize;
-	int flags;
+	int mode;
 };
 #endif
 int
@@ -618,7 +625,7 @@ freebsd4_getfsstat(td, uap)
 	register struct freebsd4_getfsstat_args /* {
 		struct ostatfs *buf;
 		long bufsize;
-		int flags;
+		int mode;
 	} */ *uap;
 {
 	struct statfs *buf, *sp;
@@ -633,7 +640,7 @@ freebsd4_getfsstat(td, uap)
 		return (EINVAL);
 	size = count * sizeof(struct statfs);
 	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE,
-	    uap->flags);
+	    uap->mode);
 	td->td_retval[0] = count;
 	if (size != 0) {
 		sp = buf;
