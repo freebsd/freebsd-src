@@ -416,15 +416,14 @@ sed -e '
 			# here in awk, so punt and let the compiler remove
 			# the branches that can not happen.
 			printf("\t\t\tsize_t reqlen;\n") > cheriabi_fill_uap
-			printf("\t\t\tif (sizeof(uap->%s) == 2)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\tif (sizeof(*uap->%s) == 2)\n", pdep) > cheriabi_fill_uap
 			printf("\t\t\t\treqlen = fuword16(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\t\telse if (sizeof(uap->%s) == 4)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\telse if (sizeof(*uap->%s) == 4)\n", pdep) > cheriabi_fill_uap
 			printf("\t\t\t\treqlen = fuword32(uap->%s);\n", pdep) > cheriabi_fill_uap
-			printf("\t\t\telse if (sizeof(uap->%s) == 8)\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\telse if (sizeof(*uap->%s) == 8)\n", pdep) > cheriabi_fill_uap
 			printf("\t\t\t\treqlen = fuword64(uap->%s);\n", pdep) > cheriabi_fill_uap
 			printf("\t\t\telse\n") > cheriabi_fill_uap
-			printf("\t\t\t\tpanic(\"unhandled dependant argument size %%zu\", sizeof(uap->%s));\n", pdep) > cheriabi_fill_uap
-			printf("\t\t\treqlen = fuword(uap->%s);\n", pdep) > cheriabi_fill_uap
+			printf("\t\t\t\tpanic(\"unhandled dependant argument size %%zu\", sizeof(*uap->%s));\n", pdep) > cheriabi_fill_uap
 			printf("\t\t\tif (reqlen == -1)\n\t\t\t\treturn (EINVAL);\n") > cheriabi_fill_uap
 			if (annotation ~ /_bytes_/)
 				reqspace = "reqlen"
