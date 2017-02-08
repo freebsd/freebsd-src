@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2014
+.Dd February 8, 2017
 .Dt HEXDUMP 3
 .Os
 .Sh NAME
@@ -36,9 +36,10 @@
 .Nd "dump a block of bytes to standard out in hexadecimal form"
 .Sh SYNOPSIS
 .In libutil.h
-.In sys/sbuf.h
 .Ft void
 .Fn hexdump "void *ptr" "int length" "const char *hdr" "int flags"
+.In sys/types.h
+.In sys/sbuf.h
 .Ft void
 .Fo sbuf_hexdump
 .Fa "struct sbuf *sb"
