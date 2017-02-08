@@ -1939,7 +1939,7 @@ iwm8000Cfw.fwo			optional iwm8000Cfw | iwmfw		\
 	no-implicit-rule						\
 	clean		"iwm8000Cfw.fwo"
 iwm8000C.fw			optional iwm8000Cfw | iwmfw		\
-	dependency	"$S/contrib/dev/iwm/iwm-8000C-17.fw.uu" \
+	dependency	"$S/contrib/dev/iwm/iwm-8000C-16.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm8000C.fw"
