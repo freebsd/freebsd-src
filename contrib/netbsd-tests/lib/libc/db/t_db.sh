@@ -42,17 +42,9 @@ dict()
 	elif [ -f /usr/dict/words ]; then
 		echo /usr/dict/words
 	else
-		echo ""
 		atf_fail "no dictionary found"
 	fi
 }
-
-# Begin FreeBSD
-dict()
-{
-	echo /usr/share/dict/words
-}
-# End FreeBSD
 
 SEVEN_SEVEN="abcdefg|abcdefg|abcdefg|abcdefg|abcdefg|abcdefg|abcdefg"
 

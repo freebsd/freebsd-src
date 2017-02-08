@@ -1,4 +1,4 @@
-/*	$NetBSD: t_timer_create.c,v 1.4 2012/03/18 07:00:52 jruoho Exp $ */
+/*	$NetBSD: t_timer_create.c,v 1.5 2017/01/16 16:32:13 christos Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -38,11 +38,7 @@ static timer_t t;
 static bool fail = true;
 
 static void
-#ifdef __FreeBSD__
 timer_signal_handler(int signo, siginfo_t *si, void *osi __unused)
-#else
-timer_signal_handler(int signo, siginfo_t *si, void *osi)
-#endif
 {
 	timer_t *tp;
 

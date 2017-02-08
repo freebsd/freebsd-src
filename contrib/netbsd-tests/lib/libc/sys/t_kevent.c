@@ -45,15 +45,13 @@ __RCSID("$NetBSD: t_kevent.c,v 1.7 2015/02/05 13:55:37 isaki Exp $");
 #include <err.h>
 #ifdef __NetBSD__
 #include <sys/drvctlio.h>
+#else
+#define	DRVCTLDEV "/nonexistent"
 #endif
 #include <sys/event.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-
-#ifdef __FreeBSD__
-#define	DRVCTLDEV "/nonexistent"
-#endif
 
 ATF_TC(kevent_zerotimer);
 ATF_TC_HEAD(kevent_zerotimer, tc)
@@ -117,15 +115,9 @@ ATF_TC_BODY(kqueue_desc_passing, tc)
 		if (recvmsg(s[1], &m, 0) == -1)
 			err(1, "child: could not recvmsg");
 
-#ifdef __FreeBSD__
-		bcopy(CMSG_DATA(msg), &kq, sizeof(kq));
-		printf("child (pid %d): received kq fd %d\n", getpid(), kq);
-		_exit(0);
-#else
 		kq = *(int *)CMSG_DATA(msg);
 		printf("child (pid %d): received kq fd %d\n", getpid(), kq);
 		exit(0);
-#endif
 	}
 
 	close(s[1]);
@@ -133,17 +125,14 @@ ATF_TC_BODY(kqueue_desc_passing, tc)
 	iov.iov_base = &storage;
 	iov.iov_len = sizeof(int);
 
+#ifdef __FreeBSD__
+	msg = CMSG_FIRSTHDR(&m);
+#endif
 	msg->cmsg_level = SOL_SOCKET;
 	msg->cmsg_type = SCM_RIGHTS;
 	msg->cmsg_len = CMSG_LEN(sizeof(int));
 
-#ifdef __FreeBSD__
-	/* 
-	 * What is should have been
-	 *   bcopy(&s[0], CMSG_DATA(msg), sizeof(kq));
-	 */
-	bcopy(&kq, CMSG_DATA(msg), sizeof(kq));
-#else
+#ifdef __NetBSD__
 	*(int *)CMSG_DATA(msg) = kq;
 #endif
 
@@ -152,14 +141,8 @@ ATF_TC_BODY(kqueue_desc_passing, tc)
 
 	printf("parent (pid %d): sending kq fd %d\n", getpid(), kq);
 	if (sendmsg(s[0], &m, 0) == -1) {
-#ifdef __NetBSD__
 		ATF_REQUIRE_EQ_MSG(errno, EBADF, "errno is %d", errno);
 		atf_tc_skip("PR kern/46523");
-#endif
-#ifdef __FreeBSD__
-		ATF_REQUIRE_EQ_MSG(errno, EOPNOTSUPP, "errno is %d", errno);
-		close(s[0]);
-#endif
 	}
 
 	close(kq);

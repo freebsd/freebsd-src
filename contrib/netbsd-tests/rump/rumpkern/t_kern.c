@@ -1,4 +1,4 @@
-/*	$NetBSD: t_kern.c,v 1.3 2012/01/30 13:05:52 njoly Exp $	*/
+/*	$NetBSD: t_kern.c,v 1.4 2017/01/13 21:30:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../kernspace/kernspace.h"
 
 #define LOCKFUN(_name_, _descr_,_needld_, _expect_)			\

@@ -1,4 +1,4 @@
-/* $NetBSD: h_memset.c,v 1.1 2010/12/27 02:04:19 pgoyette Exp $ */
+/* $NetBSD: h_memset.c,v 1.2 2017/01/16 16:34:24 christos Exp $ */
 
 /*
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: h_memset.c,v 1.1 2010/12/27 02:04:19 pgoyette Exp $");
+__RCSID("$NetBSD: h_memset.c,v 1.2 2017/01/16 16:34:24 christos Exp $");
 
 #include <stdio.h>
 #include <string.h>
@@ -41,9 +41,5 @@ main(int argc, char *argv[])
 	char b[10];
 	size_t len =  atoi(argv[1]);
 	(void)memset(b, 0, len);
-#ifdef __FreeBSD__
 	return b[0]; /* keeps optimizer from zapping the call to memset() */
-#else
-	return 0;
-#endif
 }

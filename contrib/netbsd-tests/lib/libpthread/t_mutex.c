@@ -1,4 +1,4 @@
-/* $NetBSD: t_mutex.c,v 1.14 2016/10/31 23:51:20 christos Exp $ */
+/* $NetBSD: t_mutex.c,v 1.15 2017/01/16 16:23:41 christos Exp $ */
 
 /*
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -29,12 +29,10 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_mutex.c,v 1.14 2016/10/31 23:51:20 christos Exp $");
+__RCSID("$NetBSD: t_mutex.c,v 1.15 2017/01/16 16:23:41 christos Exp $");
 
-#ifdef __FreeBSD__
 #include <sys/time.h> /* For timespecadd */
 #include <inttypes.h> /* For UINT16_MAX */
-#endif
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -594,20 +592,16 @@ ATF_TC_BODY(mutexattr2, tc)
 	int min_prio = sched_get_priority_min(SCHED_FIFO);
 	for (int i = min_prio; i <= max_prio; i++) {
 		int prioceiling;
-#ifdef __FreeBSD__
 		int protocol;
 
 		PTHREAD_REQUIRE(pthread_mutexattr_getprotocol(&mattr,
 		    &protocol));
 
 		printf("priority: %d\nprotocol: %d\n", i, protocol);
-#endif
 		PTHREAD_REQUIRE(pthread_mutexattr_setprioceiling(&mattr, i));
 		PTHREAD_REQUIRE(pthread_mutexattr_getprioceiling(&mattr,
 		    &prioceiling));
-#ifdef __FreeBSD__
 		printf("prioceiling: %d\n", prioceiling);
-#endif
 		ATF_REQUIRE_EQ(i, prioceiling);
 	}
 }

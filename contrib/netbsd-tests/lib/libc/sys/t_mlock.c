@@ -32,7 +32,7 @@
 __RCSID("$NetBSD: t_mlock.c,v 1.6 2016/08/09 12:02:44 kre Exp $");
 
 #ifdef __FreeBSD__
-#include <sys/types.h>
+#include <sys/param.h> /* NetBSD requires sys/param.h for sysctl(3), unlike FreeBSD */
 #endif
 #include <sys/mman.h>
 #include <sys/resource.h>
