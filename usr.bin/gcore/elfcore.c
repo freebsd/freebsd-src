@@ -434,7 +434,7 @@ elf_puthdr(int efd, pid_t pid, vm_map_entry_t map, void *hdr, size_t hdrsize,
 		err(1, "Failed to re-read ELF header");
 	else if (cnt != sizeof(binhdr))
 		errx(1, "Failed to re-read ELF header");
-	
+
 	ehdr = (Elf_Ehdr *)hdr;
 
 	ehdr->e_ident[EI_MAG0] = ELFMAG0;
