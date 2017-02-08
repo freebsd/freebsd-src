@@ -127,6 +127,15 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 	},
 
 	{
+		.bt_name      = "elf32-powerpc-freebsd",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2MSB,
+		.bt_elfclass  = ELFCLASS32,
+		.bt_machine   = EM_PPC,
+		.bt_osabi     = ELFOSABI_FREEBSD,
+	},
+
+	{
 		.bt_name      = "elf32-powerpcle",
 		.bt_type      = ETF_ELF,
 		.bt_byteorder = ELFDATA2LSB,
@@ -287,6 +296,15 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 		.bt_byteorder = ELFDATA2MSB,
 		.bt_elfclass  = ELFCLASS64,
 		.bt_machine   = EM_PPC64,
+	},
+
+	{
+		.bt_name      = "elf64-powerpc-freebsd",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2MSB,
+		.bt_elfclass  = ELFCLASS64,
+		.bt_machine   = EM_PPC64,
+		.bt_osabi     = ELFOSABI_FREEBSD,
 	},
 
 	{
