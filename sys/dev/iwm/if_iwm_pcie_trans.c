@@ -572,10 +572,14 @@ iwm_set_pwr(struct iwm_softc *sc)
 int
 iwm_pcie_rx_stop(struct iwm_softc *sc)
 {
-
-	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	return (iwm_poll_bit(sc, IWM_FH_MEM_RSSR_RX_STATUS_REG,
-	    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
-	    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
-	    1000));
+	int ret = 0;
+	if (iwm_nic_lock(sc)) {
+		IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+		ret = iwm_poll_bit(sc, IWM_FH_MEM_RSSR_RX_STATUS_REG,
+		    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+		    IWM_FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+		    1000);
+		iwm_nic_unlock(sc);
+	}
+	return ret;
 }
