@@ -385,6 +385,7 @@ static fill_uap_fp cheriabi_fill_uap_funcs[CHERIABI_SYS_MAXSYSCALL] = {
 	[CHERIABI_SYS_utimensat] = (fill_uap_fp)CHERIABI_SYS_utimensat_fill_uap,
 	[CHERIABI_SYS_numa_getaffinity] = (fill_uap_fp)CHERIABI_SYS_numa_getaffinity_fill_uap,
 	[CHERIABI_SYS_numa_setaffinity] = (fill_uap_fp)CHERIABI_SYS_numa_setaffinity_fill_uap,
+	[CHERIABI_SYS_fdatasync] = (fill_uap_fp)CHERIABI_SYS_fdatasync_fill_uap,
 };
 
 static inline int

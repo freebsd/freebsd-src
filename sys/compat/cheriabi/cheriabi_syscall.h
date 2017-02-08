@@ -468,4 +468,5 @@
 #define	CHERIABI_SYS_utimensat	547
 #define	CHERIABI_SYS_numa_getaffinity	548
 #define	CHERIABI_SYS_numa_setaffinity	549
-#define	CHERIABI_SYS_MAXSYSCALL	550
+#define	CHERIABI_SYS_fdatasync	550
+#define	CHERIABI_SYS_MAXSYSCALL	551

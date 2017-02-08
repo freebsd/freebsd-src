@@ -3654,3 +3654,13 @@ SYS_STUB(549, int, numa_setaffinity,
     /* _localcheck */ {if (!(cheri_getperm(policy) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
+SYS_STUB(550, int, fdatasync,
+    /* _protoargs */ (int fd),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, int fd),
+    /* _protoargs_err */ (__capability int *stub_errno, int fd),
+    /* _callargs */ (fd),
+    /* _callargs_chk */ (&ret, stub_errno, fd),
+    /* _callargs_err */ (&errno, fd),
+    /* _localcheck */ {}
+)
+

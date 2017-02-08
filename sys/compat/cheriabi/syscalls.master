@@ -1232,3 +1232,4 @@
 				    id_t id, \
 				    _In_ \
 				    const struct vm_domain_policy_entry *policy); }
+550	AUE_FSYNC	NOPROTO	{ int fdatasync(int fd); }

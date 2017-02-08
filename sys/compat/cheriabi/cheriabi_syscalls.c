@@ -560,4 +560,5 @@ const char *cheriabi_syscallnames[] = {
 	"utimensat",			/* 547 = utimensat */
 	"numa_getaffinity",			/* 548 = numa_getaffinity */
 	"numa_setaffinity",			/* 549 = numa_setaffinity */
+	"fdatasync",			/* 550 = fdatasync */
 };

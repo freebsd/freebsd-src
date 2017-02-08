@@ -996,5 +996,7 @@ struct {
 	[CHERIABI_SYS_numa_setaffinity] = {
 		.sam_ptrmask = 0x4
 	},
+	[CHERIABI_SYS_fdatasync] = {
+	},
 };
 #endif /* !_CHERIABI_SYSARGMAP_H_ */

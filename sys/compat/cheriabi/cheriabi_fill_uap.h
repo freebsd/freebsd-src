@@ -10273,4 +10273,18 @@ CHERIABI_SYS_numa_setaffinity_fill_uap(struct thread *td,
 	return (0);
 }
 
+static inline int
+CHERIABI_SYS_fdatasync_fill_uap(struct thread *td,
+    struct fdatasync_args *uap)
+{
+	struct chericap tmpcap;
+
+	/* [0] int fd */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_fdatasync, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
+
+	return (0);
+}
+
 #endif /* !_SYS_COMPAT_CHERIABI_FILL_UAP_H_ */
