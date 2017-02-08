@@ -211,7 +211,7 @@ NESTED(_longjmp, LONGJMP_FRAME_SIZE, ra)
 	clc		$c23, t1, (_JB_CHERI_C23 * _MIPS_SZCAP/8)($c3)
 	clc		$c24, t1, (_JB_CHERI_C24 * _MIPS_SZCAP/8)($c3)
 
-	move		v0, a1
+	move		v0, a0
 	cjr		$c17
 	nop
 
