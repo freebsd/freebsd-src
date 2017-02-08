@@ -73,8 +73,11 @@ END(sigsetjmp)
 
 LEAF(siglongjmp)
 	PIC_PROLOGUE(siglongjmp)
-	# FIXME: this looks like it won't work with CheriABI
+#ifndef __CHERI_PURE_CAPABILITY__
 	REG_L	t0, (_JB_MAGIC  * SZREG)(a0)
+#else
+	cld	t0, zero, (_JB_MAGIC  * SZREG)($c3)
+#endif
 	REG_LI	t1, _JB_MAGIC__SETJMP
 	bne	t0, t1, 1f			# setjmp or _setjmp magic?
 	PIC_TAILCALL(_longjmp)
