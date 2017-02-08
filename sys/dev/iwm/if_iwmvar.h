@@ -389,6 +389,8 @@ enum iwm_device_family {
  * @host_interrupt_operation_mode: device needs host interrupt operation
  *      mode set
  * @nvm_hw_section_num: the ID of the HW NVM section
+ * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
+ *      is in flight. This is due to a HW bug in 7260, 3160 and 7265.
  */
 struct iwm_cfg {
 	const char *fw_name;
@@ -396,6 +398,7 @@ struct iwm_cfg {
 	enum iwm_device_family device_family;
 	int host_interrupt_operation_mode;
 	uint8_t nvm_hw_section_num;
+	int apmg_wake_up_wa;
 };
 
 struct iwm_softc {
@@ -415,6 +418,7 @@ struct iwm_softc {
 #define IWM_FLAG_RFKILL		(1 << 3)
 #define IWM_FLAG_BUSY		(1 << 4)
 #define IWM_FLAG_SCANNING	(1 << 5)
+#define IWM_FLAG_SCAN_RUNNING	(1 << 6)
 
 	struct intr_config_hook sc_preinit_hook;
 	struct callout		sc_watchdog_to;
@@ -520,6 +524,8 @@ struct iwm_softc {
 	int			sc_max_rssi;
 
 	struct iwm_notif_wait_data *sc_notif_wait;
+
+	int			cmd_hold_nic_awake;
 };
 
 #define IWM_LOCK_INIT(_sc) \
