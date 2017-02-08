@@ -364,6 +364,9 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	if (disk_devpath == NULL || part_devpath == NULL) {
 		return (ENOENT);
 	}
+	node = (HARDDRIVE_DEVICE_PATH *)efi_devpath_last_node(part_devpath);
+	if (node == NULL)
+		return (ENOENT);	/* This should not happen. */
 
 	pd = malloc(sizeof(pdinfo_t));
 	if (pd == NULL) {
@@ -372,7 +375,6 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	}
 	memset(pd, 0, sizeof(pdinfo_t));
 	STAILQ_INIT(&pd->pd_part);
-	node = (HARDDRIVE_DEVICE_PATH *)efi_devpath_last_node(part_devpath);
 
 	STAILQ_FOREACH(hd, &hdinfo, pd_link) {
 		if (efi_devpath_match(hd->pd_devpath, disk_devpath) != 0) {
