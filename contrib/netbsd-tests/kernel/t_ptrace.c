@@ -1,4 +1,4 @@
-/*	$NetBSD: t_ptrace.c,v 1.17 2016/11/13 22:59:31 kamil Exp $	*/
+/*	$NetBSD: t_ptrace.c,v 1.18 2017/01/13 21:30:41 christos Exp $	*/
 
 /*-
  * Copyright (c) 2016 The NetBSD Foundation, Inc.
@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_ptrace.c,v 1.17 2016/11/13 22:59:31 kamil Exp $");
+__RCSID("$NetBSD: t_ptrace.c,v 1.18 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -40,7 +40,7 @@ __RCSID("$NetBSD: t_ptrace.c,v 1.17 2016/11/13 22:59:31 kamil Exp $");
 
 #include <atf-c.h>
 
-#include "../h_macros.h"
+#include "h_macros.h"
 
 /*
  * A child process cannot call atf functions and expect them to magically

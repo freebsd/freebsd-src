@@ -1,4 +1,4 @@
-/*	$NetBSD: t_cgd_blowfish.c,v 1.1 2016/11/10 23:44:36 alnsn Exp $	*/
+/*	$NetBSD: t_cgd_blowfish.c,v 1.2 2017/01/13 21:30:39 christos Exp $	*/
 /*-
  * Copyright (c) 2016 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -48,7 +48,7 @@
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define SECSIZE 512
 
