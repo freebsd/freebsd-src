@@ -109,5 +109,6 @@
 extern	int iwm_mvm_lmac_scan(struct iwm_softc *sc);
 extern	int iwm_mvm_config_umac_scan(struct iwm_softc *);
 extern	int iwm_mvm_umac_scan(struct iwm_softc *);
+extern	int iwm_mvm_scan_stop_wait(struct iwm_softc *sc);
 
 #endif	/* __IF_IWN_SCAN_H__ */

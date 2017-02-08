@@ -1006,6 +1006,7 @@ enum iwm_ucode_tlv_type {
 	IWM_UCODE_TLV_FW_DBG_CONF	= 39,
 	IWM_UCODE_TLV_FW_DBG_TRIGGER	= 40,
 	IWM_UCODE_TLV_FW_GSCAN_CAPA	= 50,
+	IWM_UCODE_TLV_FW_MEM_SEG	= 51,
 };
 
 struct iwm_ucode_tlv {
@@ -1947,6 +1948,25 @@ enum {
 	IWM_NET_DETECT_HOTSPOTS_QUERY_CMD = 0x59,
 
 	IWM_REPLY_MAX = 0xff,
+};
+
+enum iwm_phy_ops_subcmd_ids {
+	IWM_CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+	IWM_CTDP_CONFIG_CMD = 0x03,
+	IWM_TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
+	IWM_CT_KILL_NOTIFICATION = 0xFE,
+	IWM_DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
+};
+
+/* command groups */
+enum {
+	IWM_LEGACY_GROUP = 0x0,
+	IWM_LONG_GROUP = 0x1,
+	IWM_SYSTEM_GROUP = 0x2,
+	IWM_MAC_CONF_GROUP = 0x3,
+	IWM_PHY_OPS_GROUP = 0x4,
+	IWM_DATA_PATH_GROUP = 0x5,
+	IWM_PROT_OFFLOAD_GROUP = 0xb,
 };
 
 /**
@@ -5977,6 +5997,30 @@ enum iwm_mcc_source {
 	IWM_MCC_SOURCE_GET_CURRENT = 0x10,
 	IWM_MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
+
+/**
+ * struct iwm_dts_measurement_notif_v1 - measurements notification
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ */
+struct iwm_dts_measurement_notif_v1 {
+	int32_t temp;
+	int32_t voltage;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_1*/
+
+/**
+ * struct iwm_dts_measurement_notif_v2 - measurements notification
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ * @threshold_idx: the trip index that was crossed
+ */
+struct iwm_dts_measurement_notif_v2 {
+	int32_t temp;
+	int32_t voltage;
+	int32_t threshold_idx;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_2 */
 
 /*
  * Some cherry-picked definitions

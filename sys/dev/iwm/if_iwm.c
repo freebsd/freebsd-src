@@ -182,7 +182,8 @@ __FBSDID("$FreeBSD$");
 #define IWM_DEVICE_7000_COMMON						\
 	.device_family = IWM_DEVICE_FAMILY_7000,			\
 	.eeprom_size = IWM_OTP_LOW_IMAGE_SIZE_FAMILY_7000,		\
-	.nvm_hw_section_num = IWM_NVM_HW_SECTION_NUM_FAMILY_7000
+	.nvm_hw_section_num = IWM_NVM_HW_SECTION_NUM_FAMILY_7000,	\
+	.apmg_wake_up_wa = 1
 
 const struct iwm_cfg iwm7260_cfg = {
 	.fw_name = IWM7260_FW,
@@ -302,7 +303,6 @@ static int	iwm_alloc_sched(struct iwm_softc *);
 static int	iwm_alloc_kw(struct iwm_softc *);
 static int	iwm_alloc_ict(struct iwm_softc *);
 static int	iwm_alloc_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
-static void	iwm_disable_rx_dma(struct iwm_softc *);
 static void	iwm_reset_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static void	iwm_free_rx_ring(struct iwm_softc *, struct iwm_rx_ring *);
 static int	iwm_alloc_tx_ring(struct iwm_softc *, struct iwm_tx_ring *,
@@ -892,6 +892,9 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			    le32toh(((const uint32_t *)tlv_data)[2]));
 			break;
 
+		case IWM_UCODE_TLV_FW_MEM_SEG:
+			break;
+
 		default:
 			device_printf(sc->sc_dev,
 			    "%s: unknown firmware section %d, abort\n",
@@ -1104,18 +1107,6 @@ fail:	iwm_free_rx_ring(sc, ring);
 }
 
 static void
-iwm_disable_rx_dma(struct iwm_softc *sc)
-{
-	/* XXX conditional nic locks are stupid */
-	/* XXX print out if we can't lock the NIC? */
-	if (iwm_nic_lock(sc)) {
-		/* XXX handle if RX stop doesn't finish? */
-		(void) iwm_pcie_rx_stop(sc);
-		iwm_nic_unlock(sc);
-	}
-}
-
-static void
 iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 {
 	/* Reset the ring state */
@@ -1264,6 +1255,9 @@ iwm_reset_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring)
 	sc->qfullmsk &= ~(1 << ring->qid);
 	ring->queued = 0;
 	ring->cur = 0;
+
+	if (ring->qid == IWM_MVM_CMD_QUEUE && sc->cmd_hold_nic_awake)
+		iwm_pcie_clear_cmd_in_flight(sc);
 }
 
 static void
@@ -1401,7 +1395,7 @@ iwm_stop_device(struct iwm_softc *sc)
 		}
 		iwm_nic_unlock(sc);
 	}
-	iwm_disable_rx_dma(sc);
+	iwm_pcie_rx_stop(sc);
 
 	/* Stop RX ring. */
 	iwm_reset_rx_ring(sc, &sc->rxq);
@@ -1410,11 +1404,12 @@ iwm_stop_device(struct iwm_softc *sc)
 	for (qid = 0; qid < nitems(sc->txq); qid++)
 		iwm_reset_tx_ring(sc, &sc->txq[qid]);
 
-	/*
-	 * Power-down device's busmaster DMA clocks
-	 */
-	iwm_write_prph(sc, IWM_APMG_CLK_DIS_REG, IWM_APMG_CLK_VAL_DMA_CLK_RQT);
-	DELAY(5);
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
+		/* Power-down device's busmaster DMA clocks */
+		iwm_write_prph(sc, IWM_APMG_CLK_DIS_REG,
+		    IWM_APMG_CLK_VAL_DMA_CLK_RQT);
+		DELAY(5);
+	}
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
@@ -1485,16 +1480,18 @@ iwm_mvm_nic_config(struct iwm_softc *sc)
 static int
 iwm_nic_rx_init(struct iwm_softc *sc)
 {
-	if (!iwm_nic_lock(sc))
-		return EBUSY;
-
 	/*
 	 * Initialize RX ring.  This is from the iwn driver.
 	 */
 	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
 
-	/* stop DMA */
-	iwm_disable_rx_dma(sc);
+	/* Stop Rx DMA */
+	iwm_pcie_rx_stop(sc);
+
+	if (!iwm_nic_lock(sc))
+		return EBUSY;
+
+	/* reset and flush pointers */
 	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_RBDCB_WPTR, 0);
 	IWM_WRITE(sc, IWM_FH_MEM_RCSR_CHNL0_FLUSH_RB_REQ, 0);
 	IWM_WRITE(sc, IWM_FH_RSCSR_CHNL0_RDPTR, 0);
@@ -2681,12 +2678,6 @@ iwm_load_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 		}
 	}
 
-	/*
-	 * Give the firmware some time to initialize.
-	 * Accessing it too early causes errors.
-	 */
-	msleep(&w, &sc->sc_mtx, 0, "iwmfwinit", hz);
-
 	return error;
 }
 
@@ -3349,6 +3340,18 @@ iwm_cmd_done(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
 		data->m = NULL;
 	}
 	wakeup(&ring->desc[pkt->hdr.idx]);
+
+	if (((pkt->hdr.idx + ring->queued) % IWM_TX_RING_COUNT) != ring->cur) {
+		device_printf(sc->sc_dev,
+		    "%s: Some HCMDs skipped?: idx=%d queued=%d cur=%d\n",
+		    __func__, pkt->hdr.idx, ring->queued, ring->cur);
+		/* XXX call iwm_force_nmi() */
+	}
+
+	KASSERT(ring->queued > 0, ("ring->queued is empty?"));
+	ring->queued--;
+	if (ring->queued == 0)
+		iwm_pcie_clear_cmd_in_flight(sc);
 }
 
 #if 0
@@ -4962,6 +4965,7 @@ iwm_stop(struct iwm_softc *sc)
 	iwm_led_blink_stop(sc);
 	sc->sc_tx_timer = 0;
 	iwm_stop_device(sc);
+	sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
 }
 
 static void
@@ -5445,7 +5449,21 @@ iwm_notif_intr(struct iwm_softc *sc)
 			break; }
 
 		case IWM_DTS_MEASUREMENT_NOTIFICATION:
+		case IWM_WIDE_ID(IWM_PHY_OPS_GROUP,
+				 IWM_DTS_MEASUREMENT_NOTIF_WIDE): {
+			struct iwm_dts_measurement_notif_v1 *notif;
+
+			if (iwm_rx_packet_payload_len(pkt) < sizeof(*notif)) {
+				device_printf(sc->sc_dev,
+				    "Invalid DTS_MEASUREMENT_NOTIFICATION\n");
+				break;
+			}
+			notif = (void *)pkt->data;
+			IWM_DPRINTF(sc, IWM_DEBUG_TEMP,
+			    "IWM_DTS_MEASUREMENT_NOTIFICATION - %d\n",
+			    notif->temp);
 			break;
+		}
 
 		case IWM_PHY_CONFIGURATION_CMD:
 		case IWM_TX_ANT_CONFIGURATION_CMD:
@@ -5458,7 +5476,9 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_TIME_EVENT_CMD:
 		case IWM_WIDE_ID(IWM_ALWAYS_LONG_GROUP, IWM_SCAN_CFG_CMD):
 		case IWM_WIDE_ID(IWM_ALWAYS_LONG_GROUP, IWM_SCAN_REQ_UMAC):
+		case IWM_SCAN_ABORT_UMAC:
 		case IWM_SCAN_OFFLOAD_REQUEST_CMD:
+		case IWM_SCAN_OFFLOAD_ABORT_CMD:
 		case IWM_REPLY_BEACON_FILTERING_CMD:
 		case IWM_MAC_PM_POWER_TABLE:
 		case IWM_TIME_QUOTA_CMD:
@@ -5484,6 +5504,10 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_SCAN_OFFLOAD_COMPLETE: {
 			struct iwm_periodic_scan_complete *notif;
 			notif = (void *)pkt->data;
+			if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+				sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
+				ieee80211_runtask(ic, &sc->sc_es_task);
+			}
 			break;
 		}
 
@@ -5501,9 +5525,10 @@ iwm_notif_intr(struct iwm_softc *sc)
 			IWM_DPRINTF(sc, IWM_DEBUG_SCAN,
 			    "UMAC scan complete, status=0x%x\n",
 			    notif->status);
-#if 0	/* XXX This would be a duplicate scan end call */
-			taskqueue_enqueue(sc->sc_tq, &sc->sc_es_task);
-#endif
+			if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+				sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
+				ieee80211_runtask(ic, &sc->sc_es_task);
+			}
 			break;
 		}
 
@@ -5582,9 +5607,6 @@ iwm_notif_intr(struct iwm_softc *sc)
 
 		ADVANCE_RXQ(sc);
 	}
-
-	IWM_CLRBITS(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/*
 	 * Tell the firmware what we have processed.
@@ -6263,15 +6285,21 @@ iwm_scan_start(struct ieee80211com *ic)
 	int error;
 
 	IWM_LOCK(sc);
+	if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+		/* This should not be possible */
+		device_printf(sc->sc_dev,
+		    "%s: Previous scan not completed yet\n", __func__);
+	}
 	if (isset(sc->sc_enabled_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
 		error = iwm_mvm_umac_scan(sc);
 	else
 		error = iwm_mvm_lmac_scan(sc);
 	if (error != 0) {
-		device_printf(sc->sc_dev, "could not initiate 2 GHz scan\n");
+		device_printf(sc->sc_dev, "could not initiate scan\n");
 		IWM_UNLOCK(sc);
 		ieee80211_cancel_scan(vap);
 	} else {
+		sc->sc_flags |= IWM_FLAG_SCAN_RUNNING;
 		iwm_led_blink_start(sc);
 		IWM_UNLOCK(sc);
 	}
@@ -6287,7 +6315,23 @@ iwm_scan_end(struct ieee80211com *ic)
 	iwm_led_blink_stop(sc);
 	if (vap->iv_state == IEEE80211_S_RUN)
 		iwm_mvm_led_enable(sc);
+	if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
+		/*
+		 * Removing IWM_FLAG_SCAN_RUNNING now, is fine because
+		 * both iwm_scan_end and iwm_scan_start run in the ic->ic_tq
+		 * taskqueue.
+		 */
+		sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
+		iwm_mvm_scan_stop_wait(sc);
+	}
 	IWM_UNLOCK(sc);
+
+	/*
+	 * Make sure we don't race, if sc_es_task is still enqueued here.
+	 * This is to make sure that it won't call ieee80211_scan_done
+	 * when we have already started the next scan.
+	 */
+	taskqueue_cancel(ic->ic_tq, &sc->sc_es_task, NULL);
 }
 
 static void
