@@ -5978,6 +5978,30 @@ enum iwm_mcc_source {
 	IWM_MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
 
+/**
+ * struct iwm_dts_measurement_notif_v1 - measurements notification
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ */
+struct iwm_dts_measurement_notif_v1 {
+	int32_t temp;
+	int32_t voltage;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_1*/
+
+/**
+ * struct iwm_dts_measurement_notif_v2 - measurements notification
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ * @threshold_idx: the trip index that was crossed
+ */
+struct iwm_dts_measurement_notif_v2 {
+	int32_t temp;
+	int32_t voltage;
+	int32_t threshold_idx;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_2 */
+
 /*
  * Some cherry-picked definitions
  */
