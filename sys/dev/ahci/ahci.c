@@ -711,7 +711,7 @@ ahci_ch_attach(device_t dev)
 	/* Construct SIM entry */
 	ch->sim = cam_sim_alloc(ahciaction, ahcipoll, "ahcich", ch,
 	    device_get_unit(dev), (struct mtx *)&ch->mtx,
-	    min(2, ch->numslots),
+	    (ch->quirks & AHCI_Q_NOCCS) ? 1 : min(2, ch->numslots),
 	    (ch->caps & AHCI_CAP_SNCQ) ? ch->numslots : 0,
 	    devq);
 	if (ch->sim == NULL) {
@@ -1224,8 +1224,19 @@ ahci_ch_intr_main(struct ahci_channel *ch, uint32_t istatus)
 	/* Process command errors */
 	if (istatus & (AHCI_P_IX_OF | AHCI_P_IX_IF |
 	    AHCI_P_IX_HBD | AHCI_P_IX_HBF | AHCI_P_IX_TFE)) {
-		ccs = (ATA_INL(ch->r_mem, AHCI_P_CMD) & AHCI_P_CMD_CCS_MASK)
-		    >> AHCI_P_CMD_CCS_SHIFT;
+		if (ch->quirks & AHCI_Q_NOCCS) {
+			/*
+			 * ASMedia chips sometimes report failed commands as
+			 * completed.  Count all running commands as failed.
+			 */
+			cstatus |= ch->rslots;
+
+			/* They also report wrong CCS, so try to guess one. */
+			ccs = powerof2(cstatus) ? ffs(cstatus) - 1 : -1;
+		} else {
+			ccs = (ATA_INL(ch->r_mem, AHCI_P_CMD) &
+			    AHCI_P_CMD_CCS_MASK) >> AHCI_P_CMD_CCS_SHIFT;
+		}
 //device_printf(dev, "%s ERROR is %08x cs %08x ss %08x rs %08x tfd %02x serr %08x fbs %08x ccs %d\n",
 //    __func__, istatus, cstatus, sstatus, ch->rslots, ATA_INL(ch->r_mem, AHCI_P_TFD),
 //    serr, ATA_INL(ch->r_mem, AHCI_P_FBS), ccs);
