@@ -63,7 +63,7 @@ NESTED(_setjmp, SETJMP_FRAME_SIZE, ra)
 	.protected _C_LABEL(_setjmp)
 	.set	noreorder
 
-	li		v0, _JB_MAGIC__SETJMP
+	REG_LI		v0, _JB_MAGIC__SETJMP
 	csd		v0, zero, (_JB_MAGIC  * SZREG)($c3)
 	csd		ra, zero, (_JB_REG_RA * SZREG)($c3)
 	/*
@@ -143,7 +143,7 @@ NESTED(_longjmp, LONGJMP_FRAME_SIZE, ra)
 	csc		$c3, sp, CALLFRAME_SIZ($c11)
 
 	cld		v0, zero, (_JB_MAGIC  * SZREG)($c3)
-	li		t0, _JB_MAGIC__SETJMP
+	REG_LI		t0, _JB_MAGIC__SETJMP
 	bne		v0, t0, botch			# jump if error
 	nop
 
