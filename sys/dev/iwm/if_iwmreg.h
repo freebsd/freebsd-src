@@ -1006,6 +1006,7 @@ enum iwm_ucode_tlv_type {
 	IWM_UCODE_TLV_FW_DBG_CONF	= 39,
 	IWM_UCODE_TLV_FW_DBG_TRIGGER	= 40,
 	IWM_UCODE_TLV_FW_GSCAN_CAPA	= 50,
+	IWM_UCODE_TLV_FW_MEM_SEG	= 51,
 };
 
 struct iwm_ucode_tlv {

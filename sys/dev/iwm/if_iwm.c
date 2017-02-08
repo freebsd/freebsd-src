@@ -892,6 +892,9 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			    le32toh(((const uint32_t *)tlv_data)[2]));
 			break;
 
+		case IWM_UCODE_TLV_FW_MEM_SEG:
+			break;
+
 		default:
 			device_printf(sc->sc_dev,
 			    "%s: unknown firmware section %d, abort\n",
