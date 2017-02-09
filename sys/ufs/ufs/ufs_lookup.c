@@ -771,7 +771,7 @@ ufs_dirbad(ip, offset, how)
  *	record length must be multiple of 4
  *	entry must fit in rest of its DIRBLKSIZ block
  *	record must be large enough to contain entry
- *	name is not longer than MAXNAMLEN
+ *	name is not longer than UFS_MAXNAMLEN
  *	name must be as long as advertised, and null terminated
  */
 int
@@ -792,7 +792,7 @@ ufs_dirbadentry(dp, ep, entryoffsetinblock)
 #	endif
 	if ((ep->d_reclen & 0x3) != 0 ||
 	    ep->d_reclen > DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1)) ||
-	    ep->d_reclen < DIRSIZ(OFSFMT(dp), ep) || namlen > MAXNAMLEN) {
+	    ep->d_reclen < DIRSIZ(OFSFMT(dp), ep) || namlen > UFS_MAXNAMLEN) {
 		/*return (1); */
 		printf("First bad\n");
 		goto bad;
