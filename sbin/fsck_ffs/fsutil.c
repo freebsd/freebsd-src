@@ -889,7 +889,7 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 		cp -= len;
 		memmove(cp, namebuf, (size_t)len);
 		*--cp = '/';
-		if (cp < &namebuf[MAXNAMLEN])
+		if (cp < &namebuf[UFS_MAXNAMLEN])
 			break;
 		ino = idesc.id_number;
 	}
