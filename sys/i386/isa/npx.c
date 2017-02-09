@@ -559,8 +559,7 @@ SYSINIT(npxinitstate, SI_SUB_DRIVERS, SI_ORDER_ANY, npxinitstate, NULL);
  * Free coprocessor (if we have it).
  */
 void
-npxexit(td)
-	struct thread *td;
+npxexit(struct thread *td)
 {
 
 	critical_enter();
@@ -590,7 +589,7 @@ npxexit(td)
 }
 
 int
-npxformat()
+npxformat(void)
 {
 
 	if (!hw_float)
@@ -970,7 +969,7 @@ npxresume(union savefpu *addr)
 }
 
 void
-npxdrop()
+npxdrop(void)
 {
 	struct thread *td;
 
@@ -1203,8 +1202,7 @@ fpu_clean_state(void)
 #endif /* CPU_ENABLE_SSE */
 
 static void
-fpurstor(addr)
-	union savefpu *addr;
+fpurstor(union savefpu *addr)
 {
 
 #ifdef CPU_ENABLE_SSE

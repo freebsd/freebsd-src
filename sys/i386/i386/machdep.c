@@ -3157,8 +3157,7 @@ init386(first)
 
 #else
 register_t
-init386(first)
-	int first;
+init386(int first)
 {
 	struct gate_descriptor *gdp;
 	int gsel_tss, metadata_missing, x, pa;

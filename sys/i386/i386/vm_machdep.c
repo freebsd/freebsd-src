@@ -209,11 +209,7 @@ alloc_fpusave(int flags)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(td1, p2, td2, flags)
-	register struct thread *td1;
-	register struct proc *p2;
-	struct thread *td2;
-	int flags;
+cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	register struct proc *p1;
 	struct pcb *pcb2;
