@@ -72,11 +72,6 @@ ATF_TC_BODY(nice_err, tc)
 {
 	int i;
 
-#ifdef __FreeBSD__
-	atf_tc_expect_fail("nice(incr) with incr < 0 fails with unprivileged "
-	   "users and sets errno == EPERM; see PR # 189821 for more details");
-#endif
-
 	/*
 	 * The call should fail with EPERM if the
 	 * supplied parameter is negative and the
