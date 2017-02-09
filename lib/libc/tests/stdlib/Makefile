@@ -10,8 +10,6 @@ ATF_TESTS_CXX+=		cxa_thread_atexit_test
 ATF_TESTS_CXX+=		cxa_thread_atexit_nothr_test
 .endif
 
-TESTSDIR=	${TESTSBASE}/lib/libc/stdlib
-
 # TODO: t_getenv_thread, t_mi_vector_hash
 NETBSD_ATF_TESTS_C+=	abs_test
 NETBSD_ATF_TESTS_C+=	atoi_test

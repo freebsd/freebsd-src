@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.sbin/pw
-
 BINDIR=		${TESTSDIR}
 
 PROGS+=		crypt

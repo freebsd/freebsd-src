@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/lib/libc/db
-
 BINDIR=		${TESTSDIR}
 
 PROGS=		h_db

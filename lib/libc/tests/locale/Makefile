@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/locale
-
 ATF_TESTS_C+=		btowc_test
 ATF_TESTS_C+=		c16rtomb_test
 ATF_TESTS_C+=		iswctype_test

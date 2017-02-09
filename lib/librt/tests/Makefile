@@ -1,11 +1,5 @@
 # $FreeBSD$
 
-OBJTOP=		${.OBJDIR:H:H:H}
-SRCTOP=		${.CURDIR:H:H:H}
-TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/librt
-
-TESTSDIR=	${TESTSBASE}/lib/librt
-
 DPADD+=		${LIBRT}
 LDADD+=		-lrt
 

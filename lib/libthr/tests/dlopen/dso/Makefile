@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-OBJTOP=		${.OBJDIR:H:H:H:H:H}
-SRCTOP=		${.CURDIR:H:H:H:H:H}
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libpthread/dlopen/dso
 
 SHLIB=		h_pthread_dlopen

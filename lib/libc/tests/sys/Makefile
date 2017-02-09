@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=		${TESTSBASE}/lib/libc/sys
-
 ATF_TESTS_C+=			queue_test
 
 # TODO: clone, lwp_create, lwp_ctl, posix_fadvise, recvmmsg,
