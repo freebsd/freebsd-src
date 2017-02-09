@@ -1631,12 +1631,20 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			    __func__);
 	}
 
+	/*
+	 * Check if xmit fragmentation is required.
+	 *
+	 * If the hardware does fragmentation offload, then don't bother
+	 * doing it here.
+	 */
+	if (IEEE80211_CONF_FRAG_OFFLOAD(ic))
+		txfrag = 0;
+	else
+		txfrag = (m->m_pkthdr.len > vap->iv_fragthreshold &&
+		    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
+		    (vap->iv_caps & IEEE80211_C_TXFRAG) &&
+		    (m->m_flags & (M_FF | M_AMPDU_MPDU)) == 0);
 
-	/* check if xmit fragmentation is required */
-	txfrag = (m->m_pkthdr.len > vap->iv_fragthreshold &&
-	    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
-	    (vap->iv_caps & IEEE80211_C_TXFRAG) &&
-	    (m->m_flags & (M_FF | M_AMPDU_MPDU)) == 0);
 	if (key != NULL) {
 		/*
 		 * IEEE 802.1X: send EAPOL frames always in the clear.
