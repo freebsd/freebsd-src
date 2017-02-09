@@ -60,7 +60,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
+#include <sys/sysproto.h>
 #include <sys/jail.h>
+
+#ifdef COMPAT_CHERIABI
+#include <sys/user.h>
+#include <compat/cheriabi/cheriabi_syscall.h>
+#include <compat/cheriabi/cheriabi_util.h>
+#endif
 
 #include <security/mac/mac_framework.h>
 
@@ -90,6 +97,8 @@ static int sem_prison_get(void *, void *);
 static int sem_prison_remove(void *, void *);
 static void sem_prison_cleanup(struct prison *);
 
+struct cheriabi___semctl_args;
+int sys_cheriabi___semctl(struct thread *td, struct __semctl_args *uap);
 #ifndef _SYS_SYSPROTO_H_
 struct __semctl_args;
 int __semctl(struct thread *td, struct __semctl_args *uap);
@@ -256,6 +265,18 @@ static struct syscall_helper_data sem32_syscalls[] = {
 };
 #endif
 
+#ifdef COMPAT_CHERIABI
+#include <compat/cheriabi/cheriabi.h>
+#include <compat/cheriabi/cheriabi_proto.h>
+
+static struct syscall_helper_data cheriabi_sem_syscalls[] = {
+	CHERIABI_SYSCALL_INIT_HELPER_COMPAT(cheriabi___semctl),
+	CHERIABI_SYSCALL_INIT_HELPER_COMPAT(semget),
+	CHERIABI_SYSCALL_INIT_HELPER_COMPAT(semop),
+	SYSCALL_INIT_LAST
+};
+#endif /* COMPAT_CHERIABI */
+
 static int
 seminit(void)
 {
@@ -329,6 +350,11 @@ seminit(void)
 	if (error != 0)
 		return (error);
 #endif
+#ifdef COMPAT_CHERIABI
+	error = cheriabi_syscall_helper_register(cheriabi_sem_syscalls, SY_THR_STATIC_KLD);
+	if (error != 0)
+		return (error);
+#endif
 	return (0);
 }
 
@@ -343,6 +369,9 @@ semunload(void)
 
 #ifdef COMPAT_FREEBSD32
 	syscall32_helper_unregister(sem32_syscalls);
+#endif
+#ifdef COMPAT_CHERIABI
+	cheriabi_syscall_helper_unregister(cheriabi_sem_syscalls);
 #endif
 	syscall_helper_unregister(sem_syscalls);
 	EVENTHANDLER_DEREGISTER(process_exit, semexit_tag);
@@ -671,6 +700,18 @@ sys___semctl(struct thread *td, struct __semctl_args *uap)
 	if (error == 0)
 		td->td_retval[0] = rval;
 	return (error);
+}
+
+/*
+ * XXX: There's something wrong with either the function naming,
+ *      or my understanding of what's the convention here. It works,
+ *      but looks ugly.
+ */
+int
+sys_cheriabi___semctl(struct thread *td, struct __semctl_args *uap)
+{
+
+	return (sys___semctl(td, uap));
 }
 
 int
