@@ -123,6 +123,8 @@
             ..
             ssp
             ..
+            setjmp
+            ..
             stdio
             ..
             stdlib
