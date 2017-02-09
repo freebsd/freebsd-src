@@ -52,7 +52,7 @@ pass3(void)
 	int loopcnt, inpindex, state;
 	ino_t orphan;
 	struct inodesc idesc;
-	char namebuf[MAXNAMLEN+1];
+	char namebuf[UFS_MAXNAMLEN+1];
 
 	for (inpindex = inplast - 1; inpindex >= 0; inpindex--) {
 		if (got_siginfo) {
