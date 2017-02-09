@@ -105,9 +105,10 @@
 #define	    FOE_TS_TIMESTAMP_MASK 0x0000ffff
 #define	    FOE_TS_TIMESTAMP_SHIFT 0
 
-#define	GDMA1_BASE 0x0020
-#define	GDMA2_BASE 0x0060
-#define	CDMA_BASE  0x0080
+#define	GDMA1_BASE		0x0020
+#define	GDMA2_BASE		0x0060
+#define	CDMA_BASE		0x0080
+#define	MT7620_GDMA1_BASE	0x600
 
 #define	GDMA_FWD_CFG	0x00	/* Only GDMA */
 #define	    GDM_DROP_256B	(1<<23)
