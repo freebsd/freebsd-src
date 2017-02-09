@@ -3106,8 +3106,10 @@ lookformore:
 			    !NFSBCMP(op->nfso_fh, nfhp->nfh_fh,
 			    nfhp->nfh_len)) {
 				/* Found an open, close it. */
+#if 0
 				KASSERT((op->nfso_opencnt == 0),
-				    ("nfscl: bad open cnt on server"));
+				    ("nfscl: bad open cnt on server (%d)", op->nfso_opencnt));
+#endif
 				NFSUNLOCKCLSTATE();
 				nfsrpc_doclose(VFSTONFS(vnode_mount(vp)), op,
 				    p);
