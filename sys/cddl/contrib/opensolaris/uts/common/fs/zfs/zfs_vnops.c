@@ -2786,15 +2786,6 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 			zfs_sa_get_scanstamp(zp, xvap);
 		}
 
-		if (XVA_ISSET_REQ(xvap, XAT_CREATETIME)) {
-			uint64_t times[2];
-
-			(void) sa_lookup(zp->z_sa_hdl, SA_ZPL_CRTIME(zfsvfs),
-			    times, sizeof (times));
-			ZFS_TIME_DECODE(&xoap->xoa_createtime, times);
-			XVA_SET_RTN(xvap, XAT_CREATETIME);
-		}
-
 		if (XVA_ISSET_REQ(xvap, XAT_REPARSE)) {
 			xoap->xoa_reparse = ((zp->z_pflags & ZFS_REPARSE) != 0);
 			XVA_SET_RTN(xvap, XAT_REPARSE);
@@ -2955,6 +2946,11 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 			ZFS_EXIT(zfsvfs);
 			return (SET_ERROR(EOVERFLOW));
 		}
+	}
+	if (xoap && (mask & AT_XVATTR) && XVA_ISSET_REQ(xvap, XAT_CREATETIME) &&
+	    TIMESPEC_OVERFLOW(&vap->va_birthtime)) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EOVERFLOW));
 	}
 
 	attrzp = NULL;
@@ -3400,6 +3396,8 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 
 	if (xoap && (mask & AT_XVATTR)) {
 
+		if (XVA_ISSET_REQ(xvap, XAT_CREATETIME))
+			xoap->xoa_createtime = vap->va_birthtime;
 		/*
 		 * restore trimmed off masks
 		 * so that return masks can be set for caller.
@@ -5250,6 +5248,10 @@ zfs_freebsd_setattr(ap)
 		FLAG_CHANGE(UF_SPARSE, ZFS_SPARSE, XAT_SPARSE,
 		    xvap.xva_xoptattrs.xoa_sparse);
 #undef	FLAG_CHANGE
+	}
+	if (vap->va_birthtime.tv_sec != VNOVAL) {
+		xvap.xva_vattr.va_mask |= AT_XVATTR;
+		XVA_SET_REQ(&xvap, XAT_CREATETIME);
 	}
 	return (zfs_setattr(vp, (vattr_t *)&xvap, 0, cred, NULL));
 }
