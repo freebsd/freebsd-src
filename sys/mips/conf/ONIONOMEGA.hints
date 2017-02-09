@@ -123,3 +123,10 @@ hint.gpioled.3.pins=0x00008000
 hint.gpioled.3.name="blue"
 hint.gpioled.3.invert=0
 
+# I2C
+# 0x20 - 0x27 = Relay Controllers (0x27 is default)
+# 0x5a = PWM/Servo Controller
+hint.gpioiic.0.at="gpiobus0"
+hint.gpioiic.0.pins=0x300000 # pins 20 and 21
+hint.gpioiic.0.scl=0 # pin 20
+hint.gpioiic.0.sda=1 # pin 21
