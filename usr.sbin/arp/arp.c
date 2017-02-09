@@ -319,7 +319,7 @@ set(int argc, char **argv)
 		return (1);
 	doing_proxy = flags = expire_time = 0;
 	while (argc-- > 0) {
-		if (strncmp(argv[0], "temp", 4) == 0) {
+		if (strcmp(argv[0], "temp") == 0) {
 			struct timespec tp;
 			int max_age;
 			size_t len = sizeof(max_age);
@@ -329,10 +329,10 @@ set(int argc, char **argv)
 			    &max_age, &len, NULL, 0) != 0)
 				err(1, "sysctlbyname");
 			expire_time = tp.tv_sec + max_age;
-		} else if (strncmp(argv[0], "pub", 3) == 0) {
+		} else if (strcmp(argv[0], "pub") == 0) {
 			flags |= RTF_ANNOUNCE;
 			doing_proxy = 1;
-			if (argc && strncmp(argv[1], "only", 3) == 0) {
+			if (argc && strcmp(argv[1], "only") == 0) {
 				/*
 				 * Compatibility: in pre FreeBSD 8 times
 				 * the "only" keyword used to mean that
@@ -341,29 +341,28 @@ set(int argc, char **argv)
 				 */
 				argc--; argv++;
 			}
-		} else if (strncmp(argv[0], "blackhole", 9) == 0) {
+		} else if (strcmp(argv[0], "blackhole") == 0) {
 			if (flags & RTF_REJECT) {
-				printf("Choose one of blackhole or reject, "
+				errx(1, "Choose one of blackhole or reject, "
 				    "not both.");
 			}
 			flags |= RTF_BLACKHOLE;
-		} else if (strncmp(argv[0], "reject", 6) == 0) {
+		} else if (strcmp(argv[0], "reject") == 0) {
 			if (flags & RTF_BLACKHOLE) {
-				printf("Choose one of blackhole or reject, "
+				errx(1, "Choose one of blackhole or reject, "
 				    "not both.");
 			}
 			flags |= RTF_REJECT;
-		} else if (strncmp(argv[0], "trail", 5) == 0) {
-			/* XXX deprecated and undocumented feature */
-			printf("%s: Sending trailers is no longer supported\n",
-			    host);
+		} else {
+			warnx("Invalid parameter '%s'", argv[0]);
+			usage();
 		}
 		argv++;
 	}
 	ea = (struct ether_addr *)LLADDR(&sdl_m);
 	if (doing_proxy && !strcmp(eaddr, "auto")) {
 		if (!get_ether_addr(dst->sin_addr.s_addr, ea)) {
-			printf("no interface found for %s\n",
+			warnx("no interface found for %s",
 			       inet_ntoa(dst->sin_addr));
 			return (1);
 		}
@@ -399,7 +398,7 @@ set(int argc, char **argv)
 	if ((sdl->sdl_family != AF_LINK) ||
 	    (rtm->rtm_flags & RTF_GATEWAY) ||
 	    !valid_type(sdl->sdl_type)) {
-		printf("cannot intuit interface index and type for %s\n", host);
+		warnx("cannot intuit interface index and type for %s", host);
 		return (1);
 	}
 	sdl_m.sdl_type = sdl->sdl_type;
@@ -487,7 +486,7 @@ delete(char *host)
 		 * is a proxy-arp entry to remove.
 		 */
 		if (flags & RTF_ANNOUNCE) {
-			fprintf(stderr, "delete: cannot locate %s\n", host);
+			warnx("delete: cannot locate %s", host);
 			return (1);
 		}
 
@@ -870,9 +869,8 @@ get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)
 	 */
 	dla = (struct sockaddr_dl *) &ifr->ifr_addr;
 	memcpy(hwaddr,  LLADDR(dla), dla->sdl_alen);
-	printf("using interface %s for proxy with address ",
-		ifp->ifr_name);
-	printf("%s\n", ether_ntoa(hwaddr));
+	printf("using interface %s for proxy with address %s\n", ifp->ifr_name,
+	    ether_ntoa(hwaddr));
 	retval = dla->sdl_alen;
 done:
 	close(sock);
