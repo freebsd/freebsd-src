@@ -310,6 +310,8 @@
         ..
         libnv
         ..
+        libpam
+        ..
         librt
         ..
         libthr
