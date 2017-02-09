@@ -104,6 +104,7 @@ static pci_vendor_info_t em_vendor_info_array[] =
 	PVID(0x8086, E1000_DEV_ID_82571EB_QUAD_COPPER_LP, "Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_82571EB_QUAD_FIBER, "Intel(R) PRO/1000 Network Connection"), 
 	PVID(0x8086, E1000_DEV_ID_82571PT_QUAD_COPPER, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_82572EI,		"Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_82572EI_COPPER,	"Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_82572EI_FIBER,	"Intel(R) PRO/1000 Network Connection"), 
 	PVID(0x8086, E1000_DEV_ID_82572EI_SERDES,	"Intel(R) PRO/1000 Network Connection"), 
