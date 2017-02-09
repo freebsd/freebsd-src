@@ -35,13 +35,13 @@
  * leading underscores.
  */
 
-#pragma weak _go = go
-
 static int
 go(int a)
 {
 	return (a + 1);
 }
+
+#pragma weak _go = go
 
 static void
 handle(int sig)
