@@ -249,6 +249,11 @@ struct ieee80211_node {
 
 	struct ieee80211vap	*ni_wdsvap;	/* associated WDS vap */
 	void			*ni_rctls;	/* private ratectl state */
+
+	/* quiet time IE state for the given node */
+	uint32_t		ni_quiet_ie_set;	/* Quiet time IE was seen */
+	struct			ieee80211_quiet_ie ni_quiet_ie;	/* last seen quiet IE */
+
 	uint64_t		ni_spare[3];
 };
 MALLOC_DECLARE(M_80211_NODE);

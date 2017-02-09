@@ -1319,6 +1319,27 @@ startbgscan(struct ieee80211vap *vap)
 	     ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle)));
 }
 
+#ifdef	notyet
+/*
+ * Compare two quiet IEs and return if they are equivalent.
+ *
+ * The tbttcount isnt checked - that's not part of the configuration.
+ */
+static int
+compare_quiet_ie(const struct ieee80211_quiet_ie *q1,
+    const struct ieee80211_quiet_ie *q2)
+{
+
+	if (q1->period != q2->period)
+		return (0);
+	if (le16dec(&q1->duration) != le16dec(&q2->duration))
+		return (0);
+	if (le16dec(&q1->offset) != le16dec(&q2->offset))
+		return (0);
+	return (1);
+}
+#endif
+
 static void
 sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
     const struct ieee80211_rx_stats *rxs,
@@ -1449,8 +1470,26 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 					ht_state_change = 1;
 			}
 
-			if (scan.quiet)
+			/*
+			 * If we have a quiet time IE then report it up to
+			 * the driver.
+			 *
+			 * Otherwise, inform the driver that the quiet time
+			 * IE has disappeared - only do that once rather than
+			 * spamming it each time.
+			 */
+			if (scan.quiet) {
 				ic->ic_set_quiet(ni, scan.quiet);
+				ni->ni_quiet_ie_set = 1;
+				memcpy(&ni->ni_quiet_ie, scan.quiet,
+				    sizeof(struct ieee80211_quiet_ie));
+			} else {
+				if (ni->ni_quiet_ie_set == 1)
+					ic->ic_set_quiet(ni, NULL);
+				ni->ni_quiet_ie_set = 0;
+				bzero(&ni->ni_quiet_ie,
+				    sizeof(struct ieee80211_quiet_ie));
+			}
 
 			if (scan.tim != NULL) {
 				struct ieee80211_tim_ie *tim =

@@ -2128,7 +2128,6 @@ ieee80211_add_qos(uint8_t *frm, const struct ieee80211_node *ni)
  * Send a probe request frame with the specified ssid
  * and any optional information element data.
  */
-/* XXX VHT? */
 int
 ieee80211_send_probereq(struct ieee80211_node *ni,
 	const uint8_t sa[IEEE80211_ADDR_LEN],
@@ -2438,7 +2437,6 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
-		/* XXX VHT? */
 		/*
 		 * asreq frame format
 		 *	[2] capability information
@@ -2700,7 +2698,6 @@ bad:
  * Space is left to prepend and 802.11 header at the
  * front but it's left to the caller to fill in.
  */
-/* XXX VHT? */
 struct mbuf *
 ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 {
@@ -3035,7 +3032,6 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 	}
 }
 
-/* XXX VHT? */
 static void
 ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	struct ieee80211_node *ni)
@@ -3163,15 +3159,23 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	} else
 		bo->bo_csa = frm;
 
+	bo->bo_quiet = NULL;
 	if (vap->iv_flags & IEEE80211_F_DOTH) {
-		bo->bo_quiet = frm;
 		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
-			if (vap->iv_quiet)
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS) &&
+		    (vap->iv_quiet == 1)) {
+			/*
+			 * We only insert the quiet IE offset if
+			 * the quiet IE is enabled.  Otherwise don't
+			 * put it here or we'll just overwrite
+			 * some other beacon contents.
+			 */
+			if (vap->iv_quiet) {
+				bo->bo_quiet = frm;
 				frm = ieee80211_add_quiet(frm,vap, 0);
+			}
 		}
-	} else
-		bo->bo_quiet = frm;
+	}
 
 	if (IEEE80211_IS_CHAN_ANYG(ni->ni_chan)) {
 		bo->bo_erp = frm;
@@ -3239,7 +3243,6 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 /*
  * Allocate a beacon frame and fillin the appropriate bits.
  */
-/* XXX VHT? */
 struct mbuf *
 ieee80211_beacon_alloc(struct ieee80211_node *ni)
 {
@@ -3250,6 +3253,14 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni)
 	struct mbuf *m;
 	int pktlen;
 	uint8_t *frm;
+
+	/*
+	 * Update the "We're putting the quiet IE in the beacon" state.
+	 */
+	if (vap->iv_quiet == 1)
+		vap->iv_flags_ext |= IEEE80211_FEXT_QUIET_IE;
+	else if (vap->iv_quiet == 0)
+		vap->iv_flags_ext &= ~IEEE80211_FEXT_QUIET_IE;
 
 	/*
 	 * beacon frame format
@@ -3286,7 +3297,6 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni)
 	 * NB: we allocate the max space required for the TIM bitmap.
 	 * XXX how big is this?
 	 */
-	/* XXX VHT? */
 	pktlen =   8					/* time stamp */
 		 + sizeof(uint16_t)			/* beacon interval */
 		 + sizeof(uint16_t)			/* capabilities */
@@ -3387,6 +3397,42 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 		ieee80211_beacon_construct(m,
 		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), ni);
 
+		/* XXX do WME aggressive mode processing? */
+		IEEE80211_UNLOCK(ic);
+		return 1;		/* just assume length changed */
+	}
+
+	/*
+	 * Handle the quiet time element being added and removed.
+	 * Again, for now we just cheat and reconstruct the whole
+	 * beacon - that way the gap is provided as appropriate.
+	 *
+	 * So, track whether we have already added the IE versus
+	 * whether we want to be adding the IE.
+	 */
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_QUIET_IE) &&
+	    (vap->iv_quiet == 0)) {
+		/*
+		 * Quiet time beacon IE enabled, but it's disabled;
+		 * recalc
+		 */
+		vap->iv_flags_ext &= ~IEEE80211_FEXT_QUIET_IE;
+		ieee80211_beacon_construct(m,
+		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), ni);
+		/* XXX do WME aggressive mode processing? */
+		IEEE80211_UNLOCK(ic);
+		return 1;		/* just assume length changed */
+	}
+
+	if (((vap->iv_flags_ext & IEEE80211_FEXT_QUIET_IE) == 0) &&
+	    (vap->iv_quiet == 1)) {
+		/*
+		 * Quiet time beacon IE disabled, but it's now enabled;
+		 * recalc
+		 */
+		vap->iv_flags_ext |= IEEE80211_FEXT_QUIET_IE;
+		ieee80211_beacon_construct(m,
+		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), ni);
 		/* XXX do WME aggressive mode processing? */
 		IEEE80211_UNLOCK(ic);
 		return 1;		/* just assume length changed */
@@ -3600,10 +3646,17 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 			vap->iv_csa_count++;
 			/* NB: don't clear IEEE80211_BEACON_CSA */
 		}
+
+		/*
+		 * Only add the quiet time IE if we've enabled it
+		 * as appropriate.
+		 */
 		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS) ){
-			if (vap->iv_quiet)
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
+			if (vap->iv_quiet &&
+			    (vap->iv_flags_ext & IEEE80211_FEXT_QUIET_IE)) {
 				ieee80211_add_quiet(bo->bo_quiet, vap, 1);
+			}
 		}
 		if (isset(bo->bo_flags, IEEE80211_BEACON_ERP)) {
 			/*
