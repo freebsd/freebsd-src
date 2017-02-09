@@ -1030,9 +1030,10 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 }
 
 /*
- * This function is called if the first try at releasing a write lock failed.
- * This means that one of the 2 waiter bits must be set indicating that at
- * least one thread is waiting on this lock.
+ * This function is called if lockstat is active or the first try at releasing
+ * a write lock failed.  The latter means that the lock is recursed or one of
+ * the 2 waiter bits must be set indicating that at least one thread is waiting
+ * on this lock.
  */
 void
 __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
@@ -1047,17 +1048,18 @@ __rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 		return;
 
 	rw = rwlock2rw(c);
-
-	if (!rw_recursed(rw)) {
-		LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw,
-		    LOCKSTAT_WRITER);
-		if (_rw_write_unlock(rw, tid))
-			return;
-	} else {
+	v = RW_READ_VALUE(rw);
+	if (v & RW_LOCK_WRITER_RECURSED) {
 		if (--(rw->rw_recurse) == 0)
 			atomic_clear_ptr(&rw->rw_lock, RW_LOCK_WRITER_RECURSED);
+		if (LOCK_LOG_TEST(&rw->lock_object, 0))
+			CTR2(KTR_LOCK, "%s: %p unrecursing", __func__, rw);
 		return;
 	}
+
+	LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw, LOCKSTAT_WRITER);
+	if (v == tid && _rw_write_unlock(rw, tid))
+		return;
 
 	KASSERT(rw->rw_lock & (RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS),
 	    ("%s: neither of the waiter flags are set", __func__));
