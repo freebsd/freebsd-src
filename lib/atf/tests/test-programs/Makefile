@@ -5,7 +5,7 @@
 TESTSDIR=	${TESTSBASE}/lib/atf/test-programs
 KYUAFILE=	yes
 
-ATF=		${.CURDIR:H:H:H:H}/contrib/atf
+ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}/test-programs
 
 CFLAGS+=	-I${ATF}

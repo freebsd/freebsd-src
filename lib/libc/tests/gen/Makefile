@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/gen
-
 ATF_TESTS_C+=		arc4random_test
 ATF_TESTS_C+=		fmtcheck2_test
 ATF_TESTS_C+=		fmtmsg_test

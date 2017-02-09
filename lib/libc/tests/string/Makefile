@@ -5,8 +5,6 @@ ATF_TESTS_C+=		strerror2_test
 ATF_TESTS_C+=		wcscasecmp_test
 ATF_TESTS_C+=		wcsnlen_test
 
-TESTSDIR=	${TESTSBASE}/lib/libc/string
-
 # TODO: popcount, stresep
 
 NETBSD_ATF_TESTS_C+=	memchr_test

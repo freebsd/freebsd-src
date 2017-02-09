@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/stdio
-
 ATF_TESTS_C+=		fdopen_test
 ATF_TESTS_C+=		fmemopen2_test
 ATF_TESTS_C+=		fopen2_test

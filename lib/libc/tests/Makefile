@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc
-
 SUBDIR=		tls_dso
 
 TESTS_SUBDIRS=	c063

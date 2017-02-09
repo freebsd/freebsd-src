@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/lib/libc/net
-
 ATF_TESTS_C+=	ether_test
 ATF_TESTS_C+=	eui64_aton_test
 ATF_TESTS_C+=	eui64_ntoa_test

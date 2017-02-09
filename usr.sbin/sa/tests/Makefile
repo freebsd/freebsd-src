@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.sbin/sa
-
 TAP_TESTS_SH=	legacy_test
 TEST_METADATA.legacy_test+=	allowed_architectures="amd64 i386 sparc64"
 
