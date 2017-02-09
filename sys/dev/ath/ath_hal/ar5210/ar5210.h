@@ -251,6 +251,8 @@ extern	HAL_BOOL ar5210SetCTSTimeout(struct ath_hal *, u_int);
 extern	u_int ar5210GetCTSTimeout(struct ath_hal *);
 extern  HAL_BOOL ar5210SetDecompMask(struct ath_hal *, uint16_t, int);
 void 	ar5210SetCoverageClass(struct ath_hal *, uint8_t, int);
+extern	HAL_STATUS ar5210SetQuiet(struct ath_hal *, uint32_t, uint32_t,
+		uint32_t, HAL_QUIET_FLAG);
 extern	HAL_STATUS ar5210GetCapability(struct ath_hal *, HAL_CAPABILITY_TYPE,
 		uint32_t, uint32_t *);
 extern	HAL_BOOL ar5210SetCapability(struct ath_hal *, HAL_CAPABILITY_TYPE,
