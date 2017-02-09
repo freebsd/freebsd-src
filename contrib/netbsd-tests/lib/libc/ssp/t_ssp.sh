@@ -361,6 +361,9 @@ raw_head()
 raw_body()
 {
 	prog="$(atf_get_srcdir)/h_raw"
+	# Begin FreeBSD
+	[ -x $prog ] || atf_skip "$prog is missing; skipping testcase"
+	# End FreeBSD
 
 	h_pass "$prog 9"
 	# Begin FreeBSD
