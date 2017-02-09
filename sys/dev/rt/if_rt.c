@@ -393,11 +393,13 @@ rt_attach(device_t dev)
 		sc->csum_fail_ip = RT305X_RXD_SRC_IP_CSUM_FAIL;
 		sc->csum_fail_l4 = RT305X_RXD_SRC_L4_CSUM_FAIL;
 	}
-	
+
 	/* Fill in soc-specific registers map */
 	switch(sc->rt_chipid) {
 	  case RT_CHIPID_MT7620:
 	  case RT_CHIPID_MT7621:
+		sc->gdma1_base = MT7620_GDMA1_BASE;
+		/* fallthrough */
 	  case RT_CHIPID_RT5350:
 	  	device_printf(dev, "%cT%x Ethernet MAC (rev 0x%08x)\n",
 			sc->rt_chipid >= 0x7600 ? 'M' : 'R',
@@ -431,18 +433,7 @@ rt_attach(device_t dev)
 	  default:
 		device_printf(dev, "RT305XF Ethernet MAC (rev 0x%08x)\n",
 			sc->mac_rev);
-		RT_WRITE(sc, GDMA1_BASE + GDMA_FWD_CFG,
-		(
-		GDM_ICS_EN | /* Enable IP Csum */
-		GDM_TCS_EN | /* Enable TCP Csum */
-		GDM_UCS_EN | /* Enable UDP Csum */
-		GDM_STRPCRC | /* Strip CRC from packet */
-		GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* fwd UCast to CPU */
-		GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* fwd BCast to CPU */
-		GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* fwd MCast to CPU */
-		GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* fwd Other to CPU */
-		));
-		
+		sc->gdma1_base = GDMA1_BASE;
 		sc->delay_int_cfg=PDMA_BASE+DELAY_INT_CFG;
 		sc->fe_int_status=GE_PORT_BASE+FE_INT_STATUS;
 		sc->fe_int_enable=GE_PORT_BASE+FE_INT_ENABLE;
@@ -463,6 +454,19 @@ rt_attach(device_t dev)
 		sc->int_rx_done_mask=INT_RX_DONE;
 		sc->int_tx_done_mask=INT_TXQ0_DONE;
 	}
+
+	if (sc->gdma1_base != 0)
+		RT_WRITE(sc, sc->gdma1_base + GDMA_FWD_CFG,
+		(
+		GDM_ICS_EN | /* Enable IP Csum */
+		GDM_TCS_EN | /* Enable TCP Csum */
+		GDM_UCS_EN | /* Enable UDP Csum */
+		GDM_STRPCRC | /* Strip CRC from packet */
+		GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* fwd UCast to CPU */
+		GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* fwd BCast to CPU */
+		GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* fwd MCast to CPU */
+		GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* fwd Other to CPU */
+		));
 
 	/* allocate Tx and Rx rings */
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
@@ -782,18 +786,18 @@ rt_init_locked(void *priv)
 	//rt305x_sysctl_set(SYSCTL_RSTCTRL, SYSCTL_RSTCTRL_FRENG);
 
 	/* Fwd to CPU (uni|broad|multi)cast and Unknown */
-	if(sc->rt_chipid == RT_CHIPID_RT3050)
-	  RT_WRITE(sc, GDMA1_BASE + GDMA_FWD_CFG,
-	    (
-	    GDM_ICS_EN | /* Enable IP Csum */
-	    GDM_TCS_EN | /* Enable TCP Csum */
-	    GDM_UCS_EN | /* Enable UDP Csum */
-	    GDM_STRPCRC | /* Strip CRC from packet */
-	    GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* Forward UCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* Forward BCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* Forward MCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* Forward Other to CPU */
-	    ));
+	if (sc->gdma1_base != 0)
+		RT_WRITE(sc, sc->gdma1_base + GDMA_FWD_CFG,
+		(
+		GDM_ICS_EN | /* Enable IP Csum */
+		GDM_TCS_EN | /* Enable TCP Csum */
+		GDM_UCS_EN | /* Enable UDP Csum */
+		GDM_STRPCRC | /* Strip CRC from packet */
+		GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* fwd UCast to CPU */
+		GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* fwd BCast to CPU */
+		GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* fwd MCast to CPU */
+		GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* fwd Other to CPU */
+		));
 
 	/* disable DMA engine */
 	RT_WRITE(sc, sc->pdma_glo_cfg, 0);
@@ -965,25 +969,25 @@ rt_stop_locked(void *priv)
 	/* disable interrupts */
 	RT_WRITE(sc, sc->fe_int_enable, 0);
 	
-	if(sc->rt_chipid == RT_CHIPID_RT5350 ||
-	   sc->rt_chipid == RT_CHIPID_MT7620 ||
-	   sc->rt_chipid == RT_CHIPID_MT7621) {
-	} else {
-	  /* reset adapter */
-	  RT_WRITE(sc, GE_PORT_BASE + FE_RST_GLO, PSE_RESET);
-
-	  RT_WRITE(sc, GDMA1_BASE + GDMA_FWD_CFG,
-	    (
-	    GDM_ICS_EN | /* Enable IP Csum */
-	    GDM_TCS_EN | /* Enable TCP Csum */
-	    GDM_UCS_EN | /* Enable UDP Csum */
-	    GDM_STRPCRC | /* Strip CRC from packet */
-	    GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* Forward UCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* Forward BCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* Forward MCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* Forward Other to CPU */
-	    ));
+	if(sc->rt_chipid != RT_CHIPID_RT5350 &&
+	   sc->rt_chipid != RT_CHIPID_MT7620 &&
+	   sc->rt_chipid != RT_CHIPID_MT7621) {
+		/* reset adapter */
+		RT_WRITE(sc, GE_PORT_BASE + FE_RST_GLO, PSE_RESET);
 	}
+
+	if (sc->gdma1_base != 0)
+		RT_WRITE(sc, sc->gdma1_base + GDMA_FWD_CFG,
+		(
+		GDM_ICS_EN | /* Enable IP Csum */
+		GDM_TCS_EN | /* Enable TCP Csum */
+		GDM_UCS_EN | /* Enable UDP Csum */
+		GDM_STRPCRC | /* Strip CRC from packet */
+		GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* fwd UCast to CPU */
+		GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* fwd BCast to CPU */
+		GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* fwd MCast to CPU */
+		GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* fwd Other to CPU */
+		));
 }
 
 static void
