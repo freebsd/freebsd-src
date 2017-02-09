@@ -285,6 +285,8 @@
             ..
             ssp
             ..
+            setjmp
+            ..
             stdio
             ..
             stdlib
