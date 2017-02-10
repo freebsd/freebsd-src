@@ -778,16 +778,11 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 				error = EADDRNOTAVAIL;
 			goto release;
 		}
-		if (inp->inp_lport == 0) {
-			inp->inp_flags |= INP_ANONPORT;
-			error = in6_pcbsetport((struct sockaddr *)addr6, laddr,
-						inp, td->td_ucred);
-			if (error) {
-				inp->inp_flags &= ~INP_ANONPORT;
-				/* Undo an address bind that may have occurred. */
-				inp->in6p_laddr = in6addr_any;
-				goto release;
-			}
+		if (inp->inp_lport == 0 &&
+		    (error = in6_pcbsetport(laddr, inp, td->td_ucred)) != 0) {
+			/* Undo an address bind that may have occurred. */
+			inp->in6p_laddr = in6addr_any;
+			goto release;
 		}
 	} else {
 		if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {

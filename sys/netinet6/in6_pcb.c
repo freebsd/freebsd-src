@@ -132,7 +132,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		lookupflags = INPLOOKUP_WILDCARD;
-	if (nam == NULL || (inp->inp_flags & INP_ANONPORT)) {
+	if (nam == NULL) {
 		if ((error = prison_local_ip6(cred, &inp->in6p_laddr,
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (error);
@@ -296,7 +296,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		inp->in6p_laddr = sin6->sin6_addr;
 	}
 	if (lport == 0) {
-		if ((error = in6_pcbsetport(nam, &inp->in6p_laddr, inp, cred)) != 0) {
+		if ((error = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0) {
 			/* Undo an address bind that may have occurred. */
 			inp->in6p_laddr = in6addr_any;
 			return (error);
@@ -416,12 +416,9 @@ in6_pcbconnect_mbuf(register struct inpcb *inp, struct sockaddr *nam,
 	}
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
 		if (inp->inp_lport == 0) {
-			inp->inp_flags |= INP_ANONPORT;
-			error = in6_pcbbind(inp, nam, cred);
-			if (error) {
-				inp->inp_flags &= ~INP_ANONPORT;
+			error = in6_pcbbind(inp, (struct sockaddr *)0, cred);
+			if (error)
 				return (error);
-			}
 		}
 		inp->in6p_laddr = addr6;
 	}

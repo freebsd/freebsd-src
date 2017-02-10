@@ -1238,12 +1238,9 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	INP_HASH_WLOCK(&V_tcbinfo);
 
 	if (inp->inp_lport == 0) {
-		inp->inp_flags |= INP_ANONPORT;
-		error = in_pcbbind(inp, nam, td->td_ucred);
-		if (error) {
-			inp->inp_flags &= ~INP_ANONPORT;
+		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
+		if (error)
 			goto out;
-		}
 	}
 
 	/*
@@ -1299,12 +1296,9 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	INP_HASH_WLOCK(&V_tcbinfo);
 
 	if (inp->inp_lport == 0) {
-		inp->inp_flags |= INP_ANONPORT;
-		error = in6_pcbbind(inp, nam, td->td_ucred);
-		if (error) {
-			inp->inp_flags &= ~INP_ANONPORT;
+		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
+		if (error)
 			goto out;
-		}
 	}
 	error = in6_pcbconnect(inp, nam, td->td_ucred);
 	if (error != 0)
