@@ -247,6 +247,9 @@ ATF_TC_BODY(humanize_number_basic, tc)
 		newline();
 		atf_tc_fail_nonfatal("Failed for table entry %d", i);
 	}
+#ifdef	__FreeBSD__
+	free(buf);
+#endif
 }
 
 ATF_TC(humanize_number_big);
