@@ -34,6 +34,9 @@ __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
 __RCSID("$NetBSD: t_sig.c,v 1.2 2010/11/03 16:10:20 christos Exp $");
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#endif
 #include <sys/event.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
@@ -60,9 +63,13 @@ ATF_TC_HEAD(sig, tc)
 ATF_TC_BODY(sig, tc)
 {
 	struct timespec	timeout;
+#ifdef __NetBSD__
 	struct kfilter_mapping km;
+#endif
 	struct kevent event[1];
+#ifdef __NetBSD__
 	char namebuf[32];
+#endif
 	pid_t pid, child;
 	int kq, n, num, status;
 
@@ -84,16 +91,22 @@ ATF_TC_BODY(sig, tc)
 
 	RL(kq = kqueue());
 
+#ifdef __NetBSD__
 	(void)strlcpy(namebuf, "EVFILT_SIGNAL", sizeof(namebuf));
 	km.name = namebuf;
 	RL(ioctl(kq, KFILTER_BYNAME, &km));
 	(void)printf("got %d as filter number for `%s'.\n", km.filter, km.name);
+#endif
 
 	/* ignore the signal to avoid taking it for real */
 	REQUIRE_LIBC(signal(SIGUSR1, SIG_IGN), SIG_ERR);
 
 	event[0].ident = SIGUSR1;
+#ifdef __NetBSD__
 	event[0].filter = km.filter;
+#else
+	event[0].filter = EVFILT_SIGNAL;
+#endif
 	event[0].flags = EV_ADD | EV_ENABLE;
 
 	RL(kevent(kq, event, 1, NULL, 0, NULL));
