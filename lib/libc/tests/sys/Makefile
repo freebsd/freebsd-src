@@ -59,12 +59,16 @@ NETBSD_ATF_TESTS_C+=		ucontext_test
 NETBSD_ATF_TESTS_C+=		umask_test
 NETBSD_ATF_TESTS_C+=		unlink_test
 NETBSD_ATF_TESTS_C+=		wait_test
+NETBSD_ATF_TESTS_C+=		wait_noproc_test
+NETBSD_ATF_TESTS_C+=		wait_noproc_wnohang_test
 NETBSD_ATF_TESTS_C+=		write_test
 
 DPADD.getpid_test+=	${LIBPTHREAD}
 LDADD.getpid_test+=	-lpthread
 DPADD.timer_create_test+=	${LIBRT}
 LDADD.timer_create_test+=	-lrt
+
+CSTD?=				c99
 
 .include "../Makefile.netbsd-tests"
 

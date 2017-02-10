@@ -1,4 +1,4 @@
-/*	$NetBSD: t_vis.c,v 1.8 2015/05/23 14:02:11 christos Exp $	*/
+/*	$NetBSD: t_vis.c,v 1.9 2017/01/10 15:16:57 christos Exp $	*/
 
 /*-
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
@@ -144,9 +144,7 @@ ATF_TC_BODY(strunvis_hex, tc)
 	}
 }
 
-/* Begin FreeBSD: ^/stable/10 doesn't have VIS_NOLOCALE */
 #ifdef VIS_NOLOCALE
-/* End FreeBSD */
 ATF_TC(strvis_locale);
 ATF_TC_HEAD(strvis_locale, tc)
 {
@@ -175,9 +173,7 @@ ATF_TC_BODY(strvis_locale, tc)
 	setlocale(LC_CTYPE, ol);
 	free(ol);
 }
-/* Begin FreeBSD: ^/stable/10 doesn't have VIS_NOLOCALE */
 #endif /* VIS_NOLOCALE */
-/* End FreeBSD */
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -186,13 +182,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, strvis_null);
 	ATF_TP_ADD_TC(tp, strvis_empty);
 	ATF_TP_ADD_TC(tp, strunvis_hex);
-/* Begin FreeBSD: ^/stable/10 doesn't have VIS_NOLOCALE */
 #ifdef VIS_NOLOCALE
-/* End FreeBSD */
 	ATF_TP_ADD_TC(tp, strvis_locale);
-/* Begin FreeBSD: ^/stable/10 doesn't have VIS_NOLOCALE */
 #endif /* VIS_NOLOCALE */
-/* End FreeBSD */
 
 	return atf_no_error();
 }
