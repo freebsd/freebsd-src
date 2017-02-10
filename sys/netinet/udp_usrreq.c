@@ -647,13 +647,13 @@ udp_input(struct mbuf *m, int off)
 		    INPLOOKUP_RLOCKPCB, ifp, m);
 	if (inp == NULL) {
 		if (udp_log_in_vain) {
-			char buf[4*sizeof "123"];
+			char src[INET_ADDRSTRLEN];
+			char dst[INET_ADDRSTRLEN];
 
-			strcpy(buf, inet_ntoa(ip->ip_dst));
 			log(LOG_INFO,
 			    "Connection attempt to UDP %s:%d from %s:%d\n",
-			    buf, ntohs(uh->uh_dport), inet_ntoa(ip->ip_src),
-			    ntohs(uh->uh_sport));
+			    inet_ntoa_r(ip->ip_dst, dst), ntohs(uh->uh_dport),
+			    inet_ntoa_r(ip->ip_src, src), ntohs(uh->uh_sport));
 		}
 		UDPSTAT_INC(udps_noport);
 		if (m->m_flags & (M_BCAST | M_MCAST)) {
