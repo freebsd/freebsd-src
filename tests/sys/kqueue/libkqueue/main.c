@@ -113,12 +113,6 @@ kevent_fflags_dump(struct kevent *kev)
         KEVFFL_DUMP(NOTE_TRACKERR);
         KEVFFL_DUMP(NOTE_TRACK);
         buf[strlen(buf) - 1] = ')';
-    } else if (kev->filter == EVFILT_PROCDESC) {
-        snprintf(buf, 1024, "fflags = %x (", kev->fflags);
-        KEVFFL_DUMP(NOTE_EXIT);
-        KEVFFL_DUMP(NOTE_FORK);
-        KEVFFL_DUMP(NOTE_EXEC);
-        buf[strlen(buf) - 1] = ')';
     } else if (kev->filter == EVFILT_VNODE) {
         snprintf(buf, 1024, "fflags = %x (", kev->fflags);
         KEVFFL_DUMP(NOTE_DELETE);
