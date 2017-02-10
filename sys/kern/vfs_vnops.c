@@ -351,8 +351,8 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 
 	while ((fmode & (O_EXLOCK | O_SHLOCK)) != 0) {
 		KASSERT(fp != NULL, ("open with flock requires fp"));
-		if (fp->f_type != DTYPE_VNODE) {
-			error = EBADF;
+		if (fp->f_type != DTYPE_NONE && fp->f_type != DTYPE_VNODE) {
+			error = EOPNOTSUPP;
 			break;
 		}
 		lock_flags = VOP_ISLOCKED(vp);
