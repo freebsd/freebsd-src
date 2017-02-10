@@ -45,6 +45,12 @@ __RCSID("$NetBSD: t_rpc.c,v 1.9 2015/11/27 13:59:40 christos Exp $");
 
 #define RPCBPROC_NULL 0
 
+/* XXX (ngie): for clarity on what needs to be reverted later. */
+#define	__FreeBSD_bug_216954__
+#ifdef	__FreeBSD_bug_216954__
+#include <signal.h>
+#endif
+
 static int
 reply(caddr_t replyp, struct netbuf * raddrp, struct netconfig * nconf)
 {
@@ -337,8 +343,13 @@ ATF_TC_HEAD(raw, tc)
 ATF_TC_BODY(raw, tc)
 {
 #ifdef __FreeBSD__
+#ifdef __FreeBSD_bug_216954__
+	atf_tc_expect_signal(SIGSEGV,
+	    "fails with SIGSEGV only on ^/stable/10 -- bug # 216954");
+#else
 	atf_tc_expect_fail("fails with: clnt_call: "
 	    "RPC: Can't decode result -- PR # 211804");
+#endif
 #endif
 	rawtest(NULL);
 
