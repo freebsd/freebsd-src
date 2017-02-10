@@ -93,7 +93,18 @@ negative_body() {
 	test_unmount
 }
 
+# Begin FreeBSD
+if true; then
+atf_test_case large cleanup
+large_cleanup() {
+	umount -f tmp 2>/dev/null
+}
+else
+# End FreeBSD
 atf_test_case large
+# Begin FreeBSD
+fi
+# End FreeBSD
 large_head() {
 	atf_set "descr" "Tests that extremely long values passed to -s" \
 	                "are handled correctly"
@@ -102,6 +113,10 @@ large_head() {
 large_body() {
 	test_mount -o -s9223372036854775807
 	test_unmount
+
+	# Begin FreeBSD
+	atf_expect_fail "-o -s<large-size> succeeds unexpectedly on FreeBSD - bug 212862"
+	# End FreeBSD
 
 	mkdir tmp
 	atf_check -s eq:1 -o empty -e ignore \
