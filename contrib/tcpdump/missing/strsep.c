@@ -31,15 +31,15 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 /*
  * Get next token from string *stringp, where tokens are possibly-empty
