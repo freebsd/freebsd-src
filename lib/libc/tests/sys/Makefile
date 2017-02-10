@@ -68,6 +68,9 @@ LDADD.timer_create_test+=	-lrt
 
 .include "../Makefile.netbsd-tests"
 
+SRCS.mlock_test+=		mlock_helper.c
+SRCS.setrlimit_test+=		mlock_helper.c
+
 .if ${COMPILER_TYPE} == "gcc"
 WARNS?=			3
 .else
