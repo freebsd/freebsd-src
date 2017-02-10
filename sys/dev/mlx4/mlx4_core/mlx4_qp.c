@@ -242,6 +242,9 @@ int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 	u64 out_param;
 	int err;
 
+	/* Turn off all unsupported QP allocation flags */
+	flags &= dev->caps.alloc_res_qp_mask;
+
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&in_param, (((u32) flags) << 24) | (u32) cnt);
 		set_param_h(&in_param, align);
