@@ -371,8 +371,8 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
  */
 #if defined(INET) || defined(INET6)
 int
-in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
-    struct ucred *cred, int lookupflags)
+in_pcb_lport(struct inpcb *inp, struct sockaddr *nam, struct in_addr *laddrp,
+    u_short *lportp, struct ucred *cred, int lookupflags)
 {
 	struct inpcbinfo *pcbinfo;
 	struct inpcb *tmpinp;
@@ -381,6 +381,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 	u_short aux, first, last, lport;
 #ifdef INET
 	struct in_addr laddr;
+	struct sockaddr_in *sin = NULL;
 #endif
 
 	pcbinfo = inp->inp_pcbinfo;
@@ -447,6 +448,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 		KASSERT(laddrp != NULL, ("%s: laddrp NULL for v4 inp %p",
 		    __func__, inp));
 		laddr = *laddrp;
+		sin = (struct sockaddr_in *)nam;
 	}
 #endif
 	tmpinp = NULL;	/* Make compiler happy. */
@@ -466,16 +468,29 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 		lport = htons(*lastport);
 
 #ifdef INET6
-		if ((inp->inp_vflag & INP_IPV6) != 0)
-			tmpinp = in6_pcblookup_local(pcbinfo,
-			    &inp->in6p_laddr, lport, lookupflags, cred);
+		if ((inp->inp_vflag & INP_IPV6) != 0) {
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
+			if (sin6 != NULL && (inp->inp_flags & INP_ANONPORT)) {
+				tmpinp = in6_pcblookup_hash_locked(pcbinfo,
+				    &sin6->sin6_addr, sin6->sin6_port,
+				    &inp->in6p_laddr, lport,
+				    lookupflags & (~INPLOOKUP_WILDCARD),
+				    NULL);
+			} else
+				tmpinp = in6_pcblookup_local(pcbinfo,
+				    &inp->in6p_laddr, lport, lookupflags, cred);
+		}
 #endif
 #if defined(INET) && defined(INET6)
 		else
 #endif
 #ifdef INET
-			tmpinp = in_pcblookup_local(pcbinfo, laddr,
-			    lport, lookupflags, cred);
+			if (sin != NULL && (inp->inp_flags & INP_ANONPORT))
+				tmpinp = in_pcblookup_hash_locked(pcbinfo, sin->sin_addr, sin->sin_port, laddr,
+				    lport, lookupflags & (~INPLOOKUP_WILDCARD), NULL);
+			else
+				tmpinp = in_pcblookup_local(pcbinfo, laddr,
+				    lport, lookupflags, cred);
 #endif
 	} while (tmpinp != NULL);
 
@@ -571,7 +586,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		lookupflags = INPLOOKUP_WILDCARD;
-	if (nam == NULL) {
+	if (nam == NULL || ((*lportp) == 0 && (inp->inp_flags & INP_ANONPORT))) {
 		if ((error = prison_local_ip4(cred, &laddr)) != 0)
 			return (error);
 	} else {
@@ -692,7 +707,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	if (*lportp != 0)
 		lport = *lportp;
 	if (lport == 0) {
-		error = in_pcb_lport(inp, &laddr, &lport, cred, lookupflags);
+		error = in_pcb_lport(inp, nam, &laddr, &lport, cred, lookupflags);
 		if (error != 0)
 			return (error);
 
