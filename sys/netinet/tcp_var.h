@@ -863,6 +863,15 @@ tcp_fields_to_host(struct tcphdr *th)
 	th->th_urp = ntohs(th->th_urp);
 }
 
+static inline void
+tcp_fields_to_net(struct tcphdr *th)
+{
+
+	th->th_seq = htonl(th->th_seq);
+	th->th_ack = htonl(th->th_ack);
+	th->th_win = htons(th->th_win);
+	th->th_urp = htons(th->th_urp);
+}
 #endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */
