@@ -1257,8 +1257,10 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 		sfence();
 	} else if ((cpu_feature & CPUID_CLFSH) != 0 &&
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
+#ifdef DEV_APIC
 		if (pmap_kextract(sva) == lapic_paddr)
 			return;
+#endif
 		/*
 		 * Writes are ordered by CLFLUSH on Intel CPUs.
 		 */
