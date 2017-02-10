@@ -1,4 +1,4 @@
-/*	$NetBSD: t_p2kifs.c,v 1.4 2014/02/07 15:29:23 hannken Exp $	*/
+/*	$NetBSD: t_p2kifs.c,v 1.5 2016/01/25 11:45:57 pooka Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -32,6 +32,7 @@
 #include <sys/sysctl.h>
 
 #include <rump/rump.h>
+#include <rump/rumpvnode_if.h>
 #include <rump/rump_syscalls.h>
 
 #include <atf-c.h>

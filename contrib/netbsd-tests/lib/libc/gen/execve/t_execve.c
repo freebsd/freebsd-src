@@ -1,4 +1,4 @@
-/*	$NetBSD: t_execve.c,v 1.1 2014/04/29 06:29:02 uebayasi Exp $	*/
+/*	$NetBSD: t_execve.c,v 1.2 2015/09/12 15:21:33 christos Exp $	*/
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -47,7 +47,8 @@ ATF_TC_BODY(t_execve_null, tc)
 
 	err = execve(NULL, NULL, NULL);
 	ATF_REQUIRE(err == -1);
-	ATF_REQUIRE(errno == EFAULT);
+	ATF_REQUIRE_MSG(errno == EFAULT,
+	    "wrong error returned %d instead of %d", errno, EFAULT);
 }
 
 ATF_TP_ADD_TCS(tp)

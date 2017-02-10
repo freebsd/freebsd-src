@@ -1,4 +1,4 @@
-# $NetBSD: t_grow.sh,v 1.8 2011/01/11 00:50:02 riz Exp $
+# $NetBSD: t_grow.sh,v 1.9 2015/03/29 19:37:02 chopps Exp $
 #
 # Copyright (c) 2010 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -131,8 +131,10 @@ grow_ffsv1_partial_cg_body()
 	atf_check -o ignore -e ignore newfs -V1 -s 4000 -F ${IMG}
 
 	# size to grow to is chosen to cause partial cg
+	atf_check -s exit:0 -o ignore resize_ffs -c -y -s 5760 ${IMG}
 	atf_check -s exit:0 -o ignore resize_ffs -y -s 5760 ${IMG}
 	atf_check -s exit:0 -o ignore fsck_ffs -f -n -F ${IMG}
+	atf_check -s exit:1 -o ignore resize_ffs -c -y -s 5760 ${IMG}
 }
 
 atf_init_test_cases()

@@ -5,6 +5,8 @@
 NETBSD_ATF_TESTS_C=
 
 .if ${MK_OPENSSL} != "no"
+# XXX: doesn't compile
+#NETBSD_ATF_TESTS_C+=	hmac_test
 NETBSD_ATF_TESTS_C+=	sha2_test
 .endif
 
