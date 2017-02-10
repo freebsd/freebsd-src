@@ -178,8 +178,11 @@ ixlv_send_pf_msg(struct ixlv_sc *sc,
 
 	err = i40e_aq_send_msg_to_pf(hw, op, I40E_SUCCESS, msg, len, NULL);
 	if (err)
-		device_printf(dev, "Unable to send opcode %d to PF, "
-		    "error %d, aq status %d\n", op, err, hw->aq.asq_last_status);
+		device_printf(dev, "Unable to send opcode %s to PF, "
+		    "status %s, aq error %s\n",
+		    ixl_vc_opcode_str(op),
+		    i40e_stat_str(hw, err),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
 	return err;
 }
 
@@ -871,7 +874,7 @@ ixlv_set_rss_hena(struct ixlv_sc *sc)
 {
 	struct i40e_virtchnl_rss_hena hena;
 
-	hena.hena = IXL_DEFAULT_RSS_HENA;
+	hena.hena = IXL_DEFAULT_RSS_HENA_X722;
 
 	ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_SET_RSS_HENA,
 			  (u8 *)&hena, sizeof(hena));
@@ -972,8 +975,8 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 	/* Catch-all error response */
 	if (v_retval) {
 		device_printf(dev,
-		    "%s: AQ returned error %d to our request %d!\n",
-		    __func__, v_retval, v_opcode);
+		    "%s: AQ returned error %s to our request %s!\n",
+		    __func__, i40e_stat_str(&sc->hw, v_retval), ixl_vc_opcode_str(v_opcode));
 	}
 
 #ifdef IXL_DEBUG
@@ -1055,8 +1058,8 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 	default:
 #ifdef IXL_DEBUG
 		device_printf(dev,
-		    "%s: Received unexpected message %d from PF.\n",
-		    __func__, v_opcode);
+		    "%s: Received unexpected message %s from PF.\n",
+		    __func__, ixl_vc_opcode_str(v_opcode));
 #endif
 		break;
 	}

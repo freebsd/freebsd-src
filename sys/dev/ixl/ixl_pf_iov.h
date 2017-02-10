@@ -42,6 +42,9 @@
 #include <sys/iov_schema.h>
 #include <dev/pci/pci_iov.h>
 
+#define	IXL_GLOBAL_VF_NUM(hw, vf) \
+	(vf->vf_num + hw->func_caps.vf_base_id)
+
 /* Public functions */
 
 /*
