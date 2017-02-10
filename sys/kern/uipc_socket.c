@@ -1182,6 +1182,7 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	     (resid <= 0)) ?
 		PRUS_EOF :
 		/* If there is more to send set PRUS_MORETOCOME */
+		(flags & MSG_MORETOCOME) ||
 		(resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
 		top, addr, control, td);
 	if (dontroute) {
@@ -1368,6 +1369,7 @@ restart:
 			     (resid <= 0)) ?
 				PRUS_EOF :
 			/* If there is more to send set PRUS_MORETOCOME. */
+			    (flags & MSG_MORETOCOME) ||
 			    (resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
 			    top, addr, control, td);
 			if (dontroute) {
