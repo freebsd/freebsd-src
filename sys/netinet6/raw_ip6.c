@@ -166,7 +166,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	RIP6STAT_INC(rip6s_ipackets);
 
-	init_sin6(&fromsa, m); /* general init */
+	init_sin6(&fromsa, m, 0); /* general init */
 
 	ifp = m->m_pkthdr.rcvif;
 

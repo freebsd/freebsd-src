@@ -2492,6 +2492,10 @@ db_print_inpflags(int inp_flags)
 		db_printf("%sINP_RECVDSTADDR", comma ? ", " : "");
 		comma = 1;
 	}
+	if (inp_flags & INP_ORIGDSTADDR) {
+		db_printf("%sINP_ORIGDSTADDR", comma ? ", " : "");
+		comma = 1;
+	}
 	if (inp_flags & INP_HDRINCL) {
 		db_printf("%sINP_HDRINCL", comma ? ", " : "");
 		comma = 1;
