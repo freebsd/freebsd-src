@@ -956,8 +956,7 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
  * share this function by all *bsd*...
  */
 int
-in6_pcbsetport(struct sockaddr *nam6, struct in6_addr *laddr, struct inpcb *inp,
-    struct ucred *cred)
+in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
 	u_int16_t lport = 0;
@@ -980,7 +979,7 @@ in6_pcbsetport(struct sockaddr *nam6, struct in6_addr *laddr, struct inpcb *inp,
 
 	inp->inp_flags |= INP_ANONPORT;
 
-	error = in_pcb_lport(inp, nam6, NULL, &lport, cred, lookupflags);
+	error = in_pcb_lport(inp, NULL, &lport, cred, lookupflags);
 	if (error != 0)
 		return (error);
 
