@@ -433,6 +433,8 @@ __END_DECLS
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
 #define	IP_BINDMULTI		25   /* bool: allow multiple listeners on a tuple */
 #define	IP_RSS_LISTEN_BUCKET	26   /* int; set RSS listen bucket */
+#define	IP_ORIGDSTADDR		27   /* bool: receive IP dst addr/port w/dgram */
+#define	IP_RECVORIGDSTADDR      IP_ORIGDSTADDR
 
 /*
  * Options for controlling the firewall and dummynet.
