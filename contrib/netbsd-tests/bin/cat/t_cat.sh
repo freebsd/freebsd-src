@@ -1,4 +1,4 @@
-# $NetBSD: t_cat.sh,v 1.2 2012/03/27 17:57:02 jruoho Exp $
+# $NetBSD: t_cat.sh,v 1.3 2016/06/16 01:04:58 sevan Exp $
 #
 # Copyright (c) 2012 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -52,8 +52,20 @@ nonexistent_body() {
 		-x "cat /some/name/that/does/not/exist"
 }
 
+atf_test_case se_output
+se_output_head() {
+	atf_set "descr" "Test that cat(1) prints a $ sign " \
+			"on blank lines with options '-se' (PR bin/51250)"
+}
+
+se_output_body() {
+	atf_check -s ignore -o file:$(atf_get_srcdir)/d_se_output.out \
+		-x "cat -se $(atf_get_srcdir)/d_se_output.in"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case align
 	atf_add_test_case nonexistent
+	atf_add_test_case se_output
 }

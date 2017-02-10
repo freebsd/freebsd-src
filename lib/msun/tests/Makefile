@@ -4,6 +4,8 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 
 # All architectures on FreeBSD have fenv.h
 CFLAGS+=	-DHAVE_FENV_H
+# For isqemu.h
+CFLAGS+=	-I${TESTSRC:H}/libc/gen
 
 .if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
 CFLAGS+=	-D__HAVE_LONG_DOUBLE

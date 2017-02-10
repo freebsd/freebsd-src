@@ -146,6 +146,8 @@ resize_ffs()
 	fi
 
 	umount mnt
+	# Check that resize needed
+	atf_check -s exit:0 -o ignore resize_ffs -c -y -s ${nsize} ${IMG}
 	atf_check -s exit:0 -o ignore resize_ffs -y -s ${nsize} ${IMG}
 	atf_check -s exit:0 -o ignore fsck_ffs -f -n -F ${IMG}
 	atf_check -s exit:0 -e ignore rump_ffs ${IMG} mnt
@@ -155,5 +157,7 @@ resize_ffs()
 	    # checking everything because we don't delete on grow
 	    check_data_range 1 ${numdata}
 	fi
+	# Check that no resize needed
+	atf_check -s exit:1 -o ignore resize_ffs -c -y -s ${nsize} ${IMG}
 	umount mnt
 }
