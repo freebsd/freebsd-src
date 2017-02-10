@@ -636,7 +636,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			goto badunlocked;
 		}
 		UDP_PROBE(receive, NULL, last, ip, last, uh);
-		if (udp_append(last, ip, m, iphlen, udp_in) == 0) 
+		if (udp_append(last, ip, m, iphlen, udpin) == 0) 
 			INP_RUNLOCK(last);
 	inp_lost:
 		INP_INFO_RUNLOCK(pcbinfo);
@@ -726,7 +726,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	UDP_PROBE(receive, NULL, inp, ip, inp, uh);
-	if (udp_append(inp, ip, m, iphlen, udp_in) == 0) 
+	if (udp_append(inp, ip, m, iphlen, udpin) == 0) 
 		INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 
