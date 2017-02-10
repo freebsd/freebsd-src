@@ -1,4 +1,4 @@
-/* $NetBSD: t_mincore.c,v 1.8 2012/06/08 07:18:58 martin Exp $ */
+/* $NetBSD: t_mincore.c,v 1.9 2017/01/10 22:36:29 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -59,9 +59,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mincore.c,v 1.8 2012/06/08 07:18:58 martin Exp $");
+__RCSID("$NetBSD: t_mincore.c,v 1.9 2017/01/10 22:36:29 christos Exp $");
 
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/shm.h>
 
 #include <atf-c.h>
@@ -73,10 +74,6 @@ __RCSID("$NetBSD: t_mincore.c,v 1.8 2012/06/08 07:18:58 martin Exp $");
 #include <string.h>
 #include <unistd.h>
 #include <sys/resource.h>
-
-#ifdef __FreeBSD__
-#include <sys/stat.h>
-#endif
 
 static long		page = 0;
 static const char	path[] = "mincore";

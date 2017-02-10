@@ -1,4 +1,4 @@
-/*	$NetBSD: t_mkfifoat.c,v 1.2 2013/03/17 04:46:06 jmmv Exp $ */
+/*	$NetBSD: t_mkfifoat.c,v 1.3 2017/01/10 15:15:09 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mkfifoat.c,v 1.2 2013/03/17 04:46:06 jmmv Exp $");
+__RCSID("$NetBSD: t_mkfifoat.c,v 1.3 2017/01/10 15:15:09 christos Exp $");
 
 #include <atf-c.h>
 #include <errno.h>
@@ -63,9 +63,7 @@ ATF_TC_BODY(mkfifoat_fd, tc)
 	ATF_REQUIRE((fd = mkfifoat(dfd, BASEFIFO, mode)) != -1);
 	ATF_REQUIRE(close(fd) == 0);
 	ATF_REQUIRE(access(FIFO, F_OK) == 0);
-#ifdef	__FreeBSD__
 	(void)close(dfd);
-#endif
 }
 
 ATF_TC(mkfifoat_fdcwd);

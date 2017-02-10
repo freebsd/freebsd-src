@@ -22,6 +22,7 @@ NETBSD_ATF_TESTS_C+=	sigsuspend_test
 NETBSD_ATF_TESTS_C+=	siglongjmp_test
 NETBSD_ATF_TESTS_C+=	sleep_test
 NETBSD_ATF_TESTS_C+=	swapcontext_test
+NETBSD_ATF_TESTS_C+=	timedmutex_test
 
 NETBSD_ATF_TESTS_SH=	atexit_test
 NETBSD_ATF_TESTS_SH+=	cancel_test
