@@ -72,16 +72,6 @@ __FBSDID("$FreeBSD$");
 #define	TCP_KEYLEN_MIN	1	/* minimum length of TCP-MD5 key */
 #define	TCP_KEYLEN_MAX	80	/* maximum length of TCP-MD5 key */
 
-static inline void
-tcp_fields_to_net(struct tcphdr *th)
-{
-
-	th->th_seq = htonl(th->th_seq);
-	th->th_ack = htonl(th->th_ack);
-	th->th_win = htons(th->th_win);
-	th->th_urp = htons(th->th_urp);
-}
-
 static int
 tcp_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
 {
