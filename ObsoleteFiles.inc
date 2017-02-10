@@ -53,6 +53,9 @@ OLD_FILES+=usr/share/man/man4/hv_vss.4.gz
 .endif
 # 20161118: Remove hv_ata_pci_disengage(4)
 OLD_FILES+=usr/share/man/man4/hv_ata_pci_disengage.4.gz
+# 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
+OLD_FILES+=usr/tests/sys/kqueue/kqtest
+OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
 # 20160723: stale MLINK removed
 OLD_FILES+=usr/share/man/man9/rman_await_resource.9.gz
 # 20160216: Remove obsolete unbound-control-setup
