@@ -97,7 +97,8 @@ negative_body() {
 if true; then
 atf_test_case large cleanup
 large_cleanup() {
-	umount -f tmp 2>/dev/null
+	umount -f tmp 2>/dev/null || :
+	Mount_Point=$(pwd)/mnt _test_unmount || :
 }
 else
 # End FreeBSD
