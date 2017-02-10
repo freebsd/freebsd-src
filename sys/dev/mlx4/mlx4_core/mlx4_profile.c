@@ -199,10 +199,17 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 			init_hca->log_num_cqs = profile[i].log_num;
 			break;
 		case MLX4_RES_EQ:
-			dev->caps.num_eqs     = roundup_pow_of_two(min_t(unsigned, dev_cap->max_eqs,
-									 MAX_MSIX));
-			init_hca->eqc_base    = profile[i].start;
-			init_hca->log_num_eqs = ilog2(dev->caps.num_eqs);
+			if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+				init_hca->log_num_eqs	= 0x1f;
+				init_hca->eqc_base	= profile[i].start;
+				init_hca->num_sys_eqs	= dev_cap->num_sys_eqs;
+			} else {
+				 dev->caps.num_eqs	= roundup_pow_of_two(
+					min_t(unsigned,
+						dev_cap->max_eqs, MAX_MSIX));
+				init_hca->eqc_base	= profile[i].start;
+				init_hca->log_num_eqs	= ilog2(dev->caps.num_eqs);
+			}
 			break;
 		case MLX4_RES_DMPT:
 			dev->caps.num_mpts	= profile[i].num;
