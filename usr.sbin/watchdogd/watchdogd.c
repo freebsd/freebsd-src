@@ -80,7 +80,7 @@ static u_int timeout = WD_TO_128SEC;
 static u_int exit_timeout = WD_TO_NEVER;
 static u_int pretimeout = 0;
 static u_int timeout_sec;
-static u_int nap = 1;
+static u_int nap = 10;
 static int passive = 0;
 static int is_daemon = 0;
 static int is_dry_run = 0;  /* do not arm the watchdog, only
