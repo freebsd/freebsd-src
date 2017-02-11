@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIBBEGEMOT_DIR=${.CURDIR}/../../contrib/libbegemot
+LIBBEGEMOT_DIR=${SRCTOP}/contrib/libbegemot
 
 .PATH: ${LIBBEGEMOT_DIR}
 
