@@ -845,20 +845,16 @@ tcp_timer_rexmt(void * xtp)
 	    (tp->t_rxtshift == 3))
 		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP|TF_SACK_PERMIT);
 	/*
-	 * If we backed off this far, our srtt estimate is probably bogus.
-	 * Clobber it so we'll take the next rtt measurement as our srtt;
-	 * move the current srtt into rttvar to keep the current
-	 * retransmit times until then.
+	 * If we backed off this far, notify the L3 protocol that we're having
+	 * connection problems.
 	 */
-	if (tp->t_rxtshift > TCP_MAXRXTSHIFT / 4) {
+	if (tp->t_rxtshift > TCP_RTT_INVALIDATE) {
 #ifdef INET6
 		if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
 			in6_losing(tp->t_inpcb);
 		else
 #endif
 			in_losing(tp->t_inpcb);
-		tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
-		tp->t_srtt = 0;
 	}
 	tp->snd_nxt = tp->snd_una;
 	tp->snd_recover = tp->snd_max;
