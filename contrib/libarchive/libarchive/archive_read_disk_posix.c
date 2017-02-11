@@ -675,7 +675,7 @@ setup_suitable_read_buffer(struct archive_read_disk *a)
 				asize = cf->min_xfer_size;
 
 			/* Increase a buffer size up to 64K bytes in
-			 * a proper incremant size. */
+			 * a proper increment size. */
 			while (asize < 1024*64)
 				asize += incr;
 			/* Take a margin to adjust to the filesystem
@@ -1656,7 +1656,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 		archive_set_error(&a->archive, errno, "statvfs failed");
 		return (ARCHIVE_FAILED);
 	} else if (xr == 1) {
-		/* Usuall come here unless NetBSD supports _PC_REC_XFER_ALIGN
+		/* Usually come here unless NetBSD supports _PC_REC_XFER_ALIGN
 		 * for pathconf() function. */
 		t->current_filesystem->xfer_align = sfs.f_frsize;
 		t->current_filesystem->max_xfer_size = -1;
@@ -1944,7 +1944,7 @@ setup_current_filesystem(struct archive_read_disk *a)
 	if (nm == -1)
 #  endif /* _PC_NAME_MAX */
 		/*
-		 * Some sysmtes (HP-UX or others?) incorrectly defined
+		 * Some systems (HP-UX or others?) incorrectly defined
 		 * NAME_MAX macro to be a smaller value.
 		 */
 #  if defined(NAME_MAX) && NAME_MAX >= 255

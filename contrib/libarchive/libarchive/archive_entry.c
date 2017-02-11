@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2016 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1446,7 +1447,7 @@ archive_entry_acl_add_entry_w(struct archive_entry *entry,
 int
 archive_entry_acl_types(struct archive_entry *entry)
 {
-	return ((&entry->acl)->acl_types);
+	return (archive_acl_types(&entry->acl));
 }
 
 /*
@@ -1486,34 +1487,121 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 }
 
 /*
- * Generate a text version of the ACL.  The flags parameter controls
+ * Generate a text version of the ACL. The flags parameter controls
  * the style of the generated ACL.
  */
+wchar_t *
+archive_entry_acl_to_text_w(struct archive_entry *entry, ssize_t *len,
+    int flags)
+{
+	return (archive_acl_to_text_w(&entry->acl, len, flags,
+	    entry->archive));
+}
+
+char *
+archive_entry_acl_to_text(struct archive_entry *entry, ssize_t *len,
+    int flags)
+{
+	return (archive_acl_to_text_l(&entry->acl, len, flags, NULL));
+}
+
+char *
+_archive_entry_acl_to_text_l(struct archive_entry *entry, ssize_t *len,
+   int flags, struct archive_string_conv *sc)
+{
+	return (archive_acl_to_text_l(&entry->acl, len, flags, sc));
+}
+
+/*
+ * ACL text parser.
+ */
+int
+archive_entry_acl_from_text_w(struct archive_entry *entry,
+    const wchar_t *wtext, int type)
+{
+	return (archive_acl_from_text_w(&entry->acl, wtext, type));
+}
+
+int
+archive_entry_acl_from_text(struct archive_entry *entry,
+    const char *text, int type)
+{
+	return (archive_acl_from_text_l(&entry->acl, text, type, NULL));
+}
+
+int
+_archive_entry_acl_from_text_l(struct archive_entry *entry, const char *text,
+    int type, struct archive_string_conv *sc)
+{
+	return (archive_acl_from_text_l(&entry->acl, text, type, sc));
+}
+
+/* Deprecated */
+static int
+archive_entry_acl_text_compat(int *flags)
+{
+	if ((*flags & ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) == 0)
+		return (1);
+
+	/* ABI compat with old ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID */
+	if ((*flags & OLD_ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID) != 0)
+		*flags |= ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID;
+
+	/* ABI compat with old ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT */
+	if ((*flags & OLD_ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT) != 0)
+		*flags |=  ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT;
+
+	*flags |= ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA;
+
+	return (0);
+}
+
+/* Deprecated */
 const wchar_t *
 archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 {
-	const wchar_t *r;
-	r = archive_acl_text_w(entry->archive, &entry->acl, flags);
-	if (r == NULL && errno == ENOMEM)
-		__archive_errx(1, "No memory");
-	return (r);
+	if (entry->acl.acl_text_w != NULL) {
+		free(entry->acl.acl_text_w);
+		entry->acl.acl_text_w = NULL;
+	}
+	if (archive_entry_acl_text_compat(&flags) == 0)
+		entry->acl.acl_text_w = archive_acl_to_text_w(&entry->acl,
+		    NULL, flags, entry->archive);
+	return (entry->acl.acl_text_w);
 }
 
+/* Deprecated */
 const char *
 archive_entry_acl_text(struct archive_entry *entry, int flags)
 {
-	const char *p;
-	if (archive_acl_text_l(&entry->acl, flags, &p, NULL, NULL) != 0
-	    && errno == ENOMEM)
-		__archive_errx(1, "No memory");
-	return (p);
+	if (entry->acl.acl_text != NULL) {
+		free(entry->acl.acl_text);
+		entry->acl.acl_text = NULL;
+	}
+	if (archive_entry_acl_text_compat(&flags) == 0)
+		entry->acl.acl_text = archive_acl_to_text_l(&entry->acl, NULL,
+		    flags, NULL);
+
+	return (entry->acl.acl_text);
 }
 
+/* Deprecated */
 int
 _archive_entry_acl_text_l(struct archive_entry *entry, int flags,
     const char **acl_text, size_t *len, struct archive_string_conv *sc)
 {
-	return (archive_acl_text_l(&entry->acl, flags, acl_text, len, sc));
+	if (entry->acl.acl_text != NULL) {
+		free(entry->acl.acl_text);
+		entry->acl.acl_text = NULL;
+        }
+
+	if (archive_entry_acl_text_compat(&flags) == 0)
+		entry->acl.acl_text = archive_acl_to_text_l(&entry->acl,
+		    (ssize_t *)len, flags, sc);
+
+	*acl_text = entry->acl.acl_text;
+
+	return (0);
 }
 
 /*

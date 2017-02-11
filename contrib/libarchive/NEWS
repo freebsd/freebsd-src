@@ -1,3 +1,10 @@
+Jan 29, 2017: Limited NFSv4 ACL support for Mac OS (Darwin)
+
+Jan 10, 2017: POSIX.1e and NFSv4 ACL support for Solaris and derivates
+
+Dec 27, 2016: NFSv4 ACL read and write support for pax
+    Deprecated functions: archive_entry_acl_text(), archive_entry_acl_text_w()
+
 Oct 26, 2016: Remove liblzmadec support
 
 Oct 23, 2016: libarchive 3.2.2 released
