@@ -320,7 +320,8 @@ list.h: ${TESTS_SRCS} Makefile
 CLEANFILES+=	list.h list.h.tmp
 
 FILES+=	README
-FILES+=	test_acl_pax.tar.uu
+FILES+=	test_acl_pax_posix1e.tar.uu
+FILES+=	test_acl_pax_nfs4.tar.uu
 FILES+=	test_archive_string_conversion.txt.Z.uu
 FILES+=	test_compat_bzip2_1.tbz.uu
 FILES+=	test_compat_bzip2_2.tbz.uu
@@ -357,6 +358,7 @@ FILES+=	test_compat_plexus_archiver_tar.tar.uu
 FILES+=	test_compat_solaris_pax_sparse_1.pax.Z.uu
 FILES+=	test_compat_solaris_pax_sparse_2.pax.Z.uu
 FILES+=	test_compat_solaris_tar_acl.tar.uu
+FILES+=	test_compat_star_acl_nfs4.tar.uu
 FILES+=	test_compat_star_acl_posix1e.tar.uu
 FILES+=	test_compat_tar_hardlink_1.tar.uu
 FILES+=	test_compat_uudecode_large.tar.Z.uu
@@ -548,6 +550,7 @@ FILES+=	test_read_large_splitted_rar_ab.uu
 FILES+=	test_read_large_splitted_rar_ac.uu
 FILES+=	test_read_large_splitted_rar_ad.uu
 FILES+=	test_read_large_splitted_rar_ae.uu
+FILES+=	test_read_pax_schily_xattr.tar.uu
 FILES+=	test_read_splitted_rar_aa.uu
 FILES+=	test_read_splitted_rar_ab.uu
 FILES+=	test_read_splitted_rar_ac.uu
