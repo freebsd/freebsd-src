@@ -81,6 +81,10 @@ archive_strappend_char(struct archive_string *, char);
 struct archive_wstring *
 archive_wstrappend_wchar(struct archive_wstring *, wchar_t);
 
+/* Append a raw array to an archive_string, resizing as necessary */
+struct archive_string *
+archive_array_append(struct archive_string *, const char *, size_t);
+
 /* Convert a Unicode string to current locale and append the result. */
 /* Returns -1 if conversion fails. */
 int

@@ -1320,11 +1320,13 @@ test_callbacks(void)
 	assertUtimes("cb", 886622, 0, 886622, 0);
 
 	assert((ae = archive_entry_new()) != NULL);
-	if (assert((a = archive_read_disk_new()) != NULL)) {
+	assert((a = archive_read_disk_new()) != NULL);
+	if (a == NULL) {
 		archive_entry_free(ae);
 		return;
 	}
-	if (assert((m = archive_match_new()) != NULL)) {
+	assert((m = archive_match_new()) != NULL);
+	if (m == NULL) {
 		archive_entry_free(ae);
 		archive_read_free(a);
 		archive_match_free(m);
@@ -1377,6 +1379,10 @@ test_callbacks(void)
 	/* Close the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
+	/* Reset name filter */
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_disk_set_matching(a, NULL, NULL, NULL));
+
 	/*
 	 * Test2: Traversals with a metadata filter.
 	 */
@@ -1394,7 +1400,7 @@ test_callbacks(void)
 	while (file_count--) {
 		archive_entry_clear(ae);
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header2(a, ae));
-		failure("File 'cb/f1' should be exclueded");
+		failure("File 'cb/f1' should be excluded");
 		assert(strcmp(archive_entry_pathname(ae), "cb/f1") != 0);
 		if (strcmp(archive_entry_pathname(ae), "cb") == 0) {
 			assertEqualInt(archive_entry_filetype(ae), AE_IFDIR);

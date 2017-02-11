@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170211: libarchive ACL pax test renamed to test_acl_pax_posix1e.tar.uu
+OLD_FILES+=usr/tests/lib/libarchive/test_acl_pax.tar.uu
 # 20170103: libbsnmptools.so made into an INTERNALLIB
 OLD_FILES+=usr/lib/libbsnmptools.a
 OLD_FILES+=usr/lib/libbsnmptools_p.a
