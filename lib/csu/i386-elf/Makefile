@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../common
+.PATH: ${.CURDIR:H}/common
 
 SRCS=		crti.S crtn.S
 FILES=		${SRCS:N*.h:R:S/$/.o/g} gcrt1.o crt1.o Scrt1.o
@@ -8,8 +8,8 @@ FILESOWN=	${LIBOWN}
 FILESGRP=	${LIBGRP}
 FILESMODE=	${LIBMODE}
 FILESDIR=	${LIBDIR}
-CFLAGS+=	-I${.CURDIR}/../common \
-		-I${.CURDIR}/../../libc/include
+CFLAGS+=	-I${.CURDIR:H}/common \
+		-I${SRCTOP}/libc/include
 CLEANFILES=	${FILES} crt1_c.o crt1_s.o gcrt1_c.o Scrt1_c.o
 CLEANFILES+=	crt1_c.s gcrt1_c.s Scrt1_c.s
 
