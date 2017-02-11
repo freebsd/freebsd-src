@@ -2,9 +2,9 @@
 
 .include <bsd.own.mk>
 
-LIBCXXRTDIR=	${.CURDIR}/../../contrib/libcxxrt
-HDRDIR=		${.CURDIR}/../../contrib/libc++/include
-SRCDIR=		${.CURDIR}/../../contrib/libc++/src
+LIBCXXRTDIR=	${SRCTOP}/contrib/libcxxrt
+HDRDIR=		${SRCTOP}/contrib/libc++/include
+SRCDIR=		${SRCTOP}/contrib/libc++/src
 CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
 
 .PATH: ${SRCDIR}
