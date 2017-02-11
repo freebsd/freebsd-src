@@ -119,6 +119,13 @@
 
 #define	TCPTV_DELACK	( hz/10 )		/* 100ms timeout */
 
+/*
+ * If we exceed this number of retransmits for a single segment, we'll consider
+ * the current srtt measurement no longer valid and will recalculate from
+ * scratch starting with the next ACK.
+ */
+#define TCP_RTT_INVALIDATE (TCP_MAXRXTSHIFT / 4)
+
 #ifdef	TCPTIMERS
 static const char *tcptimers[] =
     { "REXMT", "PERSIST", "KEEP", "2MSL", "DELACK" };
