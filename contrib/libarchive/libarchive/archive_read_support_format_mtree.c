@@ -1608,8 +1608,11 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			if (*val == '.') {
 				++val;
 				ns = (long)mtree_atol10(&val);
-			} else
-				ns = 0;
+				if (ns < 0)
+					ns = 0;
+				else if (ns > 999999999)
+					ns = 999999999;
+			}
 			if (m > my_time_t_max)
 				m = my_time_t_max;
 			else if (m < my_time_t_min)
