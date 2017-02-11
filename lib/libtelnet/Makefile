@@ -3,7 +3,7 @@
 
 .include <bsd.own.mk>
 
-TELNETDIR=	${.CURDIR}/../../contrib/telnet
+TELNETDIR=	${SRCTOP}/contrib/telnet
 .PATH:		${TELNETDIR}/libtelnet
 
 LIB=		telnet
