@@ -134,8 +134,6 @@ ATF_TC_BODY(mmap__bad_arguments, tc)
 	checked_mmap(PROT_READ, MAP_SHARED, devstatfd, 0,
 	    "simple /dev/devstat shared");
 
-	atf_tc_expect_fail("extra PROT flags check fails due to recent mmap(2) changes; bug # 216976");
-
 	/* Extra PROT flags. */
 	checked_mmap(PROT_READ | PROT_WRITE | 0x100000, MAP_ANON, -1, EINVAL,
 	    "MAP_ANON with extra PROT flags");
