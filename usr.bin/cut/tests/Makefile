@@ -2,6 +2,7 @@
 
 .include <bsd.own.mk>
 
+ATF_TESTS_SH+=	cut2_test
 NETBSD_ATF_TESTS_SH=	cut_test
 
 FILESDIR=	${TESTSDIR}
