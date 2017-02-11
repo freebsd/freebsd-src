@@ -1,7 +1,7 @@
 # $FreeBSD$
 .include <bsd.own.mk>
 
-LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
+LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 LIB=	archive
 DPADD=	${LIBZ} ${LIBBZ2} ${LIBLZMA} ${LIBPTHREAD} ${LIBBSDXML}
