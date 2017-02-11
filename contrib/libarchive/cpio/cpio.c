@@ -703,6 +703,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 		lafe_warnc(0, "%s",
 		    archive_error_string(cpio->archive_read_disk));
 	if (r <= ARCHIVE_FAILED) {
+		archive_entry_free(entry);
 		cpio->return_value = 1;
 		return (r);
 	}
