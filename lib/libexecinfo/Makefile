@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIBEXECINFO=	${.CURDIR}/../../contrib/libexecinfo
+LIBEXECINFO=	${SRCTOP}/contrib/libexecinfo
 
 LIB=		execinfo
 SHLIB_MAJOR=	1
