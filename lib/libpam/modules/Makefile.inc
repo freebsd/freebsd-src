@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/openpam
+PAMDIR=		${SRCTOP}/contrib/openpam
 
 NO_INSTALLLIB=
 NO_PROFILE=
 
-CFLAGS+= -I${PAMDIR}/include -I${.CURDIR}/../../libpam
+CFLAGS+= -I${PAMDIR}/include -I${SRCTOP}/lib/libpam
 
 # This is nasty.
 # For the static case, libpam.a depends on the modules.
