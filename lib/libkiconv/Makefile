@@ -16,7 +16,7 @@ MLINKS+=	kiconv.3 kiconv_add_xlat16_cspair.3 \
 		kiconv.3 kiconv_add_xlat16_cspairs.3 \
 		kiconv.3 kiconv_add_xlat16_table.3
 
-CFLAGS+=	-I${.CURDIR}/../../sys
+CFLAGS+=	-I${SRCTOP}/sys
 
 WARNS?=		1
 
