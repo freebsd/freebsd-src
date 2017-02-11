@@ -402,7 +402,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		if ((inp->inp_vflag & INP_IPV6) == 0)
 			DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
-		toep->ce = hold_lip(td, &inp->in6p_laddr);
+		toep->ce = hold_lip(td, &inp->in6p_laddr, NULL);
 		if (toep->ce == NULL)
 			DONT_OFFLOAD_ACTIVE_OPEN(ENOENT);
 

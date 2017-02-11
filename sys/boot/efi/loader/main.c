@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
+#include <disk.h>
 
 #include <efi.h>
 #include <efilib.h>
@@ -70,6 +71,7 @@ EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 
 #ifdef EFI_ZFS_BOOT
 static void efi_zfs_probe(void);
+static uint64_t pool_guid;
 #endif
 
 static int
@@ -154,12 +156,109 @@ out:
 	return retval;
 }
 
-static int
-find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
-    uint64_t *extra)
+static void
+set_devdesc_currdev(struct devsw *dev, int unit)
 {
+	struct devdesc currdev;
+	char *devname;
+
+	currdev.d_dev = dev;
+	currdev.d_type = currdev.d_dev->dv_type;
+	currdev.d_unit = unit;
+	currdev.d_opendata = NULL;
+	devname = efi_fmtdev(&currdev);
+
+	env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev,
+	    env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, devname, env_noset, env_nounset);
+}
+
+static int
+find_currdev(EFI_LOADED_IMAGE *img)
+{
+	pdinfo_list_t *pdi_list;
+	pdinfo_t *dp, *pp;
 	EFI_DEVICE_PATH *devpath, *copy;
 	EFI_HANDLE h;
+	char *devname;
+	struct devsw *dev;
+	int unit;
+	uint64_t extra;
+
+#ifdef EFI_ZFS_BOOT
+	/* Did efi_zfs_probe() detect the boot pool? */
+	if (pool_guid != 0) {
+		struct zfs_devdesc currdev;
+
+		currdev.d_dev = &zfs_dev;
+		currdev.d_unit = 0;
+		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.d_opendata = NULL;
+		currdev.pool_guid = pool_guid;
+		currdev.root_guid = 0;
+		devname = efi_fmtdev(&currdev);
+
+		env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev,
+		    env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, devname, env_noset,
+		    env_nounset);
+		return (0);
+	}
+#endif /* EFI_ZFS_BOOT */
+
+	/* We have device lists for hd, cd, fd, walk them all. */
+	pdi_list = efiblk_get_pdinfo_list(&efipart_hddev);
+	STAILQ_FOREACH(dp, pdi_list, pd_link) {
+		struct disk_devdesc currdev;
+
+		currdev.d_dev = &efipart_hddev;
+		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.d_unit = dp->pd_unit;
+		currdev.d_opendata = NULL;
+		currdev.d_slice = -1;
+		currdev.d_partition = -1;
+
+		if (dp->pd_handle == img->DeviceHandle) {
+			devname = efi_fmtdev(&currdev);
+
+			env_setenv("currdev", EV_VOLATILE, devname,
+			    efi_setcurrdev, env_nounset);
+			env_setenv("loaddev", EV_VOLATILE, devname,
+			    env_noset, env_nounset);
+			return (0);
+		}
+		/* Assuming GPT partitioning. */
+		STAILQ_FOREACH(pp, &dp->pd_part, pd_link) {
+			if (pp->pd_handle == img->DeviceHandle) {
+				currdev.d_slice = pp->pd_unit;
+				currdev.d_partition = 255;
+				devname = efi_fmtdev(&currdev);
+
+				env_setenv("currdev", EV_VOLATILE, devname,
+				    efi_setcurrdev, env_nounset);
+				env_setenv("loaddev", EV_VOLATILE, devname,
+				    env_noset, env_nounset);
+				return (0);
+			}
+		}
+	}
+
+	pdi_list = efiblk_get_pdinfo_list(&efipart_cddev);
+	STAILQ_FOREACH(dp, pdi_list, pd_link) {
+		if (dp->pd_handle == img->DeviceHandle ||
+		    dp->pd_alias == img->DeviceHandle) {
+			set_devdesc_currdev(&efipart_cddev, dp->pd_unit);
+			return (0);
+		}
+	}
+
+	pdi_list = efiblk_get_pdinfo_list(&efipart_fddev);
+	STAILQ_FOREACH(dp, pdi_list, pd_link) {
+		if (dp->pd_handle == img->DeviceHandle) {
+			set_devdesc_currdev(&efipart_fddev, dp->pd_unit);
+			return (0);
+		}
+	}
 
 	/*
 	 * Try the device handle from our loaded image first.  If that
@@ -167,8 +266,10 @@ find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
 	 * any of the nodes in that path match one of the enumerated
 	 * handles.
 	 */
-	if (efi_handle_lookup(img->DeviceHandle, dev, unit, extra) == 0)
+	if (efi_handle_lookup(img->DeviceHandle, &dev, &unit, &extra) == 0) {
+		set_devdesc_currdev(dev, unit);
 		return (0);
+	}
 
 	copy = NULL;
 	devpath = efi_lookup_image_devpath(IH);
@@ -180,8 +281,10 @@ find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
 		free(copy);
 		copy = NULL;
 
-		if (efi_handle_lookup(h, dev, unit, extra) == 0)
+		if (efi_handle_lookup(h, &dev, &unit, &extra) == 0) {
+			set_devdesc_currdev(dev, unit);
 			return (0);
+		}
 
 		devpath = efi_lookup_devpath(h);
 		if (devpath != NULL) {
@@ -191,11 +294,6 @@ find_currdev(EFI_LOADED_IMAGE *img, struct devsw **dev, int *unit,
 	}
 	free(copy);
 
-	/* Try to fallback on first device */
-	if (devsw[0] != NULL) {
-		*dev = devsw[0];
-		return (0);
-	}
 	return (ENOENT);
 }
 
@@ -205,9 +303,7 @@ main(int argc, CHAR16 *argv[])
 	char var[128];
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
-	int i, j, vargood, unit, howto;
-	struct devsw *dev;
-	uint64_t pool_guid;
+	int i, j, vargood, howto;
 	UINTN k;
 	int has_kbd;
 	char buf[40];
@@ -376,42 +472,8 @@ main(int argc, CHAR16 *argv[])
 	 */
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
-	if (find_currdev(img, &dev, &unit, &pool_guid) != 0)
+	if (find_currdev(img) != 0)
 		return (EFI_NOT_FOUND);
-
-	switch (dev->dv_type) {
-#ifdef EFI_ZFS_BOOT
-	case DEVT_ZFS: {
-		struct zfs_devdesc currdev;
-
-		currdev.d_dev = dev;
-		currdev.d_unit = unit;
-		currdev.d_type = currdev.d_dev->dv_type;
-		currdev.d_opendata = NULL;
-		currdev.pool_guid = pool_guid;
-		currdev.root_guid = 0;
-		env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
-			   efi_setcurrdev, env_nounset);
-		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
-			   env_nounset);
-		init_zfs_bootenv(zfs_fmtdev(&currdev));
-		break;
-	}
-#endif
-	default: {
-		struct devdesc currdev;
-
-		currdev.d_dev = dev;
-		currdev.d_unit = unit;
-		currdev.d_opendata = NULL;
-		currdev.d_type = currdev.d_dev->dv_type;
-		env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
-			   efi_setcurrdev, env_nounset);
-		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
-			   env_nounset);
-		break;
-	}
-	}
 
 	efi_init_environment();
 	setenv("LINES", "24", 1);	/* optional */
@@ -734,20 +796,66 @@ COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
 
 #ifdef EFI_ZFS_BOOT
 static void
+efipart_probe_img(pdinfo_list_t *hdi)
+{
+	EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
+	EFI_LOADED_IMAGE *img;
+	pdinfo_t *hd, *pd = NULL;
+	char devname[SPECNAMELEN + 1];
+
+	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
+
+	/*
+	 * Search for the booted image device handle from hard disk list.
+	 * Note, this does also include usb sticks, and we assume there is no
+	 * ZFS on floppies nor cd.
+	 * However, we might have booted from floppy (unlikely) or CD,
+	 * so we should not surprised if we can not find the handle.
+	 */
+	STAILQ_FOREACH(hd, hdi, pd_link) {
+		if (hd->pd_handle == img->DeviceHandle)
+			break;
+		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
+			if (pd->pd_handle == img->DeviceHandle)
+				break;
+		}
+		if (pd != NULL)
+			break;
+	}
+	if (hd != NULL) {
+		if (pd != NULL) {
+			snprintf(devname, sizeof(devname), "%s%dp%d:",
+			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
+		} else {
+			snprintf(devname, sizeof(devname), "%s%d:",
+			    efipart_hddev.dv_name, hd->pd_unit);
+		}
+		(void) zfs_probe_dev(devname, &pool_guid);
+	}
+}
+
+static void
 efi_zfs_probe(void)
 {
-	EFI_HANDLE h;
-	u_int unit;
-	int i;
-	char dname[SPECNAMELEN + 1];
-	uint64_t guid;
+	pdinfo_list_t *hdi;
+	pdinfo_t *hd;
+	char devname[SPECNAMELEN + 1];
 
-	unit = 0;
-	h = efi_find_handle(&efipart_dev, 0);
-	for (i = 0; h != NULL; h = efi_find_handle(&efipart_dev, ++i)) {
-		snprintf(dname, sizeof(dname), "%s%d:", efipart_dev.dv_name, i);
-		if (zfs_probe_dev(dname, &guid) == 0)
-			(void)efi_handle_update_dev(h, &zfs_dev, unit++, guid);
+	hdi = efiblk_get_pdinfo_list(&efipart_hddev);
+	/*
+	 * First probe the boot device (from where loader.efi was read),
+	 * and set pool_guid global variable if we are booting from zfs.
+	 * Since loader is running, we do have an access to the device,
+	 * however, it might not be zfs.
+	 */
+
+	if (pool_guid == 0)
+		efipart_probe_img(hdi);
+
+	STAILQ_FOREACH(hd, hdi, pd_link) {
+		snprintf(devname, sizeof(devname), "%s%d:",
+		    efipart_hddev.dv_name, hd->pd_unit);
+		(void) zfs_probe_dev(devname, NULL);
 	}
 }
 #endif

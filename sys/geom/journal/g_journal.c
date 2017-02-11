@@ -227,11 +227,14 @@ struct g_class g_journal_class = {
 
 static int g_journal_destroy(struct g_journal_softc *sc);
 static void g_journal_metadata_update(struct g_journal_softc *sc);
+static void g_journal_start_switcher(struct g_class *mp);
+static void g_journal_stop_switcher(void);
 static void g_journal_switch_wait(struct g_journal_softc *sc);
 
 #define	GJ_SWITCHER_WORKING	0
 #define	GJ_SWITCHER_DIE		1
 #define	GJ_SWITCHER_DIED	2
+static struct proc *g_journal_switcher_proc = NULL;
 static int g_journal_switcher_state = GJ_SWITCHER_WORKING;
 static int g_journal_switcher_wokenup = 0;
 static int g_journal_sync_requested = 0;
@@ -2383,6 +2386,10 @@ g_journal_create(struct g_class *mp, struct g_provider *pp,
 		sc->sc_jconsumer = cp;
 	}
 
+	/* Start switcher kproc if needed. */
+	if (g_journal_switcher_proc == NULL)
+		g_journal_start_switcher(mp);
+
 	if ((sc->sc_type & GJ_TYPE_COMPLETE) != GJ_TYPE_COMPLETE) {
 		/* Journal is not complete yet. */
 		return (gp);
@@ -2759,7 +2766,6 @@ static void g_journal_switcher(void *arg);
 static void
 g_journal_init(struct g_class *mp)
 {
-	int error;
 
 	/* Pick a conservative value if provided value sucks. */
 	if (g_journal_cache_divisor <= 0 ||
@@ -2779,9 +2785,6 @@ g_journal_init(struct g_class *mp)
 	    g_journal_lowmem, mp, EVENTHANDLER_PRI_FIRST);
 	if (g_journal_event_lowmem == NULL)
 		GJ_DEBUG(0, "Warning! Cannot register lowmem event.");
-	error = kproc_create(g_journal_switcher, mp, NULL, 0, 0,
-	    "g_journal switcher");
-	KASSERT(error == 0, ("Cannot create switcher thread."));
 }
 
 static void
@@ -2794,11 +2797,7 @@ g_journal_fini(struct g_class *mp)
 	}
 	if (g_journal_event_lowmem != NULL)
 		EVENTHANDLER_DEREGISTER(vm_lowmem, g_journal_event_lowmem);
-	g_journal_switcher_state = GJ_SWITCHER_DIE;
-	wakeup(&g_journal_switcher_state);
-	while (g_journal_switcher_state != GJ_SWITCHER_DIED)
-		tsleep(&g_journal_switcher_state, PRIBIO, "jfini:wait", hz / 5);
-	GJ_DEBUG(1, "Switcher died.");
+	g_journal_stop_switcher();
 }
 
 DECLARE_GEOM_CLASS(g_journal_class, g_journal);
@@ -2998,9 +2997,34 @@ next:
 	}
 }
 
+static void
+g_journal_start_switcher(struct g_class *mp)
+{
+	int error;
+
+	g_topology_assert();
+	MPASS(g_journal_switcher_proc == NULL);
+	g_journal_switcher_state = GJ_SWITCHER_WORKING;
+	error = kproc_create(g_journal_switcher, mp, &g_journal_switcher_proc,
+	    0, 0, "g_journal switcher");
+	KASSERT(error == 0, ("Cannot create switcher thread."));
+}
+
+static void
+g_journal_stop_switcher(void)
+{
+	g_topology_assert();
+	MPASS(g_journal_switcher_proc != NULL);
+	g_journal_switcher_state = GJ_SWITCHER_DIE;
+	wakeup(&g_journal_switcher_state);
+	while (g_journal_switcher_state != GJ_SWITCHER_DIED)
+		tsleep(&g_journal_switcher_state, PRIBIO, "jfini:wait", hz / 5);
+	GJ_DEBUG(1, "Switcher died.");
+	g_journal_switcher_proc = NULL;
+}
+
 /*
- * TODO: Switcher thread should be started on first geom creation and killed on
- * last geom destruction.
+ * TODO: Kill switcher thread on last geom destruction?
  */
 static void
 g_journal_switcher(void *arg)

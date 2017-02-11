@@ -1,0 +1,21 @@
+/* $FreeBSD$ */
+/* See r303570 */
+void t(void) {
+	int a,
+	b,
+	c;
+	int
+	*d,
+	*e,
+	*f;
+	int (*g)(),
+	(*h)(),
+	(*i)();
+	int j,
+	k,
+	l;
+	int m
+	,n
+	,o
+	;
+}

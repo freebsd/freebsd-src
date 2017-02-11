@@ -1,4 +1,4 @@
-/*	$NetBSD: t_cgd_aes.c,v 1.5 2016/12/11 00:23:44 alnsn Exp $	*/
+/*	$NetBSD: t_cgd_aes.c,v 1.6 2017/01/13 21:30:39 christos Exp $	*/
 /*-
  * Copyright (c) 2016 The NetBSD Foundation, Inc.
  * Copyright (c) 2007 The Institute of Electrical and Electronics Engineers, Inc
@@ -49,7 +49,7 @@
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define SECSIZE 512
 

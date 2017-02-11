@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
  * arp - display, set, and delete arp table entries
  */
 
-
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/socket.h>
@@ -80,8 +79,8 @@ __FBSDID("$FreeBSD$");
 #include <strings.h>
 #include <unistd.h>
 
-typedef void (action_fn)(struct sockaddr_dl *sdl,
-	struct sockaddr_in *s_in, struct rt_msghdr *rtm);
+typedef void (action_fn)(struct sockaddr_dl *sdl, struct sockaddr_in *s_in,
+    struct rt_msghdr *rtm);
 
 static int search(u_long addr, action_fn *action);
 static action_fn print_entry;
@@ -320,7 +319,7 @@ set(int argc, char **argv)
 		return (1);
 	doing_proxy = flags = expire_time = 0;
 	while (argc-- > 0) {
-		if (strncmp(argv[0], "temp", 4) == 0) {
+		if (strcmp(argv[0], "temp") == 0) {
 			struct timespec tp;
 			int max_age;
 			size_t len = sizeof(max_age);
@@ -330,10 +329,10 @@ set(int argc, char **argv)
 			    &max_age, &len, NULL, 0) != 0)
 				err(1, "sysctlbyname");
 			expire_time = tp.tv_sec + max_age;
-		} else if (strncmp(argv[0], "pub", 3) == 0) {
+		} else if (strcmp(argv[0], "pub") == 0) {
 			flags |= RTF_ANNOUNCE;
 			doing_proxy = 1;
-			if (argc && strncmp(argv[1], "only", 3) == 0) {
+			if (argc && strcmp(argv[1], "only") == 0) {
 				/*
 				 * Compatibility: in pre FreeBSD 8 times
 				 * the "only" keyword used to mean that
@@ -342,27 +341,28 @@ set(int argc, char **argv)
 				 */
 				argc--; argv++;
 			}
-		} else if (strncmp(argv[0], "blackhole", 9) == 0) {
+		} else if (strcmp(argv[0], "blackhole") == 0) {
 			if (flags & RTF_REJECT) {
-				printf("Choose one of blackhole or reject, not both.\n");
+				errx(1, "Choose one of blackhole or reject, "
+				    "not both.");
 			}
 			flags |= RTF_BLACKHOLE;
-		} else if (strncmp(argv[0], "reject", 6) == 0) {
+		} else if (strcmp(argv[0], "reject") == 0) {
 			if (flags & RTF_BLACKHOLE) {
-				printf("Choose one of blackhole or reject, not both.\n");
+				errx(1, "Choose one of blackhole or reject, "
+				    "not both.");
 			}
 			flags |= RTF_REJECT;
-		} else if (strncmp(argv[0], "trail", 5) == 0) {
-			/* XXX deprecated and undocumented feature */
-			printf("%s: Sending trailers is no longer supported\n",
-				host);
+		} else {
+			warnx("Invalid parameter '%s'", argv[0]);
+			usage();
 		}
 		argv++;
 	}
 	ea = (struct ether_addr *)LLADDR(&sdl_m);
 	if (doing_proxy && !strcmp(eaddr, "auto")) {
 		if (!get_ether_addr(dst->sin_addr.s_addr, ea)) {
-			printf("no interface found for %s\n",
+			warnx("no interface found for %s",
 			       inet_ntoa(dst->sin_addr));
 			return (1);
 		}
@@ -381,7 +381,7 @@ set(int argc, char **argv)
 
 	/*
 	 * In the case a proxy-arp entry is being added for
-	 * a remote end point, the RTF_ANNOUNCE flag in the 
+	 * a remote end point, the RTF_ANNOUNCE flag in the
 	 * RTM_GET command is an indication to the kernel
 	 * routing code that the interface associated with
 	 * the prefix route covering the local end of the
@@ -398,7 +398,7 @@ set(int argc, char **argv)
 	if ((sdl->sdl_family != AF_LINK) ||
 	    (rtm->rtm_flags & RTF_GATEWAY) ||
 	    !valid_type(sdl->sdl_type)) {
-		printf("cannot intuit interface index and type for %s\n", host);
+		warnx("cannot intuit interface index and type for %s", host);
 		return (1);
 	}
 	sdl_m.sdl_type = sdl->sdl_type;
@@ -467,7 +467,7 @@ delete(char *host)
 		sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
 
 		/*
-		 * With the new L2/L3 restructure, the route 
+		 * With the new L2/L3 restructure, the route
 		 * returned is a prefix route. The important
 		 * piece of information from the previous
 		 * RTM_GET is the interface index. In the
@@ -486,7 +486,7 @@ delete(char *host)
 		 * is a proxy-arp entry to remove.
 		 */
 		if (flags & RTF_ANNOUNCE) {
-			fprintf(stderr, "delete: cannot locate %s\n",host);
+			warnx("delete: cannot locate %s", host);
 			return (1);
 		}
 
@@ -525,7 +525,7 @@ search(u_long addr, action_fn *action)
 	mib[5] = RTF_LLINFO;
 #else
 	mib[5] = 0;
-#endif	
+#endif
 	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
 		err(1, "route-sysctl-estimate");
 	if (needed == 0)	/* empty table */
@@ -575,7 +575,7 @@ print_entry(struct sockaddr_dl *sdl,
 	struct if_nameindex *p;
 	int seg;
 
-	if (ifnameindex == NULL) 
+	if (ifnameindex == NULL)
 		if ((ifnameindex = if_nameindex()) == NULL)
 			err(1, "cannot retrieve interface names");
 
@@ -597,7 +597,8 @@ print_entry(struct sockaddr_dl *sdl,
 		    sdl->sdl_type == IFT_L2VLAN ||
 		    sdl->sdl_type == IFT_BRIDGE) &&
 		    sdl->sdl_alen == ETHER_ADDR_LEN)
-			printf("%s", ether_ntoa((struct ether_addr *)LLADDR(sdl)));
+			printf("%s",
+			    ether_ntoa((struct ether_addr *)LLADDR(sdl)));
 		else {
 			int n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
 
@@ -607,7 +608,7 @@ print_entry(struct sockaddr_dl *sdl,
 		printf("(incomplete)");
 
 	for (p = ifnameindex; p && ifnameindex->if_index &&
-		 ifnameindex->if_name; p++) {
+	    ifnameindex->if_name; p++) {
 		if (p->if_index == sdl->sdl_index) {
 			printf(" on %s", p->if_name);
 			break;
@@ -629,31 +630,31 @@ print_entry(struct sockaddr_dl *sdl,
 		printf(" published");
 	switch(sdl->sdl_type) {
 	case IFT_ETHER:
-                printf(" [ethernet]");
-                break;
+		printf(" [ethernet]");
+		break;
 	case IFT_ISO88025:
-                printf(" [token-ring]");
+		printf(" [token-ring]");
 		trld = SDL_ISO88025(sdl);
 		if (trld->trld_rcf != 0) {
 			printf(" rt=%x", ntohs(trld->trld_rcf));
 			for (seg = 0;
 			     seg < ((TR_RCF_RIFLEN(trld->trld_rcf) - 2 ) / 2);
-			     seg++) 
+			     seg++)
 				printf(":%x", ntohs(*(trld->trld_route[seg])));
 		}
                 break;
 	case IFT_FDDI:
-                printf(" [fddi]");
-                break;
+		printf(" [fddi]");
+		break;
 	case IFT_ATM:
-                printf(" [atm]");
-                break;
+		printf(" [atm]");
+		break;
 	case IFT_L2VLAN:
 		printf(" [vlan]");
 		break;
 	case IFT_IEEE1394:
-                printf(" [firewire]");
-                break;
+		printf(" [firewire]");
+		break;
 	case IFT_BRIDGE:
 		printf(" [bridge]");
 		break;
@@ -662,8 +663,8 @@ print_entry(struct sockaddr_dl *sdl,
 		break;
 	default:
 		break;
-        }
-		
+	}
+
 	printf("\n");
 
 }
@@ -688,13 +689,13 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-		"usage: arp [-n] [-i interface] hostname",
-		"       arp [-n] [-i interface] -a",
-		"       arp -d hostname [pub]",
-		"       arp -d [-i interface] -a",
-		"       arp -s hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
-		"       arp -S hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
-		"       arp -f filename");
+	    "usage: arp [-n] [-i interface] hostname",
+	    "       arp [-n] [-i interface] -a",
+	    "       arp -d hostname [pub]",
+	    "       arp -d [-i interface] -a",
+	    "       arp -s hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
+	    "       arp -S hostname ether_addr [temp] [reject | blackhole] [pub [only]]",
+	    "       arp -f filename");
 	exit(1);
 }
 
@@ -753,12 +754,12 @@ rtmsg(int cmd, struct sockaddr_in *dst, struct sockaddr_dl *sdl)
 	case RTM_GET:
 		rtm->rtm_addrs |= RTA_DST;
 	}
-#define NEXTADDR(w, s)					   \
-	do {						   \
-		if ((s) != NULL && rtm->rtm_addrs & (w)) { \
-			bcopy((s), cp, sizeof(*(s)));	   \
-			cp += SA_SIZE(s);		   \
-		}					   \
+#define NEXTADDR(w, s)						\
+	do {							\
+		if ((s) != NULL && rtm->rtm_addrs & (w)) {	\
+			bcopy((s), cp, sizeof(*(s)));		\
+			cp += SA_SIZE(s);			\
+		}						\
 	} while (0)
 
 	NEXTADDR(RTA_DST, dst);
@@ -814,7 +815,7 @@ get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)
 	}
 
 #define NEXTIFR(i)						\
-    ((struct ifreq *)((char *)&(i)->ifr_addr			\
+	((struct ifreq *)((char *)&(i)->ifr_addr		\
 	+ MAX((i)->ifr_addr.sa_len, sizeof((i)->ifr_addr))) )
 
 	/*
@@ -835,14 +836,10 @@ get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)
 		if (ioctl(sock, SIOCGIFFLAGS, &ifreq) < 0)
 			continue;
 		if ((ifreq.ifr_flags &
-		     (IFF_UP|IFF_BROADCAST|IFF_POINTOPOINT|
-				IFF_LOOPBACK|IFF_NOARP))
-		     != (IFF_UP|IFF_BROADCAST))
+		    (IFF_UP|IFF_BROADCAST|IFF_POINTOPOINT|
+		    IFF_LOOPBACK|IFF_NOARP)) != (IFF_UP|IFF_BROADCAST))
 			continue;
-		/*
-		 * Get its netmask and check that it's on 
-		 * the right subnet.
-		 */
+		/* Get its netmask and check that it's on the right subnet. */
 		if (ioctl(sock, SIOCGIFNETMASK, &ifreq) < 0)
 			continue;
 		mask = ((struct sockaddr_in *)
@@ -872,9 +869,8 @@ get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)
 	 */
 	dla = (struct sockaddr_dl *) &ifr->ifr_addr;
 	memcpy(hwaddr,  LLADDR(dla), dla->sdl_alen);
-	printf("using interface %s for proxy with address ",
-		ifp->ifr_name);
-	printf("%s\n", ether_ntoa(hwaddr));
+	printf("using interface %s for proxy with address %s\n", ifp->ifr_name,
+	    ether_ntoa(hwaddr));
 	retval = dla->sdl_alen;
 done:
 	close(sock);

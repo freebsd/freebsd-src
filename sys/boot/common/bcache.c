@@ -64,7 +64,7 @@ struct bcachectl
 struct bcache {
     struct bcachectl	*bcache_ctl;
     caddr_t		bcache_data;
-    u_int		bcache_nblks;
+    size_t		bcache_nblks;
     size_t		ra;
 };
 
@@ -86,6 +86,7 @@ static u_int bcache_rablks;
 	((bc)->bcache_ctl[BHASH((bc), (blkno))].bc_blkno != (blkno))
 #define	BCACHE_READAHEAD	256
 #define	BCACHE_MINREADAHEAD	32
+#define	BCACHE_MARKER		0xdeadbeef
 
 static void	bcache_invalidate(struct bcache *bc, daddr_t blkno);
 static void	bcache_insert(struct bcache *bc, daddr_t blkno);
@@ -95,7 +96,7 @@ static void	bcache_free_instance(struct bcache *bc);
  * Initialise the cache for (nblks) of (bsize).
  */
 void
-bcache_init(u_int nblks, size_t bsize)
+bcache_init(size_t nblks, size_t bsize)
 {
     /* set up control data */
     bcache_total_nblks = nblks;
@@ -122,6 +123,7 @@ bcache_allocate(void)
     u_int i;
     struct bcache *bc = malloc(sizeof (struct bcache));
     int disks = bcache_numdev;
+    uint32_t *marker;
 
     if (disks == 0)
 	disks = 1;	/* safe guard */
@@ -140,11 +142,13 @@ bcache_allocate(void)
 
     bc->bcache_nblks = bcache_total_nblks >> i;
     bcache_unit_nblks = bc->bcache_nblks;
-    bc->bcache_data = malloc(bc->bcache_nblks * bcache_blksize);
+    bc->bcache_data = malloc(bc->bcache_nblks * bcache_blksize +
+	sizeof(uint32_t));
     if (bc->bcache_data == NULL) {
 	/* dont error out yet. fall back to 32 blocks and try again */
 	bc->bcache_nblks = 32;
-	bc->bcache_data = malloc(bc->bcache_nblks * bcache_blksize);
+	bc->bcache_data = malloc(bc->bcache_nblks * bcache_blksize +
+	sizeof(uint32_t));
     }
 
     bc->bcache_ctl = malloc(bc->bcache_nblks * sizeof(struct bcachectl));
@@ -152,8 +156,11 @@ bcache_allocate(void)
     if ((bc->bcache_data == NULL) || (bc->bcache_ctl == NULL)) {
 	bcache_free_instance(bc);
 	errno = ENOMEM;
-	return(NULL);
+	return (NULL);
     }
+    /* Insert cache end marker. */
+    marker = (uint32_t *)(bc->bcache_data + bc->bcache_nblks * bcache_blksize);
+    *marker = BCACHE_MARKER;
 
     /* Flush the cache */
     for (i = 0; i < bc->bcache_nblks; i++) {
@@ -215,11 +222,14 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     int				result;
     daddr_t			p_blk;
     caddr_t			p_buf;
+    uint32_t			*marker;
 
     if (bc == NULL) {
 	errno = ENODEV;
 	return (-1);
     }
+
+    marker = (uint32_t *)(bc->bcache_data + bc->bcache_nblks * bcache_blksize);
 
     if (rsize != NULL)
 	*rsize = 0;
@@ -261,9 +271,34 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 
     p_size = MIN(r_size, nblk - i);	/* read at least those blocks */
 
+    /*
+     * The read ahead size setup.
+     * While the read ahead can save us IO, it also can complicate things:
+     * 1. We do not want to read ahead by wrapping around the
+     * bcache end - this would complicate the cache management.
+     * 2. We are using bc->ra as dynamic hint for read ahead size,
+     * detected cache hits will increase the read-ahead block count, and
+     * misses will decrease, see the code above.
+     * 3. The bcache is sized by 512B blocks, however, the underlying device
+     * may have a larger sector size, and we should perform the IO by
+     * taking into account these larger sector sizes. We could solve this by
+     * passing the sector size to bcache_allocate(), or by using ioctl(), but
+     * in this version we are using the constant, 16 blocks, and are rounding
+     * read ahead block count down to multiple of 16.
+     * Using the constant has two reasons, we are not entirely sure if the
+     * BIOS disk interface is providing the correct value for sector size.
+     * And secondly, this way we get the most conservative setup for the ra.
+     *
+     * The selection of multiple of 16 blocks (8KB) is quite arbitrary, however,
+     * we want to cover CDs (2K) and 4K disks.
+     * bcache_allocate() will always fall back to a minimum of 32 blocks.
+     * Our choice of 16 read ahead blocks will always fit inside the bcache.
+     */
+
     ra = bc->bcache_nblks - BHASH(bc, p_blk + p_size);
-    if (ra != bc->bcache_nblks) { /* do we have RA space? */
-	ra = MIN(bc->ra, ra);
+    if (ra != 0 && ra != bc->bcache_nblks) { /* do we have RA space? */
+	ra = MIN(bc->ra, ra - 1);
+	ra = rounddown(ra, 16);		/* multiple of 16 blocks */
 	p_size += ra;
     }
 
@@ -310,6 +345,12 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 	result = 0;
     }
 
+    if (*marker != BCACHE_MARKER) {
+	printf("BUG: bcache corruption detected: nblks: %zu p_blk: %lu, "
+	    "p_size: %zu, ra: %zu\n", bc->bcache_nblks,
+	    (long unsigned)BHASH(bc, p_blk), p_size, ra);
+    }
+
  done:
     if ((result == 0) && (rsize != NULL))
 	*rsize = size;
@@ -338,7 +379,7 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     /* bypass large requests, or when the cache is inactive */
     if (bc == NULL ||
 	((size * 2 / bcache_blksize) > bcache_nblks)) {
-	DEBUG("bypass %d from %d", size / bcache_blksize, blk);
+	DEBUG("bypass %zu from %qu", size / bcache_blksize, blk);
 	bcache_bypasses++;
 	return (dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
     }
