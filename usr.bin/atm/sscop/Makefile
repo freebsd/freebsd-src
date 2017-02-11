@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-CONTRIB= ${.CURDIR}/../../../contrib/ngatm/sscop
+CONTRIB= ${SRCTOP}/contrib/ngatm/sscop
 
 .PATH:	${CONTRIB}
 
