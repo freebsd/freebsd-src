@@ -173,6 +173,7 @@ milki [label="Jonathan Chu\nmilki@FreeBSD.org\n2013/12/15"]
 misha [label="Mikhail Pchelin\nmisha@FreeBSD.org\n2016/11/15"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
 mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
+mmokhi [label="Mahdi Mokhtari\nmmokhi@FreeBSD.org\n2017/02/09"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
 mva [label="Marcus von Appen\nmva@FreeBSD.org\n2009/02/16"]
 nemysis [label="Rusmir Dusko\nnemysis@FreeBSD.org\n2013/07/31"]
@@ -372,6 +373,7 @@ erwin -> simon
 
 feld -> brnrd
 feld -> junovitch
+feld -> mmokhi
 feld -> rezny
 
 fjoe -> danfe
@@ -481,6 +483,7 @@ makc -> rakuco
 mat -> bmah
 mat -> dvl
 mat -> gordon
+mat -> mmokhi
 mat -> tcberner
 mat -> thierry
 mat -> woodsb02
