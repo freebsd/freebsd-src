@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2003-2008 Tim Kientzle
- * Copyright (c) 2012 Michihiro NAKAJIMA
+ * Copyright (c) 2016 IBM Corporation
+ * Copyright (c) 2003-2007 Tim Kientzle
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,56 +23,48 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * This test case's code has been derived from test_entry.c
  */
 #include "test.h"
 
-DEFINE_TEST(test_read_filter_lzop)
+DEFINE_TEST(test_schily_xattr_pax)
 {
-	const char *reference = "test_read_filter_lzop.tar.lzo";
-	/* lrzip tracks directories as files, ensure that we list everything */
-	const char *n[] = {
-		"d1/", "d1/f2", "d1/f3", "d1/f1", "f1", "f2", "f3", NULL };
-	struct archive_entry *ae;
 	struct archive *a;
-	int i, r;
+	struct archive_entry *ae;
+	const char *refname = "test_read_pax_schily_xattr.tar";
+	const char *xname; /* For xattr tests. */
+	const void *xval; /* For xattr tests. */
+	size_t xsize; /* For xattr tests. */
+	const char *string, *array;
 
-	extract_reference_file(reference);
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_filter_lzop(a);
-	if (r != ARCHIVE_OK) {
-		if (!canLzop()) {
-			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-			skipping("lzop compression is not supported "
-			    "on this platform");
-			return;
-		} else if (r != ARCHIVE_WARN) {
-			assertEqualIntA(a, ARCHIVE_OK, r);
-			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-			return;
-		}
-	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+
+	extract_reference_file(refname);
 	assertEqualIntA(a, ARCHIVE_OK,
-		archive_read_open_filename(a, reference, 10240));
+	    archive_read_open_filename(a, refname, 10240));
 
-	/* Read entries, match up names with list above. */
-	for (i = 0; n[i] != NULL; ++i) {
-		failure("Could not read file %d (%s) from %s",
-			i, n[i], reference);
-		assertEqualIntA(a, ARCHIVE_OK,
-			archive_read_next_header(a, &ae));
-		assertEqualString(n[i], archive_entry_pathname(ae));
-	}
+	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_xattr_count(ae));
+	assertEqualInt(2, archive_entry_xattr_reset(ae));
 
-	/* Verify the end-of-archive. */
-	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(0, archive_entry_xattr_next(ae, &xname, &xval, &xsize));
+	assertEqualString(xname, "security.selinux");
+	string = "system_u:object_r:unlabeled_t:s0";
+	assertEqualString(xval, string);
+	/* the xattr's value also contains the terminating \0 */
+	assertEqualInt((int)xsize, strlen(string) + 1);
 
-	/* Verify that the format detection worked. */
-	assertEqualInt(archive_filter_count(a), 2);
-	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_LZOP);
-	assertEqualString(archive_filter_name(a, 0), "lzop");
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+	assertEqualInt(0, archive_entry_xattr_next(ae, &xname, &xval, &xsize));
+	assertEqualString(xname, "security.ima");
+	assertEqualInt((int)xsize, 265);
+	/* we only compare the first 12 bytes */
+	array = "\x03\x02\x04\xb0\xe9\xd6\x79\x01\x00\x2b\xad\x1e";
+	assertEqualMem(xval, array, 12);
 
+	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

@@ -199,7 +199,7 @@ struct zip {
 	struct trad_enc_ctx	tctx;
 	char			tctx_valid;
 
-	/* WinZip AES decyption. */
+	/* WinZip AES decryption. */
 	/* Contexts used for AES decryption. */
 	archive_crypto_ctx	cctx;
 	char			cctx_valid;
@@ -242,7 +242,7 @@ trad_enc_update_keys(struct trad_enc_ctx *ctx, uint8_t c)
 }
 
 static uint8_t
-trad_enc_decypt_byte(struct trad_enc_ctx *ctx)
+trad_enc_decrypt_byte(struct trad_enc_ctx *ctx)
 {
 	unsigned temp = ctx->keys[2] | 2;
 	return (uint8_t)((temp * (temp ^ 1)) >> 8) & 0xff;
@@ -257,7 +257,7 @@ trad_enc_decrypt_update(struct trad_enc_ctx *ctx, const uint8_t *in,
 	max = (unsigned)((in_len < out_len)? in_len: out_len);
 
 	for (i = 0; i < max; i++) {
-		uint8_t t = in[i] ^ trad_enc_decypt_byte(ctx);
+		uint8_t t = in[i] ^ trad_enc_decrypt_byte(ctx);
 		out[i] = t;
 		trad_enc_update_keys(ctx, t);
 	}
@@ -710,7 +710,7 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			break;
 		}
 		case 0x9901:
-			/* WinZIp AES extra data field. */
+			/* WinZip AES extra data field. */
 			if (p[offset + 2] == 'A' && p[offset + 3] == 'E') {
 				/* Vendor version. */
 				zip_entry->aes_extra.vendor =
@@ -905,6 +905,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 				archive_wstrcat(&s, wp);
 				archive_wstrappend_wchar(&s, L'/');
 				archive_entry_copy_pathname_w(entry, s.s);
+				archive_wstring_free(&s);
 			}
 		} else {
 			cp = archive_entry_pathname(entry);
@@ -915,6 +916,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 				archive_strcat(&s, cp);
 				archive_strappend_char(&s, '/');
 				archive_entry_set_pathname(entry, s.s);
+				archive_string_free(&s);
 			}
 		}
 	}
@@ -1518,7 +1520,7 @@ read_decryption_header(struct archive_read *a)
 	case 0x6720:/* Blowfish */
 	case 0x6721:/* Twofish */
 	case 0x6801:/* RC4 */
-		/* Suuported encryption algorithm. */
+		/* Supported encryption algorithm. */
 		break;
 	default:
 		archive_set_error(&a->archive,
@@ -1627,7 +1629,7 @@ read_decryption_header(struct archive_read *a)
 	__archive_read_consume(a, 4);
 
 	/*return (ARCHIVE_OK);
-	 * This is not fully implemnted yet.*/
+	 * This is not fully implemented yet.*/
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "Encrypted file is unsupported");
 	return (ARCHIVE_FAILED);
@@ -1709,7 +1711,7 @@ init_traditional_PKWARE_decryption(struct archive_read *a)
 		}
 
 		/*
-		 * Initialize ctx for Traditional PKWARE Decyption.
+		 * Initialize ctx for Traditional PKWARE Decryption.
 		 */
 		r = trad_enc_init(&zip->tctx, passphrase, strlen(passphrase),
 			p, ENC_HEADER_SIZE, &crcchk);

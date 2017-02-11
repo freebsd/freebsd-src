@@ -33,7 +33,7 @@ test_winzip_aes(const char *refname, int need_libz)
 	struct archive *a;
 	char buff[512];
 
-	/* Check if running system has cryptographic functionarity. */
+	/* Check if running system has cryptographic functionality. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_zip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));

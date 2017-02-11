@@ -470,5 +470,6 @@ DEFINE_TEST(test_write_format_zip_large)
 	assertEqualMem(cd_start, "PK\001\002", 4);
 
 	fileblocks_free(fileblocks);
+	free(buff);
 	free(nulldata);
 }

@@ -161,7 +161,7 @@ struct isofile {
 	/* Used for managing struct isofile list. */
 	struct isofile		*allnext;
 	struct isofile		*datanext;
-	/* Used for managing a hardlined struct isofile list. */
+	/* Used for managing a hardlinked struct isofile list. */
 	struct isofile		*hlnext;
 	struct isofile		*hardlink_target;
 
@@ -528,7 +528,7 @@ struct iso_option {
 	 *   - allow more then 8 depths of directory trees;
 	 *   - disable a version number to a File Name;
 	 *   - disable a forced period to the tail of a File Name;
-	 *   - the maxinum length of files and directories is raised to 193.
+	 *   - the maximum length of files and directories is raised to 193.
 	 *     if rockridge option is disabled, raised to 207.
 	 */
 	unsigned int	 iso_level:3;
@@ -626,7 +626,7 @@ struct iso_option {
 	 *        :    NOTE  Our rockridge=useful option does not set a zero
 	 *        :          to uid and gid, you should use application
 	 *        :          option such as --gid,--gname,--uid and --uname
-	 *        :          badtar options instead.
+	 *        :          bsdtar options instead.
 	 * Type   : boolean/string
 	 * Default: Enabled as rockridge=useful
 	 * COMPAT : mkisofs -r / -R
@@ -660,7 +660,7 @@ struct iso_option {
 	 *        :    for making zisofs.
 	 *        :    When the file size is less than one Logical Block
 	 *        :    size, that file will not zisofs'ed since it does
-	 *        :    reduece an ISO-image size.
+	 *        :    reduce an ISO-image size.
 	 *        :
 	 *        :    When you specify option 'boot=<boot-image>', that
 	 *        :    'boot-image' file won't be converted to zisofs file.
@@ -703,7 +703,7 @@ struct iso9660 {
 	}			 all_file_list;
 
 	/* A list of struct isofile entries which have its
-	 * contents and are not a directory, a hardlined file
+	 * contents and are not a directory, a hardlinked file
 	 * and a symlink file. */
 	struct {
 		struct isofile	*first;
@@ -1907,9 +1907,9 @@ iso9660_close(struct archive_write *a)
 		    iso9660->primary.rootent);
 		if (ret < 0)
 			return (ret);
-		/* Make sure we have UTF-16BE convertors.
-		 * if there is no file entry, convertors are still
-		 * uninitilized. */
+		/* Make sure we have UTF-16BE converters.
+		 * if there is no file entry, converters are still
+		 * uninitialized. */
 		if (iso9660->sconv_to_utf16be == NULL) {
 			iso9660->sconv_to_utf16be =
 			    archive_string_conversion_to_charset(
@@ -2524,7 +2524,8 @@ get_tmfromtime(struct tm *tm, time_t *t)
 	tzset();
 	localtime_r(t, tm);
 #elif HAVE__LOCALTIME64_S
-	_localtime64_s(tm, t);
+	__time64_t tmp_t = (__time64_t) *t; //time_t may be shorter than 64 bits
+	_localtime64_s(tm, &tmp_t);
 #else
 	memcpy(tm, localtime(t), sizeof(*tm));
 #endif
@@ -2553,7 +2554,7 @@ set_date_time(unsigned char *p, time_t t)
 static void
 set_date_time_null(unsigned char *p)
 {
-	memset(p, '0', 16);
+	memset(p, (int)'0', 16);
 	p[16] = 0;
 }
 
@@ -2959,7 +2960,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 			gid = archive_entry_gid(file->entry);
 			if (iso9660->opt.rr == OPT_RR_USEFUL) {
 				/*
-				 * This action is simular mkisofs -r option
+				 * This action is similar to mkisofs -r option
 				 * but our rockridge=useful option does not
 				 * set a zero to uid and gid.
 				 */
@@ -3108,7 +3109,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 					/*
 					 *     flg  len
 					 *    +----+----+
-					 *    | 02 | 00 | CURREENT component.
+					 *    | 02 | 00 | CURRENT component.
 					 *    +----+----+ (".")
 					 */
 					if (nc != NULL) {
@@ -3947,7 +3948,7 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 	    "Abstract File", 0, D_CHAR);
 	if (r != ARCHIVE_OK)
 		return (r);
-	/* Bibliongraphic File Identifier */
+	/* Bibliographic File Identifier */
 	r = set_file_identifier(bp, 777, 813, vdc, a, vdd,
 	    &(iso9660->bibliographic_file_identifier),
 	    "Bibliongraphic File", 0, D_CHAR);
@@ -4073,7 +4074,8 @@ write_information_block(struct archive_write *a)
 	memset(info.s, 0, info_size);
 	opt = 0;
 #if defined(HAVE__CTIME64_S)
-	_ctime64_s(buf, sizeof(buf), &(iso9660->birth_time));
+	__time64_t iso9660_birth_time_tmp = (__time64_t) iso9660->birth_time; //time_t may be shorter than 64 bits
+	_ctime64_s(buf, sizeof(buf), &(iso9660_birth_time_tmp));
 #elif defined(HAVE_CTIME_R)
 	ctime_r(&(iso9660->birth_time), buf);
 #else
@@ -6135,7 +6137,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 					off = ffmax - extlen;
 					if (off == 0) {
 						/* A dot('.')  character
-						 * does't place to the first
+						 * doesn't place to the first
 						 * byte of identifier. */
 						off ++;
 						extlen --;
@@ -7149,7 +7151,7 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 
 	iso9660->el_torito.catalog = isoent;
 	/*
-	 * Get a boot medai type.
+	 * Get a boot media type.
 	 */
 	switch (iso9660->opt.boot_type) {
 	default:
