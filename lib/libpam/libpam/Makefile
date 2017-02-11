@@ -35,7 +35,7 @@
 #
 # $FreeBSD$
 
-OPENPAM=	${.CURDIR}/../../../contrib/openpam
+OPENPAM=	${SRCTOP}/contrib/openpam
 .PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
 LIB=	pam
