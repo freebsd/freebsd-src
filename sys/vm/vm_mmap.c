@@ -208,7 +208,7 @@ sys_mmap(struct thread *td, struct mmap_args *uap)
 
 int
 kern_vm_mmap(struct thread *td, vm_offset_t addr, vm_offset_t max_addr,
-    vm_size_t size, vm_prot_t prot, int flags, int fd, off_t pos)
+    vm_size_t size, int prot, int flags, int fd, off_t pos)
 {
 	struct file *fp;
 	vm_size_t addr_mask, pageoff;
