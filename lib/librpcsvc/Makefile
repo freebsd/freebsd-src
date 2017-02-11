@@ -3,7 +3,7 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/../../include/rpcsvc
+.PATH: ${SRCTOP}/include/rpcsvc
 
 LIB=    rpcsvc
 
