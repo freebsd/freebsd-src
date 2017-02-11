@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
+CONTRIBDIR=	${SRCTOP}/contrib/smbfs
 .PATH: ${CONTRIBDIR}/lib/smb
 
 LIB=	smb
