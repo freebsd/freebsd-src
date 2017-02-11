@@ -24,7 +24,7 @@ CFLAGS+= -DLIBC_SCCS
 CFLAGS+= -DINET6
 .endif
 
-CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../libc/gen/
+CFLAGS+= -I${.CURDIR} -I${SRCTOP}/lib/libc/gen/
 
 MAN+=	expand_number.3 flopen.3 fparseln.3 hexdump.3 \
 	humanize_number.3 kinfo_getallproc.3 kinfo_getfile.3 \
