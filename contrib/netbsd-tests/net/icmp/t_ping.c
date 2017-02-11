@@ -1,4 +1,4 @@
-/*	$NetBSD: t_ping.c,v 1.16 2015/02/26 13:06:10 martin Exp $	*/
+/*	$NetBSD: t_ping.c,v 1.17 2017/01/13 21:30:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: t_ping.c,v 1.16 2015/02/26 13:06:10 martin Exp $");
+__RCSID("$NetBSD: t_ping.c,v 1.17 2017/01/13 21:30:42 christos Exp $");
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -52,7 +52,7 @@ __RCSID("$NetBSD: t_ping.c,v 1.16 2015/02/26 13:06:10 martin Exp $");
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../config/netconfig.c"
 
 ATF_TC(simpleping);

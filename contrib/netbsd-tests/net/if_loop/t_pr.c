@@ -1,4 +1,4 @@
-/*	$NetBSD: t_pr.c,v 1.7 2012/03/18 09:46:50 jruoho Exp $	*/
+/*	$NetBSD: t_pr.c,v 1.8 2017/01/13 21:30:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: t_pr.c,v 1.7 2012/03/18 09:46:50 jruoho Exp $");
+__RCSID("$NetBSD: t_pr.c,v 1.8 2017/01/13 21:30:42 christos Exp $");
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -50,7 +50,7 @@ __RCSID("$NetBSD: t_pr.c,v 1.7 2012/03/18 09:46:50 jruoho Exp $");
 #include <unistd.h>
 
 #include "../config/netconfig.c"
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 /*
  * Prepare rump, configure interface and route to cause fragmentation

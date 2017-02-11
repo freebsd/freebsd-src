@@ -132,6 +132,7 @@ customize_cmd cust_install_machine_files
 
 # NB: leave c++ enabled so devd can be built
 CONF_BUILD="
+LOCAL_XTOOL_DIRS=usr.bin/mkimg
 WITHOUT_ACPI=true
 WITHOUT_ATM=true
 WITHOUT_AUDIT=true
@@ -612,17 +613,23 @@ std-embedded)
 	NANO_SLICE_CFG=s2
 	NANO_SLICE_ROOT=s3
 	NANO_SLICE_ALTROOT=s4
+	NANO_ROOT=${NANO_SLICE_ROOT}a
+	NANO_ALTROOT=${NANO_SLICE_ALTROOT}a
 	;;
 std-x86)
 	NANO_SLICE_CFG=s1
 	NANO_SLICE_ROOT=s2
 	NANO_SLICE_ALTROOT=s3
+	NANO_ROOT=${NANO_SLICE_ROOT}a
+	NANO_ALTROOT=${NANO_SLICE_ALTROOT}a
 	;;
 powerpc64-ibm)
 	NANO_SLICE_PPCBOOT=s1
 	NANO_SLICE_CFG=s2
 	NANO_SLICE_ROOT=s3
 	NANO_SLICE_ALTROOT=s4
+	NANO_ROOT=${NANO_SLICE_ROOT}a
+	NANO_ALTROOT=${NANO_SLICE_ALTROOT}a
 	;;
 powerpc64-apple)
 	echo Not yet
@@ -633,6 +640,8 @@ std-uefi)
 	NANO_SLICE_CFG=s2
 	NANO_SLICE_ROOT=s3
 	NANO_SLICE_ALTROOT=s4
+	NANO_ROOT=${NANO_SLICE_ROOT}
+	NANO_ALTROOT=${NANO_SLICE_ALTROOT}
 	;;
 std-uefi-bios)
 	NANO_DISK_SCHEME=gpt
@@ -641,7 +650,6 @@ std-uefi-bios)
 	NANO_SLICE_CFG=p3
 	NANO_SLICE_ROOT=p4
 	NANO_SLICE_ALTROOT=p5
-	# override root name
 	NANO_ROOT=${NANO_SLICE_ROOT}
 	NANO_ALTROOT=${NANO_SLICE_ALTROOT}
 	;;
@@ -660,3 +668,8 @@ NANO_SLICE_DATA=		# Not included
 create_diskimage ( ) (
 	eval create_diskimage_${NANO_DISK_SCHEME}
 )
+
+# Set the path to the same path we use for buldworld to use latest mkimg
+NANO_TARGET=$(cd ${NANO_SRC}; ${NANO_MAKE} TARGET_ARCH=${NANO_ARCH} -V _TARGET)
+NANO_TMPPATH=$(cd ${NANO_SRC}; ${NANO_MAKE} TARGET=${NANO_TARGET} TARGET_ARCH=${NANO_ARCH} -f Makefile.inc1 buildenv -V TMPPATH)
+export PATH="${NANO_TMPPATH}"

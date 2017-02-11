@@ -73,9 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_mroute.h>
 #include <netinet/ip_icmp.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#endif /*IPSEC*/
+#include <netipsec/ipsec_support.h>
 
 #include <machine/stdarg.h>
 #include <security/mac/mac_framework.h>
@@ -236,10 +234,11 @@ rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
 
 	INP_LOCK_ASSERT(last);
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/* check AH/ESP integrity. */
-	if (ipsec4_in_reject(n, last)) {
-		policyfail = 1;
+	if (IPSEC_ENABLED(ipv4)) {
+		if (IPSEC_CHECK_POLICY(ipv4, n, last) != 0)
+			policyfail = 1;
 	}
 #endif /* IPSEC */
 #ifdef MAC

@@ -305,17 +305,10 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 
-	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-	if (!iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
-	    (IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
-	     IWM_CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000)) {
-		device_printf(sc->sc_dev,
-		    "%s: acquiring device failed\n", __func__);
-		error = EBUSY;
+	error = iwm_pcie_set_cmd_in_flight(sc);
+	if (error)
 		goto out;
-	}
+	ring->queued++;
 
 #if 0
 	iwm_update_sched(sc, ring->qid, ring->cur, 0, 0);
@@ -427,32 +420,4 @@ iwm_free_resp(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	    == (IWM_CMD_WANT_SKB|IWM_CMD_SYNC), ("invalid flags"));
 	sc->sc_wantresp = -1;
 	wakeup(&sc->sc_wantresp);
-}
-
-uint8_t
-iwm_fw_valid_tx_ant(struct iwm_softc *sc)
-{
-	uint8_t tx_ant;
-
-	tx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_TX_CHAIN)
-	    >> IWM_FW_PHY_CFG_TX_CHAIN_POS);
-
-	if (sc->sc_nvm.valid_tx_ant)
-		tx_ant &= sc->sc_nvm.valid_tx_ant;
-
-	return tx_ant;
-}
-
-uint8_t
-iwm_fw_valid_rx_ant(struct iwm_softc *sc)
-{
-	uint8_t rx_ant;
-
-	rx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_RX_CHAIN)
-	    >> IWM_FW_PHY_CFG_RX_CHAIN_POS);
-
-	if (sc->sc_nvm.valid_rx_ant)
-		rx_ant &= sc->sc_nvm.valid_rx_ant;
-
-	return rx_ant;
 }

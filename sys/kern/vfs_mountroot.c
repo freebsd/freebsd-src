@@ -132,6 +132,11 @@ static int root_mount_complete;
 static int root_mount_timeout = 3;
 TUNABLE_INT("vfs.mountroot.timeout", &root_mount_timeout);
 
+static int root_mount_always_wait = 0;
+SYSCTL_INT(_vfs, OID_AUTO, root_mount_always_wait, CTLFLAG_RDTUN,
+    &root_mount_always_wait, 0,
+    "Wait for root mount holds even if the root device already exists");
+
 SYSCTL_PROC(_vfs, OID_AUTO, root_mount_hold,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_vfs_root_mount_hold, "A",
@@ -166,9 +171,6 @@ root_mount_hold(const char *identifier)
 {
 	struct root_hold_token *h;
 
-	if (root_mounted())
-		return (NULL);
-
 	h = malloc(sizeof *h, M_DEVBUF, M_ZERO | M_WAITOK);
 	h->who = identifier;
 	mtx_lock(&root_holds_mtx);
@@ -181,8 +183,8 @@ void
 root_mount_rel(struct root_hold_token *h)
 {
 
-	if (h == NULL)
-		return;
+	KASSERT(h != NULL, ("%s: NULL token", __func__));
+
 	mtx_lock(&root_holds_mtx);
 	LIST_REMOVE(h, list);
 	wakeup(&root_holds);
@@ -961,10 +963,11 @@ vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
 
 	/*
 	 * In case of ZFS and NFS we don't have a way to wait for
-	 * specific device.
+	 * specific device.  Also do the wait if the user forced that
+	 * behaviour by setting vfs.root_mount_always_wait=1.
 	 */
 	if (strcmp(fs, "zfs") == 0 || strstr(fs, "nfs") != NULL ||
-	    dev[0] == '\0') {
+	    dev[0] == '\0' || root_mount_always_wait != 0) {
 		vfs_mountroot_wait();
 		return (0);
 	}

@@ -199,6 +199,7 @@ static void	ath_set_channel(struct ieee80211com *);
 #ifdef	ATH_ENABLE_11N
 static void	ath_update_chw(struct ieee80211com *);
 #endif	/* ATH_ENABLE_11N */
+static int	ath_set_quiet_ie(struct ieee80211_node *, uint8_t *);
 static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	ath_setup_stationkey(struct ieee80211_node *);
@@ -1325,6 +1326,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	ic->ic_update_chw = ath_update_chw;
 #endif	/* ATH_ENABLE_11N */
+	ic->ic_set_quiet = ath_set_quiet_ie;
 
 #ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
 	/*
@@ -2523,6 +2525,20 @@ ath_settkipmic(struct ath_softc *sc)
 	}
 }
 
+static void
+ath_vap_clear_quiet_ie(struct ath_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap;
+	struct ath_vap *avp;
+
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+		avp = ATH_VAP(vap);
+		/* Quiet time handling - ensure we resync */
+		memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
+	}
+}
+
 static int
 ath_init(struct ath_softc *sc)
 {
@@ -2568,6 +2584,9 @@ ath_init(struct ath_softc *sc)
 	sc->sc_rx_stopped = 1;
 	sc->sc_rx_resetted = 1;
 	ATH_RX_UNLOCK(sc);
+
+	/* Clear quiet IE state for each VAP */
+	ath_vap_clear_quiet_ie(sc);
 
 	ath_chan_change(sc, ic->ic_curchan);
 
@@ -2949,6 +2968,9 @@ ath_reset(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	sc->sc_rx_stopped = 1;
 	sc->sc_rx_resetted = 1;
 	ATH_RX_UNLOCK(sc);
+
+	/* Quiet time handling - ensure we resync */
+	ath_vap_clear_quiet_ie(sc);
 
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
@@ -4157,9 +4179,12 @@ ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
 		sc->sc_ant_tx[txant]++;
 		if (ts->ts_finaltsi != 0)
 			sc->sc_stats.ast_tx_altrate++;
+
+		/* XXX TODO: should do per-pri conuters */
 		pri = M_WME_GETAC(bf->bf_m);
 		if (pri >= WME_AC_VO)
 			ic->ic_wme.wme_hipri_traffic++;
+
 		if ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0)
 			ni->ni_inact = ni->ni_inact_reload;
 	} else {
@@ -5243,6 +5268,9 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		sc->sc_rx_resetted = 1;
 		ATH_RX_UNLOCK(sc);
 
+		/* Quiet time handling - ensure we resync */
+		ath_vap_clear_quiet_ie(sc);
+
 		/* Let DFS at it in case it's a DFS channel */
 		ath_dfs_radar_enable(sc, chan);
 
@@ -5516,10 +5544,153 @@ ath_update_chw(struct ieee80211com *ic)
 {
 	struct ath_softc *sc = ic->ic_softc;
 
-	DPRINTF(sc, ATH_DEBUG_STATE, "%s: called\n", __func__);
+	//DPRINTF(sc, ATH_DEBUG_STATE, "%s: called\n", __func__);
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
+
+	/*
+	 * XXX TODO: schedule a tasklet that stops things without freeing,
+	 * walks the now stopped TX queue(s) looking for frames to retry
+	 * as if we TX filtered them (whch may mean dropping non-ampdu frames!)
+	 * but okay) then place them back on the software queue so they
+	 * can have the rate control lookup done again.
+	 */
 	ath_set_channel(ic);
 }
 #endif	/* ATH_ENABLE_11N */
+
+/*
+ * This is called by the beacon parsing routine in the receive
+ * path to update the current quiet time information provided by
+ * an AP.
+ *
+ * This is STA specific, it doesn't take the AP TBTT/beacon slot
+ * offset into account.
+ *
+ * The quiet IE doesn't control the /now/ beacon interval - it
+ * controls the upcoming beacon interval.  So, when tbtt=1,
+ * the quiet element programming shall be for the next beacon
+ * interval.  There's no tbtt=0 behaviour defined, so don't.
+ *
+ * Since we're programming the next quiet interval, we have
+ * to keep in mind what we will see when the next beacon
+ * is received with potentially a quiet IE.  For example, if
+ * quiet_period is 1, then we are always getting a quiet interval
+ * each TBTT - so if we just program it in upon each beacon received,
+ * it will constantly reflect the "next" TBTT and we will never
+ * let the counter stay programmed correctly.
+ *
+ * So:
+ * + the first time we see the quiet IE, program it and store
+ *   the details somewhere;
+ * + if the quiet parameters don't change (ie, period/duration/offset)
+ *   then just leave the programming enabled;
+ * + (we can "skip" beacons, so don't try to enforce tbttcount unless
+ *   you're willing to also do the skipped beacon math);
+ * + if the quiet IE is removed, then halt quiet time.
+ */
+static int
+ath_set_quiet_ie(struct ieee80211_node *ni, uint8_t *ie)
+{
+	struct ieee80211_quiet_ie *q;
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ath_vap *avp = ATH_VAP(vap);
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ath_softc *sc = ic->ic_softc;
+
+	if (vap->iv_opmode != IEEE80211_M_STA)
+		return (0);
+
+	/* Verify we have a quiet time IE */
+	if (ie == NULL) {
+		DPRINTF(sc, ATH_DEBUG_QUIETIE,
+		    "%s: called; NULL IE, disabling\n", __func__);
+
+		ath_hal_set_quiet(sc->sc_ah, 0, 0, 0, HAL_QUIET_DISABLE);
+		memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
+		return (0);
+	}
+
+	/* If we do, verify it's actually legit */
+	if (ie[0] != IEEE80211_ELEMID_QUIET)
+		return 0;
+	if (ie[1] != 6)
+		return 0;
+
+	/* Note: this belongs in net80211, parsed out and everything */
+	q = (void *) ie;
+
+	/*
+	 * Compare what we have stored to what we last saw.
+	 * If they're the same then don't program in anything.
+	 */
+	if ((q->period == avp->quiet_ie.period) &&
+	    (le16dec(&q->duration) == le16dec(&avp->quiet_ie.duration)) &&
+	    (le16dec(&q->offset) == le16dec(&avp->quiet_ie.offset)))
+		return (0);
+
+	DPRINTF(sc, ATH_DEBUG_QUIETIE,
+	    "%s: called; tbttcount=%d, period=%d, duration=%d, offset=%d\n",
+	    __func__,
+	    (int) q->tbttcount,
+	    (int) q->period,
+	    (int) le16dec(&q->duration),
+	    (int) le16dec(&q->offset));
+
+	/*
+	 * Don't program in garbage values.
+	 */
+	if ((le16dec(&q->duration) == 0) ||
+	    (le16dec(&q->duration) >= ni->ni_intval)) {
+		DPRINTF(sc, ATH_DEBUG_QUIETIE,
+		    "%s: invalid duration (%d)\n", __func__,
+		    le16dec(&q->duration));
+		    return (0);
+	}
+	/*
+	 * Can have a 0 offset, but not a duration - so just check
+	 * they don't exceed the intval.
+	 */
+	if (le16dec(&q->duration) + le16dec(&q->offset) >= ni->ni_intval) {
+		DPRINTF(sc, ATH_DEBUG_QUIETIE,
+		    "%s: invalid duration + offset (%d+%d)\n", __func__,
+		    le16dec(&q->duration),
+		    le16dec(&q->offset));
+		    return (0);
+	}
+	if (q->tbttcount == 0) {
+		DPRINTF(sc, ATH_DEBUG_QUIETIE,
+		    "%s: invalid tbttcount (0)\n", __func__);
+		    return (0);
+	}
+	if (q->period == 0) {
+		DPRINTF(sc, ATH_DEBUG_QUIETIE,
+		    "%s: invalid period (0)\n", __func__);
+		    return (0);
+	}
+
+	/*
+	 * This is a new quiet time IE config, so wait until tbttcount
+	 * is equal to 1, and program it in.
+	 */
+	if (q->tbttcount == 1) {
+		DPRINTF(sc, ATH_DEBUG_QUIETIE,
+		    "%s: programming\n", __func__);
+		ath_hal_set_quiet(sc->sc_ah,
+		    q->period * ni->ni_intval,	/* convert to TU */
+		    le16dec(&q->duration),	/* already in TU */
+		    le16dec(&q->offset) + ni->ni_intval,
+		    HAL_QUIET_ENABLE | HAL_QUIET_ADD_CURRENT_TSF);
+		/*
+		 * Note: no HAL_QUIET_ADD_SWBA_RESP_TIME; as this is for
+		 * STA mode
+		 */
+
+		/* Update local state */
+		memcpy(&avp->quiet_ie, ie, sizeof(struct ieee80211_quiet_ie));
+	}
+
+	return (0);
+}
 
 static void
 ath_set_channel(struct ieee80211com *ic)
@@ -5826,6 +5997,9 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    "%s: STA; syncbeacon=1\n", __func__);
 				sc->sc_syncbeacon = 1;
 
+				/* Quiet time handling - ensure we resync */
+				memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
+
 				if (csa_run_transition)
 					ath_beacon_config(sc, vap);
 
@@ -5891,6 +6065,10 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		taskqueue_unblock(sc->sc_tq);
 	} else if (nstate == IEEE80211_S_INIT) {
+
+		/* Quiet time handling - ensure we resync */
+		memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
+
 		/*
 		 * If there are no vaps left in RUN state then
 		 * shutdown host/driver operation:
@@ -5934,6 +6112,9 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			}
 			ATH_UNLOCK(sc);
 		}
+	} else if (nstate == IEEE80211_S_SCAN) {
+		/* Quiet time handling - ensure we resync */
+		memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
 	}
 bad:
 	ieee80211_free_node(ni);

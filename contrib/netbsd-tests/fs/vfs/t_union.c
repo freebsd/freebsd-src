@@ -1,4 +1,4 @@
-/*	$NetBSD: t_union.c,v 1.8 2011/08/07 06:01:51 hannken Exp $	*/
+/*	$NetBSD: t_union.c,v 1.9 2017/01/13 21:30:40 christos Exp $	*/
 
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -17,7 +17,7 @@
 
 #include <miscfs/union/union.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../common/h_fsmacros.h"
 
 #define MSTR "magic bus"

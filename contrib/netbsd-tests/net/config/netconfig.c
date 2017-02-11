@@ -1,4 +1,4 @@
-/*	$NetBSD: netconfig.c,v 1.8 2013/07/03 19:13:33 pooka Exp $	*/
+/*	$NetBSD: netconfig.c,v 1.9 2017/01/13 21:30:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: netconfig.c,v 1.8 2013/07/03 19:13:33 pooka Exp $");
+__RCSID("$NetBSD: netconfig.c,v 1.9 2017/01/13 21:30:42 christos Exp $");
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -53,7 +53,7 @@ __RCSID("$NetBSD: netconfig.c,v 1.8 2013/07/03 19:13:33 pooka Exp $");
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 int noatf;
 

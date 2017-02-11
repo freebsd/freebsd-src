@@ -349,8 +349,12 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 	if ((error = VOP_OPEN(vp, fmode, cred, td, fp)) != 0)
 		return (error);
 
-	if (fmode & (O_EXLOCK | O_SHLOCK)) {
+	while ((fmode & (O_EXLOCK | O_SHLOCK)) != 0) {
 		KASSERT(fp != NULL, ("open with flock requires fp"));
+		if (fp->f_type != DTYPE_NONE && fp->f_type != DTYPE_VNODE) {
+			error = EOPNOTSUPP;
+			break;
+		}
 		lock_flags = VOP_ISLOCKED(vp);
 		VOP_UNLOCK(vp, 0);
 		lf.l_whence = SEEK_SET;
@@ -367,8 +371,12 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		if (error == 0)
 			fp->f_flag |= FHASLOCK;
 		vn_lock(vp, lock_flags | LK_RETRY);
-		if (error == 0 && vp->v_iflag & VI_DOOMED)
+		if (error != 0)
+			break;
+		if ((vp->v_iflag & VI_DOOMED) != 0) {
 			error = ENOENT;
+			break;
+		}
 
 		/*
 		 * Another thread might have used this vnode as an
@@ -376,20 +384,20 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		 * Ensure the vnode is still able to be opened for
 		 * writing after the lock has been obtained.
 		 */
-		if (error == 0 && accmode & VWRITE)
+		if ((accmode & VWRITE) != 0)
 			error = vn_writechk(vp);
-
-		if (error != 0) {
-			fp->f_flag |= FOPENFAILED;
-			fp->f_vnode = vp;
-			if (fp->f_ops == &badfileops) {
-				fp->f_type = DTYPE_VNODE;
-				fp->f_ops = &vnops;
-			}
-			vref(vp);
-		}
+		break;
 	}
-	if (error == 0 && fmode & FWRITE) {
+
+	if (error != 0) {
+		fp->f_flag |= FOPENFAILED;
+		fp->f_vnode = vp;
+		if (fp->f_ops == &badfileops) {
+			fp->f_type = DTYPE_VNODE;
+			fp->f_ops = &vnops;
+		}
+		vref(vp);
+	} else if  ((fmode & FWRITE) != 0) {
 		VOP_ADD_WRITECOUNT(vp, 1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
 		    __func__, vp, vp->v_writecount);
@@ -422,12 +430,9 @@ vn_writechk(vp)
 /*
  * Vnode close call
  */
-int
-vn_close(vp, flags, file_cred, td)
-	register struct vnode *vp;
-	int flags;
-	struct ucred *file_cred;
-	struct thread *td;
+static int
+vn_close1(struct vnode *vp, int flags, struct ucred *file_cred,
+    struct thread *td, bool keep_ref)
 {
 	struct mount *mp;
 	int error, lock_flags;
@@ -449,9 +454,20 @@ vn_close(vp, flags, file_cred, td)
 		    __func__, vp, vp->v_writecount);
 	}
 	error = VOP_CLOSE(vp, flags, file_cred, td);
-	vput(vp);
+	if (keep_ref)
+		VOP_UNLOCK(vp, 0);
+	else
+		vput(vp);
 	vn_finished_write(mp);
 	return (error);
+}
+
+int
+vn_close(struct vnode *vp, int flags, struct ucred *file_cred,
+    struct thread *td)
+{
+
+	return (vn_close1(vp, flags, file_cred, td, false));
 }
 
 /*
@@ -1565,18 +1581,15 @@ vn_closefile(struct file *fp, struct thread *td)
 	struct vnode *vp;
 	struct flock lf;
 	int error;
+	bool ref;
 
 	vp = fp->f_vnode;
 	fp->f_ops = &badfileops;
+	ref= (fp->f_flag & FHASLOCK) != 0 && fp->f_type == DTYPE_VNODE;
 
-	if (__predict_false((fp->f_flag & FHASLOCK) != 0) &&
-	    fp->f_type == DTYPE_VNODE)
-		vrefact(vp);
+	error = vn_close1(vp, fp->f_flag, fp->f_cred, td, ref);
 
-	error = vn_close(vp, fp->f_flag, fp->f_cred, td);
-
-	if (__predict_false((fp->f_flag & FHASLOCK) != 0) &&
-	    fp->f_type == DTYPE_VNODE) {
+	if (__predict_false(ref)) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
 		lf.l_len = 0;

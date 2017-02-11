@@ -261,7 +261,7 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 			sym->st_value = 0;
 			sym->st_size = 0;
 			sym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_FUNC);
-			sym->st_other = ELF32_ST_VISIBILITY(STV_HIDDEN);
+			sym->st_other = 0;
 			sym->st_shndx = SHN_UNDEF;
 
 			rel++;
@@ -445,7 +445,7 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 			sym->st_value = 0;
 			sym->st_size = 0;
 			sym->st_info = GELF_ST_INFO(STB_GLOBAL, STT_FUNC);
-			sym->st_other = ELF64_ST_VISIBILITY(STV_HIDDEN);
+			sym->st_other = 0;
 			sym->st_shndx = SHN_UNDEF;
 
 			rel++;
@@ -1187,6 +1187,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	static const char dt_enabled[] = "enabled";
 	static const char dt_symprefix[] = "$dtrace";
 	static const char dt_symfmt[] = "%s%ld.%s";
+	static const char dt_weaksymfmt[] = "%s.%s";
 	char probename[DTRACE_NAMELEN];
 	int fd, i, ndx, eprobe, mod = 0;
 	Elf *elf = NULL;
@@ -1548,44 +1549,46 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 
 			if (dt_symtab_lookup(data_sym, osym, isym,
 			    rela.r_offset, shdr_rel.sh_info, &fsym,
-			    (emachine1 == EM_PPC64), elf) != 0 &&
-			    dt_symtab_lookup(data_sym, 0, osym,
+			    (emachine1 == EM_PPC64), elf) == 0) {
+				if (fsym.st_name > data_str->d_size)
+					goto err;
+
+				r = s = (char *) data_str->d_buf + fsym.st_name;
+				assert(strstr(s, dt_symprefix) == s);
+				s = strchr(s, '.') + 1;
+			} else if (dt_symtab_lookup(data_sym, 0, osym,
 			    rela.r_offset, shdr_rel.sh_info, &fsym,
-			    (emachine1 == EM_PPC64), elf) != 0)
-				goto err;
+			    (emachine1 == EM_PPC64), elf) == 0) {
+				u_int bind;
 
-			if (fsym.st_name > data_str->d_size)
-				goto err;
+				bind = GELF_ST_BIND(fsym.st_info) == STB_WEAK ?
+				    STB_WEAK : STB_GLOBAL;
 
-			assert(GELF_ST_TYPE(fsym.st_info) == STT_FUNC);
-
-			/*
-			 * If this is our first time encountering this symbol,
-			 * emit an alias.
-			 */
-			s = (char *)data_str->d_buf + fsym.st_name;
-
-			if (strncmp(s, dt_symprefix,
-			    sizeof (dt_symprefix) - 1) != 0) {
-				u_int bind = GELF_ST_BIND(fsym.st_info);
-
+				/*
+				 * Emit an alias for the symbol. It needs to be
+				 * non-preemptible so that .SUNW_dof relocations
+				 * may be resolved at static link time. Aliases
+				 * of weak symbols are given a non-unique name
+				 * so that they may be merged by the linker.
+				 */
 				dsym = fsym;
 				dsym.st_name = istr;
-				dsym.st_info = GELF_ST_INFO(bind == STB_LOCAL ?
-				    STB_GLOBAL : bind, STT_FUNC);
+				dsym.st_info = GELF_ST_INFO(bind, STT_FUNC);
 				dsym.st_other = GELF_ST_VISIBILITY(STV_HIDDEN);
 				(void) gelf_update_sym(data_sym, isym, &dsym);
 				r = (char *) data_str->d_buf + istr;
-				istr += 1 + sprintf(r, dt_symfmt, dt_symprefix, objkey,
-				    s);
+				s = (char *) data_str->d_buf + fsym.st_name;
+				if (bind == STB_WEAK)
+					istr += sprintf(r, dt_weaksymfmt,
+					    dt_symprefix, s);
+				else
+					istr += sprintf(r, dt_symfmt,
+					    dt_symprefix, objkey, s);
+				istr++;
 				isym++;
 				assert(isym <= nsym);
-			} else {
-				r = s;
-				s = strchr(s, '.');
-				assert(s != NULL);
-				s++;
-			}
+			} else
+				goto err;
 
 			if ((pvp = dt_provider_lookup(dtp, pname)) == NULL) {
 				return (dt_link_error(dtp, elf, fd, bufs,

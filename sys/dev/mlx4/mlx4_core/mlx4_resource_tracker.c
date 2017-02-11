@@ -1544,7 +1544,10 @@ static int qp_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 	switch (op) {
 	case RES_OP_RESERVE:
 		count = get_param_l(&in_param) & 0xffffff;
-		flags = get_param_l(&in_param) >> 24;
+		/* Turn off all unsupported QP allocation flags that the
+		 * slave tries to set.
+		 */
+		flags = (get_param_l(&in_param) >> 24) & dev->caps.alloc_res_qp_mask;
 		align = get_param_h(&in_param);
 		err = mlx4_grant_resource(dev, slave, RES_QP, count, 0);
 		if (err)

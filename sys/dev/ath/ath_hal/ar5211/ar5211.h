@@ -271,6 +271,8 @@ extern	HAL_BOOL ar5211SetSifsTime(struct ath_hal *, u_int);
 extern	u_int ar5211GetSifsTime(struct ath_hal *);
 extern  HAL_BOOL ar5211SetDecompMask(struct ath_hal *, uint16_t, int);
 extern	void ar5211SetCoverageClass(struct ath_hal *, uint8_t, int);
+extern	HAL_STATUS ar5211SetQuiet(struct ath_hal *, uint32_t, uint32_t,
+		uint32_t, HAL_QUIET_FLAG);
 extern	uint32_t ar5211GetCurRssi(struct ath_hal *);
 extern	u_int ar5211GetDefAntenna(struct ath_hal *);
 extern	void ar5211SetDefAntenna(struct ath_hal *ah, u_int antenna);

@@ -1,4 +1,4 @@
-/* $NetBSD: t_fpu.c,v 1.2 2013/01/27 14:47:37 mbalmer Exp $ */
+/* $NetBSD: t_fpu.c,v 1.3 2017/01/16 16:27:43 christos Exp $ */
 
 /*
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_fpu.c,v 1.2 2013/01/27 14:47:37 mbalmer Exp $");
+__RCSID("$NetBSD: t_fpu.c,v 1.3 2017/01/16 16:27:43 christos Exp $");
 
 /*
  * This is adapted from part of csw/cstest of the MPD implementation by
@@ -49,19 +49,16 @@ __RCSID("$NetBSD: t_fpu.c,v 1.2 2013/01/27 14:47:37 mbalmer Exp $");
  * <is@netbsd.org>.
  */
 
+#include <errno.h>
 #include <math.h>
 #include <pthread.h>
 #include <sched.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 #include <atf-c.h>
-
-#ifdef	__FreeBSD__
-#include <errno.h>
-#include <string.h>
-#endif
 
 #include "h_common.h"
 
@@ -82,24 +79,16 @@ stir(void *p)
 
 	for (;;) {
 		x = sin ((y = cos (x + y + .4)) - (z = cos (x + z + .6)));
-#ifdef	__FreeBSD__
 		ATF_REQUIRE_MSG(sched_yield() == 0,
 		    "sched_yield failed: %s", strerror(errno));
-#else
-		PTHREAD_REQUIRE(sched_yield());
-#endif
 	}
 }
 
 static double
 mul3(double x, double y, double z)
 {
-#ifdef	__FreeBSD__
 	ATF_REQUIRE_MSG(sched_yield() == 0,
 	    "sched_yield failed: %s", strerror(errno));
-#else
-	PTHREAD_REQUIRE(sched_yield());
-#endif
 
 	return x * y * z;
 }
@@ -129,11 +118,7 @@ bar(void *p)
 static void
 recurse(void) {
 	pthread_t s2;
-#ifdef	__FreeBSD__
 	PTHREAD_REQUIRE(pthread_create(&s2, 0, bar, 0));
-#else
-	pthread_create(&s2, 0, bar, 0);
-#endif
 	sleep(20); /* XXX must be long enough for our slowest machine */
 }
 
@@ -153,11 +138,7 @@ ATF_TC_BODY(fpu, tc)
 
 	PTHREAD_REQUIRE(pthread_mutex_init(&recursion_depth_lock, 0));
 
-#ifdef	__FreeBSD__
 	PTHREAD_REQUIRE(pthread_create(&s5, 0, stir, stirseed));
-#else
-	pthread_create(&s5, 0, stir, stirseed);
-#endif
 	recurse();
 
 	atf_tc_fail("exiting from main");

@@ -432,10 +432,7 @@ struct route_in6 {
 #define IPV6_BINDV6ONLY		IPV6_V6ONLY
 #endif
 
-#if 1 /* IPSEC */
 #define IPV6_IPSEC_POLICY	28 /* struct; get/set security policy */
-#endif /* IPSEC */
-
 				   /* 29; unused; was IPV6_FAITH */
 #if 1 /* IPV6FIREWALL */
 #define IPV6_FW_ADD		30 /* add a firewall rule to chain */
@@ -499,6 +496,9 @@ struct route_in6 {
 #define	IPV6_RSSBUCKETID	69 /* int; RSS bucket ID of given socket */
 #define	IPV6_RECVFLOWID		70 /* bool; receive IP6 flowid/flowtype w/ datagram */
 #define	IPV6_RECVRSSBUCKETID	71 /* bool; receive IP6 RSS bucket id w/ datagram */
+
+#define	IPV6_ORIGDSTADDR	72 /* bool: allow getting dstaddr /port info */
+#define	IPV6_RECVORIGDSTADDR	IPV6_ORIGDSTADDR
 
 /*
  * The following option is private; do not use it from user applications.

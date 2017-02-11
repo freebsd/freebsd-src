@@ -151,6 +151,13 @@ OLD_FILES+=usr/lib/clang/3.9.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.9.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.9.1/lib
 OLD_DIRS+=usr/lib/clang/3.9.1
+# 20170206: remove bdes(1)
+OLD_FILES+=usr/bin/bdes
+OLD_FILES+=usr/lib/debug/usr/bin/bdes.debug
+OLD_FILES+=usr/share/man/man1/bdes.1.gz
+# 20170206: merged projects/ipsec
+OLD_FILES+=usr/include/netinet/ip_ipsec.h
+OLD_FILES+=usr/include/netinet6/ip6_ipsec.h
 # 20170128: remove pc98 support
 OLD_FILES+=usr/include/dev/ic/i8251.h
 OLD_FILES+=usr/include/dev/ic/i8255.h

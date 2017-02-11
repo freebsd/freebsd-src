@@ -92,10 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udplite.h>
 #include <netinet/in_rss.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/esp.h>
-#endif
+#include <netipsec/ipsec_support.h>
 
 #include <machine/in_cksum.h>
 
@@ -171,15 +168,6 @@ static void	udp_detach(struct socket *so);
 static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
 		    struct mbuf *, struct thread *);
 #endif
-
-#ifdef IPSEC
-#ifdef IPSEC_NAT_T
-#define	UF_ESPINUDP_ALL	(UF_ESPINUDP_NON_IKE|UF_ESPINUDP)
-#ifdef INET
-static struct mbuf *udp4_espdecap(struct inpcb *, struct mbuf *, int);
-#endif
-#endif /* IPSEC_NAT_T */
-#endif /* IPSEC */
 
 static void
 udp_zone_change(void *tag)
@@ -316,7 +304,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 {
 	struct sockaddr *append_sa;
 	struct socket *so;
-	struct mbuf *opts = NULL;
+	struct mbuf *tmpopts, *opts = NULL;
 #ifdef INET6
 	struct sockaddr_in6 udp_in6;
 #endif
@@ -331,7 +319,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	if (up->u_tun_func != NULL) {
 		in_pcbref(inp);
 		INP_RUNLOCK(inp);
-		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)udp_in,
+		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)&udp_in[0],
 		    up->u_tun_ctx);
 		INP_RLOCK(inp);
 		return (in_pcbrele_rlocked(inp));
@@ -339,21 +327,18 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 
 	off += sizeof(struct udphdr);
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/* Check AH/ESP integrity. */
-	if (ipsec4_in_reject(n, inp)) {
+	if (IPSEC_ENABLED(ipv4) &&
+	    IPSEC_CHECK_POLICY(ipv4, n, inp) != 0) {
 		m_freem(n);
 		return (0);
 	}
-#ifdef IPSEC_NAT_T
-	up = intoudpcb(inp);
-	KASSERT(up != NULL, ("%s: udpcb NULL", __func__));
-	if (up->u_flags & UF_ESPINUDP_ALL) {	/* IPSec UDP encaps. */
-		n = udp4_espdecap(inp, n, off);
-		if (n == NULL)				/* Consumed. */
-			return (0);
+	if (up->u_flags & UF_ESPINUDP) {/* IPSec UDP encaps. */
+		if (IPSEC_ENABLED(ipv4) &&
+		    UDPENCAP_INPUT(n, off, AF_INET) != 0)
+			return (0);	/* Consumed. */
 	}
-#endif /* IPSEC_NAT_T */
 #endif /* IPSEC */
 #ifdef MAC
 	if (mac_inpcb_check_deliver(inp, n) != 0) {
@@ -370,16 +355,27 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 #endif /* INET6 */
 			ip_savecontrol(inp, &opts, ip, n);
 	}
+	if (inp->inp_vflag & INP_IPV4 && inp->inp_flags2 & INP_ORIGDSTADDR) {
+		tmpopts = sbcreatecontrol((caddr_t)&udp_in[1],
+			sizeof(struct sockaddr_in), IP_ORIGDSTADDR, IPPROTO_IP);
+		if (tmpopts) {
+			if (opts) {
+				tmpopts->m_next = opts;
+				opts = tmpopts;
+			} else
+				opts = tmpopts;
+		}
+	}
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6) {
 		bzero(&udp_in6, sizeof(udp_in6));
 		udp_in6.sin6_len = sizeof(udp_in6);
 		udp_in6.sin6_family = AF_INET6;
-		in6_sin_2_v4mapsin6(udp_in, &udp_in6);
+		in6_sin_2_v4mapsin6(&udp_in[0], &udp_in6);
 		append_sa = (struct sockaddr *)&udp_in6;
 	} else
 #endif /* INET6 */
-		append_sa = (struct sockaddr *)udp_in;
+		append_sa = (struct sockaddr *)&udp_in[0];
 	m_adj(n, off);
 
 	so = inp->inp_socket;
@@ -405,7 +401,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	uint16_t len, ip_len;
 	struct inpcbinfo *pcbinfo;
 	struct ip save_ip;
-	struct sockaddr_in udp_in;
+	struct sockaddr_in udpin[2];
 	struct mbuf *m;
 	struct m_tag *fwd_tag;
 	int cscov_partial, iphlen;
@@ -450,11 +446,16 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	 * Construct sockaddr format source address.  Stuff source address
 	 * and datagram in user buffer.
 	 */
-	bzero(&udp_in, sizeof(udp_in));
-	udp_in.sin_len = sizeof(udp_in);
-	udp_in.sin_family = AF_INET;
-	udp_in.sin_port = uh->uh_sport;
-	udp_in.sin_addr = ip->ip_src;
+	bzero(&udpin[0], sizeof(struct sockaddr_in));
+	udpin[0].sin_len = sizeof(struct sockaddr_in);
+	udpin[0].sin_family = AF_INET;
+	udpin[0].sin_port = uh->uh_sport;
+	udpin[0].sin_addr = ip->ip_src;
+	bzero(&udpin[1], sizeof(struct sockaddr_in));
+	udpin[1].sin_len = sizeof(struct sockaddr_in);
+	udpin[1].sin_family = AF_INET;
+	udpin[1].sin_port = uh->uh_dport;
+	udpin[1].sin_addr = ip->ip_dst;
 
 	/*
 	 * Make mbuf data length reflect UDP length.  If not enough data to
@@ -583,7 +584,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 
 				blocked = imo_multi_filter(imo, ifp,
 					(struct sockaddr *)&group,
-					(struct sockaddr *)&udp_in);
+					(struct sockaddr *)&udpin[0]);
 				if (blocked != MCAST_PASS) {
 					if (blocked == MCAST_NOTGMEMBER)
 						IPSTAT_INC(ips_notmember);
@@ -602,7 +603,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 					UDP_PROBE(receive, NULL, last, ip,
 					    last, uh);
 					if (udp_append(last, ip, n, iphlen,
-						&udp_in)) {
+						udpin)) {
 						goto inp_lost;
 					}
 				}
@@ -635,7 +636,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			goto badunlocked;
 		}
 		UDP_PROBE(receive, NULL, last, ip, last, uh);
-		if (udp_append(last, ip, m, iphlen, &udp_in) == 0) 
+		if (udp_append(last, ip, m, iphlen, udpin) == 0) 
 			INP_RUNLOCK(last);
 	inp_lost:
 		INP_INFO_RUNLOCK(pcbinfo);
@@ -682,13 +683,13 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		    INPLOOKUP_RLOCKPCB, ifp, m);
 	if (inp == NULL) {
 		if (udp_log_in_vain) {
-			char buf[4*sizeof "123"];
+			char src[INET_ADDRSTRLEN];
+			char dst[INET_ADDRSTRLEN];
 
-			strcpy(buf, inet_ntoa(ip->ip_dst));
 			log(LOG_INFO,
 			    "Connection attempt to UDP %s:%d from %s:%d\n",
-			    buf, ntohs(uh->uh_dport), inet_ntoa(ip->ip_src),
-			    ntohs(uh->uh_sport));
+			    inet_ntoa_r(ip->ip_dst, dst), ntohs(uh->uh_dport),
+			    inet_ntoa_r(ip->ip_src, src), ntohs(uh->uh_sport));
 		}
 		UDPSTAT_INC(udps_noport);
 		if (m->m_flags & (M_BCAST | M_MCAST)) {
@@ -725,7 +726,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	UDP_PROBE(receive, NULL, inp, ip, inp, uh);
-	if (udp_append(inp, ip, m, iphlen, &udp_in) == 0) 
+	if (udp_append(inp, ip, m, iphlen, udpin) == 0) 
 		INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 
@@ -1021,42 +1022,17 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 	switch (sopt->sopt_dir) {
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+#ifdef INET
 		case UDP_ENCAP:
-			INP_WUNLOCK(inp);
-			error = sooptcopyin(sopt, &optval, sizeof optval,
-					    sizeof optval);
-			if (error)
-				break;
-			inp = sotoinpcb(so);
-			KASSERT(inp != NULL, ("%s: inp == NULL", __func__));
-			INP_WLOCK(inp);
-#ifdef IPSEC_NAT_T
-			up = intoudpcb(inp);
-			KASSERT(up != NULL, ("%s: up == NULL", __func__));
-#endif
-			switch (optval) {
-			case 0:
-				/* Clear all UDP encap. */
-#ifdef IPSEC_NAT_T
-				up->u_flags &= ~UF_ESPINUDP_ALL;
-#endif
-				break;
-#ifdef IPSEC_NAT_T
-			case UDP_ENCAP_ESPINUDP:
-			case UDP_ENCAP_ESPINUDP_NON_IKE:
-				up->u_flags &= ~UF_ESPINUDP_ALL;
-				if (optval == UDP_ENCAP_ESPINUDP)
-					up->u_flags |= UF_ESPINUDP;
-				else if (optval == UDP_ENCAP_ESPINUDP_NON_IKE)
-					up->u_flags |= UF_ESPINUDP_NON_IKE;
-				break;
-#endif
-			default:
-				error = EINVAL;
-				break;
+			if (!IPSEC_ENABLED(ipv4)) {
+				INP_WUNLOCK(inp);
+				return (ENOPROTOOPT);
 			}
-			INP_WUNLOCK(inp);
+			error = UDPENCAP_PCBCTL(inp, sopt);
 			break;
+#endif /* INET */
+#endif /* IPSEC */
 		case UDPLITE_SEND_CSCOV:
 		case UDPLITE_RECV_CSCOV:
 			if (!isudplite) {
@@ -1093,15 +1069,17 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 		break;
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
-#ifdef IPSEC_NAT_T
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+#ifdef INET
 		case UDP_ENCAP:
-			up = intoudpcb(inp);
-			KASSERT(up != NULL, ("%s: up == NULL", __func__));
-			optval = up->u_flags & UF_ESPINUDP_ALL;
-			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, &optval, sizeof optval);
+			if (!IPSEC_ENABLED(ipv4)) {
+				INP_WUNLOCK(inp);
+				return (ENOPROTOOPT);
+			}
+			error = UDPENCAP_PCBCTL(inp, sopt);
 			break;
-#endif
+#endif /* INET */
+#endif /* IPSEC */
 		case UDPLITE_SEND_CSCOV:
 		case UDPLITE_RECV_CSCOV:
 			if (!isudplite) {
@@ -1583,142 +1561,6 @@ release:
 	m_freem(m);
 	return (error);
 }
-
-
-#if defined(IPSEC) && defined(IPSEC_NAT_T)
-/*
- * Potentially decap ESP in UDP frame.  Check for an ESP header
- * and optional marker; if present, strip the UDP header and
- * push the result through IPSec.
- *
- * Returns mbuf to be processed (potentially re-allocated) or
- * NULL if consumed and/or processed.
- */
-static struct mbuf *
-udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
-{
-	size_t minlen, payload, skip, iphlen;
-	caddr_t data;
-	struct udpcb *up;
-	struct m_tag *tag;
-	struct udphdr *udphdr;
-	struct ip *ip;
-
-	INP_RLOCK_ASSERT(inp);
-
-	/* 
-	 * Pull up data so the longest case is contiguous:
-	 *    IP/UDP hdr + non ESP marker + ESP hdr.
-	 */
-	minlen = off + sizeof(uint64_t) + sizeof(struct esp);
-	if (minlen > m->m_pkthdr.len)
-		minlen = m->m_pkthdr.len;
-	if ((m = m_pullup(m, minlen)) == NULL) {
-		IPSECSTAT_INC(ips_in_inval);
-		return (NULL);		/* Bypass caller processing. */
-	}
-	data = mtod(m, caddr_t);	/* Points to ip header. */
-	payload = m->m_len - off;	/* Size of payload. */
-
-	if (payload == 1 && data[off] == '\xff')
-		return (m);		/* NB: keepalive packet, no decap. */
-
-	up = intoudpcb(inp);
-	KASSERT(up != NULL, ("%s: udpcb NULL", __func__));
-	KASSERT((up->u_flags & UF_ESPINUDP_ALL) != 0,
-	    ("u_flags 0x%x", up->u_flags));
-
-	/* 
-	 * Check that the payload is large enough to hold an
-	 * ESP header and compute the amount of data to remove.
-	 *
-	 * NB: the caller has already done a pullup for us.
-	 * XXX can we assume alignment and eliminate bcopys?
-	 */
-	if (up->u_flags & UF_ESPINUDP_NON_IKE) {
-		/*
-		 * draft-ietf-ipsec-nat-t-ike-0[01].txt and
-		 * draft-ietf-ipsec-udp-encaps-(00/)01.txt, ignoring
-		 * possible AH mode non-IKE marker+non-ESP marker
-		 * from draft-ietf-ipsec-udp-encaps-00.txt.
-		 */
-		uint64_t marker;
-
-		if (payload <= sizeof(uint64_t) + sizeof(struct esp))
-			return (m);	/* NB: no decap. */
-		bcopy(data + off, &marker, sizeof(uint64_t));
-		if (marker != 0)	/* Non-IKE marker. */
-			return (m);	/* NB: no decap. */
-		skip = sizeof(uint64_t) + sizeof(struct udphdr);
-	} else {
-		uint32_t spi;
-
-		if (payload <= sizeof(struct esp)) {
-			IPSECSTAT_INC(ips_in_inval);
-			m_freem(m);
-			return (NULL);	/* Discard. */
-		}
-		bcopy(data + off, &spi, sizeof(uint32_t));
-		if (spi == 0)		/* Non-ESP marker. */
-			return (m);	/* NB: no decap. */
-		skip = sizeof(struct udphdr);
-	}
-
-	/*
-	 * Setup a PACKET_TAG_IPSEC_NAT_T_PORT tag to remember
-	 * the UDP ports. This is required if we want to select
-	 * the right SPD for multiple hosts behind same NAT.
-	 *
-	 * NB: ports are maintained in network byte order everywhere
-	 *     in the NAT-T code.
-	 */
-	tag = m_tag_get(PACKET_TAG_IPSEC_NAT_T_PORTS,
-		2 * sizeof(uint16_t), M_NOWAIT);
-	if (tag == NULL) {
-		IPSECSTAT_INC(ips_in_nomem);
-		m_freem(m);
-		return (NULL);		/* Discard. */
-	}
-	iphlen = off - sizeof(struct udphdr);
-	udphdr = (struct udphdr *)(data + iphlen);
-	((uint16_t *)(tag + 1))[0] = udphdr->uh_sport;
-	((uint16_t *)(tag + 1))[1] = udphdr->uh_dport;
-	m_tag_prepend(m, tag);
-
-	/*
-	 * Remove the UDP header (and possibly the non ESP marker)
-	 * IP header length is iphlen
-	 * Before:
-	 *   <--- off --->
-	 *   +----+------+-----+
-	 *   | IP |  UDP | ESP |
-	 *   +----+------+-----+
-	 *        <-skip->
-	 * After:
-	 *          +----+-----+
-	 *          | IP | ESP |
-	 *          +----+-----+
-	 *   <-skip->
-	 */
-	ovbcopy(data, data + skip, iphlen);
-	m_adj(m, skip);
-
-	ip = mtod(m, struct ip *);
-	ip->ip_len = htons(ntohs(ip->ip_len) - skip);
-	ip->ip_p = IPPROTO_ESP;
-
-	/*
-	 * We cannot yet update the cksums so clear any
-	 * h/w cksum flags as they are no longer valid.
-	 */
-	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID)
-		m->m_pkthdr.csum_flags &= ~(CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
-
-	(void) ipsec_common_input(m, iphlen, offsetof(struct ip, ip_p),
-				AF_INET, ip->ip_p);
-	return (NULL);			/* NB: consumed, bypass processing. */
-}
-#endif /* defined(IPSEC) && defined(IPSEC_NAT_T) */
 
 static void
 udp_abort(struct socket *so)

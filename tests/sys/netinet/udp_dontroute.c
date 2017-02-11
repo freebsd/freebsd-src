@@ -41,6 +41,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -52,7 +53,7 @@
 int
 main(int argc, char **argv)
 {
-	struct sockaddr_in dst;
+	struct sockaddr_storage dst;
 	int s, t;
 	int opt;
 	int ret;
@@ -60,17 +61,33 @@ main(int argc, char **argv)
 	const char* sendbuf = "Hello, World!";
 	const size_t buflen = 80;
 	char recvbuf[buflen];
+	bool v6 = false;
+	const char *addr, *tapdev;
+	const uint16_t port = 46120;
 
-	if (argc != 3) {
-		fprintf(stderr, "Usage: %s ip_address tapdev\n", argv[0]);
+	bzero(&dst, sizeof(dst));
+	if (argc < 3 || argc > 4) {
+		fprintf(stderr, "Usage: %s [-6] ip_address tapdev\n", argv[0]);
 		exit(2);
 	}
 
-	t = open(argv[2], O_RDWR | O_NONBLOCK);
+	if (strcmp("-6", argv[1]) == 0) {
+		v6 = true;
+		addr = argv[2];
+		tapdev = argv[3];
+	} else {
+		addr = argv[1];
+		tapdev = argv[2];
+	}
+
+	t = open(tapdev, O_RDWR | O_NONBLOCK);
 	if (t < 0)
 		err(EXIT_FAILURE, "open");
 
-	s = socket(PF_INET, SOCK_DGRAM, 0);
+	if (v6)
+		s = socket(PF_INET6, SOCK_DGRAM, 0);
+	else
+		s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0)
 		err(EXIT_FAILURE, "socket");
 	opt = 1;
@@ -79,16 +96,26 @@ main(int argc, char **argv)
 	if (ret == -1)
 		err(EXIT_FAILURE, "setsockopt(SO_DONTROUTE)");
 
-	dst.sin_len = sizeof(dst);
-	dst.sin_family = AF_INET;
-	dst.sin_port = htons(46120);
-	dst.sin_addr.s_addr = inet_addr(argv[1]);
-	if (dst.sin_addr.s_addr == htonl(INADDR_NONE)) {
-		fprintf(stderr, "Invalid address: %s\n", argv[1]);
-		exit(2);
+	if (v6) {
+		struct sockaddr_in6 *dst6 = ((struct sockaddr_in6*)&dst);
+
+		dst.ss_len = sizeof(struct sockaddr_in6);
+		dst.ss_family = AF_INET6;
+		dst6->sin6_port = htons(port);
+		ret = inet_pton(AF_INET6, addr, &dst6->sin6_addr);
+	} else {
+		struct sockaddr_in *dst4 = ((struct sockaddr_in*)&dst);
+
+		dst.ss_len = sizeof(struct sockaddr_in);
+		dst.ss_family = AF_INET;
+		dst4->sin_port = htons(port);
+		ret = inet_pton(AF_INET, addr, &dst4->sin_addr);
 	}
+	if (ret != 1)
+		err(EXIT_FAILURE, "inet_pton returned %d", ret);
+
 	ret = sendto(s, sendbuf, strlen(sendbuf), 0, (struct sockaddr*)&dst,
-	    dst.sin_len);
+	    dst.ss_len);
 	if (ret == -1)
 		err(EXIT_FAILURE, "sendto");
 

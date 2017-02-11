@@ -71,6 +71,16 @@ void kmem_init(vm_offset_t, vm_offset_t);
 void kmem_init_zero_region(void);
 void kmeminit(void);
 
+int kern_vm_mmap(struct thread *td, vm_offset_t addr, vm_size_t size,
+    vm_prot_t prot, int flags, int fd, off_t pos);
+int kern_vm_mprotect(struct thread *td, vm_offset_t addr, vm_size_t size,
+    vm_prot_t prot);
+int kern_vm_msync(struct thread *td, vm_offset_t addr, vm_size_t size,
+    int flags);
+int kern_vm_munlock(struct thread *td, vm_offset_t addr, vm_size_t size);
+int kern_vm_munmap(struct thread *td, vm_offset_t addr, vm_size_t size);
+int kern_vm_madvise(struct thread *td, vm_offset_t addr, vm_size_t len,
+    int behav);
 void swapout_procs(int);
 int kernacc(void *, int, int);
 int useracc(void *, int, int);
