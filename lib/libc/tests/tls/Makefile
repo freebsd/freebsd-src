@@ -16,7 +16,7 @@ NETBSD_ATF_TESTS_C+=	tls_dynamic_test
 
 .include "../Makefile.netbsd-tests"
 
-DSODIR=		${.OBJDIR}/../tls_dso
+DSODIR=		${.OBJDIR:H}/tls_dso
 
 LIBADD.tls_static_test+=	pthread
 LDFLAGS.tls_static_test+=	-static
