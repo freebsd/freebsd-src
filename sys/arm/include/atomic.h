@@ -39,7 +39,6 @@
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
-#include <sys/types.h>
 #include <machine/armreg.h>
 
 #ifndef _KERNEL
