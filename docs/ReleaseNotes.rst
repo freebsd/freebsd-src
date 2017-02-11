@@ -55,6 +55,12 @@ Non-comprehensive list of changes in this release
 * LLVM now handles invariant.group across different basic blocks, which makes
   it possible to devirtualize virtual calls inside loops.
 
+* The aggressive dead code elimination phase ("adce") now remove
+  branches which do not effect program behavior. Loops are retained by
+  default since they may be infinite but these can also be removed
+  with LLVM option -adce-remove-loops when the loop body otherwise has
+  no live operations.
+
 * ... next change ...
 
 .. NOTE
@@ -74,6 +80,95 @@ Non-comprehensive list of changes in this release
      cross-module indirect call promotion.
    * Significant build-time and binary-size improvements when compiling with
      debug info (-g).
+
+Code Generation Testing
+-----------------------
+
+Passes that work on the machine instruction representation can be tested with
+the .mir serialization format. ``llc`` supports the ``-run-pass``,
+``-stop-after``, ``-stop-before``, ``-start-after``, ``-start-before`` to to
+run a single pass of the code generation pipeline, or to stop or start the code
+generation pipeline at a given point.
+
+Additional information can be found in the :doc:`MIRLangRef`. The format is
+used by the tests ending in ``.mir`` in the ``test/CodeGen`` directory.
+
+This feature is available since 2015. It is used more often lately and was not
+mentioned in the release notes yet.
+
+Intrusive list API overhaul
+---------------------------
+
+The intrusive list infrastructure was substantially rewritten over the last
+couple of releases, primarily to excise undefined behaviour.  The biggest
+changes landed in this release.
+
+* ``simple_ilist<T>`` is a lower-level intrusive list that never takes
+  ownership of its nodes.  New intrusive-list clients should consider using it
+  instead of ``ilist<T>``.
+
+  * ``ilist_tag<class>`` allows a single data type to be inserted into two
+    parallel intrusive lists.  A type can inherit twice from ``ilist_node``,
+    first using ``ilist_node<T,ilist_tag<A>>`` (enabling insertion into
+    ``simple_ilist<T,ilist_tag<A>>``) and second using
+    ``ilist_node<T,ilist_tag<B>>`` (enabling insertion into
+    ``simple_ilist<T,ilist_tag<B>>``), where ``A`` and ``B`` are arbitrary
+    types.
+
+  * ``ilist_sentinel_tracking<bool>`` controls whether an iterator knows
+    whether it's pointing at the sentinel (``end()``).  By default, sentinel
+    tracking is on when ABI-breaking checks are enabled, and off otherwise;
+    this is used for an assertion when dereferencing ``end()`` (this assertion
+    triggered often in practice, and many backend bugs were fixed).  Explicitly
+    turning on sentinel tracking also enables ``iterator::isEnd()``.  This is
+    used by ``MachineInstrBundleIterator`` to iterate over bundles.
+
+* ``ilist<T>`` is built on top of ``simple_ilist<T>``, and supports the same
+  configuration options.  As before (and unlike ``simple_ilist<T>``),
+  ``ilist<T>`` takes ownership of its nodes.  However, it no longer supports
+  *allocating* nodes, and is now equivalent to ``iplist<T>``.  ``iplist<T>``
+  will likely be removed in the future.
+
+  * ``ilist<T>`` now always uses ``ilist_traits<T>``.  Instead of passing a
+    custom traits class in via a template parameter, clients that want to
+    customize the traits should specialize ``ilist_traits<T>``.  Clients that
+    want to avoid ownership can specialize ``ilist_alloc_traits<T>`` to inherit
+    from ``ilist_noalloc_traits<T>`` (or to do something funky); clients that
+    need callbacks can specialize ``ilist_callback_traits<T>`` directly.
+
+* The underlying data structure is now a simple recursive linked list.  The
+  sentinel node contains only a "next" (``begin()``) and "prev" (``rbegin()``)
+  pointer and is stored in the same allocation as ``simple_ilist<T>``.
+  Previously, it was malloc-allocated on-demand by default, although the
+  now-defunct ``ilist_sentinel_traits<T>`` was sometimes specialized to avoid
+  this.
+
+* The ``reverse_iterator`` class no longer uses ``std::reverse_iterator``.
+  Instead, it now has a handle to the same node that it dereferences to.
+  Reverse iterators now have the same iterator invalidation semantics as
+  forward iterators.
+
+  * ``iterator`` and ``reverse_iterator`` have explicit conversion constructors
+    that match ``std::reverse_iterator``'s off-by-one semantics, so that
+    reversing the end points of an iterator range results in the same range
+    (albeit in reverse).  I.e., ``reverse_iterator(begin())`` equals
+    ``rend()``.
+
+  * ``iterator::getReverse()`` and ``reverse_iterator::getReverse()`` return an
+    iterator that dereferences to the *same* node.  I.e.,
+    ``begin().getReverse()`` equals ``--rend()``.
+
+  * ``ilist_node<T>::getIterator()`` and
+    ``ilist_node<T>::getReverseIterator()`` return the forward and reverse
+    iterators that dereference to the current node.  I.e.,
+    ``begin()->getIterator()`` equals ``begin()`` and
+    ``rbegin()->getReverseIterator()`` equals ``rbegin()``.
+
+* ``iterator`` now stores an ``ilist_node_base*`` instead of a ``T*``.  The
+  implicit conversions between ``ilist<T>::iterator`` and ``T*`` have been
+  removed.  Clients may use ``N->getIterator()`` (if not ``nullptr``) or
+  ``&*I`` (if not ``end()``); alternatively, clients may refactor to use
+  references for known-good nodes.
 
 Changes to the LLVM IR
 ----------------------
@@ -133,9 +228,23 @@ Changes to the AMDGPU Target
 Changes to the AVR Target
 -----------------------------
 
-* The entire backend has been merged in-tree with all tests passing. All of
-  the instruction selection code and the machine code backend has landed
-  recently and is fully usable.
+This marks the first release where the AVR backend has been completely merged
+from a fork into LLVM trunk. The backend is still marked experimental, but
+is generally quite usable. All downstream development has halted on
+`GitHub <https://github.com/avr-llvm/llvm>`_, and changes now go directly into
+LLVM trunk.
+
+* Instruction selector and pseudo instruction expansion pass landed
+* `read_register` and `write_register` intrinsics are now supported
+* Support stack stores greater than 63-bytes from the bottom of the stack
+* A number of assertion errors have been fixed
+* Support stores to `undef` locations
+* Very basic support for the target has been added to clang
+* Small optimizations to some 16-bit boolean expressions
+
+Most of the work behind the scenes has been on correctness of generated
+assembly, and also fixing some assertions we would hit on some well-formed
+inputs.
 
 Changes to the OCaml bindings
 -----------------------------
