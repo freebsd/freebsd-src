@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 # Vendor sources and generated files
-LDNSDIR= ${.CURDIR}/../../contrib/ldns
-UNBOUNDDIR= ${.CURDIR}/../../contrib/unbound
+LDNSDIR= ${SRCTOP}/contrib/ldns
+UNBOUNDDIR= ${SRCTOP}/contrib/unbound
 
 # Hold my beer and watch this
 .PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/compat ${UNBOUNDDIR}/dns64 ${UNBOUNDDIR}/iterator ${UNBOUNDDIR}/sldns ${UNBOUNDDIR}/libunbound ${UNBOUNDDIR}/services ${UNBOUNDDIR}/services/cache ${UNBOUNDDIR}/util ${UNBOUNDDIR}/util/data ${UNBOUNDDIR}/util/storage ${UNBOUNDDIR}/validator 
