@@ -5,7 +5,7 @@ SHLIB_MAJOR=0
 CFLAGS+=-I${.CURDIR}
 WARNS?=	2
 
-.PATH: ${.CURDIR}/../../contrib/compiler-rt/BlocksRuntime
+.PATH: ${SRCTOP}/contrib/compiler-rt/BlocksRuntime
 
 INCS=	Block.h Block_private.h
 SRCS=	data.c runtime.c
