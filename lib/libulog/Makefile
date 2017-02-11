@@ -22,7 +22,7 @@ MLINKS+=ulog_login.3 ulog_login_pseudo.3 \
 DPADD=	${LIBMD}
 LDADD=	-lmd
 
-VERSION_DEF= ${.CURDIR}/../libc/Versions.def
+VERSION_DEF= ${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS= ${.CURDIR}/Symbol.map
 
 .if ${MK_INSTALLLIB} != "no"
