@@ -60,16 +60,16 @@ get_different_scheduler(void)
 
 	/* get current schedule policy */
 	scheduler = sched_getscheduler(0);
-	for (i = 0; i < nitems(schedulers); i++) {
+	for (i = 0; i < __arraycount(schedulers); i++) {
 		if (schedulers[i] == scheduler)
 			break;
 	}
-	ATF_REQUIRE_MSG(i < nitems(schedulers),
+	ATF_REQUIRE_MSG(i < __arraycount(schedulers),
 	    "Unknown current scheduler %d", scheduler);
-					
+
 	/* new scheduler */
 	i++;
-	if (i >= nitems(schedulers))
+	if (i >= __arraycount(schedulers))
 		i = 0;
 	return schedulers[i];
 }
@@ -85,7 +85,7 @@ get_different_priority(int scheduler)
 
 	sched_getparam(0, &param);
 	priority = param.sched_priority;
-	
+
 	/*
 	 * Change numerical value of the priority, to ensure that it
 	 * was set for the spawned child.
@@ -127,7 +127,7 @@ ATF_TC_BODY(t_spawnattr, tc)
 	scheduler = get_different_scheduler();
 	priority = get_different_priority(scheduler);
 	sp.sched_priority = priority;
-	
+
 	sigemptyset(&sig);
 	sigaddset(&sig, SIGUSR1);
 
