@@ -23,12 +23,15 @@ NETBSD_ATF_TESTS_C+=	asin_test
 NETBSD_ATF_TESTS_C+=	atan_test
 NETBSD_ATF_TESTS_C+=	cbrt_test
 NETBSD_ATF_TESTS_C+=	ceil_test
+NETBSD_ATF_TESTS_C+=	casinh_test
 NETBSD_ATF_TESTS_C+=	cos_test
 NETBSD_ATF_TESTS_C+=	cosh_test
 NETBSD_ATF_TESTS_C+=	erf_test
 NETBSD_ATF_TESTS_C+=	exp_test
 NETBSD_ATF_TESTS_C+=	fmod_test
+NETBSD_ATF_TESTS_C+=	fe_round_test
 NETBSD_ATF_TESTS_C+=	infinity_test
+NETBSD_ATF_TESTS_C+=	ilogb_test
 NETBSD_ATF_TESTS_C+=	ldexp_test
 NETBSD_ATF_TESTS_C+=	log_test
 NETBSD_ATF_TESTS_C+=	pow_test
@@ -53,7 +56,7 @@ TAP_TESTS_C+=	exponential_test
 TAP_TESTS_C+=	fenv_test
 TAP_TESTS_C+=	fma_test
 TAP_TESTS_C+=	fmaxmin_test
-TAP_TESTS_C+=	ilogb_test
+TAP_TESTS_C+=	ilogb2_test
 TAP_TESTS_C+=	invtrig_test
 TAP_TESTS_C+=	invctrig_test
 TAP_TESTS_C+=	logarithm_test
@@ -76,6 +79,8 @@ CSTD=		c99
 #COPTS+=	-Wfloat-equal
 
 IGNORE_PRAGMA=
+
+SRCS.ilogb2_test=	ilogb_test.c
 
 LIBADD+=	m
 

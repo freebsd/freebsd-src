@@ -1,4 +1,4 @@
-#	$NetBSD: t_dad.sh,v 1.5 2016/08/10 23:07:57 kre Exp $
+#	$NetBSD: t_dad.sh,v 1.12 2016/11/25 08:51:17 ozaki-r Exp $
 #
 # Copyright (c) 2015 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -25,18 +25,16 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-inetserver="rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet"
-inetserver="$inetserver -lrumpnet_netinet6 -lrumpnet_shmif"
-inetserver="$inetserver -lrumpdev"
-HIJACKING="env LD_PRELOAD=/usr/lib/librumphijack.so RUMPHIJACK=sysctl=yes"
-
 SOCKLOCAL=unix://commsock1
 SOCKPEER=unix://commsock2
 
-DEBUG=false
+DEBUG=${DEBUG:-false}
+
+duplicated="[Dd][Uu][Pp][Ll][Ii][Cc][Aa][Tt][Ee][Dd]"
 
 atf_test_case dad_basic cleanup
 atf_test_case dad_duplicated cleanup
+atf_test_case dad_count cleanup
 
 dad_basic_head()
 {
@@ -50,15 +48,20 @@ dad_duplicated_head()
 	atf_set "require.progs" "rump_server"
 }
 
+dad_count_head()
+{
+	atf_set "descr" "Tests for IPv6 DAD count behavior"
+	atf_set "require.progs" "rump_server"
+}
+
 setup_server()
 {
 	local sock=$1
 	local ip=$2
 
-	export RUMP_SERVER=$sock
+	rump_server_add_iface $sock shmif0 bus1
 
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr bus1
+	export RUMP_SERVER=$sock
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 $ip
 	atf_check -s exit:0 rump.ifconfig shmif0 up
 	atf_check -s exit:0 rump.ifconfig -w 10
@@ -76,21 +79,6 @@ make_ns_pkt_str()
 	echo $pkt
 }
 
-extract_new_packets()
-{
-	local old=./old
-
-	if [ ! -f $old ]; then
-		old=/dev/null
-	fi
-
-	shmif_dumpbus -p - bus1 2>/dev/null| \
-	    tcpdump -n -e -r - 2>/dev/null > ./new
-	diff -u $old ./new |grep '^+' |cut -d '+' -f 2 > ./diff
-	mv -f ./new ./old
-	cat ./diff
-}
-
 dad_basic_body()
 {
 	local pkt=
@@ -98,11 +86,10 @@ dad_basic_body()
 	local localip2=fc00::2
 	local localip3=fc00::3
 
-	atf_check -s exit:0 ${inetserver} $SOCKLOCAL
-	export RUMP_SERVER=$SOCKLOCAL
+	rump_server_start $SOCKLOCAL netinet6
+	rump_server_add_iface $SOCKLOCAL shmif0 bus1
 
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr bus1
+	export RUMP_SERVER=$SOCKLOCAL
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 $localip1
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 $localip2
 	$DEBUG && rump.ifconfig shmif0
@@ -118,7 +105,7 @@ dad_basic_body()
 	#atf_check -s exit:0 -x "cat ./out |grep $localip2 |grep -q tentative"
 
 	atf_check -s exit:0 sleep 2
-	extract_new_packets > ./out
+	extract_new_packets bus1 > ./out
 	$DEBUG && cat ./out
 
 	# Check DAD probe packets (Neighbor Solicitation Message)
@@ -130,7 +117,7 @@ dad_basic_body()
 
 	# Waiting for DAD complete
 	atf_check -s exit:0 rump.ifconfig -w 10
-	extract_new_packets > ./out
+	extract_new_packets bus1 > ./out
 	$DEBUG && cat ./out
 
 	# IPv6 DAD doesn't announce (Neighbor Advertisement Message)
@@ -149,20 +136,22 @@ dad_basic_body()
 
 	# Check DAD probe packets (Neighbor Solicitation Message)
 	atf_check -s exit:0 sleep 2
-	extract_new_packets > ./out
+	extract_new_packets bus1 > ./out
 	$DEBUG && cat ./out
 	pkt=$(make_ns_pkt_str 3 $localip3)
 	atf_check -s exit:0 -x "cat ./out |grep -q '$pkt'"
 
 	# Waiting for DAD complete
 	atf_check -s exit:0 rump.ifconfig -w 10
-	extract_new_packets > ./out
+	extract_new_packets bus1 > ./out
 	$DEBUG && cat ./out
 
 	# IPv6 DAD doesn't announce (Neighbor Advertisement Message)
 
 	# The new address left tentative
 	atf_check -s not-exit:0 -x "rump.ifconfig shmif0 |grep $localip3 |grep -q tentative"
+
+	rump_server_destroy_ifaces
 }
 
 dad_duplicated_body()
@@ -171,8 +160,8 @@ dad_duplicated_body()
 	local localip2=fc00::11
 	local peerip=fc00::2
 
-	atf_check -s exit:0 ${inetserver} $SOCKLOCAL
-	atf_check -s exit:0 ${inetserver} $SOCKPEER
+	rump_server_start $SOCKLOCAL netinet6
+	rump_server_start $SOCKPEER netinet6
 
 	setup_server $SOCKLOCAL $localip1
 	setup_server $SOCKPEER $peerip
@@ -180,7 +169,8 @@ dad_duplicated_body()
 	export RUMP_SERVER=$SOCKLOCAL
 
 	# The primary address isn't marked as duplicated
-	atf_check -s not-exit:0 -x "rump.ifconfig shmif0 |grep $localip1 |grep -q duplicated"
+	atf_check -s exit:0 -o not-match:"$localip1.+$duplicated" \
+	    rump.ifconfig shmif0
 
 	#
 	# Add a new address duplicated with the peer server
@@ -189,55 +179,90 @@ dad_duplicated_body()
 	atf_check -s exit:0 sleep 1
 
 	# The new address is marked as duplicated
-	atf_check -s exit:0 -x "rump.ifconfig shmif0 |grep $peerip |grep -q duplicated"
+	atf_check -s exit:0 -o match:"$peerip.+$duplicated" \
+	    rump.ifconfig shmif0
 
 	# A unique address isn't marked as duplicated
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 $localip2
 	atf_check -s exit:0 sleep 1
-	atf_check -s not-exit:0 -x "rump.ifconfig shmif0 |grep $localip2 |grep -q duplicated"
+	atf_check -s exit:0 -o not-match:"$localip2.+$duplicated" \
+	    rump.ifconfig shmif0
+
+	rump_server_destroy_ifaces
 }
 
-cleanup()
+dad_count_test()
 {
-	gdb -ex bt /usr/bin/rump_server rump_server.core
-	gdb -ex bt /usr/sbin/arp arp.core
-	env RUMP_SERVER=$SOCKLOCAL rump.halt
-	env RUMP_SERVER=$SOCKPEER rump.halt
+	local pkt=
+	local count=$1
+	local id=$2
+	local target=$3
+
+	#
+	# Set DAD count to $count
+	#
+	atf_check -s exit:0 rump.sysctl -w -q net.inet6.ip6.dad_count=$count
+
+	# Add a new address
+	atf_check -s exit:0 rump.ifconfig shmif0 inet6 $target
+
+	# Waiting for DAD complete
+	atf_check -s exit:0 rump.ifconfig -w 20
+
+	# Check the number of DAD probe packets (Neighbor Solicitation Message)
+	atf_check -s exit:0 sleep 2
+	extract_new_packets bus1 > ./out
+	$DEBUG && cat ./out
+	pkt=$(make_ns_pkt_str $id $target)
+	atf_check -s exit:0 -o match:"$count" \
+	    -x "cat ./out |grep '$pkt' | wc -l | tr -d ' '"
 }
 
-dump_local()
+dad_count_body()
 {
+	local localip1=fc00::1
+	local localip2=fc00::2
+
+	rump_server_start $SOCKLOCAL netinet6
+	rump_server_add_iface $SOCKLOCAL shmif0 bus1
+
 	export RUMP_SERVER=$SOCKLOCAL
-	rump.netstat -nr
-	rump.arp -n -a
-	rump.ifconfig
-	$HIJACKING dmesg
-}
 
-dump_peer()
-{
-	export RUMP_SERVER=$SOCKPEER
-	rump.netstat -nr
-	rump.arp -n -a
-	rump.ifconfig
-	$HIJACKING dmesg
-}
+	# Check default value
+	atf_check -s exit:0 -o match:"1" rump.sysctl -n net.inet6.ip6.dad_count
 
-dump()
-{
-	dump_local
-	dump_peer
-	shmif_dumpbus -p - bus1 2>/dev/null| tcpdump -n -e -r -
+	# Setup interface
+	atf_check -s exit:0 rump.ifconfig shmif0 up
+	atf_check -s exit:0 sleep 2
+	rump.ifconfig shmif0 > ./out
+	$DEBUG && cat ./out
+
+	#
+	# Set and test DAD count (count=1)
+	#
+	dad_count_test 1 1 $localip1
+
+	#
+	# Set and test DAD count (count=8)
+	#
+	dad_count_test 8 2 $localip2
+
+	rump_server_destroy_ifaces
 }
 
 dad_basic_cleanup()
 {
-	$DEBUG && dump_local
-	$DEBUG && shmif_dumpbus -p - bus1 2>/dev/null| tcpdump -n -e -r -
-	env RUMP_SERVER=$SOCKLOCAL rump.halt
+	$DEBUG && dump
+	cleanup
 }
 
 dad_duplicated_cleanup()
+{
+	$DEBUG && dump
+	cleanup
+}
+
+dad_count_cleanup()
 {
 	$DEBUG && dump
 	cleanup
@@ -247,4 +272,5 @@ atf_init_test_cases()
 {
 	atf_add_test_case dad_basic
 	atf_add_test_case dad_duplicated
+	atf_add_test_case dad_count
 }

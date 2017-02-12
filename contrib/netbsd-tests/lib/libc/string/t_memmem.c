@@ -1,4 +1,4 @@
-/*	$NetBSD: t_memmem.c,v 1.2 2011/07/07 08:27:36 jruoho Exp $ */
+/*	$NetBSD: t_memmem.c,v 1.3 2017/01/11 18:07:37 christos Exp $ */
 
 /*-
  * Copyright (c) 2005 The NetBSD Foundation, Inc.

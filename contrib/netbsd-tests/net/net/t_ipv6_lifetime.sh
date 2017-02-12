@@ -1,4 +1,4 @@
-#	$NetBSD: t_ipv6_lifetime.sh,v 1.2 2016/08/10 21:33:52 kre Exp $
+#	$NetBSD: t_ipv6_lifetime.sh,v 1.6 2016/11/25 08:51:17 ozaki-r Exp $
 #
 # Copyright (c) 2015 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -25,13 +25,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-INET6SERVER="rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpdev"
-INET6SERVER="$INET6SERVER -lrumpnet_netinet6 -lrumpnet_shmif"
-
 SOCK=unix://sock
 BUS=./bus
 
-DEBUG=false
+DEBUG=${DEBUG:-false}
+
+deprecated="[Dd][Ee][Pp][Rr][Ee][Cc][Aa][Tt][Ee][Dd]"
 
 atf_test_case basic cleanup
 
@@ -47,11 +46,11 @@ basic_body()
 	local bonus=2
 	local ip="fc00::1"
 
-	atf_check -s exit:0 ${INET6SERVER} $SOCK
+	rump_server_start $SOCK netinet6
+	rump_server_add_iface $SOCK shmif0 $BUS
+
 	export RUMP_SERVER=$SOCK
 
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr $BUS
 	atf_check -s exit:0 rump.ifconfig shmif0 up
 
 	# A normal IP address doesn't contain preferred/valid lifetime
@@ -69,7 +68,7 @@ basic_body()
 	atf_check -s exit:0 sleep $(($time + $bonus))
 	$DEBUG && rump.ifconfig -L shmif0
 	# Should remain but marked as deprecated
-	atf_check -s exit:0 -o match:'deprecated' rump.ifconfig -L shmif0
+	atf_check -s exit:0 -o match:"$ip.+$deprecated" rump.ifconfig -L shmif0
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 $ip delete
 
 	# Setting only a valid lifetime (invalid)
@@ -87,38 +86,33 @@ basic_body()
 	# Shouldn't remain anymore
 	atf_check -s exit:0 -o not-match:"$ip" rump.ifconfig -L shmif0
 
+	# Setting both preferred and valid lifetimes (pltime > vltime)
+	atf_check -s not-exit:0 -e match:'Invalid argument' rump.ifconfig \
+	    shmif0 inet6 $ip pltime $(($time * 2)) vltime $time
+
 	# Setting both preferred and valid lifetimes (pltime < vltime)
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 $ip \
 	    pltime $time vltime $((time * 2))
 	$DEBUG && rump.ifconfig -L shmif0
 	atf_check -s exit:0 -o match:'pltime' rump.ifconfig -L shmif0
 	atf_check -s exit:0 -o match:'vltime' rump.ifconfig -L shmif0
+
+	if sysctl machdep.cpu_brand 2>/dev/null | grep QEMU >/dev/null 2>&1
+	then
+		atf_check -s exit:0 rump.ifconfig shmif0 inet6 $ip delete
+		atf_skip "unreliable under qemu, skip until PR kern/43997 fixed"
+	fi
+
 	atf_check -s exit:0 sleep $(($time + $bonus))
 	$DEBUG && rump.ifconfig -L shmif0
 	# Should remain but marked as deprecated
-	atf_check -s exit:0 -o match:'deprecated' rump.ifconfig -L shmif0
+	atf_check -s exit:0 -o match:"$ip.+$deprecated" rump.ifconfig -L shmif0
 	atf_check -s exit:0 sleep $(($time + $bonus))
 	$DEBUG && rump.ifconfig -L shmif0
 	# Shouldn't remain anymore
 	atf_check -s exit:0 -o not-match:"$ip" rump.ifconfig -L shmif0
 
-	# Setting both preferred and valid lifetimes (pltime > vltime)
-	atf_check -s not-exit:0 -e match:'Invalid argument' rump.ifconfig \
-	    shmif0 inet6 $ip pltime $(($time * 2)) vltime $time
-
-	return 0
-}
-
-cleanup()
-{
-	env RUMP_SERVER=$SOCK rump.halt
-}
-
-dump()
-{
-	env RUMP_SERVER=$SOCK rump.ifconfig
-	env RUMP_SERVER=$SOCK rump.netstat -nr
-	shmif_dumpbus -p - $BUS 2>/dev/null| tcpdump -n -e -r -
+	rump_server_destroy_ifaces
 }
 
 basic_cleanup()
