@@ -1,4 +1,4 @@
-#	$NetBSD: t_icmp6_redirect.sh,v 1.2 2016/08/10 22:17:44 kre Exp $
+#	$NetBSD: t_icmp6_redirect.sh,v 1.7 2016/11/25 08:51:16 ozaki-r Exp $
 #
 # Copyright (c) 2015 Internet Initiative Japan Inc.
 # All rights reserved.
@@ -24,8 +24,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-netserver="rump_server -lrumpnet -lrumpnet_net -lrumpnet_shmif"
-netserver="${netserver} -lrumpnet_netinet -lrumpnet_netinet6 -lrumpdev"
 
 SOCK_LOCAL=unix://commsock1
 SOCK_PEER=unix://commsock2
@@ -44,50 +42,38 @@ IP6IF0_GW2=fc00:1::3
 
 REDIRECT_TIMEOUT=5
 
-DEBUG=true
+DEBUG=${DEBUG:-true}
 
-get_lladdr()
-{
+atf_test_case icmp6_redirect_basic cleanup
 
-	export RUMP_SERVER=${1}
-	rump.ifconfig ${2} inet6 | awk "/fe80/ {sub(/%$2/, \"\"); print \$2;}"
-	unset RUMP_SERVER
-
-	return 0
-}
-
-atf_test_case basic cleanup
-
-basic_head()
+icmp6_redirect_basic_head()
 {
 
 	atf_set "descr" "Test for the basically function of the ICMP6 redirect"
 	atf_set "require.progs" "rump_server rump.route rump.ping rump.ifconfig"
 }
 
-basic_body()
+icmp6_redirect_basic_body()
 {
 	local gw1_lladdr0=
 	local gw1_lladdr1=
 	local gw2_lladdr0=
 
-	atf_check -s exit:0 ${netserver} ${SOCK_LOCAL}
-	atf_check -s exit:0 ${netserver} ${SOCK_PEER}
-	atf_check -s exit:0 ${netserver} ${SOCK_GW1}
-	atf_check -s exit:0 ${netserver} ${SOCK_GW2}
+	rump_server_start $SOCK_LOCAL netinet6
+	rump_server_start $SOCK_PEER netinet6
+	rump_server_start $SOCK_GW1 netinet6
+	rump_server_start $SOCK_GW2 netinet6
 
 	#
 	# Setup
 	#
 	# Setup gateway #1 (real gateway)
 	export RUMP_SERVER=${SOCK_GW1}
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr ${BUS1}
+	rump_server_add_iface $SOCK_GW1 shmif0 $BUS1
+	rump_server_add_iface $SOCK_GW1 shmif1 $BUS2
+
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 ${IP6IF0_GW1}
 	atf_check -s exit:0 rump.ifconfig shmif0 up
-
-	atf_check -s exit:0 rump.ifconfig shmif1 create
-	atf_check -s exit:0 rump.ifconfig shmif1 linkstr ${BUS2}
 	atf_check -s exit:0 rump.ifconfig shmif1 inet6 ${IP6IF1_GW1}
 	atf_check -s exit:0 rump.ifconfig shmif1 up
 
@@ -95,13 +81,12 @@ basic_body()
 	    net.inet6.ip6.forwarding=1
 	unset RUMP_SERVER
 
-	gw1_lladdr0=`get_lladdr ${SOCK_GW1} shmif0`
-	gw1_lladdr1=`get_lladdr ${SOCK_GW1} shmif1`
+	gw1_lladdr0=`get_linklocal_addr ${SOCK_GW1} shmif0`
+	gw1_lladdr1=`get_linklocal_addr ${SOCK_GW1} shmif1`
 
 	# Setup a peer behind gateway #1
 	export RUMP_SERVER=${SOCK_PEER}
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr ${BUS2}
+	rump_server_add_iface $SOCK_PEER shmif0 $BUS2
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 ${IP6IF0_PEER}
 	atf_check -s exit:0 rump.ifconfig shmif0 up
 	atf_check -s exit:0 -o ignore rump.route add \
@@ -110,8 +95,7 @@ basic_body()
 
 	# Setup gateway #2 (fake gateway)
 	export RUMP_SERVER=${SOCK_GW2}
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr ${BUS1}
+	rump_server_add_iface $SOCK_GW2 shmif0 $BUS1
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 ${IP6IF0_GW2}
 	atf_check -s exit:0 rump.ifconfig shmif0 up
 
@@ -121,11 +105,10 @@ basic_body()
 	    net.inet6.ip6.forwarding=1
 	unset RUMP_SERVER
 
-	gw2_lladdr0=`get_lladdr ${SOCK_GW2} shmif0`
+	gw2_lladdr0=`get_linklocal_addr ${SOCK_GW2} shmif0`
 
 	export RUMP_SERVER=${SOCK_LOCAL}
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr ${BUS1}
+	rump_server_add_iface $SOCK_LOCAL shmif0 $BUS1
 	atf_check -s exit:0 rump.ifconfig shmif0 inet6 ${IP6IF0_LOCAL}
 	atf_check -s exit:0 rump.ifconfig shmif0 up
 
@@ -152,20 +135,18 @@ basic_body()
 	atf_check -s exit:0 -o not-match:"gateway: ${gw1_lladdr0}" rump.route get \
 	    -inet6 ${IP6IF0_PEER}
 
-	unset RUMP_SERVER
+	rump_server_destroy_ifaces
 }
 
-basic_cleanup()
+icmp6_redirect_basic_cleanup()
 {
 
-	env RUMP_SERVER=$SOCK_LOCAL rump.halt
-	env RUMP_SERVER=$SOCK_PEER rump.halt
-	env RUMP_SERVER=$SOCK_GW1 rump.halt
-	env RUMP_SERVER=$SOCK_GW2 rump.halt
+	$DEBUG && dump
+	cleanup
 }
 
 atf_init_test_cases()
 {
 
-	atf_add_test_case basic
+	atf_add_test_case icmp6_redirect_basic
 }

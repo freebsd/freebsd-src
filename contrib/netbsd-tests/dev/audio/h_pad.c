@@ -1,4 +1,4 @@
-/*	$NetBSD: h_pad.c,v 1.1 2010/08/04 13:15:15 pooka Exp $	*/
+/*	$NetBSD: h_pad.c,v 1.2 2016/10/15 07:08:06 nat Exp $	*/
 
 /*
  * Copyright (c) 2010 Antti Kantee.  All Rights Reserved.
@@ -56,13 +56,13 @@ main(int argc, char *argv[])
 	ssize_t n;
 
 	rump_init();
-	audiofd = rump_sys_open("/dev/audio0", O_RDWR);
-	if (audiofd == -1)
-		err(1, "open audio");
-
 	padfd = rump_sys_open("/dev/pad0", O_RDONLY);
 	if (padfd == -1)
 		err(1, "open pad");
+
+	audiofd = rump_sys_open("/dev/audio0", O_RDWR);
+	if (audiofd == -1)
+		err(1, "open audio");
 
 	if ((n = rump_sys_write(audiofd, musa, sizeof(musa))) != sizeof(musa))
 		err(1, "write");

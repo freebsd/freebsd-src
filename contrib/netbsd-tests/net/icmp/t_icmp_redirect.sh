@@ -1,4 +1,4 @@
-#	$NetBSD: t_icmp_redirect.sh,v 1.3 2016/08/10 22:17:44 kre Exp $
+#	$NetBSD: t_icmp_redirect.sh,v 1.6 2016/11/25 08:51:16 ozaki-r Exp $
 #
 # Copyright (c) 2015 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -27,8 +27,6 @@
 
 # Most codes are derived from tests/net/route/t_flags.sh
 
-netserver=\
-"rump_server -lrumpnet -lrumpnet_net -lrumpnet_netinet -lrumpnet_shmif -lrumpdev"
 SOCK_LOCAL=unix://commsock1
 SOCK_PEER=unix://commsock2
 SOCK_GW=unix://commsock3
@@ -36,7 +34,7 @@ BUS=bus1
 BUS2=bus2
 REDIRECT_TIMEOUT=5
 
-DEBUG=false
+DEBUG=${DEBUG:-false}
 
 atf_test_case icmp_redirect_timeout cleanup
 
@@ -50,11 +48,10 @@ icmp_redirect_timeout_head()
 setup_local()
 {
 
-	atf_check -s exit:0 ${netserver} ${SOCK_LOCAL}
+	rump_server_start $SOCK_LOCAL
+	rump_server_add_iface $SOCK_LOCAL shmif0 $BUS
 
 	export RUMP_SERVER=$SOCK_LOCAL
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 create
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 linkstr ${BUS}
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 10.0.0.2/24
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 up
 
@@ -68,11 +65,10 @@ setup_local()
 setup_peer()
 {
 
-	atf_check -s exit:0 ${netserver} ${SOCK_PEER}
+	rump_server_start $SOCK_PEER
+	rump_server_add_iface $SOCK_PEER shmif0 $BUS
 
 	export RUMP_SERVER=$SOCK_PEER
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 create
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 linkstr ${BUS}
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 10.0.0.1/24
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 up
 
@@ -83,16 +79,14 @@ setup_peer()
 setup_gw()
 {
 
-	atf_check -s exit:0 ${netserver} ${SOCK_GW}
+	rump_server_start $SOCK_GW
+	rump_server_add_iface $SOCK_GW shmif0 $BUS
+	rump_server_add_iface $SOCK_GW shmif1 $BUS2
 
 	export RUMP_SERVER=$SOCK_GW
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 create
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 linkstr ${BUS}
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 10.0.0.254/24
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif0 up
 
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif1 create
-	atf_check -s exit:0 -o ignore rump.ifconfig shmif1 linkstr ${BUS2}
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif1 10.0.2.1/24
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif1 alias 10.0.2.2/24
 	atf_check -s exit:0 -o ignore rump.ifconfig shmif1 up
@@ -103,39 +97,6 @@ setup_gw()
 
 	$DEBUG && rump.ifconfig
 	$DEBUG && rump.netstat -rn -f inet
-}
-
-teardown_gw()
-{
-
-	env RUMP_SERVER=$SOCK_GW rump.halt
-}
-
-check_entry_flags()
-{
-	local ip=$(echo $1 |sed 's/\./\\./g')
-	local flags=$2
-
-	atf_check -s exit:0 -o match:" $flags " -e ignore -x \
-	    "rump.netstat -rn -f inet | grep ^'$ip'"
-}
-
-check_entry_gw()
-{
-	local ip=$(echo $1 |sed 's/\./\\./g')
-	local gw=$2
-
-	atf_check -s exit:0 -o match:" $gw " -e ignore -x \
-	    "rump.netstat -rn -f inet | grep ^'$ip'"
-}
-
-check_entry_fail()
-{
-	local ip=$(echo $1 |sed 's/\./\\./g')
-	local flags=$2  # Not used currently
-
-	atf_check -s not-exit:0 -e ignore -x \
-	    "rump.netstat -rn -f inet | grep ^'$ip'"
 }
 
 icmp_redirect_timeout_body()
@@ -159,7 +120,7 @@ icmp_redirect_timeout_body()
 	export RUMP_SERVER=$SOCK_PEER
 	atf_check -s exit:0 -o ignore rump.route add -net 10.0.2.0/24 10.0.0.254
 	# Up, Gateway, Static
-	check_entry_flags 10.0.2/24 UGS
+	check_route_flags 10.0.2/24 UGS
 
 	#
 	# Setup the default gateway to the peer, 10.0.0.1
@@ -167,39 +128,25 @@ icmp_redirect_timeout_body()
 	export RUMP_SERVER=$SOCK_LOCAL
 	atf_check -s exit:0 -o ignore rump.route add default 10.0.0.1
 	# Up, Gateway, Static
-	check_entry_flags default UGS
+	check_route_flags default UGS
 
 	# Try ping 10.0.2.1
 	atf_check -s exit:0 -o ignore rump.ping -n -w 1 -c 1 10.0.2.1
 	$DEBUG && rump.netstat -rn -f inet
 
 	# Up, Gateway, Host, Dynamic
-	check_entry_flags 10.0.2.1 UGHD
-	check_entry_gw 10.0.2.1 10.0.0.254
+	check_route_flags 10.0.2.1 UGHD
+	check_route_gw 10.0.2.1 10.0.0.254
 
 	atf_check -s exit:0 sleep $((REDIRECT_TIMEOUT + 2))
 
 	# The dynamic entry should be expired and removed
-	check_entry_fail 10.0.2.1
+	check_route_no_entry 10.0.2.1
 
 	export RUMP_SERVER=$SOCK_PEER
 	$DEBUG && rump.netstat -rn -f inet
 
-	teardown_gw
-}
-
-dump()
-{
-
-	shmif_dumpbus -p - $BUS 2>/dev/null | tcpdump -n -e -r -
-	gdb -ex bt /usr/bin/rump_server rump_server.core
-}
-
-cleanup()
-{
-
-	env RUMP_SERVER=$SOCK_LOCAL rump.halt
-	env RUMP_SERVER=$SOCK_PEER rump.halt
+	rump_server_destroy_ifaces
 }
 
 icmp_redirect_timeout_cleanup()
@@ -249,7 +196,7 @@ icmp_redirect_body()
 	export RUMP_SERVER=$SOCK_PEER
 	atf_check -s exit:0 -o ignore rump.route add -net 10.0.2.0/24 10.0.0.254
 	# Up, Gateway, Static
-	check_entry_flags 10.0.2/24 UGS
+	check_route_flags 10.0.2/24 UGS
 
 	#
 	# Setup the default gateway to the peer, 10.0.0.1
@@ -257,7 +204,7 @@ icmp_redirect_body()
 	export RUMP_SERVER=$SOCK_LOCAL
 	atf_check -s exit:0 -o ignore rump.route add default 10.0.0.1
 	# Up, Gateway, Static
-	check_entry_flags default UGS
+	check_route_flags default UGS
 
 
 	### ICMP redirects are NOT sent by the peer ###
@@ -274,7 +221,7 @@ icmp_redirect_body()
 	$DEBUG && rump.netstat -rn -f inet
 
 	# A direct route shouldn't be created
-	check_entry_fail 10.0.2.1
+	check_route_no_entry 10.0.2.1
 
 
 	### ICMP redirects are sent by the peer ###
@@ -291,8 +238,8 @@ icmp_redirect_body()
 	$DEBUG && rump.netstat -rn -f inet
 
 	# Up, Gateway, Host, Dynamic
-	check_entry_flags 10.0.2.1 UGHD
-	check_entry_gw 10.0.2.1 10.0.0.254
+	check_route_flags 10.0.2.1 UGHD
+	check_route_gw 10.0.2.1 10.0.0.254
 
 	export RUMP_SERVER=$SOCK_PEER
 	$DEBUG && rump.netstat -rn -f inet
@@ -301,7 +248,7 @@ icmp_redirect_body()
 	# cleanup
 	export RUMP_SERVER=$SOCK_LOCAL
 	atf_check -s exit:0 -o ignore rump.route delete 10.0.2.1
-	check_entry_fail 10.0.2.1
+	check_route_no_entry 10.0.2.1
 
 
 	### ICMP redirects are NOT sent by the peer (again) ###
@@ -318,10 +265,9 @@ icmp_redirect_body()
 	$DEBUG && rump.netstat -rn -f inet
 
 	# A direct route shouldn't be created
-	check_entry_fail 10.0.2.1
+	check_route_no_entry 10.0.2.1
 
-
-	teardown_gw
+	rump_server_destroy_ifaces
 }
 
 icmp_redirect_cleanup()

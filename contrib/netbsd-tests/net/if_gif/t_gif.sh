@@ -1,4 +1,4 @@
-#	$NetBSD: t_gif.sh,v 1.5 2016/08/10 08:29:20 ozaki-r Exp $
+#	$NetBSD: t_gif.sh,v 1.9 2016/12/21 09:46:39 ozaki-r Exp $
 #
 # Copyright (c) 2015 Internet Initiative Japan Inc.
 # All rights reserved.
@@ -24,10 +24,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-
-server="rump_server -v -lrumpdev -lrumpnet -lrumpnet_net -lrumpnet_netinet \
-		    -lrumpnet_netinet6 -lrumpnet_shmif -lrumpnet_gif"
-HIJACKING="env LD_PRELOAD=/usr/lib/librumphijack.so RUMPHIJACK=sysctl=yes"
 
 SOCK1=unix://commsock1 # for ROUTER1
 SOCK2=unix://commsock2 # for ROUTER2
@@ -65,6 +61,7 @@ ROUTER2_GIFIP6_DUMMY=fc00:14::1
 ROUTER2_GIFIP6_RECURSIVE1=fc00:104::1
 ROUTER2_GIFIP6_RECURSIVE2=fc00:204::1
 
+DEBUG=${DEBUG:-true}
 TIMEOUT=5
 
 setup_router()
@@ -75,9 +72,10 @@ setup_router()
 	wan=${4}
 	wan_mode=${5}
 
+	rump_server_add_iface $sock shmif0 bus0
+	rump_server_add_iface $sock shmif1 bus1
+
 	export RUMP_SERVER=${sock}
-	atf_check -s exit:0 rump.ifconfig shmif0 create
-	atf_check -s exit:0 rump.ifconfig shmif0 linkstr bus0
 	if [ ${lan_mode} = "ipv6" ]; then
 		atf_check -s exit:0 rump.ifconfig shmif0 inet6 ${lan}
 	else
@@ -86,8 +84,6 @@ setup_router()
 	atf_check -s exit:0 rump.ifconfig shmif0 up
 	rump.ifconfig shmif0
 
-	atf_check -s exit:0 rump.ifconfig shmif1 create
-	atf_check -s exit:0 rump.ifconfig shmif1 linkstr bus1
 	if [ ${wan_mode} = "ipv6" ]; then
 		atf_check -s exit:0 rump.ifconfig shmif1 inet6 ${wan}
 	else
@@ -126,8 +122,8 @@ setup()
 	inner=${1}
 	outer=${2}
 
-	atf_check -s exit:0 ${server} $SOCK1
-	atf_check -s exit:0 ${server} $SOCK2
+	rump_server_start $SOCK1 netinet6 gif
+	rump_server_start $SOCK2 netinet6 gif
 
 	router1_lan=""
 	router1_lan_mode=""
@@ -482,18 +478,6 @@ teardown_recursive_tunnels()
 	atf_check -s exit:0 rump.ifconfig gif2 destroy
 }
 
-cleanup()
-{
-	env RUMP_SERVER=$SOCK1 rump.halt
-	env RUMP_SERVER=$SOCK2 rump.halt
-}
-
-dump_bus()
-{
-	/usr/bin/shmif_dumpbus -p - bus0 2>/dev/null| /usr/sbin/tcpdump -n -e -r -
-	/usr/bin/shmif_dumpbus -p - bus1 2>/dev/null| /usr/sbin/tcpdump -n -e -r -
-}
-
 test_ping_failure()
 {
 	mode=$1
@@ -739,7 +723,7 @@ add_test()
 	inner=$3
 	outer=$4
 
-	name="${category}${inner}over${outer}"
+	name="gif_${category}_${inner}over${outer}"
 	fulldesc="Does ${inner} over ${outer} if_gif ${desc}"
 
 	atf_test_case ${name} cleanup
@@ -751,9 +735,10 @@ add_test()
 			${category}_setup ${inner} ${outer}; \
 			${category}_test ${inner} ${outer}; \
 			${category}_teardown ${inner} ${outer}; \
+			rump_server_destroy_ifaces; \
 	    }; \
 	    ${name}_cleanup() { \
-			dump_bus; \
+			$DEBUG && dump; \
 			cleanup; \
 		}"
 	atf_add_test_case ${name}
