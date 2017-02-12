@@ -139,8 +139,18 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 	if (foff & PAGE_MASK)
 		return (NULL);
 
+	/*
+	 * Treat the mmap(2) file offset as an unsigned value for a
+	 * device mapping.  This, in effect, allows a user to pass all
+	 * possible off_t values as the mapping cookie to the driver.  At
+	 * this point, we know that both foff and size are a multiple
+	 * of the page size.  Do a check to avoid wrap.
+	 */
 	size = round_page(size);
-	pindex = OFF_TO_IDX(foff + size);
+	pindex = UOFF_TO_IDX(foff) + UOFF_TO_IDX(size);
+	if (pindex > OBJ_MAX_SIZE || pindex < UOFF_TO_IDX(foff) ||
+	    pindex < UOFF_TO_IDX(size))
+		return (NULL);
 
 	if (ops->cdev_pg_ctor(handle, size, prot, foff, cred, &color) != 0)
 		return (NULL);
