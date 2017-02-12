@@ -298,8 +298,9 @@ imx_ehci_attach(device_t dev)
 	 * Set flags that affect ehci_init() behavior, and hook our post-reset
 	 * code into the standard controller code.
 	 */
-	esc->sc_flags |= EHCI_SCFLG_NORESTERM;
+	esc->sc_flags |= EHCI_SCFLG_NORESTERM | EHCI_SCFLG_TT;
 	esc->sc_vendor_post_reset = imx_ehci_post_reset;
+	esc->sc_vendor_get_port_speed = ehci_get_port_speed_portsc;
 
 	err = ehci_init(esc);
 	if (err != 0) {
