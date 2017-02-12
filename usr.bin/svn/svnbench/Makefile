@@ -2,7 +2,7 @@
 
 MAN=
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "${.CURDIR:H}/Makefile.inc"
 
 .PATH:	${SVNDIR}/svnbench
 
@@ -11,11 +11,11 @@ PROG=	svn${SVNLITE}bench
 SRCS=	help-cmd.c notify.c null-blame-cmd.c null-export-cmd.c \
 	null-info-cmd.c null-list-cmd.c null-log-cmd.c svnbench.c util.c
 
-CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/.. \
-	-I${.CURDIR}/../lib/libapr \
+CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR:H} \
+	-I${.CURDIR:H}/lib/libapr \
 	-I${APR}/include/arch/unix \
 	-I${APR}/include \
-	-I${.CURDIR}/../lib/libapr_util \
+	-I${.CURDIR:H}/lib/libapr_util \
 	-I${APRU}/include/private \
 	-I${APRU}/include
 
