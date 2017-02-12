@@ -1604,16 +1604,21 @@ zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
 	}
 	if (sep == NULL) {
 		mutex_exit(&sdp->sd_lock);
-		error = ENOENT;
+		error = SET_ERROR(ENOENT);
 	} else {
 		size_t len;
 
 		len = strlen(sep->se_name);
-		*ap->a_buflen -= len;
-		bcopy(sep->se_name, ap->a_buf + *ap->a_buflen, len);
-		mutex_exit(&sdp->sd_lock);
-		vref(dvp);
-		*ap->a_vpp = dvp;
+		if (*ap->a_buflen < len) {
+			mutex_exit(&sdp->sd_lock);
+			error = SET_ERROR(ENOMEM);
+		} else {
+			*ap->a_buflen -= len;
+			bcopy(sep->se_name, ap->a_buf + *ap->a_buflen, len);
+			mutex_exit(&sdp->sd_lock);
+			vref(dvp);
+			*ap->a_vpp = dvp;
+		}
 	}
 	VN_RELE(dvp);
 
