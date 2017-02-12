@@ -5939,6 +5939,10 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 		error = zfs_znode_parent_and_name(zp, &dzp, name);
 		if (error == 0) {
 			len = strlen(name);
+			if (*ap->a_buflen < len)
+				error = SET_ERROR(ENOMEM);
+		}
+		if (error == 0) {
 			*ap->a_buflen -= len;
 			bcopy(name, ap->a_buf + *ap->a_buflen, len);
 			*ap->a_vpp = ZTOV(dzp);
