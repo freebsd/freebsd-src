@@ -28,7 +28,7 @@
 .\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2013
+.Dd February 3, 2017
 .Dt RECV 2
 .Os
 .Sh NAME
@@ -218,57 +218,10 @@ with no data buffer provided immediately after an
 .Fn accept
 system call.
 .Pp
-Open file descriptors are now passed as ancillary data for
+With
 .Dv AF_UNIX
-domain sockets, with
-.Fa cmsg_level
-set to
-.Dv SOL_SOCKET
-and
-.Fa cmsg_type
-set to
-.Dv SCM_RIGHTS .
-The close-on-exec flag on received descriptors is set according to the
-.Dv MSG_CMSG_CLOEXEC
-flag passed to
-.Fn recvmsg .
-.Pp
-Process credentials can also be passed as ancillary data for
-.Dv AF_UNIX
-domain sockets using a
-.Fa cmsg_type
-of
-.Dv SCM_CREDS .
-In this case,
-.Fa cmsg_data
-should be a structure of type
-.Fa cmsgcred ,
-which is defined in
-.In sys/socket.h
-as follows:
-.Bd -literal
-struct cmsgcred {
-	pid_t	cmcred_pid;		/* PID of sending process */
-	uid_t	cmcred_uid;		/* real UID of sending process */
-	uid_t	cmcred_euid;		/* effective UID of sending process */
-	gid_t	cmcred_gid;		/* real GID of sending process */
-	short	cmcred_ngroups;		/* number or groups */
-	gid_t	cmcred_groups[CMGROUP_MAX];	/* groups */
-};
-.Ed
-.Pp
-If a sender supplies ancillary data with enough space for the above struct
-tagged as
-.Dv SCM_CREDS
-control message type to the
-.Fn sendmsg
-system call, then kernel will fill in the credential information of the
-sending process and deliver it to the receiver.
-Since receiver usually has no control over a sender, this method of retrieving
-credential information isn't reliable.
-For reliable retrieval of remote side credentials it is advised to use the
-.Dv LOCAL_CREDS
-socket option on the receiving socket.
+domain sockets, ancillary data can be used to pass file descriptors and
+process credentials.
 See
 .Xr unix 4
 for details.
