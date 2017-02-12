@@ -468,10 +468,11 @@ copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
 
 	/* round size up to page boundary */
 	size = (vm_size_t)round_page(sz);
-
-	error = vm_mmap(&vms->vm_map, addr, size, VM_PROT_READ | VM_PROT_WRITE,
-	    VM_PROT_ALL, MAP_PRIVATE | MAP_ANON, OBJT_DEFAULT, NULL, 0);
-
+	if (size == 0)
+		return (EINVAL);
+	error = vm_mmap_object(&vms->vm_map, addr, size, VM_PROT_READ |
+	    VM_PROT_WRITE, VM_PROT_ALL, MAP_PRIVATE | MAP_ANON, NULL, 0,
+	    FALSE, td);
 	return (error);
 }
 
