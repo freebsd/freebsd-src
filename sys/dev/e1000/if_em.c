@@ -1625,6 +1625,11 @@ em_if_timer(if_ctx_t ctx, uint16_t qid)
 	int i;
 	int trigger = 0; 
 
+	if (qid != 0) {
+		/* XXX all this stuff is per-adapter */
+		return;
+	}
+
 	em_if_update_admin_status(ctx); 
 	em_update_stats_counters(adapter);
 
