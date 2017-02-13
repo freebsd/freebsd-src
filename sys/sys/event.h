@@ -29,7 +29,8 @@
 #ifndef _SYS_EVENT_H_
 #define _SYS_EVENT_H_
 
-#include <sys/queue.h> 
+#include <sys/_types.h>
+#include <sys/queue.h>
 
 #define EVFILT_READ		(-1)
 #define EVFILT_WRITE		(-2)
@@ -57,12 +58,12 @@
 } while(0)
 
 struct kevent {
-	uintptr_t	ident;		/* identifier for this event */
+	__uintptr_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
-	u_short		flags;
-	u_int		fflags;
+	unsigned short	flags;
+	unsigned int	fflags;
 #ifndef __CHERI_PURE_CAPABILITY__
-	intptr_t	data;
+	__intptr_t	data;
 #else
 	int64_t		data;		/* All consumers use integers */
 #endif
