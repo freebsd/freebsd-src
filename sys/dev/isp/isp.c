@@ -4451,11 +4451,7 @@ isp_start(XS_T *xs)
 		if (XS_TAG_P(xs)) {
 			ttype = XS_TAG_TYPE(xs);
 		} else {
-			if (XS_CDBP(xs)[0] == 0x3) {
-				ttype = REQFLAG_HTAG;
-			} else {
-				ttype = REQFLAG_STAG;
-			}
+			ttype = REQFLAG_STAG;
 		}
 		if (ttype == REQFLAG_OTAG) {
 			ttype = FCP_CMND_TASK_ATTR_ORDERED;
@@ -4479,14 +4475,7 @@ isp_start(XS_T *xs)
 		if (XS_TAG_P(xs)) {
 			((ispreqt2_t *)reqp)->req_flags = XS_TAG_TYPE(xs);
 		} else {
-			/*
-			 * If we don't know what tag to use, use HEAD OF QUEUE
-			 * for Request Sense or Simple.
-			 */
-			if (XS_CDBP(xs)[0] == 0x3)	/* REQUEST SENSE */
-				((ispreqt2_t *)reqp)->req_flags = REQFLAG_HTAG;
-			else
-				((ispreqt2_t *)reqp)->req_flags = REQFLAG_STAG;
+			((ispreqt2_t *)reqp)->req_flags = REQFLAG_STAG;
 		}
 	} else {
 		sdparam *sdp = SDPARAM(isp, XS_CHANNEL(xs));
