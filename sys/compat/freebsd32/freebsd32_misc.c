@@ -477,7 +477,8 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 
 #ifdef COMPAT_FREEBSD6
 int
-freebsd6_freebsd32_mmap(struct thread *td, struct freebsd6_freebsd32_mmap_args *uap)
+freebsd6_freebsd32_mmap(struct thread *td,
+    struct freebsd6_freebsd32_mmap_args *uap)
 {
 	struct freebsd32_mmap_args ap;
 
