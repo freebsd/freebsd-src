@@ -29,18 +29,12 @@
  * $FreeBSD$
  */
 
-#ifndef _BHND_BHND_NEXUSVAR_H_
-#define _BHND_BHND_NEXUSVAR_H_
+#ifndef _MIPS_BROADCOM_BHND_NEXUSVAR_H_
+#define _MIPS_BROADCOM_BHND_NEXUSVAR_H_
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/bus.h>
-#include <sys/module.h>
-
-#include "bhndvar.h"
+#include <sys/kobj.h>
 
 DECLARE_CLASS(bhnd_nexus_driver);
 
-int	bhnd_nexus_read_chipid(device_t dev, struct bhnd_chipid *chipid);
-
-#endif /* _BHND_BHND_NEXUSVAR_H_ */
+#endif /* _MIPS_BROADCOM_BHND_NEXUSVAR_H_ */

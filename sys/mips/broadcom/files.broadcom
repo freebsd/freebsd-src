@@ -10,6 +10,12 @@ mips/broadcom/bcm_mips74k.c		optional bcma_nexus bcma
 mips/broadcom/bcm_nvram_cfe.c		optional bhnd siba_nexus cfe | \
 						 bhnd bcma_nexus cfe
 mips/broadcom/bcm_pmu.c			standard
+
+mips/broadcom/bhnd_nexus.c		optional bhnd siba_nexus | \
+						 bhnd bcma_nexus
+mips/broadcom/bcma_nexus.c		optional bcma_nexus bcma bhnd
+mips/broadcom/siba_nexus.c		optional siba_nexus siba bhnd
+
 mips/mips/tick.c			standard
 
 mips/broadcom/uart_cpu_chipc.c		optional uart

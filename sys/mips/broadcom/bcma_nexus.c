@@ -43,49 +43,41 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <dev/bhnd/bhnd_ids.h>
-#include <dev/bhnd/bhnd_nexusvar.h>
-#include <dev/bhnd/cores/chipc/chipcreg.h>
 
-#include "bcmavar.h"
-#include "bcma_eromreg.h"
+#include <dev/bhnd/bcma/bcmavar.h>
+
+#include "bcm_machdep.h"
+
+#include "bhnd_nexusvar.h"
 
 /*
- * Supports bcma(4) attachment to a nexus bus.
+ * Supports bcma(4) attachment to a MIPS nexus bus.
  */
 
 static int	bcma_nexus_attach(device_t);
 static int	bcma_nexus_probe(device_t);
 
-struct bcma_nexus_softc {
-	struct bcma_softc		parent_sc;
-	struct bhnd_chipid		bcma_cid;
-};
-
 static int
 bcma_nexus_probe(device_t dev)
 {
-	struct bcma_nexus_softc	*sc;
-	int			 error;
+	int error;
 
-	sc = device_get_softc(dev);
-
-	/* Read the ChipCommon info using the hints the kernel
-	 * was compiled with. */
-	if ((error = bhnd_nexus_read_chipid(dev, &sc->bcma_cid)))
-		return (error);
-
-	if (sc->bcma_cid.chip_type != BHND_CHIPTYPE_BCMA)
+	switch (bcm_get_platform()->cid.chip_type) {
+	case BHND_CHIPTYPE_BCMA:
+	case BHND_CHIPTYPE_BCMA_ALT:
+	case BHND_CHIPTYPE_UBUS:
+		break;
+	default:
 		return (ENXIO);
-
-	if ((error = bcma_probe(dev)) > 0) {
-		device_printf(dev, "error %d in probe\n", error);
-		return (error);
 	}
 
-	/* Set device description */
-	bhnd_set_default_bus_desc(dev, &sc->bcma_cid);
+	if ((error = bcma_probe(dev)) > 0)
+		return (error);
 
-	return (0);
+	/* Set device description */
+	bhnd_set_default_bus_desc(dev, &bcm_get_platform()->cid);
+
+	return (BUS_PROBE_SPECIFIC);
 }
 
 static int
@@ -108,25 +100,15 @@ failed:
 	return (error);
 }
 
-static const struct bhnd_chipid *
-bcma_nexus_get_chipid(device_t dev, device_t child) {
-	struct bcma_nexus_softc	*sc = device_get_softc(dev);
-	return (&sc->bcma_cid);
-}
-
 static device_method_t bcma_nexus_methods[] = {
-	/* Device interface */
 	DEVMETHOD(device_probe,			bcma_nexus_probe),
 	DEVMETHOD(device_attach,		bcma_nexus_attach),
-
-	/* bhnd interface */
-	DEVMETHOD(bhnd_bus_get_chipid,		bcma_nexus_get_chipid),
 
 	DEVMETHOD_END
 };
 
 DEFINE_CLASS_2(bhnd, bcma_nexus_driver, bcma_nexus_methods,
-    sizeof(struct bcma_nexus_softc), bhnd_nexus_driver, bcma_driver);
+    sizeof(struct bcma_softc), bhnd_nexus_driver, bcma_driver);
 
 EARLY_DRIVER_MODULE(bcma_nexus, nexus, bcma_nexus_driver, bhnd_devclass, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
