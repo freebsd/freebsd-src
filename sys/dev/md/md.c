@@ -1860,7 +1860,7 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
 			    type);
 			if ((mp->type == MD_VNODE && mp->vnode != NULL) ||
-			    (mp->type == MD_PRELOAD && mp->file[0] != '\0'))
+			    (mp->type == MD_PRELOAD && mp->file[0] != '\0')) {
 				sbuf_printf(sb, "%s<file>", indent);
 				g_conf_printf_escaped(sb, "%s", mp->file);
 				sbuf_printf(sb, "</file>\n");
