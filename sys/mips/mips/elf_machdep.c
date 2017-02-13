@@ -84,6 +84,16 @@ struct sysentvec elf64_freebsd_sysvec = {
 	.sv_trap	= NULL,
 };
 
+#ifdef CPU_CHERI
+static boolean_t mips_elf_header_supported(struct image_params * imgp)
+{
+	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
+	if ((hdr->e_flags & EF_MIPS_ABI) == EF_MIPS_ABI_CHERIABI)
+		return FALSE;
+	return TRUE;
+}
+#endif
+
 static Elf64_Brandinfo freebsd_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_MIPS,
@@ -93,7 +103,10 @@ static Elf64_Brandinfo freebsd_brand_info = {
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_BRAND_NOTE
+	.flags		= BI_BRAND_NOTE,
+#ifdef CPU_CHERI
+	.header_supported = mips_elf_header_supported
+#endif
 };
 
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_ANY,

@@ -90,11 +90,7 @@
 #else
 #define ELF_TARG_DATA	ELFDATA2LSB
 #endif
-#ifndef __CHERI_PURE_CAPABILITY__
 #define	ELF_TARG_MACH	EM_MIPS
-#else
-#define	ELF_TARG_MACH	EM_MIPS_CHERI
-#endif
 #define	ELF_TARG_VER	1
 
 /*
@@ -261,5 +257,10 @@ __ElfType(Auxinfo);
 #define	EF_MIPS_ABI_O64		0x00002000
 #define	EF_MIPS_ABI_EABI32	0x00003000
 #define	EF_MIPS_ABI_EABI64	0x00004000
+#define	EF_MIPS_ABI_CHERIABI	0x00005000
+
+#define	EF_MIPS_MACH_CHERI128	0x00C10000	/* 128 bit CHERI */
+#define	EF_MIPS_MACH_CHERI256	0x00C20000	/* 256 bit CHERI */
+#define	EF_MIPS_MACH		0x00FF0000	/* Machine */
 
 #endif /* __MIPS_ELF_H */

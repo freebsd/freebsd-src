@@ -117,6 +117,8 @@ static void	cheriabi_set_syscall_retval(struct thread *td, int error);
 static void	cheriabi_sendsig(sig_t, ksiginfo_t *, sigset_t *);
 static void	cheriabi_exec_setregs(struct thread *, struct image_params *,
 		    u_long);
+static __inline boolean_t cheriabi_check_cpu_compatible(uint32_t, const char *);
+static boolean_t cheriabi_elf_header_supported(struct image_params *);
 
 extern const char *cheriabi_syscallnames[];
 
@@ -152,20 +154,75 @@ struct sysentvec elf_freebsd_cheriabi_sysvec = {
 };
 INIT_SYSENTVEC(cheriabi_sysent, &elf_freebsd_cheriabi_sysvec);
 
-static Elf64_Brandinfo freebsd_cheriabi_brand_info = {
+/* FIXME: remove legacy struct once everyone has upgraded to the new compiler */
+static Elf64_Brandinfo freebsd_cheriabi_brand_info_legacy = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_MIPS_CHERI,
 	.compat_3_brand	= "FreeBSD",
 	.emul_path	= NULL,
-	.interp_path	= "/libexec/ld-elf.so.1",
+	.interp_path	= "/libexec/ld-cheri-elf.so.1",
 	.sysvec		= &elf_freebsd_cheriabi_sysvec,
 	.interp_newpath = NULL,
-	.flags		= 0
+	.flags		= 0,
+	.header_supported = cheriabi_elf_header_supported
+};
+
+SYSINIT(cheriabi_legacy, SI_SUB_EXEC, SI_ORDER_ANY,
+    (sysinit_cfunc_t) elf64_insert_brand_entry,
+    &freebsd_cheriabi_brand_info_legacy);
+
+static Elf64_Brandinfo freebsd_cheriabi_brand_info = {
+	.brand		= ELFOSABI_FREEBSD,
+	.machine	= EM_MIPS,
+	.compat_3_brand	= "FreeBSD",
+	.emul_path	= NULL,
+	.interp_path	= "/libexec/ld-cheri-elf.so.1",
+	.sysvec		= &elf_freebsd_cheriabi_sysvec,
+	.interp_newpath = NULL,
+	.flags		= 0,
+	.header_supported = cheriabi_elf_header_supported
 };
 
 SYSINIT(cheriabi, SI_SUB_EXEC, SI_ORDER_ANY,
     (sysinit_cfunc_t) elf64_insert_brand_entry,
     &freebsd_cheriabi_brand_info);
+
+
+static __inline boolean_t
+cheriabi_check_cpu_compatible(uint32_t bits, const char *execpath)
+{
+	const uint32_t expected = CHERICAP_SIZE * 8;
+	if (bits == expected)
+		return TRUE;
+	printf("warning: attempting to execute %d-bit CheriABI binary '%s' on "
+	    "a %d-bit kernel\n", bits, execpath, expected);
+	return FALSE;
+}
+
+static boolean_t
+cheriabi_elf_header_supported(struct image_params *imgp)
+{
+	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
+	const uint32_t machine = hdr->e_flags & EF_MIPS_MACH;
+
+	if (hdr->e_machine == EM_MIPS_CHERI) {
+#ifdef NOTYET
+		printf("warning: binary %s is using legacy EM_MIPS_CHERI "
+		    "machine type. Please update SDK and recompile.\n",
+		    imgp->execpath);
+#endif
+		return TRUE;
+	}
+	if ((hdr->e_flags & EF_MIPS_ABI) != EF_MIPS_ABI_CHERIABI)
+		return FALSE;
+
+	if (machine == EF_MIPS_MACH_CHERI128)
+		return cheriabi_check_cpu_compatible(128, imgp->execpath);
+	else if (machine == EF_MIPS_MACH_CHERI256)
+		return cheriabi_check_cpu_compatible(256, imgp->execpath);
+	return FALSE;
+}
+
 
 void
 cheriabi_fetch_syscall_arg(struct thread *td, struct chericap *arg,
