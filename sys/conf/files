@@ -1190,8 +1190,6 @@ dev/bge/if_bge.c			optional bge
 dev/bhnd/bhnd.c				optional bhnd
 dev/bhnd/bhnd_erom.c			optional bhnd
 dev/bhnd/bhnd_erom_if.m			optional bhnd
-dev/bhnd/bhnd_nexus.c			optional bhnd siba_nexus | \
-						 bhnd bcma_nexus
 dev/bhnd/bhnd_subr.c			optional bhnd
 dev/bhnd/bhnd_bus_if.m			optional bhnd
 dev/bhnd/bhndb/bhnd_bhndb.c		optional bhndb bhnd
@@ -1206,7 +1204,6 @@ dev/bhnd/bhndb/bhndb_subr.c		optional bhndb bhnd
 dev/bhnd/bcma/bcma.c			optional bcma bhnd
 dev/bhnd/bcma/bcma_bhndb.c		optional bcma bhnd bhndb
 dev/bhnd/bcma/bcma_erom.c		optional bcma bhnd
-dev/bhnd/bcma/bcma_nexus.c		optional bcma_nexus bcma bhnd
 dev/bhnd/bcma/bcma_subr.c		optional bcma bhnd
 dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhnd
 dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhnd
@@ -1252,7 +1249,6 @@ dev/bhnd/nvram/bhnd_sprom.c		optional bhnd
 dev/bhnd/siba/siba.c			optional siba bhnd
 dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
 dev/bhnd/siba/siba_erom.c		optional siba bhnd
-dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba bhnd
 dev/bhnd/siba/siba_subr.c		optional siba bhnd
 #
 dev/bktr/bktr_audio.c		optional bktr pci
