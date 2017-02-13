@@ -32,10 +32,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 /*
  * bhnd(4) driver mix-in providing shared common methods for
- * bhnd bus devices attached via a root nexus.
+ * bhnd bus devices attached via a MIPS root nexus.
  */
 
 #include <sys/param.h>
@@ -48,50 +47,16 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/bhnd/bhndvar.h>
 #include <dev/bhnd/bhnd_ids.h>
-#include <dev/bhnd/cores/chipc/chipcreg.h>
+
+#include "bcm_machdep.h"
 
 #include "bhnd_nexusvar.h"
 
-static const struct resource_spec bhnd_nexus_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* chipc registers */
-	{ -1,			0,	0 }
-};
-
 /**
- * Map ChipCommon's register block and read the chip identifier data.
- * 
- * @param dev A bhnd_nexus device.
- * @param chipid On success, will be populated with the chip identifier.
- * @retval 0 success
- * @retval non-zero An error occurred reading the chip identifier..
+ * Default bhnd_nexus implementation of BHND_BUS_ACTIVATE_RESOURCE().
  */
-int
-bhnd_nexus_read_chipid(device_t dev, struct bhnd_chipid *chipid)
-{
-	struct resource_spec	rspec[nitems(bhnd_nexus_res_spec)];
-	int			error;
-
-	memcpy(rspec, bhnd_nexus_res_spec, sizeof(rspec));
-	error = bhnd_read_chipid(dev, rspec, 0, chipid);
-	if (error)
-		device_printf(dev, "error %d reading chip ID\n", error);
-
-	return (error);
-}
-
-static bool
-bhnd_nexus_is_hw_disabled(device_t dev, device_t child)
-{
-	return (false);
-}
-
-static bhnd_attach_type
-bhnd_nexus_get_attach_type(device_t dev, device_t child)
-{
-	return (BHND_ATTACH_NATIVE);
-}
-
 static int
 bhnd_nexus_activate_resource(device_t dev, device_t child, int type, int rid,
     struct bhnd_resource *r)
@@ -106,6 +71,9 @@ bhnd_nexus_activate_resource(device_t dev, device_t child, int type, int rid,
 	return (0);
 }
 
+/**
+ * Default bhnd_nexus implementation of BHND_BUS_DEACTIVATE_RESOURCE().
+ */
 static int
 bhnd_nexus_deactivate_resource(device_t dev, device_t child,
     int type, int rid, struct bhnd_resource *r)
@@ -122,11 +90,72 @@ bhnd_nexus_deactivate_resource(device_t dev, device_t child,
 	return (0);
 }
 
+/**
+ * Default bhnd_nexus implementation of BHND_BUS_IS_HW_DISABLED().
+ */
+static bool
+bhnd_nexus_is_hw_disabled(device_t dev, device_t child)
+{
+	struct bcm_platform	*bp;
+	struct bhnd_chipid	*cid;
+
+	bp = bcm_get_platform();
+	cid = &bp->cid;
+
+	/* The BCM4706 low-cost package leaves secondary GMAC cores
+	 * floating */
+	if (cid->chip_id == BHND_CHIPID_BCM4706 &&
+	    cid->chip_pkg == BHND_PKGID_BCM4706L &&
+	    bhnd_get_device(child) == BHND_COREID_4706_GMAC &&
+	    bhnd_get_core_unit(child) != 0)
+	{
+		return (true);
+	}
+
+	return (false);
+}
+
+/**
+ * Default bhnd_nexus implementation of BHND_BUS_AGET_ATTACH_TYPE().
+ */
+static bhnd_attach_type
+bhnd_nexus_get_attach_type(device_t dev, device_t child)
+{
+	return (BHND_ATTACH_NATIVE);
+}
+
+/**
+ * Default bhnd_nexus implementation of BHND_BUS_GET_CHIPID().
+ */
+static const struct bhnd_chipid *
+bhnd_nexus_get_chipid(device_t dev, device_t child)
+{
+	return (&bcm_get_platform()->cid);
+}
+
+/**
+ * Default bhnd_nexus implementation of BHND_BUS_GET_INTR_COUNT().
+ */
 static int
 bhnd_nexus_get_intr_count(device_t dev, device_t child)
 {
 	// TODO: arch-specific interrupt handling.
 	return (0);
+}
+
+/**
+ * Default bhnd_nexus implementation of BHND_BUS_ASSIGN_INTR().
+ */
+static int
+bhnd_nexus_assign_intr(device_t dev, device_t child, int rid)
+{
+	uint32_t	ivec;
+	int		error;
+
+	if ((error = bhnd_get_core_ivec(child, rid, &ivec)))
+		return (error);
+
+	return (bus_set_resource(child, SYS_RES_IRQ, rid, ivec, 1));
 }
 
 static device_method_t bhnd_nexus_methods[] = {
@@ -135,8 +164,9 @@ static device_method_t bhnd_nexus_methods[] = {
 	DEVMETHOD(bhnd_bus_deactivate_resource, bhnd_nexus_deactivate_resource),
 	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_nexus_is_hw_disabled),
 	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_nexus_get_attach_type),
-
+	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_nexus_get_chipid),
 	DEVMETHOD(bhnd_bus_get_intr_count,	bhnd_nexus_get_intr_count),
+	DEVMETHOD(bhnd_bus_assign_intr,		bhnd_nexus_assign_intr),
 
 	DEVMETHOD_END
 };
