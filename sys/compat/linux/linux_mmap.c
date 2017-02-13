@@ -203,7 +203,7 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 		}
 	}
 
-	error = kern_vm_mmap(td, addr, 0, len, prot, bsd_flags, fd, pos);
+	error = kern_mmap(td, addr, 0, len, prot, bsd_flags, fd, pos);
 
 	LINUX_CTR2(mmap2, "return: %d (%p)", error, td->td_retval[0]);
 
@@ -217,7 +217,7 @@ linux_mprotect_common(struct thread *td, uintptr_t addr, size_t len, int prot)
 #if defined(__amd64__)
 	linux_fixup_prot(td, &prot);
 #endif
-	return (kern_vm_mprotect(td, addr, len, prot));
+	return (kern_mprotect(td, addr, len, prot));
 }
 
 #if defined(__amd64__)
