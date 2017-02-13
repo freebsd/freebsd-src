@@ -32,6 +32,7 @@
 
 #include "input_buffer.hh"
 #include <ctype.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -544,7 +545,8 @@ struct binary_operator : public binary_operator_base
 	 * Constructor.  Takes the name of the operator as an argument, for
 	 * debugging.  Only stores it in debug mode.
 	 */
-	binary_operator(source_location l, const char *) : expression(l) {}
+	binary_operator(source_location l, const char *) :
+		binary_operator_base(l) {}
 #else
 	const char *opName;
 	binary_operator(source_location l, const char *o) :
