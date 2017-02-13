@@ -214,7 +214,7 @@ extern void _w32_os_yield (void); /* Watt-32's misc.c */
   #define PCAP_ASSERT(x) ((void)0)
 
 #else
-  void pcap_assert (const char *what, const char *file, unsigned line);  
+  void pcap_assert (const char *what, const char *file, unsigned line);
 
   #define PCAP_ASSERT(x) do { \
                            if (!(x)) \
