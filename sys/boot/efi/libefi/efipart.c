@@ -254,7 +254,7 @@ efipart_cdinfo_add(EFI_HANDLE handle, EFI_HANDLE alias,
 		}
 		unit++;
 	}
- 
+
 	cd = malloc(sizeof(pdinfo_t));
 	if (cd == NULL) {
 		printf("Failed to add cd %d, out of memory\n", unit);
@@ -290,7 +290,7 @@ efipart_updatecd(void)
 			continue;
 		if (efipart_floppy(node) != NULL)
 			continue;
- 
+
 		status = BS->HandleProtocol(efipart_handles[i],
 		    &blkio_guid, (void **)&blkio);
 		if (EFI_ERROR(status))
@@ -589,14 +589,14 @@ efipart_print_common(struct devsw *dev, pdinfo_list_t *pdlist, int verbose)
 
 	if (STAILQ_EMPTY(pdlist))
 		return (0);
- 
+
 	printf("%s devices:", dev->dv_name);
 	if ((ret = pager_output("\n")) != 0)
 		return (ret);
 
 	STAILQ_FOREACH(pd, pdlist, pd_link) {
 		h = pd->pd_handle;
-		if (verbose) {  /* Output the device path. */
+		if (verbose) {	/* Output the device path. */
 			text = efi_devpath_name(efi_lookup_devpath(h));
 			if (text != NULL) {
 				printf("  %S", text);
@@ -707,7 +707,7 @@ efipart_open(struct open_file *f, ...)
 	pd = efiblk_get_pdinfo(pdi, dev->d_unit);
 	if (pd == NULL)
 		return (EIO);
- 
+
 	if (pd->pd_blkio == NULL) {
 		status = BS->HandleProtocol(pd->pd_handle, &blkio_guid,
 		    (void **)&pd->pd_blkio);
@@ -791,7 +791,7 @@ efipart_ioctl(struct open_file *f, u_long cmd, void *data)
 		*(u_int *)data = pd->pd_blkio->Media->BlockSize;
 		break;
 	case DIOCGMEDIASIZE:
-		*(off_t *)data = pd->pd_blkio->Media->BlockSize *
+		*(uint64_t *)data = pd->pd_blkio->Media->BlockSize *
 		    (pd->pd_blkio->Media->LastBlock + 1);
 		break;
 	default:
@@ -915,9 +915,9 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 	if (rsize != NULL)
 		*rsize = size;
 
-        if ((size % blkio->Media->BlockSize == 0) &&
+	if ((size % blkio->Media->BlockSize == 0) &&
 	    ((blk * 512) % blkio->Media->BlockSize == 0))
-                return (efipart_readwrite(blkio, rw,
+		return (efipart_readwrite(blkio, rw,
 		    blk * 512 / blkio->Media->BlockSize,
 		    size / blkio->Media->BlockSize, buf));
 
