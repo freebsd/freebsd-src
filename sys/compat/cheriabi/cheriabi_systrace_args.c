@@ -2704,9 +2704,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* openat */
+	/* cheriabi_openat */
 	case 499: {
-		struct openat_args *p = params;
+		struct cheriabi_openat_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->path; /* const char * */
 		iarg[2] = p->flag; /* int */
@@ -7607,7 +7607,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* openat */
+	/* cheriabi_openat */
 	case 499:
 		switch(ndx) {
 		case 0:
@@ -9956,7 +9956,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* openat */
+	/* cheriabi_openat */
 	case 499:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

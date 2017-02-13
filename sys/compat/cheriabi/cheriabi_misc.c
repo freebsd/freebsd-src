@@ -164,6 +164,26 @@ cheriabi_syscall(struct thread *td, struct cheriabi_syscall_args *uap)
 }
 
 int
+cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
+{
+	char *path;
+	size_t slen;
+	int error;
+
+	path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	error = cheriabi_copyinstrarg(td, CHERIABI_SYS_cheriabi_openat, 1,
+	    path, MAXPATHLEN, &slen);
+	if (error)
+		goto fail;
+
+	error = kern_openat(td, uap->fd, path, UIO_SYSSPACE,
+	    uap->flag, uap->mode);
+fail:
+	free(path, M_TEMP);
+	return (error);
+}
+
+int
 cheriabi_wait6(struct thread *td, struct cheriabi_wait6_args *uap)
 {
 	struct __wrusage wru, *wrup;

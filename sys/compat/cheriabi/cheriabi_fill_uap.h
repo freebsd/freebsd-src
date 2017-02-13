@@ -8765,23 +8765,23 @@ CHERIABI_SYS_mknodat_fill_uap(struct thread *td,
 }
 
 static inline int
-CHERIABI_SYS_openat_fill_uap(struct thread *td,
-    struct openat_args *uap)
+CHERIABI_SYS_cheriabi_openat_fill_uap(struct thread *td,
+    struct cheriabi_openat_args *uap)
 {
 	struct chericap tmpcap;
 
 	/* [0] int fd */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_openat, 0);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_openat, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->fd, CHERI_CR_CTEMP0);
 
 	/* [2] int flag */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_openat, 2);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_openat, 2);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->flag, CHERI_CR_CTEMP0);
 
 	/* [3] mode_t mode */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_openat, 3);
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_openat, 3);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->mode, CHERI_CR_CTEMP0);
 
@@ -8790,7 +8790,7 @@ CHERIABI_SYS_openat_fill_uap(struct thread *td,
 		int error;
 		register_t reqperms = (CHERI_PERM_LOAD);
 
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_openat, 1);
+		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_cheriabi_openat, 1);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->path),
 		    &tmpcap, sizeof(*uap->path), reqperms, 0);
 		if (error != 0)

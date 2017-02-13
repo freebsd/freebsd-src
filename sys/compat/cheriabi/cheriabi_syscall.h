@@ -418,7 +418,7 @@
 #define	CHERIABI_SYS_mkdirat	496
 #define	CHERIABI_SYS_mkfifoat	497
 #define	CHERIABI_SYS_mknodat	498
-#define	CHERIABI_SYS_openat	499
+#define	CHERIABI_SYS_cheriabi_openat	499
 #define	CHERIABI_SYS_readlinkat	500
 #define	CHERIABI_SYS_renameat	501
 #define	CHERIABI_SYS_symlinkat	502

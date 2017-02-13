@@ -301,6 +301,12 @@ struct cheriabi_fexecve_args {
 	char argv_l_[PADL_(struct chericap *)]; struct chericap * argv; char argv_r_[PADR_(struct chericap *)];
 	char envv_l_[PADL_(struct chericap *)]; struct chericap * envv; char envv_r_[PADR_(struct chericap *)];
 };
+struct cheriabi_openat_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
+	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
+	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
+};
 struct cheriabi_jail_get_args {
 	char iovp_l_[PADL_(struct iovec_c *)]; struct iovec_c * iovp; char iovp_r_[PADR_(struct iovec_c *)];
 	char iovcnt_l_[PADL_(unsigned int)]; unsigned int iovcnt; char iovcnt_r_[PADR_(unsigned int)];
@@ -398,6 +404,7 @@ int	cheriabi_sctp_generic_sendmsg_iov(struct thread *, struct cheriabi_sctp_gene
 int	cheriabi_sctp_generic_recvmsg(struct thread *, struct cheriabi_sctp_generic_recvmsg_args *);
 int	cheriabi_mmap(struct thread *, struct cheriabi_mmap_args *);
 int	cheriabi_fexecve(struct thread *, struct cheriabi_fexecve_args *);
+int	cheriabi_openat(struct thread *, struct cheriabi_openat_args *);
 int	cheriabi_jail_get(struct thread *, struct cheriabi_jail_get_args *);
 int	cheriabi_jail_set(struct thread *, struct cheriabi_jail_set_args *);
 int	cheriabi___semctl(struct thread *, struct cheriabi___semctl_args *);
@@ -506,6 +513,7 @@ int	cheriabi_procctl(struct thread *, struct cheriabi_procctl_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_sctp_generic_recvmsg	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_mmap	AUE_MMAP
 #define	CHERIABI_SYS_AUE_cheriabi_fexecve	AUE_FEXECVE
+#define	CHERIABI_SYS_AUE_cheriabi_openat	AUE_OPENAT_RWTC
 #define	CHERIABI_SYS_AUE_cheriabi_jail_get	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_jail_set	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi___semctl	AUE_SEMCTL
