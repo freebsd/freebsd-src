@@ -17,4 +17,5 @@ MISRCS+=gdtoa_${src}
 CLEANFILES+=gdtoa_${src}
 gdtoa_${src}: ${SRCTOP}/contrib/gdtoa/${src} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
+CFLAGS.gdtoa_${src}+=-fno-strict-aliasing
 .endfor
