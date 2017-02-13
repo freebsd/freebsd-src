@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/protosw.h>
 #include <sys/rwlock.h>
 #include <sys/sema.h>
@@ -858,12 +859,9 @@ aio_process_mlock(struct kaiocb *job)
 	    ("%s: opcode %d", __func__, job->uaiocb.aio_lio_opcode));
 
 	aio_switch_vmspace(job);
-	error = vm_mlock(job->userproc, job->cred,
-	    __DEVOLATILE(void *, cb->aio_buf), cb->aio_nbytes);
-	if (error)
-		aio_complete(job, -1, error);
-	else
-		aio_complete(job, 0, 0);
+	error = kern_mlock(job->userproc, job->cred,
+	    __DEVOLATILE(uintptr_t, cb->aio_buf), cb->aio_nbytes);
+	aio_complete(job, error != 0 ? -1 : 0, error);
 }
 
 static void
