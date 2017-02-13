@@ -17,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP 3PCAP "16 April 2014"
+.TH PCAP 3PCAP "8 March 2015"
 .SH NAME
 pcap \- Packet Capture library
 .SH SYNOPSIS
@@ -354,11 +354,24 @@ open a
 .B pcap_t
 for a ``savefile'', given a pathname
 .TP
+.BR pcap_open_offline_with_tstamp_precision (3PCAP)
+open a
+.B pcap_t
+for a ``savefile'', given a pathname, and specify the precision to
+provide for packet time stamps
+.TP
 .BR pcap_fopen_offline (3PCAP)
 open a
 .B pcap_t
 for a ``savefile'', given a
 .B "FILE\ *"
+.TP
+.BR pcap_fopen_offline_with_tstamp_precision (3PCAP)
+open a
+.B pcap_t
+for a ``savefile'', given a
+.BR "FILE\ *" ,
+and specify the precision to provide for packet time stamps
 .TP
 .BR pcap_open_dead (3PCAP)
 create a ``fake''
@@ -423,6 +436,16 @@ get description for a time stamp type
 .TP
 .BR pcap_tstamp_type_name_to_val (3PCAP)
 get time stamp type corresponding to a name
+.TP
+.BR pcap_set_tstamp_precision (3PCAP)
+set time stamp precision for a not-yet-activated
+.B pcap_t
+for live capture
+.TP
+.BR pcap_get_tstamp_precision (3PCAP)
+get the time stamp precision of a
+.B pcap_t
+for live capture
 .TP
 .BR pcap_datalink (3PCAP)
 get link-layer header type for a
@@ -552,7 +575,7 @@ bytes of the packet on success, and NULL on error.
 .BR pcap_next_ex ()
 is passed two pointer arguments, one of which points to a
 .IR struct pcap_pkthdr *
-and one of which points to a 
+and one of which points to a
 .IR "const u_char" *.
 It sets the first pointer to point to a
 .I struct pcap_pkthdr
@@ -580,7 +603,9 @@ for packets to become available.  On some, but
 all, platforms, if a read timeout was specified, the wait will terminate
 after the read timeout expires; applications should be prepared for
 this, as it happens on some platforms, but should not rely on it, as it
-does not happen on other platforms.
+does not happen on other platforms.  Note that the wait might, or might
+not, terminate even if no packets are available; applications should be
+prepared for this to happen, but must not rely on it happening.
 .PP
 A handle can be put into ``non-blocking mode'', so that those routines
 will, rather than blocking, return an indication that no packets are
@@ -596,8 +621,8 @@ Non-blocking mode is often combined with routines such as
 .BR select (2)
 or
 .BR poll (2)
-or other routines a platform offers to wait for the availability of data
-on any of a set of descriptors.  To obtain, for a handle, a descriptor
+or other routines a platform offers to wait for any of a set of
+descriptors to be ready to read.  To obtain, for a handle, a descriptor
 that can be used in those routines, call
 .BR pcap_get_selectable_fd ().
 Not all handles have such a descriptor available;
@@ -606,7 +631,14 @@ will return \-1 if no such descriptor exists.  In addition, for various
 reasons, one or more of those routines will not work properly with the
 descriptor; the documentation for
 .BR pcap_get_selectable_fd ()
-gives details.
+gives details.  Note that, just as an attempt to read packets from a
+.B pcap_t
+may not return any packets if the read timeout expires, a
+.BR select (),
+.BR poll (),
+or other such call may, if the read timeout expires, indicate that a
+descriptor is ready to read even if there are no packets available to
+read.
 .TP
 .B Routines
 .RS

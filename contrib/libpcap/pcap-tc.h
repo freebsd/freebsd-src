@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Felix Obenhuber
+ * Copyright (c) 2008 CACE Technologies, Davis (California)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,9 +11,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  * notice, this list of conditions and the following disclaimer in the
  * documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
- * products derived from this software without specific prior written
- * permission.
+ * 3. Neither the name of CACE Technologies nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -29,9 +29,26 @@
  *
  */
 
-/*
- * Prototypes for SocketCAN related functions
- */
-pcap_t* canusb_create(const char *device, char *ebuf, int *is_ours);
-int canusb_findalldevs(pcap_if_t **pdevlist, char* errbuf);
+#ifndef __PCAP_TC_H__
+#define __PCAP_TC_H__
 
+/*
+ * needed because gcc headers do not have C_ASSERT
+ */
+#ifndef C_ASSERT
+#define C_ASSERT(a)
+#endif
+
+#include <TcApi.h>
+
+/*
+ * functions used effectively by the pcap library
+ */
+
+pcap_t *
+TcCreate(const char *device, char *ebuf, int *is_ours);
+
+int
+TcFindAllDevs(pcap_if_t **alldevsp, char *errbuf);
+
+#endif

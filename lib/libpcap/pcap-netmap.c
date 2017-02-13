@@ -209,13 +209,13 @@ static int
 pcap_netmap_activate(pcap_t *p)
 {
 	struct pcap_netmap *pn = NM_PRIV(p);
-	struct nm_desc *d = nm_open(p->opt.source, NULL, 0, NULL);
+	struct nm_desc *d = nm_open(p->opt.device, NULL, 0, NULL);
 	uint32_t if_flags = 0;
 
 	if (d == NULL) {
 		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 			"netmap open: cannot access %s: %s\n",
-			p->opt.source, pcap_strerror(errno));
+			p->opt.device, pcap_strerror(errno));
 #ifdef HAVE_NO_PRIV
 		free(pn);
 		SET_PRIV(p, NULL); // unnecessary
@@ -225,7 +225,7 @@ pcap_netmap_activate(pcap_t *p)
 	}
 	if (0)
 	    fprintf(stderr, "%s device %s priv %p fd %d ports %d..%d\n",
-		__FUNCTION__, p->opt.source, d, d->fd,
+		__FUNCTION__, p->opt.device, d, d->fd,
 		d->first_rx_ring, d->last_rx_ring);
 	pn->d = d;
 	p->fd = d->fd;
@@ -274,7 +274,7 @@ pcap_netmap_create(const char *device, char *ebuf, int *is_ours)
 		SET_PRIV(p, pn);
 	}
 #else
-	p = pcap_create_common(device, ebuf, sizeof (struct pcap_netmap));
+	p = pcap_create_common(ebuf, sizeof (struct pcap_netmap));
 	if (p == NULL)
 		return (NULL);
 #endif
