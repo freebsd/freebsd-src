@@ -141,7 +141,7 @@ BEGIN {
 	next;
 }
 
-/^[a-zA-Z0-9._]+[ \t]*;$/ {
+/^[a-zA-Z0-9._*]+[ \t]*;$/ {
 	# Strip semicolon.
 	sub(";", "", $1);
 	if (current_version != "") {
