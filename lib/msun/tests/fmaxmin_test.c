@@ -116,7 +116,8 @@ testall(int testnum, long double big, long double small)
 
 /* Clang 3.8.0+ fails the invariants for testcase 6, 7, 10, and 11. */
 #if defined(__clang__) && \
-    (__clang_major__ >= 3 && __clang_minor__ >= 8 && __clang_patchlevel__ >= 0)
+    ((__clang_major__ >  3)) || \
+    ((__clang_major__ == 3 && __clang_minor__ >= 8))
 #define	affected_by_bug_208703
 #endif
 
