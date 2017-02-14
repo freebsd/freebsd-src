@@ -687,7 +687,7 @@ retry_setlock:
 		break;
 	}
 
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 	/*
 	 * Check for some can't happen stuff. In this case, the active
 	 * lock list becoming disordered or containing mutually
@@ -915,7 +915,7 @@ lf_add_edge(struct lockf_entry *x, struct lockf_entry *y)
 	struct lockf_edge *e;
 	int error;
 
-#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
 	LIST_FOREACH(e, &x->lf_outedges, le_outlink)
 		KASSERT(e->le_to != y, ("adding lock edge twice"));
 #endif
