@@ -365,6 +365,7 @@
 #define	nstime_subtract JEMALLOC_N(nstime_subtract)
 #define	nstime_update JEMALLOC_N(nstime_update)
 #define	opt_abort JEMALLOC_N(opt_abort)
+#define	opt_cheri_setbounds JEMALLOC_N(opt_cheri_setbounds)
 #define	opt_decay_time JEMALLOC_N(opt_decay_time)
 #define	opt_dss JEMALLOC_N(opt_dss)
 #define	opt_junk JEMALLOC_N(opt_junk)

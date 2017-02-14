@@ -812,6 +812,13 @@ in these cases\&. This option is disabled by default unless
 is specified during configuration, in which case it is enabled by default\&.
 .RE
 .PP
+opt\&.cheri_setbounds (\fBbool\fR) r\-
+.RS 4
+Set bounds on allocations\&. This is enabled by default unless jemalloc is compiled with
+\fB\JEMALLOC_NO_PTR_BOUNDS\fR
+defined\&. This option is available only on CHERI systems in pure-capability mode.
+.RE
+.PP
 opt\&.dss (\fBconst char *\fR) r\-
 .RS 4
 dss (\fBsbrk\fR(2)) allocation precedence as related to
