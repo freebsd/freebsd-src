@@ -30,6 +30,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/linker_set.h>
 #include <sys/select.h>
 #include <sys/uio.h>
@@ -41,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net/netmap_user.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -53,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <md5.h>
 #include <pthread.h>
 #include <pthread_np.h>
+#include <sysexits.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
@@ -743,6 +748,9 @@ static void
 pci_vtnet_tap_setup(struct pci_vtnet_softc *sc, char *devname)
 {
 	char tbuf[80];
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 
 	strcpy(tbuf, "/dev/");
 	strlcat(tbuf, devname, sizeof(tbuf));
@@ -766,6 +774,12 @@ pci_vtnet_tap_setup(struct pci_vtnet_softc *sc, char *devname)
 		close(sc->vsc_tapfd);
 		sc->vsc_tapfd = -1;
 	}
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(sc->vsc_tapfd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 
 	sc->vsc_mevp = mevent_add(sc->vsc_tapfd,
 				  EVF_READ,
