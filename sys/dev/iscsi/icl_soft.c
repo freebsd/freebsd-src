@@ -260,8 +260,8 @@ icl_soft_conn_new_pdu(struct icl_conn *ic, int flags)
 	if (ip == NULL)
 		return (NULL);
 
-	ip->ip_bhs_mbuf = m_getm2(NULL, sizeof(struct iscsi_bhs),
-	    flags, MT_DATA, M_PKTHDR);
+	CTASSERT(sizeof(struct iscsi_bhs) <= MHLEN);
+	ip->ip_bhs_mbuf = m_gethdr(flags, MT_DATA);
 	if (ip->ip_bhs_mbuf == NULL) {
 		ICL_WARN("failed to allocate BHS mbuf");
 		icl_pdu_free(ip);
