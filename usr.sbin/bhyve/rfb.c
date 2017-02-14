@@ -29,6 +29,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/time.h>
@@ -38,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 
 #include <assert.h>
+#include <err.h>
+#include <errno.h>
 #include <pthread.h>
 #include <pthread_np.h>
 #include <signal.h>
@@ -45,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include <zlib.h>
@@ -868,6 +874,9 @@ rfb_init(char *hostname, int port, int wait)
 	struct rfb_softc *rc;
 	struct sockaddr_in sin;
 	int on = 1;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 
 	rc = calloc(1, sizeof(struct rfb_softc));
 
@@ -903,6 +912,12 @@ rfb_init(char *hostname, int port, int wait)
 		perror("listen");
 		return (-1);
 	}
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_ACCEPT, CAP_EVENT, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(rc->sfd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 
 	rc->hw_crc = sse42_supported();
 

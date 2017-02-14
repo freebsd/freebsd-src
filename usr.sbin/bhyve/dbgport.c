@@ -30,13 +30,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/uio.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sysexits.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -125,6 +130,9 @@ void
 init_dbgport(int sport)
 {
 	int reuse;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 
 	conn_fd = -1;
 
@@ -154,6 +162,12 @@ init_dbgport(int sport)
 		perror("listen");
 		exit(1);
 	}
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_ACCEPT, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(listen_fd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 
 	register_inout(&dbgport);
 }
