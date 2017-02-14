@@ -548,7 +548,7 @@ cmci_update(enum scan_mode mode, int bank, int valid, struct mca_record *rec)
 			limit = min(limit << 1, cc->max_threshold);
 			ctl &= ~MC_CTL2_THRESHOLD;
 			ctl |= limit;
-			wrmsr(MSR_MC_CTL2(bank), limit);
+			wrmsr(MSR_MC_CTL2(bank), ctl);
 		}
 		cc->last_intr = ticks;
 		return;
@@ -581,7 +581,7 @@ cmci_update(enum scan_mode mode, int bank, int valid, struct mca_record *rec)
 	if ((ctl & MC_CTL2_THRESHOLD) != limit) {
 		ctl &= ~MC_CTL2_THRESHOLD;
 		ctl |= limit;
-		wrmsr(MSR_MC_CTL2(bank), limit);
+		wrmsr(MSR_MC_CTL2(bank), ctl);
 	}
 }
 #endif
