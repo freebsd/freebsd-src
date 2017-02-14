@@ -109,10 +109,13 @@ __FBSDID("$FreeBSD$");
  * chain into uma_zfree(zone_pack, mf)
  * (or reinstall the buffer ?)
  */
-#define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
-	(m)->m_ext.ext_free = (void *)fn;	\
-	(m)->m_ext.ext_type = EXT_EXTREF;	\
-} while (0)
+static inline void
+set_mbuf_destructor(struct mbuf *m, void *fn)
+{
+
+	m->m_ext.ext_free = fn;
+	m->m_ext.ext_type = EXT_EXTREF;
+}
 
 static int
 void_mbuf_dtor(struct mbuf *m, void *arg1, void *arg2)
@@ -167,9 +170,12 @@ nm_os_get_mbuf(struct ifnet *ifp, int len)
 
 static void void_mbuf_dtor(struct mbuf *m, void *arg1, void *arg2) { }
 
-#define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
-	(m)->m_ext.ext_free = fn ? (void *)fn : (void *)void_mbuf_dtor;	\
-} while (0)
+static inline void
+set_mbuf_destructor(struct mbuf *m, void *fn)
+{
+
+	m->m_ext.ext_free = (fn != NULL) ? fn : (void *)void_mbuf_dtor;
+}
 
 static inline struct mbuf *
 nm_os_get_mbuf(struct ifnet *ifp, int len)
@@ -381,7 +387,7 @@ generic_netmap_unregister(struct netmap_adapter *na)
 		 * TX event is consumed. */
 		mtx_lock_spin(&kring->tx_event_lock);
 		if (kring->tx_event) {
-			SET_MBUF_DESTRUCTOR(kring->tx_event, NULL);
+			set_mbuf_destructor(kring->tx_event, NULL);
 		}
 		kring->tx_event = NULL;
 		mtx_unlock_spin(&kring->tx_event_lock);
@@ -762,7 +768,7 @@ generic_set_tx_event(struct netmap_kring *kring, u_int hwcur)
 		return;
 	}
 
-	SET_MBUF_DESTRUCTOR(m, generic_mbuf_destructor);
+	set_mbuf_destructor(m, generic_mbuf_destructor);
 	kring->tx_event = m;
 	mtx_unlock_spin(&kring->tx_event_lock);
 
