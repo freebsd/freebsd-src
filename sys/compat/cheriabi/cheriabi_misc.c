@@ -135,10 +135,19 @@ CTASSERT(sizeof(struct msghdr32) == 28);
 CTASSERT(sizeof(struct sigaction32) == 24);
 #endif
 
-static SYSCTL_NODE(_compat, OID_AUTO, cheriabi, CTLFLAG_RW, 0, "CheriABI mode");
+SYSCTL_NODE(_compat, OID_AUTO, cheriabi, CTLFLAG_RW, 0, "CheriABI mode");
+static SYSCTL_NODE(_compat_cheriabi, OID_AUTO, mmap, CTLFLAG_RW, 0, "mmap");
 
+static int	cheriabi_mmap_honor_prot = 1;
+SYSCTL_INT(_compat_cheriabi_mmap, OID_AUTO, honor_prot,
+    CTLFLAG_RWTUN, &cheriabi_mmap_honor_prot, 0,
+    "Reduce returned permissions to those requested by the prot argument.");
+static int	cheriabi_mmap_setbounds = 1;
+SYSCTL_INT(_compat_cheriabi_mmap, OID_AUTO, setbounds,
+    CTLFLAG_RWTUN, &cheriabi_mmap_setbounds, 0,
+    "Set bounds on returned capabilities.");
 int	cheriabi_mmap_precise_bounds = 1;
-SYSCTL_INT(_compat_cheriabi, OID_AUTO, mmap_precise_bounds,
+SYSCTL_INT(_compat_cheriabi_mmap, OID_AUTO, precise_bounds,
     CTLFLAG_RWTUN, &cheriabi_mmap_precise_bounds, 0,
     "Require that bounds on returned capabilities be precise.");
 
@@ -2012,10 +2021,8 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 	register_t ret;
 	size_t mmap_cap_base, mmap_cap_len;
 	vm_map_t map;
-#ifndef COMPAT_CHERIABI_WEAK
 	register_t perms;
 	size_t addr_base;
-#endif
 
 	ret = td->td_retval[0];
 	/* On failure, return a NULL capability with an offset of -1. */
@@ -2026,22 +2033,19 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		return (0);
 	}
 
-#ifdef COMPAT_CHERIABI_WEAK
 	/*
-	 * In the weak case, return addr untouched for all fixed requests.
-	 */
-	if (flags & MAP_FIXED) {
-#else
-	/*
-	 * In the strong case, leave addr untouched when MAP_CHERI_NOSETBOUNDS
-	 * is set.
+	 * In the strong case (cheriabi_mmap_setbounds), leave addr untouched
+	 * when MAP_CHERI_NOSETBOUNDS is set.
+	 *
+	 * In the weak case (!cheriabi_mmap_setbounds), return addr untouched
+	 * for *all* fixed requests.
 	 *
 	 * NB: This means no permission changes.
 	 * The assumption is that the larger capability has the correct
 	 * permissions and we're only intrested in adjusting page mappings.
 	 */
-	if (flags & MAP_CHERI_NOSETBOUNDS) {
-#endif
+	if (flags & MAP_CHERI_NOSETBOUNDS ||
+	    (!cheriabi_mmap_setbounds && flags & MAP_FIXED)) {
 		cheri_capability_copy(retcap, addr);
 		return (0);
 	}
@@ -2055,16 +2059,16 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		PROC_UNLOCK(td->td_proc);
 	}
 
-#ifndef COMPAT_CHERIABI_WEAK
-	CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-	    (~PERM_RWX | cheriabi_mmap_prot2perms(prot)));
-#endif
+	if (cheriabi_mmap_honor_prot) {
+		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
+		CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+		    (~PERM_RWX | cheriabi_mmap_prot2perms(prot)));
+	}
 
 	if (flags & MAP_FIXED) {
-#ifdef COMPAT_CHERIABI_WEAK
-		/* Handled above */
-#else
+		KASSERT(cheriabi_mmap_setbounds,
+		    ("%s: trying to set bounds on fixed map when disabled",
+		    __func__));
 		/*
 		 * If addr was under aligned, we need to return a
 		 * capability to the whole, properly aligned region
@@ -2081,7 +2085,6 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		CHERI_CGETBASE(addr_base, CHERI_CR_CTEMP0);
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    addr_base - ret);
-#endif
 	} else {
 		CHERI_CGETBASE(mmap_cap_base, CHERI_CR_CTEMP0);
 		CHERI_CGETLEN(mmap_cap_len, CHERI_CR_CTEMP0);
@@ -2096,10 +2099,9 @@ cheriabi_mmap_set_retcap(struct thread *td, struct chericap *retcap,
 		}
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    ret - mmap_cap_base);
-#ifndef COMPAT_CHERIABI_WEAK
-		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    roundup2(len, PAGE_SIZE));
-#endif
+		if (cheriabi_mmap_setbounds)
+			CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+			    roundup2(len, PAGE_SIZE));
 	}
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, retcap, 0);
 

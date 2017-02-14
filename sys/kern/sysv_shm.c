@@ -198,6 +198,17 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLTYPE_OPAQUE | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_shmsegs, "",
     "Current number of shared memory segments allocated");
 
+#ifdef COMPAT_CHERIABI
+SYSCTL_DECL(_compat_cheriabi);
+static SYSCTL_NODE(_compat_cheriabi, OID_AUTO, sysv_shm, CTLFLAG_RW, 0,
+    "System V shared memory");
+
+static int cheriabi_sysv_shm_setbounds = 1;
+SYSCTL_INT(_compat_cheriabi_sysv_shm, OID_AUTO, setbounds,
+    CTLFLAG_RWTUN, &cheriabi_sysv_shm_setbounds, 0,
+    "Set bounds on returned capabilities.");
+#endif
+
 static struct sx sysvshmsx;
 #define	SYSVSHM_LOCK()		sx_xlock(&sysvshmsx)
 #define	SYSVSHM_UNLOCK()	sx_xunlock(&sysvshmsx)
@@ -545,11 +556,10 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &shmaddr_cap, 0);
 		CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
 		    attach_va - cap_base);
-#ifndef COMPAT_CHERIABI_WEAK
-		CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
-		    roundup2(shmseg->u.shm_segsz,
-		    1 << CHERI_ALIGN_SHIFT(shmseg->u.shm_segsz)));
-#endif
+		if (cheriabi_sysv_shm_setbounds)
+			CHERI_CSETBOUNDS(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0,
+			    roundup2(shmseg->u.shm_segsz,
+			    1 << CHERI_ALIGN_SHIFT(shmseg->u.shm_segsz)));
 		/* XXX: set perms */
 		CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &td->td_retcap, 0);
 	}
