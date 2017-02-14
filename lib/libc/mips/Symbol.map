@@ -78,19 +78,8 @@ FBSDprivate_1.0 {
 
 	/*
 	 * XXX-BD: Export .size.<var> symbols for <var>'s that are undefined
-	 * so * rtld can update them.  This is a hack and should be replaced
+	 * so rtld can update them.  This is a hack and should be replaced
 	 * with linker support.
 	 */
-	.size.__progname;
-	.size.__pthread_cxa_finalize;
-	.size._Block_copy;
-	.size.environ;
-
-	.size.optind;
-	.size.__stderrp;
-	.size.__stdinp;
-	.size.__stdoutp;
-	.size.__isthreaded;
-	.size.__mb_sb_limit;
-	.size._int;
+	.size.*;
 };
