@@ -371,12 +371,12 @@ nss_configure(void)
 	    (vector_free_elem)ns_dbt_free);
 	VECTOR_FREE(_nsmod, &_nsmodsize, sizeof(*_nsmod),
 	    (vector_free_elem)ns_mod_free);
+	if (confmod == 0)
+		(void)atexit(nss_atexit);
 	nss_load_builtin_modules();
 	_nsyyparse();
 	(void)fclose(_nsyyin);
 	vector_sort(_nsmap, _nsmapsize, sizeof(*_nsmap), string_compare);
-	if (confmod == 0)
-		(void)atexit(nss_atexit);
 	confmod = statbuf.st_mtime;
 
 #ifdef NS_CACHING
