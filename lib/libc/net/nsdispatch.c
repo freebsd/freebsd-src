@@ -349,20 +349,20 @@ nss_configure(void)
 	path = getenv("NSSWITCH_CONF");
 	if (path == NULL)
 #endif
-	path = _PATH_NS_CONF;
+		path = _PATH_NS_CONF;
 	if (stat(path, &statbuf) != 0)
 		return (0);
 	if (statbuf.st_mtime <= confmod)
 		return (0);
 	if (isthreaded) {
-	    (void)_pthread_rwlock_unlock(&nss_lock);
-	    result = _pthread_rwlock_wrlock(&nss_lock);
-	    if (result != 0)
-		    return (result);
-	    if (stat(path, &statbuf) != 0)
-		    goto fin;
-	    if (statbuf.st_mtime <= confmod)
-		    goto fin;
+		(void)_pthread_rwlock_unlock(&nss_lock);
+		result = _pthread_rwlock_wrlock(&nss_lock);
+		if (result != 0)
+			return (result);
+		if (stat(path, &statbuf) != 0)
+			goto fin;
+		if (statbuf.st_mtime <= confmod)
+			goto fin;
 	}
 	_nsyyin = fopen(path, "re");
 	if (_nsyyin == NULL)
@@ -383,15 +383,15 @@ nss_configure(void)
 	handle = libc_dlopen(NULL, RTLD_LAZY | RTLD_GLOBAL);
 	if (handle != NULL) {
 		nss_cache_cycle_prevention_func = dlsym(handle,
-			"_nss_cache_cycle_prevention_function");
+		    "_nss_cache_cycle_prevention_function");
 		dlclose(handle);
 	}
 #endif
 fin:
 	if (isthreaded) {
-	    (void)_pthread_rwlock_unlock(&nss_lock);
-	    if (result == 0)
-		    result = _pthread_rwlock_rdlock(&nss_lock);
+		(void)_pthread_rwlock_unlock(&nss_lock);
+		if (result == 0)
+			result = _pthread_rwlock_rdlock(&nss_lock);
 	}
 	return (result);
 }
