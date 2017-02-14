@@ -70,22 +70,19 @@ _testfmt(const char *result, const char *argstr, const char *fmt,...)
 	va_copy(ap2, ap);
 	smash_stack();
 	vsnprintf(s, sizeof(s), fmt, ap);
-	if (strcmp(result, s) != 0) {
-		atf_tc_fail(
-		    "printf(\"%s\", %s) ==> [%s], expected [%s]",
-		    fmt, argstr, s, result);
-	}
+	ATF_CHECK_MSG(strcmp(result, s) == 0,
+	    "printf(\"%s\", %s) ==> [%s], expected [%s]",
+	    fmt, argstr, s, result);
 
 	smash_stack();
 	mbstowcs(ws, s, BUF - 1);
 	mbstowcs(wfmt, fmt, BUF - 1);
 	mbstowcs(wresult, result, BUF - 1);
 	vswprintf(ws, sizeof(ws) / sizeof(ws[0]), wfmt, ap2);
-	if (wcscmp(wresult, ws) != 0) {
-		atf_tc_fail(
-		    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]",
-		    wfmt, argstr, ws, wresult);
-	}
+	ATF_CHECK_MSG(wcscmp(wresult, ws) == 0,
+	    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]",
+	    wfmt, argstr, ws, wresult);
+
 	va_end(ap);
 	va_end(ap2);
 }
@@ -318,7 +315,7 @@ ATF_TC_BODY(hexadecimal_floating_point, tc)
 	testfmt("0x1p-1074", "%a", 0x1p-1074);
 	testfmt("0x1.2345p-1024", "%a", 0x1.2345p-1024);
 
-#if (LDBL_MANT_DIG == 64) && !defined(__i386__)
+#if (LDBL_MANT_DIG == 64)
 	testfmt("0x1.921fb54442d18468p+1", "%La", 0x3.243f6a8885a308dp0L);
 	testfmt("0x1p-16445", "%La", 0x1p-16445L);
 	testfmt("0x1.30ecap-16381", "%La", 0x9.8765p-16384L);
