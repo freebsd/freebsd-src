@@ -162,8 +162,8 @@ int	kern_mmap(struct thread *td, uintptr_t addr, size_t size, int prot,
 	    int flags, int fd, off_t pos);
 int	kern_mprotect(struct thread *td, uintptr_t addr, size_t size, int prot);
 int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
-int	kern_msgsnd(struct thread *, int, const void *, size_t, int, long);
 int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);
+int	kern_msgsnd(struct thread *, int, const void *, size_t, int, long);
 int	kern_msync(struct thread *td, uintptr_t addr, size_t size, int flags);
 int	kern_munlock(struct thread *td, uintptr_t addr, size_t size);
 int	kern_munmap(struct thread *td, uintptr_t addr, size_t size);
