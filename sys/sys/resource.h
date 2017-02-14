@@ -119,8 +119,8 @@ struct __wrusage {
 #define	RLIM_NLIMITS	15		/* number of resource limits */
 
 #define	RLIM_INFINITY	((rlim_t)(((__uint64_t)1 << 63) - 1))
-/* XXX Missing: RLIM_SAVED_MAX, RLIM_SAVED_CUR */
-
+#define	RLIM_SAVED_MAX	RLIM_INFINITY
+#define	RLIM_SAVED_CUR	RLIM_INFINITY
 
 /*
  * Resource limit string identifiers
