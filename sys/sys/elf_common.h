@@ -306,6 +306,7 @@ typedef struct {
 #define	EM_ALPHA_STD	41	/* Digital Alpha (standard value). */
 #define	EM_ALPHA	0x9026	/* Alpha (written in the absence of an ABI) */
 #define	EM_MIPS_CHERI	0xC256	/* MIPS with CheriABI. */
+#define	EM_MIPS_CHERI128 0xC128	/* MIPS with CheriABI. */
 
 /**
  * e_flags

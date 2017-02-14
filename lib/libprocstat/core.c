@@ -267,10 +267,10 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 	case PSC_TYPE_AUXV:
 		n_type = NT_PROCSTAT_AUXV;
 		switch(core->pc_ehdr.e_machine) {
-		case 0xc128: /* XXXss */
+		case EM_MIPS_CHERI128:
 			structsize = sizeof(ElfCheriABI128_Auxinfo);
 			break;
-		case 0xc256: /* XXXss */
+		case EM_MIPS_CHERI:
 			structsize = sizeof(ElfCheriABI256_Auxinfo);
 			break;
 		default:
@@ -437,7 +437,7 @@ core_read_ps_strings(struct procstat_core *core, vm_offset_t psstrings,
 	assert(type == PSC_TYPE_ARGV || type == PSC_TYPE_ENVV);
 
 	switch(core->pc_ehdr.e_machine) {
-	case 0xc128: /* XXXss Shouldn't this mach type be defined in elf.h? */
+	case EM_MIPS_CHERI128:
 		{
 			cap128_ps_strings_t pss;
 
@@ -452,7 +452,7 @@ core_read_ps_strings(struct procstat_core *core, vm_offset_t psstrings,
 		}
 		break;
 
-	case 0xc256: /* XXXss Shouldn't this mach type be defined in elf.h? */
+	case EM_MIPS_CHERI:
 		{
 			cap256_ps_strings_t pss;
 
@@ -497,14 +497,14 @@ core_image_off(struct procstat_core *core, char **ptr, int i)
 {
 
 	switch(core->pc_ehdr.e_machine) {
-	case 0xc128: /* XXXss Shouldn't this mach type be defined in elf.h? */
+	case EM_MIPS_CHERI128:
 		{
 			cap128_t *cap = (cap128_t *)(ptr + (i * sizeof(cap128_t) / 8));
 
 			return (cap->cursor);
 		}
 
-	case 0xc256: /* XXXss Shouldn't this mach type be defined in elf.h? */
+	case EM_MIPS_CHERI:
 		{
 			cap256_t *cap = (cap256_t *)(ptr + (i * sizeof(cap256_t) / 8));
 
@@ -617,7 +617,7 @@ get_auxv(struct procstat_core *core, void *auxv, size_t *lenp)
 	unsigned count, i;
 
 	switch(core->pc_ehdr.e_machine) {
-	case 0xc128: /* XXXss Shouldn't this mach type be defined in elf.h? */
+	case EM_MIPS_CHERI128:
 		{
 			ElfCheriABI128_Auxinfo *auxv_cheri =
 			    (ElfCheriABI128_Auxinfo *)auxv;
@@ -643,7 +643,7 @@ get_auxv(struct procstat_core *core, void *auxv, size_t *lenp)
 			return ((void *)buf);
 		}
 
-	case 0xc256: /* XXXss Shouldn't this mach type be defined in elf.h? */
+	case EM_MIPS_CHERI:
 		{
 			ElfCheriABI256_Auxinfo *auxv_cheri =
 			    (ElfCheriABI256_Auxinfo *)auxv;
