@@ -403,10 +403,10 @@ icl_pdu_check_header_digest(struct icl_pdu *request, size_t *availablep)
 	}
 	*availablep -= ISCSI_HEADER_DIGEST_SIZE;
 
-	/*
-	 * XXX: Handle AHS.
-	 */
+	/* Temporary attach AHS to BHS to calculate header digest. */
+	request->ip_bhs_mbuf->m_next = request->ip_ahs_mbuf;
 	valid_digest = icl_mbuf_to_crc32c(request->ip_bhs_mbuf);
+	request->ip_bhs_mbuf->m_next = NULL;
 	if (received_digest != valid_digest) {
 		ICL_WARN("header digest check failed; got 0x%x, "
 		    "should be 0x%x", received_digest, valid_digest);
