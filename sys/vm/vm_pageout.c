@@ -2268,12 +2268,14 @@ again:
 			if (size >= limit) {
 				vm_pageout_map_deactivate_pages(
 				    &vm->vm_map, limit);
+				size = vmspace_resident_count(vm);
 			}
 #ifdef RACCT
 			if (racct_enable) {
 				rsize = IDX_TO_OFF(size);
 				PROC_LOCK(p);
-				racct_set(p, RACCT_RSS, rsize);
+				if (p->p_state == PRS_NORMAL)
+					racct_set(p, RACCT_RSS, rsize);
 				ravailable = racct_get_available(p, RACCT_RSS);
 				PROC_UNLOCK(p);
 				if (rsize > ravailable) {
@@ -2299,7 +2301,8 @@ again:
 					size = vmspace_resident_count(vm);
 					rsize = IDX_TO_OFF(size);
 					PROC_LOCK(p);
-					racct_set(p, RACCT_RSS, rsize);
+					if (p->p_state == PRS_NORMAL)
+						racct_set(p, RACCT_RSS, rsize);
 					PROC_UNLOCK(p);
 					if (rsize > ravailable)
 						tryagain = 1;
