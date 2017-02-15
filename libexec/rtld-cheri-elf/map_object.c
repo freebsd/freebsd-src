@@ -373,6 +373,9 @@ get_elf_header(int fd, const char *path, const struct stat *sbp)
 	if (hdr->e_machine != ELF_TARG_MACH &&
 	    hdr->e_machine != EM_MIPS_CHERI) {
 #elif defined(_MIPS_ARCH_CHERI128)
+#ifndef EM_MIPS_CHERI128
+#define EM_MIPS_CHERI128 0xC128
+#endif
 	if (hdr->e_machine != ELF_TARG_MACH &&
 	    hdr->e_machine != EM_MIPS_CHERI128) {
 #else
