@@ -472,7 +472,7 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 		return;
 	}
 #if HAVE_SUN_ACL
-	/* Check if Solars filesystem supports POSIX.1e ACLs */
+	/* Check if Solaris filesystem supports POSIX.1e ACLs */
 	n = facl_get(fd, 0, &acl);
 	if (n != 0)
 		close(fd);
