@@ -1431,7 +1431,7 @@ ffs_statfs(mp, sbp)
 	    fs->fs_cstotal.cs_nffree + dbtofsb(fs, fs->fs_pendingblocks);
 	sbp->f_bavail = freespace(fs, fs->fs_minfree) +
 	    dbtofsb(fs, fs->fs_pendingblocks);
-	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - ROOTINO;
+	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - UFS_ROOTINO;
 	sbp->f_ffree = fs->fs_cstotal.cs_nifree + fs->fs_pendinginodes;
 	UFS_UNLOCK(ump);
 	sbp->f_namemax = NAME_MAX;
@@ -1848,7 +1848,7 @@ ffs_fhtovp(mp, fhp, flags, vpp)
 	ino = ufhp->ufid_ino;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
-	if (ino < ROOTINO || ino >= fs->fs_ncg * fs->fs_ipg)
+	if (ino < UFS_ROOTINO || ino >= fs->fs_ncg * fs->fs_ipg)
 		return (ESTALE);
 	/*
 	 * Need to check if inode is initialized because UFS2 does lazy
