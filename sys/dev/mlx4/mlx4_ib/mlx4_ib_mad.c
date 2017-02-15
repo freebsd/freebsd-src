@@ -614,7 +614,7 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 		is_eth = 1;
 
 	if (is_eth) {
-		if (!wc->wc_flags & IB_WC_GRH) {
+		if (!(wc->wc_flags & IB_WC_GRH)) {
 			mlx4_ib_warn(ibdev, "RoCE grh not present.\n");
 			return -EINVAL;
 		}
