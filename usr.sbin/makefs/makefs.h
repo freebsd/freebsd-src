@@ -255,8 +255,8 @@ extern struct stat stampst;
 #define        DINODE1_SIZE    (sizeof(struct ufs1_dinode))
 #define        DINODE2_SIZE    (sizeof(struct ufs2_dinode))
 
-#define MAXSYMLINKLEN_UFS1     ((NDADDR + NIADDR) * sizeof(ufs1_daddr_t))
-#define MAXSYMLINKLEN_UFS2     ((NDADDR + NIADDR) * sizeof(ufs2_daddr_t))
+#define UFS1_MAXSYMLINKLEN   ((UFS_NDADDR + UFS_NIADDR) * sizeof(ufs1_daddr_t))
+#define UFS2_MAXSYMLINKLEN   ((UFS_NDADDR + UFS_NIADDR) * sizeof(ufs2_daddr_t))
 
 #if (BYTE_ORDER == LITTLE_ENDIAN)
 #define DIRSIZ_SWAP(oldfmt, dp, needswap)      \

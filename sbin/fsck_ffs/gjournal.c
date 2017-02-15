@@ -367,7 +367,7 @@ clear_inode(struct ufs2_dinode *dino)
 		osize = dino->di_extsize;
 		dino->di_blocks -= extblocks;
 		dino->di_extsize = 0;
-		for (i = 0; i < NXADDR; i++) {
+		for (i = 0; i < UFS_NXADDR; i++) {
 			if (dino->di_extb[i] == 0)
 				continue;
 			blkfree(dino->di_extb[i], sblksize(fs, osize, i));
@@ -383,7 +383,7 @@ clear_inode(struct ufs2_dinode *dino)
 		freeindir(dino->di_ib[level], level);
 	}
 	/* deallocate direct blocks and fragments */
-	for (i = 0; i < NDADDR; i++) {
+	for (i = 0; i < UFS_NDADDR; i++) {
 		bn = dino->di_db[i];
 		if (bn == 0)
 			continue;

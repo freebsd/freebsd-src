@@ -1053,7 +1053,7 @@ ufs_whiteout(ap)
 			panic("ufs_whiteout: old format filesystem");
 #endif
 
-		newdir.d_ino = WINO;
+		newdir.d_ino = UFS_WINO;
 		newdir.d_namlen = cnp->cn_namelen;
 		bcopy(cnp->cn_nameptr, newdir.d_name, (unsigned)cnp->cn_namelen + 1);
 		newdir.d_type = DT_WHT;
@@ -2564,7 +2564,7 @@ ufs_vinit(mntp, fifoops, vpp)
 	if (vp->v_type == VFIFO)
 		vp->v_op = fifoops;
 	ASSERT_VOP_LOCKED(vp, "ufs_vinit");
-	if (ip->i_number == ROOTINO)
+	if (ip->i_number == UFS_ROOTINO)
 		vp->v_vflag |= VV_ROOT;
 	*vpp = vp;
 	return (0);

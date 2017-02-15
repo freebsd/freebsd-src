@@ -74,7 +74,7 @@ ufs_root(mp, flags, vpp)
 	struct vnode *nvp;
 	int error;
 
-	error = VFS_VGET(mp, (ino_t)ROOTINO, flags, &nvp);
+	error = VFS_VGET(mp, (ino_t)UFS_ROOTINO, flags, &nvp);
 	if (error)
 		return (error);
 	*vpp = nvp;

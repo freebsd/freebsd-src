@@ -278,7 +278,7 @@ ffs_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 		errx(1, "Image file `%s' not created.", image);
 	TIMER_RESULTS(start, "ffs_create_image");
 
-	fsopts->curinode = ROOTINO;
+	fsopts->curinode = UFS_ROOTINO;
 
 	if (debug & DEBUG_FS_MAKEFS)
 		putchar('\n');
@@ -371,7 +371,7 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 
 		/* calculate size of tree */
 	ffs_size_dir(root, fsopts);
-	fsopts->inodes += ROOTINO;		/* include first two inodes */
+	fsopts->inodes += UFS_ROOTINO;		/* include first two inodes */
 
 	if (debug & DEBUG_FS_VALIDATE)
 		printf("ffs_validate: size of tree: %lld bytes, %lld inodes\n",
@@ -565,11 +565,11 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 		    (long long)fs->fs_cstotal.cs_ndir);
 	}
 
-	if (fs->fs_cstotal.cs_nifree + ROOTINO < fsopts->inodes) {
+	if (fs->fs_cstotal.cs_nifree + UFS_ROOTINO < fsopts->inodes) {
 		warnx(
 		"Image file `%s' has %lld free inodes; %lld are required.",
 		    image,
-		    (long long)(fs->fs_cstotal.cs_nifree + ROOTINO),
+		    (long long)(fs->fs_cstotal.cs_nifree + UFS_ROOTINO),
 		    (long long)fsopts->inodes);
 		return (-1);
 	}
@@ -636,8 +636,8 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 
 				slen = strlen(node->symlink) + 1;
 				if (slen >= (ffs_opts->version == 1 ?
-						MAXSYMLINKLEN_UFS1 :
-						MAXSYMLINKLEN_UFS2))
+						UFS1_MAXSYMLINKLEN :
+						UFS2_MAXSYMLINKLEN))
 					ADDSIZE(slen);
 			}
 		}
@@ -690,7 +690,7 @@ ffs_build_dinode1(struct ufs1_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 		    ufs_rw32(cur->inode->st.st_rdev, fsopts->needswap);
 	} else if (S_ISLNK(cur->type)) {	/* symlink */
 		slen = strlen(cur->symlink);
-		if (slen < MAXSYMLINKLEN_UFS1) {	/* short link */
+		if (slen < UFS1_MAXSYMLINKLEN) {	/* short link */
 			memcpy(dinp->di_db, cur->symlink, slen);
 		} else
 			membuf = cur->symlink;
@@ -742,7 +742,7 @@ ffs_build_dinode2(struct ufs2_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 		    ufs_rw64(cur->inode->st.st_rdev, fsopts->needswap);
 	} else if (S_ISLNK(cur->type)) {	/* symlink */
 		slen = strlen(cur->symlink);
-		if (slen < MAXSYMLINKLEN_UFS2) {	/* short link */
+		if (slen < UFS2_MAXSYMLINKLEN) {	/* short link */
 			memcpy(dinp->di_db, cur->symlink, slen);
 		} else
 			membuf = cur->symlink;

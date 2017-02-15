@@ -272,7 +272,7 @@ treescan(char *pname, ino_t ino, long (*todo)(char *, ino_t, int))
 }
 
 /*
- * Lookup a pathname which is always assumed to start from the ROOTINO.
+ * Lookup a pathname which is always assumed to start from the UFS_ROOTINO.
  */
 struct direct *
 pathsearch(const char *pathname)
@@ -283,7 +283,7 @@ pathsearch(const char *pathname)
 
 	strcpy(buffer, pathname);
 	path = buffer;
-	ino = ROOTINO;
+	ino = UFS_ROOTINO;
 	while (*path == '/')
 		path++;
 	dp = NULL;
@@ -632,7 +632,7 @@ setdirmodes(int flags)
 				ep->e_flags &= ~NEW;
 				continue;
 			}
-			if (node.ino == ROOTINO &&
+			if (node.ino == UFS_ROOTINO &&
 		   	    reply("set owner/mode for '.'") == FAIL)
 				continue;
 		}

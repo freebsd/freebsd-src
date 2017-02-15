@@ -97,12 +97,12 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	ufs1_daddr_t nb;
 	struct buf *bp, *nbp;
 	struct ufsmount *ump;
-	struct indir indirs[NIADDR + 2];
+	struct indir indirs[UFS_NIADDR + 2];
 	int deallocated, osize, nsize, num, i, error;
 	ufs2_daddr_t newb;
 	ufs1_daddr_t *bap, pref;
-	ufs1_daddr_t *allocib, *blkp, *allocblk, allociblk[NIADDR + 1];
-	ufs2_daddr_t *lbns_remfree, lbns[NIADDR + 1];
+	ufs1_daddr_t *allocib, *blkp, *allocblk, allociblk[UFS_NIADDR + 1];
+	ufs2_daddr_t *lbns_remfree, lbns[UFS_NIADDR + 1];
 	int unwindidx = -1;
 	int saved_inbdflush;
 	static struct timeval lastfail;
@@ -133,7 +133,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	 * this fragment has to be extended to be a full block.
 	 */
 	lastlbn = lblkno(fs, ip->i_size);
-	if (lastlbn < NDADDR && lastlbn < lbn) {
+	if (lastlbn < UFS_NDADDR && lastlbn < lbn) {
 		nb = lastlbn;
 		osize = blksize(fs, ip, nb);
 		if (osize < fs->fs_bsize && osize > 0) {
@@ -161,9 +161,9 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		}
 	}
 	/*
-	 * The first NDADDR blocks are direct blocks
+	 * The first UFS_NDADDR blocks are direct blocks
 	 */
-	if (lbn < NDADDR) {
+	if (lbn < UFS_NDADDR) {
 		if (flags & BA_METAONLY)
 			panic("ffs_balloc_ufs1: BA_METAONLY for direct block");
 		nb = dp->di_db[lbn];
@@ -265,8 +265,9 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
 		if (DOINGSOFTDEP(vp)) {
-			softdep_setup_allocdirect(ip, NDADDR + indirs[0].in_off,
-			    newb, 0, fs->fs_bsize, 0, bp);
+			softdep_setup_allocdirect(ip,
+			    UFS_NDADDR + indirs[0].in_off, newb, 0,
+			    fs->fs_bsize, 0, bp);
 			bdwrite(bp);
 		} else if ((flags & IO_SYNC) == 0 && DOINGASYNC(vp)) {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -383,7 +384,7 @@ retry:
 		 * the file. Otherwise it has been allocated in the metadata
 		 * area, so we want to find our own place out in the data area.
 		 */
-		if (pref == 0 || (lbn > NDADDR && fs->fs_metaspace != 0))
+		if (pref == 0 || (lbn > UFS_NDADDR && fs->fs_metaspace != 0))
 			pref = ffs_blkpref_ufs1(ip, lbn, indirs[i].in_off,
 			    &bap[0]);
 		error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
@@ -571,10 +572,10 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	struct fs *fs;
 	struct buf *bp, *nbp;
 	struct ufsmount *ump;
-	struct indir indirs[NIADDR + 2];
+	struct indir indirs[UFS_NIADDR + 2];
 	ufs2_daddr_t nb, newb, *bap, pref;
-	ufs2_daddr_t *allocib, *blkp, *allocblk, allociblk[NIADDR + 1];
-	ufs2_daddr_t *lbns_remfree, lbns[NIADDR + 1];
+	ufs2_daddr_t *allocib, *blkp, *allocblk, allociblk[UFS_NIADDR + 1];
+	ufs2_daddr_t *lbns_remfree, lbns[UFS_NIADDR + 1];
 	int deallocated, osize, nsize, num, i, error;
 	int unwindidx = -1;
 	int saved_inbdflush;
@@ -603,7 +604,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	 * Check for allocating external data.
 	 */
 	if (flags & IO_EXT) {
-		if (lbn >= NXADDR)
+		if (lbn >= UFS_NXADDR)
 			return (EFBIG);
 		/*
 		 * If the next write will extend the data into a new block,
@@ -717,7 +718,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	 * this fragment has to be extended to be a full block.
 	 */
 	lastlbn = lblkno(fs, ip->i_size);
-	if (lastlbn < NDADDR && lastlbn < lbn) {
+	if (lastlbn < UFS_NDADDR && lastlbn < lbn) {
 		nb = lastlbn;
 		osize = blksize(fs, ip, nb);
 		if (osize < fs->fs_bsize && osize > 0) {
@@ -744,9 +745,9 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		}
 	}
 	/*
-	 * The first NDADDR blocks are direct blocks
+	 * The first UFS_NDADDR blocks are direct blocks
 	 */
-	if (lbn < NDADDR) {
+	if (lbn < UFS_NDADDR) {
 		if (flags & BA_METAONLY)
 			panic("ffs_balloc_ufs2: BA_METAONLY for direct block");
 		nb = dp->di_db[lbn];
@@ -851,8 +852,9 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
 		if (DOINGSOFTDEP(vp)) {
-			softdep_setup_allocdirect(ip, NDADDR + indirs[0].in_off,
-			    newb, 0, fs->fs_bsize, 0, bp);
+			softdep_setup_allocdirect(ip,
+			    UFS_NDADDR + indirs[0].in_off, newb, 0,
+			    fs->fs_bsize, 0, bp);
 			bdwrite(bp);
 		} else if ((flags & IO_SYNC) == 0 && DOINGASYNC(vp)) {
 			if (bp->b_bufsize == fs->fs_bsize)
@@ -970,7 +972,7 @@ retry:
 		 * the file. Otherwise it has been allocated in the metadata
 		 * area, so we want to find our own place out in the data area.
 		 */
-		if (pref == 0 || (lbn > NDADDR && fs->fs_metaspace != 0))
+		if (pref == 0 || (lbn > UFS_NDADDR && fs->fs_metaspace != 0))
 			pref = ffs_blkpref_ufs2(ip, lbn, indirs[i].in_off,
 			    &bap[0]);
 		error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,

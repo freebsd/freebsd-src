@@ -183,8 +183,9 @@ ffs_truncate(vp, length, flags, cred)
 	struct ucred *cred;
 {
 	struct inode *ip;
-	ufs2_daddr_t bn, lbn, lastblock, lastiblock[NIADDR], indir_lbn[NIADDR];
-	ufs2_daddr_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
+	ufs2_daddr_t bn, lbn, lastblock, lastiblock[UFS_NIADDR];
+	ufs2_daddr_t indir_lbn[UFS_NIADDR], oldblks[UFS_NDADDR + UFS_NIADDR];
+	ufs2_daddr_t newblks[UFS_NDADDR + UFS_NIADDR];
 	ufs2_daddr_t count, blocksreleased = 0, datablocks, blkno;
 	struct bufobj *bo;
 	struct fs *fs;
@@ -260,14 +261,14 @@ ffs_truncate(vp, length, flags, cred)
 			osize = ip->i_din2->di_extsize;
 			ip->i_din2->di_blocks -= extblocks;
 			ip->i_din2->di_extsize = 0;
-			for (i = 0; i < NXADDR; i++) {
+			for (i = 0; i < UFS_NXADDR; i++) {
 				oldblks[i] = ip->i_din2->di_extb[i];
 				ip->i_din2->di_extb[i] = 0;
 			}
 			ip->i_flag |= IN_CHANGE;
 			if ((error = ffs_update(vp, waitforupdate)))
 				return (error);
-			for (i = 0; i < NXADDR; i++) {
+			for (i = 0; i < UFS_NXADDR; i++) {
 				if (oldblks[i] == 0)
 					continue;
 				ffs_blkfree(ump, fs, ITODEVVP(ip), oldblks[i],
@@ -338,14 +339,14 @@ ffs_truncate(vp, length, flags, cred)
 	lbn = lblkno(fs, length - 1);
 	if (length == 0) {
 		blkno = -1;
-	} else if (lbn < NDADDR) {
+	} else if (lbn < UFS_NDADDR) {
 		blkno = DIP(ip, i_db[lbn]);
 	} else {
 		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn), fs->fs_bsize,
 		    cred, BA_METAONLY, &bp);
 		if (error)
 			return (error);
-		indiroff = (lbn - NDADDR) % NINDIR(fs);
+		indiroff = (lbn - UFS_NDADDR) % NINDIR(fs);
 		if (I_IS_UFS1(ip))
 			blkno = ((ufs1_daddr_t *)(bp->b_data))[indiroff];
 		else
@@ -428,7 +429,7 @@ ffs_truncate(vp, length, flags, cred)
 		 * so that we do not get a soft updates inconsistency
 		 * when we create the fragment below.
 		 */
-		if (DOINGSOFTDEP(vp) && lbn < NDADDR &&
+		if (DOINGSOFTDEP(vp) && lbn < UFS_NDADDR &&
 		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
 		    (error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 			return (error);
@@ -456,7 +457,7 @@ ffs_truncate(vp, length, flags, cred)
 	 * the file is truncated to 0.
 	 */
 	lastblock = lblkno(fs, length + fs->fs_bsize - 1) - 1;
-	lastiblock[SINGLE] = lastblock - NDADDR;
+	lastiblock[SINGLE] = lastblock - UFS_NDADDR;
 	lastiblock[DOUBLE] = lastiblock[SINGLE] - NINDIR(fs);
 	lastiblock[TRIPLE] = lastiblock[DOUBLE] - NINDIR(fs) * NINDIR(fs);
 	nblocks = btodb(fs->fs_bsize);
@@ -467,13 +468,13 @@ ffs_truncate(vp, length, flags, cred)
 	 * normalized to -1 for calls to ffs_indirtrunc below.
 	 */
 	for (level = TRIPLE; level >= SINGLE; level--) {
-		oldblks[NDADDR + level] = DIP(ip, i_ib[level]);
+		oldblks[UFS_NDADDR + level] = DIP(ip, i_ib[level]);
 		if (lastiblock[level] < 0) {
 			DIP_SET(ip, i_ib[level], 0);
 			lastiblock[level] = -1;
 		}
 	}
-	for (i = 0; i < NDADDR; i++) {
+	for (i = 0; i < UFS_NDADDR; i++) {
 		oldblks[i] = DIP(ip, i_db[i]);
 		if (i > lastblock)
 			DIP_SET(ip, i_db[i], 0);
@@ -487,13 +488,13 @@ ffs_truncate(vp, length, flags, cred)
 	 * Note that we save the new block configuration so we can check it
 	 * when we are done.
 	 */
-	for (i = 0; i < NDADDR; i++) {
+	for (i = 0; i < UFS_NDADDR; i++) {
 		newblks[i] = DIP(ip, i_db[i]);
 		DIP_SET(ip, i_db[i], oldblks[i]);
 	}
-	for (i = 0; i < NIADDR; i++) {
-		newblks[NDADDR + i] = DIP(ip, i_ib[i]);
-		DIP_SET(ip, i_ib[i], oldblks[NDADDR + i]);
+	for (i = 0; i < UFS_NIADDR; i++) {
+		newblks[UFS_NDADDR + i] = DIP(ip, i_ib[i]);
+		DIP_SET(ip, i_ib[i], oldblks[UFS_NDADDR + i]);
 	}
 	ip->i_size = osize;
 	DIP_SET(ip, i_size, osize);
@@ -505,7 +506,7 @@ ffs_truncate(vp, length, flags, cred)
 	/*
 	 * Indirect blocks first.
 	 */
-	indir_lbn[SINGLE] = -NDADDR;
+	indir_lbn[SINGLE] = -UFS_NDADDR;
 	indir_lbn[DOUBLE] = indir_lbn[SINGLE] - NINDIR(fs) - 1;
 	indir_lbn[TRIPLE] = indir_lbn[DOUBLE] - NINDIR(fs) * NINDIR(fs) - 1;
 	for (level = TRIPLE; level >= SINGLE; level--) {
@@ -531,7 +532,7 @@ ffs_truncate(vp, length, flags, cred)
 	/*
 	 * All whole direct blocks or frags.
 	 */
-	for (i = NDADDR - 1; i > lastblock; i--) {
+	for (i = UFS_NDADDR - 1; i > lastblock; i--) {
 		long bsize;
 
 		bn = DIP(ip, i_db[i]);
@@ -579,9 +580,9 @@ ffs_truncate(vp, length, flags, cred)
 done:
 #ifdef INVARIANTS
 	for (level = SINGLE; level <= TRIPLE; level++)
-		if (newblks[NDADDR + level] != DIP(ip, i_ib[level]))
+		if (newblks[UFS_NDADDR + level] != DIP(ip, i_ib[level]))
 			panic("ffs_truncate1");
-	for (i = 0; i < NDADDR; i++)
+	for (i = 0; i < UFS_NDADDR; i++)
 		if (newblks[i] != DIP(ip, i_db[i]))
 			panic("ffs_truncate2");
 	BO_LOCK(bo);
