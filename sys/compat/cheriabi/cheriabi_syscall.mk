@@ -320,7 +320,7 @@ MIASM =  \
 	mkdirat.o \
 	mkfifoat.o \
 	mknodat.o \
-	openat.o \
+	cheriabi_openat.o \
 	readlinkat.o \
 	renameat.o \
 	symlinkat.o \

@@ -89,6 +89,9 @@ CTL_PROTO(config_utrace)
 CTL_PROTO(config_valgrind)
 CTL_PROTO(config_xmalloc)
 CTL_PROTO(opt_abort)
+#ifdef __CHERI_PURE_CAPABILITY__
+CTL_PROTO(opt_cheri_setbounds)
+#endif
 CTL_PROTO(opt_dss)
 CTL_PROTO(opt_lg_chunk)
 CTL_PROTO(opt_narenas)
@@ -266,6 +269,9 @@ static const ctl_named_node_t	config_node[] = {
 
 static const ctl_named_node_t opt_node[] = {
 	{NAME("abort"),		CTL(opt_abort)},
+#ifdef __CHERI_PURE_CAPABILITY__
+	{NAME("cheri_setbounds"), CTL(opt_cheri_setbounds)},
+#endif
 	{NAME("dss"),		CTL(opt_dss)},
 	{NAME("lg_chunk"),	CTL(opt_lg_chunk)},
 	{NAME("narenas"),	CTL(opt_narenas)},
@@ -1276,6 +1282,9 @@ CTL_RO_CONFIG_GEN(config_xmalloc, bool)
 /******************************************************************************/
 
 CTL_RO_NL_GEN(opt_abort, opt_abort, bool)
+#ifdef __CHERI_PURE_CAPABILITY__
+CTL_RO_NL_GEN(opt_cheri_setbounds, opt_cheri_setbounds, bool)
+#endif
 CTL_RO_NL_GEN(opt_dss, opt_dss, const char *)
 CTL_RO_NL_GEN(opt_lg_chunk, opt_lg_chunk, size_t)
 CTL_RO_NL_GEN(opt_narenas, opt_narenas, unsigned)

@@ -42,6 +42,7 @@ options 	SCHED_ULE
 options 	FFS			#Berkeley Fast Filesystem
 options 	MSDOSFS			#MSDOS Filesystem
 options 	GEOM_PART_MBR
+options 	TMPFS
 
 options 	SYSVSHM
 

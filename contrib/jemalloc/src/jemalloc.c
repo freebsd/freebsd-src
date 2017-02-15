@@ -50,6 +50,14 @@ bool	opt_xmalloc = false;
 bool	opt_zero = false;
 unsigned	opt_narenas = 0;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+#if defined(JEMALLOC_NO_PTR_BOUNDS)
+bool		opt_cheri_setbounds = false;
+#else
+bool		opt_cheri_setbounds = true;
+#endif
+#endif
+
 /* Initialized to true if the process is running inside Valgrind. */
 bool	in_valgrind;
 
@@ -267,11 +275,12 @@ typedef struct {
 #  define UTRACE(a, b, c)
 #endif
 
-#if defined(JEMALLOC_NO_PTR_BOUNDS) || !defined(__CHERI_PURE_CAPABILITY__)
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	BOUND_PTR(ptr, size)	(ptr)
 #else
 void *malloc_area;
-#define	BOUND_PTR(ptr, size)	cheri_csetbounds((ptr), (size))
+#define	BOUND_PTR(ptr, size)	\
+    (opt_cheri_setbounds ? cheri_csetbounds((ptr), (size)) : (ptr))
 #endif
 
 /******************************************************************************/
@@ -1303,6 +1312,10 @@ malloc_conf_init(void)
 				CONF_HANDLE_BOOL(opt_prof_leak, "prof_leak",
 				    true)
 			}
+#ifdef __CHERI_PURE_CAPABILITY__
+			CONF_HANDLE_BOOL(opt_cheri_setbounds,
+			    "cheri_setbounds", true);
+#endif
 			malloc_conf_error("Invalid conf pair", k, klen, v,
 			    vlen);
 #undef CONF_MATCH
@@ -1357,7 +1370,7 @@ malloc_init_hard_a0_locked()
 
 	malloc_initializer = INITIALIZER;
 
-#if !defined(JEMALLOC_NO_PTR_BOUNDS) && defined(__CHERI_PURE_CAPABILITY__)
+#ifdef __CHERI_PURE_CAPABILITY__
 	malloc_area = cheri_getdefault();
 #endif
 	if (config_prof)

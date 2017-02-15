@@ -862,6 +862,7 @@ INTERNAL_INC_DIRS=				\
 	include/rpcsvc				\
 	usr.sbin/amd/include
 INTERNAL_LIB_DIRS=				\
+	gnu/usr.bin/binutils/libopcodes		\
 	sbin/ipf/libipf				\
 	usr.sbin/amd/libamu			\
 	usr.sbin/bsnmpd/tools/libbsnmptools	\

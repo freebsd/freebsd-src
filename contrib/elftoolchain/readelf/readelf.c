@@ -2251,6 +2251,8 @@ dump_eflags(struct readelf *re, uint64_t e_flags)
 		case 0x99: printf(", 9000"); break;
 		case 0xa0: printf(", loongson-2e"); break;
 		case 0xa1: printf(", loongson-2f"); break;
+		case 0xc1: printf(", cheri128"); break;
+		case 0xc2: printf(", cheri256"); break;
 		default: break;
 		}
 		switch ((e_flags & 0x0000F000) >> 12) {
@@ -2258,6 +2260,7 @@ dump_eflags(struct readelf *re, uint64_t e_flags)
 		case 2: printf(", o64"); break;
 		case 3: printf(", eabi32"); break;
 		case 4: printf(", eabi64"); break;
+		case 5: printf(", cheriabi"); break;
 		default: break;
 		}
 		edesc = mips_eflags_desc;

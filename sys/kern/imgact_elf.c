@@ -926,7 +926,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			 * and gets mapped RO by the appropriate startup
 			 * code after initalization.
 			 */
-			if (brand_info->machine == EM_MIPS_CHERI &&
+			/* XXXAR: use PT_GNU_RELRO once we change to lld? */
+			if ((brand_info->sysvec->sv_flags & SV_CHERI) &&
 			    !(prot & PF_W)) {
 				prot |= PF_W;
 				/*
@@ -1090,6 +1091,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->interpreted = 0;
 	imgp->reloc_base = addr;
 	imgp->proc->p_osrel = osrel;
+	imgp->proc->p_elf_machine = hdr->e_machine;
+	imgp->proc->p_elf_flags = hdr->e_flags;
 
  ret:
 	free(interp_buf, M_TEMP);
@@ -1677,20 +1680,11 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	ehdr->e_ident[EI_ABIVERSION] = 0;
 	ehdr->e_ident[EI_PAD] = 0;
 	ehdr->e_type = ET_CORE;
-#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-	ehdr->e_machine = ELF_ARCH32;
-#else
-#ifdef CPU_CHERI
-	if (td->td_proc->p_sysent->sv_flags & SV_CHERI)
-		ehdr->e_machine = EM_MIPS_CHERI;
-	else
-#endif
-	ehdr->e_machine = ELF_ARCH;
-#endif
+	ehdr->e_machine = td->td_proc->p_elf_machine;
 	ehdr->e_version = EV_CURRENT;
 	ehdr->e_entry = 0;
 	ehdr->e_phoff = sizeof(Elf_Ehdr);
-	ehdr->e_flags = 0;
+	ehdr->e_flags = td->td_proc->p_elf_flags;
 	ehdr->e_ehsize = sizeof(Elf_Ehdr);
 	ehdr->e_phentsize = sizeof(Elf_Phdr);
 	ehdr->e_shentsize = sizeof(Elf_Shdr);

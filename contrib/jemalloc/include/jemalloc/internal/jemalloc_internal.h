@@ -314,7 +314,7 @@ typedef unsigned szind_t;
 #endif
 #define	PTR_MASK		(SIZEOF_PTR - 1)
 
-#if defined(JEMALLOC_NO_PTR_BOUNDS) || !defined(__CHERI_PURE_CAPABILITY__)
+#ifndef __CHERI_PURE_CAPABILITY__
 #define	UNBOUND_PTR(a)	(a)
 #else
 extern void *malloc_area;
@@ -468,6 +468,10 @@ extern bool	opt_utrace;
 extern bool	opt_xmalloc;
 extern bool	opt_zero;
 extern unsigned	opt_narenas;
+
+#ifdef __CHERI_PURE_CAPABILITY__
+extern bool	opt_cheri_setbounds;
+#endif
 
 extern bool	in_valgrind;
 

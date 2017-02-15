@@ -368,10 +368,29 @@ get_elf_header(int fd, const char *path, const struct stat *sbp)
 		_rtld_error("%s: unsupported file type", path);
 		goto error;
 	}
+	/* XXX: Remove once EM_MIPS_CHERI* are removed. */
+#ifdef _MIPS_ARCH_CHERI
+	if (hdr->e_machine != ELF_TARG_MACH &&
+	    hdr->e_machine != EM_MIPS_CHERI) {
+#elif defined(_MIPS_ARCH_CHERI128)
+#ifndef EM_MIPS_CHERI128
+#define EM_MIPS_CHERI128 0xC128
+#endif
+	if (hdr->e_machine != ELF_TARG_MACH &&
+	    hdr->e_machine != EM_MIPS_CHERI128) {
+#else
 	if (hdr->e_machine != ELF_TARG_MACH) {
+#endif
 		_rtld_error("%s: unsupported machine", path);
 		goto error;
 	}
+
+	/*
+	 * XXX: No checks are performed on e_flags.  This permits loading
+	 * "plain" MIPS shared libraries with CHERI binaries or mixing
+	 * 128-bit and 256-bit.  At some point, e_flags validation should
+	 * be added.
+	 */
 
 	/*
 	 * We rely on the program header being in the first page.  This is

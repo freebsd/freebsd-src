@@ -859,7 +859,7 @@ struct {
 	[CHERIABI_SYS_mknodat] = {
 		.sam_ptrmask = 0x2
 	},
-	[CHERIABI_SYS_openat] = {
+	[CHERIABI_SYS_cheriabi_openat] = {
 		.sam_ptrmask = 0x2
 	},
 	[CHERIABI_SYS_readlinkat] = {

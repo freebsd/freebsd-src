@@ -5081,6 +5081,8 @@ elf_mips_abi_name (bfd *abfd)
       return "EABI32";
     case E_MIPS_ABI_EABI64:
       return "EABI64";
+    case E_MIPS_ABI_CHERIABI:
+      return "CheriABI";
     default:
       return "unknown abi";
     }
@@ -11343,6 +11345,8 @@ _bfd_mips_elf_print_private_bfd_data (bfd *abfd, void *ptr)
     fprintf (file, _(" [abi=EABI32]"));
   else if ((elf_elfheader (abfd)->e_flags & EF_MIPS_ABI) == E_MIPS_ABI_EABI64)
     fprintf (file, _(" [abi=EABI64]"));
+  else if ((elf_elfheader (abfd)->e_flags & EF_MIPS_ABI) == E_MIPS_ABI_CHERIABI)
+    fprintf (file, _(" [abi=CheriABI]"));
   else if ((elf_elfheader (abfd)->e_flags & EF_MIPS_ABI))
     fprintf (file, _(" [abi unknown]"));
   else if (ABI_N32_P (abfd))
@@ -11375,6 +11379,11 @@ _bfd_mips_elf_print_private_bfd_data (bfd *abfd, void *ptr)
 
   if (elf_elfheader (abfd)->e_flags & EF_MIPS_ARCH_ASE_MDMX)
     fprintf (file, " [mdmx]");
+
+  if ((elf_elfheader (abfd)->e_flags & EF_MIPS_MACH) == E_MIPS_MACH_CHERI128)
+    fprintf (file, " [cheri128]");
+  else if ((elf_elfheader (abfd)->e_flags & EF_MIPS_MACH) == E_MIPS_MACH_CHERI256)
+    fprintf (file, " [cheri256]");
 
   if (elf_elfheader (abfd)->e_flags & EF_MIPS_ARCH_ASE_M16)
     fprintf (file, " [mips16]");
