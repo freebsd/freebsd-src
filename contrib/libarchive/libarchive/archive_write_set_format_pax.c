@@ -1166,7 +1166,8 @@ archive_write_pax_header(struct archive_write *a,
 		if ((acl_types & ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0) {
 			ret = add_pax_acl(a, entry_original, pax,
 			    ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID |
-			    ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA);
+			    ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA |
+			    ARCHIVE_ENTRY_ACL_STYLE_COMPACT);
 			if (ret == ARCHIVE_FATAL)
 				return (ARCHIVE_FATAL);
 		}

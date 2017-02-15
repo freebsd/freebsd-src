@@ -221,7 +221,14 @@ const char* acltext[] = {
 	"group:group78:r-----a-R-c---:------I:allow:78\n"
 	"owner@:rwxp--aARWcCo-:-------:allow\n"
 	"group@:rw-p--a-R-c---:-------:allow\n"
-	"everyone@:r-----a-R-c--s:-------:allow"
+	"everyone@:r-----a-R-c--s:-------:allow",
+
+	"user:user77:rwpaRco::allow:77\n"
+	"user:user101:wpdD:fdin:deny:101\n"
+	"group:group78:raRc:I:allow:78\n"
+	"owner@:rwxpaARWcCo::allow\n"
+	"group@:rwpaRc::allow\n"
+	"everyone@:raRcs::allow"
 };
 
 static wchar_t *
@@ -457,6 +464,10 @@ DEFINE_TEST(test_acl_to_text)
 
 	/* NFSv4 ACLs like "getfacl -i" on FreeBSD */
 	compare_acl_text(ae, ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID, acltext[10]);
+
+	/* NFSv4 ACLs like "getfacl -i" on FreeBSD with stripped minus chars */
+	compare_acl_text(ae, ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID |
+	    ARCHIVE_ENTRY_ACL_STYLE_COMPACT, acltext[11]);
 
 	archive_entry_free(ae);
 }
