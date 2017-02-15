@@ -758,7 +758,7 @@ ino_blkatoff(union dinode *ip, ino_t ino, ufs_lbn_t lbn, int *frags)
 	/*
 	 * Handle extattr blocks first.
 	 */
-	if (lbn < 0 && lbn >= -NXADDR) {
+	if (lbn < 0 && lbn >= -UFS_NXADDR) {
 		lbn = -1 - lbn;
 		if (lbn > lblkno(fs, ip->dp2.di_extsize - 1))
 			return (0);
@@ -771,13 +771,13 @@ ino_blkatoff(union dinode *ip, ino_t ino, ufs_lbn_t lbn, int *frags)
 	if (DIP(ip, di_mode) == IFLNK &&
 	    DIP(ip, di_size) < fs->fs_maxsymlinklen)
 		return (0);
-	if (lbn >= 0 && lbn < NDADDR) {
+	if (lbn >= 0 && lbn < UFS_NDADDR) {
 		*frags = numfrags(fs, sblksize(fs, DIP(ip, di_size), lbn));
 		return (DIP(ip, di_db[lbn]));
 	}
 	*frags = fs->fs_frag;
 
-	for (i = 0, tmpval = NINDIR(fs), cur = NDADDR; i < NIADDR; i++,
+	for (i = 0, tmpval = NINDIR(fs), cur = UFS_NDADDR; i < UFS_NIADDR; i++,
 	    tmpval *= NINDIR(fs), cur = next) {
 		next = cur + tmpval;
 		if (lbn == -cur - i)
@@ -1037,7 +1037,7 @@ ino_visit(union dinode *ip, ino_t ino, ino_visitor visitor, int flags)
 	fragcnt = 0;
 	if ((flags & VISIT_EXT) &&
 	    fs->fs_magic == FS_UFS2_MAGIC && ip->dp2.di_extsize) {
-		for (i = 0; i < NXADDR; i++) {
+		for (i = 0; i < UFS_NXADDR; i++) {
 			if (ip->dp2.di_extb[i] == 0)
 				continue;
 			frags = sblksize(fs, ip->dp2.di_extsize, i);
@@ -1050,7 +1050,7 @@ ino_visit(union dinode *ip, ino_t ino, ino_visitor visitor, int flags)
 	if (mode == IFBLK || mode == IFCHR ||
 	    (mode == IFLNK && size < fs->fs_maxsymlinklen))
 		return (fragcnt);
-	for (i = 0; i < NDADDR; i++) {
+	for (i = 0; i < UFS_NDADDR; i++) {
 		if (DIP(ip, di_db[i]) == 0)
 			continue;
 		frags = sblksize(fs, size, i);
@@ -1063,7 +1063,7 @@ ino_visit(union dinode *ip, ino_t ino, ino_visitor visitor, int flags)
 	 * real pointers to them.
 	 */
 	flags |= VISIT_ROOT;
-	for (i = 0, tmpval = NINDIR(fs), lbn = NDADDR; i < NIADDR; i++,
+	for (i = 0, tmpval = NINDIR(fs), lbn = UFS_NDADDR; i < UFS_NIADDR; i++,
 	    lbn = nextlbn) {
 		nextlbn = lbn + tmpval;
 		tmpval *= NINDIR(fs);
@@ -1123,7 +1123,7 @@ ino_adjblks(struct suj_ino *sino)
 	 * to the size in the inode or the maximum size permitted by
 	 * populated indirects.
 	 */
-	if (visitlbn >= NDADDR) {
+	if (visitlbn >= UFS_NDADDR) {
 		isize = DIP(ip, di_size);
 		size = lblktosize(fs, visitlbn + 1);
 		if (isize > size)
@@ -1161,7 +1161,7 @@ blk_free_lbn(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags, int follow)
 
 	mask = blk_freemask(blk, ino, lbn, frags);
 	resid = 0;
-	if (lbn <= -NDADDR && follow && mask == 0)
+	if (lbn <= -UFS_NDADDR && follow && mask == 0)
 		indir_visit(ino, lbn, blk, &resid, blk_free_visit, VISIT_INDIR);
 	else
 		blk_free(blk, mask, frags);
@@ -1253,7 +1253,7 @@ ino_free_children(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 	dp = (struct direct *)&block[0];
 	for (dpoff = 0; dpoff < size && dp->d_reclen; dpoff += dp->d_reclen) {
 		dp = (struct direct *)&block[dpoff];
-		if (dp->d_ino == 0 || dp->d_ino == WINO)
+		if (dp->d_ino == 0 || dp->d_ino == UFS_WINO)
 			continue;
 		if (dp->d_namlen == 1 && dp->d_name[0] == '.')
 			continue;
@@ -1278,8 +1278,8 @@ ino_reclaim(union dinode *ip, ino_t ino, int mode)
 {
 	uint32_t gen;
 
-	if (ino == ROOTINO)
-		err_suj("Attempting to free ROOTINO\n");
+	if (ino == UFS_ROOTINO)
+		err_suj("Attempting to free UFS_ROOTINO\n");
 	if (debug)
 		printf("Truncating and freeing ino %ju, nlink %d, mode %o\n",
 		    (uintmax_t)ino, DIP(ip, di_nlink), DIP(ip, di_mode));
@@ -1540,7 +1540,7 @@ ino_trunc(ino_t ino, off_t size)
 	if (size > cursize)
 		size = cursize;
 	lastlbn = lblkno(fs, blkroundup(fs, size));
-	for (i = lastlbn; i < NDADDR; i++) {
+	for (i = lastlbn; i < UFS_NDADDR; i++) {
 		if (DIP(ip, di_db[i]) == 0)
 			continue;
 		frags = sblksize(fs, cursize, i);
@@ -1551,7 +1551,7 @@ ino_trunc(ino_t ino, off_t size)
 	/*
 	 * Follow indirect blocks, freeing anything required.
 	 */
-	for (i = 0, tmpval = NINDIR(fs), lbn = NDADDR; i < NIADDR; i++,
+	for (i = 0, tmpval = NINDIR(fs), lbn = UFS_NDADDR; i < UFS_NIADDR; i++,
 	    lbn = nextlbn) {
 		nextlbn = lbn + tmpval;
 		tmpval *= NINDIR(fs);
@@ -1583,7 +1583,7 @@ ino_trunc(ino_t ino, off_t size)
 	 * If we're truncating direct blocks we have to adjust frags
 	 * accordingly.
 	 */
-	if (visitlbn < NDADDR && totalfrags) {
+	if (visitlbn < UFS_NDADDR && totalfrags) {
 		long oldspace, newspace;
 
 		bn = DIP(ip, di_db[visitlbn]);
@@ -2655,7 +2655,8 @@ suj_find(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 		return;
 	bytes = lfragtosize(fs, frags);
 	if (bread(disk, fsbtodb(fs, blk), block, bytes) <= 0)
-		err_suj("Failed to read ROOTINO directory block %jd\n", blk);
+		err_suj("Failed to read UFS_ROOTINO directory block %jd\n",
+		    blk);
 	for (off = 0; off < bytes; off += dp->d_reclen) {
 		dp = (struct direct *)&block[off];
 		if (dp->d_reclen == 0)
@@ -2708,9 +2709,9 @@ suj_check(const char *filesys)
 	/*
 	 * Find the journal inode.
 	 */
-	ip = ino_read(ROOTINO);
+	ip = ino_read(UFS_ROOTINO);
 	sujino = 0;
-	ino_visit(ip, ROOTINO, suj_find, 0);
+	ino_visit(ip, UFS_ROOTINO, suj_find, 0);
 	if (sujino == 0) {
 		printf("Journal inode removed.  Use tunefs to re-create.\n");
 		sblock.fs_flags &= ~FS_SUJ;

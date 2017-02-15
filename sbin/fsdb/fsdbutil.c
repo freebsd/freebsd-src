@@ -292,13 +292,13 @@ printblocks(ino_t inum, union dinode *dp)
     printf("Blocks for inode %ju:\n", (uintmax_t)inum);
     printf("Direct blocks:\n");
     ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
-    for (i = 0; i < NDADDR && i < ndb; i++) {
+    for (i = 0; i < UFS_NDADDR && i < ndb; i++) {
 	if (i > 0)
 	    printf(", ");
 	blkno = DIP(dp, di_db[i]);
 	printf("%jd", (intmax_t)blkno);
     }
-    if (ndb <= NDADDR) {
+    if (ndb <= UFS_NDADDR) {
 	offset = blkoff(&sblock, DIP(dp, di_size));
 	if (offset != 0) {
 	    nfrags = numfrags(&sblock, fragroundup(&sblock, offset));
@@ -306,14 +306,14 @@ printblocks(ino_t inum, union dinode *dp)
 	}
     }
     putchar('\n');
-    if (ndb <= NDADDR)
+    if (ndb <= UFS_NDADDR)
 	return;
 
     bufp = malloc((unsigned int)sblock.fs_bsize);
     if (bufp == NULL)
 	errx(EEXIT, "cannot allocate indirect block buffer");
     printf("Indirect blocks:\n");
-    for (i = 0; i < NIADDR; i++)
+    for (i = 0; i < UFS_NIADDR; i++)
 	printindir(DIP(dp, di_ib[i]), i, bufp);
     free(bufp);
 }

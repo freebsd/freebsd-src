@@ -671,7 +671,7 @@ dir_search(ufs2_daddr_t blk, int bytes)
 }
 
 /*
- * Search in the ROOTINO for the SUJ_FILE.  If it exists we can not enable
+ * Search in the UFS_ROOTINO for the SUJ_FILE.  If it exists we can not enable
  * journaling.
  */
 static ino_t
@@ -684,18 +684,18 @@ journal_findfile(void)
 	void *ip;
 	int i;
 
-	if (getino(&disk, &ip, ROOTINO, &mode) != 0) {
+	if (getino(&disk, &ip, UFS_ROOTINO, &mode) != 0) {
 		warn("Failed to get root inode");
 		return (-1);
 	}
 	dp2 = ip;
 	dp1 = ip;
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
-		if ((off_t)dp1->di_size >= lblktosize(&sblock, NDADDR)) {
-			warnx("ROOTINO extends beyond direct blocks.");
+		if ((off_t)dp1->di_size >= lblktosize(&sblock, UFS_NDADDR)) {
+			warnx("UFS_ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}
-		for (i = 0; i < NDADDR; i++) {
+		for (i = 0; i < UFS_NDADDR; i++) {
 			if (dp1->di_db[i] == 0)
 				break;
 			if ((ino = dir_search(dp1->di_db[i],
@@ -703,11 +703,11 @@ journal_findfile(void)
 				return (ino);
 		}
 	} else {
-		if ((off_t)dp2->di_size >= lblktosize(&sblock, NDADDR)) {
-			warnx("ROOTINO extends beyond direct blocks.");
+		if ((off_t)dp2->di_size >= lblktosize(&sblock, UFS_NDADDR)) {
+			warnx("UFS_ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}
-		for (i = 0; i < NDADDR; i++) {
+		for (i = 0; i < UFS_NDADDR; i++) {
 			if (dp2->di_db[i] == 0)
 				break;
 			if ((ino = dir_search(dp2->di_db[i],
@@ -787,7 +787,7 @@ dir_extend(ufs2_daddr_t blk, ufs2_daddr_t nblk, off_t size, ino_t ino)
 }
 
 /*
- * Insert the journal file into the ROOTINO directory.  We always extend the
+ * Insert the journal file into the UFS_ROOTINO directory.  We always extend the
  * last frag
  */
 static int
@@ -803,7 +803,7 @@ journal_insertfile(ino_t ino)
 	int mode;
 	int off;
 
-	if (getino(&disk, &ip, ROOTINO, &mode) != 0) {
+	if (getino(&disk, &ip, UFS_ROOTINO, &mode) != 0) {
 		warn("Failed to get root inode");
 		sbdirty();
 		return (-1);
@@ -816,7 +816,7 @@ journal_insertfile(ino_t ino)
 	if (nblk <= 0)
 		return (-1);
 	/*
-	 * For simplicity sake we aways extend the ROOTINO into a new
+	 * For simplicity sake we aways extend the UFS_ROOTINO into a new
 	 * directory block rather than searching for space and inserting
 	 * into an existing block.  However, if the rootino has frags
 	 * have to free them and extend the block.
@@ -1036,7 +1036,7 @@ journal_alloc(int64_t size)
 			dp2->di_ctime = utime;
 			dp2->di_birthtime = utime;
 		}
-		for (i = 0; i < NDADDR && resid; i++, resid--) {
+		for (i = 0; i < UFS_NDADDR && resid; i++, resid--) {
 			blk = journal_balloc();
 			if (blk <= 0)
 				goto out;
@@ -1048,7 +1048,7 @@ journal_alloc(int64_t size)
 				dp2->di_blocks++;
 			}
 		}
-		for (i = 0; i < NIADDR && resid; i++) {
+		for (i = 0; i < UFS_NIADDR && resid; i++) {
 			blk = journal_balloc();
 			if (blk <= 0)
 				goto out;
