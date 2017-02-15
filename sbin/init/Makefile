@@ -1,9 +1,6 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
 # $FreeBSD$
 
-# broken: reaping children results in an endless loop of faults
-WANT_CHERI=none
-
 PACKAGE=runtime
 PROG=	init
 SRCS=	init.c getmntopts.c

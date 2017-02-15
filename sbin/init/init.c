@@ -83,6 +83,10 @@ static const char rcsid[] =
 #include "mntopts.h"
 #include "pathnames.h"
 
+#ifndef __CHERI_PURE_CAPABILITY__
+#define	BDB_SESSION_DATABASE
+#endif
+
 /*
  * Sleep times; used to prevent thrashing.
  */
@@ -189,7 +193,12 @@ static int start_session_db(void);
 static void add_session(session_t *);
 static void del_session(session_t *);
 static session_t *find_session(pid_t);
+#ifdef BDB_SESSION_DATABASE
 static DB *session_db;
+#else
+/* PID_MAX == 99999, should use sysctl */
+static session_t *session_db[99999];
+#endif
 
 /*
  * The mother of all processes.
@@ -1142,6 +1151,7 @@ run_script(const char *script)
 	return (state_func_t) 0;
 }
 
+#ifdef BDB_SESSION_DATABASE
 /*
  * Open the session database.
  *
@@ -1210,6 +1220,58 @@ find_session(pid_t pid)
 	bcopy(data.data, (char *)&ret, sizeof(ret));
 	return ret;
 }
+#else /* BDB_SESSION_DATABASE */
+static int
+start_session_db(void)
+{
+
+	/* Zeroed with .bss */
+	return (0);
+}
+
+static void
+add_session(session_t *sp)
+{
+
+	if (sp->se_process < 0)
+		emergency("%s: pid %d is negative\n", __func__, sp->se_process);
+	if ((size_t)sp->se_process >= sizeof(session_db) / sizeof(*session_db))
+		emergency("%s: pid %d too large\n", __func__, sp->se_process);
+
+	if (session_db[sp->se_process] != NULL)
+		emergency("%s: session for pid %d already registered\n",
+		    __func__, sp->se_process);
+
+	session_db[sp->se_process] = sp;
+}
+
+static void
+del_session(session_t *sp)
+{
+
+	if (sp->se_process < 0)
+		emergency("%s: pid %d is negative\n", __func__, sp->se_process);
+	if ((size_t)sp->se_process >= sizeof(session_db) / sizeof(*session_db))
+		emergency("%s: pid %d too large\n", __func__, sp->se_process);
+
+	if (session_db[sp->se_process] != sp)
+		emergency("%s: A different session is registered for pid %d\n",
+		     __func__, sp->se_process);
+
+	session_db[sp->se_process] = NULL;
+}
+
+static session_t *
+find_session(pid_t pid)
+{
+	if (pid < 0)
+		emergency("%s: pid %d is negative\n", __func__, pid);
+	if ((size_t)pid >= sizeof(session_db) / sizeof(*session_db))
+		emergency("%s: pid %d too large\n", __func__, pid);
+
+	return (session_db[pid]);
+}
+#endif /* !BDB_SESSION_DATABASE */
 
 /*
  * Construct an argument vector from a command line.
