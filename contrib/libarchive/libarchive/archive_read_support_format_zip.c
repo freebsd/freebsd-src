@@ -452,26 +452,38 @@ process_extra(struct archive_read *a, const char *p, size_t extra_length, struct
 			/* Zip64 extended information extra field. */
 			zip_entry->flags |= LA_USED_ZIP64;
 			if (zip_entry->uncompressed_size == 0xffffffff) {
-				if (datasize < 8)
-					break;
-				zip_entry->uncompressed_size =
-				    archive_le64dec(p + offset);
+				uint64_t t = 0;
+				if (datasize < 8
+				    || (t = archive_le64dec(p + offset)) > INT64_MAX) {
+					archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+					    "Malformed 64-bit uncompressed size");
+					return ARCHIVE_FAILED;
+				}
+				zip_entry->uncompressed_size = t;
 				offset += 8;
 				datasize -= 8;
 			}
 			if (zip_entry->compressed_size == 0xffffffff) {
-				if (datasize < 8)
-					break;
-				zip_entry->compressed_size =
-				    archive_le64dec(p + offset);
+				uint64_t t = 0;
+				if (datasize < 8
+				    || (t = archive_le64dec(p + offset)) > INT64_MAX) {
+					archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+					    "Malformed 64-bit compressed size");
+					return ARCHIVE_FAILED;
+				}
+				zip_entry->compressed_size = t;
 				offset += 8;
 				datasize -= 8;
 			}
 			if (zip_entry->local_header_offset == 0xffffffff) {
-				if (datasize < 8)
-					break;
-				zip_entry->local_header_offset =
-				    archive_le64dec(p + offset);
+				uint64_t t = 0;
+				if (datasize < 8
+				    || (t = archive_le64dec(p + offset)) > INT64_MAX) {
+					archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+					    "Malformed 64-bit local header offset");
+					return ARCHIVE_FAILED;
+				}
+				zip_entry->local_header_offset = t;
 				offset += 8;
 				datasize -= 8;
 			}
@@ -1156,11 +1168,18 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 			|| (zip->hctx_valid
 			 && zip->entry->aes_extra.vendor == AES_VENDOR_AE_2))) {
 			if (zip->entry->flags & LA_USED_ZIP64) {
+				uint64_t compressed, uncompressed;
 				zip->entry->crc32 = archive_le32dec(p + 4);
-				zip->entry->compressed_size =
-					archive_le64dec(p + 8);
-				zip->entry->uncompressed_size =
-					archive_le64dec(p + 16);
+				compressed = archive_le64dec(p + 8);
+				uncompressed = archive_le64dec(p + 16);
+				if (compressed > INT64_MAX || uncompressed > INT64_MAX) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_FILE_FORMAT,
+					    "Overflow of 64-bit file sizes");
+					return ARCHIVE_FAILED;
+				}
+				zip->entry->compressed_size = compressed;
+				zip->entry->uncompressed_size = uncompressed;
 				zip->unconsumed = 24;
 			} else {
 				zip->entry->crc32 = archive_le32dec(p + 4);
@@ -1437,9 +1456,18 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 			zip->unconsumed = 4;
 		}
 		if (zip->entry->flags & LA_USED_ZIP64) {
+			uint64_t compressed, uncompressed;
 			zip->entry->crc32 = archive_le32dec(p);
-			zip->entry->compressed_size = archive_le64dec(p + 4);
-			zip->entry->uncompressed_size = archive_le64dec(p + 12);
+			compressed = archive_le64dec(p + 4);
+			uncompressed = archive_le64dec(p + 12);
+			if (compressed > INT64_MAX || uncompressed > INT64_MAX) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Overflow of 64-bit file sizes");
+				return ARCHIVE_FAILED;
+			}
+			zip->entry->compressed_size = compressed;
+			zip->entry->uncompressed_size = uncompressed;
 			zip->unconsumed += 20;
 		} else {
 			zip->entry->crc32 = archive_le32dec(p);
