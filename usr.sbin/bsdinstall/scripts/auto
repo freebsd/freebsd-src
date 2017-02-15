@@ -449,9 +449,11 @@ finalconfig
 trap error SIGINT	# SIGINT is bad again
 bsdinstall config  || error "Failed to save config"
 
+if [ -n "$DISTDIR_IS_UNIONFS" ]; then
+	umount -f $BSDINSTALL_DISTDIR
+fi
+
 if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
-	[ "$BSDINSTALL_FETCHDEST" != "$BSDINSTALL_DISTDIR" ] && \
-	    umount "$BSDINSTALL_DISTDIR"
 	rm -rf "$BSDINSTALL_FETCHDEST"
 fi
 
@@ -460,7 +462,6 @@ dialog --backtitle "FreeBSD Installer" --title "Manual Configuration" \
    "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
 if [ $? -eq 0 ]; then
 	clear
-	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"
 	echo This shell is operating in a chroot in the new system. \
 	    When finished making configuration changes, type \"exit\".
 	chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1
