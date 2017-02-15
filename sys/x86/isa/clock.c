@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_clock.h"
 #include "opt_isa.h"
-#include "opt_mca.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,10 +70,6 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ISA
 #include <isa/isareg.h>
 #include <isa/isavar.h>
-#endif
-
-#ifdef DEV_MCA
-#include <i386/bios/mca_machdep.h>
 #endif
 
 int	clkintr_pending;
@@ -153,11 +148,6 @@ clkintr(void *arg)
 	if (sc->et.et_active && sc->mode != MODE_STOP)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
-#ifdef DEV_MCA
-	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
-	if (MCA_system)
-		outb(0x61, inb(0x61) | 0x80);
-#endif
 	return (FILTER_HANDLED);
 }
 
