@@ -112,21 +112,17 @@
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  *     ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  *     THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __XGBE_H__
 #define __XGBE_H__
 
-#include <linux/dma-mapping.h>
-#include <linux/netdevice.h>
-#include <linux/workqueue.h>
-#include <linux/phy.h>
-#include <linux/if_vlan.h>
-#include <linux/bitops.h>
-#include <linux/ptp_clock_kernel.h>
-#include <linux/timecounter.h>
-#include <linux/net_tstamp.h>
-#include <net/dcbnl.h>
+#include "xgbe_osdep.h"
+
+/* From linux/dcbnl.h */
+#define IEEE_8021QAZ_MAX_TCS	8
 
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.2"
@@ -151,7 +147,7 @@
  */
 #define XGBE_TX_MAX_DESCS	(MAX_SKB_FRAGS + XGBE_TX_MAX_SPLIT + 2)
 
-#define XGBE_RX_MIN_BUF_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
+#define XGBE_RX_MIN_BUF_SIZE	1522
 #define XGBE_RX_BUF_ALIGN	64
 #define XGBE_SKB_ALLOC_SIZE	256
 #define XGBE_SPH_HDSMS_SIZE	2	/* Keep in sync with SKB_ALLOC_SIZE */
@@ -288,7 +284,7 @@
 struct xgbe_prv_data;
 
 struct xgbe_packet_data {
-	struct sk_buff *skb;
+	struct mbuf *m;
 
 	unsigned int attributes;
 
@@ -297,17 +293,7 @@ struct xgbe_packet_data {
 	unsigned int rdesc_count;
 	unsigned int length;
 
-	unsigned int header_len;
-	unsigned int tcp_header_len;
-	unsigned int tcp_payload_len;
-	unsigned short mss;
-
-	unsigned short vlan_ctag;
-
 	u64 rx_tstamp;
-
-	u32 rss_hash;
-	enum pkt_hash_types rss_hash_type;
 
 	unsigned int tx_packets;
 	unsigned int tx_bytes;
@@ -321,25 +307,6 @@ struct xgbe_ring_desc {
 	__le32 desc3;
 };
 
-/* Page allocation related values */
-struct xgbe_page_alloc {
-	struct page *pages;
-	unsigned int pages_len;
-	unsigned int pages_offset;
-
-	dma_addr_t pages_dma;
-};
-
-/* Ring entry buffer data */
-struct xgbe_buffer_data {
-	struct xgbe_page_alloc pa;
-	struct xgbe_page_alloc pa_unmap;
-
-	dma_addr_t dma_base;
-	unsigned long dma_off;
-	unsigned int dma_len;
-};
-
 /* Tx-related ring data */
 struct xgbe_tx_ring_data {
 	unsigned int packets;		/* BQL packet count */
@@ -348,9 +315,6 @@ struct xgbe_tx_ring_data {
 
 /* Rx-related ring data */
 struct xgbe_rx_ring_data {
-	struct xgbe_buffer_data hdr;	/* Header locations */
-	struct xgbe_buffer_data buf;	/* Payload locations */
-
 	unsigned short hdr_len;		/* Length of received header */
 	unsigned short len;		/* Length of received packet */
 };
@@ -361,28 +325,19 @@ struct xgbe_rx_ring_data {
  */
 struct xgbe_ring_data {
 	struct xgbe_ring_desc *rdesc;	/* Virtual address of descriptor */
-	dma_addr_t rdesc_dma;		/* DMA address of descriptor */
+	bus_addr_t rdata_paddr;
 
-	struct sk_buff *skb;		/* Virtual address of SKB */
-	dma_addr_t skb_dma;		/* DMA address of SKB data */
-	unsigned int skb_dma_len;	/* Length of SKB DMA area */
+	bus_dma_tag_t mbuf_dmat;
+	bus_dmamap_t mbuf_map;
+	bus_addr_t mbuf_hdr_paddr;
+	bus_addr_t mbuf_data_paddr;
+	bus_size_t mbuf_len;
+
+	int mbuf_free;
+	struct mbuf *mb;
 
 	struct xgbe_tx_ring_data tx;	/* Tx-related data */
 	struct xgbe_rx_ring_data rx;	/* Rx-related data */
-
-	unsigned int mapped_as_page;
-
-	/* Incomplete receive save location.  If the budget is exhausted
-	 * or the last descriptor (last normal descriptor or a following
-	 * context descriptor) has not been DMA'd yet the current state
-	 * of the receive processing needs to be saved.
-	 */
-	unsigned int state_saved;
-	struct {
-		struct sk_buff *skb;
-		unsigned int len;
-		unsigned int error;
-	} state;
 };
 
 struct xgbe_ring {
@@ -394,17 +349,18 @@ struct xgbe_ring {
 
 	/* Virtual/DMA addresses and count of allocated descriptor memory */
 	struct xgbe_ring_desc *rdesc;
-	dma_addr_t rdesc_dma;
+	bus_dmamap_t rdesc_map;
+	bus_dma_tag_t rdesc_dmat;
+	bus_addr_t rdesc_paddr;
 	unsigned int rdesc_count;
+
+	bus_dma_tag_t mbuf_dmat;
+	bus_dmamap_t mbuf_map;
 
 	/* Array of descriptor data corresponding the descriptor memory
 	 * (always use the XGBE_GET_DESC_DATA macro to access this data)
 	 */
 	struct xgbe_ring_data *rdata;
-
-	/* Page allocation for RX buffers */
-	struct xgbe_page_alloc rx_hdr_pa;
-	struct xgbe_page_alloc rx_buf_pa;
 
 	/* Ring index values
 	 *  cur   - Tx: index of descriptor to be used for current transfer
@@ -426,7 +382,7 @@ struct xgbe_ring {
 			unsigned short cur_vlan_ctag;
 		} tx;
 	};
-} ____cacheline_aligned;
+} __aligned(CACHE_LINE_SIZE);
 
 /* Structure used to describe the descriptor rings associated with
  * a DMA channel.
@@ -439,23 +395,18 @@ struct xgbe_channel {
 
 	/* Queue index and base address of queue's DMA registers */
 	unsigned int queue_index;
-	void __iomem *dma_regs;
+	bus_space_tag_t dma_tag;
+	bus_space_handle_t dma_handle;
 
 	/* Per channel interrupt irq number */
-	int dma_irq;
-	char dma_irq_name[IFNAMSIZ + 32];
-
-	/* Netdev related settings */
-	struct napi_struct napi;
+	struct resource *dma_irq_res;
+	void *dma_irq_tag;
 
 	unsigned int saved_ier;
 
-	unsigned int tx_timer_active;
-	struct timer_list tx_timer;
-
 	struct xgbe_ring *tx_ring;
 	struct xgbe_ring *rx_ring;
-} ____cacheline_aligned;
+} __aligned(CACHE_LINE_SIZE);
 
 enum xgbe_state {
 	XGBE_DOWN,
@@ -664,24 +615,8 @@ struct xgbe_hw_if {
 	void (*tx_mmc_int)(struct xgbe_prv_data *);
 	void (*read_mmc_stats)(struct xgbe_prv_data *);
 
-	/* For Timestamp config */
-	int (*config_tstamp)(struct xgbe_prv_data *, unsigned int);
-	void (*update_tstamp_addend)(struct xgbe_prv_data *, unsigned int);
-	void (*set_tstamp_time)(struct xgbe_prv_data *, unsigned int sec,
-				unsigned int nsec);
-	u64 (*get_tstamp_time)(struct xgbe_prv_data *);
-	u64 (*get_tx_tstamp)(struct xgbe_prv_data *);
-
-	/* For Data Center Bridging config */
-	void (*config_tc)(struct xgbe_prv_data *);
-	void (*config_dcb_tc)(struct xgbe_prv_data *);
-	void (*config_dcb_pfc)(struct xgbe_prv_data *);
-
 	/* For Receive Side Scaling */
-	int (*enable_rss)(struct xgbe_prv_data *);
 	int (*disable_rss)(struct xgbe_prv_data *);
-	int (*set_rss_hash_key)(struct xgbe_prv_data *, const u8 *);
-	int (*set_rss_lookup_table)(struct xgbe_prv_data *, const u32 *);
 };
 
 struct xgbe_phy_if {
@@ -701,7 +636,7 @@ struct xgbe_phy_if {
 struct xgbe_desc_if {
 	int (*alloc_ring_resources)(struct xgbe_prv_data *);
 	void (*free_ring_resources)(struct xgbe_prv_data *);
-	int (*map_tx_skb)(struct xgbe_channel *, struct sk_buff *);
+	int (*map_tx_skb)(struct xgbe_channel *, struct mbuf *);
 	int (*map_rx_buffer)(struct xgbe_prv_data *, struct xgbe_ring *,
 			     struct xgbe_ring_data *);
 	void (*unmap_rdata)(struct xgbe_prv_data *, struct xgbe_ring_data *);
@@ -756,34 +691,33 @@ struct xgbe_hw_features {
 };
 
 struct xgbe_prv_data {
-	struct net_device *netdev;
+	struct ifnet *netdev;
 	struct platform_device *pdev;
 	struct acpi_device *adev;
-	struct device *dev;
+	device_t dev;
 
 	/* ACPI or DT flag */
 	unsigned int use_acpi;
 
 	/* XGMAC/XPCS related mmio registers */
-	void __iomem *xgmac_regs;	/* XGMAC CSRs */
-	void __iomem *xpcs_regs;	/* XPCS MMD registers */
-	void __iomem *rxtx_regs;	/* SerDes Rx/Tx CSRs */
-	void __iomem *sir0_regs;	/* SerDes integration registers (1/2) */
-	void __iomem *sir1_regs;	/* SerDes integration registers (2/2) */
+	struct resource *xgmac_res;	/* XGMAC CSRs */
+	struct resource *xpcs_res;	/* XPCS MMD registers */
+	struct resource *rxtx_res;	/* SerDes Rx/Tx CSRs */
+	struct resource *sir0_res;	/* SerDes integration registers (1/2) */
+	struct resource *sir1_res;	/* SerDes integration registers (2/2) */
 
-	/* Overall device lock */
-	spinlock_t lock;
+	/* DMA tag */
+	bus_dma_tag_t dmat;
 
 	/* XPCS indirect addressing lock */
 	spinlock_t xpcs_lock;
 
-	/* RSS addressing mutex */
-	struct mutex rss_mutex;
-
 	/* Flags representing xgbe_state */
 	unsigned long dev_state;
 
-	int dev_irq;
+	struct resource *dev_irq_res;
+	struct resource *chan_irq_res[4];
+	void *dev_irq_tag;
 	unsigned int per_channel_irq;
 
 	struct xgbe_hw_if hw_if;
@@ -797,9 +731,9 @@ struct xgbe_prv_data {
 	unsigned int awcache;
 
 	/* Service routine support */
-	struct workqueue_struct *dev_workqueue;
-	struct work_struct service_work;
-	struct timer_list service_timer;
+	struct taskqueue *dev_workqueue;
+	struct task service_work;
+	struct callout service_timer;
 
 	/* Rings for Tx/Rx on a DMA channel */
 	struct xgbe_channel *channel;
@@ -850,13 +784,8 @@ struct xgbe_prv_data {
 
 	/* Netdev related settings */
 	unsigned char mac_addr[ETH_ALEN];
-	netdev_features_t netdev_features;
-	struct napi_struct napi;
 	struct xgbe_mmc_stats mmc_stats;
 	struct xgbe_ext_stats ext_stats;
-
-	/* Filtering support */
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
 	/* Device clocks */
 	struct clk *sysclk;
@@ -864,21 +793,7 @@ struct xgbe_prv_data {
 	struct clk *ptpclk;
 	unsigned long ptpclk_rate;
 
-	/* Timestamp support */
-	spinlock_t tstamp_lock;
-	struct ptp_clock_info ptp_clock_info;
-	struct ptp_clock *ptp_clock;
-	struct hwtstamp_config tstamp_config;
-	struct cyclecounter tstamp_cc;
-	struct timecounter tstamp_tc;
-	unsigned int tstamp_addend;
-	struct work_struct tx_tstamp_work;
-	struct sk_buff *tx_tstamp_skb;
-	u64 tx_tstamp;
-
 	/* DCB support */
-	struct ieee_ets *ets;
-	struct ieee_pfc *pfc;
 	unsigned int q2tc_map[XGBE_MAX_QUEUES];
 	unsigned int prio2q_map[IEEE_8021QAZ_MAX_TCS];
 	u8 num_tcs;
@@ -887,7 +802,7 @@ struct xgbe_prv_data {
 	struct xgbe_hw_features hw_feat;
 
 	/* Device restart work structure */
-	struct work_struct restart_work;
+	struct task restart_work;
 
 	/* Keeps track of power mode */
 	unsigned int power_down;
@@ -896,7 +811,6 @@ struct xgbe_prv_data {
 	u32 msg_enable;
 
 	/* Current PHY settings */
-	phy_interface_t phy_mode;
 	int phy_link;
 	int phy_speed;
 
@@ -906,10 +820,9 @@ struct xgbe_prv_data {
 	unsigned long link_check;
 
 	char an_name[IFNAMSIZ + 32];
-	struct workqueue_struct *an_workqueue;
 
-	int an_irq;
-	struct work_struct an_irq_work;
+	struct resource *an_irq_res;
+	void *an_irq_tag;
 
 	unsigned int speed_set;
 
@@ -928,60 +841,31 @@ struct xgbe_prv_data {
 
 	/* Auto-negotiation state machine support */
 	unsigned int an_int;
-	struct mutex an_mutex;
+	struct sx an_mutex;
 	enum xgbe_an an_result;
 	enum xgbe_an an_state;
 	enum xgbe_rx kr_state;
 	enum xgbe_rx kx_state;
-	struct work_struct an_work;
 	unsigned int an_supported;
 	unsigned int parallel_detect;
 	unsigned int fec_ability;
 	unsigned long an_start;
 
 	unsigned int lpm_ctrl;		/* CTRL1 for resume */
-
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *xgbe_debugfs;
-
-	unsigned int debugfs_xgmac_reg;
-
-	unsigned int debugfs_xpcs_mmd;
-	unsigned int debugfs_xpcs_reg;
-#endif
 };
 
 /* Function prototypes*/
 
+int xgbe_open(struct ifnet *);
+int xgbe_close(struct ifnet *);
+int xgbe_xmit(struct ifnet *, struct mbuf *);
+int xgbe_change_mtu(struct ifnet *, int);
 void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
-struct net_device_ops *xgbe_get_netdev_ops(void);
-struct ethtool_ops *xgbe_get_ethtool_ops(void);
-#ifdef CONFIG_AMD_XGBE_DCB
-const struct dcbnl_rtnl_ops *xgbe_get_dcbnl_ops(void);
-#endif
-
-void xgbe_ptp_register(struct xgbe_prv_data *);
-void xgbe_ptp_unregister(struct xgbe_prv_data *);
-void xgbe_dump_tx_desc(struct xgbe_prv_data *, struct xgbe_ring *,
-		       unsigned int, unsigned int, unsigned int);
-void xgbe_dump_rx_desc(struct xgbe_prv_data *, struct xgbe_ring *,
-		       unsigned int);
-void xgbe_print_pkt(struct net_device *, struct sk_buff *, bool);
 void xgbe_get_all_hw_features(struct xgbe_prv_data *);
-int xgbe_powerup(struct net_device *, unsigned int);
-int xgbe_powerdown(struct net_device *, unsigned int);
 void xgbe_init_rx_coalesce(struct xgbe_prv_data *);
 void xgbe_init_tx_coalesce(struct xgbe_prv_data *);
-
-#ifdef CONFIG_DEBUG_FS
-void xgbe_debugfs_init(struct xgbe_prv_data *);
-void xgbe_debugfs_exit(struct xgbe_prv_data *);
-#else
-static inline void xgbe_debugfs_init(struct xgbe_prv_data *pdata) {}
-static inline void xgbe_debugfs_exit(struct xgbe_prv_data *pdata) {}
-#endif /* CONFIG_DEBUG_FS */
 
 /* NOTE: Uncomment for function trace log messages in KERNEL LOG */
 #if 0
@@ -991,13 +875,13 @@ static inline void xgbe_debugfs_exit(struct xgbe_prv_data *pdata) {}
 
 /* For debug prints */
 #ifdef YDEBUG
-#define DBGPR(x...) pr_alert(x)
+#define DBGPR(x...) printf(x)
 #else
 #define DBGPR(x...) do { } while (0)
 #endif
 
 #ifdef YDEBUG_MDIO
-#define DBGPR_MDIO(x...) pr_alert(x)
+#define DBGPR_MDIO(x...) printf(x)
 #else
 #define DBGPR_MDIO(x...) do { } while (0)
 #endif
