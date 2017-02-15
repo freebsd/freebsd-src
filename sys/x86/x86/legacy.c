@@ -29,7 +29,6 @@
 
 #ifdef __i386__
 #include "opt_eisa.h"
-#include "opt_mca.h"
 #endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -50,10 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
-
-#ifdef DEV_MCA
-#include <i386/bios/mca_machdep.h>
-#endif
 
 #include <machine/clock.h>
 #include <machine/resource.h>
@@ -141,14 +136,6 @@ legacy_attach(device_t dev)
 		child = BUS_ADD_CHILD(dev, 0, "eisa", 0);
 		if (child == NULL)
 			panic("legacy_attach eisa");
-		device_probe_and_attach(child);
-	}
-#endif
-#ifdef DEV_MCA
-	if (MCA_system && !devclass_get_device(devclass_find("mca"), 0)) {
-        	child = BUS_ADD_CHILD(dev, 0, "mca", 0);
-        	if (child == 0)
-                	panic("legacy_probe mca");
 		device_probe_and_attach(child);
 	}
 #endif

@@ -474,7 +474,6 @@ acpi_wakedata.h			optional acpi				\
 	clean		"acpi_wakedata.h"
 #
 i386/bios/apm.c			optional apm
-i386/bios/mca_machdep.c		optional mca
 i386/bios/smapi.c		optional smapi
 i386/bios/smapi_bios.S		optional smapi
 i386/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32

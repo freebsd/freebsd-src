@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_auto_eoi.h"
 #include "opt_isa.h"
-#include "opt_mca.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -54,9 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <x86/isa/icu.h>
 #include <isa/isareg.h>
 #include <isa/isavar.h>
-#ifdef DEV_MCA
-#include <i386/bios/mca_machdep.h>
-#endif
 
 #ifdef __amd64__
 #define	SDT_ATPIC	SDT_SYSIGT
@@ -356,13 +352,7 @@ i8259_init(struct atpic *pic, int slave)
 
 	/* Reset the PIC and program with next four bytes. */
 	spinlock_enter();
-#ifdef DEV_MCA
-	/* MCA uses level triggered interrupts. */
-	if (MCA_system)
-		outb(pic->at_ioaddr, ICW1_RESET | ICW1_IC4 | ICW1_LTIM);
-	else
-#endif
-		outb(pic->at_ioaddr, ICW1_RESET | ICW1_IC4);
+	outb(pic->at_ioaddr, ICW1_RESET | ICW1_IC4);
 	imr_addr = pic->at_ioaddr + ICU_IMR_OFFSET;
 
 	/* Start vector. */
@@ -418,14 +408,6 @@ atpic_startup(void)
 		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
 		    ai->at_irq, ai->at_intr, SDT_ATPIC, SEL_KPL, GSEL_ATPIC);
 	}
-
-#ifdef DEV_MCA
-	/* For MCA systems, all interrupts are level triggered. */
-	if (MCA_system)
-		for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++)
-			ai->at_trigger = INTR_TRIGGER_LEVEL;
-	else
-#endif
 
 	/*
 	 * Look for an ELCR.  If we find one, update the trigger modes.
