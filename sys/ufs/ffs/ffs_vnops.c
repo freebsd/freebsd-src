@@ -271,7 +271,7 @@ loop:
 		 * active.  Otherwise we must flush them with data,
 		 * since dependencies prevent data block writes.
 		 */
-		if (waitfor == MNT_WAIT && bp->b_lblkno <= -NDADDR &&
+		if (waitfor == MNT_WAIT && bp->b_lblkno <= -UFS_NDADDR &&
 		    (lbn_level(bp->b_lblkno) >= passes ||
 		    ((flags & DATA_ONLY) != 0 && !DOINGSOFTDEP(vp))))
 			continue;
@@ -356,7 +356,7 @@ next:
 			 */
 			still_dirty = false;
 			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs) {
-				if (bp->b_lblkno > -NDADDR) {
+				if (bp->b_lblkno > -UFS_NDADDR) {
 					still_dirty = true;
 					break;
 				}
@@ -373,7 +373,7 @@ next:
 			}
 			/* switch between sync/async. */
 			wait = !wait;
-			if (wait || ++passes < NIADDR + 2)
+			if (wait || ++passes < UFS_NIADDR + 2)
 				goto loop;
 #ifdef INVARIANTS
 			if (!vn_isdisk(vp, NULL))
@@ -1002,7 +1002,8 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 		uio->uio_offset = dp->di_extsize;
 	KASSERT(uio->uio_offset >= 0, ("ffs_extwrite: uio->uio_offset < 0"));
 	KASSERT(uio->uio_resid >= 0, ("ffs_extwrite: uio->uio_resid < 0"));
-	if ((uoff_t)uio->uio_offset + uio->uio_resid > NXADDR * fs->fs_bsize)
+	if ((uoff_t)uio->uio_offset + uio->uio_resid >
+	    UFS_NXADDR * fs->fs_bsize)
 		return (EFBIG);
 
 	resid = uio->uio_resid;
@@ -1145,7 +1146,7 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	fs = ITOFS(ip);
 	dp = ip->i_din2;
 	easize = dp->di_extsize;
-	if ((uoff_t)easize + extra > NXADDR * fs->fs_bsize)
+	if ((uoff_t)easize + extra > UFS_NXADDR * fs->fs_bsize)
 		return (EFBIG);
 
 	eae = malloc(easize + extra, M_TEMP, M_WAITOK);
@@ -1296,7 +1297,7 @@ struct vop_strategy_args {
 
 	vp = ap->a_vp;
 	lbn = ap->a_bp->b_lblkno;
-	if (I_IS_UFS2(VTOI(vp)) && lbn < 0 && lbn >= -NXADDR)
+	if (I_IS_UFS2(VTOI(vp)) && lbn < 0 && lbn >= -UFS_NXADDR)
 		return (VOP_STRATEGY_APV(&ufs_vnodeops, ap));
 	if (vp->v_type == VFIFO)
 		return (VOP_STRATEGY_APV(&ufs_fifoops, ap));
@@ -1584,7 +1585,7 @@ vop_setextattr {
 		return (EROFS);
 
 	ealen = ap->a_uio->uio_resid;
-	if (ealen < 0 || ealen > lblktosize(fs, NXADDR))
+	if (ealen < 0 || ealen > lblktosize(fs, UFS_NXADDR))
 		return (EINVAL);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
@@ -1635,7 +1636,7 @@ vop_setextattr {
 			easize += (ealength - ul);
 		}
 	}
-	if (easize > lblktosize(fs, NXADDR)) {
+	if (easize > lblktosize(fs, UFS_NXADDR)) {
 		free(eae, M_TEMP);
 		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)

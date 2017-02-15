@@ -303,7 +303,7 @@ upperbnd(ino_t start)
 {
 	struct entry *ep;
 
-	for ( ; start > ROOTINO; start--) {
+	for ( ; start > UFS_ROOTINO; start--) {
 		ep = lookupino(start);
 		if (ep == NULL || ep->e_type == NODE)
 			continue;

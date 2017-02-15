@@ -68,7 +68,7 @@ pass5(void)
 	struct cg *cg, *newcg = (struct cg *)buf;
 	struct bufarea *cgbp;
 
-	inoinfo(WINO)->ino_state = USTATE;
+	inoinfo(UFS_WINO)->ino_state = USTATE;
 	memset(newcg, 0, (size_t)fs->fs_cgsize);
 	newcg->cg_niblk = fs->fs_ipg;
 	if (cvtlevel >= 3) {
@@ -234,14 +234,14 @@ pass5(void)
 				break;
 
 			default:
-				if (j < (int)ROOTINO)
+				if (j < (int)UFS_ROOTINO)
 					break;
 				errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
 				    inoinfo(j)->ino_state, j);
 			}
 		}
 		if (c == 0)
-			for (i = 0; i < (int)ROOTINO; i++) {
+			for (i = 0; i < (int)UFS_ROOTINO; i++) {
 				setbit(cg_inosused(newcg), i);
 				newcg->cg_cs.cs_nifree--;
 			}

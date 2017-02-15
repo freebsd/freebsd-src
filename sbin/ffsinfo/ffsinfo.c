@@ -377,7 +377,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 	/*
 	 * Ok, now prepare for dumping all direct and indirect pointers.
 	 */
-	rb=howmany(ino->di_size, sblock.fs_bsize)-NDADDR;
+	rb = howmany(ino->di_size, sblock.fs_bsize) - UFS_NDADDR;
 	if(rb>0) {
 		/*
 		 * Dump single indirect block.
@@ -529,7 +529,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 	/*
 	 * Ok, now prepare for dumping all direct and indirect pointers.
 	 */
-	rb = howmany(ino->di_size, sblock.fs_bsize) - NDADDR;
+	rb = howmany(ino->di_size, sblock.fs_bsize) - UFS_NDADDR;
 	if (rb > 0) {
 		/*
 		 * Dump single indirect block.

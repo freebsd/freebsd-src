@@ -127,7 +127,7 @@ lookup(const char *path)
 	ssize_t n;
 	uint8_t dt;
 
-	ino = ROOTINO;
+	ino = UFS_ROOTINO;
 	dt = DT_DIR;
 	for (;;) {
 		if (*path == '/')
@@ -261,19 +261,19 @@ fsread_size(ufs_ino_t inode, void *buf, size_t nbyte, size_t *fsizep)
 	while (nb) {
 		lbn = lblkno(&fs, fs_off);
 		off = blkoff(&fs, fs_off);
-		if (lbn < NDADDR) {
+		if (lbn < UFS_NDADDR) {
 			addr2 = DIP(di_db[lbn]);
-		} else if (lbn < NDADDR + NINDIR(&fs)) {
+		} else if (lbn < UFS_NDADDR + NINDIR(&fs)) {
 			n = INDIRPERVBLK(&fs);
 			addr2 = DIP(di_ib[0]);
-			u = (u_int)(lbn - NDADDR) / n * DBPERVBLK;
+			u = (u_int)(lbn - UFS_NDADDR) / n * DBPERVBLK;
 			vbaddr = fsbtodb(&fs, addr2) + u;
 			if (indmap != vbaddr) {
 				if (dskread(indbuf, vbaddr, DBPERVBLK))
 					return -1;
 				indmap = vbaddr;
 			}
-			n = (lbn - NDADDR) & (n - 1);
+			n = (lbn - UFS_NDADDR) & (n - 1);
 #if defined(UFS1_ONLY)
 			memcpy(&addr1, (ufs1_daddr_t *)indbuf + n,
 			    sizeof(ufs1_daddr_t));
