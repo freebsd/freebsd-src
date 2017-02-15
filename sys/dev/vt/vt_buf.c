@@ -55,10 +55,10 @@ static MALLOC_DEFINE(M_VTBUF, "vtbuf", "vt buffer");
 } while (0)
 
 #ifndef SC_NO_CUTPASTE
+static int vtbuf_htw(const struct vt_buf *vb, int row);
 static int vtbuf_wth(const struct vt_buf *vb, int row);
 static int vtbuf_in_this_range(int begin, int test, int end, int sz);
 #endif
-static int vtbuf_htw(const struct vt_buf *vb, int row);
 
 /*
  * line4
@@ -161,6 +161,21 @@ vthistory_getpos(const struct vt_buf *vb, unsigned int *offset)
 }
 
 #ifndef SC_NO_CUTPASTE	/* Only mouse support use it now. */
+/* Translate history row to current view row number. */
+static int
+vtbuf_htw(const struct vt_buf *vb, int row)
+{
+
+	/*
+	 * total 1000 rows.
+	 * History offset	roffset	winrow
+	 *	205		200	((205 - 200 + 1000) % 1000) = 5
+	 *	90		990	((90 - 990 + 1000) % 1000) = 100
+	 */
+	return ((row - vb->vb_roffset + vb->vb_history_size) %
+	    vb->vb_history_size);
+}
+
 /* Translate current view row number to history row. */
 static int
 vtbuf_wth(const struct vt_buf *vb, int row)
@@ -191,21 +206,6 @@ vtbuf_in_this_range(int begin, int test, int end, int sz)
 		return (test >= begin && test < end);
 }
 #endif
-
-/* Translate history row to current view row number. */
-static int
-vtbuf_htw(const struct vt_buf *vb, int row)
-{
-
-	/*
-	 * total 1000 rows.
-	 * History offset	roffset	winrow
-	 *	205		200	((205 - 200 + 1000) % 1000) = 5
-	 *	90		990	((90 - 990 + 1000) % 1000) = 100
-	 */
-	return ((row - vb->vb_roffset + vb->vb_history_size) %
-	    vb->vb_history_size);
-}
 
 int
 vtbuf_iscursor(const struct vt_buf *vb, int row, int col)
