@@ -156,16 +156,16 @@ struct sem_undo {
  * Configuration parameters
  */
 #ifndef SEMMNI
-#define SEMMNI	50		/* # of semaphore identifiers */
+#define SEMMNI	500		/* # of semaphore identifiers */
 #endif
 #ifndef SEMMNS
-#define SEMMNS	340		/* # of semaphores in system */
+#define SEMMNS	3400		/* # of semaphores in system */
 #endif
 #ifndef SEMUME
-#define SEMUME	50		/* max # of undo entries per process */
+#define SEMUME	500		/* max # of undo entries per process */
 #endif
 #ifndef SEMMNU
-#define SEMMNU	150		/* # of undo structures in system */
+#define SEMMNU	1500		/* # of undo structures in system */
 #endif
 
 /* shouldn't need tuning */
@@ -173,11 +173,11 @@ struct sem_undo {
 #define SEMMSL	SEMMNS		/* max # of semaphores per id */
 #endif
 #ifndef SEMOPM
-#define SEMOPM	100		/* max # of operations per semop call */
+#define SEMOPM	1000		/* max # of operations per semop call */
 #endif
 
-#define SEMVMX	32767		/* semaphore maximum value */
-#define SEMAEM	16384		/* adjust on exit max value */
+#define SEMVMX	327670		/* semaphore maximum value */
+#define SEMAEM	163840		/* adjust on exit max value */
 
 /*
  * Due to the way semaphore memory is allocated, we have to ensure that
