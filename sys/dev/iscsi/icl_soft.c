@@ -892,7 +892,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 {
 	struct icl_pdu *request, *request2;
 	struct socket *so;
-	size_t available, size, size2;
+	long available, size, size2;
 	int coalesced, error;
 
 	ICL_CONN_LOCK_ASSERT_NOT(ic);
@@ -931,7 +931,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 			if (available < size) {
 #if 1
 				ICL_DEBUG("no space to send; "
-				    "have %zd, need %zd",
+				    "have %ld, need %ld",
 				    available, size);
 #endif
 				so->so_snd.sb_lowat = size;
@@ -978,7 +978,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 			}
 #if 0
 			if (coalesced > 1) {
-				ICL_DEBUG("coalesced %d PDUs into %zd bytes",
+				ICL_DEBUG("coalesced %d PDUs into %ld bytes",
 				    coalesced, size);
 			}
 #endif
