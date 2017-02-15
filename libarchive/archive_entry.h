@@ -509,6 +509,10 @@ __LA_DECL int	 archive_entry_acl_next_w(struct archive_entry *, int /* want_type
  * ARCHIVE_ENTRY_ACL_STYLE_SOLARIS - Output only one colon after "other" and
  *    "mask" entries.
  *
+ * Flags only for archive entries with NFSv4 ACL:
+ * ARCHIVE_ENTRY_ACL_STYLE_COMPACT - Do not output the minus character for
+ *    unset permissions and flags in NFSv4 ACL permission and flag fields
+ *
  * Flags for for archive entries with POSIX.1e ACL or NFSv4 ACL:
  * ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID - Include extra numeric ID field in
  *    each ACL entry.
@@ -519,6 +523,7 @@ __LA_DECL int	 archive_entry_acl_next_w(struct archive_entry *, int /* want_type
 #define	ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT	0x00000002
 #define	ARCHIVE_ENTRY_ACL_STYLE_SOLARIS		0x00000004
 #define	ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA	0x00000008
+#define	ARCHIVE_ENTRY_ACL_STYLE_COMPACT		0x00000010
 
 __LA_DECL wchar_t *archive_entry_acl_to_text_w(struct archive_entry *,
 	    ssize_t * /* len */, int /* flags */);
