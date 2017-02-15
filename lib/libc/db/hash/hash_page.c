@@ -554,19 +554,8 @@ __get_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_disk,
 					M_32_SWAP(((int *)p)[i]);
 			} else {
 				M_16_SWAP(bp[0]);
-				/*
-				 * Reading max from an fd and not validating
-				 * the length doesn't seem like a good idea...
-				 */
 				max = bp[0] + 2;
-				/*
-				 * XXXAR: this loop caused a CHERI length
-				 * violation (reading byte buf + 0x1000)
-				 * and the loop above uses < so probably this
-				 * one should too, but I have no idea what this
-				 * code is actually doing...
-				 */
-				for (i = 1; i < max; i++)
+				for (i = 1; i <= max; i++)
 					M_16_SWAP(bp[i]);
 			}
 		}
@@ -603,12 +592,7 @@ __put_page(HTAB *hashp, char *p, u_int32_t bucket, int is_bucket, int is_bitmap)
 		} else {
 			uint16_t *bp = (uint16_t *)(void *)pbuf;
 			max = bp[0] + 2;
-			/*
-			 * XXXAR: the loop above uses < so probably this
-			 * one should too, but I have no idea what this
-			 * code is actually doing...
-			 */
-			for (i = 0; i < max; i++)
+			for (i = 0; i <= max; i++)
 				M_16_SWAP(bp[i]);
 		}
 		p = pbuf;
