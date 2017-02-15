@@ -309,15 +309,19 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc)
 		0x96, 0x57, 0x74, 0x41, 0xc0, 0x3d, 0xd7, 0x66
 	};
 
+	/* Status Field */
+	cap_set[PCI_OSC_STATUS] = 0;
+
 	/* Support Field: Extended PCI Config Space, MSI */
-	cap_set[1] = 0x11;
+	cap_set[PCI_OSC_SUPPORT] = PCIM_OSC_SUPPORT_EXT_PCI_CONF |
+	    PCIM_OSC_SUPPORT_MSI;
 
 	/* Control Field */
-	cap_set[2] = 0;
+	cap_set[PCI_OSC_CTL] = 0;
 
 #ifdef PCI_HP
 	/* Control Field: PCI Express Native Hot Plug */
-	cap_set[2] |= 0x1;
+	cap_set[PCI_OSC_CTL] |= PCIM_OSC_CTL_PCIE_HP;
 #endif
 
 	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
@@ -330,10 +334,16 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc)
 		return;
 	}
 
-	if (cap_set[0] != 0) {
+	if (cap_set[PCI_OSC_STATUS] != 0) {
 		device_printf(sc->ap_dev, "_OSC returned error %#x\n",
 		    cap_set[0]);
 	}
+
+#ifdef PCI_HP
+	if ((cap_set[PCI_OSC_CTL] & PCIM_OSC_CTL_PCIE_HP) == 0 && bootverbose) {
+		device_printf(sc->ap_dev, "_OSC didn't allow HP control\n");
+	}
+#endif
 }
 
 static int
