@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170214: Four files from ggate tests consolidated into one
+OLD_FILES+=usr/tests/sys/geom/class/gate/1_test
+OLD_FILES+=usr/tests/sys/geom/class/gate/2_test
+OLD_FILES+=usr/tests/sys/geom/class/gate/3_test
+OLD_FILES+=usr/tests/sys/geom/class/gate/conf.sh
 # 20170211: libarchive ACL pax test renamed to test_acl_pax_posix1e.tar.uu
 OLD_FILES+=usr/tests/lib/libarchive/test_acl_pax.tar.uu
 # 20161229: Three files from gnop tests consolidated into one
