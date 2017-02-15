@@ -146,6 +146,11 @@ crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
 dev/acpica/acpi_if.m		optional	acpi
 dev/ahci/ahci_generic.c		optional	ahci
+dev/axgbe/if_axgbe.c		optional	axgbe
+dev/axgbe/xgbe-desc.c		optional	axgbe
+dev/axgbe/xgbe-dev.c		optional	axgbe
+dev/axgbe/xgbe-drv.c		optional	axgbe
+dev/axgbe/xgbe-mdio.c		optional	axgbe
 dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc

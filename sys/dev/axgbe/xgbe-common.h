@@ -112,10 +112,15 @@
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  *     ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  *     THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __XGBE_COMMON_H__
 #define __XGBE_COMMON_H__
+
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 /* DMA register offsets */
 #define DMA_MR				0x3000
@@ -1123,7 +1128,7 @@ do {									\
  *  register definitions formed using the input names
  */
 #define XGMAC_IOREAD(_pdata, _reg)					\
-	ioread32((_pdata)->xgmac_regs + _reg)
+	bus_read_4((_pdata)->xgmac_res, _reg)
 
 #define XGMAC_IOREAD_BITS(_pdata, _reg, _field)				\
 	GET_BITS(XGMAC_IOREAD((_pdata), _reg),				\
@@ -1131,7 +1136,7 @@ do {									\
 		 _reg##_##_field##_WIDTH)
 
 #define XGMAC_IOWRITE(_pdata, _reg, _val)				\
-	iowrite32((_val), (_pdata)->xgmac_regs + _reg)
+	bus_write_4((_pdata)->xgmac_res, _reg, (_val))
 
 #define XGMAC_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
 do {									\
@@ -1147,7 +1152,7 @@ do {									\
  *  base register value is calculated by the queue or traffic class number
  */
 #define XGMAC_MTL_IOREAD(_pdata, _n, _reg)				\
-	ioread32((_pdata)->xgmac_regs +					\
+	bus_read_4((_pdata)->xgmac_res,					\
 		 MTL_Q_BASE + ((_n) * MTL_Q_INC) + _reg)
 
 #define XGMAC_MTL_IOREAD_BITS(_pdata, _n, _reg, _field)			\
@@ -1156,8 +1161,8 @@ do {									\
 		 _reg##_##_field##_WIDTH)
 
 #define XGMAC_MTL_IOWRITE(_pdata, _n, _reg, _val)			\
-	iowrite32((_val), (_pdata)->xgmac_regs +			\
-		  MTL_Q_BASE + ((_n) * MTL_Q_INC) + _reg)
+	bus_write_4((_pdata)->xgmac_res,				\
+		  MTL_Q_BASE + ((_n) * MTL_Q_INC) + _reg, (_val))
 
 #define XGMAC_MTL_IOWRITE_BITS(_pdata, _n, _reg, _field, _val)		\
 do {									\
@@ -1173,7 +1178,7 @@ do {									\
  *  base register value is obtained from the ring
  */
 #define XGMAC_DMA_IOREAD(_channel, _reg)				\
-	ioread32((_channel)->dma_regs + _reg)
+	bus_space_read_4((_channel)->dma_tag, (_channel)->dma_handle, _reg)
 
 #define XGMAC_DMA_IOREAD_BITS(_channel, _reg, _field)			\
 	GET_BITS(XGMAC_DMA_IOREAD((_channel), _reg),			\
@@ -1181,7 +1186,8 @@ do {									\
 		 _reg##_##_field##_WIDTH)
 
 #define XGMAC_DMA_IOWRITE(_channel, _reg, _val)				\
-	iowrite32((_val), (_channel)->dma_regs + _reg)
+	bus_space_write_4((_channel)->dma_tag, (_channel)->dma_handle,	\
+	    _reg, (_val))
 
 #define XGMAC_DMA_IOWRITE_BITS(_channel, _reg, _field, _val)		\
 do {									\
@@ -1196,10 +1202,10 @@ do {									\
  * within the register values of XPCS registers.
  */
 #define XPCS_IOWRITE(_pdata, _off, _val)				\
-	iowrite32(_val, (_pdata)->xpcs_regs + (_off))
+	bus_write_4((_pdata)->xpcs_res, (_off), _val)
 
 #define XPCS_IOREAD(_pdata, _off)					\
-	ioread32((_pdata)->xpcs_regs + (_off))
+	bus_read_4((_pdata)->xpcs_res, (_off))
 
 /* Macros for building, reading or writing register values or bits
  * within the register values of SerDes integration registers.
@@ -1215,7 +1221,7 @@ do {									\
 		 _prefix##_##_field##_WIDTH, (_val))
 
 #define XSIR0_IOREAD(_pdata, _reg)					\
-	ioread16((_pdata)->sir0_regs + _reg)
+	bus_read_2((_pdata)->sir0_res, _reg)
 
 #define XSIR0_IOREAD_BITS(_pdata, _reg, _field)				\
 	GET_BITS(XSIR0_IOREAD((_pdata), _reg),				\
@@ -1223,7 +1229,7 @@ do {									\
 		 _reg##_##_field##_WIDTH)
 
 #define XSIR0_IOWRITE(_pdata, _reg, _val)				\
-	iowrite16((_val), (_pdata)->sir0_regs + _reg)
+	bus_write_2((_pdata)->sir0_res, _reg, (_val))
 
 #define XSIR0_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
 do {									\
@@ -1235,7 +1241,7 @@ do {									\
 } while (0)
 
 #define XSIR1_IOREAD(_pdata, _reg)					\
-	ioread16((_pdata)->sir1_regs + _reg)
+	bus_read_2((_pdata)->sir1_res, _reg)
 
 #define XSIR1_IOREAD_BITS(_pdata, _reg, _field)				\
 	GET_BITS(XSIR1_IOREAD((_pdata), _reg),				\
@@ -1243,7 +1249,7 @@ do {									\
 		 _reg##_##_field##_WIDTH)
 
 #define XSIR1_IOWRITE(_pdata, _reg, _val)				\
-	iowrite16((_val), (_pdata)->sir1_regs + _reg)
+	bus_write_2((_pdata)->sir1_res, _reg, (_val))
 
 #define XSIR1_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
 do {									\
@@ -1258,7 +1264,7 @@ do {									\
  * within the register values of SerDes RxTx registers.
  */
 #define XRXTX_IOREAD(_pdata, _reg)					\
-	ioread16((_pdata)->rxtx_regs + _reg)
+	bus_read_2((_pdata)->rxtx_res, _reg)
 
 #define XRXTX_IOREAD_BITS(_pdata, _reg, _field)				\
 	GET_BITS(XRXTX_IOREAD((_pdata), _reg),				\
@@ -1266,7 +1272,7 @@ do {									\
 		 _reg##_##_field##_WIDTH)
 
 #define XRXTX_IOWRITE(_pdata, _reg, _val)				\
-	iowrite16((_val), (_pdata)->rxtx_regs + _reg)
+	bus_write_2((_pdata)->rxtx_res, _reg, (_val))
 
 #define XRXTX_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
 do {									\
