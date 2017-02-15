@@ -1248,6 +1248,13 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 #else
 	if ((p = pfind(probe->ftp_pid)) == NULL)
 		return;
+	if ((p->p_flag & P_WEXIT) != 0) {
+		PROC_UNLOCK(p);
+		return;
+	}
+
+	_PHOLD(p);
+	PROC_UNLOCK(p);
 #endif
 
 	/*
@@ -1255,13 +1262,6 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	 * the chance to execute the trap instruction we're about to place
 	 * in their process's text.
 	 */
-#ifdef __FreeBSD__
-	/*
-	 * pfind() returns a locked process.
-	 */
-	_PHOLD(p);
-	PROC_UNLOCK(p);
-#endif
 	fasttrap_enable_callbacks();
 
 	/*
