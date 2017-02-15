@@ -25,4 +25,11 @@ FBSDprivate_1.0 {
 	__rpc_gss_unwrap_stub;
 	__rpc_gss_wrap;
 	__rpc_gss_wrap_stub;
+
+	/*
+	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
+	 * undefined so rtld can update them.  This is a temporary
+	 * hack.
+	 */
+	.size.*;
 };

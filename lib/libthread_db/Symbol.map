@@ -36,3 +36,12 @@ FBSD_1.0 {
 FBSD_1.2 {
 	td_thr_get_info;
 };
+
+FBSDprivate_1.0 {
+	/*
+	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
+	 * undefined so rtld can update them.  This is a temporary
+	 * hack.
+	 */
+	.size.*;
+};

@@ -15,3 +15,12 @@ FBSD_1.2 {
 	utempter_remove_added_record;
 	utempter_remove_record;
 };
+
+FBSDprivate_1.0 {
+	/*
+	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
+	 * undefined so rtld can update them.  This is a temporary
+	 * hack.
+	 */
+	.size.*;
+};

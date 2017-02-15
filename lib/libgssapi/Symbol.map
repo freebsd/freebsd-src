@@ -74,4 +74,11 @@ FBSDprivate_1.0 {
 	_gss_copy_buffer;
 	_gss_free_oid;
 	_gss_mg_collect_error;
+
+	/*
+	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
+	 * undefined so rtld can update them.  This is a temporary
+	 * hack.
+	 */
+	.size.*;
 };

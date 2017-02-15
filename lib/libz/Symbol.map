@@ -105,4 +105,11 @@ ZLIBprivate_1.0 {
 	match_init;
 	zcalloc;
 	zcfree;
+
+	/*
+	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
+	 * undefined so rtld can update them.  This is a temporary
+	 * hack.
+	 */
+	.size.*;
 };

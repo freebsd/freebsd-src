@@ -203,4 +203,11 @@ XZprivate_1.0 {
 	lzma_strm_init;
 	lzma_tuklib_cpucores;
 	lzma_tuklib_physmem;
+
+	/*
+	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
+	 * undefined so rtld can update them.  This is a temporary
+	 * hack.
+	 */
+	.size.*;
 };

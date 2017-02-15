@@ -8,3 +8,5 @@ FBSD_1.2 {
 FBSD_1.3 {
 } FBSD_1.2;
 
+FBSDprivate_1.0 {
+} FBSD_1.3;

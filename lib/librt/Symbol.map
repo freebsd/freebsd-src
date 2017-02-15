@@ -71,4 +71,11 @@ FBSDprivate_1.0 {
 	__timer_gettime;
 	__timer_settime;
 	__timer_getoverrun;
+
+	/*
+	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
+	 * undefined so rtld can update them.  This is a temporary
+	 * hack.
+	 */
+	.size.*;
 };

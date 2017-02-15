@@ -36,3 +36,12 @@ FBSD_1.3 {
 	procstat_getvmmap;
 	procstat_open_core;
 };
+
+FBSDprivate_1.0 {
+	/*
+	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
+	 * undefined so rtld can update them.  This is a temporary
+	 * hack.
+	 */
+	.size.*;
+};
