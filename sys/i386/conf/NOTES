@@ -353,15 +353,6 @@ device		eisa
 options 	EISA_SLOTS=12
 
 #
-# MCA bus:
-#
-# The MCA bus device is `mca'.  It provides auto-detection and
-# configuration support for all devices on the MCA bus.
-# No hints are required for MCA.
-
-device		mca
-
-#
 # AGP GART support
 device		agp
 
