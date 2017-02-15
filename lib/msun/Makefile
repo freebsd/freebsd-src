@@ -107,7 +107,7 @@ COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 .endif
 
 # C99 complex functions
-COMMON_SRCS+=	catrig.c catrigf.c \
+COMMON_SRCS+=	catrig.c catrigf.c catrigl.c \
 	s_ccosh.c s_ccoshf.c s_cexp.c s_cexpf.c \
 	s_cimag.c s_cimagf.c s_cimagl.c \
 	s_conj.c s_conjf.c s_conjl.c \
