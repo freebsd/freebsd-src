@@ -47,7 +47,7 @@
 #include <stdio.h>
 
 extern char **environ;
-bool user_mode_only = false;
+static bool user_mode_only = false;
 
 static void
 usage(void)
