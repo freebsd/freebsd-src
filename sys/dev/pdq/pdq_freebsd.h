@@ -86,10 +86,6 @@ extern devclass_t pdq_devclass;
 
 enum _pdq_type_t {
     PDQ_DEFPA,		/* PCI-bus */
-    PDQ_DEFEA,		/* EISA-bus */
-    PDQ_DEFTA,		/* TurboChannel */
-    PDQ_DEFAA,		/* FutureBus+ */
-    PDQ_DEFQA		/* Q-bus */
 };
 
 #define	sc_ifmedia	ifmedia
