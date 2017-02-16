@@ -201,6 +201,7 @@ MAN=	aac.4 \
 	icmp.4 \
 	icmp6.4 \
 	ida.4 \
+	if_ipsec.4 \
 	ifmib.4 \
 	ig4.4 \
 	igb.4 \
@@ -887,6 +888,10 @@ _dtrace_udp.4=	dtrace_udp.4
 MAN+=		iscsi.4
 MAN+=		iscsi_initiator.4
 MAN+=		iser.4
+.endif
+
+.if ${MK_OFED} != "no"
+MAN+=		mlx4ib.4
 .endif
 
 .if ${MK_TESTS} != "no"

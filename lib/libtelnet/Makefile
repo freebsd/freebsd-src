@@ -4,7 +4,7 @@
 .include <src.opts.mk>
 
 PACKAGE=lib${LIB}
-TELNETDIR=	${.CURDIR}/../../contrib/telnet
+TELNETDIR=	${SRCTOP}/contrib/telnet
 .PATH:		${TELNETDIR}/libtelnet
 
 LIB=		telnet

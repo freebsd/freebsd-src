@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_mp_watchdog.h"
 #include "opt_platform.h"
 #ifdef __i386__
-#include "opt_npx.h"
 #include "opt_apic.h"
 #include "opt_xbox.h"
 #endif
@@ -130,6 +129,14 @@ acpi_cpu_c1(void)
 	__asm __volatile("sti; hlt");
 }
 
+/*
+ * Use mwait to pause execution while waiting for an interrupt or
+ * another thread to signal that there is more work.
+ *
+ * NOTE: Interrupts will cause a wakeup; however, this function does
+ * not enable interrupt handling. The caller is responsible to enable
+ * interrupts.
+ */
 void
 acpi_cpu_idle_mwait(uint32_t mwait_hint)
 {
@@ -243,7 +250,6 @@ static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
 SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RWTUN, &idle_mwait,
     0, "Use MONITOR/MWAIT for short idle");
 
-#ifndef PC98
 static void
 cpu_idle_acpi(sbintime_t sbt)
 {
@@ -262,7 +268,6 @@ cpu_idle_acpi(sbintime_t sbt)
 		acpi_cpu_c1();
 	*state = STATE_RUNNING;
 }
-#endif /* !PC98 */
 
 static void
 cpu_idle_hlt(sbintime_t sbt)
@@ -369,11 +374,7 @@ cpu_probe_amdc1e(void)
 	}
 }
 
-#if defined(__i386__) && defined(PC98)
-void (*cpu_idle_fn)(sbintime_t) = cpu_idle_hlt;
-#else
 void (*cpu_idle_fn)(sbintime_t) = cpu_idle_acpi;
-#endif
 
 void
 cpu_idle(int busy)
@@ -450,7 +451,7 @@ struct {
 	{ cpu_idle_spin, "spin" },
 	{ cpu_idle_mwait, "mwait" },
 	{ cpu_idle_hlt, "hlt" },
-#if !defined(__i386__) || !defined(PC98)
+#if !defined(__i386__)
 	{ cpu_idle_acpi, "acpi" },
 #endif
 	{ NULL, NULL }
@@ -469,7 +470,7 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
 			continue;
-#if !defined(__i386__) || !defined(PC98)
+#if !defined(__i386__)
 		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
 		    cpu_idle_hook == NULL)
 			continue;
@@ -508,7 +509,7 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
 			continue;
-#if !defined(__i386__) || !defined(PC98)
+#if !defined(__i386__)
 		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
 		    cpu_idle_hook == NULL)
 			continue;

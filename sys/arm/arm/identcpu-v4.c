@@ -43,15 +43,14 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include <sys/systm.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <machine/cpu.h>
 #include <machine/endian.h>
 
-#include <machine/cpuconf.h>
 #include <machine/md_var.h>
 
 char machine[] = "arm";
@@ -295,8 +294,7 @@ u_int cpu_pfr(int num)
 void
 identify_arm_cpu(void)
 {
-	u_int cpuid;
-	u_int8_t ctrl;
+	u_int cpuid, ctrl;
 	int i;
 
 	ctrl = cpu_get_control();

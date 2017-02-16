@@ -21,11 +21,9 @@
 
 ident		ERL
 
-makeoptions	ARCH_FLAGS="-march=octeon -mabi=64"
+makeoptions	ARCH_FLAGS="-march=octeon+ -mabi=64"
 makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1
 
-# Don't build any modules yet.
-makeoptions	MODULES_OVERRIDE=""
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
 # We don't need to build a trampolined version of the kernel.
@@ -90,7 +88,6 @@ options 	MAC			# TrustedBSD MAC Framework
 #options 	KDTRACE_FRAME		# Ensure frames are compiled in
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
-options 	NO_SWAPPING		# Disable support for paging
 options		TMPFS			# Temporary file system
 
 # Debugging for use in -current

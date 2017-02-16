@@ -62,14 +62,15 @@ struct ptable_entry {
 };
 
 /* The offset and size are in sectors */
-typedef int (diskread_t)(void *arg, void *buf, size_t blocks, off_t offset);
+typedef int (diskread_t)(void *arg, void *buf, size_t blocks, uint64_t offset);
 typedef int (ptable_iterate_t)(void *arg, const char *partname,
     const struct ptable_entry *part);
 
-struct ptable *ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
+struct ptable *ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
     diskread_t *dread);
 void ptable_close(struct ptable *table);
 enum ptable_type ptable_gettype(const struct ptable *table);
+int ptable_getsize(const struct ptable *table, uint64_t *sizep);
 
 int ptable_getpart(const struct ptable *table, struct ptable_entry *part,
     int index);

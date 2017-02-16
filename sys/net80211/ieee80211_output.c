@@ -122,9 +122,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-#ifdef IEEE80211_SUPPORT_SUPERG
 	int mcast;
-#endif
 
 	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 	    (m->m_flags & M_PWR_SAV) == 0) {
@@ -164,9 +162,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * interface it (might have been) received on.
 	 */
 	m->m_pkthdr.rcvif = (void *)ni;
-#ifdef IEEE80211_SUPPORT_SUPERG
 	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1: 0;
-#endif
 
 	BPF_MTAP(ifp, m);		/* 802.3 tx */
 
@@ -181,10 +177,15 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * The default ic_ampdu_enable routine handles staggering
 	 * ADDBA requests in case the receiver NAK's us or we are
 	 * otherwise unable to establish a BA stream.
+	 *
+	 * Don't treat group-addressed frames as candidates for aggregation;
+	 * net80211 doesn't support 802.11aa-2012 and so group addressed
+	 * frames will always have sequence numbers allocated from the NON_QOS
+	 * TID.
 	 */
 	if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
 	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX)) {
-		if ((m->m_flags & M_EAPOL) == 0) {
+		if ((m->m_flags & M_EAPOL) == 0 && (! mcast)) {
 			int tid = WME_AC_TO_TID(M_WME_GETAC(m));
 			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
 
@@ -776,12 +777,20 @@ ieee80211_send_setup(
 	 * requiring the TX lock.
 	 */
 	tap = &ni->ni_tx_ampdu[tid];
-	if (tid != IEEE80211_NONQOS_TID && IEEE80211_AMPDU_RUNNING(tap))
+	if (tid != IEEE80211_NONQOS_TID && IEEE80211_AMPDU_RUNNING(tap)) {
 		m->m_flags |= M_AMPDU_MPDU;
-	else {
+	} else {
 		if (IEEE80211_HAS_SEQ(type & IEEE80211_FC0_TYPE_MASK,
 				      type & IEEE80211_FC0_SUBTYPE_MASK))
-			seqno = ni->ni_txseqs[tid]++;
+			/*
+			 * 802.11-2012 9.3.2.10 - QoS multicast frames
+			 * come out of a different seqno space.
+			 */
+			if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+				seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+			} else {
+				seqno = ni->ni_txseqs[tid]++;
+			}
 		else
 			seqno = 0;
 
@@ -1239,13 +1248,15 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *key;
 	struct llc *llc;
-	int hdrsize, hdrspace, datalen, addqos, txfrag, is4addr;
+	int hdrsize, hdrspace, datalen, addqos, txfrag, is4addr, is_mcast;
 	ieee80211_seq seqno;
 	int meshhdrsize, meshae;
 	uint8_t *qos;
 	int is_amsdu = 0;
 	
 	IEEE80211_TX_LOCK_ASSERT(ic);
+
+	is_mcast = !! (m->m_flags & (M_MCAST | M_BCAST));
 
 	/*
 	 * Copy existing Ethernet header to a safe place.  The
@@ -1291,11 +1302,19 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 * ap's require all data frames to be QoS-encapsulated
 	 * once negotiated in which case we'll need to make this
 	 * configurable.
-	 * NB: mesh data frames are QoS.
+	 *
+	 * Don't send multicast QoS frames.
+	 * Technically multicast frames can be QoS if all stations in the
+	 * BSS are also QoS.
+	 *
+	 * NB: mesh data frames are QoS, including multicast frames.
 	 */
-	addqos = ((ni->ni_flags & (IEEE80211_NODE_QOS|IEEE80211_NODE_HT)) ||
+	addqos =
+	    (((is_mcast == 0) && (ni->ni_flags &
+	     (IEEE80211_NODE_QOS|IEEE80211_NODE_HT))) ||
 	    (vap->iv_opmode == IEEE80211_M_MBSS)) &&
 	    (m->m_flags & M_EAPOL) == 0;
+
 	if (addqos)
 		hdrsize = sizeof(struct ieee80211_qosframe);
 	else
@@ -1560,6 +1579,22 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 */
 		if ((m->m_flags & M_AMPDU_MPDU) == 0) {
 			/*
+			 * 802.11-2012 9.3.2.10 -
+			 *
+			 * If this is a multicast frame then we need
+			 * to ensure that the sequence number comes from
+			 * a separate seqno space and not the TID space.
+			 *
+			 * Otherwise multicast frames may actually cause
+			 * holes in the TX blockack window space and
+			 * upset various things.
+			 */
+			if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+				seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+			else
+				seqno = ni->ni_txseqs[tid]++;
+
+			/*
 			 * NB: don't assign a sequence # to potential
 			 * aggregates; we expect this happens at the
 			 * point the frame comes off any aggregation q
@@ -1596,12 +1631,20 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			    __func__);
 	}
 
+	/*
+	 * Check if xmit fragmentation is required.
+	 *
+	 * If the hardware does fragmentation offload, then don't bother
+	 * doing it here.
+	 */
+	if (IEEE80211_CONF_FRAG_OFFLOAD(ic))
+		txfrag = 0;
+	else
+		txfrag = (m->m_pkthdr.len > vap->iv_fragthreshold &&
+		    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
+		    (vap->iv_caps & IEEE80211_C_TXFRAG) &&
+		    (m->m_flags & (M_FF | M_AMPDU_MPDU)) == 0);
 
-	/* check if xmit fragmentation is required */
-	txfrag = (m->m_pkthdr.len > vap->iv_fragthreshold &&
-	    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
-	    (vap->iv_caps & IEEE80211_C_TXFRAG) &&
-	    (m->m_flags & (M_FF | M_AMPDU_MPDU)) == 0);
 	if (key != NULL) {
 		/*
 		 * IEEE 802.1X: send EAPOL frames always in the clear.
@@ -1981,16 +2024,23 @@ ieee80211_add_supportedchannels(uint8_t *frm, struct ieee80211com *ic)
  * Add an 11h Quiet time element to a frame.
  */
 static uint8_t *
-ieee80211_add_quiet(uint8_t *frm, struct ieee80211vap *vap)
+ieee80211_add_quiet(uint8_t *frm, struct ieee80211vap *vap, int update)
 {
 	struct ieee80211_quiet_ie *quiet = (struct ieee80211_quiet_ie *) frm;
 
 	quiet->quiet_ie = IEEE80211_ELEMID_QUIET;
 	quiet->len = 6;
-	if (vap->iv_quiet_count_value == 1)
-		vap->iv_quiet_count_value = vap->iv_quiet_count;
-	else if (vap->iv_quiet_count_value > 1)
-		vap->iv_quiet_count_value--;
+
+	/*
+	 * Only update every beacon interval - otherwise probe responses
+	 * would update the quiet count value.
+	 */
+	if (update) {
+		if (vap->iv_quiet_count_value == 1)
+			vap->iv_quiet_count_value = vap->iv_quiet_count;
+		else if (vap->iv_quiet_count_value > 1)
+			vap->iv_quiet_count_value--;
+	}
 
 	if (vap->iv_quiet_count_value == 0) {
 		/* value 0 is reserved as per 802.11h standerd */
@@ -2086,7 +2136,6 @@ ieee80211_add_qos(uint8_t *frm, const struct ieee80211_node *ni)
  * Send a probe request frame with the specified ssid
  * and any optional information element data.
  */
-/* XXX VHT? */
 int
 ieee80211_send_probereq(struct ieee80211_node *ni,
 	const uint8_t sa[IEEE80211_ADDR_LEN],
@@ -2396,7 +2445,6 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
-		/* XXX VHT? */
 		/*
 		 * asreq frame format
 		 *	[2] capability information
@@ -2658,7 +2706,6 @@ bad:
  * Space is left to prepend and 802.11 header at the
  * front but it's left to the caller to fill in.
  */
-/* XXX VHT? */
 struct mbuf *
 ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 {
@@ -2777,7 +2824,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
 		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
 			if (vap->iv_quiet)
-				frm = ieee80211_add_quiet(frm, vap);
+				frm = ieee80211_add_quiet(frm, vap, 0);
 		}
 	}
 	if (IEEE80211_IS_CHAN_ANYG(bss->ni_chan))
@@ -2993,7 +3040,6 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 	}
 }
 
-/* XXX VHT? */
 static void
 ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	struct ieee80211_node *ni)
@@ -3121,15 +3167,23 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	} else
 		bo->bo_csa = frm;
 
+	bo->bo_quiet = NULL;
 	if (vap->iv_flags & IEEE80211_F_DOTH) {
-		bo->bo_quiet = frm;
 		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
-			if (vap->iv_quiet)
-				frm = ieee80211_add_quiet(frm,vap);
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS) &&
+		    (vap->iv_quiet == 1)) {
+			/*
+			 * We only insert the quiet IE offset if
+			 * the quiet IE is enabled.  Otherwise don't
+			 * put it here or we'll just overwrite
+			 * some other beacon contents.
+			 */
+			if (vap->iv_quiet) {
+				bo->bo_quiet = frm;
+				frm = ieee80211_add_quiet(frm,vap, 0);
+			}
 		}
-	} else
-		bo->bo_quiet = frm;
+	}
 
 	if (IEEE80211_IS_CHAN_ANYG(ni->ni_chan)) {
 		bo->bo_erp = frm;
@@ -3197,7 +3251,6 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 /*
  * Allocate a beacon frame and fillin the appropriate bits.
  */
-/* XXX VHT? */
 struct mbuf *
 ieee80211_beacon_alloc(struct ieee80211_node *ni)
 {
@@ -3208,6 +3261,14 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni)
 	struct mbuf *m;
 	int pktlen;
 	uint8_t *frm;
+
+	/*
+	 * Update the "We're putting the quiet IE in the beacon" state.
+	 */
+	if (vap->iv_quiet == 1)
+		vap->iv_flags_ext |= IEEE80211_FEXT_QUIET_IE;
+	else if (vap->iv_quiet == 0)
+		vap->iv_flags_ext &= ~IEEE80211_FEXT_QUIET_IE;
 
 	/*
 	 * beacon frame format
@@ -3244,7 +3305,6 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni)
 	 * NB: we allocate the max space required for the TIM bitmap.
 	 * XXX how big is this?
 	 */
-	/* XXX VHT? */
 	pktlen =   8					/* time stamp */
 		 + sizeof(uint16_t)			/* beacon interval */
 		 + sizeof(uint16_t)			/* capabilities */
@@ -3345,6 +3405,42 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 		ieee80211_beacon_construct(m,
 		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), ni);
 
+		/* XXX do WME aggressive mode processing? */
+		IEEE80211_UNLOCK(ic);
+		return 1;		/* just assume length changed */
+	}
+
+	/*
+	 * Handle the quiet time element being added and removed.
+	 * Again, for now we just cheat and reconstruct the whole
+	 * beacon - that way the gap is provided as appropriate.
+	 *
+	 * So, track whether we have already added the IE versus
+	 * whether we want to be adding the IE.
+	 */
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_QUIET_IE) &&
+	    (vap->iv_quiet == 0)) {
+		/*
+		 * Quiet time beacon IE enabled, but it's disabled;
+		 * recalc
+		 */
+		vap->iv_flags_ext &= ~IEEE80211_FEXT_QUIET_IE;
+		ieee80211_beacon_construct(m,
+		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), ni);
+		/* XXX do WME aggressive mode processing? */
+		IEEE80211_UNLOCK(ic);
+		return 1;		/* just assume length changed */
+	}
+
+	if (((vap->iv_flags_ext & IEEE80211_FEXT_QUIET_IE) == 0) &&
+	    (vap->iv_quiet == 1)) {
+		/*
+		 * Quiet time beacon IE disabled, but it's now enabled;
+		 * recalc
+		 */
+		vap->iv_flags_ext |= IEEE80211_FEXT_QUIET_IE;
+		ieee80211_beacon_construct(m,
+		    mtod(m, uint8_t*) + sizeof(struct ieee80211_frame), ni);
 		/* XXX do WME aggressive mode processing? */
 		IEEE80211_UNLOCK(ic);
 		return 1;		/* just assume length changed */
@@ -3558,10 +3654,17 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 			vap->iv_csa_count++;
 			/* NB: don't clear IEEE80211_BEACON_CSA */
 		}
+
+		/*
+		 * Only add the quiet time IE if we've enabled it
+		 * as appropriate.
+		 */
 		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS) ){
-			if (vap->iv_quiet)
-				ieee80211_add_quiet(bo->bo_quiet, vap);
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
+			if (vap->iv_quiet &&
+			    (vap->iv_flags_ext & IEEE80211_FEXT_QUIET_IE)) {
+				ieee80211_add_quiet(bo->bo_quiet, vap, 1);
+			}
 		}
 		if (isset(bo->bo_flags, IEEE80211_BEACON_ERP)) {
 			/*

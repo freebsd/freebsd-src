@@ -49,7 +49,7 @@ CLEANFILES+=	ldemul-list.h stringify.sed
 
 FILES=		${LDSCRIPTS:S|^|ldscripts/|}
 FILESDIR=	${SCRIPTDIR}
-.if ${MK_LLD_AS_LD} == "no"
+.if ${MK_LLD_IS_LD} == "no"
 LINKS=		${BINDIR}/ld.bfd ${BINDIR}/ld
 .endif
 

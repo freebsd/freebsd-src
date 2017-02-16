@@ -391,6 +391,8 @@ enum {
 	IEEE80211_BEACON_TDMA	= 9,	/* TDMA Info */
 	IEEE80211_BEACON_ATH	= 10,	/* ATH parameters */
 	IEEE80211_BEACON_MESHCONF = 11,	/* Mesh Configuration */
+	IEEE80211_BEACON_QUIET	= 12,	/* Quiet time IE */
+	IEEE80211_BEACON_VHTINFO	= 13,	/* VHT information */
 };
 int	ieee80211_beacon_update(struct ieee80211_node *,
 		struct mbuf *, int mcast);

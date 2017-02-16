@@ -187,6 +187,7 @@ extern void *int_watchdog;
 extern void *int_data_tlb_error;
 extern void *int_inst_tlb_error;
 extern void *int_debug;
+extern void *int_debug_ed;
 extern void *int_vec;
 extern void *int_vecast;
 #ifdef HWPMC_HOOKS
@@ -242,6 +243,7 @@ ivor_setup(void)
 	case FSL_E500mc:
 	case FSL_E5500:
 		SET_TRAP(SPR_IVOR7, int_fpu);
+		SET_TRAP(SPR_IVOR15, int_debug_ed);
 		break;
 	case FSL_E500v1:
 	case FSL_E500v2:

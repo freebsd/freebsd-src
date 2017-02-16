@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
 #include <sys/signalvar.h>
-#include <sys/socketvar.h>
 #include <sys/kdb.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
@@ -98,8 +97,8 @@ MALLOC_DEFINE(M_FILECAPS, "filecaps", "descriptor capabilities");
 
 MALLOC_DECLARE(M_FADVISE);
 
-static uma_zone_t file_zone;
-static uma_zone_t filedesc0_zone;
+static __read_mostly uma_zone_t file_zone;
+static __read_mostly uma_zone_t filedesc0_zone;
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
@@ -169,9 +168,9 @@ struct filedesc0 {
 /*
  * Descriptor management.
  */
-volatile int openfiles;			/* actual number of open files */
+volatile int __exclusive_cache_line openfiles; /* actual number of open files */
 struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
-void (*mq_fdclose)(struct thread *td, int fd, struct file *fp);
+void __read_mostly (*mq_fdclose)(struct thread *td, int fd, struct file *fp);
 
 /*
  * If low >= size, just return low. Otherwise find the first zero bit in the
@@ -2570,8 +2569,8 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		if (error != 0)
 			return (error);
 #endif
-	retry:
 		count = fp->f_count;
+	retry:
 		if (count == 0) {
 			/*
 			 * Force a reload. Other thread could reallocate the
@@ -2585,7 +2584,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		 * Use an acquire barrier to force re-reading of fdt so it is
 		 * refreshed for verification.
 		 */
-		if (atomic_cmpset_acq_int(&fp->f_count, count, count + 1) == 0)
+		if (atomic_fcmpset_acq_int(&fp->f_count, &count, count + 1) == 0)
 			goto retry;
 		fdt = fdp->fd_files;
 #ifdef	CAPABILITIES
@@ -2838,61 +2837,6 @@ fgetvp_write(struct thread *td, int fd, cap_rights_t *rightsp,
 	return (_fgetvp(td, fd, FWRITE, rightsp, vpp));
 }
 #endif
-
-/*
- * Like fget() but loads the underlying socket, or returns an error if the
- * descriptor does not represent a socket.
- *
- * We bump the ref count on the returned socket.  XXX Also obtain the SX lock
- * in the future.
- *
- * Note: fgetsock() and fputsock() are deprecated, as consumers should rely
- * on their file descriptor reference to prevent the socket from being free'd
- * during use.
- */
-int
-fgetsock(struct thread *td, int fd, cap_rights_t *rightsp, struct socket **spp,
-    u_int *fflagp)
-{
-	struct file *fp;
-	int error;
-
-	*spp = NULL;
-	if (fflagp != NULL)
-		*fflagp = 0;
-	if ((error = _fget(td, fd, &fp, 0, rightsp, NULL)) != 0)
-		return (error);
-	if (fp->f_type != DTYPE_SOCKET) {
-		error = ENOTSOCK;
-	} else {
-		*spp = fp->f_data;
-		if (fflagp)
-			*fflagp = fp->f_flag;
-		SOCK_LOCK(*spp);
-		soref(*spp);
-		SOCK_UNLOCK(*spp);
-	}
-	fdrop(fp, td);
-
-	return (error);
-}
-
-/*
- * Drop the reference count on the socket and XXX release the SX lock in the
- * future.  The last reference closes the socket.
- *
- * Note: fputsock() is deprecated, see comment for fgetsock().
- */
-void
-fputsock(struct socket *so)
-{
-
-	ACCEPT_LOCK();
-	SOCK_LOCK(so);
-	CURVNET_SET(so->so_vnet);
-	sorele(so);
-	CURVNET_RESTORE();
-}
 
 /*
  * Handle the last reference to a file being closed.

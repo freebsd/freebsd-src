@@ -183,6 +183,7 @@ struct ctl_be_block_lun {
  */
 struct ctl_be_block_softc {
 	struct mtx			 lock;
+	uma_zone_t			 beio_zone;
 	int				 num_luns;
 	STAILQ_HEAD(, ctl_be_block_lun)	 lun_list;
 };
@@ -273,13 +274,15 @@ static int ctl_be_block_config_write(union ctl_io *io);
 static int ctl_be_block_config_read(union ctl_io *io);
 static int ctl_be_block_lun_info(void *be_lun, struct sbuf *sb);
 static uint64_t ctl_be_block_lun_attr(void *be_lun, const char *attrname);
-int ctl_be_block_init(void);
+static int ctl_be_block_init(void);
+static int ctl_be_block_shutdown(void);
 
 static struct ctl_backend_driver ctl_be_block_driver = 
 {
 	.name = "block",
 	.flags = CTL_BE_FLAG_HAS_CONFIG,
 	.init = ctl_be_block_init,
+	.shutdown = ctl_be_block_shutdown,
 	.data_submit = ctl_be_block_submit,
 	.data_move_done = ctl_be_block_move_done,
 	.config_read = ctl_be_block_config_read,
@@ -292,14 +295,12 @@ static struct ctl_backend_driver ctl_be_block_driver =
 MALLOC_DEFINE(M_CTLBLK, "ctlblk", "Memory used for CTL block backend");
 CTL_BACKEND_DECLARE(cbb, ctl_be_block_driver);
 
-static uma_zone_t beio_zone;
-
 static struct ctl_be_block_io *
 ctl_alloc_beio(struct ctl_be_block_softc *softc)
 {
 	struct ctl_be_block_io *beio;
 
-	beio = uma_zalloc(beio_zone, M_WAITOK | M_ZERO);
+	beio = uma_zalloc(softc->beio_zone, M_WAITOK | M_ZERO);
 	beio->softc = softc;
 	return (beio);
 }
@@ -332,7 +333,7 @@ ctl_free_beio(struct ctl_be_block_io *beio)
 		       duplicate_free, beio->num_segs);
 	}
 
-	uma_zfree(beio_zone, beio);
+	uma_zfree(beio->softc->beio_zone, beio);
 }
 
 static void
@@ -419,6 +420,16 @@ ctl_be_block_move_done(union ctl_io *io)
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
 		;
+	} else if ((io->io_hdr.port_status != 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
+		ctl_set_internal_failure(&io->scsiio, /*sks_valid*/ 1,
+		    /*retry_count*/ io->io_hdr.port_status);
+	} else if (io->scsiio.kern_data_resid != 0 &&
+	    (io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
+		ctl_set_invalid_field_ciu(&io->scsiio);
 	} else if ((io->io_hdr.port_status == 0) &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
 		lbalen = ARGS(beio->io);
@@ -428,21 +439,6 @@ ctl_be_block_move_done(union ctl_io *io)
 			/* We have two data blocks ready for comparison. */
 			ctl_be_block_compare(io);
 		}
-	} else if ((io->io_hdr.port_status != 0) &&
-	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
-	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		/*
-		 * For hardware error sense keys, the sense key
-		 * specific value is defined to be a retry count,
-		 * but we use it to pass back an internal FETD
-		 * error code.  XXX KDM  Hopefully the FETD is only
-		 * using 16 bits for an error code, since that's
-		 * all the space we have in the sks field.
-		 */
-		ctl_set_internal_failure(&io->scsiio,
-					 /*sks_valid*/ 1,
-					 /*retry_count*/
-					 io->io_hdr.port_status);
 	}
 
 	/*
@@ -1634,7 +1630,6 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	else
 		io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
 	io->scsiio.kern_data_len = beio->io_len;
-	io->scsiio.kern_data_resid = 0;
 	io->scsiio.kern_sg_entries = beio->num_segs;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 
@@ -2865,19 +2860,40 @@ ctl_be_block_lun_attr(void *be_lun, const char *attrname)
 	return (lun->getattr(lun, attrname));
 }
 
-int
+static int
 ctl_be_block_init(void)
 {
-	struct ctl_be_block_softc *softc;
-	int retval;
-
-	softc = &backend_block_softc;
-	retval = 0;
+	struct ctl_be_block_softc *softc = &backend_block_softc;
 
 	mtx_init(&softc->lock, "ctlblock", NULL, MTX_DEF);
-	beio_zone = uma_zcreate("beio", sizeof(struct ctl_be_block_io),
+	softc->beio_zone = uma_zcreate("beio", sizeof(struct ctl_be_block_io),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	STAILQ_INIT(&softc->lun_list);
+	return (0);
+}
 
-	return (retval);
+
+static int
+ctl_be_block_shutdown(void)
+{
+	struct ctl_be_block_softc *softc = &backend_block_softc;
+	struct ctl_be_block_lun *lun, *next_lun;
+
+	mtx_lock(&softc->lock);
+	STAILQ_FOREACH_SAFE(lun, &softc->lun_list, links, next_lun) {
+		/*
+		 * Drop our lock here.  Since ctl_invalidate_lun() can call
+		 * back into us, this could potentially lead to a recursive
+		 * lock of the same mutex, which would cause a hang.
+		 */
+		mtx_unlock(&softc->lock);
+		ctl_disable_lun(&lun->cbe_lun);
+		ctl_invalidate_lun(&lun->cbe_lun);
+		mtx_lock(&softc->lock);
+	}
+	mtx_unlock(&softc->lock);
+
+	uma_zdestroy(softc->beio_zone);
+	mtx_destroy(&softc->lock);
+	return (0);
 }

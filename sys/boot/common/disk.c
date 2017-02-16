@@ -45,7 +45,8 @@ __FBSDID("$FreeBSD$");
 
 struct open_disk {
 	struct ptable		*table;
-	off_t			mediasize;
+	uint64_t		mediasize;
+	uint64_t		entrysize;
 	u_int			sectorsize;
 	u_int			flags;
 	int			rcnt;
@@ -64,7 +65,7 @@ struct dentry {
 	int			d_partition;
 
 	struct open_disk	*od;
-	off_t			d_offset;
+	uint64_t		d_offset;
 	STAILQ_ENTRY(dentry)	entry;
 #ifdef DISK_DEBUG
 	uint32_t		count;
@@ -171,7 +172,7 @@ display_size(uint64_t size, u_int sectorsize)
 }
 
 int
-ptblread(void *d, void *buf, size_t blocks, off_t offset)
+ptblread(void *d, void *buf, size_t blocks, uint64_t offset)
 {
 	struct disk_devdesc *dev;
 	struct open_disk *od;
@@ -238,7 +239,7 @@ disk_print(struct disk_devdesc *dev, char *prefix, int verbose)
 }
 
 int
-disk_read(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
+disk_read(struct disk_devdesc *dev, void *buf, uint64_t offset, u_int blocks)
 {
 	struct open_disk *od;
 	int ret;
@@ -251,7 +252,7 @@ disk_read(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
 }
 
 int
-disk_write(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
+disk_write(struct disk_devdesc *dev, void *buf, uint64_t offset, u_int blocks)
 {
 	struct open_disk *od;
 	int ret;
@@ -264,17 +265,32 @@ disk_write(struct disk_devdesc *dev, void *buf, off_t offset, u_int blocks)
 }
 
 int
-disk_ioctl(struct disk_devdesc *dev, u_long cmd, void *buf)
+disk_ioctl(struct disk_devdesc *dev, u_long cmd, void *data)
 {
+	struct open_disk *od = dev->d_opendata;
 
-	if (dev->d_dev->dv_ioctl)
-		return ((*dev->d_dev->dv_ioctl)(dev->d_opendata, cmd, buf));
+	if (od == NULL)
+		return (ENOTTY);
 
-	return (ENXIO);
+	switch (cmd) {
+	case DIOCGSECTORSIZE:
+		*(u_int *)data = od->sectorsize;
+		break;
+	case DIOCGMEDIASIZE:
+		if (dev->d_offset == 0)
+			*(uint64_t *)data = od->mediasize;
+		else
+			*(uint64_t *)data = od->entrysize * od->sectorsize;
+		break;
+	default:
+		return (ENOTTY);
+	}
+
+	return (0);
 }
 
 int
-disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize,
+disk_open(struct disk_devdesc *dev, uint64_t mediasize, u_int sectorsize,
     u_int flags)
 {
 	struct open_disk *od;
@@ -315,6 +331,7 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize,
 		}
 		dev->d_opendata = od;
 		od->rcnt = 0;
+		od->entrysize = 0;
 	}
 	od->mediasize = mediasize;
 	od->sectorsize = sectorsize;
@@ -330,14 +347,24 @@ disk_open(struct disk_devdesc *dev, off_t mediasize, u_int sectorsize,
 		rc = ENXIO;
 		goto out;
 	}
+
+	if (ptable_getsize(od->table, &mediasize) != 0) {
+		rc = ENXIO;
+		goto out;
+	}
+	if (mediasize > od->mediasize) {
+		od->mediasize = mediasize;
+	}
 opened:
 	rc = 0;
 	if (ptable_gettype(od->table) == PTABLE_BSD &&
 	    partition >= 0) {
 		/* It doesn't matter what value has d_slice */
 		rc = ptable_getpart(od->table, &part, partition);
-		if (rc == 0)
+		if (rc == 0) {
 			dev->d_offset = part.start;
+			od->entrysize = part.end - part.start + 1;
+		}
 	} else if (slice >= 0) {
 		/* Try to get information about partition */
 		if (slice == 0)
@@ -347,6 +374,7 @@ opened:
 		if (rc != 0) /* Partition doesn't exist */
 			goto out;
 		dev->d_offset = part.start;
+		od->entrysize = part.end - part.start + 1;
 		slice = part.index;
 		if (ptable_gettype(od->table) == PTABLE_GPT) {
 			partition = 255;
@@ -389,6 +417,7 @@ opened:
 		if (rc != 0)
 			goto out;
 		dev->d_offset += part.start;
+		od->entrysize = part.end - part.start + 1;
 	}
 out:
 	if (table != NULL)

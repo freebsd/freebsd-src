@@ -303,7 +303,7 @@ retry:
 	}
 
 	if (bp->b_blkno == bp->b_lblkno) {
-		if (lbprev >= NDADDR)
+		if (lbprev >= UFS_NDADDR)
 			panic("ffs_realloccg: lbprev out of range");
 		bp->b_blkno = fsbtodb(fs, bprev);
 	}
@@ -524,7 +524,7 @@ ffs_reallocblks_ufs1(ap)
 	ufs_lbn_t start_lbn, end_lbn;
 	ufs1_daddr_t soff, newblk, blkno;
 	ufs2_daddr_t pref;
-	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
+	struct indir start_ap[UFS_NIADDR + 1], end_ap[UFS_NIADDR + 1], *idp;
 	int i, cg, len, start_lvl, end_lvl, ssize;
 
 	vp = ap->a_vp;
@@ -567,7 +567,7 @@ ffs_reallocblks_ufs1(ap)
 	 * this for other indirect block boundaries, but it is only
 	 * important for the first one.
 	 */
-	if (start_lbn < NDADDR && end_lbn >= NDADDR)
+	if (start_lbn < UFS_NDADDR && end_lbn >= UFS_NDADDR)
 		return (ENOSPC);
 	/*
 	 * If the latest allocation is in a new cylinder group, assume that
@@ -773,7 +773,7 @@ ffs_reallocblks_ufs2(ap)
 	struct ufsmount *ump;
 	ufs_lbn_t start_lbn, end_lbn;
 	ufs2_daddr_t soff, newblk, blkno, pref;
-	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
+	struct indir start_ap[UFS_NIADDR + 1], end_ap[UFS_NIADDR + 1], *idp;
 	int i, cg, len, start_lvl, end_lvl, ssize;
 
 	vp = ap->a_vp;
@@ -816,7 +816,7 @@ ffs_reallocblks_ufs2(ap)
 	 * this for other indirect block boundaries, but it is only
 	 * important for the first one.
 	 */
-	if (start_lbn < NDADDR && end_lbn >= NDADDR)
+	if (start_lbn < UFS_NDADDR && end_lbn >= UFS_NDADDR)
 		return (ENOSPC);
 	/*
 	 * If the latest allocation is in a new cylinder group, assume that
@@ -1334,9 +1334,9 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 		 * If we are allocating the first indirect block, try to
 		 * place it immediately following the last direct block.
 		 */
-		if (indx == -1 && lbn < NDADDR + NINDIR(fs) &&
-		    ip->i_din1->di_db[NDADDR - 1] != 0)
-			pref = ip->i_din1->di_db[NDADDR - 1] + fs->fs_frag;
+		if (indx == -1 && lbn < UFS_NDADDR + NINDIR(fs) &&
+		    ip->i_din1->di_db[UFS_NDADDR - 1] != 0)
+			pref = ip->i_din1->di_db[UFS_NDADDR - 1] + fs->fs_frag;
 		return (pref);
 	}
 	/*
@@ -1344,7 +1344,7 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	 * block and the indirect has been allocated in the data block area,
 	 * try to place it immediately following the indirect block.
 	 */
-	if (lbn == NDADDR) {
+	if (lbn == UFS_NDADDR) {
 		pref = ip->i_din1->di_ib[0];
 		if (pref != 0 && pref >= cgdata(fs, inocg) &&
 		    pref < cgbase(fs, inocg + 1))
@@ -1368,7 +1368,7 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 		 * blocks, we try to allocate in the data area of the inode's
 		 * cylinder group.
 		 */
-		if (lbn < NDADDR + NINDIR(fs))
+		if (lbn < UFS_NDADDR + NINDIR(fs))
 			return (cgdata(fs, inocg));
 		/*
 		 * Find a cylinder with greater than average number of
@@ -1439,9 +1439,9 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 		 * If we are allocating the first indirect block, try to
 		 * place it immediately following the last direct block.
 		 */
-		if (indx == -1 && lbn < NDADDR + NINDIR(fs) &&
-		    ip->i_din2->di_db[NDADDR - 1] != 0)
-			pref = ip->i_din2->di_db[NDADDR - 1] + fs->fs_frag;
+		if (indx == -1 && lbn < UFS_NDADDR + NINDIR(fs) &&
+		    ip->i_din2->di_db[UFS_NDADDR - 1] != 0)
+			pref = ip->i_din2->di_db[UFS_NDADDR - 1] + fs->fs_frag;
 		return (pref);
 	}
 	/*
@@ -1449,7 +1449,7 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	 * block and the indirect has been allocated in the data block area,
 	 * try to place it immediately following the indirect block.
 	 */
-	if (lbn == NDADDR) {
+	if (lbn == UFS_NDADDR) {
 		pref = ip->i_din2->di_ib[0];
 		if (pref != 0 && pref >= cgdata(fs, inocg) &&
 		    pref < cgbase(fs, inocg + 1))
@@ -1473,7 +1473,7 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 		 * blocks, we try to allocate in the data area of the inode's
 		 * cylinder group.
 		 */
-		if (lbn < NDADDR + NINDIR(fs))
+		if (lbn < UFS_NDADDR + NINDIR(fs))
 			return (cgdata(fs, inocg));
 		/*
 		 * Find a cylinder with greater than average number of
@@ -2916,7 +2916,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			if (blksize > blkcnt)
 				blksize = blkcnt;
 			ffs_blkfree(ump, fs, ump->um_devvp, blkno,
-			    blksize * fs->fs_fsize, ROOTINO, VDIR, NULL);
+			    blksize * fs->fs_fsize, UFS_ROOTINO, VDIR, NULL);
 			blkno += blksize;
 			blkcnt -= blksize;
 			blksize = fs->fs_frag;

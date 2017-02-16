@@ -697,32 +697,26 @@ goout:
 int
 linux_socket(struct thread *td, struct linux_socket_args *args)
 {
-	struct socket_args /* {
-		int domain;
-		int type;
-		int protocol;
-	} */ bsd_args;
-	int retval_socket;
+	int domain, retval_socket, type;
 
-	bsd_args.protocol = args->protocol;
-	bsd_args.type = args->type & LINUX_SOCK_TYPE_MASK;
-	if (bsd_args.type < 0 || bsd_args.type > LINUX_SOCK_MAX)
+	type = args->type & LINUX_SOCK_TYPE_MASK;
+	if (type < 0 || type > LINUX_SOCK_MAX)
 		return (EINVAL);
 	retval_socket = linux_set_socket_flags(args->type & ~LINUX_SOCK_TYPE_MASK,
-		&bsd_args.type);
+		&type);
 	if (retval_socket != 0)
 		return (retval_socket);
-	bsd_args.domain = linux_to_bsd_domain(args->domain);
-	if (bsd_args.domain == -1)
+	domain = linux_to_bsd_domain(args->domain);
+	if (domain == -1)
 		return (EAFNOSUPPORT);
 
-	retval_socket = sys_socket(td, &bsd_args);
+	retval_socket = kern_socket(td, domain, type, args->protocol);
 	if (retval_socket)
 		return (retval_socket);
 
-	if (bsd_args.type == SOCK_RAW
-	    && (bsd_args.protocol == IPPROTO_RAW || bsd_args.protocol == 0)
-	    && bsd_args.domain == PF_INET) {
+	if (type == SOCK_RAW
+	    && (args->protocol == IPPROTO_RAW || args->protocol == 0)
+	    && domain == PF_INET) {
 		/* It's a raw IP socket: set the IP_HDRINCL option. */
 		int hdrincl;
 
@@ -738,7 +732,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	 * For simplicity we do this unconditionally of the net.inet6.ip6.v6only
 	 * sysctl value.
 	 */
-	if (bsd_args.domain == PF_INET6) {
+	if (domain == PF_INET6) {
 		int v6only;
 
 		v6only = 0;
@@ -816,14 +810,8 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 int
 linux_listen(struct thread *td, struct linux_listen_args *args)
 {
-	struct listen_args /* {
-		int s;
-		int backlog;
-	} */ bsd_args;
 
-	bsd_args.s = args->s;
-	bsd_args.backlog = args->backlog;
-	return (sys_listen(td, &bsd_args));
+	return (kern_listen(td, args->s, args->backlog));
 }
 
 static int
@@ -1524,14 +1512,8 @@ linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
 int
 linux_shutdown(struct thread *td, struct linux_shutdown_args *args)
 {
-	struct shutdown_args /* {
-		int s;
-		int how;
-	} */ bsd_args;
 
-	bsd_args.s = args->s;
-	bsd_args.how = args->how;
-	return (sys_shutdown(td, &bsd_args));
+	return (kern_shutdown(td, args->s, args->how));
 }
 
 int
@@ -1701,39 +1683,45 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
 /* Argument list sizes for linux_socketcall */
-
-#define LINUX_AL(x) ((x) * sizeof(l_ulong))
-
-static const unsigned char lxs_args[] = {
-	LINUX_AL(0) /* unused*/,	LINUX_AL(3) /* socket */,
-	LINUX_AL(3) /* bind */,		LINUX_AL(3) /* connect */,
-	LINUX_AL(2) /* listen */,	LINUX_AL(3) /* accept */,
-	LINUX_AL(3) /* getsockname */,	LINUX_AL(3) /* getpeername */,
-	LINUX_AL(4) /* socketpair */,	LINUX_AL(4) /* send */,
-	LINUX_AL(4) /* recv */,		LINUX_AL(6) /* sendto */,
-	LINUX_AL(6) /* recvfrom */,	LINUX_AL(2) /* shutdown */,
-	LINUX_AL(5) /* setsockopt */,	LINUX_AL(5) /* getsockopt */,
-	LINUX_AL(3) /* sendmsg */,	LINUX_AL(3) /* recvmsg */,
-	LINUX_AL(4) /* accept4 */,	LINUX_AL(5) /* recvmmsg */,
-	LINUX_AL(4) /* sendmmsg */
+static const unsigned char lxs_args_cnt[] = {
+	0 /* unused*/,		3 /* socket */,
+	3 /* bind */,		3 /* connect */,
+	2 /* listen */,		3 /* accept */,
+	3 /* getsockname */,	3 /* getpeername */,
+	4 /* socketpair */,	4 /* send */,
+	4 /* recv */,		6 /* sendto */,
+	6 /* recvfrom */,	2 /* shutdown */,
+	5 /* setsockopt */,	5 /* getsockopt */,
+	3 /* sendmsg */,	3 /* recvmsg */,
+	4 /* accept4 */,	5 /* recvmmsg */,
+	4 /* sendmmsg */
 };
-
-#define	LINUX_AL_SIZE	(nitems(lxs_args) - 1)
+#define	LINUX_ARGS_CNT		(nitems(lxs_args_cnt) - 1)
+#define	LINUX_ARG_SIZE(x)	(lxs_args_cnt[x] * sizeof(l_ulong))
 
 int
 linux_socketcall(struct thread *td, struct linux_socketcall_args *args)
 {
 	l_ulong a[6];
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	register_t l_args[6];
+#endif
 	void *arg;
 	int error;
 
-	if (args->what < LINUX_SOCKET || args->what > LINUX_AL_SIZE)
+	if (args->what < LINUX_SOCKET || args->what > LINUX_ARGS_CNT)
 		return (EINVAL);
-	error = copyin(PTRIN(args->args), a, lxs_args[args->what]);
-	if (error)
+	error = copyin(PTRIN(args->args), a, LINUX_ARG_SIZE(args->what));
+	if (error != 0)
 		return (error);
 
+#if defined(__amd64__) && defined(COMPAT_LINUX32)
+	for (int i = 0; i < lxs_args_cnt[args->what]; ++i)
+		l_args[i] = a[i];
+	arg = l_args;
+#else
 	arg = a;
+#endif
 	switch (args->what) {
 	case LINUX_SOCKET:
 		return (linux_socket(td, arg));

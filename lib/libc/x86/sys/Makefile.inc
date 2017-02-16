@@ -4,3 +4,7 @@
 
 SRCS+= \
 	__vdso_gettc.c
+
+.if ${MACHINE_CPUARCH} == "amd64" && ${MK_HYPERV} != "no"
+CFLAGS+=	-DWANT_HYPERV
+.endif

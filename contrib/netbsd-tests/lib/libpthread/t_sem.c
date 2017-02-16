@@ -1,4 +1,4 @@
-/* $NetBSD: t_sem.c,v 1.8 2014/11/04 00:20:19 justin Exp $ */
+/* $NetBSD: t_sem.c,v 1.9 2017/01/16 16:22:22 christos Exp $ */
 
 /*
  * Copyright (c) 2008, 2010 The NetBSD Foundation, Inc.
@@ -86,8 +86,9 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008, 2010\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_sem.c,v 1.8 2014/11/04 00:20:19 justin Exp $");
+__RCSID("$NetBSD: t_sem.c,v 1.9 2017/01/16 16:22:22 christos Exp $");
 
+#include <sys/time.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -110,10 +111,6 @@ __RCSID("$NetBSD: t_sem.c,v 1.8 2014/11/04 00:20:19 justin Exp $");
 	ATF_REQUIRE_EQ_MSG(x, 0, "%s", strerror(errno))
 
 static sem_t sem;
-
-#ifdef __FreeBSD__
-#include <sys/time.h>
-#endif
 
 ATF_TC(named);
 ATF_TC_HEAD(named, tc)

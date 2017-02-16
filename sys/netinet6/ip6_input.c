@@ -118,12 +118,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/in6_rss.h>
 
-#ifdef IPSEC
-#include <netipsec/key.h>
-#include <netipsec/ipsec.h>
-#include <netinet6/ip6_ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 #include <netinet6/ip6protosw.h>
 
@@ -525,14 +520,11 @@ ip6_direct_input(struct mbuf *m)
 			goto bad;
 		}
 
-#ifdef IPSEC
-		/*
-		 * enforce IPsec policy checking if we are seeing last header.
-		 * note that we do not visit this with protocols with pcb layer
-		 * code - like udp/tcp/raw ip.
-		 */
-		if (ip6_ipsec_input(m, nxt))
-			goto bad;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+		if (IPSEC_ENABLED(ipv6)) {
+			if (IPSEC_INPUT(ipv6, m, off, nxt) != 0)
+				return;
+		}
 #endif /* IPSEC */
 
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
@@ -563,7 +555,7 @@ ip6_input(struct mbuf *m)
 	if ((ND_IFINFO(rcvif)->flags & ND6_IFF_IFDISABLED))
 		goto bad;
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * should the inner packet be considered authentic?
 	 * see comment in ah4_input().
@@ -735,9 +727,9 @@ ip6_input(struct mbuf *m)
 	 * ip6 pointer.
 	 */
 	if (V_ip6_forwarding != 0
-#ifdef IPSEC
-	    && !key_havesp(IPSEC_DIR_INBOUND)
-	    && !key_havesp(IPSEC_DIR_OUTBOUND)
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	    && (!IPSEC_ENABLED(ipv6) ||
+	    IPSEC_CAPS(ipv6, m, IPSEC_CAP_OPERABLE) == 0)
 #endif
 	    ) {
 		if ((m = ip6_tryforward(m)) == NULL)
@@ -749,12 +741,13 @@ ip6_input(struct mbuf *m)
 			goto hbhcheck;
 		}
 	}
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
-	if (ip6_ipsec_filtertunnel(m))
-		goto passin;
+	if (IPSEC_ENABLED(ipv6) &&
+	    IPSEC_CAPS(ipv6, m, IPSEC_CAP_BYPASS_FILTER) != 0)
+			goto passin;
 #endif
 	/*
 	 * Run through list of hooks for input packets.
@@ -962,14 +955,11 @@ passin:
 			goto bad;
 		}
 
-#ifdef IPSEC
-		/*
-		 * enforce IPsec policy checking if we are seeing last header.
-		 * note that we do not visit this with protocols with pcb layer
-		 * code - like udp/tcp/raw ip.
-		 */
-		if (ip6_ipsec_input(m, nxt))
-			goto bad;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+		if (IPSEC_ENABLED(ipv6)) {
+			if (IPSEC_INPUT(ipv6, m, off, nxt) != 0)
+				return;
+		}
 #endif /* IPSEC */
 
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
@@ -1226,13 +1216,48 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 
 #ifdef SO_TIMESTAMP
 	if ((inp->inp_socket->so_options & SO_TIMESTAMP) != 0) {
-		struct timeval tv;
+		union {
+			struct timeval tv;
+			struct bintime bt;
+			struct timespec ts;
+		} t;
 
-		microtime(&tv);
-		*mp = sbcreatecontrol((caddr_t) &tv, sizeof(tv),
-		    SCM_TIMESTAMP, SOL_SOCKET);
-		if (*mp)
-			mp = &(*mp)->m_next;
+		switch (inp->inp_socket->so_ts_clock) {
+		case SO_TS_REALTIME_MICRO:
+			microtime(&t.tv);
+			*mp = sbcreatecontrol((caddr_t) &t.tv, sizeof(t.tv),
+			    SCM_TIMESTAMP, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+			break;
+
+		case SO_TS_BINTIME:
+			bintime(&t.bt);
+			*mp = sbcreatecontrol((caddr_t)&t.bt, sizeof(t.bt),
+			    SCM_BINTIME, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+			break;
+
+		case SO_TS_REALTIME:
+			nanotime(&t.ts);
+			*mp = sbcreatecontrol((caddr_t)&t.ts, sizeof(t.ts),
+			    SCM_REALTIME, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+			break;
+
+		case SO_TS_MONOTONIC:
+			nanouptime(&t.ts);
+			*mp = sbcreatecontrol((caddr_t)&t.ts, sizeof(t.ts),
+			    SCM_MONOTONIC, SOL_SOCKET);
+			if (*mp)
+				mp = &(*mp)->m_next;
+			break;
+
+		default:
+			panic("unknown (corrupted) so_ts_clock");
+		}
 	}
 #endif
 

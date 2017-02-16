@@ -179,6 +179,60 @@ int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg)
 	return err;
 }
 
+int mlx4_QUERY_FUNC(struct mlx4_dev *dev, struct mlx4_func *func, int slave)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	u32 *outbox;
+	u8 in_modifier;
+	u8 field;
+	u16 field16;
+	int err;
+
+#define QUERY_FUNC_BUS_OFFSET			0x00
+#define QUERY_FUNC_DEVICE_OFFSET		0x01
+#define QUERY_FUNC_FUNCTION_OFFSET		0x01
+#define QUERY_FUNC_PHYSICAL_FUNCTION_OFFSET	0x03
+#define QUERY_FUNC_RSVD_EQS_OFFSET		0x04
+#define QUERY_FUNC_MAX_EQ_OFFSET		0x06
+#define QUERY_FUNC_RSVD_UARS_OFFSET		0x0b
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	outbox = mailbox->buf;
+
+	in_modifier = slave;
+
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, in_modifier, 0,
+			MLX4_CMD_QUERY_FUNC,
+			MLX4_CMD_TIME_CLASS_A,
+			MLX4_CMD_NATIVE);
+	if (err)
+	        goto out;
+
+	MLX4_GET(field, outbox, QUERY_FUNC_BUS_OFFSET);
+	func->bus = field & 0xf;
+	MLX4_GET(field, outbox, QUERY_FUNC_DEVICE_OFFSET);
+	func->device = field & 0xf1;
+	MLX4_GET(field, outbox, QUERY_FUNC_FUNCTION_OFFSET);
+	func->function = field & 0x7;
+	MLX4_GET(field, outbox, QUERY_FUNC_PHYSICAL_FUNCTION_OFFSET);
+	func->physical_function = field & 0xf;
+	MLX4_GET(field16, outbox, QUERY_FUNC_RSVD_EQS_OFFSET);
+	func->rsvd_eqs = field16 & 0xffff;
+	MLX4_GET(field16, outbox, QUERY_FUNC_MAX_EQ_OFFSET);
+	func->max_eq = field16 & 0xffff;
+	MLX4_GET(field, outbox, QUERY_FUNC_RSVD_UARS_OFFSET);
+	func->rsvd_uars = field & 0x0f;
+
+	mlx4_dbg(dev, "Bus: %d, Device: %d, Function: %d, Physical function: %d, Max EQs: %d, Reserved EQs: %d, Reserved UARs: %d\n",
+		func->bus, func->device, func->function, func->physical_function,
+		func->max_eq, func->rsvd_eqs, func->rsvd_uars);
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+
 int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_vhcr *vhcr,
 				struct mlx4_cmd_mailbox *inbox,
@@ -189,6 +243,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	u8	field, port;
 	u32	size;
 	int	err = 0;
+	struct mlx4_func func;
 
 #define QUERY_FUNC_CAP_FLAGS_OFFSET		0x0
 #define QUERY_FUNC_CAP_NUM_PORTS_OFFSET		0x1
@@ -210,10 +265,15 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_MTT_QUOTA_OFFSET		0x64
 #define QUERY_FUNC_CAP_MCG_QUOTA_OFFSET		0x68
 
+#define QUERY_FUNC_CAP_EXTRA_FLAGS_OFFSET	0x6c
+
 #define QUERY_FUNC_CAP_FMR_FLAG			0x80
 #define QUERY_FUNC_CAP_FLAG_RDMA		0x40
 #define QUERY_FUNC_CAP_FLAG_ETH			0x80
 #define QUERY_FUNC_CAP_FLAG_QUOTAS		0x10
+#define QUERY_FUNC_CAP_FLAG_VALID_MAILBOX	0x04
+
+#define QUERY_FUNC_CAP_EXTRA_FLAGS_BF_QP_ALLOC_FLAG	(1UL << 31)
 
 /* when opcode modifier = 1 */
 #define QUERY_FUNC_CAP_PHYS_PORT_OFFSET		0x3
@@ -231,6 +291,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_PROPS_DEF_COUNTER	0x20
 
 #define QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID 0x80
+#define QUERY_FUNC_CAP_SUPPORTS_NON_POWER_OF_2_NUM_EQS (1 << 31)
 
 	if (vhcr->op_modifier == 1) {
 		port = vhcr->in_modifier; /* phys-port = logical-port */
@@ -266,7 +327,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	} else if (vhcr->op_modifier == 0) {
 		/* enable rdma and ethernet interfaces, and new quota locations */
 		field = (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA |
-			 QUERY_FUNC_CAP_FLAG_QUOTAS);
+			 QUERY_FUNC_CAP_FLAG_QUOTAS | QUERY_FUNC_CAP_FLAG_VALID_MAILBOX);
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS_OFFSET);
 
 		field = dev->caps.num_ports;
@@ -293,11 +354,24 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		size = dev->caps.num_cqs;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET_DEP);
 
-		size = dev->caps.num_eqs;
-		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MAX_EQ_OFFSET);
-
-		size = dev->caps.reserved_eqs;
-		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
+		if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) ||
+		    mlx4_QUERY_FUNC(dev, &func, slave)) {
+			size = vhcr->in_modifier &
+				QUERY_FUNC_CAP_SUPPORTS_NON_POWER_OF_2_NUM_EQS ?
+				dev->caps.num_eqs :
+				rounddown_pow_of_two(dev->caps.num_eqs);
+			MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MAX_EQ_OFFSET);
+			size = dev->caps.reserved_eqs;
+			MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
+		} else {
+			size = vhcr->in_modifier &
+				QUERY_FUNC_CAP_SUPPORTS_NON_POWER_OF_2_NUM_EQS ?
+				func.max_eq :
+				rounddown_pow_of_two(func.max_eq);
+			MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MAX_EQ_OFFSET);
+			size = func.rsvd_eqs;
+			MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
+		}
 
 		size = priv->mfunc.master.res_tracker.res_alloc[RES_MPT].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
@@ -313,6 +387,8 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET_DEP);
 
+		size = QUERY_FUNC_CAP_EXTRA_FLAGS_BF_QP_ALLOC_FLAG;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_EXTRA_FLAGS_OFFSET);
 	} else
 		err = -EINVAL;
 
@@ -327,14 +403,17 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 	u8			field, op_modifier;
 	u32			size;
 	int			err = 0, quotas = 0;
+	u32                     in_modifier;
 
 	op_modifier = !!gen_or_port; /* 0 = general, 1 = logical port */
+	in_modifier = op_modifier ? gen_or_port :
+		QUERY_FUNC_CAP_SUPPORTS_NON_POWER_OF_2_NUM_EQS;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
-	err = mlx4_cmd_box(dev, 0, mailbox->dma, gen_or_port, op_modifier,
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, in_modifier, op_modifier,
 			   MLX4_CMD_QUERY_FUNC_CAP,
 			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 	if (err)
@@ -401,6 +480,17 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 
 		MLX4_GET(size, outbox, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
 		func_cap->reserved_eq = size & 0xFFFFFF;
+
+		func_cap->extra_flags = 0;
+
+		/* Mailbox data from 0x6c and onward should only be treated if
+		 * QUERY_FUNC_CAP_FLAG_VALID_MAILBOX is set in func_cap->flags
+		 */
+		if (func_cap->flags & QUERY_FUNC_CAP_FLAG_VALID_MAILBOX) {
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_EXTRA_FLAGS_OFFSET);
+			if (size & QUERY_FUNC_CAP_EXTRA_FLAGS_BF_QP_ALLOC_FLAG)
+				func_cap->extra_flags |= MLX4_QUERY_FUNC_FLAGS_BF_RES_QP;
+		}
 
 		goto out;
 	}
@@ -504,6 +594,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_MRW_SZ_OFFSET		0x21
 #define QUERY_DEV_CAP_RSVD_MRW_OFFSET		0x22
 #define QUERY_DEV_CAP_MAX_MTT_SEG_OFFSET	0x23
+#define QUERY_DEV_CAP_NUM_SYS_EQ_OFFSET		0x26
 #define QUERY_DEV_CAP_MAX_AV_OFFSET		0x27
 #define QUERY_DEV_CAP_MAX_REQ_QP_OFFSET		0x29
 #define QUERY_DEV_CAP_MAX_RES_QP_OFFSET		0x2b
@@ -601,6 +692,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->reserved_mrws = 1 << (field & 0xf);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_MTT_SEG_OFFSET);
 	dev_cap->max_mtt_seg = 1 << (field & 0x3f);
+	MLX4_GET(size, outbox, QUERY_DEV_CAP_NUM_SYS_EQ_OFFSET);
+	dev_cap->num_sys_eqs = size & 0xfff;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_REQ_QP_OFFSET);
 	dev_cap->max_requester_per_qp = 1 << (field & 0x3f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_RES_QP_OFFSET);
@@ -827,8 +920,11 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	 * we can't use any EQs whose doorbell falls on that page,
 	 * even if the EQ itself isn't reserved.
 	 */
-	dev_cap->reserved_eqs = max(dev_cap->reserved_uars * 4,
-				    dev_cap->reserved_eqs);
+	if (dev_cap->num_sys_eqs == 0)
+		dev_cap->reserved_eqs = max(dev_cap->reserved_uars * 4,
+					    dev_cap->reserved_eqs);
+	else
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_SYS_EQS;
 
 	mlx4_dbg(dev, "Max ICM size %lld MB\n",
 		 (unsigned long long) dev_cap->max_icm_sz >> 20);
@@ -838,8 +934,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		 dev_cap->max_srqs, dev_cap->reserved_srqs, dev_cap->srq_entry_sz);
 	mlx4_dbg(dev, "Max CQs: %d, reserved CQs: %d, entry size: %d\n",
 		 dev_cap->max_cqs, dev_cap->reserved_cqs, dev_cap->cqc_entry_sz);
-	mlx4_dbg(dev, "Max EQs: %d, reserved EQs: %d, entry size: %d\n",
-		 dev_cap->max_eqs, dev_cap->reserved_eqs, dev_cap->eqc_entry_sz);
+	mlx4_dbg(dev, "Num sys EQs: %d, max EQs: %d, reserved EQs: %d, entry size: %d\n",
+		dev_cap->num_sys_eqs, dev_cap->max_eqs, dev_cap->reserved_eqs,
+		dev_cap->eqc_entry_sz);
 	mlx4_dbg(dev, "reserved MPTs: %d, reserved MTTs: %d\n",
 		 dev_cap->reserved_mrws, dev_cap->reserved_mtts);
 	mlx4_dbg(dev, "Max PDs: %d, reserved PDs: %d, reserved UARs: %d\n",
@@ -1341,6 +1438,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define	 INIT_HCA_AUXC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x50)
 #define	 INIT_HCA_EQC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x60)
 #define	 INIT_HCA_LOG_EQ_OFFSET		 (INIT_HCA_QPC_OFFSET + 0x67)
+#define	INIT_HCA_NUM_SYS_EQS_OFFSET	(INIT_HCA_QPC_OFFSET + 0x6a)
 #define	 INIT_HCA_RDMARC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x70)
 #define	 INIT_HCA_LOG_RD_OFFSET		 (INIT_HCA_QPC_OFFSET + 0x77)
 #define INIT_HCA_MCAST_OFFSET		 0x0c0
@@ -1449,6 +1547,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	MLX4_PUT(inbox, param->auxc_base,     INIT_HCA_AUXC_BASE_OFFSET);
 	MLX4_PUT(inbox, param->eqc_base,      INIT_HCA_EQC_BASE_OFFSET);
 	MLX4_PUT(inbox, param->log_num_eqs,   INIT_HCA_LOG_EQ_OFFSET);
+	MLX4_PUT(inbox, param->num_sys_eqs,   INIT_HCA_NUM_SYS_EQS_OFFSET);
 	MLX4_PUT(inbox, param->rdmarc_base,   INIT_HCA_RDMARC_BASE_OFFSET);
 	MLX4_PUT(inbox, param->log_rd_per_qp, INIT_HCA_LOG_RD_OFFSET);
 
@@ -1555,6 +1654,7 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	MLX4_GET(param->auxc_base,     outbox, INIT_HCA_AUXC_BASE_OFFSET);
 	MLX4_GET(param->eqc_base,      outbox, INIT_HCA_EQC_BASE_OFFSET);
 	MLX4_GET(param->log_num_eqs,   outbox, INIT_HCA_LOG_EQ_OFFSET);
+	MLX4_GET(param->num_sys_eqs,   outbox, INIT_HCA_NUM_SYS_EQS_OFFSET);
 	MLX4_GET(param->rdmarc_base,   outbox, INIT_HCA_RDMARC_BASE_OFFSET);
 	MLX4_GET(param->log_rd_per_qp, outbox, INIT_HCA_LOG_RD_OFFSET);
 

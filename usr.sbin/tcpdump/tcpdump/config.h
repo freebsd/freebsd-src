@@ -4,8 +4,8 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
 
-/* define if you have the addrinfo function */
-#define HAVE_ADDRINFO 1
+/* define if you want to build the possibly-buggy SMB printer */
+#define ENABLE_SMB 1
 
 /* Define to 1 if you have the `alarm' function. */
 #define HAVE_ALARM 1
@@ -14,6 +14,9 @@
 #define HAVE_BPF_DUMP 1
 
 /* capsicum support available */
+#define HAVE_CAPSICUM 1
+
+/* Casper library support available */
 /* See Makefile */
 /* #undef HAVE_CASPER */
 
@@ -39,23 +42,20 @@
 /* Define to 1 if you have the `ether_ntohost' function. */
 #define HAVE_ETHER_NTOHOST 1
 
+/* Define to 1 if you have the `EVP_CIPHER_CTX_new' function. */
+#define HAVE_EVP_CIPHER_CTX_NEW 1
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
 /* Define to 1 if you have the `fork' function. */
 #define HAVE_FORK 1
 
-/* Define to 1 if you have the `getnameinfo' function. */
-#define HAVE_GETNAMEINFO 1
-
 /* Define to 1 if you have the `getopt_long' function. */
 #define HAVE_GETOPT_LONG 1
 
 /* define if you have getrpcbynumber() */
 #define HAVE_GETRPCBYNUMBER 1
-
-/* define if you have the h_errno variable */
-#define HAVE_H_ERRNO 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -85,6 +85,10 @@
 /* Define to 1 if you have the <netinet/if_ether.h> header file. */
 #define HAVE_NETINET_IF_ETHER_H 1
 
+/* Define to 1 if you have the <net/if_pflog.h> header file. */
+/* See Makefile */
+/* #undef HAVE_NET_IF_PFLOG_H */
+
 /* Define to 1 if you have the <net/pfvar.h> header file. */
 /* See Makefile */
 /* #undef HAVE_NET_PFVAR_H */
@@ -96,6 +100,10 @@
 /* See Makefile */
 /* #undef HAVE_OPENSSL_EVP_H 1 */
 
+/* define if the OS provides AF_INET6 and struct in6_addr */
+/* See Makefile */
+/* #undef HAVE_OS_IPV6_SUPPORT */
+ 
 /* if there's an os_proto.h for this platform, to use additional prototypes */
 /* #undef HAVE_OS_PROTO_H */
 
@@ -150,6 +158,12 @@
 /* Define to 1 if you have the `pcap_set_immediate_mode' function. */
 #define HAVE_PCAP_SET_IMMEDIATE_MODE 1
 
+/* Define to 1 if you have the `pcap_set_optimizer_debug' function. */
+/* #undef HAVE_PCAP_SET_OPTIMIZER_DEBUG */
+
+/* Define to 1 if you have the `pcap_set_parser_debug' function. */
+/* #undef HAVE_PCAP_SET_PARSER_DEBUG */
+
 /* Define to 1 if you have the `pcap_set_tstamp_precision' function. */
 #define HAVE_PCAP_SET_TSTAMP_PRECISION 1
 
@@ -191,9 +205,6 @@
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
-
-/* Define to 1 if you have the `strcasecmp' function. */
-#define HAVE_STRCASECMP 1
 
 /* Define to 1 if you have the `strdup' function. */
 #define HAVE_STRDUP 1
@@ -246,15 +257,8 @@
 /* define if your compiler has __attribute__ */
 #define HAVE___ATTRIBUTE__ 1
 
-/* Define if you enable IPv6 support */
-/* See Makefile */
-/* #undef INET6 */
-
 /* if unaligned access fails */
 /* #undef LBL_ALIGN */
-
-/* define if you need to include missing/addrinfo.h */
-/* #undef NEED_ADDRINFO_H */
 
 /* Define to 1 if netinet/ether.h declares `ether_ntohost' */
 /* #undef NETINET_ETHER_H_DECLARES_ETHER_NTOHOST */
@@ -300,9 +304,6 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
-
-/* define if you want to build the possibly-buggy SMB printer */
-#define TCPDUMP_DO_SMB 1
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define TIME_WITH_SYS_TIME 1

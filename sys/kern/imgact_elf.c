@@ -859,6 +859,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		error = ENOEXEC;
 		goto ret;
 	}
+	et_dyn_addr = 0;
 	if (hdr->e_type == ET_DYN) {
 		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0) {
 			uprintf("Cannot execute shared object\n");
@@ -871,10 +872,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		 */
 		if (baddr == 0)
 			et_dyn_addr = ET_DYN_LOAD_ADDR;
-		else
-			et_dyn_addr = 0;
-	} else
-		et_dyn_addr = 0;
+	}
 	sv = brand_info->sysvec;
 	if (interp != NULL && brand_info->interp_newpath != NULL)
 		newinterp = brand_info->interp_newpath;
@@ -1057,8 +1055,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->interpreted = 0;
 	imgp->reloc_base = addr;
 	imgp->proc->p_osrel = osrel;
+	imgp->proc->p_elf_machine = hdr->e_machine;
+	imgp->proc->p_elf_flags = hdr->e_flags;
 
- ret:
+ret:
 	free(interp_buf, M_TEMP);
 	return (error);
 }
@@ -1160,7 +1160,7 @@ struct coredump_params {
 
 static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
-static int core_write(struct coredump_params *, void *, size_t, off_t,
+static int core_write(struct coredump_params *, const void *, size_t, off_t,
     enum uio_seg);
 static void each_dumpable_segment(struct thread *, segment_callback, void *);
 static int __elfN(corehdr)(struct coredump_params *, int, void *, size_t,
@@ -1202,7 +1202,14 @@ compress_chunk(struct coredump_params *p, char *base, char *buf, u_int len)
 
 	while (len > 0) {
 		chunk_len = MIN(len, CORE_BUF_SIZE);
-		copyin(base, buf, chunk_len);
+
+		/*
+		 * We can get EFAULT error here.
+		 * In that case zero out the current chunk of the segment.
+		 */
+		error = copyin(base, buf, chunk_len);
+		if (error != 0)
+			bzero(buf, chunk_len);
 		error = gzio_write(p->gzs, buf, chunk_len);
 		if (error != 0)
 			break;
@@ -1222,12 +1229,12 @@ core_gz_write(void *base, size_t len, off_t offset, void *arg)
 #endif /* GZIO */
 
 static int
-core_write(struct coredump_params *p, void *base, size_t len, off_t offset,
-    enum uio_seg seg)
+core_write(struct coredump_params *p, const void *base, size_t len,
+    off_t offset, enum uio_seg seg)
 {
 
-	return (vn_rdwr_inchunks(UIO_WRITE, p->vp, base, len, offset,
-	    seg, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
+	return (vn_rdwr_inchunks(UIO_WRITE, p->vp, __DECONST(void *, base),
+	    len, offset, seg, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
 	    p->active_cred, p->file_cred, NULL, p->td));
 }
 
@@ -1235,12 +1242,32 @@ static int
 core_output(void *base, size_t len, off_t offset, struct coredump_params *p,
     void *tmpbuf)
 {
+	int error;
 
 #ifdef GZIO
 	if (p->gzs != NULL)
 		return (compress_chunk(p, base, tmpbuf, len));
 #endif
-	return (core_write(p, base, len, offset, UIO_USERSPACE));
+	/*
+	 * EFAULT is a non-fatal error that we can get, for example,
+	 * if the segment is backed by a file but extends beyond its
+	 * end.
+	 */
+	error = core_write(p, base, len, offset, UIO_USERSPACE);
+	if (error == EFAULT) {
+		log(LOG_WARNING, "Failed to fully fault in a core file segment "
+		    "at VA %p with size 0x%zx to be written at offset 0x%jx "
+		    "for process %s\n", base, len, offset, curproc->p_comm);
+
+		/*
+		 * Write a "real" zero byte at the end of the target region
+		 * in the case this is the last segment.
+		 * The intermediate space will be implicitly zero-filled.
+		 */
+		error = core_write(p, zero_region, 1, offset + len - 1,
+		    UIO_SYSSPACE);
+	}
+	return (error);
 }
 
 /*
@@ -1630,15 +1657,11 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	ehdr->e_ident[EI_ABIVERSION] = 0;
 	ehdr->e_ident[EI_PAD] = 0;
 	ehdr->e_type = ET_CORE;
-#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-	ehdr->e_machine = ELF_ARCH32;
-#else
-	ehdr->e_machine = ELF_ARCH;
-#endif
+	ehdr->e_machine = td->td_proc->p_elf_machine;
 	ehdr->e_version = EV_CURRENT;
 	ehdr->e_entry = 0;
 	ehdr->e_phoff = sizeof(Elf_Ehdr);
-	ehdr->e_flags = 0;
+	ehdr->e_flags = td->td_proc->p_elf_flags;
 	ehdr->e_ehsize = sizeof(Elf_Ehdr);
 	ehdr->e_phentsize = sizeof(Elf_Phdr);
 	ehdr->e_shentsize = sizeof(Elf_Shdr);

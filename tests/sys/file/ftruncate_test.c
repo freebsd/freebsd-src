@@ -57,7 +57,7 @@ static off_t lengths[] = {0, 1, 2, 3, 4, 127, 128, 129, 511, 512, 513, 1023,
 static int lengths_count = sizeof(lengths) / sizeof(off_t);
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int error, fd, fds[2], i, read_only_fd;
 	char path[PATH_MAX];

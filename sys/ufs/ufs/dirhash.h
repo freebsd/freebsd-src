@@ -48,7 +48,7 @@
 #define	DIRHASH_DEL	(-2)	/* deleted entry; may be part of chain */
 
 #define	DIRALIGN	4
-#define	DH_NFSTATS	(DIRECTSIZ(MAXNAMLEN + 1) / DIRALIGN)
+#define	DH_NFSTATS	(DIRECTSIZ(UFS_MAXNAMLEN + 1) / DIRALIGN)
 				 /* max DIRALIGN words in a directory entry */
 
 /*

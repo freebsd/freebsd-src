@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/endian.h>
 #include <sys/kerneldump.h>
-#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 
@@ -56,8 +55,8 @@ usage(void)
 {
 
 	pjdlog_exitx(1,
-	    "usage: decryptcore [-Lv] -p privatekeyfile -k keyfile -e encryptedcore -c core\n"
-	    "       decryptcore [-Lv] [-d crashdir] -p privatekeyfile -n dumpnr");
+	    "usage: decryptcore [-fLv] -p privatekeyfile -k keyfile -e encryptedcore -c core\n"
+	    "       decryptcore [-fLv] [-d crashdir] -p privatekeyfile -n dumpnr");
 }
 
 static int
@@ -116,8 +115,8 @@ failed:
 }
 
 static bool
-decrypt(const char *privkeyfile, const char *keyfile, const char *input,
-    const char *output)
+decrypt(int ofd, const char *privkeyfile, const char *keyfile,
+    const char *input)
 {
 	uint8_t buf[KERNELDUMP_BUFFER_SIZE], key[KERNELDUMP_KEY_MAX_SIZE];
 	EVP_CIPHER_CTX ctx;
@@ -125,14 +124,14 @@ decrypt(const char *privkeyfile, const char *keyfile, const char *input,
 	FILE *fp;
 	struct kerneldumpkey *kdk;
 	RSA *privkey;
-	int ifd, kfd, ofd, olen, privkeysize;
+	int ifd, kfd, olen, privkeysize;
 	ssize_t bytes;
 	pid_t pid;
 
+	PJDLOG_ASSERT(ofd >= 0);
 	PJDLOG_ASSERT(privkeyfile != NULL);
 	PJDLOG_ASSERT(keyfile != NULL);
 	PJDLOG_ASSERT(input != NULL);
-	PJDLOG_ASSERT(output != NULL);
 
 	privkey = NULL;
 
@@ -143,11 +142,14 @@ decrypt(const char *privkeyfile, const char *keyfile, const char *input,
 	pid = fork();
 	if (pid == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to create child process");
+		close(ofd);
 		return (false);
 	}
 
-	if (pid > 0)
+	if (pid > 0) {
+		close(ofd);
 		return (wait_for_process(pid) == 0);
+	}
 
 	kfd = open(keyfile, O_RDONLY);
 	if (kfd == -1) {
@@ -157,11 +159,6 @@ decrypt(const char *privkeyfile, const char *keyfile, const char *input,
 	ifd = open(input, O_RDONLY);
 	if (ifd == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to open %s", input);
-		goto failed;
-	}
-	ofd = open(output, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-	if (ofd == -1) {
-		pjdlog_errno(LOG_ERR, "Unable to open %s", output);
 		goto failed;
 	}
 	fp = fopen(privkeyfile, "r");
@@ -232,8 +229,6 @@ decrypt(const char *privkeyfile, const char *keyfile, const char *input,
 			pjdlog_errno(LOG_ERR, "Unable to read data from %s",
 			    input);
 			goto failed;
-		} else if (bytes == 0) {
-			break;
 		}
 
 		if (bytes > 0) {
@@ -249,12 +244,8 @@ decrypt(const char *privkeyfile, const char *keyfile, const char *input,
 			}
 		}
 
-		if (olen == 0)
-			continue;
-
-		if (write(ofd, buf, olen) != olen) {
-			pjdlog_errno(LOG_ERR, "Unable to write data to %s",
-			    output);
+		if (olen > 0 && write(ofd, buf, olen) != olen) {
+			pjdlog_errno(LOG_ERR, "Unable to write core");
 			goto failed;
 		}
 	} while (bytes > 0);
@@ -274,11 +265,12 @@ int
 main(int argc, char **argv)
 {
 	char core[PATH_MAX], encryptedcore[PATH_MAX], keyfile[PATH_MAX];
-	struct stat sb;
 	const char *crashdir, *dumpnr, *privatekey;
-	int ch, debug;
+	int ch, debug, error, ofd;
 	size_t ii;
-	bool usesyslog;
+	bool force, usesyslog;
+
+	error = 1;
 
 	pjdlog_init(PJDLOG_MODE_STD);
 	pjdlog_prefix_set("(decryptcore) ");
@@ -288,25 +280,36 @@ main(int argc, char **argv)
 	crashdir = NULL;
 	dumpnr = NULL;
 	*encryptedcore = '\0';
+	force = false;
 	*keyfile = '\0';
 	privatekey = NULL;
 	usesyslog = false;
-	while ((ch = getopt(argc, argv, "Lc:d:e:k:n:p:v")) != -1) {
+	while ((ch = getopt(argc, argv, "Lc:d:e:fk:n:p:v")) != -1) {
 		switch (ch) {
 		case 'L':
 			usesyslog = true;
 			break;
 		case 'c':
-			strncpy(core, optarg, sizeof(core));
+			if (strlcpy(core, optarg, sizeof(core)) >= sizeof(core))
+				pjdlog_exitx(1, "Core file path is too long.");
 			break;
 		case 'd':
 			crashdir = optarg;
 			break;
 		case 'e':
-			strncpy(encryptedcore, optarg, sizeof(encryptedcore));
+			if (strlcpy(encryptedcore, optarg,
+			    sizeof(encryptedcore)) >= sizeof(encryptedcore)) {
+				pjdlog_exitx(1, "Encrypted core file path is too long.");
+			}
+			break;
+		case 'f':
+			force = true;
 			break;
 		case 'k':
-			strncpy(keyfile, optarg, sizeof(keyfile));
+			if (strlcpy(keyfile, optarg, sizeof(keyfile)) >=
+			    sizeof(keyfile)) {
+				pjdlog_exitx(1, "Key file path is too long.");
+			}
 			break;
 		case 'n':
 			dumpnr = optarg;
@@ -361,13 +364,24 @@ main(int argc, char **argv)
 		pjdlog_mode_set(PJDLOG_MODE_SYSLOG);
 	pjdlog_debug_set(debug);
 
-	if (!decrypt(privatekey, keyfile, encryptedcore, core)) {
-		if (stat(core, &sb) == 0 && unlink(core) != 0)
-			pjdlog_exit(1, "Unable to remove core");
-		exit(1);
+	if (force && unlink(core) == -1 && errno != ENOENT) {
+		pjdlog_errno(LOG_ERR, "Unable to remove old core");
+		goto out;
+	}
+	ofd = open(core, O_WRONLY | O_CREAT | O_EXCL, 0600);
+	if (ofd == -1) {
+		pjdlog_errno(LOG_ERR, "Unable to open %s", core);
+		goto out;
 	}
 
-	pjdlog_fini();
+	if (!decrypt(ofd, privatekey, keyfile, encryptedcore)) {
+		if (unlink(core) == -1 && errno != ENOENT)
+			pjdlog_errno(LOG_ERR, "Unable to remove core");
+		goto out;
+	}
 
-	exit(0);
+	error = 0;
+out:
+	pjdlog_fini();
+	exit(error);
 }

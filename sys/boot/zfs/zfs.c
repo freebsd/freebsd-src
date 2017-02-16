@@ -417,7 +417,7 @@ struct zfs_probe_args {
 };
 
 static int
-zfs_diskread(void *arg, void *buf, size_t blocks, off_t offset)
+zfs_diskread(void *arg, void *buf, size_t blocks, uint64_t offset)
 {
 	struct zfs_probe_args *ppa;
 
@@ -483,9 +483,11 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 {
 	struct ptable *table;
 	struct zfs_probe_args pa;
-	off_t mediasz;
+	uint64_t mediasz;
 	int ret;
 
+	if (pool_guid)
+		*pool_guid = 0;
 	pa.fd = open(devname, O_RDONLY);
 	if (pa.fd == -1)
 		return (ENXIO);
@@ -493,6 +495,7 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 	ret = zfs_probe(pa.fd, pool_guid);
 	if (ret == 0)
 		return (0);
+
 	/* Probe each partition */
 	ret = ioctl(pa.fd, DIOCGMEDIASIZE, &mediasz);
 	if (ret == 0)
@@ -508,6 +511,8 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 		}
 	}
 	close(pa.fd);
+	if (pool_guid && *pool_guid == 0)
+		ret = ENXIO;
 	return (ret);
 }
 

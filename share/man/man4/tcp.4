@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2016
+.Dd February 6, 2017
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -272,33 +272,27 @@ or the internal send buffer is filled.
 This option enables the use of MD5 digests (also known as TCP-MD5)
 on writes to the specified socket.
 Outgoing traffic is digested;
-digests on incoming traffic are verified if the
-.Va net.inet.tcp.signature_verify_input
-sysctl is nonzero.
-The current default behavior for the system is to respond to a system
-advertising this option with TCP-MD5; this may change.
+digests on incoming traffic are verified.
+When this option is enabled on a socket, all inbound and outgoing
+TCP segments must be signed with MD5 digests.
 .Pp
 One common use for this in a
 .Fx
 router deployment is to enable
 based routers to interwork with Cisco equipment at peering points.
 Support for this feature conforms to RFC 2385.
-Only IPv4
-.Pq Dv AF_INET
-sessions are supported.
 .Pp
 In order for this option to function correctly, it is necessary for the
 administrator to add a tcp-md5 key entry to the system's security
 associations database (SADB) using the
 .Xr setkey 8
 utility.
-This entry must have an SPI of 0x1000 and can therefore only be specified
-on a per-host basis at this time.
+This entry can only be specified on a per-host basis at this time.
 .Pp
-If an SADB entry cannot be found for the destination, the outgoing traffic
-will have an invalid digest option prepended, and the following error message
-will be visible on the system console:
-.Em "tcp_signature_compute: SADB lookup failed for %d.%d.%d.%d" .
+If an SADB entry cannot be found for the destination,
+the system does not send any outgoing segments and drops any inbound segments.
+.Pp
+Each dropped segment is taken into account in the TCP protocol statistics.
 .El
 .Pp
 The option level for the
@@ -586,6 +580,12 @@ downshift.
 List of available TCP function blocks (TCP stacks).
 .It Va functions_default
 The default TCP function block (TCP stack).
+.It Va functions_inherit_listen_socket_stack
+Determines whether to inherit listen socket's tcp stack or use the current
+system default tcp stack, as defined by
+.Va functions_default
+.Pc .
+Default is true.
 .It Va insecure_rst
 Use criteria defined in RFC793 instead of RFC5961 for accepting RST segments.
 Default is false.

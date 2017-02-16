@@ -761,6 +761,12 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
 
 	/*
+	 * XXX TODO: tie into net80211 for quiet time IE update and program
+	 * local AP timer if we require it.  The process of updating the
+	 * beacon will also update the IE with the relevant counters.
+	 */
+
+	/*
 	 * Enable the CAB queue before the beacon queue to
 	 * insure cab frames are triggered by this beacon.
 	 */
@@ -917,6 +923,7 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	((((u_int32_t)(_h)) << 22) | (((u_int32_t)(_l)) >> 10))
 #define	FUDGE	2
 	struct ath_hal *ah = sc->sc_ah;
+	struct ath_vap *avp;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
 	u_int32_t nexttbtt, intval, tsftu;
@@ -935,11 +942,18 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		return;
 	}
 
+	/* Now that we have a vap, we can do this bit */
+	avp = ATH_VAP(vap);
+
 	ni = ieee80211_ref_node(vap->iv_bss);
 
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
 	ATH_UNLOCK(sc);
+
+	/* Always clear the quiet IE timers; let the next update program them */
+	ath_hal_set_quiet(ah, 0, 0, 0, HAL_QUIET_DISABLE);
+	memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
 
 	/* extract tstamp from last beacon and convert to TU */
 	nexttbtt = TSF_TO_TU(le32dec(ni->ni_tstamp.data + 4),

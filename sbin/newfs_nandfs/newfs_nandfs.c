@@ -314,8 +314,8 @@ count_su_blocks(void)
 	}
 
 	debug("bad segment needs %#jx", blk);
-	if (blk >= NDADDR) {
-		printf("nandfs: file too big (%jd > %d)\n", blk, NDADDR);
+	if (blk >= NANDFS_NDADDR) {
+		printf("nandfs: file too big (%jd > %d)\n", blk, NANDFS_NDADDR);
 		exit(2);
 	}
 

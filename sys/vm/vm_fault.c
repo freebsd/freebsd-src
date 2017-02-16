@@ -528,8 +528,8 @@ RetryFault:;
 	fs.map_generation = fs.map->timestamp;
 
 	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
-		panic("vm_fault: fault on nofault entry, addr: %lx",
-		    (u_long)vaddr);
+		panic("%s: fault on nofault entry, addr: %#lx",
+		    __func__, (u_long)vaddr);
 	}
 
 	if (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION &&

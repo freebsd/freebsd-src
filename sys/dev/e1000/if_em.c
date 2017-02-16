@@ -104,6 +104,7 @@ static pci_vendor_info_t em_vendor_info_array[] =
 	PVID(0x8086, E1000_DEV_ID_82571EB_QUAD_COPPER_LP, "Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_82571EB_QUAD_FIBER, "Intel(R) PRO/1000 Network Connection"), 
 	PVID(0x8086, E1000_DEV_ID_82571PT_QUAD_COPPER, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_82572EI,		"Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_82572EI_COPPER,	"Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_82572EI_FIBER,	"Intel(R) PRO/1000 Network Connection"), 
 	PVID(0x8086, E1000_DEV_ID_82572EI_SERDES,	"Intel(R) PRO/1000 Network Connection"), 
@@ -159,6 +160,10 @@ static pci_vendor_info_t em_vendor_info_array[] =
 	PVID(0x8086, E1000_DEV_ID_PCH_SPT_I219_LM2, "Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_PCH_SPT_I219_V2, "Intel(R) PRO/1000 Network Connection"),
 	PVID(0x8086, E1000_DEV_ID_PCH_LBG_I219_LM3, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_SPT_I219_LM4, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_SPT_I219_V4, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_SPT_I219_LM5, "Intel(R) PRO/1000 Network Connection"),
+	PVID(0x8086, E1000_DEV_ID_PCH_SPT_I219_V5, "Intel(R) PRO/1000 Network Connection"),
 	/* required last entry */
 	PVID_END
 };
@@ -1620,6 +1625,11 @@ em_if_timer(if_ctx_t ctx, uint16_t qid)
 	int i;
 	int trigger = 0; 
 
+	if (qid != 0) {
+		/* XXX all this stuff is per-adapter */
+		return;
+	}
+
 	em_if_update_admin_status(ctx); 
 	em_update_stats_counters(adapter);
 
@@ -1734,7 +1744,7 @@ em_if_stop(if_ctx_t ctx)
 	
 	e1000_reset_hw(&adapter->hw);
 	if (adapter->hw.mac.type >= e1000_82544)
-		E1000_WRITE_REG(&adapter->hw, E1000_WUC, 0);
+		E1000_WRITE_REG(&adapter->hw, E1000_WUFC, 0);
 
 	e1000_led_off(&adapter->hw);
 	e1000_cleanup_led(&adapter->hw);
@@ -2309,7 +2319,7 @@ em_reset(if_ctx_t ctx)
 
 	/* Issue a global reset */
 	e1000_reset_hw(hw);
-	E1000_WRITE_REG(hw, E1000_WUC, 0);
+	E1000_WRITE_REG(hw, E1000_WUFC, 0);
 	em_disable_aspm(adapter);
 	/* and a re-init */
 	if (e1000_init_hw(hw) < 0) {
@@ -2477,10 +2487,10 @@ em_setup_interface(if_ctx_t ctx)
 	INIT_DEBUGOUT("em_setup_interface: begin");
 
 	/* TSO parameters */
-	ifp->if_hw_tsomax = IP_MAXPACKET;
+	if_sethwtsomax(ifp, IP_MAXPACKET);
 	/* Take m_pullup(9)'s in em_xmit() w/ TSO into acount. */
-	ifp->if_hw_tsomaxsegcount = EM_MAX_SCATTER - 5;
-	ifp->if_hw_tsomaxsegsize = EM_TSO_SEG_SIZE;
+	if_sethwtsomaxsegcount(ifp, EM_MAX_SCATTER - 5);
+	if_sethwtsomaxsegsize(ifp, EM_TSO_SEG_SIZE);
 
 	/* Single Queue */
         if (adapter->tx_num_queues == 1) {
@@ -2510,9 +2520,12 @@ em_setup_interface(if_ctx_t ctx)
 
 	/* Enable only WOL MAGIC by default */
 	if (adapter->wol) {
-		if_setcapabilitiesbit(ifp, IFCAP_WOL, 0);
-		if_setcapenablebit(ifp, IFCAP_WOL_MAGIC, 0);
-	}
+		if_setcapenablebit(ifp, IFCAP_WOL_MAGIC,
+			     IFCAP_WOL_MCAST| IFCAP_WOL_UCAST);
+	} else {
+		if_setcapenablebit(ifp, 0, IFCAP_WOL_MAGIC |
+			     IFCAP_WOL_MCAST| IFCAP_WOL_UCAST);
+	}	  
 		
 	/*
 	 * Specify the media types supported by this adapter and register
@@ -3310,6 +3323,15 @@ em_get_wakeup(if_ctx_t ctx)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
+	case e1000_82575:	/* listing all igb devices */
+	case e1000_82576:
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i354:
+	case e1000_i210:
+	case e1000_i211:
+	case e1000_vfadapt:
+	case e1000_vfadapt_i350:
 		apme_mask = E1000_WUC_APME;
 		adapter->has_amt = TRUE;
 		eeprom_data = E1000_READ_REG(&adapter->hw, E1000_WUC);
@@ -3389,7 +3411,7 @@ em_enable_wakeup(if_ctx_t ctx)
 	ctrl |= (E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN3);
 	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
 	wuc = E1000_READ_REG(&adapter->hw, E1000_WUC);
-	wuc |= E1000_WUC_PME_EN ;
+	wuc |= (E1000_WUC_PME_EN | E1000_WUC_APME);
 	E1000_WRITE_REG(&adapter->hw, E1000_WUC, wuc);
 
 	if ((adapter->hw.mac.type == e1000_ich8lan) ||
@@ -3413,6 +3435,9 @@ em_enable_wakeup(if_ctx_t ctx)
 	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) == 0)
 		adapter->wol &= ~E1000_WUFC_MAG;
 
+	if ((if_getcapenable(ifp) & IFCAP_WOL_UCAST) == 0)
+		adapter->wol &= ~E1000_WUFC_EX;
+
 	if ((if_getcapenable(ifp) & IFCAP_WOL_MCAST) == 0)
 		adapter->wol &= ~E1000_WUFC_MC;
 	else {
@@ -3421,10 +3446,7 @@ em_enable_wakeup(if_ctx_t ctx)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
 	}
 
-	if ((adapter->hw.mac.type == e1000_pchlan) ||
-	    (adapter->hw.mac.type == e1000_pch2lan) ||
-	    (adapter->hw.mac.type == e1000_pch_lpt) ||
-	    (adapter->hw.mac.type == e1000_pch_spt)) {
+	if ( adapter->hw.mac.type >= e1000_pchlan) {
 		if (em_enable_phy_wakeup(adapter))
 			return;
 	} else {
@@ -3489,7 +3511,7 @@ em_enable_phy_wakeup(struct adapter *adapter)
 
 	/* enable PHY wakeup in MAC register */
 	E1000_WRITE_REG(hw, E1000_WUC,
-	    E1000_WUC_PHY_WAKE | E1000_WUC_PME_EN);
+	    E1000_WUC_PHY_WAKE | E1000_WUC_PME_EN | E1000_WUC_APME);
 	E1000_WRITE_REG(hw, E1000_WUFC, adapter->wol);
 
 	/* configure and enable PHY wakeup in PHY registers */

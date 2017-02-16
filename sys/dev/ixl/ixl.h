@@ -39,6 +39,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
+#include "opt_ixl.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,6 +52,7 @@
 #include <sys/module.h>
 #include <sys/sockio.h>
 #include <sys/eventhandler.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -170,6 +172,7 @@ enum ixl_dbg_mask {
 	IXL_DBG_IOV_VC			= 0x00002000,
 
 	IXL_DBG_SWITCH_INFO		= 0x00010000,
+	IXL_DBG_I2C			= 0x00020000,
 
 	IXL_DBG_ALL			= 0xFFFFFFFF
 };
@@ -184,7 +187,7 @@ enum ixl_dbg_mask {
  * Tx descriptors are always 16 bytes, but Rx descriptors can be 32 bytes.
  * The driver currently always uses 32 byte Rx descriptors.
  */
-#define DEFAULT_RING		1024
+#define IXL_DEFAULT_RING	1024
 #define IXL_MAX_RING		8160
 #define IXL_MIN_RING		32
 #define IXL_RING_INCREMENT	32
@@ -216,7 +219,7 @@ enum ixl_dbg_mask {
 
 #define MAX_MULTICAST_ADDR	128
 
-#define IXL_BAR			3
+#define IXL_MSIX_BAR		3
 #define IXL_ADM_LIMIT		2
 #define IXL_TSO_SIZE		65535
 #define IXL_AQ_BUF_SZ		((u32) 4096)
@@ -231,6 +234,7 @@ enum ixl_dbg_mask {
 #define IXL_MAX_TSO_SEGS	128
 #define IXL_SPARSE_CHAIN	6
 #define IXL_QUEUE_HUNG		0x80000000
+#define IXL_MIN_TSO_MSS		64
 
 #define IXL_RSS_KEY_SIZE_REG		13
 #define IXL_RSS_KEY_SIZE		(IXL_RSS_KEY_SIZE_REG * 4)
@@ -252,13 +256,15 @@ enum ixl_dbg_mask {
 #define IXL_NVM_VERSION_HI_MASK		(0xf << IXL_NVM_VERSION_HI_SHIFT)
 
 /*
- * Interrupt Moderation parameters 
+ * Interrupt Moderation parameters
+ * Multiply ITR values by 2 for real ITR value
  */
-#define IXL_MAX_ITR		0x07FF
+#define IXL_MAX_ITR		0x0FF0
 #define IXL_ITR_100K		0x0005
 #define IXL_ITR_20K		0x0019
 #define IXL_ITR_8K		0x003E
 #define IXL_ITR_4K		0x007A
+#define IXL_ITR_1K		0x01F4
 #define IXL_ITR_DYNAMIC		0x8000
 #define IXL_LOW_LATENCY		0
 #define IXL_AVE_LATENCY		1
@@ -311,7 +317,7 @@ enum ixl_dbg_mask {
 
 #define IXL_END_OF_INTR_LNKLST	0x7FF
 
-#define IXL_DEFAULT_RSS_HENA (\
+#define IXL_DEFAULT_RSS_HENA_BASE (\
 	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |	\
 	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP) |	\
 	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_SCTP) |	\
@@ -323,6 +329,17 @@ enum ixl_dbg_mask {
 	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |	\
 	BIT_ULL(I40E_FILTER_PCTYPE_FRAG_IPV6) |		\
 	BIT_ULL(I40E_FILTER_PCTYPE_L2_PAYLOAD))
+
+#define IXL_DEFAULT_RSS_HENA_XL710	IXL_DEFAULT_RSS_HENA_BASE
+
+#define IXL_DEFAULT_RSS_HENA_X722 (\
+	IXL_DEFAULT_RSS_HENA_BASE |			\
+	BIT_ULL(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK) | \
+	BIT_ULL(I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK))
 
 #define IXL_TX_LOCK(_sc)                mtx_lock(&(_sc)->mtx)
 #define IXL_TX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
@@ -429,6 +446,7 @@ struct tx_ring {
 	bus_dma_tag_t		tso_tag;
 	char			mtx_name[16];
 	struct buf_ring		*br;
+	s32			watchdog_timer;
 
 	/* Used for Dynamic ITR calculation */
 	u32			packets;
@@ -488,7 +506,6 @@ struct ixl_queue {
 	struct resource		*res;
 	void			*tag;
 	int			num_desc;	/* both tx and rx */
-	int			busy;
 	struct tx_ring		txr;
 	struct rx_ring		rxr;
 	struct task		task;
@@ -503,6 +520,7 @@ struct ixl_queue {
 	u64			mbuf_pkt_failed;
 	u64			tx_dmamap_failed;
 	u64			dropped_pkts;
+	u64			mss_too_small;
 };
 
 /*
@@ -563,7 +581,6 @@ struct ixl_vsi {
 	u64			hw_filters_add;
 
 	/* Misc. */
-	u64 			active_queues;
 	u64 			flags;
 	struct sysctl_oid	*vsi_node;
 };

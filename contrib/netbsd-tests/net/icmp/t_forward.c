@@ -1,4 +1,4 @@
-/*	$NetBSD: t_forward.c,v 1.9 2015/02/26 13:03:21 martin Exp $	*/
+/*	$NetBSD: t_forward.c,v 1.10 2017/01/13 21:30:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: t_forward.c,v 1.9 2015/02/26 13:03:21 martin Exp $");
+__RCSID("$NetBSD: t_forward.c,v 1.10 2017/01/13 21:30:42 christos Exp $");
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,7 +57,7 @@ __RCSID("$NetBSD: t_forward.c,v 1.9 2015/02/26 13:03:21 martin Exp $");
 #include <string.h>
 #include <unistd.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../config/netconfig.c"
 
 /*

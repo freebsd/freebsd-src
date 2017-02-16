@@ -631,6 +631,31 @@ taskqgroup_find(struct taskqgroup *qgroup, void *uniq)
 	return (idx);
 }
 
+/*
+ * smp_started is unusable since it is not set for UP kernels or even for
+ * SMP kernels when there is 1 CPU.  This is usually handled by adding a
+ * (mp_ncpus == 1) test, but that would be broken here since we need to
+ * to synchronize with the SI_SUB_SMP ordering.  Even in the pure SMP case
+ * smp_started only gives a fuzzy ordering relative to SI_SUB_SMP.
+ *
+ * So maintain our own flag.  It must be set after all CPUs are started
+ * and before SI_SUB_SMP:SI_ORDER_ANY so that the SYSINIT for delayed
+ * adjustment is properly delayed.  SI_ORDER_FOURTH is clearly before
+ * SI_ORDER_ANY and unclearly after the CPUs are started.  It would be
+ * simpler for adjustment to pass a flag indicating if it is delayed.
+ */ 
+
+static int tqg_smp_started;
+
+static void
+tqg_record_smp_started(void *arg)
+{
+	tqg_smp_started = 1;
+}
+
+SYSINIT(tqg_record_smp_started, SI_SUB_SMP, SI_ORDER_FOURTH,
+	tqg_record_smp_started, NULL);
+
 void
 taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
     void *uniq, int irq, char *name)
@@ -647,7 +672,7 @@ taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
 	qgroup->tqg_queue[qid].tgc_cnt++;
 	LIST_INSERT_HEAD(&qgroup->tqg_queue[qid].tgc_tasks, gtask, gt_list);
 	gtask->gt_taskqueue = qgroup->tqg_queue[qid].tgc_taskq;
-	if (irq != -1 && smp_started) {
+	if (irq != -1 && tqg_smp_started) {
 		gtask->gt_cpu = qgroup->tqg_queue[qid].tgc_cpu;
 		CPU_ZERO(&mask);
 		CPU_SET(qgroup->tqg_queue[qid].tgc_cpu, &mask);
@@ -697,7 +722,7 @@ taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
 	gtask->gt_irq = irq;
 	gtask->gt_cpu = cpu;
 	mtx_lock(&qgroup->tqg_lock);
-	if (smp_started) {
+	if (tqg_smp_started) {
 		for (i = 0; i < qgroup->tqg_cnt; i++)
 			if (qgroup->tqg_queue[i].tgc_cpu == cpu) {
 				qid = i;
@@ -717,7 +742,7 @@ taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
 
 	CPU_ZERO(&mask);
 	CPU_SET(cpu, &mask);
-	if (irq != -1 && smp_started)
+	if (irq != -1 && tqg_smp_started)
 		intr_setaffinity(irq, &mask);
 	return (0);
 }
@@ -731,7 +756,7 @@ taskqgroup_attach_cpu_deferred(struct taskqgroup *qgroup, struct grouptask *gtas
 	qid = -1;
 	irq = gtask->gt_irq;
 	cpu = gtask->gt_cpu;
-	MPASS(smp_started);
+	MPASS(tqg_smp_started);
 	mtx_lock(&qgroup->tqg_lock);
 	for (i = 0; i < qgroup->tqg_cnt; i++)
 		if (qgroup->tqg_queue[i].tgc_cpu == cpu) {
@@ -824,9 +849,10 @@ _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 
 	mtx_assert(&qgroup->tqg_lock, MA_OWNED);
 
-	if (cnt < 1 || cnt * stride > mp_ncpus || !smp_started) {
-		printf("taskqgroup_adjust failed cnt: %d stride: %d mp_ncpus: %d smp_started: %d\n",
-			   cnt, stride, mp_ncpus, smp_started);
+	if (cnt < 1 || cnt * stride > mp_ncpus || !tqg_smp_started) {
+		printf("%s: failed cnt: %d stride: %d "
+		    "mp_ncpus: %d tqg_smp_started: %d\n",
+		    __func__, cnt, stride, mp_ncpus, tqg_smp_started);
 		return (EINVAL);
 	}
 	if (qgroup->tqg_adjusting) {

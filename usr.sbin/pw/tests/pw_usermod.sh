@@ -253,6 +253,26 @@ user_mod_w_yes_body() {
 		$(atf_get_srcdir)/crypt $passhash "foo"
 }
 
+atf_test_case user_mod_m
+user_mod_m_body() {
+	populate_root_etc_skel
+
+	mkdir -p ${HOME}/home
+	mkdir -p ${HOME}/skel
+	echo "entry" > ${HOME}/skel/.file
+	atf_check -s exit:0 ${RPW} useradd foo
+	! test -d ${HOME}/home/foo || atf_fail "Directory should not have been created"
+	atf_check -s exit:0 ${RPW} usermod foo -m -k /skel
+	test -d ${HOME}/home/foo || atf_fail "Directory should have been created"
+	test -f ${HOME}/home/foo/.file || atf_fail "Skell files not added"
+	echo "entry" > ${HOME}/skel/.file2
+	atf_check -s exit:0 ${RPW} usermod foo -m -k /skel
+	test -f ${HOME}/home/foo/.file2 || atf_fail "Skell files not added"
+	echo > ${HOME}/home/foo/.file2
+	atf_check -s exit:0 ${RPW} usermod foo -m -k /skel
+	atf_check -s exit:0 -o inline:"\n" cat ${HOME}/home/foo/.file2
+}
+
 
 atf_init_test_cases() {
 	atf_add_test_case user_mod
@@ -275,4 +295,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_mod_w_none
 	atf_add_test_case user_mod_w_random
 	atf_add_test_case user_mod_w_yes
+	atf_add_test_case user_mod_m
 }

@@ -237,7 +237,7 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
 			rel->r_info = ELF32_R_INFO(count + dep->de_global,
-			    R_386_32);
+			    R_386_PC32);
 #elif defined(__mips__)
 /* XXX */
 printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
@@ -253,15 +253,6 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 #elif defined(__riscv__)
 /* XXX */
 printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
-#elif defined(__sparc)
-			/*
-			 * Add 4 bytes to hit the low half of this 64-bit
-			 * big-endian address.
-			 */
-			rel->r_offset = s->dofs_offset +
-			    dofr[j].dofr_offset + 4;
-			rel->r_info = ELF32_R_INFO(count + dep->de_global,
-			    R_SPARC_32);
 #else
 #error unknown ISA
 #endif
@@ -287,11 +278,7 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 	sym->st_value = 0;
 	sym->st_size = dof->dofh_filesz;
 	sym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_OBJECT);
-#ifdef illumos
-	sym->st_other = 0;
-#else
 	sym->st_other = ELF32_ST_VISIBILITY(STV_HIDDEN);
-#endif
 	sym->st_shndx = ESHDR_DOF;
 	sym++;
 
@@ -448,18 +435,8 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 #elif defined(__i386) || defined(__amd64)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
-#ifdef illumos
 			rel->r_info = ELF64_R_INFO(count + dep->de_global,
-			    R_AMD64_64);
-#else
-			rel->r_info = ELF64_R_INFO(count + dep->de_global,
-			    R_X86_64_RELATIVE);
-#endif
-#elif defined(__sparc)
-			rel->r_offset = s->dofs_offset +
-			    dofr[j].dofr_offset;
-			rel->r_info = ELF64_R_INFO(count + dep->de_global,
-			    R_SPARC_64);
+			    R_X86_64_PC64);
 #else
 #error unknown ISA
 #endif
@@ -485,11 +462,7 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 	sym->st_value = 0;
 	sym->st_size = dof->dofh_filesz;
 	sym->st_info = GELF_ST_INFO(STB_GLOBAL, STT_OBJECT);
-#ifdef illumos
-	sym->st_other = 0;
-#else
 	sym->st_other = ELF64_ST_VISIBILITY(STV_HIDDEN);
-#endif
 	sym->st_shndx = ESHDR_DOF;
 	sym++;
 
@@ -797,16 +770,15 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 }
 
 static int
-dt_symtab_lookup(Elf_Data *data_sym, int nsym, uintptr_t addr, uint_t shn,
-    GElf_Sym *sym, int uses_funcdesc, Elf *elf)
+dt_symtab_lookup(Elf_Data *data_sym, int start, int end, uintptr_t addr,
+    uint_t shn, GElf_Sym *sym, int uses_funcdesc, Elf *elf)
 {
-	int i, ret = -1;
 	Elf64_Addr symval;
 	Elf_Scn *opd_scn;
 	Elf_Data *opd_desc;
-	GElf_Sym s;
+	int i;
 
-	for (i = 0; i < nsym && gelf_getsym(data_sym, i, sym) != NULL; i++) {
+	for (i = start; i < end && gelf_getsym(data_sym, i, sym) != NULL; i++) {
 		if (GELF_ST_TYPE(sym->st_info) == STT_FUNC) {
 			symval = sym->st_value;
 			if (uses_funcdesc) {
@@ -816,20 +788,12 @@ dt_symtab_lookup(Elf_Data *data_sym, int nsym, uintptr_t addr, uint_t shn,
 				    *(uint64_t*)((char *)opd_desc->d_buf + symval);
 			}
 			if ((uses_funcdesc || shn == sym->st_shndx) &&
-			    symval <= addr &&
-			    addr < symval + sym->st_size) {
-				if (GELF_ST_BIND(sym->st_info) == STB_GLOBAL)
-					return (0);
-
-				ret = 0;
-				s = *sym;
-			}
+			    symval <= addr && addr < symval + sym->st_size)
+				return (0);
 		}
 	}
 
-	if (ret == 0)
-		*sym = s;
-	return (ret);
+	return (-1);
 }
 
 #if defined(__aarch64__)
@@ -1223,6 +1187,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	static const char dt_enabled[] = "enabled";
 	static const char dt_symprefix[] = "$dtrace";
 	static const char dt_symfmt[] = "%s%ld.%s";
+	static const char dt_weaksymfmt[] = "%s.%s";
 	char probename[DTRACE_NAMELEN];
 	int fd, i, ndx, eprobe, mod = 0;
 	Elf *elf = NULL;
@@ -1237,10 +1202,11 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	dt_provider_t *pvp;
 	dt_probe_t *prp;
 	uint32_t off, eclass, emachine1, emachine2;
-	size_t symsize, nsym, isym, istr, len;
+	size_t symsize, osym, nsym, isym, istr, len;
 	key_t objkey;
 	dt_link_pair_t *pair, *bufs = NULL;
 	dt_strtab_t *strtab;
+	void *tmp;
 
 	if ((fd = open64(obj, O_RDWR)) == -1) {
 		return (dt_link_error(dtp, elf, fd, bufs,
@@ -1374,12 +1340,13 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		 * target (text) section to replace the call instruction with
 		 * one or more nops.
 		 *
-		 * If the function containing the probe is locally scoped
-		 * (static), we create an alias used by the relocation in the
-		 * generated object. The alias, a new symbol, will be global
-		 * (so that the relocation from the generated object can be
-		 * resolved), and hidden (so that it is converted to a local
-		 * symbol at link time). Such aliases have this form:
+		 * To avoid runtime overhead, the relocations added to the
+		 * generated object should be resolved at static link time. We
+		 * therefore create aliases for the functions that contain
+		 * probes. An alias is global (so that the relocation from the
+		 * generated object can be resolved), and hidden (so that its
+		 * address is known at static link time). Such aliases have this
+		 * form:
 		 *
 		 *   $dtrace<key>.<function>
 		 *
@@ -1417,15 +1384,12 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			if (strncmp(s, dt_prefix, sizeof (dt_prefix) - 1) != 0)
 				continue;
 
-			if (dt_symtab_lookup(data_sym, isym, rela.r_offset,
-			    shdr_rel.sh_info, &fsym,
-			    (emachine1 == EM_PPC64), elf) != 0) {
+			if (dt_symtab_lookup(data_sym, 0, isym, rela.r_offset,
+			    shdr_rel.sh_info, &fsym, (emachine1 == EM_PPC64),
+			    elf) != 0) {
 				dt_strtab_destroy(strtab);
 				goto err;
 			}
-
-			if (GELF_ST_BIND(fsym.st_info) != STB_LOCAL)
-				continue;
 
 			if (fsym.st_name > data_str->d_size) {
 				dt_strtab_destroy(strtab);
@@ -1462,12 +1426,12 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		}
 
 		/*
-		 * If needed, allocate the additional space for the symbol
-		 * table and string table copying the old data into the new
-		 * buffers, and marking the buffers as dirty. We inject those
-		 * newly allocated buffers into the libelf data structures, but
-		 * are still responsible for freeing them once we're done with
-		 * the elf handle.
+		 * If any probes were found, allocate the additional space for
+		 * the symbol table and string table, copying the old data into
+		 * the new buffers, and marking the buffers as dirty. We inject
+		 * those newly allocated buffers into the libelf data
+		 * structures, but are still responsible for freeing them once
+		 * we're done with the elf handle.
 		 */
 		if (nsym > 0) {
 			/*
@@ -1501,7 +1465,9 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			bufs = pair;
 
 			bcopy(data_str->d_buf, pair->dlp_str, data_str->d_size);
+			tmp = data_str->d_buf;
 			data_str->d_buf = pair->dlp_str;
+			pair->dlp_str = tmp;
 			data_str->d_size += len;
 			(void) elf_flagdata(data_str, ELF_C_SET, ELF_F_DIRTY);
 
@@ -1509,16 +1475,20 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			(void) gelf_update_shdr(scn_str, &shdr_str);
 
 			bcopy(data_sym->d_buf, pair->dlp_sym, data_sym->d_size);
+			tmp = data_sym->d_buf;
 			data_sym->d_buf = pair->dlp_sym;
+			pair->dlp_sym = tmp;
 			data_sym->d_size += nsym * symsize;
 			(void) elf_flagdata(data_sym, ELF_C_SET, ELF_F_DIRTY);
 
 			shdr_sym.sh_size += nsym * symsize;
 			(void) gelf_update_shdr(scn_sym, &shdr_sym);
 
+			osym = isym;
 			nsym += isym;
 		} else {
 			dt_strtab_destroy(strtab);
+			continue;
 		}
 
 		/*
@@ -1577,50 +1547,48 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			bcopy(s, pname, p - s);
 			pname[p - s] = '\0';
 
-			if (dt_symtab_lookup(data_sym, isym, rela.r_offset,
-			    shdr_rel.sh_info, &fsym,
-			    (emachine1 == EM_PPC64), elf) != 0)
-				goto err;
+			if (dt_symtab_lookup(data_sym, osym, isym,
+			    rela.r_offset, shdr_rel.sh_info, &fsym,
+			    (emachine1 == EM_PPC64), elf) == 0) {
+				if (fsym.st_name > data_str->d_size)
+					goto err;
 
-			if (fsym.st_name > data_str->d_size)
-				goto err;
+				r = s = (char *) data_str->d_buf + fsym.st_name;
+				assert(strstr(s, dt_symprefix) == s);
+				s = strchr(s, '.') + 1;
+			} else if (dt_symtab_lookup(data_sym, 0, osym,
+			    rela.r_offset, shdr_rel.sh_info, &fsym,
+			    (emachine1 == EM_PPC64), elf) == 0) {
+				u_int bind;
 
-			assert(GELF_ST_TYPE(fsym.st_info) == STT_FUNC);
+				bind = GELF_ST_BIND(fsym.st_info) == STB_WEAK ?
+				    STB_WEAK : STB_GLOBAL;
 
-			/*
-			 * If a NULL relocation name is passed to
-			 * dt_probe_define(), the function name is used for the
-			 * relocation. The relocation needs to use a mangled
-			 * name if the symbol is locally scoped; the function
-			 * name may need to change if we've found the global
-			 * alias for the locally scoped symbol (we prefer
-			 * global symbols to locals in dt_symtab_lookup()).
-			 */
-			s = (char *)data_str->d_buf + fsym.st_name;
-			r = NULL;
-
-			if (GELF_ST_BIND(fsym.st_info) == STB_LOCAL) {
+				/*
+				 * Emit an alias for the symbol. It needs to be
+				 * non-preemptible so that .SUNW_dof relocations
+				 * may be resolved at static link time. Aliases
+				 * of weak symbols are given a non-unique name
+				 * so that they may be merged by the linker.
+				 */
 				dsym = fsym;
 				dsym.st_name = istr;
-				dsym.st_info = GELF_ST_INFO(STB_GLOBAL,
-				    STT_FUNC);
-				dsym.st_other =
-				    ELF64_ST_VISIBILITY(STV_ELIMINATE);
+				dsym.st_info = GELF_ST_INFO(bind, STT_FUNC);
+				dsym.st_other = GELF_ST_VISIBILITY(STV_HIDDEN);
 				(void) gelf_update_sym(data_sym, isym, &dsym);
-
-				r = (char *)data_str->d_buf + istr;
-				istr += 1 + sprintf(r, dt_symfmt,
-				    dt_symprefix, objkey, s);
+				r = (char *) data_str->d_buf + istr;
+				s = (char *) data_str->d_buf + fsym.st_name;
+				if (bind == STB_WEAK)
+					istr += sprintf(r, dt_weaksymfmt,
+					    dt_symprefix, s);
+				else
+					istr += sprintf(r, dt_symfmt,
+					    dt_symprefix, objkey, s);
+				istr++;
 				isym++;
 				assert(isym <= nsym);
-
-			} else if (strncmp(s, dt_symprefix,
-			    strlen(dt_symprefix)) == 0) {
-				r = s;
-				if ((s = strchr(s, '.')) == NULL)
-					goto err;
-				s++;
-			}
+			} else
+				goto err;
 
 			if ((pvp = dt_provider_lookup(dtp, pname)) == NULL) {
 				return (dt_link_error(dtp, elf, fd, bufs,
@@ -1697,9 +1665,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	(void) elf_end(elf);
 	(void) close(fd);
 
-#ifndef illumos
-	if (nsym > 0)
-#endif
 	while ((pair = bufs) != NULL) {
 		bufs = pair->dlp_next;
 		dt_free(dtp, pair->dlp_str);

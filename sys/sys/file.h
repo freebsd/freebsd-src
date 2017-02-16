@@ -50,11 +50,10 @@ struct thread;
 struct uio;
 struct knote;
 struct vnode;
-struct socket;
-
 
 #endif /* _KERNEL */
 
+#define	DTYPE_NONE	0	/* not yet initialized */
 #define	DTYPE_VNODE	1	/* file */
 #define	DTYPE_SOCKET	2	/* communications endpoint */
 #define	DTYPE_PIPE	3	/* pipe */
@@ -266,10 +265,6 @@ int fgetvp_read(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
 int fgetvp_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
-
-int fgetsock(struct thread *td, int fd, cap_rights_t *rightsp,
-    struct socket **spp, u_int *fflagp);
-void fputsock(struct socket *sp);
 
 static __inline int
 _fnoop(void)

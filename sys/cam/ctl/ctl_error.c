@@ -641,6 +641,18 @@ ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
 		      /*data*/ sks,
 		      SSD_ELEM_NONE);
 }
+void
+ctl_set_invalid_field_ciu(struct ctl_scsiio *ctsio)
+{
+
+	/* "Invalid field in command information unit" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_ABORTED_COMMAND,
+		      /*ascq*/ 0x0E,
+		      /*ascq*/ 0x03,
+		      SSD_ELEM_NONE);
+}
 
 void
 ctl_set_invalid_opcode(struct ctl_scsiio *ctsio)
@@ -908,10 +920,7 @@ ctl_set_data_phase_error(struct ctl_scsiio *ctsio)
 void
 ctl_set_reservation_conflict(struct ctl_scsiio *ctsio)
 {
-	struct scsi_sense_data *sense;
 
-	sense = &ctsio->sense_data;
-	memset(sense, 0, sizeof(*sense));
 	ctsio->scsi_status = SCSI_STATUS_RESERV_CONFLICT;
 	ctsio->sense_len = 0;
 	ctsio->io_hdr.status = CTL_SCSI_ERROR;
@@ -920,10 +929,7 @@ ctl_set_reservation_conflict(struct ctl_scsiio *ctsio)
 void
 ctl_set_queue_full(struct ctl_scsiio *ctsio)
 {
-	struct scsi_sense_data *sense;
 
-	sense = &ctsio->sense_data;
-	memset(sense, 0, sizeof(*sense));
 	ctsio->scsi_status = SCSI_STATUS_QUEUE_FULL;
 	ctsio->sense_len = 0;
 	ctsio->io_hdr.status = CTL_SCSI_ERROR;
@@ -932,10 +938,7 @@ ctl_set_queue_full(struct ctl_scsiio *ctsio)
 void
 ctl_set_busy(struct ctl_scsiio *ctsio)
 {
-	struct scsi_sense_data *sense;
 
-	sense = &ctsio->sense_data;
-	memset(sense, 0, sizeof(*sense));
 	ctsio->scsi_status = SCSI_STATUS_BUSY;
 	ctsio->sense_len = 0;
 	ctsio->io_hdr.status = CTL_SCSI_ERROR;
@@ -944,10 +947,7 @@ ctl_set_busy(struct ctl_scsiio *ctsio)
 void
 ctl_set_task_aborted(struct ctl_scsiio *ctsio)
 {
-	struct scsi_sense_data *sense;
 
-	sense = &ctsio->sense_data;
-	memset(sense, 0, sizeof(*sense));
 	ctsio->scsi_status = SCSI_STATUS_TASK_ABORTED;
 	ctsio->sense_len = 0;
 	ctsio->io_hdr.status = CTL_CMD_ABORTED;
@@ -980,10 +980,7 @@ ctl_set_space_alloc_fail(struct ctl_scsiio *ctsio)
 void
 ctl_set_success(struct ctl_scsiio *ctsio)
 {
-	struct scsi_sense_data *sense;
 
-	sense = &ctsio->sense_data;
-	memset(sense, 0, sizeof(*sense));
 	ctsio->scsi_status = SCSI_STATUS_OK;
 	ctsio->sense_len = 0;
 	ctsio->io_hdr.status = CTL_SUCCESS;

@@ -131,5 +131,15 @@ uint64_t lockstat_nsecs(struct lock_object *);
 	LOCKSTAT_PROFILE_RELEASE_LOCK(probe, lp)
 
 #endif /* !KDTRACE_HOOKS */
+
+#ifndef LOCK_PROFILING
+#define	LOCKSTAT_PROFILE_ENABLED(probe)					\
+	SDT_PROBE_ENABLED(lockstat, , , probe)
+#define	LOCKSTAT_OOL_PROFILE_ENABLED(probe)				\
+	SDT_PROBE_ENABLED(lockstat, , , probe)
+#else
+#define	LOCKSTAT_OOL_PROFILE_ENABLED(probe)	1
+#endif
+
 #endif /* _KERNEL */
 #endif /* _SYS_LOCKSTAT_H */

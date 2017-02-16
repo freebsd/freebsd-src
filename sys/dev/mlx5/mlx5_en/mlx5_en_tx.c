@@ -81,11 +81,15 @@ static struct mlx5e_sq *
 mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 {
 	struct mlx5e_priv *priv = ifp->if_softc;
+	struct mlx5e_channel * volatile *ppch;
+	struct mlx5e_channel *pch;
 	u32 ch;
 	u32 tc;
 
+	ppch = priv->channel;
+
 	/* check if channels are successfully opened */
-	if (unlikely(priv->channel == NULL))
+	if (unlikely(ppch == NULL))
 		return (NULL);
 
 	/* obtain VLAN information if present */
@@ -123,11 +127,11 @@ mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 #endif
 	}
 
-	/* check if channel is allocated */
-	if (unlikely(priv->channel[ch] == NULL))
-		return (NULL);
-
-	return (&priv->channel[ch]->sq[tc]);
+	/* check if channel is allocated and not stopped */
+	pch = ppch[ch];
+	if (likely(pch != NULL && pch->sq[tc].stopped == 0))
+		return (&pch->sq[tc]);
+	return (NULL);
 }
 
 static inline u16
@@ -435,7 +439,8 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 
 	sq->cc = sqcc;
 
-	if (atomic_cmpset_int(&sq->queue_state, MLX5E_SQ_FULL, MLX5E_SQ_READY))
+	if (sq->sq_tq != NULL &&
+	    atomic_cmpset_int(&sq->queue_state, MLX5E_SQ_FULL, MLX5E_SQ_READY))
 		taskqueue_enqueue(sq->sq_tq, &sq->sq_task);
 }
 
@@ -445,18 +450,21 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 	struct mbuf *next;
 	int err = 0;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		if (mb)
-			err = drbr_enqueue(ifp, sq->br, mb);
-		return (err);
-	}
-
-	if (mb != NULL)
+	if (likely(mb != NULL)) {
 		/*
 		 * If we can't insert mbuf into drbr, try to xmit anyway.
 		 * We keep the error we got so we could return that after xmit.
 		 */
 		err = drbr_enqueue(ifp, sq->br, mb);
+	}
+
+	/*
+	 * Check if the network interface is closed or if the SQ is
+	 * being stopped:
+	 */
+	if (unlikely((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    sq->stopped != 0))
+		return (err);
 
 	/* Process the queue */
 	while ((next = drbr_peek(ifp, sq->br)) != NULL) {
@@ -470,14 +478,51 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 			break;
 		}
 		drbr_advance(ifp, sq->br);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-			break;
 	}
 	/* Check if we need to write the doorbell */
 	if (likely(sq->doorbell.d64 != 0)) {
 		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
 		sq->doorbell.d64 = 0;
 	}
+	/*
+	 * Check if we need to start the event timer which flushes the
+	 * transmit ring on timeout:
+	 */
+	if (unlikely(sq->cev_next_state == MLX5E_CEV_STATE_INITIAL &&
+	    sq->cev_factor != 1)) {
+		/* start the timer */
+		mlx5e_sq_cev_timeout(sq);
+	} else {
+		/* don't send NOPs yet */
+		sq->cev_next_state = MLX5E_CEV_STATE_HOLD_NOPS;
+	}
+	return (err);
+}
+
+static int
+mlx5e_xmit_locked_no_br(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
+{
+	int err = 0;
+
+	if (unlikely((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    sq->stopped != 0)) {
+		m_freem(mb);
+		return (ENETDOWN);
+	}
+
+	/* Do transmit */
+	if (mlx5e_sq_xmit(sq, &mb) != 0) {
+		/* NOTE: m_freem() is NULL safe */
+		m_freem(mb);
+		err = ENOBUFS;
+	}
+
+	/* Check if we need to write the doorbell */
+	if (likely(sq->doorbell.d64 != 0)) {
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		sq->doorbell.d64 = 0;
+	}
+
 	/*
 	 * Check if we need to start the event timer which flushes the
 	 * transmit ring on timeout:
@@ -505,7 +550,13 @@ mlx5e_xmit(struct ifnet *ifp, struct mbuf *mb)
 		m_freem(mb);
 		return (ENXIO);
 	}
-	if (mtx_trylock(&sq->lock)) {
+
+	if (unlikely(sq->br == NULL)) {
+		/* rate limited traffic */
+		mtx_lock(&sq->lock);
+		ret = mlx5e_xmit_locked_no_br(ifp, sq, mb);
+		mtx_unlock(&sq->lock);
+	} else if (mtx_trylock(&sq->lock)) {
 		ret = mlx5e_xmit_locked(ifp, sq, mb);
 		mtx_unlock(&sq->lock);
 	} else {

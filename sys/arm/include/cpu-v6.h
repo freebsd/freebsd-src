@@ -41,24 +41,47 @@
 
 #if __ARM_ARCH < 6
 #error Only include this file for ARMv6
-#else
+#endif
+
+/*
+ * Some kernel modules (dtrace all for example) are compiled
+ * unconditionally with -DSMP. Although it looks like a bug,
+ * handle this case here and in #elif condition in ARM_SMP_UP macro.
+ */
+#if __ARM_ARCH <= 6 && defined(SMP) && !defined(KLD_MODULE)
+#error SMP option is not supported on ARMv6
+#endif
+
+#if __ARM_ARCH <= 6 && defined(SMP_ON_UP)
+#error SMP_ON_UP option is only supported on ARMv7+ CPUs
+#endif
+
+#if !defined(SMP) && defined(SMP_ON_UP)
+#error SMP option must be defined for SMP_ON_UP option
+#endif
 
 #define CPU_ASID_KERNEL 0
 
-#if __ARM_ARCH >= 7
-#if !defined(SMP)
-/* No SMP so no need to use the MP extensions */
-#define	ARM_USE_MP_EXTENSIONS	0
-#elif defined(CPU_CORTEXA8) && \
-    (defined(CPU_CORTEXA_MP) || defined(CPU_KRAIT) || defined(CPU_MV_PJ4B))
-#define	ARM_USE_MP_EXTENSIONS	(cpuinfo.mp_ext != 0)
-#elif defined(CPU_CORTEXA8)
-#define	ARM_USE_MP_EXTENSIONS	0
+#if defined(SMP_ON_UP)
+#define ARM_SMP_UP(smp_code, up_code)				\
+do {								\
+	if (cpuinfo.mp_ext != 0) {				\
+		smp_code;					\
+	} else {						\
+		up_code;					\
+	}							\
+} while (0)
+#elif defined(SMP) && __ARM_ARCH > 6
+#define ARM_SMP_UP(smp_code, up_code)				\
+do {								\
+	smp_code;						\
+} while (0)
 #else
-#define	ARM_USE_MP_EXTENSIONS	1
+#define ARM_SMP_UP(smp_code, up_code)				\
+do {								\
+	up_code;						\
+} while (0)
 #endif
-#endif /* __ARM_ARCH >= 7 */
-
 
 void dcache_wbinv_poc_all(void); /* !!! NOT SMP coherent function !!! */
 vm_offset_t dcache_wb_pou_checked(vm_offset_t, vm_size_t);
@@ -126,15 +149,15 @@ fname(uint64_t reg)							\
 /* TLB */
 
 _WF0(_CP15_TLBIALL, CP15_TLBIALL)		/* Invalidate entire unified TLB */
-#if __ARM_ARCH >= 7
+#if __ARM_ARCH >= 7 && defined(SMP)
 _WF0(_CP15_TLBIALLIS, CP15_TLBIALLIS)		/* Invalidate entire unified TLB IS */
 #endif
 _WF1(_CP15_TLBIASID, CP15_TLBIASID(%0))		/* Invalidate unified TLB by ASID */
-#if __ARM_ARCH >= 7
+#if __ARM_ARCH >= 7 && defined(SMP)
 _WF1(_CP15_TLBIASIDIS, CP15_TLBIASIDIS(%0))	/* Invalidate unified TLB by ASID IS */
 #endif
 _WF1(_CP15_TLBIMVAA, CP15_TLBIMVAA(%0))		/* Invalidate unified TLB by MVA, all ASID */
-#if __ARM_ARCH >= 7
+#if __ARM_ARCH >= 7 && defined(SMP)
 _WF1(_CP15_TLBIMVAAIS, CP15_TLBIMVAAIS(%0))	/* Invalidate unified TLB by MVA, all ASID IS */
 #endif
 _WF1(_CP15_TLBIMVA, CP15_TLBIMVA(%0))		/* Invalidate unified TLB by MVA */
@@ -144,7 +167,7 @@ _WF1(_CP15_TTB_SET, CP15_TTBR0(%0))
 /* Cache and Branch predictor */
 
 _WF0(_CP15_BPIALL, CP15_BPIALL)			/* Branch predictor invalidate all */
-#if __ARM_ARCH >= 7
+#if __ARM_ARCH >= 7 && defined(SMP)
 _WF0(_CP15_BPIALLIS, CP15_BPIALLIS)		/* Branch predictor invalidate all IS */
 #endif
 _WF1(_CP15_BPIMVA, CP15_BPIMVA(%0))		/* Branch predictor invalidate by MVA */
@@ -158,7 +181,7 @@ _WF1(_CP15_DCCSW, CP15_DCCSW(%0))		/* Data cache clean by set/way */
 _WF1(_CP15_DCIMVAC, CP15_DCIMVAC(%0))		/* Data cache invalidate by MVA PoC */
 _WF1(_CP15_DCISW, CP15_DCISW(%0))		/* Data cache invalidate by set/way */
 _WF0(_CP15_ICIALLU, CP15_ICIALLU)		/* Instruction cache invalidate all PoU */
-#if __ARM_ARCH >= 7
+#if __ARM_ARCH >= 7 && defined(SMP)
 _WF0(_CP15_ICIALLUIS, CP15_ICIALLUIS)		/* Instruction cache invalidate all PoU IS */
 #endif
 _WF1(_CP15_ICIMVAU, CP15_ICIMVAU(%0))		/* Instruction cache invalidate */
@@ -360,17 +383,17 @@ tlb_flush_range_local(vm_offset_t va, vm_size_t size)
 }
 
 /* Broadcasting operations. */
-#if __ARM_ARCH >= 7
+#if __ARM_ARCH >= 7 && defined(SMP)
 
 static __inline void
 tlb_flush_all(void)
 {
 
 	dsb();
-	if (ARM_USE_MP_EXTENSIONS)
-		_CP15_TLBIALLIS();
-	else
-		_CP15_TLBIALL();
+	ARM_SMP_UP(
+	    _CP15_TLBIALLIS(),
+	    _CP15_TLBIALL()
+	);
 	dsb();
 }
 
@@ -379,10 +402,10 @@ tlb_flush_all_ng(void)
 {
 
 	dsb();
-	if (ARM_USE_MP_EXTENSIONS)
-		_CP15_TLBIASIDIS(CPU_ASID_KERNEL);
-	else
-		_CP15_TLBIASID(CPU_ASID_KERNEL);
+	ARM_SMP_UP(
+	    _CP15_TLBIASIDIS(CPU_ASID_KERNEL),
+	    _CP15_TLBIASID(CPU_ASID_KERNEL)
+	);
 	dsb();
 }
 
@@ -393,10 +416,10 @@ tlb_flush(vm_offset_t va)
 	KASSERT((va & PAGE_MASK) == 0, ("%s: va %#x not aligned", __func__, va));
 
 	dsb();
-	if (ARM_USE_MP_EXTENSIONS)
-		_CP15_TLBIMVAAIS(va);
-	else
-		_CP15_TLBIMVA(va | CPU_ASID_KERNEL);
+	ARM_SMP_UP(
+	    _CP15_TLBIMVAAIS(va),
+	    _CP15_TLBIMVA(va | CPU_ASID_KERNEL)
+	);
 	dsb();
 }
 
@@ -410,13 +433,16 @@ tlb_flush_range(vm_offset_t va,  vm_size_t size)
 	    size));
 
 	dsb();
-	if (ARM_USE_MP_EXTENSIONS) {
-		for (; va < eva; va += PAGE_SIZE)
-			_CP15_TLBIMVAAIS(va);
-	} else {
-		for (; va < eva; va += PAGE_SIZE)
-			_CP15_TLBIMVA(va | CPU_ASID_KERNEL);
-	}
+	ARM_SMP_UP(
+		{
+			for (; va < eva; va += PAGE_SIZE)
+				_CP15_TLBIMVAAIS(va);
+		},
+		{
+			for (; va < eva; va += PAGE_SIZE)
+				_CP15_TLBIMVA(va | CPU_ASID_KERNEL);
+		}
+	);
 	dsb();
 }
 #else /* __ARM_ARCH < 7 */
@@ -440,23 +466,19 @@ icache_sync(vm_offset_t va, vm_size_t size)
 
 	dsb();
 	va &= ~cpuinfo.dcache_line_mask;
+
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7
-	if (ARM_USE_MP_EXTENSIONS) {
-		for ( ; va < eva; va += cpuinfo.dcache_line_size)
-			_CP15_DCCMVAU(va);
-	} else
+		_CP15_DCCMVAU(va);
+#else
+		_CP15_DCCMVAC(va);
 #endif
-	{
-		for ( ; va < eva; va += cpuinfo.dcache_line_size)
-			_CP15_DCCMVAC(va);
 	}
 	dsb();
-#if __ARM_ARCH >= 7
-	if (ARM_USE_MP_EXTENSIONS)
-		_CP15_ICIALLUIS();
-	else
-#endif
-		_CP15_ICIALLU();
+	ARM_SMP_UP(
+			_CP15_ICIALLUIS(),
+			_CP15_ICIALLU()
+	);
 	dsb();
 	isb();
 }
@@ -465,12 +487,11 @@ icache_sync(vm_offset_t va, vm_size_t size)
 static __inline void
 icache_inv_all(void)
 {
-#if __ARM_ARCH >= 7
-	if (ARM_USE_MP_EXTENSIONS)
-		_CP15_ICIALLUIS();
-	else
-#endif
-		_CP15_ICIALLU();
+
+	ARM_SMP_UP(
+		_CP15_ICIALLUIS(),
+		_CP15_ICIALLU()
+	);
 	dsb();
 	isb();
 }
@@ -479,12 +500,11 @@ icache_inv_all(void)
 static __inline void
 bpb_inv_all(void)
 {
-#if __ARM_ARCH >= 7
-	if (ARM_USE_MP_EXTENSIONS)
-		_CP15_BPIALLIS();
-	else
-#endif
-		_CP15_BPIALL();
+
+	ARM_SMP_UP(
+		_CP15_BPIALLIS(),
+		_CP15_BPIALL()
+	);
 	dsb();
 	isb();
 }
@@ -497,15 +517,12 @@ dcache_wb_pou(vm_offset_t va, vm_size_t size)
 
 	dsb();
 	va &= ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
 #if __ARM_ARCH >= 7
-	if (ARM_USE_MP_EXTENSIONS) {
-		for ( ; va < eva; va += cpuinfo.dcache_line_size)
-			_CP15_DCCMVAU(va);
-	} else
+		_CP15_DCCMVAU(va);
+#else
+		_CP15_DCCMVAC(va);
 #endif
-	{
-		for ( ; va < eva; va += cpuinfo.dcache_line_size)
-			_CP15_DCCMVAC(va);
 	}
 	dsb();
 }
@@ -668,6 +685,5 @@ cp15_ats1cuw_check(vm_offset_t addr)
 	isb();
 	return (cp15_par_get() & 0x01 ? EFAULT : 0);
 }
-#endif /* !__ARM_ARCH < 6 */
 
 #endif /* !MACHINE_CPU_V6_H */

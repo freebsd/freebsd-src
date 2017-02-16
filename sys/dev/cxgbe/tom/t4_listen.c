@@ -209,7 +209,7 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct vi_info *vi)
 	    !IN6_ARE_ADDR_EQUAL(&in6addr_any, &inp->in6p_laddr)) {
 		struct tom_data *td = sc->tom_softc;
 
-		lctx->ce = hold_lip(td, &inp->in6p_laddr);
+		lctx->ce = hold_lip(td, &inp->in6p_laddr, NULL);
 		if (lctx->ce == NULL) {
 			free(lctx, M_CXGBE);
 			return (NULL);
@@ -1418,6 +1418,7 @@ found:
 		if (!(synqe->flags & TPF_SYNQE_EXPANDED))
 			send_reset_synqe(tod, synqe);
 		INP_WUNLOCK(inp);
+		CURVNET_RESTORE();
 
 		release_synqe(synqe);	/* extra hold */
 		return (__LINE__);
@@ -1583,6 +1584,8 @@ reset:
 	INP_WLOCK_ASSERT(new_inp);
 	MPASS(so->so_vnet == lctx->vnet);
 	toep->vnet = lctx->vnet;
+	if (inc.inc_flags & INC_ISIPV6)
+		toep->ce = hold_lip(sc->tom_softc, &inc.inc6_laddr, lctx->ce);
 
 	/*
 	 * This is for the unlikely case where the syncache entry that we added
@@ -1620,5 +1623,15 @@ t4_init_listen_cpl_handlers(void)
 	t4_register_cpl_handler(CPL_CLOSE_LISTSRV_RPL, do_close_server_rpl);
 	t4_register_cpl_handler(CPL_PASS_ACCEPT_REQ, do_pass_accept_req);
 	t4_register_cpl_handler(CPL_PASS_ESTABLISH, do_pass_establish);
+}
+
+void
+t4_uninit_listen_cpl_handlers(void)
+{
+
+	t4_register_cpl_handler(CPL_PASS_OPEN_RPL, NULL);
+	t4_register_cpl_handler(CPL_CLOSE_LISTSRV_RPL, NULL);
+	t4_register_cpl_handler(CPL_PASS_ACCEPT_REQ, NULL);
+	t4_register_cpl_handler(CPL_PASS_ESTABLISH, NULL);
 }
 #endif

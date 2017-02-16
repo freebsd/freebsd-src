@@ -18,7 +18,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_SET_TSTAMP_TYPE 3PCAP "21 August 2010"
+.TH PCAP_SET_TSTAMP_TYPE 3PCAP "5 December 2014"
 .SH NAME
 pcap_set_tstamp_type \- set the time stamp type to be used by a
 capture device
@@ -52,7 +52,7 @@ for a list of all the time stamp types.
 returns 0 on success if the specified time stamp type is expected to be
 supported by the capture device,
 .B PCAP_WARNING_TSTAMP_TYPE_NOTSUP
-on success if the specified time stamp type is not supported by the
+if the specified time stamp type is not supported by the
 capture device,
 .B PCAP_ERROR_ACTIVATED
 if called on a capture handle that has been activated, and

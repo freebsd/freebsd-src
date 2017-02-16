@@ -20,6 +20,9 @@ SRCS	+= r88eu_attach.c r88eu_init.c r88eu_rx.c \
 SRCS	+= r92cu_attach.c r92cu_init.c r92cu_led.c r92cu_rx.c r92cu_tx.c \
 	   r92cu.h r92cu_priv.h r92cu_reg.h r92cu_tx_desc.h
 
+.PATH: ${.CURDIR}/../../dev/rtwn/rtl8192e/usb
+SRCS	+= r92eu_attach.c r92eu_init.c r92eu.h r92eu_reg.h
+
 .PATH: ${.CURDIR}/../../dev/rtwn/rtl8812a/usb
 SRCS	+= r12au_attach.c r12au_init.c r12au_rx.c r12au_tx.c \
 	   r12au.h r12au_reg.h r12au_tx_desc.h

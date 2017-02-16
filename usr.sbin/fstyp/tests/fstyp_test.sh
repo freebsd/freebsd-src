@@ -64,7 +64,7 @@ exfat_head() {
 }
 exfat_body() {
 	bzcat $(atf_get_srcdir)/dfr-01-xfat.img.bz2 > exfat.img
-	atf_check -s exit:0 -o inline:"exfat\n" fstyp exfat.img
+	atf_check -s exit:0 -o inline:"exfat\n" fstyp -u exfat.img
 }
 
 atf_test_case empty

@@ -52,7 +52,7 @@ pass3(void)
 	int loopcnt, inpindex, state;
 	ino_t orphan;
 	struct inodesc idesc;
-	char namebuf[MAXNAMLEN+1];
+	char namebuf[UFS_MAXNAMLEN+1];
 
 	for (inpindex = inplast - 1; inpindex >= 0; inpindex--) {
 		if (got_siginfo) {
@@ -68,7 +68,7 @@ pass3(void)
 		}
 		inp = inpsort[inpindex];
 		state = inoinfo(inp->i_number)->ino_state;
-		if (inp->i_number == ROOTINO ||
+		if (inp->i_number == UFS_ROOTINO ||
 		    (inp->i_parent != 0 && !S_IS_DUNFOUND(state)))
 			continue;
 		if (state == DCLEAR)
@@ -81,7 +81,7 @@ pass3(void)
 		 */
 		if ((preen || bkgrdflag) &&
 		    resolved && usedsoftdep && S_IS_DUNFOUND(state)) {
-			if (inp->i_dotdot >= ROOTINO)
+			if (inp->i_dotdot >= UFS_ROOTINO)
 				inoinfo(inp->i_dotdot)->ino_linkcnt++;
 			continue;
 		}

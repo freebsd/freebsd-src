@@ -26,9 +26,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef __FreeBSD__
-#include <sys/types.h>
-#endif
 #include <sys/cdefs.h>
 #include <sys/event.h>
 #include <sys/signal.h>

@@ -34,6 +34,7 @@ __DEFAULT_YES_OPTIONS = \
     INET \
     INET6 \
     IPFILTER \
+    IPSEC_SUPPORT \
     ISCSI \
     KERNEL_SYMBOLS \
     NETGRAPH \
@@ -48,6 +49,7 @@ __DEFAULT_NO_OPTIONS = \
     EXTRA_TCP_STACKS \
     NAND \
     OFED \
+    RATELIMIT \
     REPRODUCIBLE_BUILD
 
 # Some options are totally broken on some architectures. We disable

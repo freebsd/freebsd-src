@@ -78,22 +78,19 @@ _testfmt(const char *result, const char *argstr, const char *fmt,...)
 	va_copy(ap2, ap);
 	smash_stack();
 	vsnprintf(s, sizeof(s), fmt, ap);
-	if (strcmp(result, s) != 0) {
-		atf_tc_fail(
-		    "printf(\"%s\", %s) ==> [%s], expected [%s]",
-		    fmt, argstr, s, result);
-	}
+	ATF_CHECK_MSG(strcmp(result, s) == 0,
+	    "printf(\"%s\", %s) ==> [%s], expected [%s]",
+	    fmt, argstr, s, result);
 
 	smash_stack();
 	mbstowcs(ws, s, BUF - 1);
 	mbstowcs(wfmt, fmt, BUF - 1);
 	mbstowcs(wresult, result, BUF - 1);
 	vswprintf(ws, sizeof(ws) / sizeof(ws[0]), wfmt, ap2);
-	if (wcscmp(wresult, ws) != 0) {
-		atf_tc_fail(
-		    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]",
-		    wfmt, argstr, ws, wresult);
-	}
+	ATF_CHECK_MSG(wcscmp(wresult, ws) == 0,
+	    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]",
+	    wfmt, argstr, ws, wresult);
+
 	va_end(ap);
 	va_end(ap2);
 }
@@ -113,6 +110,11 @@ ATF_TC_BODY(int_within_limits, tc)
 	/* Make sure we handle signed vs. unsigned args correctly. */
 	testfmt("-1", "%jd", (intmax_t)-1);
 	testfmt(S_UINT64MAX, "%ju", UINT64_MAX);
+
+	if (sizeof(ptrdiff_t) != sizeof(uintmax_t))
+		atf_tc_expect_fail("the %%t qualifier is broken on 32-bit "
+		    "platforms where there's a mismatch between ptrdiff_t and "
+		    "uintmax_t's type width; bug # 191674");
 
 	testfmt("-1", "%td", (ptrdiff_t)-1);
 	testfmt(S_SIZEMAX, "%tu", (size_t)-1);

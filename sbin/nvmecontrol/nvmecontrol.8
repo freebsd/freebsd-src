@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2016
+.Dd February 4, 2017
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -62,6 +62,8 @@
 .Ic logpage
 .Aq Fl p Ar page_id
 .Op Fl x
+.Op Fl v Ar vendor-string
+.Op Fl b
 .Aq device id
 .Aq namespace id
 .Nm
@@ -74,10 +76,48 @@
 .Ic power
 .Op Fl l
 .Op Fl p power_state
-.Op fl w workload_hint
+.Op Fl w workload_hint
+.Nm
+.Ic wdc cap-diag
+.Op Fl o path_template
+.Aq device id
+.Nm
+.Ic wdc drive-log
+.Op Fl o path_template
+.Aq device id
+.Nm
+.Ic wdc get-crash-dump
+.Op Fl o path_template
+.Aq device id
+.\" .Nm
+.\" .Ic wdc purge
+.\" .Aq device id
+.\" .Nm
+.\" .Ic wdc purge-monitor
+.\" .Aq device id
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.
+.Pp
+.Ss logpage
+The logpage command knows how to print log pages of various types.
+It also knows about vendor specific log pages from hgst/wdc and intel.
+Page 0xc1 for hgst/wdc contains the advanced smart information about
+the drive.
+Page 0xc1 is read latency stats for intel.
+Page 0xc2 is write latency stats for intel.
+Page 0xc5 is temperature stats for intel.
+Page 0xca is advanced smart information for intel.
+.Ss wdc
+The various wdc command retrieve log data from the wdc/hgst drives.
+The
+.Fl o
+flag specifies a path template to use to output the files.
+Each file takes the path template (which defaults to nothing), appends
+the drive's serial number and the type of dump it is followed
+by .bin.
+These logs must be sent to the vendor for analysis.
+This tool only provides a way to extract them.
 .Sh EXAMPLES
 .Dl nvmecontrol devlist
 .Pp
@@ -108,9 +148,20 @@ Display a human-readable summary of the nvme0 controller's Error Information Log
 Log pages defined by the NVMe specification include Error Information Log (ID=1),
 SMART/Health Information Log (ID=2), and Firmware Slot Log (ID=3).
 .Pp
+.Dl nvmecontrol logpage -p 0xc1 -v wdc nvme0
+.Pp
+Display a human-readable summary of the nvme0's wdc-specific advanced
+SMART data.
+.Pp
 .Dl nvmecontrol logpage -p 1 -x nvme0
 .Pp
 Display a hexadecimal dump of the nvme0 controller's Error Information Log.
+.Pp
+.Dl nvmecontrol logpage -p 0xcb -b nvme0 > /tmp/page-cb.bin
+.Pp
+Print the contents of vendor specific page 0xcb as binary data on
+standard out.
+Redirect it to a temporary file.
 .Pp
 .Dl nvmecontrol firmware -s 2 -f /tmp/nvme_firmware nvme0
 .Pp

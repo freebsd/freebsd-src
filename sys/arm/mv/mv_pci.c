@@ -147,7 +147,7 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 	/*
 	 * Initialize the ranges so that we don't have to worry about
 	 * having them all defined in the FDT. In particular, it is
-	 * perfectly fine not to want I/O space on PCI busses.
+	 * perfectly fine not to want I/O space on PCI buses.
 	 */
 	bzero(io_space, sizeof(*io_space));
 	bzero(mem_space, sizeof(*mem_space));

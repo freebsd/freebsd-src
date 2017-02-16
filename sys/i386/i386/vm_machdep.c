@@ -89,11 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
-#else
 #include <isa/isareg.h>
-#endif
 
 #ifdef XBOX
 #include <machine/xbox.h>
@@ -101,10 +97,6 @@ __FBSDID("$FreeBSD$");
 
 #ifndef NSFBUFS
 #define	NSFBUFS		(512 + maxusers * 16)
-#endif
-
-#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
 #endif
 
 _Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
@@ -156,18 +148,14 @@ void *
 alloc_fpusave(int flags)
 {
 	void *res;
-#ifdef CPU_ENABLE_SSE
 	struct savefpu_ymm *sf;
-#endif
 
 	res = malloc(cpu_max_ext_state_size, M_DEVBUF, flags);
-#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		sf = (struct savefpu_ymm *)res;
 		bzero(&sf->sv_xstate.sx_hd, sizeof(sf->sv_xstate.sx_hd));
 		sf->sv_xstate.sx_hd.xstate_bv = xsave_mask;
 	}
-#endif
 	return (res);
 }
 /*
@@ -176,11 +164,7 @@ alloc_fpusave(int flags)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(td1, p2, td2, flags)
-	register struct thread *td1;
-	register struct proc *p2;
-	struct thread *td2;
-	int flags;
+cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	register struct proc *p1;
 	struct pcb *pcb2;
@@ -211,12 +195,10 @@ cpu_fork(td1, p2, td2, flags)
 	/* Ensure that td1's pcb is up to date. */
 	if (td1 == curthread)
 		td1->td_pcb->pcb_gs = rgs();
-#ifdef DEV_NPX
 	critical_enter();
 	if (PCPU_GET(fpcurthread) == td1)
 		npxsave(td1->td_pcb->pcb_save);
 	critical_exit();
-#endif
 
 	/* Point the pcb to the top of the stack */
 	pcb2 = get_pcb_td(td2);
@@ -354,12 +336,10 @@ void
 cpu_thread_exit(struct thread *td)
 {
 
-#ifdef DEV_NPX
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread))
 		npxdrop();
 	critical_exit();
-#endif
 
 	/* Disable any hardware breakpoints. */
 	if (td->td_pcb->pcb_flags & PCB_DBREGS) {
@@ -400,21 +380,17 @@ void
 cpu_thread_alloc(struct thread *td)
 {
 	struct pcb *pcb;
-#ifdef CPU_ENABLE_SSE
 	struct xstate_hdr *xhdr;
-#endif
 
 	td->td_pcb = pcb = get_pcb_td(td);
 	td->td_frame = (struct trapframe *)((caddr_t)pcb - 16) - 1;
 	pcb->pcb_ext = NULL; 
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
-#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
 		bzero(xhdr, sizeof(*xhdr));
 		xhdr->xstate_bv = xsave_mask;
 	}
-#endif
 }
 
 void
@@ -676,9 +652,7 @@ static void
 cpu_reset_real()
 {
 	struct region_descriptor null_idt;
-#ifndef PC98
 	int b;
-#endif
 
 	disable_intr();
 #ifdef CPU_ELAN
@@ -692,16 +666,6 @@ cpu_reset_real()
 		outl(0xcfc, 0xf);
 	}
 
-#ifdef PC98
-	/*
-	 * Attempt to do a CPU reset via CPU reset port.
-	 */
-	if ((inb(0x35) & 0xa0) != 0xa0) {
-		outb(0x37, 0x0f);		/* SHUT0 = 0. */
-		outb(0x37, 0x0b);		/* SHUT1 = 0. */
-	}
-	outb(0xf0, 0x00);		/* Reset. */
-#else
 #if !defined(BROKEN_KEYBOARD_RESET)
 	/*
 	 * Attempt to do a CPU reset via the keyboard controller,
@@ -740,7 +704,6 @@ cpu_reset_real()
 		outb(0x92, b | 0x1);
 		DELAY(500000);  /* wait 0.5 sec to see if that did it */
 	}
-#endif /* PC98 */
 
 	printf("No known reset method worked, attempting CPU shutdown\n");
 	DELAY(1000000); /* wait 1 sec for printf to complete */

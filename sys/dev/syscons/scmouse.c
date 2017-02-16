@@ -249,7 +249,6 @@ sc_remove_mouse_image(scr_stat *scp)
     i = scp->mouse_oldpos;
     mark_for_update(scp, i);
     mark_for_update(scp, i);
-#ifndef PC98
     if (i + scp->xsize + 1 < size) {
 	mark_for_update(scp, i + scp->xsize + 1);
     } else if (i + scp->xsize < size) {
@@ -257,7 +256,6 @@ sc_remove_mouse_image(scr_stat *scp)
     } else if (i + 1 < size) {
 	mark_for_update(scp, i + 1);
     }
-#endif /* PC98 */
     scp->status &= ~MOUSE_VISIBLE;
     SC_VIDEO_UNLOCK(scp->sc);
 }

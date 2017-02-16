@@ -66,6 +66,7 @@
 #define R92C_HSIMR			0x058
 #define R92C_HSISR			0x05c
 #define R92C_MULTI_FUNC_CTRL		0x068
+#define R92C_LDO_SWR_CTRL		0x07c
 #define R92C_MCUFWDL			0x080
 #define R92C_HMEBOX_EXT(idx)		(0x088 + (idx) * 2)
 #define R92C_EFUSE_ACCESS		0x0cf
@@ -115,6 +116,7 @@
 #define R92C_TXDMA_OFFSET_CHK		0x20c
 #define R92C_TXDMA_STATUS		0x210
 #define R92C_RQPN_NPQ			0x214
+#define R92C_AUTO_LLT			0x224
 /* Rx DMA Configuration. */
 #define R92C_RXDMA_AGG_PG_TH		0x280
 #define R92C_RXPKT_NUM			0x284
@@ -297,6 +299,16 @@
 #define R92C_SYS_CLKR_SYS_EN		0x00001000
 #define R92C_SYS_CLKR_RING_EN		0x00002000
 
+/* Bits for R92C_RSV_CTRL. */
+#define R92C_RSV_CTRL_WLOCK_ALL		0x01
+#define R92C_RSV_CTRL_WLOCK_00		0x02
+#define R92C_RSV_CTRL_WLOCK_04		0x04
+#define R92C_RSV_CTRL_WLOCK_08		0x08
+#define R92C_RSV_CTRL_WLOCK_40		0x10
+#define R92C_RSV_CTRL_R_DIS_PRST_0	0x20
+#define R92C_RSV_CTRL_R_DIS_PRST_1	0x40
+#define R92C_RSV_CTRL_LOCK_ALL_EN	0x80
+
 /* Bits for R92C_RF_CTRL. */
 #define R92C_RF_CTRL_EN		0x01
 #define R92C_RF_CTRL_RSTB	0x02
@@ -338,6 +350,9 @@
 
 /* Bits for R92C_LEDCFG0. */
 #define R92C_LEDCFG0_DIS	0x08
+
+/* Bits for R92C_LEDCFG1. */
+#define R92C_LEDCFG1_DIS	0x80
 
 /* Bits for R92C_MULTI_FUNC_CTRL. */
 #define R92C_MULTI_BT_FUNC_EN	0x00040000
@@ -420,6 +435,7 @@
 #define R92C_PBP_1024		4
 
 /* Bits for R92C_TRXDMA_CTRL. */
+#define R92C_TRXDMA_CTRL_RX_SHIFT_EN		0x0002
 #define R92C_TRXDMA_CTRL_RXDMA_AGG_EN		0x0004
 #define R92C_TRXDMA_CTRL_TXDMA_VOQ_MAP_M	0x0030
 #define R92C_TRXDMA_CTRL_TXDMA_VOQ_MAP_S	4
@@ -475,6 +491,9 @@
 
 /* Bits for R92C_TXDMA_OFFSET_CHK. */
 #define R92C_TXDMA_OFFSET_DROP_DATA_EN	0x00000200
+
+/* Bits for R92C_AUTO_LLT. */
+#define R92C_AUTO_LLT_INIT	0x00010000
 
 /* Bits for R92C_FWHW_TXQ_CTRL. */
 #define R92C_FWHW_TXQ_CTRL_AMPDU_RTY_NEW	0x80
@@ -593,7 +612,8 @@
 #define R92C_RCR_APPFCS		0x80000000
 
 /* Bits for R92C_RX_DRVINFO_SZ. */
-#define R92C_RX_DRVINFO_SZ_DEF	4	/* XXX other values will not work */
+/* XXX other values will not work */
+#define R92C_RX_DRVINFO_SZ_DEF	((RTWN_PHY_STATUS_SIZE) / 8)
 
 /* Bits for R92C_WMAC_TRXPTCL_CTL. */
 #define R92C_WMAC_TRXPTCL_SHPRE	0x00020000
@@ -681,6 +701,7 @@
 #define R92C_OFDM0_TXIQIMBALANCE(chain)	(0xc80 + (chain) * 8)
 #define R92C_OFDM0_TXAFE(chain)		(0xc94 + (chain) * 8)
 #define R92C_OFDM0_RXIQEXTANTA		0xca0
+#define R92C_OFDM0_TXPSEUDONOISEWGT	0xce4
 #define R92C_OFDM1_LSTF			0xd00
 
 /* Bits for R92C_FPGA[01]_RFMOD. */
@@ -799,6 +820,9 @@
 /* Bits for R92C_LSSI_READBACK(i). */
 #define R92C_LSSI_READBACK_DATA_M	0x000fffff
 #define R92C_LSSI_READBACK_DATA_S	0
+
+/* Bits for R92C_CCK0_SYSTEM. */
+#define R92C_CCK0_SYSTEM_CCK_SIDEBAND	0x00000010
 
 /* Bits for R92C_OFDM0_AGCCORE1(i). */
 #define R92C_OFDM0_AGCCORE1_GAIN_M	0x0000007f

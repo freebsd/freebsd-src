@@ -75,11 +75,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
-#else
 #include <isa/isareg.h>
-#endif
 #endif
 #include <sys/rtprio.h>
 
@@ -210,7 +206,7 @@ nexus_init_resources(void)
 	 *
 	 * - IRQ resource creation should be moved to the PIC/APIC driver.
 	 * - DRQ resource creation should be moved to the DMAC driver.
-	 * - The above should be sorted to probe earlier than any child busses.
+	 * - The above should be sorted to probe earlier than any child buses.
 	 *
 	 * - Leave I/O and memory creation here, as child probes may need them.
 	 *   (especially eg. ACPI)
@@ -245,11 +241,7 @@ nexus_init_resources(void)
 	 * multiple bridges.  (eg: laptops with docking stations)
 	 */
 	drq_rman.rm_start = 0;
-#ifdef PC98
-	drq_rman.rm_end = 3;
-#else
 	drq_rman.rm_end = 7;
-#endif
 	drq_rman.rm_type = RMAN_ARRAY;
 	drq_rman.rm_descr = "DMA request lines";
 	/* XXX drq 0 not available on some machines */
@@ -485,9 +477,6 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 {
 	struct resource_map_request args;
 	rman_res_t end, length, start;
-#ifdef PC98
-	int error;
-#endif
 
 	/* Resources must be active to be mapped. */
 	if (!(rman_get_flags(r) & RF_ACTIVE))
@@ -521,39 +510,20 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 	 */
 	switch (type) {
 	case SYS_RES_IOPORT:
-#ifdef PC98
-		error = i386_bus_space_handle_alloc(X86_BUS_SPACE_IO,
-		    start, length, &map->r_bushandle);
-		if (error)
-			return (error);
-#else
 		map->r_bushandle = start;
-#endif
 		map->r_bustag = X86_BUS_SPACE_IO;
 		map->r_size = length;
 		map->r_vaddr = NULL;
 		break;
 	case SYS_RES_MEMORY:
-#ifdef PC98
-		error = i386_bus_space_handle_alloc(X86_BUS_SPACE_MEM,
-		    start, length, &map->r_bushandle);
-		if (error)
-			return (error);
-#endif
 		map->r_vaddr = pmap_mapdev_attr(start, length, args.memattr);
 		map->r_bustag = X86_BUS_SPACE_MEM;
 		map->r_size = length;
 
 		/*
-		 * PC-98 stores the virtual address as a member of the
-		 * structure in the handle.  On plain x86, the handle is
-		 * the virtual address.
+		 * The handle is the virtual address.
 		 */
-#ifdef PC98
-		map->r_bushandle->bsh_base = (bus_addr_t)map->r_vaddr;
-#else
 		map->r_bushandle = (bus_space_handle_t)map->r_vaddr;
-#endif
 		break;
 	}
 	return (0);
@@ -572,10 +542,6 @@ nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
 		pmap_unmapdev((vm_offset_t)map->r_vaddr, map->r_size);
 		/* FALLTHROUGH */
 	case SYS_RES_IOPORT:
-#ifdef PC98
-		i386_bus_space_handle_free(map->r_bustag, map->r_bushandle,
-		    map->r_bushandle->bsh_sz);
-#endif
 		break;
 	default:
 		return (EINVAL);
