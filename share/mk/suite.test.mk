@@ -71,7 +71,7 @@ Kyuafile: Makefile
 	    >>${.TARGET}.tmp
 .else
 	@echo '${TEST_INTERFACE.${_T}}_test_program{name="${_T}"${_TEST_METADATA.${_T}:C/^/, /:Q:S/\\ ,/,/g:S,\\,,g}}' \
-	    >>Kyuafile.auto.tmp
+	    >>${.TARGET}.tmp
 .endif
 .endfor
 .for _T in ${TESTS_SUBDIRS:N.WAIT}
