@@ -1429,7 +1429,7 @@ options 	PCI_IOV			# PCI SR-IOV support
 # HARDWARE DEVICE CONFIGURATION
 
 # For ISA the required hints are listed.
-# EISA, PCI, CardBus, SD/MMC and pccard are self identifying buses, so
+# PCI, CardBus, SD/MMC and pccard are self identifying buses, so
 # no hints are needed.
 
 #
@@ -1556,7 +1556,7 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # trm: Tekram DC395U/UW/F DC315U adapters.
 
 #
-# Note that the order is important in order for Buslogic ISA/EISA cards to be
+# Note that the order is important in order for Buslogic ISA cards to be
 # probed correctly.
 #
 device		bt
@@ -2074,7 +2074,7 @@ device		xmphy		# XaQti XMAC II
 #       in Dell Latitude laptop docking stations.
 #       Also supported: 3Com 3c980(C)-TX, 3Com 3cSOHO100-TX, 3Com 3c450-TX
 
-# Order for ISA/EISA devices is important here
+# Order for ISA devices is important here
 
 device		cm
 hint.cm.0.at="isa"
