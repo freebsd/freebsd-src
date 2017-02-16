@@ -27,7 +27,6 @@ SUBDIR=	\
 	age \
 	${_agp} \
 	aha \
-	${_ahb} \
 	ahci \
 	${_aic} \
 	aic7xxx \
@@ -736,9 +735,6 @@ _sbni=		sbni
 _streams=	streams
 _stg=		stg
 _svr4=		svr4
-.if ${MK_EISA} != "no"
-_ahb=		ahb
-.endif
 _cm=		cm
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ctau=		ctau
