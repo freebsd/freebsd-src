@@ -45,7 +45,6 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 DUMMY(mincore);
 DUMMY(sendfile);
-DUMMY(ptrace);
 DUMMY(syslog);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
