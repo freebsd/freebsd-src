@@ -3,7 +3,6 @@
  * Product specific probe and attach routines can be found in:
  * 
  * i386/isa/adv_isa.c	ABP5140, ABP542, ABP5150, ABP842, ABP852
- * i386/eisa/adv_eisa.c	ABP742, ABP752
  * pci/adv_pci.c	ABP920, ABP930, ABP930U, ABP930UA, ABP940, ABP940U,
  *			ABP940UA, ABP950, ABP960, ABP960U, ABP960UA,
  *			ABP970, ABP970U
@@ -1378,8 +1377,6 @@ adv_attach(adv)
 
 	/*
 	 * Register the bus.
-	 *
-	 * XXX Twin Channel EISA Cards???
 	 */
 	mtx_lock(&adv->lock);
 	if (xpt_bus_register(adv->sim, adv->dev, 0) != CAM_SUCCESS) {
