@@ -174,7 +174,11 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if (port >= IPPORT_RESERVED &&
 		    nd.nd_procnum != NFSPROC_NULL) {
 #ifdef INET6
-			char b6[INET6_ADDRSTRLEN];
+			char buf[INET6_ADDRSTRLEN];
+#else
+			char buf[INET_ADDRSTRLEN];
+#endif
+#ifdef INET6
 #if defined(KLD_MODULE)
 			/* Do not use ip6_sprintf: the nfs module should work without INET6. */
 #define	ip6_sprintf(buf, a)						\
@@ -189,12 +193,12 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			printf("NFS request from unprivileged port (%s:%d)\n",
 #ifdef INET6
 			    sin->sin_family == AF_INET6 ?
-			    ip6_sprintf(b6, &satosin6(sin)->sin6_addr) :
+			    ip6_sprintf(buf, &satosin6(sin)->sin6_addr) :
 #if defined(KLD_MODULE)
 #undef ip6_sprintf
 #endif
 #endif
-			    inet_ntoa(sin->sin_addr), port);
+			    inet_ntoa_r(sin->sin_addr, buf), port);
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);

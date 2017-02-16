@@ -904,6 +904,7 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
 	int ip_size = sizeof(struct ip) + sctp_size;
 	int include_error_cause = 1;
 	char tmp_ip[ip_size];
+	char addrbuf[INET_ADDRSTRLEN];
 
 	if (ntohs(sm->ip_hdr->ip_len) < ip_size) { /* short packet, cannot send error cause */
 		include_error_cause = 0;
@@ -984,7 +985,8 @@ TxAbortErrorM(struct libalias *la, struct sctp_nat_msg *sm, struct sctp_nat_asso
 		((sndrply == SN_SEND_ABORT) ? "Sending" : "Replying"),
 		((sndrply & SN_TX_ERROR) ? "ErrorM" : "AbortM"),
 		(include_error_cause ? ntohs(error_cause->code) : 0),
-		inet_ntoa(ip->ip_dst),ntohs(sctp_hdr->dest_port), 
+		inet_ntoa_r(ip->ip_dst, INET_NTOA_BUF(addrbuf)),
+		ntohs(sctp_hdr->dest_port),
 		ntohl(sctp_hdr->v_tag), ntohl(sctp_hdr->checksum)));
 }
 
@@ -2574,6 +2576,8 @@ static void logsctpassoc(struct sctp_nat_assoc *assoc, char* s)
 {
 	struct sctp_GlobalAddress *G_Addr = NULL;
 	char *sp;
+	char addrbuf[INET_ADDRSTRLEN];
+
 	switch(assoc->state) {
 	case SN_ID:
 		sp = "ID ";
@@ -2598,12 +2602,14 @@ static void logsctpassoc(struct sctp_nat_assoc *assoc, char* s)
 		break;
 	}
 	SctpAliasLog("%sAssoc: %s exp=%u la=%s lv=%u lp=%u gv=%u gp=%u tbl=%d\n",
-	    s, sp, assoc->exp, inet_ntoa(assoc->l_addr), ntohl(assoc->l_vtag),
-	    ntohs(assoc->l_port), ntohl(assoc->g_vtag), ntohs(assoc->g_port),
+	    s, sp, assoc->exp, inet_ntoa_r(assoc->l_addr, addrbuf),
+	    ntohl(assoc->l_vtag), ntohs(assoc->l_port),
+	    ntohl(assoc->g_vtag), ntohs(assoc->g_port),
 	    assoc->TableRegister);
 	/* list global addresses */
 	LIST_FOREACH(G_Addr, &(assoc->Gaddr), list_Gaddr) {
-		SctpAliasLog("\t\tga=%s\n",inet_ntoa(G_Addr->g_addr));
+		SctpAliasLog("\t\tga=%s\n",
+		    inet_ntoa_r(G_Addr->g_addr, addrbuf));
 	}
 }
 
