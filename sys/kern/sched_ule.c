@@ -1047,7 +1047,7 @@ tdq_notify(struct tdq *tdq, int pri)
 
 	if (tdq->tdq_ipipending)
 		return;
-	cpu = TD_ID(tdq);
+	cpu = TDQ_ID(tdq);
 	ctd = pcpu_find(cpu)->pc_curthread;
 	if (!sched_shouldpreempt(pri, ctd->td_priority, 1))
 		return;
