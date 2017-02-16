@@ -1429,7 +1429,7 @@ options 	PCI_IOV			# PCI SR-IOV support
 # HARDWARE DEVICE CONFIGURATION
 
 # For ISA the required hints are listed.
-# EISA, MCA, PCI, CardBus, SD/MMC and pccard are self identifying buses, so
+# EISA, PCI, CardBus, SD/MMC and pccard are self identifying buses, so
 # no hints are needed.
 
 #
