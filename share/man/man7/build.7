@@ -107,6 +107,16 @@ section below, and by the variables documented in
 The following list provides the names and actions for the targets
 supported by the build system:
 .Bl -tag -width ".Cm cleandepend"
+.It Cm check
+Run tests for a given subdirectory.
+The default directory used is
+.Pa ${.OBJDIR} ,
+but the check directory can be changed with
+.Pa ${CHECKDIR} .
+.It Cm checkworld
+Run the
+.Fx
+test suite on installed world.
 .It Cm clean
 Remove any files created during the build process.
 .It Cm cleandepend
@@ -653,6 +663,7 @@ make TARGET=sparc64 DESTDIR=/clients/sparc64 installworld
 .Xr mergemaster 8 ,
 .Xr portsnap 8 ,
 .Xr reboot 8 ,
-.Xr shutdown 8
+.Xr shutdown 8 ,
+.Xr tests 7
 .Sh AUTHORS
 .An Mike W. Meyer Aq mwm@mired.org .

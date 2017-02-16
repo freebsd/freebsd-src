@@ -492,6 +492,17 @@ It has seven targets:
 
 	all:
 		build the test programs.
+	check:
+		runs the test programs from CHECKDIR with kyua test.
+
+		The beforecheck and aftercheck targets will be invoked, if
+		defined, to execute commands before and after the realcheck
+		target has been executed, respectively.
+
+		The devel/kyua package must be installed before invoking this
+		target.
+
+		See CHECKDIR for more details.
 	clean:
 		remove the test programs and any object files.
 	cleandir:
@@ -510,12 +521,6 @@ It has seven targets:
 		run lint on the source files.
 	tags:
 		create a tags file for the source files.
-	test:
-		runs the test programs from the object directory; if the
-		Makefile does not itself define the target test, the
-		targets beforetest and aftertest may also be used to
-		cause actions immediately before and after the test
-		target is executed.
 
 It sets/uses the following variables, among many others:
 
@@ -528,6 +533,10 @@ TESTSDIR	Path to the installed tests.  Must be a subdirectory of
 		The value of TESTSDIR defaults to
 		${TESTSBASE}/${RELDIR:H} , e.g. /usr/tests/bin/ls when
 		included from bin/ls/tests .
+
+CHECKDIR	The directory that 'make check' executes tests from.
+
+		The value of CHECKDIR defaults to .OBJDIR.
 
 KYUAFILE	If 'auto' (the default), generate a Kyuafile out of the
 		test programs defined in the Makefile.  If 'yes', then a

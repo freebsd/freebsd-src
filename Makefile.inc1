@@ -35,6 +35,7 @@
 # The intended user-driven targets are:
 # buildworld  - rebuild *everything*, including glue to help do upgrades
 # installworld- install everything built by "buildworld"
+# checkworld  - run test suite on installed world
 # doxygen     - build API documentation of the kernel
 # update      - convenient way to update your source tree (eg: svn/svnup)
 #
@@ -49,6 +50,8 @@
 .include <bsd.own.mk>
 .include <bsd.arch.inc.mk>
 .include <bsd.compiler.mk>
+
+LOCALBASE?=	/usr/local
 
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
@@ -1190,12 +1193,26 @@ packagekernel:
 .endif
 
 #
+#
+# checkworld
+#
+# Run test suite on installed world.
+#
+checkworld: .PHONY
+	@if [ ! -x ${LOCALBASE}/bin/kyua ]; then \
+		echo "You need kyua (devel/kyua) to run the test suite." | /usr/bin/fmt; \
+		exit 1; \
+	fi
+	${_+_}${LOCALBASE}/bin/kyua test -k ${TESTSBASE}/Kyuafile
+
+#
+#
 # doxygen
 #
 # Build the API documentation with doxygen
 #
 doxygen: .PHONY
-	@if [ ! -x `/usr/bin/which doxygen` ]; then \
+	@if [ ! -x ${LOCALBASE}/bin/doxygen ]; then \
 		echo "You need doxygen (devel/doxygen) to generate the API documentation of the kernel." | /usr/bin/fmt; \
 		exit 1; \
 	fi
