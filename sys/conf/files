@@ -3243,7 +3243,6 @@ dev/vt/vt_font.c		optional vt
 dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
-dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
 dev/vxge/vxge.c				optional vxge
 dev/vxge/vxgehal/vxgehal-ifmsg.c	optional vxge
