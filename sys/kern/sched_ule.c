@@ -319,7 +319,7 @@ static void tdq_add(struct tdq *, struct thread *, int);
 #ifdef SMP
 static int tdq_move(struct tdq *, struct tdq *);
 static int tdq_idled(struct tdq *);
-static void tdq_notify(struct tdq *, struct thread *);
+static void tdq_notify(struct tdq *, int);
 static struct thread *tdq_steal(struct tdq *, int);
 static struct thread *runq_steal(struct runq *, int);
 static int sched_pickcpu(struct thread *, int);
@@ -1040,16 +1040,14 @@ tdq_idled(struct tdq *tdq)
  * Notify a remote cpu of new work.  Sends an IPI if criteria are met.
  */
 static void
-tdq_notify(struct tdq *tdq, struct thread *td)
+tdq_notify(struct tdq *tdq, int pri)
 {
 	struct thread *ctd;
-	int pri;
 	int cpu;
 
 	if (tdq->tdq_ipipending)
 		return;
-	cpu = td_get_sched(td)->ts_cpu;
-	pri = td->td_priority;
+	cpu = TD_ID(tdq);
 	ctd = pcpu_find(cpu)->pc_curthread;
 	if (!sched_shouldpreempt(pri, ctd->td_priority, 1))
 		return;
@@ -1675,6 +1673,22 @@ sched_pctcpu_update(struct td_sched *ts, int run)
 	ts->ts_ltick = t;
 }
 
+static void
+sched_check_preempt(struct tdq *tdq, struct thread *td)
+{
+
+	KASSERT(TD_IS_RUNNING(td), ("thread is not running"));
+	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
+	KASSERT(tdq == TDQ_CPU(td->td_sched->ts_cpu),
+	    ("tdq does not contain td"));
+
+	if (tdq == TDQ_SELF()) {
+		if (sched_shouldpreempt(tdq->tdq_lowpri, td->td_priority, 0))
+			td->td_owepreempt = 1;
+	} else
+		tdq_notify(tdq, tdq->tdq_lowpri);
+}
+
 /*
  * Adjust the priority of a thread.  Move it to the appropriate run-queue
  * if necessary.  This is the back-end for several priority related
@@ -1726,6 +1740,9 @@ sched_thread_priority(struct thread *td, u_char prio)
 			tdq->tdq_lowpri = prio;
 		else if (tdq->tdq_lowpri == oldpri)
 			tdq_setlowpri(tdq, td);
+
+		if (oldpri < prio)
+			sched_check_preempt(tdq, td);
 		return;
 	}
 	td->td_priority = prio;
@@ -1854,7 +1871,7 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	 */
 	tdq_lock_pair(tdn, tdq);
 	tdq_add(tdn, td, flags);
-	tdq_notify(tdn, td);
+	tdq_notify(tdn, td->td_priority);
 	TDQ_UNLOCK(tdn);
 	spinlock_exit();
 #endif
@@ -2429,7 +2446,7 @@ sched_add(struct thread *td, int flags)
 	tdq = sched_setcpu(td, cpu, flags);
 	tdq_add(tdq, td, flags);
 	if (cpu != PCPU_GET(cpuid)) {
-		tdq_notify(tdq, td);
+		tdq_notify(tdq, td->td_priority);
 		return;
 	}
 #else
