@@ -1974,7 +1974,6 @@ device		xmphy		# XaQti XMAC II
 # ex:   Intel EtherExpress Pro/10 and other i82595-based adapters,
 #       Olicom Ethernet PC Card devices.
 # fe:   Fujitsu MB86960A/MB86965A Ethernet
-# fea:  DEC DEFEA EISA FDDI adapter
 # fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
@@ -2087,7 +2086,6 @@ device		ex
 device		fe
 hint.fe.0.at="isa"
 hint.fe.0.port="0x300"
-device		fea
 device		sn
 hint.sn.0.at="isa"
 hint.sn.0.port="0x300"
