@@ -81,9 +81,9 @@ atomic_set_mask(unsigned int mask, atomic_t *v)
 }
 
 static inline int
-atomic_read(atomic_t *v)
+atomic_read(const atomic_t *v)
 {
-	return atomic_load_acq_int(&v->counter);
+	return atomic_load_acq_int(&__DECONST(atomic_t *, v)->counter);
 }
 
 static inline int
