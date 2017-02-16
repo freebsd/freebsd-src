@@ -45,7 +45,7 @@ distribute: .MAKE
 
 _SUBDIR: .USE .MAKE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
-	@${_+_}set -e; for entry in ${SUBDIR:N.WAIT}; do \
+	@${_+_}for entry in ${SUBDIR:N.WAIT}; do \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
 			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH} (${.TARGET:S,realinstall,install,:S,^_sub.,,})"; \
 			edir=$${entry}.${MACHINE_ARCH}; \
@@ -86,8 +86,7 @@ __deps+= ${__target}_subdir_${__dep}
 .endfor
 ${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
 .if !defined(NO_SUBDIR)
-	@${_+_}set -e; \
-		if test -d ${.CURDIR}/${__dir}.${MACHINE_ARCH}; then \
+	@${_+_}if test -d ${.CURDIR}/${__dir}.${MACHINE_ARCH}; then \
 			${ECHODIR} "===> ${DIRPRFX}${__dir}.${MACHINE_ARCH} (${__target:realinstall=install})"; \
 			edir=${__dir}.${MACHINE_ARCH}; \
 			cd ${.CURDIR}/$${edir}; \
@@ -118,7 +117,7 @@ _sub.${__stage}${__target}: _SUBDIR
 .endfor
 .if !target(${__target})
 ${__target}: .MAKE
-	${_+_}set -e; cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
+	${_+_}cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
 .endif
 .endfor
 
