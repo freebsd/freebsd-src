@@ -194,8 +194,7 @@ ep_isa_identify(driver_t * driver, device_t parent)
 			(void)get_eeprom_data(ELINK_ID_PORT, j);
 
 		/*
-		 * Construct an 'isa_id' in 'EISA'
-		 * format.
+		 * Construct an 'isa_id' in 'EISA' format.
 		 */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_MFG_ID);
 		isa_id = (htons(data) << 16);
@@ -220,7 +219,7 @@ ep_isa_identify(driver_t * driver, device_t parent)
 
 		if ((data & ADDR_CFG_MASK) == ADDR_CFG_EISA) {
 			device_printf(parent,
-			    "<%s> at port 0x%03x in EISA mode!\n",
+			    "<%s> at port 0x%03x in EISA mode, ignoring!\n",
 			    desc, ioport);
 			/*
 			 * Set the adaptor tag so that the next card can be
