@@ -158,11 +158,11 @@ CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${.IMPSRC:T}}
 # or expect to ever be up-to-date.
 PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildfiles buildincludes \
-		checkdpadd clean cleandepend cleandir cleanobj configure \
+		check checkdpadd clean cleandepend cleandir cleanobj configure \
 		depend dependall distclean distribute exe extract \
 		html includes install installfiles installincludes lint \
 		obj objlink objs objwarn realall realdepend \
-		realinstall regress subdir-all subdir-depend subdir-install \
+		realinstall subdir-all subdir-depend subdir-install \
 		tags whereobj
 
 .if defined(PORTNAME)

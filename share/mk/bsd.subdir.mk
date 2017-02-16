@@ -24,9 +24,9 @@
 # 		This is a variant of install, which will
 # 		put the stuff into the right "distribution".
 #
-#	afterinstall, all, all-man, beforeinstall, checkdpadd, clean,
+#	afterinstall, all, all-man, beforeinstall, check, checkdpadd, clean,
 #	cleandepend, cleandir, cleanilinks depend, install, lint,
-#	maninstall, manlint, obj, objlink, realinstall, regress, tags
+#	maninstall, manlint, obj, objlink, realinstall, tags
 #
 
 .if !target(__<bsd.subdir.mk>__)
@@ -70,9 +70,9 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 
 # Work around parsing of .if nested in .for by putting .WAIT string into a var.
 __wait= .WAIT
-.for __target in all all-man checkdpadd clean cleandepend cleandir \
+.for __target in all all-man check checkdpadd clean cleandepend cleandir \
     cleanilinks depend distribute lint maninstall manlint obj objlink \
-    realinstall regress tags ${SUBDIR_TARGETS}
+    realinstall tags ${SUBDIR_TARGETS}
 .ifdef SUBDIR_PARALLEL
 __subdir_targets=
 .for __dir in ${SUBDIR}
