@@ -208,7 +208,7 @@ devfs_newdirent(char *name, int namelen)
 	struct dirent d;
 
 	d.d_namlen = namelen;
-	i = sizeof (*de) + GENERIC_DIRSIZ(&d); 
+	i = sizeof(*de) + GENERIC_DIRSIZ(&d);
 	de = malloc(i, M_DEVFS3, M_WAITOK | M_ZERO);
 	de->de_dirent = (struct dirent *)(de + 1);
 	de->de_dirent->d_namlen = namelen;
@@ -246,7 +246,8 @@ devfs_parent_dirent(struct devfs_dirent *de)
 }
 
 struct devfs_dirent *
-devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dirent *dotdot, u_int inode)
+devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen,
+    struct devfs_dirent *dotdot, u_int inode)
 {
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
