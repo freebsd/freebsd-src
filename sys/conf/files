@@ -698,7 +698,6 @@ dev/ahci/ahciem.c		optional ahci
 dev/ahci/ahci_pci.c		optional ahci pci
 dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
-dev/aic7xxx/ahc_eisa.c		optional ahc eisa
 dev/aic7xxx/ahc_isa.c		optional ahc isa
 dev/aic7xxx/ahc_pci.c		optional ahc pci \
 	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
