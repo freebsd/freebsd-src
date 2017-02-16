@@ -36,6 +36,4 @@ TESTS_SUBDIRS+=	symlink
 TESTS_SUBDIRS+=	truncate
 TESTS_SUBDIRS+=	unlink
 
-SUBDIR_PARALLEL=
-
 .include <bsd.test.mk>
