@@ -1530,7 +1530,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # adv: All Narrow SCSI bus AdvanSys controllers.
 # adw: Second Generation AdvanSys controllers including the ADV940UW.
 # aha: Adaptec 154x/1535/1640
-# ahb: Adaptec 174x EISA controllers
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
@@ -1570,7 +1569,6 @@ device		aha
 hint.aha.0.at="isa"
 device		aic
 hint.aic.0.at="isa"
-device		ahb
 device		ahc
 device		ahd
 device		esp
