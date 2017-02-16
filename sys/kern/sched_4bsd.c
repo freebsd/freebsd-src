@@ -816,12 +816,7 @@ sched_class(struct thread *td, int class)
 static void
 sched_priority(struct thread *td, u_char prio)
 {
-	struct thread *newtd;
-	struct runq *rq;
-	u_char orig_pri;
-#ifdef SMP
-	struct thread *cputd;
-#endif
+
 
 	KTR_POINT3(KTR_SCHED, "thread", sched_tdname(td), "priority change",
 	    "prio:%d", td->td_priority, "new prio:%d", prio, KTR_ATTR_LINKED,
@@ -837,43 +832,10 @@ sched_priority(struct thread *td, u_char prio)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
 		return;
-	orig_pri = td->td_priority;
 	td->td_priority = prio;
 	if (TD_ON_RUNQ(td) && td->td_rqindex != (prio / RQ_PPQ)) {
 		sched_rem(td);
 		sched_add(td, SRQ_BORING);
-	} else if (orig_pri < prio && TD_IS_RUNNING(td)) {
-		/*
-		 * If we have decreased the priority of a running thread, we
-		 * have to check if it should be preempted.
-		 */
-		rq = &runq;
-		newtd = runq_choose(&runq);
-#ifdef SMP
-		cputd = runq_choose(&runq_pcpu[td->td_oncpu]);
-		if (newtd == NULL ||
-		    (cputd != NULL && cputd->td_priority < td->td_priority))
-			newtd = cputd;
-#endif
-
-		if (newtd != NULL && newtd->td_priority < prio
-#ifndef FULL_PREEMPTION
-		    && (newtd->td_priority <= PRI_MAX_ITHD ||
-		        prio >= PRI_MIN_IDLE))
-#endif
-		) {
-			if (td == curthread)
-				/*
-				 * Don't reschedule the thread here as it may
-				 * be losing priority because it has released a
-				 * mutex, and in that case we need it to finish
-				 * releasing the lock before it gets preempted.
-				 */
-				td->td_owepreempt = 1;
-			else
-				kick_other_cpu(newtd->td_priority,
-				    td->td_oncpu);
-		}
 	}
 }
 
