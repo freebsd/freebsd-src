@@ -1461,6 +1461,9 @@ static void
 process_data(struct iwch_ep *ep)
 {
 	struct sockaddr_in *local, *remote;
+#ifdef KTR
+	char local_str[INET_ADDRSTRLEN], remote_str[INET_ADDRSTRLEN];
+#endif
 
 	CTR4(KTR_IW_CXGB, "%s ep %p so %p state %s", __FUNCTION__, ep, ep->com.so, states[ep->com.state]);
 
@@ -1479,8 +1482,8 @@ process_data(struct iwch_ep *ep)
 		in_getsockaddr(ep->com.so, (struct sockaddr **)&local);
 		in_getpeeraddr(ep->com.so, (struct sockaddr **)&remote);
 		CTR3(KTR_IW_CXGB, "%s local %s remote %s", __FUNCTION__, 
-			inet_ntoa(local->sin_addr),
-			inet_ntoa(remote->sin_addr));
+			inet_ntoa_r(local->sin_addr, local_str),
+			inet_ntoa_r(remote->sin_addr, remote_str));
 		ep->com.local_addr = *local;
 		ep->com.remote_addr = *remote;
 		free(local, M_SONAME);
@@ -1519,6 +1522,9 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 	struct sockaddr_in *local;
 	struct sockaddr_in *remote;
 	struct iwch_ep *parent_ep = parent_cm_id->provider_data;
+#ifdef KTR
+	char buf[INET_ADDRSTRLEN];
+#endif
 
 	CTR3(KTR_IW_CXGB, "%s parent ep %p so %p", __FUNCTION__, parent_ep, parent_ep->com.so);
 	if (!child_so) {
@@ -1539,7 +1545,7 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 	in_getpeeraddr(child_so, (struct sockaddr **)&remote);
 
 	CTR3(KTR_IW_CXGB, "%s remote addr %s port %d", __FUNCTION__, 
-		inet_ntoa(remote->sin_addr), ntohs(remote->sin_port));
+		inet_ntoa_r(remote->sin_addr, buf), ntohs(remote->sin_port));
 	child_ep->com.tdev = parent_ep->com.tdev;
 	child_ep->com.local_addr.sin_family = parent_ep->com.local_addr.sin_family;
 	child_ep->com.local_addr.sin_port = parent_ep->com.local_addr.sin_port;
