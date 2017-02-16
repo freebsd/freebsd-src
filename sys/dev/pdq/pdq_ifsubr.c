@@ -459,6 +459,8 @@ pdq_ifattach(pdq_softc_t *sc, const pdq_uint8_t *llc, pdq_type_t type)
 {
     struct ifnet *ifp;
 
+    KASSERT(type == PDQ_DEFPA, ("We only support PCI attachment."));
+
     ifp = PDQ_IFNET(sc) = if_alloc(IFT_FDDI);
     if (ifp == NULL) {
 	device_printf(sc->dev, "can not if_alloc()\n");
