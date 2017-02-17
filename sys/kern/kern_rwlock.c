@@ -341,7 +341,11 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, rw->rw_recurse, file,
 	    line);
 
+#ifdef LOCK_PROFILING
 	_rw_wunlock_hard(rw, (uintptr_t)curthread, file, line);
+#else
+	__rw_wunlock(rw, curthread, file, line);
+#endif
 
 	TD_LOCKS_DEC(curthread);
 }

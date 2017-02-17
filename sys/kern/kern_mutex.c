@@ -275,7 +275,11 @@ __mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	    line);
 	mtx_assert(m, MA_OWNED);
 
+#ifdef LOCK_PROFILING
 	__mtx_unlock_sleep(c, opts, file, line);
+#else
+	__mtx_unlock(m, curthread, opts, file, line);
+#endif
 	TD_LOCKS_DEC(curthread);
 }
 
