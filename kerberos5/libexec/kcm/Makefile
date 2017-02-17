@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-# linker crash
+# linker error
 WANT_CHERI=none
 
 PROG=	kcm
