@@ -423,9 +423,14 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
  * We call this if the lock is either contested (i.e. we need to go to
  * sleep waiting for it), or if we need to recurse on it.
  */
+#if LOCK_DEBUG > 0
 void
 __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts,
     const char *file, int line)
+#else
+void
+__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts)
+#endif
 {
 	struct mtx *m;
 	struct turnstile *ts;
@@ -485,7 +490,11 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
 #ifdef KDTRACE_HOOKS
+#ifdef LOCK_PROFILING
+	doing_lockstat = 1;
+#else
 	doing_lockstat = lockstat_enabled;
+#endif
 	if (__predict_false(doing_lockstat))
 		all_time -= lockstat_nsecs(&m->lock_object);
 #endif
@@ -859,8 +868,13 @@ thread_lock_set(struct thread *td, struct mtx *new)
  * We are only called here if the lock is recursed, contested (i.e. we
  * need to wake up a blocked thread) or lockstat probe is active.
  */
+#if LOCK_DEBUG > 0
 void
 __mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file, int line)
+#else
+void
+__mtx_unlock_sleep(volatile uintptr_t *c, int opts)
+#endif
 {
 	struct mtx *m;
 	struct turnstile *ts;
