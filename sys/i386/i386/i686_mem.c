@@ -588,6 +588,10 @@ i686_mrinit(struct mem_range_softc *sc)
 	u_int regs[4];
 	int i, nmdesc = 0, pabits;
 
+	if (sc->mr_desc != NULL)
+		/* Already initialized. */
+		return;
+
 	mtrrcap = rdmsr(MSR_MTRRcap);
 	mtrrdef = rdmsr(MSR_MTRRdefType);
 
@@ -716,5 +720,6 @@ i686_mem_drvinit(void *unused)
 		return;
 	}
 	mem_range_softc.mr_op = &i686_mrops;
+	i686_mrinit(&mem_range_softc);
 }
-SYSINIT(i686memdev, SI_SUB_DRIVERS, SI_ORDER_FIRST, i686_mem_drvinit, NULL);
+SYSINIT(i686memdev, SI_SUB_CPU, SI_ORDER_ANY, i686_mem_drvinit, NULL);
