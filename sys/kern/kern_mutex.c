@@ -446,6 +446,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts,
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+	int doing_lockstat;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -484,7 +485,9 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
 #ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs(&m->lock_object);
+	doing_lockstat = lockstat_enabled;
+	if (__predict_false(doing_lockstat))
+		all_time -= lockstat_nsecs(&m->lock_object);
 #endif
 
 	for (;;) {
@@ -591,15 +594,17 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts,
 #endif
 		v = MTX_READ_VALUE(m);
 	}
-#ifdef KDTRACE_HOOKS
-	all_time += lockstat_nsecs(&m->lock_object);
-#endif
 #ifdef KTR
 	if (cont_logged) {
 		CTR4(KTR_CONTENTION,
 		    "contention end: %s acquired by %p at %s:%d",
 		    m->lock_object.lo_name, (void *)tid, file, line);
 	}
+#endif
+#ifdef KDTRACE_HOOKS
+	if (__predict_true(!doing_lockstat))
+		return;
+	all_time += lockstat_nsecs(&m->lock_object);
 #endif
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire, m, contested,
 	    waittime, file, line);
