@@ -221,6 +221,12 @@ struct asmc_model asmc_models[] = {
 	  ASMC_MBP5_TEMPS, ASMC_MBP5_TEMPNAMES, ASMC_MBP5_TEMPDESCS
 	},
 
+	{
+	"MacBookPro7,1", "Apple SMC MacBook Pro Core 2 Duo (mid 2010, 13-inch)",
+		ASMC_SMS_FUNCS, ASMC_FAN_FUNCS2, ASMC_LIGHT_FUNCS,
+		ASMC_MBP7_TEMPS, ASMC_MBP7_TEMPNAMES, ASMC_MBP7_TEMPDESCS
+	},
+
 	{ 
 	  "MacBookPro8,2", "Apple SMC MacBook Pro (early 2011)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
