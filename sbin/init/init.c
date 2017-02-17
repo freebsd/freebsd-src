@@ -53,7 +53,6 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/uio.h>
 
-#include <db.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <kenv.h>
@@ -66,6 +65,7 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <time.h>
 #include <ttyent.h>
+#include <uthash.h>
 #include <unistd.h>
 #include <sys/reboot.h>
 #include <err.h>
@@ -82,10 +82,6 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 #include "pathnames.h"
-
-#ifndef __CHERI_PURE_CAPABILITY__
-#define	BDB_SESSION_DATABASE
-#endif
 
 /*
  * Sleep times; used to prevent thrashing.
@@ -169,6 +165,7 @@ typedef struct init_session {
 	char	*se_type;		/* default terminal type */
 	struct	init_session *se_prev;
 	struct	init_session *se_next;
+	UT_hash_handle hh;
 } session_t;
 
 static void free_session(session_t *);
@@ -189,16 +186,10 @@ static void setprocresources(const char *);
 #endif
 static int clang;
 
-static int start_session_db(void);
 static void add_session(session_t *);
 static void del_session(session_t *);
 static session_t *find_session(pid_t);
-#ifdef BDB_SESSION_DATABASE
-static DB *session_db;
-#else
-/* PID_MAX == 99999, should use sysctl */
-static session_t *session_db[99999];
-#endif
+static session_t *session_hash;
 
 /*
  * The mother of all processes.
@@ -1151,41 +1142,19 @@ run_script(const char *script)
 	return (state_func_t) 0;
 }
 
-#ifdef BDB_SESSION_DATABASE
-/*
- * Open the session database.
- *
- * NB: We could pass in the size here; is it necessary?
- */
-static int
-start_session_db(void)
-{
-	if (session_db && (*session_db->close)(session_db))
-		emergency("session database close: %s", strerror(errno));
-	if ((session_db = dbopen(NULL, O_RDWR, 0, DB_HASH, NULL)) == NULL) {
-		emergency("session database open: %s", strerror(errno));
-		return (1);
-	}
-	return (0);
-
-}
-
 /*
  * Add a new login session.
  */
 static void
 add_session(session_t *sp)
 {
-	DBT key;
-	DBT data;
+	session_t *tmp;
 
-	key.data = &sp->se_process;
-	key.size = sizeof sp->se_process;
-	data.data = &sp;
-	data.size = sizeof sp;
+	HASH_FIND_INT(session_hash, &sp->se_process, tmp);
+	if (tmp != NULL)
+		emergency("insert %d: already there", sp->se_process);
 
-	if ((*session_db->put)(session_db, &key, &data, 0))
-		emergency("insert %d: %s", sp->se_process, strerror(errno));
+	HASH_ADD_INT(session_hash, se_process, sp);
 }
 
 /*
@@ -1194,13 +1163,8 @@ add_session(session_t *sp)
 static void
 del_session(session_t *sp)
 {
-	DBT key;
 
-	key.data = &sp->se_process;
-	key.size = sizeof sp->se_process;
-
-	if ((*session_db->del)(session_db, &key, 0))
-		emergency("delete %d: %s", sp->se_process, strerror(errno));
+	HASH_DEL(session_hash, sp);
 }
 
 /*
@@ -1209,69 +1173,12 @@ del_session(session_t *sp)
 static session_t *
 find_session(pid_t pid)
 {
-	DBT key;
-	DBT data;
 	session_t *ret;
 
-	key.data = &pid;
-	key.size = sizeof pid;
-	if ((*session_db->get)(session_db, &key, &data, 0) != 0)
-		return 0;
-	bcopy(data.data, (char *)&ret, sizeof(ret));
-	return ret;
+	HASH_FIND_INT(session_hash, &pid, ret);
+
+	return (ret);
 }
-#else /* BDB_SESSION_DATABASE */
-static int
-start_session_db(void)
-{
-
-	/* Zeroed with .bss */
-	return (0);
-}
-
-static void
-add_session(session_t *sp)
-{
-
-	if (sp->se_process < 0)
-		emergency("%s: pid %d is negative\n", __func__, sp->se_process);
-	if ((size_t)sp->se_process >= sizeof(session_db) / sizeof(*session_db))
-		emergency("%s: pid %d too large\n", __func__, sp->se_process);
-
-	if (session_db[sp->se_process] != NULL)
-		emergency("%s: session for pid %d already registered\n",
-		    __func__, sp->se_process);
-
-	session_db[sp->se_process] = sp;
-}
-
-static void
-del_session(session_t *sp)
-{
-
-	if (sp->se_process < 0)
-		emergency("%s: pid %d is negative\n", __func__, sp->se_process);
-	if ((size_t)sp->se_process >= sizeof(session_db) / sizeof(*session_db))
-		emergency("%s: pid %d too large\n", __func__, sp->se_process);
-
-	if (session_db[sp->se_process] != sp)
-		emergency("%s: A different session is registered for pid %d\n",
-		     __func__, sp->se_process);
-
-	session_db[sp->se_process] = NULL;
-}
-
-static session_t *
-find_session(pid_t pid)
-{
-	if (pid < 0)
-		emergency("%s: pid %d is negative\n", __func__, pid);
-	if ((size_t)pid >= sizeof(session_db) / sizeof(*session_db))
-		emergency("%s: pid %d too large\n", __func__, pid);
-
-	return (session_db[pid]);
-}
-#endif /* !BDB_SESSION_DATABASE */
 
 /*
  * Construct an argument vector from a command line.
@@ -1432,8 +1339,6 @@ read_ttys(void)
 		free_session(sp);
 	}
 	sessions = 0;
-	if (start_session_db())
-		return (state_func_t) single_user;
 
 	/*
 	 * Allocate a session entry for each active port.
