@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	tsort
+CFLAGS+=	-I${SRCTOP}/contrib/uthash/src
 
 .include <bsd.prog.mk>
