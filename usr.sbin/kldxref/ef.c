@@ -600,7 +600,7 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 			    filename);
 			break;
 		} else if (nsegs > MAXSEGS) {
-			warnx("%s: too many sections", filename);
+			warnx("%s: too many segments", filename);
 			break;
 		}
 		ef->ef_nsegs = nsegs;
