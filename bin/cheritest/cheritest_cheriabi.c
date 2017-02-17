@@ -188,3 +188,20 @@ test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 
 	cheritest_success();
 }
+
+void
+test_cheriabi_mmap_unrepresentable(const struct cheri_test *ctp __unused)
+{
+#ifdef CHERI_BASELEN_BITS
+	size_t len = ((size_t)PAGE_SIZE << CHERI_BASELEN_BITS) + 1;
+	void *cap;
+
+	if ((cap = mmap(0, len, PROT_READ|PROT_WRITE|PROT_EXEC,
+	    MAP_ANON, -1, 0)) != MAP_FAILED)
+		cheritest_failure_errx("mmap() returned a pointer when "
+		    "given an unrepresentable length (%zu): %#p", len, cap);
+	cheritest_success();
+#endif
+
+	cheritest_success();
+}

@@ -1004,6 +1004,10 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_cheriabi_mmap_perms",
 	  .ct_desc = "Test CheriABI mmap() permissions",
 	  .ct_func = test_cheriabi_mmap_perms },
+
+	{ .ct_name = "test_cheriabi_mmap_unrepresentable",
+	  .ct_desc = "Test CheriABI mmap() with unrepresentable lengths",
+	  .ct_func = test_cheriabi_mmap_unrepresentable },
 #endif
 #ifdef CHERI_C_TESTS
 #define	DECLARE_TEST(name, desc)			\
