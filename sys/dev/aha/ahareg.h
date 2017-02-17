@@ -157,7 +157,6 @@ typedef struct {
 #define		BOARD_1540_16HEAD_BIOS	0x00
 #define		BOARD_1540_64HEAD_BIOS	0x30
 #define		BOARD_1542		0x41	/* aha-1540/1542 w/64-h bios */
-#define		BOARD_1740		0x43	/* aha-1740A/1742A/1744 */
 #define		BOARD_1542C		0x44	/* aha-1542C */
 #define		BOARD_1542CF		0x45	/* aha-1542CF */
 #define		BOARD_1542CP		0x46	/* aha-1542CP, plug and play */
