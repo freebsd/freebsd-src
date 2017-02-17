@@ -42,7 +42,9 @@
 #include <sys/dtrace_impl.h>
 #include <sys/dtrace_bsd.h>
 #include <machine/clock.h>
+#include <machine/cpufunc.h>
 #include <machine/frame.h>
+#include <machine/psl.h>
 #include <vm/pmap.h>
 
 extern uintptr_t 	kernelbase;
