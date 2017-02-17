@@ -441,7 +441,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	 * CMAP1/CMAP2 are used for zeroing and copying pages.
 	 * CMAP3 is used for the idle process page zeroing.
 	 */
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	mtx_init(&pc->pc_cmap_lock, "SYSMAPS", NULL, MTX_DEF);
 	SYSMAP(caddr_t, pc->pc_cmap_pte1, pc->pc_cmap_addr1, 1)
 	SYSMAP(caddr_t, pc->pc_cmap_pte2, pc->pc_cmap_addr2, 1)
@@ -4253,7 +4253,7 @@ pmap_zero_page(vm_page_t m)
 	struct pcpu *pc;
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap_pte2 = pc->pc_cmap_pte2;
 	mtx_lock(&pc->pc_cmap_lock);
 	if (*cmap_pte2)
@@ -4286,7 +4286,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	struct pcpu *pc;
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap_pte2 = pc->pc_cmap_pte2;
 	mtx_lock(&pc->pc_cmap_lock);
 	if (*cmap_pte2)
@@ -4337,7 +4337,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	struct pcpu *pc;
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap_pte1 = pc->pc_cmap_pte1; 
 	cmap_pte2 = pc->pc_cmap_pte2;
 	mtx_lock(&pc->pc_cmap_lock);
@@ -4372,7 +4372,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	int cnt;
 
 	sched_pin();
-	pc = pcpu_find(curcpu);
+	pc = get_pcpu();
 	cmap_pte1 = pc->pc_cmap_pte1; 
 	cmap_pte2 = pc->pc_cmap_pte2;
 	mtx_lock(&pc->pc_cmap_lock);
@@ -5368,7 +5368,7 @@ pmap_flush_page(vm_page_t m)
 	useclflushopt = (cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0;
 	if (useclflushopt || (cpu_feature & CPUID_CLFSH) != 0) {
 		sched_pin();
-		pc = pcpu_find(curcpu);
+		pc = get_pcpu();
 		cmap_pte2 = pc->pc_cmap_pte2; 
 		mtx_lock(&pc->pc_cmap_lock);
 		if (*cmap_pte2)
