@@ -12405,6 +12405,9 @@ ctl_datamove(union ctl_io *io)
 	if (io->io_hdr.flags & CTL_FLAG_DELAY_DONE) {
 		io->io_hdr.flags &= ~CTL_FLAG_DELAY_DONE;
 	} else {
+		struct ctl_lun *lun;
+
+		lun = CTL_LUN(io);
 		if ((lun != NULL)
 		 && (lun->delay_info.datamove_delay > 0)) {
 
