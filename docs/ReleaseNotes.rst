@@ -61,6 +61,9 @@ Non-comprehensive list of changes in this release
   with LLVM option -adce-remove-loops when the loop body otherwise has
   no live operations.
 
+ * The llvm-cov tool can now export coverage data as json. Its html output mode
+   has also improved.
+
 * ... next change ...
 
 .. NOTE
@@ -80,6 +83,37 @@ Non-comprehensive list of changes in this release
      cross-module indirect call promotion.
    * Significant build-time and binary-size improvements when compiling with
      debug info (-g).
+
+LLVM Coroutines
+---------------
+
+Experimental support for :doc:`Coroutines` was added, which can be enabled
+with ``-enable-coroutines`` in ``opt`` command tool or using
+``addCoroutinePassesToExtensionPoints`` API when building the optimization
+pipeline.
+
+For more information on LLVM Coroutines and the LLVM implementation, see
+`2016 LLVM Developers’ Meeting talk on LLVM Coroutines
+<http://llvm.org/devmtg/2016-11/#talk4>`_.
+
+Regcall and Vectorcall Calling Conventions
+--------------------------------------------------
+
+Support was added for _regcall calling convention.
+Existing __vectorcall calling convention support was extended to include
+correct handling of HVAs.
+
+The __vectorcall calling convention was introduced by Microsoft to
+enhance register usage when passing parameters.
+For more information please read `__vectorcall documentation
+<https://msdn.microsoft.com/en-us/library/dn375768.aspx>`_.
+
+The __regcall calling convention was introduced by Intel to 
+optimize parameter transfer on function call.
+This calling convention ensures that as many values as possible are 
+passed or returned in registers.
+For more information please read `__regcall documentation
+<https://software.intel.com/en-us/node/693069>`_.
 
 Code Generation Testing
 -----------------------
@@ -257,6 +291,21 @@ External Open Source Projects Using LLVM 4.0.0
 ==============================================
 
 * A project...
+
+LDC - the LLVM-based D compiler
+-------------------------------
+
+`D <http://dlang.org>`_ is a language with C-like syntax and static typing. It
+pragmatically combines efficiency, control, and modeling power, with safety and
+programmer productivity. D supports powerful concepts like Compile-Time Function
+Execution (CTFE) and Template Meta-Programming, provides an innovative approach
+to concurrency and offers many classical paradigms.
+
+`LDC <http://wiki.dlang.org/LDC>`_ uses the frontend from the reference compiler
+combined with LLVM as backend to produce efficient native code. LDC targets
+x86/x86_64 systems like Linux, OS X, FreeBSD and Windows and also Linux on ARM
+and PowerPC (32/64 bit). Ports to other architectures like AArch64 and MIPS64
+are underway.
 
 
 Additional Information
