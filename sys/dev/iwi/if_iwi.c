@@ -1979,9 +1979,9 @@ iwi_start(struct iwi_softc *sc)
 		}
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (iwi_tx_start(sc, m, ni, ac) != 0) {
-			ieee80211_free_node(ni);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
+			ieee80211_free_node(ni);
 			break;
 		}
 		sc->sc_tx_timer = 5;
