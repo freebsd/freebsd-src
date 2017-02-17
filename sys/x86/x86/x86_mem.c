@@ -303,19 +303,13 @@ x86_mrt2mtrr(int flags, int oldval)
  * Update running CPU(s) MTRRs to match the ranges in the descriptor
  * list.
  *
- * XXX Must be called with interrupts enabled.
+ * Must be called with interrupts enabled.
  */
 static void
 x86_mrstore(struct mem_range_softc *sc)
 {
 
-#ifdef SMP
 	smp_rendezvous(NULL, x86_mrstoreone, NULL, sc);
-#else
-	disable_intr();				/* disable interrupts */
-	x86_mrstoreone(sc);
-	enable_intr();
-#endif
 }
 
 /*
@@ -710,19 +704,13 @@ x86_mrAPinit(struct mem_range_softc *sc)
  * Re-initialise running CPU(s) MTRRs to match the ranges in the descriptor
  * list.
  *
- * XXX Must be called with interrupts enabled.
+ * Must be called with interrupts enabled.
  */
 static void
 x86_mrreinit(struct mem_range_softc *sc)
 {
 
-#ifdef SMP
-	smp_rendezvous(NULL, (void *)x86_mrAPinit, NULL, sc);
-#else
-	disable_intr();				/* disable interrupts */
-	x86_mrAPinit(sc);
-	enable_intr();
-#endif
+	smp_rendezvous(NULL, (void (*)(void *))x86_mrAPinit, NULL, sc);
 }
 
 static void
