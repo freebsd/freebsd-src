@@ -155,13 +155,13 @@ static struct asmc_model *asmc_match(device_t dev);
 			 asmc_mbp_sysctl_light_control
 
 struct asmc_model asmc_models[] = {
-	{ 
+	{
 	  "MacBook1,1", "Apple SMC MacBook Core Duo",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
 	  ASMC_MB_TEMPS, ASMC_MB_TEMPNAMES, ASMC_MB_TEMPDESCS
 	},
 
-	{ 
+	{
 	  "MacBook2,1", "Apple SMC MacBook Core 2 Duo",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
 	  ASMC_MB_TEMPS, ASMC_MB_TEMPNAMES, ASMC_MB_TEMPDESCS
@@ -173,68 +173,74 @@ struct asmc_model asmc_models[] = {
 	  ASMC_MB31_TEMPS, ASMC_MB31_TEMPNAMES, ASMC_MB31_TEMPDESCS
 	},
 
-	{ 
+	{
 	  "MacBookPro1,1", "Apple SMC MacBook Pro Core Duo (15-inch)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP_TEMPS, ASMC_MBP_TEMPNAMES, ASMC_MBP_TEMPDESCS
 	},
 
-	{ 
+	{
 	  "MacBookPro1,2", "Apple SMC MacBook Pro Core Duo (17-inch)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP_TEMPS, ASMC_MBP_TEMPNAMES, ASMC_MBP_TEMPDESCS
 	},
 
-	{ 
+	{
 	  "MacBookPro2,1", "Apple SMC MacBook Pro Core 2 Duo (17-inch)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP_TEMPS, ASMC_MBP_TEMPNAMES, ASMC_MBP_TEMPDESCS
 	},
 
-	{ 
+	{
 	  "MacBookPro2,2", "Apple SMC MacBook Pro Core 2 Duo (15-inch)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP_TEMPS, ASMC_MBP_TEMPNAMES, ASMC_MBP_TEMPDESCS
 	},
 
-	{ 
+	{
 	  "MacBookPro3,1", "Apple SMC MacBook Pro Core 2 Duo (15-inch LED)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP_TEMPS, ASMC_MBP_TEMPNAMES, ASMC_MBP_TEMPDESCS
 	},
 
-	{ 
+	{
 	  "MacBookPro3,2", "Apple SMC MacBook Pro Core 2 Duo (17-inch HD)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP_TEMPS, ASMC_MBP_TEMPNAMES, ASMC_MBP_TEMPDESCS
 	},
-	
-	{ 
+
+	{
 	  "MacBookPro4,1", "Apple SMC MacBook Pro Core 2 Duo (Penryn)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP4_TEMPS, ASMC_MBP4_TEMPNAMES, ASMC_MBP4_TEMPDESCS
 	},
 
-	{ 
+	{
 	  "MacBookPro5,1", "Apple SMC MacBook Pro Core 2 Duo (2008/2009)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP5_TEMPS, ASMC_MBP5_TEMPNAMES, ASMC_MBP5_TEMPDESCS
 	},
 
-	{ 
+	{
 	  "MacBookPro8,2", "Apple SMC MacBook Pro (early 2011)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
 	  ASMC_MBP8_TEMPS, ASMC_MBP8_TEMPNAMES, ASMC_MBP8_TEMPDESCS
 	},
 
-	{ 
+	{
+	  "MacBookPro11,2", "Apple SMC MacBook Pro Retina Core i7 (2013/2014)",
+	  ASMC_SMS_FUNCS_DISABLED, ASMC_FAN_FUNCS2, ASMC_LIGHT_FUNCS,
+	  ASMC_MBP112_TEMPS, ASMC_MBP112_TEMPNAMES, ASMC_MBP112_TEMPDESCS
+	},
+
+	{
 	  "MacBookPro11,3", "Apple SMC MacBook Pro Retina Core i7 (2013/2014)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
-	  ASMC_MBP11_TEMPS, ASMC_MBP11_TEMPNAMES, ASMC_MBP11_TEMPDESCS
+	  ASMC_MBP113_TEMPS, ASMC_MBP113_TEMPNAMES, ASMC_MBP113_TEMPDESCS
 	},
-	
+
 	/* The Mac Mini has no SMS */
-	{ 
+	{
 	  "Macmini1,1", "Apple SMC Mac Mini",
 	  NULL, NULL, NULL,
 	  ASMC_FAN_FUNCS,
@@ -243,7 +249,7 @@ struct asmc_model asmc_models[] = {
 	},
 
 	/* The Mac Mini 3,1 has no SMS */
-	{ 
+	{
 	  "Macmini3,1", "Apple SMC Mac Mini 3,1",
 	  NULL, NULL, NULL,
 	  ASMC_FAN_FUNCS,
@@ -273,31 +279,31 @@ struct asmc_model asmc_models[] = {
 	  "MacBookAir1,1", "Apple SMC MacBook Air",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
 	  ASMC_MBA_TEMPS, ASMC_MBA_TEMPNAMES, ASMC_MBA_TEMPDESCS
-	},	
+	},
 
 	{
 	  "MacBookAir3,1", "Apple SMC MacBook Air Core 2 Duo (Late 2010)",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
 	  ASMC_MBA3_TEMPS, ASMC_MBA3_TEMPNAMES, ASMC_MBA3_TEMPDESCS
-	},	
+	},
 
 	{
 	  "MacBookAir5,1", "Apple SMC MacBook Air 11-inch (Mid 2012)",
 	  ASMC_SMS_FUNCS_DISABLED,
-	  ASMC_FAN_FUNCS2, 
+	  ASMC_FAN_FUNCS2,
 	  ASMC_LIGHT_FUNCS,
 	  ASMC_MBA5_TEMPS, ASMC_MBA5_TEMPNAMES, ASMC_MBA5_TEMPDESCS
-	},	
+	},
 
 	{
 	  "MacBookAir5,2", "Apple SMC MacBook Air 13-inch (Mid 2012)",
 	  ASMC_SMS_FUNCS_DISABLED,
-	  ASMC_FAN_FUNCS2, 
+	  ASMC_FAN_FUNCS2,
 	  ASMC_LIGHT_FUNCS,
 	  ASMC_MBA5_TEMPS, ASMC_MBA5_TEMPNAMES, ASMC_MBA5_TEMPDESCS
-	},	
+	},
 
-	
+
 	{ NULL, NULL }
 };
 
@@ -333,7 +339,7 @@ ACPI_MODULE_NAME("ASMC")
 #ifdef DEBUG
 #define ASMC_DPRINTF(str)	device_printf(dev, str)
 #else
-#define ASMC_DPRINTF(str)	
+#define ASMC_DPRINTF(str)
 #endif
 
 /* NB: can't be const */
@@ -376,7 +382,7 @@ asmc_probe(device_t dev)
 		return (ENXIO);
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, asmc_ids) == NULL)
 		return (ENXIO);
-	
+
 	model = asmc_match(dev);
 	if (!model) {
 		device_printf(dev, "model not recognized\n");
@@ -404,10 +410,10 @@ asmc_attach(device_t dev)
 		device_printf(dev, "unable to allocate IO port\n");
 		return (ENOMEM);
 	}
-	
+
 	sysctlctx  = device_get_sysctl_ctx(dev);
 	sysctlnode = device_get_sysctl_tree(dev);
-	
+
 	model = asmc_match(dev);
 
 	mtx_init(&sc->sc_mtx, "asmc", NULL, MTX_SPIN);
@@ -495,13 +501,13 @@ asmc_attach(device_t dev)
 		sc->sc_light_tree = SYSCTL_ADD_NODE(sysctlctx,
 		    SYSCTL_CHILDREN(sysctlnode), OID_AUTO, "light",
 		    CTLFLAG_RD, 0, "Keyboard backlight sensors");
-		
+
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(sc->sc_light_tree),
 		    OID_AUTO, "left", CTLTYPE_INT | CTLFLAG_RD,
 		    dev, 0, model->smc_light_left, "I",
 		    "Keyboard backlight left sensor");
-	
+
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(sc->sc_light_tree),
 		    OID_AUTO, "right", CTLTYPE_INT | CTLFLAG_RD,
@@ -574,7 +580,7 @@ asmc_attach(device_t dev)
 		goto err2;
 	}
 
-	ret = bus_setup_intr(dev, sc->sc_irq, 
+	ret = bus_setup_intr(dev, sc->sc_irq,
 	          INTR_TYPE_MISC | INTR_MPSAFE,
 #ifdef INTR_FILTER
 	    asmc_sms_intrfast, asmc_sms_handler,
@@ -663,7 +669,7 @@ asmc_init(device_t dev)
 	asmc_key_write(dev, ASMC_KEY_INTOK, buf, 1);
 	DELAY(50);
 
-	/* 
+	/*
 	 * Initiate the polling intervals.
 	 */
 	buf[0] = 20; /* msecs */
@@ -698,13 +704,13 @@ asmc_init(device_t dev)
 	DELAY(100);
 
 	sc->sc_sms_intr_works = 0;
-	
+
 	/*
 	 * Retry SMS initialization 1000 times
 	 * (takes approx. 2 seconds in worst case)
 	 */
 	for (i = 0; i < 1000; i++) {
-		if (asmc_key_read(dev, ASMC_KEY_SMS, buf, 2) == 0 && 
+		if (asmc_key_read(dev, ASMC_KEY_SMS, buf, 2) == 0 &&
 		    (buf[0] == ASMC_SMS_INIT1 && buf[1] == ASMC_SMS_INIT2)) {
 			error = 0;
 			sc->sc_sms_intr_works = 1;
@@ -734,7 +740,7 @@ nosms:
 		 */
 		asmc_key_read(dev, ASMC_NKEYS, buf, 4);
 		device_printf(dev, "number of keys: %d\n", ntohl(*(uint32_t*)buf));
-	}	      
+	}
 
 #ifdef DEBUG
 	asmc_dumpall(dev);
@@ -782,10 +788,10 @@ asmc_wait(device_t dev, uint8_t val)
 #ifdef DEBUG
 	device_printf(dev, "%s failed: 0x%x, 0x%x\n", __func__, val,
 	    ASMC_CMDPORT_READ(sc));
-#endif	
+#endif
 	return (1);
 }
-	
+
 /*
  * Send the given command, retrying up to 10 times if
  * the acknowledgement fails.
@@ -919,7 +925,7 @@ out:
 		maxlen = type[0];
 		type[0] = ' ';
 		type[5] = 0;
-		if (maxlen > sizeof(v)) {	
+		if (maxlen > sizeof(v)) {
 			device_printf(dev,
 			    "WARNING: cropping maxlen from %d to %zu\n",
 			    maxlen, sizeof(v));
@@ -1189,7 +1195,7 @@ asmc_sms_read(device_t dev, const char *key, int16_t *val)
 	uint8_t buf[2];
 	int error;
 
-	/* no need to do locking here as asmc_key_read() already does it */ 
+	/* no need to do locking here as asmc_key_read() already does it */
 	switch (key[3]) {
 	case 'X':
 	case 'Y':
@@ -1246,7 +1252,7 @@ static void
 asmc_sms_handler(void *arg)
 {
 	struct asmc_softc *sc = device_get_softc(arg);
-	
+
 	asmc_sms_task(sc, 0);
 }
 #endif
@@ -1293,7 +1299,7 @@ asmc_sms_task(void *arg, int pending)
 	}
 
 	snprintf(notify, sizeof(notify), " notify=0x%x", type);
-	devctl_notify("ACPI", "asmc", "SMS", notify); 
+	devctl_notify("ACPI", "asmc", "SMS", notify);
 }
 
 static int
@@ -1363,11 +1369,11 @@ asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS)
 	uint8_t buf[6];
 	int error;
 	int32_t v;
-	
+
 	asmc_key_read(dev, ASMC_KEY_LIGHTRIGHT, buf, sizeof buf);
 	v = buf[2];
 	error = sysctl_handle_int(oidp, &v, 0, req);
-	
+
 	return (error);
 }
 
