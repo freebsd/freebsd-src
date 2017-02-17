@@ -1,9 +1,8 @@
 /*
- * Generic register and struct definitions for the Adaptech 154x/164x
+ * Generic register and struct definitions for the Adaptech 154x
  * SCSI host adapters. Product specific probe and attach routines can
  * be found in:
  *      aha 1542A/1542B/1542C/1542CF/1542CP	aha_isa.c
- *      aha 1640			aha_mca.c
  */
 /*-
  * Copyright (c) 1998 M. Warner Losh.
@@ -338,9 +337,6 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 		break;
 	case BOARD_1542:
 		snprintf(aha->model, sizeof(aha->model), "1540/1542 64 head BIOS");
-		break;
-	case BOARD_1640:
-		snprintf(aha->model, sizeof(aha->model), "1640");
 		break;
 	case BOARD_1740:
 		snprintf(aha->model, sizeof(aha->model), "1740A/1742A/1744");
