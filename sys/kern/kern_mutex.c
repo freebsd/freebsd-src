@@ -622,7 +622,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts)
 		LOCKSTAT_RECORD1(adaptive__block, m, sleep_time);
 
 	/*
-	 * Only record the loops spinning and not sleeping. 
+	 * Only record the loops spinning and not sleeping.
 	 */
 	if (lda.spin_cnt > sleep_cnt)
 		LOCKSTAT_RECORD1(adaptive__spin, m, all_time - sleep_time);
