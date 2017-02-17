@@ -122,7 +122,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (SCHEDULER_STOPPED())
+	if (SCHEDULER_STOPPED_TD(td))
 		return;
 
 	sleepq_lock(cvp);
@@ -176,7 +176,7 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 	    ("cv_wait_unlock cannot be used with Giant"));
 	class = LOCK_CLASS(lock);
 
-	if (SCHEDULER_STOPPED()) {
+	if (SCHEDULER_STOPPED_TD(td)) {
 		class->lc_unlock(lock);
 		return;
 	}
@@ -227,7 +227,7 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (SCHEDULER_STOPPED())
+	if (SCHEDULER_STOPPED_TD(td))
 		return (0);
 
 	sleepq_lock(cvp);
@@ -287,7 +287,7 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (SCHEDULER_STOPPED())
+	if (SCHEDULER_STOPPED_TD(td))
 		return (0);
 
 	sleepq_lock(cvp);
@@ -349,7 +349,7 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (SCHEDULER_STOPPED())
+	if (SCHEDULER_STOPPED_TD(td))
 		return (0);
 
 	sleepq_lock(cvp);
