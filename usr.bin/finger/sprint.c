@@ -42,13 +42,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <db.h>
 #include <err.h>
 #include <langinfo.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <uthash.h>
 #include <utmpx.h>
 #include "finger.h"
 
@@ -59,10 +59,8 @@ sflag_print(void)
 {
 	PERSON *pn;
 	WHERE *w;
-	int sflag, r, namelen;
+	int namelen;
 	char p[80];
-	PERSON *tmp;
-	DBT data, key;
 	struct tm *lc;
 
 	if (d_first < 0)
@@ -89,15 +87,8 @@ sflag_print(void)
 	    "Name", " TTY      Idle  Login  Time  ", (gflag) ? "" :
 	    oflag ? "Office  Phone" : "Where");
 
-	for (sflag = R_FIRST;; sflag = R_NEXT) {
-		r = (*db->seq)(db, &key, &data, sflag);
-		if (r == -1)
-			err(1, "db seq");
-		if (r == 1)
-			break;
-		memmove(&tmp, data.data, sizeof tmp);
-		pn = tmp;
-
+	HASH_SORT(people, psort);
+	for (pn = people; pn != NULL; pn = pn->hh.next) {
 		for (w = pn->whead; w != NULL; w = w->next) {
 			namelen = MAXREALNAME;
 			if (w->info == LOGGEDIN && !w->writable)

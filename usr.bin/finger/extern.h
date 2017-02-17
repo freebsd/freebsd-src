@@ -35,7 +35,6 @@
 
 extern char tbuf[1024];			/* Temp buffer for anybody. */
 extern int entries;			/* Number of people. */
-extern DB *db;				/* Database. */
 extern int d_first;
 extern sa_family_t family;
 extern int gflag;
@@ -44,6 +43,7 @@ extern time_t now;
 extern int oflag;
 extern int pplan;			/* don't show .plan/.project */
 extern int invoker_root;		/* Invoked by root */
+extern PERSON *people;
 
 void	 enter_lastlog(PERSON *);
 PERSON	*enter_person(struct passwd *);
@@ -54,6 +54,7 @@ void	 lflag_print(void);
 int	 match(struct passwd *, const char *);
 void	 netfinger(char *);
 PERSON	*palloc(void);
+int	 psort(PERSON *, PERSON *);
 char	*prphone(char *);
 void	 sflag_print(void);
 int	 show_text(const char *, const char *, const char *);

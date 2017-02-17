@@ -48,6 +48,7 @@ typedef struct person {
 	time_t mailread;		/* last time mail was read */
 	time_t mailrecv;		/* last time mail was received */
 	struct where *whead, *wtail;	/* list of where user is or has been */
+	UT_hash_handle hh;
 } PERSON;
 
 enum status { LASTLOG, LOGGEDIN };

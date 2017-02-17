@@ -43,14 +43,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <wctype.h>
-#include <db.h>
 #include <err.h>
+#include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <uthash.h>
 #include <utmpx.h>
 #include <wchar.h>
 #include "finger.h"

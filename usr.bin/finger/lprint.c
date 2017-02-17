@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <ctype.h>
-#include <db.h>
 #include <err.h>
 #include <fcntl.h>
 #include <langinfo.h>
@@ -53,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <uthash.h>
 #include <utmpx.h>
 #include "finger.h"
 #include "pathnames.h"
@@ -68,19 +68,10 @@ void
 lflag_print(void)
 {
 	PERSON *pn;
-	int sflag, r;
-	PERSON *tmp;
-	DBT data, key;
 
-	for (sflag = R_FIRST;; sflag = R_NEXT) {
-		r = (*db->seq)(db, &key, &data, sflag);
-		if (r == -1)
-			err(1, "db seq");
-		if (r == 1)
-			break;
-		memmove(&tmp, data.data, sizeof tmp);
-		pn = tmp;
-		if (sflag != R_FIRST)
+	HASH_SORT(people, psort);
+	for (pn = people; pn != NULL; pn = pn->hh.next) {
+		if (pn != people)
 			putchar('\n');
 		lprint(pn);
 		if (!pplan) {
