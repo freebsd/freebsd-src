@@ -94,7 +94,8 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
+COMMON_SRCS+=	catrigl.c \
+	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 	e_coshl.c e_fmodl.c e_hypotl.c \
 	e_lgammal.c e_lgammal_r.c \
 	e_remainderl.c e_sinhl.c e_sqrtl.c \
@@ -107,7 +108,7 @@ COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 .endif
 
 # C99 complex functions
-COMMON_SRCS+=	catrig.c catrigf.c catrigl.c \
+COMMON_SRCS+=	catrig.c catrigf.c \
 	s_ccosh.c s_ccoshf.c s_cexp.c s_cexpf.c \
 	s_cimag.c s_cimagf.c s_cimagl.c \
 	s_conj.c s_conjf.c s_conjl.c \
@@ -147,9 +148,12 @@ MLINKS+=atan.3 atanf.3 atan.3 atanl.3
 MLINKS+=atanh.3 atanhf.3 atanh.3 atanhl.3
 MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
 	atan2.3 carg.3 atan2.3 cargf.3 atan2.3 cargl.3
-MLINKS+=cacos.3 cacosf.3 cacos.3 cacosh.3 cacos.3 cacoshf.3 \
-	cacos.3 casin.3 cacos.3 casinf.3 cacos.3 casinh.3 cacos.3 casinhf.3 \
-	cacos.3 catan.3 cacos.3 catanf.3 cacos.3 catanh.3 cacos.3 catanhf.3
+MLINKS+=cacos.3 cacosf.3 cacos.3 cacosl.3 \
+	cacos.3 cacosh.3 cacos.3 cacoshf.3 cacos.3 cacoshl.3 \
+	cacos.3 casin.3 cacos.3 casinf.3 cacos.3 casinl.3 \
+	cacos.3 casinh.3 cacos.3 casinhf.3 cacos.3 casinhl.3 \
+	cacos.3 catan.3 cacos.3 catanf.3 cacos.3 catanl.3 \
+	cacos.3 catanh.3 cacos.3 catanhf.3 cacos.3 catanhl.3
 MLINKS+=ccos.3 ccosf.3 ccos.3 csin.3 ccos.3 csinf.3 ccos.3 ctan.3 ccos.3 ctanf.3
 MLINKS+=ccosh.3 ccoshf.3 ccosh.3 csinh.3 ccosh.3 csinhf.3 \
 	ccosh.3 ctanh.3 ccosh.3 ctanhf.3
