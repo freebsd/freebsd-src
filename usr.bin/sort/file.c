@@ -631,7 +631,6 @@ file_reader_init(const char *fsrc)
 			int fd, flags;
 
 			flags = MAP_NOCORE | MAP_NOSYNC;
-			addr = MAP_FAILED;
 
 			fd = open(fsrc, O_RDONLY);
 			if (fd < 0)
