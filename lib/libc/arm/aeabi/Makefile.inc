@@ -28,5 +28,6 @@ SRCS+=	aeabi_memcmp.S		\
 	aeabi_memmove.S		\
 	aeabi_memset.S
 
-SYM_MAPS+=${LIBC_SRCTOP}/arm/aeabi/Symbol.map
+SRCS+=	aeabi_int_div.S
 
+SYM_MAPS+=${LIBC_SRCTOP}/arm/aeabi/Symbol.map
