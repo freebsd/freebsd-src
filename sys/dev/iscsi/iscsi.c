@@ -475,15 +475,14 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 static void
 iscsi_maintenance_thread(void *arg)
 {
-	struct iscsi_session *is;
+	struct iscsi_session *is = arg;
 
-	is = arg;
-
+	ISCSI_SESSION_LOCK(is);
 	for (;;) {
-		ISCSI_SESSION_LOCK(is);
 		if (is->is_reconnecting == false &&
 		    is->is_terminating == false &&
-		    STAILQ_EMPTY(&is->is_postponed))
+		    (STAILQ_EMPTY(&is->is_postponed) ||
+		     ISCSI_SNGT(is->is_cmdsn, is->is_maxcmdsn)))
 			cv_wait(&is->is_maintenance_cv, &is->is_lock);
 
 		/* Terminate supersedes reconnect. */
@@ -497,12 +496,13 @@ iscsi_maintenance_thread(void *arg)
 		if (is->is_reconnecting) {
 			ISCSI_SESSION_UNLOCK(is);
 			iscsi_maintenance_thread_reconnect(is);
+			ISCSI_SESSION_LOCK(is);
 			continue;
 		}
 
 		iscsi_session_send_postponed(is);
-		ISCSI_SESSION_UNLOCK(is);
 	}
+	ISCSI_SESSION_UNLOCK(is);
 }
 
 static void
