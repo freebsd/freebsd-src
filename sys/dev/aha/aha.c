@@ -338,9 +338,6 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 	case BOARD_1542:
 		snprintf(aha->model, sizeof(aha->model), "1540/1542 64 head BIOS");
 		break;
-	case BOARD_1740:
-		snprintf(aha->model, sizeof(aha->model), "1740A/1742A/1744");
-		break;
 	case BOARD_1542C:
 		snprintf(aha->model, sizeof(aha->model), "1542C");
 		break;
