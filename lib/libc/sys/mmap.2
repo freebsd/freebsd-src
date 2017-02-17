@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd November 25, 2016
+.Dd February 4, 2017
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -53,9 +53,35 @@ starting at byte offset
 .Fa offset .
 If
 .Fa len
-is not a multiple of the pagesize, the mapped region may extend past the
+is not a multiple of the page size, the mapped region may extend past the
 specified range.
 Any such extension beyond the end of the mapped object will be zero-filled.
+.Pp
+If
+.Fa fd
+references a regular file or a shared memory object, the range of
+bytes starting at
+.Fa offset
+and continuing for
+.Fa len
+bytes must be legitimate for the possible (not necessarily
+current) offsets in the object.
+In particular, the
+.Fa offset
+value cannot be negative.
+If the object is truncated and the process later accesses a pages that
+is wholly within the truncated region, the access is aborted and a
+.Dv SIGBUS
+signal is delivered to the process.
+.Pp
+If
+.Fa fd
+references a device file, the interpretation of the
+.Fa offset
+value is device specific and defined by the device driver.
+The virtual memory subsystem does not impose any restrictitions on the
+.Fa offset
+value in this case, passing it unchanged to the driver.
 .Pp
 If
 .Fa addr
@@ -157,7 +183,7 @@ If
 .Dv MAP_FIXED
 is specified,
 .Fa addr
-must be a multiple of the pagesize.
+must be a multiple of the page size.
 If
 .Dv MAP_EXCL
 is not specified, a successful
@@ -360,6 +386,12 @@ The
 .Fa fd
 argument
 is not a valid open file descriptor.
+.It Bq Er EINVAL
+An invalid (negative) value was passed in the
+.Fa offset
+argument, when
+.Fa fd
+referenced a regular file or shared memory.
 .It Bq Er EINVAL
 An invalid value was passed in the
 .Fa prot

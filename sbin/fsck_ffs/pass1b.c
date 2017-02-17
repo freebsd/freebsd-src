@@ -73,7 +73,7 @@ pass1b(void)
 			got_sigalarm = 0;
 		}
 		for (i = 0; i < sblock.fs_ipg; i++, inumber++) {
-			if (inumber < ROOTINO)
+			if (inumber < UFS_ROOTINO)
 				continue;
 			dp = ginode(inumber);
 			if (dp == NULL)

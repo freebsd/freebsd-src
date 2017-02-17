@@ -329,7 +329,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	refcount_init(&inp->inp_refcount, 1);	/* Reference from inpcbinfo */
 	INP_LIST_WUNLOCK(pcbinfo);
-#if defined(IPSEC) || defined(MAC)
+#if defined(IPSEC) || defined(IPSEC_SUPPORT) || defined(MAC)
 out:
 	if (error != 0) {
 		crfree(inp->inp_cred);
@@ -2490,10 +2490,6 @@ db_print_inpflags(int inp_flags)
 	}
 	if (inp_flags & INP_RECVDSTADDR) {
 		db_printf("%sINP_RECVDSTADDR", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_ORIGDSTADDR) {
-		db_printf("%sINP_ORIGDSTADDR", comma ? ", " : "");
 		comma = 1;
 	}
 	if (inp_flags & INP_HDRINCL) {

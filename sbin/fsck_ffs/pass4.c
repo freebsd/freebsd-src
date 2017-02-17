@@ -71,7 +71,7 @@ pass4(void)
 		}
 		inumber = cg * sblock.fs_ipg;
 		for (i = 0; i < inostathead[cg].il_numalloced; i++, inumber++) {
-			if (inumber < ROOTINO)
+			if (inumber < UFS_ROOTINO)
 				continue;
 			idesc.id_number = inumber;
 			switch (inoinfo(inumber)->ino_state) {

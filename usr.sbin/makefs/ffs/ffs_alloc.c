@@ -157,7 +157,7 @@ ffs_blkpref_ufs1(struct inode *ip, daddr_t lbn, int indx, int32_t *bap)
 
 	fs = ip->i_fs;
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
-		if (lbn < NDADDR + NINDIR(fs)) {
+		if (lbn < UFS_NDADDR + NINDIR(fs)) {
 			cg = ino_to_cg(fs, ip->i_number);
 			return (fs->fs_fpg * cg + fs->fs_frag);
 		}
@@ -196,7 +196,7 @@ ffs_blkpref_ufs2(struct inode *ip, daddr_t lbn, int indx, int64_t *bap)
 
 	fs = ip->i_fs;
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
-		if (lbn < NDADDR + NINDIR(fs)) {
+		if (lbn < UFS_NDADDR + NINDIR(fs)) {
 			cg = ino_to_cg(fs, ip->i_number);
 			return (fs->fs_fpg * cg + fs->fs_frag);
 		}

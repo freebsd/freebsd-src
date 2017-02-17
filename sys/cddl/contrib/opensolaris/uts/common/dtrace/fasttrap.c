@@ -1246,7 +1246,7 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	ASSERT(!(p->p_flag & SVFORK));
 	mutex_exit(&p->p_lock);
 #else
-	if ((p = pfind(probe->ftp_pid)) == NULL)
+	if (pget(probe->ftp_pid, PGET_HOLD | PGET_NOTWEXIT, &p) != 0)
 		return;
 #endif
 
@@ -1255,13 +1255,6 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 	 * the chance to execute the trap instruction we're about to place
 	 * in their process's text.
 	 */
-#ifdef __FreeBSD__
-	/*
-	 * pfind() returns a locked process.
-	 */
-	_PHOLD(p);
-	PROC_UNLOCK(p);
-#endif
 	fasttrap_enable_callbacks();
 
 	/*
@@ -1333,17 +1326,8 @@ fasttrap_pid_disable(void *arg, dtrace_id_t id, void *parg)
 	 * provider lock as a point of mutual exclusion to prevent other
 	 * DTrace consumers from disabling this probe.
 	 */
-	if ((p = pfind(probe->ftp_pid)) != NULL) {
-#ifdef __FreeBSD__
-		if (p->p_flag & P_WEXIT) {
-			PROC_UNLOCK(p);
-			p = NULL;
-		} else {
-			_PHOLD(p);
-			PROC_UNLOCK(p);
-		}
-#endif
-	}
+	if (pget(probe->ftp_pid, PGET_HOLD | PGET_NOTWEXIT, &p) != 0)
+		p = NULL;
 
 	/*
 	 * Disable all the associated tracepoints (for fully enabled probes).

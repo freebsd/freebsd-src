@@ -267,9 +267,6 @@ _rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	struct rwlock *rw;
 	uintptr_t tid, v;
 
-	if (SCHEDULER_STOPPED())
-		return;
-
 	rw = rwlock2rw(c);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
@@ -335,9 +332,6 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 {
 	struct rwlock *rw;
 
-	if (SCHEDULER_STOPPED())
-		return;
-
 	rw = rwlock2rw(c);
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -347,7 +341,11 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, rw->rw_recurse, file,
 	    line);
 
+#ifdef LOCK_PROFILING
 	_rw_wunlock_hard(rw, (uintptr_t)curthread, file, line);
+#else
+	__rw_wunlock(rw, curthread, file, line);
+#endif
 
 	TD_LOCKS_DEC(curthread);
 }

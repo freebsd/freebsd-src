@@ -1689,7 +1689,8 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		mdio->md_options = sc->flags;
 		mdio->md_mediasize = sc->mediasize;
 		mdio->md_sectorsize = sc->sectorsize;
-		if (sc->type == MD_VNODE)
+		if (sc->type == MD_VNODE ||
+		    (sc->type == MD_PRELOAD && mdio->md_file != NULL))
 			error = copyout(sc->file, mdio->md_file,
 			    strlen(sc->file) + 1);
 		return (error);
@@ -1733,6 +1734,8 @@ md_preloaded(u_char *image, size_t length, const char *name)
 	sc->pl_ptr = image;
 	sc->pl_len = length;
 	sc->start = mdstart_preload;
+	if (name != NULL)
+		strlcpy(sc->file, name, sizeof(sc->file));
 #if defined(MD_ROOT) && !defined(ROOTDEVNAME)
 	if (sc->unit == 0)
 		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
@@ -1835,7 +1838,8 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			sbuf_printf(sb, " fs %ju", (uintmax_t) mp->fwsectors);
 			sbuf_printf(sb, " l %ju", (uintmax_t) mp->mediasize);
 			sbuf_printf(sb, " t %s", type);
-			if (mp->type == MD_VNODE && mp->vnode != NULL)
+			if ((mp->type == MD_VNODE && mp->vnode != NULL) ||
+			    (mp->type == MD_PRELOAD && mp->file[0] != '\0'))
 				sbuf_printf(sb, " file %s", mp->file);
 		} else {
 			sbuf_printf(sb, "%s<unit>%d</unit>\n", indent,
@@ -1855,7 +1859,8 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			    "read-only");
 			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
 			    type);
-			if (mp->type == MD_VNODE && mp->vnode != NULL) {
+			if ((mp->type == MD_VNODE && mp->vnode != NULL) ||
+			    (mp->type == MD_PRELOAD && mp->file[0] != '\0')) {
 				sbuf_printf(sb, "%s<file>", indent);
 				g_conf_printf_escaped(sb, "%s", mp->file);
 				sbuf_printf(sb, "</file>\n");

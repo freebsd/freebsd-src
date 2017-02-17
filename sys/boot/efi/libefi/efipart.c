@@ -254,7 +254,7 @@ efipart_cdinfo_add(EFI_HANDLE handle, EFI_HANDLE alias,
 		}
 		unit++;
 	}
- 
+
 	cd = malloc(sizeof(pdinfo_t));
 	if (cd == NULL) {
 		printf("Failed to add cd %d, out of memory\n", unit);
@@ -290,7 +290,7 @@ efipart_updatecd(void)
 			continue;
 		if (efipart_floppy(node) != NULL)
 			continue;
- 
+
 		status = BS->HandleProtocol(efipart_handles[i],
 		    &blkio_guid, (void **)&blkio);
 		if (EFI_ERROR(status))
@@ -417,6 +417,89 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	return (0);
 }
 
+/*
+ * The MEDIA_FILEPATH_DP has device name.
+ * From U-Boot sources it looks like names are in the form
+ * of typeN:M, where type is interface type, N is disk id
+ * and M is partition id.
+ */
+static int
+efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
+{
+	EFI_DEVICE_PATH *devpath;
+	FILEPATH_DEVICE_PATH *node;
+	char *pathname, *p;
+	int unit, len;
+	pdinfo_t *pd, *last;
+
+	/* First collect and verify all the data */
+	if ((devpath = efi_lookup_devpath(disk_handle)) == NULL)
+		return (ENOENT);
+	node = (FILEPATH_DEVICE_PATH *)efi_devpath_last_node(devpath);
+	if (node == NULL)
+		return (ENOENT);	/* This should not happen. */
+
+	pd = malloc(sizeof(pdinfo_t));
+	if (pd == NULL) {
+		printf("Failed to add disk, out of memory\n");
+		return (ENOMEM);
+	}
+	memset(pd, 0, sizeof(pdinfo_t));
+	STAILQ_INIT(&pd->pd_part);
+	last = STAILQ_LAST(&hdinfo, pdinfo, pd_link);
+	if (last != NULL)
+		unit = last->pd_unit + 1;
+	else
+		unit = 0;
+
+	/* FILEPATH_DEVICE_PATH has 0 terminated string */
+	for (len = 0; node->PathName[len] != 0; len++)
+		;
+	if ((pathname = malloc(len + 1)) == NULL) {
+		printf("Failed to add disk, out of memory\n");
+		free(pd);
+		return (ENOMEM);
+	}
+	cpy16to8(node->PathName, pathname, len + 1);
+	p = strchr(pathname, ':');
+
+	/*
+	 * Assume we are receiving handles in order, first disk handle,
+	 * then partitions for this disk. If this assumption proves
+	 * false, this code would need update.
+	 */
+	if (p == NULL) {	/* no colon, add the disk */
+		pd->pd_handle = disk_handle;
+		pd->pd_unit = unit;
+		pd->pd_devpath = devpath;
+		STAILQ_INSERT_TAIL(&hdinfo, pd, pd_link);
+		free(pathname);
+		return (0);
+	}
+	p++;	/* skip the colon */
+	unit = (int)strtol(p, NULL, 0);
+
+	/*
+	 * We should have disk registered, if not, we are receiving
+	 * handles out of order, and this code should be reworked
+	 * to create "blank" disk for partition, and to find the
+	 * disk based on PathName compares.
+	 */
+	if (last == NULL) {
+		printf("BUG: No disk for partition \"%s\"\n", pathname);
+		free(pathname);
+		free(pd);
+		return (EINVAL);
+	}
+	/* Add the partition. */
+	pd->pd_handle = disk_handle;
+	pd->pd_unit = unit;
+	pd->pd_devpath = devpath;
+	STAILQ_INSERT_TAIL(&last->pd_part, pd, pd_link);
+	free(pathname);
+	return (0);
+}
+
 static void
 efipart_updatehd(void)
 {
@@ -467,6 +550,12 @@ efipart_updatehd(void)
 			efipart_hdinfo_add(handle, efipart_handles[i]);
 			continue;
 		}
+
+		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
+		    DevicePathSubType(node) == MEDIA_FILEPATH_DP) {
+			efipart_hdinfo_add_filepath(efipart_handles[i]);
+			continue;
+		}
 	}
 }
 
@@ -500,14 +589,14 @@ efipart_print_common(struct devsw *dev, pdinfo_list_t *pdlist, int verbose)
 
 	if (STAILQ_EMPTY(pdlist))
 		return (0);
- 
+
 	printf("%s devices:", dev->dv_name);
 	if ((ret = pager_output("\n")) != 0)
 		return (ret);
 
 	STAILQ_FOREACH(pd, pdlist, pd_link) {
 		h = pd->pd_handle;
-		if (verbose) {  /* Output the device path. */
+		if (verbose) {	/* Output the device path. */
 			text = efi_devpath_name(efi_lookup_devpath(h));
 			if (text != NULL) {
 				printf("  %S", text);
@@ -618,7 +707,7 @@ efipart_open(struct open_file *f, ...)
 	pd = efiblk_get_pdinfo(pdi, dev->d_unit);
 	if (pd == NULL)
 		return (EIO);
- 
+
 	if (pd->pd_blkio == NULL) {
 		status = BS->HandleProtocol(pd->pd_handle, &blkio_guid,
 		    (void **)&pd->pd_blkio);
@@ -702,7 +791,7 @@ efipart_ioctl(struct open_file *f, u_long cmd, void *data)
 		*(u_int *)data = pd->pd_blkio->Media->BlockSize;
 		break;
 	case DIOCGMEDIASIZE:
-		*(off_t *)data = pd->pd_blkio->Media->BlockSize *
+		*(uint64_t *)data = pd->pd_blkio->Media->BlockSize *
 		    (pd->pd_blkio->Media->LastBlock + 1);
 		break;
 	default:
@@ -826,9 +915,9 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t size,
 	if (rsize != NULL)
 		*rsize = size;
 
-        if ((size % blkio->Media->BlockSize == 0) &&
+	if ((size % blkio->Media->BlockSize == 0) &&
 	    ((blk * 512) % blkio->Media->BlockSize == 0))
-                return (efipart_readwrite(blkio, rw,
+		return (efipart_readwrite(blkio, rw,
 		    blk * 512 / blkio->Media->BlockSize,
 		    size / blkio->Media->BlockSize, buf));
 

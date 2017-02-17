@@ -150,7 +150,7 @@ bt_isa_probe(device_t dev)
 
 		/*
 		 * Ensure this port has not already been claimed already
-		 * by a PCI, EISA or ISA adapter.
+		 * by a PCI, ISA adapter.
 		 */
 		if (bt_check_probed_iop(ioport) != 0)
 			continue;

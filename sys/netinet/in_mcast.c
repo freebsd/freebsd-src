@@ -495,9 +495,12 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 		    ("%s: ifma not AF_INET", __func__));
 		KASSERT(inm != NULL, ("%s: no ifma_protospec", __func__));
 		if (inm->inm_ifma != ifma || inm->inm_ifp != ifp ||
-		    !in_hosteq(inm->inm_addr, *group))
+		    !in_hosteq(inm->inm_addr, *group)) {
+			char addrbuf[INET_ADDRSTRLEN];
+
 			panic("%s: ifma %p is inconsistent with %p (%s)",
-			    __func__, ifma, inm, inet_ntoa(*group));
+			    __func__, ifma, inm, inet_ntoa_r(*group, addrbuf));
+		}
 #endif
 		++inm->inm_refcount;
 		*pinm = inm;
@@ -875,7 +878,8 @@ inm_get_source(struct in_multi *inm, const in_addr_t haddr,
 	struct ip_msource	 find;
 	struct ip_msource	*ims, *nims;
 #ifdef KTR
-	struct in_addr ia;
+	struct in_addr		 ia;
+	char			 addrbuf[INET_ADDRSTRLEN];
 #endif
 
 	find.ims_haddr = haddr;
@@ -894,7 +898,7 @@ inm_get_source(struct in_multi *inm, const in_addr_t haddr,
 #ifdef KTR
 		ia.s_addr = htonl(haddr);
 		CTR3(KTR_IGMPV3, "%s: allocated %s as %p", __func__,
-		    inet_ntoa(ia), ims);
+		    inet_ntoa_r(ia, addrbuf), ims);
 #endif
 	}
 
@@ -912,6 +916,7 @@ ims_merge(struct ip_msource *ims, const struct in_msource *lims,
 {
 	int n = rollback ? -1 : 1;
 #ifdef KTR
+	char addrbuf[INET_ADDRSTRLEN];
 	struct in_addr ia;
 
 	ia.s_addr = htonl(ims->ims_haddr);
@@ -919,21 +924,21 @@ ims_merge(struct ip_msource *ims, const struct in_msource *lims,
 
 	if (lims->imsl_st[0] == MCAST_EXCLUDE) {
 		CTR3(KTR_IGMPV3, "%s: t1 ex -= %d on %s",
-		    __func__, n, inet_ntoa(ia));
+		    __func__, n, inet_ntoa_r(ia, addrbuf));
 		ims->ims_st[1].ex -= n;
 	} else if (lims->imsl_st[0] == MCAST_INCLUDE) {
 		CTR3(KTR_IGMPV3, "%s: t1 in -= %d on %s",
-		    __func__, n, inet_ntoa(ia));
+		    __func__, n, inet_ntoa_r(ia, addrbuf));
 		ims->ims_st[1].in -= n;
 	}
 
 	if (lims->imsl_st[1] == MCAST_EXCLUDE) {
 		CTR3(KTR_IGMPV3, "%s: t1 ex += %d on %s",
-		    __func__, n, inet_ntoa(ia));
+		    __func__, n, inet_ntoa_r(ia, addrbuf));
 		ims->ims_st[1].ex += n;
 	} else if (lims->imsl_st[1] == MCAST_INCLUDE) {
 		CTR3(KTR_IGMPV3, "%s: t1 in += %d on %s",
-		    __func__, n, inet_ntoa(ia));
+		    __func__, n, inet_ntoa_r(ia, addrbuf));
 		ims->ims_st[1].in += n;
 	}
 }
@@ -1166,11 +1171,14 @@ in_joingroup_locked(struct ifnet *ifp, const struct in_addr *gina,
 	struct in_mfilter	 timf;
 	struct in_multi		*inm;
 	int			 error;
+#ifdef KTR
+	char			 addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	IN_MULTI_LOCK_ASSERT();
 
 	CTR4(KTR_IGMPV3, "%s: join %s on %p(%s))", __func__,
-	    inet_ntoa(*gina), ifp, ifp->if_xname);
+	    inet_ntoa_r(*gina, addrbuf), ifp, ifp->if_xname);
 
 	error = 0;
 	inm = NULL;
@@ -1248,13 +1256,16 @@ in_leavegroup_locked(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 {
 	struct in_mfilter	 timf;
 	int			 error;
+#ifdef KTR
+	char			 addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	error = 0;
 
 	IN_MULTI_LOCK_ASSERT();
 
 	CTR5(KTR_IGMPV3, "%s: leave inm %p, %s/%s, imf %p", __func__,
-	    inm, inet_ntoa(inm->inm_addr),
+	    inm, inet_ntoa_r(inm->inm_addr, addrbuf),
 	    (inm_is_ifp_detached(inm) ? "null" : inm->inm_ifp->if_xname),
 	    imf);
 
@@ -1302,9 +1313,13 @@ in_addmulti(struct in_addr *ap, struct ifnet *ifp)
 {
 	struct in_multi *pinm;
 	int error;
+#ifdef INVARIANTS
+	char addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	KASSERT(IN_LOCAL_GROUP(ntohl(ap->s_addr)),
-	    ("%s: %s not in 224.0.0.0/24", __func__, inet_ntoa(*ap)));
+	    ("%s: %s not in 224.0.0.0/24", __func__,
+	    inet_ntoa_r(*ap, addrbuf)));
 
 	error = in_joingroup(ifp, ap, NULL, &pinm);
 	if (error != 0)
@@ -1349,6 +1364,9 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	size_t				 idx;
 	uint16_t			 fmode;
 	int				 error, doblock;
+#ifdef KTR
+	char				 addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	ifp = NULL;
 	error = 0;
@@ -1384,7 +1402,7 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 			doblock = 1;
 
 		CTR3(KTR_IGMPV3, "%s: imr_interface = %s, ifp = %p",
-		    __func__, inet_ntoa(mreqs.imr_interface), ifp);
+		    __func__, inet_ntoa_r(mreqs.imr_interface, addrbuf), ifp);
 		break;
 	    }
 
@@ -1457,7 +1475,8 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 	ims = imo_match_source(imo, idx, &ssa->sa);
 	if ((ims != NULL && doblock) || (ims == NULL && !doblock)) {
 		CTR3(KTR_IGMPV3, "%s: source %s %spresent", __func__,
-		    inet_ntoa(ssa->sin.sin_addr), doblock ? "" : "not ");
+		    inet_ntoa_r(ssa->sin.sin_addr, addrbuf),
+		    doblock ? "" : "not ");
 		error = EADDRNOTAVAIL;
 		goto out_inp_locked;
 	}
@@ -1934,6 +1953,9 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	struct in_msource		*lims;
 	size_t				 idx;
 	int				 error, is_new;
+#ifdef KTR
+	char				 addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	ifp = NULL;
 	imf = NULL;
@@ -1986,7 +2008,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		ifp = inp_lookup_mcast_ifp(inp, &gsa->sin,
 		    mreqs.imr_interface);
 		CTR3(KTR_IGMPV3, "%s: imr_interface = %s, ifp = %p",
-		    __func__, inet_ntoa(mreqs.imr_interface), ifp);
+		    __func__, inet_ntoa_r(mreqs.imr_interface, addrbuf), ifp);
 		break;
 	}
 
@@ -2233,6 +2255,9 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	struct in_multi			*inm;
 	size_t				 idx;
 	int				 error, is_final;
+#ifdef KTR
+	char				 addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	ifp = NULL;
 	error = 0;
@@ -2287,7 +2312,7 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 			INADDR_TO_IFP(mreqs.imr_interface, ifp);
 
 		CTR3(KTR_IGMPV3, "%s: imr_interface = %s, ifp = %p",
-		    __func__, inet_ntoa(mreqs.imr_interface), ifp);
+		    __func__, inet_ntoa_r(mreqs.imr_interface, addrbuf), ifp);
 
 		break;
 
@@ -2368,7 +2393,7 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		ims = imo_match_source(imo, idx, &ssa->sa);
 		if (ims == NULL) {
 			CTR3(KTR_IGMPV3, "%s: source %s %spresent", __func__,
-			    inet_ntoa(ssa->sin.sin_addr), "not ");
+			    inet_ntoa_r(ssa->sin.sin_addr, addrbuf), "not ");
 			error = EADDRNOTAVAIL;
 			goto out_inp_locked;
 		}
@@ -2450,6 +2475,9 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 	struct ifnet		*ifp;
 	struct ip_moptions	*imo;
 	int			 error;
+#ifdef KTR
+	char			 addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	if (sopt->sopt_valsize == sizeof(struct ip_mreqn)) {
 		/*
@@ -2488,7 +2516,7 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 				return (EADDRNOTAVAIL);
 		}
 		CTR3(KTR_IGMPV3, "%s: ifp = %p, addr = %s", __func__, ifp,
-		    inet_ntoa(addr));
+		    inet_ntoa_r(addr, addrbuf));
 	}
 
 	/* Reject interfaces which do not support multicast. */
@@ -2846,6 +2874,9 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 	int				 retval;
 	u_int				 namelen;
 	uint32_t			 fmode, ifindex;
+#ifdef KTR
+	char				 addrbuf[INET_ADDRSTRLEN];
+#endif
 
 	name = (int *)arg1;
 	namelen = arg2;
@@ -2866,7 +2897,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 	group.s_addr = name[1];
 	if (!IN_MULTICAST(ntohl(group.s_addr))) {
 		CTR2(KTR_IGMPV3, "%s: group %s is not multicast",
-		    __func__, inet_ntoa(group));
+		    __func__, inet_ntoa_r(group, addrbuf));
 		return (EINVAL);
 	}
 
@@ -2901,7 +2932,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 			struct in_addr ina;
 			ina.s_addr = htonl(ims->ims_haddr);
 			CTR2(KTR_IGMPV3, "%s: visit node %s", __func__,
-			    inet_ntoa(ina));
+			    inet_ntoa_r(ina, addrbuf));
 #endif
 			/*
 			 * Only copy-out sources which are in-mode.
@@ -2965,13 +2996,14 @@ void
 inm_print(const struct in_multi *inm)
 {
 	int t;
+	char addrbuf[INET_ADDRSTRLEN];
 
 	if ((ktr_mask & KTR_IGMPV3) == 0)
 		return;
 
 	printf("%s: --- begin inm %p ---\n", __func__, inm);
 	printf("addr %s ifp %p(%s) ifma %p\n",
-	    inet_ntoa(inm->inm_addr),
+	    inet_ntoa_r(inm->inm_addr, addrbuf),
 	    inm->inm_ifp,
 	    inm->inm_ifp->if_xname,
 	    inm->inm_ifma);

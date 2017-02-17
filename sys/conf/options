@@ -723,7 +723,6 @@ ISAPNP			opt_isa.h
 # various 'device presence' options.
 DEV_BPF			opt_bpf.h
 DEV_CARP		opt_carp.h
-DEV_MCA			opt_mca.h
 DEV_NETMAP		opt_global.h
 DEV_PCI			opt_pci.h
 DEV_PF			opt_pf.h
@@ -732,10 +731,6 @@ DEV_PFSYNC		opt_pf.h
 DEV_RANDOM		opt_global.h
 DEV_SPLASH		opt_splash.h
 DEV_VLAN		opt_vlan.h
-
-# EISA support
-DEV_EISA		opt_eisa.h
-EISA_SLOTS		opt_eisa.h
 
 # ed driver
 ED_HPP			opt_ed.h

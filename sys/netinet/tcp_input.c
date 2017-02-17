@@ -3494,7 +3494,7 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
 
 	TCPSTAT_INC(tcps_rttupdated);
 	tp->t_rttupdated++;
-	if (tp->t_srtt != 0) {
+	if ((tp->t_srtt != 0) && (tp->t_rxtshift <= TCP_RTT_INVALIDATE)) {
 		/*
 		 * srtt is stored as fixed point with 5 bits after the
 		 * binary point (i.e., scaled by 8).  The following magic

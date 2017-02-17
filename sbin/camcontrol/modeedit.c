@@ -106,10 +106,11 @@ static int		 editentry_set(char *name, char *newvalue,
 				       int editonly);
 static void		 editlist_populate(struct cam_device *device, int dbd,
 					   int pc, int page, int subpage,
-					   int retries, int timeout);
+					   int task_attr, int retries,
+					   int timeout);
 static void		 editlist_save(struct cam_device *device, int dbd,
 				       int pc, int page, int subpage,
-				       int retries, int timeout);
+				       int task_attr, int retries, int timeout);
 static void		 nameentry_create(int page, int subpage, char *name);
 static struct pagename	*nameentry_lookup(int page, int subpage);
 static int		 load_format(const char *pagedb_path, int lpage,
@@ -118,8 +119,8 @@ static int		 modepage_write(FILE *file, int editonly);
 static int		 modepage_read(FILE *file);
 static void		 modepage_edit(void);
 static void		 modepage_dump(struct cam_device *device, int dbd,
-			    int pc, int page, int subpage, int retries,
-			    int timeout);
+			    int pc, int page, int subpage, int task_attr,
+			    int retries, int timeout);
 static void		 cleanup_editfile(void);
 
 
@@ -550,7 +551,7 @@ load_format(const char *pagedb_path, int lpage, int lsubpage)
 
 static void
 editlist_populate(struct cam_device *device, int dbd, int pc, int page,
-    int subpage, int retries, int timeout)
+    int subpage, int task_attr, int retries, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
 	u_int8_t *mode_pars;		/* Pointer to modepage params. */
@@ -562,8 +563,8 @@ editlist_populate(struct cam_device *device, int dbd, int pc, int page,
 	STAILQ_INIT(&editlist);
 
 	/* Fetch changeable values; use to build initial editlist. */
-	mode_sense(device, dbd, 1, page, subpage, retries, timeout, data,
-		   sizeof(data));
+	mode_sense(device, dbd, 1, page, subpage, task_attr, retries, timeout,
+		   data, sizeof(data));
 
 	mh = (struct scsi_mode_header_6 *)data;
 	mph = MODE_PAGE_HEADER(mh);
@@ -581,14 +582,14 @@ editlist_populate(struct cam_device *device, int dbd, int pc, int page,
 	buff_decode_visit(mode_pars, len, format, editentry_create, 0);
 
 	/* Fetch the current/saved values; use to set editentry values. */
-	mode_sense(device, dbd, pc, page, subpage, retries, timeout,
+	mode_sense(device, dbd, pc, page, subpage, task_attr, retries, timeout,
 	    data, sizeof(data));
 	buff_decode_visit(mode_pars, len, format, editentry_update, 0);
 }
 
 static void
 editlist_save(struct cam_device *device, int dbd, int pc, int page,
-    int subpage, int retries, int timeout)
+    int subpage, int task_attr, int retries, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
 	u_int8_t *mode_pars;		/* Pointer to modepage params. */
@@ -602,7 +603,7 @@ editlist_save(struct cam_device *device, int dbd, int pc, int page,
 		return;
 
 	/* Preload the CDB buffer with the current mode page data. */
-	mode_sense(device, dbd, pc, page, subpage, retries, timeout,
+	mode_sense(device, dbd, pc, page, subpage, task_attr, retries, timeout,
 	    data, sizeof(data));
 
 	/* Initial headers & offsets. */
@@ -639,7 +640,8 @@ editlist_save(struct cam_device *device, int dbd, int pc, int page,
 	 * recorded.
 	 */
 	mode_select(device, (pc << PAGE_CTRL_SHIFT == SMS_PAGE_CTRL_SAVED),
-	    retries, timeout, (u_int8_t *)mh, sizeof(*mh) + hlen + len);
+	    task_attr, retries, timeout, (u_int8_t *)mh,
+	    sizeof(*mh) + hlen + len);
 }
 
 static int
@@ -809,7 +811,7 @@ modepage_edit(void)
 
 static void
 modepage_dump(struct cam_device *device, int dbd, int pc, int page, int subpage,
-	      int retries, int timeout)
+	      int task_attr, int retries, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
 	u_int8_t *mode_pars;		/* Pointer to modepage params. */
@@ -818,7 +820,7 @@ modepage_dump(struct cam_device *device, int dbd, int pc, int page, int subpage,
 	struct scsi_mode_page_header_sp *mphsp;
 	size_t indx, len;
 
-	mode_sense(device, dbd, pc, page, subpage, retries, timeout,
+	mode_sense(device, dbd, pc, page, subpage, task_attr, retries, timeout,
 	    data, sizeof(data));
 
 	mh = (struct scsi_mode_header_6 *)data;
@@ -853,7 +855,7 @@ cleanup_editfile(void)
 
 void
 mode_edit(struct cam_device *device, int dbd, int pc, int page, int subpage,
-	  int edit, int binary, int retry_count, int timeout)
+	  int edit, int binary, int task_attr, int retry_count, int timeout)
 {
 	const char *pagedb_path;	/* Path to modepage database. */
 
@@ -884,8 +886,8 @@ mode_edit(struct cam_device *device, int dbd, int pc, int page, int subpage,
 				exit(EX_OSFILE);
 		}
 
-		editlist_populate(device, dbd, pc, page, subpage, retry_count,
-			timeout);
+		editlist_populate(device, dbd, pc, page, subpage, task_attr,
+		    retry_count, timeout);
 	}
 
 	if (edit) {
@@ -894,10 +896,12 @@ mode_edit(struct cam_device *device, int dbd, int pc, int page, int subpage,
 			errx(EX_USAGE, "it only makes sense to edit page 0 "
 			    "(current) or page 3 (saved values)");
 		modepage_edit();
-		editlist_save(device, dbd, pc, page, subpage, retry_count, timeout);
+		editlist_save(device, dbd, pc, page, subpage, task_attr,
+		    retry_count, timeout);
 	} else if (binary || STAILQ_EMPTY(&editlist)) {
 		/* Display without formatting information. */
-		modepage_dump(device, dbd, pc, page, subpage, retry_count, timeout);
+		modepage_dump(device, dbd, pc, page, subpage, task_attr, 
+		    retry_count, timeout);
 	} else {
 		/* Display with format. */
 		modepage_write(stdout, 0);
@@ -906,7 +910,7 @@ mode_edit(struct cam_device *device, int dbd, int pc, int page, int subpage,
 
 void
 mode_list(struct cam_device *device, int dbd, int pc, int subpages,
-	  int retry_count, int timeout)
+	  int task_attr, int retry_count, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
@@ -927,7 +931,7 @@ mode_list(struct cam_device *device, int dbd, int pc, int subpages,
 	/* Build the list of all mode pages by querying the "all pages" page. */
 	mode_sense(device, dbd, pc, SMS_ALL_PAGES_PAGE,
 	    subpages ? SMS_SUBPAGE_ALL : 0,
-	    retry_count, timeout, data, sizeof(data));
+	    task_attr, retry_count, timeout, data, sizeof(data));
 
 	mh = (struct scsi_mode_header_6 *)data;
 	len = sizeof(*mh) + mh->blk_desc_len;	/* Skip block descriptors. */

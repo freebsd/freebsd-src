@@ -679,7 +679,6 @@ dev/acpica/acpi_throttle.c	optional acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
 dev/acpica/acpi_dock.c		optional acpi_dock acpi
 dev/adlink/adlink.c		optional adlink
-dev/advansys/adv_eisa.c		optional adv eisa
 dev/advansys/adv_pci.c		optional adv pci
 dev/advansys/advansys.c		optional adv
 dev/advansys/advlib.c		optional adv
@@ -694,14 +693,11 @@ dev/agp/agp.c			optional agp pci
 dev/agp/agp_if.m		optional agp pci
 dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
-dev/aha/aha_mca.c		optional aha mca
-dev/ahb/ahb.c			optional ahb eisa
 dev/ahci/ahci.c			optional ahci
 dev/ahci/ahciem.c		optional ahci
 dev/ahci/ahci_pci.c		optional ahci pci
 dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
-dev/aic7xxx/ahc_eisa.c		optional ahc eisa
 dev/aic7xxx/ahc_isa.c		optional ahc isa
 dev/aic7xxx/ahc_pci.c		optional ahc pci \
 	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
@@ -1190,8 +1186,6 @@ dev/bge/if_bge.c			optional bge
 dev/bhnd/bhnd.c				optional bhnd
 dev/bhnd/bhnd_erom.c			optional bhnd
 dev/bhnd/bhnd_erom_if.m			optional bhnd
-dev/bhnd/bhnd_nexus.c			optional bhnd siba_nexus | \
-						 bhnd bcma_nexus
 dev/bhnd/bhnd_subr.c			optional bhnd
 dev/bhnd/bhnd_bus_if.m			optional bhnd
 dev/bhnd/bhndb/bhnd_bhndb.c		optional bhndb bhnd
@@ -1206,7 +1200,6 @@ dev/bhnd/bhndb/bhndb_subr.c		optional bhndb bhnd
 dev/bhnd/bcma/bcma.c			optional bcma bhnd
 dev/bhnd/bcma/bcma_bhndb.c		optional bcma bhnd bhndb
 dev/bhnd/bcma/bcma_erom.c		optional bcma bhnd
-dev/bhnd/bcma/bcma_nexus.c		optional bcma_nexus bcma bhnd
 dev/bhnd/bcma/bcma_subr.c		optional bcma bhnd
 dev/bhnd/cores/chipc/bhnd_chipc_if.m	optional bhnd
 dev/bhnd/cores/chipc/bhnd_sprom_chipc.c	optional bhnd
@@ -1252,7 +1245,6 @@ dev/bhnd/nvram/bhnd_sprom.c		optional bhnd
 dev/bhnd/siba/siba.c			optional siba bhnd
 dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
 dev/bhnd/siba/siba_erom.c		optional siba bhnd
-dev/bhnd/siba/siba_nexus.c		optional siba_nexus siba bhnd
 dev/bhnd/siba/siba_subr.c		optional siba bhnd
 #
 dev/bktr/bktr_audio.c		optional bktr pci
@@ -1267,9 +1259,7 @@ dev/bnxt/bnxt_sysctl.c		optional bnxt iflib pci
 dev/bnxt/bnxt_txrx.c		optional bnxt iflib pci
 dev/bnxt/if_bnxt.c		optional bnxt iflib pci
 dev/buslogic/bt.c		optional bt
-dev/buslogic/bt_eisa.c		optional bt eisa
 dev/buslogic/bt_isa.c		optional bt isa
-dev/buslogic/bt_mca.c		optional bt mca
 dev/buslogic/bt_pci.c		optional bt pci
 dev/bwi/bwimac.c		optional bwi
 dev/bwi/bwiphy.c		optional bwi
@@ -1447,7 +1437,6 @@ dev/dcons/dcons_crom.c		optional dcons_crom
 dev/dcons/dcons_os.c		optional dcons
 dev/de/if_de.c			optional de pci
 dev/dme/if_dme.c		optional dme
-dev/dpt/dpt_eisa.c		optional dpt eisa
 dev/dpt/dpt_pci.c		optional dpt pci
 dev/dpt/dpt_scsi.c		optional dpt
 dev/drm/ati_pcigart.c		optional drm
@@ -1565,8 +1554,6 @@ dev/ed/if_ed_rtl80x9.c		optional ed
 dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/efidev/efidev.c		optional efirt
-dev/eisa/eisa_if.m		standard
-dev/eisa/eisaconf.c		optional eisa
 dev/e1000/if_em.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/em_txrx.c		optional em \
@@ -1611,9 +1598,7 @@ dev/et/if_et.c			optional et
 dev/en/if_en_pci.c		optional en pci
 dev/en/midway.c			optional en
 dev/ep/if_ep.c			optional ep
-dev/ep/if_ep_eisa.c		optional ep eisa
 dev/ep/if_ep_isa.c		optional ep isa
-dev/ep/if_ep_mca.c		optional ep mca
 dev/ep/if_ep_pccard.c		optional ep pccard
 dev/esp/esp_pci.c		optional esp pci
 dev/esp/ncr53c9x.c		optional esp
@@ -1736,7 +1721,6 @@ dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
 dev/ida/ida_disk.c		optional ida
-dev/ida/ida_eisa.c		optional ida eisa
 dev/ida/ida_pci.c		optional ida pci
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ds1307.c		optional ds1307
@@ -2180,7 +2164,6 @@ dev/malo/if_malo.c		optional malo
 dev/malo/if_malohal.c		optional malo
 dev/malo/if_malo_pci.c		optional malo pci
 dev/mc146818/mc146818.c		optional mc146818
-dev/mca/mca_bus.c		optional mca
 dev/md/md.c			optional md
 dev/mdio/mdio_if.m		optional miiproxy | mdio
 dev/mdio/mdio.c			optional miiproxy | mdio
@@ -2404,7 +2387,6 @@ dev/pccbb/pccbb.c		optional cbb
 dev/pccbb/pccbb_isa.c		optional cbb isa
 dev/pccbb/pccbb_pci.c		optional cbb pci
 dev/pcf/pcf.c			optional pcf
-dev/pci/eisa_pci.c		optional pci eisa
 dev/pci/fixup_pci.c		optional pci
 dev/pci/hostb_pci.c		optional pci
 dev/pci/ignore_pci.c		optional pci
@@ -2421,10 +2403,9 @@ dev/pci/pcib_if.m		standard
 dev/pci/pcib_support.c		standard
 dev/pci/vga_pci.c		optional pci
 dev/pcn/if_pcn.c		optional pcn pci
-dev/pdq/if_fea.c		optional fea eisa
 dev/pdq/if_fpa.c		optional fpa pci
-dev/pdq/pdq.c			optional nowerror fea eisa | fpa pci
-dev/pdq/pdq_ifsubr.c		optional nowerror fea eisa | fpa pci
+dev/pdq/pdq.c			optional nowerror fpa pci
+dev/pdq/pdq_ifsubr.c		optional nowerror fpa pci
 dev/pms/freebsd/driver/ini/src/agtiapi.c		optional pmspcv \
 	compile-with "${NORMAL_C} -Wunused-variable -Woverflow -Wparentheses -w"
 dev/pms/RefTisa/sallsdk/spc/sadisc.c			optional pmspcv \
@@ -3252,7 +3233,6 @@ dev/vt/vt_font.c		optional vt
 dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
-dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
 dev/vxge/vxge.c				optional vxge
 dev/vxge/vxgehal/vxgehal-ifmsg.c	optional vxge

@@ -32,12 +32,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/linker_set.h>
 #include <sys/uio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -48,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <pthread.h>
 #include <libgen.h>
+#include <sysexits.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
@@ -269,6 +274,9 @@ pci_vtcon_sock_add(struct pci_vtcon_softc *sc, const char *name,
 	struct sockaddr_un sun;
 	char *pathcopy;
 	int s = -1, fd = -1, error = 0;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 
 	sock = calloc(1, sizeof(struct pci_vtcon_sock));
 	if (sock == NULL) {
@@ -316,6 +324,11 @@ pci_vtcon_sock_add(struct pci_vtcon_softc *sc, const char *name,
 		goto out;
 	}
 
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_ACCEPT, CAP_EVENT, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(s, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 
 	sock->vss_port = pci_vtcon_port_add(sc, name, pci_vtcon_sock_tx, sock);
 	if (sock->vss_port == NULL) {

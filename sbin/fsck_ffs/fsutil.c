@@ -854,7 +854,7 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 	struct inodesc idesc;
 	static int busy = 0;
 
-	if (curdir == ino && ino == ROOTINO) {
+	if (curdir == ino && ino == UFS_ROOTINO) {
 		(void)strcpy(namebuf, "/");
 		return;
 	}
@@ -872,7 +872,7 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 		idesc.id_parent = curdir;
 		goto namelookup;
 	}
-	while (ino != ROOTINO) {
+	while (ino != UFS_ROOTINO) {
 		idesc.id_number = ino;
 		idesc.id_func = findino;
 		idesc.id_name = strdup("..");
@@ -894,7 +894,7 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 		ino = idesc.id_number;
 	}
 	busy = 0;
-	if (ino != ROOTINO)
+	if (ino != UFS_ROOTINO)
 		*--cp = '?';
 	memmove(namebuf, cp, (size_t)(&namebuf[MAXPATHLEN] - cp));
 }

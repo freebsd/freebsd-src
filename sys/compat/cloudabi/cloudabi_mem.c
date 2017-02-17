@@ -29,8 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/proc.h>
-
-#include <vm/vm_extern.h>
+#include <sys/syscallsubr.h>
 
 #include <contrib/cloudabi/cloudabi_types_common.h>
 
@@ -86,16 +85,16 @@ cloudabi_sys_mem_advise(struct thread *td,
 		return (EINVAL);
 	}
 
-	return (kern_vm_madvise(td, (vm_offset_t)uap->mapping,
-	    uap->mapping_len, behav));
+	return (kern_madvise(td, (uintptr_t)uap->mapping, uap->mapping_len,
+	    behav));
 }
 
 int
 cloudabi_sys_mem_lock(struct thread *td, struct cloudabi_sys_mem_lock_args *uap)
 {
 
-	return (vm_mlock(td->td_proc, td->td_ucred, uap->mapping,
-	    uap->mapping_len));
+	return (kern_mlock(td->td_proc, td->td_ucred,
+	    __DECONST(uintptr_t, uap->mapping), uap->mapping_len));
 }
 
 int
@@ -119,8 +118,8 @@ cloudabi_sys_mem_map(struct thread *td, struct cloudabi_sys_mem_map_args *uap)
 	if (error != 0)
 		return (error);
 
-	return (kern_vm_mmap(td, (vm_offset_t)uap->addr, uap->len, prot,
-	    flags, uap->fd, uap->off));
+	return (kern_mmap(td, (uintptr_t)uap->addr, uap->len, prot, flags,
+	    uap->fd, uap->off));
 }
 
 int
@@ -134,8 +133,8 @@ cloudabi_sys_mem_protect(struct thread *td,
 	if (error != 0)
 		return (error);
 
-	return (kern_vm_mprotect(td, (vm_offset_t)uap->mapping,
-	    uap->mapping_len, prot));
+	return (kern_mprotect(td, (uintptr_t)uap->mapping, uap->mapping_len,
+	    prot));
 }
 
 int
@@ -157,8 +156,8 @@ cloudabi_sys_mem_sync(struct thread *td, struct cloudabi_sys_mem_sync_args *uap)
 	if ((uap->flags & CLOUDABI_MS_INVALIDATE) != 0)
 		flags |= MS_INVALIDATE;
 
-	return (kern_vm_msync(td, (vm_offset_t)uap->mapping,
-	    uap->mapping_len, flags));
+	return (kern_msync(td, (uintptr_t)uap->mapping, uap->mapping_len,
+	    flags));
 }
 
 int
@@ -166,7 +165,8 @@ cloudabi_sys_mem_unlock(struct thread *td,
     struct cloudabi_sys_mem_unlock_args *uap)
 {
 
-	return (kern_vm_munlock(td, (vm_offset_t)uap->mapping, uap->mapping_len));
+	return (kern_munlock(td, __DECONST(uintptr_t, uap->mapping),
+	    uap->mapping_len));
 }
 
 int
@@ -174,5 +174,5 @@ cloudabi_sys_mem_unmap(struct thread *td,
     struct cloudabi_sys_mem_unmap_args *uap)
 {
 
-	return (kern_vm_munmap(td, (vm_offset_t)uap->mapping, uap->mapping_len));
+	return (kern_munmap(td, (uintptr_t)uap->mapping, uap->mapping_len));
 }
