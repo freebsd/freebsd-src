@@ -2524,6 +2524,10 @@ CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" CXX="${CXX} ${CD2CFLAGS}" \
 CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
 CDMAKE=${CDENV} PATH=${CDTMP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
 CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${NOFUN}
+.if ${MK_META_MODE} != "no"
+# Don't rebuild build-tools targets during normal build.
+CD2MAKE+=	BUILD_TOOLS_META=.NOMETA_CMP
+.endif
 XDDESTDIR=${DESTDIR}/${XDTP}
 .if !defined(OSREL)
 OSREL!= uname -r | sed -e 's/[-(].*//'
