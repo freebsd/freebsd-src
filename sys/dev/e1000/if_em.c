@@ -920,7 +920,7 @@ em_if_attach_pre(if_ctx_t ctx)
 	 * Set the frame limits assuming
 	 * standard ethernet sized frames.
 	 */
-	adapter->hw.mac.max_frame_size =
+	scctx->isc_max_frame_size = adapter->hw.mac.max_frame_size =
 	    ETHERMTU + ETHER_HDR_LEN + ETHERNET_FCS_SIZE;
 
 	/*
@@ -1117,6 +1117,7 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
   int max_frame_size;
   struct adapter *adapter = iflib_get_softc(ctx);
   struct ifnet *ifp = iflib_get_ifp(ctx); 
+  if_softc_ctx_t scctx = iflib_get_softc_ctx(ctx);
   
   IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
   
@@ -1147,7 +1148,8 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	  return (EINVAL);
   }
   
-  adapter->hw.mac.max_frame_size = if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN;
+  scctx->isc_max_frame_size = adapter->hw.mac.max_frame_size =
+      if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN;
   return (0);
 }
 
