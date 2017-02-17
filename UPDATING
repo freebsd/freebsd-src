@@ -51,6 +51,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170216:
+	EISA bus support has been removed. The WITH_EISA option is no longer
+	valid.
+
+20170215:
+	MCA bus support has been removed.
+
 20170127:
 	The WITH_LLD_AS_LD / WITHOUT_LLD_AS_LD build knobs have been renamed
 	WITH_LLD_IS_LD / WITHOUT_LLD_IS_LD, for consistency with CLANG_IS_CC.
