@@ -98,10 +98,17 @@ void	mtx_sysinit(void *arg);
 int	_mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file,
 	    int line);
 void	mutex_init(void);
+#if LOCK_DEBUG > 0
 void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	    int opts, const char *file, int line);
 void	__mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file,
 	    int line);
+#else
+void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
+	    int opts);
+void	__mtx_unlock_sleep(volatile uintptr_t *c, int opts);
+#endif
+
 #ifdef SMP
 void	_mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	    int opts, const char *file, int line);
@@ -140,10 +147,17 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	_mtx_destroy(&(m)->mtx_lock)
 #define	mtx_trylock_flags_(m, o, f, l)					\
 	_mtx_trylock_flags_(&(m)->mtx_lock, o, f, l)
+#if LOCK_DEBUG > 0
 #define	_mtx_lock_sleep(m, v, t, o, f, l)				\
 	__mtx_lock_sleep(&(m)->mtx_lock, v, t, o, f, l)
 #define	_mtx_unlock_sleep(m, o, f, l)					\
 	__mtx_unlock_sleep(&(m)->mtx_lock, o, f, l)
+#else
+#define	_mtx_lock_sleep(m, v, t, o, f, l)				\
+	__mtx_lock_sleep(&(m)->mtx_lock, v, t, o)
+#define	_mtx_unlock_sleep(m, o, f, l)					\
+	__mtx_unlock_sleep(&(m)->mtx_lock, o)
+#endif
 #ifdef SMP
 #define	_mtx_lock_spin(m, v, t, o, f, l)				\
 	_mtx_lock_spin_cookie(&(m)->mtx_lock, v, t, o, f, l)
