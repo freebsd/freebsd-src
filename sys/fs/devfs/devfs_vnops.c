@@ -693,7 +693,7 @@ devfs_fsync(struct vop_fsync_args *ap)
 
 			error = vop_stdfsync(ap);
 			if (bo->bo_dirty.bv_cnt != 0 || error != 0)
-				panic("devfs_fsync: vop_stdfsync failed.");
+				printf("devfs_fsync: vop_stdfsync failed.");
 		}
 
 		return (0);

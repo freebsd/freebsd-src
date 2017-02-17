@@ -50,8 +50,8 @@
  */
 #define	doff_t		int32_t
 
-#define	NDADDR	12			/* Direct addresses in inode. */
-#define	NIADDR	3			/* Indirect addresses in inode. */
+#define	EXT2_NDADDR	12		/* Direct addresses in inode. */
+#define	EXT2_NIADDR	3		/* Indirect addresses in inode. */
 
 /*
  * The size of physical and logical block numbers in EXT2FS.
@@ -106,8 +106,8 @@ struct inode {
 	int32_t		i_birthnsec;	/* Inode creation time. */
 	uint32_t	i_gen;		/* Generation number. */
 	uint32_t	i_flags;	/* Status flags (chflags). */
-	uint32_t	i_db[NDADDR];	/* Direct disk blocks. */
-	uint32_t	i_ib[NIADDR];	/* Indirect disk blocks. */
+	uint32_t	i_db[EXT2_NDADDR]; /* Direct disk blocks. */
+	uint32_t	i_ib[EXT2_NIADDR]; /* Indirect disk blocks. */
 
 	struct ext4_extent_cache i_ext_cache; /* cache for ext4 extent */
 };

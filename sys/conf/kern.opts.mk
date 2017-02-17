@@ -45,7 +45,6 @@ __DEFAULT_YES_OPTIONS = \
     ZFS
 
 __DEFAULT_NO_OPTIONS = \
-    EISA \
     EXTRA_TCP_STACKS \
     NAND \
     OFED \
@@ -77,10 +76,6 @@ BROKEN_OPTIONS+= ZFS
 
 # Things that don't work because the kernel doesn't have the support
 # for them.
-.if ${MACHINE} != "i386"
-BROKEN_OPTIONS+= EISA
-.endif
-
 .if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
 BROKEN_OPTIONS+= OFED
 .endif

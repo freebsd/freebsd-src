@@ -551,10 +551,6 @@ sctp6_attach(struct socket *so, int proto SCTP_UNUSED, struct thread *p SCTP_UNU
 	 */
 	inp6->inp_ip_ttl = MODULE_GLOBAL(ip_defttl);
 #endif
-	/*
-	 * Hmm what about the IPSEC stuff that is missing here but in
-	 * sctp_attach()?
-	 */
 	SCTP_INP_WUNLOCK(inp);
 	return (0);
 }

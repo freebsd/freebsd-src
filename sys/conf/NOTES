@@ -1429,7 +1429,7 @@ options 	PCI_IOV			# PCI SR-IOV support
 # HARDWARE DEVICE CONFIGURATION
 
 # For ISA the required hints are listed.
-# EISA, MCA, PCI, CardBus, SD/MMC and pccard are self identifying buses, so
+# PCI, CardBus, SD/MMC and pccard are self identifying buses, so
 # no hints are needed.
 
 #
@@ -1530,7 +1530,6 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # adv: All Narrow SCSI bus AdvanSys controllers.
 # adw: Second Generation AdvanSys controllers including the ADV940UW.
 # aha: Adaptec 154x/1535/1640
-# ahb: Adaptec 174x EISA controllers
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
@@ -1557,7 +1556,7 @@ options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
 # trm: Tekram DC395U/UW/F DC315U adapters.
 
 #
-# Note that the order is important in order for Buslogic ISA/EISA cards to be
+# Note that the order is important in order for Buslogic ISA cards to be
 # probed correctly.
 #
 device		bt
@@ -1570,7 +1569,6 @@ device		aha
 hint.aha.0.at="isa"
 device		aic
 hint.aic.0.at="isa"
-device		ahb
 device		ahc
 device		ahd
 device		esp
@@ -1976,7 +1974,6 @@ device		xmphy		# XaQti XMAC II
 # ex:   Intel EtherExpress Pro/10 and other i82595-based adapters,
 #       Olicom Ethernet PC Card devices.
 # fe:   Fujitsu MB86960A/MB86965A Ethernet
-# fea:  DEC DEFEA EISA FDDI adapter
 # fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
@@ -2077,7 +2074,7 @@ device		xmphy		# XaQti XMAC II
 #       in Dell Latitude laptop docking stations.
 #       Also supported: 3Com 3c980(C)-TX, 3Com 3cSOHO100-TX, 3Com 3c450-TX
 
-# Order for ISA/EISA devices is important here
+# Order for ISA devices is important here
 
 device		cm
 hint.cm.0.at="isa"
@@ -2089,7 +2086,6 @@ device		ex
 device		fe
 hint.fe.0.at="isa"
 hint.fe.0.port="0x300"
-device		fea
 device		sn
 hint.sn.0.at="isa"
 hint.sn.0.port="0x300"

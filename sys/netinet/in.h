@@ -433,8 +433,6 @@ __END_DECLS
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
 #define	IP_BINDMULTI		25   /* bool: allow multiple listeners on a tuple */
 #define	IP_RSS_LISTEN_BUCKET	26   /* int; set RSS listen bucket */
-#define	IP_ORIGDSTADDR		27   /* bool: receive IP dst addr/port w/dgram */
-#define	IP_RECVORIGDSTADDR      IP_ORIGDSTADDR
 
 /*
  * Options for controlling the firewall and dummynet.
@@ -648,7 +646,6 @@ int	 in_localaddr(struct in_addr);
 int	 in_localip(struct in_addr);
 int	 in_ifhasaddr(struct ifnet *, struct in_addr);
 int	 inet_aton(const char *, struct in_addr *); /* in libkern */
-char	*inet_ntoa(struct in_addr); /* in libkern */
 char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
 char	*inet_ntop(int, const void *, char *, socklen_t); /* in libkern */
 int	 inet_pton(int af, const char *, void *); /* in libkern */

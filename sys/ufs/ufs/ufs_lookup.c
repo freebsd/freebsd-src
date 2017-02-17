@@ -1069,7 +1069,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		namlen = ep->d_namlen;
 #	endif
 	if (ep->d_ino == 0 ||
-	    (ep->d_ino == WINO && namlen == dirp->d_namlen &&
+	    (ep->d_ino == UFS_WINO && namlen == dirp->d_namlen &&
 	     bcmp(ep->d_name, dirp->d_name, dirp->d_namlen) == 0)) {
 		if (spacefree + dsize < newentrysize)
 			panic("ufs_direnter: compact1");
@@ -1178,12 +1178,12 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	}
 	if (flags & DOWHITEOUT) {
 		/*
-		 * Whiteout entry: set d_ino to WINO.
+		 * Whiteout entry: set d_ino to UFS_WINO.
 		 */
 		if ((error =
 		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
 			return (error);
-		ep->d_ino = WINO;
+		ep->d_ino = UFS_WINO;
 		ep->d_type = DT_WHT;
 		goto out;
 	}
@@ -1353,7 +1353,7 @@ ufs_dirempty(ip, parentino, cred)
 		if (dp->d_reclen == 0)
 			return (0);
 		/* skip empty entries */
-		if (dp->d_ino == 0 || dp->d_ino == WINO)
+		if (dp->d_ino == 0 || dp->d_ino == UFS_WINO)
 			continue;
 		/* accept only "." and ".." */
 #		if (BYTE_ORDER == LITTLE_ENDIAN)
@@ -1445,7 +1445,7 @@ ufs_checkpath(ino_t source_ino, ino_t parent_ino, struct inode *target, struct u
 		return (EEXIST);
 	if (target->i_number == parent_ino)
 		return (0);
-	if (target->i_number == ROOTINO)
+	if (target->i_number == UFS_ROOTINO)
 		return (0);
 	for (;;) {
 		error = ufs_dir_dd_ino(vp, cred, &dd_ino, &vp1);
@@ -1455,7 +1455,7 @@ ufs_checkpath(ino_t source_ino, ino_t parent_ino, struct inode *target, struct u
 			error = EINVAL;
 			break;
 		}
-		if (dd_ino == ROOTINO)
+		if (dd_ino == UFS_ROOTINO)
 			break;
 		if (dd_ino == parent_ino)
 			break;
