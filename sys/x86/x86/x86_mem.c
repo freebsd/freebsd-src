@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 1999 Michael Smith <msmith@freebsd.org>
+ * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,15 +39,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
 /*
- * i686 memory range operations
+ * Pentium Pro+ memory range operations
  *
  * This code will probably be impenetrable without reference to the
- * Intel Pentium Pro documentation.
+ * Intel Pentium Pro documentation or x86-64 programmers manual vol 2.
  */
 
 static char *mem_owner_bios = "BIOS";
@@ -66,19 +74,20 @@ static char *mem_owner_bios = "BIOS";
 
 static int mtrrs_disabled;
 SYSCTL_INT(_machdep, OID_AUTO, disable_mtrrs, CTLFLAG_RDTUN,
-    &mtrrs_disabled, 0, "Disable i686 MTRRs.");
+    &mtrrs_disabled, 0,
+    "Disable MTRRs.");
 
-static void	i686_mrinit(struct mem_range_softc *sc);
-static int	i686_mrset(struct mem_range_softc *sc,
+static void	x86_mrinit(struct mem_range_softc *sc);
+static int	x86_mrset(struct mem_range_softc *sc,
 		    struct mem_range_desc *mrd, int *arg);
-static void	i686_mrAPinit(struct mem_range_softc *sc);
-static void	i686_mrreinit(struct mem_range_softc *sc);
+static void	x86_mrAPinit(struct mem_range_softc *sc);
+static void	x86_mrreinit(struct mem_range_softc *sc);
 
-static struct mem_range_ops i686_mrops = {
-	i686_mrinit,
-	i686_mrset,
-	i686_mrAPinit,
-	i686_mrreinit
+static struct mem_range_ops x86_mrops = {
+	x86_mrinit,
+	x86_mrset,
+	x86_mrAPinit,
+	x86_mrreinit
 };
 
 /* XXX for AP startup hook */
@@ -89,21 +98,21 @@ static u_int64_t mtrr_physmask;
 
 static struct mem_range_desc *mem_range_match(struct mem_range_softc *sc,
 		    struct mem_range_desc *mrd);
-static void	i686_mrfetch(struct mem_range_softc *sc);
-static int	i686_mtrrtype(int flags);
-static int	i686_mrt2mtrr(int flags, int oldval);
-static int	i686_mtrrconflict(int flag1, int flag2);
-static void	i686_mrstore(struct mem_range_softc *sc);
-static void	i686_mrstoreone(void *arg);
-static struct mem_range_desc *i686_mtrrfixsearch(struct mem_range_softc *sc,
+static void	x86_mrfetch(struct mem_range_softc *sc);
+static int	x86_mtrrtype(int flags);
+static int	x86_mrt2mtrr(int flags, int oldval);
+static int	x86_mtrrconflict(int flag1, int flag2);
+static void	x86_mrstore(struct mem_range_softc *sc);
+static void	x86_mrstoreone(void *arg);
+static struct mem_range_desc *x86_mtrrfixsearch(struct mem_range_softc *sc,
 		    u_int64_t addr);
-static int	i686_mrsetlow(struct mem_range_softc *sc,
+static int	x86_mrsetlow(struct mem_range_softc *sc,
 		    struct mem_range_desc *mrd, int *arg);
-static int	i686_mrsetvariable(struct mem_range_softc *sc,
+static int	x86_mrsetvariable(struct mem_range_softc *sc,
 		    struct mem_range_desc *mrd, int *arg);
 
-/* i686 MTRR type to memory range type conversion */
-static int i686_mtrrtomrt[] = {
+/* ia32 MTRR type to memory range type conversion */
+static int x86_mtrrtomrt[] = {
 	MDF_UNCACHEABLE,
 	MDF_WRITECOMBINE,
 	MDF_UNKNOWN,
@@ -113,26 +122,28 @@ static int i686_mtrrtomrt[] = {
 	MDF_WRITEBACK
 };
 
-#define	MTRRTOMRTLEN nitems(i686_mtrrtomrt)
+#define	MTRRTOMRTLEN nitems(x86_mtrrtomrt)
 
 static int
-i686_mtrr2mrt(int val)
+x86_mtrr2mrt(int val)
 {
 
 	if (val < 0 || val >= MTRRTOMRTLEN)
 		return (MDF_UNKNOWN);
-	return (i686_mtrrtomrt[val]);
+	return (x86_mtrrtomrt[val]);
 }
 
 /*
- * i686 MTRR conflicts. Writeback and uncachable may overlap.
+ * x86 MTRR conflicts. Writeback and uncachable may overlap.
  */
 static int
-i686_mtrrconflict(int flag1, int flag2)
+x86_mtrrconflict(int flag1, int flag2)
 {
 
 	flag1 &= MDF_ATTRMASK;
 	flag2 &= MDF_ATTRMASK;
+	if ((flag1 & MDF_UNKNOWN) || (flag2 & MDF_UNKNOWN))
+		return (1);
 	if (flag1 == flag2 ||
 	    (flag1 == MDF_WRITEBACK && flag2 == MDF_UNCACHEABLE) ||
 	    (flag2 == MDF_WRITEBACK && flag1 == MDF_UNCACHEABLE))
@@ -157,13 +168,37 @@ mem_range_match(struct mem_range_softc *sc, struct mem_range_desc *mrd)
 }
 
 /*
+ * Ensure that the direct map region does not contain any mappings
+ * that span MTRRs of different types.  However, the fixed MTRRs can
+ * be ignored, because a large page mapping the first 1 MB of physical
+ * memory is a special case that the processor handles.  Invalidate
+ * any old TLB entries that might hold inconsistent memory type
+ * information. 
+ */
+static void
+x86_mr_split_dmap(struct mem_range_softc *sc __unused)
+{
+#ifdef __amd64__
+	struct mem_range_desc *mrd;
+	int i;
+
+	i = (sc->mr_cap & MR686_FIXMTRR) ? MTRR_N64K + MTRR_N16K + MTRR_N4K : 0;
+	mrd = sc->mr_desc + i;
+	for (; i < sc->mr_ndesc; i++, mrd++) {
+		if ((mrd->mr_flags & (MDF_ACTIVE | MDF_BOGUS)) == MDF_ACTIVE)
+			pmap_demote_DMAP(mrd->mr_base, mrd->mr_len, TRUE);
+	}
+#endif
+}
+
+/*
  * Fetch the current mtrr settings from the current CPU (assumed to
  * all be in sync in the SMP case).  Note that if we are here, we
  * assume that MTRRs are enabled, and we may or may not have fixed
  * MTRRs.
  */
 static void
-i686_mrfetch(struct mem_range_softc *sc)
+x86_mrfetch(struct mem_range_softc *sc)
 {
 	struct mem_range_desc *mrd;
 	u_int64_t msrv;
@@ -179,31 +214,31 @@ i686_mrfetch(struct mem_range_softc *sc)
 			for (j = 0; j < 8; j++, mrd++) {
 				mrd->mr_flags =
 				    (mrd->mr_flags & ~MDF_ATTRMASK) |
-				    i686_mtrr2mrt(msrv & 0xff) | MDF_ACTIVE;
+				    x86_mtrr2mrt(msrv & 0xff) | MDF_ACTIVE;
 				if (mrd->mr_owner[0] == 0)
 					strcpy(mrd->mr_owner, mem_owner_bios);
 				msrv = msrv >> 8;
 			}
 		}
 		msr = MSR_MTRR16kBase;
-		for (i = 0; i < (MTRR_N16K / 8); i++, msr++) {
+		for (i = 0; i < MTRR_N16K / 8; i++, msr++) {
 			msrv = rdmsr(msr);
 			for (j = 0; j < 8; j++, mrd++) {
 				mrd->mr_flags =
 				    (mrd->mr_flags & ~MDF_ATTRMASK) |
-				    i686_mtrr2mrt(msrv & 0xff) | MDF_ACTIVE;
+				    x86_mtrr2mrt(msrv & 0xff) | MDF_ACTIVE;
 				if (mrd->mr_owner[0] == 0)
 					strcpy(mrd->mr_owner, mem_owner_bios);
 				msrv = msrv >> 8;
 			}
 		}
 		msr = MSR_MTRR4kBase;
-		for (i = 0; i < (MTRR_N4K / 8); i++, msr++) {
+		for (i = 0; i < MTRR_N4K / 8; i++, msr++) {
 			msrv = rdmsr(msr);
 			for (j = 0; j < 8; j++, mrd++) {
 				mrd->mr_flags =
 				    (mrd->mr_flags & ~MDF_ATTRMASK) |
-				    i686_mtrr2mrt(msrv & 0xff) | MDF_ACTIVE;
+				    x86_mtrr2mrt(msrv & 0xff) | MDF_ACTIVE;
 				if (mrd->mr_owner[0] == 0)
 					strcpy(mrd->mr_owner, mem_owner_bios);
 				msrv = msrv >> 8;
@@ -213,10 +248,10 @@ i686_mrfetch(struct mem_range_softc *sc)
 
 	/* Get remainder which must be variable MTRRs. */
 	msr = MSR_MTRRVarBase;
-	for (; (mrd - sc->mr_desc) < sc->mr_ndesc; msr += 2, mrd++) {
+	for (; mrd - sc->mr_desc < sc->mr_ndesc; msr += 2, mrd++) {
 		msrv = rdmsr(msr);
 		mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
-		    i686_mtrr2mrt(msrv & MTRR_PHYSBASE_TYPE);
+		    x86_mtrr2mrt(msrv & MTRR_PHYSBASE_TYPE);
 		mrd->mr_base = msrv & mtrr_physmask;
 		msrv = rdmsr(msr + 1);
 		mrd->mr_flags = (msrv & MTRR_PHYSMASK_VALID) ?
@@ -225,7 +260,7 @@ i686_mrfetch(struct mem_range_softc *sc)
 
 		/* Compute the range from the mask. Ick. */
 		mrd->mr_len = (~(msrv & mtrr_physmask) &
-		    (mtrr_physmask | 0xfffLL)) + 1;
+		    (mtrr_physmask | 0xfffL)) + 1;
 		if (!mrvalid(mrd->mr_base, mrd->mr_len))
 			mrd->mr_flags |= MDF_BOGUS;
 
@@ -239,27 +274,27 @@ i686_mrfetch(struct mem_range_softc *sc)
  * Return the MTRR memory type matching a region's flags
  */
 static int
-i686_mtrrtype(int flags)
+x86_mtrrtype(int flags)
 {
 	int i;
 
 	flags &= MDF_ATTRMASK;
 
 	for (i = 0; i < MTRRTOMRTLEN; i++) {
-		if (i686_mtrrtomrt[i] == MDF_UNKNOWN)
+		if (x86_mtrrtomrt[i] == MDF_UNKNOWN)
 			continue;
-		if (flags == i686_mtrrtomrt[i])
+		if (flags == x86_mtrrtomrt[i])
 			return (i);
 	}
 	return (-1);
 }
 
 static int
-i686_mrt2mtrr(int flags, int oldval)
+x86_mrt2mtrr(int flags, int oldval)
 {
 	int val;
 
-	if ((val = i686_mtrrtype(flags)) == -1)
+	if ((val = x86_mtrrtype(flags)) == -1)
 		return (oldval & 0xff);
 	return (val & 0xff);
 }
@@ -271,19 +306,14 @@ i686_mrt2mtrr(int flags, int oldval)
  * XXX Must be called with interrupts enabled.
  */
 static void
-i686_mrstore(struct mem_range_softc *sc)
+x86_mrstore(struct mem_range_softc *sc)
 {
+
 #ifdef SMP
-	/*
-	 * We should use ipi_all_but_self() to call other CPUs into a
-	 * locking gate, then call a target function to do this work.
-	 * The "proper" solution involves a generalised locking gate
-	 * implementation, not ready yet.
-	 */
-	smp_rendezvous(NULL, i686_mrstoreone, NULL, sc);
+	smp_rendezvous(NULL, x86_mrstoreone, NULL, sc);
 #else
 	disable_intr();				/* disable interrupts */
-	i686_mrstoreone(sc);
+	x86_mrstoreone(sc);
 	enable_intr();
 #endif
 }
@@ -294,7 +324,7 @@ i686_mrstore(struct mem_range_softc *sc)
  * stuffing one entry; this is simpler (but slower, of course).
  */
 static void
-i686_mrstoreone(void *arg)
+x86_mrstoreone(void *arg)
 {
 	struct mem_range_softc *sc = arg;
 	struct mem_range_desc *mrd;
@@ -324,36 +354,36 @@ i686_mrstoreone(void *arg)
 	/* Set fixed-range MTRRs. */
 	if (sc->mr_cap & MR686_FIXMTRR) {
 		msr = MSR_MTRR64kBase;
-		for (i = 0; i < (MTRR_N64K / 8); i++, msr++) {
+		for (i = 0; i < MTRR_N64K / 8; i++, msr++) {
 			msrv = 0;
 			omsrv = rdmsr(msr);
 			for (j = 7; j >= 0; j--) {
 				msrv = msrv << 8;
-				msrv |= i686_mrt2mtrr((mrd + j)->mr_flags,
+				msrv |= x86_mrt2mtrr((mrd + j)->mr_flags,
 				    omsrv >> (j * 8));
 			}
 			wrmsr(msr, msrv);
 			mrd += 8;
 		}
 		msr = MSR_MTRR16kBase;
-		for (i = 0; i < (MTRR_N16K / 8); i++, msr++) {
+		for (i = 0; i < MTRR_N16K / 8; i++, msr++) {
 			msrv = 0;
 			omsrv = rdmsr(msr);
 			for (j = 7; j >= 0; j--) {
 				msrv = msrv << 8;
-				msrv |= i686_mrt2mtrr((mrd + j)->mr_flags,
+				msrv |= x86_mrt2mtrr((mrd + j)->mr_flags,
 				    omsrv >> (j * 8));
 			}
 			wrmsr(msr, msrv);
 			mrd += 8;
 		}
 		msr = MSR_MTRR4kBase;
-		for (i = 0; i < (MTRR_N4K / 8); i++, msr++) {
+		for (i = 0; i < MTRR_N4K / 8; i++, msr++) {
 			msrv = 0;
 			omsrv = rdmsr(msr);
 			for (j = 7; j >= 0; j--) {
 				msrv = msrv << 8;
-				msrv |= i686_mrt2mtrr((mrd + j)->mr_flags,
+				msrv |= x86_mrt2mtrr((mrd + j)->mr_flags,
 				    omsrv >> (j * 8));
 			}
 			wrmsr(msr, msrv);
@@ -363,12 +393,12 @@ i686_mrstoreone(void *arg)
 
 	/* Set remainder which must be variable MTRRs. */
 	msr = MSR_MTRRVarBase;
-	for (; (mrd - sc->mr_desc) < sc->mr_ndesc; msr += 2, mrd++) {
+	for (; mrd - sc->mr_desc < sc->mr_ndesc; msr += 2, mrd++) {
 		/* base/type register */
 		omsrv = rdmsr(msr);
 		if (mrd->mr_flags & MDF_ACTIVE) {
 			msrv = mrd->mr_base & mtrr_physmask;
-			msrv |= i686_mrt2mtrr(mrd->mr_flags, omsrv);
+			msrv |= x86_mrt2mtrr(mrd->mr_flags, omsrv);
 		} else {
 			msrv = 0;
 		}
@@ -402,15 +432,15 @@ i686_mrstoreone(void *arg)
  * Hunt for the fixed MTRR referencing (addr)
  */
 static struct mem_range_desc *
-i686_mtrrfixsearch(struct mem_range_softc *sc, u_int64_t addr)
+x86_mtrrfixsearch(struct mem_range_softc *sc, u_int64_t addr)
 {
 	struct mem_range_desc *mrd;
 	int i;
 
-	for (i = 0, mrd = sc->mr_desc; i < (MTRR_N64K + MTRR_N16K + MTRR_N4K);
+	for (i = 0, mrd = sc->mr_desc; i < MTRR_N64K + MTRR_N16K + MTRR_N4K;
 	     i++, mrd++)
-		if ((addr >= mrd->mr_base) &&
-		    (addr < (mrd->mr_base + mrd->mr_len)))
+		if (addr >= mrd->mr_base &&
+		    addr < mrd->mr_base + mrd->mr_len)
 			return (mrd);
 	return (NULL);
 }
@@ -427,21 +457,23 @@ i686_mtrrfixsearch(struct mem_range_softc *sc, u_int64_t addr)
  * "busy" ranges.
  */
 static int
-i686_mrsetlow(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
+x86_mrsetlow(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 {
 	struct mem_range_desc *first_md, *last_md, *curr_md;
 
 	/* Range check. */
-	if (((first_md = i686_mtrrfixsearch(sc, mrd->mr_base)) == NULL) ||
-	    ((last_md = i686_mtrrfixsearch(sc, mrd->mr_base + mrd->mr_len - 1)) == NULL))
+	if ((first_md = x86_mtrrfixsearch(sc, mrd->mr_base)) == NULL ||
+	    (last_md = x86_mtrrfixsearch(sc, mrd->mr_base + mrd->mr_len - 1))
+	    == NULL)
 		return (EINVAL);
 
 	/* Check that we aren't doing something risky. */
-	if (!(mrd->mr_flags & MDF_FORCE))
+	if ((mrd->mr_flags & MDF_FORCE) == 0) {
 		for (curr_md = first_md; curr_md <= last_md; curr_md++) {
 			if ((curr_md->mr_flags & MDF_ATTRMASK) == MDF_UNKNOWN)
 				return (EACCES);
 		}
+	}
 
 	/* Set flags, clear set-by-firmware flag. */
 	for (curr_md = first_md; curr_md <= last_md; curr_md++) {
@@ -459,7 +491,7 @@ i686_mrsetlow(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
  * XXX needs to be updated to properly support "busy" ranges.
  */
 static int
-i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd,
+x86_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd,
     int *arg)
 {
 	struct mem_range_desc *curr_md, *free_md;
@@ -479,8 +511,8 @@ i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd,
 	for (; i < sc->mr_ndesc; i++, curr_md++) {
 		if (curr_md->mr_flags & MDF_ACTIVE) {
 			/* Exact match? */
-			if ((curr_md->mr_base == mrd->mr_base) &&
-			    (curr_md->mr_len == mrd->mr_len)) {
+			if (curr_md->mr_base == mrd->mr_base &&
+			    curr_md->mr_len == mrd->mr_len) {
 
 				/* Whoops, owned by someone. */
 				if (curr_md->mr_flags & MDF_BUSY)
@@ -488,8 +520,8 @@ i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd,
 
 				/* Check that we aren't doing something risky */
 				if (!(mrd->mr_flags & MDF_FORCE) &&
-				    ((curr_md->mr_flags & MDF_ATTRMASK) ==
-				    MDF_UNKNOWN))
+				    (curr_md->mr_flags & MDF_ATTRMASK) ==
+				    MDF_UNKNOWN)
 					return (EACCES);
 
 				/* Ok, just hijack this entry. */
@@ -500,7 +532,7 @@ i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd,
 			/* Non-exact overlap? */
 			if (mroverlap(curr_md, mrd)) {
 				/* Between conflicting region types? */
-				if (i686_mtrrconflict(curr_md->mr_flags,
+				if (x86_mtrrconflict(curr_md->mr_flags,
 				    mrd->mr_flags))
 					return (EINVAL);
 			}
@@ -525,31 +557,32 @@ i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd,
  * Handle requests to set memory range attributes by manipulating MTRRs.
  */
 static int
-i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
+x86_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 {
 	struct mem_range_desc *targ;
-	int error = 0;
+	int error;
 
-	switch(*arg) {
+	switch (*arg) {
 	case MEMRANGE_SET_UPDATE:
 		/*
 		 * Make sure that what's being asked for is even
 		 * possible at all.
 		 */
 		if (!mrvalid(mrd->mr_base, mrd->mr_len) ||
-		    i686_mtrrtype(mrd->mr_flags) == -1)
+		    x86_mtrrtype(mrd->mr_flags) == -1)
 			return (EINVAL);
 
-#define	FIXTOP	((MTRR_N64K * 0x10000) + (MTRR_N16K * 0x4000) + (MTRR_N4K * 0x1000))
+#define	FIXTOP	\
+    ((MTRR_N64K * 0x10000) + (MTRR_N16K * 0x4000) + (MTRR_N4K * 0x1000))
 
 		/* Are the "low memory" conditions applicable? */
-		if ((sc->mr_cap & MR686_FIXMTRR) &&
-		    ((mrd->mr_base + mrd->mr_len) <= FIXTOP)) {
-			if ((error = i686_mrsetlow(sc, mrd, arg)) != 0)
+		if ((sc->mr_cap & MR686_FIXMTRR) != 0 &&
+		    mrd->mr_base + mrd->mr_len <= FIXTOP) {
+			if ((error = x86_mrsetlow(sc, mrd, arg)) != 0)
 				return (error);
 		} else {
 			/* It's time to play with variable MTRRs. */
-			if ((error = i686_mrsetvariable(sc, mrd, arg)) != 0)
+			if ((error = x86_mrsetvariable(sc, mrd, arg)) != 0)
 				return (error);
 		}
 		break;
@@ -569,11 +602,13 @@ i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 		return (EOPNOTSUPP);
 	}
 
+	x86_mr_split_dmap(sc);
+
 	/* Update the hardware. */
-	i686_mrstore(sc);
+	x86_mrstore(sc);
 
 	/* Refetch to see where we're at. */
-	i686_mrfetch(sc);
+	x86_mrfetch(sc);
 	return (0);
 }
 
@@ -582,16 +617,16 @@ i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
  * and fetch the initial settings.
  */
 static void
-i686_mrinit(struct mem_range_softc *sc)
+x86_mrinit(struct mem_range_softc *sc)
 {
 	struct mem_range_desc *mrd;
-	u_int regs[4];
-	int i, nmdesc = 0, pabits;
+	int i, nmdesc;
 
 	if (sc->mr_desc != NULL)
 		/* Already initialized. */
 		return;
 
+	nmdesc = 0;
 	mtrrcap = rdmsr(MSR_MTRRcap);
 	mtrrdef = rdmsr(MSR_MTRRdefType);
 
@@ -607,17 +642,9 @@ i686_mrinit(struct mem_range_softc *sc)
 
 	/*
 	 * Determine the size of the PhysMask and PhysBase fields in
-	 * the variable range MTRRs.  If the extended CPUID 0x80000008
-	 * is present, use that to figure out how many physical
-	 * address bits the CPU supports.  Otherwise, default to 36
-	 * address bits.
+	 * the variable range MTRRs.
 	 */
-	if (cpu_exthigh >= 0x80000008) {
-		do_cpuid(0x80000008, regs);
-		pabits = regs[0] & 0xff;
-	} else
-		pabits = 36;
-	mtrr_physmask = ((1ULL << pabits) - 1) & ~0xfffULL;
+	mtrr_physmask = ((1UL << cpu_maxphyaddr) - 1) & ~0xfffUL;
 
 	/* If fixed MTRRs supported and enabled. */
 	if ((mtrrcap & MTRR_CAP_FIXED) && (mtrrdef & MTRR_DEF_FIXED_ENABLE)) {
@@ -658,22 +685,24 @@ i686_mrinit(struct mem_range_softc *sc)
 	 * have been set by the firmware. (XXX has something already
 	 * played here?)
 	 */
-	i686_mrfetch(sc);
+	x86_mrfetch(sc);
 	mrd = sc->mr_desc;
 	for (i = 0; i < sc->mr_ndesc; i++, mrd++) {
 		if (mrd->mr_flags & MDF_ACTIVE)
 			mrd->mr_flags |= MDF_FIRMWARE;
 	}
+
+	x86_mr_split_dmap(sc);
 }
 
 /*
  * Initialise MTRRs on an AP after the BSP has run the init code.
  */
 static void
-i686_mrAPinit(struct mem_range_softc *sc)
+x86_mrAPinit(struct mem_range_softc *sc)
 {
 
-	i686_mrstoreone(sc);
+	x86_mrstoreone(sc);
 	wrmsr(MSR_MTRRdefType, mtrrdef);
 }
 
@@ -684,25 +713,20 @@ i686_mrAPinit(struct mem_range_softc *sc)
  * XXX Must be called with interrupts enabled.
  */
 static void
-i686_mrreinit(struct mem_range_softc *sc)
+x86_mrreinit(struct mem_range_softc *sc)
 {
+
 #ifdef SMP
-	/*
-	 * We should use ipi_all_but_self() to call other CPUs into a
-	 * locking gate, then call a target function to do this work.
-	 * The "proper" solution involves a generalised locking gate
-	 * implementation, not ready yet.
-	 */
-	smp_rendezvous(NULL, (void *)i686_mrAPinit, NULL, sc);
+	smp_rendezvous(NULL, (void *)x86_mrAPinit, NULL, sc);
 #else
 	disable_intr();				/* disable interrupts */
-	i686_mrAPinit(sc);
+	x86_mrAPinit(sc);
 	enable_intr();
 #endif
 }
 
 static void
-i686_mem_drvinit(void *unused)
+x86_mem_drvinit(void *unused)
 {
 
 	if (mtrrs_disabled)
@@ -719,7 +743,7 @@ i686_mem_drvinit(void *unused)
 	default:
 		return;
 	}
-	mem_range_softc.mr_op = &i686_mrops;
-	i686_mrinit(&mem_range_softc);
+	mem_range_softc.mr_op = &x86_mrops;
+	x86_mrinit(&mem_range_softc);
 }
-SYSINIT(i686memdev, SI_SUB_CPU, SI_ORDER_ANY, i686_mem_drvinit, NULL);
+SYSINIT(x86memdev, SI_SUB_CPU, SI_ORDER_ANY, x86_mem_drvinit, NULL);
