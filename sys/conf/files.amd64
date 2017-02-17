@@ -125,7 +125,6 @@ acpi_wakedata.h			optional	acpi			\
 	no-obj no-implicit-rule	before-depend				\
 	clean		"acpi_wakedata.h"
 #
-amd64/amd64/amd64_mem.c		optional	mem
 #amd64/amd64/apic_vector.S	standard
 amd64/amd64/atomic.c		standard
 amd64/amd64/bios.c		standard
@@ -667,6 +666,7 @@ x86/x86/io_apic.c		standard
 x86/x86/legacy.c		standard
 x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard
+x86/x86/x86_mem.c		optional	mem
 x86/x86/mptable.c		optional	mptable
 x86/x86/mptable_pci.c		optional	mptable pci
 x86/x86/mp_x86.c		optional	smp
