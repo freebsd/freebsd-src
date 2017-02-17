@@ -145,7 +145,7 @@ struct sx_args {
  * deferred to 'tougher' functions.
  */
 
-#if	(LOCK_DEBUG == 0) && !defined(SX_NOINLINE)
+#if	(LOCK_DEBUG == 0)
 /* Acquire an exclusive lock. */
 static __inline int
 __sx_xlock(struct sx *sx, struct thread *td, int opts, const char *file,
