@@ -364,7 +364,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	WITNESS_UNLOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("XUNLOCK", &sx->lock_object, 0, sx->sx_recurse, file,
 	    line);
-#ifdef LOCK_PROFILING
+#if LOCK_DEBUG > 0
 	_sx_xunlock_hard(sx, (uintptr_t)curthread, file, line);
 #else
 	__sx_xunlock(sx, curthread, file, line);
