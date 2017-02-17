@@ -216,6 +216,21 @@ struct asmc_softc {
 				  "Heatsink 2", "Memory Controller", \
 				  "PCI Express Slot Pin", "PCI Express Slot (unk)" } 
 
+#define ASMC_MBP7_TEMPS         { "TB0T", "TB1T", "TB2T", \
+                                "TC0D", "TC0P", "TN0D", "TN0P", "TN0S", \
+                                "TN1D", "TN1F", "TN1G", "TN1S", \
+                                "Th1H", "Ts0P", "Ts0S" }
+
+#define ASMC_MBP7_TEMPNAMES     { "TB0T", "TB1T", "TB2T", \
+                                "TC0D", "TC0P", "TN0D", "TN0P", "TN0S", \
+                                "TN1D", "TN1F", "TN1G", "TN1S", \
+                                "Th1H", "Ts0P", "Ts0S" }
+
+#define ASMC_MBP7_TEMPDESCS     { "Battery charger proximity", "Battery TS1", "Battery TS2", \
+                                "CPU core 1", "CPU core 2", "Northbridge 0D", "Northbridge 0P", "Northbridge 0S", \
+                                "Northbridge 1D", "Northbridge 1F", "Northbridge 1G", "Northbridge 1S", \
+                                "Heatsink", "Left palm rest", "Right palm rest" }
+
 #define ASMC_MBP8_TEMPS		{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
 				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
