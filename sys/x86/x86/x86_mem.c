@@ -721,16 +721,6 @@ x86_mem_drvinit(void *unused)
 		return;
 	if (!(cpu_feature & CPUID_MTRR))
 		return;
-	if ((cpu_id & 0xf00) != 0x600 && (cpu_id & 0xf00) != 0xf00)
-		return;
-	switch (cpu_vendor_id) {
-	case CPU_VENDOR_INTEL:
-	case CPU_VENDOR_AMD:
-	case CPU_VENDOR_CENTAUR:
-		break;
-	default:
-		return;
-	}
 	mem_range_softc.mr_op = &x86_mrops;
 	x86_mrinit(&mem_range_softc);
 }
