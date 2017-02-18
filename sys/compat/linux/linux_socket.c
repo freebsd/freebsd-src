@@ -505,7 +505,7 @@ linux_sa_put(struct osockaddr *osa)
 	 * not changed.
 	 */
 	error = copyin(osa, &sa, sizeof(sa.sa_family));
-	if (error)
+	if (error != 0)
 		return (error);
 
 	bdom = bsd_to_linux_domain(sa.sa_family);
@@ -613,7 +613,7 @@ linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 
 	if (mp->msg_name != NULL) {
 		error = linux_getsockaddr(&to, mp->msg_name, mp->msg_namelen);
-		if (error)
+		if (error != 0)
 			return (error);
 		mp->msg_name = to;
 	} else
@@ -637,7 +637,7 @@ linux_check_hdrincl(struct thread *td, int s)
 	size_val = sizeof(optval);
 	error = kern_getsockopt(td, s, IPPROTO_IP, IP_HDRINCL,
 	    &optval, UIO_SYSSPACE, &size_val);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	return (optval == 0);
@@ -753,7 +753,7 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 
 	error = linux_getsockaddr(&sa, PTRIN(args->name),
 	    args->namelen);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	error = kern_bindat(td, AT_FDCWD, args->s, sa);
@@ -775,7 +775,7 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 
 	error = linux_getsockaddr(&sa, (struct osockaddr *)PTRIN(args->name),
 	    args->namelen);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	error = kern_connectat(td, AT_FDCWD, args->s, sa);
@@ -830,16 +830,15 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 	int error, error1;
 
 	bsd_args.s = s;
-	/* XXX: */
 	bsd_args.name = (struct sockaddr * __restrict)PTRIN(addr);
-	bsd_args.anamelen = PTRIN(namelen);/* XXX */
+	bsd_args.anamelen = PTRIN(namelen);
 	bsd_args.flags = 0;
 	error = linux_set_socket_flags(flags, &bsd_args.flags);
 	if (error != 0)
 		return (error);
 	error = sys_accept4(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.name);
-	if (error) {
+	if (error != 0) {
 		if (error == EFAULT && namelen != sizeof(struct sockaddr_in))
 			return (EINVAL);
 		if (error == EINVAL) {
@@ -858,7 +857,7 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 	}
 	if (addr)
 		error = linux_sa_put(PTRIN(addr));
-	if (error) {
+	if (error != 0) {
 		(void)kern_close(td, td->td_retval[0]);
 		td->td_retval[0] = 0;
 	}
@@ -892,12 +891,11 @@ linux_getsockname(struct thread *td, struct linux_getsockname_args *args)
 	int error;
 
 	bsd_args.fdes = args->s;
-	/* XXX: */
 	bsd_args.asa = (struct sockaddr * __restrict)PTRIN(args->addr);
-	bsd_args.alen = PTRIN(args->namelen);	/* XXX */
+	bsd_args.alen = PTRIN(args->namelen);
 	error = sys_getsockname(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.asa);
-	if (error)
+	if (error != 0)
 		return (error);
 	return (linux_sa_put(PTRIN(args->addr)));
 }
@@ -917,7 +915,7 @@ linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 	bsd_args.alen = (socklen_t *)PTRIN(args->namelen);
 	error = sys_getpeername(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.asa);
-	if (error)
+	if (error != 0)
 		return (error);
 	return (linux_sa_put(PTRIN(args->addr)));
 }
@@ -1414,12 +1412,12 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			linux_cmsg->cmsg_len = LINUX_CMSG_LEN(datalen);
 
 			error = copyout(linux_cmsg, outbuf, L_CMSG_HDRSZ);
-			if (error)
+			if (error != 0)
 				goto bad;
 			outbuf += L_CMSG_HDRSZ;
 
 			error = copyout(data, outbuf, datalen);
-			if (error)
+			if (error != 0)
 				goto bad;
 
 			outbuf += LINUX_CMSG_ALIGN(datalen);
@@ -1542,7 +1540,7 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		case SO_SNDTIMEO:
 			error = copyin(PTRIN(args->optval), &linux_tv,
 			    sizeof(linux_tv));
-			if (error)
+			if (error != 0)
 				return (error);
 			tv.tv_sec = linux_tv.tv_sec;
 			tv.tv_usec = linux_tv.tv_usec;
@@ -1614,7 +1612,7 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			tv_len = sizeof(tv);
 			error = kern_getsockopt(td, args->s, bsd_args.level,
 			    name, &tv, UIO_SYSSPACE, &tv_len);
-			if (error)
+			if (error != 0)
 				return (error);
 			linux_tv.tv_sec = tv.tv_sec;
 			linux_tv.tv_usec = tv.tv_usec;
@@ -1628,7 +1626,7 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			xulen = sizeof(xu);
 			error = kern_getsockopt(td, args->s, bsd_args.level,
 			    name, &xu, UIO_SYSSPACE, &xulen);
-			if (error)
+			if (error != 0)
 				return (error);
 			/*
 			 * XXX Use 0 for pid as the FreeBSD does not cache peer pid.
@@ -1643,7 +1641,7 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			len = sizeof(newval);
 			error = kern_getsockopt(td, args->s, bsd_args.level,
 			    name, &newval, UIO_SYSSPACE, &len);
-			if (error)
+			if (error != 0)
 				return (error);
 			newval = -SV_ABI_ERRNO(td->td_proc, newval);
 			return (copyout(&newval, PTRIN(args->optval), len));
