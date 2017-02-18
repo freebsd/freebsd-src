@@ -374,13 +374,18 @@ int
 _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 {
 	struct mtx *m;
+	struct thread *td;
+	uintptr_t tid, v;
 #ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
 	int contested = 0;
 #endif
 	int rval;
+	bool recursed;
 
-	if (SCHEDULER_STOPPED())
+	td = curthread;
+	tid = (uintptr_t)td;
+	if (SCHEDULER_STOPPED_TD(td))
 		return (1);
 
 	m = mtxlock2mtx(c);
@@ -394,13 +399,21 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 	    ("mtx_trylock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
 
-	if (mtx_owned(m) && ((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
-	    (opts & MTX_RECURSE) != 0)) {
-		m->mtx_recurse++;
-		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
-		rval = 1;
-	} else
-		rval = _mtx_obtain_lock(m, (uintptr_t)curthread);
+	rval = 1;
+	recursed = false;
+	v = MTX_UNOWNED;
+	if (!_mtx_obtain_lock_fetch(m, &v, tid)) {
+		if (v == tid &&
+		    ((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
+		    (opts & MTX_RECURSE) != 0)) {
+			 m->mtx_recurse++;
+			 atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
+			 recursed = true;
+		} else {
+			rval = 0;
+		}
+	}
+
 	opts &= ~MTX_RECURSE;
 
 	LOCK_LOG_TRY("LOCK", &m->lock_object, opts, rval, file, line);
@@ -408,10 +421,9 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 		WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
 		TD_LOCKS_INC(curthread);
-		if (m->mtx_recurse == 0)
+		if (!recursed)
 			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire,
 			    m, contested, waittime, file, line);
-
 	}
 
 	return (rval);
