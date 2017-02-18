@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 27, 2016
+.Dd February 15, 2017
 .Dt ARCHIVE_ENTRY_ACL 3
 .Os
 .Sh NAME
@@ -388,6 +388,13 @@ Prefix each default ACL entry with the word
 .Dq default: .
 .It Dv ARCHIVE_ENTRY_ACL_STYLE_SOLARIS
 The mask and other ACLs don not contain a double colon.
+.El
+.Pp
+The following flags are effecive only on NFSv4 ACL:
+.Bl -tag -offset indent -compact -width ARCHIV
+.It Dv ARCHIVE_ENTRY_ACL_STYLE_COMPACT
+Do not output minus characters for unset permissions and flags in NFSv4 ACL
+permission and flag fields.
 .El
 .Pp
 The following flags are effective on both POSIX.1e and NFSv4 ACL:
