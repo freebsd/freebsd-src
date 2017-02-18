@@ -429,7 +429,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts,
     const char *file, int line)
 #else
 void
-__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts)
+__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid)
 #endif
 {
 	struct mtx *m;
@@ -471,14 +471,18 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts)
 		    (opts & MTX_RECURSE) != 0,
 	    ("_mtx_lock_sleep: recursed on non-recursive mutex %s @ %s:%d\n",
 		    m->lock_object.lo_name, file, line));
+#if LOCK_DEBUG > 0
 		opts &= ~MTX_RECURSE;
+#endif
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_lock_sleep: %p recursing", m);
 		return;
 	}
+#if LOCK_DEBUG > 0
 	opts &= ~MTX_RECURSE;
+#endif
 
 #ifdef HWPMC_HOOKS
 	PMC_SOFT_CALL( , , lock, failed);
@@ -873,7 +877,7 @@ void
 __mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file, int line)
 #else
 void
-__mtx_unlock_sleep(volatile uintptr_t *c, int opts)
+__mtx_unlock_sleep(volatile uintptr_t *c)
 #endif
 {
 	struct mtx *m;
