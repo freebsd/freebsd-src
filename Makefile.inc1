@@ -1503,7 +1503,7 @@ checkworld: .PHONY
 		echo "You need kyua (devel/kyua) to run the test suite." | /usr/bin/fmt; \
 		exit 1; \
 	fi
-	${_+_}${LOCALBASE}/bin/kyua test -k ${TESTSBASE}/Kyuafile
+	${_+_}PATH="$$PATH:${LOCALBASE}/bin" kyua test -k ${TESTSBASE}/Kyuafile
 
 #
 #
