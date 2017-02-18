@@ -143,9 +143,9 @@ struct l_ucred {
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
 struct linux_accept_args {
-	int s;
-	l_uintptr_t addr;
-	l_uintptr_t namelen;
+	register_t s;
+	register_t addr;
+	register_t namelen;
 };
 
 int linux_accept(struct thread *td, struct linux_accept_args *args);

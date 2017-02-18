@@ -959,10 +959,10 @@ linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 struct linux_send_args {
-	int s;
-	l_uintptr_t msg;
-	int len;
-	int flags;
+	register_t s;
+	register_t msg;
+	register_t len;
+	register_t flags;
 };
 
 static int
@@ -987,10 +987,10 @@ linux_send(struct thread *td, struct linux_send_args *args)
 }
 
 struct linux_recv_args {
-	int s;
-	l_uintptr_t msg;
-	int len;
-	int flags;
+	register_t s;
+	register_t msg;
+	register_t len;
+	register_t flags;
 };
 
 static int
