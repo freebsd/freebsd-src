@@ -2883,12 +2883,6 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 			}
 			break;
 		}
-	case XPT_TARGET_IO: {
-			/* target mode not yet support vendor specific commands. */
-			pccb->ccb_h.status |= CAM_REQ_CMP;
-			xpt_done(pccb);
-			break;
-		}
 	case XPT_PATH_INQ: {
 			struct ccb_pathinq *cpi = &pccb->cpi;
 
@@ -2938,7 +2932,6 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 			pabort_ccb = pccb->cab.abort_ccb;
 			switch (pabort_ccb->ccb_h.func_code) {
 			case XPT_ACCEPT_TARGET_IO:
-			case XPT_IMMED_NOTIFY:
 			case XPT_CONT_TARGET_IO:
 				if(arcmsr_seek_cmd2abort(pabort_ccb)==TRUE) {
 					pabort_ccb->ccb_h.status |= CAM_REQ_ABORTED;
