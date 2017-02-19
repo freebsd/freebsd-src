@@ -143,10 +143,6 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		/*FALLTHROUGH*/
 	case XPT_ABORT:			/* Abort the specified CCB */
-	case XPT_EN_LUN:		/* Enable LUN as a target */
-	case XPT_TARGET_IO:		/* Execute target I/O request */
-	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
 		/*
 		 * Only target mode generates these, and only for SCSI. They are
 		 * all invalid/unsupported for NVMe.

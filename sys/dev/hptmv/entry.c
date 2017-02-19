@@ -2289,10 +2289,6 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 
 		case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
-		case XPT_EN_LUN:		/* Enable LUN as a target */
-		case XPT_TARGET_IO:		/* Execute target I/O request */
-		case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-		case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
 		case XPT_ABORT:			/* Abort the specified CCB */
 		case XPT_TERM_IO:		/* Terminate the I/O process */
 			/* XXX Implement */
