@@ -153,7 +153,9 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		struct isp_spi *spi = ISP_SPI_PC(isp, chan);
 		spi->sim = sim;
 		spi->path = path;
+#ifdef	ISP_TARGET_MODE
 		TAILQ_INIT(&spi->waitq);
+#endif
 	} else {
 		fcparam *fcp = FCPARAM(isp, chan);
 		struct isp_fc *fc = ISP_FC_PC(isp, chan);
@@ -169,7 +171,9 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 
 		callout_init_mtx(&fc->gdt, &isp->isp_osinfo.lock, 0);
 		TASK_INIT(&fc->gtask, 1, isp_gdt_task, fc);
+#ifdef	ISP_TARGET_MODE
 		TAILQ_INIT(&fc->waitq);
+#endif
 		isp_loop_changed(isp, chan);
 		ISP_UNLOCK(isp);
 		if (THREAD_CREATE(isp_kthread, fc, &fc->kproc, 0, 0, "%s: fc_thrd%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
