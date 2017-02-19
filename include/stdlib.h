@@ -298,7 +298,7 @@ void	 srandomdev(void);
 long long
 	strtonum(const char *, long long, long long, const char **);
 
-/* Deprecated interfaces, to be removed in FreeBSD 6.0. */
+/* Deprecated interfaces, to be removed. */
 __int64_t
 	 strtoq(const char *, char **, int);
 __uint64_t
