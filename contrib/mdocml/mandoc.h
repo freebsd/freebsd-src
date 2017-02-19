@@ -1,4 +1,4 @@
-/*	$Id: mandoc.h,v 1.213 2017/01/09 01:37:03 schwarze Exp $ */
+/*	$Id: mandoc.h,v 1.214 2017/01/28 23:30:08 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -134,6 +134,7 @@ enum	mandocerr {
 	MANDOCERR_FI_BLANK, /* blank line in fill mode, using .sp */
 	MANDOCERR_FI_TAB, /* tab in filled text */
 	MANDOCERR_SPACE_EOL, /* whitespace at end of input line */
+	MANDOCERR_EOS, /* new sentence, new line */
 	MANDOCERR_COMMENT_BAD, /* bad comment style */
 	MANDOCERR_ESC_BAD, /* invalid escape sequence: esc */
 	MANDOCERR_STR_UNDEF, /* undefined string, using "": name */

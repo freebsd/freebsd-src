@@ -1,4 +1,5 @@
 att.o: att.c config.h roff.h mdoc.h libmdoc.h
+catman.o: catman.c config.h compat_fts.h
 cgi.o: cgi.c config.h mandoc_aux.h mandoc.h roff.h mdoc.h man.h main.h manconf.h mansearch.h cgi.h
 chars.o: chars.c config.h mandoc.h mandoc_aux.h mandoc_ohash.h compat_ohash.h libmandoc.h
 compat_err.o: compat_err.c config.h
@@ -39,6 +40,7 @@ man_validate.o: man_validate.c config.h mandoc_aux.h mandoc.h roff.h man.h libma
 mandoc.o: mandoc.c config.h mandoc.h mandoc_aux.h libmandoc.h
 mandoc_aux.o: mandoc_aux.c config.h mandoc.h mandoc_aux.h
 mandoc_ohash.o: mandoc_ohash.c mandoc_aux.h mandoc_ohash.h compat_ohash.h
+mandocd.o: mandocd.c config.h mandoc.h roff.h mdoc.h man.h main.h manconf.h
 mandocdb.o: mandocdb.c config.h compat_fts.h mandoc_aux.h mandoc_ohash.h compat_ohash.h mandoc.h roff.h mdoc.h man.h manconf.h mansearch.h dba_array.h dba.h
 manpage.o: manpage.c config.h manconf.h mansearch.h
 manpath.o: manpath.c config.h mandoc_aux.h manconf.h
