@@ -1,4 +1,4 @@
-/*	$Id: mandocdb.c,v 1.237 2017/01/11 17:39:53 schwarze Exp $ */
+/*	$Id: mandocdb.c,v 1.244 2017/02/17 14:45:55 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -162,7 +162,7 @@ static	void	 putmdockey(const struct mpage *,
 			const struct roff_node *, uint64_t, int);
 static	int	 render_string(char **, size_t *);
 static	void	 say(const char *, const char *, ...)
-			__attribute__((__format__ (printf, 2, 3)));
+			__attribute__((__format__ (__printf__, 2, 3)));
 static	int	 set_basedir(const char *, int);
 static	int	 treescan(void);
 static	size_t	 utf8(unsigned int, char [7]);
@@ -589,7 +589,7 @@ treescan(void)
 	const char	*argv[2];
 
 	argv[0] = ".";
-	argv[1] = (char *)NULL;
+	argv[1] = NULL;
 
 	f = fts_open((char * const *)argv, FTS_PHYSICAL | FTS_NOCHDIR,
 	    fts_compare);
@@ -872,6 +872,20 @@ filescan(const char *file)
 	}
 
 	/*
+	 * In test mode or when the original name is absolute
+	 * but outside our tree, guess the base directory.
+	 */
+
+	if (op == OP_TEST || (start == buf && *start == '/')) {
+		if (strncmp(buf, "man/", 4) == 0)
+			start = buf + 4;
+		else if ((start = strstr(buf, "/man/")) != NULL)
+			start += 5;
+		else
+			start = buf;
+	}
+
+	/*
 	 * First try to guess our directory structure.
 	 * If we find a separator, try to look for man* or cat*.
 	 * If we find one of these and what's underneath is a directory,
@@ -1139,6 +1153,7 @@ mpages_merge(struct dba *dba, struct mparse *mp)
 		if (mlink->dform != FORM_CAT || mlink->fform != FORM_CAT) {
 			mparse_readfd(mp, fd, mlink->file);
 			close(fd);
+			fd = -1;
 			mparse_result(mp, &man, &sodest);
 		}
 
@@ -1195,34 +1210,43 @@ mpages_merge(struct dba *dba, struct mparse *mp)
 			mpage->title = mandoc_strdup(man->meta.title);
 		} else if (man != NULL && man->macroset == MACROSET_MAN) {
 			man_validate(man);
-			mpage->form = FORM_SRC;
-			mpage->sec = mandoc_strdup(man->meta.msec);
-			mpage->arch = mandoc_strdup(mlink->arch);
-			mpage->title = mandoc_strdup(man->meta.title);
-		} else {
+			if (*man->meta.msec != '\0' ||
+			    *man->meta.msec != '\0') {
+				mpage->form = FORM_SRC;
+				mpage->sec = mandoc_strdup(man->meta.msec);
+				mpage->arch = mandoc_strdup(mlink->arch);
+				mpage->title = mandoc_strdup(man->meta.title);
+			} else
+				man = NULL;
+		}
+
+		assert(mpage->desc == NULL);
+		if (man == NULL) {
 			mpage->form = FORM_CAT;
 			mpage->sec = mandoc_strdup(mlink->dsec);
 			mpage->arch = mandoc_strdup(mlink->arch);
 			mpage->title = mandoc_strdup(mlink->name);
+			parse_cat(mpage, fd);
+		} else if (man->macroset == MACROSET_MDOC)
+			parse_mdoc(mpage, &man->meta, man->first);
+		else
+			parse_man(mpage, &man->meta, man->first);
+		if (mpage->desc == NULL) {
+			mpage->desc = mandoc_strdup(mlink->name);
+			if (warnings)
+				say(mlink->file, "No one-line description, "
+				    "using filename \"%s\"", mlink->name);
 		}
 
-		assert(mpage->desc == NULL);
-		if (man != NULL && man->macroset == MACROSET_MDOC)
-			parse_mdoc(mpage, &man->meta, man->first);
-		else if (man != NULL)
-			parse_man(mpage, &man->meta, man->first);
-		else
-			parse_cat(mpage, fd);
-		if (mpage->desc == NULL)
-			mpage->desc = mandoc_strdup(mpage->mlinks->name);
-
-		if (warnings && !use_all)
-			for (mlink = mpage->mlinks; mlink;
-			     mlink = mlink->next)
+		for (mlink = mpage->mlinks;
+		     mlink != NULL;
+		     mlink = mlink->next) {
+			putkey(mpage, mlink->name, NAME_FILE);
+			if (warnings && !use_all)
 				mlink_check(mpage, mlink);
+		}
 
 		dbadd(dba, mpage);
-		mlink = mpage->mlinks;
 
 nextpage:
 		ohash_delete(&strings);
@@ -1234,29 +1258,48 @@ static void
 parse_cat(struct mpage *mpage, int fd)
 {
 	FILE		*stream;
-	char		*line, *p, *title;
+	struct mlink	*mlink;
+	char		*line, *p, *title, *sec;
 	size_t		 linesz, plen, titlesz;
 	ssize_t		 len;
 	int		 offs;
 
-	stream = (-1 == fd) ?
-	    fopen(mpage->mlinks->file, "r") :
-	    fdopen(fd, "r");
-	if (NULL == stream) {
-		if (-1 != fd)
+	mlink = mpage->mlinks;
+	stream = fd == -1 ? fopen(mlink->file, "r") : fdopen(fd, "r");
+	if (stream == NULL) {
+		if (fd != -1)
 			close(fd);
 		if (warnings)
-			say(mpage->mlinks->file, "&fopen");
+			say(mlink->file, "&fopen");
 		return;
 	}
 
 	line = NULL;
 	linesz = 0;
 
+	/* Parse the section number from the header line. */
+
+	while (getline(&line, &linesz, stream) != -1) {
+		if (*line == '\n')
+			continue;
+		if ((sec = strchr(line, '(')) == NULL)
+			break;
+		if ((p = strchr(++sec, ')')) == NULL)
+			break;
+		free(mpage->sec);
+		mpage->sec = mandoc_strndup(sec, p - sec);
+		if (warnings && *mlink->dsec != '\0' &&
+		    strcasecmp(mpage->sec, mlink->dsec))
+			say(mlink->file,
+			    "Section \"%s\" manual in %s directory",
+			    mpage->sec, mlink->dsec);
+		break;
+	}
+
 	/* Skip to first blank line. */
 
-	while (getline(&line, &linesz, stream) != -1)
-		if (*line == '\n')
+	while (line == NULL || *line != '\n')
+		if (getline(&line, &linesz, stream) == -1)
 			break;
 
 	/*
@@ -1302,8 +1345,7 @@ parse_cat(struct mpage *mpage, int fd)
 
 	if (NULL == title || '\0' == *title) {
 		if (warnings)
-			say(mpage->mlinks->file,
-			    "Cannot find NAME section");
+			say(mlink->file, "Cannot find NAME section");
 		fclose(stream);
 		free(title);
 		return;
@@ -1322,8 +1364,8 @@ parse_cat(struct mpage *mpage, int fd)
 			/* Skip to next word. */ ;
 	} else {
 		if (warnings)
-			say(mpage->mlinks->file,
-			    "No dash in title line");
+			say(mlink->file, "No dash in title line, "
+			    "reusing \"%s\" as one-line description", title);
 		p = title;
 	}
 
