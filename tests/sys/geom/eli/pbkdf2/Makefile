@@ -23,6 +23,6 @@ SRCS.pbkdf2=	\
 LIBADD.pbkdf2= crypto
 
 testvect.h:
-	python gentestvect.py > $@
+	python gentestvect.py > ${.TARGET}
 
 .include <bsd.test.mk>
