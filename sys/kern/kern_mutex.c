@@ -402,16 +402,21 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 	rval = 1;
 	recursed = false;
 	v = MTX_UNOWNED;
-	if (!_mtx_obtain_lock_fetch(m, &v, tid)) {
+	for (;;) {
+		if (_mtx_obtain_lock_fetch(m, &v, tid))
+			break;
+		if (v == MTX_UNOWNED)
+			continue;
 		if (v == tid &&
 		    ((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
 		    (opts & MTX_RECURSE) != 0)) {
-			 m->mtx_recurse++;
-			 atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
-			 recursed = true;
-		} else {
-			rval = 0;
+				 m->mtx_recurse++;
+				 atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
+				 recursed = true;
+				 break;
 		}
+		rval = 0;
+		break;
 	}
 
 	opts &= ~MTX_RECURSE;
