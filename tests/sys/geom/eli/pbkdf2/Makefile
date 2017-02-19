@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-SYSDIR = ../../../../../sys
+SYSDIR = ${SRCTOP}/sys
 .PATH: ${SYSDIR}/geom/eli
 .PATH: ${SYSDIR}/crypto/sha2
 
@@ -22,7 +22,7 @@ SRCS.pbkdf2=	\
 
 LIBADD.pbkdf2= crypto
 
-testvect.h:	gentestvect.py
+testvect.h:
 	python gentestvect.py > $@
 
 .include <bsd.test.mk>
