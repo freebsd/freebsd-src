@@ -496,6 +496,8 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 
 	pcpu->pc_next_asid = 1;
 	pcpu->pc_asid_generation = 1;
+	pcpu->pc_self = pcpu;
+
 #if defined(MIPS_EXC_CNTRS)
 	pcpu->pc_tlb_miss_cnt = 0;
 	pcpu->pc_tlb_invalid_cnt = 0;

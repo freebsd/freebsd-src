@@ -45,7 +45,8 @@
 	register_t	pc_cheri_creturn_cnt;	/* Cheri creturn count */ \
 	u_int32_t	pc_next_asid;		/* next ASID to alloc */ \
 	u_int32_t	pc_asid_generation;	/* current ASID generation */ \
-	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */
+	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */ \
+	struct	pcpu	*pc_self;		/* globally-uniqe self pointer */
 
 #define	PCPU_NUM_EXC_CNTRS	5
 
@@ -58,7 +59,8 @@
 	register_t	pc_tlb_mod_cnt;		/* TLB modification count */ \
 	u_int32_t	pc_next_asid;		/* next ASID to alloc */ \
 	u_int32_t	pc_asid_generation;	/* current ASID generation */ \
-	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */
+	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */ \
+	struct	pcpu	*pc_self;		/* globally-uniqe self pointer */
 
 #define	PCPU_NUM_EXC_CNTRS	3
 
@@ -69,7 +71,8 @@
 	struct	pmap	*pc_curpmap;		/* pmap of curthread */	\
 	u_int32_t	pc_next_asid;		/* next ASID to alloc */ \
 	u_int32_t	pc_asid_generation;	/* current ASID generation */ \
-	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */
+	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */ \
+	struct	pcpu	*pc_self;		/* globally-uniqe self pointer */
 
 #define	PCPU_NUM_EXC_CNTRS	0
 
@@ -78,11 +81,11 @@
 #ifdef	__mips_n64
 #define	PCPU_MD_MIPS64_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[(61 - (PCPU_NUM_EXC_CNTRS * 8))]
+	char		__pad[(53 - (PCPU_NUM_EXC_CNTRS * 8))]
 #else
 #define	PCPU_MD_MIPS32_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[(193 - (PCPU_NUM_EXC_CNTRS * 4))]
+	char		__pad[(189 - (PCPU_NUM_EXC_CNTRS * 4))]
 #endif
 
 #ifdef	__mips_n64
@@ -98,6 +101,13 @@ extern char pcpu_space[MAXCPU][PAGE_SIZE * 2];
 
 extern struct pcpu *pcpup;
 #define	PCPUP	pcpup
+
+/*
+ * Since we use a wired TLB entry to map the same VA to a different
+ * physical page for each CPU, get_pcpu() must use the pc_self
+ * field to obtain a globally-unique pointer.
+ */
+#define	get_pcpu()		(PCPUP->pc_self)
 
 #define	PCPU_ADD(member, value)	(PCPUP->pc_ ## member += (value))
 #define	PCPU_GET(member)	(PCPUP->pc_ ## member)
