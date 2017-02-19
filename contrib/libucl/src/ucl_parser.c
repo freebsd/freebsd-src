@@ -2469,8 +2469,10 @@ ucl_parser_new (int flags)
 		parser->comments = ucl_object_typed_new (UCL_OBJECT);
 	}
 
-	/* Initial assumption about filevars */
-	ucl_parser_set_filevars (parser, NULL, false);
+	if (!(flags & UCL_PARSER_NO_FILEVARS)) {
+		/* Initial assumption about filevars */
+		ucl_parser_set_filevars (parser, NULL, false);
+	}
 
 	return parser;
 }
@@ -2617,6 +2619,19 @@ ucl_parser_add_chunk_full (struct ucl_parser *parser, const unsigned char *data,
 			return false;
 		}
 
+		if (parse_type == UCL_PARSE_AUTO && len > 0) {
+			/* We need to detect parse type by the first symbol */
+			if ((*data & 0x80) == 0x80 && (*data >= 0xdc && *data <= 0xdf)) {
+				parse_type = UCL_PARSE_MSGPACK;
+			}
+			else if (*data == '(') {
+				parse_type = UCL_PARSE_CSEXP;
+			}
+			else {
+				parse_type = UCL_PARSE_UCL;
+			}
+		}
+
 		chunk->begin = data;
 		chunk->remain = len;
 		chunk->pos = chunk->begin;
@@ -2643,6 +2658,8 @@ ucl_parser_add_chunk_full (struct ucl_parser *parser, const unsigned char *data,
 				return ucl_state_machine (parser);
 			case UCL_PARSE_MSGPACK:
 				return ucl_parse_msgpack (parser);
+			case UCL_PARSE_CSEXP:
+				return ucl_parse_csexp (parser);
 			}
 		}
 		else {
