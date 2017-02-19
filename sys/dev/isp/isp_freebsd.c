@@ -153,6 +153,7 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		struct isp_spi *spi = ISP_SPI_PC(isp, chan);
 		spi->sim = sim;
 		spi->path = path;
+		TAILQ_INIT(&spi->waitq);
 	} else {
 		fcparam *fcp = FCPARAM(isp, chan);
 		struct isp_fc *fc = ISP_FC_PC(isp, chan);
@@ -168,6 +169,7 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 
 		callout_init_mtx(&fc->gdt, &isp->isp_osinfo.lock, 0);
 		TASK_INIT(&fc->gtask, 1, isp_gdt_task, fc);
+		TAILQ_INIT(&fc->waitq);
 		isp_loop_changed(isp, chan);
 		ISP_UNLOCK(isp);
 		if (THREAD_CREATE(isp_kthread, fc, &fc->kproc, 0, 0, "%s: fc_thrd%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
@@ -976,6 +978,7 @@ isp_tmcmd_restart(ispsoftc_t *isp)
 	tstate_t *tptr;
 	union ccb *ccb;
 	struct tslist *lhp;
+	struct isp_ccbq *waitq;
 	int bus, i;
 
 	for (bus = 0; bus < isp->isp_nchan; bus++) {
@@ -1005,15 +1008,17 @@ isp_tmcmd_restart(ispsoftc_t *isp)
 						break;
 					}
 				}
-				/*
-				 * We only need to do this once per tptr
-				 */
-				if (!TAILQ_EMPTY(&tptr->waitq)) {
-					ccb = (union ccb *)TAILQ_LAST(&tptr->waitq, isp_ccbq);
-					TAILQ_REMOVE(&tptr->waitq, &ccb->ccb_h, periph_links.tqe);
-					isp_target_start_ctio(isp, ccb, FROM_TIMER);
-				}
 			}
+		}
+
+		/*
+		 * We only need to do this once per channel.
+		 */
+		ISP_GET_PC_ADDR(isp, bus, waitq, waitq);
+		ccb = (union ccb *)TAILQ_FIRST(waitq);
+		if (ccb != NULL) {
+			TAILQ_REMOVE(waitq, &ccb->ccb_h, periph_links.tqe);
+			isp_target_start_ctio(isp, ccb, FROM_TIMER);
 		}
 	}
 }
@@ -1129,7 +1134,6 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 	}
 	SLIST_INIT(&tptr->atios);
 	SLIST_INIT(&tptr->inots);
-	TAILQ_INIT(&tptr->waitq);
 	LIST_INIT(&tptr->atfree);
 	for (i = ATPDPSIZE-1; i >= 0; i--)
 		LIST_INSERT_HEAD(&tptr->atfree, &tptr->atpool[i], next);
@@ -1264,6 +1268,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 	fcparam *fcp;
 	atio_private_data_t *atp;
 	struct ccb_scsiio *cso;
+	struct isp_ccbq *waitq;
 	uint32_t dmaresult, handle, xfrlen, sense_length, tmp;
 	uint8_t local[QENTRY_LEN];
 
@@ -1280,23 +1285,23 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 	isp_prt(isp, ISP_LOGTDEBUG0, "%s: ENTRY[0x%x] how %u xfrlen %u sendstatus %d sense_len %u", __func__, ccb->csio.tag_id, how, ccb->csio.dxfer_len,
 	    (ccb->ccb_h.flags & CAM_SEND_STATUS) != 0, ((ccb->ccb_h.flags & CAM_SEND_SENSE)? ccb->csio.sense_len : 0));
 
+	ISP_GET_PC_ADDR(isp, XS_CHANNEL(ccb), waitq, waitq);
 	switch (how) {
-	case FROM_TIMER:
 	case FROM_CAM:
 		/*
 		 * Insert at the tail of the list, if any, waiting CTIO CCBs
 		 */
-		TAILQ_INSERT_TAIL(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+		TAILQ_INSERT_TAIL(waitq, &ccb->ccb_h, periph_links.tqe);
 		break;
+	case FROM_TIMER:
 	case FROM_SRR:
 	case FROM_CTIO_DONE:
-		TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+		TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 		break;
 	}
 
-	while (TAILQ_FIRST(&tptr->waitq) != NULL) {
-		ccb = (union ccb *) TAILQ_FIRST(&tptr->waitq);
-		TAILQ_REMOVE(&tptr->waitq, &ccb->ccb_h, periph_links.tqe);
+	while ((ccb = (union ccb *) TAILQ_FIRST(waitq)) != NULL) {
+		TAILQ_REMOVE(waitq, &ccb->ccb_h, periph_links.tqe);
 
 		cso = &ccb->csio;
 		xfrlen = cso->dxfer_len;
@@ -1345,7 +1350,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 		 */
 		if (atp->ctcnt >= ATPD_CCB_OUTSTANDING) {
 			isp_prt(isp, ISP_LOGTINFO, "[0x%x] handling only %d CCBs at a time (flags for this ccb: 0x%x)", cso->tag_id, ATPD_CCB_OUTSTANDING, ccb->ccb_h.flags);
-			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+			TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 			break;
 		}
 
@@ -1462,7 +1467,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					if (atp->ests == NULL) {
 						atp->ests = isp_get_ecmd(isp);
 						if (atp->ests == NULL) {
-							TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+							TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 							break;
 						}
 					}
@@ -1617,7 +1622,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					if (atp->ests == NULL) {
 						atp->ests = isp_get_ecmd(isp);
 						if (atp->ests == NULL) {
-							TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+							TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 							break;
 						}
 					}
@@ -1706,13 +1711,13 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 
 		if (isp_get_pcmd(isp, ccb)) {
 			ISP_PATH_PRT(isp, ISP_LOGWARN, ccb->ccb_h.path, "out of PCMDs\n");
-			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+			TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 			break;
 		}
 		handle = isp_allocate_handle(isp, ccb, ISP_HANDLE_TARGET);
 		if (handle == 0) {
 			ISP_PATH_PRT(isp, ISP_LOGWARN, ccb->ccb_h.path, "No XFLIST pointers for %s\n", __func__);
-			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+			TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 			isp_free_pcmd(isp, ccb);
 			break;
 		}
@@ -1742,7 +1747,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			isp_destroy_handle(isp, handle);
 			isp_free_pcmd(isp, ccb);
 			if (dmaresult == CMD_EAGAIN) {
-				TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+				TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 				break;
 			}
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
