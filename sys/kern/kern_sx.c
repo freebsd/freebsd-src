@@ -341,13 +341,18 @@ sx_try_xlock_(struct sx *sx, const char *file, int line)
 	rval = 1;
 	recursed = false;
 	x = SX_LOCK_UNLOCKED;
-	if (!atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, tid)) {
+	for (;;) {
+		if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, tid))
+			break;
+		if (x == SX_LOCK_UNLOCKED)
+			continue;
 		if (x == tid && (sx->lock_object.lo_flags & LO_RECURSABLE)) {
 			sx->sx_recurse++;
 			atomic_set_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
-		} else {
-			rval = 0;
+			break;
 		}
+		rval = 0;
+		break;
 	}
 
 	LOCK_LOG_TRY("XLOCK", &sx->lock_object, 0, rval, file, line);

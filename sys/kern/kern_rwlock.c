@@ -314,13 +314,18 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 	rval = 1;
 	recursed = false;
 	v = RW_UNLOCKED;
-	if (!atomic_fcmpset_acq_ptr(&rw->rw_lock, &v, tid)) {
+	for (;;) {
+		if (atomic_fcmpset_acq_ptr(&rw->rw_lock, &v, tid))
+			break;
+		if (v == RW_UNLOCKED)
+			continue;
 		if (v == tid && (rw->lock_object.lo_flags & LO_RECURSABLE)) {
 			rw->rw_recurse++;
 			atomic_set_ptr(&rw->rw_lock, RW_LOCK_WRITER_RECURSED);
-		} else {
-			rval = 0;
+			break;
 		}
+		rval = 0;
+		break;
 	}
 
 	LOCK_LOG_TRY("WLOCK", &rw->lock_object, 0, rval, file, line);
