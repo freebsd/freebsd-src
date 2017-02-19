@@ -1803,9 +1803,11 @@ devfs_mmap_f(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 	 * compatible.
 	 */
 	mp = vp->v_mount;
-	if (mp != NULL && (mp->mnt_flag & MNT_NOEXEC) != 0)
+	if (mp != NULL && (mp->mnt_flag & MNT_NOEXEC) != 0) {
 		maxprot = VM_PROT_NONE;
-	else
+		if ((prot & VM_PROT_EXECUTE) != 0)
+			return (EACCES);
+	} else
 		maxprot = VM_PROT_EXECUTE;
 	if ((fp->f_flag & FREAD) != 0)
 		maxprot |= VM_PROT_READ;
