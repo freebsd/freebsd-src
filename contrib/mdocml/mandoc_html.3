@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_html.3,v 1.3 2017/01/17 15:32:44 schwarze Exp $
+.\"	$Id: mandoc_html.3,v 1.5 2017/01/28 22:36:38 schwarze Exp $
 .\"
 .\" Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 17 2017 $
+.Dd $Mdocdate: January 28 2017 $
 .Dt MANDOC_HTML 3
 .Os
 .Sh NAME
@@ -137,6 +137,9 @@ Most attributes require one
 .Va char *
 argument which becomes the value of the attribute.
 The arguments have to be given in the same order as the attribute letters.
+If an argument is
+.Dv NULL ,
+the respective attribute is not written.
 .Bl -tag -width 1n -offset indent
 .It Cm c
 Print a
@@ -175,13 +178,15 @@ Print an arbitrary attribute.
 This format letter requires two
 .Vt char *
 arguments, the attribute name and the value.
+The name must not be
+.Dv NULL .
 .It Cm s
 Print a
 .Cm style
 attribute.
 If present, it must be the last format letter.
 In contrast to the other format letters, this one does not yet
-print the value and does not require an argument.
+print the value and does not take an argument.
 Instead, the rest of the format string consists of pairs of
 argument type letters and style name letters.
 .El
@@ -212,6 +217,13 @@ Requires one
 argument, interpreted as an
 .Xr mdoc 7 Ns -style
 width specifier.
+If the argument is
+.Dv NULL ,
+nothing is printed for this pair.
+.It Cm W
+Similar to
+.Cm w ,
+but makes the width negative by multiplying it with \(mi1.
 .El
 .Pp
 Style name letters decide what to do with the preceding argument:
@@ -251,6 +263,8 @@ requires two
 .Vt char *
 arguments.
 The first is the style name, the second its value.
+The style name must not be
+.Dv NULL .
 .El
 .Pp
 .Fn print_otag
@@ -336,5 +350,6 @@ implementation of common mandoc utility functions
 .An -nosplit
 The mandoc HTML formatter was written by
 .An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
-This manual was written by
-.An Ingo Schwarze Aq Mt schwarze@openbsd.org .
+It is maintained by
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org ,
+who also wrote this manual.

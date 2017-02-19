@@ -1,7 +1,7 @@
-/*	$Id: eqn_term.c,v 1.8 2015/01/01 15:36:08 schwarze Exp $ */
+/*	$Id: eqn_term.c,v 1.9 2017/02/12 14:19:01 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -68,8 +68,10 @@ eqn_box(struct termp *p, const struct eqn_box *bp)
 
 	if (bp->pos == EQNPOS_SQRT) {
 		term_word(p, "sqrt");
-		p->flags |= TERMP_NOSPACE;
-		eqn_box(p, bp->first);
+		if (bp->first != NULL) {
+			p->flags |= TERMP_NOSPACE;
+			eqn_box(p, bp->first);
+		}
 	} else if (bp->type == EQN_SUBEXPR) {
 		child = bp->first;
 		eqn_box(p, child);
@@ -93,7 +95,8 @@ eqn_box(struct termp *p, const struct eqn_box *bp)
 		}
 	} else {
 		child = bp->first;
-		if (bp->type == EQN_MATRIX && child->type == EQN_LIST)
+		if (bp->type == EQN_MATRIX &&
+		    child != NULL && child->type == EQN_LIST)
 			child = child->first;
 		while (child != NULL) {
 			eqn_box(p,
