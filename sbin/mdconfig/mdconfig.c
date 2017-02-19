@@ -452,8 +452,8 @@ md_list(const char *units, int opt, const char *fflag)
 			}
 			gc = &pp->lg_config;
 			type = geom_config_get(gc, "type");
-			if (strcmp(type, "vnode") == 0 ||
-			    strcmp(type, "preload") == 0) {
+			if (type != NULL && (strcmp(type, "vnode") == 0 ||
+			    strcmp(type, "preload") == 0)) {
 				file = geom_config_get(gc, "file");
 				if (fflag != NULL &&
 				    strcmp(fflag, file) != 0)
