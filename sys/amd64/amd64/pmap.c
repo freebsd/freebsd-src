@@ -4350,7 +4350,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		if ((newpte & PG_RW) != 0)
 			newpte |= PG_M;
-	}
+	} else
+		newpte |= PG_MANAGED;
 
 	mpte = NULL;
 
@@ -4423,11 +4424,9 @@ retry:
 			/*
 			 * No, might be a protection or wiring change.
 			 */
-			if ((origpte & PG_MANAGED) != 0) {
-				newpte |= PG_MANAGED;
-				if ((newpte & PG_RW) != 0)
-					vm_page_aflag_set(m, PGA_WRITEABLE);
-			}
+			if ((origpte & PG_MANAGED) != 0 &&
+			    (newpte & PG_RW) != 0)
+				vm_page_aflag_set(m, PGA_WRITEABLE);
 			if (((origpte ^ newpte) & ~(PG_M | PG_A)) == 0)
 				goto unchanged;
 			goto validate;
@@ -4444,8 +4443,7 @@ retry:
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		newpte |= PG_MANAGED;
+	if ((newpte & PG_MANAGED) != 0) {
 		pv = get_pv_entry(pmap, &lock);
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
