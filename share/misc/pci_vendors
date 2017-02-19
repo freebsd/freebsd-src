@@ -3,8 +3,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2017.01.08
-#	Date:    2017-01-08 03:15:02
+#	Version: 2017.02.15
+#	Date:    2017-02-15 03:15:02
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -2254,6 +2254,7 @@
 		1043 2016  Trinidad PRO [Radeon R9 370 OEM]
 		1458 2016  Trinidad PRO [Radeon R9 370 OEM]
 		1462 2016  Trinidad PRO [Radeon R9 370 OEM]
+		1462 3050  R9 270 Gaming OC
 		148c 2016  Trinidad PRO [Radeon R9 370 OEM]
 		1682 2015  Trinidad PRO [Radeon R7 370]
 		174b 2016  Trinidad PRO [Radeon R9 370 OEM]
@@ -5520,6 +5521,10 @@
 	8056  Rockwell HCF 56K modem
 	808a  Memory Stick Controller
 	81ce  SxS Pro memory card
+# 2nd ID
+	905c  SxS Pro memory card
+# 2nd ID
+	907f  SxS Pro+ memory card
 	908f  Aeolia ACPI
 	909e  Aeolia Ethernet Controller (Marvell Yukon 2 Family)
 	909f  Aeolia SATA AHCI Controller
@@ -5528,6 +5533,7 @@
 	90a2  Aeolia DMA Controller
 	90a3  Aeolia Memory (DDR3/SPM)
 	90a4  Aeolia USB 3.0 xHCI Host Controller
+	90bc  SxS Pro+ memory card
 104e  Oak Technology, Inc
 	0017  OTI-64017
 	0107  OTI-107 [Spitfire]
@@ -6093,6 +6099,20 @@
 		1077 0246  8300 Series Dual Port 10GbE Converged Network Adapter (TCP/IP Networking)
 	8031  8300 Series 10GbE Converged Network Adapter (FCoE)
 	8032  8300 Series 10GbE Converged Network Adapter (iSCSI)
+	8070  FastLinQ QL41000 Series 10/25/40/50GbE Controller
+		1077 0011  FastLinQ QL41212H 25GbE Adapter
+		1077 0012  FastLinQ QL41112H 10GbE Adapter
+	8080  FastLinQ QL41000 Series 10/25/40/50GbE Controller (FCoE)
+		1077 000d  FastLinQ QL41262H 25GbE FCoE Adapter
+		1077 000e  FastLinQ QL41162H 10GbE FCoE Adapter
+	8084  FastLinQ QL41000 Series 10/25/40/50GbE Controller (iSCSI)
+		1077 000d  FastLinQ QL41262H 25GbE iSCSI Adapter
+		1077 000e  FastLinQ QL41162H 10GbE iSCSI Adapter
+	8090  FastLinQ QL41000 Series Gigabit Ethernet Controller (SR-IOV VF)
+		1077 000d  FastLinQ QL41262H 25GbE FCoE Adapter (SR-IOV VF)
+		1077 000e  FastLinQ QL41162H 10GbE iSCSI Adapter (SR-IOV VF)
+		1077 0011  FastLinQ QL41212H 25GbE Adapter (SR-IOV VF)
+		1077 0012  FastLinQ QL41112H 10GbE Adapter (SR-IOV VF)
 	8430  ISP8324 1/10GbE Converged Network Controller (NIC VF)
 	8431  8300 Series 10GbE Converged Network Adapter (FCoE VF)
 	8432  ISP2432M-based 10GbE Converged Network Adapter (CNA)
@@ -10584,6 +10604,7 @@
 	1347  GM108M [GeForce 940M]
 	1348  GM108M [GeForce 945M / 945A]
 	1349  GM108M [GeForce 930M]
+	134b  GM108M [GeForce 940MX]
 	134d  GM108M [GeForce 940MX]
 	134e  GM108M [GeForce 930MX]
 	134f  GM108M [GeForce 920MX]
@@ -10616,6 +10637,8 @@
 	13b1  GM107GLM [Quadro M1000M]
 	13b2  GM107GLM [Quadro M600M]
 	13b3  GM107GLM [Quadro K2200M]
+	13b4  GM107GLM [Quadro M620 Mobile]
+	13b6  GM107GLM [Quadro M1200 Mobile]
 	13b9  GM107GL [NVS 810]
 	13ba  GM107GL [Quadro K2200]
 	13bb  GM107GL [Quadro K620]
@@ -10648,6 +10671,7 @@
 	1427  GM206M [GeForce GTX 965M]
 	1430  GM206GL [Quadro M2000]
 	1431  GM206GL [Tesla M4]
+	1436  GM206GLM [Quadro M2200 Mobile]
 	15f0  GP100GL
 	15f1  GP100GL
 	15f7  GP100GL [Tesla P100 PCIe 12GB]
@@ -10677,28 +10701,31 @@
 	1b82  GP104
 	1b83  GP104
 	1b84  GP104 [GeForce GTX 1060 3GB]
-	1ba0  GP104M [GeForce GTX 1080]
-	1ba1  GP104M [GeForce GTX 1070]
+	1ba0  GP104M [GeForce GTX 1080 Mobile]
+	1ba1  GP104M [GeForce GTX 1070 Mobile]
 	1bb0  GP104GL [Quadro P5000]
 	1bb1  GP104GL
 	1bb3  GP104GL [Tesla P4]
 	1bb4  GP104GL
-	1be0  GP104M [GeForce GTX 1080]
-	1be1  GP104M [GeForce GTX 1070]
+	1bb6  GP104GLM [Quadro P5000 Mobile]
+	1bb7  GP104GLM [Quadro P4000 Mobile]
+	1bb8  GP104GLM [Quadro P3000 Mobile]
+	1be0  GP104M [GeForce GTX 1080 Mobile]
+	1be1  GP104M [GeForce GTX 1070 Mobile]
 	1c00  GP106
 	1c01  GP106
 	1c02  GP106 [GeForce GTX 1060 3GB]
 	1c03  GP106 [GeForce GTX 1060 6GB]
-	1c20  GP106M [GeForce GTX 1060]
+	1c20  GP106M [GeForce GTX 1060 Mobile]
 	1c30  GP106GL
 	1c35  GP106
-	1c60  GP106M [GeForce GTX 1060]
+	1c60  GP106M [GeForce GTX 1060 Mobile]
 	1c70  GP106GL
 	1c80  GP107
 	1c81  GP107 [GeForce GTX 1050]
 	1c82  GP107 [GeForce GTX 1050 Ti]
-	1c8c  GP107M [GeForce GTX 1050 Ti]
-	1c8d  GP107M [GeForce GTX 1050]
+	1c8c  GP107M [GeForce GTX 1050 Ti Mobile]
+	1c8d  GP107M [GeForce GTX 1050 Mobile]
 	1c8e  GP107M
 	1ca7  GP107GL
 	1ca8  GP107GL
@@ -13224,6 +13251,7 @@
 	0001  FireStream 155
 	0003  FireStream 50
 119f  Bull HN Information Systems
+	1081  BXI Host Channel Adapter
 11a0  Convex Computer Corporation
 11a1  Hamamatsu Photonics K.K.
 11a2  Sierra Research and Technology
@@ -16021,6 +16049,9 @@
 	509b  T540-509B Unified Wire Ethernet Controller
 	509c  T520-509C Unified Wire Ethernet Controller
 	509d  T540-509D Unified Wire Ethernet Controller
+	509e  T520-509E Unified Wire Ethernet Controller
+	509f  T540-509F Unified Wire Ethernet Controller
+	50a0  T540-50A0 Unified Wire Ethernet Controller
 	5401  T520-CR Unified Wire Ethernet Controller
 	5402  T522-CR Unified Wire Ethernet Controller
 	5403  T540-CR Unified Wire Ethernet Controller
@@ -16049,7 +16080,7 @@
 	5481  T540-5081 Unified Wire Ethernet Controller
 	5482  T504-5082 Unified Wire Ethernet Controller
 	5483  T540-5083 Unified Wire Ethernet Controller
-	5484  T580-5084 Unified Wire Ethernet Controller
+	5484  T540-5084 Unified Wire Ethernet Controller
 	5485  T580-5085 Unified Wire Ethernet Controller
 	5486  T580-5086 Unified Wire Ethernet Controller
 	5487  T580-5087 Unified Wire Ethernet Controller
@@ -16069,6 +16100,9 @@
 	549b  T540-509B Unified Wire Ethernet Controller
 	549c  T520-509C Unified Wire Ethernet Controller
 	549d  T540-509D Unified Wire Ethernet Controller
+	549e  T520-509E Unified Wire Ethernet Controller
+	549f  T540-509F Unified Wire Ethernet Controller
+	54a0  T540-50A0 Unified Wire Ethernet Controller
 	5501  T520-CR Unified Wire Storage Controller
 	5502  T522-CR Unified Wire Storage Controller
 	5503  T540-CR Unified Wire Storage Controller
@@ -16097,7 +16131,7 @@
 	5581  T540-5081 Unified Wire Storage Controller
 	5582  T504-5082 Unified Wire Storage Controller
 	5583  T540-5083 Unified Wire Storage Controller
-	5584  T580-5084 Unified Wire Storage Controller
+	5584  T540-5084 Unified Wire Storage Controller
 	5585  T580-5085 Unified Wire Storage Controller
 	5586  T580-5086 Unified Wire Storage Controller
 	5587  T580-5087 Unified Wire Storage Controller
@@ -16117,6 +16151,9 @@
 	559b  T540-509B Unified Wire Storage Controller
 	559c  T520-509C Unified Wire Storage Controller
 	559d  T540-509D Unified Wire Storage Controller
+	559e  T520-509E Unified Wire Storage Controller
+	559f  T540-509F Unified Wire Storage Controller
+	55a0  T540-50A0 Unified Wire Storage Controller
 	5601  T520-CR Unified Wire Storage Controller
 	5602  T522-CR Unified Wire Storage Controller
 	5603  T540-CR Unified Wire Storage Controller
@@ -16145,7 +16182,7 @@
 	5681  T540-5081 Unified Wire Storage Controller
 	5682  T504-5082 Unified Wire Storage Controller
 	5683  T540-5083 Unified Wire Storage Controller
-	5684  T580-5084 Unified Wire Storage Controller
+	5684  T540-5084 Unified Wire Storage Controller
 	5685  T580-5085 Unified Wire Storage Controller
 	5686  T580-5086 Unified Wire Storage Controller
 	5687  T580-5087 Unified Wire Storage Controller
@@ -16165,6 +16202,9 @@
 	569b  T540-509B Unified Wire Storage Controller
 	569c  T520-509C Unified Wire Storage Controller
 	569d  T540-509D Unified Wire Storage Controller
+	569e  T520-509E Unified Wire Storage Controller
+	569f  T540-509F Unified Wire Storage Controller
+	56a0  T540-50A0 Unified Wire Storage Controller
 	5701  T520-CR Unified Wire Ethernet Controller
 	5702  T522-CR Unified Wire Ethernet Controller
 	5703  T540-CR Unified Wire Ethernet Controller
@@ -16232,7 +16272,7 @@
 	5881  T540-5081 Unified Wire Ethernet Controller [VF]
 	5882  T504-5082 Unified Wire Ethernet Controller [VF]
 	5883  T540-5083 Unified Wire Ethernet Controller [VF]
-	5884  T580-5084 Unified Wire Ethernet Controller [VF]
+	5884  T540-5084 Unified Wire Ethernet Controller [VF]
 	5885  T580-5085 Unified Wire Ethernet Controller [VF]
 	5886  T580-5086 Unified Wire Ethernet Controller [VF]
 	5887  T580-5087 Unified Wire Ethernet Controller [VF]
@@ -16252,6 +16292,9 @@
 	589b  T540-509B Unified Wire Ethernet Controller [VF]
 	589c  T520-509C Unified Wire Ethernet Controller [VF]
 	589d  T540-509D Unified Wire Ethernet Controller [VF]
+	589e  T520-509E Unified Wire Ethernet Controller [VF]
+	589f  T540-509F Unified Wire Ethernet Controller [VF]
+	58a0  T540-50A0 Unified Wire Ethernet Controller [VF]
 	6001  T6225-CR Unified Wire Ethernet Controller
 	6002  T6225-SO-CR Unified Wire Ethernet Controller
 	6003  T6425-CR Unified Wire Ethernet Controller
@@ -16265,6 +16308,8 @@
 	6011  T6225-LL-CR Unified Wire Ethernet Controller
 	6014  T61100-OCP-SO Unified Wire Ethernet Controller
 	6015  T6201-BT Unified Wire Ethernet Controller
+	6080  T6225-6080 Unified Wire Ethernet Controller
+	6081  T62100-6081 Unified Wire Ethernet Controller
 	6401  T6225-CR Unified Wire Ethernet Controller
 	6402  T6225-SO-CR Unified Wire Ethernet Controller
 	6403  T6425-CR Unified Wire Ethernet Controller
@@ -16278,6 +16323,8 @@
 	6411  T6225-LL-CR Unified Wire Ethernet Controller
 	6414  T61100-OCP-SO Unified Wire Ethernet Controller
 	6415  T6201-BT Unified Wire Ethernet Controller
+	6480  T6225-6080 Unified Wire Ethernet Controller
+	6481  T62100-6081 Unified Wire Ethernet Controller
 	6501  T6225-CR Unified Wire Storage Controller
 	6502  T6225-SO-CR Unified Wire Storage Controller
 	6503  T6425-CR Unified Wire Storage Controller
@@ -16291,6 +16338,8 @@
 	6511  T6225-LL-CR Unified Wire Storage Controller
 	6514  T61100-OCP-SO Unified Wire Storage Controller
 	6515  T6201-BT Unified Wire Storage Controller
+	6580  T6225-6080 Unified Wire Storage Controller
+	6581  T62100-6081 Unified Wire Storage Controller
 	6601  T6225-CR Unified Wire Storage Controller
 	6602  T6225-SO-CR Unified Wire Storage Controller
 	6603  T6425-CR Unified Wire Storage Controller
@@ -16304,6 +16353,8 @@
 	6611  T6225-LL-CR Unified Wire Storage Controller
 	6614  T61100-OCP-SO Unified Wire Storage Controller
 	6615  T6201-BT Unified Wire Storage Controller
+	6680  T6225-6080 Unified Wire Storage Controller
+	6681  T62100-6081 Unified Wire Storage Controller
 	6801  T6225-CR Unified Wire Ethernet Controller [VF]
 	6802  T6225-SO-CR Unified Wire Ethernet Controller [VF]
 	6803  T6425-CR Unified Wire Ethernet Controller [VF]
@@ -16317,6 +16368,8 @@
 	6811  T6225-LL-CR Unified Wire Ethernet Controller [VF]
 	6814  T61100-OCP-SO Unified Wire Ethernet Controller [VF]
 	6815  T6201-BT Unified Wire Ethernet Controller [VF]
+	6880  T6225-6080 Unified Wire Ethernet Controller [VF]
+	6881  T62100-6081 Unified Wire Ethernet Controller [VF]
 	a000  PE10K Unified Wire Ethernet Controller
 1426  Storage Technology Corp.
 1427  Better On-Line Solutions
@@ -16516,6 +16569,7 @@
 14a2  Millennium Engineering Inc
 14a3  Maverick Networks
 14a4  Lite-On Technology Corporation
+	22f1  M8Pe Series NVMe SSD
 # Wrong vendor ID used
 	4318  Broadcom BCM4318 [AirForce One 54g] 802.11g WLAN Controller
 14a5  XIONICS Document Technologies Inc
@@ -17957,6 +18011,7 @@
 1599  Delta Electronics Inc
 159a  General Instrument
 159b  Faraday Technology Corp
+	4321  StorLink SL3516 (Gemini) Host Bridge
 159c  Stratus Computer Systems
 159d  Ningbo Harrison Electronics Co Ltd
 159e  A-Max Technology Co Ltd
@@ -18013,6 +18068,7 @@
 	024f  MT53100 [Spectrum-2, Flash recovery mode]
 	0262  MT27710 [ConnectX-4 Lx Programmable] EN
 	0263  MT27710 [ConnectX-4 Lx Programmable Virtual Function] EN
+	0281  NPS-600 Flash Recovery
 	1002  MT25400 Family [ConnectX-2 Virtual Function]
 	1003  MT27500 Family [ConnectX-3]
 		103c 1777  InfiniBand FDR/EN 10/40Gb Dual Port 544FLR-QSFP Adapter (Rev Cx)
@@ -18872,10 +18928,18 @@
 	9700  Octeon III CN73XX Network Processor
 	9702  CN23XX [LiquidIO II] Intelligent Adapter
 		177d 0003  CN2350 [LiquidIO II] 2-port 10GbE Intelligent adapter
-		177d 0004  CN2350 [LiquidIO II] 2-port 25GbE Intelligent adapter
+# This was changed during the production phase to 10GbE adapter.
+		177d 0004  CN2350 [LiquidIO II] 2-port 10GbE Intelligent adapter
+		177d 0005  CN2360 [LiquidIO II] 2-port 10GbE Intelligent adapter
+		177d 0006  CN2360 [LiquidIO II] 2-port 25GbE Intelligent adapter
+		177d 0007  CN2350 [LiquidIO II] 2-port 25GbE Intelligent adapter
 	9703  CN23XX [LiquidIO II] NVMe Controller
 	9712  CN23XX [LiquidIO II] SRIOV Virtual Function
 		177d 0003  CN2350 [LiquidIO II] 2-port 10GbE SRIOV Virtual Function
+		177d 0004  CN2350 [LiquidIO II] 2-port 10GbE SRIOV Virtual Function
+		177d 0005  CN2360 [LiquidIO II] 2-port 10GbE SRIOV Virtual Function
+		177d 0006  CN2360 [LiquidIO II] 2-port 25GbE SRIOV Virtual Function
+		177d 0007  CN2350 [LiquidIO II] 2-port 25GbE SRIOV Virtual Function
 	9713  CN23XX [LiquidIO II] NVMe SRIOV Virtual Function
 	9800  Octeon Fusion CNF75XX Processor
 	a001  ThunderX MRML(Master RML Bridge to RSL devices)
@@ -19445,8 +19509,8 @@
 	0155  NT100E3-1-PTP Network Adapter 1x100Gb
 	0165  NT80E3-2-PTP Network Adapter 2x40Gb
 	0175  NT20E3-2-PTP Network Adapter 2x10Gb
-	0185  NT40A01-4x1 Network Adapter 4x1Gb
-	01a5  NT200A01 Network Adapter 2x100Gb
+	0185  NT40A01 Network Adapter
+	01a5  NT200A01 Network Adapter
 18f6  NextIO
 	1000  [Nexsis] Switch Virtual P2P PCIe Bridge
 	1001  [Texsis] Switch Virtual P2P PCIe Bridge
@@ -19602,14 +19666,15 @@
 		1924 800e  SFN7x42Q-R2 Flareon Ultra 7000 Series 10/40G Adapter
 		1924 800f  SFN7xx4F-R1 Flareon Ultra 7000 Series 10G Adapter
 	0a03  SFC9220 10/40G Ethernet Controller
-		1924 8011  SFN 8022-R1 Solarflare Flareon 8000 Series 10G Adapter
+		1924 8011  SFN8022-R1 Flareon 8000 Series 10G Adapter
 		1924 8012  SFN8522-R1 Flareon Ultra 8000 Series 10G Adapter
-		1924 8013  SFN8042-R1 Solarflare Flareon 8000 Series 10/40G Adapter
+		1924 8013  SFN8042-R1 Flareon 8000 Series 10/40G Adapter
 		1924 8014  SFN8542-R1 Flareon Ultra 8000 Series 10/40G Adapter
 		1924 8016  SFN8022-R2 Flareon 8000 Series 10G Adapter
 		1924 8017  SFN8522-R2 Flareon Ultra 8000 Series 10G Adapter
 		1924 8018  SFN8042-R2 Flareon 8000 Series 10/40G Adapter
 		1924 8019  SFN8542-R2 Flareon Ultra 8000 Series 10/40G Adapter
+		1924 801a  SFN8722-R1 Flareon Ultra 8000 Series OCP 10G Adapter
 	1803  SFC9020 10G Ethernet Controller (Virtual Function)
 	1813  SFL9021 10GBASE-T Ethernet Controller (Virtual Function)
 	1903  SFC9120 10G Ethernet Controller (Virtual Function)
@@ -19902,6 +19967,7 @@
 	5808  DDRdrive X8
 	dd52  DDRdrive X1-30
 19e5  Huawei Technologies Co., Ltd.
+	1711  Hi1710 [iBMC Intelligent Management system chip w/VGA support]
 19e7  NET (Network Equipment Technologies)
 	1001  STIX DSP Card
 	1002  STIX - 1 Port T1/E1 Card
@@ -20101,7 +20167,7 @@
 1b03  Magnum Semiconductor, Inc,
 	6100  DXT/DXTPro Multiformat Broadcast HD/SD Encoder/Decoder/Transcoder
 	7000  D7 Multiformat Broadcast HD/SD Encoder/Decoder/Transcoder
-1b08  MSC Vertriebs GmbH
+1b08  MSC Technologies GmbH
 1b0a  Pegatron
 1b13  Jaton Corp
 1b1a  K&F Computing Research Co.
@@ -20318,6 +20384,8 @@
 	0003  Ultrastar SN100 Series NVMe SSD
 		1014 04f5  PCIe3 1.6TB NVMe Flash Adapter
 		1014 04f6  PCIe3 3.2TB NVMe Flash Adapter
+1c5f  Beijing Memblaze Technology Co. Ltd.
+	0540  PBlaze4 NVMe SSD
 # http://www.nicevt.ru/ (in Russian)
 1c63  Science and Research Centre of Computer Technology (JSC "NICEVT")
 # http://www.radiotec.ru/catalog.php?cat=jr8&art=14109
@@ -20437,16 +20505,18 @@
 	4022  TN9310 10GbE SFP+ Ethernet Adapter
 		1043 8709  XG-C100F 10GbE SFP+ Ethernet Adapter
 		1186 4d00  DXE-810S 10GbE SFP+ Ethernet Adapter
-		1432 8103  EN-8102PF 10GbE SPF+ Ethernet Adapter
+		1432 8103  10 Gigabit Ethernet SFP+ PCI Express Adapter
 		1fc9 3015  Ethernet Adapter
 	4024  TN9210 10GBase-T Ethernet Adapter
 	4025  TN9510 10GBase-T/NBASE-T Ethernet Adapter
 		105a 7203  SANLink3 NBase-T1
 		1186 2900  DXE-810T 10GBase-T Ethernet Adapter
-		1432 8102  EN-8102P 10GbE Ethernet Adapter
+		1432 8102  10 Gigabit Ethernet PCI Express Adapter
 		1fc9 3015  Ethernet Adapter
 	4026  TN9610 10GbE SFP+ Ethernet Adapter
 	4027  TN9710P 10GBase-T/NBASE-T Ethernet Adapter
+		1432 8104  10 Gigabit Ethernet PCI Express Adapter
+		1fc9 3015  Ethernet Adapter
 	4527  TN9710Q 5GBase-T/NBASE-T Ethernet Adapter
 1fcc  StreamLabs
 	f416  MS416
@@ -21748,6 +21818,7 @@
 	0a26  Haswell-ULT Integrated Graphics Controller
 	0a2a  Haswell-ULT Integrated Graphics Controller
 	0a2e  Haswell-ULT Integrated Graphics Controller
+	0a53  DC P3520 SSD
 	0be0  Atom Processor D2xxx/N2xxx Integrated Graphics Controller
 	0be1  Atom Processor D2xxx/N2xxx Integrated Graphics Controller
 		105b 0d7c  D270S/D250S Motherboard
@@ -22105,7 +22176,7 @@
 		8086 1019  PRO/1000 CT Desktop Connection
 		8086 301f  D865PERL mainboard
 		8086 3025  D875PBZ motherboard
-		8086 302c  Intel 82865G Mainboard (D865GBF)
+		8086 302c  D865GBF Mainboard
 		8086 3427  S875WP1-E mainboard
 	101a  82547EI Gigabit Ethernet Controller (Mobile)
 		8086 101a  PRO/1000 CT Mobile Connection
@@ -22303,7 +22374,7 @@
 	1096  80003ES2LAN Gigabit Ethernet Controller (Copper)
 		15d9 1096  Motherboard
 		15d9 8680  X7DVL-E-O motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	1097  631xESB/632xESB DPT LAN Controller (Fiber)
 	1098  80003ES2LAN Gigabit Ethernet Controller (Serdes)
 	1099  82546GB Gigabit Ethernet Controller (Copper)
@@ -22457,6 +22528,7 @@
 		103c 17d2  Ethernet 10Gb 2-port 560M Adapter
 		103c 18d0  Ethernet 10Gb 2-port 560FLB Adapter
 		1059 0111  T4007 10GbE interface
+		1059 0130  T4009 10GbE interface
 		8086 000c  Ethernet X520 10GbE Dual Port KX4-KR Mezz
 	10f9  82599 10 Gigabit Dual Port Network Connection
 	10fb  82599ES 10-Gigabit SFI/SFP+ Network Connection
@@ -22862,6 +22934,7 @@
 		1059 0110  T4005 1GbE interface
 		1059 0111  T4007 1GbE interface
 		1059 0120  T4008 1GbE interface
+		1059 0130  T4009 1GbE interface
 	1538  I210 Gigabit Network Connection
 	1539  I211 Gigabit Network Connection
 	153a  Ethernet Connection I217-LM
@@ -23187,7 +23260,7 @@
 	1a31  82845 845 [Brookdale] Chipset AGP Bridge
 	1a38  5000 Series Chipset DMA Engine
 		15d9 8680  X7DVL-E-O motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	1a48  82597EX 10GbE Ethernet Controller
 		8086 a01f  PRO/10GbE SR Server Adapter
 		8086 a11f  PRO/10GbE SR Server Adapter
@@ -24772,13 +24845,13 @@
 		103c 31fe  ProLiant DL140 G3
 		15d9 8680  X7DVL-E-O motherboard
 		15d9 9680  X7DBN Motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	2680  631xESB/632xESB/3100 Chipset SATA IDE Controller
 	2681  631xESB/632xESB SATA AHCI Controller
 		103c 31fe  ProLiant DL140 G3
 		15d9 8680  X7DVL-E-O motherboard
 		15d9 9680  X7DBN Motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	2682  631xESB/632xESB SATA RAID Controller
 		103c 31fe  Adaptec Serial ATA HostRAID
 	2683  631xESB/632xESB SATA RAID Controller
@@ -24788,31 +24861,31 @@
 		103c 31fe  ProLiant DL140 G3
 		15d9 8680  X7DVL-E-O motherboard
 		15d9 9680  X7DBN Motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	2689  631xESB/632xESB/3100 Chipset UHCI USB Controller #2
 		1028 01bb  PowerEdge 1955 onboard USB
 		1028 01f0  PowerEdge R900 onboard USB
 		103c 31fe  ProLiant DL140 G3
 		15d9 8680  X7DVL-E-O motherboard
 		15d9 9680  X7DBN Motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	268a  631xESB/632xESB/3100 Chipset UHCI USB Controller #3
 		1028 01f0  PowerEdge R900 onboard USB
 		103c 31fe  ProLiant DL140 G3
 		15d9 8680  X7DVL-E-O motherboard
 		15d9 9680  X7DBN Motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	268b  631xESB/632xESB/3100 Chipset UHCI USB Controller #4
 		1028 01f0  PowerEdge R900 onboard USB
 		15d9 8680  X7DVL-E-O motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	268c  631xESB/632xESB/3100 Chipset EHCI USB2 Controller
 		1028 01bb  PowerEdge 1955 onboard USB
 		1028 01f0  PowerEdge R900 onboard USB
 		103c 31fe  ProLiant DL140 G3
 		15d9 8680  X7DVL-E-O motherboard
 		15d9 9680  X7DBN Motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	2690  631xESB/632xESB/3100 Chipset PCI Express Root Port 1
 		103c 31fe  ProLiant DL140 G3
 		15d9 9680  X7DBN Motherboard
@@ -24827,7 +24900,7 @@
 		103c 31fe  ProLiant DL140 G3
 		15d9 8680  X7DVL-E-O motherboard
 		15d9 9680  X7DBN Motherboard
-		8086 3476  Intel S5000PSLSATA Server Board
+		8086 3476  S5000PSLSATA Server Board
 	269e  631xESB/632xESB IDE Controller
 		103c 31fe  ProLiant DL140 G3
 		15d9 8680  X7DVL-E-O motherboard
@@ -24844,7 +24917,7 @@
 		103c 2a3b  Pavilion A1512X
 		1462 7418  Wind PC MS-7418
 		8086 544e  DeskTop Board D945GTP
-		8086 d605  Intel Desktop Board D945GCCR
+		8086 d605  Desktop Board D945GCCR
 	2774  82955X Memory Controller Hub
 	2775  82955X PCI Express Root Port
 	2776  82945G/GZ Integrated Graphics Controller
@@ -26205,8 +26278,7 @@
 		8086 4010  Dual Band Wireless AC 3165
 # Stone Peak 1x1
 		8086 4210  Dual Band Wireless AC 3165
-# Stone Peak 1x1
-	3166  Intel Dual Band Wireless-AC 3165 Plus Bluetooth
+	3166  Dual Band Wireless-AC 3165 Plus Bluetooth
 	3200  GD31244 PCI-X SATA HBA
 		1775 c200  C2K onboard SATA host bus adapter
 	3310  IOP348 I/O Processor
