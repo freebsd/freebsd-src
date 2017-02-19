@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Dag-Erling Smørgrav
+ * Copyright (c) 2011-2014 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_dump_policy.c 798 2014-06-10 21:28:14Z des $
+ * $Id: openpam_dump_policy.c 890 2016-01-11 16:22:09Z des $
  */
 
 #ifdef HAVE_CONFIG_H
