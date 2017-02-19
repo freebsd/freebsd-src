@@ -1,6 +1,130 @@
-$Id: NEWS,v 1.12 2016/07/14 11:09:06 schwarze Exp $
+$Id: NEWS,v 1.20 2017/02/16 14:38:12 schwarze Exp $
 
 This file lists the most important changes in the mdocml.bsd.lv distribution.
+
+Changes in version 1.14.1, released on February XXX, 2017
+
+    --- MAJOR NEW FEATURES ---
+ * apropos(1): Reimplement complete semantic search functionality
+   without the dependency on SQLite3, using only POSIX APIs.
+   This comes with a completely new mandoc.db(5) file format.
+ * man(1): Support more than one tag entry for the same search term,
+   plus some minor improvements to the less(1) :t support.
+ * -Thtml: Use real macro names for CSS classes.
+   Systematic cleanup of and many improvements to mandoc.css.
+ * -Thtml: Produce human readable HTML code by using indentation
+   and better line breaks.  Improve various HTML elements,
+   and trim several useless ones.
+ * New catman(8) utility, still somewhat experimental.
+ * Now includes a portable version of the OpenBSD mandoc regression
+   suite, see regress/regress.pl.1 for details.
+    --- REMOVED FUNCTIONALITY ---
+ * Operating systems that don't provide mmap(3) are no longer supported.
+ * Drop support for manpath(1).  Even if your system has manpath(1),
+   it is simpler to use MANPATH_DEFAULT in configure.local for
+   operating system defaults, man.conf(5) for machine-specific
+   modifications, and ${MANPATH}, -m, and -M for user preferences
+   than to bother with the complexity of manpath(1).
+ * makewhatis(8) -p: No longer warn about missing MLINKS since these
+   are no longer needed for anything.
+    --- MINOR NEW FEATURES ---
+ * mdoc(7): Warn about invalid punctuation and content below NAME.
+ * mdoc(7): Warn about .Xr lacking the second argument (section).
+ * mdoc(7): Warn about violations of the rule "new sentence, new line".
+ * roff(7): Warn about trailing whitespace at the end of comments.
+ * mdoc(7): Improve rendering of double quotes.
+ * mdoc(7): Always do text production in the validator, never in the
+   formatters.  Cleaner, simpler, shorter, helps NetBSD apropos(1)
+   and also makes -Ttree output more useful.
+ * -Ttree: Show metadata and some additional node flags.
+   New -Onoval output option to show the unvalidated tree.
+    --- RELIABILITY BUGFIXES ---
+ * man(1): Make "man -l" work with standard input from a pipe or file,
+   as long as standard output is a terminal.
+ * man(7): Fix out of bounds read access if a text node immediately
+   preceded the first .SH header.
+ * mdoc(7): Fix out of bounds read access for .Bl without a type
+   but with a width.
+ * mdoc(7): Fix out of bounds read access for .Bl -column starting
+   with a tab character instead of a child .It macro.
+ * mdoc(7): Fix syntax tree corruption leading to segfaults caused
+   by stray block end macros in nested blocks of mismatching type.
+ * man(1): Fix NULL dereference when the first of multiple pages
+   shown was preformatted.
+ * mdoc(7): Fix syntax tree corruption leading to NULL dereference
+   caused by partial implicit macros inside .Bl -column table cells.
+ * mdoc(7): Fix syntax tree corruption leading to NULL dereference
+   for macro sequences like .Bl .Bl .It Bo .El .It.
+ * mdoc(7): Fix syntax tree corruption leading to NULL dereference
+   caused by .Ta following a nested .Bl -column breaking another block.
+ * mdoc(7): Fix syntax tree corruption sometimes leading to NULL
+   dereference caused by indirectly broken .Nd or .Nm blocks.
+ * mdoc(7) -Thtml: Fix a NULL dereference for .Bl -column with 0 columns.
+ * mdoc(7): Fix NULL dereference in some specific cases of a
+   block-end macro calling another block-end macro.
+ * mdoc(7): Fix NULL dereference if the only child of the head
+   of the first .Sh was an empty in-line macro.
+ * eqn(7): Fix NULL dereference in the terminal formatter
+   for empty matrices and empty square roots.
+ * mdoc(7): Fix an assertion failure for a .Bd without a type that
+   breaks another block.
+ * mdoc(7): Fix an assertion failure that happened for some .Bl -column
+   lists containing a column width of "-4n", "-3n", or "-2n".
+ * mdoc(7): Fix an assertion failure caused by .Bl -column without .It
+   but containing eqn(7) or tbl(7) code.
+ * roff(7): Fix an assertion failure caused by \z\[u00FF] with -Tps/-Tpdf.
+ * roff(7): Fix an assertion failures caused by whitespace inside \o''
+   (overstrike) sequences.
+ * -Thtml: Fix an assertion failure caused by -Oman or -Oincludes of
+   excessive length.
+    --- PORTABILITY IMPROVEMENTS ---
+ * man(1): Do not mix stdio narrow and wide stream orientation
+   on stdout, which could cause output corruption on glibc.
+ * mandoc(1): Autodetect a suitable locale for -Tutf8 mode.
+ * ./configure: Autodetect whether PATH_MAX and O_DIRECTORY are defined.
+ * ./configure: Autodetect if nanosleep(3) needs -lrt.
+ * ./configure: Provide an ${LN} configuration variable.
+ * ./configure: Put compiler arguments that may contain -l at the end.
+    --- MINOR BUGFIXES ---
+ * mdoc(7): Fix SYNOPSIS output if the first child of .Nm is a macro.
+ * mdoc(7) -Thtml: Improve formatting of .Bl -tag with short tags.
+ * man(7) -Thtml: Preserve whitespace in .nf (nofill) mode.
+ * mandoc(1): Error out on invalid output options on the command line.
+    --- STRUCTURAL CHANGES, no functional change ---
+ * Redesign part of the mandoc_html(3) interfaces, making them much
+   easier to use and reducing the amount of code by a few hundred lines.
+    --- THANKS TO ---
+ * Michael Stapelberg (Debian) for designing the new mandocd(8)
+   and parts of the new catman(8), and for a number of patches
+   and bug reports.
+ * Baptiste Daroussin (FreeBSD) for profiling the new makewhatis(8)
+   implementation and suggesting an algorithmic improvement which
+   more than doubled performance, and for a few bug reports.
+ * Ed Maste (FreeBSD) for an important patch improving reproducibility
+   of builds in makewhatis(8), and for a few bug reports.
+ * Theo Buehler (OpenBSD) for more than ten important bug reports,
+   most of them found by systematic afl(1) fuzzing.
+ * Benny Lofgren, David Dahlberg, and in particular Vadim Zhukov
+   for crucial help in getting .Bl -tag CSS formatting fixed.
+ * Svyatoslav Mishyn (Crux Linux) for an initial version of the
+   patch to autodetect a suitable locale for -Tutf8 mode.
+ * Jason McIntyre (OpenBSD) for multiple useful discussions
+   and a number of bug reports.
+ * Alexander Bluhm, Andrew Fresh, Antoine Jacoutot, Antony Bentley,
+   Christian Weisgerber, Jonathan Gray, Marc Espie, Martijn van Duren,
+   Stuart Henderson, Ted Unangst, Theo de Raadt (OpenBSD), Abhinav
+   Upadhyay, Christos Zoulas, Kamil Rytarowski, Sevan Janiyan,
+   Thomas Klausner (NetBSD), Aaron M. Ucko, Bdale Garbee, Reiner
+   Herrmann, Shane Kerr (Debian), Leah Neukirchen (Void Linux),
+   Daniel Sabogal (Alpine Linux), Yuri Pankov (illumos),
+   Carsten Kunze (Heirloom roff), Kristaps Dzonsons (bsd.lv),
+   Anton Lindqvist, Jan Stary, Jeremy A. Mates, Mark Patruck,
+   Pavan Maddamsetti, Sean Levy <attila@stalphonsos.com>, and
+   Tiago Silva for bug reports.
+ * Brent Cook, Marc Espie, Philip Guenther, Todd Miller (OpenBSD)
+   and Markus Waldeck for useful discussions.
+ * And as usual, OpenCSW for providing me with a Solaris 9/10/11
+   testing environment.
 
 Changes in version 1.13.4, released on July 14, 2016
 
@@ -109,7 +233,7 @@ Changes in version 1.13.4, released on July 14, 2016
    again resulting in more than half a dozen important bug reports.
  * Svyatoslav Mishyn (Crux Linux) for some patches, several bug
    reports, and extensive release testing.
- * Christian Neukirchen (void Linux) for a number of compatibility
+ * Leah Neukirchen (Void Linux) for a number of compatibility
    patches and suggestions and several bug reports.
  * Christos Zoulas (NetBSD) for a bug fix patch and some useful
    suggestions for cleanup.

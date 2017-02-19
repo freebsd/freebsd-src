@@ -1,4 +1,4 @@
-/*	$Id: roff.c,v 1.288 2017/01/12 18:02:20 schwarze Exp $ */
+/*	$Id: roff.c,v 1.289 2017/02/17 03:03:03 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -1226,15 +1226,22 @@ deroff(char **dest, const struct roff_node *n)
 	/* Skip leading whitespace. */
 
 	for (cp = n->string; *cp != '\0'; cp++) {
-		if (cp[0] == '\\' && strchr(" %&0^|~", cp[1]) != NULL)
+		if (cp[0] == '\\' && cp[1] != '\0' &&
+		    strchr(" %&0^|~", cp[1]) != NULL)
 			cp++;
 		else if ( ! isspace((unsigned char)*cp))
 			break;
 	}
 
+	/* Skip trailing backslash. */
+
+	sz = strlen(cp);
+	if (cp[sz - 1] == '\\')
+		sz--;
+
 	/* Skip trailing whitespace. */
 
-	for (sz = strlen(cp); sz; sz--)
+	for (; sz; sz--)
 		if ( ! isspace((unsigned char)cp[sz-1]))
 			break;
 
@@ -3358,7 +3365,8 @@ roff_strdup(const struct roff *r, const char *p)
 	ssz = 0;
 
 	while ('\0' != *p) {
-		if ('\\' != *p && r->xtab && r->xtab[(int)*p].p) {
+		assert((unsigned int)*p < 128);
+		if ('\\' != *p && r->xtab && r->xtab[(unsigned int)*p].p) {
 			sz = r->xtab[(int)*p].sz;
 			res = mandoc_realloc(res, ssz + sz + 1);
 			memcpy(res + ssz, r->xtab[(int)*p].p, sz);

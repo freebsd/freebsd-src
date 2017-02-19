@@ -1,7 +1,7 @@
-/*	$Id: man_term.c,v 1.188 2017/01/10 13:47:00 schwarze Exp $ */
+/*	$Id: man_term.c,v 1.191 2017/02/15 14:10:08 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010-2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010-2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -143,6 +143,7 @@ terminal_man(void *arg, const struct roff_man *man)
 	struct termp		*p;
 	struct roff_node	*n;
 	struct mtermp		 mt;
+	size_t			 save_defindent;
 
 	p = (struct termp *)arg;
 	p->overstep = 0;
@@ -170,6 +171,7 @@ terminal_man(void *arg, const struct roff_man *man)
 			n = n->next;
 		}
 	} else {
+		save_defindent = p->defindent;
 		if (p->defindent == 0)
 			p->defindent = 7;
 		term_begin(p, print_man_head, print_man_foot, &man->meta);
@@ -177,6 +179,7 @@ terminal_man(void *arg, const struct roff_man *man)
 		if (n != NULL)
 			print_man_nodelist(p, &mt, n, &man->meta);
 		term_end(p);
+		p->defindent = save_defindent;
 	}
 }
 
@@ -819,7 +822,8 @@ pre_SH(DECL_ARGS)
 
 		do {
 			n = n->prev;
-		} while (n != NULL && termacts[n->tok].flags & MAN_NOTEXT);
+		} while (n != NULL && n->tok != TOKEN_NONE &&
+		    termacts[n->tok].flags & MAN_NOTEXT);
 		if (n == NULL || (n->tok == MAN_SH && n->body->child == NULL))
 			break;
 

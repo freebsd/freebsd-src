@@ -1,7 +1,7 @@
-/*	$Id: mdoc_macro.c,v 1.210 2017/01/10 13:47:00 schwarze Exp $ */
+/*	$Id: mdoc_macro.c,v 1.217 2017/02/16 09:47:31 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012-2016 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2012-2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -50,6 +50,8 @@ static	int		find_pending(struct roff_man *, int, int, int,
 				struct roff_node *);
 static	int		lookup(struct roff_man *, int, int, int, const char *);
 static	int		macro_or_word(MACRO_PROT_ARGS, int);
+static	void		break_intermediate(struct roff_node *,
+			    struct roff_node *);
 static	int		parse_rest(struct roff_man *, int, int, int *, char *);
 static	int		rew_alt(int);
 static	void		rew_elem(struct roff_man *, int);
@@ -376,6 +378,20 @@ rew_elem(struct roff_man *mdoc, int tok)
 	rew_last(mdoc, n);
 }
 
+static void
+break_intermediate(struct roff_node *n, struct roff_node *breaker)
+{
+	if (n != breaker &&
+	    n->type != ROFFT_BLOCK && n->type != ROFFT_HEAD &&
+	    (n->type != ROFFT_BODY || n->end != ENDBODY_NOT))
+		n = n->parent;
+	while (n != breaker) {
+		if ( ! (n->flags & NODE_VALID))
+			n->flags |= NODE_BROKEN;
+		n = n->parent;
+	}
+}
+
 /*
  * If there is an open sub-block of the target requiring
  * explicit close-out, postpone closing out the target until
@@ -388,26 +404,26 @@ find_pending(struct roff_man *mdoc, int tok, int line, int ppos,
 	struct roff_node	*n;
 	int			 irc;
 
+	if (target->flags & NODE_VALID)
+		return 0;
+
 	irc = 0;
 	for (n = mdoc->last; n != NULL && n != target; n = n->parent) {
-		if (n->flags & NODE_ENDED) {
-			if ( ! (n->flags & NODE_VALID))
-				n->flags |= NODE_BROKEN;
+		if (n->flags & NODE_ENDED)
 			continue;
-		}
 		if (n->type == ROFFT_BLOCK &&
 		    mdoc_macros[n->tok].flags & MDOC_EXPLICIT) {
 			irc = 1;
-			n->flags = NODE_BROKEN;
+			break_intermediate(mdoc->last, target);
 			if (target->type == ROFFT_HEAD)
-				target->flags = NODE_ENDED;
+				target->flags |= NODE_ENDED;
 			else if ( ! (target->flags & NODE_ENDED)) {
 				mandoc_vmsg(MANDOCERR_BLK_NEST,
 				    mdoc->parse, line, ppos,
 				    "%s breaks %s", mdoc_macronames[tok],
 				    mdoc_macronames[n->tok]);
 				mdoc_endbody_alloc(mdoc, line, ppos,
-				    tok, target, ENDBODY_NOSPACE);
+				    tok, target);
 			}
 		}
 	}
@@ -568,22 +584,27 @@ blk_exp_close(MACRO_PROT_ARGS)
 
 	endbody = itblk = later = NULL;
 	for (n = mdoc->last; n; n = n->parent) {
-		if (n->flags & NODE_ENDED) {
-			if ( ! (n->flags & NODE_VALID))
-				n->flags |= NODE_BROKEN;
+		if (n->flags & NODE_ENDED)
 			continue;
-		}
 
 		/*
-		 * Mismatching end macros can never break anything,
-		 * SYNOPSIS name blocks can never be broken,
+		 * Mismatching end macros can never break anything
 		 * and we only care about the breaking of BLOCKs.
 		 */
 
-		if (body == NULL ||
-		    n->tok == MDOC_Nm ||
-		    n->type != ROFFT_BLOCK)
+		if (body == NULL || n->type != ROFFT_BLOCK)
 			continue;
+
+		/*
+		 * SYNOPSIS name blocks can not be broken themselves,
+		 * but they do get broken together with a broken child.
+		 */
+
+		if (n->tok == MDOC_Nm) {
+			if (later != NULL)
+				n->flags |= NODE_BROKEN | NODE_ENDED;
+			continue;
+		}
 
 		if (n->tok == MDOC_It) {
 			itblk = n;
@@ -591,7 +612,6 @@ blk_exp_close(MACRO_PROT_ARGS)
 		}
 
 		if (atok == n->tok) {
-			assert(body);
 
 			/*
 			 * Found the start of our own block.
@@ -617,7 +637,7 @@ blk_exp_close(MACRO_PROT_ARGS)
 			    mdoc_macronames[later->tok]);
 
 			endbody = mdoc_endbody_alloc(mdoc, line, ppos,
-			    atok, body, ENDBODY_SPACE);
+			    atok, body);
 
 			if (tok == MDOC_El)
 				itblk->flags |= NODE_ENDED | NODE_BROKEN;
@@ -633,15 +653,22 @@ blk_exp_close(MACRO_PROT_ARGS)
 			break;
 		}
 
-		/* Explicit blocks close out description lines. */
+		/*
+		 * Explicit blocks close out description lines, but
+		 * even those can get broken together with a child.
+		 */
 
 		if (n->tok == MDOC_Nd) {
-			rew_last(mdoc, n);
+			if (later != NULL)
+				n->flags |= NODE_BROKEN | NODE_ENDED;
+			else
+				rew_last(mdoc, n);
 			continue;
 		}
 
 		/* Breaking an open sub block. */
 
+		break_intermediate(mdoc->last, body);
 		n->flags |= NODE_BROKEN;
 		if (later == NULL)
 			later = n;
@@ -706,15 +733,14 @@ blk_exp_close(MACRO_PROT_ARGS)
 	}
 
 	if (n != NULL) {
+		pending = 0;
 		if (ntok != TOKEN_NONE && n->flags & NODE_BROKEN) {
 			target = n;
 			do
 				target = target->parent;
 			while ( ! (target->flags & NODE_ENDED));
-			pending = find_pending(mdoc, ntok, line, ppos,
-			    target);
-		} else
-			pending = 0;
+			pending = find_pending(mdoc, ntok, line, ppos, target);
+		}
 		if ( ! pending)
 			rew_pending(mdoc, n);
 	}
@@ -987,7 +1013,7 @@ blk_full(MACRO_PROT_ARGS)
 
 			/* Close out prior implicit scopes. */
 
-			rew_last(mdoc, n);
+			rew_pending(mdoc, n);
 		}
 
 		/* Skip items outside lists. */

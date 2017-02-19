@@ -1,4 +1,4 @@
-/* $Id: mandoc.css,v 1.13 2017/01/21 02:29:57 schwarze Exp $ */
+/* $Id: mandoc.css,v 1.17 2017/02/05 21:00:43 schwarze Exp $ */
 /*
  * Standard style sheet for mandoc(1) -Thtml and man.cgi(8).
  */
@@ -91,15 +91,25 @@ dd.It-inset { }
 dl.Bl-ohang { }
 dt.It-ohang { }
 dd.It-ohang {	margin-left: 0ex; }
-dl.Bl-tag { }
-dt.It-tag { }
-dd.It-tag { }
+dl.Bl-tag {	margin-left: 8ex; }
+dt.It-tag {	float: left;
+		clear: both;
+		margin-top: 0ex;
+		margin-left: -8ex;
+		padding-right: 2ex;
+		vertical-align: top; }
+dd.It-tag {	width: 100%;
+		margin-top: 0ex;
+		margin-left: 0ex;
+		vertical-align: top;
+		overflow: auto; }
 
 table.Bl-column { }
 tr.It-column { }
 td.It-column {	margin-top: 1em; }
 
-span.Rs	{ }
+cite.Rs {	font-style: normal;
+		font-weight: normal; }
 span.RsA { }
 i.RsB {		font-weight: normal; }
 span.RsC { }
@@ -124,7 +134,8 @@ table.Nm { }
 b.Nm {		font-style: normal; }
 b.Fl {		font-style: normal; }
 b.Cm {		font-style: normal; }
-i.Ar {		font-weight: normal; }
+var.Ar {	font-style: italic;
+		font-weight: normal; }
 span.Op { }
 b.Ic {		font-style: normal; }
 code.Ev {	font-style: normal;
@@ -138,11 +149,15 @@ span.Lb { }
 b.In {		font-style: normal; }
 a.In { }
 b.Fd {		font-style: normal; }
-i.Ft {		font-weight: normal; }
+var.Ft {	font-style: italic;
+		font-weight: normal; }
 b.Fn {		font-style: normal; }
-i.Fa {		font-weight: normal; }
-i.Vt {		font-weight: normal; }
-i.Va {		font-weight: normal; }
+var.Fa {	font-style: italic;
+		font-weight: normal; }
+var.Vt {	font-style: italic;
+		font-weight: normal; }
+var.Va {	font-style: italic;
+		font-weight: normal; }
 code.Dv {	font-style: normal;
 		font-weight: normal;
 		font-family: monospace; }
@@ -158,6 +173,7 @@ a.Mt { }
 b.Cd {		font-style: normal; }
 i.Ad {		font-weight: normal; }
 b.Ms {		font-style: normal; }
+span.St { }
 a.Ux { }
 
 /* Physical markup. */

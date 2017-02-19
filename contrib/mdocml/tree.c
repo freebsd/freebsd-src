@@ -1,4 +1,4 @@
-/*	$Id: tree.c,v 1.72 2017/01/12 17:29:33 schwarze Exp $ */
+/*	$Id: tree.c,v 1.73 2017/02/10 15:45:28 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -192,6 +192,8 @@ print_mdoc(const struct roff_node *n, int indent)
 			putchar(')');
 		if (NODE_EOS & n->flags)
 			putchar('.');
+		if (NODE_BROKEN & n->flags)
+			printf(" BROKEN");
 		if (NODE_NOSRC & n->flags)
 			printf(" NOSRC");
 		if (NODE_NOPRT & n->flags)
