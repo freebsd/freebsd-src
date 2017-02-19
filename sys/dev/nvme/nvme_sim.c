@@ -143,10 +143,6 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		/*FALLTHROUGH*/
 	case XPT_ABORT:			/* Abort the specified CCB */
-		/*
-		 * Only target mode generates these, and only for SCSI. They are
-		 * all invalid/unsupported for NVMe.
-		 */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;
 	case XPT_SET_TRAN_SETTINGS:
