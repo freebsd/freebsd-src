@@ -163,12 +163,10 @@ typedef struct isp_timed_notify_ack {
 	struct callout timer;
 } isp_tna_t;
 
-TAILQ_HEAD(isp_ccbq, ccb_hdr);
 typedef struct tstate {
 	SLIST_ENTRY(tstate) next;
 	lun_id_t ts_lun;
 	struct cam_path *owner;
-	struct isp_ccbq waitq;		/* waiting CCBs */
 	struct ccb_hdr_slist atios;
 	struct ccb_hdr_slist inots;
 	uint32_t		hold;
@@ -220,6 +218,7 @@ struct isp_nexus {
  * Per channel information
  */
 SLIST_HEAD(tslist, tstate);
+TAILQ_HEAD(isp_ccbq, ccb_hdr);
 
 struct isp_fc {
 	struct cam_sim *sim;
@@ -249,7 +248,8 @@ struct isp_fc {
 	struct callout gdt;	/* gone device timer */
 	struct task gtask;
 #ifdef	ISP_TARGET_MODE
-	struct tslist lun_hash[LUN_HASH_SIZE];
+	struct tslist		lun_hash[LUN_HASH_SIZE];
+	struct isp_ccbq		waitq;		/* waiting CCBs */
 #if defined(DEBUG)
 	unsigned int inject_lost_data_frame;
 #endif
@@ -264,7 +264,8 @@ struct isp_spi {
 		simqfrozen	: 3,
 		iid		: 4;
 #ifdef	ISP_TARGET_MODE
-	struct tslist lun_hash[LUN_HASH_SIZE];
+	struct tslist		lun_hash[LUN_HASH_SIZE];
+	struct isp_ccbq		waitq;		/* waiting CCBs */
 #endif
 	int			num_threads;
 };
