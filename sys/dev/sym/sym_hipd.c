@@ -8090,11 +8090,6 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		sym_init (np, 1);
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
-	case XPT_ACCEPT_TARGET_IO:
-	case XPT_CONT_TARGET_IO:
-	case XPT_EN_LUN:
-	case XPT_NOTIFY_ACK:
-	case XPT_IMMED_NOTIFY:
 	case XPT_TERM_IO:
 	default:
 		sym_xpt_done2(np, ccb, CAM_REQ_INVALID);
