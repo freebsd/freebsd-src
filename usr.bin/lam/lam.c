@@ -46,11 +46,16 @@ __FBSDID("$FreeBSD$");
  *	Author:  John Kunze, UCB
  */
 
+#include <sys/capsicum.h>
+
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define	MAXOFILES	20
 #define	BIGBUFSIZ	5 * BUFSIZ
@@ -84,6 +89,17 @@ main(int argc, char *argv[])
 	getargs(argv);
 	if (!morefiles)
 		usage();
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	caph_cache_catpages();
+	if (caph_limit_stdio() == -1)
+		err(1, "unable to limit stdio");
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
+
 	for (;;) {
 		linep = line;
 		for (ip = input; ip->fp != NULL; ip++)
@@ -105,7 +121,9 @@ getargs(char *av[])
 	static char fmtbuf[BUFSIZ];
 	char *fmtp = fmtbuf;
 	int P, S, F, T;
+	cap_rights_t rights_ro;
 
+	cap_rights_init(&rights_ro, CAP_READ, CAP_FSTAT);
 	P = S = F = T = 0;		/* capitalized options */
 	while ((p = *++av) != NULL) {
 		if (*p != '-' || !p[1]) {
@@ -116,6 +134,8 @@ getargs(char *av[])
 			else if ((ip->fp = fopen(p, "r")) == NULL) {
 				err(1, "%s", p);
 			}
+			if (cap_rights_limit(fileno(ip->fp), &rights_ro) < 0)
+				err(1, "unable to limit rights on: %s", p);
 			ip->pad = P;
 			if (!ip->sepstring)
 				ip->sepstring = (S ? (ip-1)->sepstring : "");
