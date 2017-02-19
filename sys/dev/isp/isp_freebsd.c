@@ -3574,7 +3574,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			isp_disable_lun(isp, ccb);
 		}
 		break;
-	case XPT_IMMED_NOTIFY:
 	case XPT_IMMEDIATE_NOTIFY:	/* Add Immediate Notify Resource */
 	case XPT_ACCEPT_TARGET_IO:	/* Add Accept Target IO Resource */
 	{
@@ -3625,20 +3624,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, ccb->ccb_h.path, "Put FREE INOT, (seq id 0x%x) count now %d\n",
 			    ccb->cin1.seq_id, tptr->inot_count);
 			ccb->cin1.seq_id = 0;
-		} else if (ccb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
-			tptr->inot_count++;
-			SLIST_INSERT_HEAD(&tptr->inots, &ccb->ccb_h, sim_links.sle);
-			ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, ccb->ccb_h.path, "Put FREE INOT, (seq id 0x%x) count now %d\n",
-			    ccb->cin1.seq_id, tptr->inot_count);
-			ccb->cin1.seq_id = 0;
 		}
 		rls_lun_statep(isp, tptr);
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		break;
 	}
-	case XPT_NOTIFY_ACK:
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-		break;
 	case XPT_NOTIFY_ACKNOWLEDGE:		/* notify ack */
 	{
 		tstate_t *tptr;
