@@ -44,6 +44,7 @@ SRCS+=		thread.cpp
 SRCS+=		typeinfo.cpp
 SRCS+=		utility.cpp
 SRCS+=		valarray.cpp
+SRCS+=		variant.cpp
 
 CXXRT_SRCS+=	auxhelper.cc
 CXXRT_SRCS+=	dynamic_cast.cc
