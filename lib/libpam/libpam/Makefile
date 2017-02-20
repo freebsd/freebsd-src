@@ -180,8 +180,4 @@ INCSDIR=	${INCLUDEDIR}/security
 
 .include <src.opts.mk>
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=        tests
-.endif
-
 .include <bsd.lib.mk>

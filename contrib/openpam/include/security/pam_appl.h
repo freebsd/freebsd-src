@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_appl.h 648 2013-03-05 17:54:27Z des $
+ * $Id: pam_appl.h 913 2017-01-21 15:11:12Z des $
  */
 
 #ifndef SECURITY_PAM_APPL_H_INCLUDED
@@ -72,7 +72,8 @@ pam_close_session(pam_handle_t *_pamh,
 
 int
 pam_end(pam_handle_t *_pamh,
-	int _status);
+	int _status)
+	OPENPAM_NONNULL((1));
 
 int
 pam_get_data(const pam_handle_t *_pamh,

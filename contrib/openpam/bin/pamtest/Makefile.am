@@ -1,9 +1,13 @@
-# $Id: Makefile.am 648 2013-03-05 17:54:27Z des $
+# $Id: Makefile.am 834 2014-10-28 10:25:58Z des $
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 bin_PROGRAMS = pamtest
 pamtest_SOURCES = pamtest.c
+if WITH_SYSTEM_LIBPAM
+pamtest_LDADD = $(SYSTEM_LIBPAM)
+else
 pamtest_LDADD = $(top_builddir)/lib/libpam/libpam.la
+endif
 
 dist_man1_MANS = pamtest.1

@@ -1,3 +1,7 @@
-# $Id: Makefile.am 714 2013-08-19 15:30:21Z des $
+# $Id: Makefile.am 907 2017-01-18 09:39:01Z des $
 
-SUBDIRS = libpam
+SUBDIRS =
+
+if !WITH_SYSTEM_LIBPAM
+SUBDIRS += libpam
+endif
