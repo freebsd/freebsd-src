@@ -1143,6 +1143,7 @@ set80211chanlist(const char *val, int d, int s, const struct afswtch *rafp)
 		cp = tp;
 	}
 	set80211(s, IEEE80211_IOC_CHANLIST, 0, sizeof(chanlist), &chanlist);
+	free(temp);
 }
 
 static void
