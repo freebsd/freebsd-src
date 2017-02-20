@@ -104,7 +104,7 @@ int ct_open_board (ct_board_t *b, int num, port_t port, int irq, int dma)
 	case B_TAU2_E1D:
 		fw = ctau2_fw_data;
 		flen = 0;
-		ft = 0;
+		ft = NULL;
 		break;
 #ifndef CT_DDK_NO_G703
 	case B_TAU_G703:
