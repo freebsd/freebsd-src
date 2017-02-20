@@ -4402,6 +4402,13 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		tid = 0;
 	}
 	ac = M_WME_GETAC(m);
+
+	/*
+	 * XXX TODO: Group addressed frames aren't aggregated and must
+	 * go to the normal non-aggregation queue, and have a NONQOS TID
+	 * assigned from net80211.
+	 */
+
 	if (m->m_flags & M_AMPDU_MPDU) {
 		uint16_t seqno;
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];

@@ -2434,13 +2434,13 @@ mwl_node_getmimoinfo(const struct ieee80211_node *ni,
 	if (mn->mn_ai.rssi_c > rssi_max)
 		rssi_max = mn->mn_ai.rssi_c;
 
-	CVT(mi->rssi[0], mn->mn_ai.rssi_a);
-	CVT(mi->rssi[1], mn->mn_ai.rssi_b);
-	CVT(mi->rssi[2], mn->mn_ai.rssi_c);
+	CVT(mi->ch[0].rssi[0], mn->mn_ai.rssi_a);
+	CVT(mi->ch[1].rssi[0], mn->mn_ai.rssi_b);
+	CVT(mi->ch[2].rssi[0], mn->mn_ai.rssi_c);
 
-	mi->noise[0] = mn->mn_ai.nf_a;
-	mi->noise[1] = mn->mn_ai.nf_b;
-	mi->noise[2] = mn->mn_ai.nf_c;
+	mi->ch[0].noise[0] = mn->mn_ai.nf_a;
+	mi->ch[1].noise[0] = mn->mn_ai.nf_b;
+	mi->ch[2].noise[0] = mn->mn_ai.nf_c;
 #undef CVT
 }
 
