@@ -696,6 +696,14 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	lock_delay_arg_init(&lda, &mtx_spin_delay);
 	m = mtxlock2mtx(c);
 
+	if (__predict_false(v == MTX_UNOWNED))
+		v = MTX_READ_VALUE(m);
+
+	if (__predict_false(v == tid)) {
+		m->mtx_recurse++;
+		return;
+	}
+
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname((struct thread *)tid),
