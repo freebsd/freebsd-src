@@ -284,6 +284,7 @@ fetchMakeURL(const char *scheme, const char *host, int port, const char *doc,
 	seturl(pwd);
 #undef seturl
 	u->port = port;
+	u->netrcfd = -2;
 
 	return (u);
 }
