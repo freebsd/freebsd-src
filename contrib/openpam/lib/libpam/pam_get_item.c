@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_item.c 648 2013-03-05 17:54:27Z des $
+ * $Id: pam_get_item.c 913 2017-01-21 15:11:12Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -59,8 +59,6 @@ pam_get_item(const pam_handle_t *pamh,
 {
 
 	ENTERI(item_type);
-	if (pamh == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 	switch (item_type) {
 	case PAM_SERVICE:
 	case PAM_USER:
@@ -86,7 +84,6 @@ pam_get_item(const pam_handle_t *pamh,
  * Error codes:
  *
  *	PAM_SYMBOL_ERR
- *	PAM_SYSTEM_ERR
  */
 
 /**
