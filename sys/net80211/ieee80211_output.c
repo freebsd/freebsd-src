@@ -2733,6 +2733,8 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	 *	[tlv] RSN (optional)
 	 *	[tlv] HT capabilities
 	 *	[tlv] HT information
+	 *	[tlv] VHT capabilities
+	 *	[tlv] VHT information
 	 *	[tlv] WPA (optional)
 	 *	[tlv] WME (optional)
 	 *	[tlv] Vendor OUI HT capabilities (optional)
@@ -2763,6 +2765,8 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	       + sizeof(struct ieee80211_wme_param)
 	       + 4 + sizeof(struct ieee80211_ie_htcap)
 	       + 4 + sizeof(struct ieee80211_ie_htinfo)
+	       +  sizeof(struct ieee80211_ie_vhtcap)
+	       +  sizeof(struct ieee80211_ie_vht_operation)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	       + sizeof(struct ieee80211_ath_ie)
 #endif
@@ -2841,6 +2845,11 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	    legacy != IEEE80211_SEND_LEGACY_11B) {
 		frm = ieee80211_add_htcap(frm, bss);
 		frm = ieee80211_add_htinfo(frm, bss);
+	}
+	if (IEEE80211_IS_CHAN_VHT(bss->ni_chan) &&
+	    legacy != IEEE80211_SEND_LEGACY_11B) {
+		frm = ieee80211_add_vhtcap(frm, bss);
+		frm = ieee80211_add_vhtinfo(frm, bss);
 	}
 	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_flags & IEEE80211_F_WME)
