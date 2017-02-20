@@ -34,7 +34,6 @@ NL="
 "
 
 : ${pdns_service:=pdns_recursor}
-: ${pdns_restart:=@RESTARTCMD ${pdns_service}@}
 
 newzones=
 
@@ -68,5 +67,12 @@ if [ ! -f "$pdns_zones" ] || \
 	[ "$(cat "$pdns_zones")" != "$(printf %s "$newzones")" ]
 then
 	printf %s "$newzones" >"$pdns_zones"
-	eval $pdns_restart
+	if [ -n "$pdns_restart" ]; then
+		eval $pdns_restart
+	elif [ -n "$RESTARTCMD" ]; then
+		set -- ${pdns_service}
+		eval $RESTARTCMD
+	else
+		@SBINDIR@/resolvconf -r ${pdns_service}
+	fi
 fi
