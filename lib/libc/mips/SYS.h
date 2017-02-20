@@ -95,7 +95,7 @@
 # define PIC_RETURN()		j ra
 #endif /* __ABICALLS__ */
 #else /* defined(__CHERI_PURE_CAPABILITY__) */
-#ifdef PIC
+#ifdef __PIC__
 # define PIC_PROLOGUE(x)
 /*
  * XXXAR: current CHERI clang ignores any arithmetic expressions in a statement
