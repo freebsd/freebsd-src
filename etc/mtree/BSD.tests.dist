@@ -328,8 +328,6 @@
         ..
         libnv
         ..
-        libpam
-        ..
         libproc
         ..
         librt
