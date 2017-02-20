@@ -356,7 +356,7 @@ kern_thr_exit(struct thread *td)
 	p->p_pendingexits++;
 	td->td_dbgflags |= TDB_EXIT;
 	if (p->p_ptevents & PTRACE_LWP)
-		ptracestop(td, SIGTRAP);
+		ptracestop(td, SIGTRAP, NULL);
 	PROC_UNLOCK(p);
 	tidhash_remove(td);
 	PROC_LOCK(p);
