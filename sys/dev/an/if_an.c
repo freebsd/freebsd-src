@@ -3057,7 +3057,7 @@ static void
 an_cache_store(struct an_softc *sc, struct ether_header *eh, struct mbuf *m,
     u_int8_t rx_rssi, u_int8_t rx_quality)
 {
-	struct ip *ip = 0;
+	struct ip *ip = NULL;
 	int i;
 	static int cache_slot = 0; 	/* use this cache entry */
 	static int wrapindex = 0;	/* next "free" cache entry */

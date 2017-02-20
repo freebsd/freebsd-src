@@ -48,7 +48,7 @@ bit32 gLLSoftResetCounter   = 0;
 bit32 gPollForMissingInt;
 
 #ifdef FW_EVT_LOG_TST
-void  *eventLogAddress = 0;
+void  *eventLogAddress = NULL;
 #endif
 
 extern bit32 gWait_3;
