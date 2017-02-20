@@ -31,12 +31,9 @@
 
 #include <sys/pcpu.h>
 #include <machine/atomic.h>
-#ifdef INVARIANTS
-#include <sys/proc.h>
-#endif
 
-#define	counter_enter()	critical_enter()
-#define	counter_exit()	critical_exit()
+#define	counter_enter()	do {} while (0)
+#define	counter_exit()	do {} while (0)
 
 #ifdef IN_SUBR_COUNTER_C
 
@@ -55,7 +52,7 @@ counter_u64_fetch_inline(uint64_t *p)
 	int i;
 
 	r = 0;
-	for (i = 0; i < mp_ncpus; i++)
+	CPU_FOREACH(i)
 		r += counter_u64_read_one((uint64_t *)p, i);
 
 	return (r);
@@ -78,18 +75,13 @@ counter_u64_zero_inline(counter_u64_t c)
 }
 #endif
 
-#define	counter_u64_add_protected(c, inc)	do {	\
-	CRITICAL_ASSERT(curthread);			\
-	atomic_add_64((uint64_t *)zpcpu_get(c), (inc));	\
-} while (0)
+#define	counter_u64_add_protected(c, inc)	counter_u64_add(c, inc)
 
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
 {
 
-	counter_enter();
-	counter_u64_add_protected(c, inc);
-	counter_exit();
+	atomic_add_64((uint64_t *)zpcpu_get(c), inc);
 }
 
 #endif	/* ! __MACHINE_COUNTER_H__ */
