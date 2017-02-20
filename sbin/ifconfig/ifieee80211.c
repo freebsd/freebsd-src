@@ -3449,13 +3449,30 @@ printies(const u_int8_t *vp, int ielen, int maxcols)
 static void
 printmimo(const struct ieee80211_mimo_info *mi)
 {
-	/* NB: don't muddy display unless there's something to show */
-	if (mi->rssi[0] != 0 || mi->rssi[1] != 0 || mi->rssi[2] != 0) {
-		/* XXX ignore EVM for now */
-		printf(" (rssi %.1f:%.1f:%.1f nf %d:%d:%d)",
-		    mi->rssi[0] / 2.0, mi->rssi[1] / 2.0, mi->rssi[2] / 2.0,
-		    mi->noise[0], mi->noise[1], mi->noise[2]);
+	int i;
+	int r = 0;
+
+	for (i = 0; i < IEEE80211_MAX_CHAINS; i++) {
+		if (mi->ch[i].rssi != 0) {
+			r = 1;
+			break;
+		}
 	}
+
+	/* NB: don't muddy display unless there's something to show */
+	if (r == 0)
+		return;
+
+	/* XXX TODO: ignore EVM; secondary channels for now */
+	printf(" (rssi %.1f:%.1f:%.1f:%.1f nf %d:%d:%d:%d)",
+	    mi->ch[0].rssi[0] / 2.0,
+	    mi->ch[1].rssi[0] / 2.0,
+	    mi->ch[2].rssi[0] / 2.0,
+	    mi->ch[3].rssi[0] / 2.0,
+	    mi->ch[0].noise[0],
+	    mi->ch[1].noise[0],
+	    mi->ch[2].noise[0],
+	    mi->ch[3].noise[0]);
 }
 
 static void
