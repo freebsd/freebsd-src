@@ -32,13 +32,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_getenv.c 648 2013-03-05 17:54:27Z des $
+ * $Id: pam_getenv.c 914 2017-01-21 15:15:29Z des $
  */
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -61,18 +62,14 @@ pam_getenv(pam_handle_t *pamh,
 	int i;
 
 	ENTERS(name);
-	if (pamh == NULL)
+	if (strchr(name, '=') != NULL) {
+		errno = EINVAL;
 		RETURNS(NULL);
-	if (name == NULL || strchr(name, '=') != NULL)
-		RETURNS(NULL);
+	}
 	if ((i = openpam_findenv(pamh, name, strlen(name))) < 0)
 		RETURNS(NULL);
-	for (str = pamh->env[i]; *str != '\0'; ++str) {
-		if (*str == '=') {
-			++str;
-			break;
-		}
-	}
+	if ((str = strchr(pamh->env[i], '=')) == NULL)
+		RETURNS("");
 	RETURNS(str);
 }
 

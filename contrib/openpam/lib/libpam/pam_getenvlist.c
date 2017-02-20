@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_getenvlist.c 648 2013-03-05 17:54:27Z des $
+ * $Id: pam_getenvlist.c 913 2017-01-21 15:11:12Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -60,8 +60,6 @@ pam_getenvlist(pam_handle_t *pamh)
 	int i;
 
 	ENTER();
-	if (pamh == NULL)
-		RETURNP(NULL);
 	envlist = malloc(sizeof(char *) * (pamh->env_count + 1));
 	if (envlist == NULL) {
 		openpam_log(PAM_LOG_ERROR, "%s",

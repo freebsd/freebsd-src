@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Dag-Erling Smørgrav
+ * Copyright (c) 2014-2015 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,19 +26,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: t_openpam_ctype.c 922 2017-02-19 19:28:30Z des $
  */
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "openpam_ctype.h"
+#include <cryb/test.h>
 
-#include "t.h"
+#include "openpam_ctype.h"
 
 #define OC_DIGIT	"0123456789"
 #define OC_XDIGIT	OC_DIGIT "ABCDEFabcdef"
@@ -61,11 +62,14 @@ static const char oc_p[] = OC_P;
 static const char oc_pfcs[] = OC_PFCS;
 
 #define T_OC(set)							\
-	T_FUNC(t_oc_##set, "is_" #set)					\
+	static int							\
+	t_oc_##set(char **desc, void *arg)				\
 	{								\
 		char crib[256];						\
 		unsigned int i, ret;					\
 									\
+		(void)desc;						\
+		(void)arg;						\
 		memset(crib, 0, sizeof crib);				\
 		for (i = 0; oc_##set[i]; ++i)				\
 			crib[(int)oc_##set[i]] = 1;			\
@@ -78,6 +82,7 @@ static const char oc_pfcs[] = OC_PFCS;
 		}							\
 		return (ret == 0);					\
 	}
+#define T_OC_ADD(set) t_add_test(&t_oc_##set, NULL, "is_"#set)
 
 T_OC(digit)
 T_OC(xdigit)
@@ -94,29 +99,27 @@ T_OC(pfcs)
  * Boilerplate
  */
 
-static const struct t_test *t_plan[] = {
-	T(t_oc_digit),
-	T(t_oc_xdigit),
-	T(t_oc_upper),
-	T(t_oc_lower),
-	T(t_oc_letter),
-	T(t_oc_lws),
-	T(t_oc_ws),
-	T(t_oc_p),
-	T(t_oc_pfcs),
-	NULL
-};
-
-const struct t_test **
+static int
 t_prepare(int argc, char *argv[])
 {
 
 	(void)argc;
 	(void)argv;
-	return (t_plan);
+	T_OC_ADD(digit);
+	T_OC_ADD(xdigit);
+	T_OC_ADD(upper);
+	T_OC_ADD(lower);
+	T_OC_ADD(letter);
+	T_OC_ADD(lws);
+	T_OC_ADD(ws);
+	T_OC_ADD(p);
+	T_OC_ADD(pfcs);
+	return (0);
 }
 
-void
-t_cleanup(void)
+int
+main(int argc, char *argv[])
 {
+
+	t_main(t_prepare, NULL, argc, argv);
 }
