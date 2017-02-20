@@ -206,7 +206,7 @@ search_token(char *str, int slen, char *token)
 static int
 ppb_pnp_detect(device_t bus)
 {
-	char *token, *class = 0;
+	char *token, *class = NULL;
 	int i, len, error;
 	int class_id = -1;
 	char str[PPB_PnP_STRING_SIZE+1];

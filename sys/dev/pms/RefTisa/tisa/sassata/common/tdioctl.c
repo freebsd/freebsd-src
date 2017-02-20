@@ -379,7 +379,7 @@ tiCOMMgntIOCTL(
   bit32                     Offset = 0;
   bit32                     RequestLength = 0;  /* user request on how much data to pass to application */
   agsaContext_t		    *agContext = NULL;
-  bit8                      *loc = 0;
+  bit8                      *loc = NULL;
 
   TI_DBG3(("tiCOMMgntIOCTL: start\n"));
 
