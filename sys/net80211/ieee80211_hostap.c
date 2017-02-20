@@ -2151,7 +2151,9 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		ni->ni_chan = vap->iv_bss->ni_chan;
 
 		/* VHT */
-		if (IEEE80211_IS_CHAN_VHT(ni->ni_chan)) {
+		if (IEEE80211_IS_CHAN_VHT(ni->ni_chan) &&
+		    htcap != NULL &&
+		    vhtinfo != NULL) {
 			/* XXX TODO; see below */
 			printf("%s: VHT TODO!\n", __func__);
 			ieee80211_vht_node_init(ni);
