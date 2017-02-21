@@ -192,7 +192,7 @@ wp_setup(struct sdhci_fdt_gpio *gpio, phandle_t node)
 
 	if (bootverbose)
 		device_printf(dev, "Write protect switch on %s pin %u\n",
-		    device_get_nameunit(gpio->cd_pin->dev), gpio->cd_pin->pin);
+		    device_get_nameunit(gpio->wp_pin->dev), gpio->wp_pin->pin);
 }
 
 struct sdhci_fdt_gpio *
