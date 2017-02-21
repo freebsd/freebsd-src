@@ -168,8 +168,8 @@ id_t		zio_taskq_psrset_bind = PS_NONE;
 #endif
 #ifdef SYSDC
 boolean_t	zio_taskq_sysdc = B_TRUE;	/* use SDC scheduling class */
-#endif
 uint_t		zio_taskq_basedc = 80;		/* base duty cycle */
+#endif
 
 boolean_t	spa_create_process = B_TRUE;	/* no process ==> no sysdc */
 extern int	zfs_sync_pass_deferred_free;
