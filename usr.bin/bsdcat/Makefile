@@ -2,10 +2,10 @@
 
 .include <bsd.own.mk>
 
-_LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
-_LIBARCHIVECONFDIR=	${.CURDIR}/../../lib/libarchive
+_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
+_LIBARCHIVECONFDIR=	${SRCTOP}/lib/libarchive
 
-PROG=	bsdcat	
+PROG=	bsdcat
 BSDCAT_VERSION_STRING=	3.2.2
 
 .PATH:	${_LIBARCHIVEDIR}/cat
