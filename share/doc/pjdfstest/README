@@ -1,6 +1,6 @@
-pjdfstest test suite execution is integrated into kyua. This README describes
-how to use pjdfstest in the default configuration (kyua work directory), and
-with a specific filesystem path.
+The pjdfstest test suite is normally run by kyua.  It requires kyua 0.11 or
+newer. This README describes how to use pjdfstest in the default configuration
+(kyua work directory), with a specific filesystem path, and with prove(1).
 
 Method 1. Executing with default configuration (kyua work directory)
 
@@ -23,14 +23,17 @@ Method 2. Executing with a specific filesystem path (in this case /mnt)
     2. cd to the tests directory:
        % cd /usr/tests/sys/pjdfstest
     3. Run kyua:
-       % env PJDFSTEST_TEST_PATH=/mnt kyua test
+       % env TMPDIR=/mnt kyua test
 
-   WARNING: the above method violates the test program isolation algorithm
-   described in kyua(1); as such, $PJDFSTEST_TEST_PATH must be cleaned up after
-   executing the testcases.
+   Note that if HOME is undefined, this will result in kyua's logfile being
+   placed in TMPDIR, which may not be what you want.  You can always use
+   --logfile to explicitly select the log location.
 
-   It's highly recommended that $PJDFSTEST_TEST_PATH be pointed to a sandboxed
-   filesystem, e.g. a small UFS-formatted memory disk or ZFS dataset with
-   quotas enabled, so the filesystem can be easily destroyed after the test
-   execution is complete, and the testcases are properly bounded both in terms
-   of time and space.
+Method 3. Executing pjdfstest with prove
+
+    1. Elevate privileges:
+       % su -
+    2. cd to the temporary directory of your choice
+       % cd /mnt
+    3. Invoke a specific test manually
+       % prove -rv /usr/tests/sys/pjdfstest/chmod/00
