@@ -6,7 +6,7 @@
 # $FreeBSD$
 #
 
-include "BERI_TEMPLATE"
+include "std.BERI"
 
 options 	FDT
 options 	FDT_DTB_STATIC
