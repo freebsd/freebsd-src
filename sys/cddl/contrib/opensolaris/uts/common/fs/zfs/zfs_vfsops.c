@@ -1952,15 +1952,6 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	if (zfsvfs->z_ctldir != NULL) {
 		if ((ret = zfsctl_umount_snapshots(vfsp, fflag, cr)) != 0)
 			return (ret);
-		ret = vflush(vfsp, 0, 0, td);
-		ASSERT(ret == EBUSY);
-		if (!(fflag & MS_FORCE)) {
-			if (zfsvfs->z_ctldir->v_count > 1)
-				return (EBUSY);
-			ASSERT(zfsvfs->z_ctldir->v_count == 1);
-		}
-		zfsctl_destroy(zfsvfs);
-		ASSERT(zfsvfs->z_ctldir == NULL);
 	}
 
 	if (fflag & MS_FORCE) {
@@ -1978,13 +1969,8 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	 * Flush all the files.
 	 */
 	ret = vflush(vfsp, 0, (fflag & MS_FORCE) ? FORCECLOSE : 0, td);
-	if (ret != 0) {
-		if (!zfsvfs->z_issnap) {
-			zfsctl_create(zfsvfs);
-			ASSERT(zfsvfs->z_ctldir != NULL);
-		}
+	if (ret != 0)
 		return (ret);
-	}
 
 #ifdef illumos
 	if (!(fflag & MS_FORCE)) {
@@ -2095,8 +2081,10 @@ CTASSERT(LONG_FID_LEN <= sizeof(struct fid));
 static int
 zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 {
+	struct componentname cn;
 	zfsvfs_t	*zfsvfs = vfsp->vfs_data;
 	znode_t		*zp;
+	vnode_t		*dvp;
 	uint64_t	object = 0;
 	uint64_t	fid_gen = 0;
 	uint64_t	gen_mask;
@@ -2151,21 +2139,32 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 	if ((fid_gen == 0 &&
 	     (object == ZFSCTL_INO_ROOT || object == ZFSCTL_INO_SNAPDIR)) ||
 	    (zfsvfs->z_shares_dir != 0 && object == zfsvfs->z_shares_dir)) {
-		*vpp = zfsvfs->z_ctldir;
-		ASSERT(*vpp != NULL);
-		if (object == ZFSCTL_INO_SNAPDIR) {
-			VERIFY(zfsctl_root_lookup(*vpp, "snapshot", vpp, NULL,
-			    0, NULL, NULL, NULL, NULL, NULL) == 0);
-		} else if (object == zfsvfs->z_shares_dir) {
-			VERIFY(zfsctl_root_lookup(*vpp, "shares", vpp, NULL,
-			    0, NULL, NULL, NULL, NULL, NULL) == 0);
-		} else {
-			vref(*vpp);
-		}
 		ZFS_EXIT(zfsvfs);
-		err = vn_lock(*vpp, flags);
-		if (err != 0)
-			*vpp = NULL;
+		VERIFY0(zfsctl_root(zfsvfs, LK_SHARED, &dvp));
+		if (object == ZFSCTL_INO_SNAPDIR) {
+			cn.cn_nameptr = "snapshot";
+			cn.cn_namelen = strlen(cn.cn_nameptr);
+			cn.cn_nameiop = LOOKUP;
+			cn.cn_flags = ISLASTCN | LOCKLEAF;
+			cn.cn_lkflags = flags;
+			VERIFY0(VOP_LOOKUP(dvp, vpp, &cn));
+			vput(dvp);
+		} else if (object == zfsvfs->z_shares_dir) {
+			/*
+			 * XXX This branch must not be taken,
+			 * if it is, then the lookup below will
+			 * explode.
+			 */
+			cn.cn_nameptr = "shares";
+			cn.cn_namelen = strlen(cn.cn_nameptr);
+			cn.cn_nameiop = LOOKUP;
+			cn.cn_flags = ISLASTCN;
+			cn.cn_lkflags = flags;
+			VERIFY0(VOP_LOOKUP(dvp, vpp, &cn));
+			vput(dvp);
+		} else {
+			*vpp = dvp;
+		}
 		return (err);
 	}
 
@@ -2190,7 +2189,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 
 	*vpp = ZTOV(zp);
 	ZFS_EXIT(zfsvfs);
-	err = vn_lock(*vpp, flags | LK_RETRY);
+	err = vn_lock(*vpp, flags);
 	if (err == 0)
 		vnode_create_vobject(*vpp, zp->z_size, curthread);
 	else
