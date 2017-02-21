@@ -4272,6 +4272,8 @@ compat/linuxkpi/common/src/linux_kthread.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_pci.c		optional compat_linuxkpi pci \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_tasklet.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_idr.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_radix.c	optional compat_linuxkpi \
