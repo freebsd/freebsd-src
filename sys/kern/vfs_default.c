@@ -718,8 +718,8 @@ loop2:
 			 * to write them out.
 			 */
 			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
-				if ((error = bp->b_error) == 0)
-					continue;
+				if ((error = bp->b_error) != 0)
+					break;
 			if (error == 0 && --maxretry >= 0)
 				goto loop1;
 			error = EAGAIN;
