@@ -1,4 +1,4 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../../Makefile.inc"
+.include "${SRCTOP}/usr.bin/Makefile.inc"
 
