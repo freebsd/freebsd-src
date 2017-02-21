@@ -44,7 +44,7 @@ linux_support.o: assym.s linux_assym.h
 	    ${.IMPSRC} -o ${.TARGET}
 
 linux_genassym.o:
-	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
 .if defined(DEBUG)
