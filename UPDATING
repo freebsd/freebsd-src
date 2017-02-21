@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170221:
+	The code that provides support for ZFS .zfs/ directory functionality
+	has been reimplemented.  It's not possible now to create a snapshot
+	by mkdir under .zfs/snapshot/.  That should be the only user visible
+	change.
+
 20170216:
 	EISA bus support has been removed. The WITH_EISA option is no longer
 	valid.
