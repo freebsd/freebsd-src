@@ -709,7 +709,6 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_l2_size;
 	kstat_named_t arcstat_l2_asize;
 	kstat_named_t arcstat_l2_hdr_size;
-	kstat_named_t arcstat_l2_padding_needed;
 	kstat_named_t arcstat_l2_write_trylock_fail;
 	kstat_named_t arcstat_l2_write_passed_headroom;
 	kstat_named_t arcstat_l2_write_spa_mismatch;
@@ -807,7 +806,6 @@ static arc_stats_t arc_stats = {
 	{ "l2_size",			KSTAT_DATA_UINT64 },
 	{ "l2_asize",			KSTAT_DATA_UINT64 },
 	{ "l2_hdr_size",		KSTAT_DATA_UINT64 },
-	{ "l2_padding_needed",		KSTAT_DATA_UINT64 },
 	{ "l2_write_trylock_fail",	KSTAT_DATA_UINT64 },
 	{ "l2_write_passed_headroom",	KSTAT_DATA_UINT64 },
 	{ "l2_write_spa_mismatch",	KSTAT_DATA_UINT64 },
