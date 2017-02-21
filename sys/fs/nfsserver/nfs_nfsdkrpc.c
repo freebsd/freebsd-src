@@ -554,18 +554,16 @@ nfsrvd_init(int terminating)
 		nfsd_master_proc = NULL;
 		NFSD_UNLOCK();
 		nfsrv_freeallbackchannel_xprts();
-		svcpool_destroy(nfsrvd_pool);
-		nfsrvd_pool = NULL;
+		svcpool_close(nfsrvd_pool);
+		NFSD_LOCK();
+	} else {
+		NFSD_UNLOCK();
+		nfsrvd_pool = svcpool_create("nfsd",
+		    SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
+		nfsrvd_pool->sp_rcache = NULL;
+		nfsrvd_pool->sp_assign = fhanew_assign;
+		nfsrvd_pool->sp_done = fha_nd_complete;
 		NFSD_LOCK();
 	}
-
-	NFSD_UNLOCK();
-
-	nfsrvd_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
-	nfsrvd_pool->sp_rcache = NULL;
-	nfsrvd_pool->sp_assign = fhanew_assign;
-	nfsrvd_pool->sp_done = fha_nd_complete;
-
-	NFSD_LOCK();
 }
 
