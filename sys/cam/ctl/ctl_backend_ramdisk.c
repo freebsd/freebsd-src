@@ -1120,8 +1120,10 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 
 	STAILQ_INIT(&be_lun->cont_queue);
 	sx_init(&be_lun->page_lock, "cram page lock");
-	if (be_lun->cap_bytes == 0)
+	if (be_lun->cap_bytes == 0) {
+		be_lun->indir = 0;
 		be_lun->pages = malloc(be_lun->pblocksize, M_RAMDISK, M_WAITOK);
+	}
 	be_lun->zero_page = malloc(be_lun->pblocksize, M_RAMDISK,
 	    M_WAITOK|M_ZERO);
 	mtx_init(&be_lun->queue_lock, "cram queue lock", NULL, MTX_DEF);
