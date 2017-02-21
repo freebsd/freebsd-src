@@ -148,4 +148,25 @@ free_irq(unsigned int irq, void *device)
 	kfree(irqe);
 }
 
+/*
+ * LinuxKPI tasklet support
+ */
+typedef void tasklet_func_t(unsigned long);
+
+struct tasklet_struct {
+	TAILQ_ENTRY(tasklet_struct) entry;
+	tasklet_func_t *func;
+	unsigned long data;
+};
+
+#define	DECLARE_TASKLET(name, func, data)	\
+struct tasklet_struct name = { { NULL, NULL }, func, data }
+
+#define	tasklet_hi_schedule(t)	tasklet_schedule(t)
+
+extern void tasklet_schedule(struct tasklet_struct *);
+extern void tasklet_kill(struct tasklet_struct *);
+extern void tasklet_init(struct tasklet_struct *, tasklet_func_t *,
+    unsigned long data);
+
 #endif	/* _LINUX_INTERRUPT_H_ */
