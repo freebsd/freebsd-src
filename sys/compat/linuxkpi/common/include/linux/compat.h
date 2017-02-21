@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,29 @@
 #ifndef	_LINUX_COMPAT_H_
 #define	_LINUX_COMPAT_H_
 
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/malloc.h>
+
 struct thread;
 struct task_struct;
 
-void linux_set_current(struct thread *td, struct task_struct *t);
-void linux_clear_current(struct thread *td);
+extern int linux_alloc_current(struct thread *, int flags);
+extern void linux_free_current(struct task_struct *);
+
+static inline void
+linux_set_current(struct thread *td)
+{
+	if (__predict_false(td->td_lkpi_task == NULL))
+		linux_alloc_current(td, M_WAITOK);
+}
+
+static inline int
+linux_set_current_flags(struct thread *td, int flags)
+{
+	if (__predict_false(td->td_lkpi_task == NULL))
+		return (linux_alloc_current(td, flags));
+	return (0);
+}
 
 #endif	/* _LINUX_COMPAT_H_ */

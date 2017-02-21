@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,12 @@
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
 
+#include <linux/types.h>
+#include <linux/completion.h>
+#include <linux/slab.h>
+
+#include <asm/atomic.h>
+
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
 
 #define	TASK_RUNNING		0
@@ -46,41 +52,22 @@
 #define	TASK_WAKEKILL		128
 #define	TASK_WAKING		256
 
-#define	TASK_SHOULD_STOP	1
-#define	TASK_STOPPED		2
-
-/*
- * A task_struct is only provided for threads created by kthread() and
- * file operation callbacks.
- *
- * Using these routines outside the above mentioned contexts will
- * cause panics because no task_struct is assigned and td_retval[1] is
- * overwritten by syscalls.
- */
 struct task_struct {
-	struct	thread *task_thread;
-	int	(*task_fn)(void *data);
-	void	*task_data;
+	struct thread *task_thread;
+	linux_task_fn_t *task_fn;
+	void   *task_data;
 	int	task_ret;
 	int	state;
-	int	should_stop;
+	atomic_t kthread_flags;
 	pid_t	pid;
 	const char    *comm;
-	void	*bsd_ioctl_data;
-	unsigned	bsd_ioctl_len;
+	void   *bsd_ioctl_data;
+	unsigned bsd_ioctl_len;
+	struct completion parked;
+	struct completion exited;
 };
 
-#define	current			task_struct_get(curthread)
-#define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_retval[1])
-#define	task_struct_fill(x, y) do {		\
-  	(y)->task_thread = (x);			\
-	(y)->comm = (x)->td_name;		\
-	(y)->pid = (x)->td_tid;			\
-} while (0)
-#define	task_struct_set(x, y)	(x)->td_retval[1] = (uintptr_t)(y)
-
-/* ensure the task_struct pointer fits into the td_retval[1] field */
-CTASSERT(sizeof(((struct thread *)0)->td_retval[1]) >= sizeof(uintptr_t));
+#define	current		((struct task_struct *)curthread->td_lkpi_task)
 
 #define	set_current_state(x)						\
 	atomic_store_rel_int((volatile int *)&current->state, (x))

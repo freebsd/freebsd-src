@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
+#include <sys/libkern.h>
 
 struct rw_semaphore {
 	struct sx sx;

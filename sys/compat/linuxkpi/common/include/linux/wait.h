@@ -32,8 +32,6 @@
 #define	_LINUX_WAIT_H_
 
 #include <linux/compiler.h>
-#include <linux/spinlock.h>
-#include <linux/sched.h>
 #include <linux/list.h>
 #include <linux/jiffies.h>
 

@@ -45,7 +45,7 @@
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
-#include <linux/kthread.h>
+#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/jiffies.h>
 #include <linux/wait.h>

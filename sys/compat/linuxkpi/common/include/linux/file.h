@@ -39,6 +39,7 @@
 #include <sys/proc.h>
 
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 struct linux_file;
 

@@ -63,4 +63,6 @@ typedef u64 phys_addr_t;
 #define	DECLARE_BITMAP(n, bits)						\
 	unsigned long n[howmany(bits, sizeof(long) * 8)]
 
+typedef int linux_task_fn_t(void *data);
+
 #endif	/* _LINUX_TYPES_H_ */
