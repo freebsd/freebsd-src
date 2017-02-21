@@ -1625,6 +1625,7 @@ _nmtree=	lib/libnetbsd \
 ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 .endif
 
+# r246097: log addition login.conf.db, passwd, pwd.db, and spwd.db with cat -l
 .if ${BOOTSTRAPPING} < 1000027
 _cat=		bin/cat
 .endif
