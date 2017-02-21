@@ -77,6 +77,8 @@ u_int				hyperv_recommends;
 static u_int			hyperv_pm_features;
 static u_int			hyperv_features3;
 
+hyperv_tc64_t			hyperv_tc64;
+
 static struct timecounter	hyperv_timecounter = {
 	.tc_get_timecount	= hyperv_get_timecount,
 	.tc_poll_pps		= NULL,
@@ -94,6 +96,13 @@ static u_int
 hyperv_get_timecount(struct timecounter *tc __unused)
 {
 	return rdmsr(MSR_HV_TIME_REF_COUNT);
+}
+
+static uint64_t
+hyperv_tc64_rdmsr(void)
+{
+
+	return (rdmsr(MSR_HV_TIME_REF_COUNT));
 }
 
 uint64_t
@@ -232,6 +241,12 @@ hyperv_init(void *dummy __unused)
 	if (hyperv_features & CPUID_HV_MSR_TIME_REFCNT) {
 		/* Register Hyper-V timecounter */
 		tc_init(&hyperv_timecounter);
+
+		/*
+		 * Install 64 bits timecounter method for other modules
+		 * to use.
+		 */
+		hyperv_tc64 = hyperv_tc64_rdmsr;
 	}
 }
 SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init,
