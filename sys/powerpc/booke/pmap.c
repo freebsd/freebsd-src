@@ -2973,7 +2973,7 @@ mmu_booke_change_attr(mmu_t mmu, vm_offset_t addr, vm_size_t sz,
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 
-	return (pte_vatopa(mmu, kernel_pmap, va));
+	return (0);
 }
 
 /**************************************************************************/
