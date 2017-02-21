@@ -7,8 +7,6 @@
 # $FreeBSD$
 #
 
-ident		BERI_TEMPLATE
-
 machine		mips mips64
 
 cpu		CPU_BERI
