@@ -118,8 +118,8 @@ hyperv_tsc_mmap(struct cdev *dev __unused, vm_ooffset_t offset,
 }
 
 #define HYPERV_TSC_TIMECOUNT(fence)					\
-static u_int								\
-hyperv_tsc_timecount_##fence(struct timecounter *tc)			\
+static uint64_t								\
+hyperv_tc64_tsc_##fence(void)						\
 {									\
 	struct hyperv_reftsc *tsc_ref = hyperv_ref_tsc.tsc_ref;		\
 	uint32_t seq;							\
@@ -150,6 +150,13 @@ hyperv_tsc_timecount_##fence(struct timecounter *tc)			\
 	/* Fallback to the generic timecounter, i.e. rdmsr. */		\
 	return (rdmsr(MSR_HV_TIME_REF_COUNT));				\
 }									\
+									\
+static u_int								\
+hyperv_tsc_timecount_##fence(struct timecounter *tc __unused)		\
+{									\
+									\
+	return (hyperv_tc64_tsc_##fence());				\
+}									\
 struct __hack
 
 HYPERV_TSC_TIMECOUNT(lfence);
@@ -158,6 +165,7 @@ HYPERV_TSC_TIMECOUNT(mfence);
 static void
 hyperv_tsc_tcinit(void *dummy __unused)
 {
+	hyperv_tc64_t tc64 = NULL;
 	uint64_t val, orig;
 
 	if ((hyperv_features &
@@ -170,11 +178,13 @@ hyperv_tsc_tcinit(void *dummy __unused)
 	case CPU_VENDOR_AMD:
 		hyperv_tsc_timecounter.tc_get_timecount =
 		    hyperv_tsc_timecount_mfence;
+		tc64 = hyperv_tc64_tsc_mfence;
 		break;
 
 	case CPU_VENDOR_INTEL:
 		hyperv_tsc_timecounter.tc_get_timecount =
 		    hyperv_tsc_timecount_lfence;
+		tc64 = hyperv_tc64_tsc_lfence;
 		break;
 
 	default:
@@ -198,6 +208,10 @@ hyperv_tsc_tcinit(void *dummy __unused)
 
 	/* Register "enlightened" timecounter. */
 	tc_init(&hyperv_tsc_timecounter);
+
+	/* Install 64 bits timecounter method for other modules to use. */
+	KASSERT(tc64 != NULL, ("tc64 is not set"));
+	hyperv_tc64 = tc64;
 
 	/* Add device for mmap(2). */
 	make_dev(&hyperv_tsc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0444,
