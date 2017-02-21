@@ -98,42 +98,6 @@ linux_kern_lstat(struct thread *td, char *path, enum uio_seg pathseg,
 	    pathseg, sbp));
 }
 
-/*
- * XXX: This was removed from newstat_copyout(), and almost identical
- * XXX: code was in stat64_copyout().  findcdev() needs to be replaced
- * XXX: with something that does lookup and locking properly.
- * XXX: When somebody fixes this: please try to avoid duplicating it.
- */
-#if 0
-static void
-disk_foo(struct somestat *tbuf)
-{
-	struct cdevsw *cdevsw;
-	struct cdev *dev;
-
-	/* Lie about disk drives which are character devices
-	 * in FreeBSD but block devices under Linux.
-	 */
-	if (S_ISCHR(tbuf.st_mode) &&
-	    (dev = findcdev(buf->st_rdev)) != NULL) {
-		cdevsw = dev_refthread(dev);
-		if (cdevsw != NULL) {
-			if (cdevsw->d_flags & D_DISK) {
-				tbuf.st_mode &= ~S_IFMT;
-				tbuf.st_mode |= S_IFBLK;
-
-				/* XXX this may not be quite right */
-				/* Map major number to 0 */
-				tbuf.st_dev = minor(buf->st_dev) & 0xf;
-				tbuf.st_rdev = buf->st_rdev & 0xff;
-			}
-			dev_relthread(dev);
-		}
-	}
-
-}
-#endif
-
 static void
 translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 {
