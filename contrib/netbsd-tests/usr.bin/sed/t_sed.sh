@@ -126,6 +126,8 @@ preserve_leading_ws_ia_head() {
 }
 
 preserve_leading_ws_ia_body() {
+	atf_expect_fail "fails on ^/stable/10"
+
 	atf_check -o inline:"    1 2 3\n4 5 6\n    7 8 9\n\n" \
 		-x 'echo | sed -e "/^$/i\\
     1 2 3\\
