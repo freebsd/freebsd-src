@@ -7239,6 +7239,7 @@ pmap_quick_remove_page(vm_offset_t addr)
 
 #include "opt_ddb.h"
 #ifdef DDB
+#include <sys/kdb.h>
 #include <ddb/ddb.h>
 
 DB_SHOW_COMMAND(pte, pmap_print_pte)
@@ -7250,13 +7251,17 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 	pt_entry_t *pte, PG_V;
 	vm_offset_t va;
 
-	if (have_addr) {
-		va = (vm_offset_t)addr;
-		pmap = PCPU_GET(curpmap); /* XXX */
-	} else {
+	if (!have_addr) {
 		db_printf("show pte addr\n");
 		return;
 	}
+	va = (vm_offset_t)addr;
+
+	if (kdb_thread != NULL)
+		pmap = vmspace_pmap(kdb_thread->td_proc->p_vmspace);
+	else
+		pmap = PCPU_GET(curpmap);
+
 	PG_V = pmap_valid_bit(pmap);
 	pml4 = pmap_pml4e(pmap, va);
 	db_printf("VA %#016lx pml4e %#016lx", va, *pml4);
