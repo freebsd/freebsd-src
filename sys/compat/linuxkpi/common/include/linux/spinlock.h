@@ -35,9 +35,9 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/libkern.h>
 
 #include <linux/compiler.h>
-#include <linux/kernel.h>
 #include <linux/rwlock.h>
 
 typedef struct {
