@@ -41,12 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 
-#if	__FreeBSD_version < 800002 
-#define	THREAD_CREATE	kthread_create
-#else
-#define	THREAD_CREATE	kproc_create
-#endif
-
 MODULE_VERSION(isp, 1);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 int isp_announced = 0;
@@ -176,7 +170,8 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 #endif
 		isp_loop_changed(isp, chan);
 		ISP_UNLOCK(isp);
-		if (THREAD_CREATE(isp_kthread, fc, &fc->kproc, 0, 0, "%s: fc_thrd%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
+		if (kproc_create(isp_kthread, fc, &fc->kproc, 0, 0,
+		    "%s_%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
 			xpt_free_path(fc->path);
 			ISP_LOCK(isp);
 			xpt_bus_deregister(cam_sim_path(fc->sim));
