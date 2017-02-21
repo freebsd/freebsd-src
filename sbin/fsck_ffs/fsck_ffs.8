@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2016
+.Dd February 14, 2017
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BEFfnpRryZ
+.Op Fl BCdEFfnpRrSyZ
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -149,45 +149,6 @@ If unexpected errors are found,
 the file system is marked as needing a foreground check and
 .Nm
 exits without attempting any further cleaning.
-.It Fl E
-Clear unallocated blocks, notifying the underlying device that they
-are not used and that their contents may be discarded.
-This is useful for filesystems which have been mounted on systems
-without TRIM support, or with TRIM support disabled, as well as
-filesystems which have been copied from one device to another.
-.Pp
-See the
-.Fl E
-and
-.Fl t
-flags of
-.Xr newfs 8 ,
-and
-the
-.Fl t
-flag of
-.Xr tunefs 8 .
-.It Fl F
-Determine whether the file system needs to be cleaned immediately
-in foreground, or if its cleaning can be deferred to background.
-To be eligible for background cleaning it must have been running
-with soft updates, not have been marked as needing a foreground check,
-and be mounted and writable when the background check is to be done.
-If these conditions are met, then
-.Nm
-exits with a zero exit status.
-Otherwise it exits with a non-zero exit status.
-If the file system is clean,
-it will exit with a non-zero exit status so that the clean status
-of the file system can be verified and reported during the foreground
-checks.
-Note that when invoked with the
-.Fl F
-flag, no cleanups are done.
-The only thing that
-.Nm
-does is to determine whether a foreground or background
-check is needed and exit with an appropriate status code.
 .It Fl b
 Use the block specified immediately after the flag as
 the super block for the file system.
@@ -243,6 +204,47 @@ first line of output from
 This option implies the
 .Fl f
 flag.
+.It Fl d
+Enable debugging messages.
+.It Fl E
+Clear unallocated blocks, notifying the underlying device that they
+are not used and that their contents may be discarded.
+This is useful for filesystems which have been mounted on systems
+without TRIM support, or with TRIM support disabled, as well as
+filesystems which have been copied from one device to another.
+.Pp
+See the
+.Fl E
+and
+.Fl t
+flags of
+.Xr newfs 8 ,
+and
+the
+.Fl t
+flag of
+.Xr tunefs 8 .
+.It Fl F
+Determine whether the file system needs to be cleaned immediately
+in foreground, or if its cleaning can be deferred to background.
+To be eligible for background cleaning it must have been running
+with soft updates, not have been marked as needing a foreground check,
+and be mounted and writable when the background check is to be done.
+If these conditions are met, then
+.Nm
+exits with a zero exit status.
+Otherwise it exits with a non-zero exit status.
+If the file system is clean,
+it will exit with a non-zero exit status so that the clean status
+of the file system can be verified and reported during the foreground
+checks.
+Note that when invoked with the
+.Fl F
+flag, no cleanups are done.
+The only thing that
+.Nm
+does is to determine whether a foreground or background
+check is needed and exit with an appropriate status code.
 .It Fl f
 Force
 .Nm
