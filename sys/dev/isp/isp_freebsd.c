@@ -2564,13 +2564,11 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 		break;
 	case IN_ABORT_TASK:
 	{
-		tstate_t *tptr;
 		uint16_t nphdl, lun;
 		uint32_t sid;
 		uint64_t wwn;
-		atio_private_data_t *atp;
 		fcportdb_t *lp;
-		struct ccb_immediate_notify *inot = NULL;
+		isp_notify_t tmp, *nt = &tmp;
 
 		if (ISP_CAP_SCCFW(isp)) {
 			lun = inp->in_scclun;
@@ -2592,47 +2590,25 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 			wwn = INI_ANY;
 			sid = PORT_ANY;
 		}
-		tptr = get_lun_statep(isp, 0, lun);
-		if (tptr == NULL) {
-			tptr = get_lun_statep(isp, 0, CAM_LUN_WILDCARD);
-			if (tptr == NULL) {
-				isp_prt(isp, ISP_LOGWARN, "ABORT TASK for lun %x, but no tstate", lun);
-				return;
-			}
-		}
-		atp = isp_find_atpd(isp, tptr, inp->in_seqid);
+		isp_prt(isp, ISP_LOGTDEBUG0, "ABORT TASK RX_ID %x WWN 0x%016llx",
+		    inp->in_seqid, (unsigned long long) wwn);
 
-		if (atp) {
-			inot = (struct ccb_immediate_notify *) SLIST_FIRST(&tptr->inots);
-			isp_prt(isp, ISP_LOGTDEBUG0, "ABORT TASK RX_ID %x WWN 0x%016llx state %d", inp->in_seqid, (unsigned long long) wwn, atp->state);
-			if (inot) {
-				tptr->inot_count--;
-				SLIST_REMOVE_HEAD(&tptr->inots, sim_links.sle);
-				ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, inot->ccb_h.path, "%s: Take FREE INOT count now %d\n", __func__, tptr->inot_count);
-			} else {
-				ISP_PATH_PRT(isp, ISP_LOGWARN, tptr->owner, "out of INOT structures\n");
-			}
-		} else {
-			ISP_PATH_PRT(isp, ISP_LOGWARN, tptr->owner, "abort task RX_ID %x from wwn 0x%016llx, state unknown\n", inp->in_seqid, wwn);
-		}
-		if (inot) {
-			isp_notify_t tmp, *nt = &tmp;
-			ISP_MEMZERO(nt, sizeof (isp_notify_t));
-    			nt->nt_hba = isp;
-			nt->nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
-			nt->nt_wwn = wwn;
-			nt->nt_nphdl = nphdl;
-			nt->nt_sid = sid;
-			nt->nt_did = PORT_ANY;
-    			nt->nt_lun = lun;
-            		nt->nt_need_ack = 1;
-    			nt->nt_channel = 0;
-    			nt->nt_ncode = NT_ABORT_TASK;
-    			nt->nt_lreserved = inot;
-			isp_handle_platform_target_tmf(isp, nt);
-			needack = 0;
-		}
-		rls_lun_statep(isp, tptr);
+		ISP_MEMZERO(nt, sizeof (isp_notify_t));
+		nt->nt_hba = isp;
+		nt->nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
+		nt->nt_wwn = wwn;
+		nt->nt_nphdl = nphdl;
+		nt->nt_sid = sid;
+		nt->nt_did = PORT_ANY;
+		nt->nt_lun = lun;
+		nt->nt_tagval = inp->in_seqid;
+		nt->nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
+		nt->nt_need_ack = 1;
+		nt->nt_channel = 0;
+		nt->nt_ncode = NT_ABORT_TASK;
+		nt->nt_lreserved = inp;
+		isp_handle_platform_target_tmf(isp, nt);
+		needack = 0;
 		break;
 	}
 	default:
