@@ -50,13 +50,10 @@ __FBSDID("$FreeBSD$");
 	 MSR_HV_STIMER_CFG_SINT_MASK)
 
 /*
- * Two additionally required features:
+ * Additionally required feature:
  * - SynIC is needed for interrupt generation.
- * - Time reference counter is needed to set ABS reference count to
- *   STIMER0_COUNT.
  */
-#define CPUID_HV_ET_MASK		(CPUID_HV_MSR_TIME_REFCNT |	\
-					 CPUID_HV_MSR_SYNIC |		\
+#define CPUID_HV_ET_MASK		(CPUID_HV_MSR_SYNIC |		\
 					 CPUID_HV_MSR_SYNTIMER)
 
 static void			vmbus_et_identify(driver_t *, device_t);
@@ -104,7 +101,7 @@ vmbus_et_start(struct eventtimer *et __unused, sbintime_t first,
 {
 	uint64_t current;
 
-	current = rdmsr(MSR_HV_TIME_REF_COUNT);
+	current = hyperv_tc64();
 	current += hyperv_sbintime2count(first);
 	wrmsr(MSR_HV_STIMER0_COUNT, current);
 
@@ -133,7 +130,8 @@ vmbus_et_identify(driver_t *driver, device_t parent)
 {
 	if (device_get_unit(parent) != 0 ||
 	    device_find_child(parent, VMBUS_ET_NAME, -1) != NULL ||
-	    (hyperv_features & CPUID_HV_ET_MASK) != CPUID_HV_ET_MASK)
+	    (hyperv_features & CPUID_HV_ET_MASK) != CPUID_HV_ET_MASK ||
+	    hyperv_tc64 == NULL)
 		return;
 
 	device_add_child(parent, VMBUS_ET_NAME, -1);
@@ -189,9 +187,8 @@ vmbus_et_attach(device_t dev)
 	vmbus_et.et_start = vmbus_et_start;
 
 	/*
-	 * Delay a bit to make sure that MSR_HV_TIME_REF_COUNT will
-	 * not return 0, since writing 0 to STIMER0_COUNT will disable
-	 * STIMER0.
+	 * Delay a bit to make sure that hyperv_tc64 will not return 0,
+	 * since writing 0 to STIMER0_COUNT will disable STIMER0.
 	 */
 	DELAY(100);
 	smp_rendezvous(NULL, vmbus_et_config, NULL, NULL);
