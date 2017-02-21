@@ -10,35 +10,33 @@ SVNLITE?=	lite
 
 .if !defined(SVNDIR)
 
-SVNDIR=		${.CURDIR}/../../../contrib/subversion/subversion
-APRU=		${.CURDIR}/../../../contrib/apr-util
-APR=		${.CURDIR}/../../../contrib/apr
+SVNDIR=		${SRCTOP}/contrib/subversion/subversion
+APRU=		${SRCTOP}/contrib/apr-util
+APR=		${SRCTOP}/contrib/apr
 SQLITE=		${.CURDIR}/../../../contrib/sqlite3
 WARNS?=		0	# definitely not warns friendly
 
-.if exists(${.CURDIR}/../../Makefile.inc)
-.include "${.CURDIR}/../../Makefile.inc"
-.endif
+.sinclude "${.CURDIR:H:H}/Makefile.inc"
 
-LIBAPRDIR=		${.OBJDIR}/../lib/libapr
-LIBAPR_UTILDIR=		${.OBJDIR}/../lib/libapr_util
-LIBSQLITEDIR=		${.OBJDIR}/../lib/libsqlite3
-LIBSERFDIR=		${.OBJDIR}/../lib/libserf
+LIBAPRDIR=		${.OBJDIR:H}/lib/libapr
+LIBAPR_UTILDIR=		${.OBJDIR:H}/lib/libapr_util
+LIBSQLITEDIR=		${.OBJDIR:H}/lib/libsqlite3
+LIBSERFDIR=		${.OBJDIR:H}/lib/libserf
 
-LIBSVN_CLIENTDIR=	${.OBJDIR}/../lib/libsvn_client
-LIBSVN_DELTADIR=	${.OBJDIR}/../lib/libsvn_delta
-LIBSVN_DIFFDIR=		${.OBJDIR}/../lib/libsvn_diff
-LIBSVN_FSDIR=		${.OBJDIR}/../lib/libsvn_fs
-LIBSVN_FS_FSDIR=	${.OBJDIR}/../lib/libsvn_fs_fs
-LIBSVN_FS_UTILDIR=	${.OBJDIR}/../lib/libsvn_fs_util
-LIBSVN_FS_XDIR=		${.OBJDIR}/../lib/libsvn_fs_x
-LIBSVN_RADIR=		${.OBJDIR}/../lib/libsvn_ra
-LIBSVN_RA_LOCALDIR=	${.OBJDIR}/../lib/libsvn_ra_local
-LIBSVN_RA_SVNDIR=	${.OBJDIR}/../lib/libsvn_ra_svn
-LIBSVN_RA_SERFDIR=	${.OBJDIR}/../lib/libsvn_ra_serf
-LIBSVN_REPOSDIR=	${.OBJDIR}/../lib/libsvn_repos
-LIBSVN_SUBRDIR=		${.OBJDIR}/../lib/libsvn_subr
-LIBSVN_WCDIR=		${.OBJDIR}/../lib/libsvn_wc
+LIBSVN_CLIENTDIR=	${.OBJDIR:H}/lib/libsvn_client
+LIBSVN_DELTADIR=	${.OBJDIR:H}/lib/libsvn_delta
+LIBSVN_DIFFDIR=		${.OBJDIR:H}/lib/libsvn_diff
+LIBSVN_FSDIR=		${.OBJDIR:H}/lib/libsvn_fs
+LIBSVN_FS_FSDIR=	${.OBJDIR:H}/lib/libsvn_fs_fs
+LIBSVN_FS_UTILDIR=	${.OBJDIR:H}/lib/libsvn_fs_util
+LIBSVN_FS_XDIR=		${.OBJDIR:H}/lib/libsvn_fs_x
+LIBSVN_RADIR=		${.OBJDIR:H}/lib/libsvn_ra
+LIBSVN_RA_LOCALDIR=	${.OBJDIR:H}/lib/libsvn_ra_local
+LIBSVN_RA_SVNDIR=	${.OBJDIR:H}/lib/libsvn_ra_svn
+LIBSVN_RA_SERFDIR=	${.OBJDIR:H}/lib/libsvn_ra_serf
+LIBSVN_REPOSDIR=	${.OBJDIR:H}/lib/libsvn_repos
+LIBSVN_SUBRDIR=		${.OBJDIR:H}/lib/libsvn_subr
+LIBSVN_WCDIR=		${.OBJDIR:H}/lib/libsvn_wc
 
 LIBAPR=			${LIBAPRDIR}/libapr.a
 LIBAPR_UTIL=		${LIBAPR_UTILDIR}/libapr-util.a
