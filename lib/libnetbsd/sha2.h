@@ -34,7 +34,6 @@
 #define _SHA2_H_
 
 #include <sha256.h>
-#include <sha384.h>
 #include <sha512.h>
 
 #endif /* _SHA2_H_ */
