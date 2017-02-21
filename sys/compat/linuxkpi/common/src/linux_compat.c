@@ -96,7 +96,6 @@ struct list_head pci_drivers;
 struct list_head pci_devices;
 struct net init_net;
 spinlock_t pci_lock;
-struct sx linux_global_rcu_lock;
 
 unsigned long linux_timer_hz_mask;
 
@@ -1474,7 +1473,6 @@ linux_compat_init(void *arg)
 #if defined(__i386__) || defined(__amd64__)
 	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
 #endif
-	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
 
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
@@ -1507,7 +1505,6 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
 
 	synchronize_rcu();
-	sx_destroy(&linux_global_rcu_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
 
