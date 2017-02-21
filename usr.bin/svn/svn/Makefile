@@ -2,7 +2,7 @@
 
 MAN=
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "${.CURDIR:H}/Makefile.inc"
 
 .PATH:	${SVNDIR}/svn
 
@@ -19,11 +19,11 @@ SRCS=	add-cmd.c auth-cmd.c blame-cmd.c cat-cmd.c changelist-cmd.c \
 	resolved-cmd.c revert-cmd.c status-cmd.c similarity.c status.c \
 	svn.c switch-cmd.c unlock-cmd.c update-cmd.c upgrade-cmd.c util.c
 
-CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/.. \
-	-I${.CURDIR}/../lib/libapr \
+CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR:H} \
+	-I${.CURDIR:H}/lib/libapr \
 	-I${APR}/include/arch/unix \
 	-I${APR}/include \
-	-I${.CURDIR}/../lib/libapr_util \
+	-I${.CURDIR:H}/lib/libapr_util \
 	-I${APRU}/include/private \
 	-I${APRU}/include
 
