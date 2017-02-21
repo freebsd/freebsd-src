@@ -1096,6 +1096,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_accept_tio *atio = NULL;
 	union ctl_io *io = NULL;
 	struct mtx *mtx;
+	cam_status status;
 
 	KASSERT((done_ccb->ccb_h.flags & CAM_UNLOCKED) != 0,
 	    ("CCB in ctlfedone() without CAM_UNLOCKED flag"));
@@ -1122,30 +1123,15 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	mtx = cam_periph_mtx(periph);
 	mtx_lock(mtx);
 
-	/*
-	 * If the peripheral is invalid, ATIOs and immediate notify CCBs
-	 * need to be freed.  Most of the ATIOs and INOTs that come back
-	 * will be CCBs that are being returned from the SIM as a result of
-	 * our disabling the LUN.
-	 *
-	 * Other CCB types are handled in their respective cases below.
-	 */
-	if (periph->flags & CAM_PERIPH_INVALID) {
-		switch (done_ccb->ccb_h.func_code) {
-		case XPT_ACCEPT_TARGET_IO:
-		case XPT_IMMEDIATE_NOTIFY:
-		case XPT_NOTIFY_ACKNOWLEDGE:
-			ctlfe_free_ccb(periph, done_ccb);
-			goto out;
-		default:
-			break;
-		}
-
-	}
 	switch (done_ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO: {
 
 		atio = &done_ccb->atio;
+		status = atio->ccb_h.status & CAM_STATUS_MASK;
+		if (status != CAM_CDB_RECVD) {
+			ctlfe_free_ccb(periph, done_ccb);
+			goto out;
+		}
 
  resubmit:
 		/*
@@ -1424,14 +1410,9 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	case XPT_IMMEDIATE_NOTIFY: {
 		union ctl_io *io;
 		struct ccb_immediate_notify *inot;
-		cam_status status;
 		int send_ctl_io;
 
 		inot = &done_ccb->cin1;
-		printf("%s: got XPT_IMMEDIATE_NOTIFY status %#x tag %#x "
-		       "seq %#x\n", __func__, inot->ccb_h.status,
-		       inot->tag_id, inot->seq_id);
-
 		io = done_ccb->ccb_h.io_ptr;
 		ctl_zero_io(io);
 
@@ -1497,40 +1478,22 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				break;
 			default:
 				xpt_print(periph->path,
-					  "%s: unsupported message 0x%x\n",
-					  __func__, inot->arg);
+				    "%s: unsupported INOT message 0x%x\n",
+				    __func__, inot->arg);
 				send_ctl_io = 0;
 				break;
 			}
 			break;
-		case CAM_REQ_ABORTED:
-			/*
-			 * This request was sent back by the driver.
-			 * XXX KDM what do we do here?
-			 */
-			send_ctl_io = 0;
-			break;
-		case CAM_REQ_INVALID:
-		case CAM_PROVIDE_FAIL:
 		default:
-			/*
-			 * We should only get here if we're talking
-			 * to a talking to a SIM that is target
-			 * capable but supports the old API.  In
-			 * that case, we need to just free the CCB.
-			 * If we actually send a notify acknowledge,
-			 * it will send that back with an error as
-			 * well.
-			 */
-
-			if ((status != CAM_REQ_INVALID)
-			 && (status != CAM_PROVIDE_FAIL))
-				xpt_print(periph->path,
-					  "%s: unsupported CAM status 0x%x\n",
-					  __func__, status);
-
+			xpt_print(periph->path,
+			    "%s: unsupported INOT status 0x%x\n",
+			    __func__, status);
+			/* FALLTHROUGH */
+		case CAM_REQ_ABORTED:
+		case CAM_REQ_INVALID:
+		case CAM_DEV_NOT_THERE:
+		case CAM_PROVIDE_FAIL:
 			ctlfe_free_ccb(periph, done_ccb);
-
 			goto out;
 		}
 		if (send_ctl_io != 0) {
@@ -1543,6 +1506,11 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		break;
 	}
 	case XPT_NOTIFY_ACKNOWLEDGE:
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			ctlfe_free_ccb(periph, done_ccb);
+			goto out;
+		}
+
 		/*
 		 * Queue this back down to the SIM as an immediate notify.
 		 */
@@ -2023,14 +1991,6 @@ ctlfe_done(union ctl_io *io)
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 
 	if (io->io_hdr.io_type == CTL_IO_TASK) {
-		/*
-		 * Task management commands don't require any further
-		 * communication back to the adapter.  Requeue the CCB
-		 * to the adapter, and free the CTL I/O.
-		 */
-		xpt_print(ccb->ccb_h.path, "%s: returning task I/O "
-			  "tag %#x seq %#x\n", __func__,
-			  ccb->cin1.tag_id, ccb->cin1.seq_id);
 		/*
 		 * Send the notify acknowledge down to the SIM, to let it
 		 * know we processed the task management command.
