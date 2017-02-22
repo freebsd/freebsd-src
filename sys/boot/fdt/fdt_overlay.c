@@ -64,7 +64,7 @@ fdt_get_fixup_location(void *fdtp, const char *fixup)
 	int prop_offset, o, proplen;
 	void  *result;
 
-	result = 0;
+	result = NULL;
 
 	path = strdup(fixup);
 	prop = strchr(path, ':');

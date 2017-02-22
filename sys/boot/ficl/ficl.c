@@ -276,7 +276,7 @@ void ficlFreeVM(FICL_VM *pVM)
     FICL_SYSTEM *pSys = pVM->pSys;
     FICL_VM *pList = pSys->vmList;
 
-    assert(pVM != 0);
+    assert(pVM != NULL);
 
     if (pSys->vmList == pVM)
     {

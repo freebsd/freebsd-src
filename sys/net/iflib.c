@@ -1003,7 +1003,7 @@ iflib_netmap_txq_init(if_ctx_t ctx, iflib_txq_t txq)
 	struct netmap_slot *slot;
 
 	slot = netmap_reset(na, NR_TX, txq->ift_id, 0);
-	if (slot == 0)
+	if (slot == NULL)
 		return;
 
 	for (int i = 0; i < ctx->ifc_softc_ctx.isc_ntxd[0]; i++) {
@@ -1028,7 +1028,7 @@ iflib_netmap_rxq_init(if_ctx_t ctx, iflib_rxq_t rxq)
 	int nrxd;
 
 	slot = netmap_reset(na, NR_RX, rxq->ifr_id, 0);
-	if (slot == 0)
+	if (slot == NULL)
 		return;
 	map = rxq->ifr_fl[0].ifl_sds.ifsd_map;
 	nrxd = ctx->ifc_softc_ctx.isc_nrxd[0];
