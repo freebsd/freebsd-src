@@ -38,12 +38,15 @@
 
 struct scatterlist {
 	unsigned long page_link;
+#define	SG_PAGE_LINK_CHAIN	0x1UL
+#define	SG_PAGE_LINK_LAST	0x2UL
+#define	SG_PAGE_LINK_MASK	0x3UL
 	unsigned int offset;
 	unsigned int length;
 	dma_addr_t address;
 };
 
-CTASSERT((sizeof(struct scatterlist) & 0x3) == 0);
+CTASSERT((sizeof(struct scatterlist) & SG_PAGE_LINK_MASK) == 0);
 
 struct sg_table {
 	struct scatterlist *sgl;
@@ -65,10 +68,10 @@ struct sg_page_iter {
 
 #define	SG_MAGIC		0x87654321UL
 
-#define	sg_is_chain(sg)		((sg)->page_link & 0x01)
-#define	sg_is_last(sg)		((sg)->page_link & 0x02)
+#define	sg_is_chain(sg)		((sg)->page_link & SG_PAGE_LINK_CHAIN)
+#define	sg_is_last(sg)		((sg)->page_link & SG_PAGE_LINK_LAST)
 #define	sg_chain_ptr(sg)	\
-	((struct scatterlist *) ((sg)->page_link & ~0x03))
+	((struct scatterlist *) ((sg)->page_link & ~SG_PAGE_LINK_MASK))
 
 #define	sg_dma_address(sg)	(sg)->address
 #define	sg_dma_len(sg)		(sg)->length
@@ -86,7 +89,7 @@ typedef void (sg_free_fn) (struct scatterlist *, unsigned int);
 static inline void
 sg_assign_page(struct scatterlist *sg, struct page *page)
 {
-	unsigned long page_link = sg->page_link & 0x3;
+	unsigned long page_link = sg->page_link & SG_PAGE_LINK_MASK;
 
 	sg->page_link = page_link | (unsigned long)page;
 }
@@ -103,7 +106,7 @@ sg_set_page(struct scatterlist *sg, struct page *page, unsigned int len,
 static inline struct page *
 sg_page(struct scatterlist *sg)
 {
-	return ((struct page *)((sg)->page_link & ~0x3));
+	return ((struct page *)((sg)->page_link & ~SG_PAGE_LINK_MASK));
 }
 
 static inline void
@@ -138,14 +141,15 @@ sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 
 	sg->offset = 0;
 	sg->length = 0;
-	sg->page_link = ((unsigned long)sgl | 0x01) & ~0x02;
+	sg->page_link = ((unsigned long)sgl |
+	    SG_PAGE_LINK_CHAIN) & ~SG_PAGE_LINK_LAST;
 }
 
 static inline void
 sg_mark_end(struct scatterlist *sg)
 {
-	sg->page_link |= 0x02;
-	sg->page_link &= ~0x01;
+	sg->page_link |= SG_PAGE_LINK_LAST;
+	sg->page_link &= ~SG_PAGE_LINK_CHAIN;
 }
 
 static inline void
