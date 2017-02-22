@@ -100,7 +100,7 @@ typedef struct atio_private_data {
 	uint32_t	bytes_xfered;
 	uint32_t	bytes_in_transit;
 	uint32_t	tag;		/* typically f/w RX_ID */
-	uint32_t	lun;
+	lun_id_t	lun;
 	uint32_t	nphdl;
 	uint32_t	sid;
 	uint32_t	portid;
@@ -139,14 +139,12 @@ typedef struct atio_private_data {
 #define	ATPD_GET_SEQNO(hdrp)		(((isphdr_t *)hdrp)->rqs_seqno & ATPD_SEQ_MASK)
 #define	ATPD_GET_NCAM(hdrp)		((((isphdr_t *)hdrp)->rqs_seqno & ATPD_SEQ_NOTIFY_CAM) != 0)
 
-typedef union inot_private_data inot_private_data_t;
-union inot_private_data {
-	inot_private_data_t *next;
-	struct {
-		isp_notify_t nt;	/* must be first! */
-		uint8_t data[64];	/* sb QENTRY_LEN, but order of definitions is wrong */
-		uint32_t tag_id, seq_id;
-	} rd;
+typedef struct inot_private_data inot_private_data_t;
+struct inot_private_data {
+	STAILQ_ENTRY(inot_private_data)	next;
+	isp_notify_t nt;
+	uint8_t data[64];	/* sb QENTRY_LEN, but order of definitions is wrong */
+	uint32_t tag_id, seq_id;
 };
 typedef struct isp_timed_notify_ack {
 	void *isp;
@@ -155,21 +153,15 @@ typedef struct isp_timed_notify_ack {
 	struct callout timer;
 } isp_tna_t;
 
+STAILQ_HEAD(ntpdlist, inot_private_data);
 typedef struct tstate {
-	SLIST_ENTRY(tstate) next;
-	lun_id_t ts_lun;
-	struct cam_path *owner;
-	struct ccb_hdr_slist atios;
-	struct ccb_hdr_slist inots;
-	uint32_t		hold;
+	SLIST_ENTRY(tstate)	next;
+	lun_id_t		ts_lun;
+	struct ccb_hdr_slist	atios;
+	struct ccb_hdr_slist	inots;
+	struct ntpdlist		restart_queue;
 	uint16_t		atio_count;
 	uint16_t		inot_count;
-	inot_private_data_t *	restart_queue;
-	inot_private_data_t *	ntfree;
-	inot_private_data_t	ntpool[ATPDPSIZE];
-	LIST_HEAD(, atio_private_data)	atfree;
-	LIST_HEAD(, atio_private_data)	atused[ATPDPHASHSIZE];
-	atio_private_data_t	atpool[ATPDPSIZE];
 } tstate_t;
 
 #define	LUN_HASH_SIZE		32
@@ -211,6 +203,7 @@ struct isp_nexus {
  */
 SLIST_HEAD(tslist, tstate);
 TAILQ_HEAD(isp_ccbq, ccb_hdr);
+LIST_HEAD(atpdlist, atio_private_data);
 
 struct isp_fc {
 	struct cam_sim *sim;
@@ -242,6 +235,11 @@ struct isp_fc {
 #ifdef	ISP_TARGET_MODE
 	struct tslist		lun_hash[LUN_HASH_SIZE];
 	struct isp_ccbq		waitq;		/* waiting CCBs */
+	struct ntpdlist		ntfree;
+	inot_private_data_t	ntpool[ATPDPSIZE];
+	struct atpdlist		atfree;
+	struct atpdlist		atused[ATPDPHASHSIZE];
+	atio_private_data_t	atpool[ATPDPSIZE];
 #if defined(DEBUG)
 	unsigned int inject_lost_data_frame;
 #endif
@@ -258,6 +256,11 @@ struct isp_spi {
 #ifdef	ISP_TARGET_MODE
 	struct tslist		lun_hash[LUN_HASH_SIZE];
 	struct isp_ccbq		waitq;		/* waiting CCBs */
+	struct ntpdlist		ntfree;
+	inot_private_data_t	ntpool[ATPDPSIZE];
+	struct atpdlist		atfree;
+	struct atpdlist		atused[ATPDPHASHSIZE];
+	atio_private_data_t	atpool[ATPDPSIZE];
 #endif
 	int			num_threads;
 };
