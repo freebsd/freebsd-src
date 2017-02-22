@@ -353,15 +353,20 @@ static void	iwm_set_radio_cfg(const struct iwm_softc *,
 static struct iwm_nvm_data *
 	iwm_parse_nvm_sections(struct iwm_softc *, struct iwm_nvm_section *);
 static int	iwm_nvm_init(struct iwm_softc *);
-static int	iwm_firmware_load_sect(struct iwm_softc *, uint32_t,
-                                       const uint8_t *, uint32_t);
-static int	iwm_firmware_load_chunk(struct iwm_softc *, uint32_t,
-                                        const uint8_t *, uint32_t);
-static int	iwm_load_firmware_7000(struct iwm_softc *, enum iwm_ucode_type);
-static int	iwm_load_cpu_sections_8000(struct iwm_softc *,
-					   struct iwm_fw_sects *, int , int *);
-static int	iwm_load_firmware_8000(struct iwm_softc *, enum iwm_ucode_type);
-static int	iwm_load_firmware(struct iwm_softc *, enum iwm_ucode_type);
+static int	iwm_pcie_load_section(struct iwm_softc *, uint8_t,
+				      const struct iwm_fw_desc *);
+static int	iwm_pcie_load_firmware_chunk(struct iwm_softc *, uint32_t,
+					     bus_addr_t, uint32_t);
+static int	iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
+						const struct iwm_fw_sects *,
+						int, int *);
+static int	iwm_pcie_load_cpu_sections(struct iwm_softc *,
+					   const struct iwm_fw_sects *,
+					   int, int *);
+static int	iwm_pcie_load_given_ucode_8000(struct iwm_softc *,
+					       const struct iwm_fw_sects *);
+static int	iwm_pcie_load_given_ucode(struct iwm_softc *,
+					  const struct iwm_fw_sects *);
 static int	iwm_start_fw(struct iwm_softc *, enum iwm_ucode_type);
 static int	iwm_send_tx_ant_cfg(struct iwm_softc *, uint8_t);
 static int	iwm_send_phy_cfg_cmd(struct iwm_softc *);
@@ -485,7 +490,7 @@ iwm_firmware_store_section(struct iwm_softc *sc,
     enum iwm_ucode_type type, const uint8_t *data, size_t dlen)
 {
 	struct iwm_fw_sects *fws;
-	struct iwm_fw_onesect *fwone;
+	struct iwm_fw_desc *fwone;
 
 	if (type >= IWM_UCODE_TYPE_MAX)
 		return EINVAL;
@@ -499,11 +504,11 @@ iwm_firmware_store_section(struct iwm_softc *sc,
 	fwone = &fws->fw_sect[fws->fw_count];
 
 	/* first 32bit are device load offset */
-	memcpy(&fwone->fws_devoff, data, sizeof(uint32_t));
+	memcpy(&fwone->offset, data, sizeof(uint32_t));
 
 	/* rest is data */
-	fwone->fws_data = data + sizeof(uint32_t);
-	fwone->fws_len = dlen - sizeof(uint32_t);
+	fwone->data = data + sizeof(uint32_t);
+	fwone->len = dlen - sizeof(uint32_t);
 
 	fws->fw_count++;
 
@@ -559,6 +564,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	const uint8_t *data;
 	uint32_t usniffer_img;
 	uint32_t paging_mem_size;
+	int num_of_cpus;
 	int error = 0;
 	size_t len;
 
@@ -699,18 +705,24 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				goto parse_out;
 			}
 			break;
-		case IWM_UCODE_TLV_NUM_OF_CPU: {
-			uint32_t num_cpu;
+		case IWM_UCODE_TLV_NUM_OF_CPU:
 			if (tlv_len != sizeof(uint32_t)) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TLV_NUM_OF_CPU: tlv_len (%d) < sizeof(uint32_t)\n",
+				    "%s: IWM_UCODE_TLV_NUM_OF_CPU: tlv_len (%d) != sizeof(uint32_t)\n",
 				    __func__,
 				    (int) tlv_len);
 				error = EINVAL;
 				goto parse_out;
 			}
-			num_cpu = le32toh(*(const uint32_t *)tlv_data);
-			if (num_cpu < 1 || num_cpu > 2) {
+			num_of_cpus = le32toh(*(const uint32_t *)tlv_data);
+			if (num_of_cpus == 2) {
+				fw->fw_sects[IWM_UCODE_REGULAR].is_dual_cpus =
+					TRUE;
+				fw->fw_sects[IWM_UCODE_INIT].is_dual_cpus =
+					TRUE;
+				fw->fw_sects[IWM_UCODE_WOWLAN].is_dual_cpus =
+					TRUE;
+			} else if ((num_of_cpus > 2) || (num_of_cpus < 1)) {
 				device_printf(sc->sc_dev,
 				    "%s: Driver supports only 1 or 2 CPUs\n",
 				    __func__);
@@ -718,7 +730,6 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				goto parse_out;
 			}
 			break;
-		}
 		case IWM_UCODE_TLV_SEC_RT:
 			if ((error = iwm_firmware_store_section(sc,
 			    IWM_UCODE_REGULAR, tlv_data, tlv_len)) != 0) {
@@ -2414,52 +2425,67 @@ iwm_nvm_init(struct iwm_softc *sc)
 	return 0;
 }
 
-/*
- * Firmware loading gunk.  This is kind of a weird hybrid between the
- * iwn driver and the Linux iwlwifi driver.
- */
-
 static int
-iwm_firmware_load_sect(struct iwm_softc *sc, uint32_t dst_addr,
-	const uint8_t *section, uint32_t byte_cnt)
-{
-	int error = EINVAL;
-	uint32_t chunk_sz, offset;
-
-	chunk_sz = MIN(IWM_FH_MEM_TB_MAX_LENGTH, byte_cnt);
-
-	for (offset = 0; offset < byte_cnt; offset += chunk_sz) {
-		uint32_t addr, len;
-		const uint8_t *data;
-
-		addr = dst_addr + offset;
-		len = MIN(chunk_sz, byte_cnt - offset);
-		data = section + offset;
-
-		error = iwm_firmware_load_chunk(sc, addr, data, len);
-		if (error)
-			break;
-	}
-
-	return error;
-}
-
-static int
-iwm_firmware_load_chunk(struct iwm_softc *sc, uint32_t dst_addr,
-	const uint8_t *chunk, uint32_t byte_cnt)
+iwm_pcie_load_section(struct iwm_softc *sc, uint8_t section_num,
+	const struct iwm_fw_desc *section)
 {
 	struct iwm_dma_info *dma = &sc->fw_dma;
-	int error;
+	uint8_t *v_addr;
+	bus_addr_t p_addr;
+	uint32_t offset, chunk_sz = MIN(IWM_FH_MEM_TB_MAX_LENGTH, section->len);
+	int ret = 0;
 
-	/* Copy firmware chunk into pre-allocated DMA-safe memory. */
-	memcpy(dma->vaddr, chunk, byte_cnt);
-	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
+	IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+		    "%s: [%d] uCode section being loaded...\n",
+		    __func__, section_num);
 
-	if (dst_addr >= IWM_FW_MEM_EXTENDED_START &&
-	    dst_addr <= IWM_FW_MEM_EXTENDED_END) {
-		iwm_set_bits_prph(sc, IWM_LMPM_CHICK,
-		    IWM_LMPM_CHICK_EXTENDED_ADDR_SPACE);
+	v_addr = dma->vaddr;
+	p_addr = dma->paddr;
+
+	for (offset = 0; offset < section->len; offset += chunk_sz) {
+		uint32_t copy_size, dst_addr;
+		int extended_addr = FALSE;
+
+		copy_size = MIN(chunk_sz, section->len - offset);
+		dst_addr = section->offset + offset;
+
+		if (dst_addr >= IWM_FW_MEM_EXTENDED_START &&
+		    dst_addr <= IWM_FW_MEM_EXTENDED_END)
+			extended_addr = TRUE;
+
+		if (extended_addr)
+			iwm_set_bits_prph(sc, IWM_LMPM_CHICK,
+					  IWM_LMPM_CHICK_EXTENDED_ADDR_SPACE);
+
+		memcpy(v_addr, (const uint8_t *)section->data + offset,
+		    copy_size);
+		bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
+		ret = iwm_pcie_load_firmware_chunk(sc, dst_addr, p_addr,
+						   copy_size);
+
+		if (extended_addr)
+			iwm_clear_bits_prph(sc, IWM_LMPM_CHICK,
+					    IWM_LMPM_CHICK_EXTENDED_ADDR_SPACE);
+
+		if (ret) {
+			device_printf(sc->sc_dev,
+			    "%s: Could not load the [%d] uCode section\n",
+			    __func__, section_num);
+			break;
+		}
 	}
+
+	return ret;
+}
+
+/*
+ * ucode
+ */
+static int
+iwm_pcie_load_firmware_chunk(struct iwm_softc *sc, uint32_t dst_addr,
+			     bus_addr_t phy_addr, uint32_t byte_cnt)
+{
+	int ret;
 
 	sc->sc_fw_chunk_done = 0;
 
@@ -2468,17 +2494,22 @@ iwm_firmware_load_chunk(struct iwm_softc *sc, uint32_t dst_addr,
 
 	IWM_WRITE(sc, IWM_FH_TCSR_CHNL_TX_CONFIG_REG(IWM_FH_SRVC_CHNL),
 	    IWM_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
+
 	IWM_WRITE(sc, IWM_FH_SRVC_CHNL_SRAM_ADDR_REG(IWM_FH_SRVC_CHNL),
 	    dst_addr);
+
 	IWM_WRITE(sc, IWM_FH_TFDIB_CTRL0_REG(IWM_FH_SRVC_CHNL),
-	    dma->paddr & IWM_FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
+	    phy_addr & IWM_FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
+
 	IWM_WRITE(sc, IWM_FH_TFDIB_CTRL1_REG(IWM_FH_SRVC_CHNL),
-	    (iwm_get_dma_hi_addr(dma->paddr)
-	      << IWM_FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
+	    (iwm_get_dma_hi_addr(phy_addr)
+	     << IWM_FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
+
 	IWM_WRITE(sc, IWM_FH_TCSR_CHNL_TX_BUF_STS_REG(IWM_FH_SRVC_CHNL),
 	    1 << IWM_FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
 	    1 << IWM_FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX |
 	    IWM_FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID);
+
 	IWM_WRITE(sc, IWM_FH_TCSR_CHNL_TX_CONFIG_REG(IWM_FH_SRVC_CHNL),
 	    IWM_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE    |
 	    IWM_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE |
@@ -2486,37 +2517,31 @@ iwm_firmware_load_chunk(struct iwm_softc *sc, uint32_t dst_addr,
 
 	iwm_nic_unlock(sc);
 
-	/* wait 1s for this segment to load */
-	while (!sc->sc_fw_chunk_done)
-		if ((error = msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfw", hz)) != 0)
+	/* wait up to 5s for this segment to load */
+	ret = 0;
+	while (!sc->sc_fw_chunk_done) {
+		ret = msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfw", hz);
+		if (ret)
 			break;
+	}
 
-	if (!sc->sc_fw_chunk_done) {
+	if (ret != 0) {
 		device_printf(sc->sc_dev,
 		    "fw chunk addr 0x%x len %d failed to load\n",
 		    dst_addr, byte_cnt);
+		return ETIMEDOUT;
 	}
 
-	if (dst_addr >= IWM_FW_MEM_EXTENDED_START &&
-	    dst_addr <= IWM_FW_MEM_EXTENDED_END && iwm_nic_lock(sc)) {
-		iwm_clear_bits_prph(sc, IWM_LMPM_CHICK,
-		    IWM_LMPM_CHICK_EXTENDED_ADDR_SPACE);
-		iwm_nic_unlock(sc);
-	}
-
-	return error;
+	return 0;
 }
 
-int
-iwm_load_cpu_sections_8000(struct iwm_softc *sc, struct iwm_fw_sects *fws,
-    int cpu, int *first_ucode_section)
+static int
+iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
+	const struct iwm_fw_sects *image, int cpu, int *first_ucode_section)
 {
 	int shift_param;
-	int i, error = 0, sec_num = 0x1;
+	int i, ret = 0, sec_num = 0x1;
 	uint32_t val, last_read_idx = 0;
-	const void *data;
-	uint32_t dlen;
-	uint32_t offset;
 
 	if (cpu == 1) {
 		shift_param = 0;
@@ -2528,9 +2553,6 @@ iwm_load_cpu_sections_8000(struct iwm_softc *sc, struct iwm_fw_sects *fws,
 
 	for (i = *first_ucode_section; i < IWM_UCODE_SECTION_MAX; i++) {
 		last_read_idx = i;
-		data = fws->fw_sect[i].fws_data;
-		dlen = fws->fw_sect[i].fws_len;
-		offset = fws->fw_sect[i].fws_devoff;
 
 		/*
 		 * CPU1_CPU2_SEPARATOR_SECTION delimiter - separate between
@@ -2538,27 +2560,17 @@ iwm_load_cpu_sections_8000(struct iwm_softc *sc, struct iwm_fw_sects *fws,
 		 * PAGING_SEPARATOR_SECTION delimiter - separate between
 		 * CPU2 non paged to CPU2 paging sec.
 		 */
-		if (!data || offset == IWM_CPU1_CPU2_SEPARATOR_SECTION ||
-		    offset == IWM_PAGING_SEPARATOR_SECTION)
-			break;
-
-		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-		    "LOAD FIRMWARE chunk %d offset 0x%x len %d for cpu %d\n",
-		    i, offset, dlen, cpu);
-
-		if (dlen > sc->sc_fwdmasegsz) {
+		if (!image->fw_sect[i].data ||
+		    image->fw_sect[i].offset == IWM_CPU1_CPU2_SEPARATOR_SECTION ||
+		    image->fw_sect[i].offset == IWM_PAGING_SEPARATOR_SECTION) {
 			IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-			    "chunk %d too large (%d bytes)\n", i, dlen);
-			error = EFBIG;
-		} else {
-			error = iwm_firmware_load_sect(sc, offset, data, dlen);
+				    "Break since Data not valid or Empty section, sec = %d\n",
+				    i);
+			break;
 		}
-		if (error) {
-			device_printf(sc->sc_dev,
-			    "could not load firmware chunk %d (error %d)\n",
-			    i, error);
-			return error;
-		}
+		ret = iwm_pcie_load_section(sc, i, &image->fw_sect[i]);
+		if (ret)
+			return ret;
 
 		/* Notify the ucode of the loaded section number and status */
 		if (iwm_nic_lock(sc)) {
@@ -2588,63 +2600,85 @@ iwm_load_cpu_sections_8000(struct iwm_softc *sc, struct iwm_fw_sects *fws,
 	return 0;
 }
 
-int
-iwm_load_firmware_8000(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
+static int
+iwm_pcie_load_cpu_sections(struct iwm_softc *sc,
+	const struct iwm_fw_sects *image, int cpu, int *first_ucode_section)
 {
-	struct iwm_fw_sects *fws;
-	int error = 0;
-	int first_ucode_section;
+	int shift_param;
+	int i, ret = 0;
+	uint32_t last_read_idx = 0;
 
-	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "loading ucode type %d\n",
-	    ucode_type);
+	if (cpu == 1) {
+		shift_param = 0;
+		*first_ucode_section = 0;
+	} else {
+		shift_param = 16;
+		(*first_ucode_section)++;
+	}
 
-	fws = &sc->sc_fw.fw_sects[ucode_type];
+	for (i = *first_ucode_section; i < IWM_UCODE_SECTION_MAX; i++) {
+		last_read_idx = i;
 
-	/* configure the ucode to be ready to get the secured image */
-	/* release CPU reset */
-	iwm_write_prph(sc, IWM_RELEASE_CPU_RESET, IWM_RELEASE_CPU_RESET_BIT);
+		/*
+		 * CPU1_CPU2_SEPARATOR_SECTION delimiter - separate between
+		 * CPU1 to CPU2.
+		 * PAGING_SEPARATOR_SECTION delimiter - separate between
+		 * CPU2 non paged to CPU2 paging sec.
+		 */
+		if (!image->fw_sect[i].data ||
+		    image->fw_sect[i].offset == IWM_CPU1_CPU2_SEPARATOR_SECTION ||
+		    image->fw_sect[i].offset == IWM_PAGING_SEPARATOR_SECTION) {
+			IWM_DPRINTF(sc, IWM_DEBUG_RESET,
+				    "Break since Data not valid or Empty section, sec = %d\n",
+				     i);
+			break;
+		}
 
-	/* load to FW the binary Secured sections of CPU1 */
-	error = iwm_load_cpu_sections_8000(sc, fws, 1, &first_ucode_section);
-	if (error)
-		return error;
+		ret = iwm_pcie_load_section(sc, i, &image->fw_sect[i]);
+		if (ret)
+			return ret;
+	}
 
-	/* load to FW the binary sections of CPU2 */
-	return iwm_load_cpu_sections_8000(sc, fws, 2, &first_ucode_section);
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+		iwm_set_bits_prph(sc,
+				  IWM_CSR_UCODE_LOAD_STATUS_ADDR,
+				  (IWM_LMPM_CPU_UCODE_LOADING_COMPLETED |
+				   IWM_LMPM_CPU_HDRS_LOADING_COMPLETED |
+				   IWM_LMPM_CPU_UCODE_LOADING_STARTED) <<
+					shift_param);
+
+	*first_ucode_section = last_read_idx;
+
+	return 0;
+
 }
 
 static int
-iwm_load_firmware_7000(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
+iwm_pcie_load_given_ucode(struct iwm_softc *sc,
+	const struct iwm_fw_sects *image)
 {
-	struct iwm_fw_sects *fws;
-	int error, i;
-	const void *data;
-	uint32_t dlen;
-	uint32_t offset;
+	int ret = 0;
+	int first_ucode_section;
 
-	sc->sc_uc.uc_intr = 0;
+	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "working with %s CPU\n",
+		     image->is_dual_cpus ? "Dual" : "Single");
 
-	fws = &sc->sc_fw.fw_sects[ucode_type];
-	for (i = 0; i < fws->fw_count; i++) {
-		data = fws->fw_sect[i].fws_data;
-		dlen = fws->fw_sect[i].fws_len;
-		offset = fws->fw_sect[i].fws_devoff;
-		IWM_DPRINTF(sc, IWM_DEBUG_FIRMWARE_TLV,
-		    "LOAD FIRMWARE type %d offset %u len %d\n",
-		    ucode_type, offset, dlen);
-		if (dlen > sc->sc_fwdmasegsz) {
-			IWM_DPRINTF(sc, IWM_DEBUG_FIRMWARE_TLV,
-			    "chunk %d too large (%d bytes)\n", i, dlen);
-			error = EFBIG;
-		} else {
-			error = iwm_firmware_load_sect(sc, offset, data, dlen);
-		}
-		if (error) {
-			device_printf(sc->sc_dev,
-			    "could not load firmware chunk %u of %u "
-			    "(error=%d)\n", i, fws->fw_count, error);
-			return error;
-		}
+	/* load to FW the binary non secured sections of CPU1 */
+	ret = iwm_pcie_load_cpu_sections(sc, image, 1, &first_ucode_section);
+	if (ret)
+		return ret;
+
+	if (image->is_dual_cpus) {
+		/* set CPU2 header address */
+                iwm_write_prph(sc,
+			       IWM_LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR,
+			       IWM_LMPM_SECURE_CPU2_HDR_MEM_SPACE);
+
+		/* load to FW the binary sections of CPU2 */
+		ret = iwm_pcie_load_cpu_sections(sc, image, 2,
+						 &first_ucode_section);
+		if (ret)
+			return ret;
 	}
 
 	IWM_WRITE(sc, IWM_CSR_RESET, 0);
@@ -2652,15 +2686,43 @@ iwm_load_firmware_7000(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	return 0;
 }
 
+int
+iwm_pcie_load_given_ucode_8000(struct iwm_softc *sc,
+	const struct iwm_fw_sects *image)
+{
+	int ret = 0;
+	int first_ucode_section;
+
+	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "working with %s CPU\n",
+		    image->is_dual_cpus ? "Dual" : "Single");
+
+	/* configure the ucode to be ready to get the secured image */
+	/* release CPU reset */
+	iwm_write_prph(sc, IWM_RELEASE_CPU_RESET, IWM_RELEASE_CPU_RESET_BIT);
+
+	/* load to FW the binary Secured sections of CPU1 */
+	ret = iwm_pcie_load_cpu_sections_8000(sc, image, 1,
+	    &first_ucode_section);
+	if (ret)
+		return ret;
+
+	/* load to FW the binary sections of CPU2 */
+	return iwm_pcie_load_cpu_sections_8000(sc, image, 2,
+	    &first_ucode_section);
+}
+
 static int
 iwm_load_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 {
 	int error, w;
 
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
-		error = iwm_load_firmware_8000(sc, ucode_type);
-	else
-		error = iwm_load_firmware_7000(sc, ucode_type);
+	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+		error = iwm_pcie_load_given_ucode_8000(sc,
+		    &sc->sc_fw.fw_sects[ucode_type]);
+	} else {
+		error = iwm_pcie_load_given_ucode(sc,
+		    &sc->sc_fw.fw_sects[ucode_type]);
+	}
 	if (error)
 		return error;
 
