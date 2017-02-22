@@ -35,10 +35,10 @@ END {
 		printf("#define\t%s\tNULL\n", f)
 	printf("\n/* CP2 exception codes */\n")
 	for (code in cp2_exccodes)
-		printf("#define\t%s\tNULL\n", code)
+		printf("#define\t%s\t0\n", code)
 	printf("\n/* MIPS exception codes */\n")
 	for (code in mips_exccodes)
-		printf("#define\t%s\tNULL\n", code)
+		printf("#define\t%s\t0\n", code)
 	printf("\n")
 	print "#ifdef CHERI_C_TESTS"
 	print "#define\tDECLARE_TEST(name, desc) \\"
