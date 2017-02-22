@@ -91,8 +91,8 @@ userdisk_init(void)
 			return (ENOMEM);
 		for (i = 0; i < userdisk_maxunit; i++) {
 			if (CALLBACK(diskioctl, i, DIOCGSECTORSIZE,
-			    &sectorsize) != 0 || CALLBACK(diskioctl, i,
-			    DIOCGMEDIASIZE, &mediasize) != 0)
+			    &sectorsize) != NULL || CALLBACK(diskioctl, i,
+			    DIOCGMEDIASIZE, &mediasize) != NULL)
 				return (ENXIO);
 			ud_info[i].mediasize = mediasize;
 			ud_info[i].sectorsize = sectorsize;

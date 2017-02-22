@@ -268,7 +268,7 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 			 * there is a case that inbuf char is a single
 			 * byte char while inlen == 2
 			 */
-			if ((u_char)*(src+1) == 0 && !nullin ) {
+			if ((u_char)*(src+1) == '\0' && !nullin ) {
 				src++;
 				ir--;
 			} else {
