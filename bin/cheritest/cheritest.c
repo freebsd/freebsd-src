@@ -68,9 +68,11 @@
 #include <fnmatch.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stringlist.h>
 #include <sysexits.h>
 #include <unistd.h>
 #include <vis.h>
@@ -1021,6 +1023,8 @@ static const struct cheri_test cheri_tests[] = {
 };
 static const u_int cheri_tests_len = sizeof(cheri_tests) /
 	    sizeof(cheri_tests[0]);
+static StringList* cheri_failed_tests;
+static StringList* cheri_xfailed_tests;
 
 /* Shared memory page with child process. */
 struct cheritest_child_state *ccsp;
@@ -1212,6 +1216,7 @@ cheritest_run_test(const struct cheri_test *ctp)
 	char visreason[sizeof(reason) * 4]; /* Space for vis(3) the string */
 	char buffer[TEST_BUFFER_LEN];
 	const char *xfail_reason;
+	char* failure_message;
 	register_t cp2_exccode, mips_exccode;
 	ssize_t len;
 
@@ -1474,15 +1479,18 @@ fail:
 	 * Escape non-printing characters.
 	 */
 	strnvis(visreason, sizeof(visreason), reason, VIS_TAB);
-	if (xfail_reason == NULL)
+	asprintf(&failure_message, "%s: %s", ctp->ct_name, visreason);
+	if (xfail_reason == NULL) {
 		xo_emit("{:status/%s}: {d:name/%s}: {:failure-reason/%s}\n",
 		    "FAIL", ctp->ct_name, visreason);
-	else {
+		sl_add(cheri_failed_tests, failure_message);
+	} else {
 		xo_attr("expected", "true");
 		xo_emit("{d:/%s}{:status/%s}: {d:name/%s}: "
 		    "{:failure-reason/%s} ({d:expected-failure-reason/%s})\n",
 		    "X", "FAIL", ctp->ct_name, visreason, xfail_reason);
 		tests_xfailed++;
+		sl_add(cheri_xfailed_tests, failure_message);
 	}
 	tests_failed++;
 	xo_close_instance("test");
@@ -1622,6 +1630,8 @@ main(int argc, char *argv[])
 	if (minherit(ccsp, getpagesize(), INHERIT_SHARE) < 0)
 		err(EX_OSERR, "minherit");
 
+	cheri_failed_tests = sl_init();
+	cheri_xfailed_tests = sl_init();
 	/* Run the actual tests. */
 #if 0
 	cheritest_ccall_setup();
@@ -1675,6 +1685,23 @@ main(int argc, char *argv[])
 	xo_close_list("test");
 	xo_close_container("testsuite");
 	xo_finish();
+
+	/* print a summary which tests failed */
+	/* XXXAR: use xo_emit? */
+	if (tests_xfailed > 0) {
+		fprintf(stderr, "Expected failures:\n");
+		for (i = 0; (size_t)i < cheri_xfailed_tests->sl_cur; i++)
+			fprintf(stderr, "  %s\n",
+			    cheri_xfailed_tests->sl_str[i]);
+		sl_free(cheri_xfailed_tests, true);
+	}
+	if (tests_failed > tests_xfailed) {
+		fprintf(stderr, "Unexpected failures:\n");
+		for (i = 0; (size_t)i < cheri_failed_tests->sl_cur; i++)
+			fprintf(stderr, "  %s\n",
+			    cheri_failed_tests->sl_str[i]);
+		sl_free(cheri_failed_tests, true);
+	}
 	if (tests_passed + tests_failed > 1) {
 		if (expected_failures == 0)
 			fprintf(stderr, "SUMMARY: passed %d failed %d\n",
