@@ -260,7 +260,7 @@ x86_mrfetch(struct mem_range_softc *sc)
 
 		/* Compute the range from the mask. Ick. */
 		mrd->mr_len = (~(msrv & mtrr_physmask) &
-		    (mtrr_physmask | 0xfffL)) + 1;
+		    (mtrr_physmask | 0xfffLL)) + 1;
 		if (!mrvalid(mrd->mr_base, mrd->mr_len))
 			mrd->mr_flags |= MDF_BOGUS;
 
@@ -638,7 +638,7 @@ x86_mrinit(struct mem_range_softc *sc)
 	 * Determine the size of the PhysMask and PhysBase fields in
 	 * the variable range MTRRs.
 	 */
-	mtrr_physmask = (((uint64_t)1 << cpu_maxphyaddr) - 1) & ~0xfffUL;
+	mtrr_physmask = (((uint64_t)1 << cpu_maxphyaddr) - 1) & ~0xfffULL;
 
 	/* If fixed MTRRs supported and enabled. */
 	if ((mtrrcap & MTRR_CAP_FIXED) && (mtrrdef & MTRR_DEF_FIXED_ENABLE)) {
