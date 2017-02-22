@@ -255,12 +255,14 @@ CXXABI_1.3.1 {
 } CXXABI_1.3;
 
 CXXABI_1.3.5 {
-    "typeinfo for __int128 const*";
-    "typeinfo for __int128";
-    "typeinfo for __int128*";
-    "typeinfo for unsigned __int128 const*";
-    "typeinfo for unsigned __int128";
-    "typeinfo for unsigned __int128*";
+    extern "C++" {
+        "typeinfo for __int128 const*";
+        "typeinfo for __int128";
+        "typeinfo for __int128*";
+        "typeinfo for unsigned __int128 const*";
+        "typeinfo for unsigned __int128";
+        "typeinfo for unsigned __int128*";
+    };
 } CXXABI_1.3.1;
 
 CXXABI_1.3.6 {
@@ -268,12 +270,14 @@ CXXABI_1.3.6 {
 } CXXABI_1.3.5;
 
 CXXABI_1.3.9 {
-    "typeinfo name for __int128 const*";
-    "typeinfo name for __int128";
-    "typeinfo name for __int128*";
-    "typeinfo name for unsigned __int128 const*";
-    "typeinfo name for unsigned __int128";
-    "typeinfo name for unsigned __int128*";
+    extern "C++" {
+        "typeinfo name for __int128 const*";
+        "typeinfo name for __int128";
+        "typeinfo name for __int128*";
+        "typeinfo name for unsigned __int128 const*";
+        "typeinfo name for unsigned __int128";
+        "typeinfo name for unsigned __int128*";
+    };
 } CXXABI_1.3.6;
 
 CXXRT_1.0 {
