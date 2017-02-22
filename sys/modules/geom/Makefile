@@ -7,6 +7,7 @@ SUBDIR=	geom_bde \
 	geom_cache \
 	geom_concat \
 	geom_eli \
+	geom_flashmap \
 	geom_gate \
 	geom_journal \
 	geom_label \
