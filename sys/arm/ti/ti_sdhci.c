@@ -71,7 +71,6 @@ struct ti_sdhci_softc {
 	uint32_t		mmchs_reg_off;
 	uint32_t		sdhci_reg_off;
 	uint32_t		baseclk_hz;
-	uint32_t		wp_gpio_pin;
 	uint32_t		cmd_and_mode;
 	uint32_t		sdhci_clkdiv;
 	boolean_t		disable_highspeed;
