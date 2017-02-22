@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <machine/cpufunc.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
@@ -1690,7 +1691,7 @@ ATF_TC_BODY(ptrace__PT_KILL_breakpoint, tc)
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
 		trace_me();
-		__builtin_debugtrap();
+		breakpoint();
 		exit(1);
 	}
 
