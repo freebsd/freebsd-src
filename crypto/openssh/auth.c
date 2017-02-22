@@ -295,8 +295,8 @@ auth_log(Authctxt *authctxt, int authenticated, int partial,
 		authmsg = "Partial";
 	else {
 		authmsg = authenticated ? "Accepted" : "Failed";
-		BLACKLIST_NOTIFY(authenticated ?
-		    BLACKLIST_AUTH_OK : BLACKLIST_AUTH_FAIL);
+		if (authenticated)
+			BLACKLIST_NOTIFY(BLACKLIST_AUTH_OK);
 	}
 
 	authlog("%s %s%s%s for %s%.100s from %.200s port %d %s%s%s",
