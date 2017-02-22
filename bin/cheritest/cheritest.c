@@ -1664,10 +1664,10 @@ main(int argc, char *argv[])
 	} else {
 		for (i = 0; i < argc; i++) {
 			if (fast_tests_only &&
-			    (cheri_tests[t].ct_flags & CT_FLAG_SLOW))
+			    (cheri_tests[i].ct_flags & CT_FLAG_SLOW))
 				continue;
 			if (unsandboxed_tests_only &&
-			    (cheri_tests[t].ct_flags & CT_FLAG_SANDBOX))
+			    (cheri_tests[i].ct_flags & CT_FLAG_SANDBOX))
 				continue;
 			cheritest_run_test_name(argv[i]);
 		}
