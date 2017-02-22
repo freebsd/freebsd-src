@@ -170,17 +170,21 @@ enum iwm_ucode_type {
 	IWM_UCODE_TYPE_MAX
 };
 
+/* one for each uCode image (inst/data, init/runtime/wowlan) */
+struct iwm_fw_desc {
+	const void *data;	/* vmalloc'ed data */
+	uint32_t len;		/* size in bytes */
+	uint32_t offset;	/* offset in the device */
+};
+
 struct iwm_fw_info {
 	const struct firmware *fw_fp;
 	int fw_status;
 
 	struct iwm_fw_sects {
-		struct iwm_fw_onesect {
-			const void *fws_data;
-			uint32_t fws_len;
-			uint32_t fws_devoff;
-		} fw_sect[IWM_UCODE_SECTION_MAX];
+		struct iwm_fw_desc fw_sect[IWM_UCODE_SECTION_MAX];
 		int fw_count;
+		int is_dual_cpus;
 		uint32_t paging_mem_size;
 	} fw_sects[IWM_UCODE_TYPE_MAX];
 
