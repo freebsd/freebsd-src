@@ -1008,7 +1008,9 @@ isp_dump_atpd(ispsoftc_t *isp, int chan)
 
 	ISP_GET_PC(isp, chan, atpool, atpool);
 	for (atp = atpool; atp < &atpool[ATPDPSIZE]; atp++) {
-		isp_prt(isp, ISP_LOGALL, "Chan %d ATP [0x%x] origdlen %u bytes_xfrd %u lun %jx nphdl 0x%04x s_id 0x%06x d_id 0x%06x oxid 0x%04x state %s\n",
+		if (atp->state == ATPD_STATE_FREE)
+			continue;
+		isp_prt(isp, ISP_LOGALL, "Chan %d ATP [0x%x] origdlen %u bytes_xfrd %u lun %jx nphdl 0x%04x s_id 0x%06x d_id 0x%06x oxid 0x%04x state %s",
 		    chan, atp->tag, atp->orig_datalen, atp->bytes_xfered, (uintmax_t)atp->lun, atp->nphdl, atp->sid, atp->portid, atp->oxid, states[atp->state & 0x7]);
 	}
 }
