@@ -349,7 +349,7 @@
  * void bar(int myArray[__min_size(10)]);
  */
 #if !defined(__cplusplus) && \
-    (!defined(__STDC_VERSION) || (__STDC_VERSION__ >= 199901))
+    (!defined(__STDC_VERSION__) || (__STDC_VERSION__ >= 199901))
 #define __min_size(x)	static (x)
 #else
 #define __min_size(x)	(x)
