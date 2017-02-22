@@ -2602,11 +2602,6 @@ iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
 			IWM_WRITE(sc, IWM_FH_UCODE_LOAD_STATUS, val);
 			sec_num = (sec_num << 1) | 0x1;
 			iwm_nic_unlock(sc);
-
-			/*
-			 * The firmware won't load correctly without this delay.
-			 */
-			DELAY(8000);
 		}
 	}
 
