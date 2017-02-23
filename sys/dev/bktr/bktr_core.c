@@ -3121,7 +3121,6 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 	OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) | BT848_COLOR_CTL_RGB_DED | BT848_COLOR_CTL_GAMMA);
 	OUTB(bktr, BKTR_ADC, SYNC_LEVEL);
 
-	bktr->capcontrol =   1 << 6 | 1 << 4 | 1 << 2 | 3;
 	bktr->capcontrol = 3 << 2 |  3;
 
 	dma_prog = (uint32_t *) bktr->dma_prog;
