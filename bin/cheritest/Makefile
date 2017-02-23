@@ -56,6 +56,7 @@ MAN=
 .ifndef BOOTSTRAPPING
 .if ${PROG} == cheritest
 NEED_CHERI=	hybrid
+STATIC_CFLAGS+=  -ftls-model=local-exec # -fpic defaults to global-dynamic
 .elif ${PROG} == cheriabitest
 WANT_CHERI=	pure
 .endif

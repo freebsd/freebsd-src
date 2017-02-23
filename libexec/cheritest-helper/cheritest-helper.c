@@ -152,7 +152,7 @@ invoke_vm_fault(register_t op)
 		// higher precedence than the TLB faults.  We could map a
 		// non-executable page into PCC for this test, but it's easier to just
 		// do a MIPS jump.
-		__asm__ volatile ("jal 4" : : :"memory");
+		__asm__ volatile ("li $t9, 4; jal $t9" : : :"memory");
 		break;
 	}
 	return (0);

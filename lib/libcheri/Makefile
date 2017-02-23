@@ -37,6 +37,7 @@ INCS=	cheri_class.h			\
 
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}
+CFLAGS.cheri_invoke_hybrid.S+= -fno-pic -mabicalls
 
 INCSDIR=	${INCLUDEDIR}/cheri
 

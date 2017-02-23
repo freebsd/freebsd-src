@@ -52,7 +52,7 @@ _cheri_bench_helper=	cheri_bench-helper
 _cheritest_helper=	cheritest-helper
 _libpng_sb_helper=	libpng_sb-helper
 _rtld-cheri-elf=	rtld-cheri-elf
-_tcpdump_helper=	tcpdump-helper
+#_tcpdump_helper=	tcpdump-helper # Currently broken with the new compiler
 .endif
 
 .if ${MK_FINGER} != "no"

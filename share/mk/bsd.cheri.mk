@@ -59,7 +59,7 @@ _CHERI_CC+=	--sysroot=${SYSROOT}
 
 .if ${WANT_CHERI} == "pure" || ${WANT_CHERI} == "sandbox"
 OBJCOPY:=	objcopy
-_CHERI_CC+=	-mabi=sandbox -mxgot
+_CHERI_CC+=	-mabi=sandbox -mxgot -fpic
 LIBDIR:=	/usr/libcheri
 ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
 CFLAGS+=	${CHERI_OPTIMIZATION_FLAGS:U-O2} -ftls-model=local-exec
@@ -75,6 +75,8 @@ _LIB_OBJTOP=	${ROOTOBJDIR}
 .ifdef LIBCHERI
 LDFLAGS+=	-Wl,-init=crt_init_globals
 .endif
+.else
+STATIC_CFLAGS+= -ftls-model=local-exec # MIPS/hybrid case
 .endif
 
 .if ${MK_CHERI128} == "yes"

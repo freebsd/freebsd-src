@@ -20,6 +20,7 @@ LIB=		stand
 NO_PIC=
 INCS?=		stand.h
 MAN?=		libstand.3
+WANT_CHERI= none
 
 WARNS?=		0
 

@@ -170,8 +170,9 @@ _rtld_bind_start:
 					/* $gp = .got + 0x7ff0, so	*/
 					/* .got = $gp - 0x7ff0		*/
 					/* Simple math as you can see.	*/
-	ld	a0, 8(a0)		/* object = pltgot[1] */
-	and	a0, a0, 0x7fffffffffffffff
+	ld	a0, 8(a0)	/* object = pltgot[1] */
+  dli t9, 0x7fffffffffffffff;
+	and	a0, a0, t9
 	cgetdefault	$c3
 	csetoffset	$c3, $c3, a0
 	move	a0, t8			/* symbol index */
