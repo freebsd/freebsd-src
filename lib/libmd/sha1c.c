@@ -488,7 +488,11 @@ SHA_CTX *c;
 /*	memset((char *)&c,0,sizeof(c));*/
 	}
 
-
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
 #undef SHA_Init
 __weak_reference(_libmd_SHA_Init, SHA_Init);
 #undef SHA_Update
@@ -513,3 +517,4 @@ __weak_reference(_libmd_SHA1_Transform, SHA1_Transform);
 __weak_reference(_libmd_SHA1_version, SHA1_version);
 #undef sha1_block
 __weak_reference(_libmd_sha1_block, sha1_block);
+#endif

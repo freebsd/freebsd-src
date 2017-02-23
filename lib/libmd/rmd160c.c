@@ -546,6 +546,11 @@ unsigned long *l;
 	}
 #endif
 
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
 #undef RIPEMD160_Init
 __weak_reference(_libmd_RIPEMD160_Init, RIPEMD160_Init);
 #undef RIPEMD160_Update
@@ -558,3 +563,4 @@ __weak_reference(_libmd_RIPEMD160_Transform, RIPEMD160_Transform);
 __weak_reference(_libmd_RMD160_version, RMD160_version);
 #undef ripemd160_block
 __weak_reference(_libmd_ripemd160_block, ripemd160_block);
+#endif

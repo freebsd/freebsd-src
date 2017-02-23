@@ -97,6 +97,11 @@ MDXData (const void *data, unsigned int len, char *buf)
 	return (MDXEnd(&ctx, buf));
 }
 
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
 #undef MDXEnd
 __weak_reference(_libmd_MDXEnd, MDXEnd);
 #undef MDXFile
@@ -105,3 +110,4 @@ __weak_reference(_libmd_MDXFile, MDXFile);
 __weak_reference(_libmd_MDXFileChunk, MDXFileChunk);
 #undef MDXData
 __weak_reference(_libmd_MDXData, MDXData);
+#endif
