@@ -3107,10 +3107,6 @@ camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts, uint64_t max_io,
 			    (devs[i]->start_offset_bytes /
 			    devs[i]->sector_size) +
 			    (max_io / devs[i]->sector_size) - 1;
-			devs[i]->sector_io_limit =
-			    (devs[i]->start_offset_bytes /
-			    devs[i]->sector_size) +
-			    (max_io / devs[i]->sector_size) - 1;
 		}
 
 		devs[i]->next_io_pos_bytes = devs[i]->start_offset_bytes;
