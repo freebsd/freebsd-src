@@ -1679,6 +1679,11 @@ ATF_TC_BODY(ptrace__ptrace_vfork_follow, tc)
 }
 
 /*
+ * XXX: There's nothing inherently platform specific about this test, however a
+ * userspace visible breakpoint() is a prerequisite.
+ */
+ #if defined(__amd64__) || defined(__i386__) || defined(__sparc64__)
+/*
  * Verify that no more events are reported after PT_KILL except for the
  * process exit when stopped due to a breakpoint trap.
  */
@@ -1723,6 +1728,7 @@ ATF_TC_BODY(ptrace__PT_KILL_breakpoint, tc)
 	ATF_REQUIRE(wpid == -1);
 	ATF_REQUIRE(errno == ECHILD);
 }
+#endif /* defined(__amd64__) || defined(__i386__) || defined(__sparc64__) */
 
 /*
  * Verify that no more events are reported after PT_KILL except for the
@@ -2806,7 +2812,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__event_mask);
 	ATF_TP_ADD_TC(tp, ptrace__ptrace_vfork);
 	ATF_TP_ADD_TC(tp, ptrace__ptrace_vfork_follow);
+#if defined(__amd64__) || defined(__i386__) || defined(__sparc64__)
 	ATF_TP_ADD_TC(tp, ptrace__PT_KILL_breakpoint);
+#endif
 	ATF_TP_ADD_TC(tp, ptrace__PT_KILL_system_call);
 	ATF_TP_ADD_TC(tp, ptrace__PT_KILL_threads);
 	ATF_TP_ADD_TC(tp, ptrace__PT_KILL_competing_signal);
