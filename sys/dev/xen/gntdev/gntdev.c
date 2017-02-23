@@ -796,8 +796,8 @@ gntdev_gmap_pg_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 
 	relative_offset = offset - gmap->file_index;
 
-	pidx = OFF_TO_IDX(offset);
-	ridx = OFF_TO_IDX(relative_offset);
+	pidx = UOFF_TO_IDX(offset);
+	ridx = UOFF_TO_IDX(relative_offset);
 	if (ridx >= gmap->count ||
 	    gmap->grant_map_ops[ridx].status != GNTST_okay)
 		return (VM_PAGER_FAIL);
@@ -1067,7 +1067,7 @@ mmap_gref(struct per_user_data *priv_user, struct gntdev_gref *gref_start,
 			break;
 
 		vm_page_insert(gref->page, mem_obj,
-		    OFF_TO_IDX(gref->file_index));
+		    UOFF_TO_IDX(gref->file_index));
 
 		count--;
 	}
@@ -1207,7 +1207,7 @@ gntdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t size,
 	if (error != 0)
 		return (EINVAL);
 
-	count = OFF_TO_IDX(size);
+	count = UOFF_TO_IDX(size);
 
 	gref_start = gntdev_find_grefs(priv_user, *offset, count);
 	if (gref_start) {
