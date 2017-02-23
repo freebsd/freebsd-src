@@ -1,4 +1,4 @@
-/*	$Id: preconv.c,v 1.15 2015/10/06 18:32:19 schwarze Exp $ */
+/*	$Id: preconv.c,v 1.16 2017/02/18 13:43:52 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -26,14 +26,14 @@
 #include "libmandoc.h"
 
 int
-preconv_encode(struct buf *ib, size_t *ii, struct buf *ob, size_t *oi,
+preconv_encode(const struct buf *ib, size_t *ii, struct buf *ob, size_t *oi,
     int *filenc)
 {
-	unsigned char	*cu;
-	int		 nby;
-	unsigned int	 accum;
+	const unsigned char	*cu;
+	int			 nby;
+	unsigned int		 accum;
 
-	cu = (unsigned char *)ib->buf + *ii;
+	cu = (const unsigned char *)ib->buf + *ii;
 	assert(*cu & 0x80);
 
 	if ( ! (*filenc & MPARSE_UTF8))
@@ -90,7 +90,7 @@ preconv_encode(struct buf *ib, size_t *ii, struct buf *ob, size_t *oi,
 	assert(accum < 0xd800 || accum > 0xdfff);
 
 	*oi += snprintf(ob->buf + *oi, 11, "\\[u%.4X]", accum);
-	*ii = (char *)cu - ib->buf;
+	*ii = (const char *)cu - ib->buf;
 	*filenc &= ~MPARSE_LATIN1;
 	return 1;
 

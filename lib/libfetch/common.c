@@ -1339,16 +1339,11 @@ fetch_read_word(FILE *f)
 	return (word);
 }
 
-/*
- * Get authentication data for a URL from .netrc
- */
-int
-fetch_netrc_auth(struct url *url)
+static int
+fetch_netrc_open(void)
 {
+	const char *p;
 	char fn[PATH_MAX];
-	const char *word;
-	char *p;
-	FILE *f;
 
 	if ((p = getenv("NETRC")) != NULL) {
 		if (snprintf(fn, sizeof(fn), "%s", p) >= (int)sizeof(fn)) {
@@ -1368,8 +1363,25 @@ fetch_netrc_auth(struct url *url)
 			return (-1);
 	}
 
-	if ((f = fopen(fn, "r")) == NULL)
+	return (open(fn, O_RDONLY));
+}
+
+/*
+ * Get authentication data for a URL from .netrc
+ */
+int
+fetch_netrc_auth(struct url *url)
+{
+	const char *word;
+	FILE *f;
+
+	if (url->netrcfd == -2)
+		url->netrcfd = fetch_netrc_open();
+	if (url->netrcfd < 0)
 		return (-1);
+	if ((f = fdopen(url->netrcfd, "r")) == NULL)
+		return (-1);
+	rewind(f);
 	while ((word = fetch_read_word(f)) != NULL) {
 		if (strcmp(word, "default") == 0) {
 			DEBUG(fetch_info("Using default .netrc settings"));

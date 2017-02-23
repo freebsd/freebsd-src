@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_set_item.c 648 2013-03-05 17:54:27Z des $
+ * $Id: pam_set_item.c 918 2017-02-19 17:46:22Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -60,18 +60,16 @@ pam_set_item(pam_handle_t *pamh,
 	int item_type,
 	const void *item)
 {
-	void **slot, *tmp;
+	void **slot;
 	size_t nsize, osize;
 
 	ENTERI(item_type);
-	if (pamh == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 	slot = &pamh->item[item_type];
 	osize = nsize = 0;
 	switch (item_type) {
 	case PAM_SERVICE:
 		/* set once only, by pam_start() */
-		if (*slot != NULL)
+		if (*slot != NULL && item != NULL)
 			RETURNC(PAM_SYSTEM_ERR);
 		/* fall through */
 	case PAM_USER:
@@ -103,13 +101,12 @@ pam_set_item(pam_handle_t *pamh,
 		FREE(*slot);
 	}
 	if (item != NULL) {
-		if ((tmp = malloc(nsize)) == NULL)
+		if ((*slot = malloc(nsize)) == NULL)
 			RETURNC(PAM_BUF_ERR);
-		memcpy(tmp, item, nsize);
+		memcpy(*slot, item, nsize);
 	} else {
-		tmp = NULL;
+		*slot = NULL;
 	}
-	*slot = tmp;
 	RETURNC(PAM_SUCCESS);
 }
 

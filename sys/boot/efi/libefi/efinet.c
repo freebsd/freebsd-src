@@ -131,13 +131,13 @@ efinet_put(struct iodesc *desc, void *pkt, size_t len)
 
 	/* Wait for the buffer to be transmitted */
 	do {
-		buf = 0;	/* XXX Is this needed? */
+		buf = NULL;	/* XXX Is this needed? */
 		status = net->GetStatus(net, 0, &buf);
 		/*
 		 * XXX EFI1.1 and the E1000 card returns a different 
 		 * address than we gave.  Sigh.
 		 */
-	} while (status == EFI_SUCCESS && buf == 0);
+	} while (status == EFI_SUCCESS && buf == NULL);
 
 	/* XXX How do we deal with status != EFI_SUCCESS now? */
 	return ((status == EFI_SUCCESS) ? len : -1);

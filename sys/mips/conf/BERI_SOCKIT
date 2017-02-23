@@ -7,7 +7,7 @@
 # $FreeBSD$
 #
 
-include "BERI_TEMPLATE"
+include "std.BERI"
 
 ident		BERI_SOCKIT
 

@@ -1,4 +1,4 @@
-# $Id: Makefile.am 648 2013-03-05 17:54:27Z des $
+# $Id: Makefile.am 907 2017-01-18 09:39:01Z des $
 
 SUBDIRS = openpam_dump_policy
 

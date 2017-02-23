@@ -1,7 +1,7 @@
-/*	$Id: mdoc.c,v 1.258 2017/01/10 13:47:00 schwarze Exp $ */
+/*	$Id: mdoc.c,v 1.260 2017/02/16 03:00:23 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012-2016 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2012-2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -136,7 +136,7 @@ mdoc_tail_alloc(struct roff_man *mdoc, int line, int pos, int tok)
 
 struct roff_node *
 mdoc_endbody_alloc(struct roff_man *mdoc, int line, int pos, int tok,
-		struct roff_node *body, enum mdoc_endbody end)
+		struct roff_node *body)
 {
 	struct roff_node *p;
 
@@ -145,7 +145,7 @@ mdoc_endbody_alloc(struct roff_man *mdoc, int line, int pos, int tok,
 	p = roff_node_alloc(mdoc, line, pos, ROFFT_BODY, tok);
 	p->body = body;
 	p->norm = body->norm;
-	p->end = end;
+	p->end = ENDBODY_SPACE;
 	roff_node_append(mdoc, p);
 	mdoc->next = ROFF_NEXT_SIBLING;
 	return p;
@@ -312,6 +312,22 @@ mdoc_ptext(struct roff_man *mdoc, int line, char *buf, int offs)
 
 	if (mandoc_eos(buf+offs, (size_t)(end-buf-offs)))
 		mdoc->last->flags |= NODE_EOS;
+
+	for (c = buf + offs; c != NULL; c = strchr(c + 1, '.')) {
+		if (c - buf < offs + 2)
+			continue;
+		if (end - c < 4)
+			break;
+		if (isalpha((unsigned char)c[-2]) &&
+		    isalpha((unsigned char)c[-1]) &&
+		    c[1] == ' ' &&
+		    isupper((unsigned char)(c[2] == ' ' ? c[3] : c[2])) &&
+		    (c[-2] != 'n' || c[-1] != 'c') &&
+		    (c[-2] != 'v' || c[-1] != 's'))
+			mandoc_msg(MANDOCERR_EOS, mdoc->parse,
+			    line, (int)(c - buf), NULL);
+	}
+
 	return 1;
 }
 

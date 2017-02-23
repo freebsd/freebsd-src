@@ -2582,10 +2582,10 @@ zyd_start(struct zyd_softc *sc)
 	while (sc->tx_nfree > 0 && (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		if (zyd_tx_start(sc, m, ni) != 0) {
-			ieee80211_free_node(ni);
 			m_freem(m);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
+			ieee80211_free_node(ni);
 			break;
 		}
 	}

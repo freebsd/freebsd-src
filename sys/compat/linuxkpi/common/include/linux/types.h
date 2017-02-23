@@ -63,4 +63,12 @@ typedef u64 phys_addr_t;
 #define	DECLARE_BITMAP(n, bits)						\
 	unsigned long n[howmany(bits, sizeof(long) * 8)]
 
+struct rcu_head {
+	void *raw[8];
+} __aligned(sizeof(void *));
+
+typedef void (*rcu_callback_t)(struct rcu_head *head);
+typedef void (*call_rcu_func_t)(struct rcu_head *head, rcu_callback_t func);
+typedef int linux_task_fn_t(void *data);
+
 #endif	/* _LINUX_TYPES_H_ */

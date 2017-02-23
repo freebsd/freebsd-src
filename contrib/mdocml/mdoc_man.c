@@ -1,4 +1,4 @@
-/*	$Id: mdoc_man.c,v 1.101 2017/01/11 17:39:53 schwarze Exp $ */
+/*	$Id: mdoc_man.c,v 1.104 2017/02/17 19:15:41 schwarze Exp $ */
 /*
  * Copyright (c) 2011-2017 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -639,9 +639,6 @@ print_node(DECL_ARGS)
 
 	if (ENDBODY_NOT != n->end)
 		n->body->flags |= NODE_ENDED;
-
-	if (ENDBODY_NOSPACE == n->end)
-		outflags &= ~(MMAN_spc | MMAN_nl);
 }
 
 static int
@@ -720,8 +717,7 @@ pre__t(DECL_ARGS)
 
 	if (n->parent && MDOC_Rs == n->parent->tok &&
 	    n->parent->norm->Rs.quote_T) {
-		print_word("");
-		putchar('\"');
+		print_word("\\(lq");
 		outflags &= ~MMAN_spc;
 	} else
 		font_push('I');
@@ -735,8 +731,7 @@ post__t(DECL_ARGS)
 	if (n->parent && MDOC_Rs == n->parent->tok &&
 	    n->parent->norm->Rs.quote_T) {
 		outflags &= ~MMAN_spc;
-		print_word("");
-		putchar('\"');
+		print_word("\\(rq");
 	} else
 		font_pop();
 	post_percent(meta, n);
@@ -1518,7 +1513,7 @@ pre_nm(DECL_ARGS)
 	}
 	if (n->type != ROFFT_ELEM && n->type != ROFFT_HEAD)
 		return 1;
-	name = n->child ? n->child->string : meta->name;
+	name = n->child == NULL ? NULL : n->child->string;
 	if (NULL == name)
 		return 0;
 	if (n->type == ROFFT_HEAD) {
@@ -1529,8 +1524,6 @@ pre_nm(DECL_ARGS)
 		outflags |= MMAN_nl;
 	}
 	font_push('B');
-	if (NULL == n->child)
-		print_word(meta->name);
 	return 1;
 }
 
@@ -1544,7 +1537,7 @@ post_nm(DECL_ARGS)
 		break;
 	case ROFFT_HEAD:
 	case ROFFT_ELEM:
-		if (n->child != NULL || meta->name != NULL)
+		if (n->child != NULL && n->child->string != NULL)
 			font_pop();
 		break;
 	default:

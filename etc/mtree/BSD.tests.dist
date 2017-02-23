@@ -328,8 +328,6 @@
         ..
         libnv
         ..
-        libpam
-        ..
         libproc
         ..
         librt
@@ -423,6 +421,10 @@
                 uzip
                     etalon
                     ..
+                ..
+            ..
+            eli
+                pbkdf2
                 ..
             ..
         ..

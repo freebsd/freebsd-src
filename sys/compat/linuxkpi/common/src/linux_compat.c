@@ -96,7 +96,6 @@ struct list_head pci_drivers;
 struct list_head pci_devices;
 struct net init_net;
 spinlock_t pci_lock;
-struct sx linux_global_rcu_lock;
 
 unsigned long linux_timer_hz_mask;
 
@@ -384,32 +383,14 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	return kobject_add_complete(kobj, parent);
 }
 
-void
-linux_set_current(struct thread *td, struct task_struct *t)
-{
-	memset(t, 0, sizeof(*t));
-	task_struct_fill(td, t);
-	task_struct_set(td, t);
-}
-
-void
-linux_clear_current(struct thread *td)
-{
-	task_struct_set(td, NULL);
-}
-
 static void
 linux_file_dtor(void *cdp)
 {
 	struct linux_file *filp;
-	struct task_struct t;
-	struct thread *td;
 
-	td = curthread;
+	linux_set_current(curthread);
 	filp = cdp;
-	linux_set_current(td, &t);
 	filp->f_op->release(filp->f_vnode, filp);
-	linux_clear_current(td);
 	vdrop(filp->f_vnode);
 	kfree(filp);
 }
@@ -419,7 +400,6 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
-	struct task_struct t;
 	struct file *file;
 	int error;
 
@@ -433,7 +413,7 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	filp->f_flags = file->f_flag;
 	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
-	linux_set_current(td, &t);
+	linux_set_current(td);
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
@@ -447,7 +427,6 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		kfree(filp);
 	}
 done:
-	linux_clear_current(td);
 	return (error);
 }
 
@@ -538,7 +517,6 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
-	struct task_struct t;
 	struct file *file;
 	unsigned size;
 	int error;
@@ -550,7 +528,8 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-	linux_set_current(td, &t);
+
+	linux_set_current(td);
 	size = IOCPARM_LEN(cmd);
 	/* refer to logic in sys_ioctl() */
 	if (size > 0) {
@@ -560,8 +539,8 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		 * Background: Linux code expects a user-space address
 		 * while FreeBSD supplies a kernel-space address.
 		 */
-		t.bsd_ioctl_data = data;
-		t.bsd_ioctl_len = size;
+		current->bsd_ioctl_data = data;
+		current->bsd_ioctl_len = size;
 		data = (void *)LINUX_IOCTL_MIN_PTR;
 	} else {
 		/* fetch user-space pointer */
@@ -571,7 +550,10 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
 	else
 		error = ENOTTY;
-	linux_clear_current(td);
+	if (size > 0) {
+		current->bsd_ioctl_data = NULL;
+		current->bsd_ioctl_len = 0;
+	}
 
 	return (error);
 }
@@ -581,7 +563,6 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
-	struct task_struct t;
 	struct thread *td;
 	struct file *file;
 	ssize_t bytes;
@@ -598,7 +579,7 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
-	linux_set_current(td, &t);
+	linux_set_current(td);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -611,7 +592,6 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 			error = -bytes;
 	} else
 		error = ENXIO;
-	linux_clear_current(td);
 
 	return (error);
 }
@@ -621,7 +601,6 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
-	struct task_struct t;
 	struct thread *td;
 	struct file *file;
 	ssize_t bytes;
@@ -638,7 +617,7 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
-	linux_set_current(td, &t);
+	linux_set_current(td);
 	if (filp->f_op->write) {
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -651,7 +630,6 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 			error = -bytes;
 	} else
 		error = ENXIO;
-	linux_clear_current(td);
 
 	return (error);
 }
@@ -661,7 +639,6 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
-	struct task_struct t;
 	struct file *file;
 	int revents;
 	int error;
@@ -673,12 +650,11 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-	linux_set_current(td, &t);
+	linux_set_current(td);
 	if (filp->f_op->poll)
 		revents = filp->f_op->poll(filp, NULL) & events;
 	else
 		revents = 0;
-	linux_clear_current(td);
 
 	return (revents);
 }
@@ -690,7 +666,6 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct thread *td;
-	struct task_struct t;
 	struct file *file;
 	struct vm_area_struct vma;
 	int error;
@@ -703,7 +678,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-	linux_set_current(td, &t);
+	linux_set_current(td);
 	vma.vm_start = 0;
 	vma.vm_end = size;
 	vma.vm_pgoff = *offset / PAGE_SIZE;
@@ -735,7 +710,6 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	} else
 		error = ENODEV;
 done:
-	linux_clear_current(td);
 	return (error);
 }
 
@@ -756,7 +730,6 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
 	struct linux_file *filp;
-	struct task_struct t;
 	ssize_t bytes;
 	int error;
 
@@ -766,7 +739,7 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
-	linux_set_current(td, &t);
+	linux_set_current(td);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -779,7 +752,6 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 			error = -bytes;
 	} else
 		error = ENXIO;
-	linux_clear_current(td);
 
 	return (error);
 }
@@ -789,17 +761,15 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
     struct thread *td)
 {
 	struct linux_file *filp;
-	struct task_struct t;
 	int revents;
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
-	linux_set_current(td, &t);
+	linux_set_current(td);
 	if (filp->f_op->poll)
 		revents = filp->f_op->poll(filp, NULL) & events;
 	else
 		revents = 0;
-	linux_clear_current(td);
 
 	return (revents);
 }
@@ -808,14 +778,12 @@ static int
 linux_file_close(struct file *file, struct thread *td)
 {
 	struct linux_file *filp;
-	struct task_struct t;
 	int error;
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
-	linux_set_current(td, &t);
+	linux_set_current(td);
 	error = -filp->f_op->release(NULL, filp);
-	linux_clear_current(td);
 	funsetown(&filp->f_sigio);
 	kfree(filp);
 
@@ -827,14 +795,13 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
     struct thread *td)
 {
 	struct linux_file *filp;
-	struct task_struct t;
 	int error;
 
 	filp = (struct linux_file *)fp->f_data;
 	filp->f_flags = fp->f_flag;
 	error = 0;
 
-	linux_set_current(td, &t);
+	linux_set_current(td);
 	switch (cmd) {
 	case FIONBIO:
 		break;
@@ -856,7 +823,6 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
 		error = ENOTTY;
 		break;
 	}
-	linux_clear_current(td);
 	return (error);
 }
 
@@ -1507,7 +1473,6 @@ linux_compat_init(void *arg)
 #if defined(__i386__) || defined(__amd64__)
 	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
 #endif
-	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
 
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
@@ -1540,7 +1505,6 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
 
 	synchronize_rcu();
-	sx_destroy(&linux_global_rcu_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
 

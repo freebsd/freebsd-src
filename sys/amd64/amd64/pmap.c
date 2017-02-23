@@ -391,7 +391,7 @@ static struct md_page pv_dummy;
 /*
  * All those kernel PT submaps that BSD is so fond of
  */
-pt_entry_t *CMAP1 = 0;
+pt_entry_t *CMAP1 = NULL;
 caddr_t CADDR1 = 0;
 static vm_offset_t qframe = 0;
 static struct mtx qframe_mtx;
@@ -3998,12 +3998,12 @@ pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva, vm_prot_t prot)
 	anychanged = FALSE;
 retry:
 	oldpde = newpde = *pde;
-	if (oldpde & PG_MANAGED) {
+	if ((oldpde & (PG_MANAGED | PG_M | PG_RW)) ==
+	    (PG_MANAGED | PG_M | PG_RW)) {
 		eva = sva + NBPDR;
 		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 		    va < eva; va += PAGE_SIZE, m++)
-			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 	}
 	if ((prot & VM_PROT_WRITE) == 0)
 		newpde &= ~(PG_RW | PG_M);
@@ -4350,7 +4350,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		if ((newpte & PG_RW) != 0)
 			newpte |= PG_M;
-	}
+	} else
+		newpte |= PG_MANAGED;
 
 	mpte = NULL;
 
@@ -4423,11 +4424,9 @@ retry:
 			/*
 			 * No, might be a protection or wiring change.
 			 */
-			if ((origpte & PG_MANAGED) != 0) {
-				newpte |= PG_MANAGED;
-				if ((newpte & PG_RW) != 0)
-					vm_page_aflag_set(m, PGA_WRITEABLE);
-			}
+			if ((origpte & PG_MANAGED) != 0 &&
+			    (newpte & PG_RW) != 0)
+				vm_page_aflag_set(m, PGA_WRITEABLE);
 			if (((origpte ^ newpte) & ~(PG_M | PG_A)) == 0)
 				goto unchanged;
 			goto validate;
@@ -4444,8 +4443,7 @@ retry:
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		newpte |= PG_MANAGED;
+	if ((newpte & PG_MANAGED) != 0) {
 		pv = get_pv_entry(pmap, &lock);
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
@@ -7241,6 +7239,7 @@ pmap_quick_remove_page(vm_offset_t addr)
 
 #include "opt_ddb.h"
 #ifdef DDB
+#include <sys/kdb.h>
 #include <ddb/ddb.h>
 
 DB_SHOW_COMMAND(pte, pmap_print_pte)
@@ -7252,13 +7251,17 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 	pt_entry_t *pte, PG_V;
 	vm_offset_t va;
 
-	if (have_addr) {
-		va = (vm_offset_t)addr;
-		pmap = PCPU_GET(curpmap); /* XXX */
-	} else {
+	if (!have_addr) {
 		db_printf("show pte addr\n");
 		return;
 	}
+	va = (vm_offset_t)addr;
+
+	if (kdb_thread != NULL)
+		pmap = vmspace_pmap(kdb_thread->td_proc->p_vmspace);
+	else
+		pmap = PCPU_GET(curpmap);
+
 	PG_V = pmap_valid_bit(pmap);
 	pml4 = pmap_pml4e(pmap, va);
 	db_printf("VA %#016lx pml4e %#016lx", va, *pml4);
