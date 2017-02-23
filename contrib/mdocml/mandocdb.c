@@ -101,6 +101,7 @@ struct	mpage {
 	char		*arch;    /* architecture from file content */
 	char		*title;   /* title from file content */
 	char		*desc;    /* description from file content */
+	struct mpage	*next;    /* singly linked list */
 	struct mlink	*mlinks;  /* singly linked list */
 	int		 form;    /* format from file content */
 	int		 name_head_done;
@@ -144,6 +145,7 @@ static	void	 dbadd_mlink_name(const struct mlink *mlink);
 static	int	 dbopen(int);
 static	void	 dbprune(void);
 static	void	 filescan(const char *);
+static	int	 fts_compare(const FTSENT *const *, const FTSENT *const *);
 static	void	 mlink_add(struct mlink *, const struct stat *);
 static	void	 mlink_check(struct mpage *, struct mlink *);
 static	void	 mlink_free(struct mlink *);
@@ -202,6 +204,7 @@ static	struct ohash	 strings; /* table of all strings */
 static	sqlite3		*db = NULL; /* current database */
 static	sqlite3_stmt	*stmts[STMT__MAX]; /* current statements */
 static	uint64_t	 name_mask;
+static	struct mpage	*mpage_head;
 
 static	const struct mdoc_handler mdocs[MDOC_MAX] = {
 	{ NULL, 0 },  /* Ap */
@@ -562,6 +565,20 @@ usage:
 	return (int)MANDOCLEVEL_BADARG;
 }
 
+static int
+fts_compare(const FTSENT *const *a, const FTSENT *const *b)
+{
+
+	/*
+	 * The mpage list is processed in the opposite order to which pages are
+	 * added, so traverse the hierarchy in reverse alpha order, resulting
+	 * in database inserts in alpha order. This is not required for correct
+	 * operation, but is helpful when inspecting the database during
+	 * development.
+	 */
+	return -strcmp((*a)->fts_name, (*b)->fts_name);
+}
+
 /*
  * Scan a directory tree rooted at "basedir" for manpages.
  * We use fts(), scanning directory parts along the way for clues to our
@@ -591,8 +608,8 @@ treescan(void)
 	argv[0] = ".";
 	argv[1] = (char *)NULL;
 
-	f = fts_open((char * const *)argv,
-	    FTS_PHYSICAL | FTS_NOCHDIR, NULL);
+	f = fts_open((char * const *)argv, FTS_PHYSICAL | FTS_NOCHDIR,
+	    fts_compare);
 	if (f == NULL) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say("", "&fts_open");
@@ -957,6 +974,8 @@ mlink_add(struct mlink *mlink, const struct stat *st)
 		mpage = mandoc_calloc(1, sizeof(struct mpage));
 		mpage->inodev.st_ino = inodev.st_ino;
 		mpage->inodev.st_dev = inodev.st_dev;
+		mpage->next = mpage_head;
+		mpage_head = mpage;
 		ohash_insert(&mpages, slot, mpage);
 	} else
 		mlink->next = mpage->mlinks;
@@ -980,20 +999,18 @@ mpages_free(void)
 {
 	struct mpage	*mpage;
 	struct mlink	*mlink;
-	unsigned int	 slot;
 
-	mpage = ohash_first(&mpages, &slot);
-	while (NULL != mpage) {
+	while (NULL != (mpage = mpage_head)) {
 		while (NULL != (mlink = mpage->mlinks)) {
 			mpage->mlinks = mlink->next;
 			mlink_free(mlink);
 		}
+		mpage_head = mpage->next;
 		free(mpage->sec);
 		free(mpage->arch);
 		free(mpage->title);
 		free(mpage->desc);
 		free(mpage);
-		mpage = ohash_next(&mpages, &slot);
 	}
 }
 
@@ -1114,18 +1131,14 @@ mpages_merge(struct mparse *mp)
 	char			*sodest;
 	char			*cp;
 	int			 fd;
-	unsigned int		 pslot;
 
 	if ( ! nodb)
 		SQL_EXEC("BEGIN TRANSACTION");
 
-	mpage = ohash_first(&mpages, &pslot);
-	while (mpage != NULL) {
+	for (mpage = mpage_head; mpage != NULL; mpage = mpage->next) {
 		mlinks_undupe(mpage);
-		if ((mlink = mpage->mlinks) == NULL) {
-			mpage = ohash_next(&mpages, &pslot);
+		if ((mlink = mpage->mlinks) == NULL)
 			continue;
-		}
 
 		name_mask = NAME_MASK;
 		mandoc_ohash_init(&names, 4, offsetof(struct str, key));
@@ -1247,7 +1260,6 @@ mpages_merge(struct mparse *mp)
 nextpage:
 		ohash_delete(&strings);
 		ohash_delete(&names);
-		mpage = ohash_next(&mpages, &pslot);
 	}
 
 	if (0 == nodb)
