@@ -621,10 +621,10 @@ void ce_stop_chan (ce_chan_t *c)
 	TAU32_UserRequest *req;
 	CE_DEQUEUE (b->cr.queue, req);
 
-	/* XXXRIK: This function should be for comleteness, but for now I
-	 * don't use it. So I just start to write and didn't finished it yet.
-	 * It and it is VERY BUGGY!!! Do not use it. If you really
-	 * need it ask me to fix it or rewrite it by your self.
+	/* XXXRIK: This function should be for completeness, but for now I
+	 * don't use it. I just started to write and haven't finished it yet.
+	 * It is VERY BUGGY!!! Do not use it. If you really need
+	 * it ask me to fix it or rewrite it by yourself.
 	 * Note: most buggy part of it in ce_on_config_stop!
 	 */
 	if (!req) {
@@ -632,8 +632,8 @@ void ce_stop_chan (ce_chan_t *c)
 			      "UserRequest (%s:%d)\n", __FUNCTION__, __LINE__));
 		return;
 	}
-	req->Command = TAU32_Configure_Commit |
-		       TAU32_Tx_Stop | TAU32_Rx_Stop;
+//	req->Command = TAU32_Configure_Commit |
+//		       TAU32_Tx_Stop | TAU32_Rx_Stop;
 	req->Command = 0;
 	req->Io.ChannelNumber = c->num;
 	req->pCallback = ce_on_config_stop;
