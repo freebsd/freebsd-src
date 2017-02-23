@@ -1101,14 +1101,13 @@ xnb_attach_failed(struct xnb_softc *xnb, int err, const char *fmt, ...)
 	xs_vprintf(XST_NIL, xenbus_get_node(xnb->dev),
 		  "hotplug-error", fmt, ap_hotplug);
 	va_end(ap_hotplug);
-	xs_printf(XST_NIL, xenbus_get_node(xnb->dev),
+	(void)xs_printf(XST_NIL, xenbus_get_node(xnb->dev),
 		  "hotplug-status", "error");
 
 	xenbus_dev_vfatal(xnb->dev, err, fmt, ap);
 	va_end(ap);
 
-	xs_printf(XST_NIL, xenbus_get_node(xnb->dev),
-		  "online", "0");
+	(void)xs_printf(XST_NIL, xenbus_get_node(xnb->dev), "online", "0");
 	xnb_detach(xnb->dev);
 }
 
