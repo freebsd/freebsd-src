@@ -1225,7 +1225,7 @@ show_dev_device(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct ib_uverbs_device *dev = dev_get_drvdata(device);
 
-	if (!dev)
+	if (!dev || !dev->ib_dev->dma_device)
 		return -ENODEV;
 
 	return sprintf(buf, "0x%04x\n",
@@ -1238,7 +1238,7 @@ show_dev_vendor(struct device *device, struct device_attribute *attr, char *buf)
 {
 	struct ib_uverbs_device *dev = dev_get_drvdata(device);
 
-	if (!dev)
+	if (!dev || !dev->ib_dev->dma_device)
 		return -ENODEV;
 
 	return sprintf(buf, "0x%04x\n",
