@@ -55,6 +55,7 @@ struct socket;
 
 #endif /* _KERNEL */
 
+#define	DTYPE_NONE	0	/* not yet initialized */
 #define	DTYPE_VNODE	1	/* file */
 #define	DTYPE_SOCKET	2	/* communications endpoint */
 #define	DTYPE_PIPE	3	/* pipe */
