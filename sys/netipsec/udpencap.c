@@ -266,6 +266,9 @@ udp_ipsec_adjust_cksum(struct mbuf *m, struct secasvar *sav, int proto,
 			/* Incrementally recompute. */
 			m_copydata(m, skip + off, sizeof(cksum),
 			    (caddr_t)&cksum);
+			/* Do not adjust UDP checksum if it is zero. */
+			if (proto == IPPROTO_UDP && cksum == 0)
+				return;
 			cksum = in_addword(cksum, sav->natt->cksum);
 		} else {
 			/* No OA from IKEd. */

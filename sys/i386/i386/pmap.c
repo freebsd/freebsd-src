@@ -3129,12 +3129,12 @@ pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva, vm_prot_t prot)
 	anychanged = FALSE;
 retry:
 	oldpde = newpde = *pde;
-	if (oldpde & PG_MANAGED) {
+	if ((oldpde & (PG_MANAGED | PG_M | PG_RW)) ==
+	    (PG_MANAGED | PG_M | PG_RW)) {
 		eva = sva + NBPDR;
 		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 		    va < eva; va += PAGE_SIZE, m++)
-			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 	}
 	if ((prot & VM_PROT_WRITE) == 0)
 		newpde &= ~(PG_RW | PG_M);

@@ -154,8 +154,13 @@ struct lock_class {
  * file    - file name
  * line    - line number
  */
+#if LOCK_DEBUG > 0
 #define	LOCK_LOG_TEST(lo, flags)					\
 	(((flags) & LOP_QUIET) == 0 && ((lo)->lo_flags & LO_QUIET) == 0)
+#else
+#define	LOCK_LOG_TEST(lo, flags)	0
+#endif
+
 
 #define	LOCK_LOG_LOCK(opname, lo, flags, recurse, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\

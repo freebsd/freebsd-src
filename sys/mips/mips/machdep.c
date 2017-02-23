@@ -475,6 +475,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 
 	pcpu->pc_next_asid = 1;
 	pcpu->pc_asid_generation = 1;
+	pcpu->pc_self = pcpu;
 #ifdef SMP
 	if ((vm_offset_t)pcpup >= VM_MIN_KERNEL_ADDRESS &&
 	    (vm_offset_t)pcpup <= VM_MAX_KERNEL_ADDRESS) {

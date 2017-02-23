@@ -104,9 +104,8 @@ void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 void	__mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file,
 	    int line);
 #else
-void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
-	    int opts);
-void	__mtx_unlock_sleep(volatile uintptr_t *c, int opts);
+void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid);
+void	__mtx_unlock_sleep(volatile uintptr_t *c);
 #endif
 
 #ifdef SMP
@@ -154,9 +153,9 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	__mtx_unlock_sleep(&(m)->mtx_lock, o, f, l)
 #else
 #define	_mtx_lock_sleep(m, v, t, o, f, l)				\
-	__mtx_lock_sleep(&(m)->mtx_lock, v, t, o)
+	__mtx_lock_sleep(&(m)->mtx_lock, v, t)
 #define	_mtx_unlock_sleep(m, o, f, l)					\
-	__mtx_unlock_sleep(&(m)->mtx_lock, o)
+	__mtx_unlock_sleep(&(m)->mtx_lock)
 #endif
 #ifdef SMP
 #define	_mtx_lock_spin(m, v, t, o, f, l)				\
@@ -224,12 +223,9 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	uintptr_t _v = MTX_UNOWNED;					\
 									\
 	spinlock_enter();						\
-	if (!_mtx_obtain_lock_fetch((mp), &_v, _tid)) {			\
-		if (_v == _tid)						\
-			(mp)->mtx_recurse++;				\
-		else							\
-			_mtx_lock_spin((mp), _v, _tid, (opts), (file), (line));\
-	} else 								\
+	if (!_mtx_obtain_lock_fetch((mp), &_v, _tid)) 			\
+		_mtx_lock_spin((mp), _v, _tid, (opts), (file), (line)); \
+	else 								\
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire,	\
 		    mp, 0, 0, file, line);				\
 } while (0)

@@ -47,6 +47,7 @@ struct url {
 	off_t		 offset;
 	size_t		 length;
 	time_t		 ims_time;
+	int		 netrcfd;
 };
 
 struct url_stat {

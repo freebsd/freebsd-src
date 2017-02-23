@@ -151,6 +151,12 @@ OLD_FILES+=usr/lib/clang/3.9.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.9.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.9.1/lib
 OLD_DIRS+=usr/lib/clang/3.9.1
+# 20170219: OpenPAM RADULA upgrade removed the libpam tests
+OLD_FILES+=usr/tests/lib/libpam/Kyuafile
+OLD_FILES+=usr/tests/lib/libpam/t_openpam_ctype
+OLD_FILES+=usr/tests/lib/libpam/t_openpam_readlinev
+OLD_FILES+=usr/tests/lib/libpam/t_openpam_readword
+OLD_DIRS+=usr/test/lib/libpam
 # 20170206: remove bdes(1)
 OLD_FILES+=usr/bin/bdes
 OLD_FILES+=usr/lib/debug/usr/bin/bdes.debug

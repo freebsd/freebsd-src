@@ -21,7 +21,7 @@ cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
 #
 linux_genassym.o		optional	compat_linux		\
 	dependency 	"$S/i386/linux/linux_genassym.c"		\
-	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
+	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"linux_genassym.o"
 #
@@ -45,7 +45,7 @@ linux_vdso.so			optional	compat_linux		\
 #
 svr4_genassym.o			optional	compat_svr4		\
 	dependency 	"$S/i386/svr4/svr4_genassym.c"			\
-	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
+	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"svr4_genassym.o"
 #
@@ -491,7 +491,6 @@ i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
 i386/i386/gdb_machdep.c		optional gdb
 i386/i386/geode.c		optional cpu_geode
-i386/i386/i686_mem.c		optional mem
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
@@ -634,6 +633,7 @@ x86/x86/io_apic.c		optional apic
 x86/x86/legacy.c		standard
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
+x86/x86/x86_mem.c		optional mem
 x86/x86/mptable.c		optional apic
 x86/x86/mptable_pci.c		optional apic pci
 x86/x86/mp_x86.c		optional smp

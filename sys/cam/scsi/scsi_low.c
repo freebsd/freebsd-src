@@ -479,15 +479,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 #endif	/* SCSI_LOW_DEBUG */
 		break;
 
-	case XPT_EN_LUN:		/* Enable LUN as a target */
-	case XPT_TARGET_IO:		/* Execute target I/O request */
-	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
-		/* XXX Implement */
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
-		break;
-
 	case XPT_ABORT:			/* Abort the specified CCB */
 #ifdef	SCSI_LOW_DIAGNOSTIC
 		if (target == CAM_TARGET_WILDCARD || lun == CAM_LUN_WILDCARD)

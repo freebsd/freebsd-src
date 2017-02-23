@@ -24,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd September 27, 2015
+.Dd January 19, 2017
 .Dt CTL 4
 .Os
 .Sh NAME
@@ -158,10 +158,9 @@ Verbosity level for log messages from the kernel part of iSCSI target.
 Set to 0 to disable logging or 1 to warn about potential problems.
 Larger values enable debugging output.
 Defaults to 1.
-.It Va kern.cam.ctl.iscsi.maxcmdsn_delta
-The number of outstanding commands to advertise to the iSCSI initiator.
-Technically, it is the difference between ExpCmdSN and MaxCmdSN fields
-in the iSCSI PDU.
+.It Va kern.cam.ctl.iscsi.maxtags
+The number of outstanding commands to advertise to each iSCSI initiator.
+Current implementation is not very accurate, so do not set this below 2.
 Defaults to 256.
 .It Va kern.cam.ctl.iscsi.ping_timeout
 The number of seconds to wait for the iSCSI initiator to respond to a NOP-In
@@ -172,6 +171,7 @@ Set to 0 to disable sending NOP-In PDUs.
 Defaults to 5.
 .El
 .Sh SEE ALSO
+.Xr cfumass 4 ,
 .Xr ctladm 8 ,
 .Xr ctld 8 ,
 .Xr ctlstat 8

@@ -339,6 +339,7 @@ struct thread {
 	void		*td_emuldata;	/* Emulator state data */
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
+	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
 };
 
 struct thread0_storage {

@@ -71,11 +71,11 @@ struct ti_sdhci_softc {
 	uint32_t		mmchs_reg_off;
 	uint32_t		sdhci_reg_off;
 	uint32_t		baseclk_hz;
-	uint32_t		wp_gpio_pin;
 	uint32_t		cmd_and_mode;
 	uint32_t		sdhci_clkdiv;
 	boolean_t		disable_highspeed;
 	boolean_t		force_card_present;
+	boolean_t		disable_readonly;
 };
 
 /*
@@ -364,6 +364,9 @@ ti_sdhci_get_ro(device_t brdev, device_t reqdev)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(brdev);
 
+	if (sc->disable_readonly)
+		return (0);
+
 	return (sdhci_fdt_gpio_get_readonly(sc->gpio));
 }
 
@@ -558,7 +561,20 @@ ti_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
+	/*
+	 * Set up handling of card-detect and write-protect gpio lines.
+	 *
+	 * If there is no write protect info in the fdt data, fall back to the
+	 * historical practice of assuming that the card is writable.  This
+	 * works around bad fdt data from the upstream source.  The alternative
+	 * would be to trust the sdhci controller's PRESENT_STATE register WP
+	 * bit, but it may say write protect is in effect when it's not if the
+	 * pinmux setup doesn't route the WP signal into the sdchi block.
+	 */
 	sc->gpio = sdhci_fdt_gpio_setup(sc->dev, &sc->slot);
+
+	if (!OF_hasprop(node, "wp-gpios") && !OF_hasprop(node, "wp-disable"))
+		sc->disable_readonly = true;
 
 	/* Initialise the MMCHS hardware. */
 	ti_sdhci_hw_init(dev);

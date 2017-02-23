@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Dag-Erling Smørgrav
+ * Copyright (c) 2015 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,58 +26,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: t.h 657 2013-03-06 22:59:05Z des $
+ * $Id: t_pam_conv.h 863 2015-07-30 23:44:31Z des $
  */
 
-#ifndef T_H_INCLUDED
-#define T_H_INCLUDED
+#ifndef T_PAM_CONV_H_INCLUDED
+#define T_PAM_CONV_H_INCLUDED
 
-#include <security/openpam_attr.h>
-
-struct t_test {
-	int (*func)(void *);
-	const char *desc;
-	void *arg;
+struct t_pam_conv_script {
+	int			 nmsg;
+	struct pam_message	*msgs;
+	struct pam_response	*resps;
+	char			*comment;
 };
 
-#define T_FUNC(n, d)				\
-	static int t_ ## n ## _func(void *);	\
-	static const struct t_test t_ ## n =	\
-	    { t_ ## n ## _func, d, NULL };	\
-	static int t_ ## n ## _func(OPENPAM_UNUSED(void *arg))
-
-#define T_FUNC_ARG(n, d, a)			\
-	static int t_ ## n ## _func(void *);	\
-	static const struct t_test t_ ## n =	\
-	    { t_ ## n ## _func, d, a };		\
-	static int t_ ## n ## _func(void *arg)
-
-#define T(n)					\
-	&t_ ## n
-
-extern const char *t_progname;
-
-const struct t_test **t_prepare(int, char **);
-void t_cleanup(void);
-
-void t_verbose(const char *, ...)
-	OPENPAM_FORMAT((__printf__, 1, 2));
-
-/*
- * Convenience functions for temp files
- */
-struct t_file {
-	char *name;
-	FILE *file;
-	struct t_file *prev, *next;
-};
-
-struct t_file *t_fopen(const char *);
-int t_fprintf(struct t_file *, const char *, ...);
-int t_ferror(struct t_file *);
-int t_feof(struct t_file *);
-void t_frewind(struct t_file *);
-void t_fclose(struct t_file *);
-void t_fcloseall(void);
+int t_pam_conv(int, const struct pam_message **, struct pam_response **,
+	void *);
 
 #endif

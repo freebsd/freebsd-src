@@ -73,7 +73,7 @@ enum scan_mode {
  */
 struct cmc_state {
 	int	max_threshold;
-	int	last_intr;
+	time_t	last_intr;
 };
 #endif
 

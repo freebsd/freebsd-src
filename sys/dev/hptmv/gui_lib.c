@@ -74,7 +74,7 @@ check_VDevice_valid(PVDevice p)
 	PVBus    _vbus_p;
 	IAL_ADAPTER_T *pAdapter = gIal_Adapter;
 	
-	while(pAdapter != 0)
+	while(pAdapter != NULL)
 	{
 		for (i = 0; i < MV_SATA_CHANNELS_NUM; i++)
 			if(&(pAdapter->VDevices[i]) == p)  return 0;
@@ -83,7 +83,7 @@ check_VDevice_valid(PVDevice p)
 
 #ifdef SUPPORT_ARRAY
 	pAdapter = gIal_Adapter;
-	while(pAdapter != 0)
+	while(pAdapter != NULL)
 	{
 		_vbus_p = &pAdapter->VBus;
 		for (i=0;i<MAX_ARRAY_PER_VBUS;i++) 
@@ -403,7 +403,7 @@ int hpt_get_controller_count(void)
 	IAL_ADAPTER_T    *pAdapTemp = gIal_Adapter;
 	int iControllerCount = 0;
 	
-	while(pAdapTemp != 0)
+	while(pAdapTemp != NULL)
 	{		 
 		iControllerCount++;
 		pAdapTemp = pAdapTemp->next;
@@ -448,7 +448,7 @@ int hpt_get_channel_info(int id, int bus, PCHANNEL_INFO pInfo)
 	IAL_ADAPTER_T    *pAdapTemp = gIal_Adapter;
 	int i,iControllerCount = 0;
 
-	while(pAdapTemp != 0)
+	while(pAdapTemp != NULL)
 	{
 		if (iControllerCount++==id) 
 			goto found;
