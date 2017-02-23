@@ -35,6 +35,18 @@ typedef struct MD4Context {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+
+/* Ensure libmd symbols do not clash with libcrypto */
+
+#define MD4Init		_libmd_MD4Init
+#define MD4Update	_libmd_MD4Update
+#define MD4Pad		_libmd_MD4Pad
+#define MD4Final	_libmd_MD4Final
+#define MD4End		_libmd_MD4End
+#define MD4File		_libmd_MD4File
+#define MD4FileChunk	_libmd_MD4FileChunk
+#define MD4Data		_libmd_MD4Data
+
 void   MD4Init(MD4_CTX *);
 void   MD4Update(MD4_CTX *, const void *, unsigned int);
 void   MD4Pad(MD4_CTX *);
