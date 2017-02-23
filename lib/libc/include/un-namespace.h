@@ -198,6 +198,7 @@
 #undef		sem_open
 #undef		sem_post
 #undef		sem_timedwait
+#undef		sem_clockwait_np
 #undef		sem_trywait
 #undef		sem_unlink
 #undef		sem_wait

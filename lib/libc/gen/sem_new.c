@@ -56,6 +56,7 @@ __weak_reference(_sem_init, sem_init);
 __weak_reference(_sem_open, sem_open);
 __weak_reference(_sem_post, sem_post);
 __weak_reference(_sem_timedwait, sem_timedwait);
+__weak_reference(_sem_clockwait_np, sem_clockwait_np);
 __weak_reference(_sem_trywait, sem_trywait);
 __weak_reference(_sem_unlink, sem_unlink);
 __weak_reference(_sem_wait, sem_wait);
@@ -345,23 +346,34 @@ usem_wake(struct _usem2 *sem)
 }
 
 static __inline int
-usem_wait(struct _usem2 *sem, const struct timespec *abstime)
+usem_wait(struct _usem2 *sem, clockid_t clock_id, int flags,
+    const struct timespec *rqtp, struct timespec *rmtp)
 {
-	struct _umtx_time *tm_p, timeout;
+	struct {
+		struct _umtx_time timeout;
+		struct timespec remain;
+	} tms;
+	void *tm_p;
 	size_t tm_size;
+	int retval;
 
-	if (abstime == NULL) {
+	if (rqtp == NULL) {
 		tm_p = NULL;
 		tm_size = 0;
 	} else {
-		timeout._clockid = CLOCK_REALTIME;
-		timeout._flags = UMTX_ABSTIME;
-		timeout._timeout = *abstime;
-		tm_p = &timeout;
-		tm_size = sizeof(timeout);
+		tms.timeout._clockid = clock_id;
+		tms.timeout._flags = (flags & TIMER_ABSTIME) ? UMTX_ABSTIME : 0;
+		tms.timeout._timeout = *rqtp;
+		tm_p = &tms;
+		tm_size = sizeof(tms);
 	}
-	return _umtx_op(sem, UMTX_OP_SEM2_WAIT, 0, 
-		    (void *)tm_size, __DECONST(void*, tm_p));
+	retval = _umtx_op(sem, UMTX_OP_SEM2_WAIT, 0, (void *)tm_size, tm_p);
+	if (retval == -1 && errno == EINTR && (flags & TIMER_ABSTIME) == 0 &&
+	    rqtp != NULL && rmtp != NULL) {
+		*rmtp = tms.remain;
+	}
+
+	return (retval);
 }
 
 int
@@ -381,8 +393,8 @@ _sem_trywait(sem_t *sem)
 }
 
 int
-_sem_timedwait(sem_t * __restrict sem,
-	const struct timespec * __restrict abstime)
+_sem_clockwait_np(sem_t * __restrict sem, clockid_t clock_id, int flags,
+	const struct timespec *rqtp, struct timespec *rmtp)
 {
 	int val, retval;
 
@@ -393,7 +405,8 @@ _sem_timedwait(sem_t * __restrict sem,
 	_pthread_testcancel();
 	for (;;) {
 		while (USEM_COUNT(val = sem->_kern._count) > 0) {
-			if (atomic_cmpset_acq_int(&sem->_kern._count, val, val - 1))
+			if (atomic_cmpset_acq_int(&sem->_kern._count, val,
+			    val - 1))
 				return (0);
 		}
 
@@ -406,18 +419,26 @@ _sem_timedwait(sem_t * __restrict sem,
 		 * The timeout argument is only supposed to
 		 * be checked if the thread would have blocked.
 		 */
-		if (abstime != NULL) {
-			if (abstime->tv_nsec >= 1000000000 || abstime->tv_nsec < 0) {
+		if (rqtp != NULL) {
+			if (rqtp->tv_nsec >= 1000000000 || rqtp->tv_nsec < 0) {
 				errno = EINVAL;
 				return (-1);
 			}
 		}
 		_pthread_cancel_enter(1);
-		retval = usem_wait(&sem->_kern, abstime);
+		retval = usem_wait(&sem->_kern, clock_id, flags, rqtp, rmtp);
 		_pthread_cancel_leave(0);
 	}
 	return (retval);
 }
+
+int
+_sem_timedwait(sem_t * __restrict sem,
+	const struct timespec * __restrict abstime)
+{
+	return (_sem_clockwait_np(sem, CLOCK_REALTIME, TIMER_ABSTIME, abstime,
+	    NULL));
+};
 
 int
 _sem_wait(sem_t *sem)
