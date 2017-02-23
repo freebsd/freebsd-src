@@ -207,7 +207,7 @@ process(bl_t bl)
 
 	if (debug) {
 		char b1[128], b2[128];
-		(*lfun)(LOG_DEBUG, "%s: db state info for %s: count=%d/%d "
+		(*lfun)(LOG_DEBUG, "%s: initial db state for %s: count=%d/%d "
 		    "last=%s now=%s", __func__, rbuf, dbi.count, c.c_nfail,
 		    fmttime(b1, sizeof(b1), dbi.last),
 		    fmttime(b2, sizeof(b2), ts.tv_sec));
@@ -246,15 +246,24 @@ process(bl_t bl)
 	case BL_DELETE:
 		if (dbi.last == 0)
 			goto out;
+		dbi.count = 0;
 		dbi.last = 0;
 		break;
 	default:
 		(*lfun)(LOG_ERR, "unknown message %d", bi->bi_type); 
 	}
-	if (state_put(state, &c, &dbi) == -1)
-		goto out;
+	state_put(state, &c, &dbi);
+
 out:
 	close(bi->bi_fd);
+
+	if (debug) {
+		char b1[128], b2[128];
+		(*lfun)(LOG_DEBUG, "%s: final db state for %s: count=%d/%d "
+		    "last=%s now=%s", __func__, rbuf, dbi.count, c.c_nfail,
+		    fmttime(b1, sizeof(b1), dbi.last),
+		    fmttime(b2, sizeof(b2), ts.tv_sec));
+	}
 }
 
 static void
@@ -393,7 +402,7 @@ rules_restore(void)
 int
 main(int argc, char *argv[])
 {
-	int c, tout, flags, flush, restore;
+	int c, tout, flags, flush, restore, ret;
 	const char *spath, *blsock;
 
 	setprogname(argv[0]);
@@ -512,7 +521,10 @@ main(int argc, char *argv[])
 			readconf = 0;
 			conf_parse(configfile);
 		}
-		switch (poll(pfd, (nfds_t)nfd, tout)) {
+		ret = poll(pfd, (nfds_t)nfd, tout);
+		if (debug)
+			(*lfun)(LOG_DEBUG, "received %d from poll()", ret);
+		switch (ret) {
 		case -1:
 			if (errno == EINTR)
 				continue;
