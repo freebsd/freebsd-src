@@ -1,7 +1,7 @@
 /*
- * This file is part of the Chelsio T4 Ethernet driver.
+ * This file is part of the Chelsio T4/T5/T6 Ethernet driver.
  *
- * Copyright (C) 2003-2014 Chelsio Communications.  All rights reserved.
+ * Copyright (C) 2003-2016 Chelsio Communications.  All rights reserved.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -30,6 +30,8 @@
 #define CHELSIO_T4_FPGA		0xa
 #define CHELSIO_T5		0x5
 #define CHELSIO_T5_FPGA		0xb
+#define CHELSIO_T6		0x6
+#define CHELSIO_T6_FPGA		0xc
 
 /*
  * Translate a PCI Device ID to a base Chelsio Chip Version -- CHELSIO_T4,
@@ -43,11 +45,25 @@
  * Finally: This will of course need to be expanded as future chips are
  * developed.
  */
-#define CHELSIO_PCI_ID_CHIP_VERSION(__DeviceID) \
-	(CHELSIO_PCI_ID_VER(__DeviceID) == CHELSIO_T4 || \
-	 CHELSIO_PCI_ID_VER(__DeviceID) == CHELSIO_T4_FPGA \
-	 ? CHELSIO_T4 \
-	 : CHELSIO_T5)
+static inline unsigned int
+CHELSIO_PCI_ID_CHIP_VERSION(unsigned int DeviceID)
+{
+	switch (CHELSIO_PCI_ID_VER(DeviceID)) {
+	case CHELSIO_T4:
+	case CHELSIO_T4_FPGA:
+	return CHELSIO_T4;
+
+	case CHELSIO_T5:
+	case CHELSIO_T5_FPGA:
+	return CHELSIO_T5;
+
+	case CHELSIO_T6:
+	case CHELSIO_T6_FPGA:
+	return CHELSIO_T6;
+	}
+
+	return 0;
+}
 
 /*
  * Internally we code the Chelsio T4 Family "Chip Code" as a tuple:
@@ -72,9 +88,13 @@ enum chip_type {
 	T4_LAST_REV	= T4_A2,
 
 	T5_A0 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
-	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 0),
+	T5_A1 = CHELSIO_CHIP_CODE(CHELSIO_T5, 1),
 	T5_FIRST_REV	= T5_A0,
 	T5_LAST_REV	= T5_A1,
+
+	T6_A0 = CHELSIO_CHIP_CODE(CHELSIO_T6, 0),
+	T6_FIRST_REV	= T6_A0,
+	T6_LAST_REV	= T6_A0,
 };
 
 static inline int is_t4(enum chip_type chip)
@@ -86,6 +106,11 @@ static inline int is_t5(enum chip_type chip)
 {
 
 	return (CHELSIO_CHIP_VERSION(chip) == CHELSIO_T5);
+}
+
+static inline int is_t6(enum chip_type chip)
+{
+	return (CHELSIO_CHIP_VERSION(chip) == CHELSIO_T6);
 }
 
 static inline int is_fpga(enum chip_type chip)

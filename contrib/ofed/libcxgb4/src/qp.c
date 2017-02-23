@@ -393,7 +393,7 @@ int c4iw_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 		idx += DIV_ROUND_UP(len16*16, T4_EQ_ENTRY_SIZE);
 	}
 
-	t4_ring_sq_db(&qhp->wq, idx, dev_is_t5(qhp->rhp),
+	t4_ring_sq_db(&qhp->wq, idx, dev_is_t4(qhp->rhp),
 			len16, wqe);
 	qhp->wq.sq.queue[qhp->wq.sq.size].status.host_wq_pidx = \
 			(qhp->wq.sq.wq_pidx);
@@ -457,7 +457,7 @@ int c4iw_post_receive(struct ibv_qp *ibqp, struct ibv_recv_wr *wr,
 		num_wrs--;
 	}
 
-	t4_ring_rq_db(&qhp->wq, idx, dev_is_t5(qhp->rhp),
+	t4_ring_rq_db(&qhp->wq, idx, dev_is_t4(qhp->rhp),
 			len16, wqe);
 	qhp->wq.rq.queue[qhp->wq.rq.size].status.host_wq_pidx = \
 			(qhp->wq.rq.wq_pidx);
