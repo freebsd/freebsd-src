@@ -1395,7 +1395,6 @@ make_packet(struct rainfo *rai)
 	ra->nd_ra_code = 0;
 	ra->nd_ra_cksum = 0;
 	ra->nd_ra_curhoplimit = (uint8_t)(0xff & rai->rai_hoplimit);
-	ra->nd_ra_flags_reserved = 0; /* just in case */
 	/*
 	 * XXX: the router preference field, which is a 2-bit field, should be
 	 * initialized before other fields.
