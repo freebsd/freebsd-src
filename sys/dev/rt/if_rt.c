@@ -438,7 +438,6 @@ rt_attach(device_t dev)
 		sc->fe_int_status=GE_PORT_BASE+FE_INT_STATUS;
 		sc->fe_int_enable=GE_PORT_BASE+FE_INT_ENABLE;
 		sc->pdma_glo_cfg=PDMA_BASE+PDMA_GLO_CFG;
-		sc->pdma_glo_cfg=PDMA_BASE+PDMA_GLO_CFG;
 		sc->pdma_rst_idx=PDMA_BASE+PDMA_RST_IDX;
 		for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
 		  sc->tx_base_ptr[i]=PDMA_BASE+TX_BASE_PTR(i);

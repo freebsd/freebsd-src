@@ -338,6 +338,21 @@ test_and_clear_bit(long bit, volatile unsigned long *var)
 }
 
 static inline int
+__test_and_clear_bit(long bit, volatile unsigned long *var)
+{
+	long val;
+
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
+
+	val = *var;
+	*var &= ~bit;
+
+	return !!(val & bit);
+}
+
+static inline int
 test_and_set_bit(long bit, volatile unsigned long *var)
 {
 	long val;
@@ -348,6 +363,21 @@ test_and_set_bit(long bit, volatile unsigned long *var)
 	do {
 		val = *var;
 	} while (atomic_cmpset_long(var, val, val | bit) == 0);
+
+	return !!(val & bit);
+}
+
+static inline int
+__test_and_set_bit(long bit, volatile unsigned long *var)
+{
+	long val;
+
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
+
+	val = *var;
+	*var |= bit;
 
 	return !!(val & bit);
 }
