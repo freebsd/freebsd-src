@@ -696,6 +696,8 @@ after_sack_rexmit:
 		     recwin <= (so->so_rcv.sb_hiwat / 8) ||
 		     so->so_rcv.sb_hiwat <= 8 * tp->t_maxseg))
 			goto send;
+		if (2 * adv >= (int32_t)so->so_rcv.sb_hiwat)
+			goto send;
 	}
 dontupdate:
 
