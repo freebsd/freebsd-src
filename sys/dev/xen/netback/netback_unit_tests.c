@@ -2528,7 +2528,7 @@ xnb_sscanf_hhn(char *buffer, size_t buflen)
 	XNB_ASSERT(sscanf(mystr,
 	    "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 	    "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
-	    "404142434445464748494a4b4c4d4e4f%hhn", &dest[4]) == 1);
+	    "404142434445464748494a4b4c4d4e4f%hhn", &dest[4]) == 0);
 	for (i = 0; i < 12; i++)
 		XNB_ASSERT(dest[i] == (i == 4 ? 160 : 'X'));
 }
