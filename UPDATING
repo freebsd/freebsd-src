@@ -16,6 +16,24 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20170223	p8	FreeBSD-SA-17:02.openssl
+			FreeBSD-EN-17:01.pcie
+			FreeBSD-EN-17:02.yp
+			FreeBSD-EN-17:03.hyperv
+			FreeBSD-EN-17:04.mandoc
+
+	Fix multiple vulnerabilities of OpenSSL. [SA-17:02]
+
+	Fix system hang when booting when PCI-express HotPlug is enabled.
+	[EN-17:01]
+
+	Fix NIS master updates are not pushed to NIS slave. [EN-17:02]
+
+	Fix compatibility with Hyper-V/storage after KB3172614 or
+	KB3179574. [EN-17:03]
+
+	Make makewhatis output reproducible. [EN-17:04]
+
 20170111	p7	FreeBSD-SA-17:01.openssh
 
 	Fix multiple vulnerabilities of OpenSSH.
