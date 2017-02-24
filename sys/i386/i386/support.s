@@ -29,8 +29,6 @@
  * $FreeBSD$
  */
 
-#include "opt_npx.h"
-
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
 #include <machine/pmap.h>
