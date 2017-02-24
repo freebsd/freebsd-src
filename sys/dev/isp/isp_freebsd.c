@@ -3428,9 +3428,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			else
 				str = "XPT_ACCEPT_TARGET_IO";
 			ISP_PATH_PRT(isp, ISP_LOGWARN, ccb->ccb_h.path,
-			    "%s: [0x%x] no state pointer found for %s\n",
+			    "%s: no state pointer found for %s\n",
 			    __func__, str);
 			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+			xpt_done(ccb);
 			break;
 		}
 		ccb->ccb_h.spriv_field0 = 0;
