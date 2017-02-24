@@ -210,6 +210,10 @@ static void		ctlfe_dump_queue(struct ctlfe_lun_softc *softc);
 static void 		ctlfe_datamove(union ctl_io *io);
 static void 		ctlfe_done(union ctl_io *io);
 static void 		ctlfe_dump(void);
+static void		ctlfe_free_ccb(struct cam_periph *periph,
+			    union ccb *ccb);
+static void		ctlfe_requeue_ccb(struct cam_periph *periph,
+			    union ccb *ccb, int unlock);
 
 static struct periph_driver ctlfe_driver =
 {
@@ -802,6 +806,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 	softc->ccbs_alloced++;
 
+next:
 	ccb_h = TAILQ_FIRST(&softc->work_queue);
 	if (ccb_h == NULL) {
 		softc->ccbs_freed++;
@@ -845,26 +850,12 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			start_ccb->ccb_h.func_code = XPT_ABORT;
 			start_ccb->cab.abort_ccb = (union ccb *)atio;
 			xpt_action(start_ccb);
-			softc->ccbs_freed++;
-			xpt_release_ccb(start_ccb);
 
-			/*
-			 * Send the ATIO back down to the SIM.
-			 * For a wildcard attachment, commands can come in
-			 * with a specific target/lun.  Reset the target and
-			 * LUN fields back to the wildcard values before we
-			 * send them back down to the SIM.
-			 */
-			if (softc->flags & CTLFE_LUN_WILDCARD) {
-				atio->ccb_h.target_id = CAM_TARGET_WILDCARD;
-				atio->ccb_h.target_lun = CAM_LUN_WILDCARD;
-			}
-			xpt_action((union ccb *)atio);
+			ctlfe_requeue_ccb(periph, (union ccb *)atio,
+			    /* unlock */0);
 
-			/* If we still have work to do, ask for another CCB. */
-			if (!TAILQ_EMPTY(&softc->work_queue))
-				xpt_schedule(periph, /*priority*/ 1);
-			return;
+			/* XPT_ABORT is not queued, so we can take next I/O. */
+			goto next;
 		}
 		data_ptr = NULL;
 		dxfer_len = 0;
@@ -995,6 +986,37 @@ ctlfe_free_ccb(struct cam_periph *periph, union ccb *ccb)
 	 && (softc->inots_freed == softc->inots_alloced)) {
 		cam_periph_release_locked(periph);
 	}
+}
+
+/*
+ * Send the ATIO/INOT back to the SIM, or free it if periph was invalidated.
+ */
+static void
+ctlfe_requeue_ccb(struct cam_periph *periph, union ccb *ccb, int unlock)
+{
+	struct ctlfe_lun_softc *softc;
+
+	if (periph->flags & CAM_PERIPH_INVALID) {
+		ctlfe_free_ccb(periph, ccb);
+		if (unlock)
+			cam_periph_unlock(periph);
+		return;
+	}
+	if (unlock)
+		cam_periph_unlock(periph);
+
+	/*
+	 * For a wildcard attachment, commands can come in with a specific
+	 * target/lun.  Reset the target and LUN fields back to the wildcard
+	 * values before we send them back down to the SIM.
+	 */
+	softc = (struct ctlfe_lun_softc *)periph->softc;
+	if (softc->flags & CTLFE_LUN_WILDCARD) {
+		ccb->ccb_h.target_id = CAM_TARGET_WILDCARD;
+		ccb->ccb_h.target_lun = CAM_LUN_WILDCARD;
+	}
+
+	xpt_action(ccb);
 }
 
 static int
@@ -1260,25 +1282,9 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((io->io_hdr.flags & CTL_FLAG_DMA_INPROG) == 0) {
 			softc->ccbs_freed++;
 			xpt_release_ccb(done_ccb);
-			/*
-			 * For a wildcard attachment, commands can come in
-			 * with a specific target/lun.  Reset the target
-			 * and LUN fields back to the wildcard values before
-			 * we send them back down to the SIM.  The SIM has
-			 * a wildcard LUN enabled, not whatever target/lun
-			 * these happened to be.
-			 */
-			if (softc->flags & CTLFE_LUN_WILDCARD) {
-				atio->ccb_h.target_id = CAM_TARGET_WILDCARD;
-				atio->ccb_h.target_lun = CAM_LUN_WILDCARD;
-			}
-			if (periph->flags & CAM_PERIPH_INVALID) {
-				ctlfe_free_ccb(periph, (union ccb *)atio);
-			} else {
-				mtx_unlock(mtx);
-				xpt_action((union ccb *)atio);
-				return;
-			}
+			ctlfe_requeue_ccb(periph, (union ccb *)atio,
+			    /* unlock */1);
+			return;
 		} else {
 			struct ctlfe_cmd_info *cmd_info;
 			struct ccb_scsiio *csio;
@@ -1483,18 +1489,11 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		break;
 	}
 	case XPT_NOTIFY_ACKNOWLEDGE:
-		if (periph->flags & CAM_PERIPH_INVALID) {
-			ctlfe_free_ccb(periph, done_ccb);
-			goto out;
-		}
-
-		/*
-		 * Queue this back down to the SIM as an immediate notify.
-		 */
+		/* Queue this back down to the SIM as an immediate notify. */
 		done_ccb->ccb_h.status = CAM_REQ_INPROG;
 		done_ccb->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
-		xpt_action(done_ccb);
-		break;
+		ctlfe_requeue_ccb(periph, done_ccb, /* unlock */1);
+		return;
 	case XPT_SET_SIM_KNOB:
 	case XPT_GET_SIM_KNOB:
 	case XPT_GET_SIM_KNOB_OLD:
@@ -1998,17 +1997,8 @@ ctlfe_done(union ctl_io *io)
 		ccb->cna2.arg |= scsi_3btoul(io->taskio.task_resp) << 8;
 		xpt_action(ccb);
 	} else if (io->io_hdr.flags & CTL_FLAG_STATUS_SENT) {
-		if (softc->flags & CTLFE_LUN_WILDCARD) {
-			ccb->ccb_h.target_id = CAM_TARGET_WILDCARD;
-			ccb->ccb_h.target_lun = CAM_LUN_WILDCARD;
-		}
-		if (periph->flags & CAM_PERIPH_INVALID) {
-			ctlfe_free_ccb(periph, ccb);
-		} else {
-			cam_periph_unlock(periph);
-			xpt_action(ccb);
-			return;
-		}
+		ctlfe_requeue_ccb(periph, ccb, /* unlock */1);
+		return;
 	} else {
 		io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;
 		TAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
