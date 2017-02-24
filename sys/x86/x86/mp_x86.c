@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #ifdef GPROF 
 #include <sys/gmon.h>
 #endif
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -1269,6 +1270,12 @@ cpustop_handler_post(u_int cpu)
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
 
+	/*
+	 * We don't broadcast TLB invalidations to other CPUs when they are
+	 * stopped. Hence, we clear the TLB before resuming.
+	 */
+	invltlb_glob();
+
 #if defined(__amd64__) && defined(DDB)
 	amd64_db_resume_dbreg();
 #endif
@@ -1426,6 +1433,10 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	volatile uint32_t *p_cpudone;
 	uint32_t generation;
 	int cpu;
+
+	/* It is not necessary to signal other CPUs while in the debugger. */
+	if (kdb_active || panicstr != NULL)
+		return;
 
 	/*
 	 * Check for other cpus.  Return if none.
