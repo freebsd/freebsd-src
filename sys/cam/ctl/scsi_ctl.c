@@ -836,52 +836,32 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 		    (io->io_hdr.flags & CTL_FLAG_ABORT_STATUS) == 0) {
 			io->io_hdr.flags &= ~CTL_FLAG_STATUS_QUEUED;
 
-			/*
-			 * If this command was aborted, we don't
-			 * need to send status back to the SIM.
-			 * Just free the CTIO and ctl_io, and
-			 * recycle the ATIO back to the SIM.
-			 */
-			xpt_print(periph->path, "%s: aborted "
-				  "command 0x%04x discarded\n",
-				  __func__, io->scsiio.tag_num);
-			/*
-			 * For a wildcard attachment, commands can
-			 * come in with a specific target/lun.  Reset
-			 * the target and LUN fields back to the
-			 * wildcard values before we send them back
-			 * down to the SIM.  The SIM has a wildcard
-			 * LUN enabled, not whatever target/lun
-			 * these happened to be.
-			 */
-			if (softc->flags & CTLFE_LUN_WILDCARD) {
-				atio->ccb_h.target_id = CAM_TARGET_WILDCARD;
-				atio->ccb_h.target_lun = CAM_LUN_WILDCARD;
-			}
-
-			if (atio->ccb_h.func_code != XPT_ACCEPT_TARGET_IO) {
-				xpt_print(periph->path, "%s: func_code "
-					  "is %#x\n", __func__,
-					  atio->ccb_h.func_code);
-			}
+			/* Tell the SIM that we've aborted this ATIO */
+#ifdef CTLFEDEBUG
+			printf("%s: tag %04x abort\n", __func__, atio->tag_id);
+#endif
+			KASSERT(atio->ccb_h.func_code == XPT_ACCEPT_TARGET_IO,
+			    ("func_code %#x is not ATIO", atio->ccb_h.func_code));
 			start_ccb->ccb_h.func_code = XPT_ABORT;
 			start_ccb->cab.abort_ccb = (union ccb *)atio;
-
-			/* Tell the SIM that we've aborted this ATIO */
 			xpt_action(start_ccb);
 			softc->ccbs_freed++;
 			xpt_release_ccb(start_ccb);
 
 			/*
 			 * Send the ATIO back down to the SIM.
+			 * For a wildcard attachment, commands can come in
+			 * with a specific target/lun.  Reset the target and
+			 * LUN fields back to the wildcard values before we
+			 * send them back down to the SIM.
 			 */
+			if (softc->flags & CTLFE_LUN_WILDCARD) {
+				atio->ccb_h.target_id = CAM_TARGET_WILDCARD;
+				atio->ccb_h.target_lun = CAM_LUN_WILDCARD;
+			}
 			xpt_action((union ccb *)atio);
 
-			/*
-			 * If we still have work to do, ask for
-			 * another CCB.  Otherwise, deactivate our
-			 * callout.
-			 */
+			/* If we still have work to do, ask for another CCB. */
 			if (!TAILQ_EMPTY(&softc->work_queue))
 				xpt_schedule(periph, /*priority*/ 1);
 			return;
@@ -905,9 +885,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 		if (csio->sense_len != 0) {
 			csio->sense_data = io->scsiio.sense_data;
 			flags |= CAM_SEND_SENSE;
-		} else if (scsi_status == SCSI_STATUS_CHECK_COND) {
-			xpt_print(periph->path, "%s: check condition "
-				  "with no sense\n", __func__);
 		}
 	}
 
