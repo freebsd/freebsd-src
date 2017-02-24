@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2017
+.Dd February 17, 2017
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -397,6 +397,17 @@ It may take some other actions, depending upon the sense code returned from
 the command.
 .It Fl n Ar dev_name
 Specify the device type to operate on, e.g.\& "da", "cd".
+.It Fl Q Ar task_attr
+.Tn SCSI
+task attribute for the command, if it is a
+.Tn SCSI
+command.
+This may be ordered, simple, head, or aca.
+In most cases this is not needed.
+The default is simple, which works with all
+.Tn SCSI
+devices.
+The task attribute may also be specified numerically.
 .It Fl t Ar timeout
 SCSI command timeout in seconds.
 This overrides the default timeout for
@@ -2143,7 +2154,7 @@ information if the command fails since the
 .Fl v
 switch was not specified.
 .Bd -literal -offset indent
-camcontrol tur da1 -E -C 4 -t 50 -v
+camcontrol tur da1 -E -C 4 -t 50 -Q head -v
 .Ed
 .Pp
 Send a test unit ready command to da1.
@@ -2155,6 +2166,9 @@ printing (with the
 flag) if the command fails.
 Since error recovery is turned on, the
 disk will be spun up if it is not currently spinning.
+The
+.Tn SCSI
+task attribute for the command will be set to Head of Queue.
 The
 .Nm
 utility will report whether the disk is ready.

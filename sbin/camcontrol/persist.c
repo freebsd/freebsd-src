@@ -423,7 +423,8 @@ persist_print_full(struct scsi_per_res_in_header *hdr, uint32_t valid_len)
 
 int
 scsipersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
-	    int retry_count, int timeout, int verbosemode, int err_recover)
+	    int task_attr, int retry_count, int timeout, int verbosemode,
+	    int err_recover)
 {
 	union ccb *ccb = NULL;
 	int c, in = 0, out = 0;
@@ -756,7 +757,7 @@ retry:
 		scsi_persistent_reserve_in(&ccb->csio,
 					   /*retries*/ retry_count,
 					   /*cbfcnp*/ NULL,
-					   /*tag_action*/ MSG_SIMPLE_Q_TAG,
+					   /*tag_action*/ task_attr,
 					   /*service_action*/ action,
 					   /*data_ptr*/ res_buf,
 					   /*dxfer_len*/ res_len,
@@ -838,7 +839,7 @@ retry:
 		scsi_persistent_reserve_out(&ccb->csio,
 					    /*retries*/ retry_count,
 					    /*cbfcnp*/ NULL,
-					    /*tag_action*/ MSG_SIMPLE_Q_TAG,
+					    /*tag_action*/ task_attr,
 					    /*service_action*/ action,
 					    /*scope*/ scope,
 					    /*res_type*/ res_type,
