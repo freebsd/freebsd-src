@@ -75,36 +75,39 @@ int get_ata_status(struct cam_device *dev, union ccb *ccb, uint8_t *error,
 		   uint8_t *status);
 int camxferrate(struct cam_device *device);
 int fwdownload(struct cam_device *device, int argc, char **argv,
-	       char *combinedopt, int printerrors, int retry_count,
-	       int timeout);
+	       char *combinedopt, int printerrors, int task_attr,
+	       int retry_count, int timeout);
 int zone(struct cam_device *device, int argc, char **argv, char *combinedopt,
-	 int retry_count, int timeout, int verbosemode);
+	 int task_attr, int retry_count, int timeout, int verbosemode);
 int epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	int retry_count, int timeout, int verbosemode);
 int timestamp(struct cam_device *device, int argc, char **argv,
-	      char *combinedopt, int retry_count, int timeout,
+	      char *combinedopt, int task_attr, int retry_count, int timeout,
 	      int verbosemode);
 void mode_sense(struct cam_device *device, int dbd, int pc, int page,
-		int subpage, int retry_count, int timeout, uint8_t *data,
-		int datalen);
-void mode_select(struct cam_device *device, int save_pages, int retry_count,
-		 int timeout, u_int8_t *data, int datalen);
-void mode_edit(struct cam_device *device, int dbd, int pc, int page, int subpage,
-	       int edit, int binary, int retry_count, int timeout);
-void mode_list(struct cam_device *device, int dbd, int pc, int subpages,
+		int subpage, int task_attr, int retry_count, int timeout,
+		uint8_t *data, int datalen);
+void mode_select(struct cam_device *device, int save_pages, int task_attr,
+		 int retry_count, int timeout, u_int8_t *data, int datalen);
+void mode_edit(struct cam_device *device, int dbd, int pc, int page,
+	       int subpage, int edit, int binary, int task_attr,
 	       int retry_count, int timeout);
+void mode_list(struct cam_device *device, int dbd, int pc, int subpages,
+	       int task_attr, int retry_count, int timeout);
 int scsidoinquiry(struct cam_device *device, int argc, char **argv,
-		  char *combinedopt, int retry_count, int timeout);
+		  char *combinedopt, int task_attr, int retry_count,
+		  int timeout);
 int scsigetopcodes(struct cam_device *device, int opcode_set, int opcode,
 		   int show_sa_errors, int sa_set, int service_action,
-		   int timeout_desc, int retry_count, int timeout,
-		   int verbosemode, uint32_t *fill_len, uint8_t **data_ptr);
+		   int timeout_desc, int task_attr, int retry_count,
+		   int timeout, int verbosemode, uint32_t *fill_len,
+		   uint8_t **data_ptr);
 int scsipersist(struct cam_device *device, int argc, char **argv,
-		char *combinedopt, int retry_count, int timeout, int verbose,
-		int err_recover);
+		char *combinedopt, int task_attr, int retry_count,
+		int timeout, int verbose, int err_recover);
 int scsiattrib(struct cam_device *device, int argc, char **argv,
-	       char *combinedopt, int retry_count, int timeout, int verbose,
-	       int err_recover);
+	       char *combinedopt, int task_attr, int retry_count, int timeout,
+	       int verbose, int err_recover);
 char *cget(void *hook, char *name);
 int iget(void *hook, char *name);
 void arg_put(void *hook, int letter, void *arg, int count, char *name);
