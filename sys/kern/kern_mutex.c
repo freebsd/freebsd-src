@@ -514,7 +514,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid)
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
 #ifdef LOCK_PROFILING
 	doing_lockprof = 1;
-#elif KDTRACE_HOOKS
+#elif defined(KDTRACE_HOOKS)
 	doing_lockprof = lockstat_enabled;
 	if (__predict_false(doing_lockprof))
 		all_time -= lockstat_nsecs(&m->lock_object);
@@ -720,7 +720,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
 #ifdef LOCK_PROFILING
 	doing_lockprof = 1;
-#elif KDTRACE_HOOKS
+#elif defined(KDTRACE_HOOKS)
 	doing_lockprof = lockstat_enabled;
 	if (__predict_false(doing_lockprof))
 		spin_time -= lockstat_nsecs(&m->lock_object);
@@ -804,7 +804,7 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 
 #ifdef LOCK_PROFILING
 	doing_lockprof = 1;
-#elif KDTRACE_HOOKS
+#elif defined(KDTRACE_HOOKS)
 	doing_lockprof = lockstat_enabled;
 	if (__predict_false(doing_lockprof))
 		spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
