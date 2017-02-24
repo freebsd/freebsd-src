@@ -128,14 +128,14 @@ do_buff_decode(u_int8_t *buff, size_t len,
 				*(va_arg(*ap, int *)) = (ARG); \
 			assigned++; \
 		} \
-		field_name[0] = 0; \
+		field_name[0] = '\0'; \
 		suppress = 0; \
 	} while (0)
 
 	u_char bits = 0;	/* For bit fields */
 	int shift = 0;		/* Bits already shifted out */
 	suppress = 0;
-	field_name[0] = 0;
+	field_name[0] = '\0';
 
 	while (!done) {
 		switch(letter = *fmt) {
@@ -169,9 +169,9 @@ do_buff_decode(u_int8_t *buff, size_t len,
 
 				fmt++;
 			}
-			if (fmt)
+			if (*fmt == '\0')
 				fmt++;	/* Skip '}' */
-			field_name[i] = 0;
+			field_name[i] = '\0';
 			break;
 		}
 
@@ -255,7 +255,7 @@ do_buff_decode(u_int8_t *buff, size_t len,
 				break;
 			}
 			if (!suppress) {
-				if (arg_put)
+				if (arg_put != NULL)
 					(*arg_put)(puthook,
 					    (letter == 't' ? 'b' : letter),
 					    &buff[ind], width, field_name);
@@ -268,7 +268,7 @@ do_buff_decode(u_int8_t *buff, size_t len,
 						for (p = dest + width - 1;
 						    p >= dest && *p == ' ';
 						    p--)
-							*p = 0;
+							*p = '\0';
 					}
 				}
 				assigned++;
@@ -379,22 +379,22 @@ next_field(const char **pp, char *fmt, int *width_p, int *value_p, char *name,
 	field_size = 8;		/* Default to byte field type... */
 	*fmt = 'i';
 	field_width = 1;	/* 1 byte wide */
-	if (name)
-		*name = 0;
+	if (name != NULL)
+		*name = '\0';
 
 	state = BETWEEN_FIELDS;
 
 	while (state != DONE) {
 		switch(state) {
 		case BETWEEN_FIELDS:
-			if (*p == 0)
+			if (*p == '\0')
 				state = DONE;
 			else if (isspace(*p))
 				p++;
 			else if (*p == '#') {
 				while (*p && *p != '\n')
 					p++;
-				if (p)
+				if (*p != '\0')
 					p++;
 			} else if (*p == '{') {
 				int i = 0;
@@ -410,7 +410,7 @@ next_field(const char **pp, char *fmt, int *width_p, int *value_p, char *name,
 				}
 
 				if(name && i < n_name)
-					name[i] = 0;
+					name[i] = '\0';
 
 				if (*p == '}')
 					p++;
@@ -568,7 +568,7 @@ do_encode(u_char *buff, size_t vec_max, size_t *used,
 			if (suppress)
 				value = 0;
 			else
-				value = arg_get ?
+				value = arg_get != NULL ?
 					(*arg_get)(gethook, field_name) :
 					va_arg(*ap, int);
 		}
@@ -672,8 +672,8 @@ csio_decode(struct ccb_scsiio *csio, const char *fmt, ...)
 
 	va_start(ap, fmt);
 
-	retval = do_buff_decode(csio->data_ptr, (size_t)csio->dxfer_len, 0, 0,
-		 fmt, &ap);
+	retval = do_buff_decode(csio->data_ptr, (size_t)csio->dxfer_len,
+	    NULL, NULL, fmt, &ap);
 
 	va_end(ap);
 
@@ -705,7 +705,7 @@ buff_decode(u_int8_t *buff, size_t len, const char *fmt, ...)
 
 	va_start(ap, fmt);
 
-	retval = do_buff_decode(buff, len, 0, 0, fmt, &ap);
+	retval = do_buff_decode(buff, len, NULL, NULL, fmt, &ap);
 
 	va_end(ap);
 
@@ -819,7 +819,8 @@ csio_encode(struct ccb_scsiio *csio, const char *fmt, ...)
 
 	va_start(ap, fmt);
 
-	retval = do_encode(csio->data_ptr, csio->dxfer_len, 0, 0, 0, fmt, &ap);
+	retval = do_encode(csio->data_ptr, csio->dxfer_len, NULL, NULL, NULL,
+	    fmt, &ap);
 
 	va_end(ap);
 
@@ -838,7 +839,7 @@ buff_encode_visit(u_int8_t *buff, size_t len, const char *fmt,
 	if (arg_get == NULL)
 		return(-1);
 
-	return (do_encode(buff, len, 0, arg_get, gethook, fmt, NULL));
+	return (do_encode(buff, len, NULL, arg_get, gethook, fmt, NULL));
 }
 
 int
@@ -853,6 +854,6 @@ csio_encode_visit(struct ccb_scsiio *csio, const char *fmt,
 	if (arg_get == NULL)
 		return(-1);
 
-	return (do_encode(csio->data_ptr, csio->dxfer_len, 0, arg_get,
+	return (do_encode(csio->data_ptr, csio->dxfer_len, NULL, arg_get,
 			 gethook, fmt, NULL));
 }
