@@ -60,14 +60,6 @@ pwgets(char *buf, int n)
 		putchar('\b');
 	    }
 	    break;
-	case 'r'&037: {
-	    char *p;
-
-	    putchar('\n');
-	    for (p = buf; p < lp; ++p)
-		putchar(*p);
-	    break;
-	}
 	case 'u'&037:
 	case 'w'&037:
 	    lp = buf;
