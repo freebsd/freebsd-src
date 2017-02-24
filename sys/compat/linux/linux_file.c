@@ -1027,6 +1027,52 @@ linux_pwrite(struct thread *td, struct linux_pwrite_args *uap)
 	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
 
+#if !(defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_preadv(struct thread *td, struct linux_preadv_args *uap)
+{
+	struct uio *auio;
+	int error;
+	off_t offset;
+
+	error = copyinuio(uap->vec, uap->vlen, &auio);
+	if (error)
+		return (error);
+	/*
+	 * According http://man7.org/linux/man-pages/man2/preadv.2.html#NOTES
+	 * pos_l and pos_h, respectively, contain the
+	 * low order and high order 32 bits of offset.
+	 */
+	offset = (((off_t)uap->pos_h << (sizeof(offset) * 4)) <<
+	    (sizeof(offset) * 4)) | uap->pos_l;
+	error = kern_preadv(td, uap->fd, auio, offset);
+	free(auio, M_IOV);
+	return (error);
+}
+
+int
+linux_pwritev(struct thread *td, struct linux_pwritev_args *uap)
+{
+	struct uio *auio;
+	int error;
+	off_t offset;
+
+	error = copyinuio(uap->vec, uap->vlen, &auio);
+	if (error)
+		return (error);
+	/*
+	 * According http://man7.org/linux/man-pages/man2/pwritev.2.html#NOTES
+	 * pos_l and pos_h, respectively, contain the
+	 * low order and high order 32 bits of offset.
+	 */
+	offset = (((off_t)uap->pos_h << (sizeof(offset) * 4)) <<
+	    (sizeof(offset) * 4)) | uap->pos_l;
+	error = kern_pwritev(td, uap->fd, auio, offset);
+	free(auio, M_IOV);
+	return (error);
+}
+#endif /* !(__amd64__ && COMPAT_LINUX32) */
+
 int
 linux_mount(struct thread *td, struct linux_mount_args *args)
 {
