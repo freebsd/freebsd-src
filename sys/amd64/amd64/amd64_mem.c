@@ -609,6 +609,10 @@ amd64_mrinit(struct mem_range_softc *sc)
 	u_int regs[4];
 	int i, nmdesc = 0, pabits;
 
+	if (sc->mr_desc != NULL)
+		/* Already initialized. */
+		return;
+
 	mtrrcap = rdmsr(MSR_MTRRcap);
 	mtrrdef = rdmsr(MSR_MTRRdefType);
 
@@ -750,5 +754,6 @@ amd64_mem_drvinit(void *unused)
 		return;
 	}
 	mem_range_softc.mr_op = &amd64_mrops;
+	amd64_mrinit(&mem_range_softc);
 }
-SYSINIT(amd64memdev, SI_SUB_DRIVERS, SI_ORDER_FIRST, amd64_mem_drvinit, NULL);
+SYSINIT(amd64memdev, SI_SUB_CPU, SI_ORDER_ANY, amd64_mem_drvinit, NULL);
