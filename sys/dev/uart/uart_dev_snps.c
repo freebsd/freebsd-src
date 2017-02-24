@@ -104,7 +104,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "snps,dw-apb-uart",		(uintptr_t)&uart_snps_class },
 	{ NULL,				(uintptr_t)NULL }
 };
-UART_FDT_CLASS(compat_data);
+UART_FDT_CLASS_AND_DEVICE(compat_data);
 
 #ifdef EXT_RESOURCES
 static int
