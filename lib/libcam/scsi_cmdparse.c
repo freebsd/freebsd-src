@@ -169,7 +169,7 @@ do_buff_decode(u_int8_t *buff, size_t len,
 
 				fmt++;
 			}
-			if (*fmt == '\0')
+			if (*fmt != '\0')
 				fmt++;	/* Skip '}' */
 			field_name[i] = '\0';
 			break;
