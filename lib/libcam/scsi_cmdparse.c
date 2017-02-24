@@ -530,7 +530,7 @@ next_field(const char **pp, char *fmt, int *width_p, int *value_p, char *name,
 
 	if (is_error) {
 		*error_p = 1;
-		return 0;
+		return (0);
 	}
 
 	*error_p = 0;
@@ -659,9 +659,9 @@ do_encode(u_char *buff, size_t vec_max, size_t *used,
 		*used = ind;
 
 	if (error)
-		return -1;
+		return (-1);
 
-	return encoded;
+	return (encoded);
 }
 
 int
@@ -723,7 +723,7 @@ buff_decode_visit(u_int8_t *buff, size_t len, const char *fmt,
 	 * the arg_put function.
 	 */
 	if (arg_put == NULL)
-		return(-1);
+		return (-1);
 
 	return (do_buff_decode(buff, len, arg_put, puthook, fmt, NULL));
 }
@@ -779,20 +779,20 @@ csio_build_visit(struct ccb_scsiio *csio, u_int8_t *data_ptr,
 	int retval;
 
 	if (csio == NULL)
-		return(0);
+		return (0);
 
 	/*
 	 * We need something to encode, but we can't get it without the
 	 * arg_get function.
 	 */
 	if (arg_get == NULL)
-		return(-1);
+		return (-1);
 
 	bzero(csio, sizeof(struct ccb_scsiio));
 
 	if ((retval = do_encode(csio->cdb_io.cdb_bytes, SCSI_MAX_CDBLEN,
 				&cmdlen, arg_get, gethook, cmd_spec, NULL)) == -1)
-		return(retval);
+		return (retval);
 
 	cam_fill_csio(csio,
 		      /* retries */ retry_count,
@@ -805,7 +805,7 @@ csio_build_visit(struct ccb_scsiio *csio, u_int8_t *data_ptr,
 		      /* cdb_len */ cmdlen,
 		      /* timeout */ timeout ? timeout : 5000);
 
-	return(retval);
+	return (retval);
 }
 
 int
@@ -837,7 +837,7 @@ buff_encode_visit(u_int8_t *buff, size_t len, const char *fmt,
 	 * arg_get function.
 	 */
 	if (arg_get == NULL)
-		return(-1);
+		return (-1);
 
 	return (do_encode(buff, len, NULL, arg_get, gethook, fmt, NULL));
 }
@@ -852,7 +852,7 @@ csio_encode_visit(struct ccb_scsiio *csio, const char *fmt,
 	 * arg_get function.
 	 */
 	if (arg_get == NULL)
-		return(-1);
+		return (-1);
 
 	return (do_encode(csio->data_ptr, csio->dxfer_len, NULL, arg_get,
 			 gethook, fmt, NULL));
