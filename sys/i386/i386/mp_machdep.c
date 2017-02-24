@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 #ifndef DEV_APIC
 #error The apic device is required for SMP, add "device apic" to your config file.
 #endif
-#if defined(CPU_DISABLE_CMPXCHG) && !defined(COMPILING_LINT)
-#error SMP not supported with CPU_DISABLE_CMPXCHG
-#endif
 #endif /* not lint */
 
 #include <sys/param.h>
