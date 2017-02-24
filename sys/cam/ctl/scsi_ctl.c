@@ -995,11 +995,13 @@ static void
 ctlfe_requeue_ccb(struct cam_periph *periph, union ccb *ccb, int unlock)
 {
 	struct ctlfe_lun_softc *softc;
+	struct mtx *mtx;
 
 	if (periph->flags & CAM_PERIPH_INVALID) {
+		mtx = cam_periph_mtx(periph);
 		ctlfe_free_ccb(periph, ccb);
 		if (unlock)
-			cam_periph_unlock(periph);
+			mtx_unlock(mtx);
 		return;
 	}
 	if (unlock)
