@@ -31,7 +31,7 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 

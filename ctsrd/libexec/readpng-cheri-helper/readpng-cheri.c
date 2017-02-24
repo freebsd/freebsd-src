@@ -30,7 +30,7 @@
  */
 
 #include <sys/types.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/mman.h>
 
 #include <machine/sysarch.h>
