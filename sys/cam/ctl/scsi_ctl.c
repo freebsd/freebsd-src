@@ -1282,6 +1282,14 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 * datamove done routine.
 		 */
 		if ((io->io_hdr.flags & CTL_FLAG_DMA_INPROG) == 0) {
+			/* Abort ATIO if CTIO sending status has failed. */
+			if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) !=
+			    CAM_REQ_CMP) {
+				done_ccb->ccb_h.func_code = XPT_ABORT;
+				done_ccb->cab.abort_ccb = (union ccb *)atio;
+				xpt_action(done_ccb);
+			}
+
 			softc->ccbs_freed++;
 			xpt_release_ccb(done_ccb);
 			ctlfe_requeue_ccb(periph, (union ccb *)atio,
