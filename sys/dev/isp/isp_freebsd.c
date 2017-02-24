@@ -2289,6 +2289,8 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 			return;
 		}
 		if (ct->ct_nphdl == CT_HBA_RESET) {
+			sentstatus = (ccb->ccb_h.flags & CAM_SEND_STATUS) &&
+			    (atp->sendst == 0);
 			failure = CAM_UNREC_HBA_ERROR;
 		} else {
 			sentstatus = ct->ct_flags & CT7_SENDSTATUS;
@@ -2311,6 +2313,8 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 			return;
 		}
 		if (ct->ct_status == CT_HBA_RESET) {
+			sentstatus = (ccb->ccb_h.flags & CAM_SEND_STATUS) &&
+			    (atp->sendst == 0);
 			failure = CAM_UNREC_HBA_ERROR;
 		} else {
 			sentstatus = ct->ct_flags & CT2_SENDSTATUS;
@@ -2356,9 +2360,10 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 	}
 
 	/*
-	 * If we sent status or error happened, we are done with this ATIO.
+	 * We are done with this ATIO if we successfully sent status.
+	 * In all other cases expect either another CTIO or XPT_ABORT.
 	 */
-	if (sentstatus || !ok)
+	if (ok && sentstatus)
 		isp_put_atpd(isp, bus, atp);
 
 	/*
