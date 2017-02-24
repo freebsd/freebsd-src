@@ -37,6 +37,7 @@
 #include <sys/errno.h>
 
 #define	BIT(nr)			(1UL << (nr))
+#define	BIT_ULL(nr)		(1ULL << (nr))
 #ifdef __LP64__
 #define	BITS_PER_LONG		64
 #else
