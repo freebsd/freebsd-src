@@ -2260,7 +2260,7 @@ dump_eflags(struct readelf *re, uint64_t e_flags)
 		case 2: printf(", o64"); break;
 		case 3: printf(", eabi32"); break;
 		case 4: printf(", eabi64"); break;
-		case 5: printf(", cheriabi"); break;
+		case 0xc: printf(", cheriabi"); break;
 		default: break;
 		}
 		edesc = mips_eflags_desc;

@@ -29,7 +29,7 @@
 >0	lelong&0xf0000000	0xa0000000	MIPS64 rel6
 >0	lelong&0x00ff0000	0x00c10000	with CHERI-128
 >0	lelong&0x00ff0000	0x00c20000	with CHERI-256
->0	lelong&0x0000f000	0x00005000	(CheriABI)
+>0	lelong&0x0000f000	0x0000c000	(CheriABI)
 
 0	name		elf-sparc
 >0	lelong&0x00ffff00	0x00000100	V8+ Required,

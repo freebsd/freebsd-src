@@ -201,7 +201,7 @@ END_RELOC_NUMBERS (R_MIPS_maxext)
 #define E_MIPS_ABI_EABI64       0x00004000
 
 /* CheriABI */
-#define E_MIPS_ABI_CHERIABI     0x00005000
+#define E_MIPS_ABI_CHERIABI     0x0000c000
 
 
 /* Machine variant if we know it.  This field was invented at Cygnus,
