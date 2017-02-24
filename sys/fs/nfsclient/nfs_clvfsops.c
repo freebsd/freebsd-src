@@ -1149,8 +1149,13 @@ nfs_mount(struct mount *mp)
 			error = EINVAL;
 			goto out;
 		}
-		bcopy(args.hostname, hst, MNAMELEN);
-		hst[MNAMELEN - 1] = '\0';
+		if (len >= MNAMELEN) {
+			vfs_mount_error(mp, "Hostname too long");
+			error = EINVAL;
+			goto out;
+		}
+		bcopy(args.hostname, hst, len);
+		hst[len] = '\0';
 	}
 
 	if (vfs_getopt(mp->mnt_optnew, "principal", (void **)&name, NULL) == 0)
