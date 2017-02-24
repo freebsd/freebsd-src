@@ -34,6 +34,8 @@ struct srcu_struct {
 	struct ck_epoch_record *ss_epoch_record;
 };
 
+#define	srcu_dereference(ptr,srcu)	((__typeof(*(ptr)) *)(ptr))
+
 /* prototypes */
 
 extern int srcu_read_lock(struct srcu_struct *);
