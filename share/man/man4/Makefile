@@ -104,6 +104,7 @@ MAN=	aac.4 \
 	cfi.4 \
 	cfumass.4 \
 	ch.4 \
+	chromebook_platform.4 \
 	ciss.4 \
 	cloudabi.4 \
 	cm.4 \
@@ -241,6 +242,7 @@ MAN=	aac.4 \
 	ixgbe.4 \
 	ixl.4 \
 	ixlv.4 \
+	jedec_ts.4 \
 	jme.4 \
 	joy.4 \
 	kbdmux.4 \

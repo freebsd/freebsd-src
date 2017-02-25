@@ -42,6 +42,7 @@ enum {
 	IWM_DEBUG_TRANS		= 0x00040000,	/* Transport layer (eg PCIe) */
 	IWM_DEBUG_EEPROM	= 0x00080000,	/* EEPROM/channel information */
 	IWM_DEBUG_TEMP		= 0x00100000,	/* Thermal Sensor handling */
+	IWM_DEBUG_FW		= 0x00200000,	/* Firmware management */
 	IWM_DEBUG_REGISTER	= 0x20000000,	/* print chipset register */
 	IWM_DEBUG_TRACE		= 0x40000000,	/* Print begin and start driver function */
 	IWM_DEBUG_FATAL		= 0x80000000,	/* fatal errors */

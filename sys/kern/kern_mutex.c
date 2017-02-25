@@ -468,7 +468,9 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid)
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
-	int doing_lockstat;
+#endif
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	int doing_lockprof;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -510,13 +512,11 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid)
 		CTR4(KTR_LOCK,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
-#ifdef KDTRACE_HOOKS
 #ifdef LOCK_PROFILING
-	doing_lockstat = 1;
-#else
-	doing_lockstat = lockstat_enabled;
-#endif
-	if (__predict_false(doing_lockstat))
+	doing_lockprof = 1;
+#elif defined(KDTRACE_HOOKS)
+	doing_lockprof = lockstat_enabled;
+	if (__predict_false(doing_lockprof))
 		all_time -= lockstat_nsecs(&m->lock_object);
 #endif
 
@@ -631,9 +631,11 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid)
 		    m->lock_object.lo_name, (void *)tid, file, line);
 	}
 #endif
-#ifdef KDTRACE_HOOKS
-	if (__predict_true(!doing_lockstat))
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	if (__predict_true(!doing_lockprof))
 		return;
+#endif
+#ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&m->lock_object);
 #endif
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire, m, contested,
@@ -689,6 +691,9 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 #ifdef KDTRACE_HOOKS
 	int64_t spin_time = 0;
 #endif
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	int doing_lockprof;
+#endif
 
 	if (SCHEDULER_STOPPED())
 		return;
@@ -713,8 +718,12 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	PMC_SOFT_CALL( , , lock, failed);
 #endif
 	lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
-#ifdef KDTRACE_HOOKS
-	spin_time -= lockstat_nsecs(&m->lock_object);
+#ifdef LOCK_PROFILING
+	doing_lockprof = 1;
+#elif defined(KDTRACE_HOOKS)
+	doing_lockprof = lockstat_enabled;
+	if (__predict_false(doing_lockprof))
+		spin_time -= lockstat_nsecs(&m->lock_object);
 #endif
 	for (;;) {
 		if (v == MTX_UNOWNED) {
@@ -740,18 +749,22 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 		} while (v != MTX_UNOWNED);
 		spinlock_enter();
 	}
-#ifdef KDTRACE_HOOKS
-	spin_time += lockstat_nsecs(&m->lock_object);
-#endif
 
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
 	KTR_STATE0(KTR_SCHED, "thread", sched_tdname((struct thread *)tid),
 	    "running");
 
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	if (__predict_true(!doing_lockprof))
+		return;
+#endif
 #ifdef KDTRACE_HOOKS
+	spin_time += lockstat_nsecs(&m->lock_object);
+#endif
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
 	    contested, waittime, file, line);
+#ifdef KDTRACE_HOOKS
 	if (spin_time != 0)
 		LOCKSTAT_RECORD1(spin__spin, m, spin_time);
 #endif
@@ -771,6 +784,9 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 #ifdef KDTRACE_HOOKS
 	int64_t spin_time = 0;
 #endif
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	int doing_lockprof = 1;
+#endif
 
 	tid = (uintptr_t)curthread;
 
@@ -786,8 +802,12 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 
 	lock_delay_arg_init(&lda, &mtx_spin_delay);
 
-#ifdef KDTRACE_HOOKS
-	spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
+#ifdef LOCK_PROFILING
+	doing_lockprof = 1;
+#elif defined(KDTRACE_HOOKS)
+	doing_lockprof = lockstat_enabled;
+	if (__predict_false(doing_lockprof))
+		spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
 #endif
 	for (;;) {
 retry:
@@ -843,15 +863,20 @@ retry:
 			break;
 		__mtx_unlock_spin(m);	/* does spinlock_exit() */
 	}
+	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
+	    line);
+	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	if (__predict_true(!doing_lockprof))
+		return;
+#endif
 #ifdef KDTRACE_HOOKS
 	spin_time += lockstat_nsecs(&m->lock_object);
 #endif
 	if (m->mtx_recurse == 0)
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
 		    contested, waittime, file, line);
-	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
-	    line);
-	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 #ifdef KDTRACE_HOOKS
 	if (spin_time != 0)
 		LOCKSTAT_RECORD1(thread__spin, m, spin_time);

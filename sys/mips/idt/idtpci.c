@@ -541,6 +541,7 @@ static device_method_t idtpci_methods[] = {
 	DEVMETHOD(pcib_read_config,	idtpci_read_config),
 	DEVMETHOD(pcib_write_config,	idtpci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	idtpci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };

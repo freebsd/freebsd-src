@@ -217,6 +217,7 @@
 #define		sem_open			_sem_open
 #define		sem_post			_sem_post
 #define		sem_timedwait			_sem_timedwait
+#define		sem_clockwait_np		_sem_clockwait_np
 #define		sem_trywait			_sem_trywait
 #define		sem_unlink			_sem_unlink
 #define		sem_wait			_sem_wait
