@@ -689,6 +689,7 @@ static device_method_t ar71xx_pci_methods[] = {
 	DEVMETHOD(pcib_read_config,	ar71xx_pci_read_config),
 	DEVMETHOD(pcib_write_config,	ar71xx_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ar71xx_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };

@@ -138,6 +138,7 @@ static device_method_t schizo_methods[] = {
 	DEVMETHOD(pcib_read_config,	schizo_read_config),
 	DEVMETHOD(pcib_write_config,	schizo_write_config),
 	DEVMETHOD(pcib_route_interrupt,	schizo_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),

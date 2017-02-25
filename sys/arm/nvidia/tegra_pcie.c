@@ -1601,6 +1601,7 @@ static device_method_t tegra_pcib_methods[] = {
 	DEVMETHOD(pcib_alloc_msi,		tegra_pcib_alloc_msi),
 	DEVMETHOD(pcib_release_msi,		tegra_pcib_release_msi),
 	DEVMETHOD(pcib_map_msi,			tegra_pcib_map_msi),
+	DEVMETHOD(pcib_request_feature,		pcib_request_feature_allow),
 
 #ifdef TEGRA_PCIB_MSI_ENABLE
 	/* MSI/MSI-X */

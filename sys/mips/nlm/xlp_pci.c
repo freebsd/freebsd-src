@@ -557,6 +557,7 @@ static device_method_t xlp_pcib_methods[] = {
 	DEVMETHOD(pcib_read_config, xlp_pcib_read_config),
 	DEVMETHOD(pcib_write_config, xlp_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt, mips_pcib_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD(pcib_alloc_msi, xlp_alloc_msi),
 	DEVMETHOD(pcib_release_msi, xlp_release_msi),
