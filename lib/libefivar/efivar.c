@@ -132,10 +132,7 @@ rv_to_linux_rv(int rv)
 {
 	if (rv == 0)
 		rv = 1;
-	else if (errno == ENOENT) {
-		rv = 0;
-		errno = 0;
-	} else
+	else
 		rv = -errno;
 	return (rv);
 }
@@ -266,6 +263,11 @@ errout:
 
 	/* XXX The linux interface expects name to be a static buffer -- fix or leak memory? */
 done:
+	if (errno == ENOENT) {
+		errno = 0;
+		return 0;
+	}
+
 	return (rv_to_linux_rv(rv));
 }
 
