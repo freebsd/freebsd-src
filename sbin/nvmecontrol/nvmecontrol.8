@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2017
+.Dd February 24, 2017
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -108,6 +108,15 @@ Page 0xc1 is read latency stats for intel.
 Page 0xc2 is write latency stats for intel.
 Page 0xc5 is temperature stats for intel.
 Page 0xca is advanced smart information for intel.
+.Pp
+Specifying
+.Fl p
+.Ic help
+will list all valid vendors and pages.
+.Fl x
+will print the page as hex.
+.Fl b
+will print the binary data for the page.
 .Ss wdc
 The various wdc command retrieve log data from the wdc/hgst drives.
 The
