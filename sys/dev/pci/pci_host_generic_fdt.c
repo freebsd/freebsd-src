@@ -618,6 +618,7 @@ static device_method_t generic_pcie_fdt_methods[] = {
 	DEVMETHOD(pcib_release_msix,	generic_pcie_fdt_release_msix),
 	DEVMETHOD(pcib_map_msi,		generic_pcie_fdt_map_msi),
 	DEVMETHOD(pcib_get_id,		generic_pcie_get_id),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	generic_pcie_ofw_get_devinfo),

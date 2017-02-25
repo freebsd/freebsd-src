@@ -663,6 +663,7 @@ static device_method_t legacy_pcib_methods[] = {
 	DEVMETHOD(pcib_alloc_msix,	legacy_pcib_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 	DEVMETHOD(pcib_map_msi,		legacy_pcib_map_msi),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };

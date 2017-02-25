@@ -960,6 +960,17 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 		}
 	}
 
+	/*
+	 * Now that we're sure we want to do hot plug, ask the
+	 * firmware, if any, if that's OK.
+	 */
+	if (pcib_request_feature(device_get_parent(device_get_parent(dev)), dev,
+		PCI_FEATURE_HP) != 0) {
+		if (bootverbose)
+			device_printf(dev, "Unable to activate hot plug feature.\n");
+		return;
+	}
+
 	sc->flags |= PCIB_HOTPLUG;
 }
 
@@ -2829,6 +2840,25 @@ pcib_try_enable_ari(device_t pcib, device_t dev)
 	}
 
 	pcib_enable_ari(sc, pcie_pos);
+
+	return (0);
+}
+
+int
+pcib_request_feature_allow(device_t pcib, device_t dev,
+    enum pci_feature feature)
+{
+	/*
+	 * No host firmwrae we have to negotiate with, so we allow
+	 * every valid feature requested.
+	 */
+	switch (feature) {
+	case PCI_FEATURE_AER:
+	case PCI_FEATURE_HP:
+		break;
+	default:
+		return (EINVAL);
+	}
 
 	return (0);
 }

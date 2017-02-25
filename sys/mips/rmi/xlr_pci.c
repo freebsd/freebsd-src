@@ -638,6 +638,7 @@ static device_method_t xlr_pcib_methods[] = {
 	DEVMETHOD(pcib_read_config, xlr_pcib_read_config),
 	DEVMETHOD(pcib_write_config, xlr_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt, mips_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD(pcib_alloc_msi, xlr_alloc_msi),
 	DEVMETHOD(pcib_release_msi, xlr_release_msi),
