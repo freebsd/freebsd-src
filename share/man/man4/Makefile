@@ -104,6 +104,7 @@ MAN=	aac.4 \
 	cfi.4 \
 	cfumass.4 \
 	ch.4 \
+	chromebook_platform.4 \
 	ciss.4 \
 	cloudabi.4 \
 	cm.4 \
