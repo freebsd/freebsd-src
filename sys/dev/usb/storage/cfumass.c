@@ -720,11 +720,6 @@ cfumass_t_data_out_callback(struct usb_xfer *xfer, usb_error_t usb_error)
 	int actlen, ctl_sg_count;
 
 	sc = usbd_xfer_softc(xfer);
-
-	CFUMASS_DEBUG(sc, "go");
-
-	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
-
 	io = sc->sc_ctl_io;
 
 	if (io->scsiio.kern_sg_entries > 0) {
@@ -741,25 +736,17 @@ cfumass_t_data_out_callback(struct usb_xfer *xfer, usb_error_t usb_error)
 	case USB_ST_TRANSFERRED:
 		CFUMASS_DEBUG(sc, "USB_ST_TRANSFERRED");
 
-		/*
-		 * If the host sent less data than required, zero-out
-		 * the remaining buffer space, to prevent a malicious host
-		 * to writing uninitialized kernel memory to the disk.
-		 */
+		usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 		if (actlen != ctl_sglist[0].len) {
 			KASSERT(actlen <= ctl_sglist[0].len,
 			    ("actlen %d > ctl_sglist.len %zd",
 			    actlen, ctl_sglist[0].len));
-
 			CFUMASS_DEBUG(sc, "host transferred %d bytes"
 			    "instead of expected %zd bytes",
 			    actlen, ctl_sglist[0].len);
-
-			memset((char *)(ctl_sglist[0].addr) + actlen, 0,
-			    ctl_sglist[0].len - actlen);
 		}
-
-		sc->sc_current_residue = 0;
+		sc->sc_current_residue -= actlen;
+		io->scsiio.kern_data_resid -= actlen;
 		io->scsiio.be_move_done(io);
 		sc->sc_ctl_io = NULL;
 		break;
@@ -795,17 +782,18 @@ cfumass_t_data_in_callback(struct usb_xfer *xfer, usb_error_t usb_error)
 	union ctl_io *io;
 	uint32_t max_bulk;
 	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
-	int ctl_sg_count;
+	int actlen, ctl_sg_count;
 
 	sc = usbd_xfer_softc(xfer);
-	max_bulk = usbd_xfer_max_len(xfer);
-
 	io = sc->sc_ctl_io;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		CFUMASS_DEBUG(sc, "USB_ST_TRANSFERRED");
 
+		usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+		sc->sc_current_residue -= actlen;
+		io->scsiio.kern_data_resid -= actlen;
 		io->scsiio.be_move_done(io);
 		sc->sc_ctl_io = NULL;
 		break;
@@ -829,12 +817,9 @@ tr_setup:
 			    "we will send %ju and stall",
 			    sc->sc_current_transfer_length,
 			    (uintmax_t)io->scsiio.kern_total_len);
-			sc->sc_current_residue = sc->sc_current_transfer_length -
-			    io->scsiio.kern_total_len;
-		} else {
-			sc->sc_current_residue = 0;
 		}
 
+		max_bulk = usbd_xfer_max_len(xfer);
 		CFUMASS_DEBUG(sc, "max_bulk %d, requested size %d, "
 		    "CTL segment size %zd", max_bulk,
 		    sc->sc_current_transfer_length, ctl_sglist[0].len);
@@ -956,8 +941,6 @@ cfumass_datamove(union ctl_io *io)
 			goto fail;
 		}
 
-		/* We hadn't received anything during this datamove yet. */
-		io->scsiio.ext_data_filled = 0;
 		cfumass_transfer_start(sc, CFUMASS_T_DATA_OUT);
 	}
 
@@ -1028,8 +1011,7 @@ cfumass_init(void)
 
 	cfumass_port.frontend = &cfumass_frontend;
 	cfumass_port.port_type = CTL_PORT_UMASS;
-	/* XXX KDM what should the real number be here? */
-	cfumass_port.num_requested_ctl_io = 4096;
+	cfumass_port.num_requested_ctl_io = 1;
 	cfumass_port.port_name = "cfumass";
 	cfumass_port.physical_port = 0;
 	cfumass_port.virtual_port = 0;
