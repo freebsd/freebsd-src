@@ -1495,7 +1495,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	intmax_t id = -1;
 	int ch, fd = -1;
 	size_t i, j;
-	bool quiet, createhome, pretty, dryrun, nis, edited, docreatehome;
+	bool quiet, createhome, pretty, dryrun, nis, edited;
 	bool precrypted;
 	mode_t homemode = 0;
 	time_t expire_days, password_days, now;
@@ -1505,7 +1505,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	passwd = NULL;
 	class = nispasswd = NULL;
 	quiet = createhome = pretty = dryrun = nis = precrypted = false;
-	edited = docreatehome = false;
+	edited = false;
 
 	if (arg1 != NULL) {
 		if (arg1[strspn(arg1, "0123456789")] == '\0')
@@ -1706,8 +1706,6 @@ pw_user_mod(int argc, char **argv, char *arg1)
 			if (!createhome)
 				warnx("WARNING: home `%s' does not exist",
 				    pwd->pw_dir);
-			else
-				docreatehome = true;
 		} else if (!S_ISDIR(st.st_mode)) {
 			warnx("WARNING: home `%s' is not a directory",
 			    pwd->pw_dir);
@@ -1799,7 +1797,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	 * that this also `works' for editing users if -m is used, but
 	 * existing files will *not* be overwritten.
 	 */
-	if (PWALTDIR() != PWF_ALT && docreatehome && pwd->pw_dir &&
+	if (PWALTDIR() != PWF_ALT && createhome && pwd->pw_dir &&
 	    *pwd->pw_dir == '/' && pwd->pw_dir[1]) {
 		if (!skel)
 			skel = cnf->dotdir;
