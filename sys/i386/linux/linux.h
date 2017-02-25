@@ -225,7 +225,9 @@ struct l_statfs64 {
         uint64_t        f_ffree; 
         l_fsid_t        f_fsid;
         l_int           f_namelen;
-        l_int           f_spare[6];
+        l_int           f_frsize;
+        l_int           f_flags;
+        l_int           f_spare[4];
 };
 
 #define	LINUX_NSIG_WORDS	2
