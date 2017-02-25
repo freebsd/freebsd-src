@@ -2146,8 +2146,8 @@ ctl_add_initiator(struct ctl_port *port, int iid, uint64_t wwpn, char *name)
 		    port->wwpn_iid[iid].name);
 
 		/*
-		 * XXX KDM clear have_ca and ua_pending on each LUN for
-		 * this initiator.
+		 * XXX KDM clear pending_sense and pending_ua on each LUN
+		 * for this initiator.
 		 */
 	}
 take:
@@ -9145,7 +9145,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	struct ctl_softc *softc = CTL_SOFTC(ctsio);
 	struct ctl_lun *lun = CTL_LUN(ctsio);
 	struct scsi_request_sense *cdb;
-	struct scsi_sense_data *sense_ptr;
+	struct scsi_sense_data *sense_ptr, *ps;
 	uint32_t initidx;
 	int have_error;
 	u_int sense_len = SSD_FULL_SIZE;
@@ -9201,15 +9201,17 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	 * Pending sense gets returned first, then pending unit attentions.
 	 */
 	mtx_lock(&lun->lun_lock);
-#ifdef CTL_WITH_CA
-	if (ctl_is_set(lun->have_ca, initidx)) {
+	ps = lun->pending_sense[initidx / CTL_MAX_INIT_PER_PORT];
+	if (ps != NULL)
+		ps += initidx % CTL_MAX_INIT_PER_PORT;
+	if (ps != NULL && ps->error_code != 0) {
 		scsi_sense_data_type stored_format;
 
 		/*
 		 * Check to see which sense format was used for the stored
 		 * sense data.
 		 */
-		stored_format = scsi_sense_type(&lun->pending_sense[initidx]);
+		stored_format = scsi_sense_type(ps);
 
 		/*
 		 * If the user requested a different sense format than the
@@ -9224,23 +9226,17 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 		if ((stored_format == SSD_TYPE_FIXED)
 		 && (sense_format == SSD_TYPE_DESC))
 			ctl_sense_to_desc((struct scsi_sense_data_fixed *)
-			    &lun->pending_sense[initidx],
-			    (struct scsi_sense_data_desc *)sense_ptr);
+			    ps, (struct scsi_sense_data_desc *)sense_ptr);
 		else if ((stored_format == SSD_TYPE_DESC)
 		      && (sense_format == SSD_TYPE_FIXED))
 			ctl_sense_to_fixed((struct scsi_sense_data_desc *)
-			    &lun->pending_sense[initidx],
-			    (struct scsi_sense_data_fixed *)sense_ptr);
+			    ps, (struct scsi_sense_data_fixed *)sense_ptr);
 		else
-			memcpy(sense_ptr, &lun->pending_sense[initidx],
-			       MIN(sizeof(*sense_ptr),
-			       sizeof(lun->pending_sense[initidx])));
+			memcpy(sense_ptr, ps, sizeof(*sense_ptr));
 
-		ctl_clear_mask(lun->have_ca, initidx);
+		ps->error_code = 0;
 		have_error = 1;
-	} else
-#endif
-	if (have_error == 0) {
+	} else {
 		ua_type = ctl_build_ua(lun, initidx, sense_ptr, &sense_len,
 		    sense_format);
 		if (ua_type != CTL_UA_NONE)
@@ -11360,17 +11356,19 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 
 	initidx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 
-#ifdef CTL_WITH_CA
 	/*
 	 * If we've got a request sense, it'll clear the contingent
 	 * allegiance condition.  Otherwise, if we have a CA condition for
 	 * this initiator, clear it, because it sent down a command other
 	 * than request sense.
 	 */
-	if ((ctsio->cdb[0] != REQUEST_SENSE)
-	 && (ctl_is_set(lun->have_ca, initidx)))
-		ctl_clear_mask(lun->have_ca, initidx);
-#endif
+	if (ctsio->cdb[0] != REQUEST_SENSE) {
+		struct scsi_sense_data *ps;
+
+		ps = lun->pending_sense[initidx / CTL_MAX_INIT_PER_PORT];
+		if (ps != NULL)
+			ps[initidx % CTL_MAX_INIT_PER_PORT].error_code = 0;
+	}
 
 	/*
 	 * If the command has this flag set, it handles its own unit
@@ -11708,10 +11706,10 @@ ctl_do_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 	 */
 	lun->flags &= ~CTL_LUN_RESERVED;
 
-#ifdef CTL_WITH_CA
-	for (i = 0; i < CTL_MAX_INITIATORS; i++)
-		ctl_clear_mask(lun->have_ca, i);
-#endif
+	for (i = 0; i < CTL_MAX_PORTS; i++) {
+		free(lun->pending_sense[i], M_CTL);
+		lun->pending_sense[i] = NULL;
+	}
 	lun->prevent_count = 0;
 	if (lun->prevent) {
 		for (i = 0; i < CTL_MAX_INITIATORS; i++)
@@ -11837,6 +11835,7 @@ ctl_i_t_nexus_reset(union ctl_io *io)
 {
 	struct ctl_softc *softc = CTL_SOFTC(io);
 	struct ctl_lun *lun;
+	struct scsi_sense_data *ps;
 	uint32_t initidx;
 
 	if (!(io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)) {
@@ -11857,9 +11856,9 @@ ctl_i_t_nexus_reset(union ctl_io *io)
 		mtx_lock(&lun->lun_lock);
 		ctl_abort_tasks_lun(lun, io->io_hdr.nexus.targ_port,
 		    io->io_hdr.nexus.initid, 1);
-#ifdef CTL_WITH_CA
-		ctl_clear_mask(lun->have_ca, initidx);
-#endif
+		ps = lun->pending_sense[initidx / CTL_MAX_INIT_PER_PORT];
+		if (ps != NULL)
+			ps[initidx % CTL_MAX_INIT_PER_PORT].error_code = 0;
 		if ((lun->flags & CTL_LUN_RESERVED) && (lun->res_idx == initidx))
 			lun->flags &= ~CTL_LUN_RESERVED;
 		if (lun->prevent && ctl_is_set(lun->prevent, initidx)) {
@@ -13117,7 +13116,6 @@ bailout:
 	fe_done(io);
 }
 
-#ifdef CTL_WITH_CA
 /*
  * Front end should call this if it doesn't do autosense.  When the request
  * sense comes back in from the initiator, we'll dequeue this and send it.
@@ -13128,7 +13126,8 @@ ctl_queue_sense(union ctl_io *io)
 	struct ctl_softc *softc = CTL_SOFTC(io);
 	struct ctl_port *port = CTL_PORT(io);
 	struct ctl_lun *lun;
-	uint32_t initidx, targ_lun;
+	struct scsi_sense_data *ps;
+	uint32_t initidx, p, targ_lun;
 
 	CTL_DEBUG_PRINT(("ctl_queue_sense\n"));
 
@@ -13151,26 +13150,29 @@ ctl_queue_sense(union ctl_io *io)
 	mtx_lock(&lun->lun_lock);
 	mtx_unlock(&softc->ctl_lock);
 
-	/*
-	 * Already have CA set for this LUN...toss the sense information.
-	 */
 	initidx = ctl_get_initindex(&io->io_hdr.nexus);
-	if (ctl_is_set(lun->have_ca, initidx)) {
+	p = initidx / CTL_MAX_INIT_PER_PORT;
+	if ((ps = lun->pending_sense[p]) == NULL) {
 		mtx_unlock(&lun->lun_lock);
-		goto bailout;
+		ps = malloc(sizeof(*ps) * CTL_MAX_INIT_PER_PORT, M_CTL,
+		    M_WAITOK | M_ZERO);
+		mtx_lock(&lun->lun_lock);
+		if (lun->pending_sense[p] == NULL) {
+			lun->pending_sense[p] = ps;
+		} else {
+			free(ps, M_CTL);
+			ps = lun->pending_sense[p];
+		}
 	}
-
-	memcpy(&lun->pending_sense[initidx], &io->scsiio.sense_data,
-	       MIN(sizeof(lun->pending_sense[initidx]),
-	       sizeof(io->scsiio.sense_data)));
-	ctl_set_mask(lun->have_ca, initidx);
+	ps += initidx % CTL_MAX_INIT_PER_PORT;
+	memset(ps, 0, sizeof(*ps));
+	memcpy(ps, &io->scsiio.sense_data, io->scsiio.sense_len);
 	mtx_unlock(&lun->lun_lock);
 
 bailout:
 	ctl_free_io(io);
 	return (CTL_RETVAL_COMPLETE);
 }
-#endif
 
 /*
  * Primary command inlet from frontend ports.  All SCSI and task I/O
