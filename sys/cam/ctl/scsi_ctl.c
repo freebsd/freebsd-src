@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <machine/bus.h>
 
 #include <cam/cam.h>
@@ -103,15 +104,11 @@ struct ctlfe_lun_softc {
 	struct ctlfe_softc *parent_softc;
 	struct cam_periph *periph;
 	ctlfe_lun_flags flags;
-	uint64_t ccbs_alloced;
-	uint64_t ccbs_freed;
-	uint64_t ctios_sent;
-	uint64_t ctios_returned;
-	uint64_t atios_alloced;
-	uint64_t atios_freed;
-	uint64_t inots_alloced;
-	uint64_t inots_freed;
-	/* bus_dma_tag_t dma_tag; */
+	int	 ctios_sent;		/* Number of active CTIOs */
+	int	 refcount;		/* Number of active xpt_action() */
+	int	 atios_alloced;		/* Number of ATIOs not freed */
+	int	 inots_alloced;		/* Number of INOTs not freed */
+	struct task	refdrain_task;
 	TAILQ_HEAD(, ccb_hdr) work_queue;
 	STAILQ_ENTRY(ctlfe_lun_softc) links;
 };
@@ -677,18 +674,14 @@ ctlfecleanup(struct cam_periph *periph)
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 
-	KASSERT(softc->ccbs_freed == softc->ccbs_alloced, ("%s: "
-		"ccbs_freed %ju != ccbs_alloced %ju", __func__,
-		softc->ccbs_freed, softc->ccbs_alloced));
-	KASSERT(softc->ctios_returned == softc->ctios_sent, ("%s: "
-		"ctios_returned %ju != ctios_sent %ju", __func__,
-		softc->ctios_returned, softc->ctios_sent));
-	KASSERT(softc->atios_freed == softc->atios_alloced, ("%s: "
-		"atios_freed %ju != atios_alloced %ju", __func__,
-		softc->atios_freed, softc->atios_alloced));
-	KASSERT(softc->inots_freed == softc->inots_alloced, ("%s: "
-		"inots_freed %ju != inots_alloced %ju", __func__,
-		softc->inots_freed, softc->inots_alloced));
+	KASSERT(softc->ctios_sent == 0, ("%s: ctios_sent %d != 0",
+	    __func__, softc->ctios_sent));
+	KASSERT(softc->refcount == 0, ("%s: refcount %d != 0",
+	    __func__, softc->refcount));
+	KASSERT(softc->atios_alloced == 0, ("%s: atios_alloced %d != 0",
+	    __func__, softc->atios_alloced));
+	KASSERT(softc->inots_alloced == 0, ("%s: inots_alloced %d != 0",
+	    __func__, softc->inots_alloced));
 
 	free(softc, M_CTLFE);
 }
@@ -804,12 +797,10 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 	uint8_t scsi_status;
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
-	softc->ccbs_alloced++;
 
 next:
 	ccb_h = TAILQ_FIRST(&softc->work_queue);
 	if (ccb_h == NULL) {
-		softc->ccbs_freed++;
 		xpt_release_ccb(start_ccb);
 		return;
 	}
@@ -931,16 +922,32 @@ next:
 	io->io_hdr.flags &= ~(CTL_FLAG_DMA_QUEUED | CTL_FLAG_STATUS_QUEUED);
 
 	softc->ctios_sent++;
-
+	softc->refcount++;
 	cam_periph_unlock(periph);
 	xpt_action(start_ccb);
 	cam_periph_lock(periph);
+	softc->refcount--;
 
 	/*
 	 * If we still have work to do, ask for another CCB.
 	 */
 	if (!TAILQ_EMPTY(&softc->work_queue))
-		xpt_schedule(periph, /*priority*/ 1);
+		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
+}
+
+static void
+ctlfe_drain(void *context, int pending)
+{
+	struct cam_periph *periph = context;
+	struct ctlfe_lun_softc *softc = periph->softc;
+
+	cam_periph_lock(periph);
+	while (softc->refcount != 0) {
+		cam_periph_sleep(periph, &softc->refcount, PRIBIO,
+		    "ctlfe_drain", 1);
+	}
+	cam_periph_unlock(periph);
+	cam_periph_release(periph);
 }
 
 static void
@@ -955,13 +962,13 @@ ctlfe_free_ccb(struct cam_periph *periph, union ccb *ccb)
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
-		softc->atios_freed++;
+		softc->atios_alloced--;
 		cmd_info = PRIV_INFO(io);
 		free(cmd_info, M_CTLFE);
 		break;
 	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_NOTIFY_ACKNOWLEDGE:
-		softc->inots_freed++;
+		softc->inots_alloced--;
 		break;
 	default:
 		break;
@@ -970,21 +977,24 @@ ctlfe_free_ccb(struct cam_periph *periph, union ccb *ccb)
 	ctl_free_io(io);
 	free(ccb, M_CTLFE);
 
-	KASSERT(softc->atios_freed <= softc->atios_alloced, ("%s: "
-		"atios_freed %ju > atios_alloced %ju", __func__,
-		softc->atios_freed, softc->atios_alloced));
-	KASSERT(softc->inots_freed <= softc->inots_alloced, ("%s: "
-		"inots_freed %ju > inots_alloced %ju", __func__,
-		softc->inots_freed, softc->inots_alloced));
+	KASSERT(softc->atios_alloced >= 0, ("%s: atios_alloced %d < 0",
+	    __func__, softc->atios_alloced));
+	KASSERT(softc->inots_alloced >= 0, ("%s: inots_alloced %d < 0",
+	    __func__, softc->inots_alloced));
 
 	/*
 	 * If we have received all of our CCBs, we can release our
 	 * reference on the peripheral driver.  It will probably go away
 	 * now.
 	 */
-	if ((softc->atios_freed == softc->atios_alloced)
-	 && (softc->inots_freed == softc->inots_alloced)) {
-		cam_periph_release_locked(periph);
+	if (softc->atios_alloced == 0 && softc->inots_alloced == 0) {
+		if (softc->refcount == 0) {
+			cam_periph_release_locked(periph);
+		} else {
+			TASK_INIT(&softc->refdrain_task, 0, ctlfe_drain, periph);
+			taskqueue_enqueue(taskqueue_thread,
+			    &softc->refdrain_task);
+		}
 	}
 }
 
@@ -1210,7 +1220,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		atio = (struct ccb_accept_tio *)done_ccb->ccb_h.ccb_atio;
 		io = (union ctl_io *)atio->ccb_h.io_ptr;
 
-		softc->ctios_returned++;
+		softc->ctios_sent--;
 #ifdef CTLFEDEBUG
 		printf("%s: got XPT_CONT_TARGET_IO tag %#x flags %#x\n",
 		       __func__, atio->tag_id, done_ccb->ccb_h.flags);
@@ -1246,11 +1256,10 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			io->scsiio.ext_data_filled = srr_off;
 			io->scsiio.io_hdr.status = CTL_STATUS_NONE;
 			io->io_hdr.flags |= CTL_FLAG_DMA_QUEUED;
-			softc->ccbs_freed++;
 			xpt_release_ccb(done_ccb);
 			TAILQ_INSERT_HEAD(&softc->work_queue, &atio->ccb_h,
 					  periph_links.tqe);
-			xpt_schedule(periph, /*priority*/ 1);
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 			break;
 		}
 
@@ -1261,7 +1270,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 * should work.
 		 */
 		if (srr && (io->io_hdr.flags & CTL_FLAG_DMA_INPROG) == 0) {
-			softc->ccbs_freed++;
 			xpt_release_ccb(done_ccb);
 			if (ctlfe_adjust_cdb(atio, srr_off) == 0) {
 				done_ccb = (union ccb *)atio;
@@ -1290,7 +1298,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				xpt_action(done_ccb);
 			}
 
-			softc->ccbs_freed++;
 			xpt_release_ccb(done_ccb);
 			ctlfe_requeue_ccb(periph, (union ccb *)atio,
 			    /* unlock */1);
@@ -1389,7 +1396,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				 * Release the CTIO.  The ATIO will be sent back
 				 * down to the SIM once we send status.
 				 */
-				softc->ccbs_freed++;
 				xpt_release_ccb(done_ccb);
 				mtx_unlock(mtx);
 
@@ -1923,16 +1929,8 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 		}
 	}
 
-	xpt_print(periph->path, "%d requests total waiting for CCBs\n",
-		  num_items);
-	xpt_print(periph->path, "%ju CCBs outstanding (%ju allocated, %ju "
-		  "freed)\n", (uintmax_t)(softc->ccbs_alloced -
-		  softc->ccbs_freed), (uintmax_t)softc->ccbs_alloced,
-		  (uintmax_t)softc->ccbs_freed);
-	xpt_print(periph->path, "%ju CTIOs outstanding (%ju sent, %ju "
-		  "returned\n", (uintmax_t)(softc->ctios_sent -
-		  softc->ctios_returned), softc->ctios_sent,
-		  softc->ctios_returned);
+	xpt_print(periph->path, "%d requests waiting for CCBs\n", num_items);
+	xpt_print(periph->path, "%d CTIOs outstanding\n", softc->ctios_sent);
 }
 
 /*
@@ -1960,7 +1958,7 @@ ctlfe_datamove(union ctl_io *io)
 		io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;
 	TAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
 			  periph_links.tqe);
-	xpt_schedule(periph, /*priority*/ 1);
+	xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	cam_periph_unlock(periph);
 }
 
@@ -2013,7 +2011,7 @@ ctlfe_done(union ctl_io *io)
 		io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;
 		TAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
 				  periph_links.tqe);
-		xpt_schedule(periph, /*priority*/ 1);
+		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	}
 
 	cam_periph_unlock(periph);
