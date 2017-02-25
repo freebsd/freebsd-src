@@ -1197,6 +1197,7 @@ OLD_FILES+=usr/share/man/man8/casperd.8.gz
 
 .if ${MK_CCD} == no
 OLD_FILES+=etc/rc.d/ccd
+OLD_FILES+=rescue/ccdconfig
 OLD_FILES+=sbin/ccdconfig
 OLD_FILES+=usr/share/man/man4/ccd.4.gz
 OLD_FILES+=usr/share/man/man8/ccdconfig.8.gz
@@ -7466,6 +7467,8 @@ OLD_FILES+=usr/share/man/man8/rwhod.8.gz
 #.endif
 
 .if ${MK_ROUTED} == no
+OLD_FILES+=rescue/routed
+OLD_FILES+=rescue/rtquery
 OLD_FILES+=sbin/routed
 OLD_FILES+=sbin/rtquery
 OLD_FILES+=usr/share/man/man8/routed.8.gz
