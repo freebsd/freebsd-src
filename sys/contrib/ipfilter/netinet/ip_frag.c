@@ -743,7 +743,7 @@ ipf_frag_lookup(softc, softf, fin, table
 			} else if (off == 0)
 				f->ipfr_seen0 = 1;
 
-			if (f != table[idx]) {
+			if (f != table[idx] && MUTEX_TRY_UPGRADE(lock)) {
 				ipfr_t **fp;
 
 				/*
@@ -761,6 +761,7 @@ ipf_frag_lookup(softc, softf, fin, table
 				table[idx]->ipfr_hprev = &f->ipfr_hnext;
 				f->ipfr_hprev = table + idx;
 				table[idx] = f;
+				MUTEX_DOWNGRADE(lock);
 			}
 
 			/*
