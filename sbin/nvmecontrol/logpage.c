@@ -714,13 +714,13 @@ print_hgst_info_temp_history(void *buf, uint16_t subtype __unused, uint8_t res _
 	printf("  %-30s: %d C\n", "Minimum Temperature", *walker++);
 	min = le32dec(walker);
 	walker += 4;
-	printf("  %-30s: %d:%02d:00\n", "Max Temperture Time", min / 60, min % 60);
+	printf("  %-30s: %d:%02d:00\n", "Max Temperature Time", min / 60, min % 60);
 	min = le32dec(walker);
 	walker += 4;
-	printf("  %-30s: %d:%02d:00\n", "Over Temperture Duration", min / 60, min % 60);
+	printf("  %-30s: %d:%02d:00\n", "Over Temperature Duration", min / 60, min % 60);
 	min = le32dec(walker);
 	walker += 4;
-	printf("  %-30s: %d:%02d:00\n", "Min Temperture Time", min / 60, min % 60);
+	printf("  %-30s: %d:%02d:00\n", "Min Temperature Time", min / 60, min % 60);
 }
 
 static void
