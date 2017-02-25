@@ -1,6 +1,8 @@
 # LIBUCL
 
-[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)[![Coverity](https://scan.coverity.com/projects/4138/badge.svg)](https://scan.coverity.com/projects/4138)[![Coverage Status](https://coveralls.io/repos/github/vstakhov/libucl/badge.svg?branch=master)](https://coveralls.io/github/vstakhov/libucl?branch=master)
+[![Build Status](https://travis-ci.org/vstakhov/libucl.svg?branch=master)](https://travis-ci.org/vstakhov/libucl)
+[![Coverity](https://scan.coverity.com/projects/4138/badge.svg)](https://scan.coverity.com/projects/4138)
+[![Coverage Status](https://coveralls.io/repos/github/vstakhov/libucl/badge.svg?branch=master)](https://coveralls.io/github/vstakhov/libucl?branch=master)
 
 **Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
 
@@ -217,8 +219,8 @@ Multiline comments may be nested:
 
 UCL supports external macros both multiline and single line ones:
 ```nginx
-.macro "sometext";
-.macro {
+.macro_name "sometext";
+.macro_name {
     Some long text
     ....
 };
@@ -229,12 +231,12 @@ arguments themselves are the UCL object that is parsed and passed to a macro as
 options:
 
 ```nginx
-.macro(param=value) "something";
-.macro(param={key=value}) "something";
-.macro(.include "params.conf") "something";
-.macro(#this is multiline macro
+.macro_name(param=value) "something";
+.macro_name(param={key=value}) "something";
+.macro_name(.include "params.conf") "something";
+.macro_name(#this is multiline macro
 param = [value1, value2]) "something";
-.macro(key="()") "something";
+.macro_name(key="()") "something";
 ```
 
 UCL also provide a convenient `include` macro to load content from another files
