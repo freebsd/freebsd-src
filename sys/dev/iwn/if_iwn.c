@@ -217,7 +217,7 @@ static void	iwn_ampdu_tx_done(struct iwn_softc *, int, int, int, int, int,
 static void	iwn_cmd_done(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn_notif_intr(struct iwn_softc *);
 static void	iwn_wakeup_intr(struct iwn_softc *);
-static void	iwn_rftoggle_intr(struct iwn_softc *);
+static void	iwn_rftoggle_task(void *, int);
 static void	iwn_fatal_intr(struct iwn_softc *);
 static void	iwn_intr(void *);
 static void	iwn4965_update_sched(struct iwn_softc *, int, int, uint8_t,
@@ -334,11 +334,9 @@ static int	iwn5000_nic_config(struct iwn_softc *);
 static int	iwn_hw_prepare(struct iwn_softc *);
 static int	iwn_hw_init(struct iwn_softc *);
 static void	iwn_hw_stop(struct iwn_softc *);
-static void	iwn_radio_on(void *, int);
-static void	iwn_radio_off(void *, int);
 static void	iwn_panicked(void *, int);
-static void	iwn_init_locked(struct iwn_softc *);
-static void	iwn_init(struct iwn_softc *);
+static int	iwn_init_locked(struct iwn_softc *);
+static int	iwn_init(struct iwn_softc *);
 static void	iwn_stop_locked(struct iwn_softc *);
 static void	iwn_stop(struct iwn_softc *);
 static void	iwn_scan_start(struct ieee80211com *);
@@ -679,8 +677,7 @@ iwn_attach(device_t dev)
 	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->scan_timeout, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
-	TASK_INIT(&sc->sc_radioon_task, 0, iwn_radio_on, sc);
-	TASK_INIT(&sc->sc_radiooff_task, 0, iwn_radio_off, sc);
+	TASK_INIT(&sc->sc_rftoggle_task, 0, iwn_rftoggle_task, sc);
 	TASK_INIT(&sc->sc_panic_task, 0, iwn_panicked, sc);
 	TASK_INIT(&sc->sc_xmit_task, 0, iwn_xmit_task, sc);
 
@@ -1401,8 +1398,6 @@ iwn_detach(device_t dev)
 		iwn_xmit_queue_drain(sc);
 		IWN_UNLOCK(sc);
 
-		ieee80211_draintask(&sc->sc_ic, &sc->sc_radioon_task);
-		ieee80211_draintask(&sc->sc_ic, &sc->sc_radiooff_task);
 		iwn_stop(sc);
 
 		taskqueue_drain_all(sc->sc_tq);
@@ -4013,19 +4008,28 @@ iwn_wakeup_intr(struct iwn_softc *sc)
 }
 
 static void
-iwn_rftoggle_intr(struct iwn_softc *sc)
+iwn_rftoggle_task(void *arg, int npending)
 {
+	struct iwn_softc *sc = arg;
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint32_t tmp = IWN_READ(sc, IWN_GP_CNTRL);
+	uint32_t tmp;
 
-	IWN_LOCK_ASSERT(sc);
+	IWN_LOCK(sc);
+	tmp = IWN_READ(sc, IWN_GP_CNTRL);
+	IWN_UNLOCK(sc);
 
 	device_printf(sc->sc_dev, "RF switch: radio %s\n",
 	    (tmp & IWN_GP_CNTRL_RFKILL) ? "enabled" : "disabled");
-	if (tmp & IWN_GP_CNTRL_RFKILL)
-		ieee80211_runtask(ic, &sc->sc_radioon_task);
-	else
-		ieee80211_runtask(ic, &sc->sc_radiooff_task);
+	if (!(tmp & IWN_GP_CNTRL_RFKILL)) {
+		ieee80211_suspend_all(ic);
+
+		/* Enable interrupts to get RF toggle notification. */
+		IWN_LOCK(sc);
+		IWN_WRITE(sc, IWN_INT, 0xffffffff);
+		IWN_WRITE(sc, IWN_INT_MASK, sc->int_mask);
+		IWN_UNLOCK(sc);
+	} else
+		ieee80211_resume_all(ic);
 }
 
 /*
@@ -4139,7 +4143,7 @@ iwn_intr(void *arg)
 		IWN_WRITE(sc, IWN_FH_INT, r2);
 
 	if (r1 & IWN_INT_RF_TOGGLED) {
-		iwn_rftoggle_intr(sc);
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_rftoggle_task);
 		goto done;
 	}
 	if (r1 & IWN_INT_CT_REACHED) {
@@ -5084,25 +5088,28 @@ static void
 iwn_parent(struct ieee80211com *ic)
 {
 	struct iwn_softc *sc = ic->ic_softc;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	int startall = 0, stop = 0;
- 
-	IWN_LOCK(sc);
+	struct ieee80211vap *vap;
+	int error;
+
 	if (ic->ic_nrunning > 0) {
-		if (!(sc->sc_flags & IWN_FLAG_RUNNING)) {
-			iwn_init_locked(sc);
-			if (IWN_READ(sc, IWN_GP_CNTRL) & IWN_GP_CNTRL_RFKILL)
-				startall = 1;
-			else
-				stop = 1;
+		error = iwn_init(sc);
+
+		switch (error) {
+		case 0:
+			ieee80211_start_all(ic);
+			break;
+		case EAGAIN:
+			/* radio is disabled via RFkill switch */
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_rftoggle_task);
+			break;
+		default:
+			vap = TAILQ_FIRST(&ic->ic_vaps);
+			if (vap != NULL)
+				ieee80211_stop(vap);
+			break;
 		}
-	} else if (sc->sc_flags & IWN_FLAG_RUNNING)
-		iwn_stop_locked(sc);
-	IWN_UNLOCK(sc);
-	if (startall)
-		ieee80211_start_all(ic);
-	else if (vap != NULL && stop)
-		ieee80211_stop(vap);
+	} else
+		iwn_stop(sc);
 }
 
 /*
@@ -8681,41 +8688,6 @@ iwn_hw_stop(struct iwn_softc *sc)
 }
 
 static void
-iwn_radio_on(void *arg0, int pending)
-{
-	struct iwn_softc *sc = arg0;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-
-	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
-
-	if (vap != NULL) {
-		iwn_init(sc);
-		ieee80211_init(vap);
-	}
-}
-
-static void
-iwn_radio_off(void *arg0, int pending)
-{
-	struct iwn_softc *sc = arg0;
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-
-	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
-
-	iwn_stop(sc);
-	if (vap != NULL)
-		ieee80211_stop(vap);
-
-	/* Enable interrupts to get RF toggle notification. */
-	IWN_LOCK(sc);
-	IWN_WRITE(sc, IWN_INT, 0xffffffff);
-	IWN_WRITE(sc, IWN_INT_MASK, sc->int_mask);
-	IWN_UNLOCK(sc);
-}
-
-static void
 iwn_panicked(void *arg0, int pending)
 {
 	struct iwn_softc *sc = arg0;
@@ -8746,7 +8718,11 @@ iwn_panicked(void *arg0, int pending)
 	IWN_LOCK(sc);
 
 	iwn_stop_locked(sc);
-	iwn_init_locked(sc);
+	if ((error = iwn_init_locked(sc)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not init hardware\n", __func__);
+		goto unlock;
+	}
 	if (vap->iv_state >= IEEE80211_S_AUTH &&
 	    (error = iwn_auth(sc, vap)) != 0) {
 		device_printf(sc->sc_dev,
@@ -8758,11 +8734,12 @@ iwn_panicked(void *arg0, int pending)
 		    "%s: could not move to run state\n", __func__);
 	}
 
+unlock:
 	IWN_UNLOCK(sc);
 #endif
 }
 
-static void
+static int
 iwn_init_locked(struct iwn_softc *sc)
 {
 	int error;
@@ -8770,6 +8747,9 @@ iwn_init_locked(struct iwn_softc *sc)
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
 	IWN_LOCK_ASSERT(sc);
+
+	if (sc->sc_flags & IWN_FLAG_RUNNING)
+		goto end;
 
 	sc->sc_flags |= IWN_FLAG_RUNNING;
 
@@ -8785,12 +8765,8 @@ iwn_init_locked(struct iwn_softc *sc)
 
 	/* Check that the radio is not disabled by hardware switch. */
 	if (!(IWN_READ(sc, IWN_GP_CNTRL) & IWN_GP_CNTRL_RFKILL)) {
-		device_printf(sc->sc_dev,
-		    "radio is disabled by hardware switch\n");
-		/* Enable interrupts to get RF toggle notifications. */
-		IWN_WRITE(sc, IWN_INT, 0xffffffff);
-		IWN_WRITE(sc, IWN_INT_MASK, sc->int_mask);
-		return;
+		error = EAGAIN;
+		goto fail;
 	}
 
 	/* Read firmware images from the filesystem. */
@@ -8821,26 +8797,29 @@ iwn_init_locked(struct iwn_softc *sc)
 
 	callout_reset(&sc->watchdog_to, hz, iwn_watchdog, sc);
 
+end:
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 
-	return;
+	return (0);
 
 fail:
-	sc->sc_flags &= ~IWN_FLAG_RUNNING;
 	iwn_stop_locked(sc);
+
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end in error\n",__func__);
+
+	return (error);
 }
 
-static void
+static int
 iwn_init(struct iwn_softc *sc)
 {
+	int error;
 
 	IWN_LOCK(sc);
-	iwn_init_locked(sc);
+	error = iwn_init_locked(sc);
 	IWN_UNLOCK(sc);
 
-	if (sc->sc_flags & IWN_FLAG_RUNNING)
-		ieee80211_start_all(&sc->sc_ic);
+	return (error);
 }
 
 static void
@@ -8848,6 +8827,9 @@ iwn_stop_locked(struct iwn_softc *sc)
 {
 
 	IWN_LOCK_ASSERT(sc);
+
+	if (!(sc->sc_flags & IWN_FLAG_RUNNING))
+		return;
 
 	sc->sc_is_scanning = 0;
 	sc->sc_tx_timer = 0;
