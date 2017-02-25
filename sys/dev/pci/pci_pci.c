@@ -76,6 +76,8 @@ static void		pcib_pcie_ab_timeout(void *arg);
 static void		pcib_pcie_cc_timeout(void *arg);
 static void		pcib_pcie_dll_timeout(void *arg);
 #endif
+static int		pcib_request_feature(device_t pcib, device_t dev,
+			    enum pci_feature feature);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -119,6 +121,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_try_enable_ari,	pcib_try_enable_ari),
     DEVMETHOD(pcib_ari_enabled,		pcib_ari_enabled),
     DEVMETHOD(pcib_decode_rid,		pcib_ari_decode_rid),
+    DEVMETHOD(pcib_request_feature,	pcib_request_feature),
 
     DEVMETHOD_END
 };
@@ -2828,4 +2831,25 @@ pcib_try_enable_ari(device_t pcib, device_t dev)
 	pcib_enable_ari(sc, pcie_pos);
 
 	return (0);
+}
+
+/*
+ * Pass the request to use this PCI feature up the tree. Either there's a
+ * firmware like ACPI that's using this feature that will approve (or deny) the
+ * request to take it over, or the platform has no such firmware, in which case
+ * the request will be approved. If the request is approved, the OS is expected
+ * to make use of the feature or render it harmless.
+ */
+static int
+pcib_request_feature(device_t pcib, device_t dev, enum pci_feature feature)
+{
+	device_t bus;
+
+	/*
+	 * Our parent is necessarily a pci bus. Its parent will either be
+	 * another pci bridge (which passes it up) or a host bridge that can
+	 * approve or reject the request.
+	 */
+	bus = device_get_parent(pcib);
+	return (PCIB_REQUEST_FEATURE(device_get_parent(bus), dev, feature));
 }
