@@ -90,10 +90,6 @@ struct ctlfe_softc {
 STAILQ_HEAD(, ctlfe_softc) ctlfe_softc_list;
 struct mtx ctlfe_list_mtx;
 static char ctlfe_mtx_desc[] = "ctlfelist";
-#ifdef CTLFE_INIT_ENABLE
-static int ctlfe_max_targets = 1;
-static int ctlfe_num_targets = 0;
-#endif
 
 typedef enum {
 	CTLFE_LUN_NONE		= 0x00,
@@ -152,27 +148,15 @@ struct ctlfe_cmd_info {
 #define	CTLFE_IN_PER_LUN	1024
 
 /*
- * Timeout (in seconds) on CTIO CCB allocation for doing a DMA or sending
- * status to the initiator.  The SIM is expected to have its own timeouts,
- * so we're not putting this timeout around the CCB execution time.  The
- * SIM should timeout and let us know if it has an issue.
+ * Timeout (in seconds) on CTIO CCB doing DMA or sending status
  */
-#define	CTLFE_DMA_TIMEOUT	60
+#define	CTLFE_TIMEOUT	5
 
 /*
  * Turn this on to enable extra debugging prints.
  */
 #if 0
 #define	CTLFE_DEBUG
-#endif
-
-/*
- * Use randomly assigned WWNN/WWPN values.  This is to work around an issue
- * in the FreeBSD initiator that makes it unable to rescan the target if
- * the target gets rebooted and the WWNN/WWPN stay the same.
- */
-#if 0
-#define	RANDOM_WWNN
 #endif
 
 MALLOC_DEFINE(M_CTLFE, "CAM CTL FE", "CAM CTL FE interface");
@@ -305,49 +289,6 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			break;
 		}
 
-#ifdef CTLFE_INIT_ENABLE
-		if (ctlfe_num_targets >= ctlfe_max_targets) {
-			union ccb *ccb;
-
-			ccb = (union ccb *)malloc(sizeof(*ccb), M_TEMP,
-						  M_NOWAIT | M_ZERO);
-			if (ccb == NULL) {
-				printf("%s: unable to malloc CCB!\n", __func__);
-				return;
-			}
-			xpt_setup_ccb(&ccb->ccb_h, path, CAM_PRIORITY_NONE);
-
-			ccb->ccb_h.func_code = XPT_SET_SIM_KNOB;
-			ccb->knob.xport_specific.valid = KNOB_VALID_ROLE;
-			ccb->knob.xport_specific.fc.role = KNOB_ROLE_INITIATOR;
-
-			xpt_action(ccb);
-
-			if ((ccb->ccb_h.status & CAM_STATUS_MASK) !=
-			     CAM_REQ_CMP) {
-				printf("%s: SIM %s%d (path id %d) initiator "
-				       "enable failed with status %#x\n",
-				       __func__, cpi->dev_name,
-				       cpi->unit_number, cpi->ccb_h.path_id,
-				       ccb->ccb_h.status);
-			} else {
-				printf("%s: SIM %s%d (path id %d) initiator "
-				       "enable succeeded\n",
-				       __func__, cpi->dev_name,
-				       cpi->unit_number, cpi->ccb_h.path_id);
-			}
-
-			free(ccb, M_TEMP);
-
-			break;
-		} else {
-			ctlfe_num_targets++;
-		}
-
-		printf("%s: ctlfe_num_targets = %d\n", __func__,
-		       ctlfe_num_targets);
-#endif /* CTLFE_INIT_ENABLE */
-
 		/*
 		 * We're in an interrupt context here, so we have to
 		 * use M_NOWAIT.  Of course this means trouble if we
@@ -385,7 +326,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			port->port_type = CTL_PORT_SCSI;
 
 		/* XXX KDM what should the real number be here? */
-		port->num_requested_ctl_io = 4096;
+		port->num_requested_ctl_io = CTLFE_REQ_CTL_IO;
 		snprintf(softc->port_name, sizeof(softc->port_name),
 			 "%s%d", cpi->dev_name, cpi->unit_number);
 		/*
@@ -404,15 +345,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		port->fe_datamove = ctlfe_datamove;
 		port->fe_done = ctlfe_done;
 		port->targ_port = -1;
-		
-		/*
-		 * XXX KDM need to figure out whether we're the master or
-		 * slave.
-		 */
-#ifdef CTLFEDEBUG
-		printf("%s: calling ctl_port_register() for %s%d\n",
-		       __func__, cpi->dev_name, cpi->unit_number);
-#endif
+
 		retval = ctl_port_register(port);
 		if (retval != 0) {
 			printf("%s: ctl_port_register() failed with "
@@ -914,7 +847,7 @@ next:
 		      scsi_status,
 		      /*data_ptr*/ data_ptr,
 		      /*dxfer_len*/ dxfer_len,
-		      /*timeout*/ 5 * 1000);
+		      /*timeout*/ CTLFE_TIMEOUT * 1000);
 	start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 	start_ccb->ccb_h.ccb_atio = atio;
 	if (io->io_hdr.flags & CTL_FLAG_DMA_QUEUED)
@@ -1382,7 +1315,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 					      0,
 					      /*data_ptr*/ data_ptr,
 					      /*dxfer_len*/ dxfer_len,
-					      /*timeout*/ 5 * 1000);
+					      CTLFE_TIMEOUT * 1000);
 
 				csio->ccb_h.flags |= CAM_UNLOCKED;
 				csio->resid = 0;
@@ -1562,9 +1495,6 @@ ctlfe_onoffline(void *arg, int online)
 	 */
 	if (online != 0) {
 		if ((ccb->knob.xport_specific.valid & KNOB_VALID_ADDRESS) != 0){
-#ifdef RANDOM_WWNN
-			uint64_t random_bits;
-#endif
 
 			printf("%s: %s current WWNN %#jx\n", __func__,
 			       bus_softc->port_name,
@@ -1573,45 +1503,6 @@ ctlfe_onoffline(void *arg, int online)
 			       bus_softc->port_name,
 			       ccb->knob.xport_specific.fc.wwpn);
 
-#ifdef RANDOM_WWNN
-			arc4rand(&random_bits, sizeof(random_bits), 0);
-#endif
-
-			/*
-			 * XXX KDM this is a bit of a kludge for now.  We
-			 * take the current WWNN/WWPN from the card, and
-			 * replace the company identifier and the NL-Port
-			 * indicator and the port number (for the WWPN).
-			 * This should be replaced later with ddb_GetWWNN,
-			 * or possibly a more centralized scheme.  (It
-			 * would be nice to have the WWNN/WWPN for each
-			 * port stored in the ctl_port structure.)
-			 */
-#ifdef RANDOM_WWNN
-			ccb->knob.xport_specific.fc.wwnn = 
-				(random_bits &
-				0x0000000fffffff00ULL) |
-				/* Company ID */ 0x5000ED5000000000ULL |
-				/* NL-Port */    0x0300;
-			ccb->knob.xport_specific.fc.wwpn = 
-				(random_bits &
-				0x0000000fffffff00ULL) |
-				/* Company ID */ 0x5000ED5000000000ULL |
-				/* NL-Port */    0x3000 |
-				/* Port Num */ (bus_softc->port.targ_port & 0xff);
-
-			/*
-			 * This is a bit of an API break/reversal, but if
-			 * we're doing the random WWNN that's a little
-			 * different anyway.  So record what we're actually
-			 * using with the frontend code so it's reported
-			 * accurately.
-			 */
-			ctl_port_set_wwns(&bus_softc->port,
-			    true, ccb->knob.xport_specific.fc.wwnn,
-			    true, ccb->knob.xport_specific.fc.wwpn);
-			set_wwnn = 1;
-#else /* RANDOM_WWNN */
 			/*
 			 * If the user has specified a WWNN/WWPN, send them
 			 * down to the SIM.  Otherwise, record what the SIM
@@ -1637,7 +1528,6 @@ ctlfe_onoffline(void *arg, int online)
 				    false, 0,
 				    true, ccb->knob.xport_specific.fc.wwpn);
 			}
-#endif /* RANDOM_WWNN */
 
 
 			if (set_wwnn != 0) {
