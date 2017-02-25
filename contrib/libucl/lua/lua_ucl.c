@@ -29,7 +29,6 @@
 #include "ucl_internal.h"
 #include "lua_ucl.h"
 #include <strings.h>
-#include <zconf.h>
 
 /***
  * @module ucl
@@ -187,6 +186,8 @@ ucl_object_lua_push_array (lua_State *L, const ucl_object_t *obj)
 			lua_rawseti (L, -2, i);
 			i ++;
 		}
+
+		ucl_object_iterate_free (it);
 	}
 	else {
 		/* Optimize allocation by preallocation of table */
@@ -482,7 +483,7 @@ static int
 lua_ucl_parser_init (lua_State *L)
 {
 	struct ucl_parser *parser, **pparser;
-	int flags = 0;
+	int flags = UCL_PARSER_NO_FILEVARS;
 
 	if (lua_gettop (L) >= 1) {
 		flags = lua_tonumber (L, 1);
@@ -522,6 +523,27 @@ lua_ucl_push_opaque (lua_State *L, ucl_object_t *obj)
 	*pobj = obj;
 	luaL_getmetatable (L, OBJECT_META);
 	lua_setmetatable (L, -2);
+}
+
+static inline enum ucl_parse_type
+lua_ucl_str_to_parse_type (const char *str)
+{
+	enum ucl_parse_type type = UCL_PARSE_UCL;
+
+	if (str != NULL) {
+		if (strcasecmp (str, "msgpack") == 0) {
+			type = UCL_PARSE_MSGPACK;
+		}
+		else if (strcasecmp (str, "sexp") == 0 ||
+				strcasecmp (str, "csexp") == 0) {
+			type = UCL_PARSE_CSEXP;
+		}
+		else if (strcasecmp (str, "auto") == 0) {
+			type = UCL_PARSE_AUTO;
+		}
+	}
+
+	return type;
 }
 
 /***
@@ -579,13 +601,19 @@ lua_ucl_parser_parse_string (lua_State *L)
 	struct ucl_parser *parser;
 	const char *string;
 	size_t llen;
+	enum ucl_parse_type type = UCL_PARSE_UCL;
 	int ret = 2;
 
 	parser = lua_ucl_parser_get (L, 1);
 	string = luaL_checklstring (L, 2, &llen);
 
+	if (lua_type (L, 3) == LUA_TSTRING) {
+		type = lua_ucl_str_to_parse_type (lua_tostring (L, 3));
+	}
+
 	if (parser != NULL && string != NULL) {
-		if (ucl_parser_add_chunk (parser, (const unsigned char *)string, llen)) {
+		if (ucl_parser_add_chunk_full (parser, (const unsigned char *)string,
+				llen, 0, UCL_DUPLICATE_APPEND, type)) {
 			lua_pushboolean (L, true);
 			ret = 1;
 		}
@@ -761,6 +789,28 @@ lua_ucl_object_unwrap (lua_State *L)
 	return 1;
 }
 
+static inline enum ucl_emitter
+lua_ucl_str_to_emit_type (const char *strtype)
+{
+	enum ucl_emitter format = UCL_EMIT_JSON_COMPACT;
+
+	if (strcasecmp (strtype, "json") == 0) {
+		format = UCL_EMIT_JSON;
+	}
+	else if (strcasecmp (strtype, "json-compact") == 0) {
+		format = UCL_EMIT_JSON_COMPACT;
+	}
+	else if (strcasecmp (strtype, "yaml") == 0) {
+		format = UCL_EMIT_YAML;
+	}
+	else if (strcasecmp (strtype, "config") == 0 ||
+			strcasecmp (strtype, "ucl") == 0) {
+		format = UCL_EMIT_CONFIG;
+	}
+
+	return format;
+}
+
 /***
  * @method object:tostring(type)
  * Unwraps opaque ucl object to string (json by default). Optionally you can
@@ -787,19 +837,7 @@ lua_ucl_object_tostring (lua_State *L)
 			if (lua_type (L, 2) == LUA_TSTRING) {
 				const char *strtype = lua_tostring (L, 2);
 
-				if (strcasecmp (strtype, "json") == 0) {
-					format = UCL_EMIT_JSON;
-				}
-				else if (strcasecmp (strtype, "json-compact") == 0) {
-					format = UCL_EMIT_JSON_COMPACT;
-				}
-				else if (strcasecmp (strtype, "yaml") == 0) {
-					format = UCL_EMIT_YAML;
-				}
-				else if (strcasecmp (strtype, "config") == 0 ||
-						strcasecmp (strtype, "ucl") == 0) {
-					format = UCL_EMIT_CONFIG;
-				}
+				format = lua_ucl_str_to_emit_type (strtype);
 			}
 		}
 
@@ -1087,6 +1125,9 @@ lua_ucl_to_format (lua_State *L)
 			else if (strcasecmp (strtype, "config") == 0 ||
 				strcasecmp (strtype, "ucl") == 0) {
 				format = UCL_EMIT_CONFIG;
+			}
+			else if (strcasecmp (strtype, "msgpack") == 0) {
+				format = UCL_EMIT_MSGPACK;
 			}
 		}
 	}
