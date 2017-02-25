@@ -27,6 +27,8 @@ opt_mrouting.h:
 	echo "#define MROUTING 1" > ${.TARGET}
 opt_natm.h:
 	echo "#define NATM 1" > ${.TARGET}
+opt_printf.h:
+	echo "#define PRINTF_BUFR_SIZE 128" > ${.TARGET}
 opt_scsi.h:
 	echo "#define SCSI_DELAY 15000" > ${.TARGET}
 opt_wlan.h:
