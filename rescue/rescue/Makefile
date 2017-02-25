@@ -99,7 +99,7 @@ CRUNCH_PROGS_sbin= badsect					\
 	mount_udf mount_unionfs newfs				\
 	newfs_msdos nos-tun ping reboot				\
 	restore rcorder route routed rtquery rtsol savecore	\
-	spppcontrol swapon sysctl tunefs umount
+	shutdown spppcontrol swapon sysctl tunefs umount
 
 .if ${MK_ATM} != "no"
 CRUNCH_PROGS_sbin+= atmconfig
@@ -166,6 +166,7 @@ CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
 CRUNCH_ALIAS_fsck_ffs= fsck_4.2bsd fsck_ufs
 CRUNCH_ALIAS_geom= glabel gpart
+CRUNCH_ALIAS_shutdown= poweroff
 
 # dhclient has historically been troublesome...
 CRUNCH_PROGS_sbin+= dhclient
