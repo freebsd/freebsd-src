@@ -90,7 +90,7 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 #
 CRUNCH_SRCDIRS+= sbin
 CRUNCH_PROGS_sbin= badsect					\
-	camcontrol ccdconfig clri devfs dmesg dump		\
+	camcontrol clri devfs dmesg dump			\
 	dumpfs dumpon fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde geom ifconfig init 			\
 	kldconfig kldload kldstat kldunload ldconfig 		\
@@ -98,11 +98,15 @@ CRUNCH_PROGS_sbin= badsect					\
 	mount_msdosfs mount_nfs mount_nullfs			\
 	mount_udf mount_unionfs newfs				\
 	newfs_msdos nos-tun ping reboot				\
-	restore rcorder route routed rtquery rtsol savecore	\
-	spppcontrol swapon sysctl tunefs umount
+	restore rcorder route rtsol savecore	 		\
+	shutdown spppcontrol swapon sysctl tunefs umount
 
 .if ${MK_ATM} != "no"
 CRUNCH_PROGS_sbin+= atmconfig
+.endif
+
+.if ${MK_CCD} != "no"
+CRUNCH_PROGS_sbin+= ccdconfig
 .endif
 
 .if ${MK_INET6_SUPPORT} != "no"
@@ -112,6 +116,11 @@ CRUNCH_PROGS_sbin+= ping6
 .if ${MK_IPFILTER} != "no"
 CRUNCH_PROGS_sbin+= ipf
 .endif
+
+.if ${MK_ROUTED} != "no"
+CRUNCH_PROGS_sbin+= routed rtquery
+.endif
+
 .if ${MK_ZFS} != "no"
 CRUNCH_PROGS_sbin+= zfs
 CRUNCH_PROGS_sbin+= zpool
@@ -166,6 +175,7 @@ CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
 CRUNCH_ALIAS_fsck_ffs= fsck_4.2bsd fsck_ufs
 CRUNCH_ALIAS_geom= glabel gpart
+CRUNCH_ALIAS_shutdown= poweroff
 
 # dhclient has historically been troublesome...
 CRUNCH_PROGS_sbin+= dhclient

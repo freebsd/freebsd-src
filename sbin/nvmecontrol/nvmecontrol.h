@@ -58,7 +58,7 @@ struct nvme_function {
 "       nvmecontrol reset <controller id>\n"
 
 #define LOGPAGE_USAGE							       \
-"       nvmecontrol logpage <-p page_id> [-x] <controller id|namespace id>\n"  \
+"       nvmecontrol logpage <-p page_id> [-b] [-v vendor] [-x] <controller id|namespace id>\n"  \
 
 #define FIRMWARE_USAGE							       \
 "       nvmecontrol firmware [-s slot] [-f path_to_firmware] [-a] <controller id>\n"

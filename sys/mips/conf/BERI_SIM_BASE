@@ -6,6 +6,8 @@
 # $FreeBSD$
 #
 
+#NO_UNIVERSE
+
 include "std.BERI"
 
 options 	FDT

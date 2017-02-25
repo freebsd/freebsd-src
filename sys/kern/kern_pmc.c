@@ -287,8 +287,8 @@ pmc_soft_ev_deregister(struct pmc_soft *ps)
 
 	if (ps->ps_ev.pm_ev_code != 0 &&
 	    (ps->ps_ev.pm_ev_code - PMC_EV_SOFT_FIRST) < pmc_softevents) {
-		KASSERT(ps->ps_ev.pm_ev_code >= PMC_EV_SOFT_FIRST &&
-		    ps->ps_ev.pm_ev_code <= PMC_EV_SOFT_LAST,
+		KASSERT((int)ps->ps_ev.pm_ev_code >= PMC_EV_SOFT_FIRST &&
+		    (int)ps->ps_ev.pm_ev_code <= PMC_EV_SOFT_LAST,
 		    ("pmc_soft_deregister: invalid event value"));
 		pmc_softs[ps->ps_ev.pm_ev_code - PMC_EV_SOFT_FIRST] = NULL;
 	}
@@ -304,8 +304,8 @@ pmc_soft_ev_acquire(enum pmc_event ev)
 	if (ev == 0 || (ev - PMC_EV_SOFT_FIRST) >= pmc_softevents)
 		return NULL;
 
-	KASSERT(ev >= PMC_EV_SOFT_FIRST &&
-	    ev <= PMC_EV_SOFT_LAST,
+	KASSERT((int)ev >= PMC_EV_SOFT_FIRST &&
+	    (int)ev <= PMC_EV_SOFT_LAST,
 	    ("event out of range"));
 
 	mtx_lock_spin(&pmc_softs_mtx);

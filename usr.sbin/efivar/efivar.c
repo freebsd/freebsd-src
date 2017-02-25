@@ -205,21 +205,20 @@ print_var(efi_guid_t *guid, char *name)
 	int rv;
 
 	efi_guid_to_str(guid, &gname);
-	if (!Nflag)
-		printf("%s-%s", gname, name);
 	if (pflag) {
 		rv = efi_get_variable(*guid, name, &data, &datalen, &att);
 
 		if (rv < 0)
-			printf("\n --- Error getting value --- %d", errno);
-		else {
-			if (Aflag)
-				asciidump(data, datalen);
-			else if (bflag)
-				bindump(data, datalen);
-			else
-				hexdump(data, datalen);
-		}
+			err(1, "%s-%s", gname, name);
+
+		if (!Nflag)
+			printf("%s-%s", gname, name);
+		if (Aflag)
+			asciidump(data, datalen);
+		else if (bflag)
+			bindump(data, datalen);
+		else
+			hexdump(data, datalen);
 	}
 	free(gname);
 	if (!Nflag)

@@ -158,7 +158,6 @@ cddl/contrib/opensolaris/common/zfs/zfs_namecheck.c			optional zfs compile-with 
 cddl/contrib/opensolaris/common/zfs/zfs_prop.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zpool_prop.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/zfs/zprop_common.c			optional zfs compile-with "${ZFS_C}"
-cddl/contrib/opensolaris/uts/common/fs/gfs.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/vnode.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/arc.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/blkptr.c			optional zfs compile-with "${ZFS_C}"
@@ -1864,6 +1863,7 @@ dev/iwm/if_iwm.c		optional iwm
 dev/iwm/if_iwm_7000.c		optional iwm
 dev/iwm/if_iwm_8000.c		optional iwm
 dev/iwm/if_iwm_binding.c	optional iwm
+dev/iwm/if_iwm_fw.c		optional iwm
 dev/iwm/if_iwm_led.c		optional iwm
 dev/iwm/if_iwm_mac_ctxt.c	optional iwm
 dev/iwm/if_iwm_notif_wait.c	optional iwm

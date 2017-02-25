@@ -264,6 +264,8 @@ ctl_port_set_wwns(struct ctl_port *port, int wwnn_valid, uint64_t wwnn,
 
 	if (port->port_type == CTL_PORT_FC)
 		proto = SCSI_PROTO_FC << 4;
+	else if (port->port_type == CTL_PORT_SAS)
+		proto = SCSI_PROTO_SAS << 4;
 	else if (port->port_type == CTL_PORT_ISCSI)
 		proto = SCSI_PROTO_ISCSI << 4;
 	else
