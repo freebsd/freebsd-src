@@ -7462,9 +7462,14 @@ OLD_FILES+=usr/share/man/man8/rshd.8.gz
 OLD_FILES+=usr/share/man/man8/rwhod.8.gz
 .endif
 
-#.if ${MK_RESCUE} == no
-# to be filled in or replaced with a special target
-#.endif
+.if ${MK_RESCUE} == no
+. if exists(${DESTDIR}${TESTSBASE})
+RESCUE_DIRS!=find ${DESTDIR}/rescue -type d | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${RESCUE_DIRS}
+RESCUE_FILES!=find ${DESTDIR}/rescue \! -type d | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_FILES+=${RESCUE_FILES}
+. endif
+.endif
 
 .if ${MK_ROUTED} == no
 OLD_FILES+=rescue/routed
