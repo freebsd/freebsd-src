@@ -1148,7 +1148,7 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 }
 
 static void
-pcib_pcie_intr(void *arg)
+pcib_pcie_intr_hotplug(void *arg)
 {
 	struct pcib_softc *sc;
 	device_t dev;
@@ -1261,7 +1261,7 @@ pcib_pcie_cc_timeout(void *arg)
 	} else {
 		device_printf(dev,
 	    "Missed HotPlug interrupt waiting for Command Completion\n");
-		pcib_pcie_intr(sc);
+		pcib_pcie_intr_hotplug(sc);
 	}
 }
 
@@ -1284,7 +1284,7 @@ pcib_pcie_dll_timeout(void *arg)
 	} else if (sta != sc->pcie_link_sta) {
 		device_printf(dev,
 		    "Missed HotPlug interrupt waiting for DLL Active\n");
-		pcib_pcie_intr(sc);
+		pcib_pcie_intr_hotplug(sc);
 	}
 }
 
@@ -1330,7 +1330,7 @@ pcib_alloc_pcie_irq(struct pcib_softc *sc)
 	}
 
 	error = bus_setup_intr(dev, sc->pcie_irq, INTR_TYPE_MISC,
-	    NULL, pcib_pcie_intr, sc, &sc->pcie_ihand);
+	    NULL, pcib_pcie_intr_hotplug, sc, &sc->pcie_ihand);
 	if (error) {
 		device_printf(dev, "Failed to setup PCI-e interrupt handler\n");
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->pcie_irq);
