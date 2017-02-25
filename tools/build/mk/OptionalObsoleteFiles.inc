@@ -1515,10 +1515,6 @@ OLD_FILES+=usr/bin/cpp
 OLD_FILES+=usr/share/man/man1/cpp.1.gz
 .endif
 
-#.if ${MK_CRYPT} == no
-# to be filled in
-#.endif
-
 .if ${MK_CTM} == no
 OLD_FILES+=usr/sbin/ctm
 OLD_FILES+=usr/sbin/ctm_dequeue
