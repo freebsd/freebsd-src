@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/nlm/xlp.h>
 
 #include "pcib_if.h"
+#include <dev/pci/pcib_private.h>
 #include "pci_if.h"
 
 static int

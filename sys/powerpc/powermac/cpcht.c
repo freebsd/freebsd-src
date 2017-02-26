@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include "pcib_if.h"
+#include <dev/pci/pcib_private.h>
 #include "pic_if.h"
 
 /*
