@@ -8834,6 +8834,7 @@ iwn_stop_locked(struct iwn_softc *sc)
 	sc->sc_is_scanning = 0;
 	sc->sc_tx_timer = 0;
 	callout_stop(&sc->watchdog_to);
+	callout_stop(&sc->scan_timeout);
 	callout_stop(&sc->calib_to);
 	sc->sc_flags &= ~IWN_FLAG_RUNNING;
 
