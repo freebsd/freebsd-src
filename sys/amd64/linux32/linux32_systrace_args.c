@@ -2169,7 +2169,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[2] = p->maxevents; /* l_int */
 		iarg[3] = p->timeout; /* l_int */
 		uarg[4] = (intptr_t) p->mask; /* l_sigset_t * */
-		*n_args = 5;
+		iarg[5] = p->sigsetsize; /* l_size_t */
+		*n_args = 6;
 		break;
 	}
 	/* linux_utimensat */
@@ -5980,6 +5981,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 4:
 			p = "userland l_sigset_t *";
+			break;
+		case 5:
+			p = "l_size_t";
 			break;
 		default:
 			break;
