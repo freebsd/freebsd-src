@@ -494,7 +494,7 @@ attributes use
 		-- Lars Engels <lme@FreeBSD.org>
 %
 Do you wonder what a terminal program is doing at the moment? dd(1) does not
-show any troughput? Hit "^T" (Control + t) to send SIGINFO to the process
+show any throughput? Hit "^T" (Control + t) to send SIGINFO to the process
 and see what it is doing.
 
 		-- Lars Engels <lme@FreeBSD.org>
