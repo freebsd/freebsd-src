@@ -154,6 +154,28 @@ linux_to_native_timespec(struct timespec *ntp, struct l_timespec *ltp)
 }
 
 int
+native_to_linux_itimerspec(struct l_itimerspec *ltp, struct itimerspec *ntp)
+{
+	int error;
+
+	error = native_to_linux_timespec(&ltp->it_interval, &ntp->it_interval);
+	if (error == 0)
+		error = native_to_linux_timespec(&ltp->it_value, &ntp->it_interval);
+	return (error);
+}
+
+int
+linux_to_native_itimerspec(struct itimerspec *ntp, struct l_itimerspec *ltp)
+{
+	int error;
+
+	error = linux_to_native_timespec(&ntp->it_interval, &ltp->it_interval);
+	if (error == 0)
+		error = linux_to_native_timespec(&ntp->it_value, &ltp->it_value);
+	return (error);
+}
+
+int
 linux_to_native_clockid(clockid_t *n, clockid_t l)
 {
 
