@@ -2930,7 +2930,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	struct bwi_mac *mac;
 	struct bwi_txbuf_hdr *hdr;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	uint8_t rate, rate_fb;
 	uint32_t mac_ctrl;
 	uint16_t phy_ctrl;
@@ -2955,7 +2955,6 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	/*
 	 * Find TX rate
 	 */
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 	if (type != IEEE80211_FC0_TYPE_DATA || (m->m_flags & M_EAPOL)) {
 		rate = rate_fb = tp->mgmtrate;
 	} else if (ismcast) {

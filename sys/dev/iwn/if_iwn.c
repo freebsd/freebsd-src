@@ -4370,7 +4370,7 @@ static int
 iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 {
 	struct iwn_ops *ops = &sc->ops;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct iwn_node *wn = (void *)ni;
@@ -4449,15 +4449,14 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	data = &ring->data[ring->cur];
 
 	/* Choose a TX rate index. */
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	if (type == IEEE80211_FC0_TYPE_MGT)
+	if (type == IEEE80211_FC0_TYPE_MGT ||
+	    type == IEEE80211_FC0_TYPE_CTL ||
+	    (m->m_flags & M_EAPOL) != 0)
 		rate = tp->mgmtrate;
 	else if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		rate = tp->mcastrate;
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;
-	else if (m->m_flags & M_EAPOL)
-		rate = tp->mgmtrate;
 	else {
 		/* XXX pass pktlen */
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
