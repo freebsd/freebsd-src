@@ -1253,7 +1253,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			switch (done_ccb->ccb_h.status & CAM_STATUS_MASK) {
 			case CAM_REQ_CMP:
-				io->scsiio.kern_data_resid -= csio->dxfer_len;
+				io->scsiio.kern_data_resid -=
+				    csio->dxfer_len - csio->resid;
 				io->io_hdr.port_status = 0;
 				break;
 			default:
@@ -1280,8 +1281,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			 * pieces, figure out where we are in the list, and
 			 * continue sending pieces if necessary.
 			 */
-			if ((cmd_info->flags & CTLFE_CMD_PIECEWISE)
-			 && (io->io_hdr.port_status == 0)) {
+			if ((cmd_info->flags & CTLFE_CMD_PIECEWISE) &&
+			    io->io_hdr.port_status == 0 && csio->resid == 0) {
 				ccb_flags flags;
 				uint8_t *data_ptr;
 				uint32_t dxfer_len;
