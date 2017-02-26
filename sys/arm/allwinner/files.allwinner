@@ -56,3 +56,8 @@ arm/allwinner/clk/aw_oscclk.c		standard
 arm/allwinner/clk/aw_pll.c		standard
 arm/allwinner/clk/aw_thsclk.c		standard
 arm/allwinner/clk/aw_usbclk.c		standard
+
+arm/allwinner/clkng/aw_ccung.c		standard
+arm/allwinner/clkng/aw_clk_nkmp.c	standard
+arm/allwinner/clkng/aw_clk_nm.c		standard
+arm/allwinner/clkng/aw_clk_prediv_mux.c	standard
