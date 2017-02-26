@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/pcibus.h>
 
 #include "pcib_if.h"
+#include <dev/pci/pcib_private.h>
 
 #define pci_cfg_offset(bus,slot,devfn,where) (((bus)<<16) + ((slot) << 11)+((devfn)<<8)+(where))
 #define PCIE_LINK_STATE    0x4000
