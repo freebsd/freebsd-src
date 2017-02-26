@@ -125,8 +125,8 @@ main(int argc, char *argv[])
 
 	if (!preproc_done)
 		init_bmachine(extended_regs);
-	setlinebuf(stdout);
-	setlinebuf(stderr);
+	(void)setvbuf(stdout, NULL, _IOLBF, 0);
+	(void)setvbuf(stderr, NULL, _IOLBF, 0);
 
 	if (argc > 1)
 		usage();
