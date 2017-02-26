@@ -1316,12 +1316,23 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 		/*
 		 * Check for overflow
 		 */
-		tmp = atp->bytes_xfered + atp->bytes_in_transit + xfrlen;
-		if (tmp > atp->orig_datalen) {
-			isp_prt(isp, ISP_LOGERR, "%s: [0x%x] data overflow by %u bytes", __func__, cso->tag_id, tmp - atp->orig_datalen);
+		tmp = atp->bytes_xfered + atp->bytes_in_transit;
+		if (xfrlen > 0 && tmp > atp->orig_datalen) {
+			isp_prt(isp, ISP_LOGERR,
+			    "%s: [0x%x] data overflow by %u bytes", __func__,
+			    cso->tag_id, tmp + xfrlen - atp->orig_datalen);
 			ccb->ccb_h.status = CAM_DATA_RUN_ERR;
 			xpt_done(ccb);
 			continue;
+		}
+		if (xfrlen > atp->orig_datalen - tmp) {
+			xfrlen = atp->orig_datalen - tmp;
+			if (xfrlen == 0 && !sendstatus) {
+				cso->resid = cso->dxfer_len;
+				ccb->ccb_h.status = CAM_REQ_CMP;
+				xpt_done(ccb);
+				continue;
+			}
 		}
 
 		if (IS_24XX(isp)) {
@@ -1352,16 +1363,13 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 				cto->ct_flags |= CT7_SENDSTATUS | CT7_NO_DATA;
 				resid = atp->orig_datalen - atp->bytes_xfered - atp->bytes_in_transit;
 				if (sense_length <= MAXRESPLEN_24XX) {
-					if (resid < 0) {
-						cto->ct_resid = -resid;
-					} else if (resid > 0) {
-						cto->ct_resid = resid;
-					}
 					cto->ct_flags |= CT7_FLAG_MODE1;
 					cto->ct_scsi_status = cso->scsi_status;
 					if (resid < 0) {
+						cto->ct_resid = -resid;
 						cto->ct_scsi_status |= (FCP_RESID_OVERFLOW << 8);
 					} else if (resid > 0) {
+						cto->ct_resid = resid;
 						cto->ct_scsi_status |= (FCP_RESID_UNDERFLOW << 8);
 					}
 					if (fctape) {
@@ -2238,10 +2246,10 @@ static void
 isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 {
 	union ccb *ccb;
-	int sentstatus = 0, ok = 0, notify_cam = 0, resid = 0, failure = 0;
+	int sentstatus = 0, ok = 0, notify_cam = 0, failure = 0;
 	atio_private_data_t *atp = NULL;
 	int bus;
-	uint32_t handle, moved_data = 0, data_requested;
+	uint32_t handle, data_requested, resid;
 
 	handle = ((ct2_entry_t *)arg)->ct_syshandle;
 	ccb = isp_find_xs(isp, handle);
@@ -2250,7 +2258,7 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 		return;
 	}
 	isp_destroy_handle(isp, handle);
-	data_requested = PISP_PCMD(ccb)->datalen;
+	resid = data_requested = PISP_PCMD(ccb)->datalen;
 	isp_free_pcmd(isp, ccb);
 	if (isp->isp_nactive) {
 		isp->isp_nactive--;
@@ -2296,10 +2304,8 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 			sentstatus = ct->ct_flags & CT7_SENDSTATUS;
 			ok = (ct->ct_nphdl == CT7_OK);
 			notify_cam = (ct->ct_header.rqs_seqno & ATPD_SEQ_NOTIFY_CAM) != 0;
-			if ((ct->ct_flags & CT7_DATAMASK) != CT7_NO_DATA) {
+			if ((ct->ct_flags & CT7_DATAMASK) != CT7_NO_DATA)
 				resid = ct->ct_resid;
-				moved_data = data_requested - resid;
-			}
 		}
 		isp_prt(isp, ok? ISP_LOGTDEBUG0 : ISP_LOGWARN, "%s: CTIO7[%x] seq %u nc %d sts 0x%x flg 0x%x sns %d resid %d %s", __func__, ct->ct_rxid, ATPD_GET_SEQNO(ct),
 		   notify_cam, ct->ct_nphdl, ct->ct_flags, (ccb->ccb_h.status & CAM_SENT_SENSE) != 0, resid, sentstatus? "FIN" : "MID");
@@ -2320,22 +2326,20 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 			sentstatus = ct->ct_flags & CT2_SENDSTATUS;
 			ok = (ct->ct_status & ~QLTM_SVALID) == CT_OK;
 			notify_cam = (ct->ct_header.rqs_seqno & ATPD_SEQ_NOTIFY_CAM) != 0;
-			if ((ct->ct_flags & CT2_DATAMASK) != CT2_NO_DATA) {
+			if ((ct->ct_flags & CT2_DATAMASK) != CT2_NO_DATA)
 				resid = ct->ct_resid;
-				moved_data = data_requested - resid;
-			}
 		}
 		isp_prt(isp, ok? ISP_LOGTDEBUG0 : ISP_LOGWARN, "%s: CTIO2[%x] seq %u nc %d sts 0x%x flg 0x%x sns %d resid %d %s", __func__, ct->ct_rxid, ATPD_GET_SEQNO(ct),
 		    notify_cam, ct->ct_status, ct->ct_flags, (ccb->ccb_h.status & CAM_SENT_SENSE) != 0, resid, sentstatus? "FIN" : "MID");
 	}
 	if (ok) {
-		if (moved_data) {
-			atp->bytes_xfered += moved_data;
-			ccb->csio.resid = atp->orig_datalen - atp->bytes_xfered - atp->bytes_in_transit;
+		if (data_requested > 0) {
+			atp->bytes_xfered += data_requested - resid;
+			ccb->csio.resid = ccb->csio.dxfer_len -
+			    (data_requested - resid);
 		}
-		if (sentstatus && (ccb->ccb_h.flags & CAM_SEND_SENSE)) {
+		if (sentstatus && (ccb->ccb_h.flags & CAM_SEND_SENSE))
 			ccb->ccb_h.status |= CAM_SENT_SENSE;
-		}
 		ccb->ccb_h.status |= CAM_REQ_CMP;
 	} else {
 		notify_cam = 1;
