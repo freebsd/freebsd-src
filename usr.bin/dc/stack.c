@@ -68,10 +68,8 @@ stack_free_value(struct value *v)
 		free(v->u.string);
 		break;
 	}
-	if (v->array != NULL) {
-		array_free(v->array);
-		v->array = NULL;
-	}
+	array_free(v->array);
+	v->array = NULL;
 }
 
 /* Copy number or string content into already allocated target */
@@ -225,10 +223,8 @@ stack_popnumber(struct stack *stack)
 
 	if (stack_empty(stack))
 		return (NULL);
-	if (stack->stack[stack->sp].array != NULL) {
-		array_free(stack->stack[stack->sp].array);
-		stack->stack[stack->sp].array = NULL;
-	}
+	array_free(stack->stack[stack->sp].array);
+	stack->stack[stack->sp].array = NULL;
 	if (stack->stack[stack->sp].type != BCODE_NUMBER) {
 		warnx("not a number"); /* XXX remove */
 		return (NULL);
@@ -242,10 +238,8 @@ stack_popstring(struct stack *stack)
 
 	if (stack_empty(stack))
 		return (NULL);
-	if (stack->stack[stack->sp].array != NULL) {
-		array_free(stack->stack[stack->sp].array);
-		stack->stack[stack->sp].array = NULL;
-	}
+	array_free(stack->stack[stack->sp].array);
+	stack->stack[stack->sp].array = NULL;
 	if (stack->stack[stack->sp].type != BCODE_STRING) {
 		warnx("not a string"); /* XXX remove */
 		return (NULL);
@@ -257,9 +251,8 @@ void
 stack_clear(struct stack *stack)
 {
 
-	while (stack->sp >= 0) {
+	while (stack->sp >= 0)
 		stack_free_value(&stack->stack[stack->sp--]);
-	}
 	free(stack->stack);
 	stack_init(stack);
 }
