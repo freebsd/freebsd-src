@@ -109,6 +109,7 @@
 #define	PG_MANAGED	X86_PG_AVAIL2
 #define	EPT_PG_EMUL_V	X86_PG_AVAIL(52)
 #define	EPT_PG_EMUL_RW	X86_PG_AVAIL(53)
+#define	PG_PROMOTED	X86_PG_AVAIL(54)	/* PDE only */
 #define	PG_FRAME	(0x000ffffffffff000ul)
 #define	PG_PS_FRAME	(0x000fffffffe00000ul)
 
