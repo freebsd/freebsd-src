@@ -622,6 +622,8 @@ linux_epoll_pwait(struct thread *td, struct linux_epoll_pwait_args *args)
 	int error;
 
 	if (args->mask != NULL) {
+		if (args->sigsetsize != sizeof(l_sigset_t))
+			return (EINVAL);
 		error = copyin(args->mask, &lmask, sizeof(l_sigset_t));
 		if (error != 0)
 			return (error);
