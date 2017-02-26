@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include "namespace.h"
+#include <sys/capsicum.h>
 #include <sys/elf.h>
 #include <sys/fcntl.h>
 #include <sys/mman.h>
@@ -124,6 +125,7 @@ __vdso_init_hpet(uint32_t u)
 	static const char devprefix[] = "/dev/hpet";
 	char devname[64], *c, *c1, t;
 	volatile char *new_map, *old_map;
+	unsigned int mode;
 	uint32_t u1;
 	int fd;
 
@@ -144,18 +146,26 @@ __vdso_init_hpet(uint32_t u)
 	if (old_map != NULL)
 		return;
 
+	mode = 0;
+	if (cap_getmode(&mode) == 0 && mode != 0)
+		goto fail;
+
 	fd = _open(devname, O_RDONLY);
-	if (fd == -1) {
-		atomic_cmpset_rel_ptr((volatile uintptr_t *)&hpet_dev_map[u],
-		    (uintptr_t)old_map, (uintptr_t)MAP_FAILED);
-		return;
-	}
+	if (fd == -1)
+		goto fail;
+
 	new_map = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_SHARED, fd, 0);
 	_close(fd);
 	if (atomic_cmpset_rel_ptr((volatile uintptr_t *)&hpet_dev_map[u],
 	    (uintptr_t)old_map, (uintptr_t)new_map) == 0 &&
 	    new_map != MAP_FAILED)
-		munmap((void *)new_map, PAGE_SIZE);
+	munmap((void *)new_map, PAGE_SIZE);
+
+	return;
+fail:
+	/* Prevent the caller from re-entering. */
+	atomic_cmpset_rel_ptr((volatile uintptr_t *)&hpet_dev_map[u],
+	    (uintptr_t)old_map, (uintptr_t)MAP_FAILED);
 }
 
 #ifdef WANT_HYPERV
@@ -174,16 +184,23 @@ static void
 __vdso_init_hyperv_tsc(void)
 {
 	int fd;
+	unsigned int mode;
+
+	mode = 0;
+	if (cap_getmode(&mode) == 0 && mode != 0)
+		goto fail;
 
 	fd = _open(HYPERV_REFTSC_DEVPATH, O_RDONLY);
-	if (fd < 0) {
-		/* Prevent the caller from re-entering. */
-		hyperv_ref_tsc = MAP_FAILED;
-		return;
-	}
+	if (fd < 0)
+		goto fail;
 	hyperv_ref_tsc = mmap(NULL, sizeof(*hyperv_ref_tsc), PROT_READ,
 	    MAP_SHARED, fd, 0);
 	_close(fd);
+
+	return;
+fail:
+	/* Prevent the caller from re-entering. */
+	hyperv_ref_tsc = MAP_FAILED;
 }
 
 static int
