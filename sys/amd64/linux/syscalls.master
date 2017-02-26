@@ -473,7 +473,8 @@
 280	AUE_FUTIMESAT	STD	{ int linux_utimensat(l_int dfd, const char *pathname, \
 					const struct l_timespec *times, l_int flags); }
 281     AUE_NULL        STD     { int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
-                                        l_int maxevents, l_int timeout, l_sigset_t *mask); }
+                                        l_int maxevents, l_int timeout, l_sigset_t *mask, \
+                                        l_size_t sigsetsize); }
 282	AUE_NULL	STD	{ int linux_signalfd(void); }
 283	AUE_NULL	STD	{ int linux_timerfd_create(l_int clockid, l_int flags); }
 284	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
