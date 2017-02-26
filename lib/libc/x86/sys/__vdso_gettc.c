@@ -146,7 +146,6 @@ __vdso_init_hpet(uint32_t u)
 	if (old_map != NULL)
 		return;
 
-	mode = 0;
 	if (cap_getmode(&mode) == 0 && mode != 0)
 		goto fail;
 
@@ -186,7 +185,6 @@ __vdso_init_hyperv_tsc(void)
 	int fd;
 	unsigned int mode;
 
-	mode = 0;
 	if (cap_getmode(&mode) == 0 && mode != 0)
 		goto fail;
 
