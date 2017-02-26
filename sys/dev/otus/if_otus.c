@@ -2231,11 +2231,11 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	/* Pickup a rate index. */
 	if (params != NULL) {
 		rate = otus_rate_to_hw_rate(sc, params->ibp_rate0);
-	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_DATA) {
+	} else if (m->m_flags & M_EAPOL) {
 		/* Get lowest rate */
 		rate = otus_rate_to_hw_rate(sc, 0);
-	} else if (m->m_flags & M_EAPOL) {
+	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
+	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_DATA) {
 		/* Get lowest rate */
 		rate = otus_rate_to_hw_rate(sc, 0);
 	} else {
