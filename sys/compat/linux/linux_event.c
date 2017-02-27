@@ -729,7 +729,7 @@ eventfd_close(struct file *fp, struct thread *td)
 
 	efd = fp->f_data;
 	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
-		return (EBADF);
+		return (EINVAL);
 
 	seldrain(&efd->efd_sel);
 	knlist_destroy(&efd->efd_sel.si_note);
@@ -751,7 +751,7 @@ eventfd_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 	efd = fp->f_data;
 	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
-		return (EBADF);
+		return (EINVAL);
 
 	if (uio->uio_resid < sizeof(eventfd_t))
 		return (EINVAL);
@@ -797,7 +797,7 @@ eventfd_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 	efd = fp->f_data;
 	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
-		return (EBADF);
+		return (EINVAL);
 
 	if (uio->uio_resid < sizeof(eventfd_t))
 		return (EINVAL);
