@@ -182,28 +182,12 @@ static const char *pll_cpux_parents[] = {"osc24M"};
 static const char *pll_audio_parents[] = {"osc24M"};
 static const char *pll_audio_mult_parents[] = {"pll_audio"};
 /*
- * Need fractional mode on nkmp or a NM fract
-static const char *pll_video_parents[] = {"osc24M"};
- */
-/*
- * Need fractional mode on nkmp or a NM fract
-static const char *pll_ve_parents[] = {"osc24M"};
- */
-/*
  * Needs a update bit on nkmp or special clk
 static const char *pll_ddr_parents[] = {"osc24M"};
  */
 static const char *pll_periph0_parents[] = {"osc24M"};
 static const char *pll_periph0_2x_parents[] = {"pll_periph0"};
-/*
- * Need fractional mode on nkmp or a NM fract
-static const char *pll_gpu_parents[] = {"osc24M"};
- */
 static const char *pll_periph1_parents[] = {"osc24M"};
-/*
- * Need fractional mode on nkmp or a NM fract
-static const char *pll_de_parents[] = {"osc24M"};
- */
 
 static struct aw_clk_nkmp_def nkmp_clks[] = {
 	NKMP_CLK(H3_CLK_PLL_CPUX,			/* id */
@@ -268,6 +252,10 @@ static struct aw_clk_prediv_mux_def prediv_mux_clks[] = {
 	    0, 2, 1)							/* prediv condition */
 };
 
+static const char *pll_video_parents[] = {"osc24M"};
+static const char *pll_ve_parents[] = {"osc24M"};
+static const char *pll_gpu_parents[] = {"osc24M"};
+static const char *pll_de_parents[] = {"osc24M"};
 static const char *apb2_parents[] = {"osc32k", "osc24M", "pll_periph0", "pll_periph0"};
 static const char *mod_parents[] = {"osc24M", "pll_periph0", "pll_periph1"};
 static const char *ts_parents[] = {"osc24M", "pll_periph0"};
@@ -275,6 +263,42 @@ static const char *spdif_parents[] = {"pll_audio"};
 static const char *i2s_parents[] = {"pll_audio-8x", "pll_audio-4x", "pll_audio-2x", "pll_audio"};
 
 static struct aw_clk_nm_def nm_clks[] = {
+	NM_CLK_WITH_FRAC(H3_CLK_PLL_VIDEO,		/* id */
+	    "pll_video", pll_video_parents,		/* name, parents */
+	    0x10,					/* offset */
+	    8, 7, 0, 0,					/* n factor */
+	    0, 4, 0, 0,					/* m factor */
+	    31, 28, 1000,				/* gate, lock, lock retries */
+	    AW_CLK_HAS_LOCK,				/* flags */
+	    270000000, 297000000,			/* freq0, freq1 */
+	    24, 25)					/* mode sel, freq sel */
+	NM_CLK_WITH_FRAC(H3_CLK_PLL_VE,			/* id */
+	    "pll_ve", pll_ve_parents,			/* name, parents */
+	    0x18,					/* offset */
+	    8, 7, 0, 0,					/* n factor */
+	    0, 4, 0, 0,					/* m factor */
+	    31, 28, 1000,				/* gate, lock, lock retries */
+	    AW_CLK_HAS_LOCK,				/* flags */
+	    270000000, 297000000,			/* freq0, freq1 */
+	    24, 25)					/* mode sel, freq sel */
+	NM_CLK_WITH_FRAC(H3_CLK_PLL_GPU,		/* id */
+	    "pll_gpu", pll_gpu_parents,			/* name, parents */
+	    0x38,					/* offset */
+	    8, 7, 0, 0,					/* n factor */
+	    0, 4, 0, 0,					/* m factor */
+	    31, 28, 1000,				/* gate, lock, lock retries */
+	    AW_CLK_HAS_LOCK,				/* flags */
+	    270000000, 297000000,			/* freq0, freq1 */
+	    24, 25)					/* mode sel, freq sel */
+	NM_CLK_WITH_FRAC(H3_CLK_PLL_DE,			/* id */
+	    "pll_de", pll_de_parents,			/* name, parents */
+	    0x48,					/* offset */
+	    8, 7, 0, 0,					/* n factor */
+	    0, 4, 0, 0,					/* m factor */
+	    31, 28, 1000,				/* gate, lock, lock retries */
+	    AW_CLK_HAS_LOCK,				/* flags */
+	    270000000, 297000000,			/* freq0, freq1 */
+	    24, 25)					/* mode sel, freq sel */
 	NM_CLK(H3_CLK_APB2,				/* id */
 	    "apb2", apb2_parents,			/* name, parents */
 	    0x58,					/* offset */
