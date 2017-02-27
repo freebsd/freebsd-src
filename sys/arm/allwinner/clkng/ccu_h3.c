@@ -176,225 +176,175 @@ static struct aw_ccung_gate h3_ccu_gates[] = {
 	CCU_GATE(H3_CLK_I2S0, "i2s0", "i2s0mux", 0xB0, 31)
 	CCU_GATE(H3_CLK_I2S1, "i2s1", "i2s1mux", 0xB4, 31)
 	CCU_GATE(H3_CLK_I2S2, "i2s2", "i2s2mux", 0xB8, 31)
+
+	/* CCU_GATE(H3_CLK_DRAM_VE, "dram-ve", "dram", 0x100, 0) */
+	/* CCU_GATE(H3_CLK_DRAM_VE, "dram-csi", "dram", 0x100, 1) */
+	/* CCU_GATE(H3_CLK_DRAM_VE, "dram-deinterlace", "dram", 0x100, 2) */
+	/* CCU_GATE(H3_CLK_DRAM_VE, "dram-ts", "dram", 0x100, 3) */
+
+	CCU_GATE(H3_CLK_AC_DIG, "ac-dig", "pll_audio", 0x140, 31)
+
+	CCU_GATE(H3_CLK_AVS, "avs", "osc24M", 0x144, 31)
+
+	CCU_GATE(H3_CLK_HDMI_DDC, "hdmi-ddc", "osc24M", 0x154, 31)
 };
 
 static const char *pll_cpux_parents[] = {"osc24M"};
+NKMP_CLK(pll_cpux_clk,
+    H3_CLK_PLL_CPUX,			/* id */
+    "pll_cpux", pll_cpux_parents,		/* name, parents */
+    0x00,					/* offset */
+    8, 5, 0, 0,					/* n factor */
+    4, 2, 0, 0,					/* k factor */
+    0, 2, 0, 0,					/* m factor */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* p factor */
+    31,						/* gate */
+    28, 1000,					/* lock */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK | AW_CLK_SCALE_CHANGE);		/* flags */
+
 static const char *pll_audio_parents[] = {"osc24M"};
+NKMP_CLK(pll_audio_clk,
+    H3_CLK_PLL_AUDIO,			/* id */
+    "pll_audio", pll_audio_parents,		/* name, parents */
+    0x08,					/* offset */
+    8, 7, 0, 0,					/* n factor */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* k factor (fake) */
+    0, 5, 0, 0,					/* m factor */
+    16, 4, 0, 0,				/* p factor */
+    31,						/* gate */
+    28, 1000,					/* lock */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
+
 static const char *pll_audio_mult_parents[] = {"pll_audio"};
+FIXED_CLK(pll_audio_2x_clk,
+    H3_CLK_PLL_AUDIO_2X,		/* id */
+    "pll_audio-2x",			/* name */
+    pll_audio_mult_parents,		/* parent */
+    0,					/* freq */
+    2,					/* mult */
+    1,					/* div */
+    0);					/* flags */
+FIXED_CLK(pll_audio_4x_clk,
+    H3_CLK_PLL_AUDIO_4X,		/* id */
+    "pll_audio-4x",			/* name */
+    pll_audio_mult_parents,		/* parent */
+    0,					/* freq */
+    4,					/* mult */
+    1,					/* div */
+    0);					/* flags */
+FIXED_CLK(pll_audio_8x_clk,
+    H3_CLK_PLL_AUDIO_8X,		/* id */
+    "pll_audio-8x",			/* name */
+    pll_audio_mult_parents,		/* parent */
+    0,					/* freq */
+    8,					/* mult */
+    1,					/* div */
+    0);					/* flags */
+
+static const char *pll_video_parents[] = {"osc24M"};
+NM_CLK_WITH_FRAC(pll_video_clk,
+    H3_CLK_PLL_VIDEO,				/* id */
+    "pll_video", pll_video_parents,		/* name, parents */
+    0x10,					/* offset */
+    8, 7, 0, 0,					/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    31, 28, 1000,				/* gate, lock, lock retries */
+    AW_CLK_HAS_LOCK,				/* flags */
+    270000000, 297000000,			/* freq0, freq1 */
+    24, 25);					/* mode sel, freq sel */
+
+static const char *pll_ve_parents[] = {"osc24M"};
+NM_CLK_WITH_FRAC(pll_ve_clk,
+    H3_CLK_PLL_VE,				/* id */
+    "pll_ve", pll_ve_parents,			/* name, parents */
+    0x18,					/* offset */
+    8, 7, 0, 0,					/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    31, 28, 1000,				/* gate, lock, lock retries */
+    AW_CLK_HAS_LOCK,				/* flags */
+    270000000, 297000000,			/* freq0, freq1 */
+    24, 25);					/* mode sel, freq sel */
+
 /*
  * Needs a update bit on nkmp or special clk
 static const char *pll_ddr_parents[] = {"osc24M"};
  */
+
 static const char *pll_periph0_parents[] = {"osc24M"};
 static const char *pll_periph0_2x_parents[] = {"pll_periph0"};
-static const char *pll_periph1_parents[] = {"osc24M"};
+NKMP_CLK(pll_periph0_clk,
+    H3_CLK_PLL_PERIPH0,		/* id */
+    "pll_periph0", pll_periph0_parents,		/* name, parents */
+    0x28,					/* offset */
+    8, 5, 0, 0,					/* n factor */
+    4, 2, 0, 0,					/* k factor */
+    0, 0, 2, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
+    31,						/* gate */
+    28, 1000,					/* lock */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
 
-static struct aw_clk_nkmp_def nkmp_clks[] = {
-	NKMP_CLK(H3_CLK_PLL_CPUX,			/* id */
-	    "pll_cpux", pll_cpux_parents,		/* name, parents */
-	    0x00,					/* offset */
-	    8, 5, 0, 0,					/* n factor */
-	    4, 2, 0, 0,					/* k factor */
-	    0, 2, 0, 0,					/* m factor */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* p factor */
-	    31,						/* gate */
-	    28, 1000,					/* lock */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK | AW_CLK_SCALE_CHANGE)		/* flags */
-	NKMP_CLK(H3_CLK_PLL_AUDIO,			/* id */
-	    "pll_audio", pll_audio_parents,		/* name, parents */
-	    0x08,					/* offset */
-	    8, 7, 0, 0,					/* n factor */
-	    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* k factor (fake) */
-	    0, 5, 0, 0,					/* m factor */
-	    16, 4, 0, 0,				/* p factor */
-	    31,						/* gate */
-	    28, 1000,					/* lock */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK)		/* flags */
-	NKMP_CLK(H3_CLK_PLL_PERIPH0,			/* id */
-	    "pll_periph0", pll_periph0_parents,		/* name, parents */
-	    0x28,					/* offset */
-	    8, 5, 0, 0,					/* n factor */
-	    4, 2, 0, 0,					/* k factor */
-	    0, 0, 2, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
-	    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
-	    31,						/* gate */
-	    28, 1000,					/* lock */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK)		/* flags */
-	NKMP_CLK(H3_CLK_PLL_PERIPH1,			/* id */
-	    "pll_periph1", pll_periph1_parents,		/* name, parents */
-	    0x44,					/* offset */
-	    8, 5, 0, 0,					/* n factor */
-	    4, 2, 0, 0,					/* k factor */
-	    0, 0, 2, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
-	    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
-	    31,						/* gate */
-	    28, 1000,					/* lock */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK)		/* flags */
-};
-
-static const char *ahb1_parents[] = {"osc32k", "osc24M", "axi", "pll_periph0"};
-static const char *ahb2_parents[] = {"ahb1", "pll_periph0"};
-
-static struct aw_clk_prediv_mux_def prediv_mux_clks[] = {
-	PREDIV_CLK(H3_CLK_AHB1,						/* id */
-	    "ahb1", ahb1_parents,					/* name, parents */
-	    0x54,							/* offset */
-	    12, 2,							/* mux */
-	    4, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,			/* div */
-	    6, 2, 0, AW_CLK_FACTOR_HAS_COND,				/* prediv */
-	    12, 2, 3)							/* prediv condition */
-	PREDIV_CLK(H3_CLK_AHB2,						/* id */
-	    "ahb2", ahb2_parents,					/* name, parents */
-	    0x5c,							/* offset */
-	    0, 2,							/* mux */
-	    0, 0, 1, AW_CLK_FACTOR_FIXED,				/* div */
-	    0, 0, 2, AW_CLK_FACTOR_HAS_COND | AW_CLK_FACTOR_FIXED,	/* prediv */
-	    0, 2, 1)							/* prediv condition */
-};
-
-static const char *pll_video_parents[] = {"osc24M"};
-static const char *pll_ve_parents[] = {"osc24M"};
 static const char *pll_gpu_parents[] = {"osc24M"};
+NM_CLK_WITH_FRAC(pll_gpu_clk,
+    H3_CLK_PLL_GPU,				/* id */
+    "pll_gpu", pll_gpu_parents,			/* name, parents */
+    0x38,					/* offset */
+    8, 7, 0, 0,					/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    31, 28, 1000,				/* gate, lock, lock retries */
+    AW_CLK_HAS_LOCK,				/* flags */
+    270000000, 297000000,			/* freq0, freq1 */
+    24, 25);					/* mode sel, freq sel */
+
+static const char *pll_periph1_parents[] = {"osc24M"};
+NKMP_CLK(pll_periph1_clk,
+    H3_CLK_PLL_PERIPH1,				/* id */
+    "pll_periph1", pll_periph1_parents,		/* name, parents */
+    0x44,					/* offset */
+    8, 5, 0, 0,					/* n factor */
+    4, 2, 0, 0,					/* k factor */
+    0, 0, 2, AW_CLK_FACTOR_FIXED,		/* m factor (fake) */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* p factor (fake) */
+    31,						/* gate */
+    28, 1000,					/* lock */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
+
 static const char *pll_de_parents[] = {"osc24M"};
-static const char *apb2_parents[] = {"osc32k", "osc24M", "pll_periph0", "pll_periph0"};
-static const char *mod_parents[] = {"osc24M", "pll_periph0", "pll_periph1"};
-static const char *ts_parents[] = {"osc24M", "pll_periph0"};
-static const char *spdif_parents[] = {"pll_audio"};
-static const char *i2s_parents[] = {"pll_audio-8x", "pll_audio-4x", "pll_audio-2x", "pll_audio"};
-
-static struct aw_clk_nm_def nm_clks[] = {
-	NM_CLK_WITH_FRAC(H3_CLK_PLL_VIDEO,		/* id */
-	    "pll_video", pll_video_parents,		/* name, parents */
-	    0x10,					/* offset */
-	    8, 7, 0, 0,					/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    31, 28, 1000,				/* gate, lock, lock retries */
-	    AW_CLK_HAS_LOCK,				/* flags */
-	    270000000, 297000000,			/* freq0, freq1 */
-	    24, 25)					/* mode sel, freq sel */
-	NM_CLK_WITH_FRAC(H3_CLK_PLL_VE,			/* id */
-	    "pll_ve", pll_ve_parents,			/* name, parents */
-	    0x18,					/* offset */
-	    8, 7, 0, 0,					/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    31, 28, 1000,				/* gate, lock, lock retries */
-	    AW_CLK_HAS_LOCK,				/* flags */
-	    270000000, 297000000,			/* freq0, freq1 */
-	    24, 25)					/* mode sel, freq sel */
-	NM_CLK_WITH_FRAC(H3_CLK_PLL_GPU,		/* id */
-	    "pll_gpu", pll_gpu_parents,			/* name, parents */
-	    0x38,					/* offset */
-	    8, 7, 0, 0,					/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    31, 28, 1000,				/* gate, lock, lock retries */
-	    AW_CLK_HAS_LOCK,				/* flags */
-	    270000000, 297000000,			/* freq0, freq1 */
-	    24, 25)					/* mode sel, freq sel */
-	NM_CLK_WITH_FRAC(H3_CLK_PLL_DE,			/* id */
-	    "pll_de", pll_de_parents,			/* name, parents */
-	    0x48,					/* offset */
-	    8, 7, 0, 0,					/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    31, 28, 1000,				/* gate, lock, lock retries */
-	    AW_CLK_HAS_LOCK,				/* flags */
-	    270000000, 297000000,			/* freq0, freq1 */
-	    24, 25)					/* mode sel, freq sel */
-	NM_CLK(H3_CLK_APB2,				/* id */
-	    "apb2", apb2_parents,			/* name, parents */
-	    0x58,					/* offset */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
-	    0, 5, 0, 0,					/* m factor */
-	    24, 2,					/* mux */
-	    0,						/* gate */
-	    AW_CLK_HAS_MUX)
-	NM_CLK(H3_CLK_NAND, "nand", mod_parents,	/* id, name, parents */
-	    0x80,					/* offset */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    24, 2,					/* mux */
-	    31,						/* gate */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX)		/* flags */
-	NM_CLK(H3_CLK_MMC0, "mmc0", mod_parents,	/* id, name, parents */
-	    0x88,					/* offset */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    24, 2,					/* mux */
-	    31,						/* gate */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
-	    AW_CLK_REPARENT)				/* flags */
-	NM_CLK(H3_CLK_MMC1, "mmc1", mod_parents,	/* id, name, parents */
-	    0x8c,					/* offset */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    24, 2,					/* mux */
-	    31,						/* gate */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
-	    AW_CLK_REPARENT)				/* flags */
-	NM_CLK(H3_CLK_MMC2, "mmc2", mod_parents,	/* id, name, parents */
-	    0x90,					/* offset */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    24, 2,					/* mux */
-	    31,						/* gate */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
-	    AW_CLK_REPARENT)				/* flags */
-	NM_CLK(H3_CLK_TS, "ts", ts_parents,		/* id, name, parents */
-	    0x98,					/* offset */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    24, 2,					/* mux */
-	    31,						/* gate */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX)		/* flags */
-	NM_CLK(H3_CLK_CE, "ce", mod_parents,		/* id, name, parents */
-	    0x9C,					/* offset */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    24, 2,					/* mux */
-	    31,						/* gate */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX)		/* flags */
-	NM_CLK(H3_CLK_SPI0, "spi0", mod_parents,	/* id, name, parents */
-	    0xA0,					/* offset */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    24, 2,					/* mux */
-	    31,						/* gate */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
-	    AW_CLK_REPARENT)				/* flags */
-	NM_CLK(H3_CLK_SPI1, "spi1", mod_parents,	/* id, name, parents */
-	    0xA4,					/* offset */
-	    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
-	    0, 4, 0, 0,					/* m factor */
-	    24, 2,					/* mux */
-	    31,						/* gate */
-	    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
-	    AW_CLK_REPARENT)				/* flags */
-	NM_CLK(H3_CLK_SPDIF, "spdif", spdif_parents,	/* id, name, parents */
-	    0xC0,					/* offset */
-	    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake) */
-	    0, 4, 0, 0,					/* m factor */
-	    0, 0,					/* mux */
-	    31,						/* gate */
-	    AW_CLK_HAS_GATE)				/* flags */
-
-};
+NM_CLK_WITH_FRAC(pll_de_clk,
+    H3_CLK_PLL_DE,				/* id */
+    "pll_de", pll_de_parents,			/* name, parents */
+    0x48,					/* offset */
+    8, 7, 0, 0,					/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    31, 28, 1000,				/* gate, lock, lock retries */
+    AW_CLK_HAS_LOCK,				/* flags */
+    270000000, 297000000,			/* freq0, freq1 */
+    24, 25);					/* mode sel, freq sel */
 
 static const char *cpux_parents[] = {"osc32k", "osc24M", "pll_cpux", "pll_cpux"};
+MUX_CLK(cpux_clk,
+    H3_CLK_CPUX,		/* id */
+    "cpux", cpux_parents,	/* name, parents */
+    0x50, 16, 2);		/* offset, shift, width */
 
-static struct clk_mux_def mux_clks[] = {
-	MUX_CLK(H3_CLK_CPUX,		/* id */
-	    "cpux", cpux_parents,	/* name, parents */
-	    0x50, 16, 2)		/* offset, shift, width */
-	MUX_CLK(0,
-	    "i2s0mux", i2s_parents,
-	    0xb0, 16, 2)
-	MUX_CLK(0,
-	    "i2s1mux", i2s_parents,
-	    0xb4, 16, 2)
-	MUX_CLK(0,
-	    "i2s2mux", i2s_parents,
-	    0xb8, 16, 2)
-};
+static const char *axi_parents[] = {"cpux"};
+DIV_CLK(axi_clk,
+    H3_CLK_AXI,		/* id */
+    "axi", axi_parents,		/* name, parents */
+    0x50,			/* offset */
+    0, 2,			/* shift, width */
+    0, NULL);			/* flags, div table */
 
+static const char *ahb1_parents[] = {"osc32k", "osc24M", "axi", "pll_periph0"};
+PREDIV_CLK(ahb1_clk, H3_CLK_AHB1,				/* id */
+    "ahb1", ahb1_parents,					/* name, parents */
+    0x54,							/* offset */
+    12, 2,							/* mux */
+    4, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,			/* div */
+    6, 2, 0, AW_CLK_FACTOR_HAS_COND,				/* prediv */
+    12, 2, 3);							/* prediv condition */
+
+static const char *apb1_parents[] = {"ahb1"};
 static struct clk_div_table apb1_div_table[] = {
 	{ .value = 0, .divider = 2, },
 	{ .value = 1, .divider = 2, },
@@ -402,7 +352,35 @@ static struct clk_div_table apb1_div_table[] = {
 	{ .value = 3, .divider = 8, },
 	{ },
 };
+DIV_CLK(apb1_clk,
+    H3_CLK_APB1,		/* id */
+    "apb1", apb1_parents,	/* name, parents */
+    0x54,			/* offset */
+    8, 2,			/* shift, width */
+    CLK_DIV_WITH_TABLE,		/* flags */
+    apb1_div_table);		/* div table */
 
+static const char *apb2_parents[] = {"osc32k", "osc24M", "pll_periph0", "pll_periph0"};
+NM_CLK(apb2_clk,
+    H3_CLK_APB2,				/* id */
+    "apb2", apb2_parents,			/* name, parents */
+    0x58,					/* offset */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 5, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    0,						/* gate */
+    AW_CLK_HAS_MUX);
+
+static const char *ahb2_parents[] = {"ahb1", "pll_periph0"};
+PREDIV_CLK(ahb2_clk, H3_CLK_AHB2,				/* id */
+    "ahb2", ahb2_parents,					/* name, parents */
+    0x5c,							/* offset */
+    0, 2,							/* mux */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,				/* div */
+    0, 0, 2, AW_CLK_FACTOR_HAS_COND | AW_CLK_FACTOR_FIXED,	/* prediv */
+    0, 2, 1);							/* prediv condition */
+
+static const char *ths_parents[] = {"osc24M"};
 static struct clk_div_table ths_div_table[] = {
 	{ .value = 0, .divider = 1, },
 	{ .value = 1, .divider = 2, },
@@ -410,60 +388,182 @@ static struct clk_div_table ths_div_table[] = {
 	{ .value = 3, .divider = 6, },
 	{ },
 };
+DIV_CLK(thsdiv_clk,
+    0,			/* id */
+    "thsdiv", ths_parents,	/* name, parents */
+    0x74,			/* offset */
+    0, 2,			/* shift, width */
+    CLK_DIV_WITH_TABLE,		/* flags */
+    ths_div_table);		/* div table */
 
-static const char *ths_parents[] = {"osc24M"};
-static const char *axi_parents[] = {"cpux"};
-static const char *apb1_parents[] = {"ahb1"};
+static const char *mod_parents[] = {"osc24M", "pll_periph0", "pll_periph1"};
+NM_CLK(nand_clk,
+    H3_CLK_NAND, "nand", mod_parents,		/* id, name, parents */
+    0x80,					/* offset */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
 
-static struct clk_div_def div_clks[] = {
-	DIV_CLK(H3_CLK_AXI,		/* id */
-	    "axi", axi_parents,		/* name, parents */
-	    0x50,			/* offset */
-	    0, 2,			/* shift, width */
-	    0, NULL)			/* flags, div table */
-	DIV_CLK(H3_CLK_APB1,		/* id */
-	    "apb1", apb1_parents,	/* name, parents */
-	    0x54,			/* offset */
-	    8, 2,			/* shift, width */
-	    CLK_DIV_WITH_TABLE,		/* flags */
-	    apb1_div_table)		/* div table */
-	DIV_CLK(0,			/* id */
-	    "thsdiv", ths_parents,	/* name, parents */
-	    0x74,			/* offset */
-	    0, 2,			/* shift, width */
-	    CLK_DIV_WITH_TABLE,		/* flags */
-	    ths_div_table)		/* div table */
+NM_CLK(mmc0_clk,
+    H3_CLK_MMC0, "mmc0", mod_parents,		/* id, name, parents */
+    0x88,					/* offset */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+NM_CLK(mmc1_clk,
+    H3_CLK_MMC1, "mmc1", mod_parents,		/* id, name, parents */
+    0x8c,					/* offset */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+NM_CLK(mmc2_clk,
+    H3_CLK_MMC2, "mmc2", mod_parents,		/* id, name, parents */
+    0x90,					/* offset */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+static const char *ts_parents[] = {"osc24M", "pll_periph0"};
+NM_CLK(ts_clk,
+    H3_CLK_TS, "ts", ts_parents,		/* id, name, parents */
+    0x98,					/* offset */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+NM_CLK(ce_clk,
+    H3_CLK_CE, "ce", mod_parents,		/* id, name, parents */
+    0x9C,					/* offset */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
+
+NM_CLK(spi0_clk,
+    H3_CLK_SPI0, "spi0", mod_parents,	/* id, name, parents */
+    0xA0,					/* offset */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+NM_CLK(spi1_clk,
+    H3_CLK_SPI1, "spi1", mod_parents,	/* id, name, parents */
+    0xA4,					/* offset */
+    16, 2, 0, AW_CLK_FACTOR_POWER_OF_TWO,	/* n factor */
+    0, 4, 0, 0,					/* m factor */
+    24, 2,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE | AW_CLK_HAS_MUX |
+    AW_CLK_REPARENT);				/* flags */
+
+static const char *i2s_parents[] = {"pll_audio-8x", "pll_audio-4x", "pll_audio-2x", "pll_audio"};
+MUX_CLK(i2s0mux_clk,
+    0, "i2s0mux", i2s_parents,			/* id, name, parents */
+    0xb0, 16, 2);				/* offset, mux shift, mux width */
+MUX_CLK(i2s1mux_clk,
+    0, "i2s1mux", i2s_parents,			/* id, name, parents */
+    0xb4, 16, 2);				/* offset, mux shift, mux width */
+MUX_CLK(i2s2mux_clk,
+    0, "i2s2mux", i2s_parents,			/* id, name, parents */
+    0xb8, 16, 2);				/* offset, mux shift, mux width */
+
+static const char *spdif_parents[] = {"pll_audio"};
+NM_CLK(spdif_clk,
+    H3_CLK_SPDIF, "spdif", spdif_parents,	/* id, name, parents */
+    0xC0,					/* offset */
+    0, 0, 1, AW_CLK_FACTOR_FIXED,		/* n factor (fake); */
+    0, 4, 0, 0,					/* m factor */
+    0, 0,					/* mux */
+    31,						/* gate */
+    AW_CLK_HAS_GATE);				/* flags */
+
+FIXED_CLK(pll_periph0_2x_clk,
+    H3_CLK_PLL_PERIPH0_2X,	/* id */
+    "pll_periph0-2x",			/* name */
+    pll_periph0_2x_parents,		/* parent */
+    0,					/* freq */
+    2,					/* mult */
+    1,					/* div */
+    0);					/* flags */
+
+/* DRAM clock 0xF4 */
+/* DE gating 0x104 */
+/* TCON0 0x118 */
+/* TVE 0x120 */
+/* Deinterlace 0x124 */
+/* CSI_MISC 0x130 */
+/* CSI 0x134 */
+/* VE 0x13C */
+/* HDMI 0x150 */
+/* MBUS 0x15C */
+/* GPU 0x1A0 */
+
+static struct aw_clk_nkmp_def *nkmp_clks[] = {
+	&pll_cpux_clk,
+	&pll_audio_clk,
+	&pll_periph0_clk,
+	&pll_periph1_clk,
 };
 
-static struct clk_fixed_def fixed_factor_clks[] = {
-	FIXED_CLK(H3_CLK_PLL_PERIPH0_2X,	/* id */
-	    "pll_periph0-2x",			/* name */
-	    pll_periph0_2x_parents,		/* parent */
-	    0,					/* freq */
-	    2,					/* mult */
-	    1,					/* div */
-	    0)					/* flags */
-	FIXED_CLK(H3_CLK_PLL_AUDIO_2X,		/* id */
-	    "pll_audio-2x",			/* name */
-	    pll_audio_mult_parents,		/* parent */
-	    0,					/* freq */
-	    2,					/* mult */
-	    1,					/* div */
-	    0)					/* flags */
-	FIXED_CLK(H3_CLK_PLL_AUDIO_4X,		/* id */
-	    "pll_audio-4x",			/* name */
-	    pll_audio_mult_parents,		/* parent */
-	    0,					/* freq */
-	    4,					/* mult */
-	    1,					/* div */
-	    0)					/* flags */
-	FIXED_CLK(H3_CLK_PLL_AUDIO_8X,		/* id */
-	    "pll_audio-8x",			/* name */
-	    pll_audio_mult_parents,		/* parent */
-	    0,					/* freq */
-	    8,					/* mult */
-	    1,					/* div */
-	    0)					/* flags */
+static struct aw_clk_nm_def *nm_clks[] = {
+	&pll_video_clk,
+	&pll_ve_clk,
+	&pll_gpu_clk,
+	&pll_de_clk,
+	&apb2_clk,
+	&nand_clk,
+	&mmc0_clk,
+	&mmc1_clk,
+	&mmc2_clk,
+	&ts_clk,
+	&ce_clk,
+	&spi0_clk,
+	&spi1_clk,
+	&spdif_clk,
+};
+
+static struct aw_clk_prediv_mux_def *prediv_mux_clks[] = {
+	&ahb1_clk,
+	&ahb2_clk,
+};
+
+static struct clk_mux_def *mux_clks[] = {
+	&cpux_clk,
+	&i2s0mux_clk,
+	&i2s1mux_clk,
+	&i2s2mux_clk,
+};
+
+static struct clk_div_def *div_clks[] = {
+	&axi_clk,
+	&apb1_clk,
+	&thsdiv_clk,
+};
+
+static struct clk_fixed_def *fixed_factor_clks[] = {
+	&pll_periph0_2x_clk,
+	&pll_audio_2x_clk,
+	&pll_audio_4x_clk,
+	&pll_audio_8x_clk,
 };
 
 static struct aw_clk_init init_clks[] = {
@@ -484,16 +584,16 @@ ccu_h3_register_clocks(struct aw_ccung_softc *sc)
 	sc->n_clk_init = nitems(init_clks);
 
 	for (i = 0; i < nitems(nkmp_clks); i++)
-		aw_clk_nkmp_register(sc->clkdom, &nkmp_clks[i]);
+		aw_clk_nkmp_register(sc->clkdom, nkmp_clks[i]);
 	for (i = 0; i < nitems(nm_clks); i++)
-		aw_clk_nm_register(sc->clkdom, &nm_clks[i]);
+		aw_clk_nm_register(sc->clkdom, nm_clks[i]);
 	for (i = 0; i < nitems(prediv_mux_clks); i++)
-		aw_clk_prediv_mux_register(sc->clkdom, &prediv_mux_clks[i]);
+		aw_clk_prediv_mux_register(sc->clkdom, prediv_mux_clks[i]);
 
 	for (i = 0; i < nitems(mux_clks); i++)
-		clknode_mux_register(sc->clkdom, &mux_clks[i]);
+		clknode_mux_register(sc->clkdom, mux_clks[i]);
 	for (i = 0; i < nitems(div_clks); i++)
-		clknode_div_register(sc->clkdom, &div_clks[i]);
+		clknode_div_register(sc->clkdom, div_clks[i]);
 	for (i = 0; i < nitems(fixed_factor_clks); i++)
-		clknode_fixed_register(sc->clkdom, &fixed_factor_clks[i]);
+		clknode_fixed_register(sc->clkdom, fixed_factor_clks[i]);
 }

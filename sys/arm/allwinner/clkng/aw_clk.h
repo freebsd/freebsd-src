@@ -179,7 +179,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.shift = s,			\
 	},
 
-#define NKMP_CLK(_id, _name, _pnames,			\
+#define NKMP_CLK(_clkname, _id, _name, _pnames,		\
   _offset,						\
   _n_shift, _n_width, _n_value, _n_flags,		\
   _k_shift, _k_width, _k_value, _k_flags,		\
@@ -188,7 +188,7 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
   _gate,						\
   _lock, _lock_retries,					\
   _flags)						\
-	{						\
+	static struct aw_clk_nkmp_def _clkname = {	\
 		.clkdef = {				\
 			.id = _id,			\
 			.name = _name,			\
@@ -216,16 +216,16 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.lock_shift = _lock,			\
 		.lock_retries = _lock_retries,		\
 		.flags = _flags,			\
-	},
+	}
 
-#define NM_CLK(_id, _name, _pnames,			\
+#define NM_CLK(_clkname, _id, _name, _pnames,		\
      _offset,						\
      _nshift, _nwidth, _nvalue, _nflags,		\
      _mshift, _mwidth, _mvalue, _mflags,		\
     _mux_shift, _mux_width,				\
     _gate_shift,					\
     _flags)						\
-	{						\
+	static struct aw_clk_nm_def _clkname = 	{	\
 		.clkdef = {				\
 			.id = _id,			\
 			.name = _name,			\
@@ -244,15 +244,15 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.m.flags = _mflags,			\
 		.mux_width = _mux_width,		\
 		.flags = _flags,			\
-	},
+	}
 
-#define NM_CLK_WITH_FRAC(_id, _name, _pnames,		\
+#define NM_CLK_WITH_FRAC(_clkname, _id, _name, _pnames,	\
      _offset,						\
      _nshift, _nwidth, _nvalue, _nflags,		\
      _mshift, _mwidth, _mvalue, _mflags,		\
      _gate_shift, _lock_shift,_lock_retries,		\
     _flags, _freq0, _freq1, _mode_sel, _freq_sel)	\
-	{						\
+	static struct aw_clk_nm_def _clkname =	{	\
 		.clkdef = {				\
 			.id = _id,			\
 			.name = _name,			\
@@ -276,15 +276,15 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.frac.freq1 = _freq1,			\
 		.frac.mode_sel = _mode_sel,		\
 		.frac.freq_sel = _freq_sel,		\
-	},
+	}
 
-#define PREDIV_CLK(_id, _name, _pnames,		\
+#define PREDIV_CLK(_clkname, _id, _name, _pnames,	\
   _offset,	\
   _mux_shift, _mux_width,	\
   _div_shift, _div_width, _div_value, _div_flags,	\
   _prediv_shift, _prediv_width, _prediv_value, _prediv_flags,	\
   _prediv_cond_shift, _prediv_cond_width, _prediv_cond_value)	\
-	{							\
+	static struct aw_clk_prediv_mux_def _clkname = {	\
 		.clkdef = {					\
 			.id = _id,				\
 			.name = _name,				\
@@ -305,11 +305,11 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.prediv.cond_shift = _prediv_cond_shift,	\
 		.prediv.cond_width = _prediv_cond_width,	\
 		.prediv.cond_value = _prediv_cond_value,	\
-	},
+	}
 
-#define MUX_CLK(_id, _name, _pnames,			\
+#define MUX_CLK(_clkname, _id, _name, _pnames,		\
   _offset,  _shift,  _width)				\
-	{						\
+	static struct clk_mux_def _clkname = {	\
 		.clkdef = {				\
 			.id = _id,			\
 			.name = _name,			\
@@ -319,13 +319,13 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.offset = _offset,			\
 		.shift = _shift,			\
 		.width = _width,			\
-	},
+	}
 
-#define DIV_CLK(_id, _name, _pnames,			\
+#define DIV_CLK(_clkname, _id, _name, _pnames,		\
   _offset,						\
   _i_shift, _i_width,					\
   _div_flags, _div_table)				\
-	{						\
+	static struct clk_div_def _clkname = {		\
 		.clkdef = {				\
 			.id = _id,			\
 			.name = _name,			\
@@ -337,11 +337,11 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.i_width = _i_width,			\
 		.div_flags = _div_flags,		\
 		.div_table = _div_table,		\
-	},
+	}
 
-#define FIXED_CLK(_id, _name, _pnames,			\
+#define FIXED_CLK(_clkname, _id, _name, _pnames,	\
   _freq, _mult, _div, _flags)				\
-	{						\
+	static struct clk_fixed_def _clkname = {	\
 		.clkdef = {				\
 			.id = _id,			\
 			.name = _name,			\
@@ -352,6 +352,6 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.mult = _mult,				\
 		.div = _div,				\
 		.fixed_flags = _flags,			\
-	},
+	}
 
 #endif /* __AW_CLK_H__ */
