@@ -52,10 +52,13 @@ struct aw_clk_nm_sc {
 
 	struct aw_clk_factor	m;
 	struct aw_clk_factor	n;
+	struct aw_clk_frac	frac;
 
 	uint32_t	mux_shift;
 	uint32_t	mux_mask;
 	uint32_t	gate_shift;
+	uint32_t	lock_shift;
+	uint32_t	lock_retries;
 
 	uint32_t	flags;
 };
@@ -178,13 +181,13 @@ aw_clk_nm_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	struct aw_clk_nm_sc *sc;
 	struct clknode *p_clk;
 	const char **p_names;
-	uint64_t cur, best;
+	uint64_t cur, best, best_frac;
 	uint32_t val, m, n, best_m, best_n;
-	int p_idx, best_parent;
+	int p_idx, best_parent, retry;
 
 	sc = clknode_get_softc(clk);
 
-	best = cur = 0;
+	best = best_frac = cur = 0;
 	best_parent = 0;
 
 	if ((sc->flags & AW_CLK_REPARENT) != 0) {
@@ -205,8 +208,15 @@ aw_clk_nm_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		p_idx = clknode_get_parent_idx(clk);
 		p_clk = clknode_get_parent(clk);
 		clknode_get_freq(p_clk, &fparent);
-	} else
-		best = aw_clk_nm_find_best(sc, fparent, fout, &best_n, &best_m);
+	} else {
+		if (sc->flags & AW_CLK_HAS_FRAC &&
+		    (*fout == sc->frac.freq0 || *fout == sc->frac.freq1))
+			best = best_frac = *fout;
+
+		if (best == 0)
+			best = aw_clk_nm_find_best(sc, fparent, fout,
+			    &best_n, &best_m);
+	}
 
 	if ((flags & CLK_SET_DRYRUN) != 0) {
 		*fout = best;
@@ -228,16 +238,35 @@ aw_clk_nm_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	if (p_idx != best_parent)
 		clknode_set_parent_by_idx(clk, best_parent);
 
-	n = aw_clk_factor_get_value(&sc->n, best_n);
-	m = aw_clk_factor_get_value(&sc->m, best_m);
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->offset, &val);
-	val &= ~sc->n.mask;
-	val &= ~sc->m.mask;
-	val |= n << sc->n.shift;
-	val |= m << sc->m.shift;
+
+	if (best_frac != 0) {
+		val &= ~sc->frac.mode_sel;
+		if (best_frac == sc->frac.freq0)
+			val &= ~sc->frac.freq_sel;
+		else
+			val |= sc->frac.freq_sel;
+	} else {
+		n = aw_clk_factor_get_value(&sc->n, best_n);
+		m = aw_clk_factor_get_value(&sc->m, best_m);
+		val &= ~sc->n.mask;
+		val &= ~sc->m.mask;
+		val |= n << sc->n.shift;
+		val |= m << sc->m.shift;
+	}
+
 	WRITE4(clk, sc->offset, val);
 	DEVICE_UNLOCK(clk);
+
+	if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
+		for (retry = 0; retry < sc->lock_retries; retry++) {
+			READ4(clk, sc->offset, &val);
+			if ((val & (1 << sc->lock_shift)) != 0)
+				break;
+			DELAY(1000);
+		}
+	}
 
 	*fout = best;
 	*stop = 1;
@@ -257,10 +286,17 @@ aw_clk_nm_recalc(struct clknode *clk, uint64_t *freq)
 	READ4(clk, sc->offset, &val);
 	DEVICE_UNLOCK(clk);
 
-	m = aw_clk_get_factor(val, &sc->m);
-	n = aw_clk_get_factor(val, &sc->n);
+	if (sc->flags & AW_CLK_HAS_FRAC && ((val & sc->frac.mode_sel) == 0)) {
+		if (val & sc->frac.freq_sel)
+			*freq = sc->frac.freq1;
+		else
+			*freq = sc->frac.freq0;
+	} else {
+		m = aw_clk_get_factor(val, &sc->m);
+		n = aw_clk_get_factor(val, &sc->n);
 
-	*freq = *freq / n / m;
+		*freq = *freq / n / m;
+	}
 
 	return (0);
 }
@@ -302,10 +338,18 @@ aw_clk_nm_register(struct clkdom *clkdom, struct aw_clk_nm_def *clkdef)
 	sc->n.mask = ((1 << sc->n.width) - 1) << sc->n.shift;
 	sc->n.flags = clkdef->n.flags;
 
+	sc->frac.freq0 = clkdef->frac.freq0;
+	sc->frac.freq1 = clkdef->frac.freq1;
+	sc->frac.mode_sel = 1 << clkdef->frac.mode_sel;
+	sc->frac.freq_sel = 1 << clkdef->frac.freq_sel;
+
 	sc->mux_shift = clkdef->mux_shift;
 	sc->mux_mask = ((1 << clkdef->mux_width) - 1) << sc->mux_shift;
 
 	sc->gate_shift = clkdef->gate_shift;
+
+	sc->lock_shift = clkdef->lock_shift;
+	sc->lock_retries = clkdef->lock_retries;
 
 	sc->flags = clkdef->flags;
 

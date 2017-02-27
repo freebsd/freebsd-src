@@ -37,10 +37,13 @@ struct aw_clk_nm_def {
 
 	struct aw_clk_factor	m;
 	struct aw_clk_factor	n;
+	struct aw_clk_frac	frac;
 
 	uint32_t		mux_shift;
 	uint32_t		mux_width;
 	uint32_t		gate_shift;
+	uint32_t		lock_shift;
+	uint32_t		lock_retries;
 
 	uint32_t		flags;
 };
