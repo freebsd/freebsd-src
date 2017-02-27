@@ -147,9 +147,9 @@ static struct aw_ccung_gate h3_ccu_gates[] = {
 	CCU_GATE(H3_CLK_BUS_SPDIF, "bus-spdif", "apb1", 0x68, 1)
 	CCU_GATE(H3_CLK_BUS_PIO, "bus-pio", "apb1", 0x68, 5)
 	CCU_GATE(H3_CLK_BUS_THS, "bus-ths", "apb1", 0x68, 8)
-	CCU_GATE(H3_CLK_BUS_I2S0, "bus-i2c0", "apb1", 0x68, 12)
-	CCU_GATE(H3_CLK_BUS_I2S1, "bus-i2c1", "apb1", 0x68, 13)
-	CCU_GATE(H3_CLK_BUS_I2S2, "bus-i2c2", "apb1", 0x68, 14)
+	CCU_GATE(H3_CLK_BUS_I2S0, "bus-i2s0", "apb1", 0x68, 12)
+	CCU_GATE(H3_CLK_BUS_I2S1, "bus-i2s1", "apb1", 0x68, 13)
+	CCU_GATE(H3_CLK_BUS_I2S2, "bus-i2s2", "apb1", 0x68, 14)
 
 	CCU_GATE(H3_CLK_BUS_I2C0, "bus-i2c0", "apb2", 0x6c, 0)
 	CCU_GATE(H3_CLK_BUS_I2C1, "bus-i2c1", "apb2", 0x6c, 1)
