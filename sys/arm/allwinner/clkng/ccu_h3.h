@@ -184,6 +184,25 @@
 #define	H3_CLK_USBOHCI2		94
 #define	H3_CLK_USBOHCI3		95
 
+#define	H3_CLK_DRAM_VE		97
+#define	H3_CLK_DRAM_CSI		98
+#define	H3_CLK_DRAM_DEINTERLACE	99
+#define	H3_CLK_DRAM_TS		100
+#define	H3_CLK_DE		101
+#define	H3_CLK_TCON0		102
+#define	H3_CLK_TVE		103
+#define	H3_CLK_DEINTERLACE	104
+#define	H3_CLK_CSI_MISC		105
+#define	H3_CLK_CSI_SCLK		106
+#define	H3_CLK_CSI_MCLK		107
+#define	H3_CLK_VE		108
+#define	H3_CLK_AC_DIG		109
+#define	H3_CLK_AVS		110
+#define	H3_CLK_HDMI		111
+#define	H3_CLK_HDMI_DDC		112
+
+#define	H3_CLK_GPU		114
+
 void ccu_h3_register_clocks(struct aw_ccung_softc *sc);
 
 #endif /* __CCU_H3_H__ */
