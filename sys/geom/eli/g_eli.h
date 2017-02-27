@@ -32,7 +32,8 @@
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
-#include <crypto/sha2/sha2.h>
+#include <crypto/sha2/sha256.h>
+#include <crypto/sha2/sha512.h>
 #include <opencrypto/cryptodev.h>
 #ifdef _KERNEL
 #include <sys/bio.h>
