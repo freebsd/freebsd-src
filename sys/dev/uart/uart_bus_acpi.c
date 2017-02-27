@@ -109,13 +109,13 @@ uart_acpi_probe(device_t dev)
 #if defined(__i386__) || defined(__amd64__)
 	if (!ISA_PNP_PROBE(parent, dev, acpi_ns8250_ids)) {
 		sc->sc_class = &uart_ns8250_class;
-		return (uart_bus_probe(dev, 0, 0, 0, 0));
+		return (uart_bus_probe(dev, 0, 0, 0, 0, 0));
 	}
 
 	/* Add checks for non-ns8250 IDs here. */
 #elif defined(__aarch64__)
 	if ((sc->sc_class = uart_acpi_find_device(dev)) != NULL)
-		return (uart_bus_probe(dev, 2, 0, 0, 0));
+		return (uart_bus_probe(dev, 2, 0, 0, 0, 0));
 #endif
 
 	return (ENXIO);
