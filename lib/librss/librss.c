@@ -244,10 +244,10 @@ rss_config_get(void)
 	return (rc);
 
 error:
-	if ((rc != NULL) && rc->rss_bucket_map)
+	if (rc != NULL) {
 		free(rc->rss_bucket_map);
-	if (rc != NULL)
 		free(rc);
+	}
 	return (NULL);
 }
 
