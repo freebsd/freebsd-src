@@ -57,6 +57,7 @@ typedef unsigned int    uint;
 typedef unsigned gfp_t;
 typedef uint64_t loff_t;
 typedef vm_paddr_t resource_size_t;
+typedef uint16_t __bitwise__ __sum16;
 
 typedef u64 phys_addr_t;
 
