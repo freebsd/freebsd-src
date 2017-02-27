@@ -256,6 +256,12 @@ uart_getregshift(struct uart_class *uc)
 	return ((uc != NULL) ? uc->uc_rshift : 0);
 }
 
+u_int
+uart_getregiowidth(struct uart_class *uc)
+{
+	return ((uc != NULL) ? uc->uc_riowidth : 0);
+}
+
 /*
  * Schedule a soft interrupt. We do this on the 0 to !0 transition
  * of the TTY pending interrupt status.
@@ -485,7 +491,7 @@ uart_bus_sysdev(device_t dev)
 }
 
 int
-uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan)
+uart_bus_probe(device_t dev, int regshft, int regiowidth, int rclk, int rid, int chan)
 {
 	struct uart_softc *sc;
 	struct uart_devinfo *sysdev;
@@ -543,6 +549,7 @@ uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan)
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 	sc->sc_bas.chan = chan;
 	sc->sc_bas.regshft = regshft;
+	sc->sc_bas.regiowidth = regiowidth;
 	sc->sc_bas.rclk = (rclk == 0) ? sc->sc_class->uc_rclk : rclk;
 
 	SLIST_FOREACH(sysdev, &uart_sysdevs, next) {
