@@ -478,15 +478,15 @@ static int ctl_scsiio_precheck(struct ctl_softc *ctl_softc,
 			       struct ctl_scsiio *ctsio);
 static int ctl_scsiio(struct ctl_scsiio *ctsio);
 
-static int ctl_bus_reset(struct ctl_softc *ctl_softc, union ctl_io *io);
-static int ctl_target_reset(struct ctl_softc *ctl_softc, union ctl_io *io,
-			    ctl_ua_type ua_type);
-static int ctl_do_lun_reset(struct ctl_lun *lun, union ctl_io *io,
+static int ctl_target_reset(union ctl_io *io);
+static void ctl_do_lun_reset(struct ctl_lun *lun, uint32_t initidx,
 			 ctl_ua_type ua_type);
-static int ctl_lun_reset(struct ctl_softc *ctl_softc, union ctl_io *io);
+static int ctl_lun_reset(union ctl_io *io);
 static int ctl_abort_task(union ctl_io *io);
 static int ctl_abort_task_set(union ctl_io *io);
 static int ctl_query_task(union ctl_io *io, int task_set);
+static void ctl_i_t_nexus_loss(struct ctl_softc *softc, uint32_t initidx,
+			      ctl_ua_type ua_type);
 static int ctl_i_t_nexus_reset(union ctl_io *io);
 static int ctl_query_async_event(union ctl_io *io);
 static void ctl_run_task(union ctl_io *io);
@@ -1288,6 +1288,9 @@ ctl_isc_iid_sync(struct ctl_softc *softc, union ctl_ha_msg *msg, int len)
 		return;
 	}
 	iid = msg->hdr.nexus.initid;
+	if (port->wwpn_iid[iid].in_use != 0 &&
+	    msg->iid.in_use == 0)
+		ctl_i_t_nexus_loss(softc, iid, CTL_UA_POWERON);
 	port->wwpn_iid[iid].in_use = msg->iid.in_use;
 	port->wwpn_iid[iid].wwpn = msg->iid.wwpn;
 	free(port->wwpn_iid[iid].name, M_CTL);
@@ -2027,6 +2030,7 @@ int
 ctl_remove_initiator(struct ctl_port *port, int iid)
 {
 	struct ctl_softc *softc = port->ctl_softc;
+	int last;
 
 	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
@@ -2037,9 +2041,11 @@ ctl_remove_initiator(struct ctl_port *port, int iid)
 	}
 
 	mtx_lock(&softc->ctl_lock);
-	port->wwpn_iid[iid].in_use--;
+	last = (--port->wwpn_iid[iid].in_use == 0);
 	port->wwpn_iid[iid].last_use = time_uptime;
 	mtx_unlock(&softc->ctl_lock);
+	if (last)
+		ctl_i_t_nexus_loss(softc, iid, CTL_UA_POWERON);
 	ctl_isc_announce_iid(port, iid);
 
 	return (0);
@@ -2144,11 +2150,6 @@ ctl_add_initiator(struct ctl_port *port, int iid, uint64_t wwpn, char *name)
 		    __func__, port->targ_port, iid, wwpn, name,
 		    (uintmax_t)port->wwpn_iid[iid].wwpn,
 		    port->wwpn_iid[iid].name);
-
-		/*
-		 * XXX KDM clear pending_sense and pending_ua on each LUN
-		 * for this initiator.
-		 */
 	}
 take:
 	free(port->wwpn_iid[iid].name, M_CTL);
@@ -11603,50 +11604,42 @@ bailout:
 	return (retval);
 }
 
-/*
- * Since we only implement one target right now, a bus reset simply resets
- * our single target.
- */
 static int
-ctl_bus_reset(struct ctl_softc *softc, union ctl_io *io)
+ctl_target_reset(union ctl_io *io)
 {
-	return(ctl_target_reset(softc, io, CTL_UA_BUS_RESET));
-}
-
-static int
-ctl_target_reset(struct ctl_softc *softc, union ctl_io *io,
-		 ctl_ua_type ua_type)
-{
+	struct ctl_softc *softc = CTL_SOFTC(io);
 	struct ctl_port *port = CTL_PORT(io);
 	struct ctl_lun *lun;
-	int retval;
+	uint32_t initidx;
+	ctl_ua_type ua_type;
 
 	if (!(io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)) {
 		union ctl_ha_msg msg_info;
 
 		msg_info.hdr.nexus = io->io_hdr.nexus;
-		if (ua_type==CTL_UA_TARG_RESET)
-			msg_info.task.task_action = CTL_TASK_TARGET_RESET;
-		else
-			msg_info.task.task_action = CTL_TASK_BUS_RESET;
+		msg_info.task.task_action = io->taskio.task_action;
 		msg_info.hdr.msg_type = CTL_MSG_MANAGE_TASKS;
 		msg_info.hdr.original_sc = NULL;
 		msg_info.hdr.serializing_sc = NULL;
 		ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
 		    sizeof(msg_info.task), M_WAITOK);
 	}
-	retval = 0;
 
+	initidx = ctl_get_initindex(&io->io_hdr.nexus);
+	if (io->taskio.task_action == CTL_TASK_TARGET_RESET)
+		ua_type = CTL_UA_TARG_RESET;
+	else
+		ua_type = CTL_UA_BUS_RESET;
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
 		if (port != NULL &&
 		    ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
-		retval += ctl_do_lun_reset(lun, io, ua_type);
+		ctl_do_lun_reset(lun, initidx, ua_type);
 	}
 	mtx_unlock(&softc->ctl_lock);
 	io->taskio.task_status = CTL_TASK_FUNCTION_COMPLETE;
-	return (retval);
+	return (0);
 }
 
 /*
@@ -11670,66 +11663,51 @@ ctl_target_reset(struct ctl_softc *softc, union ctl_io *io,
  *
  * XXX KDM for now, we're setting unit attention for all initiators.
  */
-static int
-ctl_do_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
+static void
+ctl_do_lun_reset(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua_type)
 {
 	union ctl_io *xio;
-#if 0
-	uint32_t initidx;
-#endif
 	int i;
 
 	mtx_lock(&lun->lun_lock);
-	/*
-	 * Run through the OOA queue and abort each I/O.
-	 */
+	/* Abort tasks. */
 	for (xio = (union ctl_io *)TAILQ_FIRST(&lun->ooa_queue); xio != NULL;
 	     xio = (union ctl_io *)TAILQ_NEXT(&xio->io_hdr, ooa_links)) {
 		xio->io_hdr.flags |= CTL_FLAG_ABORT | CTL_FLAG_ABORT_STATUS;
 	}
-
-	/*
-	 * This version sets unit attention for every
-	 */
-#if 0
-	initidx = ctl_get_initindex(&io->io_hdr.nexus);
-	ctl_est_ua_all(lun, initidx, ua_type);
-#else
-	ctl_est_ua_all(lun, -1, ua_type);
-#endif
-
-	/*
-	 * A reset (any kind, really) clears reservations established with
-	 * RESERVE/RELEASE.  It does not clear reservations established
-	 * with PERSISTENT RESERVE OUT, but we don't support that at the
-	 * moment anyway.  See SPC-2, section 5.6.  SPC-3 doesn't address
-	 * reservations made with the RESERVE/RELEASE commands, because
-	 * those commands are obsolete in SPC-3.
-	 */
-	lun->flags &= ~CTL_LUN_RESERVED;
-
+	/* Clear CA. */
 	for (i = 0; i < CTL_MAX_PORTS; i++) {
 		free(lun->pending_sense[i], M_CTL);
 		lun->pending_sense[i] = NULL;
 	}
-	lun->prevent_count = 0;
+	/* Clear reservation. */
+	lun->flags &= ~CTL_LUN_RESERVED;
+	/* Clear prevent media removal. */
 	if (lun->prevent) {
 		for (i = 0; i < CTL_MAX_INITIATORS; i++)
 			ctl_clear_mask(lun->prevent, i);
+		lun->prevent_count = 0;
 	}
+	/* Clear TPC status */
+	ctl_tpc_lun_clear(lun, -1);
+	/* Establish UA. */
+#if 0
+	ctl_est_ua_all(lun, initidx, ua_type);
+#else
+	ctl_est_ua_all(lun, -1, ua_type);
+#endif
 	mtx_unlock(&lun->lun_lock);
-
-	return (0);
 }
 
 static int
-ctl_lun_reset(struct ctl_softc *softc, union ctl_io *io)
+ctl_lun_reset(union ctl_io *io)
 {
+	struct ctl_softc *softc = CTL_SOFTC(io);
 	struct ctl_lun *lun;
-	uint32_t targ_lun;
-	int retval;
+	uint32_t targ_lun, initidx;
 
 	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
+	initidx = ctl_get_initindex(&io->io_hdr.nexus);
 	mtx_lock(&softc->ctl_lock);
 	if (targ_lun >= CTL_MAX_LUNS ||
 	    (lun = softc->ctl_luns[targ_lun]) == NULL) {
@@ -11737,7 +11715,7 @@ ctl_lun_reset(struct ctl_softc *softc, union ctl_io *io)
 		io->taskio.task_status = CTL_TASK_LUN_DOES_NOT_EXIST;
 		return (1);
 	}
-	retval = ctl_do_lun_reset(lun, io, CTL_UA_LUN_RESET);
+	ctl_do_lun_reset(lun, initidx, CTL_UA_LUN_RESET);
 	mtx_unlock(&softc->ctl_lock);
 	io->taskio.task_status = CTL_TASK_FUNCTION_COMPLETE;
 
@@ -11752,7 +11730,7 @@ ctl_lun_reset(struct ctl_softc *softc, union ctl_io *io)
 		ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
 		    sizeof(msg_info.task), M_WAITOK);
 	}
-	return (retval);
+	return (0);
 }
 
 static void
@@ -11832,12 +11810,46 @@ ctl_abort_task_set(union ctl_io *io)
 	return (0);
 }
 
+static void
+ctl_i_t_nexus_loss(struct ctl_softc *softc, uint32_t initidx,
+    ctl_ua_type ua_type)
+{
+	struct ctl_lun *lun;
+	struct scsi_sense_data *ps;
+	uint32_t p, i;
+
+	p = initidx / CTL_MAX_INIT_PER_PORT;
+	i = initidx % CTL_MAX_INIT_PER_PORT;
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		mtx_lock(&lun->lun_lock);
+		/* Abort tasks. */
+		ctl_abort_tasks_lun(lun, p, i, 1);
+		/* Clear CA. */
+		ps = lun->pending_sense[p];
+		if (ps != NULL)
+			ps[i].error_code = 0;
+		/* Clear reservation. */
+		if ((lun->flags & CTL_LUN_RESERVED) && (lun->res_idx == initidx))
+			lun->flags &= ~CTL_LUN_RESERVED;
+		/* Clear prevent media removal. */
+		if (lun->prevent && ctl_is_set(lun->prevent, initidx)) {
+			ctl_clear_mask(lun->prevent, initidx);
+			lun->prevent_count--;
+		}
+		/* Clear TPC status */
+		ctl_tpc_lun_clear(lun, initidx);
+		/* Establish UA. */
+		ctl_est_ua(lun, initidx, ua_type);
+		mtx_unlock(&lun->lun_lock);
+	}
+	mtx_unlock(&softc->ctl_lock);
+}
+
 static int
 ctl_i_t_nexus_reset(union ctl_io *io)
 {
 	struct ctl_softc *softc = CTL_SOFTC(io);
-	struct ctl_lun *lun;
-	struct scsi_sense_data *ps;
 	uint32_t initidx;
 
 	if (!(io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)) {
@@ -11853,24 +11865,7 @@ ctl_i_t_nexus_reset(union ctl_io *io)
 	}
 
 	initidx = ctl_get_initindex(&io->io_hdr.nexus);
-	mtx_lock(&softc->ctl_lock);
-	STAILQ_FOREACH(lun, &softc->lun_list, links) {
-		mtx_lock(&lun->lun_lock);
-		ctl_abort_tasks_lun(lun, io->io_hdr.nexus.targ_port,
-		    io->io_hdr.nexus.initid, 1);
-		ps = lun->pending_sense[initidx / CTL_MAX_INIT_PER_PORT];
-		if (ps != NULL)
-			ps[initidx % CTL_MAX_INIT_PER_PORT].error_code = 0;
-		if ((lun->flags & CTL_LUN_RESERVED) && (lun->res_idx == initidx))
-			lun->flags &= ~CTL_LUN_RESERVED;
-		if (lun->prevent && ctl_is_set(lun->prevent, initidx)) {
-			ctl_clear_mask(lun->prevent, initidx);
-			lun->prevent_count--;
-		}
-		ctl_est_ua(lun, initidx, CTL_UA_I_T_NEXUS_LOSS);
-		mtx_unlock(&lun->lun_lock);
-	}
-	mtx_unlock(&softc->ctl_lock);
+	ctl_i_t_nexus_loss(softc, initidx, CTL_UA_I_T_NEXUS_LOSS);
 	io->taskio.task_status = CTL_TASK_FUNCTION_COMPLETE;
 	return (0);
 }
@@ -12079,7 +12074,6 @@ ctl_query_async_event(union ctl_io *io)
 static void
 ctl_run_task(union ctl_io *io)
 {
-	struct ctl_softc *softc = CTL_SOFTC(io);
 	int retval = 1;
 
 	CTL_DEBUG_PRINT(("ctl_run_task\n"));
@@ -12101,13 +12095,11 @@ ctl_run_task(union ctl_io *io)
 		retval = ctl_i_t_nexus_reset(io);
 		break;
 	case CTL_TASK_LUN_RESET:
-		retval = ctl_lun_reset(softc, io);
+		retval = ctl_lun_reset(io);
 		break;
 	case CTL_TASK_TARGET_RESET:
-		retval = ctl_target_reset(softc, io, CTL_UA_TARG_RESET);
-		break;
 	case CTL_TASK_BUS_RESET:
-		retval = ctl_bus_reset(softc, io);
+		retval = ctl_target_reset(io);
 		break;
 	case CTL_TASK_PORT_LOGIN:
 		break;
