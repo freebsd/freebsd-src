@@ -528,6 +528,7 @@ int ctl_get_lba_status(struct ctl_scsiio *ctsio);
 void ctl_tpc_init(struct ctl_softc *softc);
 void ctl_tpc_shutdown(struct ctl_softc *softc);
 void ctl_tpc_lun_init(struct ctl_lun *lun);
+void ctl_tpc_lun_clear(struct ctl_lun *lun, uint32_t initidx);
 void ctl_tpc_lun_shutdown(struct ctl_lun *lun);
 int ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len);
 int ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio);
