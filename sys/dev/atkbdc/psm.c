@@ -3194,7 +3194,7 @@ psmgestures(struct psm_softc *sc, finger_t *fingers, int nfingers,
 		if (sc->synhw.capClickPad && ms->button & MOUSE_BUTTON1DOWN) {
 			y_ok = sc->syninfo.softbuttons_y >= 0 ?
 			    start_y < sc->syninfo.softbuttons_y :
-			    start_y > max_y - sc->syninfo.softbuttons_y;
+			    start_y > max_y + sc->syninfo.softbuttons_y;
 
 			center_button = MOUSE_BUTTON2DOWN;
 			center_x = sc->syninfo.softbutton2_x;
