@@ -1087,7 +1087,7 @@ icl_pdu_append_data(struct icl_pdu *request, const void *addr, size_t len,
 
 	KASSERT(len > 0, ("len == 0"));
 
-	newmb = m_getm2(NULL, len, flags, MT_DATA, M_PKTHDR);
+	newmb = m_getm2(NULL, len, flags, MT_DATA, 0);
 	if (newmb == NULL) {
 		ICL_WARN("failed to allocate mbuf for %zd bytes", len);
 		return (ENOMEM);
