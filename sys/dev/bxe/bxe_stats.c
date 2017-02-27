@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #define BITS_PER_LONG 64
 #endif
 
+extern int bxe_grc_dump(struct bxe_softc *sc);
+
 static inline long
 bxe_hilo(uint32_t *hiref)
 {
