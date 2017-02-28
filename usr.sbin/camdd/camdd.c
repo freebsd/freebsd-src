@@ -420,9 +420,9 @@ struct camdd_dev {
 };
 
 static sem_t camdd_sem;
-static int need_exit = 0;
-static int error_exit = 0;
-static int need_status = 0;
+static sig_atomic_t need_exit = 0;
+static sig_atomic_t error_exit = 0;
+static sig_atomic_t need_status = 0;
 
 #ifndef min
 #define	min(a, b) (a < b) ? a : b
@@ -712,11 +712,7 @@ camdd_alloc_buf(struct camdd_dev *dev, camdd_buf_type buf_type)
 	return (buf);
 
 bailout_error:
-	if (data_ptr != NULL)
-		free(data_ptr);
-
-	if (buf != NULL)
-		free(buf);
+	free(data_ptr);
 
 	return (NULL);
 }
@@ -2261,6 +2257,7 @@ camdd_file_run(struct camdd_dev *dev)
 		if (file_dev->tmp_buf == NULL) {
 			buf->status = CAMDD_STATUS_ERROR;
 			error_count++;
+			pthread_mutex_lock(&dev->mutex);
 			goto bailout;
 		}
 		for (i = 0, cur_offset = 0; i < data->sg_count; i++) {
@@ -2983,7 +2980,6 @@ int
 camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts, uint64_t max_io,
 	 int retry_count, int timeout)
 {
-	char *device = NULL;
 	struct cam_device *new_cam_dev = NULL;
 	struct camdd_dev *devs[2];
 	struct timespec start_time;
@@ -3003,12 +2999,11 @@ camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts, uint64_t max_io,
 	for (i = 0; i < num_io_opts; i++) {
 		switch (io_opts[i].dev_type) {
 		case CAMDD_DEV_PASS: {
-			camdd_argmask new_arglist = CAMDD_ARG_NONE;
-			int bus = 0, target = 0, lun = 0;
-			char name[30];
-			int rv;
-
 			if (isdigit(io_opts[i].dev_name[0])) {
+				camdd_argmask new_arglist = CAMDD_ARG_NONE;
+				int bus = 0, target = 0, lun = 0;
+				int rv;
+
 				/* device specified as bus:target[:lun] */
 				rv = parse_btl(io_opts[i].dev_name, &bus,
 				    &target, &lun, &new_arglist);
@@ -3024,23 +3019,21 @@ camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts, uint64_t max_io,
 					lun = 0;
 					new_arglist |= CAMDD_ARG_LUN;
 				}
+				new_cam_dev = cam_open_btl(bus, target, lun,
+				    O_RDWR, NULL);
 			} else {
+				char name[30];
+
 				if (cam_get_device(io_opts[i].dev_name, name,
 						   sizeof name, &unit) == -1) {
 					warnx("%s", cam_errbuf);
 					error = 1;
 					goto bailout;
 				}
-				device = strdup(name);
-				new_arglist |= CAMDD_ARG_DEVICE |CAMDD_ARG_UNIT;
+				new_cam_dev = cam_open_spec_device(name, unit,
+				    O_RDWR, NULL);
 			}
 
-			if (new_arglist & (CAMDD_ARG_BUS | CAMDD_ARG_TARGET))
-				new_cam_dev = cam_open_btl(bus, target, lun,
-				    O_RDWR, NULL);
-			else
-				new_cam_dev = cam_open_spec_device(device, unit,
-				    O_RDWR, NULL);
 			if (new_cam_dev == NULL) {
 				warnx("%s", cam_errbuf);
 				error = 1;
