@@ -3549,7 +3549,9 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	tx->rts_retry_limit = IWM_RTS_DFAULT_RETRY_LIMIT;
 	tx->data_retry_limit = IWM_DEFAULT_TX_RETRY;
 
-	if (type == IEEE80211_FC0_TYPE_MGT) {
+	if (type == IEEE80211_FC0_TYPE_MGT ||
+	    type == IEEE80211_FC0_TYPE_CTL ||
+	    (m->m_flags & M_EAPOL) != 0) {
 		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
 		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
 		    "%s: MGT (%d)\n", __func__, tp->mgmtrate);
@@ -3561,11 +3563,7 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 		ridx = iwm_tx_rateidx_global_lookup(sc, tp->ucastrate);
 		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
 		    "%s: FIXED_RATE (%d)\n", __func__, tp->ucastrate);
-	} else if (m->m_flags & M_EAPOL) {
-		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
-		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
-		    "%s: EAPOL\n", __func__);
-	} else if (type == IEEE80211_FC0_TYPE_DATA) {
+	} else {
 		int i;
 
 		/* for data frames, use RS table */
@@ -3582,10 +3580,6 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 		IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
 		    "%s: start with i=%d, txrate %d\n",
 		    __func__, i, iwm_rates[ridx].rate);
-	} else {
-		ridx = iwm_tx_rateidx_global_lookup(sc, tp->mgmtrate);
-		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE, "%s: DEFAULT (%d)\n",
-		    __func__, tp->mgmtrate);
 	}
 
 	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,

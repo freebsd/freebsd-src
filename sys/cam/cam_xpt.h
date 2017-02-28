@@ -34,7 +34,6 @@
 
 #ifdef _KERNEL
 #include <sys/cdefs.h>
-#include "opt_printf.h"
 #endif
 
 /* Forward Declarations */
@@ -54,15 +53,6 @@ struct cam_path;
 /* Path functions */
 
 #ifdef _KERNEL
-
-/* Wild guess based on not wanting to grow the stack too much */
-#define XPT_PRINT_MAXLEN	512
-#ifdef PRINTF_BUFR_SIZE
-#define XPT_PRINT_LEN	PRINTF_BUFR_SIZE
-#else
-#define XPT_PRINT_LEN	128
-#endif
-_Static_assert(XPT_PRINT_LEN <= XPT_PRINT_MAXLEN, "XPT_PRINT_LEN is too large");
 
 /*
  * Definition of an async handler callback block.  These are used to add

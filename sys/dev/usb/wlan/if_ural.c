@@ -1070,9 +1070,8 @@ ural_tx_bcn(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 static int
 ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211com *ic = ni->ni_ic;
-	const struct ieee80211_txparam *tp;
 	struct ural_tx_data *data;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k;
@@ -1084,8 +1083,6 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	data = STAILQ_FIRST(&sc->tx_free);
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
-
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
@@ -1239,7 +1236,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ural_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k;
 	uint32_t flags = 0;
 	uint16_t dur;
@@ -1249,8 +1246,9 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (m0->m_flags & M_EAPOL)
+		rate = tp->mgmtrate;
+	else if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		rate = tp->mcastrate;
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;

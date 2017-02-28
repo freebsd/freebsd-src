@@ -1011,7 +1011,7 @@ isp_dump_atpd(ispsoftc_t *isp, int chan)
 		if (atp->state == ATPD_STATE_FREE)
 			continue;
 		isp_prt(isp, ISP_LOGALL, "Chan %d ATP [0x%x] origdlen %u bytes_xfrd %u lun %jx nphdl 0x%04x s_id 0x%06x d_id 0x%06x oxid 0x%04x state %s",
-		    chan, atp->tag, atp->orig_datalen, atp->bytes_xfered, (uintmax_t)atp->lun, atp->nphdl, atp->sid, atp->portid, atp->oxid, states[atp->state & 0x7]);
+		    chan, atp->tag, atp->orig_datalen, atp->bytes_xfered, (uintmax_t)atp->lun, atp->nphdl, atp->sid, atp->did, atp->oxid, states[atp->state & 0x7]);
 	}
 }
 
@@ -1316,12 +1316,23 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 		/*
 		 * Check for overflow
 		 */
-		tmp = atp->bytes_xfered + atp->bytes_in_transit + xfrlen;
-		if (tmp > atp->orig_datalen) {
-			isp_prt(isp, ISP_LOGERR, "%s: [0x%x] data overflow by %u bytes", __func__, cso->tag_id, tmp - atp->orig_datalen);
+		tmp = atp->bytes_xfered + atp->bytes_in_transit;
+		if (xfrlen > 0 && tmp > atp->orig_datalen) {
+			isp_prt(isp, ISP_LOGERR,
+			    "%s: [0x%x] data overflow by %u bytes", __func__,
+			    cso->tag_id, tmp + xfrlen - atp->orig_datalen);
 			ccb->ccb_h.status = CAM_DATA_RUN_ERR;
 			xpt_done(ccb);
 			continue;
+		}
+		if (xfrlen > atp->orig_datalen - tmp) {
+			xfrlen = atp->orig_datalen - tmp;
+			if (xfrlen == 0 && !sendstatus) {
+				cso->resid = cso->dxfer_len;
+				ccb->ccb_h.status = CAM_REQ_CMP;
+				xpt_done(ccb);
+				continue;
+			}
 		}
 
 		if (IS_24XX(isp)) {
@@ -1333,8 +1344,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			ATPD_SET_SEQNO(cto, atp);
 			cto->ct_nphdl = atp->nphdl;
 			cto->ct_rxid = atp->tag;
-			cto->ct_iid_lo = atp->portid;
-			cto->ct_iid_hi = atp->portid >> 16;
+			cto->ct_iid_lo = atp->sid;
+			cto->ct_iid_hi = atp->sid >> 16;
 			cto->ct_oxid = atp->oxid;
 			cto->ct_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(ccb));
 			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
@@ -1352,16 +1363,13 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 				cto->ct_flags |= CT7_SENDSTATUS | CT7_NO_DATA;
 				resid = atp->orig_datalen - atp->bytes_xfered - atp->bytes_in_transit;
 				if (sense_length <= MAXRESPLEN_24XX) {
-					if (resid < 0) {
-						cto->ct_resid = -resid;
-					} else if (resid > 0) {
-						cto->ct_resid = resid;
-					}
 					cto->ct_flags |= CT7_FLAG_MODE1;
 					cto->ct_scsi_status = cso->scsi_status;
 					if (resid < 0) {
+						cto->ct_resid = -resid;
 						cto->ct_scsi_status |= (FCP_RESID_OVERFLOW << 8);
 					} else if (resid > 0) {
+						cto->ct_resid = resid;
 						cto->ct_scsi_status |= (FCP_RESID_UNDERFLOW << 8);
 					}
 					if (fctape) {
@@ -2080,7 +2088,8 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	atp->bytes_xfered = 0;
 	atp->lun = lun;
 	atp->nphdl = nphdl;
-	atp->portid = sid;
+	atp->sid = sid;
+	atp->did = did;
 	atp->oxid = aep->at_hdr.ox_id;
 	atp->rxid = aep->at_hdr.rx_id;
 	atp->cdb0 = atiop->cdb_io.cdb_bytes[0];
@@ -2238,10 +2247,10 @@ static void
 isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 {
 	union ccb *ccb;
-	int sentstatus = 0, ok = 0, notify_cam = 0, resid = 0, failure = 0;
+	int sentstatus = 0, ok = 0, notify_cam = 0, failure = 0;
 	atio_private_data_t *atp = NULL;
 	int bus;
-	uint32_t handle, moved_data = 0, data_requested;
+	uint32_t handle, data_requested, resid;
 
 	handle = ((ct2_entry_t *)arg)->ct_syshandle;
 	ccb = isp_find_xs(isp, handle);
@@ -2250,7 +2259,7 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 		return;
 	}
 	isp_destroy_handle(isp, handle);
-	data_requested = PISP_PCMD(ccb)->datalen;
+	resid = data_requested = PISP_PCMD(ccb)->datalen;
 	isp_free_pcmd(isp, ccb);
 	if (isp->isp_nactive) {
 		isp->isp_nactive--;
@@ -2296,10 +2305,8 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 			sentstatus = ct->ct_flags & CT7_SENDSTATUS;
 			ok = (ct->ct_nphdl == CT7_OK);
 			notify_cam = (ct->ct_header.rqs_seqno & ATPD_SEQ_NOTIFY_CAM) != 0;
-			if ((ct->ct_flags & CT7_DATAMASK) != CT7_NO_DATA) {
+			if ((ct->ct_flags & CT7_DATAMASK) != CT7_NO_DATA)
 				resid = ct->ct_resid;
-				moved_data = data_requested - resid;
-			}
 		}
 		isp_prt(isp, ok? ISP_LOGTDEBUG0 : ISP_LOGWARN, "%s: CTIO7[%x] seq %u nc %d sts 0x%x flg 0x%x sns %d resid %d %s", __func__, ct->ct_rxid, ATPD_GET_SEQNO(ct),
 		   notify_cam, ct->ct_nphdl, ct->ct_flags, (ccb->ccb_h.status & CAM_SENT_SENSE) != 0, resid, sentstatus? "FIN" : "MID");
@@ -2320,22 +2327,20 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 			sentstatus = ct->ct_flags & CT2_SENDSTATUS;
 			ok = (ct->ct_status & ~QLTM_SVALID) == CT_OK;
 			notify_cam = (ct->ct_header.rqs_seqno & ATPD_SEQ_NOTIFY_CAM) != 0;
-			if ((ct->ct_flags & CT2_DATAMASK) != CT2_NO_DATA) {
+			if ((ct->ct_flags & CT2_DATAMASK) != CT2_NO_DATA)
 				resid = ct->ct_resid;
-				moved_data = data_requested - resid;
-			}
 		}
 		isp_prt(isp, ok? ISP_LOGTDEBUG0 : ISP_LOGWARN, "%s: CTIO2[%x] seq %u nc %d sts 0x%x flg 0x%x sns %d resid %d %s", __func__, ct->ct_rxid, ATPD_GET_SEQNO(ct),
 		    notify_cam, ct->ct_status, ct->ct_flags, (ccb->ccb_h.status & CAM_SENT_SENSE) != 0, resid, sentstatus? "FIN" : "MID");
 	}
 	if (ok) {
-		if (moved_data) {
-			atp->bytes_xfered += moved_data;
-			ccb->csio.resid = atp->orig_datalen - atp->bytes_xfered - atp->bytes_in_transit;
+		if (data_requested > 0) {
+			atp->bytes_xfered += data_requested - resid;
+			ccb->csio.resid = ccb->csio.dxfer_len -
+			    (data_requested - resid);
 		}
-		if (sentstatus && (ccb->ccb_h.flags & CAM_SEND_SENSE)) {
+		if (sentstatus && (ccb->ccb_h.flags & CAM_SEND_SENSE))
 			ccb->ccb_h.status |= CAM_SENT_SENSE;
-		}
 		ccb->ccb_h.status |= CAM_REQ_CMP;
 	} else {
 		notify_cam = 1;
@@ -3265,7 +3270,23 @@ isp_abort_atio(ispsoftc_t *isp, union ccb *ccb)
 	/* Search for the ATIO among running. */
 	atp = isp_find_atpd(isp, XS_CHANNEL(accb), accb->atio.tag_id);
 	if (atp != NULL) {
-		/* XXX Send TERMINATE to firmware here. */
+		/* Send TERMINATE to firmware. */
+		if (!atp->dead && IS_24XX(isp)) {
+			uint8_t storage[QENTRY_LEN];
+			ct7_entry_t *cto = (ct7_entry_t *) storage;
+
+			ISP_MEMZERO(cto, sizeof (ct7_entry_t));
+			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO7;
+			cto->ct_header.rqs_entry_count = 1;
+			cto->ct_nphdl = atp->nphdl;
+			cto->ct_rxid = atp->tag;
+			cto->ct_iid_lo = atp->sid;
+			cto->ct_iid_hi = atp->sid >> 16;
+			cto->ct_oxid = atp->oxid;
+			cto->ct_vpidx = XS_CHANNEL(accb);
+			cto->ct_flags = CT7_NOACK|CT7_TERMINATE;
+			isp_target_put_entry(isp, cto);
+		}
 		isp_put_atpd(isp, XS_CHANNEL(accb), atp);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 	} else {

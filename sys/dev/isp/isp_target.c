@@ -558,13 +558,9 @@ isp_endcmd(ispsoftc_t *isp, ...)
 		} else {
 			cto->ct_flags |= CT7_FLAG_MODE1 | CT7_SENDSTATUS;
 		}
-		if (aep->at_cmnd.cdb_dl.sf.fcp_cmnd_dl) {
+		if (aep->at_cmnd.cdb_dl.sf.fcp_cmnd_dl != 0) {
 			cto->ct_resid = aep->at_cmnd.cdb_dl.sf.fcp_cmnd_dl;
-			if (cto->ct_resid < 0) {
-				 cto->ct_scsi_status |= (FCP_RESID_OVERFLOW << 8);
-			} else if (cto->ct_resid > 0) {
-				 cto->ct_scsi_status |= (FCP_RESID_UNDERFLOW << 8);
-			}
+			cto->ct_scsi_status |= (FCP_RESID_UNDERFLOW << 8);
 		}
 		cto->ct_syshandle = hdl;
 	} else {

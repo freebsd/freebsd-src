@@ -319,7 +319,6 @@ add_local_forward(Options *options, const struct Forward *newfwd)
 #else
 	ipport_reserved = IPPORT_RESERVED;
 #endif
-	if (newfwd->listen_port < ipport_reserved && original_real_uid != 0)
 	if (newfwd->listen_port < ipport_reserved && original_real_uid != 0 &&
 	    newfwd->listen_path == NULL)
 		fatal("Privileged ports can only be forwarded by root.");

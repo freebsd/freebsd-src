@@ -103,7 +103,7 @@ typedef struct atio_private_data {
 	lun_id_t	lun;
 	uint32_t	nphdl;
 	uint32_t	sid;
-	uint32_t	portid;
+	uint32_t	did;
 	uint16_t	rxid;	/* wire rxid */
 	uint16_t	oxid;	/* wire oxid */
 	uint16_t	word3;	/* PRLI word3 params */
@@ -574,6 +574,7 @@ default:							\
 #	define	HBA_CMDTIMEOUT		CAM_CMD_TIMEOUT
 #	define	HBA_SELTIMEOUT		CAM_SEL_TIMEOUT
 #	define	HBA_TGTBSY		CAM_SCSI_STATUS_ERROR
+#	define	HBA_REQINVAL		CAM_REQ_INVALID
 #	define	HBA_BUSRESET		CAM_SCSI_BUS_RESET
 #	define	HBA_ABORTED		CAM_REQ_ABORTED
 #	define	HBA_DATAOVR		CAM_DATA_RUN_ERR

@@ -97,6 +97,10 @@ static int	handle_user_slb_spill(pmap_t pm, vm_offset_t addr);
 extern int	n_slbs;
 #endif
 
+#ifdef KDB
+int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
+#endif
+
 struct powerpc_exception {
 	u_int	vector;
 	char	*name;
@@ -338,9 +342,13 @@ trap(struct trapframe *frame)
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 		switch (type) {
-#ifdef KDTRACE_HOOKS
 		case EXC_PGM:
+#ifdef KDTRACE_HOOKS
+#ifdef AIM
 			if (frame->srr1 & EXC_PGM_TRAP) {
+#else
+			if (frame->cpu.booke.esr & ESR_PTR) {
+#endif
 				if (*(uint32_t *)frame->srr0 == EXC_DTRACE) {
 					if (dtrace_invop_jump_addr != NULL) {
 						dtrace_invop_jump_addr(frame);
@@ -348,8 +356,12 @@ trap(struct trapframe *frame)
 					}
 				}
 			}
-			break;
 #endif
+#ifdef KDB
+			if (db_trap_glue(frame))
+				return;
+#endif
+			break;
 #if defined(__powerpc64__) && defined(AIM)
 		case EXC_DSE:
 			if ((frame->dar & SEGMENT_MASK) == USER_ADDR) {
@@ -833,11 +845,10 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 }
 
 #ifdef KDB
-int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
-
 int
 db_trap_glue(struct trapframe *frame)
 {
+
 	if (!(frame->srr1 & PSL_PR)
 	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
 #ifdef AIM
@@ -845,6 +856,7 @@ db_trap_glue(struct trapframe *frame)
 		    && (frame->srr1 & EXC_PGM_TRAP))
 #else
 		|| (frame->exc == EXC_DEBUG)
+		|| (frame->cpu.booke.esr & ESR_PTR)
 #endif
 		|| frame->exc == EXC_BPT
 		|| frame->exc == EXC_DSI)) {
@@ -856,7 +868,8 @@ db_trap_glue(struct trapframe *frame)
 #ifdef AIM
 		if (type == EXC_PGM && (frame->srr1 & EXC_PGM_TRAP)) {
 #else
-		if (frame->cpu.booke.esr & ESR_PTR) {
+		if (type == EXC_DEBUG ||
+		    (frame->cpu.booke.esr & ESR_PTR)) {
 #endif
 			type = T_BREAKPOINT;
 		}

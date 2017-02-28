@@ -1223,6 +1223,20 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 * datamove done routine.
 		 */
 		if ((io->io_hdr.flags & CTL_FLAG_DMA_INPROG) == 0) {
+			/*
+			 * If we asked to send sense data but it wasn't sent,
+			 * queue the I/O back to CTL for later REQUEST SENSE.
+			 */
+			if ((done_ccb->ccb_h.flags & CAM_SEND_SENSE) != 0 &&
+			    (done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP &&
+			    (done_ccb->ccb_h.status & CAM_SENT_SENSE) == 0 &&
+			    (io = ctl_alloc_io_nowait(bus_softc->port.ctl_pool_ref)) != NULL) {
+				PRIV_INFO(io) = PRIV_INFO(
+				    (union ctl_io *)atio->ccb_h.io_ptr);
+				ctl_queue_sense(atio->ccb_h.io_ptr);
+				atio->ccb_h.io_ptr = io;
+			}
+
 			/* Abort ATIO if CTIO sending status has failed. */
 			if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) !=
 			    CAM_REQ_CMP) {
@@ -1253,7 +1267,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			switch (done_ccb->ccb_h.status & CAM_STATUS_MASK) {
 			case CAM_REQ_CMP:
-				io->scsiio.kern_data_resid -= csio->dxfer_len;
+				io->scsiio.kern_data_resid -=
+				    csio->dxfer_len - csio->resid;
 				io->io_hdr.port_status = 0;
 				break;
 			default:
@@ -1280,8 +1295,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			 * pieces, figure out where we are in the list, and
 			 * continue sending pieces if necessary.
 			 */
-			if ((cmd_info->flags & CTLFE_CMD_PIECEWISE)
-			 && (io->io_hdr.port_status == 0)) {
+			if ((cmd_info->flags & CTLFE_CMD_PIECEWISE) &&
+			    io->io_hdr.port_status == 0 && csio->resid == 0) {
 				ccb_flags flags;
 				uint8_t *data_ptr;
 				uint32_t dxfer_len;

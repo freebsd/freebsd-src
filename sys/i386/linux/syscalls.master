@@ -541,19 +541,23 @@
 ; linux 2.6.19:
 318	AUE_NULL	STD	{ int linux_getcpu(void); }
 319	AUE_NULL	STD	{ int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
-					l_int maxevents, l_int timeout, l_sigset_t *mask); }
+					l_int maxevents, l_int timeout, l_sigset_t *mask, \
+					l_size_t sigsetsize); }
 ; linux 2.6.22:
 320	AUE_FUTIMESAT	STD	{ int linux_utimensat(l_int dfd, const char *pathname, \
 					const struct l_timespec *times, l_int flags); }
 321	AUE_NULL	STD	{ int linux_signalfd(void); }
-322	AUE_NULL	STD	{ int linux_timerfd_create(void); }
+322	AUE_NULL	STD	{ int linux_timerfd_create(l_int clockid, l_int flags); }
 323	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
 ; linux 2.6.23:
 324	AUE_NULL	STD	{ int linux_fallocate(l_int fd, l_int mode, \
 				    l_loff_t offset, l_loff_t len); }
 ; linux 2.6.25:
-325	AUE_NULL	STD	{ int linux_timerfd_settime(void); }
-326	AUE_NULL	STD	{ int linux_timerfd_gettime(void); }
+325	AUE_NULL	STD	{ int linux_timerfd_settime(l_int fd, l_int flags,	\
+				    const struct l_itimerspec *new_value,		\
+				    struct l_itimerspec *old_value); }
+326	AUE_NULL	STD	{ int linux_timerfd_gettime(l_int fd,	\
+				    struct l_itimerspec *old_value); }
 ; linux 2.6.27:
 327	AUE_NULL	STD	{ int linux_signalfd4(void); }
 328	AUE_NULL	STD	{ int linux_eventfd2(l_uint initval, l_int flags); }
