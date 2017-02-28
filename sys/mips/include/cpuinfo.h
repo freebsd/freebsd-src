@@ -1,11 +1,6 @@
-/*	$NetBSD: cpu.h,v 1.70 2003/01/17 23:36:08 thorpej Exp $	*/
-
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1987, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Ralph Campbell and Rick Macklem.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,50 +26,50 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
  * $FreeBSD$
- *	@(#)cpu.h	8.4 (Berkeley) 1/4/94
  */
 
-#ifndef _CPUINFO_H_
-#define _CPUINFO_H_
+#ifndef _SYS_DISK_PC98_H_
+#define	_SYS_DISK_PC98_H_
 
-/*
- * Exported definitions unique to NetBSD/mips cpu support.
- */
+#define	PC98_BBSECTOR	1	/* DOS boot block relative sector number */
+#define	PC98_PARTOFF	0
+#define	PC98_PARTSIZE	32
+#define	PC98_NPARTS	16
+#define	PC98_MAGICOFS	510
+#define	PC98_MAGIC	0xAA55
 
-#ifdef _KERNEL
-#ifndef LOCORE
+#define	PC98_MID_BOOTABLE	0x80
+#define	PC98_MID_MASK		0x7f
+#define	PC98_MID_386BSD		0x14
 
-struct mips_cpuinfo {
-	u_int8_t	cpu_vendor;
-	u_int8_t	cpu_rev;
-	u_int8_t	cpu_impl;
-	u_int8_t	tlb_type;
-	u_int32_t	tlb_pgmask;
-	u_int16_t	tlb_nentries;
-	u_int8_t	icache_virtual;
-	boolean_t	cache_coherent_dma;
-	boolean_t	userlocal_reg;
-	struct {
-		u_int32_t	ic_size;
-		u_int8_t	ic_linesize;
-		u_int8_t	ic_nways;
-		u_int16_t	ic_nsets;
-		u_int32_t	dc_size;
-		u_int8_t	dc_linesize;
-		u_int8_t	dc_nways;
-		u_int16_t	dc_nsets;
-	} l1;
-	struct {
-		u_int32_t	dc_size;
-		u_int8_t	dc_linesize;
-		u_int8_t	dc_nways;
-		u_int16_t	dc_nsets;
-	} l2;
+#define	PC98_SID_ACTIVE		0x80
+#define	PC98_SID_MASK		0x7f
+#define	PC98_SID_386BSD		0x44
+
+#define	__DOSMID_386BSD		(PC98_MID_386BSD | PC98_MID_BOOTABLE)
+#define	__DOSSID_386BSD		(PC98_SID_386BSD | PC98_SID_ACTIVE)
+#define	PC98_PTYP_386BSD	(__DOSSID_386BSD << 8 | __DOSMID_386BSD)
+
+struct pc98_partition {
+	unsigned char	dp_mid;
+	unsigned char	dp_sid;
+	unsigned char	dp_dum1;
+	unsigned char	dp_dum2;
+	unsigned char	dp_ipl_sct;
+	unsigned char	dp_ipl_head;
+	unsigned short	dp_ipl_cyl;
+	unsigned char	dp_ssect;	/* starting sector */
+	unsigned char	dp_shd;		/* starting head */
+	unsigned short	dp_scyl;	/* starting cylinder */
+	unsigned char	dp_esect;	/* end sector */
+	unsigned char	dp_ehd;		/* end head */
+	unsigned short	dp_ecyl;	/* end cylinder */
+	unsigned char	dp_name[16];
 };
+#ifdef CTASSERT
+CTASSERT(sizeof (struct pc98_partition) == PC98_PARTSIZE);
+#endif
 
-extern struct mips_cpuinfo cpuinfo;
-
-#endif /* !LOCORE */
-#endif /* _KERNEL */
-#endif /* _CPUINFO_H_ */
+#endif /* !_SYS_DISK_PC98_H_ */
