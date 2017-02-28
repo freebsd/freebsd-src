@@ -8346,7 +8346,7 @@ OLD_FILES+=usr/share/man/man8/boot_i386.8.gz
 .endif
 .if ${TARGET_ARCH} != "aarch64" && ${TARGET} != "arm" && \
     ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "powerpc64" && \
-    ${TARGET_ARCH} != "sparc64"
+    ${TARGET_ARCH} != "sparc64" && ${TARGET} != "mips"
 OLD_FILES+=usr/share/man/man8/ofwdump.8.gz
 .endif
 OLD_FILES+=usr/share/man/man8/mount_reiserfs.8.gz
