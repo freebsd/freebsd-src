@@ -331,11 +331,13 @@ aw_clk_nm_register(struct clkdom *clkdom, struct aw_clk_nm_def *clkdef)
 	sc->m.shift = clkdef->m.shift;
 	sc->m.width = clkdef->m.width;
 	sc->m.mask = ((1 << sc->m.width) - 1) << sc->m.shift;
+	sc->m.value = clkdef->m.value;
 	sc->m.flags = clkdef->m.flags;
 
 	sc->n.shift = clkdef->n.shift;
 	sc->n.width = clkdef->n.width;
 	sc->n.mask = ((1 << sc->n.width) - 1) << sc->n.shift;
+	sc->n.value = clkdef->n.value;
 	sc->n.flags = clkdef->n.flags;
 
 	sc->frac.freq0 = clkdef->frac.freq0;
