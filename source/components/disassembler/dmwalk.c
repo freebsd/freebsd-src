@@ -46,6 +46,7 @@
 #include "acparser.h"
 #include "amlcode.h"
 #include "acdebug.h"
+#include "acconvert.h"
 
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
@@ -60,6 +61,14 @@
 void
 AcpiDmEmitExternals (
     void)
+{
+    return;
+}
+
+void
+AcpiDmEmitExternal (
+    ACPI_PARSE_OBJECT       *NameOp,
+    ACPI_PARSE_OBJECT       *TypeOp)
 {
     return;
 }
@@ -78,10 +87,6 @@ AcpiDmAscendingOp (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
     void                    *Context);
-
-static UINT32
-AcpiDmBlockType (
-    ACPI_PARSE_OBJECT       *Op);
 
 
 /*******************************************************************************
@@ -248,7 +253,7 @@ AcpiDmWalkParseTree (
  *
  ******************************************************************************/
 
-static UINT32
+UINT32
 AcpiDmBlockType (
     ACPI_PARSE_OBJECT       *Op)
 {
@@ -270,7 +275,7 @@ AcpiDmBlockType (
     case AML_DEVICE_OP:
     case AML_SCOPE_OP:
     case AML_PROCESSOR_OP:
-    case AML_POWER_RES_OP:
+    case AML_POWER_RESOURCE_OP:
     case AML_THERMAL_ZONE_OP:
     case AML_IF_OP:
     case AML_WHILE_OP:
@@ -292,7 +297,7 @@ AcpiDmBlockType (
         /*lint -fallthrough */
 
     case AML_PACKAGE_OP:
-    case AML_VAR_PACKAGE_OP:
+    case AML_VARIABLE_PACKAGE_OP:
 
         return (BLOCK_PAREN | BLOCK_BRACE);
 
@@ -304,7 +309,7 @@ AcpiDmBlockType (
 
         if (Op->Common.Parent &&
             ((Op->Common.Parent->Common.AmlOpcode == AML_PACKAGE_OP) ||
-             (Op->Common.Parent->Common.AmlOpcode == AML_VAR_PACKAGE_OP)))
+             (Op->Common.Parent->Common.AmlOpcode == AML_VARIABLE_PACKAGE_OP)))
         {
             /* This is a reference to a method, not an invocation */
 
@@ -357,7 +362,7 @@ AcpiDmListType (
     case AML_METHOD_OP:
     case AML_DEVICE_OP:
     case AML_SCOPE_OP:
-    case AML_POWER_RES_OP:
+    case AML_POWER_RESOURCE_OP:
     case AML_PROCESSOR_OP:
     case AML_THERMAL_ZONE_OP:
     case AML_IF_OP:
@@ -370,7 +375,7 @@ AcpiDmListType (
 
     case AML_BUFFER_OP:
     case AML_PACKAGE_OP:
-    case AML_VAR_PACKAGE_OP:
+    case AML_VARIABLE_PACKAGE_OP:
 
         return (BLOCK_COMMA_LIST);
 
@@ -413,6 +418,22 @@ AcpiDmDescendingOp (
     ACPI_PARSE_OBJECT       *NextOp2;
     UINT32                  AmlOffset;
 
+
+    /* Determine which file this parse node is contained in. */
+
+    if (Gbl_CaptureComments)
+    {
+        ASL_CV_LABEL_FILENODE (Op);
+
+        if (Level != 0 && ASL_CV_FILE_HAS_SWITCHED (Op))
+        {
+            ASL_CV_SWITCH_FILES (Level, Op);
+        }
+
+        /* If this parse node has regular comments, print them here. */
+
+        ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_STANDARD, NULL, Level);
+    }
 
     OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
 
@@ -528,7 +549,11 @@ AcpiDmDescendingOp (
 
             /* Emit all External() declarations here */
 
-            AcpiDmEmitExternals ();
+            if (!AcpiGbl_DmEmitExternalOpcodes)
+            {
+                AcpiDmEmitExternals ();
+            }
+
             return (AE_OK);
         }
     }
@@ -607,6 +632,12 @@ AcpiDmDescendingOp (
         Info->Level--;
     }
 
+    if (Op->Common.AmlOpcode == AML_EXTERNAL_OP)
+    {
+        Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+        return (AE_CTRL_DEPTH);
+    }
+
     /* Start the opcode argument list if necessary */
 
     if ((OpInfo->Flags & AML_HAS_ARGS) ||
@@ -617,6 +648,10 @@ AcpiDmDescendingOp (
         if (AcpiDmBlockType (Op) & BLOCK_PAREN)
         {
             AcpiOsPrintf (" (");
+            if (!(AcpiDmBlockType (Op) & BLOCK_BRACE))
+            {
+                ASL_CV_PRINT_ONE_COMMENT (Op, AMLCOMMENT_INLINE, " ", 0);
+            }
         }
 
         /* If this is a named opcode, print the associated name value */
@@ -661,7 +696,7 @@ AcpiDmDescendingOp (
             case AML_METHOD_OP:
 
                 AcpiDmMethodFlags (Op);
-                AcpiOsPrintf (")");
+                ASL_CV_CLOSE_PAREN (Op, Level);
 
                 /* Emit description comment for Method() with a predefined ACPI name */
 
@@ -674,6 +709,7 @@ AcpiDmDescendingOp (
 
                 AcpiDmCheckForHardwareId (Op);
                 AcpiOsPrintf (", ");
+                ASL_CV_PRINT_ONE_COMMENT (Op, AML_NAMECOMMENT, NULL, 0);
                 break;
 
             case AML_REGION_OP:
@@ -681,7 +717,7 @@ AcpiDmDescendingOp (
                 AcpiDmRegionFlags (Op);
                 break;
 
-            case AML_POWER_RES_OP:
+            case AML_POWER_RESOURCE_OP:
 
                 /* Mark the next two Ops as part of the parameter list */
 
@@ -723,7 +759,7 @@ AcpiDmDescendingOp (
             case AML_DEVICE_OP:
             case AML_THERMAL_ZONE_OP:
 
-                AcpiOsPrintf (")");
+                ASL_CV_CLOSE_PAREN (Op, Level);
                 break;
 
             default:
@@ -817,7 +853,7 @@ AcpiDmDescendingOp (
                  */
                 NextOp->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
                 NextOp = NextOp->Common.Next;
-                AcpiOsPrintf (")");
+                ASL_CV_CLOSE_PAREN (Op, Level);
 
                 /* Emit description comment for Name() with a predefined ACPI name */
 
@@ -835,7 +871,7 @@ AcpiDmDescendingOp (
             return (AE_OK);
 
         case AML_IF_OP:
-        case AML_VAR_PACKAGE_OP:
+        case AML_VARIABLE_PACKAGE_OP:
         case AML_WHILE_OP:
 
             /* The next op is the size or predicate parameter */
@@ -903,6 +939,20 @@ AcpiDmAscendingOp (
     ACPI_PARSE_OBJECT       *ParentOp;
 
 
+    /* Point the Op's filename pointer to the proper file */
+
+    if (Gbl_CaptureComments)
+    {
+        ASL_CV_LABEL_FILENODE (Op);
+
+        /* Switch the output of these files if necessary */
+
+        if (ASL_CV_FILE_HAS_SWITCHED (Op))
+        {
+            ASL_CV_SWITCH_FILES (Level, Op);
+        }
+    }
+
     if (Op->Common.DisasmFlags & ACPI_PARSEOP_IGNORE ||
         Op->Common.DisasmOpcode == ACPI_DASM_IGNORE_SINGLE)
     {
@@ -915,7 +965,17 @@ AcpiDmAscendingOp (
     {
         /* Indicates the end of the current descriptor block (table) */
 
-        AcpiOsPrintf ("}\n\n");
+        ASL_CV_CLOSE_BRACE (Op, Level);
+
+        /* Print any comments that are at the end of the file here */
+
+        if (Gbl_CaptureComments && AcpiGbl_LastListHead)
+        {
+            AcpiOsPrintf ("\n");
+            ASL_CV_PRINT_ONE_COMMENT_LIST (AcpiGbl_LastListHead, 0);
+        }
+        AcpiOsPrintf ("\n\n");
+
         return (AE_OK);
     }
 
@@ -976,12 +1036,12 @@ AcpiDmAscendingOp (
 
         if (Op->Common.DisasmFlags & ACPI_PARSEOP_EMPTY_TERMLIST)
         {
-            AcpiOsPrintf ("}");
+            ASL_CV_CLOSE_BRACE (Op, Level);
         }
         else
         {
             AcpiDmIndent (Level);
-            AcpiOsPrintf ("}");
+            ASL_CV_CLOSE_BRACE (Op, Level);
         }
 
         AcpiDmCommaIfListMember (Op);
@@ -1031,7 +1091,7 @@ AcpiDmAscendingOp (
             switch (Op->Common.Parent->Common.AmlOpcode)
             {
             case AML_PACKAGE_OP:
-            case AML_VAR_PACKAGE_OP:
+            case AML_VARIABLE_PACKAGE_OP:
 
                 if (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST))
                 {
@@ -1071,7 +1131,7 @@ AcpiDmAscendingOp (
          */
         if (Op->Common.Next || Op->Common.DisasmOpcode == ACPI_DASM_SWITCH_PREDICATE)
         {
-            AcpiOsPrintf (")");
+            ASL_CV_CLOSE_PAREN (Op, Level);
 
             /*
              * Emit a description comment for a Name() operator that is a
@@ -1098,7 +1158,8 @@ AcpiDmAscendingOp (
         else
         {
             ParentOp->Common.DisasmFlags |= ACPI_PARSEOP_EMPTY_TERMLIST;
-            AcpiOsPrintf (") {");
+            ASL_CV_CLOSE_PAREN (Op, Level);
+            AcpiOsPrintf ("{");
         }
     }
 

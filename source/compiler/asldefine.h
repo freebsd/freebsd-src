@@ -159,7 +159,6 @@
 /*
  * Macros for debug output
  */
-
 #define DEBUG_MAX_LINE_LENGTH       61
 #define DEBUG_SPACES_PER_INDENT     3
 #define DEBUG_FULL_LINE_LENGTH      71
@@ -184,5 +183,12 @@
 #define ASL_PARSE_TREE_DEBUG2 \
     " %08X %04X %04X %01X     %04X  %04X %05X  %05X   "\
     "%08X %08X %08X %08X %08X %08X %04X  %02d  %5d %5d %5d %5d\n"
+
+/*
+ * Macros for ASL/ASL+ converter
+ */
+#define COMMENT_CAPTURE_ON    Gbl_CommentState.CaptureComments = TRUE;
+#define COMMENT_CAPTURE_OFF   Gbl_CommentState.CaptureComments = FALSE;
+
 
 #endif /* ASLDEFINE.H */

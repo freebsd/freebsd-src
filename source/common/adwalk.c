@@ -878,7 +878,7 @@ AcpiDmXrefDescendingOp (
              * method.
              */
             if (!(Op->Asl.Parent &&
-                (Op->Asl.Parent->Asl.AmlOpcode == AML_COND_REF_OF_OP)))
+                (Op->Asl.Parent->Asl.AmlOpcode == AML_CONDITIONAL_REF_OF_OP)))
             {
                 if (Node)
                 {

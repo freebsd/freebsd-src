@@ -285,8 +285,17 @@ CmDoCompile (
     {
         Event = UtBeginEvent ("Resolve all Externals");
         DbgPrint (ASL_DEBUG_OUTPUT, "\nResolve Externals\n\n");
-        TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
-            ExAmlExternalWalkBegin, ExAmlExternalWalkEnd, NULL);
+
+        if (Gbl_DoExternalsInPlace)
+        {
+            TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+                ExAmlExternalWalkBegin, NULL, NULL);
+        }
+        else
+        {
+            TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
+                ExAmlExternalWalkBegin, ExAmlExternalWalkEnd, NULL);
+        }
         UtEndEvent (Event);
     }
 
@@ -346,6 +355,18 @@ CmDoCompile (
         AnOtherSemanticAnalysisWalkBegin,
         NULL, &AnalysisWalkInfo);
     UtEndEvent (Event);
+
+    /*
+     * ASL-/ASL+ converter: Gbl_ParseTreeRoot->CommentList contains the
+     * very last comment of a given ASL file because it's the last constructed
+     * node during compilation. We take the very last comment and save it in a
+     * global for it to be used by the disassembler.
+     */
+    if (Gbl_CaptureComments)
+    {
+        AcpiGbl_LastListHead = Gbl_ParseTreeRoot->Asl.CommentList;
+        Gbl_ParseTreeRoot->Asl.CommentList = NULL;
+    }
 
     /* Calculate all AML package lengths */
 
@@ -800,7 +821,11 @@ CmCleanupAndExit (
 
     /* Final cleanup after compiling one file */
 
-    CmDeleteCaches ();
+    if (!Gbl_DoAslConversion)
+    {
+        CmDeleteCaches ();
+    }
+
 }
 
 

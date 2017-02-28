@@ -48,6 +48,7 @@
 #include "acinterp.h"
 #include "acnamesp.h"
 #include "acdebug.h"
+#include "acconvert.h"
 
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
@@ -70,7 +71,8 @@ AcpiDmPromoteSubtree (
 
 static BOOLEAN
 AcpiDmIsSwitchBlock (
-    ACPI_PARSE_OBJECT       *Op);
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Temp);
 
 static BOOLEAN
 AcpiDmIsCaseBlock (
@@ -441,6 +443,7 @@ AcpiDmFieldPredefinedDescription (
             ACPI_CAST_PTR (char, Info->Description));
     }
 
+    ACPI_FREE (Tag); /* Tag was allocated in AcpiGetTagPathname */
 #endif
     return;
 }
@@ -716,15 +719,15 @@ AcpiDmDisassembleOneOp (
         {
             switch (Op->Common.AmlOpcode)
             {
-            case AML_LEQUAL_OP:
+            case AML_LOGICAL_EQUAL_OP:
                 AcpiOsPrintf ("LNotEqual");
                 break;
 
-            case AML_LGREATER_OP:
+            case AML_LOGICAL_GREATER_OP:
                 AcpiOsPrintf ("LLessEqual");
                 break;
 
-            case AML_LLESS_OP:
+            case AML_LOGICAL_LESS_OP:
                 AcpiOsPrintf ("LGreaterEqual");
                 break;
 
@@ -747,12 +750,12 @@ AcpiDmDisassembleOneOp (
 
     switch (Op->Common.AmlOpcode)
     {
-    case AML_LNOT_OP:
+    case AML_LOGICAL_NOT_OP:
 
         Child = Op->Common.Value.Arg;
-        if ((Child->Common.AmlOpcode == AML_LEQUAL_OP) ||
-            (Child->Common.AmlOpcode == AML_LGREATER_OP) ||
-            (Child->Common.AmlOpcode == AML_LLESS_OP))
+        if ((Child->Common.AmlOpcode == AML_LOGICAL_EQUAL_OP) ||
+            (Child->Common.AmlOpcode == AML_LOGICAL_GREATER_OP) ||
+            (Child->Common.AmlOpcode == AML_LOGICAL_LESS_OP))
         {
             Child->Common.DisasmOpcode = ACPI_DASM_LNOT_SUFFIX;
             Op->Common.DisasmOpcode = ACPI_DASM_LNOT_PREFIX;
@@ -881,8 +884,12 @@ AcpiDmDisassembleOneOp (
     case AML_INT_NAMEDFIELD_OP:
 
         Length = AcpiDmDumpName (Op->Named.Name);
-        AcpiOsPrintf (",%*.s  %u", (unsigned) (5 - Length), " ",
+
+        AcpiOsPrintf (",");
+        ASL_CV_PRINT_ONE_COMMENT (Op, AML_NAMECOMMENT, NULL, 0);
+        AcpiOsPrintf ("%*.s  %u", (unsigned) (5 - Length), " ",
             (UINT32) Op->Common.Value.Integer);
+
         AcpiDmCommaIfFieldMember (Op);
 
         Info->BitOffset += (UINT32) Op->Common.Value.Integer;
@@ -923,6 +930,7 @@ AcpiDmDisassembleOneOp (
 
         AcpiOsPrintf (")");
         AcpiDmCommaIfFieldMember (Op);
+        ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_END_NODE, NULL, 0);
         break;
 
     case AML_INT_CONNECTION_OP:
@@ -956,6 +964,8 @@ AcpiDmDisassembleOneOp (
 
         AcpiOsPrintf (")");
         AcpiDmCommaIfFieldMember (Op);
+        ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_END_NODE, NULL, 0);
+        ASL_CV_PRINT_ONE_COMMENT (Op, AMLCOMMENT_INLINE, NULL, 0);
         AcpiOsPrintf ("\n");
 
         Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE; /* for now, ignore in AcpiDmAscendingOp */
@@ -977,7 +987,7 @@ AcpiDmDisassembleOneOp (
 
     case AML_WHILE_OP:
 
-        if (AcpiDmIsSwitchBlock(Op))
+        if (Op->Common.DisasmOpcode == ACPI_DASM_SWITCH)
         {
             AcpiOsPrintf ("%s", "Switch");
             break;
@@ -1006,14 +1016,12 @@ AcpiDmDisassembleOneOp (
 
         if (AcpiGbl_DmEmitExternalOpcodes)
         {
-            AcpiOsPrintf ("/* Opcode 0x15 */ ");
-
-            /* Fallthrough */
-        }
-        else
-        {
+            AcpiDmEmitExternal (AcpiPsGetArg(Op, 0),
+                AcpiPsGetArg(Op, 1));
             break;
         }
+
+        break;
 
     default:
 
@@ -1255,11 +1263,13 @@ AcpiDmPromoteSubtree (
  *
  * PARAMETERS:  Op              - Object to be examined
  *
- * RETURN:      TRUE if object is a temporary (_T_x) name
+ * RETURN:      TRUE if object is a temporary (_T_x) name for a matching While
+ *              loop that can be converted to a Switch.
  *
- * DESCRIPTION: Determine if an object is a temporary name and ignore it.
- *              Temporary names are only used for Switch statements. This
- *              function depends on this restriced usage.
+ * DESCRIPTION: _T_X objects are only used for Switch statements. If a temporary
+ *              name exists, search the siblings for a matching While (One) loop
+ *              that can be converted to a Switch. Return TRUE if a match was
+ *              found, FALSE otherwise.
  *
  ******************************************************************************/
 
@@ -1267,6 +1277,7 @@ BOOLEAN
 AcpiDmIsTempName (
     ACPI_PARSE_OBJECT       *Op)
 {
+    ACPI_PARSE_OBJECT       *CurrentOp;
     char                    *Temp;
 
     if (Op->Common.AmlOpcode != AML_NAME_OP)
@@ -1282,11 +1293,21 @@ AcpiDmIsTempName (
         return (FALSE);
     }
 
-    /* Ignore Op */
+    CurrentOp = Op->Common.Next;
+    while (CurrentOp)
+    {
+        if (CurrentOp->Common.AmlOpcode == AML_WHILE_OP &&
+            AcpiDmIsSwitchBlock(CurrentOp, Temp))
+        {
+            Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+            CurrentOp->Common.DisasmOpcode = ACPI_DASM_SWITCH;
 
-    Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+            return (TRUE);
+        }
+        CurrentOp = CurrentOp->Common.Next;
+    }
 
-    return (TRUE);
+    return (FALSE);
 }
 
 /*******************************************************************************
@@ -1322,7 +1343,8 @@ AcpiDmIsTempName (
 
 static BOOLEAN
 AcpiDmIsSwitchBlock (
-    ACPI_PARSE_OBJECT       *Op)
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Temp)
 {
     ACPI_PARSE_OBJECT       *OneOp;
     ACPI_PARSE_OBJECT       *StoreOp;
@@ -1355,7 +1377,7 @@ AcpiDmIsSwitchBlock (
         return (FALSE);
     }
 
-    if (strncmp((char *)(NamePathOp->Common.Aml), "_T_", 3))
+    if (strncmp((char *)(NamePathOp->Common.Aml), Temp, 4))
     {
         return (FALSE);
     }
@@ -1411,7 +1433,7 @@ AcpiDmIsSwitchBlock (
         TempOp = AcpiPsGetArg (CurrentOp, 0);
         switch (TempOp->Common.AmlOpcode)
         {
-            case (AML_LEQUAL_OP):
+            case (AML_LOGICAL_EQUAL_OP):
 
                 /* Ignore just the LEqual Op */
 
@@ -1433,7 +1455,7 @@ AcpiDmIsSwitchBlock (
 
                 break;
 
-            case (AML_LNOT_OP):
+            case (AML_LOGICAL_NOT_OP):
 
                 /*
                  * The Package will be the predicate of the Case statement.
@@ -1588,7 +1610,7 @@ AcpiDmIsCaseBlock (
 
     switch (CurrentOp->Common.AmlOpcode)
     {
-        case (AML_LEQUAL_OP):
+        case (AML_LOGICAL_EQUAL_OP):
 
             /* Next child must be NamePath with string _T_ */
 
@@ -1601,12 +1623,12 @@ AcpiDmIsCaseBlock (
 
             break;
 
-        case (AML_LNOT_OP):
+        case (AML_LOGICAL_NOT_OP):
 
             /* Child of LNot must be LEqual op */
 
             CurrentOp = AcpiPsGetArg (CurrentOp, 0);
-            if (!CurrentOp || (CurrentOp->Common.AmlOpcode != AML_LEQUAL_OP))
+            if (!CurrentOp || (CurrentOp->Common.AmlOpcode != AML_LOGICAL_EQUAL_OP))
             {
                 return (FALSE);
             }

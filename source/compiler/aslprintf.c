@@ -354,7 +354,7 @@ OpcCreateConcatenateNode (
     }
 
     NewConcatOp = TrAllocateNode (PARSEOP_CONCATENATE);
-    NewConcatOp->Asl.AmlOpcode = AML_CONCAT_OP;
+    NewConcatOp->Asl.AmlOpcode = AML_CONCATENATE_OP;
     NewConcatOp->Asl.AcpiBtype = 0x7;
     NewConcatOp->Asl.LogicalLineNumber = Op->Asl.LogicalLineNumber;
 

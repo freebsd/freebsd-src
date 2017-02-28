@@ -45,6 +45,7 @@
 #include "actables.h"
 #include "acdisasm.h"
 #include "acapps.h"
+#include "acconvert.h"
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslstartup")
@@ -122,6 +123,15 @@ AslInitializeGlobals (
     {
         Gbl_Files[i].Handle = NULL;
         Gbl_Files[i].Filename = NULL;
+    }
+
+    if (Gbl_CaptureComments)
+    {
+        Gbl_CommentState.SpacesBefore          = 0;
+        Gbl_CommentState.CommentType           = 1;
+        Gbl_CommentState.Latest_Parse_Node     = NULL;
+        Gbl_CommentState.ParsingParenBraceNode = NULL;
+        Gbl_CommentState.CaptureComments       = TRUE;
     }
 }
 
@@ -450,6 +460,28 @@ AslDoOneFile (
 
         AeClearErrorLog ();
         PrTerminatePreprocessor ();
+
+        /* ASL-to-ASL+ conversion - Perform immediate disassembly */
+
+        if (Gbl_DoAslConversion)
+        {
+            /*
+             * New input file is the output AML file from above.
+             * New output is from the input ASL file from above.
+             */
+            Gbl_OutputFilenamePrefix = Gbl_Files[ASL_FILE_INPUT].Filename;
+        CvDbgPrint ("OUTPUTFILENAME: %s\n", Gbl_OutputFilenamePrefix);
+            Gbl_Files[ASL_FILE_INPUT].Filename =
+                Gbl_Files[ASL_FILE_AML_OUTPUT].Filename;
+
+            fprintf (stderr, "\n");
+            AslDoDisassembly ();
+
+            /* delete the AML file. This AML file should never be utilized by AML interpreters. */
+
+            FlDeleteFile (ASL_FILE_AML_OUTPUT);
+        }
+
         return (AE_OK);
 
     /*

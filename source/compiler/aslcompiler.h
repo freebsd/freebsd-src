@@ -576,6 +576,12 @@ void
 CgGenerateAmlOutput (
     void);
 
+void
+CgLocalWriteAmlData (
+    ACPI_PARSE_OBJECT       *Op,
+    void                    *Buffer,
+    UINT32                  Length);
+
 
 /*
  * aslfile
@@ -1358,5 +1364,15 @@ DtDoCompile(
 ACPI_STATUS
 DtCreateTemplates (
     char                    **argv);
+
+
+/*
+ * ASL/ASL+ converter debug
+ */
+void
+CvDbgPrint (
+    char                    *Fmt,
+    ...);
+
 
 #endif /*  __ASLCOMPILER_H */

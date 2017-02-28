@@ -185,7 +185,7 @@ LsAmlOffsetWalk (
             break;
 
         case AML_PACKAGE_OP:
-        case AML_VAR_PACKAGE_OP:
+        case AML_VARIABLE_PACKAGE_OP:
 
             /* Get the package element count */
 

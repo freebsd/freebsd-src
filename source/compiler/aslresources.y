@@ -2,6 +2,8 @@ NoEcho('
 /******************************************************************************
  *
  * Module Name: aslresources.y - Bison/Yacc production rules for resources
+ *                             - Keep this file synched with the
+ *                               CvParseOpBlockType function in cvcompiler.c
  *
  *****************************************************************************/
 
@@ -56,14 +58,15 @@ NoEcho('
  * Also, insert the EndTag at the end of the template.
  */
 ResourceTemplateTerm
-    : PARSEOP_RESOURCETEMPLATE
+    : PARSEOP_RESOURCETEMPLATE      {COMMENT_CAPTURE_OFF;}
         OptionalParentheses
         '{'
         ResourceMacroList '}'       {$$ = TrCreateNode (PARSEOP_RESOURCETEMPLATE,4,
                                           TrCreateLeafNode (PARSEOP_DEFAULT_ARG),
                                           TrCreateLeafNode (PARSEOP_DEFAULT_ARG),
-                                          $4,
-                                          TrCreateLeafNode (PARSEOP_ENDTAG));}
+                                          $5,
+                                          TrCreateLeafNode (PARSEOP_ENDTAG));
+                                     COMMENT_CAPTURE_ON;}
     ;
 
 OptionalParentheses

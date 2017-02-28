@@ -44,6 +44,7 @@
 #include "aslcompiler.h"
 #include "aslcompiler.y.h"
 #include "amlcode.h"
+#include "acconvert.h"
 
 
 #define _COMPONENT          ACPI_COMPILER
@@ -136,7 +137,9 @@ LnPackageLengthWalk (
             Op->Asl.AmlLength +
             Op->Asl.AmlOpcodeLength +
             Op->Asl.AmlPkgLenBytes +
-            Op->Asl.AmlSubtreeLength);
+            Op->Asl.AmlSubtreeLength +
+            CvCalculateCommentLengths (Op)
+        );
     }
     return (AE_OK);
 }
