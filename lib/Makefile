@@ -193,7 +193,7 @@ _libvgl=	libvgl
 SUBDIR.${MK_BHYVE}+=	libvmmapi
 .endif
 
-.if ${MACHINE_CPUARCH} == "mips"
+.if ${MACHINE_ARCH} == "mips64"
 _libstatcounters=	libstatcounters
 .endif
 
