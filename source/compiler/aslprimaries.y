@@ -2,6 +2,8 @@ NoEcho('
 /******************************************************************************
  *
  * Module Name: aslprimaries.y - Rules for primary ASL operators
+ *                             - Keep this file synched with the
+ *                               CvParseOpBlockType function in cvcompiler.c
  *
  *****************************************************************************/
 
@@ -146,9 +148,9 @@ BreakPointTerm
     ;
 
 BufferTerm
-    : PARSEOP_BUFFER                {$<n>$ = TrCreateLeafNode (PARSEOP_BUFFER);}
+    : PARSEOP_BUFFER                {$<n>$ = TrCreateLeafNode (PARSEOP_BUFFER); COMMENT_CAPTURE_OFF; }
         OptionalDataCount
-        '{' BufferTermData '}'      {$$ = TrLinkChildren ($<n>2,2,$3,$5);}
+        '{' BufferTermData '}'      {$$ = TrLinkChildren ($<n>2,2,$3,$5); COMMENT_CAPTURE_ON;}
     ;
 
 BufferTermData
@@ -403,8 +405,9 @@ ElseIfTerm
 
 ElseTerm
     :                               {$$ = NULL;}
-    | PARSEOP_ELSE '{'              {$<n>$ = TrCreateLeafNode (PARSEOP_ELSE);}
-        TermList '}'                {$$ = TrLinkChildren ($<n>3,1,$4);}
+    | PARSEOP_ELSE '{'
+        TermList           {$<n>$ = TrCreateLeafNode (PARSEOP_ELSE);}
+        '}'                {$$ = TrLinkChildren ($<n>4,1,$3);}
 
     | PARSEOP_ELSE '{'
         error '}'                   {$$ = AslDoError(); yyclearin;}
@@ -545,16 +548,16 @@ FromBCDTerm
 
 FunctionTerm
     : PARSEOP_FUNCTION
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_METHOD);}
+        PARSEOP_OPEN_PAREN          {COMMENT_CAPTURE_OFF; $<n>$ = TrCreateLeafNode (PARSEOP_METHOD); }
         NameString
         OptionalParameterTypePackage
         OptionalParameterTypesPackage
-        PARSEOP_CLOSE_PAREN '{'
+        PARSEOP_CLOSE_PAREN '{'     {COMMENT_CAPTURE_ON; }
             TermList '}'            {$$ = TrLinkChildren ($<n>3,7,
                                         TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),
                                         TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0),
                                         TrCreateLeafNode (PARSEOP_SERIALIZERULE_NOTSERIAL),
-                                        TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0),$5,$6,$9);}
+                                        TrCreateValuedLeafNode (PARSEOP_BYTECONST, 0),$5,$6,$10);}
     | PARSEOP_FUNCTION
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}
@@ -778,17 +781,17 @@ MatchTerm
 
 MethodTerm
     : PARSEOP_METHOD
-        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_METHOD);}
+        PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafNode (PARSEOP_METHOD); COMMENT_CAPTURE_OFF;}
         NameString
         OptionalByteConstExpr       {UtCheckIntegerRange ($5, 0, 7);}
         OptionalSerializeRuleKeyword
         OptionalByteConstExpr
         OptionalParameterTypePackage
         OptionalParameterTypesPackage
-        PARSEOP_CLOSE_PAREN '{'
+        PARSEOP_CLOSE_PAREN '{'     {COMMENT_CAPTURE_ON;}
             TermList '}'            {$$ = TrLinkChildren ($<n>3,7,
                                         TrSetNodeFlags ($4, NODE_IS_NAME_DECLARATION),
-                                        $5,$7,$8,$9,$10,$13);}
+                                        $5,$7,$8,$9,$10,$14);}
     | PARSEOP_METHOD
         PARSEOP_OPEN_PAREN
         error PARSEOP_CLOSE_PAREN   {$$ = AslDoError(); yyclearin;}

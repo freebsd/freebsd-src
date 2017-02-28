@@ -84,7 +84,8 @@ ASL_FILE_INFO                       Gbl_Files [ASL_NUM_FILES] =
     {NULL, NULL, "C Include:    ", "C Header Output"},
     {NULL, NULL, "Offset Table: ", "C Offset Table Output"},
     {NULL, NULL, "Device Map:   ", "Device Map Output"},
-    {NULL, NULL, "Cross Ref:    ", "Cross-reference Output"}
+    {NULL, NULL, "Cross Ref:    ", "Cross-reference Output"},
+    {NULL, NULL, "Converter db :", "Converter debug Output"}
 };
 
 #else
@@ -113,7 +114,7 @@ extern int                  AslCompilerdebug;
 
 
 #define ASL_DEFAULT_LINE_BUFFER_SIZE    (1024 * 32) /* 32K */
-#define ASL_MSG_BUFFER_SIZE             4096
+#define ASL_MSG_BUFFER_SIZE             (1024 * 32) /* 32k */
 #define ASL_MAX_DISABLED_MESSAGES       32
 #define HEX_TABLE_LINE_SIZE             8
 #define HEX_LISTING_LINE_SIZE           8
@@ -182,6 +183,9 @@ ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PruneParseTree, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoTypechecking, TRUE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_EnableReferenceTypechecking, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoExternals, TRUE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoExternalsInPlace, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoAslConversion, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_OptimizeTrivialParseNodes, TRUE);
 
 
 #define HEX_OUTPUT_NONE             0
@@ -265,6 +269,20 @@ ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_TableId, "NO_ID");
 ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_PruneDepth, 0);
 ASL_EXTERN UINT16                   ASL_INIT_GLOBAL (Gbl_PruneType, 0);
 
+ASL_EXTERN ASL_FILE_NODE            ASL_INIT_GLOBAL (*Gbl_IncludeFileStack, NULL);
+
+/* Specific to the -q option */
+
+ASL_EXTERN ASL_COMMENT_STATE        Gbl_CommentState;
+
+
+/*
+ * Determines if an inline comment should be saved in the InlineComment or NodeEndComment
+ *  field of ACPI_PARSE_OBJECT.
+ */
+ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*Gbl_Comment_List_Head, NULL);
+ASL_EXTERN ACPI_COMMENT_NODE        ASL_INIT_GLOBAL (*Gbl_Comment_List_Tail, NULL);
+ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_Inline_Comment_Buffer, NULL);
 
 /* Static structures */
 

@@ -511,8 +511,14 @@ FlOpenAmlOutputFile (
     if (!Filename)
     {
         /* Create the output AML filename */
-
-        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_AML_CODE);
+        if (!Gbl_CaptureComments)
+        {
+            Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_AML_CODE);
+        }
+        else
+        {
+            Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_CONVERT_AML);
+        }
         if (!Filename)
         {
             AslCommonError (ASL_ERROR, ASL_MSG_OUTPUT_FILENAME,
@@ -852,6 +858,28 @@ FlOpenMiscOutputFiles (
 
         AslCompilerSignon (ASL_FILE_NAMESPACE_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_NAMESPACE_OUTPUT);
+    }
+
+    /* Create a debug file for the converter */
+
+    if (AcpiGbl_DebugAslConversion)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_CONVERT_DEBUG);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        /* Open the converter debug file, text mode */
+
+        FlOpenFile (ASL_FILE_CONV_DEBUG_OUTPUT, Filename, "w+t");
+
+        AslCompilerSignon (ASL_FILE_CONV_DEBUG_OUTPUT);
+        AslCompilerFileHeader (ASL_FILE_CONV_DEBUG_OUTPUT);
+
+        AcpiGbl_ConvDebugFile = Gbl_Files[ASL_FILE_CONV_DEBUG_OUTPUT].Handle;
     }
 
     return (AE_OK);

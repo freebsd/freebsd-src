@@ -171,6 +171,7 @@
 #define ACPI_IORT1_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_NAMED_COMPONENT,f)
 #define ACPI_IORT2_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_ROOT_COMPLEX,f)
 #define ACPI_IORT3_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_SMMU,f)
+#define ACPI_IORT3A_OFFSET(f)           (UINT16) ACPI_OFFSET (ACPI_IORT_SMMU_GSI,f)
 #define ACPI_IORT4_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_SMMU_V3,f)
 #define ACPI_IORTA_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_MEMORY_ACCESS,f)
 #define ACPI_IORTH_OFFSET(f)            (UINT16) ACPI_OFFSET (ACPI_IORT_NODE,f)
@@ -259,6 +260,7 @@
 #define ACPI_GTDT0a_FLAG_OFFSET(f,o)    ACPI_FLAG_OFFSET (ACPI_GTDT_TIMER_ENTRY,f,o)
 #define ACPI_GTDT1_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_GTDT_WATCHDOG,f,o)
 #define ACPI_IORT3_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_IORT_SMMU,f,o)
+#define ACPI_IORT3a_FLAG_OFFSET(f,o)    ACPI_FLAG_OFFSET (ACPI_IORT_SMMU_GSI,f,o)
 #define ACPI_IORT4_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_IORT_SMMU_V3,f,o)
 #define ACPI_IORTA_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_IORT_MEMORY_ACCESS,f,o)
 #define ACPI_IORTM_FLAG_OFFSET(f,o)     ACPI_FLAG_OFFSET (ACPI_IORT_ID_MAPPING,f,o)
@@ -1549,8 +1551,12 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoIort3[] =
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoIort3a[] =
 {
-    {ACPI_DMT_UINT64,   0,                                          "SMMU_NSgIrpt Interrupt", 0},
-    {ACPI_DMT_UINT64,   0,                                          "SMMU_NSgCfgIrpt Interrupt", 0},
+    {ACPI_DMT_UINT32,   ACPI_IORT3A_OFFSET (NSgIrpt),                   "NSgIrpt", 0},
+    {ACPI_DMT_UINT32,   ACPI_IORT3A_OFFSET (NSgIrptFlags),              "NSgIrpt Flags (decoded below)", 0},
+    {ACPI_DMT_FLAG0,    ACPI_IORT3a_FLAG_OFFSET (NSgIrptFlags, 0),      "Edge Triggered", 0},
+    {ACPI_DMT_UINT32,   ACPI_IORT3A_OFFSET (NSgCfgIrpt),                "NSgCfgIrpt", 0},
+    {ACPI_DMT_UINT32,   ACPI_IORT3A_OFFSET (NSgCfgIrptFlags),           "NSgCfgIrpt Flags (decoded below)", 0},
+    {ACPI_DMT_FLAG0,    ACPI_IORT3a_FLAG_OFFSET (NSgCfgIrptFlags, 0),   "Edge Triggered", 0},
     ACPI_DMT_TERMINATOR
 };
 

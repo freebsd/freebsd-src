@@ -244,7 +244,7 @@ AcpiDmNamestring (
         Name++;
         break;
 
-    case AML_MULTI_NAME_PREFIX_OP:
+    case AML_MULTI_NAME_PREFIX:
 
         SegCount = (UINT32) ACPI_GET8 (Name + 1);
         Name += 2;

@@ -153,6 +153,10 @@ typedef struct asl_file_status
  * Corresponding filename suffixes are in comments
  *
  * NOTE: Don't move the first 4 file types
+ *
+ * .xxx file extension: this is used as a temporary .aml file for
+ * the ASL/ASL+ converter and is deleted after conversion. This file
+ * should never be used in the interpreter.
  */
 typedef enum
 {
@@ -173,12 +177,14 @@ typedef enum
     ASL_FILE_C_INCLUDE_OUTPUT,  /* .h   */
     ASL_FILE_C_OFFSET_OUTPUT,   /* .offset.h */
     ASL_FILE_MAP_OUTPUT,        /* .map */
-    ASL_FILE_XREF_OUTPUT        /* .xrf */
+    ASL_FILE_XREF_OUTPUT,       /* .xrf */
+    ASL_FILE_CONV_DEBUG_OUTPUT, /* .cdb */
+    ASL_FILE_CONV_OUTPUT        /* .xxx */
 
 } ASL_FILE_TYPES;
 
 
-#define ASL_MAX_FILE_TYPE       17
+#define ASL_MAX_FILE_TYPE       18
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
 
 /* Name suffixes used to create filenames for output files */
@@ -199,6 +205,8 @@ typedef enum
 #define FILE_SUFFIX_C_OFFSET        "offset.h"
 #define FILE_SUFFIX_MAP             "map"
 #define FILE_SUFFIX_XREF            "xrf"
+#define FILE_SUFFIX_CONVERT_AML     "xxx"
+#define FILE_SUFFIX_CONVERT_DEBUG   "cdb"
 
 
 /* Cache block structure for ParseOps and Strings */
@@ -335,5 +343,16 @@ typedef struct asl_xref_info
 
 } ASL_XREF_INFO;
 
+
+typedef struct yy_buffer_state *YY_BUFFER_STATE;
+typedef struct asl_file_node
+{
+    FILE                    *File;
+    UINT32                  CurrentLineNumber;
+    YY_BUFFER_STATE         State;
+    char                    *Filename;
+    struct asl_file_node    *Next;
+
+} ASL_FILE_NODE;
 
 #endif  /* __ASLTYPES_H */

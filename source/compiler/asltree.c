@@ -44,6 +44,7 @@
 #include "aslcompiler.h"
 #include "aslcompiler.y.h"
 #include "acapps.h"
+#include "acconvert.h"
 #include <time.h>
 
 #define _COMPONENT          ACPI_COMPILER
@@ -140,6 +141,7 @@ TrAllocateNode (
     UINT32                  ParseOpcode)
 {
     ACPI_PARSE_OBJECT       *Op;
+    ACPI_PARSE_OBJECT       *LatestNode;
 
 
     Op = TrGetNextNode ();
@@ -152,6 +154,82 @@ TrAllocateNode (
     Op->Asl.Column            = Gbl_CurrentColumn;
 
     UtSetParseOpName (Op);
+
+    /* The following is for capturing comments */
+
+    if(Gbl_CaptureComments)
+    {
+        LatestNode = Gbl_CommentState.Latest_Parse_Node;
+        Op->Asl.InlineComment     = NULL;
+        Op->Asl.EndNodeComment    = NULL;
+        Op->Asl.CommentList       = NULL;
+        Op->Asl.FileChanged       = FALSE;
+
+        /*
+         * Check to see if the file name has changed before resetting the
+         * latest parse node.
+         */
+        if (LatestNode &&
+            (ParseOpcode != PARSEOP_INCLUDE) &&
+            (ParseOpcode != PARSEOP_INCLUDE_END) &&
+            strcmp (LatestNode->Asl.Filename, Op->Asl.Filename))
+        {
+            CvDbgPrint ("latest node: %s\n", LatestNode->Asl.ParseOpName);
+            Op->Asl.FileChanged = TRUE;
+            if (Gbl_IncludeFileStack)
+            {
+                Op->Asl.ParentFilename = Gbl_IncludeFileStack->Filename;
+            }
+            else
+            {
+                Op->Asl.ParentFilename = NULL;
+            }
+        }
+
+        Gbl_CommentState.Latest_Parse_Node = Op;
+        if (Gbl_CommentState.Latest_Parse_Node->Asl.ParseOpName)
+        {
+            CvDbgPrint ("trallocatenode=Set latest parse node to this node.\n");
+            CvDbgPrint ("           Op->Asl.ParseOpName = %s\n",
+                Gbl_CommentState.Latest_Parse_Node->Asl.ParseOpName);
+            CvDbgPrint ("           Op->Asl.ParseOpcode = 0x%x\n", ParseOpcode);
+
+            if (Op->Asl.FileChanged)
+            {
+                CvDbgPrint("    file has been changed!\n");
+            }
+        }
+
+        /*
+         * if this parse op's syntax uses () and {} (i.e. Package(1){0x00}) then
+         * set a flag in the comment state. This facilitates paring comments for
+         * these types of opcodes.
+         */
+        if ((CvParseOpBlockType(Op) == (BLOCK_PAREN | BLOCK_BRACE)) &&
+            (ParseOpcode != PARSEOP_DEFINITION_BLOCK))
+        {
+            CvDbgPrint ("Parsing paren/Brace node now!\n");
+            Gbl_CommentState.ParsingParenBraceNode = Op;
+        }
+
+        if (Gbl_Comment_List_Head)
+        {
+            CvDbgPrint ("Transferring...\n");
+            Op->Asl.CommentList = Gbl_Comment_List_Head;
+            Gbl_Comment_List_Head = NULL;
+            Gbl_Comment_List_Tail = NULL;
+            CvDbgPrint ("    Transferred current comment list to this node.\n");
+            CvDbgPrint ("    %s\n", Op->Asl.CommentList->Comment);
+        }
+        if (Gbl_Inline_Comment_Buffer)
+        {
+            Op->Asl.InlineComment = Gbl_Inline_Comment_Buffer;
+            Gbl_Inline_Comment_Buffer = NULL;
+            CvDbgPrint ("Transferred current inline comment list to this node.\n");
+        }
+
+    }
+
     return (Op);
 }
 
@@ -292,6 +370,13 @@ TrUpdateNode (
         /* Don't care about others, don't need to check QWORD */
 
         break;
+    }
+
+    /* Converter: if this is a method invocation, turn off capture comments. */
+    if (Gbl_CaptureComments &&
+        (ParseOpcode == PARSEOP_METHODCALL))
+    {
+        Gbl_CommentState.CaptureComments = FALSE;
     }
 
     return (Op);
@@ -1060,6 +1145,39 @@ TrCreateNode (
         {
             FirstChild = FALSE;
             Op->Asl.Child = Child;
+
+            /*
+             * For the ASL-/ASL+ converter: if the ParseOp is a connection,
+             * external, offset or accessAs, it means that the comments in the
+             * FirstChild belongs to their parent due to the parsing order in
+             * the .y files. To correct this, take the comments in the
+             * FirstChild place it in the parent. This also means that
+             * legitimate comments for the child gets put to the parent.
+             */
+            if (Gbl_CaptureComments &&
+                ((ParseOpcode == PARSEOP_CONNECTION) ||
+                 (ParseOpcode == PARSEOP_EXTERNAL) ||
+                 (ParseOpcode == PARSEOP_OFFSET) ||
+                 (ParseOpcode == PARSEOP_ACCESSAS)))
+            {
+                Op->Asl.CommentList      = Child->Asl.CommentList;
+                Op->Asl.EndBlkComment    = Child->Asl.EndBlkComment;
+                Op->Asl.InlineComment    = Child->Asl.InlineComment;
+                Op->Asl.FileChanged      = Child->Asl.FileChanged;
+
+                Child->Asl.CommentList   = NULL;
+                Child->Asl.EndBlkComment = NULL;
+                Child->Asl.InlineComment = NULL;
+                Child->Asl.FileChanged   = FALSE;
+
+                /*
+                 * These do not need to be "passed off". They can be copied
+                 * because the code for these opcodes should be printed in the
+                 * same file.
+                 */
+                Op->Asl.Filename         = Child->Asl.Filename;
+                Op->Asl.ParentFilename   = Child->Asl.ParentFilename;
+            }
         }
 
         /* Point all children to parent */
@@ -1072,6 +1190,18 @@ TrCreateNode (
         {
             PrevChild->Asl.Next = Child;
         };
+
+        /* Get the comment from last child in the resource template call */
+
+        if (Gbl_CaptureComments &&
+            (Op->Asl.ParseOpcode == PARSEOP_RESOURCETEMPLATE))
+        {
+            CvDbgPrint ("Transferred current comment list to this node.\n");
+            Op->Asl.CommentList = Child->Asl.CommentList;
+            Child->Asl.CommentList = NULL;
+            Op->Asl.InlineComment = Child->Asl.InlineComment;
+            Child->Asl.InlineComment = NULL;
+        }
 
         /*
          * This child might be a list, point all nodes in the list
@@ -1097,9 +1227,9 @@ TrCreateNode (
  * FUNCTION:    TrLinkChildren
  *
  * PARAMETERS:  Op                - An existing parse node
- *              NumChildren         - Number of children to follow
- *              ...                 - A list of child nodes to link to the new
- *                                    node. NumChildren long.
+ *              NumChildren        - Number of children to follow
+ *              ...                - A list of child nodes to link to the new
+ *                                   node. NumChildren long.
  *
  * RETURN:      The updated (linked) node
  *
@@ -1159,6 +1289,25 @@ TrLinkChildren (
         /* Nothing to do for other opcodes */
 
         break;
+    }
+
+    /* The following is for capturing comments */
+
+    if(Gbl_CaptureComments)
+    {
+        /*
+         * If there are "regular comments" detected at this point,
+         * then is an endBlk comment. Categorize it as so and distribute
+         * all regular comments to this parse node.
+         */
+        if (Gbl_Comment_List_Head)
+        {
+            Op->Asl.EndBlkComment = Gbl_Comment_List_Head;
+            CvDbgPrint ("EndBlk Comment for %s: %s",
+                Op->Asl.ParseOpName, Gbl_Comment_List_Head->Comment);
+            Gbl_Comment_List_Head = NULL;
+            Gbl_Comment_List_Tail = NULL;
+        }
     }
 
     /* Link the new node to it's children */
@@ -1224,6 +1373,13 @@ TrLinkChildren (
 
     va_end(ap);
     DbgPrint (ASL_PARSE_OUTPUT, "\n\n");
+
+
+    if(Gbl_CaptureComments)
+    {
+        Gbl_CommentState.Latest_Parse_Node = Op;
+        CvDbgPrint ("trlinkchildren=====Set latest parse node to this node.\n");
+    }
     return (Op);
 }
 
@@ -1391,6 +1547,19 @@ TrLinkChildNode (
         Op1, Op1 ? UtGetOpName(Op1->Asl.ParseOpcode): NULL,
         Op2, Op2 ? UtGetOpName(Op2->Asl.ParseOpcode): NULL);
 
+    /*
+     * Converter: if TrLinkChildNode is called to link a method call,
+     * turn on capture comments as it signifies that we are done parsing
+     * a method call.
+     */
+    if (Gbl_CaptureComments)
+    {
+        if (Op1->Asl.ParseOpcode == PARSEOP_METHODCALL)
+        {
+            Gbl_CommentState.CaptureComments = TRUE;
+        }
+        Gbl_CommentState.Latest_Parse_Node = Op1;
+    }
     if (!Op1 || !Op2)
     {
         return (Op1);
