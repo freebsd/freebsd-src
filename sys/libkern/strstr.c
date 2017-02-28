@@ -1,9 +1,9 @@
 /*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1991 The Regents of the University of California.
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
- * Chris Torek.
+ * William Jolitz.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,32 +28,42 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/libkern.h>
+#include <sys/types.h>
+#include <sys/syslog.h>
+#include <sys/systm.h>
+
+#include <machine/md_var.h>
+
+#define NMI_PARITY 0x04
+#define NMI_EPARITY 0x02
 
 /*
- * Find the first occurrence of find in s.
+ * Handle a NMI, possibly a machine check.
+ * return true to panic system, false to ignore.
  */
-char *
-strstr(const char *s, const char *find)
+int
+isa_nmi(int cd)
 {
-	char c, sc;
-	size_t len;
+	int retval = 0;
+ 	int port = inb(0x33);
 
-	if ((c = *find++) != 0) {
-		len = strlen(find);
-		do {
-			do {
-				if ((sc = *s++) == 0)
-					return (NULL);
-			} while (sc != c);
-		} while (strncmp(s, find, len) != 0);
-		s--;
+	log(LOG_CRIT, "NMI PC98 port = %x\n", port);
+	if (port & NMI_PARITY) {
+		log(LOG_CRIT, "BASE RAM parity error, likely hardware failure.");
+		retval = 1;
+	} else if (port & NMI_EPARITY) {
+		log(LOG_CRIT, "EXTENDED RAM parity error, likely hardware failure.");
+		retval = 1;
+	} else {
+		log(LOG_CRIT, "\nNMI Resume ??\n");
 	}
-	return (__DECONST(char *, s));
+
+	return(retval);
 }
