@@ -2849,7 +2849,7 @@ pcib_request_feature_allow(device_t pcib, device_t dev,
     enum pci_feature feature)
 {
 	/*
-	 * No host firmwrae we have to negotiate with, so we allow
+	 * No host firmware we have to negotiate with, so we allow
 	 * every valid feature requested.
 	 */
 	switch (feature) {
