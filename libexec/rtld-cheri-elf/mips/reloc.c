@@ -49,12 +49,24 @@ __FBSDID("$FreeBSD$");
 
 #define	GOT1_MASK	0x8000000000000000UL
 
+/*
+ * Determine if the second GOT entry is reserved for rtld or if it is
+ * the first "real" GOT entry.
+ *
+ * This must be a macro rather than a function so that
+ * _rtld_relocate_nonplt_self doesn't trigger a GOT invocation trying
+ * to use it before the local GOT entries in rtld are adjusted.
+ */
+/* Old binutils uses the 32-bit GOT1 mask value for N64. */
+#define GOT1_RESERVED_FOR_RTLD(got)					\
+	(((got)[1] == 0x80000000) || (got)[1] & GOT1_MASK)
+
 void
 init_pltgot(Obj_Entry *obj)
 {
 	if (obj->pltgot != NULL) {
 		obj->pltgot[0] = (Elf_Addr) &_rtld_bind_start;
-		if (obj->pltgot[1] & 0x80000000)
+		if (GOT1_RESERVED_FOR_RTLD(obj->pltgot))
 			obj->pltgot[1] = (Elf_Addr) obj | GOT1_MASK;
 	}
 }
@@ -168,7 +180,7 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, caddr_t relocbase)
 		}
 	}
 
-	i = (got[1] & GOT1_MASK) ? 2 : 1;
+	i = GOT1_RESERVED_FOR_RTLD(got) ? 2 : 1;
 	/* Relocate the local GOT entries */
 	got += i;
 	for (; i < local_gotno; i++) {
@@ -292,7 +304,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	dbg("%s: broken=%d", obj->path, broken);
 #endif
 
-	i = (got[1] & GOT1_MASK) ? 2 : 1;
+	i = GOT1_RESERVED_FOR_RTLD(got) ? 2 : 1;
 
 	/* Relocate the local GOT entries */
 	got += i;
