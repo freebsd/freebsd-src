@@ -1,9 +1,9 @@
 /*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
  * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,58 +30,29 @@
  * $FreeBSD$
  */
 
-/dts-v1/;
-
-/include/ "socfpga.dtsi"
+/* /dts-v1/; */
+#include "socfpga_cyclone5_sockit.dts"
 
 / {
-	model = "Terasic SoCKit";
+	model = "Terasic SoCkit";
 	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
 	memreserve = < 0x00000000 0x1000 >, /* SMP trampoline */
 		     < 0x00001000 0x1000 >, /* virtio block */
 		     < 0x00002000 0x1000 >; /* virtio net */
 
-	memory {
-		device_type = "memory";
-		reg = < 0x00000000 0x40000000 >;	/* 1G RAM */
-	};
-
-	SOC: socfpga {
-		serial0: serial@ffc02000 {
-			status = "okay";
+	soc {
+		/* Local timer */
+		timer@fffec600 {
+			clock-frequency = <200000000>;
 		};
 
-		usb1: usb@ffb40000 {
-			status = "okay";
-		};
-
-		gmac1: ethernet@ff702000 {
-			status = "okay";
-
-			rxd0-skew-ps = <0>;
-			rxd1-skew-ps = <0>;
-			rxd2-skew-ps = <0>;
-			rxd3-skew-ps = <0>;
-			txen-skew-ps = <0>;
-			txc-skew-ps = <2600>;
-			rxdv-skew-ps = <0>;
-			rxc-skew-ps = <2000>;
-		};
-
-		mmc: dwmmc@ff704000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "okay";
-			num-slots = <1>;
-			supports-highspeed;
-			broken-cd;
-			bus-frequency = <25000000>;
-
-			slot@0 {
-				reg = <0>;
-				bus-width = <4>;
-			};
+		/* Global timer */
+		global_timer: timer@fffec200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0xfffec200 0x20>;
+			interrupts = <1 11 0xf04>;
+			clock-frequency = <200000000>;
 		};
 
 		beri_mem0: mem@d0000000 {
@@ -94,7 +65,6 @@
 			compatible = "altr,pio";
 			reg = <0xc0020000 0x1000>; /* recv */
 			interrupts = < 76 >;
-			interrupt-parent = <&GIC>;
 			status = "okay";
 		};
 
@@ -102,7 +72,6 @@
 			compatible = "altr,pio";
 			reg = <0xc0021000 0x1000>; /* send */
 			interrupts = < 82 >; /* not in use on arm side */
-			interrupt-parent = <&GIC>;
 			status = "okay";
 		};
 
@@ -110,7 +79,6 @@
 			compatible = "altr,pio";
 			reg = <0xc0022000 0x1000>; /* recv */
 			interrupts = < 77 >;
-			interrupt-parent = <&GIC>;
 			status = "okay";
 		};
 
@@ -118,7 +86,6 @@
 			compatible = "altr,pio";
 			reg = <0xc0023000 0x1000>; /* send */
 			interrupts = < 83 >; /* not in use on arm side */
-			interrupt-parent = <&GIC>;
 			status = "okay";
 		};
 
@@ -144,7 +111,6 @@
 			compatible = "sri-cambridge,beri-ring";
 			reg = <0xc0000000 0x3000>;
 			interrupts = < 72 73 >;
-			interrupt-parent = <&GIC>;
 			device_name = "beri_debug";
 			data_size = <0x1000>;
 			data_read = <0x0>;
@@ -158,7 +124,6 @@
 			compatible = "sri-cambridge,beri-ring";
 			reg = <0xc0004000 0x3000>;
 			interrupts = < 74 75 >;
-			interrupt-parent = <&GIC>;
 			device_name = "beri_console";
 			data_size = <0x1000>;
 			data_read = <0x0>;
@@ -170,8 +135,19 @@
 	};
 
 	chosen {
-		bootargs = "-v";
 		stdin = "serial0";
 		stdout = "serial0";
 	};
+};
+
+&mmc0 {
+	bus-frequency = <25000000>;
+};
+
+&uart0 {
+	clock-frequency = <100000000>;
+};
+
+&uart1 {
+	status = "disabled";
 };
