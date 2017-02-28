@@ -1,5 +1,5 @@
 #
-# BERI_TEMPLATE -- a template kernel configuration for the SRI/Cambridge
+# std.BERI -- a template kernel configuration for the SRI/Cambridge
 # "BERI" (Bluespec Extensible RISC Implementation) FPGA soft core CPU.  This
 # kernel configuration file will be included by other board-specific files,
 # and so contains only BERI features common across all board targets.
