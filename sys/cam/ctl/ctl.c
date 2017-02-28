@@ -13146,21 +13146,15 @@ ctl_queue_sense(union ctl_io *io)
 
 	initidx = ctl_get_initindex(&io->io_hdr.nexus);
 	p = initidx / CTL_MAX_INIT_PER_PORT;
-	if ((ps = lun->pending_sense[p]) == NULL) {
-		mtx_unlock(&lun->lun_lock);
-		ps = malloc(sizeof(*ps) * CTL_MAX_INIT_PER_PORT, M_CTL,
-		    M_WAITOK | M_ZERO);
-		mtx_lock(&lun->lun_lock);
-		if (lun->pending_sense[p] == NULL) {
-			lun->pending_sense[p] = ps;
-		} else {
-			free(ps, M_CTL);
-			ps = lun->pending_sense[p];
-		}
+	if (lun->pending_sense[p] == NULL) {
+		lun->pending_sense[p] = malloc(sizeof(*ps) * CTL_MAX_INIT_PER_PORT,
+		    M_CTL, M_NOWAIT | M_ZERO);
 	}
-	ps += initidx % CTL_MAX_INIT_PER_PORT;
-	memset(ps, 0, sizeof(*ps));
-	memcpy(ps, &io->scsiio.sense_data, io->scsiio.sense_len);
+	if ((ps = lun->pending_sense[p]) != NULL) {
+		ps += initidx % CTL_MAX_INIT_PER_PORT;
+		memset(ps, 0, sizeof(*ps));
+		memcpy(ps, &io->scsiio.sense_data, io->scsiio.sense_len);
+	}
 	mtx_unlock(&lun->lun_lock);
 
 bailout:
