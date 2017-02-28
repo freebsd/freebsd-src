@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #else
 #include <stdarg.h>
+#include <stdio.h>
 #endif
 
 #ifdef _KERNEL
