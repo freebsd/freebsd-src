@@ -656,8 +656,11 @@ CaseFile::DeSerializeFile(const char *fileName)
 		uint64_t vdevGUID;
 		nvlist_t *vdevConf;
 
-		sscanf(fileName, "pool_%" PRIu64 "_vdev_%" PRIu64 ".case",
-		       &poolGUID, &vdevGUID);
+		if (sscanf(fileName, "pool_%" PRIu64 "_vdev_%" PRIu64 ".case",
+		       &poolGUID, &vdevGUID) != 2) {
+			throw ZfsdException("CaseFile::DeSerialize: "
+			    "Unintelligible CaseFile filename %s.\n", fileName);
+		}
 		existingCaseFile = Find(Guid(poolGUID), Guid(vdevGUID));
 		if (existingCaseFile != NULL) {
 			/*
