@@ -75,8 +75,8 @@ __FBSDID("$FreeBSD$");
 #define	RAM_PHYSBASE			0x0
 #define	RAM_SIZE			0x1000
 
-#define	SOCFPGA_SOCKIT			1
-#define	SOCFPGA_SOCDK			2
+#define	SOCFPGA_ARRIA10			1
+#define	SOCFPGA_CYCLONE5		2
 
 extern char	*mpentry_addr;
 static void	socfpga_trampoline(void);
@@ -112,22 +112,31 @@ socfpga_mp_setmaxid(platform_t plat)
 	mp_maxid = ncpu - 1;
 }
 
-
 static void
-_socfpga_mp_start_ap(platform_t plat, uint32_t platid)
+_socfpga_mp_start_ap(uint32_t platid)
 {
 	bus_space_handle_t scu, rst, ram;
 	int reg;
 
-	if (platid == SOCFPGA_SOCDK) {
+	switch (platid) {
+#if defined(SOC_ALTERA_ARRIA10)
+	case SOCFPGA_ARRIA10:
 		if (bus_space_map(fdtbus_bs_tag, SCU_PHYSBASE_A10,
 		    SCU_SIZE, 0, &scu) != 0)
-		panic("Couldn't map the SCU\n");
-	} else {
+			panic("Couldn't map the SCU\n");
+		break;
+#endif
+#if defined(SOC_ALTERA_CYCLONE5)
+	case SOCFPGA_CYCLONE5:
 		if (bus_space_map(fdtbus_bs_tag, SCU_PHYSBASE,
 		    SCU_SIZE, 0, &scu) != 0)
-		panic("Couldn't map the SCU\n");
+			panic("Couldn't map the SCU\n");
+		break;
+#endif
+	default:
+		panic("Unknown platform id %d\n", platid);
 	}
+
 	if (bus_space_map(fdtbus_bs_tag, RSTMGR_PHYSBASE,
 					RSTMGR_SIZE, 0, &rst) != 0)
 		panic("Couldn't map the reset manager (RSTMGR)\n");
@@ -149,12 +158,21 @@ _socfpga_mp_start_ap(platform_t plat, uint32_t platid)
 	bus_space_write_4(fdtbus_bs_tag, scu, SCU_DIAG_CONTROL, reg);
 
 	/* Put CPU1 to reset state */
-	if (platid == SOCFPGA_SOCDK) {
+	switch (platid) {
+#if defined(SOC_ALTERA_ARRIA10)
+	case SOCFPGA_ARRIA10:
 		bus_space_write_4(fdtbus_bs_tag, rst,
 		    RSTMGR_A10_MPUMODRST, MPUMODRST_CPU1);
-	} else {
+		break;
+#endif
+#if defined(SOC_ALTERA_CYCLONE5)
+	case SOCFPGA_CYCLONE5:
 		bus_space_write_4(fdtbus_bs_tag, rst,
 		    RSTMGR_MPUMODRST, MPUMODRST_CPU1);
+		break;
+#endif
+	default:
+		panic("Unknown platform id %d\n", platid);
 	}
 
 	/* Enable the SCU, then clean the cache on this core */
@@ -170,12 +188,21 @@ _socfpga_mp_start_ap(platform_t plat, uint32_t platid)
 	dcache_wbinv_poc_all();
 
 	/* Put CPU1 out from reset */
-	if (platid == SOCFPGA_SOCDK) {
+	switch (platid) {
+#if defined(SOC_ALTERA_ARRIA10)
+	case SOCFPGA_ARRIA10:
 		bus_space_write_4(fdtbus_bs_tag, rst,
 		    RSTMGR_A10_MPUMODRST, 0);
-	} else {
+		break;
+#endif
+#if defined(SOC_ALTERA_CYCLONE5)
+	case SOCFPGA_CYCLONE5:
 		bus_space_write_4(fdtbus_bs_tag, rst,
 		    RSTMGR_MPUMODRST, 0);
+		break;
+#endif
+	default:
+		panic("Unknown platform id %d\n", platid);
 	}
 
 	dsb();
@@ -186,17 +213,20 @@ _socfpga_mp_start_ap(platform_t plat, uint32_t platid)
 	bus_space_unmap(fdtbus_bs_tag, ram, RAM_SIZE);
 }
 
+#if defined(SOC_ALTERA_ARRIA10)
 void
 socfpga_a10_mp_start_ap(platform_t plat)
 {
 
-	_socfpga_mp_start_ap(plat, SOCFPGA_SOCDK);
+	_socfpga_mp_start_ap(SOCFPGA_ARRIA10);
 }
+#endif
 
+#if defined(SOC_ALTERA_CYCLONE5)
 void
 socfpga_mp_start_ap(platform_t plat)
 {
 
-	_socfpga_mp_start_ap(plat, SOCFPGA_SOCKIT);
+	_socfpga_mp_start_ap(SOCFPGA_CYCLONE5);
 }
-
+#endif
