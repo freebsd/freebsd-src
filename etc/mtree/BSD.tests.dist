@@ -608,6 +608,8 @@
             regress.multitest.out
             ..
         ..
+        tail
+        ..
         tar
         ..
         timeout

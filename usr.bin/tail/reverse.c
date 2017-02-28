@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)reverse.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
@@ -169,12 +170,12 @@ r_reg(FILE *fp, const char *fn, enum STYLE style, off_t off, struct stat *sbp)
 		ierr(fn);
 }
 
-typedef struct bf {
-	struct bf *next;
-	struct bf *prev;
-	int len;
-	char *l;
-} BF;
+#define BSZ	(128 * 1024)
+typedef struct bfelem {
+	TAILQ_ENTRY(bfelem) entries;
+	size_t len;
+	char l[BSZ];
+} bfelem_t;
 
 /*
  * r_buf -- display a non-regular file in reverse order by line.
@@ -189,64 +190,44 @@ typedef struct bf {
 static void
 r_buf(FILE *fp, const char *fn)
 {
-	BF *mark, *tl, *tr;
-	int ch, len, llen;
+	struct bfelem *tl, *first = NULL;
+	size_t llen;
 	char *p;
-	off_t enomem;
+	off_t enomem = 0;
+	TAILQ_HEAD(bfhead, bfelem) head;
 
-	tl = NULL;
-#define	BSZ	(128 * 1024)
-	for (mark = NULL, enomem = 0;;) {
+	TAILQ_INIT(&head);
+
+	while (!feof(fp)) {
+		size_t len;
+
 		/*
 		 * Allocate a new block and link it into place in a doubly
 		 * linked list.  If out of memory, toss the LRU block and
 		 * keep going.
 		 */
-		if (enomem || (tl = malloc(sizeof(BF))) == NULL ||
-		    (tl->l = malloc(BSZ)) == NULL) {
-			if (!mark)
+		while ((tl = malloc(sizeof(bfelem_t))) == NULL) {
+			first = TAILQ_FIRST(&head);
+			if (TAILQ_EMPTY(&head))
 				err(1, "malloc");
-			if (enomem)
-				tl = tl->next;
-			else {
-				if (tl)
-					free(tl);
-				tl = mark;
-			}
-			enomem += tl->len;
-		} else if (mark) {
-			tl->next = mark;
-			tl->prev = mark->prev;
-			mark->prev->next = tl;
-			mark->prev = tl;
-		} else {
-			mark = tl;
-			mark->next = mark->prev = mark;
+			enomem += first->len;
+			TAILQ_REMOVE(&head, first, entries);
+			free(first);
 		}
+		TAILQ_INSERT_TAIL(&head, tl, entries);
 
 		/* Fill the block with input data. */
-		for (p = tl->l, len = 0;
-		    len < BSZ && (ch = getc(fp)) != EOF; ++len)
-			*p++ = ch;
-
-		if (ferror(fp)) {
-			ierr(fn);
-			return;
-		}
-
-		/*
-		 * If no input data for this block and we tossed some data,
-		 * recover it.
-		 */
-		if (!len && enomem) {
-			enomem -= tl->len;
-			tl = tl->prev;
-			break;
+		len = 0;
+		while ((!feof(fp)) && len < BSZ) {
+			p = tl->l + len;
+			len += fread(p, 1, BSZ - len, fp);
+			if (ferror(fp)) {
+				ierr(fn);
+				return;
+			}
 		}
 
 		tl->len = len;
-		if (ch == EOF)
-			break;
 	}
 
 	if (enomem) {
@@ -255,37 +236,46 @@ r_buf(FILE *fp, const char *fn)
 	}
 
 	/*
-	 * Step through the blocks in the reverse order read.  The last char
-	 * is special, ignore whether newline or not.
+	 * Now print the lines in reverse order
+	 * Outline:
+	 *    Scan backward for "\n",
+	 *    print forward to the end of the buffers
+	 *    free any buffers that start after the "\n" just found
+	 *    Loop
 	 */
-	for (mark = tl;;) {
-		for (p = tl->l + (len = tl->len) - 1, llen = 0; len--;
-		    --p, ++llen)
-			if (*p == '\n') {
-				if (llen) {
+	tl = TAILQ_LAST(&head, bfhead);
+	first = TAILQ_FIRST(&head);
+	while (tl != NULL) {
+		struct bfelem *temp;
+
+		for (p = tl->l + tl->len - 1, llen = 0; p >= tl->l;
+		    --p, ++llen) {
+			int start = (tl == first && p == tl->l);
+
+			if ((*p == '\n') || start) {
+				struct bfelem *tr;
+
+				if (start && llen)
+					WR(p, llen + 1);
+				else if (llen)
 					WR(p + 1, llen);
-					llen = 0;
-				}
-				if (tl == mark)
-					continue;
-				for (tr = tl->next; tr->len; tr = tr->next) {
-					WR(tr->l, tr->len);
-					tr->len = 0;
-					if (tr == mark)
-						break;
+				tr = TAILQ_NEXT(tl, entries);
+				llen = 0;
+				if (tr != NULL) {
+					TAILQ_FOREACH_FROM_SAFE(tr, &head,
+					    entries, temp) {
+						if (tr->len)
+							WR(&tr->l, tr->len);
+						TAILQ_REMOVE(&head, tr,
+						    entries);
+						free(tr);
+					}
 				}
 			}
+		}
 		tl->len = llen;
-		if ((tl = tl->prev) == mark)
-			break;
+		tl = TAILQ_PREV(tl, bfhead, entries);
 	}
-	tl = tl->next;
-	if (tl->len) {
-		WR(tl->l, tl->len);
-		tl->len = 0;
-	}
-	while ((tl = tl->next)->len) {
-		WR(tl->l, tl->len);
-		tl->len = 0;
-	}
+	TAILQ_REMOVE(&head, first, entries);
+	free(first);
 }
