@@ -1756,7 +1756,7 @@ cheriabi_madvise(struct thread *td, struct cheriabi_madvise_args *uap)
 			return (EPROT);
 	}
 
-	return (kern_madvise(td, uap->addr, uap->len, uap->behav));
+	return (kern_madvise(td, (uintptr_t)uap->addr, uap->len, uap->behav));
 }
 
 int
@@ -1956,7 +1956,7 @@ cheriabi_mmap(struct thread *td, struct cheriabi_mmap_args *uap)
 
 	}
 
-	return (kern_vm_mmap(td, reqaddr, cap_base + cap_len, uap->len,
+	return (kern_mmap(td, reqaddr, cap_base + cap_len, uap->len,
 	    uap->prot, flags, uap->fd, uap->pos));
 }
 
@@ -1983,7 +1983,7 @@ cheriabi_mprotect(struct thread *td, struct cheriabi_mprotect_args *uap)
 	if ((perms & reqperms) != reqperms)
 		return (EPROT);
 
-	return (kern_vm_mprotect(td, (vm_offset_t)uap->addr, uap->len,
+	return (kern_mprotect(td, (vm_offset_t)uap->addr, uap->len,
 	    uap->prot));
 }
 
