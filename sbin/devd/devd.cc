@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <map>
 #include <string>
 #include <list>
+#include <stdexcept>
 #include <vector>
 
 #include "devd.h"		/* C compatible definitions */
@@ -372,7 +373,7 @@ media::do_match(config &c)
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s >= 0) {
 		memset(&ifmr, 0, sizeof(ifmr));
-		strncpy(ifmr.ifm_name, value.c_str(), sizeof(ifmr.ifm_name));
+		strlcpy(ifmr.ifm_name, value.c_str(), sizeof(ifmr.ifm_name));
 
 		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0 &&
 		    ifmr.ifm_status & IFM_AVALID) {
@@ -856,8 +857,10 @@ create_socket(const char *name, int socktype)
 	if (::bind(fd, (struct sockaddr *) & sun, slen) < 0)
 		err(1, "bind");
 	listen(fd, 4);
-	chown(name, 0, 0);	/* XXX - root.wheel */
-	chmod(name, 0666);
+	if (chown(name, 0, 0))	/* XXX - root.wheel */
+		err(1, "chown");
+	if (chmod(name, 0666))
+		err(1, "chmod");
 	return (fd);
 }
 
@@ -1043,7 +1046,13 @@ event_loop(void)
 				buffer[rv] = '\0';
 				while (buffer[--rv] == '\n')
 					buffer[rv] = '\0';
-				process_event(buffer);
+				try {
+					process_event(buffer);
+				}
+				catch (std::length_error e) {
+					devdlog(LOG_ERR, "Dropping event %s "
+					    "due to low memory", buffer);
+				}
 			} else if (rv < 0) {
 				if (errno != EINTR)
 					break;
@@ -1061,6 +1070,8 @@ event_loop(void)
 		if (FD_ISSET(seqpacket_fd, &fds))
 			new_client(seqpacket_fd, SOCK_SEQPACKET);
 	}
+	close(seqpacket_fd);
+	close(stream_fd);
 	close(fd);
 }
 
@@ -1203,7 +1214,8 @@ check_devd_enabled()
 	if (val == 0) {
 		warnx("Setting " SYSCTL " to 1000");
 		val = 1000;
-		sysctlbyname(SYSCTL, NULL, NULL, &val, sizeof(val));
+		if (sysctlbyname(SYSCTL, NULL, NULL, &val, sizeof(val)))
+			err(1, "sysctlbyname");
 	}
 }
 

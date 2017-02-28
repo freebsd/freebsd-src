@@ -1063,6 +1063,7 @@ sendpacket(struct sockaddr_in6 *sin6, int len)
 	iov[0].iov_len = len;
 	m.msg_iov = iov;
 	m.msg_iovlen = 1;
+	m.msg_flags = 0;
 	if (!idx) {
 		m.msg_control = NULL;
 		m.msg_controllen = 0;
@@ -1127,6 +1128,7 @@ riprecv(void)
 	cm = (struct cmsghdr *)cmsgbuf;
 	m.msg_control = (caddr_t)cm;
 	m.msg_controllen = sizeof(cmsgbuf);
+	m.msg_flags = 0;
 	if ((len = recvmsg(ripsock, &m, 0)) < 0) {
 		fatal("recvmsg");
 		/*NOTREACHED*/
