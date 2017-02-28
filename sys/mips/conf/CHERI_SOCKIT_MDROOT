@@ -9,4 +9,4 @@
 include		BERI_SOCKIT_MDROOT
 ident		CHERI_SOCKIT_MDROOT
 
-include		CHERI_TEMPLATE
+include		std.CHERI

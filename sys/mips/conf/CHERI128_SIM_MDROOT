@@ -9,6 +9,6 @@
 include         BERI_SIM_MDROOT
 ident           CHERI128_SIM_MDROOT
 
-include		CHERI_TEMPLATE
+include		std.CHERI
 options 	CPU_CHERI128
 makeoptions	EMBED_CHERITEST_LIST=YES

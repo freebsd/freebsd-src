@@ -9,4 +9,4 @@
 include		BERI_DE4_2CORE_MDROOT
 ident		CHERI_DE4_2CORE_MDROOT
 
-include		CHERI_TEMPLATE
+include		std.CHERI

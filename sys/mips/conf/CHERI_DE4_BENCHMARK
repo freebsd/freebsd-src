@@ -12,7 +12,7 @@ options         FDT_DTB_STATIC_ONLY
 include		BERI_DE4_BENCHMARK
 ident		CHERI_DE4_BENCHMARK
 
-include		CHERI_TEMPLATE
+include		std.CHERI
 
 #options       CPU_CHERI_CHERI0
 #options       CPU_CHERI_CHERI8

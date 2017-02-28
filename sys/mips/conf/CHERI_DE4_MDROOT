@@ -9,6 +9,6 @@
 include		BERI_DE4_MDROOT
 ident		CHERI_DE4_MDROOT
 
-include		CHERI_TEMPLATE
+include		std.CHERI
 
 makeoptions	EMBED_CHERITEST_LIST=YES

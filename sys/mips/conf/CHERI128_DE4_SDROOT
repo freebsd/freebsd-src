@@ -9,5 +9,5 @@
 include		BERI_DE4_SDROOT
 ident		CHERI128_DE4_SDROOT
 
-include		CHERI_TEMPLATE
+include		std.CHERI
 options 	CPU_CHERI128
