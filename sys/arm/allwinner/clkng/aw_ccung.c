@@ -54,6 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <arm/allwinner/clkng/aw_ccung.h>
 #include <arm/allwinner/clkng/aw_clk.h>
 
+#if defined(SOC_ALLWINNER_A31)
+#include <arm/allwinner/clkng/ccu_a31.h>
+#endif
+
 #if defined(SOC_ALLWINNER_H3)
 #include <arm/allwinner/clkng/ccu_h3.h>
 #endif
@@ -70,9 +74,16 @@ static struct resource_spec aw_ccung_spec[] = {
 #define	H3_CCU	1
 #endif
 
+#if defined(SOC_ALLWINNER_A31)
+#define	A31_CCU	2
+#endif
+
 static struct ofw_compat_data compat_data[] = {
 #if defined(SOC_ALLWINNER_H3)
 	{ "allwinner,sun8i-h3-ccu", H3_CCU },
+#endif
+#if defined(SOC_ALLWINNER_A31)
+	{ "allwinner,sun6i-a31-ccu", A31_CCU },
 #endif
 	{NULL, 0 }
 };
@@ -293,6 +304,11 @@ aw_ccung_attach(device_t dev)
 #if defined(SOC_ALLWINNER_H3)
 	case H3_CCU:
 		ccu_h3_register_clocks(sc);
+		break;
+#endif
+#if defined(SOC_ALLWINNER_A31)
+	case A31_CCU:
+		ccu_a31_register_clocks(sc);
 		break;
 #endif
 	}
