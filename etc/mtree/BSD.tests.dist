@@ -632,6 +632,8 @@
         ..
         soelim
         ..
+        tail
+        ..
         tar
         ..
         timeout

@@ -99,6 +99,8 @@ eof:	if (ferror(fp1))
 	} else
 		if (feof(fp2))
 			eofmsg(file2);
+	fclose(fp2);
+	fclose(fp1);
 	if (dfound)
 		exit(DIFF_EXIT);
 }
