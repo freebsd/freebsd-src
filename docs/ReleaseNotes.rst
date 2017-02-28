@@ -20,6 +20,14 @@ have questions or comments, the `LLVM Developer's Mailing List
 <http://lists.llvm.org/mailman/listinfo/llvm-dev>`_ is a good place to send
 them.
 
+New Versioning Scheme
+=====================
+Starting with this release, LLVM is using a
+`new versioning scheme <http://blog.llvm.org/2016/12/llvms-new-versioning-scheme.html>`_,
+increasing the major version number with each major release. Stable updates to
+this release will be versioned 4.0.x, and the next major release, six months
+from now, will be version 5.0.0.
+
 Non-comprehensive list of changes in this release
 =================================================
 * Minimum compiler version to build has been raised to GCC 4.8 and VS 2015.
@@ -237,6 +245,34 @@ LLVM trunk.
 Most of the work behind the scenes has been on correctness of generated
 assembly, and also fixing some assertions we would hit on some well-formed
 inputs.
+
+Changes to the MIPS Target
+-----------------------------
+
+**During this release the MIPS target has:**
+
+* IAS is now enabled by default for Debian mips64el.
+* Added support for the two operand form for many instructions.
+* Added the following macros: unaligned load/store, seq, double word load/store for O32.
+* Improved the parsing of complex memory offset expressions.
+* Enabled the integrated assembler by default for Debian mips64el.
+* Added a generic scheduler based on the interAptiv CPU.
+* Added support for thread local relocations.
+* Added recip, rsqrt, evp, dvp, synci instructions in IAS.
+* Optimized the generation of constants from some cases.
+
+**The following issues have been fixed:**
+
+* Thread local debug information is correctly recorded.
+* MSA intrinsics are now range checked.
+* Fixed an issue with MSA and the no-odd-spreg abi.
+* Fixed some corner cases in handling forbidden slots for MIPSR6.
+* Fixed an issue with jumps not being converted to relative branches for assembly.
+* Fixed the handling of local symbols and jal instruction.
+* N32/N64 no longer have their relocation tables sorted as per their ABIs.
+* Fixed a crash when half-precision floating point conversion MSA intrinsics are used.
+* Fixed several crashes involving FastISel.
+* Corrected the corrected definitions for aui/daui/dahi/dati for MIPSR6.
 
 Changes to the OCaml bindings
 -----------------------------
