@@ -58,6 +58,7 @@ struct aw_clk_nkmp_sc {
 	uint32_t	gate_shift;
 	uint32_t	lock_shift;
 	uint32_t	lock_retries;
+	uint32_t	update_shift;
 
 	uint32_t	flags;
 };
@@ -263,6 +264,14 @@ aw_clk_nkmp_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		WRITE4(clk, sc->offset, val);
 		DELAY(2000);
 
+		if ((sc->flags & AW_CLK_HAS_UPDATE) != 0) {
+			DEVICE_LOCK(clk);
+			READ4(clk, sc->offset, &val);
+			val |= 1 << sc->update_shift;
+			WRITE4(clk, sc->offset, val);
+			DELAY(2000);
+		}
+
 		if ((sc->flags & AW_CLK_HAS_LOCK) != 0) {
 			for (retry = 0; retry < sc->lock_retries; retry++) {
 				READ4(clk, sc->offset, &val);
@@ -354,6 +363,7 @@ aw_clk_nkmp_register(struct clkdom *clkdom, struct aw_clk_nkmp_def *clkdef)
 	sc->gate_shift = clkdef->gate_shift;
 	sc->lock_shift = clkdef->lock_shift;
 	sc->lock_retries = clkdef->lock_retries;
+	sc->update_shift = clkdef->update_shift;
 	sc->flags = clkdef->flags;
 
 	clknode_register(clkdom, clk);

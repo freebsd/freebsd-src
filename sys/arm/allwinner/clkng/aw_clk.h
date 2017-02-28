@@ -64,6 +64,7 @@ struct aw_clk_init {
 #define	AW_CLK_REPARENT		0x0008
 #define	AW_CLK_SCALE_CHANGE	0x0010
 #define	AW_CLK_HAS_FRAC		0x0020
+#define	AW_CLK_HAS_UPDATE	0x0040
 
 #define	AW_CLK_FACTOR_POWER_OF_TWO	0x0001
 #define	AW_CLK_FACTOR_ZERO_BASED	0x0002
@@ -216,6 +217,48 @@ aw_clk_factor_get_value(struct aw_clk_factor *factor, uint32_t raw)
 		.lock_shift = _lock,			\
 		.lock_retries = _lock_retries,		\
 		.flags = _flags,			\
+	}
+
+#define NKMP_CLK_WITH_UPDATE(_clkname,			\
+  _id, _name, _pnames,					\
+  _offset,						\
+  _n_shift, _n_width, _n_value, _n_flags,		\
+  _k_shift, _k_width, _k_value, _k_flags,		\
+  _m_shift, _m_width, _m_value, _m_flags,		\
+  _p_shift, _p_width, _p_value, _p_flags,		\
+  _gate,						\
+  _lock, _lock_retries,					\
+  _update,						\
+  _flags)						\
+	static struct aw_clk_nkmp_def _clkname = {	\
+		.clkdef = {				\
+			.id = _id,			\
+			.name = _name,			\
+			.parent_names = _pnames,	\
+			.parent_cnt = nitems(_pnames),	\
+		},					\
+		.offset = _offset,			\
+		.n.shift = _n_shift,			\
+		.n.width = _n_width,			\
+		.n.value = _n_value,			\
+		.n.flags = _n_flags,			\
+		.k.shift = _k_shift,			\
+		.k.width = _k_width,			\
+		.k.value = _k_value,			\
+		.k.flags = _k_flags,			\
+		.m.shift = _m_shift,			\
+		.m.width = _m_width,			\
+		.m.value = _m_value,			\
+		.m.flags = _m_flags,			\
+		.p.shift = _p_shift,			\
+		.p.width = _p_width,			\
+		.p.value = _p_value,			\
+		.p.flags = _p_flags,			\
+		.gate_shift = _gate,			\
+		.lock_shift = _lock,			\
+		.lock_retries = _lock_retries,		\
+		.update_shift = _update,		\
+		.flags = _flags | AW_CLK_HAS_UPDATE,	\
 	}
 
 #define NM_CLK(_clkname, _id, _name, _pnames,		\

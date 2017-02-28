@@ -98,14 +98,12 @@
 #define	H3_CLK_PLL_GPU		11
 #define	H3_CLK_PLL_PERIPH1	12
 #define	H3_CLK_PLL_DE		13
-
 #define	H3_CLK_CPUX		14
 #define	H3_CLK_AXI		15
 #define	H3_CLK_AHB1		16
 #define	H3_CLK_APB1		17
 #define	H3_CLK_APB2		18
 #define	H3_CLK_AHB2		19
-
 #define	H3_CLK_BUS_CE		20
 #define	H3_CLK_BUS_DMA		21
 #define	H3_CLK_BUS_MMC0		22
@@ -155,7 +153,6 @@
 #define	H3_CLK_BUS_SCR		66
 #define	H3_CLK_BUS_EPHY		67
 #define	H3_CLK_BUS_DBG		68
-
 #define	H3_CLK_THS		69
 #define	H3_CLK_NAND		70
 #define	H3_CLK_MMC0		71
@@ -183,7 +180,7 @@
 #define	H3_CLK_USBOHCI1		93
 #define	H3_CLK_USBOHCI2		94
 #define	H3_CLK_USBOHCI3		95
-
+#define	H3_CLK_DRAM		96
 #define	H3_CLK_DRAM_VE		97
 #define	H3_CLK_DRAM_CSI		98
 #define	H3_CLK_DRAM_DEINTERLACE	99
@@ -200,7 +197,7 @@
 #define	H3_CLK_AVS		110
 #define	H3_CLK_HDMI		111
 #define	H3_CLK_HDMI_DDC		112
-
+#define	H3_CLK_MBUS		113
 #define	H3_CLK_GPU		114
 
 void ccu_h3_register_clocks(struct aw_ccung_softc *sc);

@@ -44,6 +44,7 @@ struct aw_clk_nkmp_def {
 	uint32_t		gate_shift;
 	uint32_t		lock_shift;
 	uint32_t		lock_retries;
+	uint32_t		update_shift;
 
 	uint32_t		flags;
 };
