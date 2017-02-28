@@ -1,9 +1,9 @@
 /*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
  * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,61 +30,45 @@
  * $FreeBSD$
  */
 
-/dts-v1/;
-
-/include/ "socfpga.dtsi"
+/* /dts-v1/; */
+#include "socfpga_cyclone5_sockit.dts"
 
 / {
-	model = "Terasic SoCKit";
+	model = "Terasic SoCkit";
 	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
 	/* Reserve first page for secondary CPU trampoline code */
 	memreserve = < 0x00000000 0x1000 >;
 
-	memory {
-		device_type = "memory";
-		reg = < 0x00000000 0x40000000 >;	/* 1G RAM */
-	};
-
-	SOC: socfpga {
-		serial0: serial@ffc02000 {
-			status = "okay";
+	soc {
+		/* Local timer */
+		timer@fffec600 {
+			clock-frequency = <200000000>;
 		};
 
-		usb1: usb@ffb40000 {
-			status = "okay";
-		};
-
-		gmac1: ethernet@ff702000 {
-			status = "okay";
-
-			rxd0-skew-ps = <0>;
-			rxd1-skew-ps = <0>;
-			rxd2-skew-ps = <0>;
-			rxd3-skew-ps = <0>;
-			txen-skew-ps = <0>;
-			txc-skew-ps = <2600>;
-			rxdv-skew-ps = <0>;
-			rxc-skew-ps = <2000>;
-		};
-
-		mmc: dwmmc@ff704000 {
-			status = "okay";
-			num-slots = <1>;
-			supports-highspeed;
-			broken-cd;
-			bus-frequency = <25000000>;
-
-			slot@0 {
-				reg = <0>;
-				bus-width = <4>;
-			};
+		/* Global timer */
+		global_timer: timer@fffec200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0xfffec200 0x20>;
+			interrupts = <1 11 0xf04>;
+			clock-frequency = <200000000>;
 		};
 	};
 
 	chosen {
-		bootargs = "-v";
 		stdin = "serial0";
 		stdout = "serial0";
 	};
+};
+
+&mmc0 {
+	bus-frequency = <25000000>;
+};
+
+&uart0 {
+	clock-frequency = <100000000>;
+};
+
+&uart1 {
+	status = "disabled";
 };

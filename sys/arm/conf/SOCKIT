@@ -20,11 +20,11 @@
 
 #NO_UNIVERSE
 
+include 	"SOCFPGA"
 ident		SOCKIT
-include 	"SOCKIT.common"
 
-options 	ROOTDEVNAME=\"ufs:/dev/da0\"
+options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s4\"
 
 # Flattened Device Tree
 options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=socfpga-sockit.dts
+makeoptions	FDT_DTS_FILE=socfpga_cyclone5_sockit_sdmmc.dts
