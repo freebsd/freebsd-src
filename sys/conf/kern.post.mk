@@ -79,7 +79,7 @@ PORTSMODULESENV=\
 all:
 .for __i in ${PORTS_MODULES}
 	@${ECHO} "===> Ports module ${__i} (all)"
-	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B clean all
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B clean build
 .endfor
 
 .for __target in install reinstall clean
