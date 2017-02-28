@@ -2959,7 +2959,6 @@ dev/stg/tmc18c30_pccard.c	optional stg pccard
 dev/stg/tmc18c30_pci.c		optional stg pci
 dev/stg/tmc18c30_subr.c		optional stg
 dev/stge/if_stge.c		optional stge
-dev/streams/streams.c		optional streams
 dev/sym/sym_hipd.c		optional sym				\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
 dev/syscons/blank/blank_saver.c	optional blank_saver
