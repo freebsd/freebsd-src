@@ -27,4 +27,5 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+extern int errno;
 int errno;
