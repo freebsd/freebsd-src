@@ -76,6 +76,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #else
 #include <stdarg.h>
+#endif
+
+/*
+ * This is needed for sbuf_putbuf() when compiled into userland.  Due to the
+ * shared nature of this file, it's the only place to put it.
+ */
+#ifndef _KERNEL
 #include <stdio.h>
 #endif
 
