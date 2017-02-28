@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
+#if defined(SOC_ALTERA_CYCLONE5)
 static int
 socfpga_devmap_init(platform_t plat)
 {
@@ -82,7 +83,9 @@ socfpga_devmap_init(platform_t plat)
 
 	return (0);
 }
+#endif
 
+#if defined(SOC_ALTERA_ARRIA10)
 static int
 socfpga_a10_devmap_init(platform_t plat)
 {
@@ -101,9 +104,10 @@ socfpga_a10_devmap_init(platform_t plat)
 
 	return (0);
 }
+#endif
 
 static void
-_socfpga_cpu_reset(platform_t plat, uint32_t reg)
+_socfpga_cpu_reset(bus_size_t reg)
 {
 	uint32_t paddr;
 	bus_addr_t vaddr;
@@ -127,20 +131,25 @@ end:
 	while (1);
 }
 
+#if defined(SOC_ALTERA_CYCLONE5)
 static void
 socfpga_cpu_reset(platform_t plat)
 {
 
-	_socfpga_cpu_reset(plat, RSTMGR_CTRL);
+	_socfpga_cpu_reset(RSTMGR_CTRL);
 }
+#endif
 
+#if defined(SOC_ALTERA_ARRIA10)
 static void
 socfpga_a10_cpu_reset(platform_t plat)
 {
 
-	_socfpga_cpu_reset(plat, RSTMGR_A10_CTRL);
+	_socfpga_cpu_reset(RSTMGR_A10_CTRL);
 }
+#endif
 
+#if defined(SOC_ALTERA_CYCLONE5)
 static platform_method_t socfpga_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	socfpga_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	socfpga_cpu_reset),
@@ -151,7 +160,9 @@ static platform_method_t socfpga_methods[] = {
 	PLATFORMMETHOD_END,
 };
 FDT_PLATFORM_DEF(socfpga, "socfpga", 0, "altr,socfpga-cyclone5", 200);
+#endif
 
+#if defined(SOC_ALTERA_ARRIA10)
 static platform_method_t socfpga_a10_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	socfpga_a10_devmap_init),
 	PLATFORMMETHOD(platform_cpu_reset,	socfpga_a10_cpu_reset),
@@ -162,3 +173,4 @@ static platform_method_t socfpga_a10_methods[] = {
 	PLATFORMMETHOD_END,
 };
 FDT_PLATFORM_DEF(socfpga_a10, "socfpga", 0, "altr,socfpga-arria10", 200);
+#endif
