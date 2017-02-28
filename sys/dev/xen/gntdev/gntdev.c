@@ -743,26 +743,34 @@ gntdev_get_offset_for_vaddr(struct ioctl_gntdev_get_offset_for_vaddr *arg,
 	vm_prot_t prot;
 	boolean_t wired;
 	struct gntdev_gmap *gmap;
+	int rc;
 
 	map = &td->td_proc->p_vmspace->vm_map;
 	error = vm_map_lookup(&map, arg->vaddr, VM_PROT_NONE, &entry,
 		    &mem, &pindex, &prot, &wired);
 	if (error != KERN_SUCCESS)
 		return (EINVAL);
-	vm_map_lookup_done(map, entry);
 
 	if ((mem->type != OBJT_MGTDEVICE) ||
-	    (mem->un_pager.devp.ops != &gntdev_gmap_pg_ops))
-		return (EINVAL);
+	    (mem->un_pager.devp.ops != &gntdev_gmap_pg_ops)) {
+		rc = EINVAL;
+		goto out;
+	}
 
 	gmap = mem->handle;
 	if (gmap == NULL ||
-	    (entry->end - entry->start) != (gmap->count * PAGE_SIZE))
-		return (EINVAL);
+	    (entry->end - entry->start) != (gmap->count * PAGE_SIZE)) {
+		rc = EINVAL;
+		goto out;
+	}
 
 	arg->count = gmap->count;
 	arg->offset = gmap->file_index;
-	return (0);
+	rc = 0;
+
+out:
+	vm_map_lookup_done(map, entry);
+	return (rc);
 }
 
 /*-------------------- Grant Mapping Pager  ----------------------------------*/

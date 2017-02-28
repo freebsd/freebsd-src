@@ -1051,6 +1051,7 @@ struct linux_epoll_pwait_args {
 	char maxevents_l_[PADL_(l_int)]; l_int maxevents; char maxevents_r_[PADR_(l_int)];
 	char timeout_l_[PADL_(l_int)]; l_int timeout; char timeout_r_[PADR_(l_int)];
 	char mask_l_[PADL_(l_sigset_t *)]; l_sigset_t * mask; char mask_r_[PADR_(l_sigset_t *)];
+	char sigsetsize_l_[PADL_(l_size_t)]; l_size_t sigsetsize; char sigsetsize_r_[PADR_(l_size_t)];
 };
 struct linux_utimensat_args {
 	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
@@ -1062,7 +1063,8 @@ struct linux_signalfd_args {
 	register_t dummy;
 };
 struct linux_timerfd_create_args {
-	register_t dummy;
+	char clockid_l_[PADL_(l_int)]; l_int clockid; char clockid_r_[PADR_(l_int)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 };
 struct linux_eventfd_args {
 	char initval_l_[PADL_(l_uint)]; l_uint initval; char initval_r_[PADR_(l_uint)];
@@ -1074,10 +1076,14 @@ struct linux_fallocate_args {
 	char len_l_[PADL_(l_loff_t)]; l_loff_t len; char len_r_[PADR_(l_loff_t)];
 };
 struct linux_timerfd_settime_args {
-	register_t dummy;
+	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
+	char new_value_l_[PADL_(const struct l_itimerspec *)]; const struct l_itimerspec * new_value; char new_value_r_[PADR_(const struct l_itimerspec *)];
+	char old_value_l_[PADL_(struct l_itimerspec *)]; struct l_itimerspec * old_value; char old_value_r_[PADR_(struct l_itimerspec *)];
 };
 struct linux_timerfd_gettime_args {
-	register_t dummy;
+	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
+	char old_value_l_[PADL_(struct l_itimerspec *)]; struct l_itimerspec * old_value; char old_value_r_[PADR_(struct l_itimerspec *)];
 };
 struct linux_signalfd4_args {
 	register_t dummy;

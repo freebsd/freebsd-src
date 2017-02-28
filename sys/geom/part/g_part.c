@@ -135,6 +135,10 @@ static u_int check_integrity = 1;
 SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity,
     CTLFLAG_RWTUN, &check_integrity, 1,
     "Enable integrity checking");
+static u_int auto_resize = 1;
+SYSCTL_UINT(_kern_geom_part, OID_AUTO, auto_resize,
+    CTLFLAG_RWTUN, &auto_resize, 1,
+    "Enable auto resize");
 
 /*
  * The GEOM partitioning class.
@@ -2094,6 +2098,9 @@ g_part_resize(struct g_consumer *cp)
 
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, cp->provider->name));
 	g_topology_assert();
+
+	if (auto_resize == 0)
+		return;
 
 	table = cp->geom->softc;
 	if (table->gpt_opened == 0) {

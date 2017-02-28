@@ -153,7 +153,7 @@ fetch_syserr(void)
 	case EHOSTDOWN:
 		fetchLastErrCode = FETCH_DOWN;
 		break;
-default:
+	default:
 		fetchLastErrCode = FETCH_UNKNOWN;
 	}
 	snprintf(fetchLastErrString, MAXERRSTRING, "%s", strerror(errno));
@@ -371,7 +371,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	}
 	if (err != 0) {
 		if (verbose)
-			fetch_info("failed to connect to %s:%s", host, port);
+			fetch_info("failed to connect to %s:%d", host, port);
 		goto syserr;
 	}
 

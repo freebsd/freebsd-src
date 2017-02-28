@@ -92,6 +92,14 @@ __FBSDID("$FreeBSD$");
 
 #define BNXT_MAX_MTU	9000
 
+#define BNXT_RSS_HASH_TYPE_TCPV4	0
+#define BNXT_RSS_HASH_TYPE_UDPV4	1
+#define BNXT_RSS_HASH_TYPE_IPV4		2
+#define BNXT_RSS_HASH_TYPE_TCPV6	3
+#define BNXT_RSS_HASH_TYPE_UDPV6	4
+#define BNXT_RSS_HASH_TYPE_IPV6		5
+#define BNXT_GET_RSS_PROFILE_ID(rss_hash_type) ((rss_hash_type >> 1) & 0x1F)
+
 /* Completion related defines */
 #define CMP_VALID(cmp, v_bit) \
 	((!!(((struct cmpl_base *)(cmp))->info3_v & htole32(CMPL_BASE_V))) == !!(v_bit) )

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #define	DR_OE		(1 << 11)	/* Overrun error */
 
 #define	UART_FR		0x06		/* Flag register */
+#define	FR_RXFE		(1 << 4)	/* Receive FIFO/reg empty */
 #define	FR_TXFF		(1 << 5)	/* Transmit FIFO/reg full */
 #define	FR_RXFF		(1 << 6)	/* Receive FIFO/reg full */
 #define	FR_TXFE		(1 << 7)	/* Transmit FIFO/reg empty */
@@ -171,9 +172,9 @@ uart_pl011_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		line |= LCR_H_PEN;
 	else
 		line &= ~LCR_H_PEN;
+	line |= LCR_H_FEN;
 
 	/* Configure the rest */
-	line &= ~LCR_H_FEN;
 	ctrl |= (CR_RXE | CR_TXE | CR_UARTEN);
 
 	if (bas->rclk != 0 && baudrate != 0) {
@@ -219,7 +220,7 @@ static int
 uart_pl011_rxready(struct uart_bas *bas)
 {
 
-	return (__uart_getreg(bas, UART_FR) & FR_RXFF);
+	return !(__uart_getreg(bas, UART_FR) & FR_RXFE);
 }
 
 static int
@@ -417,8 +418,8 @@ uart_pl011_bus_probe(struct uart_softc *sc)
 
 	device_set_desc(sc->sc_dev, "PrimeCell UART (PL011)");
 
-	sc->sc_rxfifosz = 1;
-	sc->sc_txfifosz = 1;
+	sc->sc_rxfifosz = 16;
+	sc->sc_txfifosz = 16;
 
 	return (0);
 }
@@ -440,7 +441,6 @@ uart_pl011_bus_receive(struct uart_softc *sc)
 			break;
 		}
 
-		__uart_setreg(bas, UART_ICR, (UART_RXREADY | RIS_RTIM));
 		xc = __uart_getreg(bas, UART_DR);
 		rx = xc & 0xff;
 
@@ -481,19 +481,11 @@ uart_pl011_bus_transmit(struct uart_softc *sc)
 		uart_barrier(bas);
 	}
 
-	/* If not empty wait until it is */
-	if ((__uart_getreg(bas, UART_FR) & FR_TXFE) != FR_TXFE) {
-		sc->sc_txbusy = 1;
-
-		/* Enable TX interrupt */
-		__uart_setreg(bas, UART_IMSC, psc->imsc);
-	}
+	/* Mark busy and enable TX interrupt */
+	sc->sc_txbusy = 1;
+	__uart_setreg(bas, UART_IMSC, psc->imsc);
 
 	uart_unlock(sc->sc_hwmtx);
-
-	/* No interrupt expected, schedule the next fifo write */
-	if (!sc->sc_txbusy)
-		uart_sched_softih(sc, SER_INT_TXIDLE);
 
 	return (0);
 }
