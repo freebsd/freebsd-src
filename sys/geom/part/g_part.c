@@ -137,7 +137,7 @@ SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity,
     "Enable integrity checking");
 static u_int auto_resize = 1;
 SYSCTL_UINT(_kern_geom_part, OID_AUTO, auto_resize,
-    CTLFLAG_RW, &auto_resize, 1,
+    CTLFLAG_RWTUN, &auto_resize, 1,
     "Enable auto resize");
 
 /*
