@@ -57,7 +57,7 @@
 #define CK_MD_RMO
 #endif /* CK_MD_RMO */
 
-#define CK_VERSION "0.5.2"
+#define CK_VERSION "0.6.0"
 #define CK_GIT_SHA ""
 
 /*
