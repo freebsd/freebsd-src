@@ -4043,10 +4043,6 @@ OLD_FILES+=usr/share/man/man8/ntpq.8.gz
 OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 .endif
 
-#.if ${MK_OBJC} == no
-# to be filled in
-#.endif
-
 .if ${MK_OPENSSH} == no
 OLD_FILES+=usr/bin/sftp
 OLD_FILES+=usr/bin/ssh
