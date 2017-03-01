@@ -186,6 +186,27 @@ __FBSDID("$FreeBSD$");
 #define	  FEC_RACC_PADREM		  (1 <<  0)
 
 /*
+ * IEEE-1588 timer registers
+ */
+
+#define	FEC_ATCR_REG			0x0400
+#define	  FEC_ATCR_SLAVE		  (1u << 13)
+#define	  FEC_ATCR_CAPTURE		  (1u << 11)
+#define	  FEC_ATCR_RESTART		  (1u << 9)
+#define	  FEC_ATCR_PINPER		  (1u << 7)
+#define	  FEC_ATCR_PEREN		  (1u << 4)
+#define	  FEC_ATCR_OFFRST		  (1u << 3)
+#define	  FEC_ATCR_OFFEN		  (1u << 2)
+#define	  FEC_ATCR_EN			  (1u << 0)
+
+#define	FEC_ATVR_REG			0x0404
+#define	FEC_ATOFF_REG			0x0408
+#define	FEC_ATPER_REG			0x040c
+#define	FEC_ATCOR_REG			0x0410
+#define	FEC_ATINC_REG			0x0414
+#define	FEC_ATSTMP_REG			0x0418
+
+/*
  * Statistics registers
  */
 #define	FEC_RMON_T_DROP			0x200
