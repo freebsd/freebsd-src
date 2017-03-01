@@ -1151,7 +1151,7 @@ __rw_try_upgrade(volatile uintptr_t *c, const char *file, int line)
 		if (RW_READERS(v) > 1)
 			break;
 		if (!(v & RW_LOCK_WAITERS)) {
-			success = atomic_cmpset_ptr(&rw->rw_lock, v, tid);
+			success = atomic_cmpset_acq_ptr(&rw->rw_lock, v, tid);
 			if (!success)
 				continue;
 			break;
