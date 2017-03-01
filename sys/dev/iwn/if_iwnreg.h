@@ -736,6 +736,10 @@ struct iwn4965_node_info {
 	uint32_t	reserved7;
 } __packed;
 
+#define IWN_RFLAG_RATE		0xff
+#define IWN_RFLAG_RATE_MCS	0x1f
+#define IWN_RFLAG_HT40_DUP	0x20
+
 #define IWN_RFLAG_MCS		(1 << 8)
 #define IWN_RFLAG_CCK		(1 << 9)
 #define IWN_RFLAG_GREENFIELD	(1 << 10)
