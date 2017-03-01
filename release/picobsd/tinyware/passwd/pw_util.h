@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1987, 1988, 1993
+ * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -26,22 +30,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
+ *	@(#)pw_util.h	8.2 (Berkeley) 4/1/94
+ *
  * $FreeBSD$
  */
 
-#ifndef _SYS_DISKPC98_H_
-#define	_SYS_DISKPC98_H_
-
-#include <sys/disk/pc98.h>
-#include <sys/ioccom.h>
-
-#define	DOSMID_386BSD		__DOSMID_386BSD
-#define	DOSSID_386BSD		__DOSSID_386BSD
-
-void pc98_partition_dec(void const *pp, struct pc98_partition *d);
-void pc98_partition_enc(void *pp, struct pc98_partition *d);
-
-#define DIOCSPC98	_IOW('M', 129, u_char[8192])
-
-#endif /* !_SYS_DISKPC98_H_ */
+void	pw_edit(int);
+void	pw_error(const char *, int, int);
+void	pw_init(void);
+int	pw_lock(void);
+int	pw_mkdb(const char *);
+void	pw_prompt(void);
+int	pw_tmp(void);
