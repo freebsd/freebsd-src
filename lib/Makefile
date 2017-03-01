@@ -229,7 +229,9 @@ SUBDIR_BOOTSTRAP:=	libgcc_s libgcc_eh ${SUBDIR_BOOTSTRAP}
 SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt:Nlibdevdctl}
 # header issue in ioctl.c, probably needs more porting for CheriABI
 SUBDIR:=	${SUBDIR:Nlibsysdecode}
-SUBDIR:=  ${SUBDIR:Nlibstand}
+# libstand is for bootloaders and the like, no need to build
+# pure-capablity yet.
+SUBDIR:=	${SUBDIR:Nlibstand}
 .endif
 
 .include <bsd.subdir.mk>
