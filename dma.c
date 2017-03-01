@@ -47,6 +47,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libgen.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -457,7 +458,7 @@ main(int argc, char **argv)
 	bzero(&queue, sizeof(queue));
 	LIST_INIT(&queue.queue);
 
-	if (strcmp(argv[0], "mailq") == 0) {
+	if (strcmp(basename(argv[0]), "mailq") == 0) {
 		argv++; argc--;
 		showq = 1;
 		if (argc != 0)
