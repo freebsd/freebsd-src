@@ -29,7 +29,6 @@ makeoptions	MODULES_OVERRIDE=""
 options 	KERNVIRTADDR=0xc0100000
 makeoptions	KERNVIRTADDR=0xc0100000
 
-options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	LINUX_BOOT_ABI		# Process metadata passed from Linux boot loaders
 

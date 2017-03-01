@@ -23,7 +23,6 @@ ident		RK3188
 include 	"std.armv6"
 include 	"../rockchip/std.rk30xx"
 
-options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP			# Enable multiple cores
 
