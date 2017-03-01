@@ -139,11 +139,7 @@ static const struct data_abort data_aborts[] = {
 	{dab_align,	"Alignment Fault 3"},
 	{dab_buserr,	"External Linefetch Abort (S)"},
 	{NULL,		"Translation Fault (S)"},
-#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
-	{NULL,		"Translation Flag Fault"},
-#else
 	{dab_buserr,	"External Linefetch Abort (P)"},
-#endif
 	{NULL,		"Translation Fault (P)"},
 	{dab_buserr,	"External Non-Linefetch Abort (S)"},
 	{NULL,		"Domain Fault (S)"},
