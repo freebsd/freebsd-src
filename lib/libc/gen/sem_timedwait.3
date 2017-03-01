@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2017
+.Dd February 28, 2017
 .Dt SEM_TIMEDWAIT 3
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .In semaphore.h
+.In time.h
 .Ft int
 .Fn sem_timedwait "sem_t * restrict sem" "const struct timespec * restrict abs_timeout"
 .Ft int

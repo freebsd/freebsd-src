@@ -410,7 +410,7 @@ sx_try_upgrade_(struct sx *sx, const char *file, int line)
 	 * we will wake up the exclusive waiters when we drop the lock.
 	 */
 	x = sx->sx_lock & SX_LOCK_EXCLUSIVE_WAITERS;
-	success = atomic_cmpset_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1) | x,
+	success = atomic_cmpset_acq_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1) | x,
 	    (uintptr_t)curthread | x);
 	LOCK_LOG_TRY("XUPGRADE", &sx->lock_object, 0, success, file, line);
 	if (success) {
