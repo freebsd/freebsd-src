@@ -9,7 +9,7 @@ CFLAGS+= -I.
 
 .if ${MK_DIALOG} != no
 WARNS?=	3
-CFLAGS+=	-I${.CURDIR}/../../contrib/dialog -DHAVE_DIALOG
+CFLAGS+=	-I${SRCTOP}/contrib/dialog -DHAVE_DIALOG
 LIBADD=	dialog ncursesw
 .endif
 
