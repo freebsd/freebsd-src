@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
-#include <sys/libkern.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -725,7 +724,6 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		ifp = scb->ifp;
 		/* Assign a hopefully unique, locally administered etheraddr. */
 		eaddr[0] = 0x02;
-		eaddr[1] = arc4random() & 0xff;
 		eaddr[3] = (ifp->if_index >> 8) & 0xff;
 		eaddr[4] = ifp->if_index & 0xff;
 		eaddr[5] = 0x0b;
