@@ -1784,9 +1784,6 @@ hn_rndis_pktinfo_append(struct rndis_packet_msg *pkt, size_t pktsize,
 	pi->rm_type = pi_type;
 	pi->rm_pktinfooffset = RNDIS_PKTINFO_OFFSET;
 
-	/* Update RNDIS packet msg length */
-	pkt->rm_len += pi_size;
-
 	return (pi->rm_data);
 }
 
@@ -1928,7 +1925,7 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 	}
 
 	pkt->rm_type = REMOTE_NDIS_PACKET_MSG;
-	pkt->rm_len = sizeof(*pkt) + m_head->m_pkthdr.len;
+	pkt->rm_len = m_head->m_pkthdr.len;
 	pkt->rm_dataoffset = 0;
 	pkt->rm_datalen = m_head->m_pkthdr.len;
 	pkt->rm_oobdataoffset = 0;
@@ -1999,6 +1996,8 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 	}
 
 	pkt_hlen = pkt->rm_pktinfooffset + pkt->rm_pktinfolen;
+	/* Fixup RNDIS packet message total length */
+	pkt->rm_len += pkt_hlen;
 	/* Convert RNDIS packet message offsets */
 	pkt->rm_dataoffset = hn_rndis_pktmsg_offset(pkt_hlen);
 	pkt->rm_pktinfooffset = hn_rndis_pktmsg_offset(pkt->rm_pktinfooffset);
