@@ -195,7 +195,8 @@ kern_mmap(struct thread *td, uintptr_t addr0, uintptr_t max_addr0,
 {
 	struct vmspace *vms;
 	struct file *fp;
-	vm_size_t addr_mask, pageoff;
+	vm_offset_t addr_mask = PAGE_MASK;
+	vm_size_t pageoff;
 	vm_offset_t addr, max_addr;
 	vm_prot_t cap_maxprot;
 	int align, error;
