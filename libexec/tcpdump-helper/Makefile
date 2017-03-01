@@ -27,7 +27,7 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${.CURDIR}/../../lib/libcheri \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/tcpdump \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/cheri_tcpdump \
-		-mxgot
+		-mxgot -mllvm -mxmxgot
 .if ${MK_DEMO_VULNERABILITIES} != "no"
 CFLAGS+=	-DCHERI_TCPDUMP_VULNERABILITY
 .endif

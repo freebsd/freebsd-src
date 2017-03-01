@@ -31,7 +31,7 @@ CFLAGS+=	-I${.CURDIR}/../libc/include \
 		-I${.CURDIR}/../libmalloc_simple \
 		-I${.CURDIR}/../../contrib/gdtoa \
 		-I${.CURDIR}/../../contrib/tzcode/stdtime \
-		-mxgot
+		-mxgot -mllvm -mxmxgot
 
 # libc/gdtoa
 CFLAGS.misc.c=	-Wno-sign-compare

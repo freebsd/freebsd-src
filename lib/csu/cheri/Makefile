@@ -16,7 +16,7 @@ FILESDIR=       ${LIBDIR}
 # These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
 .undef LIBRARIES_ONLY
 CLEANFILES=	${FILES}
-CFLAGS+=-mxgot
+CFLAGS+=-mxgot -mllvm -mxmxgot
 
 NEED_CHERI=	pure
 
