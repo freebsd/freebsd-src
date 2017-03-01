@@ -171,7 +171,7 @@ _rtld_bind_start:
 					/* .got = $gp - 0x7ff0		*/
 					/* Simple math as you can see.	*/
 	ld	a0, 8(a0)	/* object = pltgot[1] */
-  dli t9, 0x7fffffffffffffff;
+	dli	t9, 0x7fffffffffffffff;
 	and	a0, a0, t9
 	cgetdefault	$c3
 	csetoffset	$c3, $c3, a0
