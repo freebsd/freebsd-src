@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2001 David E. O'Brien
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -13,7 +14,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,35 +34,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
+ *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
  * $FreeBSD$
  */
 
-#ifndef _PC98_PC98_PC98_H_
-#define	_PC98_PC98_PC98_H_
+#ifndef _ARM_INCLUDE__ALIGN_H_
+#define	_ARM_INCLUDE__ALIGN_H_
 
 /*
- * PC98 Bus conventions
- * modified for PC9801 by A.Kojima F.Ukai M.Ishii 
- *			Kyoto University Microcomputer Club (KMC)
+ * Round p (pointer or byte index) up to the hardware-required alignment which
+ * is sufficient for any data type, pointer or numeric.  The resulting type
+ * is equivelent to arm's uintptr_t (but is purposely spelled "unsigned" here).
  */
+#if __ARM_ARCH >= 6
+#define	_ALIGNBYTES	(sizeof(int) - 1)
+#else
+#define	_ALIGNBYTES	(sizeof(long long) - 1)
+#endif
+#define	_ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 
-/*
- * Input / Output Port Assignments -- PC98 IO address ... very dirty (^_^;
- */
-
-#define	IO_ICU1		0x000		/* 8259A Interrupt Controller #1 */
-#define	IO_ICU2		0x008		/* 8259A Interrupt Controller #2 */
-#define	IO_RTC		0x020		/* 4990A RTC */
-#define	IO_SYSPORT	0x031		/* 8255A System Port */
-#define	IO_KBD		0x041		/* 8251A Keyboard */
-#define	IO_COM2		0x0B1		/* 8251A RS232C serial I/O (ext) */
-#define	IO_COM3		0x0B9		/* 8251A RS232C serial I/O (ext) */
-#define	IO_FDPORT	0x0BE		/* FD I/F port (1M<->640K,EMTON) */
-
-/*
- * Input / Output Port Sizes
- */
-#define	IO_KBDSIZE	16		/* 8042 Keyboard controllers */
-
-#endif /* !_PC98_PC98_PC98_H_ */
+#endif /* !_ARM_INCLUDE__ALIGN_H_ */
