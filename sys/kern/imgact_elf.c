@@ -452,9 +452,10 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 			 * The mapping is not page aligned. This means we have
 			 * to copy the data. Sigh.
 			 */
-			rv = vm_map_find(map, NULL, 0, &start, end - start, 0,
-			    VMFS_NO_SPACE, prot | VM_PROT_WRITE, VM_PROT_ALL,
-			    0);
+			vm_map_lock(map);
+			rv = vm_map_insert(map, NULL, 0, start, end,
+			    prot | VM_PROT_WRITE, VM_PROT_ALL, 0);
+			vm_map_unlock(map);
 			if (rv != KERN_SUCCESS)
 				return (rv);
 			if (object == NULL)
