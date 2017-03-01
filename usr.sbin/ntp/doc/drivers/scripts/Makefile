@@ -8,6 +8,6 @@ FILESDIR=	${SHAREDIR}/doc/ntp/drivers/scripts
 FILES=	footer.txt style.css
 .endif
 
-.PATH: ${.CURDIR}/../../../../../contrib/ntp/html/drivers/scripts
+.PATH: ${SRCTOP}/contrib/ntp/html/drivers/scripts
 
 .include <bsd.prog.mk>
