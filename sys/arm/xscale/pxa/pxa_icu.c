@@ -171,7 +171,7 @@ arm_unmask_irq(uintptr_t nb)
 }
 
 uint32_t
-pxa_icu_get_icip()
+pxa_icu_get_icip(void)
 {
 
 	return (bus_space_read_4(pxa_icu_softc->pi_bst,
@@ -187,7 +187,7 @@ pxa_icu_clear_icip(int irq)
 }
 
 uint32_t
-pxa_icu_get_icfp()
+pxa_icu_get_icfp(void)
 {
 
 	return (bus_space_read_4(pxa_icu_softc->pi_bst,
@@ -203,7 +203,7 @@ pxa_icu_clear_icfp(int irq)
 }
 
 uint32_t
-pxa_icu_get_icmr()
+pxa_icu_get_icmr(void)
 {
 
 	return (bus_space_read_4(pxa_icu_softc->pi_bst,
@@ -219,7 +219,7 @@ pxa_icu_set_icmr(uint32_t val)
 }
 
 uint32_t
-pxa_icu_get_iclr()
+pxa_icu_get_iclr(void)
 {
 
 	return (bus_space_read_4(pxa_icu_softc->pi_bst,
@@ -235,7 +235,7 @@ pxa_icu_set_iclr(uint32_t val)
 }
 
 uint32_t
-pxa_icu_get_icpr()
+pxa_icu_get_icpr(void)
 {
 
 	return (bus_space_read_4(pxa_icu_softc->pi_bst,
@@ -243,7 +243,7 @@ pxa_icu_get_icpr()
 }
 
 void
-pxa_icu_idle_enable()
+pxa_icu_idle_enable(void)
 {
 
 	bus_space_write_4(pxa_icu_softc->pi_bst,
@@ -251,7 +251,7 @@ pxa_icu_idle_enable()
 }
 
 void
-pxa_icu_idle_disable()
+pxa_icu_idle_disable(void)
 {
 
 	bus_space_write_4(pxa_icu_softc->pi_bst,

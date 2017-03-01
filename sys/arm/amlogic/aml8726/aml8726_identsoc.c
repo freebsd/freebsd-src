@@ -87,7 +87,7 @@ static const struct {
 };
 
 void
-aml8726_identify_soc()
+aml8726_identify_soc(void)
 {
 	int err;
 	struct resource res;

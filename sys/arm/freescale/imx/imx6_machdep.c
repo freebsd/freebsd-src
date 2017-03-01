@@ -52,10 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
 static uint32_t gpio1_node;
 
 #ifndef INTRNG

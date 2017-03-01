@@ -776,7 +776,7 @@ imx6_anatop_probe(device_t dev)
 }
 
 uint32_t 
-imx6_get_cpu_clock()
+imx6_get_cpu_clock(void)
 {
 	uint32_t corediv, plldiv;
 
