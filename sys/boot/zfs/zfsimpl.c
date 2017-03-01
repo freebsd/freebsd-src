@@ -2334,7 +2334,7 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 	char path[1024];
 	int symlinks_followed = 0;
 	struct stat sb;
-	struct obj_list *entry;
+	struct obj_list *entry, *tentry;
 	STAILQ_HEAD(, obj_list) on_cache = STAILQ_HEAD_INITIALIZER(on_cache);
 
 	spa = mount->spa;
@@ -2482,7 +2482,7 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 
 	*dnode = dn;
 done:
-	STAILQ_FOREACH(entry, &on_cache, entry)
+	STAILQ_FOREACH_SAFE(entry, &on_cache, entry, tentry)
 		free(entry);
 	return (rc);
 }
