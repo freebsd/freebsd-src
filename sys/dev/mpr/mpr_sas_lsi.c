@@ -893,6 +893,7 @@ mprsas_get_sas_address_for_sata_disk(struct mpr_softc *sc,
 	u8 sas_status;
 
 	memset(&ata_identify, 0, sizeof(ata_identify));
+	memset(&mpi_reply, 0, sizeof(mpi_reply));
 	try_count = 0;
 	do {
 		rc = mprsas_get_sata_identify(sc, handle, &mpi_reply,
