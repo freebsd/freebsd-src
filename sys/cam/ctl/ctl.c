@@ -9550,7 +9550,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 
 	if (port && port->port_type == CTL_PORT_FC)
 		proto = SCSI_PROTO_FC << 4;
-	else if (port->port_type == CTL_PORT_SAS)
+	else if (port && port->port_type == CTL_PORT_SAS)
 		proto = SCSI_PROTO_SAS << 4;
 	else if (port && port->port_type == CTL_PORT_ISCSI)
 		proto = SCSI_PROTO_ISCSI << 4;
