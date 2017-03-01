@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -47,7 +46,7 @@ __FBSDID("$FreeBSD$");
 void
 cpu_reset(void)
 {
-	uint32_t addr, paddr;
+	uint32_t paddr;
 	bus_addr_t vaddr;
 	phandle_t node;
 
@@ -58,9 +57,8 @@ cpu_reset(void)
 	if (node == -1)
 		goto end;
 
-	if ((OF_getprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
-		addr = fdt32_to_cpu(paddr);
-		if (bus_space_map(fdtbus_bs_tag, addr, 0x8, 0, &vaddr) == 0) {
+	if ((OF_getencprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
+		if (bus_space_map(fdtbus_bs_tag, paddr, 0x8, 0, &vaddr) == 0) {
 			bus_space_write_4(fdtbus_bs_tag, vaddr,
 			    RSTMGR_CTRL, CTRL_SWWARMRSTREQ);
 		}

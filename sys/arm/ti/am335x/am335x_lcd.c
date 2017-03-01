@@ -359,13 +359,13 @@ am335x_read_property(device_t dev, phandle_t node, const char *name, uint32_t *v
 {
 	pcell_t cell;
 
-	if ((OF_getprop(node, name, &cell, sizeof(cell))) <= 0) {
+	if ((OF_getencprop(node, name, &cell, sizeof(cell))) <= 0) {
 		device_printf(dev, "missing '%s' attribute in LCD panel info\n",
 		    name);
 		return (ENXIO);
 	}
 
-	*val = fdt32_to_cpu(cell);
+	*val = cell;
 
 	return (0);
 }
