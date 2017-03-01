@@ -143,6 +143,10 @@ usbphy_attach(device_t dev)
 	bus_write_4(sc->mem_res, CTRL_SET_REG, CTRL_SFTRST);
 	bus_write_4(sc->mem_res, CTRL_CLR_REG, CTRL_SFTRST | CTRL_CLKGATE);
 
+	/* Set UTMI+ level 2+3 bits to enable low and full speed devices. */
+	bus_write_4(sc->mem_res, CTRL_SET_REG,
+	    CTRL_ENUTMILEVEL2 | CTRL_ENUTMILEVEL3);
+
 	/* Power up: clear all bits in the powerdown register. */
 	bus_write_4(sc->mem_res, PWD_REG, 0);
 
