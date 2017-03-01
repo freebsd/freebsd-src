@@ -463,6 +463,14 @@ dmtpps_attach(device_t dev)
 	sc->tmr_num = ti_hwmods_get_unit(dev, "timer");
 	snprintf(sc->tmr_name, sizeof(sc->tmr_name), "DMTimer%d", sc->tmr_num);
 
+	/*
+	 * Configure the timer pulse/capture pin to input/capture mode.  This is
+	 * required in addition to configuring the pin as input with the pinmux
+	 * controller (which was done via fdt data or tunable at probe time).
+	 */
+	sc->tclr = DMT_TCLR_GPO_CFG;
+	DMTIMER_WRITE4(sc, DMT_TCLR, sc->tclr);
+
 	/* Set up timecounter hardware, start it. */
 	DMTIMER_WRITE4(sc, DMT_TSICR, DMT_TSICR_RESET);
 	while (DMTIMER_READ4(sc, DMT_TIOCP_CFG) & DMT_TIOCP_RESET)
