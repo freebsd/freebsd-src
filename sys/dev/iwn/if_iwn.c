@@ -2667,6 +2667,26 @@ rate2plcp(int rate)
 	return 0;
 }
 
+static __inline uint8_t
+plcp2rate(const uint8_t rate_plcp)
+{
+	switch (rate_plcp) {
+	case 0xd:	return 12;
+	case 0xf:	return 18;
+	case 0x5:	return 24;
+	case 0x7:	return 36;
+	case 0x9:	return 48;
+	case 0xb:	return 72;
+	case 0x1:	return 96;
+	case 0x3:	return 108;
+	case 10:	return 2;
+	case 20:	return 4;
+	case 55:	return 11;
+	case 110:	return 22;
+	default:	return 0;
+	}
+}
+
 static int
 iwn_get_1stream_tx_antmask(struct iwn_softc *sc)
 {
@@ -3078,6 +3098,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct iwn_rx_radiotap_header *tap = &sc->sc_rxtap;
+		uint32_t rate = le32toh(stat->rate);
 
 		tap->wr_flags = 0;
 		if (stat->flags & htole16(IWN_STAT_FLAG_SHPREAMBLE))
@@ -3085,24 +3106,11 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		tap->wr_dbm_antsignal = (int8_t)rssi;
 		tap->wr_dbm_antnoise = (int8_t)nf;
 		tap->wr_tsft = stat->tstamp;
-		switch (stat->rate) {
-		/* CCK rates. */
-		case  10: tap->wr_rate =   2; break;
-		case  20: tap->wr_rate =   4; break;
-		case  55: tap->wr_rate =  11; break;
-		case 110: tap->wr_rate =  22; break;
-		/* OFDM rates. */
-		case 0xd: tap->wr_rate =  12; break;
-		case 0xf: tap->wr_rate =  18; break;
-		case 0x5: tap->wr_rate =  24; break;
-		case 0x7: tap->wr_rate =  36; break;
-		case 0x9: tap->wr_rate =  48; break;
-		case 0xb: tap->wr_rate =  72; break;
-		case 0x1: tap->wr_rate =  96; break;
-		case 0x3: tap->wr_rate = 108; break;
-		/* Unknown rate: should not happen. */
-		default:  tap->wr_rate =   0;
-		}
+		if (rate & IWN_RFLAG_MCS) {
+			tap->wr_rate = rate & IWN_RFLAG_RATE_MCS;
+			tap->wr_rate |= IEEE80211_RATE_MCS;
+		} else
+			tap->wr_rate = plcp2rate(rate & IWN_RFLAG_RATE);
 	}
 
 	/*
