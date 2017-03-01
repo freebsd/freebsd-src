@@ -52,6 +52,8 @@ static MALLOC_DEFINE(M_GTASKQUEUE, "taskqueue", "Task Queues");
 static void	gtaskqueue_thread_enqueue(void *);
 static void	gtaskqueue_thread_loop(void *arg);
 
+TASKQGROUP_DEFINE(softirq, mp_ncpus, 1);
+
 struct gtaskqueue_busy {
 	struct gtask	*tb_running;
 	TAILQ_ENTRY(gtaskqueue_busy) tb_link;

@@ -2565,6 +2565,13 @@ do {								\
 				l = 0; /* in any case exit inner loop */
 				retval = ipfw_run_eaction(chain, args,
 				    cmd, &done);
+				/*
+				 * If both @retval and @done are zero,
+				 * consider this as rule matching and
+				 * update counters.
+				 */
+				if (retval == 0 && done == 0)
+					IPFW_INC_RULE_COUNTER(f, pktlen);
 				break;
 
 			default:

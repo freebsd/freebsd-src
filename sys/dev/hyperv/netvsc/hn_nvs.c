@@ -272,12 +272,17 @@ hn_nvs_conn_chim(struct hn_softc *sc)
 		error = EIO;
 		goto cleanup;
 	}
-	if (sectsz == 0) {
+	if (sectsz == 0 || sectsz % sizeof(uint32_t) != 0) {
 		/*
 		 * Can't use chimney sending buffer; done!
 		 */
-		if_printf(sc->hn_ifp, "zero chimney sending buffer "
-		    "section size\n");
+		if (sectsz == 0) {
+			if_printf(sc->hn_ifp, "zero chimney sending buffer "
+			    "section size\n");
+		} else {
+			if_printf(sc->hn_ifp, "misaligned chimney sending "
+			    "buffers, section size: %u\n", sectsz);
+		}
 		sc->hn_chim_szmax = 0;
 		sc->hn_chim_cnt = 0;
 		sc->hn_flags |= HN_FLAG_CHIM_CONNECTED;

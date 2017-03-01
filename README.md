@@ -1,35 +1,35 @@
 FreeBSD Source:
 ---------------
-This is the top level of the FreeBSD source directory.  This file  
-was last revised on:  
+This is the top level of the FreeBSD source directory.  This file
+was last revised on:
 $FreeBSD$
 
-For copyright information, please see the file COPYRIGHT in this  
-directory (additional copyright information also exists for some    
-sources in this tree - please see the specific source directories for  
+For copyright information, please see the file COPYRIGHT in this
+directory (additional copyright information also exists for some
+sources in this tree - please see the specific source directories for
 more information).
 
-The Makefile in this directory supports a number of targets for  
-building components (or all) of the FreeBSD source tree.  See build(7)  
-and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html  
-for more information, including setting make(1) variables.  
+The Makefile in this directory supports a number of targets for
+building components (or all) of the FreeBSD source tree.  See build(7)
+and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
+for more information, including setting make(1) variables.
 
-The `buildkernel` and `installkernel` targets build and install  
-the kernel and the modules (see below).  Please see the top of  
-the Makefile in this directory for more information on the  
+The `buildkernel` and `installkernel` targets build and install
+the kernel and the modules (see below).  Please see the top of
+the Makefile in this directory for more information on the
 standard build targets and compile-time flags.
 
-Building a kernel is a somewhat more involved process.  See build(7), config(8),  
-and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html  
+Building a kernel is a somewhat more involved process.  See build(7), config(8),
+and http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
 for more information.
 
-Note: If you want to build and install the kernel with the  
-`buildkernel` and `installkernel` targets, you might need to build  
+Note: If you want to build and install the kernel with the
+`buildkernel` and `installkernel` targets, you might need to build
 world before.  More information is available in the handbook.
 
-The kernel configuration files reside in the `sys/<arch>/conf`  
-sub-directory.  GENERIC is the default configuration used in release builds.  
-NOTES contains entries and documentation for all possible  
+The kernel configuration files reside in the `sys/<arch>/conf`
+sub-directory.  GENERIC is the default configuration used in release builds.
+NOTES contains entries and documentation for all possible
 devices, not just those commonly used.
 
 
@@ -80,7 +80,7 @@ usr.bin			User commands.
 usr.sbin		System administration commands.
 ```
 
-For information on synchronizing your source tree with one or more of  
+For information on synchronizing your source tree with one or more of
 the FreeBSD Project's development branches, please see:
 
    http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/synching.html
