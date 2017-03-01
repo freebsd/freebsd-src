@@ -287,6 +287,7 @@ ATF_TC_BODY(hsearch_r_basic, tc)
 }
 #endif
 
+#if defined(__FreeBSD__) && 1100027 <= __FreeBSD_version
 ATF_TC(hsearch_r_duplicate);
 ATF_TC_HEAD(hsearch_r_duplicate, tc)
 {
@@ -394,6 +395,7 @@ ATF_TC_BODY(hsearch_r_two, tc)
 
 	hdestroy_r(&t);
 }
+#endif
 
 ATF_TP_ADD_TCS(tp)
 {
