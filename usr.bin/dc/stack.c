@@ -1,4 +1,4 @@
-/*	$OpenBSD: stack.c,v 1.11 2009/10/27 23:59:37 deraadt Exp $	*/
+/*	$OpenBSD: stack.c,v 1.12 2014/11/26 15:05:51 otto Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
