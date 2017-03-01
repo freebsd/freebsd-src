@@ -185,7 +185,7 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, MTX_UNOWNED, (tid))
 
 #define _mtx_obtain_lock_fetch(mp, vp, tid)				\
-	atomic_fcmpset_rel_ptr(&(mp)->mtx_lock, vp, (tid))
+	atomic_fcmpset_acq_ptr(&(mp)->mtx_lock, vp, (tid))
 
 /* Try to release mtx_lock if it is unrecursed and uncontested. */
 #define _mtx_release_lock(mp, tid)					\

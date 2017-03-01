@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 # Vendor sources and generated files
-LDNSDIR= ${.CURDIR}/../../../contrib/ldns
-UNBOUNDDIR= ${.CURDIR}/../../../contrib/unbound
+LDNSDIR= ${SRCTOP}/contrib/ldns
+UNBOUNDDIR= ${SRCTOP}/contrib/unbound
 
 .PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/daemon ${UNBOUNDDIR}/util ${UNBOUNDDIR}/doc
 

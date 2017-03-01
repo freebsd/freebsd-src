@@ -443,6 +443,89 @@ same_ip_multiple_ifaces_inet6_cleanup()
 	cleanup_ifaces
 }
 
+atf_test_case slaac_on_nondefault_fib6 cleanup
+slaac_on_nondefault_fib6_head()
+{
+	atf_set "descr" "SLAAC correctly installs routes on non-default FIBs"
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs" "allow_sysctl_side_effects"
+}
+slaac_on_nondefault_fib6_body()
+{
+	# Configure the epair interfaces to use nonrouteable RFC3849
+	# addresses and non-default FIBs
+	ADDR="2001:db8::2"
+	GATEWAY="2001:db8::1"
+	SUBNET="2001:db8:"
+	MASK="64"
+
+	atf_expect_fail "PR196361 IPv6 network routes don't respect net.add_addr_allfibs=0"
+
+	# Check system configuration
+	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
+		atf_skip "This test requires net.add_addr_allfibs=0"
+	fi
+	get_fibs 2
+
+	sysctl -n "net.inet6.ip6.rfc6204w3" >> "rfc6204w3.state"
+	sysctl -n "net.inet6.ip6.forwarding" >> "forwarding.state"
+	# Enable forwarding so the kernel will send RAs
+	sysctl net.inet6.ip6.forwarding=1
+	# Enable RFC6204W3 mode so the kernel will enable default router
+	# selection while also forwarding packets
+	sysctl net.inet6.ip6.rfc6204w3=1
+
+	# Configure epair interfaces
+	get_epair
+	setup_iface "$EPAIRA" "$FIB0" inet6 ${ADDR} ${MASK}
+	echo ifconfig "$EPAIRB" up inet6 fib $FIB1 -ifdisabled accept_rtadv
+	ifconfig "$EPAIRB" inet6 -ifdisabled accept_rtadv fib $FIB1 up
+	rtadvd -p rtadvd.pid -C rtadvd.sock -c /dev/null "$EPAIRA"
+	rtsol "$EPAIRB"
+
+	# Check SLAAC address
+	atf_check -o match:"inet6 ${SUBNET}.*prefixlen ${MASK}.*autoconf" \
+		ifconfig "$EPAIRB"
+	# Check local route
+	atf_check -o match:"${SUBNET}.*\<UHS\>.*lo0" \
+		netstat -rnf inet6 -F $FIB1
+	# Check subnet route
+	atf_check -o match:"${SUBNET}:/${MASK}.*\<U\>.*$EPAIRB" \
+		netstat -rnf inet6 -F $FIB1
+	# Check default route
+	atf_check -o match:"default.*\<UG\>.*$EPAIRB" \
+		netstat -rnf inet6 -F $FIB1
+
+	# Check that none of the above routes appeared on other routes
+	for fib in $( seq 0 $(($(sysctl -n net.fibs) - 1))); do
+		if [ "$fib" = "$FIB1" -o "$fib" = "$FIB0" ]; then
+			continue
+		fi
+		atf_check -o not-match:"${SUBNET}.*\<UHS\>.*lo0" \
+			netstat -rnf inet6 -F $fib
+		atf_check -o not-match:"${SUBNET}:/${MASK}.*\<U\>.*$EPAIRB" \
+			netstat -rnf inet6 -F $fib
+		atf_check -o not-match:"default.*\<UG\>.*$EPAIRB" \
+			netstat -rnf inet6 -F $fib
+	done
+}
+slaac_on_nondefault_fib6_cleanup()
+{
+	cleanup_ifaces
+	if [ -f "rtadvd.pid" ]; then
+		pkill -F rtadvd.pid
+		rm rtadvd.pid
+	fi
+	if [ -f "rfc6204w3.state" ] ; then
+		sysctl "net.inet6.ip6.rfc6204w3"=`cat "rfc6204w3.state"`
+		rm "rfc6204w3.state"
+	fi
+	if [ -f "forwarding.state" ] ; then
+		sysctl "net.inet6.ip6.forwarding"=`cat "forwarding.state"`
+		rm "forwarding.state"
+	fi
+}
+
 # Regression test for kern/187550
 atf_test_case subnet_route_with_multiple_fibs_on_same_subnet cleanup
 subnet_route_with_multiple_fibs_on_same_subnet_head()
@@ -648,6 +731,7 @@ atf_init_test_cases()
 	atf_add_test_case same_ip_multiple_ifaces_fib0
 	atf_add_test_case same_ip_multiple_ifaces
 	atf_add_test_case same_ip_multiple_ifaces_inet6
+	atf_add_test_case slaac_on_nondefault_fib6
 	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet
 	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet_inet6
 	atf_add_test_case udp_dontroute
