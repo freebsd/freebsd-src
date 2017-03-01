@@ -32,7 +32,7 @@ arm/freescale/imx/imx6_ipu.c		optional	vt
 #
 # Optional devices.
 #
-arm/freescale/imx/imx_sdhci.c		optional sdhci
+dev/sdhci/fsl_sdhci.c			optional sdhci
 
 arm/freescale/imx/imx_wdog.c		optional imxwdt
 
