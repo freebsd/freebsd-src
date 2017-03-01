@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/mmcbrvar.h>
 
 #include <dev/sdhci/sdhci.h>
+#include <dev/sdhci/sdhci_fdt_gpio.h>
 #include "sdhci_if.h"
 
 #include <arm/ti/ti_cpuid.h>
@@ -61,7 +62,7 @@ __FBSDID("$FreeBSD$");
 
 struct ti_sdhci_softc {
 	device_t		dev;
-	device_t		gpio_dev;
+	struct sdhci_fdt_gpio * gpio;
 	struct resource *	mem_res;
 	struct resource *	irq_res;
 	void *			intr_cookie;
@@ -75,6 +76,7 @@ struct ti_sdhci_softc {
 	uint32_t		sdhci_clkdiv;
 	boolean_t		disable_highspeed;
 	boolean_t		force_card_present;
+	boolean_t		disable_readonly;
 };
 
 /*
@@ -362,19 +364,26 @@ static int
 ti_sdhci_get_ro(device_t brdev, device_t reqdev)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(brdev);
-	unsigned int readonly = 0;
 
-	/* If a gpio pin is configured, read it. */
-	if (sc->gpio_dev != NULL) {
-		GPIO_PIN_GET(sc->gpio_dev, sc->wp_gpio_pin, &readonly);
-	}
+	if (sc->disable_readonly)
+		return (0);
 
-	return (readonly);
+	return (sdhci_fdt_gpio_get_readonly(sc->gpio));
+}
+
+static bool
+ti_sdhci_get_card_present(device_t dev, struct sdhci_slot *slot)
+{
+	struct ti_sdhci_softc *sc = device_get_softc(dev);
+
+	return (sdhci_fdt_gpio_get_present(sc->gpio));
 }
 
 static int
 ti_sdhci_detach(device_t dev)
 {
+
+	/* sdhci_fdt_gpio_teardown(sc->gpio); */
 
 	return (EBUSY);
 }
@@ -502,25 +511,6 @@ ti_sdhci_attach(device_t dev)
 	}
 
 	/*
-	 * See if we've got a GPIO-based write detect pin.  This is not the
-	 * standard documented property for this, we added it in freebsd.
-	 */
-	if ((OF_getencprop(node, "mmchs-wp-gpio-pin", &prop, sizeof(prop))) <= 0)
-		sc->wp_gpio_pin = 0xffffffff;
-	else
-		sc->wp_gpio_pin = prop;
-
-	if (sc->wp_gpio_pin != 0xffffffff) {
-		sc->gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
-		if (sc->gpio_dev == NULL) 
-			device_printf(dev, "Error: No GPIO device, "
-			    "Write Protect pin will not function\n");
-		else
-			GPIO_PIN_SETFLAGS(sc->gpio_dev, sc->wp_gpio_pin,
-			                  GPIO_PIN_INPUT);
-	}
-
-	/*
 	 * Set the offset from the device's memory start to the MMCHS registers.
 	 * Also for OMAP4 disable high speed mode due to erratum ID i626.
 	 */
@@ -571,6 +561,21 @@ ti_sdhci_attach(device_t dev)
 		err = ENXIO;
 		goto fail;
 	}
+
+	/*
+	 * Set up handling of card-detect and write-protect gpio lines.
+	 *
+	 * If there is no write protect info in the fdt data, fall back to the
+	 * historical practice of assuming that the card is writable.  This
+	 * works around bad fdt data from the upstream source.  The alternative
+	 * would be to trust the sdhci controller's PRESENT_STATE register WP
+	 * bit, but it may say write protect is in effect when it's not if the
+	 * pinmux setup doesn't route the WP signal into the sdchi block.
+	 */
+	sc->gpio = sdhci_fdt_gpio_setup(sc->dev, &sc->slot);
+
+	if (!OF_hasprop(node, "wp-gpios") && !OF_hasprop(node, "wp-disable"))
+		sc->disable_readonly = true;
 
 	/* Initialise the MMCHS hardware. */
 	ti_sdhci_hw_init(dev);
@@ -706,6 +711,7 @@ static device_method_t ti_sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_2,	ti_sdhci_write_2),
 	DEVMETHOD(sdhci_write_4,	ti_sdhci_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	ti_sdhci_write_multi_4),
+	DEVMETHOD(sdhci_get_card_present, ti_sdhci_get_card_present),
 
 	DEVMETHOD_END
 };
