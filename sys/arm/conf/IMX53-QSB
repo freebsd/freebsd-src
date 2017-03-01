@@ -22,8 +22,6 @@
 include 	"IMX53"
 ident		IMX53-QSB
 
-options 	HZ=250			# 4ms scheduling quantum
-
 # required for netbooting
 #options 	BOOTP
 #options 	BOOTP_COMPAT

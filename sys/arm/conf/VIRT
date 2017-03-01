@@ -23,8 +23,7 @@ ident		VIRT
 include 	"std.armv6"
 include 	"../qemu/std.virt"
 
-options 	HZ=100
-options 	SCHED_ULE		# 4BSD scheduler
+options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM
 options 	PLATFORM_SMP
 options 	SMP			# Enable multiple cores

@@ -30,7 +30,6 @@ makeoptions	MODULES_EXTRA="dtb/am335x am335x_dmtpps"
 
 options 	INTRNG
 
-options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
 

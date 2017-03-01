@@ -19,8 +19,6 @@ options 	MD_ROOT
 options 	ROOTDEVNAME=\"/dev/da0s1a\"
 
 options 	SCHED_ULE		# ULE scheduler
-#options 	SCHED_4BSD		# 4BSD scheduler
-
 options 	SMP
 
 # Pseudo devices
