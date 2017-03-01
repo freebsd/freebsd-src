@@ -1,9 +1,9 @@
 /*-
- * Copyright (c) 1991 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
- * William Jolitz.
+ * Chris Torek.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,42 +28,32 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/syslog.h>
-#include <sys/systm.h>
-
-#include <machine/md_var.h>
-
-#define NMI_PARITY 0x04
-#define NMI_EPARITY 0x02
+#include <sys/param.h>
+#include <sys/libkern.h>
 
 /*
- * Handle a NMI, possibly a machine check.
- * return true to panic system, false to ignore.
+ * Find the first occurrence of find in s.
  */
-int
-isa_nmi(int cd)
+char *
+strstr(const char *s, const char *find)
 {
-	int retval = 0;
- 	int port = inb(0x33);
+	char c, sc;
+	size_t len;
 
-	log(LOG_CRIT, "NMI PC98 port = %x\n", port);
-	if (port & NMI_PARITY) {
-		log(LOG_CRIT, "BASE RAM parity error, likely hardware failure.");
-		retval = 1;
-	} else if (port & NMI_EPARITY) {
-		log(LOG_CRIT, "EXTENDED RAM parity error, likely hardware failure.");
-		retval = 1;
-	} else {
-		log(LOG_CRIT, "\nNMI Resume ??\n");
+	if ((c = *find++) != 0) {
+		len = strlen(find);
+		do {
+			do {
+				if ((sc = *s++) == 0)
+					return (NULL);
+			} while (sc != c);
+		} while (strncmp(s, find, len) != 0);
+		s--;
 	}
-
-	return(retval);
+	return (__DECONST(char *, s));
 }
