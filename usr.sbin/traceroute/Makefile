@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-TRACEROUTE_DISTDIR?= ${.CURDIR}/../../contrib/traceroute
+TRACEROUTE_DISTDIR?= ${SRCTOP}/contrib/traceroute
 .PATH: ${TRACEROUTE_DISTDIR}
 
 PROG=	traceroute
