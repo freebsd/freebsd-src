@@ -8,4 +8,4 @@
 include         BERI_SIM_2THREAD_MDROOT
 ident           CHERI_SIM_2THREAD_MDROOT
 
-include		std.CHERI
+include		"std.CHERI"

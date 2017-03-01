@@ -8,5 +8,5 @@
 include         BERI_SIM_MDROOT
 ident           CHERI_SIM_MDROOT
 
-include		std.CHERI
+include		"std.CHERI"
 makeoptions	EMBED_CHERITEST_LIST=YES

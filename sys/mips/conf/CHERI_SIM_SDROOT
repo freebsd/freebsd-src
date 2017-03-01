@@ -8,4 +8,4 @@
 include         BERI_SIM_SDROOT
 ident           CHERI_SIM_SDROOT
 
-include		std.CHERI
+include		"std.CHERI"

@@ -9,4 +9,4 @@
 include		BERI_DE4_SDROOT
 ident		CHERI_DE4_SDROOT
 
-include		std.CHERI
+include		"std.CHERI"
