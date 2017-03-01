@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/ntp/libntp \
-	${.CURDIR}/../../../contrib/ntp/lib/isc \
-	${.CURDIR}/../../../contrib/ntp/lib/isc/nls \
-	${.CURDIR}/../../../contrib/ntp/lib/isc/pthreads \
-	${.CURDIR}/../../../contrib/ntp/lib/isc/unix \
+.PATH: ${SRCTOP}/contrib/ntp/libntp \
+	${SRCTOP}/contrib/ntp/lib/isc \
+	${SRCTOP}/contrib/ntp/lib/isc/nls \
+	${SRCTOP}/contrib/ntp/lib/isc/pthreads \
+	${SRCTOP}/contrib/ntp/lib/isc/unix \
 
 LIB= ntp
 INTERNALLIB=
