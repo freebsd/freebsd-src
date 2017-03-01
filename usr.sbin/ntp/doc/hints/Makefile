@@ -12,6 +12,6 @@ FILES=	a-ux aix bsdi changes decosf1 decosf2 freebsd hpux linux mpeix \
 	sun4 svr4-dell svr4_package todo vxworks.html winnt.html
 .endif
 
-.PATH: ${.CURDIR}/../../../../contrib/ntp/html/hints
+.PATH: ${SRCTOP}/contrib/ntp/html/hints
 
 .include <bsd.prog.mk>
