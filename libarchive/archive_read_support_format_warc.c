@@ -543,7 +543,7 @@ xstrpisotime(const char *s, char **endptr)
 
 	/* as a courtesy to our callers, and since this is a non-standard
 	 * routine, we skip leading whitespace */
-	while (isblank((unsigned char)*s))
+	while (*s == ' ' || *s == '\t')
 		++s;
 
 	/* read year */
@@ -589,6 +589,7 @@ static unsigned int
 _warc_rdver(const char *buf, size_t bsz)
 {
 	static const char magic[] = "WARC/";
+	const char *c;
 	unsigned int ver = 0U;
 	unsigned int end = 0U;
 
@@ -615,11 +616,12 @@ _warc_rdver(const char *buf, size_t bsz)
 		 * WARC below version 0.12 has a space-separated header
 		 * WARC 0.12 and above terminates the version with a CRLF
 		 */
+		c = buf + 3U + end;
 		if (ver >= 1200U) {
-			if (memcmp(buf + 3U + end, "\r\n", 2U) != 0)
+			if (memcmp(c, "\r\n", 2U) != 0)
 				ver = 0U;
 		} else if (ver < 1200U) {
-			if (!isblank(*(buf + 3U + end)))
+			if (*c != ' ' && *c != '\t')
 				ver = 0U;
 		}
 	}
@@ -643,7 +645,7 @@ _warc_rdtyp(const char *buf, size_t bsz)
 	}
 
 	/* overread whitespace */
-	while (val < eol && isblank((unsigned char)*val))
+	while (val < eol && (*val == ' ' || *val == '\t'))
 		++val;
 
 	if (val + 8U == eol) {
@@ -673,7 +675,7 @@ _warc_rduri(const char *buf, size_t bsz)
 		return res;
 	}
 
-	while (val < eol && isblank((unsigned char)*val))
+	while (val < eol && (*val == ' ' || *val == '\t'))
 		++val;
 
 	/* overread URL designators */
@@ -731,7 +733,7 @@ _warc_rdlen(const char *buf, size_t bsz)
 	}
 
 	/* skip leading whitespace */
-	while (val < eol && isblank(*val))
+	while (val < eol && (*val == ' ' || *val == '\t'))
 		val++;
 	/* there must be at least one digit */
 	if (!isdigit(*val))

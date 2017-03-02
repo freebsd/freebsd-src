@@ -393,7 +393,7 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	archive_entry_set_pathname(ae, "test0");
 	archive_entry_set_mtime(ae, 123456, 7890);
 	archive_entry_set_size(ae, 0);
-	archive_test_set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
@@ -571,8 +571,8 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	assertEqualInt(0, n);
 	close(fd);
 
-	/* Create directory d2 with default ACLs */
-	assertMakeDir("d2", 0755);
+	/* Create nested directory d2 with default ACLs */
+	assertMakeDir("d/d2", 0755);
 
 #if HAVE_SUN_ACL
 	acl3_text = "user::rwx,"
@@ -604,10 +604,10 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 
 #if HAVE_SUN_ACL
 	func = "acl_set()";
-	n = acl_set("d2", acl3);
+	n = acl_set("d/d2", acl3);
 #else
 	func = "acl_set_file()";
-	n = acl_set_file("d2", ACL_TYPE_DEFAULT, acl3);
+	n = acl_set_file("d/d2", ACL_TYPE_DEFAULT, acl3);
 #endif
 	acl_free(acl3);
 
@@ -640,7 +640,7 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 			acl_text = archive_entry_acl_to_text(ae, NULL, flags);
 			assertEqualString(acl_text, acl2_text);
 			free(acl_text);
-		} else if (strcmp(archive_entry_pathname(ae), "./d2") == 0) {
+		} else if (strcmp(archive_entry_pathname(ae), "./d/d2") == 0) {
 			acl_text = archive_entry_acl_to_text(ae, NULL, dflags);
 			assertEqualString(acl_text, acl3_text);
 			free(acl_text);

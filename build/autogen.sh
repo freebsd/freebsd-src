@@ -51,6 +51,7 @@ perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_N\]),.*\)/$1,['"$VN"'])/' conf
 # Remove developer CFLAGS if a release build is being made
 if [ -n "${MAKE_LIBARCHIVE_RELEASE}" ]; then
   perl -p -i -e "s/^(DEV_CFLAGS.*)/# \$1/" Makefile.am
+  perl -p -i -e 's/CMAKE_BUILD_TYPE "[A-Za-z]*"/CMAKE_BUILD_TYPE "Release"/' CMakeLists.txt
 fi
 
 set -xe

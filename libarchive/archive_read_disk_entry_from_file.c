@@ -203,15 +203,17 @@ archive_read_disk_entry_from_file(struct archive *_a,
 #ifdef HAVE_STRUCT_STAT_ST_FLAGS
 	/* On FreeBSD, we get flags for free with the stat. */
 	/* TODO: Does this belong in copy_stat()? */
-	if (st->st_flags != 0)
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0 && st->st_flags != 0)
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
-#if defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
+#if (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS)) || \
+    (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS))
 	/* Linux requires an extra ioctl to pull the flags.  Although
 	 * this is an extra step, it has a nice side-effect: We get an
 	 * open file descriptor which we can use in the subsequent lookups. */
-	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0 &&
+	    (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
 		if (fd < 0) {
 			if (a->tree != NULL)
 				fd = a->open_on_current_dir(a->tree, path,
@@ -223,7 +225,13 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		}
 		if (fd >= 0) {
 			int stflags;
-			r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
+			r = ioctl(fd,
+#if defined(FS_IOC_GETFLAGS)
+			    FS_IOC_GETFLAGS,
+#else
+			    EXT2_IOC_GETFLAGS,
+#endif
+			    &stflags);
 			if (r == 0 && stflags != 0)
 				archive_entry_set_fflags(entry, stflags, 0);
 		}
@@ -269,13 +277,15 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	}
 #endif /* HAVE_READLINK || HAVE_READLINKAT */
 
-	r = setup_acls(a, entry, &fd);
-	if (!a->suppress_xattr) {
+	r = 0;
+	if ((a->flags & ARCHIVE_READDISK_NO_ACL) == 0)
+		r = setup_acls(a, entry, &fd);
+	if ((a->flags & ARCHIVE_READDISK_NO_XATTR) == 0) {
 		r1 = setup_xattrs(a, entry, &fd);
 		if (r1 < r)
 			r = r1;
 	}
-	if (a->enable_copyfile) {
+	if (a->flags & ARCHIVE_READDISK_MAC_COPYFILE) {
 		r1 = setup_mac_metadata(a, entry, &fd);
 		if (r1 < r)
 			r = r1;
@@ -321,18 +331,15 @@ setup_mac_metadata(struct archive_read_disk *a,
 	name = archive_entry_sourcepath(entry);
 	if (name == NULL)
 		name = archive_entry_pathname(entry);
+	else if (a->tree != NULL && a->tree_enter_working_dir(a->tree) != 0) {
+		archive_set_error(&a->archive, errno,
+			    "Can't change dir to read extended attributes");
+			return (ARCHIVE_FAILED);
+	}
 	if (name == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Can't open file to read extended attributes: No name");
 		return (ARCHIVE_WARN);
-	}
-
-	if (a->tree != NULL) {
-		if (a->tree_enter_working_dir(a->tree) != 0) {
-			archive_set_error(&a->archive, errno,
-				    "Couldn't change dir");
-				return (ARCHIVE_FAILED);
-		}
 	}
 
 	/* Short-circuit if there's nothing to do. */
@@ -453,21 +460,32 @@ setup_acls(struct archive_read_disk *a,
 #endif
 	int		r;
 
-	accpath = archive_entry_sourcepath(entry);
-	if (accpath == NULL)
-		accpath = archive_entry_pathname(entry);
+	accpath = NULL;
 
-	if (*fd < 0 && a->tree != NULL) {
-		if (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)
+#if HAVE_SUN_ACL || HAVE_DARWIN_ACL || HAVE_ACL_GET_FD_NP
+	if (*fd < 0)
+#else
+	/* For default ACLs on Linux we need reachable accpath */
+	if (*fd < 0 || S_ISDIR(archive_entry_mode(entry)))
+#endif
+	{
+		accpath = archive_entry_sourcepath(entry);
+		if (accpath == NULL || (a->tree != NULL &&
+		    a->tree_enter_working_dir(a->tree) != 0))
+			accpath = archive_entry_pathname(entry);
+		if (accpath == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Couldn't determine file path to read ACLs");
+			return (ARCHIVE_WARN);
+		}
+		if (a->tree != NULL &&
+#if !HAVE_SUN_ACL && !HAVE_DARWIN_ACL && !HAVE_ACL_GET_FD_NP
+		    *fd < 0 &&
+#endif
+		    (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)) {
 			*fd = a->open_on_current_dir(a->tree,
 			    accpath, O_RDONLY | O_NONBLOCK);
-		if (*fd < 0) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't access %s", accpath);
-				return (ARCHIVE_FAILED);
-			}
 		}
 	}
 
@@ -530,11 +548,11 @@ setup_acls(struct archive_read_disk *a,
 		acl_free(acl);
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, errno,
-#if HAVE_SUN_ACL
-			    "Couldn't translate ACLs: %s", accpath);
-#else
-			    "Couldn't translate NFSv4 ACLs: %s", accpath);
+			    "Couldn't translate "
+#if !HAVE_SUN_ACL
+			    "NFSv4 "
 #endif
+			    "ACLs");
 		}
 #if HAVE_DARWIN_ACL
 		/*
@@ -543,8 +561,8 @@ setup_acls(struct archive_read_disk *a,
 		 * the archive entry. Otherwise extraction on non-Mac platforms
 		 * would lead to an invalid file mode.
 		 */
-		if (archive_entry_acl_count(entry,
-		    ARCHIVE_ENTRY_ACL_TYPE_NFS4) > 0)
+		if ((archive_entry_acl_types(entry) &
+		    ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0)
 			add_trivial_nfs4_acl(entry);
 #endif
 		return (r);
@@ -586,7 +604,7 @@ setup_acls(struct archive_read_disk *a,
 		acl = NULL;
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, errno,
-			    "Couldn't translate access ACLs: %s", accpath);
+			    "Couldn't translate access ACLs");
 			return (r);
 		}
 	}
@@ -605,8 +623,7 @@ setup_acls(struct archive_read_disk *a,
 			acl_free(acl);
 			if (r != ARCHIVE_OK) {
 				archive_set_error(&a->archive, errno,
-				    "Couldn't translate default ACLs: %s",
-				    accpath);
+				    "Couldn't translate default ACLs");
 				return (r);
 			}
 		}
@@ -1411,15 +1428,10 @@ setup_acls(struct archive_read_disk *a,
 
 static int
 setup_xattr(struct archive_read_disk *a,
-    struct archive_entry *entry, const char *name, int fd)
+    struct archive_entry *entry, const char *name, int fd, const char *accpath)
 {
 	ssize_t size;
 	void *value = NULL;
-	const char *accpath;
-
-	accpath = archive_entry_sourcepath(entry);
-	if (accpath == NULL)
-		accpath = archive_entry_pathname(entry);
 
 #if HAVE_FGETXATTR
 	if (fd >= 0)
@@ -1484,21 +1496,23 @@ setup_xattrs(struct archive_read_disk *a,
 	const char *path;
 	ssize_t list_size;
 
-	path = archive_entry_sourcepath(entry);
-	if (path == NULL)
-		path = archive_entry_pathname(entry);
+	path = NULL;
 
-	if (*fd < 0 && a->tree != NULL) {
-		if (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)
-			*fd = a->open_on_current_dir(a->tree, path,
-				O_RDONLY | O_NONBLOCK);
-		if (*fd < 0) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't access %s", path);
-				return (ARCHIVE_FAILED);
-			}
+	if (*fd < 0) {
+		path = archive_entry_sourcepath(entry);
+		if (path == NULL || (a->tree != NULL &&
+		    a->tree_enter_working_dir(a->tree) != 0))
+			path = archive_entry_pathname(entry);
+		if (path == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Couldn't determine file path to read "
+			    "extended attributes");
+			return (ARCHIVE_WARN);
+		}
+		if (a->tree != NULL && (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)) {
+			*fd = a->open_on_current_dir(a->tree,
+			    path, O_RDONLY | O_NONBLOCK);
 		}
 	}
 
@@ -1561,7 +1575,7 @@ setup_xattrs(struct archive_read_disk *a,
 		if (strncmp(p, "system.", 7) == 0 ||
 				strncmp(p, "xfsroot.", 8) == 0)
 			continue;
-		setup_xattr(a, entry, p, *fd);
+		setup_xattr(a, entry, p, *fd, path);
 	}
 
 	free(list);
@@ -1582,19 +1596,16 @@ setup_xattrs(struct archive_read_disk *a,
  */
 static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
-    int namespace, const char *name, const char *fullname, int fd);
+    int namespace, const char *name, const char *fullname, int fd,
+    const char *path);
 
 static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
-    int namespace, const char *name, const char *fullname, int fd)
+    int namespace, const char *name, const char *fullname, int fd,
+    const char *accpath)
 {
 	ssize_t size;
 	void *value = NULL;
-	const char *accpath;
-
-	accpath = archive_entry_sourcepath(entry);
-	if (accpath == NULL)
-		accpath = archive_entry_pathname(entry);
 
 	if (fd >= 0)
 		size = extattr_get_fd(fd, namespace, name, NULL, 0);
@@ -1644,21 +1655,23 @@ setup_xattrs(struct archive_read_disk *a,
 	const char *path;
 	int namespace = EXTATTR_NAMESPACE_USER;
 
-	path = archive_entry_sourcepath(entry);
-	if (path == NULL)
-		path = archive_entry_pathname(entry);
+	path = NULL;
 
-	if (*fd < 0 && a->tree != NULL) {
-		if (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)
-			*fd = a->open_on_current_dir(a->tree, path,
-				O_RDONLY | O_NONBLOCK);
-		if (*fd < 0) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't access %s", path);
-				return (ARCHIVE_FAILED);
-			}
+	if (*fd < 0) {
+		path = archive_entry_sourcepath(entry);
+		if (path == NULL || (a->tree != NULL &&
+		    a->tree_enter_working_dir(a->tree) != 0))
+			path = archive_entry_pathname(entry);
+		if (path == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Couldn't determine file path to read "
+			    "extended attributes");
+			return (ARCHIVE_WARN);
+		}
+		if (a->tree != NULL && (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)) {
+			*fd = a->open_on_current_dir(a->tree,
+			    path, O_RDONLY | O_NONBLOCK);
 		}
 	}
 
@@ -1708,7 +1721,7 @@ setup_xattrs(struct archive_read_disk *a,
 		name = buff + strlen(buff);
 		memcpy(name, p + 1, len);
 		name[len] = '\0';
-		setup_xattr(a, entry, namespace, name, buff, *fd);
+		setup_xattr(a, entry, namespace, name, buff, *fd, path);
 		p += 1 + len;
 	}
 

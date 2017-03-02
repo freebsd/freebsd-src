@@ -1649,7 +1649,10 @@ static struct flag {
 	{ "nosappnd",	L"nosappnd",		SF_APPEND,	0 },
 	{ "nosappend",	L"nosappend",		SF_APPEND,	0 },
 #endif
-#ifdef  EXT2_APPEND_FL				/* 'a' */
+#if defined(FS_APPEND_FL)			/* 'a' */
+	{ "nosappnd",	L"nosappnd",		FS_APPEND_FL,	0 },
+	{ "nosappend",	L"nosappend",		FS_APPEND_FL,	0 },
+#elif defined(EXT2_APPEND_FL)			/* 'a' */
 	{ "nosappnd",	L"nosappnd",		EXT2_APPEND_FL,	0 },
 	{ "nosappend",	L"nosappend",		EXT2_APPEND_FL,	0 },
 #endif
@@ -1662,7 +1665,11 @@ static struct flag {
 	{ "noschange",	L"noschange",		SF_IMMUTABLE,	0 },
 	{ "nosimmutable",	L"nosimmutable",	SF_IMMUTABLE,	0 },
 #endif
-#ifdef EXT2_IMMUTABLE_FL			/* 'i' */
+#if defined(FS_IMMUTABLE_FL)			/* 'i' */
+	{ "noschg",	L"noschg",		FS_IMMUTABLE_FL,	0 },
+	{ "noschange",	L"noschange",		FS_IMMUTABLE_FL,	0 },
+	{ "nosimmutable",	L"nosimmutable",	FS_IMMUTABLE_FL,	0 },
+#elif defined(EXT2_IMMUTABLE_FL)		/* 'i' */
 	{ "noschg",	L"noschg",		EXT2_IMMUTABLE_FL,	0 },
 	{ "noschange",	L"noschange",		EXT2_IMMUTABLE_FL,	0 },
 	{ "nosimmutable",	L"nosimmutable",	EXT2_IMMUTABLE_FL,	0 },
@@ -1686,7 +1693,9 @@ static struct flag {
 #ifdef UF_NODUMP
 	{ "nodump",	L"nodump",		0,		UF_NODUMP},
 #endif
-#ifdef EXT2_NODUMP_FL				/* 'd' */
+#if defined(FS_NODUMP_FL)	/* 'd' */
+	{ "nodump",	L"nodump",		0,		FS_NODUMP_FL},
+#elif defined(EXT2_NODUMP_FL) 	/* 'd' */
 	{ "nodump",	L"nodump",		0,		EXT2_NODUMP_FL},
 #endif
 #ifdef UF_OPAQUE
@@ -1699,65 +1708,124 @@ static struct flag {
 #ifdef UF_COMPRESSED
 	{ "nocompressed",L"nocompressed",	UF_COMPRESSED,	0 },
 #endif
-#ifdef EXT2_UNRM_FL
+#if defined(FS_UNRM_FL)
+        { "nouunlink",	L"nouunlink",		FS_UNRM_FL,	0},
+#elif defined(EXT2_UNRM_FL)
         { "nouunlink",	L"nouunlink",		EXT2_UNRM_FL,	0},
 #endif
 
-#ifdef EXT2_BTREE_FL
+#if defined(FS_BTREE_FL)
+        { "nobtree",	L"nobtree",       	FS_BTREE_FL,	0 },
+#elif defined(EXT2_BTREE_FL)
         { "nobtree",	L"nobtree",       	EXT2_BTREE_FL,	0 },
 #endif
 
-#ifdef EXT2_ECOMPR_FL
+#if defined(FS_ECOMPR_FL)
+        { "nocomperr",	L"nocomperr",       	FS_ECOMPR_FL,	0 },
+#elif defined(EXT2_ECOMPR_FL)
         { "nocomperr",	L"nocomperr",       	EXT2_ECOMPR_FL,	0 },
 #endif
 
-#ifdef EXT2_COMPR_FL				/* 'c' */
+#if defined(FS_COMPR_FL)			/* 'c' */
+        { "nocompress",	L"nocompress",       	FS_COMPR_FL,	0 },
+#elif defined(EXT2_COMPR_FL)			/* 'c' */
         { "nocompress",	L"nocompress",       	EXT2_COMPR_FL,	0 },
 #endif
 
-#ifdef EXT2_NOATIME_FL				/* 'A' */
+#if defined(FS_NOATIME_FL)			/* 'A' */
+        { "noatime",	L"noatime",		0,		FS_NOATIME_FL},
+#elif defined(EXT2_NOATIME_FL)			/* 'A' */
         { "noatime",	L"noatime",		0,		EXT2_NOATIME_FL},
 #endif
 
-#ifdef EXT2_DIRTY_FL
+#if defined(FS_DIRTY_FL)
+        { "nocompdirty",L"nocompdirty",		FS_DIRTY_FL,		0},
+#elif defined(EXT2_DIRTY_FL)
         { "nocompdirty",L"nocompdirty",		EXT2_DIRTY_FL,		0},
 #endif
 
-#ifdef EXT2_COMPRBLK_FL
-#ifdef EXT2_NOCOMPR_FL
+#if defined(FS_COMPRBLK_FL)
+#if defined(FS_NOCOMPR_FL)
+        { "nocomprblk",	L"nocomprblk",		FS_COMPRBLK_FL, FS_NOCOMPR_FL},
+#else
+        { "nocomprblk",	L"nocomprblk",		FS_COMPRBLK_FL,	0},
+#endif
+#elif defined(EXT2_COMPRBLK_FL)
+#if defined(EXT2_NOCOMPR_FL)
         { "nocomprblk",	L"nocomprblk",		EXT2_COMPRBLK_FL, EXT2_NOCOMPR_FL},
 #else
         { "nocomprblk",	L"nocomprblk",		EXT2_COMPRBLK_FL,	0},
 #endif
 #endif
-#ifdef EXT2_DIRSYNC_FL
+#if defined(FS_DIRSYNC_FL)
+        { "nodirsync",	L"nodirsync",		FS_DIRSYNC_FL,	0},
+#elif defined(EXT2_DIRSYNC_FL)
         { "nodirsync",	L"nodirsync",		EXT2_DIRSYNC_FL,	0},
 #endif
-#ifdef EXT2_INDEX_FL
+#if defined(FS_INDEX_FL)
+        { "nohashidx",	L"nohashidx",		FS_INDEX_FL,		0},
+#elif defined(EXT2_INDEX_FL)
         { "nohashidx",	L"nohashidx",		EXT2_INDEX_FL,		0},
 #endif
-#ifdef EXT2_IMAGIC_FL
+#if defined(FS_IMAGIC_FL)
+        { "noimagic",	L"noimagic",		FS_IMAGIC_FL,		0},
+#elif defined(EXT2_IMAGIC_FL)
         { "noimagic",	L"noimagic",		EXT2_IMAGIC_FL,		0},
 #endif
-#ifdef EXT3_JOURNAL_DATA_FL
+#if defined(FS_JOURNAL_DATA_FL)
+        { "nojournal",	L"nojournal",		FS_JOURNAL_DATA_FL,	0},
+#elif defined(EXT3_JOURNAL_DATA_FL)
         { "nojournal",	L"nojournal",		EXT3_JOURNAL_DATA_FL,	0},
 #endif
-#ifdef EXT2_SECRM_FL
+#if defined(FS_SECRM_FL)
+        { "nosecuredeletion",L"nosecuredeletion",FS_SECRM_FL,		0},
+#elif defined(EXT2_SECRM_FL)
         { "nosecuredeletion",L"nosecuredeletion",EXT2_SECRM_FL,		0},
 #endif
-#ifdef EXT2_SYNC_FL
+#if defined(FS_SYNC_FL)
+        { "nosync",	L"nosync",		FS_SYNC_FL,		0},
+#elif defined(EXT2_SYNC_FL)
         { "nosync",	L"nosync",		EXT2_SYNC_FL,		0},
 #endif
-#ifdef EXT2_NOTAIL_FL
+#if defined(FS_NOTAIL_FL)
+        { "notail",	L"notail",		0,		FS_NOTAIL_FL},
+#elif defined(EXT2_NOTAIL_FL)
         { "notail",	L"notail",		0,		EXT2_NOTAIL_FL},
 #endif
-#ifdef EXT2_TOPDIR_FL
+#if defined(FS_TOPDIR_FL)
+        { "notopdir",	L"notopdir",		FS_TOPDIR_FL,		0},
+#elif defined(EXT2_TOPDIR_FL)
         { "notopdir",	L"notopdir",		EXT2_TOPDIR_FL,		0},
 #endif
-#ifdef EXT2_RESERVED_FL
+#ifdef FS_ENCRYPT_FL
+        { "noencrypt",	L"noencrypt",		FS_ENCRYPT_FL,	0},
+#endif
+#ifdef FS_HUGE_FILE_FL
+        { "nohugefile",	L"nohugefile",		FS_HUGE_FILE_FL,	0},
+#endif
+#ifdef FS_EXTENT_FL
+        { "noextent",	L"noextent",		FS_EXTENT_FL,	0},
+#endif
+#ifdef FS_EA_INODE_FL
+        { "noeainode",	L"noeainode",		FS_EA_INODE_FL,	0},
+#endif
+#ifdef FS_EOFBLOCKS_FL
+        { "noeofblocks",L"noeofblocks",		FS_EOFBLOCKS_FL,	0},
+#endif
+#ifdef FS_NOCOW_FL
+        { "nocow",	L"nocow",		FS_NOCOW_FL,	0},
+#endif
+#ifdef FS_INLINE_DATA_FL
+        { "noinlinedata",L"noinlinedata",	FS_INLINE_DATA_FL,	0},
+#endif
+#ifdef FS_PROJINHERIT_FL
+        { "noprojinherit",L"noprojinherit",	FS_PROJINHERIT_FL,	0},
+#endif
+#if defined(FS_RESERVED_FL)
+        { "noreserved",	L"noreserved",		FS_RESERVED_FL,	0},
+#elif defined(EXT2_RESERVED_FL)
         { "noreserved",	L"noreserved",		EXT2_RESERVED_FL,	0},
 #endif
-
 	{ NULL,		NULL,			0,		0 }
 };
 
