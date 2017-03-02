@@ -45,7 +45,10 @@ public:
   /// Handle invalidation events from the new pass manager.
   ///
   /// By definition, this result is stateless and so remains valid.
-  bool invalidate(Function &, const PreservedAnalyses &) { return false; }
+  bool invalidate(Function &, const PreservedAnalyses &,
+                  FunctionAnalysisManager::Invalidator &) {
+    return false;
+  }
 
   /// \brief Inserts the given Function into the cache.
   void scan(Function *Fn);
@@ -80,16 +83,6 @@ public:
 
     return QueryResult;
   }
-
-  /// Get the location associated with a pointer argument of a callsite.
-  ModRefInfo getArgModRefInfo(ImmutableCallSite CS, unsigned ArgIdx);
-
-  /// Returns the behavior when calling the given call site.
-  FunctionModRefBehavior getModRefBehavior(ImmutableCallSite CS);
-
-  /// Returns the behavior when calling the given function. For use when the
-  /// call site is not known.
-  FunctionModRefBehavior getModRefBehavior(const Function *F);
 
 private:
   struct FunctionHandle final : public CallbackVH {
@@ -132,12 +125,12 @@ private:
 /// in particular to leverage invalidation to trigger re-computation of sets.
 class CFLSteensAA : public AnalysisInfoMixin<CFLSteensAA> {
   friend AnalysisInfoMixin<CFLSteensAA>;
-  static char PassID;
+  static AnalysisKey Key;
 
 public:
   typedef CFLSteensAAResult Result;
 
-  CFLSteensAAResult run(Function &F, AnalysisManager<Function> &AM);
+  CFLSteensAAResult run(Function &F, FunctionAnalysisManager &AM);
 };
 
 /// Legacy wrapper pass to provide the CFLSteensAAResult object.

@@ -26,14 +26,12 @@
 #include "sanitizer_procmaps.h"
 #include "sanitizer_stacktrace.h"
 
-#if SANITIZER_ANDROID || SANITIZER_FREEBSD
 #include <dlfcn.h>  // for dlsym()
-#endif
-
 #include <link.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/resource.h>
+#include <syslog.h>
 
 #if SANITIZER_FREEBSD
 #include <pthread_np.h>
@@ -51,8 +49,6 @@
 
 #if SANITIZER_ANDROID && __ANDROID_API__ < 21
 #include <android/log.h>
-#else
-#include <syslog.h>
 #endif
 
 #if !SANITIZER_ANDROID
@@ -299,7 +295,10 @@ uptr ThreadSelf() {
                 rdhwr %0,$29;\
                 .set pop" : "=r" (thread_pointer));
   descr_addr = thread_pointer - kTlsTcbOffset - TlsPreTcbSize();
-# elif defined(__aarch64__) || defined(__s390__)
+# elif defined(__aarch64__)
+  descr_addr = reinterpret_cast<uptr>(__builtin_thread_pointer()) -
+                                      ThreadDescriptorSize();
+# elif defined(__s390__)
   descr_addr = reinterpret_cast<uptr>(__builtin_thread_pointer());
 # elif defined(__powerpc64__)
   // PPC64LE uses TLS variant I. The thread pointer (in GPR 13)
@@ -521,6 +520,7 @@ uptr GetRSS() {
 static atomic_uint8_t android_log_initialized;
 
 void AndroidLogInit() {
+  openlog(GetProcessName(), 0, LOG_USER);
   atomic_store(&android_log_initialized, 1, memory_order_release);
 }
 

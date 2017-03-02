@@ -12,10 +12,11 @@
 
 #include "OutputStyle.h"
 
-#include "llvm/DebugInfo/CodeView/TypeDumper.h"
+#include "llvm/DebugInfo/CodeView/TypeDatabase.h"
 #include "llvm/Support/ScopedPrinter.h"
 
 namespace llvm {
+class BitVector;
 namespace pdb {
 class LLVMOutputStyle : public OutputStyle {
 public:
@@ -24,12 +25,16 @@ public:
   Error dump() override;
 
 private:
+  void discoverStreamPurposes();
+
   Error dumpFileHeaders();
   Error dumpStreamSummary();
+  Error dumpFreePageMap();
+  Error dumpBlockRanges();
+  Error dumpGlobalsStream();
+  Error dumpStreamBytes();
   Error dumpStreamBlocks();
-  Error dumpStreamData();
   Error dumpInfoStream();
-  Error dumpNamedStream();
   Error dumpTpiStream(uint32_t StreamIdx);
   Error dumpDbiStream();
   Error dumpSectionContribs();
@@ -38,11 +43,14 @@ private:
   Error dumpSectionHeaders();
   Error dumpFpoStream();
 
+  void dumpBitVector(StringRef Name, const BitVector &V);
+
   void flush();
 
   PDBFile &File;
   ScopedPrinter P;
-  codeview::CVTypeDumper TD;
+  codeview::TypeDatabase TypeDB;
+  std::vector<std::string> StreamPurposes;
 };
 }
 }

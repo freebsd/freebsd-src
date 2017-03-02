@@ -1,4 +1,4 @@
-//===--- RDFCopy.h --------------------------------------------------------===//
+//===--- RDFCopy.h ----------------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,27 +7,31 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef RDF_COPY_H
-#define RDF_COPY_H
+#ifndef LLVM_LIB_TARGET_HEXAGON_RDFCOPY_H
+#define LLVM_LIB_TARGET_HEXAGON_RDFCOPY_H
 
 #include "RDFGraph.h"
 #include <map>
 #include <vector>
 
 namespace llvm {
+
   class MachineBasicBlock;
   class MachineDominatorTree;
   class MachineInstr;
 
 namespace rdf {
+
   struct CopyPropagation {
     CopyPropagation(DataFlowGraph &dfg) : MDT(dfg.getDT()), DFG(dfg),
         Trace(false) {}
-    virtual ~CopyPropagation() {}
+
+    virtual ~CopyPropagation() = default;
 
     bool run();
     void trace(bool On) { Trace = On; }
     bool trace() const { return Trace; }
+    DataFlowGraph &getDFG() { return DFG; }
 
     typedef std::map<RegisterRef, RegisterRef> EqualityMap;
     virtual bool interpretAsCopy(const MachineInstr *MI, EqualityMap &EM);
@@ -48,7 +52,9 @@ namespace rdf {
     void updateMap(NodeAddr<InstrNode*> IA);
     bool scanBlock(MachineBasicBlock *B);
   };
-} // namespace rdf
-} // namespace llvm
 
-#endif
+} // end namespace rdf
+
+} // end namespace llvm
+
+#endif // LLVM_LIB_TARGET_HEXAGON_RDFCOPY_H

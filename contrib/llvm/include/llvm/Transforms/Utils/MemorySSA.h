@@ -110,6 +110,11 @@ class Instruction;
 class MemoryAccess;
 class LLVMContext;
 class raw_ostream;
+enum {
+  // Used to signify what the default invalid ID is for MemoryAccess's
+  // getID()
+  INVALID_MEMORYACCESS_ID = 0
+};
 
 template <class T> class memoryaccess_def_iterator_base;
 using memoryaccess_def_iterator = memoryaccess_def_iterator_base<MemoryAccess>;
@@ -157,7 +162,8 @@ protected:
   friend class MemoryDef;
   friend class MemoryPhi;
 
-  /// \brief Used internally to give IDs to MemoryAccesses for printing
+  /// \brief Used for debugging and tracking things about MemoryAccesses.
+  /// Guaranteed unique among MemoryAccesses, no guarantees otherwise.
   virtual unsigned getID() const = 0;
 
   MemoryAccess(LLVMContext &C, unsigned Vty, BasicBlock *BB,
@@ -168,25 +174,6 @@ private:
   MemoryAccess(const MemoryAccess &);
   void operator=(const MemoryAccess &);
   BasicBlock *Block;
-};
-
-template <>
-struct ilist_traits<MemoryAccess> : public ilist_default_traits<MemoryAccess> {
-  /// See details of the instruction class for why this trick works
-  // FIXME: This downcast is UB. See llvm.org/PR26753.
-  LLVM_NO_SANITIZE("object-size")
-  MemoryAccess *createSentinel() const {
-    return static_cast<MemoryAccess *>(&Sentinel);
-  }
-
-  static void destroySentinel(MemoryAccess *) {}
-
-  MemoryAccess *provideInitialHead() const { return createSentinel(); }
-  MemoryAccess *ensureHead(MemoryAccess *) const { return createSentinel(); }
-  static void noteHead(MemoryAccess *, MemoryAccess *) {}
-
-private:
-  mutable ilist_half_node<MemoryAccess> Sentinel;
 };
 
 inline raw_ostream &operator<<(raw_ostream &OS, const MemoryAccess &MA) {
@@ -254,7 +241,7 @@ public:
   void *operator new(size_t s) { return User::operator new(s, 1); }
 
   MemoryUse(LLVMContext &C, MemoryAccess *DMA, Instruction *MI, BasicBlock *BB)
-      : MemoryUseOrDef(C, DMA, MemoryUseVal, MI, BB) {}
+      : MemoryUseOrDef(C, DMA, MemoryUseVal, MI, BB), OptimizedID(0) {}
 
   static inline bool classof(const MemoryUse *) { return true; }
   static inline bool classof(const Value *MA) {
@@ -262,6 +249,18 @@ public:
   }
 
   void print(raw_ostream &OS) const override;
+  void setDefiningAccess(MemoryAccess *DMA, bool Optimized = false) {
+    if (Optimized)
+      OptimizedID = DMA->getID();
+    MemoryUseOrDef::setDefiningAccess(DMA);
+  }
+  bool isOptimized() const {
+    return getDefiningAccess() && OptimizedID == getDefiningAccess()->getID();
+  }
+  /// \brief Reset the ID of what this MemoryUse was optimized to, causing it to
+  /// be rewalked by the walker if necessary.
+  /// This really should only be called by tests.
+  void resetOptimized() { OptimizedID = INVALID_MEMORYACCESS_ID; }
 
 protected:
   friend class MemorySSA;
@@ -269,6 +268,9 @@ protected:
   unsigned getID() const override {
     llvm_unreachable("MemoryUses do not have IDs");
   }
+
+private:
+  unsigned int OptimizedID;
 };
 
 template <>
@@ -307,8 +309,6 @@ public:
 protected:
   friend class MemorySSA;
 
-  // For debugging only. This gets used to give memory accesses pretty numbers
-  // when printing them out
   unsigned getID() const override { return ID; }
 
 private:
@@ -385,6 +385,14 @@ public:
 
   const_block_iterator block_end() const {
     return block_begin() + getNumOperands();
+  }
+
+  iterator_range<block_iterator> blocks() {
+    return make_range(block_begin(), block_end());
+  }
+
+  iterator_range<const_block_iterator> blocks() const {
+    return make_range(block_begin(), block_end());
   }
 
   op_range incoming_values() { return operands(); }
@@ -465,8 +473,6 @@ protected:
     User::allocHungoffUses(N, /* IsPhi */ true);
   }
 
-  /// For debugging only. This gets used to give memory accesses pretty numbers
-  /// when printing them out
   unsigned getID() const final { return ID; }
 
 private:
@@ -494,7 +500,6 @@ class MemorySSAWalker;
 class MemorySSA {
 public:
   MemorySSA(Function &, AliasAnalysis *, DominatorTree *);
-  MemorySSA(MemorySSA &&);
   ~MemorySSA();
 
   MemorySSAWalker *getWalker();
@@ -503,7 +508,7 @@ public:
   /// access associated with it. If passed a basic block gets the memory phi
   /// node that exists for that block, if there is one. Otherwise, this will get
   /// a MemoryUseOrDef.
-  MemoryAccess *getMemoryAccess(const Value *) const;
+  MemoryUseOrDef *getMemoryAccess(const Instruction *) const;
   MemoryPhi *getMemoryAccess(const BasicBlock *BB) const;
 
   void dump() const;
@@ -530,11 +535,12 @@ public:
   ///
   /// This list is not modifiable by the user.
   const AccessList *getBlockAccesses(const BasicBlock *BB) const {
-    auto It = PerBlockAccesses.find(BB);
-    return It == PerBlockAccesses.end() ? nullptr : It->second.get();
+    return getWritableBlockAccesses(BB);
   }
 
-  /// \brief Create an empty MemoryPhi in MemorySSA
+  /// \brief Create an empty MemoryPhi in MemorySSA for a given basic block.
+  /// Only one MemoryPhi for a block exists at a time, so this function will
+  /// assert if you try to create one where it already exists.
   MemoryPhi *createMemoryPhi(BasicBlock *BB);
 
   enum InsertionPlace { Beginning, End };
@@ -550,6 +556,8 @@ public:
   /// will be placed. The caller is expected to keep ordering the same as
   /// instructions.
   /// It will return the new MemoryAccess.
+  /// Note: If a MemoryAccess already exists for I, this function will make it
+  /// inaccessible and it *must* have removeMemoryAccess called on it.
   MemoryAccess *createMemoryAccessInBB(Instruction *I, MemoryAccess *Definition,
                                        const BasicBlock *BB,
                                        InsertionPlace Point);
@@ -561,12 +569,23 @@ public:
   /// used to replace an existing memory instruction. It will *not* create PHI
   /// nodes, or verify the clobbering definition.  The clobbering definition
   /// must be non-null.
-  MemoryAccess *createMemoryAccessBefore(Instruction *I,
-                                         MemoryAccess *Definition,
-                                         MemoryAccess *InsertPt);
-  MemoryAccess *createMemoryAccessAfter(Instruction *I,
-                                        MemoryAccess *Definition,
-                                        MemoryAccess *InsertPt);
+  /// Note: If a MemoryAccess already exists for I, this function will make it
+  /// inaccessible and it *must* have removeMemoryAccess called on it.
+  MemoryUseOrDef *createMemoryAccessBefore(Instruction *I,
+                                           MemoryAccess *Definition,
+                                           MemoryUseOrDef *InsertPt);
+  MemoryUseOrDef *createMemoryAccessAfter(Instruction *I,
+                                          MemoryAccess *Definition,
+                                          MemoryAccess *InsertPt);
+
+  // \brief Splice \p What to just before \p Where.
+  //
+  // In order to be efficient, the following conditions must be met:
+  //   - \p Where  dominates \p What,
+  //   - All memory accesses in [\p Where, \p What) are no-alias with \p What.
+  //
+  // TODO: relax the MemoryDef requirement on Where.
+  void spliceMemoryAccessAbove(MemoryDef *Where, MemoryUseOrDef *What);
 
   /// \brief Remove a MemoryAccess from MemorySSA, including updating all
   /// definitions and uses.
@@ -580,6 +599,14 @@ public:
   /// whether MemoryAccess \p A dominates MemoryAccess \p B.
   bool locallyDominates(const MemoryAccess *A, const MemoryAccess *B) const;
 
+  /// \brief Given two memory accesses in potentially different blocks,
+  /// determine whether MemoryAccess \p A dominates MemoryAccess \p B.
+  bool dominates(const MemoryAccess *A, const MemoryAccess *B) const;
+
+  /// \brief Given a MemoryAccess and a Use, determine whether MemoryAccess \p A
+  /// dominates Use \p B.
+  bool dominates(const MemoryAccess *A, const Use &B) const;
+
   /// \brief Verify that MemorySSA is self consistent (IE definitions dominate
   /// all uses, uses appear in the right places).  This is used by unit tests.
   void verifyMemorySSA() const;
@@ -592,9 +619,20 @@ protected:
   void verifyDomination(Function &F) const;
   void verifyOrdering(Function &F) const;
 
+  // This is used by the use optimizer class
+  AccessList *getWritableBlockAccesses(const BasicBlock *BB) const {
+    auto It = PerBlockAccesses.find(BB);
+    return It == PerBlockAccesses.end() ? nullptr : It->second.get();
+  }
+
 private:
   class CachingWalker;
+  class OptimizeUses;
+
+  CachingWalker *getWalkerImpl();
   void buildMemorySSA();
+  void optimizeUses();
+
   void verifyUseInDefs(MemoryAccess *, MemoryAccess *) const;
   using AccessMap = DenseMap<const BasicBlock *, std::unique_ptr<AccessList>>;
 
@@ -608,10 +646,14 @@ private:
   MemoryAccess *findDominatingDef(BasicBlock *, enum InsertionPlace);
   void removeFromLookups(MemoryAccess *);
 
+  void placePHINodes(const SmallPtrSetImpl<BasicBlock *> &,
+                     const DenseMap<const BasicBlock *, unsigned int> &);
   MemoryAccess *renameBlock(BasicBlock *, MemoryAccess *);
   void renamePass(DomTreeNode *, MemoryAccess *IncomingVal,
                   SmallPtrSet<BasicBlock *, 16> &Visited);
   AccessList *getOrCreateAccessList(const BasicBlock *);
+  void renumberBlock(const BasicBlock *) const;
+
   AliasAnalysis *AA;
   DominatorTree *DT;
   Function &F;
@@ -620,6 +662,12 @@ private:
   DenseMap<const Value *, MemoryAccess *> ValueToMemoryAccess;
   AccessMap PerBlockAccesses;
   std::unique_ptr<MemoryAccess> LiveOnEntryDef;
+
+  // Domination mappings
+  // Note that the numbering is local to a block, even though the map is
+  // global.
+  mutable SmallPtrSet<const BasicBlock *, 16> BlockNumberingValid;
+  mutable DenseMap<const MemoryAccess *, unsigned long> BlockNumbering;
 
   // Memory SSA building info
   std::unique_ptr<CachingWalker> Walker;
@@ -641,12 +689,20 @@ public:
 ///
 class MemorySSAAnalysis : public AnalysisInfoMixin<MemorySSAAnalysis> {
   friend AnalysisInfoMixin<MemorySSAAnalysis>;
-  static char PassID;
+  static AnalysisKey Key;
 
 public:
-  typedef MemorySSA Result;
+  // Wrap MemorySSA result to ensure address stability of internal MemorySSA
+  // pointers after construction.  Use a wrapper class instead of plain
+  // unique_ptr<MemorySSA> to avoid build breakage on MSVC.
+  struct Result {
+    Result(std::unique_ptr<MemorySSA> &&MSSA) : MSSA(std::move(MSSA)) {}
+    MemorySSA &getMSSA() { return *MSSA.get(); }
 
-  MemorySSA run(Function &F, AnalysisManager<Function> &AM);
+    std::unique_ptr<MemorySSA> MSSA;
+  };
+
+  Result run(Function &F, FunctionAnalysisManager &AM);
 };
 
 /// \brief Printer pass for \c MemorySSA.
@@ -655,12 +711,12 @@ class MemorySSAPrinterPass : public PassInfoMixin<MemorySSAPrinterPass> {
 
 public:
   explicit MemorySSAPrinterPass(raw_ostream &OS) : OS(OS) {}
-  PreservedAnalyses run(Function &F, AnalysisManager<Function> &AM);
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
 /// \brief Verifier pass for \c MemorySSA.
 struct MemorySSAVerifierPass : PassInfoMixin<MemorySSAVerifierPass> {
-  PreservedAnalyses run(Function &F, AnalysisManager<Function> &AM);
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
 /// \brief Legacy analysis pass which computes \c MemorySSA.
@@ -715,7 +771,7 @@ public:
   ///   store %a
   /// } else {
   ///   2 = MemoryDef(liveOnEntry)
-  ///    store %b
+  ///   store %b
   /// }
   /// 3 = MemoryPhi(2, 1)
   /// MemoryUse(3)
@@ -723,7 +779,15 @@ public:
   ///
   /// calling this API on load(%a) will return the MemoryPhi, not the MemoryDef
   /// in the if (a) branch.
-  virtual MemoryAccess *getClobberingMemoryAccess(const Instruction *) = 0;
+  MemoryAccess *getClobberingMemoryAccess(const Instruction *I) {
+    MemoryAccess *MA = MSSA->getMemoryAccess(I);
+    assert(MA && "Handed an instruction that MemorySSA doesn't recognize?");
+    return getClobberingMemoryAccess(MA);
+  }
+
+  /// Does the same thing as getClobberingMemoryAccess(const Instruction *I),
+  /// but takes a MemoryAccess instead of an Instruction.
+  virtual MemoryAccess *getClobberingMemoryAccess(MemoryAccess *) = 0;
 
   /// \brief Given a potentially clobbering memory access and a new location,
   /// calling this will give you the nearest dominating clobbering MemoryAccess
@@ -737,7 +801,7 @@ public:
   /// will return that MemoryDef, whereas the above would return the clobber
   /// starting from the use side of  the memory def.
   virtual MemoryAccess *getClobberingMemoryAccess(MemoryAccess *,
-                                                  MemoryLocation &) = 0;
+                                                  const MemoryLocation &) = 0;
 
   /// \brief Given a memory access, invalidate anything this walker knows about
   /// that access.
@@ -745,6 +809,8 @@ public:
   /// invalidation.  This will be called by MemorySSA at appropriate times for
   /// the walker it uses or returns.
   virtual void invalidateInfo(MemoryAccess *) {}
+
+  virtual void verify(const MemorySSA *MSSA) { assert(MSSA == this->MSSA); }
 
 protected:
   friend class MemorySSA; // For updating MSSA pointer in MemorySSA move
@@ -756,9 +822,12 @@ protected:
 /// simply returns the links as they were constructed by the builder.
 class DoNothingMemorySSAWalker final : public MemorySSAWalker {
 public:
-  MemoryAccess *getClobberingMemoryAccess(const Instruction *) override;
+  // Keep the overrides below from hiding the Instruction overload of
+  // getClobberingMemoryAccess.
+  using MemorySSAWalker::getClobberingMemoryAccess;
+  MemoryAccess *getClobberingMemoryAccess(MemoryAccess *) override;
   MemoryAccess *getClobberingMemoryAccess(MemoryAccess *,
-                                          MemoryLocation &) override;
+                                          const MemoryLocation &) override;
 };
 
 using MemoryAccessPair = std::pair<MemoryAccess *, MemoryLocation>;
@@ -837,29 +906,21 @@ inline const_memoryaccess_def_iterator MemoryAccess::defs_end() const {
 /// \brief GraphTraits for a MemoryAccess, which walks defs in the normal case,
 /// and uses in the inverse case.
 template <> struct GraphTraits<MemoryAccess *> {
-  using NodeType = MemoryAccess;
+  using NodeRef = MemoryAccess *;
   using ChildIteratorType = memoryaccess_def_iterator;
 
-  static NodeType *getEntryNode(NodeType *N) { return N; }
-  static inline ChildIteratorType child_begin(NodeType *N) {
-    return N->defs_begin();
-  }
-  static inline ChildIteratorType child_end(NodeType *N) {
-    return N->defs_end();
-  }
+  static NodeRef getEntryNode(NodeRef N) { return N; }
+  static ChildIteratorType child_begin(NodeRef N) { return N->defs_begin(); }
+  static ChildIteratorType child_end(NodeRef N) { return N->defs_end(); }
 };
 
 template <> struct GraphTraits<Inverse<MemoryAccess *>> {
-  using NodeType = MemoryAccess;
+  using NodeRef = MemoryAccess *;
   using ChildIteratorType = MemoryAccess::iterator;
 
-  static NodeType *getEntryNode(NodeType *N) { return N; }
-  static inline ChildIteratorType child_begin(NodeType *N) {
-    return N->user_begin();
-  }
-  static inline ChildIteratorType child_end(NodeType *N) {
-    return N->user_end();
-  }
+  static NodeRef getEntryNode(NodeRef N) { return N; }
+  static ChildIteratorType child_begin(NodeRef N) { return N->user_begin(); }
+  static ChildIteratorType child_end(NodeRef N) { return N->user_end(); }
 };
 
 /// \brief Provide an iterator that walks defs, giving both the memory access,
@@ -943,6 +1004,10 @@ inline upward_defs_iterator upward_defs_begin(const MemoryAccessPair &Pair) {
 }
 
 inline upward_defs_iterator upward_defs_end() { return upward_defs_iterator(); }
+
+// Return true when MD may alias MU, return false otherwise.
+bool defClobbersUseOrDef(MemoryDef *MD, const MemoryUseOrDef *MU,
+                         AliasAnalysis &AA);
 
 } // end namespace llvm
 

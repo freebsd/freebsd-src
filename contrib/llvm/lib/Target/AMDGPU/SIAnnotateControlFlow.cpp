@@ -102,9 +102,7 @@ public:
 
   bool runOnFunction(Function &F) override;
 
-  const char *getPassName() const override {
-    return "SI annotate control flow";
-  }
+  StringRef getPassName() const override { return "SI annotate control flow"; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<LoopInfoWrapperPass>();
@@ -148,12 +146,15 @@ bool SIAnnotateControlFlow::doInitialization(Module &M) {
 
   Break = M.getOrInsertFunction(
     BreakIntrinsic, Int64, Int64, (Type *)nullptr);
+  cast<Function>(Break)->setDoesNotAccessMemory();
 
   IfBreak = M.getOrInsertFunction(
     IfBreakIntrinsic, Int64, Boolean, Int64, (Type *)nullptr);
+  cast<Function>(IfBreak)->setDoesNotAccessMemory();;
 
   ElseBreak = M.getOrInsertFunction(
     ElseBreakIntrinsic, Int64, Int64, Int64, (Type *)nullptr);
+  cast<Function>(ElseBreak)->setDoesNotAccessMemory();
 
   Loop = M.getOrInsertFunction(
     LoopIntrinsic, Boolean, Int64, (Type *)nullptr);
@@ -331,6 +332,8 @@ void SIAnnotateControlFlow::handleLoop(BranchInst *Term) {
 
   BasicBlock *BB = Term->getParent();
   llvm::Loop *L = LI->getLoopFor(BB);
+  if (!L)
+    return;
   BasicBlock *Target = Term->getSuccessor(1);
   PHINode *Broken = PHINode::Create(Int64, 0, "", &Target->front());
 
@@ -361,7 +364,7 @@ void SIAnnotateControlFlow::closeControlFlow(BasicBlock *BB) {
 
     std::vector<BasicBlock*> Preds;
     for (pred_iterator PI = pred_begin(BB), PE = pred_end(BB); PI != PE; ++PI) {
-      if (std::find(Latches.begin(), Latches.end(), *PI) == Latches.end())
+      if (!is_contained(Latches, *PI))
         Preds.push_back(*PI);
     }
     BB = llvm::SplitBlockPredecessors(BB, Preds, "endcf.split", DT, LI, false);

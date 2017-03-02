@@ -21,11 +21,16 @@
 
 using namespace llvm;
 
+static cl::opt<bool> EnableSubRegLiveness("enable-subreg-liveness", cl::Hidden,
+  cl::init(true), cl::desc("Enable subregister liveness tracking."));
+
 // Pin the vtable to this file.
 void MachineRegisterInfo::Delegate::anchor() {}
 
 MachineRegisterInfo::MachineRegisterInfo(MachineFunction *MF)
-    : MF(MF), TheDelegate(nullptr), TracksSubRegLiveness(false) {
+    : MF(MF), TheDelegate(nullptr),
+      TracksSubRegLiveness(MF->getSubtarget().enableSubRegLiveness() &&
+                           EnableSubRegLiveness) {
   unsigned NumRegs = getTargetRegisterInfo()->getNumRegs();
   VRegInfo.reserve(256);
   RegAllocHints.reserve(256);
@@ -88,6 +93,13 @@ MachineRegisterInfo::recomputeRegClass(unsigned Reg) {
   return true;
 }
 
+unsigned MachineRegisterInfo::createIncompleteVirtualRegister() {
+  unsigned Reg = TargetRegisterInfo::index2VirtReg(getNumVirtRegs());
+  VRegInfo.grow(Reg);
+  RegAllocHints.grow(Reg);
+  return Reg;
+}
+
 /// createVirtualRegister - Create and return a new virtual register in the
 /// function with the specified register class.
 ///
@@ -98,39 +110,40 @@ MachineRegisterInfo::createVirtualRegister(const TargetRegisterClass *RegClass){
          "Virtual register RegClass must be allocatable.");
 
   // New virtual register number.
-  unsigned Reg = TargetRegisterInfo::index2VirtReg(getNumVirtRegs());
-  VRegInfo.grow(Reg);
+  unsigned Reg = createIncompleteVirtualRegister();
   VRegInfo[Reg].first = RegClass;
-  RegAllocHints.grow(Reg);
   if (TheDelegate)
     TheDelegate->MRI_NoteNewVirtualRegister(Reg);
   return Reg;
 }
 
-unsigned
-MachineRegisterInfo::getSize(unsigned VReg) const {
-  VRegToSizeMap::const_iterator SizeIt = getVRegToSize().find(VReg);
-  return SizeIt != getVRegToSize().end() ? SizeIt->second : 0;
+LLT MachineRegisterInfo::getType(unsigned VReg) const {
+  VRegToTypeMap::const_iterator TypeIt = getVRegToType().find(VReg);
+  return TypeIt != getVRegToType().end() ? TypeIt->second : LLT{};
 }
 
-void MachineRegisterInfo::setSize(unsigned VReg, unsigned Size) {
-  getVRegToSize()[VReg] = Size;
+void MachineRegisterInfo::setType(unsigned VReg, LLT Ty) {
+  // Check that VReg doesn't have a class.
+  assert((getRegClassOrRegBank(VReg).isNull() ||
+         !getRegClassOrRegBank(VReg).is<const TargetRegisterClass *>()) &&
+         "Can't set the size of a non-generic virtual register");
+  getVRegToType()[VReg] = Ty;
 }
 
 unsigned
-MachineRegisterInfo::createGenericVirtualRegister(unsigned Size) {
-  assert(Size && "Cannot create empty virtual register");
-
+MachineRegisterInfo::createGenericVirtualRegister(LLT Ty) {
   // New virtual register number.
-  unsigned Reg = TargetRegisterInfo::index2VirtReg(getNumVirtRegs());
-  VRegInfo.grow(Reg);
+  unsigned Reg = createIncompleteVirtualRegister();
   // FIXME: Should we use a dummy register class?
-  VRegInfo[Reg].first = static_cast<TargetRegisterClass *>(nullptr);
-  getVRegToSize()[Reg] = Size;
-  RegAllocHints.grow(Reg);
+  VRegInfo[Reg].first = static_cast<RegisterBank *>(nullptr);
+  getVRegToType()[Reg] = Ty;
   if (TheDelegate)
     TheDelegate->MRI_NoteNewVirtualRegister(Reg);
   return Reg;
+}
+
+void MachineRegisterInfo::clearVirtRegTypes() {
+  getVRegToType().clear();
 }
 
 /// clearVirtRegs - Remove all virtual registers (after physreg assignment).
@@ -444,13 +457,16 @@ void MachineRegisterInfo::freezeReservedRegs(const MachineFunction &MF) {
          "Invalid ReservedRegs vector from target");
 }
 
-bool MachineRegisterInfo::isConstantPhysReg(unsigned PhysReg,
-                                            const MachineFunction &MF) const {
+bool MachineRegisterInfo::isConstantPhysReg(unsigned PhysReg) const {
   assert(TargetRegisterInfo::isPhysicalRegister(PhysReg));
+
+  const TargetRegisterInfo *TRI = getTargetRegisterInfo();
+  if (TRI->isConstantPhysReg(PhysReg))
+    return true;
 
   // Check if any overlapping register is modified, or allocatable so it may be
   // used later.
-  for (MCRegAliasIterator AI(PhysReg, getTargetRegisterInfo(), true);
+  for (MCRegAliasIterator AI(PhysReg, TRI, true);
        AI.isValid(); ++AI)
     if (!def_empty(*AI) || isAllocatable(*AI))
       return false;

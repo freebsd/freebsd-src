@@ -12,23 +12,31 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Serialization/ASTWriter.h"
-#include "clang/Serialization/ModuleFileExtension.h"
 #include "ASTCommon.h"
 #include "ASTReaderInternals.h"
 #include "MultiOnDiskHashTable.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ASTUnresolvedSet.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclContextInternals.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclFriend.h"
-#include "clang/AST/DeclLookups.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/LambdaCapture.h"
+#include "clang/AST/NestedNameSpecifier.h"
+#include "clang/AST/RawCommentList.h"
+#include "clang/AST/TemplateName.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLocVisitor.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/FileManager.h"
-#include "clang/Basic/FileSystemStatCache.h"
+#include "clang/Basic/FileSystemOptions.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/Module.h"
+#include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/SourceManagerInternals.h"
 #include "clang/Basic/TargetInfo.h"
@@ -38,28 +46,48 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/MacroInfo.h"
+#include "clang/Lex/ModuleMap.h"
 #include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
+#include "clang/Lex/Token.h"
 #include "clang/Sema/IdentifierResolver.h"
+#include "clang/Sema/ObjCMethodList.h"
 #include "clang/Sema/Sema.h"
+#include "clang/Sema/Weak.h"
 #include "clang/Serialization/ASTReader.h"
+#include "clang/Serialization/Module.h"
+#include "clang/Serialization/ModuleFileExtension.h"
 #include "clang/Serialization/SerializationDiagnostic.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Bitcode/BitCodes.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Compression.h"
 #include "llvm/Support/EndianStream.h"
-#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/OnDiskHashTable.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
-#include <cstdio>
-#include <string.h>
+#include <cassert>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <limits>
+#include <new>
+#include <tuple>
 #include <utility>
 
 using namespace clang;
@@ -83,6 +111,7 @@ static StringRef bytes(const SmallVectorImpl<T> &v) {
 //===----------------------------------------------------------------------===//
 
 namespace clang {
+
   class ASTTypeWriter {
     ASTWriter &Writer;
     ASTRecordWriter Record;
@@ -127,6 +156,7 @@ namespace clang {
 #define ABSTRACT_TYPE(Class, Base)
 #include "clang/AST/TypeNodes.def"
   };
+
 } // end namespace clang
 
 void ASTTypeWriter::VisitBuiltinType(const BuiltinType *T) {
@@ -451,6 +481,14 @@ void ASTTypeWriter::VisitObjCInterfaceType(const ObjCInterfaceType *T) {
   Code = TYPE_OBJC_INTERFACE;
 }
 
+void ASTTypeWriter::VisitObjCTypeParamType(const ObjCTypeParamType *T) {
+  Record.AddDeclRef(T->getDecl());
+  Record.push_back(T->getNumProtocols());
+  for (const auto *I : T->quals())
+    Record.AddDeclRef(I);
+  Code = TYPE_OBJC_TYPE_PARAM;
+}
+
 void ASTTypeWriter::VisitObjCObjectType(const ObjCObjectType *T) {
   Record.AddTypeRef(T->getBaseType());
   Record.push_back(T->getTypeArgsAsWritten().size());
@@ -478,6 +516,7 @@ ASTTypeWriter::VisitAtomicType(const AtomicType *T) {
 void
 ASTTypeWriter::VisitPipeType(const PipeType *T) {
   Record.AddTypeRef(T->getElementType());
+  Record.push_back(T->isReadOnly());
   Code = TYPE_PIPE;
 }
 
@@ -504,6 +543,7 @@ public:
 void TypeLocWriter::VisitQualifiedTypeLoc(QualifiedTypeLoc TL) {
   // nothing to do
 }
+
 void TypeLocWriter::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
   Record.AddSourceLocation(TL.getBuiltinLoc());
   if (TL.needsExtraLocalData()) {
@@ -513,31 +553,40 @@ void TypeLocWriter::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
     Record.push_back(TL.hasModeAttr());
   }
 }
+
 void TypeLocWriter::VisitComplexTypeLoc(ComplexTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitPointerTypeLoc(PointerTypeLoc TL) {
   Record.AddSourceLocation(TL.getStarLoc());
 }
+
 void TypeLocWriter::VisitDecayedTypeLoc(DecayedTypeLoc TL) {
   // nothing to do
 }
+
 void TypeLocWriter::VisitAdjustedTypeLoc(AdjustedTypeLoc TL) {
   // nothing to do
 }
+
 void TypeLocWriter::VisitBlockPointerTypeLoc(BlockPointerTypeLoc TL) {
   Record.AddSourceLocation(TL.getCaretLoc());
 }
+
 void TypeLocWriter::VisitLValueReferenceTypeLoc(LValueReferenceTypeLoc TL) {
   Record.AddSourceLocation(TL.getAmpLoc());
 }
+
 void TypeLocWriter::VisitRValueReferenceTypeLoc(RValueReferenceTypeLoc TL) {
   Record.AddSourceLocation(TL.getAmpAmpLoc());
 }
+
 void TypeLocWriter::VisitMemberPointerTypeLoc(MemberPointerTypeLoc TL) {
   Record.AddSourceLocation(TL.getStarLoc());
   Record.AddTypeSourceInfo(TL.getClassTInfo());
 }
+
 void TypeLocWriter::VisitArrayTypeLoc(ArrayTypeLoc TL) {
   Record.AddSourceLocation(TL.getLBracketLoc());
   Record.AddSourceLocation(TL.getRBracketLoc());
@@ -545,33 +594,42 @@ void TypeLocWriter::VisitArrayTypeLoc(ArrayTypeLoc TL) {
   if (TL.getSizeExpr())
     Record.AddStmt(TL.getSizeExpr());
 }
+
 void TypeLocWriter::VisitConstantArrayTypeLoc(ConstantArrayTypeLoc TL) {
   VisitArrayTypeLoc(TL);
 }
+
 void TypeLocWriter::VisitIncompleteArrayTypeLoc(IncompleteArrayTypeLoc TL) {
   VisitArrayTypeLoc(TL);
 }
+
 void TypeLocWriter::VisitVariableArrayTypeLoc(VariableArrayTypeLoc TL) {
   VisitArrayTypeLoc(TL);
 }
+
 void TypeLocWriter::VisitDependentSizedArrayTypeLoc(
                                             DependentSizedArrayTypeLoc TL) {
   VisitArrayTypeLoc(TL);
 }
+
 void TypeLocWriter::VisitDependentSizedExtVectorTypeLoc(
                                         DependentSizedExtVectorTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitVectorTypeLoc(VectorTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitExtVectorTypeLoc(ExtVectorTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitFunctionTypeLoc(FunctionTypeLoc TL) {
   Record.AddSourceLocation(TL.getLocalRangeBegin());
   Record.AddSourceLocation(TL.getLParenLoc());
   Record.AddSourceLocation(TL.getRParenLoc());
+  Record.AddSourceRange(TL.getExceptionSpecRange());
   Record.AddSourceLocation(TL.getLocalRangeEnd());
   for (unsigned i = 0, e = TL.getNumParams(); i != e; ++i)
     Record.AddDeclRef(TL.getParam(i));
@@ -588,35 +646,50 @@ void TypeLocWriter::VisitUnresolvedUsingTypeLoc(UnresolvedUsingTypeLoc TL) {
 void TypeLocWriter::VisitTypedefTypeLoc(TypedefTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+void TypeLocWriter::VisitObjCTypeParamTypeLoc(ObjCTypeParamTypeLoc TL) {
+  if (TL.getNumProtocols()) {
+    Record.AddSourceLocation(TL.getProtocolLAngleLoc());
+    Record.AddSourceLocation(TL.getProtocolRAngleLoc());
+  }
+  for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
+    Record.AddSourceLocation(TL.getProtocolLoc(i));
+}
 void TypeLocWriter::VisitTypeOfExprTypeLoc(TypeOfExprTypeLoc TL) {
   Record.AddSourceLocation(TL.getTypeofLoc());
   Record.AddSourceLocation(TL.getLParenLoc());
   Record.AddSourceLocation(TL.getRParenLoc());
 }
+
 void TypeLocWriter::VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
   Record.AddSourceLocation(TL.getTypeofLoc());
   Record.AddSourceLocation(TL.getLParenLoc());
   Record.AddSourceLocation(TL.getRParenLoc());
   Record.AddTypeSourceInfo(TL.getUnderlyingTInfo());
 }
+
 void TypeLocWriter::VisitDecltypeTypeLoc(DecltypeTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitUnaryTransformTypeLoc(UnaryTransformTypeLoc TL) {
   Record.AddSourceLocation(TL.getKWLoc());
   Record.AddSourceLocation(TL.getLParenLoc());
   Record.AddSourceLocation(TL.getRParenLoc());
   Record.AddTypeSourceInfo(TL.getUnderlyingTInfo());
 }
+
 void TypeLocWriter::VisitAutoTypeLoc(AutoTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitRecordTypeLoc(RecordTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitEnumTypeLoc(EnumTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitAttributedTypeLoc(AttributedTypeLoc TL) {
   Record.AddSourceLocation(TL.getAttrNameLoc());
   if (TL.hasAttrOperand()) {
@@ -632,17 +705,21 @@ void TypeLocWriter::VisitAttributedTypeLoc(AttributedTypeLoc TL) {
     Record.AddSourceLocation(TL.getAttrEnumOperandLoc());
   }
 }
+
 void TypeLocWriter::VisitTemplateTypeParmTypeLoc(TemplateTypeParmTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitSubstTemplateTypeParmTypeLoc(
                                             SubstTemplateTypeParmTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitSubstTemplateTypeParmPackTypeLoc(
                                           SubstTemplateTypeParmPackTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitTemplateSpecializationTypeLoc(
                                            TemplateSpecializationTypeLoc TL) {
   Record.AddSourceLocation(TL.getTemplateKeywordLoc());
@@ -653,22 +730,27 @@ void TypeLocWriter::VisitTemplateSpecializationTypeLoc(
     Record.AddTemplateArgumentLocInfo(TL.getArgLoc(i).getArgument().getKind(),
                                       TL.getArgLoc(i).getLocInfo());
 }
+
 void TypeLocWriter::VisitParenTypeLoc(ParenTypeLoc TL) {
   Record.AddSourceLocation(TL.getLParenLoc());
   Record.AddSourceLocation(TL.getRParenLoc());
 }
+
 void TypeLocWriter::VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
   Record.AddSourceLocation(TL.getElaboratedKeywordLoc());
   Record.AddNestedNameSpecifierLoc(TL.getQualifierLoc());
 }
+
 void TypeLocWriter::VisitInjectedClassNameTypeLoc(InjectedClassNameTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitDependentNameTypeLoc(DependentNameTypeLoc TL) {
   Record.AddSourceLocation(TL.getElaboratedKeywordLoc());
   Record.AddNestedNameSpecifierLoc(TL.getQualifierLoc());
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitDependentTemplateSpecializationTypeLoc(
        DependentTemplateSpecializationTypeLoc TL) {
   Record.AddSourceLocation(TL.getElaboratedKeywordLoc());
@@ -681,12 +763,15 @@ void TypeLocWriter::VisitDependentTemplateSpecializationTypeLoc(
     Record.AddTemplateArgumentLocInfo(TL.getArgLoc(I).getArgument().getKind(),
                                       TL.getArgLoc(I).getLocInfo());
 }
+
 void TypeLocWriter::VisitPackExpansionTypeLoc(PackExpansionTypeLoc TL) {
   Record.AddSourceLocation(TL.getEllipsisLoc());
 }
+
 void TypeLocWriter::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
 void TypeLocWriter::VisitObjCObjectTypeLoc(ObjCObjectTypeLoc TL) {
   Record.push_back(TL.hasBaseTypeAsWritten());
   Record.AddSourceLocation(TL.getTypeArgsLAngleLoc());
@@ -698,14 +783,17 @@ void TypeLocWriter::VisitObjCObjectTypeLoc(ObjCObjectTypeLoc TL) {
   for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
     Record.AddSourceLocation(TL.getProtocolLoc(i));
 }
+
 void TypeLocWriter::VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
   Record.AddSourceLocation(TL.getStarLoc());
 }
+
 void TypeLocWriter::VisitAtomicTypeLoc(AtomicTypeLoc TL) {
   Record.AddSourceLocation(TL.getKWLoc());
   Record.AddSourceLocation(TL.getLParenLoc());
   Record.AddSourceLocation(TL.getRParenLoc());
 }
+
 void TypeLocWriter::VisitPipeTypeLoc(PipeTypeLoc TL) {
   Record.AddSourceLocation(TL.getKWLoc());
 }
@@ -713,17 +801,17 @@ void TypeLocWriter::VisitPipeTypeLoc(PipeTypeLoc TL) {
 void ASTWriter::WriteTypeAbbrevs() {
   using namespace llvm;
 
-  BitCodeAbbrev *Abv;
+  std::shared_ptr<BitCodeAbbrev> Abv;
 
   // Abbreviation for TYPE_EXT_QUAL
-  Abv = new BitCodeAbbrev();
+  Abv = std::make_shared<BitCodeAbbrev>();
   Abv->Add(BitCodeAbbrevOp(serialization::TYPE_EXT_QUAL));
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6));   // Type
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 3));   // Quals
-  TypeExtQualAbbrev = Stream.EmitAbbrev(Abv);
+  TypeExtQualAbbrev = Stream.EmitAbbrev(std::move(Abv));
 
   // Abbreviation for TYPE_FUNCTION_PROTO
-  Abv = new BitCodeAbbrev();
+  Abv = std::make_shared<BitCodeAbbrev>();
   Abv->Add(BitCodeAbbrevOp(serialization::TYPE_FUNCTION_PROTO));
   // FunctionType
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6));   // ReturnType
@@ -741,7 +829,7 @@ void ASTWriter::WriteTypeAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6));   // NumParams
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Array));
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6));   // Params
-  TypeFunctionProtoAbbrev = Stream.EmitAbbrev(Abv);
+  TypeFunctionProtoAbbrev = Stream.EmitAbbrev(std::move(Abv));
 }
 
 //===----------------------------------------------------------------------===//
@@ -905,7 +993,7 @@ static void AddStmtsExprs(llvm::BitstreamWriter &Stream,
 
 void ASTWriter::WriteBlockInfoBlock() {
   RecordData Record;
-  Stream.EnterSubblock(llvm::bitc::BLOCKINFO_BLOCK_ID, 3);
+  Stream.EnterBlockInfoBlock();
 
 #define BLOCK(X) EmitBlockID(X ## _ID, #X, Stream, Record)
 #define RECORD(X) EmitRecordID(X, #X, Stream, Record)
@@ -966,6 +1054,8 @@ void ASTWriter::WriteBlockInfoBlock() {
   RECORD(HEADER_SEARCH_TABLE);
   RECORD(FP_PRAGMA_OPTIONS);
   RECORD(OPENCL_EXTENSIONS);
+  RECORD(OPENCL_EXTENSION_TYPES);
+  RECORD(OPENCL_EXTENSION_DECLS);
   RECORD(DELEGATING_CTORS);
   RECORD(KNOWN_NAMESPACES);
   RECORD(MODULE_OFFSET_MAP);
@@ -983,6 +1073,7 @@ void ASTWriter::WriteBlockInfoBlock() {
   RECORD(POINTERS_TO_MEMBERS_PRAGMA_OPTIONS);
   RECORD(UNUSED_LOCAL_TYPEDEF_NAME_CANDIDATES);
   RECORD(DELETE_EXPRS_TO_ANALYZE);
+  RECORD(CUDA_PRAGMA_FORCE_HOST_DEVICE_DEPTH);
 
   // SourceManager Block.
   BLOCK(SOURCE_MANAGER_BLOCK);
@@ -1018,6 +1109,7 @@ void ASTWriter::WriteBlockInfoBlock() {
   RECORD(SUBMODULE_PRIVATE_HEADER);
   RECORD(SUBMODULE_TEXTUAL_HEADER);
   RECORD(SUBMODULE_PRIVATE_TEXTUAL_HEADER);
+  RECORD(SUBMODULE_INITIALIZERS);
 
   // Comments Block.
   BLOCK(COMMENTS_BLOCK);
@@ -1066,6 +1158,7 @@ void ASTWriter::WriteBlockInfoBlock() {
   RECORD(TYPE_ATOMIC);
   RECORD(TYPE_DECAYED);
   RECORD(TYPE_ADJUSTED);
+  RECORD(TYPE_OBJC_TYPE_PARAM);
   RECORD(LOCAL_REDECLARATIONS);
   RECORD(DECL_TYPEDEF);
   RECORD(DECL_TYPEALIAS);
@@ -1212,7 +1305,7 @@ adjustFilenameForRelocatableAST(const char *Filename, StringRef BaseDir) {
 }
 
 static ASTFileSignature getSignature() {
-  while (1) {
+  while (true) {
     if (ASTFileSignature S = llvm::sys::Process::GetRandomNumber())
       return S;
     // Rely on GetRandomNumber to eventually return non-zero...
@@ -1231,7 +1324,7 @@ uint64_t ASTWriter::WriteControlBlock(Preprocessor &PP,
   RecordData Record;
   
   // Metadata
-  auto *MetadataAbbrev = new BitCodeAbbrev();
+  auto MetadataAbbrev = std::make_shared<BitCodeAbbrev>();
   MetadataAbbrev->Add(BitCodeAbbrevOp(METADATA));
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Major
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Minor
@@ -1241,7 +1334,7 @@ uint64_t ASTWriter::WriteControlBlock(Preprocessor &PP,
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Timestamps
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Errors
   MetadataAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // SVN branch/tag
-  unsigned MetadataAbbrevCode = Stream.EmitAbbrev(MetadataAbbrev);
+  unsigned MetadataAbbrevCode = Stream.EmitAbbrev(std::move(MetadataAbbrev));
   assert((!WritingModule || isysroot.empty()) &&
          "writing module as a relocatable PCH?");
   {
@@ -1264,10 +1357,10 @@ uint64_t ASTWriter::WriteControlBlock(Preprocessor &PP,
     }
 
     // Module name
-    auto *Abbrev = new BitCodeAbbrev();
+    auto Abbrev = std::make_shared<BitCodeAbbrev>();
     Abbrev->Add(BitCodeAbbrevOp(MODULE_NAME));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-    unsigned AbbrevCode = Stream.EmitAbbrev(Abbrev);
+    unsigned AbbrevCode = Stream.EmitAbbrev(std::move(Abbrev));
     RecordData::value_type Record[] = {MODULE_NAME};
     Stream.EmitRecordWithBlob(AbbrevCode, Record, WritingModule->Name);
   }
@@ -1284,10 +1377,10 @@ uint64_t ASTWriter::WriteControlBlock(Preprocessor &PP,
              .ModuleMapFileHomeIsCwd ||
         WritingModule->Directory->getName() != StringRef(".")) {
       // Module directory.
-      auto *Abbrev = new BitCodeAbbrev();
+      auto Abbrev = std::make_shared<BitCodeAbbrev>();
       Abbrev->Add(BitCodeAbbrevOp(MODULE_DIRECTORY));
       Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Directory
-      unsigned AbbrevCode = Stream.EmitAbbrev(Abbrev);
+      unsigned AbbrevCode = Stream.EmitAbbrev(std::move(Abbrev));
 
       RecordData::value_type Record[] = {MODULE_DIRECTORY};
       Stream.EmitRecordWithBlob(AbbrevCode, Record, BaseDir);
@@ -1494,11 +1587,11 @@ uint64_t ASTWriter::WriteControlBlock(Preprocessor &PP,
   // Original file name and file ID
   SourceManager &SM = Context.getSourceManager();
   if (const FileEntry *MainFile = SM.getFileEntryForID(SM.getMainFileID())) {
-    auto *FileAbbrev = new BitCodeAbbrev();
+    auto FileAbbrev = std::make_shared<BitCodeAbbrev>();
     FileAbbrev->Add(BitCodeAbbrevOp(ORIGINAL_FILE));
     FileAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // File ID
     FileAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // File name
-    unsigned FileAbbrevCode = Stream.EmitAbbrev(FileAbbrev);
+    unsigned FileAbbrevCode = Stream.EmitAbbrev(std::move(FileAbbrev));
 
     Record.clear();
     Record.push_back(ORIGINAL_FILE);
@@ -1512,10 +1605,10 @@ uint64_t ASTWriter::WriteControlBlock(Preprocessor &PP,
 
   // Original PCH directory
   if (!OutputFile.empty() && OutputFile != "-") {
-    auto *Abbrev = new BitCodeAbbrev();
+    auto Abbrev = std::make_shared<BitCodeAbbrev>();
     Abbrev->Add(BitCodeAbbrevOp(ORIGINAL_PCH_DIR));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // File name
-    unsigned AbbrevCode = Stream.EmitAbbrev(Abbrev);
+    unsigned AbbrevCode = Stream.EmitAbbrev(std::move(Abbrev));
 
     SmallString<128> OutputPath(OutputFile);
 
@@ -1534,6 +1627,7 @@ uint64_t ASTWriter::WriteControlBlock(Preprocessor &PP,
 }
 
 namespace  {
+
   /// \brief An input file.
   struct InputFileEntry {
     const FileEntry *File;
@@ -1541,6 +1635,7 @@ namespace  {
     bool IsTransient;
     bool BufferOverridden;
   };
+
 } // end anonymous namespace
 
 void ASTWriter::WriteInputFiles(SourceManager &SourceMgr,
@@ -1550,7 +1645,7 @@ void ASTWriter::WriteInputFiles(SourceManager &SourceMgr,
   Stream.EnterSubblock(INPUT_FILES_BLOCK_ID, 4);
 
   // Create input-file abbreviation.
-  auto *IFAbbrev = new BitCodeAbbrev();
+  auto IFAbbrev = std::make_shared<BitCodeAbbrev>();
   IFAbbrev->Add(BitCodeAbbrevOp(INPUT_FILE));
   IFAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // ID
   IFAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 12)); // Size
@@ -1558,7 +1653,7 @@ void ASTWriter::WriteInputFiles(SourceManager &SourceMgr,
   IFAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Overridden
   IFAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Transient
   IFAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // File name
-  unsigned IFAbbrevCode = Stream.EmitAbbrev(IFAbbrev);
+  unsigned IFAbbrevCode = Stream.EmitAbbrev(std::move(IFAbbrev));
 
   // Get all ContentCache objects for files, sorted by whether the file is a
   // system one or not. System files go at the back, users files at the front.
@@ -1618,13 +1713,13 @@ void ASTWriter::WriteInputFiles(SourceManager &SourceMgr,
   Stream.ExitBlock();
 
   // Create input file offsets abbreviation.
-  auto *OffsetsAbbrev = new BitCodeAbbrev();
+  auto OffsetsAbbrev = std::make_shared<BitCodeAbbrev>();
   OffsetsAbbrev->Add(BitCodeAbbrevOp(INPUT_FILE_OFFSETS));
   OffsetsAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // # input files
   OffsetsAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // # non-system
                                                                 //   input files
   OffsetsAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));   // Array
-  unsigned OffsetsAbbrevCode = Stream.EmitAbbrev(OffsetsAbbrev);
+  unsigned OffsetsAbbrevCode = Stream.EmitAbbrev(std::move(OffsetsAbbrev));
 
   // Write input file offsets.
   RecordData::value_type Record[] = {INPUT_FILE_OFFSETS,
@@ -1641,7 +1736,7 @@ void ASTWriter::WriteInputFiles(SourceManager &SourceMgr,
 static unsigned CreateSLocFileAbbrev(llvm::BitstreamWriter &Stream) {
   using namespace llvm;
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SM_SLOC_FILE_ENTRY));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Offset
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Include location
@@ -1652,7 +1747,7 @@ static unsigned CreateSLocFileAbbrev(llvm::BitstreamWriter &Stream) {
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // NumCreatedFIDs
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 24)); // FirstDeclIndex
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // NumDecls
-  return Stream.EmitAbbrev(Abbrev);
+  return Stream.EmitAbbrev(std::move(Abbrev));
 }
 
 /// \brief Create an abbreviation for the SLocEntry that refers to a
@@ -1660,14 +1755,14 @@ static unsigned CreateSLocFileAbbrev(llvm::BitstreamWriter &Stream) {
 static unsigned CreateSLocBufferAbbrev(llvm::BitstreamWriter &Stream) {
   using namespace llvm;
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SM_SLOC_BUFFER_ENTRY));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Offset
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Include location
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 2)); // Characteristic
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Line directives
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Buffer name blob
-  return Stream.EmitAbbrev(Abbrev);
+  return Stream.EmitAbbrev(std::move(Abbrev));
 }
 
 /// \brief Create an abbreviation for the SLocEntry that refers to a
@@ -1676,13 +1771,13 @@ static unsigned CreateSLocBufferBlobAbbrev(llvm::BitstreamWriter &Stream,
                                            bool Compressed) {
   using namespace llvm;
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(Compressed ? SM_SLOC_BUFFER_BLOB_COMPRESSED
                                          : SM_SLOC_BUFFER_BLOB));
   if (Compressed)
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Uncompressed size
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Blob
-  return Stream.EmitAbbrev(Abbrev);
+  return Stream.EmitAbbrev(std::move(Abbrev));
 }
 
 /// \brief Create an abbreviation for the SLocEntry that refers to a macro
@@ -1690,17 +1785,18 @@ static unsigned CreateSLocBufferBlobAbbrev(llvm::BitstreamWriter &Stream,
 static unsigned CreateSLocExpansionAbbrev(llvm::BitstreamWriter &Stream) {
   using namespace llvm;
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SM_SLOC_EXPANSION_ENTRY));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Offset
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Spelling location
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // Start location
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 8)); // End location
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // Token length
-  return Stream.EmitAbbrev(Abbrev);
+  return Stream.EmitAbbrev(std::move(Abbrev));
 }
 
 namespace {
+
   // Trait used for the on-disk hash table of header search information.
   class HeaderFileInfoTrait {
     ASTWriter &Writer;
@@ -1716,7 +1812,7 @@ namespace {
     
     struct key_type {
       const FileEntry *FE;
-      const char *Filename;
+      StringRef Filename;
     };
     typedef const key_type &key_type_ref;
     
@@ -1737,7 +1833,7 @@ namespace {
     EmitKeyDataLength(raw_ostream& Out, key_type_ref key, data_type_ref Data) {
       using namespace llvm::support;
       endian::Writer<little> LE(Out);
-      unsigned KeyLen = strlen(key.Filename) + 1 + 8 + 8;
+      unsigned KeyLen = key.Filename.size() + 1 + 8 + 8;
       LE.write<uint16_t>(KeyLen);
       unsigned DataLen = 1 + 2 + 4 + 4;
       for (auto ModInfo : HS.getModuleMap().findAllModulesForHeader(key.FE))
@@ -1754,7 +1850,7 @@ namespace {
       KeyLen -= 8;
       LE.write<uint64_t>(Writer.getTimestampForOutput(key.FE));
       KeyLen -= 8;
-      Out.write(key.Filename, KeyLen);
+      Out.write(key.Filename.data(), KeyLen);
     }
     
     void EmitData(raw_ostream &Out, key_type_ref key,
@@ -1809,6 +1905,7 @@ namespace {
     const char *strings_begin() const { return FrameworkStringData.begin(); }
     const char *strings_end() const { return FrameworkStringData.end(); }
   };
+
 } // end anonymous namespace
 
 /// \brief Write the header search block for the list of files that 
@@ -1842,13 +1939,13 @@ void ASTWriter::WriteHeaderSearch(const HeaderSearch &HS) {
       continue;
 
     // Massage the file path into an appropriate form.
-    const char *Filename = File->getName();
+    StringRef Filename = File->getName();
     SmallString<128> FilenameTmp(Filename);
     if (PreparePathForOutput(FilenameTmp)) {
       // If we performed any translation on the file name at all, we need to
       // save this string, since the generator will refer to it later.
-      Filename = strdup(FilenameTmp.c_str());
-      SavedStrings.push_back(Filename);
+      Filename = StringRef(strdup(FilenameTmp.c_str()));
+      SavedStrings.push_back(Filename.data());
     }
 
     HeaderFileInfoTrait::key_type key = { File, Filename };
@@ -1870,13 +1967,13 @@ void ASTWriter::WriteHeaderSearch(const HeaderSearch &HS) {
   // Create a blob abbreviation
   using namespace llvm;
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(HEADER_SEARCH_TABLE));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-  unsigned TableAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned TableAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
   
   // Write the header search table
   RecordData::value_type Record[] = {HEADER_SEARCH_TABLE, BucketOffset,
@@ -1982,14 +2079,13 @@ void ASTWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
         // the reader side).
         const llvm::MemoryBuffer *Buffer
           = Content->getBuffer(PP.getDiagnostics(), PP.getSourceManager());
-        const char *Name = Buffer->getBufferIdentifier();
+        StringRef Name = Buffer->getBufferIdentifier();
         Stream.EmitRecordWithBlob(SLocBufferAbbrv, Record,
-                                  StringRef(Name, strlen(Name) + 1));
+                                  StringRef(Name.data(), Name.size() + 1));
         EmitBlob = true;
 
-        if (strcmp(Name, "<built-in>") == 0) {
+        if (Name == "<built-in>")
           PreloadSLocs.push_back(SLocEntryOffsets.size());
-        }
       }
 
       if (EmitBlob) {
@@ -2041,12 +2137,12 @@ void ASTWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
   // table is used for lazily loading source-location information.
   using namespace llvm;
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SOURCE_LOCATION_OFFSETS));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 16)); // # of slocs
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 16)); // total size
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // offsets
-  unsigned SLocOffsetsAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned SLocOffsetsAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
   {
     RecordData::value_type Record[] = {
         SOURCE_LOCATION_OFFSETS, SLocEntryOffsets.size(),
@@ -2296,13 +2392,13 @@ void ASTWriter::WritePreprocessor(const Preprocessor &PP, bool IsModule) {
   // Write the offsets table for macro IDs.
   using namespace llvm;
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(MACRO_OFFSET));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // # of macros
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // first ID
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
 
-  unsigned MacroOffsetAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned MacroOffsetAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
   {
     RecordData::value_type Record[] = {MACRO_OFFSET, MacroOffsets.size(),
                                        FirstMacroID - NUM_PREDEF_MACRO_IDS};
@@ -2326,14 +2422,14 @@ void ASTWriter::WritePreprocessorDetail(PreprocessingRecord &PPRec) {
   // Set up the abbreviation for 
   unsigned InclusionAbbrev = 0;
   {
-    auto *Abbrev = new BitCodeAbbrev();
+    auto Abbrev = std::make_shared<BitCodeAbbrev>();
     Abbrev->Add(BitCodeAbbrevOp(PPD_INCLUSION_DIRECTIVE));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // filename length
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // in quotes
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 2)); // kind
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // imported module
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-    InclusionAbbrev = Stream.EmitAbbrev(Abbrev);
+    InclusionAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
   }
   
   unsigned FirstPreprocessorEntityID 
@@ -2396,11 +2492,11 @@ void ASTWriter::WritePreprocessorDetail(PreprocessingRecord &PPRec) {
     // Write the offsets table for identifier IDs.
     using namespace llvm;
 
-    auto *Abbrev = new BitCodeAbbrev();
+    auto Abbrev = std::make_shared<BitCodeAbbrev>();
     Abbrev->Add(BitCodeAbbrevOp(PPD_ENTITIES_OFFSETS));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // first pp entity
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-    unsigned PPEOffsetAbbrev = Stream.EmitAbbrev(Abbrev);
+    unsigned PPEOffsetAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
     RecordData::value_type Record[] = {PPD_ENTITIES_OFFSETS,
                                        FirstPreprocessorEntityID -
@@ -2418,7 +2514,9 @@ unsigned ASTWriter::getLocalOrImportedSubmoduleID(Module *Mod) {
   if (Known != SubmoduleIDs.end())
     return Known->second;
 
-  if (Mod->getTopLevelModule() != WritingModule)
+  auto *Top = Mod->getTopLevelModule();
+  if (Top != WritingModule &&
+      !Top->fullModuleNameIs(StringRef(getLangOpts().CurrentModule)))
     return 0;
 
   return SubmoduleIDs[Mod] = NextSubmoduleID++;
@@ -2452,7 +2550,7 @@ void ASTWriter::WriteSubmodules(Module *WritingModule) {
   // Write the abbreviations needed for the submodules block.
   using namespace llvm;
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_DEFINITION));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // ID
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // Parent
@@ -2465,70 +2563,70 @@ void ASTWriter::WriteSubmodules(Module *WritingModule) {
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // InferExportWild...
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // ConfigMacrosExh...
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-  unsigned DefinitionAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned DefinitionAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_UMBRELLA_HEADER));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-  unsigned UmbrellaAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned UmbrellaAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_HEADER));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-  unsigned HeaderAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned HeaderAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_TOPHEADER));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-  unsigned TopHeaderAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned TopHeaderAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_UMBRELLA_DIR));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-  unsigned UmbrellaDirAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned UmbrellaDirAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_REQUIRES));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // State
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));     // Feature
-  unsigned RequiresAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned RequiresAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_EXCLUDED_HEADER));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-  unsigned ExcludedHeaderAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned ExcludedHeaderAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_TEXTUAL_HEADER));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-  unsigned TextualHeaderAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned TextualHeaderAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_PRIVATE_HEADER));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-  unsigned PrivateHeaderAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned PrivateHeaderAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_PRIVATE_TEXTUAL_HEADER));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Name
-  unsigned PrivateTextualHeaderAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned PrivateTextualHeaderAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_LINK_LIBRARY));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // IsFramework
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));     // Name
-  unsigned LinkLibraryAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned LinkLibraryAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_CONFIG_MACRO));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));    // Macro name
-  unsigned ConfigMacroAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned ConfigMacroAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(SUBMODULE_CONFLICT));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6));  // Other module
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));    // Message
-  unsigned ConflictAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned ConflictAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
   // Write the submodule metadata block.
   RecordData::value_type Record[] = {getNumberOfModules(WritingModule),
@@ -2649,6 +2747,13 @@ void ASTWriter::WriteSubmodules(Module *WritingModule) {
       RecordData::value_type Record[] = {SUBMODULE_CONFIG_MACRO};
       Stream.EmitRecordWithBlob(ConfigMacroAbbrev, Record, CM);
     }
+
+    // Emit the initializers, if any.
+    RecordData Inits;
+    for (Decl *D : Context->getModuleInitializers(Mod))
+      Inits.push_back(GetDeclRef(D));
+    if (!Inits.empty())
+      Stream.EmitRecord(SUBMODULE_INITIALIZERS, Inits);
 
     // Queue up the submodules of this module.
     for (auto *M : Mod->submodules())
@@ -2787,12 +2892,12 @@ void ASTWriter::WriteTypeDeclOffsets() {
   using namespace llvm;
 
   // Write the type offsets array
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(TYPE_OFFSET));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // # of types
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // base type index
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // types block
-  unsigned TypeOffsetAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned TypeOffsetAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
   {
     RecordData::value_type Record[] = {TYPE_OFFSET, TypeOffsets.size(),
                                        FirstTypeID - NUM_PREDEF_TYPE_IDS};
@@ -2800,12 +2905,12 @@ void ASTWriter::WriteTypeDeclOffsets() {
   }
 
   // Write the declaration offsets array
-  Abbrev = new BitCodeAbbrev();
+  Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(DECL_OFFSET));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // # of declarations
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // base decl ID
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // declarations block
-  unsigned DeclOffsetAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned DeclOffsetAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
   {
     RecordData::value_type Record[] = {DECL_OFFSET, DeclOffsets.size(),
                                        FirstDeclID - NUM_PREDEF_DECL_IDS};
@@ -2830,11 +2935,11 @@ void ASTWriter::WriteFileDeclIDsMap() {
       FileGroupedDeclIDs.push_back(LocDeclEntry.second);
   }
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(FILE_SORTED_DECLS));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-  unsigned AbbrevCode = Stream.EmitAbbrev(Abbrev);
+  unsigned AbbrevCode = Stream.EmitAbbrev(std::move(Abbrev));
   RecordData::value_type Record[] = {FILE_SORTED_DECLS,
                                      FileGroupedDeclIDs.size()};
   Stream.EmitRecordWithBlob(AbbrevCode, Record, bytes(FileGroupedDeclIDs));
@@ -2860,6 +2965,7 @@ void ASTWriter::WriteComments() {
 //===----------------------------------------------------------------------===//
 
 namespace {
+
 // Trait used for the on-disk hash table used in the method pool.
 class ASTMethodPoolTrait {
   ASTWriter &Writer;
@@ -2964,6 +3070,7 @@ public:
     assert(Out.tell() - Start == DataLen && "Data length is wrong");
   }
 };
+
 } // end anonymous namespace
 
 /// \brief Write ObjC data: selectors and the method pool.
@@ -3036,12 +3143,12 @@ void ASTWriter::WriteSelectors(Sema &SemaRef) {
     }
 
     // Create a blob abbreviation
-    auto *Abbrev = new BitCodeAbbrev();
+    auto Abbrev = std::make_shared<BitCodeAbbrev>();
     Abbrev->Add(BitCodeAbbrevOp(METHOD_POOL));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-    unsigned MethodPoolAbbrev = Stream.EmitAbbrev(Abbrev);
+    unsigned MethodPoolAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
     // Write the method pool
     {
@@ -3051,12 +3158,12 @@ void ASTWriter::WriteSelectors(Sema &SemaRef) {
     }
 
     // Create a blob abbreviation for the selector table offsets.
-    Abbrev = new BitCodeAbbrev();
+    Abbrev = std::make_shared<BitCodeAbbrev>();
     Abbrev->Add(BitCodeAbbrevOp(SELECTOR_OFFSETS));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // size
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // first ID
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-    unsigned SelectorOffsetAbbrev = Stream.EmitAbbrev(Abbrev);
+    unsigned SelectorOffsetAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
     // Write the selector offsets table.
     {
@@ -3135,6 +3242,7 @@ static NamedDecl *getDeclForLocalLookup(const LangOptions &LangOpts,
 }
 
 namespace {
+
 class ASTIdentifierTableTrait {
   ASTWriter &Writer;
   Preprocessor &PP;
@@ -3185,6 +3293,7 @@ public:
     auto MacroOffset = Writer.getMacroDirectivesOffset(II);
     return isInterestingIdentifier(II, MacroOffset);
   }
+
   bool isInterestingNonMacroIdentifier(const IdentifierInfo *II) {
     return isInterestingIdentifier(II, 0);
   }
@@ -3278,6 +3387,7 @@ public:
     }
   }
 };
+
 } // end anonymous namespace
 
 /// \brief Write the identifier table into the AST file.
@@ -3343,11 +3453,11 @@ void ASTWriter::WriteIdentifierTable(Preprocessor &PP,
     }
 
     // Create a blob abbreviation
-    auto *Abbrev = new BitCodeAbbrev();
+    auto Abbrev = std::make_shared<BitCodeAbbrev>();
     Abbrev->Add(BitCodeAbbrevOp(IDENTIFIER_TABLE));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-    unsigned IDTableAbbrev = Stream.EmitAbbrev(Abbrev);
+    unsigned IDTableAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
     // Write the identifier table
     RecordData::value_type Record[] = {IDENTIFIER_TABLE, BucketOffset};
@@ -3355,12 +3465,12 @@ void ASTWriter::WriteIdentifierTable(Preprocessor &PP,
   }
 
   // Write the offsets table for identifier IDs.
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(IDENTIFIER_OFFSET));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // # of identifiers
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // first ID
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-  unsigned IdentifierOffsetAbbrev = Stream.EmitAbbrev(Abbrev);
+  unsigned IdentifierOffsetAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
 
 #ifndef NDEBUG
   for (unsigned I = 0, N = IdentifierOffsets.size(); I != N; ++I)
@@ -3384,6 +3494,7 @@ void ASTWriter::WriteIdentifierTable(Preprocessor &PP,
 //===----------------------------------------------------------------------===//
 
 namespace {
+
 // Trait used for the on-disk hash table used in the method pool.
 class ASTDeclContextNameLookupTrait {
   ASTWriter &Writer;
@@ -3509,6 +3620,7 @@ public:
     assert(Out.tell() - Start == DataLen && "Data length is wrong");
   }
 };
+
 } // end anonymous namespace
 
 bool ASTWriter::isLookupResultExternal(StoredDeclsList &Result,
@@ -3830,9 +3942,51 @@ void ASTWriter::WriteOpenCLExtensions(Sema &SemaRef) {
 
   const OpenCLOptions &Opts = SemaRef.getOpenCLOptions();
   RecordData Record;
-#define OPENCLEXT(nm)  Record.push_back(Opts.nm);
-#include "clang/Basic/OpenCLExtensions.def"
+  for (const auto &I:Opts.OptMap) {
+    AddString(I.getKey(), Record);
+    auto V = I.getValue();
+    Record.push_back(V.Supported ? 1 : 0);
+    Record.push_back(V.Enabled ? 1 : 0);
+    Record.push_back(V.Avail);
+    Record.push_back(V.Core);
+  }
   Stream.EmitRecord(OPENCL_EXTENSIONS, Record);
+}
+
+void ASTWriter::WriteOpenCLExtensionTypes(Sema &SemaRef) {
+  if (!SemaRef.Context.getLangOpts().OpenCL)
+    return;
+
+  RecordData Record;
+  for (const auto &I : SemaRef.OpenCLTypeExtMap) {
+    Record.push_back(
+        static_cast<unsigned>(getTypeID(I.first->getCanonicalTypeInternal())));
+    Record.push_back(I.second.size());
+    for (auto Ext : I.second)
+      AddString(Ext, Record);
+  }
+  Stream.EmitRecord(OPENCL_EXTENSION_TYPES, Record);
+}
+
+void ASTWriter::WriteOpenCLExtensionDecls(Sema &SemaRef) {
+  if (!SemaRef.Context.getLangOpts().OpenCL)
+    return;
+
+  RecordData Record;
+  for (const auto &I : SemaRef.OpenCLDeclExtMap) {
+    Record.push_back(getDeclID(I.first));
+    Record.push_back(static_cast<unsigned>(I.second.size()));
+    for (auto Ext : I.second)
+      AddString(Ext, Record);
+  }
+  Stream.EmitRecord(OPENCL_EXTENSION_DECLS, Record);
+}
+
+void ASTWriter::WriteCUDAPragmas(Sema &SemaRef) {
+  if (SemaRef.ForceCUDAHostDeviceDepth > 0) {
+    RecordData::value_type Record[] = {SemaRef.ForceCUDAHostDeviceDepth};
+    Stream.EmitRecord(CUDA_PRAGMA_FORCE_HOST_DEVICE_DEPTH, Record);
+  }
 }
 
 void ASTWriter::WriteObjCCategories() {
@@ -3872,11 +4026,11 @@ void ASTWriter::WriteObjCCategories() {
   // Emit the categories map.
   using namespace llvm;
 
-  auto *Abbrev = new BitCodeAbbrev();
+  auto Abbrev = std::make_shared<BitCodeAbbrev>();
   Abbrev->Add(BitCodeAbbrevOp(OBJC_CATEGORIES_MAP));
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // # of entries
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-  unsigned AbbrevID = Stream.EmitAbbrev(Abbrev);
+  unsigned AbbrevID = Stream.EmitAbbrev(std::move(Abbrev));
 
   RecordData::value_type Record[] = {OBJC_CATEGORIES_MAP, CategoriesMap.size()};
   Stream.EmitRecordWithBlob(AbbrevID, Record,
@@ -3894,14 +4048,14 @@ void ASTWriter::WriteLateParsedTemplates(Sema &SemaRef) {
     return;
 
   RecordData Record;
-  for (auto LPTMapEntry : LPTMap) {
+  for (auto &LPTMapEntry : LPTMap) {
     const FunctionDecl *FD = LPTMapEntry.first;
-    LateParsedTemplate *LPT = LPTMapEntry.second;
+    LateParsedTemplate &LPT = *LPTMapEntry.second;
     AddDeclRef(FD, Record);
-    AddDeclRef(LPT->D, Record);
-    Record.push_back(LPT->Toks.size());
+    AddDeclRef(LPT.D, Record);
+    Record.push_back(LPT.Toks.size());
 
-    for (const auto &Tok : LPT->Toks) {
+    for (const auto &Tok : LPT.Toks) {
       AddToken(Tok, Record);
     }
   }
@@ -3938,14 +4092,14 @@ void ASTWriter::WriteModuleFileExtension(Sema &SemaRef,
   Stream.EnterSubblock(EXTENSION_BLOCK_ID, 4);
 
   // Emit the metadata record abbreviation.
-  auto *Abv = new llvm::BitCodeAbbrev();
+  auto Abv = std::make_shared<llvm::BitCodeAbbrev>();
   Abv->Add(llvm::BitCodeAbbrevOp(EXTENSION_METADATA));
   Abv->Add(llvm::BitCodeAbbrevOp(llvm::BitCodeAbbrevOp::VBR, 6));
   Abv->Add(llvm::BitCodeAbbrevOp(llvm::BitCodeAbbrevOp::VBR, 6));
   Abv->Add(llvm::BitCodeAbbrevOp(llvm::BitCodeAbbrevOp::VBR, 6));
   Abv->Add(llvm::BitCodeAbbrevOp(llvm::BitCodeAbbrevOp::VBR, 6));
   Abv->Add(llvm::BitCodeAbbrevOp(llvm::BitCodeAbbrevOp::Blob));
-  unsigned Abbrev = Stream.EmitAbbrev(Abv);
+  unsigned Abbrev = Stream.EmitAbbrev(std::move(Abv));
 
   // Emit the metadata record.
   RecordData Record;
@@ -4068,29 +4222,10 @@ void ASTWriter::SetSelectorOffset(Selector Sel, uint32_t Offset) {
   SelectorOffsets[ID - FirstSelectorID] = Offset;
 }
 
-ASTWriter::ASTWriter(
-  llvm::BitstreamWriter &Stream,
-  ArrayRef<llvm::IntrusiveRefCntPtr<ModuleFileExtension>> Extensions,
-  bool IncludeTimestamps)
-    : Stream(Stream), Context(nullptr), PP(nullptr), Chain(nullptr),
-      WritingModule(nullptr), IncludeTimestamps(IncludeTimestamps),
-      WritingAST(false), DoneWritingDeclsAndTypes(false),
-      ASTHasCompilerErrors(false), FirstDeclID(NUM_PREDEF_DECL_IDS),
-      NextDeclID(FirstDeclID), FirstTypeID(NUM_PREDEF_TYPE_IDS),
-      NextTypeID(FirstTypeID), FirstIdentID(NUM_PREDEF_IDENT_IDS),
-      NextIdentID(FirstIdentID), FirstMacroID(NUM_PREDEF_MACRO_IDS),
-      NextMacroID(FirstMacroID), FirstSubmoduleID(NUM_PREDEF_SUBMODULE_IDS),
-      NextSubmoduleID(FirstSubmoduleID),
-      FirstSelectorID(NUM_PREDEF_SELECTOR_IDS), NextSelectorID(FirstSelectorID),
-      NumStatements(0), NumMacros(0),
-      NumLexicalDeclContexts(0), NumVisibleDeclContexts(0),
-      TypeExtQualAbbrev(0), TypeFunctionProtoAbbrev(0), DeclParmVarAbbrev(0),
-      DeclContextLexicalAbbrev(0), DeclContextVisibleLookupAbbrev(0),
-      UpdateVisibleAbbrev(0), DeclRecordAbbrev(0), DeclTypedefAbbrev(0),
-      DeclVarAbbrev(0), DeclFieldAbbrev(0), DeclEnumAbbrev(0),
-      DeclObjCIvarAbbrev(0), DeclCXXMethodAbbrev(0), DeclRefExprAbbrev(0),
-      CharacterLiteralAbbrev(0), IntegerLiteralAbbrev(0),
-      ExprImplicitCastAbbrev(0) {
+ASTWriter::ASTWriter(llvm::BitstreamWriter &Stream,
+                     ArrayRef<std::shared_ptr<ModuleFileExtension>> Extensions,
+                     bool IncludeTimestamps)
+    : Stream(Stream), IncludeTimestamps(IncludeTimestamps) {
   for (const auto &Ext : Extensions) {
     if (auto Writer = Ext->createExtensionWriter(*this))
       ModuleFileExtensionWriters.push_back(std::move(Writer));
@@ -4255,9 +4390,10 @@ uint64_t ASTWriter::WriteASTCore(Sema &SemaRef, StringRef isysroot,
 
   // Build a record containing some declaration references.
   RecordData SemaDeclRefs;
-  if (SemaRef.StdNamespace || SemaRef.StdBadAlloc) {
+  if (SemaRef.StdNamespace || SemaRef.StdBadAlloc || SemaRef.StdAlignValT) {
     AddDeclRef(SemaRef.getStdNamespace(), SemaDeclRefs);
     AddDeclRef(SemaRef.getStdBadAlloc(), SemaDeclRefs);
+    AddDeclRef(SemaRef.getStdAlignValT(), SemaDeclRefs);
   }
 
   RecordData CUDASpecialDeclRefs;
@@ -4320,10 +4456,10 @@ uint64_t ASTWriter::WriteASTCore(Sema &SemaRef, StringRef isysroot,
     }
   }
   
-  auto *Abv = new llvm::BitCodeAbbrev();
+  auto Abv = std::make_shared<BitCodeAbbrev>();
   Abv->Add(llvm::BitCodeAbbrevOp(TU_UPDATE_LEXICAL));
   Abv->Add(llvm::BitCodeAbbrevOp(llvm::BitCodeAbbrevOp::Blob));
-  unsigned TuUpdateLexicalAbbrev = Stream.EmitAbbrev(Abv);
+  unsigned TuUpdateLexicalAbbrev = Stream.EmitAbbrev(std::move(Abv));
   {
     RecordData::value_type Record[] = {TU_UPDATE_LEXICAL};
     Stream.EmitRecordWithBlob(TuUpdateLexicalAbbrev, Record,
@@ -4331,11 +4467,11 @@ uint64_t ASTWriter::WriteASTCore(Sema &SemaRef, StringRef isysroot,
   }
 
   // And a visible updates block for the translation unit.
-  Abv = new llvm::BitCodeAbbrev();
+  Abv = std::make_shared<BitCodeAbbrev>();
   Abv->Add(llvm::BitCodeAbbrevOp(UPDATE_VISIBLE));
   Abv->Add(llvm::BitCodeAbbrevOp(llvm::BitCodeAbbrevOp::VBR, 6));
   Abv->Add(llvm::BitCodeAbbrevOp(llvm::BitCodeAbbrevOp::Blob));
-  UpdateVisibleAbbrev = Stream.EmitAbbrev(Abv);
+  UpdateVisibleAbbrev = Stream.EmitAbbrev(std::move(Abv));
   WriteDeclContextVisibleUpdate(TU);
 
   // If we have any extern "C" names, write out a visible update for them.
@@ -4364,8 +4500,9 @@ uint64_t ASTWriter::WriteASTCore(Sema &SemaRef, StringRef isysroot,
                                                      Number.second));
 
   // Make sure visible decls, added to DeclContexts previously loaded from
-  // an AST file, are registered for serialization.
-  for (const auto *I : UpdatingVisibleDecls) {
+  // an AST file, are registered for serialization. Likewise for template
+  // specializations added to imported templates.
+  for (const auto *I : DeclsToEmitEvenIfUnreferenced) {
     GetDeclRef(I);
   }
 
@@ -4429,10 +4566,10 @@ uint64_t ASTWriter::WriteASTCore(Sema &SemaRef, StringRef isysroot,
     //   c++-base-specifiers-id:i32
     //   type-id:i32)
     // 
-    auto *Abbrev = new BitCodeAbbrev();
+    auto Abbrev = std::make_shared<BitCodeAbbrev>();
     Abbrev->Add(BitCodeAbbrevOp(MODULE_OFFSET_MAP));
     Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
-    unsigned ModuleOffsetMapAbbrev = Stream.EmitAbbrev(Abbrev);
+    unsigned ModuleOffsetMapAbbrev = Stream.EmitAbbrev(std::move(Abbrev));
     SmallString<2048> Buffer;
     {
       llvm::raw_svector_ostream Out(Buffer);
@@ -4510,6 +4647,9 @@ uint64_t ASTWriter::WriteASTCore(Sema &SemaRef, StringRef isysroot,
   WriteIdentifierTable(PP, SemaRef.IdResolver, isModule);
   WriteFPPragmaOptions(SemaRef.getFPOptions());
   WriteOpenCLExtensions(SemaRef);
+  WriteOpenCLExtensionTypes(SemaRef);
+  WriteOpenCLExtensionDecls(SemaRef);
+  WriteCUDAPragmas(SemaRef);
   WritePragmaDiagnosticMappings(Context.getDiagnostics(), isModule);
 
   // If we're emitting a module, write out the submodule information.  
@@ -4680,6 +4820,11 @@ void ASTWriter::WriteDeclUpdatesBlocks(RecordDataImpl &OffsetsRecord) {
       case UPD_CXX_INSTANTIATED_DEFAULT_ARGUMENT:
         Record.AddStmt(const_cast<Expr *>(
             cast<ParmVarDecl>(Update.getDecl())->getDefaultArg()));
+        break;
+
+      case UPD_CXX_INSTANTIATED_DEFAULT_MEMBER_INITIALIZER:
+        Record.AddStmt(
+            cast<FieldDecl>(Update.getDecl())->getInClassInitializer());
         break;
 
       case UPD_CXX_INSTANTIATED_CLASS_DEFINITION: {
@@ -5159,7 +5304,7 @@ void ASTRecordWriter::AddDeclarationNameInfo(
 void ASTRecordWriter::AddQualifierInfo(const QualifierInfo &Info) {
   AddNestedNameSpecifierLoc(Info.QualifierLoc);
   Record->push_back(Info.NumTemplParamLists);
-  for (unsigned i=0, e=Info.NumTemplParamLists; i != e; ++i)
+  for (unsigned i = 0, e = Info.NumTemplParamLists; i != e; ++i)
     AddTemplateParameterList(Info.TemplParamLists[i]);
 }
 
@@ -5361,6 +5506,7 @@ void ASTRecordWriter::AddTemplateParameterList(
   AddSourceLocation(TemplateParams->getTemplateLoc());
   AddSourceLocation(TemplateParams->getLAngleLoc());
   AddSourceLocation(TemplateParams->getRAngleLoc());
+  // TODO: Concepts
   Record->push_back(TemplateParams->size());
   for (const auto &P : *TemplateParams)
     AddDeclRef(P);
@@ -5371,7 +5517,7 @@ void ASTRecordWriter::AddTemplateArgumentList(
     const TemplateArgumentList *TemplateArgs) {
   assert(TemplateArgs && "No TemplateArgs!");
   Record->push_back(TemplateArgs->size());
-  for (int i=0, e = TemplateArgs->size(); i != e; ++i)
+  for (int i = 0, e = TemplateArgs->size(); i != e; ++i)
     AddTemplateArgument(TemplateArgs->get(i));
 }
 
@@ -5382,7 +5528,7 @@ void ASTRecordWriter::AddASTTemplateArgumentListInfo(
   AddSourceLocation(ASTTemplArgList->RAngleLoc);
   Record->push_back(ASTTemplArgList->NumTemplateArgs);
   const TemplateArgumentLoc *TemplArgs = ASTTemplArgList->getTemplateArgs();
-  for (int i=0, e = ASTTemplArgList->NumTemplateArgs; i != e; ++i)
+  for (int i = 0, e = ASTTemplArgList->NumTemplateArgs; i != e; ++i)
     AddTemplateArgumentLoc(TemplArgs[i]);
 }
 
@@ -5452,13 +5598,8 @@ EmitCXXCtorInitializers(ASTWriter &W,
     Writer.AddSourceLocation(Init->getLParenLoc());
     Writer.AddSourceLocation(Init->getRParenLoc());
     Writer.push_back(Init->isWritten());
-    if (Init->isWritten()) {
+    if (Init->isWritten())
       Writer.push_back(Init->getSourceOrder());
-    } else {
-      Writer.push_back(Init->getNumArrayIndices());
-      for (auto *VD : Init->getArrayIndices())
-        Writer.AddDeclRef(VD);
-    }
   }
 
   return Writer.Emit(serialization::DECL_CXX_CTOR_INITIALIZERS);
@@ -5539,7 +5680,7 @@ void ASTRecordWriter::AddCXXDefinitionData(const CXXRecordDecl *D) {
     Record->push_back(Lambda.NumCaptures);
     Record->push_back(Lambda.NumExplicitCaptures);
     Record->push_back(Lambda.ManglingNumber);
-    AddDeclRef(Lambda.ContextDecl);
+    AddDeclRef(D->getLambdaContextDecl());
     AddTypeSourceInfo(Lambda.MethodTyInfo);
     for (unsigned I = 0, N = Lambda.NumCaptures; I != N; ++I) {
       const LambdaCapture &Capture = Lambda.Captures[I];
@@ -5693,9 +5834,9 @@ void ASTWriter::AddedVisibleDecl(const DeclContext *DC, const Decl *D) {
     // that we write out all of its lookup results so we don't get a nasty
     // surprise when we try to emit its lookup table.
     for (auto *Child : DC->decls())
-      UpdatingVisibleDecls.push_back(Child);
+      DeclsToEmitEvenIfUnreferenced.push_back(Child);
   }
-  UpdatingVisibleDecls.push_back(D);
+  DeclsToEmitEvenIfUnreferenced.push_back(D);
 }
 
 void ASTWriter::AddedCXXImplicitMember(const CXXRecordDecl *RD, const Decl *D) {
@@ -5794,6 +5935,15 @@ void ASTWriter::DefaultArgumentInstantiated(const ParmVarDecl *D) {
       DeclUpdate(UPD_CXX_INSTANTIATED_DEFAULT_ARGUMENT, D));
 }
 
+void ASTWriter::DefaultMemberInitializerInstantiated(const FieldDecl *D) {
+  assert(!WritingAST && "Already writing the AST!");
+  if (!D->isFromASTFile())
+    return;
+
+  DeclUpdates[D].push_back(
+      DeclUpdate(UPD_CXX_INSTANTIATED_DEFAULT_MEMBER_INITIALIZER, D));
+}
+
 void ASTWriter::AddedObjCCategoryToInterface(const ObjCCategoryDecl *CatD,
                                              const ObjCInterfaceDecl *IFD) {
   if (Chain && Chain->isProcessingUpdateRecords()) return;
@@ -5854,4 +6004,40 @@ void ASTWriter::AddedAttributeToRecord(const Attr *Attr,
   if (!Record->isFromASTFile())
     return;
   DeclUpdates[Record].push_back(DeclUpdate(UPD_ADDED_ATTR_TO_RECORD, Attr));
+}
+
+void ASTWriter::AddedCXXTemplateSpecialization(
+    const ClassTemplateDecl *TD, const ClassTemplateSpecializationDecl *D) {
+  assert(!WritingAST && "Already writing the AST!");
+
+  if (!TD->getFirstDecl()->isFromASTFile())
+    return;
+  if (Chain && Chain->isProcessingUpdateRecords())
+    return;
+
+  DeclsToEmitEvenIfUnreferenced.push_back(D);
+}
+
+void ASTWriter::AddedCXXTemplateSpecialization(
+    const VarTemplateDecl *TD, const VarTemplateSpecializationDecl *D) {
+  assert(!WritingAST && "Already writing the AST!");
+
+  if (!TD->getFirstDecl()->isFromASTFile())
+    return;
+  if (Chain && Chain->isProcessingUpdateRecords())
+    return;
+
+  DeclsToEmitEvenIfUnreferenced.push_back(D);
+}
+
+void ASTWriter::AddedCXXTemplateSpecialization(const FunctionTemplateDecl *TD,
+                                               const FunctionDecl *D) {
+  assert(!WritingAST && "Already writing the AST!");
+
+  if (!TD->getFirstDecl()->isFromASTFile())
+    return;
+  if (Chain && Chain->isProcessingUpdateRecords())
+    return;
+
+  DeclsToEmitEvenIfUnreferenced.push_back(D);
 }

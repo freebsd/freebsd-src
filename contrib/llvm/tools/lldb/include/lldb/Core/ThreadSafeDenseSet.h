@@ -1,4 +1,5 @@
-//===-- ThreadSafeDenseSet.h ------------------------------------------*- C++ -*-===//
+//===-- ThreadSafeDenseSet.h ------------------------------------------*- C++
+//-*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,61 +13,48 @@
 
 // C Includes
 // C++ Includes
+#include <mutex>
 
 // Other libraries and framework includes
 #include "llvm/ADT/DenseSet.h"
 
 // Project includes
-#include "lldb/Host/Mutex.h"
 
 namespace lldb_private {
-    
-    template <typename _ElementType>
-    class ThreadSafeDenseSet
-    {
-    public:
-        typedef llvm::DenseSet<_ElementType> LLVMSetType;
-        
-        ThreadSafeDenseSet(unsigned set_initial_capacity = 0,
-                           Mutex::Type mutex_type = Mutex::eMutexTypeNormal) :
-        m_set(set_initial_capacity),
-        m_mutex(mutex_type)
-        {
-        }
-        
-        void
-        Insert (_ElementType e)
-        {
-            Mutex::Locker locker(m_mutex);
-            m_set.insert(e);
-        }
-        
-        void
-        Erase (_ElementType e)
-        {
-            Mutex::Locker locker(m_mutex);
-            m_set.erase(e);
-        }
-        
-        bool
-        Lookup (_ElementType e)
-        {
-            Mutex::Locker locker(m_mutex);
-            return (m_set.count(e) > 0);
-        }
-        
-        void
-        Clear ()
-        {
-            Mutex::Locker locker(m_mutex);
-            m_set.clear();
-        }
-        
-    protected:
-        LLVMSetType m_set;
-        Mutex m_mutex;
-    };
-    
+
+template <typename _ElementType, typename _MutexType = std::mutex>
+class ThreadSafeDenseSet {
+public:
+  typedef llvm::DenseSet<_ElementType> LLVMSetType;
+
+  ThreadSafeDenseSet(unsigned set_initial_capacity = 0)
+      : m_set(set_initial_capacity), m_mutex() {}
+
+  void Insert(_ElementType e) {
+    std::lock_guard<_MutexType> guard(m_mutex);
+    m_set.insert(e);
+  }
+
+  void Erase(_ElementType e) {
+    std::lock_guard<_MutexType> guard(m_mutex);
+    m_set.erase(e);
+  }
+
+  bool Lookup(_ElementType e) {
+    std::lock_guard<_MutexType> guard(m_mutex);
+    return (m_set.count(e) > 0);
+  }
+
+  void Clear() {
+    stds::lock_guard<_MutexType> guard(m_mutex);
+    m_set.clear();
+  }
+
+protected:
+  LLVMSetType m_set;
+  _MutexType m_mutex;
+};
+
 } // namespace lldb_private
 
-#endif  // liblldb_ThreadSafeDenseSet_h_
+#endif // liblldb_ThreadSafeDenseSet_h_

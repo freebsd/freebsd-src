@@ -53,7 +53,8 @@ using namespace llvm;
 static cl::opt<bool> DisableBasicAA("disable-basicaa", cl::Hidden,
                                     cl::init(false));
 
-AAResults::AAResults(AAResults &&Arg) : TLI(Arg.TLI), AAs(std::move(Arg.AAs)) {
+AAResults::AAResults(AAResults &&Arg)
+    : TLI(Arg.TLI), AAs(std::move(Arg.AAs)), AADeps(std::move(Arg.AADeps)) {
   for (auto &AA : AAs)
     AA->setAAResults(this);
 }
@@ -67,6 +68,22 @@ AAResults::~AAResults() {
   for (auto &AA : AAs)
     AA->setAAResults(nullptr);
 #endif
+}
+
+bool AAResults::invalidate(Function &F, const PreservedAnalyses &PA,
+                           FunctionAnalysisManager::Invalidator &Inv) {
+  // Check if the AA manager itself has been invalidated.
+  auto PAC = PA.getChecker<AAManager>();
+  if (!PAC.preserved() && !PAC.preservedSet<AllAnalysesOn<Function>>())
+    return true; // The manager needs to be blown away, clear everything.
+
+  // Check all of the dependencies registered.
+  for (AnalysisKey *ID : AADeps)
+    if (Inv.invalidate(ID, F, PA))
+      return true;
+
+  // Everything we depend on is still fine, so are we. Nothing to invalidate.
+  return false;
 }
 
 //===----------------------------------------------------------------------===//
@@ -141,7 +158,8 @@ ModRefInfo AAResults::getModRefInfo(ImmutableCallSite CS,
   // Try to refine the mod-ref info further using other API entry points to the
   // aggregate set of AA results.
   auto MRB = getModRefBehavior(CS);
-  if (MRB == FMRB_DoesNotAccessMemory)
+  if (MRB == FMRB_DoesNotAccessMemory ||
+      MRB == FMRB_OnlyAccessesInaccessibleMem)
     return MRI_NoModRef;
 
   if (onlyReadsMemory(MRB))
@@ -149,7 +167,7 @@ ModRefInfo AAResults::getModRefInfo(ImmutableCallSite CS,
   else if (doesNotReadMemory(MRB))
     Result = ModRefInfo(Result & MRI_Mod);
 
-  if (onlyAccessesArgPointees(MRB)) {
+  if (onlyAccessesArgPointees(MRB) || onlyAccessesInaccessibleOrArgMem(MRB)) {
     bool DoesAlias = false;
     ModRefInfo AllArgsMask = MRI_NoModRef;
     if (doesAccessArgPointees(MRB)) {
@@ -459,7 +477,8 @@ ModRefInfo AAResults::callCapturesBefore(const Instruction *I,
     // pointer were passed to arguments that were neither of these, then it
     // couldn't be no-capture.
     if (!(*CI)->getType()->isPointerTy() ||
-        (!CS.doesNotCapture(ArgNo) && !CS.isByValArgument(ArgNo)))
+        (!CS.doesNotCapture(ArgNo) &&
+         ArgNo < CS.getNumArgOperands() && !CS.isByValArgument(ArgNo)))
       continue;
 
     // If this is a no-capture pointer argument, see if we can tell that it
@@ -512,7 +531,7 @@ bool AAResults::canInstructionRangeModRef(const Instruction &I1,
 AAResults::Concept::~Concept() {}
 
 // Provide a definition for the static object used to identify passes.
-char AAManager::PassID;
+AnalysisKey AAManager::Key;
 
 namespace {
 /// A wrapper pass for external alias analyses. This just squirrels away the

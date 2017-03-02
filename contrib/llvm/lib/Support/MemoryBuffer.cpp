@@ -90,9 +90,9 @@ public:
   /// tail-allocated data.
   void operator delete(void *p) { ::operator delete(p); }
 
-  const char *getBufferIdentifier() const override {
-     // The name is stored after the class itself.
-    return reinterpret_cast<const char*>(this + 1);
+  StringRef getBufferIdentifier() const override {
+    // The name is stored after the class itself.
+    return StringRef(reinterpret_cast<const char *>(this + 1));
   }
 
   BufferKind getBufferKind() const override {
@@ -221,9 +221,9 @@ public:
   /// tail-allocated data.
   void operator delete(void *p) { ::operator delete(p); }
 
-  const char *getBufferIdentifier() const override {
+  StringRef getBufferIdentifier() const override {
     // The name is stored after the class itself.
-    return reinterpret_cast<const char *>(this + 1);
+    return StringRef(reinterpret_cast<const char *>(this + 1));
   }
 
   BufferKind getBufferKind() const override {
@@ -436,6 +436,18 @@ ErrorOr<std::unique_ptr<MemoryBuffer>> MemoryBuffer::getSTDIN() {
   sys::ChangeStdinToBinary();
 
   return getMemoryBufferForStream(0, "<stdin>");
+}
+
+ErrorOr<std::unique_ptr<MemoryBuffer>>
+MemoryBuffer::getFileAsStream(const Twine &Filename) {
+  int FD;
+  std::error_code EC = sys::fs::openFileForRead(Filename, FD);
+  if (EC)
+    return EC;
+  ErrorOr<std::unique_ptr<MemoryBuffer>> Ret =
+      getMemoryBufferForStream(FD, Filename);
+  close(FD);
+  return Ret;
 }
 
 MemoryBufferRef MemoryBuffer::getMemBufferRef() const {

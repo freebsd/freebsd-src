@@ -16,17 +16,31 @@
 #ifndef LLVM_IR_INSTRTYPES_H
 #define LLVM_IR_INSTRTYPES_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/iterator_range.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/OperandTraits.h"
+#include "llvm/IR/User.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <string>
+#include <vector>
 
 namespace llvm {
-
-class LLVMContext;
 
 //===----------------------------------------------------------------------===//
 //                            TerminatorInst Class
@@ -249,8 +263,8 @@ public:
   typedef SuccIterator<TerminatorInst *, BasicBlock> succ_iterator;
   typedef SuccIterator<const TerminatorInst *, const BasicBlock>
       succ_const_iterator;
-  typedef llvm::iterator_range<succ_iterator> succ_range;
-  typedef llvm::iterator_range<succ_const_iterator> succ_const_range;
+  typedef iterator_range<succ_iterator> succ_range;
+  typedef iterator_range<succ_const_iterator> succ_const_range;
 
 private:
   inline succ_iterator succ_begin() { return succ_iterator(this); }
@@ -276,8 +290,6 @@ public:
 //===----------------------------------------------------------------------===//
 
 class UnaryInstruction : public Instruction {
-  void *operator new(size_t, unsigned) = delete;
-
 protected:
   UnaryInstruction(Type *Ty, unsigned iType, Value *V,
                    Instruction *IB = nullptr)
@@ -294,6 +306,8 @@ public:
   void *operator new(size_t s) {
     return User::operator new(s, 1);
   }
+
+  void *operator new(size_t, unsigned) = delete;
 
   // Out of line virtual method, so the vtable, etc has a home.
   ~UnaryInstruction() override;
@@ -326,8 +340,6 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(UnaryInstruction, Value)
 //===----------------------------------------------------------------------===//
 
 class BinaryOperator : public Instruction {
-  void *operator new(size_t, unsigned) = delete;
-
 protected:
   void init(BinaryOps iType);
   BinaryOperator(BinaryOps iType, Value *S1, Value *S2, Type *Ty,
@@ -344,6 +356,8 @@ public:
   void *operator new(size_t s) {
     return User::operator new(s, 2);
   }
+
+  void *operator new(size_t, unsigned) = delete;
 
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
@@ -899,10 +913,6 @@ public:
     BAD_ICMP_PREDICATE = ICMP_SLE + 1
   };
 
-private:
-  void *operator new(size_t, unsigned) = delete;
-  CmpInst() = delete;
-
 protected:
   CmpInst(Type *ty, Instruction::OtherOps op, Predicate pred,
           Value *LHS, Value *RHS, const Twine &Name = "",
@@ -915,10 +925,15 @@ protected:
   void anchor() override; // Out of line virtual method.
 
 public:
+  CmpInst() = delete;
+
   // allocate space for exactly two operands
   void *operator new(size_t s) {
     return User::operator new(s, 2);
   }
+
+  void *operator new(size_t, unsigned) = delete;
+
   /// Construct a compare instruction, given the opcode, the predicate and
   /// the two operands.  Optionally (if InstBefore is specified) insert the
   /// instruction into a BasicBlock right before the specified instruction.
@@ -956,6 +971,8 @@ public:
   static bool isIntPredicate(Predicate P) {
     return P >= FIRST_ICMP_PREDICATE && P <= LAST_ICMP_PREDICATE;
   }
+
+  static StringRef getPredicateName(Predicate P);
 
   bool isFPPredicate() const { return isFPPredicate(getPredicate()); }
   bool isIntPredicate() const { return isIntPredicate(getPredicate()); }
@@ -1189,7 +1206,7 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(FuncletPadInst, Value)
 struct OperandBundleUse {
   ArrayRef<Use> Inputs;
 
-  OperandBundleUse() {}
+  OperandBundleUse() = default;
   explicit OperandBundleUse(StringMapEntry<uint32_t> *Tag, ArrayRef<Use> Inputs)
       : Inputs(Inputs), Tag(Tag) {}
 
@@ -1202,7 +1219,7 @@ struct OperandBundleUse {
 
     // Conservative answer:  no operands have any attributes.
     return false;
-  };
+  }
 
   /// \brief Return the tag of this operand bundle as a string.
   StringRef getTagName() const {
@@ -1333,6 +1350,12 @@ public:
   unsigned getBundleOperandsEndIndex() const {
     assert(hasOperandBundles() && "Don't call otherwise!");
     return bundle_op_info_end()[-1].End;
+  }
+
+  /// Return true if the operand at index \p Idx is a bundle operand.
+  bool isBundleOperand(unsigned Idx) const {
+    return hasOperandBundles() && Idx >= getBundleOperandsStartIndex() &&
+           Idx < getBundleOperandsEndIndex();
   }
 
   /// \brief Return the total number operands (not operand bundles) used by
@@ -1471,14 +1494,14 @@ public:
 
     return std::equal(bundle_op_info_begin(), bundle_op_info_end(),
                       Other.bundle_op_info_begin());
-  };
+  }
 
   /// \brief Return true if this operand bundle user contains operand bundles
   /// with tags other than those specified in \p IDs.
   bool hasOperandBundlesOtherThan(ArrayRef<uint32_t> IDs) const {
     for (unsigned i = 0, e = getNumOperandBundles(); i != e; ++i) {
       uint32_t ID = getOperandBundleAt(i).getTagID();
-      if (std::find(IDs.begin(), IDs.end(), ID) == IDs.end())
+      if (!is_contained(IDs, ID))
         return true;
     }
     return false;

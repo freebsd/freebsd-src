@@ -4,6 +4,7 @@ add_lld_library(lldCore
   File.cpp
   LinkingContext.cpp
   Reader.cpp
+  Reproduce.cpp
   Resolver.cpp
   SymbolTable.cpp
   Writer.cpp
@@ -11,6 +12,6 @@ add_lld_library(lldCore
   ADDITIONAL_HEADER_DIRS
   ${LLD_INCLUDE_DIR}/lld/Core
 
-  LINK_LIBS
-    LLVMSupport
+  LINK_COMPONENTS
+    Support
   )

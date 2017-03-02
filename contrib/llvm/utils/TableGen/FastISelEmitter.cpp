@@ -564,8 +564,7 @@ void FastISelMap::collectPatterns(CodeGenDAGPatterns &CGP) {
     Operands.PrintManglingSuffix(SuffixOS, ImmediatePredicates, true);
     SuffixOS.flush();
     if (!StringSwitch<bool>(ManglingSuffix)
-        .Cases("", "r", "rr", "ri", "rf", true)
-        .Cases("rri", "i", "f", true)
+        .Cases("", "r", "rr", "ri", "i", "f", true)
         .Default(false))
       continue;
 
@@ -874,7 +873,7 @@ void EmitFastISel(RecordKeeper &RK, raw_ostream &OS) {
   CodeGenDAGPatterns CGP(RK);
   const CodeGenTarget &Target = CGP.getTargetInfo();
   emitSourceFileHeader("\"Fast\" Instruction Selector for the " +
-                       Target.getName() + " target", OS);
+                       Target.getName().str() + " target", OS);
 
   // Determine the target's namespace name.
   std::string InstNS = Target.getInstNamespace() + "::";

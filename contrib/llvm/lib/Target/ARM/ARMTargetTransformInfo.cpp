@@ -41,7 +41,7 @@ int ARMTTIImpl::getIntImmCost(const APInt &Imm, Type *Ty) {
   // Thumb1.
   if (SImmVal >= 0 && SImmVal < 256)
     return 1;
-  if ((~ZImmVal < 256) || ARM_AM::isThumbImmShiftedVal(ZImmVal))
+  if ((~SImmVal < 256) || ARM_AM::isThumbImmShiftedVal(ZImmVal))
     return 2;
   // Load from constantpool.
   return 3;
@@ -68,6 +68,25 @@ int ARMTTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm,
        Opcode == Instruction::SRem || Opcode == Instruction::URem) &&
       Idx == 1)
     return 0;
+
+  if (Opcode == Instruction::And)
+      // Conversion to BIC is free, and means we can use ~Imm instead.
+      return std::min(getIntImmCost(Imm, Ty), getIntImmCost(~Imm, Ty));
+
+  if (Opcode == Instruction::Add)
+    // Conversion to SUB is free, and means we can use -Imm instead.
+    return std::min(getIntImmCost(Imm, Ty), getIntImmCost(-Imm, Ty));
+
+  if (Opcode == Instruction::ICmp && Imm.isNegative() &&
+      Ty->getIntegerBitWidth() == 32) {
+    int64_t NegImm = -Imm.getSExtValue();
+    if (ST->isThumb2() && NegImm < 1<<12)
+      // icmp X, #-C -> cmn X, #C
+      return 0;
+    if (ST->isThumb() && NegImm < 1<<8)
+      // icmp X, #-C -> adds X, #C
+      return 0;
+  }
 
   return getIntImmCost(Imm, Ty);
 }
@@ -319,14 +338,17 @@ int ARMTTIImpl::getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy) {
   return BaseT::getCmpSelInstrCost(Opcode, ValTy, CondTy);
 }
 
-int ARMTTIImpl::getAddressComputationCost(Type *Ty, bool IsComplex) {
+int ARMTTIImpl::getAddressComputationCost(Type *Ty, ScalarEvolution *SE,
+                                          const SCEV *Ptr) {
   // Address computations in vectorized code with non-consecutive addresses will
   // likely result in more instructions compared to scalar code where the
   // computation can more often be merged into the index mode. The resulting
   // extra micro-ops can significantly decrease throughput.
   unsigned NumVectorInstToHideOverhead = 10;
+  int MaxMergeDistance = 64;
 
-  if (Ty->isVectorTy() && IsComplex)
+  if (Ty->isVectorTy() && SE && 
+      !BaseT::isConstantStridedAccessLessThan(SE, Ptr, MaxMergeDistance + 1))
     return NumVectorInstToHideOverhead;
 
   // In many cases the address computation is not merged into the instruction
@@ -411,7 +433,8 @@ int ARMTTIImpl::getShuffleCost(TTI::ShuffleKind Kind, Type *Tp, int Index,
 int ARMTTIImpl::getArithmeticInstrCost(
     unsigned Opcode, Type *Ty, TTI::OperandValueKind Op1Info,
     TTI::OperandValueKind Op2Info, TTI::OperandValueProperties Opd1PropInfo,
-    TTI::OperandValueProperties Opd2PropInfo) {
+    TTI::OperandValueProperties Opd2PropInfo,
+    ArrayRef<const Value *> Args) {
 
   int ISDOpcode = TLI->InstructionOpcodeToISD(Opcode);
   std::pair<int, MVT> LT = TLI->getTypeLegalizationCost(DL, Ty);

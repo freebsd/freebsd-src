@@ -44,7 +44,7 @@ TargetMachine::TargetMachine(const Target &T, StringRef DataLayoutString,
                              const TargetOptions &Options)
     : TheTarget(T), DL(DataLayoutString), TargetTriple(TT), TargetCPU(CPU),
       TargetFS(FS), AsmInfo(nullptr), MRI(nullptr), MII(nullptr), STI(nullptr),
-      RequireStructuredCFG(false), Options(Options) {
+      RequireStructuredCFG(false), DefaultOptions(Options), Options(Options) {
   if (EnableIPRA.getNumOccurrences())
     this->Options.EnableIPRA = EnableIPRA;
 }
@@ -63,20 +63,33 @@ bool TargetMachine::isPositionIndependent() const {
 /// \brief Reset the target options based on the function's attributes.
 // FIXME: This function needs to go away for a number of reasons:
 // a) global state on the TargetMachine is terrible in general,
-// b) there's no default state here to keep,
-// c) these target options should be passed only on the function
+// b) these target options should be passed only on the function
 //    and not on the TargetMachine (via TargetOptions) at all.
 void TargetMachine::resetTargetOptions(const Function &F) const {
 #define RESET_OPTION(X, Y)                                                     \
   do {                                                                         \
     if (F.hasFnAttribute(Y))                                                   \
       Options.X = (F.getFnAttribute(Y).getValueAsString() == "true");          \
+    else                                                                       \
+      Options.X = DefaultOptions.X;                                            \
   } while (0)
 
   RESET_OPTION(LessPreciseFPMADOption, "less-precise-fpmad");
   RESET_OPTION(UnsafeFPMath, "unsafe-fp-math");
   RESET_OPTION(NoInfsFPMath, "no-infs-fp-math");
   RESET_OPTION(NoNaNsFPMath, "no-nans-fp-math");
+  RESET_OPTION(NoTrappingFPMath, "no-trapping-math");
+
+  StringRef Denormal =
+    F.getFnAttribute("denormal-fp-math").getValueAsString();
+  if (Denormal == "ieee")
+    Options.FPDenormalMode = FPDenormal::IEEE;
+  else if (Denormal == "preserve-sign")
+    Options.FPDenormalMode = FPDenormal::PreserveSign;
+  else if (Denormal == "positive-zero")
+    Options.FPDenormalMode = FPDenormal::PositiveZero;
+  else
+    Options.FPDenormalMode = DefaultOptions.FPDenormalMode;
 }
 
 /// Returns the code generation relocation model. The choices are static, PIC,
@@ -105,9 +118,6 @@ static TLSModel::Model getSelectedTLSModel(const GlobalValue *GV) {
   llvm_unreachable("invalid TLS model");
 }
 
-// FIXME: make this a proper option
-static bool CanUseCopyRelocWithPIE = false;
-
 bool TargetMachine::shouldAssumeDSOLocal(const Module &M,
                                          const GlobalValue *GV) const {
   Reloc::Model RM = getRelocationModel();
@@ -117,8 +127,11 @@ bool TargetMachine::shouldAssumeDSOLocal(const Module &M,
   if (GV && GV->hasDLLImportStorageClass())
     return false;
 
-  // Every other GV is local on COFF
-  if (TT.isOSBinFormatCOFF())
+  // Every other GV is local on COFF.
+  // Make an exception for windows OS in the triple: Some firmwares builds use
+  // *-win32-macho triples. This (accidentally?) produced windows relocations
+  // without GOT tables in older clang versions; Keep this behaviour.
+  if (TT.isOSBinFormatCOFF() || (TT.isOSWindows() && TT.isOSBinFormatMachO()))
     return true;
 
   if (GV && (GV->hasLocalLinkage() || !GV->hasDefaultVisibility()))
@@ -141,8 +154,10 @@ bool TargetMachine::shouldAssumeDSOLocal(const Module &M,
       return true;
 
     bool IsTLS = GV && GV->isThreadLocal();
+    bool IsAccessViaCopyRelocs =
+        Options.MCOptions.MCPIECopyRelocations && GV && isa<GlobalVariable>(GV);
     // Check if we can use copy relocations.
-    if (!IsTLS && (RM == Reloc::Static || CanUseCopyRelocWithPIE))
+    if (!IsTLS && (RM == Reloc::Static || IsAccessViaCopyRelocs))
       return true;
   }
 
@@ -198,12 +213,12 @@ void TargetMachine::getNameWithPrefix(SmallVectorImpl<char> &Name,
     return;
   }
   const TargetLoweringObjectFile *TLOF = getObjFileLowering();
-  TLOF->getNameWithPrefix(Name, GV, Mang, *this);
+  TLOF->getNameWithPrefix(Name, GV, *this);
 }
 
-MCSymbol *TargetMachine::getSymbol(const GlobalValue *GV, Mangler &Mang) const {
-  SmallString<128> NameStr;
-  getNameWithPrefix(NameStr, GV, Mang);
+MCSymbol *TargetMachine::getSymbol(const GlobalValue *GV) const {
   const TargetLoweringObjectFile *TLOF = getObjFileLowering();
+  SmallString<128> NameStr;
+  getNameWithPrefix(NameStr, GV, TLOF->getMangler());
   return TLOF->getContext().getOrCreateSymbol(NameStr);
 }

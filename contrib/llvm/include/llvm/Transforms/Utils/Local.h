@@ -32,6 +32,7 @@ class BranchInst;
 class Instruction;
 class CallInst;
 class DbgDeclareInst;
+class DbgValueInst;
 class StoreInst;
 class LoadInst;
 class Value;
@@ -47,6 +48,8 @@ class DominatorTree;
 class LazyValueInfo;
 
 template<typename T> class SmallVectorImpl;
+
+typedef SmallVector<DbgValueInst *, 1> DbgValueList;
 
 //===----------------------------------------------------------------------===//
 //  Local constant propagation.
@@ -161,10 +164,15 @@ AllocaInst *DemoteRegToStack(Instruction &X,
 /// deleted and it returns the pointer to the alloca inserted.
 AllocaInst *DemotePHIToStack(PHINode *P, Instruction *AllocaPoint = nullptr);
 
-/// If the specified pointer has an alignment that we can determine, return it,
-/// otherwise return 0. If PrefAlign is specified, and it is more than the
-/// alignment of the ultimate object, see if we can increase the alignment of
-/// the ultimate object, making this check succeed.
+/// Try to ensure that the alignment of \p V is at least \p PrefAlign bytes. If
+/// the owning object can be modified and has an alignment less than \p
+/// PrefAlign, it will be increased and \p PrefAlign returned. If the alignment
+/// cannot be increased, the known alignment of the value is returned.
+///
+/// It is not always possible to modify the alignment of the underlying object,
+/// so if alignment is important, a more reliable approach is to simply align
+/// all global variables and allocation instructions to their preferred
+/// alignment from the beginning.
 unsigned getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
                                     const DataLayout &DL,
                                     const Instruction *CxtI = nullptr,
@@ -209,7 +217,7 @@ Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &DL, User *GEP,
         continue;
 
       // Handle a struct index, which adds its field offset to the pointer.
-      if (StructType *STy = dyn_cast<StructType>(*GTI)) {
+      if (StructType *STy = GTI.getStructTypeOrNull()) {
         if (OpC->getType()->isVectorTy())
           OpC = OpC->getSplatValue();
 
@@ -250,13 +258,18 @@ Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &DL, User *GEP,
 
 /// Inserts a llvm.dbg.value intrinsic before a store to an alloca'd value
 /// that has an associated llvm.dbg.decl intrinsic.
-bool ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+void ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
                                      StoreInst *SI, DIBuilder &Builder);
 
 /// Inserts a llvm.dbg.value intrinsic before a load of an alloca'd value
 /// that has an associated llvm.dbg.decl intrinsic.
-bool ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+void ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
                                      LoadInst *LI, DIBuilder &Builder);
+
+/// Inserts a llvm.dbg.value intrinsic after a phi of an alloca'd value
+/// that has an associated llvm.dbg.decl intrinsic.
+void ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+                                     PHINode *LI, DIBuilder &Builder);
 
 /// Lowers llvm.dbg.declare intrinsics into appropriate set of
 /// llvm.dbg.value intrinsics.
@@ -264,6 +277,9 @@ bool LowerDbgDeclare(Function &F);
 
 /// Finds the llvm.dbg.declare intrinsic corresponding to an alloca, if any.
 DbgDeclareInst *FindAllocaDbgDeclare(Value *V);
+
+/// Finds the llvm.dbg.value intrinsics corresponding to an alloca, if any.
+void FindAllocaDbgValues(DbgValueList &DbgValues, Value *V);
 
 /// Replaces llvm.dbg.declare instruction when the address it describes
 /// is replaced with a new value. If Deref is true, an additional DW_OP_deref is
@@ -296,7 +312,15 @@ unsigned removeAllNonTerminatorAndEHPadInstructions(BasicBlock *BB);
 
 /// Insert an unreachable instruction before the specified
 /// instruction, making it and the rest of the code in the block dead.
-unsigned changeToUnreachable(Instruction *I, bool UseLLVMTrap);
+unsigned changeToUnreachable(Instruction *I, bool UseLLVMTrap,
+                             bool PreserveLCSSA = false);
+
+/// Convert the CallInst to InvokeInst with the specified unwind edge basic
+/// block.  This also splits the basic block where CI is located, because
+/// InvokeInst is a terminator instruction.  Returns the newly split basic
+/// block.
+BasicBlock *changeToInvokeAndSplitBasicBlock(CallInst *CI,
+                                             BasicBlock *UnwindEdge);
 
 /// Replace 'BB's terminator with one that does not have an unwind successor
 /// block. Rewrites `invoke` to `call`, etc. Updates any PHIs in unwind
@@ -315,6 +339,12 @@ bool removeUnreachableBlocks(Function &F, LazyValueInfo *LVI = nullptr);
 ///
 /// Metadata not listed as known via KnownIDs is removed
 void combineMetadata(Instruction *K, const Instruction *J, ArrayRef<unsigned> KnownIDs);
+
+/// Combine the metadata of two instructions so that K can replace J. This
+/// specifically handles the case of CSE-like transformations.
+///
+/// Unknown metadata is removed.
+void combineMetadataForCSE(Instruction *K, const Instruction *J);
 
 /// Replace each use of 'From' with 'To' if that use is dominated by
 /// the given edge.  Returns the number of replacements made.

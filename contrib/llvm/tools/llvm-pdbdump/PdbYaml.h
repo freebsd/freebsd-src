@@ -13,8 +13,10 @@
 #include "OutputStyle.h"
 
 #include "llvm/ADT/Optional.h"
+#include "llvm/DebugInfo/CodeView/SymbolRecord.h"
+#include "llvm/DebugInfo/CodeView/TypeRecord.h"
+#include "llvm/DebugInfo/MSF/MSFCommon.h"
 #include "llvm/DebugInfo/PDB/PDBTypes.h"
-#include "llvm/DebugInfo/PDB/Raw/MsfCommon.h"
 #include "llvm/DebugInfo/PDB/Raw/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Raw/RawConstants.h"
 #include "llvm/Support/Endian.h"
@@ -26,7 +28,9 @@ namespace llvm {
 namespace pdb {
 
 namespace yaml {
-struct MsfHeaders {
+struct SerializationContext;
+
+struct MSFHeaders {
   msf::SuperBlock SuperBlock;
   uint32_t NumDirectoryBlocks;
   std::vector<uint32_t> DirectoryBlocks;
@@ -51,6 +55,22 @@ struct PdbInfoStream {
   std::vector<NamedStreamMapping> NamedStreams;
 };
 
+struct PdbSymbolRecord {
+  codeview::CVSymbol Record;
+};
+
+struct PdbModiStream {
+  uint32_t Signature;
+  std::vector<PdbSymbolRecord> Symbols;
+};
+
+struct PdbDbiModuleInfo {
+  StringRef Obj;
+  StringRef Mod;
+  std::vector<StringRef> SourceFiles;
+  Optional<PdbModiStream> Modi;
+};
+
 struct PdbDbiStream {
   PdbRaw_DbiVer VerHeader;
   uint32_t Age;
@@ -59,14 +79,35 @@ struct PdbDbiStream {
   uint16_t PdbDllRbld;
   uint16_t Flags;
   PDB_Machine MachineType;
+
+  std::vector<PdbDbiModuleInfo> ModInfos;
+};
+
+struct PdbTpiRecord {
+  codeview::CVType Record;
+};
+
+struct PdbTpiFieldListRecord {
+  codeview::CVMemberRecord Record;
+};
+
+struct PdbTpiStream {
+  PdbRaw_TpiVer Version;
+  std::vector<PdbTpiRecord> Records;
 };
 
 struct PdbObject {
-  Optional<MsfHeaders> Headers;
+  explicit PdbObject(BumpPtrAllocator &Allocator) : Allocator(Allocator) {}
+
+  Optional<MSFHeaders> Headers;
   Optional<std::vector<uint32_t>> StreamSizes;
   Optional<std::vector<StreamBlockList>> StreamMap;
   Optional<PdbInfoStream> PdbStream;
   Optional<PdbDbiStream> DbiStream;
+  Optional<PdbTpiStream> TpiStream;
+  Optional<PdbTpiStream> IpiStream;
+
+  BumpPtrAllocator &Allocator;
 };
 }
 }
@@ -79,12 +120,12 @@ template <> struct MappingTraits<pdb::yaml::PdbObject> {
   static void mapping(IO &IO, pdb::yaml::PdbObject &Obj);
 };
 
-template <> struct MappingTraits<pdb::yaml::MsfHeaders> {
-  static void mapping(IO &IO, pdb::yaml::MsfHeaders &Obj);
+template <> struct MappingTraits<pdb::yaml::MSFHeaders> {
+  static void mapping(IO &IO, pdb::yaml::MSFHeaders &Obj);
 };
 
-template <> struct MappingTraits<pdb::msf::SuperBlock> {
-  static void mapping(IO &IO, pdb::msf::SuperBlock &SB);
+template <> struct MappingTraits<msf::SuperBlock> {
+  static void mapping(IO &IO, msf::SuperBlock &SB);
 };
 
 template <> struct MappingTraits<pdb::yaml::StreamBlockList> {
@@ -99,14 +140,35 @@ template <> struct MappingTraits<pdb::yaml::PdbDbiStream> {
   static void mapping(IO &IO, pdb::yaml::PdbDbiStream &Obj);
 };
 
+template <>
+struct MappingContextTraits<pdb::yaml::PdbTpiStream, llvm::BumpPtrAllocator> {
+  static void mapping(IO &IO, pdb::yaml::PdbTpiStream &Obj,
+                      llvm::BumpPtrAllocator &Allocator);
+};
+
 template <> struct MappingTraits<pdb::yaml::NamedStreamMapping> {
   static void mapping(IO &IO, pdb::yaml::NamedStreamMapping &Obj);
 };
-}
-}
 
-LLVM_YAML_IS_SEQUENCE_VECTOR(uint32_t)
-LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::NamedStreamMapping)
-LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::StreamBlockList)
+template <> struct MappingTraits<pdb::yaml::PdbSymbolRecord> {
+  static void mapping(IO &IO, pdb::yaml::PdbSymbolRecord &Obj);
+};
+
+template <> struct MappingTraits<pdb::yaml::PdbModiStream> {
+  static void mapping(IO &IO, pdb::yaml::PdbModiStream &Obj);
+};
+
+template <> struct MappingTraits<pdb::yaml::PdbDbiModuleInfo> {
+  static void mapping(IO &IO, pdb::yaml::PdbDbiModuleInfo &Obj);
+};
+
+template <>
+struct MappingContextTraits<pdb::yaml::PdbTpiRecord,
+                            pdb::yaml::SerializationContext> {
+  static void mapping(IO &IO, pdb::yaml::PdbTpiRecord &Obj,
+                      pdb::yaml::SerializationContext &Context);
+};
+}
+}
 
 #endif // LLVM_TOOLS_LLVMPDBDUMP_PDBYAML_H

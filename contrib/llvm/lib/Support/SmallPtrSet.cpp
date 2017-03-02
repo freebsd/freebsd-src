@@ -16,6 +16,7 @@
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/Support/MathExtras.h"
 #include <algorithm>
+#include <cassert>
 #include <cstdlib>
 
 using namespace llvm;
@@ -60,38 +61,13 @@ SmallPtrSetImplBase::insert_imp_big(const void *Ptr) {
   return std::make_pair(Bucket, true);
 }
 
-bool SmallPtrSetImplBase::erase_imp(const void * Ptr) {
-  if (isSmall()) {
-    // Check to see if it is in the set.
-    for (const void **APtr = CurArray, **E = CurArray + NumNonEmpty; APtr != E;
-         ++APtr)
-      if (*APtr == Ptr) {
-        // If it is in the set, replace this element.
-        *APtr = getTombstoneMarker();
-        ++NumTombstones;
-        return true;
-      }
-
-    return false;
-  }
-
-  // Okay, we know we have space.  Find a hash bucket.
-  void **Bucket = const_cast<void**>(FindBucketFor(Ptr));
-  if (*Bucket != Ptr) return false;  // Not in the set?
-
-  // Set this as a tombstone.
-  *Bucket = getTombstoneMarker();
-  ++NumTombstones;
-  return true;
-}
-
 const void * const *SmallPtrSetImplBase::FindBucketFor(const void *Ptr) const {
   unsigned Bucket = DenseMapInfo<void *>::getHashValue(Ptr) & (CurArraySize-1);
   unsigned ArraySize = CurArraySize;
   unsigned ProbeAmt = 1;
   const void *const *Array = CurArray;
   const void *const *Tombstone = nullptr;
-  while (1) {
+  while (true) {
     // If we found an empty bucket, the pointer doesn't exist in the set.
     // Return a tombstone if we've seen one so far, or the empty bucket if
     // not.

@@ -182,6 +182,7 @@ void DataLayout::reset(StringRef Desc) {
   BigEndian = false;
   StackNaturalAlign = 0;
   ManglingMode = MM_None;
+  NonIntegralAddressSpaces.clear();
 
   // Default alignments
   for (const LayoutAlignElem &E : DefaultAlignments) {
@@ -233,6 +234,19 @@ void DataLayout::parseSpecifier(StringRef Desc) {
     // Aliases used below.
     StringRef &Tok  = Split.first;  // Current token.
     StringRef &Rest = Split.second; // The rest of the string.
+
+    if (Tok == "ni") {
+      do {
+        Split = split(Rest, ':');
+        Rest = Split.second;
+        unsigned AS = getInt(Split.first);
+        if (AS == 0)
+          report_fatal_error("Address space 0 can never be non-integral");
+        NonIntegralAddressSpaces.push_back(AS);
+      } while (!Rest.empty());
+
+      continue;
+    }
 
     char Specifier = Tok.front();
     Tok = Tok.substr(1);
@@ -492,10 +506,7 @@ unsigned DataLayout::getAlignmentInfo(AlignTypeEnum AlignType,
       // with what clang and llvm-gcc do.
       unsigned Align = getTypeAllocSize(cast<VectorType>(Ty)->getElementType());
       Align *= cast<VectorType>(Ty)->getNumElements();
-      // If the alignment is not a power of 2, round up to the next power of 2.
-      // This happens for non-power-of-2 length vectors.
-      if (Align & (Align-1))
-        Align = NextPowerOf2(Align);
+      Align = PowerOf2Ceil(Align);
       return Align;
     }
   }
@@ -508,8 +519,7 @@ unsigned DataLayout::getAlignmentInfo(AlignTypeEnum AlignType,
   // layout.
   if (BestMatchIdx == -1) {
     unsigned Align = getTypeStoreSize(Ty);
-    if (Align & (Align-1))
-      Align = NextPowerOf2(Align);
+    Align = PowerOf2Ceil(Align);
     return Align;
   }
 
@@ -727,15 +737,12 @@ int64_t DataLayout::getIndexedOffsetInType(Type *ElemTy,
                                            ArrayRef<Value *> Indices) const {
   int64_t Result = 0;
 
-  // We can use 0 as the address space as we don't need
-  // to get pointer types back from gep_type_iterator.
-  unsigned AS = 0;
   generic_gep_type_iterator<Value* const*>
-    GTI = gep_type_begin(ElemTy, AS, Indices),
-    GTE = gep_type_end(ElemTy, AS, Indices);
+    GTI = gep_type_begin(ElemTy, Indices),
+    GTE = gep_type_end(ElemTy, Indices);
   for (; GTI != GTE; ++GTI) {
     Value *Idx = GTI.getOperand();
-    if (auto *STy = dyn_cast<StructType>(*GTI)) {
+    if (StructType *STy = GTI.getStructTypeOrNull()) {
       assert(Idx->getType()->isIntegerTy(32) && "Illegal struct idx");
       unsigned FieldNo = cast<ConstantInt>(Idx)->getZExtValue();
 

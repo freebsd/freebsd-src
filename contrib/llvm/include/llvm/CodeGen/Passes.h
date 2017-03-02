@@ -20,8 +20,8 @@
 
 namespace llvm {
 
-class Function;
 class FunctionPass;
+class MachineFunction;
 class MachineFunctionPass;
 class ModulePass;
 class Pass;
@@ -43,6 +43,9 @@ namespace llvm {
   /// the entry block.
   FunctionPass *createUnreachableBlockEliminationPass();
 
+  /// Insert mcount-like function calls.
+  FunctionPass *createCountingFunctionInserterPass();
+
   /// MachineFunctionPrinter pass - This pass prints out the machine function to
   /// the given stream as a debugging tool.
   MachineFunctionPass *
@@ -52,6 +55,12 @@ namespace llvm {
   /// MIRPrinting pass - this pass prints out the LLVM IR into the given stream
   /// using the MIR serialization format.
   MachineFunctionPass *createPrintMIRPass(raw_ostream &OS);
+
+  /// This pass resets a MachineFunction when it has the FailedISel property
+  /// as if it was just created.
+  /// If EmitFallbackDiag is true, the pass will emit a
+  /// DiagnosticInfoISelFallback for every MachineFunction it resets.
+  MachineFunctionPass *createResetMachineFunctionPass(bool EmitFallbackDiag);
 
   /// createCodeGenPreparePass - Transform the code to expose more pattern
   /// matching during instruction selection.
@@ -115,6 +124,9 @@ namespace llvm {
   // instruction and update the MachineFunctionInfo with that information.
   extern char &ShrinkWrapID;
 
+  /// Greedy register allocator.
+  extern char &RAGreedyID;
+
   /// VirtRegRewriter pass. Rewrite virtual registers to physical registers as
   /// assigned in VirtRegMap.
   extern char &VirtRegRewriterID;
@@ -172,6 +184,10 @@ namespace llvm {
   /// branches.
   extern char &BranchFolderPassID;
 
+  /// BranchRelaxation - This pass replaces branches that need to jump further
+  /// than is supported by a branch instruction.
+  extern char &BranchRelaxationPassID;
+
   /// MachineFunctionPrinterPass - This pass prints out MachineInstr's.
   extern char &MachineFunctionPrinterPassID;
 
@@ -202,7 +218,8 @@ namespace llvm {
   /// IfConverter - This pass performs machine code if conversion.
   extern char &IfConverterID;
 
-  FunctionPass *createIfConverter(std::function<bool(const Function &)> Ftor);
+  FunctionPass *createIfConverter(
+      std::function<bool(const MachineFunction &)> Ftor);
 
   /// MachineBlockPlacement - This pass places basic blocks based on branch
   /// probabilities.
@@ -313,7 +330,7 @@ namespace llvm {
   extern char &UnpackMachineBundlesID;
 
   FunctionPass *
-  createUnpackMachineBundles(std::function<bool(const Function &)> Ftor);
+  createUnpackMachineBundles(std::function<bool(const MachineFunction &)> Ftor);
 
   /// FinalizeMachineBundles - This pass finalize machine instruction
   /// bundles (created earlier, e.g. during pre-RA scheduling).
@@ -374,6 +391,12 @@ namespace llvm {
   /// and propagates register usage information of callee to caller
   /// if available with PysicalRegisterUsageInfo pass.
   FunctionPass *createRegUsageInfoPropPass();
+
+  /// This pass performs software pipelining on machine instructions.
+  extern char &MachinePipelinerID;
+
+  /// This pass frees the memory occupied by the MachineFunction.
+  FunctionPass *createFreeMachineFunctionPass();
 } // End llvm namespace
 
 /// Target machine pass initializer for passes with dependencies. Use with

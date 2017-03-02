@@ -112,6 +112,18 @@ static void ConnectProlog(Loop *L, Value *BECount, unsigned Count,
     }
   }
 
+  // Make sure that created prolog loop is in simplified form
+  SmallVector<BasicBlock *, 4> PrologExitPreds;
+  Loop *PrologLoop = LI->getLoopFor(PrologLatch);
+  if (PrologLoop) {
+    for (BasicBlock *PredBB : predecessors(PrologExit))
+      if (PrologLoop->contains(PredBB))
+        PrologExitPreds.push_back(PredBB);
+
+    SplitBlockPredecessors(PrologExit, PrologExitPreds, ".unr-lcssa", DT, LI,
+                           PreserveLCSSA);
+  }
+
   // Create a branch around the original loop, which is taken if there are no
   // iterations remaining to be executed after running the prologue.
   Instruction *InsertPt = PrologExit->getTerminator();
@@ -289,16 +301,23 @@ static void CloneLoopBlocks(Loop *L, Value *NewIter,
       LI->addTopLevelLoop(NewLoop);
   }
 
+  NewLoopsMap NewLoops;
+  if (NewLoop)
+    NewLoops[L] = NewLoop;
+  else if (ParentLoop)
+    NewLoops[L] = ParentLoop;
+
   // For each block in the original loop, create a new copy,
   // and update the value map with the newly created values.
   for (LoopBlocksDFS::RPOIterator BB = BlockBegin; BB != BlockEnd; ++BB) {
     BasicBlock *NewBB = CloneBasicBlock(*BB, VMap, "." + suffix, F);
     NewBlocks.push_back(NewBB);
-
-    if (NewLoop)
-      NewLoop->addBasicBlockToLoop(NewBB, *LI);
-    else if (ParentLoop)
-      ParentLoop->addBasicBlockToLoop(NewBB, *LI);
+   
+    // If we're unrolling the outermost loop, there's no remainder loop,
+    // and this block isn't in a nested loop, then the new block is not
+    // in any loop. Otherwise, add it to loopinfo.
+    if (CreateRemainderLoop || LI->getLoopFor(*BB) != L || ParentLoop)
+      addClonedBlockToLoopInfo(*BB, NewBB, LI, NewLoops);
 
     VMap[*BB] = NewBB;
     if (Header == *BB) {
@@ -478,11 +497,6 @@ bool llvm::UnrollRuntimeLoopRemainder(Loop *L, unsigned Count,
   // comment on ModVal below.
   if (Log2_32(Count) > BEWidth)
     return false;
-
-  // If this loop is nested, then the loop unroller changes the code in the
-  // parent loop, so the Scalar Evolution pass needs to be run again.
-  if (Loop *ParentLoop = L->getParentLoop())
-    SE->forgetLoop(ParentLoop);
 
   BasicBlock *Latch = L->getLoopLatch();
 
@@ -673,6 +687,12 @@ bool llvm::UnrollRuntimeLoopRemainder(Loop *L, unsigned Count,
     ConnectProlog(L, BECount, Count, PrologExit, PreHeader, NewPreHeader,
                   VMap, DT, LI, PreserveLCSSA);
   }
+
+  // If this loop is nested, then the loop unroller changes the code in the
+  // parent loop, so the Scalar Evolution pass needs to be run again.
+  if (Loop *ParentLoop = L->getParentLoop())
+    SE->forgetLoop(ParentLoop);
+
   NumRuntimeUnrolled++;
   return true;
 }

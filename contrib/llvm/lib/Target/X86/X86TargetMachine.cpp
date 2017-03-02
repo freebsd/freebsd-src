@@ -13,8 +13,12 @@
 
 #include "X86TargetMachine.h"
 #include "X86.h"
+#include "X86CallLowering.h"
 #include "X86TargetObjectFile.h"
 #include "X86TargetTransformInfo.h"
+#include "llvm/CodeGen/GlobalISel/GISelAccessor.h"
+#include "llvm/CodeGen/GlobalISel/IRTranslator.h"
+#include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/Function.h"
@@ -35,12 +39,14 @@ void initializeWinEHStatePassPass(PassRegistry &);
 
 extern "C" void LLVMInitializeX86Target() {
   // Register the target.
-  RegisterTargetMachine<X86TargetMachine> X(TheX86_32Target);
-  RegisterTargetMachine<X86TargetMachine> Y(TheX86_64Target);
+  RegisterTargetMachine<X86TargetMachine> X(getTheX86_32Target());
+  RegisterTargetMachine<X86TargetMachine> Y(getTheX86_64Target());
 
   PassRegistry &PR = *PassRegistry::getPassRegistry();
+  initializeGlobalISel(PR);
   initializeWinEHStatePassPass(PR);
   initializeFixupBWInstPassPass(PR);
+  initializeEvexToVexInstPassPass(PR);
 }
 
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
@@ -50,8 +56,12 @@ static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
     return make_unique<TargetLoweringObjectFileMachO>();
   }
 
+  if (TT.isOSFreeBSD())
+    return make_unique<X86FreeBSDTargetObjectFile>();
   if (TT.isOSLinux() || TT.isOSNaCl())
     return make_unique<X86LinuxNaClTargetObjectFile>();
+  if (TT.isOSFuchsia())
+    return make_unique<X86FuchsiaTargetObjectFile>();
   if (TT.isOSBinFormatELF())
     return make_unique<X86ELFTargetObjectFile>();
   if (TT.isKnownWindowsMSVCEnvironment() || TT.isWindowsCoreCLREnvironment())
@@ -151,32 +161,47 @@ X86TargetMachine::X86TargetMachine(const Target &T, const Triple &TT,
                                    CodeModel::Model CM, CodeGenOpt::Level OL)
     : LLVMTargetMachine(T, computeDataLayout(TT), TT, CPU, FS, Options,
                         getEffectiveRelocModel(TT, RM), CM, OL),
-      TLOF(createTLOF(getTargetTriple())),
-      Subtarget(TT, CPU, FS, *this, Options.StackAlignmentOverride) {
+      TLOF(createTLOF(getTargetTriple())) {
   // Windows stack unwinder gets confused when execution flow "falls through"
   // after a call to 'noreturn' function.
   // To prevent that, we emit a trap for 'unreachable' IR instructions.
   // (which on X86, happens to be the 'ud2' instruction)
   // On PS4, the "return address" of a 'noreturn' call must still be within
   // the calling function, and TrapUnreachable is an easy way to get that.
-  if (Subtarget.isTargetWin64() || Subtarget.isTargetPS4())
+  // The check here for 64-bit windows is a bit icky, but as we're unlikely
+  // to ever want to mix 32 and 64-bit windows code in a single module
+  // this should be fine.
+  if ((TT.isOSWindows() && TT.getArch() == Triple::x86_64) || TT.isPS4())
     this->Options.TrapUnreachable = true;
-
-  // By default (and when -ffast-math is on), enable estimate codegen for
-  // everything except scalar division. By default, use 1 refinement step for
-  // all operations. Defaults may be overridden by using command-line options.
-  // Scalar division estimates are disabled because they break too much
-  // real-world code. These defaults match GCC behavior.
-  this->Options.Reciprocals.setDefaults("sqrtf", true, 1);
-  this->Options.Reciprocals.setDefaults("divf", false, 1);
-  this->Options.Reciprocals.setDefaults("vec-sqrtf", true, 1);
-  this->Options.Reciprocals.setDefaults("vec-divf", true, 1);
 
   initAsmInfo();
 }
 
 X86TargetMachine::~X86TargetMachine() {}
 
+#ifdef LLVM_BUILD_GLOBAL_ISEL
+namespace {
+struct X86GISelActualAccessor : public GISelAccessor {
+  std::unique_ptr<CallLowering> CL;
+  X86GISelActualAccessor(CallLowering* CL): CL(CL) {}
+  const CallLowering *getCallLowering() const override {
+    return CL.get();
+  }
+  const InstructionSelector *getInstructionSelector() const override {
+    //TODO: Implement
+    return nullptr;
+  }
+  const LegalizerInfo *getLegalizerInfo() const override {
+    //TODO: Implement
+    return nullptr;
+  }
+  const RegisterBankInfo *getRegBankInfo() const override {
+    //TODO: Implement
+    return nullptr;
+  }
+};
+} // End anonymous namespace.
+#endif
 const X86Subtarget *
 X86TargetMachine::getSubtargetImpl(const Function &F) const {
   Attribute CPUAttr = F.getFnAttribute("target-cpu");
@@ -216,6 +241,13 @@ X86TargetMachine::getSubtargetImpl(const Function &F) const {
     resetTargetOptions(F);
     I = llvm::make_unique<X86Subtarget>(TargetTriple, CPU, FS, *this,
                                         Options.StackAlignmentOverride);
+#ifndef LLVM_BUILD_GLOBAL_ISEL
+    GISelAccessor *GISel = new GISelAccessor();
+#else
+    X86GISelActualAccessor *GISel = new X86GISelActualAccessor(
+        new X86CallLowering(*I->getTargetLowering()));
+#endif
+    I->setGISelAccessor(*GISel);
   }
   return I.get();
 }
@@ -254,9 +286,22 @@ public:
     return getTM<X86TargetMachine>();
   }
 
+  ScheduleDAGInstrs *
+  createMachineScheduler(MachineSchedContext *C) const override {
+    ScheduleDAGMILive *DAG = createGenericSchedLive(C);
+    DAG->addMutation(createMacroFusionDAGMutation(DAG->TII));
+    return DAG;
+  }
+
   void addIRPasses() override;
   bool addInstSelector() override;
-  bool addILPOpts() override;
+#ifdef LLVM_BUILD_GLOBAL_ISEL
+  bool addIRTranslator() override;
+  bool addLegalizeMachineIR() override;
+  bool addRegBankSelect() override;
+  bool addGlobalInstructionSelect() override;
+#endif
+bool addILPOpts() override;
   bool addPreISel() override;
   void addPreRegAlloc() override;
   void addPostRegAlloc() override;
@@ -273,6 +318,9 @@ void X86PassConfig::addIRPasses() {
   addPass(createAtomicExpandPass(&getX86TargetMachine()));
 
   TargetPassConfig::addIRPasses();
+
+  if (TM->getOptLevel() != CodeGenOpt::None)
+    addPass(createInterleavedAccessPass(TM));
 }
 
 bool X86PassConfig::addInstSelector() {
@@ -287,6 +335,28 @@ bool X86PassConfig::addInstSelector() {
   addPass(createX86GlobalBaseRegPass());
   return false;
 }
+
+#ifdef LLVM_BUILD_GLOBAL_ISEL
+bool X86PassConfig::addIRTranslator() {
+  addPass(new IRTranslator());
+  return false;
+}
+
+bool X86PassConfig::addLegalizeMachineIR() {
+  //TODO: Implement
+  return false;
+}
+
+bool X86PassConfig::addRegBankSelect() {
+  //TODO: Implement
+  return false;
+}
+
+bool X86PassConfig::addGlobalInstructionSelect() {
+  //TODO: Implement
+  return false;
+}
+#endif
 
 bool X86PassConfig::addILPOpts() {
   addPass(&EarlyIfConverterID);
@@ -321,7 +391,7 @@ void X86PassConfig::addPreSched2() { addPass(createX86ExpandPseudoPass()); }
 
 void X86PassConfig::addPreEmitPass() {
   if (getOptLevel() != CodeGenOpt::None)
-    addPass(createExecutionDependencyFixPass(&X86::VR128RegClass));
+    addPass(createExecutionDependencyFixPass(&X86::VR128XRegClass));
 
   if (UseVZeroUpper)
     addPass(createX86IssueVZeroUpperPass());
@@ -330,5 +400,6 @@ void X86PassConfig::addPreEmitPass() {
     addPass(createX86FixupBWInsts());
     addPass(createX86PadShortFunctions());
     addPass(createX86FixupLEAs());
+    addPass(createX86EvexToVexInsts());
   }
 }

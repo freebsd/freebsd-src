@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/IR/Function.h"
@@ -40,10 +41,18 @@ STATISTIC(NumTailDupRemoved,
 STATISTIC(NumDeadBlocks, "Number of dead blocks removed");
 STATISTIC(NumAddedPHIs, "Number of phis added");
 
+namespace llvm {
+
 // Heuristic for tail duplication.
 static cl::opt<unsigned> TailDuplicateSize(
     "tail-dup-size",
     cl::desc("Maximum instructions to consider tail duplicating"), cl::init(2),
+    cl::Hidden);
+
+cl::opt<unsigned> TailDupIndirectBranchSize(
+    "tail-dup-indirect-size",
+    cl::desc("Maximum instructions to consider tail duplicating blocks that "
+             "end with indirect branches."), cl::init(20),
     cl::Hidden);
 
 static cl::opt<bool>
@@ -54,18 +63,20 @@ static cl::opt<bool>
 static cl::opt<unsigned> TailDupLimit("tail-dup-limit", cl::init(~0U),
                                       cl::Hidden);
 
-namespace llvm {
-
-void TailDuplicator::initMF(MachineFunction &MF, const MachineModuleInfo *MMIin,
-                            const MachineBranchProbabilityInfo *MBPIin) {
-  TII = MF.getSubtarget().getInstrInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
-  MRI = &MF.getRegInfo();
-  MMI = MMIin;
+void TailDuplicator::initMF(MachineFunction &MFin,
+                            const MachineBranchProbabilityInfo *MBPIin,
+                            bool LayoutModeIn, unsigned TailDupSizeIn) {
+  MF = &MFin;
+  TII = MF->getSubtarget().getInstrInfo();
+  TRI = MF->getSubtarget().getRegisterInfo();
+  MRI = &MF->getRegInfo();
+  MMI = &MF->getMMI();
   MBPI = MBPIin;
+  TailDupSize = TailDupSizeIn;
 
   assert(MBPI != nullptr && "Machine Branch Probability Info required");
 
+  LayoutMode = LayoutModeIn;
   PreRegAlloc = MRI->isSSA();
 }
 
@@ -78,10 +89,7 @@ static void VerifyPHIs(MachineFunction &MF, bool CheckExtra) {
     while (MI != MBB->end()) {
       if (!MI->isPHI())
         break;
-      for (SmallSetVector<MachineBasicBlock *, 8>::iterator PI = Preds.begin(),
-                                                            PE = Preds.end();
-           PI != PE; ++PI) {
-        MachineBasicBlock *PredBB = *PI;
+      for (MachineBasicBlock *PredBB : Preds) {
         bool Found = false;
         for (unsigned i = 1, e = MI->getNumOperands(); i != e; i += 2) {
           MachineBasicBlock *PHIBB = MI->getOperand(i + 1).getMBB();
@@ -119,21 +127,31 @@ static void VerifyPHIs(MachineFunction &MF, bool CheckExtra) {
 }
 
 /// Tail duplicate the block and cleanup.
-bool TailDuplicator::tailDuplicateAndUpdate(MachineFunction &MF, bool IsSimple,
-                                            MachineBasicBlock *MBB) {
+/// \p IsSimple - return value of isSimpleBB
+/// \p MBB - block to be duplicated
+/// \p ForcedLayoutPred - If non-null, treat this block as the layout
+///     predecessor, instead of using the ordering in MF
+/// \p DuplicatedPreds - if non-null, \p DuplicatedPreds will contain a list of
+///     all Preds that received a copy of \p MBB.
+/// \p RemovalCallback - if non-null, called just before MBB is deleted.
+bool TailDuplicator::tailDuplicateAndUpdate(
+    bool IsSimple, MachineBasicBlock *MBB,
+    MachineBasicBlock *ForcedLayoutPred,
+    SmallVectorImpl<MachineBasicBlock*> *DuplicatedPreds,
+    llvm::function_ref<void(MachineBasicBlock *)> *RemovalCallback) {
   // Save the successors list.
   SmallSetVector<MachineBasicBlock *, 8> Succs(MBB->succ_begin(),
                                                MBB->succ_end());
 
   SmallVector<MachineBasicBlock *, 8> TDBBs;
   SmallVector<MachineInstr *, 16> Copies;
-  if (!tailDuplicate(MF, IsSimple, MBB, TDBBs, Copies))
+  if (!tailDuplicate(IsSimple, MBB, ForcedLayoutPred, TDBBs, Copies))
     return false;
 
   ++NumTails;
 
   SmallVector<MachineInstr *, 8> NewPHIs;
-  MachineSSAUpdater SSAUpdate(MF, &NewPHIs);
+  MachineSSAUpdater SSAUpdate(*MF, &NewPHIs);
 
   // TailBB's immediate successors are now successors of those predecessors
   // which duplicated TailBB. Add the predecessors as sources to the PHI
@@ -145,7 +163,7 @@ bool TailDuplicator::tailDuplicateAndUpdate(MachineFunction &MF, bool IsSimple,
   // If it is dead, remove it.
   if (isDead) {
     NumTailDupRemoved += MBB->size();
-    removeDeadBlock(MBB);
+    removeDeadBlock(MBB, RemovalCallback);
     ++NumDeadBlocks;
   }
 
@@ -216,21 +234,24 @@ bool TailDuplicator::tailDuplicateAndUpdate(MachineFunction &MF, bool IsSimple,
   if (NewPHIs.size())
     NumAddedPHIs += NewPHIs.size();
 
+  if (DuplicatedPreds)
+    *DuplicatedPreds = std::move(TDBBs);
+
   return true;
 }
 
 /// Look for small blocks that are unconditionally branched to and do not fall
 /// through. Tail-duplicate their instructions into their predecessors to
 /// eliminate (dynamic) branches.
-bool TailDuplicator::tailDuplicateBlocks(MachineFunction &MF) {
+bool TailDuplicator::tailDuplicateBlocks() {
   bool MadeChange = false;
 
   if (PreRegAlloc && TailDupVerify) {
     DEBUG(dbgs() << "\n*** Before tail-duplicating\n");
-    VerifyPHIs(MF, true);
+    VerifyPHIs(*MF, true);
   }
 
-  for (MachineFunction::iterator I = ++MF.begin(), E = MF.end(); I != E;) {
+  for (MachineFunction::iterator I = ++MF->begin(), E = MF->end(); I != E;) {
     MachineBasicBlock *MBB = &*I++;
 
     if (NumTails == TailDupLimit)
@@ -238,14 +259,14 @@ bool TailDuplicator::tailDuplicateBlocks(MachineFunction &MF) {
 
     bool IsSimple = isSimpleBB(MBB);
 
-    if (!shouldTailDuplicate(MF, IsSimple, *MBB))
+    if (!shouldTailDuplicate(IsSimple, *MBB))
       continue;
 
-    MadeChange |= tailDuplicateAndUpdate(MF, IsSimple, MBB);
+    MadeChange |= tailDuplicateAndUpdate(IsSimple, MBB, nullptr);
   }
 
   if (PreRegAlloc && TailDupVerify)
-    VerifyPHIs(MF, false);
+    VerifyPHIs(*MF, false);
 
   return MadeChange;
 }
@@ -334,10 +355,9 @@ void TailDuplicator::processPHI(
 /// the source operands due to earlier PHI translation.
 void TailDuplicator::duplicateInstruction(
     MachineInstr *MI, MachineBasicBlock *TailBB, MachineBasicBlock *PredBB,
-    MachineFunction &MF,
     DenseMap<unsigned, RegSubRegPair> &LocalVRMap,
     const DenseSet<unsigned> &UsedByPhi) {
-  MachineInstr *NewMI = TII->duplicate(*MI, MF);
+  MachineInstr *NewMI = TII->duplicate(*MI, *MF);
   if (PreRegAlloc) {
     for (unsigned i = 0, e = NewMI->getNumOperands(); i != e; ++i) {
       MachineOperand &MO = NewMI->getOperand(i);
@@ -421,18 +441,14 @@ void TailDuplicator::updateSuccessorsPHIs(
     MachineBasicBlock *FromBB, bool isDead,
     SmallVectorImpl<MachineBasicBlock *> &TDBBs,
     SmallSetVector<MachineBasicBlock *, 8> &Succs) {
-  for (SmallSetVector<MachineBasicBlock *, 8>::iterator SI = Succs.begin(),
-                                                        SE = Succs.end();
-       SI != SE; ++SI) {
-    MachineBasicBlock *SuccBB = *SI;
-    for (MachineBasicBlock::iterator II = SuccBB->begin(), EE = SuccBB->end();
-         II != EE; ++II) {
-      if (!II->isPHI())
+  for (MachineBasicBlock *SuccBB : Succs) {
+    for (MachineInstr &MI : *SuccBB) {
+      if (!MI.isPHI())
         break;
-      MachineInstrBuilder MIB(*FromBB->getParent(), II);
+      MachineInstrBuilder MIB(*FromBB->getParent(), MI);
       unsigned Idx = 0;
-      for (unsigned i = 1, e = II->getNumOperands(); i != e; i += 2) {
-        MachineOperand &MO = II->getOperand(i + 1);
+      for (unsigned i = 1, e = MI.getNumOperands(); i != e; i += 2) {
+        MachineOperand &MO = MI.getOperand(i + 1);
         if (MO.getMBB() == FromBB) {
           Idx = i;
           break;
@@ -440,17 +456,17 @@ void TailDuplicator::updateSuccessorsPHIs(
       }
 
       assert(Idx != 0);
-      MachineOperand &MO0 = II->getOperand(Idx);
+      MachineOperand &MO0 = MI.getOperand(Idx);
       unsigned Reg = MO0.getReg();
       if (isDead) {
         // Folded into the previous BB.
         // There could be duplicate phi source entries. FIXME: Should sdisel
         // or earlier pass fixed this?
-        for (unsigned i = II->getNumOperands() - 2; i != Idx; i -= 2) {
-          MachineOperand &MO = II->getOperand(i + 1);
+        for (unsigned i = MI.getNumOperands() - 2; i != Idx; i -= 2) {
+          MachineOperand &MO = MI.getOperand(i + 1);
           if (MO.getMBB() == FromBB) {
-            II->RemoveOperand(i + 1);
-            II->RemoveOperand(i);
+            MI.RemoveOperand(i + 1);
+            MI.RemoveOperand(i);
           }
         }
       } else
@@ -474,8 +490,8 @@ void TailDuplicator::updateSuccessorsPHIs(
 
           unsigned SrcReg = LI->second[j].second;
           if (Idx != 0) {
-            II->getOperand(Idx).setReg(SrcReg);
-            II->getOperand(Idx + 1).setMBB(SrcBB);
+            MI.getOperand(Idx).setReg(SrcReg);
+            MI.getOperand(Idx + 1).setMBB(SrcBB);
             Idx = 0;
           } else {
             MIB.addReg(SrcReg).addMBB(SrcBB);
@@ -486,8 +502,8 @@ void TailDuplicator::updateSuccessorsPHIs(
         for (unsigned j = 0, ee = TDBBs.size(); j != ee; ++j) {
           MachineBasicBlock *SrcBB = TDBBs[j];
           if (Idx != 0) {
-            II->getOperand(Idx).setReg(Reg);
-            II->getOperand(Idx + 1).setMBB(SrcBB);
+            MI.getOperand(Idx).setReg(Reg);
+            MI.getOperand(Idx + 1).setMBB(SrcBB);
             Idx = 0;
           } else {
             MIB.addReg(Reg).addMBB(SrcBB);
@@ -495,19 +511,20 @@ void TailDuplicator::updateSuccessorsPHIs(
         }
       }
       if (Idx != 0) {
-        II->RemoveOperand(Idx + 1);
-        II->RemoveOperand(Idx);
+        MI.RemoveOperand(Idx + 1);
+        MI.RemoveOperand(Idx);
       }
     }
   }
 }
 
 /// Determine if it is profitable to duplicate this block.
-bool TailDuplicator::shouldTailDuplicate(const MachineFunction &MF,
-                                         bool IsSimple,
+bool TailDuplicator::shouldTailDuplicate(bool IsSimple,
                                          MachineBasicBlock &TailBB) {
-  // Only duplicate blocks that end with unconditional branches.
-  if (TailBB.canFallThrough())
+  // When doing tail-duplication during layout, the block ordering is in flux,
+  // so canFallThrough returns a result based on incorrect information and
+  // should just be ignored.
+  if (!LayoutMode && TailBB.canFallThrough())
     return false;
 
   // Don't try to tail-duplicate single-block loops.
@@ -518,12 +535,24 @@ bool TailDuplicator::shouldTailDuplicate(const MachineFunction &MF,
   // duplicate only one, because one branch instruction can be eliminated to
   // compensate for the duplication.
   unsigned MaxDuplicateCount;
-  if (TailDuplicateSize.getNumOccurrences() == 0 &&
-      // FIXME: Use Function::optForSize().
-      MF.getFunction()->hasFnAttribute(Attribute::OptimizeForSize))
+  if (TailDupSize == 0 &&
+      TailDuplicateSize.getNumOccurrences() == 0 &&
+      MF->getFunction()->optForSize())
     MaxDuplicateCount = 1;
-  else
+  else if (TailDupSize == 0)
     MaxDuplicateCount = TailDuplicateSize;
+  else
+    MaxDuplicateCount = TailDupSize;
+
+  // If the block to be duplicated ends in an unanalyzable fallthrough, don't
+  // duplicate it.
+  // A similar check is necessary in MachineBlockPlacement to make sure pairs of
+  // blocks with unanalyzable fallthrough get layed out contiguously.
+  MachineBasicBlock *PredTBB = nullptr, *PredFBB = nullptr;
+  SmallVector<MachineOperand, 4> PredCond;
+  if (TII->analyzeBranch(TailBB, PredTBB, PredFBB, PredCond) &&
+      TailBB.canFallThrough())
+    return false;
 
   // If the target has hardware branch prediction that can handle indirect
   // branches, duplicating them can often make them predictable when there
@@ -536,7 +565,7 @@ bool TailDuplicator::shouldTailDuplicate(const MachineFunction &MF,
     HasIndirectbr = TailBB.back().isIndirectBranch();
 
   if (HasIndirectbr && PreRegAlloc)
-    MaxDuplicateCount = 20;
+    MaxDuplicateCount = TailDupIndirectBranchSize;
 
   // Check the instructions in the block to determine whether tail-duplication
   // is invalid or unlikely to be profitable.
@@ -631,7 +660,7 @@ bool TailDuplicator::canCompletelyDuplicateBB(MachineBasicBlock &BB) {
 
     MachineBasicBlock *PredTBB = nullptr, *PredFBB = nullptr;
     SmallVector<MachineOperand, 4> PredCond;
-    if (TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond, true))
+    if (TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond))
       return false;
 
     if (!PredCond.empty())
@@ -649,11 +678,7 @@ bool TailDuplicator::duplicateSimpleBB(
   SmallVector<MachineBasicBlock *, 8> Preds(TailBB->pred_begin(),
                                             TailBB->pred_end());
   bool Changed = false;
-  for (SmallSetVector<MachineBasicBlock *, 8>::iterator PI = Preds.begin(),
-                                                        PE = Preds.end();
-       PI != PE; ++PI) {
-    MachineBasicBlock *PredBB = *PI;
-
+  for (MachineBasicBlock *PredBB : Preds) {
     if (PredBB->hasEHPadSuccessor())
       continue;
 
@@ -662,7 +687,7 @@ bool TailDuplicator::duplicateSimpleBB(
 
     MachineBasicBlock *PredTBB = nullptr, *PredFBB = nullptr;
     SmallVector<MachineOperand, 4> PredCond;
-    if (TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond, true))
+    if (TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond))
       continue;
 
     Changed = true;
@@ -670,7 +695,7 @@ bool TailDuplicator::duplicateSimpleBB(
                  << "From simple Succ: " << *TailBB);
 
     MachineBasicBlock *NewTarget = *TailBB->succ_begin();
-    MachineBasicBlock *NextBB = &*std::next(PredBB->getIterator());
+    MachineBasicBlock *NextBB = PredBB->getNextNode();
 
     // Make PredFBB explicit.
     if (PredCond.empty())
@@ -700,7 +725,7 @@ bool TailDuplicator::duplicateSimpleBB(
     if (PredTBB == NextBB && PredFBB == nullptr)
       PredTBB = nullptr;
 
-    TII->RemoveBranch(*PredBB);
+    TII->removeBranch(*PredBB);
 
     if (!PredBB->isSuccessor(NewTarget))
       PredBB->replaceSuccessor(TailBB, NewTarget);
@@ -710,17 +735,40 @@ bool TailDuplicator::duplicateSimpleBB(
     }
 
     if (PredTBB)
-      TII->InsertBranch(*PredBB, PredTBB, PredFBB, PredCond, DebugLoc());
+      TII->insertBranch(*PredBB, PredTBB, PredFBB, PredCond, DebugLoc());
 
     TDBBs.push_back(PredBB);
   }
   return Changed;
 }
 
+bool TailDuplicator::canTailDuplicate(MachineBasicBlock *TailBB,
+                                      MachineBasicBlock *PredBB) {
+  // EH edges are ignored by analyzeBranch.
+  if (PredBB->succ_size() > 1)
+    return false;
+
+  MachineBasicBlock *PredTBB, *PredFBB;
+  SmallVector<MachineOperand, 4> PredCond;
+  if (TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond))
+    return false;
+  if (!PredCond.empty())
+    return false;
+  return true;
+}
+
 /// If it is profitable, duplicate TailBB's contents in each
 /// of its predecessors.
-bool TailDuplicator::tailDuplicate(MachineFunction &MF, bool IsSimple,
-                                   MachineBasicBlock *TailBB,
+/// \p IsSimple result of isSimpleBB
+/// \p TailBB   Block to be duplicated.
+/// \p ForcedLayoutPred  When non-null, use this block as the layout predecessor
+///                      instead of the previous block in MF's order.
+/// \p TDBBs             A vector to keep track of all blocks tail-duplicated
+///                      into.
+/// \p Copies            A vector of copy instructions inserted. Used later to
+///                      walk all the inserted copies and remove redundant ones.
+bool TailDuplicator::tailDuplicate(bool IsSimple, MachineBasicBlock *TailBB,
+                                   MachineBasicBlock *ForcedLayoutPred,
                                    SmallVectorImpl<MachineBasicBlock *> &TDBBs,
                                    SmallVectorImpl<MachineInstr *> &Copies) {
   DEBUG(dbgs() << "\n*** Tail-duplicating BB#" << TailBB->getNumber() << '\n');
@@ -737,25 +785,20 @@ bool TailDuplicator::tailDuplicate(MachineFunction &MF, bool IsSimple,
   bool Changed = false;
   SmallSetVector<MachineBasicBlock *, 8> Preds(TailBB->pred_begin(),
                                                TailBB->pred_end());
-  for (SmallSetVector<MachineBasicBlock *, 8>::iterator PI = Preds.begin(),
-                                                        PE = Preds.end();
-       PI != PE; ++PI) {
-    MachineBasicBlock *PredBB = *PI;
-
+  for (MachineBasicBlock *PredBB : Preds) {
     assert(TailBB != PredBB &&
            "Single-block loop should have been rejected earlier!");
-    // EH edges are ignored by AnalyzeBranch.
-    if (PredBB->succ_size() > 1)
+
+    if (!canTailDuplicate(TailBB, PredBB))
       continue;
 
-    MachineBasicBlock *PredTBB, *PredFBB;
-    SmallVector<MachineOperand, 4> PredCond;
-    if (TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond, true))
-      continue;
-    if (!PredCond.empty())
-      continue;
     // Don't duplicate into a fall-through predecessor (at least for now).
-    if (PredBB->isLayoutSuccessor(TailBB) && PredBB->canFallThrough())
+    bool IsLayoutSuccessor = false;
+    if (ForcedLayoutPred)
+      IsLayoutSuccessor = (ForcedLayoutPred == PredBB);
+    else if (PredBB->isLayoutSuccessor(TailBB) && PredBB->canFallThrough())
+      IsLayoutSuccessor = true;
+    if (IsLayoutSuccessor)
       continue;
 
     DEBUG(dbgs() << "\nTail-duplicating into PredBB: " << *PredBB
@@ -764,7 +807,7 @@ bool TailDuplicator::tailDuplicate(MachineFunction &MF, bool IsSimple,
     TDBBs.push_back(PredBB);
 
     // Remove PredBB's unconditional branch.
-    TII->RemoveBranch(*PredBB);
+    TII->removeBranch(*PredBB);
 
     // Clone the contents of TailBB into PredBB.
     DenseMap<unsigned, RegSubRegPair> LocalVRMap;
@@ -782,13 +825,15 @@ bool TailDuplicator::tailDuplicate(MachineFunction &MF, bool IsSimple,
       } else {
         // Replace def of virtual registers with new registers, and update
         // uses with PHI source register or the new registers.
-        duplicateInstruction(MI, TailBB, PredBB, MF, LocalVRMap, UsedByPhi);
+        duplicateInstruction(MI, TailBB, PredBB, LocalVRMap, UsedByPhi);
       }
     }
     appendCopies(PredBB, CopyInfos, Copies);
 
     // Simplify
-    TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond, true);
+    MachineBasicBlock *PredTBB, *PredFBB;
+    SmallVector<MachineOperand, 4> PredCond;
+    TII->analyzeBranch(*PredBB, PredTBB, PredFBB, PredCond);
 
     NumTailDupAdded += TailBB->size() - 1; // subtract one for removed branch
 
@@ -796,10 +841,8 @@ bool TailDuplicator::tailDuplicate(MachineFunction &MF, bool IsSimple,
     PredBB->removeSuccessor(PredBB->succ_begin());
     assert(PredBB->succ_empty() &&
            "TailDuplicate called on block with multiple successors!");
-    for (MachineBasicBlock::succ_iterator I = TailBB->succ_begin(),
-                                          E = TailBB->succ_end();
-         I != E; ++I)
-      PredBB->addSuccessor(*I, MBPI->getEdgeProbability(TailBB, I));
+    for (MachineBasicBlock *Succ : TailBB->successors())
+      PredBB->addSuccessor(Succ, MBPI->getEdgeProbability(TailBB, Succ));
 
     Changed = true;
     ++NumTailDups;
@@ -808,17 +851,27 @@ bool TailDuplicator::tailDuplicate(MachineFunction &MF, bool IsSimple,
   // If TailBB was duplicated into all its predecessors except for the prior
   // block, which falls through unconditionally, move the contents of this
   // block into the prior block.
-  MachineBasicBlock *PrevBB = &*std::prev(TailBB->getIterator());
+  MachineBasicBlock *PrevBB = ForcedLayoutPred;
+  if (!PrevBB)
+    PrevBB = &*std::prev(TailBB->getIterator());
   MachineBasicBlock *PriorTBB = nullptr, *PriorFBB = nullptr;
   SmallVector<MachineOperand, 4> PriorCond;
   // This has to check PrevBB->succ_size() because EH edges are ignored by
-  // AnalyzeBranch.
+  // analyzeBranch.
   if (PrevBB->succ_size() == 1 &&
-      !TII->analyzeBranch(*PrevBB, PriorTBB, PriorFBB, PriorCond, true) &&
-      PriorCond.empty() && !PriorTBB && TailBB->pred_size() == 1 &&
+      // Layout preds are not always CFG preds. Check.
+      *PrevBB->succ_begin() == TailBB &&
+      !TII->analyzeBranch(*PrevBB, PriorTBB, PriorFBB, PriorCond) &&
+      PriorCond.empty() &&
+      (!PriorTBB || PriorTBB == TailBB) &&
+      TailBB->pred_size() == 1 &&
       !TailBB->hasAddressTaken()) {
     DEBUG(dbgs() << "\nMerging into block: " << *PrevBB
                  << "From MBB: " << *TailBB);
+    // There may be a branch to the layout successor. This is unlikely but it
+    // happens. The correct thing to do is to remove the branch before
+    // duplicating the instructions in all cases.
+    TII->removeBranch(*PrevBB);
     if (PreRegAlloc) {
       DenseMap<unsigned, RegSubRegPair> LocalVRMap;
       SmallVector<std::pair<unsigned, RegSubRegPair>, 4> CopyInfos;
@@ -837,11 +890,12 @@ bool TailDuplicator::tailDuplicate(MachineFunction &MF, bool IsSimple,
         // uses with PHI source register or the new registers.
         MachineInstr *MI = &*I++;
         assert(!MI->isBundle() && "Not expecting bundles before regalloc!");
-        duplicateInstruction(MI, TailBB, PrevBB, MF, LocalVRMap, UsedByPhi);
+        duplicateInstruction(MI, TailBB, PrevBB, LocalVRMap, UsedByPhi);
         MI->eraseFromParent();
       }
       appendCopies(PrevBB, CopyInfos, Copies);
     } else {
+      TII->removeBranch(*PrevBB);
       // No PHIs to worry about, just splice the instructions over.
       PrevBB->splice(PrevBB->end(), TailBB, TailBB->begin(), TailBB->end());
     }
@@ -874,11 +928,8 @@ bool TailDuplicator::tailDuplicate(MachineFunction &MF, bool IsSimple,
   // What we do here is introduce a copy in 3 of the register defined by the
   // phi, just like when we are duplicating 2 into 3, but we don't copy any
   // real instructions or remove the 3 -> 2 edge from the phi in 2.
-  for (SmallSetVector<MachineBasicBlock *, 8>::iterator PI = Preds.begin(),
-                                                        PE = Preds.end();
-       PI != PE; ++PI) {
-    MachineBasicBlock *PredBB = *PI;
-    if (std::find(TDBBs.begin(), TDBBs.end(), PredBB) != TDBBs.end())
+  for (MachineBasicBlock *PredBB : Preds) {
+    if (is_contained(TDBBs, PredBB))
       continue;
 
     // EH edges
@@ -917,9 +968,14 @@ void TailDuplicator::appendCopies(MachineBasicBlock *MBB,
 
 /// Remove the specified dead machine basic block from the function, updating
 /// the CFG.
-void TailDuplicator::removeDeadBlock(MachineBasicBlock *MBB) {
+void TailDuplicator::removeDeadBlock(
+    MachineBasicBlock *MBB,
+    llvm::function_ref<void(MachineBasicBlock *)> *RemovalCallback) {
   assert(MBB->pred_empty() && "MBB must be dead!");
   DEBUG(dbgs() << "\nRemoving MBB: " << *MBB);
+
+  if (RemovalCallback)
+    (*RemovalCallback)(MBB);
 
   // Remove all successors.
   while (!MBB->succ_empty())

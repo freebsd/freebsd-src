@@ -129,13 +129,13 @@ void AVRRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   const MachineFunction &MF = *MBB.getParent();
   const AVRTargetMachine &TM = (const AVRTargetMachine &)MF.getTarget();
   const TargetInstrInfo &TII = *TM.getSubtargetImpl()->getInstrInfo();
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetFrameLowering *TFI = TM.getSubtargetImpl()->getFrameLowering();
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
-  int Offset = MFI->getObjectOffset(FrameIndex);
+  int Offset = MFI.getObjectOffset(FrameIndex);
 
   // Add one to the offset because SP points to an empty slot.
-  Offset += MFI->getStackSize() - TFI->getOffsetOfLocalArea() + 1;
+  Offset += MFI.getStackSize() - TFI->getOffsetOfLocalArea() + 1;
   // Fold incoming offset.
   Offset += MI.getOperand(FIOperandNum + 1).getImm();
 
@@ -172,7 +172,7 @@ void AVRRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
         Opcode = AVR::ADIWRdK;
         break;
       }
-      // Fallthrough
+      LLVM_FALLTHROUGH;
     }
     default: {
       // This opcode will get expanded into a pair of subi/sbci.
@@ -193,7 +193,7 @@ void AVRRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   // If the offset is too big we have to adjust and restore the frame pointer
   // to materialize a valid load/store with displacement.
   //:TODO: consider using only one adiw/sbiw chain for more than one frame index
-  if (Offset >= 63) {
+  if (Offset > 63) {
     unsigned AddOpc = AVR::ADIWRdK, SubOpc = AVR::SBIWRdK;
     int AddOffset = Offset - 63 + 1;
 
@@ -253,4 +253,14 @@ AVRRegisterInfo::getPointerRegClass(const MachineFunction &MF,
   return &AVR::PTRDISPREGSRegClass;
 }
 
+void AVRRegisterInfo::splitReg(unsigned Reg,
+                               unsigned &LoReg,
+                               unsigned &HiReg) const {
+    assert(AVR::DREGSRegClass.contains(Reg) && "can only split 16-bit registers");
+
+    LoReg = getSubReg(Reg, AVR::sub_lo);
+    HiReg = getSubReg(Reg, AVR::sub_hi);
+}
+
 } // end of namespace llvm
+

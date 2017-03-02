@@ -63,10 +63,12 @@ Expected<std::unique_ptr<Binary>> object::createBinary(MemoryBufferRef Buffer,
     case sys::fs::file_magic::coff_import_library:
     case sys::fs::file_magic::pecoff_executable:
     case sys::fs::file_magic::bitcode:
+    case sys::fs::file_magic::wasm_object:
       return ObjectFile::createSymbolicFile(Buffer, Type, Context);
     case sys::fs::file_magic::macho_universal_binary:
       return MachOUniversalBinary::create(Buffer);
     case sys::fs::file_magic::unknown:
+    case sys::fs::file_magic::coff_cl_gl_object:
     case sys::fs::file_magic::windows_resource:
       // Unrecognized object file format.
       return errorCodeToError(object_error::invalid_file_type);

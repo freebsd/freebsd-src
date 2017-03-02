@@ -42,7 +42,7 @@ static MCDisassembler *createSystemZDisassembler(const Target &T,
 
 extern "C" void LLVMInitializeSystemZDisassembler() {
   // Register the disassembler.
-  TargetRegistry::RegisterMCDisassembler(TheSystemZTarget,
+  TargetRegistry::RegisterMCDisassembler(getTheSystemZTarget(),
                                          createSystemZDisassembler);
 }
 
@@ -150,6 +150,12 @@ static DecodeStatus DecodeVR128BitRegisterClass(MCInst &Inst, uint64_t RegNo,
   return decodeRegisterClass(Inst, RegNo, SystemZMC::VR128Regs, 32);
 }
 
+static DecodeStatus DecodeAR32BitRegisterClass(MCInst &Inst, uint64_t RegNo,
+                                               uint64_t Address,
+                                               const void *Decoder) {
+  return decodeRegisterClass(Inst, RegNo, SystemZMC::AR32Regs, 16);
+}
+
 template<unsigned N>
 static DecodeStatus decodeUImmOperand(MCInst &Inst, uint64_t Imm) {
   if (!isUInt<N>(Imm))
@@ -164,12 +170,6 @@ static DecodeStatus decodeSImmOperand(MCInst &Inst, uint64_t Imm) {
     return MCDisassembler::Fail;
   Inst.addOperand(MCOperand::createImm(SignExtend64<N>(Imm)));
   return MCDisassembler::Success;
-}
-
-static DecodeStatus decodeAccessRegOperand(MCInst &Inst, uint64_t Imm,
-                                           uint64_t Address,
-                                           const void *Decoder) {
-  return decodeUImmOperand<4>(Inst, Imm);
 }
 
 static DecodeStatus decodeU1ImmOperand(MCInst &Inst, uint64_t Imm,
@@ -247,10 +247,22 @@ static DecodeStatus decodePCDBLOperand(MCInst &Inst, uint64_t Imm,
   return MCDisassembler::Success;
 }
 
+static DecodeStatus decodePC12DBLBranchOperand(MCInst &Inst, uint64_t Imm,
+                                               uint64_t Address,
+                                               const void *Decoder) {
+  return decodePCDBLOperand<12>(Inst, Imm, Address, true, Decoder);
+}
+
 static DecodeStatus decodePC16DBLBranchOperand(MCInst &Inst, uint64_t Imm,
                                                uint64_t Address,
                                                const void *Decoder) {
   return decodePCDBLOperand<16>(Inst, Imm, Address, true, Decoder);
+}
+
+static DecodeStatus decodePC24DBLBranchOperand(MCInst &Inst, uint64_t Imm,
+                                               uint64_t Address,
+                                               const void *Decoder) {
+  return decodePCDBLOperand<24>(Inst, Imm, Address, true, Decoder);
 }
 
 static DecodeStatus decodePC32DBLBranchOperand(MCInst &Inst, uint64_t Imm,
@@ -321,6 +333,18 @@ static DecodeStatus decodeBDLAddr12Len8Operand(MCInst &Inst, uint64_t Field,
   return MCDisassembler::Success;
 }
 
+static DecodeStatus decodeBDRAddr12Operand(MCInst &Inst, uint64_t Field,
+                                           const unsigned *Regs) {
+  uint64_t Length = Field >> 16;
+  uint64_t Base = (Field >> 12) & 0xf;
+  uint64_t Disp = Field & 0xfff;
+  assert(Length < 16 && "Invalid BDRAddr12");
+  Inst.addOperand(MCOperand::createReg(Base == 0 ? 0 : Regs[Base]));
+  Inst.addOperand(MCOperand::createImm(Disp));
+  Inst.addOperand(MCOperand::createReg(Regs[Length]));
+  return MCDisassembler::Success;
+}
+
 static DecodeStatus decodeBDVAddr12Operand(MCInst &Inst, uint64_t Field,
                                            const unsigned *Regs) {
   uint64_t Index = Field >> 16;
@@ -374,6 +398,13 @@ static DecodeStatus decodeBDLAddr64Disp12Len8Operand(MCInst &Inst,
                                                      uint64_t Address,
                                                      const void *Decoder) {
   return decodeBDLAddr12Len8Operand(Inst, Field, SystemZMC::GR64Regs);
+}
+
+static DecodeStatus decodeBDRAddr64Disp12Operand(MCInst &Inst,
+                                                 uint64_t Field,
+                                                 uint64_t Address,
+                                                 const void *Decoder) {
+  return decodeBDRAddr12Operand(Inst, Field, SystemZMC::GR64Regs);
 }
 
 static DecodeStatus decodeBDVAddr64Disp12Operand(MCInst &Inst, uint64_t Field,

@@ -453,7 +453,7 @@ static BaseDefiningValueResult findBaseDefiningValue(Value *I) {
   if (isa<CallInst>(I) || isa<InvokeInst>(I))
     return BaseDefiningValueResult(I, true);
 
-  // I have absolutely no idea how to implement this part yet.  It's not
+  // TODO: I have absolutely no idea how to implement this part yet.  It's not
   // necessarily hard, I just haven't really looked at it yet.
   assert(!isa<LandingPadInst>(I) && "Landing Pad is unimplemented");
 
@@ -676,7 +676,8 @@ static Value *findBasePointer(Value *I, DefiningValueMapTy &Cache) {
 #ifndef NDEBUG
   auto isExpectedBDVType = [](Value *BDV) {
     return isa<PHINode>(BDV) || isa<SelectInst>(BDV) ||
-           isa<ExtractElementInst>(BDV) || isa<InsertElementInst>(BDV);
+           isa<ExtractElementInst>(BDV) || isa<InsertElementInst>(BDV) ||
+           isa<ShuffleVectorInst>(BDV);
   };
 #endif
 
@@ -719,9 +720,11 @@ static Value *findBasePointer(Value *I, DefiningValueMapTy &Cache) {
       } else if (auto *IE = dyn_cast<InsertElementInst>(Current)) {
         visitIncomingValue(IE->getOperand(0)); // vector operand
         visitIncomingValue(IE->getOperand(1)); // scalar operand
-      } else {
-        // There is one known class of instructions we know we don't handle.
-        assert(isa<ShuffleVectorInst>(Current));
+      } else if (auto *SV = dyn_cast<ShuffleVectorInst>(Current)) {
+        visitIncomingValue(SV->getOperand(0));
+        visitIncomingValue(SV->getOperand(1));
+      }
+      else {
         llvm_unreachable("Unimplemented instruction case");
       }
     }
@@ -778,12 +781,17 @@ static Value *findBasePointer(Value *I, DefiningValueMapTy &Cache) {
         // useful in that it drives us to conflict if our input is.
         NewState =
             meetBDVState(NewState, getStateForInput(EE->getVectorOperand()));
-      } else {
+      } else if (auto *IE = dyn_cast<InsertElementInst>(BDV)){
         // Given there's a inherent type mismatch between the operands, will
         // *always* produce Conflict.
-        auto *IE = cast<InsertElementInst>(BDV);
         NewState = meetBDVState(NewState, getStateForInput(IE->getOperand(0)));
         NewState = meetBDVState(NewState, getStateForInput(IE->getOperand(1)));
+      } else {
+        // The only instance this does not return a Conflict is when both the
+        // vector operands are the same vector.
+        auto *SV = cast<ShuffleVectorInst>(BDV);
+        NewState = meetBDVState(NewState, getStateForInput(SV->getOperand(0)));
+        NewState = meetBDVState(NewState, getStateForInput(SV->getOperand(1)));
       }
 
       BDVState OldState = States[BDV];
@@ -855,13 +863,18 @@ static Value *findBasePointer(Value *I, DefiningValueMapTy &Cache) {
         std::string Name = suffixed_name_or(I, ".base", "base_ee");
         return ExtractElementInst::Create(Undef, EE->getIndexOperand(), Name,
                                           EE);
-      } else {
-        auto *IE = cast<InsertElementInst>(I);
+      } else if (auto *IE = dyn_cast<InsertElementInst>(I)) {
         UndefValue *VecUndef = UndefValue::get(IE->getOperand(0)->getType());
         UndefValue *ScalarUndef = UndefValue::get(IE->getOperand(1)->getType());
         std::string Name = suffixed_name_or(I, ".base", "base_ie");
         return InsertElementInst::Create(VecUndef, ScalarUndef,
                                          IE->getOperand(2), Name, IE);
+      } else {
+        auto *SV = cast<ShuffleVectorInst>(I);
+        UndefValue *VecUndef = UndefValue::get(SV->getOperand(0)->getType());
+        std::string Name = suffixed_name_or(I, ".base", "base_sv");
+        return new ShuffleVectorInst(VecUndef, VecUndef, SV->getOperand(2),
+                                     Name, SV);
       }
     };
     Instruction *BaseInst = MakeBaseInstPlaceholder(I);
@@ -963,8 +976,7 @@ static Value *findBasePointer(Value *I, DefiningValueMapTy &Cache) {
       // Find the instruction which produces the base for each input.  We may
       // need to insert a bitcast.
       BaseEE->setOperand(0, getBaseForInput(InVal, BaseEE));
-    } else {
-      auto *BaseIE = cast<InsertElementInst>(State.getBaseValue());
+    } else if (auto *BaseIE = dyn_cast<InsertElementInst>(State.getBaseValue())){
       auto *BdvIE = cast<InsertElementInst>(BDV);
       auto UpdateOperand = [&](int OperandIdx) {
         Value *InVal = BdvIE->getOperand(OperandIdx);
@@ -973,6 +985,16 @@ static Value *findBasePointer(Value *I, DefiningValueMapTy &Cache) {
       };
       UpdateOperand(0); // vector operand
       UpdateOperand(1); // scalar operand
+    } else {
+      auto *BaseSV = cast<ShuffleVectorInst>(State.getBaseValue());
+      auto *BdvSV = cast<ShuffleVectorInst>(BDV);
+      auto UpdateOperand = [&](int OperandIdx) {
+        Value *InVal = BdvSV->getOperand(OperandIdx);
+        Value *Base = getBaseForInput(InVal, BaseSV);
+        BaseSV->setOperand(OperandIdx, Base);
+      };
+      UpdateOperand(0); // vector operand
+      UpdateOperand(1); // vector operand
     }
   }
 
@@ -1154,7 +1176,7 @@ static void CreateGCRelocates(ArrayRef<Value *> LiveVariables,
     return;
 
   auto FindIndex = [](ArrayRef<Value *> LiveVec, Value *Val) {
-    auto ValIt = std::find(LiveVec.begin(), LiveVec.end(), Val);
+    auto ValIt = find(LiveVec, Val);
     assert(ValIt != LiveVec.end() && "Val not found in LiveVec!");
     size_t Index = std::distance(LiveVec.begin(), ValIt);
     assert(Index < LiveVec.size() && "Bug in std::find?");
@@ -1273,6 +1295,24 @@ public:
 };
 }
 
+static StringRef getDeoptLowering(CallSite CS) {
+  const char *DeoptLowering = "deopt-lowering";
+  if (CS.hasFnAttr(DeoptLowering)) {
+    // FIXME: CallSite has a *really* confusing interface around attributes
+    // with values.  
+    const AttributeSet &CSAS = CS.getAttributes();
+    if (CSAS.hasAttribute(AttributeSet::FunctionIndex,
+                          DeoptLowering))
+      return CSAS.getAttribute(AttributeSet::FunctionIndex,
+                               DeoptLowering).getValueAsString();
+    Function *F = CS.getCalledFunction();
+    assert(F && F->hasFnAttribute(DeoptLowering));
+    return F->getFnAttribute(DeoptLowering).getValueAsString();
+  }
+  return "live-through";
+}
+    
+
 static void
 makeStatepointExplicitImpl(const CallSite CS, /* to replace */
                            const SmallVectorImpl<Value *> &BasePtrs,
@@ -1314,6 +1354,14 @@ makeStatepointExplicitImpl(const CallSite CS, /* to replace */
   if (SD.StatepointID)
     StatepointID = *SD.StatepointID;
 
+  // Pass through the requested lowering if any.  The default is live-through.
+  StringRef DeoptLowering = getDeoptLowering(CS);
+  if (DeoptLowering.equals("live-in"))
+    Flags |= uint32_t(StatepointFlags::DeoptLiveIn);
+  else {
+    assert(DeoptLowering.equals("live-through") && "Unsupported value!");
+  }
+
   Value *CallTarget = CS.getCalledValue();
   if (Function *F = dyn_cast<Function>(CallTarget)) {
     if (F->getIntrinsicID() == Intrinsic::experimental_deoptimize) {
@@ -1347,7 +1395,7 @@ makeStatepointExplicitImpl(const CallSite CS, /* to replace */
         StatepointID, NumPatchBytes, CallTarget, Flags, CallArgs,
         TransitionArgs, DeoptArgs, GCArgs, "safepoint_token");
 
-    Call->setTailCall(ToReplace->isTailCall());
+    Call->setTailCallKind(ToReplace->getTailCallKind());
     Call->setCallingConv(ToReplace->getCallingConv());
 
     // Currently we will fail on parameter attributes and on certain
@@ -1740,9 +1788,8 @@ static void relocationViaAlloca(
 /// tests in ways which make them less useful in testing fused safepoints.
 template <typename T> static void unique_unsorted(SmallVectorImpl<T> &Vec) {
   SmallSet<T, 8> Seen;
-  Vec.erase(std::remove_if(Vec.begin(), Vec.end(), [&](const T &V) {
-              return !Seen.insert(V).second;
-            }), Vec.end());
+  Vec.erase(remove_if(Vec, [&](const T &V) { return !Seen.insert(V).second; }),
+            Vec.end());
 }
 
 /// Insert holders so that each Value is obviously live through the entire
@@ -1784,38 +1831,33 @@ static void findLiveReferences(
 }
 
 // Helper function for the "rematerializeLiveValues". It walks use chain
-// starting from the "CurrentValue" until it meets "BaseValue". Only "simple"
-// values are visited (currently it is GEP's and casts). Returns true if it
-// successfully reached "BaseValue" and false otherwise.
-// Fills "ChainToBase" array with all visited values. "BaseValue" is not
-// recorded.
-static bool findRematerializableChainToBasePointer(
+// starting from the "CurrentValue" until it reaches the root of the chain, i.e.
+// the base or a value it cannot process. Only "simple" values are processed
+// (currently it is GEP's and casts). The returned root is  examined by the
+// callers of findRematerializableChainToBasePointer.  Fills "ChainToBase" array
+// with all visited values.
+static Value* findRematerializableChainToBasePointer(
   SmallVectorImpl<Instruction*> &ChainToBase,
-  Value *CurrentValue, Value *BaseValue) {
-
-  // We have found a base value
-  if (CurrentValue == BaseValue) {
-    return true;
-  }
+  Value *CurrentValue) {
 
   if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(CurrentValue)) {
     ChainToBase.push_back(GEP);
     return findRematerializableChainToBasePointer(ChainToBase,
-                                                  GEP->getPointerOperand(),
-                                                  BaseValue);
+                                                  GEP->getPointerOperand());
   }
 
   if (CastInst *CI = dyn_cast<CastInst>(CurrentValue)) {
     if (!CI->isNoopCast(CI->getModule()->getDataLayout()))
-      return false;
+      return CI;
 
     ChainToBase.push_back(CI);
     return findRematerializableChainToBasePointer(ChainToBase,
-                                                  CI->getOperand(0), BaseValue);
+                                                  CI->getOperand(0));
   }
 
-  // Not supported instruction in the chain
-  return false;
+  // We have reached the root of the chain, which is either equal to the base or
+  // is the first unsupported value along the use chain.
+  return CurrentValue;
 }
 
 // Helper function for the "rematerializeLiveValues". Compute cost of the use
@@ -1852,6 +1894,34 @@ chainToBasePointerCost(SmallVectorImpl<Instruction*> &Chain,
   return Cost;
 }
 
+static bool AreEquivalentPhiNodes(PHINode &OrigRootPhi, PHINode &AlternateRootPhi) {
+
+  unsigned PhiNum = OrigRootPhi.getNumIncomingValues();
+  if (PhiNum != AlternateRootPhi.getNumIncomingValues() ||
+      OrigRootPhi.getParent() != AlternateRootPhi.getParent())
+    return false;
+  // Map of incoming values and their corresponding basic blocks of
+  // OrigRootPhi.
+  SmallDenseMap<Value *, BasicBlock *, 8> CurrentIncomingValues;
+  for (unsigned i = 0; i < PhiNum; i++)
+    CurrentIncomingValues[OrigRootPhi.getIncomingValue(i)] =
+        OrigRootPhi.getIncomingBlock(i);
+
+  // Both current and base PHIs should have same incoming values and
+  // the same basic blocks corresponding to the incoming values.
+  for (unsigned i = 0; i < PhiNum; i++) {
+    auto CIVI =
+        CurrentIncomingValues.find(AlternateRootPhi.getIncomingValue(i));
+    if (CIVI == CurrentIncomingValues.end())
+      return false;
+    BasicBlock *CurrentIncomingBB = CIVI->second;
+    if (CurrentIncomingBB != AlternateRootPhi.getIncomingBlock(i))
+      return false;
+  }
+  return true;
+
+}
+
 // From the statepoint live set pick values that are cheaper to recompute then
 // to relocate. Remove this values from the live set, rematerialize them after
 // statepoint and record them in "Info" structure. Note that similar to
@@ -1869,16 +1939,38 @@ static void rematerializeLiveValues(CallSite CS,
     // For each live pointer find it's defining chain
     SmallVector<Instruction *, 3> ChainToBase;
     assert(Info.PointerToBase.count(LiveValue));
-    bool FoundChain =
+    Value *RootOfChain =
       findRematerializableChainToBasePointer(ChainToBase,
-                                             LiveValue,
-                                             Info.PointerToBase[LiveValue]);
+                                             LiveValue);
+
     // Nothing to do, or chain is too long
-    if (!FoundChain ||
-        ChainToBase.size() == 0 ||
+    if ( ChainToBase.size() == 0 ||
         ChainToBase.size() > ChainLengthThreshold)
       continue;
 
+    // Handle the scenario where the RootOfChain is not equal to the
+    // Base Value, but they are essentially the same phi values.
+    if (RootOfChain != Info.PointerToBase[LiveValue]) {
+      PHINode *OrigRootPhi = dyn_cast<PHINode>(RootOfChain);
+      PHINode *AlternateRootPhi = dyn_cast<PHINode>(Info.PointerToBase[LiveValue]);
+      if (!OrigRootPhi || !AlternateRootPhi)
+        continue;
+      // PHI nodes that have the same incoming values, and belonging to the same
+      // basic blocks are essentially the same SSA value.  When the original phi
+      // has incoming values with different base pointers, the original phi is
+      // marked as conflict, and an additional `AlternateRootPhi` with the same
+      // incoming values get generated by the findBasePointer function. We need
+      // to identify the newly generated AlternateRootPhi (.base version of phi)
+      // and RootOfChain (the original phi node itself) are the same, so that we
+      // can rematerialize the gep and casts. This is a workaround for the
+      // deficieny in the findBasePointer algorithm.
+      if (!AreEquivalentPhiNodes(*OrigRootPhi, *AlternateRootPhi))
+        continue;
+      // Now that the phi nodes are proved to be the same, assert that
+      // findBasePointer's newly generated AlternateRootPhi is present in the
+      // liveset of the call.
+      assert(Info.LiveSet.count(AlternateRootPhi));
+    }
     // Compute cost of this chain
     unsigned Cost = chainToBasePointerCost(ChainToBase, TTI);
     // TODO: We can also account for cases when we will be able to remove some
@@ -1906,7 +1998,8 @@ static void rematerializeLiveValues(CallSite CS,
     // Utility function which clones all instructions from "ChainToBase"
     // and inserts them before "InsertBefore". Returns rematerialized value
     // which should be used after statepoint.
-    auto rematerializeChain = [&ChainToBase](Instruction *InsertBefore) {
+    auto rematerializeChain = [&ChainToBase](
+        Instruction *InsertBefore, Value *RootOfChain, Value *AlternateLiveBase) {
       Instruction *LastClonedValue = nullptr;
       Instruction *LastValue = nullptr;
       for (Instruction *Instr: ChainToBase) {
@@ -1926,14 +2019,24 @@ static void rematerializeLiveValues(CallSite CS,
           assert(LastValue);
           ClonedValue->replaceUsesOfWith(LastValue, LastClonedValue);
 #ifndef NDEBUG
-          // Assert that cloned instruction does not use any instructions from
-          // this chain other than LastClonedValue
           for (auto OpValue : ClonedValue->operand_values()) {
-            assert(std::find(ChainToBase.begin(), ChainToBase.end(), OpValue) ==
-                       ChainToBase.end() &&
+            // Assert that cloned instruction does not use any instructions from
+            // this chain other than LastClonedValue
+            assert(!is_contained(ChainToBase, OpValue) &&
                    "incorrect use in rematerialization chain");
+            // Assert that the cloned instruction does not use the RootOfChain
+            // or the AlternateLiveBase.
+            assert(OpValue != RootOfChain && OpValue != AlternateLiveBase);
           }
 #endif
+        } else {
+          // For the first instruction, replace the use of unrelocated base i.e.
+          // RootOfChain/OrigRootPhi, with the corresponding PHI present in the
+          // live set. They have been proved to be the same PHI nodes.  Note
+          // that the *only* use of the RootOfChain in the ChainToBase list is
+          // the first Value in the list.
+          if (RootOfChain != AlternateLiveBase)
+            ClonedValue->replaceUsesOfWith(RootOfChain, AlternateLiveBase);
         }
 
         LastClonedValue = ClonedValue;
@@ -1948,7 +2051,8 @@ static void rematerializeLiveValues(CallSite CS,
     if (CS.isCall()) {
       Instruction *InsertBefore = CS.getInstruction()->getNextNode();
       assert(InsertBefore);
-      Instruction *RematerializedValue = rematerializeChain(InsertBefore);
+      Instruction *RematerializedValue = rematerializeChain(
+          InsertBefore, RootOfChain, Info.PointerToBase[LiveValue]);
       Info.RematerializedValues[RematerializedValue] = LiveValue;
     } else {
       InvokeInst *Invoke = cast<InvokeInst>(CS.getInstruction());
@@ -1958,10 +2062,10 @@ static void rematerializeLiveValues(CallSite CS,
       Instruction *UnwindInsertBefore =
           &*Invoke->getUnwindDest()->getFirstInsertionPt();
 
-      Instruction *NormalRematerializedValue =
-          rematerializeChain(NormalInsertBefore);
-      Instruction *UnwindRematerializedValue =
-          rematerializeChain(UnwindInsertBefore);
+      Instruction *NormalRematerializedValue = rematerializeChain(
+          NormalInsertBefore, RootOfChain, Info.PointerToBase[LiveValue]);
+      Instruction *UnwindRematerializedValue = rematerializeChain(
+          UnwindInsertBefore, RootOfChain, Info.PointerToBase[LiveValue]);
 
       Info.RematerializedValues[NormalRematerializedValue] = LiveValue;
       Info.RematerializedValues[UnwindRematerializedValue] = LiveValue;
@@ -2268,8 +2372,7 @@ static bool shouldRewriteStatepointsIn(Function &F) {
 
 void RewriteStatepointsForGC::stripNonValidAttributes(Module &M) {
 #ifndef NDEBUG
-  assert(std::any_of(M.begin(), M.end(), shouldRewriteStatepointsIn) &&
-         "precondition!");
+  assert(any_of(M, shouldRewriteStatepointsIn) && "precondition!");
 #endif
 
   for (Function &F : M)
@@ -2546,8 +2649,8 @@ static void findLiveSetAtInst(Instruction *Inst, GCPtrLivenessData &Data,
   // call result is not live (normal), nor are it's arguments
   // (unless they're used again later).  This adjustment is
   // specifically what we need to relocate
-  BasicBlock::reverse_iterator rend(Inst->getIterator());
-  computeLiveInValues(BB->rbegin(), rend, LiveOut);
+  computeLiveInValues(BB->rbegin(), ++Inst->getIterator().getReverse(),
+                      LiveOut);
   LiveOut.remove(Inst);
   Out.insert(LiveOut.begin(), LiveOut.end());
 }

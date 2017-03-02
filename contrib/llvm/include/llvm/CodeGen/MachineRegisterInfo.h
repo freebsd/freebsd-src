@@ -20,6 +20,7 @@
 #include "llvm/ADT/iterator_range.h"
 // PointerUnion needs to have access to the full RegisterBank type.
 #include "llvm/CodeGen/GlobalISel/RegisterBank.h"
+#include "llvm/CodeGen/LowLevelType.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -51,7 +52,7 @@ private:
   Delegate *TheDelegate;
 
   /// True if subregister liveness is tracked.
-  bool TracksSubRegLiveness;
+  const bool TracksSubRegLiveness;
 
   /// VRegInfo - Information we keep for each virtual register.
   ///
@@ -104,17 +105,9 @@ private:
   /// started.
   BitVector ReservedRegs;
 
-  typedef DenseMap<unsigned, unsigned> VRegToSizeMap;
+  typedef DenseMap<unsigned, LLT> VRegToTypeMap;
   /// Map generic virtual registers to their actual size.
-  mutable std::unique_ptr<VRegToSizeMap> VRegToSize;
-
-  /// Accessor for VRegToSize. This accessor should only be used
-  /// by global-isel related work.
-  VRegToSizeMap &getVRegToSize() const {
-    if (!VRegToSize)
-      VRegToSize.reset(new VRegToSizeMap);
-    return *VRegToSize.get();
-  }
+  mutable std::unique_ptr<VRegToTypeMap> VRegToType;
 
   /// Keep track of the physical registers that are live in to the function.
   /// Live in values are typically arguments in registers.  LiveIn values are
@@ -166,7 +159,7 @@ public:
 
   // leaveSSA - Indicates that the machine function is no longer in SSA form.
   void leaveSSA() {
-    MF->getProperties().clear(MachineFunctionProperties::Property::IsSSA);
+    MF->getProperties().reset(MachineFunctionProperties::Property::IsSSA);
   }
 
   /// tracksLiveness - Returns true when tracking register liveness accurately.
@@ -182,7 +175,7 @@ public:
   /// This should be called by late passes that invalidate the liveness
   /// information.
   void invalidateLiveness() {
-    MF->getProperties().clear(
+    MF->getProperties().reset(
         MachineFunctionProperties::Property::TracksLiveness);
   }
 
@@ -197,10 +190,6 @@ public:
   }
   bool subRegLivenessEnabled() const {
     return TracksSubRegLiveness;
-  }
-
-  void enableSubRegLiveness(bool Enable = true) {
-    TracksSubRegLiveness = Enable;
   }
 
   //===--------------------------------------------------------------------===//
@@ -553,10 +542,9 @@ public:
   void dumpUses(unsigned RegNo) const;
 #endif
 
-  /// isConstantPhysReg - Returns true if PhysReg is unallocatable and constant
-  /// throughout the function.  It is safe to move instructions that read such
-  /// a physreg.
-  bool isConstantPhysReg(unsigned PhysReg, const MachineFunction &MF) const;
+  /// Returns true if PhysReg is unallocatable and constant throughout the
+  /// function. Writing to a constant register has no effect.
+  bool isConstantPhysReg(unsigned PhysReg) const;
 
   /// Get an iterator over the pressure sets affected by the given physical or
   /// virtual register. If RegUnit is physical, it must be a register unit (from
@@ -645,18 +633,35 @@ public:
   ///
   unsigned createVirtualRegister(const TargetRegisterClass *RegClass);
 
-  /// Get the size in bits of \p VReg or 0 if VReg is not a generic
+  /// Accessor for VRegToType. This accessor should only be used
+  /// by global-isel related work.
+  VRegToTypeMap &getVRegToType() const {
+    if (!VRegToType)
+      VRegToType.reset(new VRegToTypeMap);
+    return *VRegToType.get();
+  }
+
+  /// Get the low-level type of \p VReg or LLT{} if VReg is not a generic
   /// (target independent) virtual register.
-  unsigned getSize(unsigned VReg) const;
+  LLT getType(unsigned VReg) const;
 
-  /// Set the size in bits of \p VReg to \p Size.
-  /// Although the size should be set at build time, mir infrastructure
-  /// is not yet able to do it.
-  void setSize(unsigned VReg, unsigned Size);
+  /// Set the low-level type of \p VReg to \p Ty.
+  void setType(unsigned VReg, LLT Ty);
 
-  /// Create and return a new generic virtual register with a size of \p Size.
-  /// \pre Size > 0.
-  unsigned createGenericVirtualRegister(unsigned Size);
+  /// Create and return a new generic virtual register with low-level
+  /// type \p Ty.
+  unsigned createGenericVirtualRegister(LLT Ty);
+
+  /// Remove all types associated to virtual registers (after instruction
+  /// selection and constraining of all generic virtual registers).
+  void clearVirtRegTypes();
+
+  /// Creates a new virtual register that has no register class, register bank
+  /// or size assigned yet. This is only allowed to be used
+  /// temporarily while constructing machine instructions. Most operations are
+  /// undefined on an incomplete register until one of setRegClass(),
+  /// setRegBank() or setSize() has been called on it.
+  unsigned createIncompleteVirtualRegister();
 
   /// getNumVirtRegs - Return the number of virtual registers created.
   ///
@@ -892,10 +897,11 @@ public:
           advance();
         } while (Op && Op->getParent() == P);
       } else if (ByBundle) {
-        MachineInstr &P = getBundleStart(*Op->getParent());
+        MachineBasicBlock::instr_iterator P =
+            getBundleStart(Op->getParent()->getIterator());
         do {
           advance();
-        } while (Op && &getBundleStart(*Op->getParent()) == &P);
+        } while (Op && getBundleStart(Op->getParent()->getIterator()) == P);
       }
 
       return *this;
@@ -994,10 +1000,11 @@ public:
           advance();
         } while (Op && Op->getParent() == P);
       } else if (ByBundle) {
-        MachineInstr &P = getBundleStart(*Op->getParent());
+        MachineBasicBlock::instr_iterator P =
+            getBundleStart(Op->getParent()->getIterator());
         do {
           advance();
-        } while (Op && &getBundleStart(*Op->getParent()) == &P);
+        } while (Op && getBundleStart(Op->getParent()->getIterator()) == P);
       }
 
       return *this;
@@ -1010,7 +1017,7 @@ public:
     MachineInstr &operator*() const {
       assert(Op && "Cannot dereference end iterator!");
       if (ByBundle)
-        return getBundleStart(*Op->getParent());
+        return *getBundleStart(Op->getParent()->getIterator());
       return *Op->getParent();
     }
 

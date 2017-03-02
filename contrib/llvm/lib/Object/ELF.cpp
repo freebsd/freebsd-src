@@ -54,6 +54,13 @@ StringRef getELFRelocationTypeName(uint32_t Machine, uint32_t Type) {
       break;
     }
     break;
+  case ELF::EM_AVR:
+    switch (Type) {
+#include "llvm/Support/ELFRelocs/AVR.def"
+    default:
+      break;
+    }
+    break;
   case ELF::EM_HEXAGON:
     switch (Type) {
 #include "llvm/Support/ELFRelocs/Hexagon.def"
@@ -78,6 +85,13 @@ StringRef getELFRelocationTypeName(uint32_t Machine, uint32_t Type) {
   case ELF::EM_PPC64:
     switch (Type) {
 #include "llvm/Support/ELFRelocs/PowerPC64.def"
+    default:
+      break;
+    }
+    break;
+  case ELF::EM_RISCV:
+    switch (Type) {
+#include "llvm/Support/ELFRelocs/RISCV.def"
     default:
       break;
     }
