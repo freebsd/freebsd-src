@@ -87,12 +87,12 @@ extern "C" {
 #include <limits.h>
 #include <strings.h>
 
-#define	JEMALLOC_VERSION "4.4.0-0-gf1f76357313e7dcad7262f17a48ff0a2e005fcdc"
+#define	JEMALLOC_VERSION "4.5.0-0-g04380e79f1e2428bd0ad000bbc6e3d2dfc6b66a5"
 #define	JEMALLOC_VERSION_MAJOR 4
-#define	JEMALLOC_VERSION_MINOR 4
+#define	JEMALLOC_VERSION_MINOR 5
 #define	JEMALLOC_VERSION_BUGFIX 0
 #define	JEMALLOC_VERSION_NREV 0
-#define	JEMALLOC_VERSION_GID "f1f76357313e7dcad7262f17a48ff0a2e005fcdc"
+#define	JEMALLOC_VERSION_GID "04380e79f1e2428bd0ad000bbc6e3d2dfc6b66a5"
 
 #  define MALLOCX_LG_ALIGN(la)	((int)(la))
 #  if LG_SIZEOF_PTR == 2
