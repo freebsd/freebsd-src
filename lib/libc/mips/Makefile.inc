@@ -5,5 +5,5 @@
 CFLAGS+=-DSOFTFLOAT
 .endif
 
-MDSRCS+= machdep_ldisd.c
+SRCS+= machdep_ldisd.c
 SYM_MAPS+= ${LIBC_SRCTOP}/mips/Symbol.map
