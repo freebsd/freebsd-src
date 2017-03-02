@@ -413,9 +413,8 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		error = copyout((caddr_t)sf_buf_kva(sf) + off, (caddr_t)start,
 		    end - start);
 		vm_imgact_unmap_page(sf);
-		if (error) {
+		if (error != 0)
 			return (KERN_FAILURE);
-		}
 	}
 
 	return (KERN_SUCCESS);
