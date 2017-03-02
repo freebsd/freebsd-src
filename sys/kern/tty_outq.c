@@ -89,7 +89,7 @@ ttyoutq_flush(struct ttyoutq *to)
 	to->to_end = 0;
 }
 
-void
+int
 ttyoutq_setsize(struct ttyoutq *to, struct tty *tp, size_t size)
 {
 	struct ttyoutq_block *tob;
@@ -111,8 +111,14 @@ ttyoutq_setsize(struct ttyoutq *to, struct tty *tp, size_t size)
 		tob = uma_zalloc(ttyoutq_zone, M_WAITOK);
 		tty_lock(tp);
 
+		if (tty_gone(tp)) {
+			uma_zfree(ttyoutq_zone, tob);
+			return (ENXIO);
+		}
+
 		TTYOUTQ_INSERT_TAIL(to, tob);
 	}
+	return (0);
 }
 
 void
