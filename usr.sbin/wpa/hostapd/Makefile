@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .include <src.opts.mk>
-.include "${.CURDIR}/../Makefile.inc"
+.include "../Makefile.inc"
 
 .PATH.c:${HOSTAPD_DISTDIR} \
 	${WPA_DISTDIR}/src/drivers
@@ -117,6 +117,6 @@ SRCS+=	eap_server_sake.c \
 	eap_sake_common.c
 .endif
 
-.include "${.CURDIR}/../Makefile.crypto"
+.include "../Makefile.crypto"
 
 .include <bsd.prog.mk>
