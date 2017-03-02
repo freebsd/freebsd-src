@@ -264,8 +264,8 @@ _tcp_print(netdissect_options *ndo,
                         struct tha6 tha;
 
                         tcp_seq_hash = tcp_seq_hash6;
-                        src = &ip6->ip6_src;
-                        dst = &ip6->ip6_dst;
+                        src = (void *)&ip6->ip6_src;
+                        dst = (void *)&ip6->ip6_dst;
                         if (sport > dport)
                                 rev = 1;
                         else if (sport == dport) {

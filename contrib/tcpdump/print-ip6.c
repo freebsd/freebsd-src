@@ -59,7 +59,7 @@ ip6_finddst(netdissect_options *ndo, struct in6_addr *dst,
 	cp = (const u_char *)ip6;
 	advance = sizeof(struct ip6_hdr);
 	nh = ip6->ip6_nxt;
-	dst_addr = &ip6->ip6_dst;
+	dst_addr = (void *)&ip6->ip6_dst;
 
 	while (cp < ndo->ndo_snapend) {
 		cp += advance;
