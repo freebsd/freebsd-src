@@ -32,6 +32,10 @@ FBSD_1.4 {
 	sbuf_hexdump;
 };
 
+FBSD_1.5 {
+	sbuf_putbuf;
+};
+
 FBSDprivate_1.0 {
 	/*
 	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
