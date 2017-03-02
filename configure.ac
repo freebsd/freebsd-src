@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.2.2])
-m4_define([LIBARCHIVE_VERSION_N],[3002002])
+m4_define([LIBARCHIVE_VERSION_S],[3.3.1])
+m4_define([LIBARCHIVE_VERSION_N],[3003001])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -270,6 +270,19 @@ AS_VAR_IF([ac_cv_have_decl_EXT2_IOC_GETFLAGS], [yes],
 
 AC_CHECK_HEADERS([inttypes.h io.h langinfo.h limits.h])
 AC_CHECK_HEADERS([linux/fiemap.h linux/fs.h linux/magic.h linux/types.h])
+
+AC_CACHE_CHECK([whether FS_IOC_GETFLAGS is usable],
+    [ac_cv_have_decl_FS_IOC_GETFLAGS],
+    [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([@%:@include <sys/ioctl.h>
+@%:@include <linux/fs.h>],
+                                   [int x = FS_IOC_GETFLAGS])],
+                  [AS_VAR_SET([ac_cv_have_decl_FS_IOC_GETFLAGS], [yes])],
+                  [AS_VAR_SET([ac_cv_have_decl_FS_IOC_GETFLAGS], [no])])])
+
+AS_VAR_IF([ac_cv_have_decl_FS_IOC_GETFLAGS], [yes],
+    [AC_DEFINE_UNQUOTED([HAVE_WORKING_FS_IOC_GETFLAGS], [1],
+                    [Define to 1 if you have a working FS_IOC_GETFLAGS])])
+
 AC_CHECK_HEADERS([locale.h paths.h poll.h pthread.h pwd.h])
 AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
 AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
@@ -381,7 +394,7 @@ fi
 AC_ARG_WITH([lzo2],
   AS_HELP_STRING([--with-lzo2], [Build with LZO support from liblzo2]))
 
-if test "x$with_lzo2" == "xyes"; then
+if test "x$with_lzo2" = "xyes"; then
   AC_CHECK_HEADERS([lzo/lzoconf.h lzo/lzo1x.h])
   AC_CHECK_LIB(lzo2,lzo1x_decompress_safe)
 fi

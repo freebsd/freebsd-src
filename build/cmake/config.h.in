@@ -1099,6 +1099,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have a working EXT2_IOC_GETFLAGS */
 #cmakedefine HAVE_WORKING_EXT2_IOC_GETFLAGS 1
 
+/* Define to 1 if you have a working FS_IOC_GETFLAGS */
+#cmakedefine HAVE_WORKING_FS_IOC_GETFLAGS 1
+
 /* Define to 1 if you have the <zlib.h> header file. */
 #cmakedefine HAVE_ZLIB_H 1
 

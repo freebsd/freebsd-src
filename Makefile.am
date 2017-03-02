@@ -23,7 +23,7 @@ TESTS_ENVIRONMENT= $(libarchive_TESTS_ENVIRONMENT) $(bsdtar_TESTS_ENVIRONMENT) $
 DISTCHECK_CONFIGURE_FLAGS = --enable-bsdtar --enable-bsdcpio
 # The next line is commented out by default in shipping libarchive releases.
 # It is uncommented by default in trunk.
-DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual -g
+# DEV_CFLAGS=-Werror -Wextra -Wunused -Wshadow -Wmissing-prototypes -Wcast-qual -g
 AM_CFLAGS=$(DEV_CFLAGS)
 PLATFORMCPPFLAGS = @PLATFORMCPPFLAGS@
 AM_CPPFLAGS=$(PLATFORMCPPFLAGS)
@@ -310,7 +310,9 @@ pkgconfig_DATA = build/pkgconfig/libarchive.pc
 # Sources needed by all test programs
 test_utils_SOURCES= \
 	test_utils/test_utils.c \
-	test_utils/test_utils.h
+	test_utils/test_utils.h \
+	test_utils/test_main.c \
+	test_utils/test_common.h
 
 #
 #
@@ -320,7 +322,6 @@ test_utils_SOURCES= \
 libarchive_test_SOURCES= \
 	$(libarchive_la_SOURCES) \
 	$(test_utils_SOURCES) \
-	libarchive/test/main.c \
 	libarchive/test/read_open_memory.c \
 	libarchive/test/test.h \
 	libarchive/test/test_acl_nfs4.c \
@@ -586,7 +587,13 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_read_format_zip.c \
 	libarchive/test/test_zip_filename_encoding.c
 
-libarchive_test_CPPFLAGS= -I$(top_srcdir)/libarchive -I$(top_srcdir)/test_utils -I$(top_builddir)/libarchive/test -DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
+libarchive_test_CPPFLAGS= \
+	-I$(top_srcdir)/libarchive \
+	-I$(top_srcdir)/libarchive/test \
+	-I$(top_srcdir)/test_utils \
+	-I$(top_builddir)/libarchive/test \
+	-DLIBARCHIVE_STATIC $(PLATFORMCPPFLAGS)
+
 libarchive_test_LDADD= $(LTLIBICONV)
 
 # The "list.h" file just lists all of the tests defined in all of the sources.
@@ -918,7 +925,6 @@ endif
 
 bsdtar_test_SOURCES= \
 	$(test_utils_SOURCES) \
-	tar/test/main.c \
 	tar/test/test.h \
 	tar/test/test_0.c \
 	tar/test/test_basic.c \
@@ -981,7 +987,8 @@ bsdtar_test_SOURCES= \
 bsdtar_test_CPPFLAGS=\
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
 	-I$(top_srcdir)/test_utils \
-	-I$(top_srcdir)/tar -I$(top_builddir)/tar/test \
+	-I$(top_srcdir)/tar -I$(top_srcdir)/tar/test \
+	-I$(top_builddir)/tar/test \
 	$(PLATFORMCPPFLAGS)
 
 tar/test/list.h: Makefile
@@ -1076,7 +1083,6 @@ endif
 bsdcpio_test_SOURCES= \
 	$(test_utils_SOURCES) \
 	cpio/cmdline.c \
-	cpio/test/main.c \
 	cpio/test/test.h \
 	cpio/test/test_0.c \
 	cpio/test/test_basic.c \
@@ -1128,7 +1134,8 @@ bsdcpio_test_SOURCES= \
 bsdcpio_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
 	-I$(top_srcdir)/test_utils \
-	-I$(top_srcdir)/cpio -I$(top_builddir)/cpio/test \
+	-I$(top_srcdir)/cpio -I$(top_srcdir)/cpio/test \
+	-I$(top_builddir)/cpio/test \
 	$(PLATFORMCPPFLAGS)
 bsdcpio_test_LDADD=libarchive_fe.la
 
@@ -1223,7 +1230,6 @@ endif
 
 bsdcat_test_SOURCES= \
 	$(test_utils_SOURCES) \
-	cat/test/main.c \
 	cat/test/test.h \
 	cat/test/test_0.c \
 	cat/test/test_empty_gz.c \
@@ -1244,7 +1250,8 @@ bsdcat_test_SOURCES= \
 bsdcat_test_CPPFLAGS= \
 	-I$(top_srcdir)/libarchive -I$(top_srcdir)/libarchive_fe \
 	-I$(top_srcdir)/test_utils \
-	-I$(top_srcdir)/cat -I$(top_builddir)/cat/test \
+	-I$(top_srcdir)/cat -I$(top_srcdir)/cat/test \
+	-I$(top_builddir)/cat/test \
 	$(PLATFORMCPPFLAGS)
 bsdcat_test_LDADD=libarchive_fe.la
 

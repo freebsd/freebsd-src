@@ -63,16 +63,8 @@ struct archive_read_disk {
 	int	(*tree_current_dir_fd)(struct tree*);
 	int	(*tree_enter_working_dir)(struct tree*);
 
-	/* Set 1 if users request to restore atime . */
-	int		 restore_time;
-	/* Set 1 if users request to honor nodump flag . */
-	int		 honor_nodump;
-	/* Set 1 if users request to enable mac copyfile. */
-	int		 enable_copyfile;
-	/* Set 1 if users request to traverse mount points. */
-	int		 traverse_mount_points;
-	/* Set 1 if users want to suppress xattr information. */
-	int		 suppress_xattr;
+	/* Bitfield with ARCHIVE_READDISK_* tunables */
+	int	flags;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);
