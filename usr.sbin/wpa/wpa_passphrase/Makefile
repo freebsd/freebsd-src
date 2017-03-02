@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "../Makefile.inc"
 
 .PATH.c:${WPA_SUPPLICANT_DISTDIR}
 
