@@ -159,7 +159,7 @@ DEFINE_TEST(test_acl_nfs4)
         archive_entry_set_mode(ae, S_IFREG | 0777);
 
 	/* Store and read back some basic ACL entries. */
-	archive_test_set_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
+	assertEntrySetAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
 
 	/* Check that entry contains only NFSv4 types */
 	assert((archive_entry_acl_types(ae) &
@@ -169,21 +169,21 @@ DEFINE_TEST(test_acl_nfs4)
 
 	assertEqualInt(4,
 	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
-	archive_test_compare_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
+	assertEntryCompareAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4, 0);
 
 	/* A more extensive set of ACLs. */
-	archive_test_set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	assertEqualInt(32,
 	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
-	archive_test_compare_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
+	assertEntryCompareAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4, 0);
 
 	/*
 	 * Check that clearing ACLs gets rid of them all by repeating
 	 * the first test.
 	 */
-	archive_test_set_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
+	assertEntrySetAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
 	failure("Basic ACLs shouldn't be stored as extended ACLs");
 	assertEqualInt(4,
 	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
@@ -192,7 +192,7 @@ DEFINE_TEST(test_acl_nfs4)
 	 * Different types of malformed ACL entries that should
 	 * fail when added to existing NFS4 ACLs.
 	 */
-	archive_test_set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	for (i = 0; i < (int)(sizeof(acls_bad)/sizeof(acls_bad[0])); ++i) {
 		struct archive_test_acl_t *p = &acls_bad[i];
 		failure("Malformed ACL test #%d", i);

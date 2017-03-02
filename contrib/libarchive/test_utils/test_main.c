@@ -45,6 +45,9 @@
 #if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
 #include <ext2fs/ext2_fs.h>     /* Linux file flags, broken on Cygwin */
 #endif
+#ifdef HAVE_LINUX_FS_H
+#include <linux/fs.h>
+#endif
 #include <limits.h>
 #include <locale.h>
 #ifdef HAVE_SIGNAL_H
@@ -53,23 +56,19 @@
 #include <stdarg.h>
 #include <time.h>
 
-/*
- * This same file is used pretty much verbatim for all test harnesses.
- *
- * The next few lines are the only differences.
- * TODO: Move this into a separate configuration header, have all test
- * suites share one copy of this file.
- */
-__FBSDID("$FreeBSD$");
-#define KNOWNREF	"test_patterns_2.tar.uu"
-#define ENVBASE "BSDTAR"  /* Prefix for environment variables. */
-#define	PROGRAM "bsdtar"  /* Name of program being tested. */
-#define PROGRAM_ALIAS "tar" /* Generic alias for program */
-#undef	LIBRARY		  /* Not testing a library. */
-#undef	EXTRA_DUMP	  /* How to dump extra data */
-#undef	EXTRA_ERRNO	  /* How to dump errno */
-/* How to generate extra version info. */
-#define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
+/* ACL support */
+#ifdef HAVE_ACL_LIBACL_H
+#include <acl/libacl.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_ACL_H
+#include <sys/acl.h>
+#endif
+#if HAVE_DARWIN_ACL
+#include <membership.h>
+#endif
 
 /*
  *
@@ -218,6 +217,12 @@ invalid_parameter_handler(const wchar_t * expression,
     unsigned int line, uintptr_t pReserved)
 {
 	/* nop */
+	// Silence unused-parameter compiler warnings.
+	(void)expression;
+	(void)function;
+	(void)file;
+	(void)line;
+	(void)pReserved;
 }
 #endif
 
@@ -1060,7 +1065,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 	char **expected = NULL;
 	char *p, **actual = NULL;
 	char c;
-	int expected_failure = 0, actual_failure = 0, retval = 0;
+	int expected_failure = 0, actual_failure = 0;
 
 	assertion_count(file, line);
 
@@ -1081,7 +1086,8 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		if (expected == NULL) {
 			failure_start(pathname, line, "Can't allocate memory");
 			failure_finish(NULL);
-			goto done;
+			free(expected);
+			return (0);
 		}
 		for (i = 0; lines[i] != NULL; ++i) {
 			expected[i] = strdup(lines[i]);
@@ -1102,7 +1108,8 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		if (actual == NULL) {
 			failure_start(pathname, line, "Can't allocate memory");
 			failure_finish(NULL);
-			goto done;
+			free(expected);
+			return (0);
 		}
 		for (j = 0, p = buff; p < buff + buff_size;
 		    p += 1 + strlen(p)) {
@@ -1139,27 +1146,27 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 			++actual_failure;
 	}
 	if (expected_failure == 0 && actual_failure == 0) {
-		retval = 1;
-		goto done;
+		free(buff);
+		free(expected);
+		free(actual);
+		return (1);
 	}
 	failure_start(file, line, "File doesn't match: %s", pathname);
 	for (i = 0; i < expected_count; ++i) {
-		if (expected[i] != NULL)
+		if (expected[i] != NULL) {
 			logprintf("  Expected but not present: %s\n", expected[i]);
+			free(expected[i]);
+		}
 	}
 	for (j = 0; j < actual_count; ++j) {
 		if (actual[j] != NULL)
 			logprintf("  Present but not expected: %s\n", actual[j]);
 	}
 	failure_finish(NULL);
-done:
-	free(actual);
 	free(buff);
-	for (i = 0; i < expected_count; ++i)
-		free(expected[i]);
 	free(expected);
-
-	return (retval);
+	free(actual);
+	return (0);
 }
 
 /* Verify that a text file does not contains the specified strings */
@@ -1412,6 +1419,8 @@ assertion_file_mode(const char *file, int line, const char *pathname, int expect
 	failure_start(file, line, "assertFileMode not yet implemented for Windows");
 	(void)mode; /* UNUSED */
 	(void)r; /* UNUSED */
+	(void)pathname; /* UNUSED */
+	(void)expected_mode; /* UNUSED */
 #else
 	{
 		struct stat st;
@@ -1588,7 +1597,7 @@ is_symlink(const char *file, int line,
 	 * really not much point in bothering with this. */
 	return (0);
 #else
-	char buff[301];
+	char buff[300];
 	struct stat st;
 	ssize_t linklen;
 	int r;
@@ -1605,7 +1614,7 @@ is_symlink(const char *file, int line,
 		return (0);
 	if (contents == NULL)
 		return (1);
-	linklen = readlink(pathname, buff, sizeof(buff) - 1);
+	linklen = readlink(pathname, buff, sizeof(buff));
 	if (linklen < 0) {
 		failure_start(file, line, "Can't read symlink %s", pathname);
 		failure_finish(NULL);
@@ -1888,9 +1897,103 @@ assertion_utimes(const char *file, int line,
 #endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 }
 
+/* Compare file flags */
+int
+assertion_compare_fflags(const char *file, int line, const char *patha,
+    const char *pathb, int nomatch)
+{
+#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
+	struct stat sa, sb;
+
+	assertion_count(file, line);
+
+	if (stat(patha, &sa) < 0)
+		return (0);
+	if (stat(pathb, &sb) < 0)
+		return (0);
+	if (!nomatch && sa.st_flags != sb.st_flags) {
+		failure_start(file, line, "File flags should be identical: "
+		    "%s=%#010x %s=%#010x", patha, sa.st_flags, pathb,
+		    sb.st_flags);
+		failure_finish(NULL);
+		return (0);
+	}
+	if (nomatch && sa.st_flags == sb.st_flags) {
+		failure_start(file, line, "File flags should be different: "
+		    "%s=%#010x %s=%#010x", patha, sa.st_flags, pathb,
+		    sb.st_flags);
+		failure_finish(NULL);
+		return (0);
+	}
+#elif (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS) && \
+       defined(FS_NODUMP_FL)) || \
+      (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS) \
+         && defined(EXT2_NODUMP_FL))
+	int fd, r, flagsa, flagsb;
+
+	assertion_count(file, line);
+	fd = open(patha, O_RDONLY | O_NONBLOCK);
+	if (fd < 0) {
+		failure_start(file, line, "Can't open %s\n", patha);
+		failure_finish(NULL);
+		return (0);
+	}
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &flagsa);
+	close(fd);
+	if (r < 0) {
+		failure_start(file, line, "Can't get flags %s\n", patha);
+		failure_finish(NULL);
+		return (0);
+	}
+	fd = open(pathb, O_RDONLY | O_NONBLOCK);
+	if (fd < 0) {
+		failure_start(file, line, "Can't open %s\n", pathb);
+		failure_finish(NULL);
+		return (0);
+	}
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &flagsb);
+	close(fd);
+	if (r < 0) {
+		failure_start(file, line, "Can't get flags %s\n", pathb);
+		failure_finish(NULL);
+		return (0);
+	}
+	if (!nomatch && flagsa != flagsb) {
+		failure_start(file, line, "File flags should be identical: "
+		    "%s=%#010x %s=%#010x", patha, flagsa, pathb, flagsb);
+		failure_finish(NULL);
+		return (0);
+	}
+	if (nomatch && flagsa == flagsb) {
+		failure_start(file, line, "File flags should be different: "
+		    "%s=%#010x %s=%#010x", patha, flagsa, pathb, flagsb);
+		failure_finish(NULL);
+		return (0);
+	}
+#else
+	(void)patha; /* UNUSED */
+	(void)pathb; /* UNUSED */
+	(void)nomatch; /* UNUSED */
+	assertion_count(file, line);
+#endif
+	return (1);
+}
+
 /* Set nodump, report failures. */
 int
-assertion_nodump(const char *file, int line, const char *pathname)
+assertion_set_nodump(const char *file, int line, const char *pathname)
 {
 #if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
 	int r;
@@ -1902,8 +2005,10 @@ assertion_nodump(const char *file, int line, const char *pathname)
 		failure_finish(NULL);
 		return (0);
 	}
-#elif defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)\
-	 && defined(EXT2_NODUMP_FL)
+#elif (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS) && \
+       defined(FS_NODUMP_FL)) || \
+      (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS) \
+	 && defined(EXT2_NODUMP_FL))
 	int fd, r, flags;
 
 	assertion_count(file, line);
@@ -1913,14 +2018,31 @@ assertion_nodump(const char *file, int line, const char *pathname)
 		failure_finish(NULL);
 		return (0);
 	}
-	r = ioctl(fd, EXT2_IOC_GETFLAGS, &flags);
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &flags);
 	if (r < 0) {
 		failure_start(file, line, "Can't get flags %s\n", pathname);
 		failure_finish(NULL);
 		return (0);
 	}
+#ifdef FS_NODUMP_FL
+	flags |= FS_NODUMP_FL;
+#else
 	flags |= EXT2_NODUMP_FL;
-	r = ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+#endif
+
+	 r = ioctl(fd,
+#ifdef FS_IOC_SETFLAGS
+	    FS_IOC_SETFLAGS,
+#else
+	    EXT2_IOC_SETFLAGS,
+#endif
+	    &flags);
 	if (r < 0) {
 		failure_start(file, line, "Can't set nodump %s\n", pathname);
 		failure_finish(NULL);
@@ -1933,6 +2055,117 @@ assertion_nodump(const char *file, int line, const char *pathname)
 #endif
 	return (1);
 }
+
+#ifdef PROGRAM
+static void assert_version_id(char **qq, size_t *ss)
+{
+	char *q = *qq;
+	size_t s = *ss;
+
+	/* Version number is a series of digits and periods. */
+	while (s > 0 && (*q == '.' || (*q >= '0' && *q <= '9'))) {
+		++q;
+		--s;
+	}
+
+	if (q[0] == 'd' && q[1] == 'e' && q[2] == 'v') {
+		q += 3;
+		s -= 3;
+	}
+	
+	/* Skip a single trailing a,b,c, or d. */
+	if (*q == 'a' || *q == 'b' || *q == 'c' || *q == 'd')
+		++q;
+
+	/* Version number terminated by space. */
+	failure("No space after version: ``%s''", q);
+	assert(s > 1);
+	failure("No space after version: ``%s''", q);
+	assert(*q == ' ');
+
+	++q; --s;
+
+	*qq = q;
+	*ss = s;
+}
+
+
+/*
+ * Check program version
+ */
+void assertVersion(const char *prog, const char *base)
+{
+	int r;
+	char *p, *q;
+	size_t s;
+	unsigned int prog_len = strlen(base);
+
+	r = systemf("%s --version >version.stdout 2>version.stderr", prog);
+	if (r != 0)
+		r = systemf("%s -W version >version.stdout 2>version.stderr",
+		    prog);
+
+	failure("Unable to run either %s --version or %s -W version",
+		prog, prog);
+	if (!assert(r == 0))
+		return;
+
+	/* --version should generate nothing to stdout. */
+	assertEmptyFile("version.stderr");
+
+	/* Verify format of version message. */
+	q = p = slurpfile(&s, "version.stdout");
+
+	/* Version message should start with name of program, then space. */
+	assert(s > prog_len + 1);
+	
+	failure("Version must start with '%s': ``%s''", base, p);
+	if (!assertEqualMem(q, base, prog_len)) {
+		free(p);
+		return;
+	}
+
+	q += prog_len; s -= prog_len;
+
+	assert(*q == ' ');
+	q++; s--;
+
+	assert_version_id(&q, &s);
+
+	/* Separator. */
+	failure("No `-' between program name and versions: ``%s''", p);
+	assertEqualMem(q, "- ", 2);
+	q += 2; s -= 2;
+
+	failure("Not long enough for libarchive version: ``%s''", p);
+	assert(s > 11);
+
+	failure("Libarchive version must start with `libarchive': ``%s''", p);
+	assertEqualMem(q, "libarchive ", 11);
+
+	q += 11; s -= 11;
+
+	assert_version_id(&q, &s);
+
+	/* Skip arbitrary third-party version numbers. */
+	while (s > 0 && (*q == ' ' || *q == '-' || *q == '/' || *q == '.' ||
+	    isalnum(*q))) {
+		++q;
+		--s;
+	}
+
+	/* All terminated by end-of-line. */
+	assert(s >= 1);
+
+	/* Skip an optional CR character (e.g., Windows) */
+	failure("Version output must end with \\n or \\r\\n");
+
+	if (*q == '\r') { ++q; --s; }
+	assertEqualMem(q, "\n", 1);
+
+	free(p);
+}
+#endif	/* PROGRAM */
 
 /*
  *
@@ -2131,11 +2364,10 @@ canXz(void)
 /*
  * Can this filesystem handle nodump flags.
  */
-#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
-
 int
 canNodump(void)
 {
+#if defined(HAVE_STRUCT_STAT_ST_FLAGS) && defined(UF_NODUMP)
 	const char *path = "cannodumptest";
 	struct stat sb;
 
@@ -2146,15 +2378,10 @@ canNodump(void)
 		return (0);
 	if (sb.st_flags & UF_NODUMP)
 		return (1);
-	return (0);
-}
-
-#elif defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)\
-	 && defined(EXT2_NODUMP_FL)
-
-int
-canNodump(void)
-{
+#elif (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS) \
+	 && defined(FS_NODUMP_FL)) || \
+      (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS) \
+	 && defined(EXT2_NODUMP_FL))
 	const char *path = "cannodumptest";
 	int fd, r, flags;
 
@@ -2162,35 +2389,273 @@ canNodump(void)
 	fd = open(path, O_RDONLY | O_NONBLOCK);
 	if (fd < 0)
 		return (0);
-	r = ioctl(fd, EXT2_IOC_GETFLAGS, &flags);
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &flags);
 	if (r < 0)
 		return (0);
+#ifdef FS_NODUMP_FL
+	flags |= FS_NODUMP_FL;
+#else
 	flags |= EXT2_NODUMP_FL;
-	r = ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+#endif
+	r = ioctl(fd,
+#ifdef FS_IOC_SETFLAGS
+	    FS_IOC_SETFLAGS,
+#else
+	    EXT2_IOC_SETFLAGS,
+#endif
+	   &flags);
 	if (r < 0)
 		return (0);
 	close(fd);
 	fd = open(path, O_RDONLY | O_NONBLOCK);
 	if (fd < 0)
 		return (0);
-	r = ioctl(fd, EXT2_IOC_GETFLAGS, &flags);
+	r = ioctl(fd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &flags);
 	if (r < 0)
 		return (0);
 	close(fd);
-	if (flags & EXT2_NODUMP_FL)
-		return (1);
-	return (0);
-}
-
+#ifdef FS_NODUMP_FL
+	if (flags & FS_NODUMP_FL)
 #else
-
-int
-canNodump()
-{
+	if (flags & EXT2_NODUMP_FL)
+#endif
+		return (1);
+#endif
 	return (0);
 }
 
+#if HAVE_SUN_ACL
+/* Fetch ACLs on Solaris using acl() or facl() */
+void *
+sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
+{
+	int cnt, cntcmd;
+	size_t size;
+	void *aclp;
+
+	if (cmd == GETACL) {
+		cntcmd = GETACLCNT;
+		size = sizeof(aclent_t);
+	}
+#if HAVE_SUN_NFS4_ACL
+	else if (cmd == ACE_GETACL) {
+		cntcmd = ACE_GETACLCNT;
+		size = sizeof(ace_t);
+	}
 #endif
+	else {
+		errno = EINVAL;
+		*aclcnt = -1;
+		return (NULL);
+	}
+
+	aclp = NULL;
+	cnt = -2;
+	while (cnt == -2 || (cnt == -1 && errno == ENOSPC)) {
+		if (path != NULL)
+			cnt = acl(path, cntcmd, 0, NULL);
+		else
+			cnt = facl(fd, cntcmd, 0, NULL);
+
+		if (cnt > 0) {
+			if (aclp == NULL)
+				aclp = malloc(cnt * size);
+			else
+				aclp = realloc(NULL, cnt * size);
+			if (aclp != NULL) {
+				if (path != NULL)
+					cnt = acl(path, cmd, cnt, aclp);
+				else
+					cnt = facl(fd, cmd, cnt, aclp);
+			}
+		} else {
+			if (aclp != NULL) {
+				free(aclp);
+				aclp = NULL;
+			}
+			break;
+		}
+	}
+
+	*aclcnt = cnt;
+	return (aclp);
+}
+#endif /* HAVE_SUN_ACL */
+
+/*
+ * Set test ACLs on a path
+ * Return values:
+ * 0: error setting ACLs
+ * ARCHIVE_TEST_ACL_TYPE_POSIX1E: POSIX.1E ACLs have been set
+ * ARCHIVE_TEST_ACL_TYPE_NFS4: NFSv4 or extended ACLs have been set
+ */
+int
+setTestAcl(const char *path)
+{
+#if HAVE_POSIX_ACL || HAVE_NFS4_ACL
+	int r = 1;
+#if !HAVE_SUN_ACL
+	acl_t acl;
+#endif
+#if HAVE_POSIX_ACL /* Linux, FreeBSD POSIX.1e */
+	const char *acltext_posix1e = "user:1:rw-,"
+	    "group:15:r-x,"
+	    "user::rwx,"
+	    "group::rwx,"
+	    "other::r-x,"
+	    "mask::rwx";
+#elif HAVE_SUN_ACL /* Solaris POSIX.1e */
+	aclent_t aclp_posix1e[] = {
+	    { USER_OBJ, -1, 4 | 2 | 1 },
+	    { USER, 1, 4 | 2 },
+	    { GROUP_OBJ, -1, 4 | 2 | 1 },
+	    { GROUP, 15, 4 | 1 },
+	    { CLASS_OBJ, -1, 4 | 2 | 1 },
+	    { OTHER_OBJ, -1, 4 | 2 | 1 }
+	};
+#endif
+#if HAVE_FREEBSD_NFS4_ACL /* FreeBSD NFS4 */
+	const char *acltext_nfs4 = "user:1:rwpaRcs::allow:1,"
+	    "group:15:rxaRcs::allow:15,"
+	    "owner@:rwpxaARWcCos::allow,"
+	    "group@:rwpxaRcs::allow,"
+	    "everyone@:rxaRcs::allow";
+#elif HAVE_SUN_NFS4_ACL /* Solaris NFS4 */
+	ace_t aclp_nfs4[] = {
+	    { 1, ACE_READ_DATA | ACE_WRITE_DATA | ACE_APPEND_DATA |
+	      ACE_READ_ATTRIBUTES | ACE_READ_NAMED_ATTRS | ACE_READ_ACL |
+	      ACE_SYNCHRONIZE, 0, ACE_ACCESS_ALLOWED_ACE_TYPE },
+	    { 15, ACE_READ_DATA | ACE_EXECUTE | ACE_READ_ATTRIBUTES |
+	      ACE_READ_NAMED_ATTRS | ACE_READ_ACL | ACE_SYNCHRONIZE,
+	      ACE_IDENTIFIER_GROUP, ACE_ACCESS_ALLOWED_ACE_TYPE },
+	    { -1, ACE_READ_DATA | ACE_WRITE_DATA | ACE_APPEND_DATA |
+	      ACE_EXECUTE | ACE_READ_ATTRIBUTES | ACE_WRITE_ATTRIBUTES |
+	      ACE_READ_NAMED_ATTRS | ACE_WRITE_NAMED_ATTRS |
+	      ACE_READ_ACL | ACE_WRITE_ACL | ACE_WRITE_OWNER | ACE_SYNCHRONIZE,
+	      ACE_OWNER, ACE_ACCESS_ALLOWED_ACE_TYPE },
+	    { -1, ACE_READ_DATA | ACE_WRITE_DATA | ACE_APPEND_DATA |
+	      ACE_EXECUTE | ACE_READ_ATTRIBUTES | ACE_READ_NAMED_ATTRS |
+	      ACE_READ_ACL | ACE_SYNCHRONIZE, ACE_GROUP | ACE_IDENTIFIER_GROUP,
+	      ACE_ACCESS_ALLOWED_ACE_TYPE },
+	    { -1, ACE_READ_DATA | ACE_EXECUTE | ACE_READ_ATTRIBUTES |
+	      ACE_READ_NAMED_ATTRS | ACE_READ_ACL | ACE_SYNCHRONIZE,
+	      ACE_EVERYONE, ACE_ACCESS_ALLOWED_ACE_TYPE }
+	};
+#elif HAVE_DARWIN_ACL /* Mac OS X */
+	acl_entry_t aclent;
+	acl_permset_t permset;
+	const uid_t uid = 1;
+	uuid_t uuid;
+	int i;
+	const acl_perm_t acl_perms[] = {
+		ACL_READ_DATA,
+		ACL_WRITE_DATA,
+		ACL_APPEND_DATA,
+		ACL_EXECUTE,
+		ACL_READ_ATTRIBUTES,
+		ACL_READ_EXTATTRIBUTES,
+		ACL_READ_SECURITY,
+#if HAVE_DECL_ACL_SYNCHRONIZE
+		ACL_SYNCHRONIZE
+#endif
+	};
+#endif /* HAVE_DARWIN_ACL */
+
+#if HAVE_FREEBSD_NFS4_ACL
+	acl = acl_from_text(acltext_nfs4);
+	failure("acl_from_text() error: %s", strerror(errno));
+	if (assert(acl != NULL) == 0)
+		return (0);
+#elif HAVE_DARWIN_ACL
+	acl = acl_init(1);
+	failure("acl_init() error: %s", strerror(errno));
+	if (assert(acl != NULL) == 0)
+		return (0);
+	r = acl_create_entry(&acl, &aclent);
+	failure("acl_create_entry() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	r = acl_set_tag_type(aclent, ACL_EXTENDED_ALLOW);
+	failure("acl_set_tag_type() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	r = acl_get_permset(aclent, &permset);
+	failure("acl_get_permset() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	for (i = 0; i < (int)(sizeof(acl_perms) / sizeof(acl_perms[0])); i++) {
+		r = acl_add_perm(permset, acl_perms[i]);
+		failure("acl_add_perm() error: %s", strerror(errno));
+		if (assertEqualInt(r, 0) == 0)
+			goto testacl_free;
+	}
+	r = acl_set_permset(aclent, permset);
+	failure("acl_set_permset() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	r = mbr_identifier_to_uuid(ID_TYPE_UID, &uid, sizeof(uid_t), uuid);
+	failure("mbr_identifier_to_uuid() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+	r = acl_set_qualifier(aclent, uuid);
+	failure("acl_set_qualifier() error: %s", strerror(errno));
+	if (assertEqualInt(r, 0) == 0)
+		goto testacl_free;
+#endif /* HAVE_DARWIN_ACL */
+
+#if HAVE_NFS4_ACL
+#if HAVE_FREEBSD_NFS4_ACL
+	r = acl_set_file(path, ACL_TYPE_NFS4, acl);
+	acl_free(acl);
+#elif HAVE_SUN_NFS4_ACL
+	r = acl(path, ACE_SETACL,
+	    (int)(sizeof(aclp_nfs4)/sizeof(aclp_nfs4[0])), aclp_nfs4);
+#elif HAVE_DARWIN_ACL
+	r = acl_set_file(path, ACL_TYPE_EXTENDED, acl);
+	acl_free(acl);
+#endif
+	if (r == 0)
+		return (ARCHIVE_TEST_ACL_TYPE_NFS4);
+#endif	/* HAVE_NFS4_ACL */
+
+#if HAVE_POSIX_ACL || HAVE_SUN_ACL
+#if HAVE_POSIX_ACL
+	acl = acl_from_text(acltext_posix1e);
+	failure("acl_from_text() error: %s", strerror(errno));
+	if (assert(acl != NULL) == 0)
+		return (0);
+
+	r = acl_set_file(path, ACL_TYPE_ACCESS, acl);
+	acl_free(acl);
+#elif HAVE_SUN_ACL
+	r = acl(path, SETACL,
+	    (int)(sizeof(aclp_posix1e)/sizeof(aclp_posix1e[0])), aclp_posix1e);
+#endif
+	if (r == 0)
+		return (ARCHIVE_TEST_ACL_TYPE_POSIX1E);
+	else
+		return (0);
+#endif /* HAVE_POSIX_ACL || HAVE_SUN_ACL */
+#if HAVE_DARWIN_ACL
+testacl_free:
+	acl_free(acl);
+#endif
+#endif /* HAVE_POSIX_ACL || HAVE_NFS4_ACL */
+	(void)path;	/* UNUSED */
+	return (0);
+}
 
 /*
  * Sleep as needed; useful for verifying disk timestamp changes by
@@ -2322,7 +2787,7 @@ extract_reference_file(const char *name)
 	for (;;) {
 		if (fgets(buff, sizeof(buff), in) == NULL) {
 			/* TODO: This is a failure. */
-			goto done;
+			return;
 		}
 		if (memcmp(buff, "begin ", 6) == 0)
 			break;
@@ -2363,7 +2828,6 @@ extract_reference_file(const char *name)
 		}
 	}
 	fclose(out);
-done:
 	fclose(in);
 }
 
@@ -2421,6 +2885,190 @@ extract_reference_files(const char **names)
 	while (names && *names)
 		extract_reference_file(*names++);
 }
+
+#ifndef PROGRAM
+/* Set ACLs */
+int
+assertion_entry_set_acls(const char *file, int line, struct archive_entry *ae,
+    struct archive_test_acl_t *acls, int n)
+{
+	int i, r, ret;
+
+	assertion_count(file, line);
+
+	ret = 0;
+	archive_entry_acl_clear(ae);
+	for (i = 0; i < n; i++) {
+		r = archive_entry_acl_add_entry(ae,
+		    acls[i].type, acls[i].permset, acls[i].tag,
+		    acls[i].qual, acls[i].name);
+		if (r != 0) {
+			ret = 1;
+			failure_start(file, line, "type=%#010x, ",
+			    "permset=%#010x, tag=%d, qual=%d name=%s",
+			    acls[i].type, acls[i].permset, acls[i].tag,
+			    acls[i].qual, acls[i].name);
+			failure_finish(NULL);
+		}
+	}
+
+	return (ret);
+}
+
+static int
+archive_test_acl_match(struct archive_test_acl_t *acl, int type, int permset,
+    int tag, int qual, const char *name)
+{
+	if (type != acl->type)
+		return (0);
+	if (permset != acl->permset)
+		return (0);
+	if (tag != acl->tag)
+		return (0);
+	if (tag == ARCHIVE_ENTRY_ACL_USER_OBJ)
+		return (1);
+	if (tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ)
+		return (1);
+	if (tag == ARCHIVE_ENTRY_ACL_EVERYONE)
+		return (1);
+	if (tag == ARCHIVE_ENTRY_ACL_OTHER)
+		return (1);
+	if (qual != acl->qual)
+		return (0);
+	if (name == NULL) {
+		if (acl->name == NULL || acl->name[0] == '\0')
+			return (1);
+		return (0);
+	}
+	if (acl->name == NULL) {
+		if (name[0] == '\0')
+			return (1);
+		return (0);
+	}
+	return (0 == strcmp(name, acl->name));
+}
+
+/* Compare ACLs */
+int
+assertion_entry_compare_acls(const char *file, int line,
+    struct archive_entry *ae, struct archive_test_acl_t *acls, int cnt,
+    int want_type, int mode)
+{
+	int *marker;
+	int i, r, n, ret;
+	int type, permset, tag, qual;
+	int matched;
+	const char *name;
+
+	assertion_count(file, line);
+
+	ret = 0;
+	n = 0;
+	marker = malloc(sizeof(marker[0]) * cnt);
+
+	for (i = 0; i < cnt; i++) {
+		if ((acls[i].type & want_type) != 0) {
+			marker[n] = i;
+			n++;
+		}
+	}
+
+	if (n == 0) {
+		failure_start(file, line, "No ACL's to compare, type mask: %d",
+		    want_type);
+		return (1);
+	}
+
+	while (0 == (r = archive_entry_acl_next(ae, want_type,
+			 &type, &permset, &tag, &qual, &name))) {
+		for (i = 0, matched = 0; i < n && !matched; i++) {
+			if (archive_test_acl_match(&acls[marker[i]], type,
+			    permset, tag, qual, name)) {
+				/* We found a match; remove it. */
+				marker[i] = marker[n - 1];
+				n--;
+				matched = 1;
+			}
+		}
+		if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+		    && tag == ARCHIVE_ENTRY_ACL_USER_OBJ) {
+			if (!matched) {
+				failure_start(file, line, "No match for "
+				    "user_obj perm");
+				failure_finish(NULL);
+				ret = 1;
+			}
+			if ((permset << 6) != (mode & 0700)) {
+				failure_start(file, line, "USER_OBJ permset "
+				    "(%02o) != user mode (%02o)", permset,
+				    07 & (mode >> 6));
+				failure_finish(NULL);
+				ret = 1;
+			}
+		} else if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+		    && tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ) {
+			if (!matched) {
+				failure_start(file, line, "No match for "
+				    "group_obj perm");
+				failure_finish(NULL);
+				ret = 1;
+			}
+			if ((permset << 3) != (mode & 0070)) {
+				failure_start(file, line, "GROUP_OBJ permset "
+				    "(%02o) != group mode (%02o)", permset,
+				    07 & (mode >> 3));
+				failure_finish(NULL);
+				ret = 1;
+			}
+		} else if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS
+		    && tag == ARCHIVE_ENTRY_ACL_OTHER) {
+			if (!matched) {
+				failure_start(file, line, "No match for "
+				    "other perm");
+				failure_finish(NULL);
+				ret = 1;
+			}
+			if ((permset << 0) != (mode & 0007)) {
+				failure_start(file, line, "OTHER permset "
+				    "(%02o) != other mode (%02o)", permset,
+				    mode & 07);
+				failure_finish(NULL);
+				ret = 1;
+			}
+		} else if (matched != 1) {
+			failure_start(file, line, "Could not find match for "
+			    "ACL (type=%#010x,permset=%#010x,tag=%d,qual=%d,"
+			    "name=``%s'')", type, permset, tag, qual, name);
+			failure_finish(NULL);
+			ret = 1;
+		}
+	}
+	if (r != ARCHIVE_EOF) {
+		failure_start(file, line, "Should not exit before EOF");
+		failure_finish(NULL);
+		ret = 1;
+	}
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0 &&
+	    (mode_t)(mode & 0777) != (archive_entry_mode(ae) & 0777)) {
+		failure_start(file, line, "Mode (%02o) and entry mode (%02o) "
+		    "mismatch", mode, archive_entry_mode(ae));
+		failure_finish(NULL);
+		ret = 1;
+	}
+	if (n != 0) {
+		failure_start(file, line, "Could not find match for ACL "
+		    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s'')",
+		    acls[marker[0]].type, acls[marker[0]].permset,
+		    acls[marker[0]].tag, acls[marker[0]].qual,
+		    acls[marker[0]].name);
+		failure_finish(NULL);
+		ret = 1;
+		/* Number of ACLs not matched should == 0 */
+	}
+	free(marker);
+	return (ret);
+}
+#endif	/* !defined(PROGRAM) */
 
 /*
  *
@@ -2957,8 +3605,8 @@ main(int argc, char **argv)
 		strftime(tmpdir_timestamp, sizeof(tmpdir_timestamp),
 		    "%Y-%m-%dT%H.%M.%S",
 		    localtime(&now));
-		snprintf(tmpdir, sizeof(tmpdir), "%s/%s.%s-%03d", tmp,
-		    progname, tmpdir_timestamp, i);
+		sprintf(tmpdir, "%s/%s.%s-%03d", tmp, progname,
+		    tmpdir_timestamp, i);
 		if (assertMakeDir(tmpdir,0755))
 			break;
 		if (i >= 999) {

@@ -76,6 +76,10 @@ __hmac_sha1_cleanup(archive_hmac_sha1_ctx *ctx)
 
 #elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
 
+#ifndef BCRYPT_HASH_REUSABLE_FLAG
+# define BCRYPT_HASH_REUSABLE_FLAG 0x00000020
+#endif
+
 static int
 __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
 {
