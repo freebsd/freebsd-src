@@ -110,8 +110,8 @@ _rs_stir(void)
 
 #ifdef WITH_OPENSSL
 	if (RAND_bytes(rnd, sizeof(rnd)) <= 0)
-		fatal("Couldn't obtain random bytes (error %ld)",
-		    ERR_get_error());
+		fatal("Couldn't obtain random bytes (error 0x%lx)",
+		    (unsigned long)ERR_get_error());
 #else
 	getrnd(rnd, sizeof(rnd));
 #endif

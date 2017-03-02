@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.105 2016/02/15 09:47:49 dtucker Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.106 2016/05/02 10:26:04 djm Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -302,6 +302,9 @@ keygrab_ssh2(con *c)
 #ifdef WITH_OPENSSL
 	c->c_ssh->kex->kex[KEX_DH_GRP1_SHA1] = kexdh_client;
 	c->c_ssh->kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
+	c->c_ssh->kex->kex[KEX_DH_GRP14_SHA256] = kexdh_client;
+	c->c_ssh->kex->kex[KEX_DH_GRP16_SHA512] = kexdh_client;
+	c->c_ssh->kex->kex[KEX_DH_GRP18_SHA512] = kexdh_client;
 	c->c_ssh->kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 	c->c_ssh->kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
 # ifdef OPENSSL_HAS_ECC
