@@ -40,6 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/pciio.h>
 
+#include <machine/bus.h>
+#include <machine/md_var.h>
+#include <machine/intr_machdep.h>
+#include <machine/cpuregs.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -55,11 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
-#include <machine/md_var.h>
-#include <machine/intr_machdep.h>
-#include <machine/cpuregs.h>
 
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/interrupt.h>
