@@ -39,11 +39,70 @@ __FBSDID("$FreeBSD$");
 
 #include "loader_efi.h"
 
+#if defined(__i386__) || defined(__amd64__)
+
+#define KERNEL_PHYSICAL_BASE (2*1024*1024)
+
+static void
+efi_verify_staging_size(unsigned long *nr_pages)
+{
+	UINTN sz;
+	EFI_MEMORY_DESCRIPTOR *map, *p;
+	EFI_PHYSICAL_ADDRESS start, end;
+	UINTN key, dsz;
+	UINT32 dver;
+	EFI_STATUS status;
+	int i, ndesc;
+	unsigned long available_pages;
+
+	sz = 0;
+	status = BS->GetMemoryMap(&sz, 0, &key, &dsz, &dver);
+	if (status != EFI_BUFFER_TOO_SMALL) {
+		printf("Can't determine memory map size\n");
+		return;
+	}
+
+	map = malloc(sz);
+	status = BS->GetMemoryMap(&sz, map, &key, &dsz, &dver);
+	if (EFI_ERROR(status)) {
+		printf("Can't read memory map\n");
+		goto out;
+	}
+
+	ndesc = sz / dsz;
+
+	for (i = 0, p = map; i < ndesc;
+	     i++, p = NextMemoryDescriptor(p, dsz)) {
+		start = p->PhysicalStart;
+		end = start + p->NumberOfPages * EFI_PAGE_SIZE;
+
+		if (KERNEL_PHYSICAL_BASE < start ||
+		    KERNEL_PHYSICAL_BASE >= end)
+			continue;
+
+		if (p->Type != EfiConventionalMemory)
+			continue;
+
+		available_pages = p->NumberOfPages -
+			((KERNEL_PHYSICAL_BASE - start) >> EFI_PAGE_SHIFT);
+
+		if (*nr_pages > available_pages) {
+			printf("staging area size is reduced: %ld -> %ld!\n",
+			    *nr_pages, available_pages);
+			*nr_pages = available_pages;
+		}
+
+		break;
+	}
+
+out:
+	free(map);
+}
+#endif
+
 #ifndef EFI_STAGING_SIZE
 #define	EFI_STAGING_SIZE	64
 #endif
-
-#define	STAGE_PAGES	EFI_SIZE_TO_PAGES((EFI_STAGING_SIZE) * 1024 * 1024)
 
 EFI_PHYSICAL_ADDRESS	staging, staging_end;
 int			stage_offset_set = 0;
@@ -54,14 +113,32 @@ efi_copy_init(void)
 {
 	EFI_STATUS	status;
 
+	unsigned long nr_pages;
+
+	nr_pages = EFI_SIZE_TO_PAGES((EFI_STAGING_SIZE) * 1024 * 1024);
+
+#if defined(__i386__) || defined(__amd64__)
+	/* We'll decrease nr_pages, if it's too big. */
+	efi_verify_staging_size(&nr_pages);
+
+	/*
+	 * The staging area must reside in the the first 1GB physical
+	 * memory: see elf64_exec() in
+	 * boot/efi/loader/arch/amd64/elf64_freebsd.c.
+	 */
+	staging = 1024*1024*1024;
+	status = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData,
+	    nr_pages, &staging);
+#else
 	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-	    STAGE_PAGES, &staging);
+	    nr_pages, &staging);
+#endif
 	if (EFI_ERROR(status)) {
 		printf("failed to allocate staging area: %lu\n",
 		    EFI_ERROR_CODE(status));
 		return (status);
 	}
-	staging_end = staging + STAGE_PAGES * EFI_PAGE_SIZE;
+	staging_end = staging + nr_pages * EFI_PAGE_SIZE;
 
 #if defined(__aarch64__) || defined(__arm__)
 	/*
