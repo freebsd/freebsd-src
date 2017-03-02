@@ -226,7 +226,7 @@ acl_match(acl_entry_t aclent, struct archive_test_acl_t *myacl)
 
 static void
 #if HAVE_SUN_ACL
-compare_acls(acl_t *acl, struct archive_test_acl_t *myacls, int n)
+compare_acls(void *aclp, int aclcnt, struct archive_test_acl_t *myacls, int n)
 #else
 compare_acls(acl_t acl, struct archive_test_acl_t *myacls, int n)
 #endif
@@ -254,8 +254,8 @@ compare_acls(acl_t acl, struct archive_test_acl_t *myacls, int n)
 	 * one with an item in the myacls array.
 	 */
 #if HAVE_SUN_ACL
-	for(e = 0; e < acl->acl_cnt; e++) {
-		acl_entry = &((aclent_t *)acl->acl_aclp)[e];
+	for(e = 0; e < aclcnt; e++) {
+		acl_entry = &((aclent_t *)aclp)[e];
 #else
 	while (1 == acl_get_entry(acl, entry_id, &acl_entry)) {
 		/* After the first time... */
@@ -304,83 +304,19 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	struct stat st;
 	struct archive *a;
 	struct archive_entry *ae;
-	int n, fd;
-	char *func;
 #if HAVE_SUN_ACL
-	acl_t *acl, *acl2;
+	void *aclp;
+	int aclcnt;
 #else
 	acl_t acl;
 #endif
 
-	/*
-	 * First, do a quick manual set/read of ACL data to
-	 * verify that the local filesystem does support ACLs.
-	 * If it doesn't, we'll simply skip the remaining tests.
-	 */
-#if HAVE_SUN_ACL
-	n = acl_fromtext("user::rwx,user:1:rw-,group::rwx,group:15:r-x,other:rwx,mask:rwx", &acl);
-	failure("acl_fromtext(): errno = %d (%s)", errno, strerror(errno));
-	assertEqualInt(0, n);
-#else
-	acl = acl_from_text("u::rwx,u:1:rw,g::rwx,g:15:rx,o::rwx,m::rwx");
-	failure("acl_from_text(): errno = %d (%s)", errno, strerror(errno));
-	assert((void *)acl != NULL);
-#endif
+	assertMakeFile("pretest", 0644, "a");
 
-	/* Create a test file and try ACL on it. */
-	fd = open("pretest", O_WRONLY | O_CREAT | O_EXCL, 0777);
-	failure("Could not create test file?!");
-	if (!assert(fd >= 0)) {
-		acl_free(acl);
+	if (setTestAcl("pretest") != ARCHIVE_TEST_ACL_TYPE_POSIX1E) {
+		skipping("POSIX.1e ACLs are not writable on this filesystem");
 		return;
 	}
-
-#if HAVE_SUN_ACL
-	n = facl_get(fd, 0, &acl2);
-	if (n != 0) {
-		close(fd);
-		acl_free(acl);
-	}
-	if (errno == ENOSYS) {
-		skipping("POSIX.1e ACLs are not supported on this filesystem");
-		return;
-	}
-	failure("facl_get(): errno = %d (%s)", errno, strerror(errno));
-	assertEqualInt(0, n);
-
-	if (acl2->acl_type != ACLENT_T) {
-		acl_free(acl2);
-		skipping("POSIX.1e ACLs are not supported on this filesystem");
-		return;
-	}
-	acl_free(acl2);
-
-	func = "facl_set()";
-	n = facl_set(fd, acl);
-#else
-	func = "acl_set_fd()";
-	n = acl_set_fd(fd, acl);
-#endif
-	acl_free(acl);
-	if (n != 0) {
-#if HAVE_SUN_ACL
-		if (errno == ENOSYS)
-#else
-		if (errno == EOPNOTSUPP || errno == EINVAL)
-#endif
-		{
-			close(fd);
-			skipping("POSIX.1e ACLs are not supported on this filesystem");
-			return;
-		}
-	}
-	failure("%s: errno = %d (%s)", func, errno, strerror(errno));
-	assertEqualInt(0, n);
-
-#if HAVE_SUN_ACL
-
-#endif
-	close(fd);
 
 	/* Create a write-to-disk object. */
 	assert(NULL != (a = archive_write_disk_new()));
@@ -393,7 +329,7 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	archive_entry_set_pathname(ae, "test0");
 	archive_entry_set_mtime(ae, 123456, 7890);
 	archive_entry_set_size(ae, 0);
-	archive_test_set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 
@@ -405,16 +341,23 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	assertEqualInt(0, stat("test0", &st));
 	assertEqualInt(st.st_mtime, 123456);
 #if HAVE_SUN_ACL
-	n = acl_get("test0", 0, &acl);
-	failure("acl_get(): errno = %d (%s)", errno, strerror(errno));
-	assertEqualInt(0, n);
+	aclp = sunacl_get(GETACL, &aclcnt, 0, "test0");
+	failure("acl(): errno = %d (%s)", errno, strerror(errno));
+	assert(aclp != NULL);
 #else
 	acl = acl_get_file("test0", ACL_TYPE_ACCESS);
 	failure("acl_get_file(): errno = %d (%s)", errno, strerror(errno));
 	assert(acl != (acl_t)NULL);
 #endif
+#if HAVE_SUN_ACL
+	compare_acls(aclp, aclcnt, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	free(aclp);
+	aclp = NULL;
+#else
 	compare_acls(acl, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	acl_free(acl);
+#endif
+
 #endif	/* HAVE_SUN_ACL || HAVE_POSIX_ACL */
 }
 
@@ -432,7 +375,8 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	char *func, *acl_text;
 	const char *acl1_text, *acl2_text, *acl3_text;
 #if HAVE_SUN_ACL
-	acl_t *acl, *acl1, *acl2, *acl3;
+	void *aclp;
+	int aclcnt;
 #else
 	acl_t acl1, acl2, acl3;
 #endif
@@ -451,9 +395,14 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	    "user:1:rw-,"
 	    "group:15:r-x,"
 	    "mask:rwx";
-	n = acl_fromtext(acl1_text, &acl1);
-	failure("acl_fromtext(): errno = %d (%s)", errno, strerror(errno));
-	assertEqualInt(0, n);
+	aclent_t aclp1[] = {
+	    { USER_OBJ, -1, 4 | 2 | 1 },
+	    { USER, 1, 4 | 2 },
+	    { GROUP_OBJ, -1, 4 | 2 | 1 },
+	    { GROUP, 15, 4 | 1 },
+	    { CLASS_OBJ, -1, 4 | 2 | 1 },
+	    { OTHER_OBJ, -1, 4 | 2 | 1 }
+	};
 #else
 	acl1_text = "user::rwx\n"
 	    "group::rwx\n"
@@ -468,41 +417,36 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	fd = open("f1", O_WRONLY | O_CREAT | O_EXCL, 0777);
 	failure("Could not create test file?!");
 	if (!assert(fd >= 0)) {
+#if !HAVE_SUN_ACL
 		acl_free(acl1);
+#endif
 		return;
 	}
 #if HAVE_SUN_ACL
 	/* Check if Solaris filesystem supports POSIX.1e ACLs */
-	n = facl_get(fd, 0, &acl);
-	if (n != 0)
+	aclp = sunacl_get(GETACL, &aclcnt, fd, NULL);
+	if (aclp == 0)
 		close(fd);
-	if (n != 0 && errno == ENOSYS) {
-		acl_free(acl1);
+	if (errno == ENOSYS || errno == ENOTSUP) {
 		skipping("POSIX.1e ACLs are not supported on this filesystem");
 		return;
 	}
-	failure("facl_get(): errno = %d (%s)", errno, strerror(errno));
-	assertEqualInt(0, n);
+	failure("facl(): errno = %d (%s)", errno, strerror(errno));
+	assert(aclp != NULL);
 
-	if (acl->acl_type != ACLENT_T) {
-		acl_free(acl);
-		acl_free(acl1);
-		close(fd);
-		skipping("POSIX.1e ACLs are not supported on this filesystem");
-		return;
-	}
-
-	func = "facl_set()";
-	n = facl_set(fd, acl1);
+	func = "facl()";
+	n = facl(fd, SETACL, (int)(sizeof(aclp1)/sizeof(aclp1[0])), aclp1);
 #else
 	func = "acl_set_fd()";
 	n = acl_set_fd(fd, acl1);
 #endif
+#if !HAVE_SUN_ACL
 	acl_free(acl1);
+#endif
 
 	if (n != 0) {
 #if HAVE_SUN_ACL
-		if (errno == ENOSYS)
+		if (errno == ENOSYS || errno == ENOTSUP)
 #else
 		if (errno == EOPNOTSUPP || errno == EINVAL)
 #endif
@@ -537,9 +481,14 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	    "user:1:r--,"
 	    "group:15:r--,"
 	    "mask:rwx";
-	n = acl_fromtext(acl2_text, &acl2);
-	failure("acl_fromtext(): errno = %d (%s)", errno, strerror(errno));
-	assertEqualInt(0, n);
+	aclent_t aclp2[] = {
+	    { USER_OBJ, -1, 4 | 2 | 1 },
+	    { USER, 1, 4 },
+	    { GROUP_OBJ, -1, 4 | 2 | 1},
+	    { GROUP, 15, 4 },
+	    { CLASS_OBJ, -1, 4 | 2 | 1},
+	    { OTHER_OBJ, -1, 0 }
+	};
 #else
 	acl2_text = "user::rwx\n"
 	    "group::rwx\n"
@@ -554,25 +503,27 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	fd = open("d/f1", O_WRONLY | O_CREAT | O_EXCL, 0777);
 	failure("Could not create test file?!");
 	if (!assert(fd >= 0)) {
+#if !HAVE_SUN_ACL
 		acl_free(acl2);
+#endif
 		return;
 	}
 #if HAVE_SUN_ACL
-	func = "facl_set()";
-	n = facl_set(fd, acl2);
+	func = "facl()";
+	n = facl(fd, SETACL, (int)(sizeof(aclp2) / sizeof(aclp2[0])), aclp2);
 #else
 	func = "acl_set_fd()";
 	n = acl_set_fd(fd, acl2);
-#endif
 	acl_free(acl2);
+#endif
 	if (n != 0)
 		close(fd);
 	failure("%s: errno = %d (%s)", func, errno, strerror(errno));
 	assertEqualInt(0, n);
 	close(fd);
 
-	/* Create directory d2 with default ACLs */
-	assertMakeDir("d2", 0755);
+	/* Create nested directory d2 with default ACLs */
+	assertMakeDir("d/d2", 0755);
 
 #if HAVE_SUN_ACL
 	acl3_text = "user::rwx,"
@@ -587,9 +538,20 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	    "default:group:15:r--,"
 	    "default:mask:rwx,"
 	    "default:other:r-x";
-	n = acl_fromtext(acl3_text, &acl3);
-	failure("acl_fromtext(): errno = %d (%s)", errno, strerror(errno));
-	assertEqualInt(0, n);
+	aclent_t aclp3[] = {
+	    { USER_OBJ, -1, 4 | 2 | 1 },
+	    { USER, 2, 4 },
+	    { GROUP_OBJ, -1, 4 | 1 },
+	    { GROUP, 16, 2 },
+	    { CLASS_OBJ, -1, 4 | 2 | 1 },
+	    { OTHER_OBJ, -1, 4 | 1 },
+	    { USER_OBJ | ACL_DEFAULT, -1, 4 | 2 | 1 },
+	    { USER | ACL_DEFAULT, 1, 4 },
+	    { GROUP_OBJ | ACL_DEFAULT, -1, 4 | 1 },
+	    { GROUP | ACL_DEFAULT, 15, 4 },
+	    { CLASS_OBJ | ACL_DEFAULT, -1, 4 | 2 | 1},
+	    { OTHER_OBJ | ACL_DEFAULT, -1, 4 | 1 }
+	};
 #else
 	acl3_text = "user::rwx\n"
 	    "user:1:r--\n"
@@ -603,14 +565,13 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 #endif
 
 #if HAVE_SUN_ACL
-	func = "acl_set()";
-	n = acl_set("d2", acl3);
+	func = "acl()";
+	n = acl("d/d2", SETACL, (int)(sizeof(aclp3) / sizeof(aclp3[0])), aclp3);
 #else
 	func = "acl_set_file()";
-	n = acl_set_file("d2", ACL_TYPE_DEFAULT, acl3);
-#endif
+	n = acl_set_file("d/d2", ACL_TYPE_DEFAULT, acl3);
 	acl_free(acl3);
-
+#endif
 	failure("%s: errno = %d (%s)", func, errno, strerror(errno));
 	assertEqualInt(0, n);
 
@@ -640,7 +601,7 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 			acl_text = archive_entry_acl_to_text(ae, NULL, flags);
 			assertEqualString(acl_text, acl2_text);
 			free(acl_text);
-		} else if (strcmp(archive_entry_pathname(ae), "./d2") == 0) {
+		} else if (strcmp(archive_entry_pathname(ae), "./d/d2") == 0) {
 			acl_text = archive_entry_acl_to_text(ae, NULL, dflags);
 			assertEqualString(acl_text, acl3_text);
 			free(acl_text);
