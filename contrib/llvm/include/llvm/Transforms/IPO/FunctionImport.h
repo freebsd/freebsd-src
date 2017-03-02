@@ -13,6 +13,8 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Support/Error.h"
 
 #include <functional>
 #include <map>
@@ -42,25 +44,34 @@ public:
   /// The set contains an entry for every global value the module exports.
   typedef std::unordered_set<GlobalValue::GUID> ExportSetTy;
 
+  /// A function of this type is used to load modules referenced by the index.
+  typedef std::function<Expected<std::unique_ptr<Module>>(StringRef Identifier)>
+      ModuleLoaderTy;
+
   /// Create a Function Importer.
-  FunctionImporter(
-      const ModuleSummaryIndex &Index,
-      std::function<std::unique_ptr<Module>(StringRef Identifier)> ModuleLoader)
+  FunctionImporter(const ModuleSummaryIndex &Index, ModuleLoaderTy ModuleLoader)
       : Index(Index), ModuleLoader(std::move(ModuleLoader)) {}
 
   /// Import functions in Module \p M based on the supplied import list.
   /// \p ForceImportReferencedDiscardableSymbols will set the ModuleLinker in
   /// a mode where referenced discarable symbols in the source modules will be
   /// imported as well even if they are not present in the ImportList.
-  bool importFunctions(Module &M, const ImportMapTy &ImportList,
-                       bool ForceImportReferencedDiscardableSymbols = false);
+  Expected<bool>
+  importFunctions(Module &M, const ImportMapTy &ImportList,
+                  bool ForceImportReferencedDiscardableSymbols = false);
 
 private:
   /// The summaries index used to trigger importing.
   const ModuleSummaryIndex &Index;
 
   /// Factory function to load a Module for a given identifier
-  std::function<std::unique_ptr<Module>(StringRef Identifier)> ModuleLoader;
+  ModuleLoaderTy ModuleLoader;
+};
+
+/// The function importing pass
+class FunctionImportPass : public PassInfoMixin<FunctionImportPass> {
+public:
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };
 
 /// Compute all the imports and exports for every module in the Index.
@@ -75,11 +86,15 @@ private:
 /// \p ExportLists contains for each Module the set of globals (GUID) that will
 /// be imported by another module, or referenced by such a function. I.e. this
 /// is the set of globals that need to be promoted/renamed appropriately.
+///
+/// \p DeadSymbols (optional) contains a list of GUID that are deemed "dead" and
+/// will be ignored for the purpose of importing.
 void ComputeCrossModuleImport(
     const ModuleSummaryIndex &Index,
     const StringMap<GVSummaryMapTy> &ModuleToDefinedGVSummaries,
     StringMap<FunctionImporter::ImportMapTy> &ImportLists,
-    StringMap<FunctionImporter::ExportSetTy> &ExportLists);
+    StringMap<FunctionImporter::ExportSetTy> &ExportLists,
+    const DenseSet<GlobalValue::GUID> *DeadSymbols = nullptr);
 
 /// Compute all the imports for the given module using the Index.
 ///
@@ -88,6 +103,13 @@ void ComputeCrossModuleImport(
 void ComputeCrossModuleImportForModule(
     StringRef ModulePath, const ModuleSummaryIndex &Index,
     FunctionImporter::ImportMapTy &ImportList);
+
+/// Compute all the symbols that are "dead": i.e these that can't be reached
+/// in the graph from any of the given symbols listed in
+/// \p GUIDPreservedSymbols.
+DenseSet<GlobalValue::GUID>
+computeDeadSymbols(const ModuleSummaryIndex &Index,
+                   const DenseSet<GlobalValue::GUID> &GUIDPreservedSymbols);
 
 /// Compute the set of summaries needed for a ThinLTO backend compilation of
 /// \p ModulePath.
@@ -102,12 +124,13 @@ void ComputeCrossModuleImportForModule(
 void gatherImportedSummariesForModule(
     StringRef ModulePath,
     const StringMap<GVSummaryMapTy> &ModuleToDefinedGVSummaries,
-    const StringMap<FunctionImporter::ImportMapTy> &ImportLists,
+    const FunctionImporter::ImportMapTy &ImportList,
     std::map<std::string, GVSummaryMapTy> &ModuleToSummariesForIndex);
 
+/// Emit into \p OutputFilename the files module \p ModulePath will import from.
 std::error_code
 EmitImportsFiles(StringRef ModulePath, StringRef OutputFilename,
-                 const StringMap<FunctionImporter::ImportMapTy> &ImportLists);
+                 const FunctionImporter::ImportMapTy &ModuleImports);
 
 /// Resolve WeakForLinker values in \p TheModule based on the information
 /// recorded in the summaries during global summary-based analysis.

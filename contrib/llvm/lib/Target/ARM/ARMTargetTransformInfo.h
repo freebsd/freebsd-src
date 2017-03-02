@@ -45,13 +45,6 @@ public:
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),
         TLI(ST->getTargetLowering()) {}
 
-  // Provide value semantics. MSVC requires that we spell all of these out.
-  ARMTTIImpl(const ARMTTIImpl &Arg)
-      : BaseT(static_cast<const BaseT &>(Arg)), ST(Arg.ST), TLI(Arg.TLI) {}
-  ARMTTIImpl(ARMTTIImpl &&Arg)
-      : BaseT(std::move(static_cast<BaseT &>(Arg))), ST(std::move(Arg.ST)),
-        TLI(std::move(Arg.TLI)) {}
-
   bool enableInterleavedAccessVectorization() { return true; }
 
   /// Floating-point computation using ARMv8 AArch32 Advanced
@@ -111,7 +104,8 @@ public:
 
   int getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index);
 
-  int getAddressComputationCost(Type *Val, bool IsComplex);
+  int getAddressComputationCost(Type *Val, ScalarEvolution *SE, 
+                                const SCEV *Ptr);
 
   int getFPOpCost(Type *Ty);
 
@@ -120,7 +114,8 @@ public:
       TTI::OperandValueKind Op1Info = TTI::OK_AnyValue,
       TTI::OperandValueKind Op2Info = TTI::OK_AnyValue,
       TTI::OperandValueProperties Opd1PropInfo = TTI::OP_None,
-      TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None);
+      TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None,
+      ArrayRef<const Value *> Args = ArrayRef<const Value *>());
 
   int getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
                       unsigned AddressSpace);
@@ -128,6 +123,16 @@ public:
   int getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy, unsigned Factor,
                                  ArrayRef<unsigned> Indices, unsigned Alignment,
                                  unsigned AddressSpace);
+
+  bool shouldBuildLookupTablesForConstant(Constant *C) const {
+    // In the ROPI and RWPI relocation models we can't have pointers to global
+    // variables or functions in constant data, so don't convert switches to
+    // lookup tables if any of the values would need relocation.
+    if (ST->isROPI() || ST->isRWPI())
+      return !C->needsRelocation();
+
+    return true;
+  }
   /// @}
 };
 

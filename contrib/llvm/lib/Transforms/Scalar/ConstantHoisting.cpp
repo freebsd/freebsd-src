@@ -64,7 +64,7 @@ public:
 
   bool runOnFunction(Function &Fn) override;
 
-  const char *getPassName() const override { return "Constant Hoisting"; }
+  StringRef getPassName() const override { return "Constant Hoisting"; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
@@ -444,7 +444,7 @@ void ConstantHoistingPass::findBaseConstants() {
 
 /// \brief Updates the operand at Idx in instruction Inst with the result of
 ///        instruction Mat. If the instruction is a PHI node then special
-///        handling for duplicate values form the same incomming basic block is
+///        handling for duplicate values form the same incoming basic block is
 ///        required.
 /// \return The update will always succeed, but the return value indicated if
 ///         Mat was used for the update or not.

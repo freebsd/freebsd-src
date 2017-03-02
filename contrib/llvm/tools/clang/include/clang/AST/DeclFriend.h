@@ -82,6 +82,7 @@ private:
 
   FriendDecl(EmptyShell Empty, unsigned NumFriendTypeTPLists)
     : Decl(Decl::Friend, Empty), NextFriend(),
+      UnsupportedFriend(false),
       NumTPLists(NumFriendTypeTPLists) { }
 
   FriendDecl *getNextFriend() {
@@ -166,6 +167,7 @@ public:
 
   friend class ASTDeclReader;
   friend class ASTDeclWriter;
+  friend class ASTNodeImporter;
   friend TrailingObjects;
 };
 

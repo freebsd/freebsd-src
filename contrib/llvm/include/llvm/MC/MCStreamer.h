@@ -169,6 +169,7 @@ class MCStreamer {
   MCDwarfFrameInfo *getCurrentDwarfFrameInfo();
   void EnsureValidDwarfFrame();
 
+  MCSymbol *EmitCFILabel();
   MCSymbol *EmitCFICommon();
 
   std::vector<WinEH::FrameInfo *> WinFrameInfos;
@@ -261,7 +262,11 @@ public:
   ///
   /// If the comment includes embedded \n's, they will each get the comment
   /// prefix as appropriate.  The added comment should not end with a \n.
-  virtual void AddComment(const Twine &T) {}
+  /// By default, each comment is terminated with an end of line, i.e. the
+  /// EOL param is set to true by default. If one prefers not to end the 
+  /// comment with a new line then the EOL param should be passed 
+  /// with a false value.
+  virtual void AddComment(const Twine &T, bool EOL = true) {}
 
   /// \brief Return a raw_ostream that comments can be written to. Unlike
   /// AddComment, you are required to terminate comments with \n if you use this
@@ -470,13 +475,13 @@ public:
   /// \brief Emits a COFF section relative relocation.
   ///
   /// \param Symbol - Symbol the section relative relocation should point to.
-  virtual void EmitCOFFSecRel32(MCSymbol const *Symbol);
+  virtual void EmitCOFFSecRel32(MCSymbol const *Symbol, uint64_t Offset);
 
   /// \brief Emit an ELF .size directive.
   ///
   /// This corresponds to an assembler statement such as:
   ///  .size symbol, expression
-  virtual void emitELFSize(MCSymbolELF *Symbol, const MCExpr *Value);
+  virtual void emitELFSize(MCSymbol *Symbol, const MCExpr *Value);
 
   /// \brief Emit a Linker Optimization Hint (LOH) directive.
   /// \param Args - Arguments of the LOH.
@@ -569,6 +574,34 @@ public:
   void EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
                        bool IsSectionRelative = false);
 
+  /// \brief Emit the expression \p Value into the output as a dtprel
+  /// (64-bit DTP relative) value.
+  ///
+  /// This is used to implement assembler directives such as .dtpreldword on
+  /// targets that support them.
+  virtual void EmitDTPRel64Value(const MCExpr *Value);
+
+  /// \brief Emit the expression \p Value into the output as a dtprel
+  /// (32-bit DTP relative) value.
+  ///
+  /// This is used to implement assembler directives such as .dtprelword on
+  /// targets that support them.
+  virtual void EmitDTPRel32Value(const MCExpr *Value);
+
+  /// \brief Emit the expression \p Value into the output as a tprel
+  /// (64-bit TP relative) value.
+  ///
+  /// This is used to implement assembler directives such as .tpreldword on
+  /// targets that support them.
+  virtual void EmitTPRel64Value(const MCExpr *Value);
+
+  /// \brief Emit the expression \p Value into the output as a tprel
+  /// (32-bit TP relative) value.
+  ///
+  /// This is used to implement assembler directives such as .tprelword on
+  /// targets that support them.
+  virtual void EmitTPRel32Value(const MCExpr *Value);
+
   /// \brief Emit the expression \p Value into the output as a gprel64 (64-bit
   /// GP relative) value.
   ///
@@ -655,7 +688,8 @@ public:
   /// \param Offset - The offset to reach. This may be an expression, but the
   /// expression must be associated with the current section.
   /// \param Value - The value to use when filling bytes.
-  virtual void emitValueToOffset(const MCExpr *Offset, unsigned char Value = 0);
+  virtual void emitValueToOffset(const MCExpr *Offset, unsigned char Value,
+                                 SMLoc Loc);
 
   /// @}
 
@@ -681,14 +715,24 @@ public:
                                      StringRef FileName);
 
   /// \brief Associate a filename with a specified logical file number.  This
-  /// implements the '.cv_file 4 "foo.c"' assembler directive.
-  virtual unsigned EmitCVFileDirective(unsigned FileNo, StringRef Filename);
+  /// implements the '.cv_file 4 "foo.c"' assembler directive. Returns true on
+  /// success.
+  virtual bool EmitCVFileDirective(unsigned FileNo, StringRef Filename);
+
+  /// \brief Introduces a function id for use with .cv_loc.
+  virtual bool EmitCVFuncIdDirective(unsigned FunctionId);
+
+  /// \brief Introduces an inline call site id for use with .cv_loc. Includes
+  /// extra information for inline line table generation.
+  virtual bool EmitCVInlineSiteIdDirective(unsigned FunctionId, unsigned IAFunc,
+                                           unsigned IAFile, unsigned IALine,
+                                           unsigned IACol, SMLoc Loc);
 
   /// \brief This implements the CodeView '.cv_loc' assembler directive.
   virtual void EmitCVLocDirective(unsigned FunctionId, unsigned FileNo,
                                   unsigned Line, unsigned Column,
                                   bool PrologueEnd, bool IsStmt,
-                                  StringRef FileName);
+                                  StringRef FileName, SMLoc Loc);
 
   /// \brief This implements the CodeView '.cv_linetable' assembler directive.
   virtual void EmitCVLinetableDirective(unsigned FunctionId,
@@ -697,10 +741,11 @@ public:
 
   /// \brief This implements the CodeView '.cv_inline_linetable' assembler
   /// directive.
-  virtual void EmitCVInlineLinetableDirective(
-      unsigned PrimaryFunctionId, unsigned SourceFileId, unsigned SourceLineNum,
-      const MCSymbol *FnStartSym, const MCSymbol *FnEndSym,
-      ArrayRef<unsigned> SecondaryFunctionIds);
+  virtual void EmitCVInlineLinetableDirective(unsigned PrimaryFunctionId,
+                                              unsigned SourceFileId,
+                                              unsigned SourceLineNum,
+                                              const MCSymbol *FnStartSym,
+                                              const MCSymbol *FnEndSym);
 
   /// \brief This implements the CodeView '.cv_def_range' assembler
   /// directive.

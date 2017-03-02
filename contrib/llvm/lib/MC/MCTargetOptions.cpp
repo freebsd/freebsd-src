@@ -14,10 +14,12 @@ namespace llvm {
 
 MCTargetOptions::MCTargetOptions()
     : SanitizeAddress(false), MCRelaxAll(false), MCNoExecStack(false),
-      MCFatalWarnings(false), MCNoWarn(false), MCSaveTempLabels(false),
+      MCFatalWarnings(false), MCNoWarn(false), MCNoDeprecatedWarn(false),
+      MCSaveTempLabels(false),
       MCUseDwarfDirectory(false), MCIncrementalLinkerCompatible(false),
-      ShowMCEncoding(false), ShowMCInst(false), AsmVerbose(false),
-      DwarfVersion(0), ABIName() {}
+      MCPIECopyRelocations(false), ShowMCEncoding(false),
+      ShowMCInst(false), AsmVerbose(false),
+      PreserveAsmComments(true), DwarfVersion(0), ABIName() {}
 
 StringRef MCTargetOptions::getABIName() const {
   return ABIName;

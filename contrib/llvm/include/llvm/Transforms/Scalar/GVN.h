@@ -22,12 +22,14 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
+class OptimizationRemarkEmitter;
 
 /// A private "module" namespace for types and utilities used by GVN. These
 /// are implementation details and should not be used by clients.
@@ -45,7 +47,7 @@ class GVN : public PassInfoMixin<GVN> {
 public:
 
   /// \brief Run the pass over the function.
-  PreservedAnalyses run(Function &F, AnalysisManager<Function> &AM);
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 
   /// This removes the specified instruction from
   /// our various maps and marks it for deletion.
@@ -109,6 +111,7 @@ private:
   const TargetLibraryInfo *TLI;
   AssumptionCache *AC;
   SetVector<BasicBlock *> DeadBlocks;
+  OptimizationRemarkEmitter *ORE;
 
   ValueTable VN;
 
@@ -134,7 +137,8 @@ private:
 
   bool runImpl(Function &F, AssumptionCache &RunAC, DominatorTree &RunDT,
                const TargetLibraryInfo &RunTLI, AAResults &RunAA,
-               MemoryDependenceResults *RunMD);
+               MemoryDependenceResults *RunMD, LoopInfo *LI,
+               OptimizationRemarkEmitter *ORE);
 
   /// Push a new Value to the LeaderTable onto the list for its value number.
   void addToLeaderTable(uint32_t N, Value *V, const BasicBlock *BB) {
@@ -232,7 +236,7 @@ FunctionPass *createGVNPass(bool NoLoads = false);
 /// from sibling branches.
 struct GVNHoistPass : PassInfoMixin<GVNHoistPass> {
   /// \brief Run the pass over the function.
-  PreservedAnalyses run(Function &F, AnalysisManager<Function> &AM);
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
 }

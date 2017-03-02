@@ -31,28 +31,6 @@ using namespace ento;
 // MemRegion Construction.
 //===----------------------------------------------------------------------===//
 
-template<typename RegionTy> struct MemRegionManagerTrait;
-
-template <typename RegionTy, typename A1>
-RegionTy* MemRegionManager::getRegion(const A1 a1) {
-  const typename MemRegionManagerTrait<RegionTy>::SuperRegionTy *superRegion =
-  MemRegionManagerTrait<RegionTy>::getSuperRegion(*this, a1);
-
-  llvm::FoldingSetNodeID ID;
-  RegionTy::ProfileRegion(ID, a1, superRegion);
-  void *InsertPos;
-  RegionTy* R = cast_or_null<RegionTy>(Regions.FindNodeOrInsertPos(ID,
-                                                                   InsertPos));
-
-  if (!R) {
-    R = A.Allocate<RegionTy>();
-    new (R) RegionTy(a1, superRegion);
-    Regions.InsertNode(R, InsertPos);
-  }
-
-  return R;
-}
-
 template <typename RegionTy, typename A1>
 RegionTy* MemRegionManager::getSubRegion(const A1 a1,
                                          const MemRegion *superRegion) {
@@ -65,26 +43,6 @@ RegionTy* MemRegionManager::getSubRegion(const A1 a1,
   if (!R) {
     R = A.Allocate<RegionTy>();
     new (R) RegionTy(a1, superRegion);
-    Regions.InsertNode(R, InsertPos);
-  }
-
-  return R;
-}
-
-template <typename RegionTy, typename A1, typename A2>
-RegionTy* MemRegionManager::getRegion(const A1 a1, const A2 a2) {
-  const typename MemRegionManagerTrait<RegionTy>::SuperRegionTy *superRegion =
-  MemRegionManagerTrait<RegionTy>::getSuperRegion(*this, a1, a2);
-
-  llvm::FoldingSetNodeID ID;
-  RegionTy::ProfileRegion(ID, a1, a2, superRegion);
-  void *InsertPos;
-  RegionTy* R = cast_or_null<RegionTy>(Regions.FindNodeOrInsertPos(ID,
-                                                                   InsertPos));
-
-  if (!R) {
-    R = A.Allocate<RegionTy>();
-    new (R) RegionTy(a1, a2, superRegion);
     Regions.InsertNode(R, InsertPos);
   }
 
@@ -858,9 +816,11 @@ const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
 
     const StackFrameContext *STC = V.get<const StackFrameContext*>();
 
-    if (!STC)
+    if (!STC) {
+      // FIXME: Assign a more sensible memory space to static locals
+      // we see from within blocks that we analyze as top-level declarations.
       sReg = getUnknownRegion();
-    else {
+    } else {
       if (D->hasLocalStorage()) {
         sReg = isa<ParmVarDecl>(D) || isa<ImplicitParamDecl>(D)
                ? static_cast<const MemRegion*>(getStackArgumentsRegion(STC))

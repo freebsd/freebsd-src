@@ -120,12 +120,12 @@ private:
 /// Analysis pass providing a never-invalidated alias analysis result.
 class GlobalsAA : public AnalysisInfoMixin<GlobalsAA> {
   friend AnalysisInfoMixin<GlobalsAA>;
-  static char PassID;
+  static AnalysisKey Key;
 
 public:
   typedef GlobalsAAResult Result;
 
-  GlobalsAAResult run(Module &M, AnalysisManager<Module> &AM);
+  GlobalsAAResult run(Module &M, ModuleAnalysisManager &AM);
 };
 
 /// Legacy wrapper pass to provide the GlobalsAAResult object.

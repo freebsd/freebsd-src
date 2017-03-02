@@ -13,7 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/StringSet.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeReader.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/LLVMContext.h"
@@ -41,6 +42,11 @@ static cl::opt<char>
     OptLevel("O", cl::desc("Optimization level. [-O0, -O1, -O2, or -O3] "
                            "(default = '-O2')"),
              cl::Prefix, cl::ZeroOrMore, cl::init('2'));
+
+static cl::opt<bool>
+    IndexStats("thinlto-index-stats",
+               cl::desc("Print statistic for the index in every input files"),
+               cl::init(false));
 
 static cl::opt<bool> DisableVerify(
     "disable-verify", cl::init(false),
@@ -97,8 +103,7 @@ cl::opt<ThinLTOModes> ThinLTOMode(
                    "(requires -thinlto-index)."),
         clEnumValN(THINOPT, "optimize", "Perform ThinLTO optimizations."),
         clEnumValN(THINCODEGEN, "codegen", "CodeGen (expected to match llc)"),
-        clEnumValN(THINALL, "run", "Perform ThinLTO end-to-end"),
-        clEnumValEnd));
+        clEnumValN(THINALL, "run", "Perform ThinLTO end-to-end")));
 
 static cl::opt<std::string>
     ThinLTOIndex("thinlto-index",
@@ -119,6 +124,16 @@ static cl::opt<std::string> ThinLTOModuleId(
 
 static cl::opt<std::string>
     ThinLTOCacheDir("thinlto-cache-dir", cl::desc("Enable ThinLTO caching."));
+
+static cl::opt<std::string> ThinLTOSaveTempsPrefix(
+    "thinlto-save-temps",
+    cl::desc("Save ThinLTO temp files using filenames created by adding "
+             "suffixes to the given file path prefix."));
+
+static cl::opt<std::string> ThinLTOGeneratedObjectsDir(
+    "thinlto-save-objects",
+    cl::desc("Save ThinLTO generated object files using filenames created in "
+             "the given directory."));
 
 static cl::opt<bool>
     SaveModuleFile("save-merged-module", cl::init(false),
@@ -187,7 +202,7 @@ static void handleDiagnostics(lto_codegen_diagnostic_severity_t Severity,
 }
 
 static std::string CurrentActivity;
-static void diagnosticHandler(const DiagnosticInfo &DI) {
+static void diagnosticHandler(const DiagnosticInfo &DI, void *Context) {
   raw_ostream &OS = errs();
   OS << "llvm-lto: ";
   switch (DI.getSeverity()) {
@@ -216,11 +231,6 @@ static void diagnosticHandler(const DiagnosticInfo &DI) {
     exit(1);
 }
 
-static void diagnosticHandlerWithContext(const DiagnosticInfo &DI,
-                                         void *Context) {
-  diagnosticHandler(DI);
-}
-
 static void error(const Twine &Msg) {
   errs() << "llvm-lto: " << Msg << '\n';
   exit(1);
@@ -237,7 +247,7 @@ static void error(const ErrorOr<T> &V, const Twine &Prefix) {
 }
 
 static void maybeVerifyModule(const Module &Mod) {
-  if (!DisableVerify && verifyModule(Mod))
+  if (!DisableVerify && verifyModule(Mod, &errs()))
     error("Broken Module");
 }
 
@@ -250,13 +260,44 @@ getLocalLTOModule(StringRef Path, std::unique_ptr<MemoryBuffer> &Buffer,
   Buffer = std::move(BufferOrErr.get());
   CurrentActivity = ("loading file '" + Path + "'").str();
   std::unique_ptr<LLVMContext> Context = llvm::make_unique<LLVMContext>();
-  Context->setDiagnosticHandler(diagnosticHandlerWithContext, nullptr, true);
+  Context->setDiagnosticHandler(diagnosticHandler, nullptr, true);
   ErrorOr<std::unique_ptr<LTOModule>> Ret = LTOModule::createInLocalContext(
       std::move(Context), Buffer->getBufferStart(), Buffer->getBufferSize(),
       Options, Path);
   CurrentActivity = "";
   maybeVerifyModule((*Ret)->getModule());
   return std::move(*Ret);
+}
+
+/// Print some statistics on the index for each input files.
+void printIndexStats() {
+  for (auto &Filename : InputFilenames) {
+    ExitOnError ExitOnErr("llvm-lto: error loading file '" + Filename + "': ");
+    std::unique_ptr<ModuleSummaryIndex> Index =
+        ExitOnErr(llvm::getModuleSummaryIndexForFile(Filename));
+    // Skip files without a module summary.
+    if (!Index)
+      report_fatal_error(Filename + " does not contain an index");
+
+    unsigned Calls = 0, Refs = 0, Functions = 0, Alias = 0, Globals = 0;
+    for (auto &Summaries : *Index) {
+      for (auto &Summary : Summaries.second) {
+        Refs += Summary->refs().size();
+        if (auto *FuncSummary = dyn_cast<FunctionSummary>(Summary.get())) {
+          Functions++;
+          Calls += FuncSummary->calls().size();
+        } else if (isa<AliasSummary>(Summary.get()))
+          Alias++;
+        else
+          Globals++;
+      }
+    }
+    outs() << "Index " << Filename << " contains "
+           << (Alias + Globals + Functions) << " nodes (" << Functions
+           << " functions, " << Alias << " alias, " << Globals
+           << " globals) and " << (Calls + Refs) << " edges (" << Refs
+           << " refs and " << Calls << " calls)\n";
+  }
 }
 
 /// \brief List symbols in each IR file.
@@ -286,12 +327,9 @@ static void createCombinedModuleSummaryIndex() {
   ModuleSummaryIndex CombinedIndex;
   uint64_t NextModuleId = 0;
   for (auto &Filename : InputFilenames) {
-    CurrentActivity = "loading file '" + Filename + "'";
-    ErrorOr<std::unique_ptr<ModuleSummaryIndex>> IndexOrErr =
-        llvm::getModuleSummaryIndexForFile(Filename, diagnosticHandler);
-    error(IndexOrErr, "error " + CurrentActivity);
-    std::unique_ptr<ModuleSummaryIndex> Index = std::move(IndexOrErr.get());
-    CurrentActivity = "";
+    ExitOnError ExitOnErr("llvm-lto: error loading file '" + Filename + "': ");
+    std::unique_ptr<ModuleSummaryIndex> Index =
+        ExitOnErr(llvm::getModuleSummaryIndexForFile(Filename));
     // Skip files without a module summary.
     if (!Index)
       continue;
@@ -356,11 +394,9 @@ loadAllFilesForIndex(const ModuleSummaryIndex &Index) {
 std::unique_ptr<ModuleSummaryIndex> loadCombinedIndex() {
   if (ThinLTOIndex.empty())
     report_fatal_error("Missing -thinlto-index for ThinLTO promotion stage");
-  auto CurrentActivity = "loading file '" + ThinLTOIndex + "'";
-  ErrorOr<std::unique_ptr<ModuleSummaryIndex>> IndexOrErr =
-      llvm::getModuleSummaryIndexForFile(ThinLTOIndex, diagnosticHandler);
-  error(IndexOrErr, "error " + CurrentActivity);
-  return std::move(IndexOrErr.get());
+  ExitOnError ExitOnErr("llvm-lto: error loading file '" + ThinLTOIndex +
+                        "': ");
+  return ExitOnErr(llvm::getModuleSummaryIndexForFile(ThinLTOIndex));
 }
 
 static std::unique_ptr<Module> loadModule(StringRef Filename,
@@ -446,6 +482,8 @@ private:
     }
 
     auto CombinedIndex = ThinGenerator.linkCombinedIndex();
+    if (!CombinedIndex)
+      report_fatal_error("ThinLink didn't create an index");
     std::error_code EC;
     raw_fd_ostream OS(OutputFilename, EC, sys::fs::OpenFlags::F_None);
     error(EC, "error opening the file '" + OutputFilename + "'");
@@ -672,6 +710,15 @@ private:
       ThinGenerator.addModule(Filename, InputBuffers.back()->getBuffer());
     }
 
+    if (!ThinLTOSaveTempsPrefix.empty())
+      ThinGenerator.setSaveTempsDir(ThinLTOSaveTempsPrefix);
+
+    if (!ThinLTOGeneratedObjectsDir.empty()) {
+      ThinGenerator.setGeneratedObjectsDirectory(ThinLTOGeneratedObjectsDir);
+      ThinGenerator.run();
+      return;
+    }
+
     ThinGenerator.run();
 
     auto &Binaries = ThinGenerator.getProducedBinaries();
@@ -718,14 +765,19 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  if (IndexStats) {
+    printIndexStats();
+    return 0;
+  }
+
   if (CheckHasObjC) {
     for (auto &Filename : InputFilenames) {
-      ErrorOr<std::unique_ptr<MemoryBuffer>> BufferOrErr =
-          MemoryBuffer::getFile(Filename);
-      error(BufferOrErr, "error loading file '" + Filename + "'");
+      ExitOnError ExitOnErr(std::string(*argv) + ": error loading file '" +
+                            Filename + "': ");
+      std::unique_ptr<MemoryBuffer> BufferOrErr =
+          ExitOnErr(errorOrToExpected(MemoryBuffer::getFile(Filename)));
       auto Buffer = std::move(BufferOrErr.get());
-      LLVMContext Ctx;
-      if (llvm::isBitcodeContainingObjCCategory(*Buffer, Ctx))
+      if (ExitOnErr(llvm::isBitcodeContainingObjCCategory(*Buffer)))
         outs() << "Bitcode " << Filename << " contains ObjC\n";
       else
         outs() << "Bitcode " << Filename << " does not contain ObjC\n";
@@ -749,7 +801,7 @@ int main(int argc, char **argv) {
   unsigned BaseArg = 0;
 
   LLVMContext Context;
-  Context.setDiagnosticHandler(diagnosticHandlerWithContext, nullptr, true);
+  Context.setDiagnosticHandler(diagnosticHandler, nullptr, true);
 
   LTOCodeGenerator CodeGen(Context);
 
@@ -771,7 +823,7 @@ int main(int argc, char **argv) {
   for (unsigned i = BaseArg; i < InputFilenames.size(); ++i) {
     CurrentActivity = "loading file '" + InputFilenames[i] + "'";
     ErrorOr<std::unique_ptr<LTOModule>> ModuleOrErr =
-        LTOModule::createFromFile(Context, InputFilenames[i].c_str(), Options);
+        LTOModule::createFromFile(Context, InputFilenames[i], Options);
     std::unique_ptr<LTOModule> &Module = *ModuleOrErr;
     CurrentActivity = "";
 
@@ -799,11 +851,11 @@ int main(int argc, char **argv) {
 
   // Add all the exported symbols to the table of symbols to preserve.
   for (unsigned i = 0; i < ExportedSymbols.size(); ++i)
-    CodeGen.addMustPreserveSymbol(ExportedSymbols[i].c_str());
+    CodeGen.addMustPreserveSymbol(ExportedSymbols[i]);
 
   // Add all the dso symbols to the table of symbols to expose.
   for (unsigned i = 0; i < KeptDSOSyms.size(); ++i)
-    CodeGen.addMustPreserveSymbol(KeptDSOSyms[i].c_str());
+    CodeGen.addMustPreserveSymbol(KeptDSOSyms[i]);
 
   // Set cpu and attrs strings for the default target/subtarget.
   CodeGen.setCpu(MCPU.c_str());
@@ -818,7 +870,7 @@ int main(int argc, char **argv) {
   }
 
   if (!attrs.empty())
-    CodeGen.setAttr(attrs.c_str());
+    CodeGen.setAttr(attrs);
 
   if (FileType.getNumOccurrences())
     CodeGen.setFileType(FileType);
@@ -835,7 +887,7 @@ int main(int argc, char **argv) {
       ModuleFilename += ".merged.bc";
       std::string ErrMsg;
 
-      if (!CodeGen.writeMergedModules(ModuleFilename.c_str()))
+      if (!CodeGen.writeMergedModules(ModuleFilename))
         error("writing merged module failed.");
     }
 

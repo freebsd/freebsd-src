@@ -36,13 +36,92 @@
 
 using namespace llvm;
 
-AMDGPUMCInstLower::AMDGPUMCInstLower(MCContext &ctx, const AMDGPUSubtarget &st):
-  Ctx(ctx), ST(st) { }
+#include "AMDGPUGenMCPseudoLowering.inc"
+
+
+AMDGPUMCInstLower::AMDGPUMCInstLower(MCContext &ctx, const AMDGPUSubtarget &st,
+                                     const AsmPrinter &ap):
+  Ctx(ctx), ST(st), AP(ap) { }
 
 static MCSymbolRefExpr::VariantKind getVariantKind(unsigned MOFlags) {
   switch (MOFlags) {
-  default: return MCSymbolRefExpr::VK_None;
-  case SIInstrInfo::MO_GOTPCREL: return MCSymbolRefExpr::VK_GOTPCREL;
+  default:
+    return MCSymbolRefExpr::VK_None;
+  case SIInstrInfo::MO_GOTPCREL:
+    return MCSymbolRefExpr::VK_GOTPCREL;
+  case SIInstrInfo::MO_GOTPCREL32_LO:
+    return MCSymbolRefExpr::VK_AMDGPU_GOTPCREL32_LO;
+  case SIInstrInfo::MO_GOTPCREL32_HI:
+    return MCSymbolRefExpr::VK_AMDGPU_GOTPCREL32_HI;
+  case SIInstrInfo::MO_REL32_LO:
+    return MCSymbolRefExpr::VK_AMDGPU_REL32_LO;
+  case SIInstrInfo::MO_REL32_HI:
+    return MCSymbolRefExpr::VK_AMDGPU_REL32_HI;
+  }
+}
+
+const MCExpr *AMDGPUMCInstLower::getLongBranchBlockExpr(
+  const MachineBasicBlock &SrcBB,
+  const MachineOperand &MO) const {
+  const MCExpr *DestBBSym
+    = MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), Ctx);
+  const MCExpr *SrcBBSym = MCSymbolRefExpr::create(SrcBB.getSymbol(), Ctx);
+
+  assert(SrcBB.front().getOpcode() == AMDGPU::S_GETPC_B64 &&
+         ST.getInstrInfo()->get(AMDGPU::S_GETPC_B64).Size == 4);
+
+  // s_getpc_b64 returns the address of next instruction.
+  const MCConstantExpr *One = MCConstantExpr::create(4, Ctx);
+  SrcBBSym = MCBinaryExpr::createAdd(SrcBBSym, One, Ctx);
+
+  if (MO.getTargetFlags() == AMDGPU::TF_LONG_BRANCH_FORWARD)
+    return MCBinaryExpr::createSub(DestBBSym, SrcBBSym, Ctx);
+
+  assert(MO.getTargetFlags() == AMDGPU::TF_LONG_BRANCH_BACKWARD);
+  return MCBinaryExpr::createSub(SrcBBSym, DestBBSym, Ctx);
+}
+
+bool AMDGPUMCInstLower::lowerOperand(const MachineOperand &MO,
+                                     MCOperand &MCOp) const {
+  switch (MO.getType()) {
+  default:
+    llvm_unreachable("unknown operand type");
+  case MachineOperand::MO_Immediate:
+    MCOp = MCOperand::createImm(MO.getImm());
+    return true;
+  case MachineOperand::MO_Register:
+    MCOp = MCOperand::createReg(AMDGPU::getMCReg(MO.getReg(), ST));
+    return true;
+  case MachineOperand::MO_MachineBasicBlock: {
+    if (MO.getTargetFlags() != 0) {
+      MCOp = MCOperand::createExpr(
+        getLongBranchBlockExpr(*MO.getParent()->getParent(), MO));
+    } else {
+      MCOp = MCOperand::createExpr(
+        MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), Ctx));
+    }
+
+    return true;
+  }
+  case MachineOperand::MO_GlobalAddress: {
+    const GlobalValue *GV = MO.getGlobal();
+    SmallString<128> SymbolName;
+    AP.getNameWithPrefix(SymbolName, GV);
+    MCSymbol *Sym = Ctx.getOrCreateSymbol(SymbolName);
+    const MCExpr *SymExpr =
+      MCSymbolRefExpr::create(Sym, getVariantKind(MO.getTargetFlags()),Ctx);
+    const MCExpr *Expr = MCBinaryExpr::createAdd(SymExpr,
+      MCConstantExpr::create(MO.getOffset(), Ctx), Ctx);
+    MCOp = MCOperand::createExpr(Expr);
+    return true;
+  }
+  case MachineOperand::MO_ExternalSymbol: {
+    MCSymbol *Sym = Ctx.getOrCreateSymbol(StringRef(MO.getSymbolName()));
+    Sym->setExternal(true);
+    const MCSymbolRefExpr *Expr = MCSymbolRefExpr::create(Sym, Ctx);
+    MCOp = MCOperand::createExpr(Expr);
+    return true;
+  }
   }
 }
 
@@ -60,44 +139,24 @@ void AMDGPUMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) const {
 
   for (const MachineOperand &MO : MI->explicit_operands()) {
     MCOperand MCOp;
-    switch (MO.getType()) {
-    default:
-      llvm_unreachable("unknown operand type");
-    case MachineOperand::MO_Immediate:
-      MCOp = MCOperand::createImm(MO.getImm());
-      break;
-    case MachineOperand::MO_Register:
-      MCOp = MCOperand::createReg(AMDGPU::getMCReg(MO.getReg(), ST));
-      break;
-    case MachineOperand::MO_MachineBasicBlock:
-      MCOp = MCOperand::createExpr(MCSymbolRefExpr::create(
-                                   MO.getMBB()->getSymbol(), Ctx));
-      break;
-    case MachineOperand::MO_GlobalAddress: {
-      const GlobalValue *GV = MO.getGlobal();
-      MCSymbol *Sym = Ctx.getOrCreateSymbol(StringRef(GV->getName()));
-      const MCExpr *SymExpr =
-          MCSymbolRefExpr::create(Sym, getVariantKind(MO.getTargetFlags()),Ctx);
-      const MCExpr *Expr = MCBinaryExpr::createAdd(SymExpr,
-          MCConstantExpr::create(MO.getOffset(), Ctx), Ctx);
-      MCOp = MCOperand::createExpr(Expr);
-      break;
-    }
-    case MachineOperand::MO_ExternalSymbol: {
-      MCSymbol *Sym = Ctx.getOrCreateSymbol(StringRef(MO.getSymbolName()));
-      Sym->setExternal(true);
-      const MCSymbolRefExpr *Expr = MCSymbolRefExpr::create(Sym, Ctx);
-      MCOp = MCOperand::createExpr(Expr);
-      break;
-    }
-    }
+    lowerOperand(MO, MCOp);
     OutMI.addOperand(MCOp);
   }
 }
 
-void AMDGPUAsmPrinter::EmitInstruction(const MachineInstr *MI) {
+bool AMDGPUAsmPrinter::lowerOperand(const MachineOperand &MO,
+                                    MCOperand &MCOp) const {
   const AMDGPUSubtarget &STI = MF->getSubtarget<AMDGPUSubtarget>();
-  AMDGPUMCInstLower MCInstLowering(OutContext, STI);
+  AMDGPUMCInstLower MCInstLowering(OutContext, STI, *this);
+  return MCInstLowering.lowerOperand(MO, MCOp);
+}
+
+void AMDGPUAsmPrinter::EmitInstruction(const MachineInstr *MI) {
+  if (emitPseudoExpansionLowering(*OutStreamer, MI))
+    return;
+
+  const AMDGPUSubtarget &STI = MF->getSubtarget<AMDGPUSubtarget>();
+  AMDGPUMCInstLower MCInstLowering(OutContext, STI, *this);
 
   StringRef Err;
   if (!STI.getInstrInfo()->verifyInstruction(*MI, Err)) {
@@ -134,6 +193,12 @@ void AMDGPUAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     if (MI->getOpcode() == AMDGPU::SI_RETURN) {
       if (isVerbose())
         OutStreamer->emitRawComment(" return");
+      return;
+    }
+
+    if (MI->getOpcode() == AMDGPU::WAVE_BARRIER) {
+      if (isVerbose())
+        OutStreamer->emitRawComment(" wave barrier");
       return;
     }
 

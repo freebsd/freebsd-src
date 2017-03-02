@@ -77,8 +77,12 @@ static const std::pair<LibFunc::Func, AllocFnsTy> AllocationFnData[] = {
   // TODO: Handle "int posix_memalign(void **, size_t, size_t)"
 };
 
+static Function *getCalledFunction(const Value *V, bool LookThroughBitCast,
+                                   bool &IsNoBuiltin) {
+  // Don't care about intrinsics in this case.
+  if (isa<IntrinsicInst>(V))
+    return nullptr;
 
-static Function *getCalledFunction(const Value *V, bool LookThroughBitCast) {
   if (LookThroughBitCast)
     V = V->stripPointerCasts();
 
@@ -86,8 +90,7 @@ static Function *getCalledFunction(const Value *V, bool LookThroughBitCast) {
   if (!CS.getInstruction())
     return nullptr;
 
-  if (CS.isNoBuiltin())
-    return nullptr;
+  IsNoBuiltin = CS.isNoBuiltin();
 
   Function *Callee = CS.getCalledFunction();
   if (!Callee || !Callee->isDeclaration())
@@ -98,47 +101,19 @@ static Function *getCalledFunction(const Value *V, bool LookThroughBitCast) {
 /// Returns the allocation data for the given value if it's either a call to a
 /// known allocation function, or a call to a function with the allocsize
 /// attribute.
-static Optional<AllocFnsTy> getAllocationData(const Value *V, AllocType AllocTy,
-                                              const TargetLibraryInfo *TLI,
-                                              bool LookThroughBitCast = false) {
-  // Skip intrinsics
-  if (isa<IntrinsicInst>(V))
-    return None;
-
-  const Function *Callee = getCalledFunction(V, LookThroughBitCast);
-  if (!Callee)
-    return None;
-
-  // If it has allocsize, we can skip checking if it's a known function.
-  //
-  // MallocLike is chosen here because allocsize makes no guarantees about the
-  // nullness of the result of the function, nor does it deal with strings, nor
-  // does it require that the memory returned is zeroed out.
-  LLVM_CONSTEXPR auto AllocSizeAllocTy = MallocLike;
-  if ((AllocTy & AllocSizeAllocTy) == AllocSizeAllocTy &&
-      Callee->hasFnAttribute(Attribute::AllocSize)) {
-    Attribute Attr = Callee->getFnAttribute(Attribute::AllocSize);
-    std::pair<unsigned, Optional<unsigned>> Args = Attr.getAllocSizeArgs();
-
-    AllocFnsTy Result;
-    Result.AllocTy = AllocSizeAllocTy;
-    Result.NumParams = Callee->getNumOperands();
-    Result.FstParam = Args.first;
-    Result.SndParam = Args.second.getValueOr(-1);
-    return Result;
-  }
-
+static Optional<AllocFnsTy>
+getAllocationDataForFunction(const Function *Callee, AllocType AllocTy,
+                             const TargetLibraryInfo *TLI) {
   // Make sure that the function is available.
   StringRef FnName = Callee->getName();
   LibFunc::Func TLIFn;
   if (!TLI || !TLI->getLibFunc(FnName, TLIFn) || !TLI->has(TLIFn))
     return None;
 
-  const auto *Iter =
-      std::find_if(std::begin(AllocationFnData), std::end(AllocationFnData),
-                   [TLIFn](const std::pair<LibFunc::Func, AllocFnsTy> &P) {
-                     return P.first == TLIFn;
-                   });
+  const auto *Iter = find_if(
+      AllocationFnData, [TLIFn](const std::pair<LibFunc::Func, AllocFnsTy> &P) {
+        return P.first == TLIFn;
+      });
 
   if (Iter == std::end(AllocationFnData))
     return None;
@@ -162,6 +137,48 @@ static Optional<AllocFnsTy> getAllocationData(const Value *V, AllocType AllocTy,
        FTy->getParamType(SndParam)->isIntegerTy(64)))
     return *FnData;
   return None;
+}
+
+static Optional<AllocFnsTy> getAllocationData(const Value *V, AllocType AllocTy,
+                                              const TargetLibraryInfo *TLI,
+                                              bool LookThroughBitCast = false) {
+  bool IsNoBuiltinCall;
+  if (const Function *Callee =
+          getCalledFunction(V, LookThroughBitCast, IsNoBuiltinCall))
+    if (!IsNoBuiltinCall)
+      return getAllocationDataForFunction(Callee, AllocTy, TLI);
+  return None;
+}
+
+static Optional<AllocFnsTy> getAllocationSize(const Value *V,
+                                              const TargetLibraryInfo *TLI) {
+  bool IsNoBuiltinCall;
+  const Function *Callee =
+      getCalledFunction(V, /*LookThroughBitCast=*/false, IsNoBuiltinCall);
+  if (!Callee)
+    return None;
+
+  // Prefer to use existing information over allocsize. This will give us an
+  // accurate AllocTy.
+  if (!IsNoBuiltinCall)
+    if (Optional<AllocFnsTy> Data =
+            getAllocationDataForFunction(Callee, AnyAlloc, TLI))
+      return Data;
+
+  Attribute Attr = Callee->getFnAttribute(Attribute::AllocSize);
+  if (Attr == Attribute())
+    return None;
+
+  std::pair<unsigned, Optional<unsigned>> Args = Attr.getAllocSizeArgs();
+
+  AllocFnsTy Result;
+  // Because allocsize only tells us how many bytes are allocated, we're not
+  // really allowed to assume anything, so we use MallocLike.
+  Result.AllocTy = MallocLike;
+  Result.NumParams = Callee->getNumOperands();
+  Result.FstParam = Args.first;
+  Result.SndParam = Args.second.getValueOr(-1);
+  return Result;
 }
 
 static bool hasNoAliasAttr(const Value *V, bool LookThroughBitCast) {
@@ -389,6 +406,36 @@ bool llvm::getObjectSize(const Value *Ptr, uint64_t &Size, const DataLayout &DL,
   return true;
 }
 
+ConstantInt *llvm::lowerObjectSizeCall(IntrinsicInst *ObjectSize,
+                                       const DataLayout &DL,
+                                       const TargetLibraryInfo *TLI,
+                                       bool MustSucceed) {
+  assert(ObjectSize->getIntrinsicID() == Intrinsic::objectsize &&
+         "ObjectSize must be a call to llvm.objectsize!");
+
+  bool MaxVal = cast<ConstantInt>(ObjectSize->getArgOperand(1))->isZero();
+  ObjSizeMode Mode;
+  // Unless we have to fold this to something, try to be as accurate as
+  // possible.
+  if (MustSucceed)
+    Mode = MaxVal ? ObjSizeMode::Max : ObjSizeMode::Min;
+  else
+    Mode = ObjSizeMode::Exact;
+
+  // FIXME: Does it make sense to just return a failure value if the size won't
+  // fit in the output and `!MustSucceed`?
+  uint64_t Size;
+  auto *ResultType = cast<IntegerType>(ObjectSize->getType());
+  if (getObjectSize(ObjectSize->getArgOperand(0), Size, DL, TLI, false, Mode) &&
+      isUIntN(ResultType->getBitWidth(), Size))
+    return ConstantInt::get(ResultType, Size);
+
+  if (!MustSucceed)
+    return nullptr;
+
+  return ConstantInt::get(ResultType, MaxVal ? -1ULL : 0);
+}
+
 STATISTIC(ObjectVisitorArgument,
           "Number of arguments with unsolved size and offset");
 STATISTIC(ObjectVisitorLoad,
@@ -476,8 +523,7 @@ SizeOffsetType ObjectSizeOffsetVisitor::visitArgument(Argument &A) {
 }
 
 SizeOffsetType ObjectSizeOffsetVisitor::visitCallSite(CallSite CS) {
-  Optional<AllocFnsTy> FnData =
-      getAllocationData(CS.getInstruction(), AnyAlloc, TLI);
+  Optional<AllocFnsTy> FnData = getAllocationSize(CS.getInstruction(), TLI);
   if (!FnData)
     return unknown();
 
@@ -736,8 +782,7 @@ SizeOffsetEvalType ObjectSizeOffsetEvaluator::visitAllocaInst(AllocaInst &I) {
 }
 
 SizeOffsetEvalType ObjectSizeOffsetEvaluator::visitCallSite(CallSite CS) {
-  Optional<AllocFnsTy> FnData =
-      getAllocationData(CS.getInstruction(), AnyAlloc, TLI);
+  Optional<AllocFnsTy> FnData = getAllocationSize(CS.getInstruction(), TLI);
   if (!FnData)
     return unknown();
 

@@ -38,6 +38,7 @@
 #include <sys/mman.h>
 #if SANITIZER_LINUX
 #include <sys/personality.h>
+#include <setjmp.h>
 #endif
 #include <sys/syscall.h>
 #include <sys/socket.h>
@@ -67,6 +68,10 @@ extern "C" void *__libc_stack_end;
 void *__libc_stack_end = 0;
 #endif
 
+#if SANITIZER_LINUX && defined(__aarch64__)
+void InitializeGuardPtr() __attribute__((visibility("hidden")));
+#endif
+
 namespace __tsan {
 
 #ifdef TSAN_RUNTIME_VMA
@@ -93,7 +98,7 @@ void FillProfileCallback(uptr p, uptr rss, bool file,
     mem[MemShadow] += rss;
   else if (p >= MetaShadowBeg() && p < MetaShadowEnd())
     mem[MemMeta] += rss;
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   else if (p >= HeapMemBeg() && p < HeapMemEnd())
     mem[MemHeap] += rss;
   else if (p >= LoAppMemBeg() && p < LoAppMemEnd())
@@ -129,7 +134,7 @@ void WriteMemoryProfile(char *buf, uptr buf_size, uptr nthread, uptr nlive) {
 void FlushShadowMemoryCallback(
     const SuspendedThreadsList &suspended_threads_list,
     void *argument) {
-  FlushUnneededShadowMemory(ShadowBeg(), ShadowEnd() - ShadowBeg());
+  ReleaseMemoryPagesToOS(ShadowBeg(), ShadowEnd());
 }
 #endif
 
@@ -139,7 +144,7 @@ void FlushShadowMemory() {
 #endif
 }
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 // Mark shadow for .rodata sections with the special kShadowRodata marker.
 // Accesses to .rodata can't race, so this saves time, memory and trace space.
 static void MapRodata() {
@@ -201,16 +206,16 @@ void InitializeShadowMemoryPlatform() {
   MapRodata();
 }
 
-#endif  // #ifndef SANITIZER_GO
+#endif  // #if !SANITIZER_GO
 
 void InitializePlatformEarly() {
 #ifdef TSAN_RUNTIME_VMA
   vmaSize =
     (MostSignificantSetBitIndex(GET_CURRENT_FRAME()) + 1);
 #if defined(__aarch64__)
-  if (vmaSize != 39 && vmaSize != 42) {
+  if (vmaSize != 39 && vmaSize != 42 && vmaSize != 48) {
     Printf("FATAL: ThreadSanitizer: unsupported VMA range\n");
-    Printf("FATAL: Found %d - Supported 39 and 42\n", vmaSize);
+    Printf("FATAL: Found %d - Supported 39, 42 and 48\n", vmaSize);
     Die();
   }
 #elif defined(__powerpc64__)
@@ -229,7 +234,7 @@ void InitializePlatform() {
   // Go maps shadow memory lazily and works fine with limited address space.
   // Unlimited stack is not a problem as well, because the executable
   // is not compiled with -pie.
-  if (kCppMode) {
+  if (!SANITIZER_GO) {
     bool reexec = false;
     // TSan doesn't play well with unlimited stack size (as stack
     // overlaps with shadow memory). If we detect unlimited stack size,
@@ -264,18 +269,20 @@ void InitializePlatform() {
       CHECK_NE(personality(old_personality | ADDR_NO_RANDOMIZE), -1);
       reexec = true;
     }
+    // Initialize the guard pointer used in {sig}{set,long}jump.
+    InitializeGuardPtr();
 #endif
     if (reexec)
       ReExec();
   }
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   CheckAndProtect();
   InitTlsSize();
 #endif
 }
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 // Extract file descriptors passed to glibc internal __res_iclose function.
 // This is required to properly "close" the fds, because we do not see internal
 // closes within glibc. The code is a pure hack.
@@ -328,11 +335,11 @@ int call_pthread_cancel_with_cleanup(int(*fn)(void *c, void *m,
 }
 #endif
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 void ReplaceSystemMalloc() { }
 #endif
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 #if SANITIZER_ANDROID
 
 #if defined(__aarch64__)
@@ -393,7 +400,7 @@ void cur_thread_finalize() {
   CHECK_EQ(0, internal_sigprocmask(SIG_SETMASK, &oldset, nullptr));
 }
 #endif  // SANITIZER_ANDROID
-#endif  // ifndef SANITIZER_GO
+#endif  // if !SANITIZER_GO
 
 }  // namespace __tsan
 

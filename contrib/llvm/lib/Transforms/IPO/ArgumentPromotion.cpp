@@ -40,7 +40,6 @@
 #include "llvm/Analysis/CallGraphSCCPass.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
@@ -177,8 +176,7 @@ static bool isDenselyPacked(Type *type, const DataLayout &DL) {
 
   // For homogenous sequential types, check for padding within members.
   if (SequentialType *seqTy = dyn_cast<SequentialType>(type))
-    return isa<PointerType>(seqTy) ||
-           isDenselyPacked(seqTy->getElementType(), DL);
+    return isDenselyPacked(seqTy->getElementType(), DL);
 
   // Check for padding within and between elements of a struct.
   StructType *StructTy = cast<StructType>(type);
@@ -375,8 +373,8 @@ static bool AllCallersPassInValidPointerForArgument(Argument *Arg) {
 
   unsigned ArgNo = Arg->getArgNo();
 
-  // Look at all call sites of the function.  At this pointer we know we only
-  // have direct callees.
+  // Look at all call sites of the function.  At this point we know we only have
+  // direct callees.
   for (User *U : Callee->users()) {
     CallSite CS(U);
     assert(CS && "Should only have direct calls!");
@@ -600,7 +598,7 @@ static bool isSafeToPromoteArgument(Argument *Arg, bool isByValOrInAlloca,
 
   // Because there could be several/many load instructions, remember which
   // blocks we know to be transparent to the load.
-  SmallPtrSet<BasicBlock*, 16> TranspBlocks;
+  df_iterator_default_set<BasicBlock*, 16> TranspBlocks;
 
   for (LoadInst *Load : Loads) {
     // Check to see if the load is invalidated from the start of the block to
@@ -836,7 +834,10 @@ DoPromotion(Function *F, SmallPtrSetImpl<Argument *> &ArgsToPromote,
                     Type::getInt64Ty(F->getContext()));
               Ops.push_back(ConstantInt::get(IdxTy, II));
               // Keep track of the type we're currently indexing.
-              ElTy = cast<CompositeType>(ElTy)->getTypeAtIndex(II);
+              if (auto *ElPTy = dyn_cast<PointerType>(ElTy))
+                ElTy = ElPTy->getElementType();
+              else
+                ElTy = cast<CompositeType>(ElTy)->getTypeAtIndex(II);
             }
             // And create a GEP to extract those indices.
             V = GetElementPtrInst::Create(ArgIndex.first, V, Ops,
@@ -886,8 +887,8 @@ DoPromotion(Function *F, SmallPtrSetImpl<Argument *> &ArgsToPromote,
       cast<CallInst>(New)->setCallingConv(CS.getCallingConv());
       cast<CallInst>(New)->setAttributes(AttributeSet::get(New->getContext(),
                                                           AttributesVec));
-      if (cast<CallInst>(Call)->isTailCall())
-        cast<CallInst>(New)->setTailCall();
+      cast<CallInst>(New)->setTailCallKind(
+          cast<CallInst>(Call)->getTailCallKind());
     }
     New->setDebugLoc(Call->getDebugLoc());
     Args.clear();

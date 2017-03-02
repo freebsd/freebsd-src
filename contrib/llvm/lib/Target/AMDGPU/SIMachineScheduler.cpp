@@ -1,4 +1,4 @@
-//===-- SIMachineScheduler.cpp - SI Scheduler Interface -*- C++ -*-----===//
+//===-- SIMachineScheduler.cpp - SI Scheduler Interface -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,12 +13,28 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
+#include "SIInstrInfo.h"
 #include "SIMachineScheduler.h"
+#include "SIRegisterInfo.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/RegisterPressure.h"
+#include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include <algorithm>
+#include <cassert>
+#include <map>
+#include <set>
+#include <utility>
+#include <vector>
 
 using namespace llvm;
 
@@ -77,11 +93,11 @@ using namespace llvm;
 //   The block creation algorithm is divided into several steps, and several
 //   variants can be tried during the scheduling process.
 //
-// Second the order of the instructions inside the blocks is choosen.
+// Second the order of the instructions inside the blocks is chosen.
 //   At that step we do take into account only register usage and hiding
 //   low latency instructions
 //
-// Third the block order is choosen, there we try to hide high latencies
+// Third the block order is chosen, there we try to hide high latencies
 // and keep register usage low.
 //
 // After the third step, a pass is done to improve the hiding of low
@@ -89,7 +105,7 @@ using namespace llvm;
 //
 // Actually when talking about 'low latency' or 'high latency' it includes
 // both the latency to get the cache (or global mem) data go to the register,
-// and the bandwith limitations.
+// and the bandwidth limitations.
 // Increasing the number of active wavefronts helps hide the former, but it
 // doesn't solve the latter, thus why even if wavefront count is high, we have
 // to try have as many instructions hiding high latencies as possible.
@@ -119,7 +135,6 @@ using namespace llvm;
 // first loads get extra latency. The doc says global memory access can be
 // 300-600 cycles. We do not specially take that into account when scheduling
 // As we expect the driver to be able to preload the constants soon.
-
 
 // common code //
 
@@ -181,7 +196,6 @@ void SIScheduleBlock::addUnit(SUnit *SU) {
 }
 
 #ifndef NDEBUG
-
 void SIScheduleBlock::traceCandidate(const SISchedCandidate &Cand) {
 
   dbgs() << "  SU(" << Cand.SU->NodeNum << ") " << getReasonStr(Cand.Reason);
@@ -209,7 +223,7 @@ void SIScheduleBlock::tryCandidateTopDown(SISchedCandidate &Cand,
   //   we haven't waited for
   // . Low latencies
   // . All other instructions
-  // Goal is to get: low latency instructions - independant instructions
+  // Goal is to get: low latency instructions - independent instructions
   //     - (eventually some more low latency instructions)
   //     - instructions that depend on the first low latency instructions.
   // If in the block there is a lot of constant loads, the SGPR usage
@@ -479,8 +493,7 @@ void SIScheduleBlock::releaseSuccessors(SUnit *SU, bool InOrOutBlock) {
 void SIScheduleBlock::nodeScheduled(SUnit *SU) {
   // Is in TopReadySUs
   assert (!SU->NumPredsLeft);
-  std::vector<SUnit*>::iterator I =
-    std::find(TopReadySUs.begin(), TopReadySUs.end(), SU);
+  std::vector<SUnit *>::iterator I = llvm::find(TopReadySUs, SU);
   if (I == TopReadySUs.end()) {
     dbgs() << "Data Structure Bug in SI Scheduler\n";
     llvm_unreachable(nullptr);
@@ -589,9 +602,8 @@ void SIScheduleBlock::printDebug(bool full) {
     }
   }
 
-   dbgs() << "///////////////////////\n";
+  dbgs() << "///////////////////////\n";
 }
-
 #endif
 
 // SIScheduleBlockCreator //
@@ -600,8 +612,7 @@ SIScheduleBlockCreator::SIScheduleBlockCreator(SIScheduleDAGMI *DAG) :
 DAG(DAG) {
 }
 
-SIScheduleBlockCreator::~SIScheduleBlockCreator() {
-}
+SIScheduleBlockCreator::~SIScheduleBlockCreator() = default;
 
 SIScheduleBlocks
 SIScheduleBlockCreator::getBlocks(SISchedulerBlockCreatorVariant BlockVariant) {
@@ -1059,8 +1070,7 @@ void SIScheduleBlockCreator::createBlocksForVariant(SISchedulerBlockCreatorVaria
     unsigned Color = CurrentColoring[SU->NodeNum];
     if (RealID.find(Color) == RealID.end()) {
       int ID = CurrentBlocks.size();
-      BlockPtrs.push_back(
-        make_unique<SIScheduleBlock>(DAG, this, ID));
+      BlockPtrs.push_back(llvm::make_unique<SIScheduleBlock>(DAG, this, ID));
       CurrentBlocks.push_back(BlockPtrs.rbegin()->get());
       RealID[Color] = ID;
     }
@@ -1104,28 +1114,15 @@ void SIScheduleBlockCreator::createBlocksForVariant(SISchedulerBlockCreatorVaria
 
 // Two functions taken from Codegen/MachineScheduler.cpp
 
-/// If this iterator is a debug value, increment until reaching the End or a
-/// non-debug instruction.
-static MachineBasicBlock::const_iterator
-nextIfDebug(MachineBasicBlock::const_iterator I,
-            MachineBasicBlock::const_iterator End) {
-  for(; I != End; ++I) {
-    if (!I->isDebugValue())
-      break;
-  }
-  return I;
-}
-
 /// Non-const version.
 static MachineBasicBlock::iterator
 nextIfDebug(MachineBasicBlock::iterator I,
             MachineBasicBlock::const_iterator End) {
-  // Cast the return value to nonconst MachineInstr, then cast to an
-  // instr_iterator, which does not check for null, finally return a
-  // bundle_iterator.
-  return MachineBasicBlock::instr_iterator(
-    const_cast<MachineInstr*>(
-      &*nextIfDebug(MachineBasicBlock::const_iterator(I), End)));
+  for (; I != End; ++I) {
+    if (!I->isDebugValue())
+      break;
+  }
+  return I;
 }
 
 void SIScheduleBlockCreator::topologicalSort() {
@@ -1217,7 +1214,7 @@ void SIScheduleBlockCreator::scheduleInsideBlocks() {
         DAG->getBB()->splice(CurrentTopFastSched, DAG->getBB(), MI);
 
         // Update LiveIntervals.
-        // Note: Moving all instructions and calling handleMove everytime
+        // Note: Moving all instructions and calling handleMove every time
         // is the most cpu intensive operation of the scheduler.
         // It would gain a lot if there was a way to recompute the
         // LiveIntervals for the entire scheduling region.
@@ -1265,7 +1262,7 @@ void SIScheduleBlockCreator::fillStats() {
   for (unsigned i = 0, e = DAGSize; i != e; ++i) {
     int BlockIndice = TopDownIndex2Block[i];
     SIScheduleBlock *Block = CurrentBlocks[BlockIndice];
-    if (Block->getPreds().size() == 0)
+    if (Block->getPreds().empty())
       Block->Depth = 0;
     else {
       unsigned Depth = 0;
@@ -1280,7 +1277,7 @@ void SIScheduleBlockCreator::fillStats() {
   for (unsigned i = 0, e = DAGSize; i != e; ++i) {
     int BlockIndice = BottomUpIndex2Block[i];
     SIScheduleBlock *Block = CurrentBlocks[BlockIndice];
-    if (Block->getSuccs().size() == 0)
+    if (Block->getSuccs().empty())
       Block->Height = 0;
     else {
       unsigned Height = 0;
@@ -1654,20 +1651,15 @@ SIScheduler::scheduleVariant(SISchedulerBlockCreatorVariant BlockVariant,
 // SIScheduleDAGMI //
 
 SIScheduleDAGMI::SIScheduleDAGMI(MachineSchedContext *C) :
-  ScheduleDAGMILive(C, make_unique<GenericScheduler>(C)) {
+  ScheduleDAGMILive(C, llvm::make_unique<GenericScheduler>(C)) {
   SITII = static_cast<const SIInstrInfo*>(TII);
   SITRI = static_cast<const SIRegisterInfo*>(TRI);
 
-  VGPRSetID = SITRI->getVGPR32PressureSet();
-  SGPRSetID = SITRI->getSGPR32PressureSet();
+  VGPRSetID = SITRI->getVGPRPressureSet();
+  SGPRSetID = SITRI->getSGPRPressureSet();
 }
 
-SIScheduleDAGMI::~SIScheduleDAGMI() {
-}
-
-ScheduleDAGInstrs *llvm::createSIMachineScheduler(MachineSchedContext *C) {
-  return new SIScheduleDAGMI(C);
-}
+SIScheduleDAGMI::~SIScheduleDAGMI() = default;
 
 // Code adapted from scheduleDAG.cpp
 // Does a topological sort over the SUs.

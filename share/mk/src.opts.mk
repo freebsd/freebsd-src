@@ -222,17 +222,18 @@ __TT=${MACHINE}
 .if ${COMPILER_FEATURES:Mc++11} && (${__T} == "aarch64" || \
     ${__T} == "amd64" || ${__TT} == "arm" || ${__T} == "i386")
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC LLD
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
-.elif ${COMPILER_FEATURES:Mc++11} && ${__T:Mpowerpc*}
-# On powerpc, if an external compiler that supports C++11 is used as ${CC},
-# then Clang is enabled, but GCC is installed as the default /usr/bin/cc.
+.elif ${COMPILER_FEATURES:Mc++11} && ${__T} != "riscv64" && ${__T} != "sparc64"
+# If an external compiler that supports C++11 is used as ${CC} and Clang
+# supports the target, then Clang is enabled but GCC is installed as the
+# default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX
-__DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
+__DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC LLD
 .else
 # Everything else disables Clang, and uses GCC instead.
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
-__DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
+__DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC LLD
 .endif
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
@@ -255,9 +256,9 @@ __DEFAULT_YES_OPTIONS+=LLD_IS_LD
 __DEFAULT_NO_OPTIONS+=LLD_IS_LD
 .endif
 .if ${__T} == "aarch64" || ${__T} == "amd64"
-__DEFAULT_YES_OPTIONS+=LLD LLDB
+__DEFAULT_YES_OPTIONS+=LLDB
 .else
-__DEFAULT_NO_OPTIONS+=LLD LLDB
+__DEFAULT_NO_OPTIONS+=LLDB
 .endif
 # LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
 .if ${__T} == "arm" || ${__T} == "armeb"
@@ -321,6 +322,16 @@ MK_LIBTHR:=	no
 .if ${MK_LDNS} == "no"
 MK_LDNS_UTILS:=	no
 MK_UNBOUND:= no
+.endif
+
+.if ${MK_LLD} == "no"
+MK_LLD_IS_LD:=	no
+.endif
+
+# LLD requires LLVM libraries, and we do not yet compare in-tree and host LLD
+# versions to avoid building it if they are identical.
+.if ${MK_LLD_IS_LD} != "no"
+MK_SYSTEM_COMPILER:=	no
 .endif
 
 .if ${MK_SOURCELESS} == "no"

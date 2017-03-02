@@ -14,13 +14,12 @@
 #include "llvm/Transforms/Scalar/LoopRotation.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/CodeMetrics.h"
-#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/GlobalsModRef.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/LoopPassManager.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -34,6 +33,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
@@ -326,6 +326,10 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
       // Otherwise, stick the new instruction into the new block!
       C->setName(Inst->getName());
       C->insertBefore(LoopEntryBranch);
+
+      if (auto *II = dyn_cast<IntrinsicInst>(C))
+        if (II->getIntrinsicID() == Intrinsic::assume)
+          AC->registerAssumption(II);
     }
   }
 
@@ -501,7 +505,8 @@ static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
       // GEPs are cheap if all indices are constant.
       if (!cast<GEPOperator>(I)->hasAllConstantIndices())
         return false;
-    // fall-thru to increment case
+      // fall-thru to increment case
+      LLVM_FALLTHROUGH;
     case Instruction::Add:
     case Instruction::Sub:
     case Instruction::And:
@@ -617,21 +622,14 @@ bool LoopRotate::processLoop(Loop *L) {
   return MadeChange;
 }
 
-LoopRotatePass::LoopRotatePass() {}
+LoopRotatePass::LoopRotatePass(bool EnableHeaderDuplication)
+    : EnableHeaderDuplication(EnableHeaderDuplication) {}
 
-PreservedAnalyses LoopRotatePass::run(Loop &L, AnalysisManager<Loop> &AM) {
-  auto &FAM = AM.getResult<FunctionAnalysisManagerLoopProxy>(L).getManager();
-  Function *F = L.getHeader()->getParent();
-
-  auto *LI = FAM.getCachedResult<LoopAnalysis>(*F);
-  const auto *TTI = FAM.getCachedResult<TargetIRAnalysis>(*F);
-  auto *AC = FAM.getCachedResult<AssumptionAnalysis>(*F);
-  assert((LI && TTI && AC) && "Analyses for loop rotation not available");
-
-  // Optional analyses.
-  auto *DT = FAM.getCachedResult<DominatorTreeAnalysis>(*F);
-  auto *SE = FAM.getCachedResult<ScalarEvolutionAnalysis>(*F);
-  LoopRotate LR(DefaultRotationThreshold, LI, TTI, AC, DT, SE);
+PreservedAnalyses LoopRotatePass::run(Loop &L, LoopAnalysisManager &AM,
+                                      LoopStandardAnalysisResults &AR,
+                                      LPMUpdater &) {
+  int Threshold = EnableHeaderDuplication ? DefaultRotationThreshold : 0;
+  LoopRotate LR(Threshold, &AR.LI, &AR.TTI, &AR.AC, &AR.DT, &AR.SE);
 
   bool Changed = LR.processLoop(&L);
   if (!Changed)

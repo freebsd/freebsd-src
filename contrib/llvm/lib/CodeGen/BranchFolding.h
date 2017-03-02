@@ -29,9 +29,13 @@ namespace llvm {
   public:
     class MBFIWrapper;
 
-    explicit BranchFolder(bool defaultEnableTailMerge, bool CommonHoist,
+    explicit BranchFolder(bool defaultEnableTailMerge,
+                          bool CommonHoist,
                           MBFIWrapper &MBFI,
-                          const MachineBranchProbabilityInfo &MBPI);
+                          const MachineBranchProbabilityInfo &MBPI,
+                          // Min tail length to merge. Defaults to commandline
+                          // flag. Ignored for optsize.
+                          unsigned MinCommonTailLength = 0);
 
     bool OptimizeFunction(MachineFunction &MF, const TargetInstrInfo *tii,
                           const TargetRegisterInfo *tri, MachineModuleInfo *mmi,
@@ -99,6 +103,7 @@ namespace llvm {
     bool EnableTailMerge;
     bool EnableHoistCommonCode;
     bool UpdateLiveIns;
+    unsigned MinCommonTailLength;
     const TargetInstrInfo *TII;
     const TargetRegisterInfo *TRI;
     MachineModuleInfo *MMI;
@@ -129,9 +134,9 @@ namespace llvm {
 
     bool TailMergeBlocks(MachineFunction &MF);
     bool TryTailMergeBlocks(MachineBasicBlock* SuccBB,
-                       MachineBasicBlock* PredBB);
+                       MachineBasicBlock* PredBB,
+                       unsigned MinCommonTailLength);
     void setCommonTailEdgeWeights(MachineBasicBlock &TailMBB);
-    void computeLiveIns(MachineBasicBlock &MBB);
     void ReplaceTailWithBranchTo(MachineBasicBlock::iterator OldInst,
                                  MachineBasicBlock *NewDest);
     MachineBasicBlock *SplitMBBAt(MachineBasicBlock &CurMBB,
@@ -150,7 +155,6 @@ namespace llvm {
     bool OptimizeBranches(MachineFunction &MF);
     bool OptimizeBlock(MachineBasicBlock *MBB);
     void RemoveDeadBlock(MachineBasicBlock *MBB);
-    bool OptimizeImpDefsBlock(MachineBasicBlock *MBB);
 
     bool HoistCommonCode(MachineFunction &MF);
     bool HoistCommonCodeInSuccs(MachineBasicBlock *MBB);

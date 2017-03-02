@@ -99,6 +99,7 @@ void sleep_for(const chrono::duration<Rep, Period>& rel_time);
 #include <tuple>
 #endif
 #include <__threading_support>
+#include <__debug>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
@@ -136,7 +137,7 @@ public:
 template <class _Tp>
 class __thread_specific_ptr
 {
-    __libcpp_tl_key __key_;
+    __libcpp_tls_key __key_;
 
      // Only __thread_local_data() may construct a __thread_specific_ptr
      // and only with _Tp == __thread_struct.
@@ -147,24 +148,24 @@ class __thread_specific_ptr
     __thread_specific_ptr(const __thread_specific_ptr&);
     __thread_specific_ptr& operator=(const __thread_specific_ptr&);
 
-    static void __at_thread_exit(void*);
+    static void _LIBCPP_TLS_DESTRUCTOR_CC __at_thread_exit(void*);
+
 public:
     typedef _Tp* pointer;
 
     ~__thread_specific_ptr();
 
     _LIBCPP_INLINE_VISIBILITY
-    pointer get() const {return static_cast<_Tp*>(__libcpp_tl_get(__key_));}
+    pointer get() const {return static_cast<_Tp*>(__libcpp_tls_get(__key_));}
     _LIBCPP_INLINE_VISIBILITY
     pointer operator*() const {return *get();}
     _LIBCPP_INLINE_VISIBILITY
     pointer operator->() const {return get();}
-    pointer release();
-    void reset(pointer __p = nullptr);
+    void set_pointer(pointer __p);
 };
 
 template <class _Tp>
-void
+void _LIBCPP_TLS_DESTRUCTOR_CC
 __thread_specific_ptr<_Tp>::__at_thread_exit(void* __p)
 {
     delete static_cast<pointer>(__p);
@@ -173,12 +174,10 @@ __thread_specific_ptr<_Tp>::__at_thread_exit(void* __p)
 template <class _Tp>
 __thread_specific_ptr<_Tp>::__thread_specific_ptr()
 {
-    int __ec = __libcpp_tl_create(
-        &__key_,
-        &__thread_specific_ptr::__at_thread_exit);
-    if (__ec)
-        __throw_system_error(__ec,
-                           "__thread_specific_ptr construction failed");
+  int __ec =
+      __libcpp_tls_create(&__key_, &__thread_specific_ptr::__at_thread_exit);
+  if (__ec)
+    __throw_system_error(__ec, "__thread_specific_ptr construction failed");
 }
 
 template <class _Tp>
@@ -191,21 +190,12 @@ __thread_specific_ptr<_Tp>::~__thread_specific_ptr()
 }
 
 template <class _Tp>
-typename __thread_specific_ptr<_Tp>::pointer
-__thread_specific_ptr<_Tp>::release()
-{
-    pointer __p = get();
-    __libcpp_tl_set(__key_, nullptr);
-    return __p;
-}
-
-template <class _Tp>
 void
-__thread_specific_ptr<_Tp>::reset(pointer __p)
+__thread_specific_ptr<_Tp>::set_pointer(pointer __p)
 {
-    pointer __p_old = get();
-    __libcpp_tl_set(__key_, __p);
-    delete __p_old;
+    _LIBCPP_ASSERT(get() == nullptr,
+                   "Attempting to overwrite thread local data");
+    __libcpp_tls_set(__key_, __p);
 }
 
 class _LIBCPP_TYPE_VIS thread;
@@ -220,7 +210,7 @@ _LIBCPP_INLINE_VISIBILITY __thread_id get_id() _NOEXCEPT;
 
 template<> struct hash<__thread_id>;
 
-class _LIBCPP_TYPE_VIS_ONLY __thread_id
+class _LIBCPP_TEMPLATE_VIS __thread_id
 {
     // FIXME: pthread_t is a pointer on Darwin but a long on Linux.
     // NULL is the no-thread value on Darwin.  Someone needs to check
@@ -263,11 +253,11 @@ private:
 
     friend __thread_id this_thread::get_id() _NOEXCEPT;
     friend class _LIBCPP_TYPE_VIS thread;
-    friend struct _LIBCPP_TYPE_VIS_ONLY hash<__thread_id>;
+    friend struct _LIBCPP_TEMPLATE_VIS hash<__thread_id>;
 };
 
 template<>
-struct _LIBCPP_TYPE_VIS_ONLY hash<__thread_id>
+struct _LIBCPP_TEMPLATE_VIS hash<__thread_id>
     : public unary_function<__thread_id, size_t>
 {
     _LIBCPP_INLINE_VISIBILITY
@@ -351,7 +341,7 @@ void* __thread_proxy(void* __vp)
 {
     // _Fp = std::tuple< unique_ptr<__thread_struct>, Functor, Args...>
     std::unique_ptr<_Fp> __p(static_cast<_Fp*>(__vp));
-    __thread_local_data().reset(_VSTD::get<0>(*__p).release());
+    __thread_local_data().set_pointer(_VSTD::get<0>(*__p).release());
     typedef typename __make_tuple_indices<tuple_size<_Fp>::value, 2>::type _Index;
     __thread_execute(*__p, _Index());
     return nullptr;
@@ -392,7 +382,7 @@ template <class _Fp>
 void* __thread_proxy_cxx03(void* __vp)
 {
     std::unique_ptr<_Fp> __p(static_cast<_Fp*>(__vp));
-    __thread_local_data().reset(__p->__tsp_.release());
+    __thread_local_data().set_pointer(__p->__tsp_.release());
     (__p->__fn_)();
     return nullptr;
 }

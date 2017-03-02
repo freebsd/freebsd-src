@@ -11,16 +11,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LanaiMCTargetDesc.h"
-
-#include "InstPrinter/LanaiInstPrinter.h"
 #include "LanaiMCAsmInfo.h"
+#include "LanaiMCTargetDesc.h"
+#include "InstPrinter/LanaiInstPrinter.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrAnalysis.h"
 #include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
+#include <cstdint>
+#include <string>
 
 #define GET_INSTRINFO_MC_DESC
 #include "LanaiGenInstrInfo.inc"
@@ -70,13 +75,15 @@ static MCInstPrinter *createLanaiMCInstPrinter(const Triple & /*T*/,
                                                const MCRegisterInfo &MRI) {
   if (SyntaxVariant == 0)
     return new LanaiInstPrinter(MAI, MII, MRI);
-  return 0;
+  return nullptr;
 }
 
-MCRelocationInfo *createLanaiElfRelocation(const Triple &TheTriple,
-                                           MCContext &Ctx) {
+static MCRelocationInfo *createLanaiElfRelocation(const Triple &TheTriple,
+                                                  MCContext &Ctx) {
   return createMCRelocationInfo(TheTriple, Ctx);
 }
+
+namespace {
 
 class LanaiMCInstrAnalysis : public MCInstrAnalysis {
 public:
@@ -107,43 +114,48 @@ public:
   }
 };
 
+} // end anonymous namespace
+
 static MCInstrAnalysis *createLanaiInstrAnalysis(const MCInstrInfo *Info) {
   return new LanaiMCInstrAnalysis(Info);
 }
 
 extern "C" void LLVMInitializeLanaiTargetMC() {
   // Register the MC asm info.
-  RegisterMCAsmInfo<LanaiMCAsmInfo> X(TheLanaiTarget);
+  RegisterMCAsmInfo<LanaiMCAsmInfo> X(getTheLanaiTarget());
 
   // Register the MC instruction info.
-  TargetRegistry::RegisterMCInstrInfo(TheLanaiTarget, createLanaiMCInstrInfo);
+  TargetRegistry::RegisterMCInstrInfo(getTheLanaiTarget(),
+                                      createLanaiMCInstrInfo);
 
   // Register the MC register info.
-  TargetRegistry::RegisterMCRegInfo(TheLanaiTarget, createLanaiMCRegisterInfo);
+  TargetRegistry::RegisterMCRegInfo(getTheLanaiTarget(),
+                                    createLanaiMCRegisterInfo);
 
   // Register the MC subtarget info.
-  TargetRegistry::RegisterMCSubtargetInfo(TheLanaiTarget,
+  TargetRegistry::RegisterMCSubtargetInfo(getTheLanaiTarget(),
                                           createLanaiMCSubtargetInfo);
 
   // Register the MC code emitter
-  TargetRegistry::RegisterMCCodeEmitter(TheLanaiTarget,
-                                        llvm::createLanaiMCCodeEmitter);
+  TargetRegistry::RegisterMCCodeEmitter(getTheLanaiTarget(),
+                                        createLanaiMCCodeEmitter);
 
   // Register the ASM Backend
-  TargetRegistry::RegisterMCAsmBackend(TheLanaiTarget, createLanaiAsmBackend);
+  TargetRegistry::RegisterMCAsmBackend(getTheLanaiTarget(),
+                                       createLanaiAsmBackend);
 
   // Register the MCInstPrinter.
-  TargetRegistry::RegisterMCInstPrinter(TheLanaiTarget,
+  TargetRegistry::RegisterMCInstPrinter(getTheLanaiTarget(),
                                         createLanaiMCInstPrinter);
 
   // Register the ELF streamer.
-  TargetRegistry::RegisterELFStreamer(TheLanaiTarget, createMCStreamer);
+  TargetRegistry::RegisterELFStreamer(getTheLanaiTarget(), createMCStreamer);
 
   // Register the MC relocation info.
-  TargetRegistry::RegisterMCRelocationInfo(TheLanaiTarget,
+  TargetRegistry::RegisterMCRelocationInfo(getTheLanaiTarget(),
                                            createLanaiElfRelocation);
 
   // Register the MC instruction analyzer.
-  TargetRegistry::RegisterMCInstrAnalysis(TheLanaiTarget,
+  TargetRegistry::RegisterMCInstrAnalysis(getTheLanaiTarget(),
                                           createLanaiInstrAnalysis);
 }

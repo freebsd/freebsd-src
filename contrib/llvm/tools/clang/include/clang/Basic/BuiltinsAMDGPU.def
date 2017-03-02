@@ -36,6 +36,7 @@ BUILTIN(__builtin_amdgcn_workitem_id_z, "Ui", "nc")
 // Instruction builtins.
 //===----------------------------------------------------------------------===//
 BUILTIN(__builtin_amdgcn_s_barrier, "v", "n")
+BUILTIN(__builtin_amdgcn_wave_barrier, "v", "n")
 BUILTIN(__builtin_amdgcn_div_scale, "dddbb*", "n")
 BUILTIN(__builtin_amdgcn_div_scalef, "fffbb*", "n")
 BUILTIN(__builtin_amdgcn_div_fmas, "ddddb", "nc")
@@ -70,11 +71,30 @@ BUILTIN(__builtin_amdgcn_cubetc, "ffff", "nc")
 BUILTIN(__builtin_amdgcn_cubema, "ffff", "nc")
 BUILTIN(__builtin_amdgcn_s_memtime, "LUi", "n")
 BUILTIN(__builtin_amdgcn_s_sleep, "vIi", "n")
+BUILTIN(__builtin_amdgcn_s_incperflevel, "vIi", "n")
+BUILTIN(__builtin_amdgcn_s_decperflevel, "vIi", "n")
+BUILTIN(__builtin_amdgcn_uicmp, "LUiUiUiIi", "nc")
+BUILTIN(__builtin_amdgcn_uicmpl, "LUiLUiLUiIi", "nc")
+BUILTIN(__builtin_amdgcn_sicmp, "LUiiiIi", "nc")
+BUILTIN(__builtin_amdgcn_sicmpl, "LUiLiLiIi", "nc")
+BUILTIN(__builtin_amdgcn_fcmp, "LUiddIi", "nc")
+BUILTIN(__builtin_amdgcn_fcmpf, "LUiffIi", "nc")
+BUILTIN(__builtin_amdgcn_ds_swizzle, "iiIi", "nc")
 
 //===----------------------------------------------------------------------===//
 // VI+ only builtins.
 //===----------------------------------------------------------------------===//
 
+TARGET_BUILTIN(__builtin_amdgcn_div_fixuph, "hhhh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_rcph, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_rsqh, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_sinh, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_cosh, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_ldexph, "hhi", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_frexp_manth, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_frexp_exph, "sh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_fracth, "hh", "nc", "16-bit-insts")
+TARGET_BUILTIN(__builtin_amdgcn_classh, "bhi", "nc", "16-bit-insts")
 TARGET_BUILTIN(__builtin_amdgcn_s_memrealtime, "LUi", "n", "s-memrealtime")
 
 //===----------------------------------------------------------------------===//

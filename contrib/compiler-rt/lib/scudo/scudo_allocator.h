@@ -14,13 +14,11 @@
 #ifndef SCUDO_ALLOCATOR_H_
 #define SCUDO_ALLOCATOR_H_
 
-#ifndef __x86_64__
-# error "The Scudo hardened allocator currently only supports x86_64."
-#endif
-
 #include "scudo_flags.h"
 
 #include "sanitizer_common/sanitizer_allocator.h"
+
+#include <atomic>
 
 namespace __scudo {
 
@@ -31,10 +29,49 @@ enum AllocType : u8 {
   FromMemalign  = 3, // Memory block came from memalign, posix_memalign, etc.
 };
 
+enum ChunkState : u8 {
+  ChunkAvailable  = 0,
+  ChunkAllocated  = 1,
+  ChunkQuarantine = 2
+};
+
+// Our header requires 64 bits of storage. Having the offset saves us from
+// using functions such as GetBlockBegin, that is fairly costly. Our first
+// implementation used the MetaData as well, which offers the advantage of
+// being stored away from the chunk itself, but accessing it was costly as
+// well. The header will be atomically loaded and stored using the 16-byte
+// primitives offered by the platform (likely requires cmpxchg16b support).
+typedef u64 PackedHeader;
+struct UnpackedHeader {
+  u64 Checksum    : 16;
+  u64 UnusedBytes : 20; // Needed for reallocation purposes.
+  u64 State       : 2;  // available, allocated, or quarantined
+  u64 AllocType   : 2;  // malloc, new, new[], or memalign
+  u64 Offset      : 16; // Offset from the beginning of the backend
+                        // allocation to the beginning of the chunk itself,
+                        // in multiples of MinAlignment. See comment about
+                        // its maximum value and test in init().
+  u64 Salt        : 8;
+};
+
+typedef std::atomic<PackedHeader> AtomicPackedHeader;
+COMPILER_CHECK(sizeof(UnpackedHeader) == sizeof(PackedHeader));
+
+// Minimum alignment of 8 bytes for 32-bit, 16 for 64-bit
+const uptr MinAlignmentLog = FIRST_32_SECOND_64(3, 4);
+const uptr MaxAlignmentLog = 24; // 16 MB
+const uptr MinAlignment = 1 << MinAlignmentLog;
+const uptr MaxAlignment = 1 << MaxAlignmentLog;
+
+const uptr ChunkHeaderSize = sizeof(PackedHeader);
+const uptr AlignedChunkHeaderSize =
+    (ChunkHeaderSize + MinAlignment - 1) & ~(MinAlignment - 1);
+
 struct AllocatorOptions {
   u32 QuarantineSizeMb;
   u32 ThreadLocalQuarantineSizeKb;
   bool MayReturnNull;
+  s32 ReleaseToOSIntervalMs;
   bool DeallocationTypeMismatch;
   bool DeleteSizeMismatch;
   bool ZeroContents;
@@ -58,6 +95,8 @@ int scudoPosixMemalign(void **MemPtr, uptr Alignment, uptr Size);
 void *scudoAlignedAlloc(uptr Alignment, uptr Size);
 uptr scudoMallocUsableSize(void *Ptr);
 
-} // namespace __scudo
+#include "scudo_allocator_secondary.h"
+
+}  // namespace __scudo
 
 #endif  // SCUDO_ALLOCATOR_H_

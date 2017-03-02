@@ -20,7 +20,7 @@ namespace {
 // deal with the Error value directly, rather than converting to error_code.
 class CodeViewErrorCategory : public std::error_category {
 public:
-  const char *name() const LLVM_NOEXCEPT override { return "llvm.codeview"; }
+  const char *name() const noexcept override { return "llvm.codeview"; }
 
   std::string message(int Condition) const override {
     switch (static_cast<cv_error_code>(Condition)) {
@@ -33,6 +33,8 @@ public:
       return "The CodeView record is corrupted.";
     case cv_error_code::operation_unsupported:
       return "The requested operation is not supported.";
+    case cv_error_code::unknown_member_record:
+      return "The member record is of an unknown type.";
     }
     llvm_unreachable("Unrecognized cv_error_code");
   }

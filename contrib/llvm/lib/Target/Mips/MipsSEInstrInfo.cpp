@@ -408,7 +408,9 @@ unsigned MipsSEInstrInfo::getOppositeBranchOpc(unsigned Opc) const {
   switch (Opc) {
   default:           llvm_unreachable("Illegal opcode!");
   case Mips::BEQ:    return Mips::BNE;
+  case Mips::BEQ_MM: return Mips::BNE_MM;
   case Mips::BNE:    return Mips::BEQ;
+  case Mips::BNE_MM: return Mips::BEQ_MM;
   case Mips::BGTZ:   return Mips::BLEZ;
   case Mips::BGEZ:   return Mips::BLTZ;
   case Mips::BLTZ:   return Mips::BGEZ;
@@ -431,6 +433,18 @@ unsigned MipsSEInstrInfo::getOppositeBranchOpc(unsigned Opc) const {
   case Mips::BGEZC:  return Mips::BLTZC;
   case Mips::BLTZC:  return Mips::BGEZC;
   case Mips::BLEZC:  return Mips::BGTZC;
+  case Mips::BEQZC64:  return Mips::BNEZC64;
+  case Mips::BNEZC64:  return Mips::BEQZC64;
+  case Mips::BEQC64:   return Mips::BNEC64;
+  case Mips::BNEC64:   return Mips::BEQC64;
+  case Mips::BGEC64:   return Mips::BLTC64;
+  case Mips::BGEUC64:  return Mips::BLTUC64;
+  case Mips::BLTC64:   return Mips::BGEC64;
+  case Mips::BLTUC64:  return Mips::BGEUC64;
+  case Mips::BGTZC64:  return Mips::BLEZC64;
+  case Mips::BGEZC64:  return Mips::BLTZC64;
+  case Mips::BLTZC64:  return Mips::BGEZC64;
+  case Mips::BLEZC64:  return Mips::BGTZC64;
   }
 }
 
@@ -506,17 +520,22 @@ unsigned MipsSEInstrInfo::loadImmediate(int64_t Imm, MachineBasicBlock &MBB,
 }
 
 unsigned MipsSEInstrInfo::getAnalyzableBrOpc(unsigned Opc) const {
-  return (Opc == Mips::BEQ    || Opc == Mips::BNE    || Opc == Mips::BGTZ   ||
-          Opc == Mips::BGEZ   || Opc == Mips::BLTZ   || Opc == Mips::BLEZ   ||
-          Opc == Mips::BEQ64  || Opc == Mips::BNE64  || Opc == Mips::BGTZ64 ||
-          Opc == Mips::BGEZ64 || Opc == Mips::BLTZ64 || Opc == Mips::BLEZ64 ||
-          Opc == Mips::BC1T   || Opc == Mips::BC1F   || Opc == Mips::B      ||
-          Opc == Mips::J  || Opc == Mips::BEQZC_MM || Opc == Mips::BNEZC_MM ||
-          Opc == Mips::BEQC   || Opc == Mips::BNEC   || Opc == Mips::BLTC   ||
-          Opc == Mips::BGEC   || Opc == Mips::BLTUC  || Opc == Mips::BGEUC  ||
-          Opc == Mips::BGTZC  || Opc == Mips::BLEZC  || Opc == Mips::BGEZC  ||
-          Opc == Mips::BLTZC  || Opc == Mips::BEQZC  || Opc == Mips::BNEZC  ||
-          Opc == Mips::BC) ? Opc : 0;
+  return (Opc == Mips::BEQ    || Opc == Mips::BEQ_MM || Opc == Mips::BNE    ||
+          Opc == Mips::BNE_MM || Opc == Mips::BGTZ   || Opc == Mips::BGEZ   ||
+          Opc == Mips::BLTZ   || Opc == Mips::BLEZ   || Opc == Mips::BEQ64  ||
+          Opc == Mips::BNE64  || Opc == Mips::BGTZ64 || Opc == Mips::BGEZ64 ||
+          Opc == Mips::BLTZ64 || Opc == Mips::BLEZ64 || Opc == Mips::BC1T   ||
+          Opc == Mips::BC1F   || Opc == Mips::B      || Opc == Mips::J      ||
+          Opc == Mips::BEQZC_MM || Opc == Mips::BNEZC_MM || Opc == Mips::BEQC ||
+          Opc == Mips::BNEC   || Opc == Mips::BLTC   || Opc == Mips::BGEC   ||
+          Opc == Mips::BLTUC  || Opc == Mips::BGEUC  || Opc == Mips::BGTZC  ||
+          Opc == Mips::BLEZC  || Opc == Mips::BGEZC  || Opc == Mips::BLTZC  ||
+          Opc == Mips::BEQZC  || Opc == Mips::BNEZC  || Opc == Mips::BEQZC64 ||
+          Opc == Mips::BNEZC64 || Opc == Mips::BEQC64 || Opc == Mips::BNEC64 ||
+          Opc == Mips::BGEC64 || Opc == Mips::BGEUC64 || Opc == Mips::BLTC64 ||
+          Opc == Mips::BLTUC64 || Opc == Mips::BGTZC64 ||
+          Opc == Mips::BGEZC64 || Opc == Mips::BLTZC64 ||
+          Opc == Mips::BLEZC64 || Opc == Mips::BC) ? Opc : 0;
 }
 
 void MipsSEInstrInfo::expandRetRA(MachineBasicBlock &MBB,

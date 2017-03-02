@@ -17,6 +17,7 @@
 #define TSAN_INTERFACE_H
 
 #include <sanitizer_common/sanitizer_internal_defs.h>
+using __sanitizer::uptr;
 
 // This header should NOT include any other headers.
 // All functions in this header are extern "C" and start with __tsan_.
@@ -25,11 +26,13 @@
 extern "C" {
 #endif
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 
 // This function should be called at the very beginning of the process,
 // before any instrumented code is executed and before any call to malloc.
 SANITIZER_INTERFACE_ATTRIBUTE void __tsan_init();
+
+SANITIZER_INTERFACE_ATTRIBUTE void __tsan_flush_memory();
 
 SANITIZER_INTERFACE_ATTRIBUTE void __tsan_read1(void *addr);
 SANITIZER_INTERFACE_ATTRIBUTE void __tsan_read2(void *addr);
@@ -71,6 +74,9 @@ void __tsan_vptr_update(void **vptr_p, void *new_val);
 
 SANITIZER_INTERFACE_ATTRIBUTE void __tsan_func_entry(void *call_pc);
 SANITIZER_INTERFACE_ATTRIBUTE void __tsan_func_exit();
+
+SANITIZER_INTERFACE_ATTRIBUTE void __tsan_ignore_thread_begin();
+SANITIZER_INTERFACE_ATTRIBUTE void __tsan_ignore_thread_end();
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __tsan_read_range(void *addr, unsigned long size);  // NOLINT
@@ -132,6 +138,17 @@ int __tsan_get_report_thread(void *report, uptr idx, int *tid, uptr *os_id,
 SANITIZER_INTERFACE_ATTRIBUTE
 int __tsan_get_report_unique_tid(void *report, uptr idx, int *tid);
 
+// Returns the type of the pointer (heap, stack, global, ...) and if possible
+// also the starting address (e.g. of a heap allocation) and size.
+SANITIZER_INTERFACE_ATTRIBUTE
+const char *__tsan_locate_address(uptr addr, char *name, uptr name_size,
+                                  uptr *region_address, uptr *region_size);
+
+// Returns the allocation stack for a heap pointer.
+SANITIZER_INTERFACE_ATTRIBUTE
+int __tsan_get_alloc_stack(uptr addr, uptr *trace, uptr size, int *thread_id,
+                           uptr *os_id);
+
 #endif  // SANITIZER_GO
 
 #ifdef __cplusplus
@@ -145,7 +162,7 @@ typedef unsigned char      a8;
 typedef unsigned short     a16;  // NOLINT
 typedef unsigned int       a32;
 typedef unsigned long long a64;  // NOLINT
-#if !defined(SANITIZER_GO) && (defined(__SIZEOF_INT128__) \
+#if !SANITIZER_GO && (defined(__SIZEOF_INT128__) \
     || (__clang_major__ * 100 + __clang_minor__ >= 302)) && !defined(__mips64)
 __extension__ typedef __int128 a128;
 # define __TSAN_HAS_INT128 1

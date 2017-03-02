@@ -51,10 +51,10 @@ public:
 
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::AllVRegsAllocated);
+        MachineFunctionProperties::Property::NoVRegs);
   }
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "X86 pseudo instruction expansion pass";
   }
 
@@ -94,7 +94,7 @@ bool X86ExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     assert(MaxTCDelta <= 0 && "MaxTCDelta should never be positive");
 
     // Incoporate the retaddr area.
-    Offset = StackAdj-MaxTCDelta;
+    Offset = StackAdj - MaxTCDelta;
     assert(Offset >= 0 && "Offset should never be negative");
 
     if (Offset) {
@@ -106,14 +106,22 @@ bool X86ExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     // Jump to label or value in register.
     bool IsWin64 = STI->isTargetWin64();
     if (Opcode == X86::TCRETURNdi || Opcode == X86::TCRETURNdi64) {
-      unsigned Op = (Opcode == X86::TCRETURNdi)
-                        ? X86::TAILJMPd
-                        : (IsWin64 ? X86::TAILJMPd64_REX : X86::TAILJMPd64);
+      unsigned Op;
+      switch (Opcode) {
+      case X86::TCRETURNdi:
+        Op = X86::TAILJMPd;
+        break;
+      default:
+        // Note: Win64 uses REX prefixes indirect jumps out of functions, but
+        // not direct ones.
+        Op = X86::TAILJMPd64;
+        break;
+      }
       MachineInstrBuilder MIB = BuildMI(MBB, MBBI, DL, TII->get(Op));
-      if (JumpTarget.isGlobal())
+      if (JumpTarget.isGlobal()) {
         MIB.addGlobalAddress(JumpTarget.getGlobal(), JumpTarget.getOffset(),
                              JumpTarget.getTargetFlags());
-      else {
+      } else {
         assert(JumpTarget.isSymbol());
         MIB.addExternalSymbol(JumpTarget.getSymbolName(),
                               JumpTarget.getTargetFlags());

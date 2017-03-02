@@ -371,14 +371,14 @@ static bool IsUserOfGlobalSafeForSRA(User *U, GlobalValue *GV) {
   ++GEPI;  // Skip over the pointer index.
 
   // If this is a use of an array allocation, do a bit more checking for sanity.
-  if (ArrayType *AT = dyn_cast<ArrayType>(*GEPI)) {
-    uint64_t NumElements = AT->getNumElements();
+  if (GEPI.isSequential()) {
     ConstantInt *Idx = cast<ConstantInt>(U->getOperand(2));
 
     // Check to make sure that index falls within the array.  If not,
     // something funny is going on, so we won't do the optimization.
     //
-    if (Idx->getZExtValue() >= NumElements)
+    if (GEPI.isBoundedSequential() &&
+        Idx->getZExtValue() >= GEPI.getSequentialNumElements())
       return false;
 
     // We cannot scalar repl this level of the array unless any array
@@ -391,19 +391,13 @@ static bool IsUserOfGlobalSafeForSRA(User *U, GlobalValue *GV) {
     for (++GEPI; // Skip array index.
          GEPI != E;
          ++GEPI) {
-      uint64_t NumElements;
-      if (ArrayType *SubArrayTy = dyn_cast<ArrayType>(*GEPI))
-        NumElements = SubArrayTy->getNumElements();
-      else if (VectorType *SubVectorTy = dyn_cast<VectorType>(*GEPI))
-        NumElements = SubVectorTy->getNumElements();
-      else {
-        assert((*GEPI)->isStructTy() &&
-               "Indexed GEP type is not array, vector, or struct!");
+      if (GEPI.isStruct())
         continue;
-      }
 
       ConstantInt *IdxVal = dyn_cast<ConstantInt>(GEPI.getOperand());
-      if (!IdxVal || IdxVal->getZExtValue() >= NumElements)
+      if (!IdxVal ||
+          (GEPI.isBoundedSequential() &&
+           IdxVal->getZExtValue() >= GEPI.getSequentialNumElements()))
         return false;
     }
   }
@@ -473,12 +467,7 @@ static GlobalVariable *SRAGlobal(GlobalVariable *GV, const DataLayout &DL) {
         NGV->setAlignment(NewAlign);
     }
   } else if (SequentialType *STy = dyn_cast<SequentialType>(Ty)) {
-    unsigned NumElements = 0;
-    if (ArrayType *ATy = dyn_cast<ArrayType>(STy))
-      NumElements = ATy->getNumElements();
-    else
-      NumElements = cast<VectorType>(STy)->getNumElements();
-
+    unsigned NumElements = STy->getNumElements();
     if (NumElements > 16 && GV->hasNUsesOrMore(16))
       return nullptr; // It's not worth it.
     NewGlobals.reserve(NumElements);
@@ -1653,7 +1642,7 @@ static bool deleteIfDead(GlobalValue &GV,
                          SmallSet<const Comdat *, 8> &NotDiscardableComdats) {
   GV.removeDeadConstantUsers();
 
-  if (!GV.isDiscardableIfUnused())
+  if (!GV.isDiscardableIfUnused() && !GV.isDeclaration())
     return false;
 
   if (const Comdat *C = GV.getComdat())
@@ -1662,7 +1651,7 @@ static bool deleteIfDead(GlobalValue &GV,
 
   bool Dead;
   if (auto *F = dyn_cast<Function>(&GV))
-    Dead = F->isDefTriviallyDead();
+    Dead = (F->isDeclaration() && F->use_empty()) || F->isDefTriviallyDead();
   else
     Dead = GV.use_empty();
   if (!Dead)
@@ -1737,7 +1726,7 @@ static bool isPointerValueDeadOnEntryToFunction(
 
   for (auto *L : Loads) {
     auto *LTy = L->getType();
-    if (!std::any_of(Stores.begin(), Stores.end(), [&](StoreInst *S) {
+    if (none_of(Stores, [&](const StoreInst *S) {
           auto *STy = S->getValueOperand()->getType();
           // The load is only dominated by the store if DomTree says so
           // and the number of bits loaded in L is less than or equal to
@@ -2079,10 +2068,10 @@ OptimizeGlobalVars(Module &M, TargetLibraryInfo *TLI,
       GV->setLinkage(GlobalValue::InternalLinkage);
     // Simplify the initializer.
     if (GV->hasInitializer())
-      if (ConstantExpr *CE = dyn_cast<ConstantExpr>(GV->getInitializer())) {
+      if (auto *C = dyn_cast<Constant>(GV->getInitializer())) {
         auto &DL = M.getDataLayout();
-        Constant *New = ConstantFoldConstantExpression(CE, DL, TLI);
-        if (New && New != CE)
+        Constant *New = ConstantFoldConstant(C, DL, TLI);
+        if (New && New != C)
           GV->setInitializer(New);
       }
 
@@ -2125,12 +2114,7 @@ static Constant *EvaluateStoreInto(Constant *Init, Constant *Val,
 
   ConstantInt *CI = cast<ConstantInt>(Addr->getOperand(OpNo));
   SequentialType *InitTy = cast<SequentialType>(Init->getType());
-
-  uint64_t NumElts;
-  if (ArrayType *ATy = dyn_cast<ArrayType>(InitTy))
-    NumElts = ATy->getNumElements();
-  else
-    NumElts = InitTy->getVectorNumElements();
+  uint64_t NumElts = InitTy->getNumElements();
 
   // Break up the array into elements.
   for (uint64_t i = 0, e = NumElts; i != e; ++i)
@@ -2565,7 +2549,7 @@ static bool optimizeGlobalsInModule(
   return Changed;
 }
 
-PreservedAnalyses GlobalOptPass::run(Module &M, AnalysisManager<Module> &AM) {
+PreservedAnalyses GlobalOptPass::run(Module &M, ModuleAnalysisManager &AM) {
     auto &DL = M.getDataLayout();
     auto &TLI = AM.getResult<TargetLibraryAnalysis>(M);
     auto &FAM =

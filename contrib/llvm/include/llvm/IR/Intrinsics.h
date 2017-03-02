@@ -45,7 +45,16 @@ namespace Intrinsic {
   };
 
   /// Return the LLVM name for an intrinsic, such as "llvm.ppc.altivec.lvx".
-  std::string getName(ID id, ArrayRef<Type*> Tys = None);
+  /// Note, this version is for intrinsics with no overloads.  Use the other
+  /// version of getName if overloads are required.
+  StringRef getName(ID id);
+
+  /// Return the LLVM name for an intrinsic, such as "llvm.ppc.altivec.lvx".
+  /// Note, this version of getName supports overloads, but is less efficient
+  /// than the StringRef version of this function.  If no overloads are
+  /// requried, it is safe to use this version, but better to use the StringRef
+  /// version.
+  std::string getName(ID id, ArrayRef<Type*> Tys);
 
   /// Return the function type for an intrinsic.
   FunctionType *getType(LLVMContext &Context, ID id,
@@ -79,10 +88,10 @@ namespace Intrinsic {
                                 StringRef Name);
 
   /// Map a GCC builtin name to an intrinsic ID.
-  ID getIntrinsicForGCCBuiltin(const char *Prefix, const char *BuiltinName);
+  ID getIntrinsicForGCCBuiltin(const char *Prefix, StringRef BuiltinName);
 
   /// Map a MS builtin name to an intrinsic ID.
-  ID getIntrinsicForMSBuiltin(const char *Prefix, const char *BuiltinName);
+  ID getIntrinsicForMSBuiltin(const char *Prefix, StringRef BuiltinName);
 
   /// This is a type descriptor which explains the type requirements of an
   /// intrinsic. This is returned by getIntrinsicInfoTableEntries.
@@ -91,7 +100,7 @@ namespace Intrinsic {
       Void, VarArg, MMX, Token, Metadata, Half, Float, Double,
       Integer, Vector, Pointer, Struct,
       Argument, ExtendArgument, TruncArgument, HalfVecArgument,
-      SameVecWidthArgument, PtrToArgument, VecOfPtrsToElt
+      SameVecWidthArgument, PtrToArgument, PtrToElt, VecOfPtrsToElt
     } Kind;
 
     union {
@@ -114,7 +123,7 @@ namespace Intrinsic {
       assert(Kind == Argument || Kind == ExtendArgument ||
              Kind == TruncArgument || Kind == HalfVecArgument ||
              Kind == SameVecWidthArgument || Kind == PtrToArgument ||
-             Kind == VecOfPtrsToElt);
+             Kind == PtrToElt || Kind == VecOfPtrsToElt);
       return Argument_Info >> 3;
     }
     ArgKind getArgumentKind() const {

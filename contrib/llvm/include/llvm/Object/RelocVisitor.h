@@ -86,11 +86,23 @@ private:
           return RelocToApply();
         }
       case Triple::aarch64:
+      case Triple::aarch64_be:
         switch (RelocType) {
         case llvm::ELF::R_AARCH64_ABS32:
           return visitELF_AARCH64_ABS32(R, Value);
         case llvm::ELF::R_AARCH64_ABS64:
           return visitELF_AARCH64_ABS64(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::bpfel:
+      case Triple::bpfeb:
+        switch (RelocType) {
+        case llvm::ELF::R_BPF_64_64:
+          return visitELF_BPF_64_64(R, Value);
+        case llvm::ELF::R_BPF_64_32:
+          return visitELF_BPF_64_32(R, Value);
         default:
           HasError = true;
           return RelocToApply();
@@ -135,6 +147,14 @@ private:
         case llvm::ELF::R_SPARC_64:
         case llvm::ELF::R_SPARC_UA64:
           return visitELF_SPARCV9_64(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::amdgcn:
+        switch (RelocType) {
+        case llvm::ELF::R_AMDGPU_ABS32:
+          return visitELF_AMDGPU_ABS32(R, Value);
         default:
           HasError = true;
           return RelocToApply();
@@ -196,6 +216,14 @@ private:
         case llvm::ELF::R_SPARC_32:
         case llvm::ELF::R_SPARC_UA32:
           return visitELF_SPARC_32(R, Value);
+        default:
+          HasError = true;
+          return RelocToApply();
+        }
+      case Triple::hexagon:
+        switch (RelocType) {
+        case llvm::ELF::R_HEX_32:
+          return visitELF_HEX_32(R, Value);
         default:
           HasError = true;
           return RelocToApply();
@@ -300,6 +328,15 @@ private:
     return RelocToApply(Res, 4);
   }
 
+  /// BPF ELF
+  RelocToApply visitELF_BPF_64_32(RelocationRef R, uint64_t Value) {
+    uint32_t Res = Value & 0xFFFFFFFF;
+    return RelocToApply(Res, 4);
+  }
+  RelocToApply visitELF_BPF_64_64(RelocationRef R, uint64_t Value) {
+    return RelocToApply(Value, 8);
+  }
+
   /// PPC64 ELF
   RelocToApply visitELF_PPC64_ADDR32(RelocationRef R, uint64_t Value) {
     int64_t Addend = getELFAddend(R);
@@ -401,6 +438,16 @@ private:
       HasError = true;
 
     return RelocToApply(static_cast<uint32_t>(Res), 4);
+  }
+
+  RelocToApply visitELF_HEX_32(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getELFAddend(R);
+    return RelocToApply(Value + Addend, 4);
+  }
+
+  RelocToApply visitELF_AMDGPU_ABS32(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getELFAddend(R);
+    return RelocToApply(Value + Addend, 4);
   }
 
   /// I386 COFF
