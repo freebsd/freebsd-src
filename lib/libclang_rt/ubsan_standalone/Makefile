@@ -4,10 +4,12 @@
 
 LIB=		clang_rt.ubsan_standalone-${CRTARCH}
 
+SRCS+=		sanitizer_common/sancov_flags.cc
 SRCS+=		sanitizer_common/sanitizer_allocator.cc
 SRCS+=		sanitizer_common/sanitizer_common.cc
 SRCS+=		sanitizer_common/sanitizer_common_libcdep.cc
 SRCS+=		sanitizer_common/sanitizer_coverage_libcdep.cc
+SRCS+=		sanitizer_common/sanitizer_coverage_libcdep_new.cc
 SRCS+=		sanitizer_common/sanitizer_coverage_mapping_libcdep.cc
 SRCS+=		sanitizer_common/sanitizer_deadlock_detector1.cc
 SRCS+=		sanitizer_common/sanitizer_deadlock_detector2.cc
@@ -17,7 +19,6 @@ SRCS+=		sanitizer_common/sanitizer_libc.cc
 SRCS+=		sanitizer_common/sanitizer_libignore.cc
 SRCS+=		sanitizer_common/sanitizer_linux.cc
 SRCS+=		sanitizer_common/sanitizer_linux_libcdep.cc
-SRCS+=		sanitizer_common/sanitizer_linux_s390.cc
 SRCS+=		sanitizer_common/sanitizer_linux_x86_64.S
 SRCS+=		sanitizer_common/sanitizer_mac.cc
 SRCS+=		sanitizer_common/sanitizer_persistent_allocator.cc

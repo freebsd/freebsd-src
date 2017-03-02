@@ -88,8 +88,6 @@ extern "C" int pthread_attr_setstacksize(void *attr, uptr stacksize);
 extern "C" int pthread_key_create(unsigned *key, void (*destructor)(void* v));
 extern "C" int pthread_setspecific(unsigned key, const void *v);
 DECLARE_REAL(int, pthread_mutexattr_gettype, void *, void *)
-extern "C" int pthread_sigmask(int how, const __sanitizer_sigset_t *set,
-                               __sanitizer_sigset_t *oldset);
 DECLARE_REAL(int, fflush, __sanitizer_FILE *fp)
 DECLARE_REAL_AND_INTERCEPTOR(void *, malloc, uptr size)
 DECLARE_REAL_AND_INTERCEPTOR(void, free, void *ptr)
@@ -233,6 +231,8 @@ void InitializeLibIgnore() {
     if (0 == internal_strcmp(s->type, kSuppressionLib))
       libignore()->AddIgnoredLibrary(s->templ);
   }
+  if (flags()->ignore_noninstrumented_modules)
+    libignore()->IgnoreNoninstrumentedModules(true);
   libignore()->OnLibraryLoaded(0);
 }
 
@@ -254,31 +254,20 @@ static unsigned g_thread_finalize_key;
 
 ScopedInterceptor::ScopedInterceptor(ThreadState *thr, const char *fname,
                                      uptr pc)
-    : thr_(thr)
-    , pc_(pc)
-    , in_ignored_lib_(false) {
+    : thr_(thr), pc_(pc), in_ignored_lib_(false), ignoring_(false) {
   Initialize(thr);
-  if (!thr_->is_inited)
-    return;
-  if (!thr_->ignore_interceptors)
-    FuncEntry(thr, pc);
+  if (!thr_->is_inited) return;
+  if (!thr_->ignore_interceptors) FuncEntry(thr, pc);
   DPrintf("#%d: intercept %s()\n", thr_->tid, fname);
-  if (!thr_->in_ignored_lib && libignore()->IsIgnored(pc)) {
-    in_ignored_lib_ = true;
-    thr_->in_ignored_lib = true;
-    ThreadIgnoreBegin(thr_, pc_);
-  }
-  if (flags()->ignore_interceptors_accesses) ThreadIgnoreBegin(thr_, pc_);
+  ignoring_ =
+      !thr_->in_ignored_lib && (flags()->ignore_interceptors_accesses ||
+                                libignore()->IsIgnored(pc, &in_ignored_lib_));
+  EnableIgnores();
 }
 
 ScopedInterceptor::~ScopedInterceptor() {
-  if (!thr_->is_inited)
-    return;
-  if (flags()->ignore_interceptors_accesses) ThreadIgnoreEnd(thr_, pc_);
-  if (in_ignored_lib_) {
-    thr_->in_ignored_lib = false;
-    ThreadIgnoreEnd(thr_, pc_);
-  }
+  if (!thr_->is_inited) return;
+  DisableIgnores();
   if (!thr_->ignore_interceptors) {
     ProcessPendingSignals(thr_);
     FuncExit(thr_);
@@ -286,20 +275,24 @@ ScopedInterceptor::~ScopedInterceptor() {
   }
 }
 
-void ScopedInterceptor::UserCallbackStart() {
-  if (flags()->ignore_interceptors_accesses) ThreadIgnoreEnd(thr_, pc_);
-  if (in_ignored_lib_) {
-    thr_->in_ignored_lib = false;
-    ThreadIgnoreEnd(thr_, pc_);
+void ScopedInterceptor::EnableIgnores() {
+  if (ignoring_) {
+    ThreadIgnoreBegin(thr_, pc_);
+    if (in_ignored_lib_) {
+      DCHECK(!thr_->in_ignored_lib);
+      thr_->in_ignored_lib = true;
+    }
   }
 }
 
-void ScopedInterceptor::UserCallbackEnd() {
-  if (in_ignored_lib_) {
-    thr_->in_ignored_lib = true;
-    ThreadIgnoreBegin(thr_, pc_);
+void ScopedInterceptor::DisableIgnores() {
+  if (ignoring_) {
+    ThreadIgnoreEnd(thr_, pc_);
+    if (in_ignored_lib_) {
+      DCHECK(thr_->in_ignored_lib);
+      thr_->in_ignored_lib = false;
+    }
   }
-  if (flags()->ignore_interceptors_accesses) ThreadIgnoreBegin(thr_, pc_);
 }
 
 #define TSAN_INTERCEPT(func) INTERCEPT_FUNCTION(func)
@@ -485,6 +478,8 @@ static void LongJmp(ThreadState *thr, uptr *env) {
 #elif defined(SANITIZER_LINUX)
 # ifdef __aarch64__
   uptr mangled_sp = env[13];
+# elif defined(__mips64)
+  uptr mangled_sp = env[1];
 # else
   uptr mangled_sp = env[6];
 # endif
@@ -1762,6 +1757,31 @@ TSAN_INTERCEPTOR(int, epoll_pwait, int epfd, void *ev, int cnt, int timeout,
 #define TSAN_MAYBE_INTERCEPT_EPOLL
 #endif
 
+// The following functions are intercepted merely to process pending signals.
+// If program blocks signal X, we must deliver the signal before the function
+// returns. Similarly, if program unblocks a signal (or returns from sigsuspend)
+// it's better to deliver the signal straight away.
+TSAN_INTERCEPTOR(int, sigsuspend, const __sanitizer_sigset_t *mask) {
+  SCOPED_TSAN_INTERCEPTOR(sigsuspend, mask);
+  return REAL(sigsuspend)(mask);
+}
+
+TSAN_INTERCEPTOR(int, sigblock, int mask) {
+  SCOPED_TSAN_INTERCEPTOR(sigblock, mask);
+  return REAL(sigblock)(mask);
+}
+
+TSAN_INTERCEPTOR(int, sigsetmask, int mask) {
+  SCOPED_TSAN_INTERCEPTOR(sigsetmask, mask);
+  return REAL(sigsetmask)(mask);
+}
+
+TSAN_INTERCEPTOR(int, pthread_sigmask, int how, const __sanitizer_sigset_t *set,
+    __sanitizer_sigset_t *oldset) {
+  SCOPED_TSAN_INTERCEPTOR(pthread_sigmask, how, set, oldset);
+  return REAL(pthread_sigmask)(how, set, oldset);
+}
+
 namespace __tsan {
 
 static void CallUserSignalHandler(ThreadState *thr, bool sync, bool acquire,
@@ -1833,7 +1853,8 @@ void ProcessPendingSignals(ThreadState *thr) {
   atomic_store(&sctx->have_pending_signals, 0, memory_order_relaxed);
   atomic_fetch_add(&thr->in_signal_handler, 1, memory_order_relaxed);
   internal_sigfillset(&sctx->emptyset);
-  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sctx->emptyset, &sctx->oldset));
+  int res = REAL(pthread_sigmask)(SIG_SETMASK, &sctx->emptyset, &sctx->oldset);
+  CHECK_EQ(res, 0);
   for (int sig = 0; sig < kSigCount; sig++) {
     SignalDesc *signal = &sctx->pending_signals[sig];
     if (signal->armed) {
@@ -1842,7 +1863,8 @@ void ProcessPendingSignals(ThreadState *thr) {
           &signal->siginfo, &signal->ctx);
     }
   }
-  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sctx->oldset, 0));
+  res = REAL(pthread_sigmask)(SIG_SETMASK, &sctx->oldset, 0);
+  CHECK_EQ(res, 0);
   atomic_fetch_add(&thr->in_signal_handler, -1, memory_order_relaxed);
 }
 
@@ -1956,11 +1978,6 @@ TSAN_INTERCEPTOR(sighandler_t, signal, int sig, sighandler_t h) {
   if (res)
     return SIG_ERR;
   return old.sa_handler;
-}
-
-TSAN_INTERCEPTOR(int, sigsuspend, const __sanitizer_sigset_t *mask) {
-  SCOPED_TSAN_INTERCEPTOR(sigsuspend, mask);
-  return REAL(sigsuspend)(mask);
 }
 
 TSAN_INTERCEPTOR(int, raise, int sig) {
@@ -2553,6 +2570,9 @@ void InitializeInterceptors() {
   TSAN_INTERCEPT(sigaction);
   TSAN_INTERCEPT(signal);
   TSAN_INTERCEPT(sigsuspend);
+  TSAN_INTERCEPT(sigblock);
+  TSAN_INTERCEPT(sigsetmask);
+  TSAN_INTERCEPT(pthread_sigmask);
   TSAN_INTERCEPT(raise);
   TSAN_INTERCEPT(kill);
   TSAN_INTERCEPT(pthread_kill);

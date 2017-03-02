@@ -38,6 +38,7 @@ struct MIToken {
     underscore,
     colon,
     coloncolon,
+    dot,
     exclaim,
     lparen,
     rparen,
@@ -53,6 +54,7 @@ struct MIToken {
     kw_implicit_define,
     kw_def,
     kw_dead,
+    kw_dereferenceable,
     kw_killed,
     kw_undef,
     kw_internal,
@@ -67,6 +69,7 @@ struct MIToken {
     kw_cfi_def_cfa_offset,
     kw_cfi_def_cfa,
     kw_blockaddress,
+    kw_intrinsic,
     kw_target_index,
     kw_half,
     kw_float,
@@ -89,6 +92,8 @@ struct MIToken {
     kw_landing_pad,
     kw_liveins,
     kw_successors,
+    kw_floatpred,
+    kw_intpred,
 
     // Named metadata keywords
     md_tbaa,
@@ -102,6 +107,8 @@ struct MIToken {
     NamedRegister,
     MachineBasicBlockLabel,
     MachineBasicBlock,
+    PointerType,
+    ScalarType,
     StackObject,
     FixedStackObject,
     NamedGlobalValue,
@@ -111,6 +118,7 @@ struct MIToken {
     // Other tokens
     IntegerLiteral,
     FloatingPointLiteral,
+    HexLiteral,
     VirtualRegister,
     ConstantPoolItem,
     JumpTableIndex,
@@ -160,7 +168,7 @@ public:
 
   bool isMemoryOperandFlag() const {
     return Kind == kw_volatile || Kind == kw_non_temporal ||
-           Kind == kw_invariant;
+           Kind == kw_dereferenceable || Kind == kw_invariant;
   }
 
   bool is(TokenKind K) const { return Kind == K; }

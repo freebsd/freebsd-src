@@ -236,7 +236,7 @@ static bool markTails(Function &F, bool &AllCallsAreTailCalls) {
       if (!CI || CI->isTailCall())
         continue;
 
-      bool IsNoTail = CI->isNoTailCall();
+      bool IsNoTail = CI->isNoTailCall() || CI->hasOperandBundles();
 
       if (!IsNoTail && CI->doesNotAccessMemory()) {
         // A call to a readnone function whose arguments are all things computed
@@ -347,7 +347,7 @@ static bool canMoveAboveCall(Instruction *I, CallInst *CI) {
   // return value of the call, it must only use things that are defined before
   // the call, or movable instructions between the call and the instruction
   // itself.
-  return std::find(I->op_begin(), I->op_end(), CI) == I->op_end();
+  return !is_contained(I->operands(), CI);
 }
 
 /// Return true if the specified value is the same when the return would exit

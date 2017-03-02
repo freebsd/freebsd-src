@@ -207,25 +207,27 @@ QuarantineCache *GetQuarantineCache(AsanThreadLocalMallocStorage *ms) {
 
 void AllocatorOptions::SetFrom(const Flags *f, const CommonFlags *cf) {
   quarantine_size_mb = f->quarantine_size_mb;
+  thread_local_quarantine_size_kb = f->thread_local_quarantine_size_kb;
   min_redzone = f->redzone;
   max_redzone = f->max_redzone;
   may_return_null = cf->allocator_may_return_null;
   alloc_dealloc_mismatch = f->alloc_dealloc_mismatch;
+  release_to_os_interval_ms = cf->allocator_release_to_os_interval_ms;
 }
 
 void AllocatorOptions::CopyTo(Flags *f, CommonFlags *cf) {
   f->quarantine_size_mb = quarantine_size_mb;
+  f->thread_local_quarantine_size_kb = thread_local_quarantine_size_kb;
   f->redzone = min_redzone;
   f->max_redzone = max_redzone;
   cf->allocator_may_return_null = may_return_null;
   f->alloc_dealloc_mismatch = alloc_dealloc_mismatch;
+  cf->allocator_release_to_os_interval_ms = release_to_os_interval_ms;
 }
 
 struct Allocator {
   static const uptr kMaxAllowedMallocSize =
       FIRST_32_SECOND_64(3UL << 30, 1ULL << 40);
-  static const uptr kMaxThreadLocalQuarantine =
-      FIRST_32_SECOND_64(1 << 18, 1 << 20);
 
   AsanAllocator allocator;
   AsanQuarantine quarantine;
@@ -254,7 +256,7 @@ struct Allocator {
   void SharedInitCode(const AllocatorOptions &options) {
     CheckOptions(options);
     quarantine.Init((uptr)options.quarantine_size_mb << 20,
-                    kMaxThreadLocalQuarantine);
+                    (uptr)options.thread_local_quarantine_size_kb << 10);
     atomic_store(&alloc_dealloc_mismatch, options.alloc_dealloc_mismatch,
                  memory_order_release);
     atomic_store(&min_redzone, options.min_redzone, memory_order_release);
@@ -262,22 +264,59 @@ struct Allocator {
   }
 
   void Initialize(const AllocatorOptions &options) {
-    allocator.Init(options.may_return_null);
+    allocator.Init(options.may_return_null, options.release_to_os_interval_ms);
     SharedInitCode(options);
+  }
+
+  void RePoisonChunk(uptr chunk) {
+    // This could be a user-facing chunk (with redzones), or some internal
+    // housekeeping chunk, like TransferBatch. Start by assuming the former.
+    AsanChunk *ac = GetAsanChunk((void *)chunk);
+    uptr allocated_size = allocator.GetActuallyAllocatedSize((void *)ac);
+    uptr beg = ac->Beg();
+    uptr end = ac->Beg() + ac->UsedSize(true);
+    uptr chunk_end = chunk + allocated_size;
+    if (chunk < beg && beg < end && end <= chunk_end &&
+        ac->chunk_state == CHUNK_ALLOCATED) {
+      // Looks like a valid AsanChunk in use, poison redzones only.
+      PoisonShadow(chunk, beg - chunk, kAsanHeapLeftRedzoneMagic);
+      uptr end_aligned_down = RoundDownTo(end, SHADOW_GRANULARITY);
+      FastPoisonShadowPartialRightRedzone(
+          end_aligned_down, end - end_aligned_down,
+          chunk_end - end_aligned_down, kAsanHeapLeftRedzoneMagic);
+    } else {
+      // This is either not an AsanChunk or freed or quarantined AsanChunk.
+      // In either case, poison everything.
+      PoisonShadow(chunk, allocated_size, kAsanHeapLeftRedzoneMagic);
+    }
   }
 
   void ReInitialize(const AllocatorOptions &options) {
     allocator.SetMayReturnNull(options.may_return_null);
+    allocator.SetReleaseToOSIntervalMs(options.release_to_os_interval_ms);
     SharedInitCode(options);
+
+    // Poison all existing allocation's redzones.
+    if (CanPoisonMemory()) {
+      allocator.ForceLock();
+      allocator.ForEachChunk(
+          [](uptr chunk, void *alloc) {
+            ((Allocator *)alloc)->RePoisonChunk(chunk);
+          },
+          this);
+      allocator.ForceUnlock();
+    }
   }
 
   void GetOptions(AllocatorOptions *options) const {
     options->quarantine_size_mb = quarantine.GetSize() >> 20;
+    options->thread_local_quarantine_size_kb = quarantine.GetCacheSize() >> 10;
     options->min_redzone = atomic_load(&min_redzone, memory_order_acquire);
     options->max_redzone = atomic_load(&max_redzone, memory_order_acquire);
     options->may_return_null = allocator.MayReturnNull();
     options->alloc_dealloc_mismatch =
         atomic_load(&alloc_dealloc_mismatch, memory_order_acquire);
+    options->release_to_os_interval_ms = allocator.ReleaseToOSIntervalMs();
   }
 
   // -------------------- Helper methods. -------------------------
@@ -356,7 +395,7 @@ struct Allocator {
     if (size > kMaxAllowedMallocSize || needed_size > kMaxAllowedMallocSize) {
       Report("WARNING: AddressSanitizer failed to allocate 0x%zx bytes\n",
              (void*)size);
-      return allocator.ReturnNullOrDie();
+      return allocator.ReturnNullOrDieOnBadRequest();
     }
 
     AsanThread *t = GetCurrentThread();
@@ -373,8 +412,7 @@ struct Allocator {
           allocator.Allocate(cache, needed_size, 8, false, check_rss_limit);
     }
 
-    if (!allocated)
-      return allocator.ReturnNullOrDie();
+    if (!allocated) return allocator.ReturnNullOrDieOnOOM();
 
     if (*(u8 *)MEM_TO_SHADOW((uptr)allocated) == 0 && CanPoisonMemory()) {
       // Heap poisoning is enabled, but the allocator provides an unpoisoned
@@ -530,7 +568,7 @@ struct Allocator {
 
     if (delete_size && flags()->new_delete_type_mismatch &&
         delete_size != m->UsedSize()) {
-      ReportNewDeleteSizeMismatch(p, m->UsedSize(), delete_size, stack);
+      ReportNewDeleteSizeMismatch(p, delete_size, stack);
     }
 
     QuarantineChunk(m, ptr, stack, alloc_type);
@@ -563,7 +601,7 @@ struct Allocator {
 
   void *Calloc(uptr nmemb, uptr size, BufferedStackTrace *stack) {
     if (CallocShouldReturnNullDueToOverflow(size, nmemb))
-      return allocator.ReturnNullOrDie();
+      return allocator.ReturnNullOrDieOnBadRequest();
     void *ptr = Allocate(nmemb * size, 8, stack, FROM_MALLOC, false);
     // If the memory comes from the secondary allocator no need to clear it
     // as it comes directly from mmap.
@@ -643,6 +681,7 @@ struct Allocator {
 
   void PrintStats() {
     allocator.PrintStats();
+    quarantine.PrintStats();
   }
 
   void ForceLock() {
@@ -662,17 +701,23 @@ static AsanAllocator &get_allocator() {
   return instance.allocator;
 }
 
-bool AsanChunkView::IsValid() {
+bool AsanChunkView::IsValid() const {
   return chunk_ && chunk_->chunk_state != CHUNK_AVAILABLE;
 }
-bool AsanChunkView::IsAllocated() {
+bool AsanChunkView::IsAllocated() const {
   return chunk_ && chunk_->chunk_state == CHUNK_ALLOCATED;
 }
-uptr AsanChunkView::Beg() { return chunk_->Beg(); }
-uptr AsanChunkView::End() { return Beg() + UsedSize(); }
-uptr AsanChunkView::UsedSize() { return chunk_->UsedSize(); }
-uptr AsanChunkView::AllocTid() { return chunk_->alloc_tid; }
-uptr AsanChunkView::FreeTid() { return chunk_->free_tid; }
+bool AsanChunkView::IsQuarantined() const {
+  return chunk_ && chunk_->chunk_state == CHUNK_QUARANTINE;
+}
+uptr AsanChunkView::Beg() const { return chunk_->Beg(); }
+uptr AsanChunkView::End() const { return Beg() + UsedSize(); }
+uptr AsanChunkView::UsedSize() const { return chunk_->UsedSize(); }
+uptr AsanChunkView::AllocTid() const { return chunk_->alloc_tid; }
+uptr AsanChunkView::FreeTid() const { return chunk_->free_tid; }
+AllocType AsanChunkView::GetAllocType() const {
+  return (AllocType)chunk_->alloc_type;
+}
 
 static StackTrace GetStackTraceFromId(u32 id) {
   CHECK(id);
@@ -681,14 +726,14 @@ static StackTrace GetStackTraceFromId(u32 id) {
   return res;
 }
 
-u32 AsanChunkView::GetAllocStackId() { return chunk_->alloc_context_id; }
-u32 AsanChunkView::GetFreeStackId() { return chunk_->free_context_id; }
+u32 AsanChunkView::GetAllocStackId() const { return chunk_->alloc_context_id; }
+u32 AsanChunkView::GetFreeStackId() const { return chunk_->free_context_id; }
 
-StackTrace AsanChunkView::GetAllocStack() {
+StackTrace AsanChunkView::GetAllocStack() const {
   return GetStackTraceFromId(GetAllocStackId());
 }
 
-StackTrace AsanChunkView::GetFreeStack() {
+StackTrace AsanChunkView::GetFreeStack() const {
   return GetStackTraceFromId(GetFreeStackId());
 }
 
@@ -706,6 +751,9 @@ void GetAllocatorOptions(AllocatorOptions *options) {
 
 AsanChunkView FindHeapChunkByAddress(uptr addr) {
   return instance.FindHeapChunkByAddress(addr);
+}
+AsanChunkView FindHeapChunkByAllocBeg(uptr addr) {
+  return AsanChunkView(instance.GetAsanChunk(reinterpret_cast<void*>(addr)));
 }
 
 void AsanThreadLocalMallocStorage::CommitBack() {

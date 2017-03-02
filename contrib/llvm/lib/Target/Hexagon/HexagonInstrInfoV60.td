@@ -10,33 +10,6 @@
 // This file describes the Hexagon V60 instructions in TableGen format.
 //
 //===----------------------------------------------------------------------===//
-def alignedload : PatFrag<(ops node:$addr), (load $addr), [{
-  return isAlignedMemNode(dyn_cast<MemSDNode>(N));
-}]>;
-
-def unalignedload : PatFrag<(ops node:$addr), (load $addr), [{
-  return !isAlignedMemNode(dyn_cast<MemSDNode>(N));
-}]>;
-
-def alignedstore : PatFrag<(ops node:$val, node:$addr), (store $val, $addr), [{
-  return isAlignedMemNode(dyn_cast<MemSDNode>(N));
-}]>;
-
-def unalignedstore : PatFrag<(ops node:$val, node:$addr), (store $val, $addr), [{
-  return !isAlignedMemNode(dyn_cast<MemSDNode>(N));
-}]>;
-
-
-// Vector store
-let mayStore = 1, validSubTargets = HasV60SubT, hasSideEffects = 0 in
-{
-  class VSTInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
-                string cstr = "", InstrItinClass itin = CVI_VM_ST,
-                IType type = TypeCVI_VM_ST>
-  : InstHexagon<outs, ins, asmstr, pattern, cstr, itin, type>, OpcodeHexagon;
-
-}
-
 // Vector load
 let Predicates = [HasV60T, UseHVX] in
 let mayLoad = 1, validSubTargets = HasV60SubT, hasSideEffects = 0 in
@@ -45,6 +18,7 @@ let mayLoad = 1, validSubTargets = HasV60SubT, hasSideEffects = 0 in
                   IType type = TypeCVI_VM_LD>
   : InstHexagon<outs, ins, asmstr, pattern, cstr, itin, type>;
 
+// Vector store
 let Predicates = [HasV60T, UseHVX] in
 let mayStore = 1, validSubTargets = HasV60SubT, hasSideEffects = 0 in
 class V6_STInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
@@ -219,6 +193,8 @@ let isNVStorable = 1 in {
   def V6_vS32b_npred_ai_128B   : T_vstore_pred_ai_128B <"vmem", "vS32b_ai", 1>,
                                  V6_vS32b_npred_ai_128B_enc;
 }
+
+
 let isNVStorable = 1, isNonTemporal = 1 in {
   def V6_vS32b_nt_pred_ai  : T_vstore_pred_ai_64B <"vmem", "vS32b_ai", 0, 1>,
                              V6_vS32b_nt_pred_ai_enc;
@@ -774,256 +750,60 @@ def V6_vS32b_nt_new_npred_ppu : T_vstore_new_pred_ppu<1, 1>,
                                 V6_vS32b_nt_new_npred_ppu_enc;
 }
 
-let isPseudo = 1, validSubTargets = HasV60SubT in
-class STrivv_template<string mnemonic, Operand ImmOp, RegisterClass RC>:
-        VSTInst<(outs), (ins IntRegs:$addr, ImmOp:$off, RC:$src),
-                #mnemonic#"($addr+#$off) = $src", []>;
 
-def STrivv_indexed: STrivv_template<"vvmem", s4_6Imm, VecDblRegs>,
-                    Requires<[HasV60T, UseHVXSgl]>;
-def STrivv_indexed_128B: STrivv_template<"vvmem", s4_7Imm, VecDblRegs128B>,
-                         Requires<[HasV60T, UseHVXDbl]>;
+// Vector load/store pseudos
 
-multiclass STrivv_pats <ValueType VTSgl, ValueType VTDbl> {
-  def : Pat<(store (VTSgl VecDblRegs:$src1), IntRegs:$addr),
-            (STrivv_indexed IntRegs:$addr, #0, (VTSgl VecDblRegs:$src1))>,
-            Requires<[UseHVXSgl]>;
+let isPseudo = 1, isCodeGenOnly = 1, validSubTargets = HasV60SubT in
+class STrivv_template<RegisterClass RC>
+  : V6_STInst<(outs), (ins IntRegs:$addr, s32_0Imm:$off, RC:$src), "", []>;
 
-  def : Pat<(store (VTDbl VecDblRegs128B:$src1), IntRegs:$addr),
-            (STrivv_indexed_128B IntRegs:$addr, #0,
-                                 (VTDbl VecDblRegs128B:$src1))>,
-            Requires<[UseHVXDbl]>;
-}
-
-defm : STrivv_pats <v128i8, v256i8>;
-defm : STrivv_pats <v64i16, v128i16>;
-defm : STrivv_pats <v32i32, v64i32>;
-defm : STrivv_pats <v16i64, v32i64>;
+def PS_vstorerw_ai: STrivv_template<VecDblRegs>,
+      Requires<[HasV60T,UseHVXSgl]>;
+def PS_vstorerwu_ai: STrivv_template<VecDblRegs>,
+      Requires<[HasV60T,UseHVXSgl]>;
+def PS_vstorerw_ai_128B: STrivv_template<VecDblRegs128B>,
+      Requires<[HasV60T,UseHVXDbl]>;
+def PS_vstorerwu_ai_128B: STrivv_template<VecDblRegs128B>,
+      Requires<[HasV60T,UseHVXDbl]>;
 
 
-multiclass vS32b_ai_pats <ValueType VTSgl, ValueType VTDbl> {
-  // Aligned stores
-  def : Pat<(alignedstore (VTSgl VectorRegs:$src1), IntRegs:$addr),
-            (V6_vS32b_ai IntRegs:$addr, #0, (VTSgl VectorRegs:$src1))>,
-            Requires<[UseHVXSgl]>;
-  def : Pat<(unalignedstore (VTSgl VectorRegs:$src1), IntRegs:$addr),
-            (V6_vS32Ub_ai IntRegs:$addr, #0, (VTSgl VectorRegs:$src1))>,
-            Requires<[UseHVXSgl]>;
+let isPseudo = 1, isCodeGenOnly = 1, validSubTargets = HasV60SubT in
+class LDrivv_template<RegisterClass RC>
+  : V6_LDInst<(outs RC:$dst), (ins IntRegs:$addr, s32_0Imm:$off), "", []>;
 
-  // 128B Aligned stores
-  def : Pat<(alignedstore (VTDbl VectorRegs128B:$src1), IntRegs:$addr),
-            (V6_vS32b_ai_128B IntRegs:$addr, #0, (VTDbl VectorRegs128B:$src1))>,
-            Requires<[UseHVXDbl]>;
-  def : Pat<(unalignedstore (VTDbl VectorRegs128B:$src1), IntRegs:$addr),
-            (V6_vS32Ub_ai_128B IntRegs:$addr, #0, (VTDbl VectorRegs128B:$src1))>,
-            Requires<[UseHVXDbl]>;
-
-  // Fold Add R+IFF into vector store.
-  let AddedComplexity = 10 in {
-    def : Pat<(alignedstore (VTSgl VectorRegs:$src1),
-                     (add IntRegs:$src2, s4_6ImmPred:$offset)),
-              (V6_vS32b_ai IntRegs:$src2, s4_6ImmPred:$offset,
-                           (VTSgl VectorRegs:$src1))>,
-              Requires<[UseHVXSgl]>;
-    def : Pat<(unalignedstore (VTSgl VectorRegs:$src1),
-                     (add IntRegs:$src2, s4_6ImmPred:$offset)),
-              (V6_vS32Ub_ai IntRegs:$src2, s4_6ImmPred:$offset,
-                           (VTSgl VectorRegs:$src1))>,
-              Requires<[UseHVXSgl]>;
-
-    // Fold Add R+IFF into vector store 128B.
-    def : Pat<(alignedstore (VTDbl VectorRegs128B:$src1),
-                     (add IntRegs:$src2, s4_7ImmPred:$offset)),
-              (V6_vS32b_ai_128B IntRegs:$src2, s4_7ImmPred:$offset,
-                                (VTDbl VectorRegs128B:$src1))>,
-              Requires<[UseHVXDbl]>;
-    def : Pat<(unalignedstore (VTDbl VectorRegs128B:$src1),
-                     (add IntRegs:$src2, s4_7ImmPred:$offset)),
-              (V6_vS32Ub_ai_128B IntRegs:$src2, s4_7ImmPred:$offset,
-                                (VTDbl VectorRegs128B:$src1))>,
-              Requires<[UseHVXDbl]>;
-  }
-}
-
-defm : vS32b_ai_pats <v64i8,  v128i8>;
-defm : vS32b_ai_pats <v32i16, v64i16>;
-defm : vS32b_ai_pats <v16i32, v32i32>;
-defm : vS32b_ai_pats <v8i64,  v16i64>;
-
-let isPseudo = 1, validSubTargets = HasV60SubT in
-class LDrivv_template<string mnemonic, Operand ImmOp, RegisterClass RC>
-  : V6_LDInst <(outs RC:$dst), (ins IntRegs:$addr, ImmOp:$off),
-               "$dst="#mnemonic#"($addr+#$off)",
-               []>,
-               Requires<[HasV60T,UseHVXSgl]>;
-
-def LDrivv_indexed: LDrivv_template<"vvmem", s4_6Imm, VecDblRegs>;
-def LDrivv_indexed_128B: LDrivv_template<"vvmem", s4_7Imm, VecDblRegs128B>;
-
-multiclass LDrivv_pats <ValueType VTSgl, ValueType VTDbl> {
-  def : Pat < (VTSgl (load IntRegs:$addr)),
-              (LDrivv_indexed IntRegs:$addr, #0) >,
-              Requires<[UseHVXSgl]>;
-
-  def : Pat < (VTDbl (load IntRegs:$addr)),
-              (LDrivv_indexed_128B IntRegs:$addr, #0) >,
-              Requires<[UseHVXDbl]>;
-}
-
-defm : LDrivv_pats <v128i8, v256i8>;
-defm : LDrivv_pats <v64i16, v128i16>;
-defm : LDrivv_pats <v32i32, v64i32>;
-defm : LDrivv_pats <v16i64, v32i64>;
-
-multiclass vL32b_ai_pats <ValueType VTSgl, ValueType VTDbl> {
-  // Aligned loads
-  def : Pat < (VTSgl (alignedload IntRegs:$addr)),
-              (V6_vL32b_ai IntRegs:$addr, #0) >,
-              Requires<[UseHVXSgl]>;
-  def : Pat < (VTSgl (unalignedload IntRegs:$addr)),
-              (V6_vL32Ub_ai IntRegs:$addr, #0) >,
-              Requires<[UseHVXSgl]>;
-
-  // 128B Load
-  def : Pat < (VTDbl (alignedload IntRegs:$addr)),
-              (V6_vL32b_ai_128B IntRegs:$addr, #0) >,
-              Requires<[UseHVXDbl]>;
-  def : Pat < (VTDbl (unalignedload IntRegs:$addr)),
-              (V6_vL32Ub_ai_128B IntRegs:$addr, #0) >,
-              Requires<[UseHVXDbl]>;
-
-  // Fold Add R+IFF into vector load.
-  let AddedComplexity = 10 in {
-    def : Pat<(VTDbl (alignedload (add IntRegs:$src2, s4_7ImmPred:$offset))),
-              (V6_vL32b_ai_128B IntRegs:$src2, s4_7ImmPred:$offset)>,
-               Requires<[UseHVXDbl]>;
-    def : Pat<(VTDbl (unalignedload (add IntRegs:$src2, s4_7ImmPred:$offset))),
-              (V6_vL32Ub_ai_128B IntRegs:$src2, s4_7ImmPred:$offset)>,
-               Requires<[UseHVXDbl]>;
-
-    def : Pat<(VTSgl (alignedload (add IntRegs:$src2, s4_6ImmPred:$offset))),
-              (V6_vL32b_ai IntRegs:$src2, s4_6ImmPred:$offset)>,
-              Requires<[UseHVXSgl]>;
-    def : Pat<(VTSgl (unalignedload (add IntRegs:$src2, s4_6ImmPred:$offset))),
-              (V6_vL32Ub_ai IntRegs:$src2, s4_6ImmPred:$offset)>,
-              Requires<[UseHVXSgl]>;
-  }
-}
-
-defm : vL32b_ai_pats <v64i8,  v128i8>;
-defm : vL32b_ai_pats <v32i16, v64i16>;
-defm : vL32b_ai_pats <v16i32, v32i32>;
-defm : vL32b_ai_pats <v8i64,  v16i64>;
+def PS_vloadrw_ai: LDrivv_template<VecDblRegs>,
+      Requires<[HasV60T,UseHVXSgl]>;
+def PS_vloadrwu_ai: LDrivv_template<VecDblRegs>,
+      Requires<[HasV60T,UseHVXSgl]>;
+def PS_vloadrw_ai_128B: LDrivv_template<VecDblRegs128B>,
+      Requires<[HasV60T,UseHVXDbl]>;
+def PS_vloadrwu_ai_128B: LDrivv_template<VecDblRegs128B>,
+      Requires<[HasV60T,UseHVXDbl]>;
 
 // Store vector predicate pseudo.
 let isExtendable = 1, opExtendable = 1, isExtentSigned = 1, opExtentBits = 13,
     isCodeGenOnly = 1, isPseudo = 1, mayStore = 1, hasSideEffects = 0 in {
-def STriq_pred_V6 : STInst<(outs),
-            (ins IntRegs:$base, s32Imm:$offset, VecPredRegs:$src1),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXSgl]>;
-
-def STriq_pred_vec_V6 : STInst<(outs),
-            (ins IntRegs:$base, s32Imm:$offset, VectorRegs:$src1),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXSgl]>;
-
-def STriq_pred_V6_128B : STInst<(outs),
-            (ins IntRegs:$base, s32Imm:$offset, VecPredRegs128B:$src1),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXDbl]>;
-
-def STriq_pred_vec_V6_128B : STInst<(outs),
-            (ins IntRegs:$base, s32Imm:$offset, VectorRegs128B:$src1),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXDbl]>;
+  def PS_vstorerq_ai : STInst<(outs),
+              (ins IntRegs:$base, s32_0Imm:$offset, VecPredRegs:$src1),
+              ".error \"should not emit\"", []>,
+              Requires<[HasV60T,UseHVXSgl]>;
+  def PS_vstorerq_ai_128B : STInst<(outs),
+              (ins IntRegs:$base, s32_0Imm:$offset, VecPredRegs128B:$src1),
+              ".error \"should not emit\"", []>,
+              Requires<[HasV60T,UseHVXDbl]>;
 }
 
 // Load vector predicate pseudo.
 let isExtendable = 1, opExtendable = 2, isExtentSigned = 1, opExtentBits = 13,
     opExtentAlign = 2, isCodeGenOnly = 1, isPseudo = 1, hasSideEffects = 0 in {
-def LDriq_pred_V6 : LDInst<(outs VecPredRegs:$dst),
-            (ins IntRegs:$base, s32Imm:$offset),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXSgl]>;
-def LDriq_pred_vec_V6 : LDInst<(outs VectorRegs:$dst),
-            (ins IntRegs:$base, s32Imm:$offset),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXSgl]>;
-def LDriq_pred_V6_128B : LDInst<(outs VecPredRegs128B:$dst),
-            (ins IntRegs:$base, s32Imm:$offset),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXDbl]>;
-def LDriq_pred_vec_V6_128B : LDInst<(outs VectorRegs128B:$dst),
-            (ins IntRegs:$base, s32Imm:$offset),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXDbl]>;
-}
-
-// Store vector pseudo.
-let isExtendable = 1, opExtendable = 1, isExtentSigned = 1, opExtentBits = 13,
-    isCodeGenOnly = 1, isPseudo = 1, mayStore = 1, hasSideEffects = 0 in {
-def STriv_pseudo_V6 : STInst<(outs),
-            (ins IntRegs:$base, s32Imm:$offset, VectorRegs:$src1),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXSgl]>;
-def STriv_pseudo_V6_128B : STInst<(outs),
-            (ins IntRegs:$base, s32Imm:$offset, VectorRegs128B:$src1),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXDbl]>;
-}
-
-let isExtendable = 1, opExtendable = 1, isExtentSigned = 1, opExtentBits = 13,
-    isCodeGenOnly = 1, isPseudo = 1, mayStore = 1, hasSideEffects = 0 in {
-def STrivv_pseudo_V6 : STInst<(outs),
-            (ins IntRegs:$base, s32Imm:$offset, VecDblRegs:$src1),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXSgl]>;
-def STrivv_pseudo_V6_128B : STInst<(outs),
-            (ins IntRegs:$base, s32Imm:$offset, VecDblRegs128B:$src1),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXDbl]>;
-}
-
-// Load vector pseudo.
-let isExtendable = 1, opExtendable = 2, isExtentSigned = 1, opExtentBits = 13,
-    opExtentAlign = 2, isCodeGenOnly = 1, isPseudo = 1, hasSideEffects = 0 in {
-def LDriv_pseudo_V6 : LDInst<(outs VectorRegs:$dst),
-            (ins IntRegs:$base, s32Imm:$offset),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXSgl]>;
-def LDriv_pseudo_V6_128B : LDInst<(outs VectorRegs128B:$dst),
-            (ins IntRegs:$base, s32Imm:$offset),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXDbl]>;
-}
-
-let isExtendable = 1, opExtendable = 2, isExtentSigned = 1, opExtentBits = 13,
-    opExtentAlign = 2, isCodeGenOnly = 1, isPseudo = 1, hasSideEffects = 0 in {
-def LDrivv_pseudo_V6 : LDInst<(outs VecDblRegs:$dst),
-            (ins IntRegs:$base, s32Imm:$offset),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXSgl]>;
-def LDrivv_pseudo_V6_128B : LDInst<(outs VecDblRegs128B:$dst),
-            (ins IntRegs:$base, s32Imm:$offset),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXDbl]>;
+  def PS_vloadrq_ai : LDInst<(outs VecPredRegs:$dst),
+              (ins IntRegs:$base, s32_0Imm:$offset),
+              ".error \"should not emit\"", []>,
+              Requires<[HasV60T,UseHVXSgl]>;
+  def PS_vloadrq_ai_128B : LDInst<(outs VecPredRegs128B:$dst),
+              (ins IntRegs:$base, s32_0Imm:$offset),
+              ".error \"should not emit\"", []>,
+              Requires<[HasV60T,UseHVXDbl]>;
 }
 
 class VSELInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
@@ -1032,26 +812,19 @@ class VSELInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
   : InstHexagon<outs, ins, asmstr, pattern, cstr, itin, type>;
 
 let isCodeGenOnly = 1, isPseudo = 1, hasSideEffects = 0 in {
-def VSelectPseudo_V6 : VSELInst<(outs VectorRegs:$dst),
-            (ins PredRegs:$src1, VectorRegs:$src2, VectorRegs:$src3),
-            ".error \"should not emit\" ",
-            []>,
-            Requires<[HasV60T,UseHVXSgl]>;
-def VSelectDblPseudo_V6 : VSELInst<(outs VecDblRegs:$dst),
-               (ins PredRegs:$src1, VecDblRegs:$src2, VecDblRegs:$src3),
-               ".error \"should not emit\" ",
-               []>,
-               Requires<[HasV60T,UseHVXSgl]>;
+  def PS_vselect: VSELInst<(outs VectorRegs:$dst),
+        (ins PredRegs:$src1, VectorRegs:$src2, VectorRegs:$src3), "", []>,
+        Requires<[HasV60T,UseHVXSgl]>;
+  def PS_vselect_128B: VSELInst<(outs VectorRegs128B:$dst),
+        (ins PredRegs:$src1, VectorRegs128B:$src2, VectorRegs128B:$src3),
+        "", []>, Requires<[HasV60T,UseHVXDbl]>;
+  def PS_wselect: VSELInst<(outs VecDblRegs:$dst),
+        (ins PredRegs:$src1, VecDblRegs:$src2, VecDblRegs:$src3), "", []>,
+        Requires<[HasV60T,UseHVXSgl]>;
+  def PS_wselect_128B: VSELInst<(outs VecDblRegs128B:$dst),
+        (ins PredRegs:$src1, VecDblRegs128B:$src2, VecDblRegs128B:$src3),
+        "", []>, Requires<[HasV60T,UseHVXDbl]>;
 }
-
-def : Pat <(v16i32 (selectcc (i32 IntRegs:$lhs), (i32 IntRegs:$rhs),
-                             (v16i32 VectorRegs:$tval),
-                             (v16i32 VectorRegs:$fval), SETEQ)),
-      (v16i32 (VSelectPseudo_V6 (i32 (C2_cmpeq (i32 IntRegs:$lhs),
-                                (i32 IntRegs:$rhs))),
-                                (v16i32 VectorRegs:$tval),
-                                (v16i32 VectorRegs:$fval)))>;
-
 
 let hasNewValue = 1 in
 class T_vmpy <string asmString, RegisterClass RCout, RegisterClass RCin>
@@ -1581,20 +1354,6 @@ let isRegSequence = 1, Itinerary = CVI_VA_DV, Type = TypeCVI_VA_DV in
 defm V6_vcombine :
      T_HVX_alu_WV <"$dst = vcombine($src1,$src2)">, V6_vcombine_enc;
 
-def SDTHexagonVCOMBINE: SDTypeProfile<1, 2, [SDTCisSameAs<1, 2>,
-      SDTCisSubVecOfVec<1, 0>]>;
-
-def HexagonVCOMBINE: SDNode<"HexagonISD::VCOMBINE", SDTHexagonVCOMBINE>;
-
-def: Pat<(v32i32 (HexagonVCOMBINE (v16i32 VectorRegs:$Vs),
-                                  (v16i32 VectorRegs:$Vt))),
-         (V6_vcombine VectorRegs:$Vs, VectorRegs:$Vt)>,
-         Requires<[UseHVXSgl]>;
-def: Pat<(v64i32 (HexagonVCOMBINE (v32i32 VecDblRegs:$Vs),
-                                  (v32i32 VecDblRegs:$Vt))),
-         (V6_vcombine_128B VecDblRegs:$Vs, VecDblRegs:$Vt)>,
-         Requires<[UseHVXDbl]>;
-
 let Itinerary = CVI_VINLANESAT, Type = TypeCVI_VINLANESAT in {
 defm V6_vsathub :
      T_HVX_alu_VV <"$dst.ub = vsat($src1.h,$src2.h)">, V6_vsathub_enc;
@@ -1782,7 +1541,7 @@ let isAccumulator = 1, hasNewValue = 1, Itinerary = CVI_VX_DV_LONG,
     Type = TypeCVI_VX_DV in
 class T_HVX_vmpyacc2 <string asmString, RegisterClass RC>
   : CVI_VA_Resource1 <(outs RC:$dst),
-                      (ins RC:$_src_, RC:$src1, IntRegs:$src2, u1Imm:$src3),
+                      (ins RC:$_src_, RC:$src1, IntRegs:$src2, u1_0Imm:$src3),
     asmString, [], "$dst = $_src_" > ;
 
 
@@ -1806,7 +1565,7 @@ defm V6_vrmpyubi_acc :
 
 let Itinerary = CVI_VX_DV_LONG, Type = TypeCVI_VX_DV, hasNewValue = 1 in
 class T_HVX_vmpy2 <string asmString, RegisterClass RC>
-  : CVI_VA_Resource1<(outs RC:$dst), (ins RC:$src1, IntRegs:$src2, u1Imm:$src3),
+  : CVI_VA_Resource1<(outs RC:$dst), (ins RC:$src1, IntRegs:$src2, u1_0Imm:$src3),
     asmString>;
 
 
@@ -1958,7 +1717,7 @@ defm V6_vunpackoh : T_HVX_unpack <"$dst.w |= vunpacko($src1.h)">, V6_vunpackoh_e
 let Itinerary = CVI_VP_LONG, Type = TypeCVI_VP, hasNewValue = 1,
     hasSideEffects = 0 in
 class T_HVX_valign <string asmString, RegisterClass RC>
-  : CVI_VA_Resource1<(outs RC:$dst), (ins RC:$src1, RC:$src2, u3Imm:$src3),
+  : CVI_VA_Resource1<(outs RC:$dst), (ins RC:$src1, RC:$src2, u3_0Imm:$src3),
     asmString>;
 
 multiclass T_HVX_valign <string asmString> {
@@ -2095,9 +1854,9 @@ class T_HVX_rol <string asmString, RegisterClass RC, Operand ImmOp >
   : SInst2 <(outs RC:$dst), (ins  RC:$src1, ImmOp:$src2), asmString>;
 
 class T_HVX_rol_R <string asmString>
-  : T_HVX_rol <asmString, IntRegs, u5Imm>;
+  : T_HVX_rol <asmString, IntRegs, u5_0Imm>;
 class T_HVX_rol_P <string asmString>
-  : T_HVX_rol <asmString, DoubleRegs, u6Imm>;
+  : T_HVX_rol <asmString, DoubleRegs, u6_0Imm>;
 
 def S6_rol_i_p : T_HVX_rol_P <"$dst = rol($src1,#$src2)">, S6_rol_i_p_enc;
 let hasNewValue = 1, opNewValue = 0 in
@@ -2109,10 +1868,10 @@ class T_HVX_rol_acc <string asmString, RegisterClass RC, Operand ImmOp>
     asmString, [], "$dst = $_src_" >;
 
 class T_HVX_rol_acc_P <string asmString>
-  : T_HVX_rol_acc <asmString, DoubleRegs, u6Imm>;
+  : T_HVX_rol_acc <asmString, DoubleRegs, u6_0Imm>;
 
 class T_HVX_rol_acc_R <string asmString>
-  : T_HVX_rol_acc <asmString, IntRegs, u5Imm>;
+  : T_HVX_rol_acc <asmString, IntRegs, u5_0Imm>;
 
 def S6_rol_i_p_nac :
     T_HVX_rol_acc_P <"$dst -= rol($src1,#$src2)">, S6_rol_i_p_nac_enc;
@@ -2285,3 +2044,25 @@ def V6_vhistq
 def V6_vhist
   : CVI_HIST_Resource1 <(outs), (ins),
     "vhist" >, V6_vhist_enc;
+
+
+let isPseudo = 1, isCodeGenOnly = 1, hasSideEffects = 0 in {
+  def V6_vd0: CVI_VA_Resource<(outs VectorRegs:$dst), (ins), "$dst = #0", []>;
+  def V6_vd0_128B: CVI_VA_Resource<(outs VectorRegs128B:$dst), (ins),
+      "$dst = #0", []>;
+
+  def V6_vassignp: CVI_VA_Resource<(outs VecDblRegs:$dst),
+      (ins VecDblRegs:$src), "", []>;
+  def V6_vassignp_128B : CVI_VA_Resource<(outs VecDblRegs128B:$dst),
+      (ins VecDblRegs128B:$src), "", []>;
+
+  def V6_lo: CVI_VA_Resource<(outs VectorRegs:$dst), (ins VecDblRegs:$src1),
+      "", []>;
+  def V6_lo_128B: CVI_VA_Resource<(outs VectorRegs128B:$dst),
+      (ins VecDblRegs128B:$src1), "", []>;
+
+  def V6_hi: CVI_VA_Resource<(outs VectorRegs:$dst), (ins VecDblRegs:$src1),
+      "", []>;
+  def V6_hi_128B: CVI_VA_Resource<(outs VectorRegs128B:$dst),
+      (ins VecDblRegs128B:$src1), "", []>;
+}

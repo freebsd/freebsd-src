@@ -2154,7 +2154,7 @@ ieee802_11_if_print(netdissect_options *ndo,
 }
 
 
-/* $FreeBSD: src/sys/net80211/ieee80211_radiotap.h,v 1.5 2005/01/22 20:12:05 sam Exp $ */
+/* $FreeBSD: projects/clang400-import/contrib/tcpdump/print-802_11.c 276788 2015-01-07 19:55:18Z delphij $ */
 /* NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp  */
 
 /*-

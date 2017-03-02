@@ -1,4 +1,4 @@
-//===-- llvm/lib/Target/AMDGPU/AMDGPUCallLowering.cpp - Call lowering ---===//
+//===-- llvm/lib/Target/AMDGPU/AMDGPUCallLowering.cpp - Call lowering -----===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -34,9 +34,9 @@ bool AMDGPUCallLowering::lowerReturn(MachineIRBuilder &MIRBuilder,
   return true;
 }
 
-bool AMDGPUCallLowering::lowerFormalArguments(
-    MachineIRBuilder &MIRBuilder, const Function::ArgumentListType &Args,
-    const SmallVectorImpl<unsigned> &VRegs) const {
+bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
+                                              const Function &F,
+                                              ArrayRef<unsigned> VRegs) const {
   // TODO: Implement once there are generic loads/stores.
   return true;
 }

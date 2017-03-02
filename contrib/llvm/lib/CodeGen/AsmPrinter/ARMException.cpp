@@ -43,13 +43,6 @@ ARMTargetStreamer &ARMException::getTargetStreamer() {
   return static_cast<ARMTargetStreamer &>(TS);
 }
 
-/// endModule - Emit all exception information that should come after the
-/// content.
-void ARMException::endModule() {
-  if (shouldEmitCFI)
-    Asm->OutStreamer->EmitCFISections(false, true);
-}
-
 void ARMException::beginFunction(const MachineFunction *MF) {
   if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
     getTargetStreamer().emitFnStart();
@@ -57,7 +50,14 @@ void ARMException::beginFunction(const MachineFunction *MF) {
   AsmPrinter::CFIMoveType MoveType = Asm->needsCFIMoves();
   assert(MoveType != AsmPrinter::CFI_M_EH &&
          "non-EH CFI not yet supported in prologue with EHABI lowering");
+
   if (MoveType == AsmPrinter::CFI_M_Debug) {
+    if (!hasEmittedCFISections) {
+      if (Asm->needsOnlyDebugCFIMoves())
+        Asm->OutStreamer->EmitCFISections(false, true);
+      hasEmittedCFISections = true;
+    }
+
     shouldEmitCFI = true;
     Asm->OutStreamer->EmitCFIStartProc(false);
   }
@@ -75,7 +75,7 @@ void ARMException::endFunction(const MachineFunction *MF) {
     F->hasPersonalityFn() && !isNoOpWithoutInvoke(classifyEHPersonality(Per)) &&
     F->needsUnwindTableEntry();
   bool shouldEmitPersonality = forceEmitPersonality ||
-    !MMI->getLandingPads().empty();
+    !MF->getLandingPads().empty();
   if (!Asm->MF->getFunction()->needsUnwindTableEntry() &&
       !shouldEmitPersonality)
     ATS.emitCantUnwind();
@@ -99,8 +99,9 @@ void ARMException::endFunction(const MachineFunction *MF) {
 }
 
 void ARMException::emitTypeInfos(unsigned TTypeEncoding) {
-  const std::vector<const GlobalValue *> &TypeInfos = MMI->getTypeInfos();
-  const std::vector<unsigned> &FilterIds = MMI->getFilterIds();
+  const MachineFunction *MF = Asm->MF;
+  const std::vector<const GlobalValue *> &TypeInfos = MF->getTypeInfos();
+  const std::vector<unsigned> &FilterIds = MF->getFilterIds();
 
   bool VerboseAsm = Asm->OutStreamer->isVerboseAsm();
 

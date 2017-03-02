@@ -18,35 +18,59 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Object/Binary.h"
+#include "llvm/Support/Chrono.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 
 namespace llvm {
 namespace object {
-struct ArchiveMemberHeader {
-  char Name[16];
-  char LastModified[12];
-  char UID[6];
-  char GID[6];
-  char AccessMode[8];
-  char Size[10]; ///< Size of data, not including header or padding.
-  char Terminator[2];
+
+class Archive;
+
+class ArchiveMemberHeader {
+public:
+  friend class Archive;
+  ArchiveMemberHeader(Archive const *Parent, const char *RawHeaderPtr,
+                      uint64_t Size, Error *Err);
+  // ArchiveMemberHeader() = default;
 
   /// Get the name without looking up long names.
-  llvm::StringRef getName() const;
+  Expected<llvm::StringRef> getRawName() const;
+
+  /// Get the name looking up long names.
+  Expected<llvm::StringRef> getName(uint64_t Size) const;
 
   /// Members are not larger than 4GB.
-  ErrorOr<uint32_t> getSize() const;
+  Expected<uint32_t> getSize() const;
 
-  sys::fs::perms getAccessMode() const;
-  sys::TimeValue getLastModified() const;
+  Expected<sys::fs::perms> getAccessMode() const;
+  Expected<sys::TimePoint<std::chrono::seconds>> getLastModified() const;
   llvm::StringRef getRawLastModified() const {
-    return StringRef(LastModified, sizeof(LastModified)).rtrim(' ');
+    return StringRef(ArMemHdr->LastModified,
+                     sizeof(ArMemHdr->LastModified)).rtrim(' ');
   }
-  unsigned getUID() const;
-  unsigned getGID() const;
+  Expected<unsigned> getUID() const;
+  Expected<unsigned> getGID() const;
+
+  // This returns the size of the private struct ArMemHdrType
+  uint64_t getSizeOf() const {
+    return sizeof(ArMemHdrType);
+  }
+
+private:
+  struct ArMemHdrType {
+    char Name[16];
+    char LastModified[12];
+    char UID[6];
+    char GID[6];
+    char AccessMode[8];
+    char Size[10]; ///< Size of data, not including header or padding.
+    char Terminator[2];
+  };
+  Archive const *Parent;
+  ArMemHdrType const *ArMemHdr;
 };
 
 class Archive : public Binary {
@@ -55,52 +79,50 @@ public:
   class Child {
     friend Archive;
     const Archive *Parent;
+    friend ArchiveMemberHeader;
+    ArchiveMemberHeader Header;
     /// \brief Includes header but not padding byte.
     StringRef Data;
     /// \brief Offset from Data to the start of the file.
     uint16_t StartOfFile;
 
-    const ArchiveMemberHeader *getHeader() const {
-      return reinterpret_cast<const ArchiveMemberHeader *>(Data.data());
-    }
-
-    bool isThinMember() const;
+    Expected<bool> isThinMember() const;
 
   public:
-    Child(const Archive *Parent, const char *Start, std::error_code *EC);
+    Child(const Archive *Parent, const char *Start, Error *Err);
     Child(const Archive *Parent, StringRef Data, uint16_t StartOfFile);
 
     bool operator ==(const Child &other) const {
-      assert(Parent == other.Parent);
+      assert(!Parent || !other.Parent || Parent == other.Parent);
       return Data.begin() == other.Data.begin();
     }
 
     const Archive *getParent() const { return Parent; }
-    ErrorOr<Child> getNext() const;
+    Expected<Child> getNext() const;
 
-    ErrorOr<StringRef> getName() const;
-    ErrorOr<std::string> getFullName() const;
-    StringRef getRawName() const { return getHeader()->getName(); }
-    sys::TimeValue getLastModified() const {
-      return getHeader()->getLastModified();
+    Expected<StringRef> getName() const;
+    Expected<std::string> getFullName() const;
+    Expected<StringRef> getRawName() const { return Header.getRawName(); }
+    Expected<sys::TimePoint<std::chrono::seconds>> getLastModified() const {
+      return Header.getLastModified();
     }
     StringRef getRawLastModified() const {
-      return getHeader()->getRawLastModified();
+      return Header.getRawLastModified();
     }
-    unsigned getUID() const { return getHeader()->getUID(); }
-    unsigned getGID() const { return getHeader()->getGID(); }
-    sys::fs::perms getAccessMode() const {
-      return getHeader()->getAccessMode();
+    Expected<unsigned> getUID() const { return Header.getUID(); }
+    Expected<unsigned> getGID() const { return Header.getGID(); }
+    Expected<sys::fs::perms> getAccessMode() const {
+      return Header.getAccessMode();
     }
     /// \return the size of the archive member without the header or padding.
-    ErrorOr<uint64_t> getSize() const;
+    Expected<uint64_t> getSize() const;
     /// \return the size in the archive header for this member.
-    ErrorOr<uint64_t> getRawSize() const;
+    Expected<uint64_t> getRawSize() const;
 
-    ErrorOr<StringRef> getBuffer() const;
+    Expected<StringRef> getBuffer() const;
     uint64_t getChildOffset() const;
 
-    ErrorOr<MemoryBufferRef> getMemoryBufferRef() const;
+    Expected<MemoryBufferRef> getMemoryBufferRef() const;
 
     Expected<std::unique_ptr<Binary>>
     getAsBinary(LLVMContext *Context = nullptr) const;
@@ -131,12 +153,12 @@ public:
     // iteration.  And if there is an error break out of the loop.
     child_iterator &operator++() { // Preincrement
       assert(E && "Can't increment iterator with no Error attached");
+      ErrorAsOutParameter ErrAsOutParam(E);
       if (auto ChildOrErr = C.getNext())
         C = *ChildOrErr;
       else {
-        ErrorAsOutParameter ErrAsOutParam(*E);
         C = C.getParent()->child_end().C;
-        *E = errorCodeToError(ChildOrErr.getError());
+        *E = ChildOrErr.takeError();
         E = nullptr;
       }
       return *this;
@@ -158,7 +180,7 @@ public:
       , SymbolIndex(symi)
       , StringIndex(stri) {}
     StringRef getName() const;
-    ErrorOr<Child> getMember() const;
+    Expected<Child> getMember() const;
     Symbol getNext() const;
   };
 
@@ -218,8 +240,10 @@ public:
   // check if a symbol is in the archive
   Expected<Optional<Child>> findSym(StringRef name) const;
 
+  bool isEmpty() const;
   bool hasSymbolTable() const;
   StringRef getSymbolTable() const { return SymbolTable; }
+  StringRef getStringTable() const { return StringTable; }
   uint32_t getNumberOfSymbols() const;
 
   std::vector<std::unique_ptr<MemoryBuffer>> takeThinBuffers() {

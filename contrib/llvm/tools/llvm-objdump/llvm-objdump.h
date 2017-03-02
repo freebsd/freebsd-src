@@ -20,6 +20,7 @@ class StringRef;
 
 namespace object {
   class COFFObjectFile;
+  class COFFImportFile;
   class MachOObjectFile;
   class ObjectFile;
   class Archive;
@@ -74,9 +75,11 @@ void printMachOLazyBindTable(const object::MachOObjectFile* o);
 void printMachOWeakBindTable(const object::MachOObjectFile* o);
 void printELFFileHeader(const object::ObjectFile *o);
 void printCOFFFileHeader(const object::ObjectFile *o);
+void printCOFFSymbolTable(const object::COFFImportFile *i);
 void printCOFFSymbolTable(const object::COFFObjectFile *o);
 void printMachOFileHeader(const object::ObjectFile *o);
 void printMachOLoadCommands(const object::ObjectFile *o);
+void printWasmFileHeader(const object::ObjectFile *o);
 void printExportsTrie(const object::ObjectFile *o);
 void printRebaseTable(const object::ObjectFile *o);
 void printBindTable(const object::ObjectFile *o);
@@ -89,6 +92,7 @@ void PrintSectionContents(const object::ObjectFile *o);
 void PrintSymbolTable(const object::ObjectFile *o, StringRef ArchiveName,
                       StringRef ArchitectureName = StringRef());
 LLVM_ATTRIBUTE_NORETURN void error(Twine Message);
+LLVM_ATTRIBUTE_NORETURN void report_error(StringRef File, Twine Message);
 LLVM_ATTRIBUTE_NORETURN void report_error(StringRef File, std::error_code EC);
 LLVM_ATTRIBUTE_NORETURN void report_error(StringRef File, llvm::Error E);
 LLVM_ATTRIBUTE_NORETURN void report_error(StringRef FileName,

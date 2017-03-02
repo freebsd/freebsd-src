@@ -120,7 +120,12 @@ namespace MipsII {
     /// IsCTI - Instruction is a Control Transfer Instruction.
     IsCTI = 1 << 4,
     /// HasForbiddenSlot - Instruction has a forbidden slot.
-    HasForbiddenSlot = 1 << 5
+    HasForbiddenSlot = 1 << 5,
+    /// IsPCRelativeLoad - A Load instruction with implicit source register
+    ///                    ($pc) with explicit offset and destination register
+    IsPCRelativeLoad = 1 << 6,
+    /// HasFCCRegOperand - Instruction uses an $fcc<x> register.
+    HasFCCRegOperand = 1 << 7
 
   };
 }

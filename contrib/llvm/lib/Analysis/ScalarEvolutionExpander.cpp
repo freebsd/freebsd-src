@@ -549,9 +549,8 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
     while (const Loop *L = SE.LI.getLoopFor(Builder.GetInsertBlock())) {
       if (!L->isLoopInvariant(V)) break;
 
-      bool AnyIndexNotLoopInvariant =
-          std::any_of(GepIndices.begin(), GepIndices.end(),
-                      [L](Value *Op) { return !L->isLoopInvariant(Op); });
+      bool AnyIndexNotLoopInvariant = any_of(
+          GepIndices, [L](Value *Op) { return !L->isLoopInvariant(Op); });
 
       if (AnyIndexNotLoopInvariant)
         break;
@@ -1183,11 +1182,14 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
   PostIncLoopSet SavedPostIncLoops = PostIncLoops;
   PostIncLoops.clear();
 
-  // Expand code for the start value.
-  Value *StartV =
-      expandCodeFor(Normalized->getStart(), ExpandTy, &L->getHeader()->front());
+  // Expand code for the start value into the loop preheader.
+  assert(L->getLoopPreheader() &&
+         "Can't expand add recurrences without a loop preheader!");
+  Value *StartV = expandCodeFor(Normalized->getStart(), ExpandTy,
+                                L->getLoopPreheader()->getTerminator());
 
-  // StartV must be hoisted into L's preheader to dominate the new phi.
+  // StartV must have been be inserted into L's preheader to dominate the new
+  // phi.
   assert(!isa<Instruction>(StartV) ||
          SE.DT.properlyDominates(cast<Instruction>(StartV)->getParent(),
                                  L->getHeader()));
@@ -1962,7 +1964,7 @@ bool SCEVExpander::isHighCostExpansionHelper(
     const SCEV *S, Loop *L, const Instruction *At,
     SmallPtrSetImpl<const SCEV *> &Processed) {
 
-  // If we can find an existing value for this scev avaliable at the point "At"
+  // If we can find an existing value for this scev available at the point "At"
   // then consider the expression cheap.
   if (At && getRelatedExistingExpansion(S, At, L))
     return false;

@@ -44,12 +44,6 @@ static cl::opt<bool>
 STATISTIC(NumSubstLEAs, "Number of LEA instruction substitutions");
 STATISTIC(NumRedundantLEAs, "Number of redundant LEA instructions removed");
 
-class MemOpKey;
-
-/// \brief Returns a hash table key based on memory operands of \p MI. The
-/// number of the first memory operand of \p MI is specified through \p N.
-static inline MemOpKey getMemOpKey(const MachineInstr &MI, unsigned N);
-
 /// \brief Returns true if two machine operands are identical and they are not
 /// physical registers.
 static inline bool isIdenticalOp(const MachineOperand &MO1,
@@ -63,6 +57,7 @@ static bool isSimilarDispOp(const MachineOperand &MO1,
 /// \brief Returns true if the instruction is LEA.
 static inline bool isLEA(const MachineInstr &MI);
 
+namespace {
 /// A key based on instruction's memory operands.
 class MemOpKey {
 public:
@@ -95,6 +90,7 @@ public:
   // Address' displacement operand.
   const MachineOperand *Disp;
 };
+} // end anonymous namespace
 
 /// Provide DenseMapInfo for MemOpKey.
 namespace llvm {
@@ -168,6 +164,8 @@ template <> struct DenseMapInfo<MemOpKey> {
 };
 }
 
+/// \brief Returns a hash table key based on memory operands of \p MI. The
+/// number of the first memory operand of \p MI is specified through \p N.
 static inline MemOpKey getMemOpKey(const MachineInstr &MI, unsigned N) {
   assert((isLEA(MI) || MI.mayLoadOrStore()) &&
          "The instruction must be a LEA, a load or a store");
@@ -221,7 +219,7 @@ class OptimizeLEAPass : public MachineFunctionPass {
 public:
   OptimizeLEAPass() : MachineFunctionPass(ID) {}
 
-  const char *getPassName() const override { return "X86 LEA Optimize"; }
+  StringRef getPassName() const override { return "X86 LEA Optimize"; }
 
   /// \brief Loop over all of the basic blocks, replacing address
   /// calculations in load and store instructions, if it's already
@@ -237,7 +235,7 @@ private:
 
   /// \brief Choose the best \p LEA instruction from the \p List to replace
   /// address calculation in \p MI instruction. Return the address displacement
-  /// and the distance between \p MI and the choosen \p BestLEA in
+  /// and the distance between \p MI and the chosen \p BestLEA in
   /// \p AddrDispShift and \p Dist.
   bool chooseBestLEA(const SmallVectorImpl<MachineInstr *> &List,
                      const MachineInstr &MI, MachineInstr *&BestLEA,
@@ -551,10 +549,10 @@ bool OptimizeLEAPass::removeRedundantLEAs(MemOpMap &LEAs) {
         MachineInstr &Last = **I2;
         int64_t AddrDispShift;
 
-        // LEAs should be in occurence order in the list, so we can freely
+        // LEAs should be in occurrence order in the list, so we can freely
         // replace later LEAs with earlier ones.
         assert(calcInstrDist(First, Last) > 0 &&
-               "LEAs must be in occurence order in the list");
+               "LEAs must be in occurrence order in the list");
 
         // Check that the Last LEA instruction can be replaced by the First.
         if (!isReplaceable(First, Last, AddrDispShift)) {

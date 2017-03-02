@@ -118,7 +118,8 @@ private:
   Function *insertFlush(ArrayRef<std::pair<GlobalVariable *, MDNode *>>);
   void insertIndirectCounterIncrement();
 
-  std::string mangleName(const DICompileUnit *CU, const char *NewStem);
+  enum class GCovFileType { GCNO, GCDA };
+  std::string mangleName(const DICompileUnit *CU, GCovFileType FileType);
 
   GCOVOptions Options;
 
@@ -141,7 +142,7 @@ public:
       : ModulePass(ID), Profiler(Opts) {
     initializeGCOVProfilerLegacyPassPass(*PassRegistry::getPassRegistry());
   }
-  const char *getPassName() const override { return "GCOV Profiler"; }
+  StringRef getPassName() const override { return "GCOV Profiler"; }
 
   bool runOnModule(Module &M) override { return Profiler.runOnModule(M); }
 
@@ -251,11 +252,7 @@ namespace {
   class GCOVBlock : public GCOVRecord {
    public:
     GCOVLines &getFile(StringRef Filename) {
-      GCOVLines *&Lines = LinesByFile[Filename];
-      if (!Lines) {
-        Lines = new GCOVLines(Filename, os);
-      }
-      return *Lines;
+      return LinesByFile.try_emplace(Filename, Filename, os).first->second;
     }
 
     void addEdge(GCOVBlock &Successor) {
@@ -264,9 +261,9 @@ namespace {
 
     void writeOut() {
       uint32_t Len = 3;
-      SmallVector<StringMapEntry<GCOVLines *> *, 32> SortedLinesByFile;
+      SmallVector<StringMapEntry<GCOVLines> *, 32> SortedLinesByFile;
       for (auto &I : LinesByFile) {
-        Len += I.second->length();
+        Len += I.second.length();
         SortedLinesByFile.push_back(&I);
       }
 
@@ -274,19 +271,15 @@ namespace {
       write(Len);
       write(Number);
 
-      std::sort(SortedLinesByFile.begin(), SortedLinesByFile.end(),
-                [](StringMapEntry<GCOVLines *> *LHS,
-                   StringMapEntry<GCOVLines *> *RHS) {
-        return LHS->getKey() < RHS->getKey();
-      });
+      std::sort(
+          SortedLinesByFile.begin(), SortedLinesByFile.end(),
+          [](StringMapEntry<GCOVLines> *LHS, StringMapEntry<GCOVLines> *RHS) {
+            return LHS->getKey() < RHS->getKey();
+          });
       for (auto &I : SortedLinesByFile)
-        I->getValue()->writeOut();
+        I->getValue().writeOut();
       write(0);
       write(0);
-    }
-
-    ~GCOVBlock() {
-      DeleteContainerSeconds(LinesByFile);
     }
 
     GCOVBlock(const GCOVBlock &RHS) : GCOVRecord(RHS), Number(RHS.Number) {
@@ -306,7 +299,7 @@ namespace {
     }
 
     uint32_t Number;
-    StringMap<GCOVLines *> LinesByFile;
+    StringMap<GCOVLines> LinesByFile;
     SmallVector<GCOVBlock *, 4> OutEdges;
   };
 
@@ -426,24 +419,40 @@ namespace {
 }
 
 std::string GCOVProfiler::mangleName(const DICompileUnit *CU,
-                                     const char *NewStem) {
+                                     GCovFileType OutputType) {
+  bool Notes = OutputType == GCovFileType::GCNO;
+
   if (NamedMDNode *GCov = M->getNamedMetadata("llvm.gcov")) {
     for (int i = 0, e = GCov->getNumOperands(); i != e; ++i) {
       MDNode *N = GCov->getOperand(i);
-      if (N->getNumOperands() != 2) continue;
-      MDString *GCovFile = dyn_cast<MDString>(N->getOperand(0));
-      MDNode *CompileUnit = dyn_cast<MDNode>(N->getOperand(1));
-      if (!GCovFile || !CompileUnit) continue;
-      if (CompileUnit == CU) {
-        SmallString<128> Filename = GCovFile->getString();
-        sys::path::replace_extension(Filename, NewStem);
-        return Filename.str();
+      bool ThreeElement = N->getNumOperands() == 3;
+      if (!ThreeElement && N->getNumOperands() != 2)
+        continue;
+      if (dyn_cast<MDNode>(N->getOperand(ThreeElement ? 2 : 1)) != CU)
+        continue;
+
+      if (ThreeElement) {
+        // These nodes have no mangling to apply, it's stored mangled in the
+        // bitcode.
+        MDString *NotesFile = dyn_cast<MDString>(N->getOperand(0));
+        MDString *DataFile = dyn_cast<MDString>(N->getOperand(1));
+        if (!NotesFile || !DataFile)
+          continue;
+        return Notes ? NotesFile->getString() : DataFile->getString();
       }
+
+      MDString *GCovFile = dyn_cast<MDString>(N->getOperand(0));
+      if (!GCovFile)
+        continue;
+
+      SmallString<128> Filename = GCovFile->getString();
+      sys::path::replace_extension(Filename, Notes ? "gcno" : "gcda");
+      return Filename.str();
     }
   }
 
   SmallString<128> Filename = CU->getFilename();
-  sys::path::replace_extension(Filename, NewStem);
+  sys::path::replace_extension(Filename, Notes ? "gcno" : "gcda");
   StringRef FName = sys::path::filename(Filename);
   SmallString<128> CurPath;
   if (sys::fs::current_path(CurPath)) return FName;
@@ -461,7 +470,7 @@ bool GCOVProfiler::runOnModule(Module &M) {
 }
 
 PreservedAnalyses GCOVProfilerPass::run(Module &M,
-                                        AnalysisManager<Module> &AM) {
+                                        ModuleAnalysisManager &AM) {
 
   GCOVProfiler Profiler(GCOVOpts);
 
@@ -509,7 +518,7 @@ void GCOVProfiler::emitProfileNotes() {
       continue;
 
     std::error_code EC;
-    raw_fd_ostream out(mangleName(CU, "gcno"), EC, sys::fs::F_None);
+    raw_fd_ostream out(mangleName(CU, GCovFileType::GCNO), EC, sys::fs::F_None);
     std::string EdgeDestinations;
 
     unsigned FunctionIdent = 0;
@@ -857,7 +866,7 @@ Function *GCOVProfiler::insertCounterWriteout(
       if (CU->getDWOId())
         continue;
 
-      std::string FilenameGcda = mangleName(CU, "gcda");
+      std::string FilenameGcda = mangleName(CU, GCovFileType::GCDA);
       uint32_t CfgChecksum = FileChecksums.empty() ? 0 : FileChecksums[i];
       Builder.CreateCall(StartFile,
                          {Builder.CreateGlobalStringPtr(FilenameGcda),

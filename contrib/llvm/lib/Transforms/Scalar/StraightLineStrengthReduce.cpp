@@ -55,8 +55,6 @@
 //
 // - When (i' - i) is constant but i and i' are not, we could still perform
 //   SLSR.
-#include <vector>
-
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -68,6 +66,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/Local.h"
+#include <list>
+#include <vector>
 
 using namespace llvm;
 using namespace PatternMatch;
@@ -80,7 +80,7 @@ class StraightLineStrengthReduce : public FunctionPass {
 public:
   // SLSR candidate. Such a candidate must be in one of the forms described in
   // the header comments.
-  struct Candidate : public ilist_node<Candidate> {
+  struct Candidate {
     enum Kind {
       Invalid, // reserved for the default constructor
       Add,     // B + i * S
@@ -200,7 +200,7 @@ private:
   DominatorTree *DT;
   ScalarEvolution *SE;
   TargetTransformInfo *TTI;
-  ilist<Candidate> Candidates;
+  std::list<Candidate> Candidates;
   // Temporarily holds all instructions that are unlinked (but not deleted) by
   // rewriteCandidateWithBasis. These instructions will be actually removed
   // after all rewriting finishes.
@@ -490,8 +490,8 @@ void StraightLineStrengthReduce::allocateCandidatesAndFindBasisForGEP(
     IndexExprs.push_back(SE->getSCEV(*I));
 
   gep_type_iterator GTI = gep_type_begin(GEP);
-  for (unsigned I = 1, E = GEP->getNumOperands(); I != E; ++I) {
-    if (!isa<SequentialType>(*GTI++))
+  for (unsigned I = 1, E = GEP->getNumOperands(); I != E; ++I, ++GTI) {
+    if (GTI.isStruct())
       continue;
 
     const SCEV *OrigIndexExpr = IndexExprs[I - 1];
@@ -499,11 +499,9 @@ void StraightLineStrengthReduce::allocateCandidatesAndFindBasisForGEP(
 
     // The base of this candidate is GEP's base plus the offsets of all
     // indices except this current one.
-    const SCEV *BaseExpr = SE->getGEPExpr(GEP->getSourceElementType(),
-                                          SE->getSCEV(GEP->getPointerOperand()),
-                                          IndexExprs, GEP->isInBounds());
+    const SCEV *BaseExpr = SE->getGEPExpr(cast<GEPOperator>(GEP), IndexExprs);
     Value *ArrayIdx = GEP->getOperand(I);
-    uint64_t ElementSize = DL->getTypeAllocSize(*GTI);
+    uint64_t ElementSize = DL->getTypeAllocSize(GTI.getIndexedType());
     if (ArrayIdx->getType()->getIntegerBitWidth() <=
         DL->getPointerSizeInBits(GEP->getAddressSpace())) {
       // Skip factoring if ArrayIdx is wider than the pointer size, because
@@ -674,11 +672,9 @@ bool StraightLineStrengthReduce::runOnFunction(Function &F) {
   SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
   // Traverse the dominator tree in the depth-first order. This order makes sure
   // all bases of a candidate are in Candidates when we process it.
-  for (auto node = GraphTraits<DominatorTree *>::nodes_begin(DT);
-       node != GraphTraits<DominatorTree *>::nodes_end(DT); ++node) {
-    for (auto &I : *node->getBlock())
+  for (const auto Node : depth_first(DT))
+    for (auto &I : *(Node->getBlock()))
       allocateCandidatesAndFindBasis(&I);
-  }
 
   // Rewrite candidates in the reverse depth-first order. This order makes sure
   // a candidate being rewritten is not a basis for any other candidate.

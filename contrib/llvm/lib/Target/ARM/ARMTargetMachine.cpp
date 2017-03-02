@@ -10,11 +10,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ARM.h"
-#include "ARMFrameLowering.h"
 #include "ARMTargetMachine.h"
+#include "ARM.h"
+#include "ARMCallLowering.h"
+#include "ARMFrameLowering.h"
+#include "ARMInstructionSelector.h"
+#include "ARMLegalizerInfo.h"
+#include "ARMRegisterBankInfo.h"
 #include "ARMTargetObjectFile.h"
 #include "ARMTargetTransformInfo.h"
+#include "llvm/CodeGen/GlobalISel/IRTranslator.h"
+#include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
+#include "llvm/CodeGen/GlobalISel/Legalizer.h"
+#include "llvm/CodeGen/GlobalISel/RegBankSelect.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/Function.h"
@@ -22,6 +30,7 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/TargetParser.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Scalar.h"
@@ -50,12 +59,13 @@ EnableGlobalMerge("arm-global-merge", cl::Hidden,
 
 extern "C" void LLVMInitializeARMTarget() {
   // Register the target.
-  RegisterTargetMachine<ARMLETargetMachine> X(TheARMLETarget);
-  RegisterTargetMachine<ARMBETargetMachine> Y(TheARMBETarget);
-  RegisterTargetMachine<ThumbLETargetMachine> A(TheThumbLETarget);
-  RegisterTargetMachine<ThumbBETargetMachine> B(TheThumbBETarget);
+  RegisterTargetMachine<ARMLETargetMachine> X(getTheARMLETarget());
+  RegisterTargetMachine<ARMBETargetMachine> Y(getTheARMBETarget());
+  RegisterTargetMachine<ThumbLETargetMachine> A(getTheThumbLETarget());
+  RegisterTargetMachine<ThumbBETargetMachine> B(getTheThumbBETarget());
 
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
+  initializeGlobalISel(Registry);
   initializeARMLoadStoreOptPass(Registry);
   initializeARMPreAllocLoadStoreOptPass(Registry);
 }
@@ -84,11 +94,13 @@ computeTargetABI(const Triple &TT, StringRef CPU,
   ARMBaseTargetMachine::ARMABI TargetABI =
       ARMBaseTargetMachine::ARM_ABI_UNKNOWN;
 
+  unsigned ArchKind = llvm::ARM::parseCPUArch(CPU);
+  StringRef ArchName = llvm::ARM::getArchName(ArchKind);
   // FIXME: This is duplicated code from the front end and should be unified.
   if (TT.isOSBinFormatMachO()) {
     if (TT.getEnvironment() == llvm::Triple::EABI ||
         (TT.getOS() == llvm::Triple::UnknownOS && TT.isOSBinFormatMachO()) ||
-        CPU.startswith("cortex-m")) {
+        llvm::ARM::parseArchProfile(ArchName) == llvm::ARM::PK_M) {
       TargetABI = ARMBaseTargetMachine::ARM_ABI_AAPCS;
     } else if (TT.isWatchABI()) {
       TargetABI = ARMBaseTargetMachine::ARM_ABI_AAPCS16;
@@ -184,6 +196,10 @@ static Reloc::Model getEffectiveRelocModel(const Triple &TT,
     // Default relocation model on Darwin is PIC.
     return TT.isOSBinFormatMachO() ? Reloc::PIC_ : Reloc::Static;
 
+  if (*RM == Reloc::ROPI || *RM == Reloc::RWPI || *RM == Reloc::ROPI_RWPI)
+    assert(TT.isOSBinFormatELF() &&
+           "ROPI/RWPI currently only supported for ELF");
+
   // DynamicNoPIC is only used on darwin.
   if (*RM == Reloc::DynamicNoPIC && !TT.isOSDarwin())
     return Reloc::Static;
@@ -224,6 +240,29 @@ ARMBaseTargetMachine::ARMBaseTargetMachine(const Target &T, const Triple &TT,
 
 ARMBaseTargetMachine::~ARMBaseTargetMachine() {}
 
+#ifdef LLVM_BUILD_GLOBAL_ISEL
+namespace {
+struct ARMGISelActualAccessor : public GISelAccessor {
+  std::unique_ptr<CallLowering> CallLoweringInfo;
+  std::unique_ptr<InstructionSelector> InstSelector;
+  std::unique_ptr<LegalizerInfo> Legalizer;
+  std::unique_ptr<RegisterBankInfo> RegBankInfo;
+  const CallLowering *getCallLowering() const override {
+    return CallLoweringInfo.get();
+  }
+  const InstructionSelector *getInstructionSelector() const override {
+    return InstSelector.get();
+  }
+  const LegalizerInfo *getLegalizerInfo() const override {
+    return Legalizer.get();
+  }
+  const RegisterBankInfo *getRegBankInfo() const override {
+    return RegBankInfo.get();
+  }
+};
+} // End anonymous namespace.
+#endif
+
 const ARMSubtarget *
 ARMBaseTargetMachine::getSubtargetImpl(const Function &F) const {
   Attribute CPUAttr = F.getFnAttribute("target-cpu");
@@ -255,6 +294,24 @@ ARMBaseTargetMachine::getSubtargetImpl(const Function &F) const {
     // function that reside in TargetOptions.
     resetTargetOptions(F);
     I = llvm::make_unique<ARMSubtarget>(TargetTriple, CPU, FS, *this, isLittle);
+
+#ifndef LLVM_BUILD_GLOBAL_ISEL
+    GISelAccessor *GISel = new GISelAccessor();
+#else
+    ARMGISelActualAccessor *GISel = new ARMGISelActualAccessor();
+    GISel->CallLoweringInfo.reset(new ARMCallLowering(*I->getTargetLowering()));
+    GISel->Legalizer.reset(new ARMLegalizerInfo());
+
+    auto *RBI = new ARMRegisterBankInfo(*I->getRegisterInfo());
+
+    // FIXME: At this point, we can't rely on Subtarget having RBI.
+    // It's awkward to mix passing RBI and the Subtarget; should we pass
+    // TII/TRI as well?
+    GISel->InstSelector.reset(new ARMInstructionSelector(*I, *RBI));
+
+    GISel->RegBankInfo.reset(RBI);
+#endif
+    I->setGISelAccessor(*GISel);
   }
   return I.get();
 }
@@ -346,6 +403,12 @@ public:
   void addIRPasses() override;
   bool addPreISel() override;
   bool addInstSelector() override;
+#ifdef LLVM_BUILD_GLOBAL_ISEL
+  bool addIRTranslator() override;
+  bool addLegalizeMachineIR() override;
+  bool addRegBankSelect() override;
+  bool addGlobalInstructionSelect() override;
+#endif
   void addPreRegAlloc() override;
   void addPreSched2() override;
   void addPreEmitPass() override;
@@ -406,6 +469,28 @@ bool ARMPassConfig::addInstSelector() {
   return false;
 }
 
+#ifdef LLVM_BUILD_GLOBAL_ISEL
+bool ARMPassConfig::addIRTranslator() {
+  addPass(new IRTranslator());
+  return false;
+}
+
+bool ARMPassConfig::addLegalizeMachineIR() {
+  addPass(new Legalizer());
+  return false;
+}
+
+bool ARMPassConfig::addRegBankSelect() {
+  addPass(new RegBankSelect());
+  return false;
+}
+
+bool ARMPassConfig::addGlobalInstructionSelect() {
+  addPass(new InstructionSelect());
+  return false;
+}
+#endif
+
 void ARMPassConfig::addPreRegAlloc() {
   if (getOptLevel() != CodeGenOpt::None) {
     addPass(createMLxExpansionPass());
@@ -436,8 +521,8 @@ void ARMPassConfig::addPreSched2() {
       return this->TM->getSubtarget<ARMSubtarget>(F).restrictIT();
     }));
 
-    addPass(createIfConverter([this](const Function &F) {
-      return !this->TM->getSubtarget<ARMSubtarget>(F).isThumb1Only();
+    addPass(createIfConverter([](const MachineFunction &MF) {
+      return !MF.getSubtarget<ARMSubtarget>().isThumb1Only();
     }));
   }
   addPass(createThumb2ITBlockPass());
@@ -447,8 +532,8 @@ void ARMPassConfig::addPreEmitPass() {
   addPass(createThumb2SizeReductionPass());
 
   // Constant island pass work on unbundled instructions.
-  addPass(createUnpackMachineBundles([this](const Function &F) {
-    return this->TM->getSubtarget<ARMSubtarget>(F).isThumb2();
+  addPass(createUnpackMachineBundles([](const MachineFunction &MF) {
+    return MF.getSubtarget<ARMSubtarget>().isThumb2();
   }));
 
   // Don't optimize barriers at -O0.

@@ -16,12 +16,12 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/MC/MCCodeView.h"
 #include "llvm/MC/MCDwarf.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Dwarf.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
 #include <tuple>
@@ -83,9 +83,9 @@ namespace llvm {
     /// Bindings of names to symbols.
     SymbolTable Symbols;
 
-    /// ELF sections can have a corresponding symbol. This maps one to the
+    /// Sections can have a corresponding symbol. This maps one to the
     /// other.
-    DenseMap<const MCSectionELF *, MCSymbolELF *> SectionSymbols;
+    DenseMap<const MCSection *, MCSymbol *> SectionSymbols;
 
     /// A mapping from a local label number and an instance count to a symbol.
     /// For example, in the assembly
@@ -140,10 +140,6 @@ namespace llvm {
     /// The current dwarf line information from the last dwarf .loc directive.
     MCDwarfLoc CurrentDwarfLoc;
     bool DwarfLocSeen;
-
-    /// The current CodeView line information from the last .cv_loc directive.
-    MCCVLoc CurrentCVLoc = MCCVLoc(0, 0, 0, 0, false, true);
-    bool CVLocSeen = false;
 
     /// Generate dwarf debugging info for assembly source files.
     bool GenDwarfForAssembly;
@@ -306,6 +302,9 @@ namespace llvm {
 
     /// Get the symbol for \p Name, or null.
     MCSymbol *lookupSymbol(const Twine &Name) const;
+
+    /// Set value for a symbol.
+    void setSymbolValue(MCStreamer &Streamer, StringRef Sym, uint64_t Val);
 
     /// getSymbols - Get a reference for the symbol table for clients that
     /// want to, for example, iterate over all symbols. 'const' because we
@@ -528,39 +527,13 @@ namespace llvm {
 
     void setDwarfDebugProducer(StringRef S) { DwarfDebugProducer = S; }
     StringRef getDwarfDebugProducer() { return DwarfDebugProducer; }
-
+    dwarf::DwarfFormat getDwarfFormat() const {
+      // TODO: Support DWARF64
+      return dwarf::DWARF32;
+    }
     void setDwarfVersion(uint16_t v) { DwarfVersion = v; }
     uint16_t getDwarfVersion() const { return DwarfVersion; }
 
-    /// @}
-
-
-    /// \name CodeView Management
-    /// @{
-
-    /// Creates an entry in the cv file table.
-    unsigned getCVFile(StringRef FileName, unsigned FileNumber);
-
-    /// Saves the information from the currently parsed .cv_loc directive
-    /// and sets CVLocSeen.  When the next instruction is assembled an entry
-    /// in the line number table with this information and the address of the
-    /// instruction will be created.
-    void setCurrentCVLoc(unsigned FunctionId, unsigned FileNo, unsigned Line,
-                         unsigned Column, bool PrologueEnd, bool IsStmt) {
-      CurrentCVLoc.setFunctionId(FunctionId);
-      CurrentCVLoc.setFileNum(FileNo);
-      CurrentCVLoc.setLine(Line);
-      CurrentCVLoc.setColumn(Column);
-      CurrentCVLoc.setPrologueEnd(PrologueEnd);
-      CurrentCVLoc.setIsStmt(IsStmt);
-      CVLocSeen = true;
-    }
-    void clearCVLocSeen() { CVLocSeen = false; }
-
-    bool getCVLocSeen() { return CVLocSeen; }
-    const MCCVLoc &getCurrentCVLoc() { return CurrentCVLoc; }
-
-    bool isValidCVFileNumber(unsigned FileNumber);
     /// @}
 
     char *getSecureLogFile() { return SecureLogFile; }
@@ -612,7 +585,7 @@ namespace llvm {
 ///                  allocator supports it).
 /// \return The allocated memory. Could be NULL.
 inline void *operator new(size_t Bytes, llvm::MCContext &C,
-                          size_t Alignment = 8) LLVM_NOEXCEPT {
+                          size_t Alignment = 8) noexcept {
   return C.allocate(Bytes, Alignment);
 }
 /// \brief Placement delete companion to the new above.
@@ -621,8 +594,7 @@ inline void *operator new(size_t Bytes, llvm::MCContext &C,
 /// invoking it directly; see the new operator for more details. This operator
 /// is called implicitly by the compiler if a placement new expression using
 /// the MCContext throws in the object constructor.
-inline void operator delete(void *Ptr, llvm::MCContext &C,
-                            size_t) LLVM_NOEXCEPT {
+inline void operator delete(void *Ptr, llvm::MCContext &C, size_t) noexcept {
   C.deallocate(Ptr);
 }
 
@@ -646,7 +618,7 @@ inline void operator delete(void *Ptr, llvm::MCContext &C,
 ///                  allocator supports it).
 /// \return The allocated memory. Could be NULL.
 inline void *operator new[](size_t Bytes, llvm::MCContext &C,
-                            size_t Alignment = 8) LLVM_NOEXCEPT {
+                            size_t Alignment = 8) noexcept {
   return C.allocate(Bytes, Alignment);
 }
 
@@ -656,7 +628,7 @@ inline void *operator new[](size_t Bytes, llvm::MCContext &C,
 /// invoking it directly; see the new[] operator for more details. This operator
 /// is called implicitly by the compiler if a placement new[] expression using
 /// the MCContext throws in the object constructor.
-inline void operator delete[](void *Ptr, llvm::MCContext &C) LLVM_NOEXCEPT {
+inline void operator delete[](void *Ptr, llvm::MCContext &C) noexcept {
   C.deallocate(Ptr);
 }
 

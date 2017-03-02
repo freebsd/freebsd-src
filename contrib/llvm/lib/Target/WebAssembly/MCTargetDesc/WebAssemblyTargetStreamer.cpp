@@ -58,45 +58,63 @@ void WebAssemblyTargetAsmStreamer::emitResult(ArrayRef<MVT> Types) {
 }
 
 void WebAssemblyTargetAsmStreamer::emitLocal(ArrayRef<MVT> Types) {
-  OS << "\t.local  \t";
-  PrintTypes(OS, Types);
+  if (!Types.empty()) {
+    OS << "\t.local  \t";
+    PrintTypes(OS, Types);
+  }
 }
 
 void WebAssemblyTargetAsmStreamer::emitEndFunc() { OS << "\t.endfunc\n"; }
 
 void WebAssemblyTargetAsmStreamer::emitIndirectFunctionType(
-    StringRef name, SmallVectorImpl<MVT> &SignatureVTs, size_t NumResults) {
+    StringRef name, SmallVectorImpl<MVT> &Params, SmallVectorImpl<MVT> &Results) {
   OS << "\t.functype\t" << name;
-  if (NumResults == 0) OS << ", void";
-  for (auto Ty : SignatureVTs) {
-    OS << ", " << WebAssembly::TypeToString(Ty);
+  if (Results.empty())
+    OS << ", void";
+  else {
+    assert(Results.size() == 1);
+    OS << ", " << WebAssembly::TypeToString(Results.front());
   }
-  OS << "\n";
+  for (auto Ty : Params)
+    OS << ", " << WebAssembly::TypeToString(Ty);
+  OS << '\n';
 }
 
-// FIXME: What follows is not the real binary encoding.
+void WebAssemblyTargetAsmStreamer::emitGlobalImport(StringRef name) {
+  OS << "\t.import_global\t" << name << '\n';
+}
 
-static void EncodeTypes(MCStreamer &Streamer, ArrayRef<MVT> Types) {
-  Streamer.EmitIntValue(Types.size(), sizeof(uint64_t));
-  for (MVT Type : Types)
-    Streamer.EmitIntValue(Type.SimpleTy, sizeof(uint64_t));
+void WebAssemblyTargetAsmStreamer::emitIndIdx(const MCExpr *Value) {
+  OS << "\t.indidx  \t" << *Value << '\n';
 }
 
 void WebAssemblyTargetELFStreamer::emitParam(ArrayRef<MVT> Types) {
-  Streamer.EmitIntValue(WebAssembly::DotParam, sizeof(uint64_t));
-  EncodeTypes(Streamer, Types);
+  // Nothing to emit; params are declared as part of the function signature.
 }
 
 void WebAssemblyTargetELFStreamer::emitResult(ArrayRef<MVT> Types) {
-  Streamer.EmitIntValue(WebAssembly::DotResult, sizeof(uint64_t));
-  EncodeTypes(Streamer, Types);
+  // Nothing to emit; results are declared as part of the function signature.
 }
 
 void WebAssemblyTargetELFStreamer::emitLocal(ArrayRef<MVT> Types) {
-  Streamer.EmitIntValue(WebAssembly::DotLocal, sizeof(uint64_t));
-  EncodeTypes(Streamer, Types);
+  Streamer.EmitULEB128IntValue(Types.size());
+  for (MVT Type : Types)
+    Streamer.EmitIntValue(int64_t(WebAssembly::toValType(Type)), 1);
 }
 
 void WebAssemblyTargetELFStreamer::emitEndFunc() {
-  Streamer.EmitIntValue(WebAssembly::DotEndFunc, sizeof(uint64_t));
+  Streamer.EmitIntValue(WebAssembly::End, 1);
+}
+
+void WebAssemblyTargetELFStreamer::emitIndIdx(const MCExpr *Value) {
+  llvm_unreachable(".indidx encoding not yet implemented");
+}
+
+void WebAssemblyTargetELFStreamer::emitIndirectFunctionType(
+    StringRef name, SmallVectorImpl<MVT> &Params, SmallVectorImpl<MVT> &Results) {
+  // Nothing to emit here. TODO: Re-design how linking works and re-evaluate
+  // whether it's necessary for .o files to declare indirect function types.
+}
+
+void WebAssemblyTargetELFStreamer::emitGlobalImport(StringRef name) {
 }

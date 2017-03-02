@@ -17,28 +17,29 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPC.h"
+#include "PPCInstrInfo.h"
 #include "InstPrinter/PPCInstPrinter.h"
 #include "MCTargetDesc/PPCMCExpr.h"
-#include "MCTargetDesc/PPCPredicates.h"
+#include "MCTargetDesc/PPCMCTargetDesc.h"
 #include "PPCMachineFunctionInfo.h"
 #include "PPCSubtarget.h"
 #include "PPCTargetMachine.h"
 #include "PPCTargetStreamer.h"
 #include "llvm/ADT/MapVector.h"
-#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineConstantPool.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/StackMaps.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Mangler.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
@@ -48,21 +49,30 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCSymbolELF.h"
+#include "llvm/MC/SectionKind.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/MathExtras.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/MachO.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetMachine.h"
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <memory>
+#include <new>
+
 using namespace llvm;
 
 #define DEBUG_TYPE "asmprinter"
 
 namespace {
+
 class PPCAsmPrinter : public AsmPrinter {
 protected:
   MapVector<MCSymbol *, MCSymbol *> TOC;
@@ -74,17 +84,15 @@ public:
                          std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)), SM(*this) {}
 
-  const char *getPassName() const override {
-    return "PowerPC Assembly Printer";
+  StringRef getPassName() const override { return "PowerPC Assembly Printer"; }
+
+  MCSymbol *lookUpOrCreateTOCEntry(MCSymbol *Sym);
+
+  bool doInitialization(Module &M) override {
+    if (!TOC.empty())
+      TOC.clear();
+    return AsmPrinter::doInitialization(M);
   }
-
-    MCSymbol *lookUpOrCreateTOCEntry(MCSymbol *Sym);
-
-    virtual bool doInitialization(Module &M) override {
-      if (!TOC.empty())
-        TOC.clear();
-      return AsmPrinter::doInitialization(M);
-    }
 
     void EmitInstruction(const MachineInstr *MI) override;
 
@@ -115,7 +123,7 @@ public:
                                 std::unique_ptr<MCStreamer> Streamer)
         : PPCAsmPrinter(TM, std::move(Streamer)) {}
 
-    const char *getPassName() const override {
+    StringRef getPassName() const override {
       return "Linux PPC Assembly Printer";
     }
 
@@ -136,14 +144,15 @@ public:
                                  std::unique_ptr<MCStreamer> Streamer)
         : PPCAsmPrinter(TM, std::move(Streamer)) {}
 
-    const char *getPassName() const override {
+    StringRef getPassName() const override {
       return "Darwin PPC Assembly Printer";
     }
 
     bool doFinalization(Module &M) override;
     void EmitStartOfAsmFile(Module &M) override;
   };
-} // end of anonymous namespace
+
+} // end anonymous namespace
 
 /// stripRegisterPrefix - This method strips the character prefix from a
 /// register name so that only the number is left.  Used by for linux asm.
@@ -169,7 +178,23 @@ void PPCAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
 
   switch (MO.getType()) {
   case MachineOperand::MO_Register: {
-    const char *RegName = PPCInstPrinter::getRegisterName(MO.getReg());
+    unsigned Reg = MO.getReg();
+
+    // There are VSX instructions that use VSX register numbering (vs0 - vs63)
+    // as well as those that use VMX register numbering (v0 - v31 which
+    // correspond to vs32 - vs63). If we have an instruction that uses VSX
+    // numbering, we need to convert the VMX registers to VSX registers.
+    // Namely, we print 32-63 when the instruction operates on one of the
+    // VMX registers.
+    // (Please synchronize with PPCInstPrinter::printOperand)
+    if (MI->getDesc().TSFlags & PPCII::UseVSXReg) {
+      if (PPCInstrInfo::isVRRegister(Reg))
+        Reg = PPC::VSX32 + (Reg - PPC::V0);
+      else if (PPCInstrInfo::isVFRegister(Reg))
+        Reg = PPC::VSX32 + (Reg - PPC::VF0);
+    }
+    const char *RegName = PPCInstPrinter::getRegisterName(Reg);
+
     // Linux assembler (Others?) does not take register mnemonics.
     // FIXME - What about special registers used in mfspr/mtspr?
     if (!Subtarget->isDarwin())
@@ -347,11 +372,10 @@ void PPCAsmPrinter::LowerPATCHPOINT(StackMaps &SM, const MachineInstr &MI) {
   PatchPointOpers Opers(&MI);
 
   unsigned EncodedBytes = 0;
-  const MachineOperand &CalleeMO =
-    Opers.getMetaOper(PatchPointOpers::TargetPos);
+  const MachineOperand &CalleeMO = Opers.getCallTarget();
 
   if (CalleeMO.isImm()) {
-    int64_t CallTarget = Opers.getMetaOper(PatchPointOpers::TargetPos).getImm();
+    int64_t CallTarget = CalleeMO.getImm();
     if (CallTarget) {
       assert((CallTarget & 0xFFFFFFFFFFFF) == CallTarget &&
              "High 16 bits of call target should be zero.");
@@ -430,7 +454,7 @@ void PPCAsmPrinter::LowerPATCHPOINT(StackMaps &SM, const MachineInstr &MI) {
   EncodedBytes *= 4;
 
   // Emit padding.
-  unsigned NumBytes = Opers.getMetaOper(PatchPointOpers::NBytesPos).getImm();
+  unsigned NumBytes = Opers.getNumPatchBytes();
   assert(NumBytes >= EncodedBytes &&
          "Patchpoint can't request size less than the length of a call.");
   assert((NumBytes - EncodedBytes) % 4 == 0 &&
@@ -674,6 +698,13 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     const MCExpr *Exp =
       MCSymbolRefExpr::create(MOSymbol, MCSymbolRefExpr::VK_PPC_TOC_HA,
                               OutContext);
+
+    if (!MO.isJTI() && MO.getOffset())
+      Exp = MCBinaryExpr::createAdd(Exp,
+                                    MCConstantExpr::create(MO.getOffset(),
+                                                           OutContext),
+                                    OutContext);
+
     TmpInst.getOperand(2) = MCOperand::createExpr(Exp);
     EmitToStreamer(*OutStreamer, TmpInst);
     return;
@@ -1147,10 +1178,12 @@ bool PPCLinuxAsmPrinter::doFinalization(Module &M) {
          E = TOC.end(); I != E; ++I) {
       OutStreamer->EmitLabel(I->second);
       MCSymbol *S = I->first;
-      if (isPPC64)
+      if (isPPC64) {
         TS.emitTCEntry(*S);
-      else
+      } else {
+        OutStreamer->EmitValueToAlignment(4);
         OutStreamer->EmitSymbolValue(S, 4);
+      }
     }
   }
 
@@ -1193,6 +1226,9 @@ void PPCLinuxAsmPrinter::EmitFunctionBodyStart() {
   if (Subtarget->isELFv2ABI()
       // Only do all that if the function uses r2 in the first place.
       && !MF->getRegInfo().use_empty(PPC::X2)) {
+    // Note: The logic here must be synchronized with the code in the
+    // branch-selection pass which sets the offset of the first block in the
+    // function. This matters because it affects the alignment.
     const PPCFunctionInfo *PPCFI = MF->getInfo<PPCFunctionInfo>();
 
     MCSymbol *GlobalEntryLabel = PPCFI->getGlobalEPSymbol();
@@ -1345,57 +1381,61 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
   // Darwin/PPC always uses mach-o.
   const TargetLoweringObjectFileMachO &TLOFMacho =
       static_cast<const TargetLoweringObjectFileMachO &>(getObjFileLowering());
-  MachineModuleInfoMachO &MMIMacho =
-      MMI->getObjFileInfo<MachineModuleInfoMachO>();
+  if (MMI) {
+    MachineModuleInfoMachO &MMIMacho =
+        MMI->getObjFileInfo<MachineModuleInfoMachO>();
 
-  if (MAI->doesSupportExceptionHandling() && MMI) {
-    // Add the (possibly multiple) personalities to the set of global values.
-    // Only referenced functions get into the Personalities list.
-    for (const Function *Personality : MMI->getPersonalities()) {
-      if (Personality) {
-        MCSymbol *NLPSym =
-            getSymbolWithGlobalValueBase(Personality, "$non_lazy_ptr");
-        MachineModuleInfoImpl::StubValueTy &StubSym =
-            MMIMacho.getGVStubEntry(NLPSym);
-        StubSym =
-            MachineModuleInfoImpl::StubValueTy(getSymbol(Personality), true);
+    if (MAI->doesSupportExceptionHandling()) {
+      // Add the (possibly multiple) personalities to the set of global values.
+      // Only referenced functions get into the Personalities list.
+      for (const Function *Personality : MMI->getPersonalities()) {
+        if (Personality) {
+          MCSymbol *NLPSym =
+              getSymbolWithGlobalValueBase(Personality, "$non_lazy_ptr");
+          MachineModuleInfoImpl::StubValueTy &StubSym =
+              MMIMacho.getGVStubEntry(NLPSym);
+          StubSym =
+              MachineModuleInfoImpl::StubValueTy(getSymbol(Personality), true);
+        }
       }
     }
-  }
 
-  // Output stubs for dynamically-linked functions.
-  MachineModuleInfoMachO::SymbolListTy Stubs = MMIMacho.GetGVStubList();
+    // Output stubs for dynamically-linked functions.
+    MachineModuleInfoMachO::SymbolListTy Stubs = MMIMacho.GetGVStubList();
 
-  // Output macho stubs for external and common global variables.
-  if (!Stubs.empty()) {
-    // Switch with ".non_lazy_symbol_pointer" directive.
-    OutStreamer->SwitchSection(TLOFMacho.getNonLazySymbolPointerSection());
-    EmitAlignment(isPPC64 ? 3 : 2);
+    // Output macho stubs for external and common global variables.
+    if (!Stubs.empty()) {
+      // Switch with ".non_lazy_symbol_pointer" directive.
+      OutStreamer->SwitchSection(TLOFMacho.getNonLazySymbolPointerSection());
+      EmitAlignment(isPPC64 ? 3 : 2);
 
-    for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
-      // L_foo$stub:
-      OutStreamer->EmitLabel(Stubs[i].first);
-      //   .indirect_symbol _foo
-      MachineModuleInfoImpl::StubValueTy &MCSym = Stubs[i].second;
-      OutStreamer->EmitSymbolAttribute(MCSym.getPointer(), MCSA_IndirectSymbol);
+      for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
+        // L_foo$stub:
+        OutStreamer->EmitLabel(Stubs[i].first);
+        //   .indirect_symbol _foo
+        MachineModuleInfoImpl::StubValueTy &MCSym = Stubs[i].second;
+        OutStreamer->EmitSymbolAttribute(MCSym.getPointer(),
+                                         MCSA_IndirectSymbol);
 
-      if (MCSym.getInt())
-        // External to current translation unit.
-        OutStreamer->EmitIntValue(0, isPPC64 ? 8 : 4/*size*/);
-      else
-        // Internal to current translation unit.
-        //
-        // When we place the LSDA into the TEXT section, the type info pointers
-        // need to be indirect and pc-rel. We accomplish this by using NLPs.
-        // However, sometimes the types are local to the file. So we need to
-        // fill in the value for the NLP in those cases.
-        OutStreamer->EmitValue(MCSymbolRefExpr::create(MCSym.getPointer(),
-                                                       OutContext),
-                              isPPC64 ? 8 : 4/*size*/);
+        if (MCSym.getInt())
+          // External to current translation unit.
+          OutStreamer->EmitIntValue(0, isPPC64 ? 8 : 4 /*size*/);
+        else
+          // Internal to current translation unit.
+          //
+          // When we place the LSDA into the TEXT section, the type info
+          // pointers
+          // need to be indirect and pc-rel. We accomplish this by using NLPs.
+          // However, sometimes the types are local to the file. So we need to
+          // fill in the value for the NLP in those cases.
+          OutStreamer->EmitValue(
+              MCSymbolRefExpr::create(MCSym.getPointer(), OutContext),
+              isPPC64 ? 8 : 4 /*size*/);
+      }
+
+      Stubs.clear();
+      OutStreamer->AddBlankLine();
     }
-
-    Stubs.clear();
-    OutStreamer->AddBlankLine();
   }
 
   // Funny Darwin hack: This flag tells the linker that no global symbols
@@ -1422,7 +1462,10 @@ createPPCAsmPrinterPass(TargetMachine &tm,
 
 // Force static initialization.
 extern "C" void LLVMInitializePowerPCAsmPrinter() {
-  TargetRegistry::RegisterAsmPrinter(ThePPC32Target, createPPCAsmPrinterPass);
-  TargetRegistry::RegisterAsmPrinter(ThePPC64Target, createPPCAsmPrinterPass);
-  TargetRegistry::RegisterAsmPrinter(ThePPC64LETarget, createPPCAsmPrinterPass);
+  TargetRegistry::RegisterAsmPrinter(getThePPC32Target(),
+                                     createPPCAsmPrinterPass);
+  TargetRegistry::RegisterAsmPrinter(getThePPC64Target(),
+                                     createPPCAsmPrinterPass);
+  TargetRegistry::RegisterAsmPrinter(getThePPC64LETarget(),
+                                     createPPCAsmPrinterPass);
 }

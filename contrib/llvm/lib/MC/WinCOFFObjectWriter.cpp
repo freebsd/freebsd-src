@@ -34,7 +34,6 @@
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/JamCRC.h"
-#include "llvm/Support/TimeValue.h"
 #include <cstdio>
 #include <ctime>
 
@@ -792,7 +791,7 @@ void WinCOFFObjectWriter::recordRelocation(
     }
   }
 
-  // The fixed value never makes sense for section indicies, ignore it.
+  // The fixed value never makes sense for section indices, ignore it.
   if (Fixup.getKind() == FK_SecRel_2)
     FixedValue = 0;
 
@@ -1082,7 +1081,7 @@ void WinCOFFObjectWriter::writeObject(MCAssembler &Asm,
     if (Symbol->getIndex() != -1)
       WriteSymbol(*Symbol);
 
-  getStream().write(Strings.data().data(), Strings.data().size());
+  Strings.write(getStream());
 }
 
 MCWinCOFFObjectTargetWriter::MCWinCOFFObjectTargetWriter(unsigned Machine_)

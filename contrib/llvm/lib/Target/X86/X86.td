@@ -99,6 +99,8 @@ def FeatureSlowBTMem : SubtargetFeature<"slow-bt-mem", "IsBTMemSlow", "true",
                                        "Bit testing of memory is slow">;
 def FeatureSlowSHLD : SubtargetFeature<"slow-shld", "IsSHLDSlow", "true",
                                        "SHLD instruction is slow">;
+def FeatureSlowPMULLD : SubtargetFeature<"slow-pmulld", "IsPMULLDSlow", "true",
+                                        "PMULLD instruction is slow">;
 // FIXME: This should not apply to CPUs that do not have SSE.
 def FeatureSlowUAMem16 : SubtargetFeature<"slow-unaligned-mem-16",
                                 "IsUAMem16Slow", "true",
@@ -141,8 +143,8 @@ def FeatureVLX     : SubtargetFeature<"avx512vl", "HasVLX", "true",
                       "Enable AVX-512 Vector Length eXtensions",
                                       [FeatureAVX512]>;
 def FeatureVBMI     : SubtargetFeature<"avx512vbmi", "HasVBMI", "true",
-                      "Enable AVX-512 Vector Bit Manipulation Instructions",
-                                      [FeatureAVX512]>;
+                      "Enable AVX-512 Vector Byte Manipulation Instructions",
+                                      [FeatureBWI]>;
 def FeatureIFMA     : SubtargetFeature<"avx512ifma", "HasIFMA", "true",
                       "Enable AVX-512 Integer Fused Multiple-Add",
                                       [FeatureAVX512]>;
@@ -207,9 +209,9 @@ def FeatureLEAForSP : SubtargetFeature<"lea-sp", "UseLeaForSP", "true",
 def FeatureSlowDivide32 : SubtargetFeature<"idivl-to-divb",
                                      "HasSlowDivide32", "true",
                                      "Use 8-bit divide for positive values less than 256">;
-def FeatureSlowDivide64 : SubtargetFeature<"idivq-to-divw",
+def FeatureSlowDivide64 : SubtargetFeature<"idivq-to-divl",
                                      "HasSlowDivide64", "true",
-                                     "Use 16-bit divide for positive values less than 65536">;
+                                     "Use 32-bit divide for positive values less than 2^32">;
 def FeaturePadShortFunctions : SubtargetFeature<"pad-short-functions",
                                      "PadShortFunctions", "true",
                                      "Pad short functions">;
@@ -249,6 +251,25 @@ def FeatureSoftFloat
 def FeatureFastPartialYMMWrite
     : SubtargetFeature<"fast-partial-ymm-write", "HasFastPartialYMMWrite",
                        "true", "Partial writes to YMM registers are fast">;
+// FeatureFastScalarFSQRT should be enabled if scalar FSQRT has shorter latency
+// than the corresponding NR code. FeatureFastVectorFSQRT should be enabled if
+// vector FSQRT has higher throughput than the corresponding NR code.
+// The idea is that throughput bound code is likely to be vectorized, so for
+// vectorized code we should care about the throughput of SQRT operations.
+// But if the code is scalar that probably means that the code has some kind of
+// dependency and we should care more about reducing the latency.
+def FeatureFastScalarFSQRT
+    : SubtargetFeature<"fast-scalar-fsqrt", "HasFastScalarFSQRT",
+                       "true", "Scalar SQRT is fast (disable Newton-Raphson)">;
+def FeatureFastVectorFSQRT
+    : SubtargetFeature<"fast-vector-fsqrt", "HasFastVectorFSQRT",
+                       "true", "Vector SQRT is fast (disable Newton-Raphson)">;
+// If lzcnt has equivalent latency/throughput to most simple integer ops, it can
+// be used to replace test/set sequences.
+def FeatureFastLZCNT
+    : SubtargetFeature<
+          "fast-lzcnt", "HasFastLZCNT", "true",
+          "LZCNT instructions are as fast as most simple integer ops">;
 
 //===----------------------------------------------------------------------===//
 // X86 processors supported.
@@ -384,6 +405,7 @@ class SilvermontProc<string Name> : ProcessorModel<Name, SLMModel, [
   FeatureSlowLEA,
   FeatureSlowIncDec,
   FeatureSlowBTMem,
+  FeatureSlowPMULLD,
   FeatureLAHFSAHF
 ]>;
 def : SilvermontProc<"silvermont">;
@@ -439,10 +461,12 @@ def SNBFeatures : ProcessorFeatures<[], [
   FeatureCMPXCHG16B,
   FeaturePOPCNT,
   FeatureAES,
+  FeatureSlowDivide64,
   FeaturePCLMUL,
   FeatureXSAVE,
   FeatureXSAVEOPT,
-  FeatureLAHFSAHF
+  FeatureLAHFSAHF,
+  FeatureFastScalarFSQRT
 ]>;
 
 class SandyBridgeProc<string Name> : ProcModel<Name, SandyBridgeModel,
@@ -500,7 +524,8 @@ def SKLFeatures : ProcessorFeatures<BDWFeatures.Value, [
   FeatureXSAVEC,
   FeatureXSAVES,
   FeatureSGX,
-  FeatureCLFLUSHOPT
+  FeatureCLFLUSHOPT,
+  FeatureFastVectorFSQRT
 ]>;
 
 // FIXME: define SKL model
@@ -631,6 +656,7 @@ def : ProcessorModel<"btver2", BtVer2Model, [
   FeatureF16C,
   FeatureMOVBE,
   FeatureLZCNT,
+  FeatureFastLZCNT,
   FeaturePOPCNT,
   FeatureXSAVE,
   FeatureXSAVEOPT,
@@ -729,10 +755,47 @@ def : Proc<"bdver4", [
   FeatureTBM,
   FeatureFMA,
   FeatureXSAVEOPT,
+  FeatureSlowSHLD,
   FeatureFSGSBase,
   FeatureLAHFSAHF,
   FeatureMWAITX
 ]>;
+
+// TODO: The scheduler model falls to BTVER2 model.
+// The znver1 model has to be put in place.
+// Zen
+def: ProcessorModel<"znver1", BtVer2Model, [
+  FeatureADX,
+  FeatureAES,
+  FeatureAVX2,
+  FeatureBMI,
+  FeatureBMI2,
+  FeatureCLFLUSHOPT,
+  FeatureCMPXCHG16B,
+  FeatureF16C,
+  FeatureFMA,
+  FeatureFSGSBase,
+  FeatureFXSR,
+  FeatureFastLZCNT,
+  FeatureLAHFSAHF,
+  FeatureLZCNT,
+  FeatureMMX,
+  FeatureMOVBE,
+  FeatureMWAITX,
+  FeaturePCLMUL,
+  FeaturePOPCNT,
+  FeaturePRFCHW,
+  FeatureRDRAND,
+  FeatureRDSEED,
+  FeatureSHA,
+  FeatureSMAP,
+  FeatureSSE4A,
+  FeatureSlowSHLD,
+  FeatureX87,
+  FeatureXSAVE,
+  FeatureXSAVEC,
+  FeatureXSAVEOPT,
+  FeatureXSAVES]>;
 
 def : Proc<"geode",           [FeatureX87, FeatureSlowUAMem16, Feature3DNowA]>;
 

@@ -21,8 +21,6 @@ namespace codeview {
 enum class TypeRecordKind : uint16_t {
 #define TYPE_RECORD(lf_ename, value, name) name = value,
 #include "TypeRecords.def"
-  // FIXME: Add serialization support
-  FieldList = 0x1203,
 };
 
 /// Duplicate copy of the above enum, but using the official CV names. Useful
@@ -278,6 +276,7 @@ enum class MethodOptions : uint16_t {
 CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(MethodOptions)
 
 /// Equivalent to CV_modifier_t.
+/// TODO: Add flag for _Atomic modifier
 enum class ModifierOptions : uint16_t {
   None = 0x0000,
   Const = 0x0001,
@@ -526,7 +525,7 @@ enum class RegisterId : uint16_t {
 };
 
 /// These values correspond to the THUNK_ORDINAL enumeration.
-enum class ThunkOrdinal {
+enum class ThunkOrdinal : uint8_t {
   Standard,
   ThisAdjustor,
   Vcall,
@@ -536,7 +535,7 @@ enum class ThunkOrdinal {
   BranchIsland
 };
 
-enum class TrampolineType { TrampIncremental, BranchIsland };
+enum class TrampolineType : uint16_t { TrampIncremental, BranchIsland };
 
 // These values correspond to the CV_SourceChksum_t enumeration.
 enum class FileChecksumKind : uint8_t { None, MD5, SHA1, SHA256 };

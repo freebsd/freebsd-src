@@ -11,13 +11,9 @@
 // to move them together. If we can move them next to each other we do so and
 // replace them with a combine instruction.
 //===----------------------------------------------------------------------===//
-#include "llvm/PassSupport.h"
-#include "Hexagon.h"
 #include "HexagonInstrInfo.h"
-#include "HexagonMachineFunctionInfo.h"
-#include "HexagonRegisterInfo.h"
 #include "HexagonSubtarget.h"
-#include "HexagonTargetMachine.h"
+#include "llvm/PassSupport.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -64,6 +60,7 @@ namespace {
 class HexagonCopyToCombine : public MachineFunctionPass  {
   const HexagonInstrInfo *TII;
   const TargetRegisterInfo *TRI;
+  const HexagonSubtarget *ST;
   bool ShouldCombineAggressively;
 
   DenseSet<MachineInstr *> PotentiallyNewifiableTFR;
@@ -80,7 +77,7 @@ public:
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "Hexagon Copy-To-Combine Pass";
   }
 
@@ -88,7 +85,7 @@ public:
 
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::AllVRegsAllocated);
+        MachineFunctionProperties::Property::NoVRegs);
   }
 
 private:
@@ -163,6 +160,10 @@ static bool isCombinableInstType(MachineInstr &MI, const HexagonInstrInfo *TII,
            (ShouldCombineAggressively || NotExt);
   }
 
+  case Hexagon::V6_vassign:
+  case Hexagon::V6_vassign_128B:
+    return true;
+
   default:
     break;
   }
@@ -186,11 +187,22 @@ static bool areCombinableOperations(const TargetRegisterInfo *TRI,
                                     MachineInstr &LowRegInst, bool AllowC64) {
   unsigned HiOpc = HighRegInst.getOpcode();
   unsigned LoOpc = LowRegInst.getOpcode();
-  (void)HiOpc; // Fix compiler warning
-  (void)LoOpc; // Fix compiler warning
-  assert((HiOpc == Hexagon::A2_tfr || HiOpc == Hexagon::A2_tfrsi) &&
-         (LoOpc == Hexagon::A2_tfr || LoOpc == Hexagon::A2_tfrsi) &&
-         "Assume individual instructions are of a combinable type");
+
+  auto verifyOpc = [](unsigned Opc) -> void {
+    switch (Opc) {
+      case Hexagon::A2_tfr:
+      case Hexagon::A2_tfrsi:
+      case Hexagon::V6_vassign:
+        break;
+      default:
+        llvm_unreachable("Unexpected opcode");
+    }
+  };
+  verifyOpc(HiOpc);
+  verifyOpc(LoOpc);
+
+  if (HiOpc == Hexagon::V6_vassign || LoOpc == Hexagon::V6_vassign)
+    return HiOpc == LoOpc;
 
   if (!AllowC64) {
     // There is no combine of two constant extended values.
@@ -216,9 +228,13 @@ static bool areCombinableOperations(const TargetRegisterInfo *TRI,
 }
 
 static bool isEvenReg(unsigned Reg) {
-  assert(TargetRegisterInfo::isPhysicalRegister(Reg) &&
-         Hexagon::IntRegsRegClass.contains(Reg));
-  return (Reg - Hexagon::R0) % 2 == 0;
+  assert(TargetRegisterInfo::isPhysicalRegister(Reg));
+  if (Hexagon::IntRegsRegClass.contains(Reg))
+    return (Reg - Hexagon::R0) % 2 == 0;
+  if (Hexagon::VectorRegsRegClass.contains(Reg) ||
+      Hexagon::VectorRegs128BRegClass.contains(Reg))
+    return (Reg - Hexagon::V0) % 2 == 0;
+  llvm_unreachable("Invalid register");
 }
 
 static void removeKillInfo(MachineInstr &MI, unsigned RegNotKilled) {
@@ -385,7 +401,7 @@ HexagonCopyToCombine::findPotentialNewifiableTFRs(MachineBasicBlock &BB) {
       continue;
 
     // Mark TFRs that feed a potential new value store as such.
-    if (TII->mayBeNewStore(&MI)) {
+    if (TII->mayBeNewStore(MI)) {
       // Look for uses of TFR instructions.
       for (unsigned OpdIdx = 0, OpdE = MI.getNumOperands(); OpdIdx != OpdE;
            ++OpdIdx) {
@@ -446,8 +462,9 @@ bool HexagonCopyToCombine::runOnMachineFunction(MachineFunction &MF) {
   bool HasChanged = false;
 
   // Get target info.
-  TRI = MF.getSubtarget().getRegisterInfo();
-  TII = MF.getSubtarget<HexagonSubtarget>().getInstrInfo();
+  ST = &MF.getSubtarget<HexagonSubtarget>();
+  TRI = ST->getRegisterInfo();
+  TII = ST->getInstrInfo();
 
   const Function *F = MF.getFunction();
   bool OptForSize = F->hasFnAttribute(Attribute::OptimizeForSize);
@@ -504,8 +521,7 @@ MachineInstr *HexagonCopyToCombine::findPairable(MachineInstr &I1,
                                                  bool &DoInsertAtI1,
                                                  bool AllowC64) {
   MachineBasicBlock::iterator I2 = std::next(MachineBasicBlock::iterator(I1));
-
-  while (I2->isDebugValue())
+  while (I2 != I1.getParent()->end() && I2->isDebugValue())
     ++I2;
 
   unsigned I1DestReg = I1.getOperand(0).getReg();
@@ -564,13 +580,25 @@ void HexagonCopyToCombine::combine(MachineInstr &I1, MachineInstr &I2,
   unsigned I2DestReg = I2.getOperand(0).getReg();
   bool IsI1Loreg = (I2DestReg - I1DestReg) == 1;
   unsigned LoRegDef = IsI1Loreg ? I1DestReg : I2DestReg;
+  unsigned SubLo;
+
+  const TargetRegisterClass *SuperRC = nullptr;
+  if (Hexagon::IntRegsRegClass.contains(LoRegDef)) {
+    SuperRC = &Hexagon::DoubleRegsRegClass;
+    SubLo = Hexagon::isub_lo;
+  } else if (Hexagon::VectorRegsRegClass.contains(LoRegDef)) {
+    assert(ST->useHVXOps());
+    if (ST->useHVXSglOps())
+      SuperRC = &Hexagon::VecDblRegsRegClass;
+    else
+      SuperRC = &Hexagon::VecDblRegs128BRegClass;
+    SubLo = Hexagon::vsub_lo;
+  } else
+    llvm_unreachable("Unexpected register class");
 
   // Get the double word register.
-  unsigned DoubleRegDest =
-    TRI->getMatchingSuperReg(LoRegDef, Hexagon::subreg_loreg,
-                             &Hexagon::DoubleRegsRegClass);
+  unsigned DoubleRegDest = TRI->getMatchingSuperReg(LoRegDef, SubLo, SuperRC);
   assert(DoubleRegDest != 0 && "Expect a valid register");
-
 
   // Setup source operands.
   MachineOperand &LoOperand = IsI1Loreg ? I1.getOperand(1) : I2.getOperand(1);
@@ -605,7 +633,7 @@ void HexagonCopyToCombine::combine(MachineInstr &I1, MachineInstr &I2,
     for (auto NewMI : DbgMItoMove) {
       // If iterator MI is pointing to DEBUG_VAL, make sure
       // MI now points to next relevant instruction.
-      if (NewMI == (MachineInstr*)MI)
+      if (NewMI == MI)
         ++MI;
       BB->splice(InsertPt, BB, NewMI);
     }
@@ -628,8 +656,7 @@ void HexagonCopyToCombine::emitConst64(MachineBasicBlock::iterator &InsertPt,
 
   int64_t V = HiOperand.getImm();
   V = (V << 32) | (0x0ffffffffLL & LoOperand.getImm());
-  BuildMI(*BB, InsertPt, DL, TII->get(Hexagon::CONST64_Int_Real),
-    DoubleDestReg)
+  BuildMI(*BB, InsertPt, DL, TII->get(Hexagon::CONST64), DoubleDestReg)
     .addImm(V);
 }
 
@@ -838,7 +865,19 @@ void HexagonCopyToCombine::emitCombineRR(MachineBasicBlock::iterator &InsertPt,
 
   // Insert new combine instruction.
   //  DoubleRegDest = combine HiReg, LoReg
-  BuildMI(*BB, InsertPt, DL, TII->get(Hexagon::A2_combinew), DoubleDestReg)
+  unsigned NewOpc;
+  if (Hexagon::DoubleRegsRegClass.contains(DoubleDestReg)) {
+    NewOpc = Hexagon::A2_combinew;
+  } else if (Hexagon::VecDblRegsRegClass.contains(DoubleDestReg)) {
+    assert(ST->useHVXOps());
+    if (ST->useHVXSglOps())
+      NewOpc = Hexagon::V6_vcombine;
+    else
+      NewOpc = Hexagon::V6_vcombine_128B;
+  } else
+    llvm_unreachable("Unexpected register");
+
+  BuildMI(*BB, InsertPt, DL, TII->get(NewOpc), DoubleDestReg)
     .addReg(HiReg, HiRegKillFlag)
     .addReg(LoReg, LoRegKillFlag);
 }
