@@ -31,3 +31,8 @@ FBSD_1.3 {
 FBSD_1.4 {
 	sbuf_hexdump;
 };
+
+FBSD_1.5 {
+	sbuf_putbuf;
+};
+
