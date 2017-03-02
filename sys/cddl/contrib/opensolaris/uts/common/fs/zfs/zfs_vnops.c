@@ -5871,6 +5871,9 @@ zfs_freebsd_setacl(ap)
 	if (ap->a_type != ACL_TYPE_NFS4)
 		return (EINVAL);
 
+	if (ap->a_aclp == NULL)
+		return (EINVAL);
+
 	if (ap->a_aclp->acl_cnt < 1 || ap->a_aclp->acl_cnt > MAX_ACL_ENTRIES)
 		return (EINVAL);
 
