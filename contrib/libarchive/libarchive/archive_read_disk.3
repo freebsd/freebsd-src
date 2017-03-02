@@ -37,10 +37,7 @@
 .Nm archive_read_disk_uname ,
 .Nm archive_read_disk_set_uname_lookup ,
 .Nm archive_read_disk_set_gname_lookup ,
-.Nm archive_read_disk_set_standard_lookup ,
-.Nm archive_read_close ,
-.Nm archive_read_finish ,
-.Nm archive_read_free
+.Nm archive_read_disk_set_standard_lookup
 .Nd functions for reading objects from disk
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -81,12 +78,6 @@ Streaming Archive Library (libarchive, -larchive)
 .Fa "int fd"
 .Fa "const struct stat *"
 .Fc
-.Ft int
-.Fn archive_read_close "struct archive *"
-.Ft int
-.Fn archive_read_finish "struct archive *"
-.Ft int
-.Fn archive_read_free "struct archive *"
 .Sh DESCRIPTION
 These functions provide an API for reading information about
 objects on disk.
@@ -181,17 +172,6 @@ using the currently registered lookup functions above.
 This affects the file ownership fields and ACL values in the
 .Tn struct archive_entry
 object.
-.It Fn archive_read_close
-Does nothing for
-.Tn archive_read_disk
-handles.
-.It Fn archive_read_finish
-This is a deprecated synonym for
-.Fn archive_read_free .
-.It Fn archive_read_free
-Invokes
-.Fn archive_read_close
-if it was not invoked manually, then releases all resources.
 .El
 More information about the
 .Va struct archive

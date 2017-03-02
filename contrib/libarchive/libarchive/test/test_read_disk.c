@@ -61,6 +61,7 @@ uname_lookup(void *d, int64_t u)
 	return ("NOTFOO");
 }
 
+#if !defined(__CYGWIN__) && !defined(__HAIKU__)
 /* We test GID lookup by looking up the name of group number zero and
  * checking it against the following list.  If your system uses a
  * different conventional name for group number zero, please extend
@@ -71,13 +72,16 @@ static const char *zero_groups[] = {
 	"root",   /* Linux */
 	"wheel"  /* BSD */
 };
+#endif
 
 DEFINE_TEST(test_read_disk)
 {
 	struct archive *a;
 	int gmagic = 0x13579, umagic = 0x1234;
+#if !defined(__CYGWIN__) && !defined(__HAIKU__)
 	const char *p;
 	size_t i;
+#endif
 
 	assert((a = archive_read_disk_new()) != NULL);
 
@@ -115,8 +119,6 @@ DEFINE_TEST(test_read_disk)
 		/* Some platforms don't have predictable names for
 		 * uid=0, so we skip this part of the test. */
 		skipping("standard uname/gname lookup");
-		i = 0;
-		p = zero_groups[0]; /* avoid unused warnings */
 #else
 		/* XXX Someday, we may need to generalize this the
 		 * same way we generalized the group name check below.

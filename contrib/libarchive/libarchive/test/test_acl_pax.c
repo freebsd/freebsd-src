@@ -238,23 +238,22 @@ DEFINE_TEST(test_acl_pax_posix1e)
         archive_entry_set_mode(ae, S_IFREG | 0777);
 
 	/* Basic owner/owning group should just update mode bits. */
-	archive_test_set_acls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
+	assertEntrySetAcls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
 	assertA(0 == archive_write_header(a, ae));
 
 	/* With any extended ACL entry, we should read back a full set. */
-	archive_test_set_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
+	assertEntrySetAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
 	assertA(0 == archive_write_header(a, ae));
 
-
 	/* A more extensive set of ACLs. */
-	archive_test_set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	assertA(0 == archive_write_header(a, ae));
 
 	/*
 	 * Check that clearing ACLs gets rid of them all by repeating
 	 * the first test.
 	 */
-	archive_test_set_acls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
+	assertEntrySetAcls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
 
@@ -296,7 +295,7 @@ DEFINE_TEST(test_acl_pax_posix1e)
 	assertA(0 == archive_read_next_header(a, &ae));
 	failure("One extended ACL should flag all ACLs to be returned.");
 	assert(4 == archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
-	archive_test_compare_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
+	assertEntryCompareAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0142);
 	failure("Basic ACLs should set mode to 0142, not %04o",
 	    archive_entry_mode(ae)&0777);
@@ -306,7 +305,7 @@ DEFINE_TEST(test_acl_pax_posix1e)
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(6, archive_entry_acl_reset(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
-	archive_test_compare_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
+	assertEntryCompareAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0543);
 	failure("Basic ACLs should set mode to 0543, not %04o",
 	    archive_entry_mode(ae)&0777);
@@ -350,15 +349,15 @@ DEFINE_TEST(test_acl_pax_nfs4)
         archive_entry_set_mode(ae, S_IFREG | 0777);
 
 	/* NFS4 ACLs mirroring 0754 file mode */
-	archive_test_set_acls(ae, acls3, sizeof(acls3)/sizeof(acls3[0]));
+	assertEntrySetAcls(ae, acls3, sizeof(acls3)/sizeof(acls3[0]));
 	assertA(0 == archive_write_header(a, ae));
 
 	/* A more extensive set of NFS4 ACLs. */
-	archive_test_set_acls(ae, acls4, sizeof(acls4)/sizeof(acls4[0]));
+	assertEntrySetAcls(ae, acls4, sizeof(acls4)/sizeof(acls4[0]));
 	assertA(0 == archive_write_header(a, ae));
 
 	/* Set with special (audit, alarm) NFS4 ACLs. */
-	archive_test_set_acls(ae, acls5, sizeof(acls5)/sizeof(acls5[0]));
+	assertEntrySetAcls(ae, acls5, sizeof(acls5)/sizeof(acls5[0]));
 	assertA(0 == archive_write_header(a, ae));
 
 	archive_entry_free(ae);
@@ -393,21 +392,21 @@ DEFINE_TEST(test_acl_pax_nfs4)
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(3, archive_entry_acl_reset(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_ALLOW));
-	archive_test_compare_acls(ae, acls3, sizeof(acls3)/sizeof(acls3[0]),
+	assertEntryCompareAcls(ae, acls3, sizeof(acls3)/sizeof(acls3[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ALLOW, 0);
 
 	/* Second item has has more fine-grained NFS4 ACLs */
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(6, archive_entry_acl_reset(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
-	archive_test_compare_acls(ae, acls4, sizeof(acls4)/sizeof(acls4[0]),
+	assertEntryCompareAcls(ae, acls4, sizeof(acls4)/sizeof(acls4[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4, 0);
 
 	/* Third item has has audit and alarm NFS4 ACLs */
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(6, archive_entry_acl_reset(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
-	archive_test_compare_acls(ae, acls5, sizeof(acls5)/sizeof(acls5[0]),
+	assertEntryCompareAcls(ae, acls5, sizeof(acls5)/sizeof(acls5[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4, 0);
 
 	/* Close the archive. */
