@@ -364,7 +364,7 @@ SHA512_224_Update(SHA512_CTX * ctx, const void *in, size_t len)
 }
 
 void
-SHA512_224_Final(unsigned char digest[static SHA512_224_DIGEST_LENGTH], SHA512_CTX * ctx)
+SHA512_224_Final(unsigned char digest[SHA512_224_DIGEST_LENGTH], SHA512_CTX * ctx)
 {
 
 	/* Add padding */
@@ -403,7 +403,7 @@ SHA512_256_Update(SHA512_CTX * ctx, const void *in, size_t len)
 }
 
 void
-SHA512_256_Final(unsigned char digest[static SHA512_256_DIGEST_LENGTH], SHA512_CTX * ctx)
+SHA512_256_Final(unsigned char digest[SHA512_256_DIGEST_LENGTH], SHA512_CTX * ctx)
 {
 
 	/* Add padding */
