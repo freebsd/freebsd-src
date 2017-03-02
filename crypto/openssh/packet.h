@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.70 2016/02/08 10:57:07 djm Exp $ */
+/* $OpenBSD: packet.h,v 1.71 2016/03/07 19:02:43 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -56,9 +56,11 @@ struct ssh {
 	/* Key exchange */
 	struct kex *kex;
 
-	/* cached remote ip address and port*/
+	/* cached local and remote ip addresses and ports */
 	char *remote_ipaddr;
 	int remote_port;
+	char *local_ipaddr;
+	int local_port;
 
 	/* Dispatcher table */
 	dispatch_fn *dispatch[DISPATCH_MAX];
@@ -145,6 +147,8 @@ int	 ssh_packet_set_state(struct ssh *, struct sshbuf *);
 
 const char *ssh_remote_ipaddr(struct ssh *);
 int	 ssh_remote_port(struct ssh *);
+const char *ssh_local_ipaddr(struct ssh *);
+int	 ssh_local_port(struct ssh *);
 
 void	 ssh_packet_set_rekey_limits(struct ssh *, u_int64_t, time_t);
 time_t	 ssh_packet_get_rekey_timeout(struct ssh *);

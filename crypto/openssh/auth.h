@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.86 2015/12/04 16:41:28 markus Exp $ */
+/* $OpenBSD: auth.h,v 1.88 2016/05/04 14:04:40 markus Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -124,7 +124,8 @@ BIGNUM	*auth_rsa_generate_challenge(Key *);
 int	 auth_rsa_verify_response(Key *, BIGNUM *, u_char[]);
 int	 auth_rsa_key_allowed(struct passwd *, BIGNUM *, Key **);
 
-int	 auth_rhosts_rsa_key_allowed(struct passwd *, char *, char *, Key *);
+int	 auth_rhosts_rsa_key_allowed(struct passwd *, const char *,
+    const char *, Key *);
 int	 hostbased_key_allowed(struct passwd *, const char *, char *, Key *);
 int	 user_key_allowed(struct passwd *, Key *, int);
 void	 pubkey_auth_info(Authctxt *, const Key *, const char *, ...)
@@ -196,6 +197,8 @@ char	*authorized_principals_file(struct passwd *);
 FILE	*auth_openkeyfile(const char *, struct passwd *, int);
 FILE	*auth_openprincipals(const char *, struct passwd *, int);
 int	 auth_key_is_revoked(Key *);
+
+const char	*auth_get_canonical_hostname(struct ssh *, int);
 
 HostStatus
 check_key_in_hostfiles(struct passwd *, Key *, const char *,
