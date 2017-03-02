@@ -24,3 +24,9 @@ LIBADD=	util
 WARNS?=	1
 
 .include <bsd.prog.mk>
+
+.include <bsd.compiler.mk>
+
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS+=	-Wno-address-of-packed-member
+.endif

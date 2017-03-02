@@ -106,4 +106,10 @@ ipf_l.h: lexer.h
 	sed -e 's/yy/ipf_yy/g' \
 	    ${.ALLSRC} > ${.TARGET}
 
+.include <bsd.compiler.mk>
+
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS+=	-Wno-address-of-packed-member
+.endif
+
 .include <bsd.prog.mk>

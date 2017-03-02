@@ -113,3 +113,9 @@ LIBADD+=	pam
 .endif
 
 .include <bsd.prog.mk>
+
+.include <bsd.compiler.mk>
+
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS+=	-Wno-address-of-packed-member
+.endif
