@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.68 2015/09/25 18:19:54 jmc Exp $
+.\" $OpenBSD: scp.1,v 1.71 2016/07/16 06:57:55 jmc Exp $
 .\"
-.Dd $Mdocdate: September 25 2015 $
+.Dd $Mdocdate: July 16 2016 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -155,8 +155,9 @@ For full details of the options listed below, and their possible values, see
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostName
-.It IdentityFile
 .It IdentitiesOnly
+.It IdentityAgent
+.It IdentityFile
 .It IPQoS
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
@@ -171,6 +172,7 @@ For full details of the options listed below, and their possible values, see
 .It PreferredAuthentications
 .It Protocol
 .It ProxyCommand
+.It ProxyJump
 .It PubkeyAcceptedKeyTypes
 .It PubkeyAuthentication
 .It RekeyLimit
