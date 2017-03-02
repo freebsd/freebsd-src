@@ -124,11 +124,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* NFSv4 platform ACL type */
-#if HAVE_SUN_ACL
-#define	ARCHIVE_PLATFORM_ACL_TYPE_NFS4	ACE_T
-#elif HAVE_DARWIN_ACL
+#if HAVE_DARWIN_ACL
 #define	ARCHIVE_PLATFORM_ACL_TYPE_NFS4	ACL_TYPE_EXTENDED
-#elif HAVE_ACL_TYPE_NFS4
+#elif HAVE_FREEBSD_NFS4_ACL
 #define	ARCHIVE_PLATFORM_ACL_TYPE_NFS4	ACL_TYPE_NFS4
 #endif
 
@@ -203,15 +201,17 @@ archive_read_disk_entry_from_file(struct archive *_a,
 #ifdef HAVE_STRUCT_STAT_ST_FLAGS
 	/* On FreeBSD, we get flags for free with the stat. */
 	/* TODO: Does this belong in copy_stat()? */
-	if (st->st_flags != 0)
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0 && st->st_flags != 0)
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
-#if defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
+#if (defined(FS_IOC_GETFLAGS) && defined(HAVE_WORKING_FS_IOC_GETFLAGS)) || \
+    (defined(EXT2_IOC_GETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS))
 	/* Linux requires an extra ioctl to pull the flags.  Although
 	 * this is an extra step, it has a nice side-effect: We get an
 	 * open file descriptor which we can use in the subsequent lookups. */
-	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
+	if ((a->flags & ARCHIVE_READDISK_NO_FFLAGS) == 0 &&
+	    (S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
 		if (fd < 0) {
 			if (a->tree != NULL)
 				fd = a->open_on_current_dir(a->tree, path,
@@ -223,7 +223,13 @@ archive_read_disk_entry_from_file(struct archive *_a,
 		}
 		if (fd >= 0) {
 			int stflags;
-			r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
+			r = ioctl(fd,
+#if defined(FS_IOC_GETFLAGS)
+			    FS_IOC_GETFLAGS,
+#else
+			    EXT2_IOC_GETFLAGS,
+#endif
+			    &stflags);
 			if (r == 0 && stflags != 0)
 				archive_entry_set_fflags(entry, stflags, 0);
 		}
@@ -269,13 +275,15 @@ archive_read_disk_entry_from_file(struct archive *_a,
 	}
 #endif /* HAVE_READLINK || HAVE_READLINKAT */
 
-	r = setup_acls(a, entry, &fd);
-	if (!a->suppress_xattr) {
+	r = 0;
+	if ((a->flags & ARCHIVE_READDISK_NO_ACL) == 0)
+		r = setup_acls(a, entry, &fd);
+	if ((a->flags & ARCHIVE_READDISK_NO_XATTR) == 0) {
 		r1 = setup_xattrs(a, entry, &fd);
 		if (r1 < r)
 			r = r1;
 	}
-	if (a->enable_copyfile) {
+	if (a->flags & ARCHIVE_READDISK_MAC_COPYFILE) {
 		r1 = setup_mac_metadata(a, entry, &fd);
 		if (r1 < r)
 			r = r1;
@@ -321,18 +329,15 @@ setup_mac_metadata(struct archive_read_disk *a,
 	name = archive_entry_sourcepath(entry);
 	if (name == NULL)
 		name = archive_entry_pathname(entry);
+	else if (a->tree != NULL && a->tree_enter_working_dir(a->tree) != 0) {
+		archive_set_error(&a->archive, errno,
+			    "Can't change dir to read extended attributes");
+			return (ARCHIVE_FAILED);
+	}
 	if (name == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Can't open file to read extended attributes: No name");
 		return (ARCHIVE_WARN);
-	}
-
-	if (a->tree != NULL) {
-		if (a->tree_enter_working_dir(a->tree) != 0) {
-			archive_set_error(&a->archive, errno,
-				    "Couldn't change dir");
-				return (ARCHIVE_FAILED);
-		}
 	}
 
 	/* Short-circuit if there's nothing to do. */
@@ -428,14 +433,71 @@ static void add_trivial_nfs4_acl(struct archive_entry *);
 
 #if HAVE_SUN_ACL
 static int
-sun_acl_is_trivial(acl_t *, mode_t, int *trivialp);
+sun_acl_is_trivial(void *, int, mode_t, int, int, int *);
+
+static void *
+sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
+{
+	int cnt, cntcmd;
+	size_t size;
+	void *aclp;
+
+	if (cmd == GETACL) {
+		cntcmd = GETACLCNT;
+		size = sizeof(aclent_t);
+	}
+#if HAVE_SUN_NFS4_ACL
+	else if (cmd == ACE_GETACL) {
+		cntcmd = ACE_GETACLCNT;
+		size = sizeof(ace_t);
+	}
 #endif
+	else {
+		errno = EINVAL;
+		*aclcnt = -1;
+		return (NULL);
+	}
+
+	aclp = NULL;
+	cnt = -2;
+
+	while (cnt == -2 || (cnt == -1 && errno == ENOSPC)) {
+		if (path != NULL)
+			cnt = acl(path, cntcmd, 0, NULL);
+		else
+			cnt = facl(fd, cntcmd, 0, NULL);
+
+		if (cnt > 0) {
+			if (aclp == NULL)
+				aclp = malloc(cnt * size);
+			else
+				aclp = realloc(NULL, cnt * size);
+			if (aclp != NULL) {
+				if (path != NULL)
+					cnt = acl(path, cmd, cnt, aclp);
+				else
+					cnt = facl(fd, cmd, cnt, aclp);
+			}
+		} else {
+			if (aclp != NULL) {
+				free(aclp);
+				aclp = NULL;
+			}
+			break;
+		}
+	}
+
+	*aclcnt = cnt;
+	return (aclp);
+}
+#endif	/* HAVE_SUN_ACL */
 
 #if HAVE_POSIX_ACL || HAVE_NFS4_ACL
 static int translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry,
 #if HAVE_SUN_ACL
-    acl_t *acl,
+    void *aclp,
+    int aclcnt,
 #else
     acl_t acl,
 #endif
@@ -447,40 +509,55 @@ setup_acls(struct archive_read_disk *a,
 {
 	const char	*accpath;
 #if HAVE_SUN_ACL
-	acl_t		*acl;
+	void		*aclp;
+	int		aclcnt;
 #else
 	acl_t		acl;
 #endif
 	int		r;
 
-	accpath = archive_entry_sourcepath(entry);
-	if (accpath == NULL)
-		accpath = archive_entry_pathname(entry);
+	accpath = NULL;
 
-	if (*fd < 0 && a->tree != NULL) {
-		if (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)
+#if HAVE_SUN_ACL || HAVE_DARWIN_ACL || HAVE_ACL_GET_FD_NP
+	if (*fd < 0)
+#else
+	/* For default ACLs on Linux we need reachable accpath */
+	if (*fd < 0 || S_ISDIR(archive_entry_mode(entry)))
+#endif
+	{
+		accpath = archive_entry_sourcepath(entry);
+		if (accpath == NULL || (a->tree != NULL &&
+		    a->tree_enter_working_dir(a->tree) != 0))
+			accpath = archive_entry_pathname(entry);
+		if (accpath == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Couldn't determine file path to read ACLs");
+			return (ARCHIVE_WARN);
+		}
+		if (a->tree != NULL &&
+#if !HAVE_SUN_ACL && !HAVE_DARWIN_ACL && !HAVE_ACL_GET_FD_NP
+		    *fd < 0 &&
+#endif
+		    (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)) {
 			*fd = a->open_on_current_dir(a->tree,
 			    accpath, O_RDONLY | O_NONBLOCK);
-		if (*fd < 0) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't access %s", accpath);
-				return (ARCHIVE_FAILED);
-			}
 		}
 	}
 
 	archive_entry_acl_clear(entry);
 
+#if HAVE_SUN_ACL
+	aclp = NULL;
+#else
 	acl = NULL;
+#endif
 
 #if HAVE_NFS4_ACL
 	/* Try NFSv4 ACL first. */
 	if (*fd >= 0)
 #if HAVE_SUN_ACL
-		/* Solaris reads both POSIX.1e and NFSv4 ACL here */
-		facl_get(*fd, 0, &acl);
+		aclp = sunacl_get(ACE_GETACL, &aclcnt, *fd, NULL);
 #elif HAVE_ACL_GET_FD_NP
 		acl = acl_get_fd_np(*fd, ARCHIVE_PLATFORM_ACL_TYPE_NFS4);
 #else
@@ -494,47 +571,62 @@ setup_acls(struct archive_read_disk *a,
 	    && (archive_entry_filetype(entry) == AE_IFLNK))
 		/* We can't get the ACL of a symlink, so we assume it can't
 		   have one. */
+#if HAVE_SUN_ACL
+		aclp = NULL;
+#else
 		acl = NULL;
 #endif
+#endif /* !HAVE_ACL_GET_LINK_NP */
 	else
 #if HAVE_SUN_ACL
 		/* Solaris reads both POSIX.1e and NFSv4 ACLs here */
-		acl_get(accpath, 0, &acl);
+		aclp = sunacl_get(ACE_GETACL, &aclcnt, 0, accpath);
 #else
 		acl = acl_get_file(accpath, ARCHIVE_PLATFORM_ACL_TYPE_NFS4);
 #endif
 
 
-#if HAVE_ACL_IS_TRIVIAL_NP || HAVE_SUN_ACL
 	/* Ignore "trivial" ACLs that just mirror the file mode. */
-	if (acl != NULL) {
 #if HAVE_SUN_ACL
-		if (sun_acl_is_trivial(acl, archive_entry_mode(entry),
-		    &r) == 0 && r == 1)
-#elif HAVE_ACL_IS_TRIVIAL_NP
-		if (acl_is_trivial_np(acl, &r) == 0 && r == 1)
-#endif
-		{
-			acl_free(acl);
-			acl = NULL;
-			/*
-			 * Simultaneous NFSv4 and POSIX.1e ACLs for the same
-			 * entry are not allowed, so we should return here
-			 */
-			return (ARCHIVE_OK);
-		}
+	if (aclp != NULL && sun_acl_is_trivial(aclp, aclcnt,
+	    archive_entry_mode(entry), 1, S_ISDIR(archive_entry_mode(entry)),
+	    &r) == 0 && r == 1) {
+		free(aclp);
+		aclp = NULL;
+		return (ARCHIVE_OK);
 	}
-#endif	/* HAVE_ACL_IS_TRIVIAL_NP || HAVE_SUN_ACL */
-	if (acl != NULL) {
-		r = translate_acl(a, entry, acl, ARCHIVE_ENTRY_ACL_TYPE_NFS4);
+#elif HAVE_ACL_IS_TRIVIAL_NP
+	if (acl != NULL && acl_is_trivial_np(acl, &r) == 0 && r == 1) {
 		acl_free(acl);
+		acl = NULL;
+		return (ARCHIVE_OK);
+	}
+#endif
+
+#if HAVE_SUN_ACL
+	if (aclp != NULL)
+#else
+	if (acl != NULL)
+#endif
+	{
+		r = translate_acl(a, entry,
+#if HAVE_SUN_ACL
+		    aclp, aclcnt,
+#else
+		    acl,
+#endif
+		    ARCHIVE_ENTRY_ACL_TYPE_NFS4);
+#if HAVE_SUN_ACL
+		free(aclp);
+		aclp = NULL;
+#else
+		acl_free(acl);
+		acl = NULL;
+#endif
+
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, errno,
-#if HAVE_SUN_ACL
-			    "Couldn't translate ACLs: %s", accpath);
-#else
-			    "Couldn't translate NFSv4 ACLs: %s", accpath);
-#endif
+			    "Couldn't translate NFSv4 ACLs");
 		}
 #if HAVE_DARWIN_ACL
 		/*
@@ -543,20 +635,24 @@ setup_acls(struct archive_read_disk *a,
 		 * the archive entry. Otherwise extraction on non-Mac platforms
 		 * would lead to an invalid file mode.
 		 */
-		if (archive_entry_acl_count(entry,
-		    ARCHIVE_ENTRY_ACL_TYPE_NFS4) > 0)
+		if ((archive_entry_acl_types(entry) &
+		    ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0)
 			add_trivial_nfs4_acl(entry);
 #endif
 		return (r);
 	}
 #endif	/* HAVE_NFS4_ACL */
 
-#if HAVE_POSIX_ACL
-	/* This code path is skipped on MacOS and Solaris */
+#if HAVE_POSIX_ACL || HAVE_SUN_ACL
+	/* This code path is skipped on MacOS */
 
 	/* Retrieve access ACL from file. */
 	if (*fd >= 0)
+#if HAVE_SUN_ACL
+		aclp = sunacl_get(GETACL, &aclcnt, *fd, NULL);
+#else
 		acl = acl_get_fd(*fd);
+#endif
 #if HAVE_ACL_GET_LINK_NP
 	else if (!a->follow_symlinks)
 		acl = acl_get_link_np(accpath, ACL_TYPE_ACCESS);
@@ -565,32 +661,64 @@ setup_acls(struct archive_read_disk *a,
 	    && (archive_entry_filetype(entry) == AE_IFLNK))
 		/* We can't get the ACL of a symlink, so we assume it can't
 		   have one. */
+#if HAVE_SUN_ACL
+		aclp = NULL;
+#else
 		acl = NULL;
 #endif
+#endif /* !HAVE_ACL_GET_LINK_NP */
 	else
+#if HAVE_SUN_ACL
+		aclp = sunacl_get(GETACL, &aclcnt, 0, accpath);
+#else
 		acl = acl_get_file(accpath, ACL_TYPE_ACCESS);
+#endif
 
-#if HAVE_ACL_IS_TRIVIAL_NP
+
 	/* Ignore "trivial" ACLs that just mirror the file mode. */
-	if (acl != NULL && acl_is_trivial_np(acl, &r) == 0) {
-		if (r) {
-			acl_free(acl);
-			acl = NULL;
-		}
+#if HAVE_SUN_ACL
+	if (aclp != NULL && sun_acl_is_trivial(aclp, aclcnt,
+	    archive_entry_mode(entry), 0, S_ISDIR(archive_entry_mode(entry)),
+	    &r) == 0 && r == 1) {
+		free(aclp);
+		aclp = NULL;
+	}
+#elif HAVE_ACL_IS_TRIVIAL_NP
+	if (acl != NULL && acl_is_trivial_np(acl, &r) == 0 && r == 1) {
+		acl_free(acl);
+		acl = NULL;
 	}
 #endif
 
-	if (acl != NULL) {
-		r = translate_acl(a, entry, acl, ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+#if HAVE_SUN_ACL
+	if (aclp != NULL)
+#else
+	if (acl != NULL)
+#endif
+	{
+		r = translate_acl(a, entry,
+#if HAVE_SUN_ACL
+		    aclp, aclcnt,
+#else
+		    acl,
+#endif
+		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+#if HAVE_SUN_ACL
+		free(aclp);
+		aclp = NULL;
+#else
 		acl_free(acl);
 		acl = NULL;
+#endif
+
 		if (r != ARCHIVE_OK) {
 			archive_set_error(&a->archive, errno,
-			    "Couldn't translate access ACLs: %s", accpath);
+			    "Couldn't translate access ACLs");
 			return (r);
 		}
 	}
 
+#if !HAVE_SUN_ACL
 	/* Only directories can have default ACLs. */
 	if (S_ISDIR(archive_entry_mode(entry))) {
 #if HAVE_ACL_GET_FD_NP
@@ -605,13 +733,13 @@ setup_acls(struct archive_read_disk *a,
 			acl_free(acl);
 			if (r != ARCHIVE_OK) {
 				archive_set_error(&a->archive, errno,
-				    "Couldn't translate default ACLs: %s",
-				    accpath);
+				    "Couldn't translate default ACLs");
 				return (r);
 			}
 		}
 	}
-#endif	/* HAVE_POSIX_ACL */
+#endif	/* !HAVE_SUN_ACL */
+#endif	/* HAVE_POSIX_ACL || HAVE_SUN_ACL */
 	return (ARCHIVE_OK);
 }
 
@@ -657,12 +785,14 @@ static const struct {
 	{ARCHIVE_ENTRY_ACL_READ_ACL, ACL_READ_SECURITY},
 	{ARCHIVE_ENTRY_ACL_WRITE_ACL, ACL_WRITE_SECURITY},
 	{ARCHIVE_ENTRY_ACL_WRITE_OWNER, ACL_CHANGE_OWNER},
+#if HAVE_DECL_ACL_SYNCHRONIZE
 	{ARCHIVE_ENTRY_ACL_SYNCHRONIZE, ACL_SYNCHRONIZE}
+#endif
 #else	/* POSIX.1e ACL permissions */
 	{ARCHIVE_ENTRY_ACL_EXECUTE, ACL_EXECUTE},
 	{ARCHIVE_ENTRY_ACL_WRITE, ACL_WRITE},
 	{ARCHIVE_ENTRY_ACL_READ, ACL_READ},
-#if HAVE_ACL_TYPE_NFS4	/* FreeBSD NFSv4 ACL permissions */
+#if HAVE_FREEBSD_NFS4_ACL	/* FreeBSD NFSv4 ACL permissions */
 	{ARCHIVE_ENTRY_ACL_READ_DATA, ACL_READ_DATA},
 	{ARCHIVE_ENTRY_ACL_LIST_DIRECTORY, ACL_LIST_DIRECTORY},
 	{ARCHIVE_ENTRY_ACL_WRITE_DATA, ACL_WRITE_DATA},
@@ -691,14 +821,16 @@ static const struct {
 	const int archive_inherit;
 	const int platform_inherit;
 } acl_inherit_map[] = {
-#if HAVE_SUN_ACL	/* Solaris ACL inheritance flags */
+#if HAVE_SUN_NFS4_ACL	/* Solaris ACL inheritance flags */
 	{ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACE_FILE_INHERIT_ACE},
 	{ARCHIVE_ENTRY_ACL_ENTRY_DIRECTORY_INHERIT, ACE_DIRECTORY_INHERIT_ACE},
 	{ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT, ACE_NO_PROPAGATE_INHERIT_ACE},
 	{ARCHIVE_ENTRY_ACL_ENTRY_INHERIT_ONLY, ACE_INHERIT_ONLY_ACE},
 	{ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS, ACE_SUCCESSFUL_ACCESS_ACE_FLAG},
 	{ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS, ACE_FAILED_ACCESS_ACE_FLAG},
+#ifdef ACE_INHERITED_ACE
 	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACE_INHERITED_ACE}
+#endif
 #elif HAVE_DARWIN_ACL	/* MacOS NFSv4 inheritance flags */
 	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACL_ENTRY_INHERITED},
 	{ARCHIVE_ENTRY_ACL_ENTRY_FILE_INHERIT, ACL_ENTRY_FILE_INHERIT},
@@ -713,7 +845,7 @@ static const struct {
 	{ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS, ACL_ENTRY_SUCCESSFUL_ACCESS},
 	{ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS, ACL_ENTRY_FAILED_ACCESS},
 	{ARCHIVE_ENTRY_ACL_ENTRY_INHERITED, ACL_ENTRY_INHERITED}
-#endif	/* !HAVE_SUN_ACL && !HAVE_DARWIN_ACL */
+#endif	/* !HAVE_SUN_NFS4_ACL && !HAVE_DARWIN_ACL */
 };
 #endif	/* HAVE_NFS4_ACL */
 
@@ -856,9 +988,11 @@ add_trivial_nfs4_acl(struct archive_entry *entry)
  * This is a FreeBSD acl_is_trivial_np() implementation for Solaris
  */
 static int
-sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
+sun_acl_is_trivial(void *aclp, int aclcnt, mode_t mode, int is_nfs4,
+    int is_dir, int *trivialp)
 {
 	int i, p;
+#if HAVE_SUN_NFS4_ACL
 	const uint32_t rperm = ACE_READ_DATA;
 	const uint32_t wperm = ACE_WRITE_DATA | ACE_APPEND_DATA;
 	const uint32_t eperm = ACE_EXECUTE;
@@ -869,30 +1003,25 @@ sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
 
 	ace_t *ace;
 	ace_t tace[6];
+#endif
 
-	if (acl == NULL || trivialp == NULL)
+	if (aclp == NULL || trivialp == NULL)
 		return (-1);
 
 	*trivialp = 0;
-
-	/* ACL_IS_TRIVIAL flag must be set for both POSIX.1e and NFSv4 ACLs */
-	if ((acl->acl_flags & ACL_IS_TRIVIAL) == 0)
-		return (0);
 
 	/*
 	 * POSIX.1e ACLs marked with ACL_IS_TRIVIAL are compatible with
 	 * FreeBSD acl_is_trivial_np(). On Solaris they have 4 entries,
 	 * including mask.
 	 */
-	if (acl->acl_type == ACLENT_T) {
-		if (acl->acl_cnt == 4)
+	if (!is_nfs4) {
+		if (aclcnt == 4)
 			*trivialp = 1;
 		return (0);
 	}
 
-	if (acl->acl_type != ACE_T || acl->acl_entry_size != sizeof(ace_t))
-		return (-1);
-
+#if HAVE_SUN_NFS4_ACL
 	/*
 	 * Continue with checking NFSv4 ACLs
 	 *
@@ -977,13 +1106,13 @@ sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
 		if (tace[i].a_access_mask != 0)
 			p++;
 	}
-	if (acl->acl_cnt != p)
+	if (aclcnt != p)
 		return (0);
 
 	p = 0;
 	for (i = 0; i < 6; i++) {
 		if (tace[i].a_access_mask != 0) {
-			ace = &((ace_t *)acl->acl_aclp)[p];
+			ace = &((ace_t *)aclp)[p];
 			/*
 			 * Illumos added ACE_DELETE_CHILD to write perms for
 			 * directories. We have to check against that, too.
@@ -991,8 +1120,7 @@ sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
 			if (ace->a_flags != tace[i].a_flags ||
 			    ace->a_type != tace[i].a_type ||
 			    (ace->a_access_mask != tace[i].a_access_mask &&
-			    ((acl->acl_flags & ACL_IS_DIR) == 0 ||
-			    (tace[i].a_access_mask & wperm) == 0 ||
+			    (!is_dir || (tace[i].a_access_mask & wperm) == 0 ||
 			    ace->a_access_mask !=
 			    (tace[i].a_access_mask | ACE_DELETE_CHILD))))
 				return (0);
@@ -1001,6 +1129,9 @@ sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
 	}
 
 	*trivialp = 1;
+#else	/* !HAVE_SUN_NFS4_ACL */
+	(void)aclp;	/* UNUSED */
+#endif	/* !HAVE_SUN_NFS4_ACL */
 	return (0);
 }
 #endif	/* HAVE_SUN_ACL */
@@ -1011,27 +1142,29 @@ sun_acl_is_trivial(acl_t *acl, mode_t mode, int *trivialp)
  */
 static int
 translate_acl(struct archive_read_disk *a,
-    struct archive_entry *entry, acl_t *acl, int default_entry_acl_type)
+    struct archive_entry *entry, void *aclp, int aclcnt,
+    int default_entry_acl_type)
 {
 	int e, i;
 	int ae_id, ae_tag, ae_perm;
 	int entry_acl_type;
 	const char *ae_name;
 	aclent_t *aclent;
+#if HAVE_SUN_NFS4_ACL
 	ace_t *ace;
+#endif
 
-	(void)default_entry_acl_type;
-
-	if (acl->acl_cnt <= 0)
+	if (aclcnt <= 0)
 		return (ARCHIVE_OK);
 
-	for (e = 0; e < acl->acl_cnt; e++) {
+	for (e = 0; e < aclcnt; e++) {
 		ae_name = NULL;
 		ae_tag = 0;
 		ae_perm = 0;
 
-		if (acl->acl_type == ACE_T) {
-			ace = &((ace_t *)acl->acl_aclp)[e];
+#if HAVE_SUN_NFS4_ACL
+		if (default_entry_acl_type == ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
+			ace = &((ace_t *)aclp)[e];
 			ae_id = ace->a_who;
 
 			switch(ace->a_type) {
@@ -1083,8 +1216,10 @@ translate_acl(struct archive_read_disk *a,
 					ae_perm |=
 					    acl_perm_map[i].archive_perm;
 			}
-		} else {
-			aclent = &((aclent_t *)acl->acl_aclp)[e];
+		} else
+#endif	/* HAVE_SUN_NFS4_ACL */
+		if (default_entry_acl_type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS) {
+			aclent = &((aclent_t *)aclp)[e];
 			if ((aclent->a_type & ACL_DEFAULT) != 0)
 				entry_acl_type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
 			else
@@ -1131,7 +1266,8 @@ translate_acl(struct archive_read_disk *a,
 				ae_perm |= ARCHIVE_ENTRY_ACL_WRITE;
 			if ((aclent->a_perm & 4) != 0)
 				ae_perm |= ARCHIVE_ENTRY_ACL_READ;
-		} /* default_entry_acl_type != ARCHIVE_ENTRY_ACL_TYPE_NFS4 */
+		} else
+			return (ARCHIVE_WARN);
 
 		archive_entry_acl_add_entry(entry, entry_acl_type,
 		    ae_perm, ae_tag, ae_id, ae_name);
@@ -1148,11 +1284,11 @@ translate_acl(struct archive_read_disk *a,
     struct archive_entry *entry, acl_t acl, int default_entry_acl_type)
 {
 	acl_tag_t	 acl_tag;
-#if HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 	acl_entry_type_t acl_type;
 	int brand;
 #endif
-#if HAVE_ACL_TYPE_NFS4 || HAVE_DARWIN_ACL
+#if HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL
 	acl_flagset_t	 acl_flagset;
 #endif
 	acl_entry_t	 acl_entry;
@@ -1164,7 +1300,7 @@ translate_acl(struct archive_read_disk *a,
 #endif
 	const char	*ae_name;
 
-#if HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 	// FreeBSD "brands" ACLs as POSIX.1e or NFSv4
 	// Make sure the "brand" on this ACL is consistent
 	// with the default_entry_acl_type bits provided.
@@ -1255,7 +1391,7 @@ translate_acl(struct archive_read_disk *a,
 		case ACL_OTHER:
 			ae_tag = ARCHIVE_ENTRY_ACL_OTHER;
 			break;
-#if HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 		case ACL_EVERYONE:
 			ae_tag = ARCHIVE_ENTRY_ACL_EVERYONE;
 			break;
@@ -1290,9 +1426,9 @@ translate_acl(struct archive_read_disk *a,
 		// XXX acl_type maps to allow/deny/audit/YYYY bits
 		entry_acl_type = default_entry_acl_type;
 #endif
-#if HAVE_ACL_TYPE_NFS4 || HAVE_DARWIN_ACL
+#if HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL
 		if (default_entry_acl_type & ARCHIVE_ENTRY_ACL_TYPE_NFS4) {
-#if HAVE_ACL_TYPE_NFS4
+#if HAVE_FREEBSD_NFS4_ACL
 			/*
 			 * acl_get_entry_type_np() fails with non-NFSv4 ACLs
 			 */
@@ -1319,7 +1455,7 @@ translate_acl(struct archive_read_disk *a,
 				    "Invalid NFSv4 ACL entry type");
 				return (ARCHIVE_WARN);
 			}
-#endif	/* HAVE_ACL_TYPE_NFS4 */
+#endif	/* HAVE_FREEBSD_NFS4_ACL */
 
 			/*
 			 * Libarchive stores "flag" (NFSv4 inheritance bits)
@@ -1344,7 +1480,7 @@ translate_acl(struct archive_read_disk *a,
 					ae_perm |= acl_inherit_map[i].archive_inherit;
 			}
 		}
-#endif	/* HAVE_ACL_TYPE_NFS4 || HAVE_DARWIN_ACL */
+#endif	/* HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL */
 
 		if (acl_get_permset(acl_entry, &acl_permset) != 0) {
 			archive_set_error(&a->archive, errno,
@@ -1364,6 +1500,11 @@ translate_acl(struct archive_read_disk *a,
 			} else if (r)
 				ae_perm |= acl_perm_map[i].archive_perm;
 		}
+
+#if HAVE_DARWIN_ACL && !HAVE_DECL_ACL_SYNCHRONIZE
+		/* On Mac OS X without ACL_SYNCHRONIZE assume it is set */
+		ae_perm |= ARCHIVE_ENTRY_ACL_SYNCHRONIZE;
+#endif
 
 		archive_entry_acl_add_entry(entry, entry_acl_type,
 					    ae_perm, ae_tag,
@@ -1411,15 +1552,10 @@ setup_acls(struct archive_read_disk *a,
 
 static int
 setup_xattr(struct archive_read_disk *a,
-    struct archive_entry *entry, const char *name, int fd)
+    struct archive_entry *entry, const char *name, int fd, const char *accpath)
 {
 	ssize_t size;
 	void *value = NULL;
-	const char *accpath;
-
-	accpath = archive_entry_sourcepath(entry);
-	if (accpath == NULL)
-		accpath = archive_entry_pathname(entry);
 
 #if HAVE_FGETXATTR
 	if (fd >= 0)
@@ -1484,21 +1620,23 @@ setup_xattrs(struct archive_read_disk *a,
 	const char *path;
 	ssize_t list_size;
 
-	path = archive_entry_sourcepath(entry);
-	if (path == NULL)
-		path = archive_entry_pathname(entry);
+	path = NULL;
 
-	if (*fd < 0 && a->tree != NULL) {
-		if (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)
-			*fd = a->open_on_current_dir(a->tree, path,
-				O_RDONLY | O_NONBLOCK);
-		if (*fd < 0) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't access %s", path);
-				return (ARCHIVE_FAILED);
-			}
+	if (*fd < 0) {
+		path = archive_entry_sourcepath(entry);
+		if (path == NULL || (a->tree != NULL &&
+		    a->tree_enter_working_dir(a->tree) != 0))
+			path = archive_entry_pathname(entry);
+		if (path == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Couldn't determine file path to read "
+			    "extended attributes");
+			return (ARCHIVE_WARN);
+		}
+		if (a->tree != NULL && (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)) {
+			*fd = a->open_on_current_dir(a->tree,
+			    path, O_RDONLY | O_NONBLOCK);
 		}
 	}
 
@@ -1561,7 +1699,7 @@ setup_xattrs(struct archive_read_disk *a,
 		if (strncmp(p, "system.", 7) == 0 ||
 				strncmp(p, "xfsroot.", 8) == 0)
 			continue;
-		setup_xattr(a, entry, p, *fd);
+		setup_xattr(a, entry, p, *fd, path);
 	}
 
 	free(list);
@@ -1582,19 +1720,16 @@ setup_xattrs(struct archive_read_disk *a,
  */
 static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
-    int namespace, const char *name, const char *fullname, int fd);
+    int namespace, const char *name, const char *fullname, int fd,
+    const char *path);
 
 static int
 setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
-    int namespace, const char *name, const char *fullname, int fd)
+    int namespace, const char *name, const char *fullname, int fd,
+    const char *accpath)
 {
 	ssize_t size;
 	void *value = NULL;
-	const char *accpath;
-
-	accpath = archive_entry_sourcepath(entry);
-	if (accpath == NULL)
-		accpath = archive_entry_pathname(entry);
 
 	if (fd >= 0)
 		size = extattr_get_fd(fd, namespace, name, NULL, 0);
@@ -1644,21 +1779,23 @@ setup_xattrs(struct archive_read_disk *a,
 	const char *path;
 	int namespace = EXTATTR_NAMESPACE_USER;
 
-	path = archive_entry_sourcepath(entry);
-	if (path == NULL)
-		path = archive_entry_pathname(entry);
+	path = NULL;
 
-	if (*fd < 0 && a->tree != NULL) {
-		if (a->follow_symlinks ||
-		    archive_entry_filetype(entry) != AE_IFLNK)
-			*fd = a->open_on_current_dir(a->tree, path,
-				O_RDONLY | O_NONBLOCK);
-		if (*fd < 0) {
-			if (a->tree_enter_working_dir(a->tree) != 0) {
-				archive_set_error(&a->archive, errno,
-				    "Couldn't access %s", path);
-				return (ARCHIVE_FAILED);
-			}
+	if (*fd < 0) {
+		path = archive_entry_sourcepath(entry);
+		if (path == NULL || (a->tree != NULL &&
+		    a->tree_enter_working_dir(a->tree) != 0))
+			path = archive_entry_pathname(entry);
+		if (path == NULL) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Couldn't determine file path to read "
+			    "extended attributes");
+			return (ARCHIVE_WARN);
+		}
+		if (a->tree != NULL && (a->follow_symlinks ||
+		    archive_entry_filetype(entry) != AE_IFLNK)) {
+			*fd = a->open_on_current_dir(a->tree,
+			    path, O_RDONLY | O_NONBLOCK);
 		}
 	}
 
@@ -1708,7 +1845,7 @@ setup_xattrs(struct archive_read_disk *a,
 		name = buff + strlen(buff);
 		memcpy(name, p + 1, len);
 		name[len] = '\0';
-		setup_xattr(a, entry, namespace, name, buff, *fd);
+		setup_xattr(a, entry, namespace, name, buff, *fd, path);
 		p += 1 + len;
 	}
 
