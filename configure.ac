@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.3.1])
-m4_define([LIBARCHIVE_VERSION_N],[3003001])
+m4_define([LIBARCHIVE_VERSION_S],[3.3.2dev])
+m4_define([LIBARCHIVE_VERSION_N],[3003002])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -699,6 +699,7 @@ AC_ARG_ENABLE([acl],
 if test "x$enable_acl" != "xno"; then
    AC_CHECK_HEADERS([acl/libacl.h])
    AC_CHECK_HEADERS([sys/acl.h])
+   AC_CHECK_HEADERS([membership.h])
    AC_CHECK_LIB([acl],[acl_get_file])
    AC_CHECK_FUNCS([acl_create_entry acl_get_fd_np])
    AC_CHECK_FUNCS([acl_init acl_set_fd acl_set_fd_np acl_set_file])
@@ -737,31 +738,23 @@ if test "x$enable_acl" != "xno"; then
 	#endif
 	])
 
-    # Check for ACL_TYPE_NFS4
-    AC_CHECK_DECL([ACL_TYPE_NFS4],
-		[AC_DEFINE(HAVE_ACL_TYPE_NFS4, 1, [True for FreeBSD with NFSv4 ACL support])],
-		[],
-		[#include <sys/acl.h>])
+    # FreeBSD and POSIX
+    # MacOS has no ACL_USER in acl.h
+    AC_CHECK_DECLS([ACL_TYPE_NFS4, ACL_USER],
+		[], [],
+		[#include <sys/types.h>
+		#include <sys/acl.h>])
 
-    # MacOS has an acl.h that isn't POSIX.  It can be detected by
-    # checking for ACL_USER
-    AC_CHECK_DECL([ACL_USER],
-		[AC_DEFINE(HAVE_ACL_USER, 1, [True for systems with POSIX ACL support])],
-		[],
-		[#include <sys/acl.h>])
-
-    # MacOS has ACL_TYPE_EXTENDED instead
-    AC_CHECK_DECL([ACL_TYPE_EXTENDED],
-		[AC_DEFINE(HAVE_ACL_TYPE_EXTENDED, 1, [True for MacOS ACL support])],
-		[],
+    # FreeBSD and MacOS ACL support
+    AC_CHECK_DECLS([ACL_TYPE_EXTENDED, ACL_SYNCHRONIZE], [], [],
 		[#include <sys/types.h>
 		#include <sys/acl.h>])
 
     # Solaris and derivates ACLs
-    AC_CHECK_LIB([sec], [acl_get])
     AC_CHECK_TYPES([aclent_t], [], [], [[#include <sys/acl.h>]])
     AC_CHECK_TYPES([ace_t], [], [], [[#include <sys/acl.h>]])
-    AC_CHECK_FUNCS(acl_get facl_get acl_set facl_set)
+    AC_CHECK_FUNCS(acl facl)
+    AC_CHECK_DECLS([GETACL, SETACL, GETACLCNT, ACE_GETACL, ACE_SETACL, ACE_GETACLCNT], [], [], [#include <sys/acl.h>])
 fi
 
 # Additional requirements

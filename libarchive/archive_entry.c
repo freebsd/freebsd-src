@@ -401,7 +401,7 @@ archive_entry_fflags_text(struct archive_entry *entry)
 	return (NULL);
 }
 
-int64_t
+la_int64_t
 archive_entry_gid(struct archive_entry *entry)
 {
 	return (entry->ae_stat.aest_gid);
@@ -502,7 +502,7 @@ _archive_entry_hardlink_l(struct archive_entry *entry,
 	return (archive_mstring_get_mbs_l(&entry->ae_hardlink, p, len, sc));
 }
 
-int64_t
+la_int64_t
 archive_entry_ino(struct archive_entry *entry)
 {
 	return (entry->ae_stat.aest_ino);
@@ -514,7 +514,7 @@ archive_entry_ino_is_set(struct archive_entry *entry)
 	return (entry->ae_set & AE_SET_INO);
 }
 
-int64_t
+la_int64_t
 archive_entry_ino64(struct archive_entry *entry)
 {
 	return (entry->ae_stat.aest_ino);
@@ -627,7 +627,7 @@ archive_entry_rdevminor(struct archive_entry *entry)
 		return minor(entry->ae_stat.aest_rdev);
 }
 
-int64_t
+la_int64_t
 archive_entry_size(struct archive_entry *entry)
 {
 	return (entry->ae_stat.aest_size);
@@ -715,7 +715,7 @@ _archive_entry_symlink_l(struct archive_entry *entry,
 	return (archive_mstring_get_mbs_l( &entry->ae_symlink, p, len, sc));
 }
 
-int64_t
+la_int64_t
 archive_entry_uid(struct archive_entry *entry)
 {
 	return (entry->ae_stat.aest_uid);
@@ -819,7 +819,7 @@ archive_entry_copy_fflags_text_w(struct archive_entry *entry,
 }
 
 void
-archive_entry_set_gid(struct archive_entry *entry, int64_t g)
+archive_entry_set_gid(struct archive_entry *entry, la_int64_t g)
 {
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_gid = g;
@@ -868,7 +868,7 @@ _archive_entry_copy_gname_l(struct archive_entry *entry,
 }
 
 void
-archive_entry_set_ino(struct archive_entry *entry, int64_t ino)
+archive_entry_set_ino(struct archive_entry *entry, la_int64_t ino)
 {
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_INO;
@@ -876,7 +876,7 @@ archive_entry_set_ino(struct archive_entry *entry, int64_t ino)
 }
 
 void
-archive_entry_set_ino64(struct archive_entry *entry, int64_t ino)
+archive_entry_set_ino64(struct archive_entry *entry, la_int64_t ino)
 {
 	entry->stat_valid = 0;
 	entry->ae_set |= AE_SET_INO;
@@ -1209,7 +1209,7 @@ archive_entry_set_rdevminor(struct archive_entry *entry, dev_t m)
 }
 
 void
-archive_entry_set_size(struct archive_entry *entry, int64_t s)
+archive_entry_set_size(struct archive_entry *entry, la_int64_t s)
 {
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_size = s;
@@ -1306,7 +1306,7 @@ _archive_entry_copy_symlink_l(struct archive_entry *entry,
 }
 
 void
-archive_entry_set_uid(struct archive_entry *entry, int64_t u)
+archive_entry_set_uid(struct archive_entry *entry, la_int64_t u)
 {
 	entry->stat_valid = 0;
 	entry->ae_stat.aest_uid = u;
