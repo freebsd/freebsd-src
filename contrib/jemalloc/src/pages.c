@@ -207,7 +207,7 @@ pages_huge(void *addr, size_t size)
 	assert(PAGE_ADDR2BASE(addr) == addr);
 	assert(PAGE_CEILING(size) == size);
 
-#ifdef JEMALLOC_THP
+#ifdef JEMALLOC_HAVE_MADVISE_HUGE
 	return (madvise(addr, size, MADV_HUGEPAGE) != 0);
 #else
 	return (false);
@@ -221,7 +221,7 @@ pages_nohuge(void *addr, size_t size)
 	assert(PAGE_ADDR2BASE(addr) == addr);
 	assert(PAGE_CEILING(size) == size);
 
-#ifdef JEMALLOC_THP
+#ifdef JEMALLOC_HAVE_MADVISE_HUGE
 	return (madvise(addr, size, MADV_NOHUGEPAGE) != 0);
 #else
 	return (false);

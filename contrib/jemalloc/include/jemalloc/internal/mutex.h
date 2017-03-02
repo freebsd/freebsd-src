@@ -83,8 +83,8 @@ JEMALLOC_INLINE void
 malloc_mutex_lock(tsdn_t *tsdn, malloc_mutex_t *mutex)
 {
 
+	witness_assert_not_owner(tsdn, &mutex->witness);
 	if (isthreaded) {
-		witness_assert_not_owner(tsdn, &mutex->witness);
 #ifdef _WIN32
 #  if _WIN32_WINNT >= 0x0600
 		AcquireSRWLockExclusive(&mutex->lock);
@@ -98,16 +98,16 @@ malloc_mutex_lock(tsdn_t *tsdn, malloc_mutex_t *mutex)
 #else
 		pthread_mutex_lock(&mutex->lock);
 #endif
-		witness_lock(tsdn, &mutex->witness);
 	}
+	witness_lock(tsdn, &mutex->witness);
 }
 
 JEMALLOC_INLINE void
 malloc_mutex_unlock(tsdn_t *tsdn, malloc_mutex_t *mutex)
 {
 
+	witness_unlock(tsdn, &mutex->witness);
 	if (isthreaded) {
-		witness_unlock(tsdn, &mutex->witness);
 #ifdef _WIN32
 #  if _WIN32_WINNT >= 0x0600
 		ReleaseSRWLockExclusive(&mutex->lock);
@@ -128,16 +128,14 @@ JEMALLOC_INLINE void
 malloc_mutex_assert_owner(tsdn_t *tsdn, malloc_mutex_t *mutex)
 {
 
-	if (isthreaded)
-		witness_assert_owner(tsdn, &mutex->witness);
+	witness_assert_owner(tsdn, &mutex->witness);
 }
 
 JEMALLOC_INLINE void
 malloc_mutex_assert_not_owner(tsdn_t *tsdn, malloc_mutex_t *mutex)
 {
 
-	if (isthreaded)
-		witness_assert_not_owner(tsdn, &mutex->witness);
+	witness_assert_not_owner(tsdn, &mutex->witness);
 }
 #endif
 
