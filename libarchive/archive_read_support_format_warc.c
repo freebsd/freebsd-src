@@ -600,9 +600,10 @@ _warc_rdver(const char *buf, size_t bsz)
 	/* looks good so far, read the version number for a laugh */
 	buf += sizeof(magic) - 1U;
 
-	if (isdigit(buf[0U]) && (buf[1U] == '.') && isdigit(buf[2U])) {
+	if (isdigit((unsigned char)buf[0U]) && (buf[1U] == '.') &&
+	    isdigit((unsigned char)buf[2U])) {
 		/* we support a maximum of 2 digits in the minor version */
-		if (isdigit(buf[3U]))
+		if (isdigit((unsigned char)buf[3U]))
 			end = 1U;
 		/* set up major version */
 		ver = (buf[0U] - '0') * 10000U;
@@ -686,7 +687,7 @@ _warc_rduri(const char *buf, size_t bsz)
 
 	/* spaces inside uri are not allowed, CRLF should follow */
 	for (p = val; p < eol; p++) {
-		if (isspace(*p))
+		if (isspace((unsigned char)*p))
 			return res;
 	}
 
@@ -736,7 +737,7 @@ _warc_rdlen(const char *buf, size_t bsz)
 	while (val < eol && (*val == ' ' || *val == '\t'))
 		val++;
 	/* there must be at least one digit */
-	if (!isdigit(*val))
+	if (!isdigit((unsigned char)*val))
 		return -1;
 	len = strtol(val, &on, 10);
 	if (on != eol) {

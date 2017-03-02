@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 24, 2017
+.Dd February 25, 2017
 .Dt TAR 1
 .Os
 .Sh NAME
@@ -450,14 +450,7 @@ This is the reverse of
 .Fl p
 and the default behavior if
 .Nm
-is run as non-root and can be overridden by also specifying
-.Fl Fl acls ,
-.Fl Fl fflags ,
-.Fl Fl mac-metadata,
-.Fl Fl same-owner ,
-.Fl Fl same-permissions
-and
-.Fl Fl xattrs .
+is run as non-root.
 .It Fl Fl no-xattrs
 (c, r, u, x modes only)
 Do not archive or extract extended attributes. This is the reverse of
@@ -648,15 +641,15 @@ This option suppresses these behaviors.
 Preserve file permissions.
 Attempt to restore the full permissions, including owner, file modes, ACLs,
 extended atributes and extended file flags, if available, for each item
-extracted from the archive. This is the default, if
+extracted from the archive. This is te reverse of
+.Fl Fl no-same-permissions
+and the default if
 .Nm
-is being run by root and can be overridden by also specifying
+is being run by root and can be partially overridden by also specifying
 .Fl Fl no-acls ,
 .Fl Fl no-fflags ,
-.Fl Fl no-mac-metadata,
-.Fl Fl no-same-owner ,
-.Fl Fl no-same-permissions
-and
+.Fl Fl no-mac-metadata
+or
 .Fl Fl no-xattrs .
 .It Fl Fl passphrase Ar passphrase
 The

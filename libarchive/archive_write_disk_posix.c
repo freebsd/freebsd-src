@@ -2467,7 +2467,7 @@ fsobj_error(int *a_eno, struct archive_string *a_estr,
 	if (a_eno)
 		*a_eno = err;
 	if (a_estr)
-		archive_string_sprintf(a_estr, errstr, path);
+		archive_string_sprintf(a_estr, "%s%s", errstr, path);
 }
 
 /*
@@ -2573,7 +2573,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				 * with the deep-directory editing.
 				 */
 				fsobj_error(a_eno, a_estr, errno,
-				    "Could not stat %s", path);
+				    "Could not stat ", path);
 				res = ARCHIVE_FAILED;
 				break;
 			}
@@ -2582,7 +2582,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				if (chdir(head) != 0) {
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, errno,
-					    "Could not chdir %s", path);
+					    "Could not chdir ", path);
 					res = (ARCHIVE_FATAL);
 					break;
 				}
@@ -2599,7 +2599,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				if (unlink(head)) {
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, errno,
-					    "Could not remove symlink %s",
+					    "Could not remove symlink ",
 					    path);
 					res = ARCHIVE_FAILED;
 					break;
@@ -2618,7 +2618,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				/*
 				if (!S_ISLNK(path)) {
 					fsobj_error(a_eno, a_estr, 0,
-					    "Removing symlink %s", path);
+					    "Removing symlink ", path);
 				}
 				*/
 				/* Symlink gone.  No more problem! */
@@ -2630,7 +2630,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, 0,
 					    "Cannot remove intervening "
-					    "symlink %s", path);
+					    "symlink ", path);
 					res = ARCHIVE_FAILED;
 					break;
 				}
@@ -2652,7 +2652,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 					} else {
 						fsobj_error(a_eno, a_estr,
 						    errno,
-						    "Could not stat %s", path);
+						    "Could not stat ", path);
 						res = (ARCHIVE_FAILED);
 						break;
 					}
@@ -2661,7 +2661,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 						tail[0] = c;
 						fsobj_error(a_eno, a_estr,
 						    errno,
-						    "Could not chdir %s", path);
+						    "Could not chdir ", path);
 						res = (ARCHIVE_FATAL);
 						break;
 					}
@@ -2674,14 +2674,14 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, 0,
 					    "Cannot extract through "
-					    "symlink %s", path);
+					    "symlink ", path);
 					res = ARCHIVE_FAILED;
 					break;
 				}
 			} else {
 				tail[0] = c;
 				fsobj_error(a_eno, a_estr, 0,
-				    "Cannot extract through symlink %s", path);
+				    "Cannot extract through symlink ", path);
 				res = ARCHIVE_FAILED;
 				break;
 			}
