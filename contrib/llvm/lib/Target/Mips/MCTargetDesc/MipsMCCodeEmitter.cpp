@@ -129,7 +129,8 @@ void MipsMCCodeEmitter::LowerCompactBranch(MCInst& Inst) const {
   unsigned Reg0 =  Ctx.getRegisterInfo()->getEncodingValue(RegOp0);
   unsigned Reg1 =  Ctx.getRegisterInfo()->getEncodingValue(RegOp1);
 
-  if (Inst.getOpcode() == Mips::BNEC || Inst.getOpcode() == Mips::BEQC) {
+  if (Inst.getOpcode() == Mips::BNEC || Inst.getOpcode() == Mips::BEQC ||
+      Inst.getOpcode() == Mips::BNEC64 || Inst.getOpcode() == Mips::BEQC64) {
     assert(Reg0 != Reg1 && "Instruction has bad operands ($rs == $rt)!");
     if (Reg0 < Reg1)
       return;
@@ -141,7 +142,7 @@ void MipsMCCodeEmitter::LowerCompactBranch(MCInst& Inst) const {
     if (Reg1 >= Reg0)
       return;
   } else
-   llvm_unreachable("Cannot rewrite unknown branch!");
+    llvm_unreachable("Cannot rewrite unknown branch!");
 
   Inst.getOperand(0).setReg(RegOp1);
   Inst.getOperand(1).setReg(RegOp0);
@@ -210,6 +211,8 @@ encodeInstruction(const MCInst &MI, raw_ostream &OS,
   // Compact branches, enforce encoding restrictions.
   case Mips::BEQC:
   case Mips::BNEC:
+  case Mips::BEQC64:
+  case Mips::BNEC64:
   case Mips::BOVC:
   case Mips::BOVC_MMR6:
   case Mips::BNVC:
@@ -332,6 +335,30 @@ getBranchTargetOpValueMMR6(const MCInst &MI, unsigned OpNo,
   return 0;
 }
 
+/// getBranchTargetOpValueLsl2MMR6 - Return binary encoding of the branch
+/// target operand. If the machine operand requires relocation,
+/// record the relocation and return zero.
+unsigned MipsMCCodeEmitter::
+getBranchTargetOpValueLsl2MMR6(const MCInst &MI, unsigned OpNo,
+                               SmallVectorImpl<MCFixup> &Fixups,
+                               const MCSubtargetInfo &STI) const {
+
+  const MCOperand &MO = MI.getOperand(OpNo);
+
+  // If the destination is an immediate, divide by 4.
+  if (MO.isImm())
+    return MO.getImm() >> 2;
+
+  assert(MO.isExpr() &&
+         "getBranchTargetOpValueLsl2MMR6 expects only expressions or immediates");
+
+  const MCExpr *FixupExpression = MCBinaryExpr::createAdd(
+      MO.getExpr(), MCConstantExpr::create(-4, Ctx), Ctx);
+  Fixups.push_back(MCFixup::create(0, FixupExpression,
+                                   MCFixupKind(Mips::fixup_Mips_PC16)));
+  return 0;
+}
+
 /// getBranchTarget7OpValueMM - Return binary encoding of the microMIPS branch
 /// target operand. If the machine operand requires relocation,
 /// record the relocation and return zero.
@@ -432,8 +459,8 @@ getBranchTarget21OpValueMM(const MCInst &MI, unsigned OpNo,
 
   const MCOperand &MO = MI.getOperand(OpNo);
 
-  // If the destination is an immediate, divide by 2.
-  if (MO.isImm()) return MO.getImm() >> 1;
+  // If the destination is an immediate, divide by 4.
+  if (MO.isImm()) return MO.getImm() >> 2;
 
   assert(MO.isExpr() &&
     "getBranchTarget21OpValueMM expects only expressions or immediates");
@@ -634,7 +661,6 @@ getExprOpValue(const MCExpr *Expr, SmallVectorImpl<MCFixup> &Fixups,
 
     Mips::Fixups FixupKind = Mips::Fixups(0);
     switch (MipsExpr->getKind()) {
-    case MipsMCExpr::MEK_NEG:
     case MipsMCExpr::MEK_None:
     case MipsMCExpr::MEK_Special:
       llvm_unreachable("Unhandled fixup kind!");
@@ -731,6 +757,10 @@ getExprOpValue(const MCExpr *Expr, SmallVectorImpl<MCFixup> &Fixups,
     case MipsMCExpr::MEK_TPREL_LO:
       FixupKind = isMicroMips(STI) ? Mips::fixup_MICROMIPS_TLS_TPREL_LO16
                                    : Mips::fixup_Mips_TPREL_LO;
+      break;
+    case MipsMCExpr::MEK_NEG:
+      FixupKind =
+          isMicroMips(STI) ? Mips::fixup_MICROMIPS_SUB : Mips::fixup_Mips_SUB;
       break;
     }
     Fixups.push_back(MCFixup::create(0, MipsExpr, MCFixupKind(FixupKind)));

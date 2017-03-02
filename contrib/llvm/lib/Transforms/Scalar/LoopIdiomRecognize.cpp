@@ -11,6 +11,12 @@
 // non-loop form.  In cases that this kicks in, it can be a significant
 // performance win.
 //
+// If compiling for code size we avoid idiom recognition if the resulting
+// code could be larger than the code for the original loop. One way this could
+// happen is if the loop is not removable after idiom recognition due to the
+// presence of non-idiom instructions. The initial implementation of the
+// heuristics applies to idioms in multi-block loops.
+//
 //===----------------------------------------------------------------------===//
 //
 // TODO List:
@@ -40,7 +46,6 @@
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/LoopAccessAnalysis.h"
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/LoopPassManager.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
@@ -55,6 +60,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
@@ -64,6 +70,12 @@ using namespace llvm;
 
 STATISTIC(NumMemSet, "Number of memset's formed from loop stores");
 STATISTIC(NumMemCpy, "Number of memcpy's formed from loop load+stores");
+
+static cl::opt<bool> UseLIRCodeSizeHeurs(
+    "use-lir-code-size-heurs",
+    cl::desc("Use loop idiom recognition code size heuristics when compiling"
+             "with -Os/-Oz"),
+    cl::init(true), cl::Hidden);
 
 namespace {
 
@@ -76,6 +88,7 @@ class LoopIdiomRecognize {
   TargetLibraryInfo *TLI;
   const TargetTransformInfo *TTI;
   const DataLayout *DL;
+  bool ApplyCodeSizeHeuristics;
 
 public:
   explicit LoopIdiomRecognize(AliasAnalysis *AA, DominatorTree *DT,
@@ -117,8 +130,10 @@ private:
                                Instruction *TheStore,
                                SmallPtrSetImpl<Instruction *> &Stores,
                                const SCEVAddRecExpr *Ev, const SCEV *BECount,
-                               bool NegStride);
+                               bool NegStride, bool IsLoopMemset = false);
   bool processLoopStoreOfLoopLoad(StoreInst *SI, const SCEV *BECount);
+  bool avoidLIRForMultiBlockLoop(bool IsMemset = false,
+                                 bool IsLoopMemset = false);
 
   /// @}
   /// \name Noncountable Loop Idiom Handling
@@ -171,24 +186,12 @@ public:
 };
 } // End anonymous namespace.
 
-PreservedAnalyses LoopIdiomRecognizePass::run(Loop &L,
-                                              AnalysisManager<Loop> &AM) {
-  const auto &FAM =
-      AM.getResult<FunctionAnalysisManagerLoopProxy>(L).getManager();
-  Function *F = L.getHeader()->getParent();
-
-  // Use getCachedResult because Loop pass cannot trigger a function analysis.
-  auto *AA = FAM.getCachedResult<AAManager>(*F);
-  auto *DT = FAM.getCachedResult<DominatorTreeAnalysis>(*F);
-  auto *LI = FAM.getCachedResult<LoopAnalysis>(*F);
-  auto *SE = FAM.getCachedResult<ScalarEvolutionAnalysis>(*F);
-  auto *TLI = FAM.getCachedResult<TargetLibraryAnalysis>(*F);
-  const auto *TTI = FAM.getCachedResult<TargetIRAnalysis>(*F);
+PreservedAnalyses LoopIdiomRecognizePass::run(Loop &L, LoopAnalysisManager &AM,
+                                              LoopStandardAnalysisResults &AR,
+                                              LPMUpdater &) {
   const auto *DL = &L.getHeader()->getModule()->getDataLayout();
-  assert((AA && DT && LI && SE && TLI && TTI && DL) &&
-         "Analyses for Loop Idiom Recognition not available");
 
-  LoopIdiomRecognize LIR(AA, DT, LI, SE, TLI, TTI, DL);
+  LoopIdiomRecognize LIR(&AR.AA, &AR.DT, &AR.LI, &AR.SE, &AR.TLI, &AR.TTI, DL);
   if (!LIR.runOnLoop(&L))
     return PreservedAnalyses::all();
 
@@ -228,6 +231,10 @@ bool LoopIdiomRecognize::runOnLoop(Loop *L) {
   StringRef Name = L->getHeader()->getParent()->getName();
   if (Name == "memset" || Name == "memcpy")
     return false;
+
+  // Determine if code size heuristics need to be applied.
+  ApplyCodeSizeHeuristics =
+      L->getHeader()->getParent()->optForSize() && UseLIRCodeSizeHeurs;
 
   HasMemset = TLI->has(LibFunc::memset);
   HasMemsetPattern = TLI->has(LibFunc::memset_pattern16);
@@ -689,7 +696,7 @@ bool LoopIdiomRecognize::processLoopMemSet(MemSetInst *MSI,
   bool NegStride = SizeInBytes == -Stride;
   return processLoopStridedStore(Pointer, (unsigned)SizeInBytes,
                                  MSI->getAlignment(), SplatValue, MSI, MSIs, Ev,
-                                 BECount, NegStride);
+                                 BECount, NegStride, /*IsLoopMemset=*/true);
 }
 
 /// mayLoopAccessLocation - Return true if the specified loop might access the
@@ -745,7 +752,7 @@ bool LoopIdiomRecognize::processLoopStridedStore(
     Value *DestPtr, unsigned StoreSize, unsigned StoreAlignment,
     Value *StoredVal, Instruction *TheStore,
     SmallPtrSetImpl<Instruction *> &Stores, const SCEVAddRecExpr *Ev,
-    const SCEV *BECount, bool NegStride) {
+    const SCEV *BECount, bool NegStride, bool IsLoopMemset) {
   Value *SplatValue = isBytewiseValue(StoredVal);
   Constant *PatternValue = nullptr;
 
@@ -785,6 +792,9 @@ bool LoopIdiomRecognize::processLoopStridedStore(
     RecursivelyDeleteTriviallyDeadInstructions(BasePtr, TLI);
     return false;
   }
+
+  if (avoidLIRForMultiBlockLoop(/*IsMemset=*/true, IsLoopMemset))
+    return false;
 
   // Okay, everything looks good, insert the memset.
 
@@ -917,6 +927,9 @@ bool LoopIdiomRecognize::processLoopStoreOfLoopLoad(StoreInst *SI,
     return false;
   }
 
+  if (avoidLIRForMultiBlockLoop())
+    return false;
+
   // Okay, everything is safe, we can transform this!
 
   // The # stored bytes is (BECount+1)*Size.  Expand the trip count out to
@@ -948,6 +961,23 @@ bool LoopIdiomRecognize::processLoopStoreOfLoopLoad(StoreInst *SI,
   return true;
 }
 
+// When compiling for codesize we avoid idiom recognition for a multi-block loop
+// unless it is a loop_memset idiom or a memset/memcpy idiom in a nested loop.
+//
+bool LoopIdiomRecognize::avoidLIRForMultiBlockLoop(bool IsMemset,
+                                                   bool IsLoopMemset) {
+  if (ApplyCodeSizeHeuristics && CurLoop->getNumBlocks() > 1) {
+    if (!CurLoop->getParentLoop() && (!IsMemset || !IsLoopMemset)) {
+      DEBUG(dbgs() << "  " << CurLoop->getHeader()->getParent()->getName()
+                   << " : LIR " << (IsMemset ? "Memset" : "Memcpy")
+                   << " avoided: multi-block top-level loop\n");
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool LoopIdiomRecognize::runOnNoncountableLoop() {
   return recognizePopcount();
 }
@@ -955,7 +985,7 @@ bool LoopIdiomRecognize::runOnNoncountableLoop() {
 /// Check if the given conditional branch is based on the comparison between
 /// a variable and zero, and if the variable is non-zero, the control yields to
 /// the loop entry. If the branch matches the behavior, the variable involved
-/// in the comparion is returned. This function will be called to see if the
+/// in the comparison is returned. This function will be called to see if the
 /// precondition and postcondition of the loop are in desirable form.
 static Value *matchCondition(BranchInst *BI, BasicBlock *LoopEntry) {
   if (!BI || !BI->isConditional())
@@ -1139,9 +1169,7 @@ bool LoopIdiomRecognize::recognizePopcount() {
 
   // It should have a preheader containing nothing but an unconditional branch.
   BasicBlock *PH = CurLoop->getLoopPreheader();
-  if (!PH)
-    return false;
-  if (&PH->front() != PH->getTerminator())
+  if (!PH || &PH->front() != PH->getTerminator())
     return false;
   auto *EntryBI = dyn_cast<BranchInst>(PH->getTerminator());
   if (!EntryBI || EntryBI->isConditional())

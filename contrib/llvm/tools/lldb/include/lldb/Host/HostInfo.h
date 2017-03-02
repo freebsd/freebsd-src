@@ -38,7 +38,7 @@
 #include "lldb/Host/windows/HostInfoWindows.h"
 #define HOST_INFO_TYPE HostInfoWindows
 #elif defined(__linux__)
-#if defined(__ANDROID_NDK__)
+#if defined(__ANDROID__)
 #include "lldb/Host/android/HostInfoAndroid.h"
 #define HOST_INFO_TYPE HostInfoAndroid
 #else
@@ -59,8 +59,7 @@
 #define HOST_INFO_TYPE HostInfoPosix
 #endif
 
-namespace lldb_private
-{
+namespace lldb_private {
 typedef HOST_INFO_TYPE HostInfo;
 }
 

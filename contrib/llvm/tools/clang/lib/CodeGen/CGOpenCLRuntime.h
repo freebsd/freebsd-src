@@ -33,9 +33,11 @@ class CGOpenCLRuntime {
 protected:
   CodeGenModule &CGM;
   llvm::Type *PipeTy;
+  llvm::PointerType *SamplerTy;
 
 public:
-  CGOpenCLRuntime(CodeGenModule &CGM) : CGM(CGM), PipeTy(nullptr) {}
+  CGOpenCLRuntime(CodeGenModule &CGM) : CGM(CGM), PipeTy(nullptr),
+    SamplerTy(nullptr) {}
   virtual ~CGOpenCLRuntime();
 
   /// Emit the IR required for a work-group-local variable declaration, and add
@@ -47,6 +49,16 @@ public:
   virtual llvm::Type *convertOpenCLSpecificType(const Type *T);
 
   virtual llvm::Type *getPipeType();
+
+  llvm::PointerType *getSamplerType();
+
+  // \brief Returnes a value which indicates the size in bytes of the pipe
+  // element.
+  virtual llvm::Value *getPipeElemSize(const Expr *PipeArg);
+
+  // \brief Returnes a value which indicates the alignment in bytes of the pipe
+  // element.
+  virtual llvm::Value *getPipeElemAlign(const Expr *PipeArg);
 };
 
 }

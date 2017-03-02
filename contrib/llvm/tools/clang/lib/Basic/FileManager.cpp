@@ -26,10 +26,13 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
-#include <map>
-#include <set>
+#include <algorithm>
+#include <cassert>
+#include <climits>
+#include <cstdint>
+#include <cstdlib>
 #include <string>
-#include <system_error>
+#include <utility>
 
 using namespace clang;
 
@@ -137,7 +140,7 @@ void FileManager::addAncestorsAsVirtualDirs(StringRef Path) {
 
   // Add the virtual directory to the cache.
   auto UDE = llvm::make_unique<DirectoryEntry>();
-  UDE->Name = NamedDirEnt.first().data();
+  UDE->Name = NamedDirEnt.first();
   NamedDirEnt.second = UDE.get();
   VirtualDirectoryEntries.push_back(std::move(UDE));
 
@@ -182,7 +185,7 @@ const DirectoryEntry *FileManager::getDirectory(StringRef DirName,
 
   // Get the null-terminated directory name as stored as the key of the
   // SeenDirEntries map.
-  const char *InterndDirName = NamedDirEnt.first().data();
+  StringRef InterndDirName = NamedDirEnt.first();
 
   // Check to see if the directory exists.
   FileData Data;
@@ -200,7 +203,7 @@ const DirectoryEntry *FileManager::getDirectory(StringRef DirName,
   DirectoryEntry &UDE = UniqueRealDirs[Data.UniqueID];
 
   NamedDirEnt.second = &UDE;
-  if (!UDE.getName()) {
+  if (UDE.getName().empty()) {
     // We don't have this directory yet, add it.  We use the string
     // key from the SeenDirEntries map as the string.
     UDE.Name  = InterndDirName;
@@ -229,7 +232,7 @@ const FileEntry *FileManager::getFile(StringRef Filename, bool openFile,
 
   // Get the null-terminated file name as stored as the key of the
   // SeenFileEntries map.
-  const char *InterndFileName = NamedFileEnt.first().data();
+  StringRef InterndFileName = NamedFileEnt.first();
 
   // Look up the directory for the file.  When looking up something like
   // sys/foo.h we'll discover all of the search directories that have a 'sys'
@@ -420,7 +423,7 @@ FileManager::getBufferForFile(const FileEntry *Entry, bool isVolatile,
   if (isVolatile)
     FileSize = -1;
 
-  const char *Filename = Entry->getName();
+  StringRef Filename = Entry->getName();
   // If the file is already open, use the open file descriptor.
   if (Entry->File) {
     auto Result =
@@ -460,7 +463,7 @@ FileManager::getBufferForFile(StringRef Filename) {
 /// if the path points to a virtual file or does not exist, or returns
 /// false if it's an existent real file.  If FileDescriptor is NULL,
 /// do directory look-up instead of file look-up.
-bool FileManager::getStatValue(const char *Path, FileData &Data, bool isFile,
+bool FileManager::getStatValue(StringRef Path, FileData &Data, bool isFile,
                                std::unique_ptr<vfs::File> *F) {
   // FIXME: FileSystemOpts shouldn't be passed in here, all paths should be
   // absolute!
@@ -497,7 +500,6 @@ void FileManager::invalidateCache(const FileEntry *Entry) {
   UniqueRealFiles.erase(Entry->getUniqueID());
 }
 
-
 void FileManager::GetUniqueIDMapping(
                    SmallVectorImpl<const FileEntry *> &UIDToFiles) const {
   UIDToFiles.clear();
@@ -533,7 +535,7 @@ StringRef FileManager::getCanonicalName(const DirectoryEntry *Dir) {
 
 #ifdef LLVM_ON_UNIX
   char CanonicalNameBuf[PATH_MAX];
-  if (realpath(Dir->getName(), CanonicalNameBuf))
+  if (realpath(Dir->getName().str().c_str(), CanonicalNameBuf))
     CanonicalName = StringRef(CanonicalNameBuf).copy(CanonicalNameStorage);
 #else
   SmallString<256> CanonicalNameBuf(CanonicalName);

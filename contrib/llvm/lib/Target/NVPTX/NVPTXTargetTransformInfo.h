@@ -41,13 +41,6 @@ public:
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl()),
         TLI(ST->getTargetLowering()) {}
 
-  // Provide value semantics. MSVC requires that we spell all of these out.
-  NVPTXTTIImpl(const NVPTXTTIImpl &Arg)
-      : BaseT(static_cast<const BaseT &>(Arg)), ST(Arg.ST), TLI(Arg.TLI) {}
-  NVPTXTTIImpl(NVPTXTTIImpl &&Arg)
-      : BaseT(std::move(static_cast<BaseT &>(Arg))), ST(std::move(Arg.ST)),
-        TLI(std::move(Arg.TLI)) {}
-
   bool hasBranchDivergence() { return true; }
 
   bool isSourceOfDivergence(const Value *V);
@@ -61,7 +54,8 @@ public:
       TTI::OperandValueKind Opd1Info = TTI::OK_AnyValue,
       TTI::OperandValueKind Opd2Info = TTI::OK_AnyValue,
       TTI::OperandValueProperties Opd1PropInfo = TTI::OP_None,
-      TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None);
+      TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None,
+      ArrayRef<const Value *> Args = ArrayRef<const Value *>());
 
   void getUnrollingPreferences(Loop *L, TTI::UnrollingPreferences &UP);
 };

@@ -219,7 +219,8 @@ static bool StripSymbolNames(Module &M, bool PreserveDbgInfo) {
     if (I.hasLocalLinkage() && llvmUsedValues.count(&I) == 0)
       if (!PreserveDbgInfo || !I.getName().startswith("llvm.dbg"))
         I.setName(""); // Internal symbols can't participate in linkage
-    StripSymtab(I.getValueSymbolTable(), PreserveDbgInfo);
+    if (auto *Symtab = I.getValueSymbolTable())
+      StripSymtab(*Symtab, PreserveDbgInfo);
   }
 
   // Remove all names from types.
@@ -312,26 +313,29 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
   // replace the current list of potentially dead global variables/functions
   // with the live list.
   SmallVector<Metadata *, 64> LiveGlobalVariables;
-  SmallVector<Metadata *, 64> LiveSubprograms;
-  DenseSet<const MDNode *> VisitedSet;
+  DenseSet<DIGlobalVariableExpression *> VisitedSet;
 
-  std::set<DISubprogram *> LiveSPs;
-  for (Function &F : M) {
-    if (DISubprogram *SP = F.getSubprogram())
-      LiveSPs.insert(SP);
+  std::set<DIGlobalVariableExpression *> LiveGVs;
+  for (GlobalVariable &GV : M.globals()) {
+    SmallVector<DIGlobalVariableExpression *, 1> GVEs;
+    GV.getDebugInfo(GVEs);
+    for (auto *GVE : GVEs)
+      LiveGVs.insert(GVE);
   }
 
   for (DICompileUnit *DIC : F.compile_units()) {
     // Create our live global variable list.
     bool GlobalVariableChange = false;
-    for (DIGlobalVariable *DIG : DIC->getGlobalVariables()) {
+    for (auto *DIG : DIC->getGlobalVariables()) {
+      if (DIG->getExpression() && DIG->getExpression()->isConstant())
+        LiveGVs.insert(DIG);
+
       // Make sure we only visit each global variable only once.
       if (!VisitedSet.insert(DIG).second)
         continue;
 
-      // If the global variable referenced by DIG is not null, the global
-      // variable is live.
-      if (DIG->getVariable())
+      // If a global variable references DIG, the global variable is live.
+      if (LiveGVs.count(DIG))
         LiveGlobalVariables.push_back(DIG);
       else
         GlobalVariableChange = true;
@@ -345,7 +349,6 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
     }
 
     // Reset lists for the next iteration.
-    LiveSubprograms.clear();
     LiveGlobalVariables.clear();
   }
 

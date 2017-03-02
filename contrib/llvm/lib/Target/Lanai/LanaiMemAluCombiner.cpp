@@ -61,7 +61,7 @@ public:
     initializeLanaiMemAluCombinerPass(*PassRegistry::getPassRegistry());
   }
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "Lanai load / store optimization pass";
   }
 
@@ -69,7 +69,7 @@ public:
 
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::AllVRegsAllocated);
+        MachineFunctionProperties::Property::NoVRegs);
   }
 
 private:
@@ -338,6 +338,9 @@ MbbIterator LanaiMemAluCombiner::findClosestSuitableAluInstr(
 
   while (First != Last) {
     Decrement ? --First : ++First;
+
+    if (First == Last)
+      break;
 
     // Skip over debug instructions
     if (First->isDebugValue())

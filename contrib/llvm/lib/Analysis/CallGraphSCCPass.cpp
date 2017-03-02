@@ -67,9 +67,7 @@ public:
     Info.setPreservesAll();
   }
 
-  const char *getPassName() const override {
-    return "CallGraph Pass Manager";
-  }
+  StringRef getPassName() const override { return "CallGraph Pass Manager"; }
 
   PMDataManager *getAsPMDataManager() override { return this; }
   Pass *getAsPass() override { return this; }
@@ -100,7 +98,7 @@ private:
   bool RunPassOnSCC(Pass *P, CallGraphSCC &CurSCC,
                     CallGraph &CG, bool &CallGraphUpToDate,
                     bool &DevirtualizedCall);
-  bool RefreshCallGraph(CallGraphSCC &CurSCC, CallGraph &CG,
+  bool RefreshCallGraph(const CallGraphSCC &CurSCC, CallGraph &CG,
                         bool IsCheckingMode);
 };
 
@@ -175,8 +173,8 @@ bool CGPassManager::RunPassOnSCC(Pass *P, CallGraphSCC &CurSCC,
 /// a function pass like GVN optimizes away stuff feeding the indirect call.
 /// This never happens in checking mode.
 ///
-bool CGPassManager::RefreshCallGraph(CallGraphSCC &CurSCC,
-                                     CallGraph &CG, bool CheckingMode) {
+bool CGPassManager::RefreshCallGraph(const CallGraphSCC &CurSCC, CallGraph &CG,
+                                     bool CheckingMode) {
   DenseMap<Value*, CallGraphNode*> CallSites;
   
   DEBUG(dbgs() << "CGSCCPASSMGR: Refreshing SCC with " << CurSCC.size()
@@ -450,7 +448,7 @@ bool CGPassManager::runOnModule(Module &M) {
     // Copy the current SCC and increment past it so that the pass can hack
     // on the SCC if it wants to without invalidating our iterator.
     const std::vector<CallGraphNode *> &NodeVec = *CGI;
-    CurSCC.initialize(NodeVec.data(), NodeVec.data() + NodeVec.size());
+    CurSCC.initialize(NodeVec);
     ++CGI;
 
     // At the top level, we run all the passes in this pass manager on the

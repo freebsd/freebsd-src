@@ -173,14 +173,20 @@ static Cursor lexName(Cursor C, MIToken &Token, MIToken::TokenKind Type,
   return C;
 }
 
-static Cursor maybeLexIntegerType(Cursor C, MIToken &Token) {
-  if (C.peek() != 'i' || !isdigit(C.peek(1)))
+static Cursor maybeLexIntegerOrScalarType(Cursor C, MIToken &Token) {
+  if ((C.peek() != 'i' && C.peek() != 's' && C.peek() != 'p') ||
+      !isdigit(C.peek(1)))
     return None;
+  char Kind = C.peek();
   auto Range = C;
-  C.advance(); // Skip 'i'
+  C.advance(); // Skip 'i', 's', or 'p'
   while (isdigit(C.peek()))
     C.advance();
-  Token.reset(MIToken::IntegerType, Range.upto(C));
+
+  Token.reset(Kind == 'i'
+                  ? MIToken::IntegerType
+                  : (Kind == 's' ? MIToken::ScalarType : MIToken::PointerType),
+              Range.upto(C));
   return C;
 }
 
@@ -199,12 +205,13 @@ static MIToken::TokenKind getIdentifierKind(StringRef Identifier) {
       .Case("tied-def", MIToken::kw_tied_def)
       .Case("frame-setup", MIToken::kw_frame_setup)
       .Case("debug-location", MIToken::kw_debug_location)
-      .Case(".cfi_same_value", MIToken::kw_cfi_same_value)
-      .Case(".cfi_offset", MIToken::kw_cfi_offset)
-      .Case(".cfi_def_cfa_register", MIToken::kw_cfi_def_cfa_register)
-      .Case(".cfi_def_cfa_offset", MIToken::kw_cfi_def_cfa_offset)
-      .Case(".cfi_def_cfa", MIToken::kw_cfi_def_cfa)
+      .Case("same_value", MIToken::kw_cfi_same_value)
+      .Case("offset", MIToken::kw_cfi_offset)
+      .Case("def_cfa_register", MIToken::kw_cfi_def_cfa_register)
+      .Case("def_cfa_offset", MIToken::kw_cfi_def_cfa_offset)
+      .Case("def_cfa", MIToken::kw_cfi_def_cfa)
       .Case("blockaddress", MIToken::kw_blockaddress)
+      .Case("intrinsic", MIToken::kw_intrinsic)
       .Case("target-index", MIToken::kw_target_index)
       .Case("half", MIToken::kw_half)
       .Case("float", MIToken::kw_float)
@@ -215,6 +222,7 @@ static MIToken::TokenKind getIdentifierKind(StringRef Identifier) {
       .Case("target-flags", MIToken::kw_target_flags)
       .Case("volatile", MIToken::kw_volatile)
       .Case("non-temporal", MIToken::kw_non_temporal)
+      .Case("dereferenceable", MIToken::kw_dereferenceable)
       .Case("invariant", MIToken::kw_invariant)
       .Case("align", MIToken::kw_align)
       .Case("stack", MIToken::kw_stack)
@@ -227,11 +235,13 @@ static MIToken::TokenKind getIdentifierKind(StringRef Identifier) {
       .Case("landing-pad", MIToken::kw_landing_pad)
       .Case("liveins", MIToken::kw_liveins)
       .Case("successors", MIToken::kw_successors)
+      .Case("floatpred", MIToken::kw_floatpred)
+      .Case("intpred", MIToken::kw_intpred)
       .Default(MIToken::Identifier);
 }
 
 static Cursor maybeLexIdentifier(Cursor C, MIToken &Token) {
-  if (!isalpha(C.peek()) && C.peek() != '_' && C.peek() != '.')
+  if (!isalpha(C.peek()) && C.peek() != '_')
     return None;
   auto Range = C;
   while (isIdentifierChar(C.peek()))
@@ -366,6 +376,11 @@ static Cursor lexVirtualRegister(Cursor C, MIToken &Token) {
   return C;
 }
 
+/// Returns true for a character allowed in a register name.
+static bool isRegisterChar(char C) {
+  return isIdentifierChar(C) && C != '.';
+}
+
 static Cursor maybeLexRegister(Cursor C, MIToken &Token) {
   if (C.peek() != '%')
     return None;
@@ -373,7 +388,7 @@ static Cursor maybeLexRegister(Cursor C, MIToken &Token) {
     return lexVirtualRegister(C, Token);
   auto Range = C;
   C.advance(); // Skip '%'
-  while (isIdentifierChar(C.peek()))
+  while (isRegisterChar(C.peek()))
     C.advance();
   Token.reset(MIToken::NamedRegister, Range.upto(C))
       .setStringValue(Range.upto(C).drop_front(1)); // Drop the '%'
@@ -409,19 +424,6 @@ static bool isValidHexFloatingPointPrefix(char C) {
   return C == 'H' || C == 'K' || C == 'L' || C == 'M';
 }
 
-static Cursor maybeLexHexFloatingPointLiteral(Cursor C, MIToken &Token) {
-  if (C.peek() != '0' || C.peek(1) != 'x')
-    return None;
-  Cursor Range = C;
-  C.advance(2); // Skip '0x'
-  if (isValidHexFloatingPointPrefix(C.peek()))
-    C.advance();
-  while (isxdigit(C.peek()))
-    C.advance();
-  Token.reset(MIToken::FloatingPointLiteral, Range.upto(C));
-  return C;
-}
-
 static Cursor lexFloatingPointLiteral(Cursor Range, Cursor C, MIToken &Token) {
   C.advance();
   // Skip over [0-9]*([eE][-+]?[0-9]+)?
@@ -435,6 +437,28 @@ static Cursor lexFloatingPointLiteral(Cursor Range, Cursor C, MIToken &Token) {
       C.advance();
   }
   Token.reset(MIToken::FloatingPointLiteral, Range.upto(C));
+  return C;
+}
+
+static Cursor maybeLexHexadecimalLiteral(Cursor C, MIToken &Token) {
+  if (C.peek() != '0' || (C.peek(1) != 'x' && C.peek(1) != 'X'))
+    return None;
+  Cursor Range = C;
+  C.advance(2);
+  unsigned PrefLen = 2;
+  if (isValidHexFloatingPointPrefix(C.peek())) {
+    C.advance();
+    PrefLen++;
+  }
+  while (isxdigit(C.peek()))
+    C.advance();
+  StringRef StrVal = Range.upto(C);
+  if (StrVal.size() <= PrefLen)
+    return None;
+  if (PrefLen == 2)
+    Token.reset(MIToken::HexLiteral, Range.upto(C));
+  else // It must be 3, which means that there was a floating-point prefix.
+    Token.reset(MIToken::FloatingPointLiteral, Range.upto(C));
   return C;
 }
 
@@ -485,6 +509,8 @@ static MIToken::TokenKind symbolToken(char C) {
   switch (C) {
   case ',':
     return MIToken::comma;
+  case '.':
+    return MIToken::dot;
   case '=':
     return MIToken::equal;
   case ':':
@@ -566,7 +592,7 @@ StringRef llvm::lexMIToken(StringRef Source, MIToken &Token,
     return C.remaining();
   }
 
-  if (Cursor R = maybeLexIntegerType(C, Token))
+  if (Cursor R = maybeLexIntegerOrScalarType(C, Token))
     return R.remaining();
   if (Cursor R = maybeLexMachineBasicBlock(C, Token, ErrorCallback))
     return R.remaining();
@@ -592,7 +618,7 @@ StringRef llvm::lexMIToken(StringRef Source, MIToken &Token,
     return R.remaining();
   if (Cursor R = maybeLexExternalSymbol(C, Token, ErrorCallback))
     return R.remaining();
-  if (Cursor R = maybeLexHexFloatingPointLiteral(C, Token))
+  if (Cursor R = maybeLexHexadecimalLiteral(C, Token))
     return R.remaining();
   if (Cursor R = maybeLexNumericalLiteral(C, Token))
     return R.remaining();

@@ -17,6 +17,13 @@
 
 #include "AMDGPUIntrinsicInfo.h"
 #include "AMDGPUSubtarget.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/Support/CodeGen.h"
+#include "llvm/Target/TargetMachine.h"
+#include <memory>
 
 namespace llvm {
 
@@ -37,10 +44,10 @@ public:
                       StringRef FS, TargetOptions Options,
                       Optional<Reloc::Model> RM, CodeModel::Model CM,
                       CodeGenOpt::Level OL);
-  ~AMDGPUTargetMachine();
+  ~AMDGPUTargetMachine() override;
 
   const AMDGPUSubtarget *getSubtargetImpl() const;
-  const AMDGPUSubtarget *getSubtargetImpl(const Function &) const override;
+  const AMDGPUSubtarget *getSubtargetImpl(const Function &) const override = 0;
 
   const AMDGPUIntrinsicInfo *getIntrinsicInfo() const override {
     return &IntrinsicInfo;
@@ -50,6 +57,7 @@ public:
   TargetLoweringObjectFile *getObjFileLowering() const override {
     return TLOF.get();
   }
+  void addEarlyAsPossiblePasses(PassManagerBase &PM) override;
 };
 
 //===----------------------------------------------------------------------===//
@@ -90,13 +98,6 @@ public:
   const SISubtarget *getSubtargetImpl(const Function &) const override;
 };
 
-inline const AMDGPUSubtarget *AMDGPUTargetMachine::getSubtargetImpl(
-  const Function &F) const {
-  if (getTargetTriple().getArch() == Triple::amdgcn)
-    return static_cast<const GCNTargetMachine *>(this)->getSubtargetImpl(F);
-  return static_cast<const R600TargetMachine *>(this)->getSubtargetImpl(F);
-}
+} // end namespace llvm
 
-} // End namespace llvm
-
-#endif
+#endif // LLVM_LIB_TARGET_AMDGPU_AMDGPUTARGETMACHINE_H

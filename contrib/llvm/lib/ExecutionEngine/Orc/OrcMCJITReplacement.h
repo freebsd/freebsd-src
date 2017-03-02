@@ -14,18 +14,40 @@
 #ifndef LLVM_LIB_EXECUTIONENGINE_ORC_ORCMCJITREPLACEMENT_H
 #define LLVM_LIB_EXECUTIONENGINE_ORC_ORCMCJITREPLACEMENT_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/ExecutionEngine/GenericValue.h"
+#include "llvm/ExecutionEngine/JITSymbol.h"
+#include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "llvm/ExecutionEngine/Orc/CompileUtils.h"
 #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
 #include "llvm/ExecutionEngine/Orc/LazyEmittingLayer.h"
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/Object/Archive.h"
+#include "llvm/Object/Binary.h"
+#include "llvm/Object/ObjectFile.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <algorithm>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
 namespace llvm {
 namespace orc {
 
 class OrcMCJITReplacement : public ExecutionEngine {
-
   // OrcMCJITReplacement needs to do a little extra book-keeping to ensure that
   // Orc's automatic finalization doesn't kick in earlier than MCJIT clients are
   // expecting - see finalizeMemory.
@@ -111,17 +133,18 @@ class OrcMCJITReplacement : public ExecutionEngine {
     std::shared_ptr<MCJITMemoryManager> ClientMM;
   };
 
-  class LinkingResolver : public RuntimeDyld::SymbolResolver {
+  class LinkingResolver : public JITSymbolResolver {
   public:
     LinkingResolver(OrcMCJITReplacement &M) : M(M) {}
 
-    RuntimeDyld::SymbolInfo findSymbol(const std::string &Name) override {
-      return M.findMangledSymbol(Name);
+    JITSymbol findSymbol(const std::string &Name) override {
+      return M.ClientResolver->findSymbol(Name);
     }
 
-    RuntimeDyld::SymbolInfo
-    findSymbolInLogicalDylib(const std::string &Name) override {
-      return M.ClientResolver->findSymbol(Name);
+    JITSymbol findSymbolInLogicalDylib(const std::string &Name) override {
+      if (auto Sym = M.findMangledSymbol(Name))
+        return Sym;
+      return M.ClientResolver->findSymbolInLogicalDylib(Name);
     }
 
   private:
@@ -133,7 +156,7 @@ private:
   static ExecutionEngine *
   createOrcMCJITReplacement(std::string *ErrorMsg,
                             std::shared_ptr<MCJITMemoryManager> MemMgr,
-                            std::shared_ptr<RuntimeDyld::SymbolResolver> Resolver,
+                            std::shared_ptr<JITSymbolResolver> Resolver,
                             std::unique_ptr<TargetMachine> TM) {
     return new OrcMCJITReplacement(std::move(MemMgr), std::move(Resolver),
                                    std::move(TM));
@@ -146,7 +169,7 @@ public:
 
   OrcMCJITReplacement(
       std::shared_ptr<MCJITMemoryManager> MemMgr,
-      std::shared_ptr<RuntimeDyld::SymbolResolver> ClientResolver,
+      std::shared_ptr<JITSymbolResolver> ClientResolver,
       std::unique_ptr<TargetMachine> TM)
       : ExecutionEngine(TM->createDataLayout()), TM(std::move(TM)),
         MemMgr(*this, std::move(MemMgr)), Resolver(*this),
@@ -193,7 +216,7 @@ public:
     return findSymbol(Name).getAddress();
   }
 
-  RuntimeDyld::SymbolInfo findSymbol(StringRef Name) {
+  JITSymbol findSymbol(StringRef Name) {
     return findMangledSymbol(Mangle(Name));
   }
 
@@ -242,14 +265,13 @@ public:
   }
 
 private:
-
-  RuntimeDyld::SymbolInfo findMangledSymbol(StringRef Name) {
+  JITSymbol findMangledSymbol(StringRef Name) {
     if (auto Sym = LazyEmitLayer.findSymbol(Name, false))
-      return Sym.toRuntimeDyldSymbol();
+      return Sym;
     if (auto Sym = ClientResolver->findSymbol(Name))
       return Sym;
     if (auto Sym = scanArchives(Name))
-      return Sym.toRuntimeDyldSymbol();
+      return Sym;
 
     return nullptr;
   }
@@ -305,7 +327,6 @@ private:
     }
 
   private:
-
     static const object::ObjectFile& getObject(const object::ObjectFile &Obj) {
       return Obj;
     }
@@ -322,6 +343,7 @@ private:
   class NotifyFinalizedT {
   public:
     NotifyFinalizedT(OrcMCJITReplacement &M) : M(M) {}
+
     void operator()(ObjectLinkingLayerBase::ObjSetHandleT H) {
       M.UnfinalizedSections.erase(H);
     }
@@ -346,7 +368,7 @@ private:
   std::unique_ptr<TargetMachine> TM;
   MCJITReplacementMemMgr MemMgr;
   LinkingResolver Resolver;
-  std::shared_ptr<RuntimeDyld::SymbolResolver> ClientResolver;
+  std::shared_ptr<JITSymbolResolver> ClientResolver;
   Mangler Mang;
 
   NotifyObjectLoadedT NotifyObjectLoaded;
@@ -373,7 +395,7 @@ private:
   std::vector<object::OwningBinary<object::Archive>> Archives;
 };
 
-} // End namespace orc.
-} // End namespace llvm.
+} // end namespace orc
+} // end namespace llvm
 
 #endif // LLVM_LIB_EXECUTIONENGINE_ORC_MCJITREPLACEMENT_H

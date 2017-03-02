@@ -59,10 +59,14 @@ static const char *getPNSStr(ProfileNameSpecifier PNS) {
 }
 
 #define MAX_PID_SIZE 16
-/* Data structure holding the result of parsed filename pattern.  */
+/* Data structure holding the result of parsed filename pattern. */
 typedef struct lprofFilename {
   /* File name string possibly with %p or %h specifiers. */
   const char *FilenamePat;
+  /* A flag indicating if FilenamePat's memory is allocated
+   * by runtime. */
+  unsigned OwnsFilenamePat;
+  const char *ProfilePathPrefix;
   char PidChars[MAX_PID_SIZE];
   char Hostname[COMPILER_RT_MAX_HOSTLEN];
   unsigned NumPids;
@@ -78,7 +82,8 @@ typedef struct lprofFilename {
   ProfileNameSpecifier PNS;
 } lprofFilename;
 
-lprofFilename lprofCurFilename = {0, {0}, {0}, 0, 0, 0, PNS_unknown};
+COMPILER_RT_WEAK lprofFilename lprofCurFilename = {0, 0, 0, {0}, {0},
+                                                   0, 0, 0, PNS_unknown};
 
 int getpid(void);
 static int getCurFilenameLength();
@@ -229,15 +234,16 @@ static void truncateCurrentFile(void) {
     return;
 
   /* Create the directory holding the file, if needed. */
-  if (strchr(Filename, DIR_SEPARATOR)
-#if defined(DIR_SEPARATOR_2)
-      || strchr(Filename, DIR_SEPARATOR_2)
-#endif
-          ) {
+  if (lprofFindFirstDirSeparator(Filename)) {
     char *Copy = (char *)COMPILER_RT_ALLOCA(Length + 1);
     strncpy(Copy, Filename, Length + 1);
     __llvm_profile_recursive_mkdir(Copy);
   }
+
+  /* By pass file truncation to allow online raw profile
+   * merging. */
+  if (lprofCurFilename.MergePoolSize)
+    return;
 
   /* Truncate the file.  Later we'll reopen and append. */
   File = fopen(Filename, "w");
@@ -248,6 +254,9 @@ static void truncateCurrentFile(void) {
 
 static const char *DefaultProfileName = "default.profraw";
 static void resetFilenameToDefault(void) {
+  if (lprofCurFilename.FilenamePat && lprofCurFilename.OwnsFilenamePat) {
+    free((void *)lprofCurFilename.FilenamePat);
+  }
   memset(&lprofCurFilename, 0, sizeof(lprofCurFilename));
   lprofCurFilename.FilenamePat = DefaultProfileName;
   lprofCurFilename.PNS = PNS_default;
@@ -263,31 +272,46 @@ static int containsMergeSpecifier(const char *FilenamePat, int I) {
 
 /* Parses the pattern string \p FilenamePat and stores the result to
  * lprofcurFilename structure. */
-static int parseFilenamePattern(const char *FilenamePat) {
+static int parseFilenamePattern(const char *FilenamePat,
+                                unsigned CopyFilenamePat) {
   int NumPids = 0, NumHosts = 0, I;
   char *PidChars = &lprofCurFilename.PidChars[0];
   char *Hostname = &lprofCurFilename.Hostname[0];
   int MergingEnabled = 0;
 
-  lprofCurFilename.FilenamePat = FilenamePat;
+  /* Clean up cached prefix.  */
+  if (lprofCurFilename.ProfilePathPrefix)
+    free((void *)lprofCurFilename.ProfilePathPrefix);
+  memset(&lprofCurFilename, 0, sizeof(lprofCurFilename));
+
+  if (lprofCurFilename.FilenamePat && lprofCurFilename.OwnsFilenamePat) {
+    free((void *)lprofCurFilename.FilenamePat);
+  }
+
+  if (!CopyFilenamePat)
+    lprofCurFilename.FilenamePat = FilenamePat;
+  else {
+    lprofCurFilename.FilenamePat = strdup(FilenamePat);
+    lprofCurFilename.OwnsFilenamePat = 1;
+  }
   /* Check the filename for "%p", which indicates a pid-substitution. */
   for (I = 0; FilenamePat[I]; ++I)
     if (FilenamePat[I] == '%') {
       if (FilenamePat[++I] == 'p') {
         if (!NumPids++) {
           if (snprintf(PidChars, MAX_PID_SIZE, "%d", getpid()) <= 0) {
-            PROF_WARN(
-                "Unable to parse filename pattern %s. Using the default name.",
-                FilenamePat);
+            PROF_WARN("Unable to get pid for filename pattern %s. Using the "
+                      "default name.",
+                      FilenamePat);
             return -1;
           }
         }
       } else if (FilenamePat[I] == 'h') {
         if (!NumHosts++)
           if (COMPILER_RT_GETHOSTNAME(Hostname, COMPILER_RT_MAX_HOSTLEN)) {
-            PROF_WARN(
-                "Unable to parse filename pattern %s. Using the default name.",
-                FilenamePat);
+            PROF_WARN("Unable to get hostname for filename pattern %s. Using "
+                      "the default name.",
+                      FilenamePat);
             return -1;
           }
       } else if (containsMergeSpecifier(FilenamePat, I)) {
@@ -312,7 +336,8 @@ static int parseFilenamePattern(const char *FilenamePat) {
 }
 
 static void parseAndSetFilename(const char *FilenamePat,
-                                ProfileNameSpecifier PNS) {
+                                ProfileNameSpecifier PNS,
+                                unsigned CopyFilenamePat) {
 
   const char *OldFilenamePat = lprofCurFilename.FilenamePat;
   ProfileNameSpecifier OldPNS = lprofCurFilename.PNS;
@@ -323,33 +348,28 @@ static void parseAndSetFilename(const char *FilenamePat,
   if (!FilenamePat)
     FilenamePat = DefaultProfileName;
 
-  /* When -fprofile-instr-generate=<path> is specified on the
-   * command line, each module will be instrumented with runtime
-   * init call to __llvm_profile_init function which calls
-   * __llvm_profile_override_default_filename. In most of the cases,
-   * the path will be identical, so bypass the parsing completely.
-   */
   if (OldFilenamePat && !strcmp(OldFilenamePat, FilenamePat)) {
     lprofCurFilename.PNS = PNS;
     return;
   }
 
   /* When PNS >= OldPNS, the last one wins. */
-  if (!FilenamePat || parseFilenamePattern(FilenamePat))
+  if (!FilenamePat || parseFilenamePattern(FilenamePat, CopyFilenamePat))
     resetFilenameToDefault();
   lprofCurFilename.PNS = PNS;
 
   if (!OldFilenamePat) {
-    PROF_NOTE("Set profile file path to \"%s\" via %s.\n",
-              lprofCurFilename.FilenamePat, getPNSStr(PNS));
+    if (getenv("LLVM_PROFILE_VERBOSE"))
+      PROF_NOTE("Set profile file path to \"%s\" via %s.\n",
+                lprofCurFilename.FilenamePat, getPNSStr(PNS));
   } else {
-    PROF_NOTE("Override old profile path \"%s\" via %s to \"%s\" via %s.\n",
-              OldFilenamePat, getPNSStr(OldPNS), lprofCurFilename.FilenamePat,
-              getPNSStr(PNS));
+    if (getenv("LLVM_PROFILE_VERBOSE"))
+      PROF_NOTE("Override old profile path \"%s\" via %s to \"%s\" via %s.\n",
+                OldFilenamePat, getPNSStr(OldPNS), lprofCurFilename.FilenamePat,
+                getPNSStr(PNS));
   }
 
-  if (!lprofCurFilename.MergePoolSize)
-    truncateCurrentFile();
+  truncateCurrentFile();
 }
 
 /* Return buffer length that is required to store the current profile
@@ -429,16 +449,61 @@ static const char *getFilenamePatFromEnv(void) {
   return Filename;
 }
 
+COMPILER_RT_VISIBILITY
+const char *__llvm_profile_get_path_prefix(void) {
+  int Length;
+  char *FilenameBuf, *Prefix;
+  const char *Filename, *PrefixEnd;
+
+  if (lprofCurFilename.ProfilePathPrefix)
+    return lprofCurFilename.ProfilePathPrefix;
+
+  Length = getCurFilenameLength();
+  FilenameBuf = (char *)COMPILER_RT_ALLOCA(Length + 1);
+  Filename = getCurFilename(FilenameBuf);
+  if (!Filename)
+    return "\0";
+
+  PrefixEnd = lprofFindLastDirSeparator(Filename);
+  if (!PrefixEnd)
+    return "\0";
+
+  Length = PrefixEnd - Filename + 1;
+  Prefix = (char *)malloc(Length + 1);
+  if (!Prefix) {
+    PROF_ERR("Failed to %s\n", "allocate memory.");
+    return "\0";
+  }
+  memcpy(Prefix, Filename, Length);
+  Prefix[Length] = '\0';
+  lprofCurFilename.ProfilePathPrefix = Prefix;
+  return Prefix;
+}
+
 /* This method is invoked by the runtime initialization hook
  * InstrProfilingRuntime.o if it is linked in. Both user specified
  * profile path via -fprofile-instr-generate= and LLVM_PROFILE_FILE
  * environment variable can override this default value. */
 COMPILER_RT_VISIBILITY
 void __llvm_profile_initialize_file(void) {
-  const char *FilenamePat;
+  const char *EnvFilenamePat;
+  const char *SelectedPat = NULL;
+  ProfileNameSpecifier PNS = PNS_unknown;
+  int hasCommandLineOverrider = (INSTR_PROF_PROFILE_NAME_VAR[0] != 0);
 
-  FilenamePat = getFilenamePatFromEnv();
-  parseAndSetFilename(FilenamePat, FilenamePat ? PNS_environment : PNS_default);
+  EnvFilenamePat = getFilenamePatFromEnv();
+  if (EnvFilenamePat) {
+    SelectedPat = EnvFilenamePat;
+    PNS = PNS_environment;
+  } else if (hasCommandLineOverrider) {
+    SelectedPat = INSTR_PROF_PROFILE_NAME_VAR;
+    PNS = PNS_command_line;
+  } else {
+    SelectedPat = NULL;
+    PNS = PNS_default;
+  }
+
+  parseAndSetFilename(SelectedPat, PNS, 0);
 }
 
 /* This API is directly called by the user application code. It has the
@@ -447,18 +512,7 @@ void __llvm_profile_initialize_file(void) {
  */
 COMPILER_RT_VISIBILITY
 void __llvm_profile_set_filename(const char *FilenamePat) {
-  parseAndSetFilename(FilenamePat, PNS_runtime_api);
-}
-
-/*
- * This API is invoked by the global initializers emitted by Clang/LLVM when
- * -fprofile-instr-generate=<..> is specified (vs -fprofile-instr-generate
- *  without an argument). This option has lower precedence than the
- *  LLVM_PROFILE_FILE environment variable.
- */
-COMPILER_RT_VISIBILITY
-void __llvm_profile_override_default_filename(const char *FilenamePat) {
-  parseAndSetFilename(FilenamePat, PNS_command_line);
+  parseAndSetFilename(FilenamePat, PNS_runtime_api, 1);
 }
 
 /* The public API for writing profile data into the file with name
@@ -470,6 +524,12 @@ int __llvm_profile_write_file(void) {
   int rc, Length;
   const char *Filename;
   char *FilenameBuf;
+
+  if (lprofProfileDumped()) {
+    PROF_NOTE("Profile data not written to file: %s.\n", 
+              "already written");
+    return 0;
+  }
 
   Length = getCurFilenameLength();
   FilenameBuf = (char *)COMPILER_RT_ALLOCA(Length + 1);
@@ -494,6 +554,18 @@ int __llvm_profile_write_file(void) {
   rc = writeFile(Filename);
   if (rc)
     PROF_ERR("Failed to write file \"%s\": %s\n", Filename, strerror(errno));
+  return rc;
+}
+
+COMPILER_RT_VISIBILITY
+int __llvm_profile_dump(void) {
+  if (!doMerging())
+    PROF_WARN("Later invocation of __llvm_profile_dump can lead to clobbering "
+              " of previously dumped profile data : %s. Either use %%m "
+              "in profile name or change profile name before dumping.\n",
+              "online profile merging is not on");
+  int rc = __llvm_profile_write_file();
+  lprofSetProfileDumped();
   return rc;
 }
 

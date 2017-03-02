@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Rewrite/Frontend/ASTConsumers.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
@@ -21,7 +20,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Rewrite/Core/HTMLRewrite.h"
 #include "clang/Rewrite/Core/Rewriter.h"
-#include "llvm/Support/MemoryBuffer.h"
+#include "clang/Rewrite/Frontend/ASTConsumers.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
@@ -65,7 +64,7 @@ void HTMLPrinter::HandleTranslationUnit(ASTContext &Ctx) {
   // Format the file.
   FileID FID = R.getSourceMgr().getMainFileID();
   const FileEntry* Entry = R.getSourceMgr().getFileEntryForID(FID);
-  const char* Name;
+  StringRef Name;
   // In some cases, in particular the case where the input is from stdin,
   // there is no entry.  Fall back to the memory buffer for a name in those
   // cases.

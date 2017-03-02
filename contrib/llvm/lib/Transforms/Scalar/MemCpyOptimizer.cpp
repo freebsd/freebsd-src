@@ -52,7 +52,7 @@ static int64_t GetOffsetFromIndex(const GEPOperator *GEP, unsigned Idx,
     if (OpC->isZero()) continue;  // No offset.
 
     // Handle struct indices, which add their field offset to the pointer.
-    if (StructType *STy = dyn_cast<StructType>(*GTI)) {
+    if (StructType *STy = GTI.getStructTypeOrNull()) {
       Offset += DL.getStructLayout(STy)->getElementOffset(OpC->getZExtValue());
       continue;
     }
@@ -489,7 +489,8 @@ static unsigned findCommonAlignment(const DataLayout &DL, const StoreInst *SI,
 // It will lift the store and its argument + that anything that
 // may alias with these.
 // The method returns true if it was successful.
-static bool moveUp(AliasAnalysis &AA, StoreInst *SI, Instruction *P) {
+static bool moveUp(AliasAnalysis &AA, StoreInst *SI, Instruction *P,
+                   const LoadInst *LI) {
   // If the store alias this position, early bail out.
   MemoryLocation StoreLoc = MemoryLocation::get(SI);
   if (AA.getModRefInfo(P, StoreLoc) != MRI_NoModRef)
@@ -506,11 +507,12 @@ static bool moveUp(AliasAnalysis &AA, StoreInst *SI, Instruction *P) {
   SmallVector<Instruction*, 8> ToLift;
 
   // Memory locations of lifted instructions.
-  SmallVector<MemoryLocation, 8> MemLocs;
-  MemLocs.push_back(StoreLoc);
+  SmallVector<MemoryLocation, 8> MemLocs{StoreLoc};
 
   // Lifted callsites.
   SmallVector<ImmutableCallSite, 8> CallSites;
+
+  const MemoryLocation LoadLoc = MemoryLocation::get(LI);
 
   for (auto I = --SI->getIterator(), E = P->getIterator(); I != E; --I) {
     auto *C = &*I;
@@ -521,23 +523,25 @@ static bool moveUp(AliasAnalysis &AA, StoreInst *SI, Instruction *P) {
     if (Args.erase(C))
       NeedLift = true;
     else if (MayAlias) {
-      NeedLift = std::any_of(MemLocs.begin(), MemLocs.end(),
-        [C, &AA](const MemoryLocation &ML) {
-          return AA.getModRefInfo(C, ML);
-        });
+      NeedLift = any_of(MemLocs, [C, &AA](const MemoryLocation &ML) {
+        return AA.getModRefInfo(C, ML);
+      });
 
       if (!NeedLift)
-        NeedLift = std::any_of(CallSites.begin(), CallSites.end(),
-          [C, &AA](const ImmutableCallSite &CS) {
-            return AA.getModRefInfo(C, CS);
-          });
+        NeedLift = any_of(CallSites, [C, &AA](const ImmutableCallSite &CS) {
+          return AA.getModRefInfo(C, CS);
+        });
     }
 
     if (!NeedLift)
       continue;
 
     if (MayAlias) {
-      if (auto CS = ImmutableCallSite(C)) {
+      // Since LI is implicitly moved downwards past the lifted instructions,
+      // none of them may modify its source.
+      if (AA.getModRefInfo(C, LoadLoc) & MRI_Mod)
+        return false;
+      else if (auto CS = ImmutableCallSite(C)) {
         // If we can't lift this before P, it's game over.
         if (AA.getModRefInfo(P, CS) != MRI_NoModRef)
           return false;
@@ -612,7 +616,7 @@ bool MemCpyOptPass::processStore(StoreInst *SI, BasicBlock::iterator &BBI) {
         // position if nothing alias the store memory after this and the store
         // destination is not in the range.
         if (P && P != SI) {
-          if (!moveUp(AA, SI, P))
+          if (!moveUp(AA, SI, P, LI))
             P = nullptr;
         }
 
@@ -1082,10 +1086,10 @@ bool MemCpyOptPass::processMemSetMemCpyDependence(MemCpyInst *MemCpy,
       DestSize = Builder.CreateZExt(DestSize, SrcSize->getType());
   }
 
-  Value *MemsetLen =
-      Builder.CreateSelect(Builder.CreateICmpULE(DestSize, SrcSize),
-                           ConstantInt::getNullValue(DestSize->getType()),
-                           Builder.CreateSub(DestSize, SrcSize));
+  Value *Ule = Builder.CreateICmpULE(DestSize, SrcSize);
+  Value *SizeDiff = Builder.CreateSub(DestSize, SrcSize);
+  Value *MemsetLen = Builder.CreateSelect(
+      Ule, ConstantInt::getNullValue(DestSize->getType()), SizeDiff);
   Builder.CreateMemSet(Builder.CreateGEP(Dest, SrcSize), MemSet->getOperand(1),
                        MemsetLen, Align);
 
@@ -1110,8 +1114,11 @@ bool MemCpyOptPass::processMemSetMemCpyDependence(MemCpyInst *MemCpy,
 /// The \p MemCpy must have a Constant length.
 bool MemCpyOptPass::performMemCpyToMemSetOptzn(MemCpyInst *MemCpy,
                                                MemSetInst *MemSet) {
-  // This only makes sense on memcpy(..., memset(...), ...).
-  if (MemSet->getRawDest() != MemCpy->getRawSource())
+  AliasAnalysis &AA = LookupAliasAnalysis();
+
+  // Make sure that memcpy(..., memset(...), ...), that is we are memsetting and
+  // memcpying from the same address. Otherwise it is hard to reason about.
+  if (!AA.isMustAlias(MemSet->getRawDest(), MemCpy->getRawSource()))
     return false;
 
   ConstantInt *CopySize = cast<ConstantInt>(MemCpy->getLength());

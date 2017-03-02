@@ -37,7 +37,7 @@
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VLDDQU instruction.
+/// This intrinsic corresponds to the <c> VLDDQU </c> instruction.
 ///
 /// \param __p
 ///    A pointer to a 128-bit integer vector containing integer values.
@@ -53,7 +53,7 @@ _mm_lddqu_si128(__m128i const *__p)
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VADDSUBPS instruction.
+/// This intrinsic corresponds to the <c> VADDSUBPS </c> instruction.
 ///
 /// \param __a
 ///    A 128-bit vector of [4 x float] containing the left source operand.
@@ -72,7 +72,7 @@ _mm_addsub_ps(__m128 __a, __m128 __b)
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VHADDPS instruction.
+/// This intrinsic corresponds to the <c> VHADDPS </c> instruction.
 ///
 /// \param __a
 ///    A 128-bit vector of [4 x float] containing one of the source operands.
@@ -95,7 +95,7 @@ _mm_hadd_ps(__m128 __a, __m128 __b)
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VHSUBPS instruction.
+/// This intrinsic corresponds to the <c> VHSUBPS </c> instruction.
 ///
 /// \param __a
 ///    A 128-bit vector of [4 x float] containing one of the source operands.
@@ -115,18 +115,18 @@ _mm_hsub_ps(__m128 __a, __m128 __b)
 
 /// \brief Moves and duplicates high-order (odd-indexed) values from a 128-bit
 ///    vector of [4 x float] to float values stored in a 128-bit vector of
-///    [4 x float].
-///    Bits [127:96] of the source are written to bits [127:96] and [95:64] of
-///    the destination.
-///    Bits [63:32] of the source are written to bits [63:32] and [31:0] of the
-///    destination.
+///    [4 x float]. 
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VMOVSHDUP instruction.
+/// This intrinsic corresponds to the <c> VMOVSHDUP </c> instruction.
 ///
 /// \param __a
-///    A 128-bit vector of [4 x float].
+///    A 128-bit vector of [4 x float]. \n
+///    Bits [127:96] of the source are written to bits [127:96] and [95:64] of
+///    the destination. \n
+///    Bits [63:32] of the source are written to bits [63:32] and [31:0] of the
+///    destination.
 /// \returns A 128-bit vector of [4 x float] containing the moved and duplicated
 ///    values.
 static __inline__ __m128 __DEFAULT_FN_ATTRS
@@ -135,20 +135,19 @@ _mm_movehdup_ps(__m128 __a)
   return __builtin_shufflevector((__v4sf)__a, (__v4sf)__a, 1, 1, 3, 3);
 }
 
-/// \brief Duplicates low-order (even-indexed) values from a 128-bit
-///    vector of [4 x float] to float values stored in a 128-bit vector of
-///    [4 x float].
-///    Bits [95:64] of the source are written to bits [127:96] and [95:64] of
-///    the destination.
-///    Bits [31:0] of the source are written to bits [63:32] and [31:0] of the
-///    destination.
+/// \brief Duplicates low-order (even-indexed) values from a 128-bit vector of
+///    [4 x float] to float values stored in a 128-bit vector of [4 x float]. 
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VMOVSLDUP instruction.
+/// This intrinsic corresponds to the <c> VMOVSLDUP </c> instruction.
 ///
 /// \param __a
-///    A 128-bit vector of [4 x float].
+///    A 128-bit vector of [4 x float] \n
+///    Bits [95:64] of the source are written to bits [127:96] and [95:64] of
+///    the destination. \n
+///    Bits [31:0] of the source are written to bits [63:32] and [31:0] of the
+///    destination.
 /// \returns A 128-bit vector of [4 x float] containing the moved and duplicated
 ///    values.
 static __inline__ __m128 __DEFAULT_FN_ATTRS
@@ -162,7 +161,7 @@ _mm_moveldup_ps(__m128 __a)
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VADDSUBPD instruction.
+/// This intrinsic corresponds to the <c> VADDSUBPD </c> instruction.
 ///
 /// \param __a
 ///    A 128-bit vector of [2 x double] containing the left source operand.
@@ -181,7 +180,7 @@ _mm_addsub_pd(__m128d __a, __m128d __b)
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VHADDPD instruction.
+/// This intrinsic corresponds to the <c> VHADDPD </c> instruction.
 ///
 /// \param __a
 ///    A 128-bit vector of [2 x double] containing one of the source operands.
@@ -204,7 +203,7 @@ _mm_hadd_pd(__m128d __a, __m128d __b)
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VHSUBPD instruction.
+/// This intrinsic corresponds to the <c> VHSUBPD </c> instruction.
 ///
 /// \param __a
 ///    A 128-bit vector of [2 x double] containing one of the source operands.
@@ -231,7 +230,7 @@ _mm_hsub_pd(__m128d __a, __m128d __b)
 /// __m128d _mm_loaddup_pd(double const * dp);
 /// \endcode
 ///
-/// This intrinsic corresponds to the \c VMOVDDUP instruction.
+/// This intrinsic corresponds to the <c> VMOVDDUP </c> instruction.
 ///
 /// \param dp
 ///    A pointer to a double-precision value to be moved and duplicated.
@@ -245,7 +244,7 @@ _mm_hsub_pd(__m128d __a, __m128d __b)
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c VMOVDDUP instruction.
+/// This intrinsic corresponds to the <c> VMOVDDUP </c> instruction.
 ///
 /// \param __a
 ///    A 128-bit vector of [2 x double]. Bits [63:0] are written to bits
@@ -272,7 +271,7 @@ _mm_movedup_pd(__m128d __a)
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c MONITOR instruction.
+/// This intrinsic corresponds to the <c> MONITOR </c> instruction.
 ///
 /// \param __p
 ///    The memory range to be monitored. The size of the range is determined by
@@ -293,7 +292,7 @@ _mm_monitor(void const *__p, unsigned __extensions, unsigned __hints)
 ///
 /// \headerfile <x86intrin.h>
 ///
-/// This intrinsic corresponds to the \c MWAIT instruction.
+/// This intrinsic corresponds to the <c> MWAIT </c> instruction.
 ///
 /// \param __extensions
 ///    Optional extensions for the monitoring state, which may vary by

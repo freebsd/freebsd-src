@@ -1112,7 +1112,7 @@ static bool HelperToDiagnoseMismatchedMethodsInGlobalPool(Sema &S,
                                       MatchingMethodDecl, Sema::MMS_loose)) {
       if (!Warned) {
         Warned = true;
-        S.Diag(AtLoc, diag::warning_multiple_selectors)
+        S.Diag(AtLoc, diag::warn_multiple_selectors)
           << Method->getSelector() << FixItHint::CreateInsertion(LParenLoc, "(")
           << FixItHint::CreateInsertion(RParenLoc, ")");
         S.Diag(Method->getLocation(), diag::note_method_declared_at)
@@ -1131,7 +1131,7 @@ static void DiagnoseMismatchedSelectors(Sema &S, SourceLocation AtLoc,
                                         SourceLocation RParenLoc,
                                         bool WarnMultipleSelectors) {
   if (!WarnMultipleSelectors ||
-      S.Diags.isIgnored(diag::warning_multiple_selectors, SourceLocation()))
+      S.Diags.isIgnored(diag::warn_multiple_selectors, SourceLocation()))
     return;
   bool Warned = false;
   for (Sema::GlobalMethodPool::iterator b = S.MethodPool.begin(),
@@ -1534,7 +1534,7 @@ bool Sema::CheckMessageArgumentTypes(QualType ReceiverType,
       const ObjCMethodDecl *OMD = SelectorsForTypoCorrection(Sel, ReceiverType);
       if (OMD && !OMD->isInvalidDecl()) {
         if (getLangOpts().ObjCAutoRefCount)
-          DiagID = diag::error_method_not_found_with_typo;
+          DiagID = diag::err_method_not_found_with_typo;
         else
           DiagID = isClassMessage ? diag::warn_class_method_not_found_with_typo
                                   : diag::warn_instance_method_not_found_with_typo;
@@ -1956,7 +1956,7 @@ ActOnClassPropertyRefExpr(IdentifierInfo &receiverName,
           if (CurMethod->isInstanceMethod()) {
             if (SuperType.isNull()) {
               // The current class does not have a superclass.
-              Diag(receiverNameLoc, diag::error_root_class_cannot_use_super)
+              Diag(receiverNameLoc, diag::err_root_class_cannot_use_super)
                 << CurMethod->getClassInterface()->getIdentifier();
               return ExprError();
             }
@@ -2165,7 +2165,7 @@ ExprResult Sema::ActOnSuperMessage(Scope *S,
 
   ObjCInterfaceDecl *Class = Method->getClassInterface();
   if (!Class) {
-    Diag(SuperLoc, diag::error_no_super_class_message)
+    Diag(SuperLoc, diag::err_no_super_class_message)
       << Method->getDeclName();
     return ExprError();
   }
@@ -2173,7 +2173,7 @@ ExprResult Sema::ActOnSuperMessage(Scope *S,
   QualType SuperTy(Class->getSuperClassType(), 0);
   if (SuperTy.isNull()) {
     // The current class does not have a superclass.
-    Diag(SuperLoc, diag::error_root_class_cannot_use_super)
+    Diag(SuperLoc, diag::err_root_class_cannot_use_super)
       << Class->getIdentifier();
     return ExprError();
   }
@@ -2539,6 +2539,10 @@ ExprResult Sema::BuildInstanceMessage(Expr *Receiver,
                                       SourceLocation RBracLoc,
                                       MultiExprArg ArgsIn,
                                       bool isImplicit) {
+  assert((Receiver || SuperLoc.isValid()) && "If the Receiver is null, the "
+                                             "SuperLoc must be valid so we can "
+                                             "use it instead.");
+
   // The location of the receiver.
   SourceLocation Loc = SuperLoc.isValid()? SuperLoc : Receiver->getLocStart();
   SourceRange RecRange =
@@ -2645,7 +2649,7 @@ ExprResult Sema::BuildInstanceMessage(Expr *Receiver,
       CollectMultipleMethodsInGlobalPool(Sel, Methods, true/*InstanceFirst*/,
                                          true/*CheckTheOther*/, typeBound);
       if (!Methods.empty()) {
-        // We chose the first method as the initial condidate, then try to
+        // We choose the first method as the initial candidate, then try to
         // select a better one.
         Method = Methods[0];
 
@@ -2701,7 +2705,7 @@ ExprResult Sema::BuildInstanceMessage(Expr *Receiver,
                                                false/*InstanceFirst*/,
                                                true/*CheckTheOther*/);
             if (!Methods.empty()) {
-              // We chose the first method as the initial condidate, then try
+              // We choose the first method as the initial candidate, then try
               // to select a better one.
               Method = Methods[0];
 
@@ -2789,7 +2793,7 @@ ExprResult Sema::BuildInstanceMessage(Expr *Receiver,
                                                  true/*InstanceFirst*/,
                                                  false/*CheckTheOther*/);
               if (!Methods.empty()) {
-                // We chose the first method as the initial condidate, then try
+                // We choose the first method as the initial candidate, then try
                 // to select a better one.
                 Method = Methods[0];
 

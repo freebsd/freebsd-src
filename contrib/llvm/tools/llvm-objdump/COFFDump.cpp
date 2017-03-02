@@ -17,6 +17,7 @@
 
 #include "llvm-objdump.h"
 #include "llvm/Object/COFF.h"
+#include "llvm/Object/COFFImportFile.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/SourceMgr.h"
@@ -176,12 +177,10 @@ resolveSectionAndAddress(const COFFObjectFile *Obj, const SymbolRef &Sym,
 // the function returns the symbol used for the relocation at the offset.
 static std::error_code resolveSymbol(const std::vector<RelocationRef> &Rels,
                                      uint64_t Offset, SymbolRef &Sym) {
-  for (std::vector<RelocationRef>::const_iterator I = Rels.begin(),
-                                                  E = Rels.end();
-                                                  I != E; ++I) {
-    uint64_t Ofs = I->getOffset();
+  for (auto &R : Rels) {
+    uint64_t Ofs = R.getOffset();
     if (Ofs == Offset) {
-      Sym = *I->getSymbol();
+      Sym = *R.getSymbol();
       return std::error_code();
     }
   }
@@ -353,7 +352,7 @@ static void printImportTables(const COFFObjectFile *Obj) {
     return;
   outs() << "The Import Tables:\n";
   for (const ImportDirectoryEntryRef &DirRef : Obj->import_directories()) {
-    const import_directory_table_entry *Dir;
+    const coff_import_directory_table_entry *Dir;
     StringRef Name;
     if (DirRef.getImportTableEntry(Dir)) return;
     if (DirRef.getName(Name)) return;
@@ -615,6 +614,29 @@ void llvm::printCOFFFileHeader(const object::ObjectFile *Obj) {
   printLoadConfiguration(file);
   printImportTables(file);
   printExportTable(file);
+}
+
+void llvm::printCOFFSymbolTable(const object::COFFImportFile *i) {
+  unsigned Index = 0;
+  bool IsCode = i->getCOFFImportHeader()->getType() == COFF::IMPORT_CODE;
+
+  for (const object::BasicSymbolRef &Sym : i->symbols()) {
+    std::string Name;
+    raw_string_ostream NS(Name);
+
+    Sym.printName(NS);
+    NS.flush();
+
+    outs() << "[" << format("%2d", Index) << "]"
+           << "(sec " << format("%2d", 0) << ")"
+           << "(fl 0x00)" // Flag bits, which COFF doesn't have.
+           << "(ty " << format("%3x", (IsCode && Index) ? 32 : 0) << ")"
+           << "(scl " << format("%3x", 0) << ") "
+           << "(nx " << 0 << ") "
+           << "0x" << format("%08x", 0) << " " << Name << '\n';
+
+    ++Index;
+  }
 }
 
 void llvm::printCOFFSymbolTable(const COFFObjectFile *coff) {

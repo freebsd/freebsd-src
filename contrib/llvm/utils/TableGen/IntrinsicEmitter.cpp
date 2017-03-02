@@ -213,10 +213,11 @@ enum IIT_Info {
   IIT_HALF_VEC_ARG = 30,
   IIT_SAME_VEC_WIDTH_ARG = 31,
   IIT_PTR_TO_ARG = 32,
-  IIT_VEC_OF_PTRS_TO_ELT = 33,
-  IIT_I128 = 34,
-  IIT_V512 = 35,
-  IIT_V1024 = 36
+  IIT_PTR_TO_ELT = 33,
+  IIT_VEC_OF_PTRS_TO_ELT = 34,
+  IIT_I128 = 35,
+  IIT_V512 = 36,
+  IIT_V1024 = 37
 };
 
 
@@ -251,7 +252,7 @@ static void EncodeFixedValueType(MVT::SimpleValueType VT,
 }
 
 #if defined(_MSC_VER) && !defined(__clang__)
-#pragma optimize("",off) // MSVC 2010 optimizer can't deal with this function.
+#pragma optimize("",off) // MSVC 2015 optimizer can't deal with this function.
 #endif
 
 static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
@@ -277,6 +278,8 @@ static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
       Sig.push_back(IIT_PTR_TO_ARG);
     else if (R->isSubClassOf("LLVMVectorOfPointersToElt"))
       Sig.push_back(IIT_VEC_OF_PTRS_TO_ELT);
+    else if (R->isSubClassOf("LLVMPointerToElt"))
+      Sig.push_back(IIT_PTR_TO_ELT);
     else
       Sig.push_back(IIT_ARG);
     return Sig.push_back((Number << 3) | ArgCodes[Number]);
@@ -287,10 +290,10 @@ static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
   unsigned Tmp = 0;
   switch (VT) {
   default: break;
-  case MVT::iPTRAny: ++Tmp; // FALL THROUGH.
-  case MVT::vAny: ++Tmp; // FALL THROUGH.
-  case MVT::fAny: ++Tmp; // FALL THROUGH.
-  case MVT::iAny: ++Tmp; // FALL THROUGH.
+  case MVT::iPTRAny: ++Tmp; LLVM_FALLTHROUGH;
+  case MVT::vAny: ++Tmp;    LLVM_FALLTHROUGH;
+  case MVT::fAny: ++Tmp;    LLVM_FALLTHROUGH;
+  case MVT::iAny: ++Tmp;    LLVM_FALLTHROUGH;
   case MVT::Any: {
     // If this is an "any" valuetype, then the type is the type of the next
     // type in the list specified to getIntrinsic().
@@ -643,6 +646,18 @@ void IntrinsicEmitter::EmitAttributes(const CodeGenIntrinsicTable &Ints,
           OS << ",";
         OS << "Attribute::ReadOnly";
         break;
+      case CodeGenIntrinsic::ReadInaccessibleMem:
+        if (addComma)
+          OS << ",";
+        OS << "Attribute::ReadOnly,";
+        OS << "Attribute::InaccessibleMemOnly";
+        break;
+      case CodeGenIntrinsic::ReadInaccessibleMemOrArgMem:
+        if (addComma)
+          OS << ",";
+        OS << "Attribute::ReadOnly,";
+        OS << "Attribute::InaccessibleMemOrArgMemOnly";
+        break;
       case CodeGenIntrinsic::WriteArgMem:
         if (addComma)
           OS << ",";
@@ -654,11 +669,32 @@ void IntrinsicEmitter::EmitAttributes(const CodeGenIntrinsicTable &Ints,
           OS << ",";
         OS << "Attribute::WriteOnly";
         break;
+      case CodeGenIntrinsic::WriteInaccessibleMem:
+        if (addComma)
+          OS << ",";
+        OS << "Attribute::WriteOnly,";
+        OS << "Attribute::InaccessibleMemOnly";
+        break;
+      case CodeGenIntrinsic::WriteInaccessibleMemOrArgMem:
+        if (addComma)
+          OS << ",";
+        OS << "Attribute::WriteOnly,";
+        OS << "Attribute::InaccessibleMemOrArgOnly";
+        break;
       case CodeGenIntrinsic::ReadWriteArgMem:
         if (addComma)
           OS << ",";
         OS << "Attribute::ArgMemOnly";
         break;
+      case CodeGenIntrinsic::ReadWriteInaccessibleMem:
+        if (addComma)
+          OS << ",";
+        OS << "Attribute::InaccessibleMemOnly";
+        break;
+      case CodeGenIntrinsic::ReadWriteInaccessibleMemOrArgMem:
+        if (addComma)
+          OS << ",";
+        OS << "Attribute::InaccessibleMemOrArgMemOnly";
       case CodeGenIntrinsic::ReadWriteMem:
         break;
       }
@@ -714,11 +750,11 @@ void IntrinsicEmitter::EmitIntrinsicToBuiltinMap(
   if (TargetOnly) {
     OS << "static " << TargetPrefix << "Intrinsic::ID "
        << "getIntrinsicFor" << CompilerName << "Builtin(const char "
-       << "*TargetPrefixStr, const char *BuiltinNameStr) {\n";
+       << "*TargetPrefixStr, StringRef BuiltinNameStr) {\n";
   } else {
     OS << "Intrinsic::ID Intrinsic::getIntrinsicFor" << CompilerName
        << "Builtin(const char "
-       << "*TargetPrefixStr, const char *BuiltinNameStr) {\n";
+       << "*TargetPrefixStr, StringRef BuiltinNameStr) {\n";
   }
   OS << "  static const char BuiltinNames[] = {\n";
   Table.EmitCharArray(OS);
@@ -730,13 +766,11 @@ void IntrinsicEmitter::EmitIntrinsicToBuiltinMap(
   OS << "    const char *getName() const {\n";
   OS << "      return &BuiltinNames[StrTabOffset];\n";
   OS << "    }\n";
-  OS << "    bool operator<(const char *RHS) const {\n";
-  OS << "      return strcmp(getName(), RHS) < 0;\n";
+  OS << "    bool operator<(StringRef RHS) const {\n";
+  OS << "      return strncmp(getName(), RHS.data(), RHS.size()) < 0;\n";
   OS << "    }\n";
   OS << "  };\n";
 
-
-  OS << "  StringRef BuiltinName(BuiltinNameStr);\n";
   OS << "  StringRef TargetPrefix(TargetPrefixStr);\n\n";
 
   // Note: this could emit significantly better code if we cared.
@@ -759,7 +793,7 @@ void IntrinsicEmitter::EmitIntrinsicToBuiltinMap(
     OS << "                              std::end(" << I->first << "Names),\n";
     OS << "                              BuiltinNameStr);\n";
     OS << "    if (I != std::end(" << I->first << "Names) &&\n";
-    OS << "        strcmp(I->getName(), BuiltinNameStr) == 0)\n";
+    OS << "        I->getName() == BuiltinNameStr)\n";
     OS << "      return I->IntrinID;\n";
     OS << "  }\n";
   }

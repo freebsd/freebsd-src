@@ -513,7 +513,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		MK_GDB=no MK_TESTS=no MK_LLD_IS_LD=no
+		MK_GDB=no MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -1825,6 +1825,9 @@ _elftctools=	lib/libelftc \
 # cross-build on a FreeBSD 10 host:
 _elftctools+=	usr.bin/addr2line
 .endif
+.if ${MK_LLD_IS_LD} != "no"
+_lld=		usr.bin/clang/lld
+.endif
 .elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 # If cross-building with an external binutils we still need to build strip for
 # the target (for at least crunchide).
@@ -1849,6 +1852,7 @@ cross-tools: .MAKE .PHONY
     ${LOCAL_XTOOL_DIRS} \
     ${_clang_libs} \
     ${_clang} \
+    ${_lld} \
     ${_binutils} \
     ${_elftctools} \
     ${_dtrace_tools} \

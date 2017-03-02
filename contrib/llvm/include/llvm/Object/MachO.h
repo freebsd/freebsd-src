@@ -194,7 +194,8 @@ public:
   typedef LoadCommandList::const_iterator load_command_iterator;
 
   static Expected<std::unique_ptr<MachOObjectFile>>
-  create(MemoryBufferRef Object, bool IsLittleEndian, bool Is64Bits);
+  create(MemoryBufferRef Object, bool IsLittleEndian, bool Is64Bits,
+         uint32_t UniversalCputype = 0, uint32_t UniversalIndex = 0);
 
   void moveSymbolNext(DataRefImpl &Symb) const override;
 
@@ -202,6 +203,8 @@ public:
   Expected<StringRef> getSymbolName(DataRefImpl Symb) const override;
 
   // MachO specific.
+  Error checkSymbolTable() const;
+
   std::error_code getIndirectName(DataRefImpl Symb, StringRef &Res) const;
   unsigned getSectionType(SectionRef Sec) const;
 
@@ -248,8 +251,8 @@ public:
   // TODO: Would be useful to have an iterator based version
   // of the load command interface too.
 
-  basic_symbol_iterator symbol_begin_impl() const override;
-  basic_symbol_iterator symbol_end_impl() const override;
+  basic_symbol_iterator symbol_begin() const override;
+  basic_symbol_iterator symbol_end() const override;
 
   // MachO specific.
   basic_symbol_iterator getSymbolByIndex(unsigned Index) const;
@@ -410,7 +413,8 @@ public:
 
   static Triple::ArchType getArch(uint32_t CPUType);
   static Triple getArchTriple(uint32_t CPUType, uint32_t CPUSubType,
-                              const char **McpuDefault = nullptr);
+                              const char **McpuDefault = nullptr,
+                              const char **ArchFlag = nullptr);
   static bool isValidArch(StringRef ArchFlag);
   static Triple getHostArch();
 
@@ -443,7 +447,8 @@ public:
 private:
 
   MachOObjectFile(MemoryBufferRef Object, bool IsLittleEndian, bool Is64Bits,
-                  Error &Err);
+                  Error &Err, uint32_t UniversalCputype = 0,
+                  uint32_t UniversalIndex = 0);
 
   uint64_t getSymbolValueImpl(DataRefImpl Symb) const override;
 

@@ -23,6 +23,12 @@ ASAN_FLAG(int, quarantine_size_mb, -1,
           "Size (in Mb) of quarantine used to detect use-after-free "
           "errors. Lower value may reduce memory usage but increase the "
           "chance of false negatives.")
+ASAN_FLAG(int, thread_local_quarantine_size_kb, -1,
+          "Size (in Kb) of thread local quarantine used to detect "
+          "use-after-free errors. Lower value may reduce memory usage but "
+          "increase the chance of false negatives. It is not advised to go "
+          "lower than 64Kb, otherwise frequent transfers to global quarantine "
+          "might affect performance.")
 ASAN_FLAG(int, redzone, 16,
           "Minimal size (in bytes) of redzones around heap objects. "
           "Requirement: redzone >= 16, is a power of two.")
@@ -102,7 +108,7 @@ ASAN_FLAG(bool, poison_array_cookie, true,
 // https://github.com/google/sanitizers/issues/309
 // TODO(glider,timurrrr): Fix known issues and enable this back.
 ASAN_FLAG(bool, alloc_dealloc_mismatch,
-          (SANITIZER_MAC == 0) && (SANITIZER_WINDOWS == 0),
+          !SANITIZER_MAC && !SANITIZER_WINDOWS && !SANITIZER_ANDROID,
           "Report errors on malloc/delete, new/free, new/delete[], etc.")
 
 ASAN_FLAG(bool, new_delete_type_mismatch, true,
@@ -133,6 +139,9 @@ ASAN_FLAG(int, detect_odr_violation, 2,
           "have different sizes")
 ASAN_FLAG(bool, dump_instruction_bytes, false,
           "If true, dump 16 bytes starting at the instruction that caused SEGV")
+ASAN_FLAG(bool, dump_registers, true,
+          "If true, dump values of CPU registers when SEGV happens. Only "
+          "available on OS X for now.")
 ASAN_FLAG(const char *, suppressions, "", "Suppressions file name.")
 ASAN_FLAG(bool, halt_on_error, true,
           "Crash the program after printing the first error report "

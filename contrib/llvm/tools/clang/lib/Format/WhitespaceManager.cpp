@@ -42,11 +42,6 @@ WhitespaceManager::Change::Change(
       TokenLength(0), PreviousEndOfTokenColumn(0), EscapedNewlineColumn(0),
       StartOfBlockComment(nullptr), IndentationOffset(0) {}
 
-void WhitespaceManager::reset() {
-  Changes.clear();
-  Replaces.clear();
-}
-
 void WhitespaceManager::replaceWhitespace(FormatToken &Tok, unsigned Newlines,
                                           unsigned IndentLevel, unsigned Spaces,
                                           unsigned StartOfTokenColumn,
@@ -432,7 +427,7 @@ void WhitespaceManager::alignTrailingComments(unsigned Start, unsigned End,
     }
     assert(Shift >= 0);
     Changes[i].Spaces += Shift;
-    if (i + 1 != End)
+    if (i + 1 != Changes.size())
       Changes[i + 1].PreviousEndOfTokenColumn += Shift;
     Changes[i].StartOfTokenColumn += Shift;
   }
@@ -502,8 +497,14 @@ void WhitespaceManager::storeReplacement(SourceRange Range,
   if (StringRef(SourceMgr.getCharacterData(Range.getBegin()),
                 WhitespaceLength) == Text)
     return;
-  Replaces.insert(tooling::Replacement(
+  auto Err = Replaces.add(tooling::Replacement(
       SourceMgr, CharSourceRange::getCharRange(Range), Text));
+  // FIXME: better error handling. For now, just print an error message in the
+  // release version.
+  if (Err) {
+    llvm::errs() << llvm::toString(std::move(Err)) << "\n";
+    assert(false);
+  }
 }
 
 void WhitespaceManager::appendNewlineText(std::string &Text,

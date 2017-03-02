@@ -30,7 +30,7 @@ ThreadContext::ThreadContext(int tid)
   , epoch1() {
 }
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 ThreadContext::~ThreadContext() {
 }
 #endif
@@ -68,8 +68,9 @@ void ThreadContext::OnCreated(void *arg) {
 
 void ThreadContext::OnReset() {
   CHECK_EQ(sync.size(), 0);
-  FlushUnneededShadowMemory(GetThreadTrace(tid), TraceSize() * sizeof(Event));
-  //!!! FlushUnneededShadowMemory(GetThreadTraceHeader(tid), sizeof(Trace));
+  uptr trace_p = GetThreadTrace(tid);
+  ReleaseMemoryPagesToOS(trace_p, trace_p + TraceSize() * sizeof(Event));
+  //!!! ReleaseMemoryToOS(GetThreadTraceHeader(tid), sizeof(Trace));
 }
 
 void ThreadContext::OnDetached(void *arg) {
@@ -94,7 +95,7 @@ void ThreadContext::OnStarted(void *arg) {
   epoch1 = (u64)-1;
   new(thr) ThreadState(ctx, tid, unique_id, epoch0, reuse_count,
       args->stk_addr, args->stk_size, args->tls_addr, args->tls_size);
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   thr->shadow_stack = &ThreadTrace(thr->tid)->shadow_stack[0];
   thr->shadow_stack_pos = thr->shadow_stack;
   thr->shadow_stack_end = thr->shadow_stack + kShadowStackSize;
@@ -125,6 +126,12 @@ void ThreadContext::OnStarted(void *arg) {
 }
 
 void ThreadContext::OnFinished() {
+#if SANITIZER_GO
+  internal_free(thr->shadow_stack);
+  thr->shadow_stack = nullptr;
+  thr->shadow_stack_pos = nullptr;
+  thr->shadow_stack_end = nullptr;
+#endif
   if (!detached) {
     thr->fast_state.IncrementEpoch();
     // Can't increment epoch w/o writing to the trace as well.
@@ -142,7 +149,7 @@ void ThreadContext::OnFinished() {
   thr = 0;
 }
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 struct ThreadLeak {
   ThreadContext *tctx;
   int count;
@@ -164,7 +171,7 @@ static void MaybeReportThreadLeak(ThreadContextBase *tctx_base, void *arg) {
 }
 #endif
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 static void ReportIgnoresEnabled(ThreadContext *tctx, IgnoreSet *set) {
   if (tctx->tid == 0) {
     Printf("ThreadSanitizer: main thread finished with ignores enabled\n");
@@ -196,7 +203,7 @@ static void ThreadCheckIgnore(ThreadState *thr) {}
 
 void ThreadFinalize(ThreadState *thr) {
   ThreadCheckIgnore(thr);
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   if (!flags()->report_thread_leaks)
     return;
   ThreadRegistryLock l(ctx->thread_registry);
@@ -234,7 +241,7 @@ void ThreadStart(ThreadState *thr, int tid, uptr os_id) {
   uptr stk_size = 0;
   uptr tls_addr = 0;
   uptr tls_size = 0;
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   GetThreadStackAndTls(tid == 0, &stk_addr, &stk_size, &tls_addr, &tls_size);
 
   if (tid) {
@@ -265,7 +272,7 @@ void ThreadStart(ThreadState *thr, int tid, uptr os_id) {
   thr->tctx = (ThreadContext*)tr->GetThreadLocked(tid);
   tr->Unlock();
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   if (ctx->after_multithreaded_fork) {
     thr->ignore_interceptors++;
     ThreadIgnoreBegin(thr, 0);

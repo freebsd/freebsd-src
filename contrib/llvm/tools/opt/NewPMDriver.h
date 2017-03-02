@@ -47,12 +47,13 @@ enum VerifierKind {
 /// inclusion of the new pass manager headers and the old headers into the same
 /// file. It's interface is consequentially somewhat ad-hoc, but will go away
 /// when the transition finishes.
-bool runPassPipeline(StringRef Arg0, LLVMContext &Context, Module &M,
+bool runPassPipeline(StringRef Arg0, Module &M,
                      TargetMachine *TM, tool_output_file *Out,
                      StringRef PassPipeline, opt_tool::OutputKind OK,
                      opt_tool::VerifierKind VK,
                      bool ShouldPreserveAssemblyUseListOrder,
-                     bool ShouldPreserveBitcodeUseListOrder);
+                     bool ShouldPreserveBitcodeUseListOrder,
+                     bool EmitSummaryIndex, bool EmitModuleHash);
 }
 
 #endif

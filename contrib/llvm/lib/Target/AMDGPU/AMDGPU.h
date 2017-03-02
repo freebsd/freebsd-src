@@ -11,22 +11,18 @@
 #ifndef LLVM_LIB_TARGET_AMDGPU_AMDGPU_H
 #define LLVM_LIB_TARGET_AMDGPU_AMDGPU_H
 
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
-class AMDGPUInstrPrinter;
-class AMDGPUSubtarget;
 class AMDGPUTargetMachine;
 class FunctionPass;
 class GCNTargetMachine;
-struct MachineSchedContext;
-class MCAsmInfo;
-class raw_ostream;
-class ScheduleDAGInstrs;
+class ModulePass;
+class Pass;
 class Target;
 class TargetMachine;
+class PassRegistry;
 
 // R600 Passes
 FunctionPass *createR600VectorRegMerger(TargetMachine &tm);
@@ -45,15 +41,11 @@ FunctionPass *createSILowerI1CopiesPass();
 FunctionPass *createSIShrinkInstructionsPass();
 FunctionPass *createSILoadStoreOptimizerPass(TargetMachine &tm);
 FunctionPass *createSIWholeQuadModePass();
-FunctionPass *createSILowerControlFlowPass();
 FunctionPass *createSIFixControlFlowLiveIntervalsPass();
 FunctionPass *createSIFixSGPRCopiesPass();
-FunctionPass *createSICodeEmitterPass(formatted_raw_ostream &OS);
 FunctionPass *createSIDebuggerInsertNopsPass();
 FunctionPass *createSIInsertWaitsPass();
 FunctionPass *createAMDGPUCodeGenPreparePass(const GCNTargetMachine *TM = nullptr);
-
-ScheduleDAGInstrs *createSIMachineScheduler(MachineSchedContext *C);
 
 ModulePass *createAMDGPUAnnotateKernelFeaturesPass();
 void initializeAMDGPUAnnotateKernelFeaturesPass(PassRegistry &);
@@ -78,20 +70,29 @@ void initializeSIWholeQuadModePass(PassRegistry &);
 extern char &SIWholeQuadModeID;
 
 void initializeSILowerControlFlowPass(PassRegistry &);
-extern char &SILowerControlFlowPassID;
+extern char &SILowerControlFlowID;
 
+void initializeSIInsertSkipsPass(PassRegistry &);
+extern char &SIInsertSkipsPassID;
+
+void initializeSIOptimizeExecMaskingPass(PassRegistry &);
+extern char &SIOptimizeExecMaskingID;
 
 // Passes common to R600 and SI
 FunctionPass *createAMDGPUPromoteAlloca(const TargetMachine *TM = nullptr);
 void initializeAMDGPUPromoteAllocaPass(PassRegistry&);
 extern char &AMDGPUPromoteAllocaID;
 
-FunctionPass *createAMDGPUAddDivergenceMetadata(const AMDGPUSubtarget &ST);
 Pass *createAMDGPUStructurizeCFGPass();
-FunctionPass *createAMDGPUISelDag(TargetMachine &tm);
+FunctionPass *createAMDGPUISelDag(TargetMachine &TM,
+                                  CodeGenOpt::Level OptLevel);
 ModulePass *createAMDGPUAlwaysInlinePass();
 ModulePass *createAMDGPUOpenCLImageTypeLoweringPass();
 FunctionPass *createAMDGPUAnnotateUniformValues();
+
+FunctionPass* createAMDGPUUnifyMetadataPass();
+void initializeAMDGPUUnifyMetadataPass(PassRegistry&);
+extern char &AMDGPUUnifyMetadataID;
 
 void initializeSIFixControlFlowLiveIntervalsPass(PassRegistry&);
 extern char &SIFixControlFlowLiveIntervalsID;
@@ -111,8 +112,8 @@ extern char &SIDebuggerInsertNopsID;
 void initializeSIInsertWaitsPass(PassRegistry&);
 extern char &SIInsertWaitsID;
 
-extern Target TheAMDGPUTarget;
-extern Target TheGCNTarget;
+Target &getTheAMDGPUTarget();
+Target &getTheGCNTarget();
 
 namespace AMDGPU {
 enum TargetIndex {

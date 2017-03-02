@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <iterator>
+#include <type_traits>
 
 namespace llvm {
 
@@ -32,6 +33,32 @@ namespace llvm {
 /// Another abstraction that this doesn't provide is implementing increment in
 /// terms of addition of one. These aren't equivalent for all iterator
 /// categories, and respecting that adds a lot of complexity for little gain.
+///
+/// Classes wishing to use `iterator_facade_base` should implement the following
+/// methods:
+///
+/// Forward Iterators:
+///   (All of the following methods)
+///   - DerivedT &operator=(const DerivedT &R);
+///   - bool operator==(const DerivedT &R) const;
+///   - const T &operator*() const;
+///   - T &operator*();
+///   - DerivedT &operator++();
+///
+/// Bidirectional Iterators:
+///   (All methods of forward iterators, plus the following)
+///   - DerivedT &operator--();
+///
+/// Random-access Iterators:
+///   (All methods of bidirectional iterators excluding the following)
+///   - DerivedT &operator++();
+///   - DerivedT &operator--();
+///   (and plus the following)
+///   - bool operator<(const DerivedT &RHS) const;
+///   - DifferenceTypeT operator-(const DerivedT &R) const;
+///   - DerivedT &operator+=(DifferenceTypeT N);
+///   - DerivedT &operator-=(DifferenceTypeT N);
+///
 template <typename DerivedT, typename IteratorCategoryT, typename T,
           typename DifferenceTypeT = std::ptrdiff_t, typename PointerT = T *,
           typename ReferenceT = T &>
@@ -256,6 +283,23 @@ struct pointee_iterator
   T &operator*() const { return **this->I; }
 };
 
-}
+template <typename WrappedIteratorT,
+          typename T = decltype(&*std::declval<WrappedIteratorT>())>
+class pointer_iterator
+    : public iterator_adaptor_base<pointer_iterator<WrappedIteratorT>,
+                                   WrappedIteratorT, T> {
+  mutable T Ptr;
 
-#endif
+public:
+  pointer_iterator() = default;
+
+  explicit pointer_iterator(WrappedIteratorT u)
+      : pointer_iterator::iterator_adaptor_base(std::move(u)) {}
+
+  T &operator*() { return Ptr = &*this->I; }
+  const T &operator*() const { return Ptr = &*this->I; }
+};
+
+} // end namespace llvm
+
+#endif // LLVM_ADT_ITERATOR_H

@@ -17,7 +17,6 @@
 #include "llvm/ADT/iterator.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Object/COFF.h"
-#include <atomic>
 #include <utility>
 #include <vector>
 
@@ -29,7 +28,6 @@ using llvm::object::COFFSymbolRef;
 using llvm::object::SectionRef;
 using llvm::object::coff_relocation;
 using llvm::object::coff_section;
-using llvm::sys::fs::file_magic;
 
 class Baserel;
 class Defined;
@@ -187,11 +185,12 @@ public:
   // Auxiliary Format 5: Section Definitions. Used for ICF.
   uint32_t Checksum = 0;
 
+  const coff_section *Header;
+
 private:
   // A file this chunk was created from.
   ObjectFile *File;
 
-  const coff_section *Header;
   StringRef SectionName;
   std::vector<SectionChunk *> AssocChildren;
   llvm::iterator_range<const coff_relocation *> Relocs;
@@ -202,7 +201,7 @@ private:
 
   // Used for ICF (Identical COMDAT Folding)
   void replace(SectionChunk *Other);
-  std::atomic<uint64_t> GroupID = { 0 };
+  uint32_t Color[2] = {0, 0};
 
   // Sym points to a section symbol if this is a COMDAT chunk.
   DefinedRegular *Sym = nullptr;

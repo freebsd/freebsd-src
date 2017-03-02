@@ -19,7 +19,6 @@ SRCS+=		sanitizer_common/sanitizer_flags.cc
 SRCS+=		sanitizer_common/sanitizer_libc.cc
 SRCS+=		sanitizer_common/sanitizer_libignore.cc
 SRCS+=		sanitizer_common/sanitizer_linux.cc
-SRCS+=		sanitizer_common/sanitizer_linux_s390.cc
 SRCS+=		sanitizer_common/sanitizer_linux_x86_64.S
 SRCS+=		sanitizer_common/sanitizer_mac.cc
 SRCS+=		sanitizer_common/sanitizer_persistent_allocator.cc

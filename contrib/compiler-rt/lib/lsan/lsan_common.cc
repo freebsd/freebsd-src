@@ -32,6 +32,7 @@ namespace __lsan {
 // also to protect the global list of root regions.
 BlockingMutex global_mutex(LINKER_INITIALIZED);
 
+__attribute__((tls_model("initial-exec")))
 THREADLOCAL int disable_counter;
 bool DisabledInThisThread() { return disable_counter > 0; }
 void DisableInThisThread() { disable_counter++; }
@@ -449,6 +450,8 @@ static bool CheckForLeaks() {
     Report(
         "HINT: For debugging, try setting environment variable "
         "LSAN_OPTIONS=verbosity=1:log_threads=1\n");
+    Report(
+        "HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)\n");
     Die();
   }
   param.leak_report.ApplySuppressions();
@@ -754,6 +757,11 @@ int __lsan_do_recoverable_leak_check() {
 SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
 int __lsan_is_turned_off() {
   return 0;
+}
+
+SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
+const char *__lsan_default_suppressions() {
+  return "";
 }
 #endif
 } // extern "C"

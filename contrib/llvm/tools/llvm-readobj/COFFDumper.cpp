@@ -22,18 +22,20 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/DebugInfo/CodeView/ByteStream.h"
+#include "llvm/DebugInfo/CodeView/CVTypeDumper.h"
 #include "llvm/DebugInfo/CodeView/CodeView.h"
 #include "llvm/DebugInfo/CodeView/Line.h"
-#include "llvm/DebugInfo/CodeView/MemoryTypeTableBuilder.h"
 #include "llvm/DebugInfo/CodeView/RecordSerialization.h"
+#include "llvm/DebugInfo/CodeView/SymbolDeserializer.h"
 #include "llvm/DebugInfo/CodeView/SymbolDumpDelegate.h"
 #include "llvm/DebugInfo/CodeView/SymbolDumper.h"
 #include "llvm/DebugInfo/CodeView/SymbolRecord.h"
-#include "llvm/DebugInfo/CodeView/TypeDumper.h"
+#include "llvm/DebugInfo/CodeView/TypeDumpVisitor.h"
 #include "llvm/DebugInfo/CodeView/TypeIndex.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeStreamMerger.h"
+#include "llvm/DebugInfo/CodeView/TypeTableBuilder.h"
+#include "llvm/DebugInfo/MSF/ByteStream.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/COFF.h"
@@ -53,6 +55,7 @@
 using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::codeview;
+using namespace llvm::msf;
 using namespace llvm::support;
 using namespace llvm::Win64EH;
 
@@ -62,8 +65,7 @@ class COFFDumper : public ObjDumper {
 public:
   friend class COFFObjectDumpDelegate;
   COFFDumper(const llvm::object::COFFObjectFile *Obj, ScopedPrinter &Writer)
-      : ObjDumper(Writer), Obj(Obj),
-        CVTD(&Writer, opts::CodeViewSubsectionBytes) {}
+      : ObjDumper(Writer), Obj(Obj), Writer(Writer) {}
 
   void printFileHeaders() override;
   void printSections() override;
@@ -77,8 +79,7 @@ public:
   void printCOFFBaseReloc() override;
   void printCOFFDebugDirectory() override;
   void printCodeViewDebugInfo() override;
-  void
-  mergeCodeViewTypes(llvm::codeview::MemoryTypeTableBuilder &CVTypes) override;
+  void mergeCodeViewTypes(llvm::codeview::TypeTableBuilder &CVTypes) override;
   void printStackMap() const override;
 private:
   void printSymbol(const SymbolRef &Sym);
@@ -98,7 +99,7 @@ private:
   void printFileNameForOffset(StringRef Label, uint32_t FileOffset);
   void printTypeIndex(StringRef FieldName, TypeIndex TI) {
     // Forward to CVTypeDumper for simplicity.
-    CVTD.printTypeIndex(FieldName, TI);
+    CVTypeDumper::printTypeIndex(Writer, FieldName, TI, TypeDB);
   }
 
   void printCodeViewSymbolsSubsection(StringRef Subsection,
@@ -141,7 +142,8 @@ private:
   StringRef CVFileChecksumTable;
   StringRef CVStringTable;
 
-  CVTypeDumper CVTD;
+  ScopedPrinter &Writer;
+  TypeDatabase TypeDB;
 };
 
 class COFFObjectDumpDelegate : public SymbolDumpDelegate {
@@ -152,8 +154,13 @@ public:
     Sec = Obj->getCOFFSection(SR);
   }
 
-  uint32_t getRecordOffset(ArrayRef<uint8_t> Record) override {
-    return Record.data() - SectionContents.bytes_begin();
+  uint32_t getRecordOffset(msf::StreamReader Reader) override {
+    ArrayRef<uint8_t> Data;
+    if (auto EC = Reader.readLongestContiguousChunk(Data)) {
+      llvm::consumeError(std::move(EC));
+      return 0;
+    }
+    return Data.data() - SectionContents.bytes_begin();
   }
 
   void printRelocatedField(StringRef Label, uint32_t RelocOffset,
@@ -669,14 +676,16 @@ void COFFDumper::printCOFFDebugDirectory() {
     W.printHex("AddressOfRawData", D.AddressOfRawData);
     W.printHex("PointerToRawData", D.PointerToRawData);
     if (D.Type == COFF::IMAGE_DEBUG_TYPE_CODEVIEW) {
-      const debug_pdb_info *PDBInfo;
+      const codeview::DebugInfo *DebugInfo;
       StringRef PDBFileName;
-      error(Obj->getDebugPDBInfo(&D, PDBInfo, PDBFileName));
+      error(Obj->getDebugPDBInfo(&D, DebugInfo, PDBFileName));
       DictScope PDBScope(W, "PDBInfo");
-      W.printHex("PDBSignature", PDBInfo->Signature);
-      W.printBinary("PDBGUID", makeArrayRef(PDBInfo->Guid));
-      W.printNumber("PDBAge", PDBInfo->Age);
-      W.printString("PDBFileName", PDBFileName);
+      W.printHex("PDBSignature", DebugInfo->Signature.CVSignature);
+      if (DebugInfo->Signature.CVSignature == OMF::Signature::PDB70) {
+        W.printBinary("PDBGUID", makeArrayRef(DebugInfo->PDB70.Signature));
+        W.printNumber("PDBAge", DebugInfo->PDB70.Age);
+        W.printString("PDBFileName", PDBFileName);
+      }
     } else {
       // FIXME: Type values of 12 and 13 are commonly observed but are not in
       // the documented type enum.  Figure out what they mean.
@@ -831,8 +840,10 @@ void COFFDumper::printCodeViewSymbolSection(StringRef SectionName,
     }
     case ModuleSubstreamKind::FrameData: {
       // First four bytes is a relocation against the function.
+      msf::ByteStream S(Contents);
+      msf::StreamReader SR(S);
       const uint32_t *CodePtr;
-      error(consumeObject(Contents, CodePtr));
+      error(SR.readObject(CodePtr));
       StringRef LinkageName;
       error(resolveSymbolName(Obj->getCOFFSection(Section), SectionContents,
                               CodePtr, LinkageName));
@@ -840,9 +851,9 @@ void COFFDumper::printCodeViewSymbolSection(StringRef SectionName,
 
       // To find the active frame description, search this array for the
       // smallest PC range that includes the current PC.
-      while (!Contents.empty()) {
+      while (!SR.empty()) {
         const FrameData *FD;
-        error(consumeObject(Contents, FD));
+        error(SR.readObject(FD));
 
         if (FD->FrameFunc >= CVStringTable.size())
           error(object_error::parse_failed);
@@ -952,8 +963,9 @@ void COFFDumper::printCodeViewSymbolsSubsection(StringRef Subsection,
   auto CODD = llvm::make_unique<COFFObjectDumpDelegate>(*this, Section, Obj,
                                                         SectionContents);
 
-  CVSymbolDumper CVSD(W, CVTD, std::move(CODD), opts::CodeViewSubsectionBytes);
-  ByteStream<> Stream(BinaryData);
+  CVSymbolDumper CVSD(W, TypeDB, std::move(CODD),
+                      opts::CodeViewSubsectionBytes);
+  ByteStream Stream(BinaryData);
   CVSymbolArray Symbols;
   StreamReader Reader(Stream);
   if (auto EC = Reader.readArray(Symbols, Reader.getLength())) {
@@ -962,19 +974,20 @@ void COFFDumper::printCodeViewSymbolsSubsection(StringRef Subsection,
     error(object_error::parse_failed);
   }
 
-  if (!CVSD.dump(Symbols)) {
+  if (auto EC = CVSD.dump(Symbols)) {
     W.flush();
-    error(object_error::parse_failed);
+    error(std::move(EC));
   }
   W.flush();
 }
 
 void COFFDumper::printCodeViewFileChecksums(StringRef Subsection) {
-  StringRef Data = Subsection;
-  while (!Data.empty()) {
+  msf::ByteStream S(Subsection);
+  msf::StreamReader SR(S);
+  while (!SR.empty()) {
     DictScope S(W, "FileChecksum");
     const FileChecksum *FC;
-    error(consumeObject(Data, FC));
+    error(SR.readObject(FC));
     if (FC->FileNameOffset >= CVStringTable.size())
       error(object_error::parse_failed);
     StringRef Filename =
@@ -983,27 +996,30 @@ void COFFDumper::printCodeViewFileChecksums(StringRef Subsection) {
     W.printHex("ChecksumSize", FC->ChecksumSize);
     W.printEnum("ChecksumKind", uint8_t(FC->ChecksumKind),
                 makeArrayRef(FileChecksumKindNames));
-    if (FC->ChecksumSize >= Data.size())
+    if (FC->ChecksumSize >= SR.bytesRemaining())
       error(object_error::parse_failed);
-    StringRef ChecksumBytes = Data.substr(0, FC->ChecksumSize);
+    ArrayRef<uint8_t> ChecksumBytes;
+    error(SR.readBytes(ChecksumBytes, FC->ChecksumSize));
     W.printBinary("ChecksumBytes", ChecksumBytes);
     unsigned PaddedSize = alignTo(FC->ChecksumSize + sizeof(FileChecksum), 4) -
                           sizeof(FileChecksum);
-    if (PaddedSize > Data.size())
+    PaddedSize -= ChecksumBytes.size();
+    if (PaddedSize > SR.bytesRemaining())
       error(object_error::parse_failed);
-    Data = Data.drop_front(PaddedSize);
+    error(SR.skip(PaddedSize));
   }
 }
 
 void COFFDumper::printCodeViewInlineeLines(StringRef Subsection) {
-  StringRef Data = Subsection;
+  msf::ByteStream S(Subsection);
+  msf::StreamReader SR(S);
   uint32_t Signature;
-  error(consume(Data, Signature));
+  error(SR.readInteger(Signature));
   bool HasExtraFiles = Signature == unsigned(InlineeLinesSignature::ExtraFiles);
 
-  while (!Data.empty()) {
+  while (!SR.empty()) {
     const InlineeSourceLine *ISL;
-    error(consumeObject(Data, ISL));
+    error(SR.readObject(ISL));
     DictScope S(W, "InlineeSourceLine");
     printTypeIndex("Inlinee", ISL->Inlinee);
     printFileNameForOffset("FileID", ISL->FileID);
@@ -1011,12 +1027,12 @@ void COFFDumper::printCodeViewInlineeLines(StringRef Subsection) {
 
     if (HasExtraFiles) {
       uint32_t ExtraFileCount;
-      error(consume(Data, ExtraFileCount));
+      error(SR.readInteger(ExtraFileCount));
       W.printNumber("ExtraFileCount", ExtraFileCount);
       ListScope ExtraFiles(W, "ExtraFiles");
       for (unsigned I = 0; I < ExtraFileCount; ++I) {
         uint32_t FileID;
-        error(consume(Data, FileID));
+        error(SR.readInteger(FileID));
         printFileNameForOffset("FileID", FileID);
       }
     }
@@ -1048,7 +1064,7 @@ void COFFDumper::printFileNameForOffset(StringRef Label, uint32_t FileOffset) {
   W.printHex(Label, getFileNameForFileOffset(FileOffset), FileOffset);
 }
 
-void COFFDumper::mergeCodeViewTypes(MemoryTypeTableBuilder &CVTypes) {
+void COFFDumper::mergeCodeViewTypes(TypeTableBuilder &CVTypes) {
   for (const SectionRef &S : Obj->sections()) {
     StringRef SectionName;
     error(S.getName(SectionName));
@@ -1061,7 +1077,7 @@ void COFFDumper::mergeCodeViewTypes(MemoryTypeTableBuilder &CVTypes) {
         error(object_error::parse_failed);
       ArrayRef<uint8_t> Bytes(reinterpret_cast<const uint8_t *>(Data.data()),
                               Data.size());
-      ByteStream<> Stream(Bytes);
+      ByteStream Stream(Bytes);
       CVTypeArray Types;
       StreamReader Reader(Stream);
       if (auto EC = Reader.readArray(Types, Reader.getLength())) {
@@ -1092,7 +1108,9 @@ void COFFDumper::printCodeViewTypeSection(StringRef SectionName,
   if (Magic != COFF::DEBUG_SECTION_MAGIC)
     return error(object_error::parse_failed);
 
-  if (auto EC = CVTD.dump({Data.bytes_begin(), Data.bytes_end()})) {
+  CVTypeDumper CVTD(TypeDB);
+  TypeDumpVisitor TDV(TypeDB, &W, opts::CodeViewSubsectionBytes);
+  if (auto EC = CVTD.dump({Data.bytes_begin(), Data.bytes_end()}, TDV)) {
     W.flush();
     error(llvm::errorToErrorCode(std::move(EC)));
   }
@@ -1524,22 +1542,26 @@ void COFFDumper::printStackMap() const {
   if (Obj->isLittleEndian())
     prettyPrintStackMap(
                       llvm::outs(),
-                      StackMapV1Parser<support::little>(StackMapContentsArray));
+                      StackMapV2Parser<support::little>(StackMapContentsArray));
   else
     prettyPrintStackMap(llvm::outs(),
-                        StackMapV1Parser<support::big>(StackMapContentsArray));
+                        StackMapV2Parser<support::big>(StackMapContentsArray));
 }
 
-void llvm::dumpCodeViewMergedTypes(
-    ScopedPrinter &Writer, llvm::codeview::MemoryTypeTableBuilder &CVTypes) {
+void llvm::dumpCodeViewMergedTypes(ScopedPrinter &Writer,
+                                   llvm::codeview::TypeTableBuilder &CVTypes) {
   // Flatten it first, then run our dumper on it.
   ListScope S(Writer, "MergedTypeStream");
   SmallString<0> Buf;
-  CVTypes.ForEachRecord([&](TypeIndex TI, StringRef Record) {
+  CVTypes.ForEachRecord([&](TypeIndex TI, ArrayRef<uint8_t> Record) {
     Buf.append(Record.begin(), Record.end());
   });
-  CVTypeDumper CVTD(&Writer, opts::CodeViewSubsectionBytes);
-  if (auto EC = CVTD.dump({Buf.str().bytes_begin(), Buf.str().bytes_end()})) {
+
+  TypeDatabase TypeDB;
+  CVTypeDumper CVTD(TypeDB);
+  TypeDumpVisitor TDV(TypeDB, &Writer, opts::CodeViewSubsectionBytes);
+  if (auto EC =
+          CVTD.dump({Buf.str().bytes_begin(), Buf.str().bytes_end()}, TDV)) {
     Writer.flush();
     error(llvm::errorToErrorCode(std::move(EC)));
   }

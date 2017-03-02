@@ -158,6 +158,8 @@ public:
                   MatchCallback *Action);
   void addMatcher(const TypeLocMatcher &NodeMatch,
                   MatchCallback *Action);
+  void addMatcher(const CXXCtorInitializerMatcher &NodeMatch,
+                  MatchCallback *Action);
   /// @}
 
   /// \brief Adds a matcher to execute when running over the AST.
@@ -208,6 +210,7 @@ public:
     std::vector<std::pair<NestedNameSpecifierLocMatcher, MatchCallback *>>
         NestedNameSpecifierLoc;
     std::vector<std::pair<TypeLocMatcher, MatchCallback *>> TypeLoc;
+    std::vector<std::pair<CXXCtorInitializerMatcher, MatchCallback *>> CtorInit;
     /// \brief All the callbacks in one container to simplify iteration.
     llvm::SmallPtrSet<MatchCallback *, 16> AllCallbacks;
   };
@@ -228,6 +231,10 @@ private:
 ///
 /// Multiple results occur when using matchers like \c forEachDescendant,
 /// which generate a result for each sub-match.
+///
+/// If you want to find all matches on the sub-tree rooted at \c Node (rather
+/// than only the matches on \c Node itself), surround the \c Matcher with a
+/// \c findAll().
 ///
 /// \see selectFirst
 /// @{

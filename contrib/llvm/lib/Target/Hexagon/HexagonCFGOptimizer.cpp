@@ -45,13 +45,11 @@ public:
     initializeHexagonCFGOptimizerPass(*PassRegistry::getPassRegistry());
   }
 
-  const char *getPassName() const override {
-    return "Hexagon CFG Optimizer";
-  }
+  StringRef getPassName() const override { return "Hexagon CFG Optimizer"; }
   bool runOnMachineFunction(MachineFunction &Fn) override;
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::AllVRegsAllocated);
+        MachineFunctionProperties::Property::NoVRegs);
   }
 };
 
@@ -59,8 +57,18 @@ public:
 char HexagonCFGOptimizer::ID = 0;
 
 static bool IsConditionalBranch(int Opc) {
-  return (Opc == Hexagon::J2_jumpt) || (Opc == Hexagon::J2_jumpf)
-    || (Opc == Hexagon::J2_jumptnewpt) || (Opc == Hexagon::J2_jumpfnewpt);
+  switch (Opc) {
+    case Hexagon::J2_jumpt:
+    case Hexagon::J2_jumptpt:
+    case Hexagon::J2_jumpf:
+    case Hexagon::J2_jumpfpt:
+    case Hexagon::J2_jumptnew:
+    case Hexagon::J2_jumpfnew:
+    case Hexagon::J2_jumptnewpt:
+    case Hexagon::J2_jumpfnewpt:
+      return true;
+  }
+  return false;
 }
 
 

@@ -133,7 +133,7 @@ int getMaxValue(MCInstrInfo const &MCII, MCInst const &MCI);
 int getMinValue(MCInstrInfo const &MCII, MCInst const &MCI);
 
 // Return instruction name
-char const *getName(MCInstrInfo const &MCII, MCInst const &MCI);
+StringRef getName(MCInstrInfo const &MCII, MCInst const &MCI);
 
 // Return the operand index for the new value.
 unsigned short getNewValueOp(MCInstrInfo const &MCII, MCInst const &MCI);
@@ -170,6 +170,7 @@ bool isBundle(MCInst const &MCI);
 
 // Return whether the insn is an actual insn.
 bool isCanon(MCInstrInfo const &MCII, MCInst const &MCI);
+bool isCofMax1(MCInstrInfo const &MCII, MCInst const &MCI);
 bool isCompound(MCInstrInfo const &MCII, MCInst const &MCI);
 
 // Return the duplex iclass given the two duplex classes

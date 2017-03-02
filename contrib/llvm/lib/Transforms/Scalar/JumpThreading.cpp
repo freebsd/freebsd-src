@@ -134,7 +134,7 @@ bool JumpThreading::runOnFunction(Function &F) {
 }
 
 PreservedAnalyses JumpThreadingPass::run(Function &F,
-                                         AnalysisManager<Function> &AM) {
+                                         FunctionAnalysisManager &AM) {
 
   auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
   auto &LVI = AM.getResult<LazyValueAnalysis>(F);
@@ -951,11 +951,16 @@ bool JumpThreadingPass::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
   // Scan a few instructions up from the load, to see if it is obviously live at
   // the entry to its block.
   BasicBlock::iterator BBIt(LI);
-
+  bool IsLoadCSE;
   if (Value *AvailableVal =
-        FindAvailableLoadedValue(LI, LoadBB, BBIt, DefMaxInstsToScan)) {
+        FindAvailableLoadedValue(LI, LoadBB, BBIt, DefMaxInstsToScan, nullptr, &IsLoadCSE)) {
     // If the value of the load is locally available within the block, just use
     // it.  This frequently occurs for reg2mem'd allocas.
+
+    if (IsLoadCSE) {
+      LoadInst *NLI = cast<LoadInst>(AvailableVal);
+      combineMetadataForCSE(NLI, LI);
+    };
 
     // If the returned value is the load itself, replace with an undef. This can
     // only happen in dead loops.
@@ -983,6 +988,7 @@ bool JumpThreadingPass::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
   typedef SmallVector<std::pair<BasicBlock*, Value*>, 8> AvailablePredsTy;
   AvailablePredsTy AvailablePreds;
   BasicBlock *OneUnavailablePred = nullptr;
+  SmallVector<LoadInst*, 8> CSELoads;
 
   // If we got here, the loaded value is transparent through to the start of the
   // block.  Check to see if it is available in any of the predecessor blocks.
@@ -993,17 +999,17 @@ bool JumpThreadingPass::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
 
     // Scan the predecessor to see if the value is available in the pred.
     BBIt = PredBB->end();
-    AAMDNodes ThisAATags;
     Value *PredAvailable = FindAvailableLoadedValue(LI, PredBB, BBIt,
                                                     DefMaxInstsToScan,
-                                                    nullptr, &ThisAATags);
+                                                    nullptr,
+                                                    &IsLoadCSE);
     if (!PredAvailable) {
       OneUnavailablePred = PredBB;
       continue;
     }
 
-    // If AA tags disagree or are not present, forget about them.
-    if (AATags != ThisAATags) AATags = AAMDNodes();
+    if (IsLoadCSE)
+      CSELoads.push_back(cast<LoadInst>(PredAvailable));
 
     // If so, this load is partially redundant.  Remember this info so that we
     // can create a PHI node.
@@ -1101,6 +1107,10 @@ bool JumpThreadingPass::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
     PN->addIncoming(PredV, I->first);
   }
 
+  for (LoadInst *PredLI : CSELoads) {
+    combineMetadataForCSE(PredLI, LI);
+  }
+
   LI->replaceAllUsesWith(PN);
   LI->eraseFromParent();
 
@@ -1157,8 +1167,7 @@ FindMostPopularDest(BasicBlock *BB,
     for (unsigned i = 0; ; ++i) {
       assert(i != TI->getNumSuccessors() && "Didn't find any successor!");
 
-      if (std::find(SamePopularity.begin(), SamePopularity.end(),
-                    TI->getSuccessor(i)) == SamePopularity.end())
+      if (!is_contained(SamePopularity, TI->getSuccessor(i)))
         continue;
 
       MostPopularDest = TI->getSuccessor(i);
@@ -1594,7 +1603,7 @@ bool JumpThreadingPass::ThreadEdge(BasicBlock *BB,
 }
 
 /// Create a new basic block that will be the predecessor of BB and successor of
-/// all blocks in Preds. When profile data is availble, update the frequency of
+/// all blocks in Preds. When profile data is available, update the frequency of
 /// this new block.
 BasicBlock *JumpThreadingPass::SplitBlockPreds(BasicBlock *BB,
                                                ArrayRef<BasicBlock *> Preds,
@@ -1613,6 +1622,23 @@ BasicBlock *JumpThreadingPass::SplitBlockPreds(BasicBlock *BB,
   if (HasProfileData)
     BFI->setBlockFreq(PredBB, PredBBFreq.getFrequency());
   return PredBB;
+}
+
+bool JumpThreadingPass::doesBlockHaveProfileData(BasicBlock *BB) {
+  const TerminatorInst *TI = BB->getTerminator();
+  assert(TI->getNumSuccessors() > 1 && "not a split");
+
+  MDNode *WeightsNode = TI->getMetadata(LLVMContext::MD_prof);
+  if (!WeightsNode)
+    return false;
+
+  MDString *MDName = cast<MDString>(WeightsNode->getOperand(0));
+  if (MDName->getString() != "branch_weights")
+    return false;
+
+  // Ensure there are weights for all of the successors. Note that the first
+  // operand to the metadata node is a name, not a weight.
+  return WeightsNode->getNumOperands() == TI->getNumSuccessors() + 1;
 }
 
 /// Update the block frequency of BB and branch weight and the metadata on the
@@ -1665,7 +1691,41 @@ void JumpThreadingPass::UpdateBlockFreqAndEdgeWeight(BasicBlock *PredBB,
   for (int I = 0, E = BBSuccProbs.size(); I < E; I++)
     BPI->setEdgeProbability(BB, I, BBSuccProbs[I]);
 
-  if (BBSuccProbs.size() >= 2) {
+  // Update the profile metadata as well.
+  //
+  // Don't do this if the profile of the transformed blocks was statically
+  // estimated.  (This could occur despite the function having an entry
+  // frequency in completely cold parts of the CFG.)
+  //
+  // In this case we don't want to suggest to subsequent passes that the
+  // calculated weights are fully consistent.  Consider this graph:
+  //
+  //                 check_1
+  //             50% /  |
+  //             eq_1   | 50%
+  //                 \  |
+  //                 check_2
+  //             50% /  |
+  //             eq_2   | 50%
+  //                 \  |
+  //                 check_3
+  //             50% /  |
+  //             eq_3   | 50%
+  //                 \  |
+  //
+  // Assuming the blocks check_* all compare the same value against 1, 2 and 3,
+  // the overall probabilities are inconsistent; the total probability that the
+  // value is either 1, 2 or 3 is 150%.
+  //
+  // As a consequence if we thread eq_1 -> check_2 to check_3, check_2->check_3
+  // becomes 0%.  This is even worse if the edge whose probability becomes 0% is
+  // the loop exit edge.  Then based solely on static estimation we would assume
+  // the loop was extremely hot.
+  //
+  // FIXME this locally as well so that BPI and BFI are consistent as well.  We
+  // shouldn't make edges extremely likely or unlikely based solely on static
+  // estimation.
+  if (BBSuccProbs.size() >= 2 && doesBlockHaveProfileData(BB)) {
     SmallVector<uint32_t, 4> Weights;
     for (auto Prob : BBSuccProbs)
       Weights.push_back(Prob.getNumerator());

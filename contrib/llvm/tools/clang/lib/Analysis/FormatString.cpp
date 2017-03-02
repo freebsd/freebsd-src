@@ -266,14 +266,15 @@ bool clang::analyze_format_string::ParseUTF8InvalidSpecifier(
   if (SpecifierBegin + 1 >= FmtStrEnd)
     return false;
 
-  const UTF8 *SB = reinterpret_cast<const UTF8 *>(SpecifierBegin + 1);
-  const UTF8 *SE = reinterpret_cast<const UTF8 *>(FmtStrEnd);
+  const llvm::UTF8 *SB =
+      reinterpret_cast<const llvm::UTF8 *>(SpecifierBegin + 1);
+  const llvm::UTF8 *SE = reinterpret_cast<const llvm::UTF8 *>(FmtStrEnd);
   const char FirstByte = *SB;
 
   // If the invalid specifier is a multibyte UTF-8 string, return the
   // total length accordingly so that the conversion specifier can be
   // properly updated to reflect a complete UTF-8 specifier.
-  unsigned NumBytes = getNumBytesForUTF8(FirstByte);
+  unsigned NumBytes = llvm::getNumBytesForUTF8(FirstByte);
   if (NumBytes == 1)
     return false;
   if (SB + NumBytes > SE)
@@ -310,8 +311,13 @@ ArgType::matchesType(ASTContext &C, QualType argTy) const {
       return Match;
 
     case AnyCharTy: {
-      if (const EnumType *ETy = argTy->getAs<EnumType>())
+      if (const EnumType *ETy = argTy->getAs<EnumType>()) {
+        // If the enum is incomplete we know nothing about the underlying type.
+        // Assume that it's 'int'.
+        if (!ETy->getDecl()->isComplete())
+          return NoMatch;
         argTy = ETy->getDecl()->getIntegerType();
+      }
 
       if (const BuiltinType *BT = argTy->getAs<BuiltinType>())
         switch (BT->getKind()) {
@@ -327,8 +333,14 @@ ArgType::matchesType(ASTContext &C, QualType argTy) const {
     }
 
     case SpecificTy: {
-      if (const EnumType *ETy = argTy->getAs<EnumType>())
-        argTy = ETy->getDecl()->getIntegerType();
+      if (const EnumType *ETy = argTy->getAs<EnumType>()) {
+        // If the enum is incomplete we know nothing about the underlying type.
+        // Assume that it's 'int'.
+        if (!ETy->getDecl()->isComplete())
+          argTy = C.IntTy;
+        else
+          argTy = ETy->getDecl()->getIntegerType();
+      }
       argTy = C.getCanonicalType(argTy).getUnqualifiedType();
 
       if (T == argTy)
@@ -579,6 +591,8 @@ const char *ConversionSpecifier::toString() const {
   case cArg: return "c";
   case sArg: return "s";
   case pArg: return "p";
+  case PArg:
+    return "P";
   case nArg: return "n";
   case PercentArg:  return "%";
   case ScanListArg: return "[";
@@ -854,6 +868,7 @@ bool FormatSpecifier::hasStandardConversionSpecifier(
     case ConversionSpecifier::ObjCObjArg:
     case ConversionSpecifier::ScanListArg:
     case ConversionSpecifier::PercentArg:
+    case ConversionSpecifier::PArg:
       return true;
     case ConversionSpecifier::CArg:
     case ConversionSpecifier::SArg:
