@@ -32,8 +32,6 @@
 
 #ifdef _KERNEL
 
-#include <machine/cpuconf.h>
-
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 

@@ -39,13 +39,10 @@
 #ifndef	_MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
-#include <sys/types.h>
 #include <machine/armreg.h>
 
 #ifndef _KERNEL
 #include <machine/sysarch.h>
-#else
-#include <machine/cpuconf.h>
 #endif
 
 #if __ARM_ARCH >= 6
