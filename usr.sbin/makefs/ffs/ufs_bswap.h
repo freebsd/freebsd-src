@@ -55,10 +55,6 @@
 
 #if !defined(_KERNEL) || defined(FFS_EI)
 /* inlines for access to swapped data */
-static __inline u_int16_t ufs_rw16 __P((u_int16_t, int));
-static __inline u_int32_t ufs_rw32 __P((u_int32_t, int));
-static __inline u_int64_t ufs_rw64 __P((u_int64_t, int));
-
 static __inline u_int16_t
 ufs_rw16(u_int16_t a, int ns)
 {
