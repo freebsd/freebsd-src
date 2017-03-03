@@ -1,4 +1,44 @@
 ----------------------------------------
+03 March 2017. Summary of changes for version 20170303:
+
+
+0) ACPICA licensing:
+
+The licensing information at the start of each source code module has 
+been updated. In addition to the Intel license, the dual GPLv2/BSD 
+license has been added for completeness. Now, a single version of the 
+source code should be suitable for all ACPICA customers. This is the 
+major change for this release since it affects all source code modules.
+
+
+1) ACPICA kernel-resident subsystem: 
+
+Fixed two issues with the common asltypes.h header that could cause 
+problems in some environments: (Kim Jung-uk)
+    Removed typedef for YY_BUFFER_STATE ?
+       Fixes an error with earlier versions of Flex.
+    Removed use of FILE typedef (which is only defined in stdio.h)
+
+
+2) iASL Compiler/Disassembler and Tools: 
+
+Disassembler: fixed a regression introduced in 20170224. A fix for a 
+memory leak related to resource descriptor tags (names) could fault when 
+the disassembler was generated with 64-bit compilers.
+
+The ASLTS test suite has been updated to implement a new testing 
+architecture. During generation of the suite from ASL source, both the 
+ASL and ASL+ compilers are now validated, as well as the disassembler 
+itself (Erik Schmauss). The architecture executes as follows:
+
+    For every ASL source module:
+        Compile (legacy ASL compilation)
+        Disassemble the resulting AML to ASL+ source code
+        Compile the new ASL+ module
+        Perform a binary compare on the legacy AML and the new ASL+ AML
+    The ASLTS suite then executes normally using the AML binaries.
+
+----------------------------------------
 24 February 2017. Summary of changes for version 20170224:
 
 
