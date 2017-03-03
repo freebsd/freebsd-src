@@ -301,6 +301,7 @@ efi_guid_to_name(efi_guid_t *guid, char **name)
 	size_t i;
 	uint32_t status;
 
+	efi_guid_tbl_compile();
 	for (i = 0; i < nitems(guid_tbl); i++) {
 		if (uuid_equal(guid, &guid_tbl[i].guid, &status)) {
 			*name = strdup(guid_tbl[i].name);
@@ -337,6 +338,7 @@ efi_name_to_guid(const char *name, efi_guid_t *guid)
 {
 	size_t i;
 
+	efi_guid_tbl_compile();
 	for (i = 0; i < nitems(guid_tbl); i++) {
 		if (strcmp(name, guid_tbl[i].name) == 0) {
 			*guid = guid_tbl[i].guid;
