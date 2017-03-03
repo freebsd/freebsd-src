@@ -75,9 +75,6 @@ _LIB_OBJTOP=	${ROOTOBJDIR}
 .ifdef LIBCHERI
 LDFLAGS+=	-Wl,-init=crt_init_globals
 .endif
-.else
-STATIC_CFLAGS+= -ftls-model=local-exec # MIPS/hybrid case
-.endif
 .ifdef CHERI_USE_LLD
 .ifdef CHERI_LLD_BROKEN
 LDFLAGS+=	-fuse-ld=bfd
@@ -85,6 +82,8 @@ LDFLAGS+=	-fuse-ld=bfd
 LDFLAGS+=	-fuse-ld=lld
 .endif
 .endif
+.else
+STATIC_CFLAGS+= -ftls-model=local-exec # MIPS/hybrid case
 .endif
 
 .if ${MK_CHERI128} == "yes"
