@@ -29,9 +29,9 @@
 #ifndef	_LINUX_SRCU_H_
 #define	_LINUX_SRCU_H_
 
-struct ck_epoch_record;
+struct srcu_epoch_record;
 struct srcu_struct {
-	struct ck_epoch_record *ss_epoch_record;
+	struct srcu_epoch_record *ss_epoch_record;
 };
 
 #define	srcu_dereference(ptr,srcu)	((__typeof(*(ptr)) *)(ptr))
@@ -41,6 +41,7 @@ struct srcu_struct {
 extern int srcu_read_lock(struct srcu_struct *);
 extern void srcu_read_unlock(struct srcu_struct *, int index);
 extern void synchronize_srcu(struct srcu_struct *);
+extern void srcu_barrier(struct srcu_struct *);
 extern int init_srcu_struct(struct srcu_struct *);
 extern void cleanup_srcu_struct(struct srcu_struct *);
 extern void srcu_barrier(struct srcu_struct *);
