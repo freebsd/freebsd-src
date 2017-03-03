@@ -242,6 +242,8 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	if (ic->ic_txstream == 0)
 		ic->ic_txstream = 2;
 
+	ieee80211_init_suphtrates(ic);
+
 	/*
 	 * Set auto mode to reset active channel state and any desired channel.
 	 */
@@ -1903,6 +1905,14 @@ ieee80211_get_suprates(struct ieee80211com *ic, const struct ieee80211_channel *
 {
 	/* XXX does this work for 11ng basic rates? */
 	return &ic->ic_sup_rates[ieee80211_chan2mode(c)];
+}
+
+/* XXX inline or eliminate? */
+const struct ieee80211_htrateset *
+ieee80211_get_suphtrates(struct ieee80211com *ic,
+    const struct ieee80211_channel *c)
+{
+	return &ic->ic_sup_htrates;
 }
 
 void
