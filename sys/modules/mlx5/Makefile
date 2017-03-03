@@ -30,7 +30,6 @@ device_if.h bus_if.h vnode_if.h pci_if.h \
 SRCS+= linux_compat.c linux_radix.c linux_idr.c
 
 CFLAGS+= -I${.CURDIR}/../../ofed/include
-CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 
 .include <bsd.kmod.mk>
 
