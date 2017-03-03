@@ -421,19 +421,17 @@ ieee80211_ht_announce(struct ieee80211com *ic)
 		ht_announce(ic, IEEE80211_MODE_11NG);
 }
 
-static struct ieee80211_htrateset htrateset;
-
-const struct ieee80211_htrateset *
-ieee80211_get_suphtrates(struct ieee80211com *ic,
-    const struct ieee80211_channel *c)
+void
+ieee80211_init_suphtrates(struct ieee80211com *ic)
 {
 #define	ADDRATE(x)	do {						\
-	htrateset.rs_rates[htrateset.rs_nrates] = x;			\
-	htrateset.rs_nrates++;						\
+	htrateset->rs_rates[htrateset->rs_nrates] = x;			\
+	htrateset->rs_nrates++;						\
 } while (0)
+	struct ieee80211_htrateset *htrateset = &ic->ic_sup_htrates;
 	int i;
 
-	memset(&htrateset, 0, sizeof(struct ieee80211_htrateset));
+	memset(htrateset, 0, sizeof(struct ieee80211_htrateset));
 	for (i = 0; i < ic->ic_txstream * 8; i++)
 		ADDRATE(i);
 	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
@@ -453,7 +451,6 @@ ieee80211_get_suphtrates(struct ieee80211com *ic,
 				ADDRATE(i);
 		}
 	}
-	return &htrateset;
 #undef	ADDRATE
 }
 

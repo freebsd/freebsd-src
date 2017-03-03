@@ -175,6 +175,7 @@ struct ieee80211com {
 	uint16_t		ic_holdover;	/* PM hold over duration */
 	uint16_t		ic_txpowlimit;	/* global tx power limit */
 	struct ieee80211_rateset ic_sup_rates[IEEE80211_MODE_MAX];
+	struct ieee80211_htrateset ic_sup_htrates;
 
 	/*
 	 * Channel state:
@@ -692,6 +693,8 @@ int	ieee80211_vap_attach(struct ieee80211vap *,
 void	ieee80211_vap_detach(struct ieee80211vap *);
 const struct ieee80211_rateset *ieee80211_get_suprates(struct ieee80211com *ic,
 		const struct ieee80211_channel *);
+const struct ieee80211_htrateset *ieee80211_get_suphtrates(
+		struct ieee80211com *, const struct ieee80211_channel *);
 void	ieee80211_announce(struct ieee80211com *);
 void	ieee80211_announce_channels(struct ieee80211com *);
 void	ieee80211_drain(struct ieee80211com *);
