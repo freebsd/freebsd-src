@@ -350,6 +350,7 @@ fetchParseURL(const char *URL)
 		fetch_syserr();
 		return (NULL);
 	}
+	u->netrcfd = -2;
 
 	/* scheme name */
 	if ((p = strstr(URL, ":/"))) {
