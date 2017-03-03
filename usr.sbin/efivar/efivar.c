@@ -45,6 +45,8 @@ static struct option longopts[] = {
 	{ "attributes",		required_argument,	NULL,	't' },
 	{ "binary",		no_argument,		NULL,	'b' },
 	{ "delete",		no_argument,		NULL,   'D' },
+	{ "device",		no_argument,		NULL,   'd' },
+	{ "device-path",	no_argument,		NULL,   'd' },
 	{ "fromfile",		required_argument,	NULL,	'f' },
 	{ "guid",		no_argument,		NULL,	'g' },
 	{ "hex",		no_argument,		NULL,	'H' },
@@ -197,6 +199,13 @@ bindump(uint8_t *data, size_t datalen)
 }
 
 static void
+devpath_dump(uint8_t *data, size_t datalen)
+{
+
+	fprintf(stderr, "junk %p %zu\n", data, datalen);
+}
+
+static void
 pretty_guid(efi_guid_t *guid, char **gname)
 {
 	char *pretty = NULL;
@@ -232,6 +241,8 @@ print_var(efi_guid_t *guid, char *name)
 			asciidump(data, datalen);
 		else if (bflag)
 			bindump(data, datalen);
+		else if (dflag)
+			devpath_dump(data, datalen);
 		else
 			hexdump(data, datalen);
 	} else {
