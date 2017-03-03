@@ -28,5 +28,6 @@ SYMBOL_MAPS=${SYM_MAPS}
 CFLAGS+= -DSYMBOL_VERSIONING
 
 MAN=
+MLINKS=
 
 .include <bsd.lib.mk>
