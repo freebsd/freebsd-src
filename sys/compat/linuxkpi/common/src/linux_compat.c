@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/netdevice.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
@@ -1503,8 +1502,6 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_root);
 	linux_kobject_kfree_name(&linux_root_device.kobj);
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
-
-	synchronize_rcu();
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
 
