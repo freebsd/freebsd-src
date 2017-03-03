@@ -41,6 +41,7 @@
 .Op Fl -binary
 .Op Fl -delete
 .Op Fl -fromfile Ar file
+.Op Fl -guid
 .Op Fl -hex
 .Op Fl -list-guids
 .Op Fl -list
@@ -116,6 +117,10 @@ flags.
 No
 .Ar value
 may be specified.
+.It Fl g Fl -guid
+flag is specified, guids are converted to names if they are known (and
+show up in
+.Fl -list-guids ).
 .It Fl H Fl -hex
 List variable data as a hex dump.
 .It Fl L Fl -list-guids
@@ -151,6 +156,7 @@ Set the specified
 to
 .Ar value .
 This is not yet implemented.
+If the
 .Sh COMPATIBILITY
 The
 .Nm
