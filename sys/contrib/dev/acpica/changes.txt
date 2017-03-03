@@ -1,7 +1,108 @@
 ----------------------------------------
+03 March 2017. Summary of changes for version 20170303:
+
+
+0) ACPICA licensing:
+
+The licensing information at the start of each source code module has 
+been updated. In addition to the Intel license, the dual GPLv2/BSD 
+license has been added for completeness. Now, a single version of the 
+source code should be suitable for all ACPICA customers. This is the 
+major change for this release since it affects all source code modules.
+
+
+1) ACPICA kernel-resident subsystem: 
+
+Fixed two issues with the common asltypes.h header that could cause 
+problems in some environments: (Kim Jung-uk)
+    Removed typedef for YY_BUFFER_STATE ?
+       Fixes an error with earlier versions of Flex.
+    Removed use of FILE typedef (which is only defined in stdio.h)
+
+
+2) iASL Compiler/Disassembler and Tools: 
+
+Disassembler: fixed a regression introduced in 20170224. A fix for a 
+memory leak related to resource descriptor tags (names) could fault when 
+the disassembler was generated with 64-bit compilers.
+
+The ASLTS test suite has been updated to implement a new testing 
+architecture. During generation of the suite from ASL source, both the 
+ASL and ASL+ compilers are now validated, as well as the disassembler 
+itself (Erik Schmauss). The architecture executes as follows:
+
+    For every ASL source module:
+        Compile (legacy ASL compilation)
+        Disassemble the resulting AML to ASL+ source code
+        Compile the new ASL+ module
+        Perform a binary compare on the legacy AML and the new ASL+ AML
+    The ASLTS suite then executes normally using the AML binaries.
+
+----------------------------------------
+24 February 2017. Summary of changes for version 20170224:
+
+
+1) ACPICA kernel-resident subsystem:
+
+Interpreter: Fixed two issues with the control method return value auto-
+repair feature, where an attempt to double-delete an internal object 
+could result in an ACPICA warning (for _CID repair and others). No fault 
+occurs, however, because the attempted deletion (actually a release to an 
+internal cache) is detected and ignored via object poisoning.
+
+Debugger: Fixed an AML interpreter mutex issue during the single stepping 
+of control methods. If certain debugger commands are executed during 
+stepping, a mutex aquire/release error could occur. Lv Zheng.
+
+Fixed some issues generating ACPICA with the Intel C compiler by 
+restoring the original behavior and compiler-specific include file in 
+acenv.h. Lv Zheng.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 141.7K Code, 58.5K Data, 200.2K Total
+    Debug Version:     207.5K Code, 82.7K Data, 290.2K Total
+  Previous Release:
+    Non-Debug Version: 137.4K Code, 52.6K Data, 190.0K Total
+    Debug Version:     201.5K Code, 82.2K Data, 283.7K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Disassembler: A preliminary version of a new ASL-to-ASL+ conversion 
+tool has been designed, implemented, and included in this release. The 
+key feature of this utility is that the original comments within the 
+input ASL file are preserved during the conversion process, and included 
+within the converted ASL+ file -- thus creating a transparent conversion 
+of existing ASL files to ASL+ (ASL 2.0). Erik Schmauss.
+
+    Usage: iasl -ca <ASL-filename>  // Output is a .dsl file with 
+converted code
+
+iASL/Disassembler: Improved the detection and correct disassembly of 
+Switch/Case operators. This feature detects sequences of if/elseif/else 
+operators that originated from ASL Switch/Case/Default operators and 
+emits the original operators. David Box.
+
+iASL: Improved the IORT ACPI table support in the following areas. Lv 
+Zheng:
+    Clear MappingOffset if the MappingCount is zero.
+    Fix the disassembly of the SMMU GSU interrupt offset.
+    Update the template file for the IORT table.
+
+Disassembler: Enhanced the detection and disassembly of resource 
+template/descriptor within a Buffer object. An EndTag descriptor is now 
+required to have a zero second byte, since all known ASL compilers emit 
+this. This helps eliminate incorrect decisions when a buffer is 
+disassembled (false positives on resource templates).
+
+----------------------------------------
 19 January 2017. Summary of changes for version 20170119:
 
-This release is available at https://acpica.org/downloads
 
 1) General ACPICA software:
 
