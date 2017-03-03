@@ -754,7 +754,6 @@ struct c4iw_ep_common {
         int rpl_done;
         struct thread *thread;
         struct socket *so;
-	struct mutex so_mutex;
 };
 
 struct c4iw_listen_ep {

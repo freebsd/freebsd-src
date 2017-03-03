@@ -90,9 +90,7 @@ static void *alloc_ep(int size, gfp_t flags);
 void __free_ep(struct c4iw_ep_common *epc);
 static struct rtentry * find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
 		__be16 peer_port, u8 tos);
-static int close_socket(struct c4iw_ep_common *epc, int close);
-static int shutdown_socket(struct c4iw_ep_common *epc);
-static void abort_socket(struct c4iw_ep *ep);
+static void close_socket(struct socket *so);
 static int send_mpa_req(struct c4iw_ep *ep);
 static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen);
 static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen);
@@ -109,7 +107,8 @@ static void process_peer_close(struct c4iw_ep *ep);
 static void process_conn_error(struct c4iw_ep *ep);
 static void process_close_complete(struct c4iw_ep *ep);
 static void ep_timeout(unsigned long arg);
-static void init_sock(struct c4iw_ep_common *epc);
+static void init_iwarp_socket(struct socket *so, void *arg);
+static void uninit_iwarp_socket(struct socket *so);
 static void process_data(struct c4iw_ep *ep);
 static void process_connected(struct c4iw_ep *ep);
 static int c4iw_so_upcall(struct socket *so, void *arg, int waitflag);
@@ -319,87 +318,12 @@ find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
 	return iproute.ro_rt;
 }
 
-static int
-close_socket(struct c4iw_ep_common *epc, int close)
-{
-	struct socket *so = epc->so;
-	int rc;
-
-	CTR5(KTR_IW_CXGBE, "%s:csoB so %p, ep %p, state %s, tid %d", __func__,
-			so, epc, states[epc->state],
-			((struct c4iw_ep *)epc)->hwtid);
-	mutex_lock(&epc->so_mutex);
-	if ((so == NULL) || (so->so_count == 0)) {
-		mutex_unlock(&epc->so_mutex);
-		CTR5(KTR_IW_CXGBE, "%s:cso1 so %p, ep %p, state %s, tid %d",
-				__func__, so, epc, states[epc->state],
-				((struct c4iw_ep *)epc)->hwtid);
-		return -EINVAL;
-	}
-
-	SOCK_LOCK(so);
-	soupcall_clear(so, SO_RCV);
-	SOCK_UNLOCK(so);
-
-	if (close)
-                rc = soclose(so);
-        else
-                rc = soshutdown(so, SHUT_WR | SHUT_RD);
-	epc->so = NULL;
-
-	mutex_unlock(&epc->so_mutex);
-	return (rc);
-}
-
-static int
-shutdown_socket(struct c4iw_ep_common *epc)
-{
-
-	struct socket *so = epc->so;
-	int rc;
-
-	CTR5(KTR_IW_CXGBE, "%s:ssoB so %p, ep %p, state %s, tid %d", __func__,
-			epc->so, epc, states[epc->state],
-			((struct c4iw_ep *)epc)->hwtid);
-	mutex_lock(&epc->so_mutex);
-	if ((so == NULL) || (so->so_count == 0)) {
-		mutex_unlock(&epc->so_mutex);
-		CTR5(KTR_IW_CXGBE, "%s:sso1 so %p, ep %p, state %s, tid %d",
-			__func__, epc->so, epc, states[epc->state],
-			((struct c4iw_ep *)epc)->hwtid);
-		return -EINVAL;
-	}
-	rc = soshutdown(so, SHUT_WR);
-	mutex_unlock(&epc->so_mutex);
-	return rc;
-}
-
 static void
-abort_socket(struct c4iw_ep *ep)
+close_socket(struct socket *so)
 {
-	struct sockopt sopt;
-	int rc;
-	struct linger l;
 
-	CTR5(KTR_IW_CXGBE, "%s ep %p so %p state %s tid %d", __func__, ep,
-			ep->com.so, states[ep->com.state], ep->hwtid);
-	mutex_lock(&ep->com.so_mutex);
-	l.l_onoff = 1;
-	l.l_linger = 0;
-
-	/* linger_time of 0 forces RST to be sent */
-	sopt.sopt_dir = SOPT_SET;
-	sopt.sopt_level = SOL_SOCKET;
-	sopt.sopt_name = SO_LINGER;
-	sopt.sopt_val = (caddr_t)&l;
-	sopt.sopt_valsize = sizeof l;
-	sopt.sopt_td = NULL;
-	rc = sosetopt(ep->com.so, &sopt);
-	if (rc) {
-		log(LOG_ERR, "%s: can't set linger to 0, no RST! err %d\n",
-		    __func__, rc);
-	}
-	mutex_unlock(&ep->com.so_mutex);
+	uninit_iwarp_socket(so);
+	sodisconnect(so);
 }
 
 static void
@@ -429,7 +353,7 @@ process_peer_close(struct c4iw_ep *ep)
 
 			disconnect = 0;
 			STOP_EP_TIMER(ep);
-			close_socket(&ep->com, 0);
+			close_socket(ep->com.so);
 			deref_cm_id(&ep->com);
 			release = 1;
 			break;
@@ -486,7 +410,7 @@ process_peer_close(struct c4iw_ep *ep)
 				c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
 						C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 			}
-			close_socket(&ep->com, 0);
+			close_socket(ep->com.so);
 			close_complete_upcall(ep, 0);
 			__state_set(&ep->com, DEAD);
 			release = 1;
@@ -595,14 +519,7 @@ process_conn_error(struct c4iw_ep *ep)
 	}
 
 	if (state != ABORTING) {
-		if (ep->parent_ep) {
-			CTR2(KTR_IW_CXGBE, "%s:pce1 %p", __func__, ep);
-			close_socket(&ep->com, 1);
-		} else {
-			CTR2(KTR_IW_CXGBE, "%s:pce2 %p", __func__, ep);
-			close_socket(&ep->com, 0);
-		}
-
+		close_socket(ep->com.so);
 		__state_set(&ep->com, DEAD);
 		c4iw_put_ep(&ep->com);
 	}
@@ -648,16 +565,7 @@ process_close_complete(struct c4iw_ep *ep)
 						&attrs, 1);
 			}
 
-			if (ep->parent_ep) {
-
-				CTR2(KTR_IW_CXGBE, "%s:pcc3 %p", __func__, ep);
-				close_socket(&ep->com, 1);
-			}
-			else {
-
-				CTR2(KTR_IW_CXGBE, "%s:pcc4 %p", __func__, ep);
-				close_socket(&ep->com, 0);
-			}
+			close_socket(ep->com.so);
 			close_complete_upcall(ep, 0);
 			__state_set(&ep->com, DEAD);
 			release = 1;
@@ -688,23 +596,15 @@ process_close_complete(struct c4iw_ep *ep)
 }
 
 static void
-init_sock(struct c4iw_ep_common *epc)
+init_iwarp_socket(struct socket *so, void *arg)
 {
 	int rc;
 	struct sockopt sopt;
-	struct socket *so = epc->so;
 	int on = 1;
 
-	mutex_lock(&epc->so_mutex);
-	if ((so == NULL) || (so->so_count == 0)) {
-		mutex_unlock(&epc->so_mutex);
-		CTR5(KTR_IW_CXGBE, "%s:iso1 so %p, ep %p, state %s, tid %d",
-			__func__, so, epc, states[epc->state],
-			((struct c4iw_ep *)epc)->hwtid);
-		return;
-	}
+	/* Note that SOCK_LOCK(so) is same as SOCKBUF_LOCK(&so->so_rcv) */
 	SOCK_LOCK(so);
-	soupcall_set(so, SO_RCV, c4iw_so_upcall, epc);
+	soupcall_set(so, SO_RCV, c4iw_so_upcall, arg);
 	so->so_state |= SS_NBIO;
 	SOCK_UNLOCK(so);
 	sopt.sopt_dir = SOPT_SET;
@@ -718,7 +618,15 @@ init_sock(struct c4iw_ep_common *epc)
 		log(LOG_ERR, "%s: can't set TCP_NODELAY on so %p (%d)\n",
 		    __func__, so, rc);
 	}
-	mutex_unlock(&epc->so_mutex);
+}
+
+static void
+uninit_iwarp_socket(struct socket *so)
+{
+
+	SOCKBUF_LOCK(&so->so_rcv);
+	soupcall_clear(so, SO_RCV);
+	SOCKBUF_UNLOCK(&so->so_rcv);
 }
 
 static void
@@ -759,18 +667,18 @@ process_data(struct c4iw_ep *ep)
 static void
 process_connected(struct c4iw_ep *ep)
 {
+	struct socket *so = ep->com.so;
 
-	if ((ep->com.so->so_state & SS_ISCONNECTED) && !ep->com.so->so_error) {
+	if ((so->so_state & SS_ISCONNECTED) && !so->so_error) {
 		if (send_mpa_req(ep))
 			goto err;
-	}
-	else {
-		connect_reply_upcall(ep, -ep->com.so->so_error);
+	} else {
+		connect_reply_upcall(ep, -so->so_error);
 		goto err;
 	}
 	return;
 err:
-	close_socket(&ep->com, 0);
+	close_socket(so);
 	state_set(&ep->com, DEAD);
 	c4iw_put_ep(&ep->com);
 	return;
@@ -785,23 +693,9 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 	struct c4iw_ep *parent_ep = parent_cm_id->provider_data;
 	int ret = 0;
 
-	if (!child_so) {
-		CTR4(KTR_IW_CXGBE,
-		    "%s: parent so %p, parent ep %p, child so %p, invalid so",
-		    __func__, parent_ep->com.so, parent_ep, child_so);
-		log(LOG_ERR, "%s: invalid child socket\n", __func__);
-		return;
-	}
-	child_ep = alloc_ep(sizeof(*child_ep), M_NOWAIT);
-	if (!child_ep) {
-		CTR3(KTR_IW_CXGBE, "%s: parent so %p, parent ep %p, ENOMEM",
-		    __func__, parent_ep->com.so, parent_ep);
-		log(LOG_ERR, "%s: failed to allocate ep entry\n", __func__);
-		return;
-	}
-	SOCKBUF_LOCK(&child_so->so_rcv);
-	soupcall_set(child_so, SO_RCV, c4iw_so_upcall, child_ep);
-	SOCKBUF_UNLOCK(&child_so->so_rcv);
+	MPASS(child_so != NULL);
+
+	child_ep = alloc_ep(sizeof(*child_ep), M_WAITOK);
 
 	CTR5(KTR_IW_CXGBE,
 	    "%s: parent so %p, parent ep %p, child so %p, child ep %p",
@@ -821,6 +715,7 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 	free(local, M_SONAME);
 	free(remote, M_SONAME);
 
+	init_iwarp_socket(child_so, &child_ep->com);
 	c4iw_get_ep(&parent_ep->com);
 	init_timer(&child_ep->timer);
 	state_set(&child_ep->com, MPA_REQ_WAIT);
@@ -1052,7 +947,6 @@ alloc_ep(int size, gfp_t gfp)
 
 	kref_init(&epc->kref);
 	mutex_init(&epc->mutex);
-	mutex_init(&epc->so_mutex);
 	c4iw_init_wr_wait(&epc->wr_wait);
 
 	return (epc);
@@ -1373,30 +1267,47 @@ static void close_complete_upcall(struct c4iw_ep *ep, int status)
 	CTR2(KTR_IW_CXGBE, "%s:ccuE %p", __func__, ep);
 }
 
-static int send_abort(struct c4iw_ep *ep)
+static int
+send_abort(struct c4iw_ep *ep)
 {
-	int err;
+	struct socket *so = ep->com.so;
+	struct sockopt sopt;
+	int rc;
+	struct linger l;
 
-	CTR2(KTR_IW_CXGBE, "%s:abB %p", __func__, ep);
-	abort_socket(ep);
+	CTR5(KTR_IW_CXGBE, "%s ep %p so %p state %s tid %d", __func__, ep, so,
+	    states[ep->com.state], ep->hwtid);
 
-	/*
-	 * Since socket options were set as l_onoff=1 and l_linger=0 in in
-	 * abort_socket, invoking soclose here sends a RST (reset) to the peer.
-	 */
-	err = close_socket(&ep->com, 1);
+	l.l_onoff = 1;
+	l.l_linger = 0;
+
+	/* linger_time of 0 forces RST to be sent */
+	sopt.sopt_dir = SOPT_SET;
+	sopt.sopt_level = SOL_SOCKET;
+	sopt.sopt_name = SO_LINGER;
+	sopt.sopt_val = (caddr_t)&l;
+	sopt.sopt_valsize = sizeof l;
+	sopt.sopt_td = NULL;
+	rc = sosetopt(so, &sopt);
+	if (rc != 0) {
+		log(LOG_ERR, "%s: sosetopt(%p, linger = 0) failed with %d.\n",
+		    __func__, so, rc);
+	}
+
+	uninit_iwarp_socket(so);
+	sodisconnect(so);
 	set_bit(ABORT_CONN, &ep->com.history);
-	CTR2(KTR_IW_CXGBE, "%s:abE %p", __func__, ep);
 
 	/*
-	 * TBD: iw_cgbe driver should receive ABORT reply for every ABORT
+	 * TBD: iw_cxgbe driver should receive ABORT reply for every ABORT
 	 * request it has sent. But the current TOE driver is not propagating
 	 * this ABORT reply event (via do_abort_rpl) to iw_cxgbe. So as a work-
 	 * around de-refer 'ep' (which was refered before sending ABORT request)
 	 * here instead of doing it in abort_rpl() handler of iw_cxgbe driver.
 	 */
 	c4iw_put_ep(&ep->com);
-	return err;
+
+	return (0);
 }
 
 static void peer_close_upcall(struct c4iw_ep *ep)
@@ -2227,7 +2138,6 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_ep *ep = NULL;
 	struct rtentry *rt;
-	struct toedev *tdev;
 
 	CTR2(KTR_IW_CXGBE, "%s:ccB %p", __func__, cm_id);
 
@@ -2280,8 +2190,6 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->com.thread = curthread;
 	ep->com.so = cm_id->so;
 
-	init_sock(&ep->com);
-
 	/* find a route */
 	rt = find_route(
 		cm_id->local_addr.sin_addr.s_addr,
@@ -2297,20 +2205,9 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto fail2;
 	}
 
-	if (!(rt->rt_ifp->if_capenable & IFCAP_TOE)) {
-
-		CTR2(KTR_IW_CXGBE, "%s:cc8 %p", __func__, ep);
-		printf("%s - interface not TOE capable.\n", __func__);
-		close_socket(&ep->com, 0);
+	if (!(rt->rt_ifp->if_capenable & IFCAP_TOE) ||
+	    TOEDEV(rt->rt_ifp) == NULL) {
 		err = -ENOPROTOOPT;
-		goto fail3;
-	}
-	tdev = TOEDEV(rt->rt_ifp);
-
-	if (tdev == NULL) {
-
-		CTR2(KTR_IW_CXGBE, "%s:cc9 %p", __func__, ep);
-		printf("%s - No toedev for interface.\n", __func__);
 		goto fail3;
 	}
 	RTFREE(rt);
@@ -2323,19 +2220,18 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ep->com.thread);
 
 	if (!err) {
-		CTR2(KTR_IW_CXGBE, "%s:cca %p", __func__, ep);
+		init_iwarp_socket(cm_id->so, &ep->com);
 		goto out;
 	} else {
-		close_socket(&ep->com, 0);
 		goto fail2;
 	}
 
 fail3:
-	CTR2(KTR_IW_CXGBE, "%s:ccb %p", __func__, ep);
 	RTFREE(rt);
 fail2:
 	deref_cm_id(&ep->com);
 	c4iw_put_ep(&ep->com);
+	ep = NULL;	/* CTR shouldn't display already-freed ep. */
 out:
 	CTR2(KTR_IW_CXGBE, "%s:ccE %p", __func__, ep);
 	return err;
@@ -2479,7 +2375,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 
 			if (!ep->parent_ep)
 				__state_set(&ep->com, MORIBUND);
-			ret = shutdown_socket(&ep->com);
+			ret = sodisconnect(ep->com.so);
 		}
 
 		if (ret) {
