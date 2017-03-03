@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 17, 2017
+.Dd February 20, 2017
 .Dt TIMEOUT 1
 .Os
 .Sh NAME
@@ -68,7 +68,9 @@ By default,
 .Ar SIGTERM .
 is sent.
 .It Fl k Ar time , Fl -kill-after Ar time
-Send a second kill signal if
+Send a
+.Ar SIGKILL
+signal if
 .Ar command
 is still running after
 .Ar time
