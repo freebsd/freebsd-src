@@ -83,6 +83,16 @@ int efi_set_variable(efi_guid_t guid, const char *name,
 int efi_str_to_guid(const char *s, efi_guid_t *guid);
 int efi_variables_supported(void);
 
+/* FreeBSD extensions */
+struct uuid_table
+{
+	const char *uuid_str;
+	const char *name;
+	efi_guid_t guid;
+};
+
+int efi_known_guid(struct uuid_table **);
+
 extern const efi_guid_t efi_guid_empty;
 
 /* Stubs that are expected, but aren't really used */
