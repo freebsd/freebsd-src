@@ -87,7 +87,7 @@ breakdown_name(char *name, efi_guid_t *guid, char **vname)
 		errx(1, "Invalid name: %s", name);
 	*vname = cp + 1;
 	*cp = '\0';
-	if (efi_str_to_guid(name, guid) < 0)
+	if (efi_name_to_guid(name, guid) < 0)
 		errx(1, "Invalid guid %s", name);
 }
 
