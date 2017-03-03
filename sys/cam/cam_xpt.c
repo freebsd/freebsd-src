@@ -435,6 +435,9 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			inccb->csio.bio = NULL;
 #endif
 
+		if (inccb->ccb_h.flags & CAM_UNLOCKED)
+			return (EINVAL);
+
 		bus = xpt_find_bus(inccb->ccb_h.path_id);
 		if (bus == NULL)
 			return (EINVAL);
