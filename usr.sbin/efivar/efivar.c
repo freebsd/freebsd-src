@@ -219,6 +219,8 @@ print_var(efi_guid_t *guid, char *name)
 			bindump(data, datalen);
 		else
 			hexdump(data, datalen);
+	} else {
+		printf("%s-%s", gname, name);
 	}
 	free(gname);
 	if (!Nflag)
