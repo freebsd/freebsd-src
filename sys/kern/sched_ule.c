@@ -1662,7 +1662,11 @@ sched_pctcpu_update(struct td_sched *ts, int run)
 {
 	int t = ticks;
 
-	if (t - ts->ts_ltick >= SCHED_TICK_TARG) {
+	/*
+	 * The signed difference may be negative if the thread hasn't run for
+	 * over half of the ticks rollover period.
+	 */
+	if ((u_int)(t - ts->ts_ltick) >= SCHED_TICK_TARG) {
 		ts->ts_ticks = 0;
 		ts->ts_ftick = t - SCHED_TICK_TARG;
 	} else if (t - ts->ts_ftick >= SCHED_TICK_MAX) {
