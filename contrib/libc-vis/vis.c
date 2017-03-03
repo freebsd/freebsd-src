@@ -353,12 +353,14 @@ makeextralist(int flags, const char *src)
 	wchar_t *dst, *d;
 	size_t len;
 	const wchar_t *s;
+	mbstate_t mbstate;
 
+	bzero(&mbstate, sizeof(mbstate));
 	len = strlen(src);
 	if ((dst = calloc(len + MAXEXTRAS, sizeof(*dst))) == NULL)
 		return NULL;
 
-	if ((flags & VIS_NOLOCALE) || mbstowcs(dst, src, len) == (size_t)-1) {
+	if ((flags & VIS_NOLOCALE) || mbsrtowcs(dst, &src, len, &mbstate) == (size_t)-1) {
 		size_t i;
 		for (i = 0; i < len; i++)
 			dst[i] = (wchar_t)(u_char)src[i];
@@ -400,6 +402,7 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	int clen = 0, cerr, error = -1, i, shft;
 	char *mbdst, *mdst;
 	ssize_t mbslength, maxolen;
+	mbstate_t mbstate;
 
 	_DIAGASSERT(mbdstp != NULL);
 	_DIAGASSERT(mbsrc != NULL || mblength == 0);
@@ -456,10 +459,11 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	 */
 	if (mbslength == 1)
 		mbslength++;
+	bzero(&mbstate, sizeof(mbstate));
 	while (mbslength > 0) {
 		/* Convert one multibyte character to wchar_t. */
 		if (!cerr)
-			clen = mbtowc(src, mbsrc, MB_LEN_MAX);
+			clen = mbrtowc(src, mbsrc, MB_LEN_MAX, &mbstate);
 		if (cerr || clen < 0) {
 			/* Conversion error, process as a byte instead. */
 			*src = (wint_t)(u_char)*mbsrc;
@@ -530,9 +534,10 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	len = wcslen(start);
 	maxolen = dlen ? *dlen : (wcslen(start) * MB_LEN_MAX + 1);
 	olen = 0;
+	bzero(&mbstate, sizeof(mbstate));
 	for (dst = start; len > 0; len--) {
 		if (!cerr)
-			clen = wctomb(mbdst, *dst);
+			clen = wcrtomb(mbdst, *dst, &mbstate);
 		if (cerr || clen < 0) {
 			/*
 			 * Conversion error, process as a byte(s) instead.
