@@ -252,6 +252,17 @@ print_variables(void)
 }
 
 static void
+print_known_guid(void)
+{
+	struct uuid_table *tbl;
+	int i, n;
+
+	n = efi_known_guid(&tbl);
+	for (i = 0; i < n; i++)
+		printf("%s %s\n", tbl[i].uuid_str, tbl[i].name);
+}
+
+static void
 parse_args(int argc, char **argv)
 {
 	int ch, i;
@@ -333,6 +344,8 @@ parse_args(int argc, char **argv)
 		delete_variable(varname);
 	else if (wflag)
 		write_variable(varname, NULL);
+	else if (Lflag)
+		print_known_guid();
 	else if (varname) {
 		pflag++;
 		print_variable(varname);
