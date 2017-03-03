@@ -1140,11 +1140,12 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 	}
 	entry = fs->entry;
 
-	starta = addra - backward * PAGE_SIZE;
-	if (starta < entry->start) {
+	if (addra < backward * PAGE_SIZE) {
 		starta = entry->start;
-	} else if (starta > addra) {
-		starta = 0;
+	} else {
+		starta = addra - backward * PAGE_SIZE;
+		if (starta < entry->start)
+			starta = entry->start;
 	}
 
 	/*
