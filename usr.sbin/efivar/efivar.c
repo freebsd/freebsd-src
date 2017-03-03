@@ -46,6 +46,7 @@ static struct option longopts[] = {
 	{ "binary",		no_argument,		NULL,	'b' },
 	{ "delete",		no_argument,		NULL,   'D' },
 	{ "fromfile",		required_argument,	NULL,	'f' },
+	{ "guid",		no_argument,		NULL,	'g' },
 	{ "hex",		no_argument,		NULL,	'H' },
 	{ "list-guids",		no_argument,		NULL,	'L' },
 	{ "list",		no_argument,		NULL,	'l' },
@@ -59,7 +60,7 @@ static struct option longopts[] = {
 };
 
 
-static int aflag, Aflag, bflag, dflag, Dflag, Hflag, Nflag,
+static int aflag, Aflag, bflag, dflag, Dflag, gflag, Hflag, Nflag,
 	lflag, Lflag, Rflag, wflag, pflag;
 static char *varname;
 static u_long attrib = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
@@ -196,6 +197,20 @@ bindump(uint8_t *data, size_t datalen)
 }
 
 static void
+pretty_guid(efi_guid_t *guid, char **gname)
+{
+	char *pretty = NULL;
+
+	if (gflag)
+		efi_guid_to_name(guid, &pretty);
+
+	if (pretty == NULL)
+		efi_guid_to_str(guid, gname);
+	else
+		*gname = pretty;
+}
+
+static void
 print_var(efi_guid_t *guid, char *name)
 {
 	uint32_t att;
@@ -204,7 +219,7 @@ print_var(efi_guid_t *guid, char *name)
 	char *gname;
 	int rv;
 
-	efi_guid_to_str(guid, &gname);
+	pretty_guid(guid, &gname);
 	if (pflag) {
 		rv = efi_get_variable(*guid, name, &data, &datalen, &att);
 
@@ -267,7 +282,7 @@ parse_args(int argc, char **argv)
 {
 	int ch, i;
 
-	while ((ch = getopt_long(argc, argv, "aAbdDf:HlLNn:pRt:w",
+	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:pRt:w",
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -284,6 +299,9 @@ parse_args(int argc, char **argv)
 			break;
 		case 'D':
 			Dflag++;
+			break;
+		case 'g':
+			gflag++;
 			break;
 		case 'H':
 			Hflag++;
