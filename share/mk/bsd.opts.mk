@@ -104,6 +104,7 @@ WITH_CHERI256:=	yes
 
 .if ${MK_CHERI128} == "yes" || ${MK_CHERI256} == "yes"
 MK_CHERI:=	yes
+MK_CLANG:=	no
 .else
 MK_CHERI:=	no
 .endif
