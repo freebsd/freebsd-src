@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2016
+.Dd March 3, 2017
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -146,7 +146,7 @@ to be the same as
 .Pp
 The general command syntax is:
 .Ar command Ns Op Li / Ns Ar modifier
-.Oo Ar addr Oc Ns Op Li , Ns Ar count
+.Oo Ar addr Oc Ns Op , Ns Ar count
 .Pp
 A blank line repeats the previous command from the address
 .Va next
@@ -213,11 +213,11 @@ current line.
 .Bl -tag -width indent -compact
 .It Xo
 .Ic examine Ns Op Li / Ns Cm AISabcdghilmorsuxz ...
-.Oo Ar addr Oc Ns Op Li , Ns Ar count
+.Oo Ar addr Oc Ns Op , Ns Ar count
 .Xc
 .It Xo
 .Ic x       Ns Op Li / Ns Cm AISabcdghilmorsuxz ...
-.Oo Ar addr Oc Ns Op Li , Ns Ar count
+.Oo Ar addr Oc Ns Op , Ns Ar count
 .Xc
 Display the addressed locations according to the formats in the modifier.
 Multiple modifier formats display multiple locations.
@@ -343,8 +343,8 @@ Set the named variable or register with the value of
 .Ar expr .
 Valid variable names are described below.
 .Pp
-.It Ic break Ns Oo Li / Ns Cm u Oc Oo Ar addr Oc Ns Op Li , Ns Ar count
-.It Ic b     Ns Oo Li / Ns Cm u Oc Oo Ar addr Oc Ns Op Li , Ns Ar count
+.It Ic break Ns Oo Li / Ns Cm u Oc Oo Ar addr Oc Ns Op , Ns Ar count
+.It Ic b     Ns Oo Li / Ns Cm u Oc Oo Ar addr Oc Ns Op , Ns Ar count
 Set a break point at
 .Ar addr .
 If
@@ -394,7 +394,7 @@ command, or by omitting
 to get the default address of
 .Va dot .
 .Pp
-.It Ic watch Oo Ar addr Oc Ns Op Li , Ns Ar size
+.It Ic watch Oo Ar addr Oc Ns Op , Ns Ar size
 Set a watchpoint for a region.
 Execution stops when an attempt to modify the region occurs.
 The
@@ -408,7 +408,7 @@ Attempts to watch wired kernel memory
 may cause unrecoverable error in some systems such as i386.
 Watchpoints on user addresses work best.
 .Pp
-.It Ic hwatch Oo Ar addr Oc Ns Op Li , Ns Ar size
+.It Ic hwatch Oo Ar addr Oc Ns Op , Ns Ar size
 Set a hardware watchpoint for a region if supported by the
 architecture.
 Execution stops when an attempt to modify the region occurs.
@@ -424,11 +424,11 @@ Use
 for setting watchpoints on kernel address locations only, and avoid
 its use on user mode address spaces.
 .Pp
-.It Ic dhwatch Oo Ar addr Oc Ns Op Li , Ns Ar size
+.It Ic dhwatch Oo Ar addr Oc Ns Op , Ns Ar size
 Delete specified hardware watchpoint.
 .Pp
-.It Ic step Ns Oo Li / Ns Cm p Oc Ns Op Li , Ns Ar count
-.It Ic s    Ns Oo Li / Ns Cm p Oc Ns Op Li , Ns Ar count
+.It Ic step Ns Oo Li / Ns Cm p Oc Ns Op , Ns Ar count
+.It Ic s    Ns Oo Li / Ns Cm p Oc Ns Op , Ns Ar count
 Single step
 .Ar count
 times.
@@ -478,22 +478,22 @@ Otherwise, only print when the matching return is hit.
 .It Xo
 .Ic trace Ns Op Li / Ns Cm u
 .Op Ar pid | tid Ns
-.Op Li , Ns Ar count
+.Op , Ns Ar count
 .Xc
 .It Xo
 .Ic t Ns Op Li / Ns Cm u
 .Op Ar pid | tid Ns
-.Op Li , Ns Ar count
+.Op , Ns Ar count
 .Xc
 .It Xo
 .Ic where Ns Op Li / Ns Cm u
 .Op Ar pid | tid Ns
-.Op Li , Ns Ar count
+.Op , Ns Ar count
 .Xc
 .It Xo
 .Ic bt Ns Op Li / Ns Cm u
 .Op Ar pid | tid Ns
-.Op Li , Ns Ar count
+.Op , Ns Ar count
 .Xc
 Stack trace.
 The
@@ -518,7 +518,7 @@ only if the machine dependent code supports it.
 .Ar addr
 .Ar value
 .Op Ar mask Ns
-.Op Li , Ns Ar count
+.Op , Ns Ar count
 .Xc
 Search memory for
 .Ar value .
@@ -768,12 +768,12 @@ Possible types include
 Name of the lock.
 .It Ic flags:
 Flags passed to the lock initialization function.
-For exact possibilities see manual pages of possible lock types.
+.Em flags
+values are lock class specific.
 .It Ic state:
 Current state of a lock.
-As well as
-.Ic flags
-it's lock-specific.
+.Em state
+values are lock class specific.
 .It Ic owner:
 Lock owner.
 .El
