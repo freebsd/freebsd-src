@@ -75,7 +75,7 @@ _LIB_OBJTOP=	${ROOTOBJDIR}
 .ifdef LIBCHERI
 LDFLAGS+=	-Wl,-init=crt_init_globals
 .endif
-.ifdef CHERI_USE_LLD
+.if ${MK_CHERI_USE_LLD} == "yes"
 .ifdef CHERI_LLD_BROKEN
 LDFLAGS+=	-fuse-ld=bfd
 .else
