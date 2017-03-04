@@ -28,10 +28,15 @@
  * SUCH DAMAGE.
  */
 
-#include <stdlib.h>
+#include <errno.h>
 #include <setjmp.h>
+#include <signal.h>
+#include <stdlib.h>
+
+#include "libc_private.h"
 
 int __isthreaded = 0;
+void (*__cleanup)(void) __hidden;
 
 void
 exit(int status __unused)
@@ -51,4 +56,26 @@ longjmp(jmp_buf env __unused, int val __unused)
 {
 
 	abort();
+}
+
+int
+__libc_sigaction(int sig, const struct sigaction * restrict act,
+         struct sigaction * restrict oact);
+int
+__libc_sigaction(int sig, const struct sigaction * restrict act,
+         struct sigaction * restrict oact)
+{
+
+	return (EINVAL);
+}
+
+int
+__libc_sigprocmask(int how, const sigset_t * restrict set,
+         sigset_t * restrict oset);
+int
+__libc_sigprocmask(int how, const sigset_t * restrict set,
+         sigset_t * restrict oset)
+{
+
+	return (EINVAL);
 }

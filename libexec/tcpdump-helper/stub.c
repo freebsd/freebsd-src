@@ -69,7 +69,6 @@ time_t	mktime(struct tm *tm);
 char	*asctime(const struct tm *tm);
 struct tm *localtime(const time_t *clock);
 
-int __isthreaded = 0;
 void * __getCurrentRuneLocale(void);
 
 /* XXX no contents, they aren't real, just pointer cookies */
@@ -158,20 +157,6 @@ _read(int d __unused, void *buf __unused, size_t nbytes __unused)
 	errno = ECAPMODE;
 	return (-1);
 }
-
-void
-exit(int status __unused)
-{
-	abort();
-}
-
-#if 0
-int
-__swbuf(int c, FILE *fp __unused)
-{
-	return (c);
-}
-#endif
 
 int
 issetugid(void)

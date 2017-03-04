@@ -44,6 +44,7 @@ SRCS+=		assert.c		\
 		getprogname.c		\
 		errlst.c		\
 		errno.c			\
+		sigsetops.c		\
 		setprogname.c		\
 		_once_stub.c		\
 		_pthread_stubs.c
@@ -107,6 +108,7 @@ SRCS+=		regcomp.c		\
 # libc/stdlib
 SRCS+=		atoi.c			\
 		abs.c			\
+		abort.c			\
 		llabs.c			\
 		heapsort.c		\
 		qsort.c 		\
