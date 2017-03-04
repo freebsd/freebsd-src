@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/random.h>
@@ -100,6 +101,8 @@ static default_attr user_default = {
     SC_NORM_REV_ATTR,
 };
 
+static	u_char		sc_kattrtab[MAXCPU];
+
 static	int		sc_console_unit = -1;
 static	int		sc_saver_keyb_only = 1;
 static  scr_stat    	*sc_console;
@@ -141,6 +144,8 @@ static	int		sc_no_suspend_vtswitch = 0;
 static	int		sc_susp_scr;
 
 static SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
+SYSCTL_OPAQUE(_hw_syscons, OID_AUTO, kattr, CTLFLAG_RW,
+    &sc_kattrtab, sizeof(sc_kattrtab), "CU", "kernel console attributes");
 static SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
     &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
@@ -2994,8 +2999,16 @@ scinit(int unit, int flags)
     int i;
 
     /* one time initialization */
-    if (init_done == COLD)
+    if (init_done == COLD) {
 	sc_get_bios_values(&bios_value);
+	for (i = 0; i < nitems(sc_kattrtab); i++) {
+#if SC_KERNEL_CONS_ATTR == FG_WHITE
+	    sc_kattrtab[i] = 8 + (i + FG_WHITE) % 8U;
+#else
+	    sc_kattrtab[i] = SC_KERNEL_CONS_ATTR;
+#endif
+	}
+    }
     init_done = WARM;
 
     /*
@@ -4006,6 +4019,12 @@ sc_bell(scr_stat *scp, int pitch, int duration)
 	    pitch *= 2;
 	sysbeep(1193182 / pitch, duration);
     }
+}
+
+int
+sc_kattr(void)
+{
+    return (sc_kattrtab[PCPU_GET(cpuid) % nitems(sc_kattrtab)]);
 }
 
 static void
