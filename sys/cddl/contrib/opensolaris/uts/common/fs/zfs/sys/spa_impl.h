@@ -261,6 +261,7 @@ struct spa {
 #else	/* !illumos */
 #ifdef _KERNEL
 	struct callout	spa_deadman_cycid;	/* callout id */
+	struct task	spa_deadman_task;
 #endif
 #endif	/* illumos */
 	uint64_t	spa_deadman_calls;	/* number of deadman calls */
