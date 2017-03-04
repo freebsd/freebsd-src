@@ -419,7 +419,7 @@ uart_pl011_bus_probe(struct uart_softc *sc)
 	device_set_desc(sc->sc_dev, "PrimeCell UART (PL011)");
 
 	sc->sc_rxfifosz = 16;
-	sc->sc_txfifosz = 16;
+	sc->sc_txfifosz =  8;
 
 	return (0);
 }
@@ -434,8 +434,10 @@ uart_pl011_bus_receive(struct uart_softc *sc)
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 
-	ints = __uart_getreg(bas, UART_MIS);
-	while (ints & (UART_RXREADY | RIS_RTIM)) {
+	for (;;) {
+		ints = __uart_getreg(bas, UART_FR);
+		if (ints & FR_RXFE)
+			break;
 		if (uart_rx_full(sc)) {
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 			break;
@@ -450,7 +452,6 @@ uart_pl011_bus_receive(struct uart_softc *sc)
 			rx |= UART_STAT_PARERR;
 
 		uart_rx_put(sc, rx);
-		ints = __uart_getreg(bas, UART_MIS);
 	}
 
 	uart_unlock(sc->sc_hwmtx);
