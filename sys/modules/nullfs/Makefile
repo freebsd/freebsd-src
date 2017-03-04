@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/nullfs
+.PATH: ${SRCTOP}/sys/fs/nullfs
 
 KMOD=	nullfs
 SRCS=	vnode_if.h \

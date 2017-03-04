@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../../dev/ata/chipsets
+.PATH: ${SRCTOP}/sys/dev/ata/chipsets
 
 KMOD=	ataati
 SRCS=	ata-ati.c

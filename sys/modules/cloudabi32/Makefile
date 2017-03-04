@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR?=${.CURDIR}/../..
+SYSDIR?=${SRCTOP}/sys
 
 .PATH: ${SYSDIR}/compat/cloudabi32
 .PATH: ${SYSDIR}/${MACHINE_CPUARCH}/cloudabi32

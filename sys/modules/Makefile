@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR?=${.CURDIR}/..
+SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR_PARALLEL=
@@ -423,7 +423,7 @@ SUBDIR+=	opensolaris
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if exists(${.CURDIR}/../opencrypto)
+.if exists(${SRCTOP}/sys/opencrypto)
 _crypto=	crypto
 _cryptodev=	cryptodev
 _random_fortuna=random_fortuna

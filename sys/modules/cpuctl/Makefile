@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/cpuctl
+.PATH: ${SRCTOP}/sys/dev/cpuctl
 
 KMOD=	cpuctl
 SRCS=	cpuctl.c

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../net80211
+.PATH: ${SRCTOP}/sys/net80211
 
 KMOD=	wlan_rssadapt
 SRCS=	ieee80211_rssadapt.c

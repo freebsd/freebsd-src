@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/filemon
+.PATH: ${SRCTOP}/sys/dev/filemon
 
 KMOD=	filemon
 SRCS=	${KMOD}.c

@@ -5,7 +5,7 @@ SFX= 32
 CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 .endif
 
-.PATH: ${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_CPUARCH}/linux${SFX}
+.PATH: ${SRCTOP}/sys/compat/linux ${SRCTOP}/sys/${MACHINE_CPUARCH}/linux${SFX}
 
 VDSO=	linux${SFX}_vdso
 
@@ -52,7 +52,7 @@ linux${SFX}_locore.o: linux${SFX}_assym.h assym.s
 	${CC} -x assembler-with-cpp -DLOCORE -m32 -shared -s			\
 	-pipe -I. -I${SYSDIR} -Werror -Wall -fno-common -nostdinc -nostdlib	\
 	-fno-omit-frame-pointer -fPIC						\
-	-Wl,-T${.CURDIR}/../../${MACHINE_CPUARCH}/linux${SFX}/${VDSO}.lds.s	\
+	-Wl,-T${SRCTOP}/sys/${MACHINE_CPUARCH}/linux${SFX}/${VDSO}.lds.s	\
 	-Wl,-soname=${VDSO}.so.1,--eh-frame-hdr,-warn-common		\
 	    ${.IMPSRC} -o ${.TARGET}
 

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:  ${.CURDIR}/../../dev/iwm
+.PATH:  ${SRCTOP}/sys/dev/iwm
 
 KMOD=	if_iwm
 # Main driver

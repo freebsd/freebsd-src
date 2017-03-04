@@ -1,6 +1,6 @@
 #$FreeBSD$
 
-.PATH:		${.CURDIR}/../../../../dev/ichiic
+.PATH:		${SRCTOP}/sys/dev/ichiic
 KMOD		= ig4
 SRCS		= acpi_if.h device_if.h bus_if.h iicbus_if.h pci_if.h \
 		  smbus_if.h ${ig4_acpi} ig4_iic.c ig4_pci.c ig4_reg.h \

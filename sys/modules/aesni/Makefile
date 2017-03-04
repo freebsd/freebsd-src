@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../crypto/aesni
+.PATH: ${SRCTOP}/sys/crypto/aesni
 
 KMOD=	aesni
 SRCS=	aesni.c

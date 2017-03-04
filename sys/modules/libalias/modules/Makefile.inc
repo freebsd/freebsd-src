@@ -1,3 +1,3 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../netinet/libalias
+.PATH: ${SRCTOP}/sys/netinet/libalias

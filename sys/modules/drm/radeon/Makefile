@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm
+.PATH:	${SRCTOP}/sys/dev/drm
 KMOD	= radeon
 SRCS	= r300_cmdbuf.c r600_blit.c r600_cp.c radeon_cp.c radeon_cs.c \
 	radeon_drv.c radeon_irq.c radeon_mem.c radeon_state.c
