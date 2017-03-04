@@ -850,6 +850,7 @@ mem1:				saved_errno = errno;
 	    (cur->fts_level == FTS_ROOTLEVEL ?
 	    FCHDIR(sp, sp->fts_rfd) :
 	    fts_safe_changedir(sp, cur->fts_parent, -1, ".."))) {
+		fts_lfree(head);
 		cur->fts_info = FTS_ERR;
 		SET(FTS_STOP);
 		return (NULL);
