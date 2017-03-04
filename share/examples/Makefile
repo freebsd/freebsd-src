@@ -241,7 +241,7 @@ copies:
 	fi
 .endfor
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
-	    -f ${.CURDIR}/../../etc/mtree/BSD.usr.dist -p ${DESTDIR}/usr
+	    -f ${SRCTOP}/etc/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 .for file in ${XFILES}
 	${INSTALL} -T package=${PACKAGE_${file}:Uexamples} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
 		${.CURDIR}/${file} ${DESTDIR}${BINDIR}/${file}
@@ -255,7 +255,7 @@ symlinks:
 
 etc-examples:
 .if ${SHARED} != "symlinks"
-	${_+_}(cd ${.CURDIR}/../../etc; ${MAKE} etc-examples)
+	${_+_}(cd ${SRCTOP}/etc; ${MAKE} etc-examples)
 .endif
 
 .if ${SHARED} != "symlinks"

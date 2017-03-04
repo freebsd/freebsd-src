@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=		${.CURDIR}/../../../../sys/contrib/dev/iwi/LICENSE
+FILES=		${SRCTOP}/sys/contrib/dev/iwi/LICENSE
 FILESDIR=	${SHAREDIR}/doc/legal
 FILESNAME=	intel_iwi.LICENSE
 

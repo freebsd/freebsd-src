@@ -43,7 +43,7 @@ MLINKS+= c99.7 c89.7
 MLINKS+= c99.7 c90.7
 
 .if ${MK_TESTS} != "no"
-ATF=	${.CURDIR}/../../../contrib/atf
+ATF=	${SRCTOP}/contrib/atf
 .PATH:	${ATF}/doc
 MAN+=	atf.7
 
