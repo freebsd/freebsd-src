@@ -30,7 +30,7 @@
 
 CLEANFILES+=	yearistype
 CLEANDIRS+=	builddir
-CONTRIBDIR=	${.CURDIR}/../../contrib/tzdata/
+CONTRIBDIR=	${SRCTOP}/contrib/tzdata/
 .PATH:		${CONTRIBDIR}
 
 .if defined(LEAPSECONDS)

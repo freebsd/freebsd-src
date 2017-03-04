@@ -25,9 +25,8 @@
 #
 # $FreeBSD$
 
-ATF=		${.CURDIR}/../../../contrib/atf
-.PATH:		${ATF}
-.PATH:		${ATF}/doc
+ATF=	${SRCTOP}/contrib/atf
+.PATH: ${ATF} ${ATF}/doc
 
 FILESGROUPS=	TOP
 
