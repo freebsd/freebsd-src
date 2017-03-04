@@ -86,6 +86,16 @@ __FBSDID("$FreeBSD$");
 #define	CR_TXE		(1 << 8)	/* Transmit enable */
 #define	CR_UARTEN	(1 << 0)	/* UART enable */
 
+#define	UART_IFLS	0x0d		/* FIFO level select register */
+#define	IFLS_RX_SHIFT	3		/* RX level in bits [5:3] */
+#define	IFLS_TX_SHIFT	0		/* TX level in bits [2:0] */
+#define	IFLS_MASK	0x07		/* RX/TX level is 3 bits */
+#define	IFLS_LVL_1_8th	0		/* Interrupt at 1/8 full */
+#define	IFLS_LVL_2_8th	1		/* Interrupt at 1/4 full */
+#define	IFLS_LVL_4_8th	2		/* Interrupt at 1/2 full */
+#define	IFLS_LVL_6_8th	3		/* Interrupt at 3/4 full */
+#define	IFLS_LVL_7_8th	4		/* Interrupt at 7/8 full */
+
 #define	UART_IMSC	0x0e		/* Interrupt mask set/clear register */
 #define	IMSC_MASK_ALL	0x7ff		/* Mask all interrupts */
 
@@ -100,6 +110,18 @@ __FBSDID("$FreeBSD$");
 
 #define	UART_MIS	0x10		/* Masked interrupt status register */
 #define	UART_ICR	0x11		/* Interrupt clear register */
+
+/*
+ * The hardware FIFOs are 16 bytes each.  We configure them to interrupt when
+ * 3/4 full/empty.  For RX we set the size to the full hardware capacity so that
+ * the uart core allocates enough buffer space to hold a complete fifo full of
+ * incoming data.  For TX, we need to limit the size to the capacity we know
+ * will be available when the interrupt occurs; uart_core will feed exactly that
+ * many bytes to uart_pl011_bus_transmit() which must consume them all.
+ */
+#define	FIFO_RX_SIZE	16
+#define	FIFO_TX_SIZE	12
+#define	FIFO_IFLS_BITS	((IFLS_LVL_6_8th << IFLS_RX_SHIFT) | (IFLS_LVL_2_8th))
 
 /*
  * FIXME: actual register size is SoC-dependent, we need to handle it
@@ -186,6 +208,9 @@ uart_pl011_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	/* Add config. to line before reenabling UART */
 	__uart_setreg(bas, UART_LCR_H, (__uart_getreg(bas, UART_LCR_H) &
 	    ~0xff) | line);
+
+	/* Set rx and tx fifo levels. */
+	__uart_setreg(bas, UART_IFLS, FIFO_IFLS_BITS);
 
 	__uart_setreg(bas, UART_CR, ctrl);
 }
@@ -418,8 +443,8 @@ uart_pl011_bus_probe(struct uart_softc *sc)
 
 	device_set_desc(sc->sc_dev, "PrimeCell UART (PL011)");
 
-	sc->sc_rxfifosz = 16;
-	sc->sc_txfifosz =  8;
+	sc->sc_rxfifosz = FIFO_RX_SIZE;
+	sc->sc_txfifosz = FIFO_TX_SIZE;
 
 	return (0);
 }
