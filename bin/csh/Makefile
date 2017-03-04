@@ -9,7 +9,7 @@
 .include <src.opts.mk>
 
 PACKAGE=runtime
-TCSHDIR= ${.CURDIR}/../../contrib/tcsh
+TCSHDIR= ${SRCTOP}/contrib/tcsh
 .PATH: ${TCSHDIR}
 
 PROG=	csh
