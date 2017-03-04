@@ -5,7 +5,7 @@
 LOCALEDIR=	${SHAREDIR}/locale
 FILESNAME=	LC_CTYPE
 .SUFFIXES:	.src .LC_CTYPE
-MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
+MAPLOC=		${SRCTOP}/tools/tools/locale/etc/final-maps
 
 .src.LC_CTYPE:
 	localedef -D -U -c -w ${MAPLOC}/widths.txt \

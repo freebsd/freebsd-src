@@ -896,7 +896,7 @@ MAN+=		mlx4ib.4
 .endif
 
 .if ${MK_TESTS} != "no"
-ATF=            ${.CURDIR}/../../../contrib/atf
+ATF=            ${SRCTOP}/contrib/atf
 .PATH:          ${ATF}/doc
 _atf_test_case.4=	atf-test-case.4
 .endif

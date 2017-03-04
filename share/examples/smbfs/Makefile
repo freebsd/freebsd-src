@@ -4,7 +4,7 @@ PACKAGE=examples
 FILESDIR= ${SHAREDIR}/examples/smbfs
 FILES=	dot.nsmbrc
 
-.PATH: ${.CURDIR}/../../../contrib/smbfs/examples
+.PATH: ${SRCTOP}/contrib/smbfs/examples
 
 SUBDIR=	print
 
