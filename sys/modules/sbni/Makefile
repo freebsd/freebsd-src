@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/sbni
+.PATH: ${SRCTOP}/sys/dev/sbni
 
 KMOD=	if_sbni
 SRCS=	if_sbni.c if_sbni_isa.c if_sbni_pci.c

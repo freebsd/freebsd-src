@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.PATH: ${.CURDIR}/../../../netinet/tcp_stacks
+.PATH: ${SRCTOP}/sys/netinet/tcp_stacks
 
 KMOD=	fastpath
 SRCS=	fastpath.c

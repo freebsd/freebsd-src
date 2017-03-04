@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../netinet/cc
+.PATH: ${SRCTOP}/sys/netinet/cc
 KMOD=	cc_hd
 SRCS=	cc_hd.c
 

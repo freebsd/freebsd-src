@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/syscons/warp
+.PATH:	${SRCTOP}/sys/dev/syscons/warp
 
 KMOD=	warp_saver
 SRCS=	warp_saver.c

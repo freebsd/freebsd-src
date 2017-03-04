@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/raid
+.PATH: ${SRCTOP}/sys/geom/raid
 
 KMOD=	geom_raid
 SRCS=	g_raid.c

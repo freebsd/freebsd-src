@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/wi
+.PATH: ${SRCTOP}/sys/dev/wi
 
 KMOD=	if_wi
 SRCS=	if_wi.c if_wi_pccard.c if_wi_pci.c \

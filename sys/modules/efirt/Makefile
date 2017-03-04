@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../${MACHINE}/${MACHINE}
-.PATH: ${.CURDIR}/../../dev/efidev
+.PATH: ${SRCTOP}/sys/${MACHINE}/${MACHINE}
+.PATH: ${SRCTOP}/sys/dev/efidev
 
 KMOD=	efirt
 SRCS=	efirt.c efidev.c

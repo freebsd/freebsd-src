@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../netinet
-.PATH: ${.CURDIR}/../../crypto
+.PATH: ${SRCTOP}/sys/netinet
+.PATH: ${SRCTOP}/sys/crypto
 
 KMOD=	carp
 SRCS=	ip_carp.c sha1.c

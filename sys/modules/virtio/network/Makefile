@@ -23,7 +23,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/virtio/network
+.PATH: ${SRCTOP}/sys/dev/virtio/network
 
 KMOD=	if_vtnet
 SRCS=	if_vtnet.c

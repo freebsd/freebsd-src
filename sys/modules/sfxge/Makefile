@@ -2,18 +2,18 @@
 
 KMOD=	sfxge
 
-SFXGE= ${.CURDIR}/../../dev/sfxge
+SFXGE= ${SRCTOP}/sys/dev/sfxge
 
 SRCS=	device_if.h bus_if.h pci_if.h
 SRCS+=	opt_inet.h opt_inet6.h opt_sched.h opt_rss.h
 
-.PATH: ${.CURDIR}/../../dev/sfxge
+.PATH: ${SRCTOP}/sys/dev/sfxge
 SRCS+=	sfxge.c sfxge_dma.c sfxge_ev.c
 SRCS+=	sfxge_intr.c sfxge_mcdi.c sfxge_nvram.c
 SRCS+=	sfxge_port.c sfxge_rx.c sfxge_tx.c
 SRCS+=	sfxge.h sfxge_rx.h sfxge_tx.h sfxge_version.h
 
-.PATH: ${.CURDIR}/../../dev/sfxge/common
+.PATH: ${SRCTOP}/sys/dev/sfxge/common
 SRCS+=	efx_bootcfg.c efx_crc32.c efx_ev.c efx_intr.c efx_lic.c efx_mac.c
 SRCS+=	efx_mcdi.c efx_mon.c efx_nic.c
 SRCS+=	efx_nvram.c efx_phy.c efx_port.c efx_rx.c efx_sram.c efx_tx.c

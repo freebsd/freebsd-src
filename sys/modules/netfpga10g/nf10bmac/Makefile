@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/netfpga10g/nf10bmac
+.PATH: ${SRCTOP}/sys/dev/netfpga10g/nf10bmac
 
 KMOD=	if_nf10bmac
 SRCS=	if_nf10bmac.c

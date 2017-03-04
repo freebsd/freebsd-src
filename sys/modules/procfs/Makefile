@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/procfs
+.PATH: ${SRCTOP}/sys/fs/procfs
 
 KMOD=		procfs
 SRCS=

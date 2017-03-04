@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/syscons/snake
+.PATH:	${SRCTOP}/sys/dev/syscons/snake
 
 KMOD=	snake_saver
 SRCS=	snake_saver.c

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../i386/ibcs2
+.PATH: ${SRCTOP}/sys/i386/ibcs2
 
 KMOD=	ibcs2_coff
 SRCS= 	imgact_coff.c vnode_if.h
