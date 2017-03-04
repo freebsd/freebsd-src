@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/autofs
+.PATH: ${SRCTOP}/sys/fs/autofs
 
 KMOD=	autofs
 SRCS=	vnode_if.h \

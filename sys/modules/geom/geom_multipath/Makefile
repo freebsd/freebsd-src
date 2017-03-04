@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/multipath
+.PATH: ${SRCTOP}/sys/geom/multipath
 
 KMOD=	geom_multipath
 SRCS=	g_multipath.c

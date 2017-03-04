@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/udf
+.PATH: ${SRCTOP}/sys/fs/udf
 
 KMOD=	udf
 

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm2/i915
+.PATH:	${SRCTOP}/sys/dev/drm2/i915
 KMOD	= i915kms
 SRCS	= \
 	dvo_ch7017.c \

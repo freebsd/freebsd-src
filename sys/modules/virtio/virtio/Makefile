@@ -23,7 +23,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/virtio
+.PATH: ${SRCTOP}/sys/dev/virtio
 
 KMOD=	virtio
 

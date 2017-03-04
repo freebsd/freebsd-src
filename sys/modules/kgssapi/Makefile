@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../kgssapi ${.CURDIR}/../../rpc/rpcsec_gss
+.PATH: ${SRCTOP}/sys/kgssapi ${SRCTOP}/sys/rpc/rpcsec_gss
 KMOD=	kgssapi
 
 SRCS=	gss_accept_sec_context.c \
@@ -40,7 +40,7 @@ SRCS+=		kgss_if.h kgss_if.c
 SRCS+=		gssd.h gssd_xdr.c gssd_clnt.c
 CLEANFILES=	gssd.h gssd_xdr.c gssd_clnt.c
 
-S=		${.CURDIR}/../..
+S=		${SRCTOP}/sys
 
 gssd.h:		$S/kgssapi/gssd.x
 	RPCGEN_CPP=${CPP:Q} rpcgen -hM $S/kgssapi/gssd.x | grep -v pthread.h > gssd.h

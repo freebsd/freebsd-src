@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 KMOD=	twe
-.PATH: ${.CURDIR}/../../dev/${KMOD}
+.PATH: ${SRCTOP}/sys/dev/${KMOD}
 SRCS=	bus_if.h device_if.h pci_if.h twe.c twe_freebsd.c
 
 #CFLAGS+=-DTWE_DEBUG=0

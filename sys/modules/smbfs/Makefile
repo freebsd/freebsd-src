@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../crypto/des \
-	${.CURDIR}/../../crypto/des/arch/${MACHINE_CPUARCH} \
-	${.CURDIR}/../../kern \
-	${.CURDIR}/../../libkern \
-	${.CURDIR}/../../netsmb \
-	${.CURDIR}/../../fs/smbfs
+.PATH:	${SRCTOP}/sys/crypto/des \
+	${SRCTOP}/sys/crypto/des/arch/${MACHINE_CPUARCH} \
+	${SRCTOP}/sys/kern \
+	${SRCTOP}/sys/libkern \
+	${SRCTOP}/sys/netsmb \
+	${SRCTOP}/sys/fs/smbfs
 
 KMOD=	smbfs
 

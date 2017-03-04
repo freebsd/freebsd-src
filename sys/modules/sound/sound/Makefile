@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR?=${.CURDIR}/../../..
+SYSDIR?=${SRCTOP}/sys
 
 .PATH: ${SYSDIR}/dev/sound
 .PATH: ${SYSDIR}/dev/sound/pcm
