@@ -531,7 +531,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		cmd = IPC_SET;
 		error = linux_semid_pullup(args->cmd & LINUX_IPC_64,
 		    &linux_semid, PTRIN(args->arg.buf));
-		if (error)
+		if (error != 0)
 			return (error);
 		linux_to_bsd_semid_ds(&linux_semid, &semid);
 		semun.buf = &semid;
@@ -546,7 +546,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		semun.buf = &semid;
 		error = kern_semctl(td, args->semid, args->semnum, cmd, &semun,
 		    &rval);
-		if (error)
+		if (error != 0)
 			return (error);
 		bsd_to_linux_semid_ds(&semid, &linux_semid);
 		error = linux_semid_pushdown(args->cmd & LINUX_IPC_64,
@@ -573,7 +573,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 */
 		error = copyout(&linux_seminfo,
 		    PTRIN(args->arg.buf), sizeof(linux_seminfo));
-		if (error)
+		if (error != 0)
 			return (error);
 		td->td_retval[0] = seminfo.semmni;
 		return (0);			/* No need for __semctl call */
@@ -690,7 +690,7 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 	case LINUX_IPC_SET:
 		error = linux_msqid_pullup(args->cmd & LINUX_IPC_64,
 		    &linux_msqid, PTRIN(args->buf));
-		if (error)
+		if (error != 0)
 			return (error);
 		linux_to_bsd_msqid_ds(&linux_msqid, &bsd_msqid);
 		break;
@@ -788,7 +788,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		/* Perform shmctl wanting removed segments lookup */
 		error = kern_shmctl(td, args->shmid, IPC_INFO,
 		    (void *)&bsd_shminfo, NULL);
-		if (error)
+		if (error != 0)
 			return (error);
 
 		bsd_to_linux_shminfo(&bsd_shminfo, &linux_shminfo);
@@ -803,7 +803,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		/* Perform shmctl wanting removed segments lookup */
 		error = kern_shmctl(td, args->shmid, SHM_INFO,
 		    (void *)&bsd_shm_info, NULL);
-		if (error)
+		if (error != 0)
 			return (error);
 
 		bsd_to_linux_shm_info(&bsd_shm_info, &linux_shm_info);
@@ -816,9 +816,9 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		/* Perform shmctl wanting removed segments lookup */
 		error = kern_shmctl(td, args->shmid, IPC_STAT,
 		    (void *)&bsd_shmid, NULL);
-		if (error)
+		if (error != 0)
 			return (error);
-		
+
 		bsd_to_linux_shmid_ds(&bsd_shmid, &linux_shmid);
 
 		return (linux_shmid_pushdown(args->cmd & LINUX_IPC_64,
@@ -828,9 +828,9 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		/* Perform shmctl wanting removed segments lookup */
 		error = kern_shmctl(td, args->shmid, IPC_STAT,
 		    (void *)&bsd_shmid, NULL);
-		if (error)
+		if (error != 0)
 			return (error);
-		
+
 		bsd_to_linux_shmid_ds(&bsd_shmid, &linux_shmid);
 
 		return (linux_shmid_pushdown(args->cmd & LINUX_IPC_64,
@@ -839,7 +839,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	case LINUX_IPC_SET:
 		error = linux_shmid_pullup(args->cmd & LINUX_IPC_64,
 		    &linux_shmid, PTRIN(args->buf));
-		if (error)
+		if (error != 0)
 			return (error);
 
 		linux_to_bsd_shmid_ds(&linux_shmid, &bsd_shmid);
@@ -856,7 +856,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		else {
 			error = linux_shmid_pullup(args->cmd & LINUX_IPC_64,
 			    &linux_shmid, PTRIN(args->buf));
-			if (error)
+			if (error != 0)
 				return (error);
 			linux_to_bsd_shmid_ds(&linux_shmid, &bsd_shmid);
 			buf = (void *)&bsd_shmid;
