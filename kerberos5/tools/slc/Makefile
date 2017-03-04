@@ -4,7 +4,7 @@
 WANT_CHERI=	none
 
 PROG=	slc
-LIBROKEN_A=     ${.OBJDIR}/../../lib/libroken/libroken.a
+LIBROKEN_A=     ${.OBJDIR:H:H}/lib/libroken/libroken.a
 LIBADD=	vers
 LDADD=  ${LIBROKEN_A}
 DPADD=  ${LIBROKEN_A}
@@ -21,7 +21,7 @@ CLEANFILES= roken.h slc-gram.c slc-lex.c
 roken.h:
 	${MAKE_ROKEN} > ${.TARGET}
 
-#	${.OBJDIR}/../make-roken/make-roken > ${.TARGET}
+#	${.OBJDIR:H}/make-roken/make-roken > ${.TARGET}
 
 .include <bsd.prog.mk>
 

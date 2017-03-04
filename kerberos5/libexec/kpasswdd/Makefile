@@ -5,7 +5,7 @@ WANT_CHERI=none
 
 PROG=	kpasswdd
 MAN=	kpasswdd.8
-CFLAGS+=-I${KRB5DIR}/lib/roken -I../../lib/libhdb ${LDAPCFLAGS}
+CFLAGS+=-I${KRB5DIR}/lib/roken -I${.CURDIR:H:H}/lib/libhdb ${LDAPCFLAGS}
 LIBADD=	kadm5srv hdb krb5 roken vers asn1
 DPADD=	${LDAPDPADD}
 LDADD=	${LDAPLDADD}
