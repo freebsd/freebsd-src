@@ -3,6 +3,8 @@
 #
 
 NEED_CHERI=	sandbox
+# don't know how to handle processor specific section `.preinit_array'
+CHERI_LLD_BROKEN=yes
 
 .include <src.opts.mk>
 

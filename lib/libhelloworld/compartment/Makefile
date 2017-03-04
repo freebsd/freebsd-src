@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+CHERI_LLD_BROKEN=yes
+
 COMPARTMENT_NAME=	helloworld
 
 # XXXBD: stuff below this line should come from a bsd.c9t.mk
