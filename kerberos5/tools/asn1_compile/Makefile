@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# mislinked due to fake private libs
+WANT_CHERI=	none
+
 PROG=	asn1_compile
 MAN=
 LIBROKEN_A=	${.OBJDIR}/../../lib/libroken/libroken.a

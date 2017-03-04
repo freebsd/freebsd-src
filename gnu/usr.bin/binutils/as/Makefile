@@ -2,9 +2,8 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI_PURE} == "yes"
-WANT_CHERI=pure
-.endif
+# mislinked due to RELTOP
+WANT_CHERI=none
 
 # BINDIR
 .include "${.CURDIR}/../../Makefile.inc"

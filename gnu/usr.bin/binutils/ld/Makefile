@@ -2,9 +2,8 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI_PURE} == "yes"
-WANT_CHERI=	pure
-.endif
+# mislinked due to RELTOP
+WANT_CHERI=	none
 
 ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 .include "../Makefile.inc0"

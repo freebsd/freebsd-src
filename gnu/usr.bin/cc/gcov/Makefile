@@ -3,10 +3,8 @@
 .include <bsd.own.mk>
 .include <src.opts.mk>
 
-.if ${MK_CHERI_PURE} == "yes"
-WANT_CHERI=	pure
-.endif
-
+# linked due to fake private libs
+WANT_CHERI=	none
 
 .include "../Makefile.inc"
 .include "../Makefile.ver"

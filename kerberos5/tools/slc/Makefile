@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# mislinked due to fake private libs
+WANT_CHERI=	none
+
 PROG=	slc
 LIBROKEN_A=     ${.OBJDIR}/../../lib/libroken/libroken.a
 LIBADD=	vers

@@ -2,10 +2,8 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI_PURE} == "yes"
-WANT_CHERI=	pure
-.endif
-
+# mislinked due to fake private libs
+ WANT_CHERI=    none
 
 .include "../Makefile.inc"
 .include "../Makefile.fe"

@@ -3,7 +3,7 @@
 MAN=
 .include <src.opts.mk>
 
-# linker error
+# mislinked due to fake private libs
 WANT_CHERI=	none
 
 .include "../Makefile.inc"
