@@ -4,7 +4,7 @@
 WANT_CHERI=none
 
 PACKAGE=at
-MAINSRC=${.CURDIR}/../../usr.bin/at
+MAINSRC=${SRCTOP}/usr.bin/at
 
 .include "${MAINSRC}/Makefile.inc"
 
