@@ -625,4 +625,4 @@ CFLAGS+=	-I${KRB5DIR}/lib/krb5 \
 
 .include <bsd.lib.mk>
 
-.PATH: ${KRB5DIR}/lib/krb5 ${KRB5DIR}/lib/asn1 ${KRB5DIR}/include ${.CURDIR}/../../include ${KRB5DIR}/doc/doxyout/krb5/man/man3/
+.PATH: ${KRB5DIR}/lib/krb5 ${KRB5DIR}/lib/asn1 ${KRB5DIR}/include ${SRCTOP}/kerberos5/include ${KRB5DIR}/doc/doxyout/krb5/man/man3/
