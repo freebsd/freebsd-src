@@ -18,5 +18,6 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/xz-embedded/freebsd \
 SRCS+=	xz_crc32.c xz_dec_bcj.c xz_dec_lzma2.c xz_dec_stream.c \
     xz_malloc.c
 SRCS+=  xz.h xz_config.h xz_lzma2.h xz_malloc.h xz_private.h xz_stream.h
+SRCS+=	opt_geom.h
 
 .include <bsd.kmod.mk>
