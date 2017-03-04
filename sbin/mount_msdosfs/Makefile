@@ -8,7 +8,7 @@ SRCS=	mount_msdosfs.c getmntopts.c
 MAN=	mount_msdosfs.8
 LIBADD=	kiconv
 
-MOUNT=	${.CURDIR}/../mount
+MOUNT=	${.CURDIR:H}/mount
 CFLAGS+= -I${MOUNT}
 
 # Needs to be dynamically linked for optional dlopen() access to

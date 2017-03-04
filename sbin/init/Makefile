@@ -12,7 +12,7 @@ CFLAGS+=-I${SRCTOP}/contrib/uthash/src
 LIBADD=	util crypt
 
 # Needed for getmntopts.c
-MOUNT=	${.CURDIR}/../../sbin/mount
+MOUNT=	${SRCTOP}/sbin/mount
 CFLAGS+=-I${MOUNT}
 .PATH:	${MOUNT}
 
