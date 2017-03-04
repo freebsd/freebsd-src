@@ -4,7 +4,7 @@
 
 .include <src.opts.mk>
 
-CONTRIB=${.CURDIR}/../../../contrib/bsnmp
+CONTRIB=${SRCTOP}/contrib/bsnmp
 .PATH: ${CONTRIB}/snmpd
 
 PROG=	bsnmpd

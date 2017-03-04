@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../contrib/pf/ftp-proxy
+.PATH:	${SRCTOP}/contrib/pf/ftp-proxy
 
 PROG=	ftp-proxy
 MAN=	ftp-proxy.8
 
 SRCS=	ftp-proxy.c filter.c
 
-CFLAGS+=-I${.CURDIR}/../../contrib/pf/libevent
+CFLAGS+=-I${SRCTOP}/contrib/pf/libevent
 
 LIBADD=	event
 
