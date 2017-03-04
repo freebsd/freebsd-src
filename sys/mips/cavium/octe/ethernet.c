@@ -454,7 +454,7 @@ int cvm_oct_init_module(device_t bus)
 		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0x1001);
 	}
 
-	callout_init(&cvm_oct_poll_timer, CALLOUT_MPSAFE);
+	callout_init(&cvm_oct_poll_timer, 1);
 	callout_reset(&cvm_oct_poll_timer, hz, cvm_do_timer, NULL);
 
 	return 0;

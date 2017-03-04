@@ -14284,8 +14284,8 @@ dtrace_state_create(struct cdev *dev)
 	state->dts_cleaner = CYCLIC_NONE;
 	state->dts_deadman = CYCLIC_NONE;
 #else
-	callout_init(&state->dts_cleaner, CALLOUT_MPSAFE);
-	callout_init(&state->dts_deadman, CALLOUT_MPSAFE);
+	callout_init(&state->dts_cleaner, 1);
+	callout_init(&state->dts_deadman, 1);
 #endif
 	state->dts_vstate.dtvs_state = state;
 

@@ -2317,7 +2317,7 @@ g_journal_create(struct g_class *mp, struct g_provider *pp,
 		sc->sc_rootmount = root_mount_hold("GJOURNAL");
 		GJ_DEBUG(1, "root_mount_hold %p", sc->sc_rootmount);
 
-		callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+		callout_init(&sc->sc_callout, 1);
 		if (md->md_type != GJ_TYPE_COMPLETE) {
 			/*
 			 * Journal and data are on separate providers.

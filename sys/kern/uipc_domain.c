@@ -247,8 +247,8 @@ domaininit(void *dummy)
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
 
-	callout_init(&pffast_callout, CALLOUT_MPSAFE);
-	callout_init(&pfslow_callout, CALLOUT_MPSAFE);
+	callout_init(&pffast_callout, 1);
+	callout_init(&pfslow_callout, 1);
 
 	mtx_lock(&dom_mtx);
 	KASSERT(domain_init_status == 0, ("domaininit called too late!"));

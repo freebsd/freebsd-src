@@ -86,7 +86,7 @@ static void
 watchdog_init(void *arg)
 {
 
-	callout_init(&watchdog_callout, CALLOUT_MPSAFE);
+	callout_init(&watchdog_callout, 1);
 	if (watchdog_cpu != -1)
 		watchdog_change(watchdog_cpu);
 }

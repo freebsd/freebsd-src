@@ -129,7 +129,7 @@ vtrnd_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->vtrnd_dev = dev;
 
-	callout_init(&sc->vtrnd_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->vtrnd_callout, 1);
 
 	virtio_set_feature_desc(dev, vtrnd_feature_desc);
 	vtrnd_negotiate_features(sc);

@@ -662,8 +662,8 @@ intel_ntb_attach(device_t device)
 	ntb->msix_mw_idx = B2B_MW_DISABLED;
 
 	/* Heartbeat timer for NTB_ATOM since there is no link interrupt */
-	callout_init(&ntb->heartbeat_timer, CALLOUT_MPSAFE);
-	callout_init(&ntb->lr_timer, CALLOUT_MPSAFE);
+	callout_init(&ntb->heartbeat_timer, 1);
+	callout_init(&ntb->lr_timer, 1);
 	callout_init(&ntb->peer_msix_work, 1);
 	mtx_init(&ntb->db_mask_lock, "ntb hw bits", NULL, MTX_SPIN);
 

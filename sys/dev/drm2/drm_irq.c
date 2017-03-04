@@ -210,7 +210,7 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 {
 	int i, ret = -ENOMEM;
 
-	callout_init(&dev->vblank_disable_callout, CALLOUT_MPSAFE);
+	callout_init(&dev->vblank_disable_callout, 1);
 	mtx_init(&dev->vbl_lock, "drmvbl", NULL, MTX_DEF);
 	mtx_init(&dev->vblank_time_lock, "drmvtl", NULL, MTX_DEF);
 

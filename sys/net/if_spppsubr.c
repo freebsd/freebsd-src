@@ -1030,7 +1030,7 @@ sppp_attach(struct ifnet *ifp)
 	mtx_init(&sp->mtx, "sppp", MTX_NETWORK_LOCK, MTX_DEF | MTX_RECURSE);
 	
 	/* Initialize keepalive handler. */
- 	callout_init(&sp->keepalive_callout, CALLOUT_MPSAFE);
+ 	callout_init(&sp->keepalive_callout, 1);
 	callout_reset(&sp->keepalive_callout, hz * 10, sppp_keepalive,
  		    (void *)sp); 
 
@@ -1062,7 +1062,7 @@ sppp_attach(struct ifnet *ifp)
 #ifdef INET6
 	sp->confflags |= CONF_ENABLE_IPV6;
 #endif
- 	callout_init(&sp->ifstart_callout, CALLOUT_MPSAFE);
+ 	callout_init(&sp->ifstart_callout, 1);
 	sp->if_start = ifp->if_start;
 	ifp->if_start = sppp_ifstart;
 	sp->pp_comp = malloc(sizeof(struct slcompress), M_TEMP, M_WAITOK);
@@ -2170,7 +2170,7 @@ sppp_lcp_init(struct sppp *sp)
 	sp->lcp.max_terminate = 2;
 	sp->lcp.max_configure = 10;
 	sp->lcp.max_failure = 10;
- 	callout_init(&sp->ch[IDX_LCP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_LCP], 1);
 }
 
 static void
@@ -2861,7 +2861,7 @@ sppp_ipcp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPCP] = 0;
 	sp->pp_seq[IDX_IPCP] = 0;
 	sp->pp_rseq[IDX_IPCP] = 0;
- 	callout_init(&sp->ch[IDX_IPCP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_IPCP], 1);
 }
 
 static void
@@ -3420,7 +3420,7 @@ sppp_ipv6cp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPV6CP] = 0;
 	sp->pp_seq[IDX_IPV6CP] = 0;
 	sp->pp_rseq[IDX_IPV6CP] = 0;
- 	callout_init(&sp->ch[IDX_IPV6CP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_IPV6CP], 1);
 }
 
 static void
@@ -4225,7 +4225,7 @@ sppp_chap_init(struct sppp *sp)
 	sp->fail_counter[IDX_CHAP] = 0;
 	sp->pp_seq[IDX_CHAP] = 0;
 	sp->pp_rseq[IDX_CHAP] = 0;
- 	callout_init(&sp->ch[IDX_CHAP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_CHAP], 1);
 }
 
 static void
@@ -4547,8 +4547,8 @@ sppp_pap_init(struct sppp *sp)
 	sp->fail_counter[IDX_PAP] = 0;
 	sp->pp_seq[IDX_PAP] = 0;
 	sp->pp_rseq[IDX_PAP] = 0;
- 	callout_init(&sp->ch[IDX_PAP], CALLOUT_MPSAFE);
- 	callout_init(&sp->pap_my_to_ch, CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_PAP], 1);
+ 	callout_init(&sp->pap_my_to_ch, 1);
 }
 
 static void

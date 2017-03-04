@@ -1743,7 +1743,7 @@ xge_device_init(xge_lldev_t *lldev, xge_hal_channel_reopen_e option)
 	    return;
 
 	/* Initializing timer */
-	callout_init(&lldev->timer, CALLOUT_MPSAFE);
+	callout_init(&lldev->timer, 1);
 
 	xge_trace(XGE_TRACE, "Set MTU size");
 	status = xge_hal_device_mtu_set(hldev, ifnetp->if_mtu);

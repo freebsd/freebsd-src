@@ -2502,7 +2502,7 @@ ip_dn_init(void)
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 
-	callout_init(&dn_timeout, CALLOUT_MPSAFE);
+	callout_init(&dn_timeout, 1);
 	dn_reschedule();
 
 	/* Initialize curr_time adjustment mechanics. */
