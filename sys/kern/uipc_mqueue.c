@@ -703,7 +703,9 @@ do_recycle(void *context, int pending __unused)
 {
 	struct vnode *vp = (struct vnode *)context;
 
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vrecycle(vp);
+	VOP_UNLOCK(vp, 0);
 	vdrop(vp);
 }
 
