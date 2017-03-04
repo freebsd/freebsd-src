@@ -31,6 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <complex.h>
 #include <fenv.h>
 #include <float.h>
@@ -238,7 +239,7 @@ ATF_TC_BODY(test_inf_inputs, tc)
 	    0, M_PI / 4, 3 * M_PI / 4, 5 * M_PI / 4,
 	};
 	long double complex z, c, s;
-	int i;
+	unsigned i;
 
 	/*
 	 * IN		CSINH		CCOSH		CTANH
@@ -260,7 +261,7 @@ ATF_TC_BODY(test_inf_inputs, tc)
 	testall_odd(ctan, z, CMPLXL(0, 1), ALL_STD_EXCEPT, 0, CS_REAL);
 
 	/* XXX We allow spurious inexact exceptions here (hard to avoid). */
-	for (i = 0; i < sizeof(finites) / sizeof(finites[0]); i++) {
+	for (i = 0; i < nitems(finites); i++) {
 		z = CMPLXL(INFINITY, finites[i]);
 		c = INFINITY * cosl(finites[i]);
 		s = finites[i] == 0 ? finites[i] : INFINITY * sinl(finites[i]);
@@ -308,9 +309,9 @@ ATF_TC_BODY(test_axes, tc)
 	    5 * M_PI / 4, 3 * M_PI / 2, 7 * M_PI / 4,
 	};
 	long double complex z;
-	int i;
+	unsigned i;
 
-	for (i = 0; i < sizeof(nums) / sizeof(nums[0]); i++) {
+	for (i = 0; i < nitems(nums); i++) {
 		/* Real axis */
 		z = CMPLXL(nums[i], 0.0);
 		test_odd_tol(csinh, z, CMPLXL(sinh(nums[i]), 0), DBL_ULP());
@@ -412,9 +413,9 @@ ATF_TC_BODY(test_small_inputs, tc)
 		  -0.26580222883407969212086273981988897L }
 	};
 	long double complex z;
-	int i;
+	unsigned i;
 
-	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+	for (i = 0; i < nitems(tests); i++) {
 		z = CMPLXL(tests[i].a, tests[i].b);
 		testall_odd_tol(csinh, z,
 		    CMPLXL(tests[i].sinh_a, tests[i].sinh_b), 1.1);
