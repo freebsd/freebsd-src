@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/aacraid
+.PATH: ${SRCTOP}/sys/dev/aacraid
 
 .if ${MACHINE_CPUARCH} == "i386"
 SUBDIR= aacraid_linux

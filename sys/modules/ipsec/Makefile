@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../net ${.CURDIR}/../../netipsec
+.PATH: ${SRCTOP}/sys/net ${.CURDIR}/../../netipsec
 
 KMOD=	ipsec
 SRCS=	if_ipsec.c ipsec.c ipsec_input.c ipsec_mbuf.c ipsec_mod.c \

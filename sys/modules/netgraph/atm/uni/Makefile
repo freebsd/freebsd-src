@@ -3,9 +3,9 @@
 # Author: Harti Brandt <harti@freebsd.org>
 #
 
-LIBBASE= ${.CURDIR}/../../../../contrib/ngatm
+LIBBASE= ${SRCTOP}/sys/contrib/ngatm
 
-.PATH: ${.CURDIR}/../../../../netgraph/atm/uni
+.PATH: ${SRCTOP}/sys/netgraph/atm/uni
 .PATH: ${LIBBASE}/netnatm/sig
 
 KMOD=	ng_uni

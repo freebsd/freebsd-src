@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/pty
+.PATH: ${SRCTOP}/sys/dev/pty
 
 KMOD=	pty
 SRCS=	pty.c

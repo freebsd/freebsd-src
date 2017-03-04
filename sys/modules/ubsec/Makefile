@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/ubsec
+.PATH:	${SRCTOP}/sys/dev/ubsec
 KMOD	= ubsec
 SRCS	= ubsec.c opt_ubsec.h
 SRCS   += device_if.h bus_if.h pci_if.h

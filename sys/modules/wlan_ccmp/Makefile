@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../net80211
-.PATH: ${.CURDIR}/../../crypto/rijndael
+.PATH: ${SRCTOP}/sys/net80211
+.PATH: ${SRCTOP}/sys/crypto/rijndael
 
 KMOD=	wlan_ccmp
 SRCS=	ieee80211_crypto_ccmp.c

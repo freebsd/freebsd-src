@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/iser/
+.PATH:	${SRCTOP}/sys/dev/iser/
 
 .include <bsd.own.mk>
 
@@ -18,7 +18,7 @@ SRCS+=	bus_if.h
 SRCS+=	device_if.h
 SRCS+=	icl_conn_if.h
 
-CFLAGS+= -I${.CURDIR}/../../
+CFLAGS+= -I${SRCTOP}/sys/
 CFLAGS+= -I${SYSDIR}/ofed/include
 CFLAGS+= -I${SYSDIR}/compat/linuxkpi/common/include
 CFLAGS+= -DCONFIG_INFINIBAND_USER_MEM

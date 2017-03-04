@@ -1,5 +1,5 @@
 # $FreeBSD$
-.PATH:	${.CURDIR}/../../../dev/fb
+.PATH:	${SRCTOP}/sys/dev/fb
 
 KMOD=	splash_txt
 SRCS= 	splash_txt.c
