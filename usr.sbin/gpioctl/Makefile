@@ -3,7 +3,7 @@
 PROG=	gpioctl
 MAN=	gpioctl.8
 
-CFLAGS+= -I${.CURDIR}/../../lib/libgpio
+CFLAGS+= -I${SRCTOP}/lib/libgpio
 
 LIBADD=	gpio
 

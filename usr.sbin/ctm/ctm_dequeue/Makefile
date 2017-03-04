@@ -1,12 +1,12 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../ctm_rmail
+.PATH: ${.CURDIR:H}/ctm_rmail
 
 PROG=	ctm_dequeue
 MAN=
 SRCS=	ctm_dequeue.c error.c
 
-CFLAGS+= -I${.CURDIR}/../ctm_rmail
+CFLAGS+= -I${.CURDIR:H}/ctm_rmail
 
 WARNS?=	1
 

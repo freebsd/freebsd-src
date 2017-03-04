@@ -13,13 +13,13 @@
 
 PACKAGE= amd
 
-CFLAGS+= -I. -I${.CURDIR} 
-CFLAGS+= -I${.CURDIR}/../include
-.if exists(${.OBJDIR}/../include)
-CFLAGS+= -I${.OBJDIR}/../include
+CFLAGS+= -I. -I${.CURDIR}
+CFLAGS+= -I${.CURDIR:H}/include
+.if exists(${.OBJDIR:H}/include)
+CFLAGS+= -I${.OBJDIR:H}/include
 .endif
-CFLAGS+= -I${.CURDIR}/../../../contrib/amd/include
-CFLAGS+= -I${.CURDIR}/../../../contrib/amd
+CFLAGS+= -I${SRCTOP}/contrib/amd/include
+CFLAGS+= -I${SRCTOP}/contrib/amd
 CFLAGS+= -DHAVE_CONFIG_H
 .if ${MK_NIS} == "no"
 CFLAGS+= -DHAVE_LOCALCONFIG_H
@@ -37,6 +37,6 @@ NFS_PROT_X=	${SRCTOP}/include/rpcsvc/nfs_prot.x
 
 WARNS?=	1
 
-.if exists(${.CURDIR}/../../Makefile.inc)
-.include "${.CURDIR}/../../Makefile.inc"
+.if exists(${.CURDIR:H:H}/Makefile.inc)
+.include "${.CURDIR:H:H}/Makefile.inc"
 .endif
