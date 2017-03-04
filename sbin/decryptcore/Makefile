@@ -6,7 +6,7 @@ LIBADD=	crypto pjdlog
 
 MAN=	decryptcore.8
 
-CFLAGS+=-I${.CURDIR}/../../lib/libpjdlog
+CFLAGS+=-I${SRCTOP}/lib/libpjdlog
 
 WARNS?=	6
 

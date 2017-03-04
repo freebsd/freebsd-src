@@ -34,8 +34,8 @@ WARNS?= 3
 FILES=	atmconfig.help atmconfig_device.help
 FILESDIR= ${SHAREDIR}/doc/atm
 
-SNMP_ATM_DEF= ${.CURDIR}/../../../contrib/ngatm/snmp_atm/atm_tree.def	\
-	${.CURDIR}/../../../usr.sbin/bsnmpd/modules/snmp_atm/atm_freebsd.def
+SNMP_ATM_DEF= ${SRCTOP}/contrib/ngatm/snmp_atm/atm_tree.def	\
+	${SRCTOP}/usr.sbin/bsnmpd/modules/snmp_atm/atm_freebsd.def
 
 oid.h: atm_oid.list ${SNMP_ATM_DEF}
 	cat ${SNMP_ATM_DEF} | gensnmptree -e `tail -n +2 ${.CURDIR}/atm_oid.list` \
