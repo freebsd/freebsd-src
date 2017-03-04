@@ -206,7 +206,7 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 		if (!lvt->lvt_edgetrigger) {
 			printf("lapic%u: Forcing LINT%u to edge trigger\n",
 			    la->la_id, pin);
-			value |= APIC_LVT_TM;
+			value &= ~APIC_LVT_TM;
 		}
 		/* Use a vector of 0. */
 		break;
