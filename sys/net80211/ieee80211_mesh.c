@@ -216,7 +216,7 @@ mesh_rt_add_locked(struct ieee80211vap *vap,
 		IEEE80211_ADDR_COPY(rt->rt_dest, dest);
 		rt->rt_priv = (void *)ALIGN(&rt[1]);
 		mtx_init(&rt->rt_lock, "MBSS_RT", "802.11s route entry", MTX_DEF);
-		callout_init(&rt->rt_discovery, CALLOUT_MPSAFE);
+		callout_init(&rt->rt_discovery, 1);
 		rt->rt_updtime = ticks;	/* create time */
 		TAILQ_INSERT_TAIL(&ms->ms_routes, rt, rt_next);
 	}
@@ -678,8 +678,8 @@ mesh_vattach(struct ieee80211vap *vap)
 	TAILQ_INIT(&ms->ms_known_gates);
 	TAILQ_INIT(&ms->ms_routes);
 	mtx_init(&ms->ms_rt_lock, "MBSS", "802.11s routing table", MTX_DEF);
-	callout_init(&ms->ms_cleantimer, CALLOUT_MPSAFE);
-	callout_init(&ms->ms_gatetimer, CALLOUT_MPSAFE);
+	callout_init(&ms->ms_cleantimer, 1);
+	callout_init(&ms->ms_gatetimer, 1);
 	ms->ms_gateseq = 0;
 	mesh_select_proto_metric(vap, "AIRTIME");
 	KASSERT(ms->ms_pmetric, ("ms_pmetric == NULL"));
@@ -3382,8 +3382,8 @@ void
 ieee80211_mesh_node_init(struct ieee80211vap *vap, struct ieee80211_node *ni)
 {
 	ni->ni_flags |= IEEE80211_NODE_QOS;
-	callout_init(&ni->ni_mltimer, CALLOUT_MPSAFE);
-	callout_init(&ni->ni_mlhtimer, CALLOUT_MPSAFE);
+	callout_init(&ni->ni_mltimer, 1);
+	callout_init(&ni->ni_mlhtimer, 1);
 }
 
 /*

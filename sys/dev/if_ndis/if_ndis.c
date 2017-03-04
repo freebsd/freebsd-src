@@ -557,7 +557,7 @@ ndis_attach(dev)
 	InitializeListHead(&sc->ndis_shlist);
 	InitializeListHead(&sc->ndisusb_tasklist);
 	InitializeListHead(&sc->ndisusb_xferdonelist);
-	callout_init(&sc->ndis_stat_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->ndis_stat_callout, 1);
 
 	if (sc->ndis_iftype == PCMCIABus) {
 		error = ndis_alloc_amem(sc);
@@ -733,7 +733,7 @@ ndis_attach(dev)
 		uint32_t		arg;
 		int			r;
 
-		callout_init(&sc->ndis_scan_callout, CALLOUT_MPSAFE);
+		callout_init(&sc->ndis_scan_callout, 1);
 
 		ifp->if_ioctl = ndis_ioctl_80211;
 		ic->ic_ifp = ifp;

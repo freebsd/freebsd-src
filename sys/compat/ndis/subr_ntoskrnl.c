@@ -3746,7 +3746,7 @@ ntoskrnl_insert_timer(timer, ticks)
 
 	timer->k_callout = c;
 
-	callout_init(c, CALLOUT_MPSAFE);
+	callout_init(c, 1);
 	callout_reset(c, ticks, ntoskrnl_timercall, timer);
 }
 

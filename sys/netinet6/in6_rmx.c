@@ -276,7 +276,7 @@ in6_inithead(void **head, int off)
 	rnh->rnh_addaddr = in6_addroute;
 
 	if (V__in6_rt_was_here == 0) {
-		callout_init(&V_rtq_mtutimer, CALLOUT_MPSAFE);
+		callout_init(&V_rtq_mtutimer, 1);
 		in6_mtutimo(curvnet);	/* kick off timeout first time */
 		V__in6_rt_was_here = 1;
 	}

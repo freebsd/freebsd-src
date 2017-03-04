@@ -569,7 +569,7 @@ loadav(void *arg)
 static void
 synch_setup(void *dummy)
 {
-	callout_init(&loadav_callout, CALLOUT_MPSAFE);
+	callout_init(&loadav_callout, 1);
 
 	/* Kick off timeout driven events by calling first time. */
 	loadav(NULL);

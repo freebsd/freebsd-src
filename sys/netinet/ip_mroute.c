@@ -2807,9 +2807,9 @@ vnet_mroute_init(const void *unused __unused)
 
 	MALLOC(V_nexpire, u_char *, mfchashsize, M_MRTABLE, M_WAITOK|M_ZERO);
 	bzero(V_bw_meter_timers, sizeof(V_bw_meter_timers));
-	callout_init(&V_expire_upcalls_ch, CALLOUT_MPSAFE);
-	callout_init(&V_bw_upcalls_ch, CALLOUT_MPSAFE);
-	callout_init(&V_bw_meter_ch, CALLOUT_MPSAFE);
+	callout_init(&V_expire_upcalls_ch, 1);
+	callout_init(&V_bw_upcalls_ch, 1);
+	callout_init(&V_bw_meter_ch, 1);
 }
 
 VNET_SYSINIT(vnet_mroute_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_mroute_init,

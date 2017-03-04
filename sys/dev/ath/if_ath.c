@@ -547,7 +547,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_ledstate = 1;
 	sc->sc_ledon = 0;			/* low true */
 	sc->sc_ledidle = (2700*hz)/1000;	/* 2.7sec */
-	callout_init(&sc->sc_ledtimer, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_ledtimer, 1);
 
 	/*
 	 * Don't setup hardware-based blinking.

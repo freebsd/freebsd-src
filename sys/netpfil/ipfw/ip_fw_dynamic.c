@@ -1336,7 +1336,7 @@ ipfw_dyn_init(struct ip_fw_chain *chain)
 	/* Enforce limit on dynamic rules */
 	uma_zone_set_max(V_ipfw_dyn_rule_zone, V_dyn_max);
 
-        callout_init(&V_ipfw_timeout, CALLOUT_MPSAFE);
+        callout_init(&V_ipfw_timeout, 1);
 
 	/*
 	 * This can potentially be done on first dynamic rule

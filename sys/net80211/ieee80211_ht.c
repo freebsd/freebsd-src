@@ -1688,7 +1688,7 @@ ieee80211_setup_basic_htrates(struct ieee80211_node *ni, const uint8_t *ie)
 static void
 ampdu_tx_setup(struct ieee80211_tx_ampdu *tap)
 {
-	callout_init(&tap->txa_timer, CALLOUT_MPSAFE);
+	callout_init(&tap->txa_timer, 1);
 	tap->txa_flags |= IEEE80211_AGGR_SETUP;
 }
 

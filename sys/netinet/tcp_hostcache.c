@@ -233,7 +233,7 @@ tcp_hc_init(void)
 	/*
 	 * Set up periodic cache cleanup.
 	 */
-	callout_init(&V_tcp_hc_callout, CALLOUT_MPSAFE);
+	callout_init(&V_tcp_hc_callout, 1);
 	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
 	    tcp_hc_purge, curvnet);
 }

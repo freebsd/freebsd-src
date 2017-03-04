@@ -891,11 +891,11 @@ tcp_newtcpcb(struct inpcb *inp)
 		V_tcp_mssdflt;
 
 	/* Set up our timeouts. */
-	callout_init(&tp->t_timers->tt_rexmt, CALLOUT_MPSAFE);
-	callout_init(&tp->t_timers->tt_persist, CALLOUT_MPSAFE);
-	callout_init(&tp->t_timers->tt_keep, CALLOUT_MPSAFE);
-	callout_init(&tp->t_timers->tt_2msl, CALLOUT_MPSAFE);
-	callout_init(&tp->t_timers->tt_delack, CALLOUT_MPSAFE);
+	callout_init(&tp->t_timers->tt_rexmt, 1);
+	callout_init(&tp->t_timers->tt_persist, 1);
+	callout_init(&tp->t_timers->tt_keep, 1);
+	callout_init(&tp->t_timers->tt_2msl, 1);
+	callout_init(&tp->t_timers->tt_delack, 1);
 
 	if (V_tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);

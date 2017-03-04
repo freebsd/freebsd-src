@@ -194,7 +194,7 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	vap->iv_fragthreshold = IEEE80211_FRAG_DEFAULT;
 	vap->iv_bmiss_max = IEEE80211_BMISS_MAX;
 	callout_init_mtx(&vap->iv_swbmiss, IEEE80211_LOCK_OBJ(ic), 0);
-	callout_init(&vap->iv_mgtsend, CALLOUT_MPSAFE);
+	callout_init(&vap->iv_mgtsend, 1);
 	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
 	/*

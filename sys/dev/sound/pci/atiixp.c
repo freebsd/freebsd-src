@@ -1193,7 +1193,7 @@ atiixp_pci_attach(device_t dev)
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_atiixp softc");
 	sc->dev = dev;
 
-	callout_init(&sc->poll_timer, CALLOUT_MPSAFE);
+	callout_init(&sc->poll_timer, 1);
 	sc->poll_ticks = 1;
 
 	if (resource_int_value(device_get_name(sc->dev),

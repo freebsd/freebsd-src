@@ -3165,7 +3165,7 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	bioq_init(&sc->sc_sync_delayed);
 	TAILQ_INIT(&sc->sc_events);
 	mtx_init(&sc->sc_events_mtx, "graid3:events", NULL, MTX_DEF);
-	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_callout, 1);
 	sc->sc_state = G_RAID3_DEVICE_STATE_STARTING;
 	gp->softc = sc;
 	sc->sc_geom = gp;

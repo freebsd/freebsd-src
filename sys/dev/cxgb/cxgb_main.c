@@ -1009,7 +1009,7 @@ cxgb_port_attach(device_t dev)
 	    device_get_unit(device_get_parent(dev)), p->port_id);
 	PORT_LOCK_INIT(p, p->lockbuf);
 
-	callout_init(&p->link_check_ch, CALLOUT_MPSAFE);
+	callout_init(&p->link_check_ch, 1);
 	TASK_INIT(&p->link_check_task, 0, check_link_status, p);
 
 	/* Allocate an ifnet object and set it up */

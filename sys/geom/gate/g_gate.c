@@ -487,7 +487,7 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	if (sc->sc_queue_size > G_GATE_MAX_QUEUE_SIZE)
 		sc->sc_queue_size = G_GATE_MAX_QUEUE_SIZE;
 	sc->sc_timeout = ggio->gctl_timeout;
-	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_callout, 1);
 
 	mtx_lock(&g_gate_units_lock);
 	sc->sc_unit = g_gate_getunit(ggio->gctl_unit, &error);

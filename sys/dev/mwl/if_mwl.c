@@ -368,7 +368,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 	if (error != 0)			/* NB: mwl_setupdma prints msg */
 		goto bad1;
 
-	callout_init(&sc->sc_timer, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_timer, 1);
 	callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	sc->sc_tq = taskqueue_create("mwl_taskq", M_NOWAIT,
