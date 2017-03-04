@@ -2,7 +2,6 @@
 
 .include <src.opts.mk>
 
-SUBDIR=		tls_dso
 
 TESTS_SUBDIRS=	c063
 TESTS_SUBDIRS+=	db
@@ -20,10 +19,13 @@ TESTS_SUBDIRS+=	stdlib
 TESTS_SUBDIRS+=	string
 TESTS_SUBDIRS+=	sys
 TESTS_SUBDIRS+=	termios
-TESTS_SUBDIRS+=	tls
 TESTS_SUBDIRS+=	ttyio
 
+.if !defined(LIBCHERI) || !defined(CHERI_USE_LLD)
+SUBDIR=		tls_dso
+TESTS_SUBDIRS+=	tls
 SUBDIR_DEPEND_tls= tls_dso
+.endif
 
 .if ${MK_ICONV} != "no"
 TESTS_SUBDIRS+=	iconv
