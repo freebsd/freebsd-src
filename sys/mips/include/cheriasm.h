@@ -65,7 +65,7 @@
 #define	CHERI_REG_C22	$c22
 #define	CHERI_REG_C23	$c23
 #define	CHERI_REG_C24	$c24
-#define	CHERI_REG_C25	$c25	/* Notionally reserved for exception-use. */
+#define	CHERI_REG_C25	$c25
 #define	CHERI_REG_C26	$c26	/* Invoked data capability. */
 #define	CHERI_REG_IDC	CHERI_REG_C26
 
