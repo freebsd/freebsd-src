@@ -5,10 +5,10 @@ BINDIR?= /usr/bin
 
 CFLAGS+= -I. -I${.CURDIR}
 
-.if exists(${.OBJDIR}/../libbsnmptools)
-LIBBSNMPTOOLSDIR=      ${.OBJDIR}/../libbsnmptools
+.if exists(${.OBJDIR:H}/libbsnmptools)
+LIBBSNMPTOOLSDIR=      ${.OBJDIR:H}/libbsnmptools
 .else
-LIBBSNMPTOOLSDIR=      ${.CURDIR}/../libbsnmptools
+LIBBSNMPTOOLSDIR=      ${.CURDIR:H}/libbsnmptools
 .endif
 LIBBSNMPTOOLS=         ${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 

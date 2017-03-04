@@ -6,7 +6,7 @@
 WANT_CHERI=pure
 .endif
 
-TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
+TCPDUMP_DISTDIR?= ${SRCTOP}/contrib/tcpdump
 .PATH: ${TCPDUMP_DISTDIR}
 
 PROG=	tcpdump

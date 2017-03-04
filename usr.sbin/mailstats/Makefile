@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 9/21/96
 # $FreeBSD$
 
-SENDMAIL_DIR= ${.CURDIR}/../../contrib/sendmail
+SENDMAIL_DIR= ${SRCTOP}/contrib/sendmail
 .PATH: ${SENDMAIL_DIR}/mailstats
 
 PROG=	mailstats

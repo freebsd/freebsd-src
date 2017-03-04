@@ -10,7 +10,7 @@ WARNS?= 3
 LINKS=	${BINDIR}/mpsutil ${BINDIR}/mprutil
 MLINKS=	mpsutil.8 mprutil.8
 
-CFLAGS+= -I${.CURDIR}/../../sys -I. -DUSE_MPT_IOCTLS
+CFLAGS+= -I${SRCTOP}/sys -I. -DUSE_MPT_IOCTLS
 # Avoid dirdep dependency on libutil
 CFLAGS+= -I${SRCTOP}/lib/libutil
 
