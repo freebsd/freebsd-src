@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.sinclude "${.CURDIR}/../../Makefile.inc"
-DMA_SOURCES=	${.CURDIR}/../../../contrib/dma
+.sinclude "${.CURDIR:H:H}/Makefile.inc"
+DMA_SOURCES=	${SRCTOP}/contrib/dma
 .PATH:	${DMA_SOURCES}
 
 CFLAGS+= -I${DMA_SOURCES} \
