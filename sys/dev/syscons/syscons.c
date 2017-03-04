@@ -266,6 +266,65 @@ static struct cdevsw consolectl_devsw = {
 	.d_name		= "consolectl",
 };
 
+/* ec -- emergency console. */
+
+static	u_int	ec_scroffset;
+
+/*
+ * Fake enough of main_console for ec_putc() to work very early on x86 if
+ * the kernel starts in normal color text mode.  On non-x86, scribbling
+ * to the x86 normal color text frame buffer's addresses is unsafe, so
+ * set (likely non-fake) graphics mode to get a null initial ec_putc().
+ */
+static	scr_stat	fake_main_console = {
+	.scr.vtb_buffer = 0xb8000,
+	.xsize = 80,
+	.ysize = 25,
+#if !defined(__amd64__) && !defined(__i386__)
+	.status = GRAPHICS_MODE,
+#endif
+};
+
+#define	main_console	(sc_console == NULL ? fake_main_console : main_console)
+
+static void
+ec_putc(int c)
+{
+	u_short *scrptr;
+	u_int ind;
+	int attr, column, mysize, width, xsize, yborder, ysize;
+
+	if (main_console.status & GRAPHICS_MODE ||
+	    c < 0 || c > 0xff || c == '\a')
+		return;
+	xsize = main_console.xsize;
+	ysize = main_console.ysize;
+	yborder = ysize / 5;
+	scrptr = (u_short *)main_console.scr.vtb_buffer + xsize * yborder;
+	mysize = xsize * (ysize - 2 * yborder);
+	do {
+		ind = ec_scroffset;
+		column = ind % xsize;
+		width = (c == '\b' ? -1 : c == '\t' ? (column + 8) & ~7 :
+		    c == '\r' ? -column : c == '\n' ? xsize - column : 1);
+		if (width == 0 || (width < 0 && ind < -width))
+			return;
+	} while (atomic_cmpset_rel_int(&ec_scroffset, ind, ind + width) == 0);
+	if (c == '\b' || c == '\r')
+		return;
+	if (c == '\n')
+		ind += xsize;	/* XXX clearing from new pos is not atomic */
+
+	attr = sc_kattr();
+	if (c == '\t' || c == '\n')
+		c = ' ';
+	do
+		scrptr[ind++ % mysize] = (attr << 8) | c;
+	while (--width != 0);
+}
+
+#undef main_console
+
 int
 sc_probe_unit(int unit, int flags)
 {
@@ -1861,10 +1920,13 @@ sc_cnputc(struct consdev *cd, int c)
     sc_cnputc_log[head % sizeof(sc_cnputc_log)] = c;
 
     /*
-     * If we couldn't open, return to defer output.
+     * If we couldn't open, do special reentrant output and return to defer
+     * normal output.
      */
-    if (!st.scr_opened)
+    if (!st.scr_opened) {
+	ec_putc(c);
 	return;
+    }
 
 #ifndef SC_NO_HISTORY
     if (scp == scp->sc->cur_scp && scp->status & SLKED) {
