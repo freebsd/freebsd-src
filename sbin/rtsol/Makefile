@@ -14,7 +14,7 @@
 #
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../usr.sbin/rtsold
+.PATH:	${SRCTOP}/usr.sbin/rtsold
 
 PACKAGE=runtime
 PROG=	rtsol

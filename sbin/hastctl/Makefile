@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 PACKAGE=hast
-.PATH:	${.CURDIR}/../hastd
+.PATH:	${.CURDIR:H}/hastd
 
 PROG=	hastctl
 SRCS=	activemap.c
@@ -23,7 +23,7 @@ MAN=	hastctl.8
 NO_WFORMAT=
 NO_WCAST_ALIGN=
 NO_WMISSING_VARIABLE_DECLARATIONS=
-CFLAGS+=-I${.CURDIR}/../hastd
+CFLAGS+=-I${.CURDIR:H}/hastd
 CFLAGS+=-DHAVE_CAPSICUM
 CFLAGS+=-DINET
 .if ${MK_INET6_SUPPORT} != "no"

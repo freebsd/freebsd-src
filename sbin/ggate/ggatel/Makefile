@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../shared
+.PATH: ${.CURDIR:H}/shared
 
 PROG=	ggatel
 MAN=	ggatel.8
 SRCS=	ggatel.c ggate.c
 
 CFLAGS+= -DLIBGEOM
-CFLAGS+= -I${.CURDIR}/../shared
+CFLAGS+= -I${.CURDIR:H}/shared
 
 LIBADD=	geom util
 
