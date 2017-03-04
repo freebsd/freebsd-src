@@ -5,6 +5,8 @@
 #
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
 .PATH:	${SRCTOP}/contrib/amd/libamu \
 	${SRCTOP}/contrib/amd/conf/transp \
 	${SRCTOP}/contrib/amd/conf/mtab \

@@ -6,7 +6,7 @@
 # $FreeBSD$
 #
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
 .PATH:	${SRCTOP}/contrib/amd/amd
 
