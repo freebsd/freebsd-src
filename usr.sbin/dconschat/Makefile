@@ -3,7 +3,7 @@
 PROG=	dconschat
 MAN=	dconschat.8
 
-CFLAGS+= -I${.CURDIR}/../../sys
+CFLAGS+= -I${SRCTOP}/sys
 
 LIBADD=	kvm
 

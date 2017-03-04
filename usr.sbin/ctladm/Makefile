@@ -2,8 +2,8 @@
 
 PROG=		ctladm
 SRCS=		ctladm.c util.c ctl_util.c ctl_scsi_all.c
-.PATH:		${.CURDIR}/../../sys/cam/ctl
-SDIR=		${.CURDIR}/../../sys
+.PATH:		${SRCTOP}/sys/cam/ctl
+SDIR=		${SRCTOP}/sys
 CFLAGS+=	-I${SDIR}
 # This is necessary because of these warnings:
 # warning: cast increases required alignment of target type
