@@ -110,11 +110,10 @@ __FBSDID("$FreeBSD$");
 #define testall2(prefix, y, x, result, excepts)				\
 	testall2_tol(prefix, (y), (x), (result), 0, (excepts))
 
-long double
+static long double
 pi =   3.14159265358979323846264338327950280e+00L,
 pio3 = 1.04719755119659774615421446109316766e+00L,
 c3pi = 9.42477796076937971538793014983850839e+00L,
-c5pi = 1.57079632679489661923132169163975140e+01L,
 c7pi = 2.19911485751285526692385036829565196e+01L,
 c5pio3 = 5.23598775598298873077107230546583851e+00L,
 sqrt2m1 = 4.14213562373095048801688724209698081e-01L;
@@ -444,7 +443,7 @@ test_inverse(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 #if defined(__i386__)
