@@ -6,7 +6,7 @@
 OPENSSL_VER=	1.0.2k
 OPENSSL_DATE=	2017-01-26
 
-LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
+LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
 
 CFLAGS+=	-I${LCRYPTO_SRC}
