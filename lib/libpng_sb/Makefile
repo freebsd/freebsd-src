@@ -11,10 +11,12 @@ CFLAGS+=	-I${.CURDIR} \
 SRCS=	libpng_sb.c
 WARNS?=	6
 
+.ifdef LIBCHERI
+NEED_CHERI=pure
+.else
 NEED_CHERI=	hybrid
+.endif
 
 .include <bsd.lib.mk>
-
-CFLAGS:=	${CFLAGS:S/-O/-O2/}
 
 CFLAGS+=	-Wno-cast-align -Wno-cast-qual
