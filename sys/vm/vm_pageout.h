@@ -87,6 +87,12 @@ extern int vm_pageout_page_count;
 #define	VM_OOM_SWAPZ	2
 
 /*
+ * vm_lowmem flags.
+ */
+#define	VM_LOW_KMEM	0x01
+#define	VM_LOW_PAGES	0x02
+
+/*
  *	Exported routines.
  */
 
