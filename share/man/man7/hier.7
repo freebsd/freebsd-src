@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2016
+.Dd March 2, 2017
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -704,6 +704,9 @@ source code for files in
 files required to produce a
 .Fx
 release
+.It Pa rescue/
+source code for files in
+.Pa /rescue
 .It Pa sbin/
 source code for files in
 .Pa /sbin
@@ -715,6 +718,11 @@ source for files in
 .Pa /usr/share
 .It Pa sys/
 kernel source code
+.It Pa targets/
+support for experimental DIRDEPS_BUILD
+.It Pa tests/
+source code for files in
+.Pa /usr/tests
 .It Pa tools/
 tools used for maintenance and testing of
 .Fx
