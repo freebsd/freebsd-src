@@ -41,7 +41,6 @@
 int	 procfs_docurproc(PFS_FILL_ARGS);
 int	 procfs_doosrel(PFS_FILL_ARGS);
 int	 procfs_doproccmdline(PFS_FILL_ARGS);
-int	 procfs_doprocctl(PFS_FILL_ARGS);
 int	 procfs_doprocdbregs(PFS_FILL_ARGS);
 int	 procfs_doprocfile(PFS_FILL_ARGS);
 int	 procfs_doprocfpregs(PFS_FILL_ARGS);
