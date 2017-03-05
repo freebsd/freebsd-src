@@ -66,7 +66,9 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int errors, numsig, pid, ret;
+	long pidl;
+	pid_t pid;
+	int errors, numsig, ret;
 	char *ep;
 
 	if (argc < 2)
@@ -137,8 +139,10 @@ main(int argc, char *argv[])
 		else
 #endif
 		{
-			pid = strtol(*argv, &ep, 10);
-			if (!**argv || *ep)
+			pidl = strtol(*argv, &ep, 10);
+			/* Check for overflow of pid_t. */
+			pid = (pid_t)pidl;
+			if (!**argv || *ep || pid != pidl)
 				errx(2, "illegal process id: %s", *argv);
 			ret = kill(pid, numsig);
 		}
