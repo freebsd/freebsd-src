@@ -1925,7 +1925,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 
 		/* requested range not satisfiable */
 		if (conn->err == HTTP_BAD_RANGE) {
-			if (url->offset == size && url->length == 0) {
+			if (url->offset > 0 && url->length == 0) {
 				/* asked for 0 bytes; fake it */
 				offset = url->offset;
 				clength = -1;
