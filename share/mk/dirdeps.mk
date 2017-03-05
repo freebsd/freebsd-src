@@ -58,7 +58,7 @@
 #	distinguish them from others.
 #	
 #	Before each Makefile.depend file is read, we set 
-#	DEP_RELDIR to be the the RELDIR (path relative to SRCTOP) for
+#	DEP_RELDIR to be the RELDIR (path relative to SRCTOP) for
 #	its directory, and DEP_MACHINE etc according to the .<target_spec>
 #	represented by the suffix of the corresponding target.
 #	
