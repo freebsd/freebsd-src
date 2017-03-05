@@ -127,11 +127,6 @@ static cl::opt<unsigned> MulOpsInlineThreshold(
     cl::desc("Threshold for inlining multiplication operands into a SCEV"),
     cl::init(1000));
 
-static cl::opt<unsigned>
-    MaxCompareDepth("scalar-evolution-max-compare-depth", cl::Hidden,
-                    cl::desc("Maximum depth of recursive compare complexity"),
-                    cl::init(32));
-
 //===----------------------------------------------------------------------===//
 //                           SCEV class definitions
 //===----------------------------------------------------------------------===//
@@ -480,8 +475,8 @@ bool SCEVUnknown::isOffsetOf(Type *&CTy, Constant *&FieldNo) const {
 static int
 CompareValueComplexity(SmallSet<std::pair<Value *, Value *>, 8> &EqCache,
                        const LoopInfo *const LI, Value *LV, Value *RV,
-                       unsigned Depth) {
-  if (Depth > MaxCompareDepth || EqCache.count({LV, RV}))
+                       unsigned DepthLeft = 2) {
+  if (DepthLeft == 0 || EqCache.count({LV, RV}))
     return 0;
 
   // Order pointer values after integer values. This helps SCEVExpander form
@@ -542,23 +537,21 @@ CompareValueComplexity(SmallSet<std::pair<Value *, Value *>, 8> &EqCache,
     for (unsigned Idx : seq(0u, LNumOps)) {
       int Result =
           CompareValueComplexity(EqCache, LI, LInst->getOperand(Idx),
-                                 RInst->getOperand(Idx), Depth + 1);
+                                 RInst->getOperand(Idx), DepthLeft - 1);
       if (Result != 0)
         return Result;
+      EqCache.insert({LV, RV});
     }
   }
 
-  EqCache.insert({LV, RV});
   return 0;
 }
 
 // Return negative, zero, or positive, if LHS is less than, equal to, or greater
 // than RHS, respectively. A three-way result allows recursive comparisons to be
 // more efficient.
-static int CompareSCEVComplexity(
-    SmallSet<std::pair<const SCEV *, const SCEV *>, 8> &EqCacheSCEV,
-    const LoopInfo *const LI, const SCEV *LHS, const SCEV *RHS,
-    unsigned Depth = 0) {
+static int CompareSCEVComplexity(const LoopInfo *const LI, const SCEV *LHS,
+                                 const SCEV *RHS) {
   // Fast-path: SCEVs are uniqued so we can do a quick equality check.
   if (LHS == RHS)
     return 0;
@@ -568,8 +561,6 @@ static int CompareSCEVComplexity(
   if (LType != RType)
     return (int)LType - (int)RType;
 
-  if (Depth > MaxCompareDepth || EqCacheSCEV.count({LHS, RHS}))
-    return 0;
   // Aside from the getSCEVType() ordering, the particular ordering
   // isn't very important except that it's beneficial to be consistent,
   // so that (a + b) and (b + a) don't end up as different expressions.
@@ -579,11 +570,7 @@ static int CompareSCEVComplexity(
     const SCEVUnknown *RU = cast<SCEVUnknown>(RHS);
 
     SmallSet<std::pair<Value *, Value *>, 8> EqCache;
-    int X = CompareValueComplexity(EqCache, LI, LU->getValue(), RU->getValue(),
-                                   Depth + 1);
-    if (X == 0)
-      EqCacheSCEV.insert({LHS, RHS});
-    return X;
+    return CompareValueComplexity(EqCache, LI, LU->getValue(), RU->getValue());
   }
 
   case scConstant: {
@@ -618,12 +605,11 @@ static int CompareSCEVComplexity(
 
     // Lexicographically compare.
     for (unsigned i = 0; i != LNumOps; ++i) {
-      int X = CompareSCEVComplexity(EqCacheSCEV, LI, LA->getOperand(i),
-                                    RA->getOperand(i), Depth + 1);
+      long X = CompareSCEVComplexity(LI, LA->getOperand(i), RA->getOperand(i));
       if (X != 0)
         return X;
     }
-    EqCacheSCEV.insert({LHS, RHS});
+
     return 0;
   }
 
@@ -642,13 +628,11 @@ static int CompareSCEVComplexity(
     for (unsigned i = 0; i != LNumOps; ++i) {
       if (i >= RNumOps)
         return 1;
-      int X = CompareSCEVComplexity(EqCacheSCEV, LI, LC->getOperand(i),
-                                    RC->getOperand(i), Depth + 1);
+      long X = CompareSCEVComplexity(LI, LC->getOperand(i), RC->getOperand(i));
       if (X != 0)
         return X;
     }
-    EqCacheSCEV.insert({LHS, RHS});
-    return 0;
+    return (int)LNumOps - (int)RNumOps;
   }
 
   case scUDivExpr: {
@@ -656,15 +640,10 @@ static int CompareSCEVComplexity(
     const SCEVUDivExpr *RC = cast<SCEVUDivExpr>(RHS);
 
     // Lexicographically compare udiv expressions.
-    int X = CompareSCEVComplexity(EqCacheSCEV, LI, LC->getLHS(), RC->getLHS(),
-                                  Depth + 1);
+    long X = CompareSCEVComplexity(LI, LC->getLHS(), RC->getLHS());
     if (X != 0)
       return X;
-    X = CompareSCEVComplexity(EqCacheSCEV, LI, LC->getRHS(), RC->getRHS(),
-                              Depth + 1);
-    if (X == 0)
-      EqCacheSCEV.insert({LHS, RHS});
-    return X;
+    return CompareSCEVComplexity(LI, LC->getRHS(), RC->getRHS());
   }
 
   case scTruncate:
@@ -674,11 +653,7 @@ static int CompareSCEVComplexity(
     const SCEVCastExpr *RC = cast<SCEVCastExpr>(RHS);
 
     // Compare cast expressions by operand.
-    int X = CompareSCEVComplexity(EqCacheSCEV, LI, LC->getOperand(),
-                                  RC->getOperand(), Depth + 1);
-    if (X == 0)
-      EqCacheSCEV.insert({LHS, RHS});
-    return X;
+    return CompareSCEVComplexity(LI, LC->getOperand(), RC->getOperand());
   }
 
   case scCouldNotCompute:
@@ -700,21 +675,19 @@ static int CompareSCEVComplexity(
 static void GroupByComplexity(SmallVectorImpl<const SCEV *> &Ops,
                               LoopInfo *LI) {
   if (Ops.size() < 2) return;  // Noop
-
-  SmallSet<std::pair<const SCEV *, const SCEV *>, 8> EqCache;
   if (Ops.size() == 2) {
     // This is the common case, which also happens to be trivially simple.
     // Special case it.
     const SCEV *&LHS = Ops[0], *&RHS = Ops[1];
-    if (CompareSCEVComplexity(EqCache, LI, RHS, LHS) < 0)
+    if (CompareSCEVComplexity(LI, RHS, LHS) < 0)
       std::swap(LHS, RHS);
     return;
   }
 
   // Do the rough sort by complexity.
   std::stable_sort(Ops.begin(), Ops.end(),
-                   [&EqCache, LI](const SCEV *LHS, const SCEV *RHS) {
-                     return CompareSCEVComplexity(EqCache, LI, LHS, RHS) < 0;
+                   [LI](const SCEV *LHS, const SCEV *RHS) {
+                     return CompareSCEVComplexity(LI, LHS, RHS) < 0;
                    });
 
   // Now that we are sorted by complexity, group elements of the same
