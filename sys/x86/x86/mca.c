@@ -128,6 +128,13 @@ static struct amd_et_state *amd_et_state;	/* Indexed by cpuid. */
 static int cmc_throttle = 60;	/* Time in seconds to throttle CMCI. */
 
 static int amd_elvt = -1;
+
+static inline bool
+amd_thresholding_supported(void)
+{
+	return (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) >= 0x10 && CPUID_TO_FAMILY(cpu_id) <= 0x16);
+}
 #endif
 
 static int
@@ -809,7 +816,7 @@ static void
 amd_thresholding_setup(void)
 {
 
-	amd_et_state = malloc((mp_maxid + 1) * sizeof(struct amd_et_state *),
+	amd_et_state = malloc((mp_maxid + 1) * sizeof(struct amd_et_state),
 	    M_MCA, M_WAITOK | M_ZERO);
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
@@ -854,8 +861,7 @@ mca_setup(uint64_t mcg_cap)
 #ifdef DEV_APIC
 	if (mcg_cap & MCG_CAP_CMCI_P)
 		cmci_setup();
-	else if (cpu_vendor_id == CPU_VENDOR_AMD &&
-	    CPUID_TO_FAMILY(cpu_id) >= 0x10 && CPUID_TO_FAMILY(cpu_id) <= 16)
+	else if (amd_thresholding_supported())
 		amd_thresholding_setup();
 #endif
 }
@@ -1095,9 +1101,7 @@ _mca_init(int boot)
 		 * At the moment only the DRAM Error Threshold Group is
 		 * supported.
 		 */
-		if (cpu_vendor_id == CPU_VENDOR_AMD &&
-		    CPUID_TO_FAMILY(cpu_id) >= 0x10 &&
-		    CPUID_TO_FAMILY(cpu_id) <= 0x16 &&
+		if (amd_thresholding_supported() &&
 		    (mcg_cap & MCG_CAP_COUNT) >= 4) {
 			if (boot)
 				amd_thresholding_init();
