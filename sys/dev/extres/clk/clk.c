@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
@@ -118,6 +119,8 @@ struct clknode {
 
 	/* Cached values. */
 	uint64_t		freq;		/* Actual frequency */
+
+	struct sysctl_ctx_list	sysctl_ctx;
 };
 
 /*
@@ -174,6 +177,15 @@ SX_SYSINIT(clock_topology, &clk_topo_lock, "Clock topology lock");
 #define CLKNODE_UNLOCK(_sc)	sx_unlock(&((_sc)->lock))
 
 static void clknode_adjust_parent(struct clknode *clknode, int idx);
+
+enum clknode_sysctl_type {
+	CLKNODE_SYSCTL_PARENT,
+	CLKNODE_SYSCTL_PARENTS_LIST,
+	CLKNODE_SYSCTL_CHILDREN_LIST,
+};
+
+static int clknode_sysctl(SYSCTL_HANDLER_ARGS);
+static int clkdom_sysctl(SYSCTL_HANDLER_ARGS);
 
 /*
  * Default clock methods for base class.
@@ -382,6 +394,14 @@ clkdom_create(device_t dev)
 	clkdom->ofw_mapper = clknode_default_ofw_map;
 #endif
 
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	  SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	  OID_AUTO, "clocks",
+	  CTLTYPE_STRING | CTLFLAG_RD,
+		    clkdom, 0, clkdom_sysctl,
+		    "A",
+		    "Clock list for the domain");
+
 	return (clkdom);
 }
 
@@ -503,6 +523,7 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
     const struct clknode_init_def *def)
 {
 	struct clknode *clknode;
+	struct sysctl_oid *clknode_oid;
 
 	KASSERT(def->name != NULL, ("clock name is NULL"));
 	KASSERT(def->name[0] != '\0', ("clock name is empty"));
@@ -546,6 +567,42 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 	clknode->parent = NULL;
 	clknode->parent_idx = CLKNODE_IDX_NONE;
 	TAILQ_INIT(&clknode->children);
+
+	sysctl_ctx_init(&clknode->sysctl_ctx);
+	clknode_oid = SYSCTL_ADD_NODE(&clknode->sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_clock),
+	    OID_AUTO, clknode->name,
+	    CTLFLAG_RD, 0, "A clock node");
+
+	SYSCTL_ADD_U64(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "frequency",
+	    CTLFLAG_RD, &clknode->freq, 0, "The clock frequency");
+	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "parent",
+	    CTLTYPE_STRING | CTLFLAG_RD,
+	    clknode, CLKNODE_SYSCTL_PARENT, clknode_sysctl,
+	    "A",
+	    "The clock parent");
+	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "parents",
+	    CTLTYPE_STRING | CTLFLAG_RD,
+	    clknode, CLKNODE_SYSCTL_PARENTS_LIST, clknode_sysctl,
+	    "A",
+	    "The clock parents list");
+	SYSCTL_ADD_PROC(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "childrens",
+	    CTLTYPE_STRING | CTLFLAG_RD,
+	    clknode, CLKNODE_SYSCTL_CHILDREN_LIST, clknode_sysctl,
+	    "A",
+	    "The clock childrens list");
+	SYSCTL_ADD_INT(&clknode->sysctl_ctx,
+	    SYSCTL_CHILDREN(clknode_oid),
+	    OID_AUTO, "enable_cnt",
+	    CTLFLAG_RD, &clknode->enable_cnt, 0, "The clock enable counter");
 
 	return (clknode);
 }
@@ -1385,3 +1442,64 @@ clk_parse_ofw_clk_name(device_t dev, phandle_t node, const char **name)
 	return (0);
 }
 #endif
+
+static int
+clkdom_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct clkdom *clkdom = arg1;
+	struct clknode *clknode;
+	struct sbuf *sb;
+	int ret;
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	CLK_TOPO_SLOCK();
+	TAILQ_FOREACH(clknode, &clkdom->clknode_list, clkdom_link) {
+		sbuf_printf(sb, "%s ", clknode->name);
+	}
+	CLK_TOPO_UNLOCK();
+
+	ret = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (ret);
+}
+
+static int
+clknode_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct clknode *clknode, *children;
+	enum clknode_sysctl_type type = arg2;
+	struct sbuf *sb;
+	const char **parent_names;
+	int ret, i;
+
+	clknode = arg1;
+	sb = sbuf_new_for_sysctl(NULL, NULL, 512, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	CLK_TOPO_SLOCK();
+	switch (type) {
+	case CLKNODE_SYSCTL_PARENT:
+		if (clknode->parent)
+			sbuf_printf(sb, "%s", clknode->parent->name);
+		break;
+	case CLKNODE_SYSCTL_PARENTS_LIST:
+		parent_names = clknode_get_parent_names(clknode);
+		for (i = 0; i < clknode->parent_cnt; i++)
+			sbuf_printf(sb, "%s ", parent_names[i]);
+		break;
+	case CLKNODE_SYSCTL_CHILDREN_LIST:
+		TAILQ_FOREACH(children, &(clknode->children), sibling_link) {
+			sbuf_printf(sb, "%s ", children->name);
+		}
+		break;
+	}
+	CLK_TOPO_UNLOCK();
+
+	ret = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (ret);
+}
