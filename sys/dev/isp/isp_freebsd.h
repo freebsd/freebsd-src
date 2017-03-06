@@ -88,14 +88,6 @@ isp_ecmd_t *	isp_get_ecmd(struct ispsoftc *);
 void		isp_put_ecmd(struct ispsoftc *, isp_ecmd_t *);
 
 #ifdef	ISP_TARGET_MODE
-/* Not quite right, but there was no bump for this change */
-#if __FreeBSD_version < 225469
-#define	SDFIXED(x)	(&x)
-#else
-#define	SDFIXED(x)	((struct scsi_sense_data_fixed *)(&x))
-#endif
-
-#define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
 #define	ATPDPHASHSIZE	32
 #define	ATPDPHASH(x)	((((x) >> 24) ^ ((x) >> 16) ^ ((x) >> 8) ^ (x)) &  \
