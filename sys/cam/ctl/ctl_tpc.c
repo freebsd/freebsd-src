@@ -222,6 +222,21 @@ ctl_tpc_lun_init(struct ctl_lun *lun)
 }
 
 void
+ctl_tpc_lun_clear(struct ctl_lun *lun, uint32_t initidx)
+{
+	struct tpc_list *list, *tlist;
+
+	TAILQ_FOREACH_SAFE(list, &lun->tpc_lists, links, tlist) {
+		if (initidx != -1 && list->init_idx != initidx)
+			continue;
+		if (!list->completed)
+			continue;
+		TAILQ_REMOVE(&lun->tpc_lists, list, links);
+		free(list, M_CTL);
+	}
+}
+
+void
 ctl_tpc_lun_shutdown(struct ctl_lun *lun)
 {
 	struct ctl_softc *softc = lun->ctl_softc;
