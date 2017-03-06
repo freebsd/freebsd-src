@@ -1,5 +1,3 @@
-/* $Id: bsd-cygwin_util.h,v 1.18 2014/05/27 04:34:43 djm Exp $ */
-
 /*
  * Copyright (c) 2000, 2001, 2011, 2013 Corinna Vinschen <vinschen@redhat.com>
  *

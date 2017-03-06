@@ -1,10 +1,9 @@
-/* 
- * $Id: bsd-cray.c,v 1.17 2007/08/15 09:17:43 dtucker Exp $
+/*
  *
  * bsd-cray.c
  *
  * Copyright (c) 2002, Cray Inc.  (Wendy Palm <wendyp@cray.com>)
- * Significant portions provided by 
+ * Significant portions provided by
  *          Wayne Schroeder, SDSC <schroeder@sdsc.edu>
  *          William Jones, UTexas <jones@tacc.utexas.edu>
  *
@@ -268,7 +267,7 @@ cray_setup (uid_t uid, char *username, const char *command)
 	usent.uname = username;
 	usent.host = hostname;
 	usent.ttyn = ttyn;
-	usent.caller = IA_SSHD; 
+	usent.caller = IA_SSHD;
 	usent.pswdlist = &pwdacm;
 	usent.ueptr = &ue;
 	usent.flags = IA_INTERACTIVE | IA_FFLAG;
@@ -352,7 +351,7 @@ cray_setup (uid_t uid, char *username, const char *command)
 	/*
 	 *  These are failed return codes from ia_user()
 	 */
-		switch (ia_rcode) 
+		switch (ia_rcode)
 		{
 		case IA_BADAUTH:
 			printf("Bad authorization, access denied.\n");
@@ -407,7 +406,7 @@ cray_setup (uid_t uid, char *username, const char *command)
 		*/
 		ia_failure(&fsent, &fret);
 
-		exit(1); 
+		exit(1);
 	}
 
 	ia_mlsrcode = IA_NORMAL;
@@ -441,7 +440,7 @@ cray_setup (uid_t uid, char *username, const char *command)
 		 *  There is no return because ia_failure exits.
 		 */
 		ia_failure(&fsent,&fret);
-		exit(1); 
+		exit(1);
 	}
 
 	/* Provide login status information */
@@ -526,7 +525,7 @@ cray_setup (uid_t uid, char *username, const char *command)
 					break;
 				default:
 					valid_acct = nam2acid(acct_name);
-					if (valid_acct == -1) 
+					if (valid_acct == -1)
 						printf(
 						    "Account id not found for"
 						    " account name \"%s\"\n\n",
@@ -576,9 +575,9 @@ cray_setup (uid_t uid, char *username, const char *command)
 		exit(1);
 	}
 
-	/* 
-	 * Now set shares, quotas, limits, including CPU time for the 
-	 * (interactive) job and process, and set up permissions 
+	/*
+	 * Now set shares, quotas, limits, including CPU time for the
+	 * (interactive) job and process, and set up permissions
 	 * (for chown etc), etc.
 	 */
 	if (setshares(ue.ue_uid, valid_acct, printf, 0, 0)) {
@@ -656,7 +655,7 @@ drop_cray_privs()
 		usrv.sv_minlvl = sysv.sy_minlvl;
 		usrv.sv_actlvl = sysv.sy_minlvl;
 		usrv.sv_maxlvl = sysv.sy_maxlvl;
-	}       
+	}
 	usrv.sv_actcmp = 0;
 	usrv.sv_valcmp = sysv.sy_valcmp;
 

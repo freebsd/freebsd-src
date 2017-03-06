@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.22 2016/02/12 00:20:30 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.23 2016/10/28 03:33:52 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -577,7 +577,8 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 
 	*keyp = NULL;
 	if (pkcs11_provider_lookup(provider_id) != NULL) {
-		error("provider already registered: %s", provider_id);
+		debug("%s: provider already registered: %s",
+		    __func__, provider_id);
 		goto fail;
 	}
 	/* open shared pkcs11-libarary */
@@ -594,23 +595,27 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 	p->handle = handle;
 	/* setup the pkcs11 callbacks */
 	if ((rv = (*getfunctionlist)(&f)) != CKR_OK) {
-		error("C_GetFunctionList failed: %lu", rv);
+		error("C_GetFunctionList for provider %s failed: %lu",
+		    provider_id, rv);
 		goto fail;
 	}
 	p->function_list = f;
 	if ((rv = f->C_Initialize(NULL)) != CKR_OK) {
-		error("C_Initialize failed: %lu", rv);
+		error("C_Initialize for provider %s failed: %lu",
+		    provider_id, rv);
 		goto fail;
 	}
 	need_finalize = 1;
 	if ((rv = f->C_GetInfo(&p->info)) != CKR_OK) {
-		error("C_GetInfo failed: %lu", rv);
+		error("C_GetInfo for provider %s failed: %lu",
+		    provider_id, rv);
 		goto fail;
 	}
 	rmspace(p->info.manufacturerID, sizeof(p->info.manufacturerID));
 	rmspace(p->info.libraryDescription, sizeof(p->info.libraryDescription));
-	debug("manufacturerID <%s> cryptokiVersion %d.%d"
+	debug("provider %s: manufacturerID <%s> cryptokiVersion %d.%d"
 	    " libraryDescription <%s> libraryVersion %d.%d",
+	    provider_id,
 	    p->info.manufacturerID,
 	    p->info.cryptokiVersion.major,
 	    p->info.cryptokiVersion.minor,
@@ -622,13 +627,15 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 		goto fail;
 	}
 	if (p->nslots == 0) {
-		error("no slots");
+		debug("%s: provider %s returned no slots", __func__,
+		    provider_id);
 		goto fail;
 	}
 	p->slotlist = xcalloc(p->nslots, sizeof(CK_SLOT_ID));
 	if ((rv = f->C_GetSlotList(CK_TRUE, p->slotlist, &p->nslots))
 	    != CKR_OK) {
-		error("C_GetSlotList failed: %lu", rv);
+		error("C_GetSlotList for provider %s failed: %lu",
+		    provider_id, rv);
 		goto fail;
 	}
 	p->slotinfo = xcalloc(p->nslots, sizeof(struct pkcs11_slotinfo));
@@ -638,20 +645,23 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 		token = &p->slotinfo[i].token;
 		if ((rv = f->C_GetTokenInfo(p->slotlist[i], token))
 		    != CKR_OK) {
-			error("C_GetTokenInfo failed: %lu", rv);
+			error("C_GetTokenInfo for provider %s slot %lu "
+			    "failed: %lu", provider_id, (unsigned long)i, rv);
 			continue;
 		}
 		if ((token->flags & CKF_TOKEN_INITIALIZED) == 0) {
-			debug2("%s: ignoring uninitialised token in slot %lu",
-			    __func__, (unsigned long)i);
+			debug2("%s: ignoring uninitialised token in "
+			    "provider %s slot %lu", __func__,
+			    provider_id, (unsigned long)i);
 			continue;
 		}
 		rmspace(token->label, sizeof(token->label));
 		rmspace(token->manufacturerID, sizeof(token->manufacturerID));
 		rmspace(token->model, sizeof(token->model));
 		rmspace(token->serialNumber, sizeof(token->serialNumber));
-		debug("label <%s> manufacturerID <%s> model <%s> serial <%s>"
-		    " flags 0x%lx",
+		debug("provider %s slot %lu: label <%s> manufacturerID <%s> "
+		    "model <%s> serial <%s> flags 0x%lx",
+		    provider_id, (unsigned long)i,
 		    token->label, token->manufacturerID, token->model,
 		    token->serialNumber, token->flags);
 		/* open session, login with pin and retrieve public keys */
@@ -663,11 +673,12 @@ pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
 		p->refcount++;	/* add to provider list */
 		return (nkeys);
 	}
-	error("no keys");
+	debug("%s: provider %s returned no keys", __func__, provider_id);
 	/* don't add the provider, since it does not have any keys */
 fail:
 	if (need_finalize && (rv = f->C_Finalize(NULL)) != CKR_OK)
-		error("C_Finalize failed: %lu", rv);
+		error("C_Finalize for provider %s failed: %lu",
+		    provider_id, rv);
 	if (p) {
 		free(p->slotlist);
 		free(p->slotinfo);
