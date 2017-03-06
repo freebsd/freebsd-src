@@ -138,7 +138,7 @@ _pam_exec(pam_handle_t *pamh __unused,
 	nitems = sizeof(env_items) / sizeof(*env_items);
 	/* Count PAM return values put in the environment. */
 	nitems_rv = options->return_prog_exit_status ? PAM_RV_COUNT : 0;
-	tmp = reallocarray(envlist, envlen + nitems + 1 + nitems_rv + 1,
+	tmp = realloc(envlist, (envlen + nitems + 1 + nitems_rv + 1) *
 	    sizeof(*envlist));
 	if (tmp == NULL) {
 		openpam_free_envlist(envlist);
