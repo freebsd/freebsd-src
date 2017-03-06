@@ -341,9 +341,6 @@ static int build_phys_page_list(struct ib_phys_buf *buffer_list,
 				PAGE_SIZE - 1) & PAGE_MASK;
 	}
 
-	if (*total_size > 0xFFFFFFFFULL)
-		return -ENOMEM;
-
 	/* Find largest page shift we can use to cover buffers */
 	for (*shift = PAGE_SHIFT; *shift < 27; ++(*shift))
 		if ((1ULL << *shift) & mask)
