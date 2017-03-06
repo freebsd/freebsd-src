@@ -32,23 +32,16 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/queue.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
-#include <sys/time.h>
-#include <sys/timetc.h>
-#include <sys/watchdog.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -59,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pdcreg.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 
 #ifdef FDT

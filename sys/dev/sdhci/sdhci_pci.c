@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -44,20 +43,17 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcbrvar.h>
 
-#include "sdhci.h"
+#include <dev/sdhci/sdhci.h>
+
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
 /*
  * PCI registers
  */
-
 #define	PCI_SDHCI_IFPIO			0x00
 #define	PCI_SDHCI_IFDMA			0x01
 #define	PCI_SDHCI_IFVENDOR		0x02

@@ -278,14 +278,14 @@ mmcsd_resume(device_t dev)
 }
 
 static int
-mmcsd_open(struct disk *dp)
+mmcsd_open(struct disk *dp __unused)
 {
 
 	return (0);
 }
 
 static int
-mmcsd_close(struct disk *dp)
+mmcsd_close(struct disk *dp __unused)
 {
 
 	return (0);
