@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.30 2015/01/20 23:14:00 deraadt Exp $ */
+/* $OpenBSD: moduli.c,v 1.31 2016/09/12 01:22:38 deraadt Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -41,7 +41,6 @@
 
 #ifdef WITH_OPENSSL
 
-#include <sys/param.h>	/* MAX */
 #include <sys/types.h>
 
 #include <openssl/bn.h>
@@ -609,7 +608,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 
 	if (checkpoint_file != NULL)
 		last_processed = read_checkpoint(checkpoint_file);
-	last_processed = start_lineno = MAX(last_processed, start_lineno);
+	last_processed = start_lineno = MAXIMUM(last_processed, start_lineno);
 	if (end_lineno == ULONG_MAX)
 		debug("process from line %lu from pipe", last_processed);
 	else
