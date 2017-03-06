@@ -72,6 +72,13 @@ CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
 		skein256.ref skein512.ref skein1024.ref \
 		skeindriver
 
+# Need src tree sys/md5.h for MD5FileChunk prototype on older systems.
+SRCS+=		sys/md5.h
+CLEANDIRS=	sys
+CFLAGS+=	-I.
+sys/md5.h: ${SRCTOP}/sys/${.TARGET} .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
+
 # Define WEAK_REFS to provide weak aliases for libmd symbols
 #
 # Note that the same sources are also used internally by libcrypt,
