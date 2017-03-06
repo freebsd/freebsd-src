@@ -397,10 +397,8 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	/*
 	 * Create the page if it doesn't exist yet. Ignore errors.
 	 */
-	vm_map_lock(map);
-	vm_map_insert(map, NULL, 0, trunc_page(start), round_page(end),
-	    VM_PROT_ALL, VM_PROT_ALL, 0);
-	vm_map_unlock(map);
+	vm_map_fixed(map, NULL, 0, trunc_page(start), round_page(end) -
+	    trunc_page(start), VM_PROT_ALL, VM_PROT_ALL, MAP_CHECK_EXCL);
 
 	/*
 	 * Find the page from the underlying object.
@@ -451,10 +449,8 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 			 * The mapping is not page aligned. This means we have
 			 * to copy the data. Sigh.
 			 */
-			vm_map_lock(map);
-			rv = vm_map_insert(map, NULL, 0, start, end,
-			    prot | VM_PROT_WRITE, VM_PROT_ALL, 0);
-			vm_map_unlock(map);
+			rv = vm_map_fixed(map, NULL, 0, start, end - start,
+			    prot | VM_PROT_WRITE, VM_PROT_ALL, MAP_CHECK_EXCL);
 			if (rv != KERN_SUCCESS)
 				return (rv);
 			if (object == NULL)
@@ -477,10 +473,9 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 			rv = KERN_SUCCESS;
 		} else {
 			vm_object_reference(object);
-			vm_map_lock(map);
-			rv = vm_map_insert(map, object, offset, start, end,
-			    prot, VM_PROT_ALL, cow);
-			vm_map_unlock(map);
+			rv = vm_map_fixed(map, object, offset, start,
+			    end - start, prot, VM_PROT_ALL,
+			    cow | MAP_CHECK_EXCL);
 			if (rv != KERN_SUCCESS) {
 				locked = VOP_ISLOCKED(imgp->vp);
 				VOP_UNLOCK(imgp->vp, 0);
