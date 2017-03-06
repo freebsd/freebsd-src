@@ -1011,7 +1011,7 @@ isp_dump_atpd(ispsoftc_t *isp, int chan)
 		if (atp->state == ATPD_STATE_FREE)
 			continue;
 		isp_prt(isp, ISP_LOGALL, "Chan %d ATP [0x%x] origdlen %u bytes_xfrd %u lun %jx nphdl 0x%04x s_id 0x%06x d_id 0x%06x oxid 0x%04x state %s",
-		    chan, atp->tag, atp->orig_datalen, atp->bytes_xfered, (uintmax_t)atp->lun, atp->nphdl, atp->sid, atp->portid, atp->oxid, states[atp->state & 0x7]);
+		    chan, atp->tag, atp->orig_datalen, atp->bytes_xfered, (uintmax_t)atp->lun, atp->nphdl, atp->sid, atp->did, atp->oxid, states[atp->state & 0x7]);
 	}
 }
 
@@ -1344,8 +1344,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			ATPD_SET_SEQNO(cto, atp);
 			cto->ct_nphdl = atp->nphdl;
 			cto->ct_rxid = atp->tag;
-			cto->ct_iid_lo = atp->portid;
-			cto->ct_iid_hi = atp->portid >> 16;
+			cto->ct_iid_lo = atp->sid;
+			cto->ct_iid_hi = atp->sid >> 16;
 			cto->ct_oxid = atp->oxid;
 			cto->ct_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(ccb));
 			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
@@ -2088,7 +2088,8 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	atp->bytes_xfered = 0;
 	atp->lun = lun;
 	atp->nphdl = nphdl;
-	atp->portid = sid;
+	atp->sid = sid;
+	atp->did = did;
 	atp->oxid = aep->at_hdr.ox_id;
 	atp->rxid = aep->at_hdr.rx_id;
 	atp->cdb0 = atiop->cdb_io.cdb_bytes[0];
@@ -3269,7 +3270,23 @@ isp_abort_atio(ispsoftc_t *isp, union ccb *ccb)
 	/* Search for the ATIO among running. */
 	atp = isp_find_atpd(isp, XS_CHANNEL(accb), accb->atio.tag_id);
 	if (atp != NULL) {
-		/* XXX Send TERMINATE to firmware here. */
+		/* Send TERMINATE to firmware. */
+		if (!atp->dead && IS_24XX(isp)) {
+			uint8_t storage[QENTRY_LEN];
+			ct7_entry_t *cto = (ct7_entry_t *) storage;
+
+			ISP_MEMZERO(cto, sizeof (ct7_entry_t));
+			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO7;
+			cto->ct_header.rqs_entry_count = 1;
+			cto->ct_nphdl = atp->nphdl;
+			cto->ct_rxid = atp->tag;
+			cto->ct_iid_lo = atp->sid;
+			cto->ct_iid_hi = atp->sid >> 16;
+			cto->ct_oxid = atp->oxid;
+			cto->ct_vpidx = XS_CHANNEL(accb);
+			cto->ct_flags = CT7_NOACK|CT7_TERMINATE;
+			isp_target_put_entry(isp, cto);
+		}
 		isp_put_atpd(isp, XS_CHANNEL(accb), atp);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 	} else {
