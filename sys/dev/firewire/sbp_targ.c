@@ -1327,7 +1327,8 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 				 | PIT_DISCONNECT
 				 | PIT_TERM_IO;
 		cpi->transport = XPORT_SPI; /* FIXME add XPORT_FW type to cam */
-		cpi->hba_misc = PIM_NOBUSRESET | PIM_NO_6_BYTE;
+		cpi->hba_misc = PIM_NOINITIATOR | PIM_NOBUSRESET |
+		    PIM_NO_6_BYTE;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 7; /* XXX */
 		cpi->max_lun = MAX_LUN - 1;
