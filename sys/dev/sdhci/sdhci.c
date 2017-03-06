@@ -170,6 +170,7 @@ static void
 sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 {
 	int timeout;
+	uint32_t clock;
 
 	if (slot->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
 		if (!SDHCI_GET_CARD_PRESENT(slot->bus, slot))
@@ -179,8 +180,6 @@ sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 	/* Some controllers need this kick or reset won't work. */
 	if ((mask & SDHCI_RESET_ALL) == 0 &&
 	    (slot->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET)) {
-		uint32_t clock;
-
 		/* This is to force an update */
 		clock = slot->clock;
 		slot->clock = 0;
@@ -199,7 +198,7 @@ sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 		 * Resets on TI OMAPs and AM335x are incompatible with SDHCI
 		 * specification.  The reset bit has internal propagation delay,
 		 * so a fast read after write returns 0 even if reset process is
-		 * in progress. The workaround is to poll for 1 before polling
+		 * in progress.  The workaround is to poll for 1 before polling
 		 * for 0.  In the worst case, if we miss seeing it asserted the
 		 * time we spent waiting is enough to ensure the reset finishes.
 		 */
@@ -267,7 +266,7 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	/* Turn off the clock. */
 	clk = RD2(slot, SDHCI_CLOCK_CONTROL);
 	WR2(slot, SDHCI_CLOCK_CONTROL, clk & ~SDHCI_CLOCK_CARD_EN);
-	/* If no clock requested - left it so. */
+	/* If no clock requested - leave it so. */
 	if (clock == 0)
 		return;
 
@@ -364,7 +363,7 @@ sdhci_set_power(struct sdhci_slot *slot, u_char power)
 	/* Turn off the power. */
 	pwr = 0;
 	WR1(slot, SDHCI_POWER_CONTROL, pwr);
-	/* If power down requested - left it so. */
+	/* If power down requested - leave it so. */
 	if (power == 0)
 		return;
 	/* Set voltage. */
@@ -613,7 +612,7 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	if (err != 0 || slot->paddr == 0) {
 		device_printf(dev, "Can't load DMA memory\n");
 		SDHCI_LOCK_DESTROY(slot);
-		if(err)
+		if (err)
 			return (err);
 		else
 			return (EFAULT);
@@ -794,7 +793,7 @@ sdhci_generic_resume(struct sdhci_slot *slot)
 }
 
 uint32_t
-sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot)
+sdhci_generic_min_freq(device_t brdev __unused, struct sdhci_slot *slot)
 {
 
 	if (slot->version >= SDHCI_SPEC_300)
@@ -804,7 +803,7 @@ sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot)
 }
 
 bool
-sdhci_generic_get_card_present(device_t brdev, struct sdhci_slot *slot)
+sdhci_generic_get_card_present(device_t brdev __unused, struct sdhci_slot *slot)
 {
 
 	if (slot->opt & SDHCI_NON_REMOVABLE)
@@ -847,7 +846,7 @@ sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 		slot->hostctrl &= ~SDHCI_CTRL_HISPD;
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl);
 	/* Some controllers like reset after bus changes. */
-	if(slot->quirks & SDHCI_QUIRK_RESET_ON_IOS)
+	if (slot->quirks & SDHCI_QUIRK_RESET_ON_IOS)
 		sdhci_reset(slot, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 
 	SDHCI_UNLOCK(slot);
@@ -885,8 +884,7 @@ sdhci_timeout(void *arg)
 }
 
 static void
-sdhci_set_transfer_mode(struct sdhci_slot *slot,
-	struct mmc_data *data)
+sdhci_set_transfer_mode(struct sdhci_slot *slot, struct mmc_data *data)
 {
 	uint16_t mode;
 
@@ -925,8 +923,10 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 		return;
 	}
 
-	/* Do not issue command if there is no card, clock or power.
-	 * Controller will not detect timeout without clock active. */
+	/*
+	 * Do not issue command if there is no card, clock or power.
+	 * Controller will not detect timeout without clock active.
+	 */
 	if (!SDHCI_GET_CARD_PRESENT(slot->bus, slot) ||
 	    slot->power == 0 ||
 	    slot->clock == 0) {
@@ -1196,7 +1196,8 @@ sdhci_start(struct sdhci_slot *slot)
 }
 
 int
-sdhci_generic_request(device_t brdev, device_t reqdev, struct mmc_request *req)
+sdhci_generic_request(device_t brdev __unused, device_t reqdev,
+    struct mmc_request *req)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 
@@ -1226,7 +1227,7 @@ sdhci_generic_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 }
 
 int
-sdhci_generic_get_ro(device_t brdev, device_t reqdev)
+sdhci_generic_get_ro(device_t brdev __unused, device_t reqdev)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 	uint32_t val;
@@ -1238,7 +1239,7 @@ sdhci_generic_get_ro(device_t brdev, device_t reqdev)
 }
 
 int
-sdhci_generic_acquire_host(device_t brdev, device_t reqdev)
+sdhci_generic_acquire_host(device_t brdev __unused, device_t reqdev)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 	int err = 0;
@@ -1254,7 +1255,7 @@ sdhci_generic_acquire_host(device_t brdev, device_t reqdev)
 }
 
 int
-sdhci_generic_release_host(device_t brdev, device_t reqdev)
+sdhci_generic_release_host(device_t brdev __unused, device_t reqdev)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
 
@@ -1531,6 +1532,8 @@ sdhci_generic_write_ivar(device_t bus, device_t child, int which,
     uintptr_t value)
 {
 	struct sdhci_slot *slot = device_get_ivars(child);
+	uint32_t clock, max_clock;
+	int i;
 
 	switch (which) {
 	default:
@@ -1546,10 +1549,6 @@ sdhci_generic_write_ivar(device_t bus, device_t child, int which,
 		break;
 	case MMCBR_IVAR_CLOCK:
 		if (value > 0) {
-			uint32_t max_clock;
-			uint32_t clock;
-			int i;
-
 			max_clock = slot->max_clk;
 			clock = max_clock;
 
@@ -1560,8 +1559,7 @@ sdhci_generic_write_ivar(device_t bus, device_t child, int which,
 						break;
 					clock >>= 1;
 				}
-			}
-			else {
+			} else {
 				for (i = 0; i < SDHCI_300_MAX_DIVIDER;
 				    i += 2) {
 					if (clock <= value)
