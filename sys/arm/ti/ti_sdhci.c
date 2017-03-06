@@ -692,7 +692,6 @@ static device_method_t ti_sdhci_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	ti_sdhci_update_ios),
@@ -723,7 +722,8 @@ static driver_t ti_sdhci_driver = {
 	sizeof(struct ti_sdhci_softc),
 };
 
-DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, 0, 0);
+DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, NULL,
+    NULL);
 MODULE_DEPEND(sdhci_ti, sdhci, 1, 1, 1);
 DRIVER_MODULE(mmc, sdhci_ti, mmc_driver, mmc_devclass, NULL, NULL);
 MODULE_DEPEND(sdhci_ti, mmc, 1, 1, 1);

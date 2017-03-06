@@ -49,7 +49,7 @@
  * or the SD Card Association to disclose or distribute any technical
  * information, know-how or other confidential information to any third party.
  *
- * "$FreeBSD$"
+ * $FreeBSD$
  */
 
 #ifndef DEV_MMC_MMCBRVAR_H
@@ -57,6 +57,7 @@
 
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcreg.h>
+
 #include "mmcbr_if.h"
 
 enum mmcbr_device_ivars {
@@ -100,12 +101,14 @@ MMCBR_ACCESSOR(max_data, MAX_DATA, int)
 static int __inline
 mmcbr_update_ios(device_t dev)
 {
+
 	return (MMCBR_UPDATE_IOS(device_get_parent(dev), dev));
 }
 
 static int __inline
 mmcbr_get_ro(device_t dev)
 {
+
 	return (MMCBR_GET_RO(device_get_parent(dev), dev));
 }
 

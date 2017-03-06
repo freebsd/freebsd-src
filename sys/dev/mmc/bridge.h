@@ -52,7 +52,7 @@
  */
 
 #ifndef DEV_MMC_BRIDGE_H
-#define DEV_MMC_BRIDGE_H
+#define	DEV_MMC_BRIDGE_H
 
 #include <sys/bus.h>
 
@@ -60,7 +60,7 @@
  * This file defines interfaces for the mmc bridge.  The names chosen
  * are similar to or the same as the names used in Linux to allow for
  * easy porting of what Linux calls mmc host drivers.  I use the
- * FreeBSD terminology of bridge and bus for consistancy with other
+ * FreeBSD terminology of bridge and bus for consistency with other
  * drivers in the system.  This file corresponds roughly to the Linux
  * linux/mmc/host.h file.
  *
@@ -73,9 +73,8 @@
  * to be added to the mmcbus file).
  *
  * Attached to the mmc bridge is an mmcbus.  The mmcbus is described
- * in dev/mmc/bus.h.
+ * in dev/mmc/mmcbus_if.m.
  */
-
 
 /*
  * mmc_ios is a structure that is used to store the state of the mmc/sd
@@ -130,9 +129,9 @@ struct mmc_host {
 	uint32_t host_ocr;
 	uint32_t ocr;
 	uint32_t caps;
-#define MMC_CAP_4_BIT_DATA	(1 << 0) /* Can do 4-bit data transfers */
-#define MMC_CAP_8_BIT_DATA	(1 << 1) /* Can do 8-bit data transfers */
-#define MMC_CAP_HSPEED		(1 << 2) /* Can do High Speed transfers */
+#define	MMC_CAP_4_BIT_DATA	(1 <<  0) /* Can do 4-bit data transfers */
+#define	MMC_CAP_8_BIT_DATA	(1 <<  1) /* Can do 8-bit data transfers */
+#define	MMC_CAP_HSPEED		(1 <<  2) /* Can do High Speed transfers */
 	enum mmc_card_mode mode;
 	struct mmc_ios ios;	/* Current state of the host */
 };
