@@ -103,7 +103,7 @@ typedef struct atio_private_data {
 	lun_id_t	lun;
 	uint32_t	nphdl;
 	uint32_t	sid;
-	uint32_t	portid;
+	uint32_t	did;
 	uint16_t	rxid;	/* wire rxid */
 	uint16_t	oxid;	/* wire oxid */
 	uint16_t	word3;	/* PRLI word3 params */
