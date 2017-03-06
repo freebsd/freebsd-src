@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/bus.h>
-#include <sys/callout.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -46,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/time.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -56,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>

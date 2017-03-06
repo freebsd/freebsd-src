@@ -408,7 +408,8 @@ mmc_wait_for_req(struct mmc_softc *sc, struct mmc_request *req)
 }
 
 static int
-mmc_wait_for_request(device_t brdev, device_t reqdev, struct mmc_request *req)
+mmc_wait_for_request(device_t brdev, device_t reqdev __unused,
+    struct mmc_request *req)
 {
 	struct mmc_softc *sc = device_get_softc(brdev);
 
@@ -768,17 +769,29 @@ mmc_set_timing(struct mmc_softc *sc, int timing)
 	return (err);
 }
 
+static const uint8_t p8[8] = {
+	0x55, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static const uint8_t p8ok[8] = {
+	0xAA, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static const uint8_t p4[4] = {
+	0x5A, 0x00, 0x00, 0x00
+};
+
+static const uint8_t p4ok[4] = {
+	0xA5, 0x00, 0x00, 0x00
+};
+
 static int
 mmc_test_bus_width(struct mmc_softc *sc)
 {
 	struct mmc_command cmd;
 	struct mmc_data data;
-	int err;
 	uint8_t buf[8];
-	uint8_t	p8[8] =   { 0x55, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	uint8_t	p8ok[8] = { 0xAA, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	uint8_t	p4[4] =   { 0x5A, 0x00, 0x00, 0x00, };
-	uint8_t	p4ok[4] = { 0xA5, 0x00, 0x00, 0x00, };
+	int err;
 
 	if (mmcbr_get_caps(sc->dev) & MMC_CAP_8_BIT_DATA) {
 		mmcbr_set_bus_width(sc->dev, bus_width_8);
@@ -792,7 +805,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 		cmd.data = &data;
 
-		data.data = p8;
+		data.data = __DECONST(void *, p8);
 		data.len = 8;
 		data.flags = MMC_DATA_WRITE;
 		mmc_wait_for_cmd(sc, &cmd, 0);
@@ -829,7 +842,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 		cmd.data = &data;
 
-		data.data = p4;
+		data.data = __DECONST(void *, p4);
 		data.len = 4;
 		data.flags = MMC_DATA_WRITE;
 		mmc_wait_for_cmd(sc, &cmd, 0);
@@ -1291,13 +1304,14 @@ mmc_log_card(device_t dev, struct mmc_ivars *ivar, int newcard)
 static void
 mmc_discover_cards(struct mmc_softc *sc)
 {
+	u_char switch_res[64];
+	uint32_t raw_cid[4];
 	struct mmc_ivars *ivar = NULL;
 	device_t *devlist;
-	int err, i, devcount, newcard;
-	uint32_t raw_cid[4], resp, sec_count, status;
 	device_t child;
+	int err, i, devcount, newcard;
+	uint32_t resp, sec_count, status;
 	uint16_t rca = 2;
-	u_char switch_res[64];
 
 	if (bootverbose || mmc_debug)
 		device_printf(sc->dev, "Probing cards\n");
