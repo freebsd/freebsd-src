@@ -51,11 +51,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
-20170304:
-	Support for i486 has been dropped from the defauilt GENERIC i386
-	kernel. Users of such old processors can still build custom kernels
-	or can upgrade the processor.
-
 20170302:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 4.0.0.
 	Please see the 20141231 entry below for information about prerequisites
