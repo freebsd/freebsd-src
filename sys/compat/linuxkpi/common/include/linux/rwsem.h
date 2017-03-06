@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,13 +48,25 @@ struct rw_semaphore {
 #define	down_write_trylock(_rw)		!!sx_try_xlock(&(_rw)->sx)
 #define	downgrade_write(_rw)		sx_downgrade(&(_rw)->sx)
 #define	down_read_nested(_rw, _sc)	down_read(_rw)
+#define	init_rwsem(_rw)			linux_init_rwsem(_rw, rwsem_name("lnxrwsem"))
+
+#ifdef WITNESS_ALL
+/* NOTE: the maximum WITNESS name is 64 chars */
+#define	__rwsem_name(name, file, line)		\
+	(((const char *){file ":" #line "-" name}) + 	\
+	(sizeof(file) > 16 ? sizeof(file) - 16 : 0))
+#else
+#define	__rwsem_name(name, file, line)	name
+#endif
+#define	_rwsem_name(...)		__rwsem_name(__VA_ARGS__)
+#define	rwsem_name(name)		_rwsem_name(name, __FILE__, __LINE__)
 
 static inline void
-init_rwsem(struct rw_semaphore *rw)
+linux_init_rwsem(struct rw_semaphore *rw, const char *name)
 {
 
-	memset(&rw->sx, 0, sizeof(rw->sx));
-	sx_init_flags(&rw->sx, "lnxrwsem", SX_NOWITNESS);
+	memset(rw, 0, sizeof(*rw));
+	sx_init_flags(&rw->sx, name, SX_NOWITNESS);
 }
 
-#endif	/* _LINUX_RWSEM_H_ */
+#endif					/* _LINUX_RWSEM_H_ */
