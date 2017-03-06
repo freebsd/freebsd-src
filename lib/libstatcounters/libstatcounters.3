@@ -41,10 +41,15 @@ provides an API to the BERI/CHERI statcounters. To link with
 to the linking flags to still enable the automatic sampling of statcounters before and after
 .Fn main
 , and output of the difference (this feature is directly available when linking non static). The behaviour of the automatic sampling is controlled by the
+.Nm STATCOUNTERS_PROGNAME
+,
 .Nm STATCOUNTERS_OUTPUT
 and
 .Nm STATCOUNTERS_FORMAT
 environment variables.
+.Pp
+.Nm STATCOUNTERS_PROGNAME
+.Nd Environment variable specifying the program name to output (usefull when appending entries to a csv output file)
 .Pp
 .Nm STATCOUNTERS_OUTPUT
 .Nd Environment variable specifying the file in which to output the statcounters'values
@@ -119,7 +124,7 @@ is
 .in
 .Pp
 .Ft int
-.Fn statcounters_dump "const statcounters_bank_t * const b" "const FILE * const fp" "const statcounters_fmt_flag_t fmt_flg)"
+.Fn statcounters_dump "const statcounters_bank_t * const b" "const char * const progname" "const FILE * const fp" "const statcounters_fmt_flag_t fmt_flg)"
 .in +5
 .Fn statcounters_dumps
 dumps the statcounters_bank_t
@@ -127,7 +132,8 @@ dumps the statcounters_bank_t
 content in file described by the file descriptor
 .Fa fp
 according to the format flag
-.Fa fmt_flg .
+.Fa fmt_flg with the name set to
+.Fa progname (usefull for csv output).
 The currently supported value for the
 .Fa fmt_flg
 argument are

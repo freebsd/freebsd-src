@@ -91,6 +91,7 @@ void dump_statcounters (
     const char * const fmt) DEPRECATED("use statcounters_dump instead -- arguments changed");
 int statcounters_dump (
     const statcounters_bank_t * const b,
+    const char * const progname,
     FILE * const fp,
     const statcounters_fmt_flag_t fmt_flg);
 

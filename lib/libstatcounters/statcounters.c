@@ -325,12 +325,13 @@ void dump_statcounters (
             if (display_header) flg = CSV_HEADER;
             else flg = CSV_NOHEADER;
         }
-        statcounters_dump(b,fp,flg);
+        statcounters_dump(b,getprogname(),fp,flg);
         fclose(fp);
     }
 }
 int statcounters_dump (
     const statcounters_bank_t * const b,
+    const char * const progname,
     FILE * const fp,
     const statcounters_fmt_flag_t fmt_flg)
 {
@@ -392,7 +393,7 @@ int statcounters_dump (
             fprintf(fp, "tagcachemaster_write_rsp");
             fprintf(fp, "\n");
         case CSV_NOHEADER:
-            fprintf(fp, "%s,",getprogname());
+            fprintf(fp, "%s,",progname);
             fprintf(fp, "%lu,",b->cycle);
             fprintf(fp, "%lu,",b->inst);
             fprintf(fp, "%lu,",b->itlb_miss);
@@ -447,7 +448,7 @@ int statcounters_dump (
             break;
         case HUMAN_READABLE:
         default:
-            fprintf(fp, "===== %s =====\n",getprogname());
+            fprintf(fp, "===== %s =====\n",progname);
             fprintf(fp, "cycles:                       \t%lu\n",b->cycle);
             fprintf(fp, "instructions:                 \t%lu\n",b->inst);
             fprintf(fp, "itlb_miss:                    \t%lu\n",b->itlb_miss);
@@ -538,6 +539,7 @@ static void end_sample (void)
     statcounters_diff(&diff_cnt, &end_cnt, &start_cnt);
     // preparing call to dumping function
     FILE * fp = NULL;
+    const char * const pname = getenv("STATCOUNTERS_PROGNAME");
     const char * const fname = getenv("STATCOUNTERS_OUTPUT");
     const char * const fmt = getenv("STATCOUNTERS_FORMAT");
     bool display_header = true;
@@ -551,7 +553,8 @@ static void end_sample (void)
             if (display_header) fmt_flg = CSV_HEADER;
             else fmt_flg = CSV_NOHEADER;
         }
-        statcounters_dump(&diff_cnt,fp,fmt_flg);
+	if (pname) statcounters_dump(&diff_cnt,pname,fp,fmt_flg);
+	else statcounters_dump(&diff_cnt,getprogname(),fp,fmt_flg);
         fclose(fp);
     }
 }
