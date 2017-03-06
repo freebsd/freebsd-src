@@ -35,6 +35,7 @@
 #include <sys/lock.h>
 #include <sys/sx.h>
 #include <sys/libkern.h>
+#include <sys/kernel.h>
 
 struct rw_semaphore {
 	struct sx sx;
@@ -60,6 +61,14 @@ struct rw_semaphore {
 #endif
 #define	_rwsem_name(...)		__rwsem_name(__VA_ARGS__)
 #define	rwsem_name(name)		_rwsem_name(name, __FILE__, __LINE__)
+
+#define	DECLARE_RWSEM(name)						\
+struct rw_semaphore name;						\
+static void name##_rwsem_init(void *arg)				\
+{									\
+	linux_init_rwsem(&name, rwsem_name(#name))			\
+}									\
+SYSINIT(name, SI_SUB_LOCKS, SI_ORDER_SECOND, name##_rwsem_init, NULL)
 
 static inline void
 linux_init_rwsem(struct rw_semaphore *rw, const char *name)
