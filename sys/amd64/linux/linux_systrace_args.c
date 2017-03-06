@@ -1396,11 +1396,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* linux_create_module */
-	case 174: {
-		*n_args = 0;
-		break;
-	}
 	/* linux_init_module */
 	case 175: {
 		*n_args = 0;
@@ -1411,48 +1406,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* linux_get_kernel_syms */
-	case 177: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_query_module */
-	case 178: {
-		*n_args = 0;
-		break;
-	}
 	/* linux_quotactl */
 	case 179: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_nfsservctl */
-	case 180: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_getpmsg */
-	case 181: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_putpmsg */
-	case 182: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_afs_syscall */
-	case 183: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_tuxcall */
-	case 184: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_security */
-	case 185: {
 		*n_args = 0;
 		break;
 	}
@@ -1566,11 +1521,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* linux_set_thread_area */
-	case 205: {
-		*n_args = 0;
-		break;
-	}
 	/* linux_lookup_dcookie */
 	case 212: {
 		*n_args = 0;
@@ -1581,16 +1531,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_epoll_create_args *p = params;
 		iarg[0] = p->size; /* l_int */
 		*n_args = 1;
-		break;
-	}
-	/* linux_epoll_ctl_old */
-	case 214: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_epoll_wait_old */
-	case 215: {
-		*n_args = 0;
 		break;
 	}
 	/* linux_remap_file_pages */
@@ -4771,41 +4711,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* linux_create_module */
-	case 174:
-		break;
 	/* linux_init_module */
 	case 175:
 		break;
 	/* linux_delete_module */
 	case 176:
 		break;
-	/* linux_get_kernel_syms */
-	case 177:
-		break;
-	/* linux_query_module */
-	case 178:
-		break;
 	/* linux_quotactl */
 	case 179:
-		break;
-	/* linux_nfsservctl */
-	case 180:
-		break;
-	/* linux_getpmsg */
-	case 181:
-		break;
-	/* linux_putpmsg */
-	case 182:
-		break;
-	/* linux_afs_syscall */
-	case 183:
-		break;
-	/* linux_tuxcall */
-	case 184:
-		break;
-	/* linux_security */
-	case 185:
 		break;
 	/* linux_gettid */
 	case 186:
@@ -4926,9 +4839,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* linux_set_thread_area */
-	case 205:
-		break;
 	/* linux_lookup_dcookie */
 	case 212:
 		break;
@@ -4941,12 +4851,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		default:
 			break;
 		};
-		break;
-	/* linux_epoll_ctl_old */
-	case 214:
-		break;
-	/* linux_epoll_wait_old */
-	case 215:
 		break;
 	/* linux_remap_file_pages */
 	case 216:
@@ -7214,30 +7118,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_create_module */
-	case 174:
 	/* linux_init_module */
 	case 175:
 	/* linux_delete_module */
 	case 176:
-	/* linux_get_kernel_syms */
-	case 177:
-	/* linux_query_module */
-	case 178:
 	/* linux_quotactl */
 	case 179:
-	/* linux_nfsservctl */
-	case 180:
-	/* linux_getpmsg */
-	case 181:
-	/* linux_putpmsg */
-	case 182:
-	/* linux_afs_syscall */
-	case 183:
-	/* linux_tuxcall */
-	case 184:
-	/* linux_security */
-	case 185:
 	/* linux_gettid */
 	case 186:
 	/* linux_setxattr */
@@ -7289,8 +7175,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_set_thread_area */
-	case 205:
 	/* linux_lookup_dcookie */
 	case 212:
 	/* linux_epoll_create */
@@ -7298,10 +7182,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_epoll_ctl_old */
-	case 214:
-	/* linux_epoll_wait_old */
-	case 215:
 	/* linux_remap_file_pages */
 	case 216:
 	/* linux_getdents64 */
