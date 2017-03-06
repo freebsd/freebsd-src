@@ -53,7 +53,7 @@ efi_verify_staging_size(unsigned long *nr_pages)
 	UINT32 dver;
 	EFI_STATUS status;
 	int i, ndesc;
-	unsigned long available_pages;
+	unsigned long available_pages = 0;
 
 	sz = 0;
 	status = BS->GetMemoryMap(&sz, 0, &key, &dsz, &dver);
@@ -70,7 +70,6 @@ efi_verify_staging_size(unsigned long *nr_pages)
 	}
 
 	ndesc = sz / dsz;
-
 	for (i = 0, p = map; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
 		start = p->PhysicalStart;
@@ -81,20 +80,38 @@ efi_verify_staging_size(unsigned long *nr_pages)
 			continue;
 
 		if (p->Type != EfiConventionalMemory)
-			continue;
+			printf("Warning: wrong EFI memory type: %d\n",
+			    p->Type);
 
 		available_pages = p->NumberOfPages -
 			((KERNEL_PHYSICAL_BASE - start) >> EFI_PAGE_SHIFT);
-
-		if (*nr_pages > available_pages) {
-			printf("staging area size is reduced: %ld -> %ld!\n",
-			    *nr_pages, available_pages);
-			*nr_pages = available_pages;
-		}
-
 		break;
 	}
 
+	if (available_pages == 0) {
+		printf("Can't find valid memory map for staging area!\n");
+		goto out;
+	}
+
+	for ( ; i < ndesc;
+	     i++, p = NextMemoryDescriptor(p, dsz)) {
+		if (p->Type != EfiConventionalMemory &&
+		    p->Type != EfiLoaderData)
+			break;
+
+		if (p->PhysicalStart != end)
+			break;
+
+		end = p->PhysicalStart + p->NumberOfPages * EFI_PAGE_SIZE;
+
+		available_pages += p->NumberOfPages;
+	}
+
+	if (*nr_pages > available_pages) {
+		printf("Staging area's size is reduced: %ld -> %ld!\n",
+		    *nr_pages, available_pages);
+		*nr_pages = available_pages;
+	}
 out:
 	free(map);
 }
