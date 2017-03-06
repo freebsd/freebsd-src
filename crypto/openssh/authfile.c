@@ -1,4 +1,4 @@
-/* $OpenBSD: authfile.c,v 1.121 2016/04/09 12:39:30 djm Exp $ */
+/* $OpenBSD: authfile.c,v 1.122 2016/11/25 23:24:45 djm Exp $ */
 /*
  * Copyright (c) 2000, 2013 Markus Friedl.  All rights reserved.
  *
@@ -100,13 +100,25 @@ sshkey_load_file(int fd, struct sshbuf *blob)
 	u_char buf[1024];
 	size_t len;
 	struct stat st;
-	int r;
+	int r, dontmax = 0;
 
 	if (fstat(fd, &st) < 0)
 		return SSH_ERR_SYSTEM_ERROR;
 	if ((st.st_mode & (S_IFSOCK|S_IFCHR|S_IFIFO)) == 0 &&
 	    st.st_size > MAX_KEY_FILE_SIZE)
 		return SSH_ERR_INVALID_FORMAT;
+	/*
+	 * Pre-allocate the buffer used for the key contents and clamp its
+	 * maximum size. This ensures that key contents are never leaked via
+	 * implicit realloc() in the sshbuf code.
+	 */
+	if ((st.st_mode & S_IFREG) == 0 || st.st_size <= 0) {
+		st.st_size = 64*1024; /* 64k should be enough for anyone :) */
+		dontmax = 1;
+	}
+	if ((r = sshbuf_allocate(blob, st.st_size)) != 0 ||
+	    (dontmax && (r = sshbuf_set_max_size(blob, st.st_size)) != 0))
+		return r;
 	for (;;) {
 		if ((len = atomicio(read, fd, buf, sizeof(buf))) == 0) {
 			if (errno == EPIPE)

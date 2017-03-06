@@ -1,5 +1,3 @@
-/* $Id: port-linux.c,v 1.18 2013/06/01 22:07:32 dtucker Exp $ */
-
 /*
  * Copyright (c) 2005 Daniel Walsh <dwalsh@redhat.com>
  * Copyright (c) 2006 Damien Miller <djm@openbsd.org>

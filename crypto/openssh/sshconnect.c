@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.271 2016/01/14 22:56:56 markus Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.272 2016/09/12 01:22:38 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -16,7 +16,6 @@
 #include "includes.h"
 __RCSID("$FreeBSD$");
 
-#include <sys/param.h>	/* roundup */
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -1404,7 +1403,7 @@ ssh_put_password(char *password)
 		packet_put_cstring(password);
 		return;
 	}
-	size = roundup(strlen(password) + 1, 32);
+	size = ROUNDUP(strlen(password) + 1, 32);
 	padded = xcalloc(1, size);
 	strlcpy(padded, password, size);
 	packet_put_string(padded, size);

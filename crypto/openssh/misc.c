@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.105 2016/07/15 00:24:30 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.107 2016/11/30 00:28:31 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/un.h>
 
@@ -1243,3 +1244,45 @@ forward_equals(const struct Forward *a, const struct Forward *b)
 	return 1;
 }
 
+static int
+ipport_reserved(void)
+{
+#if __FreeBSD__
+	int old, ret;
+	size_t len = sizeof(old);
+
+	ret = sysctlbyname("net.inet.ip.portrange.reservedhigh",
+	    &old, &len, NULL, 0);
+	if (ret == 0)
+		return (old + 1);
+#endif
+	return (IPPORT_RESERVED);
+}
+
+/* returns 1 if bind to specified port by specified user is permitted */
+int
+bind_permitted(int port, uid_t uid)
+{
+
+	if (port < ipport_reserved() && uid != 0)
+		return 0;
+	return 1;
+}
+
+/* returns 1 if process is already daemonized, 0 otherwise */
+int
+daemonized(void)
+{
+	int fd;
+
+	if ((fd = open(_PATH_TTY, O_RDONLY | O_NOCTTY)) >= 0) {
+		close(fd);
+		return 0;	/* have controlling terminal */
+	}
+	if (getppid() != 1)
+		return 0;	/* parent is not init */
+	if (getsid(0) != getpid())
+		return 0;	/* not session leader */
+	debug3("already daemonized");
+	return 1;
+}

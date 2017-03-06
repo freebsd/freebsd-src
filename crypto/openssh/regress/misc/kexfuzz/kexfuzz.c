@@ -1,4 +1,4 @@
-/* 	$OpenBSD: kexfuzz.c,v 1.1 2016/03/04 02:30:37 djm Exp $ */
+/* 	$OpenBSD: kexfuzz.c,v 1.3 2016/10/11 21:49:54 djm Exp $ */
 /*
  * Fuzz harness for KEX code
  *
@@ -27,6 +27,7 @@
 #include "packet.h"
 #include "myproposal.h"
 #include "authfile.h"
+#include "log.h"
 
 struct ssh *active_state = NULL; /* XXX - needed for linking */
 
@@ -35,61 +36,93 @@ static int do_debug = 0;
 
 enum direction { S2C, C2S };
 
+struct hook_ctx {
+	struct ssh *client, *server, *server2;
+	int *c2s, *s2c;
+	int trigger_direction, packet_index;
+	const char *dump_path;
+	struct sshbuf *replace_data;
+};
+
 static int
-do_send_and_receive(struct ssh *from, struct ssh *to, int mydirection,
-    int *packet_count, int trigger_direction, int packet_index,
-    const char *dump_path, struct sshbuf *replace_data)
+packet_hook(struct ssh *ssh, struct sshbuf *packet, u_char *typep, void *_ctx)
+{
+	struct hook_ctx *ctx = (struct hook_ctx *)_ctx;
+	int mydirection = ssh == ctx->client ? S2C : C2S;
+	int *packet_count = mydirection == S2C ? ctx->s2c : ctx->c2s;
+	FILE *dumpfile;
+	int r;
+
+	if (do_debug) {
+		printf("%s packet %d type %u:\n",
+		    mydirection == S2C ? "s2c" : "c2s",
+		    *packet_count, *typep);
+		sshbuf_dump(packet, stdout);
+	}
+	if (mydirection == ctx->trigger_direction &&
+	    ctx->packet_index == *packet_count) {
+		if (ctx->replace_data != NULL) {
+			sshbuf_reset(packet);
+			/* Type is first byte of packet */
+			if ((r = sshbuf_get_u8(ctx->replace_data,
+			    typep)) != 0 ||
+			    (r = sshbuf_putb(packet, ctx->replace_data)) != 0)
+				return r;
+			if (do_debug) {
+				printf("***** replaced packet type %u\n",
+				    *typep);
+				sshbuf_dump(packet, stdout);
+			}
+		} else if (ctx->dump_path != NULL) {
+			if ((dumpfile = fopen(ctx->dump_path, "w+")) == NULL)
+				err(1, "fopen %s", ctx->dump_path);
+			/* Write { type, packet } */
+			if (fwrite(typep, 1, 1, dumpfile) != 1)
+				err(1, "fwrite type %s", ctx->dump_path);
+			if (sshbuf_len(packet) != 0 &&
+			    fwrite(sshbuf_ptr(packet), sshbuf_len(packet),
+			    1, dumpfile) != 1)
+				err(1, "fwrite body %s", ctx->dump_path);
+			if (do_debug) {
+				printf("***** dumped packet type %u len %zu\n",
+				    *typep, sshbuf_len(packet));
+			}
+			fclose(dumpfile);
+			/* No point in continuing */
+			exit(0);
+		}
+	}
+	(*packet_count)++;
+	return 0;
+}
+
+static int
+do_send_and_receive(struct ssh *from, struct ssh *to)
 {
 	u_char type;
-	size_t len, olen;
+	size_t len;
 	const u_char *buf;
 	int r;
-	FILE *dumpfile;
 
 	for (;;) {
 		if ((r = ssh_packet_next(from, &type)) != 0) {
 			fprintf(stderr, "ssh_packet_next: %s\n", ssh_err(r));
 			return r;
 		}
+
 		if (type != 0)
 			return 0;
 		buf = ssh_output_ptr(from, &len);
-		olen = len;
-		if (do_debug) {
-			printf("%s packet %d type %u len %zu:\n",
-			    mydirection == S2C ? "s2c" : "c2s",
-			    *packet_count, type, len);
-			sshbuf_dump_data(buf, len, stdout);
-		}
-		if (mydirection == trigger_direction &&
-		    packet_index == *packet_count) {
-			if (replace_data != NULL) {
-				buf = sshbuf_ptr(replace_data);
-				len = sshbuf_len(replace_data);
-				if (do_debug) {
-					printf("***** replaced packet "
-					    "len %zu\n", len);
-					sshbuf_dump_data(buf, len, stdout);
-				}
-			} else if (dump_path != NULL) {
-				if ((dumpfile = fopen(dump_path, "w+")) == NULL)
-					err(1, "fopen %s", dump_path);
-				if (len != 0 &&
-				    fwrite(buf, len, 1, dumpfile) != 1)
-					err(1, "fwrite %s", dump_path);
-				if (do_debug)
-					printf("***** dumped packet "
-					    "len %zu\n", len);
-				fclose(dumpfile);
-				exit(0);
-			}
-		}
-		(*packet_count)++;
 		if (len == 0)
 			return 0;
-		if ((r = ssh_input_append(to, buf, len)) != 0 ||
-		    (r = ssh_output_consume(from, olen)) != 0)
+		if ((r = ssh_input_append(to, buf, len)) != 0) {
+			debug("ssh_input_append: %s", ssh_err(r));
 			return r;
+		}
+		if ((r = ssh_output_consume(from, len)) != 0) {
+			debug("ssh_output_consume: %s", ssh_err(r));
+			return r;
+		}
 	}
 }
 
@@ -141,19 +174,19 @@ const char *in_test = NULL;
 
 
 static void
-run_kex(struct ssh *client, struct ssh *server, int *s2c, int *c2s,
-    int direction, int packet_index,
-    const char *dump_path, struct sshbuf *replace_data)
+run_kex(struct ssh *client, struct ssh *server)
 {
 	int r = 0;
 
 	while (!server->kex->done || !client->kex->done) {
-		if ((r = do_send_and_receive(server, client, S2C, s2c,
-		    direction, packet_index, dump_path, replace_data)))
+		if ((r = do_send_and_receive(server, client)) != 0) {
+			debug("do_send_and_receive S2C: %s", ssh_err(r));
 			break;
-		if ((r = do_send_and_receive(client, server, C2S, c2s,
-		    direction, packet_index, dump_path, replace_data)))
+		}
+		if ((r = do_send_and_receive(client, server)) != 0) {
+			debug("do_send_and_receive C2S: %s", ssh_err(r));
 			break;
+		}
 	}
 	if (do_debug)
 		printf("done: %s\n", ssh_err(r));
@@ -173,6 +206,7 @@ do_kex_with_key(const char *kex, struct sshkey *prvkey, int *c2s, int *s2c,
 	struct kex_params kex_params;
 	char *myproposal[PROPOSAL_MAX] = { KEX_CLIENT };
 	char *keyname = NULL;
+	struct hook_ctx hook_ctx;
 
 	TEST_START("sshkey_from_private");
 	ASSERT_INT_EQ(sshkey_from_private(prvkey, &pubkey), 0);
@@ -187,9 +221,24 @@ do_kex_with_key(const char *kex, struct sshkey *prvkey, int *c2s, int *s2c,
 	kex_params.proposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = keyname;
 	ASSERT_INT_EQ(ssh_init(&client, 0, &kex_params), 0);
 	ASSERT_INT_EQ(ssh_init(&server, 1, &kex_params), 0);
+	ASSERT_INT_EQ(ssh_init(&server2, 1, NULL), 0);
 	ASSERT_PTR_NE(client, NULL);
 	ASSERT_PTR_NE(server, NULL);
+	ASSERT_PTR_NE(server2, NULL);
 	TEST_DONE();
+
+	hook_ctx.c2s = c2s;
+	hook_ctx.s2c = s2c;
+	hook_ctx.trigger_direction = direction;
+	hook_ctx.packet_index = packet_index;
+	hook_ctx.dump_path = dump_path;
+	hook_ctx.replace_data = replace_data;
+	hook_ctx.client = client;
+	hook_ctx.server = server;
+	hook_ctx.server2 = server2;
+	ssh_packet_set_input_hook(client, packet_hook, &hook_ctx);
+	ssh_packet_set_input_hook(server, packet_hook, &hook_ctx);
+	ssh_packet_set_input_hook(server2, packet_hook, &hook_ctx);
 
 	TEST_START("ssh_add_hostkey");
 	ASSERT_INT_EQ(ssh_add_hostkey(server, prvkey), 0);
@@ -197,20 +246,17 @@ do_kex_with_key(const char *kex, struct sshkey *prvkey, int *c2s, int *s2c,
 	TEST_DONE();
 
 	TEST_START("kex");
-	run_kex(client, server, s2c, c2s, direction, packet_index,
-	    dump_path, replace_data);
+	run_kex(client, server);
 	TEST_DONE();
 
 	TEST_START("rekeying client");
 	ASSERT_INT_EQ(kex_send_kexinit(client), 0);
-	run_kex(client, server, s2c, c2s, direction, packet_index,
-	    dump_path, replace_data);
+	run_kex(client, server);
 	TEST_DONE();
 
 	TEST_START("rekeying server");
 	ASSERT_INT_EQ(kex_send_kexinit(server), 0);
-	run_kex(client, server, s2c, c2s, direction, packet_index,
-	    dump_path, replace_data);
+	run_kex(client, server);
 	TEST_DONE();
 
 	TEST_START("ssh_packet_get_state");
@@ -221,9 +267,6 @@ do_kex_with_key(const char *kex, struct sshkey *prvkey, int *c2s, int *s2c,
 	TEST_DONE();
 
 	TEST_START("ssh_packet_set_state");
-	server2 = NULL;
-	ASSERT_INT_EQ(ssh_init(&server2, 1, NULL), 0);
-	ASSERT_PTR_NE(server2, NULL);
 	ASSERT_INT_EQ(ssh_add_hostkey(server2, prvkey), 0);
 	kex_free(server2->kex);	/* XXX or should ssh_packet_set_state()? */
 	ASSERT_INT_EQ(ssh_packet_set_state(server2, state), 0);
@@ -231,12 +274,17 @@ do_kex_with_key(const char *kex, struct sshkey *prvkey, int *c2s, int *s2c,
 	sshbuf_free(state);
 	ASSERT_PTR_NE(server2->kex, NULL);
 	/* XXX we need to set the callbacks */
+#ifdef WITH_OPENSSL
 	server2->kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;
 	server2->kex->kex[KEX_DH_GRP14_SHA1] = kexdh_server;
+	server2->kex->kex[KEX_DH_GRP14_SHA256] = kexdh_server;
+	server2->kex->kex[KEX_DH_GRP16_SHA512] = kexdh_server;
+	server2->kex->kex[KEX_DH_GRP18_SHA512] = kexdh_server;
 	server2->kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
 	server2->kex->kex[KEX_DH_GEX_SHA256] = kexgex_server;
-#ifdef OPENSSL_HAS_ECC
+# ifdef OPENSSL_HAS_ECC
 	server2->kex->kex[KEX_ECDH_SHA2] = kexecdh_server;
+# endif
 #endif
 	server2->kex->kex[KEX_C25519_SHA256] = kexc25519_server;
 	server2->kex->load_host_public_key = server->kex->load_host_public_key;
@@ -246,11 +294,9 @@ do_kex_with_key(const char *kex, struct sshkey *prvkey, int *c2s, int *s2c,
 
 	TEST_START("rekeying server2");
 	ASSERT_INT_EQ(kex_send_kexinit(server2), 0);
-	run_kex(client, server2, s2c, c2s, direction, packet_index,
-	    dump_path, replace_data);
+	run_kex(client, server2);
 	ASSERT_INT_EQ(kex_send_kexinit(client), 0);
-	run_kex(client, server2, s2c, c2s, direction, packet_index,
-	    dump_path, replace_data);
+	run_kex(client, server2);
 	TEST_DONE();
 
 	TEST_START("cleanup");
@@ -351,6 +397,9 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
+
+	log_init(argv[0], do_debug ? SYSLOG_LEVEL_DEBUG3 : SYSLOG_LEVEL_INFO,
+	    SYSLOG_FACILITY_USER, 1);
 
 	/* Must select a single mode */
 	if ((count_flag + dump_flag + replace_flag) != 1)

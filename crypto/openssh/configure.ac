@@ -80,19 +80,6 @@ if test -z "$AR" ; then
 	AC_MSG_ERROR([*** 'ar' missing, please install or fix your \$PATH ***])
 fi
 
-# Use LOGIN_PROGRAM from environment if possible
-if test ! -z "$LOGIN_PROGRAM" ; then
-	AC_DEFINE_UNQUOTED([LOGIN_PROGRAM_FALLBACK], ["$LOGIN_PROGRAM"],
-		[If your header files don't define LOGIN_PROGRAM,
-		then use this (detected) from environment and PATH])
-else
-	# Search for login
-	AC_PATH_PROG([LOGIN_PROGRAM_FALLBACK], [login])
-	if test ! -z "$LOGIN_PROGRAM_FALLBACK" ; then
-		AC_DEFINE_UNQUOTED([LOGIN_PROGRAM_FALLBACK], ["$LOGIN_PROGRAM_FALLBACK"])
-	fi
-fi
-
 AC_PATH_PROG([PATH_PASSWD_PROG], [passwd])
 if test ! -z "$PATH_PASSWD_PROG" ; then
 	AC_DEFINE_UNQUOTED([_PATH_PASSWD_PROG], ["$PATH_PASSWD_PROG"],
@@ -124,6 +111,7 @@ AC_CHECK_DECL([PR_SET_NO_NEW_PRIVS], [have_linux_no_new_privs=1], , [
 
 openssl=yes
 ssh1=no
+COMMENT_OUT_RSA1="#no ssh1#"
 AC_ARG_WITH([openssl],
 	[  --without-openssl       Disable use of OpenSSL; use only limited internal crypto **EXPERIMENTAL** ],
 	[  if test "x$withval" = "xno" ; then
@@ -148,6 +136,7 @@ AC_ARG_WITH([ssh1],
 				AC_MSG_ERROR([Cannot enable SSH protocol 1 with OpenSSL disabled])
 			fi
 			ssh1=yes
+			COMMENT_OUT_RSA1=""
 		elif test "x$withval" = "xno" ; then
 			ssh1=no
 		else
@@ -159,6 +148,7 @@ AC_MSG_CHECKING([whether SSH protocol 1 support is enabled])
 if test "x$ssh1" = "xyes" ; then
 	AC_MSG_RESULT([yes])
 	AC_DEFINE_UNQUOTED([WITH_SSH1], [1], [include SSH protocol version 1 support])
+	AC_SUBST([COMMENT_OUT_RSA1])
 else
 	AC_MSG_RESULT([no])
 fi
@@ -415,6 +405,7 @@ AC_CHECK_HEADERS([ \
 	sys/poll.h \
 	sys/prctl.h \
 	sys/pstat.h \
+	sys/ptrace.h \
 	sys/select.h \
 	sys/stat.h \
 	sys/stream.h \
@@ -660,18 +651,16 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	TEST_MALLOC_OPTIONS="AFGJPRX"
 	;;
 *-*-haiku*)
-    LIBS="$LIBS -lbsd "
-    AC_CHECK_LIB([network], [socket])
-    AC_DEFINE([HAVE_U_INT64_T])
-    MANTYPE=man
-    ;;
+	LIBS="$LIBS -lbsd "
+	AC_CHECK_LIB([network], [socket])
+	AC_DEFINE([HAVE_U_INT64_T])
+	MANTYPE=man
+	;;
 *-*-hpux*)
 	# first we define all of the options common to all HP-UX releases
 	CPPFLAGS="$CPPFLAGS -D_HPUX_SOURCE -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED=1"
 	IPADDR_IN_DISPLAY=yes
 	AC_DEFINE([USE_PIPES])
-	AC_DEFINE([LOGIN_NO_ENDOPT], [1],
-	    [Define if your login program cannot handle end of options ("--")])
 	AC_DEFINE([LOGIN_NEEDS_UTMPX])
 	AC_DEFINE([LOCKED_PASSWD_STRING], ["*"],
 		[String used in /etc/passwd to denote locked account])
@@ -788,7 +777,6 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	fi
 	AC_CHECK_HEADERS([linux/seccomp.h linux/filter.h linux/audit.h], [],
 	    [], [#include <linux/types.h>])
-	AC_CHECK_FUNCS([prctl])
 	AC_MSG_CHECKING([for seccomp architecture])
 	seccomp_audit_arch=
 	case "$host" in
@@ -853,8 +841,6 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE([SSH_TUN_PREPEND_AF], [1],
 	    [Prepend the address family to IP tunnel traffic])
 	TEST_MALLOC_OPTIONS="AJRX"
-	AC_DEFINE([BROKEN_STRNVIS], [1],
-	    [NetBSD strnvis argument order is swapped compared to OpenBSD])
 	AC_DEFINE([BROKEN_READ_COMPARISON], [1],
 	    [NetBSD read function is sometimes redirected, breaking atomicio comparisons against it])
 	;;
@@ -865,8 +851,6 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_CHECK_HEADER([net/if_tap.h], ,
 	    AC_DEFINE([SSH_TUN_NO_L2], [1], [No layer 2 tunnel support]))
 	AC_DEFINE([BROKEN_GLOB], [1], [FreeBSD glob does not do what we need])
-	AC_DEFINE([BROKEN_STRNVIS], [1],
-	    [FreeBSD strnvis argument order is swapped compared to OpenBSD])
 	TEST_MALLOC_OPTIONS="AJRX"
 	# Preauth crypto occasionally uses file descriptors for crypto offload
 	# and will crash if they cannot be opened.
@@ -903,9 +887,6 @@ mips-sony-bsd|mips-sony-newsos4)
 	fi
 	AC_DEFINE([PAM_SUN_CODEBASE])
 	AC_DEFINE([LOGIN_NEEDS_UTMPX])
-	AC_DEFINE([LOGIN_NEEDS_TERM], [1],
-		[Some versions of /bin/login need the TERM supplied
-		on the commandline])
 	AC_DEFINE([PAM_TTY_KLUDGE])
 	AC_DEFINE([SSHPAM_CHAUTHTOK_NEEDS_RUID], [1],
 		[Define if pam_chauthtok wants real uid set
@@ -1164,15 +1145,15 @@ mips-sony-bsd|mips-sony-newsos4)
 
 *-*-ultrix*)
 	AC_DEFINE([BROKEN_GETGROUPS], [1], [getgroups(0,NULL) will return -1])
-	AC_DEFINE([BROKEN_MMAP], [1], [Ultrix mmap can't map files])
 	AC_DEFINE([NEED_SETPGRP])
 	AC_DEFINE([HAVE_SYS_SYSLOG_H], [1], [Force use of sys/syslog.h on Ultrix])
 	;;
 
 *-*-lynxos)
-        CFLAGS="$CFLAGS -D__NO_INCLUDE_WARN__"
-        AC_DEFINE([BROKEN_SETVBUF], [1], [LynxOS has broken setvbuf() implementation])
-        ;;
+	CFLAGS="$CFLAGS -D__NO_INCLUDE_WARN__"
+	AC_DEFINE([BROKEN_SETVBUF], [1],
+	    [LynxOS has broken setvbuf() implementation])
+	;;
 esac
 
 AC_MSG_CHECKING([compiler and flags for sanity])
@@ -1790,7 +1771,6 @@ AC_CHECK_FUNCS([ \
 	memmove \
 	memset_s \
 	mkdtemp \
-	mmap \
 	ngetaddrinfo \
 	nsleep \
 	ogetaddrinfo \
@@ -1826,6 +1806,7 @@ AC_CHECK_FUNCS([ \
 	socketpair \
 	statfs \
 	statvfs \
+	strcasestr \
 	strdup \
 	strerror \
 	strlcat \
@@ -1858,6 +1839,24 @@ saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -D_XOPEN_SOURCE"
 AC_CHECK_FUNCS([mblen mbtowc nl_langinfo wcwidth])
 CFLAGS="$saved_CFLAGS"
+
+TEST_SSH_UTF8=${TEST_SSH_UTF8:=yes}
+AC_MSG_CHECKING([for utf8 locale support])
+AC_RUN_IFELSE(
+	[AC_LANG_PROGRAM([[
+#include <locale.h>
+#include <stdlib.h>
+	]], [[
+	char *loc = setlocale(LC_CTYPE, "en_US.UTF-8");
+	if (loc != NULL)
+		exit(0);
+	exit(1);
+	]])],
+	AC_MSG_RESULT(yes),
+	[AC_MSG_RESULT(no)
+	 TEST_SSH_UTF8=no],
+	AC_MSG_WARN([cross compiling: assuming yes])
+)
 
 AC_LINK_IFELSE(
         [AC_LANG_PROGRAM(
@@ -2393,6 +2392,41 @@ if test "x$check_for_conflicting_getspnam" = "x1"; then
 			AC_DEFINE([GETSPNAM_CONFLICTING_DEFS], [1],
 			    [Conflicting defs for getspnam])
 		]
+	)
+fi
+
+dnl NetBSD added an strnvis and unfortunately made it incompatible with the
+dnl existing one in OpenBSD and Linux's libbsd (the former having existed
+dnl for over ten years). Despite this incompatibility being reported during
+dnl development (see http://gnats.netbsd.org/44977) they still shipped it.
+dnl Even more unfortunately FreeBSD and later MacOS picked up this incompatible
+dnl implementation.  Try to detect this mess, and assume the only safe option
+dnl if we're cross compiling.
+dnl
+dnl OpenBSD, 2001: strnvis(char *dst, const char *src, size_t dlen, int flag);
+dnl NetBSD: 2012,  strnvis(char *dst, size_t dlen, const char *src, int flag);
+if test "x$ac_cv_func_strnvis" = "xyes"; then
+	AC_MSG_CHECKING([for working strnvis])
+	AC_RUN_IFELSE(
+		[AC_LANG_PROGRAM([[
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <vis.h>
+static void sighandler(int sig) { _exit(1); }
+		]], [[
+	char dst[16];
+
+	signal(SIGSEGV, sighandler);
+	if (strnvis(dst, "src", 4, 0) && strcmp(dst, "src") == 0)
+		exit(0);
+	exit(1)
+		]])],
+		[AC_MSG_RESULT([yes])],
+		[AC_MSG_RESULT([no])
+		 AC_DEFINE([BROKEN_STRNVIS], [1], [strnvis detected broken])],
+		[AC_MSG_WARN([cross compiling: assuming broken])
+		 AC_DEFINE([BROKEN_STRNVIS], [1], [strnvis assumed broken])]
 	)
 fi
 
@@ -3071,6 +3105,17 @@ AC_ARG_WITH([pam],
 					;;
 				esac
 			fi
+		fi
+	]
+)
+
+AC_ARG_WITH([pam-service],
+	[  --with-pam-service=name Specify PAM service name ],
+	[
+		if test "x$withval" != "xno" && \
+		   test "x$withval" != "xyes" ; then
+			AC_DEFINE_UNQUOTED([SSHD_PAM_SERVICE],
+				["$withval"], [sshd PAM service name])
 		fi
 	]
 )
@@ -4188,7 +4233,7 @@ AC_ARG_WITH([kerberos5],
 		AC_DEFINE([KRB5], [1], [Define if you want Kerberos 5 support])
 		KRB5_MSG="yes"
 
-		AC_PATH_PROG([KRB5CONF], [krb5-config],
+		AC_PATH_TOOL([KRB5CONF], [krb5-config],
 			     [$KRB5ROOT/bin/krb5-config],
 			     [$KRB5ROOT/bin:$PATH])
 		if test -x $KRB5CONF ; then
@@ -5046,6 +5091,7 @@ else
 fi
 AC_CHECK_DECL([BROKEN_GETADDRINFO],  [TEST_SSH_IPV6=no])
 AC_SUBST([TEST_SSH_IPV6], [$TEST_SSH_IPV6])
+AC_SUBST([TEST_SSH_UTF8], [$TEST_SSH_UTF8])
 AC_SUBST([TEST_MALLOC_OPTIONS], [$TEST_MALLOC_OPTIONS])
 AC_SUBST([UNSUPPORTED_ALGORITHMS], [$unsupported_algorithms])
 
