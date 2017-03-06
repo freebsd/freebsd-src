@@ -95,6 +95,12 @@ struct mpr_table_lookup mpr_event_names[] = {
 	{"SasPhyCounter",		0x22},
 	{"GpioInterrupt",		0x23},
 	{"HbdPhyEvent",			0x24},
+	{"SasQuiesce",			0x25},
+	{"SasNotifyPrimitive",		0x26},
+	{"TempThreshold",		0x27},
+	{"HostMessage",			0x28},
+	{"PowerPerformanceChange",	0x29},
+	{"CableEvent",			0x34},
 	{NULL, 0},
 	{"Unknown Event", 0}
 };
