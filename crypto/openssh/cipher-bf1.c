@@ -20,6 +20,7 @@
 
 #include "includes.h"
 
+#ifdef WITH_SSH1
 #if defined(WITH_OPENSSL) && !defined(OPENSSL_NO_BF)
 
 #include <sys/types.h>
@@ -101,3 +102,5 @@ evp_ssh1_bf(void)
 	return (&ssh1_bf);
 }
 #endif /* defined(WITH_OPENSSL) && !defined(OPENSSL_NO_BF) */
+
+#endif /* WITH_SSH1 */

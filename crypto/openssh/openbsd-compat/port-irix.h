@@ -1,5 +1,3 @@
-/* $Id: port-irix.h,v 1.4 2003/08/29 16:59:52 mouring Exp $ */
-
 /*
  * Copyright (c) 2000 Denis Parker.  All rights reserved.
  * Copyright (c) 2000 Michael Stone.  All rights reserved.

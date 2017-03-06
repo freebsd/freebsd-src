@@ -4,7 +4,7 @@ protocol.
 Note that OpenSSH's sftp and sftp-server implement revision 3 of the SSH
 filexfer protocol described in:
 
-http://www.openssh.com/txt/draft-ietf-secsh-filexfer-02.txt
+https://www.openssh.com/txt/draft-ietf-secsh-filexfer-02.txt
 
 Newer versions of the draft will not be supported, though some features
 are individually implemented as extensions described below.
@@ -20,7 +20,7 @@ This is a new transport-layer MAC method using the UMAC algorithm
 (rfc4418). This method is identical to the "umac-64" method documented
 in:
 
-http://www.openssh.com/txt/draft-miller-secsh-umac-01.txt
+https://www.openssh.com/txt/draft-miller-secsh-umac-01.txt
 
 1.2. transport: Protocol 2 compression algorithm "zlib@openssh.com"
 
@@ -31,7 +31,7 @@ avoids exposing compression code to attacks from unauthenticated users.
 
 The method is documented in:
 
-http://www.openssh.com/txt/draft-miller-secsh-compression-delayed-00.txt
+https://www.openssh.com/txt/draft-miller-secsh-compression-delayed-00.txt
 
 1.3. transport: New public key algorithms "ssh-rsa-cert-v00@openssh.com",
      "ssh-dsa-cert-v00@openssh.com",

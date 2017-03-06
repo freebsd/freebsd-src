@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.286 2016/07/23 02:54:08 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.289 2016/09/30 09:19:13 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -61,7 +61,6 @@
 
 #include "includes.h"
 
-#include <sys/param.h>	/* MIN MAX */
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #ifdef HAVE_SYS_STAT_H
@@ -312,7 +311,7 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 	char xauthfile[PATH_MAX], xauthdir[PATH_MAX];
 	static char proto[512], data[512];
 	FILE *f;
-	int got_data = 0, generated = 0, do_unlink = 0, i, r;
+	int got_data = 0, generated = 0, do_unlink = 0, r;
 	struct stat st;
 	u_int now, x11_timeout_real;
 
@@ -439,17 +438,16 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 	 * for the local connection.
 	 */
 	if (!got_data) {
-		u_int32_t rnd = 0;
+		u_int8_t rnd[16];
+		u_int i;
 
 		logit("Warning: No xauth data; "
 		    "using fake authentication data for X11 forwarding.");
 		strlcpy(proto, SSH_X11_PROTO, sizeof proto);
-		for (i = 0; i < 16; i++) {
-			if (i % 4 == 0)
-				rnd = arc4random();
+		arc4random_buf(rnd, sizeof(rnd));
+		for (i = 0; i < sizeof(rnd); i++) {
 			snprintf(data + 2 * i, sizeof data - 2 * i, "%02x",
-			    rnd & 0xff);
-			rnd >>= 8;
+			    rnd[i]);
 		}
 	}
 
@@ -672,16 +670,16 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
 		server_alive_time = now + options.server_alive_interval;
 	}
 	if (options.rekey_interval > 0 && compat20 && !rekeying)
-		timeout_secs = MIN(timeout_secs, packet_get_rekey_timeout());
+		timeout_secs = MINIMUM(timeout_secs, packet_get_rekey_timeout());
 	set_control_persist_exit_time();
 	if (control_persist_exit_time > 0) {
-		timeout_secs = MIN(timeout_secs,
+		timeout_secs = MINIMUM(timeout_secs,
 			control_persist_exit_time - now);
 		if (timeout_secs < 0)
 			timeout_secs = 0;
 	}
 	if (minwait_secs != 0)
-		timeout_secs = MIN(timeout_secs, (int)minwait_secs);
+		timeout_secs = MINIMUM(timeout_secs, (int)minwait_secs);
 	if (timeout_secs == INT_MAX)
 		tvp = NULL;
 	else {
@@ -1553,7 +1551,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	buffer_high = 64 * 1024;
 	connection_in = packet_get_connection_in();
 	connection_out = packet_get_connection_out();
-	max_fd = MAX(connection_in, connection_out);
+	max_fd = MAXIMUM(connection_in, connection_out);
 
 	if (!compat20) {
 		/* enable nonblocking unless tty */
@@ -1563,9 +1561,9 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 			set_nonblock(fileno(stdout));
 		if (!isatty(fileno(stderr)))
 			set_nonblock(fileno(stderr));
-		max_fd = MAX(max_fd, fileno(stdin));
-		max_fd = MAX(max_fd, fileno(stdout));
-		max_fd = MAX(max_fd, fileno(stderr));
+		max_fd = MAXIMUM(max_fd, fileno(stdin));
+		max_fd = MAXIMUM(max_fd, fileno(stdout));
+		max_fd = MAXIMUM(max_fd, fileno(stderr));
 	}
 	quit_pending = 0;
 	escape_char1 = escape_char_arg;
@@ -1885,11 +1883,14 @@ client_input_agent_open(int type, u_int32_t seq, void *ctxt)
 }
 
 static Channel *
-client_request_forwarded_tcpip(const char *request_type, int rchan)
+client_request_forwarded_tcpip(const char *request_type, int rchan,
+    u_int rwindow, u_int rmaxpack)
 {
 	Channel *c = NULL;
+	struct sshbuf *b = NULL;
 	char *listen_address, *originator_address;
 	u_short listen_port, originator_port;
+	int r;
 
 	/* Get rest of the packet */
 	listen_address = packet_get_string(NULL);
@@ -1904,6 +1905,31 @@ client_request_forwarded_tcpip(const char *request_type, int rchan)
 	c = channel_connect_by_listen_address(listen_address, listen_port,
 	    "forwarded-tcpip", originator_address);
 
+	if (c != NULL && c->type == SSH_CHANNEL_MUX_CLIENT) {
+		if ((b = sshbuf_new()) == NULL) {
+			error("%s: alloc reply", __func__);
+			goto out;
+		}
+		/* reconstruct and send to muxclient */
+		if ((r = sshbuf_put_u8(b, 0)) != 0 ||	/* padlen */
+		    (r = sshbuf_put_u8(b, SSH2_MSG_CHANNEL_OPEN)) != 0 ||
+		    (r = sshbuf_put_cstring(b, request_type)) != 0 ||
+		    (r = sshbuf_put_u32(b, rchan)) != 0 ||
+		    (r = sshbuf_put_u32(b, rwindow)) != 0 ||
+		    (r = sshbuf_put_u32(b, rmaxpack)) != 0 ||
+		    (r = sshbuf_put_cstring(b, listen_address)) != 0 ||
+		    (r = sshbuf_put_u32(b, listen_port)) != 0 ||
+		    (r = sshbuf_put_cstring(b, originator_address)) != 0 ||
+		    (r = sshbuf_put_u32(b, originator_port)) != 0 ||
+		    (r = sshbuf_put_stringb(&c->output, b)) != 0) {
+			error("%s: compose for muxclient %s", __func__,
+			    ssh_err(r));
+			goto out;
+		}
+	}
+
+ out:
+	sshbuf_free(b);
 	free(originator_address);
 	free(listen_address);
 	return c;
@@ -2059,7 +2085,8 @@ client_input_channel_open(int type, u_int32_t seq, void *ctxt)
 	    ctype, rchan, rwindow, rmaxpack);
 
 	if (strcmp(ctype, "forwarded-tcpip") == 0) {
-		c = client_request_forwarded_tcpip(ctype, rchan);
+		c = client_request_forwarded_tcpip(ctype, rchan, rwindow,
+		    rmaxpack);
 	} else if (strcmp(ctype, "forwarded-streamlocal@openssh.com") == 0) {
 		c = client_request_forwarded_streamlocal(ctype, rchan);
 	} else if (strcmp(ctype, "x11") == 0) {
@@ -2067,8 +2094,9 @@ client_input_channel_open(int type, u_int32_t seq, void *ctxt)
 	} else if (strcmp(ctype, "auth-agent@openssh.com") == 0) {
 		c = client_request_agent(ctype, rchan);
 	}
-/* XXX duplicate : */
-	if (c != NULL) {
+	if (c != NULL && c->type == SSH_CHANNEL_MUX_CLIENT) {
+		debug3("proxied to downstream: %s", ctype);
+	} else if (c != NULL) {
 		debug("confirm %s", ctype);
 		c->remote_id = rchan;
 		c->remote_window = rwindow;
@@ -2104,6 +2132,9 @@ client_input_channel_req(int type, u_int32_t seq, void *ctxt)
 	char *rtype;
 
 	id = packet_get_int();
+	c = channel_lookup(id);
+	if (channel_proxy_upstream(c, type, seq, ctxt))
+		return 0;
 	rtype = packet_get_string(NULL);
 	reply = packet_get_char();
 
@@ -2112,7 +2143,7 @@ client_input_channel_req(int type, u_int32_t seq, void *ctxt)
 
 	if (id == -1) {
 		error("client_input_channel_req: request for channel -1");
-	} else if ((c = channel_lookup(id)) == NULL) {
+	} else if (c == NULL) {
 		error("client_input_channel_req: channel %d: "
 		    "unknown channel", id);
 	} else if (strcmp(rtype, "eow@openssh.com") == 0) {

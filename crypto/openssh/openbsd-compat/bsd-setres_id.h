@@ -1,5 +1,3 @@
-/* $Id: bsd-setres_id.h,v 1.1 2012/11/05 06:04:37 dtucker Exp $ */
-
 /*
  * Copyright (c) 2012 Darren Tucker (dtucker at zip com au).
  *

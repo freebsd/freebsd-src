@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.88 2016/03/07 19:02:43 djm Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.89 2016/08/13 17:47:41 markus Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -85,7 +85,6 @@
 #include "ssherr.h"
 
 /* Imports */
-extern int compat20;
 extern z_stream incoming_stream;
 extern z_stream outgoing_stream;
 extern struct monitor *pmonitor;
@@ -386,18 +385,6 @@ mm_hostbased_key_allowed(struct passwd *pw, const char *user, const char *host,
     Key *key)
 {
 	return (mm_key_allowed(MM_HOSTKEY, user, host, key, 0));
-}
-
-int
-mm_auth_rhosts_rsa_key_allowed(struct passwd *pw, const char *user,
-    const char *host, Key *key)
-{
-	int ret;
-
-	key->type = KEY_RSA; /* XXX hack for key_to_blob */
-	ret = mm_key_allowed(MM_RSAHOSTKEY, user, host, key, 0);
-	key->type = KEY_RSA1;
-	return (ret);
 }
 
 int
@@ -710,28 +697,6 @@ mm_terminate(void)
 	buffer_free(&m);
 }
 
-#ifdef WITH_SSH1
-int
-mm_ssh1_session_key(BIGNUM *num)
-{
-	int rsafail;
-	Buffer m;
-
-	buffer_init(&m);
-	buffer_put_bignum2(&m, num);
-	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_SESSKEY, &m);
-
-	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_SESSKEY, &m);
-
-	rsafail = buffer_get_int(&m);
-	buffer_get_bignum2(&m, num);
-
-	buffer_free(&m);
-
-	return (rsafail);
-}
-#endif
-
 static void
 mm_chall_setup(char **name, char **infotxt, u_int *numprompts,
     char ***prompts, u_int **echo_on)
@@ -861,120 +826,6 @@ mm_skey_respond(void *ctx, u_int numresponses, char **responses)
 	return ((authok == 0) ? -1 : 0);
 }
 #endif /* SKEY */
-
-void
-mm_ssh1_session_id(u_char session_id[16])
-{
-	Buffer m;
-	int i;
-
-	debug3("%s entering", __func__);
-
-	buffer_init(&m);
-	for (i = 0; i < 16; i++)
-		buffer_put_char(&m, session_id[i]);
-
-	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_SESSID, &m);
-	buffer_free(&m);
-}
-
-#ifdef WITH_SSH1
-int
-mm_auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
-{
-	Buffer m;
-	Key *key;
-	u_char *blob;
-	u_int blen;
-	int allowed = 0, have_forced = 0;
-
-	debug3("%s entering", __func__);
-
-	buffer_init(&m);
-	buffer_put_bignum2(&m, client_n);
-
-	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_RSAKEYALLOWED, &m);
-	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_RSAKEYALLOWED, &m);
-
-	allowed = buffer_get_int(&m);
-
-	/* fake forced command */
-	auth_clear_options();
-	have_forced = buffer_get_int(&m);
-	forced_command = have_forced ? xstrdup("true") : NULL;
-
-	if (allowed && rkey != NULL) {
-		blob = buffer_get_string(&m, &blen);
-		if ((key = key_from_blob(blob, blen)) == NULL)
-			fatal("%s: key_from_blob failed", __func__);
-		*rkey = key;
-		free(blob);
-	}
-	buffer_free(&m);
-
-	return (allowed);
-}
-
-BIGNUM *
-mm_auth_rsa_generate_challenge(Key *key)
-{
-	Buffer m;
-	BIGNUM *challenge;
-	u_char *blob;
-	u_int blen;
-
-	debug3("%s entering", __func__);
-
-	if ((challenge = BN_new()) == NULL)
-		fatal("%s: BN_new failed", __func__);
-
-	key->type = KEY_RSA;    /* XXX cheat for key_to_blob */
-	if (key_to_blob(key, &blob, &blen) == 0)
-		fatal("%s: key_to_blob failed", __func__);
-	key->type = KEY_RSA1;
-
-	buffer_init(&m);
-	buffer_put_string(&m, blob, blen);
-	free(blob);
-
-	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_RSACHALLENGE, &m);
-	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_RSACHALLENGE, &m);
-
-	buffer_get_bignum2(&m, challenge);
-	buffer_free(&m);
-
-	return (challenge);
-}
-
-int
-mm_auth_rsa_verify_response(Key *key, BIGNUM *p, u_char response[16])
-{
-	Buffer m;
-	u_char *blob;
-	u_int blen;
-	int success = 0;
-
-	debug3("%s entering", __func__);
-
-	key->type = KEY_RSA;    /* XXX cheat for key_to_blob */
-	if (key_to_blob(key, &blob, &blen) == 0)
-		fatal("%s: key_to_blob failed", __func__);
-	key->type = KEY_RSA1;
-
-	buffer_init(&m);
-	buffer_put_string(&m, blob, blen);
-	buffer_put_string(&m, response, 16);
-	free(blob);
-
-	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_RSARESPONSE, &m);
-	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_RSARESPONSE, &m);
-
-	success = buffer_get_int(&m);
-	buffer_free(&m);
-
-	return (success);
-}
-#endif
 
 #ifdef SSH_AUDIT_EVENTS
 void
