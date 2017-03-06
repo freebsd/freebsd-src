@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.44 2016/10/01 19:11:55 sjg Exp $
+# $Id: sys.mk,v 1.45 2017/02/05 01:26:13 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -71,11 +71,11 @@ SYS_OS_MK := ${_sys_mk}
 # some options we need to know early
 OPTIONS_DEFAULT_NO += \
 	DIRDEPS_BUILD \
-	DIRDEPS_CACHE \
-	META_MODE
+	DIRDEPS_CACHE
 
 OPTIONS_DEFAULT_DEPENDENT += \
 	AUTO_OBJ/DIRDEPS_BUILD \
+	META_MODE/DIRDEPS_BUILD \
 	STAGING/DIRDEPS_BUILD \
 
 .-include <options.mk>

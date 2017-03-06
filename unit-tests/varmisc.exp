@@ -17,4 +17,9 @@ false
 FALSE
 do not evaluate or expand :? if discarding
 is set
+year=2016 month=04 day=01
+date=20160401
+Version=123.456.789 == 123456789
+Literal=3.4.5 == 3004005
+We have target specific vars
 exit status 0
