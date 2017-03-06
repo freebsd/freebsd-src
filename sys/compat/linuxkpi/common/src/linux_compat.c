@@ -1023,6 +1023,15 @@ add_timer(struct timer_list *timer)
 	    &linux_timer_callback_wrapper, timer);
 }
 
+void
+add_timer_on(struct timer_list *timer, int cpu)
+{
+
+	callout_reset_on(&timer->timer_callout,
+	    linux_timer_jiffies_until(timer->expires),
+	    &linux_timer_callback_wrapper, timer, cpu);
+}
+
 static void
 linux_timer_init(void *arg)
 {
