@@ -3420,6 +3420,7 @@ init386(int first)
 	 * area.
 	 */
 	thread0.td_pcb = get_pcb_td(&thread0);
+	thread0.td_pcb->pcb_save = get_pcb_user_save_td(&thread0);
 	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
 #ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
