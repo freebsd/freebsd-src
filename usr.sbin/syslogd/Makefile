@@ -3,7 +3,7 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/../../usr.bin/wall
+.PATH: ${SRCTOP}/usr.bin/wall
 
 PROG=	syslogd
 MAN=	syslog.conf.5 syslogd.8
@@ -18,6 +18,6 @@ WARNS?= 3
 CFLAGS+= -DINET6
 .endif
 
-CFLAGS+= -I${.CURDIR}/../../usr.bin/wall
+CFLAGS+= -I${SRCTOP}/usr.bin/wall
 
 .include <bsd.prog.mk>
