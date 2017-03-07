@@ -307,6 +307,7 @@ DIRDEPS= \
 	usr.bin/mkimg/tests \
 	usr.bin/ncal/tests \
 	usr.bin/printf/tests \
+	usr.bin/pwait/tests \
 	usr.bin/sdiff/tests \
 	usr.bin/sed/tests \
 	usr.bin/sed/tests/regress.multitest.out \
