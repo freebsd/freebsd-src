@@ -8,7 +8,7 @@ SHLIB_NAME=	libenc_test.so
 
 LIBDIR=		${TESTSBASE}/lib/libxo
 
-SYMLINKS+=	../../../tests/lib/libxo/${SHLIB_NAME} /usr/lib/libxo/encoder/test.enc
+SYMLINKS+=	${LIBDIR}/${SHLIB_NAME} /usr/lib/libxo/encoder/test.enc
 
 SRCS=		enc_test.c
 
