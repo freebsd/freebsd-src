@@ -1561,7 +1561,7 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
  * Copy an mbuf chain into a uio limited by len if set.
  */
 int
-m_mbuftouio(struct uio *uio, struct mbuf *m, int len)
+m_mbuftouio(struct uio *uio, const struct mbuf *m, int len)
 {
 	int error, length, total;
 	int progress = 0;
