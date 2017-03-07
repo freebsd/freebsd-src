@@ -18,5 +18,5 @@ set -ex
 
 git merge --no-edit "${v}-raw"
 git clean -fdqx
-make -k -j12 -s
 git tag -s -m "Tagging ${v}" -u 695A46C6 "${v}"
+make -k -j12 -s

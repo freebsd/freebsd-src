@@ -52,7 +52,7 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
-		config-space {
+		config-space@f2000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
@@ -107,13 +107,31 @@
 				status = "disabled";
 			};
 
+			cpm_xor0: xor@6a0000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x6a0000 0x1000>,
+				      <0x6b0000 0x1000>;
+				dma-coherent;
+				msi-parent = <&gic_v2m0>;
+				clocks = <&cpm_syscon0 1 8>;
+			};
+
+			cpm_xor1: xor@6c0000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x6c0000 0x1000>,
+				      <0x6d0000 0x1000>;
+				dma-coherent;
+				msi-parent = <&gic_v2m0>;
+				clocks = <&cpm_syscon0 1 7>;
+			};
+
 			cpm_spi0: spi@700600 {
 				compatible = "marvell,armada-380-spi";
 				reg = <0x700600 0x50>;
 				#address-cells = <0x1>;
 				#size-cells = <0x0>;
 				cell-index = <1>;
-				clocks = <&cpm_syscon0 0 3>;
+				clocks = <&cpm_syscon0 1 21>;
 				status = "disabled";
 			};
 
@@ -146,6 +164,14 @@
 				clocks = <&cpm_syscon0 1 21>;
 				status = "disabled";
 			};
+
+			cpm_trng: trng@760000 {
+				compatible = "marvell,armada-8k-rng", "inside-secure,safexcel-eip76";
+				reg = <0x760000 0x7d>;
+				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpm_syscon0 1 25>;
+				status = "okay";
+			};
 		};
 
 		cpm_pcie0: pcie@f2600000 {
@@ -158,6 +184,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =
@@ -183,6 +210,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =
@@ -209,6 +237,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =
