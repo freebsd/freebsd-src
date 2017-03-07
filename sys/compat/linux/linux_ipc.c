@@ -513,6 +513,8 @@ linux_semop(struct thread *td, struct linux_semop_args *args)
 	int		nsops;
 	} */ bsd_args;
 
+	if (args->nsops < 1 || args->semid < 0)
+		return (EINVAL);
 	bsd_args.semid = args->semid;
 	bsd_args.sops = PTRIN(args->tsops);
 	bsd_args.nsops = args->nsops;
