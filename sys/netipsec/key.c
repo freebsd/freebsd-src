@@ -1660,6 +1660,16 @@ key_sp2msg(struct secpolicy *sp, void *request, size_t *len)
 	xpl->sadb_x_policy_dir = sp->spidx.dir;
 	xpl->sadb_x_policy_id = sp->id;
 	xpl->sadb_x_policy_priority = sp->priority;
+	switch (sp->state) {
+	case IPSEC_SPSTATE_IFNET:
+		xpl->sadb_x_policy_scope = IPSEC_POLICYSCOPE_IFNET;
+		break;
+	case IPSEC_SPSTATE_PCB:
+		xpl->sadb_x_policy_scope = IPSEC_POLICYSCOPE_PCB;
+		break;
+	default:
+		xpl->sadb_x_policy_scope = IPSEC_POLICYSCOPE_GLOBAL;
+	}
 
 	/* if is the policy for ipsec ? */
 	if (sp->policy == IPSEC_POLICY_IPSEC) {
@@ -2388,16 +2398,25 @@ key_spdflush(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	return key_sendup_mbuf(so, m, KEY_SENDUP_ALL);
 }
 
+static uint8_t
+key_satype2scopemask(uint8_t satype)
+{
+
+	if (satype == IPSEC_POLICYSCOPE_ANY)
+		return (0xff);
+	return (satype);
+}
 /*
  * SADB_SPDDUMP processing
  * receive
  *   <base>
- * from the user, and dump all SP leaves
- * and send,
+ * from the user, and dump all SP leaves and send,
  *   <base> .....
  * to the ikmpd.
  *
- * m will always be freed.
+ * NOTE:
+ *   sadb_msg_satype is considered as mask of policy scopes.
+ *   m will always be freed.
  */
 static int
 key_spddump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
@@ -2406,7 +2425,7 @@ key_spddump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	struct secpolicy *sp;
 	struct mbuf *n;
 	int cnt;
-	u_int dir;
+	u_int dir, scope;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
@@ -2415,13 +2434,16 @@ key_spddump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 
 	/* search SPD entry and get buffer size. */
 	cnt = 0;
+	scope = key_satype2scopemask(mhp->msg->sadb_msg_satype);
 	SPTREE_RLOCK();
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
-		TAILQ_FOREACH(sp, &V_sptree[dir], chain) {
-			cnt++;
+		if (scope & IPSEC_POLICYSCOPE_GLOBAL) {
+			TAILQ_FOREACH(sp, &V_sptree[dir], chain)
+				cnt++;
 		}
-		TAILQ_FOREACH(sp, &V_sptree_ifnet[dir], chain) {
-			cnt++;
+		if (scope & IPSEC_POLICYSCOPE_IFNET) {
+			TAILQ_FOREACH(sp, &V_sptree_ifnet[dir], chain)
+				cnt++;
 		}
 	}
 
@@ -2431,21 +2453,25 @@ key_spddump(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	}
 
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
-		TAILQ_FOREACH(sp, &V_sptree[dir], chain) {
-			--cnt;
-			n = key_setdumpsp(sp, SADB_X_SPDDUMP, cnt,
-			    mhp->msg->sadb_msg_pid);
+		if (scope & IPSEC_POLICYSCOPE_GLOBAL) {
+			TAILQ_FOREACH(sp, &V_sptree[dir], chain) {
+				--cnt;
+				n = key_setdumpsp(sp, SADB_X_SPDDUMP, cnt,
+				    mhp->msg->sadb_msg_pid);
 
-			if (n)
-				key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
+				if (n != NULL)
+					key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
+			}
 		}
-		TAILQ_FOREACH(sp, &V_sptree_ifnet[dir], chain) {
-			--cnt;
-			n = key_setdumpsp(sp, SADB_X_SPDDUMP, cnt,
-			    mhp->msg->sadb_msg_pid);
+		if (scope & IPSEC_POLICYSCOPE_IFNET) {
+			TAILQ_FOREACH(sp, &V_sptree_ifnet[dir], chain) {
+				--cnt;
+				n = key_setdumpsp(sp, SADB_X_SPDDUMP, cnt,
+				    mhp->msg->sadb_msg_pid);
 
-			if (n)
-				key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
+				if (n != NULL)
+					key_sendup_mbuf(so, n, KEY_SENDUP_ONE);
+			}
 		}
 	}
 
@@ -7659,64 +7685,79 @@ key_parse(struct mbuf *m, struct socket *so)
 
 	msg = mh.msg;
 
-	/* check SA type */
-	switch (msg->sadb_msg_satype) {
-	case SADB_SATYPE_UNSPEC:
-		switch (msg->sadb_msg_type) {
-		case SADB_GETSPI:
-		case SADB_UPDATE:
-		case SADB_ADD:
-		case SADB_DELETE:
-		case SADB_GET:
-		case SADB_ACQUIRE:
-		case SADB_EXPIRE:
-			ipseclog((LOG_DEBUG, "%s: must specify satype "
-			    "when msg type=%u.\n", __func__,
-			    msg->sadb_msg_type));
-			PFKEYSTAT_INC(out_invsatype);
-			error = EINVAL;
-			goto senderror;
-		}
-		break;
-	case SADB_SATYPE_AH:
-	case SADB_SATYPE_ESP:
-	case SADB_X_SATYPE_IPCOMP:
-	case SADB_X_SATYPE_TCPSIGNATURE:
-		switch (msg->sadb_msg_type) {
-		case SADB_X_SPDADD:
-		case SADB_X_SPDDELETE:
-		case SADB_X_SPDGET:
-		case SADB_X_SPDDUMP:
-		case SADB_X_SPDFLUSH:
-		case SADB_X_SPDSETIDX:
-		case SADB_X_SPDUPDATE:
-		case SADB_X_SPDDELETE2:
-			ipseclog((LOG_DEBUG, "%s: illegal satype=%u\n",
-				__func__, msg->sadb_msg_type));
-			PFKEYSTAT_INC(out_invsatype);
-			error = EINVAL;
-			goto senderror;
-		}
-		break;
-	case SADB_SATYPE_RSVP:
-	case SADB_SATYPE_OSPFV2:
-	case SADB_SATYPE_RIPV2:
-	case SADB_SATYPE_MIP:
-		ipseclog((LOG_DEBUG, "%s: type %u isn't supported.\n",
-			__func__, msg->sadb_msg_satype));
-		PFKEYSTAT_INC(out_invsatype);
-		error = EOPNOTSUPP;
-		goto senderror;
-	case 1:	/* XXX: What does it do? */
-		if (msg->sadb_msg_type == SADB_X_PROMISC)
+	/* We use satype as scope mask for spddump */
+	if (msg->sadb_msg_type == SADB_X_SPDDUMP) {
+		switch (msg->sadb_msg_satype) {
+		case IPSEC_POLICYSCOPE_ANY:
+		case IPSEC_POLICYSCOPE_GLOBAL:
+		case IPSEC_POLICYSCOPE_IFNET:
+		case IPSEC_POLICYSCOPE_PCB:
 			break;
-		/*FALLTHROUGH*/
-	default:
-		ipseclog((LOG_DEBUG, "%s: invalid type %u is passed.\n",
-			__func__, msg->sadb_msg_satype));
-		PFKEYSTAT_INC(out_invsatype);
-		error = EINVAL;
-		goto senderror;
+		default:
+			ipseclog((LOG_DEBUG, "%s: illegal satype=%u\n",
+			    __func__, msg->sadb_msg_type));
+			PFKEYSTAT_INC(out_invsatype);
+			error = EINVAL;
+			goto senderror;
+		}
+	} else {
+		switch (msg->sadb_msg_satype) { /* check SA type */
+		case SADB_SATYPE_UNSPEC:
+			switch (msg->sadb_msg_type) {
+			case SADB_GETSPI:
+			case SADB_UPDATE:
+			case SADB_ADD:
+			case SADB_DELETE:
+			case SADB_GET:
+			case SADB_ACQUIRE:
+			case SADB_EXPIRE:
+				ipseclog((LOG_DEBUG, "%s: must specify satype "
+				    "when msg type=%u.\n", __func__,
+				    msg->sadb_msg_type));
+				PFKEYSTAT_INC(out_invsatype);
+				error = EINVAL;
+				goto senderror;
+			}
+			break;
+		case SADB_SATYPE_AH:
+		case SADB_SATYPE_ESP:
+		case SADB_X_SATYPE_IPCOMP:
+		case SADB_X_SATYPE_TCPSIGNATURE:
+			switch (msg->sadb_msg_type) {
+			case SADB_X_SPDADD:
+			case SADB_X_SPDDELETE:
+			case SADB_X_SPDGET:
+			case SADB_X_SPDFLUSH:
+			case SADB_X_SPDSETIDX:
+			case SADB_X_SPDUPDATE:
+			case SADB_X_SPDDELETE2:
+				ipseclog((LOG_DEBUG, "%s: illegal satype=%u\n",
+				    __func__, msg->sadb_msg_type));
+				PFKEYSTAT_INC(out_invsatype);
+				error = EINVAL;
+				goto senderror;
+			}
+			break;
+		case SADB_SATYPE_RSVP:
+		case SADB_SATYPE_OSPFV2:
+		case SADB_SATYPE_RIPV2:
+		case SADB_SATYPE_MIP:
+			ipseclog((LOG_DEBUG, "%s: type %u isn't supported.\n",
+			    __func__, msg->sadb_msg_satype));
+			PFKEYSTAT_INC(out_invsatype);
+			error = EOPNOTSUPP;
+			goto senderror;
+		case 1:	/* XXX: What does it do? */
+			if (msg->sadb_msg_type == SADB_X_PROMISC)
+				break;
+			/*FALLTHROUGH*/
+		default:
+			ipseclog((LOG_DEBUG, "%s: invalid type %u is passed.\n",
+			    __func__, msg->sadb_msg_satype));
+			PFKEYSTAT_INC(out_invsatype);
+			error = EINVAL;
+			goto senderror;
+		}
 	}
 
 	/* check field of upper layer protocol and address family */
