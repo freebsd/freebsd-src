@@ -1734,6 +1734,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * area.
 	 */
 	thread0.td_pcb = get_pcb_td(&thread0);
+	thread0.td_pcb->pcb_save = get_pcb_user_save_td(&thread0);
 	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(get_pcb_user_save_td(&thread0) +
