@@ -791,6 +791,11 @@ xenbusb_resume(device_t dev)
 			if (device_get_state(kids[i]) == DS_NOTPRESENT)
 				continue;
 
+			if (xen_suspend_cancelled) {
+				DEVICE_RESUME(kids[i]);
+				continue;
+			}
+
 			ivars = device_get_ivars(kids[i]);
 
 			xs_unregister_watch(&ivars->xd_otherend_watch);
