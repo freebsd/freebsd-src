@@ -1181,5 +1181,4 @@ static devclass_t dwmmc_devclass;
 
 DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, NULL, NULL);
 DRIVER_MODULE(dwmmc, ofwbus, dwmmc_driver, dwmmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, dwmmc, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(dwmmc, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(dwmmc);
