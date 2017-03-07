@@ -1,4 +1,4 @@
-/* $NetBSD: t_proc3.c,v 1.2 2015/01/14 22:22:32 christos Exp $ */
+/* $NetBSD: t_proc3.c,v 1.3 2017/01/13 21:30:41 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -30,11 +30,8 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_proc3.c,v 1.2 2015/01/14 22:22:32 christos Exp $");
+__RCSID("$NetBSD: t_proc3.c,v 1.3 2017/01/13 21:30:41 christos Exp $");
 
-#ifdef __FreeBSD__
-#include <sys/types.h>
-#endif
 #include <sys/event.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -48,7 +45,7 @@ __RCSID("$NetBSD: t_proc3.c,v 1.2 2015/01/14 22:22:32 christos Exp $");
 
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(proc3);
 ATF_TC_HEAD(proc3, tc)

@@ -1,4 +1,4 @@
-/* $NetBSD: t_socketpair.c,v 1.1 2011/11/05 18:19:02 jruoho Exp $ */
+/* $NetBSD: t_socketpair.c,v 1.2 2017/01/13 20:04:52 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -36,7 +36,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_socketpair.c,v 1.1 2011/11/05 18:19:02 jruoho Exp $");
+__RCSID("$NetBSD: t_socketpair.c,v 1.2 2017/01/13 20:04:52 christos Exp $");
 
 #include <atf-c.h>
 #include <fcntl.h>
@@ -66,7 +66,7 @@ run(int flags)
 #ifdef __FreeBSD__
 	closefrom(3);
 #else
-	ATF_REQUIRE(fcntl(3, F_CLOSEM) != -1);
+	ATF_REQUIRE(closefrom(3) != -1);
 #endif
 
 	ATF_REQUIRE(socketpair(AF_UNIX, SOCK_DGRAM | flags, 0, fd) == 0);

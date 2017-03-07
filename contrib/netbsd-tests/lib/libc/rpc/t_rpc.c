@@ -24,13 +24,6 @@ __RCSID("$NetBSD: t_rpc.c,v 1.10 2016/08/27 14:36:22 christos Exp $");
 	return ev;					\
 } while(/*CONSTCOND*/0)
 
-#ifdef __FreeBSD__
-#define SKIPXI(ev, msg, ...)	do {			\
-	atf_tc_skip(msg, __VA_ARGS__);			\
-	return ev;					\
-} while(/*CONSTCOND*/0)
-#endif
-
 #else
 #define ERRX(ev, msg, ...)	errx(EXIT_FAILURE, msg, __VA_ARGS__)
 #define SKIPX(ev, msg, ...)	errx(EXIT_FAILURE, msg, __VA_ARGS__)
@@ -196,7 +189,7 @@ regtest(const char *hostname, const char *transp, const char *arg, int p)
 #endif
 	if (!svc_create(server, PROGNUM, VERSNUM, transp))
 	{
-		SKIPXI(EXIT_FAILURE, "Cannot create server %d", num);
+		SKIPX(EXIT_FAILURE, "Cannot create server %d", num);
 	}
 
 	switch ((pid = fork())) {
