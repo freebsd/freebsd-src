@@ -66,9 +66,9 @@ struct rw_semaphore {
 struct rw_semaphore name;						\
 static void name##_rwsem_init(void *arg)				\
 {									\
-	linux_init_rwsem(&name, rwsem_name(#name))			\
+	linux_init_rwsem(&name, rwsem_name(#name));			\
 }									\
-SYSINIT(name, SI_SUB_LOCKS, SI_ORDER_SECOND, name##_rwsem_init, NULL)
+SYSINIT(name, SI_SUB_LOCK, SI_ORDER_SECOND, name##_rwsem_init, NULL)
 
 static inline void
 linux_init_rwsem(struct rw_semaphore *rw, const char *name)
