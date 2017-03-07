@@ -1,0 +1,52 @@
+## @file
+#  Instance of Debug Library using the Standard Error Device.
+#
+#  Debug Lib that sends messages to the the Standard Error Device in the EFI System Table.
+#
+#  Copyright (c) 2007 - 2015, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiDebugLibStdErr
+  MODULE_UNI_FILE                = UefiDebugLibStdErr.uni
+  FILE_GUID                      = b57a1df6-ffdb-4247-a3df-3a562176751a
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = DebugLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  DebugLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  BaseMemoryLib
+  BaseLib
+  PcdLib
+  PrintLib
+  UefiBootServicesTableLib
+  DebugPrintErrorLevelLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdDebugClearMemoryValue   ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask       ## CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdFixedDebugPrintErrorLevel ## CONSUMES
+

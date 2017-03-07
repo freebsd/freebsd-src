@@ -1,0 +1,56 @@
+## @file
+# Instance of HOB Library using PEI Services.
+#
+# HOB Library implementation that uses PEI Services to retrieve the HOB List.
+#
+# Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiHobLib
+  MODULE_UNI_FILE                = PeiHobLib.uni
+  FILE_GUID                      = 9643128f-ac24-4b3e-b6be-d8849a306153
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = HobLib|PEIM PEI_CORE SEC
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#
+
+[Sources]
+  HobLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  BaseMemoryLib
+  PeiServicesLib
+  DebugLib
+
+[Guids]
+  gEfiHobMemoryAllocStackGuid                   ## SOMETIMES_PRODUCES ## HOB # MemoryAllocation StackHob
+  gEfiHobMemoryAllocBspStoreGuid                ## SOMETIMES_PRODUCES ## HOB # MemoryAllocation BspStoreHob
+  gEfiHobMemoryAllocModuleGuid                  ## SOMETIMES_PRODUCES ## HOB # MemoryAllocation ModuleHob
+
+#
+# [Hob]
+#   MEMORY_ALLOCATION     ## SOMETIMES_PRODUCES
+#   RESOURCE_DESCRIPTOR   ## SOMETIMES_PRODUCES
+#   FIRMWARE_VOLUME       ## SOMETIMES_PRODUCES
+#   
+

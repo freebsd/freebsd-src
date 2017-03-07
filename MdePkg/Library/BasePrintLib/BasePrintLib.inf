@@ -1,0 +1,50 @@
+## @file
+#  Print Library implementation.
+#
+#  Copyright (c) 2007 - 2017, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BasePrintLib
+  MODULE_UNI_FILE                = BasePrintLib.uni
+  FILE_GUID                      = a86fbfca-0183-4eeb-aa8a-762e3b7da1f3
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PrintLib 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+
+[Sources]
+  PrintLibInternal.h
+  PrintLibInternal.c
+  PrintLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  DebugLib
+  BaseLib
+  PcdLib
+
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumAsciiStringLength     ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumUnicodeStringLength   ## SOMETIMES_CONSUMES
+

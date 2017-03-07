@@ -1,0 +1,47 @@
+## @file
+# Instance of S3 Smbus Library based on SmBus and S3 BootScript Library.
+#
+# S3 Smbus Library Services that do SMBus transactions and also enable the
+# operatation to be replayed during an S3 resume. 
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+# This program and the accompanying materials are
+# licensed and made available under the terms and conditions of the BSD License
+# which accompanies this distribution.  The full text of the license may be found at
+# http://opensource.org/licenses/bsd-license.php
+#
+# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseS3SmbusLib
+  MODULE_UNI_FILE                = BaseS3SmbusLib.uni
+  FILE_GUID                      = 01190654-FED0-40d3-BA7F-2925539E5830
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = S3SmbusLib 
+
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  S3SmbusLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  DebugLib
+  SmbusLib
+  S3BootScriptLib
+

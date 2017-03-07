@@ -1,0 +1,58 @@
+## @file
+# Instance of PCI Express Library using the 256 MB PCI Express MMIO window that 
+# is safe for runtime use.
+#
+# PCI Express Library that uses the 256 MB PCI Express MMIO window to perform
+#  PCI Configuration cycles. Layers on top of an I/O Library instance.  A table of 
+#  PCI devices that are registered for for runtime access is maintained so the 
+#  proper virtual address is used to perform the PCI Express Configuration cycle.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = DxeRuntimePciExpressLib
+  MODULE_UNI_FILE                = DxeRuntimePciExpressLib.uni
+  FILE_GUID                      = 54DCBCE5-92AD-41f5-AAAF-1170F16DA6A8
+  MODULE_TYPE                    = DXE_RUNTIME_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PciExpressLib|DXE_RUNTIME_DRIVER 
+  CONSTRUCTOR                    = DxeRuntimePciExpressLibConstructor
+  DESTRUCTOR                     = DxeRuntimePciExpressLibDestructor
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  PciExpressLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  IoLib
+  DebugLib
+  PcdLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+  DxeServicesTableLib
+  UefiRuntimeLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress  ## CONSUMES
+
+[Guids]
+  gEfiEventVirtualAddressChangeGuid         ## CONSUMES ## Event
+

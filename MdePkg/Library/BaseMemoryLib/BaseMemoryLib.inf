@@ -1,0 +1,57 @@
+## @file
+#  Instance of Base Memory Library without assembly.
+#
+#  Base Memory Library implementation - no ASM.
+#
+#  Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseMemoryLib
+  MODULE_UNI_FILE                = BaseMemoryLib.uni
+  FILE_GUID                      = fd44e603-002a-4b29-9f5f-529e815b6165
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = BaseMemoryLib 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC ARM AARCH64
+#
+
+[Sources]
+  SetMem.c
+  ScanMem64Wrapper.c
+  ScanMem32Wrapper.c
+  ScanMem16Wrapper.c
+  ScanMem8Wrapper.c
+  ZeroMemWrapper.c
+  CompareMemWrapper.c
+  SetMem64Wrapper.c
+  SetMem32Wrapper.c
+  SetMem16Wrapper.c
+  SetMemWrapper.c
+  CopyMemWrapper.c
+  IsZeroBufferWrapper.c
+  MemLibGeneric.c
+  MemLibGuid.c
+  CopyMem.c
+  MemLibInternals.h
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  BaseLib
+

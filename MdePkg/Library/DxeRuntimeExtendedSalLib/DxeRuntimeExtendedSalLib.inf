@@ -1,0 +1,52 @@
+## @file
+#  This library implements the Extended SAL Library Class for use in boot services and runtime.
+#
+#  Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = DxeRuntimeExtendedSalLib
+  MODULE_UNI_FILE                = DxeRuntimeExtendedSalLib.uni
+  FILE_GUID                      = AE66715B-75F5-4423-8FAD-A4AFB3C53ACF
+  MODULE_TYPE                    = DXE_RUNTIME_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ExtendedSalLib|DXE_RUNTIME_DRIVER DXE_SAL_DRIVER 
+  CONSTRUCTOR                    = DxeRuntimeExtendedSalLibConstruct
+  DESTRUCTOR                     = DxeRuntimeExtendedSalLibDeconstruct
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IPF
+#
+
+[Sources.IPF]
+  ExtendedSalLib.c
+  Ipf/AsmExtendedSalLib.s
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  DebugLib
+
+[Protocols]
+  gEfiExtendedSalBootServiceProtocolGuid        ## CONSUMES
+
+[Guids]
+  gEfiEventVirtualAddressChangeGuid   ## CONSUMES  ## Event
+
+[Depex]
+  gEfiExtendedSalBootServiceProtocolGuid
+

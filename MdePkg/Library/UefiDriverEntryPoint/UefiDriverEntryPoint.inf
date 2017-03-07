@@ -1,0 +1,67 @@
+## @file
+# Module entry point library for UEFI driver, DXE driver and SMM driver.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiDriverEntryPoint
+  MODULE_UNI_FILE                = UefiDriverEntryPoint.uni
+  FILE_GUID                      = 331deb15-454b-48d8-9b74-70d01f3f3556
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = UefiDriverEntryPoint|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER UEFI_DRIVER SMM_CORE DXE_SMM_DRIVER
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  DriverEntryPoint.c
+
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  UefiBootServicesTableLib
+  DebugLib
+  BaseLib
+
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid                   ## SOMETIMES_CONSUMES
+
+
+#
+# For UEFI drivers, these architectural protocols defined in PI 1.0 spec need
+# to be appended and merged to the final dependency section.
+#
+[Depex.common.UEFI_DRIVER]
+  gEfiBdsArchProtocolGuid AND
+  gEfiCpuArchProtocolGuid AND
+  gEfiMetronomeArchProtocolGuid AND
+  gEfiMonotonicCounterArchProtocolGuid AND
+  gEfiRealTimeClockArchProtocolGuid AND
+  gEfiResetArchProtocolGuid AND
+  gEfiRuntimeArchProtocolGuid AND
+  gEfiSecurityArchProtocolGuid AND
+  gEfiTimerArchProtocolGuid AND
+  gEfiVariableWriteArchProtocolGuid AND
+  gEfiVariableArchProtocolGuid AND
+  gEfiWatchdogTimerArchProtocolGuid
+

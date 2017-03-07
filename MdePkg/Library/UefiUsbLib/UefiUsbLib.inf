@@ -1,0 +1,48 @@
+## @file
+# Uefi Usb Library instance.
+#
+# This library instance provides most usb APIs to support the Hid requests defined in
+# Usb Hid 1.1 spec and the standard requests defined in Usb 1.1 spec.
+#
+# Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiUsbLib
+  MODULE_UNI_FILE                = UefiUsbLib.uni
+  FILE_GUID                      = 87eb5df9-722a-4241-ad7f-370d0b3a56d7
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = UefiUsbLib|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  UefiUsbLibInternal.h
+  Hid.c
+  UsbDxeLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  BaseMemoryLib
+  PcdLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdUsbTransferTimeoutValue  ## CONSUMES
+

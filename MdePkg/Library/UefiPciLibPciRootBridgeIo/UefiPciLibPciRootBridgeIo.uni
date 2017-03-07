@@ -1,0 +1,25 @@
+// /** @file
+// PCI Library that layers on top of the PCI Root Bridge I/O Protocol.
+//
+// This library produces the APIs from the PCI Library and implements these APIs
+// by calling into the PCI Root Bridge I/O Protocol. The PCI Root Bridge I/O Protocol is
+// typically produced by a chipset specific DXE driver.
+// This library binds to the first PCI Root Bridge I/O Protocol in the platform. As a result,
+// it should only be used on platforms that contain a single PCI root bridge.
+//
+// Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+//
+// This program and the accompanying materials
+// are licensed and made available under the terms and conditions of the BSD License
+// which accompanies this distribution. The full text of the license may be found at
+// http://opensource.org/licenses/bsd-license.php.
+// THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+// WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "PCI Library that layers on top of the PCI Root Bridge I/O Protocol"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "This library produces the APIs from the PCI Library and implements these APIs by calling into the PCI Root Bridge I/O Protocol. The PCI Root Bridge I/O Protocol is typically produced by a chipset-specific DXE driver. This library binds to the first PCI Root Bridge I/O Protocol in the platform. As a result, it should only be used on platforms that contain a single PCI root bridge."
+

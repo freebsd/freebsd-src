@@ -1,0 +1,47 @@
+## @file
+# Uefi Scsi Library Instance.
+#
+# This libarary provides the functions to submit Scsi commands defined
+# in SCSI-2 specification for scsi device.
+#
+# Copyright (c) 2006 - 2015, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiScsiLib
+  MODULE_UNI_FILE                = UefiScsiLib.uni
+  FILE_GUID                      = 280E42C3-826E-4573-9772-B74EF1086D95
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = UefiScsiLib|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  UefiScsiLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  BaseMemoryLib
+  DebugLib
+  BaseLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+

@@ -1,0 +1,48 @@
+##  @file
+# Provides interface to shell functionality for shell commands and applications.
+#
+#   Copyright (c) 2006 - 2015, Intel Corporation. All rights reserved. <BR>
+#   This program and the accompanying materials
+#   are licensed and made available under the terms and conditions of the BSD License
+#   which accompanies this distribution. The full text of the license may be found at
+#   http://opensource.org/licenses/bsd-license.php
+#
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = UefiFileHandleLib
+  MODULE_UNI_FILE                = UefiFileHandleLib.uni
+  FILE_GUID                      = 9495D344-9D8A-41f3-8D17-E2FD238C4E71
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = FileHandleLib|DXE_DRIVER UEFI_APPLICATION UEFI_DRIVER DXE_RUNTIME_DRIVER
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources.common]
+  UefiFileHandleLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  MemoryAllocationLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  PrintLib
+  PcdLib
+
+[Protocols]
+  gEfiSimpleFileSystemProtocolGuid              ## SOMETIMES_CONSUMES
+
+[Guids]
+  gEfiFileInfoGuid                              ## SOMETIMES_CONSUMES ## GUID
+
+[Pcd.common]
+  gEfiMdePkgTokenSpaceGuid.PcdUefiFileHandleLibPrintBufferSize  ## SOMETIMES_CONSUMES

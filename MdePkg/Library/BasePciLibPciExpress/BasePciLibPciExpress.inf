@@ -1,0 +1,41 @@
+## @file
+#  Instance of PCI Library based on PCI Express Library.
+#
+#  PCI Library that uses the 256 MB PCI Express MMIO window to perform PCI
+#  Configuration cycles. Layers on one PCI Express Library instance.
+#
+#  Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BasePciLibPciExpress
+  MODULE_UNI_FILE                = BasePciLibPciExpress.uni
+  FILE_GUID                      = 8987081e-daeb-44a9-8bef-a195b22d9417
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PciLib 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC ARM AARCH64
+#
+
+[Sources]
+  PciLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  PciExpressLib
+

@@ -1,0 +1,61 @@
+## @file
+#  Instance of Cache Maintenance Library using Base Library services.
+#
+#  Cache Maintenance Library that uses Base Library services to maintain caches.
+#  This library assumes there are no chipset dependencies required to maintain caches.
+#
+#  Copyright (c) 2007 - 2015, Intel Corporation. All rights reserved.<BR>
+#  Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseCacheMaintenanceLib
+  MODULE_UNI_FILE                = BaseCacheMaintenanceLib.uni
+  FILE_GUID                      = 123dd843-57c9-4158-8418-ce68b3944ce7
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.1
+  LIBRARY_CLASS                  = CacheMaintenanceLib 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC ARM AARCH64
+#
+
+[Sources.IA32]
+  X86Cache.c
+
+[Sources.X64]
+  X86Cache.c
+
+[Sources.IPF]
+  IpfCache.c
+
+[Sources.EBC]
+  EbcCache.c
+
+[Sources.ARM]
+  ArmCache.c
+
+[Sources.AARCH64]
+  ArmCache.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+
+[LibraryClasses.Ipf]
+  PalLib
+

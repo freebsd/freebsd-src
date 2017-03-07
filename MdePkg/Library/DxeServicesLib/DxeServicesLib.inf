@@ -1,0 +1,56 @@
+## @file
+# DXE Services Library instance provides functions that simplify the development of DXE Drivers.
+#
+# DXE Services Library provides access data from sections of FFS files based on FV protocol.
+# It also provides access file based on file path from a firmware volume, 
+# from a file system interface, or from the load file interface.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = DxeServicesLib
+  MODULE_UNI_FILE                = DxeServicesLib.uni
+  FILE_GUID                      = EE680C58-FFC0-4a5d-858F-66FF9C84BC9F
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = DxeServicesLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER DXE_SMM_DRIVER SMM_CORE UEFI_APPLICATION UEFI_DRIVER
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  DxeServicesLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  MemoryAllocationLib
+  DebugLib
+  DevicePathLib
+  UefiLib
+  UefiBootServicesTableLib
+
+[Guids]
+  gEfiFileInfoGuid                              ## SOMETIMES_CONSUMES ## UNDEFINED
+
+[Protocols]
+  gEfiFirmwareVolume2ProtocolGuid               ## SOMETIMES_CONSUMES
+  gEfiLoadedImageProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiLoadFileProtocolGuid                      ## SOMETIMES_CONSUMES
+  gEfiLoadFile2ProtocolGuid                     ## SOMETIMES_CONSUMES 
+  gEfiSimpleFileSystemProtocolGuid              ## SOMETIMES_CONSUMES 
+

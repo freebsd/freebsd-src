@@ -1,0 +1,45 @@
+## @file
+#  Instance of Performance Library with empty functions.
+#
+#  Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BasePerformanceLibNull
+  MODULE_UNI_FILE                = BasePerformanceLibNull.uni
+  FILE_GUID                      = FC120ED3-40E1-46dc-8C9C-AAE3CA139ACF
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PerformanceLib 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  PerformanceLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  PcdLib
+  DebugLib
+
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask  ## CONSUMES
+

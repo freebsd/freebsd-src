@@ -1,0 +1,53 @@
+## @file
+# I/O Library instance based on EFI_CPU_IO2_PROTOCOL.
+#
+# I/O Library implementation that uses the CPU I/O2 Protocol for I/O and MMIO operations.
+#
+# Copyright (c) 2010 - 2014, Intel Corporation. All rights reserved.<BR>
+# This program and the accompanying materials are licensed and made available
+# under the terms and conditions of the BSD License which accompanies this 
+# distribution. The full text of the license may be found at
+# http://opensource.org/licenses/bsd-license.php.
+#
+# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = DxeIoLibCpuIo2
+  MODULE_UNI_FILE                = DxeIoLibCpuIo2.uni
+  FILE_GUID                      = 33D33BF3-349E-4768-9459-836A9F7558FB
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = IoLib|DXE_DRIVER DXE_SAL_DRIVER
+  CONSTRUCTOR                    = IoLibConstructor
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  IoLibMmioBuffer.c
+  DxeCpuIo2LibInternal.h
+  IoHighLevel.c
+  IoLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  UefiBootServicesTableLib
+
+[Protocols]
+  gEfiCpuIo2ProtocolGuid         ## CONSUMES
+
+[Depex]
+  gEfiCpuIo2ProtocolGuid
+

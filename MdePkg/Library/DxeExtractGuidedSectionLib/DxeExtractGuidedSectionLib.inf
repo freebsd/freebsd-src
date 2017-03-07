@@ -1,0 +1,47 @@
+## @file
+# Instance of ExtractGuidedSection Library for DXE phase.
+#
+# This library provides generic extract guided section functions for DXE module.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = DxeExtractGuidedSectionLib
+  MODULE_UNI_FILE                = DxeExtractGuidedSectionLib.uni
+  FILE_GUID                      = f773469b-e265-4b0c-b0a6-2f971fbfe72b
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ExtractGuidedSectionLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER 
+
+  CONSTRUCTOR                    = DxeExtractGuidedSectionLibConstructor
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  DxeExtractGuidedSectionLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  MemoryAllocationLib
+  BaseMemoryLib
+  DebugLib
+  UefiBootServicesTableLib
+

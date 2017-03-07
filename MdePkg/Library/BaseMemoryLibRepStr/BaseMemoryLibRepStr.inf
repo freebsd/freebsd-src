@@ -1,0 +1,149 @@
+## @file
+#  Instance of Base Memory Library using REP string instructions.
+#
+#  Base Memory Library that uses REP string instructions for
+#  high performance and small size. Optimized for use in PEI.
+#
+#  Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseMemoryLibRepStr
+  MODULE_UNI_FILE                = BaseMemoryLibRepStr.uni
+  FILE_GUID                      = e7884bf4-51a1-485b-982a-ff89129983bc
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.1
+  LIBRARY_CLASS                  = BaseMemoryLib 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  MemLibInternals.h
+  ScanMem64Wrapper.c
+  ScanMem32Wrapper.c
+  ScanMem16Wrapper.c
+  ScanMem8Wrapper.c
+  ZeroMemWrapper.c
+  CompareMemWrapper.c
+  SetMem64Wrapper.c
+  SetMem32Wrapper.c
+  SetMem16Wrapper.c
+  SetMemWrapper.c
+  CopyMemWrapper.c
+  IsZeroBufferWrapper.c
+  MemLibGuid.c
+
+[Sources.Ia32]
+  Ia32/ScanMem64.nasm
+  Ia32/ScanMem64.S
+  Ia32/ScanMem32.nasm
+  Ia32/ScanMem32.S
+  Ia32/ScanMem16.nasm
+  Ia32/ScanMem16.S
+  Ia32/ScanMem8.nasm
+  Ia32/ScanMem8.S
+  Ia32/CompareMem.nasm
+  Ia32/CompareMem.S
+  Ia32/ZeroMem.nasm
+  Ia32/ZeroMem.S
+  Ia32/SetMem64.nasm
+  Ia32/SetMem64.S
+  Ia32/SetMem32.nasm
+  Ia32/SetMem32.S
+  Ia32/SetMem16.nasm
+  Ia32/SetMem16.S
+  Ia32/SetMem.nasm
+  Ia32/SetMem.S
+  Ia32/CopyMem.nasm
+  Ia32/CopyMem.S
+  Ia32/ScanMem64.nasm
+  Ia32/ScanMem64.asm
+  Ia32/ScanMem32.nasm
+  Ia32/ScanMem32.asm
+  Ia32/ScanMem16.nasm
+  Ia32/ScanMem16.asm
+  Ia32/ScanMem8.nasm
+  Ia32/ScanMem8.asm
+  Ia32/CompareMem.nasm
+  Ia32/CompareMem.asm
+  Ia32/ZeroMem.nasm
+  Ia32/ZeroMem.asm
+  Ia32/SetMem64.nasm
+  Ia32/SetMem64.asm
+  Ia32/SetMem32.nasm
+  Ia32/SetMem32.asm
+  Ia32/SetMem16.nasm
+  Ia32/SetMem16.asm
+  Ia32/SetMem.nasm
+  Ia32/SetMem.asm
+  Ia32/CopyMem.nasm
+  Ia32/CopyMem.asm
+  Ia32/IsZeroBuffer.nasm
+
+[Sources.X64]
+  X64/ScanMem64.nasm
+  X64/ScanMem64.S
+  X64/ScanMem32.nasm
+  X64/ScanMem32.S
+  X64/ScanMem16.nasm
+  X64/ScanMem16.S
+  X64/ScanMem8.nasm
+  X64/ScanMem8.S
+  X64/CompareMem.nasm
+  X64/CompareMem.S
+  X64/ZeroMem.nasm
+  X64/ZeroMem.S
+  X64/SetMem64.nasm
+  X64/SetMem64.S
+  X64/SetMem32.nasm
+  X64/SetMem32.S
+  X64/SetMem16.nasm
+  X64/SetMem16.S
+  X64/SetMem.nasm
+  X64/SetMem.S
+  X64/CopyMem.nasm
+  X64/CopyMem.S
+  X64/ScanMem64.nasm
+  X64/ScanMem64.asm
+  X64/ScanMem32.nasm
+  X64/ScanMem32.asm
+  X64/ScanMem16.nasm
+  X64/ScanMem16.asm
+  X64/ScanMem8.nasm
+  X64/ScanMem8.asm
+  X64/CompareMem.nasm
+  X64/CompareMem.asm
+  X64/ZeroMem.nasm
+  X64/ZeroMem.asm
+  X64/SetMem64.nasm
+  X64/SetMem64.asm
+  X64/SetMem32.nasm
+  X64/SetMem32.asm
+  X64/SetMem16.nasm
+  X64/SetMem16.asm
+  X64/SetMem.nasm
+  X64/SetMem.asm
+  X64/CopyMem.nasm
+  X64/CopyMem.asm
+  X64/IsZeroBuffer.nasm
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  BaseLib
+
