@@ -1,4 +1,4 @@
-/*	$NetBSD: t_rnd.c,v 1.9 2016/05/22 04:34:44 riastradh Exp $	*/
+/*	$NetBSD: t_rnd.c,v 1.10 2017/01/13 21:30:41 christos Exp $	*/
 
 /*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_rnd.c,v 1.9 2016/05/22 04:34:44 riastradh Exp $");
+__RCSID("$NetBSD: t_rnd.c,v 1.10 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/fcntl.h>
@@ -39,7 +39,7 @@ __RCSID("$NetBSD: t_rnd.c,v 1.9 2016/05/22 04:34:44 riastradh Exp $");
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(RNDADDDATA);
 ATF_TC_HEAD(RNDADDDATA, tc)

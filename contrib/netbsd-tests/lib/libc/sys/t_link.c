@@ -1,4 +1,4 @@
-/* $NetBSD: t_link.c,v 1.2 2014/04/21 14:39:36 martin Exp $ */
+/* $NetBSD: t_link.c,v 1.3 2017/01/13 20:42:36 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_link.c,v 1.2 2014/04/21 14:39:36 martin Exp $");
+__RCSID("$NetBSD: t_link.c,v 1.3 2017/01/13 20:42:36 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -37,13 +37,10 @@ __RCSID("$NetBSD: t_link.c,v 1.2 2014/04/21 14:39:36 martin Exp $");
 #include <atf-c.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-
-#ifdef __FreeBSD__
-#include <limits.h>
-#endif
 
 static const char	*getpath(void);
 static char		 path[] = "link";

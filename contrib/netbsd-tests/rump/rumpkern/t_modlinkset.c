@@ -1,4 +1,4 @@
-/*	$NetBSD: t_modlinkset.c,v 1.2 2009/11/06 15:26:54 pooka Exp $	*/
+/*	$NetBSD: t_modlinkset.c,v 1.3 2017/01/13 21:30:43 christos Exp $	*/
 
 /*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -39,7 +39,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(modlinkset);
 ATF_TC_HEAD(modlinkset, tc)
