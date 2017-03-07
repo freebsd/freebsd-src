@@ -93,7 +93,7 @@
 			reg = <0>;
 
 			lcd_display_in: endpoint {
-				remote-endpoint = <&ipu1_di0_disp1>;
+				remote-endpoint = <&ipu1_di1_disp1>;
 			};
 		};
 
@@ -147,28 +147,6 @@
 			gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
 		};
 	};
-
-	pwmleds {
-		compatible = "pwm-leds";
-
-		ledpwm1 {
-			label = "PWM1";
-			pwms = <&pwm1 0 50000>;
-			max-brightness = <255>;
-		};
-
-		ledpwm2 {
-			label = "PWM2";
-			pwms = <&pwm2 0 50000>;
-			max-brightness = <255>;
-		};
-
-		ledpwm3 {
-			label = "PWM3";
-			pwms = <&pwm3 0 50000>;
-			max-brightness = <255>;
-		};
-	};
 };
 
 &backlight {
@@ -210,7 +188,7 @@
 	};
 };
 
-&ipu1_di0_disp1 {
+&ipu1_di1_disp1 {
 	remote-endpoint = <&lcd_display_in>;
 };
 
