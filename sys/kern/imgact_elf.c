@@ -89,7 +89,7 @@ static Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
     const char *interp, int interp_name_len, int32_t *osrel);
 static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
     u_long *entry, size_t pagesize);
-static int __elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
+static int __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
     caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
     size_t pagesize);
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
@@ -490,7 +490,7 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 }
 
 static int
-__elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
+__elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
     caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
     size_t pagesize)
 {
@@ -501,7 +501,7 @@ __elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
 	vm_offset_t map_addr;
 	int error, rv, cow;
 	size_t copy_len;
-	vm_offset_t file_addr;
+	vm_ooffset_t file_addr;
 
 	/*
 	 * It's necessary to fail if the filsz + offset taken from the
