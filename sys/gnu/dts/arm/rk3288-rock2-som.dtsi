@@ -42,7 +42,7 @@
 #include "rk3288.dtsi"
 
 / {
-	memory {
+	memory@0 {
 		reg = <0x0 0x80000000>;
 		device_type = "memory";
 	};
@@ -59,22 +59,6 @@
 		#clock-cells = <0>;
 		clock-frequency = <125000000>;
 		clock-output-names = "ext_gmac";
-	};
-
-	io_domains: io-domains {
-		compatible = "rockchip,rk3288-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		audio-supply = <&vcc_io>;
-		bb-supply = <&vcc_io>;
-		dvp-supply = <&vcc_18>;
-		flash0-supply = <&vcc_flash>;
-		flash1-supply = <&vccio_pmu>;
-		gpio30-supply = <&vccio_pmu>;
-		gpio1830 = <&vcc_io>;
-		lcdc-supply = <&vcc_io>;
-		sdcard-supply = <&vccio_sd>;
-		wifi-supply = <&vcc_18>;
 	};
 
 	vcc_flash: flash-regulator {
@@ -257,6 +241,21 @@
 		regulator-ramp-delay = <8000>;
 		vin-supply = <&vcc_sys>;
 	};
+};
+
+&io_domains {
+	status = "okay";
+
+	audio-supply = <&vcc_io>;
+	bb-supply = <&vcc_io>;
+	dvp-supply = <&vcc_18>;
+	flash0-supply = <&vcc_flash>;
+	flash1-supply = <&vccio_pmu>;
+	gpio30-supply = <&vccio_pmu>;
+	gpio1830 = <&vcc_io>;
+	lcdc-supply = <&vcc_io>;
+	sdcard-supply = <&vccio_sd>;
+	wifi-supply = <&vcc_18>;
 };
 
 &pinctrl {
