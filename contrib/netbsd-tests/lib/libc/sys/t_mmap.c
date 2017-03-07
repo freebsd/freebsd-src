@@ -1,4 +1,4 @@
-/* $NetBSD: t_mmap.c,v 1.10 2017/01/10 22:36:29 christos Exp $ */
+/* $NetBSD: t_mmap.c,v 1.12 2017/01/16 16:31:05 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -55,9 +55,10 @@
  * SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mmap.c,v 1.10 2017/01/10 22:36:29 christos Exp $");
+__RCSID("$NetBSD: t_mmap.c,v 1.12 2017/01/16 16:31:05 christos Exp $");
 
 #include <sys/param.h>
+#include <sys/disklabel.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -73,12 +74,7 @@ __RCSID("$NetBSD: t_mmap.c,v 1.10 2017/01/10 22:36:29 christos Exp $");
 #include <string.h>
 #include <unistd.h>
 #include <paths.h>
-#ifdef __NetBSD__
-#include <machine/disklabel.h>
-#endif
-
 #ifdef __FreeBSD__
-#include <sys/disklabel.h>
 #include <stdint.h>
 #endif
 
@@ -453,6 +449,7 @@ ATF_TC_BODY(mmap_truncate, tc)
 	ATF_REQUIRE(ftruncate(fd, page / 12) == 0);
 	ATF_REQUIRE(ftruncate(fd, page / 64) == 0);
 
+	(void)munmap(map, page);
 	ATF_REQUIRE(close(fd) == 0);
 }
 
@@ -509,6 +506,8 @@ ATF_TC_BODY(mmap_truncate_signal, tc)
 		   prevent the access to be optimized out */
 		ATF_REQUIRE(i == 0);
 		ATF_REQUIRE(sta == 0);
+		(void)munmap(map, page);
+		(void)close(fd);
 		return;
 	}
 

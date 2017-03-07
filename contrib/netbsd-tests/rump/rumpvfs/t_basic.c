@@ -1,4 +1,4 @@
-/*	$NetBSD: t_basic.c,v 1.2 2011/02/22 13:25:18 pooka Exp $	*/
+/*	$NetBSD: t_basic.c,v 1.3 2017/01/13 21:30:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -40,7 +40,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(lseekrv);
 ATF_TC_HEAD(lseekrv, tc)

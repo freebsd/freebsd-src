@@ -1,4 +1,4 @@
-/*	$NetBSD: t_exhaust.c,v 1.7 2011/11/16 18:37:31 christos Exp $	*/
+/*	$NetBSD: t_exhaust.c,v 1.8 2017/01/14 00:50:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -37,17 +37,15 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_exhaust.c,v 1.7 2011/11/16 18:37:31 christos Exp $");
+__RCSID("$NetBSD: t_exhaust.c,v 1.8 2017/01/14 00:50:56 christos Exp $");
 
-#include <stdio.h>
-#include <regex.h>
-#include <string.h>
-#include <stdlib.h>
-#include <err.h>
-#include <atf-c.h>
-#ifdef __FreeBSD__
 #include <sys/resource.h>
-#endif
+#include <atf-c.h>
+#include <err.h>
+#include <regex.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifndef REGEX_MAXSIZE
 #define REGEX_MAXSIZE	9999
@@ -179,25 +177,17 @@ ATF_TC_HEAD(regcomp_too_big, tc)
 	    " crash, but return a proper error code");
 	// libtre needs it.
 	atf_tc_set_md_var(tc, "timeout", "600");
-#ifdef __FreeBSD__
 	atf_tc_set_md_var(tc, "require.memory", "64M");
-#else
-	atf_tc_set_md_var(tc, "require.memory", "120M");
-#endif
 }
 
 ATF_TC_BODY(regcomp_too_big, tc)
 {
 	regex_t re;
-#ifdef __FreeBSD__
 	struct rlimit limit;
-#endif
 	int e;
 
-#ifdef __FreeBSD__
 	limit.rlim_cur = limit.rlim_max = 64 * 1024 * 1024;
 	ATF_REQUIRE(setrlimit(RLIMIT_VMEM, &limit) != -1);
-#endif
 	for (size_t i = 0; i < __arraycount(tests); i++) {
 		char *d = (*tests[i].pattern)(REGEX_MAXSIZE);
 		e = regcomp(&re, d, tests[i].type);

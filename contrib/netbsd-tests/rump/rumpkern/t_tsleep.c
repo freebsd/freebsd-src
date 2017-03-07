@@ -1,4 +1,4 @@
-/*	$NetBSD: t_tsleep.c,v 1.1 2010/05/31 23:36:12 pooka Exp $	*/
+/*	$NetBSD: t_tsleep.c,v 1.2 2017/01/13 21:30:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -35,7 +35,7 @@
 
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../kernspace/kernspace.h"
 
 ATF_TC(tsleep);
