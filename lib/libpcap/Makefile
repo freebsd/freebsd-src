@@ -14,7 +14,7 @@ SRCS=	grammar.y tokdefs.h pcap_version.h pcap-bpf.c \
 	scanner.l sf-pcap.c sf-pcap-ng.c version.c
 
 # Old compatibility headers
-INCS=	pcap.h pcap-int.h pcap-namedb.h pcap-bpf.h
+INCS=	pcap.h pcap-namedb.h pcap-bpf.h
 
 PCAPINCS=	pcap/pcap.h pcap/namedb.h pcap/bpf.h pcap/dlt.h pcap/export-defs.h
 PCAPINCSDIR=	${INCLUDEDIR}/pcap
