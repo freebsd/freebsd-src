@@ -278,6 +278,7 @@ static int	iwn_set_pslevel(struct iwn_softc *, int, int, int);
 static int	iwn_send_btcoex(struct iwn_softc *);
 static int	iwn_send_advanced_btcoex(struct iwn_softc *);
 static int	iwn5000_runtime_calib(struct iwn_softc *);
+static int	iwn_send_rxon(struct iwn_softc *, int, int);
 static int	iwn_config(struct iwn_softc *);
 static int	iwn_scan(struct iwn_softc *, struct ieee80211vap *,
 		    struct ieee80211_scan_state *, struct ieee80211_channel *);
@@ -6534,9 +6535,49 @@ iwn_get_rxon_ht_flags(struct iwn_softc *sc, struct ieee80211_channel *c)
 }
 
 static int
-iwn_config(struct iwn_softc *sc)
+iwn_send_rxon(struct iwn_softc *sc, int assoc, int async)
 {
 	struct iwn_ops *ops = &sc->ops;
+	int error;
+
+	IWN_LOCK_ASSERT(sc);
+
+	if (sc->sc_is_scanning)
+		device_printf(sc->sc_dev,
+		    "%s: is_scanning set, before RXON\n",
+		    __func__);
+	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, async);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "%s: RXON command failed\n",
+		    __func__);
+		return (error);
+	}
+
+	/*
+	 * Reconfiguring RXON clears the firmware nodes table so we must
+	 * add the broadcast node again.
+	 */
+	if ((sc->rxon->filter & htole32(IWN_FILTER_BSS)) == 0) {
+		if ((error = iwn_add_broadcast_node(sc, async)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not add broadcast node\n", __func__);
+			return (error);
+		}
+	}
+
+	/* Configuration has changed, set TX power accordingly. */
+	if ((error = ops->set_txpower(sc, async)) != 0) {
+		device_printf(sc->sc_dev, "%s: could not set TX power\n",
+		    __func__);
+		return (error);
+	}
+
+	return (0);
+}
+
+static int
+iwn_config(struct iwn_softc *sc)
+{
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	const uint8_t *macaddr;
@@ -6671,26 +6712,8 @@ iwn_config(struct iwn_softc *sc)
 	DPRINTF(sc, IWN_DEBUG_RESET,
 	    "%s: setting configuration; flags=0x%08x\n",
 	    __func__, le32toh(sc->rxon->flags));
-	if (sc->sc_is_scanning)
-		device_printf(sc->sc_dev,
-		    "%s: is_scanning set, before RXON\n",
-		    __func__);
-	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 0);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "%s: RXON command failed\n",
-		    __func__);
-		return error;
-	}
-
-	if ((error = iwn_add_broadcast_node(sc, 0)) != 0) {
-		device_printf(sc->sc_dev, "%s: could not add broadcast node\n",
-		    __func__);
-		return error;
-	}
-
-	/* Configuration has changed, set TX power accordingly. */
-	if ((error = ops->set_txpower(sc, 0)) != 0) {
-		device_printf(sc->sc_dev, "%s: could not set TX power\n",
+	if ((error = iwn_send_rxon(sc, 0, 0)) != 0) {
+		device_printf(sc->sc_dev, "%s: could not send RXON\n",
 		    __func__);
 		return error;
 	}
@@ -7044,7 +7067,6 @@ iwn_scan(struct iwn_softc *sc, struct ieee80211vap *vap,
 static int
 iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 {
-	struct iwn_ops *ops = &sc->ops;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni = vap->iv_bss;
 	int error;
@@ -7080,37 +7102,16 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x cck %x ofdm %x\n",
 	    sc->rxon->chan, sc->rxon->flags, sc->rxon->cck_mask,
 	    sc->rxon->ofdm_mask);
-	if (sc->sc_is_scanning)
-		device_printf(sc->sc_dev,
-		    "%s: is_scanning set, before RXON\n",
-		    __func__);
-	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 1);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "%s: RXON command failed, error %d\n",
-		    __func__, error);
-		return error;
-	}
 
-	/* Configuration has changed, set TX power accordingly. */
-	if ((error = ops->set_txpower(sc, 1)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not set TX power, error %d\n", __func__, error);
-		return error;
-	}
-	/*
-	 * Reconfiguring RXON clears the firmware nodes table so we must
-	 * add the broadcast node again.
-	 */
-	if ((error = iwn_add_broadcast_node(sc, 1)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not add broadcast node, error %d\n", __func__,
-		    error);
-		return error;
+	if ((error = iwn_send_rxon(sc, 0, 1)) != 0) {
+		device_printf(sc->sc_dev, "%s: could not send RXON\n",
+		    __func__);
+		return (error);
 	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -7163,22 +7164,10 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	sc->rxon->filter |= htole32(IWN_FILTER_BSS);
 	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x, curhtprotmode=%d\n",
 	    sc->rxon->chan, le32toh(sc->rxon->flags), ic->ic_curhtprotmode);
-	if (sc->sc_is_scanning)
-		device_printf(sc->sc_dev,
-		    "%s: is_scanning set, before RXON\n",
-		    __func__);
-	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 1);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not update configuration, error %d\n", __func__,
-		    error);
-		return error;
-	}
 
-	/* Configuration has changed, set TX power accordingly. */
-	if ((error = ops->set_txpower(sc, 1)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not set TX power, error %d\n", __func__, error);
+	if ((error = iwn_send_rxon(sc, 0, 1)) != 0) {
+		device_printf(sc->sc_dev, "%s: could not send RXON\n",
+		    __func__);
 		return error;
 	}
 
