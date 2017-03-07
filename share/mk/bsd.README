@@ -320,8 +320,8 @@ LINKS		The list of binary links; should be full pathnames, the
 
 			LINKS=	/bin/test /bin/[
 
-MAN		Manual pages (should end in .1 - .9).  If no MAN variable
-		is defined, "MAN=${PROG}.1" is assumed.
+MAN		Manual pages.  If no MAN variable is defined,
+		"MAN=${PROG}.1" is assumed. See bsd.man.mk for more details.
 
 PROG		The name of the program to build.  If not supplied, nothing
 		is built.
@@ -532,7 +532,8 @@ LIB_CXX		The name of the library to build. It also causes
 
 LINTLIBDIR	Target directory for lint libraries.
 
-MAN		The manual pages to be installed (use a .1 - .9 suffix).
+MAN		The manual pages to be installed. See bsd.man.mk for more
+		details.
 
 SHLIB		Like LIB but only builds a shared library.
 
