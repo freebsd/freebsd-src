@@ -918,5 +918,4 @@ static driver_t a10_mmc_driver = {
 
 DRIVER_MODULE(a10_mmc, simplebus, a10_mmc_driver, a10_mmc_devclass, NULL,
     NULL);
-DRIVER_MODULE(mmc, a10_mmc, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(a10_mmc, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(a10_mmc);
