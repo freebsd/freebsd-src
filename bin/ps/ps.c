@@ -401,7 +401,7 @@ main(int argc, char *argv[])
 		case 'w':
 			if (wflag)
 				termwidth = UNLIMITED;
-			else if (termwidth < 131)
+			else if (termwidth < 131 && termwidth != UNLIMITED)
 				termwidth = 131;
 			wflag++;
 			break;
