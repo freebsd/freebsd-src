@@ -29,12 +29,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/malloc.h>
-#include <sys/taskqueue.h>
+#include <sys/gtaskqueue.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 
 #include <linux/interrupt.h>
-#include <linux/bottom_half.h>
 #include <linux/compat.h>
 
 #define	TASKLET_ST_IDLE 0
@@ -54,17 +53,16 @@ __FBSDID("$FreeBSD$");
 struct tasklet_worker {
 	struct mtx mtx;
 	TAILQ_HEAD(, tasklet_struct) head;
-	struct taskqueue *taskqueue;
-	struct task task;
+	struct grouptask gtask;
 } __aligned(CACHE_LINE_SIZE);
 
 #define	TASKLET_WORKER_LOCK(tw) mtx_lock(&(tw)->mtx)
 #define	TASKLET_WORKER_UNLOCK(tw) mtx_unlock(&(tw)->mtx)
 
-static struct tasklet_worker tasklet_worker;
+static DPCPU_DEFINE(struct tasklet_worker, tasklet_worker);
 
 static void
-tasklet_handler(void *arg, int pending)
+tasklet_handler(void *arg)
 {
 	struct tasklet_worker *tw = (struct tasklet_worker *)arg;
 	struct tasklet_struct *ts;
@@ -72,7 +70,6 @@ tasklet_handler(void *arg, int pending)
 	linux_set_current(curthread);
 
 	TASKLET_WORKER_LOCK(tw);
-	local_bh_disable();	/* pin thread to CPU */
 	while (1) {
 		ts = TAILQ_FIRST(&tw->head);
 		if (ts == NULL)
@@ -89,32 +86,47 @@ tasklet_handler(void *arg, int pending)
 		} while (TASKLET_ST_CMPSET(ts, TASKLET_ST_EXEC, TASKLET_ST_IDLE) == 0);
 		TASKLET_WORKER_LOCK(tw);
 	}
-	local_bh_enable();	/* unpin thread from CPU */
 	TASKLET_WORKER_UNLOCK(tw);
 }
 
 static void
 tasklet_subsystem_init(void *arg __unused)
 {
-	struct tasklet_worker *tw = &tasklet_worker;
+	struct tasklet_worker *tw;
+	char buf[32];
+	int i;
 
-	tw->taskqueue = taskqueue_create("tasklet", M_WAITOK,
-	    taskqueue_thread_enqueue, &tw->taskqueue);
-	mtx_init(&tw->mtx, "linux_tasklet", NULL, MTX_DEF);
-	TAILQ_INIT(&tw->head);
-	TASK_INIT(&tw->task, 0, tasklet_handler, tw);
-	taskqueue_start_threads(&tw->taskqueue, 1, PI_NET, "tasklet");
+	CPU_FOREACH(i) {
+		if (CPU_ABSENT(i))
+			continue;
+
+		tw = DPCPU_ID_PTR(i, tasklet_worker);
+
+		mtx_init(&tw->mtx, "linux_tasklet", NULL, MTX_DEF);
+		TAILQ_INIT(&tw->head);
+		GROUPTASK_INIT(&tw->gtask, 0, tasklet_handler, tw);
+		snprintf(buf, sizeof(buf), "softirq%d", i);
+		taskqgroup_attach_cpu(qgroup_softirq, &tw->gtask,
+		    "tasklet", i, -1, buf);
+       }
 }
 SYSINIT(linux_tasklet, SI_SUB_INIT_IF, SI_ORDER_THIRD, tasklet_subsystem_init, NULL);
 
 static void
 tasklet_subsystem_uninit(void *arg __unused)
 {
-	struct tasklet_worker *tw = &tasklet_worker;
+	struct tasklet_worker *tw;
+	int i;
 
-	taskqueue_free(tw->taskqueue);
-	tw->taskqueue = NULL;
-	mtx_destroy(&tw->mtx);
+	CPU_FOREACH(i) {
+		if (CPU_ABSENT(i))
+			continue;
+
+		tw = DPCPU_ID_PTR(i, tasklet_worker);
+
+		taskqgroup_detach(qgroup_softirq, &tw->gtask);
+		mtx_destroy(&tw->mtx);
+	}
 }
 SYSUNINIT(linux_tasklet, SI_SUB_INIT_IF, SI_ORDER_THIRD, tasklet_subsystem_uninit, NULL);
 
@@ -147,14 +159,16 @@ tasklet_schedule(struct tasklet_struct *ts)
 	if (TASKLET_ST_CMPSET(ts, TASKLET_ST_EXEC, TASKLET_ST_LOOP)) {
 		/* tasklet_handler() will loop */
 	} else if (TASKLET_ST_CMPSET(ts, TASKLET_ST_IDLE, TASKLET_ST_BUSY)) {
-		struct tasklet_worker *tw = &tasklet_worker;
+		struct tasklet_worker *tw;
+
+		tw = &DPCPU_GET(tasklet_worker);
 
 		/* tasklet_handler() was not queued */
 		TASKLET_WORKER_LOCK(tw);
 		/* enqueue tasklet */
 		TAILQ_INSERT_TAIL(&tw->head, ts, entry);
 		/* schedule worker */
-		taskqueue_enqueue(tw->taskqueue, &tw->task);
+		GROUPTASK_ENQUEUE(&tw->gtask);
 		TASKLET_WORKER_UNLOCK(tw);
 	} else {
 		/*
