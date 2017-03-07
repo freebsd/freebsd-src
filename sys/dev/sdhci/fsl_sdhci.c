@@ -994,5 +994,4 @@ static driver_t fsl_sdhci_driver = {
 DRIVER_MODULE(sdhci_fsl, simplebus, fsl_sdhci_driver, fsl_sdhci_devclass,
     NULL, NULL);
 MODULE_DEPEND(sdhci_fsl, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci_fsl, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_fsl, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci_fsl);

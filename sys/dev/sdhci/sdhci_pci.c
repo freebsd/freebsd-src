@@ -486,5 +486,4 @@ static devclass_t sdhci_pci_devclass;
 DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, sdhci_pci_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_pci, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_pci, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci_pci);

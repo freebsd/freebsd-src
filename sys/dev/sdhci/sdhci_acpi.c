@@ -368,5 +368,4 @@ static devclass_t sdhci_acpi_devclass;
 DRIVER_MODULE(sdhci_acpi, acpi, sdhci_acpi_driver, sdhci_acpi_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_acpi, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci_acpi, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_acpi, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci_acpi);
