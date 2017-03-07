@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2015
+.Dd March 6, 2017
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -226,9 +226,10 @@ destination directory.
 .It Fl p
 Pre-buildworld mode.
 Compares only files known to be essential to the success of
-{build|install}world,
-including
-.Pa /etc/make.conf .
+{build|install}world, i.e.,
+.Pa /etc/group
+and
+.Pa /etc/master.passwd .
 .It Fl F
 If the files differ only by VCS Id ($FreeBSD)
 install the new file.
