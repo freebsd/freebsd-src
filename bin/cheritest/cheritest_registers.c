@@ -231,14 +231,9 @@ test_initregs_default(const struct cheri_test *ctp __unused)
  * sensible to simply assert that the capability is not the same as the
  * default capability for the MIPS ABI.
  */
+#ifdef __CHERI_PURE_CAPABILITY__
 void
 test_initregs_stack(const struct cheri_test *ctp __unused)
-#ifndef __CHERI_PURE_CAPABILITY__
-{
-
-	check_initreg_data(cheri_getstack());
-}
-#else
 {
 	__capability void *c = cheri_getstack();
 	register_t v;

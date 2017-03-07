@@ -96,11 +96,11 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_initregs_default",
 	  .ct_desc = "Test initial value of default capability",
 	  .ct_func = test_initregs_default },
-
+#ifdef __CHERI_PURE_CAPABILITY__
 	{ .ct_name = "test_initregs_stack",
 	  .ct_desc = "Test initial value of stack capability",
 	  .ct_func = test_initregs_stack },
-
+#endif
 	{ .ct_name = "test_initregs_idc",
 	  .ct_desc = "Test initial value of invoked data capability",
 	  .ct_func = test_initregs_idc },
