@@ -458,13 +458,11 @@ static int
 nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 {
 	struct nvme_namespace	*ns;
-	int			i, status;
+	int			i;
 
-	for (i = 0; i < ctrlr->cdata.nn; i++) {
+	for (i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
 		ns = &ctrlr->ns[i];
-		status = nvme_ns_construct(ns, i+1, ctrlr);
-		if (status != 0)
-			return (status);
+		nvme_ns_construct(ns, i+1, ctrlr);
 	}
 
 	return (0);
