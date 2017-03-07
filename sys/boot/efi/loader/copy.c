@@ -79,10 +79,6 @@ efi_verify_staging_size(unsigned long *nr_pages)
 		    KERNEL_PHYSICAL_BASE >= end)
 			continue;
 
-		if (p->Type != EfiConventionalMemory)
-			printf("Warning: wrong EFI memory type: %d\n",
-			    p->Type);
-
 		available_pages = p->NumberOfPages -
 			((KERNEL_PHYSICAL_BASE - start) >> EFI_PAGE_SHIFT);
 		break;
@@ -93,6 +89,7 @@ efi_verify_staging_size(unsigned long *nr_pages)
 		goto out;
 	}
 
+	i++;
 	for ( ; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
 		if (p->Type != EfiConventionalMemory &&
