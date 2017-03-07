@@ -989,5 +989,4 @@ static driver_t jz4780_mmc_driver = {
 
 DRIVER_MODULE(jzmmc, simplebus, jz4780_mmc_driver, jz4780_mmc_devclass, NULL,
     NULL);
-DRIVER_MODULE(mmc, jzmmc, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(jzmmc, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(jzmmc);

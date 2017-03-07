@@ -464,5 +464,4 @@ static DEFINE_CLASS_0(sdhci, tegra_sdhci_driver, tegra_sdhci_methods,
 DRIVER_MODULE(sdhci_tegra, simplebus, tegra_sdhci_driver, tegra_sdhci_devclass,
     NULL, NULL);
 MODULE_DEPEND(sdhci_tegra, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_tegra, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci_tegra);
