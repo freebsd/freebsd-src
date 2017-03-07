@@ -2367,6 +2367,11 @@ END_DEBUG
 			xpt_done(ccb);
 			return;
 		}
+		if (csio->cdb_len > sizeof(ocb->orb) - 5 * sizeof(uint32_t)) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			return;
+		}
 #if 0
 		/* if we are in probe stage, pass only probe commands */
 		if (sdev->status == SBP_DEV_PROBE) {
