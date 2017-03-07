@@ -35,8 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <netipsec/ipsec.h>
+#include <net/if.h>
 #include <net/pfkeyv2.h>
+#include <netipsec/ipsec.h>
 #include <netipsec/key_var.h>
 #include <netipsec/key_debug.h>
 
@@ -202,6 +203,13 @@ static struct val2str str_alg_comp[] = {
 	{ SADB_X_CALG_DEFLATE, "deflate", },
 	{ SADB_X_CALG_LZS, "lzs", },
 	{ -1, NULL, },
+};
+
+static struct val2str str_sp_scope[] = {
+	{ IPSEC_POLICYSCOPE_GLOBAL, "global" },
+	{ IPSEC_POLICYSCOPE_IFNET, "ifnet" },
+	{ IPSEC_POLICYSCOPE_PCB, "pcb"},
+	{ -1, NULL },
 };
 
 /*
@@ -398,8 +406,7 @@ pfkey_sadump(m)
 }
 
 void
-pfkey_spdump(m)
-	struct sadb_msg *m;
+pfkey_spdump(struct sadb_msg *m)
 {
 	char pbuf[NI_MAXSERV];
 	caddr_t mhp[SADB_EXT_MAX + 1];
@@ -507,10 +514,15 @@ pfkey_spdump(m)
 	}
 
 
-	printf("\tspid=%ld seq=%ld pid=%ld\n",
+	printf("\tspid=%ld seq=%ld pid=%ld scope=",
 		(u_long)m_xpl->sadb_x_policy_id,
 		(u_long)m->sadb_msg_seq,
 		(u_long)m->sadb_msg_pid);
+	GETMSGV2S(str_sp_scope, m_xpl->sadb_x_policy_scope);
+	if (m_xpl->sadb_x_policy_scope == IPSEC_POLICYSCOPE_IFNET &&
+	    if_indextoname(m_xpl->sadb_x_policy_ifindex, pbuf) != NULL)
+		printf("ifname=%s", pbuf);
+	printf("\n");
 
 	/* XXX TEST */
 	printf("\trefcnt=%u\n", m->sadb_msg_reserved);
