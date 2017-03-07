@@ -1,0 +1,121 @@
+## @file
+#  Base Synchronization Library implementation.
+#
+#  Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
+#  Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseSynchronizationLib
+  MODULE_UNI_FILE                = BaseSynchronizationLib.uni
+  FILE_GUID                      = FC9990DF-C5FF-44cf-8799-CBB45B577F87
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = SynchronizationLib
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC ARM AARCH64
+#
+[Sources]
+  BaseSynchronizationLibInternals.h
+
+[Sources.IA32]
+  Ia32/InternalGetSpinLockProperties.c | MSFT
+  Ia32/InterlockedCompareExchange64.c | MSFT 
+  Ia32/InterlockedCompareExchange32.c | MSFT 
+  Ia32/InterlockedCompareExchange16.c | MSFT
+  Ia32/InterlockedDecrement.c | MSFT 
+  Ia32/InterlockedIncrement.c | MSFT 
+  SynchronizationMsc.c  | MSFT
+
+  Ia32/InterlockedCompareExchange64.nasm| INTEL
+  Ia32/InterlockedCompareExchange64.asm | INTEL 
+  Ia32/InterlockedCompareExchange32.nasm| INTEL
+  Ia32/InterlockedCompareExchange32.asm | INTEL 
+  Ia32/InterlockedCompareExchange16.nasm| INTEL
+  Ia32/InterlockedCompareExchange16.asm | INTEL
+  Ia32/InterlockedDecrement.nasm| INTEL
+  Ia32/InterlockedDecrement.asm | INTEL 
+  Ia32/InterlockedIncrement.nasm| INTEL
+  Ia32/InterlockedIncrement.asm | INTEL 
+  Synchronization.c | INTEL
+
+  Ia32/InternalGetSpinLockProperties.c | GCC
+  Ia32/GccInline.c | GCC
+  SynchronizationGcc.c  | GCC
+
+[Sources.X64]
+  Ia32/InternalGetSpinLockProperties.c | MSFT
+  X64/InterlockedCompareExchange64.c | MSFT
+  X64/InterlockedCompareExchange32.c | MSFT
+  X64/InterlockedCompareExchange16.c | MSFT
+  
+  X64/InterlockedCompareExchange64.nasm| INTEL
+  X64/InterlockedCompareExchange64.asm | INTEL
+  X64/InterlockedCompareExchange32.nasm| INTEL
+  X64/InterlockedCompareExchange32.asm | INTEL
+  X64/InterlockedCompareExchange16.nasm| INTEL
+  X64/InterlockedCompareExchange16.asm | INTEL
+  
+  X64/InterlockedDecrement.c | MSFT 
+  X64/InterlockedIncrement.c | MSFT 
+  SynchronizationMsc.c | MSFT 
+
+  X64/InterlockedDecrement.nasm| INTEL
+  X64/InterlockedDecrement.asm | INTEL 
+  X64/InterlockedIncrement.nasm| INTEL
+  X64/InterlockedIncrement.asm | INTEL 
+  Synchronization.c | INTEL 
+
+  Ia32/InternalGetSpinLockProperties.c | GCC
+  X64/GccInline.c | GCC
+  SynchronizationGcc.c  | GCC 
+
+[Sources.IPF]
+  Ipf/Synchronization.c
+  Ipf/InterlockedCompareExchange64.s
+  Ipf/InterlockedCompareExchange32.s
+  Ipf/InterlockedCompareExchange16.s
+
+  Ipf/InternalGetSpinLockProperties.c | MSFT
+  Ipf/InternalGetSpinLockProperties.c | GCC
+
+  Synchronization.c     | INTEL 
+  SynchronizationMsc.c  | MSFT 
+  SynchronizationGcc.c  | GCC 
+
+[Sources.EBC]
+  Synchronization.c
+  Ebc/Synchronization.c
+
+[Sources.ARM]
+  Synchronization.c
+  Arm/Synchronization.asm       | RVCT
+  Arm/Synchronization.S         | GCC
+
+[Sources.AARCH64]
+  Synchronization.c
+  AArch64/Synchronization.S
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  PcdLib
+  TimerLib
+  DebugLib
+  BaseMemoryLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdSpinLockTimeout  ## SOMETIMES_CONSUMES
+

@@ -1,0 +1,22 @@
+// /** @file
+// Instance of I/O Library using CPU I/O PPI.
+//
+// I/O Library implementation that uses the CPU I/O PPI for I/O
+// and MMIO operations.
+//
+// Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
+//
+// This program and the accompanying materials
+// are licensed and made available under the terms and conditions of the BSD License
+// which accompanies this distribution. The full text of the license may be found at
+// http://opensource.org/licenses/bsd-license.php.
+// THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+// WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Instance of I/O Library using CPU I/O PPI"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "I/O Library implementation that uses the CPU I/O PPI for I/O and MMIO operations."
+

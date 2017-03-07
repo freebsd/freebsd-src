@@ -1,0 +1,48 @@
+## @file
+# PEI Services Library implementation.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiServicesLib
+  MODULE_UNI_FILE                = PeiServicesLib.uni
+  FILE_GUID                      = a804239b-4155-446f-acc8-f0825d74908c
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PeiServicesLib|SEC PEIM PEI_CORE 
+  PI_SPECIFICATION_VERSION       = 0x0001000A
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#
+
+[Sources]
+  PeiServicesLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  PeiServicesTablePointerLib
+  MemoryAllocationLib
+  DebugLib
+
+[Guids]
+  gEfiFirmwareFileSystem2Guid        ## SOMETIMES_PRODUCES ## GUID # FV File System Guid.
+
+[Ppis]
+  gEfiPeiFirmwareVolumeInfoPpiGuid   ## SOMETIMES_PRODUCES
+  gEfiPeiFirmwareVolumeInfo2PpiGuid  ## SOMETIMES_PRODUCES
+

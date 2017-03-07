@@ -1,0 +1,46 @@
+## @file
+# Instance of S3 I/O Library based on I/O and S3 BootScript Library.
+#
+# S3 I/O and MMIO Library Services that do I/O and also 
+# enable the I/O operatation to be replayed during an S3 resume.
+#
+# Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+# This program and the accompanying materials are
+# licensed and made available under the terms and conditions of the BSD License
+# which accompanies this distribution.  The full text of the license may be found at
+# http://opensource.org/licenses/bsd-license.php
+#
+# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseS3IoLib
+  MODULE_UNI_FILE                = BaseS3IoLib.uni
+  FILE_GUID                      = B13F938E-47DF-4516-A397-8927A4E42B61
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = S3IoLib 
+
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  S3IoLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  IoLib
+  S3BootScriptLib
+

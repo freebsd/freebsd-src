@@ -1,0 +1,49 @@
+## @file
+# Instance of DXE Services Table Library using EFI Configuration Table.
+#
+# DXE Services Table Library that retrieves a pointer to the DXE Services
+# Table from the Configuration Table in the EFI System Table.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = DxeServicesTableLib
+  MODULE_UNI_FILE                = DxeServicesTableLib.uni
+  FILE_GUID                      = baa1baa3-0a8d-402c-8042-985115fae953
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = DxeServicesTableLib|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER SMM_CORE
+
+  CONSTRUCTOR                    = DxeServicesTableLibConstructor
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  DxeServicesTableLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  UefiLib
+  DebugLib
+
+
+[Guids]
+  gEfiDxeServicesTableGuid                      ## CONSUMES  ## SystemTable
+

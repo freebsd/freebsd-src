@@ -1,0 +1,45 @@
+## @file
+# Instance of Post Code Library based on Report Status Code Library.
+#
+# Post Code Library that layers on top of a Report Status Code Library instance.
+#
+# Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiDxePostCodeLibReportStatusCode
+  MODULE_UNI_FILE                = PeiDxePostCodeLibReportStatusCode.uni
+  FILE_GUID                      = e062c52d-78dc-4cc5-b246-b13497a8123c
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PostCodeLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER DXE_SMM_DRIVER PEIM PEI_CORE UEFI_APPLICATION UEFI_DRIVER
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  PostCode.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  PcdLib
+  ReportStatusCodeLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdPostCodePropertyMask     ## CONSUMES
+

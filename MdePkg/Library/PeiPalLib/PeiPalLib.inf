@@ -1,0 +1,51 @@
+## @file
+# Instance of PAL Library using a PPI for PAL entrypoint.
+#
+# Instance of PAL Library that uses a PPI to retrieve the PAL
+# Entry Point and layers on top of AsmPalCall() in the Base Library
+#
+# Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiPalLib
+  MODULE_UNI_FILE                = PeiPalLib.uni
+  FILE_GUID                      = B53DC524-6B98-4584-940B-8F1363DEF09E
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PalLib|PEIM SEC PEI_CORE
+
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IPF
+#
+
+[Sources]
+  PeiPalLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  BaseLib
+  PeiServicesLib
+  PeiServicesTablePointerLib
+
+
+[Ppis]
+  gEfiSecPlatformInformationPpiGuid             ## CONSUMES
+

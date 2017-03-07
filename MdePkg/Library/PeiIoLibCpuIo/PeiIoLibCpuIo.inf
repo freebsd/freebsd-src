@@ -1,0 +1,48 @@
+## @file
+# Instance of I/O Library using CPU I/O PPI.
+#
+# I/O Library implementation that uses the CPU I/O PPI for I/O
+#  and MMIO operations.
+#
+# Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiIoLibCpuIo
+  MODULE_UNI_FILE                = PeiIoLibCpuIo.uni
+  FILE_GUID                      = b2585b69-fb63-4220-844a-8fbea8bf01af
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = IoLib|PEIM PEI_CORE SEC
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#
+
+[Sources]
+  IoHighLevel.c
+  IoLib.c
+  IoLibMmioBuffer.c
+ 
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  PeiServicesTablePointerLib
+  BaseLib
+  DebugLib
+
+[Depex.common.PEIM]
+  gEfiPeiCpuIoPpiInstalledGuid
+

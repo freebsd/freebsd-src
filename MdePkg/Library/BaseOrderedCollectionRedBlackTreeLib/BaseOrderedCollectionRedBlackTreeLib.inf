@@ -1,0 +1,50 @@
+## @file
+#  An OrderedCollectionLib instance that provides a red-black tree
+#  implementation, and allocates and releases tree nodes with
+#  MemoryAllocationLib.
+#
+#  This library instance is useful when a fast associative container is needed.
+#  Worst case time complexity is O(log n) for Find(), Next(), Prev(), Min(),
+#  Max(), Insert(), and Delete(), where "n" is the number of elements in the
+#  tree. Complete ordered traversal takes O(n) time.
+#
+#  The implementation is also useful as a fast priority queue.
+#
+#  Copyright (C) 2014, Red Hat, Inc.
+#
+#  This program and the accompanying materials are licensed and made available
+#  under the terms and conditions of the BSD License that accompanies this
+#  distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR
+#  IMPLIED.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseOrderedCollectionRedBlackTreeLib
+  MODULE_UNI_FILE                = BaseOrderedCollectionRedBlackTreeLib.uni
+  FILE_GUID                      = 699F73C3-0058-484C-A9E5-61189276A985
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = OrderedCollectionLib
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  BaseOrderedCollectionRedBlackTreeLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  MemoryAllocationLib
+
+[FeaturePcd]
+  gEfiMdePkgTokenSpaceGuid.PcdValidateOrderedCollection ## CONSUMES

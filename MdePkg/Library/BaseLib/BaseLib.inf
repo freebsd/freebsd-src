@@ -1,0 +1,872 @@
+## @file
+#  Base Library implementation.
+#
+#  Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
+#  Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
+#  Portions copyright (c) 2011 - 2013, ARM Ltd. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseLib
+  MODULE_UNI_FILE                = BaseLib.uni
+  FILE_GUID                      = 27d67720-ea68-48ae-93da-a3a074c90e30
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.1
+  LIBRARY_CLASS                  = BaseLib 
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC ARM AARCH64
+#
+
+[Sources]
+  CheckSum.c
+  SwitchStack.c
+  SwapBytes64.c
+  SwapBytes32.c
+  SwapBytes16.c
+  LongJump.c
+  SetJump.c
+  RShiftU64.c
+  RRotU64.c
+  RRotU32.c
+  MultU64x64.c
+  MultU64x32.c
+  MultS64x64.c
+  ModU64x32.c
+  LShiftU64.c
+  LRotU64.c
+  LRotU32.c
+  LowBitSet64.c
+  LowBitSet32.c
+  HighBitSet64.c
+  HighBitSet32.c
+  GetPowerOfTwo64.c
+  GetPowerOfTwo32.c
+  DivU64x64Remainder.c
+  DivU64x32Remainder.c
+  DivU64x32.c
+  DivS64x64Remainder.c
+  ARShiftU64.c
+  BitField.c
+  CpuDeadLoop.c
+  Cpu.c
+  LinkedList.c
+  SafeString.c
+  String.c
+  FilePaths.c
+  BaseLibInternals.h
+
+[Sources.Ia32]
+  Ia32/Wbinvd.c | MSFT 
+  Ia32/WriteMm7.c | MSFT 
+  Ia32/WriteMm6.c | MSFT 
+  Ia32/WriteMm5.c | MSFT 
+  Ia32/WriteMm4.c | MSFT 
+  Ia32/WriteMm3.c | MSFT 
+  Ia32/WriteMm2.c | MSFT 
+  Ia32/WriteMm1.c | MSFT 
+  Ia32/WriteMm0.c | MSFT 
+  Ia32/WriteLdtr.c | MSFT 
+  Ia32/WriteIdtr.c | MSFT 
+  Ia32/WriteGdtr.c | MSFT 
+  Ia32/WriteDr7.c | MSFT 
+  Ia32/WriteDr6.c | MSFT 
+  Ia32/WriteDr5.c | MSFT 
+  Ia32/WriteDr4.c | MSFT 
+  Ia32/WriteDr3.c | MSFT 
+  Ia32/WriteDr2.c | MSFT 
+  Ia32/WriteDr1.c | MSFT 
+  Ia32/WriteDr0.c | MSFT 
+  Ia32/WriteCr4.c | MSFT 
+  Ia32/WriteCr3.c | MSFT 
+  Ia32/WriteCr2.c | MSFT 
+  Ia32/WriteCr0.c | MSFT 
+  Ia32/WriteMsr64.c | MSFT 
+  Ia32/SwapBytes64.c | MSFT 
+  Ia32/SetJump.c | MSFT 
+  Ia32/RRotU64.c | MSFT 
+  Ia32/RShiftU64.c | MSFT 
+  Ia32/ReadPmc.c | MSFT 
+  Ia32/ReadTsc.c | MSFT 
+  Ia32/ReadLdtr.c | MSFT 
+  Ia32/ReadIdtr.c | MSFT 
+  Ia32/ReadGdtr.c | MSFT 
+  Ia32/ReadTr.c | MSFT 
+  Ia32/ReadSs.c | MSFT 
+  Ia32/ReadGs.c | MSFT 
+  Ia32/ReadFs.c | MSFT 
+  Ia32/ReadEs.c | MSFT 
+  Ia32/ReadDs.c | MSFT 
+  Ia32/ReadCs.c | MSFT 
+  Ia32/ReadMsr64.c | MSFT 
+  Ia32/ReadMm7.c | MSFT 
+  Ia32/ReadMm6.c | MSFT 
+  Ia32/ReadMm5.c | MSFT 
+  Ia32/ReadMm4.c | MSFT 
+  Ia32/ReadMm3.c | MSFT 
+  Ia32/ReadMm2.c | MSFT 
+  Ia32/ReadMm1.c | MSFT 
+  Ia32/ReadMm0.c | MSFT 
+  Ia32/ReadEflags.c | MSFT 
+  Ia32/ReadDr7.c | MSFT 
+  Ia32/ReadDr6.c | MSFT 
+  Ia32/ReadDr5.c | MSFT 
+  Ia32/ReadDr4.c | MSFT 
+  Ia32/ReadDr3.c | MSFT 
+  Ia32/ReadDr2.c | MSFT 
+  Ia32/ReadDr1.c | MSFT 
+  Ia32/ReadDr0.c | MSFT 
+  Ia32/ReadCr4.c | MSFT 
+  Ia32/ReadCr3.c | MSFT 
+  Ia32/ReadCr2.c | MSFT 
+  Ia32/ReadCr0.c | MSFT 
+  Ia32/Mwait.c | MSFT 
+  Ia32/Monitor.c | MSFT 
+  Ia32/ModU64x32.c | MSFT 
+  Ia32/MultU64x64.c | MSFT 
+  Ia32/MultU64x32.c | MSFT 
+  Ia32/LShiftU64.c | MSFT 
+  Ia32/LRotU64.c | MSFT 
+  Ia32/LongJump.c | MSFT 
+  Ia32/Invd.c | MSFT 
+  Ia32/FxRestore.c | MSFT 
+  Ia32/FxSave.c | MSFT 
+  Ia32/FlushCacheLine.c | MSFT 
+  Ia32/EnablePaging32.c | MSFT 
+  Ia32/EnableInterrupts.c | MSFT 
+  Ia32/EnableDisableInterrupts.c | MSFT 
+  Ia32/DivU64x64Remainder.nasm| MSFT
+  Ia32/DivU64x64Remainder.asm | MSFT 
+  Ia32/DivU64x32Remainder.c | MSFT 
+  Ia32/DivU64x32.c | MSFT 
+  Ia32/DisablePaging32.c | MSFT 
+  Ia32/DisableInterrupts.c | MSFT 
+  Ia32/CpuPause.c | MSFT 
+  Ia32/CpuIdEx.c | MSFT 
+  Ia32/CpuId.c | MSFT 
+  Ia32/CpuBreakpoint.c | MSFT 
+  Ia32/ARShiftU64.c | MSFT 
+  Ia32/Thunk16.nasm | MSFT
+  Ia32/Thunk16.asm | MSFT
+  Ia32/EnablePaging64.nasm| MSFT
+  Ia32/EnablePaging64.asm | MSFT
+  Ia32/EnableCache.c | MSFT
+  Ia32/DisableCache.c | MSFT
+  Ia32/RdRand.nasm| MSFT
+  Ia32/RdRand.asm | MSFT
+
+  Ia32/Wbinvd.nasm| INTEL
+  Ia32/Wbinvd.asm | INTEL 
+  Ia32/WriteMm7.nasm| INTEL
+  Ia32/WriteMm7.asm | INTEL 
+  Ia32/WriteMm6.nasm| INTEL
+  Ia32/WriteMm6.asm | INTEL 
+  Ia32/WriteMm5.nasm| INTEL
+  Ia32/WriteMm5.asm | INTEL 
+  Ia32/WriteMm4.nasm| INTEL
+  Ia32/WriteMm4.asm | INTEL 
+  Ia32/WriteMm3.nasm| INTEL
+  Ia32/WriteMm3.asm | INTEL 
+  Ia32/WriteMm2.nasm| INTEL
+  Ia32/WriteMm2.asm | INTEL 
+  Ia32/WriteMm1.nasm| INTEL
+  Ia32/WriteMm1.asm | INTEL 
+  Ia32/WriteMm0.nasm| INTEL
+  Ia32/WriteMm0.asm | INTEL 
+  Ia32/WriteLdtr.nasm| INTEL
+  Ia32/WriteLdtr.asm | INTEL 
+  Ia32/WriteIdtr.nasm| INTEL
+  Ia32/WriteIdtr.asm | INTEL 
+  Ia32/WriteGdtr.nasm| INTEL
+  Ia32/WriteGdtr.asm | INTEL 
+  Ia32/WriteDr7.nasm| INTEL
+  Ia32/WriteDr7.asm | INTEL 
+  Ia32/WriteDr6.nasm| INTEL
+  Ia32/WriteDr6.asm | INTEL 
+  Ia32/WriteDr5.nasm| INTEL
+  Ia32/WriteDr5.asm | INTEL 
+  Ia32/WriteDr4.nasm| INTEL
+  Ia32/WriteDr4.asm | INTEL 
+  Ia32/WriteDr3.nasm| INTEL
+  Ia32/WriteDr3.asm | INTEL 
+  Ia32/WriteDr2.nasm| INTEL
+  Ia32/WriteDr2.asm | INTEL 
+  Ia32/WriteDr1.nasm| INTEL
+  Ia32/WriteDr1.asm | INTEL 
+  Ia32/WriteDr0.nasm| INTEL
+  Ia32/WriteDr0.asm | INTEL 
+  Ia32/WriteCr4.nasm| INTEL
+  Ia32/WriteCr4.asm | INTEL 
+  Ia32/WriteCr3.nasm| INTEL
+  Ia32/WriteCr3.asm | INTEL 
+  Ia32/WriteCr2.nasm| INTEL
+  Ia32/WriteCr2.asm | INTEL 
+  Ia32/WriteCr0.nasm| INTEL
+  Ia32/WriteCr0.asm | INTEL 
+  Ia32/WriteMsr64.nasm| INTEL
+  Ia32/WriteMsr64.asm | INTEL 
+  Ia32/SwapBytes64.nasm| INTEL
+  Ia32/SwapBytes64.asm | INTEL 
+  Ia32/SetJump.nasm| INTEL
+  Ia32/SetJump.asm | INTEL 
+  Ia32/RRotU64.nasm| INTEL
+  Ia32/RRotU64.asm | INTEL 
+  Ia32/RShiftU64.nasm| INTEL
+  Ia32/RShiftU64.asm | INTEL 
+  Ia32/ReadPmc.nasm| INTEL
+  Ia32/ReadPmc.asm | INTEL 
+  Ia32/ReadTsc.nasm| INTEL
+  Ia32/ReadTsc.asm | INTEL 
+  Ia32/ReadLdtr.nasm| INTEL
+  Ia32/ReadLdtr.asm | INTEL 
+  Ia32/ReadIdtr.nasm| INTEL
+  Ia32/ReadIdtr.asm | INTEL 
+  Ia32/ReadGdtr.nasm| INTEL
+  Ia32/ReadGdtr.asm | INTEL 
+  Ia32/ReadTr.nasm| INTEL
+  Ia32/ReadTr.asm | INTEL 
+  Ia32/ReadSs.nasm| INTEL
+  Ia32/ReadSs.asm | INTEL 
+  Ia32/ReadGs.nasm| INTEL
+  Ia32/ReadGs.asm | INTEL 
+  Ia32/ReadFs.nasm| INTEL
+  Ia32/ReadFs.asm | INTEL 
+  Ia32/ReadEs.nasm| INTEL
+  Ia32/ReadEs.asm | INTEL 
+  Ia32/ReadDs.nasm| INTEL
+  Ia32/ReadDs.asm | INTEL 
+  Ia32/ReadCs.nasm| INTEL
+  Ia32/ReadCs.asm | INTEL 
+  Ia32/ReadMsr64.nasm| INTEL
+  Ia32/ReadMsr64.asm | INTEL 
+  Ia32/ReadMm7.nasm| INTEL
+  Ia32/ReadMm7.asm | INTEL 
+  Ia32/ReadMm6.nasm| INTEL
+  Ia32/ReadMm6.asm | INTEL 
+  Ia32/ReadMm5.nasm| INTEL
+  Ia32/ReadMm5.asm | INTEL 
+  Ia32/ReadMm4.nasm| INTEL
+  Ia32/ReadMm4.asm | INTEL 
+  Ia32/ReadMm3.nasm| INTEL
+  Ia32/ReadMm3.asm | INTEL 
+  Ia32/ReadMm2.nasm| INTEL
+  Ia32/ReadMm2.asm | INTEL 
+  Ia32/ReadMm1.nasm| INTEL
+  Ia32/ReadMm1.asm | INTEL 
+  Ia32/ReadMm0.nasm| INTEL
+  Ia32/ReadMm0.asm | INTEL 
+  Ia32/ReadEflags.nasm| INTEL
+  Ia32/ReadEflags.asm | INTEL 
+  Ia32/ReadDr7.nasm| INTEL
+  Ia32/ReadDr7.asm | INTEL 
+  Ia32/ReadDr6.nasm| INTEL
+  Ia32/ReadDr6.asm | INTEL 
+  Ia32/ReadDr5.nasm| INTEL
+  Ia32/ReadDr5.asm | INTEL 
+  Ia32/ReadDr4.nasm| INTEL
+  Ia32/ReadDr4.asm | INTEL 
+  Ia32/ReadDr3.nasm| INTEL
+  Ia32/ReadDr3.asm | INTEL 
+  Ia32/ReadDr2.nasm| INTEL
+  Ia32/ReadDr2.asm | INTEL 
+  Ia32/ReadDr1.nasm| INTEL
+  Ia32/ReadDr1.asm | INTEL 
+  Ia32/ReadDr0.nasm| INTEL
+  Ia32/ReadDr0.asm | INTEL 
+  Ia32/ReadCr4.nasm| INTEL
+  Ia32/ReadCr4.asm | INTEL 
+  Ia32/ReadCr3.nasm| INTEL
+  Ia32/ReadCr3.asm | INTEL 
+  Ia32/ReadCr2.nasm| INTEL
+  Ia32/ReadCr2.asm | INTEL 
+  Ia32/ReadCr0.nasm| INTEL
+  Ia32/ReadCr0.asm | INTEL 
+  Ia32/Mwait.nasm| INTEL
+  Ia32/Mwait.asm | INTEL 
+  Ia32/Monitor.nasm| INTEL
+  Ia32/Monitor.asm | INTEL 
+  Ia32/ModU64x32.nasm| INTEL
+  Ia32/ModU64x32.asm | INTEL 
+  Ia32/MultU64x64.nasm| INTEL
+  Ia32/MultU64x64.asm | INTEL 
+  Ia32/MultU64x32.nasm| INTEL
+  Ia32/MultU64x32.asm | INTEL 
+  Ia32/LShiftU64.nasm| INTEL
+  Ia32/LShiftU64.asm | INTEL 
+  Ia32/LRotU64.nasm| INTEL
+  Ia32/LRotU64.asm | INTEL 
+  Ia32/LongJump.nasm| INTEL
+  Ia32/LongJump.asm | INTEL 
+  Ia32/Invd.nasm| INTEL
+  Ia32/Invd.asm | INTEL 
+  Ia32/FxRestore.nasm| INTEL
+  Ia32/FxRestore.asm | INTEL 
+  Ia32/FxSave.nasm| INTEL
+  Ia32/FxSave.asm | INTEL 
+  Ia32/FlushCacheLine.nasm| INTEL
+  Ia32/FlushCacheLine.asm | INTEL 
+  Ia32/EnablePaging32.nasm| INTEL
+  Ia32/EnablePaging32.asm | INTEL 
+  Ia32/EnableInterrupts.nasm| INTEL
+  Ia32/EnableInterrupts.asm | INTEL 
+  Ia32/EnableDisableInterrupts.nasm| INTEL
+  Ia32/EnableDisableInterrupts.asm | INTEL 
+  Ia32/DivU64x64Remainder.nasm| INTEL
+  Ia32/DivU64x64Remainder.asm | INTEL 
+  Ia32/DivU64x32Remainder.nasm| INTEL
+  Ia32/DivU64x32Remainder.asm | INTEL 
+  Ia32/DivU64x32.nasm| INTEL
+  Ia32/DivU64x32.asm | INTEL 
+  Ia32/DisablePaging32.nasm| INTEL
+  Ia32/DisablePaging32.asm | INTEL
+  Ia32/DisableInterrupts.nasm| INTEL
+  Ia32/DisableInterrupts.asm | INTEL 
+  Ia32/CpuPause.nasm| INTEL
+  Ia32/CpuPause.asm | INTEL 
+  Ia32/CpuIdEx.nasm| INTEL
+  Ia32/CpuIdEx.asm | INTEL 
+  Ia32/CpuId.nasm| INTEL
+  Ia32/CpuId.asm | INTEL 
+  Ia32/CpuBreakpoint.nasm| INTEL
+  Ia32/CpuBreakpoint.asm | INTEL 
+  Ia32/ARShiftU64.nasm| INTEL
+  Ia32/ARShiftU64.asm | INTEL 
+  Ia32/Thunk16.nasm | INTEL
+  Ia32/Thunk16.asm | INTEL
+  Ia32/EnablePaging64.nasm| INTEL
+  Ia32/EnablePaging64.asm | INTEL
+  Ia32/EnableCache.nasm| INTEL
+  Ia32/EnableCache.asm | INTEL
+  Ia32/DisableCache.nasm| INTEL
+  Ia32/DisableCache.asm | INTEL
+  Ia32/RdRand.nasm| INTEL
+  Ia32/RdRand.asm | INTEL
+
+  Ia32/GccInline.c | GCC
+  Ia32/Thunk16.nasm | GCC 
+  Ia32/Thunk16.S | XCODE 
+  Ia32/EnableDisableInterrupts.nasm| GCC
+  Ia32/EnableDisableInterrupts.S | GCC 
+  Ia32/EnablePaging64.nasm| GCC
+  Ia32/EnablePaging64.S | GCC 
+  Ia32/DisablePaging32.nasm| GCC
+  Ia32/DisablePaging32.S | GCC 
+  Ia32/EnablePaging32.nasm| GCC
+  Ia32/EnablePaging32.S | GCC 
+  Ia32/Mwait.nasm| GCC
+  Ia32/Mwait.S | GCC 
+  Ia32/Monitor.nasm| GCC
+  Ia32/Monitor.S | GCC 
+  Ia32/CpuIdEx.nasm| GCC
+  Ia32/CpuIdEx.S | GCC 
+  Ia32/CpuId.nasm| GCC
+  Ia32/CpuId.S | GCC 
+  Ia32/LongJump.nasm| GCC
+  Ia32/LongJump.S | GCC 
+  Ia32/SetJump.nasm| GCC
+  Ia32/SetJump.S | GCC 
+  Ia32/SwapBytes64.nasm| GCC
+  Ia32/SwapBytes64.S | GCC 
+  Ia32/DivU64x64Remainder.nasm| GCC
+  Ia32/DivU64x64Remainder.S | GCC 
+  Ia32/DivU64x32Remainder.nasm| GCC
+  Ia32/DivU64x32Remainder.S | GCC 
+  Ia32/ModU64x32.nasm| GCC
+  Ia32/ModU64x32.S | GCC 
+  Ia32/DivU64x32.nasm| GCC
+  Ia32/DivU64x32.S | GCC 
+  Ia32/MultU64x64.nasm| GCC
+  Ia32/MultU64x64.S | GCC 
+  Ia32/MultU64x32.nasm| GCC
+  Ia32/MultU64x32.S | GCC 
+  Ia32/RRotU64.nasm| GCC
+  Ia32/RRotU64.S | GCC 
+  Ia32/LRotU64.nasm| GCC
+  Ia32/LRotU64.S | GCC 
+  Ia32/ARShiftU64.nasm| GCC
+  Ia32/ARShiftU64.S | GCC 
+  Ia32/RShiftU64.nasm| GCC
+  Ia32/RShiftU64.S | GCC 
+  Ia32/LShiftU64.nasm| GCC
+  Ia32/LShiftU64.S | GCC 
+  Ia32/EnableCache.nasm| GCC
+  Ia32/EnableCache.S | GCC
+  Ia32/DisableCache.nasm| GCC
+  Ia32/DisableCache.S | GCC
+  Ia32/RdRand.nasm| GCC
+  Ia32/RdRand.S | GCC
+
+  Ia32/DivS64x64Remainder.c
+  Ia32/InternalSwitchStack.c | MSFT
+  Ia32/InternalSwitchStack.c | INTEL
+  Ia32/InternalSwitchStack.S | GCC
+  Ia32/InternalSwitchStack.nasm | GCC
+  Ia32/Non-existing.c
+  Unaligned.c
+  X86WriteIdtr.c
+  X86WriteGdtr.c
+  X86Thunk.c
+  X86ReadIdtr.c
+  X86ReadGdtr.c
+  X86Msr.c
+  X86MemoryFence.c | MSFT
+  X86MemoryFence.c | INTEL
+  X86GetInterruptState.c
+  X86FxSave.c
+  X86FxRestore.c
+  X86EnablePaging64.c
+  X86EnablePaging32.c
+  X86DisablePaging64.c
+  X86DisablePaging32.c
+  X86RdRand.c
+
+[Sources.X64]
+  X64/Thunk16.nasm
+  X64/Thunk16.asm
+  X64/CpuIdEx.nasm
+  X64/CpuIdEx.asm
+  X64/CpuId.nasm
+  X64/CpuId.asm
+  X64/LongJump.nasm
+  X64/LongJump.asm
+  X64/SetJump.nasm
+  X64/SetJump.asm
+  X64/SwitchStack.nasm
+  X64/SwitchStack.asm
+  X64/EnableCache.nasm
+  X64/EnableCache.asm
+  X64/DisableCache.nasm
+  X64/DisableCache.asm
+
+  X64/CpuBreakpoint.c | MSFT 
+  X64/WriteMsr64.c | MSFT 
+  X64/ReadMsr64.c | MSFT 
+  X64/RdRand.nasm| MSFT
+  X64/RdRand.asm | MSFT
+  X64/CpuPause.nasm| MSFT
+  X64/CpuPause.asm | MSFT
+  X64/EnableDisableInterrupts.nasm| MSFT
+  X64/EnableDisableInterrupts.asm | MSFT
+  X64/DisableInterrupts.nasm| MSFT
+  X64/DisableInterrupts.asm | MSFT
+  X64/EnableInterrupts.nasm| MSFT
+  X64/EnableInterrupts.asm | MSFT
+  X64/FlushCacheLine.nasm| MSFT
+  X64/FlushCacheLine.asm | MSFT
+  X64/Invd.nasm| MSFT
+  X64/Invd.asm | MSFT
+  X64/Wbinvd.nasm| MSFT
+  X64/Wbinvd.asm | MSFT
+  X64/DisablePaging64.nasm| MSFT
+  X64/DisablePaging64.asm | MSFT
+  X64/Mwait.nasm| MSFT
+  X64/Mwait.asm | MSFT
+  X64/Monitor.nasm| MSFT
+  X64/Monitor.asm | MSFT
+  X64/ReadPmc.nasm| MSFT
+  X64/ReadPmc.asm | MSFT
+  X64/ReadTsc.nasm| MSFT
+  X64/ReadTsc.asm | MSFT
+  X64/WriteMm7.nasm| MSFT
+  X64/WriteMm7.asm | MSFT
+  X64/WriteMm6.nasm| MSFT
+  X64/WriteMm6.asm | MSFT
+  X64/WriteMm5.nasm| MSFT
+  X64/WriteMm5.asm | MSFT
+  X64/WriteMm4.nasm| MSFT
+  X64/WriteMm4.asm | MSFT
+  X64/WriteMm3.nasm| MSFT
+  X64/WriteMm3.asm | MSFT
+  X64/WriteMm2.nasm| MSFT
+  X64/WriteMm2.asm | MSFT
+  X64/WriteMm1.nasm| MSFT
+  X64/WriteMm1.asm | MSFT
+  X64/WriteMm0.nasm| MSFT
+  X64/WriteMm0.asm | MSFT
+  X64/ReadMm7.nasm| MSFT
+  X64/ReadMm7.asm | MSFT
+  X64/ReadMm6.nasm| MSFT
+  X64/ReadMm6.asm | MSFT
+  X64/ReadMm5.nasm| MSFT
+  X64/ReadMm5.asm | MSFT
+  X64/ReadMm4.nasm| MSFT
+  X64/ReadMm4.asm | MSFT
+  X64/ReadMm3.nasm| MSFT
+  X64/ReadMm3.asm | MSFT
+  X64/ReadMm2.nasm| MSFT
+  X64/ReadMm2.asm | MSFT
+  X64/ReadMm1.nasm| MSFT
+  X64/ReadMm1.asm | MSFT
+  X64/ReadMm0.nasm| MSFT
+  X64/ReadMm0.asm | MSFT
+  X64/FxRestore.nasm| MSFT
+  X64/FxRestore.asm | MSFT
+  X64/FxSave.nasm| MSFT
+  X64/FxSave.asm | MSFT
+  X64/WriteLdtr.nasm| MSFT
+  X64/WriteLdtr.asm | MSFT
+  X64/ReadLdtr.nasm| MSFT
+  X64/ReadLdtr.asm | MSFT
+  X64/WriteIdtr.nasm| MSFT
+  X64/WriteIdtr.asm | MSFT
+  X64/ReadIdtr.nasm| MSFT
+  X64/ReadIdtr.asm | MSFT
+  X64/WriteGdtr.nasm| MSFT
+  X64/WriteGdtr.asm | MSFT
+  X64/ReadGdtr.nasm| MSFT
+  X64/ReadGdtr.asm | MSFT
+  X64/ReadTr.nasm| MSFT
+  X64/ReadTr.asm | MSFT
+  X64/ReadSs.nasm| MSFT
+  X64/ReadSs.asm | MSFT
+  X64/ReadGs.nasm| MSFT
+  X64/ReadGs.asm | MSFT
+  X64/ReadFs.nasm| MSFT
+  X64/ReadFs.asm | MSFT
+  X64/ReadEs.nasm| MSFT
+  X64/ReadEs.asm | MSFT
+  X64/ReadDs.nasm| MSFT
+  X64/ReadDs.asm | MSFT
+  X64/ReadCs.nasm| MSFT
+  X64/ReadCs.asm | MSFT
+  X64/WriteDr7.nasm| MSFT
+  X64/WriteDr7.asm | MSFT
+  X64/WriteDr6.nasm| MSFT
+  X64/WriteDr6.asm | MSFT
+  X64/WriteDr5.nasm| MSFT
+  X64/WriteDr5.asm | MSFT
+  X64/WriteDr4.nasm| MSFT
+  X64/WriteDr4.asm | MSFT
+  X64/WriteDr3.nasm| MSFT
+  X64/WriteDr3.asm | MSFT
+  X64/WriteDr2.nasm| MSFT
+  X64/WriteDr2.asm | MSFT
+  X64/WriteDr1.nasm| MSFT
+  X64/WriteDr1.asm | MSFT
+  X64/WriteDr0.nasm| MSFT
+  X64/WriteDr0.asm | MSFT
+  X64/ReadDr7.nasm| MSFT
+  X64/ReadDr7.asm | MSFT
+  X64/ReadDr6.nasm| MSFT
+  X64/ReadDr6.asm | MSFT
+  X64/ReadDr5.nasm| MSFT
+  X64/ReadDr5.asm | MSFT
+  X64/ReadDr4.nasm| MSFT
+  X64/ReadDr4.asm | MSFT
+  X64/ReadDr3.nasm| MSFT
+  X64/ReadDr3.asm | MSFT
+  X64/ReadDr2.nasm| MSFT
+  X64/ReadDr2.asm | MSFT
+  X64/ReadDr1.nasm| MSFT
+  X64/ReadDr1.asm | MSFT
+  X64/ReadDr0.nasm| MSFT
+  X64/ReadDr0.asm | MSFT
+  X64/WriteCr4.nasm| MSFT
+  X64/WriteCr4.asm | MSFT
+  X64/WriteCr3.nasm| MSFT
+  X64/WriteCr3.asm | MSFT
+  X64/WriteCr2.nasm| MSFT
+  X64/WriteCr2.asm | MSFT
+  X64/WriteCr0.nasm| MSFT
+  X64/WriteCr0.asm | MSFT
+  X64/ReadCr4.nasm| MSFT
+  X64/ReadCr4.asm | MSFT
+  X64/ReadCr3.nasm| MSFT
+  X64/ReadCr3.asm | MSFT
+  X64/ReadCr2.nasm| MSFT
+  X64/ReadCr2.asm | MSFT
+  X64/ReadCr0.nasm| MSFT
+  X64/ReadCr0.asm | MSFT
+  X64/ReadEflags.nasm| MSFT
+  X64/ReadEflags.asm | MSFT
+
+  X64/CpuBreakpoint.nasm| INTEL
+  X64/CpuBreakpoint.asm | INTEL 
+  X64/WriteMsr64.nasm| INTEL
+  X64/WriteMsr64.asm | INTEL 
+  X64/ReadMsr64.nasm| INTEL
+  X64/ReadMsr64.asm | INTEL 
+  X64/RdRand.nasm| INTEL
+  X64/RdRand.asm | INTEL
+  X64/CpuPause.nasm| INTEL
+  X64/CpuPause.asm | INTEL
+  X64/EnableDisableInterrupts.nasm| INTEL
+  X64/EnableDisableInterrupts.asm | INTEL
+  X64/DisableInterrupts.nasm| INTEL
+  X64/DisableInterrupts.asm | INTEL
+  X64/EnableInterrupts.nasm| INTEL
+  X64/EnableInterrupts.asm | INTEL
+  X64/FlushCacheLine.nasm| INTEL
+  X64/FlushCacheLine.asm | INTEL
+  X64/Invd.nasm| INTEL
+  X64/Invd.asm | INTEL
+  X64/Wbinvd.nasm| INTEL
+  X64/Wbinvd.asm | INTEL
+  X64/DisablePaging64.nasm| INTEL
+  X64/DisablePaging64.asm | INTEL
+  X64/Mwait.nasm| INTEL
+  X64/Mwait.asm | INTEL
+  X64/Monitor.nasm| INTEL
+  X64/Monitor.asm | INTEL
+  X64/ReadPmc.nasm| INTEL
+  X64/ReadPmc.asm | INTEL
+  X64/ReadTsc.nasm| INTEL
+  X64/ReadTsc.asm | INTEL
+  X64/WriteMm7.nasm| INTEL
+  X64/WriteMm7.asm | INTEL
+  X64/WriteMm6.nasm| INTEL
+  X64/WriteMm6.asm | INTEL
+  X64/WriteMm5.nasm| INTEL
+  X64/WriteMm5.asm | INTEL
+  X64/WriteMm4.nasm| INTEL
+  X64/WriteMm4.asm | INTEL
+  X64/WriteMm3.nasm| INTEL
+  X64/WriteMm3.asm | INTEL
+  X64/WriteMm2.nasm| INTEL
+  X64/WriteMm2.asm | INTEL
+  X64/WriteMm1.nasm| INTEL
+  X64/WriteMm1.asm | INTEL
+  X64/WriteMm0.nasm| INTEL
+  X64/WriteMm0.asm | INTEL
+  X64/ReadMm7.nasm| INTEL
+  X64/ReadMm7.asm | INTEL
+  X64/ReadMm6.nasm| INTEL
+  X64/ReadMm6.asm | INTEL
+  X64/ReadMm5.nasm| INTEL
+  X64/ReadMm5.asm | INTEL
+  X64/ReadMm4.nasm| INTEL
+  X64/ReadMm4.asm | INTEL
+  X64/ReadMm3.nasm| INTEL
+  X64/ReadMm3.asm | INTEL
+  X64/ReadMm2.nasm| INTEL
+  X64/ReadMm2.asm | INTEL
+  X64/ReadMm1.nasm| INTEL
+  X64/ReadMm1.asm | INTEL
+  X64/ReadMm0.nasm| INTEL
+  X64/ReadMm0.asm | INTEL
+  X64/FxRestore.nasm| INTEL
+  X64/FxRestore.asm | INTEL
+  X64/FxSave.nasm| INTEL
+  X64/FxSave.asm | INTEL
+  X64/WriteLdtr.nasm| INTEL
+  X64/WriteLdtr.asm | INTEL
+  X64/ReadLdtr.nasm| INTEL
+  X64/ReadLdtr.asm | INTEL
+  X64/WriteIdtr.nasm| INTEL
+  X64/WriteIdtr.asm | INTEL
+  X64/ReadIdtr.nasm| INTEL
+  X64/ReadIdtr.asm | INTEL
+  X64/WriteGdtr.nasm| INTEL
+  X64/WriteGdtr.asm | INTEL
+  X64/ReadGdtr.nasm| INTEL
+  X64/ReadGdtr.asm | INTEL
+  X64/ReadTr.nasm| INTEL
+  X64/ReadTr.asm | INTEL
+  X64/ReadSs.nasm| INTEL
+  X64/ReadSs.asm | INTEL
+  X64/ReadGs.nasm| INTEL
+  X64/ReadGs.asm | INTEL
+  X64/ReadFs.nasm| INTEL
+  X64/ReadFs.asm | INTEL
+  X64/ReadEs.nasm| INTEL
+  X64/ReadEs.asm | INTEL
+  X64/ReadDs.nasm| INTEL
+  X64/ReadDs.asm | INTEL
+  X64/ReadCs.nasm| INTEL
+  X64/ReadCs.asm | INTEL
+  X64/WriteDr7.nasm| INTEL
+  X64/WriteDr7.asm | INTEL
+  X64/WriteDr6.nasm| INTEL
+  X64/WriteDr6.asm | INTEL
+  X64/WriteDr5.nasm| INTEL
+  X64/WriteDr5.asm | INTEL
+  X64/WriteDr4.nasm| INTEL
+  X64/WriteDr4.asm | INTEL
+  X64/WriteDr3.nasm| INTEL
+  X64/WriteDr3.asm | INTEL
+  X64/WriteDr2.nasm| INTEL
+  X64/WriteDr2.asm | INTEL
+  X64/WriteDr1.nasm| INTEL
+  X64/WriteDr1.asm | INTEL
+  X64/WriteDr0.nasm| INTEL
+  X64/WriteDr0.asm | INTEL
+  X64/ReadDr7.nasm| INTEL
+  X64/ReadDr7.asm | INTEL
+  X64/ReadDr6.nasm| INTEL
+  X64/ReadDr6.asm | INTEL
+  X64/ReadDr5.nasm| INTEL
+  X64/ReadDr5.asm | INTEL
+  X64/ReadDr4.nasm| INTEL
+  X64/ReadDr4.asm | INTEL
+  X64/ReadDr3.nasm| INTEL
+  X64/ReadDr3.asm | INTEL
+  X64/ReadDr2.nasm| INTEL
+  X64/ReadDr2.asm | INTEL
+  X64/ReadDr1.nasm| INTEL
+  X64/ReadDr1.asm | INTEL
+  X64/ReadDr0.nasm| INTEL
+  X64/ReadDr0.asm | INTEL
+  X64/WriteCr4.nasm| INTEL
+  X64/WriteCr4.asm | INTEL
+  X64/WriteCr3.nasm| INTEL
+  X64/WriteCr3.asm | INTEL
+  X64/WriteCr2.nasm| INTEL
+  X64/WriteCr2.asm | INTEL
+  X64/WriteCr0.nasm| INTEL
+  X64/WriteCr0.asm | INTEL
+  X64/ReadCr4.nasm| INTEL
+  X64/ReadCr4.asm | INTEL
+  X64/ReadCr3.nasm| INTEL
+  X64/ReadCr3.asm | INTEL
+  X64/ReadCr2.nasm| INTEL
+  X64/ReadCr2.asm | INTEL
+  X64/ReadCr0.nasm| INTEL
+  X64/ReadCr0.asm | INTEL
+  X64/ReadEflags.nasm| INTEL
+  X64/ReadEflags.asm | INTEL
+
+  X64/Non-existing.c
+  Math64.c
+  Unaligned.c
+  X86WriteIdtr.c
+  X86WriteGdtr.c
+  X86Thunk.c
+  X86ReadIdtr.c
+  X86ReadGdtr.c
+  X86Msr.c
+  X86MemoryFence.c | MSFT
+  X86MemoryFence.c | INTEL
+  X86GetInterruptState.c
+  X86FxSave.c
+  X86FxRestore.c
+  X86EnablePaging64.c
+  X86EnablePaging32.c
+  X86DisablePaging64.c
+  X86DisablePaging32.c
+  X86RdRand.c
+  X64/GccInline.c | GCC
+  X64/Thunk16.S | XCODE 
+  X64/SwitchStack.nasm| GCC
+  X64/SwitchStack.S | GCC 
+  X64/SetJump.nasm| GCC
+  X64/SetJump.S | GCC 
+  X64/LongJump.nasm| GCC
+  X64/LongJump.S | GCC 
+  X64/EnableDisableInterrupts.nasm| GCC
+  X64/EnableDisableInterrupts.S | GCC 
+  X64/DisablePaging64.nasm| GCC
+  X64/DisablePaging64.S | GCC 
+  X64/CpuId.nasm| GCC
+  X64/CpuId.S | GCC 
+  X64/CpuIdEx.nasm| GCC
+  X64/CpuIdEx.S | GCC 
+  X64/EnableCache.nasm| GCC
+  X64/EnableCache.S | GCC
+  X64/DisableCache.nasm| GCC
+  X64/DisableCache.S | GCC
+  X64/RdRand.nasm| GCC
+  X64/RdRand.S | GCC
+  ChkStkGcc.c  | GCC 
+
+[Sources.IPF]
+  Ipf/AccessGp.s
+  Ipf/ReadCpuid.s
+  Ipf/ExecFc.s
+  Ipf/AsmPalCall.s
+  Ipf/AccessPsr.s
+  Ipf/AccessPmr.s
+  Ipf/AccessKr.s
+  Ipf/AccessKr7.s
+  Ipf/AccessGcr.s
+  Ipf/AccessEicr.s
+  Ipf/AccessDbr.s
+  Ipf/AccessMsr.s        | INTEL
+  Ipf/AccessMsr.s        | GCC
+  Ipf/AccessMsrDb.s      | MSFT
+  Ipf/InternalFlushCacheRange.s
+  Ipf/FlushCacheRange.c
+  Ipf/InternalSwitchStack.c
+  Ipf/GetInterruptState.s
+  Ipf/CpuPause.s
+  Ipf/CpuBreakpoint.c    | INTEL
+  Ipf/CpuBreakpointMsc.c | MSFT
+  Ipf/AsmCpuMisc.s       | GCC
+  Ipf/Unaligned.c
+  Ipf/SwitchStack.s
+  Ipf/LongJmp.s
+  Ipf/SetJmp.s
+  Ipf/ReadCr.s
+  Ipf/ReadAr.s
+  Ipf/Ia64gen.h
+  Ipf/Asm.h
+  Math64.c
+
+[Sources.EBC]
+  Ebc/CpuBreakpoint.c
+  Ebc/SetJumpLongJump.c
+  Ebc/SwitchStack.c
+  Unaligned.c
+  Math64.c
+
+[Sources.ARM]
+  Arm/InternalSwitchStack.c
+  Arm/Unaligned.c
+  Math64.c                   | RVCT 
+    
+  Arm/SwitchStack.asm        | RVCT
+  Arm/SetJumpLongJump.asm    | RVCT
+  Arm/DisableInterrupts.asm  | RVCT
+  Arm/EnableInterrupts.asm   | RVCT
+  Arm/GetInterruptsState.asm | RVCT
+  Arm/CpuPause.asm           | RVCT
+  Arm/CpuBreakpoint.asm      | RVCT
+  Arm/MemoryFence.asm        | RVCT
+ 
+  Arm/Math64.S                  | GCC
+  Arm/SwitchStack.S             | GCC
+  Arm/EnableInterrupts.S        | GCC
+  Arm/DisableInterrupts.S       | GCC
+  Arm/GetInterruptsState.S      | GCC
+  Arm/SetJumpLongJump.S         | GCC
+  Arm/CpuBreakpoint.S           | GCC
+  Arm/MemoryFence.S             | GCC
+
+[Sources.AARCH64]
+  Arm/InternalSwitchStack.c
+  Arm/Unaligned.c
+  Math64.c
+
+  AArch64/MemoryFence.S             | GCC
+  AArch64/SwitchStack.S             | GCC
+  AArch64/EnableInterrupts.S        | GCC
+  AArch64/DisableInterrupts.S       | GCC
+  AArch64/GetInterruptsState.S      | GCC
+  AArch64/SetJumpLongJump.S         | GCC
+  AArch64/CpuBreakpoint.S           | GCC
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  PcdLib
+  DebugLib
+  BaseMemoryLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumLinkedListLength      ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumAsciiStringLength     ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumUnicodeStringLength   ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask            ## SOMETIMES_CONSUMES
+
+[FeaturePcd]
+  gEfiMdePkgTokenSpaceGuid.PcdVerifyNodeInList  ## CONSUMES

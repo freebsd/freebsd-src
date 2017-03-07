@@ -1,0 +1,66 @@
+## @file
+# Instance of PCD Library using PCD PPI.
+#
+# There are two PCD PPIs as follows:
+#   1) PCD_PPI 
+#      It is EDKII implementation which support Dynamic/DynamicEx Pcds.
+#   2) EFI_PEI_PCD_PPI
+#      It is defined by PI specification 1.2, Vol 3 which only support dynamicEx 
+#      type Pcd.
+# For dynamicEx type PCD, it is compatible between PCD_PPI and EFI_PEI_PCD_PPI.
+# This library instance uses the PCD_PPI to handle dynamic PCD request and use
+# EFI_PEI_PCD_PPI to handle dynamicEx type PCD.
+#
+# This library instance assume the PCD_PPI and EFI_PEI_PCD_PPI are both installed early.
+#
+# PCD Library that uses the PCD PPI to access Dynamic and DynamicEx PCD entries
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiPcdLib
+  MODULE_UNI_FILE                = PeiPcdLib.uni
+  FILE_GUID                      = 9dbf6f25-0da2-4a1d-8e12-e78de6ab4d0e
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PcdLib|PEIM PEI_CORE SEC
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#
+
+[Sources]
+  PeiPcdLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  BaseMemoryLib
+  PeiServicesLib
+  DebugLib
+
+
+[Ppis]
+  gPcdPpiGuid                                   ## SOMETIMES_CONSUMES
+  gEfiPeiPcdPpiGuid                             ## CONSUMES
+  gGetPcdInfoPpiGuid                            ## SOMETIMES_CONSUMES
+  gEfiGetPcdInfoPpiGuid                         ## SOMETIMES_CONSUMES
+
+[Depex.common.PEIM]
+  gEfiPeiPcdPpiGuid
+

@@ -1,0 +1,44 @@
+## @file
+# Instance of PEI Services Table Pointer Library using global variable for the table pointer.
+#
+# PEI Services Table Pointer Library implementation that retrieves a pointer to the
+#  PEI Services Table from a global variable. Not available to modules that execute from
+#  read-only memory.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiServicesTablePointerLib
+  MODULE_UNI_FILE                = PeiServicesTablePointerLib.uni
+  FILE_GUID                      = 1c747f6b-0a58-49ae-8ea3-0327a4fa10e3
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PeiServicesTablePointerLib|PEIM PEI_CORE SEC
+
+  CONSTRUCTOR                    = PeiServicesTablePointerLibConstructor
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#
+
+[Sources]
+  PeiServicesTablePointer.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  DebugLib
+

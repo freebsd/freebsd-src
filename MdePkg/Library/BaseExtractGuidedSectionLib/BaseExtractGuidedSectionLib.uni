@@ -1,0 +1,27 @@
+// /** @file
+// Base ExtractGuidedSection Library.
+//
+// This instance can also be used in SEC phase only when the memory is ready in SEC phase.
+// PCD PcdGuidedExtractHandlerTableAddress points to the available pysical memory space
+// that is used to store Guided Extract Handlers.
+// Note: A driver of type DXE_RUNTIME_DRIVER can use this ExtractGuidedSectionLib
+// in their initialization without any issues. They only have to be careful in
+// the implementation of runtime services, because this BASE library instance doesn't
+// convert the address pointed by PcdGuidedExtractHandlerTableAddress to the virtual address.
+//
+// Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+//
+// This program and the accompanying materials
+// are licensed and made available under the terms and conditions of the BSD License
+// which accompanies this distribution. The full text of the license may be found at
+// http://opensource.org/licenses/bsd-license.php.
+// THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+// WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Base ExtractGuidedSection Library"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "This instance can also be used in the SEC phase only when the memory is ready in the SEC phase. PCD PcdGuidedExtractHandlerTableAddress points to the available physical memory space that is used to store Guided Extract Handlers. Note: A driver of type DXE_RUNTIME_DRIVER can use this ExtractGuidedSectionLib in its initialization without any issues. Be careful in the implementation of runtime services, because this BASE library instance doesn't convert the address pointed by PcdGuidedExtractHandlerTableAddress to the virtual address."
+

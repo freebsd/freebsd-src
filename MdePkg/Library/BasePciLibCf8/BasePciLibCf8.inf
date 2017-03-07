@@ -1,0 +1,40 @@
+## @file
+#  Instance of PCI Library based on PCI CF8 Library.
+#
+#  PCI Library that uses I/O ports 0xCF8 and 0xCFC to perform
+#  PCI Configuration cycles. Layers on top of one PCI CF8 Library instance.
+#
+#  Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BasePciLibCf8
+  MODULE_UNI_FILE                = BasePciLibCf8.uni
+  FILE_GUID                      = 28bde99c-e8a7-4e3e-9a8a-e66cd64f31c6
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PciLib 
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  PciLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  PciCf8Lib
+

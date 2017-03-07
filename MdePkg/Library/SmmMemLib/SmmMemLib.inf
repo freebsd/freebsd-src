@@ -1,0 +1,57 @@
+## @file
+#  Instance of SMM memory check library.
+#
+#  SMM memory check library library implementation. This library consumes SMM_ACCESS2_PROTOCOL
+#  to get SMRAM information. In order to use this library instance, the platform should produce
+#  all SMRAM range via SMM_ACCESS2_PROTOCOL, including the range for firmware (like SMM Core
+#  and SMM driver) and/or specific dedicated hardware.
+#  
+#  Copyright (c) 2015 - 2016, Intel Corporation. All rights reserved.<BR>
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution.  The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php
+#  
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#  
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SmmMemLib
+  MODULE_UNI_FILE                = SmmMemLib.uni
+  FILE_GUID                      = 7F23F839-C81C-4B89-8132-69746FCBCE52
+  MODULE_TYPE                    = DXE_SMM_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = SmmMemLib|DXE_SMM_DRIVER SMM_CORE
+  CONSTRUCTOR                    = SmmMemLibConstructor
+  DESTRUCTOR                     = SmmMemLibDestructor
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  SmmMemLib.c
+  
+[Packages]
+  MdePkg/MdePkg.dec
+  
+[LibraryClasses]
+  SmmServicesTableLib
+  UefiBootServicesTableLib
+  DebugLib
+  BaseMemoryLib
+  HobLib
+  MemoryAllocationLib
+
+[Protocols]
+  gEfiSmmAccess2ProtocolGuid     ## CONSUMES
+  gEfiSmmReadyToLockProtocolGuid ## CONSUMES
+  gEfiSmmEndOfDxeProtocolGuid    ## CONSUMES
+  
+[Depex]
+  gEfiSmmAccess2ProtocolGuid

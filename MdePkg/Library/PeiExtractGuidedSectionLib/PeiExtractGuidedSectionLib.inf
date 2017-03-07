@@ -1,0 +1,48 @@
+## @file
+# Instance of ExtractGuidedSection Library for PEI phase.
+#
+# This library provides generic extract guided section functions for PEIM and PEI_CORE module.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiExtractGuidedSectionLib
+  MODULE_UNI_FILE                = PeiExtractGuidedSectionLib.uni
+  FILE_GUID                      = 41ddf016-2a11-415f-8880-00d938e9541a
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ExtractGuidedSectionLib|PEIM PEI_CORE
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#
+
+[Sources]
+  PeiExtractGuidedSectionLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  BaseMemoryLib
+  DebugLib
+  HobLib
+  PcdLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumGuidedExtractHandler     ## CONSUMES
+

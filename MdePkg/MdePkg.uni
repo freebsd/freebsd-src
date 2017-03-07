@@ -1,0 +1,404 @@
+// /** @file
+// This Package provides all definitions, library classes and libraries instances.
+//
+// It also provides the definitions(including PPIs/PROTOCOLs/GUIDs) of
+// EFI1.10/UEFI2.4/PI1.3 and some Industry Standards.
+//
+// Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
+// Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
+//
+// This program and the accompanying materials are licensed and made available under
+// the terms and conditions of the BSD License which accompanies this distribution.
+// The full text of the license may be found at
+// http://opensource.org/licenses/bsd-license.php
+// 
+// THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+// WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+//
+// **/
+
+
+#string STR_PACKAGE_ABSTRACT            #language en-US "This Package provides all definitions, library classes and libraries instances."
+
+#string STR_PACKAGE_DESCRIPTION         #language en-US "It also provides the definitions(including PPIs/PROTOCOLs/GUIDs) of EFI1.10/UEFI2.4/PI1.3 and some Industry Standards."
+
+
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueEfiWatchDogTimerExpired_PROMPT  #language en-US "Progress Code for WatchDog Timer Expired"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueEfiWatchDogTimerExpired_HELP  #language en-US "Status code value for indicating a watchdog timer has expired. EFI_COMPUTING_UNIT_HOST_PROCESSOR | EFI_CU_HP_EC_TIMER_EXPIRED"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_ERR_80000003 #language en-US "Incorrect progress code provided."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueSetVirtualAddressMap_PROMPT  #language en-US "Progress Code for Invocation of SetVirtualAddressMap"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueSetVirtualAddressMap_HELP  #language en-US "Status code value for indicating the invocation of SetVirtualAddressMap() EFI_SOFTWARE_EFI_RUNTIME_SERVICE | EFI_SW_RS_PC_SET_VIRTUAL_ADDRESS_MAP"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMemoryTestStarted_PROMPT  #language en-US "Progress Code for Memory Test Start"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMemoryTestStarted_HELP  #language en-US "Status code value for indicating the start of memory test EFI_COMPUTING_UNIT_MEMORY | EFI_CU_MEMORY_PC_TEST"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueUncorrectableMemoryError_PROMPT  #language en-US "Progress Code for Memory Error"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueUncorrectableMemoryError_HELP  #language en-US "Status code value for indicating memory error in memory test EFI_COMPUTING_UNIT_MEMORY | EFI_CU_MEMORY_EC_UNCORRECTABLE"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueRemoteConsoleError_PROMPT  #language en-US "Progress Code for Console Error"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueRemoteConsoleError_HELP  #language en-US "Status code value for console operation failure. EFI_PERIPHERAL_REMOTE_CONSOLE | EFI_P_EC_CONTROLLER_ERROR"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueRemoteConsoleReset_PROMPT  #language en-US "Progress Code for Console Reset"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueRemoteConsoleReset_HELP  #language en-US "Status code value for console reset operation failure. EFI_PERIPHERAL_REMOTE_CONSOLE | EFI_P_PC_RESET"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueRemoteConsoleInputError_PROMPT  #language en-US "Progress Code for Console Input Error"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueRemoteConsoleInputError_HELP  #language en-US "Status code value for console input operation failure. EFI_PERIPHERAL_REMOTE_CONSOLE | EFI_P_EC_INPUT_ERROR"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueRemoteConsoleOutputError_PROMPT  #language en-US "Progress Code for Console Output Error"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueRemoteConsoleOutputError_HELP  #language en-US "Status code value for console output operation failure. EFI_PERIPHERAL_REMOTE_CONSOLE | EFI_P_EC_OUTPUT_ERROR"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseInterfaceError_PROMPT  #language en-US "Progress Code for Module Device Failure"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseInterfaceError_HELP  #language en-US "Status code value for mouse operation failure. EFI_PERIPHERAL_MOUSE | EFI_P_EC_INTERFACE_ERROR"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseEnable_PROMPT  #language en-US "Progress Code for Enable Mouse Device"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseEnable_HELP  #language en-US "Status code value for indicating mouse device has been enabled. EFI_PERIPHERAL_MOUSE | EFI_P_PC_ENABLE"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseDisable_PROMPT  #language en-US "Progress Code for Disable Mouse Device"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseDisable_HELP  #language en-US "Status code value for indicating mouse device has been disabled. EFI_PERIPHERAL_MOUSE | EFI_P_PC_DISABLE"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardEnable_PROMPT  #language en-US "Progress Code for Enable Keyboard Device"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardEnable_HELP  #language en-US "Status code value for enabling keyboard device. EFI_PERIPHERAL_KEYBOARD | EFI_P_PC_ENABLE"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardDisable_PROMPT  #language en-US "Progress Code for Disable Keyboard Device"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardDisable_HELP  #language en-US "Status code value for disabling keyboard device. EFI_PERIPHERAL_KEYBOARD | EFI_P_PC_DISABLE"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardPresenceDetect_PROMPT  #language en-US "Progress Code for Detect Keyboard Device"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardPresenceDetect_HELP  #language en-US "Status code value for indicating presence of keyboard. EFI_PERIPHERAL_KEYBOARD | EFI_P_PC_PRESENCE_DETECT"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardReset_PROMPT  #language en-US "Progress Code for Keyboard Device Reset"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardReset_HELP  #language en-US "Status code value for keyboard operation reset operation. EFI_PERIPHERAL_KEYBOARD | EFI_P_PC_RESET"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardClearBuffer_PROMPT  #language en-US "Progress Code for Keyboard Device Clear Buffer"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardClearBuffer_HELP  #language en-US "Status code value for keyboard clear buffer operation. EFI_PERIPHERAL_KEYBOARD | EFI_P_KEYBOARD_PC_CLEAR_BUFFER"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardSelfTest_PROMPT  #language en-US "Progress Code for Keyboard Device SelfTest"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardSelfTest_HELP  #language en-US "Status code value for keyboard device self-test. EFI_PERIPHERAL_KEYBOARD | EFI_P_KEYBOARD_PC_SELF_TEST"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardInterfaceError_PROMPT  #language en-US "Progress Code for Keyboard Device Failure"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardInterfaceError_HELP  #language en-US "Status code value for indicating keyboard device failure. EFI_PERIPHERAL_KEYBOARD | EFI_P_EC_INTERFACE_ERROR"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardInputError_PROMPT  #language en-US "Progress Code for Keyboard Input Failure"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueKeyboardInputError_HELP  #language en-US "Status code value for indicating keyboard input handler failure. EFI_PERIPHERAL_KEYBOARD | EFI_P_EC_INPUT_ERROR"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseInputError_PROMPT  #language en-US "Progress Code for Mouse Input Failure"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseInputError_HELP  #language en-US "Status code value for mouse input handler failure. EFI_PERIPHERAL_MOUSE | EFI_P_EC_INPUT_ERROR"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseReset_PROMPT  #language en-US "Progress Code for Mouse Device Reset"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueMouseReset_HELP  #language en-US "Status code value for mouse device reset operation. EFI_PERIPHERAL_MOUSE | EFI_P_PC_RESET"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValuePeiHandoffToDxe_PROMPT  #language en-US "Progress Code for Handoff from PEI phase to DXE phase"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValuePeiHandoffToDxe_HELP  #language en-US "Status code value for indicating the handoff from PEI phase to DXE phase. EFI_SOFTWARE_PEI_CORE | EFI_SW_PEI_CORE_PC_HANDOFF_TO_NEXT"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValuePeimDispatch_PROMPT  #language en-US "Progress Code for Dispatching One PEIM"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValuePeimDispatch_HELP  #language en-US "Status code value for indicating one PEIM is dispatched. EFI_SOFTWARE_PEI_CORE | EFI_SW_PC_INIT_BEGIN"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValuePeiCoreEntry_PROMPT  #language en-US "Progress Code for PeiCore Entry"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValuePeiCoreEntry_HELP  #language en-US "Status code value for PeiCore entry. EFI_SOFTWARE_PEI_CORE | EFI_SW_PC_INIT"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueDxeCoreEntry_PROMPT  #language en-US "Progress Code for DxeCore Entry"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueDxeCoreEntry_HELP  #language en-US "Status code value for DxeCore entry. EFI_SOFTWARE_DXE_CORE | EFI_SW_DXE_CORE_PC_ENTRY_POINT"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueDxeCoreHandoffToBds_PROMPT  #language en-US "Progress Code for Handoff from DxeCore to BDS"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueDxeCoreHandoffToBds_HELP  #language en-US "Status code value for handoff from DxeCore to BDS. EFI_SOFTWARE_DXE_CORE | EFI_SW_DXE_CORE_PC_HANDOFF_TO_NEXT"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueBootServiceExit_PROMPT  #language en-US "Progress Code for Exit of Boot Service"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueBootServiceExit_HELP  #language en-US "Status code value for indicating boot service exit. EFI_SOFTWARE_EFI_BOOT_SERVICE | EFI_SW_BS_PC_EXIT_BOOT_SERVICES"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueDxeDriverBegin_PROMPT  #language en-US "Progress Code for Begin of DXE Driver"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueDxeDriverBegin_HELP  #language en-US "Status code value for indicating the beginning of DXE driver. EFI_SOFTWARE_DXE_CORE | EFI_SW_PC_INIT_BEGIN"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueDxeDriverEnd_PROMPT  #language en-US "Progress Code for End of DXE Driver"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdStatusCodeValueDxeDriverEnd_HELP  #language en-US "Status code value for indicating the end of DXE drive. EFI_SOFTWARE_DXE_CORE | EFI_SW_PC_INIT_END"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumUnicodeStringLength_PROMPT  #language en-US "Maximum Length of Unicode String"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumUnicodeStringLength_HELP  #language en-US "Sets the maximum number of unicode characters used for string functions.  This affects the following BaseLib functions: StrLen(), StrSize(), StrCmp(), StrnCmp(), StrCpy(), StrnCpy()<BR><BR>\n"
+                                                                                         "0  - No length check for unicode string.<BR>\n"
+                                                                                         ">0 - Maximum length of unicode string.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumAsciiStringLength_PROMPT  #language en-US "Maximum Length of Ascii String"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumAsciiStringLength_HELP  #language en-US "Sets the maximum number of ASCII characters used for string functions.  This affects the following BaseLib functions: AsciiStrLen(), AsciiStrSize(), AsciiStrCmp(), AsciiStrnCmp(), AsciiStrCpy(), AsciiStrnCpy(). <BR><BR>\n"
+                                                                                       "0  - No length check for ASCII string.<BR>\n"
+                                                                                       ">0 - Maximum length of ASCII string.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumLinkedListLength_PROMPT  #language en-US "Maximum Length of Linked List"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumLinkedListLength_HELP  #language en-US "Indicates the maximum node number of linked list.<BR><BR>\n"
+                                                                                      "0  - No node number check for linked list.<BR>\n"
+                                                                                      ">0 - Maximum node number of linked list.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumDevicePathNodeCount_PROMPT  #language en-US "Maximum node number of device path"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumDevicePathNodeCount_HELP  #language en-US "Indicates the maximum node number of device path.<BR><BR>\n"
+                                                                                         "0  - No node number check for device path.<BR>\n"
+                                                                                         ">0 - Maximum node number of device path.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdSpinLockTimeout_PROMPT  #language en-US "Spin Lock Timeout (us)"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdSpinLockTimeout_HELP  #language en-US "Indicates the timeout tick of holding spin lock.<BR><BR>\n"
+                                                                              "0  - No timeout.<BR>\n"
+                                                                              ">0 - Timeout tick of holding spin lock.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDebugPropertyMask_PROMPT  #language en-US "Debug Property"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDebugPropertyMask_HELP  #language en-US "The mask is used to control DebugLib behavior.<BR><BR>\n"
+                                                                                "BIT0 - Enable Debug Assert.<BR>\n"
+                                                                                "BIT1 - Enable Debug Print.<BR>\n"
+                                                                                "BIT2 - Enable Debug Code.<BR>\n"
+                                                                                "BIT3 - Enable Clear Memory.<BR>\n"
+                                                                                "BIT4 - Enable BreakPoint as ASSERT.<BR>\n"
+                                                                                "BIT5 - Enable DeadLoop as ASSERT.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_ERR_80000002 #language en-US "Reserved bits must be set to zero."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDebugPrintErrorLevel_PROMPT  #language en-US "Debug Message Print Level"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDebugPrintErrorLevel_HELP  #language en-US "This flag is used to control the print out Debug message.<BR><BR>\n"
+                                                                                   "BIT0  - Initialization message.<BR>\n"
+                                                                                   "BIT1  - Warning message.<BR>\n"
+                                                                                   "BIT2  - Load Event message.<BR>\n"
+                                                                                   "BIT3  - File System message.<BR>\n"
+                                                                                   "BIT4  - Allocate or Free Pool message.<BR>\n"
+                                                                                   "BIT5  - Allocate or Free Page message.<BR>\n"
+                                                                                   "BIT6  - Information message.<BR>\n"
+                                                                                   "BIT7  - Dispatcher message.<BR>\n"
+                                                                                   "BIT8  - Variable message.<BR>\n"
+                                                                                   "BIT10 - Boot Manager message.<BR>\n"
+                                                                                   "BIT12 - BlockIo Driver message.<BR>\n"
+                                                                                   "BIT14 - Network Driver message.<BR>\n"
+                                                                                   "BIT16 - UNDI Driver message.<BR>\n"
+                                                                                   "BIT17 - LoadFile message.<BR>\n"
+                                                                                   "BIT19 - Event message.<BR>\n"
+                                                                                   "BIT20 - Global Coherency Database changes message.<BR>\n"
+                                                                                   "BIT21 - Memory range cacheability changes message.<BR>\n"
+                                                                                   "BIT22 - Detailed debug message.<BR>\n"
+                                                                                   "BIT31 - Error message.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdFixedDebugPrintErrorLevel_PROMPT  #language en-US "Fixed Debug Message Print Level"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdFixedDebugPrintErrorLevel_HELP  #language en-US "This flag is used to control build time optimization based on debug print level.<BR><BR>\n"
+                                                                                   "BIT0  - Initialization message.<BR>\n"
+                                                                                   "BIT1  - Warning message.<BR>\n"
+                                                                                   "BIT2  - Load Event message.<BR>\n"
+                                                                                   "BIT3  - File System message.<BR>\n"
+                                                                                   "BIT4  - Allocate or Free Pool message.<BR>\n"
+                                                                                   "BIT5  - Allocate or Free Page message.<BR>\n"
+                                                                                   "BIT6  - Information message.<BR>\n"
+                                                                                   "BIT7  - Dispatcher message.<BR>\n"
+                                                                                   "BIT8  - Variable message.<BR>\n"
+                                                                                   "BIT10 - Boot Manager message.<BR>\n"
+                                                                                   "BIT12 - BlockIo Driver message.<BR>\n"
+                                                                                   "BIT14 - Network Driver message.<BR>\n"
+                                                                                   "BIT16 - UNDI Driver message.<BR>\n"
+                                                                                   "BIT17 - LoadFile message.<BR>\n"
+                                                                                   "BIT19 - Event message.<BR>\n"
+                                                                                   "BIT20 - Global Coherency Database changes message.<BR>\n"
+                                                                                   "BIT21 - Memory range cacheability changes message.<BR>\n"
+                                                                                   "BIT22 - Detailed debug message.<BR>\n"
+                                                                                   "BIT31 - Error message.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdReportStatusCodePropertyMask_PROMPT  #language en-US "Report Status Code Property"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdReportStatusCodePropertyMask_HELP  #language en-US "The mask is used to control ReportStatusCodeLib behavior.<BR><BR>\n"
+                                                                                           "BIT0 - Enable Progress Code.<BR>\n"
+                                                                                           "BIT1 - Enable Error Code.<BR>\n"
+                                                                                           "BIT2 - Enable Debug Code.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDebugClearMemoryValue_PROMPT  #language en-US "Value to Clear Memory"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDebugClearMemoryValue_HELP  #language en-US "This value is used to fill a segment of memory when PcdDebugPropertyMask Clear Memory is enabled."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPerformanceLibraryPropertyMask_PROMPT  #language en-US "Performance Measurement Property"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPerformanceLibraryPropertyMask_HELP  #language en-US "The mask is used to control PerformanceLib behavior.<BR><BR>\n"
+                                                                                             "BIT0 - Enable Performance Measurement.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPostCodePropertyMask_PROMPT  #language en-US "Post Code Property"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPostCodePropertyMask_HELP  #language en-US "The mask is used to control PostCodeLib behavior.<BR><BR>\n"
+                                                                                   "BIT0 - Enable Post Code.<BR>\n"
+                                                                                   "BIT1 - Enable Post Code with Description.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdFSBClock_PROMPT  #language en-US "FSB Clock"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdFSBClock_HELP  #language en-US "This value is used to configure X86 Processor FSB clock."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiLibMaxPrintBufferSize_PROMPT  #language en-US "Maximum Printable Number of Characters"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiLibMaxPrintBufferSize_HELP  #language en-US "The maximum printable number of characters. UefLib functions: AsciiPrint(), AsciiErrorPrint(), PrintXY(), AsciiPrintXY(), Print(), ErrorPrint() base on this PCD value to print characters."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumGuidedExtractHandler_PROMPT  #language en-US "Maximum Number of GuidedExtractHandler"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumGuidedExtractHandler_HELP  #language en-US "Indicates the allowable maximum number in extract handler table."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUsbTransferTimeoutValue_PROMPT  #language en-US "USB Transfer Timeout (ms)"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUsbTransferTimeoutValue_HELP  #language en-US "Indicates the default timeouts for USB transfers in milliseconds."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdGuidedExtractHandlerTableAddress_PROMPT  #language en-US "Memory Address of GuidedExtractHandler Table"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdGuidedExtractHandlerTableAddress_HELP  #language en-US "This value is used to set the available memory address to store Guided Extract Handlers. The required memory space is decided by the value of PcdMaximumGuidedExtractHandler."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPciExpressBaseAddress_PROMPT  #language en-US "PCI Express Base Address"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPciExpressBaseAddress_HELP  #language en-US "This value is used to set the base address of PCI express hierarchy."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultLangCodes_PROMPT  #language en-US "Default Value of LangCodes Variable"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultLangCodes_HELP  #language en-US "Default current ISO 639-2 language: English & French."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultLang_PROMPT  #language en-US "Default Value of Lang Variable"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultLang_HELP  #language en-US "Default current ISO 639-2 language: English."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultPlatformLangCodes_PROMPT  #language en-US "Default Value of PlatformLangCodes Variable"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultPlatformLangCodes_HELP  #language en-US "Default platform supported RFC 4646 languages: (American) English & French."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultPlatformLang_PROMPT  #language en-US "Default Value of PlatformLang Variable"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultPlatformLang_HELP  #language en-US "Default current RFC 4646 language: (American) English."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultBaudRate_PROMPT  #language en-US "Default UART Baud Rate"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultBaudRate_HELP  #language en-US "Indicates the default baud rate of UART."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_ERR_80000001 #language en-US "Invalid value provided."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultDataBits_PROMPT  #language en-US "Default UART Data Bit"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultDataBits_HELP  #language en-US "Indicates the number of efficient data bit in UART transaction."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultParity_PROMPT  #language en-US "Default UART Parity"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultParity_HELP  #language en-US "Indicates the setting of data parity in UART transaction.<BR><BR>\n"
+                                                                                "0 - Default Parity.<BR>\n"
+                                                                                "1 - No Parity.<BR>\n"
+                                                                                "2 - Even Parity.<BR>\n"
+                                                                                "3 - Odd Parity.<BR>\n"
+                                                                                "4 - Mark Parity.<BR>\n"
+                                                                                "5 - Space Parity.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultStopBits_PROMPT  #language en-US "Default UART Stop Bits"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultStopBits_HELP  #language en-US "Indicates the setting of stop bit in UART transaction.<BR><BR>\n"
+                                                                                  "0 - Default Stop Bits.<BR>\n"
+                                                                                  "1 - One Stop Bit.<BR>\n"
+                                                                                  "2 - One Five Stop Bits.<BR>\n"
+                                                                                  "3 - Two Stop Bits.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDefaultTerminalType_PROMPT  #language en-US "Default Terminal Type"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDefaultTerminalType_HELP  #language en-US "Selects default terminal type.<BR><BR>\n"
+                                                                                  "0 - PCANSI<BR>\n"
+                                                                                  "1 - VT100<BR>\n"
+                                                                                  "2 - VT100+<BR>\n"
+                                                                                  "3 - UTF8<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdIoBlockBaseAddressForIpf_PROMPT  #language en-US "IA64 IO Port Space Base Address."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdIoBlockBaseAddressForIpf_HELP  #language en-US "The base address of IO port space for IA64 arch."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdComponentNameDisable_PROMPT  #language en-US "Disable Component Name Protocol"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdComponentNameDisable_HELP  #language en-US "Indicates if the component name protocol will be installed.<BR><BR>\n"
+                                                                                   "TRUE  - Does not install component name protocol.<BR>\n"
+                                                                                   "FALSE - Install component name protocol.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDriverDiagnosticsDisable_PROMPT  #language en-US "Disable Diagnostics Name protocol"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDriverDiagnosticsDisable_HELP  #language en-US "Indicates if the diagnostics name protocol will be installed.<BR><BR>\n"
+                                                                                       "TRUE  - Does not install diagnostics name protocol.<BR>\n"
+                                                                                       "FALSE - Install diagnostics name protocol.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdComponentName2Disable_PROMPT  #language en-US "Disable Component Name2 Protocol"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdComponentName2Disable_HELP  #language en-US "Indicates if the component name2 protocol will be installed.<BR><BR>\n"
+                                                                                    "TRUE  - Does not install component name2 protocol.<BR>\n"
+                                                                                    "FALSE - Install component name2 protocol.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDriverDiagnostics2Disable_PROMPT  #language en-US "Disable Diagnostics2 Name Protocol"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdDriverDiagnostics2Disable_HELP  #language en-US "Indicates if the diagnostics2 name protocol will be installed.<BR><BR>\n"
+                                                                                        "TRUE  - Does not install diagnostics2 name protocol.<BR>\n"
+                                                                                        "FALSE - Install diagnostics2 name protocol.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultLangDeprecate_PROMPT  #language en-US "Deprecate Global Variable LangCodes"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiVariableDefaultLangDeprecate_HELP  #language en-US "Indicates if EFI 1.1 ISO 639-2 language supports are obsolete<BR><BR>\n"
+                                                                                               "TRUE  - Deprecate global variable LangCodes.<BR>\n"
+                                                                                               "FALSE - Does not deprecate global variable LangCodes.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUgaConsumeSupport_PROMPT  #language en-US "Consume UGA Draw Protocol"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUgaConsumeSupport_HELP  #language en-US "Indicates if UGA Draw Protocol is still consumed.<BR><BR>\n"
+                                                                                "TRUE  - Consume UGA Draw protocol.<BR>\n"
+                                                                                "FALSE - Does not consume UGA Draw protocol.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdVerifyNodeInList_PROMPT  #language en-US "Verify Node In List"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdVerifyNodeInList_HELP  #language en-US "Indicates if a check will be made to see if a specified node is a member of linked list in the following BaseLib functions: GetNextNode(), IsNull(), IsNodeAtEnd(), SwapListEntries().<BR><BR>\n"
+                                                                               "TRUE  - Verify a specified node is a member of linked list.<BR>\n"
+                                                                               "FALSE - Does not verify a specified node is a member of linked list.<BR>"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdValidateOrderedCollection_PROMPT  #language en-US "Validate ORDERED_COLLECTION structure"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdValidateOrderedCollection_HELP  #language en-US "If TRUE, OrderedCollectionLib is instructed to validate the ORDERED_COLLECTION structure at the end of such operations (typically structure modifications) that justify validation of the structure for unit testing purposes."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiFileHandleLibPrintBufferSize_PROMPT  #language en-US "Number of Printable Characters."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUefiFileHandleLibPrintBufferSize_HELP  #language en-US "This is the print buffer length for FileHandleLib.\n"
+                                                                                               "FileHandlePrintLine() sizes buffers based on this PCD value for printing."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdHardwareErrorRecordLevel_PROMPT  #language en-US "Error Level For Hardware Recorder"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdHardwareErrorRecordLevel_HELP  #language en-US "Error level for hardware recorder.\n"
+                                                                                       "If value 0, platform does not support feature of hardware error record."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPlatformBootTimeOut_PROMPT  #language en-US "Boot Timeout (s)"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPlatformBootTimeOut_HELP  #language en-US "The number of seconds that the firmware will wait before initiating the original default boot selection.\n"
+                                                                                  "A value of 0 indicates that the default boot selection is to be initiated immediately on boot.\n"
+                                                                                  "The value of 0xFFFF then firmware will wait for user input before booting."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPort80DataWidth_PROMPT  #language en-US "Port80 Data Width"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdPort80DataWidth_HELP  #language en-US "The bit width of data to be written to Port80. The default value is 8. "
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultReceiveFifoDepth_PROMPT  #language en-US "Default UART Receive FIFO Depth."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdUartDefaultReceiveFifoDepth_HELP  #language en-US "Indicates the receive FIFO depth of UART controller.<BR><BR>"
+

@@ -1,0 +1,45 @@
+## @file
+# Instance of Memory Allocation Library using PEI Services.
+#
+# Memory Allocation Library that uses PEI Services to allocate memory.
+#  Free operations are ignored.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiMemoryAllocationLib
+  MODULE_UNI_FILE                = PeiMemoryAllocationLib.uni
+  FILE_GUID                      = b694e0dc-cd4e-4b30-885b-9c164ed3e74a
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = MemoryAllocationLib|PEIM PEI_CORE SEC
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#
+
+[Sources]
+  MemoryAllocationLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  DebugLib
+  BaseMemoryLib
+  PeiServicesLib
+  HobLib
+

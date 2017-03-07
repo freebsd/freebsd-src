@@ -1,0 +1,54 @@
+## @file
+#  Base ExtractGuidedSection Library.
+#  This instance can also be used in SEC phase only when the memory is ready in SEC phase.
+#  PCD PcdGuidedExtractHandlerTableAddress points to the available pysical memory space
+#  that is used to store Guided Extract Handlers.
+#  Note: A driver of type DXE_RUNTIME_DRIVER can use this ExtractGuidedSectionLib
+#  in their initialization without any issues. They only have to be careful in
+#  the implementation of runtime services, because this BASE library instance doesn't
+#  convert the address pointed by PcdGuidedExtractHandlerTableAddress to the virtual address.
+#  And a driver should use this ExtractGuidedSectionLib to do implementation internally, also
+#  this ExtractGuidedSectionLib couldn't be used for guided section extraction that is required
+#  by PEI and DXE core for recovery or capsule image processing, etc.
+#
+#  Copyright (c) 2007 - 2015, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseExtractGuidedSectionLib
+  MODULE_UNI_FILE                = BaseExtractGuidedSectionLib.uni
+  FILE_GUID                      = 4e3236e9-d1c8-4c04-a89f-26f1c44b2592
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ExtractGuidedSectionLib
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#
+
+[Sources]
+  BaseExtractGuidedSectionLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseMemoryLib
+  DebugLib
+  PcdLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdMaximumGuidedExtractHandler         ## CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdGuidedExtractHandlerTableAddress    ## CONSUMES
+

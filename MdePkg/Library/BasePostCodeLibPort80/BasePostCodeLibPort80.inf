@@ -1,0 +1,48 @@
+## @file
+#  Instance of Post Code Library using I/O port 0x80.
+#
+#  Post Code Library that writes post code values to I/O port 0x80.
+#
+#  Copyright (c) 2007 - 2015, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BasePostCodeLibPort80
+  MODULE_UNI_FILE                = BasePostCodeLibPort80.uni
+  FILE_GUID                      = b6e9a733-eb75-41b6-b30c-009bcf3801c8
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PostCodeLib 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  PostCode.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  IoLib
+  PcdLib
+  DebugLib
+
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdPostCodePropertyMask  ## CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdPort80DataWidth ## CONSUMES

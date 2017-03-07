@@ -1,0 +1,89 @@
+## @file
+# Instance of UEFI Library.
+#
+# The UEFI Library provides functions and macros that simplify the development of 
+#  UEFI Drivers and UEFI Applications.  These functions and macros help manage EFI 
+#  events, build simple locks utilizing EFI Task Priority Levels (TPLs), install 
+#  EFI Driver Model related protocols, manage Unicode string tables for UEFI Drivers, 
+#  and print messages on the console output and standard error devices.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiLib
+  MODULE_UNI_FILE                = UefiLib.uni
+  FILE_GUID                      = 3a004ba5-efe0-4a61-9f1a-267a46ae5ba9
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = UefiLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER SMM_CORE
+  CONSTRUCTOR                    = UefiLibConstructor
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  UefiLibPrint.c
+  UefiNotTiano.c
+  UefiDriverModel.c
+  Console.c
+  UefiLib.c
+  UefiLibInternal.h
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  PrintLib
+  PcdLib
+  MemoryAllocationLib
+  DebugLib
+  BaseMemoryLib
+  BaseLib
+  UefiBootServicesTableLib
+  DevicePathLib
+  UefiRuntimeServicesTableLib
+  
+[Guids]
+  gEfiEventReadyToBootGuid                      ## SOMETIMES_CONSUMES  ## Event
+  gEfiEventLegacyBootGuid                       ## SOMETIMES_CONSUMES  ## Event
+  gEfiGlobalVariableGuid                        ## SOMETIMES_CONSUMES  ## Variable
+
+[Protocols]
+  gEfiDriverBindingProtocolGuid                   ## SOMETIMES_PRODUCES
+  gEfiSimpleTextOutProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiGraphicsOutputProtocolGuid                  ## SOMETIMES_CONSUMES
+  gEfiHiiFontProtocolGuid                         ## SOMETIMES_CONSUMES
+  gEfiUgaDrawProtocolGuid | gEfiMdePkgTokenSpaceGuid.PcdUgaConsumeSupport                 ## SOMETIMES_CONSUMES # Consumes if gEfiGraphicsOutputProtocolGuid uninstalled
+  gEfiComponentNameProtocolGuid  | NOT gEfiMdePkgTokenSpaceGuid.PcdComponentNameDisable   ## SOMETIMES_PRODUCES # User chooses to produce it
+  gEfiComponentName2ProtocolGuid | NOT gEfiMdePkgTokenSpaceGuid.PcdComponentName2Disable  ## SOMETIMES_PRODUCES # User chooses to produce it
+  gEfiDriverConfigurationProtocolGuid                            ## SOMETIMES_PRODUCES # User chooses to produce it
+  gEfiDriverConfiguration2ProtocolGuid                           ## SOMETIMES_PRODUCES # User chooses to produce it
+  gEfiDriverDiagnosticsProtocolGuid | NOT gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnosticsDisable  ## SOMETIMES_PRODUCES # User chooses to produce it
+  gEfiDriverDiagnostics2ProtocolGuid| NOT gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnostics2Disable ## SOMETIMES_PRODUCES # User chooses to produce it
+
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdUefiLibMaxPrintBufferSize   ## SOMETIMES_CONSUMES
+
+[FeaturePcd]
+  gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnosticsDisable    ## CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdComponentNameDisable        ## CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnostics2Disable   ## CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdComponentName2Disable       ## CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdUgaConsumeSupport           ## CONSUMES
+

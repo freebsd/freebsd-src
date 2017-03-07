@@ -1,0 +1,56 @@
+## @file
+# PCI Library that layers on top of the PCI CFG2 PPI.
+#
+# This library produces the APIs from the PCI Library and implements
+#  these APIs by calling into the EFI_PEI_PCI CFG2 PPI. One or more EFI_PEI_PCI CFG2
+#  PPIs are typically produced by a chipset specific PEIM. This library only uses
+#  the first PPI found, so this library instance should only be used platforms
+#  with a single PCI segment.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PeiPciLibPciCfg2
+  MODULE_UNI_FILE                = PeiPciLibPciCfg2.uni
+  FILE_GUID                      = FA3AD693-D58A-4619-960B-8EE85C914870
+  MODULE_TYPE                    = PEIM
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PciLib|PEIM SEC PEI_CORE
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#
+
+[Sources]
+  PciLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  PeiServicesTablePointerLib
+  BaseLib
+  DebugLib
+  PeiServicesLib
+
+[Ppis]
+  gEfiPciCfg2PpiGuid                            ## CONSUMES
+
+[Depex.common.PEIM]
+  gEfiPciCfg2PpiGuid
+

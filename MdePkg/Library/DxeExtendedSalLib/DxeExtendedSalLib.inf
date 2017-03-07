@@ -1,0 +1,46 @@
+## @file
+#  The library implements the Extended SAL Library Class for boot service only modules.
+#
+#  Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = DxeExtendedSalLib
+  MODULE_UNI_FILE                = DxeExtendedSalLib.uni
+  FILE_GUID                      = 8FDED21D-7AB5-4c26-8CF7-20EC4DB9861D
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ExtendedSalLib|DXE_DRIVER UEFI_DRIVER UEFI_APPLICATION 
+  CONSTRUCTOR                    = DxeExtendedSalLibConstruct
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IPF
+#
+
+[Sources.IPF]
+  ExtendedSalLib.c
+  Ipf/AsmExtendedSalLib.s
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiBootServicesTableLib
+
+[Protocols]
+  gEfiExtendedSalBootServiceProtocolGuid        ## CONSUMES
+
+[Depex.common.DXE_DRIVER]
+  gEfiExtendedSalBootServiceProtocolGuid
+

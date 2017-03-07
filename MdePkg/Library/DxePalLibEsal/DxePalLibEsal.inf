@@ -1,0 +1,41 @@
+## @file
+#  Instance of PAL Library Class using Extended SAL functions
+#
+#  Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = DxePalLibEsal
+  MODULE_UNI_FILE                = DxePalLibEsal.uni
+  FILE_GUID                      = 8BA65DE3-39E1-4afd-A8FE-7DD0BAFEFCC0
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PalLib|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER DXE_SAL_DRIVER UEFI_DRIVER UEFI_APPLICATION 
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IPF
+#
+
+[Sources.IPF]
+  DxePalLibEsal.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  ExtendedSalLib
+
+[Depex.common.DXE_DRIVER, Depex.common.DXE_RUNTIME_DRIVER, Depex.common.DXE_SAL_DRIVER, Depex.common.DXE_SMM_DRIVER]
+  gEfiExtendedSalPalServicesProtocolGuid
+

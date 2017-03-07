@@ -1,0 +1,24 @@
+// /** @file
+// BootScriptLib instance that always produces NOP operation.
+//
+// This library is primarily used by platform that does not support ACPI S3
+// resume.  All the library interfaces simply return EFI_SUCCESS without
+// performing any operation.
+//
+// Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+//
+// This program and the accompanying materials are
+// licensed and made available under the terms and conditions of the BSD License
+// which accompanies this distribution.  The full text of the license may be found at
+// http://opensource.org/licenses/bsd-license.php
+// 
+// THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+// WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "BootScriptLib instance that always produces NOP operation"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "This library is primarily used by a platform that does not support ACPI S3 resume.  All the library interfaces simply return EFI_SUCCESS without performing any operation."
+

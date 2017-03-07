@@ -1,0 +1,50 @@
+## @file
+#  Instance of Post Code Library based on Debug Library.
+#
+#  Post Code Library that uses DebugLib service to send PostCode.
+#  It layers on top of a Debug Library instance.
+#
+#  Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BasePostCodeLibDebug
+  MODULE_UNI_FILE                = BasePostCodeLibDebug.uni
+  FILE_GUID                      = 19e3bbba-beb1-43e8-b32d-9acbb22c7639
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PostCodeLib 
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+
+[Sources]
+  PostCode.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+
+[LibraryClasses]
+  PcdLib
+  DebugLib
+
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdPostCodePropertyMask  ## CONSUMES
+

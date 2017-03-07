@@ -1,0 +1,60 @@
+## @file
+# PCI Segment Library that layers on top of the PCI Root Bridge I/O Protocol.
+#
+# This library produces the APIs from the PCI Library and implements these APIs
+#  by calling into the PCI Root Bridge I/O Protocols that are present in the platform.
+#  The PCI Root Bridge I/O Protocols are typically produced by a chipset specific DXE driver.
+#  This library binds to all of the PCI Root Bridge I/O Protocols in the platform and handles
+#  the translation from a PCI segment number into a specific PCI Root Bridge I/O Protocol.
+#
+# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+#
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.php.
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiPciSegmentLibPciRootBridgeIo
+  MODULE_UNI_FILE                = UefiPciSegmentLibPciRootBridgeIo.uni
+  FILE_GUID                      = C6068612-B6E0-48a3-BB92-60E4A4F89EDF
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PciSegmentLib|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER DXE_SAL_DRIVER UEFI_DRIVER UEFI_APPLICATION
+
+  CONSTRUCTOR                    = PciSegmentLibConstructor
+  DESTRUCTOR                     = PciSegmentLibDestructor
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#
+
+[Sources]
+  PciSegmentLib.h
+  PciSegmentLib.c
+
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+
+[LibraryClasses]
+  MemoryAllocationLib
+  BaseLib
+  UefiBootServicesTableLib
+  DebugLib
+
+[Protocols]
+  gEfiPciRootBridgeIoProtocolGuid               ## CONSUMES
+
+[Depex.common.DXE_DRIVER, Depex.common.DXE_RUNTIME_DRIVER, Depex.common.DXE_SAL_DRIVER, Depex.common.DXE_SMM_DRIVER]
+  gEfiPciRootBridgeIoProtocolGuid
+
