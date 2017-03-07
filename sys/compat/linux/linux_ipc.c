@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#include <sys/stat.h>
 
 #include "opt_compat.h"
 
@@ -151,7 +152,7 @@ bsd_to_linux_ipc_perm(struct ipc_perm *bpp, struct l_ipc64_perm *lpp)
 	lpp->gid = bpp->gid;
 	lpp->cuid = bpp->cuid;
 	lpp->cgid = bpp->cgid;
-	lpp->mode = bpp->mode;
+	lpp->mode = bpp->mode & (S_IRWXU|S_IRWXG|S_IRWXO);
 	lpp->seq = bpp->seq;
 }
 
