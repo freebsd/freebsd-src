@@ -614,7 +614,7 @@ struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
-int		 m_mbuftouio(struct uio *, struct mbuf *, int);
+int		 m_mbuftouio(struct uio *, const struct mbuf *, int);
 void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
 struct mbuf	*m_prepend(struct mbuf *, int, int);
