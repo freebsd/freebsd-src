@@ -1,4 +1,4 @@
-/*	$NetBSD: t_modautoload.c,v 1.5 2016/09/14 03:19:11 ozaki-r Exp $	*/
+/*	$NetBSD: t_modautoload.c,v 1.6 2017/01/13 21:30:42 christos Exp $	*/
 
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -20,7 +20,7 @@
 
 #include <miscfs/kernfs/kernfs.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(modautoload);
 ATF_TC_HEAD(modautoload, tc)

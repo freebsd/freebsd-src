@@ -1,4 +1,4 @@
-/*	$NetBSD: t_connect.c,v 1.2 2015/04/05 23:17:41 rtr Exp $	*/
+/*	$NetBSD: t_connect.c,v 1.3 2017/01/13 20:09:48 christos Exp $	*/
 /*
  * Copyright (c) 2007, 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -26,6 +26,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/socket.h>
 #include <err.h>
 #include <errno.h>
 #include <string.h>
@@ -35,10 +36,6 @@
 #include <netinet/in.h>
 
 #include <atf-c.h>
-
-#ifdef __FreeBSD__
-#include <sys/socket.h>
-#endif
 
 ATF_TC(connect_low_port);
 ATF_TC_HEAD(connect_low_port, tc)
@@ -56,10 +53,8 @@ ATF_TC_BODY(connect_low_port, tc)
 	slist = socket(AF_INET, SOCK_STREAM, 0);
 	sd = socket(AF_INET, SOCK_STREAM, 0);
 
-#ifdef __FreeBSD__
 	ATF_REQUIRE(sd > 0);
 	ATF_REQUIRE(slist > 0);
-#endif
 
 	/* bind listening socket */
 	memset(&sinlist, 0, sizeof(sinlist));
@@ -97,9 +92,7 @@ ATF_TC_BODY(connect_low_port, tc)
 	ATF_REQUIRE(ntohs(sin.sin_port) <= IPPORT_RESERVEDMAX);
 
 	close(sd);
-#ifdef __FreeBSD__
 	close(slist);
-#endif
 }
 
 ATF_TC(connect_foreign_family);

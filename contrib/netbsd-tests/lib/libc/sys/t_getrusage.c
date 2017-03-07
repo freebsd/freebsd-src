@@ -1,4 +1,4 @@
-/* $NetBSD: t_getrusage.c,v 1.4 2016/08/05 15:01:39 scole Exp $ */
+/* $NetBSD: t_getrusage.c,v 1.5 2017/01/13 20:31:06 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_getrusage.c,v 1.4 2016/08/05 15:01:39 scole Exp $");
+__RCSID("$NetBSD: t_getrusage.c,v 1.5 2017/01/13 20:31:06 christos Exp $");
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -47,11 +47,7 @@ static void		sighandler(int);
 static const size_t	maxiter = 2000;
 
 static void
-#ifdef __FreeBSD__
 sighandler(int signo __unused)
-#else
-sighandler(int signo)
-#endif
 {
 	/* Nothing. */
 }

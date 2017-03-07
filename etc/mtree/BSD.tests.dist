@@ -622,6 +622,8 @@
         ..
         uuencode
         ..
+        uniq
+        ..
         xargs
         ..
         yacc

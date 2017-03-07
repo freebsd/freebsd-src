@@ -1,6 +1,3 @@
-#ifdef __FreeBSD__
-#include <sys/types.h>
-#endif
 #include <sys/event.h>
 #include <sys/stat.h>
 #include <sys/time.h>

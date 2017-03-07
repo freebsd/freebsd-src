@@ -1,4 +1,4 @@
-# $NetBSD: t_ifconfig.sh,v 1.14 2016/10/01 22:15:04 kre Exp $
+# $NetBSD: t_ifconfig.sh,v 1.15 2017/01/20 08:35:33 ozaki-r Exp $
 #
 # Copyright (c) 2015 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -181,7 +181,7 @@ ifconfig_options_body()
 
 	# ifconfig -C
 	#   -C shows all of the interface cloners available on the system
-	atf_check -s exit:0 -o match:'shmif lo carp' rump.ifconfig -C
+	atf_check -s exit:0 -o match:'shmif carp lo' rump.ifconfig -C
 
 	unset RUMP_SERVER
 }

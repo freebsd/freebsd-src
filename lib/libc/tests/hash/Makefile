@@ -29,8 +29,7 @@ LDADD+=		-lmd
 DPADD.sha2_test+=	${LIBCRYPTO}
 LDADD.sha2_test+=	-lcrypto
 
-CFLAGS.sha2_test+=	-I${SRCTOP}/crypto/openssh/openbsd-compat
-CFLAGS.sha2_test+=	-I${SRCTOP}/crypto/openssh
+CFLAGS.h_hash+=		-I${SRCTOP}/lib/libnetbsd
 
 .include "../Makefile.netbsd-tests"
 

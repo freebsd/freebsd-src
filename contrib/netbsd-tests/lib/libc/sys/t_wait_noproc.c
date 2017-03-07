@@ -29,9 +29,6 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: t_wait_noproc.c,v 1.5 2016/11/09 17:50:19 kamil Exp $");
 
-#ifdef __FreeBSD__
-#include <sys/param.h> /* For NBBY -- it's in sys/types.h on NetBSD */
-#endif
 #include <sys/wait.h>
 #include <sys/resource.h>
 

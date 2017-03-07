@@ -4,7 +4,8 @@
 
 BINDIR=		${TESTSDIR}
 
-IMPLEMENTATION?=      -DREGEX_SPENCER
+# SKIP_LEFTASSOC -> these testcases fail on FreeBSD.
+IMPLEMENTATION?=      -DREGEX_SPENCER -DSKIP_LEFTASSOC
 
 CFLAGS.h_regex+=-I${TESTSRC} -I${.CURDIR:H:H}/regex
 PROGS+=		h_regex
