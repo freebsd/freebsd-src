@@ -318,7 +318,7 @@ LINKS		The list of binary links; should be full pathnames, the
 		file.  The files are hard-linked.  For example, to link
 		/bin/test and /bin/[, use:
 
-			LINKS=	${DESTDIR}/bin/test ${DESTDIR}/bin/[
+			LINKS=	/bin/test /bin/[
 
 MAN		Manual pages (should end in .1 - .9).  If no MAN variable
 		is defined, "MAN=${PROG}.1" is assumed.
