@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/event.h>
 #include <sys/time.h>
+#include <sys/procctl.h>
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
@@ -2785,6 +2786,139 @@ ATF_TC_BODY(ptrace__PT_CONTINUE_with_signal_thread_sigmask, tc)
 	ATF_REQUIRE(errno == ECHILD);
 }
 
+static void *
+raise_sigstop_thread(void *arg __unused)
+{
+
+	raise(SIGSTOP);
+	return NULL;
+}
+
+static void *
+sleep_thread(void *arg __unused)
+{
+
+	sleep(60);
+	return NULL;
+}
+
+static void
+terminate_with_pending_sigstop(bool sigstop_from_main_thread)
+{
+	pid_t fpid, wpid;
+	int status, i;
+	cpuset_t setmask;
+	cpusetid_t setid;
+	pthread_t t;
+
+	/*
+	 * Become the reaper for this process tree. We need to be able to check
+	 * that both child and grandchild have died.
+	 */
+	ATF_REQUIRE(procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == 0);
+
+	fpid = fork();
+	ATF_REQUIRE(fpid >= 0);
+	if (fpid == 0) {
+		fpid = fork();
+		CHILD_REQUIRE(fpid >= 0);
+		if (fpid == 0) {
+			trace_me();
+
+			/* Pin to CPU 0 to serialize thread execution. */
+			CPU_ZERO(&setmask);
+			CPU_SET(0, &setmask);
+			CHILD_REQUIRE(cpuset(&setid) == 0);
+			CHILD_REQUIRE(cpuset_setaffinity(CPU_LEVEL_CPUSET,
+			    CPU_WHICH_CPUSET, setid,
+			    sizeof(setmask), &setmask) == 0);
+
+			if (sigstop_from_main_thread) {
+				/*
+				 * We expect the SIGKILL sent when our parent
+				 * dies to be delivered to the new thread.
+				 * Raise the SIGSTOP in this thread so the
+				 * threads compete.
+				 */
+				CHILD_REQUIRE(pthread_create(&t, NULL,
+				    sleep_thread, NULL) == 0);
+				raise(SIGSTOP);
+			} else {
+				/*
+				 * We expect the SIGKILL to be delivered to
+				 * this thread. After creating the new thread,
+				 * just get off the CPU so the other thread can
+				 * raise the SIGSTOP.
+				 */
+				CHILD_REQUIRE(pthread_create(&t, NULL,
+				    raise_sigstop_thread, NULL) == 0);
+				sleep(60);
+			}
+
+			exit(0);
+		}
+		/* First stop is trace_me() immediately after fork. */
+		wpid = waitpid(fpid, &status, 0);
+		CHILD_REQUIRE(wpid == fpid);
+		CHILD_REQUIRE(WIFSTOPPED(status));
+		CHILD_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+		CHILD_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+		/* Second stop is from the raise(SIGSTOP). */
+		wpid = waitpid(fpid, &status, 0);
+		CHILD_REQUIRE(wpid == fpid);
+		CHILD_REQUIRE(WIFSTOPPED(status));
+		CHILD_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+		/*
+		 * Terminate tracing process without detaching. Our child
+		 * should be killed.
+		 */
+		exit(0);
+	}
+
+	/*
+	 * We should get a normal exit from our immediate child and a SIGKILL
+	 * exit from our grandchild. The latter case is the interesting one.
+	 * Our grandchild should not have stopped due to the SIGSTOP that was
+	 * left dangling when its parent died.
+	 */
+	for (i = 0; i < 2; ++i) {
+		wpid = wait(&status);
+		if (wpid == fpid)
+			ATF_REQUIRE(WIFEXITED(status) &&
+			    WEXITSTATUS(status) == 0);
+		else
+			ATF_REQUIRE(WIFSIGNALED(status) &&
+			    WTERMSIG(status) == SIGKILL);
+	}
+}
+
+/*
+ * These two tests ensure that if the tracing process exits without detaching
+ * just after the child received a SIGSTOP, the child is cleanly killed and
+ * doesn't go to sleep due to the SIGSTOP. The parent's death will send a
+ * SIGKILL to the child. If the SIGKILL and the SIGSTOP are handled by
+ * different threads, the SIGKILL must win.  There are two variants of this
+ * test, designed to catch the case where the SIGKILL is delivered to the
+ * younger thread (the first test) and the case where the SIGKILL is delivered
+ * to the older thread (the second test). This behavior has changed in the
+ * past, so make no assumption.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__parent_terminate_with_pending_sigstop1);
+ATF_TC_BODY(ptrace__parent_terminate_with_pending_sigstop1, tc)
+{
+
+	terminate_with_pending_sigstop(true);
+}
+ATF_TC_WITHOUT_HEAD(ptrace__parent_terminate_with_pending_sigstop2);
+ATF_TC_BODY(ptrace__parent_terminate_with_pending_sigstop2, tc)
+{
+
+	terminate_with_pending_sigstop(false);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -2829,6 +2963,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__PT_CONTINUE_with_signal_mix);
 	ATF_TP_ADD_TC(tp, ptrace__PT_CONTINUE_with_signal_kqueue);
 	ATF_TP_ADD_TC(tp, ptrace__PT_CONTINUE_with_signal_thread_sigmask);
+	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop1);
+	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop2);
 
 	return (atf_no_error());
 }
