@@ -249,6 +249,8 @@ static int	iwn_set_link_quality(struct iwn_softc *,
 		    struct ieee80211_node *);
 static int	iwn_add_broadcast_node(struct iwn_softc *, int);
 static int	iwn_updateedca(struct ieee80211com *);
+static void	iwn_set_promisc(struct iwn_softc *);
+static void	iwn_update_promisc(struct ieee80211com *);
 static void	iwn_update_mcast(struct ieee80211com *);
 static void	iwn_set_led(struct iwn_softc *, uint8_t, uint8_t, uint8_t);
 static int	iwn_set_critical_temp(struct iwn_softc *);
@@ -278,6 +280,9 @@ static int	iwn_set_pslevel(struct iwn_softc *, int, int, int);
 static int	iwn_send_btcoex(struct iwn_softc *);
 static int	iwn_send_advanced_btcoex(struct iwn_softc *);
 static int	iwn5000_runtime_calib(struct iwn_softc *);
+static int	iwn_check_bss_filter(struct iwn_softc *);
+static int	iwn4965_rxon_assoc(struct iwn_softc *, int);
+static int	iwn5000_rxon_assoc(struct iwn_softc *, int);
 static int	iwn_send_rxon(struct iwn_softc *, int, int);
 static int	iwn_config(struct iwn_softc *);
 static int	iwn_scan(struct iwn_softc *, struct ieee80211vap *,
@@ -662,6 +667,7 @@ iwn_attach(device_t dev)
 	ic->ic_addba_stop = iwn_ampdu_tx_stop;
 	ic->ic_newassoc = iwn_newassoc;
 	ic->ic_wme.wme_update = iwn_updateedca;
+	ic->ic_update_promisc = iwn_update_promisc;
 	ic->ic_update_mcast = iwn_update_mcast;
 	ic->ic_scan_start = iwn_scan_start;
 	ic->ic_scan_end = iwn_scan_end;
@@ -1227,6 +1233,7 @@ iwn4965_attach(struct iwn_softc *sc, uint16_t pid)
 	ops->set_txpower = iwn4965_set_txpower;
 	ops->init_gains = iwn4965_init_gains;
 	ops->set_gains = iwn4965_set_gains;
+	ops->rxon_assoc = iwn4965_rxon_assoc;
 	ops->add_node = iwn4965_add_node;
 	ops->tx_done = iwn4965_tx_done;
 	ops->ampdu_tx_start = iwn4965_ampdu_tx_start;
@@ -1271,6 +1278,7 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 	ops->set_txpower = iwn5000_set_txpower;
 	ops->init_gains = iwn5000_init_gains;
 	ops->set_gains = iwn5000_set_gains;
+	ops->rxon_assoc = iwn5000_rxon_assoc;
 	ops->add_node = iwn5000_add_node;
 	ops->tx_done = iwn5000_tx_done;
 	ops->ampdu_tx_start = iwn5000_ampdu_tx_start;
@@ -5428,6 +5436,43 @@ iwn_updateedca(struct ieee80211com *ic)
 }
 
 static void
+iwn_set_promisc(struct iwn_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t promisc_filter;
+
+	promisc_filter = IWN_FILTER_CTL | IWN_FILTER_PROMISC;
+	if (ic->ic_promisc > 0 || ic->ic_opmode == IEEE80211_M_MONITOR)
+		sc->rxon->filter |= htole32(promisc_filter);
+	else
+		sc->rxon->filter &= ~htole32(promisc_filter);
+}
+
+static void
+iwn_update_promisc(struct ieee80211com *ic)
+{
+	struct iwn_softc *sc = ic->ic_softc;
+	int error;
+
+	if (ic->ic_opmode == IEEE80211_M_MONITOR)
+		return;		/* nothing to do */
+
+	IWN_LOCK(sc);
+	if (!(sc->sc_flags & IWN_FLAG_RUNNING)) {
+		IWN_UNLOCK(sc);
+		return;
+	}
+
+	iwn_set_promisc(sc);
+	if ((error = iwn_send_rxon(sc, 1, 1)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not send RXON, error %d\n",
+		    __func__, error);
+	}
+	IWN_UNLOCK(sc);
+}
+
+static void
 iwn_update_mcast(struct ieee80211com *ic)
 {
 	/* Ignore */
@@ -6535,6 +6580,52 @@ iwn_get_rxon_ht_flags(struct iwn_softc *sc, struct ieee80211_channel *c)
 }
 
 static int
+iwn_check_bss_filter(struct iwn_softc *sc)
+{
+	return ((sc->rxon->filter & htole32(IWN_FILTER_BSS)) != 0);
+}
+
+static int
+iwn4965_rxon_assoc(struct iwn_softc *sc, int async)
+{
+	struct iwn4965_rxon_assoc cmd;
+	struct iwn_rxon *rxon = sc->rxon;
+
+	cmd.flags = rxon->flags;
+	cmd.filter = rxon->filter;
+	cmd.ofdm_mask = rxon->ofdm_mask;
+	cmd.cck_mask = rxon->cck_mask;
+	cmd.ht_single_mask = rxon->ht_single_mask;
+	cmd.ht_dual_mask = rxon->ht_dual_mask;
+	cmd.rxchain = rxon->rxchain;
+	cmd.reserved = 0;
+
+	return (iwn_cmd(sc, IWN_CMD_RXON_ASSOC, &cmd, sizeof(cmd), async));
+}
+
+static int
+iwn5000_rxon_assoc(struct iwn_softc *sc, int async)
+{
+	struct iwn5000_rxon_assoc cmd;
+	struct iwn_rxon *rxon = sc->rxon;
+
+	cmd.flags = rxon->flags;
+	cmd.filter = rxon->filter;
+	cmd.ofdm_mask = rxon->ofdm_mask;
+	cmd.cck_mask = rxon->cck_mask;
+	cmd.reserved1 = 0;
+	cmd.ht_single_mask = rxon->ht_single_mask;
+	cmd.ht_dual_mask = rxon->ht_dual_mask;
+	cmd.ht_triple_mask = rxon->ht_triple_mask;
+	cmd.reserved2 = 0;
+	cmd.rxchain = rxon->rxchain;
+	cmd.acquisition = rxon->acquisition;
+	cmd.reserved3 = 0;
+
+	return (iwn_cmd(sc, IWN_CMD_RXON_ASSOC, &cmd, sizeof(cmd), async));
+}
+
+static int
 iwn_send_rxon(struct iwn_softc *sc, int assoc, int async)
 {
 	struct iwn_ops *ops = &sc->ops;
@@ -6542,33 +6633,46 @@ iwn_send_rxon(struct iwn_softc *sc, int assoc, int async)
 
 	IWN_LOCK_ASSERT(sc);
 
-	if (sc->sc_is_scanning)
-		device_printf(sc->sc_dev,
-		    "%s: is_scanning set, before RXON\n",
-		    __func__);
-	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, async);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "%s: RXON command failed\n",
-		    __func__);
-		return (error);
-	}
-
-	/*
-	 * Reconfiguring RXON clears the firmware nodes table so we must
-	 * add the broadcast node again.
-	 */
-	if ((sc->rxon->filter & htole32(IWN_FILTER_BSS)) == 0) {
-		if ((error = iwn_add_broadcast_node(sc, async)) != 0) {
+	if (assoc && iwn_check_bss_filter(sc) != 0) {
+		error = ops->rxon_assoc(sc, async);
+		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: could not add broadcast node\n", __func__);
+			    "%s: RXON_ASSOC command failed, error %d\n",
+			    __func__, error);
+			return (error);
+		}
+	} else {
+		if (sc->sc_is_scanning)
+			device_printf(sc->sc_dev,
+			    "%s: is_scanning set, before RXON\n",
+			    __func__);
+
+		error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, async);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: RXON command failed, error %d\n",
+			    __func__, error);
+			return (error);
+		}
+
+		/*
+		 * Reconfiguring RXON clears the firmware nodes table so
+		 * we must add the broadcast node again.
+		 */
+		if (iwn_check_bss_filter(sc) == 0 &&
+		    (error = iwn_add_broadcast_node(sc, async)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not add broadcast node, error %d\n",
+			    __func__, error);
 			return (error);
 		}
 	}
 
 	/* Configuration has changed, set TX power accordingly. */
 	if ((error = ops->set_txpower(sc, async)) != 0) {
-		device_printf(sc->sc_dev, "%s: could not set TX power\n",
-		    __func__);
+		device_printf(sc->sc_dev,
+		    "%s: could not set TX power, error %d\n",
+		    __func__, error);
 		return (error);
 	}
 
@@ -6669,20 +6773,20 @@ iwn_config(struct iwn_softc *sc)
 	sc->rxon->flags = htole32(IWN_RXON_TSF | IWN_RXON_CTS_TO_SELF);
 	if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
 		sc->rxon->flags |= htole32(IWN_RXON_AUTO | IWN_RXON_24GHZ);
+
+	sc->rxon->filter = htole32(IWN_FILTER_MULTICAST);
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_STA:
 		sc->rxon->mode = IWN_MODE_STA;
-		sc->rxon->filter = htole32(IWN_FILTER_MULTICAST);
 		break;
 	case IEEE80211_M_MONITOR:
 		sc->rxon->mode = IWN_MODE_MONITOR;
-		sc->rxon->filter = htole32(IWN_FILTER_MULTICAST |
-		    IWN_FILTER_CTL | IWN_FILTER_PROMISC);
 		break;
 	default:
 		/* Should not get there. */
 		break;
 	}
+	iwn_set_promisc(sc);
 	sc->rxon->cck_mask  = 0x0f;	/* not yet negotiated */
 	sc->rxon->ofdm_mask = 0xff;	/* not yet negotiated */
 	sc->rxon->ht_single_mask = 0xff;
