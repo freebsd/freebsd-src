@@ -3,6 +3,6 @@
 
 PROG=	unstr
 MAN=
-CFLAGS+= -I${.CURDIR}/../strfile
+CFLAGS+= -I${FORTUNE_SRC}/strfile
 
 .include <bsd.prog.mk>
