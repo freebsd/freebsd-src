@@ -506,8 +506,6 @@
                 ..
             ..
         ..
-        info
-        ..
         keys
             pkg
                 revoked
