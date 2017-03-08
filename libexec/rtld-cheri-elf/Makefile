@@ -40,6 +40,7 @@ BINDIR=		/libexec
 
 CFLAGS+=	-fpic
 CFLAGS+=	-DPIC $(DEBUG)
+CFLAGS.reloc.c+=-fno-jump-tables
 LDFLAGS+=	-shared -Wl,-Bsymbolic -Wl,-z,defs
 LIBADD=		c_pic
 
