@@ -468,7 +468,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	off_t offset, length, chunk;
+	off_t offset, length, chunk, odd;
 	int i, error;
 
 	cp = dev->si_drv2;
@@ -572,6 +572,13 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			    g_dev_del_max_sectors * cp->provider->sectorsize) {
 				chunk = g_dev_del_max_sectors *
 				    cp->provider->sectorsize;
+				if (cp->provider->stripesize > 0) {
+					odd = (offset + chunk +
+					    cp->provider->stripeoffset) %
+					    cp->provider->stripesize;
+					if (chunk > odd)
+						chunk -= odd;
+				}
 			}
 			error = g_delete_data(cp, offset, chunk);
 			length -= chunk;
