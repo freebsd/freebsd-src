@@ -168,8 +168,6 @@ gfpflags_allow_blocking(const gfp_t gfp_flags)
 	return ((gfp_flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK);
 }
 
-#define kmalloc_node(chunk, mask, node)         kmalloc(chunk, mask)
-
 #define	SetPageReserved(page)	do { } while (0)	/* NOP */
 #define	ClearPageReserved(page)	do { } while (0)	/* NOP */
 
