@@ -45,7 +45,8 @@ CLEANFILES=	vers.c
 
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
-CFLAGS+=        -DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
+CFLAGS+=        -DBOOT_FORTH -I${.CURDIR}/../../ficl
+CFLAGS+=        -I${.CURDIR}/../../ficl/i386
 CFLAGS+=	-DBF_DICTSIZE=15000
 LIBFICL=	${.OBJDIR}/../ficl/libficl.a
 LIBSTAND=	${.OBJDIR}/../libstand/libstand.a
