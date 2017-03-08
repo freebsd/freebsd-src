@@ -188,13 +188,13 @@ proc_write_fpregs(struct thread *td, struct fpreg *fpregs)
 
 #ifdef CPU_CHERI
 int
-proc_read_capregs(struct thread *td, void *capregs)
+proc_read_capregs(struct thread *td, struct capreg *capregs)
 {
 	PROC_ACTION(fill_capregs(td, capregs));
 }
 
 int
-proc_write_capregs(struct thread *td, void *capregs)
+proc_write_capregs(struct thread *td, struct capreg *capregs)
 {
 	PROC_ACTION(set_capregs(td, capregs));
 }
@@ -242,6 +242,18 @@ proc_write_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
 {
 
 	PROC_ACTION(set_fpregs32(td, fpregs32));
+}
+
+int
+proc_read_capregs32(struct thread *td, struct capreg *capregs)
+{
+	return (EIO);
+}
+
+int
+proc_write_capregs32(struct thread *td, struct capreg *capregs)
+{
+	return (EIO);
 }
 #endif
 
@@ -589,6 +601,9 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		struct ptrace_io_desc piod;
 		struct ptrace_lwpinfo pl;
 		struct ptrace_vm_entry pve;
+#ifdef CPU_CHERI
+		struct capreg capreg;
+#endif
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
@@ -619,6 +634,9 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_GETREGS:
 	case PT_GETFPREGS:
 	case PT_GETDBREGS:
+#ifdef CPU_CHERI
+	case PT_GETCAPREGS:
+#endif
 	case PT_LWPINFO:
 		break;
 	case PT_SETREGS:
@@ -630,6 +648,11 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_SETDBREGS:
 		error = COPYIN(uap->addr, &r.dbreg, sizeof r.dbreg);
 		break;
+#ifdef CPU_CHERI
+	case PT_SETCAPREGS:
+		error = COPYIN(uap->addr, &r.capreg, sizeof r.capreg);
+		break;
+#endif
 	case PT_SET_EVENT_MASK:
 		if (uap->data != sizeof(r.ptevents))
 			error = EINVAL;
@@ -669,6 +692,11 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_GETDBREGS:
 		error = COPYOUT(&r.dbreg, uap->addr, sizeof r.dbreg);
 		break;
+#ifdef CPU_CHERI
+	case PT_GETCAPREGS:
+		error = COPYOUT(&r.capreg, uap->addr, sizeof r.capreg);
+		break;
+#endif
 	case PT_GET_EVENT_MASK:
 		/* NB: The size in uap->data is validated in kern_ptrace(). */
 		error = copyout(&r.ptevents, uap->addr, uap->data);
@@ -1296,6 +1324,21 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		    p->p_pid);
 		error = PROC_READ(dbregs, td2, addr);
 		break;
+
+#ifdef CPU_CHERI
+	case PT_SETCAPREGS:
+		CTR2(KTR_PTRACE, "PT_SETCAPREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
+		td2->td_dbgflags |= TDB_USERWR;
+		error = PROC_WRITE(capregs, td2, addr);
+		break;
+
+	case PT_GETCAPREGS:
+		CTR2(KTR_PTRACE, "PT_GETCAPREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
+		error = PROC_READ(capregs, td2, addr);
+		break;
+#endif
 
 	case PT_LWPINFO:
 		if (data <= 0 ||

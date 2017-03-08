@@ -34,6 +34,9 @@
 
 typedef struct reg gregset_t;
 typedef struct fpreg fpregset_t;
+#ifdef CPU_CHERI
+typedef struct capreg capregset_t;
+#endif
 
 /*
  * These structures define an interface between core files and the debugger.

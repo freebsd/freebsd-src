@@ -1921,7 +1921,7 @@ typedef struct kinfo_proc elf_kinfo_proc_t;
 typedef vm_offset_t elf_ps_strings_t;
 #endif
 #ifdef CPU_CHERI
-typedef struct cheri_frame elf_capregs_t;
+typedef capregset_t elf_capregs_t;
 #endif
 
 static void

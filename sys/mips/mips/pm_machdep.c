@@ -575,20 +575,20 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 } while(0)
 
 int
-fill_capregs(struct thread *td, void *_capregs)
+fill_capregs(struct thread *td, struct capreg *capregs)
 {
 
 #ifdef CPU_CHERI128
 	cheri_trapframe_to_cheriframe(&td->td_pcb->pcb_regs,
-	    (struct cheri_frame *)_capregs);
+	    (struct cheri_frame *)capregs);
 #else
 	struct cheri_frame *cfp;
 	uint64_t *dst, *src;
 
-	cfp = malloc(sizeof(*cfp), M_TEMP, M_WAITOK);
+	cfp = malloc(sizeof(*cfp), M_TEMP, M_WAITOK | M_ZERO);
 	cheri_trapframe_to_cheriframe(&td->td_pcb->pcb_regs, cfp);
 
-	dst = _capregs;
+	dst = (uint64_t *)capregs;
 	src = (uint64_t *)cfp;
 
 	/*
@@ -637,7 +637,7 @@ fill_capregs(struct thread *td, void *_capregs)
 }
 
 int
-set_capregs(struct thread *td, void *_capregs)
+set_capregs(struct thread *td, struct capreg *capregs)
 {
 	return (ENOSYS);
 }

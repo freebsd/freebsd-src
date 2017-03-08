@@ -70,6 +70,12 @@ struct dbreg {
 	unsigned long junk;
 };
 
+#ifdef CPU_CHERI
+struct capreg {
+	struct chericap r_regs[NUMCHERISAVEREGS];
+};
+#endif
+
 #ifdef __LP64__
 /* Must match struct trapframe */
 struct reg32 {
@@ -95,8 +101,8 @@ int	set_regs(struct thread *, struct reg *);
 int	fill_dbregs(struct thread *, struct dbreg *);
 int	set_dbregs(struct thread *, struct dbreg *);
 #ifdef CPU_CHERI
-int	fill_capregs(struct thread *, void *);
-int	set_capregs(struct thread *, void *);
+int	fill_capregs(struct thread *, struct capreg *);
+int	set_capregs(struct thread *, struct capreg *);
 #endif
 #endif
 
