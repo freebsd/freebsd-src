@@ -90,6 +90,8 @@ efi_verify_staging_size(unsigned long *nr_pages)
 	}
 
 	i++;
+	p = NextMemoryDescriptor(p, dsz);
+
 	for ( ; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
 		if (p->Type != EfiConventionalMemory &&
