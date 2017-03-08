@@ -63,7 +63,7 @@ static void linux_delayed_work_timer_fn(void *);
  * This function atomically updates the work state and returns the
  * previous state at the time of update.
  */
-static const uint8_t
+static uint8_t
 linux_update_state(atomic_t *v, const uint8_t *pstate)
 {
 	int c, old;
@@ -84,7 +84,7 @@ linux_update_state(atomic_t *v, const uint8_t *pstate)
  * again. Without this extra hint LinuxKPI tasks cannot be serialized
  * accross multiple worker threads.
  */
-static const bool
+static bool
 linux_work_exec_unblock(struct work_struct *work)
 {
 	struct workqueue_struct *wq;
