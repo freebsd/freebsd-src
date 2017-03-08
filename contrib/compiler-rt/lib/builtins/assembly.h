@@ -75,6 +75,9 @@
 #define __ARM_FEATURE_CLZ
 #endif
 
+#undef __ARM_ARCH_ISA_THUMB
+#define __ARM_ARCH_ISA_THUMB 0
+
 #ifdef ARM_HAS_BX
 #define JMP(r) bx r
 #define JMPc(r, c) bx##c r
