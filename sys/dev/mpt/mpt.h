@@ -614,6 +614,7 @@ struct mpt_softc {
 		struct {
 			uint64_t wwnn;
 			uint64_t wwpn;
+			uint32_t portid;
 		} fc;
 	} scinfo;
 
