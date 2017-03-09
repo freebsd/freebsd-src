@@ -101,6 +101,7 @@ extern void			__bangpxeentry(void);
 extern u_int16_t		__pxenvseg;
 extern u_int16_t		__pxenvoff;
 extern void			__pxenventry(void);
+extern struct in_addr		servip;
 
 struct netif_dif pxe_ifs[] = {
 /*	dif_unit        dif_nsel        dif_stats       dif_private     */
@@ -276,17 +277,38 @@ pxe_open(struct open_file *f, ...)
 			}
 			if (pxe_debug)
 				printf("pxe_open: netif_open() succeeded\n");
+
+			if (socktodesc(pxe_sock) == NULL) {
+				printf("pxe_open: bad socket %d\n", pxe_sock);
+				return (ENXIO);
+			}
+
 		}
 		if (rootip.s_addr == 0) {
 			/*
-			 * Do a bootp/dhcp request to find out where our
+			 * Try to extract the RFC1048 data from PXE.
+			 * If fail do a bootp/dhcp request to find out where our
 			 * NFS/TFTP server is. Even if we dont get back
 			 * the proper information, fall back to the server
 			 * which brought us to life and a default rootpath.
 			 */
-			bootp(pxe_sock, BOOTP_PXE);
+
+			if (dhcp_try_rfc1048(bootplayer.vendor.d, BOOTP_DHCPVEND) < 0) {
+				if (pxe_debug)
+					printf("pxe_open: no RFC1048 data in PXE Cache\n");
+				bootp(pxe_sock, BOOTP_PXE);
+			} else if (pxe_debug) {
+				printf("pxe_open: loaded RFC1048 data from PXE Cache\n");
+			}
+
 			if (rootip.s_addr == 0)
 				rootip.s_addr = bootplayer.sip;
+			if (gateip.s_addr == 0)
+				gateip.s_addr = bootplayer.gip;
+			if (myip.s_addr == 0)
+				myip.s_addr = bootplayer.yip;
+			if (servip.s_addr == 0)
+				servip = rootip;
 
 			netproto = NET_NFS;
 			if (tftpip.s_addr != 0) {
@@ -323,6 +345,9 @@ pxe_open(struct open_file *f, ...)
 			printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
 			printf("pxe_open: server path: %s\n", rootpath);
 			printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
+			printf("pxe_open: my ip:       %s\n", inet_ntoa(myip));
+			printf("pxe_open: netmask:     %s\n", intoa(netmask));
+			printf("pxe_open: servip:      %s\n", inet_ntoa(servip));
 
 			if (netproto == NET_TFTP) {
 				setenv("boot.tftproot.server", inet_ntoa(rootip), 1);
