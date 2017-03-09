@@ -1621,10 +1621,9 @@ fixup_and_send_ofo(struct toepcb *toep)
 	struct mbuf *m;
 	struct toedev *tod = toep->tp_tod;
 	struct adapter *sc = tod->tod_softc;
-	struct inpcb *inp = toep->tp_inp;
 	unsigned int tid = toep->tp_tid;
 
-	inp_lock_assert(inp);
+	inp_lock_assert(toep->tp_inp);
 
 	while ((m = mbufq_dequeue(&toep->out_of_order_queue)) != NULL) {
 		struct ofld_hdr *oh = mtod(m, void *);
