@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Nexenta Systems, Inc.
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2015 John Marino <draco@marino.st>
  *
  * This source code is derived from the illumos localedef command, and
@@ -78,7 +78,7 @@ add_time_str(wchar_t *wcs)
 		break;
 	case T_DATE_FMT:
 		/*
-		 * This one is a Solaris extension. Too bad date just
+		 * This one is a Solaris extension, Too bad date just
 		 * doesn't use %c, which would be simpler.
 		 */
 		tm.date_fmt = str;
