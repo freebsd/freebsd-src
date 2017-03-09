@@ -26,10 +26,10 @@
  * $FreeBSD$
  */
 
-#ifndef _LIBEFI_INT_H_
-#define	_LIBEFI_INT_H_
+#ifndef _BOOT_EFI_EFICHAR_H_
+#define	_BOOT_EFI_EFICHAR_H_
 
-int libefi_ucs2_to_utf8(const efi_char *, char **);
-int libefi_utf8_to_ucs2(const char *, efi_char **, size_t *);
+int ucs2_to_utf8(const efi_char *, char **);
+int utf8_to_ucs2(const char *, efi_char **, size_t *);
 
-#endif /* _LIBEFI_INT_H_ */
+#endif /* _BOOT_EFI_EFICHAR_H_ */
