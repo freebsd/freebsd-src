@@ -102,7 +102,12 @@ writertc(int reg, u_char val)
 static __inline int
 readrtc(int port)
 {
-	return(bcd2bin(rtcin(port)));
+	int readval;
+
+	readval = rtcin(port);
+	if (readval >= 0 && (readval & 0xf) < 0xa && (readval & 0xf0) < 0xa0)
+		return (bcd2bin(readval));
+	return (0);
 }
 
 static void
