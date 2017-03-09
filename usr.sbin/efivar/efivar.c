@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <efivar.h>
+#include <efivar-dp.h>
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>
@@ -201,8 +202,13 @@ bindump(uint8_t *data, size_t datalen)
 static void
 devpath_dump(uint8_t *data, size_t datalen)
 {
+	char buffer[1024];
 
-	fprintf(stderr, "junk %p %zu\n", data, datalen);
+	efidp_format_device_path(buffer, sizeof(buffer),
+	    (const_efidp)data, datalen);
+	if (!Nflag)
+		printf(": ");
+	printf("%s\n", buffer);
 }
 
 static void
