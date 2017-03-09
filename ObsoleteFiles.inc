@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170308: rename some tests
+OLD_FILES+=usr/tests/bin/pwait/pwait
+OLD_FILES+=usr/tests/usr.bin/timeout/timeout
 # 20170307: remove pcap-int.h
 OLD_FILES+=usr/include/pcap-int.h
 # 20170302: new libc++ import which bumps version from 3.9.1 to 4.0.0.
