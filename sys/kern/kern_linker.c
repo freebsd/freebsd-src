@@ -459,7 +459,8 @@ linker_load_file(const char *filename, linker_file_t *result)
 		 * printout a message before to fail.
 		 */
 		if (error == ENOSYS)
-			printf("linker_load_file: Unsupported file type\n");
+			printf("%s: %s - unsupported file type\n",
+			    __func__, filename);
 
 		/*
 		 * Format not recognized or otherwise unloadable.
