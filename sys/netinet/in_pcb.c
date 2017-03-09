@@ -2348,7 +2348,7 @@ inp_runlock(struct inpcb *inp)
 	INP_RUNLOCK(inp);
 }
 
-#ifdef INVARIANTS
+#ifdef INVARIANT_SUPPORT
 void
 inp_lock_assert(struct inpcb *inp)
 {

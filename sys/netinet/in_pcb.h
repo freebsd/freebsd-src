@@ -464,20 +464,12 @@ void inp_wunlock(struct inpcb *);
 void inp_rlock(struct inpcb *);
 void inp_runlock(struct inpcb *);
 
-#ifdef INVARIANTS
+#ifdef INVARIANT_SUPPORT
 void inp_lock_assert(struct inpcb *);
 void inp_unlock_assert(struct inpcb *);
 #else
-static __inline void
-inp_lock_assert(struct inpcb *inp __unused)
-{
-}
-
-static __inline void
-inp_unlock_assert(struct inpcb *inp __unused)
-{
-}
-
+#define	inp_lock_assert(inp)	do {} while (0)
+#define	inp_unlock_assert(inp)	do {} while (0)
 #endif
 
 void	inp_apply_all(void (*func)(struct inpcb *, void *), void *arg);
