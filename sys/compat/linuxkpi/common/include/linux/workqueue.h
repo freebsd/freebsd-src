@@ -72,8 +72,13 @@ struct work_struct {
 	atomic_t state;
 };
 
-#define	DECLARE_WORK(name, fn) \
-	struct work_struct name = { .func = (fn) }
+#define	DECLARE_WORK(name, fn)						\
+	struct work_struct name;					\
+	static void name##_init(void *arg)				\
+	{								\
+		INIT_WORK(&name, fn);					\
+	}								\
+	SYSINIT(name, SI_SUB_LOCK, SI_ORDER_SECOND, name##_init, NULL)
 
 struct delayed_work {
 	struct work_struct work;
