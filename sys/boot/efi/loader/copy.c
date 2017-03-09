@@ -30,8 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <machine/cpufunc.h>
-#include <machine/specialreg.h>
 
 #include <stand.h>
 #include <bootstrap.h>
@@ -42,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include "loader_efi.h"
 
 #if defined(__i386__) || defined(__amd64__)
+#include <machine/cpufunc.h>
+#include <machine/specialreg.h>
 
 /*
  * The code is excerpted from sys/x86/x86/identcpu.c: identify_cpu(),
