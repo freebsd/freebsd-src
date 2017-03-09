@@ -137,8 +137,6 @@ close_category(FILE *f)
 {
 	if (fchmod(fileno(f), 0644) < 0 ||
 	    fclose(f) != 0) {
-		(void) fclose(f);
-		(void) unlink(category_file());
 		errf(strerror(errno));
 		delete_category(f);
 	}
