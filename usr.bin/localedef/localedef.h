@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.
  * Copyright 2015 John Marino <draco@marino.st>
  *
  * This source code is derived from the illumos localedef command, and
@@ -60,6 +60,7 @@ void warn(const char *, ...);
 int putl_category(const char *, FILE *);
 int wr_category(void *, size_t, FILE *);
 FILE *open_category(void);
+void delete_category(FILE *);
 void close_category(FILE *);
 void copy_category(char *);
 const char *category_name(void);
