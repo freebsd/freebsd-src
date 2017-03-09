@@ -433,7 +433,23 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 	}
 	mpt2host_config_page_fc_port_0(&mpt->mpt_fcport_page0);
 
-	mpt->mpt_fcport_speed = mpt->mpt_fcport_page0.CurrentSpeed;
+	switch (mpt->mpt_fcport_page0.CurrentSpeed) {
+	case MPI_FCPORTPAGE0_CURRENT_SPEED_1GBIT:
+		mpt->mpt_fcport_speed = 1;
+		break;
+	case MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT:
+		mpt->mpt_fcport_speed = 2;
+		break;
+	case MPI_FCPORTPAGE0_CURRENT_SPEED_10GBIT:
+		mpt->mpt_fcport_speed = 10;
+		break;
+	case MPI_FCPORTPAGE0_CURRENT_SPEED_4GBIT:
+		mpt->mpt_fcport_speed = 4;
+		break;
+	default:
+		mpt->mpt_fcport_speed = 0;
+		break;
+	}
 
 	switch (mpt->mpt_fcport_page0.Flags &
 	    MPI_FCPORTPAGE0_FLAGS_ATTACH_TYPE_MASK) {
@@ -3465,8 +3481,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cts->protocol_version = SCSI_REV_SPC;
 			cts->transport = XPORT_FC;
 			cts->transport_version = 0;
-			fc->valid = CTS_FC_VALID_SPEED;
-			fc->bitrate = 100000;
+			if (mpt->mpt_fcport_speed != 0) {
+				fc->valid = CTS_FC_VALID_SPEED;
+				fc->bitrate = 100000 * mpt->mpt_fcport_speed;
+			}
 		} else if (mpt->is_sas) {
 			struct ccb_trans_settings_sas *sas =
 			    &cts->xport_specific.sas;
