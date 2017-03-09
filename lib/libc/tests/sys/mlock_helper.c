@@ -36,8 +36,8 @@ __FBSDID("$FreeBSD$");
 
 #include <atf-c.h>
 #include <errno.h>
-#include <stdio.h>
 #include <limits.h>
+#include <stdio.h>
 
 #define	VM_MAX_WIRED "vm.max_wired"
 
