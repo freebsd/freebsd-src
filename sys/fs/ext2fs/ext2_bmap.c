@@ -102,9 +102,6 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	fs = ip->i_e2fs;
 	lbn = bn;
 
-	/*
-	 * TODO: need to implement read ahead to improve the performance.
-	 */
 	if (runp != NULL)
 		*runp = 0;
 
@@ -112,15 +109,25 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 		*runb = 0;
 
 	ext4_ext_find_extent(fs, ip, lbn, &path);
-	ep = path.ep_ext;
-	if (ep == NULL)
-		ret = EIO;
-	else {
-		*bnp = fsbtodb(fs, lbn - ep->e_blk +
-		    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
+	if (path.ep_is_sparse) {
+		*bnp = -1;
+		if (runp != NULL)
+			*runp = path.ep_sparse_ext.e_len -
+			    (lbn - path.ep_sparse_ext.e_blk) - 1;
+	} else {
+		ep = path.ep_ext;
+		if (ep == NULL)
+			ret = EIO;
+		else {
+			*bnp = fsbtodb(fs, lbn - ep->e_blk +
+			    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
 
-		if (*bnp == 0)
-			*bnp = -1;
+			if (*bnp == 0)
+				*bnp = -1;
+
+			if (runp != NULL)
+				*runp = ep->e_len - (lbn - ep->e_blk) - 1;
+		}
 	}
 
 	if (path.ep_bp != NULL) {
