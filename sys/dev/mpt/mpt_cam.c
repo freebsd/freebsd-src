@@ -479,6 +479,7 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 	    | mpt->mpt_fcport_page0.WWNN.Low;
 	mpt->scinfo.fc.wwpn = ((uint64_t)mpt->mpt_fcport_page0.WWPN.High << 32)
 	    | mpt->mpt_fcport_page0.WWPN.Low;
+	mpt->scinfo.fc.portid = mpt->mpt_fcport_page0.PortIdentifier;
 
 	mpt_lprt(mpt, MPT_PRT_INFO,
 	    "FC Port Page 0: Topology <%s> WWNN 0x%16jx WWPN 0x%16jx "
@@ -3590,6 +3591,11 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->transport = XPORT_FC;
 			cpi->transport_version = 0;
 			cpi->protocol_version = SCSI_REV_SPC;
+			cpi->xport_specific.fc.wwnn = mpt->scinfo.fc.wwnn;
+			cpi->xport_specific.fc.wwpn = mpt->scinfo.fc.wwpn;
+			cpi->xport_specific.fc.port = mpt->scinfo.fc.portid;
+			cpi->xport_specific.fc.bitrate =
+			    100000 * mpt->mpt_fcport_speed;
 		} else if (mpt->is_sas) {
 			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 			cpi->base_transfer_speed = 300000;
