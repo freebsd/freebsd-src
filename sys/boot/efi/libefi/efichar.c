@@ -36,9 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/efi.h>
 #include <machine/efi.h>
 
-#include "libefivar_int.h"
-
-#include <stdio.h>
+#include "efichar.h"
 
 /*
  * If nm were converted to utf8, what what would strlen
@@ -65,7 +63,7 @@ utf8_len_of_ucs2(const efi_char *nm)
 }
 
 int
-libefi_ucs2_to_utf8(const efi_char *nm, char **name)
+ucs2_to_utf8(const efi_char *nm, char **name)
 {
 	size_t len, sz;
 	efi_char c;
@@ -113,7 +111,7 @@ libefi_ucs2_to_utf8(const efi_char *nm, char **name)
 }
 
 int
-libefi_utf8_to_ucs2(const char *name, efi_char **nmp, size_t *len)
+utf8_to_ucs2(const char *name, efi_char **nmp, size_t *len)
 {
 	efi_char *nm;
 	size_t sz;
