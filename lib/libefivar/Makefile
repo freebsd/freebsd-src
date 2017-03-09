@@ -26,12 +26,18 @@
 
 .include <src.opts.mk>
 
+EFIBOOT=${SRCTOP}/sys/boot/efi
+
+.PATH:	${EFIBOOT}/libefi
+
 PACKAGE=lib${LIB}
 LIB=		efivar
-SRCS=		efivar.c libefivar.c
+SRCS=		efivar.c efichar.c
 INCS=		efivar.h
 SHLIB_MAJOR=	1
 MAN=		efivar.3
+
+CFLAGS+=	-I${EFIBOOT}/include
 
 MLINKS+=efivar.3 efi_set_variables_supported.3 \
 	efivar.3 efi_del_variable.3 \
