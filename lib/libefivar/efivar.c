@@ -36,8 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#include "efivar.h"
-#include "libefivar_int.h"
+#include "efichar.h"
 
 static int efi_fd = -2;
 
@@ -174,7 +173,7 @@ efi_get_variable(efi_guid_t guid, const char *name,
 		return -1;
 
 	efi_var_reset(&var);
-	rv = libefi_utf8_to_ucs2(name, &var.name, &var.namesize);
+	rv = utf8_to_ucs2(name, &var.name, &var.namesize);
 	if (rv != 0)
 		goto errout;
 	var.vendor = guid;
@@ -237,7 +236,7 @@ again:
 		*buf = 0;
 		/* GUID zeroed in var_reset */
 	} else {
-		rv = libefi_utf8_to_ucs2(*name, &var.name, &size);
+		rv = utf8_to_ucs2(*name, &var.name, &size);
 		if (rv != 0)
 			goto errout;
 		var.vendor = **guid;
@@ -261,7 +260,7 @@ again:
 	if (rv == 0) {
 		*name = NULL; /* XXX */
 		var.name[var.namesize / sizeof(efi_char)] = 0;	/* EFI doesn't NUL terminate */
-		rv = libefi_ucs2_to_utf8(var.name, name);
+		rv = ucs2_to_utf8(var.name, name);
 		if (rv != 0)
 			goto errout;
 		retguid = var.vendor;
@@ -359,7 +358,7 @@ efi_set_variable(efi_guid_t guid, const char *name,
 		return -1;
 
 	efi_var_reset(&var);
-	rv = libefi_utf8_to_ucs2(name, &var.name, &var.namesize);
+	rv = utf8_to_ucs2(name, &var.name, &var.namesize);
 	if (rv != 0)
 		goto errout;
 	var.vendor = guid;
