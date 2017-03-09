@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2017 Nexenta Systems, Inc.
  * Copyright 2015 John Marino <draco@marino.st>
  *
  * This source code is derived from the illumos localedef command, and
@@ -1291,21 +1291,25 @@ dump_collate(void)
 	if ((wr_category(vers, COLLATE_STR_LEN, f) < 0) ||
 	    (wr_category(&collinfo, sizeof (collinfo), f) < 0) ||
 	    (wr_category(&chars, sizeof (chars), f) < 0)) {
+	    	delete_category(f);
 		return;
 	}
 
 	for (i = 0; i < NUM_WT; i++) {
 		sz =  sizeof (collate_subst_t) * collinfo.subst_count[i];
 		if (wr_category(subst[i], sz, f) < 0) {
+			delete_category(f);
 			return;
 		}
 	}
 	sz = sizeof (collate_chain_t) * collinfo.chain_count;
 	if (wr_category(chain, sz, f) < 0) {
+		delete_category(f);
 		return;
 	}
 	sz = sizeof (collate_large_t) * collinfo.large_count;
 	if (wr_category(large, sz, f) < 0) {
+		delete_category(f);
 		return;
 	}
 
