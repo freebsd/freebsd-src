@@ -306,7 +306,7 @@ dump_ctype(void)
 		return;
 
 	(void) memcpy(rl.magic, _FILE_RUNE_MAGIC_1, 8);
-	(void) strncpy(rl.encoding, get_wide_encoding(), sizeof (rl.encoding));
+	(void) strlcpy(rl.encoding, get_wide_encoding(), sizeof (rl.encoding));
 
 	/*
 	 * Initialize the identity map.
@@ -379,7 +379,7 @@ dump_ctype(void)
 		if ((ctn->ctype & _ISALPHA) &&
 		    (ctn->ctype & (_ISPUNCT|_ISDIGIT)))
 			conflict++;
-		if ((ctn->ctype & _ISPUNCT) &
+		if ((ctn->ctype & _ISPUNCT) &&
 		    (ctn->ctype & (_ISDIGIT|_ISALPHA|_ISXDIGIT)))
 			conflict++;
 		if ((ctn->ctype & _ISSPACE) && (ctn->ctype & _ISGRAPH))
