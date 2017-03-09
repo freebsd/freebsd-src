@@ -238,6 +238,7 @@ static const char rcsid[] =
 #endif	/* IPSEC */
 
 #include <ctype.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -1013,6 +1014,8 @@ main(int argc, char **argv)
 	else
 		cansandbox = false;
 #endif
+
+	caph_cache_catpages();
 
 	/*
 	 * Here we enter capability mode. Further down access to global
