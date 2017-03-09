@@ -49,7 +49,11 @@
 #endif
 
 
+#ifndef _EFIVAR_EFI_GUID_T_DEF
+#define _EFIVAR_EFI_GUID_T_DEF
 typedef uuid_t efi_guid_t;
+#endif
+
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define	EFI_GUID(a, b, c, d, e0, e1, e2, e3, e4, e5)			\
 	((efi_guid_t) {(a), (b), (c), (d) >> 8, (d) & 0xff,		\
