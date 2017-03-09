@@ -21,25 +21,25 @@ basic_body()
 		-o empty \
 		-e empty \
 		-s exit:0 \
-		-x timeout --preserve-status 15 pwait $p1 $p5 $p10
+		timeout --preserve-status 15 pwait $p1 $p5 $p10
 
 	atf_check \
 		-o empty \
 		-e inline:"kill: $p1: No such process\n" \
 		-s exit:1 \
-		-x kill -0 $p1
+		kill -0 $p1
 
 	atf_check \
 		-o empty \
 		-e inline:"kill: $p5: No such process\n" \
 		-s exit:1 \
-		-x kill -0 $p5
+		kill -0 $p5
 
 	atf_check \
 		-o empty \
 		-e inline:"kill: $p10: No such process\n" \
 		-s exit:1 \
-		-x kill -0 $p10
+		kill -0 $p10
 
 }
 
@@ -63,25 +63,25 @@ time_unit_body()
 		-o empty \
 		-e inline:"pwait: timeout unit\n" \
 		-s exit:65 \
-		-x timeout --preserve-status 2 pwait -t 1d $init
+		timeout --preserve-status 2 pwait -t 1d $init
 
 	atf_check \
 		-o empty \
 		-e inline:"pwait: timeout unit\n" \
 		-s exit:65 \
-		-x timeout --preserve-status 2 pwait -t 1d $init
+		timeout --preserve-status 2 pwait -t 1d $init
 
 	atf_check \
 		-o empty \
 		-e inline:"pwait: timeout value\n" \
 		-s exit:65 \
-		-x timeout --preserve-status 2 pwait -t -1 $init
+		timeout --preserve-status 2 pwait -t -1 $init
 
 	atf_check \
 		-o empty \
 		-e inline:"pwait: timeout value\n" \
 		-s exit:65 \
-		-x timeout --preserve-status 2 pwait -t 100000001 $init
+		timeout --preserve-status 2 pwait -t 100000001 $init
 
 	# These long duration cases are expected to timeout from the
 	# timeout utility rather than pwait -t.
@@ -89,37 +89,37 @@ time_unit_body()
 		-o empty \
 		-e empty \
 		-s exit:143 \
-		-x timeout --preserve-status 2 pwait -t 100000000 $init
+		timeout --preserve-status 2 pwait -t 100000000 $init
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:143 \
-		-x timeout --preserve-status 2 pwait -t 1h $init
+		timeout --preserve-status 2 pwait -t 1h $init
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:143 \
-		-x timeout --preserve-status 2 pwait -t 1.5h $init
+		timeout --preserve-status 2 pwait -t 1.5h $init
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:143 \
-		-x timeout --preserve-status 2 pwait -t 1m $init
+		timeout --preserve-status 2 pwait -t 1m $init
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:143 \
-		-x timeout --preserve-status 2 pwait -t 1.5m $init
+		timeout --preserve-status 2 pwait -t 1.5m $init
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:143 \
-		-x timeout --preserve-status 2 pwait -t 0 $init
+		timeout --preserve-status 2 pwait -t 0 $init
 
 	# The rest are fast enough that pwait -t is expected to trigger
 	# the timeout.
@@ -127,31 +127,31 @@ time_unit_body()
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		-x timeout --preserve-status 2 pwait -t 1s $init
+		timeout --preserve-status 2 pwait -t 1s $init
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		-x timeout --preserve-status 2 pwait -t 1.5s $init
+		timeout --preserve-status 2 pwait -t 1.5s $init
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		-x timeout --preserve-status 2 pwait -t 1 $init
+		timeout --preserve-status 2 pwait -t 1 $init
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		-x timeout --preserve-status 2 pwait -t 1.5 $init
+		timeout --preserve-status 2 pwait -t 1.5 $init
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		-x timeout --preserve-status 2 pwait -t 0.5 $init
+		timeout --preserve-status 2 pwait -t 0.5 $init
 }
 
 atf_test_case timeout_trigger_timeout
@@ -169,7 +169,7 @@ timeout_trigger_timeout_body()
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		-x timeout --preserve-status 6.5 pwait -t 5 $p10
+		timeout --preserve-status 6.5 pwait -t 5 $p10
 }
 
 timeout_trigger_timeout_cleanup()
@@ -193,7 +193,7 @@ timeout_no_timeout_body()
 		-o empty \
 		-e empty \
 		-s exit:0 \
-		-x timeout --preserve-status 11.5 pwait -t 12 $p10
+		timeout --preserve-status 11.5 pwait -t 12 $p10
 }
 
 timeout_no_timeout_cleanup()
@@ -223,7 +223,7 @@ timeout_many_body()
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		-x timeout --preserve-status 7.5 pwait -t 6 $p1 $p5 $p10
+		timeout --preserve-status 7.5 pwait -t 6 $p1 $p5 $p10
 }
 
 timeout_many_cleanup()

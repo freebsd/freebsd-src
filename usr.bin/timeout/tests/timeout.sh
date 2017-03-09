@@ -12,7 +12,7 @@ nominal_body()
 		-o empty \
 		-e empty \
 		-s exit:0 \
-		-x timeout 5 true
+		timeout 5 true
 }
 
 atf_test_case time_unit
@@ -27,25 +27,25 @@ time_unit_body()
 		-o empty \
 		-e empty \
 		-s exit:0 \
-		-x timeout 1d true
+		timeout 1d true
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:0 \
-		-x timeout 1h true
+		timeout 1h true
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:0 \
-		-x timeout 1m true
+		timeout 1m true
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:0 \
-		-x timeout 1s true
+		timeout 1s true
 }
 
 atf_test_case no_timeout
@@ -60,7 +60,7 @@ no_timeout_body()
 		-o empty \
 		-e empty \
 		-s exit:0 \
-		-x timeout 0 true
+		timeout 0 true
 }
 
 atf_test_case exit_numbers
@@ -81,20 +81,20 @@ exit_numbers_body()
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		-x timeout .1 sleep 1
+		timeout .1 sleep 1
 
 	# With preserv status exit should be 128 + TERM aka 143
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:143 \
-		-x timeout --preserve-status .1 sleep 10
+		timeout --preserve-status .1 sleep 10
 
 	atf_check \
 		-o empty \
 		-e empty \
 		-s exit:124 \
-		-x timeout -s1 -k1 .1 sleep 10
+		timeout -s1 -k1 .1 sleep 10
 
 	atf_check \
 		-o empty \
@@ -129,31 +129,31 @@ invalid_timeout_body()
 		-o empty \
 		-e inline:"timeout: invalid duration\n" \
 		-s exit:125 \
-		-x timeout invalid sleep 0
+		timeout invalid sleep 0
 
 	atf_check \
 		-o empty \
 		-e inline:"timeout: invalid duration\n" \
 		-s exit:125 \
-		-x timeout --kill-after=invalid 1 sleep 0
+		timeout --kill-after=invalid 1 sleep 0
 
 	atf_check \
 		-o empty \
 		-e inline:"timeout: invalid duration\n" \
 		-s exit:125 \
-		-x timeout 42D sleep 0
+		timeout 42D sleep 0
 
 	atf_check \
 		-o empty \
 		-e inline:"timeout: invalid duration\n" \
 		-s exit:125 \
-		-x timeout 999999999999999999999999999999999999999999999999999999999999d sleep 0
+		timeout 999999999999999999999999999999999999999999999999999999999999d sleep 0
 
 	atf_check \
 		-o empty \
 		-e inline:"timeout: invalid duration\n" \
 		-s exit:125 \
-		-x timeout 2.34e+5d sleep 0
+		timeout 2.34e+5d sleep 0
 }
 
 atf_test_case invalid_signal
@@ -168,7 +168,7 @@ invalid_signal_body()
 		-o empty \
 		-e inline:"timeout: invalid signal\n" \
 		-s exit:125 \
-		-x timeout --signal=invalid 1 sleep 0
+		timeout --signal=invalid 1 sleep 0
 }
 
 atf_test_case invalid_command
@@ -183,7 +183,7 @@ invalid_command_body()
 		-o empty \
 		-e inline:"timeout: exec(.): Permission denied\n" \
 		-s exit:126 \
-		-x timeout 10 .
+		timeout 10 .
 }
 
 atf_test_case no_such_command
@@ -198,7 +198,7 @@ no_such_command_body()
 		-o empty \
 		-e inline:"timeout: exec(enoexists): No such file or directory\n" \
 		-s exit:127 \
-		-x timeout 10 enoexists
+		timeout 10 enoexists
 }
 
 atf_init_test_cases()
