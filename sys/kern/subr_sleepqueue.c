@@ -26,7 +26,7 @@
 
 /*
  * Implementation of sleep queues used to hold queue of threads blocked on
- * a wait channel.  Sleep queues different from turnstiles in that wait
+ * a wait channel.  Sleep queues are different from turnstiles in that wait
  * channels are not owned by anyone, so there is no priority propagation.
  * Sleep queues can also provide a timeout and can also be interrupted by
  * signals.  That said, there are several similarities between the turnstile
@@ -36,7 +36,7 @@
  * a linked list of queues.  An individual queue is located by using a hash
  * to pick a chain, locking the chain, and then walking the chain searching
  * for the queue.  This means that a wait channel object does not need to
- * embed it's queue head just as locks do not embed their turnstile queue
+ * embed its queue head just as locks do not embed their turnstile queue
  * head.  Threads also carry around a sleep queue that they lend to the
  * wait channel when blocking.  Just as in turnstiles, the queue includes
  * a free list of the sleep queues of other threads blocked on the same
@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 #define	SC_LOOKUP(wc)	&sleepq_chains[SC_HASH(wc)]
 #define NR_SLEEPQS      2
 /*
- * There two different lists of sleep queues.  Both lists are connected
+ * There are two different lists of sleep queues.  Both lists are connected
  * via the sq_hash entries.  The first list is the sleep queue chain list
  * that a sleep queue is on when it is attached to a wait channel.  The
  * second list is the free list hung off of a sleep queue that is attached
@@ -183,7 +183,7 @@ init_sleepqueue_profiling(void)
 
 	for (i = 0; i < SC_TABLESIZE; i++) {
 		snprintf(chain_name, sizeof(chain_name), "%u", i);
-		chain_oid = SYSCTL_ADD_NODE(NULL, 
+		chain_oid = SYSCTL_ADD_NODE(NULL,
 		    SYSCTL_STATIC_CHILDREN(_debug_sleepq_chains), OID_AUTO,
 		    chain_name, CTLFLAG_RD, NULL, "sleepq chain stats");
 		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
@@ -218,7 +218,7 @@ init_sleepqueues(void)
 #else
 	    NULL, NULL, sleepq_init, NULL, UMA_ALIGN_CACHE, 0);
 #endif
-	
+
 	thread0.td_sleepqueue = sleepq_alloc();
 }
 
@@ -545,7 +545,7 @@ sleepq_switch(void *wchan, int pri)
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
-	/* 
+	/*
 	 * If we have a sleep queue, then we've already been woken up, so
 	 * just return.
 	 */
@@ -572,7 +572,7 @@ sleepq_switch(void *wchan, int pri)
 #endif
 		}
 		mtx_unlock_spin(&sc->sc_lock);
-		return;		
+		return;
 	}
 #ifdef SLEEPQUEUE_PROFILING
 	if (prof_enabled)
