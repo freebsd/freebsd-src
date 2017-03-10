@@ -4319,7 +4319,7 @@ mpt_disable_lun(struct mpt_softc *mpt, target_id_t tgt, lun_id_t lun)
 		mpt->trt[lun].enabled = 0;
 	}
 	for (i = 0; i < MPT_MAX_LUNS; i++) {
-		if (mpt->trt[lun].enabled) {
+		if (mpt->trt[i].enabled) {
 			break;
 		}
 	}
