@@ -106,6 +106,8 @@ struct ctlfe_lun_softc {
 	int	 inots_alloced;		/* Number of INOTs not freed */
 	struct task	refdrain_task;
 	STAILQ_HEAD(, ccb_hdr) work_queue;
+	LIST_HEAD(, ccb_hdr) atio_list;	/* List of ATIOs queued to SIM. */
+	LIST_HEAD(, ccb_hdr) inot_list;	/* List of INOTs queued to SIM. */
 	STAILQ_ENTRY(ctlfe_lun_softc) links;
 };
 
@@ -453,7 +455,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 {
 	struct ctlfe_softc *bus_softc;
 	struct ctlfe_lun_softc *softc;
-	union ccb en_lun_ccb;
+	union ccb ccb;
 	cam_status status;
 	int i;
 
@@ -461,19 +463,21 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	bus_softc = softc->parent_softc;
 	
 	STAILQ_INIT(&softc->work_queue);
+	LIST_INIT(&softc->atio_list);
+	LIST_INIT(&softc->inot_list);
 	softc->periph = periph;
 	periph->softc = softc;
 
-	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	en_lun_ccb.ccb_h.func_code = XPT_EN_LUN;
-	en_lun_ccb.cel.grp6_len = 0;
-	en_lun_ccb.cel.grp7_len = 0;
-	en_lun_ccb.cel.enable = 1;
-	xpt_action(&en_lun_ccb);
-	status = (en_lun_ccb.ccb_h.status & CAM_STATUS_MASK);
+	xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
+	ccb.ccb_h.func_code = XPT_EN_LUN;
+	ccb.cel.grp6_len = 0;
+	ccb.cel.grp7_len = 0;
+	ccb.cel.enable = 1;
+	xpt_action(&ccb);
+	status = (ccb.ccb_h.status & CAM_STATUS_MASK);
 	if (status != CAM_REQ_CMP) {
 		xpt_print(periph->path, "%s: Enable LUN failed, status 0x%x\n", 
-			  __func__, en_lun_ccb.ccb_h.status);
+			  __func__, ccb.ccb_h.status);
 		return (status);
 	}
 
@@ -507,6 +511,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		PRIV_INFO(new_io) = cmd_info;
 		softc->atios_alloced++;
 		new_ccb->ccb_h.io_ptr = new_io;
+		LIST_INSERT_HEAD(&softc->atio_list, &new_ccb->ccb_h, periph_links.le);
 
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
 		new_ccb->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
@@ -553,6 +558,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		}
 		softc->inots_alloced++;
 		new_ccb->ccb_h.io_ptr = new_io;
+		LIST_INSERT_HEAD(&softc->inot_list, &new_ccb->ccb_h, periph_links.le);
 
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
 		new_ccb->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
@@ -589,23 +595,34 @@ ctlferegister(struct cam_periph *periph, void *arg)
 static void
 ctlfeoninvalidate(struct cam_periph *periph)
 {
-	union ccb en_lun_ccb;
-	cam_status status;
+	struct ctlfe_lun_softc *softc = (struct ctlfe_lun_softc *)periph->softc;
 	struct ctlfe_softc *bus_softc;
-	struct ctlfe_lun_softc *softc;
+	union ccb ccb;
+	struct ccb_hdr *hdr;
+	cam_status status;
 
-	softc = (struct ctlfe_lun_softc *)periph->softc;
+	/* Abort all ATIOs and INOTs queued to SIM. */
+	xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
+	ccb.ccb_h.func_code = XPT_ABORT;
+	LIST_FOREACH(hdr, &softc->atio_list, periph_links.le) {
+		ccb.cab.abort_ccb = (union ccb *)hdr;
+		xpt_action(&ccb);
+	}
+	LIST_FOREACH(hdr, &softc->inot_list, periph_links.le) {
+		ccb.cab.abort_ccb = (union ccb *)hdr;
+		xpt_action(&ccb);
+	}
 
-	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
-	en_lun_ccb.ccb_h.func_code = XPT_EN_LUN;
-	en_lun_ccb.cel.grp6_len = 0;
-	en_lun_ccb.cel.grp7_len = 0;
-	en_lun_ccb.cel.enable = 0;
-	xpt_action(&en_lun_ccb);
-	status = (en_lun_ccb.ccb_h.status & CAM_STATUS_MASK);
+	/* Disable the LUN in SIM. */
+	ccb.ccb_h.func_code = XPT_EN_LUN;
+	ccb.cel.grp6_len = 0;
+	ccb.cel.grp7_len = 0;
+	ccb.cel.enable = 0;
+	xpt_action(&ccb);
+	status = (ccb.ccb_h.status & CAM_STATUS_MASK);
 	if (status != CAM_REQ_CMP) {
 		xpt_print(periph->path, "%s: Disable LUN failed, status 0x%x\n",
-			  __func__, en_lun_ccb.ccb_h.status);
+			  __func__, ccb.ccb_h.status);
 		/*
 		 * XXX KDM what do we do now?
 		 */
@@ -963,6 +980,11 @@ ctlfe_requeue_ccb(struct cam_periph *periph, union ccb *ccb, int unlock)
 			mtx_unlock(mtx);
 		return;
 	}
+	softc = (struct ctlfe_lun_softc *)periph->softc;
+	if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO)
+		LIST_INSERT_HEAD(&softc->atio_list, &ccb->ccb_h, periph_links.le);
+	else
+		LIST_INSERT_HEAD(&softc->inot_list, &ccb->ccb_h, periph_links.le);
 	if (unlock)
 		cam_periph_unlock(periph);
 
@@ -971,7 +993,6 @@ ctlfe_requeue_ccb(struct cam_periph *periph, union ccb *ccb, int unlock)
 	 * target/lun.  Reset the target and LUN fields back to the wildcard
 	 * values before we send them back down to the SIM.
 	 */
-	softc = (struct ctlfe_lun_softc *)periph->softc;
 	if (softc->flags & CTLFE_LUN_WILDCARD) {
 		ccb->ccb_h.target_id = CAM_TARGET_WILDCARD;
 		ccb->ccb_h.target_lun = CAM_LUN_WILDCARD;
@@ -1086,6 +1107,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	switch (done_ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO: {
 
+		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		atio = &done_ccb->atio;
 		status = atio->ccb_h.status & CAM_STATUS_MASK;
 		if (status != CAM_CDB_RECVD) {
@@ -1375,6 +1397,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		struct ccb_immediate_notify *inot;
 		int send_ctl_io;
 
+		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		inot = &done_ccb->cin1;
 		io = done_ccb->ccb_h.io_ptr;
 		ctl_zero_io(io);
