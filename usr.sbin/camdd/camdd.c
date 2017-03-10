@@ -1004,8 +1004,7 @@ camdd_probe_tape(int fd, char *filename, uint64_t *max_iosize,
 		goto bailout;
 	}
 
-	for (i = 0; i < sizeof(req_status_items) /
-	     sizeof(req_status_items[0]); i++) {
+	for (i = 0; i < nitems(req_status_items); i++) {
                 char *name;
 
 		name = __DECONST(char *, req_status_items[i].name);
