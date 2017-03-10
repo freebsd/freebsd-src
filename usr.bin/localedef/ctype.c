@@ -384,7 +384,7 @@ dump_ctype(void)
 			conflict++;
 		if ((ctn->ctype & _ISSPACE) && (ctn->ctype & _ISGRAPH))
 			conflict++;
-		if ((ctn->ctype & _ISCNTRL) & _ISPRINT)
+		if ((ctn->ctype & _ISCNTRL) && (ctn->ctype & _ISPRINT))
 			conflict++;
 		if ((wc == ' ') && (ctn->ctype & (_ISPUNCT|_ISGRAPH)))
 			conflict++;
