@@ -469,7 +469,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 				    2 * (int)sizeof(void *),
 				    (u_long)inp->inp_ppcb);
 			else
-				xo_emit("{q:adddress/%*lx} ",
+				xo_emit("{q:address/%*lx} ",
 				    2 * (int)sizeof(void *),
 				    (u_long)so->so_pcb);
 		}
