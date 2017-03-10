@@ -277,7 +277,9 @@ static	u_int	ec_scroffset;
  * set (likely non-fake) graphics mode to get a null initial ec_putc().
  */
 static	scr_stat	fake_main_console = {
+#ifndef __sparc64__
 	.scr.vtb_buffer = 0xb8000,
+#endif
 	.xsize = 80,
 	.ysize = 25,
 #if !defined(__amd64__) && !defined(__i386__)
@@ -290,6 +292,7 @@ static	scr_stat	fake_main_console = {
 static void
 ec_putc(int c)
 {
+#ifndef __sparc64__
 	u_short *scrptr;
 	u_int ind;
 	int attr, column, mysize, width, xsize, yborder, ysize;
@@ -321,6 +324,7 @@ ec_putc(int c)
 	do
 		scrptr[ind++ % mysize] = (attr << 8) | c;
 	while (--width != 0);
+#endif /* !__sparc64__ */
 }
 
 #undef main_console
