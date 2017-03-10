@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2012 Garrett D'Amore <garrett@damore.org>  All rights reserved.
  * Copyright 2015 John Marino <draco@marino.st>
