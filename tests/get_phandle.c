@@ -44,6 +44,7 @@ static void check_phandle(void *fdt, const char *path, uint32_t checkhandle)
 
 int main(int argc, char *argv[])
 {
+	uint32_t max;
 	void *fdt;
 
 	test_init(argc, argv);
@@ -52,6 +53,11 @@ int main(int argc, char *argv[])
 	check_phandle(fdt, "/", 0);
 	check_phandle(fdt, "/subnode@2", PHANDLE_1);
 	check_phandle(fdt, "/subnode@2/subsubnode@0", PHANDLE_2);
+
+	max = fdt_get_max_phandle(fdt);
+	if (max != PHANDLE_2)
+		FAIL("fdt_get_max_phandle returned 0x%x instead of 0x%x\n",
+		     max, PHANDLE_2);
 
 	PASS();
 }

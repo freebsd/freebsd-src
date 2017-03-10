@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 			     TEST_STRING_1);
 
 	verbose_printf("Old string value was \"%s\"\n", strp);
-	err = fdt_setprop(fdt, 0, "prop-str", NULL, 0);
+	err = fdt_setprop_empty(fdt, 0, "prop-str");
 	if (err)
 		FAIL("Failed to empty \"prop-str\": %s",
 		     fdt_strerror(err));

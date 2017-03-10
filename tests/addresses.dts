@@ -1,0 +1,15 @@
+/dts-v1/;
+
+/ {
+	compatible = "test_addresses";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	identity-bus@0 {
+	};
+
+	simple-bus@1000000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+	};
+};

@@ -18,4 +18,9 @@
 # 10 "qux.dts"
 		0x12345678
 	>;
+/*
+ * Check processing of escapes in filenames
+ */
+# 100 "\".dts"
+# 200 "\\.dts"
 };

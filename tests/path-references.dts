@@ -1,6 +1,7 @@
 /dts-v1/;
 
 / {
+	rref = &{/};
 	/* Check multiple references case */
 	multiref = &n1 , &n2;
 	n1: node1 {

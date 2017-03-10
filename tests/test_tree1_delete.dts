@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "test_tree1_body.dtsi"
+/include/ "test_tree1.dts"
 
 / {
 	nonexistant-property = <0xdeadbeef>;

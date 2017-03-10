@@ -1,0 +1,38 @@
+/dts-v1/;
+
+/memreserve/ 0 0xe;
+/ {
+	model = "MyBoardName";
+	compatible = "MyBoardName", "MyBoardFamilyName";
+	#address-cells = <0x00000002>;
+	#size-cells = <0x00000002>;
+	cpus {
+		linux,phandle = <0x00000001>;
+		#address-cells = <0x00000001>;
+		#size-cells = <0x00000000>;
+		PowerPC,970@0 {
+			device_type = "cpu";
+			reg = <0x00000000>;
+			linux,boot-cpu;
+			};
+		PowerPC,970@1 {
+			device_type = "cpu";
+			reg = <0x00000001>;
+		};
+	};
+	randomnode {
+		string =  "foo", "stuff";
+		bytes = [61 62 63 64 65];
+		nbytes = [80 ff];
+		child {
+		};
+	};
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x00000123 0x00000456 0x87654321>;
+	};
+	chosen {
+		bootargs = "root=/dev/sda2";
+		linux,platform = <0x00000600>;
+	};
+};

@@ -1,0 +1,23 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	test1 {
+		test-properties = <3>;
+
+		test {
+			linux,phandle = <0x1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	test2 {
+		test-properties = <0>;
+
+		test {
+		};
+	};
+};

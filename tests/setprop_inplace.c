@@ -83,5 +83,15 @@ int main(int argc, char *argv[])
 	strp = check_getprop(fdt, 0, "prop-str", xlen+1, xstr);
 	verbose_printf("New string value is \"%s\"\n", strp);
 
+	err = fdt_setprop_inplace_namelen_partial(fdt, 0, "compatible",
+						  strlen("compatible"), 4,
+						  TEST_STRING_4_PARTIAL,
+						  strlen(TEST_STRING_4_PARTIAL));
+	if (err)
+		FAIL("Failed to set \"compatible\": %s\n", fdt_strerror(err));
+
+	check_getprop(fdt, 0, "compatible", strlen(TEST_STRING_4_RESULT) + 1,
+		      TEST_STRING_4_RESULT);
+
 	PASS();
 }

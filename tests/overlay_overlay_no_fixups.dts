@@ -1,0 +1,82 @@
+/*
+ * Copyright (c) 2016 NextThing Co
+ * Copyright (c) 2016 Free Electrons
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
+ */
+
+/dts-v1/;
+
+/ {
+	fragment@0 {
+		target-path = "/test-node";
+
+		__overlay__ {
+			test-int-property = <43>;
+		};
+	};
+
+	/* Test that we can replace a string by a longer one */
+	fragment@1 {
+		target-path = "/test-node";
+
+		__overlay__ {
+			test-str-property = "foobar";
+		};
+	};
+
+	/* Test that we add a new property */
+	fragment@2 {
+		target-path = "/test-node";
+
+		__overlay__ {
+			test-str-property-2 = "foobar2";
+		};
+	};
+
+	fragment@3 {
+		target-path = "/test-node";
+
+		__overlay__ {
+			new-node {
+				new-property;
+			};
+		};
+	};
+
+	fragment@4 {
+		target-path = "/";
+
+		__overlay__ {
+			local: new-local-node {
+				new-property;
+			};
+		};
+	};
+
+	fragment@5 {
+		target-path = "/";
+
+		__overlay__ {
+			test-several-phandle = <&local>, <&local>;
+		};
+	};
+
+	fragment@6 {
+		target-path = "/test-node";
+
+		__overlay__ {
+			sub-test-node {
+				new-sub-test-property;
+			};
+		};
+	};
+
+	__local_fixups__ {
+		fragment@5 {
+			__overlay__ {
+				test-several-phandle = <0 4>;
+			};
+		};
+	};
+};

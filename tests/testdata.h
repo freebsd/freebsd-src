@@ -21,6 +21,9 @@
 #define TEST_STRING_2	"nastystring: \a\b\t\n\v\f\r\\\""
 #define TEST_STRING_3	"\xde\xad\xbe\xef"
 
+#define TEST_STRING_4_PARTIAL	"foobar"
+#define TEST_STRING_4_RESULT	"testfoobar"
+
 #define TEST_CHAR1	'\r'
 #define TEST_CHAR2	'b'
 #define TEST_CHAR3	'\0'
@@ -33,4 +36,5 @@ extern struct fdt_header _truncated_property;
 extern struct fdt_header _bad_node_char;
 extern struct fdt_header _bad_node_format;
 extern struct fdt_header _bad_prop_char;
+extern struct fdt_header _ovf_size_strings;
 #endif /* ! __ASSEMBLY */
