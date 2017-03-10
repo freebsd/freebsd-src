@@ -933,9 +933,11 @@ dt_provmod_open(dt_provmod_t **provmod, dt_fdlist_t *dfp)
 			 * reallocate it. We normally won't need to do this
 			 * because providers aren't being loaded all the time.
 			 */
-			if ((p = realloc(p_providers,len)) == NULL)
+		        if ((p = realloc(p_providers,len)) == NULL) {
+			        free(p_providers);
 				/* How do we report errors here? */
 				return;
+			}
 			p_providers = p;
 		} else
 			break;
@@ -1150,8 +1152,10 @@ dt_vopen(int version, int flags, int *errp,
 	(void) fcntl(ftfd, F_SETFD, FD_CLOEXEC);
 
 alloc:
-	if ((dtp = malloc(sizeof (dtrace_hdl_t))) == NULL)
+	if ((dtp = malloc(sizeof (dtrace_hdl_t))) == NULL) {
+	        dt_provmod_destroy(&provmod);
 		return (set_open_errno(dtp, errp, EDT_NOMEM));
+	}
 
 	bzero(dtp, sizeof (dtrace_hdl_t));
 	dtp->dt_oflags = flags;
