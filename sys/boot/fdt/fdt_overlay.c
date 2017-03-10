@@ -358,21 +358,26 @@ static int
 fdt_overlay_do_local_fixups(void *main_fdtp, void *overlay_fdtp)
 {
 	int overlay_local_fixups_o;
-	int len;
+	int len, rv;
 	const char *fixups;
 	uint32_t phandle_offset;
 
 	overlay_local_fixups_o = fdt_path_offset(overlay_fdtp, "/__local_fixups__");
 
-	if (overlay_local_fixups_o < 0)
-		return (-1);
+	if (overlay_local_fixups_o < 0) {
+		/* If not local fixups - do nothing */
+		if (overlay_local_fixups_o == -FDT_ERR_NOTFOUND)
+			return (0);
+		return (overlay_local_fixups_o);
+	}
 
 	phandle_offset = fdt_max_phandle(main_fdtp);
 	fdt_increase_phandles(overlay_fdtp, phandle_offset);
 	fixups = fdt_getprop_w(overlay_fdtp, overlay_local_fixups_o, "fixup", &len);
 	if (fixups) {
-		if (fdt_do_local_fixup(overlay_fdtp, fixups, len, phandle_offset) < 0)
-			return (-1);
+		rv = fdt_do_local_fixup(overlay_fdtp, fixups, len, phandle_offset);
+		if (rv < 0)
+			return (rv);
 	}
 
 	return (0);
