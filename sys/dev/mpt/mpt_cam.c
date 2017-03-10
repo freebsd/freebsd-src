@@ -133,7 +133,7 @@ static void mpt_recovery_thread(void *arg);
 static void mpt_recover_commands(struct mpt_softc *mpt);
 
 static int mpt_scsi_send_tmf(struct mpt_softc *, u_int, u_int, u_int,
-    u_int, u_int, u_int, int);
+    target_id_t, lun_id_t, u_int, int);
 
 static void mpt_fc_post_els(struct mpt_softc *mpt, request_t *, int);
 static void mpt_post_target_command(struct mpt_softc *, request_t *, int);
@@ -2133,13 +2133,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	/* Which physical device to do the I/O on */
 	mpt_req->TargetID = tgt;
 
-	/* We assume a single level LUN type */
-	if (ccb->ccb_h.target_lun >= MPT_MAX_LUNS) {
-		mpt_req->LUN[0] = 0x40 | ((ccb->ccb_h.target_lun >> 8) & 0x3f);
-		mpt_req->LUN[1] = ccb->ccb_h.target_lun & 0xff;
-	} else {
-		mpt_req->LUN[1] = ccb->ccb_h.target_lun;
-	}
+	be64enc(mpt_req->LUN, CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
 
 	/* Set the direction of the transfer */
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
@@ -3585,7 +3579,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		cpi->protocol = PROTO_SCSI;
 		if (mpt->is_fc) {
-			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
+			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED |
+			    PIM_EXTLUNS;
 			cpi->base_transfer_speed = 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 			cpi->transport = XPORT_FC;
@@ -3597,14 +3592,16 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->xport_specific.fc.bitrate =
 			    100000 * mpt->mpt_fcport_speed;
 		} else if (mpt->is_sas) {
-			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
+			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED |
+			    PIM_EXTLUNS;
 			cpi->base_transfer_speed = 300000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 			cpi->transport = XPORT_SAS;
 			cpi->transport_version = 0;
 			cpi->protocol_version = SCSI_REV_SPC2;
 		} else {
-			cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
+			cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED |
+			    PIM_EXTLUNS;
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 			cpi->transport = XPORT_SPI;
@@ -3913,7 +3910,8 @@ mpt_recovery_thread(void *arg)
 
 static int
 mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type, u_int flags,
-    u_int channel, u_int target, u_int lun, u_int abort_ctx, int sleep_ok)
+    u_int channel, target_id_t target, lun_id_t lun, u_int abort_ctx,
+    int sleep_ok)
 {
 	MSG_SCSI_TASK_MGMT *tmf_req;
 	int		    error;
@@ -3941,12 +3939,7 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type, u_int flags,
 	tmf_req->MsgFlags = flags;
 	tmf_req->MsgContext =
 	    htole32(mpt->tmf_req->index | scsi_tmf_handler_id);
-	if (lun > MPT_MAX_LUNS) {
-		tmf_req->LUN[0] = 0x40 | ((lun >> 8) & 0x3f);
-		tmf_req->LUN[1] = lun & 0xff;
-	} else {
-		tmf_req->LUN[1] = lun;
-	}
+	be64enc(tmf_req->LUN, CAM_EXTLUN_BYTE_SWIZZLE(lun));
 	tmf_req->TaskMsgContext = abort_ctx;
 
 	mpt_lprt(mpt, MPT_PRT_DEBUG,
@@ -4413,13 +4406,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		ta->Function = MPI_FUNCTION_TARGET_ASSIST;
 		ta->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
 		ta->ReplyWord = htole32(tgt->reply_desc);
-		if (csio->ccb_h.target_lun > MPT_MAX_LUNS) {
-			ta->LUN[0] =
-			    0x40 | ((csio->ccb_h.target_lun >> 8) & 0x3f);
-			ta->LUN[1] = csio->ccb_h.target_lun & 0xff;
-		} else {
-			ta->LUN[1] = csio->ccb_h.target_lun;
-		}
+		be64enc(ta->LUN, CAM_EXTLUN_BYTE_SWIZZLE(csio->ccb_h.target_lun));
 
 		ta->RelativeOffset = tgt->bytes_xfered;
 		ta->DataLength = ccb->csio.dxfer_len;
@@ -4485,7 +4472,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 
 static void
 mpt_scsi_tgt_local(struct mpt_softc *mpt, request_t *cmd_req,
-    uint32_t lun, int send, uint8_t *data, size_t length)
+    lun_id_t lun, int send, uint8_t *data, size_t length)
 {
 	mpt_tgt_state_t *tgt;
 	PTR_MSG_TARGET_ASSIST_REQUEST ta;
@@ -4525,12 +4512,7 @@ mpt_scsi_tgt_local(struct mpt_softc *mpt, request_t *cmd_req,
 	ta->Function = MPI_FUNCTION_TARGET_ASSIST;
 	ta->MsgContext = htole32(req->index | mpt->scsi_tgt_handler_id);
 	ta->ReplyWord = htole32(tgt->reply_desc);
-	if (lun > MPT_MAX_LUNS) {
-		ta->LUN[0] = 0x40 | ((lun >> 8) & 0x3f);
-		ta->LUN[1] = lun & 0xff;
-	} else {
-		ta->LUN[1] = lun;
-	}
+	be64enc(ta->LUN, CAM_EXTLUN_BYTE_SWIZZLE(lun));
 	ta->RelativeOffset = 0;
 	ta->DataLength = length;
 
@@ -4958,21 +4940,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 		itag = sp->Tag;
 	}
 
-	/*
-	 * Generate a simple lun
-	 */
-	switch (lunptr[0] & 0xc0) {
-	case 0x40:
-		lun = ((lunptr[0] & 0x3f) << 8) | lunptr[1];
-		break;
-	case 0:
-		lun = lunptr[1];
-		break;
-	default:
-		mpt_lprt(mpt, MPT_PRT_ERROR, "cannot handle this type lun\n");
-		lun = 0xffff;
-		break;
-	}
+	lun = CAM_EXTLUN_BYTE_SWIZZLE(be64dec(lunptr));
 
 	/*
 	 * Deal with non-enabled or bad luns here.
