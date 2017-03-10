@@ -301,6 +301,9 @@ pxe_open(struct open_file *f, ...)
 				printf("pxe_open: loaded RFC1048 data from PXE Cache\n");
 			}
 
+#ifdef LOADER_TFTP_SUPPORT
+			bootp(pxe_sock, BOOTP_PXE);
+#endif
 			if (rootip.s_addr == 0)
 				rootip.s_addr = bootplayer.sip;
 			if (gateip.s_addr == 0)
