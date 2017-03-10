@@ -1,3 +1,5 @@
+/dts-v1/;
+
 /memreserve/ 0xdeadbeef00000000 0x100000;
 /memreserve/ 123456789 010000;
 
@@ -31,13 +33,23 @@
 		#size-cells = <0>;
 
 		ssn0: subsubnode@0 {
-			reg = <0>;
 			phandle = <0x2001>;
-			compatible = "subsubnode2", "subsubnode";
-			prop-int = <0726746425>;
+			prop-int = <0xbad>;
 		};
 
 		ss2 {
 		};
 	};
+};
+
+/* Add label to a noderef */
+ssn1: &ssn0 {
+	reg = <0>;
+	prop-int = <123456789>;
+};
+
+/* Use the new label for merging */
+&ssn1 {
+	prop-int = <0726746425>;
+	compatible = "subsubnode2", "subsubnode";
 };

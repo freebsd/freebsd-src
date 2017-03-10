@@ -19,7 +19,6 @@
 
 %option noyywrap nounput noinput never-interactive
 
-%x INCLUDE
 %x BYTESTRING
 %x PROPNODENAME
 
@@ -224,6 +223,8 @@ static void convert_file(const char *fname)
 
 	while(yylex())
 		;
+
+	free(newname);
 }
 
 int main(int argc, char *argv[])

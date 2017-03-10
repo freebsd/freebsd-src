@@ -5,6 +5,8 @@ m1: mq: /memreserve/ 0 0x1000;
 / {
 	p0: pw: prop = "foo";
 
+	rref = <&{/}>;
+
 	/* Explicit phandles */
 	n1: nx: node1 {
 		linux,phandle = <0x2000>;

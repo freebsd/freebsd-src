@@ -1,0 +1,112 @@
+/*
+ * Copyright (c) 2016 NextThing Co
+ * Copyright (c) 2016 Free Electrons
+ * Copyright (c) 2016 Konsulko Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
+ */
+
+/dts-v1/;
+
+/* Note no /plugin/ tag - we're manually generating the metadata for
+   testing purposes */
+
+/ {
+	/* Test that we can change an int by another */
+	fragment@0 {
+		target = <0xffffffff /*&test*/>;
+
+		__overlay__ {
+			test-int-property = <43>;
+		};
+	};
+
+	/* Test that we can replace a string by a longer one */
+	fragment@1 {
+		target = <0xffffffff /*&test*/>;
+
+		__overlay__ {
+			test-str-property = "foobar";
+		};
+	};
+
+	/* Test that we add a new property */
+	fragment@2 {
+		target = <0xffffffff /*&test*/>;
+
+		__overlay__ {
+			test-str-property-2 = "foobar2";
+		};
+	};
+
+	/* Test that we add a new node (by phandle) */
+	fragment@3 {
+		target = <0xffffffff /*&test*/>;
+
+		__overlay__ {
+			new-node {
+				new-property;
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <0xffffffff /*&test*/>;
+
+		__overlay__ {
+			local: new-local-node {
+				new-property;
+			};
+		};
+	};
+
+	fragment@6 {
+		target = <0xffffffff /*&test*/>;
+
+		__overlay__ {
+			test-phandle = <0xffffffff /*&test*/>, <&local>;
+		};
+	};
+
+	fragment@7 {
+		target = <0xffffffff /*&test*/>;
+
+		__overlay__ {
+			test-several-phandle = <&local>, <&local>;
+		};
+	};
+
+	fragment@8 {
+		target = <0xffffffff /*&test*/>;
+
+		__overlay__ {
+			sub-test-node {
+				new-sub-test-property;
+			};
+		};
+	};
+
+	__local_fixups__ {
+		fragment@6 {
+			__overlay__ {
+				test-phandle = <4>;
+			};
+		};
+		fragment@7 {
+			__overlay__ {
+				test-several-phandle = <0 4>;
+			};
+		};
+	};
+	__fixups__ {
+		test = "/fragment@0:target:0",
+		       "/fragment@1:target:0",
+		       "/fragment@2:target:0",
+		       "/fragment@3:target:0",
+		       "/fragment@5:target:0",
+		       "/fragment@6:target:0",
+		       "/fragment@6/__overlay__:test-phandle:0",
+		       "/fragment@7:target:0",
+		       "/fragment@8:target:0";
+	};
+};

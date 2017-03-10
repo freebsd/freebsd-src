@@ -209,3 +209,34 @@ bad_prop_char_strings:
 	STRING(bad_prop_char, prop, "prop$erty")
 bad_prop_char_strings_end:
 bad_prop_char_end:
+
+
+	/* overflow_size_strings */
+	.balign	8
+	.globl	_ovf_size_strings
+_ovf_size_strings:
+ovf_size_strings:
+	FDTLONG(FDT_MAGIC)
+	FDTLONG(ovf_size_strings_end - ovf_size_strings)
+	FDTLONG(ovf_size_strings_struct - ovf_size_strings) 
+	FDTLONG(ovf_size_strings_strings - ovf_size_strings)
+	FDTLONG(ovf_size_strings_rsvmap - ovf_size_strings)
+	FDTLONG(0x11)
+	FDTLONG(0x10)
+	FDTLONG(0)
+	FDTLONG(0xffffffff)
+	FDTLONG(ovf_size_strings_struct_end - ovf_size_strings_struct)
+	EMPTY_RSVMAP(ovf_size_strings)
+
+ovf_size_strings_struct:
+	BEGIN_NODE("")
+	PROP_INT(ovf_size_strings, bad_string, 0)
+	END_NODE
+	FDTLONG(FDT_END)
+ovf_size_strings_struct_end:
+
+ovf_size_strings_strings:
+	STRING(ovf_size_strings, x, "x")
+	ovf_size_strings_bad_string = ovf_size_strings_strings + 0x10000000
+ovf_size_strings_strings_end:
+ovf_size_strings_end:

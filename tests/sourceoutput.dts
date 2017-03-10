@@ -1,0 +1,14 @@
+/dts-v1/;
+
+/ {
+	/* Some versions had an off-by-2 bug which caused an abort
+	 * when outputing labels within strings like this in source
+	 * format */
+	prop1: prop1 = start1: "foo", mid1: "bar" end1: ;
+
+	/* Make sure that we correctly handle source output of things
+	 * which could almost be expressed as strings, except for the
+	 * embedded labels */
+	prop2 = start2: [66 6f 6f], mid2: "bar" end2: ;
+};
+

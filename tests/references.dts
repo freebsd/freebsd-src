@@ -1,6 +1,8 @@
 /dts-v1/;
 
 / {
+	rref = <&{/}>;
+
 	/* Explicit phandles */
 	n1: node1 {
 		linux,phandle = <0x2000>;
