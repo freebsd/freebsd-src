@@ -1696,11 +1696,9 @@ _kerberos5_bootstrap_tools= \
 .endif
 
 # r283777 makewhatis(1) replaced with mandoc version which builds a database.
-.if ${MK_MANDOCDB} != "no"
 _libopenbsd?=	lib/libopenbsd
 _makewhatis=	usr.bin/mandoc
 ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd
-.endif
 
 bootstrap-tools: .PHONY
 
