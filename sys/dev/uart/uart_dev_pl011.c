@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 #ifdef FDT
 #include <dev/uart/uart_cpu_fdt.h>
+#include <dev/ofw/ofw_bus.h>
 #endif
 #include <dev/uart/uart_bus.h>
 #include "uart_if.h"
@@ -449,31 +450,44 @@ static int
 uart_pl011_bus_probe(struct uart_softc *sc)
 {
 	uint8_t hwrev;
-	bool is_bcm2835;
-
-	device_set_desc(sc->sc_dev, "PrimeCell UART (PL011)");
+#ifdef FDT
+	pcell_t node;
+	uint32_t periphid;
 
 	/*
 	 * The FIFO sizes vary depending on hardware; rev 2 and below have 16
-	 * byte FIFOs, rev 3 and up are 32 byte.  We get a bit of drama, as
-	 * always, with the bcm2835 (rpi), which claims to be rev 3, but has 16
-	 * byte FIFOs.  We check for both the old freebsd-historic and the
-	 * proper bindings-defined compatible strings for bcm2835.
+	 * byte FIFOs, rev 3 and up are 32 byte.  The hardware rev is in the
+	 * primecell periphid register, but we get a bit of drama, as always,
+	 * with the bcm2835 (rpi), which claims to be rev 3, but has 16 byte
+	 * FIFOs.  We check for both the old freebsd-historic and the proper
+	 * bindings-defined compatible strings for bcm2835, and also check the
+	 * workaround the linux drivers use for rpi3, which is to override the
+	 * primecell periphid register value with a property.
 	 */
-#ifdef FDT
-	is_bcm2835 = ofw_bus_is_compatible(sc->sc_dev, "brcm,bcm2835-pl011") ||
-	    ofw_bus_is_compatible(sc->sc_dev, "broadcom,bcm2835-uart");
+	if (ofw_bus_is_compatible(sc->sc_dev, "brcm,bcm2835-pl011") ||
+	    ofw_bus_is_compatible(sc->sc_dev, "broadcom,bcm2835-uart")) {
+		hwrev = 2;
+	} else {
+		node = ofw_bus_get_node(sc->sc_dev);
+		if (OF_getencprop(node, "arm,primecell-periphid", &periphid,
+		    sizeof(periphid)) > 0) {
+			hwrev = (periphid >> 20) & 0x0f;
+		} else {
+			hwrev = __uart_getreg(&sc->sc_bas, UART_PIDREG_2) >> 4;
+		}
+	}
 #else
-	is_bcm2835 = false;
-#endif
 	hwrev = __uart_getreg(&sc->sc_bas, UART_PIDREG_2) >> 4;
-	if (hwrev <= 2 || is_bcm2835) {
+#endif
+	if (hwrev <= 2) {
 		sc->sc_rxfifosz = FIFO_RX_SIZE_R2;
 		sc->sc_txfifosz = FIFO_TX_SIZE_R2;
 	} else {
 		sc->sc_rxfifosz = FIFO_RX_SIZE_R3;
 		sc->sc_txfifosz = FIFO_TX_SIZE_R3;
 	}
+
+	device_set_desc(sc->sc_dev, "PrimeCell UART (PL011)");
 
 	return (0);
 }
