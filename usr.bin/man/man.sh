@@ -68,7 +68,23 @@ build_manpath() {
 
 	# If the user has set a manpath, who are we to argue.
 	if [ -n "$MANPATH" ]; then
-		return
+		case "$MANPATH" in
+		*:) PREPEND_MANPATH=${MANPATH} ;;
+		:*) APPEND_MANPATH=${MANPATH} ;;
+		*::*)
+			PREPEND_MANPATH=${MANPATH%%::*}
+			APPEND_MANPATH=${MANPATH#*::}
+			;;
+		*) return ;;
+		esac
+	fi
+
+	if [ -n "$PREPEND_MANPATH" ]; then
+		IFS=:
+		for path in $PREPEND_MANPATH; do
+			add_to_manpath "$path"
+		done
+		unset IFS
 	fi
 
 	search_path
@@ -82,6 +98,13 @@ build_manpath() {
 
 	parse_configs
 
+	if [ -n "$APPEND_MANPATH" ]; then
+		IFS=:
+		for path in $APPEND_MANPATH; do
+			add_to_manpath "$path"
+		done
+		unset IFS
+	fi
 	# Trim leading colon
 	MANPATH=${manpath#:}
 
