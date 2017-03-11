@@ -458,7 +458,8 @@ rearg:
 				(void)fprintf(stderr, "%s: %s.\n", progname, strerror(errno));
 				exit(2);
 			}
-			if (stat(argvalue, &sa) != -1 &&
+			if (argvalue[0] == '/' &&
+			    stat(argvalue, &sa) != -1 &&
 			    stat(curdir, &sb) != -1 &&
 			    sa.st_ino == sb.st_ino &&
 			    sa.st_dev == sb.st_dev)
