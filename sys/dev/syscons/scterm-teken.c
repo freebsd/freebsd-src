@@ -62,6 +62,7 @@ static sc_term_default_attr_t	scteken_default_attr;
 static sc_term_clear_t		scteken_clear;
 static sc_term_input_t		scteken_input;
 static sc_term_fkeystr_t	scteken_fkeystr;
+static sc_term_set_cursor_t	scteken_set_cursor;
 static void			scteken_nop(void);
 
 typedef struct {
@@ -88,6 +89,7 @@ static sc_term_sw_t sc_term_scteken = {
 	(sc_term_notify_t *)scteken_nop,
 	scteken_input,
 	scteken_fkeystr,
+	scteken_set_cursor,
 };
 
 SCTERM_MODULE(scteken, sc_term_scteken);
@@ -140,13 +142,6 @@ scteken_init(scr_stat *scp, void **softc, int code)
 		tp.tp_row = scp->ysize;
 		tp.tp_col = scp->xsize;
 		teken_set_winsize(&ts->ts_teken, &tp);
-
-		if (scp->cursor_pos < scp->ysize * scp->xsize) {
-			/* Valid old cursor position. */
-			tp.tp_row = scp->cursor_pos / scp->xsize;
-			tp.tp_col = scp->cursor_pos % scp->xsize;
-			teken_set_cursor(&ts->ts_teken, &tp);
-		}
 		break;
 	}
 
@@ -234,6 +229,7 @@ scteken_clear(scr_stat *scp)
 {
 
 	sc_move_cursor(scp, 0, 0);
+	scteken_set_cursor(scp, 0, 0);
 	sc_vtb_clear(&scp->vtb, scp->sc->scr_map[0x20], SC_NORM_ATTR << 8);
 	mark_all(scp);
 }
@@ -293,6 +289,17 @@ scteken_fkeystr(scr_stat *scp, int c)
 	}
 
 	return (teken_get_sequence(&ts->ts_teken, k));
+}
+
+static void
+scteken_set_cursor(scr_stat *scp, int col, int row)
+{
+	teken_stat *ts = scp->ts;
+	teken_pos_t tp;
+
+	tp.tp_col = col;
+	tp.tp_row = row;
+	teken_set_cursor(&ts->ts_teken, &tp);
 }
 
 static void
