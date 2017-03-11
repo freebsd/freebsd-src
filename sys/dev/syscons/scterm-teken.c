@@ -227,10 +227,13 @@ scteken_default_attr(scr_stat *scp, int color, int rev_color)
 static void
 scteken_clear(scr_stat *scp)
 {
+	teken_stat *ts = scp->ts;
 
 	sc_move_cursor(scp, 0, 0);
 	scteken_set_cursor(scp, 0, 0);
-	sc_vtb_clear(&scp->vtb, scp->sc->scr_map[0x20], SC_NORM_ATTR << 8);
+	sc_vtb_clear(&scp->vtb, scp->sc->scr_map[0x20],
+		     scteken_te_to_sc_attr(teken_get_curattr(&ts->ts_teken))
+		     << 8);
 	mark_all(scp);
 }
 
