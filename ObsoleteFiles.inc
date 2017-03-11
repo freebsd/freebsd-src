@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170311: remove GNU diff
+OLD_FILES+=usr/share/man/man7/diff.7.gz
 # 20170308: rename some tests
 OLD_FILES+=usr/tests/bin/pwait/pwait
 OLD_FILES+=usr/tests/usr.bin/timeout/timeout
