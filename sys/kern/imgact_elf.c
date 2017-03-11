@@ -456,50 +456,47 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 			return (rv);
 		end = trunc_page(end);
 	}
-	if (end > start) {
-		if (offset & PAGE_MASK) {
-			/*
-			 * The mapping is not page aligned. This means we have
-			 * to copy the data. Sigh.
-			 */
-			rv = vm_map_fixed(map, NULL, 0, start, end - start,
-			    prot | VM_PROT_WRITE, VM_PROT_ALL, MAP_CHECK_EXCL);
-			if (rv != KERN_SUCCESS)
-				return (rv);
-			if (object == NULL)
-				return (KERN_SUCCESS);
-			for (; start < end; start += sz) {
-				sf = vm_imgact_map_page(object, offset);
-				if (sf == NULL)
-					return (KERN_FAILURE);
-				off = offset - trunc_page(offset);
-				sz = end - start;
-				if (sz > PAGE_SIZE - off)
-					sz = PAGE_SIZE - off;
-				error = copyout((caddr_t)sf_buf_kva(sf) + off,
-				    (caddr_t)start, sz);
-				vm_imgact_unmap_page(sf);
-				if (error != 0)
-					return (KERN_FAILURE);
-				offset += sz;
-			}
-			rv = KERN_SUCCESS;
-		} else {
-			vm_object_reference(object);
-			rv = vm_map_fixed(map, object, offset, start,
-			    end - start, prot, VM_PROT_ALL,
-			    cow | MAP_CHECK_EXCL);
-			if (rv != KERN_SUCCESS) {
-				locked = VOP_ISLOCKED(imgp->vp);
-				VOP_UNLOCK(imgp->vp, 0);
-				vm_object_deallocate(object);
-				vn_lock(imgp->vp, locked | LK_RETRY);
-			}
-		}
-		return (rv);
-	} else {
+	if (start >= end)
 		return (KERN_SUCCESS);
+	if ((offset & PAGE_MASK) != 0) {
+		/*
+		 * The mapping is not page aligned.  This means that we have
+		 * to copy the data.
+		 */
+		rv = vm_map_fixed(map, NULL, 0, start, end - start,
+		    prot | VM_PROT_WRITE, VM_PROT_ALL, MAP_CHECK_EXCL);
+		if (rv != KERN_SUCCESS)
+			return (rv);
+		if (object == NULL)
+			return (KERN_SUCCESS);
+		for (; start < end; start += sz) {
+			sf = vm_imgact_map_page(object, offset);
+			if (sf == NULL)
+				return (KERN_FAILURE);
+			off = offset - trunc_page(offset);
+			sz = end - start;
+			if (sz > PAGE_SIZE - off)
+				sz = PAGE_SIZE - off;
+			error = copyout((caddr_t)sf_buf_kva(sf) + off,
+			    (caddr_t)start, sz);
+			vm_imgact_unmap_page(sf);
+			if (error != 0)
+				return (KERN_FAILURE);
+			offset += sz;
+		}
+	} else {
+		vm_object_reference(object);
+		rv = vm_map_fixed(map, object, offset, start, end - start,
+		    prot, VM_PROT_ALL, cow | MAP_CHECK_EXCL);
+		if (rv != KERN_SUCCESS) {
+			locked = VOP_ISLOCKED(imgp->vp);
+			VOP_UNLOCK(imgp->vp, 0);
+			vm_object_deallocate(object);
+			vn_lock(imgp->vp, locked | LK_RETRY);
+			return (rv);
+		}
 	}
+	return (KERN_SUCCESS);
 }
 
 static int
