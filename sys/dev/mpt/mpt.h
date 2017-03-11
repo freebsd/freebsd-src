@@ -338,7 +338,8 @@ typedef struct {
 	uint32_t
 		is_local : 1,
 		nxfers	 : 31;
-	uint32_t tag_id;
+	uint32_t tag_id;	/* Our local tag. */
+	uint16_t itag;		/* Initiator tag. */
 	enum {
 		TGT_STATE_NIL,
 		TGT_STATE_LOADING,
@@ -1053,11 +1054,13 @@ mpt_req_not_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
  * Task Management Types, purely for internal consumption
  */
 typedef enum {
-	MPT_ABORT_TASK_SET=1234,
+	MPT_QUERY_TASK_SET=1234,
+	MPT_ABORT_TASK_SET,
 	MPT_CLEAR_TASK_SET,
+	MPT_QUERY_ASYNC_EVENT,
+	MPT_LOGICAL_UNIT_RESET,
 	MPT_TARGET_RESET,
 	MPT_CLEAR_ACA,
-	MPT_TERMINATE_TASK,
 	MPT_NIL_TMT_VALUE=5678
 } mpt_task_mgmt_t;
 

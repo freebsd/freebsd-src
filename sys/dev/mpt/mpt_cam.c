@@ -2937,7 +2937,10 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 	} else if (rctl == ABTS && type == 0) {
 		uint16_t rx_id = le16toh(rp->Rxid);
 		uint16_t ox_id = le16toh(rp->Oxid);
+		mpt_tgt_state_t *tgt;
 		request_t *tgt_req = NULL;
+		union ccb *ccb;
+		uint32_t ct_id;
 
 		mpt_prt(mpt,
 		    "ELS: ABTS OX_ID 0x%x RX_ID 0x%x from 0x%08x%08x\n",
@@ -2950,47 +2953,37 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		} else {
 			tgt_req = mpt->tgt_cmd_ptrs[rx_id];
 		}
-		if (tgt_req) {
-			mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, tgt_req);
-			union ccb *ccb;
-			uint32_t ct_id;
-
-			/*
-			 * Check to make sure we have the correct command
-			 * The reply descriptor in the target state should
-			 * should contain an IoIndex that should match the
-			 * RX_ID.
-			 *
-			 * It'd be nice to have OX_ID to crosscheck with
-			 * as well.
-			 */
-			ct_id = GET_IO_INDEX(tgt->reply_desc);
-
-			if (ct_id != rx_id) {
-				mpt_lprt(mpt, MPT_PRT_ERROR, "ABORT Mismatch: "
-				    "RX_ID received=0x%x; RX_ID in cmd=0x%x\n",
-				    rx_id, ct_id);
-				goto skip;
-			}
-
-			ccb = tgt->ccb;
-			if (ccb) {
-				mpt_prt(mpt,
-				    "CCB (%p): lun %jx flags %x status %x\n",
-				    ccb, (uintmax_t)ccb->ccb_h.target_lun,
-				    ccb->ccb_h.flags, ccb->ccb_h.status);
-			}
-			mpt_prt(mpt, "target state 0x%x resid %u xfrd %u rpwrd "
-			    "%x nxfers %x\n", tgt->state,
-			    tgt->resid, tgt->bytes_xfered, tgt->reply_desc,
-			    tgt->nxfers);
-  skip:
-			if (mpt_abort_target_cmd(mpt, tgt_req)) {
-				mpt_prt(mpt, "unable to start TargetAbort\n");
-			}
-		} else {
+		if (tgt_req == NULL) {
 			mpt_prt(mpt, "no back pointer for RX_ID 0x%x\n", rx_id);
+			goto skip;
 		}
+		tgt = MPT_TGT_STATE(mpt, tgt_req);
+
+		/* Check to make sure we have the correct command. */
+		ct_id = GET_IO_INDEX(tgt->reply_desc);
+		if (ct_id != rx_id) {
+			mpt_lprt(mpt, MPT_PRT_ERROR, "ABORT Mismatch: "
+			    "RX_ID received=0x%x, in cmd=0x%x\n", rx_id, ct_id);
+			goto skip;
+		}
+		if (tgt->itag != ox_id) {
+			mpt_lprt(mpt, MPT_PRT_ERROR, "ABORT Mismatch: "
+			    "OX_ID received=0x%x, in cmd=0x%x\n", ox_id, tgt->itag);
+			goto skip;
+		}
+
+		if ((ccb = tgt->ccb) != NULL) {
+			mpt_prt(mpt, "CCB (%p): lun %jx flags %x status %x\n",
+			    ccb, (uintmax_t)ccb->ccb_h.target_lun,
+			    ccb->ccb_h.flags, ccb->ccb_h.status);
+		}
+		mpt_prt(mpt, "target state 0x%x resid %u xfrd %u rpwrd "
+		    "%x nxfers %x\n", tgt->state, tgt->resid,
+		    tgt->bytes_xfered, tgt->reply_desc, tgt->nxfers);
+		if (mpt_abort_target_cmd(mpt, tgt_req))
+			mpt_prt(mpt, "unable to start TargetAbort\n");
+
+skip:
 		memset(elsbuf, 0, 5 * (sizeof (U32)));
 		elsbuf[0] = htobe32(0);
 		elsbuf[1] = htobe32((ox_id << 16) | rx_id);
@@ -3652,7 +3645,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		break;
 	}
-	case XPT_NOTIFY_ACKNOWLEDGE:	/* recycle notify ack */
 	case XPT_IMMEDIATE_NOTIFY:	/* Add Immediate Notify Resource */
 	case XPT_ACCEPT_TARGET_IO:	/* Add Accept Target IO Resource */
 	{
@@ -3678,16 +3670,23 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			    "Put FREE ATIO %p lun %jx\n", ccb, (uintmax_t)lun);
 			STAILQ_INSERT_TAIL(&trtp->atios, &ccb->ccb_h,
 			    sim_links.stqe);
-		} else if (ccb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY) {
+		} else {
 			mpt_lprt(mpt, MPT_PRT_DEBUG1,
 			    "Put FREE INOT lun %jx\n", (uintmax_t)lun);
 			STAILQ_INSERT_TAIL(&trtp->inots, &ccb->ccb_h,
 			    sim_links.stqe);
-		} else {
-			mpt_lprt(mpt, MPT_PRT_ALWAYS, "Got Notify ACK\n");
 		}
 		mpt_set_ccb_status(ccb, CAM_REQ_INPROG);
 		return;
+	}
+	case XPT_NOTIFY_ACKNOWLEDGE:	/* Task management request done. */
+	{
+		request_t *req = MPT_TAG_2_REQ(mpt, ccb->cna2.tag_id);
+
+		mpt_lprt(mpt, MPT_PRT_DEBUG, "Got Notify ACK\n");
+		mpt_scsi_tgt_status(mpt, NULL, req, 0, NULL, 0);
+		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+		break;
 	}
 	case XPT_CONT_TARGET_IO:
 		mpt_target_start_io(mpt, ccb);
@@ -4556,40 +4555,44 @@ mpt_abort_target_ccb(struct mpt_softc *mpt, union ccb *ccb)
 {
 	struct mpt_hdr_stailq *lp;
 	struct ccb_hdr *srch;
-	int found = 0;
 	union ccb *accb = ccb->cab.abort_ccb;
 	tgt_resource_t *trtp;
+	mpt_tgt_state_t *tgt;
+	request_t *req;
+	uint32_t tag;
 
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "aborting ccb %p\n", accb);
-
-	if (ccb->ccb_h.target_lun == CAM_LUN_WILDCARD) {
+	if (ccb->ccb_h.target_lun == CAM_LUN_WILDCARD)
 		trtp = &mpt->trt_wildcard;
-	} else {
+	else
 		trtp = &mpt->trt[ccb->ccb_h.target_lun];
-	}
-
 	if (accb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 		lp = &trtp->atios;
-	} else if (accb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY) {
-		lp = &trtp->inots;
+		tag = accb->atio.tag_id;
 	} else {
-		return (CAM_REQ_INVALID);
+		lp = &trtp->inots;
+		tag = accb->cin1.tag_id;
 	}
 
+	/* Search the CCB among queued. */
 	STAILQ_FOREACH(srch, lp, sim_links.stqe) {
-		if (srch == &accb->ccb_h) {
-			found = 1;
-			STAILQ_REMOVE(lp, srch, ccb_hdr, sim_links.stqe);
-			break;
-		}
-	}
-	if (found) {
+		if (srch != &accb->ccb_h)
+			continue;
+		STAILQ_REMOVE(lp, srch, ccb_hdr, sim_links.stqe);
 		accb->ccb_h.status = CAM_REQ_ABORTED;
 		xpt_done(accb);
 		return (CAM_REQ_CMP);
 	}
-	mpt_prt(mpt, "mpt_abort_tgt_ccb: CCB %p not found\n", ccb);
-	return (CAM_PATH_INVALID);
+
+	/* Search the CCB among running. */
+	req = MPT_TAG_2_REQ(mpt, tag);
+	tgt = MPT_TGT_STATE(mpt, req);
+	if (tgt->tag_id == tag) {
+		mpt_abort_target_cmd(mpt, req);
+		return (CAM_REQ_CMP);
+	}
+
+	return (CAM_UA_ABORT);
 }
 
 /*
@@ -4685,6 +4688,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 	paddr += MPT_RQSL(mpt);
 
 	memset(tp, 0, sizeof (*tp));
+	tp->StatusCode = status;
 	tp->Function = MPI_FUNCTION_TARGET_STATUS_SEND;
 	if (mpt->is_fc) {
 		PTR_MPI_TARGET_FCP_CMD_BUFFER fc =
@@ -4737,7 +4741,6 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 	} else {
 		PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp =
 		    (PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER) cmd_vbuf;
-		tp->StatusCode = status;
 		tp->QueueTag = htole16(sp->Tag);
 		memcpy(tp->LUN, sp->LogicalUnitNumber, sizeof (tp->LUN));
 	}
@@ -4752,12 +4755,11 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 		tp->MsgFlags |= TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS;
 	} else {
 		tp->StatusDataSGE.u.Address32 = htole32((uint32_t) paddr);
-		fl =
-			MPI_SGE_FLAGS_HOST_TO_IOC	|
-			MPI_SGE_FLAGS_SIMPLE_ELEMENT	|
-			MPI_SGE_FLAGS_LAST_ELEMENT	|
-			MPI_SGE_FLAGS_END_OF_LIST	|
-			MPI_SGE_FLAGS_END_OF_BUFFER;
+		fl = MPI_SGE_FLAGS_HOST_TO_IOC |
+		     MPI_SGE_FLAGS_SIMPLE_ELEMENT |
+		     MPI_SGE_FLAGS_LAST_ELEMENT |
+		     MPI_SGE_FLAGS_END_OF_LIST |
+		     MPI_SGE_FLAGS_END_OF_BUFFER;
 		fl <<= MPI_SGE_FLAGS_SHIFT;
 		fl |= resplen;
 		tp->StatusDataSGE.FlagsLength = htole32(fl);
@@ -4765,8 +4767,10 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 
 	mpt_lprt(mpt, MPT_PRT_DEBUG, 
 	    "STATUS_CCB %p (with%s sense) tag %x req %p:%u resid %u\n",
-	    ccb, sense_len > 0 ? "" : "out", ccb ? ccb->csio.tag_id : -1,
+	    ccb, sense_len > 0 ? "" : "out", tgt->tag_id,
 	    req, req->serno, tgt->resid);
+	if (mpt->verbose > MPT_PRT_DEBUG)
+		mpt_print_request(req->req_vbuf);
 	if (ccb) {
 		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
 		mpt_req_timeout(req, SBT_1S * 60, mpt_timeout, ccb);
@@ -4794,16 +4798,27 @@ mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
 	    (uintmax_t)inot->ccb_h.target_lun);
 
 	inot->initiator_id = init_id;	/* XXX */
+	inot->tag_id = tgt->tag_id;
+	inot->seq_id = 0;
 	/*
 	 * This is a somewhat grotesque attempt to map from task management
 	 * to old style SCSI messages. God help us all.
 	 */
 	switch (fc) {
+	case MPT_QUERY_TASK_SET:
+		inot->arg = MSG_QUERY_TASK_SET;
+		break;
 	case MPT_ABORT_TASK_SET:
-		inot->arg = MSG_ABORT_TAG;
+		inot->arg = MSG_ABORT_TASK_SET;
 		break;
 	case MPT_CLEAR_TASK_SET:
 		inot->arg = MSG_CLEAR_TASK_SET;
+		break;
+	case MPT_QUERY_ASYNC_EVENT:
+		inot->arg = MSG_QUERY_ASYNC_EVENT;
+		break;
+	case MPT_LOGICAL_UNIT_RESET:
+		inot->arg = MSG_LOGICAL_UNIT_RESET;
 		break;
 	case MPT_TARGET_RESET:
 		inot->arg = MSG_TARGET_RESET;
@@ -4811,19 +4826,12 @@ mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
 	case MPT_CLEAR_ACA:
 		inot->arg = MSG_CLEAR_ACA;
 		break;
-	case MPT_TERMINATE_TASK:
-		inot->arg = MSG_ABORT_TAG;
-		break;
 	default:
 		inot->arg = MSG_NOOP;
 		break;
 	}
-	/*
-	 * XXX KDM we need the sequence/tag number for the target of the
-	 * task management operation, especially if it is an abort.
-	 */
 	tgt->ccb = (union ccb *) inot;
-	inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
+	inot->ccb_h.status = CAM_MESSAGE_RECV;
 	xpt_done((union ccb *)inot);
 }
 
@@ -4844,7 +4852,6 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	tgt_resource_t *trtp = NULL;
 	U8 *lunptr;
 	U8 *vbuf;
-	U16 itag;
 	U16 ioindex;
 	mpt_task_mgmt_t fct = MPT_NIL_TMT_VALUE;
 	uint8_t *cdbp;
@@ -4854,6 +4861,12 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	 */
 	vbuf = req->req_vbuf;
 	vbuf += MPT_RQSL(mpt);
+	if (mpt->verbose >= MPT_PRT_DEBUG) {
+		mpt_dump_data(mpt, "mpt_scsi_tgt_atio response", vbuf,
+		    max(sizeof (MPI_TARGET_FCP_CMD_BUFFER),
+		    max(sizeof (MPI_TARGET_SSP_CMD_BUFFER),
+		    sizeof (MPI_TARGET_SCSI_SPI_CMD_BUFFER))));
+	}
 
 	/*
 	 * Get our state pointer set up.
@@ -4867,12 +4880,16 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	tgt->state = TGT_STATE_IN_CAM;
 	tgt->reply_desc = reply_desc;
 	ioindex = GET_IO_INDEX(reply_desc);
-	if (mpt->verbose >= MPT_PRT_DEBUG) {
-		mpt_dump_data(mpt, "mpt_scsi_tgt_atio response", vbuf,
-		    max(sizeof (MPI_TARGET_FCP_CMD_BUFFER),
-		    max(sizeof (MPI_TARGET_SSP_CMD_BUFFER),
-		    sizeof (MPI_TARGET_SCSI_SPI_CMD_BUFFER))));
-	}
+
+	/*
+	 * The tag we construct here allows us to find the
+	 * original request that the command came in with.
+	 *
+	 * This way we don't have to depend on anything but the
+	 * tag to find things when CCBs show back up from CAM.
+	 */
+	tgt->tag_id = MPT_MAKE_TAGID(mpt, req, ioindex);
+
 	if (mpt->is_fc) {
 		PTR_MPI_TARGET_FCP_CMD_BUFFER fc;
 		fc = (PTR_MPI_TARGET_FCP_CMD_BUFFER) vbuf;
@@ -4881,20 +4898,26 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 			 * Task Management Request
 			 */
 			switch (fc->FcpCntl[2]) {
+			case 0x1:
+				fct = MPT_QUERY_TASK_SET;
+				break;
 			case 0x2:
 				fct = MPT_ABORT_TASK_SET;
 				break;
 			case 0x4:
 				fct = MPT_CLEAR_TASK_SET;
 				break;
+			case 0x8:
+				fct = MPT_QUERY_ASYNC_EVENT;
+				break;
+			case 0x10:
+				fct = MPT_LOGICAL_UNIT_RESET;
+				break;
 			case 0x20:
 				fct = MPT_TARGET_RESET;
 				break;
 			case 0x40:
 				fct = MPT_CLEAR_ACA;
-				break;
-			case 0x80:
-				fct = MPT_TERMINATE_TASK;
 				break;
 			default:
 				mpt_prt(mpt, "CORRUPTED TASK MGMT BITS: 0x%x\n",
@@ -4925,19 +4948,19 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 		tgt->resid = be32toh(fc->FcpDl);
 		cdbp = fc->FcpCdb;
 		lunptr = fc->FcpLun;
-		itag = be16toh(fc->OptionalOxid);
+		tgt->itag = fc->OptionalOxid;
 	} else if (mpt->is_sas) {
 		PTR_MPI_TARGET_SSP_CMD_BUFFER ssp;
 		ssp = (PTR_MPI_TARGET_SSP_CMD_BUFFER) vbuf;
 		cdbp = ssp->CDB;
 		lunptr = ssp->LogicalUnitNumber;
-		itag = ssp->InitiatorTag;
+		tgt->itag = ssp->InitiatorTag;
 	} else {
 		PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER sp;
 		sp = (PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER) vbuf;
 		cdbp = sp->CDB;
 		lunptr = sp->LogicalUnitNumber;
-		itag = sp->Tag;
+		tgt->itag = sp->Tag;
 	}
 
 	lun = CAM_EXTLUN_BYTE_SWIZZLE(be64dec(lunptr));
@@ -4967,7 +4990,6 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 			sense[0] = 0xf0;
 			sense[2] = 0x5;
 			sense[7] = 0x8;
-			tgt->tag_id = MPT_MAKE_TAGID(mpt, req, ioindex);
 
 			switch (cdbp[0]) {
 			case INQUIRY:
@@ -5051,19 +5073,10 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	atiop->ccb_h.status = CAM_CDB_RECVD;
 	atiop->ccb_h.target_lun = lun;
 	atiop->sense_len = 0;
+	atiop->tag_id = tgt->tag_id;
 	atiop->init_id = GET_INITIATOR_INDEX(reply_desc);
 	atiop->cdb_len = 16;
 	memcpy(atiop->cdb_io.cdb_bytes, cdbp, atiop->cdb_len);
-
-	/*
-	 * The tag we construct here allows us to find the
-	 * original request that the command came in with.
-	 *
-	 * This way we don't have to depend on anything but the
-	 * tag to find things when CCBs show back up from CAM.
-	 */
-	atiop->tag_id = MPT_MAKE_TAGID(mpt, req, ioindex);
-	tgt->tag_id = atiop->tag_id;
 	if (tag_action) {
 		atiop->tag_action = tag_action;
 		atiop->ccb_h.flags |= CAM_TAG_ACTION_VALID;
@@ -5077,7 +5090,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 			    (i == (atiop->cdb_len - 1))? '>' : ' ');
 		}
 		mpt_prtc(mpt, " itag %x tag %x rdesc %x dl=%u\n",
-	    	    itag, atiop->tag_id, tgt->reply_desc, tgt->resid);
+		    tgt->itag, tgt->tag_id, tgt->reply_desc, tgt->resid);
 	}
 	
 	xpt_done((union ccb *)atiop);
@@ -5089,9 +5102,9 @@ mpt_tgt_dump_tgt_state(struct mpt_softc *mpt, request_t *req)
 	mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, req);
 
 	mpt_prt(mpt, "req %p:%u tgt:rdesc 0x%x resid %u xfrd %u ccb %p treq %p "
-	    "nx %d tag 0x%08x state=%d\n", req, req->serno, tgt->reply_desc,
-	    tgt->resid, tgt->bytes_xfered, tgt->ccb, tgt->req, tgt->nxfers,
-	    tgt->tag_id, tgt->state);
+	    "nx %d tag 0x%08x itag 0x%04x state=%d\n", req, req->serno,
+	    tgt->reply_desc, tgt->resid, tgt->bytes_xfered, tgt->ccb,
+	    tgt->req, tgt->nxfers, tgt->tag_id, tgt->itag, tgt->state);
 }
 
 static void
@@ -5242,7 +5255,7 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 				tgt->ccb = NULL;
 			} else {
 				mpt_lprt(mpt, MPT_PRT_DEBUG,
-				    "TARGET_STATUS non-CAM for  req %p:%u\n",
+				    "TARGET_STATUS non-CAM for req %p:%u\n",
 				    tgt->req, tgt->req->serno);
 			}
 			TAILQ_REMOVE(&mpt->request_pending_list,
