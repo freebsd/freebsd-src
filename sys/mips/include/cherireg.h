@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2016 Robert N. M. Watson
+ * Copyright (c) 2011-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
