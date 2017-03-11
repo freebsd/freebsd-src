@@ -52,6 +52,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 ****************************** SPECIAL WARNING: ******************************
 
 20170311:
+	The old drm (sys/dev/drm/) drivers for i915 and radeon have been
+	removed as the userland we provide cannot use them. The KMS version
+	(sys/dev/drm2) support the same hardware.
+
+20170311:
 	GNU diff has been replaced by a BSD licensed diff. Some features of GNU
 	diff has not been implemented, if those are needed a newer version of
 	GNU diff is available via the diffutils package under the gdiff name.
