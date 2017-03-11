@@ -4,6 +4,8 @@
 
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 
+WARNS?=		0
+
 # All architectures on FreeBSD have fenv.h
 CFLAGS+=	-DHAVE_FENV_H
 
