@@ -101,12 +101,12 @@ test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 	/*
 	 * Make sure perms we are going to try removing are there...
 	 */
-	if (!(perms & CHERI_PERM_USER0))
+	if (!(perms & CHERI_PERM_SW0))
 		cheritest_failure_errx(
-		    "no CHERI_PERM_USER0 in default perms (0x%lx)", perms);
-	if (!(perms & CHERI_PERM_USER2))
+		    "no CHERI_PERM_SW0 in default perms (0x%lx)", perms);
+	if (!(perms & CHERI_PERM_SW2))
 		cheritest_failure_errx(
-		    "no CHERI_PERM_USER2 in default perms (0x%lx)", perms);
+		    "no CHERI_PERM_SW2 in default perms (0x%lx)", perms);
 
 	if ((cap = mmap(0, PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC,
 	    MAP_ANON, -1, 0)) == MAP_FAILED)
@@ -120,36 +120,36 @@ test_cheriabi_mmap_perms(const struct cheri_test *ctp __unused)
 		cheritest_failure_err("munmap() failed");
 
 	operms = perms;
-	perms = ~CHERI_PERM_USER2;
+	perms = ~CHERI_PERM_SW2;
 	if (sysarch(CHERI_MMAP_ANDPERM, &perms) != 0)
 		cheritest_failure_err("sysarch(CHERI_MMAP_ANDPERM) failed");
-	if (perms != (operms & ~CHERI_PERM_USER2))
+	if (perms != (operms & ~CHERI_PERM_SW2))
 		cheritest_failure_errx("sysarch(CHERI_MMAP_ANDPERM) did not "
-		    "just remove CHERI_PERM_USER2.  Got 0x%lx but "
+		    "just remove CHERI_PERM_SW2.  Got 0x%lx but "
 		    "expected 0x%lx", perms,
-		    operms & ~CHERI_PERM_USER2);
+		    operms & ~CHERI_PERM_SW2);
 	if (sysarch(CHERI_MMAP_GETPERM, &perms) != 0)
 		cheritest_failure_err("sysarch(CHERI_MMAP_GETPERM) failed");
-	if (perms & CHERI_PERM_USER2)
+	if (perms & CHERI_PERM_SW2)
 		cheritest_failure_errx("sysarch(CHERI_MMAP_ANDPERM) failed "
-		    "to remove CHERI_PERM_USER2.  Got 0x%lx.", perms);
+		    "to remove CHERI_PERM_SW2.  Got 0x%lx.", perms);
 
 	if ((cap = mmap(0, PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC,
 	    MAP_ANON, -1, 0)) == MAP_FAILED)
 		cheritest_failure_err("mmap() failed");
 
-	if (cheri_getperm(cap) & CHERI_PERM_USER2)
+	if (cheri_getperm(cap) & CHERI_PERM_SW2)
 		cheritest_failure_errx("mmap() returned with "
-		    "CHERI_PERM_USER2 after restriction (0x%lx)",
+		    "CHERI_PERM_SW2 after restriction (0x%lx)",
 		    cheri_getperm(cap));
 
-	cap = cheri_andperm(cap, ~CHERI_PERM_USER0);
+	cap = cheri_andperm(cap, ~CHERI_PERM_SW0);
 	if ((cap = mmap(cap, PAGE_SIZE, PROT_READ,
 	    MAP_ANON|MAP_FIXED, -1, 0)) == MAP_FAILED)
 		cheritest_failure_err("mmap(MAP_FIXED) failed");
-	if (cheri_getperm(cap) & CHERI_PERM_USER0)
+	if (cheri_getperm(cap) & CHERI_PERM_SW0)
 		cheritest_failure_errx(
-		    "mmap(MAP_FIXED) returned with CHERI_PERM_USER0 in perms "
+		    "mmap(MAP_FIXED) returned with CHERI_PERM_SW0 in perms "
 		    "without it in addr (perms 0x%lx)", cheri_getperm(cap));
 
 	if (munmap(cap, PAGE_SIZE) != 0)

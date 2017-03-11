@@ -130,7 +130,7 @@ test_fault_ccheck_user_fail(const struct cheri_test *ctp __unused)
 	char ch;
 
 	cp = cheri_ptrperm(&ch, sizeof(ch), 0);
-	cheri_ccheckperm(cp, CHERI_PERM_USER0);
+	cheri_ccheckperm(cp, CHERI_PERM_SW0);
 }
 
 void
@@ -139,8 +139,8 @@ test_nofault_ccheck_user_pass(const struct cheri_test *ctp __unused)
 	__capability void *cp;
 	char ch;
 
-	cp = cheri_ptrperm(&ch, sizeof(ch), CHERI_PERM_USER0);
-	cheri_ccheckperm(cp, CHERI_PERM_USER0);
+	cp = cheri_ptrperm(&ch, sizeof(ch), CHERI_PERM_SW0);
+	cheri_ccheckperm(cp, CHERI_PERM_SW0);
 	cheritest_success();
 }
 

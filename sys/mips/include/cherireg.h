@@ -69,104 +69,100 @@
 /*
  * User-defined permission bits.
  *
- * 256-bit CHERI has a substantially larger number of user-defined
+ * 256-bit CHERI has a substantially larger number of software-defined
  * permissions.
  */
-#define	CHERI256_PERM_USER0			(1 << 15)	/* 0x00008000 */
-#define	CHERI256_PERM_USER1			(1 << 16)	/* 0x00010000 */
-#define	CHERI256_PERM_USER2			(1 << 17)	/* 0x00020000 */
-#define	CHERI256_PERM_USER3			(1 << 18)	/* 0x00040000 */
-#define	CHERI256_PERM_USER4			(1 << 19)	/* 0x00080000 */
-#define	CHERI256_PERM_USER5			(1 << 20)	/* 0x00100000 */
-#define	CHERI256_PERM_USER6			(1 << 21)	/* 0x00200000 */
-#define	CHERI256_PERM_USER7			(1 << 22)	/* 0x00400000 */
-#define	CHERI256_PERM_USER8			(1 << 23)	/* 0x00800000 */
-#define	CHERI256_PERM_USER9			(1 << 24)	/* 0x01000000 */
-#define	CHERI256_PERM_USER10			(1 << 25)	/* 0x02000000 */
-#define	CHERI256_PERM_USER11			(1 << 26)	/* 0x04000000 */
-#define	CHERI256_PERM_USER12			(1 << 27)	/* 0x08000000 */
-#define	CHERI256_PERM_USER13			(1 << 28)	/* 0x10000000 */
-#define	CHERI256_PERM_USER14			(1 << 29)	/* 0x20000000 */
-#define	CHERI256_PERM_USER15			(1 << 30)	/* 0x40000000 */
+#define	CHERI256_PERM_SW0			(1 << 15)	/* 0x00008000 */
+#define	CHERI256_PERM_SW1			(1 << 16)	/* 0x00010000 */
+#define	CHERI256_PERM_SW2			(1 << 17)	/* 0x00020000 */
+#define	CHERI256_PERM_SW3			(1 << 18)	/* 0x00040000 */
+#define	CHERI256_PERM_SW4			(1 << 19)	/* 0x00080000 */
+#define	CHERI256_PERM_SW5			(1 << 20)	/* 0x00100000 */
+#define	CHERI256_PERM_SW6			(1 << 21)	/* 0x00200000 */
+#define	CHERI256_PERM_SW7			(1 << 22)	/* 0x00400000 */
+#define	CHERI256_PERM_SW8			(1 << 23)	/* 0x00800000 */
+#define	CHERI256_PERM_SW9			(1 << 24)	/* 0x01000000 */
+#define	CHERI256_PERM_SW10			(1 << 25)	/* 0x02000000 */
+#define	CHERI256_PERM_SW11			(1 << 26)	/* 0x04000000 */
+#define	CHERI256_PERM_SW12			(1 << 27)	/* 0x08000000 */
+#define	CHERI256_PERM_SW13			(1 << 28)	/* 0x10000000 */
+#define	CHERI256_PERM_SW14			(1 << 29)	/* 0x20000000 */
+#define	CHERI256_PERM_SW15			(1 << 30)	/* 0x40000000 */
 
-#define	CHERI128_PERM_USER0			(1 << 15)	/* 0x00008000 */
-#define	CHERI128_PERM_USER1			(1 << 16)	/* 0x00010000 */
-#define	CHERI128_PERM_USER2			(1 << 17)	/* 0x00020000 */
-#define	CHERI128_PERM_USER3			(1 << 18)	/* 0x00040000 */
+#define	CHERI128_PERM_SW0			(1 << 15)	/* 0x00008000 */
+#define	CHERI128_PERM_SW1			(1 << 16)	/* 0x00010000 */
+#define	CHERI128_PERM_SW2			(1 << 17)	/* 0x00020000 */
+#define	CHERI128_PERM_SW3			(1 << 18)	/* 0x00040000 */
 
 #if (CHERICAP_SIZE == 32)
-#define	CHERI_PERM_USER0	CHERI256_PERM_USER0
-#define	CHERI_PERM_USER1	CHERI256_PERM_USER1
-#define	CHERI_PERM_USER2	CHERI256_PERM_USER2
-#define	CHERI_PERM_USER3	CHERI256_PERM_USER3
-#define	CHERI_PERM_USER4	CHERI256_PERM_USER4
-#define	CHERI_PERM_USER5	CHERI256_PERM_USER5
-#define	CHERI_PERM_USER6	CHERI256_PERM_USER6
-#define	CHERI_PERM_USER7	CHERI256_PERM_USER7
-#define	CHERI_PERM_USER8	CHERI256_PERM_USER8
-#define	CHERI_PERM_USER9	CHERI256_PERM_USER9
-#define	CHERI_PERM_USER10	CHERI256_PERM_USER10
-#define	CHERI_PERM_USER11	CHERI256_PERM_USER11
-#define	CHERI_PERM_USER12	CHERI256_PERM_USER12
-#define	CHERI_PERM_USER13	CHERI256_PERM_USER13
-#define	CHERI_PERM_USER14	CHERI256_PERM_USER14
-#define	CHERI_PERM_USER15	CHERI256_PERM_USER15
+#define	CHERI_PERM_SW0		CHERI256_PERM_SW0
+#define	CHERI_PERM_SW1		CHERI256_PERM_SW1
+#define	CHERI_PERM_SW2		CHERI256_PERM_SW2
+#define	CHERI_PERM_SW3		CHERI256_PERM_SW3
+#define	CHERI_PERM_SW4		CHERI256_PERM_SW4
+#define	CHERI_PERM_SW5		CHERI256_PERM_SW5
+#define	CHERI_PERM_SW6		CHERI256_PERM_SW6
+#define	CHERI_PERM_SW7		CHERI256_PERM_SW7
+#define	CHERI_PERM_SW8		CHERI256_PERM_SW8
+#define	CHERI_PERM_SW9		CHERI256_PERM_SW9
+#define	CHERI_PERM_SW10		CHERI256_PERM_SW10
+#define	CHERI_PERM_SW11		CHERI256_PERM_SW11
+#define	CHERI_PERM_SW12		CHERI256_PERM_SW12
+#define	CHERI_PERM_SW13		CHERI256_PERM_SW13
+#define	CHERI_PERM_SW14		CHERI256_PERM_SW14
+#define	CHERI_PERM_SW15		CHERI256_PERM_SW15
 #else /* (!(CHERICAP_SIZE == 32)) */
-#define	CHERI_PERM_USER0	CHERI128_PERM_USER0
-#define	CHERI_PERM_USER1	CHERI128_PERM_USER1
-#define	CHERI_PERM_USER2	CHERI128_PERM_USER2
-#define	CHERI_PERM_USER3	CHERI128_PERM_USER3
+#define	CHERI_PERM_SW0		CHERI128_PERM_SW0
+#define	CHERI_PERM_SW1		CHERI128_PERM_SW1
+#define	CHERI_PERM_SW2		CHERI128_PERM_SW2
+#define	CHERI_PERM_SW3		CHERI128_PERM_SW3
 #endif /* (!(CHERICAP_SIZE == 32)) */
 
 /*
- * The kernel snags one for the user-defined permissions for the purposes of
- * authorising system calls from $pcc.  This is a bit of an oddity: normally,
- * we check permissions on data capabilities, not code capabilities, but
- * aligns with 'privilege' checks: e.g., $epcc access.  We may wish to switch
- * to another model, such as having userspace register one or more class
- * capabilities as suitable for privilege.
+ * The kernel snags one for the software-defined permissions for the purposes
+ * of authorising system calls from $pcc.  This is a bit of an oddity:
+ * normally, we check permissions on data capabilities, not code capabilities,
+ * but aligns with 'privilege' checks: e.g., $epcc access.  We may wish to
+ * switch to another model, such as having userspace register one or more
+ * class capabilities as suitable for system-call use.
  */
-#define	CHERI_PERM_SYSCALL			CHERI_PERM_USER0
+#define	CHERI_PERM_SYSCALL			CHERI_PERM_SW0
 
 /*
- * Use another user-defined permission to restrict the ability to change
+ * Use another software-defined permission to restrict the ability to change
  * the page mapping underlying a capability.  This can't be the same
  * permission bit as CHERI_PERM_SYSCALL because $pcc should not confer the
  * right rewrite or remap executable memory.
  */
-#define	CHERI_PERM_CHERIABI_VMMAP		CHERI_PERM_USER1
+#define	CHERI_PERM_CHERIABI_VMMAP		CHERI_PERM_SW1
 
 /*
  * Macros defining initial permission sets for various scenarios; details
  * depend on the permissions available on 256-bit or 128-bit CHERI:
  *
- * CHERI_PERM_USER_PRIVS: Mask of all available user-defined permissions
- * CHERI_PERM_PRIV: Mask of all available hardware-defined permissions
+ * CHERI_PERMS_SWALL: Mask of all available software-defined permissions
+ * CHERI_PERMS_HWALL: Mask of all available hardware-defined permissions
  */
 #if (CHERICAP_SIZE == 32)
-#define	CHERI_PERM_USER_PRIVS						\
-	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
-	CHERI_PERM_USER3 | CHERI_PERM_USER4 | CHERI_PERM_USER5 |	\
-	CHERI_PERM_USER6 | CHERI_PERM_USER7 | CHERI_PERM_USER8 |	\
-	CHERI_PERM_USER9 | CHERI_PERM_USER10 | CHERI_PERM_USER11 |	\
-	CHERI_PERM_USER12 | CHERI_PERM_USER13 | CHERI_PERM_USER14 |	\
-	CHERI_PERM_USER15)
+#define	CHERI_PERMS_SWALL						\
+	(CHERI_PERM_SW0 | CHERI_PERM_SW1 | CHERI_PERM_SW2 |		\
+	CHERI_PERM_SW3 | CHERI_PERM_SW4 | CHERI_PERM_SW5 |		\
+	CHERI_PERM_SW6 | CHERI_PERM_SW7 | CHERI_PERM_SW8 |		\
+	CHERI_PERM_SW9 | CHERI_PERM_SW10 | CHERI_PERM_SW11 |		\
+	CHERI_PERM_SW12 | CHERI_PERM_SW13 | CHERI_PERM_SW14 |		\
+	CHERI_PERM_SW15)
 #else /* (!(CHERICAP_SIZE == 32)) */
-#define	CHERI_PERM_USER_PRIVS						\
-	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
-	CHERI_PERM_USER3)
+#define	CHERI_PERMS_SWALL						\
+	(CHERI_PERM_SW0 | CHERI_PERM_SW1 | CHERI_PERM_SW2 |		\
+	CHERI_PERM_SW3)
 #endif /* (!(CHERICAP_SIZE == 32)) */
 
-/*
- * No variation between 256-bit and 128-bit CHERI for privileged capability
- * permissions -- at least, not anymore.
- */
-#define	CHERI_PERM_KERN							\
+#define	CHERI_PERMS_HWALL						\
 	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
 	CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |	\
 	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |		\
 	CHERI_PERM_SEAL | CHERI_PERM_RESERVED0 | CHERI_PERM_RESERVED1 |	\
-	CHERI_PERM_SYSTEM_REGS | CHERI_PERM_USER_PRIVS)
+	CHERI_PERM_SYSTEM_REGS)
 
 /*
  * Root "object-type" capability for the kernel.  This can be used neither as
@@ -181,27 +177,41 @@
  *
  * No variation required between 256-bit and 128-bit CHERI.
  */
-#define	CHERI_PERM_USER							\
+#define	CHERI_PERMS_USERSPACE						\
 	(CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |	\
-	(CHERI_PERM_USER_PRIVS & ~CHERI_PERM_CHERIABI_VMMAP))
+	(CHERI_PERMS_SWALL & ~CHERI_PERM_CHERIABI_VMMAP))
 
-#define	CHERI_PERM_USER_CODE	(CHERI_PERM_USER | CHERI_PERM_EXECUTE)
+#define	CHERI_PERMS_USERSPACE_CODE					\
+	(CHERI_PERMS_USERSPACE | CHERI_PERM_EXECUTE)
+
+#define	CHERI_PERMS_USERSPACE_SEALCAP					\
+	(CHERI_PERM_GLOBAL | CHERI_PERM_SEAL)
+
 /*
  * XXX-BD: _DATA should not include _VMMAP, but malloc needs rework to
  * fix.
  */
-#define	CHERI_PERM_USER_DATA	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
+#define	CHERI_PERMS_USERSPACE_DATA					\
+				(CHERI_PERMS_USERSPACE |		\
+				CHERI_PERM_STORE |			\
 				CHERI_PERM_STORE_CAP |			\
 				CHERI_PERM_STORE_LOCAL_CAP |		\
 				CHERI_PERM_CHERIABI_VMMAP)
 
 /*
- * Root "object-type" capability -- queried via sysarch(2) when libcheri needs
- * to allocate types.  This can be used neither as a data nor code capability.
- *
- * No variation required between 256-bit and 128-bit CHERI.
+ * Corresponding permission masks for kernel code and data; these are
+ * currently a bit broad, and should be narrowed over time as the kernel
+ * becomes more capability-aware.
  */
-#define	CHERI_PERM_USER_TYPE	(CHERI_PERM_GLOBAL | CHERI_PERM_SEAL)
+#define	CHERI_PERMS_KERNEL						\
+	(CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP)	\
+
+#define	CHERI_PERMS_KERNEL_CODE						\
+	(CHERI_PERMS_KERNEL | CHERI_PERM_EXECUTE)
+
+#define	CHERI_PERMS_KERNEL_DATA						\
+	(CHERI_PERMS_KERNEL | CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |	\
+	CHERI_PERM_STORE_LOCAL_CAP)
 
 /*
  * The CHERI object-type space is split between userspace and kernel,
@@ -216,53 +226,62 @@
 #define	CHERI_OTYPE_KERN_MIN	(1 << 24)
 #define	CHERI_OTYPE_KERN_MAX	((1 << 24) - 1)
 
-#define	CHERI_OTYPE_ISKERN(x)	(((x) & (1 << 23)) != 0)
+#define	CHERI_OTYPE_KERN_FLAG	(1 << 23)
+#define	CHERI_OTYPE_ISKERN(x)	(((x) & CHERI_OTYPE_KERN_FLAG) != 0)
 #define	CHERI_OTYPE_ISUSER(x)	(!(CHERI_OTYPE_ISKERN(x)))
 
 /*
- * Definition for kernel "privileged" capability able to name the entire
- * address space.
- *
- * No variation required between 256-bit and 128-bit CHERI.
+ * When performing a userspace-to-userspace CCall, capability flow-control
+ * checks normally prevent local capabilities from being delegated.  This can
+ * be disabled on call (but not return) by using an object type with the 22nd
+ * bit set -- combined with a suitable selector on the CCall instruction to
+ * ensure that this behaviour is intended.
  */
-#define	CHERI_CAP_KERN_PERMS		CHERI_PERM_KERN
+#define	CHERI_OTYPE_LOCALOK_SHIFT	(22)
+#define	CHERI_OTYPE_LOCALOK_FLAG	(1 << CHERI_OTYPE_LOCALOK_SHIFT
+#define	CHERI_OTYPE_IS_LOCALOK(x)	(((x) & CHERI_OTYPE_LOCALOK_FLAG) != 0)
+
+/*
+ * Definition for a highly privileged kernel capability able to name the
+ * entire address space, and suitable to derive all other kernel-related
+ * capabilities from, including sealing capabilities.
+ */
+#define	CHERI_CAP_KERN_PERMS						\
+	(CHERI_PERMS_SWALL | CHERI_PERMS_HWALL)
 #define	CHERI_CAP_KERN_BASE		0x0
 #define	CHERI_CAP_KERN_LENGTH		0xffffffffffffffff
 #define	CHERI_CAP_KERN_OFFSET		0x0
 
-#define	CHERI_CAP_KERN_TYPE_PERMS	CHERI_PERM_KERN_TYPE
-#define	CHERI_CAP_KERN_TYPE_BASE	CHERI_OTYPE_KERN_MIN
-#define	CHERI_CAP_KERN_TYPE_LENGTH	\
-    (CHERI_OTYPE_KERN_MAX - CHERI_OTYPE_KERN_MIN)
-#define	CHERI_CAP_KERN_TYPE_OFFSET	0x0
-
 /*
  * Definition for userspace "unprivileged" capability able to name the user
  * portion of the address space.
- *
- * No variation required between 256-bit and 128-bit CHERI.
  */
-#define	CHERI_CAP_USER_CODE_PERMS	CHERI_PERM_USER_CODE
+#define	CHERI_CAP_USER_CODE_PERMS	CHERI_PERMS_USERSPACE_CODE
 #define	CHERI_CAP_USER_CODE_BASE	MIPS_XUSEG_START
 #define	CHERI_CAP_USER_CODE_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
 #define	CHERI_CAP_USER_CODE_OFFSET	0x0
 
-#define	CHERI_CAP_USER_DATA_PERMS	CHERI_PERM_USER_DATA
+#define	CHERI_CAP_USER_DATA_PERMS	CHERI_PERMS_USERSPACE_DATA
 #define	CHERI_CAP_USER_DATA_BASE	MIPS_XUSEG_START
 #define	CHERI_CAP_USER_DATA_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
 #define	CHERI_CAP_USER_DATA_OFFSET	0x0
 
-#define	CHERI_CAP_USER_TYPE_PERMS	CHERI_PERM_USER_TYPE
-#define	CHERI_CAP_USER_TYPE_BASE	CHERI_OTYPE_USER_MIN
-#define	CHERI_CAP_USER_TYPE_LENGTH	\
-    (CHERI_OTYPE_USER_MAX - CHERI_OTYPE_USER_MIN + 1)
-#define	CHERI_CAP_USER_TYPE_OFFSET	0x0
-
-#define	CHERI_CAP_USER_MMAP_PERMS	\
-    (CHERI_PERM_USER_DATA | CHERI_PERM_USER_CODE | CHERI_PERM_CHERIABI_VMMAP)
+#define	CHERI_CAP_USER_MMAP_PERMS					\
+	(CHERI_PERMS_USERSPACE_DATA | CHERI_PERMS_USERSPACE_CODE |	\
+	CHERI_PERM_CHERIABI_VMMAP)
 #define	CHERI_CAP_USER_MMAP_BASE	MIPS_XUSEG_START
 #define	CHERI_CAP_USER_MMAP_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
 #define	CHERI_CAP_USER_MMAP_OFFSET	0x0
+
+/*
+ * Root sealing capability for all userspace object capabilities.  This is
+ * made available to userspace via a sysarch(2).
+ */
+#define	CHERI_SEALCAP_USERSPACE_PERMS	CHERI_PERMS_USERSPACE_SEALCAP
+#define	CHERI_SEALCAP_USERSPACE_BASE	CHERI_OTYPE_USER_MIN
+#define	CHERI_SEALCAP_USERSPACE_LENGTH	\
+    (CHERI_OTYPE_USER_MAX - CHERI_OTYPE_USER_MIN + 1)
+#define	CHERI_SEALCAP_USERSPACE_OFFSET	0x0
 
 /*
  * A blend of hardware and software allocation of capability registers.

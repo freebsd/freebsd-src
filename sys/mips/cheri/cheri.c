@@ -260,9 +260,9 @@ static void
 cheri_capability_set_user_type(struct chericap *cp)
 {
 
-	cheri_capability_set(cp, CHERI_CAP_USER_TYPE_PERMS,
-	    CHERI_CAP_USER_TYPE_BASE, CHERI_CAP_USER_TYPE_LENGTH,
-	    CHERI_CAP_USER_TYPE_OFFSET);
+	cheri_capability_set(cp, CHERI_SEALCAP_USERSPACE_PERMS,
+	    CHERI_SEALCAP_USERSPACE_BASE, CHERI_SEALCAP_USERSPACE_LENGTH,
+	    CHERI_SEALCAP_USERSPACE_OFFSET);
 }
 
 void
