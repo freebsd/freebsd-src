@@ -221,9 +221,8 @@ test_initregs_default(const struct cheri_test *ctp __unused)
 }
 
 /*
- * Outside of CheriABI, we expect the stack capability to be the same as the
- * default data capability, since we need the stack pointer ($sp) to be usable
- * relative to either capability.
+ * Outside of CheriABI, the stack pointer ($sp) is evaluated relative to the
+ * default data capability, so no separate stack capability is defined.
  *
  * Inside CheriABI, the stack capability should contain only the specific
  * address range used for the stack.  We could try to capture the same logic
