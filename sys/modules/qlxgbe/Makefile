@@ -43,9 +43,6 @@ SRCS+= ql_minidump.c
 
 SRCS+= device_if.h bus_if.h pci_if.h
 
-# Uses unnamed structure and union fields
-CFLAGS+= ${GCC_MS_EXTENSIONS}
-
 #CFLAGS += -DQL_DBG
 # Please turn off QL_LDFLASH_FW when you enable QL_ENABLE_ISCSI_TLV
 # You may comment out both QL_LDFLASH_FW and QL_ENABLE_ISCSI_TLV if you like
