@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2016 Robert N. M. Watson
+ * Copyright (c) 2012-2017 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -294,6 +294,9 @@ void	test_sandbox_return_local_capability_catch(
 void	test_sandbox_return_local_capability_nocatch(
 	    const struct cheri_test *ctp);
 void	test_sandbox_pass_local_capability_arg(const struct cheri_test *ctp);
+
+/* cheritest_sealcap.c */
+void	test_sealcap_sysarch(const struct cheri_test *ctp);
 
 /* cheritest_stack.c */
 register_t	cheritest_libcheri_userfn_getstack(void);

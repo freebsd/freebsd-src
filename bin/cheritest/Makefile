@@ -13,6 +13,7 @@ SRCS+=	cheritest_bounds_heap.c						\
 	cheritest_local.c						\
 	cheritest_registers.c						\
 	cheritest_sandbox.S						\
+	cheritest_sealcap.c						\
 	cheritest_string.c						\
 	cheritest_syscall.c						\
 	cheritest_trusted_stack.c					\

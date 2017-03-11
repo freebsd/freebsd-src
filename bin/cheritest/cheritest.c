@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2016 Robert N. M. Watson
+ * Copyright (c) 2012-2017 Robert N. M. Watson
  * Copyright (c) 2014-2016 SRI International
  * All rights reserved.
  *
@@ -237,6 +237,13 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_SYSTEM_REGS },
+
+	/*
+	 * Tests on the kernel-provided sealing capability (sealcap).
+	 */
+	{ .ct_name = "test_sealcap_sysarch",
+	  .ct_desc = "Retrieve sealcap using sysarch(2)",
+	  .ct_func = test_sealcap_sysarch, },
 
 	/*
 	 * Test bounds on heap allocation.
