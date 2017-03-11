@@ -261,10 +261,6 @@ manpath_usage() {
 # Usage: manpath_warnings
 # Display some warnings to stderr.
 manpath_warnings() {
-	if [ -z "$Lflag" -a -n "$MANPATH" ]; then
-		echo "(Warning: MANPATH environment variable set)" >&2
-	fi
-
 	if [ -n "$Lflag" -a -n "$MANLOCALES" ]; then
 		echo "(Warning: MANLOCALES environment variable set)" >&2
 	fi
