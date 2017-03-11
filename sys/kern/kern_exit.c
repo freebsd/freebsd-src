@@ -207,8 +207,7 @@ exit1(struct thread *td, int rval, int signo)
 	/*
 	 * Deref SU mp, since the thread does not return to userspace.
 	 */
-	if (softdep_ast_cleanup != NULL)
-		softdep_ast_cleanup();
+	td_softdep_cleanup(td);
 
 	/*
 	 * MUST abort all other threads before proceeding past here.
