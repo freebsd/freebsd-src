@@ -612,6 +612,8 @@
         ..
         cut
         ..
+        diff
+        ..
         dirname
         ..
         file2c
