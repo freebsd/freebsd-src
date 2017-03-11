@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2016 Robert N. M. Watson
+ * Copyright (c) 2012-2017 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -147,13 +147,57 @@ check_initreg_code(__capability void *c)
 	/* Type -- should be zero for an unsealed capability. */
 	v = cheri_gettype(c);
 	if (v != 0)
-		cheritest_failure_errx("otype %jx (expected %jx)", v, 0);
+		cheritest_failure_errx("otype %jx (expected %jx)", v,
+		    (uintmax_t)0);
 
 	/* Permissions. */
 	v = cheri_getperm(c);
 	if (v != CHERI_CAP_USER_CODE_PERMS)
 		cheritest_failure_errx("perms %jx (expected %jx)", v,
 		    (uintmax_t)CHERI_CAP_USER_CODE_PERMS);
+
+	/*
+	 * More overt tests for permissions that should -- or should not -- be
+	 * there, regardless of consistency with the kernel headers.
+	 */
+	if ((v & CHERI_PERM_GLOBAL) == 0)
+		cheritest_failure_errx("perms %jx (global missing)", v);
+
+	if ((v & CHERI_PERM_EXECUTE) == 0)
+		cheritest_failure_errx("perms %jx (execute missing)", v);
+
+	if ((v & CHERI_PERM_LOAD) == 0)
+		cheritest_failure_errx("perms %jx (load missing)", v);
+
+	if ((v & CHERI_PERM_STORE) != 0)
+		cheritest_failure_errx("perms %jx (store present)", v);
+
+	if ((v & CHERI_PERM_LOAD_CAP) == 0)
+		cheritest_failure_errx("perms %jx (loadcap missing)", v);
+
+	if ((v & CHERI_PERM_STORE_CAP) != 0)
+		cheritest_failure_errx("perms %jx (storecap present)", v);
+
+	if ((v & CHERI_PERM_STORE_LOCAL_CAP) != 0)
+		cheritest_failure_errx("perms %jx (store_local_cap present)",
+		    v);
+
+	if ((v & CHERI_PERM_SEAL) != 0)
+		cheritest_failure_errx("perms %jx (seal present)", v);
+
+	if ((v & CHERI_PERM_RESERVED0) != 0)
+		cheritest_failure_errx("perms %jx (reserved0 present)", v);
+
+	if ((v & CHERI_PERM_RESERVED1) != 0)
+		cheritest_failure_errx("perms %jx (reserved1 present)", v);
+
+	if ((v & CHERI_PERM_SYSTEM_REGS) != 0)
+		cheritest_failure_errx("perms %jx (system_regs present)", v);
+
+	if ((v & CHERI_PERMS_SWALL) !=
+	    (CHERI_PERMS_SWALL & ~CHERI_PERM_CHERIABI_VMMAP))
+		cheritest_failure_errx("perms %jx (expected swperms %jx)", v,
+		    (CHERI_PERMS_SWALL & ~CHERI_PERM_CHERIABI_VMMAP));
 
 	/* Sealed bit. */
 	v = cheri_getsealed(c);
@@ -193,13 +237,56 @@ check_initreg_data(__capability void *c)
 	/* Type -- should be zero for an unsealed capability. */
 	v = cheri_gettype(c);
 	if (v != 0)
-		cheritest_failure_errx("otype %jx (expected %jx)", v, 0);
+		cheritest_failure_errx("otype %jx (expected %jx)", v,
+		    (uintmax_t)0);
 
 	/* Permissions. */
 	v = cheri_getperm(c);
 	if (v != CHERI_CAP_USER_DATA_PERMS)
 		cheritest_failure_errx("perms %jx (expected %jx)", v,
 		    (uintmax_t)CHERI_CAP_USER_DATA_PERMS);
+
+	/*
+	 * More overt tests for permissions that should -- or should not -- be
+	 * there, regardless of consistency with the kernel headers.
+	 */
+	if ((v & CHERI_PERM_GLOBAL) == 0)
+		cheritest_failure_errx("perms %jx (global missing)", v);
+
+	if ((v & CHERI_PERM_EXECUTE) != 0)
+		cheritest_failure_errx("perms %jx (execute present)", v);
+
+	if ((v & CHERI_PERM_LOAD) == 0)
+		cheritest_failure_errx("perms %jx (load missing)", v);
+
+	if ((v & CHERI_PERM_STORE) == 0)
+		cheritest_failure_errx("perms %jx (store missing)", v);
+
+	if ((v & CHERI_PERM_LOAD_CAP) == 0)
+		cheritest_failure_errx("perms %jx (loadcap missing)", v);
+
+	if ((v & CHERI_PERM_STORE_CAP) == 0)
+		cheritest_failure_errx("perms %jx (storecap missing)", v);
+
+	if ((v & CHERI_PERM_STORE_LOCAL_CAP) == 0)
+		cheritest_failure_errx("perms %jx (store_local_cap missing)",
+		    v);
+
+	if ((v & CHERI_PERM_SEAL) != 0)
+		cheritest_failure_errx("perms %jx (seal present)", v);
+
+	if ((v & CHERI_PERM_RESERVED0) != 0)
+		cheritest_failure_errx("perms %jx (reserved0 present)", v);
+
+	if ((v & CHERI_PERM_RESERVED1) != 0)
+		cheritest_failure_errx("perms %jx (reserved1 present)", v);
+
+	if ((v & CHERI_PERM_SYSTEM_REGS) != 0)
+		cheritest_failure_errx("perms %jx (system_regs present)", v);
+
+	if ((v & CHERI_PERMS_SWALL) != CHERI_PERMS_SWALL)
+		cheritest_failure_errx("perms %jx (expected swperms %jx)", v,
+		    CHERI_PERMS_SWALL);
 
 	/* Sealed bit. */
 	v = cheri_getsealed(c);
@@ -258,13 +345,57 @@ test_initregs_stack(const struct cheri_test *ctp __unused)
 	/* Type -- should be zero for an unsealed capability. */
 	v = cheri_gettype(c);
 	if (v != 0)
-		cheritest_failure_errx("otype %jx (expected %jx)", v, 0);
+		cheritest_failure_errx("otype %jx (expected %jx)", v,
+		    (uintmax_t)0);
 
 	/* Permissions. */
 	v = cheri_getperm(c);
 	if (v != CHERI_CAP_USER_DATA_PERMS)
 		cheritest_failure_errx("perms %jx (expected %jx)", v,
 		    (uintmax_t)CHERI_CAP_USER_DATA_PERMS);
+
+	/*
+	 * More overt tests for permissions that should -- or should not -- be
+	 * there, regardless of consistency with the kernel headers.
+	 */
+	if ((v & CHERI_PERM_EXECUTE) != 0)
+		cheritest_failure_errx("perms %jx (execute present)", v);
+
+	if ((v & CHERI_PERM_LOAD) == 0)
+		cheritest_failure_errx("perms %jx (load missing)", v);
+
+	if ((v & CHERI_PERM_LOAD_CAP) == 0)
+		cheritest_failure_errx("perms %jx (loadcap missing)", v);
+
+	if ((v & CHERI_PERM_GLOBAL) == 0)
+		cheritest_failure_errx("perms %jx (global missing)", v);
+
+	if ((v & CHERI_PERM_STORE) == 0)
+		cheritest_failure_errx("perms %jx (store missing)", v);
+
+	if ((v & CHERI_PERM_STORE_CAP) == 0)
+		cheritest_failure_errx("perms %jx (storecap missing)", v);
+
+	if ((v & CHERI_PERM_STORE_LOCAL_CAP) == 0)
+		cheritest_failure_errx("perms %jx (store_local_cap missing)",
+		    v);
+
+	if ((v & CHERI_PERM_SEAL) != 0)
+		cheritest_failure_errx("perms %jx (seal present)", v);
+
+	if ((v & CHERI_PERM_SYSTEM_REGS) != 0)
+		cheritest_failure_errx("perms %jx (system_regs present)", v);
+
+	if ((v & CHERI_PERM_RESERVED0) != 0)
+		cheritest_failure_errx("perms %jx (reserved0 present)", v);
+
+	if ((v & CHERI_PERM_RESERVED1) != 0)
+		cheritest_failure_errx("perms %jx (reserved1 present)", v);
+
+	if ((v & CHERI_PERMS_SWALL) !=
+	    (CHERI_PERMS_SWALL & ~CHERI_PERM_CHERIABI_VMMAP))
+		cheritest_failure_errx("perms %jx (expected swperms %jx)", v,
+		    (CHERI_PERMS_SWALL & ~CHERI_PERM_CHERIABI_VMMAP));
 
 	/* Sealed bit. */
 	v = cheri_getsealed(c);

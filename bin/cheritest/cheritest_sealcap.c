@@ -78,13 +78,55 @@ test_sealcap_sysarch(const struct cheri_test *ctp __unused)
 	/* Type -- should be zero for an unsealed capability. */
 	v = cheri_gettype(sealcap);
 	if (v != 0)
-		cheritest_failure_errx("otype %jx (expected %jx)", v, 0);
+		cheritest_failure_errx("otype %jx (expected %jx)", v,
+		    (uintmax_t)0);
 
 	/* Permissions. */
 	v = cheri_getperm(sealcap);
 	if (v != CHERI_SEALCAP_USERSPACE_PERMS)
 		cheritest_failure_errx("perms %jx (expected %jx)", v,
 		    (uintmax_t)CHERI_SEALCAP_USERSPACE_PERMS);
+
+	/*
+	 * More overt tests for permissions that should -- or should not -- be
+	 * there, regardless of consistency with the kernel headers.
+	 */
+	if ((v & CHERI_PERM_GLOBAL) == 0)
+		cheritest_failure_errx("perms %jx (global missing)", v);
+
+	if ((v & CHERI_PERM_EXECUTE) != 0)
+		cheritest_failure_errx("perms %jx (execute present)", v);
+
+	if ((v & CHERI_PERM_LOAD) != 0)
+		cheritest_failure_errx("perms %jx (load present)", v);
+
+	if ((v & CHERI_PERM_STORE) != 0)
+		cheritest_failure_errx("perms %jx (store present)", v);
+
+	if ((v & CHERI_PERM_LOAD_CAP) != 0)
+		cheritest_failure_errx("perms %jx (loadcap present)", v);
+
+	if ((v & CHERI_PERM_STORE_CAP) != 0)
+		cheritest_failure_errx("perms %jx (storecap present)", v);
+
+	if ((v & CHERI_PERM_STORE_LOCAL_CAP) != 0)
+		cheritest_failure_errx("perms %jx (store_local_cap present)",
+		    v);
+
+	if ((v & CHERI_PERM_SEAL) == 0)
+		cheritest_failure_errx("perms %jx (seal missing)", v);
+
+	if ((v & CHERI_PERM_RESERVED0) != 0)
+		cheritest_failure_errx("perms %jx (reserved0 present)", v);
+
+	if ((v & CHERI_PERM_RESERVED1) != 0)
+		cheritest_failure_errx("perms %jx (reserved1 present)", v);
+
+	if ((v & CHERI_PERM_SYSTEM_REGS) != 0)
+		cheritest_failure_errx("perms %jx (system_regs present)", v);
+
+	if ((v & CHERI_PERMS_SWALL) != 0)
+		cheritest_failure_errx("perms %jx (swperms present)", v);
 
 	/* Sealed bit. */
 	v = cheri_getsealed(sealcap);
