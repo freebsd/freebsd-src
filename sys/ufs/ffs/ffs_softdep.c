@@ -902,7 +902,7 @@ static	int pagedep_find(struct pagedep_hashhead *, ino_t, ufs_lbn_t,
 static	void pause_timer(void *);
 static	int request_cleanup(struct mount *, int);
 static	void schedule_cleanup(struct mount *);
-static void softdep_ast_cleanup_proc(void);
+static void softdep_ast_cleanup_proc(struct thread *);
 static	int process_worklist_item(struct mount *, int, int);
 static	void process_removes(struct vnode *);
 static	void process_truncates(struct vnode *);
@@ -13437,15 +13437,13 @@ schedule_cleanup(struct mount *mp)
 }
 
 static void
-softdep_ast_cleanup_proc(void)
+softdep_ast_cleanup_proc(struct thread *td)
 {
-	struct thread *td;
 	struct mount *mp;
 	struct ufsmount *ump;
 	int error;
 	bool req;
 
-	td = curthread;
 	while ((mp = td->td_su) != NULL) {
 		td->td_su = NULL;
 		error = vfs_busy(mp, MBF_NOWAIT);
@@ -13482,6 +13480,10 @@ softdep_ast_cleanup_proc(void)
 			}
 		}
 		vfs_unbusy(mp);
+	}
+	if ((mp = td->td_su) != NULL) {
+		td->td_su = NULL;
+		vfs_rel(mp);
 	}
 }
 

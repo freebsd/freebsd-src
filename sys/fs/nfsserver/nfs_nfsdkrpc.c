@@ -300,8 +300,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	svc_freereq(rqst);
 
 out:
-	if (softdep_ast_cleanup != NULL)
-		softdep_ast_cleanup();
+	td_softdep_cleanup(curthread);
 	NFSEXITCODE(0);
 }
 
