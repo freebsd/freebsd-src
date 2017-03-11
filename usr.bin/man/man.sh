@@ -771,6 +771,8 @@ search_path() {
 				case "$path" in
 				*/bin)	p="${path%/bin}/man"
 					add_to_manpath "$p"
+					p="${path%/bin}/share/man"
+					add_to_manpath "$p"
 					;;
 				*)	;;
 				esac
