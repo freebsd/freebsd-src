@@ -1,8 +1,20 @@
 #
 # $FreeBSD$
 #
+# Makefile for producing and uploading Vagrant boxes to Hashicorp Atlas
 #
-# Makefile for uploading Vagrant boxes to Hashicorp Atlas
+# Usage Example:
+#   Create a Vagrant image for VirtualBox:
+#     make vagrant-box WITH_VMIMAGES=y WITH_CLOUDWARE=y \
+#       CLOUDWARE=vagrant-virtualbox VMFORMATS=vmdk
+#
+#   To create a Vagrant image for VMWare and Upload it to Atlas:
+#     VAGRANT_KEY is your Atlas API Token
+#     VAGRANT_USERNAME is your Atlas Username
+#     env VAGRANT_KEY=foo VAGRANT_USERNAME=bar make vagrant-upload \
+#       WITH_VMIMAGES=y WITH_CLOUDWARE=y CLOUDWARE=vagrant-vmware \
+#       VMFORMATS=vmdk
+#     For more info: https://www.vagrantup.com/docs/other/atlas.html
 #
 
 VAGRANT_IMG?=		${.OBJDIR}/vagrant.vmdk
@@ -24,8 +36,8 @@ VAGRANT_VERSION!=	date +%Y.%m.%d
 VAGRANT_TARGET:=	${OSRELEASE}${SNAPSHOT_DATE}
 .if !empty(CLOUDWARE)
 . for _PROVIDER in ${CLOUDWARE}
-.  if ${_PROVIDER:MVAGRANT*}
-VAGRANT_PROVIDERS+=	${_PROVIDER:S/VAGRANT-//:tl}
+.  if ${_PROVIDER:tu:MVAGRANT*}
+VAGRANT_PROVIDERS+=	${_PROVIDER:tu:S/VAGRANT-//:tl}
 .  endif
 . endfor
 .endif
@@ -70,13 +82,16 @@ ${VAGRANT_TARGET}.${PROVIDER}.box: ${PROVIDER} cw-vagrant-${PROVIDER} vagrant-cr
 . endif
 
 CLEANFILES+=	vagrant-do-upload-${PROVIDER}
-vagrant-do-upload-${PROVIDER}: ${VAGRANT_TARGET}.${PROVIDER}.box
+vagrant-do-upload-${PROVIDER}: vagrant-box
 . if ${PROVIDER} == "virtualbox"
 	${.CURDIR}/scripts/atlas-upload.sh -b ${TYPE}-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET}.${PROVIDER}.box -p ${PROVIDER} -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v ${VAGRANT_VERSION}
 . elif ${PROVIDER} == "vmware"
 	${.CURDIR}/scripts/atlas-upload.sh -b ${TYPE}-${REVISION}-${BRANCH} -f ${VAGRANT_TARGET}.${PROVIDER}.box -p ${PROVIDER}_desktop -k ${VAGRANT_KEY} -u ${VAGRANT_USERNAME} -v ${VAGRANT_VERSION}
 . endif
 	touch ${.OBJDIR}/${.TARGET}
+
+vagrant-box: ${VAGRANT_TARGET}.${PROVIDER}.box
+
 .endfor
 
 vagrant-upload:	${VAGRANT_UPLOAD_TGTS}
