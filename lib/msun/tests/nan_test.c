@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <assert.h>
 #include <fenv.h>
 #include <float.h>
@@ -41,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-void
+static void
 testnan(const char *nan_format)
 {
 	char nan_str[128];
@@ -49,10 +50,10 @@ testnan(const char *nan_format)
 	long double ald[4];
 	double ad[4];
 	float af[4];
-	int i;
+	unsigned i;
 
 	snprintf(nan_str, sizeof(nan_str), "nan(%s)", nan_format);
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < nitems(ad); i++) {
 		/*
 		 * x86 has an 80-bit long double stored in 96 bits,
 		 * so we need to initialize the memory for the memcmp()
@@ -61,7 +62,6 @@ testnan(const char *nan_format)
 		bzero(&af[i], sizeof(float));
 		bzero(&ad[i], sizeof(double));
 		bzero(&ald[i], sizeof(long double));
-		   
 	}
 
 	af[0] = nanf(nan_format);
@@ -105,7 +105,7 @@ testnan(const char *nan_format)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 	printf("1..1\n");
