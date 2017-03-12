@@ -303,6 +303,69 @@ symbolic_link_relative_body() {
 	fi
 }
 
+atf_test_case symbolic_link_relative_absolute_source_and_dest1
+symbolic_link_relative_absolute_source_and_dest1_head() {
+	atf_set "descr" "Verify -l rs with absolute paths (.../copyf -> .../a/b/c/testf)"
+}
+symbolic_link_relative_absolute_source_and_dest1_body() {
+	src_path=a/b/c/testf
+	src_path_prefixed=$PWD/$src_path
+	dest_path=$PWD/copyf
+
+	atf_check mkdir -p a/b/c
+	atf_check touch $src_path
+	atf_check install -l sr $src_path_prefixed $dest_path
+	[ $src_path_prefixed -ef $dest_path ] || atf_fail "not same file"
+	[ -L $dest_path ] || atf_fail "copy is not symlink"
+	dest_path_relative=$(readlink $dest_path)
+	src_path_relative="$src_path"
+	if [ "$src_path_relative" != "$dest_path_relative" ]; then
+		atf_fail "unexpected symlink contents ('$src_path_relative' != '$dest_path_relative')"
+	fi
+}
+
+atf_test_case symbolic_link_relative_absolute_source_and_dest1_double_slash
+symbolic_link_relative_absolute_source_and_dest1_double_slash_head() {
+	atf_set "descr" "Verify -l rs with absolute paths (.../copyf -> .../a/b/c/testf), using double-slashes"
+}
+symbolic_link_relative_absolute_source_and_dest1_double_slash_body() {
+	src_path=a//b//c//testf
+	src_path_prefixed=$PWD/$src_path
+	dest_path=$PWD/copyf
+
+	atf_check mkdir -p a/b/c
+	atf_check touch $src_path
+	atf_check install -l sr $src_path_prefixed $dest_path
+	[ $src_path_prefixed -ef $dest_path ] || atf_fail "not same file"
+	[ -L $dest_path ] || atf_fail "copy is not symlink"
+	dest_path_relative=$(readlink $dest_path)
+	src_path_relative="$(echo $src_path | sed -e 's,//,/,g')"
+	if [ "$src_path_relative" != "$dest_path_relative" ]; then
+		atf_fail "unexpected symlink contents ('$src_path_relative' != '$dest_path_relative')"
+	fi
+}
+
+atf_test_case symbolic_link_relative_absolute_source_and_dest2
+symbolic_link_relative_absolute_source_and_dest2_head() {
+	atf_set "descr" "Verify -l rs with absolute paths (.../a/b/c/copyf -> .../testf)"
+}
+symbolic_link_relative_absolute_source_and_dest2_body() {
+	src_path=testf
+	src_path_prefixed=$PWD/$src_path
+	dest_path=$PWD/a/b/c/copyf
+
+	atf_check mkdir -p a/b/c
+	atf_check touch $src_path
+	atf_check install -l sr $src_path_prefixed $dest_path
+	[ $src_path_prefixed -ef $dest_path ] || atf_fail "not same file"
+	[ -L $dest_path ] || atf_fail "copy is not symlink"
+	dest_path_relative=$(readlink $dest_path)
+	src_path_relative="../../../$src_path"
+	if [ "$src_path_relative" != "$dest_path_relative" ]; then
+		atf_fail "unexpected symlink contents ('$src_path_relative' != '$dest_path_relative')"
+	fi
+}
+
 atf_test_case mkdir_simple
 mkdir_simple_body() {
 	atf_check install -d dir1/dir2
@@ -349,5 +412,8 @@ atf_init_test_cases() {
 	atf_add_test_case symbolic_link
 	atf_add_test_case symbolic_link_absolute
 	atf_add_test_case symbolic_link_relative
+	atf_add_test_case symbolic_link_relative_absolute_source_and_dest1
+	atf_add_test_case symbolic_link_relative_absolute_source_and_dest1_double_slash
+	atf_add_test_case symbolic_link_relative_absolute_source_and_dest2
 	atf_add_test_case mkdir_simple
 }
