@@ -501,9 +501,10 @@ uinput_ioctl_sub(struct uinput_cdev_state *state, u_long cmd, caddr_t data)
 
 		evdev_set_methods(state->ucs_evdev, state, &uinput_ev_methods);
 		evdev_set_flag(state->ucs_evdev, EVDEV_FLAG_SOFTREPEAT);
-		evdev_register(state->ucs_evdev);
-		state->ucs_state = UINPUT_RUNNING;
-		return (0);
+		ret = evdev_register(state->ucs_evdev);
+		if (ret == 0)
+			state->ucs_state = UINPUT_RUNNING;
+		return (ret);
 
 	case UI_DEV_DESTROY:
 		if (state->ucs_state != UINPUT_RUNNING)
