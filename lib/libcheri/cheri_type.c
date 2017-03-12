@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2016 Robert N. M. Watson
+ * Copyright (c) 2014-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -46,17 +46,22 @@ __REQUIRE_CAPABILITIES
 
 #include "cheri_type.h"
 
-/** The root capability of the types provenance tree. */
-static __capability void *cheri_type_root;
-/** The number of bits in the type field of a capability. */
+/* The root sealing capability of the types provenance tree. */
+static __capability void *cheri_sealing_root;
+
+/* The number of bits in the type field of a capability. */
 static const int cap_type_bits = 24;
-/** The next non-system type number to allocate. */
+
+/* The next non-system type number to allocate. */
 static _Atomic(uint64_t) cheri_type_next = 1;
-/** The maximum non-system type number to allocate (plus one). */
+
+/* The maximum non-system type number to allocate (plus one). */
 static const int cheri_type_max = 1<<(cap_type_bits-2);
-/** The next system type number to allocate. */
+
+/* The next system type number to allocate. */
 static _Atomic(uint64_t) cheri_system_type_next = cheri_type_max;
-/** The maximum system type number to allocate (plus one). */
+
+/* The maximum system type number to allocate (plus one). */
 static const int cheri_system_type_max = 1<<(cap_type_bits-1);
 
 static void
@@ -64,16 +69,16 @@ cheri_type_init(void)
 {
 
 	/*
-	 * Request a root type capability from the kernel.  Ensure it is set
-	 * to NULL if this fails, as failure could represent partial copyout()
-	 * with confusing failure modes, etc.  We can validate properties of
-	 * the capability later, should compartmentalisation actually be used
-	 * by the application.
+	 * Request a root sealing capability from the kernel.  Ensure it is
+	 * set to NULL if this fails, as failure could represent partial
+	 * copyout() with confusing failure modes, etc.  We can validate
+	 * properties of the capability later, should compartmentalisation
+	 * actually be used by the application.
 	 */
-	if (sysarch(CHERI_GET_TYPECAP, &cheri_type_root) < 0)
-		cheri_type_root = NULL;
-	assert((cheri_getperm(cheri_type_root) & CHERI_PERM_SEAL) != 0);
-	assert(cheri_getlen(cheri_type_root) != 0);
+	if (sysarch(CHERI_GET_SEALCAP, &cheri_sealing_root) < 0)
+		cheri_sealing_root = NULL;
+	assert((cheri_getperm(cheri_sealing_root) & CHERI_PERM_SEAL) != 0);
+	assert(cheri_getlen(cheri_sealing_root) != 0);
 }
 
 /**
@@ -107,9 +112,9 @@ alloc_type_capability(_Atomic(uint64_t) *source, uint64_t max)
 	 * On first use, query the root object-type capability from the
 	 * kernel.
 	 */
-	if ((cheri_getperm(cheri_type_root) & CHERI_PERM_SEAL) == 0)
+	if ((cheri_getperm(cheri_sealing_root) & CHERI_PERM_SEAL) == 0)
 		cheri_type_init();
-	new_type_cap = cheri_maketype(cheri_type_root, next);
+	new_type_cap = cheri_maketype(cheri_sealing_root, next);
 	return (new_type_cap);
 }
 

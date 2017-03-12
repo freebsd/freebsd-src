@@ -52,8 +52,8 @@ test_sealcap_sysarch(const struct cheri_test *ctp __unused)
 {
 	__capability void *sealcap;
 
-	if (sysarch(CHERI_GET_TYPECAP, &sealcap) < 0)
-		cheritest_failure_err("sysarch(CHERI_GET_TYPECAP)");
+	if (sysarch(CHERI_GET_SEALCAP, &sealcap) < 0)
+		cheritest_failure_err("sysarch(CHERI_GET_SEALCAP)");
 
 	register_t v;
 

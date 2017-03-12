@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2016 Robert N. M. Watson
+ * Copyright (c) 2012-2017 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
@@ -73,15 +73,15 @@
  * default data capability, they have non-identical permissions.
  */
 
-static __capability void *sandbox_creturn_typecap;
+static __capability void *sandbox_creturn_sealcap;
 static __capability void *sandbox_creturn_codecap;
 static __capability void *sandbox_creturn_datacap;
 
-static __capability void *sandbox_nop_creturn_typecap;
+static __capability void *sandbox_nop_creturn_sealcap;
 static __capability void *sandbox_nop_creturn_codecap;
 static __capability void *sandbox_nop_creturn_datacap;
 
-static __capability void *sandbox_dli_creturn_typecap;
+static __capability void *sandbox_dli_creturn_sealcap;
 static __capability void *sandbox_dli_creturn_codecap;
 static __capability void *sandbox_dli_creturn_datacap;
 
@@ -129,30 +129,30 @@ cheritest_ccall_setup(void)
 {
 
 	/*
-	 * Create type, sealed code, and sealed data capabilities for each of
-	 * the three classes used in these tests.
+	 * Create sealing, sealed code, and sealed data capabilities for each
+	 * of the three classes used in these tests.
 	 */
-	sandbox_creturn_typecap = cheri_type_alloc();
+	sandbox_creturn_sealcap = cheri_type_alloc();
 	sandbox_creturn_codecap = cheri_seal(codecap_create(&sandbox_creturn,
-	    &sandbox_creturn_end), sandbox_creturn_typecap);
+	    &sandbox_creturn_end), sandbox_creturn_sealcap);
 	sandbox_creturn_datacap = cheri_seal(datacap_create(&sandbox_creturn,
-	    &sandbox_creturn_end), sandbox_creturn_typecap);
+	    &sandbox_creturn_end), sandbox_creturn_sealcap);
 
-	sandbox_nop_creturn_typecap = cheri_type_alloc();
+	sandbox_nop_creturn_sealcap = cheri_type_alloc();
 	sandbox_nop_creturn_codecap =
 	    cheri_seal(codecap_create(&sandbox_nop_creturn,
-	    &sandbox_nop_creturn_end), sandbox_nop_creturn_typecap);
+	    &sandbox_nop_creturn_end), sandbox_nop_creturn_sealcap);
 	sandbox_nop_creturn_datacap =
 	    cheri_seal(datacap_create(&sandbox_nop_creturn,
-	    &sandbox_nop_creturn_end), sandbox_nop_creturn_typecap);
+	    &sandbox_nop_creturn_end), sandbox_nop_creturn_sealcap);
 
-	sandbox_dli_creturn_typecap = cheri_type_alloc();
+	sandbox_dli_creturn_sealcap = cheri_type_alloc();
 	sandbox_dli_creturn_codecap =
 	    cheri_seal(codecap_create(&sandbox_dli_creturn,
-	    &sandbox_dli_creturn_end), sandbox_dli_creturn_typecap);
+	    &sandbox_dli_creturn_end), sandbox_dli_creturn_sealcap);
 	sandbox_dli_creturn_datacap =
 	    cheri_seal(datacap_create(&sandbox_dli_creturn,
-	    &sandbox_dli_creturn_end), sandbox_dli_creturn_typecap);
+	    &sandbox_dli_creturn_end), sandbox_dli_creturn_sealcap);
 }
 
 /*

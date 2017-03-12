@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Robert N. M. Watson
+ * Copyright (c) 2015, 2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -49,23 +49,24 @@
 #include <machine/sysarch.h>
 
 /*
- * Propagate the root object-type capability across fork().
+ * Propagate the root object-type sealing capability across fork().
  */
 void
-cheri_typecap_copy(struct pcb *dst, struct pcb *src)
+cheri_sealcap_copy(struct pcb *dst, struct pcb *src)
 {
 
-	cheri_memcpy(&dst->pcb_typecap, &src->pcb_typecap,
-	    sizeof(dst->pcb_typecap));
+	cheri_memcpy(&dst->pcb_sealcap, &src->pcb_sealcap,
+	    sizeof(dst->pcb_sealcap));
 }
 
 /*
- * Allow userspace to query a root 'object type' capability using sysarch(2).
+ * Allow userspace to query a root object-type sealing capability using
+ * sysarch(2).
  */
 int
-cheri_sysarch_gettypecap(struct thread *td, struct sysarch_args *uap)
+cheri_sysarch_getsealcap(struct thread *td, struct sysarch_args *uap)
 {
 
-	return (copyoutcap(&td->td_pcb->pcb_typecap, uap->parms,
-	    sizeof(td->td_pcb->pcb_typecap)));
+	return (copyoutcap(&td->td_pcb->pcb_sealcap, uap->parms,
+	    sizeof(td->td_pcb->pcb_sealcap)));
 }

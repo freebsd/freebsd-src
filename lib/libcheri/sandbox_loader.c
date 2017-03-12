@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2016 Robert N. M. Watson
+ * Copyright (c) 2012-2017 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -139,11 +139,11 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	}
 
 	/*
-	 * Construct various class-related capabilities, such as the type,
-	 * code capability for the run-time linker, and code capability for
-	 * object-capability invocation.
+	 * Construct various class-related capabilities, such as the sealing
+	 * capability, code capability for the run-time linker, and code
+	 * capability for object-capability invocation.
 	 */
-	sbcp->sbc_typecap = cheri_type_alloc();
+	sbcp->sbc_sealcap = cheri_type_alloc();
 
 	/*
 	 * Set bounds and mask permissions on code capabilities.
@@ -165,7 +165,7 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
 #endif
 	codecap = cheri_setoffset(codecap, SANDBOX_RTLD_VECTOR);
-	sbcp->sbc_classcap_rtld = cheri_seal(codecap, sbcp->sbc_typecap);
+	sbcp->sbc_classcap_rtld = cheri_seal(codecap, sbcp->sbc_sealcap);
 
 #ifdef __CHERI_PURE_CAPABILITY__
 	codecap = cheri_andperm(sbcp->sbc_codemem,
@@ -175,7 +175,7 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
 #endif
 	codecap = cheri_setoffset(codecap, SANDBOX_INVOKE_VECTOR);
-	sbcp->sbc_classcap_invoke = cheri_seal(codecap, sbcp->sbc_typecap);
+	sbcp->sbc_classcap_invoke = cheri_seal(codecap, sbcp->sbc_sealcap);
 
 	return (0);
 
@@ -427,7 +427,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	assert(cheri_getlen(datacap) == sbop->sbo_datalen);
 	sbop->sbo_cheri_object_rtld.co_codecap = sbcp->sbc_classcap_rtld;
 	sbop->sbo_cheri_object_rtld.co_datacap = cheri_seal(datacap,
-	    sbcp->sbc_typecap);
+	    sbcp->sbc_sealcap);
 
 	/*
 	 * Construct data capability for object-capability invocation vector.
@@ -451,7 +451,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 */
 	sbop->sbo_cheri_object_invoke.co_codecap = sbcp->sbc_classcap_invoke;
 	sbop->sbo_cheri_object_invoke.co_datacap = cheri_seal(datacap,
-	    sbcp->sbc_typecap);
+	    sbcp->sbc_sealcap);
 
 	/*
 	 * XXXRW: At this point, it would be good to check the properties of

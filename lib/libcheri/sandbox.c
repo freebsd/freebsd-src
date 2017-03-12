@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2016 Robert N. M. Watson
+ * Copyright (c) 2012-2017 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -653,7 +653,7 @@ sandbox_object_getsandboxdata(struct sandbox_object *sbop)
 {
 
 	return (cheri_unseal(sbop->sbo_cheri_object_invoke.co_datacap,
-	    sbop->sbo_sandbox_classp->sbc_typecap));
+	    sbop->sbo_sandbox_classp->sbc_sealcap));
 }
 
 __capability void *

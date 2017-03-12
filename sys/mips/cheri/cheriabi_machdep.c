@@ -6,7 +6,7 @@
  * Copyright (c) 1992 Terrence R. Lambert.
  * Copyright (c) 1994 John Dyson
  * Copyright (c) 2015 SRI International
- * Copyright (c) 2016 Robert N. M. Watson
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -1056,7 +1056,7 @@ cheriabi_sysarch(struct thread *td, struct cheriabi_sysarch_args *uap)
 
 	case MIPS_GET_TLS:
 	case CHERI_GET_STACK:
-	case CHERI_GET_TYPECAP:
+	case CHERI_GET_SEALCAP:
 		reqsize = sizeof(struct chericap);
 		reqperms = CHERI_PERM_STORE|CHERI_PERM_STORE_CAP;
 		break;

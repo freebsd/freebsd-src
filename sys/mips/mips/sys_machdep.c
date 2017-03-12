@@ -115,8 +115,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case CHERI_SET_STACK:
 		return (cheri_sysarch_setstack(td, uap));
 
-	case CHERI_GET_TYPECAP:
-		return (cheri_sysarch_gettypecap(td, uap));
+	case CHERI_GET_SEALCAP:
+		return (cheri_sysarch_getsealcap(td, uap));
 #endif
 
 	default:

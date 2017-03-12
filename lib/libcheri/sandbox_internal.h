@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 Robert N. M. Watson
+ * Copyright (c) 2012-2015, 2017 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -60,7 +60,7 @@ struct sandbox_class {
 	 * The class's code capability, in various incarnations required for
 	 * class creation.  These will be used for all objects in the class.
 	 */
-	__capability void	*sbc_typecap;		/* Class type */
+	__capability void	*sbc_sealcap;		/* Class type */
 	__capability void	*sbc_classcap_rtld;	/* Ctor/dtor */
 	__capability void	*sbc_classcap_invoke;	/* Object invoke */
 

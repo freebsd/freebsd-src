@@ -2,7 +2,7 @@
 /*	$OpenBSD: pcb.h,v 1.3 1998/09/15 10:50:12 pefo Exp $	*/
 
 /*-
- * Copyright (c) 2016 Robert N. M. Watson
+ * Copyright (c) 2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -167,7 +167,7 @@ struct pcb
 #ifdef CPU_CHERI
 	struct cheri_stack pcb_cheristack;	/* CCall/CReturn stack. */
 	struct cheri_signal pcb_cherisignal;	/* CHERI signal-related state. */
-	struct chericap pcb_typecap;		/* Root of object-type tree. */
+	struct chericap pcb_sealcap;		/* Root of object-type tree. */
 #endif
 	__register_t pcb_context[14];	/* kernel context for resume */
 #ifdef CPU_CHERI

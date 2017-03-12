@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2016 Robert N. M. Watson
+ * Copyright (c) 2011-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -257,7 +257,7 @@ cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
 }
 
 static void
-cheri_capability_set_user_type(struct chericap *cp)
+cheri_capability_set_user_sealcap(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_SEALCAP_USERSPACE_PERMS,
@@ -347,10 +347,10 @@ cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 	    td->td_proc->p_sysent);
 
 	/*
-	 * Set up root for the userspace object-type capability tree.  This
-	 * can be queried using sysarch(2).
+	 * Set up root for the userspace object-type sealing capability tree.
+	 * This can be queried using sysarch(2).
 	 */
-	cheri_capability_set_user_type(&td->td_pcb->pcb_typecap);
+	cheri_capability_set_user_sealcap(&td->td_pcb->pcb_sealcap);
 }
 
 /*

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2016 Robert N. M. Watson
+ * Copyright (c) 2011-2017 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -183,15 +183,15 @@ void	cheri_trapframe_to_cheriframe(struct trapframe *frame,
  */
 struct pcb;
 struct sysarch_args;
+void	cheri_sealcap_copy(struct pcb *dst, struct pcb *src);
 void	cheri_signal_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_init(struct pcb *pcb);
 int	cheri_stack_unwind(struct thread *td, struct trapframe *tf,
 	    int signum);
+int	cheri_sysarch_getsealcap(struct thread *td, struct sysarch_args *uap);
 int	cheri_sysarch_getstack(struct thread *td, struct sysarch_args *uap);
-int	cheri_sysarch_gettypecap(struct thread *td, struct sysarch_args *uap);
 int	cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap);
-void	cheri_typecap_copy(struct pcb *dst, struct pcb *src);
 
 /*
  * Global sysctl definitions.
