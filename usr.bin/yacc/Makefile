@@ -3,7 +3,7 @@
 
 .include <src.opts.mk>
 
-BYACC_SRC=	${.CURDIR}/../../contrib/byacc
+BYACC_SRC=	${SRCTOP}/contrib/byacc
 .PATH: ${BYACC_SRC}
 
 PROG=	yacc

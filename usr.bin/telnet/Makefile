@@ -7,7 +7,7 @@
 WANT_CHERI=none
 .endif
 
-TELNETDIR=	${.CURDIR}/../../contrib/telnet
+TELNETDIR=	${SRCTOP}/contrib/telnet
 .PATH:		${TELNETDIR}/telnet
 
 PROG=		telnet

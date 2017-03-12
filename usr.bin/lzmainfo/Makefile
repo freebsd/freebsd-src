@@ -2,8 +2,8 @@
 
 PROG=	lzmainfo
 
-XZDIR=	${.CURDIR}/../../contrib/xz/src
-LZMALIBDIR=	${.CURDIR}/../../lib/liblzma
+XZDIR=	${SRCTOP}/contrib/xz/src
+LZMALIBDIR=	${SRCTOP}/lib/liblzma
 
 .PATH: ${XZDIR}/lzmainfo
 SRCS+=	lzmainfo.c

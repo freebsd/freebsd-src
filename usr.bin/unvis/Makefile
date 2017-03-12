@@ -3,6 +3,6 @@
 
 PROG=	unvis
 
-.PATH: ${.CURDIR}/../../contrib/unvis
+.PATH: ${SRCTOP}/contrib/unvis
 
 .include <bsd.prog.mk>

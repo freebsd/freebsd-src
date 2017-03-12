@@ -20,7 +20,7 @@ parser.h: parser.y
 IGNORE_PRAGMA=	yes
 
 CFLAGS+=	-I. -I${.CURDIR}
-CFLAGS+=	-I${.CURDIR}/../../lib/libc/locale
-CFLAGS+=	-I${.CURDIR}/../../lib/libc/stdtime
+CFLAGS+=	-I${SRCTOP}/lib/libc/locale
+CFLAGS+=	-I${SRCTOP}/lib/libc/stdtime
 
 .include <bsd.prog.mk>
