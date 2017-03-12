@@ -384,13 +384,8 @@ struct isposinfo {
 #define	ISP_MEMCPY		memcpy
 #define	ISP_SNPRINTF		snprintf
 #define	ISP_DELAY(x)		DELAY(x)
-#if __FreeBSD_version < 1000029
-#define	ISP_SLEEP(isp, x)	msleep(&(isp)->isp_osinfo.is_exiting, \
-    &(isp)->isp_osinfo.lock, 0, "isp_sleep", ((x) + tick - 1) / tick)
-#else
 #define	ISP_SLEEP(isp, x)	msleep_sbt(&(isp)->isp_osinfo.is_exiting, \
     &(isp)->isp_osinfo.lock, 0, "isp_sleep", (x) * SBT_1US, 0, 0)
-#endif
 
 #define	ISP_MIN			imin
 
