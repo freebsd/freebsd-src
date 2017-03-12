@@ -1440,6 +1440,7 @@ pf_purge_thread(void *unused __unused)
 			if (pf_end_threads) {
 				pf_end_threads++;
 				wakeup(pf_purge_thread);
+				VNET_LIST_RUNLOCK();
 				kproc_exit(0);
 			}
 
