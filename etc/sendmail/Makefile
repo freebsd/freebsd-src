@@ -6,7 +6,7 @@ CHMOD=		chmod
 ROMODE=		444
 RM=		rm -f
 
-SENDMAIL_DIR=	${.CURDIR}/../../contrib/sendmail
+SENDMAIL_DIR=	${SRCTOP}/contrib/sendmail
 SMDIR=		${SENDMAIL_DIR}/src
 SENDMAIL_CF_DIR?=${SENDMAIL_DIR}/cf
 
