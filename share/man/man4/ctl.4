@@ -31,7 +31,8 @@
 .Nm ctl
 .Nd CAM Target Layer / SCSI target subsystem
 .Sh SYNOPSIS
-To compile this driver into the kernel, place the following line in your
+To compile this driver into the kernel,
+place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device iscsi"
@@ -47,15 +48,14 @@ ctl_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-subsystem provides featured, performant and reliable SCSI target devices
-emulation.
+subsystem provides SCSI target devices emulation.
 It supports features such as:
 .Pp
 .Bl -bullet -compact
 .It
-Disk, processor and cdrom device emulation
+Disk, CD-ROM and processor device emulation
 .It
-Tagged and untagged queueing
+Tagged queueing
 .It
 SCSI task attribute support (ordered, head of queue, simple tags)
 .It
@@ -122,7 +122,7 @@ subsystem includes two backends to create logical units using different
 kinds of backing stores:
 .Bl -tag -width ramdisk
 .It block
-Stores data on ZFS ZVOLs, files or raw block devices.
+Stores data in ZFS ZVOLs, files or raw block devices.
 .It ramdisk
 Stores data in RAM, that makes it mostly useful for performance testing.
 Depending on configured capacity can work as black hole, thin or thick
@@ -187,7 +187,7 @@ primary;
 .It 1
 secondary.
 .El
-This role can be overriden on per-LUN basis using "ha_role" LUN option,
+This role can be overridden on per-LUN basis using "ha_role" LUN option,
 so that for one LUN one node is primary, while for another -- another.
 Role change from primary to secondary for HA modes 0 and 2 closes backends,
 the opposite change -- opens.
