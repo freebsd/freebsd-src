@@ -10,15 +10,15 @@ SRCS+=	cheritest_bounds_heap.c						\
 	cheritest_fault.c						\
 	cheritest_fd.c							\
 	cheritest_libcheri.c						\
-	cheritest_local.c						\
+	cheritest_libcheri_local.c					\
+	cheritest_libcheri_trustedstack.c				\
+	cheritest_libcheri_var.c					\
 	cheritest_registers.c						\
 	cheritest_sandbox.S						\
 	cheritest_sealcap.c						\
 	cheritest_string.c						\
 	cheritest_syscall.c						\
-	cheritest_trusted_stack.c					\
 	cheritest_util.c						\
-	cheritest_var.c							\
 	cheritest_vm.c							\
 	cheritest_vm_swap.c						\
 	cheritest_zlib.c

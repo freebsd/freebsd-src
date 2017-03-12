@@ -277,7 +277,7 @@ void	test_2sandbox_newdestroy(const struct cheri_test *ctp);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
 
-/* cheritest_local.c */
+/* cheritest_libcheri_local.c */
 void	test_sandbox_store_global_capability_in_bss(
 	    const struct cheri_test *ctp);
 void	test_sandbox_store_local_capability_in_bss_catch(
@@ -295,15 +295,22 @@ void	test_sandbox_return_local_capability_nocatch(
 	    const struct cheri_test *ctp);
 void	test_sandbox_pass_local_capability_arg(const struct cheri_test *ctp);
 
-/* cheritest_sealcap.c */
-void	test_sealcap_sysarch(const struct cheri_test *ctp);
-
-/* cheritest_stack.c */
+/* cheritest_libcheri_trustedstack.c */
 register_t	cheritest_libcheri_userfn_getstack(void);
 register_t	cheritest_libcheri_userfn_setstack(register_t arg);
 void	test_sandbox_getstack(const struct cheri_test *ctp);
 void	test_sandbox_setstack(const struct cheri_test *ctp);
 void	test_sandbox_setstack_nop(const struct cheri_test *ctp);
+
+/* cheritest_libcheri_var.c */
+void	test_sandbox_var_bss(const struct cheri_test *ctp);
+void	test_sandbox_var_data(const struct cheri_test *ctp);
+void	test_sandbox_var_data_getset(const struct cheri_test *ctp);
+void	test_2sandbox_var_data_getset(const struct cheri_test *ctp);
+void	test_sandbox_var_constructor(const struct cheri_test *ctp);
+
+/* cheritest_sealcap.c */
+void	test_sealcap_sysarch(const struct cheri_test *ctp);
 
 /* cheritest_string.c */
 void	test_string_memcpy(const struct cheri_test *ctp);
@@ -323,13 +330,6 @@ void	test_initregs_idc(const struct cheri_test *ctp);
 void	test_initregs_pcc(const struct cheri_test *ctp);
 void	test_copyregs(const struct cheri_test *ctp);
 void	test_listregs(const struct cheri_test *ctp);
-
-/* cheritest_var.c */
-void	test_sandbox_var_bss(const struct cheri_test *ctp);
-void	test_sandbox_var_data(const struct cheri_test *ctp);
-void	test_sandbox_var_data_getset(const struct cheri_test *ctp);
-void	test_2sandbox_var_data_getset(const struct cheri_test *ctp);
-void	test_sandbox_var_constructor(const struct cheri_test *ctp);
 
 /* cheritest_vm.c */
 void	cheritest_vm_tag_mmap_anon(const struct cheri_test *ctp __unused);
