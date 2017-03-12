@@ -57,6 +57,8 @@ diffdir(char *p1, char *p2, int flags)
 	char path1[PATH_MAX], path2[PATH_MAX];
 	int pos;
 
+	edp1 = edp2 = NULL;
+
 	dirlen1 = strlcpy(path1, *p1 ? p1 : ".", sizeof(path1));
 	if (dirlen1 >= sizeof(path1) - 1) {
 		warnc(ENAMETOOLONG, "%s", p1);
