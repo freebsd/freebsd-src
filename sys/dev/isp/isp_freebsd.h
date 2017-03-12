@@ -270,7 +270,6 @@ struct isposinfo {
 	struct mtx		lock;
 	device_t		dev;
 	struct cdev *		cdev;
-	struct intr_config_hook	ehook;
 	struct cam_devq *	devq;
 
 	/*
@@ -310,7 +309,6 @@ struct isposinfo {
 		sixtyfourbit	: 1,	/* sixtyfour bit platform */
 		timer_active	: 1,
 		autoconf	: 1,
-		ehook_active	: 1,
 		mbox_sleeping	: 1,
 		mbox_sleep_ok	: 1,
 		mboxcmd_done	: 1,
