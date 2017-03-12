@@ -460,7 +460,6 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	p = grabstackstr(dest);
 	evalbackcmd(cmd, &in);
 	ungrabstackstr(p, dest);
-	argbackq = saveargbackq;
 
 	p = in.buf;
 	nnl = 0;
@@ -513,12 +512,16 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 		close(in.fd);
 	if (in.buf)
 		ckfree(in.buf);
-	if (in.jp)
+	if (in.jp) {
+		p = grabstackstr(dest);
 		exitstatus = waitforjob(in.jp, (int *)NULL);
+		ungrabstackstr(p, dest);
+	}
 	TRACE(("expbackq: size=%td: \"%.*s\"\n",
 		((dest - stackblock()) - startloc),
 		(int)((dest - stackblock()) - startloc),
 		stackblock() + startloc));
+	argbackq = saveargbackq;
 	expdest = dest;
 	INTON;
 }
