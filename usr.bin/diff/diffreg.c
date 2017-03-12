@@ -194,6 +194,7 @@ struct context_vec {
 };
 
 #define	diff_output	printf
+static FILE	*opentemp(const char *);
 static void	 output(char *, FILE *, char *, FILE *, int);
 static void	 check(FILE *, FILE *, int);
 static void	 range(int, int, const char *);
@@ -335,7 +336,14 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	if (flags & D_EMPTY1)
 		f1 = fopen(_PATH_DEVNULL, "r");
 	else {
-		if (strcmp(file1, "-") == 0)
+		if (!S_ISREG(stb1.st_mode)) {
+			if ((f1 = opentemp(file1)) == NULL ||
+			    fstat(fileno(f1), &stb1) < 0) {
+				warn("%s", file1);
+				status |= 2;
+				goto closem;
+			}
+		} else if (strcmp(file1, "-") == 0)
 			f1 = stdin;
 		else
 			f1 = fopen(file1, "r");
@@ -349,7 +357,14 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	if (flags & D_EMPTY2)
 		f2 = fopen(_PATH_DEVNULL, "r");
 	else {
-		if (strcmp(file2, "-") == 0)
+		if (!S_ISREG(stb2.st_mode)) {
+			if ((f2 = opentemp(file2)) == NULL ||
+			    fstat(fileno(f2), &stb2) < 0) {
+				warn("%s", file2);
+				status |= 2;
+				goto closem;
+			}
+		} else if (strcmp(file2, "-") == 0)
 			f2 = stdin;
 		else
 			f2 = fopen(file2, "r");
@@ -537,6 +552,37 @@ files_differ(FILE *f1, FILE *f2, int flags)
 		if (memcmp(buf1, buf2, i) != 0)
 			return (1);
 	}
+}
+
+static FILE *
+opentemp(const char *f)
+{
+	char buf[BUFSIZ], tempfile[PATH_MAX];
+	ssize_t nread;
+	int ifd, ofd;
+
+	if (strcmp(f, "-") == 0)
+		ifd = STDIN_FILENO;
+	else if ((ifd = open(f, O_RDONLY, 0644)) < 0)
+		return (NULL);
+
+	(void)strlcpy(tempfile, _PATH_TMP "/diff.XXXXXXXX", sizeof(tempfile));
+
+	if ((ofd = mkstemp(tempfile)) < 0) {
+		close(ifd);
+		return (NULL);
+	}
+	unlink(tempfile);
+	while ((nread = read(ifd, buf, BUFSIZ)) > 0) {
+		if (write(ofd, buf, nread) != nread) {
+			close(ifd);
+			close(ofd);
+			return (NULL);
+		}
+	}
+	close(ifd);
+	lseek(ofd, (off_t)0, SEEK_SET);
+	return (fdopen(ofd, "r"));
 }
 
 char *
