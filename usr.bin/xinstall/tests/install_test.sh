@@ -283,7 +283,11 @@ symbolic_link_absolute_body() {
 	atf_check install -l sa testf copyf
 	[ testf -ef copyf ] || atf_fail "not same file"
 	[ -L copyf ] || atf_fail "copy is not symlink"
-	[ "$(readlink copyf)" = "$(pwd -P)/testf" ] || atf_fail "unexpected symlink contents"
+	copyf_path=$(readlink copyf)
+	testf_path="$(pwd -P)/testf"
+	if [ "$copyf_path" != "$testf_path" ]; then
+		atf_fail "unexpected symlink ('$copyf_path' != '$testf_path')"
+	fi
 }
 
 atf_test_case symbolic_link_relative
@@ -292,7 +296,11 @@ symbolic_link_relative_body() {
 	atf_check install -l sr testf copyf
 	[ testf -ef copyf ] || atf_fail "not same file"
 	[ -L copyf ] || atf_fail "copy is not symlink"
-	[ "$(readlink copyf)" = "testf" ] || atf_fail "unexpected symlink contents"
+	copyf_path=$(readlink copyf)
+	testf_path="testf"
+	if [ "$copyf_path" != "$testf_path" ]; then
+		atf_fail "unexpected symlink ('$copyf_path' != '$testf_path')"
+	fi
 }
 
 atf_test_case mkdir_simple
