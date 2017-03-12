@@ -531,7 +531,8 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	 * While I'm here, might as well check for something else that
 	 * is invalid: filsz cannot be greater than memsz.
 	 */
-	if ((off_t)filsz + offset > imgp->attr->va_size || filsz > memsz) {
+	if ((filsz != 0 && (off_t)filsz + offset > imgp->attr->va_size) ||
+	    filsz > memsz) {
 		uprintf("elf_load_section: truncated ELF file\n");
 		return (ENOEXEC);
 	}
@@ -547,7 +548,9 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	 * early and copy the initialized data into that first page.  We
 	 * choose the second.
 	 */
-	if (memsz > filsz)
+	if (filsz == 0)
+		map_len = 0;
+	else if (memsz > filsz)
 		map_len = trunc_page_ps(offset + filsz, pagesize) - file_addr;
 	else
 		map_len = round_page_ps(offset + filsz, pagesize) - file_addr;
@@ -579,7 +582,8 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	 * segment in the file is extended to provide bss.  It's a neat idea
 	 * to try and save a page, but it's a pain in the behind to implement.
 	 */
-	copy_len = (offset + filsz) - trunc_page_ps(offset + filsz, pagesize);
+	copy_len = filsz == 0 ? 0 : (offset + filsz) - trunc_page_ps(offset +
+	    filsz, pagesize);
 	map_addr = trunc_page_ps((vm_offset_t)vmaddr + filsz, pagesize);
 	map_len = round_page_ps((vm_offset_t)vmaddr + memsz, pagesize) -
 	    map_addr;
