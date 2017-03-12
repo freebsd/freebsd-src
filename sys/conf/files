@@ -1470,11 +1470,6 @@ dev/drm/drm_scatter.c		optional drm
 dev/drm/drm_sman.c		optional drm
 dev/drm/drm_sysctl.c		optional drm
 dev/drm/drm_vm.c		optional drm
-dev/drm/i915_dma.c		optional i915drm
-dev/drm/i915_drv.c		optional i915drm
-dev/drm/i915_irq.c		optional i915drm
-dev/drm/i915_mem.c		optional i915drm
-dev/drm/i915_suspend.c		optional i915drm
 dev/drm/mach64_dma.c		optional mach64drm
 dev/drm/mach64_drv.c		optional mach64drm
 dev/drm/mach64_irq.c		optional mach64drm
@@ -1489,17 +1484,6 @@ dev/drm/r128_cce.c		optional r128drm \
 dev/drm/r128_drv.c		optional r128drm
 dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm
-dev/drm/r300_cmdbuf.c		optional radeondrm
-dev/drm/r600_blit.c		optional radeondrm
-dev/drm/r600_cp.c		optional radeondrm \
-	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
-dev/drm/radeon_cp.c		optional radeondrm \
-	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
-dev/drm/radeon_cs.c		optional radeondrm
-dev/drm/radeon_drv.c		optional radeondrm
-dev/drm/radeon_irq.c		optional radeondrm
-dev/drm/radeon_mem.c		optional radeondrm
-dev/drm/radeon_state.c		optional radeondrm
 dev/drm/savage_bci.c		optional savagedrm
 dev/drm/savage_drv.c		optional savagedrm
 dev/drm/savage_state.c		optional savagedrm
