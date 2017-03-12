@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 	test(expm1f, x, result, exceptmask, excepts);			\
 } while (0)
 
-void
+static void
 run_generic_tests(void)
 {
 
@@ -122,10 +122,10 @@ run_generic_tests(void)
 	testall1(-50000.0, -1.0, ALL_STD_EXCEPT, FE_INEXACT);
 }
 
-void
+static void
 run_exp2_tests(void)
 {
-	int i;
+	unsigned i;
 
 	/*
 	 * We should insist that exp2() return exactly the correct
@@ -148,7 +148,7 @@ run_exp2_tests(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 	printf("1..3\n");
