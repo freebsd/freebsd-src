@@ -278,25 +278,11 @@ isp_attach(ispsoftc_t *isp)
 	int du = device_get_unit(isp->isp_dev);
 	int chan;
 
-	isp->isp_osinfo.ehook.ich_func = isp_intr_enable;
-	isp->isp_osinfo.ehook.ich_arg = isp;
-	/*
-	 * Haha. Set this first, because if we're loaded as a module isp_intr_enable
-	 * will be called right awawy, which will clear isp_osinfo.ehook_active,
-	 * which would be unwise to then set again later.
-	 */
-	isp->isp_osinfo.ehook_active = 1;
-	if (config_intrhook_establish(&isp->isp_osinfo.ehook) != 0) {
-		isp_prt(isp, ISP_LOGERR, "could not establish interrupt enable hook");
-		return (-EIO);
-	}
-
 	/*
 	 * Create the device queue for our SIM(s).
 	 */
 	isp->isp_osinfo.devq = cam_simq_alloc(isp->isp_maxcmds);
 	if (isp->isp_osinfo.devq == NULL) {
-		config_intrhook_disestablish(&isp->isp_osinfo.ehook);
 		return (EIO);
 	}
 
@@ -329,10 +315,6 @@ unwind:
 		xpt_bus_deregister(cam_sim_path(sim));
 		ISP_UNLOCK(isp);
 		cam_sim_free(sim, FALSE);
-	}
-	if (isp->isp_osinfo.ehook_active) {
-		config_intrhook_disestablish(&isp->isp_osinfo.ehook);
-		isp->isp_osinfo.ehook_active = 0;
 	}
 	if (isp->isp_osinfo.cdev) {
 		destroy_dev(isp->isp_osinfo.cdev);
@@ -370,10 +352,6 @@ isp_detach(ispsoftc_t *isp)
 	if (isp->isp_osinfo.cdev) {
 		destroy_dev(isp->isp_osinfo.cdev);
 		isp->isp_osinfo.cdev = NULL;
-	}
-	if (isp->isp_osinfo.ehook_active) {
-		config_intrhook_disestablish(&isp->isp_osinfo.ehook);
-		isp->isp_osinfo.ehook_active = 0;
 	}
 	if (isp->isp_osinfo.devq != NULL) {
 		cam_simq_free(isp->isp_osinfo.devq);
@@ -784,28 +762,6 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 		break;
 	}
 	return (retval);
-}
-
-static void
-isp_intr_enable(void *arg)
-{
-	int chan;
-	ispsoftc_t *isp = arg;
-	ISP_LOCK(isp);
-	if (IS_FC(isp)) {
-		for (chan = 0; chan < isp->isp_nchan; chan++) {
-			if (FCPARAM(isp, chan)->role != ISP_ROLE_NONE) {
-				ISP_ENABLE_INTS(isp);
-				break;
-			}
-		}
-	} else {
-		ISP_ENABLE_INTS(isp);
-	}
-	isp->isp_osinfo.ehook_active = 0;
-	ISP_UNLOCK(isp);
-	/* Release our hook so that the boot can continue. */
-	config_intrhook_disestablish(&isp->isp_osinfo.ehook);
 }
 
 /*
