@@ -3338,6 +3338,7 @@ OLD_FILES+=usr/share/man/man8/traceroute6.8.gz
 
 .if ${MK_INET6_SUPPORT} == no
 OLD_FILES+=rescue/ping6
+OLD_FILES+=rescue/rtsol
 .endif
 
 .if ${MK_INETD} == no
@@ -6682,6 +6683,7 @@ OLD_FILES+=usr/share/misc/windrv_stub.c
 .endif
 
 .if ${MK_NETCAT} == no
+OLD_FILES+=rescue/nc
 OLD_FILES+=usr/bin/nc
 OLD_FILES+=usr/share/man/man1/nc.1.gz
 .endif
