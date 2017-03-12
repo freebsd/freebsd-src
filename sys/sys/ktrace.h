@@ -323,6 +323,7 @@ void	ktrcreturn(struct pcb *);
 void	ktrcexception(struct trapframe *);
 void	ktrsyserrcause(const char *format, ...) __printflike(1, 2);
 
+extern u_int ktr_geniosize;
 #else
 
 #include <sys/cdefs.h>

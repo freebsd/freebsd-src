@@ -903,6 +903,15 @@ kern_kqueue(struct thread *td, int flags, struct filecaps *fcaps)
 	return (0);
 }
 
+static size_t
+kev_iovlen(int n, u_int kgio)
+{
+
+	if (n < 0 || n >= kgio / sizeof(struct kevent))
+		return (kgio);
+	return (n * sizeof(struct kevent));
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct kevent_args {
 	int	fd;
@@ -926,6 +935,7 @@ sys_kevent(struct thread *td, struct kevent_args *uap)
 	struct iovec ktriov;
 	struct uio *ktruioin = NULL;
 	struct uio *ktruioout = NULL;
+	u_int kgio;
 #endif
 
 	if (uap->timeout != NULL) {
@@ -938,13 +948,15 @@ sys_kevent(struct thread *td, struct kevent_args *uap)
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_GENIO)) {
+		kgio = ktr_geniosize;
 		ktriov.iov_base = uap->changelist;
-		ktriov.iov_len = uap->nchanges * sizeof(struct kevent);
+		ktriov.iov_len = kev_iovlen(uap->nchanges, kgio);
 		ktruio = (struct uio){ .uio_iov = &ktriov, .uio_iovcnt = 1,
 		    .uio_segflg = UIO_USERSPACE, .uio_rw = UIO_READ,
 		    .uio_td = td };
 		ktruioin = cloneuio(&ktruio);
 		ktriov.iov_base = uap->eventlist;
+		ktriov.iov_len = kev_iovlen(uap->nevents, kgio);
 		ktriov.iov_len = uap->nevents * sizeof(struct kevent);
 		ktruioout = cloneuio(&ktruio);
 	}
@@ -955,9 +967,9 @@ sys_kevent(struct thread *td, struct kevent_args *uap)
 
 #ifdef KTRACE
 	if (ktruioin != NULL) {
-		ktruioin->uio_resid = uap->nchanges * sizeof(struct kevent);
+		ktruioin->uio_resid = kev_iovlen(uap->nchanges, kgio);
 		ktrgenio(uap->fd, UIO_WRITE, ktruioin, 0);
-		ktruioout->uio_resid = td->td_retval[0] * sizeof(struct kevent);
+		ktruioout->uio_resid = kev_iovlen(td->td_retval[0], kgio);
 		ktrgenio(uap->fd, UIO_READ, ktruioout, error);
 	}
 #endif
