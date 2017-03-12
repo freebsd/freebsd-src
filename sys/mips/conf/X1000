@@ -68,7 +68,7 @@ device		fdt_pinctrl
 
 device		clk
 device		regulator
-device		ext_resources
+options		EXT_RESOURCES
 
 device		gpio
 
