@@ -98,7 +98,7 @@ CRUNCH_PROGS_sbin= badsect					\
 	mount_msdosfs mount_nfs mount_nullfs			\
 	mount_udf mount_unionfs newfs				\
 	newfs_msdos nos-tun ping reboot				\
-	restore rcorder route rtsol savecore	 		\
+	restore rcorder route savecore		 		\
 	shutdown spppcontrol swapon sysctl tunefs umount
 
 .if ${MK_ATM} != "no"
@@ -111,6 +111,7 @@ CRUNCH_PROGS_sbin+= ccdconfig
 
 .if ${MK_INET6_SUPPORT} != "no"
 CRUNCH_PROGS_sbin+= ping6
+CRUNCH_PROGS_sbin+= rtsol
 .endif
 
 .if ${MK_IPFILTER} != "no"
@@ -186,7 +187,7 @@ CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 #
 CRUNCH_SRCDIRS+= usr.bin
 
-CRUNCH_PROGS_usr.bin= head mt nc sed tail tee
+CRUNCH_PROGS_usr.bin= head mt sed tail tee
 
 CRUNCH_PROGS_usr.bin+= gzip
 CRUNCH_ALIAS_gzip= gunzip gzcat zcat
@@ -207,6 +208,10 @@ CRUNCH_LIBS+= -larchive
 CRUNCH_LIBS+= -lcrypto
 .endif
 CRUNCH_LIBS+= -lmd
+
+.if ${MK_NETCAT} != "no"
+CRUNCH_PROGS_usr.bin= nc
+.endif
 
 .if ${MK_VI} != "no"
 CRUNCH_PROGS_usr.bin+= vi
