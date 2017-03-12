@@ -244,6 +244,7 @@ proc_write_fpregs32(struct thread *td, struct fpreg32 *fpregs32)
 	PROC_ACTION(set_fpregs32(td, fpregs32));
 }
 
+#ifdef CPU_CHERI
 int
 proc_read_capregs32(struct thread *td, struct capreg *capregs)
 {
@@ -255,6 +256,7 @@ proc_write_capregs32(struct thread *td, struct capreg *capregs)
 {
 	return (EIO);
 }
+#endif
 #endif
 
 int
