@@ -6,7 +6,7 @@
 WANT_CHERI=	pure
 .endif
 
-DIALOG=	${.CURDIR}/../../../contrib/dialog
+DIALOG=	${SRCTOP}/contrib/dialog
 PROG=   dialog
 
 LIBADD=	dialog ncursesw m

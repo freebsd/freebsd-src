@@ -7,8 +7,8 @@ MK_SSP=		no
 
 .include <bsd.own.mk>
 
-GCCDIR=	${.CURDIR}/../../../contrib/gcc
-GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
+GCCDIR=	${SRCTOP}/contrib/gcc
+GCCLIB=	${SRCTOP}/contrib/gcclibs
 SRCDIR=	${GCCLIB}/libssp
 
 .PATH: ${SRCDIR} ${SRCDIR}/ssp

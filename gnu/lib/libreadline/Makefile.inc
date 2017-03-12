@@ -3,7 +3,7 @@
 SHLIB_MAJOR=8
 RL_LIBRARY_VERSION=5.2
 
-SRCDIR= ${.CURDIR}/../../../../contrib/libreadline
+SRCDIR= ${SRCTOP}/contrib/libreadline
 .PATH: ${SRCDIR} ${.CURDIR}/..
 
 LOCAL_CFLAGS= -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'

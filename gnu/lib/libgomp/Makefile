@@ -2,8 +2,8 @@
 
 .include <src.opts.mk>
 
-GCCDIR=	${.CURDIR}/../../../contrib/gcc
-GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
+GCCDIR=	${SRCTOP}/contrib/gcc
+GCCLIB=	${SRCTOP}/contrib/gcclibs
 SRCDIR=	${GCCLIB}/libgomp
 
 .PATH: ${SRCDIR} ${SRCDIR}/config/posix
