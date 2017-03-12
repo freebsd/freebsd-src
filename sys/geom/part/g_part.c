@@ -888,6 +888,10 @@ g_part_ctl_commit(struct gctl_req *req, struct g_part_parms *gpp)
 
 	LIST_FOREACH_SAFE(entry, &table->gpt_entry, gpe_entry, tmp) {
 		if (!entry->gpe_deleted) {
+			/* Notify consumers that provider might be changed. */
+			if (entry->gpe_modified && (
+			    entry->gpe_pp->acw + entry->gpe_pp->ace) == 0)
+				g_media_changed(entry->gpe_pp, 0);
 			entry->gpe_created = 0;
 			entry->gpe_modified = 0;
 			continue;
