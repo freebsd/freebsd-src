@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-DIFFSRC=${.CURDIR}/../../../contrib/diff/src
+DIFFSRC=${SRCTOP}/contrib/diff/src
 .PATH:  ${DIFFSRC} \
-	${.CURDIR}/../../../contrib/diff/lib \
-	${.CURDIR}/../../../contrib/diff/man
+	${SRCTOP}/contrib/diff/lib \
+	${SRCTOP}/contrib/diff/man
 
 PROG=		diff3
 SRCS=           diff3.c version-etc.c \
@@ -12,9 +12,9 @@ SRCS=           diff3.c version-etc.c \
 # Important for ctype macros!
 CFLAGS+=-funsigned-char
 
-CFLAGS+=-I${.CURDIR}/../../../contrib/diff/
-CFLAGS+=-I${.CURDIR}/../../../contrib/diff/src
-CFLAGS+=-I${.CURDIR}/../../../contrib/diff/lib
+CFLAGS+=-I${SRCTOP}/contrib/diff/
+CFLAGS+=-I${SRCTOP}/contrib/diff/src
+CFLAGS+=-I${SRCTOP}/contrib/diff/lib
 CFLAGS+=-DHAVE_CONFIG_H
 CFLAGS+=-DDEFAULT_DIFF_PROGRAM=\"/usr/bin/diff\"
 
