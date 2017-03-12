@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-# linker error
-WANT_CHERI=none
-
 .include <src.opts.mk>
+
+# libproc requires C++
+WANT_CHERI=none
 
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/dtrace
 

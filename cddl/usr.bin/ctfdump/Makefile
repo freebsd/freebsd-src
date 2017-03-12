@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-# linker error
+# linker error (duplicate vwarn)
 WANT_CHERI=none
 
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/tools/ctf/common
