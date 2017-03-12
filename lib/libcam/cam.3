@@ -132,7 +132,7 @@ Many of the CAM library functions use the
 structure:
 .Bd -literal
 struct cam_device {
-	char 		device_path[MAXPATHLEN+1];/*
+	char		device_path[MAXPATHLEN+1];/*
 						   * Pathname of the
 						   * device given by the
 						   * user. This may be
@@ -151,7 +151,7 @@ struct cam_device {
 						     */
 	char		device_name[DEV_IDLEN+1];/*
 						  * Name of the device,
-						  * e.g. 'pass'
+						  * e.g., 'pass'
 						  */
 	uint32_t	dev_unit_num;	/* Unit number of the passthrough
 					 * device associated with this
@@ -159,7 +159,7 @@ struct cam_device {
 					 */
 
 	char		sim_name[SIM_IDLEN+1];/*
-					       * Controller name, e.g.'ahc'
+					       * Controller name, e.g., 'ahc'
 					       */
 	uint32_t	sim_unit_number; /* Controller unit number */
 	uint32_t	bus_id;		 /* Controller bus number */
@@ -429,4 +429,4 @@ require a definitive way to identify a device node as a
 .Xr pass 4
 device.
 .Pp
-Some of the functions are possibly mis-named or poorly named.
+Some of the functions are possibly misnamed or poorly named.
