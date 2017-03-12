@@ -20,7 +20,7 @@
 #    ever read sources, credits must appear in the documentation.
 # 4. This notice may not be removed or altered.
 
-SRCDIR=	${.CURDIR}/../../contrib/file
+SRCDIR=	${SRCTOP}/contrib/file
 .PATH: ${SRCDIR}/src
 .PATH: ${SRCDIR}/doc
 
@@ -29,12 +29,12 @@ PROG=	file
 MAGICPATH?=	/usr/share/misc
 
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
-CFLAGS+= -I${.CURDIR}/../../lib/libmagic
+CFLAGS+= -I${SRCTOP}/lib/libmagic
 
 LIBADD=	magic
 
 FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
-			${.CURDIR}/../../lib/libmagic/config.h
+			${SRCTOP}/lib/libmagic/config.h
 
 CLEANFILES+=	${MAN}
 

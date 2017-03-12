@@ -7,7 +7,7 @@
 .include <src.opts.mk>
 
 PROG=	m4
-CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/../../lib/libopenbsd
+CFLAGS+=-DEXTENDED -I${.CURDIR} -I${SRCTOP}/lib/libopenbsd
 LIBADD=	y l m openbsd
 
 NO_WMISSING_VARIABLE_DECLARATIONS=

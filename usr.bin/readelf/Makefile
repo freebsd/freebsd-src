@@ -14,7 +14,7 @@ CFLAGS+=-I${ELFTCDIR}/libelftc -I${ELFTCDIR}/common
 
 # This same hack is in lib/libelf/Makefile and lib/libdwarf/Makefile
 # We need to link against the correct version of these files. One
-# solution is to include ../../sys in the include path. This causes
+# solution is to include SRCTOP/sys in the include path. This causes
 # problems when a header file in sys depends on a file in another
 # part of the tree, e.g. a machine dependent header.
 #

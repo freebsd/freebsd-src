@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../contrib/netcat
+.PATH: ${SRCTOP}/contrib/netcat
 
 PROG=	nc
 SRCS=	netcat.c atomicio.c socks.c
