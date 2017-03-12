@@ -3,10 +3,12 @@
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI_USE_LLD} == "no"
 # linker errors
 WANT_CHERI=none
-
-.include <src.opts.mk>
+.endif
 
 TELNETDIR=	${SRCTOP}/contrib/telnet
 .PATH:		${TELNETDIR}/telnetd

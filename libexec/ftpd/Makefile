@@ -1,10 +1,12 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI_USE_LLD} == "no"
 # linker error
 WANT_CHERI=none
-
-.include <src.opts.mk>
+.endif
 
 PROG=	ftpd
 MAN=	ftpd.8 ftpchroot.5

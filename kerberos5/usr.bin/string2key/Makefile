@@ -1,7 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI_USE_LLD} == "no"
 # Linker error
 WANT_CHERI=none
+.endif
 
 PROG=	string2key
 MAN=	string2key.8

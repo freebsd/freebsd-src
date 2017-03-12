@@ -1,10 +1,12 @@
 #	@(#)Makefile	8.8 (Berkeley) 3/28/97
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI_USE_LLD} == "no"
 # linker error
 WANT_CHERI=none
-
-.include <src.opts.mk>
+.endif
 
 PACKAGE=sendmail
 SENDMAIL_DIR=${SRCTOP}/contrib/sendmail

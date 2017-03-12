@@ -1,10 +1,12 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 # $FreeBSD$
 
+.include <src.opts.mk>
+
+.if ${MK_CHERI_USE_LLD} == "no"
 # relocation errors when linking
 WANT_CHERI=none
-
-.include <src.opts.mk>
+.endif
 
 PROG	 = passwd
 BINOWN	 = root

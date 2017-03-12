@@ -1,11 +1,13 @@
 # $FreeBSD$
 
-# linker error
-WANT_CHERI=none
-
 MAN=
 
 .include <src.opts.mk>
+
+.if ${MK_CHERI_USE_LLD} == "no"
+# linker error
+WANT_CHERI=none
+.endif
 
 .PATH: ${SRCTOP}/contrib/ntp/ntpdc
 
