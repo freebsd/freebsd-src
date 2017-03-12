@@ -1429,9 +1429,7 @@ pf_purge_thread(void *unused __unused)
 	u_int idx = 0;
 
 	for (;;) {
-		PF_RULES_RLOCK();
-		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftm", hz / 10);
-		PF_RULES_RUNLOCK();
+		tsleep(pf_purge_thread, 0, "pftm", hz / 10);
 
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
