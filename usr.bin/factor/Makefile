@@ -5,7 +5,7 @@
 
 PROG=	factor
 SRCS=	factor.c pr_tbl.c
-CFLAGS+=-I${.CURDIR}/../primes
+CFLAGS+=-I${SRCTOP}/usr.bin/primes
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=-DHAVE_OPENSSL
@@ -14,6 +14,6 @@ LIBADD+=crypto
 
 MAN=	factor.6
 MLINKS+=factor.6 primes.6
-.PATH:	${.CURDIR}/../primes
+.PATH:	${SRCTOP}/usr.bin/primes
 
 .include <bsd.prog.mk>
