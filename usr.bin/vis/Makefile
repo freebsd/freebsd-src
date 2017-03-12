@@ -4,7 +4,7 @@
 PROG=	vis
 SRCS=	vis.c foldit.c
 
-.PATH: ${.CURDIR}/../../contrib/vis
-CFLAGS+=	-I${.CURDIR}/../../contrib/vis
+.PATH: ${SRCTOP}/contrib/vis
+CFLAGS+=	-I${SRCTOP}/contrib/vis
 
 .include <bsd.prog.mk>

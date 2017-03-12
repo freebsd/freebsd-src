@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../contrib/ee
+.PATH:	${SRCTOP}/contrib/ee
 
 CFLAGS+= -DHAS_NCURSES -DHAS_UNISTD -DHAS_STDARG -DHAS_STDLIB \
 	 -DHAS_SYS_WAIT
@@ -29,7 +29,7 @@ NLSSRCFILES=ee.msg
 . if exists(${.CURDIR}/nls/${lang}/ee.msg)
 NLSSRCDIR_${lang}= ${.CURDIR}/nls/${lang}
 . else
-NLSSRCDIR_${lang}= ${.CURDIR}/../../contrib/ee
+NLSSRCDIR_${lang}= ${SRCTOP}/contrib/ee
 . endif
 .endfor
 
