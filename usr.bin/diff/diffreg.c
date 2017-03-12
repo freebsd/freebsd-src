@@ -200,7 +200,7 @@ static void	 range(int, int, const char *);
 static void	 uni_range(int, int);
 static void	 dump_context_vec(FILE *, FILE *, int);
 static void	 dump_unified_vec(FILE *, FILE *, int);
-static void	 prepare(int, FILE *, off_t, int);
+static void	 prepare(int, FILE *, size_t, int);
 static void	 prune(void);
 static void	 equiv(struct line *, int, struct line *, int, int *);
 static void	 unravel(int);
@@ -315,6 +315,8 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	struct kevent *e;
 	cap_rights_t rights_ro;
 
+	e = NULL;
+	kq = -1;
 	f1 = f2 = NULL;
 	rval = D_SAME;
 	anychange = 0;
@@ -474,7 +476,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	ixnew = xreallocarray(ixnew, len[1] + 2, sizeof(*ixnew));
 	check(f1, f2, flags);
 	output(file1, f1, file2, f2, flags);
-	if (ostdout != -1) {
+	if (ostdout != -1 && e != NULL) {
 		/* close the pipe to pr and restore stdout */
 		int wstatus;
 
@@ -555,7 +557,7 @@ splice(char *dir, char *path)
 }
 
 static void
-prepare(int i, FILE *fd, off_t filesize, int flags)
+prepare(int i, FILE *fd, size_t filesize, int flags)
 {
 	struct line *p;
 	int h;
