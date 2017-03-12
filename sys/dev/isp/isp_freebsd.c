@@ -391,9 +391,7 @@ isp_freeze_loopdown(ispsoftc_t *isp, int chan)
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "Chan %d Freeze simq (loopdown)", chan);
 			fc->simqfrozen = SIMQFRZ_LOOPDOWN;
-#if __FreeBSD_version >= 1000039
 			xpt_hold_boot();
-#endif
 			xpt_freeze_simq(fc->sim, 1);
 		} else {
 			isp_prt(isp, ISP_LOGDEBUG0,
@@ -414,9 +412,7 @@ isp_unfreeze_loopdown(ispsoftc_t *isp, int chan)
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "Chan %d Release simq", chan);
 			xpt_release_simq(fc->sim, 1);
-#if __FreeBSD_version >= 1000039
 			xpt_release_boot();
-#endif
 		}
 	}
 }
@@ -1736,10 +1732,6 @@ isp_target_putback_atio(union ccb *ccb)
 	at->at_header.rqs_entry_count = 1;
 	if (ISP_CAP_SCCFW(isp)) {
 		at->at_scclun = (uint16_t) ccb->ccb_h.target_lun;
-#if __FreeBSD_version < 1000700
-		if (at->at_scclun >= 256)
-			at->at_scclun |= 0x4000;
-#endif
 	} else {
 		at->at_lun = (uint8_t) ccb->ccb_h.target_lun;
 	}
@@ -1788,9 +1780,6 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	fcp = FCPARAM(isp, 0);
 	if (ISP_CAP_SCCFW(isp)) {
 		lun = aep->at_scclun;
-#if __FreeBSD_version < 1000700
-		lun &= 0x3fff;
-#endif
 	} else {
 		lun = aep->at_lun;
 	}
@@ -1926,12 +1915,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 
 	did = (aep->at_hdr.d_id[0] << 16) | (aep->at_hdr.d_id[1] << 8) | aep->at_hdr.d_id[2];
 	sid = (aep->at_hdr.s_id[0] << 16) | (aep->at_hdr.s_id[1] << 8) | aep->at_hdr.s_id[2];
-#if __FreeBSD_version >= 1000700
 	lun = CAM_EXTLUN_BYTE_SWIZZLE(be64dec(aep->at_cmnd.fcp_cmnd_lun));
-#else
-	lun = (aep->at_cmnd.fcp_cmnd_lun[0] & 0x3f << 8) |
-	    aep->at_cmnd.fcp_cmnd_lun[1];
-#endif
 
 	/*
 	 * Find the N-port handle, and Virtual Port Index for this command.
@@ -2419,9 +2403,6 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 
 		if (ISP_CAP_SCCFW(isp)) {
 			lun = inp->in_scclun;
-#if __FreeBSD_version < 1000700
-			lun &= 0x3fff;
-#endif
 		} else {
 			lun = inp->in_lun;
 		}
@@ -3879,12 +3860,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			fcparam *fcp = FCPARAM(isp, bus);
 
 			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
-#if __FreeBSD_version >= 1000700
-			cpi->hba_misc |= PIM_EXTLUNS;
-#endif
-#if __FreeBSD_version >= 1000039
-			cpi->hba_misc |= PIM_NOSCAN;
-#endif
+			cpi->hba_misc |= PIM_EXTLUNS | PIM_NOSCAN;
 
 			/*
 			 * Because our loop ID can shift from time to time,

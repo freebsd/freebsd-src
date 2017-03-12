@@ -4514,15 +4514,7 @@ isp_start(XS_T *xs)
 		t7->req_tidlo = lp->portid;
 		t7->req_tidhi = lp->portid >> 16;
 		t7->req_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(xs));
-#if __FreeBSD_version >= 1000700
 		be64enc(t7->req_lun, CAM_EXTLUN_BYTE_SWIZZLE(XS_LUN(xs)));
-#else
-		if (XS_LUN(xs) >= 256) {
-			t7->req_lun[0] = XS_LUN(xs) >> 8;
-			t7->req_lun[0] |= 0x40;
-		}
-		t7->req_lun[1] = XS_LUN(xs);
-#endif
 		if (FCPARAM(isp, XS_CHANNEL(xs))->fctape_enabled && (lp->prli_word3 & PRLI_WD3_RETRY)) {
 			if (FCP_NEXT_CRN(isp, &t7->req_crn, xs)) {
 				isp_prt(isp, ISP_LOG_WARN1,
@@ -4555,19 +4547,11 @@ isp_start(XS_T *xs)
 			ispreqt2e_t *t2e = (ispreqt2e_t *)local;
 			t2e->req_target = lp->handle;
 			t2e->req_scclun = XS_LUN(xs);
-#if __FreeBSD_version < 1000700
-			if (XS_LUN(xs) >= 256)
-				t2e->req_scclun |= 0x4000;
-#endif
 			cdbp = t2e->req_cdb;
 		} else if (ISP_CAP_SCCFW(isp)) {
 			ispreqt2_t *t2 = (ispreqt2_t *)local;
 			t2->req_target = lp->handle;
 			t2->req_scclun = XS_LUN(xs);
-#if __FreeBSD_version < 1000700
-			if (XS_LUN(xs) >= 256)
-				t2->req_scclun |= 0x4000;
-#endif
 			cdbp = t2->req_cdb;
 		} else {
 			t2->req_target = lp->handle;
