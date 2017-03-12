@@ -668,7 +668,7 @@ __grow_type_table(struct typetable *types)
 			return (-1);
 		bcopy(oldtable, newtable, oldsize * sizeof(enum typeid));
 	} else {
-		newtable = realloc(oldtable, newsize * sizeof(enum typeid));
+		newtable = reallocarray(oldtable, newsize, sizeof(enum typeid));
 		if (newtable == NULL)
 			return (-1);
 	}

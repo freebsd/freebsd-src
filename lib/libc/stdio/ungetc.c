@@ -73,14 +73,14 @@ __submore(FILE *fp)
 		return (0);
 	}
 	i = fp->_ub._size;
-	p = realloc(fp->_ub._base, (size_t)(i << 1));
+	p = reallocarray(fp->_ub._base, i, 2);
 	if (p == NULL)
 		return (EOF);
 	/* no overlap (hence can use memcpy) because we doubled the size */
 	(void)memcpy((void *)(p + i), (void *)p, (size_t)i);
 	fp->_p = p + i;
 	fp->_ub._base = p;
-	fp->_ub._size = i << 1;
+	fp->_ub._size = i * 2;
 	return (0);
 }
 

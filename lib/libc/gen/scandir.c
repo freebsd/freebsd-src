@@ -116,8 +116,8 @@ scandir(const char *dirname, struct dirent ***namelist,
 		if (numitems >= arraysz) {
 			struct dirent **names2;
 
-			names2 = (struct dirent **)realloc((char *)names,
-				(arraysz * 2) * sizeof(struct dirent *));
+			names2 = reallocarray(names, arraysz,
+			    2 * sizeof(struct dirent *));
 			if (names2 == NULL) {
 				free(p);
 				goto fail;

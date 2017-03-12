@@ -155,7 +155,7 @@ common:			if (set->cmd2 & CMD2_CLR) {
 	if (set >= endset) {						\
 		BITCMD *newset;						\
 		setlen += SET_LEN_INCR;					\
-		newset = realloc(saveset, sizeof(BITCMD) * setlen);	\
+		newset = reallocarray(saveset, setlen, sizeof(BITCMD));	\
 		if (newset == NULL)					\
 			goto out;					\
 		set = newset + (set - saveset);				\
