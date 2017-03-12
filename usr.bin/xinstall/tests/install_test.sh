@@ -286,7 +286,7 @@ symbolic_link_absolute_body() {
 	copyf_path=$(readlink copyf)
 	testf_path="$(pwd -P)/testf"
 	if [ "$copyf_path" != "$testf_path" ]; then
-		atf_fail "unexpected symlink ('$copyf_path' != '$testf_path')"
+		atf_fail "unexpected symlink contents ('$copyf_path' != '$testf_path')"
 	fi
 }
 
@@ -299,7 +299,7 @@ symbolic_link_relative_body() {
 	copyf_path=$(readlink copyf)
 	testf_path="testf"
 	if [ "$copyf_path" != "$testf_path" ]; then
-		atf_fail "unexpected symlink ('$copyf_path' != '$testf_path')"
+		atf_fail "unexpected symlink contents ('$copyf_path' != '$testf_path')"
 	fi
 }
 
