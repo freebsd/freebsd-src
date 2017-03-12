@@ -1311,6 +1311,7 @@ OLD_FILES+=etc/periodic/daily/800.scrub-zfs
 OLD_LIBS+=lib/libzfs.so.2
 OLD_LIBS+=lib/libzfs_core.so.2
 OLD_LIBS+=lib/libzpool.so.2
+OLD_FILES+=rescue/zdb
 OLD_FILES+=rescue/zfs
 OLD_FILES+=rescue/zpool
 OLD_FILES+=sbin/zfs
