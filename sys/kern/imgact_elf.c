@@ -517,7 +517,7 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	size_t map_len;
 	vm_map_t map;
 	vm_object_t object;
-	vm_offset_t map_addr;
+	vm_offset_t off, map_addr;
 	int error, rv, cow;
 	size_t copy_len;
 	vm_ooffset_t file_addr;
@@ -568,9 +568,8 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 			return (EINVAL);
 
 		/* we can stop now if we've covered it all */
-		if (memsz == filsz) {
+		if (memsz == filsz)
 			return (0);
-		}
 	}
 
 
@@ -589,14 +588,11 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	if (map_len != 0) {
 		rv = __elfN(map_insert)(imgp, map, NULL, 0, map_addr,
 		    map_addr + map_len, VM_PROT_ALL, 0);
-		if (rv != KERN_SUCCESS) {
+		if (rv != KERN_SUCCESS)
 			return (EINVAL);
-		}
 	}
 
 	if (copy_len != 0) {
-		vm_offset_t off;
-
 		sf = vm_imgact_map_page(object, offset + filsz);
 		if (sf == NULL)
 			return (EIO);
@@ -607,14 +603,12 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 		error = copyout((caddr_t)sf_buf_kva(sf) + off,
 		    (caddr_t)map_addr, copy_len);
 		vm_imgact_unmap_page(sf);
-		if (error) {
+		if (error != 0)
 			return (error);
-		}
 	}
 
 	/*
 	 * set it to the specified protection.
-	 * XXX had better undo the damage from pasting over the cracks here!
 	 */
 	vm_map_protect(map, trunc_page(map_addr), round_page(map_addr +
 	    map_len), prot, FALSE);
