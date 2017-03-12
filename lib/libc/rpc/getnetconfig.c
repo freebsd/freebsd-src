@@ -630,8 +630,8 @@ parse_ncp(char *stringp, struct netconfig *ncp)
 	ncp->nc_lookups = NULL;
 	ncp->nc_nlookups = 0;
 	while ((cp = tokenp) != NULL) {
-	    if ((nc_lookups = realloc(ncp->nc_lookups,
-		(ncp->nc_nlookups + 1) * sizeof *ncp->nc_lookups)) == NULL) {
+	    if ((nc_lookups = reallocarray(ncp->nc_lookups,
+		ncp->nc_nlookups + 1, sizeof(*ncp->nc_lookups))) == NULL) {
 		    free(ncp->nc_lookups);
 		    ncp->nc_lookups = NULL;
 		    return (-1);
