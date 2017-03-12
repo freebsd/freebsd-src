@@ -54,6 +54,7 @@ enum {
 	OPT_IGN_FN_CASE,
 	OPT_NO_IGN_FN_CASE,
 	OPT_NORMAL,
+	OPT_HORIZON_LINES,
 };
 
 static struct option longopts[] = {
@@ -83,6 +84,7 @@ static struct option longopts[] = {
 	{ "exclude",			required_argument,	0,	'x' },
 	{ "exclude-from",		required_argument,	0,	'X' },
 	{ "ignore-file-name-case",	no_argument,		NULL,	OPT_IGN_FN_CASE },
+	{ "horizon-lines",		required_argument,	NULL,	OPT_HORIZON_LINES },
 	{ "no-ignore-file-name-case",	no_argument,		NULL,	OPT_NO_IGN_FN_CASE },
 	{ "normal",			no_argument,		NULL,	OPT_NORMAL },
 	{ "strip-trailing-cr",		no_argument,		NULL,	OPT_STRIPCR },
@@ -225,6 +227,8 @@ main(int argc, char **argv)
 		case 'x':
 			push_excludes(optarg);
 			break;
+		case OPT_HORIZON_LINES:
+			break; /* XXX TODO for compatibility with GNU diff3 */
 		case OPT_IGN_FN_CASE:
 			ignore_file_case = 1;
 			break;
