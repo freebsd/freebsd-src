@@ -7999,9 +7999,9 @@ sysctl_tp_timer(SYSCTL_HANDLER_ARGS)
 	u_int cclk_ps = 1000000000 / sc->params.vpd.cclk;
 
 	MPASS(reg == A_TP_RXT_MIN || reg == A_TP_RXT_MAX ||
-	    reg == A_TP_PERS_MIN || reg == A_TP_PERS_MAX ||
-	    reg == A_TP_KEEP_IDLE || A_TP_KEEP_INTVL || reg == A_TP_INIT_SRTT ||
-	    reg == A_TP_FINWAIT2_TIMER);
+	    reg == A_TP_PERS_MIN  || reg == A_TP_PERS_MAX ||
+	    reg == A_TP_KEEP_IDLE || reg == A_TP_KEEP_INTVL ||
+	    reg == A_TP_INIT_SRTT || reg == A_TP_FINWAIT2_TIMER);
 
 	tre = G_TIMERRESOLUTION(t4_read_reg(sc, A_TP_TIMER_RESOLUTION));
 	tp_tick_us = (cclk_ps << tre) / 1000000;
