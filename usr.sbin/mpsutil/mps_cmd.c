@@ -486,7 +486,7 @@ mps_firmware_get(int fd, unsigned char **firmware, bool bios)
 	}
 
 	size = reply.ActualImageSize;
-	*firmware = calloc(1, sizeof(unsigned char) * size);
+	*firmware = calloc(size, sizeof(unsigned char));
 	if (*firmware == NULL) {
 		warn("calloc");
 		return (-1);
