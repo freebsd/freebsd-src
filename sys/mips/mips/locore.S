@@ -163,9 +163,11 @@ VECTOR(_locore, unknown)
 	/*
 	 * Enable userspace cycle-count, cycle-count resolution, and CPU
 	 * number registers available via rdhwr.
+	 * Also enable beri specific statcounters.
 	 */
 	MFC0	t0, MIPS_COP_0_HWRENA
-	or	t0, MIPS_HWRENA_CC | MIPS_HWRENA_CCRES | MIPS_HWRENA_CPUNUM | (7 << 4)
+	or	t0, MIPS_HWRENA_CC | MIPS_HWRENA_CCRES | MIPS_HWRENA_CPUNUM | \
+	    (7 << 4) | MIPS_HWRENA_BERI_STATCOUNTERS_MASK
 	MTC0	t0, MIPS_COP_0_HWRENA
 #endif
 
