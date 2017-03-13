@@ -487,8 +487,8 @@ init_cache(struct cache_params const *params)
 	assert(params != NULL);
 	memcpy(&retval->params, params, sizeof(struct cache_params));
 
-	retval->entries = calloc(1,
-		sizeof(*retval->entries) * INITIAL_ENTRIES_CAPACITY);
+	retval->entries = calloc(INITIAL_ENTRIES_CAPACITY,
+		sizeof(*retval->entries));
 	assert(retval->entries != NULL);
 
 	retval->entries_capacity = INITIAL_ENTRIES_CAPACITY;
@@ -540,8 +540,8 @@ register_cache_entry(struct cache_ *the_cache,
 
 		new_capacity = the_cache->entries_capacity +
 			ENTRIES_CAPACITY_STEP;
-		new_entries = calloc(1,
-			sizeof(*new_entries) * new_capacity);
+		new_entries = calloc(new_capacity,
+			sizeof(*new_entries));
 		assert(new_entries != NULL);
 
 		memcpy(new_entries, the_cache->entries,
@@ -582,8 +582,8 @@ register_cache_entry(struct cache_ *the_cache,
 		else
 			policies_size = 2;
 
-		new_common_entry->policies = calloc(1,
-			sizeof(*new_common_entry->policies) * policies_size);
+		new_common_entry->policies = calloc(policies_size,
+			sizeof(*new_common_entry->policies));
 		assert(new_common_entry->policies != NULL);
 
 		new_common_entry->policies_size = policies_size;
