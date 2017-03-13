@@ -700,6 +700,9 @@ static struct
 	{PCIC_DASP,		PCIS_DASP_PERFCNTRS,	"performance counters"},
 	{PCIC_DASP,		PCIS_DASP_COMM_SYNC,	"communication synchronizer"},
 	{PCIC_DASP,		PCIS_DASP_MGMT_CARD,	"signal processing management"},
+	{PCIC_ACCEL,		-1,			"processing accelerators"},
+	{PCIC_ACCEL,		PCIS_ACCEL_PROCESSING,	"processing accelerators"},
+	{PCIC_INSTRUMENT,	-1,			"non-essential instrumentation"},
 	{0, 0,		NULL}
 };
 
