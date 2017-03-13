@@ -559,80 +559,12 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 }
 
 #ifdef CPU_CHERI
-#define CHERI_CAP_ADDTAG(dst, src) do {				\
-	register_t tag;						\
-								\
-	cheri_capability_load(CHERI_CR_CTEMP0, (struct chericap *)src);	\
-	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);			\
-	*dst = (*src & ~(1ULL << 63)) | (tag << 63);		\
-	dst++; src++;						\
-	*dst = *src;	/* cursor */				\
-	dst++; src++;						\
-	*dst = *src;	/* base */				\
-	dst++; src++;						\
-	*dst = *src;	/* length */				\
-	dst++; src++;						\
-} while(0)
-
 int
 fill_capregs(struct thread *td, struct capreg *capregs)
 {
 
-#ifdef CPU_CHERI128
 	cheri_trapframe_to_cheriframe(&td->td_pcb->pcb_regs,
 	    (struct cheri_frame *)capregs);
-#else
-	struct cheri_frame *cfp;
-	uint64_t *dst, *src;
-
-	cfp = malloc(sizeof(*cfp), M_TEMP, M_WAITOK | M_ZERO);
-	cheri_trapframe_to_cheriframe(&td->td_pcb->pcb_regs, cfp);
-
-	dst = (uint64_t *)capregs;
-	src = (uint64_t *)cfp;
-
-	/*
-	 * Merge the tag bit into the cap register state that is
-	 * written out in the core file.  We currently use one of
-	 * reserved bits.  We may need to do something else for
-	 * compressed capabilities given the limited reserved space.
-	 *
-	 * XXXSS This needs to match 'struct cheri_frame' in cheri.h.
-	 *
-	 * XXXRW: This all seems a bit suspicious.
-	 */
-	CHERI_CAP_ADDTAG(dst, src);	/* 0 */
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);	/* 4 */
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);	/* 8 */
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);	/* 12 */
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);	/* 16 */
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);	/* 20 */
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);	/* 24 */
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-	CHERI_CAP_ADDTAG(dst, src);
-
-	*dst = *src; /* capcause register */
-	free(cfp, M_TEMP);
-#endif /* ! CPU_CHERI128 */
 	return (0);
 }
 

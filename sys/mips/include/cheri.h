@@ -92,7 +92,7 @@ struct cheri_frame {
 	 * incorrect, but should be made correct.
 	 */
 	register_t	cf_capcause;	/* Updated only on CP2 exceptions. */
-	register_t	_cf_pad0[1];
+	register_t	cf_capvalid;
 #if (defined(CPU_CHERI) && !defined(CPU_CHERI128)) || (defined(_MIPS_SZCAP) && (_MIPS_SZCAP == 256))
 	register_t	_cf_pad1[2];
 #endif
