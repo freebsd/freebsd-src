@@ -2678,6 +2678,10 @@ bpf_ifdetach(void *arg __unused, struct ifnet *ifp)
 	struct bpf_if *bp, *bp_temp;
 	int nmatched = 0;
 
+	/* Ignore ifnet renaming. */
+	if (ifp->if_flags & IFF_RENAMING)
+		return;
+
 	BPF_LOCK();
 	/*
 	 * Find matching entries in free list.
