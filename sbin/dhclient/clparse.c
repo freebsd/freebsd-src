@@ -714,6 +714,7 @@ parse_option_decl(FILE *cfile, struct option_data *options)
 			parse_warn("expecting identifier after '.'");
 			if (token != SEMI)
 				skip_to_semi(cfile);
+			free(vendor);
 			return (NULL);
 		}
 
@@ -726,6 +727,7 @@ parse_option_decl(FILE *cfile, struct option_data *options)
 		if (!universe) {
 			parse_warn("no vendor named %s.", vendor);
 			skip_to_semi(cfile);
+			free(vendor);
 			return (NULL);
 		}
 	} else {
@@ -747,6 +749,7 @@ parse_option_decl(FILE *cfile, struct option_data *options)
 			parse_warn("no option named %s for vendor %s",
 				    val, vendor);
 		skip_to_semi(cfile);
+		free(vendor);
 		return (NULL);
 	}
 
