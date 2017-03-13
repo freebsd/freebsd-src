@@ -215,7 +215,7 @@ nat64lsn_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
     uint32_t n, uint32_t sn)
 {
 
-	memset(plog, 0, sizeof(plog));
+	memset(plog, 0, sizeof(*plog));
 	plog->length = PFLOG_REAL_HDRLEN;
 	plog->af = family;
 	plog->action = PF_NAT;
