@@ -302,6 +302,11 @@ structure.
 .Fn cam_freeccb
 frees CCBs allocated by
 .Fn cam_getccb .
+If
+.Va ccb
+is
+.Dv NULL ,
+no action is taken.
 .Pp
 .Fn cam_path_string
 takes as arguments a
