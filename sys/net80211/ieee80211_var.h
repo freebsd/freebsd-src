@@ -149,7 +149,6 @@ struct ieee80211com {
 	struct task		ic_chan_task;	/* deferred channel change */
 	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
 	struct task		ic_chw_task;	/* deferred HT CHW update */
-	struct task		ic_wme_task;	/* deferred WME update */
 	struct task		ic_restart_task; /* deferred device restart */
 
 	counter_u64_t		ic_ierrors;	/* input errors */
@@ -556,6 +555,10 @@ struct ieee80211vap {
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    const struct sockaddr *, struct route *);
+
+	int			(*iv_wme_update)(struct ieee80211vap *,
+				    const struct wmeParams *wme_params);
+	struct task		iv_wme_task;	/* deferred VAP WME update */
 
 	uint64_t		iv_spare[6];
 };
