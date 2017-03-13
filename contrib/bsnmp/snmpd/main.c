@@ -765,13 +765,13 @@ trans_insert_port(struct transport *t, struct tport *port)
 {
 	struct tport *p;
 
+	port->transport = t;
 	TAILQ_FOREACH(p, &t->table, link) {
 		if (asn_compare_oid(&p->index, &port->index) > 0) {
 			TAILQ_INSERT_BEFORE(p, port, link);
 			return;
 		}
 	}
-	port->transport = t;
 	TAILQ_INSERT_TAIL(&t->table, port, link);
 }
 
