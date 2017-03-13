@@ -246,7 +246,7 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
  * Definitions for uma_zcreate flags
  *
  * These flags share space with UMA_ZFLAGs in uma_int.h.  Be careful not to
- * overlap when adding new features.  0xf0000000 is in use by uma_int.h.
+ * overlap when adding new features.  0xff000000 is in use by uma_int.h.
  */
 #define UMA_ZONE_PAGEABLE	0x0001	/* Return items not fully backed by
 					   physical memory XXX Not yet */
