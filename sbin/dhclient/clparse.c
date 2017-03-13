@@ -512,6 +512,7 @@ parse_client_lease_statement(FILE *cfile, int is_static)
 		token = peek_token(&val, cfile);
 		if (token == EOF) {
 			parse_warn("unterminated lease declaration.");
+			free_client_lease(lease);
 			return;
 		}
 		if (token == RBRACE)
