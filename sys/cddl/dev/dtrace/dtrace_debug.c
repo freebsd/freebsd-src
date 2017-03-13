@@ -106,7 +106,7 @@ dtrace_debug_output(void)
 
 			for (p = d->first; p < d->next; p++)
 				*p1++ = *p;
-		} else if (d->next > d->first) {
+		} else if (d->first > d->next) {
 			char *p1 = dtrace_debug_bufr;
 
 			count = (uintptr_t) d->last - (uintptr_t) d->first;
