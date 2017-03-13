@@ -22,15 +22,15 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd September 27, 2014
+.Dd March 6, 2017
 .Dt ATF-SH 1
 .Os
 .Sh NAME
 .Nm atf-sh
-.Op Fl s Ar shell
 .Nd interpreter for shell-based test programs
 .Sh SYNOPSIS
 .Nm
+.Op Fl s Ar shell
 .Ar script
 .Sh DESCRIPTION
 .Nm
@@ -75,6 +75,8 @@ Should not be overridden other than for testing purposes.
 Path to the system shell to be used in the generated scripts.
 Scripts must not rely on this variable being set to select a specific
 interpreter.
+.It Va ATF_SHELL
+Path to the system shell to be used in the generated scripts.
 .El
 .Sh EXAMPLES
 Scripts using
@@ -98,10 +100,5 @@ option afterwards as a
 .Bd -literal -offset indent
 #! /path/to/bin/atf-sh -s/bin/bash
 .Ed
-.Sh ENVIRONMENT
-.Bl -tag -width ATFXSHELLXX -compact
-.It Va ATF_SHELL
-Path to the system shell to be used in the generated scripts.
-.El
 .Sh SEE ALSO
 .Xr atf-sh 3
