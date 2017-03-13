@@ -253,7 +253,8 @@ static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_update_admin_status, bnxt_update_admin_status),
 
 	DEVMETHOD(ifdi_intr_enable, bnxt_intr_enable),
-	DEVMETHOD(ifdi_queue_intr_enable, bnxt_queue_intr_enable),
+	DEVMETHOD(ifdi_tx_queue_intr_enable, bnxt_queue_intr_enable),
+	DEVMETHOD(ifdi_rx_queue_intr_enable, bnxt_queue_intr_enable),
 	DEVMETHOD(ifdi_intr_disable, bnxt_disable_intr),
 	DEVMETHOD(ifdi_msix_intr_assign, bnxt_msix_intr_assign),
 
@@ -711,6 +712,8 @@ bnxt_attach_pre(if_ctx_t ctx)
 	scctx->isc_tx_tso_size_max = BNXT_TSO_SIZE;
 	scctx->isc_tx_tso_segsize_max = BNXT_TSO_SIZE;
 	scctx->isc_vectors = softc->func.max_cp_rings;
+	scctx->isc_txrx = &bnxt_txrx;
+
 	if (scctx->isc_nrxd[0] <
 	    ((scctx->isc_nrxd[1] * 4) + scctx->isc_nrxd[2]))
 		device_printf(softc->dev,
@@ -1479,7 +1482,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 
 	for (i=0; i<softc->scctx->isc_nrxqsets; i++) {
 		rc = iflib_irq_alloc_generic(ctx, &softc->rx_cp_rings[i].irq,
-		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RX,
+		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RXTX,
 		    bnxt_handle_rx_cp, &softc->rx_cp_rings[i], i, "rx_cp");
 		if (rc) {
 			device_printf(iflib_get_dev(ctx),

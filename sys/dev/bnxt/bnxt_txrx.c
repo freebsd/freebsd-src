@@ -48,17 +48,19 @@ __FBSDID("$FreeBSD$");
  */
 
 static int bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi);
-static void bnxt_isc_txd_flush(void *sc, uint16_t txqid, uint32_t pidx);
-static int bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, uint32_t cidx,
-    bool clear);
+static void bnxt_isc_txd_flush(void *sc, uint16_t txqid, qidx_t pidx);
+static int bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear);
 
-static void bnxt_isc_rxd_refill(void *sc, uint16_t rxqid, uint8_t flid,
+static void bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru);
+
+/*				uint16_t rxqid, uint8_t flid,
     uint32_t pidx, uint64_t *paddrs, caddr_t *vaddrs, uint16_t count,
     uint16_t buf_size);
+*/
 static void bnxt_isc_rxd_flush(void *sc, uint16_t rxqid, uint8_t flid,
-    uint32_t pidx);
-static int bnxt_isc_rxd_available(void *sc, uint16_t rxqid, uint32_t idx,
-    int budget);
+    qidx_t pidx);
+static int bnxt_isc_rxd_available(void *sc, uint16_t rxqid, qidx_t idx,
+    qidx_t budget);
 static int bnxt_isc_rxd_pkt_get(void *sc, if_rxd_info_t ri);
 
 static int bnxt_intr(void *sc);
@@ -172,7 +174,7 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 }
 
 static void
-bnxt_isc_txd_flush(void *sc, uint16_t txqid, uint32_t pidx)
+bnxt_isc_txd_flush(void *sc, uint16_t txqid, qidx_t pidx)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_ring *tx_ring = &softc->tx_rings[txqid];
@@ -185,7 +187,7 @@ bnxt_isc_txd_flush(void *sc, uint16_t txqid, uint32_t pidx)
 }
 
 static int
-bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, uint32_t idx, bool clear)
+bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_cp_ring *cpr = &softc->tx_cp_rings[txqid];
@@ -249,15 +251,27 @@ done:
 }
 
 static void
-bnxt_isc_rxd_refill(void *sc, uint16_t rxqid, uint8_t flid,
-				uint32_t pidx, uint64_t *paddrs,
-				caddr_t *vaddrs, uint16_t count, uint16_t len)
+bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_ring *rx_ring;
 	struct rx_prod_pkt_bd *rxbd;
 	uint16_t type;
 	uint16_t i;
+	uint16_t rxqid;
+	uint16_t count, len;
+	uint32_t pidx;
+	uint8_t flid;
+	uint64_t *paddrs;
+	caddr_t *vaddrs;
+
+	rxqid = iru->iru_qsidx;
+	count = iru->iru_count;
+	len = iru->iru_buf_size;
+	pidx = iru->iru_pidx;
+	flid = iru->iru_flidx;
+	vaddrs = iru->iru_vaddrs;
+	paddrs = iru->iru_paddrs;
 
 	if (flid == 0) {
 		rx_ring = &softc->rx_rings[rxqid];
@@ -284,7 +298,7 @@ bnxt_isc_rxd_refill(void *sc, uint16_t rxqid, uint8_t flid,
 
 static void
 bnxt_isc_rxd_flush(void *sc, uint16_t rxqid, uint8_t flid,
-    uint32_t pidx)
+    qidx_t pidx)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_ring *rx_ring;
@@ -310,7 +324,7 @@ bnxt_isc_rxd_flush(void *sc, uint16_t rxqid, uint8_t flid,
 }
 
 static int
-bnxt_isc_rxd_available(void *sc, uint16_t rxqid, uint32_t idx, int budget)
+bnxt_isc_rxd_available(void *sc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_cp_ring *cpr = &softc->rx_cp_rings[rxqid];
@@ -412,37 +426,6 @@ cmpl_invalid:
 	return avail;
 }
 
-static void
-bnxt_set_rsstype(if_rxd_info_t ri, uint8_t rss_hash_type)
-{
-	uint8_t rss_profile_id;
-
-	rss_profile_id = BNXT_GET_RSS_PROFILE_ID(rss_hash_type);
-	switch (rss_profile_id) {
-	case BNXT_RSS_HASH_TYPE_TCPV4:
-		ri->iri_rsstype = M_HASHTYPE_RSS_TCP_IPV4;
-		break;
-	case BNXT_RSS_HASH_TYPE_UDPV4:
-		ri->iri_rsstype = M_HASHTYPE_RSS_UDP_IPV4;
-		break;
-	case BNXT_RSS_HASH_TYPE_IPV4:
-		ri->iri_rsstype = M_HASHTYPE_RSS_IPV4;
-		break;
-	case BNXT_RSS_HASH_TYPE_TCPV6:
-		ri->iri_rsstype = M_HASHTYPE_RSS_TCP_IPV6;
-		break;
-	case BNXT_RSS_HASH_TYPE_UDPV6:
-		ri->iri_rsstype = M_HASHTYPE_RSS_UDP_IPV6;
-		break;
-	case BNXT_RSS_HASH_TYPE_IPV6:
-		ri->iri_rsstype = M_HASHTYPE_RSS_IPV6;
-		break;
-	default:
-		ri->iri_rsstype = M_HASHTYPE_OPAQUE;
-		break;
-	}
-}
-
 static int
 bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
     struct bnxt_cp_ring *cpr, uint16_t flags_type)
@@ -460,7 +443,13 @@ bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
 	/* Extract from the first 16-byte BD */
 	if (flags_type & RX_PKT_CMPL_FLAGS_RSS_VALID) {
 		ri->iri_flowid = le32toh(rcp->rss_hash);
-		bnxt_set_rsstype(ri, rcp->rss_hash_type);
+		/*
+		 * TODO: Extract something useful from rcp->rss_hash_type
+		 * (undocumented)
+		 * May be documented in the "LSI ES"
+		 * also check the firmware code.
+		 */
+		ri->iri_rsstype = M_HASHTYPE_OPAQUE;
 	}
 	else {
 		ri->iri_rsstype = M_HASHTYPE_NONE;
@@ -540,7 +529,13 @@ bnxt_pkt_get_tpa(struct bnxt_softc *softc, if_rxd_info_t ri,
 	/* Extract from the first 16-byte BD */
 	if (le16toh(tpas->low.flags_type) & RX_TPA_START_CMPL_FLAGS_RSS_VALID) {
 		ri->iri_flowid = le32toh(tpas->low.rss_hash);
-		bnxt_set_rsstype(ri, tpas->low.rss_hash_type);
+		/*
+		 * TODO: Extract something useful from tpas->low.rss_hash_type
+		 * (undocumented)
+		 * May be documented in the "LSI ES"
+		 * also check the firmware code.
+		 */
+		ri->iri_rsstype = M_HASHTYPE_OPAQUE;
 	}
 	else {
 		ri->iri_rsstype = M_HASHTYPE_NONE;

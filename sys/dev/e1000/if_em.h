@@ -356,14 +356,14 @@ struct em_int_delay_info {
  */
 struct tx_ring {
         struct adapter          *adapter;
-	struct em_tx_queue      *que;
-        u32                     me;
-        int			busy;
 	struct e1000_tx_desc	*tx_base;
 	uint64_t                tx_paddr; 
-        struct em_txbuffer	*tx_buffers;
-	u32			tx_tso;		/* last tx was tso */
-
+	qidx_t			*tx_rsq;
+	bool			tx_tso;		/* last tx was tso */
+	uint8_t			me;
+	qidx_t			tx_rs_cidx;
+	qidx_t			tx_rs_pidx;
+	qidx_t			tx_cidx_processed;
 	/* Interrupt resources */
 	void                    *tag;
 	struct resource         *res;
@@ -532,10 +532,7 @@ typedef struct _em_vendor_info_t {
 	unsigned int index;
 } em_vendor_info_t;
 
-struct em_txbuffer {
-	int		eop;  
-};
-
+void em_dump_rs(struct adapter *);
 
 #define	EM_CORE_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->core_mtx, _name, "EM Core Lock", MTX_DEF)
