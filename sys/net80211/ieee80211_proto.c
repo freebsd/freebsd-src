@@ -241,7 +241,7 @@ static void update_mcast(void *, int);
 static void update_promisc(void *, int);
 static void update_channel(void *, int);
 static void update_chw(void *, int);
-static void update_wme(void *, int);
+static void vap_update_wme(void *, int);
 static void restart_vaps(void *, int);
 static void ieee80211_newstate_cb(void *, int);
 
@@ -280,7 +280,6 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	TASK_INIT(&ic->ic_chan_task, 0, update_channel, ic);
 	TASK_INIT(&ic->ic_bmiss_task, 0, beacon_miss, ic);
 	TASK_INIT(&ic->ic_chw_task, 0, update_chw, ic);
-	TASK_INIT(&ic->ic_wme_task, 0, update_wme, ic);
 	TASK_INIT(&ic->ic_restart_task, 0, restart_vaps, ic);
 
 	ic->ic_wme.wme_hipri_switch_hysteresis =
@@ -338,6 +337,7 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	callout_init(&vap->iv_mgtsend, 1);
 	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
+	TASK_INIT(&vap->iv_wme_task, 0, vap_update_wme, vap);
 	/*
 	 * Install default tx rate handling: no fixed rate, lowest
 	 * supported rate for mgmt and multicast frames.  Default
@@ -1285,7 +1285,7 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	}
 
 	/* schedule the deferred WME update */
-	ieee80211_runtask(ic, &ic->ic_wme_task);
+	ieee80211_runtask(ic, &vap->iv_wme_task);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
 	    "%s: WME params updated, cap_info 0x%x\n", __func__,
@@ -1350,15 +1350,25 @@ update_chw(void *arg, int npending)
 	ic->ic_update_chw(ic);
 }
 
+/*
+ * Deferred WME update.
+ *
+ * In preparation for per-VAP WME configuration, call the VAP
+ * method if the VAP requires it.  Otherwise, just call the
+ * older global method.  There isn't a per-VAP WME configuration
+ * just yet so for now just use the global configuration.
+ */
 static void
-update_wme(void *arg, int npending)
+vap_update_wme(void *arg, int npending)
 {
-	struct ieee80211com *ic = arg;
+	struct ieee80211vap *vap = arg;
+	struct ieee80211com *ic = vap->iv_ic;
 
-	/*
-	 * XXX should we defer the WME configuration update until now?
-	 */
-	ic->ic_wme.wme_update(ic);
+	if (vap->iv_wme_update != NULL)
+		vap->iv_wme_update(vap,
+		    ic->ic_wme.wme_chanParams.cap_wmeParams);
+	else
+		ic->ic_wme.wme_update(ic);
 }
 
 static void
@@ -1385,7 +1395,6 @@ ieee80211_waitfor_parent(struct ieee80211com *ic)
 	ieee80211_draintask(ic, &ic->ic_chan_task);
 	ieee80211_draintask(ic, &ic->ic_bmiss_task);
 	ieee80211_draintask(ic, &ic->ic_chw_task);
-	ieee80211_draintask(ic, &ic->ic_wme_task);
 	taskqueue_unblock(ic->ic_tq);
 }
 
