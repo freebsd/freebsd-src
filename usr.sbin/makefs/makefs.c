@@ -112,10 +112,13 @@ main(int argc, char *argv[])
 		fstype->prepare_options(&fsoptions);
 
 	specfile = NULL;
+#ifdef CLOCK_REALTIME
+	ch = clock_gettime(CLOCK_REALTIME, &start_time);
+#else
 	ch = gettimeofday(&start, NULL);
 	start_time.tv_sec = start.tv_sec;
 	start_time.tv_nsec = start.tv_usec * 1000;
-
+#endif
 	if (ch == -1)
 		err(1, "Unable to get system time");
 
