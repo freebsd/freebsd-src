@@ -2329,6 +2329,7 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	case VM_INHERIT_NONE:
 	case VM_INHERIT_COPY:
 	case VM_INHERIT_SHARE:
+	case VM_INHERIT_ZERO:
 		break;
 	default:
 		return (KERN_INVALID_ARGUMENT);
@@ -3592,6 +3593,36 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			vmspace_map_entry_forked(vm1, vm2, new_entry);
 			vm_map_copy_entry(old_map, new_map, old_entry,
 			    new_entry, fork_charge);
+			break;
+
+		case VM_INHERIT_ZERO:
+			/*
+			 * Create a new anonymous mapping entry modelled from
+			 * the old one.
+			 */
+			new_entry = vm_map_entry_create(new_map);
+			memset(new_entry, 0, sizeof(*new_entry));
+
+			new_entry->start = old_entry->start;
+			new_entry->end = old_entry->end;
+			new_entry->avail_ssize = old_entry->avail_ssize;
+			new_entry->adj_free = old_entry->adj_free;
+			new_entry->max_free = old_entry->max_free;
+			new_entry->eflags = old_entry->eflags &
+			    ~(MAP_ENTRY_USER_WIRED | MAP_ENTRY_IN_TRANSITION |
+			    MAP_ENTRY_VN_WRITECNT);
+			new_entry->protection = old_entry->protection;
+			new_entry->max_protection = old_entry->max_protection;
+			new_entry->inheritance = VM_INHERIT_ZERO;
+
+			vm_map_entry_link(new_map, new_map->header.prev,
+			    new_entry);
+			vmspace_map_entry_forked(vm1, vm2, new_entry);
+
+			new_entry->cred = curthread->td_ucred;
+			crhold(new_entry->cred);
+			*fork_charge += (new_entry->end - new_entry->start);
+
 			break;
 		}
 		old_entry = old_entry->next;

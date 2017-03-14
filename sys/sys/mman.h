@@ -43,6 +43,7 @@
 #define INHERIT_SHARE	0
 #define INHERIT_COPY	1
 #define INHERIT_NONE	2
+#define INHERIT_ZERO	3
 #endif
 
 /*
