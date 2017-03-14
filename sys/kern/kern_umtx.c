@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/syscallsubr.h>
 #include <sys/taskqueue.h>
+#include <sys/time.h>
 #include <sys/eventhandler.h>
 #include <sys/umtx.h>
 
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 
 #ifdef COMPAT_FREEBSD32
@@ -210,6 +212,7 @@ struct umtxq_chain {
 
 struct abs_timeout {
 	int clockid;
+	bool is_abs_real;	/* TIMER_ABSTIME && CLOCK_REALTIME* */
 	struct timespec cur;
 	struct timespec end;
 };
@@ -256,6 +259,8 @@ static long max_length;
 SYSCTL_LONG(_debug_umtx, OID_AUTO, max_length, CTLFLAG_RD, &max_length, 0, "max_length");
 static SYSCTL_NODE(_debug_umtx, OID_AUTO, chains, CTLFLAG_RD, 0, "umtx chain stats");
 #endif
+
+static void abs_timeout_update(struct abs_timeout *timo);
 
 static void umtx_shm_init(void);
 static void umtxq_sysinit(void *);
@@ -772,12 +777,22 @@ abs_timeout_init(struct abs_timeout *timo, int clockid, int absolute,
 
 	timo->clockid = clockid;
 	if (!absolute) {
-		kern_clock_gettime(curthread, clockid, &timo->end);
-		timo->cur = timo->end;
+		timo->is_abs_real = false;
+		abs_timeout_update(timo);
+		timo->end = timo->cur;
 		timespecadd(&timo->end, timeout);
 	} else {
 		timo->end = *timeout;
-		kern_clock_gettime(curthread, clockid, &timo->cur);
+		timo->is_abs_real = clockid == CLOCK_REALTIME ||
+		    clockid == CLOCK_REALTIME_FAST ||
+		    clockid == CLOCK_REALTIME_PRECISE;
+		/*
+		 * If is_abs_real, umtxq_sleep will read the clock
+		 * after setting td_rtcgen; otherwise, read it here.
+		 */
+		if (!timo->is_abs_real) {
+			abs_timeout_update(timo);
+		}
 	}
 }
 
@@ -831,26 +846,41 @@ umtxq_sleep(struct umtx_q *uq, const char *wmesg, struct abs_timeout *abstime)
 	struct umtxq_chain *uc;
 	int error, timo;
 
+	if (abstime != NULL && abstime->is_abs_real) {
+		curthread->td_rtcgen = atomic_load_acq_int(&rtc_generation);
+		abs_timeout_update(abstime);
+	}
+
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
 	for (;;) {
-		if (!(uq->uq_flags & UQF_UMTXQ))
-			return (0);
+		if (!(uq->uq_flags & UQF_UMTXQ)) {
+			error = 0;
+			break;
+		}
 		if (abstime != NULL) {
 			timo = abs_timeout_gethz(abstime);
-			if (timo < 0)
-				return (ETIMEDOUT);
+			if (timo < 0) {
+				error = ETIMEDOUT;
+				break;
+			}
 		} else
 			timo = 0;
 		error = msleep(uq, &uc->uc_lock, PCATCH | PDROP, wmesg, timo);
-		if (error != EWOULDBLOCK) {
+		if (error == EINTR || error == ERESTART) {
 			umtxq_lock(&uq->uq_key);
 			break;
 		}
-		if (abstime != NULL)
+		if (abstime != NULL) {
+			if (abstime->is_abs_real)
+				curthread->td_rtcgen =
+				    atomic_load_acq_int(&rtc_generation);
 			abs_timeout_update(abstime);
+		}
 		umtxq_lock(&uq->uq_key);
 	}
+
+	curthread->td_rtcgen = 0;
 	return (error);
 }
 
