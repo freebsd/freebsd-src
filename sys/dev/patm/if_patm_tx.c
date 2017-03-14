@@ -440,7 +440,7 @@ patm_tx_pad(struct patm_softc *sc, struct mbuf *m0)
 		}
 	}
 	MGET(m, M_NOWAIT, MT_DATA);
-	if (m == 0) {
+	if (m == NULL) {
 		m_freem(m0);
 		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		return (NULL);

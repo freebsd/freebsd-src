@@ -575,7 +575,7 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 		 */
 		mtag = m_tag_locate(m, MTAG_FIREWIRE, MTAG_FIREWIRE_HWADDR, 0);
 		if (mtag == NULL)
-			destfw = 0;
+			destfw = NULL;
 		else
 			destfw = (struct fw_hwaddr *) (mtag + 1);
 

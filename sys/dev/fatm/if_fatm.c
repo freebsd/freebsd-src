@@ -1501,7 +1501,7 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 
 		rpd->nseg = le32toh(rpd->nseg);
 		mlen = 0;
-		m0 = last = 0;
+		m0 = last = NULL;
 		for (i = 0; i < rpd->nseg; i++) {
 			rb = sc->rbufs + rpd->segment[i].handle;
 			if (m0 == NULL) {

@@ -751,7 +751,7 @@ outloop:
 		return;
 	}
 	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-	if (m == 0) {
+	if (m == NULL) {
 
 		/*
 		 * We are using the !OACTIVE flag to indicate to the outside

@@ -330,7 +330,7 @@ static void hptiop_request_callback_itl(struct hpt_iop_hba * hba,
 							u_int32_t index)
 {
 	struct hpt_iop_srb *srb;
-	struct hpt_iop_request_scsi_command *req=0;
+	struct hpt_iop_request_scsi_command *req=NULL;
 	union ccb *ccb;
 	u_int8_t *cdb;
 	u_int32_t result, temp, dxfer;

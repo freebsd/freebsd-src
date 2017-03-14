@@ -1398,8 +1398,8 @@ static u_int32_t arcmsr_Read_iop_rqbuffer_data_D(struct AdapterControlBlock *acb
 	struct QBUFFER *prbuffer) {
 
 	u_int8_t *pQbuffer;
-	u_int8_t *buf1 = 0;
-	u_int32_t *iop_data, *buf2 = 0;
+	u_int8_t *buf1 = NULL;
+	u_int32_t *iop_data, *buf2 = NULL;
 	u_int32_t iop_len, data_len;
 
 	iop_data = (u_int32_t *)prbuffer->data;
@@ -1494,8 +1494,8 @@ static void arcmsr_Write_data_2iop_wqbuffer_D(struct AdapterControlBlock *acb)
 {
 	u_int8_t *pQbuffer;
 	struct QBUFFER *pwbuffer;
-	u_int8_t *buf1 = 0;
-	u_int32_t *iop_data, *buf2 = 0;
+	u_int8_t *buf1 = NULL;
+	u_int32_t *iop_data, *buf2 = NULL;
 	u_int32_t allxfer_len = 0, data_len;
 
 	if(acb->acb_flags & ACB_F_MESSAGE_WQBUFFER_READ) {

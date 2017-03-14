@@ -67,7 +67,7 @@ static const char *features_for_read[] = {
 static spa_list_t zfs_pools;
 
 static uint64_t zfs_crc64_table[256];
-static const dnode_phys_t *dnode_cache_obj = 0;
+static const dnode_phys_t *dnode_cache_obj = NULL;
 static uint64_t dnode_cache_bn;
 static char *dnode_cache_buf;
 static char *zap_scratch;
@@ -1430,7 +1430,7 @@ fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name, uint6
 	zc = &ZAP_LEAF_CHUNK(&zl, h);
 	while (zc->l_entry.le_hash != hash) {
 		if (zc->l_entry.le_next == 0xffff) {
-			zc = 0;
+			zc = NULL;
 			break;
 		}
 		zc = &ZAP_LEAF_CHUNK(&zl, zc->l_entry.le_next);
@@ -2127,7 +2127,7 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 			p = q;
 		} else {
 			strcpy(element, p);
-			p = 0;
+			p = NULL;
 		}
 
 		rc = zfs_dnode_stat(spa, &dn, &sb);
