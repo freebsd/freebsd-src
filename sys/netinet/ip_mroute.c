@@ -929,7 +929,7 @@ add_vif(struct vifctl *vifcp)
     VIF_UNLOCK();
 
     CTR4(KTR_IPMF, "%s: add vif %d laddr 0x%08x thresh %x", __func__,
-	(int)vifcp->vifc_vifi, vifcp->vifc_lcl_addr.s_addr,
+	(int)vifcp->vifc_vifi, ntohl(vifcp->vifc_lcl_addr.s_addr),
 	(int)vifcp->vifc_threshold);
 
     return 0;
@@ -1061,7 +1061,7 @@ add_mfc(struct mfcctl2 *mfccp)
     /* If an entry already exists, just update the fields */
     if (rt) {
 	CTR4(KTR_IPMF, "%s: update mfc orig 0x%08x group %lx parent %x",
-	    __func__, mfccp->mfcc_origin.s_addr,
+	    __func__, ntohl(mfccp->mfcc_origin.s_addr),
 	    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
 	    mfccp->mfcc_parent);
 	update_mfc_params(rt, mfccp);
@@ -1081,7 +1081,7 @@ add_mfc(struct mfcctl2 *mfccp)
 	    !TAILQ_EMPTY(&rt->mfc_stall)) {
 		CTR5(KTR_IPMF,
 		    "%s: add mfc orig 0x%08x group %lx parent %x qh %p",
-		    __func__, mfccp->mfcc_origin.s_addr,
+		    __func__, ntohl(mfccp->mfcc_origin.s_addr),
 		    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		    mfccp->mfcc_parent,
 		    TAILQ_FIRST(&rt->mfc_stall));
@@ -1160,7 +1160,7 @@ del_mfc(struct mfcctl2 *mfccp)
     mcastgrp = mfccp->mfcc_mcastgrp;
 
     CTR3(KTR_IPMF, "%s: delete mfc orig 0x%08x group %lx", __func__,
-	origin.s_addr, (u_long)ntohl(mcastgrp.s_addr));
+	ntohl(origin.s_addr), (u_long)ntohl(mcastgrp.s_addr));
 
     MFC_LOCK();
 
