@@ -383,6 +383,8 @@ extern struct bintime bt_tickthreshold;
 extern sbintime_t sbt_timethreshold;
 extern sbintime_t sbt_tickthreshold;
 
+extern volatile int rtc_generation;
+
 /*
  * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()
  *
