@@ -67,7 +67,6 @@
 #define typeof(x)			__typeof(x)
 
 #define	uninitialized_var(x)		x = x
-#define	__read_mostly __attribute__((__section__(".data.read_mostly")))
 #define	__always_unused			__unused
 #define	__must_check			__result_use_check
 
