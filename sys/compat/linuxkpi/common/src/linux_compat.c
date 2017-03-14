@@ -999,6 +999,8 @@ linux_timer_callback_wrapper(void *context)
 {
 	struct timer_list *timer;
 
+	linux_set_current(curthread);
+
 	timer = context;
 	timer->function(timer->data);
 }
@@ -1342,6 +1344,8 @@ void
 linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
+
+	linux_set_current(curthread);
 
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
