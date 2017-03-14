@@ -52,8 +52,11 @@ __FBSDID("$FreeBSD$");
 #define CPUID_LEAF_HV_FEATURES		0x40000003
 #define CPUID_LEAF_HV_LIMITS		0x40000005
 #define CPUID_HV_IFACE_HYPERV		0x31237648	/* HV#1 */
+#define CPUID_HV_MSR_TIME_REFCNT	0x0002	/* MSR_HV_TIME_REF_COUNT */
 #define CPUID_HV_MSR_HYPERCALL		0x0020
-static int running_on_hyperv(void)
+
+static int
+running_on_hyperv(void)
 {
 	char hv_vendor[16];
 	uint32_t regs[4];
@@ -79,6 +82,8 @@ static int running_on_hyperv(void)
 
 	do_cpuid(CPUID_LEAF_HV_FEATURES, regs);
 	if ((regs[0] & CPUID_HV_MSR_HYPERCALL) == 0)
+		return (0);
+	if ((regs[0] & CPUID_HV_MSR_TIME_REFCNT) == 0)
 		return (0);
 
 	return (1);
@@ -157,7 +162,7 @@ efi_verify_staging_size(unsigned long *nr_pages)
 out:
 	free(map);
 }
-#endif
+#endif /* __i386__ || __amd64__ */
 
 #ifndef EFI_STAGING_SIZE
 #define	EFI_STAGING_SIZE	64
