@@ -41,11 +41,6 @@
 LIB=	pam
 NO_PIC=
 
-.ifdef LIBCHERI
-# This library often causes `relocation R_MIPS_GOT_PAGE out of range` errors
-CFLAGS+=-mllvm -mxmxgot
-.endif
-
 # Avoid redundancy with the master Makefile.
 MAN=
 INCS=

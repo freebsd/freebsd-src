@@ -28,4 +28,9 @@ LIB=	pam_login_access
 SRCS=	pam_login_access.c login_access.c
 MAN=	login.access.5 pam_login_access.8
 
+.ifdef LIBCHERI
+# This library often causes `relocation R_MIPS_GOT_PAGE out of range` errors
+CFLAGS+=-mllvm -mxmxgot
+.endif
+
 .include <bsd.lib.mk>
