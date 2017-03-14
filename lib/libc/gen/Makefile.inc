@@ -461,6 +461,7 @@ MLINKS+=scandir.3 alphasort.3
 MLINKS+=sem_open.3 sem_close.3 \
 	sem_open.3 sem_unlink.3
 MLINKS+=sem_wait.3 sem_trywait.3
+MLINKS+=sem_timedwait.3 sem_clockwait_np.3
 MLINKS+=send.2 sendmmsg.2
 MLINKS+=setjmp.3 _longjmp.3 \
 	setjmp.3 _setjmp.3 \

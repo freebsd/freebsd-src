@@ -418,6 +418,10 @@ FBSD_1.4 {
 	stravis;
 };
 
+FBSD_1.5 {
+	sem_clockwait_np;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
