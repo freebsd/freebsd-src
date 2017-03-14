@@ -348,6 +348,7 @@ xhci_pci_detach(device_t self)
 
 	usb_callout_drain(&sc->sc_callout);
 	xhci_halt_controller(sc);
+	xhci_reset_controller(sc);
 
 	pci_disable_busmaster(self);
 
