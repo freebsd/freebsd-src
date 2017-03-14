@@ -191,11 +191,17 @@ static int
 proc_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct proc *p;
+	struct thread *td;
 
 	p = (struct proc *)mem;
 	SDT_PROBE4(proc, , ctor , entry, p, size, arg, flags);
 	EVENTHANDLER_INVOKE(process_ctor, p);
 	SDT_PROBE4(proc, , ctor , return, p, size, arg, flags);
+	td = FIRST_THREAD_IN_PROC(p);
+	if (td != NULL) {
+		/* Make sure all thread constructors are executed */
+		EVENTHANDLER_INVOKE(thread_ctor, td);
+	}
 	return (0);
 }
 
@@ -220,6 +226,9 @@ proc_dtor(void *mem, int size, void *arg)
 #endif
 		/* Free all OSD associated to this thread. */
 		osd_thread_exit(td);
+
+		/* Make sure all thread destructors are executed */
+		EVENTHANDLER_INVOKE(thread_dtor, td);
 	}
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
