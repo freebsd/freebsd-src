@@ -928,9 +928,11 @@ int
 sys_kevent(struct thread *td, struct kevent_args *uap)
 {
 	struct timespec ts, *tsp;
-	struct kevent_copyops k_ops = { uap,
-					kevent_copyout,
-					kevent_copyin};
+	struct kevent_copyops k_ops = {
+		.arg = uap,
+		.k_copyout = kevent_copyout,
+		.k_copyin = kevent_copyin,
+	};
 	int error;
 #ifdef KTRACE
 	struct uio ktruio;
