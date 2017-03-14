@@ -860,7 +860,7 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 		for (n = 0; nm_i != head; n++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			u_int len = slot->len;
-			vm_paddr_t paddr;
+			uint64_t paddr;
 			void *addr = PNMB(na, slot, &paddr);
 			int flags = (slot->flags & NS_REPORT ||
 				nic_i == 0 || nic_i == report_frequency) ?
