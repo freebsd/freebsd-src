@@ -6503,20 +6503,8 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
 
 		isp_prt(isp, ISP_LOGINFO, "port %s for target %d", reason, XS_TGT(xs));
 
-		/*
-		 * If we're on a local loop, force a LIP (which is overkill)
-		 * to force a re-login of this unit. If we're on fabric,
-		 * then we'll have to log in again as a matter of course.
-		 */
-		if (fcp->isp_topo == TOPO_NL_PORT ||
-		    fcp->isp_topo == TOPO_FL_PORT) {
-			mbreg_t mbs;
-			MBSINIT(&mbs, MBOX_INIT_LIP, MBLOGALL, 0);
-			if (ISP_CAP_2KLOGIN(isp)) {
-				mbs.ibits = (1 << 10);
-			}
-			isp_mboxcmd_qnw(isp, &mbs, 1);
-		}
+		/* XXX: Should we trigger rescan or FW announce change? */
+
 		if (XS_NOERR(xs)) {
 			lp = &fcp->portdb[XS_TGT(xs)];
 			if (lp->state == FC_PORTDB_STATE_ZOMBIE) {
@@ -6664,9 +6652,8 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, long *
 		isp_prt(isp, ISP_LOGINFO, "Chan %d port %s for target %d",
 		    chan, reason, XS_TGT(xs));
 
-		/*
-		 * There is no MBOX_INIT_LIP for the 24XX.
-		 */
+		/* XXX: Should we trigger rescan or FW announce change? */
+
 		if (XS_NOERR(xs)) {
 			lp = &fcp->portdb[XS_TGT(xs)];
 			if (lp->state == FC_PORTDB_STATE_ZOMBIE) {
