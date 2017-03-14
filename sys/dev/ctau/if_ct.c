@@ -839,8 +839,8 @@ static int ct_detach (device_t dev)
 		/* Deallocate buffers. */
 		ct_bus_dma_mem_free (&d->dmamem);
 	}
-	bd->board = 0;
-	adapter [b->num] = 0;
+	bd->board = NULL;
+	adapter [b->num] = NULL;
 	free (b, M_DEVBUF);
 	
 	mtx_destroy (&bd->ct_mtx);

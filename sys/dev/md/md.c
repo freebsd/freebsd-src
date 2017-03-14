@@ -153,7 +153,7 @@ static g_access_t g_md_access;
 static void g_md_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp);
 
-static struct cdev *status_dev = 0;
+static struct cdev *status_dev = NULL;
 static struct sx md_sx;
 static struct unrhdr *md_uh;
 

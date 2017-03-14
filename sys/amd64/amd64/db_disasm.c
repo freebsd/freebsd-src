@@ -1044,7 +1044,7 @@ db_read_address(loc, short_addr, rex, regmodrm, addrp)
 	    return (loc);
 	}
 	addrp->is_reg = FALSE;
-	addrp->index = 0;
+	addrp->index = NULL;
 
 	if (short_addr)
 	    size = LONG;
@@ -1067,7 +1067,7 @@ db_read_address(loc, short_addr, rex, regmodrm, addrp)
 		if (rm == 5) {
 		    get_value_inc(addrp->disp, loc, 4, FALSE);
 		    if (have_sib)
-			addrp->base = 0;
+			addrp->base = NULL;
 		    else if (short_addr)
 			addrp->base = "%eip";
 		    else
@@ -1109,9 +1109,9 @@ db_print_address(seg, size, rex, addrp)
 	    db_printf("%s:", seg);
 	}
 
-	if (addrp->disp != 0 || (addrp->base == 0 && addrp->index == 0))
+	if (addrp->disp != 0 || (addrp->base == NULL && addrp->index == NULL))
 		db_printsym((db_addr_t)addrp->disp, DB_STGY_ANY);
-	if (addrp->base != 0 || addrp->index != 0) {
+	if (addrp->base != NULL || addrp->index != NULL) {
 	    db_printf("(");
 	    if (addrp->base)
 		db_printf("%s", addrp->base);
@@ -1248,7 +1248,7 @@ db_disasm(db_addr_t loc, bool altfmt)
 	get_value_inc(inst, loc, 1, FALSE);
 	short_addr = FALSE;
 	size = LONG;
-	seg = 0;
+	seg = NULL;
 
 	/*
 	 * Get prefixes
@@ -1313,7 +1313,7 @@ db_disasm(db_addr_t loc, bool altfmt)
 	while (ip->i_size == ESC) {
 	    get_value_inc(inst, loc, 1, FALSE);
 	    ip = ((const struct inst * const *)ip->i_extra)[inst>>4];
-	    if (ip == 0) {
+	    if (ip == NULL) {
 		ip = &db_bad_inst;
 	    }
 	    else {
