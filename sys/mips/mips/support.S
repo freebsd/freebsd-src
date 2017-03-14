@@ -1170,3 +1170,14 @@ LEAF(mips3_sd)
 	nop
 	.set pop
 END(mips3_sd)
+
+#ifdef CPU_QEMU_MALTA
+LEAF(cheri_trace_log)
+	.set push
+	.set noreorder
+	li	$0, 0xface
+	jr	ra
+	nop
+	.set pop
+END(cheri_trace_log)
+#endif

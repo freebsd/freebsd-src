@@ -700,6 +700,16 @@ cheri_get_cyclecount(void)
 } while(0)
 
 #ifdef _KERNEL
+/*
+ * Special marker NOP to log messages in instruction traces.
+ */
+void cheri_trace_log(void *buf, size_t len, int format);
+
+#define	CHERI_TRACE_STRING(s)						\
+	cheri_trace_log((s), strlen((s)), 0);
+#define CHERI_TRACE_MEM(buf, len)					\
+	cheri_trace_log((buf), (len), 1);
+
 #define	CHERI_CAP_PRINT(crn) do {					\
 	uintmax_t c_perms, c_otype, c_base, c_length, c_offset;		\
 	u_int ctag, c_sealed;						\
