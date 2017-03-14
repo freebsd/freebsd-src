@@ -375,8 +375,12 @@ swap_on_geli_args(const char *mntops)
 					free(ops);
 					return (NULL);
 				}
-			} else if ((p = strstr(token, "notrim")) == token) {
+			} else if (strcmp(token, "notrim") == 0) {
 				Tflag = " -T ";
+			} else if (strcmp(token, "late") == 0) {
+				/* ignore known option */
+			} else if (strcmp(token, "noauto") == 0) {
+				/* ignore known option */
 			} else if (strcmp(token, "sw") != 0) {
 				warnx("Invalid option: %s", token);
 				free(ops);
