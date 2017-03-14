@@ -317,10 +317,8 @@ sbp_targ_post_busreset(void *arg)
 	unit = &sc->unit;
 
 	if ((sc->flags & F_FREEZED) == 0) {
-		SBP_LOCK(sc);
 		sc->flags |= F_FREEZED;
 		xpt_freeze_simq(sc->sim, /*count*/1);
-		SBP_UNLOCK(sc);
 	} else {
 		printf("%s: already freezed\n", __func__);
 	}
@@ -367,10 +365,8 @@ sbp_targ_post_explore(void *arg)
 	struct sbp_targ_softc *sc;
 
 	sc = (struct sbp_targ_softc *)arg;
-	SBP_LOCK(sc);
 	sc->flags &= ~F_FREEZED;
 	xpt_release_simq(sc->sim, /*run queue*/TRUE);
-	SBP_UNLOCK(sc);
 	return;
 }
 
@@ -869,18 +865,14 @@ sbp_targ_cam_done(struct fw_xfer *xfer)
 					printf("%s: CAM_SEND_STATUS not set %0x\n", __func__, ccb->ccb_h.flags);
 				ccb->ccb_h.status = CAM_REQ_CMP;
 			}
-			SBP_LOCK(orbi->sc);
 			xpt_done(ccb);
-			SBP_UNLOCK(orbi->sc);
 		} else {
 			orbi->status.len = 1;
 			sbp_targ_status_FIFO(orbi,
 		    	    orbi->login->fifo_hi, orbi->login->fifo_lo,
 			    /*dequeue*/1);
 			ccb->ccb_h.status = CAM_REQ_ABORTED;
-			SBP_LOCK(orbi->sc);
 			xpt_done(ccb);
-			SBP_UNLOCK(orbi->sc);
 		}
 	}
 
@@ -1456,9 +1448,7 @@ sbp_targ_cmd_handler(struct fw_xfer *xfer)
 		sbp_targ_remove_orb_info(orbi->login, orbi);
 		free(orbi, M_SBP_TARG);
 		atio->ccb_h.status = CAM_REQ_ABORTED;
-		SBP_LOCK(orbi->sc);
 		xpt_done((union ccb*)atio);
-		SBP_UNLOCK(orbi->sc);
 		goto done0;
 	}
 	orbi->state = ORBI_STATUS_ATIO;
@@ -1530,9 +1520,7 @@ sbp_targ_cmd_handler(struct fw_xfer *xfer)
 	orbi->data_lo = orb[3];
 	orbi->orb4 = *orb4;
 
-	SBP_LOCK(orbi->sc);
 	xpt_done((union ccb*)atio);
-	SBP_UNLOCK(orbi->sc);
 done0:
 	fw_xfer_free(xfer);
 	return;
@@ -2023,8 +2011,8 @@ sbp_targ_detach(device_t dev)
 	SBP_LOCK(sc);
 	xpt_free_path(sc->path);
 	xpt_bus_deregister(cam_sim_path(sc->sim));
-	SBP_UNLOCK(sc);
 	cam_sim_free(sc->sim, /*free_devq*/TRUE);
+	SBP_UNLOCK(sc);
 
 	for (i = 0; i < MAX_LUN; i++) {
 		lstate = sc->lstate[i];
