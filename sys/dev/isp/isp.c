@@ -101,7 +101,6 @@ static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *, uint32_t *);
 static void isp_parse_status(ispsoftc_t *, ispstatusreq_t *, XS_T *, long *); static void
 isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *, long *);
 static void isp_fastpost_complete(ispsoftc_t *, uint32_t);
-static int isp_mbox_continue(ispsoftc_t *);
 static void isp_scsi_init(ispsoftc_t *);
 static void isp_scsi_channel_init(ispsoftc_t *, int);
 static void isp_fibre_init(ispsoftc_t *);
@@ -130,7 +129,6 @@ static int isp_register_port_name_24xx(ispsoftc_t *, int);
 static int isp_register_node_name_24xx(ispsoftc_t *, int);
 static uint16_t isp_next_handle(ispsoftc_t *, uint16_t *);
 static int isp_fw_state(ispsoftc_t *, int);
-static void isp_mboxcmd_qnw(ispsoftc_t *, mbreg_t *, int);
 static void isp_mboxcmd(ispsoftc_t *, mbreg_t *);
 
 static void isp_spi_update(ispsoftc_t *, int);
@@ -734,87 +732,47 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	isp->isp_loaded_fw = 0;
 	if (dodnld && IS_24XX(isp)) {
 		const uint32_t *ptr = isp->isp_mdvec->dv_ispfw;
-		int wordload;
+		uint32_t la, wi, wl;
 
 		/*
 		 * Keep loading until we run out of f/w.
 		 */
 		code_org = ptr[2];	/* 1st load address is our start addr */
-		wordload = 0;
 
 		for (;;) {
-			uint32_t la, wi, wl;
 
 			isp_prt(isp, ISP_LOGDEBUG0, "load 0x%x words of code at load address 0x%x", ptr[3], ptr[2]);
 
 			wi = 0;
 			la = ptr[2];
 			wl = ptr[3];
-
 			while (wi < ptr[3]) {
 				uint32_t *cp;
 				uint32_t nw;
 
-				nw = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) >> 2;
-				if (nw > wl) {
-					nw = wl;
-				}
+				nw = min(wl, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) / 4);
 				cp = isp->isp_rquest;
-				for (i = 0; i < nw; i++) {
-					ISP_IOXPUT_32(isp,  ptr[wi++], &cp[i]);
-					wl--;
-				}
+				for (i = 0; i < nw; i++)
+					ISP_IOXPUT_32(isp, ptr[wi + i], &cp[i]);
 				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
-	again:
-				MBSINIT(&mbs, 0, MBLOGALL, 0);
-				if (la < 0x10000 && nw < 0x10000) {
-					mbs.param[0] = MBOX_LOAD_RISC_RAM_2100;
-					mbs.param[1] = la;
-					mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
-					mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
-					mbs.param[4] = nw;
-					mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
-					mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
-					isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM 2100 %u words at load address 0x%x", nw, la);
-				} else if (wordload) {
-					union {
-						const uint32_t *cp;
-						uint32_t *np;
-					} ucd;
-					ucd.cp = (const uint32_t *)cp;
-					mbs.param[0] = MBOX_WRITE_RAM_WORD_EXTENDED;
-					mbs.param[1] = la;
-					mbs.param[2] = (*ucd.np);
-					mbs.param[3] = (*ucd.np) >> 16;
-					mbs.param[8] = la >> 16;
-					isp->isp_mbxwrk0 = nw - 1;
-					isp->isp_mbxworkp = ucd.np+1;
-					isp->isp_mbxwrk1 = (la + 1);
-					isp->isp_mbxwrk8 = (la + 1) >> 16;
-					isp_prt(isp, ISP_LOGDEBUG0, "WRITE RAM WORD EXTENDED %u words at load address 0x%x", nw, la);
-				} else {
-					mbs.param[0] = MBOX_LOAD_RISC_RAM;
-					mbs.param[1] = la;
-					mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
-					mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
-					mbs.param[4] = nw >> 16;
-					mbs.param[5] = nw;
-					mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
-					mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
-					mbs.param[8] = la >> 16;
-					isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM %u words at load address 0x%x", nw, la);
-				}
+				MBSINIT(&mbs, MBOX_LOAD_RISC_RAM, MBLOGALL, 0);
+				mbs.param[1] = la;
+				mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
+				mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
+				mbs.param[4] = nw >> 16;
+				mbs.param[5] = nw;
+				mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
+				mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
+				mbs.param[8] = la >> 16;
+				isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM %u words at load address 0x%x", nw, la);
 				isp_mboxcmd(isp, &mbs);
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-					if (mbs.param[0] == MBOX_HOST_INTERFACE_ERROR) {
-						isp_prt(isp, ISP_LOGERR, "switching to word load");
-						wordload = 1;
-						goto again;
-					}
-					isp_prt(isp, ISP_LOGERR, "F/W Risc Ram Load Failed");
+					isp_prt(isp, ISP_LOGERR, "F/W download failed");
 					return;
 				}
 				la += nw;
+				wi += nw;
+				wl -= nw;
 			}
 
 			if (ptr[1] == 0) {
@@ -843,18 +801,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				uint16_t *cp;
 				uint16_t nw;
 
-				nw = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) >> 1;
-				if (nw > wl) {
-					nw = wl;
-				}
-				if (nw > (1 << 15)) {
-					nw = 1 << 15;
-				}
+				nw = min(wl, min((1 << 15), ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) / 2));
 				cp = isp->isp_rquest;
-				for (i = 0; i < nw; i++) {
-					ISP_IOXPUT_16(isp,  ptr[wi++], &cp[i]);
-					wl--;
-				}
+				for (i = 0; i < nw; i++)
+					ISP_IOXPUT_16(isp, ptr[wi + i], &cp[i]);
 				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
 				MBSINIT(&mbs, 0, MBLOGALL, 0);
 				if (la < 0x10000) {
@@ -879,10 +829,12 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				}
 				isp_mboxcmd(isp, &mbs);
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-					isp_prt(isp, ISP_LOGERR, "F/W Risc Ram Load Failed");
+					isp_prt(isp, ISP_LOGERR, "F/W download failed");
 					return;
 				}
 				la += nw;
+				wi += nw;
+				wl -= nw;
 			}
 
 			if (!IS_2322(isp)) {
@@ -907,22 +859,22 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		}
 		isp->isp_loaded_fw = 1;
 	} else if (dodnld) {
-		union {
-			const uint16_t *cp;
-			uint16_t *np;
-		} ucd;
-		ucd.cp = isp->isp_mdvec->dv_ispfw;
-		isp->isp_mbxworkp = &ucd.np[1];
-		isp->isp_mbxwrk0 = ucd.np[3] - 1;
-		isp->isp_mbxwrk1 = code_org + 1;
-		MBSINIT(&mbs, MBOX_WRITE_RAM_WORD, MBLOGNONE, 0);
-		mbs.param[1] = code_org;
-		mbs.param[2] = ucd.np[0];
-		isp_prt(isp, ISP_LOGDEBUG1, "WRITE RAM %u words at load address 0x%x", ucd.np[3], code_org);
-		isp_mboxcmd(isp, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			isp_prt(isp, ISP_LOGERR, "F/W download failed at word %d", isp->isp_mbxwrk1 - code_org);
-			return;
+		const uint16_t *ptr = isp->isp_mdvec->dv_ispfw;
+		u_int i, wl;
+
+		wl = ptr[3];
+		isp_prt(isp, ISP_LOGDEBUG1,
+		    "WRITE RAM %u words at load address 0x%x", wl, code_org);
+		for (i = 0; i < wl; i++) {
+			MBSINIT(&mbs, MBOX_WRITE_RAM_WORD, MBLOGNONE, 0);
+			mbs.param[1] = code_org + i;
+			mbs.param[2] = ptr[i];
+			isp_mboxcmd(isp, &mbs);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+				isp_prt(isp, ISP_LOGERR,
+				    "F/W download failed at word %d", i);
+				return;
+			}
 		}
 	} else if (IS_26XX(isp)) {
 		MBSINIT(&mbs, MBOX_LOAD_FLASH_FIRMWARE, MBLOGALL, 5000000);
@@ -4993,11 +4945,6 @@ again:
 					}
 					isp->isp_mboxtmp[i] = ISP_READ(isp, MBOX_OFF(i));
 				}
-				if (isp->isp_mbxwrk0) {
-					if (isp_mbox_continue(isp) == 0) {
-						return;
-					}
-				}
 				MBOX_NOTIFY_COMPLETE(isp);
 			} else {
 				isp_prt(isp, ISP_LOGWARN, "mailbox cmd (0x%x) with no waiters", info);
@@ -6730,96 +6677,6 @@ isp_fastpost_complete(ispsoftc_t *isp, uint32_t fph)
 	isp_done(xs);
 }
 
-static int
-isp_mbox_continue(ispsoftc_t *isp)
-{
-	mbreg_t mbs;
-	uint16_t *ptr;
-	uint32_t offset;
-
-	switch (isp->isp_lastmbxcmd) {
-	case MBOX_WRITE_RAM_WORD:
-	case MBOX_READ_RAM_WORD:
-	case MBOX_WRITE_RAM_WORD_EXTENDED:
-	case MBOX_READ_RAM_WORD_EXTENDED:
-		break;
-	default:
-		return (1);
-	}
-	if (isp->isp_mboxtmp[0] != MBOX_COMMAND_COMPLETE) {
-		isp->isp_mbxwrk0 = 0;
-		return (-1);
-	}
-
-	/*
-	 * Clear the previous interrupt.
-	 */
-	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
-	} else {
-		ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-		ISP_WRITE(isp, BIU_SEMA, 0);
-	}
-
-	/*
-	 * Continue with next word.
-	 */
-	ISP_MEMZERO(&mbs, sizeof (mbs));
-	ptr = isp->isp_mbxworkp;
-	switch (isp->isp_lastmbxcmd) {
-	case MBOX_WRITE_RAM_WORD:
-		mbs.param[1] = isp->isp_mbxwrk1++;
-		mbs.param[2] = *ptr++;
-		break;
-	case MBOX_READ_RAM_WORD:
-		*ptr++ = isp->isp_mboxtmp[2];
-		mbs.param[1] = isp->isp_mbxwrk1++;
-		break;
-	case MBOX_WRITE_RAM_WORD_EXTENDED:
-		if (IS_24XX(isp)) {
-			uint32_t *lptr = (uint32_t *)ptr;
-			mbs.param[2] = lptr[0];
-			mbs.param[3] = lptr[0] >> 16;
-			lptr++;
-			ptr = (uint16_t *)lptr;
-		} else {
-			mbs.param[2] = *ptr++;
-		}
-		offset = isp->isp_mbxwrk1;
-		offset |= isp->isp_mbxwrk8 << 16;
-		mbs.param[1] = offset;
-		mbs.param[8] = offset >> 16;
-		offset++;
-		isp->isp_mbxwrk1 = offset;
-		isp->isp_mbxwrk8 = offset >> 16;
-		break;
-	case MBOX_READ_RAM_WORD_EXTENDED:
-		if (IS_24XX(isp)) {
-			uint32_t *lptr = (uint32_t *)ptr;
-			uint32_t val = isp->isp_mboxtmp[2];
-			val |= (isp->isp_mboxtmp[3]) << 16;
-			*lptr++ = val;
-			ptr = (uint16_t *)lptr;
-		} else {
-			*ptr++ = isp->isp_mboxtmp[2];
-		}
-		offset = isp->isp_mbxwrk1;
-		offset |= isp->isp_mbxwrk8 << 16;
-		mbs.param[1] = offset;
-		mbs.param[8] = offset >> 16;
-		offset++;
-		isp->isp_mbxwrk1 = offset;
-		isp->isp_mbxwrk8 = offset >> 16;
-		break;
-	}
-	isp->isp_mbxworkp = ptr;
-	isp->isp_mbxwrk0--;
-	mbs.param[0] = isp->isp_lastmbxcmd;
-	mbs.logval = MBLOGALL;
-	isp_mboxcmd_qnw(isp, &mbs, 0);
-	return (0);
-}
-
 #define	ISP_SCSI_IBITS(op)		(mbpscsi[((op)<<1)])
 #define	ISP_SCSI_OBITS(op)		(mbpscsi[((op)<<1) + 1])
 #define	ISP_SCSI_OPMAP(in, out)		in, out
@@ -7292,49 +7149,6 @@ static const char *fc_mbcmd_names[] = {
 	"SEND LFA",
 	"LUN RESET"
 };
-
-static void
-isp_mboxcmd_qnw(ispsoftc_t *isp, mbreg_t *mbp, int nodelay)
-{
-	unsigned int ibits, obits, box, opcode;
-
-	opcode = mbp->param[0];
-	if (IS_FC(isp)) {
-		ibits = ISP_FC_IBITS(opcode);
-		obits = ISP_FC_OBITS(opcode);
-	} else {
-		ibits = ISP_SCSI_IBITS(opcode);
-		obits = ISP_SCSI_OBITS(opcode);
-	}
-	ibits |= mbp->ibits;
-	obits |= mbp->obits;
-	for (box = 0; box < ISP_NMBOX(isp); box++) {
-		if (ibits & (1 << box)) {
-			ISP_WRITE(isp, MBOX_OFF(box), mbp->param[box]);
-		}
-		if (nodelay == 0) {
-			isp->isp_mboxtmp[box] = mbp->param[box] = 0;
-		}
-	}
-	if (nodelay == 0) {
-		isp->isp_lastmbxcmd = opcode;
-		isp->isp_obits = obits;
-		isp->isp_mboxbsy = 1;
-	}
-	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_SET_HOST_INT);
-	} else {
-		ISP_WRITE(isp, HCCR, HCCR_CMD_SET_HOST_INT);
-	}
-	/*
-	 * Oddly enough, if we're not delaying for an answer,
-	 * delay a bit to give the f/w a chance to pick up the
-	 * command.
-	 */
-	if (nodelay) {
-		ISP_DELAY(1000);
-	}
-}
 
 static void
 isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
