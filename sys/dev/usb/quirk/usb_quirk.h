@@ -109,6 +109,7 @@ enum {
 	UQ_AU_VENDOR_CLASS,	/* audio device uses vendor and not audio class */
 	UQ_SINGLE_CMD_MIDI,	/* at most one command per USB packet */
 	UQ_MSC_DYMO_EJECT,	/* ejects Dymo MSC device */
+	UQ_AU_SET_SPDIF_CM6206,	/* enable S/PDIF audio output */
 
 	USB_QUIRK_MAX
 };

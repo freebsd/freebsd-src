@@ -337,6 +337,11 @@ struct uaudio_hid {
 	uint8_t mute_id;
 };
 
+#define	UAUDIO_SPDIF_OUT	0x01	/* Enable S/PDIF output */
+#define	UAUDIO_SPDIF_OUT_48K	0x02	/* Out sample rate = 48K */
+#define	UAUDIO_SPDIF_OUT_96K	0x04	/* Out sample rate = 96K */
+#define	UAUDIO_SPDIF_IN_MIX	0x10	/* Input mix enable */
+
 struct uaudio_softc {
 	struct sbuf sc_sndstat;
 	struct sndcard_func sc_sndcard_func;
@@ -354,6 +359,7 @@ struct uaudio_softc {
 	struct usb_xfer *sc_mixer_xfer[1];
 	struct uaudio_mixer_node *sc_mixer_root;
 	struct uaudio_mixer_node *sc_mixer_curr;
+	int     (*sc_set_spdif_fn) (struct uaudio_softc *, int);
 
 	uint32_t sc_mix_info;
 	uint32_t sc_recsrc_info;
@@ -885,6 +891,46 @@ uaudio_probe(device_t dev)
 	return (ENXIO);
 }
 
+/*
+ * Set Cmedia CM6206 S/PDIF settings
+ * Source: CM6206 Datasheet v2.3.
+ */
+static int
+uaudio_set_spdif_cm6206(struct uaudio_softc *sc, int flags)
+{
+	uint8_t cmd[2][4] = {
+		{0x20, 0x20, 0x00, 0},
+		{0x20, 0x30, 0x02, 1}
+	};
+	int i;
+
+	if (flags & UAUDIO_SPDIF_OUT)
+		cmd[1][1] = 0x00;
+	else
+		cmd[1][1] = 0x02;
+
+	if (flags & UAUDIO_SPDIF_OUT_96K)
+		cmd[0][1] = 0x60;	/* 96K: 3'b110 */
+
+	if (flags & UAUDIO_SPDIF_IN_MIX)
+		cmd[1][1] = 0x03;	/* SPDIFMIX */
+
+	for (i = 0; i < 2; i++) {
+		if (usbd_req_set_report(sc->sc_udev, NULL,
+		    cmd[i], sizeof(cmd[0]),
+		    sc->sc_mixer_iface_index, UHID_OUTPUT_REPORT, 0) != 0) {
+			return (ENXIO);
+		}
+	}
+	return (0);
+}
+
+static int
+uaudio_set_spdif_dummy(struct uaudio_softc *sc, int flags)
+{
+	return (0);
+}
+
 static int
 uaudio_attach(device_t dev)
 {
@@ -918,6 +964,12 @@ uaudio_attach(device_t dev)
 
 	if (usb_test_quirk(uaa, UQ_AU_VENDOR_CLASS))
 		sc->sc_uq_au_vendor_class = 1;
+
+	/* set S/PDIF function */
+	if (usb_test_quirk(uaa, UQ_AU_SET_SPDIF_CM6206))
+		sc->sc_set_spdif_fn = uaudio_set_spdif_cm6206;
+	else
+		sc->sc_set_spdif_fn = uaudio_set_spdif_dummy;
 
 	umidi_init(dev);
 
@@ -1055,6 +1107,11 @@ uaudio_attach(device_t dev)
 	/* reload all mixer settings */
 	uaudio_mixer_reload_all(sc);
 
+	/* enable S/PDIF output, if any */
+	if (sc->sc_set_spdif_fn(sc,
+	    UAUDIO_SPDIF_OUT | UAUDIO_SPDIF_OUT_48K) != 0) {
+		device_printf(dev, "Failed to enable S/PDIF at 48K\n");
+	}
 	return (0);			/* success */
 
 detach:
@@ -1138,6 +1195,9 @@ uaudio_detach_sub(device_t dev)
 {
 	struct uaudio_softc *sc = device_get_softc(device_get_parent(dev));
 	int error = 0;
+
+	/* disable S/PDIF output, if any */
+	(void) sc->sc_set_spdif_fn(sc, 0);
 
 repeat:
 	if (sc->sc_pcm_registered) {
