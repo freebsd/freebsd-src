@@ -2504,7 +2504,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 		if (m_adv != NULL) {
 			m = m_adv;
 		} else {
-			pi_adv = OFF_TO_IDX(entry->end - addr);
+			pi_adv = atop(entry->end - addr);
 			pindex = pi;
 			for (tobj = obj;; tobj = tobj->backing_object) {
 				m = vm_page_find_least(tobj, pindex);
@@ -2528,7 +2528,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 		    (pmap_mincore(map->pmap, addr, &locked_pa) &
 		    MINCORE_SUPER) != 0) {
 			kve->kve_flags |= KVME_FLAG_SUPER;
-			pi_adv = OFF_TO_IDX(pagesizes[1]);
+			pi_adv = atop(pagesizes[1]);
 		} else {
 			/*
 			 * We do not test the found page on validity.

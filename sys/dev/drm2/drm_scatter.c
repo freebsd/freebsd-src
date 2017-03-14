@@ -74,7 +74,7 @@ int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
 	DRM_DEBUG("request size=%ld\n", request->size);
 
 	size = round_page(request->size);
-	entry->pages = OFF_TO_IDX(size);
+	entry->pages = atop(size);
 	entry->busaddr = malloc(entry->pages * sizeof(*entry->busaddr),
 	    DRM_MEM_SGLISTS, M_NOWAIT | M_ZERO);
 	if (!entry->busaddr) {

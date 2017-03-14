@@ -1573,7 +1573,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		 * actually shadow anything - we copy the pages directly.)
 		 */
 		dst_object = vm_object_allocate(OBJT_DEFAULT,
-		    OFF_TO_IDX(dst_entry->end - dst_entry->start));
+		    atop(dst_entry->end - dst_entry->start));
 #if VM_NRESERVLEVEL > 0
 		dst_object->flags |= OBJ_COLORED;
 		dst_object->pg_color = atop(dst_entry->start);

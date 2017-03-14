@@ -1061,7 +1061,7 @@ RestartScan:
 			/*
 			 * calculate index into user supplied byte vector
 			 */
-			vecindex = OFF_TO_IDX(addr - first_addr);
+			vecindex = atop(addr - first_addr);
 
 			/*
 			 * If we have skipped map entries, we need to make sure that
@@ -1107,7 +1107,7 @@ RestartScan:
 	/*
 	 * Zero the last entries in the byte vector.
 	 */
-	vecindex = OFF_TO_IDX(end - first_addr);
+	vecindex = atop(end - first_addr);
 	while ((lastvecindex + 1) < vecindex) {
 		++lastvecindex;
 		error = subyte(vec + lastvecindex, 0);

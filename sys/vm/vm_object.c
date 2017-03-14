@@ -285,16 +285,16 @@ vm_object_init(void)
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
 	rw_init(&kernel_object->lock, "kernel vm object");
-	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
-	    kernel_object);
+	_vm_object_allocate(OBJT_PHYS, atop(VM_MAX_KERNEL_ADDRESS -
+	    VM_MIN_KERNEL_ADDRESS), kernel_object);
 #if VM_NRESERVLEVEL > 0
 	kernel_object->flags |= OBJ_COLORED;
 	kernel_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
 #endif
 
 	rw_init(&kmem_object->lock, "kmem vm object");
-	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
-	    kmem_object);
+	_vm_object_allocate(OBJT_PHYS, atop(VM_MAX_KERNEL_ADDRESS -
+	    VM_MIN_KERNEL_ADDRESS), kmem_object);
 #if VM_NRESERVLEVEL > 0
 	kmem_object->flags |= OBJ_COLORED;
 	kmem_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
@@ -1040,7 +1040,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (syncio && !invalidate && offset == 0 &&
-		    OFF_TO_IDX(size) == object->size) {
+		    atop(size) == object->size) {
 			/*
 			 * If syncing the whole mapping of the file,
 			 * it is faster to schedule all the writes in
