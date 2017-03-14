@@ -64,8 +64,7 @@ struct ispmdvec {
 	int		(*dv_mbxdma) (ispsoftc_t *);
 	int		(*dv_dmaset) (ispsoftc_t *, XS_T *, void *);
 	void		(*dv_dmaclr) (ispsoftc_t *, XS_T *, uint32_t);
-	void		(*dv_reset0) (ispsoftc_t *);
-	void		(*dv_reset1) (ispsoftc_t *);
+	int		(*dv_irqsetup) (ispsoftc_t *);
 	void		(*dv_dregs) (ispsoftc_t *, const char *);
 	const void *	dv_ispfw;	/* ptr to f/w */
 	uint16_t	dv_conf1;
@@ -105,10 +104,8 @@ struct ispmdvec {
 	if ((isp)->isp_mdvec->dv_dmaclr)	\
 	    (*(isp)->isp_mdvec->dv_dmaclr)((isp), (xs), (hndl))
 
-#define	ISP_RESET0(isp)	\
-	if ((isp)->isp_mdvec->dv_reset0) (*(isp)->isp_mdvec->dv_reset0)((isp))
-#define	ISP_RESET1(isp)	\
-	if ((isp)->isp_mdvec->dv_reset1) (*(isp)->isp_mdvec->dv_reset1)((isp))
+#define	ISP_IRQSETUP(isp)	\
+	(((isp)->isp_mdvec->dv_irqsetup) ? (*(isp)->isp_mdvec->dv_irqsetup)(isp) : 0)
 #define	ISP_DUMPREGS(isp, m)	\
 	if ((isp)->isp_mdvec->dv_dregs) (*(isp)->isp_mdvec->dv_dregs)((isp),(m))
 
@@ -565,13 +562,9 @@ struct ispsoftc {
 	 * Volatile state
 	 */
 
-	volatile uint32_t	:	8,
-				:	2,
-		isp_dead	:	1,
-				:	1,
-		isp_mboxbsy	:	1,	/* mailbox command active */
-		isp_state	:	3,
-		isp_nactive	:	16;	/* how many commands active */
+	volatile u_int		isp_mboxbsy;	/* mailbox command active */
+	volatile u_int		isp_state;
+	volatile u_int		isp_nactive;	/* how many commands active */
 	volatile mbreg_t	isp_curmbx;	/* currently active mailbox command */
 	volatile uint32_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile uint32_t	isp_reqidx;	/* index of next request */
@@ -817,6 +810,11 @@ void isp_init(ispsoftc_t *);
  * Reset the ISP and call completion for any orphaned commands.
  */
 int isp_reinit(ispsoftc_t *, int);
+
+/*
+ * Shutdown hardware after use.
+ */
+void isp_shutdown(ispsoftc_t *);
 
 /*
  * Internal Interrupt Service Routine
