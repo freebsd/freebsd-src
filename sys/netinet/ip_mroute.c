@@ -845,9 +845,6 @@ add_vif(struct vifctl *vifcp)
     struct ifaddr *ifa;
     struct ifnet *ifp;
     int error;
-#ifdef KTR
-    char addrbuf[INET_ADDRSTRLEN];
-#endif
 
     VIF_LOCK();
     if (vifcp->vifc_vifi >= MAXVIFS) {
@@ -931,8 +928,8 @@ add_vif(struct vifctl *vifcp)
 
     VIF_UNLOCK();
 
-    CTR4(KTR_IPMF, "%s: add vif %d laddr %s thresh %x", __func__,
-	(int)vifcp->vifc_vifi, inet_ntoa_r(vifcp->vifc_lcl_addr, addrbuf),
+    CTR4(KTR_IPMF, "%s: add vif %d laddr 0x%08x thresh %x", __func__,
+	(int)vifcp->vifc_vifi, vifcp->vifc_lcl_addr.s_addr,
 	(int)vifcp->vifc_threshold);
 
     return 0;
@@ -1055,9 +1052,6 @@ add_mfc(struct mfcctl2 *mfccp)
     struct rtdetq *rte, *nrte;
     u_long hash = 0;
     u_short nstl;
-#ifdef KTR
-    char addrbuf[INET_ADDRSTRLEN];
-#endif
 
     VIF_LOCK();
     MFC_LOCK();
@@ -1066,8 +1060,8 @@ add_mfc(struct mfcctl2 *mfccp)
 
     /* If an entry already exists, just update the fields */
     if (rt) {
-	CTR4(KTR_IPMF, "%s: update mfc orig %s group %lx parent %x",
-	    __func__, inet_ntoa_r(mfccp->mfcc_origin, addrbuf),
+	CTR4(KTR_IPMF, "%s: update mfc orig 0x%08x group %lx parent %x",
+	    __func__, mfccp->mfcc_origin.s_addr,
 	    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
 	    mfccp->mfcc_parent);
 	update_mfc_params(rt, mfccp);
@@ -1086,8 +1080,8 @@ add_mfc(struct mfcctl2 *mfccp)
 	    in_hosteq(rt->mfc_mcastgrp, mfccp->mfcc_mcastgrp) &&
 	    !TAILQ_EMPTY(&rt->mfc_stall)) {
 		CTR5(KTR_IPMF,
-		    "%s: add mfc orig %s group %lx parent %x qh %p",
-		    __func__, inet_ntoa_r(mfccp->mfcc_origin, addrbuf),
+		    "%s: add mfc orig 0x%08x group %lx parent %x qh %p",
+		    __func__, mfccp->mfcc_origin.s_addr,
 		    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		    mfccp->mfcc_parent,
 		    TAILQ_FIRST(&rt->mfc_stall));
@@ -1161,15 +1155,12 @@ del_mfc(struct mfcctl2 *mfccp)
     struct in_addr	origin;
     struct in_addr	mcastgrp;
     struct mfc		*rt;
-#ifdef KTR
-    char		addrbuf[INET_ADDRSTRLEN];
-#endif
 
     origin = mfccp->mfcc_origin;
     mcastgrp = mfccp->mfcc_mcastgrp;
 
-    CTR3(KTR_IPMF, "%s: delete mfc orig %s group %lx", __func__,
-	inet_ntoa_r(origin, addrbuf), (u_long)ntohl(mcastgrp.s_addr));
+    CTR3(KTR_IPMF, "%s: delete mfc orig 0x%08x group %lx", __func__,
+	origin.s_addr, (u_long)ntohl(mcastgrp.s_addr));
 
     MFC_LOCK();
 
@@ -1232,13 +1223,9 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
     struct mfc *rt;
     int error;
     vifi_t vifi;
-#ifdef KTR
-    char addrbuf[INET_ADDRSTRLEN];
-#endif
 
-    CTR3(KTR_IPMF, "ip_mforward: delete mfc orig %s group %lx ifp %p",
-	inet_ntoa_r(ip->ip_src, addrbuf), (u_long)ntohl(ip->ip_dst.s_addr),
-	ifp);
+    CTR3(KTR_IPMF, "ip_mforward: delete mfc orig 0x%08x group %lx ifp %p",
+	ntohl(ip->ip_src.s_addr), (u_long)ntohl(ip->ip_dst.s_addr), ifp);
 
     if (ip->ip_hl < (sizeof(struct ip) + TUNNEL_LEN) >> 2 ||
 		((u_char *)(ip + 1))[1] != IPOPT_LSRR ) {
@@ -1300,8 +1287,8 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 
 	MRTSTAT_INC(mrts_mfc_misses);
 	MRTSTAT_INC(mrts_no_route);
-	CTR2(KTR_IPMF, "ip_mforward: no mfc for (%s,%lx)",
-	    inet_ntoa_r(ip->ip_src, addrbuf), (u_long)ntohl(ip->ip_dst.s_addr));
+	CTR2(KTR_IPMF, "ip_mforward: no mfc for (0x%08x,%lx)",
+	    ntohl(ip->ip_src.s_addr), (u_long)ntohl(ip->ip_dst.s_addr));
 
 	/*
 	 * Allocate mbufs early so that we don't do extra work if we are
@@ -2583,9 +2570,6 @@ pim_input(struct mbuf **mp, int *offp, int proto)
     int minlen;
     int datalen = ntohs(ip->ip_len) - iphlen;
     int ip_tos;
-#ifdef KTR
-    char addrbuf[INET_ADDRSTRLEN];
-#endif
  
     *mp = NULL;
 
@@ -2598,8 +2582,8 @@ pim_input(struct mbuf **mp, int *offp, int proto)
      */
     if (datalen < PIM_MINLEN) {
 	PIMSTAT_INC(pims_rcv_tooshort);
-	CTR3(KTR_IPMF, "%s: short packet (%d) from %s",
-	    __func__, datalen, inet_ntoa_r(ip->ip_src, addrbuf));
+	CTR3(KTR_IPMF, "%s: short packet (%d) from 0x%08x",
+	    __func__, datalen, ntohl(ip->ip_src.s_addr));
 	m_freem(m);
 	return (IPPROTO_DONE);
     }
@@ -2698,8 +2682,8 @@ pim_input(struct mbuf **mp, int *offp, int proto)
 	reghdr = (u_int32_t *)(pim + 1);
 	encap_ip = (struct ip *)(reghdr + 1);
 
-	CTR3(KTR_IPMF, "%s: register: encap ip src %s len %d",
-	    __func__, inet_ntoa_r(encap_ip->ip_src, addrbuf),
+	CTR3(KTR_IPMF, "%s: register: encap ip src 0x%08x len %d",
+	    __func__, ntohl(encap_ip->ip_src.s_addr),
 	    ntohs(encap_ip->ip_len));
 
 	/* verify the version number of the inner packet */
@@ -2713,8 +2697,8 @@ pim_input(struct mbuf **mp, int *offp, int proto)
 	/* verify the inner packet is destined to a mcast group */
 	if (!IN_MULTICAST(ntohl(encap_ip->ip_dst.s_addr))) {
 	    PIMSTAT_INC(pims_rcv_badregisters);
-	    CTR2(KTR_IPMF, "%s: bad encap ip dest %s", __func__,
-		inet_ntoa_r(encap_ip->ip_dst, addrbuf));
+	    CTR2(KTR_IPMF, "%s: bad encap ip dest 0x%08x", __func__,
+		ntohl(encap_ip->ip_dst.s_addr));
 	    m_freem(m);
 	    return (IPPROTO_DONE);
 	}
