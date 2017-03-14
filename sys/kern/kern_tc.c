@@ -1269,6 +1269,15 @@ static bool
 sleeping_on_old_rtc(struct thread *td)
 {
 
+	/*
+	 * td_rtcgen is modified by curthread when it is running,
+	 * and by other threads in this function.  By finding the thread
+	 * on a sleepqueue and holding the lock on the sleepqueue
+	 * chain, we guarantee that the thread is not running and that
+	 * modifying td_rtcgen is safe.  Setting td_rtcgen to zero informs
+	 * the thread that it was woken due to a real-time clock adjustment.
+	 * (The declaration of td_rtcgen refers to this comment.)
+	 */
 	if (td->td_rtcgen != 0 && td->td_rtcgen != rtc_generation) {
 		td->td_rtcgen = 0;
 		return (true);
@@ -1299,6 +1308,7 @@ tc_setclock(struct timespec *ts)
 	/* XXX fiddle all the little crinkly bits around the fiords... */
 	tc_windup(&bt);
 	mtx_unlock_spin(&tc_setclock_mtx);
+
 	/* Avoid rtc_generation == 0, since td_rtcgen == 0 is special. */
 	atomic_add_rel_int(&rtc_generation, 2);
 	sleepq_chains_remove_matching(sleeping_on_old_rtc);

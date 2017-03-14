@@ -280,6 +280,21 @@ to
 pay particular attention to ensure that no other threads wait on the
 same
 .Fa chan .
+.Pp
+If the timeout given by
+.Fa timo
+or
+.Fa sbt
+is based on an absolute real-time clock value,
+then the thread should copy the global
+.Va rtc_generation
+into its
+.Va td_rtcgen
+member before reading the RTC.
+If the real-time clock is adjusted, these functions will set
+.Va td_rtcgen
+to zero and return zero.
+The caller should reconsider its orientation with the new RTC value.
 .Sh RETURN VALUES
 When awakened by a call to
 .Fn wakeup
@@ -298,6 +313,9 @@ the
 .Fn msleep_spin ,
 .Fn tsleep ,
 and locking primitive sleep functions return 0.
+Zero can also be returned when the real-time clock is adjusted;
+see above regarding
+.Va td_rtcgen .
 Otherwise, a non-zero error code is returned.
 .Sh ERRORS
 .Fn msleep ,

@@ -148,7 +148,7 @@ struct pargs {
  *      o - ktrace lock
  *      q - td_contested lock
  *      r - p_peers lock
- *      s - by curthread, or by others when curthread is on sleepqueue
+ *      s - see sleepq_switch(), sleeping_on_old_rtc(), and sleep(9)
  *      t - thread lock
  *	u - process stat lock
  *	w - process timer lock
