@@ -617,7 +617,7 @@ isp_endcmd(ispsoftc_t *isp, ...)
  * These are either broadcast events or specifically CTIO fast completion
  */
 
-int
+void
 isp_target_async(ispsoftc_t *isp, int bus, int event)
 {
 	isp_notify_t notify;
@@ -694,7 +694,6 @@ isp_target_async(ispsoftc_t *isp, int bus, int event)
 		}
 		break;
 	}
-	return (0);
 }
 
 /*
