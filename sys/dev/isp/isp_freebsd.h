@@ -308,11 +308,11 @@ struct isposinfo {
 #endif
 		sixtyfourbit	: 1,	/* sixtyfour bit platform */
 		timer_active	: 1,
-		autoconf	: 1,
-		mbox_sleeping	: 1,
-		mbox_sleep_ok	: 1,
-		mboxcmd_done	: 1,
-		mboxbsy		: 1;
+		autoconf	: 1;
+	int			mbox_sleeping;
+	int			mbox_sleep_ok;
+	int			mboxbsy;
+	int			mboxcmd_done;
 
 	struct callout		tmo;	/* general timer */
 
