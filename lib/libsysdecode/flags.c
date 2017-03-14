@@ -962,23 +962,15 @@ sysdecode_umtx_rwlock_flags(FILE *fp, u_long flags, u_long *rem)
 	return (print_mask_0ul(fp, umtxrwlockflags, flags, rem));
 }
 
-/* XXX: This should be in <sys/capsicum.h> */
-#define	CAPMASK(right)	((right) & (((uint64_t)1 << 57) - 1))
-
 void
 sysdecode_cap_rights(FILE *fp, cap_rights_t *rightsp)
 {
 	struct name_table *t;
-	int idx;
 	bool comma;
 
 	comma = false;
 	for (t = caprights; t->str != NULL; t++) {
-		idx = ffs(CAPIDXBIT(t->val)) - 1;
-		if (CAPARSIZE(rightsp) < idx)
-			continue;
-		if ((rightsp->cr_rights[CAPIDXBIT(t->val)] & CAPMASK(t->val)) ==
-		    CAPMASK(t->val)) {
+		if (cap_rights_is_set(rightsp, t->val)) {
 			fprintf(fp, "%s%s", comma ? "," : "", t->str);
 			comma = true;
 		}
