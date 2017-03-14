@@ -312,10 +312,23 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 		    strcmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
 		    bi->compat_3_brand) == 0)) {
 			/* Looks good, but give brand a chance to veto */
-			if (!bi->header_supported || bi->header_supported(imgp))
-				return (bi);
+			if (!bi->header_supported ||
+			    bi->header_supported(imgp)) {
+				/*
+				 * Again, prefer strictly matching
+				 * interpreter path.
+				 */
+				if (strlen(bi->interp_path) + 1 ==
+				    interp_name_len && strncmp(interp,
+				    bi->interp_path, interp_name_len) == 0)
+					return (bi);
+				if (bi_m == NULL)
+					bi_m = bi;
+			}
 		}
 	}
+	if (bi_m != NULL)
+		return (bi_m);
 
 	/* No known brand, see if the header is recognized by any brand */
 	for (i = 0; i < MAX_BRANDS; i++) {
