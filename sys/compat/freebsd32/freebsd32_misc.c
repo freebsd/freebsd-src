@@ -651,9 +651,11 @@ freebsd32_kevent(struct thread *td, struct freebsd32_kevent_args *uap)
 {
 	struct timespec32 ts32;
 	struct timespec ts, *tsp;
-	struct kevent_copyops k_ops = { uap,
-					freebsd32_kevent_copyout,
-					freebsd32_kevent_copyin};
+	struct kevent_copyops k_ops = {
+		.arg = uap,
+		.k_copyout = freebsd32_kevent_copyout,
+		.k_copyin = freebsd32_kevent_copyin,
+	};
 	int error;
 
 
