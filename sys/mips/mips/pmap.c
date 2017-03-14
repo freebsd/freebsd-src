@@ -2751,7 +2751,7 @@ pmap_quick_enter_page(vm_page_t m)
 	KASSERT(sysm->valid1 == 0, ("pmap_quick_enter_page: PTE busy"));
 
 	pte = pmap_pte(kernel_pmap, sysm->base);
-	npte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G;
+	npte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_VALID | PTE_G;
 	PMAP_PTE_SET_CACHE_BITS(npte, pa, m);
 	*pte = npte;
 	sysm->valid1 = 1;
@@ -2825,7 +2825,7 @@ boolean_t
 pmap_page_is_mapped(vm_page_t m)
 {
 
-		return (!TAILQ_EMPTY(&(m)->md.pv_list));
+	return (!TAILQ_EMPTY(&(m)->md.pv_list));
 }
 
 /*
@@ -3566,7 +3566,7 @@ int
 pmap_emulate_referenced(pmap_t pmap, vm_offset_t va)
 {
 
-		return (1);
+	return (1);
 }
 
 /*

@@ -89,7 +89,6 @@ struct md_page {
 #define	ASIDGEN_MASK		((1 << ASIDGEN_BITS) - 1)
 
 struct pmap {
-	struct mtx pm_mtx;
 	pd_entry_t *pm_segtab;	/* KVA of segment table */
 	TAILQ_HEAD(, pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t	pm_active;		/* active on cpus */
@@ -98,6 +97,7 @@ struct pmap {
 		u_int32_t gen:ASIDGEN_BITS;	/* its generation number */
 	}      pm_asid[MAXSMPCPU];
 	struct pmap_statistics pm_stats;	/* pmap statistics */
+	struct mtx pm_mtx;
 #ifdef MIPS64_NEW_PMAP
 	struct vm_radix pm_root;		/* spare page table pages */
 #endif /* MIPS64_NEW_PMAP */
