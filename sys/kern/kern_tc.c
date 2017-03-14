@@ -28,7 +28,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
@@ -125,6 +127,8 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, alloweddeviation,
     CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, 0,
     sysctl_kern_timecounter_adjprecision, "I",
     "Allowed time interval deviation in percents");
+
+volatile int rtc_generation = 1;
 
 static int tc_chosen;	/* Non-zero if a specific tc was chosen via sysctl. */
 
@@ -1261,6 +1265,17 @@ tc_getfrequency(void)
 	return (timehands->th_counter->tc_frequency);
 }
 
+static bool
+sleeping_on_old_rtc(struct thread *td)
+{
+
+	if (td->td_rtcgen != 0 && td->td_rtcgen != rtc_generation) {
+		td->td_rtcgen = 0;
+		return (true);
+	}
+	return (false);
+}
+
 static struct mtx tc_setclock_mtx;
 MTX_SYSINIT(tc_setclock_init, &tc_setclock_mtx, "tcsetc", MTX_SPIN);
 
@@ -1284,6 +1299,9 @@ tc_setclock(struct timespec *ts)
 	/* XXX fiddle all the little crinkly bits around the fiords... */
 	tc_windup(&bt);
 	mtx_unlock_spin(&tc_setclock_mtx);
+	/* Avoid rtc_generation == 0, since td_rtcgen == 0 is special. */
+	atomic_add_rel_int(&rtc_generation, 2);
+	sleepq_chains_remove_matching(sleeping_on_old_rtc);
 	if (timestepwarnings) {
 		nanotime(&taft);
 		log(LOG_INFO,
