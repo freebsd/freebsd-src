@@ -4413,50 +4413,33 @@ isp_mbox_acquire(ispsoftc_t *isp)
 void
 isp_mbox_wait_complete(ispsoftc_t *isp, mbreg_t *mbp)
 {
-	unsigned int usecs = mbp->timeout;
-	unsigned int max, olim, ilim;
+	u_int t, to;
 
-	if (usecs == 0) {
-		usecs = MBCMD_DEFAULT_TIMEOUT;
-	}
-	max = isp->isp_mbxwrk0 + 1;
-
+	to = (mbp->timeout == 0) ? MBCMD_DEFAULT_TIMEOUT : mbp->timeout;
 	if (isp->isp_osinfo.mbox_sleep_ok) {
-		unsigned int ms = (usecs + 999) / 1000;
-
 		isp->isp_osinfo.mbox_sleep_ok = 0;
 		isp->isp_osinfo.mbox_sleeping = 1;
-		for (olim = 0; olim < max; olim++) {
-			msleep(&isp->isp_mbxworkp, &isp->isp_osinfo.lock, PRIBIO, "ispmbx_sleep", isp_mstohz(ms));
-			if (isp->isp_osinfo.mboxcmd_done) {
-				break;
-			}
-		}
+		msleep_sbt(&isp->isp_osinfo.mboxcmd_done, &isp->isp_osinfo.lock,
+		    PRIBIO, "ispmbx_sleep", to * SBT_1US, 0, 0);
 		isp->isp_osinfo.mbox_sleep_ok = 1;
 		isp->isp_osinfo.mbox_sleeping = 0;
 	} else {
-		for (olim = 0; olim < max; olim++) {
-			for (ilim = 0; ilim < usecs; ilim += 100) {
-				uint16_t isr, sema, info;
-				if (isp->isp_osinfo.mboxcmd_done) {
-					break;
-				}
-				if (ISP_READ_ISR(isp, &isr, &sema, &info)) {
-					isp_intr(isp, isr, sema, info);
-					if (isp->isp_osinfo.mboxcmd_done) {
-						break;
-					}
-				}
-				ISP_DELAY(100);
-			}
-			if (isp->isp_osinfo.mboxcmd_done) {
+		for (t = 0; t < to; t += 100) {
+			uint16_t isr, sema, info;
+			if (isp->isp_osinfo.mboxcmd_done)
 				break;
+			if (ISP_READ_ISR(isp, &isr, &sema, &info)) {
+				isp_intr(isp, isr, sema, info);
+				if (isp->isp_osinfo.mboxcmd_done)
+					break;
 			}
+			ISP_DELAY(100);
 		}
 	}
 	if (isp->isp_osinfo.mboxcmd_done == 0) {
-		isp_prt(isp, ISP_LOGWARN, "%s Mailbox Command (0x%x) Timeout (%uus) (started @ %s:%d)",
-		    isp->isp_osinfo.mbox_sleep_ok? "Interrupting" : "Polled", isp->isp_lastmbxcmd, usecs, mbp->func, mbp->lineno);
+		isp_prt(isp, ISP_LOGWARN, "%s Mailbox Command (0x%x) Timeout (%uus) (%s:%d)",
+		    isp->isp_osinfo.mbox_sleep_ok? "Interrupting" : "Polled",
+		    isp->isp_lastmbxcmd, to, mbp->func, mbp->lineno);
 		mbp->param[0] = MBOX_TIMEOUT;
 		isp->isp_osinfo.mboxcmd_done = 1;
 	}
@@ -4465,10 +4448,9 @@ isp_mbox_wait_complete(ispsoftc_t *isp, mbreg_t *mbp)
 void
 isp_mbox_notify_done(ispsoftc_t *isp)
 {
-	if (isp->isp_osinfo.mbox_sleeping) {
-		wakeup(&isp->isp_mbxworkp);
-	}
 	isp->isp_osinfo.mboxcmd_done = 1;
+	if (isp->isp_osinfo.mbox_sleeping)
+		wakeup(&isp->isp_osinfo.mboxcmd_done);
 }
 
 void
