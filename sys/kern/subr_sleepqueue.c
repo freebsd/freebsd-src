@@ -561,9 +561,21 @@ sleepq_switch(void *wchan, int pri)
 	/*
 	 * If TDF_TIMEOUT is set, then our sleep has been timed out
 	 * already but we are still on the sleep queue, so dequeue the
-	 * thread and return.  Do the same if the real-time clock has
-	 * been adjusted since this thread calculated its timeout
-	 * based on that clock.
+	 * thread and return.
+	 *
+	 * Do the same if the real-time clock has been adjusted since this
+	 * thread calculated its timeout based on that clock.  This handles
+	 * the following race:
+	 * - The Ts thread needs to sleep until an absolute real-clock time.
+	 *   It copies the global rtc_generation into curthread->td_rtcgen,
+	 *   reads the RTC, and calculates a sleep duration based on that time.
+	 *   See umtxq_sleep() for an example.
+	 * - The Tc thread adjusts the RTC, bumps rtc_generation, and wakes
+	 *   threads that are sleeping until an absolute real-clock time.
+	 *   See tc_setclock() and the POSIX specification of clock_settime().
+	 * - Ts reaches the code below.  It holds the sleepqueue chain lock,
+	 *   so Tc has finished waking, so this thread must test td_rtcgen.
+	 * (The declaration of td_rtcgen refers to this comment.)
 	 */
 	rtc_changed = td->td_rtcgen != 0 && td->td_rtcgen != rtc_generation;
 	if ((td->td_flags & TDF_TIMEOUT) || rtc_changed) {
@@ -899,6 +911,7 @@ sleepq_signal(void *wchan, int flags, int pri, int queue)
 static bool
 match_any(struct thread *td __unused)
 {
+
 	return (true);
 }
 
