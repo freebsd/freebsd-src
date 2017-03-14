@@ -1439,6 +1439,9 @@ product CLIPSAL 5000CT2		0x0304	5000CT2 C-Bus Touch Screen
 product CLIPSAL C5000CT2	0x0305	C5000CT2 C-Bus Touch Screen
 product CLIPSAL L51xx		0x0401	L51xx C-Bus Dimmer
 
+/* C-Media products */
+product CMEDIA CM6206		0x0102	CM106 compatible sound device
+
 /* CMOTECH products */
 product CMOTECH CNU510		0x5141	CDMA Technologies USB modem
 product CMOTECH CNU550		0x5543	CDMA 2000 1xRTT/1xEVDO USB modem
