@@ -7484,9 +7484,9 @@ OLD_FILES+=usr/share/man/man8/rwhod.8.gz
 
 .if ${MK_RESCUE} == no
 . if exists(${DESTDIR}${TESTSBASE})
-RESCUE_DIRS!=find ${DESTDIR}/rescue -type d | sed -e 's,^${DESTDIR}/,,'; echo
+RESCUE_DIRS!=find ${DESTDIR}/rescue -type d 2>/dev/null | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_DIRS+=${RESCUE_DIRS}
-RESCUE_FILES!=find ${DESTDIR}/rescue \! -type d | sed -e 's,^${DESTDIR}/,,'; echo
+RESCUE_FILES!=find ${DESTDIR}/rescue \! -type d 2>/dev/null | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_FILES+=${RESCUE_FILES}
 . endif
 .endif
