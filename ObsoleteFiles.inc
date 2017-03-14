@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170313: move .../sys/geom/eli/... to .../sys/geom/class/eli/...
+OLD_FILES+=usr/tests/sys/geom/eli/pbkdf2/pbkdf2
+OLD_FILES+=usr/tests/sys/geom/eli/pbkdf2/Kyuafile
+OLD_FILES+=usr/tests/sys/geom/eli/Kyuafile
+OLD_DIRS+=usr/tests/sys/geom/eli/pbkdf2
+OLD_DIRS+=usr/tests/sys/geom/eli
 # 20170313: sbin/ipftest and ipresend temporarily disconnected.
 OLD_FILES+=sbin/ipftest
 OLD_FILES+=sbin/ipresend
