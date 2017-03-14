@@ -178,13 +178,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	const char *btype = "????";
 	static const char dcrc[] = "Downloaded RISC Code Checksum Failure";
 
-	isp->isp_state = ISP_NILSTATE;
-	if (isp->isp_dead) {
-		isp_shutdown(isp);
-		ISP_DISABLE_INTS(isp);
-		return;
-	}
-
 	/*
 	 * Basic types (SCSI, FibreChannel and PCI or SBus)
 	 * have been set in the MD code. We figure out more
@@ -195,54 +188,8 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * for SCSI adapters and do other settings for the 2100.
 	 */
 
+	isp->isp_state = ISP_NILSTATE;
 	ISP_DISABLE_INTS(isp);
-
-	/*
-	 * Pick an initial maxcmds value which will be used
-	 * to allocate xflist pointer space. It may be changed
-	 * later by the firmware.
-	 */
-	if (IS_24XX(isp)) {
-		isp->isp_maxcmds = 4096;
-	} else if (IS_2322(isp)) {
-		isp->isp_maxcmds = 2048;
-	} else if (IS_23XX(isp) || IS_2200(isp)) {
-		isp->isp_maxcmds = 1024;
- 	} else {
-		isp->isp_maxcmds = 512;
-	}
-
-	/*
-	 * Set up DMA for the request and response queues.
-	 *
-	 * We do this now so we can use the request queue
-	 * for dma to load firmware from.
-	 */
-	if (ISP_MBOXDMASETUP(isp) != 0) {
-		isp_prt(isp, ISP_LOGERR, "Cannot setup DMA");
-		return;
-	}
-
-	/*
-	 * Set up default request/response queue in-pointer/out-pointer
-	 * register indices.
-	 */
-	if (IS_24XX(isp)) {
-		isp->isp_rqstinrp = BIU2400_REQINP;
-		isp->isp_rqstoutrp = BIU2400_REQOUTP;
-		isp->isp_respinrp = BIU2400_RSPINP;
-		isp->isp_respoutrp = BIU2400_RSPOUTP;
-	} else if (IS_23XX(isp)) {
-		isp->isp_rqstinrp = BIU_REQINP;
-		isp->isp_rqstoutrp = BIU_REQOUTP;
-		isp->isp_respinrp = BIU_RSPINP;
-		isp->isp_respoutrp = BIU_RSPOUTP;
-	} else {
-		isp->isp_rqstinrp = INMAILBOX4;
-		isp->isp_rqstoutrp = OUTMAILBOX4;
-		isp->isp_respinrp = OUTMAILBOX5;
-		isp->isp_respoutrp = INMAILBOX5;
-	}
 
 	/*
 	 * Put the board into PAUSE mode (so we can read the SXP registers
@@ -468,18 +415,12 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				isp->isp_clock = isp->isp_mdvec->dv_clock;
 			}
 		}
-
 	}
 
 	/*
 	 * Clear instrumentation
 	 */
 	isp->isp_intcnt = isp->isp_intbogus = 0;
-
-	/*
-	 * Do MD specific pre initialization
-	 */
-	ISP_RESET0(isp);
 
 	/*
 	 * Hit the chip over the head with hammer,
@@ -513,7 +454,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			}
 		}
 		if (val & BIU2400_DMA_ACTIVE) {
-			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR, "DMA Failed to Stop on Reset");
 			return;
 		}
@@ -533,7 +473,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			}
 		}
 		if (val & BIU2400_SOFT_RESET) {
-			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR, "Failed to come out of reset");
 			return;
 		}
@@ -572,7 +511,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		ISP_DELAY(100);
 		if (--loops < 0) {
 			ISP_DUMPREGS(isp, "chip reset timed out");
-			ISP_RESET0(isp);
 			return;
 		}
 	}
@@ -613,7 +551,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			}
 		}
 		if (val != 0) {
-			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR, "reset didn't clear");
 			return;
 		}
@@ -655,6 +592,26 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
 	}
 
+	/*
+	 * Set up default request/response queue in-pointer/out-pointer
+	 * register indices.
+	 */
+	if (IS_24XX(isp)) {
+		isp->isp_rqstinrp = BIU2400_REQINP;
+		isp->isp_rqstoutrp = BIU2400_REQOUTP;
+		isp->isp_respinrp = BIU2400_RSPINP;
+		isp->isp_respoutrp = BIU2400_RSPOUTP;
+	} else if (IS_23XX(isp)) {
+		isp->isp_rqstinrp = BIU_REQINP;
+		isp->isp_rqstoutrp = BIU_REQOUTP;
+		isp->isp_respinrp = BIU_RSPINP;
+		isp->isp_respoutrp = BIU_RSPOUTP;
+	} else {
+		isp->isp_rqstinrp = INMAILBOX4;
+		isp->isp_rqstoutrp = OUTMAILBOX4;
+		isp->isp_respinrp = OUTMAILBOX5;
+		isp->isp_respoutrp = INMAILBOX5;
+	}
 	ISP_WRITE(isp, isp->isp_rqstinrp, 0);
 	ISP_WRITE(isp, isp->isp_rqstoutrp, 0);
 	ISP_WRITE(isp, isp->isp_respinrp, 0);
@@ -668,10 +625,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, 0);
 	}
 
-	/*
-	 * Do MD specific post initialization
-	 */
-	ISP_RESET1(isp);
+	if (!IS_24XX(isp) && isp->isp_bustype == ISP_BT_PCI) {
+		/* Make sure the BIOS is disabled */
+		ISP_WRITE(isp, HCCR, PCI_HCCR_CMD_BIOS);
+	}
 
 	/*
 	 * Wait for everything to finish firing up.
@@ -686,7 +643,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		while (ISP_READ(isp, OUTMAILBOX0) == MBOX_BUSY) {
 			ISP_DELAY(100);
 			if (--loops < 0) {
-				ISP_RESET0(isp);
 				isp_prt(isp, ISP_LOGERR, "MBOX_BUSY never cleared on reset");
 				return;
 			}
@@ -707,14 +663,12 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		isp_prt(isp, ISP_LOGERR, "NOP command failed (%x)", mbs.param[0]);
-		ISP_RESET0(isp);
 		return;
 	}
 
 	/*
 	 * Do some operational tests
 	 */
-
 	if (IS_SCSI(isp) || IS_24XX(isp)) {
 		static const uint16_t patterns[MAX_MAILBOX] = {
 			0x0000, 0xdead, 0xbeef, 0xffff,
@@ -735,12 +689,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		}
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			ISP_RESET0(isp);
 			return;
 		}
 		for (i = 1; i < nmbox; i++) {
 			if (mbs.param[i] != patterns[i]) {
-				ISP_RESET0(isp);
 				isp_prt(isp, ISP_LOGERR, "Register Test Failed at Register %d: should have 0x%04x but got 0x%04x", i, patterns[i], mbs.param[i]);
 				return;
 			}
@@ -758,6 +710,17 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 */
 	if ((isp->isp_mdvec->dv_ispfw == NULL) || (isp->isp_confopts & ISP_CFG_NORELOAD)) {
 		dodnld = 0;
+	} else {
+
+		/*
+		 * Set up DMA for the request and response queues.
+		 * We do this now so we can use the request queue
+		 * for dma to load firmware from.
+		 */
+		if (ISP_MBOXDMASETUP(isp) != 0) {
+			isp_prt(isp, ISP_LOGERR, "Cannot setup DMA");
+			return;
+		}
 	}
 
 	if (IS_24XX(isp)) {
@@ -849,7 +812,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 						goto again;
 					}
 					isp_prt(isp, ISP_LOGERR, "F/W Risc Ram Load Failed");
-					ISP_RESET0(isp);
 					return;
 				}
 				la += nw;
@@ -918,7 +880,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				isp_mboxcmd(isp, &mbs);
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 					isp_prt(isp, ISP_LOGERR, "F/W Risc Ram Load Failed");
-					ISP_RESET0(isp);
 					return;
 				}
 				la += nw;
@@ -961,7 +922,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGERR, "F/W download failed at word %d", isp->isp_mbxwrk1 - code_org);
-			ISP_RESET0(isp);
 			return;
 		}
 	} else if (IS_26XX(isp)) {
@@ -971,7 +931,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGERR, "Flash F/W load failed");
-			ISP_RESET0(isp);
 			return;
 		}
 	} else {
@@ -992,7 +951,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGERR, dcrc);
-			ISP_RESET0(isp);
 			return;
 		}
 	}
@@ -1003,8 +961,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * If we didn't actually download f/w,
 	 * we still need to (re)start it.
 	 */
-
-
 	MBSINIT(&mbs, MBOX_EXEC_FIRMWARE, MBLOGALL, 5000000);
 	if (IS_24XX(isp)) {
 		mbs.param[1] = code_org >> 16;
@@ -1027,7 +983,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	isp_mboxcmd(isp, &mbs);
 	if (IS_2322(isp) || IS_24XX(isp)) {
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			ISP_RESET0(isp);
 			return;
 		}
 	}
@@ -1051,7 +1006,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	MBSINIT(&mbs, MBOX_ABOUT_FIRMWARE, MBLOGALL, 0);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		ISP_RESET0(isp);
 		return;
 	}
 
@@ -1249,22 +1203,16 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		MBSINIT(&mbs, MBOX_GET_RESOURCE_COUNT, MBLOGALL, 0);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			ISP_RESET0(isp);
 			return;
 		}
-		if (isp->isp_maxcmds >= mbs.param[3]) {
-			isp->isp_maxcmds = mbs.param[3];
-		}
+		isp->isp_maxcmds = mbs.param[3];
 	} else {
 		MBSINIT(&mbs, MBOX_GET_FIRMWARE_STATUS, MBLOGALL, 0);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			ISP_RESET0(isp);
 			return;
 		}
-		if (isp->isp_maxcmds >= mbs.param[2]) {
-			isp->isp_maxcmds = mbs.param[2];
-		}
+		isp->isp_maxcmds = mbs.param[2];
 	}
 	isp_prt(isp, ISP_LOGCONFIG, "%d max I/O command limit set", isp->isp_maxcmds);
 
@@ -1284,14 +1232,27 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			isp->isp_nchan = 1;
 		}
 	}
+
+	/*
+	 * Final DMA setup after we got isp_maxcmds.
+	 */
+	if (ISP_MBOXDMASETUP(isp) != 0) {
+		isp_prt(isp, ISP_LOGERR, "Cannot setup DMA");
+		return;
+	}
+
+	/*
+	 * Setup interrupts.
+	 */
+	if (ISP_IRQSETUP(isp) != 0) {
+		isp_prt(isp, ISP_LOGERR, "Cannot setup IRQ");
+		return;
+	}
+	ISP_ENABLE_INTS(isp);
+
 	if (IS_FC(isp)) {
 		for (i = 0; i < isp->isp_nchan; i++)
 			isp_change_fw_state(isp, i, FW_CONFIG_WAIT);
-	}
-	if (isp->isp_dead) {
-		isp_shutdown(isp);
-		ISP_DISABLE_INTS(isp);
-		return;
 	}
 
 	isp->isp_state = ISP_RESETSTATE;
@@ -1303,7 +1264,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * of knowing how many luns we support.
 	 *
 	 * Expanded lun firmware gives you 32 luns for SCSI cards and
-	 * 16384 luns for Fibre Channel cards.
+	 * unlimited luns for Fibre Channel cards.
 	 *
 	 * It turns out that even for QLogic 2100s with ROM 1.10 and above
 	 * we do get a firmware attributes word returned in mailbox register 6.
@@ -1351,7 +1312,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
  * Clean firmware shutdown.
  */
 static int
-isp_deinit(ispsoftc_t *isp)
+isp_stop(ispsoftc_t *isp)
 {
 	mbreg_t mbs;
 
@@ -1367,6 +1328,35 @@ isp_deinit(ispsoftc_t *isp)
 	mbs.param[8] = 0;
 	isp_mboxcmd(isp, &mbs);
 	return (mbs.param[0] == MBOX_COMMAND_COMPLETE ? 0 : mbs.param[0]);
+}
+
+/*
+ * Hardware shutdown.
+ */
+void
+isp_shutdown(ispsoftc_t *isp)
+{
+
+	if (isp->isp_state >= ISP_RESETSTATE)
+		isp_stop(isp);
+	ISP_DISABLE_INTS(isp);
+	if (IS_FC(isp)) {
+		if (IS_24XX(isp)) {
+			ISP_WRITE(isp, BIU2400_ICR, 0);
+			ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_PAUSE);
+		} else {
+			ISP_WRITE(isp, BIU_ICR, 0);
+			ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
+			ISP_WRITE(isp, BIU2100_CSR, BIU2100_FPM0_REGS);
+			ISP_WRITE(isp, FPM_DIAG_CONFIG, FPM_SOFT_RESET);
+			ISP_WRITE(isp, BIU2100_CSR, BIU2100_FB_REGS);
+			ISP_WRITE(isp, FBM_CMD, FBMCMD_FIFO_RESET_ALL);
+			ISP_WRITE(isp, BIU2100_CSR, BIU2100_RISC_REGS);
+		}
+	} else {
+		ISP_WRITE(isp, BIU_ICR, 0);
+		ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
+	}
 }
 
 /*
@@ -5599,7 +5589,6 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_async(isp, ISPASYNC_BUS_RESET, chan);
 		break;
 	case ASYNC_SYSTEM_ERROR:
-		isp->isp_dead = 1;
 		isp->isp_state = ISP_CRASHED;
 		/*
 		 * Were we waiting for a mailbox command to complete?
@@ -5770,7 +5759,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 
 	switch (mbox) {
 	case ASYNC_SYSTEM_ERROR:
-		isp->isp_dead = 1;
 		isp->isp_state = ISP_CRASHED;
 		FCPARAM(isp, chan)->isp_loopstate = LOOP_NIL;
 		isp_change_fw_state(isp, chan, FW_CONFIG_WAIT);
@@ -6052,7 +6040,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			    "Point-to-Point -> Loop mode (BAD LIP)");
 			break;
 		case ISP_CONN_FATAL:
-			isp->isp_dead = 1;
 			isp->isp_state = ISP_CRASHED;
 			isp_prt(isp, ISP_LOGERR, "FATAL CONNECTION ERROR");
 			isp_async(isp, ISPASYNC_FW_CRASH);
@@ -7895,14 +7882,13 @@ isp_reinit(ispsoftc_t *isp, int do_load_defaults)
 {
 	int i, res = 0;
 
-	if (isp->isp_state == ISP_RUNSTATE)
-		isp_deinit(isp);
+	if (isp->isp_state > ISP_RESETSTATE)
+		isp_stop(isp);
 	if (isp->isp_state != ISP_RESETSTATE)
 		isp_reset(isp, do_load_defaults);
 	if (isp->isp_state != ISP_RESETSTATE) {
 		res = EIO;
 		isp_prt(isp, ISP_LOGERR, "%s: cannot reset card", __func__);
-		ISP_DISABLE_INTS(isp);
 		goto cleanup;
 	}
 

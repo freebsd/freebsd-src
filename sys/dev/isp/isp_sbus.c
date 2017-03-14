@@ -55,11 +55,8 @@ static uint32_t isp_sbus_rd_reg(ispsoftc_t *, int);
 static void isp_sbus_wr_reg(ispsoftc_t *, int, uint32_t);
 static int isp_sbus_rd_isr(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
 static int isp_sbus_mbxdma(ispsoftc_t *);
+static void isp_sbus_mbxdmafree(ispsoftc_t *);
 static int isp_sbus_dmasetup(ispsoftc_t *, XS_T *, void *);
-
-
-static void isp_sbus_reset0(ispsoftc_t *);
-static void isp_sbus_reset1(ispsoftc_t *);
 static void isp_sbus_dumpregs(ispsoftc_t *, const char *);
 
 static struct ispmdvec mdvec = {
@@ -69,8 +66,7 @@ static struct ispmdvec mdvec = {
 	isp_sbus_mbxdma,
 	isp_sbus_dmasetup,
 	isp_common_dmateardown,
-	isp_sbus_reset0,
-	isp_sbus_reset1,
+	NULL,
 	isp_sbus_dumpregs,
 	NULL,
 	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64
@@ -140,20 +136,15 @@ isp_sbus_probe(device_t dev)
 static int
 isp_sbus_attach(device_t dev)
 {
+	struct isp_sbussoftc *sbs = device_get_softc(dev);
+	ispsoftc_t *isp = &sbs->sbus_isp;
 	int tval, isp_debug, role, ispburst, default_id;
-	struct isp_sbussoftc *sbs;
-	ispsoftc_t *isp = NULL;
-	int locksetup = 0;
 	int ints_setup = 0;
-
-	sbs = device_get_softc(dev);
-	if (sbs == NULL) {
-		device_printf(dev, "cannot get softc\n");
-		return (ENOMEM);
-	}
 
 	sbs->sbus_dev = dev;
 	sbs->sbus_mdvec = mdvec;
+	isp->isp_dev = dev;
+	mtx_init(&isp->isp_osinfo.lock, "isp", NULL, MTX_DEF);
 
 	role = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -179,7 +170,6 @@ isp_sbus_attach(device_t dev)
 	sbs->sbus_poff[SXP_BLOCK >> _BLK_REG_SHFT] = SBUS_SXP_REGS_OFF;
 	sbs->sbus_poff[RISC_BLOCK >> _BLK_REG_SHFT] = SBUS_RISC_REGS_OFF;
 	sbs->sbus_poff[DMA_BLOCK >> _BLK_REG_SHFT] = DMA_REGS_OFF;
-	isp = &sbs->sbus_isp;
 	isp->isp_regs = sbs->regs;
 	isp->isp_mdvec = &sbs->sbus_mdvec;
 	isp->isp_bustype = ISP_BT_SBUS;
@@ -187,7 +177,6 @@ isp_sbus_attach(device_t dev)
 	isp->isp_param = &sbs->sbus_param;
 	isp->isp_osinfo.pc.ptr = &sbs->sbus_spi;
 	isp->isp_revision = 0;	/* XXX */
-	isp->isp_dev = dev;
 	isp->isp_nchan = 1;
 	if (IS_FC(isp))
 		ISP_FC_PC(isp, 0)->def_role = role;
@@ -266,10 +255,6 @@ isp_sbus_attach(device_t dev)
         (void) resource_int_value(device_get_name(dev), device_get_unit(dev),
             "debug", &isp_debug);
 
-	/* Make sure the lock is set up. */
-	mtx_init(&isp->isp_osinfo.lock, "isp", NULL, MTX_DEF);
-	locksetup++;
-
 	sbs->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sbs->iqd,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sbs->irq == NULL) {
@@ -301,14 +286,13 @@ isp_sbus_attach(device_t dev)
 	 */
 	ISP_LOCK(isp);
 	if (isp_reinit(isp, 1) != 0) {
-		isp_uninit(isp);
 		ISP_UNLOCK(isp);
 		goto bad;
 	}
 	ISP_UNLOCK(isp);
 	if (isp_attach(isp)) {
 		ISP_LOCK(isp);
-		isp_uninit(isp);
+		isp_shutdown(isp);
 		ISP_UNLOCK(isp);
 		goto bad;
 	}
@@ -324,41 +308,33 @@ bad:
 		bus_release_resource(dev, SYS_RES_IRQ, sbs->iqd, sbs->irq);
 	}
 
-	if (locksetup && isp) {
-		mtx_destroy(&isp->isp_osinfo.lock);
-	}
-
 	if (sbs->regs) {
 		(void) bus_release_resource(dev, SYS_RES_MEMORY, sbs->rgd,
 		    sbs->regs);
 	}
+	mtx_destroy(&isp->isp_osinfo.lock);
 	return (ENXIO);
 }
 
 static int
 isp_sbus_detach(device_t dev)
 {
-	struct isp_sbussoftc *sbs;
-	ispsoftc_t *isp;
+	struct isp_sbussoftc *sbs = device_get_softc(dev);
+	ispsoftc_t *isp = &sbs->sbus_isp;
 	int status;
 
-	sbs = device_get_softc(dev);
-	if (sbs == NULL) {
-		return (ENXIO);
-	}
-	isp = (ispsoftc_t *) sbs;
 	status = isp_detach(isp);
 	if (status)
 		return (status);
 	ISP_LOCK(isp);
-	isp_uninit(isp);
-	if (sbs->ih) {
-		(void) bus_teardown_intr(dev, sbs->irq, sbs->ih);
-	}
+	isp_shutdown(isp);
 	ISP_UNLOCK(isp);
-	mtx_destroy(&isp->isp_osinfo.lock);
+	if (sbs->ih)
+		(void) bus_teardown_intr(dev, sbs->irq, sbs->ih);
 	(void) bus_release_resource(dev, SYS_RES_IRQ, sbs->iqd, sbs->irq);
 	(void) bus_release_resource(dev, SYS_RES_MEMORY, sbs->rgd, sbs->regs);
+	isp_sbus_mbxdmafree(isp);
+	mtx_destroy(&isp->isp_osinfo.lock);
 	return (0);
 }
 
@@ -436,25 +412,14 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	int i, error;
 	struct imush im;
 
-	/*
-	 * Already been here? If so, leave...
-	 */
-	if (isp->isp_rquest) {
+	/* Already been here? If so, leave... */
+	if (isp->isp_xflist != NULL)
 		return (0);
-	}
-
+	if (isp->isp_rquest != NULL && isp->isp_maxcmds == 0)
+		return (0);
 	ISP_UNLOCK(isp);
-
-	len = sizeof (struct isp_pcmd) * isp->isp_maxcmds;
-	isp->isp_osinfo.pcmd_pool = (struct isp_pcmd *)
-	    malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
-	len = sizeof (isp_hdl_t *) * isp->isp_maxcmds;
-	isp->isp_xflist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
-	for (len = 0; len < isp->isp_maxcmds - 1; len++) {
-		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
-	}
-	isp->isp_xffree = isp->isp_xflist;
-	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
+	if (isp->isp_rquest != NULL)
+		goto gotmaxcmds;
 
 	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_SBD(isp)), 1,
 	    BUS_SPACE_MAXADDR_24BIT+1, BUS_SPACE_MAXADDR_32BIT,
@@ -480,6 +445,7 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 		bus_dma_tag_destroy(isp->isp_osinfo.reqdmat);
 		goto bad;
 	}
+	isp->isp_rquest = base;
 	im.error = 0;
 	if (bus_dmamap_load(isp->isp_osinfo.reqdmat, isp->isp_osinfo.reqmap,
 	    base, len, imc, &im, 0) || im.error) {
@@ -488,7 +454,6 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	}
 	isp_prt(isp, ISP_LOGDEBUG0, "request area @ 0x%jx/0x%jx",
 	    (uintmax_t)im.maddr, (uintmax_t)len);
-	isp->isp_rquest = base;
 	isp->isp_rquest_dma = im.maddr;
 
 	/*
@@ -507,6 +472,7 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 		bus_dma_tag_destroy(isp->isp_osinfo.respdmat);
 		goto bad;
 	}
+	isp->isp_result = base;
 	im.error = 0;
 	if (bus_dmamap_load(isp->isp_osinfo.respdmat, isp->isp_osinfo.respmap,
 	    base, len, imc, &im, 0) || im.error) {
@@ -515,9 +481,17 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	}
 	isp_prt(isp, ISP_LOGDEBUG0, "response area @ 0x%jx/0x%jx",
 	    (uintmax_t)im.maddr, (uintmax_t)len);
-	isp->isp_result = base;
 	isp->isp_result_dma = im.maddr;
 
+	if (isp->isp_maxcmds == 0) {
+		ISP_LOCK(isp);
+		return (0);
+	}
+
+gotmaxcmds:
+	len = sizeof (struct isp_pcmd) * isp->isp_maxcmds;
+	isp->isp_osinfo.pcmd_pool = (struct isp_pcmd *)
+	    malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	for (i = 0; i < isp->isp_maxcmds; i++) {
 		struct isp_pcmd *pcmd = &isp->isp_osinfo.pcmd_pool[i];
 		error = bus_dmamap_create(isp->isp_osinfo.dmat, 0, &pcmd->dmap);
@@ -538,33 +512,61 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 		}
 	}
 	isp->isp_osinfo.pcmd_free = &isp->isp_osinfo.pcmd_pool[0];
+
+	len = sizeof (isp_hdl_t *) * isp->isp_maxcmds;
+	isp->isp_xflist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	for (len = 0; len < isp->isp_maxcmds - 1; len++)
+		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
+	isp->isp_xffree = isp->isp_xflist;
+
 	ISP_LOCK(isp);
 	return (0);
 
 bad:
-	if (isp->isp_rquest_dma != 0) {
-		bus_dmamap_unload(isp->isp_osinfo.reqdmat,
-		    isp->isp_osinfo.reqmap);
+	isp_sbus_mbxdmafree(isp);
+	ISP_LOCK(isp);
+	return (1);
+}
+
+static void
+isp_sbus_mbxdmafree(ispsoftc_t *isp)
+{
+	int i;
+
+	if (isp->isp_xflist != NULL) {
+		free(isp->isp_xflist, M_DEVBUF);
+		isp->isp_xflist = NULL;
 	}
-	if (isp->isp_rquest != NULL) {
-		bus_dmamem_free(isp->isp_osinfo.reqdmat, isp->isp_rquest,
-		    isp->isp_osinfo.reqmap);
-		bus_dma_tag_destroy(isp->isp_osinfo.reqdmat);
+	if (isp->isp_osinfo.pcmd_pool != NULL) {
+		for (i = 0; i < isp->isp_maxcmds; i++) {
+			bus_dmamap_destroy(isp->isp_osinfo.dmat,
+			    isp->isp_osinfo.pcmd_pool[i].dmap);
+		}
+		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
+		isp->isp_osinfo.pcmd_pool = NULL;
 	}
 	if (isp->isp_result_dma != 0) {
 		bus_dmamap_unload(isp->isp_osinfo.respdmat,
 		    isp->isp_osinfo.respmap);
+		isp->isp_result_dma = 0;
 	}
 	if (isp->isp_result != NULL) {
 		bus_dmamem_free(isp->isp_osinfo.respdmat, isp->isp_result,
 		    isp->isp_osinfo.respmap);
 		bus_dma_tag_destroy(isp->isp_osinfo.respdmat);
+		isp->isp_result = NULL;
 	}
-	free(isp->isp_xflist, M_DEVBUF);
-	free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-	isp->isp_rquest = NULL;
-	ISP_LOCK(isp);
-	return (1);
+	if (isp->isp_rquest_dma != 0) {
+		bus_dmamap_unload(isp->isp_osinfo.reqdmat,
+		    isp->isp_osinfo.reqmap);
+		isp->isp_rquest_dma = 0;
+	}
+	if (isp->isp_rquest != NULL) {
+		bus_dmamem_free(isp->isp_osinfo.reqdmat, isp->isp_rquest,
+		    isp->isp_osinfo.reqmap);
+		bus_dma_tag_destroy(isp->isp_osinfo.reqdmat);
+		isp->isp_rquest = NULL;
+	}
 }
 
 typedef struct {
@@ -660,18 +662,6 @@ isp_sbus_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 		return (retval);
 	}
 	return (CMD_QUEUED);
-}
-
-static void
-isp_sbus_reset0(ispsoftc_t *isp)
-{
-	ISP_DISABLE_INTS(isp);
-}
-
-static void
-isp_sbus_reset1(ispsoftc_t *isp)
-{
-	ISP_ENABLE_INTS(isp);
 }
 
 static void

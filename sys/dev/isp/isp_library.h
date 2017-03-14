@@ -77,11 +77,6 @@ const char *isp_fc_toponame(fcparam *);
 void isp_clear_commands(ispsoftc_t *);
 
 /*
- * Common chip shutdown function
- */
-void isp_shutdown(ispsoftc_t *);
-
-/*
  * Put/Get routines to push from CPU view to device view
  * or to pull from device view to CPU view for various
  * data structures (IOCB)

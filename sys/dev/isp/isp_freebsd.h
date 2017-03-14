@@ -697,7 +697,6 @@ default:							\
  */
 extern int isp_attach(ispsoftc_t *);
 extern int isp_detach(ispsoftc_t *);
-extern void isp_uninit(ispsoftc_t *);
 extern uint64_t isp_default_wwn(ispsoftc_t *, int, int, int);
 
 /*
