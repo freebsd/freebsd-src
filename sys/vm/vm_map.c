@@ -172,6 +172,39 @@ static void vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry,
 			start = end;			\
 		}
 
+#ifdef CPU_QEMU_MALTA
+#include <machine/cheri.h>
+
+static void
+vm_map_log(const char *prefix, vm_map_entry_t entry)
+{
+	char buffer[128];
+	char prt[4];
+
+	if (!(curthread->td_md.md_flags & MDTD_QTRACE))
+		return;
+	if (entry->protection & VM_PROT_READ)
+		prt[0] = 'r';
+	else
+		prt[0] = '-';
+	if (entry->protection & VM_PROT_WRITE)
+		prt[1] = 'w';
+	else
+		prt[1] = '-';
+	if (entry->protection & VM_PROT_EXECUTE)
+		prt[2] = 'x';
+	else
+		prt[2] = '-';
+	prt[3] = '\0';
+	snprintf(buffer, sizeof(buffer), "VMMAP %d: %s: start=%p end=%p prt=%s",
+	    curproc->p_pid, prefix, (void *)entry->start, (void *)entry->end,
+	    prt);
+	CHERI_TRACE_STRING(buffer);
+}
+#else
+#define	vm_map_log(prefix, entry)
+#endif
+
 /*
  *	vm_map_startup:
  *
@@ -1285,6 +1318,7 @@ charged:
 			map->size += end - prev_entry->end;
 			prev_entry->end = end;
 			vm_map_entry_resize_free(map, prev_entry);
+			vm_map_log("resize", prev_entry);
 			vm_map_simplify_entry(map, prev_entry);
 			return (KERN_SUCCESS);
 		}
@@ -1338,6 +1372,7 @@ charged:
 	 */
 	vm_map_entry_link(map, prev_entry, new_entry);
 	map->size += new_entry->end - new_entry->start;
+	vm_map_log("insert", new_entry);
 
 	/*
 	 * Try to coalesce the new entry with both the previous and next
@@ -1576,11 +1611,13 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		     (prev->inheritance == entry->inheritance) &&
 		     (prev->wired_count == entry->wired_count) &&
 		     (prev->cred == entry->cred)) {
+			vm_map_log("remove", prev);
 			vm_map_entry_unlink(map, prev);
 			entry->start = prev->start;
 			entry->offset = prev->offset;
 			if (entry->prev != &map->header)
 				vm_map_entry_resize_free(map, entry->prev);
+			vm_map_log("resize", entry);
 
 			/*
 			 * If the backing object is a vnode object,
@@ -1617,9 +1654,11 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		    (next->inheritance == entry->inheritance) &&
 		    (next->wired_count == entry->wired_count) &&
 		    (next->cred == entry->cred)) {
+			vm_map_log("remove", next);
 			vm_map_entry_unlink(map, next);
 			entry->end = next->end;
 			vm_map_entry_resize_free(map, entry);
+			vm_map_log("resize", entry);
 
 			/*
 			 * See comment above.
@@ -1702,6 +1741,8 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	if (new_entry->cred != NULL)
 		crhold(entry->cred);
 
+	vm_map_log("resize", entry);
+	vm_map_log("insert", new_entry);
 	vm_map_entry_link(map, entry->prev, new_entry);
 
 	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
@@ -1781,6 +1822,8 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	if (new_entry->cred != NULL)
 		crhold(entry->cred);
 
+	vm_map_log("resize", entry);
+	vm_map_log("insert", new_entry);
 	vm_map_entry_link(map, entry, new_entry);
 
 	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
@@ -2055,6 +2098,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			    old_prot;
 		else
 			current->protection = new_prot;
+		vm_map_log("protect", current);
 
 		/*
 		 * For user wired map entries, the normal lazy evaluation of
@@ -3156,6 +3200,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		 * page frames may be reallocated, and any modify bits
 		 * will be set in the wrong object!)
 		 */
+		vm_map_log("remove", entry);
 		vm_map_entry_delete(map, entry);
 		entry = next;
 	}

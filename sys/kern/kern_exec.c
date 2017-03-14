@@ -1105,6 +1105,16 @@ exec_new_vmspace(imgp, sv)
 		map = &vmspace->vm_map;
 	}
 
+#ifdef CPU_QEMU_MALTA
+	if (curthread->td_md.md_flags & MDTD_QTRACE) {
+		char buffer[128];
+
+		snprintf(buffer, sizeof(buffer), "VMMAP %d: exec",
+		    curproc->p_pid);
+		CHERI_TRACE_STRING(buffer);
+	}
+#endif
+
 	/* Map a shared page */
 	obj = sv->sv_shared_page_obj;
 	if (obj != NULL) {
