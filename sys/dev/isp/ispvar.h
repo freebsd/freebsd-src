@@ -1141,9 +1141,7 @@ int isp_endcmd(ispsoftc_t *, ...);
 
 /*
  * Handle an asynchronous event
- *
- * Return nonzero if the interrupt that generated this event has been dismissed.
  */
-int isp_target_async(ispsoftc_t *, int, int);
+void isp_target_async(ispsoftc_t *, int, int);
 #endif
 #endif	/* _ISPVAR_H */
