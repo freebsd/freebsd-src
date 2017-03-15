@@ -362,38 +362,39 @@ isp_detach(ispsoftc_t *isp)
 static void
 isp_freeze_loopdown(ispsoftc_t *isp, int chan)
 {
-	if (IS_FC(isp)) {
-		struct isp_fc *fc = ISP_FC_PC(isp, chan);
-		if (fc->simqfrozen == 0) {
-			isp_prt(isp, ISP_LOGDEBUG0,
-			    "Chan %d Freeze simq (loopdown)", chan);
-			fc->simqfrozen = SIMQFRZ_LOOPDOWN;
-			xpt_hold_boot();
-			xpt_freeze_simq(fc->sim, 1);
-		} else {
-			isp_prt(isp, ISP_LOGDEBUG0,
-			    "Chan %d Mark simq frozen (loopdown)", chan);
-			fc->simqfrozen |= SIMQFRZ_LOOPDOWN;
-		}
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+
+	if (fc->sim == NULL)
+		return;
+	if (fc->simqfrozen == 0) {
+		isp_prt(isp, ISP_LOGDEBUG0,
+		    "Chan %d Freeze simq (loopdown)", chan);
+		fc->simqfrozen = SIMQFRZ_LOOPDOWN;
+		xpt_hold_boot();
+		xpt_freeze_simq(fc->sim, 1);
+	} else {
+		isp_prt(isp, ISP_LOGDEBUG0,
+		    "Chan %d Mark simq frozen (loopdown)", chan);
+		fc->simqfrozen |= SIMQFRZ_LOOPDOWN;
 	}
 }
 
 static void
 isp_unfreeze_loopdown(ispsoftc_t *isp, int chan)
 {
-	if (IS_FC(isp)) {
-		struct isp_fc *fc = ISP_FC_PC(isp, chan);
-		int wasfrozen = fc->simqfrozen & SIMQFRZ_LOOPDOWN;
-		fc->simqfrozen &= ~SIMQFRZ_LOOPDOWN;
-		if (wasfrozen && fc->simqfrozen == 0) {
-			isp_prt(isp, ISP_LOGDEBUG0,
-			    "Chan %d Release simq", chan);
-			xpt_release_simq(fc->sim, 1);
-			xpt_release_boot();
-		}
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+
+	if (fc->sim == NULL)
+		return;
+	int wasfrozen = fc->simqfrozen & SIMQFRZ_LOOPDOWN;
+	fc->simqfrozen &= ~SIMQFRZ_LOOPDOWN;
+	if (wasfrozen && fc->simqfrozen == 0) {
+		isp_prt(isp, ISP_LOGDEBUG0,
+		    "Chan %d Release simq", chan);
+		xpt_release_simq(fc->sim, 1);
+		xpt_release_boot();
 	}
 }
-
 
 static int
 ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
