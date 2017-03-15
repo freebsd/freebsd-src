@@ -21,4 +21,14 @@ ${PACKAGE}FILES+=	\
 	unified_c9999.out \
 	unified_9999.out
 
+NETBSD_ATF_TESTS_SH+=	diff_test
+
+${PACKAGE}FILES+=	\
+	d_mallocv1.in	\
+	d_mallocv2.in
+
+ATF_TESTS_SH_SED_diff_test+=	-e 's,t_diff,diff_test,g'
+
+.include <netbsd-tests.test.mk>
+
 .include <bsd.test.mk>
