@@ -685,8 +685,10 @@ main(int argc, char *argv[])
 			reapchild(WantReapchild);
 		if (MarkSet)
 			markit();
-		if (WantDie)
+		if (WantDie) {
+			free(fdsr);
 			die(WantDie);
+		}
 
 		bzero(fdsr, howmany(fdsrmax+1, NFDBITS) *
 		    sizeof(fd_mask));
@@ -2438,7 +2440,7 @@ allowaddr(char *s)
 	struct allowedpeer *ap;
 	struct servent *se;
 	int masklen = -1;
-	struct addrinfo hints, *res;
+	struct addrinfo hints, *res = NULL;
 #ifdef INET
 	in_addr_t *addrp, *maskp;
 #endif
@@ -2465,8 +2467,9 @@ allowaddr(char *s)
 			ap->port = ntohs(se->s_port);
 		} else {
 			ap->port = strtol(cp1, &cp2, 0);
+			/* port not numeric */
 			if (*cp2 != '\0')
-				return (-1); /* port not numeric */
+				goto err;
 		}
 	} else {
 		if ((se = getservbyname("syslog", "udp")))
@@ -2480,7 +2483,7 @@ allowaddr(char *s)
 	    strspn(cp1 + 1, "0123456789") == strlen(cp1 + 1)) {
 		*cp1 = '\0';
 		if ((masklen = atoi(cp1 + 1)) < 0)
-			return (-1);
+			goto err;
 	}
 #ifdef INET6
 	if (*s == '[') {
@@ -2526,8 +2529,7 @@ allowaddr(char *s)
 				/* convert masklen to netmask */
 				*maskp = htonl(~((1 << (32 - masklen)) - 1));
 			} else {
-				freeaddrinfo(res);
-				return (-1);
+				goto err;
 			}
 			/* Lose any host bits in the network number. */
 			*addrp &= *maskp;
@@ -2535,10 +2537,9 @@ allowaddr(char *s)
 #endif
 #ifdef INET6
 		case AF_INET6:
-			if (masklen > 128) {
-				freeaddrinfo(res);
-				return (-1);
-			}
+			if (masklen > 128)
+				goto err;
+
 			if (masklen < 0)
 				masklen = 128;
 			mask6p = (uint32_t *)&sstosin6(&ap->a_mask)->sin6_addr.s6_addr32[0];
@@ -2559,8 +2560,7 @@ allowaddr(char *s)
 			break;
 #endif
 		default:
-			freeaddrinfo(res);
-			return (-1);
+			goto err;
 		}
 		freeaddrinfo(res);
 	} else {
@@ -2596,7 +2596,13 @@ allowaddr(char *s)
 		printf("port = %d\n", ap->port);
 	}
 #endif
+
 	return (0);
+err:
+	if (res != NULL)
+		freeaddrinfo(res);
+	free(ap);
+	return (-1);
 }
 
 /*
