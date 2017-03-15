@@ -120,12 +120,6 @@ typedef struct {
 #define CD9660_MEM_ALLOC_ERROR(_F)	\
     err(EXIT_FAILURE, "%s, %s l. %d", _F, __FILE__, __LINE__)
 
-#define CD9660_IS_COMMAND_ARG_DUAL(var,short,long)\
-		(strcmp((var),(short)) == 0) || (strcmp((var),(long))==0)
-
-#define CD9660_IS_COMMAND_ARG(var,arg)\
-		(strcmp((var),(arg)) == 0)
-
 #define CD9660_TYPE_FILE	0x01
 #define CD9660_TYPE_DIR		0x02
 #define CD9660_TYPE_DOT		0x04
