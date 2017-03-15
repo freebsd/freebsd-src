@@ -1765,6 +1765,14 @@ dev/ixgbe/if_ixv.c		optional ixv inet | ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/ix_txrx.c		optional ix inet | ixv inet | ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/if_bypass.c		optional ix inet | ixv inet | ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/if_fdir.c		optional ix inet | ixv inet | ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/if_sriov.c		optional ix inet | ixv inet | ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_netmap.c	optional ix inet | ixv inet | ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_phy.c		optional ix inet | ixv inet | ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_osdep.c		optional ix inet | ixv inet | ixgbe inet \
@@ -1774,8 +1782,6 @@ dev/ixgbe/ixgbe_api.c		optional ix inet | ixv inet | ixgbe inet \
 dev/ixgbe/ixgbe_common.c	optional ix inet | ixv inet | ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_mbx.c		optional ix inet | ixv inet | ixgbe inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/ixgbe/ixgbe_vf.c		optional ix inet | ixv inet | ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_82598.c		optional ix inet | ixv inet | ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
@@ -1790,6 +1796,16 @@ dev/ixgbe/ixgbe_dcb.c		optional ix inet | ixv inet | ixgbe inet \
 dev/ixgbe/ixgbe_dcb_82598.c	optional ix inet | ixv inet | ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet | ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixv_mbx.c		optional ix inet | ixv inet | ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixv_netmap.c		optional ix inet | ixv inet | ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixv_osdep.c		optional ix inet | ixv inet | ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixv_txrx.c		optional ix inet | ixv inet | ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixv_vf.c		optional ix inet | ixv inet | ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixl/if_ixl.c		optional ixl inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"

@@ -1,39 +1,39 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2015, Intel Corporation 
+  Copyright (c) 2001-2017, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifndef __IXGBE_VF_H__
-#define __IXGBE_VF_H__
+#ifndef _IXGBE_VF_H_
+#define _IXGBE_VF_H_
 
 #define IXGBE_VF_IRQ_CLEAR_MASK	7
 #define IXGBE_VF_MAX_TX_QUEUES	8
@@ -88,6 +88,106 @@
 #define IXGBE_VFRSSRK(x)	(0x3100 + ((x) * 4))
 #define IXGBE_VFRETA(x)	(0x3200 + ((x) * 4))
 
+struct ixgbe_hw;
+
+#include "ixv_type.h"
+
+#include "ixv_mbx.h"
+
+struct ixgbe_mac_operations {
+	s32 (*init_hw)(struct ixgbe_hw *);
+	s32 (*reset_hw)(struct ixgbe_hw *);
+	s32 (*start_hw)(struct ixgbe_hw *);
+	s32 (*clear_hw_cntrs)(struct ixgbe_hw *);
+	enum ixgbe_media_type (*get_media_type)(struct ixgbe_hw *);
+	u32 (*get_supported_physical_layer)(struct ixgbe_hw *);
+	s32 (*get_mac_addr)(struct ixgbe_hw *, u8 *);
+	s32 (*stop_adapter)(struct ixgbe_hw *);
+	s32 (*get_bus_info)(struct ixgbe_hw *);
+	s32 (*negotiate_api_version)(struct ixgbe_hw *hw, int api);
+
+	/* Link */
+	s32 (*setup_link)(struct ixgbe_hw *, ixgbe_link_speed, bool);
+	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *, bool);
+	s32 (*get_link_capabilities)(struct ixgbe_hw *, ixgbe_link_speed *,
+				     bool *);
+
+	/* RAR, Multicast, VLAN */
+	s32 (*set_rar)(struct ixgbe_hw *, u32, u8 *, u32, u32);
+	s32 (*set_uc_addr)(struct ixgbe_hw *, u32, u8 *);
+	s32 (*init_rx_addrs)(struct ixgbe_hw *);
+	s32 (*update_mc_addr_list)(struct ixgbe_hw *, u8 *, u32,
+				   ixgbe_mc_addr_itr, bool);
+	s32 (*update_xcast_mode)(struct ixgbe_hw *, int);
+	s32 (*enable_mc)(struct ixgbe_hw *);
+	s32 (*disable_mc)(struct ixgbe_hw *);
+	s32 (*clear_vfta)(struct ixgbe_hw *);
+	s32 (*set_vfta)(struct ixgbe_hw *, u32, u32, bool, bool);
+	s32 (*set_rlpml)(struct ixgbe_hw *, u16);
+};
+
+struct ixgbe_mac_info {
+	struct ixgbe_mac_operations ops;
+	u8 addr[6];
+	u8 perm_addr[6];
+
+	enum ixgbe_mac_type type;
+
+	s32  mc_filter_type;
+
+	bool get_link_status;
+	u32  max_tx_queues;
+	u32  max_rx_queues;
+	u32  max_msix_vectors;
+};
+
+struct ixgbe_mbx_operations {
+	void (*init_params)(struct ixgbe_hw *hw);
+	s32  (*read)(struct ixgbe_hw *, u32 *, u16,  u16);
+	s32  (*write)(struct ixgbe_hw *, u32 *, u16, u16);
+	s32  (*read_posted)(struct ixgbe_hw *, u32 *, u16,  u16);
+	s32  (*write_posted)(struct ixgbe_hw *, u32 *, u16, u16);
+	s32  (*check_for_msg)(struct ixgbe_hw *, u16);
+	s32  (*check_for_ack)(struct ixgbe_hw *, u16);
+	s32  (*check_for_rst)(struct ixgbe_hw *, u16);
+};
+
+struct ixgbe_mbx_stats {
+	u32 msgs_tx;
+	u32 msgs_rx;
+
+	u32 acks;
+	u32 reqs;
+	u32 rsts;
+};
+
+struct ixgbe_mbx_info {
+	struct ixgbe_mbx_operations ops;
+	struct ixgbe_mbx_stats stats;
+	u32 timeout;
+	u32 usec_delay;
+	u32 v2p_mailbox;
+	u16 size;
+};
+
+struct ixgbe_hw {
+	void *back;
+
+	u8 IOMEM *hw_addr;
+
+	struct ixgbe_mac_info mac;
+	struct ixgbe_mbx_info mbx;
+
+	u16 device_id;
+	u16 subsystem_vendor_id;
+	u16 subsystem_device_id;
+	u16 vendor_id;
+
+	u8  revision_id;
+	bool adapter_stopped;
+
+	int api_version;
+};
 
 struct ixgbevf_hw_stats {
 	u64 base_vfgprc;
@@ -115,6 +215,7 @@ struct ixgbevf_hw_stats {
 	u64 saved_reset_vfmprc;
 };
 
+s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw_vf(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw_vf(struct ixgbe_hw *hw);
 s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw);
@@ -132,8 +233,10 @@ s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr);
 s32 ixgbe_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
 				 u32 mc_addr_count, ixgbe_mc_addr_itr,
 				 bool clear);
-s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on);
-void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size);
+s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode);
+s32 ixgbe_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
+		      bool vlan_on, bool vlvf_bypass);
+s32 ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size);
 int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api);
 int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 		       unsigned int *default_tc);
