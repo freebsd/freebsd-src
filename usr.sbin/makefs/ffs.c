@@ -505,7 +505,7 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 	bufrem = fsopts->size;
 	if (fsopts->sparse) {
 		if (ftruncate(fsopts->fd, bufrem) == -1) {
-			warn("sparse option disabled.\n");
+			warn("sparse option disabled.");
 			fsopts->sparse = 0;
 		}
 	}
