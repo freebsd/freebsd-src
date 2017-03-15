@@ -1293,7 +1293,7 @@ pmap_pinit(pmap_t pmap)
 	/*
 	 * allocate the page directory page
 	 */
-	while ((ptdpg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+	while ((ptdpg = vm_page_alloc(NULL, NUSERPGTBLS, VM_ALLOC_NORMAL |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		VM_WAIT;
 	if ((ptdpg->flags & PG_ZERO) == 0)
