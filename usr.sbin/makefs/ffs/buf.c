@@ -71,13 +71,12 @@ bread(struct vnode *vp, daddr_t blkno, int size, struct ucred *u1 __unused,
 	assert (bpp != NULL);
 
 	if (debug & DEBUG_BUF_BREAD)
-		printf("bread: fs %p blkno %lld size %d\n",
-		    fs, (long long)blkno, size);
+		printf("bread: blkno %lld size %d\n", (long long)blkno, size);
 	*bpp = getblk(vp, blkno, size, 0, 0, 0);
 	offset = (*bpp)->b_blkno * sectorsize;	/* XXX */
 	if (debug & DEBUG_BUF_BREAD)
-		printf("bread: bp %p blkno %lld offset %lld bcount %ld\n",
-		    (*bpp), (long long)(*bpp)->b_blkno, (long long) offset,
+		printf("bread: blkno %lld offset %lld bcount %ld\n",
+		    (long long)(*bpp)->b_blkno, (long long) offset,
 		    (*bpp)->b_bcount);
 	if (lseek((*bpp)->b_fd, offset, SEEK_SET) == -1)
 		err(1, "bread: lseek %lld (%lld)",
@@ -135,8 +134,8 @@ bwrite(struct buf *bp)
 	assert (bp != NULL);
 	offset = bp->b_blkno * sectorsize;	/* XXX */
 	if (debug & DEBUG_BUF_BWRITE)
-		printf("bwrite: bp %p blkno %lld offset %lld bcount %ld\n",
-		    bp, (long long)bp->b_blkno, (long long) offset,
+		printf("bwrite: blkno %lld offset %lld bcount %ld\n",
+		    (long long)bp->b_blkno, (long long) offset,
 		    bp->b_bcount);
 	if (lseek(bp->b_fd, offset, SEEK_SET) == -1)
 		return (errno);
@@ -188,8 +187,7 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int u1 __unused,
 	blkno += vp->offset;
 	assert (fs != NULL);
 	if (debug & DEBUG_BUF_GETBLK)
-		printf("getblk: fs %p blkno %lld size %d\n", fs,
-		    (long long)blkno, size);
+		printf("getblk: blkno %lld size %d\n", (long long)blkno, size);
 
 	bp = NULL;
 	if (!buftailinitted) {
