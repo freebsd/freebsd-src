@@ -1742,8 +1742,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 
 	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
-	tptr->atio_count--;
-	isp_prt(isp, ISP_LOGTDEBUG2, "Take FREE ATIO count now %d", tptr->atio_count);
+	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, atiop->ccb_h.path, "Take FREE ATIO\n");
 	atiop->ccb_h.target_id = fcp->isp_loopid;
 	atiop->ccb_h.target_lun = lun;
 
@@ -1955,8 +1954,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	atp->word3 = lp->prli_word3;
 	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
-	tptr->atio_count--;
-	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, atiop->ccb_h.path, "Take FREE ATIO count now %d\n", tptr->atio_count);
+	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, atiop->ccb_h.path, "Take FREE ATIO\n");
 	atiop->init_id = FC_PORTDB_TGT(isp, chan, lp);
 	atiop->ccb_h.target_id = FCPARAM(isp, chan)->isp_loopid;
 	atiop->ccb_h.target_lun = lun;
@@ -2697,9 +2695,8 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 	ntp->seq_id = notify->nt_tagval;
 	ntp->tag_id = notify->nt_tagval >> 32;
 
-	tptr->inot_count--;
 	SLIST_REMOVE_HEAD(&tptr->inots, sim_links.sle);
-	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, inot->ccb_h.path, "%s: Take FREE INOT count now %d\n", __func__, tptr->inot_count);
+	ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, inot->ccb_h.path, "Take FREE INOT\n");
 	inot->ccb_h.status = CAM_MESSAGE_RECV;
 	xpt_done((union ccb *)inot);
 	return;
@@ -3155,7 +3152,8 @@ isp_abort_atio(ispsoftc_t *isp, union ccb *ccb)
 			if (sccb != &accb->ccb_h)
 				continue;
 			SLIST_REMOVE(&tptr->atios, sccb, ccb_hdr, sim_links.sle);
-			tptr->atio_count--;
+			ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, sccb->path,
+			    "Abort FREE ATIO\n");
 			accb->ccb_h.status = CAM_REQ_ABORTED;
 			xpt_done(accb);
 			ccb->ccb_h.status = CAM_REQ_CMP;
@@ -3205,7 +3203,8 @@ isp_abort_inot(ispsoftc_t *isp, union ccb *ccb)
 			if (sccb != &accb->ccb_h)
 				continue;
 			SLIST_REMOVE(&tptr->inots, sccb, ccb_hdr, sim_links.sle);
-			tptr->inot_count--;
+			ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, sccb->path,
+			    "Abort FREE INOT\n");
 			accb->ccb_h.status = CAM_REQ_ABORTED;
 			xpt_done(accb);
 			ccb->ccb_h.status = CAM_REQ_CMP;
@@ -3349,16 +3348,14 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 			ccb->atio.tag_id = 0;
-			tptr->atio_count++;
 			SLIST_INSERT_HEAD(&tptr->atios, &ccb->ccb_h, sim_links.sle);
 			ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, ccb->ccb_h.path,
-			    "Put FREE ATIO, count now %d\n", tptr->atio_count);
+			    "Put FREE ATIO\n");
 		} else if (ccb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY) {
 			ccb->cin1.seq_id = ccb->cin1.tag_id = 0;
-			tptr->inot_count++;
 			SLIST_INSERT_HEAD(&tptr->inots, &ccb->ccb_h, sim_links.sle);
 			ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, ccb->ccb_h.path,
-			    "Put FREE INOT, count now %d\n", tptr->inot_count);
+			    "Put FREE INOT\n");
 		}
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		break;
