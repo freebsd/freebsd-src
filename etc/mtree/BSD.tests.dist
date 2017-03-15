@@ -310,6 +310,8 @@
             ttyio
             ..
         ..
+        libcam
+        ..
         libcasper
             services
                 cap_dns
