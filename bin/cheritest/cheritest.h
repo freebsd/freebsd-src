@@ -133,6 +133,62 @@ void	cheritest_failure_errx(const char *msg, ...) __dead2  __printflike(1, 2);
 void	cheritest_success(void) __dead2;
 void	signal_handler_clear(int sig);
 
+#ifdef __CHERI_PURE_CAPABILITY__
+/* cheritest_bounds_globals.c */
+void	test_bounds_global_static_uint8(const struct cheri_test *ctp);
+void	test_bounds_global_uint8(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint16(const struct cheri_test *ctp);
+void	test_bounds_global_uint16(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint32(const struct cheri_test *ctp);
+void	test_bounds_global_uint32(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint64(const struct cheri_test *ctp);
+void	test_bounds_global_uint64(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array1(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array1(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array3(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array3(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array17(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array17(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array65537(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array65537(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array32(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array32(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array64(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array64(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array128(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array128(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array256(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array256(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array512(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array512(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array1024(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array1024(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array2048(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array2048(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array4096(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array4096(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array8192(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array8192(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array16384(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array16384(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array32768(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array32768(const struct cheri_test *ctp);
+void	test_bounds_global_static_uint8_array65536(const struct cheri_test *ctp);
+void	test_bounds_global_uint8_array65536(const struct cheri_test *ctp);
+
+/* cheritest_bounds_global.c, but dependent on cheritest_bounds_global_x.c */
+void	test_bounds_extern_global_uint8(const struct cheri_test *ctp);
+void	test_bounds_extern_global_uint16(const struct cheri_test *ctp);
+void	test_bounds_extern_global_uint32(const struct cheri_test *ctp);
+void	test_bounds_extern_global_uint64(const struct cheri_test *ctp);
+void	test_bounds_extern_global_array1(const struct cheri_test *ctp);
+void	test_bounds_extern_global_array7(const struct cheri_test *ctp);
+void	test_bounds_extern_global_array65537(const struct cheri_test *ctp);
+void	test_bounds_extern_global_array16(const struct cheri_test *ctp);
+void	test_bounds_extern_global_array256(const struct cheri_test *ctp);
+void	test_bounds_extern_global_array65536(const struct cheri_test *ctp);
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 /* cheritest_bounds_heap.c */
 void	test_bounds_calloc(const struct cheri_test *ctp);
 

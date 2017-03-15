@@ -245,6 +245,217 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Retrieve sealcap using sysarch(2)",
 	  .ct_func = test_sealcap_sysarch, },
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	/*
+	 * Test bounds on globals in the same file they are allocated in.
+	 */
+	{ .ct_name = "test_bounds_global_static_uint8",
+	  .ct_desc = "Check bounds on global static uint8_t",
+	  .ct_func = test_bounds_global_static_uint8, },
+
+	{ .ct_name = "test_bounds_global_uint8",
+	  .ct_desc = "Check bounds on global uint8_t",
+	  .ct_func = test_bounds_global_uint8, },
+
+	{ .ct_name = "test_bounds_global_static_uint16",
+	  .ct_desc = "Check bounds on global static uint16_t",
+	  .ct_func = test_bounds_global_static_uint16, },
+
+	{ .ct_name = "test_bounds_global_uint16",
+	  .ct_desc = "Check bounds on global uint16_t",
+	  .ct_func = test_bounds_global_uint16, },
+
+	{ .ct_name = "test_bounds_global_static_uint32",
+	  .ct_desc = "Check bounds on global static uint32_t",
+	  .ct_func = test_bounds_global_static_uint32, },
+
+	{ .ct_name = "test_bounds_global_uint32",
+	  .ct_desc = "Check bounds on global uint32_t",
+	  .ct_func = test_bounds_global_uint32, },
+
+	{ .ct_name = "test_bounds_global_static_uint64",
+	  .ct_desc = "Check bounds on global static uint64_t",
+	  .ct_func = test_bounds_global_static_uint64, },
+
+	{ .ct_name = "test_bounds_global_uint64",
+	  .ct_desc = "Check bounds on global uint64_t",
+	  .ct_func = test_bounds_global_uint64, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array1",
+	  .ct_desc = "Check bounds on global static uint8_t[1]",
+	  .ct_func = test_bounds_global_static_uint8_array1, },
+
+	{ .ct_name = "test_bounds_global_uint8_array1",
+	  .ct_desc = "Check bounds on global uint8_t[1]",
+	  .ct_func = test_bounds_global_uint8_array1, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array3",
+	  .ct_desc = "Check bounds on global static uint8_t[3]",
+	  .ct_func = test_bounds_global_static_uint8_array3, },
+
+	{ .ct_name = "test_bounds_global_uint8_array3",
+	  .ct_desc = "Check bounds on global uint8_t[3]",
+	  .ct_func = test_bounds_global_uint8_array3, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array17",
+	  .ct_desc = "Check bounds on global static uint_t[17]",
+	  .ct_func = test_bounds_global_static_uint8_array17, },
+
+	{ .ct_name = "test_bounds_global_uint8_array17",
+	  .ct_desc = "Check bounds on global uint_t[17]",
+	  .ct_func = test_bounds_global_uint8_array17, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array65537",
+	  .ct_desc = "Check bounds on global static uint8_t[65537]",
+	  .ct_func = test_bounds_global_static_uint8_array65537, },
+
+	{ .ct_name = "test_bounds_global_uint8_array65537",
+	  .ct_desc = "Check bounds on global uint8_t[65537]",
+	  .ct_func = test_bounds_global_uint8_array65537, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array32",
+	  .ct_desc = "Check bounds on global static uint8_t[32]",
+	  .ct_func = test_bounds_global_static_uint8_array32, },
+
+	{ .ct_name = "test_bounds_global_uint8_array32",
+	  .ct_desc = "Check bounds on global uint8_t[32]",
+	  .ct_func = test_bounds_global_uint8_array32, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array64",
+	  .ct_desc = "Check bounds on global static uint8_t[64]",
+	  .ct_func = test_bounds_global_static_uint8_array64, },
+
+	{ .ct_name = "test_bounds_global_uint8_array64",
+	  .ct_desc = "Check bounds on global uint8_t[64]",
+	  .ct_func = test_bounds_global_uint8_array64, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array128",
+	  .ct_desc = "Check bounds on global static uint8_t[128]",
+	  .ct_func = test_bounds_global_static_uint8_array128, },
+
+	{ .ct_name = "test_bounds_global_uint8_array128",
+	  .ct_desc = "Check bounds on global uint8_t[128]",
+	  .ct_func = test_bounds_global_uint8_array128, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array256",
+	  .ct_desc = "Check bounds on global static uint8_t[256]",
+	  .ct_func = test_bounds_global_static_uint8_array256, },
+
+	{ .ct_name = "test_bounds_global_uint8_array256",
+	  .ct_desc = "Check bounds on global uint8_t[256]",
+	  .ct_func = test_bounds_global_uint8_array256, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array512",
+	  .ct_desc = "Check bounds on global static uint8_t[512]",
+	  .ct_func = test_bounds_global_static_uint8_array512, },
+
+	{ .ct_name = "test_bounds_global_uint8_array512",
+	  .ct_desc = "Check bounds on global uint8_t[512]",
+	  .ct_func = test_bounds_global_uint8_array512, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array1024",
+	  .ct_desc = "Check bounds on global static uint8_t[1024]",
+	  .ct_func = test_bounds_global_static_uint8_array1024, },
+
+	{ .ct_name = "test_bounds_global_uint8_array1024",
+	  .ct_desc = "Check bounds on global  uint8_t[1024]",
+	  .ct_func = test_bounds_global_uint8_array1024, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array2048",
+	  .ct_desc = "Check bounds on global static uint8_t[2048]",
+	  .ct_func = test_bounds_global_static_uint8_array2048, },
+
+	{ .ct_name = "test_bounds_global_uint8_array2048",
+	  .ct_desc = "Check bounds on global uint8_t[2048]",
+	  .ct_func = test_bounds_global_uint8_array2048, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array4096",
+	  .ct_desc = "Check bounds on global static uint8_t[4096]",
+	  .ct_func = test_bounds_global_static_uint8_array4096, },
+
+	{ .ct_name = "test_bounds_global_uint8_array4096",
+	  .ct_desc = "Check bounds on global uint8_t[4096]",
+	  .ct_func = test_bounds_global_uint8_array4096, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array8192",
+	  .ct_desc = "Check bounds on global uint8_t[8192]",
+	  .ct_func = test_bounds_global_static_uint8_array8192, },
+
+	{ .ct_name = "test_bounds_global_uint8_array8192",
+	  .ct_desc = "Check bounds on global uint8_t[8192]",
+	  .ct_func = test_bounds_global_uint8_array8192, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array16384",
+	  .ct_desc = "Check bounds on global static uint8_t[16384]",
+	  .ct_func = test_bounds_global_static_uint8_array16384, },
+
+	{ .ct_name = "test_bounds_global_uint8_array16384",
+	  .ct_desc = "Check bounds on global uint8_t[16384]",
+	  .ct_func = test_bounds_global_uint8_array16384, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array32768",
+	  .ct_desc = "Check bounds on global static uint8_t[32768]",
+	  .ct_func = test_bounds_global_static_uint8_array32768, },
+
+	{ .ct_name = "test_bounds_global_uint8_array32768",
+	  .ct_desc = "Check bounds on global uint8_t[32768]",
+	  .ct_func = test_bounds_global_uint8_array32768, },
+
+	{ .ct_name = "test_bounds_global_static_uint8_array65536",
+	  .ct_desc = "Check bounds on global static uint8_t[65536]",
+	  .ct_func = test_bounds_global_static_uint8_array65536, },
+
+	{ .ct_name = "test_bounds_global_uint8_array65536",
+	  .ct_desc = "Check bounds on global uint8_t[65536]",
+	  .ct_func = test_bounds_global_uint8_array65536, },
+
+	/*
+	 * Test bounds on globals that are allocated in a different file from
+	 * the test, in the hopes of exercising the linker.
+	 */
+	{ .ct_name = "test_bounds_extern_global_uint8",
+	  .ct_desc = "Check bounds on extern global uint8_t (C size)",
+	  .ct_func = test_bounds_extern_global_uint8, },
+
+	{ .ct_name = "test_bounds_extern_global_uint16",
+	  .ct_desc = "Check bounds on extern global uint16_t (dynamic size)",
+	  .ct_func = test_bounds_extern_global_uint16, },
+
+	{ .ct_name = "test_bounds_extern_global_uint32",
+	  .ct_desc = "Check bounds on extern global uint32_t (C size)",
+	  .ct_func = test_bounds_extern_global_uint32, },
+
+	{ .ct_name = "test_bounds_extern_global_uint64",
+	  .ct_desc = "Check bounds on extern global uint64_t (dynamic size)",
+	  .ct_func = test_bounds_extern_global_uint64, },
+
+	{ .ct_name = "test_bounds_extern_global_array1",
+	  .ct_desc = "Check bounds on extern global uint8_t[1] (dynamic size)",
+	  .ct_func = test_bounds_extern_global_array1, },
+
+	{ .ct_name = "test_bounds_extern_global_array7",
+	  .ct_desc = "Check bounds on extern global uint8_t[7] (C size)",
+	  .ct_func = test_bounds_extern_global_array7, },
+
+	{ .ct_name = "test_bounds_extern_global_array65537",
+	  .ct_desc = "Check bounds on extern global uint8_t[65537] "
+	    "(dynamic size)",
+	  .ct_func = test_bounds_extern_global_array65537, },
+
+	{ .ct_name = "test_bounds_extern_global_array16",
+	  .ct_desc = "Check bounds on extern global uint8_t[16] (C size)",
+	  .ct_func = test_bounds_extern_global_array16, },
+
+	{ .ct_name = "test_bounds_extern_global_array65536",
+	  .ct_desc = "Check bounds on extern global uint8_t[65536] (C size)",
+	  .ct_func = test_bounds_extern_global_array65536, },
+
+	{ .ct_name = "test_bounds_extern_global_array256",
+	  .ct_desc = "Check bounds on extern global uint8_t[256] "
+	    "(dynamic size)",
+	  .ct_func = test_bounds_extern_global_array256, },
+#endif /* __CHERI_PURE_CAPABILITY__ */
+
 	/*
 	 * Test bounds on heap allocation.
 	 */

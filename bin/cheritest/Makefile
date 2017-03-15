@@ -4,7 +4,9 @@ PROG?=	cheritest
 SRCS=	cheritest.c
 
 .ifndef BOOTSTRAPPING
-SRCS+=	cheritest_bounds_heap.c						\
+SRCS+=	cheritest_bounds_globals.c					\
+	cheritest_bounds_globals_x.c					\
+	cheritest_bounds_heap.c						\
 	cheritest_bounds_stack.c					\
 	cheritest_ccall.c						\
 	cheritest_fault.c						\
