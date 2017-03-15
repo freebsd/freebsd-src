@@ -134,7 +134,8 @@ getargs(char *av[])
 			else if ((ip->fp = fopen(p, "r")) == NULL) {
 				err(1, "%s", p);
 			}
-			if (cap_rights_limit(fileno(ip->fp), &rights_ro) < 0)
+			if (cap_rights_limit(fileno(ip->fp), &rights_ro) < 0
+			    && errno != ENOSYS)
 				err(1, "unable to limit rights on: %s", p);
 			ip->pad = P;
 			if (!ip->sepstring)
