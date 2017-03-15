@@ -71,20 +71,6 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "syscall.h"
 
-/* 64-bit alignment on 32-bit platforms. */
-#if !defined(__LP64__) && defined(__powerpc__)
-#define	QUAD_ALIGN	1
-#else
-#define	QUAD_ALIGN	0
-#endif
-
-/* Number of slots needed for a 64-bit argument. */
-#ifdef __LP64__
-#define	QUAD_SLOTS	1
-#else
-#define	QUAD_SLOTS	2
-#endif
-
 /*
  * This should probably be in its own file, sorted alphabetically.
  */
@@ -154,7 +140,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "fstatfs", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { StatFs | OUT, 1 } } },
 	{ .name = "ftruncate", .ret_type = 1, .nargs = 2,
-	  .args = { { Int | IN, 0 }, { QuadHex | IN, 1 + QUAD_ALIGN } } },
+	  .args = { { Int | IN, 0 }, { QuadHex | IN, 1 } } },
 	{ .name = "futimens", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Timespec2 | IN, 1 } } },
 	{ .name = "futimes", .ret_type = 1, .nargs = 2,
@@ -210,8 +196,7 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Atfd, 2 }, { Name, 3 },
 		    { Atflags, 4 } } },
 	{ .name = "lseek", .ret_type = 2, .nargs = 3,
-	  .args = { { Int, 0 }, { QuadHex, 1 + QUAD_ALIGN },
-		    { Whence, 1 + QUAD_SLOTS + QUAD_ALIGN } } },
+	  .args = { { Int, 0 }, { QuadHex, 1 }, { Whence, 2 } } },
 	{ .name = "lstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Stat | OUT, 1 } } },
 	{ .name = "lutimes", .ret_type = 1, .nargs = 2,
@@ -230,7 +215,7 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Octal, 2 }, { Int, 3 } } },
 	{ .name = "mmap", .ret_type = 1, .nargs = 6,
 	  .args = { { Ptr, 0 }, { Int, 1 }, { Mprot, 2 }, { Mmapflags, 3 },
-		    { Int, 4 }, { QuadHex, 5 + QUAD_ALIGN } } },
+		    { Int, 4 }, { QuadHex, 5 } } },
 	{ .name = "modfind", .ret_type = 1, .nargs = 1,
 	  .args = { { Name | IN, 0 } } },
 	{ .name = "mount", .ret_type = 1, .nargs = 4,
@@ -257,9 +242,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "posix_openpt", .ret_type = 1, .nargs = 1,
 	  .args = { { Open, 0 } } },
 	{ .name = "procctl", .ret_type = 1, .nargs = 4,
-	  .args = { { Idtype, 0 }, { Quad, 1 + QUAD_ALIGN },
-		    { Procctl, 1 + QUAD_ALIGN + QUAD_SLOTS },
-		    { Ptr, 2 + QUAD_ALIGN + QUAD_SLOTS } } },
+	  .args = { { Idtype, 0 }, { Quad, 1 }, { Procctl, 2 }, { Ptr, 3 } } },
 	{ .name = "read", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { BinString | OUT, 1 }, { Int, 2 } } },
 	{ .name = "readlink", .ret_type = 1, .nargs = 3,
@@ -326,7 +309,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "thr_self", .ret_type = 1, .nargs = 1,
 	  .args = { { Ptr, 0 } } },
 	{ .name = "truncate", .ret_type = 1, .nargs = 2,
-	  .args = { { Name | IN, 0 }, { QuadHex | IN, 1 + QUAD_ALIGN } } },
+	  .args = { { Name | IN, 0 }, { QuadHex | IN, 1 } } },
 #if 0
 	/* Does not exist */
 	{ .name = "umount", .ret_type = 1, .nargs = 2,
@@ -349,11 +332,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { ExitStatus | OUT, 1 }, { Waitoptions, 2 },
 		    { Rusage | OUT, 3 } } },
 	{ .name = "wait6", .ret_type = 1, .nargs = 6,
-	  .args = { { Idtype, 0 }, { Quad, 1 + QUAD_ALIGN },
-		    { ExitStatus | OUT, 1 + QUAD_ALIGN + QUAD_SLOTS },
-		    { Waitoptions, 2 + QUAD_ALIGN + QUAD_SLOTS },
-		    { Rusage | OUT, 3 + QUAD_ALIGN + QUAD_SLOTS },
-		    { Ptr, 4 + QUAD_ALIGN + QUAD_SLOTS } } },
+	  .args = { { Idtype, 0 }, { Quad, 1 }, { ExitStatus | OUT, 2 },
+		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
 	{ .name = "write", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Int, 2 } } },
 
@@ -811,14 +791,65 @@ print_mask_arg(bool (*decoder)(FILE *, int, int *), FILE *fp, int value)
 		fprintf(fp, "|0x%x", rem);
 }
 
+#ifndef __LP64__
+/*
+ * Add argument padding to subsequent system calls afater a Quad
+ * syscall arguments as needed.  This used to be done by hand in the
+ * decoded_syscalls table which was ugly and error prone.  It is
+ * simpler to do the fixup of offsets at initalization time than when
+ * decoding arguments.
+ */
+static void
+quad_fixup(struct syscall *sc)
+{
+	int offset, prev;
+	u_int i;
+
+	offset = 0;
+	prev = -1;
+	for (i = 0; i < sc->nargs; i++) {
+		/* This arg type is a dummy that doesn't use offset. */
+		if ((sc->args[i].type & ARG_MASK) == PipeFds)
+			continue;
+
+		assert(prev < sc->args[i].offset);
+		prev = sc->args[i].offset;
+		sc->args[i].offset += offset;
+		switch (sc->args[i].type & ARG_MASK) {
+		case Quad:
+		case QuadHex:
+#ifdef __powerpc__
+			/*
+			 * 64-bit arguments on 32-bit powerpc must be
+			 * 64-bit aligned.  If the current offset is
+			 * not aligned, the calling convention inserts
+			 * a 32-bit pad argument that should be skipped.
+			 */
+			if (sc->args[i].offset % 2 == 1) {
+				sc->args[i].offset++;
+				offset++;
+			}
+#endif
+			offset++;
+		default:
+			break;
+		}
+	}
+}
+#endif
+
 void
 init_syscalls(void)
 {
 	struct syscall *sc;
 
 	STAILQ_INIT(&syscalls);
-	for (sc = decoded_syscalls; sc->name != NULL; sc++)
+	for (sc = decoded_syscalls; sc->name != NULL; sc++) {
+#ifndef __LP64__
+		quad_fixup(sc);
+#endif
 		STAILQ_INSERT_HEAD(&syscalls, sc, entries);
+	}
 }
 
 static struct syscall *
