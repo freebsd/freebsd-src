@@ -1877,6 +1877,7 @@ spa_init(int mode)
 	refcount_init();
 	unique_init();
 	range_tree_init();
+	metaslab_alloc_trace_init();
 	zio_init();
 	dmu_init();
 	zil_init();
@@ -1899,6 +1900,7 @@ spa_fini(void)
 	zil_fini();
 	dmu_fini();
 	zio_fini();
+	metaslab_alloc_trace_fini();
 	range_tree_fini();
 	unique_fini();
 	refcount_fini();
