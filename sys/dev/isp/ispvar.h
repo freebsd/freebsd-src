@@ -58,7 +58,7 @@
  */
 typedef struct ispsoftc ispsoftc_t;
 struct ispmdvec {
-	int		(*dv_rd_isr) (ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
+	void		(*dv_run_isr) (ispsoftc_t *);
 	uint32_t	(*dv_rd_reg) (ispsoftc_t *, int);
 	void		(*dv_wr_reg) (ispsoftc_t *, int, uint32_t);
 	int		(*dv_mbxdma) (ispsoftc_t *);
@@ -85,8 +85,8 @@ struct ispmdvec {
  * Macros to access ISP registers through bus specific layers-
  * mostly wrappers to vector through the mdvec structure.
  */
-#define	ISP_READ_ISR(isp, isrp, semap, info)	\
-	(*(isp)->isp_mdvec->dv_rd_isr)(isp, isrp, semap, info)
+#define	ISP_RUN_ISR(isp)	\
+	(*(isp)->isp_mdvec->dv_run_isr)(isp)
 
 #define	ISP_READ(isp, reg)	\
 	(*(isp)->isp_mdvec->dv_rd_reg)((isp), (reg))
@@ -544,18 +544,6 @@ struct ispsoftc {
 	uint32_t		isp_rqstoutrp;	/* register for REQOUTP */
 	uint32_t		isp_respinrp;	/* register for RESINP */
 	uint32_t		isp_respoutrp;	/* register for RESOUTP */
-
-	/*
-	 * Instrumentation
-	 */
-	uint64_t		isp_intcnt;		/* total int count */
-	uint64_t		isp_intbogus;		/* spurious int count */
-	uint64_t		isp_intmboxc;		/* mbox completions */
-	uint64_t		isp_intoasync;		/* other async */
-	uint64_t		isp_rsltccmplt;		/* CMDs on result q */
-	uint64_t		isp_fphccmplt;		/* CMDs via fastpost */
-	uint16_t		isp_rscchiwater;
-	uint16_t		isp_fpcchiwater;
 	NANOTIME_T		isp_init_time;		/* time were last initialized */
 
 	/*
@@ -813,12 +801,13 @@ void isp_shutdown(ispsoftc_t *);
 
 /*
  * Internal Interrupt Service Routine
- *
- * The outer layers do the spade work to get the appropriate status register,
- * semaphore register and first mailbox register (if appropriate). This also
- * means that most spurious/bogus interrupts not for us can be filtered first.
  */
-void isp_intr(ispsoftc_t *, uint16_t, uint16_t, uint16_t);
+#ifdef	ISP_TARGET_MODE
+void isp_intr_atioq(ispsoftc_t *);
+#endif
+void isp_intr_async(ispsoftc_t *, uint16_t event);
+void isp_intr_mbox(ispsoftc_t *, uint16_t mbox0);
+void isp_intr_respq(ispsoftc_t *);
 
 
 /*

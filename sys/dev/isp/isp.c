@@ -416,11 +416,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	}
 
 	/*
-	 * Clear instrumentation
-	 */
-	isp->isp_intcnt = isp->isp_intbogus = 0;
-
-	/*
 	 * Hit the chip over the head with hammer,
 	 * and give it a chance to recover.
 	 */
@@ -4404,7 +4399,7 @@ isp_start(XS_T *xs)
 		((ispreqt7_t *)reqp)->req_task_attribute = ttype;
 	} else if (IS_FC(isp)) {
 		/*
-		 * See comment in isp_intr
+		 * See comment in isp_intr_respq
 		 */
 		/* XS_SET_RESID(xs, 0); */
 
@@ -4911,6 +4906,70 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
  * and the locking will be held throughout this function.
  */
 
+#ifdef	ISP_TARGET_MODE
+void
+isp_intr_atioq(ispsoftc_t *isp)
+{
+	uint8_t qe[QENTRY_LEN];
+	isphdr_t *hp;
+	void *addr;
+	uint32_t iptr, optr, oop;
+
+	iptr = ISP_READ(isp, BIU2400_ATIO_RSPINP);
+	optr = isp->isp_atioodx;
+	while (optr != iptr) {
+		oop = optr;
+		MEMORYBARRIER(isp, SYNC_ATIOQ, oop, QENTRY_LEN, -1);
+		addr = ISP_QUEUE_ENTRY(isp->isp_atioq, oop);
+		isp_get_hdr(isp, addr, (isphdr_t *)qe);
+		hp = (isphdr_t *)qe;
+		switch (hp->rqs_entry_type) {
+		case RQSTYPE_NOTIFY:
+		case RQSTYPE_ATIO:
+			(void) isp_target_notify(isp, addr, &oop);
+			break;
+		default:
+			isp_print_qentry(isp, "?ATIOQ entry?", oop, addr);
+			break;
+		}
+		optr = ISP_NXT_QENTRY(oop, RESULT_QUEUE_LEN(isp));
+	}
+	if (isp->isp_atioodx != optr) {
+		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, optr);
+		isp->isp_atioodx = optr;
+	}
+}
+#endif
+
+void
+isp_intr_async(ispsoftc_t *isp, uint16_t event)
+{
+
+	if (IS_FC(isp))
+		isp_parse_async_fc(isp, event);
+	else
+		isp_parse_async(isp, event);
+}
+
+void
+isp_intr_mbox(ispsoftc_t *isp, uint16_t mbox0)
+{
+	int i, obits;
+
+	if (!isp->isp_mboxbsy) {
+		isp_prt(isp, ISP_LOGWARN, "mailbox 0x%x with no waiters", mbox0);
+		return;
+	}
+	obits = isp->isp_obits;
+	isp->isp_mboxtmp[0] = mbox0;
+	for (i = 1; i < ISP_NMBOX(isp); i++) {
+		if ((obits & (1 << i)) == 0)
+			continue;
+		isp->isp_mboxtmp[i] = ISP_READ(isp, MBOX_OFF(i));
+	}
+	MBOX_NOTIFY_COMPLETE(isp);
+}
+
 /*
  * Limit our stack depth by sticking with the max likely number
  * of completions on a request queue at any one time.
@@ -4920,165 +4979,32 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 #endif
 
 void
-isp_intr(ispsoftc_t *isp, uint16_t isr, uint16_t sema, uint16_t info)
+isp_intr_respq(ispsoftc_t *isp)
 {
 	XS_T *complist[MAX_REQUESTQ_COMPLETIONS], *xs;
 	uint32_t iptr, optr, junk;
 	int i, nlooked = 0, ndone = 0, continuations_expected = 0;
 	int etype, last_etype = 0;
 
-again:
-	/*
-	 * Is this a mailbox related interrupt?
-	 * The mailbox semaphore will be nonzero if so.
-	 */
-	if (sema) {
- fmbox:
-		if (info & MBOX_COMMAND_COMPLETE) {
-			isp->isp_intmboxc++;
-			if (isp->isp_mboxbsy) {
-				int obits = isp->isp_obits;
-				isp->isp_mboxtmp[0] = info;
-				for (i = 1; i < ISP_NMBOX(isp); i++) {
-					if ((obits & (1 << i)) == 0) {
-						continue;
-					}
-					isp->isp_mboxtmp[i] = ISP_READ(isp, MBOX_OFF(i));
-				}
-				MBOX_NOTIFY_COMPLETE(isp);
-			} else {
-				isp_prt(isp, ISP_LOGWARN, "mailbox cmd (0x%x) with no waiters", info);
-			}
-		} else {
-			if (IS_FC(isp))
-				isp_parse_async_fc(isp, info);
-			else
-				isp_parse_async(isp, info);
-		}
-		if ((IS_FC(isp) && info != ASYNC_RIOZIO_STALL) || isp->isp_state != ISP_RUNSTATE) {
-			goto out;
-		}
-	}
-
 	/*
 	 * We can't be getting this now.
 	 */
 	if (isp->isp_state != ISP_RUNSTATE) {
-		/*
-		 * This seems to happen to 23XX and 24XX cards- don't know why.
-		 */
-		 if (isp->isp_mboxbsy && isp->isp_lastmbxcmd == MBOX_ABOUT_FIRMWARE) {
-			goto fmbox;
-		}
-		isp_prt(isp, ISP_LOGINFO, "interrupt (ISR=%x SEMA=%x INFO=%x) "
-		    "when not ready", isr, sema, info);
-		/*
-		 * Thank you very much!  *Burrrp*!
-		 */
-		isp->isp_residx = ISP_READ(isp, isp->isp_respinrp);
-		isp->isp_resodx = isp->isp_residx;
-		ISP_WRITE(isp, isp->isp_respoutrp, isp->isp_resodx);
-		if (IS_24XX(isp)) {
-			ISP_DISABLE_INTS(isp);
-		}
-		goto out;
+		isp_prt(isp, ISP_LOGINFO, "respq interrupt when not ready");
+		return;
 	}
 
-#ifdef	ISP_TARGET_MODE
-	/*
-	 * Check for ATIO Queue entries.
-	 */
-	if (IS_24XX(isp) &&
-	    (isr == ISPR2HST_ATIO_UPDATE || isr == ISPR2HST_ATIO_RSPQ_UPDATE ||
-	     isr == ISPR2HST_ATIO_UPDATE2)) {
-		iptr = ISP_READ(isp, BIU2400_ATIO_RSPINP);
-		optr = isp->isp_atioodx;
-
-		while (optr != iptr) {
-			uint8_t qe[QENTRY_LEN];
-			isphdr_t *hp;
-			uint32_t oop;
-			void *addr;
-
-			oop = optr;
-			MEMORYBARRIER(isp, SYNC_ATIOQ, oop, QENTRY_LEN, -1);
-			addr = ISP_QUEUE_ENTRY(isp->isp_atioq, oop);
-			isp_get_hdr(isp, addr, (isphdr_t *)qe);
-			hp = (isphdr_t *)qe;
-			switch (hp->rqs_entry_type) {
-			case RQSTYPE_NOTIFY:
-			case RQSTYPE_ATIO:
-				(void) isp_target_notify(isp, addr, &oop);
-				break;
-			default:
-				isp_print_qentry(isp, "?ATIOQ entry?", oop, addr);
-				break;
-			}
-			optr = ISP_NXT_QENTRY(oop, RESULT_QUEUE_LEN(isp));
-		}
-		if (isp->isp_atioodx != optr) {
-			ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, optr);
-			isp->isp_atioodx = optr;
-		}
-	}
-#endif
-
-	/*
-	 * You *must* read the Response Queue In Pointer
-	 * prior to clearing the RISC interrupt.
-	 *
-	 * Debounce the 2300 if revision less than 2.
-	 */
+	iptr = ISP_READ(isp, isp->isp_respinrp);
+	/* Debounce the 2300 if revision less than 2. */
 	if (IS_2100(isp) || (IS_2300(isp) && isp->isp_revision < 2)) {
-		i = 0;
 		do {
+			junk = iptr;
 			iptr = ISP_READ(isp, isp->isp_respinrp);
-			junk = ISP_READ(isp, isp->isp_respinrp);
-		} while (junk != iptr && ++i < 1000);
-
-		if (iptr != junk) {
-			isp_prt(isp, ISP_LOGWARN, "Response Queue Out Pointer Unstable (%x, %x)", iptr, junk);
-			goto out;
-		}
-	} else {
-		iptr = ISP_READ(isp, isp->isp_respinrp);
-	}
-
-	optr = isp->isp_resodx;
-	if (optr == iptr && sema == 0) {
-		/*
-		 * There are a lot of these- reasons unknown- mostly on
-		 * faster Alpha machines.
-		 *
-		 * I tried delaying after writing HCCR_CMD_CLEAR_RISC_INT to
-		 * make sure the old interrupt went away (to avoid 'ringing'
-		 * effects), but that didn't stop this from occurring.
-		 */
-		if (IS_24XX(isp)) {
-			junk = 0;
-		} else if (IS_23XX(isp)) {
-			ISP_DELAY(100);
-			iptr = ISP_READ(isp, isp->isp_respinrp);
-			junk = ISP_READ(isp, BIU_R2HSTSLO);
-		} else {
-			junk = ISP_READ(isp, BIU_ISR);
-		}
-		if (optr == iptr) {
-			if (IS_23XX(isp) || IS_24XX(isp)) {
-				;
-			} else {
-				sema = ISP_READ(isp, BIU_SEMA);
-				info = ISP_READ(isp, OUTMAILBOX0);
-				if ((sema & 0x3) && (info & 0x8000)) {
-					goto again;
-				}
-			}
-			isp->isp_intbogus++;
-			isp_prt(isp, ISP_LOGDEBUG1, "bogus intr- isr %x (%x) iptr %x optr %x", isr, junk, iptr, optr);
-		}
+		} while (junk != iptr);
 	}
 	isp->isp_residx = iptr;
 
+	optr = isp->isp_resodx;
 	while (optr != iptr) {
 		uint8_t qe[QENTRY_LEN];
 		ispstatusreq_t *sp = (ispstatusreq_t *) qe;
@@ -5129,9 +5055,6 @@ again:
 			isp_get_rio1(isp, (isp_rio1_t *) hp, rio);
 			for (i = 0; i < rio->req_header.rqs_seqno; i++) {
 				isp_fastpost_complete(isp, rio->req_handles[i]);
-			}
-			if (isp->isp_fpcchiwater < rio->req_header.rqs_seqno) {
-				isp->isp_fpcchiwater = rio->req_header.rqs_seqno;
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			last_etype = etype;
@@ -5377,10 +5300,8 @@ again:
 					if (ndone > (MAX_REQUESTQ_COMPLETIONS - continuations_expected - 1)) {
 						/* we'll lose some stats, but that's a small price to pay */
 						for (i = 0; i < ndone; i++) {
-							if (complist[i]) {
-								isp->isp_rsltccmplt++;
+							if (complist[i])
 								isp_done(complist[i]);
-							}
 						}
 						ndone = 0;
 					}
@@ -5453,17 +5374,6 @@ again:
 	if (nlooked) {
 		ISP_WRITE(isp, isp->isp_respoutrp, optr);
 		isp->isp_resodx = optr;
-		if (isp->isp_rscchiwater < ndone)
-			isp->isp_rscchiwater = ndone;
-	}
-
-out:
-
-	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
-	} else {
-		ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-		ISP_WRITE(isp, BIU_SEMA, 0);
 	}
 
 	for (i = 0; i < ndone; i++) {
@@ -5473,7 +5383,6 @@ out:
 			    ((isp->isp_dblev & (ISP_LOGDEBUG0|ISP_LOG_CWARN) && ((!XS_NOERR(xs)) || (*XS_STSP(xs) != SCSI_GOOD))))) {
 				isp_prt_endcmd(isp, xs);
 			}
-			isp->isp_rsltccmplt++;
 			isp_done(xs);
 		}
 	}
@@ -5666,16 +5575,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		if (h2) {
 			isp_prt(isp, ISP_LOGDEBUG3, "fast post/rio completion of 0x%08x", h2);
 			isp_fastpost_complete(isp, h2);
-			if (isp->isp_fpcchiwater < 2) {
-				isp->isp_fpcchiwater = 2;
-			}
-		} else {
-			if (isp->isp_fpcchiwater < 1) {
-				isp->isp_fpcchiwater = 1;
-			}
 		}
-	} else {
-		isp->isp_intoasync++;
 	}
 }
 
@@ -5733,19 +5633,16 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 
 	case ASYNC_CMD_CMPLT:
 		isp_fastpost_complete(isp, (ISP_READ(isp, OUTMAILBOX2) << 16) | ISP_READ(isp, OUTMAILBOX1));
-		if (isp->isp_fpcchiwater < 1) {
-			isp->isp_fpcchiwater = 1;
-		}
 		break;
 
 	case ASYNC_RIOZIO_STALL:
+		isp_intr_respq(isp);
 		break;
 
 	case ASYNC_CTIO_DONE:
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, (ISP_READ(isp, OUTMAILBOX2) << 16) |
 		    ISP_READ(isp, OUTMAILBOX1), mbox);
-		isp->isp_fphccmplt++;
 #else
 		isp_prt(isp, ISP_LOGWARN, "unexpected ASYNC CTIO done");
 #endif
@@ -6017,9 +5914,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		isp_prt(isp, ISP_LOGWARN, "Unknown Async Code 0x%x", mbox);
 		break;
 	}
-	if (mbox != ASYNC_CTIO_DONE && mbox != ASYNC_CMD_CMPLT) {
-		isp->isp_intoasync++;
-	}
 }
 
 /*
@@ -6106,11 +6000,9 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 	case RQSTYPE_CTIO7:
 	case RQSTYPE_ABTS_RCVD:
 	case RQSTYPE_ABTS_RSP:
-		isp->isp_rsltccmplt++;	/* count as a response completion */
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_notify(isp, (ispstatusreq_t *) hp, optrp)) {
+		if (isp_target_notify(isp, (ispstatusreq_t *) hp, optrp))
 			return (1);
-		}
 #endif
 		/* FALLTHROUGH */
 	case RQSTYPE_REQUEST:
@@ -6649,7 +6541,6 @@ isp_fastpost_complete(ispsoftc_t *isp, uint32_t fph)
 	if (isp->isp_nactive) {
 		isp->isp_nactive--;
 	}
-	isp->isp_fphccmplt++;
 	isp_done(xs);
 }
 

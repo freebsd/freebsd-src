@@ -512,40 +512,6 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 		}
 		break;
 	}
-	case ISP_GET_STATS:
-	{
-		isp_stats_t *sp = (isp_stats_t *) addr;
-
-		ISP_MEMZERO(sp, sizeof (*sp));
-		sp->isp_stat_version = ISP_STATS_VERSION;
-		sp->isp_type = isp->isp_type;
-		sp->isp_revision = isp->isp_revision;
-		ISP_LOCK(isp);
-		sp->isp_stats[ISP_INTCNT] = isp->isp_intcnt;
-		sp->isp_stats[ISP_INTBOGUS] = isp->isp_intbogus;
-		sp->isp_stats[ISP_INTMBOXC] = isp->isp_intmboxc;
-		sp->isp_stats[ISP_INGOASYNC] = isp->isp_intoasync;
-		sp->isp_stats[ISP_RSLTCCMPLT] = isp->isp_rsltccmplt;
-		sp->isp_stats[ISP_FPHCCMCPLT] = isp->isp_fphccmplt;
-		sp->isp_stats[ISP_RSCCHIWAT] = isp->isp_rscchiwater;
-		sp->isp_stats[ISP_FPCCHIWAT] = isp->isp_fpcchiwater;
-		ISP_UNLOCK(isp);
-		retval = 0;
-		break;
-	}
-	case ISP_CLR_STATS:
-		ISP_LOCK(isp);
-		isp->isp_intcnt = 0;
-		isp->isp_intbogus = 0;
-		isp->isp_intmboxc = 0;
-		isp->isp_intoasync = 0;
-		isp->isp_rsltccmplt = 0;
-		isp->isp_fphccmplt = 0;
-		isp->isp_rscchiwater = 0;
-		isp->isp_fpcchiwater = 0;
-		ISP_UNLOCK(isp);
-		retval = 0;
-		break;
 	case ISP_FC_GETHINFO:
 	{
 		struct isp_hba_device *hba = (struct isp_hba_device *) addr;
@@ -2829,10 +2795,8 @@ static void
 isp_poll(struct cam_sim *sim)
 {
 	ispsoftc_t *isp = cam_sim_softc(sim);
-	uint16_t isr, sema, info;
 
-	if (ISP_READ_ISR(isp, &isr, &sema, &info))
-		isp_intr(isp, isr, sema, info);
+	ISP_RUN_ISR(isp);
 }
 
 
@@ -2851,9 +2815,7 @@ isp_watchdog(void *arg)
 	 * Hand crank the interrupt code just to be sure the command isn't stuck somewhere.
 	 */
 	if (handle != ISP_HANDLE_FREE) {
-		uint16_t isr, sema, info;
-		if (ISP_READ_ISR(isp, &isr, &sema, &info) != 0)
-			isp_intr(isp, isr, sema, info);
+		ISP_RUN_ISR(isp);
 		ohandle = handle;
 		handle = isp_find_handle(isp, xs);
 	}
@@ -4428,14 +4390,11 @@ isp_mbox_wait_complete(ispsoftc_t *isp, mbreg_t *mbp)
 		isp->isp_osinfo.mbox_sleeping = 0;
 	} else {
 		for (t = 0; t < to; t += 100) {
-			uint16_t isr, sema, info;
 			if (isp->isp_osinfo.mboxcmd_done)
 				break;
-			if (ISP_READ_ISR(isp, &isr, &sema, &info)) {
-				isp_intr(isp, isr, sema, info);
-				if (isp->isp_osinfo.mboxcmd_done)
-					break;
-			}
+			ISP_RUN_ISR(isp);
+			if (isp->isp_osinfo.mboxcmd_done)
+				break;
 			ISP_DELAY(100);
 		}
 	}
@@ -4495,14 +4454,9 @@ void
 isp_platform_intr(void *arg)
 {
 	ispsoftc_t *isp = arg;
-	uint16_t isr, sema, info;
 
 	ISP_LOCK(isp);
-	isp->isp_intcnt++;
-	if (ISP_READ_ISR(isp, &isr, &sema, &info))
-		isp_intr(isp, isr, sema, info);
-	else
-		isp->isp_intbogus++;
+	ISP_RUN_ISR(isp);
 	ISP_UNLOCK(isp);
 }
 
