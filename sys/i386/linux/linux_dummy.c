@@ -107,7 +107,6 @@ DUMMY(timerfd_gettime);
 DUMMY(signalfd4);
 DUMMY(inotify_init1);
 /* linux 2.6.31: */
-DUMMY(rt_tgsigqueueinfo);
 DUMMY(perf_event_open);
 /* linux 2.6.33: */
 DUMMY(fanotify_init);
