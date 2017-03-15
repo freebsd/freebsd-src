@@ -778,17 +778,17 @@ ffs_rdfs(daddr_t bno, int size, void *bf, const fsinfo_t *fsopts)
 	offset = bno;
 	offset *= fsopts->sectorsize;
 	if (lseek(fsopts->fd, offset, SEEK_SET) < 0)
-		err(1, "ffs_rdfs: seek error for sector %lld: %s\n",
-		    (long long)bno, strerror(errno));
+		err(1, "%s: seek error for sector %lld", __func__,
+		    (long long)bno);
 	n = read(fsopts->fd, bf, size);
 	if (n == -1) {
 		abort();
-		err(1, "ffs_rdfs: read error bno %lld size %d", (long long)bno,
-		    size);
+		err(1, "%s: read error bno %lld size %d", __func__,
+		    (long long)bno, size);
 	}
 	else if (n != size)
-		errx(1, "ffs_rdfs: read error for sector %lld: %s\n",
-		    (long long)bno, strerror(errno));
+		errx(1, "%s: read error for sector %lld", __func__,
+		    (long long)bno);
 }
 
 /*
@@ -803,15 +803,15 @@ ffs_wtfs(daddr_t bno, int size, void *bf, const fsinfo_t *fsopts)
 	offset = bno;
 	offset *= fsopts->sectorsize;
 	if (lseek(fsopts->fd, offset, SEEK_SET) < 0)
-		err(1, "wtfs: seek error for sector %lld: %s\n",
-		    (long long)bno, strerror(errno));
+		err(1, "%s: seek error for sector %lld", __func__,
+		    (long long)bno );
 	n = write(fsopts->fd, bf, size);
 	if (n == -1)
-		err(1, "wtfs: write error for sector %lld: %s\n",
-		    (long long)bno, strerror(errno));
+		err(1, "%s: write error for sector %lld", __func__,
+		    (long long)bno);
 	else if (n != size)
-		errx(1, "wtfs: write error for sector %lld: %s\n",
-		    (long long)bno, strerror(errno));
+		errx(1, "%s: write error for sector %lld", __func__,
+		    (long long)bno);
 }
 
 
@@ -834,5 +834,5 @@ ilog2(int val)
 	for (n = 0; n < sizeof(n) * CHAR_BIT; n++)
 		if (1 << n == val)
 			return (n);
-	errx(1, "ilog2: %d is not a power of 2\n", val);
+	errx(1, "%s: %d is not a power of 2", __func__, val);
 }

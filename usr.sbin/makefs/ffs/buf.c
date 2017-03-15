@@ -71,25 +71,26 @@ bread(struct vnode *vp, daddr_t blkno, int size, struct ucred *u1 __unused,
 	assert (bpp != NULL);
 
 	if (debug & DEBUG_BUF_BREAD)
-		printf("bread: blkno %lld size %d\n", (long long)blkno, size);
+		printf("%s: blkno %lld size %d\n", __func__, (long long)blkno,
+		    size);
 	*bpp = getblk(vp, blkno, size, 0, 0, 0);
 	offset = (*bpp)->b_blkno * sectorsize;	/* XXX */
 	if (debug & DEBUG_BUF_BREAD)
-		printf("bread: blkno %lld offset %lld bcount %ld\n",
+		printf("%s: blkno %lld offset %lld bcount %ld\n", __func__,
 		    (long long)(*bpp)->b_blkno, (long long) offset,
 		    (*bpp)->b_bcount);
 	if (lseek((*bpp)->b_fd, offset, SEEK_SET) == -1)
-		err(1, "bread: lseek %lld (%lld)",
+		err(1, "%s: lseek %lld (%lld)", __func__,
 		    (long long)(*bpp)->b_blkno, (long long)offset);
 	rv = read((*bpp)->b_fd, (*bpp)->b_data, (*bpp)->b_bcount);
 	if (debug & DEBUG_BUF_BREAD)
-		printf("bread: read %ld (%lld) returned %d\n",
+		printf("%s: read %ld (%lld) returned %d\n", __func__,
 		    (*bpp)->b_bcount, (long long)offset, (int)rv);
 	if (rv == -1)				/* read error */
-		err(1, "bread: read %ld (%lld) returned %d",
+		err(1, "%s: read %ld (%lld) returned %d", __func__,
 		    (*bpp)->b_bcount, (long long)offset, (int)rv);
 	else if (rv != (*bpp)->b_bcount)	/* short read */
-		err(1, "bread: read %ld (%lld) returned %d",
+		err(1, "%s: read %ld (%lld) returned %d", __func__,
 		    (*bpp)->b_bcount, (long long)offset, (int)rv);
 	else
 		return (0);
