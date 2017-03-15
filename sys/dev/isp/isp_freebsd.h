@@ -160,8 +160,6 @@ typedef struct tstate {
 	struct ccb_hdr_slist	atios;
 	struct ccb_hdr_slist	inots;
 	struct ntpdlist		restart_queue;
-	uint16_t		atio_count;
-	uint16_t		inot_count;
 } tstate_t;
 
 #define	LUN_HASH_SIZE		32
