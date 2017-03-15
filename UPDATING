@@ -51,6 +51,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170315:
+	The syntax of ipfw(8) named states was changed to avoid ambiguity.
+	If you have used named states in the firewall rules, you need to modify
+	them after installworld and before rebooting. Now named states must
+	be prefixed with colon.
+
 20170311:
 	The old drm (sys/dev/drm/) drivers for i915 and radeon have been
 	removed as the userland we provide cannot use them. The KMS version
