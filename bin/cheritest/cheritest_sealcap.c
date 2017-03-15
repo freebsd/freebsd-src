@@ -67,7 +67,7 @@ test_sealcap_sysarch(const struct cheri_test *ctp __unused)
 	v = cheri_getlen(sealcap);
 	if (v != CHERI_SEALCAP_USERSPACE_LENGTH)
 		cheritest_failure_errx("length 0x%jx (expected 0x%jx)", v,
-		    CHERI_SEALCAP_USERSPACE_LENGTH);
+		    (uintmax_t)CHERI_SEALCAP_USERSPACE_LENGTH);
 
 	/* Offset. */
 	v = cheri_getoffset(sealcap);
