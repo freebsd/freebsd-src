@@ -377,8 +377,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Name, 0 }, { Name | OUT, 1 }, { Int, 2 } } },
 	{ .name = "linux_socketcall", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { LinuxSockArgs, 1 } } },
-	{ .name = "linux_stat64", .ret_type = 1, .nargs = 3,
-	  .args = { { Name | IN, 0 }, { Ptr | OUT, 1 }, { Ptr | IN, 1 } } },
+	{ .name = "linux_stat64", .ret_type = 1, .nargs = 2,
+	  .args = { { Name | IN, 0 }, { Ptr | OUT, 1 } } },
 
 	/* CloudABI system calls. */
 	{ .name = "cloudabi_sys_clock_res_get", .ret_type = 1, .nargs = 1,
