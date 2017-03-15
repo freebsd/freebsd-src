@@ -130,6 +130,15 @@ struct vmspace;
 struct vm_object;
 struct vm_guest_paging;
 struct pmap;
+struct vm_vmem_stat;
+enum snapshot_req;
+
+struct mem_seg {
+	size_t	len;
+	bool	sysmem;
+	struct vm_object *object;
+};
+#define	VM_MAX_MEMSEGS	3
 
 struct vm_eventinfo {
 	void	*rptr;		/* rendezvous cookie */
@@ -142,7 +151,7 @@ typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-		    struct pmap *pmap, struct vm_eventinfo *info);
+		    struct pmap *pmap, struct vm_eventinfo *info, int restored);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
@@ -158,6 +167,9 @@ typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
 typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
 typedef struct vlapic * (*vmi_vlapic_init)(void *vmi, int vcpu);
 typedef void	(*vmi_vlapic_cleanup)(void *vmi, struct vlapic *vlapic);
+typedef int	(*vmi_snapshot_t)(void *vmi, void *buffer, size_t buf_size,
+				  size_t *snapshot_size);
+typedef int	(*vmi_restore_t)(void *vmi, void *buffer, size_t buf_size);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
@@ -177,6 +189,10 @@ struct vmm_ops {
 	vmi_vmspace_free	vmspace_free;
 	vmi_vlapic_init		vlapic_init;
 	vmi_vlapic_cleanup	vlapic_cleanup;
+
+	/* checkpoint operations */
+	vmi_snapshot_t		vmsnapshot;
+	vmi_restore_t		vmrestore;
 };
 
 extern struct vmm_ops vmm_ops_intel;
@@ -210,9 +226,11 @@ int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
  */
 int vm_mmap_getnext(struct vm *vm, vm_paddr_t *gpa, int *segid,
     vm_ooffset_t *segoff, size_t *len, int *prot, int *flags);
+int vm_get_vmem_stat(struct vm *vm, struct vm_vmem_stat *vmem_stat);
 int vm_get_memseg(struct vm *vm, int ident, size_t *len, bool *sysmem,
     struct vm_object **objptr);
 vm_paddr_t vmm_sysmem_maxaddr(struct vm *vm);
+struct mem_seg * vm_get_memsegs(struct vm *vm);
 void *vm_gpa_hold(struct vm *, int vcpuid, vm_paddr_t gpa, size_t len,
     int prot, void **cookie);
 void vm_gpa_release(void *cookie);
@@ -249,6 +267,11 @@ void vm_exit_debug(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
+int vm_snapshot_req(struct vm *vm, enum snapshot_req req, void *buffer,
+		    size_t buf_size, size_t *snapshot_size);
+int vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer,
+		   size_t buf_size);
+
 
 #ifdef _SYS__CPUSET_H_
 /*
@@ -374,8 +397,7 @@ int vm_inject_exception(struct vm *vm, int vcpuid, int vector, int err_valid,
  */
 int vm_exit_intinfo(struct vm *vm, int vcpuid, uint64_t intinfo);
 
-/*
- * This function is called before every VM-entry to retrieve a pending
+/* * This function is called before every VM-entry to retrieve a pending
  * event that should be injected into the guest. This function combines
  * nested events into a double or triple fault.
  *
@@ -418,6 +440,9 @@ void vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     void *kaddr, size_t len);
 void vm_copyout(struct vm *vm, int vcpuid, const void *kaddr,
     struct vm_copyinfo *copyinfo, size_t len);
+int
+vm_create_checkpoint_memseg(struct vm_object *old_obj, struct vm_object *new_obj,
+				struct mem_seg *original_mseg, struct mem_seg *checkpoint_mseg);
 
 int vcpu_trace_exceptions(struct vm *vm, int vcpuid);
 #endif	/* KERNEL */

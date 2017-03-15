@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <libutil.h>
 
+#include <vm/vm.h>
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 
@@ -71,6 +72,7 @@ __FBSDID("$FreeBSD$");
 
 struct vmctx {
 	int	fd;
+	int	fd_checkpoint;
 	uint32_t lowmem_limit;
 	int	memflags;
 	size_t	lowmem;
@@ -100,6 +102,24 @@ vm_device_open(const char *name)
 	return (fd);
 }
 
+static int
+vm_checkpoint_device_open(const char *name)
+{
+	int fd, len;
+	char *vm_checkpoint_file;
+
+	len = strlen("/dev/vmm/") + strlen(name) + 4 + 1;
+	vm_checkpoint_file = malloc(len);
+	assert(vm_checkpoint_file != NULL);
+	snprintf(vm_checkpoint_file, len, "/dev/vmm/%s_mem", name);
+
+	/* Open the device file */
+	fd = open(vm_checkpoint_file, O_RDWR, 0);
+
+	free(vm_checkpoint_file);
+	return (fd);
+}
+
 int
 vm_create(const char *name)
 {
@@ -123,6 +143,9 @@ vm_open(const char *name)
 
 	if ((vm->fd = vm_device_open(vm->name)) < 0)
 		goto err;
+
+	if ((vm->fd_checkpoint = vm_checkpoint_device_open(vm->name)) < 0)
+		printf("Error on opening checkpoint device!\n");
 
 	return (vm);
 err:
@@ -230,6 +253,62 @@ vm_mmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, int segid, vm_ooffset_t off,
 	}
 
 	error = ioctl(ctx->fd, VM_MMAP_MEMSEG, &memmap);
+	return (error);
+}
+
+int
+vm_get_vmem_stat(struct vmctx *ctx, struct vm_vmem_stat *vmem_stat)
+{
+	int error;
+
+	error = ioctl(ctx->fd, VM_GET_VMEM_STAT, vmem_stat);
+
+	return (error);
+}
+
+int vm_get_guestmem_from_ctx(struct vmctx *ctx, char **guest_baseaddr,
+			size_t *lowmem_size, size_t *highmem_size)
+{
+	*guest_baseaddr = ctx->baseaddr;
+	*lowmem_size = ctx->lowmem;
+	*highmem_size = ctx->highmem;
+
+	return 0;
+}
+
+int
+vm_get_vm_mem(struct vmctx *ctx, char **lowmem, char **highmem, char *guest_baseaddr,
+		size_t guest_lowmem_size, size_t guest_highmem_size)
+{
+	char *mmap_vm_lowmem = MAP_FAILED, *mmap_vm_highmem = MAP_FAILED;
+	int error = 0;
+
+	mmap_vm_lowmem = mmap(guest_baseaddr, guest_lowmem_size, PROT_READ | PROT_WRITE,
+				MAP_SHARED , ctx->fd_checkpoint, 0);
+	if (mmap_vm_lowmem == MAP_FAILED) {
+		perror("Failed to mmap vm's lowmem segment");
+		error = -1;
+		goto done;
+	}
+
+	if (guest_highmem_size > 0) {
+		printf("trying to mmap highmem in checkpoint device!");
+		mmap_vm_highmem = mmap(guest_baseaddr + 4 * GB, guest_highmem_size, PROT_READ | PROT_WRITE,
+				MAP_SHARED, ctx->fd_checkpoint, 0);
+		if (mmap_vm_highmem == MAP_FAILED) {
+			perror("Failed to mmap vm's highmem segment");
+			error = -1;
+			goto done;
+		}
+	}
+
+	*lowmem = mmap_vm_lowmem;
+	*highmem = mmap_vm_highmem;
+
+done:
+	if (mmap_vm_lowmem == MAP_FAILED)
+		munmap(mmap_vm_lowmem, guest_lowmem_size);
+
 	return (error);
 }
 
@@ -444,6 +523,12 @@ vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 	return (NULL);
 }
 
+/* TODO: maximum size for vmname */
+void vm_get_name(struct vmctx *ctx, char *buf, int max_len)
+{
+	snprintf(buf, max_len, "%s", ctx->name);
+}
+
 size_t
 vm_get_lowmem_size(struct vmctx *ctx)
 {
@@ -621,13 +706,14 @@ vm_get_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
 }
 
 int
-vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
+vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int restored)
 {
 	int error;
 	struct vm_run vmrun;
 
 	bzero(&vmrun, sizeof(vmrun));
 	vmrun.cpuid = vcpu;
+	vmrun.restored = restored;
 
 	error = ioctl(ctx->fd, VM_RUN, &vmrun);
 	bcopy(&vmrun.vm_exit, vmexit, sizeof(struct vm_exit));
@@ -1502,6 +1588,58 @@ vm_restart_instruction(void *arg, int vcpu)
 	struct vmctx *ctx = arg;
 
 	return (ioctl(ctx->fd, VM_RESTART_INSTRUCTION, &vcpu));
+}
+
+int vm_vcpu_lock_all(struct vmctx *ctx)
+{
+	return (ioctl(ctx->fd, VM_VCPU_LOCK_ALL));
+}
+
+int vm_vcpu_unlock_all(struct vmctx *ctx)
+{
+	return (ioctl(ctx->fd, VM_VCPU_UNLOCK_ALL));
+}
+
+int
+vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer, size_t max_size,
+			size_t *snapshot_size)
+{
+	struct vm_snapshot_req req_params;
+	int error;
+
+	bzero(&req_params, sizeof(struct vm_snapshot_req));
+	req_params.req = req;
+	req_params.buffer = buffer;
+	req_params.max_size = max_size;
+
+	error = ioctl(ctx->fd, VM_SNAPSHOT_REQ, &req_params);
+
+	if (error == 0)
+		*snapshot_size = req_params.snapshot_size;
+
+	return (error);
+}
+
+void
+vm_restore_mem(struct vmctx *ctx, void *vm_mem, size_t size)
+{
+	memcpy(ctx->baseaddr, vm_mem, size);
+}
+
+int
+vm_restore_req(struct vmctx *ctx, enum snapshot_req req, char *buffer, size_t size)
+{
+	int error;
+	struct vm_restore_req restore_params;
+
+	bzero(&restore_params, sizeof(struct vm_restore_req));
+	restore_params.req = req;
+	restore_params.buffer = buffer;
+	restore_params.size = size;
+
+	error = ioctl(ctx->fd, VM_RESTORE_REQ, &restore_params);
+
+	return (error);
 }
 
 int

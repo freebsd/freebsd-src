@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #endif
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
 #include <amd64/vmm/intel/vmcs.h>
@@ -85,6 +86,14 @@ __FBSDID("$FreeBSD$");
 #include "xmsr.h"
 #include "spinup_ap.h"
 #include "rtc.h"
+
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+#include <libxo/xo.h>
+#include <ucl.h>
 
 #define GUEST_NIO_PORT		0x488	/* guest upcalls via i/o port */
 
@@ -158,10 +167,29 @@ static const char * const vmx_exit_reason_desc[] = {
 	[EXIT_REASON_XRSTORS] = "XRSTORS"
 };
 
+#define MAX_SOCK_NAME 200
+#define MAX_MSG_SIZE 100
+
+#define BHYVE_RUN_DIR "/var/run/bhyve"
+#define CHECKPOINT_RUN_DIR BHYVE_RUN_DIR "/checkpoint"
+#define MAX_VMNAME 100
+
+#define JSON_STRUCT_ARR_KEY		"structs"
+#define JSON_BASIC_METADATA_KEY 	"basic metadata"
+#define JSON_SNAPSHOT_REQ_KEY		"snapshot_req"
+#define JSON_STRUCT_SIZE_KEY		"size"
+#define JSON_FILE_OFFSET_KEY		"file_offset"
+#define JSON_NCPUS_KEY			"ncpus"
+#define JSON_VMNAME_KEY 		"vmname"
+#define JSON_MEMSIZE_KEY		"memsize"
+#define JSON_MEMFLAGS_KEY		"memflags"
+
+#define SNAPSHOT_BUFFER_SIZE (4 * MB)
+
 typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
 extern int vmexit_task_switch(struct vmctx *, struct vm_exit *, int *vcpu);
 
-char *vmname;
+const char *vmname;
 
 int guest_ncpus;
 uint16_t cores, maxcpus, sockets, threads;
@@ -176,6 +204,7 @@ static int strictio;
 static int strictmsr = 1;
 
 static int acpi;
+static int restored = 0;
 
 static char *progname;
 static const int BSP = 0;
@@ -203,6 +232,12 @@ struct mt_vmm_info {
 	int		mt_vcpu;	
 } mt_vmm_info[VM_MAXCPU];
 
+struct checkpoint_thread_info {
+	struct vmctx *ctx;
+	int socket_fd;
+	struct sockaddr_un *addr;
+} checkpoint_info;
+
 static cpuset_t *vcpumap[VM_MAXCPU] = { NULL };
 
 static void
@@ -224,6 +259,7 @@ usage(int code)
 		"       -H: vmexit from the guest on hlt\n"
 		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n"
+		"       -r: path to checkpoint file\n"
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
@@ -606,7 +642,7 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	    vmexit->u.vmx.exit_qualification);
 	fprintf(stderr, "\tinst_type\t\t%d\n", vmexit->u.vmx.inst_type);
 	fprintf(stderr, "\tinst_error\t\t%d\n", vmexit->u.vmx.inst_error);
-#ifdef DEBUG_EPT_MISCONFIG
+//#ifdef DEBUG_EPT_MISCONFIG
 	if (vmexit->u.vmx.exit_reason == EXIT_REASON_EPT_MISCONFIG) {
 		vm_get_register(ctx, *pvcpu,
 		    VMCS_IDENT(VMCS_GUEST_PHYSICAL_ADDRESS),
@@ -620,7 +656,7 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		    ept_misconfig_pte[1], ept_misconfig_pte[2],
 		    ept_misconfig_pte[3]);
 	}
-#endif	/* DEBUG_EPT_MISCONFIG */
+//#endif	/* DEBUG_EPT_MISCONFIG */
 	return (VMEXIT_ABORT);
 }
 
@@ -812,7 +848,8 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 	assert(error == 0);
 
 	while (1) {
-		error = vm_run(ctx, vcpu, &vmexit[vcpu]);
+		error = vm_run(ctx, vcpu, &vmexit[vcpu], restored);
+		restored = 0;
 		if (error != 0)
 			break;
 
@@ -975,6 +1012,816 @@ do_open(const char *vmname)
 	return (ctx);
 }
 
+/* TODO: Harden this function and all of its callers since 'base_str' is a user
+ * provided string.
+ */
+static char *
+strcat_extension(const char *base_str, const char *ext)
+{
+	char *res;
+	size_t base_len, ext_len;
+
+	base_len = strnlen(base_str, MAX_VMNAME);
+	ext_len = strnlen(ext, MAX_VMNAME);
+
+	if (base_len + ext_len > MAX_VMNAME) {
+		fprintf(stderr, "Filename exceeds maximum length.\n");
+		return (NULL);
+	}
+
+	res = malloc(base_len + ext_len + 1);
+	if (res == NULL) {
+		perror("Failed to allocate memory.");
+		return (NULL);
+	}
+
+	memcpy(res, base_str, base_len);
+	memcpy(res + base_len, ext, ext_len);
+	res[base_len + ext_len] = 0;
+
+	return (res);
+}
+
+static void
+destroy_restore_state(struct restore_state *rstate)
+{
+	if (rstate == NULL) {
+		fprintf(stderr, "Attempting to destroy NULL restore struct.\n");
+		return;
+	}
+
+	if (rstate->vmmem_map != MAP_FAILED)
+		munmap(rstate->vmmem_map, rstate->vmmem_len);
+	if (rstate->kdata_map != MAP_FAILED)
+		munmap(rstate->kdata_map, rstate->kdata_len);
+
+	if (rstate->kdata_fd > 0)
+		close(rstate->kdata_fd);
+	if (rstate->vmmem_fd > 0)
+		close(rstate->vmmem_fd);
+
+	if (rstate->meta_root_obj != NULL)
+		ucl_object_unref(rstate->meta_root_obj);
+	if (rstate->meta_parser != NULL)
+		ucl_parser_free(rstate->meta_parser);
+}
+
+static int
+load_vmmem_file(const char *filename, struct restore_state *rstate)
+{
+	struct stat sb;
+	int err;
+
+	rstate->vmmem_fd = open(filename, O_RDONLY);
+	if (rstate->vmmem_fd < 0) {
+		perror("Failed to open restore file");
+		return (-1);
+	}
+
+	err = fstat(rstate->vmmem_fd, &sb);
+	if (err < 0) {
+		perror("Failed to stat restore file");
+		goto err_load_vmmem;
+	}
+
+	if (sb.st_size == 0) {
+		fprintf(stderr, "Restore file is empty.\n");
+		goto err_load_vmmem;
+	}
+
+	rstate->vmmem_len = sb.st_size;
+	rstate->vmmem_map = mmap(NULL, rstate->vmmem_len, PROT_READ,
+				 MAP_SHARED, rstate->vmmem_fd, 0);
+	if (rstate->vmmem_map == MAP_FAILED) {
+		perror("Failed to map restore file");
+		goto err_load_vmmem;
+	}
+
+	return (0);
+
+err_load_vmmem:
+	if (rstate->vmmem_fd > 0)
+		close(rstate->vmmem_fd);
+	return (-1);
+}
+
+static int
+load_kdata_file(const char *filename, struct restore_state *rstate)
+{
+	struct stat sb;
+	int err;
+
+	rstate->kdata_fd = open(filename, O_RDONLY);
+	if (rstate->kdata_fd < 0) {
+		perror("Failed to open kernel data file");
+		return (-1);
+	}
+
+	err = fstat(rstate->kdata_fd, &sb);
+	if (err < 0) {
+		perror("Failed to stat kernel data file");
+		goto err_load_kdata;
+	}
+
+	if (sb.st_size == 0) {
+		fprintf(stderr, "Kernel data file is empty.\n");
+		goto err_load_kdata;
+	}
+
+	rstate->kdata_len = sb.st_size;
+	rstate->kdata_map = mmap(NULL, rstate->kdata_len, PROT_READ,
+				 MAP_SHARED, rstate->kdata_fd, 0);
+	if (rstate->kdata_map == MAP_FAILED) {
+		perror("Failed to map restore file");
+		goto err_load_kdata;
+	}
+
+	return (0);
+
+err_load_kdata:
+	if (rstate->kdata_fd > 0)
+		close(rstate->kdata_fd);
+	return (-1);
+}
+
+static int
+load_metadata_file(const char *filename, struct restore_state *rstate)
+{
+	const ucl_object_t *obj;
+	struct ucl_parser *parser;
+	int err;
+
+	parser = ucl_parser_new(UCL_PARSER_DEFAULT);
+	if (parser == NULL) {
+		fprintf(stderr, "Failed to initialize UCL parser.\n");
+		goto err_load_metadata;
+	}
+
+	err = ucl_parser_add_file(parser, filename);
+	if (err == 0) {
+		fprintf(stderr, "Failed to parse metadata file: '%s'\n",
+			filename);
+		err = -1;
+		goto err_load_metadata;
+	}
+
+	obj = ucl_parser_get_object(parser);
+	if (obj == NULL) {
+		fprintf(stderr, "Failed to parse object.\n");
+		err = -1;
+		goto err_load_metadata;
+	}
+
+	rstate->meta_parser = parser;
+	rstate->meta_root_obj = (ucl_object_t *)obj;
+
+	return (0);
+
+err_load_metadata:
+	if (parser != NULL)
+		ucl_parser_free(parser);
+	return (err);
+}
+
+static int
+load_restore_file(const char *filename, struct restore_state *rstate)
+{
+	int err = 0;
+	char *kdata_filename = NULL, *meta_filename = NULL;
+
+	assert(filename != NULL);
+	assert(rstate != NULL);
+
+	memset(rstate, 0, sizeof(*rstate));
+	rstate->vmmem_map = MAP_FAILED;
+	rstate->kdata_map = MAP_FAILED;
+
+	err = load_vmmem_file(filename, rstate);
+	if (err != 0) {
+		fprintf(stderr, "Failed to load guest RAM file.\n");
+		goto err_restore;
+	}
+
+	kdata_filename = strcat_extension(filename, ".kern");
+	if (kdata_filename == NULL) {
+		fprintf(stderr, "Failed to construct kernel data filename.\n");
+		goto err_restore;
+	}
+
+	err = load_kdata_file(kdata_filename, rstate);
+	if (err != 0) {
+		fprintf(stderr, "Failed to load guest kernel data file.\n");
+		goto err_restore;
+	}
+
+	meta_filename = strcat_extension(filename, ".meta");
+	if (meta_filename == NULL) {
+		fprintf(stderr, "Failed to construct kernel metadata filename.\n");
+		goto err_restore;
+	}
+
+	err = load_metadata_file(meta_filename, rstate);
+	if (err != 0) {
+		fprintf(stderr, "Failed to load guest metadata file.\n");
+		goto err_restore;
+	}
+
+	return (0);
+
+err_restore:
+	destroy_restore_state(rstate);
+	if (kdata_filename != NULL)
+		free(kdata_filename);
+	if (meta_filename != NULL)
+		free(meta_filename);
+	return (-1);
+}
+
+#define JSON_GET_INT_OR_RETURN(key, obj, result_ptr, ret)			\
+do {										\
+	const ucl_object_t *obj__;						\
+	obj__ = ucl_object_lookup(obj, key);					\
+	if (obj__ == NULL) {							\
+		fprintf(stderr, "Missing key: '%s'", key);			\
+		return (ret);							\
+	}									\
+	if (!ucl_object_toint_safe(obj__, result_ptr)) {			\
+		fprintf(stderr, "Cannot convert '%s' value to int.", key);	\
+		return (ret);							\
+	}									\
+} while(0)
+
+#define JSON_GET_STRING_OR_RETURN(key, obj, result_ptr, ret)			\
+do {										\
+	const ucl_object_t *obj__;						\
+	obj__ = ucl_object_lookup(obj, key);					\
+	if (obj__ == NULL) {							\
+		fprintf(stderr, "Missing key: '%s'", key);			\
+		return (ret);							\
+	}									\
+	if (!ucl_object_tostring_safe(obj__, result_ptr)) {			\
+		fprintf(stderr, "Cannot convert '%s' value to string.", key);	\
+		return (ret);							\
+	}									\
+} while(0)
+
+static void *
+lookup_struct(enum snapshot_req struct_id, struct restore_state *rstate,
+	      size_t *struct_size)
+{
+	const ucl_object_t *structs = NULL, *obj = NULL;
+	ucl_object_iter_t it = NULL;
+	int64_t snapshot_req, size, file_offset;
+
+	structs = ucl_object_lookup(rstate->meta_root_obj,
+				    JSON_STRUCT_ARR_KEY);
+	if (structs == NULL) {
+		fprintf(stderr, "Failed to find '%s' object.\n",
+			JSON_STRUCT_ARR_KEY);
+		return (NULL);
+	}
+
+	if (ucl_object_type((ucl_object_t *)structs) != UCL_ARRAY) {
+		fprintf(stderr, "Object '%s' is not an array.\n",
+		JSON_STRUCT_ARR_KEY);
+		return (NULL);
+	}
+
+	while ((obj = ucl_object_iterate(structs, &it, true)) != NULL) {
+		snapshot_req = -1;
+		JSON_GET_INT_OR_RETURN(JSON_SNAPSHOT_REQ_KEY, obj,
+				       &snapshot_req, NULL);
+		assert(snapshot_req >= 0);
+		if ((enum snapshot_req) snapshot_req == struct_id) {
+			JSON_GET_INT_OR_RETURN(JSON_STRUCT_SIZE_KEY, obj,
+					       &size, NULL);
+			assert(size >= 0);
+
+			JSON_GET_INT_OR_RETURN(JSON_FILE_OFFSET_KEY, obj,
+					       &file_offset, NULL);
+			assert(file_offset >= 0);
+			assert(file_offset + size <= rstate->kdata_len);
+
+			*struct_size = (size_t)size;
+			return (rstate->kdata_map + file_offset);
+		}
+	}
+
+	return (NULL);
+}
+
+static const ucl_object_t *
+lookup_basic_metadata_object(struct restore_state *rstate)
+{
+	const ucl_object_t *basic_meta_obj = NULL;
+
+	basic_meta_obj = ucl_object_lookup(rstate->meta_root_obj,
+					   JSON_BASIC_METADATA_KEY);
+	if (basic_meta_obj == NULL) {
+		fprintf(stderr, "Failed to find '%s' object.\n",
+			JSON_BASIC_METADATA_KEY);
+		return (NULL);
+	}
+
+	if (ucl_object_type((ucl_object_t *)basic_meta_obj) != UCL_OBJECT) {
+		fprintf(stderr, "Object '%s' is not a JSON object.\n",
+		JSON_BASIC_METADATA_KEY);
+		return (NULL);
+	}
+
+	return (basic_meta_obj);
+}
+
+static const char *
+lookup_vmname(struct restore_state *rstate)
+{
+	const char *vmname;
+	const ucl_object_t *obj;
+
+	obj = lookup_basic_metadata_object(rstate);
+	if (obj == NULL)
+		return (NULL);
+
+	JSON_GET_STRING_OR_RETURN(JSON_VMNAME_KEY, obj, &vmname, NULL);
+	return (vmname);
+}
+
+static int
+lookup_memflags(struct restore_state *rstate)
+{
+	int64_t memflags;
+	const ucl_object_t *obj;
+
+	obj = lookup_basic_metadata_object(rstate);
+	if (obj == NULL)
+		return (0);
+
+	JSON_GET_INT_OR_RETURN(JSON_MEMFLAGS_KEY, obj, &memflags, 0);
+
+	return ((int)memflags);
+}
+
+static size_t
+lookup_memsize(struct restore_state *rstate)
+{
+	int64_t memsize;
+	const ucl_object_t *obj;
+
+	obj = lookup_basic_metadata_object(rstate);
+	if (obj == NULL)
+		return (0);
+
+	JSON_GET_INT_OR_RETURN(JSON_MEMSIZE_KEY, obj, &memsize, 0);
+	if (memsize < 0)
+		memsize = 0;
+
+	return ((size_t)memsize);
+}
+
+
+static int
+lookup_guest_ncpus(struct restore_state *rstate)
+{
+	int64_t ncpus;
+	const ucl_object_t *obj;
+
+	obj = lookup_basic_metadata_object(rstate);
+	if (obj == NULL)
+		return (0);
+
+	JSON_GET_INT_OR_RETURN(JSON_NCPUS_KEY, obj, &ncpus, 0);
+	return ((int)ncpus);
+}
+
+static void
+restore_vm_mem(struct vmctx *ctx, struct restore_state *rstate)
+{
+	vm_restore_mem(ctx, rstate->vmmem_map, rstate->vmmem_len);
+}
+
+static int
+restore_kernel_structs(struct vmctx *ctx, struct restore_state *rstate)
+{
+	void *struct_ptr;
+	size_t struct_size;
+	int ret;
+	int i;
+	enum snapshot_req structs[] = {
+		STRUCT_VMX,
+		STRUCT_VM,
+		STRUCT_VLAPIC,
+		STRUCT_LAPIC,
+		STRUCT_VIOAPIC,
+	};
+
+	for (i = 0; i < sizeof(structs)/sizeof(structs[0]); i++) {
+		struct_ptr = lookup_struct(structs[i], rstate, &struct_size);
+		if (struct_ptr == NULL) {
+			fprintf(stderr, "Failed to lookup struct vmx\n");
+			return (-1);
+		}
+
+		ret = vm_restore_req(ctx, structs[i], struct_ptr, struct_size);
+		if (ret != 0) {
+			fprintf(stderr, "Failed to restore struct: %d\n", structs[i]);
+		}
+	}
+
+	return 0;
+}
+
+static int
+vm_snapshot_structs(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
+{
+	int ret, i, error = 0;
+	size_t data_size, offset = 0;
+	char *buffer = NULL;
+	enum snapshot_req structs[] = {
+		STRUCT_VM,
+		STRUCT_VMX,
+		STRUCT_VIOAPIC,
+		STRUCT_VLAPIC,
+		STRUCT_LAPIC,
+	};
+
+	char *snapshot_struct_names[] = {"vm", "vmx", "vioapic", "vlapic", "lapic"};
+
+	buffer = malloc(SNAPSHOT_BUFFER_SIZE * sizeof(char));
+	if (buffer == NULL) {
+		perror("Failed to allocate memory for snapshot buffer");
+		goto err_vm_snapshot_structs;
+	}
+
+	xo_open_list_h(xop, JSON_STRUCT_ARR_KEY);
+	for (i = 0; i < sizeof(structs) / sizeof(structs[0]); i++) {
+		memset(buffer, 0, SNAPSHOT_BUFFER_SIZE);
+		ret = vm_snapshot_req(ctx, structs[i], buffer, SNAPSHOT_BUFFER_SIZE,
+				&data_size);
+
+		if (ret != 0) {
+			fprintf(stderr, "Failed to snapshot struct %s; ret=%d\n",
+				snapshot_struct_names[i], ret);
+			error = -1;
+			goto err_vm_snapshot_structs;
+		}
+
+		ret = write(data_fd, buffer, data_size);
+		if (ret != data_size) {
+			perror("Failed to write all snapshotted data.");
+			error = -1;
+			goto err_vm_snapshot_structs;
+		}
+
+		/* Write metadata. */
+		xo_open_instance_h(xop, JSON_STRUCT_ARR_KEY);
+		xo_emit_h(xop, "{:debug_name/%s}\n", snapshot_struct_names[i]);
+		xo_emit_h(xop, "{:" JSON_SNAPSHOT_REQ_KEY "/%d}\n", structs[i]);
+		xo_emit_h(xop, "{:" JSON_STRUCT_SIZE_KEY "/%lu}\n", data_size);
+		xo_emit_h(xop, "{:" JSON_FILE_OFFSET_KEY "/%lu}\n", offset);
+		xo_close_instance_h(xop, JSON_STRUCT_ARR_KEY);
+
+		offset += data_size;
+	}
+	xo_close_list_h(xop, JSON_STRUCT_ARR_KEY);
+
+err_vm_snapshot_structs:
+	if (buffer != NULL)
+		free(buffer);
+	return (error);
+}
+
+static int
+vm_snapshot_basic_metadata(struct vmctx *ctx, xo_handle_t *xop)
+{
+	size_t memsize;
+	int memflags;
+	char vmname_buf[MAX_VMNAME];
+
+	memset(vmname_buf, 0, MAX_VMNAME);
+	vm_get_name(ctx, vmname_buf, MAX_VMNAME - 1);
+
+	memsize = vm_get_lowmem_size(ctx) + vm_get_highmem_size(ctx);
+	memflags = vm_get_memflags(ctx);
+
+	xo_open_container_h(xop, JSON_BASIC_METADATA_KEY);
+	xo_emit_h(xop, "{:" JSON_NCPUS_KEY "/%ld}\n", guest_ncpus);
+	xo_emit_h(xop, "{:" JSON_VMNAME_KEY "/%s}\n", vmname_buf);
+	xo_emit_h(xop, "{:" JSON_MEMSIZE_KEY "/%lu}\n", memsize);
+	xo_emit_h(xop, "{:" JSON_MEMFLAGS_KEY "/%d}\n", memflags);
+	xo_close_container_h(xop, JSON_BASIC_METADATA_KEY);
+
+	return 0;
+}
+
+static int
+vm_snapshot_kern_data(struct vmctx *ctx, char *checkpoint_file, xo_handle_t *xop)
+{
+	int ret = 0, error = 0, data_fd = 0;
+	char *data_filename = NULL;
+
+	data_filename = strcat_extension(checkpoint_file, ".kern");
+	if (data_filename == NULL) {
+		fprintf(stderr, "Failed to construct kernel data filename.\n");
+		return (-1);
+	}
+
+	data_fd = open(data_filename, O_WRONLY | O_CREAT | O_TRUNC, 0700);
+	if (data_fd < 0) {
+		perror("Failed to open kernel data snapshot file.");
+		goto err_vm_snapshot_kern_data;
+	}
+
+	ret = vm_snapshot_structs(ctx, data_fd, xop);
+	if (ret != 0) {
+		fprintf(stderr, "Failed to snapshot kernel structs.\n");
+		goto err_vm_snapshot_kern_data;
+	}
+
+err_vm_snapshot_kern_data:
+	if (data_filename != NULL)
+		free(data_filename);
+	if (data_fd > 0)
+		close(data_fd);
+
+	return (error);
+}
+
+static int
+vm_checkpoint(struct vmctx *ctx, char *checkpoint_file)
+{
+	int fd_checkpoint = 0;
+	int ret = 0;
+	int error = 0;
+	char *mmap_vm_lowmem = MAP_FAILED;
+	char *mmap_vm_highmem = MAP_FAILED;
+	char *mmap_checkpoint_file = MAP_FAILED;
+	size_t guest_lowmem, guest_highmem, guest_memsize;
+	char *guest_baseaddr;
+	xo_handle_t *xop = NULL;
+	char *meta_filename = NULL;
+	FILE *meta_file = NULL;
+
+	fd_checkpoint = open(checkpoint_file, O_RDWR | O_CREAT | O_TRUNC, 0700);
+
+	if (fd_checkpoint < 0) {
+		perror("Failed to create checkpoint file");
+		error = -1;
+		goto done;
+	}
+
+	ret = vm_get_guestmem_from_ctx(ctx, &guest_baseaddr, &guest_lowmem, &guest_highmem);
+	guest_memsize = guest_lowmem + guest_highmem;
+	if (ret < 0) {
+		fprintf(stderr, "Failed to get guest mem information (base, low, high)\n");
+		error = -1;
+		goto done;
+	}
+
+	/* make space for VMs address space */
+	ret = ftruncate(fd_checkpoint, guest_memsize);
+	if (ret < 0) {
+		perror("Failed to truncate checkpoint file\n");
+		goto done;
+	}
+
+	meta_filename = strcat_extension(checkpoint_file, ".meta");
+	if (meta_filename == NULL) {
+		fprintf(stderr, "Failed to construct vm metadata filename.\n");
+		goto done;
+	}
+
+	meta_file = fopen(meta_filename, "w");
+	if (meta_file == NULL) {
+		perror("Failed to open vm metadata snapshot file.");
+		goto done;
+	}
+
+	xop = xo_create_to_file(meta_file, XO_STYLE_JSON, XOF_PRETTY);
+	if (xop == NULL) {
+		perror("Failed to get libxo handle on metadata file.");
+		goto done;
+	}
+
+	ret = vm_snapshot_basic_metadata(ctx, xop);
+	if (ret != 0) {
+		fprintf(stderr, "Failed to snapshot vm basic metadata.\n");
+		error = -1;
+		goto done;
+	}
+
+	/*
+	 * mmap VMs memory in bhyverun virtual memory: the original address space
+	 * (of the VM) will be COW
+	 */
+	ret = vm_get_vm_mem(ctx, &mmap_vm_lowmem, &mmap_vm_highmem,
+			guest_baseaddr, guest_lowmem, guest_highmem);
+	if (ret != 0) {
+		fprintf(stderr, "Could not mmap guests lowmem and highmem\n");
+		error = ret;
+		goto done;
+	}
+
+	vm_vcpu_lock_all(ctx);
+
+	/*
+	 * mmap checkpoint file in memory so we can easily copy VMs
+	 * system address space (lowmem + highmem) from kernel space
+	 */
+	mmap_checkpoint_file = mmap(NULL, guest_memsize, PROT_WRITE | PROT_READ,
+			MAP_SHARED, fd_checkpoint, 0);
+
+	if (mmap_checkpoint_file == MAP_FAILED) {
+		perror("Failed to mmap checkpoint file");
+		error = -1;
+		goto done_unlock;
+	}
+
+	memcpy(mmap_checkpoint_file, mmap_vm_lowmem, guest_lowmem);
+
+	if (guest_highmem > 0)
+		memcpy(mmap_checkpoint_file + guest_lowmem,
+		       mmap_vm_highmem, guest_highmem);
+
+	ret = vm_snapshot_kern_data(ctx, checkpoint_file, xop);
+	if (ret != 0) {
+		fprintf(stderr, "Failed to snapshot vm kernel data.\n");
+		error = -1;
+		goto done_unlock;
+	}
+
+	xo_finish_h(xop);
+
+done_unlock:
+	vm_vcpu_unlock_all(ctx);
+done:
+
+	if (fd_checkpoint > 0)
+		close(fd_checkpoint);
+	if (mmap_checkpoint_file != MAP_FAILED)
+		munmap(mmap_checkpoint_file, guest_memsize);
+	if (mmap_vm_lowmem != MAP_FAILED)
+		munmap(mmap_vm_lowmem, guest_lowmem);
+	if (mmap_vm_highmem != MAP_FAILED)
+		munmap(mmap_vm_highmem, guest_highmem);
+	if (meta_filename != NULL)
+		free(meta_filename);
+	if (xop != NULL)
+		xo_destroy(xop);
+	if (meta_file != NULL)
+		fclose(meta_file);
+	return (error);
+}
+
+int get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
+{
+	unsigned char buf[MAX_MSG_SIZE];
+	struct checkpoint_op *checkpoint_op;
+	int len, recv_len, total_recv = 0;
+	int err = 0;
+
+	len = sizeof(struct checkpoint_op); /* expected length */
+	while ((recv_len = recv(conn_fd, buf + total_recv, len - total_recv, 0)) > 0) {
+		total_recv += recv_len;
+	}
+	if (recv_len < 0) {
+		perror("Error while receiving data from bhyvectl");
+		err = -1;
+		goto done;
+	}
+
+	checkpoint_op = (struct checkpoint_op *)buf;
+	switch (checkpoint_op->op) {
+		case START_CHECKPOINT:
+			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename);
+		break;
+		default:
+			fprintf(stderr, "Unrecognized checkpoint operation.\n");
+			err = -1;
+	}
+
+done:
+	close(conn_fd);
+	return (err);
+}
+
+/*
+ * Listen for commands from bhyvectl
+ */
+void * checkpoint_thread(void *param)
+{
+	struct checkpoint_thread_info *thread_info;
+	socklen_t addr_len;
+	int conn_fd, ret;
+
+	thread_info = (struct checkpoint_thread_info *)param;
+
+	addr_len = sizeof(thread_info->addr);
+	while ((conn_fd = accept(thread_info->socket_fd,
+			(struct sockaddr *) thread_info->addr,
+			&addr_len)) > -1) {
+		ret = get_checkpoint_msg(conn_fd, thread_info->ctx);
+		if (ret != 0) {
+			fprintf(stderr, "Failed to read message on checkpoint "
+					"socket. Retrying.\n");
+		}
+
+		addr_len = sizeof(struct sockaddr_un);
+	}
+	if (conn_fd < -1) {
+		perror("Failed to accept connection");
+	}
+
+	return (NULL);
+}
+
+/*
+ * Create directory tree to store runtime specific information:
+ * i.e. UNIX sockets for IPC with bhyvectl.
+ */
+static int
+make_checkpoint_dir()
+{
+	int err;
+
+	err = mkdir(BHYVE_RUN_DIR, 0755);
+	if (err < 0 && errno != EEXIST)
+		return (err);
+
+	err = mkdir(CHECKPOINT_RUN_DIR, 0755);
+	if (err < 0 && errno != EEXIST)
+		return (err);
+
+	return 0;
+}
+
+/*
+ * Create the listening socket for IPC with bhyvectl
+ */
+int init_checkpoint_thread(struct vmctx *ctx)
+{
+	struct sockaddr_un addr;
+	int socket_fd;
+	pthread_t checkpoint_pthread;
+	char vmname_buf[MAX_VMNAME];
+	int ret, err = 0;
+
+	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	if (socket_fd < 0) {
+		perror("Socket creation failed (IPC with bhyvectl");
+		err = -1;
+		goto fail;
+	}
+
+	err = make_checkpoint_dir();
+	if (err < 0) {
+		perror("Failed to create checkpoint runtime directory");
+		goto fail;
+	}
+
+	memset(&addr, 0, sizeof(struct sockaddr_un));
+	addr.sun_family = AF_UNIX;
+	vm_get_name(ctx, vmname_buf, MAX_VMNAME - 1);
+	snprintf(addr.sun_path, PATH_MAX, "%s/%s",
+		 CHECKPOINT_RUN_DIR, vmname_buf);
+	unlink(addr.sun_path);
+
+	if (bind(socket_fd, (struct sockaddr *)&addr,
+			sizeof(struct sockaddr_un)) != 0) {
+		perror("Failed to bind socket (IPC with bhyvectl)");
+		err = -1;
+		goto fail;
+	}
+
+	if (listen(socket_fd, 10) < 0) {
+		perror("Failed to listen on socket (IPC with bhyvectl)");
+		err = -1;
+		goto fail;
+	}
+
+	memset(&checkpoint_info, 0, sizeof(struct checkpoint_thread_info));
+	checkpoint_info.ctx = ctx;
+	checkpoint_info.socket_fd = socket_fd;
+	checkpoint_info.addr = &addr;
+
+
+	/* TODO: start thread for listening connections */
+	pthread_set_name_np(checkpoint_pthread, "checkpoint thread");
+	ret = pthread_create(&checkpoint_pthread, NULL, checkpoint_thread,
+		&checkpoint_info);
+	if (ret < 0) {
+		err = ret;
+		goto fail;
+	}
+
+	return (0);
+fail:
+	if (socket_fd > 0)
+		close(socket_fd);
+	unlink(addr.sun_path);
+
+	return (err);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -985,7 +1832,8 @@ main(int argc, char *argv[])
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
-	char *optstr;
+	char *optstr, *restore_file = NULL;
+	struct restore_state rstate;
 
 	bvmcons = 0;
 	progname = basename(argv[0]);
@@ -1000,7 +1848,7 @@ main(int argc, char *argv[])
 	rtc_localtime = 1;
 	memflags = 0;
 
-	optstr = "abehuwxACHIPSWYp:g:G:c:s:m:l:U:";
+	optstr = "abehuwxACHIPSWYp:g:G:c:s:m:l:U:r:";
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
 		case 'a':
@@ -1045,6 +1893,10 @@ main(int argc, char *argv[])
 				errx(EX_USAGE, "invalid lpc device "
 				    "configuration '%s'", optarg);
 			}
+			break;
+		case 'r':
+			restore_file = optarg;
+			restored = 1;
 			break;
 		case 's':
 			if (strncmp(optarg, "help", strlen(optarg)) == 0) {
@@ -1107,11 +1959,40 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1)
+	if (argc > 1 || (argc == 0 && restore_file == NULL))
 		usage(1);
 
+	if (restore_file != NULL) {
+		error = load_restore_file(restore_file, &rstate);
+		if (error) {
+			fprintf(stderr, "Failed to read checkpoint info from "
+					"file: '%s'.\n", restore_file);
+			exit(1);
+		}
+	}
+
+	if (argc == 1) {
 	vmname = argv[0];
+	} else {
+		vmname = lookup_vmname(&rstate);
+		if (vmname == NULL) {
+			fprintf(stderr, "Cannot find VM name in restore file. "
+					"Please specify one.\n");
+			exit(1);
+		}
+	}
 	ctx = do_open(vmname);
+
+	if (restore_file != NULL) {
+		guest_ncpus = lookup_guest_ncpus(&rstate);
+		memflags = lookup_memflags(&rstate);
+		memsize = lookup_memsize(&rstate);
+	}
+
+	if (guest_ncpus < 1) {
+		fprintf(stderr, "Invalid guest vCPUs (%d)\n", guest_ncpus);
+		exit(1);
+	}
 
 	max_vcpus = num_vcpus_allowed(ctx);
 	if (guest_ncpus > max_vcpus) {
@@ -1171,6 +2052,15 @@ main(int argc, char *argv[])
 		assert(error == 0);
 	}
 
+	if (restore_file != NULL) {
+		restore_vm_mem(ctx, &rstate);
+
+		if (restore_kernel_structs(ctx, &rstate) != 0) {
+			fprintf(stderr, "Failed to restore kernel structs.\n");
+			exit(1);
+		}
+
+	}
 	error = vm_get_register(ctx, BSP, VM_REG_GUEST_RIP, &rip);
 	assert(error == 0);
 
@@ -1210,6 +2100,15 @@ main(int argc, char *argv[])
 	if (caph_enter() == -1)
 		errx(EX_OSERR, "cap_enter() failed");
 #endif
+
+	if (restore_file != NULL)
+		destroy_restore_state(&rstate);
+
+	/*
+	 * checkpointing thread for communication with bhyvectl
+	 */
+	if(init_checkpoint_thread(ctx) < 0)
+		printf("Failed to start checkpoint thread!\n");
 
 	/*
 	 * Add CPU 0

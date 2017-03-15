@@ -28,16 +28,32 @@
  * $FreeBSD$
  */
 
+ #include <ucl.h>
+
 #ifndef	_FBSDRUN_H_
 #define	_FBSDRUN_H_
 
 #define	VMEXIT_CONTINUE		(0)
 #define	VMEXIT_ABORT		(-1)
 
+struct __attribute__((packed)) restore_state {
+	int kdata_fd;
+	int vmmem_fd;
+
+	void *kdata_map;
+	size_t kdata_len;
+
+	void *vmmem_map;
+	size_t vmmem_len;
+
+	struct ucl_parser *meta_parser;
+	ucl_object_t *meta_root_obj;
+};
+
 struct vmctx;
 extern int guest_ncpus;
 extern char *guest_uuid_str;
-extern char *vmname;
+extern const char *vmname;
 
 void *paddr_guest2host(struct vmctx *ctx, uintptr_t addr, size_t len);
 

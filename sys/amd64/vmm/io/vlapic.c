@@ -1654,3 +1654,109 @@ vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
 	VLAPIC_CTR1(vlapic, "vector %d set to level-triggered", vector);
 	vlapic_set_tmr(vlapic, vector, true);
 }
+
+struct LAPIC*
+vlapic_get_LAPIC(struct vlapic *vlapic)
+{
+	return vlapic->apic_page;
+}
+
+int
+vlapic_snapshot(void *arg, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	int i, error;
+	struct vm *vm = arg;
+
+	KASSERT(vm != NULL, ("%s: arg was NULL", __func__));
+
+	if (buf_size < VM_MAXCPU * sizeof(struct vlapic)) {
+		printf("%s: buffer size too small: %lu < %lu\n", __func__,
+				buf_size, VM_MAXCPU * sizeof(struct vlapic));
+		return (EINVAL);
+	}
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		error = copyout(vm_lapic(vm, i), (struct vlapic *)buffer + i,
+				sizeof(struct vlapic));
+		if (error) {
+			printf("%s: failed to copy vlapic data to user buffer",
+					__func__);
+			*snapshot_size = 0;
+			return (error);
+		}
+	}
+
+	*snapshot_size = VM_MAXCPU * sizeof(struct vlapic);
+	return (0);
+}
+
+int
+vlapic_lapic_snapshot(void *arg, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	int i, error;
+	struct vm *vm = arg;
+	struct vlapic *vlapic;
+
+	KASSERT(vm != NULL, ("%s: arg was NULL", __func__));
+
+	if (buf_size < VM_MAXCPU * sizeof(struct LAPIC)) {
+		printf("%s: buffer size too small: %lu < %lu\n", __func__,
+				buf_size, VM_MAXCPU * sizeof(struct LAPIC));
+		return (EINVAL);
+	}
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		vlapic = vm_lapic(vm, i);
+
+		error = copyout(vlapic->apic_page, (struct LAPIC *)buffer + i,
+				sizeof(struct LAPIC));
+		if (error) {
+			printf("%s: failed to copy lapic data to user buffer",
+					__func__);
+			*snapshot_size = 0;
+			return (error);
+		}
+	}
+
+	*snapshot_size = VM_MAXCPU * sizeof(struct LAPIC);
+	return (0);
+}
+
+int
+vlapic_restore(struct vlapic *vlapic, void *buffer, int vcpu)
+{
+	struct vlapic *old_vlapic = (struct vlapic *)buffer + vcpu;
+
+	if (vlapic->vcpuid != old_vlapic->vcpuid) {
+		printf("%s: vcpuid mismatch %d != %d.\n", __func__,
+				vlapic->vcpuid, old_vlapic->vcpuid);
+		return (EINVAL);
+	}
+
+	vlapic->esr_pending = old_vlapic->esr_pending;
+	vlapic->esr_firing = old_vlapic->esr_firing;
+
+	vlapic->timer_fire_bt = old_vlapic->timer_fire_bt;
+	vlapic->timer_freq_bt = old_vlapic->timer_freq_bt;
+	vlapic->timer_period_bt = old_vlapic->timer_period_bt;
+
+	memcpy(vlapic->isrvec_stk, old_vlapic->isrvec_stk, ISRVEC_STK_SIZE * sizeof(uint8_t));
+	vlapic->isrvec_stk_top = old_vlapic->isrvec_stk_top;
+	vlapic->boot_state = vlapic->boot_state;
+
+	vlapic->svr_last = old_vlapic->svr_last;
+	memcpy(vlapic->lvt_last, old_vlapic->lvt_last, (VLAPIC_MAXLVT_INDEX + 1) * sizeof(uint32_t));
+
+	return (0);
+}
+
+int
+vlapic_lapic_restore(struct vlapic *vlapic, void *buffer, int vcpu)
+{
+	struct LAPIC *old_lapic = (struct LAPIC *)buffer + vcpu;
+
+	memcpy(vlapic->apic_page, old_lapic, sizeof(struct LAPIC));
+
+	return (0);
+}
+

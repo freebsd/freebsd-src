@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -53,6 +54,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_kern.h>
+#include <vm/vnode_pager.h>
+#include <vm/swap_pager.h>
+#include <vm/uma.h>
 
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -113,19 +119,6 @@ struct vcpu {
 	uint64_t	nextrip;	/* (x) next instruction to execute */
 };
 
-#define	vcpu_lock_initialized(v) mtx_initialized(&((v)->mtx))
-#define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
-#define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
-#define	vcpu_unlock(v)		mtx_unlock_spin(&((v)->mtx))
-#define	vcpu_assert_locked(v)	mtx_assert(&((v)->mtx), MA_OWNED)
-
-struct mem_seg {
-	size_t	len;
-	bool	sysmem;
-	struct vm_object *object;
-};
-#define	VM_MAX_MEMSEGS	3
-
 struct mem_map {
 	vm_paddr_t	gpa;
 	size_t		len;
@@ -173,6 +166,13 @@ struct vm {
 	uint16_t	maxcpus;		/* (o) max pluggable cpus */
 };
 
+
+#define	vcpu_lock_initialized(v) mtx_initialized(&((v)->mtx))
+#define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
+#define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
+#define	vcpu_unlock(v)		mtx_unlock_spin(&((v)->mtx))
+#define	vcpu_assert_locked(v)	mtx_assert(&((v)->mtx), MA_OWNED)
+
 static int vmm_initialized;
 
 static struct vmm_ops *ops;
@@ -181,8 +181,11 @@ static struct vmm_ops *ops;
 #define	VMM_RESUME()	(ops != NULL ? (*ops->resume)() : 0)
 
 #define	VMINIT(vm, pmap) (ops != NULL ? (*ops->vminit)(vm, pmap): NULL)
-#define	VMRUN(vmi, vcpu, rip, pmap, evinfo) \
-	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap, evinfo) : ENXIO)
+/*
+ * XXX: Updated VMRUN to test vcpu restoring
+ */
+#define	VMRUN(vmi, vcpu, rip, pmap, evinfo, restored) \
+	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap, evinfo, restored) : ENXIO)
 #define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
 #define	VMSPACE_ALLOC(min, max) \
 	(ops != NULL ? (*ops->vmspace_alloc)(min, max) : NULL)
@@ -204,6 +207,11 @@ static struct vmm_ops *ops;
 	(ops != NULL ? (*ops->vlapic_init)(vmi, vcpu) : NULL)
 #define	VLAPIC_CLEANUP(vmi, vlapic)		\
 	(ops != NULL ? (*ops->vlapic_cleanup)(vmi, vlapic) : NULL)
+#define	VM_SNAPSHOT_VMI(vmi, buffer, buf_size, snapshot_size) \
+	(ops != NULL ? (*ops->vmsnapshot)(vmi, buffer, buf_size, \
+			snapshot_size) : ENXIO)
+#define	VM_RESTORE_VMI(vmi, buffer, buf_size) \
+	(ops != NULL ? (*ops->vmrestore)(vmi, buffer, buf_size) : ENXIO)
 
 #define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	fpu_stop_emulating()	clts()
@@ -211,6 +219,7 @@ static struct vmm_ops *ops;
 SDT_PROVIDER_DEFINE(vmm);
 
 static MALLOC_DEFINE(M_VM, "vm", "vm");
+static MALLOC_DEFINE(M_RESTORE, "restore", "restore");
 
 /* statistics */
 static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
@@ -793,6 +802,73 @@ vm_mmap_getnext(struct vm *vm, vm_paddr_t *gpa, int *segid,
 	} else {
 		return (ENOENT);
 	}
+}
+
+int vm_get_vmem_stat(struct vm *vm, struct vm_vmem_stat *vmem_stat)
+{
+	struct vm_map *vmmap; /* Virtual Machine's VM_map */
+	struct vm_map_entry *entry;
+	struct vm_obj_stat *obj_stat;
+	struct vm_object *obj, *tobj, *lobj;
+	int obj_idx = 0, entry_idx = 0, bobject_idx = 0;
+
+	vmmap = &vm->vmspace->vm_map;
+	vm_map_lock_read(vmmap);
+	printf("Full map size: %lu\nNentries: %d\n", vmmap->size, vmmap->nentries);
+	for(entry = vmmap->header.next; entry != &vmmap->header;
+		entry = entry->next) {
+		printf("Entry idx = %d\n", entry_idx++);
+
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
+			printf("Entry is sub-map\n");
+		} else {
+			printf("Entry is not sub-map\n");
+		}
+
+		obj_stat = &vmem_stat->obj_stat[obj_idx++]; /* used to gather stats about the objects in memory */
+
+		/* information collected from map_entry_t */
+		obj_stat->e_prot = entry->protection;
+		obj_stat->e_start = entry->start;
+		obj_stat->e_end = entry->end;
+
+		obj = entry->object.vm_object;
+		/* get the original object from the list */
+
+		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
+			VM_OBJECT_RLOCK(tobj);
+			printf("Backing object %d, res pages %d\n", bobject_idx++, tobj->resident_page_count);
+			if (lobj != obj)
+				VM_OBJECT_RUNLOCK(lobj);
+			lobj = tobj;
+		}
+
+		VM_OBJECT_RUNLOCK(lobj); /* the ancestor of all objects */
+
+
+		/* information collected from vm_object */
+		VM_OBJECT_RLOCK(obj);
+		obj_stat->shadow_count = obj->shadow_count;
+		obj_stat->resident_page_count = obj->resident_page_count;
+		obj_stat->memattr = obj->memattr;
+		obj_stat->ref_count = obj->ref_count;
+		obj_stat->size = obj->size;
+		VM_OBJECT_RUNLOCK(obj);
+		printf("protection:%c%c%c\n", (obj_stat->e_prot & VM_PROT_READ)?'r':'-',
+			(obj_stat->e_prot & VM_PROT_WRITE)?'w':'-',
+			(obj_stat->e_prot & VM_PROT_EXECUTE)?'x':'-');
+		if (obj_idx >= 1000)
+			return (ENOMEM);
+	}
+	vm_map_unlock_read(vmmap);
+	vmem_stat->vm_obj_count = obj_idx;
+
+	return (0);
+}
+
+struct mem_seg * vm_get_memsegs(struct vm *vm)
+{
+	return (vm->mem_segs);
 }
 
 static void
@@ -1661,6 +1737,7 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	uint64_t tscval;
 	struct vm_exit *vme;
 	bool retu, intr_disabled;
+	int restored;
 	pmap_t pmap;
 
 	vcpuid = vmrun->cpuid;
@@ -1670,13 +1747,16 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 
 	if (!CPU_ISSET(vcpuid, &vm->active_cpus))
 		return (EINVAL);
+	//	CPU_SET_ATOMIC(vcpuid, &vm->active_cpus);
 
 	if (CPU_ISSET(vcpuid, &vm->suspended_cpus))
 		return (EINVAL);
+	//	CPU_SET_ATOMIC(vcpuid, &vm->suspended_cpus);
 
 	pmap = vmspace_pmap(vm->vmspace);
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
+	restored = vmrun->restored;
 	evinfo.rptr = &vm->rendezvous_func;
 	evinfo.sptr = &vm->suspend;
 	evinfo.iptr = &vcpu->reqidle;
@@ -1694,14 +1774,17 @@ restart:
 	restore_guest_fpustate(vcpu);
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
-	error = VMRUN(vm->cookie, vcpuid, vcpu->nextrip, pmap, &evinfo);
+	error = VMRUN(vm->cookie, vcpuid, vcpu->nextrip, pmap, &evinfo, restored);
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
 
 	vmm_stat_incr(vm, vcpuid, VCPU_TOTAL_RUNTIME, rdtsc() - tscval);
 
+	if (curthread->td_critnest != 1)
+		return (EINVAL);
 	critical_exit();
+	restored = 0;
 
 	if (error == 0) {
 		retu = false;
@@ -2709,3 +2792,186 @@ vm_get_wiredcnt(struct vm *vm, int vcpu, struct vmm_stat_type *stat)
 
 VMM_STAT_FUNC(VMM_MEM_RESIDENT, "Resident memory", vm_get_rescnt);
 VMM_STAT_FUNC(VMM_MEM_WIRED, "Wired memory", vm_get_wiredcnt);
+
+static int
+vm_snapshot(struct vm *vm, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	int error;
+
+	if (buf_size < sizeof(struct vm)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+				__func__, buf_size, sizeof(struct vm));
+		return (EINVAL);
+	}
+
+	error = copyout(vm, buffer, sizeof(struct vm));
+	if (error) {
+		printf("%s: failed to copy vm data to user buffer", __func__);
+		*snapshot_size = 0;
+		return (error);
+	}
+
+	*snapshot_size = sizeof(struct vm);
+	return (0);
+}
+
+static int
+vm_snapshot_vlapic(struct vm *vm, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	return vlapic_snapshot(vm, buffer, buf_size, snapshot_size);
+}
+
+static int
+vm_snapshot_lapic(struct vm *vm, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	return vlapic_lapic_snapshot(vm, buffer, buf_size, snapshot_size);
+}
+
+static int
+vm_snapshot_vioapic(struct vm *vm, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	return vioapic_snapshot(vm_ioapic(vm), buffer, buf_size, snapshot_size);
+}
+
+/*
+ * Save kernel-side structures to user-space for snapshotting.
+ */
+int
+vm_snapshot_req(struct vm *vm, enum snapshot_req req, void *buffer,
+		size_t buf_size, size_t *snapshot_size)
+{
+	int ret = 0;
+
+	switch (req) {
+	case STRUCT_VMX:
+		ret = VM_SNAPSHOT_VMI(vm->cookie, buffer, buf_size, snapshot_size);
+		break;
+	case STRUCT_VM:
+		ret = vm_snapshot(vm, buffer, buf_size, snapshot_size);
+		break;
+	case STRUCT_VIOAPIC:
+		ret = vm_snapshot_vioapic(vm, buffer, buf_size, snapshot_size);
+		break;
+	case STRUCT_VLAPIC:
+		ret = vm_snapshot_vlapic(vm, buffer, buf_size, snapshot_size);
+		break;
+	case STRUCT_LAPIC:
+		ret = vm_snapshot_lapic(vm, buffer, buf_size, snapshot_size);
+		break;
+	default:
+		printf("%s: failed to find the requested type\n", __func__);
+		ret = (EINVAL);
+	}
+	return (ret);
+}
+
+static int
+vm_restore_vcpu(struct vm *vm, struct vcpu *saved_vcpu)
+{
+	int i;
+	struct vcpu *current_vcpu = vm->vcpu;
+	for (i = 0; i < VM_MAXCPU; i++) {
+		current_vcpu[i].x2apic_state = saved_vcpu[i].x2apic_state;
+		current_vcpu[i].exitintinfo = saved_vcpu[i].exitintinfo;
+//		current_vcpu[i].nmi_pending = saved_vcpu[i].nmi_pending;
+//		current_vcpu[i].extint_pending = saved_vcpu[i].extint_pending;
+//		current_vcpu[i].exception_pending = saved_vcpu[i].exception_pending;
+		current_vcpu[i].exc_vector = saved_vcpu[i].exc_vector;
+		current_vcpu[i].exc_errcode_valid = saved_vcpu[i].exc_errcode_valid;
+		current_vcpu[i].exc_errcode = saved_vcpu[i].exc_errcode;
+		current_vcpu[i].guest_xcr0 = saved_vcpu[i].guest_xcr0;
+		current_vcpu[i].exitinfo = saved_vcpu[i].exitinfo;
+		current_vcpu[i].nextrip = saved_vcpu[i].nextrip;
+	}
+
+	return (0);
+}
+
+static int
+vm_restore_vm(struct vm *vm, void *buffer, size_t buf_size)
+{
+	struct vm *from_vm = (struct vm *)buffer;
+
+	if (buf_size != sizeof(struct vm)) {
+		printf("%s: restore buffer size mismatch: %lu < %lu\n",
+				__func__, buf_size, sizeof(struct vm));
+		return (EINVAL);
+	}
+
+	return vm_restore_vcpu(vm, from_vm->vcpu);
+}
+
+static int
+vm_restore_vlapic(struct vm *vm, void *buffer, size_t size)
+{
+	int i, error = 0;
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		error = vlapic_restore(vm_lapic(vm, i), buffer, i);
+		if (error)
+			break;
+	}
+
+	return (error);
+}
+
+static int
+vm_restore_lapic(struct vm *vm, void *buffer, size_t size)
+{
+	int i, error = 0;
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		error = vlapic_lapic_restore(vm_lapic(vm, i), buffer, i);
+		if (error)
+			break;
+	}
+
+	return (error);
+}
+
+static int
+vm_restore_vioapic(struct vm *vm, void *buffer, size_t buf_size)
+{
+	return vioapic_restore(vm_ioapic(vm), buffer, buf_size);
+}
+
+int
+vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_size)
+{
+	int ret = 0;
+	void *kbuf;
+
+	kbuf = malloc(buf_size, M_RESTORE, M_WAITOK | M_ZERO);
+	if (kbuf == NULL)
+		return (ENOMEM);
+
+	ret = copyin(buffer, kbuf, buf_size);
+	if (ret != 0) {
+		goto err_copyin;
+	}
+
+	switch (req) {
+	case STRUCT_VMX:
+		ret = VM_RESTORE_VMI(vm->cookie, kbuf, buf_size);
+		break;
+	case STRUCT_VM:
+		ret = vm_restore_vm(vm, kbuf, buf_size);
+		break;
+	case STRUCT_VLAPIC:
+		ret = vm_restore_vlapic(vm, kbuf, buf_size);
+		break;
+	case STRUCT_LAPIC:
+		ret = vm_restore_lapic(vm, kbuf, buf_size);
+		break;
+	case STRUCT_VIOAPIC:
+		ret = vm_restore_vioapic(vm, kbuf, buf_size);
+		break;
+	default:
+		printf("%s: failed to find type to restore\n", __func__);
+		ret = (EINVAL);
+	}
+
+err_copyin:
+	free(kbuf, M_RESTORE);
+	return (ret);
+}

@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm_dev.h>
 #include <vmmapi.h>
 
+#include <sys/socket.h>
+#include <sys/un.h>
+
 #include "amd/vmcb.h"
 #include "intel/vmcs.h"
 
@@ -66,6 +69,9 @@ __FBSDID("$FreeBSD$");
 #define	REQ_ARG		required_argument
 #define	NO_ARG		no_argument
 #define	OPT_ARG		optional_argument
+
+#define CHECKPOINT_RUN_DIR "/var/run/bhyve/checkpoint"
+#define MAX_VMNAME 100
 
 static const char *progname;
 
@@ -78,6 +84,7 @@ usage(bool cpu_intel)
 	"       [--cpu=<vcpu_number>]\n"
 	"       [--create]\n"
 	"       [--destroy]\n"
+	"       [--checkpoint=<filename>]\n"
 	"       [--get-all]\n"
 	"       [--get-stats]\n"
 	"       [--set-desc-ds]\n"
@@ -287,6 +294,10 @@ enum x2apic_state x2apic_state;
 static int unassign_pptdev, bus, slot, func;
 static int run;
 static int get_cpu_topology;
+static int show_vmem_stat;
+static int vm_checkpoint_opt;
+static int vcpu_lock_all_opt;
+static int vcpu_unlock_all_opt;
 
 /*
  * VMCB specific.
@@ -591,6 +602,7 @@ enum {
 	SET_RTC_TIME,
 	SET_RTC_NVRAM,
 	RTC_NVRAM_OFFSET,
+	SET_CHECKPOINT_FILE,
 };
 
 static void
@@ -1459,6 +1471,10 @@ setup_options(bool cpu_intel)
 		{ "get-suspended-cpus", NO_ARG,	&get_suspended_cpus, 	1 },
 		{ "get-intinfo", 	NO_ARG,	&get_intinfo,		1 },
 		{ "get-cpu-topology",	NO_ARG, &get_cpu_topology,	1 },
+		{ "get-vmem-stat", 	NO_ARG,	&show_vmem_stat,	1 },
+		{ "checkpoint", 	REQ_ARG, 0,	SET_CHECKPOINT_FILE},
+		{ "vcpu_lock_all", 	NO_ARG,&vcpu_lock_all_opt,		1 },
+		{ "vcpu_unlock_all", 	NO_ARG,&vcpu_unlock_all_opt,	1 },
 	};
 
 	const struct option intel_opts[] = {
@@ -1676,6 +1692,83 @@ show_memseg(struct vmctx *ctx)
 	}
 }
 
+static int
+show_vm_vmem_stat(struct vmctx *ctx)
+{
+	int error;
+	int i;
+	struct vm_obj_stat *obj_stat;
+	struct vm_vmem_stat vmem_stat;
+
+	error = vm_get_vmem_stat(ctx, &vmem_stat);
+	for (i = 0; i < vmem_stat.vm_obj_count; i++) {
+		obj_stat = &vmem_stat.obj_stat[i];
+		printf("**********VM vmem obj**********\n");
+		printf("resident page count = %d\n", obj_stat->resident_page_count);
+		printf("shadow count = %d\n", obj_stat->shadow_count);
+		printf("vm offset start = 0x%lu\n", obj_stat->e_end);
+		printf("vm offset end = 0x%lu\n", obj_stat->e_start);
+	}
+
+	return (0);
+}
+
+static int
+send_checkpoint_op_req(struct vmctx *ctx, struct checkpoint_op *op)
+{
+	struct sockaddr_un addr;
+	int socket_fd, len, len_sent, total_sent;
+	int err = 0;
+	char vmname_buf[MAX_VMNAME];
+
+	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	if (socket_fd < 0) {
+		perror("Error creating bhyvectl socket");
+		err = -1;
+		goto done;
+	}
+
+	memset(&addr, 0, sizeof(struct sockaddr_un));
+	addr.sun_family = AF_UNIX;
+	vm_get_name(ctx, vmname_buf, MAX_VMNAME - 1);
+	snprintf(addr.sun_path, PATH_MAX, "%s/%s", CHECKPOINT_RUN_DIR, vmname_buf);
+
+	if (connect(socket_fd, (struct sockaddr *)&addr,
+			sizeof(struct sockaddr_un)) != 0) {
+		perror("Connect to VM socket failed");
+		err = -1;
+		goto done;
+	}
+
+	len = sizeof(*op);
+	total_sent = 0;
+	while ((len_sent = send(socket_fd, (char *)op + total_sent, len - total_sent, 0)) > 0) {
+		total_sent += len_sent;
+	}
+
+	if (len_sent < 0) {
+		perror("Failed to send checkpoint operation request");
+		err = -1;
+	}
+
+done:
+	if (socket_fd > 0)
+		close(socket_fd);
+	return (err);
+}
+
+static int
+send_start_checkpoint(struct vmctx *ctx, const char *checkpoint_file)
+{
+	struct checkpoint_op op;
+
+	op.op = START_CHECKPOINT;
+	strncpy(op.snapshot_filename, checkpoint_file, MAX_SNAPSHOT_VMNAME);
+	op.snapshot_filename[MAX_SNAPSHOT_VMNAME - 1] = 0;
+
+	return send_checkpoint_op_req(ctx, &op);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1692,6 +1785,7 @@ main(int argc, char *argv[])
 	uint64_t cs, ds, es, fs, gs, ss, tr, ldtr;
 	struct tm tm;
 	struct option *opts;
+	char *checkpoint_file;
 
 	cpu_intel = cpu_vendor_intel();
 	opts = setup_options(cpu_intel);
@@ -1857,6 +1951,10 @@ main(int argc, char *argv[])
 			break;
 		case ASSERT_LAPIC_LVT:
 			assert_lapic_lvt = atoi(optarg);
+			break;
+		case SET_CHECKPOINT_FILE:
+			vm_checkpoint_opt = 1;
+			checkpoint_file = optarg;
 			break;
 		default:
 			usage(cpu_intel);
@@ -2324,7 +2422,7 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && run) {
-		error = vm_run(ctx, vcpu, &vmexit);
+		error = vm_run(ctx, vcpu, &vmexit, 0);
 		if (error == 0)
 			dump_vm_run_exitcode(&vmexit, vcpu);
 		else
@@ -2342,6 +2440,18 @@ main(int argc, char *argv[])
 
 	if (!error && destroy)
 		vm_destroy(ctx);
+
+	if (!error && show_vmem_stat)
+		error = show_vm_vmem_stat(ctx);
+
+	if (!error && vm_checkpoint_opt)
+		error = send_start_checkpoint(ctx, checkpoint_file);
+
+	if (!error && vcpu_lock_all_opt)
+		error = vm_vcpu_lock_all(ctx);
+
+	if (!error && vcpu_unlock_all_opt)
+		error = vm_vcpu_unlock_all(ctx);
 
 	free (opts);
 	exit(error);

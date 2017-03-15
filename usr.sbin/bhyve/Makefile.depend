@@ -12,8 +12,10 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libmd \
 	lib/libthr \
+	lib/libucl \
 	lib/libutil \
 	lib/libvmmapi \
+	lib/libxo \
 	lib/libz \
 	secure/lib/libcrypto \
 

@@ -45,11 +45,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/uio.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_extern.h>
 
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
@@ -73,9 +75,15 @@ struct devmem_softc {
 	SLIST_ENTRY(devmem_softc) link;
 };
 
+struct vmmdev_checkpoint_softc {
+	struct vmmdev_softc *vmmdev;
+	struct cdev	*cdev;
+};
+
 struct vmmdev_softc {
 	struct vm	*vm;		/* vm instance cookie */
 	struct cdev	*cdev;
+	struct vmmdev_checkpoint_softc *vmmdev_checkpoint;
 	SLIST_ENTRY(vmmdev_softc) link;
 	SLIST_HEAD(, devmem_softc) devmem;
 	int		flags;
@@ -86,8 +94,10 @@ static SLIST_HEAD(, vmmdev_softc) head;
 
 static unsigned pr_allow_flag;
 static struct mtx vmmdev_mtx;
+struct vm;
 
 static MALLOC_DEFINE(M_VMMDEV, "vmmdev", "vmmdev");
+static MALLOC_DEFINE(M_VMMDEV_CHECKPOINT, "vmmdev_checkpoint", "vmmdev_checkpoint");
 
 SYSCTL_DECL(_hw_vmm);
 
@@ -179,6 +189,13 @@ vmmdev_lookup(const char *name)
 
 static struct vmmdev_softc *
 vmmdev_lookup2(struct cdev *cdev)
+{
+
+	return (cdev->si_drv1);
+}
+
+static struct vmmdev_checkpoint_softc *
+vmmdev_checkpoint_lookup2(struct cdev *cdev)
 {
 
 	return (cdev->si_drv1);
@@ -369,6 +386,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_cpu_topology *topology;
 	uint64_t *regvals;
 	int *regnums;
+	struct vm_vmem_stat *vmem_stat;
+	struct vm_snapshot_req *snapshot_req;
+	struct vm_restore_req *restore_req;
 
 	error = vmm_priv_check(curthread->td_ucred);
 	if (error)
@@ -421,6 +441,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_ALLOC_MEMSEG:
 	case VM_MMAP_MEMSEG:
 	case VM_REINIT:
+	case VM_GET_VMEM_STAT:
 		/*
 		 * ioctls that operate on the entire virtual machine must
 		 * prevent all vcpus from running.
@@ -459,6 +480,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_REINIT:
 		error = vm_reinit(sc->vm);
+		break;
+	case VM_VCPU_LOCK_ALL:
+		error = vcpu_lock_all(sc);
+		break;
+	case VM_VCPU_UNLOCK_ALL:
+		vcpu_unlock_all(sc);
+		error = 0;
 		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;
@@ -577,6 +605,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		mm = (struct vm_memmap *)data;
 		error = vm_mmap_memseg(sc->vm, mm->gpa, mm->segid, mm->segoff,
 		    mm->len, mm->prot, mm->flags);
+		break;
+	case VM_GET_VMEM_STAT:
+		vmem_stat = (struct vm_vmem_stat *)data;
+		error = vm_get_vmem_stat(sc->vm, vmem_stat);
 		break;
 	case VM_ALLOC_MEMSEG:
 		error = alloc_memseg(sc, (struct vm_memseg *)data);
@@ -771,6 +803,16 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		vm_get_topology(sc->vm, &topology->sockets, &topology->cores,
 		    &topology->threads, &topology->maxcpus);
 		error = 0;
+	case VM_SNAPSHOT_REQ:
+		snapshot_req = (struct vm_snapshot_req *)data;
+		error = vm_snapshot_req(sc->vm, snapshot_req->req,
+				snapshot_req->buffer, snapshot_req->max_size,
+				&(snapshot_req->snapshot_size));
+		break;
+	case VM_RESTORE_REQ:
+		restore_req = (struct vm_restore_req *)data;
+		error = vm_restore_req(sc->vm, restore_req->req,
+				restore_req->buffer, restore_req->size);
 		break;
 	default:
 		error = ENOTTY;
@@ -879,6 +921,12 @@ vmmdev_destroy(void *arg)
 		mtx_unlock(&vmmdev_mtx);
 	}
 
+	if (sc->vmmdev_checkpoint != NULL) {
+		if (sc->vmmdev_checkpoint->cdev != NULL)
+			destroy_dev(sc->vmmdev_checkpoint->cdev);
+		free(sc->vmmdev_checkpoint, M_VMMDEV_CHECKPOINT);
+	}
+
 	free(sc, M_VMMDEV);
 }
 
@@ -949,13 +997,159 @@ static struct cdevsw vmmdevsw = {
 	.d_write	= vmmdev_rw,
 };
 
+static inline int
+mark_entry_cow(struct vm_map *vmmap, struct vm_map_entry *entry, struct vm_object *obj)
+{
+	 if ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0 &&
+			(entry->protection & VM_PROT_WRITE) != 0) {
+		pmap_protect(vmmap->pmap,
+				entry->start,
+				entry->end,
+				entry->protection & ~VM_PROT_WRITE);
+	}
+
+	VM_OBJECT_WLOCK(obj);
+	vm_object_clear_flag(obj, OBJ_ONEMAPPING);
+	VM_OBJECT_WUNLOCK(obj);
+
+	entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
+
+	return (0);
+}
+
+/*
+ * Search for a given vm_object in the vmspace of the current
+ * process and mark its entry COW
+ */
+static int
+make_vmobject_cow(struct vm_object *obj)
+{
+	struct vmspace *vmspace;
+	struct vm_map *vmmap;
+	struct vm_map_entry *entry;
+	int found = 0;
+
+	/* get bhyverun proc vmspace */
+	vmspace = vmspace_acquire_ref(curproc);
+
+	if (vmspace == NULL) {
+		printf("Failed acquire vmspace for bhyve-process\n");
+		return (-1);
+	}
+
+	vmmap = &vmspace->vm_map;
+
+	vm_map_lock(vmmap);
+	if (vmmap->busy)
+		vm_map_wait_busy(vmmap);
+
+	for(entry = vmmap->header.next; entry != &vmmap->header;
+		entry = entry->next) {
+
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0 ||
+			entry->object.vm_object == NULL) {
+			continue;
+		}
+
+		if (entry->object.vm_object == obj || /* if this is the object itself */
+			entry->object.vm_object->backing_object == obj) { /* if it is backed by this object: shadow vm_object */
+			if (entry->wired_count == 0 ||
+					(entry->protection & VM_PROT_WRITE) == 0)
+				mark_entry_cow(vmmap, entry, obj);
+				found = 1;
+		}
+	}
+
+	vm_map_unlock(vmmap);
+	vmspace_free(vmspace);
+
+	if (found == 0) {
+		printf("Failed to find object in vmspace");
+		return (-2);
+	}
+
+	return (0);
+}
+
+static int
+vmmdev_checkpoint_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t mapsize,
+    struct vm_object **objp, int nprot)
+{
+	struct vmmdev_checkpoint_softc *checkpoint_sc;
+	struct vmmdev_softc *sc;
+	vm_paddr_t gpa;
+	size_t len;
+	int flags, prot;
+	vm_ooffset_t segoff, first, last;
+	int error, found, segid;
+	bool sysmem;
+
+	first = *offset;
+	last = first + mapsize;
+	if ((nprot & PROT_EXEC) || first < 0 || first >= last)
+		return (EINVAL);
+
+	checkpoint_sc = vmmdev_checkpoint_lookup2(cdev);
+	if (checkpoint_sc == NULL) {
+		/* virtual machine is in the process of being created */
+		return (EINVAL);
+	}
+
+	sc = checkpoint_sc->vmmdev;
+
+	error = vcpu_lock_all(sc);
+	if (error != 0)
+		return (error);
+
+	gpa = 0;
+	found = 0;
+	while (!found) {
+		error = vm_mmap_getnext(sc->vm, &gpa, &segid, &segoff, &len,
+		    &flags, &prot);
+		if (error)
+			break;
+
+		if (first >= gpa && last <= gpa + len)
+			found = 1;
+		else
+			gpa += len;
+	}
+
+	if (found) {
+		error = vm_get_memseg(sc->vm, segid, &len, &sysmem, objp);
+		KASSERT(error == 0 && *objp != NULL,
+		    ("%s: invalid memory segment %d", __func__, segid));
+		if (sysmem) {
+			vm_object_reference(*objp);
+			*offset = segoff + (first - gpa);
+		} else {
+			error = EINVAL;
+		}
+	}
+
+	make_vmobject_cow(*objp);
+
+	//vcpu_unlock_one(sc, VM_MAXCPU - 1);
+	vcpu_unlock_all(sc);
+	return (error);
+}
+
+static struct cdevsw vmmdev_checkpoint = {
+	.d_name		= "vmmdev_checkpoint",
+	.d_version	= D_VERSION,
+	.d_mmap_single	= vmmdev_checkpoint_mmap_single,
+};
+
+
 static int
 sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	struct vm *vm;
 	struct cdev *cdev;
+	struct cdev *cdev_checkpoint;
 	struct vmmdev_softc *sc, *sc2;
+	struct vmmdev_checkpoint_softc *checkpoint_sc;
 	char buf[VM_MAX_NAMELEN];
 
 	error = vmm_priv_check(req->td->td_ucred);
@@ -979,7 +1173,10 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 
 	sc = malloc(sizeof(struct vmmdev_softc), M_VMMDEV, M_WAITOK | M_ZERO);
 	sc->vm = vm;
+
 	SLIST_INIT(&sc->devmem);
+
+	checkpoint_sc = malloc(sizeof(struct vmmdev_checkpoint_softc), M_VMMDEV_CHECKPOINT, M_WAITOK | M_ZERO);
 
 	/*
 	 * Lookup the name again just in case somebody sneaked in when we
@@ -1000,6 +1197,7 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 
 	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &vmmdevsw, NULL,
 			   UID_ROOT, GID_WHEEL, 0600, "vmm/%s", buf);
+	/* TODO: shouldn't be done inside lock? */
 	if (error != 0) {
 		vmmdev_destroy(sc);
 		return (error);
@@ -1008,6 +1206,25 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	mtx_lock(&vmmdev_mtx);
 	sc->cdev = cdev;
 	sc->cdev->si_drv1 = sc;
+	mtx_unlock(&vmmdev_mtx);
+
+	/* device used for checkpointing memory */
+	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev_checkpoint, &vmmdev_checkpoint, NULL,
+			   UID_ROOT, GID_WHEEL, 0600, "vmm/%s_mem", buf);
+
+	/* failed to create checkpoint device: free mem */
+	if (error != 0) {
+		printf("Failed to create checkpoint device\n");
+		free(checkpoint_sc, M_VMMDEV_CHECKPOINT);
+		return -1;
+	}
+
+	/* add device checkpoint info to vmmdev_softc */
+	mtx_lock(&vmmdev_mtx);
+	sc->vmmdev_checkpoint = checkpoint_sc;
+	sc->vmmdev_checkpoint->cdev = cdev_checkpoint;
+	sc->vmmdev_checkpoint->cdev->si_drv1 = sc->vmmdev_checkpoint;
+	sc->vmmdev_checkpoint->vmmdev = sc;
 	mtx_unlock(&vmmdev_mtx);
 
 	return (0);

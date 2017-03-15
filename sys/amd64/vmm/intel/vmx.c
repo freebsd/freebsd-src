@@ -2822,11 +2822,15 @@ vmx_dr_leave_guest(struct vmxctx *vmxctx)
 	write_rflags(read_rflags() | vmxctx->host_tf);
 }
 
+/*
+ * XXX
+ * Added old_vmcs and old_regs to vmx_run to test guest vcpu saving
+ */
 static int
 vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
-    struct vm_eventinfo *evinfo)
+    struct vm_eventinfo *evinfo, int restored)
 {
-	int rc, handled, launched;
+	int rc, handled, launched = 0;
 	struct vmx *vmx;
 	struct vm *vm;
 	struct vmxctx *vmxctx;
@@ -2843,7 +2847,12 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	vmxctx = &vmx->ctx[vcpu];
 	vlapic = vm_lapic(vm, vcpu);
 	vmexit = vm_exitinfo(vm, vcpu);
-	launched = 0;
+
+	if (restored) {
+		rc = vmclear(vmcs);
+		if (rc != 0)
+			panic("%s: vmclear(%p) error %d", __func__, vmcs, rc);
+	}
 
 	KASSERT(vmxctx->pmap == pmap,
 	    ("pmap %p different than ctx pmap %p", pmap, vmxctx->pmap));
@@ -2862,8 +2871,12 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	 */
 	vmcs_write(VMCS_HOST_CR3, rcr3());
 
+	/*
+	 * XXX If we restore a VM we use the rip saved in the vmcs
+	 */
 	vmcs_write(VMCS_GUEST_RIP, rip);
 	vmx_set_pcpu_defaults(vmx, vcpu, pmap);
+
 	do {
 		KASSERT(vmcs_guest_rip() == rip, ("%s: vmcs guest rip mismatch "
 		    "%#lx/%#lx", __func__, vmcs_guest_rip(), rip));
@@ -3734,6 +3747,162 @@ vmx_vlapic_cleanup(void *arg, struct vlapic *vlapic)
 	free(vlapic, M_VLAPIC);
 }
 
+static int
+vmx_snapshot(void *arg, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	struct vmx *vmx = arg;
+	int error;
+
+	KASSERT(vmx != NULL, ("%s: arg was NULL", __func__));
+
+	if (buf_size < sizeof(struct vmx)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+				__func__, buf_size, sizeof(struct vmx));
+		return (EINVAL);
+	}
+
+	error = copyout(vmx, buffer, sizeof(struct vmx));
+	if (error) {
+		printf("%s: failed to copy vmx data to user buffer", __func__);
+		*snapshot_size = 0;
+		return (error);
+	}
+
+	*snapshot_size = sizeof(struct vmx);
+	return (0);
+}
+
+static int
+vmx_restore_vmcs(struct vmcs *new_vmcs, struct vmcs *old_vmcs)
+{
+	uint64_t val;
+	int error = 0;
+	struct seg_desc desc;
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_CR0, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_CR0, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_CR3, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_CR3, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_CR4, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_CR4, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_DR7, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_DR7, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_RSP, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_RSP, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_RIP, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_RIP, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_RFLAGS, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_RFLAGS, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_ES, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_ES, val);
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_ES, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_ES, &desc);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_CS, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_CS, val);
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_CS, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_CS, &desc);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_SS, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_SS, val);
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_SS, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_SS, &desc);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_DS, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_DS, val);
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_DS, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_DS, &desc);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_FS, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_FS, val);
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_FS, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_FS, &desc);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_GS, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_GS, val);
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_GS, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_GS, &desc);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_TR, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_TR, val);
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_TR, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_TR, &desc);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_LDTR, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_LDTR, val);
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_LDTR, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_LDTR, &desc);
+
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_IDTR, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_IDTR, &desc);
+	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_GDTR, &desc);
+	error += vmcs_setdesc(new_vmcs, 0, VM_REG_GUEST_GDTR, &desc);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_EFER, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_EFER, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE0, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE0, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE1, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE1, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE2, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE2, val);
+
+	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE3, &val);
+	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE3, val);
+
+	return (error);
+}
+
+static int
+vmx_restore_vmx(void *arg, void *buffer, size_t size)
+{
+	struct vmx *from_vmx = (struct vmx *)buffer;
+	struct vmx *vmx = (struct vmx *)arg;
+	int i;
+	struct pmap *new_pmap;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	KASSERT(buffer != NULL, ("%s: buffer was NULL", __func__));
+
+	for (i = 0; i < VM_MAXCPU; i++) {
+		if (vmx_restore_vmcs(&vmx->vmcs[i], &from_vmx->vmcs[i])) {
+			printf("%s: error restoring vmcs: vcpuid: %d\n",
+					__func__, i);
+			return (EINVAL);
+		}
+
+		vmx->apic_page[i] = from_vmx->apic_page[i];
+
+//		vmx->pir_desc[i] = from_vmx->pir_desc[i];
+//		vmx->cap[i] = from_vmx->cap[i];
+//		vmx->state[i] = from_vmx->state[i];
+
+		memcpy(vmx->guest_msrs[i], from_vmx->guest_msrs[i],
+				6 * sizeof(uint64_t));
+
+		/* save host information of the new host */
+		new_pmap = vmx->ctx[i].pmap;
+
+		vmx->ctx[i] = from_vmx->ctx[i];
+		vmx->ctx[i].pmap = new_pmap;
+
+		vmx->eptgen[i] = new_pmap->pm_eptgen - 1;
+	}
+
+//	memcpy(vmx->msr_bitmap, from_vmx->msr_bitmap, PAGE_SIZE);
+	return (0);
+}
+
 struct vmm_ops vmm_ops_intel = {
 	vmx_init,
 	vmx_cleanup,
@@ -3751,4 +3920,6 @@ struct vmm_ops vmm_ops_intel = {
 	ept_vmspace_free,
 	vmx_vlapic_init,
 	vmx_vlapic_cleanup,
+	vmx_snapshot,
+	vmx_restore_vmx,
 };

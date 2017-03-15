@@ -49,4 +49,7 @@ int	vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa,
 
 int	vioapic_pincount(struct vm *vm);
 void	vioapic_process_eoi(struct vm *vm, int vcpuid, int vector);
+int	vioapic_snapshot(struct vioapic *vioapic, void *buffer,
+		size_t buf_size, size_t *snapshot_size);
+int	vioapic_restore(struct vioapic *vioapic, void *buffer, size_t buf_size);
 #endif

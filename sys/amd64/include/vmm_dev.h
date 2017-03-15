@@ -30,6 +30,16 @@
 
 #ifndef	_VMM_DEV_H_
 #define	_VMM_DEV_H_
+#include <vm/vm.h>
+
+enum snapshot_req {
+	STRUCT_VMX,
+	STRUCT_VIOAPIC,
+	STRUCT_VM,
+	STRUCT_VLAPIC,
+	STRUCT_LAPIC,
+	VM_MEM,
+};
 
 #ifdef _KERNEL
 void	vmmdev_init(void);
@@ -75,6 +85,7 @@ struct vm_register_set {
 
 struct vm_run {
 	int		cpuid;
+	int		restored;
 	struct vm_exit	vm_exit;
 };
 
@@ -232,6 +243,35 @@ struct vm_cpu_topology {
 	uint16_t	threads;
 	uint16_t	maxcpus;
 };
+/* SAVE-RESTORE facilities for bhyve */
+#define MAX_VM_OBJS 100
+struct vm_obj_stat {
+	int resident_page_count;
+	int shadow_count;
+	vm_memattr_t memattr;
+	vm_pindex_t size;
+	vm_prot_t e_prot; /* object protection (rwx) */
+	vm_offset_t e_start, e_end; /* objects offset */
+	int ref_count;
+};
+
+struct vm_vmem_stat {
+	struct vm_obj_stat obj_stat[MAX_VM_OBJS];
+	int vm_obj_count;
+};
+
+struct vm_snapshot_req {
+	enum snapshot_req req;	/* in: type for requested data */
+	void *buffer;		/* user-space buffer */
+	size_t max_size;	/* in: buffer size */
+	size_t snapshot_size;	/* out: data size */
+};
+
+struct vm_restore_req {
+	enum snapshot_req req;	/* in: type for requested data */
+	void *buffer;		/* in: used for passing data to vmm */
+	size_t size;		/* in: size of data to transfer to vmm*/
+};
 
 enum {
 	/* general routines */
@@ -241,6 +281,8 @@ enum {
 	IOCNUM_GET_CAPABILITY = 3,
 	IOCNUM_SUSPEND = 4,
 	IOCNUM_REINIT = 5,
+	IOCNUM_VCPU_LOCK_ALL = 6,
+	IOCNUM_VCPU_UNLOCK_ALL = 7,
 
 	/* memory apis */
 	IOCNUM_MAP_MEMORY = 10,			/* deprecated */
@@ -252,6 +294,7 @@ enum {
 	IOCNUM_MMAP_MEMSEG = 16,
 	IOCNUM_MMAP_GETNEXT = 17,
 	IOCNUM_GLA2GPA_NOFAULT = 18,
+	IOCNUM_GET_VMEM_STAT = 19,
 
 	/* register/state accessors */
 	IOCNUM_SET_REGISTER = 20,
@@ -312,6 +355,10 @@ enum {
 	IOCNUM_RTC_WRITE = 101,
 	IOCNUM_RTC_SETTIME = 102,
 	IOCNUM_RTC_GETTIME = 103,
+
+	/* checkpoint */
+	IOCNUM_SNAPSHOT_REQ = 113,
+	IOCNUM_RESTORE_REQ = 114
 };
 
 #define	VM_RUN		\
@@ -320,6 +367,10 @@ enum {
 	_IOW('v', IOCNUM_SUSPEND, struct vm_suspend)
 #define	VM_REINIT	\
 	_IO('v', IOCNUM_REINIT)
+#define	VM_VCPU_LOCK_ALL\
+	_IO('v', IOCNUM_VCPU_LOCK_ALL)
+#define	VM_VCPU_UNLOCK_ALL\
+	_IO('v', IOCNUM_VCPU_UNLOCK_ALL)
 #define	VM_ALLOC_MEMSEG	\
 	_IOW('v', IOCNUM_ALLOC_MEMSEG, struct vm_memseg)
 #define	VM_GET_MEMSEG	\
@@ -328,6 +379,8 @@ enum {
 	_IOW('v', IOCNUM_MMAP_MEMSEG, struct vm_memmap)
 #define	VM_MMAP_GETNEXT	\
 	_IOWR('v', IOCNUM_MMAP_GETNEXT, struct vm_memmap)
+#define	VM_GET_VMEM_STAT	\
+	_IOWR('v', IOCNUM_GET_VMEM_STAT, struct vm_vmem_stat)
 #define	VM_SET_REGISTER \
 	_IOW('v', IOCNUM_SET_REGISTER, struct vm_register)
 #define	VM_GET_REGISTER \
@@ -422,4 +475,8 @@ enum {
 	_IOR('v', IOCNUM_RTC_GETTIME, struct vm_rtc_time)
 #define	VM_RESTART_INSTRUCTION \
 	_IOW('v', IOCNUM_RESTART_INSTRUCTION, int)
+#define VM_SNAPSHOT_REQ \
+	_IOWR('v', IOCNUM_SNAPSHOT_REQ, struct vm_snapshot_req)
+#define VM_RESTORE_REQ \
+	_IOWR('v', IOCNUM_RESTORE_REQ, struct vm_restore_req)
 #endif

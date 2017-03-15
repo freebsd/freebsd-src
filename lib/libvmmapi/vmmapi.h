@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/cpuset.h>
+#include <machine/vmm_dev.h>
 
 /*
  * API version for out-of-tree consumers like grub-bhyve for making compile
@@ -88,6 +89,20 @@ int	vm_get_memseg(struct vmctx *ctx, int ident, size_t *lenp, char *name,
  */
 int	vm_mmap_getnext(struct vmctx *ctx, vm_paddr_t *gpa, int *segid,
 	    vm_ooffset_t *segoff, size_t *len, int *prot, int *flags);
+
+/*
+ * Iterate over all of the objects in VMs virtual memory and get stats
+ */
+int	vm_get_vmem_stat(struct vmctx *ctx, struct vm_vmem_stat *vmem_stat);
+
+int	vm_get_guestmem_from_ctx(struct vmctx *ctx, char **guest_baseaddr,
+				 size_t *lowmem_size, size_t *highmem_size);
+
+/* Maps VMs memory in the calling process */
+int
+vm_get_vm_mem(struct vmctx *ctx, char **lowmem, char **highmem, char *guest_baseaddr,
+		size_t guest_lowmem_size, size_t guest_highmem_size);
+
 /*
  * Create a device memory segment identified by 'segid'.
  *
@@ -120,6 +135,7 @@ uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
 void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
 void	vm_set_memflags(struct vmctx *ctx, int flags);
 int	vm_get_memflags(struct vmctx *ctx);
+void	vm_get_name(struct vmctx *ctx, char *buffer, int max_len);
 size_t	vm_get_lowmem_size(struct vmctx *ctx);
 size_t	vm_get_highmem_size(struct vmctx *ctx);
 int	vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
@@ -134,7 +150,7 @@ int	vm_set_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
     const int *regnums, uint64_t *regvals);
 int	vm_get_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
     const int *regnums, uint64_t *regvals);
-int	vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *ret_vmexit);
+int	vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *ret_vmexit, int restored);
 int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
 int	vm_reinit(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
@@ -226,6 +242,8 @@ int	vm_set_topology(struct vmctx *ctx, uint16_t sockets, uint16_t cores,
 	    uint16_t threads, uint16_t maxcpus);
 int	vm_get_topology(struct vmctx *ctx, uint16_t *sockets, uint16_t *cores,
 	    uint16_t *threads, uint16_t *maxcpus);
+int	vm_vcpu_lock_all(struct vmctx *ctx);
+int	vm_vcpu_unlock_all(struct vmctx *ctx);
 
 /*
  * FreeBSD specific APIs
@@ -237,4 +255,27 @@ int	vm_setup_freebsd_registers_i386(struct vmctx *vmctx, int vcpu,
 					uint32_t eip, uint32_t gdtbase,
 					uint32_t esp);
 void	vm_setup_freebsd_gdt(uint64_t *gdtr);
+
+/*
+ * Bhyve save-restore
+ */
+
+#define MAX_SNAPSHOT_VMNAME 100
+
+enum checkpoint_opcodes {
+	START_CHECKPOINT = 0,
+};
+
+struct __attribute__((packed)) checkpoint_op {
+	unsigned int op;
+	char snapshot_filename[MAX_SNAPSHOT_VMNAME];
+};
+
+int	vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
+			size_t max_size, size_t *snapshot_size);
+int	vm_restore_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
+		       size_t size);
+
+void	vm_restore_mem(struct vmctx *ctx, void *vm_mem, size_t size);
+
 #endif	/* _VMMAPI_H_ */
