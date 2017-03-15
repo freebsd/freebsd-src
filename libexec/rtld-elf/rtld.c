@@ -178,6 +178,7 @@ static char *libmap_override;	/* Maps to use in addition to libmap.conf */
 static bool trust;		/* False for setuid and setgid programs */
 static bool dangerous_ld_env;	/* True if environment variables have been
 				   used to affect the libraries loaded */
+bool ld_bind_not;		/* Disable PLT update */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
 static char *ld_library_path;	/* Environment variable for search path */
@@ -416,6 +417,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     md_abi_variant_hook(aux_info);
 
     ld_bind_now = getenv(_LD("BIND_NOW"));
+    if (ld_bind_now == NULL)
+	    ld_bind_not = getenv(_LD("BIND_NOT")) != NULL;
+
     /* 
      * If the process is tainted, then we un-set the dangerous environment
      * variables.  The process will be marked as tainted until setuid(2)
