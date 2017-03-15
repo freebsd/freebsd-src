@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2014
+.Dd March 16, 2017
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -199,6 +199,12 @@ This is intended for use within
 sandboxes, when global namespaces such as the filesystem are unavailable.
 It is consulted just after LD_LIBRARY_PATH.
 This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_BIND_NOT
+When set to a nonempty string, prevents modifications of the PLT slots when
+doing bindings.
+As result, each call of the PLT-resolved function is resolved.
+In combination with debug output, this provides complete account of
+all bind actions at runtime.
 .It Ev LD_BIND_NOW
 When set to a nonempty string, causes
 .Nm
