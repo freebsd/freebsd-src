@@ -164,17 +164,15 @@
 struct pcb
 {
 	struct trapframe pcb_regs;	/* saved CPU and registers */
+	__register_t pcb_context[14];	/* kernel context for resume */
+	void *pcb_onfault;		/* for copyin/copyout faults */
+	register_t pcb_tpc;
 #ifdef CPU_CHERI
 	struct cheri_stack pcb_cheristack;	/* CCall/CReturn stack. */
 	struct cheri_signal pcb_cherisignal;	/* CHERI signal-related state. */
 	struct chericap pcb_sealcap;		/* Root of object-type tree. */
-#endif
-	__register_t pcb_context[14];	/* kernel context for resume */
-#ifdef CPU_CHERI
 	struct cheri_kframe pcb_cherikframe;	/* kernel caller-save state. */
 #endif
-	void *pcb_onfault;		/* for copyin/copyout faults */
-	register_t pcb_tpc;
 };
 
 #ifdef _KERNEL
