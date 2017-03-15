@@ -840,6 +840,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				quad_slots = 1;
 			switch (ktr->ktr_code) {
 			case SYS_bindat:
+			case SYS_chflagsat:
 			case SYS_connectat:
 			case SYS_faccessat:
 			case SYS_fchmodat:
@@ -982,6 +983,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				narg--;
 				break;
 			case SYS_chflags:
+			case SYS_chflagsat:
 			case SYS_fchflags:
 			case SYS_lchflags:
 				print_number(ip, narg, c);
