@@ -44,23 +44,61 @@ static int
 vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 {
 	dev_info_t *devinfo;
-	off_t lba;
+	uint64_t lba;
+	size_t size, remainder, rb_size, blksz;
+	char *bouncebuf = NULL, *rb_buf;
 	EFI_STATUS status;
 
 	devinfo = (dev_info_t *)priv;
 	lba = off / devinfo->dev->Media->BlockSize;
+	remainder = off % devinfo->dev->Media->BlockSize;
 
-	status = devinfo->dev->ReadBlocks(devinfo->dev,
-	    devinfo->dev->Media->MediaId, lba, bytes, buf);
-	if (status != EFI_SUCCESS) {
-		DPRINTF("vdev_read: failed dev: %p, id: %u, lba: %jd, size: %zu,"
-		    " status: %lu\n", devinfo->dev,
-		    devinfo->dev->Media->MediaId, (intmax_t)lba, bytes,
-		    EFI_ERROR_CODE(status));
-		return (-1);
+	rb_buf = buf;
+	rb_size = bytes;
+
+	/*
+	 * If we have remainder from off, we need to add remainder part.
+	 * Since buffer must be multiple of the BlockSize, round it all up.
+	 */
+	size = roundup2(bytes + remainder, devinfo->dev->Media->BlockSize);
+	blksz = size;
+	if (remainder != 0 || size != bytes) {
+		rb_size = devinfo->dev->Media->BlockSize;
+		bouncebuf = malloc(rb_size);
+		if (bouncebuf == NULL) {
+			printf("vdev_read: out of memory\n");
+			return (-1);
+		}
+		rb_buf = bouncebuf;
+		blksz = rb_size - remainder;
 	}
 
+	while (bytes > 0) {
+		status = devinfo->dev->ReadBlocks(devinfo->dev,
+		    devinfo->dev->Media->MediaId, lba, rb_size, rb_buf);
+		if (EFI_ERROR(status))
+				goto error;
+		if (bytes < blksz)
+			blksz = bytes;
+		if (bouncebuf != NULL)
+			memcpy(buf, rb_buf + remainder, blksz);
+		buf = (void *)((uintptr_t)buf + blksz);
+		bytes -= blksz;
+		lba++;
+		remainder = 0;
+		blksz = rb_size;
+	}
+
+	free(bouncebuf);
 	return (0);
+
+error:
+	free(bouncebuf);
+	DPRINTF("vdev_read: failed dev: %p, id: %u, lba: %ju, size: %zu,"
+	    " rb_size: %zu, status: %lu\n", devinfo->dev,
+	    devinfo->dev->Media->MediaId, (uintmax_t)lba, bytes, rb_size,
+	    EFI_ERROR_CODE(status));
+	return (-1);
 }
 
 static EFI_STATUS
