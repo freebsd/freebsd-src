@@ -104,11 +104,37 @@ typedef struct _fsnode {
 #define	FSNODE_F_OPTIONAL	0x02	/* fsnode is optional */
 
 /*
+ * option_t - contains option name, description, pointer to location to store
+ * result, and range checks for the result. Used to simplify fs specific
+ * option setting
+ */
+typedef enum {
+	OPT_STRARRAY,
+	OPT_STRPTR,
+	OPT_STRBUF,
+	OPT_BOOL,
+	OPT_INT8,
+	OPT_INT16,
+	OPT_INT32,
+	OPT_INT64
+} opttype_t;
+
+typedef struct {
+	char		letter;		/* option letter NUL for none */
+	const char	*name;		/* option name */
+	void		*value;		/* where to stuff the value */
+	opttype_t	type;		/* type of entry */
+	long long	minimum;	/* minimum for value */
+	long long	maximum;	/* maximum for value */
+	const char	*desc;		/* option description */
+} option_t;
+
+/*
  * fsinfo_t - contains various settings and parameters pertaining to
  * the image, including current settings, global options, and fs
  * specific options
  */
-typedef struct {
+typedef struct makefs_fsinfo {
 		/* current settings */
 	off_t	size;		/* total size */
 	off_t	inodes;		/* number of inodes */
@@ -124,8 +150,8 @@ typedef struct {
 	off_t	minsize;	/* minimum size image should be */
 	off_t	maxsize;	/* maximum size image can be */
 	off_t	freefiles;	/* free file entries to leave */
-	int	freefilepc;	/* free file % */
 	off_t	freeblocks;	/* free blocks to leave */
+	int	freefilepc;	/* free file % */
 	int	freeblockpc;	/* free block % */
 	int	needswap;	/* non-zero if byte swapping needed */
 	int	sectorsize;	/* sector size */
@@ -133,30 +159,20 @@ typedef struct {
 	off_t	roundup;	/* round image size up to this value */
 
 	void	*fs_specific;	/* File system specific additions. */
+	option_t *fs_options;	/* File system specific options */
 } fsinfo_t;
-
-
-/*
- * option_t - contains option name, description, pointer to location to store
- * result, and range checks for the result. Used to simplify fs specific
- * option setting
- */
-typedef struct {
-	const char	*name;		/* option name */
-	int		*value;		/* where to stuff the value */
-	int		minimum;	/* minimum for value */
-	int		maximum;	/* maximum for value */
-	const char	*desc;		/* option description */
-} option_t;
 
 
 void		apply_specfile(const char *, const char *, fsnode *, int);
 void		dump_fsnodes(fsnode *);
 const char *	inode_type(mode_t);
 fsnode *	read_mtree(const char *, fsnode *);
-int		set_option(option_t *, const char *, const char *);
+int		set_option(const option_t *, const char *, char *, size_t);
+int		set_option_var(const option_t *, const char *, const char *,
+    char *, size_t);
 fsnode *	walk_dir(const char *, const char *, fsnode *, fsnode *);
 void		free_fsnodes(fsnode *);
+option_t *	copy_opts(const option_t *);
 
 #define DECLARE_FUN(fs)							\
 void		fs ## _prep_opts(fsinfo_t *);				\
