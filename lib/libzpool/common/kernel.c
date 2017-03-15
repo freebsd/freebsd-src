@@ -94,6 +94,11 @@ kstat_create(const char *module, int instance, const char *name,
 
 /*ARGSUSED*/
 void
+kstat_named_init(kstat_named_t *knp, const char *name, uchar_t type)
+{}
+
+/*ARGSUSED*/
+void
 kstat_install(kstat_t *ksp)
 {}
 
