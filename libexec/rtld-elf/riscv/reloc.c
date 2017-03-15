@@ -226,10 +226,9 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 
 	assert(ELF_R_TYPE(rel->r_info) == R_RISCV_JUMP_SLOT);
 
-	if (*where != target)
+	if (*where != target && !ld_bind_not)
 		*where = target;
-
-	return target;
+	return (target);
 }
 
 /*

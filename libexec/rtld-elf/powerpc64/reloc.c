@@ -433,7 +433,7 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
  */
 Elf_Addr
 reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
-	      const Obj_Entry *obj, const Elf_Rel *rel)
+    const Obj_Entry *obj, const Elf_Rel *rel)
 {
 
 	/*
@@ -446,6 +446,9 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 	dbg(" reloc_jmpslot: where=%p, target=%p (%#lx + %#lx)",
 	    (void *)wherep, (void *)target, *(Elf_Addr *)target,
 	    (Elf_Addr)defobj->relocbase);
+
+	if (ld_bind_not)
+		goto out;
 
 	/*
 	 * For the trampoline, the second two elements of the function
@@ -476,11 +479,13 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 		((struct funcdesc *)(wherep))->toc +=
 		    (Elf_Addr)defobj->relocbase;
 	}
+out:
 #else
 	dbg(" reloc_jmpslot: where=%p, target=%p", (void *)wherep,
 	    (void *)target);
 
-	*wherep = target;
+	if (!ld_bind_not)
+		*wherep = target;
 #endif
 
 	return (target);

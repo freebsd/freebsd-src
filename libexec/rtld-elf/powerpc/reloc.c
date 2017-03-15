@@ -468,13 +468,16 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
  */
 Elf_Addr
 reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
-	      const Obj_Entry *obj, const Elf_Rel *rel)
+    const Obj_Entry *obj, const Elf_Rel *rel)
 {
 	Elf_Addr offset;
 	const Elf_Rela *rela = (const Elf_Rela *) rel;
 
 	dbg(" reloc_jmpslot: where=%p, target=%p",
 	    (void *)wherep, (void *)target);
+
+	if (ld_bind_not)
+		goto out;
 
 	/*
 	 * At the PLT entry pointed at by `wherep', construct
@@ -519,6 +522,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 		}
 	}
 
+out:
 	return (target);
 }
 
