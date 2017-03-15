@@ -291,7 +291,7 @@ cd9660_prep_opts(fsinfo_t *fsopts)
 		    "Allow 37 char filenames (unimplemented)"),
 		OPT_BOOL('i', "allow-illegal-chars", allow_illegal_chars,
 		    "Allow illegal characters in filenames"),
-		OPT_BOOL('d', "allow-multidot", allow_multidot,
+		OPT_BOOL('m', "allow-multidot", allow_multidot,
 		    "Allow multiple periods in filenames"),
 		OPT_BOOL('o', "omit-trailing-period", omit_trailing_period,
 		    "Omit trailing periods in filenames"),
