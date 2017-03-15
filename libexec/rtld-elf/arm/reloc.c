@@ -468,15 +468,14 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags,
 
 Elf_Addr
 reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
-    		const Obj_Entry *obj, const Elf_Rel *rel)
+    const Obj_Entry *obj, const Elf_Rel *rel)
 {
 
 	assert(ELF_R_TYPE(rel->r_info) == R_ARM_JUMP_SLOT);
 
-	if (*where != target)
+	if (*where != target && !ld_bind_not)
 		*where = target;
-
-	return target;
+	return (target);
 }
 
 void

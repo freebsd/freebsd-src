@@ -274,7 +274,8 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 	    obj->path,
 	    (intmax_t)reloff, defobj->strtab + def->st_name, 
 	    (void *)*where, (void *)target);
-	*where = target;
+	if (!ld_bind_not)
+		*where = target;
 	lock_release(rtld_bind_lock, &lockstate);
 	return (Elf_Addr)target;
 }
