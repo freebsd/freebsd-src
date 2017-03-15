@@ -254,8 +254,8 @@ wi_pci_resume(device_t dev)
 
 	WI_LOCK(sc);
 	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE) {
-		return (0);
 		WI_UNLOCK(sc);
+		return (0);
 	}
 	if (ic->ic_nrunning > 0)
 		wi_init(sc);
