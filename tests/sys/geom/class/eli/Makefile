@@ -44,7 +44,7 @@ ${PACKAGE}FILES+=		conf.sh
 TEST_METADATA.$t+=	required_user="root"
 .endfor
 
-CFLAGS.pbkdf2_test=	-I${SYSDIR}/sys
+CFLAGS.pbkdf2_test=	-I${SRCTOP}/sys
 
 SRCS.pbkdf2_test=	\
 		hmac_test.c \
