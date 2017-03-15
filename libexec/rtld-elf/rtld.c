@@ -417,8 +417,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     md_abi_variant_hook(aux_info);
 
     ld_bind_now = getenv(_LD("BIND_NOW"));
-    if (ld_bind_now == NULL)
-	    ld_bind_not = getenv(_LD("BIND_NOT")) != NULL;
 
     /* 
      * If the process is tainted, then we un-set the dangerous environment
@@ -429,7 +427,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (!trust) {
 	if (unsetenv(_LD("PRELOAD")) || unsetenv(_LD("LIBMAP")) ||
 	    unsetenv(_LD("LIBRARY_PATH")) || unsetenv(_LD("LIBRARY_PATH_FDS")) ||
-	    unsetenv(_LD("LIBMAP_DISABLE")) ||
+	    unsetenv(_LD("LIBMAP_DISABLE")) || unsetenv(_LD("BIND_NOT")) ||
 	    unsetenv(_LD("DEBUG")) || unsetenv(_LD("ELF_HINTS_PATH")) ||
 	    unsetenv(_LD("LOADFLTR")) || unsetenv(_LD("LIBRARY_PATH_RPATH"))) {
 		_rtld_error("environment corrupt; aborting");
@@ -437,6 +435,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	}
     }
     ld_debug = getenv(_LD("DEBUG"));
+    if (ld_bind_now == NULL)
+	    ld_bind_not = getenv(_LD("BIND_NOT")) != NULL;
     libmap_disable = getenv(_LD("LIBMAP_DISABLE")) != NULL;
     libmap_override = getenv(_LD("LIBMAP"));
     ld_library_path = getenv(_LD("LIBRARY_PATH"));
