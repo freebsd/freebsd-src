@@ -2023,7 +2023,7 @@ bhnd_pmu1_pllinit0(struct bhnd_pmu_softc *sc, uint32_t xtal)
 
 	/* Write XtalFreq. Set the divisor also. */
 	pmuctrl = BHND_PMU_READ_4(sc, BHND_PMU_CTRL);
-	pmuctrl = ~(BHND_PMU_CTRL_ILP_DIV_MASK | BHND_PMU_CTRL_XTALFREQ_MASK);
+	pmuctrl &= ~(BHND_PMU_CTRL_ILP_DIV_MASK | BHND_PMU_CTRL_XTALFREQ_MASK);
 	pmuctrl |= BHND_PMU_SET_BITS(((xt->fref + 127) / 128) - 1,
 	    BHND_PMU_CTRL_ILP_DIV);
 	pmuctrl |= BHND_PMU_SET_BITS(xt->xf, BHND_PMU_CTRL_XTALFREQ);
