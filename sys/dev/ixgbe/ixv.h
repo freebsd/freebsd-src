@@ -90,10 +90,8 @@
 #include <machine/smp.h>
 #include <sys/sbuf.h>
 
-#include "ixgbe_features.h"
-#include "ixgbe_api.h"
-#include "ixgbe_common.h"
-#include "ixgbe_phy.h"
+#include "ixv_features.h"
+#include "ixv_vf.h"
 
 /* Tunables */
 
@@ -238,11 +236,14 @@
 #define IXGBE_LINK_ITR         ((IXGBE_LINK_ITR_QUANTA << 3) & \
                                 IXGBE_EITR_ITR_INT_MASK)
 
-#define IXGBE_IS_VF(_x) 0
-#define IXGBE_IS_X550VF(_x) 0
+/* MAC type macros */
+#define IXGBE_IS_X550VF(_adapter) \
+	((_adapter->hw.mac.type == ixgbe_mac_X550_vf) || \
+	 (_adapter->hw.mac.type == ixgbe_mac_X550EM_x_vf) || \
+	 (_adapter->hw.mac.type == ixgbe_mac_X550EM_a_vf))
 
-/* Netmap helper macro */
-#define IXGBE_VFTDH IXGBE_TDH
+#define IXGBE_IS_VF(_x) 1
+
 
 /************************************************************************
  * vendor_info_array
@@ -527,7 +528,7 @@ struct adapter {
 	unsigned long           mbuf_packet_failed;
 	unsigned long           watchdog_events;
 	unsigned long           link_irq;
-	struct ixgbe_hw_stats   stats_pf;
+	struct ixgbevf_hw_stats stats_vf;
 #if __FreeBSD_version >= 1100036
 	/* counter(9) stats */
 	u64                     ipackets;
@@ -670,26 +671,23 @@ ixv_check_ether_addr(u8 *addr)
 }
 
 /* Shared Prototypes */
-void ixgbe_legacy_start(struct ifnet *);
-int  ixgbe_legacy_start_locked(struct ifnet *, struct tx_ring *);
-int  ixgbe_mq_start(struct ifnet *, struct mbuf *);
-int  ixgbe_mq_start_locked(struct ifnet *, struct tx_ring *);
-void ixgbe_qflush(struct ifnet *);
-void ixgbe_deferred_mq_start(void *, int);
-void ixgbe_init_locked(struct adapter *);
+void ixv_legacy_start(struct ifnet *);
+int  ixv_legacy_start_locked(struct ifnet *, struct tx_ring *);
+int  ixv_mq_start(struct ifnet *, struct mbuf *);
+int  ixv_mq_start_locked(struct ifnet *, struct tx_ring *);
+void ixv_qflush(struct ifnet *);
+void ixv_deferred_mq_start(void *, int);
+void ixv_init_locked(struct adapter *);
 
-int  ixgbe_allocate_queues(struct adapter *);
-int  ixgbe_setup_transmit_structures(struct adapter *);
-void ixgbe_free_transmit_structures(struct adapter *);
-int  ixgbe_setup_receive_structures(struct adapter *);
-void ixgbe_free_receive_structures(struct adapter *);
-void ixgbe_txeof(struct tx_ring *);
-bool ixgbe_rxeof(struct ix_queue *);
+int  ixv_allocate_queues(struct adapter *);
+int  ixv_setup_transmit_structures(struct adapter *);
+void ixv_free_transmit_structures(struct adapter *);
+int  ixv_setup_receive_structures(struct adapter *);
+void ixv_free_receive_structures(struct adapter *);
+void ixv_txeof(struct tx_ring *);
+bool ixv_rxeof(struct ix_queue *);
 
-#include "ixgbe_sriov.h"
-#include "ixgbe_bypass.h"
-#include "ixgbe_fdir.h"
-#include "ixgbe_rss.h"
-#include "ixgbe_netmap.h"
+#include "ixv_rss.h"
+#include "ixv_netmap.h"
 
 #endif /* _IXGBE_H_ */

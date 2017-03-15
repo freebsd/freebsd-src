@@ -32,37 +32,52 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifndef _IXGBE_X540_H_
-#define _IXGBE_X540_H_
+#include "ixv.h"
 
-#include "ixgbe_type.h"
+inline u16
+ixv_read_pci_cfg(struct ixgbe_hw *hw, u32 reg)
+{
+	return pci_read_config(((struct adapter *)hw->back)->dev, reg, 2);
+}
 
-s32 ixgbe_get_link_capabilities_X540(struct ixgbe_hw *hw,
-				     ixgbe_link_speed *speed, bool *autoneg);
-enum ixgbe_media_type ixgbe_get_media_type_X540(struct ixgbe_hw *hw);
-s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw, ixgbe_link_speed speed,
-			      bool link_up_wait_to_complete);
-s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw);
-s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw);
-u32 ixgbe_get_supported_physical_layer_X540(struct ixgbe_hw *hw);
+inline void
+ixv_write_pci_cfg(struct ixgbe_hw *hw, u32 reg, u16 value)
+{
+	pci_write_config(((struct adapter *)hw->back)->dev, reg, value, 2);
+}
 
-s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw);
-s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data);
-s32 ixgbe_read_eerd_buffer_X540(struct ixgbe_hw *hw, u16 offset, u16 words,
-				u16 *data);
-s32 ixgbe_write_eewr_X540(struct ixgbe_hw *hw, u16 offset, u16 data);
-s32 ixgbe_write_eewr_buffer_X540(struct ixgbe_hw *hw, u16 offset, u16 words,
-				 u16 *data);
-s32 ixgbe_update_eeprom_checksum_X540(struct ixgbe_hw *hw);
-s32 ixgbe_validate_eeprom_checksum_X540(struct ixgbe_hw *hw, u16 *checksum_val);
-s32 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw);
-s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw);
+inline u32
+ixv_read_reg(struct ixgbe_hw *hw, u32 reg)
+{
+	struct adapter *adapter = (struct adapter *)hw->back;
+	u32 retval;
 
-s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
-void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
-void ixgbe_init_swfw_sync_X540(struct ixgbe_hw *hw);
+	retval = bus_space_read_4(adapter->osdep.mem_bus_space_tag,
+	    adapter->osdep.mem_bus_space_handle, reg);
 
-s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index);
-s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index);
-#endif /* _IXGBE_X540_H_ */
+	return retval;
+}
 
+inline void
+ixv_write_reg(struct ixgbe_hw *hw, u32 reg, u32 val)
+{
+	bus_space_write_4(((struct adapter *)hw->back)->osdep.mem_bus_space_tag,
+	    ((struct adapter *)hw->back)->osdep.mem_bus_space_handle,
+	    reg, val);
+}
+
+inline u32
+ixv_read_reg_array(struct ixgbe_hw *hw, u32 reg, u32 offset)
+{
+	return bus_space_read_4(((struct adapter *)hw->back)->osdep.mem_bus_space_tag,
+	    ((struct adapter *)hw->back)->osdep.mem_bus_space_handle,
+	    reg + (offset << 2));
+}
+
+inline void
+ixv_write_reg_array(struct ixgbe_hw *hw, u32 reg, u32 offset, u32 val)
+{
+	bus_space_write_4(((struct adapter *)hw->back)->osdep.mem_bus_space_tag,
+	    ((struct adapter *)hw->back)->osdep.mem_bus_space_handle,
+	    reg + (offset << 2), val);
+}

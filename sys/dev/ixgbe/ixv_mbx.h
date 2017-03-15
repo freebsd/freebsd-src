@@ -35,7 +35,7 @@
 #ifndef _IXGBE_MBX_H_
 #define _IXGBE_MBX_H_
 
-#include "ixgbe_type.h"
+#include "ixv_vf.h"
 
 #define IXGBE_VFMAILBOX_SIZE	16 /* 16 32 bit words - 64 bytes */
 #define IXGBE_ERR_MBX		-100
@@ -144,15 +144,8 @@ enum ixgbe_pfvf_api_rev {
 #define IXGBE_VF_MBX_INIT_TIMEOUT	2000 /* number of retries on mailbox */
 #define IXGBE_VF_MBX_INIT_DELAY		500  /* microseconds between retries */
 
-s32 ixgbe_read_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_write_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_read_posted_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_write_posted_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_check_for_msg(struct ixgbe_hw *, u16);
-s32 ixgbe_check_for_ack(struct ixgbe_hw *, u16);
-s32 ixgbe_check_for_rst(struct ixgbe_hw *, u16);
-void ixgbe_init_mbx_ops_generic(struct ixgbe_hw *hw);
-void ixgbe_init_mbx_params_vf(struct ixgbe_hw *);
-void ixgbe_init_mbx_params_pf(struct ixgbe_hw *);
+void ixv_init_mbx_ops_generic(struct ixgbe_hw *hw);
+void ixv_init_mbx_params_vf(struct ixgbe_hw *);
+void ixv_init_mbx_params_pf(struct ixgbe_hw *);
 
 #endif /* _IXGBE_MBX_H_ */

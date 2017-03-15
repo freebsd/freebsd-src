@@ -73,7 +73,7 @@
  * (Ex: Flow control autonegotiation or an unsupported SFP+ module.)
  */
 
-#include "ixgbe_osdep.h"
+#include "ixv_osdep.h"
 
 /* Override this by setting IOMEM in your ixgbe_osdep.h header */
 #define IOMEM
@@ -122,8 +122,12 @@
 #define IXGBE_SUBDEV_ID_82599EN_SFP_OCP1	0x0001
 #define IXGBE_DEV_ID_82599_XAUI_LOM		0x10FC
 #define IXGBE_DEV_ID_82599_T3_LOM		0x151C
+#define IXGBE_DEV_ID_82599_VF			0x10ED
+#define IXGBE_DEV_ID_82599_VF_HV		0x152E
 #define IXGBE_DEV_ID_82599_BYPASS		0x155D
 #define IXGBE_DEV_ID_X540T			0x1528
+#define IXGBE_DEV_ID_X540_VF			0x1515
+#define IXGBE_DEV_ID_X540_VF_HV			0x1530
 #define IXGBE_DEV_ID_X540_BYPASS		0x155C
 #define IXGBE_DEV_ID_X540T1			0x1560
 #define IXGBE_DEV_ID_X550T			0x1563
@@ -146,6 +150,12 @@
 #define IXGBE_DEV_ID_X550EM_X_10G_T		0x15AD
 #define IXGBE_DEV_ID_X550EM_X_1G_T		0x15AE
 #define IXGBE_DEV_ID_X550EM_X_XFI		0x15B0
+#define IXGBE_DEV_ID_X550_VF_HV			0x1564
+#define IXGBE_DEV_ID_X550_VF			0x1565
+#define IXGBE_DEV_ID_X550EM_A_VF		0x15C5
+#define IXGBE_DEV_ID_X550EM_A_VF_HV		0x15B4
+#define IXGBE_DEV_ID_X550EM_X_VF		0x15A8
+#define IXGBE_DEV_ID_X550EM_X_VF_HV		0x15A9
 
 #define IXGBE_CAT(r,m) IXGBE_##r##m
 
@@ -3577,10 +3587,15 @@ enum ixgbe_mac_type {
 	ixgbe_mac_unknown = 0,
 	ixgbe_mac_82598EB,
 	ixgbe_mac_82599EB,
+	ixgbe_mac_82599_vf,
 	ixgbe_mac_X540,
+	ixgbe_mac_X540_vf,
 	ixgbe_mac_X550,
 	ixgbe_mac_X550EM_x,
 	ixgbe_mac_X550EM_a,
+	ixgbe_mac_X550_vf,
+	ixgbe_mac_X550EM_x_vf,
+	ixgbe_mac_X550EM_a_vf,
 	ixgbe_num_macs
 };
 
@@ -3843,281 +3858,6 @@ struct ixgbe_eeprom_operations {
 	s32 (*calc_checksum)(struct ixgbe_hw *);
 };
 
-struct ixgbe_mac_operations {
-	s32 (*init_hw)(struct ixgbe_hw *);
-	s32 (*reset_hw)(struct ixgbe_hw *);
-	s32 (*start_hw)(struct ixgbe_hw *);
-	s32 (*clear_hw_cntrs)(struct ixgbe_hw *);
-	void (*enable_relaxed_ordering)(struct ixgbe_hw *);
-	enum ixgbe_media_type (*get_media_type)(struct ixgbe_hw *);
-	u32 (*get_supported_physical_layer)(struct ixgbe_hw *);
-	s32 (*get_mac_addr)(struct ixgbe_hw *, u8 *);
-	s32 (*get_san_mac_addr)(struct ixgbe_hw *, u8 *);
-	s32 (*set_san_mac_addr)(struct ixgbe_hw *, u8 *);
-	s32 (*get_device_caps)(struct ixgbe_hw *, u16 *);
-	s32 (*get_wwn_prefix)(struct ixgbe_hw *, u16 *, u16 *);
-	s32 (*get_fcoe_boot_status)(struct ixgbe_hw *, u16 *);
-	s32 (*stop_adapter)(struct ixgbe_hw *);
-	s32 (*get_bus_info)(struct ixgbe_hw *);
-	void (*set_lan_id)(struct ixgbe_hw *);
-	s32 (*read_analog_reg8)(struct ixgbe_hw*, u32, u8*);
-	s32 (*write_analog_reg8)(struct ixgbe_hw*, u32, u8);
-	s32 (*setup_sfp)(struct ixgbe_hw *);
-	s32 (*enable_rx_dma)(struct ixgbe_hw *, u32);
-	s32 (*disable_sec_rx_path)(struct ixgbe_hw *);
-	s32 (*enable_sec_rx_path)(struct ixgbe_hw *);
-	s32 (*acquire_swfw_sync)(struct ixgbe_hw *, u32);
-	void (*release_swfw_sync)(struct ixgbe_hw *, u32);
-	void (*init_swfw_sync)(struct ixgbe_hw *);
-	s32 (*prot_autoc_read)(struct ixgbe_hw *, bool *, u32 *);
-	s32 (*prot_autoc_write)(struct ixgbe_hw *, u32, bool);
-
-	/* Link */
-	void (*disable_tx_laser)(struct ixgbe_hw *);
-	void (*enable_tx_laser)(struct ixgbe_hw *);
-	void (*flap_tx_laser)(struct ixgbe_hw *);
-	s32 (*setup_link)(struct ixgbe_hw *, ixgbe_link_speed, bool);
-	s32 (*setup_mac_link)(struct ixgbe_hw *, ixgbe_link_speed, bool);
-	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *, bool);
-	s32 (*get_link_capabilities)(struct ixgbe_hw *, ixgbe_link_speed *,
-				     bool *);
-	void (*set_rate_select_speed)(struct ixgbe_hw *, ixgbe_link_speed);
-
-	/* Packet Buffer manipulation */
-	void (*setup_rxpba)(struct ixgbe_hw *, int, u32, int);
-
-	/* LED */
-	s32 (*led_on)(struct ixgbe_hw *, u32);
-	s32 (*led_off)(struct ixgbe_hw *, u32);
-	s32 (*blink_led_start)(struct ixgbe_hw *, u32);
-	s32 (*blink_led_stop)(struct ixgbe_hw *, u32);
-	s32 (*init_led_link_act)(struct ixgbe_hw *);
-
-	/* RAR, Multicast, VLAN */
-	s32 (*set_rar)(struct ixgbe_hw *, u32, u8 *, u32, u32);
-	s32 (*set_uc_addr)(struct ixgbe_hw *, u32, u8 *);
-	s32 (*clear_rar)(struct ixgbe_hw *, u32);
-	s32 (*insert_mac_addr)(struct ixgbe_hw *, u8 *, u32);
-	s32 (*set_vmdq)(struct ixgbe_hw *, u32, u32);
-	s32 (*set_vmdq_san_mac)(struct ixgbe_hw *, u32);
-	s32 (*clear_vmdq)(struct ixgbe_hw *, u32, u32);
-	s32 (*init_rx_addrs)(struct ixgbe_hw *);
-	s32 (*update_uc_addr_list)(struct ixgbe_hw *, u8 *, u32,
-				   ixgbe_mc_addr_itr);
-	s32 (*update_mc_addr_list)(struct ixgbe_hw *, u8 *, u32,
-				   ixgbe_mc_addr_itr, bool clear);
-	s32 (*enable_mc)(struct ixgbe_hw *);
-	s32 (*disable_mc)(struct ixgbe_hw *);
-	s32 (*clear_vfta)(struct ixgbe_hw *);
-	s32 (*set_vfta)(struct ixgbe_hw *, u32, u32, bool, bool);
-	s32 (*set_vlvf)(struct ixgbe_hw *, u32, u32, bool, u32 *, u32,
-			bool);
-	s32 (*init_uta_tables)(struct ixgbe_hw *);
-	void (*set_mac_anti_spoofing)(struct ixgbe_hw *, bool, int);
-	void (*set_vlan_anti_spoofing)(struct ixgbe_hw *, bool, int);
-
-	/* Flow Control */
-	s32 (*fc_enable)(struct ixgbe_hw *);
-	s32 (*setup_fc)(struct ixgbe_hw *);
-	void (*fc_autoneg)(struct ixgbe_hw *);
-
-	/* Manageability interface */
-	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8, u16,
-			      const char *);
-	s32 (*bypass_rw) (struct ixgbe_hw *hw, u32 cmd, u32 *status);
-	bool (*bypass_valid_rd) (u32 in_reg, u32 out_reg);
-	s32 (*bypass_set) (struct ixgbe_hw *hw, u32 cmd, u32 event, u32 action);
-	s32 (*bypass_rd_eep) (struct ixgbe_hw *hw, u32 addr, u8 *value);
-	void (*get_rtrup2tc)(struct ixgbe_hw *hw, u8 *map);
-	void (*disable_rx)(struct ixgbe_hw *hw);
-	void (*enable_rx)(struct ixgbe_hw *hw);
-	void (*set_source_address_pruning)(struct ixgbe_hw *, bool,
-					   unsigned int);
-	void (*set_ethertype_anti_spoofing)(struct ixgbe_hw *, bool, int);
-	s32 (*dmac_update_tcs)(struct ixgbe_hw *hw);
-	s32 (*dmac_config_tcs)(struct ixgbe_hw *hw);
-	s32 (*dmac_config)(struct ixgbe_hw *hw);
-	s32 (*setup_eee)(struct ixgbe_hw *hw, bool enable_eee);
-	s32 (*read_iosf_sb_reg)(struct ixgbe_hw *, u32, u32, u32 *);
-	s32 (*write_iosf_sb_reg)(struct ixgbe_hw *, u32, u32, u32);
-	void (*disable_mdd)(struct ixgbe_hw *hw);
-	void (*enable_mdd)(struct ixgbe_hw *hw);
-	void (*mdd_event)(struct ixgbe_hw *hw, u32 *vf_bitmap);
-	void (*restore_mdd_vf)(struct ixgbe_hw *hw, u32 vf);
-};
-
-struct ixgbe_phy_operations {
-	s32 (*identify)(struct ixgbe_hw *);
-	s32 (*identify_sfp)(struct ixgbe_hw *);
-	s32 (*init)(struct ixgbe_hw *);
-	s32 (*reset)(struct ixgbe_hw *);
-	s32 (*read_reg)(struct ixgbe_hw *, u32, u32, u16 *);
-	s32 (*write_reg)(struct ixgbe_hw *, u32, u32, u16);
-	s32 (*read_reg_mdi)(struct ixgbe_hw *, u32, u32, u16 *);
-	s32 (*write_reg_mdi)(struct ixgbe_hw *, u32, u32, u16);
-	s32 (*setup_link)(struct ixgbe_hw *);
-	s32 (*setup_internal_link)(struct ixgbe_hw *);
-	s32 (*setup_link_speed)(struct ixgbe_hw *, ixgbe_link_speed, bool);
-	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *);
-	s32 (*get_firmware_version)(struct ixgbe_hw *, u16 *);
-	s32 (*read_i2c_byte)(struct ixgbe_hw *, u8, u8, u8 *);
-	s32 (*write_i2c_byte)(struct ixgbe_hw *, u8, u8, u8);
-	s32 (*read_i2c_sff8472)(struct ixgbe_hw *, u8 , u8 *);
-	s32 (*read_i2c_eeprom)(struct ixgbe_hw *, u8 , u8 *);
-	s32 (*write_i2c_eeprom)(struct ixgbe_hw *, u8, u8);
-	void (*i2c_bus_clear)(struct ixgbe_hw *);
-	s32 (*check_overtemp)(struct ixgbe_hw *);
-	s32 (*set_phy_power)(struct ixgbe_hw *, bool on);
-	s32 (*enter_lplu)(struct ixgbe_hw *);
-	s32 (*handle_lasi)(struct ixgbe_hw *hw);
-	s32 (*read_i2c_byte_unlocked)(struct ixgbe_hw *, u8 offset, u8 addr,
-				      u8 *value);
-	s32 (*write_i2c_byte_unlocked)(struct ixgbe_hw *, u8 offset, u8 addr,
-				       u8 value);
-};
-
-struct ixgbe_link_operations {
-	s32 (*read_link)(struct ixgbe_hw *, u8 addr, u16 reg, u16 *val);
-	s32 (*read_link_unlocked)(struct ixgbe_hw *, u8 addr, u16 reg,
-				  u16 *val);
-	s32 (*write_link)(struct ixgbe_hw *, u8 addr, u16 reg, u16 val);
-	s32 (*write_link_unlocked)(struct ixgbe_hw *, u8 addr, u16 reg,
-				   u16 val);
-};
-
-struct ixgbe_link_info {
-	struct ixgbe_link_operations ops;
-	u8 addr;
-};
-
-struct ixgbe_eeprom_info {
-	struct ixgbe_eeprom_operations ops;
-	enum ixgbe_eeprom_type type;
-	u32 semaphore_delay;
-	u16 word_size;
-	u16 address_bits;
-	u16 word_page_size;
-	u16 ctrl_word_3;
-};
-
-#define IXGBE_FLAGS_DOUBLE_RESET_REQUIRED	0x01
-struct ixgbe_mac_info {
-	struct ixgbe_mac_operations ops;
-	enum ixgbe_mac_type type;
-	u8 addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
-	u8 perm_addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
-	u8 san_addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
-	/* prefix for World Wide Node Name (WWNN) */
-	u16 wwnn_prefix;
-	/* prefix for World Wide Port Name (WWPN) */
-	u16 wwpn_prefix;
-#define IXGBE_MAX_MTA			128
-	u32 mta_shadow[IXGBE_MAX_MTA];
-	s32 mc_filter_type;
-	u32 mcft_size;
-	u32 vft_size;
-	u32 num_rar_entries;
-	u32 rar_highwater;
-	u32 rx_pb_size;
-	u32 max_tx_queues;
-	u32 max_rx_queues;
-	u32 orig_autoc;
-	u8  san_mac_rar_index;
-	bool get_link_status;
-	u32 orig_autoc2;
-	u16 max_msix_vectors;
-	bool arc_subsystem_valid;
-	bool orig_link_settings_stored;
-	bool autotry_restart;
-	u8 flags;
-	struct ixgbe_dmac_config dmac_config;
-	bool set_lben;
-	u32  max_link_up_time;
-	u8   led_link_act;
-};
-
-struct ixgbe_phy_info {
-	struct ixgbe_phy_operations ops;
-	enum ixgbe_phy_type type;
-	u32 addr;
-	u32 id;
-	enum ixgbe_sfp_type sfp_type;
-	bool sfp_setup_needed;
-	u32 revision;
-	enum ixgbe_media_type media_type;
-	u32 phy_semaphore_mask;
-	bool reset_disable;
-	ixgbe_autoneg_advertised autoneg_advertised;
-	ixgbe_link_speed speeds_supported;
-	ixgbe_link_speed eee_speeds_supported;
-	ixgbe_link_speed eee_speeds_advertised;
-	enum ixgbe_smart_speed smart_speed;
-	bool smart_speed_active;
-	bool multispeed_fiber;
-	bool reset_if_overtemp;
-	bool qsfp_shared_i2c_bus;
-	u32 nw_mng_if_sel;
-};
-
-#include "ixgbe_mbx.h"
-
-struct ixgbe_mbx_operations {
-	void (*init_params)(struct ixgbe_hw *hw);
-	s32  (*read)(struct ixgbe_hw *, u32 *, u16,  u16);
-	s32  (*write)(struct ixgbe_hw *, u32 *, u16, u16);
-	s32  (*read_posted)(struct ixgbe_hw *, u32 *, u16,  u16);
-	s32  (*write_posted)(struct ixgbe_hw *, u32 *, u16, u16);
-	s32  (*check_for_msg)(struct ixgbe_hw *, u16);
-	s32  (*check_for_ack)(struct ixgbe_hw *, u16);
-	s32  (*check_for_rst)(struct ixgbe_hw *, u16);
-};
-
-struct ixgbe_mbx_stats {
-	u32 msgs_tx;
-	u32 msgs_rx;
-
-	u32 acks;
-	u32 reqs;
-	u32 rsts;
-};
-
-struct ixgbe_mbx_info {
-	struct ixgbe_mbx_operations ops;
-	struct ixgbe_mbx_stats stats;
-	u32 timeout;
-	u32 usec_delay;
-	u32 v2p_mailbox;
-	u16 size;
-};
-
-struct ixgbe_hw {
-	u8 IOMEM *hw_addr;
-	void *back;
-	struct ixgbe_mac_info mac;
-	struct ixgbe_addr_filter_info addr_ctrl;
-	struct ixgbe_fc_info fc;
-	struct ixgbe_phy_info phy;
-	struct ixgbe_link_info link;
-	struct ixgbe_eeprom_info eeprom;
-	struct ixgbe_bus_info bus;
-	struct ixgbe_mbx_info mbx;
-	const u32 *mvals;
-	u16 device_id;
-	u16 vendor_id;
-	u16 subsystem_device_id;
-	u16 subsystem_vendor_id;
-	u8 revision_id;
-	bool adapter_stopped;
-	int api_version;
-	bool force_full_reset;
-	bool allow_unsupported_sfp;
-	bool wol_enabled;
-	bool need_crosstalk_fix;
-};
-
-#define ixgbe_call_func(hw, func, params, error) \
-		(func != NULL) ? func params : error
-
 
 /* Error Codes */
 #define IXGBE_SUCCESS				0
@@ -4154,7 +3894,6 @@ struct ixgbe_hw {
 #define IXGBE_ERR_INVALID_ARGUMENT		-32
 #define IXGBE_ERR_HOST_INTERFACE_COMMAND	-33
 #define IXGBE_ERR_OUT_OF_MEM			-34
-#define IXGBE_BYPASS_FW_WRITE_FAILURE		-35
 #define IXGBE_ERR_FEATURE_NOT_SUPPORTED		-36
 #define IXGBE_ERR_EEPROM_PROTECTED_REGION	-37
 #define IXGBE_ERR_FDIR_CMD_INCOMPLETE		-38
@@ -4162,97 +3901,6 @@ struct ixgbe_hw {
 #define IXGBE_ERR_TOKEN_RETRY			-40
 
 #define IXGBE_NOT_IMPLEMENTED			0x7FFFFFFF
-
-
-#define BYPASS_PAGE_CTL0	0x00000000
-#define BYPASS_PAGE_CTL1	0x40000000
-#define BYPASS_PAGE_CTL2	0x80000000
-#define BYPASS_PAGE_M		0xc0000000
-#define BYPASS_WE		0x20000000
-
-#define BYPASS_AUTO	0x0
-#define BYPASS_NOP	0x0
-#define BYPASS_NORM	0x1
-#define BYPASS_BYPASS	0x2
-#define BYPASS_ISOLATE	0x3
-
-#define BYPASS_EVENT_MAIN_ON	0x1
-#define BYPASS_EVENT_AUX_ON	0x2
-#define BYPASS_EVENT_MAIN_OFF	0x3
-#define BYPASS_EVENT_AUX_OFF	0x4
-#define BYPASS_EVENT_WDT_TO	0x5
-#define BYPASS_EVENT_USR	0x6
-
-#define BYPASS_MODE_OFF_M	0x00000003
-#define BYPASS_STATUS_OFF_M	0x0000000c
-#define BYPASS_AUX_ON_M		0x00000030
-#define BYPASS_MAIN_ON_M	0x000000c0
-#define BYPASS_MAIN_OFF_M	0x00000300
-#define BYPASS_AUX_OFF_M	0x00000c00
-#define BYPASS_WDTIMEOUT_M	0x00003000
-#define BYPASS_WDT_ENABLE_M	0x00004000
-#define BYPASS_WDT_VALUE_M	0x00070000
-
-#define BYPASS_MODE_OFF_SHIFT	0
-#define BYPASS_STATUS_OFF_SHIFT	2
-#define BYPASS_AUX_ON_SHIFT	4
-#define BYPASS_MAIN_ON_SHIFT	6
-#define BYPASS_MAIN_OFF_SHIFT	8
-#define BYPASS_AUX_OFF_SHIFT	10
-#define BYPASS_WDTIMEOUT_SHIFT	12
-#define BYPASS_WDT_ENABLE_SHIFT	14
-#define BYPASS_WDT_TIME_SHIFT	16
-
-#define BYPASS_WDT_1	0x0
-#define BYPASS_WDT_1_5	0x1
-#define BYPASS_WDT_2	0x2
-#define BYPASS_WDT_3	0x3
-#define BYPASS_WDT_4	0x4
-#define BYPASS_WDT_8	0x5
-#define BYPASS_WDT_16	0x6
-#define BYPASS_WDT_32	0x7
-#define BYPASS_WDT_OFF	0xffff
-
-#define BYPASS_CTL1_TIME_M	0x01ffffff
-#define BYPASS_CTL1_VALID_M	0x02000000
-#define BYPASS_CTL1_OFFTRST_M	0x04000000
-#define BYPASS_CTL1_WDT_PET_M	0x08000000
-
-#define BYPASS_CTL1_VALID	0x02000000
-#define BYPASS_CTL1_OFFTRST	0x04000000
-#define BYPASS_CTL1_WDT_PET	0x08000000
-
-#define BYPASS_CTL2_DATA_M	0x000000ff
-#define BYPASS_CTL2_OFFSET_M	0x0000ff00
-#define BYPASS_CTL2_RW_M	0x00010000
-#define BYPASS_CTL2_HEAD_M	0x0ff00000
-
-#define BYPASS_CTL2_OFFSET_SHIFT	8
-#define BYPASS_CTL2_HEAD_SHIFT		20
-
-#define BYPASS_CTL2_RW		0x00010000
-
-struct ixgbe_bypass_eeprom {
-	u32 logs;
-	u32 clear_off;
-	u8 actions;
-};
-
-#define BYPASS_MAX_LOGS		43
-#define BYPASS_LOG_SIZE		5
-#define BYPASS_LOG_LINE_SIZE	37
-
-#define BYPASS_EEPROM_VER_ADD	0x02
-
-#define BYPASS_LOG_TIME_M	0x01ffffff
-#define BYPASS_LOG_TIME_VALID_M	0x02000000
-#define BYPASS_LOG_HEAD_M	0x04000000
-#define BYPASS_LOG_CLEAR_M	0x08000000
-#define BYPASS_LOG_EVENT_M	0xf0000000
-#define BYPASS_LOG_ACTION_M	0x03
-
-#define BYPASS_LOG_EVENT_SHIFT	28
-#define BYPASS_LOG_CLEAR_SHIFT	24 /* bit offset */
 
 
 #define IXGBE_FUSES0_GROUP(_i)		(0x11158 + ((_i) * 4))

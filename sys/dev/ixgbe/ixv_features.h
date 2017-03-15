@@ -32,37 +32,45 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifndef _IXGBE_X540_H_
-#define _IXGBE_X540_H_
 
-#include "ixgbe_type.h"
+#ifndef _IXGBE_FEATURES_H_
+#define _IXGBE_FEATURES_H_
 
-s32 ixgbe_get_link_capabilities_X540(struct ixgbe_hw *hw,
-				     ixgbe_link_speed *speed, bool *autoneg);
-enum ixgbe_media_type ixgbe_get_media_type_X540(struct ixgbe_hw *hw);
-s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw, ixgbe_link_speed speed,
-			      bool link_up_wait_to_complete);
-s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw);
-s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw);
-u32 ixgbe_get_supported_physical_layer_X540(struct ixgbe_hw *hw);
+/*
+ * Feature defines.  Eventually, we'd like to get to a point where we
+ * can remove MAC/Phy type checks scattered throughout the code in
+ * favor of checking these feature flags. If the feature expects OS
+ * support, make sure to add an #undef below if expected to run on
+ * OSs that don't support said feature.
+ */
+#define IXGBE_FEATURE_SRIOV                     (u32)(1 << 0)
+#define IXGBE_FEATURE_RSS                       (u32)(1 << 1)
+#define IXGBE_FEATURE_NETMAP                    (u32)(1 << 3)
+#define IXGBE_FEATURE_FAN_FAIL                  (u32)(1 << 4)
+#define IXGBE_FEATURE_TEMP_SENSOR               (u32)(1 << 5)
+#define IXGBE_FEATURE_BYPASS                    (u32)(1 << 6)
+#define IXGBE_FEATURE_LEGACY_TX                 (u32)(1 << 7)
+#define IXGBE_FEATURE_FDIR                      (u32)(1 << 8)
+#define IXGBE_FEATURE_MSI                       (u32)(1 << 9)
+#define IXGBE_FEATURE_MSIX                      (u32)(1 << 10)
+#define IXGBE_FEATURE_FRAME_LIMIT               (u32)(1 << 11)
+#define IXGBE_FEATURE_EEE                       (u32)(1 << 12)
+#define IXGBE_FEATURE_LEGACY_IRQ                (u32)(1 << 13)
 
-s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw);
-s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data);
-s32 ixgbe_read_eerd_buffer_X540(struct ixgbe_hw *hw, u16 offset, u16 words,
-				u16 *data);
-s32 ixgbe_write_eewr_X540(struct ixgbe_hw *hw, u16 offset, u16 data);
-s32 ixgbe_write_eewr_buffer_X540(struct ixgbe_hw *hw, u16 offset, u16 words,
-				 u16 *data);
-s32 ixgbe_update_eeprom_checksum_X540(struct ixgbe_hw *hw);
-s32 ixgbe_validate_eeprom_checksum_X540(struct ixgbe_hw *hw, u16 *checksum_val);
-s32 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw);
-s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw);
+/* Check for OS support.  Undefine features if not included in the OS */
+#ifndef PCI_IOV
+#undef  IXGBE_FEATURE_SRIOV
+#define IXGBE_FEATURE_SRIOV                     0
+#endif
 
-s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
-void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
-void ixgbe_init_swfw_sync_X540(struct ixgbe_hw *hw);
+#ifndef RSS
+#undef  IXGBE_FEATURE_RSS
+#define IXGBE_FEATURE_RSS                       0
+#endif
 
-s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index);
-s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index);
-#endif /* _IXGBE_X540_H_ */
+#ifndef DEV_NETMAP
+#undef  IXGBE_FEATURE_NETMAP
+#define IXGBE_FEATURE_NETMAP                    0
+#endif
 
+#endif
