@@ -346,9 +346,11 @@ FreeBSD 5.2           |      |                 |                       |
  |   10.3             |      |                 |                       |
  |                    |   NetBSD 7.0.1         |                       |
  |                    |      |                 |               DragonFly 4.6.0
+ |                    |      |                 |                       |
+ |                    |      |                 |                       |
  *--FreeBSD         macOS    |            OpenBSD 6.0                  |
  |   11.0           10.12    |                 |                       |
- |                    |      |                 |                       |
+ |                    |   NetBSD 7.1           |                       |
  |                    |      |                 |                       |
 FreeBSD 12 -current   |  NetBSD -current  OpenBSD -current     DragonFly -current
  |                    |      |                 |                       |
@@ -704,6 +706,7 @@ NetBSD 7.0.1		2016-05-22 [NBD]
 DragonFly 4.6.0		2016-08-02 [DFB]
 OpenBSD 6.0		2016-09-01 [OBD]
 FreeBSD 11.0		2016-10-10 [FBD]
+NetBSD 7.1		2017-03-11 [NBD]
 
 Bibliography
 ------------------------
