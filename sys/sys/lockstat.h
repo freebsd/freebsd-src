@@ -107,6 +107,10 @@ extern int lockstat_enabled;
 	LOCKSTAT_RECORD1(probe, lp, a);					\
 } while (0)
 
+#ifndef LOCK_PROFILING
+#define	LOCKSTAT_PROFILE_ENABLED(probe)	SDT_PROBE_ENABLED(lockstat, , , probe)
+#endif
+
 struct lock_object;
 uint64_t lockstat_nsecs(struct lock_object *);
 
@@ -129,6 +133,10 @@ uint64_t lockstat_nsecs(struct lock_object *);
 
 #define	LOCKSTAT_PROFILE_RELEASE_RWLOCK(probe, lp, a)  			\
 	LOCKSTAT_PROFILE_RELEASE_LOCK(probe, lp)
+
+#ifndef LOCK_PROFILING
+#define	LOCKSTAT_PROFILE_ENABLED(probe)	0
+#endif
 
 #endif /* !KDTRACE_HOOKS */
 #endif /* _KERNEL */

@@ -226,6 +226,7 @@ void
 __mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 {
 	struct mtx *m;
+	uintptr_t tid, v;
 
 	if (SCHEDULER_STOPPED())
 		return;
@@ -243,7 +244,13 @@ __mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	WITNESS_CHECKORDER(&m->lock_object, (opts & ~MTX_RECURSE) |
 	    LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
 
-	__mtx_lock(m, curthread, opts, file, line);
+	tid = (uintptr_t)curthread;
+	v = MTX_UNOWNED;
+	if (!_mtx_obtain_lock_fetch(m, &v, tid))
+		_mtx_lock_sleep(m, v, tid, opts, file, line);
+	else
+		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire,
+		    m, 0, 0, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, (opts & ~MTX_RECURSE) | LOP_EXCLUSIVE,
@@ -271,7 +278,7 @@ __mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	    line);
 	mtx_assert(m, MA_OWNED);
 
-	__mtx_unlock(m, curthread, opts, file, line);
+	__mtx_unlock_sleep(c, opts, file, line);
 	TD_LOCKS_DEC(curthread);
 }
 
@@ -449,6 +456,8 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid, int opts,
 	lock_delay_arg_init(&lda, NULL);
 #endif
 	m = mtxlock2mtx(c);
+	if (__predict_false(v == MTX_UNOWNED))
+		v = MTX_READ_VALUE(m);
 
 	if (__predict_false(lv_mtx_owner(v) == (struct thread *)tid)) {
 		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
@@ -857,20 +866,17 @@ __mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file, int line)
 {
 	struct mtx *m;
 	struct turnstile *ts;
-	uintptr_t v;
 
 	if (SCHEDULER_STOPPED())
 		return;
 
 	m = mtxlock2mtx(c);
-	v = MTX_READ_VALUE(m);
 
-	if (v == (uintptr_t)curthread) {
+	if (!mtx_recursed(m)) {
+		LOCKSTAT_PROFILE_RELEASE_LOCK(adaptive__release, m);
 		if (_mtx_release_lock(m, (uintptr_t)curthread))
 			return;
-	}
-
-	if (mtx_recursed(m)) {
+	} else {
 		if (--(m->mtx_recurse) == 0)
 			atomic_clear_ptr(&m->mtx_lock, MTX_RECURSED);
 		if (LOCK_LOG_TEST(&m->lock_object, opts))
