@@ -56,6 +56,7 @@ typedef unsigned char teken_color_t;
 #define	TC_CYAN		6
 #define	TC_WHITE	7
 #define	TC_NCOLORS	8
+#define	TC_LIGHT	8	/* ORed with the others. */
 
 typedef struct {
 	teken_unit_t	tp_row;
@@ -203,6 +204,7 @@ void	teken_set_8bit(teken_t *);
 void	teken_set_cons25(teken_t *);
 
 /* Color conversion. */
+teken_color_t teken_256to16(teken_color_t);
 teken_color_t teken_256to8(teken_color_t);
 
 #endif /* !_TEKEN_H_ */
