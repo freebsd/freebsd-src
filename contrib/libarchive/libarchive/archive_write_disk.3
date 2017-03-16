@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd February 28, 2017
 .Dt ARCHIVE_WRITE_DISK 3
 .Os
 .Sh NAME
@@ -33,14 +33,7 @@
 .Nm archive_write_disk_set_skip_file ,
 .Nm archive_write_disk_set_group_lookup ,
 .Nm archive_write_disk_set_standard_lookup ,
-.Nm archive_write_disk_set_user_lookup ,
-.Nm archive_write_header ,
-.Nm archive_write_data ,
-.Nm archive_write_data_block ,
-.Nm archive_write_finish_entry ,
-.Nm archive_write_close ,
-.Nm archive_write_finish
-.Nm archive_write_free
+.Nm archive_write_disk_set_user_lookup
 .Nd functions for creating objects on disk
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -68,20 +61,6 @@ Streaming Archive Library (libarchive, -larchive)
 .Fa "uid_t (*)(void *, const char *uname, uid_t uid)"
 .Fa "void (*cleanup)(void *)"
 .Fc
-.Ft int
-.Fn archive_write_header "struct archive *" "struct archive_entry *"
-.Ft la_ssize_t
-.Fn archive_write_data "struct archive *" "const void *" "size_t"
-.Ft la_ssize_t
-.Fn archive_write_data_block "struct archive *" "const void *" "size_t size" "int64_t offset"
-.Ft int
-.Fn archive_write_finish_entry "struct archive *"
-.Ft int
-.Fn archive_write_close "struct archive *"
-.Ft int
-.Fn archive_write_finish "struct archive *"
-.Ft int
-.Fn archive_write_free "struct archive *"
 .Sh DESCRIPTION
 These functions provide a complete API for creating objects on
 disk from
@@ -223,60 +202,6 @@ the number of calls to
 .Xr getpwnam 3
 and
 .Xr getgrnam 3 .
-.It Fn archive_write_header
-Build and write a header using the data in the provided
-.Tn struct archive_entry
-structure.
-See
-.Xr archive_entry 3
-for information on creating and populating
-.Tn struct archive_entry
-objects.
-.It Fn archive_write_data
-Write data corresponding to the header just written.
-Returns number of bytes written or -1 on error.
-.It Fn archive_write_data_block
-Write data corresponding to the header just written.
-This is like
-.Fn archive_write_data
-except that it performs a seek on the file being
-written to the specified offset before writing the data.
-This is useful when restoring sparse files from archive
-formats that support sparse files.
-Returns number of bytes written or -1 on error.
-(Note: This is currently not supported for
-.Tn archive_write
-handles, only for
-.Tn archive_write_disk
-handles.)
-.It Fn archive_write_finish_entry
-Close out the entry just written.
-Ordinarily, clients never need to call this, as it
-is called automatically by
-.Fn archive_write_next_header
-and
-.Fn archive_write_close
-as needed.
-However, some file attributes are written to disk only
-after the file is closed, so this can be necessary
-if you need to work with the file on disk right away.
-.It Fn archive_write_close
-Set any attributes that could not be set during the initial restore.
-For example, directory timestamps are not restored initially because
-restoring a subsequent file would alter that timestamp.
-Similarly, non-writable directories are initially created with
-write permissions (so that their contents can be restored).
-The
-.Nm
-library maintains a list of all such deferred attributes and
-sets them when this function is invoked.
-.It Fn archive_write_finish
-This is a deprecated synonym for
-.Fn archive_write_free .
-.It Fn archive_write_free
-Invokes
-.Fn archive_write_close
-if it was not invoked manually, then releases all resources.
 .El
 More information about the
 .Va struct archive

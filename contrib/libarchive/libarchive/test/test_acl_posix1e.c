@@ -116,16 +116,15 @@ DEFINE_TEST(test_acl_posix1e)
 	 * triggering unnecessary extensions.  It's better to identify
 	 * trivial ACLs at the point they are being read from disk.
 	 */
-	archive_test_set_acls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
+	assertEntrySetAcls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
 	failure("Basic ACLs shouldn't be stored as extended ACLs");
 	assert(0 == archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 	failure("Basic ACLs should set mode to 0142, not %04o",
 	    archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0142);
 
-
 	/* With any extended ACL entry, we should read back a full set. */
-	archive_test_set_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
+	assertEntrySetAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
 	failure("One extended ACL should flag all ACLs to be returned.");
 
 	/* Check that entry contains only POSIX.1e types */
@@ -135,7 +134,7 @@ DEFINE_TEST(test_acl_posix1e)
 	    ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) != 0);
 
 	assert(4 == archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
-	archive_test_compare_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
+	assertEntryCompareAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0142);
 	failure("Basic ACLs should set mode to 0142, not %04o",
 	    archive_entry_mode(ae)&0777);
@@ -143,9 +142,9 @@ DEFINE_TEST(test_acl_posix1e)
 
 
 	/* A more extensive set of ACLs. */
-	archive_test_set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	assertEqualInt(6, archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
-	archive_test_compare_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
+	assertEntryCompareAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0543);
 	failure("Basic ACLs should set mode to 0543, not %04o",
 	    archive_entry_mode(ae)&0777);
@@ -155,7 +154,7 @@ DEFINE_TEST(test_acl_posix1e)
 	 * Check that clearing ACLs gets rid of them all by repeating
 	 * the first test.
 	 */
-	archive_test_set_acls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
+	assertEntrySetAcls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]));
 	failure("Basic ACLs shouldn't be stored as extended ACLs");
 	assert(0 == archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 	failure("Basic ACLs should set mode to 0142, not %04o",
@@ -166,7 +165,7 @@ DEFINE_TEST(test_acl_posix1e)
 	 * Different types of malformed ACL entries that should
 	 * fail when added to existing POSIX.1e ACLs.
 	 */
-	archive_test_set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	for (i = 0; i < (int)(sizeof(acls_nfs4)/sizeof(acls_nfs4[0])); ++i) {
 		struct archive_test_acl_t *p = &acls_nfs4[i];
 		failure("Malformed ACL test #%d", i);

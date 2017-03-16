@@ -847,9 +847,9 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 				tar->sparse_gnu_pending = 0;
 				/* Read initial sparse map. */
 				bytes_read = gnu_sparse_10_read(a, tar, unconsumed);
-				tar->entry_bytes_remaining -= bytes_read;
 				if (bytes_read < 0)
 					return ((int)bytes_read);
+				tar->entry_bytes_remaining -= bytes_read;
 			} else {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
@@ -2489,6 +2489,9 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, size_t *unconsumed)
 	tar_flush_unconsumed(a, unconsumed);
 	bytes_read = (ssize_t)(tar->entry_bytes_remaining - remaining);
 	to_skip = 0x1ff & -bytes_read;
+	/* Fail if tar->entry_bytes_remaing would get negative */
+	if (to_skip > remaining)
+		return (ARCHIVE_FATAL);
 	if (to_skip != __archive_read_consume(a, to_skip))
 		return (ARCHIVE_FATAL);
 	return ((ssize_t)(bytes_read + to_skip));
