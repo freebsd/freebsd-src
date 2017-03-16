@@ -12,7 +12,8 @@ BINDIR=	${TESTSDIR}
 PROGS+=	libarchive_test
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR:H} -I${.OBJDIR}
-CFLAGS+= -I${LIBARCHIVEDIR}/libarchive -I${LIBARCHIVEDIR}/test_utils
+CFLAGS+= -I${LIBARCHIVEDIR}/libarchive -I${LIBARCHIVEDIR}/libarchive/test
+CFLAGS+= -I${LIBARCHIVEDIR}/test_utils
 CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 # Uncomment to link against dmalloc
@@ -300,7 +301,6 @@ BROKEN_TESTS+=			test_fuzz_rar
 # Build the test program.
 SRCS.libarchive_test=		\
 	${TESTS_SRCS}		\
-	main.c			\
 	read_open_memory.c	\
 	list.h
 
@@ -308,7 +308,8 @@ DPADD.libarchive_test=	${LIBARCHIVE}
 LDADD.libarchive_test=	-larchive
 
 .PATH: ${LIBARCHIVEDIR}/test_utils
-SRCS.libarchive_test+=	test_utils.c
+SRCS.libarchive_test+=	test_main.c	\
+			test_utils.c
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
 list.h: ${TESTS_SRCS} Makefile
