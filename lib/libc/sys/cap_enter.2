@@ -71,7 +71,7 @@ returns a flag indicating whether or not the process is in a capability mode
 sandbox.
 .Sh RUN-TIME SETTINGS
 If the
-.Dv kern.trap_enocap
+.Dv kern.trap_enotcap
 sysctl MIB is set to a non-zero value, then for any process executing in a
 capability mode sandbox, any syscall which results in either an
 .Er ENOTCAPABLE
