@@ -139,7 +139,6 @@ stor_cleanup(void)
 	for (i = 0; i < stor_info_no; i++)
 		if (stor_info[i].opened > 0)
 			ub_dev_close(stor_info[i].handle);
-	disk_cleanup(&uboot_storage);
 }
 
 static int
@@ -203,7 +202,7 @@ stor_opendev(struct disk_devdesc *dev)
 		SI(dev).opened++;
 	}
 	return (disk_open(dev, SI(dev).blocks * SI(dev).bsize,
-	    SI(dev).bsize, 0));
+	    SI(dev).bsize));
 }
 
 static int

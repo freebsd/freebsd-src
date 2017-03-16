@@ -635,8 +635,7 @@ efipart_print_common(struct devsw *dev, pdinfo_list_t *pdlist, int verbose)
 			pd_dev.d_opendata = blkio;
 			ret = disk_open(&pd_dev, blkio->Media->BlockSize *
 			    (blkio->Media->LastBlock + 1),
-			    blkio->Media->BlockSize,
-			    blkio->Media->RemovableMedia? DISK_F_NOCACHE: 0);
+			    blkio->Media->BlockSize);
 			if (ret == 0) {
 				ret = disk_print(&pd_dev, line, verbose);
 				disk_close(&pd_dev);
@@ -726,8 +725,7 @@ efipart_open(struct open_file *f, ...)
 	if (dev->d_dev->dv_type == DEVT_DISK) {
 		return (disk_open(dev,
 		    blkio->Media->BlockSize * (blkio->Media->LastBlock + 1),
-		    blkio->Media->BlockSize,
-		    blkio->Media->RemovableMedia? DISK_F_NOCACHE: 0));
+		    blkio->Media->BlockSize));
 	}
 	return (0);
 }
