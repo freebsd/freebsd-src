@@ -2194,7 +2194,7 @@ char *phrase;
 
 			for (i = 0, s = strtok(phrase, " \r\n\t"); s != NULL;
 			     s = strtok(NULL, " \r\n\t"), i++) {
-				fb = realloc(fb, (i / 4 + 1) * sizeof(*fb));
+				fb = reallocarray(fb, i / 4 + 1, sizeof(*fb));
 				l = (u_32_t)strtol(s, NULL, 0);
 				switch (i & 3)
 				{

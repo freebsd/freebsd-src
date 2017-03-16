@@ -129,7 +129,7 @@ int	detect(ip, tcp)
 			if (++ihp->sd_cnt == ihp->sd_sz)
 			{
 				ihp->sd_sz += 8;
-				sh = realloc(sh, ihp->sd_sz * sizeof(*sh));
+				sh = reallocarray(sh, ihp->sd_sz, sizeof(*sh));
 				ihp->sd_hit = sh;
 			}
 			qsort(sh, ihp->sd_cnt, sizeof(*sh), ipcmp);
