@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <nfsserver/nfs.h>
 #include <ufs/ufs/quota.h>
+#include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <aio.h>
 #include <fcntl.h>
