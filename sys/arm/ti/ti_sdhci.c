@@ -606,6 +606,11 @@ ti_sdhci_attach(device_t dev)
 	 * before waiting to see them de-asserted.
 	 */
 	sc->slot.quirks |= SDHCI_QUIRK_WAITFOR_RESET_ASSERTED;
+	
+	/*
+	 * The controller waits for busy responses.
+	 */
+	sc->slot.quirks |= SDHCI_QUIRK_WAIT_WHILE_BUSY;
 
 	/*
 	 * DMA is not really broken, I just haven't implemented it yet.
