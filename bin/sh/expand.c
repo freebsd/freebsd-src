@@ -89,15 +89,18 @@ struct worddest {
 };
 
 static char *expdest;			/* output of current string */
-static struct nodelist *argbackq;	/* list of back quote expressions */
 
-static const char *argstr(const char *, int, struct worddest *);
+static const char *argstr(const char *, struct nodelist **restrict, int,
+    struct worddest *);
 static const char *exptilde(const char *, int);
-static const char *expari(const char *, int, struct worddest *);
+static const char *expari(const char *, struct nodelist **restrict, int,
+    struct worddest *);
 static void expbackq(union node *, int, int, struct worddest *);
-static void subevalvar_trim(const char *, int, int, int);
-static int subevalvar_misc(const char *, const char *, int, int, int);
-static const char *evalvar(const char *, int, struct worddest *);
+static void subevalvar_trim(const char *, struct nodelist *, int, int, int);
+static int subevalvar_misc(const char *, struct nodelist *, const char *, int,
+    int, int);
+static const char *evalvar(const char *, struct nodelist **restrict, int,
+    struct worddest *);
 static int varisset(const char *, int);
 static void strtodest(const char *, int, int, int, struct worddest *);
 static void reprocess(int, int, int, int, struct worddest *);
@@ -224,6 +227,7 @@ void
 expandarg(union node *arg, struct arglist *arglist, int flag)
 {
 	struct worddest exparg;
+	struct nodelist *argbackq;
 
 	if (fflag)
 		flag &= ~EXP_GLOB;
@@ -231,7 +235,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 	exparg.list = arglist;
 	exparg.state = WORD_IDLE;
 	STARTSTACKSTR(expdest);
-	argstr(arg->narg.text, flag, &exparg);
+	argstr(arg->narg.text, &argbackq, flag, &exparg);
 	if (arglist == NULL) {
 		STACKSTRNUL(expdest);
 		return;			/* here document expanded */
@@ -263,7 +267,8 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
  * If EXP_SPLIT is set, dst receives any complete words produced.
  */
 static const char *
-argstr(const char *p, int flag, struct worddest *dst)
+argstr(const char *p, struct nodelist **restrict argbackq, int flag,
+    struct worddest *dst)
 {
 	char c;
 	int quotes = flag & (EXP_GLOB | EXP_CASE);	/* do CTLESC */
@@ -308,15 +313,15 @@ argstr(const char *p, int flag, struct worddest *dst)
 			USTPUTC(c, expdest);
 			break;
 		case CTLVAR:
-			p = evalvar(p, flag, dst);
+			p = evalvar(p, argbackq, flag, dst);
 			break;
 		case CTLBACKQ:
 		case CTLBACKQ|CTLQUOTE:
-			expbackq(argbackq->n, c & CTLQUOTE, flag, dst);
-			argbackq = argbackq->next;
+			expbackq((*argbackq)->n, c & CTLQUOTE, flag, dst);
+			*argbackq = (*argbackq)->next;
 			break;
 		case CTLARI:
-			p = expari(p, flag, dst);
+			p = expari(p, argbackq, flag, dst);
 			break;
 		case ':':
 		case '=':
@@ -405,7 +410,8 @@ exptilde(const char *p, int flag)
  * Expand arithmetic expression.
  */
 static const char *
-expari(const char *p, int flag, struct worddest *dst)
+expari(const char *p, struct nodelist **restrict argbackq, int flag,
+    struct worddest *dst)
 {
 	char *q, *start;
 	arith_t result;
@@ -415,7 +421,7 @@ expari(const char *p, int flag, struct worddest *dst)
 
 	quoted = *p++ == '"';
 	begoff = expdest - stackblock();
-	p = argstr(p, 0, NULL);
+	p = argstr(p, argbackq, 0, NULL);
 	STPUTC('\0', expdest);
 	start = stackblock() + begoff;
 
@@ -448,7 +454,6 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	char buf[128];
 	char *p;
 	char *dest = expdest;
-	struct nodelist *saveargbackq;
 	char lastc;
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
 	int quotes = flag & (EXP_GLOB | EXP_CASE);
@@ -456,7 +461,6 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	const char *ifs;
 
 	INTOFF;
-	saveargbackq = argbackq;
 	p = grabstackstr(dest);
 	evalbackcmd(cmd, &in);
 	ungrabstackstr(p, dest);
@@ -522,7 +526,6 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 		((dest - stackblock()) - startloc),
 		(int)((dest - stackblock()) - startloc),
 		stackblock() + startloc));
-	argbackq = saveargbackq;
 	expdest = dest;
 	INTON;
 }
@@ -541,18 +544,18 @@ recordleft(const char *str, const char *loc, char *startp)
 }
 
 static void
-subevalvar_trim(const char *p, int strloc, int subtype, int startloc)
+subevalvar_trim(const char *p, struct nodelist *argbackq, int strloc,
+    int subtype, int startloc)
 {
 	char *startp;
 	char *loc = NULL;
 	char *str;
 	int c = 0;
-	struct nodelist *saveargbackq = argbackq;
+	struct nodelist *argbackqcopy = argbackq;
 	int amount;
 
-	argstr(p, EXP_CASE | EXP_TILDE, NULL);
+	argstr(p, &argbackqcopy, EXP_CASE | EXP_TILDE, NULL);
 	STACKSTRNUL(expdest);
-	argbackq = saveargbackq;
 	startp = stackblock() + startloc;
 	str = stackblock() + strloc;
 
@@ -615,16 +618,15 @@ subevalvar_trim(const char *p, int strloc, int subtype, int startloc)
 
 
 static int
-subevalvar_misc(const char *p, const char *var, int subtype, int startloc,
+subevalvar_misc(const char *p, struct nodelist *argbackq, const char *var, int subtype, int startloc,
   int varflags)
 {
 	char *startp;
-	struct nodelist *saveargbackq = argbackq;
+	struct nodelist *argbackqcopy = argbackq;
 	int amount;
 
-	argstr(p, EXP_TILDE, NULL);
+	argstr(p, &argbackqcopy, EXP_TILDE, NULL);
 	STACKSTRNUL(expdest);
-	argbackq = saveargbackq;
 	startp = stackblock() + startloc;
 
 	switch (subtype) {
@@ -655,7 +657,8 @@ subevalvar_misc(const char *p, const char *var, int subtype, int startloc,
  */
 
 static const char *
-evalvar(const char *p, int flag, struct worddest *dst)
+evalvar(const char *p, struct nodelist **restrict argbackq, int flag,
+    struct worddest *dst)
 {
 	int subtype;
 	int varflags;
@@ -759,7 +762,8 @@ again: /* jump here after setting a variable with ${var=text} */
 	case VSPLUS:
 	case VSMINUS:
 		if (!set) {
-			argstr(p, flag | (flag & EXP_SPLIT ? EXP_SPLIT_LIT : 0) |
+			argstr(p, argbackq,
+			    flag | (flag & EXP_SPLIT ? EXP_SPLIT_LIT : 0) |
 			    (varflags & VSQUOTE ? EXP_LIT_QUOTED : 0), dst);
 			break;
 		}
@@ -779,7 +783,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		 */
 		STPUTC('\0', expdest);
 		patloc = expdest - stackblock();
-		subevalvar_trim(p, patloc, subtype, startloc);
+		subevalvar_trim(p, *argbackq, patloc, subtype, startloc);
 		reprocess(startloc, flag, VSNORMAL, varflags & VSQUOTE, dst);
 		if (flag & EXP_SPLIT && *var == '@' && varflags & VSQUOTE)
 			dst->state = WORD_QUOTEMARK;
@@ -788,8 +792,8 @@ again: /* jump here after setting a variable with ${var=text} */
 	case VSASSIGN:
 	case VSQUESTION:
 		if (!set) {
-			if (subevalvar_misc(p, var, subtype, startloc,
-			    varflags)) {
+			if (subevalvar_misc(p, *argbackq, var, subtype,
+			    startloc, varflags)) {
 				varflags &= ~VSNUL;
 				goto again;
 			}
@@ -813,7 +817,7 @@ again: /* jump here after setting a variable with ${var=text} */
 				p++;
 			else if (c == CTLBACKQ || c == (CTLBACKQ|CTLQUOTE)) {
 				if (set)
-					argbackq = argbackq->next;
+					*argbackq = (*argbackq)->next;
 			} else if (c == CTLVAR) {
 				if ((*p++ & VSTYPE) != VSNORMAL)
 					nesting++;
@@ -1440,13 +1444,14 @@ int
 casematch(union node *pattern, const char *val)
 {
 	struct stackmark smark;
+	struct nodelist *argbackq;
 	int result;
 	char *p;
 
 	setstackmark(&smark);
 	argbackq = pattern->narg.backquote;
 	STARTSTACKSTR(expdest);
-	argstr(pattern->narg.text, EXP_TILDE | EXP_CASE, NULL);
+	argstr(pattern->narg.text, &argbackq, EXP_TILDE | EXP_CASE, NULL);
 	STPUTC('\0', expdest);
 	p = grabstackstr(expdest);
 	result = patmatch(p, val);
