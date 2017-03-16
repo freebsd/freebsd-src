@@ -267,9 +267,6 @@ _rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	struct rwlock *rw;
 	uintptr_t tid, v;
 
-	if (SCHEDULER_STOPPED())
-		return;
-
 	rw = rwlock2rw(c);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
@@ -334,9 +331,6 @@ void
 _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 {
 	struct rwlock *rw;
-
-	if (SCHEDULER_STOPPED())
-		return;
 
 	rw = rwlock2rw(c);
 
