@@ -260,40 +260,36 @@ static struct cdevsw consolectl_devsw = {
 
 static	u_int	ec_scroffset;
 
-/*
- * Fake enough of main_console for ec_putc() to work very early on x86 if
- * the kernel starts in normal color text mode.  On non-x86, scribbling
- * to the x86 normal color text frame buffer's addresses is unsafe, so
- * set (likely non-fake) graphics mode to get a null initial ec_putc().
- */
-static	scr_stat	fake_main_console = {
-#ifndef __sparc64__
-	.scr.vtb_buffer = 0xb8000,
-#endif
-	.xsize = 80,
-	.ysize = 25,
-#if !defined(__amd64__) && !defined(__i386__)
-	.status = GRAPHICS_MODE,
-#endif
-};
-
-#define	main_console	(sc_console == NULL ? fake_main_console : main_console)
-
 static void
 ec_putc(int c)
 {
-#ifndef __sparc64__
+	uintptr_t fb;
 	u_short *scrptr;
 	u_int ind;
 	int attr, column, mysize, width, xsize, yborder, ysize;
 
-	if (main_console.status & GRAPHICS_MODE ||
-	    c < 0 || c > 0xff || c == '\a')
+	if (c < 0 || c > 0xff || c == '\a')
 		return;
-	xsize = main_console.xsize;
-	ysize = main_console.ysize;
+	if (sc_console == NULL) {
+#if !defined(__amd64__) && !defined(__i386__)
+		return;
+#endif
+		/*
+		 * This is enough for ec_putc() to work very early on x86
+		 * if the kernel starts in normal color text mode.
+		 */
+		fb = 0xb8000;
+		xsize = 80;
+		ysize = 25;
+	} else {
+		if (main_console.status & GRAPHICS_MODE)
+			return;
+		fb = main_console.sc->adp->va_window;
+		xsize = main_console.xsize;
+		ysize = main_console.ysize;
+	}
 	yborder = ysize / 5;
-	scrptr = (u_short *)main_console.scr.vtb_buffer + xsize * yborder;
+	scrptr = (u_short *)(void *)fb + xsize * yborder;
 	mysize = xsize * (ysize - 2 * yborder);
 	do {
 		ind = ec_scroffset;
@@ -314,10 +310,7 @@ ec_putc(int c)
 	do
 		scrptr[ind++ % mysize] = (attr << 8) | c;
 	while (--width != 0);
-#endif /* !__sparc64__ */
 }
-
-#undef main_console
 
 int
 sc_probe_unit(int unit, int flags)
