@@ -73,6 +73,10 @@
 #define	SDHCI_QUIRK_INTEL_POWER_UP_RESET		(1 << 19)
 /* Data timeout is invalid, use 1 MHz clock instead. */
 #define	SDHCI_QUIRK_DATA_TIMEOUT_1MHZ			(1 << 20)
+/* Controller doesn't allow access boot partitions. */
+#define	SDHCI_QUIRK_BOOT_NOACC				(1 << 21)
+/* Controller waits for busy responses. */
+#define	SDHCI_QUIRK_WAIT_WHILE_BUSY			(1 << 22)
 
 /*
  * Controller registers
