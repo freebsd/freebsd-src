@@ -99,6 +99,8 @@ void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 int	atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src);
+int	atomic_fcmpset_int(volatile u_int *dst, u_int *expect, u_int src);
+int	atomic_fcmpset_long(volatile u_long *dst, u_long *expect, u_long src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 u_long	atomic_fetchadd_long(volatile u_long *p, u_long v);
 int	atomic_testandset_int(volatile u_int *p, u_int v);
@@ -191,6 +193,42 @@ atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 	: "=q" (res),			/* 0 */
 	  "+m" (*dst),			/* 1 */
 	  "+a" (expect)			/* 2 */
+	: "r" (src)			/* 3 */
+	: "memory", "cc");
+	return (res);
+}
+
+static __inline int
+atomic_fcmpset_int(volatile u_int *dst, u_int *expect, u_int src)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	cmpxchgl %3,%1 ;	"
+	"       sete	%0 ;		"
+	"# atomic_fcmpset_int"
+	: "=r" (res),			/* 0 */
+	  "+m" (*dst),			/* 1 */
+	  "+a" (*expect)		/* 2 */
+	: "r" (src)			/* 3 */
+	: "memory", "cc");
+	return (res);
+}
+
+static __inline int
+atomic_fcmpset_long(volatile u_long *dst, u_long *expect, u_long src)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	cmpxchgq %3,%1 ;	"
+	"       sete	%0 ;		"
+	"# atomic_fcmpset_long"
+	: "=r" (res),			/* 0 */
+	  "+m" (*dst),			/* 1 */
+	  "+a" (*expect)		/* 2 */
 	: "r" (src)			/* 3 */
 	: "memory", "cc");
 	return (res);
@@ -504,6 +542,8 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_subtract_rel_int		atomic_subtract_barr_int
 #define	atomic_cmpset_acq_int		atomic_cmpset_int
 #define	atomic_cmpset_rel_int		atomic_cmpset_int
+#define	atomic_fcmpset_acq_int	atomic_fcmpset_int
+#define	atomic_fcmpset_rel_int	atomic_fcmpset_int
 
 #define	atomic_set_acq_long		atomic_set_barr_long
 #define	atomic_set_rel_long		atomic_set_barr_long
@@ -515,6 +555,8 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_subtract_rel_long	atomic_subtract_barr_long
 #define	atomic_cmpset_acq_long		atomic_cmpset_long
 #define	atomic_cmpset_rel_long		atomic_cmpset_long
+#define	atomic_fcmpset_acq_long	atomic_fcmpset_long
+#define	atomic_fcmpset_rel_long	atomic_fcmpset_long
 
 #define	atomic_readandclear_int(p)	atomic_swap_int(p, 0)
 #define	atomic_readandclear_long(p)	atomic_swap_long(p, 0)
@@ -569,6 +611,9 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_cmpset_32	atomic_cmpset_int
 #define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
 #define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
+#define	atomic_fcmpset_32	atomic_fcmpset_int
+#define	atomic_fcmpset_acq_32	atomic_fcmpset_acq_int
+#define	atomic_fcmpset_rel_32	atomic_fcmpset_rel_int
 #define	atomic_swap_32		atomic_swap_int
 #define	atomic_readandclear_32	atomic_readandclear_int
 #define	atomic_fetchadd_32	atomic_fetchadd_int
@@ -593,6 +638,9 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_cmpset_64	atomic_cmpset_long
 #define	atomic_cmpset_acq_64	atomic_cmpset_acq_long
 #define	atomic_cmpset_rel_64	atomic_cmpset_rel_long
+#define	atomic_fcmpset_64	atomic_fcmpset_long
+#define	atomic_fcmpset_acq_64	atomic_fcmpset_acq_long
+#define	atomic_fcmpset_rel_64	atomic_fcmpset_rel_long
 #define	atomic_swap_64		atomic_swap_long
 #define	atomic_readandclear_64	atomic_readandclear_long
 #define	atomic_fetchadd_64	atomic_fetchadd_long
@@ -617,6 +665,9 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 #define	atomic_cmpset_ptr	atomic_cmpset_long
 #define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_long
 #define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_long
+#define	atomic_fcmpset_ptr	atomic_fcmpset_long
+#define	atomic_fcmpset_acq_ptr	atomic_fcmpset_acq_long
+#define	atomic_fcmpset_rel_ptr	atomic_fcmpset_rel_long
 #define	atomic_swap_ptr		atomic_swap_long
 #define	atomic_readandclear_ptr	atomic_readandclear_long
 

@@ -112,6 +112,43 @@ atomic_clear_64(volatile uint64_t *address, uint64_t clearmask)
 	__with_interrupts_disabled(*address &= ~clearmask);
 }
 
+static __inline int
+atomic_fcmpset_32(volatile u_int32_t *p, volatile u_int32_t *cmpval, volatile u_int32_t newval)
+{
+	u_int32_t ret;
+
+	__with_interrupts_disabled(
+	 {
+	 	ret = *p;
+	    	if (*p == *cmpval) {
+			*p = newval;
+			ret = 1;
+		} else {
+			*cmpval = *p;
+			ret = 0;
+		}
+	});
+	return (ret);
+}
+
+static __inline int
+atomic_fcmpset_64(volatile u_int64_t *p, volatile u_int64_t *cmpval, volatile u_int64_t newval)
+{
+	u_int64_t ret;
+
+	__with_interrupts_disabled(
+	 {
+	    	if (*p == *cmpval) {
+			*p = newval;
+			ret = 1;
+		} else {
+			*cmpval = *p;
+			ret = 0;
+		}
+	});
+	return (ret);
+}
+
 static __inline u_int32_t
 atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
 {
@@ -370,6 +407,12 @@ atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
 	return (__swp(v, p));
 }
 
+#define atomic_fcmpset_rel_32	atomic_fcmpset_32
+#define atomic_fcmpset_acq_32	atomic_fcmpset_32
+#define atomic_fcmpset_rel_64	atomic_fcmpset_64
+#define atomic_fcmpset_acq_64	atomic_fcmpset_64
+#define atomic_fcmpset_acq_long	atomic_fcmpset_long
+#define atomic_fcmpset_rel_long	atomic_fcmpset_long
 #define atomic_cmpset_rel_32	atomic_cmpset_32
 #define atomic_cmpset_acq_32	atomic_cmpset_32
 #define atomic_cmpset_rel_64	atomic_cmpset_64
@@ -418,6 +461,14 @@ atomic_cmpset_long(volatile u_long *dst, u_long old, u_long newe)
 {
 
 	return (atomic_cmpset_32((volatile uint32_t *)dst, old, newe));
+}
+
+static __inline u_long
+atomic_fcmpset_long(volatile u_long *dst, u_long *old, u_long newe)
+{
+
+	return (atomic_fcmpset_32((volatile uint32_t *)dst,
+	    (uint32_t *)old, newe));
 }
 
 static __inline u_long
