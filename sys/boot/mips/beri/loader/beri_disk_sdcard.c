@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 static int	beri_sdcard_disk_init(void);
 static int	beri_sdcard_disk_open(struct open_file *, ...);
 static int	beri_sdcard_disk_close(struct open_file *);
-static void	beri_sdcard_disk_cleanup(void);
 static int	beri_sdcard_disk_strategy(void *, int, daddr_t, size_t,
 		    char *, size_t *);
 static int	beri_sdcard_disk_print(int);
@@ -58,7 +57,7 @@ struct devsw beri_sdcard_disk = {
 	.dv_close = beri_sdcard_disk_close,
 	.dv_ioctl = noioctl,
 	.dv_print = beri_sdcard_disk_print,
- 	.dv_cleanup = beri_sdcard_disk_cleanup,
+	.dv_cleanup = NULL,
 };
 
 static int
@@ -106,7 +105,7 @@ beri_sdcard_disk_open(struct open_file *f, ...)
 	if (dev->d_unit != 0)
 		return (EIO);
 	return (disk_open(dev, altera_sdcard_get_mediasize(),
-	    altera_sdcard_get_sectorsize(), 0));
+	    altera_sdcard_get_sectorsize()));
 }
 
 static int
@@ -138,17 +137,10 @@ beri_sdcard_disk_print(int verbose)
 	dev.d_slice = -1;
 	dev.d_partition = -1;
 	if (disk_open(&dev, altera_sdcard_get_mediasize(),
-	    altera_sdcard_get_sectorsize(), 0) == 0) {
+	    altera_sdcard_get_sectorsize()) == 0) {
 		snprintf(line, sizeof(line), "    sdcard%d", 0);
 		ret = disk_print(&dev, line, verbose);
 		disk_close(&dev);
 	}
 	return (ret);
-}
-
-static void
-beri_sdcard_disk_cleanup(void)
-{
-
-	disk_cleanup(&beri_sdcard_disk);
 }
