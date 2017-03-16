@@ -3606,8 +3606,6 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			new_entry->start = old_entry->start;
 			new_entry->end = old_entry->end;
 			new_entry->avail_ssize = old_entry->avail_ssize;
-			new_entry->adj_free = old_entry->adj_free;
-			new_entry->max_free = old_entry->max_free;
 			new_entry->eflags = old_entry->eflags &
 			    ~(MAP_ENTRY_USER_WIRED | MAP_ENTRY_IN_TRANSITION |
 			    MAP_ENTRY_VN_WRITECNT);
