@@ -508,6 +508,53 @@ linux_copyout(const void *kaddr, void *uaddr, size_t len)
 	return (-copyout(kaddr, uaddr, len));
 }
 
+size_t
+linux_clear_user(void *_uaddr, size_t _len)
+{
+	uint8_t *uaddr = _uaddr;
+	size_t len = _len;
+
+	/* make sure uaddr is aligned before going into the fast loop */
+	while (((uintptr_t)uaddr & 7) != 0 && len > 7) {
+		if (subyte(uaddr, 0))
+			return (_len);
+		uaddr++;
+		len--;
+	}
+
+	/* zero 8 bytes at a time */
+	while (len > 7) {
+		if (suword64(uaddr, 0))
+			return (_len);
+		uaddr += 8;
+		len -= 8;
+	}
+
+	/* zero fill end, if any */
+	while (len > 0) {
+		if (subyte(uaddr, 0))
+			return (_len);
+		uaddr++;
+		len--;
+	}
+	return (0);
+}
+
+int
+linux_access_ok(int rw, const void *uaddr, size_t len)
+{
+	uintptr_t saddr;
+	uintptr_t eaddr;
+
+	/* get start and end address */
+	saddr = (uintptr_t)uaddr;
+	eaddr = (uintptr_t)uaddr + len;
+
+	/* verify addresses are valid for userspace */
+	return ((saddr == eaddr) ||
+	    (eaddr > saddr && eaddr <= VM_MAXUSER_ADDRESS));
+}
+
 static int
 linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
