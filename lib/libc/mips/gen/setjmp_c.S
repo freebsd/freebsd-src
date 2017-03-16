@@ -109,7 +109,7 @@ NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 	csd		sp, zero, (_JB_REG_SP * SZREG)($c3)
 	csd		s8, zero, (_JB_REG_S8 * SZREG)($c3)
 	csd		gp, zero, (_JB_REG_GP * SZREG)($c3)
-#ifndef SOFTFLOAT
+#ifndef __mips_soft_float
 	/*
 	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
 	 * In N64, FP registers F24 .. F31 are callee-saved.
@@ -124,7 +124,7 @@ NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 	csdc1	$f29, zero, (_JB_FPREG_F29 * SZREG)($c3)
 	csdc1	$f30, zero, (_JB_FPREG_F30 * SZREG)($c3)
 	csdc1	$f31, zero, (_JB_FPREG_F31 * SZREG)($c3)
-#endif	/* ! SOFTFLOAT */
+#endif	/* ! __mips_soft_float */
 	/* jmp_buf is 64-bit aligned, so we need to round it up. */
 	cgetbase	t0, $c3
 	cgetoffset	t1, $c3
@@ -205,7 +205,7 @@ NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 	cld		sp, zero, (_JB_REG_SP * SZREG)($c3)
 	cld		s8, zero, (_JB_REG_S8 * SZREG)($c3)
 	cld		gp, zero, (_JB_REG_GP * SZREG)($c3)
-#ifndef SOFTFLOAT
+#ifndef __mips_soft_float
 	/*
 	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
 	 * In N32, FP registers F20, F22, F24, F26, F28, F30 are callee-saved.
@@ -222,7 +222,7 @@ NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 	cldc1		$f29, zero, (_JB_FPREG_F29 * SZREG)($c3)
 	cldc1		$f30, zero, (_JB_FPREG_F30 * SZREG)($c3)
 	cldc1		$f31, zero, (_JB_FPREG_F31 * SZREG)($c3)
-#endif	/* ! SOFTFLOAT */
+#endif	/* ! __mips_soft_float */
 	/* jmp_buf is 64-bit aligned, so we need to round it up. */
 	cgetbase	t0, $c3
 	cgetoffset	t1, $c3

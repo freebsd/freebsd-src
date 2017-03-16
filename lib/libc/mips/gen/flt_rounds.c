@@ -14,7 +14,7 @@ __RCSID("$NetBSD: flt_rounds.c,v 1.5 2005/12/24 23:10:08 perry Exp $");
 #include <fenv.h>
 #include <float.h>
 
-#ifdef	SOFTFLOAT
+#ifdef	__mips_soft_float
 #include "softfloat-for-gcc.h"
 #include "milieu.h"
 #include "softfloat.h"
@@ -32,7 +32,7 @@ __flt_rounds()
 {
 	int mode;
 
-#ifdef SOFTFLOAT
+#ifdef __mips_soft_float
 	mode = __softfloat_float_rounding_mode;
 #else
 	__asm __volatile("cfc1 %0,$31" : "=r" (mode));

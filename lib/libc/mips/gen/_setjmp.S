@@ -90,7 +90,7 @@ LEAF(_setjmp)
 	 * In N64, FP registers F24 .. F31 are callee-saved.
 	 * In O32, FP registers F20 .. F23 are callee-saved.
 	 */
-#ifndef SOFTFLOAT
+#ifndef __mips_soft_float
 	cfc1	v0, $31				# too bad can't check if FP used
 #if defined(__mips_n64) || defined(__mips_n32)
 	FP_S	$f30, (_JB_FPREG_F30 * SZREG)(a0)
@@ -113,7 +113,7 @@ LEAF(_setjmp)
 	FP_S	$f31, (_JB_FPREG_F31 * SZREG)(a0)
 #endif
 	INT_S	v0, (_JB_FPREG_FCSR * SZREG)(a0)
-#endif /* ! SOFTFLOAT */
+#endif /* ! __mips_soft_float */
 #if defined(_MIPS_ARCH_CHERI)
 	/* jmp_buf is 64-bit aligned, so we need to round it up. */
 	cgetbase	t0, $c3
@@ -176,7 +176,7 @@ LEAF(_longjmp)
 #if defined(__mips_n32) || defined(__mips_n64)
 	REG_L		gp, (_JB_REG_GP * SZREG)(a0)
 #endif
-#ifndef SOFTFLOAT
+#ifndef __mips_soft_float
 	# get fpu status
 	INT_L		v0, (_JB_FPREG_FCSR * SZREG)(a0)
 	ctc1		v0, $31
@@ -206,7 +206,7 @@ LEAF(_longjmp)
 	FP_L	$f29, (_JB_FPREG_F29 * SZREG)(a0)
 	FP_L	$f31, (_JB_FPREG_F31 * SZREG)(a0)
 #endif
-#endif	/* ! SOFTFLOAT */
+#endif	/* ! __mips_soft_float */
 #if defined(_MIPS_ARCH_CHERI)
 	/* jmp_buf is 64-bit aligned, so we need to round it up. */
 	cgetbase	t0, $c3
