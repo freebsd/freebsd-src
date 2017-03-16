@@ -84,10 +84,8 @@
 #define	_rw_write_lock(rw, tid)						\
 	atomic_cmpset_acq_ptr(&(rw)->rw_lock, RW_UNLOCKED, (tid))
 
-#define	_rw_write_lock_fetch(rw, vp, tid) ({				\
-	*vp = RW_UNLOCKED;						\
-	atomic_fcmpset_acq_ptr(&(rw)->rw_lock, vp, (tid));		\
-})
+#define	_rw_write_lock_fetch(rw, vp, tid)				\
+	atomic_fcmpset_acq_ptr(&(rw)->rw_lock, vp, (tid))
 
 /* Release a write lock quickly if there are no waiters. */
 #define	_rw_write_unlock(rw, tid)					\
@@ -102,13 +100,11 @@
 /* Acquire a write lock. */
 #define	__rw_wlock(rw, tid, file, line) do {				\
 	uintptr_t _tid = (uintptr_t)(tid);				\
-	uintptr_t _v;							\
+	uintptr_t _v = RW_UNLOCKED;					\
 									\
-	if (!_rw_write_lock_fetch((rw), &_v, _tid))			\
+	if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__acquire) ||	\
+	    !_rw_write_lock_fetch((rw), &_v, _tid)))			\
 		_rw_wlock_hard((rw), _v, _tid, (file), (line));		\
-	else 								\
-		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire, rw,	\
-		    0, 0, file, line, LOCKSTAT_WRITER);			\
 } while (0)
 
 /* Release a write lock. */
@@ -118,9 +114,8 @@
 	if ((rw)->rw_recurse)						\
 		(rw)->rw_recurse--;					\
 	else {								\
-		LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw,	\
-		    LOCKSTAT_WRITER);					\
-		if (!_rw_write_unlock((rw), _tid))			\
+		if (__predict_false(LOCKSTAT_PROFILE_ENABLED(rw__release) ||\
+		    !_rw_write_unlock((rw), _tid)))			\
 			_rw_wunlock_hard((rw), _tid, (file), (line));	\
 	}								\
 } while (0)
