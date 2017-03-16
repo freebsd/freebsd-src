@@ -2919,6 +2919,79 @@ ATF_TC_BODY(ptrace__parent_terminate_with_pending_sigstop2, tc)
 	terminate_with_pending_sigstop(false);
 }
 
+/*
+ * Verify that after ptrace() discards a SIGKILL signal, the event mask
+ * is not modified.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__event_mask_sigkill_discard);
+ATF_TC_BODY(ptrace__event_mask_sigkill_discard, tc)
+{
+	struct ptrace_lwpinfo pl;
+	pid_t fpid, wpid;
+	int status, event_mask, new_event_mask;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		raise(SIGSTOP);
+		exit(0);
+	}
+
+	/* The first wait() should report the stop from trace_me(). */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	/* Set several unobtrusive event bits. */
+	event_mask = PTRACE_EXEC | PTRACE_FORK | PTRACE_LWP;
+	ATF_REQUIRE(ptrace(PT_SET_EVENT_MASK, wpid, (caddr_t)&event_mask,
+	    sizeof(event_mask)) == 0);
+
+	/* Send a SIGKILL without using ptrace. */
+	ATF_REQUIRE(kill(fpid, SIGKILL) == 0);
+
+	/* Continue the child ignoring the SIGSTOP. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The next stop should be due to the SIGKILL. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGKILL);
+
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
+	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SI);
+	ATF_REQUIRE(pl.pl_siginfo.si_signo == SIGKILL);
+
+	/* Continue the child ignoring the SIGKILL. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The next wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	/* Check the current event mask. It should not have changed. */
+	new_event_mask = 0;
+	ATF_REQUIRE(ptrace(PT_GET_EVENT_MASK, wpid, (caddr_t)&new_event_mask,
+	    sizeof(new_event_mask)) == 0);
+	ATF_REQUIRE(event_mask == new_event_mask);
+
+	/* Continue the child to let it exit. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The last event should be for the child process's exit. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -2965,6 +3038,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__PT_CONTINUE_with_signal_thread_sigmask);
 	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop1);
 	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop2);
+	ATF_TP_ADD_TC(tp, ptrace__event_mask_sigkill_discard);
 
 	return (atf_no_error());
 }
