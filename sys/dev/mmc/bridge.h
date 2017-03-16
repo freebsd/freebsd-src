@@ -132,6 +132,8 @@ struct mmc_host {
 #define	MMC_CAP_4_BIT_DATA	(1 <<  0) /* Can do 4-bit data transfers */
 #define	MMC_CAP_8_BIT_DATA	(1 <<  1) /* Can do 8-bit data transfers */
 #define	MMC_CAP_HSPEED		(1 <<  2) /* Can do High Speed transfers */
+#define	MMC_CAP_BOOT_NOACC	(1 <<  4) /* Cannot access boot partitions */
+#define	MMC_CAP_WAIT_WHILE_BUSY	(1 <<  5) /* Host waits for busy responses */
 	enum mmc_card_mode mode;
 	struct mmc_ios ios;	/* Current state of the host */
 };
@@ -139,10 +141,12 @@ struct mmc_host {
 extern driver_t   mmc_driver;
 extern devclass_t mmc_devclass;
 
-#define	MMC_VERSION	1
+#define	MMC_VERSION	2
 
 #define	MMC_DECLARE_BRIDGE(name)					\
     DRIVER_MODULE(mmc, name, mmc_driver, mmc_devclass, NULL, NULL);	\
+    MODULE_DEPEND(name, mmc, MMC_VERSION, MMC_VERSION, MMC_VERSION);
+#define	MMC_DEPEND(name)						\
     MODULE_DEPEND(name, mmc, MMC_VERSION, MMC_VERSION, MMC_VERSION);
 
 #endif /* DEV_MMC_BRIDGE_H */

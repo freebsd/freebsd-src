@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2017 Marius Strobl <marius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -140,6 +141,7 @@ struct mmc_command {
 #define	R1_ERASE_RESET (1u << 13)		/* sr, c */
 #define	R1_CURRENT_STATE_MASK (0xfu << 9)	/* sx, b */
 #define	R1_READY_FOR_DATA (1u << 8)		/* sx, a */
+#define	R1_SWITCH_ERROR (1u << 7)		/* sx, c */
 #define	R1_APP_CMD (1u << 5)			/* sr, c */
 #define	R1_AKE_SEQ_ERROR (1u << 3)		/* er, c */
 #define	R1_STATUS(x)		((x) & 0xFFFFE000)
@@ -184,7 +186,7 @@ struct mmc_request {
 #define	MMC_SET_RELATIVE_ADDR	3
 #define	SD_SEND_RELATIVE_ADDR	3
 #define	MMC_SET_DSR		4
-			/* reserved: 5 */
+#define	MMC_SLEEP_AWAKE		5
 #define	MMC_SWITCH_FUNC		6
 #define	 MMC_SWITCH_FUNC_CMDS	 0
 #define	 MMC_SWITCH_FUNC_SET	 1
@@ -278,7 +280,6 @@ struct mmc_request {
 			/* reserved: 50 */
 			/* reserved: 57 */
 
-
 /* Application specific commands for SD */
 #define	ACMD_SET_BUS_WIDTH	6
 #define	ACMD_SD_STATUS		13
@@ -291,18 +292,73 @@ struct mmc_request {
 /*
  * EXT_CSD fields
  */
+#define	EXT_CSD_EXT_PART_ATTR	52	/* R/W, 2 bytes */
+#define	EXT_CSD_ENH_START_ADDR	136	/* R/W, 4 bytes */
+#define	EXT_CSD_ENH_SIZE_MULT	140	/* R/W, 3 bytes */
+#define	EXT_CSD_GP_SIZE_MULT	143	/* R/W, 12 bytes */
+#define	EXT_CSD_PART_SET	155	/* R/W */
+#define	EXT_CSD_PART_ATTR	156	/* R/W */
+#define	EXT_CSD_PART_SUPPORT	160	/* RO */
+#define	EXT_CSD_RPMB_MULT	168	/* RO */
+#define	EXT_CSD_BOOT_WP_STATUS	174	/* RO */
 #define	EXT_CSD_ERASE_GRP_DEF	175	/* R/W */
+#define	EXT_CSD_PART_CONFIG	179	/* R/W */
 #define	EXT_CSD_BUS_WIDTH	183	/* R/W */
 #define	EXT_CSD_HS_TIMING	185	/* R/W */
 #define	EXT_CSD_CARD_TYPE	196	/* RO */
 #define	EXT_CSD_REV		192	/* RO */
+#define	EXT_CSD_PART_SWITCH_TO	199	/* RO */
 #define	EXT_CSD_SEC_CNT		212	/* RO, 4 bytes */
+#define	EXT_CSD_HC_WP_GRP_SIZE	221	/* RO */
 #define	EXT_CSD_ERASE_TO_MULT	223	/* RO */
 #define	EXT_CSD_ERASE_GRP_SIZE	224	/* RO */
+#define	EXT_CSD_BOOT_SIZE_MULT	226	/* RO */
+#define	EXT_CSD_GEN_CMD6_TIME	248	/* RO */
 
 /*
  * EXT_CSD field definitions
  */
+#define	EXT_CSD_EXT_PART_ATTR_DEFAULT		0x0
+#define	EXT_CSD_EXT_PART_ATTR_SYSTEMCODE	0x1
+#define	EXT_CSD_EXT_PART_ATTR_NPERSISTENT	0x2
+
+#define	EXT_CSD_PART_SET_COMPLETED		0x01
+
+#define	EXT_CSD_PART_ATTR_ENH_USR		0x01
+#define	EXT_CSD_PART_ATTR_ENH_GP0		0x02
+#define	EXT_CSD_PART_ATTR_ENH_GP1		0x04
+#define	EXT_CSD_PART_ATTR_ENH_GP2		0x08
+#define	EXT_CSD_PART_ATTR_ENH_GP3		0x10
+#define	EXT_CSD_PART_ATTR_ENH_MASK		0x1f
+
+#define	EXT_CSD_PART_SUPPORT_EN			0x01
+#define	EXT_CSD_PART_SUPPORT_ENH_ATTR_EN	0x02
+#define	EXT_CSD_PART_SUPPORT_EXT_ATTR_EN	0x04
+
+#define	EXT_CSD_BOOT_WP_STATUS_BOOT0_PWR	0x01
+#define	EXT_CSD_BOOT_WP_STATUS_BOOT0_PERM	0x02
+#define	EXT_CSD_BOOT_WP_STATUS_BOOT0_MASK	0x03
+#define	EXT_CSD_BOOT_WP_STATUS_BOOT1_PWR	0x04
+#define	EXT_CSD_BOOT_WP_STATUS_BOOT1_PERM	0x08
+#define	EXT_CSD_BOOT_WP_STATUS_BOOT1_MASK	0x0c
+
+#define	EXT_CSD_ERASE_GRP_DEF_EN	0x01
+
+#define	EXT_CSD_PART_CONFIG_ACC_DEFAULT	0x00
+#define	EXT_CSD_PART_CONFIG_ACC_BOOT0	0x01
+#define	EXT_CSD_PART_CONFIG_ACC_BOOT1	0x02
+#define	EXT_CSD_PART_CONFIG_ACC_RPMB	0x03
+#define	EXT_CSD_PART_CONFIG_ACC_GP0	0x04
+#define	EXT_CSD_PART_CONFIG_ACC_GP1	0x05
+#define	EXT_CSD_PART_CONFIG_ACC_GP2	0x06
+#define	EXT_CSD_PART_CONFIG_ACC_GP3	0x07
+#define	EXT_CSD_PART_CONFIG_ACC_MASK	0x07
+#define	EXT_CSD_PART_CONFIG_BOOT0	0x08
+#define	EXT_CSD_PART_CONFIG_BOOT1	0x10
+#define	EXT_CSD_PART_CONFIG_BOOT_USR	0x38
+#define	EXT_CSD_PART_CONFIG_BOOT_MASK	0x38
+#define	EXT_CSD_PART_CONFIG_BOOT_ACK	0x40
+
 #define	EXT_CSD_CMD_SET_NORMAL		1
 #define	EXT_CSD_CMD_SET_SECURE		2
 #define	EXT_CSD_CMD_SET_CPSECURE	4
@@ -436,6 +492,16 @@ struct mmc_sd_status
 	uint8_t			erase_timeout;
 	uint8_t			erase_offset;
 };
+
+/*
+ * Various MMC/SD constants
+ */
+#define	MMC_BOOT_RPMB_BLOCK_SIZE	(128 * 1024)
+
+#define	MMC_EXTCSD_SIZE	512
+
+#define	MMC_PART_GP_MAX	4
+#define	MMC_PART_MAX	8
 
 /*
  * Older versions of the MMC standard had a variable sector size.  However,

@@ -57,13 +57,14 @@ static const struct sdhci_acpi_device {
 	const char	*desc;
 	u_int		quirks;
 } sdhci_acpi_devices[] = {
-	{ "80860F14",	1,	"Intel Bay Trail SD Host Controller",
+	{ "80860F14",	1,	"Intel Bay Trail eMMC 4.5 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
-	{ "80860F14",	3,	"Intel Bay Trail SD Host Controller",
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
-	{ "80860F16",	0,	"Intel Bay Trail SD Host Controller",
-	    0 },
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	{ "80860F14",	3,	"Intel Bay Trail SDXC Controller",
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	{ "80860F16",	0,	"Intel Bay Trail SDXC Controller",
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
 	{ NULL, 0, NULL, 0}
 };
 
