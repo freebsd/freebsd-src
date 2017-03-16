@@ -461,9 +461,12 @@ generic_pcie_fdt_alloc_msi(device_t pci, device_t child, int count,
 {
 #if defined(INTRNG)
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_alloc_msi(pci, child, msi_parent, count, maxcount,
 	    irqs));
 #else
@@ -476,9 +479,12 @@ generic_pcie_fdt_release_msi(device_t pci, device_t child, int count, int *irqs)
 {
 #if defined(INTRNG)
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_release_msi(pci, child, msi_parent, count, irqs));
 #else
 	return (ENXIO);
@@ -491,9 +497,12 @@ generic_pcie_fdt_map_msi(device_t pci, device_t child, int irq, uint64_t *addr,
 {
 #if defined(INTRNG)
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_map_msi(pci, child, msi_parent, irq, addr, data));
 #else
 	return (ENXIO);
@@ -505,9 +514,12 @@ generic_pcie_fdt_alloc_msix(device_t pci, device_t child, int *irq)
 {
 #if defined(INTRNG)
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_alloc_msix(pci, child, msi_parent, irq));
 #else
 	return (ENXIO);
@@ -519,9 +531,12 @@ generic_pcie_fdt_release_msix(device_t pci, device_t child, int irq)
 {
 #if defined(INTRNG)
 	phandle_t msi_parent;
+	int err;
 
-	ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child), &msi_parent,
-	    NULL);
+	err = ofw_bus_msimap(ofw_bus_get_node(pci), pci_get_rid(child),
+	    &msi_parent, NULL);
+	if (err != 0)
+		return (err);
 	return (intr_release_msix(pci, child, msi_parent, irq));
 #else
 	return (ENXIO);
@@ -533,6 +548,7 @@ generic_pcie_get_id(device_t pci, device_t child, enum pci_id_type type,
     uintptr_t *id)
 {
 	phandle_t node;
+	int err;
 	uint32_t rid;
 	uint16_t pci_rid;
 
@@ -542,7 +558,9 @@ generic_pcie_get_id(device_t pci, device_t child, enum pci_id_type type,
 	node = ofw_bus_get_node(pci);
 	pci_rid = pci_get_rid(child);
 
-	ofw_bus_msimap(node, pci_rid, NULL, &rid);
+	err = ofw_bus_msimap(node, pci_rid, NULL, &rid);
+	if (err != 0)
+		return (err);
 	*id = rid;
 
 	return (0);
