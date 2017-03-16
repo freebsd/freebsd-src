@@ -142,7 +142,8 @@ static struct isa_pnp_id isa_ns8250_ids[] = {
 	{0x90307256, NULL},	/* USR3090 - USR ? */
 	{0x70917256, NULL},	/* USR9170 - U.S. Robotics 56K FAX INT */
 	{0x90917256, NULL},	/* USR9190 - USR 56k Voice INT */
-	{0x04f0235c, NULL},	/* WACF004 - Wacom Tablet PC Screen*/
+	{0x04f0235c, NULL},	/* WACF004 - Wacom Tablet PC Screen */
+	{0x0ef0235c, NULL},	/* WACF00e - Wacom Tablet PC Screen 00e */
 	{0x0300695c, NULL},	/* WCI0003 - Fax/Voice/Modem/Speakphone/Asvd */
 	{0x01a0896a, NULL},	/* ZTIA001 - Zoom Internal V90 Faxmodem */
 	{0x61f7896a, NULL},	/* ZTIF761 - Zoom ComStar 33.6 */
