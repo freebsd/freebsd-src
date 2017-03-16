@@ -2290,7 +2290,7 @@ ixv_add_stats_sysctls(struct adapter *adapter)
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irqs",
 		    CTLFLAG_RD, &(adapter->queues[i].irqs), "IRQs on queue");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_tx_dma_setup",
-		    CTLFLAG_RD, &txr->no_tx_dma_setup,
+		    CTLFLAG_RD, &(txr->no_tx_dma_setup),
 		    "Driver Tx DMA failure in Tx");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_no_desc",
 		    CTLFLAG_RD, &(txr->no_desc_avail),
