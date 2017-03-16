@@ -67,22 +67,13 @@ extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
 extern size_t linux_clear_user(void *uaddr, size_t len);
 extern int linux_access_ok(int rw, const void *uaddr, size_t len);
 
-/*
- * NOTE: The returned value from pagefault_disable() must be stored
- * and passed to pagefault_enable(). Else possible recursion on the
- * state can be lost.
- */
-static inline int __must_check
-pagefault_disable(void)
-{
-	return (vm_fault_disable_pagefaults());
-}
+#define	pagefault_disable(void) do {		\
+	int __saved_pflags =			\
+	    vm_fault_disable_pagefaults()
 
-static inline void
-pagefault_enable(int save)
-{
-	vm_fault_enable_pagefaults(save);
-}
+#define	pagefault_enable(void)				\
+	vm_fault_enable_pagefaults(__saved_pflags);	\
+} while (0)
 
 static inline bool
 pagefault_disabled(void)
