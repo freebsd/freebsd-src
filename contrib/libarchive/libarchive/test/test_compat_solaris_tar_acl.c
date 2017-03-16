@@ -227,7 +227,7 @@ DEFINE_TEST(test_compat_solaris_tar_acl)
 	failure("One extended ACL should flag all ACLs to be returned.");
 	assertEqualInt(7, archive_entry_acl_reset(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
-	archive_test_compare_acls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]),
+	assertEntryCompareAcls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0644);
 	failure("Basic ACLs should set mode to 0644, not %04o",
 	    archive_entry_mode(ae)&0777);
@@ -237,28 +237,28 @@ DEFINE_TEST(test_compat_solaris_tar_acl)
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(6, archive_entry_acl_reset(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
-	archive_test_compare_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
+	assertEntryCompareAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0750);
 	failure("Basic ACLs should set mode to 0750, not %04o",
 	    archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0750);
 	assertEqualInt(6, archive_entry_acl_reset(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT));
-	archive_test_compare_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
+	assertEntryCompareAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, 0750);
 
 	/* Third item has NFS4 ACLs */
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(6, archive_entry_acl_reset(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
-	archive_test_compare_acls(ae, acls3, sizeof(acls3)/sizeof(acls3[0]),
+	assertEntryCompareAcls(ae, acls3, sizeof(acls3)/sizeof(acls3[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4, 0);
 
 	/* Fourth item has NFS4 ACLs and inheritance flags */
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualInt(5, archive_entry_acl_reset(ae,
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4));
-	archive_test_compare_acls(ae, acls4, sizeof(acls4)/sizeof(acls0[4]),
+	assertEntryCompareAcls(ae, acls4, sizeof(acls4)/sizeof(acls0[4]),
 	    ARCHIVE_ENTRY_ACL_TYPE_NFS4, 0);
 
 	/* Close the archive. */

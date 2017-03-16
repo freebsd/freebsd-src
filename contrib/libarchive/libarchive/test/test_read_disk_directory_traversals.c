@@ -1228,11 +1228,11 @@ test_restore_atime(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
 	/*
-	 * Test4: Traversals with archive_read_disk_set_atime_restored() and
-	 * archive_read_disk_honor_nodump().
+	 * Test4: Traversals with ARCHIVE_READDISK_RESTORE_ATIME and
+	 * ARCHIVE_READDISK_HONOR_NODUMP
 	 */
-	assertNodump("at/f1");
-	assertNodump("at/f2");
+	assertSetNodump("at/f1");
+	assertSetNodump("at/f2");
 	assertUtimes("at/f1", 886600, 0, 886600, 0);
 	assertUtimes("at/f2", 886611, 0, 886611, 0);
 	assertUtimes("at/fe", 886611, 0, 886611, 0);
@@ -1450,7 +1450,7 @@ test_nodump(void)
 	assertMakeFile("nd/f1", 0644, "0123456789");
 	assertMakeFile("nd/f2", 0644, "hello world");
 	assertMakeFile("nd/fe", 0644, NULL);
-	assertNodump("nd/f2");
+	assertSetNodump("nd/f2");
 	assertUtimes("nd/f1", 886600, 0, 886600, 0);
 	assertUtimes("nd/f2", 886611, 0, 886611, 0);
 	assertUtimes("nd/fe", 886611, 0, 886611, 0);
@@ -1460,7 +1460,7 @@ test_nodump(void)
 	assert((a = archive_read_disk_new()) != NULL);
 
 	/*
-	 * Test1: Traversals without archive_read_disk_honor_nodump().
+	 * Test1: Traversals without ARCHIVE_READDISK_HONOR_NODUMP
 	 */
 	failure("Directory traversals should work as well");
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "nd"));
@@ -1513,7 +1513,7 @@ test_nodump(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 
 	/*
-	 * Test2: Traversals with archive_read_disk_honor_nodump().
+	 * Test2: Traversals with ARCHIVE_READDISK_HONOR_NODUMP
 	 */
 	assertUtimes("nd/f1", 886600, 0, 886600, 0);
 	assertUtimes("nd/f2", 886611, 0, 886611, 0);
