@@ -88,6 +88,11 @@
 
 #define	sx_recurse	lock_object.lo_data
 
+#define	SX_READ_VALUE(sx)	((sx)->sx_lock)
+
+#define	lv_sx_owner(v) \
+	((v & SX_LOCK_SHARED) ? NULL : (struct thread *)SX_OWNER(v))
+
 /*
  * Function prototipes.  Routines that start with an underscore are not part
  * of the public interface and are wrappered with a macro.

@@ -76,6 +76,8 @@
 
 #define	rw_recurse	lock_object.lo_data
 
+#define	RW_READ_VALUE(x)	((x)->rw_lock)
+
 /* Very simple operations on rw_lock. */
 
 /* Try to obtain a write lock once. */

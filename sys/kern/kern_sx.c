@@ -543,8 +543,10 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 	lock_delay_arg_init(&lda, NULL);
 #endif
 
+	x = SX_READ_VALUE(sx);
+
 	/* If we already hold an exclusive lock, then recurse. */
-	if (sx_xlocked(sx)) {
+	if (__predict_false(lv_sx_owner(x) == (struct thread *)tid)) {
 		KASSERT((sx->lock_object.lo_flags & LO_RECURSABLE) != 0,
 	    ("_sx_xlock_hard: recursed on non-recursive sx %s @ %s:%d\n",
 		    sx->lock_object.lo_name, file, line));
@@ -561,12 +563,15 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 
 #ifdef KDTRACE_HOOKS
 	all_time -= lockstat_nsecs(&sx->lock_object);
-	state = sx->sx_lock;
+	state = x;
 #endif
 	for (;;) {
-		if (sx->sx_lock == SX_LOCK_UNLOCKED &&
-		    atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED, tid))
-			break;
+		if (x == SX_LOCK_UNLOCKED) {
+			if (atomic_cmpset_acq_ptr(&sx->sx_lock, x, tid))
+				break;
+			x = SX_READ_VALUE(sx);
+			continue;
+		}
 #ifdef KDTRACE_HOOKS
 		lda.spin_cnt++;
 #endif
@@ -581,11 +586,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		 * running on another CPU, spin until the owner stops
 		 * running or the state of the lock changes.
 		 */
-		x = sx->sx_lock;
 		if ((sx->lock_object.lo_flags & SX_NOADAPTIVE) == 0) {
 			if ((x & SX_LOCK_SHARED) == 0) {
-				x = SX_OWNER(x);
-				owner = (struct thread *)x;
+				owner = lv_sx_owner(x);
 				if (TD_IS_RUNNING(owner)) {
 					if (LOCK_LOG_TEST(&sx->lock_object, 0))
 						CTR3(KTR_LOCK,
@@ -596,9 +599,12 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 					    "lockname:\"%s\"",
 					    sx->lock_object.lo_name);
 					GIANT_SAVE();
-					while (SX_OWNER(sx->sx_lock) == x &&
-					    TD_IS_RUNNING(owner))
+					do {
 						lock_delay(&lda);
+						x = SX_READ_VALUE(sx);
+						owner = lv_sx_owner(x);
+					} while (owner != NULL &&
+						    TD_IS_RUNNING(owner));
 					KTR_STATE0(KTR_SCHED, "thread",
 					    sched_tdname(curthread), "running");
 					continue;
@@ -625,6 +631,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 				}
 				KTR_STATE0(KTR_SCHED, "thread",
 				    sched_tdname(curthread), "running");
+				x = SX_READ_VALUE(sx);
 				if (i != asx_loops)
 					continue;
 			}
@@ -632,7 +639,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 #endif
 
 		sleepq_lock(&sx->lock_object);
-		x = sx->sx_lock;
+		x = SX_READ_VALUE(sx);
 
 		/*
 		 * If the lock was released while spinning on the
@@ -681,6 +688,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 				break;
 			}
 			sleepq_release(&sx->lock_object);
+			x = SX_READ_VALUE(sx);
 			continue;
 		}
 
@@ -692,6 +700,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 			if (!atomic_cmpset_ptr(&sx->sx_lock, x,
 			    x | SX_LOCK_EXCLUSIVE_WAITERS)) {
 				sleepq_release(&sx->lock_object);
+				x = SX_READ_VALUE(sx);
 				continue;
 			}
 			if (LOCK_LOG_TEST(&sx->lock_object, 0))
@@ -733,6 +742,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from sleep queue",
 			    __func__, sx);
+		x = SX_READ_VALUE(sx);
 	}
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&sx->lock_object);
@@ -852,8 +862,11 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 	lock_delay_arg_init(&lda, NULL);
 #endif
 #ifdef KDTRACE_HOOKS
-	state = sx->sx_lock;
 	all_time -= lockstat_nsecs(&sx->lock_object);
+#endif
+	x = SX_READ_VALUE(sx);
+#ifdef KDTRACE_HOOKS
+	state = x;
 #endif
 
 	/*
@@ -861,11 +874,6 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 	 * shared locks once there is an exclusive waiter.
 	 */
 	for (;;) {
-#ifdef KDTRACE_HOOKS
-		lda.spin_cnt++;
-#endif
-		x = sx->sx_lock;
-
 		/*
 		 * If no other thread has an exclusive lock then try to bump up
 		 * the count of sharers.  Since we have to preserve the state
@@ -883,8 +891,13 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 					    (void *)(x + SX_ONE_SHARER));
 				break;
 			}
+			x = SX_READ_VALUE(sx);
 			continue;
 		}
+#ifdef KDTRACE_HOOKS
+		lda.spin_cnt++;
+#endif
+
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
 #endif
@@ -898,8 +911,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		 * changes.
 		 */
 		if ((sx->lock_object.lo_flags & SX_NOADAPTIVE) == 0) {
-			x = SX_OWNER(x);
-			owner = (struct thread *)x;
+			owner = lv_sx_owner(x);
 			if (TD_IS_RUNNING(owner)) {
 				if (LOCK_LOG_TEST(&sx->lock_object, 0))
 					CTR3(KTR_LOCK,
@@ -909,9 +921,11 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 				    sched_tdname(curthread), "spinning",
 				    "lockname:\"%s\"", sx->lock_object.lo_name);
 				GIANT_SAVE();
-				while (SX_OWNER(sx->sx_lock) == x &&
-				    TD_IS_RUNNING(owner))
+				do {
 					lock_delay(&lda);
+					x = SX_READ_VALUE(sx);
+					owner = lv_sx_owner(x);
+				} while (owner != NULL && TD_IS_RUNNING(owner));
 				KTR_STATE0(KTR_SCHED, "thread",
 				    sched_tdname(curthread), "running");
 				continue;
@@ -924,7 +938,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		 * start the process of blocking.
 		 */
 		sleepq_lock(&sx->lock_object);
-		x = sx->sx_lock;
+		x = SX_READ_VALUE(sx);
 
 		/*
 		 * The lock could have been released while we spun.
@@ -946,6 +960,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 			owner = (struct thread *)SX_OWNER(x);
 			if (TD_IS_RUNNING(owner)) {
 				sleepq_release(&sx->lock_object);
+				x = SX_READ_VALUE(sx);
 				continue;
 			}
 		}
@@ -960,6 +975,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 			if (!atomic_cmpset_ptr(&sx->sx_lock, x,
 			    x | SX_LOCK_SHARED_WAITERS)) {
 				sleepq_release(&sx->lock_object);
+				x = SX_READ_VALUE(sx);
 				continue;
 			}
 			if (LOCK_LOG_TEST(&sx->lock_object, 0))
@@ -1000,6 +1016,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from sleep queue",
 			    __func__, sx);
+		x = SX_READ_VALUE(sx);
 	}
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&sx->lock_object);
@@ -1034,9 +1051,8 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return;
 
+	x = SX_READ_VALUE(sx);
 	for (;;) {
-		x = sx->sx_lock;
-
 		/*
 		 * We should never have sharers while at least one thread
 		 * holds a shared lock.
@@ -1058,6 +1074,8 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 					    (void *)(x - SX_ONE_SHARER));
 				break;
 			}
+
+			x = SX_READ_VALUE(sx);
 			continue;
 		}
 
@@ -1074,6 +1092,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 					    __func__, sx);
 				break;
 			}
+			x = SX_READ_VALUE(sx);
 			continue;
 		}
 
@@ -1095,6 +1114,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		    SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS,
 		    SX_LOCK_UNLOCKED)) {
 			sleepq_release(&sx->lock_object);
+			x = SX_READ_VALUE(sx);
 			continue;
 		}
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
