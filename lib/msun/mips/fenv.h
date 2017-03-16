@@ -39,7 +39,7 @@ typedef	__uint32_t	fenv_t;
 typedef	__uint32_t	fexcept_t;
 
 /* Exception flags */
-#ifdef SOFTFLOAT
+#ifdef __mips_soft_float
 #define	_FPUSW_SHIFT	16
 #define	FE_INVALID	0x0001
 #define	FE_DIVBYZERO	0x0002
@@ -74,12 +74,16 @@ extern const fenv_t	__fe_dfl_env;
 #define	_ENABLE_SHIFT	5
 #define	_ENABLE_MASK	(FE_ALL_EXCEPT << _ENABLE_SHIFT)
 
-#ifndef	SOFTFLOAT
+#if !defined(__mips_soft_float) && !defined(__mips_hard_float)
+#error compiler didnt set soft/hard float macros
+#endif
+
+#ifndef	__mips_soft_float
 #define	__cfc1(__fcsr)	__asm __volatile("cfc1 %0, $31" : "=r" (__fcsr))
 #define	__ctc1(__fcsr)	__asm __volatile("ctc1 %0, $31" :: "r" (__fcsr))
 #endif
 
-#ifdef SOFTFLOAT
+#ifdef __mips_soft_float
 int feclearexcept(int __excepts);
 int fegetexceptflag(fexcept_t *__flagp, int __excepts);
 int fesetexceptflag(const fexcept_t *__flagp, int __excepts);
@@ -223,13 +227,13 @@ feupdateenv(const fenv_t *__envp)
 
 	return (0);
 }
-#endif /* !SOFTFLOAT */
+#endif /* !__mips_soft_float */
 
 #if __BSD_VISIBLE
 
 /* We currently provide no external definitions of the functions below. */
 
-#ifdef SOFTFLOAT
+#ifdef __mips_soft_float
 int feenableexcept(int __mask);
 int fedisableexcept(int __mask);
 int fegetexcept(void);
@@ -268,7 +272,7 @@ fegetexcept(void)
 	return ((fcsr & _ENABLE_MASK) >> _ENABLE_SHIFT);
 }
 
-#endif /* !SOFTFLOAT */
+#endif /* !__mips_soft_float */
 
 #endif /* __BSD_VISIBLE */
 

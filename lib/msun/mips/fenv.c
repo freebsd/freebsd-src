@@ -39,7 +39,7 @@
  */
 const fenv_t __fe_dfl_env = 0;
 
-#ifdef	SOFTFLOAT
+#ifdef	__mips_soft_float
 #define __set_env(env, flags, mask, rnd) env = ((flags)                 \
                                                 | (mask)<<_FPUSW_SHIFT  \
                                                 | (rnd) << 24)
