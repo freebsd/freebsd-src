@@ -31,7 +31,7 @@ wordtab_t *parsefields(table, arg)
 		if (fields == NULL) {
 			fields = malloc(2 * sizeof(*fields));
 		} else {
-			fields = realloc(fields, (num + 1) * sizeof(*fields));
+			fields = reallocarray(fields, num + 1, sizeof(*fields));
 		}
 
 		if (t == NULL) {

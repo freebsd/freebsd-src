@@ -226,7 +226,7 @@ struct	tcpcb	*find_tcp(fd, ti)
 	    }
 #endif
 
-	o = (struct file **)calloc(1, sizeof(*o) * (up->u_lastfile + 1));
+	o = (struct file **)calloc(up->u_lastfile + 1, sizeof(*o));
 	if (KMCPY(o, up->u_ofile, (up->u_lastfile + 1) * sizeof(*o)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - u_ofile - failed\n",
@@ -330,7 +330,7 @@ struct	tcpcb	*find_tcp(tfd, ti)
 	i = NULL;
 	t = NULL;
 
-	o = (struct file **)calloc(1, sizeof(*o) * (fd->fd_lastfile + 1));
+	o = (struct file **)calloc(fd->fd_lastfile + 1, sizeof(*o));
 	if (KMCPY(o, fd->fd_ofiles, (fd->fd_lastfile + 1) * sizeof(*o)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx,%lu) - u_ofile - failed\n",
