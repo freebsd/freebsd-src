@@ -29,10 +29,21 @@
  *
  * $FreeBSD$
  */
+
 #ifndef	_LINUX_UACCESS_H_
 #define	_LINUX_UACCESS_H_
 
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/proc.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+
 #include <linux/compiler.h>
+
+#define	VERIFY_READ	VM_PROT_READ
+#define	VERIFY_WRITE	VM_PROT_WRITE
 
 #define	__get_user(_x, _p) ({					\
 	int __err;						\
@@ -48,9 +59,13 @@
 })
 #define	get_user(_x, _p)	linux_copyin((_p), &(_x), sizeof(*(_p)))
 #define	put_user(_x, _p)	linux_copyout(&(_x), (_p), sizeof(*(_p)))
+#define	clear_user(...)		linux_clear_user(__VA_ARGS__)
+#define	access_ok(...)		linux_access_ok(__VA_ARGS__)
 
 extern int linux_copyin(const void *uaddr, void *kaddr, size_t len);
 extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
+extern size_t linux_clear_user(void *uaddr, size_t len);
+extern int linux_access_ok(int rw, const void *uaddr, size_t len);
 
 /*
  * NOTE: The returned value from pagefault_disable() must be stored
@@ -69,4 +84,10 @@ pagefault_enable(int save)
 	vm_fault_enable_pagefaults(save);
 }
 
-#endif	/* _LINUX_UACCESS_H_ */
+static inline bool
+pagefault_disabled(void)
+{
+	return ((curthread->td_pflags & TDP_NOFAULTING) != 0);
+}
+
+#endif					/* _LINUX_UACCESS_H_ */
