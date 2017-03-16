@@ -227,6 +227,7 @@
 #define	AMDID2_DBE	0x04000000
 #define	AMDID2_PTSC	0x08000000
 #define	AMDID2_PTSCEL2I	0x10000000
+#define	AMDID2_MWAITX	0x20000000
 
 /*
  * CPUID instruction 1 eax info
