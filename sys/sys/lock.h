@@ -125,7 +125,8 @@ struct lock_class {
  * calling conventions for this debugging code in modules so that modules can
  * work with both debug and non-debug kernels.
  */
-#if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || defined(INVARIANT_SUPPORT) || defined(LOCK_PROFILING) || (defined(KTR) && (KTR_COMPILE & KTR_LOCK))
+#if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || \
+    defined(INVARIANT_SUPPORT) || defined(LOCK_PROFILING) || defined(KTR)
 #define	LOCK_DEBUG	1
 #else
 #define	LOCK_DEBUG	0
@@ -154,8 +155,13 @@ struct lock_class {
  * file    - file name
  * line    - line number
  */
+#if LOCK_DEBUG > 0
 #define	LOCK_LOG_TEST(lo, flags)					\
 	(((flags) & LOP_QUIET) == 0 && ((lo)->lo_flags & LO_QUIET) == 0)
+#else
+#define	LOCK_LOG_TEST(lo, flags)	0
+#endif
+
 
 #define	LOCK_LOG_LOCK(opname, lo, flags, recurse, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
