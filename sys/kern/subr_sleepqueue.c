@@ -411,6 +411,7 @@ sleepq_catch_signals(void *wchan, int pri)
 	struct sigacts *ps;
 	int sig, ret;
 
+	ret = 0;
 	td = curthread;
 	p = curproc;
 	sc = SC_LOOKUP(wchan);
@@ -424,44 +425,51 @@ sleepq_catch_signals(void *wchan, int pri)
 	}
 
 	/*
-	 * See if there are any pending signals for this thread.  If not
-	 * we can switch immediately.  Otherwise do the signal processing
-	 * directly.
+	 * See if there are any pending signals or suspension requests for this
+	 * thread.  If not, we can switch immediately.
 	 */
 	thread_lock(td);
-	if ((td->td_flags & (TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK)) == 0) {
-		sleepq_switch(wchan, pri);
-		return (0);
+	if ((td->td_flags & (TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK)) != 0) {
+		thread_unlock(td);
+		mtx_unlock_spin(&sc->sc_lock);
+		CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
+			(void *)td, (long)p->p_pid, td->td_name);
+		PROC_LOCK(p);
+		/*
+		 * Check for suspension first. Checking for signals and then
+		 * suspending could result in a missed signal, since a signal
+		 * can be delivered while this thread is suspended.
+		 */
+		if ((td->td_flags & TDF_NEEDSUSPCHK) != 0) {
+			ret = thread_suspend_check(1);
+			MPASS(ret == 0 || ret == EINTR || ret == ERESTART);
+			if (ret != 0) {
+				PROC_UNLOCK(p);
+				mtx_lock_spin(&sc->sc_lock);
+				thread_lock(td);
+				goto out;
+			}
+		}
+		if ((td->td_flags & TDF_NEEDSIGCHK) != 0) {
+			ps = p->p_sigacts;
+			mtx_lock(&ps->ps_mtx);
+			sig = cursig(td);
+			if (sig != 0)
+				ret = SIGISMEMBER(ps->ps_sigintr, sig) ?
+				    EINTR : ERESTART;
+			mtx_unlock(&ps->ps_mtx);
+		}
+		/*
+		 * Lock the per-process spinlock prior to dropping the PROC_LOCK
+		 * to avoid a signal delivery race.  PROC_LOCK, PROC_SLOCK, and
+		 * thread_lock() are currently held in tdsendsignal().
+		 */
+		PROC_SLOCK(p);
+		mtx_lock_spin(&sc->sc_lock);
+		PROC_UNLOCK(p);
+		thread_lock(td);
+		PROC_SUNLOCK(p);
 	}
-	thread_unlock(td);
-	mtx_unlock_spin(&sc->sc_lock);
-	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
-		(void *)td, (long)p->p_pid, td->td_name);
-	PROC_LOCK(p);
-	ps = p->p_sigacts;
-	mtx_lock(&ps->ps_mtx);
-	sig = cursig(td);
-	if (sig == 0) {
-		mtx_unlock(&ps->ps_mtx);
-		ret = thread_suspend_check(1);
-		MPASS(ret == 0 || ret == EINTR || ret == ERESTART);
-	} else {
-		if (SIGISMEMBER(ps->ps_sigintr, sig))
-			ret = EINTR;
-		else
-			ret = ERESTART;
-		mtx_unlock(&ps->ps_mtx);
-	}
-	/*
-	 * Lock the per-process spinlock prior to dropping the PROC_LOCK
-	 * to avoid a signal delivery race.  PROC_LOCK, PROC_SLOCK, and
-	 * thread_lock() are currently held in tdsendsignal().
-	 */
-	PROC_SLOCK(p);
-	mtx_lock_spin(&sc->sc_lock);
-	PROC_UNLOCK(p);
-	thread_lock(td);
-	PROC_SUNLOCK(p);
 	if (ret == 0) {
 		sleepq_switch(wchan, pri);
 		return (0);
