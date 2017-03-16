@@ -4488,9 +4488,9 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail",
 		    CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
 		    ixgbe_sysctl_tdt_handler, "IU", "Transmit Descriptor Tail");
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tso_tx",
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso_tx",
 		    CTLFLAG_RD, &txr->tso_tx, "TSO");
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "no_tx_dma_setup",
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_tx_dma_setup",
 		    CTLFLAG_RD, &txr->no_tx_dma_setup,
 		    "Driver tx dma failure in xmit");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",

@@ -346,9 +346,9 @@ struct tx_ring {
 	u32                     bytes;  /* used for AIM */
 	u32                     packets;
 	/* Soft Stats */
-	unsigned long           tso_tx;
-	unsigned long           no_tx_map_avail;
-	unsigned long           no_tx_dma_setup;
+	u64			tso_tx;
+	u64			no_tx_map_avail;
+	u64			no_tx_dma_setup;
 	u64                     no_desc_avail;
 	u64                     total_packets;
 };
