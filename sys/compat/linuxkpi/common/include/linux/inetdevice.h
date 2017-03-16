@@ -34,23 +34,25 @@
 #include <linux/netdevice.h>
 
 static inline struct net_device *
-ip_dev_find(struct net *net, uint32_t addr)
+ip_dev_find(struct vnet *vnet, uint32_t addr)
 {
 	struct sockaddr_in sin;
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
 
-	ifp = NULL;
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_addr.s_addr = addr;
-	sin.sin_port = 0;
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
+	CURVNET_SET_QUIET(vnet);
 	ifa = ifa_ifwithaddr((struct sockaddr *)&sin);
+	CURVNET_RESTORE();
 	if (ifa) {
 		ifp = ifa->ifa_ifp;
 		if_ref(ifp);
 		ifa_free(ifa);
+	} else {
+		ifp = NULL;
 	}
 	return (ifp);
 }
