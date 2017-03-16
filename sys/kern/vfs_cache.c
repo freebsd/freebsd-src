@@ -1125,7 +1125,7 @@ retry:
 				timespecclear(tsp);
 			if (ticksp != NULL)
 				*ticksp = ticks;
-			VREF(*vpp);
+			vrefact(*vpp);
 			/*
 			 * When we lookup "." we still can be asked to lock it
 			 * differently...
@@ -2116,7 +2116,7 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
 	rdir = fdp->fd_rdir;
-	VREF(rdir);
+	vrefact(rdir);
 	FILEDESC_SUNLOCK(fdp);
 	error = vn_fullpath1(td, vn, rdir, buf, retbuf, MAXPATHLEN);
 	vrele(rdir);
