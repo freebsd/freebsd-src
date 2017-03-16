@@ -120,7 +120,7 @@ Symbols for dynamic per-CPU data are accessed via
 as with other symbols.
 .Nm libkvm
 maintains a notion of the "current CPU", set by
-.Xr kvm_dpcpu_setcpu 3 ,
+.Fn kvm_dpcpu_setcpu ,
 which defaults to 0.
 Once another CPU is selected,
 .Xr kvm_nlist 3
