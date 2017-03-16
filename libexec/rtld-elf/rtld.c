@@ -77,6 +77,7 @@ static void digest_dynamic2(Obj_Entry *, const Elf_Dyn *, const Elf_Dyn *,
 static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
+static int dlclose_locked(void *, RtldLockState *);
 static Obj_Entry *dlopen_object(const char *name, int fd, Obj_Entry *refobj,
     int lo_flags, int mode, RtldLockState *lockstate);
 static Obj_Entry *do_load_object(int, const char *, char *, struct stat *, int);
@@ -98,7 +99,7 @@ static void initlist_add_objects(Obj_Entry *, Obj_Entry *, Objlist *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
 static void load_filtees(Obj_Entry *, int flags, RtldLockState *);
-static void unload_filtees(Obj_Entry *);
+static void unload_filtees(Obj_Entry *, RtldLockState *);
 static int load_needed_objects(Obj_Entry *, int);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(const char *, int fd, const Obj_Entry *, int);
@@ -142,7 +143,7 @@ static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
 static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
 static void trace_loaded_objects(Obj_Entry *);
 static void unlink_object(Obj_Entry *);
-static void unload_object(Obj_Entry *);
+static void unload_object(Obj_Entry *, RtldLockState *lockstate);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
 static char *origin_subst_one(Obj_Entry *, char *, const char *,
@@ -2099,13 +2100,13 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list)
 #endif
 
 static void
-free_needed_filtees(Needed_Entry *n)
+free_needed_filtees(Needed_Entry *n, RtldLockState *lockstate)
 {
     Needed_Entry *needed, *needed1;
 
     for (needed = n; needed != NULL; needed = needed->next) {
 	if (needed->obj != NULL) {
-	    dlclose(needed->obj);
+	    dlclose_locked(needed->obj, lockstate);
 	    needed->obj = NULL;
 	}
     }
@@ -2116,14 +2117,14 @@ free_needed_filtees(Needed_Entry *n)
 }
 
 static void
-unload_filtees(Obj_Entry *obj)
+unload_filtees(Obj_Entry *obj, RtldLockState *lockstate)
 {
 
-    free_needed_filtees(obj->needed_filtees);
-    obj->needed_filtees = NULL;
-    free_needed_filtees(obj->needed_aux_filtees);
-    obj->needed_aux_filtees = NULL;
-    obj->filtees_loaded = false;
+	free_needed_filtees(obj->needed_filtees, lockstate);
+	obj->needed_filtees = NULL;
+	free_needed_filtees(obj->needed_aux_filtees, lockstate);
+	obj->needed_aux_filtees = NULL;
+	obj->filtees_loaded = false;
 }
 
 static void
@@ -3010,15 +3011,23 @@ search_library_pathfds(const char *name, const char *path, int *fdp)
 int
 dlclose(void *handle)
 {
-    Obj_Entry *root;
-    RtldLockState lockstate;
+	RtldLockState lockstate;
+	int error;
 
-    wlock_acquire(rtld_bind_lock, &lockstate);
-    root = dlcheck(handle);
-    if (root == NULL) {
+	wlock_acquire(rtld_bind_lock, &lockstate);
+	error = dlclose_locked(handle, &lockstate);
 	lock_release(rtld_bind_lock, &lockstate);
+	return (error);
+}
+
+static int
+dlclose_locked(void *handle, RtldLockState *lockstate)
+{
+    Obj_Entry *root;
+
+    root = dlcheck(handle);
+    if (root == NULL)
 	return -1;
-    }
     LD_UTRACE(UTRACE_DLCLOSE_START, handle, NULL, 0, root->dl_refcount,
 	root->path);
 
@@ -3030,19 +3039,18 @@ dlclose(void *handle)
 	 * The object will be no longer referenced, so we must unload it.
 	 * First, call the fini functions.
 	 */
-	objlist_call_fini(&list_fini, root, &lockstate);
+	objlist_call_fini(&list_fini, root, lockstate);
 
 	unref_dag(root);
 
 	/* Finish cleaning up the newly-unreferenced objects. */
 	GDB_STATE(RT_DELETE,&root->linkmap);
-	unload_object(root);
+	unload_object(root, lockstate);
 	GDB_STATE(RT_CONSISTENT,NULL);
     } else
 	unref_dag(root);
 
     LD_UTRACE(UTRACE_DLCLOSE_STOP, handle, NULL, 0, 0, NULL);
-    lock_release(rtld_bind_lock, &lockstate);
     return 0;
 }
 
@@ -3118,13 +3126,13 @@ rtld_dlopen(const char *name, int fd, int mode)
 }
 
 static void
-dlopen_cleanup(Obj_Entry *obj)
+dlopen_cleanup(Obj_Entry *obj, RtldLockState *lockstate)
 {
 
 	obj->dl_refcount--;
 	unref_dag(obj);
 	if (obj->refcount == 0)
-		unload_object(obj);
+		unload_object(obj, lockstate);
 }
 
 static Obj_Entry *
@@ -3173,7 +3181,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	      (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
 	      (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
 	      lockstate) == -1) {
-		dlopen_cleanup(obj);
+		dlopen_cleanup(obj, lockstate);
 		obj = NULL;
 	    } else if (lo_flags & RTLD_LO_EARLY) {
 		/*
@@ -3230,7 +3238,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
       (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
       lockstate) == -1) {
 	objlist_clear(&initlist);
-	dlopen_cleanup(obj);
+	dlopen_cleanup(obj, lockstate);
 	if (lockstate == &mlockstate)
 	    lock_release(rtld_bind_lock, lockstate);
 	return (NULL);
@@ -4424,7 +4432,7 @@ trace_loaded_objects(Obj_Entry *obj)
  * reference count of 0.
  */
 static void
-unload_object(Obj_Entry *root)
+unload_object(Obj_Entry *root, RtldLockState *lockstate)
 {
 	Obj_Entry marker, *obj, *next;
 
@@ -4456,11 +4464,11 @@ unload_object(Obj_Entry *root)
 			if (next != NULL) {
 				init_marker(&marker);
 				TAILQ_INSERT_BEFORE(next, &marker, next);
-				unload_filtees(obj);
+				unload_filtees(obj, lockstate);
 				next = TAILQ_NEXT(&marker, next);
 				TAILQ_REMOVE(&obj_list, &marker, next);
 			} else
-				unload_filtees(obj);
+				unload_filtees(obj, lockstate);
 		}
 		release_object(obj);
 	}
