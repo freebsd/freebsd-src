@@ -202,6 +202,12 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(cpu->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
+		if (cpu->ApicId > MAX_APIC_ID) {
+			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
+			    cpu->ApicId);
+			break;
+		}
+
 		if (cpus[cpu->ApicId].enabled) {
 			printf("SRAT: Duplicate local APIC ID %u\n",
 			    cpu->ApicId);
@@ -220,6 +226,12 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(x2apic->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
+		if (x2apic->ApicId > MAX_APIC_ID) {
+			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
+			    x2apic->ApicId);
+			break;
+		}
+
 		KASSERT(!cpus[x2apic->ApicId].enabled,
 		    ("Duplicate local APIC ID %u", x2apic->ApicId));
 		cpus[x2apic->ApicId].domain = x2apic->ProximityDomain;
