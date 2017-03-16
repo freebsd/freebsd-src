@@ -2616,6 +2616,8 @@ OLD_FILES+=usr/share/man/man8/IPXrouted.8.gz
 .if ${MK_ISCSI} == no
 OLD_FILES+=etc/rc.d/iscsictl
 OLD_FILES+=etc/rc.d/iscsid
+OLD_FILES+=rescue/iscsictl
+OLD_FILES+=rescue/iscsid
 OLD_FILES+=sbin/iscontrol
 OLD_FILES+=usr/bin/iscsictl
 OLD_FILES+=usr/sbin/iscsid
