@@ -109,12 +109,10 @@ int	_sx_slock(struct sx *sx, int opts, const char *file, int line);
 int	_sx_xlock(struct sx *sx, int opts, const char *file, int line);
 void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
-int	_sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts,
+int	_sx_xlock_hard(struct sx *sx, uintptr_t v, uintptr_t tid, int opts,
 	    const char *file, int line);
-int	_sx_slock_hard(struct sx *sx, int opts, const char *file, int line);
 void	_sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int
 	    line);
-void	_sx_sunlock_hard(struct sx *sx, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void	_sx_assert(const struct sx *sx, int what, const char *file, int line);
 #endif
@@ -153,11 +151,12 @@ __sx_xlock(struct sx *sx, struct thread *td, int opts, const char *file,
     int line)
 {
 	uintptr_t tid = (uintptr_t)td;
+	uintptr_t v;
 	int error = 0;
 
-	if (sx->sx_lock != SX_LOCK_UNLOCKED ||
-	    !atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED, tid))
-		error = _sx_xlock_hard(sx, tid, opts, file, line);
+	v = SX_LOCK_UNLOCKED;
+	if (!atomic_fcmpset_acq_ptr(&sx->sx_lock, &v, tid))
+		error = _sx_xlock_hard(sx, v, tid, opts, file, line);
 	else 
 		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
 		    0, 0, file, line, LOCKSTAT_WRITER);
@@ -174,44 +173,8 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 	if (sx->sx_recurse == 0)
 		LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx,
 		    LOCKSTAT_WRITER);
-	if (sx->sx_lock != tid ||
-	    !atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
+	if (!atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
 		_sx_xunlock_hard(sx, tid, file, line);
-}
-
-/* Acquire a shared lock. */
-static __inline int
-__sx_slock(struct sx *sx, int opts, const char *file, int line)
-{
-	uintptr_t x = sx->sx_lock;
-	int error = 0;
-
-	if (!(x & SX_LOCK_SHARED) ||
-	    !atomic_cmpset_acq_ptr(&sx->sx_lock, x, x + SX_ONE_SHARER))
-		error = _sx_slock_hard(sx, opts, file, line);
-	else
-		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
-		    0, 0, file, line, LOCKSTAT_READER);
-
-	return (error);
-}
-
-/*
- * Release a shared lock.  We can just drop a single shared lock so
- * long as we aren't trying to drop the last shared lock when other
- * threads are waiting for an exclusive lock.  This takes advantage of
- * the fact that an unlocked lock is encoded as a shared lock with a
- * count of 0.
- */
-static __inline void
-__sx_sunlock(struct sx *sx, const char *file, int line)
-{
-	uintptr_t x = sx->sx_lock;
-
-	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
-	if (x == (SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS) ||
-	    !atomic_cmpset_rel_ptr(&sx->sx_lock, x, x - SX_ONE_SHARER))
-		_sx_sunlock_hard(sx, file, line);
 }
 
 /*
@@ -227,12 +190,6 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 	_sx_xlock((sx), SX_INTERRUPTIBLE, (file), (line))
 #define	sx_xunlock_(sx, file, line)					\
 	_sx_xunlock((sx), (file), (line))
-#define	sx_slock_(sx, file, line)					\
-	(void)_sx_slock((sx), 0, (file), (line))
-#define	sx_slock_sig_(sx, file, line)					\
-	_sx_slock((sx), SX_INTERRUPTIBLE, (file) , (line))
-#define	sx_sunlock_(sx, file, line)					\
-	_sx_sunlock((sx), (file), (line))
 #else
 #define	sx_xlock_(sx, file, line)					\
 	(void)__sx_xlock((sx), curthread, 0, (file), (line))
@@ -240,13 +197,13 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 	__sx_xlock((sx), curthread, SX_INTERRUPTIBLE, (file), (line))
 #define	sx_xunlock_(sx, file, line)					\
 	__sx_xunlock((sx), curthread, (file), (line))
-#define	sx_slock_(sx, file, line)					\
-	(void)__sx_slock((sx), 0, (file), (line))
-#define	sx_slock_sig_(sx, file, line)					\
-	__sx_slock((sx), SX_INTERRUPTIBLE, (file), (line))
-#define	sx_sunlock_(sx, file, line)					\
-	__sx_sunlock((sx), (file), (line))
 #endif	/* LOCK_DEBUG > 0 || SX_NOINLINE */
+#define	sx_slock_(sx, file, line)					\
+	(void)_sx_slock((sx), 0, (file), (line))
+#define	sx_slock_sig_(sx, file, line)					\
+	_sx_slock((sx), SX_INTERRUPTIBLE, (file) , (line))
+#define	sx_sunlock_(sx, file, line)					\
+	_sx_sunlock((sx), (file), (line))
 #define	sx_try_slock(sx)	sx_try_slock_((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_try_xlock(sx)	sx_try_xlock_((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_try_upgrade(sx)	sx_try_upgrade_((sx), LOCK_FILE, LOCK_LINE)
