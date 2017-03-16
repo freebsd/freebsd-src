@@ -749,7 +749,7 @@ __rw_runlock_hard(volatile uintptr_t *c, struct thread *td, uintptr_t v,
 		if (!atomic_cmpset_rel_ptr(&rw->rw_lock, RW_READERS_LOCK(1) | v,
 		    x)) {
 			turnstile_chain_unlock(&rw->lock_object);
-			x = RW_READ_VALUE(rw);
+			v = RW_READ_VALUE(rw);
 			continue;
 		}
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
