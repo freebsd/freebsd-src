@@ -40,9 +40,9 @@ static POSITION pendpos;
 static char *end_ansi_chars;
 static char *mid_ansi_chars;
 
-static int attr_swidth();
-static int attr_ewidth();
-static int do_append();
+static int attr_swidth(int);
+static int attr_ewidth(int);
+static int do_append(LWCHAR, char *, POSITION);
 
 extern int sigs;
 extern int bs_mode;
