@@ -51,6 +51,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170316:
+	The mmcsd.ko module now additionally depends on geom_flashmap.ko.
+	Also, mmc.ko and mmcsd.ko need to be a matching pair built from the
+	same source (previously, the dependency of mmcsd.ko on mmc.ko was
+	missing, but mmcsd.ko now will refuse to load if it is incompatible
+	with mmc.ko).
+
 20170315:
 	The syntax of ipfw(8) named states was changed to avoid ambiguity.
 	If you have used named states in the firewall rules, you need to modify
