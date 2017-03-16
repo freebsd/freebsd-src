@@ -747,12 +747,8 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 
 	MPASS(!(sx->sx_lock & SX_LOCK_SHARED));
 
-	if (!sx_recursed(sx)) {
-		LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx,
-		    LOCKSTAT_WRITER);
-		if (atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
-			return;
-	} else {
+	x = SX_READ_VALUE(sx);
+	if (x & SX_LOCK_RECURSED) {
 		/* The lock is recursed, unrecurse one level. */
 		if ((--sx->sx_recurse) == 0)
 			atomic_clear_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
@@ -760,6 +756,12 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 			CTR2(KTR_LOCK, "%s: %p unrecursing", __func__, sx);
 		return;
 	}
+
+	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_WRITER);
+	if (x == tid &&
+	    atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
+		return;
+
 	MPASS(sx->sx_lock & (SX_LOCK_SHARED_WAITERS |
 	    SX_LOCK_EXCLUSIVE_WAITERS));
 	if (LOCK_LOG_TEST(&sx->lock_object, 0))

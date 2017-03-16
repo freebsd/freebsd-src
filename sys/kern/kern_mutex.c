@@ -858,31 +858,34 @@ thread_lock_set(struct thread *td, struct mtx *new)
 /*
  * __mtx_unlock_sleep: the tougher part of releasing an MTX_DEF lock.
  *
- * We are only called here if the lock is recursed or contested (i.e. we
- * need to wake up a blocked thread).
+ * We are only called here if the lock is recursed, contested (i.e. we
+ * need to wake up a blocked thread) or lockstat probe is active.
  */
 void
 __mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file, int line)
 {
 	struct mtx *m;
 	struct turnstile *ts;
+	uintptr_t tid, v;
 
 	if (SCHEDULER_STOPPED())
 		return;
 
+	tid = (uintptr_t)curthread;
 	m = mtxlock2mtx(c);
+	v = MTX_READ_VALUE(m);
 
-	if (!mtx_recursed(m)) {
-		LOCKSTAT_PROFILE_RELEASE_LOCK(adaptive__release, m);
-		if (_mtx_release_lock(m, (uintptr_t)curthread))
-			return;
-	} else {
+	if (v & MTX_RECURSED) {
 		if (--(m->mtx_recurse) == 0)
 			atomic_clear_ptr(&m->mtx_lock, MTX_RECURSED);
 		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p unrecurse", m);
 		return;
 	}
+
+	LOCKSTAT_PROFILE_RELEASE_LOCK(adaptive__release, m);
+	if (v == tid && _mtx_release_lock(m, tid))
+		return;
 
 	/*
 	 * We have to lock the chain before the turnstile so this turnstile
