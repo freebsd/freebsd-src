@@ -83,18 +83,18 @@ main(int argc, char *argv[])
 		case 's':
 			speed = atoi(optarg);
 			if (speed < 0)
-				usage(argv[0]);
+				usage();
 			break;
 
 		case 'h':
 		default:
-			usage(argv[0]);
+			usage();
 			break;
 		}
 	}
 
 	if (device == NULL || name == NULL)
-		usage(argv[0]);
+		usage();
 
 	openlog(hcseriald, LOG_PID | LOG_NDELAY, LOG_USER);
 
