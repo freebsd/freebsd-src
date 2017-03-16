@@ -228,9 +228,6 @@ __mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	struct mtx *m;
 	uintptr_t tid, v;
 
-	if (SCHEDULER_STOPPED())
-		return;
-
 	m = mtxlock2mtx(c);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
@@ -262,9 +259,6 @@ void
 __mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 {
 	struct mtx *m;
-
-	if (SCHEDULER_STOPPED())
-		return;
 
 	m = mtxlock2mtx(c);
 
