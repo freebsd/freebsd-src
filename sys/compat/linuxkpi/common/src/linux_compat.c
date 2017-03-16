@@ -524,8 +524,15 @@ linux_clear_user(void *_uaddr, size_t _len)
 
 	/* zero 8 bytes at a time */
 	while (len > 7) {
+#ifdef __LP64__
 		if (suword64(uaddr, 0))
 			return (_len);
+#else
+		if (suword32(uaddr, 0))
+			return (_len);
+		if (suword32(uaddr + 4, 0))
+			return (_len);
+#endif
 		uaddr += 8;
 		len -= 8;
 	}
