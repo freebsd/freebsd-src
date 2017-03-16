@@ -84,6 +84,11 @@
 #define	_rw_write_lock(rw, tid)						\
 	atomic_cmpset_acq_ptr(&(rw)->rw_lock, RW_UNLOCKED, (tid))
 
+#define	_rw_write_lock_fetch(rw, vp, tid) ({				\
+	*vp = RW_UNLOCKED;						\
+	atomic_fcmpset_acq_ptr(&(rw)->rw_lock, vp, (tid));		\
+})
+
 /* Release a write lock quickly if there are no waiters. */
 #define	_rw_write_unlock(rw, tid)					\
 	atomic_cmpset_rel_ptr(&(rw)->rw_lock, (tid), RW_UNLOCKED)
@@ -97,9 +102,10 @@
 /* Acquire a write lock. */
 #define	__rw_wlock(rw, tid, file, line) do {				\
 	uintptr_t _tid = (uintptr_t)(tid);				\
+	uintptr_t _v;							\
 									\
-	if ((rw)->rw_lock != RW_UNLOCKED || !_rw_write_lock((rw), _tid))\
-		_rw_wlock_hard((rw), _tid, (file), (line));		\
+	if (!_rw_write_lock_fetch((rw), &_v, _tid))			\
+		_rw_wlock_hard((rw), _v, _tid, (file), (line));		\
 	else 								\
 		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire, rw,	\
 		    0, 0, file, line, LOCKSTAT_WRITER);			\
@@ -114,7 +120,7 @@
 	else {								\
 		LOCKSTAT_PROFILE_RELEASE_RWLOCK(rw__release, rw,	\
 		    LOCKSTAT_WRITER);					\
-		if ((rw)->rw_lock != _tid || !_rw_write_unlock((rw), _tid))\
+		if (!_rw_write_unlock((rw), _tid))			\
 			_rw_wunlock_hard((rw), _tid, (file), (line));	\
 	}								\
 } while (0)
@@ -135,8 +141,8 @@ void	_rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line);
 void	__rw_rlock(volatile uintptr_t *c, const char *file, int line);
 int	__rw_try_rlock(volatile uintptr_t *c, const char *file, int line);
 void	_rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line);
-void	__rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
-	    int line);
+void	__rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
+	    const char *file, int line);
 void	__rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid,
 	    const char *file, int line);
 int	__rw_try_upgrade(volatile uintptr_t *c, const char *file, int line);
@@ -171,8 +177,8 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 	__rw_try_rlock(&(rw)->rw_lock, f, l)
 #define	_rw_runlock(rw, f, l)						\
 	_rw_runlock_cookie(&(rw)->rw_lock, f, l)
-#define	_rw_wlock_hard(rw, t, f, l)					\
-	__rw_wlock_hard(&(rw)->rw_lock, t, f, l)
+#define	_rw_wlock_hard(rw, v, t, f, l)					\
+	__rw_wlock_hard(&(rw)->rw_lock, v, t, f, l)
 #define	_rw_wunlock_hard(rw, t, f, l)					\
 	__rw_wunlock_hard(&(rw)->rw_lock, t, f, l)
 #define	_rw_try_upgrade(rw, f, l)					\
