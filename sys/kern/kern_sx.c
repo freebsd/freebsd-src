@@ -148,32 +148,14 @@ static SYSCTL_NODE(_debug, OID_AUTO, sx, CTLFLAG_RD, NULL, "sxlock debugging");
 SYSCTL_UINT(_debug_sx, OID_AUTO, retries, CTLFLAG_RW, &asx_retries, 0, "");
 SYSCTL_UINT(_debug_sx, OID_AUTO, loops, CTLFLAG_RW, &asx_loops, 0, "");
 
-static struct lock_delay_config sx_delay = {
-	.initial	= 1000,
-	.step           = 500,
-	.min		= 100,
-	.max		= 5000,
-};
+static struct lock_delay_config __read_mostly sx_delay;
 
-SYSCTL_INT(_debug_sx, OID_AUTO, delay_initial, CTLFLAG_RW, &sx_delay.initial,
-    0, "");
-SYSCTL_INT(_debug_sx, OID_AUTO, delay_step, CTLFLAG_RW, &sx_delay.step,
-    0, "");
-SYSCTL_INT(_debug_sx, OID_AUTO, delay_min, CTLFLAG_RW, &sx_delay.min,
+SYSCTL_INT(_debug_sx, OID_AUTO, delay_base, CTLFLAG_RW, &sx_delay.base,
     0, "");
 SYSCTL_INT(_debug_sx, OID_AUTO, delay_max, CTLFLAG_RW, &sx_delay.max,
     0, "");
 
-static void
-sx_delay_sysinit(void *dummy)
-{
-
-	sx_delay.initial = mp_ncpus * 25;
-	sx_delay.step = (mp_ncpus * 25) / 2;
-	sx_delay.min = mp_ncpus * 5;
-	sx_delay.max = mp_ncpus * 25 * 10;
-}
-LOCK_DELAY_SYSINIT(sx_delay_sysinit);
+LOCK_DELAY_SYSINIT_DEFAULT(sx_delay);
 #endif
 
 void
