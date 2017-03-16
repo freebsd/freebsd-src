@@ -203,8 +203,24 @@ icl_conn_receive_buf(struct icl_conn *ic, void *buf, size_t len)
 	return (0);
 }
 
-static struct icl_pdu *
-icl_pdu_new_empty(struct icl_conn *ic, int flags)
+static void
+icl_soft_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
+{
+
+	m_freem(ip->ip_bhs_mbuf);
+	m_freem(ip->ip_ahs_mbuf);
+	m_freem(ip->ip_data_mbuf);
+	uma_zfree(icl_pdu_zone, ip);
+#ifdef DIAGNOSTIC
+	refcount_release(&ic->ic_outstanding_pdus);
+#endif
+}
+
+/*
+ * Allocate icl_pdu with empty BHS to fill up by the caller.
+ */
+struct icl_pdu *
+icl_soft_conn_new_pdu(struct icl_conn *ic, int flags)
 {
 	struct icl_pdu *ip;
 
@@ -219,52 +235,13 @@ icl_pdu_new_empty(struct icl_conn *ic, int flags)
 #endif
 		return (NULL);
 	}
-
 	ip->ip_conn = ic;
-
-	return (ip);
-}
-
-static void
-icl_pdu_free(struct icl_pdu *ip)
-{
-	struct icl_conn *ic;
-
-	ic = ip->ip_conn;
-
-	m_freem(ip->ip_bhs_mbuf);
-	m_freem(ip->ip_ahs_mbuf);
-	m_freem(ip->ip_data_mbuf);
-	uma_zfree(icl_pdu_zone, ip);
-#ifdef DIAGNOSTIC
-	refcount_release(&ic->ic_outstanding_pdus);
-#endif
-}
-
-void
-icl_soft_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
-{
-
-	icl_pdu_free(ip);
-}
-
-/*
- * Allocate icl_pdu with empty BHS to fill up by the caller.
- */
-struct icl_pdu *
-icl_soft_conn_new_pdu(struct icl_conn *ic, int flags)
-{
-	struct icl_pdu *ip;
-
-	ip = icl_pdu_new_empty(ic, flags);
-	if (ip == NULL)
-		return (NULL);
 
 	CTASSERT(sizeof(struct iscsi_bhs) <= MHLEN);
 	ip->ip_bhs_mbuf = m_gethdr(flags, MT_DATA);
 	if (ip->ip_bhs_mbuf == NULL) {
 		ICL_WARN("failed to allocate BHS mbuf");
-		icl_pdu_free(ip);
+		icl_soft_conn_pdu_free(ic, ip);
 		return (NULL);
 	}
 	ip->ip_bhs = mtod(ip->ip_bhs_mbuf, struct iscsi_bhs *);
@@ -769,7 +746,7 @@ icl_conn_receive_pdus(struct icl_conn *ic, size_t available)
 			ICL_WARN("received PDU with unsupported "
 			    "AHS; opcode 0x%x; dropping connection",
 			    response->ip_bhs->bhs_opcode);
-			icl_pdu_free(response);
+			icl_soft_conn_pdu_free(ic, response);
 			icl_conn_fail(ic);
 			return;
 		}
@@ -945,8 +922,8 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 		if (error != 0) {
 			ICL_DEBUG("failed to finalize PDU; "
 			    "dropping connection");
+			icl_soft_conn_pdu_free(ic, request);
 			icl_conn_fail(ic);
-			icl_pdu_free(request);
 			return;
 		}
 		if (coalesce) {
@@ -963,9 +940,9 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 				if (error != 0) {
 					ICL_DEBUG("failed to finalize PDU; "
 					    "dropping connection");
+					icl_soft_conn_pdu_free(ic, request);
+					icl_soft_conn_pdu_free(ic, request2);
 					icl_conn_fail(ic);
-					icl_pdu_free(request);
-					icl_pdu_free(request2);
 					return;
 				}
 				m_cat(request->ip_bhs_mbuf, request2->ip_bhs_mbuf);
@@ -973,7 +950,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 				request->ip_bhs_mbuf->m_pkthdr.len += size2;
 				size += size2;
 				STAILQ_REMOVE_AFTER(queue, request, ip_next);
-				icl_pdu_free(request2);
+				icl_soft_conn_pdu_free(ic, request2);
 				coalesced++;
 			}
 #if 0
@@ -990,11 +967,11 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 		if (error != 0) {
 			ICL_DEBUG("failed to send PDU, error %d; "
 			    "dropping connection", error);
+			icl_soft_conn_pdu_free(ic, request);
 			icl_conn_fail(ic);
-			icl_pdu_free(request);
 			return;
 		}
-		icl_pdu_free(request);
+		icl_soft_conn_pdu_free(ic, request);
 	}
 }
 
@@ -1088,8 +1065,8 @@ icl_soupcall_send(struct socket *so, void *arg, int waitflag)
 }
 
 static int
-icl_pdu_append_data(struct icl_pdu *request, const void *addr, size_t len,
-    int flags)
+icl_soft_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *request,
+    const void *addr, size_t len, int flags)
 {
 	struct mbuf *mb, *newmb;
 	size_t copylen, off = 0;
@@ -1121,27 +1098,12 @@ icl_pdu_append_data(struct icl_pdu *request, const void *addr, size_t len,
 	return (0);
 }
 
-int
-icl_soft_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *request,
-    const void *addr, size_t len, int flags)
-{
-
-	return (icl_pdu_append_data(request, addr, len, flags));
-}
-
-static void
-icl_pdu_get_data(struct icl_pdu *ip, size_t off, void *addr, size_t len)
-{
-
-	m_copydata(ip->ip_data_mbuf, off, len, addr);
-}
-
 void
 icl_soft_conn_pdu_get_data(struct icl_conn *ic, struct icl_pdu *ip,
     size_t off, void *addr, size_t len)
 {
 
-	return (icl_pdu_get_data(ip, off, addr, len));
+	m_copydata(ip->ip_data_mbuf, off, len, addr);
 }
 
 static void
@@ -1155,7 +1117,7 @@ icl_pdu_queue(struct icl_pdu *ip)
 
 	if (ic->ic_disconnecting || ic->ic_socket == NULL) {
 		ICL_DEBUG("icl_pdu_queue on closed connection");
-		icl_pdu_free(ip);
+		icl_soft_conn_pdu_free(ic, ip);
 		return;
 	}
 
@@ -1433,7 +1395,7 @@ icl_soft_conn_close(struct icl_conn *ic)
 
 	if (ic->ic_receive_pdu != NULL) {
 		//ICL_DEBUG("freeing partially received PDU");
-		icl_pdu_free(ic->ic_receive_pdu);
+		icl_soft_conn_pdu_free(ic, ic->ic_receive_pdu);
 		ic->ic_receive_pdu = NULL;
 	}
 
@@ -1443,7 +1405,7 @@ icl_soft_conn_close(struct icl_conn *ic)
 	while (!STAILQ_EMPTY(&ic->ic_to_send)) {
 		pdu = STAILQ_FIRST(&ic->ic_to_send);
 		STAILQ_REMOVE_HEAD(&ic->ic_to_send, ip_next);
-		icl_pdu_free(pdu);
+		icl_soft_conn_pdu_free(ic, pdu);
 	}
 
 	KASSERT(STAILQ_EMPTY(&ic->ic_to_send),
