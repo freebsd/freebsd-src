@@ -217,7 +217,7 @@ failed:
 	if (errout != NULL)
 		strlcpy(errout, kd->errbuf, _POSIX2_LINE_MAX);
 	(void)kvm_close(kd);
-	return (0);
+	return (NULL);
 }
 
 kvm_t *
@@ -230,7 +230,7 @@ kvm_openfiles(const char *uf, const char *mf, const char *sf __unused, int flag,
 		if (errout != NULL)
 			(void)strlcpy(errout, strerror(errno),
 			    _POSIX2_LINE_MAX);
-		return (0);
+		return (NULL);
 	}
 	return (_kvm_open(kd, uf, mf, flag, errout));
 }
@@ -245,7 +245,7 @@ kvm_open(const char *uf, const char *mf, const char *sf __unused, int flag,
 		if (errstr != NULL)
 			(void)fprintf(stderr, "%s: %s\n",
 				      errstr, strerror(errno));
-		return (0);
+		return (NULL);
 	}
 	kd->program = errstr;
 	return (_kvm_open(kd, uf, mf, flag, NULL));
@@ -261,7 +261,7 @@ kvm_open2(const char *uf, const char *mf, int flag, char *errout,
 		if (errout != NULL)
 			(void)strlcpy(errout, strerror(errno),
 			    _POSIX2_LINE_MAX);
-		return (0);
+		return (NULL);
 	}
 	kd->resolve_symbol = resolver;
 	return (_kvm_open(kd, uf, mf, flag, errout));
