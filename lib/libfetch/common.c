@@ -248,37 +248,51 @@ fetch_resolve(const char *addr, int port, int af)
 {
 	char hbuf[256], sbuf[8];
 	struct addrinfo hints, *res;
-	const char *sep, *host, *service;
+	const char *hb, *he, *sep;
+	const char *host, *service;
 	int err, len;
 
-	/* split address if necessary */
-	err = EAI_SYSTEM;
-	if ((sep = strchr(addr, ':')) != NULL) {
+	/* first, check for a bracketed IPv6 address */
+	if (*addr == '[') {
+		hb = addr + 1;
+		if ((sep = strchr(hb, ']')) == NULL) {
+			errno = EINVAL;
+			goto syserr;
+		}
+		he = sep++;
+	} else {
+		hb = addr;
+		sep = strchrnul(hb, ':');
+		he = sep;
+	}
+
+	/* see if we need to copy the host name */
+	if (*he != '\0') {
 		len = snprintf(hbuf, sizeof(hbuf),
-		    "%.*s", (int)(sep - addr), addr);
+		    "%.*s", (int)(he - hb), hb);
 		if (len < 0)
-			return (NULL);
+			goto syserr;
 		if (len >= (int)sizeof(hbuf)) {
 			errno = ENAMETOOLONG;
-			fetch_syserr();
-			return (NULL);
+			goto syserr;
 		}
 		host = hbuf;
-		service = sep + 1;
-	} else if (port != 0) {
+	} else {
+		host = hb;
+	}
+
+	/* was it followed by a service name? */
+	if (*sep == '\0' && port != 0) {
 		if (port < 1 || port > 65535) {
 			errno = EINVAL;
-			fetch_syserr();
-			return (NULL);
+			goto syserr;
 		}
-		if (snprintf(sbuf, sizeof(sbuf), "%d", port) < 0) {
-			fetch_syserr();
-			return (NULL);
-		}
-		host = addr;
+		if (snprintf(sbuf, sizeof(sbuf), "%d", port) < 0)
+			goto syserr;
 		service = sbuf;
+	} else if (*sep != '\0') {
+		service = sep;
 	} else {
-		host = addr;
 		service = NULL;
 	}
 
@@ -292,6 +306,9 @@ fetch_resolve(const char *addr, int port, int af)
 		return (NULL);
 	}
 	return (res);
+syserr:
+	fetch_syserr();
+	return (NULL);
 }
 
 
