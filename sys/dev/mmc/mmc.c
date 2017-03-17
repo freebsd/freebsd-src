@@ -792,6 +792,7 @@ mmc_get_bits(uint32_t *bits, int bit_len, int start, int size)
 	const int i = (bit_len / 32) - (start / 32) - 1;
 	const int shift = start & 31;
 	uint32_t retval = bits[i] >> shift;
+
 	if (size + shift > 32)
 		retval |= bits[i - 1] << (32 - shift);
 	return (retval & ((1llu << size) - 1));
@@ -1464,7 +1465,7 @@ mmc_rescan_cards(struct mmc_softc *sc)
 		return;
 	for (i = 0; i < devcount; i++) {
 		ivar = device_get_ivars(devlist[i]);
-		if (mmc_select_card(sc, ivar->rca)) {
+		if (mmc_select_card(sc, ivar->rca) != MMC_ERR_NONE) {
 			if (bootverbose || mmc_debug)
 				device_printf(sc->dev,
 				    "Card at relative address %d lost.\n",

@@ -87,7 +87,8 @@ static void sdhci_acpi_intr(void *arg);
 static int sdhci_acpi_detach(device_t dev);
 
 static uint8_t
-sdhci_acpi_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
+sdhci_acpi_read_1(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
@@ -97,8 +98,8 @@ sdhci_acpi_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_acpi_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-    uint8_t val)
+sdhci_acpi_write_1(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off, uint8_t val)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
@@ -108,7 +109,8 @@ sdhci_acpi_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static uint16_t
-sdhci_acpi_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
+sdhci_acpi_read_2(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
@@ -118,8 +120,8 @@ sdhci_acpi_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_acpi_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-    uint16_t val)
+sdhci_acpi_write_2(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off, uint16_t val)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
@@ -129,7 +131,8 @@ sdhci_acpi_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static uint32_t
-sdhci_acpi_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
+sdhci_acpi_read_4(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
@@ -139,8 +142,8 @@ sdhci_acpi_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_acpi_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-    uint32_t val)
+sdhci_acpi_write_4(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off, uint32_t val)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 
@@ -150,7 +153,7 @@ sdhci_acpi_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-sdhci_acpi_read_multi_4(device_t dev, struct sdhci_slot *slot,
+sdhci_acpi_read_multi_4(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off, uint32_t *data, bus_size_t count)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
@@ -159,7 +162,7 @@ sdhci_acpi_read_multi_4(device_t dev, struct sdhci_slot *slot,
 }
 
 static void
-sdhci_acpi_write_multi_4(device_t dev, struct sdhci_slot *slot,
+sdhci_acpi_write_multi_4(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off, uint32_t *data, bus_size_t count)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
