@@ -621,6 +621,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	struct sbuf sb;
 	int i, error;
 	struct hc_metrics *hc_entry;
+	char ip4buf[INET_ADDRSTRLEN];
 #ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif
@@ -643,7 +644,8 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 			sbuf_printf(&sb,
 			    "%-15s %5lu %8lu %6lums %6lums %8lu %8lu %8lu %4lu "
 			    "%4lu %4i\n",
-			    hc_entry->ip4.s_addr ? inet_ntoa(hc_entry->ip4) :
+			    hc_entry->ip4.s_addr ?
+			        inet_ntoa_r(hc_entry->ip4, ip4buf) :
 #ifdef INET6
 				ip6_sprintf(ip6buf, &hc_entry->ip6),
 #else
