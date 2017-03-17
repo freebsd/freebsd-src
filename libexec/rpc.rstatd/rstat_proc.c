@@ -47,7 +47,6 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/vmmeter.h>
 #include <sys/param.h>
 
 #include <err.h>
@@ -166,7 +165,6 @@ updatestat(void)
 {
 	int i, hz;
 	struct clockinfo clockrate;
-	struct vmmeter cnt;
 	struct ifmibdata ifmd;
 	double avrun[3];
 	struct timeval tm, btm;
