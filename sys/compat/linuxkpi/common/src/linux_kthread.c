@@ -72,7 +72,7 @@ kthread_stop(struct task_struct *task)
 	 * Get return code and free task structure:
 	 */
 	retval = task->task_ret;
-	linux_free_current(task);
+	put_task_struct(task);
 
 	return (retval);
 }
