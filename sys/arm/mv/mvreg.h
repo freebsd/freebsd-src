@@ -52,18 +52,6 @@
 #define ENDPOINT_IRQ_MASK(n)	0x30
 #define ENDPOINT_IRQ_MASK_HI(n)	0x34
 #define ENDPOINT_IRQ_CAUSE_SELECT 0x38
-#elif defined (SOC_MV_LOKIPLUS) || defined (SOC_MV_FREY)
-#define IRQ_CAUSE		0x0
-#define IRQ_MASK		0x4
-#define FIQ_MASK		0x8
-#define ENDPOINT_IRQ_MASK(n)	(0xC + (n) * 4)
-#define IRQ_CAUSE_HI		(-1)		/* Fake defines for unified */
-#define IRQ_MASK_HI		(-1)		/* interrupt controller code */
-#define FIQ_MASK_HI		(-1)
-#define ENDPOINT_IRQ_MASK_HI(n)	(-1)
-#define ENDPOINT_IRQ_MASK_ERROR(n) (-1)
-#define IRQ_CAUSE_ERROR		(-1)
-#define IRQ_MASK_ERROR		(-1)
 #elif defined (SOC_MV_ARMADAXP)
 #define IRQ_CAUSE		0x18
 #define IRQ_MASK		0x30
@@ -84,17 +72,7 @@
 #define IRQ_MASK_ERROR		(-1)		/* interrupt controller code */
 #endif
 
-#if defined(SOC_MV_FREY)
-#define BRIDGE_IRQ_CAUSE	0x118
-#define IRQ_TIMER0		0x00000002
-#define IRQ_TIMER1		0x00000004
-#define IRQ_TIMER_WD		0x00000008
-
-#define BRIDGE_IRQ_MASK		0x11c
-#define IRQ_TIMER0_MASK		0x00000002
-#define IRQ_TIMER1_MASK		0x00000004
-#define IRQ_TIMER_WD_MASK	0x00000008
-#elif defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP)
 #define BRIDGE_IRQ_CAUSE	0x68
 #define IRQ_TIMER0		0x00000001
 #define IRQ_TIMER1		0x00000002
@@ -113,17 +91,10 @@
 #define IRQ_TIMER_WD_MASK	0x00000008
 #endif
 
-#if defined(SOC_MV_LOKIPLUS) || defined(SOC_MV_FREY)
-#define IRQ_CPU_SELF_CLR	IRQ_CPU_SELF
-#define IRQ_TIMER0_CLR		IRQ_TIMER0
-#define IRQ_TIMER1_CLR		IRQ_TIMER1
-#define IRQ_TIMER_WD_CLR	IRQ_TIMER_WD
-#else
 #define IRQ_CPU_SELF_CLR	(~IRQ_CPU_SELF)
 #define IRQ_TIMER0_CLR		(~IRQ_TIMER0)
 #define IRQ_TIMER1_CLR		(~IRQ_TIMER1)
 #define IRQ_TIMER_WD_CLR	(~IRQ_TIMER_WD)
-#endif
 
 /*
  * System reset
@@ -348,22 +319,14 @@
 #define GPIO2IRQ(gpio)		((gpio) + NIRQ)
 #define IRQ2GPIO(irq)		((irq) - NIRQ)
 
-#if defined(SOC_MV_ORION) || defined(SOC_MV_LOKIPLUS)
+#if defined(SOC_MV_ORION)
 #define SAMPLE_AT_RESET		0x10
 #elif defined(SOC_MV_KIRKWOOD)
 #define SAMPLE_AT_RESET		0x30
-#elif defined(SOC_MV_FREY)
-#define SAMPLE_AT_RESET		0x100
 #elif defined(SOC_MV_ARMADA38X)
 #define SAMPLE_AT_RESET		0x400
 #endif
-#if defined(SOC_MV_DISCOVERY)
-#define SAMPLE_AT_RESET_LO	0x30
-#define SAMPLE_AT_RESET_HI	0x34
-#elif defined(SOC_MV_DOVE)
-#define SAMPLE_AT_RESET_LO	0x14
-#define SAMPLE_AT_RESET_HI	0x18
-#elif defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_DISCOVERY) || defined(SOC_MV_ARMADAXP)
 #define SAMPLE_AT_RESET_LO	0x30
 #define SAMPLE_AT_RESET_HI	0x34
 #endif
@@ -377,9 +340,6 @@
 #elif defined(SOC_MV_DISCOVERY)
 #define TCLK_MASK		0x00000180
 #define TCLK_SHIFT		0x07
-#elif defined(SOC_MV_LOKIPLUS)
-#define TCLK_MASK		0x0000F000
-#define TCLK_SHIFT		0x0C
 #elif defined(SOC_MV_ARMADA38X)
 #define TCLK_MASK		0x00008000
 #define TCLK_SHIFT		15
@@ -452,15 +412,9 @@
 #define MV_DRBL_PCIE_TO_CPU	0
 #define MV_DRBL_CPU_TO_PCIE	1
 
-#if defined(SOC_MV_FREY)
-#define MV_DRBL_CAUSE(d,u)	(0x60 + 0x20 * (d) + 0x8 * (u))
-#define MV_DRBL_MASK(d,u)	(0x60 + 0x20 * (d) + 0x8 * (u) + 0x4)
-#define MV_DRBL_MSG(m,d,u)	(0x8 * (u) + 0x20 * (d) + 0x4 * (m))
-#else
 #define MV_DRBL_CAUSE(d,u)	(0x10 * (u) + 0x8 * (d))
 #define MV_DRBL_MASK(d,u)	(0x10 * (u) + 0x8 * (d) + 0x4)
 #define MV_DRBL_MSG(m,d,u)	(0x10 * (u) + 0x8 * (d) + 0x4 * (m) + 0x30)
-#endif
 
 /*
  * SCU

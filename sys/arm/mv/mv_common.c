@@ -76,9 +76,7 @@ MALLOC_DEFINE(M_IDMA, "idma", "idma dma test memory");
 
 static int win_eth_can_remap(int i);
 
-#ifndef SOC_MV_FREY
 static int decode_win_cpu_valid(void);
-#endif
 static int decode_win_usb_valid(void);
 static int decode_win_usb3_valid(void);
 static int decode_win_eth_valid(void);
@@ -88,9 +86,7 @@ static int decode_win_sata_valid(void);
 static int decode_win_idma_valid(void);
 static int decode_win_xor_valid(void);
 
-#ifndef SOC_MV_FREY
 static void decode_win_cpu_setup(void);
-#endif
 #ifdef SOC_MV_ARMADAXP
 static int decode_win_sdram_fixup(void);
 #endif
@@ -359,7 +355,7 @@ uint32_t
 soc_power_ctrl_get(uint32_t mask)
 {
 
-#if !defined(SOC_MV_ORION) && !defined(SOC_MV_LOKIPLUS) && !defined(SOC_MV_FREY)
+#if !defined(SOC_MV_ORION)
 	if (mask != CPU_PM_CTRL_NONE)
 		mask &= read_cpu_ctrl(CPU_PM_CTRL);
 
@@ -377,7 +373,7 @@ void
 soc_power_ctrl_set(uint32_t mask)
 {
 
-#if !defined(SOC_MV_ORION) && !defined(SOC_MV_LOKIPLUS)
+#if !defined(SOC_MV_ORION)
 	if (mask != CPU_PM_CTRL_NONE)
 		write_cpu_ctrl(CPU_PM_CTRL, mask);
 #endif
@@ -569,7 +565,6 @@ soc_decode_win(void)
 		return(err);
 #endif
 
-#ifndef SOC_MV_FREY
 	if (!decode_win_cpu_valid() || !decode_win_usb_valid() ||
 	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
 	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
@@ -577,13 +572,6 @@ soc_decode_win(void)
 		return (EINVAL);
 
 	decode_win_cpu_setup();
-#else
-	if (!decode_win_usb_valid() ||
-	    !decode_win_eth_valid() || !decode_win_idma_valid() ||
-	    !decode_win_pcie_valid() || !decode_win_sata_valid() ||
-	    !decode_win_xor_valid() || !decode_win_usb3_valid())
-		return (EINVAL);
-#endif
 	if (MV_DUMP_WIN)
 		soc_dump_decode_win();
 
@@ -598,7 +586,6 @@ soc_decode_win(void)
 /**************************************************************************
  * Decode windows registers accessors
  **************************************************************************/
-#if !defined(SOC_MV_FREY)
 WIN_REG_IDX_RD(win_cpu, cr, MV_WIN_CPU_CTRL, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_RD(win_cpu, br, MV_WIN_CPU_BASE, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_RD(win_cpu, remap_l, MV_WIN_CPU_REMAP_LO, MV_MBUS_BRIDGE_BASE)
@@ -607,7 +594,6 @@ WIN_REG_IDX_WR(win_cpu, cr, MV_WIN_CPU_CTRL, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_WR(win_cpu, br, MV_WIN_CPU_BASE, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_WR(win_cpu, remap_l, MV_WIN_CPU_REMAP_LO, MV_MBUS_BRIDGE_BASE)
 WIN_REG_IDX_WR(win_cpu, remap_h, MV_WIN_CPU_REMAP_HI, MV_MBUS_BRIDGE_BASE)
-#endif
 
 WIN_REG_BASE_IDX_RD(win_usb, cr, MV_WIN_USB_CTRL)
 WIN_REG_BASE_IDX_RD(win_usb, br, MV_WIN_USB_BASE)
@@ -712,7 +698,6 @@ static inline uint32_t ddr_sz_read(int i)
 }
 #endif
 
-#if !defined(SOC_MV_FREY)
 /**************************************************************************
  * Decode windows helper routines
  **************************************************************************/
@@ -935,7 +920,6 @@ decode_win_cpu_setup(void)
 			    cpu_wins[i].size, cpu_wins[i].remap);
 
 }
-#endif
 
 #ifdef SOC_MV_ARMADAXP
 static int
@@ -1294,11 +1278,7 @@ decode_win_eth_dump(u_long base)
 	    win_eth_epap_read(base));
 }
 
-#if defined(SOC_MV_LOKIPLUS)
-#define MV_WIN_ETH_DDR_TRGT(n)	0
-#else
 #define MV_WIN_ETH_DDR_TRGT(n)	ddr_target(n)
-#endif
 
 static void
 decode_win_eth_setup(u_long base)
