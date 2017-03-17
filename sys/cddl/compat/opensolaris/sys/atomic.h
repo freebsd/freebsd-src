@@ -123,7 +123,7 @@ atomic_dec_64_nv(volatile uint64_t *target)
 	return (atomic_add_64_nv(target, -1));
 }
 
-#if !defined(COMPAT_32BIT) && defined(__LP64__)
+#if (!defined(COMPAT_32BIT) && defined(__LP64__)) || defined(__CHERI_PURE_CAPABILITY__)
 static __inline void *
 atomic_cas_ptr(volatile void *target, void *cmp,  void *newval)
 {
