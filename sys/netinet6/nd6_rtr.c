@@ -500,7 +500,7 @@ defrouter_addreq(struct nd_defrouter *new)
 
 	error = in6_rtrequest(RTM_ADD, (struct sockaddr *)&def,
 	    (struct sockaddr *)&gate, (struct sockaddr *)&mask,
-	    RTF_GATEWAY, &newrt, RT_DEFAULT_FIB);
+	    RTF_GATEWAY, &newrt, new->ifp->if_fib);
 	if (newrt) {
 		nd6_rtmsg(RTM_ADD, newrt); /* tell user process */
 		RTFREE(newrt);
@@ -551,8 +551,8 @@ defrouter_rele(struct nd_defrouter *dr)
 
 /*
  * Remove the default route for a given router.
- * This is just a subroutine function for defrouter_select(), and should
- * not be called from anywhere else.
+ * This is just a subroutine function for defrouter_select_fib(), and
+ * should not be called from anywhere else.
  */
 static void
 defrouter_delreq(struct nd_defrouter *dr)
@@ -571,7 +571,7 @@ defrouter_delreq(struct nd_defrouter *dr)
 
 	in6_rtrequest(RTM_DELETE, (struct sockaddr *)&def,
 	    (struct sockaddr *)&gate,
-	    (struct sockaddr *)&mask, RTF_GATEWAY, &oldrt, RT_DEFAULT_FIB);
+	    (struct sockaddr *)&mask, RTF_GATEWAY, &oldrt, dr->ifp->if_fib);
 	if (oldrt) {
 		nd6_rtmsg(RTM_DELETE, oldrt);
 		RTFREE(oldrt);
@@ -698,11 +698,11 @@ defrouter_del(struct nd_defrouter *dr)
 
 	/*
 	 * If the router is the primary one, choose a new one.
-	 * Note that defrouter_select() will remove the current gateway
-	 * from the routing table.
+	 * Note that defrouter_select_fib() will remove the current
+         * gateway from the routing table.
 	 */
 	if (deldr)
-		defrouter_select();
+		defrouter_select_fib(deldr->ifp->if_fib);
 
 	/*
 	 * Release the list reference.
@@ -730,12 +730,22 @@ defrouter_del(struct nd_defrouter *dr)
  * even when the multipath routing is available, because we're not sure about
  * the benefits for stub hosts comparing to the risk of making the code
  * complicated and the possibility of introducing bugs.
+ *
+ * We maintain a single list of routers for multiple FIBs, only considering one
+ * at a time based on the receiving interface's FIB. If @fibnum is RT_ALL_FIBS,
+ * we do the whole thing multiple times.
  */
 void
-defrouter_select(void)
+defrouter_select_fib(int fibnum)
 {
 	struct nd_defrouter *dr, *selected_dr, *installed_dr;
 	struct llentry *ln = NULL;
+
+	if (fibnum == RT_ALL_FIBS) {
+		for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+			defrouter_select_fib(fibnum);
+		}
+	}
 
 	ND6_RLOCK();
 	/*
@@ -755,7 +765,7 @@ defrouter_select(void)
 	selected_dr = installed_dr = NULL;
 	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 		IF_AFDATA_RLOCK(dr->ifp);
-		if (selected_dr == NULL &&
+		if (selected_dr == NULL && dr->ifp->if_fib == fibnum &&
 		    (ln = nd6_lookup(&dr->rtaddr, 0, dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln)) {
 			selected_dr = dr;
@@ -767,14 +777,17 @@ defrouter_select(void)
 			ln = NULL;
 		}
 
-		if (dr->installed) {
+		if (dr->installed && dr->ifp->if_fib == fibnum) {
 			if (installed_dr == NULL) {
 				installed_dr = dr;
 				defrouter_ref(installed_dr);
 			} else {
-				/* this should not happen.  warn for diagnosis. */
-				log(LOG_ERR,
-		    "defrouter_select: more than one router is installed\n");
+				/*
+				 * this should not happen.
+				 * warn for diagnosis.
+				 */
+				log(LOG_ERR, "defrouter_select_fib: more than "
+				             "one router is installed\n");
 			}
 		}
 	}
@@ -789,14 +802,24 @@ defrouter_select(void)
 	if (selected_dr == NULL) {
 		if (installed_dr == NULL ||
 		    TAILQ_NEXT(installed_dr, dr_entry) == NULL)
-			selected_dr = TAILQ_FIRST(&V_nd_defrouter);
+			dr = TAILQ_FIRST(&V_nd_defrouter);
 		else
-			selected_dr = TAILQ_NEXT(installed_dr, dr_entry);
-		defrouter_ref(selected_dr);
+			dr = TAILQ_NEXT(installed_dr, dr_entry);
+
+		/* Ensure we select a router for this FIB. */
+		TAILQ_FOREACH_FROM(dr, &V_nd_defrouter, dr_entry) {
+			if (dr->ifp->if_fib == fibnum) {
+				selected_dr = dr;
+				defrouter_ref(selected_dr);
+				break;
+			}
+		}
 	} else if (installed_dr != NULL) {
 		IF_AFDATA_RLOCK(installed_dr->ifp);
-		if ((ln = nd6_lookup(&installed_dr->rtaddr, 0, installed_dr->ifp)) &&
+		if ((ln = nd6_lookup(&installed_dr->rtaddr, 0,
+		                     installed_dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln) &&
+		    installed_dr->ifp->if_fib == fibnum &&
 		    rtpref(selected_dr) <= rtpref(installed_dr)) {
 			defrouter_rele(selected_dr);
 			selected_dr = installed_dr;
@@ -808,18 +831,30 @@ defrouter_select(void)
 	ND6_RUNLOCK();
 
 	/*
-	 * If the selected router is different than the installed one,
-	 * remove the installed router and install the selected one.
-	 * Note that the selected router is never NULL here.
+	 * If we selected a router for this FIB and it's different
+	 * than the installed one, remove the installed router and
+	 * install the selected one in its place.
 	 */
 	if (installed_dr != selected_dr) {
 		if (installed_dr != NULL) {
 			defrouter_delreq(installed_dr);
 			defrouter_rele(installed_dr);
 		}
-		defrouter_addreq(selected_dr);
+		if (selected_dr != NULL)
+			defrouter_addreq(selected_dr);
 	}
-	defrouter_rele(selected_dr);
+	if (selected_dr != NULL)
+		defrouter_rele(selected_dr);
+}
+
+/*
+ * Maintain old KPI for default router selection.
+ * If unspecified, we can re-select routers for all FIBs.
+ */
+void
+defrouter_select(void)
+{
+	defrouter_select_fib(RT_ALL_FIBS);
 }
 
 /*
@@ -942,7 +977,7 @@ restart:
 	V_nd6_list_genid++;
 	ND6_WUNLOCK();
 
-	defrouter_select();
+	defrouter_select_fib(new->ifp->if_fib);
 
 	return (n);
 }
@@ -1731,7 +1766,7 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 	struct rtentry *rt;
 	struct sockaddr_in6 mask6;
 	u_long rtflags;
-	int error, a_failure, fibnum;
+	int error, a_failure, fibnum, maxfib;
 
 	/*
 	 * in6_ifinit() sets nd6_rtrequest to ifa_rtrequest for all ifaddrs.
@@ -1742,8 +1777,15 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 	mask6.sin6_addr = pr->ndpr_mask;
 	rtflags = (ifa->ifa_flags & ~IFA_RTSELF) | RTF_UP;
 
+	if(V_rt_add_addr_allfibs) {
+		fibnum = 0;
+		maxfib = rt_numfibs;
+	} else {
+		fibnum = ifa->ifa_ifp->if_fib;
+		maxfib = fibnum + 1;
+	}
 	a_failure = 0;
-	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+	for (; fibnum < maxfib; fibnum++) {
 
 		rt = NULL;
 		error = in6_rtrequest(RTM_ADD,
@@ -1831,6 +1873,10 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 		if ((opr->ndpr_stateflags & NDPRF_ONLINK) == 0)
 			continue;
 
+		if (!V_rt_add_addr_allfibs &&
+		    opr->ndpr_ifp->if_fib != pr->ndpr_ifp->if_fib)
+			continue;
+
 		if (opr->ndpr_plen == pr->ndpr_plen &&
 		    in6_are_prefix_equal(&pr->ndpr_prefix.sin6_addr,
 		    &opr->ndpr_prefix.sin6_addr, pr->ndpr_plen)) {
@@ -1891,7 +1937,7 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 	struct rtentry *rt;
 	char ip6buf[INET6_ADDRSTRLEN];
 	uint64_t genid;
-	int fibnum, a_failure;
+	int fibnum, maxfib, a_failure;
 
 	ND6_ONLINK_LOCK_ASSERT();
 	ND6_UNLOCK_ASSERT();
@@ -1909,8 +1955,16 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 	mask6.sin6_len = sizeof(sa6);
 	bcopy(&pr->ndpr_mask, &mask6.sin6_addr, sizeof(struct in6_addr));
 
+	if (V_rt_add_addr_allfibs) {
+		fibnum = 0;
+		maxfib = rt_numfibs;
+	} else {
+		fibnum = ifp->if_fib;
+		maxfib = fibnum + 1;
+	}
+
 	a_failure = 0;
-	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+	for (; fibnum < maxfib; fibnum++) {
 		rt = NULL;
 		error = in6_rtrequest(RTM_DELETE, (struct sockaddr *)&sa6, NULL,
 		    (struct sockaddr *)&mask6, 0, &rt, fibnum);
