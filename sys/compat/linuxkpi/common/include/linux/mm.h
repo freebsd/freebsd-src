@@ -36,6 +36,7 @@
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
+#include <linux/mm_types.h>
 
 #define	PAGE_ALIGN(x)	ALIGN(x, PAGE_SIZE)
 

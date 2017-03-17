@@ -40,6 +40,7 @@
 #include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
 
 #include <asm/atomic.h>
 
@@ -54,6 +55,7 @@
 
 struct task_struct {
 	struct thread *task_thread;
+	struct mm_struct *mm;
 	linux_task_fn_t *task_fn;
 	void   *task_data;
 	int	task_ret;
