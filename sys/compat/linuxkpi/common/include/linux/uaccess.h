@@ -67,6 +67,13 @@ extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
 extern size_t linux_clear_user(void *uaddr, size_t len);
 extern int linux_access_ok(int rw, const void *uaddr, size_t len);
 
+/*
+ * NOTE: Each pagefault_disable() call must have a corresponding
+ * pagefault_enable() call in the same scope. The former creates a new
+ * block and defines a temporary variable, and the latter uses the
+ * temporary variable and closes the block. Failure to balance the
+ * calls will result in a compile-time error.
+ */
 #define	pagefault_disable(void) do {		\
 	int __saved_pflags =			\
 	    vm_fault_disable_pagefaults()
