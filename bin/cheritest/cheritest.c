@@ -99,7 +99,9 @@ static const struct cheri_test cheri_tests[] = {
 #ifdef __CHERI_PURE_CAPABILITY__
 	{ .ct_name = "test_initregs_stack",
 	  .ct_desc = "Test initial value of stack capability",
-	  .ct_func = test_initregs_stack },
+	  .ct_func = test_initregs_stack,
+	  .ct_xfail_reason = "CHERI_PERM_CHERIABI_VMMAP "
+	    "unnecessarily set in stack capability" },
 #endif
 	{ .ct_name = "test_initregs_idc",
 	  .ct_desc = "Test initial value of invoked data capability",
