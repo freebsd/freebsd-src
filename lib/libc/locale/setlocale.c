@@ -319,7 +319,7 @@ __detect_path_locale(void)
 {
 
 #ifdef FORCE_C_LOCALE
-	_PathLocale == NULL;
+	_PathLocale = NULL;
 	return (EINVAL);
 #else
 	if (_PathLocale == NULL) {
