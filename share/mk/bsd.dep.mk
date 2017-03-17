@@ -75,6 +75,13 @@ tags: ${SRCS}
 .if !empty(.MAKE.MODE:Mmeta) && empty(.MAKE.MODE:Mnofilemon)
 _meta_filemon=	1
 .endif
+# By default META_MODE is disabled in bmake if there is no OBJDIR
+# unless .MAKE.MODE contains "curdirOk=[^0nNfF]"
+.if defined(_meta_filemon) && ${.OBJDIR} == ${.CURDIR} && \
+    (empty(.MAKE.MODE:tl:Mcurdirok=*) || \
+    !empty(.MAKE.MODE:tl:Mcurdirok=[0NnFf]*))
+.undef _meta_filemon
+.endif
 
 # Skip reading .depend when not needed to speed up tree-walks and simple
 # lookups.  See _SKIP_BUILD logic in bsd.init.mk for more details.
