@@ -4729,6 +4729,9 @@ db_show_prison(struct prison *pr)
 	int ii;
 #endif
 	unsigned jsf;
+#ifdef INET
+	char ip4buf[INET_ADDRSTRLEN];
+#endif
 #ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif
@@ -4780,7 +4783,7 @@ db_show_prison(struct prison *pr)
 	for (ii = 0; ii < pr->pr_ip4s; ii++)
 		db_printf(" %s %s\n",
 		    ii == 0 ? "ip4.addr        =" : "                 ",
-		    inet_ntoa(pr->pr_ip4[ii]));
+		    inet_ntoa_r(pr->pr_ip4[ii], ip4buf));
 #endif
 #ifdef INET6
 	db_printf(" ip6s            = %d\n", pr->pr_ip6s);

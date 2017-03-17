@@ -1208,7 +1208,7 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	 */
 	if (!(rt_flags & RTF_HOST) && info.rti_ifp != ifp) {
 		const char *sa, *mask, *addr, *lim;
-		int len;
+		const struct sockaddr_in *l3sin;
 
 		mask = (const char *)&rt_mask;
 		/*
@@ -1220,14 +1220,17 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 
 		sa = (const char *)&rt_key;
 		addr = (const char *)l3addr;
-		len = ((const struct sockaddr_in *)l3addr)->sin_len;
-		lim = addr + len;
+		l3sin = (const struct sockaddr_in *)l3addr;
+		lim = addr + l3sin->sin_len;
 
 		for ( ; addr < lim; sa++, mask++, addr++) {
 			if ((*sa ^ *addr) & *mask) {
 #ifdef DIAGNOSTIC
-				log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
-				    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
+				char addrbuf[INET_ADDRSTRLEN];
+
+				log(LOG_INFO, "IPv4 address: \"%s\" "
+				    "is not on the network\n",
+				    inet_ntoa_r(l3sin->sin_addr, addrbuf));
 #endif
 				return (EINVAL);
 			}
