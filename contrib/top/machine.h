@@ -21,6 +21,7 @@ struct statics
     char **cpustate_names;
     char **memory_names;
     char **arc_names;
+    char **carc_names;
     char **swap_names;
 #ifdef ORDER
     char **order_names;
@@ -48,6 +49,7 @@ struct system_info
     int    *cpustates;
     int    *memory;
     int    *arc;
+    int    *carc;
     int    *swap;
     struct timeval boottime;
     int    ncpus;
