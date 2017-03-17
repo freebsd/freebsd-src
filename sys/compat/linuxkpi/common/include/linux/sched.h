@@ -38,7 +38,9 @@
 #include <sys/sleepqueue.h>
 
 #include <linux/types.h>
+#include <linux/compat.h>
 #include <linux/completion.h>
+#include <linux/pid.h>
 #include <linux/slab.h>
 #include <linux/mm_types.h>
 
@@ -59,9 +61,10 @@ struct task_struct {
 	linux_task_fn_t *task_fn;
 	void   *task_data;
 	int	task_ret;
+	atomic_t usage;
 	int	state;
 	atomic_t kthread_flags;
-	pid_t	pid;
+	pid_t	pid;	/* BSD thread ID */
 	const char    *comm;
 	void   *bsd_ioctl_data;
 	unsigned bsd_ioctl_len;
@@ -71,16 +74,30 @@ struct task_struct {
 
 #define	current		((struct task_struct *)curthread->td_lkpi_task)
 
-#define	task_pid(task)		((task)->task_thread->td_proc->p_pid)
-#define	task_pid_nr(task)	((task)->task_thread->td_tid)
-#define	get_pid(x) (x)
-#define	put_pid(x)
+#define	task_pid_group_leader(task) \
+	FIRST_THREAD_IN_PROC((task)->task_thread->td_proc)->td_tid
+#define	task_pid(task)		((task)->pid)
+#define	task_pid_nr(task)	((task)->pid)
+#define	get_pid(x)		(x)
+#define	put_pid(x)		do { } while (0)
 #define	current_euid()	(curthread->td_ucred->cr_uid)
 
 #define	set_current_state(x)						\
 	atomic_store_rel_int((volatile int *)&current->state, (x))
 #define	__set_current_state(x)	current->state = (x)
 
+static inline void
+get_task_struct(struct task_struct *task)
+{
+	atomic_inc(&task->usage);
+}
+
+static inline void
+put_task_struct(struct task_struct *task)
+{
+	if (atomic_dec_and_test(&task->usage))
+		linux_free_current(task);
+}
 
 #define	schedule()							\
 do {									\
