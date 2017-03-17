@@ -36,15 +36,15 @@ FEATURES=$( dialog --backtitle "FreeBSD Installer" \
     --title "System Hardening" --nocancel --separate-output \
     --checklist "Choose system security hardening options:" \
     0 0 0 \
-	"0 hide_uids" "Hide processes running as other users" ${hide_uids:-on} \
-	"1 hide_gids" "Hide processes running as other groups" ${hide_gids:-on} \
-	"2 read_msgbuf" "Disable reading kernel message buffer for unprivileged users" ${read_msgbuf:-on} \
-	"3 proc_debug" "Disable process debugging facilities for unprivileged users" ${proc_debug:-on} \
-	"4 random_pid" "Randomize the PID of newly created processes" ${random_pid:-on} \
-	"5 stack_guard" "Insert stack guard page ahead of the growable segments" ${stack_guard:-on} \
-	"6 clear_tmp" "Clean the /tmp filesystem on system startup" ${clear_tmp:-on} \
-	"7 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-on} \
-	"8 disable_sendmail" "Disable Sendmail service" ${disable_sendmail:-on} \
+	"0 hide_uids" "Hide processes running as other users" ${hide_uids:-off} \
+	"1 hide_gids" "Hide processes running as other groups" ${hide_gids:-off} \
+	"2 read_msgbuf" "Disable reading kernel message buffer for unprivileged users" ${read_msgbuf:-off} \
+	"3 proc_debug" "Disable process debugging facilities for unprivileged users" ${proc_debug:-off} \
+	"4 random_pid" "Randomize the PID of newly created processes" ${random_pid:-off} \
+	"5 stack_guard" "Insert stack guard page ahead of the growable segments" ${stack_guard:-off} \
+	"6 clear_tmp" "Clean the /tmp filesystem on system startup" ${clear_tmp:-off} \
+	"7 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
+	"8 disable_sendmail" "Disable Sendmail service" ${disable_sendmail:-off} \
 2>&1 1>&3 )
 exec 3>&-
 
