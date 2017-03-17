@@ -309,9 +309,8 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 		}
 		/* Divider 1:1 is 0x00, 2:1 is 0x01, 256:1 is 0x80 ... */
 		div >>= 1;
-	}
-	else {
-		/* Version 3.0 divisors are multiples of two up to 1023*2 */
+	} else {
+		/* Version 3.0 divisors are multiples of two up to 1023 * 2 */
 		if (clock >= clk_base)
 			div = 0;
 		else {
@@ -1349,7 +1348,7 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 	if (intmask & SDHCI_INT_DMA_END) {
 		data = slot->curcmd->data;
 
-		/* Unload DMA buffer... */
+		/* Unload DMA buffer ... */
 		left = data->len - slot->offset;
 		if (data->flags & MMC_DATA_READ) {
 			bus_dmamap_sync(slot->dmatag, slot->dmamap,
