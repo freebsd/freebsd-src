@@ -111,7 +111,7 @@ enum mmc_bus_timing {
 
 struct mmc_ios {
 	uint32_t	clock;	/* Speed of the clock in Hz to move data */
-	enum mmc_vdd	vdd;	/* Voltage to apply to the power pins/ */
+	enum mmc_vdd	vdd;	/* Voltage to apply to the power pins */
 	enum mmc_bus_mode bus_mode;
 	enum mmc_chip_select chip_select;
 	enum mmc_bus_width bus_width;
