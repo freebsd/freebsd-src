@@ -297,7 +297,7 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	 */
 	/* get the outgoing interface */
 	if ((error = in6_selectif(dstsock, opts, mopts, &ifp, oifp,
-	    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB)) != 0)
+	    (inp != NULL) ? inp->inp_inc.inc_fibnum : fibnum)) != 0)
 		return (error);
 
 #ifdef DIAGNOSTIC
@@ -563,7 +563,7 @@ in6_selectsrc_socket(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	uint32_t fibnum;
 	int error;
 
-	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB;
+	fibnum = inp->inp_inc.inc_fibnum;
 	retifp = NULL;
 
 	error = in6_selectsrc(fibnum, dstsock, opts, inp, cred, &retifp, srcp);

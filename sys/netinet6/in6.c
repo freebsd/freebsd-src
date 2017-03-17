@@ -159,6 +159,7 @@ in6_newaddrmsg(struct in6_ifaddr *ia, int cmd)
 	struct sockaddr_dl gateway;
 	struct sockaddr_in6 mask, addr;
 	struct rtentry rt;
+	int fibnum;
 
 	/*
 	 * initialize for rtmsg generation
@@ -176,8 +177,9 @@ in6_newaddrmsg(struct in6_ifaddr *ia, int cmd)
 	rt.rt_flags = RTF_HOST | RTF_STATIC;
 	if (cmd == RTM_ADD)
 		rt.rt_flags |= RTF_UP;
-	/* Announce arrival of local address to all FIBs. */
-	rt_newaddrmsg(cmd, &ia->ia_ifa, 0, &rt);
+	fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS : ia62ifa(ia)->ifa_ifp->if_fib;
+	/* Announce arrival of local address to this FIB. */
+	rt_newaddrmsg_fib(cmd, &ia->ia_ifa, 0, &rt, fibnum);
 }
 
 int
@@ -2117,15 +2119,15 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 	uint32_t scopeid;
 	int error;
 	char ip6buf[INET6_ADDRSTRLEN];
+	int fibnum;
 
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
-	/* Our local addresses are always only installed on the default FIB. */
-
 	sin6 = (const struct sockaddr_in6 *)l3addr;
 	in6_splitscope(&sin6->sin6_addr, &dst, &scopeid);
-	error = fib6_lookup_nh_basic(RT_DEFAULT_FIB, &dst, scopeid, 0, 0, &nh6);
+	fibnum = V_rt_add_addr_allfibs ? RT_DEFAULT_FIB : ifp->if_fib;
+	error = fib6_lookup_nh_basic(fibnum, &dst, scopeid, 0, 0, &nh6);
 	if (error != 0 || (nh6.nh_flags & NHF_GATEWAY) || nh6.nh_ifp != ifp) {
 		struct ifaddr *ifa;
 		/*
