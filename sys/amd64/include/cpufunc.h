@@ -759,34 +759,6 @@ load_dr3(uint64_t dr3)
 }
 
 static __inline uint64_t
-rdr4(void)
-{
-	uint64_t data;
-	__asm __volatile("movq %%dr4,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr4(uint64_t dr4)
-{
-	__asm __volatile("movq %0,%%dr4" : : "r" (dr4));
-}
-
-static __inline uint64_t
-rdr5(void)
-{
-	uint64_t data;
-	__asm __volatile("movq %%dr5,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr5(uint64_t dr5)
-{
-	__asm __volatile("movq %0,%%dr5" : : "r" (dr5));
-}
-
-static __inline uint64_t
 rdr6(void)
 {
 	uint64_t data;
@@ -863,8 +835,6 @@ void	load_dr0(uint64_t dr0);
 void	load_dr1(uint64_t dr1);
 void	load_dr2(uint64_t dr2);
 void	load_dr3(uint64_t dr3);
-void	load_dr4(uint64_t dr4);
-void	load_dr5(uint64_t dr5);
 void	load_dr6(uint64_t dr6);
 void	load_dr7(uint64_t dr7);
 void	load_fs(u_short sel);
@@ -887,8 +857,6 @@ uint64_t rdr0(void);
 uint64_t rdr1(void);
 uint64_t rdr2(void);
 uint64_t rdr3(void);
-uint64_t rdr4(void);
-uint64_t rdr5(void);
 uint64_t rdr6(void);
 uint64_t rdr7(void);
 uint64_t rdtsc(void);
