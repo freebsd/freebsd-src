@@ -80,15 +80,20 @@ struct pvo_entry;
 #define	BOOKE_TLB_SAVELEN	16
 #define	BOOKE_TLBSAVE_LEN	(BOOKE_TLB_SAVELEN * BOOKE_TLB_MAXNEST)
 
+#ifdef __powerpc64__
+#define	BOOKE_PCPU_PAD	773
+#else
+#define	BOOKE_PCPU_PAD	173
+#endif
 #define PCPU_MD_BOOKE_FIELDS						\
 	register_t	pc_booke_critsave[BOOKE_CRITSAVE_LEN];		\
 	register_t	pc_booke_mchksave[CPUSAVE_LEN];			\
 	register_t	pc_booke_tlbsave[BOOKE_TLBSAVE_LEN];		\
 	register_t	pc_booke_tlb_level;				\
 	vm_offset_t	pc_qmap_addr;					\
-	uint32_t	*pc_booke_tlb_lock;				\
+	uintptr_t	*pc_booke_tlb_lock;				\
 	int		pc_tid_next;					\
-	char		__pad[173]
+	char		__pad[BOOKE_PCPU_PAD]
 
 /* Definitions for register offsets within the exception tmp save areas */
 #define	CPUSAVE_R27	0		/* where r27 gets saved */
@@ -102,6 +107,8 @@ struct pvo_entry;
 #define	CPUSAVE_BOOKE_ESR	6	/* where SPR_ESR gets saved */
 #define	CPUSAVE_SRR0	7		/* where SRR0 gets saved */
 #define	CPUSAVE_SRR1	8		/* where SRR1 gets saved */
+#define	BOOKE_CRITSAVE_SRR0	9	/* where real SRR0 gets saved (critical) */
+#define	BOOKE_CRITSAVE_SRR1	10	/* where real SRR0 gets saved (critical) */
 
 /* Book-E TLBSAVE is more elaborate */
 #define TLBSAVE_BOOKE_LR	0

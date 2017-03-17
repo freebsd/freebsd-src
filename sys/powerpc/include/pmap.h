@@ -188,8 +188,16 @@ struct pmap {
 	tlbtid_t		pm_tid[MAXCPU];	/* TID to identify this pmap entries in TLB */
 	cpuset_t		pm_active;	/* active on cpus */
 
+#ifdef __powerpc64__
+	/* Page table directory, array of pointers to page directories. */
+	pte_t **pm_pp2d[PP2D_NENTRIES];
+
+	/* List of allocated pdir bufs (pdir kva regions). */
+	TAILQ_HEAD(, ptbl_buf)	pm_pdir_list;
+#else
 	/* Page table directory, array of pointers to page tables. */
 	pte_t			*pm_pdir[PDIR_NENTRIES];
+#endif
 
 	/* List of allocated ptbl bufs (ptbl kva regions). */
 	TAILQ_HEAD(, ptbl_buf)	pm_ptbl_list;
