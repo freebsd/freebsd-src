@@ -216,7 +216,7 @@ void
 ivor_setup(void)
 {
 
-	mtspr(SPR_IVPR, ((uintptr_t)&interrupt_vector_base) & 0xffff0000);
+	mtspr(SPR_IVPR, ((uintptr_t)&interrupt_vector_base) & ~0xffffUL);
 
 	SET_TRAP(SPR_IVOR0, int_critical_input);
 	SET_TRAP(SPR_IVOR1, int_machine_check);
@@ -250,6 +250,11 @@ ivor_setup(void)
 		SET_TRAP(SPR_IVOR32, int_vec);
 		break;
 	}
+
+#ifdef __powerpc64__
+	/* Set 64-bit interrupt mode. */
+	mtspr(SPR_EPCR, mfspr(SPR_EPCR) | EPCR_ICM);
+#endif
 }
 
 static int
@@ -353,7 +358,7 @@ booke_init(u_long arg1, u_long arg2)
 }
 
 #define RES_GRANULE 32
-extern uint32_t tlb0_miss_locks[];
+extern uintptr_t tlb0_miss_locks[];
 
 /* Initialise a struct pcpu. */
 void
@@ -363,8 +368,8 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 	pcpu->pc_tid_next = TID_MIN;
 
 #ifdef SMP
-	uint32_t *ptr;
-	int words_per_gran = RES_GRANULE / sizeof(uint32_t);
+	uintptr_t *ptr;
+	int words_per_gran = RES_GRANULE / sizeof(uintptr_t);
 
 	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
 	pcpu->pc_booke_tlb_lock = ptr;
