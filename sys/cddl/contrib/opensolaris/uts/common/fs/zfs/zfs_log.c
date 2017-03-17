@@ -454,6 +454,11 @@ zfs_log_rename(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
  * Handles TX_WRITE transactions.
  */
 ssize_t zfs_immediate_write_sz = 32768;
+#ifdef _KERNEL
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_LONG(_vfs_zfs, OID_AUTO, immediate_write_sz, CTLFLAG_RWTUN,
+    &zfs_immediate_write_sz, 0, "Minimal size for indirect log write");
+#endif
 
 void
 zfs_log_write(zilog_t *zilog, dmu_tx_t *tx, int txtype,
