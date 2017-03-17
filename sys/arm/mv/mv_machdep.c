@@ -244,14 +244,9 @@ platform_late_init(void)
 	/*
 	 * Re-initialise decode windows
 	 */
-#if !defined(SOC_MV_FREY)
 	if (soc_decode_win() != 0)
 		printf("WARNING: could not re-initialise decode windows! "
 		    "Running with existing settings...\n");
-#else
-	/* Disable watchdog and timers */
-	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
-#endif
 #if defined(SOC_MV_ARMADAXP)
 #if !defined(SMP)
 	/* For SMP case it should be initialized after APs are booted */

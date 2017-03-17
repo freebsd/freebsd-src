@@ -52,25 +52,16 @@
 /* SRAM */
 #define MV_CESA_SRAM_BASE	0xF1100000
 
-/* AXI Regs */
-#ifdef SOC_MV_DOVE
-#define MV_AXI_PHYS_BASE	0xF1800000
-#define MV_AXI_BASE		MV_AXI_PHYS_BASE
-#define MV_AXI_SIZE		(16 * 1024 * 1024)	/* 16 MB */
-#endif
-
 /*
  * External devices: 0x80000000, 1 GB (VA == PA)
  * Includes Device Bus, PCI and PCIE.
  */
 #if defined(SOC_MV_ORION)
 #define MV_PCI_PORTS	2	/* 1x PCI + 1x PCIE */
-#elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_FREY)
+#elif defined(SOC_MV_KIRKWOOD)
 #define MV_PCI_PORTS	1	/* 1x PCIE */
 #elif defined(SOC_MV_DISCOVERY)
 #define MV_PCI_PORTS	8	/* 8x PCIE */
-#elif defined(SOC_MV_DOVE) || defined(SOC_MV_LOKIPLUS)
-#define MV_PCI_PORTS	2	/* 2x PCIE */
 #elif defined(SOC_MV_ARMADAXP)
 #define MV_PCI_PORTS	3	/* 3x PCIE */
 #elif defined(SOC_MV_ARMADA38X)
@@ -93,11 +84,7 @@
 #define MV_PCI_IO_SLICE_SIZE	(MV_PCI_IO_SIZE / MV_PCI_PORTS)
 #define MV_PCI_IO_SLICE(n)	(MV_PCI_IO_BASE + ((n) * MV_PCI_IO_SLICE_SIZE))
 
-#if defined(SOC_MV_FREY)
-#define MV_PCI_VA_MEM_BASE	MV_PCI_MEM_BASE
-#else
 #define MV_PCI_VA_MEM_BASE	0
-#endif
 #define MV_PCI_VA_IO_BASE	0
 
 /*
@@ -120,11 +107,7 @@
  * Integrated SoC peripherals addresses
  */
 #define MV_BASE			MV_PHYS_BASE	/* VA == PA mapping */
-#if defined(SOC_MV_DOVE)
-#define MV_DDR_CADR_BASE	(MV_AXI_BASE + 0x100)
-#elif defined(SOC_MV_LOKIPLUS)
-#define MV_DDR_CADR_BASE	(MV_BASE + 0xF1500)
-#elif defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
+#if defined(SOC_MV_ARMADAXP) || defined(SOC_MV_ARMADA38X)
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x20180)
 #else
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x1500)
@@ -137,20 +120,16 @@
 #define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
 #define MV_MP_CLOCKS_BASE	(MV_MBUS_BRIDGE_BASE + 0x700)
 #define MV_CPU_CONTROL_BASE	(MV_MBUS_BRIDGE_BASE + 0x1800)
-#elif !defined(SOC_MV_FREY)
+#else
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
 #define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
 #define MV_CPU_CONTROL_BASE	(MV_MBUS_BRIDGE_BASE + 0x100)
-#else
-#define MV_CPU_CONTROL_BASE	(MV_BASE + 0x10000)
 #endif
 
 #define MV_PCI_BASE		(MV_BASE + 0x30000)
 #define MV_PCI_SIZE		0x2000
 
-#if defined(SOC_MV_FREY)
-#define MV_PCIE_BASE		(MV_BASE + 0x8000)
-#elif defined(SOC_MV_ARMADA38X)
+#if defined(SOC_MV_ARMADA38X)
 #define	MV_PCIE_BASE		(MV_BASE + 0x80000)
 #else
 #define MV_PCIE_BASE		(MV_BASE + 0x40000)
@@ -193,26 +172,12 @@
 #endif
 
 #define MV_WIN_CPU_ATTR_SHIFT		8
-#if defined(SOC_MV_LOKIPLUS)
-#define MV_WIN_CPU_TARGET_SHIFT		0
-#define MV_WIN_CPU_ENABLE_BIT		(1 << 5)
-#else
 #define MV_WIN_CPU_TARGET_SHIFT		4
 #define MV_WIN_CPU_ENABLE_BIT		1
-#endif
 
-#if defined(SOC_MV_DOVE)
-#define MV_WIN_DDR_MAX			2
-#else /* SOC_MV_DOVE */
-#if defined(SOC_MV_LOKIPLUS)
-#define MV_WIN_DDR_BASE(n)		(0xc * (n) + 0x4)
-#define MV_WIN_DDR_SIZE(n)		(0xc * (n) + 0x0)
-#else /* SOC_MV_LOKIPLUS */
 #define MV_WIN_DDR_BASE(n)		(0x8 * (n) + 0x0)
 #define MV_WIN_DDR_SIZE(n)		(0x8 * (n) + 0x4)
-#endif /* SOC_MV_LOKIPLUS */
 #define MV_WIN_DDR_MAX			4
-#endif /* SOC_MV_DOVE */
 
 /*
  * These values are valid only for peripherals decoding windows
@@ -280,7 +245,7 @@
 #define MV_XOR_CHAN_MAX			2
 #define MV_XOR_NON_REMAP		4
 
-#if defined(SOC_MV_DISCOVERY) || defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DOVE)
+#if defined(SOC_MV_DISCOVERY) || defined(SOC_MV_KIRKWOOD)
 #define MV_WIN_PCIE_TARGET(n)		4
 #define MV_WIN_PCIE_MEM_ATTR(n)		0xE8
 #define MV_WIN_PCIE_IO_ATTR(n)		0xE0
@@ -294,10 +259,6 @@
 #define	MV_WIN_PCIE_IO_ATTR(n)		((n) < 2 ? 0xE0 : (0xD0 - (((n) % 2) * 0x20)))
 #elif defined(SOC_MV_ORION)
 #define MV_WIN_PCIE_TARGET(n)		4
-#define MV_WIN_PCIE_MEM_ATTR(n)		0x59
-#define MV_WIN_PCIE_IO_ATTR(n)		0x51
-#elif defined(SOC_MV_LOKIPLUS)
-#define MV_WIN_PCIE_TARGET(n)		(3 + (n))
 #define MV_WIN_PCIE_MEM_ATTR(n)		0x59
 #define MV_WIN_PCIE_IO_ATTR(n)		0x51
 #endif
