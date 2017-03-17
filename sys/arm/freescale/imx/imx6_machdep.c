@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
+#include <arm/freescale/imx/imx6_mp.h>
+
 #include "platform_if.h"
 
 static uint32_t gpio1_node;
@@ -345,6 +347,11 @@ static platform_method_t imx6_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	imx6_devmap_init),
 	PLATFORMMETHOD(platform_late_init,	imx6_late_init),
 	PLATFORMMETHOD(platform_cpu_reset,	imx6_cpu_reset),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	imx6_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	imx6_mp_setmaxid),
+#endif
 
 	PLATFORMMETHOD_END,
 };
