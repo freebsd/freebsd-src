@@ -50,6 +50,10 @@
 #define	PSL_PMM		0x00000004UL	/* performance monitor mark */
 
 /* Machine State Register - Book-E cores */
+#ifdef __powerpc64__
+#define	PSL_CM		0x80000000UL	/* Computation Mode (64-bit) */
+#endif
+
 #define PSL_UCLE	0x04000000UL	/* User mode cache lock enable */
 #define PSL_WE		0x00040000UL	/* Wait state enable */
 #define PSL_CE		0x00020000UL	/* Critical interrupt enable */
@@ -86,7 +90,11 @@
 #if defined(BOOKE_E500)
 /* Initial kernel MSR, use IS=1 ad DS=1. */
 #define PSL_KERNSET_INIT	(PSL_IS | PSL_DS)
+#ifdef __powerpc64__
+#define PSL_KERNSET		(PSL_CM | PSL_CE | PSL_ME | PSL_EE)
+#else
 #define PSL_KERNSET		(PSL_CE | PSL_ME | PSL_EE)
+#endif
 #define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
 #elif defined(BOOKE_PPC4XX)
 #define PSL_KERNSET	(PSL_CE | PSL_ME | PSL_EE | PSL_FP)
