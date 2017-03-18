@@ -689,9 +689,6 @@ isp_target_async(ispsoftc_t *isp, int bus, int event)
 	}
 	default:
 		isp_prt(isp, ISP_LOGERR, "%s: unknown event 0x%x", __func__, event);
-		if (isp->isp_state == ISP_RUNSTATE) {
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, NULL);
-		}
 		break;
 	}
 }
@@ -838,7 +835,7 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 	/*
 	 * This is in case a Task Management Function ends up here.
 	 */
-	if (IS_24XX(isp) && arg != NULL && (((isphdr_t *)arg)->rqs_entry_type == RQSTYPE_ATIO)) {
+	if (IS_24XX(isp) && ((isphdr_t *)arg)->rqs_entry_type == RQSTYPE_ATIO) {
 		at7_entry_t *aep = arg;
 		return (isp_endcmd(isp, aep, NIL_HANDLE, 0, 0, 0));
 	}
@@ -852,70 +849,68 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 	ISP_MEMZERO(storage, QENTRY_LEN);
 
 	if (IS_24XX(isp)) {
+		in_fcentry_24xx_t *in = arg;
 		na_fcentry_24xx_t *na = (na_fcentry_24xx_t *) storage;
+
 		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
 		na->na_header.rqs_entry_count = 1;
-		if (arg) {
-			in_fcentry_24xx_t *in = arg;
-			na->na_nphdl = in->in_nphdl;
-			na->na_flags = in->in_flags;
-			na->na_status = in->in_status;
-			na->na_status_subcode = in->in_status_subcode;
-			na->na_fwhandle = in->in_fwhandle;
-			na->na_rxid = in->in_rxid;
-			na->na_oxid = in->in_oxid;
-			na->na_vpidx = in->in_vpidx;
-			if (in->in_status == IN24XX_SRR_RCVD) {
-				na->na_srr_rxid = in->in_srr_rxid;
-				na->na_srr_reloff_hi = in->in_srr_reloff_hi;
-				na->na_srr_reloff_lo = in->in_srr_reloff_lo;
-				na->na_srr_iu = in->in_srr_iu;
-				/*
-				 * Whether we're accepting the SRR or rejecting
-				 * it is determined by looking at the in_reserved
-				 * field in the original notify structure.
-				 */
-				if (in->in_reserved) {
-					na->na_srr_flags = 1;
-					na->na_srr_reject_vunique = 0;
-					na->na_srr_reject_code = 9;		/* unable to perform this command at this time */
-					na->na_srr_reject_explanation = 0x2a;	/* unable to supply the requested data */
-				}
+		na->na_nphdl = in->in_nphdl;
+		na->na_flags = in->in_flags;
+		na->na_status = in->in_status;
+		na->na_status_subcode = in->in_status_subcode;
+		na->na_fwhandle = in->in_fwhandle;
+		na->na_rxid = in->in_rxid;
+		na->na_oxid = in->in_oxid;
+		na->na_vpidx = in->in_vpidx;
+		if (in->in_status == IN24XX_SRR_RCVD) {
+			na->na_srr_rxid = in->in_srr_rxid;
+			na->na_srr_reloff_hi = in->in_srr_reloff_hi;
+			na->na_srr_reloff_lo = in->in_srr_reloff_lo;
+			na->na_srr_iu = in->in_srr_iu;
+			/*
+			 * Whether we're accepting the SRR or rejecting
+			 * it is determined by looking at the in_reserved
+			 * field in the original notify structure.
+			 */
+			if (in->in_reserved) {
+				na->na_srr_flags = 1;
+				na->na_srr_reject_vunique = 0;
+				/* Unable to perform this command at this time. */
+				na->na_srr_reject_code = 9;
+				/* Unable to supply the requested data. */
+				na->na_srr_reject_explanation = 0x2a;
 			}
 		}
 		isp_put_notify_24xx_ack(isp, na, (na_fcentry_24xx_t *)outp);
 	} else {
+		in_fcentry_t *in = arg;
 		na_fcentry_t *na = (na_fcentry_t *) storage;
-		int iid = 0;
+		int iid;
 
-		if (arg) {
-			in_fcentry_t *inp = arg;
-			ISP_MEMCPY(storage, arg, sizeof (isphdr_t));
-			if (ISP_CAP_2KLOGIN(isp)) {
-				((na_fcentry_e_t *)na)->na_iid = ((in_fcentry_e_t *)inp)->in_iid;
-				iid = ((na_fcentry_e_t *)na)->na_iid;
-			} else {
-				na->na_iid = inp->in_iid;
-				iid = na->na_iid;
-			}
-			na->na_task_flags = inp->in_task_flags & TASK_FLAGS_RESERVED_MASK;
-			na->na_seqid = inp->in_seqid;
-			na->na_status = inp->in_status;
-			na->na_flags = NAFC_RCOUNT;
-			if (inp->in_status == IN_RESET) {
-				na->na_flags = NAFC_RST_CLRD;	/* We do not modify resource counts for LIP resets */
-			}
-			if (inp->in_status == IN_MSG_RECEIVED) {
-				na->na_flags |= NAFC_TVALID;
-				na->na_response = 0;	/* XXX SUCCEEDED XXX */
-			}
+		ISP_MEMCPY(storage, arg, sizeof (isphdr_t));
+		if (ISP_CAP_2KLOGIN(isp)) {
+			iid = ((in_fcentry_e_t *)in)->in_iid;
+			((na_fcentry_e_t *)na)->na_iid = iid;
 		} else {
+			iid = in->in_iid;
+			na->na_iid = iid;
+		}
+		na->na_task_flags = in->in_task_flags & TASK_FLAGS_RESERVED_MASK;
+		na->na_seqid = in->in_seqid;
+		na->na_status = in->in_status;
+		na->na_flags = NAFC_RCOUNT;
+		/* We do not modify resource counts for LIP resets */
+		if (in->in_status == IN_RESET)
 			na->na_flags = NAFC_RST_CLRD;
+		if (in->in_status == IN_MSG_RECEIVED) {
+			na->na_flags |= NAFC_TVALID;
+			na->na_response = 0;	/* XXX SUCCEEDED XXX */
 		}
 		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
 		na->na_header.rqs_entry_count = 1;
 		if (ISP_CAP_2KLOGIN(isp)) {
-			isp_put_notify_ack_fc_e(isp, (na_fcentry_e_t *) na, (na_fcentry_e_t *)outp);
+			isp_put_notify_ack_fc_e(isp, (na_fcentry_e_t *)na,
+			    (na_fcentry_e_t *)outp);
 		} else {
 			isp_put_notify_ack_fc(isp, na, (na_fcentry_t *)outp);
 		}
@@ -1415,27 +1410,28 @@ isp_handle_24xx_inotify(ispsoftc_t *isp, in_fcentry_24xx_t *inot_24xx)
 		hichan = chan + 1;
 	}
 	isp_prt(isp, ISP_LOGTDEBUG1, "%s: Immediate Notify Channels %d..%d status=0x%x seqid=0x%x", __func__, lochan, hichan-1, inot_24xx->in_status, inot_24xx->in_rxid);
-	for (chan = lochan; chan < hichan; chan++) {
-		if (FCPARAM(isp, chan)->role == ISP_ROLE_NONE)
-			continue;
-		switch (inot_24xx->in_status) {
-		case IN24XX_LIP_RESET:
-		case IN24XX_LINK_RESET:
-		case IN24XX_PORT_LOGOUT:
-		case IN24XX_PORT_CHANGED:
-		case IN24XX_LINK_FAILED:
-		case IN24XX_SRR_RCVD:
-		case IN24XX_ELS_RCVD:
-			inot_24xx->in_reserved = 0;	/* clear this for later usage */
+	switch (inot_24xx->in_status) {
+	case IN24XX_LIP_RESET:
+	case IN24XX_LINK_RESET:
+	case IN24XX_PORT_LOGOUT:
+	case IN24XX_PORT_CHANGED:
+	case IN24XX_LINK_FAILED:
+	case IN24XX_SRR_RCVD:
+	case IN24XX_ELS_RCVD:
+		for (chan = lochan; chan < hichan; chan++) {
+			if (FCPARAM(isp, chan)->role == ISP_ROLE_NONE)
+				continue;
+			inot_24xx->in_reserved = 0; /* clear this for later usage */
 			inot_24xx->in_vpidx = chan;
 			isp_async(isp, ISPASYNC_TARGET_ACTION, inot_24xx);
-			break;
-		default:
-			isp_prt(isp, ISP_LOGINFO, "%s: unhandled status (0x%x) for chan %d", __func__, inot_24xx->in_status, chan);
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot_24xx);
-			break;
 		}
+		inot_24xx->in_vpidx = ochan;
+		break;
+	default:
+		isp_prt(isp, ISP_LOGINFO, "%s: unhandled status (0x%x) for chan %d",
+		    __func__, inot_24xx->in_status, chan);
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot_24xx);
+		break;
 	}
-	inot_24xx->in_vpidx = ochan;
 }
 #endif
