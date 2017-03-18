@@ -130,9 +130,25 @@ static const teken_attr_t default_message = {
 	.ta_format	= TCHAR_FORMAT(TERMINAL_NORM_ATTR)
 };
 
+/* Fudge fg brightness as TF_BOLD (shifted). */
+#define	TCOLOR_FG_FUDGED(color) __extension__ ({			\
+	teken_color_t _c;						\
+									\
+	_c = (color);							\
+	TCOLOR_FG(_c & 7) | ((_c & 8) << 18);				\
+})
+
+/* Fudge bg brightness as TF_BLINK (shifted). */
+#define	TCOLOR_BG_FUDGED(color) __extension__ ({			\
+	teken_color_t _c;						\
+									\
+	_c = (color);							\
+	TCOLOR_BG(_c & 7) | ((_c & 8) << 20);				\
+})
+
 #define	TCHAR_CREATE(c, a)	((c) | TFORMAT((a)->ta_format) |	\
-	TCOLOR_FG(teken_256to8((a)->ta_fgcolor)) |			\
-	TCOLOR_BG(teken_256to8((a)->ta_bgcolor)))
+	TCOLOR_FG_FUDGED(teken_256to16((a)->ta_fgcolor)) |		\
+	TCOLOR_BG_FUDGED(teken_256to16((a)->ta_bgcolor)))
 
 static void
 terminal_init(struct terminal *tm)
