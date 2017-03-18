@@ -2974,7 +2974,6 @@ cfiscsi_done(union ctl_io *io)
 
 	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 	cs = PDU_SESSION(request);
-	refcount_release(&cs->cs_outstanding_ctl_pdus);
 
 	switch (request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) {
 	case ISCSI_BHS_OPCODE_SCSI_COMMAND:
@@ -2987,4 +2986,6 @@ cfiscsi_done(union ctl_io *io)
 		panic("cfiscsi_done called with wrong opcode 0x%x",
 		    request->ip_bhs->bhs_opcode);
 	}
+
+	refcount_release(&cs->cs_outstanding_ctl_pdus);
 }
