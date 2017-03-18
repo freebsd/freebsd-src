@@ -145,6 +145,10 @@ extern int stclohz;
 
 #define	LINUX_RLIM_INFINITY	(~0UL)
 
+/* Linux getrandom flags */
+#define	LINUX_GRND_NONBLOCK	0x0001
+#define	LINUX_GRND_RANDOM	0x0002
+
 int linux_common_wait(struct thread *td, int pid, int *status,
 			int options, struct rusage *ru);
 void linux_to_bsd_waitopts(int options, int *bsdopts);
