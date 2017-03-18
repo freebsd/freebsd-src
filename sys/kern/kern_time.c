@@ -549,7 +549,7 @@ sys_nanosleep(struct thread *td, struct nanosleep_args *uap)
 	    !useracc((caddr_t)uap->rmtp, sizeof(rmt), VM_PROT_WRITE))
 			return (EFAULT);
 	error = kern_nanosleep(td, &rqt, &rmt);
-	if (error && uap->rmtp) {
+	if (error == EINTR && uap->rmtp) {
 		int error2;
 
 		error2 = copyout(&rmt, uap->rmtp, sizeof(rmt));

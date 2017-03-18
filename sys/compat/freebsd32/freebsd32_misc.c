@@ -2241,7 +2241,7 @@ freebsd32_nanosleep(struct thread *td, struct freebsd32_nanosleep_args *uap)
 	    !useracc((caddr_t)uap->rmtp, sizeof(rmt), VM_PROT_WRITE))
 		return (EFAULT);
 	error = kern_nanosleep(td, &rqt, &rmt);
-	if (error && uap->rmtp) {
+	if (error == EINTR && uap->rmtp) {
 		int error2;
 
 		CP(rmt, rmt32, tv_sec);

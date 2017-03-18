@@ -519,7 +519,7 @@ linux_nanosleep(struct thread *td, struct linux_nanosleep_args *args)
 		return (error);
 	}
 	error = kern_nanosleep(td, &rqts, rmtp);
-	if (args->rmtp != NULL) {
+	if (error == EINTR && args->rmtp != NULL) {
 		error2 = native_to_linux_timespec(&lrmts, rmtp);
 		if (error2 != 0)
 			return (error2);
@@ -583,7 +583,7 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 		return (error);
 	}
 	error = kern_nanosleep(td, &rqts, rmtp);
-	if (args->rmtp != NULL) {
+	if (error == EINTR && args->rmtp != NULL) {
 		/* XXX. Not for TIMER_ABSTIME */
 		error2 = native_to_linux_timespec(&lrmts, rmtp);
 		if (error2 != 0)
