@@ -1547,7 +1547,6 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 			return (kern_setsockopt(td, args->s, bsd_args.level,
 			    name, &tv, UIO_SYSSPACE, sizeof(tv)));
 			/* NOTREACHED */
-			break;
 		default:
 			break;
 		}
@@ -1619,7 +1618,6 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			return (copyout(&linux_tv, PTRIN(args->optval),
 			    sizeof(linux_tv)));
 			/* NOTREACHED */
-			break;
 		case LOCAL_PEERCRED:
 			if (args->optlen != sizeof(lxu))
 				return (EINVAL);
@@ -1636,7 +1634,6 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			lxu.gid = xu.cr_gid;
 			return (copyout(&lxu, PTRIN(args->optval), sizeof(lxu)));
 			/* NOTREACHED */
-			break;
 		case SO_ERROR:
 			len = sizeof(newval);
 			error = kern_getsockopt(td, args->s, bsd_args.level,
