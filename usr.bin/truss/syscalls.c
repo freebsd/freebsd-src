@@ -92,6 +92,10 @@ static struct syscall decoded_syscalls[] = {
 		    { Int, 3 } } },
 	{ .name = "break", .ret_type = 1, .nargs = 1,
 	  .args = { { Ptr, 0 } } },
+	{ .name = "cap_fcntls_get", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { CapFcntlRights | OUT, 1 } } },
+	{ .name = "cap_fcntls_limit", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { CapFcntlRights, 1 } } },
 	{ .name = "chdir", .ret_type = 1, .nargs = 1,
 	  .args = { { Name, 0 } } },
 	{ .name = "chflags", .ret_type = 1, .nargs = 2,
@@ -784,6 +788,18 @@ static void
 print_mask_arg(bool (*decoder)(FILE *, int, int *), FILE *fp, int value)
 {
 	int rem;
+
+	if (!decoder(fp, value, &rem))
+		fprintf(fp, "0x%x", rem);
+	else if (rem != 0)
+		fprintf(fp, "|0x%x", rem);
+}
+
+static void
+print_mask_arg32(bool (*decoder)(FILE *, uint32_t, uint32_t *), FILE *fp,
+    uint32_t value)
+{
+	uint32_t rem;
 
 	if (!decoder(fp, value, &rem))
 		fprintf(fp, "0x%x", rem);
@@ -1824,6 +1840,20 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Pipe2:
 		print_mask_arg(sysdecode_pipe2_flags, fp, args[sc->offset]);
 		break;
+	case CapFcntlRights: {
+		uint32_t rights;
+
+		if (sc->type & OUT) {
+			if (get_struct(pid, (void *)args[sc->offset], &rights,
+			    sizeof(rights)) == -1) {
+				fprintf(fp, "0x%lx", args[sc->offset]);
+				break;
+			}
+		} else
+			rights = args[sc->offset];
+		print_mask_arg32(sysdecode_cap_fcntlrights, fp, rights);
+		break;
+	}
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
