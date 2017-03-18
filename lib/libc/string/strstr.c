@@ -1,61 +1,180 @@
 /*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2005-2014 Rich Felker, et al.
  *
- * This code is derived from software contributed to Berkeley by
- * Chris Torek.
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)strstr.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <string.h>
+#include <stdint.h>
 
-/*
- * Find the first occurrence of find in s.
- */
-char *
-strstr(const char *s, const char *find)
+static char *twobyte_strstr(const unsigned char *h, const unsigned char *n)
 {
-	char c, sc;
-	size_t len;
+	uint16_t nw = n[0]<<8 | n[1], hw = h[0]<<8 | h[1];
+	for (h++; *h && hw != nw; hw = hw<<8 | *++h);
+	return *h ? (char *)h-1 : 0;
+}
 
-	if ((c = *find++) != '\0') {
-		len = strlen(find);
-		do {
-			do {
-				if ((sc = *s++) == '\0')
-					return (NULL);
-			} while (sc != c);
-		} while (strncmp(s, find, len) != 0);
-		s--;
+static char *threebyte_strstr(const unsigned char *h, const unsigned char *n)
+{
+	uint32_t nw = n[0]<<24 | n[1]<<16 | n[2]<<8;
+	uint32_t hw = h[0]<<24 | h[1]<<16 | h[2]<<8;
+	for (h+=2; *h && hw != nw; hw = (hw|*++h)<<8);
+	return *h ? (char *)h-2 : 0;
+}
+
+static char *fourbyte_strstr(const unsigned char *h, const unsigned char *n)
+{
+	uint32_t nw = n[0]<<24 | n[1]<<16 | n[2]<<8 | n[3];
+	uint32_t hw = h[0]<<24 | h[1]<<16 | h[2]<<8 | h[3];
+	for (h+=3; *h && hw != nw; hw = hw<<8 | *++h);
+	return *h ? (char *)h-3 : 0;
+}
+
+#define MAX(a,b) ((a)>(b)?(a):(b))
+#define MIN(a,b) ((a)<(b)?(a):(b))
+
+#define BITOP(a,b,op) \
+ ((a)[(size_t)(b)/(8*sizeof *(a))] op (size_t)1<<((size_t)(b)%(8*sizeof *(a))))
+
+static char *twoway_strstr(const unsigned char *h, const unsigned char *n)
+{
+	const unsigned char *z;
+	size_t l, ip, jp, k, p, ms, p0, mem, mem0;
+	size_t byteset[32 / sizeof(size_t)] = { 0 };
+	size_t shift[256];
+
+	/* Computing length of needle and fill shift table */
+	for (l=0; n[l] && h[l]; l++)
+		BITOP(byteset, n[l], |=), shift[n[l]] = l+1;
+	if (n[l]) return 0; /* hit the end of h */
+
+	/* Compute maximal suffix */
+	ip = -1; jp = 0; k = p = 1;
+	while (jp+k<l) {
+		if (n[ip+k] == n[jp+k]) {
+			if (k == p) {
+				jp += p;
+				k = 1;
+			} else k++;
+		} else if (n[ip+k] > n[jp+k]) {
+			jp += k;
+			k = 1;
+			p = jp - ip;
+		} else {
+			ip = jp++;
+			k = p = 1;
+		}
 	}
-	return ((char *)s);
+	ms = ip;
+	p0 = p;
+
+	/* And with the opposite comparison */
+	ip = -1; jp = 0; k = p = 1;
+	while (jp+k<l) {
+		if (n[ip+k] == n[jp+k]) {
+			if (k == p) {
+				jp += p;
+				k = 1;
+			} else k++;
+		} else if (n[ip+k] < n[jp+k]) {
+			jp += k;
+			k = 1;
+			p = jp - ip;
+		} else {
+			ip = jp++;
+			k = p = 1;
+		}
+	}
+	if (ip+1 > ms+1) ms = ip;
+	else p = p0;
+
+	/* Periodic needle? */
+	if (memcmp(n, n+p, ms+1)) {
+		mem0 = 0;
+		p = MAX(ms, l-ms-1) + 1;
+	} else mem0 = l-p;
+	mem = 0;
+
+	/* Initialize incremental end-of-haystack pointer */
+	z = h;
+
+	/* Search loop */
+	for (;;) {
+		/* Update incremental end-of-haystack pointer */
+		if (z-h < l) {
+			/* Fast estimate for MIN(l,63) */
+			size_t grow = l | 63;
+			const unsigned char *z2 = memchr(z, 0, grow);
+			if (z2) {
+				z = z2;
+				if (z-h < l) return 0;
+			} else z += grow;
+		}
+
+		/* Check last byte first; advance by shift on mismatch */
+		if (BITOP(byteset, h[l-1], &)) {
+			k = l-shift[h[l-1]];
+			//printf("adv by %zu (on %c) at [%s] (%zu;l=%zu)\n", k, h[l-1], h, shift[h[l-1]], l);
+			if (k) {
+				if (mem0 && mem && k < p) k = l-p;
+				h += k;
+				mem = 0;
+				continue;
+			}
+		} else {
+			h += l;
+			mem = 0;
+			continue;
+		}
+
+		/* Compare right half */
+		for (k=MAX(ms+1,mem); n[k] && n[k] == h[k]; k++);
+		if (n[k]) {
+			h += k-ms;
+			mem = 0;
+			continue;
+		}
+		/* Compare left half */
+		for (k=ms+1; k>mem && n[k-1] == h[k-1]; k--);
+		if (k <= mem) return (char *)h;
+		h += p;
+		mem = mem0;
+	}
+}
+
+char *strstr(const char *h, const char *n)
+{
+	/* Return immediately on empty needle */
+	if (!n[0]) return (char *)h;
+
+	/* Use faster algorithms for short needles */
+	h = strchr(h, *n);
+	if (!h || !n[1]) return (char *)h;
+	if (!h[1]) return 0;
+	if (!n[2]) return twobyte_strstr((void *)h, (void *)n);
+	if (!h[2]) return 0;
+	if (!n[3]) return threebyte_strstr((void *)h, (void *)n);
+	if (!h[3]) return 0;
+	if (!n[4]) return fourbyte_strstr((void *)h, (void *)n);
+
+	return twoway_strstr((void *)h, (void *)n);
 }
