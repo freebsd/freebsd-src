@@ -421,22 +421,37 @@ isp_target_put_entry(ispsoftc_t *isp, void *ap)
 		return (-1);
 	}
 	switch (etype) {
+	case RQSTYPE_NOTIFY_ACK:
+		if (IS_24XX(isp))
+			isp_put_notify_24xx_ack(isp, (na_fcentry_24xx_t *)ap,
+			    (na_fcentry_24xx_t *)outp);
+		else if (ISP_CAP_2KLOGIN(isp))
+			isp_put_notify_ack_fc_e(isp, (na_fcentry_e_t *)ap,
+			    (na_fcentry_e_t *)outp);
+		else
+			isp_put_notify_ack_fc(isp, ap, (na_fcentry_t *)outp);
+		break;
 	case RQSTYPE_ATIO2:
-		if (ISP_CAP_2KLOGIN(isp)) {
-			isp_put_atio2e(isp, (at2e_entry_t *) ap, (at2e_entry_t *) outp);
-		} else {
-			isp_put_atio2(isp, (at2_entry_t *) ap, (at2_entry_t *) outp);
-		}
+		if (ISP_CAP_2KLOGIN(isp))
+			isp_put_atio2e(isp, (at2e_entry_t *)ap,
+			    (at2e_entry_t *)outp);
+		else
+			isp_put_atio2(isp, (at2_entry_t *)ap,
+			    (at2_entry_t *)outp);
 		break;
 	case RQSTYPE_CTIO2:
-		if (ISP_CAP_2KLOGIN(isp)) {
-			isp_put_ctio2e(isp, (ct2e_entry_t *) ap, (ct2e_entry_t *) outp);
-		} else {
-			isp_put_ctio2(isp, (ct2_entry_t *) ap, (ct2_entry_t *) outp);
-		}
+		if (ISP_CAP_2KLOGIN(isp))
+			isp_put_ctio2e(isp, (ct2e_entry_t *)ap,
+			    (ct2e_entry_t *)outp);
+		else
+			isp_put_ctio2(isp, (ct2_entry_t *)ap,
+			    (ct2_entry_t *)outp);
 		break;
 	case RQSTYPE_CTIO7:
-		isp_put_ctio7(isp, (ct7_entry_t *) ap, (ct7_entry_t *) outp);
+		isp_put_ctio7(isp, (ct7_entry_t *)ap, (ct7_entry_t *)outp);
+		break;
+	case RQSTYPE_ABTS_RSP:
+		isp_put_abts_rsp(isp, (abts_rsp_t *)ap, (abts_rsp_t *)outp);
 		break;
 	default:
 		isp_prt(isp, ISP_LOGERR, "%s: Unknown type 0x%x", __func__, etype);
@@ -830,7 +845,6 @@ int
 isp_notify_ack(ispsoftc_t *isp, void *arg)
 {
 	char storage[QENTRY_LEN];
-	void *outp;
 
 	/*
 	 * This is in case a Task Management Function ends up here.
@@ -840,14 +854,7 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 		return (isp_endcmd(isp, aep, NIL_HANDLE, 0, 0, 0));
 	}
 
-	outp = isp_getrqentry(isp);
-	if (outp == NULL) {
-		isp_prt(isp, ISP_LOGWARN, rqo, __func__);
-		return (1);
-	}
-
 	ISP_MEMZERO(storage, QENTRY_LEN);
-
 	if (IS_24XX(isp)) {
 		in_fcentry_24xx_t *in = arg;
 		na_fcentry_24xx_t *na = (na_fcentry_24xx_t *) storage;
@@ -881,7 +888,6 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 				na->na_srr_reject_explanation = 0x2a;
 			}
 		}
-		isp_put_notify_24xx_ack(isp, na, (na_fcentry_24xx_t *)outp);
 	} else {
 		in_fcentry_t *in = arg;
 		na_fcentry_t *na = (na_fcentry_t *) storage;
@@ -908,18 +914,10 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 		}
 		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
 		na->na_header.rqs_entry_count = 1;
-		if (ISP_CAP_2KLOGIN(isp)) {
-			isp_put_notify_ack_fc_e(isp, (na_fcentry_e_t *)na,
-			    (na_fcentry_e_t *)outp);
-		} else {
-			isp_put_notify_ack_fc(isp, na, (na_fcentry_t *)outp);
-		}
 		isp_prt(isp, ISP_LOGTDEBUG0, "notify ack handle %x seqid %x flags %x tflags %x response %x", iid, na->na_seqid,
 		    na->na_flags, na->na_task_flags, na->na_response);
 	}
-	ISP_TDQE(isp, "isp_notify_ack", isp->isp_reqidx, storage);
-	ISP_SYNC_REQUEST(isp);
-	return (0);
+	return (isp_target_put_entry(isp, &storage));
 }
 
 int
@@ -930,7 +928,6 @@ isp_acknak_abts(ispsoftc_t *isp, void *arg, int errno)
 	uint8_t tmpb;
 	abts_t *abts = arg;
 	abts_rsp_t *rsp = (abts_rsp_t *) storage;
-	void *outp;
 
 	if (!IS_24XX(isp)) {
 		isp_prt(isp, ISP_LOGERR, "%s: called for non-24XX card", __func__);
@@ -940,12 +937,6 @@ isp_acknak_abts(ispsoftc_t *isp, void *arg, int errno)
 	if (abts->abts_header.rqs_entry_type != RQSTYPE_ABTS_RCVD) {
 		isp_prt(isp, ISP_LOGERR, "%s: called for non-ABTS entry (0x%x)", __func__, abts->abts_header.rqs_entry_type);
 		return (0);
-	}
-
-	outp = isp_getrqentry(isp);
-	if (outp == NULL) {
-		isp_prt(isp, ISP_LOGWARN, rqo, __func__);
-		return (1);
 	}
 
 	ISP_MEMCPY(rsp, abts, QENTRY_LEN);
@@ -990,15 +981,7 @@ isp_acknak_abts(ispsoftc_t *isp, void *arg, int errno)
 			break;
 		}
 	}
-
-	/*
-	 * The caller will have set response values as appropriate
-	 * in the ABTS structure just before calling us.
-	 */
-	isp_put_abts_rsp(isp, rsp, (abts_rsp_t *)outp);
-	ISP_TDQE(isp, "isp_acknak_abts", isp->isp_reqidx, storage);
-	ISP_SYNC_REQUEST(isp);
-	return (0);
+	return (isp_target_put_entry(isp, rsp));
 }
 
 static void

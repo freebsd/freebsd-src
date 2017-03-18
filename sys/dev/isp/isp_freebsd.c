@@ -1632,23 +1632,10 @@ isp_refire_notify_ack(void *arg)
 static void
 isp_target_putback_atio(union ccb *ccb)
 {
-	ispsoftc_t *isp;
-	struct ccb_scsiio *cso;
-	void *qe;
+	ispsoftc_t *isp = XS_ISP(ccb);
+	struct ccb_scsiio *cso = &ccb->csio;
 	at2_entry_t local, *at = &local;
 
-	isp = XS_ISP(ccb);
-
-	qe = isp_getrqentry(isp);
-	if (qe == NULL) {
-		xpt_print(ccb->ccb_h.path,
-		    "%s: Request Queue Overflow\n", __func__);
-		callout_reset(&PISP_PCMD(ccb)->wdog, 10,
-		    isp_refire_putback_atio, ccb);
-		return;
-	}
-	memset(qe, 0, QENTRY_LEN);
-	cso = &ccb->csio;
 	ISP_MEMZERO(at, sizeof (at2_entry_t));
 	at->at_header.rqs_entry_type = RQSTYPE_ATIO2;
 	at->at_header.rqs_entry_count = 1;
@@ -1660,10 +1647,11 @@ isp_target_putback_atio(union ccb *ccb)
 	at->at_status = CT_OK;
 	at->at_rxid = cso->tag_id;
 	at->at_iid = cso->ccb_h.target_id;
-	isp_put_atio2(isp, at, qe);
-	ISP_TDQE(isp, "isp_target_putback_atio", isp->isp_reqidx, qe);
-	ISP_SYNC_REQUEST(isp);
-	isp_complete_ctio(ccb);
+	if (isp_target_put_entry(isp, at)) {
+		callout_reset(&PISP_PCMD(ccb)->wdog, 10,
+		    isp_refire_putback_atio, ccb);
+	} else
+		isp_complete_ctio(ccb);
 }
 
 static void
