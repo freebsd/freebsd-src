@@ -308,8 +308,6 @@ SYSINIT(vm_radix_reserve_kva, SI_SUB_KMEM, SI_ORDER_THIRD,
 
 /*
  * Initialize the UMA slab zone.
- * Until vm_radix_prealloc() is called, the zone will be served by the
- * UMA boot-time pre-allocated pool of pages.
  */
 void
 vm_radix_init(void)
