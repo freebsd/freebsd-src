@@ -215,12 +215,6 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 		isp_handle_ctio7(isp, (ct7_entry_t *) local);
 		break;
 
-	case RQSTYPE_ENABLE_LUN:
-	case RQSTYPE_MODIFY_LUN:
-		isp_get_enable_lun(isp, lunenp, (lun_entry_t *) local);
-		isp_async(isp, ISPASYNC_TARGET_ACTION, local);
-		break;
-
 	case RQSTYPE_NOTIFY:
 		bus = 0;
 		if (IS_24XX(isp)) {
