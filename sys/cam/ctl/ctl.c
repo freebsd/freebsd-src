@@ -10102,6 +10102,9 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	} else if (port_type == CTL_PORT_SAS) {
 		/* SAS (no version claimed) */
 		scsi_ulto2b(0x0BE0, inq_ptr->version3);
+	} else if (port_type == CTL_PORT_UMASS) {
+		/* USB Mass Storage Class Bulk-Only Transport, Revision 1.0 */
+		scsi_ulto2b(0x1730, inq_ptr->version3);
 	}
 
 	if (lun == NULL) {
