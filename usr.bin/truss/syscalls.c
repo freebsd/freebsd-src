@@ -99,7 +99,10 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "chdir", .ret_type = 1, .nargs = 1,
 	  .args = { { Name, 0 } } },
 	{ .name = "chflags", .ret_type = 1, .nargs = 2,
-	  .args = { { Name | IN, 0 }, { Hex, 1 } } },
+	  .args = { { Name | IN, 0 }, { FileFlags, 1 } } },
+	{ .name = "chflagsat", .ret_type = 1, .nargs = 4,
+	  .args = { { Atfd, 0 }, { Name | IN, 1 }, { FileFlags, 2 },
+		    { Atflags, 3 } } },
 	{ .name = "chmod", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Octal, 1 } } },
 	{ .name = "chown", .ret_type = 1, .nargs = 3,
@@ -125,6 +128,8 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "faccessat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Name | IN, 1 }, { Accessmode, 2 },
 		    { Atflags, 3 } } },
+	{ .name = "fchflags", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { FileFlags, 1 } } },
 	{ .name = "fchmod", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Octal, 1 } } },
 	{ .name = "fchmodat", .ret_type = 1, .nargs = 4,
@@ -189,7 +194,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "kse_release", .ret_type = 0, .nargs = 1,
 	  .args = { { Timespec, 0 } } },
 	{ .name = "lchflags", .ret_type = 1, .nargs = 2,
-	  .args = { { Name | IN, 0 }, { Hex, 1 } } },
+	  .args = { { Name | IN, 0 }, { FileFlags, 1 } } },
 	{ .name = "lchmod", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Octal, 1 } } },
 	{ .name = "lchown", .ret_type = 1, .nargs = 3,
@@ -1860,6 +1865,15 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Fadvice:
 		print_integer_arg(sysdecode_fadvice, fp, args[sc->offset]);
 		break;
+	case FileFlags: {
+		fflags_t rem;
+
+		if (!sysdecode_fileflags(fp, args[sc->offset], &rem))
+			fprintf(fp, "0x%x", rem);
+		else if (rem != 0)
+			fprintf(fp, "|0x%x", rem);
+		break;
+	}
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
