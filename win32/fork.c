@@ -1,4 +1,4 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/fork.c,v 1.11 2008/08/31 14:09:01 amold Exp $*/
+/*$Header: /p/tcsh/cvsroot/tcsh/win32/fork.c,v 1.13 2014/08/17 02:56:37 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -114,6 +114,7 @@ void *get_teb(void) {
 	if (the_tib)
 		return the_tib;
 
+#pragma warning(suppress:6309)
 	myNtCurrentTeb = (void*)GetProcAddress(LoadLibrary("ntdll.dll"),
 							"NtCurrentTeb");
 	if (!myNtCurrentTeb)
@@ -236,6 +237,7 @@ int fork(void) {
 		STR_environ = blk2short(environ);
 		environ = short2blk(STR_environ);	/* So that we can free it */
 
+        dprintf("returning 0\n");
 		return 0;
 	}
 	copy_fds();
@@ -321,6 +323,13 @@ int fork(void) {
 			dprintf("virtual allocex2 failed %d\n",GetLastError());
 			goto error;
 		}
+        {
+            char *stk,*end;
+            stk = (char*)__fork_stack_begin + sizeof(char*)- (1<<20) - 65536;
+
+            dprintf("begin is 0x%08x\n",stk);
+            end = VirtualAllocEx(hProc,stk, (1<<20)+65536 , MEM_RESERVE , PAGE_READWRITE);
+        }
 
 		// Do NOT expect existing events
 		if (!CreateWow64Events(pi.dwProcessId,&h64Parent,&h64Child,FALSE)) {
@@ -570,9 +579,9 @@ BOOL CreateWow64Events(DWORD pid, HANDLE *hParent, HANDLE *hChild,
 #pragma warning(disable:4995)
 
 	// This event tells the child to hold for gForkData to be copied
-	wsprintfA(parentname, "Local\\%d-%s",pid, TCSH_WOW64_PARENT_EVENT_NAME);
+	wsprintfA(parentname, "Local\\%u-%s",pid, TCSH_WOW64_PARENT_EVENT_NAME);
 
-	wsprintfA(childname, "Local\\%d-%s",pid, TCSH_WOW64_CHILD_EVENT_NAME );
+	wsprintfA(childname, "Local\\%u-%s",pid, TCSH_WOW64_CHILD_EVENT_NAME );
 
 #pragma warning(default:4995)
 

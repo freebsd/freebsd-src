@@ -1,4 +1,4 @@
-# $Id: Makefile.win32,v 1.15 2010/05/24 22:19:26 amold Exp $
+# $Id: Makefile.win32,v 1.17 2014/08/17 02:56:37 amold Exp $
 #	Makefile.std	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -26,7 +26,9 @@ INCLUDES=-I. -I.. -Iwin32
 DEBUG_CRTLIBS= libcmtd.lib oldnames.lib  libcpmtd.lib
 CRTLIBS= libcmt.lib oldnames.lib libcpmt.lib
 
-EXTRAFLAGS = -DWINNT_NATIVE -DNO_CRYPT -DHAVE_DIRENT_H $(EFL)
+EXTRAFLAGS = -DWINNT_NATIVE -DNO_CRYPT -DHAVE_DIRENT_H $(EFL) \
+              -wd28159 -wd28218 -wd28199 -wd6387
+
 WINDOWS_WARNING_LEVEL=-W4 -WX
 REST_WARNING_LEVEL=-WX -W3
 ANALYZE_FLAGS = -analyze
@@ -86,7 +88,7 @@ NTCFLAGS = $(NTCFLAGS) -Zp8
 !endif
 
 CFLAGS= -MT $(NTCFLAGS) $(INCLUDES) 
-LDFLAGS= -nodefaultlib $(NTLDFLAGS) -stack:1048576,524288
+LDFLAGS= -nodefaultlib $(NTLDFLAGS) -stack:1048576,524288 -dynamicbase:no
 
 
 CC=	cl 	
@@ -265,6 +267,12 @@ ed.chared.$(SUF): ed.chared.c
 	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) ed.chared.c
 ed.inputl.$(SUF): ed.inputl.c
 	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) ed.inputl.c
+
+# turn optimizations off just for these files otherwise fork doesn't work
+sh.sem.$(SUF): sh.sem.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS) -Od  -wd4748 sh.sem.c
+sh.proc.$(SUF): sh.proc.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS) -Od  -wd4748 sh.proc.c
 	
 #
 # NT dependencies and rules

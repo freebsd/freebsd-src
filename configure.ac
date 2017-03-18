@@ -7,10 +7,10 @@ dnl You'll also need a version of config.guess from a gnu package
 dnl
 dnl Written by Kaveh Ghazi (ghazi@caip.rutgers.edu) 5/11/96.
 dnl
-dnl $tcsh: configure.in,v 3.99 2012/02/13 16:33:50 christos Exp $
+dnl $tcsh: configure.ac,v 3.10 2016/11/24 15:04:52 christos Exp $
 
 AC_PREREQ([2.59])dnl Minimum Autoconf version required.
-AC_INIT([tcsh], [6.18.01], [http://bugs.gw.com/])
+AC_INIT([tcsh], [6.20.00], [http://bugs.gw.com/])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([tc.vers.c])
 AC_CONFIG_HEADERS([config.h])
@@ -99,6 +99,11 @@ case "${host}" in
     tcsh_config_file=sysV88
   ;;
 
+  ## Minix systems
+  *-*-minix*)
+    tcsh_config_file=minix
+  ;;
+
   ## NetBSD systems
   *-*-netbsd*)
     tcsh_config_file=bsd4.4
@@ -116,6 +121,11 @@ case "${host}" in
   
   ## DragonFlyBSD systems
   *-*-dragonfly*)
+    tcsh_config_file=bsd4.4
+  ;;
+
+  ## MirBSD systems
+  *-*-mirbsd*)
     tcsh_config_file=bsd4.4
   ;;
 
@@ -296,10 +306,20 @@ if test "x$GCC" != xyes ; then
   CFLAGS="$CFLAGS $NON_GNU_CFLAGS"
 fi
 
+dnl More recent Android requires PIEs
+case "${host}" in
+  *-*-android*)
+    CFLAGS="${CFLAGS} -fPIE"
+    LDFLAGS="${LDFLAGS} -pie"
+    ;;
+esac
+
 dnl Checks for libraries
 AC_SEARCH_LIBS(crypt, crypt)
 AC_SEARCH_LIBS(getspnam, sec)
-AC_SEARCH_LIBS(tgetent, termlib termcap curses ncurses)
+AC_SEARCH_LIBS([tgetent], [termlib termcap curses ncurses], [], [
+   AC_MSG_ERROR([unable to find the tgetent() function])
+])
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(connect, socket)
 AC_SEARCH_LIBS(catgets, catgets)
@@ -387,7 +407,7 @@ AC_INCLUDES_DEFAULT([])
 AC_CHECK_FUNC([setlocale], [have_setlocale=yes], [have_setlocale=no])
 AC_CHECK_FUNC([catgets], [have_catgets=yes], [have_catgets=no])
 AC_CHECK_FUNCS([dup2 getauthid getcwd gethostname getpwent] dnl
-	[getutent getutxent mallinfo memmove memset mkstemp nice] dnl
+	[getutent getutxent mallinfo mblen memmove memset mkstemp nice] dnl
 	[nl_langinfo sbrk setpgid setpriority strerror strstr sysconf wcwidth])
 AC_FUNC_GETPGRP
 AC_FUNC_MBRTOWC

@@ -1,4 +1,4 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/ntfunc.c,v 1.19 2006/08/27 01:13:28 amold Exp $*/
+/*$Header: /p/tcsh/cvsroot/tcsh/win32/ntfunc.c,v 1.22 2016/08/12 14:54:41 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -44,6 +44,7 @@
 
 #include "nt.const.h"
 
+#pragma warning(disable:6001 6011)
 
 extern DWORD gdwPlatform;
 
@@ -383,20 +384,25 @@ void dotitle(Char **vc, struct command * c) {
 	char titlebuf[512];
 	char errbuf[128],err2[128];
 	char **v;
+	Char **nvc;
 
 	UNREFERENCED_PARAMETER(c);
 	vc++;
-	vc = glob_all_or_error(vc);
-	cleanup_push(vc, blk_cleanup);
+	nvc = glob_all_or_error(vc);
+	if (nvc == NULL)
+		return;
+	if (nvc != vc)
+		cleanup_push(nvc, blk_cleanup);
 
-	if ((k=GetConsoleTitle(titlebuf,512) ) != 0) {
-		titlebuf[k]=0;
-		setcopy(STRoldtitle,str2short(titlebuf),VAR_READWRITE);
+	if ((k = GetConsoleTitle(titlebuf, sizeof(titlebuf))) != 0) {
+		setcopy(STRoldtitle,str2short(titlebuf),
+		    VAR_READWRITE|VAR_NOGLOB);
 	}
 
-	memset(titlebuf,0,512);
-	v = short2blk(vc);
-	cleanup_until(vc);
+	titlebuf[0] = '\0';
+	v = short2blk(nvc);
+	if (nvc != vc)
+		cleanup_until(nvc);
 	cleanup_push((Char **)v, blk_cleanup);
 	for (k = 0; v[k] != NULL ; k++){
 		__try {
@@ -624,7 +630,7 @@ void init_shell_dll(void) {
 			break;
 		ptr++;
 	}
-#if NTDBG
+#if NTDBG_X
 	for(i=0;i<20,no_assoc_array[i] != NULL;i++)
 		dprintf("no_assoc array %d inited remains %s\n",i,no_assoc_array[i]);
 #endif NTDBG
@@ -772,7 +778,7 @@ int nt_try_fast_exec(struct command *t) {
 	register struct varent *v;
 	register int hashval,i;
 	register int slash;
-	int rc = 0, gflag;
+	int rc = 1, gflag;
 	Char *vp;
 	Char   *blk[2];
 

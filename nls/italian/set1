@@ -1,4 +1,4 @@
-$ $tcsh: set1,v 1.3 2011/02/04 18:19:38 christos Exp $
+$ $tcsh: set1,v 1.4 2015/05/26 17:38:25 christos Exp $
 $ Error messages
 $set 1 
 1 Errore di Sintassi
@@ -8,7 +8,7 @@ $set 1
 5 Nessun file per $0
 6 Modificatore [] incompleto
 7 L'espansione $ deve terminare prima di ]
-8 Modificatore sbagliato in $ (%c)
+8 Modificatore sbagliato in $ '%c'
 9 Errore di indice
 10 Numero non corretto
 11 Sono senza parole
@@ -51,8 +51,8 @@ $set 1
 48 Non in un while/foreach
 49 Ho finito i processi
 50 Corrispondenza non esistente
-51 %c mancante
-52 %c non corrispondente
+51 '%c' mancante
+52 '%c' non corrispondente
 53 Memoria esaurita
 54 Non posso creare una pipe
 55 %s: %s
@@ -93,7 +93,7 @@ $set 1
 90 Sostituzione sbagliata
 91 Non esiste il precedente lato sinistro
 92 Lato destro troppo lungo
-93 Modificatore ! errato: %c
+93 Modificatore ! errato: '%c'
 94 Il modificatore non ha funzionato
 95 Overflow di buffer nella sostituzione
 96 Errato selettore ! di argomento
@@ -118,7 +118,7 @@ $set 1
 115 Al di fuori dello spazio stringa del termcap
 116 Utilizzo: settc %s [yes|no]
 117 Capacità `%s' sconosciuta
-118 Parametro del termcap `%%%c' sconosciuto
+118 Parametro del termcap '%%%c' sconosciuto
 119 Troppi argomenti per `%s' (%d)
 120 `%s' richiede %d argomenti
 121 Utilizzo: echotc [-v|-s] [<capacità> [<argomenti>]]
@@ -137,4 +137,4 @@ $set 1
 134 Utilizzo: unlimit [-fh] [limiti]
 135 $%S è a sola lettura
 136 Non esiste il lavoro
-137 Variabile `%c%c colorls' sconosciuta
+137 Variabile '%c%c colorls' sconosciuta

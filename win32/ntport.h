@@ -1,4 +1,4 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/ntport.h,v 1.14 2010/05/23 17:20:32 amold Exp $*/
+/*$Header: /p/tcsh/cvsroot/tcsh/win32/ntport.h,v 1.15 2014/08/13 23:39:34 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -226,6 +226,7 @@ typedef size_t caddr_t;
 typedef int sig_atomic_t;
 typedef int mode_t;
 typedef UINT32 uint32_t;
+typedef unsigned char uint8_t;
 
 struct timeval{
 	long tv_sec;

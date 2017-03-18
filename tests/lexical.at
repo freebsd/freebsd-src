@@ -30,6 +30,8 @@ AT_CLEANUP
 
 AT_SETUP([Comments])
 
+AT_CHECK([if [ ! -t 0 ]; then exit 77; fi],, [Skipping comment tests])
+
 AT_CHECK([echo 'echo OK@%:@comment' | tcsh -f], , [OK
 ])
 
@@ -69,11 +71,11 @@ Invalid null command.
 
 # backslash handling tested with $backslash_quote
 
-AT_CHECK([tcsh -f -c 'echo "foo\"bar"'], 1, , [Unmatched ".
+AT_CHECK([tcsh -f -c 'echo "foo\"bar"'], 1, , [Unmatched '"'.
 ])
 dnl " Pacify emacs
 
-AT_CHECK([tcsh -f -c "echo 'foo\'bar'"], 1, , [Unmatched '.
+AT_CHECK([tcsh -f -c "echo 'foo\'bar'"], 1, , [Unmatched '''.
 ])
 
 AT_CLEANUP
@@ -541,6 +543,86 @@ arg1 arg2
 3
 0
 `"{}$@'
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Quoting of expansions in `...`])
+
+AT_DATA([batchsystem.properties],
+[[# Path to job setting file
+asyncjobinfo.uri=file:///usr/bns/stbns01/batch/app/properties/asyncjobinfo.xml
+purebatchjobinfo.uri=file:///usr/bns/stbns01/batch/app/properties/purebatchjobinfo.xml
+
+# DB connection info
+jdbc_url=jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=bns03)))
+sub_url=jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=bns03)))
+mss_url=jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=bns03)))
+dbuser=stbns01bt
+dbpasswd=stbns01bt
+
+# OnBatch listener
+run=3
+]])
+AT_DATA([uniformity_test.csh],
+[[
+set SERVICE_NAME_LOG = `cat batchsystem.properties | grep '^jdbc_url' | sed -ne 's/^[^=]*=[^@]*@[:blank:]*\([^$]*\)$/\1/p' | perl -pe 's/\s//g'  |  perl -pe 's/\)/\\\)/g' | perl -pe 's/\(/\\\(/g'`
+echo -n "$SERVICE_NAME_LOG" > ./output1
+
+cat batchsystem.properties | grep '^jdbc_url' | sed -ne 's/^[^=]*=[^@]*@[:blank:]*\([^$]*\)$/\1/p' | perl -pe 's/\s//g'  |  perl -pe 's/\)/\\\)/g' | perl -pe 's/\(/\\\(/g' > ./output2
+
+diff -uprN ./output1 ./output2 >& /dev/null
+
+if ( $? != 0 ) then
+  echo -n 'FAIL: tcsh does not have uniform output when `...` is used!'
+  exit 1
+else
+  echo -n 'OK'
+  exit 0
+endif
+]])
+AT_DATA([quoting_result_test.csh],
+[[
+echo "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP\)(HOST=db\)(PORT=1521\)\)(CONNECT_DATA=(SERVER=DEDICATED\)(SERVICE_NAME=bns03\)\)\)" > ./expected_result
+
+set string = "jdbc_url=jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db)(PORT=1521))(CONNECT_DATA=(SERVER=DEDICATED)(SERVICE_NAME=bns03)))"
+set SERVICE_NAME_LOG  = `echo "$string" | grep '^jdbc_url' | sed -ne 's/^[^=]*=[^@]*@[:blank:]*\([^$]*\)$/\1/p' | perl -pe 's/\)/\\\)/g'`
+
+echo "$SERVICE_NAME_LOG" > ./actual_result
+
+diff -uprN ./expected_result ./actual_result >& /dev/null
+
+if ( $? != 0 ) then
+  echo -n 'FAIL: tcsh has unexpected result when `...` is used!'
+  exit 1
+else
+  echo -n 'OK'
+  exit 0
+endif
+]])
+AT_CHECK([tcsh -f uniformity_test.csh], 0,[OK])
+AT_CHECK([tcsh -f quoting_result_test.csh], 0, [OK])
+
+AT_CLEANUP
+
+AT_SETUP([\echo for git_tcsh_completion])
+
+AT_DATA([escape_echo.csh],
+[[
+set myvar = `\echo "1 2 3"`
+echo ${myvar}
+echo ${myvar[1]}
+echo ${myvar[2]}
+echo ${myvar[3]}
+exit 0
+]])
+
+AT_CHECK([tcsh -f escape_echo.csh], 0,
+[1 2 3
+1
+2
+3
 ])
 
 AT_CLEANUP

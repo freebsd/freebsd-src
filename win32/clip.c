@@ -1,4 +1,4 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/clip.c,v 1.9 2006/03/05 08:59:36 amold Exp $*/
+/*$Header: /p/tcsh/cvsroot/tcsh/win32/clip.c,v 1.10 2014/08/13 23:39:34 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -240,6 +240,9 @@ CCRETVAL e_paste_from_clipboard(Char c) {
 	hclip = GetClipboardData(CF_TEXT);
 	if (hclip) {
 		clipbuf = (unsigned char*)GlobalLock(hclip);
+        if(!clipbuf) {
+            return CC_ERROR;
+        }
 
 		cbp = clipbuf;
 		len = 0;
@@ -407,6 +410,9 @@ void clip_reader_proc(HANDLE houtpipe) {
 
 	obsize = 4096;
 	outbuf = heap_alloc(obsize);
+    if(!outbuf) {
+        return;
+    }
 	ptr = outbuf;
 
 
@@ -421,6 +427,9 @@ void clip_reader_proc(HANDLE houtpipe) {
 	hclip = GetClipboardData(CF_TEXT);
 	if (hclip) {
 		clipbuf = (unsigned char*)GlobalLock(hclip);
+        if(!clipbuf) {
+            goto done;
+        }
 
 		cbp = clipbuf;
 

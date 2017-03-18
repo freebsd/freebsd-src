@@ -1,47 +1,4 @@
-tcsh Windows NT version
------------------------
-
-You can get current binaries for this version of tcsh from 
-ftp.blarg.net:users/amol/tcsh.
-
---------------------------------------------------------------------------
-NT sources for tcsh can be now found in the same place as
-the unix tcsh sources, via anonymous ftp from ftp.astron.com.
-The location is /pub/tcsh.
-
-Files to get:
-
-tcsh-6.xx.tar.gz  - Basic Unix source
-tcsh-6.xxwin32src.tar.gz - Extracts into "win32" subdirectory of basic source.
-
-Pre-compiled binaries and html docs for Alpha and x86 can also be
-found in the same location.
---------------------------------------------------------------------------
-
-Send comments/bug-fixes/questions to amol@blarg.net 
-
-(Any requests to make tcsh more like DOS shells will be ignored. If you 
-like DOS shells, use them. tcsh provides unix shell behaviour on windows,
-not the other way around.)
-
-Please do not ask me general shell questions either. If you've never
-used a unix shell, read the man pages and docs. Read the comp.unix.shell
-FAQ.
-
-Bug reports that do not contain your operating system type will
-also be ignored.
-
-Bug reports that can be solved by reading the docs or  README.NT will be 
-ignored as well.
-
-Microsoft Corporation has nothing to do with this code. It is not supported in
-any fashion by Microsoft.
-
 -----------------------------------------------------------------------------
-This is NOT a Cygwin gcc version. It will not compile with Cygwin gcc or
-work seamlessly with Cygwin apps. Do NOT ask me to hack support for Cygwin
-'mount points' unless you are willing to provide the translation code.
-
 To prevent Cygwin applications from expanding wildcards, set the environment
 variable CYGWIN to "noglob".  i.e., in your .tcshrc, put a line like this:
 
@@ -59,10 +16,6 @@ DOS-style paths.
 
 Compiling:
 ---------
-You will need sed to generate some headers.
-
-You must extract the win32src.tar.gz into a subdirectory of the basic
-unix source.
 
 tcsh currently only compiles with Microsoft Visual C++ (2.0 and greater) on 
 x86 or Alpha platforms. Simply copy config/win32 to config.h and 
@@ -70,7 +23,6 @@ win32/makefile.win32 to the base directory.
 
 run nmake -f makefile.win32
 
-If you plan to contribute changes, PLEASE read the file CODING
 
 (Note: This distribution does not have a VC project. To compile the shell,
 you will need to open a cmd.exe/command.com window, run vcvars32.bat from
@@ -154,10 +106,6 @@ environment, tcsh will hash CALC.EXE as CALC.EXE as well as "calc").
 
 Special Variables
 -----------------
-* The tcsh "complete" variable can be set to igncase and  will cause the shell 
-  to ignore case in completion. This is slightly different from
-  the behaviour of complete=enhance, which should still work as before.
-
 * oldtitle: 
 
   Stores the previous value of the console title, when you use
@@ -316,10 +264,6 @@ Notes:
   anymore. 'ls' is pretty much a requirement unless you never do  'ls -l'.
 
 
-* tcsh was compiled with Visual C++ >= 4.2. I don't guarantee it will compile
-  with any other compilers, but it should. It will *not* compile with the
-  Cygwin gcc port, so don't even tell me about it. 
-
 * It should be pointed out that there is also a Cygwin version of tcsh that 
   will compile with gcc and provide all the other features emulated by the
   Cygwin runtime (like job control, signals, etc.). So, if you are looking for
@@ -330,19 +274,10 @@ Notes:
 Startup Files:
 --------------
 
-For Windows 95: 
-	<windows_directory>/.tcshrc
-	For Example, C:\WINDOWS\.tcshrc
 
-For Windows NT:
-	version 3.51: <getenv(HOMEDRIVE)/getenv(HOMEPATH)/.tcshrc>
-	Usually something like C:\USERS\DEFAULT\.tcshrc
+ getenv(USERPROFILE)/.tcshrc
 
-	version 4.00: <getenv(USERPROFILE)/.tcshrc)
-	Usually something like C:\WINNT\USERS\amold\profile\.tcshrc
-
-These can all be overridden by setting HOME in the user's environment
-
+This can be overridden by setting HOME in the user's environment
 
 
 * TCSHLANG: NLS support
@@ -484,18 +419,6 @@ The color-ls patch in 6.07.09 implements parsing for ANSI escapes. To keep
 the prompt specification consistent with the availablity of this feature,
 the literal string will now accept ANSI escapes like color-ls would.
 
-The shell can be compiled for the old behaviour, but I don't recommend it.
-
-I'm aware this is a major incompatibility, but I think the change is
-worthwhile.
-
-As an example, here is my new prompt, with the old one as a reference. 
-
-#old specification
-#   set prompt='%{f9%}%c03%{gg%}\>'
-#   set prompt3 = '%{fc%}Correct to %R ?(y|n|e)%{gg%} '
-
-# new spec.
     set prompt='%{^[[1;34m%}%c03%{^[[0m%}\>'
 	set prompt3='%{^[[1;31m%}Correct to %R ?(y|n|e)%{^[[0m%} '
 #
@@ -507,31 +430,7 @@ of systems. More so if you already have an external color-ls.
 
 watch:
 -----
-Since rev 3.12, support (ha ha) for the watch variable has been added. This
-will work only on a Microsoft Windows Network, i.e, where computers
-participate in an NT domain. Here is how tcsh will work if your network
-configuration is to its taste:
-
-	set watch=(2 AMOLD SKYNYRD any LYNYRD)
-
-sets a watch for AMOLD on machine SKYNYRD, and any user on machine LYNYRD. The
-watch interval is 2 minutes.
-
-Note that these are NETBIOS names, and hence the results may be flaky. There
-is no good way to distinguish computer names from user names in a netbios name
-table (even a good guess is very expensive), so be prepared for unexpected
-results. 
-
-There may be problems depending on what protocol is on lana number 0.
-(This will usually be shown (and/or set) on NT in the properties for the
-NETBIOS interface in the control panel/networks applet. Win95 is screwed up,
-and if you have more than one protocol, watch may not work. Don't bug me 
-about it)
-
-Also note that names must all be uppercase. 
-
-The default time interval of 10 minutes is probably good, since you don't want
-to generate too much network traffic.
+Deprecated since Windows does not ship NETBIOS any more
 
 Nice:
 -----
