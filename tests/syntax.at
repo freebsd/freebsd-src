@@ -28,8 +28,9 @@ AT_CHECK([[tcsh -f -c '(sleep 1; echo async) & echo sync; wait' \
 [[[1] @&t@
 sync
 async
-[1]    Done                          ( sleep 1; echo async )
-]])
+]],
+[[[1]    Done                          ( sleep 1; echo async )]]
+)
 
 AT_CLEANUP
 
@@ -159,5 +160,31 @@ AT_CHECK([cat output], ,
 AT_CHECK([tcsh -f -c '(echo $this_does_not_exist) |& cat'], 1,
 [this_does_not_exist: Undefined variable.
 ])
+
+dnl noclobber=notempty
+echo Hello > output
+AT_CHECK([tcsh -f -c 'set noclobber=notempty; echo OK >& output'], 1, [],
+[output: File exists.
+])
+
+rm -f output
+touch output
+AT_CHECK([tcsh -f -c 'set noclobber=notempty; echo OK >& output'])
+AT_CHECK([cat output], ,
+[OK
+])
+
+dnl noclobber=ask
+dnl touch output
+dnl AT_CHECK([tcsh -f -c 'set noclobber=ask; echo "n" | echo OK >& output'], 0, [],
+dnl [output: File exists.
+dnl ])
+dnl T_CHECK([tcsh -f -c 'set noclobber=ask; echo "y" | echo OK >& output'])
+
+dnl noclobber=(notempty ask)
+dnl rm -f output
+dnl touch output
+dnl AT_CHECK([tcsh -f -c 'set noclobber=(notempty ask); echo OK >& output'])
+
 
 AT_CLEANUP

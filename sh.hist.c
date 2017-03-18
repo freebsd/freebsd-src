@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.hist.c,v 3.53 2011/01/24 18:10:26 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.hist.c,v 3.61 2015/06/06 21:19:08 christos Exp $ */
 /*
  * sh.hist.c: Shell history expansions and substitutions
  */
@@ -32,10 +32,12 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.hist.c,v 3.53 2011/01/24 18:10:26 christos Exp $")
+RCSID("$tcsh: sh.hist.c,v 3.61 2015/06/06 21:19:08 christos Exp $")
 
+#include <stdio.h>	/* for rename(2), grr. */
 #include <assert.h>
 #include "tc.h"
+#include "dotlock.h"
 
 extern int histvalid;
 extern struct Strbuf histline;
@@ -68,11 +70,11 @@ static	void	hfree	(struct Hist *);
 
 static const int fastMergeErase = 1;
 static unsigned histCount = 0;		/* number elements on history list */
+static int histlen = 0;
 static struct Hist *histTail = NULL;     /* last element on history list */
 static struct Hist *histMerg = NULL;	 /* last element merged by Htime */
 
 static void insertHistHashTable(struct Hist *, unsigned);
-
 
 /* Insert new element (hp) in history list after specified predecessor (pp). */
 static void
@@ -107,7 +109,7 @@ hremove(struct Hist *hp)
 
 /* Prune length of history list to specified size by history variable. */
 PG_STATIC void
-discardExcess(int histlen)
+discardExcess(int hlen)
 {
     struct Hist *hp, *np;
     if (histTail == NULL) {
@@ -117,23 +119,23 @@ discardExcess(int histlen)
     /* Prune dummy entries from the front, then old entries from the back. If
      * the list is still too long scan the whole list as before.  But only do a
      * full scan if the list is more than 6% (1/16th) too long. */
-    while (histCount > (unsigned)histlen && (np = Histlist.Hnext)) {
-        if (eventno - np->Href >= histlen || histlen == 0)
+    while (histCount > (unsigned)hlen && (np = Histlist.Hnext)) {
+        if (eventno - np->Href >= hlen || hlen == 0)
             hremove(np), hfree(np);
         else
             break;
     }
-    while (histCount > (unsigned)histlen && (np = histTail) != &Histlist) {
-        if (eventno - np->Href >= histlen || histlen == 0)
+    while (histCount > (unsigned)hlen && (np = histTail) != &Histlist) {
+        if (eventno - np->Href >= hlen || hlen == 0)
             hremove(np), hfree(np);
         else
             break;
     }
-    if (histCount - (histlen >> 4) <= (unsigned)histlen)
+    if (histCount - (hlen >> 4) <= (unsigned)hlen)
 	return;				/* don't bother doing the full scan */
-    for (hp = &Histlist; histCount > (unsigned)histlen &&
+    for (hp = &Histlist; histCount > (unsigned)hlen &&
 	(np = hp->Hnext) != NULL;)
-        if (eventno - np->Href >= histlen || histlen == 0)
+        if (eventno - np->Href >= hlen || hlen == 0)
             hremove(np), hfree(np);
         else
             hp = np;
@@ -145,20 +147,9 @@ savehist(
   struct wordent *sp,
   int mflg)				/* true if -m (merge) specified */
 {
-    int histlen = 0;
-    Char   *cp;
-
     /* throw away null lines */
     if (sp && sp->next->word[0] == '\n')
 	return;
-    cp = varval(STRhistory);
-    while (*cp) {
-	if (!Isdigit(*cp)) {
-	    histlen = 0;
-	    break;
-	}
-	histlen = histlen * 10 + *cp++ - '0';
-    }
     if (sp)
         (void) enthist(++eventno, sp, 1, mflg, histlen);
     discardExcess(histlen);
@@ -711,9 +702,9 @@ discardHistHashTable(void)
 
 /* Computes a new hash table size, when the current one is too small. */
 static unsigned
-getHashTableSize(int histlen)
+getHashTableSize(int hlen)
 {
-    unsigned target = histlen * 2;
+    unsigned target = hlen * 2;
     unsigned e = 5;
     unsigned size;
     while ((size = 1<<e) < target)
@@ -729,17 +720,16 @@ getHashTableSize(int histlen)
 
 /* Create the hash table or resize, if necessary. */
 static void
-createHistHashTable(int histlen)
+createHistHashTable(int hlen)
 {
-    if (histlen == 0) {
+    if (hlen == 0) {
 	discardHistHashTable();
         return;
     }
-    if (histlen < 0) {
-        histlen = getn(varval(STRhistory));
-	if (histlen == 0)
+    if (hlen < 0) {
+	if (histlen <= 0)
 	    return;			/* no need for hash table */
-	assert(histlen > 0);
+	hlen = histlen;
     }
     if (histHashTable != NULL) {
 	if (histCount < histHashTableLength * 3 / 4)
@@ -747,7 +737,7 @@ createHistHashTable(int histlen)
 	discardHistHashTable();		/* too small */
     }
     histHashTableLength = getHashTableSize(
-	histlen > (int)histCount ? histlen : (int)histCount);
+	hlen > (int)histCount ? hlen : (int)histCount);
     histHashTable = xmalloc(histHashTableLength * sizeof(struct Hist *));
     memset(histHashTable, 0, histHashTableLength * sizeof(struct Hist *));
     assert(histHashTable[0] == emptyHTE);
@@ -934,7 +924,7 @@ enthist(
   struct wordent *lp,
   int docopy,
   int mflg,				/* true if merge requested */
-  int histlen)				/* -1 if unknown */
+  int hlen)				/* -1 if unknown */
 {
     struct Hist *p = NULL, *pp = &Histlist, *pTime = NULL;
     struct Hist *np;
@@ -944,7 +934,7 @@ enthist(
     if ((dp = varval(STRhistdup)) != STRNULL) {
 	if (eq(dp, STRerase)) {
 	    /* masaoki@akebono.tky.hp.com (Kobayashi Masaoki) */
-            createHistHashTable(histlen);
+            createHistHashTable(hlen);
             lpHash = hashhist(lp);
             assert(lpHash != 0);
             p = findHistHashTable(lp, lpHash);
@@ -963,7 +953,7 @@ enthist(
 	    }
 	}
 	else if (eq(dp, STRall)) {
-            createHistHashTable(histlen);
+            createHistHashTable(hlen);
             lpHash = hashhist(lp);
             assert(lpHash != 0);
             p = findHistHashTable(lp, lpHash);
@@ -1031,7 +1021,7 @@ enthist(
     else
         pp = &Histlist;                 /* insert at beginning of history */
     hinsert(np, pp);
-    if (lpHash && histlen != 0)		/* erase & all modes use hash table */
+    if (lpHash && hlen != 0)		/* erase & all modes use hash table */
         insertHistHashTable(np, lpHash);
     else
         discardHistHashTable();
@@ -1053,6 +1043,8 @@ hfree(struct Hist *hp)
 PG_STATIC void
 phist(struct Hist *hp, int hflg)
 {
+    if (hp->Href < 0)
+	return;
     if (hflg & HIST_ONLY) {
 	int old_output_raw;
 
@@ -1207,7 +1199,7 @@ fmthist(int fmt, ptr_t ptr)
 	    buf = xmalloc(Strlen(istr) * MB_LEN_MAX + 1);
 
 	    for (p = buf, ip = istr; *ip != '\0'; ip++)
-		p += one_wctomb(p, CHAR & *ip);
+		p += one_wctomb(p, *ip);
 
 	    *p = '\0';
 	    xfree(istr);
@@ -1220,13 +1212,21 @@ fmthist(int fmt, ptr_t ptr)
     }
 }
 
+static void
+dotlock_cleanup(void* lockpath)
+{
+	dot_unlock((char*)lockpath);
+}
+
 /* Save history before exiting the shell. */
 void
 rechist(Char *fname, int ref)
 {
-    Char    *snum;
+    Char    *snum, *rs;
     int     fp, ftmp, oldidfds;
     struct varent *shist;
+    char path[MAXPATHLEN];
+    struct stat st;
     static Char   *dumphist[] = {STRhistory, STRmhT, 0, 0};
 
     if (fname == NULL && !ref) 
@@ -1255,12 +1255,14 @@ rechist(Char *fname, int ref)
      * with numerous shells being in simultaneous use. Imagine
      * any kind of window system. All these shells 'share' the same 
      * ~/.history file for recording their command line history. 
-     * Currently the automatic merge can only succeed when the shells
-     * nicely quit one after another. 
+     * We try to handle the case of multiple shells trying to merge
+     * histories at the same time, by creating semi-unique filenames
+     * and saving the history there first and then trying to rename
+     * them in the proper history file.
      *
      * Users that like to nuke their environment require here an atomic
-     * 	loadhist-creat-dohist(dumphist)-close
-     * sequence.
+     * loadhist-creat-dohist(dumphist)-close sequence which is given
+		 * by optional lock parameter to savehist.
      *
      * jw.
      */ 
@@ -1271,16 +1273,49 @@ rechist(Char *fname, int ref)
      */
     oldidfds = didfds;
     didfds = 0;
-    if ((shist = adrof(STRsavehist)) != NULL && shist->vec != NULL)
-	if (shist->vec[1] && eq(shist->vec[1], STRmerge))
-	    loadhist(fname, 1);
+    if ((shist = adrof(STRsavehist)) != NULL && shist->vec != NULL) {
+	size_t i;
+	int merge = 0, lock = 0;
 
-    fp = xcreat(short2str(fname), 0600);
-    cleanup_until(fname);
+	for (i = 1; shist->vec[i]; i++) {
+	    if (eq(shist->vec[i], STRmerge))
+		merge++;
+	    if (eq(shist->vec[i], STRlock))
+		lock++;
+	}
+
+	if (merge) {
+	    if (lock) {
+#ifndef WINNT_NATIVE
+		char *lockpath = strsave(short2str(fname));
+		cleanup_push(lockpath, xfree);
+		/* Poll in 100 miliseconds interval to obtain the lock. */
+		if ((dot_lock(lockpath, 100) == 0))
+		    cleanup_push(lockpath, dotlock_cleanup);
+#endif
+	    }
+	    loadhist(fname, 1);
+	}
+    }
+    rs = randsuf();
+    xsnprintf(path, sizeof(path), "%S.%S", fname, rs);
+    xfree(rs);
+
+    fp = xcreat(path, 0600);
     if (fp == -1) {
 	didfds = oldidfds;
+	cleanup_until(fname);
 	return;
     }
+    /* Try to preserve ownership and permissions of the original history file */
+#ifndef WINNT_NATIVE
+    if (stat(short2str(fname), &st) != -1) {
+	TCSH_IGNORE(fchown(fp, st.st_uid, st.st_gid));
+	TCSH_IGNORE(fchmod(fp, st.st_mode));
+    }
+#else
+    UNREFERENCED_PARAMETER(st);
+#endif
     ftmp = SHOUT;
     SHOUT = fp;
     dumphist[2] = snum;
@@ -1288,6 +1323,8 @@ rechist(Char *fname, int ref)
     xclose(fp);
     SHOUT = ftmp;
     didfds = oldidfds;
+    (void)rename(path, short2str(fname));
+    cleanup_until(fname);
 }
 
 
@@ -1316,4 +1353,11 @@ loadhist(Char *fname, int mflg)
         while ((hp = hp->Hnext))
 	    hp->Hnum = hp->Href = n--;
     }
+}
+
+void
+sethistory(int n)
+{
+    histlen = n;
+    discardExcess(histlen);
 }

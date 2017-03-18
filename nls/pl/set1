@@ -8,7 +8,7 @@ $set 1
 5 Brak pliku dla $0
 6 Niekompletny modyfikator []
 7 ekspansja $ musi zakończyć się przed ]
-8 Błąd : modyfikator w $ (%c)
+8 Błąd : modyfikator w $ '%c'
 9 Błąd subskrypcji
 10 Źle stworzona liczba
 11 Brak słów
@@ -51,8 +51,8 @@ $set 1
 48 Nie w while/foreach
 49 Brak innych procesów
 50 Brak pasujących
-51 Brakuje %c
-52 Niedopasowany %c
+51 Brakuje '%c'
+52 Niedopasowany '%c'
 53 Brak pamięci
 54 Nie mogę stworzyć potoku
 55 %s: %s
@@ -93,7 +93,7 @@ $set 1
 90 Złe dopasowanie
 91 No previous left hand side
 92 Right hand side too long
-93 Zły modyfikator ! : %c
+93 Zły modyfikator ! : '%c'
 94 Modyfikator zawiódł
 95 Przepełnienie bufora dopasowania
 96 Zły ! selektor argumentów
@@ -118,7 +118,7 @@ $set 1
 115 Brak miejsc w łańcuchu termcap
 116 Użycie: settc %s [yes|no]
 117 Nieznana zdolność `%s'
-118 Nieznany parametr termcap `%%%c'
+118 Nieznany parametr termcap '%%%c'
 119 Zbyt wiele argumentów dla `%s' (%d)
 120 `%s' requires %d arguments
 121 Użycie: echotc [-v|-s] [<zdolność> [<argumenty>]]
@@ -137,4 +137,4 @@ $set 1
 134 Użycie: unlimit [-fh] [limity]
 135 $%S jest tylko-do-odczytu
 136 Brak takiej pracy
-137 Nieznana zmienna colorls `%c%c'
+137 Nieznana zmienna colorls '%c%c'

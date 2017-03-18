@@ -1,0 +1,63 @@
+# Parenthesis handling
+
+AT_SETUP([Parenthesis no space])
+AT_DATA([no-space.csh],
+[[
+if(1 == 1) then
+  echo 1
+else
+  if (2 == 22 )then
+    echo 2
+  endif
+  echo 3
+endif
+]])
+AT_CHECK([tcsh -f < no-space.csh], ,[1
+])
+
+AT_CLEANUP
+
+AT_SETUP([Parenthesis space])
+AT_DATA([space.csh],
+[[
+if (1 == 1) then
+  echo 1
+else
+  if (2 == 22 ) then
+    echo 2
+  endif
+  echo 3
+endif
+]])
+AT_CHECK([tcsh -f < space.csh], ,[1
+])
+
+AT_CLEANUP
+
+AT_SETUP([Parenthesis space escaped])
+AT_DATA([space-escaped.csh],
+[[
+if (1 == 1) then
+  echo 1
+else
+  if (2 == 22 )\ then
+    echo 2
+  endif
+  echo 3
+endif
+]])
+AT_CHECK([tcsh -f < space-escaped.csh], ,[1
+])
+AT_CLEANUP
+
+AT_SETUP([Parenthesis escaped])
+AT_DATA([parenthesis-escaped.csh],
+[[
+if ( ')' == \) ) then
+  echo 1
+endif
+]])
+AT_CHECK([tcsh -f < parenthesis-escaped.csh], ,[1
+])
+AT_CLEANUP
+

@@ -1,4 +1,4 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/dirent.c,v 1.9 2006/04/07 00:57:59 amold Exp $*/
+/*$Header: /p/tcsh/cvsroot/tcsh/win32/dirent.c,v 1.10 2014/08/13 23:39:34 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -98,6 +98,9 @@ DIR * opendir(const char *inbuf) {
 
     buflen = lstrlen(buf) + 4;
     tmp= (char *)heap_alloc(buflen); 
+    if(!tmp) {
+        return NULL;
+    }
 
     if ( (buf[0] == '/') && (buf[1] != '/') ) {
 	(void)StringCbPrintf(tmp,buflen, "%c:%s*",
@@ -112,6 +115,9 @@ DIR * opendir(const char *inbuf) {
     }
 
     dptr = (DIR *)heap_alloc(sizeof(DIR));
+    if(!dptr) {
+        return NULL;
+    }
     dptr->dd_fd = INVALID_HANDLE_VALUE;
     if (!dptr){
 	errno = ENOMEM;
@@ -315,6 +321,9 @@ HANDLE open_enum(char *server, WIN32_FIND_DATA *fdata) {
 		return INVALID_HANDLE_VALUE;
 	
 	hnet = heap_alloc(sizeof(nethandle_t));
+        if(!hnet) {
+            return INVALID_HANDLE_VALUE;
+        }
 	hnet->netres = heap_alloc(1024);/*FIXBUF*/
 	hnet->henum = henum;
 

@@ -85,8 +85,7 @@
  * also define _POSIX_C_SOURCE, which throws our code off.
  */
 
-#define _BSD_SOURCE
-#define _SVID_SOURCE
+#define _DEFAULT_SOURCE
 #define _POSIX_SOURCE
 #define _XOPEN_SOURCE 500
 #define _GNU_SOURCE
@@ -101,7 +100,7 @@
 
 /****************** local defines *********************/
 #ifndef _PATH_TCSHELL
-#define _PATH_TCSHELL "/system/bin/tcsh"
+#define _PATH_TCSHELL "/system/xbin/tcsh"
 #endif
 #define ECHO_STYLE      BOTH_ECHO
 

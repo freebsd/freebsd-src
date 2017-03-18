@@ -1,4 +1,4 @@
-/*$Header: /p/tcsh/cvsroot/tcsh/win32/globals.c,v 1.11 2008/09/10 20:34:21 amold Exp $*/
+/*$Header: /p/tcsh/cvsroot/tcsh/win32/globals.c,v 1.12 2014/08/13 23:39:34 amold Exp $*/
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.
  * All rights reserved.
@@ -150,7 +150,7 @@ int is_gui(char *exename) {
                 return 0;
         }
 
-        ReadFile(hImage, &dh, sizeof(struct DosHeader), &bytes,&overlap);
+        (void)ReadFile(hImage, &dh, sizeof(struct DosHeader), &bytes,&overlap);
         CHECK_IO(hImage,&overlap);
 
 
@@ -161,7 +161,7 @@ int is_gui(char *exename) {
         // read from the coffheaderoffset;
         overlap.Offset = dh.doshdr.e_lfanew;
 
-        ReadFile(hImage, &ntSignature, sizeof(ULONG), &bytes,&overlap);
+        (void)ReadFile(hImage, &ntSignature, sizeof(ULONG), &bytes,&overlap);
         CHECK_IO(hImage,&overlap);
 
         if (IMAGE_NT_SIGNATURE != ntSignature) {
@@ -170,7 +170,7 @@ int is_gui(char *exename) {
         overlap.Offset = dh.doshdr.e_lfanew + sizeof(ULONG) +
                 sizeof(IMAGE_FILE_HEADER);
 
-        ReadFile(hImage, &optionalhdr,IMAGE_SIZEOF_NT_OPTIONAL_HEADER, &bytes,&overlap);
+        (void)ReadFile(hImage, &optionalhdr,IMAGE_SIZEOF_NT_OPTIONAL_HEADER, &bytes,&overlap);
         CHECK_IO(hImage,&overlap);
 
         if (optionalhdr.Subsystem ==IMAGE_SUBSYSTEM_WINDOWS_GUI)

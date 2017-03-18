@@ -1,0 +1,17 @@
+#
+# Create the HTML version of the manual page
+#
+
+CGI=tcsh.html/tcsh.cgi
+
+tcsh.html/top.html: tcsh.man tcsh.man2html
+	perl tcsh.man2html -i
+	-rm -f tcsh.html/index.html
+	chmod -R a+rX tcsh.html
+	mv ${CGI} ${CGI}.bak
+	sed -e '1s,^.*$$,#!/usr/bin/perl,' < ${CGI}.bak > ${CGI}
+	chmod a+rx ${CGI}
+	rm -f ${CGI}.bak
+
+clean:
+	-rm -rf tcsh.html

@@ -702,9 +702,10 @@ echo fail
 # onintr - is necessary to keep setintr == 0; should dohup () be checking
 # something else?
 AT_CHECK([tcsh -f -c 'onintr -; nohup tcsh -f hup.csh' < /dev/null], ignore,
-[OK
-Hangup
-])
+[[OK
+]],
+[[Hangup]]
+)
 
 # The prefix form requires job control and is not tested
 
@@ -782,8 +783,9 @@ AT_DATA([kill.csh],
 kill -USR1 $$
 ]])
 AT_CHECK([tcsh -f -c 'tcsh -f -i -q < kill.csh'], ignore,
-[> User signal 1
-])
+[[> ]],
+[[User signal 1]]
+)
 
 # kill %job, kill -l untested untested
 
@@ -1203,7 +1205,7 @@ AT_SETUP([source])
 AT_DATA([script.csh],
 [[set var=$1
 ]])
-AT_CHECK([[tcsh -f -c 'source -h script.csh foo; history' \
+AT_CHECK([[tcsh -i -f -c 'source -h script.csh foo; history' \
 	   | sed 's/	[^	]*	/ TIME /']], ,
 [     1 TIME source -h script.csh foo ; history
      2 TIME set var=$1
@@ -1469,3 +1471,39 @@ OK
 AT_CLEANUP
 
 
+AT_SETUP([jobs output])
+
+AT_DATA([jobs_stdout.csh],
+[[
+sleep 3 &
+jobs -l > ./stdout
+
+if ( -z ./stdout ) then
+  echo "FAIL: 'jobs' output is not being displayed to stdout!"
+  exit 1
+else
+  exit 0
+endif
+]])
+AT_CHECK([tcsh -f jobs_stdout.csh], 0, [ignore])
+
+AT_CLEANUP
+
+AT_SETUP([time output])
+
+
+AT_DATA([time_output.csh],
+[[
+set time_output=`time sleep 1 > /dev/null`
+echo $time_output > ./output_result
+
+if ( -z ./output_result) then
+  echo "FAIL: 'time' output is not being displayed to stdout!"
+  exit 1
+else
+  exit 0
+endif
+]])
+AT_CHECK([tcsh -f time_output.csh], 0, [ignore])
+
+AT_CLEANUP
