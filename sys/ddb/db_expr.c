@@ -261,7 +261,7 @@ db_shift_expr(db_expr_t *valuep)
 		lhs <<= rhs;
 	    else {
 		/* Shift right is unsigned */
-		lhs = (unsigned) lhs >> rhs;
+		lhs = (db_addr_t)lhs >> rhs;
 	    }
 	    t = db_read_token();
 	}
