@@ -55,6 +55,14 @@ static char *fourbyte_strstr(const unsigned char *h, const unsigned char *n)
 #define BITOP(a,b,op) \
  ((a)[(size_t)(b)/(8*sizeof *(a))] op (size_t)1<<((size_t)(b)%(8*sizeof *(a))))
 
+/*
+ * Two Way string search algorithm, with a bad shift table applied to the last
+ * byte of the window. A bit array marks which entries in the shift table are
+ * initialized to avoid fully initializing a 1kb/2kb table.
+ *
+ * Reference: CROCHEMORE M., PERRIN D., 1991, Two-way string-matching,
+ * Journal of the ACM 38(3):651-675
+ */
 static char *twoway_strstr(const unsigned char *h, const unsigned char *n)
 {
 	const unsigned char *z;
