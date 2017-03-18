@@ -158,6 +158,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Timeval2 | IN, 1 } } },
 	{ .name = "futimesat", .ret_type = 1, .nargs = 3,
 	  .args = { { Atfd, 0 }, { Name | IN, 1 }, { Timeval2 | IN, 2 } } },
+	{ .name = "getfsstat", .ret_type = 1, .nargs = 3,
+	  .args = { { Ptr, 0 }, { Long, 1 }, { Getfsstatmode, 2 } } },
 	{ .name = "getitimer", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Itimerval | OUT, 2 } } },
 	{ .name = "getpeername", .ret_type = 1, .nargs = 3,
@@ -1878,6 +1880,10 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	}
 	case Flockop:
 		print_mask_arg(sysdecode_flock_operation, fp, args[sc->offset]);
+		break;
+	case Getfsstatmode:
+		print_integer_arg(sysdecode_getfsstat_mode, fp,
+		    args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
