@@ -2303,7 +2303,8 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 		break;
 	case IN_ABORT_TASK:
 	{
-		uint16_t nphdl, lun;
+		lun_id_t lun;
+		uint16_t nphdl;
 		uint32_t sid;
 		uint64_t wwn;
 		fcportdb_t *lp;
@@ -2602,7 +2603,7 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 	inot_private_data_t *ntp = NULL;
 	lun_id_t lun;
 
-	isp_prt(isp, ISP_LOGTDEBUG0, "%s: code 0x%x sid  0x%x tagval 0x%016llx chan %d lun 0x%x", __func__, notify->nt_ncode,
+	isp_prt(isp, ISP_LOGTDEBUG0, "%s: code 0x%x sid  0x%x tagval 0x%016llx chan %d lun %jx", __func__, notify->nt_ncode,
 	    notify->nt_sid, (unsigned long long) notify->nt_tagval, notify->nt_channel, notify->nt_lun);
 	/*
 	 * NB: This assignment is necessary because of tricky type conversion.
