@@ -97,7 +97,7 @@ static const char *expari(const char *, struct nodelist **restrict, int,
     struct worddest *);
 static void expbackq(union node *, int, int, struct worddest *);
 static void subevalvar_trim(const char *, struct nodelist *, int, int, int);
-static int subevalvar_misc(const char *, struct nodelist *, const char *, int,
+static void subevalvar_misc(const char *, struct nodelist *, const char *, int,
     int, int);
 static const char *evalvar(const char *, struct nodelist **restrict, int,
     struct worddest *);
@@ -617,7 +617,7 @@ subevalvar_trim(const char *p, struct nodelist *argbackq, int strloc,
 }
 
 
-static int
+static void
 subevalvar_misc(const char *p, struct nodelist *argbackq, const char *var, int subtype, int startloc,
   int varflags)
 {
@@ -634,7 +634,7 @@ subevalvar_misc(const char *p, struct nodelist *argbackq, const char *var, int s
 		setvar(var, startp, 0);
 		amount = startp - expdest;
 		STADJUST(amount, expdest);
-		return 1;
+		return;
 
 	case VSQUESTION:
 		if (*p != CTLENDVAR) {
@@ -643,7 +643,6 @@ subevalvar_misc(const char *p, struct nodelist *argbackq, const char *var, int s
 		}
 		error("%.*s: parameter %snot set", (int)(p - var - 1),
 		      var, (varflags & VSNUL) ? "null or " : "");
-		return 0;
 
 	default:
 		abort();
@@ -792,12 +791,11 @@ again: /* jump here after setting a variable with ${var=text} */
 	case VSASSIGN:
 	case VSQUESTION:
 		if (!set) {
-			if (subevalvar_misc(p, *argbackq, var, subtype,
-			    startloc, varflags)) {
-				varflags &= ~VSNUL;
-				goto again;
-			}
-			break;
+			subevalvar_misc(p, *argbackq, var, subtype,
+			    startloc, varflags);
+			/* assert(subtype == VSASSIGN); */
+			varflags &= ~VSNUL;
+			goto again;
 		}
 		break;
 
