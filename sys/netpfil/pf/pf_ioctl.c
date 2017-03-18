@@ -3766,11 +3766,11 @@ pf_unload_vnet(void)
 		return;
 	}
 
-	pf_unload_vnet_purge();
-
 	PF_RULES_WLOCK();
 	shutdown_pf();
 	PF_RULES_WUNLOCK();
+
+	pf_unload_vnet_purge();
 
 	pf_normalize_cleanup();
 	PF_RULES_WLOCK();
