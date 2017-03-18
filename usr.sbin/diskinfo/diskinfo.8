@@ -44,35 +44,34 @@ The
 utility prints out information about a disk device,
 and optionally runs a naive performance test on the device.
 .Pp
+The following options are available:
+.Bl -tag -width ".Fl v"
+.It Fl v
+Print fields one per line with a descriptive comment.
+.It Fl c
+Perform a simple measurement of the I/O read command overhead.
+.It Fl i
+Perform a simple IOPS benchmark.
+.It Fl t
+Perform a simple and rather naive benchmark of the disks seek
+and transfer performance.
+.El
+.Pp
 If given no arguments, the output will be a single line per specified device
 with the following fields: device name, sectorsize, media size in bytes,
 media size in sectors, stripe size, stripe offset, firmware cylinders,
 firmware heads, and firmware sectors.
 The last three fields are only present if the information is available.
-.Pp
-If given the
-.Fl v
-option, the fields will be printed one per line with a descriptive comment.
-.Pp
-The
-.Fl c
-option triggers a simple measurement of the I/O read command overhead.
-.Pp
-The
-.Fl i
-option triggers a simple IOPS benchmark.
-.Pp
-The
-.Fl t
-option triggers a simple and rather naive benchmark of the disks seek
-and transfer performance.
 .Sh HISTORY
 The
 .Nm
 command appeared in
 .Fx 5.1 .
 .Sh AUTHORS
-.An Poul-Henning Kamp
+The
+.Nm
+utility was written by
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org .
 .Sh BUGS
 There are in order of increasing severity: lies,
 damn lies, statistics, and computer benchmarks.
