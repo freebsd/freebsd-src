@@ -141,6 +141,8 @@ static struct syscall decoded_syscalls[] = {
 		    { Atflags, 4 } } },
 	{ .name = "fcntl", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Fcntl, 1 }, { Fcntlflag, 2 } } },
+	{ .name = "flock", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { Flockop, 1 } } },
 	{ .name = "fstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Stat | OUT, 1 } } },
 	{ .name = "fstatat", .ret_type = 1, .nargs = 4,
@@ -1874,6 +1876,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fprintf(fp, "|0x%x", rem);
 		break;
 	}
+	case Flockop:
+		print_mask_arg(sysdecode_flock_operation, fp, args[sc->offset]);
+		break;
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
