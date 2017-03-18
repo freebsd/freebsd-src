@@ -344,21 +344,6 @@ struct tcpcb {
 #define	TCPOOB_HAVEDATA	0x01
 #define	TCPOOB_HADDATA	0x02
 
-#ifdef TCP_SIGNATURE
-/*
- * Defines which are needed by the xform_tcp module and tcp_[in|out]put
- * for SADB verification and lookup.
- */
-#define	TCP_SIGLEN	16	/* length of computed digest in bytes */
-#define	TCP_KEYLEN_MIN	1	/* minimum length of TCP-MD5 key */
-#define	TCP_KEYLEN_MAX	80	/* maximum length of TCP-MD5 key */
-/*
- * Only a single SA per host may be specified at this time. An SPI is
- * needed in order for the KEY_ALLOCSA() lookup to work.
- */
-#define	TCP_SIG_SPI	0x1000
-#endif /* TCP_SIGNATURE */
-
 /*
  * Flags for PLPMTU handling, t_flags2
  */
@@ -595,7 +580,7 @@ struct	tcpstat {
 	/* TCP_SIGNATURE related stats */
 	uint64_t tcps_sig_rcvgoodsig;	/* Total matching signature received */
 	uint64_t tcps_sig_rcvbadsig;	/* Total bad signature received */
-	uint64_t tcps_sig_err_buildsig;	/* Mismatching signature received */
+	uint64_t tcps_sig_err_buildsig;	/* Failed to make signature */
 	uint64_t tcps_sig_err_sigopt;	/* No signature expected by socket */
 	uint64_t tcps_sig_err_nosigopt;	/* No signature provided by segment */
 
@@ -812,17 +797,6 @@ void	 tcp_tw_zone_change(void);
 int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
 void	 tcp_setpersist(struct tcpcb *);
-#ifdef TCP_SIGNATURE
-struct secasvar;
-struct secasvar *tcp_get_sav(struct mbuf *, u_int);
-int	 tcp_signature_do_compute(struct mbuf *, int, int, u_char *,
-	    struct secasvar *);
-int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
-int	 tcp_signature_verify(struct mbuf *, int, int, int, struct tcpopt *,
-	    struct tcphdr *, u_int);
-int	tcp_signature_check(struct mbuf *m, int off0, int tlen, int optlen,
-	    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag);
-#endif
 void	 tcp_slowtimo(void);
 struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
@@ -866,7 +840,6 @@ tcp_fields_to_host(struct tcphdr *th)
 	th->th_urp = ntohs(th->th_urp);
 }
 
-#ifdef TCP_SIGNATURE
 static inline void
 tcp_fields_to_net(struct tcphdr *th)
 {
@@ -876,7 +849,6 @@ tcp_fields_to_net(struct tcphdr *th)
 	th->th_win = htons(th->th_win);
 	th->th_urp = htons(th->th_urp);
 }
-#endif
 #endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */

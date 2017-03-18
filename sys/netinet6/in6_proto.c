@@ -121,11 +121,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/sctp6_var.h>
 #endif /* SCTP */
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif /* IPSEC */
-
 #include <netinet6/ip6protosw.h>
 
 /*
@@ -190,7 +185,7 @@ struct protosw inet6sw[] = {
 	.pr_type =		SOCK_SEQPACKET,
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD,
+	.pr_flags =		PR_WANTRCVD|PR_LASTHDR,
 	.pr_input =		sctp6_input,
 	.pr_ctlinput =		sctp6_ctlinput,
 	.pr_ctloutput =	sctp_ctloutput,
@@ -204,7 +199,7 @@ struct protosw inet6sw[] = {
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_LASTHDR,
 	.pr_input =		sctp6_input,
 	.pr_ctlinput =		sctp6_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
@@ -276,33 +271,6 @@ struct protosw inet6sw[] = {
 	.pr_input =		frag6_input,
 	.pr_usrreqs =		&nousrreqs
 },
-#ifdef IPSEC
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_AH,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		ipsec6_common_input,
-	.pr_usrreqs =		&nousrreqs,
-},
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_ESP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-        .pr_input =		ipsec6_common_input,
-	.pr_ctlinput =		esp6_ctlinput,
-	.pr_usrreqs =		&nousrreqs,
-},
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_IPCOMP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-        .pr_input =		ipsec6_common_input,
-	.pr_usrreqs =		&nousrreqs,
-},
-#endif /* IPSEC */
 #ifdef INET
 {
 	.pr_type =		SOCK_RAW,
@@ -470,7 +438,7 @@ SYSCTL_NODE(_net_inet6,	IPPROTO_TCP,	tcp6,	CTLFLAG_RW, 0,	"TCP6");
 #ifdef SCTP
 SYSCTL_NODE(_net_inet6,	IPPROTO_SCTP,	sctp6,	CTLFLAG_RW, 0,	"SCTP6");
 #endif
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 SYSCTL_NODE(_net_inet6,	IPPROTO_ESP,	ipsec6,	CTLFLAG_RW, 0,	"IPSEC6");
 #endif /* IPSEC */
 

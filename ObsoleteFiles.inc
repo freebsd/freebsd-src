@@ -45,6 +45,9 @@ OLD_FILES+=usr/tests/sys/geom/class/gate/3_test
 OLD_FILES+=usr/tests/sys/geom/class/gate/conf.sh
 # 20170211: libarchive ACL pax test renamed to test_acl_pax_posix1e.tar.uu
 OLD_FILES+=usr/tests/lib/libarchive/test_acl_pax.tar.uu
+# 20170206: merged projects/ipsec
+OLD_FILES+=usr/include/netinet/ip_ipsec.h
+OLD_FILES+=usr/include/netinet6/ip6_ipsec.h
 # 20170103: libbsnmptools.so made into an INTERNALLIB
 OLD_FILES+=usr/lib/libbsnmptools.a
 OLD_FILES+=usr/lib/libbsnmptools_p.a
