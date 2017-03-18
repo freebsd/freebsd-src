@@ -243,6 +243,9 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Ptr, 0 }, { Pipe2, 1 } } },
 	{ .name = "poll", .ret_type = 1, .nargs = 3,
 	  .args = { { Pollfd, 0 }, { Int, 1 }, { Int, 2 } } },
+	{ .name = "posix_fadvise", .ret_type = 1, .nargs = 4,
+	  .args = { { Int, 0 }, { QuadHex, 1 }, { QuadHex, 2 },
+		    { Fadvice, 3 } } },
 	{ .name = "posix_openpt", .ret_type = 1, .nargs = 1,
 	  .args = { { Open, 0 } } },
 	{ .name = "procctl", .ret_type = 1, .nargs = 4,
@@ -1854,6 +1857,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		print_mask_arg32(sysdecode_cap_fcntlrights, fp, rights);
 		break;
 	}
+	case Fadvice:
+		print_integer_arg(sysdecode_fadvice, fp, args[sc->offset]);
+		break;
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
