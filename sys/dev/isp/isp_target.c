@@ -62,7 +62,8 @@ static void isp_handle_abts(ispsoftc_t *, abts_t *);
 static void isp_handle_atio2(ispsoftc_t *, at2_entry_t *);
 static void isp_handle_ctio2(ispsoftc_t *, ct2_entry_t *);
 static void isp_handle_ctio7(ispsoftc_t *, ct7_entry_t *);
-static void isp_handle_24xx_inotify(ispsoftc_t *, in_fcentry_24xx_t *);
+static void isp_handle_notify(ispsoftc_t *, in_fcentry_t *);
+static void isp_handle_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *);
 
 /*
  * The Qlogic driver gets an interrupt to look at response queue entries.
@@ -113,8 +114,6 @@ static void isp_handle_24xx_inotify(ispsoftc_t *, in_fcentry_24xx_t *);
 int
 isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 {
-	uint16_t status;
-	uint32_t seqid;
 	union {
 		at2_entry_t	*at2iop;
 		at2e_entry_t	*at2eiop;
@@ -153,9 +152,7 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 #define	hdrp		unp.hp
 	} unp;
 	uint8_t local[QENTRY_LEN];
-	uint16_t iid;
 	int bus, type, len, level, rval = 1;
-	isp_notify_t notify;
 
 	type = isp_get_response_type(isp, (isphdr_t *)vptr);
 	unp.vp = vptr;
@@ -221,113 +218,14 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 		if (IS_24XX(isp)) {
 			isp_get_notify_24xx(isp, inot_24xx, (in_fcentry_24xx_t *)local);
 			inot_24xx = (in_fcentry_24xx_t *) local;
-			isp_handle_24xx_inotify(isp, inot_24xx);
-			break;
-		} else {
-			if (ISP_CAP_2KLOGIN(isp)) {
-				in_fcentry_e_t *ecp = (in_fcentry_e_t *)local;
-				isp_get_notify_fc_e(isp, inote_fcp, ecp);
-				iid = ecp->in_iid;
-				status = ecp->in_status;
-				seqid = ecp->in_seqid;
-			} else {
-				in_fcentry_t *fcp = (in_fcentry_t *)local;
-				isp_get_notify_fc(isp, inot_fcp, fcp);
-				iid = fcp->in_iid;
-				status = fcp->in_status;
-				seqid = fcp->in_seqid;
-			}
-		}
-
-		isp_prt(isp, ISP_LOGTDEBUG0, "Immediate Notify On Bus %d, status=0x%x seqid=0x%x", bus, status, seqid);
-
-		switch (status) {
-		case IN_MSG_RECEIVED:
-		case IN_IDE_RECEIVED:
-			isp_got_msg_fc(isp, (in_fcentry_t *)local);
-			break;
-		case IN_RSRC_UNAVAIL:
-			isp_prt(isp, ISP_LOGINFO, "Firmware out of ATIOs");
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, local);
-			break;
-
-		case IN_RESET:
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_tgt = TGT_ANY;
-			notify.nt_nphdl = iid;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_lun = LUN_ANY;
-			notify.nt_tagval = TAG_ANY;
-			notify.nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
-			notify.nt_ncode = NT_BUS_RESET;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		case IN_PORT_LOGOUT:
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_nphdl = iid;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_ncode = NT_LOGOUT;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		case IN_ABORT_TASK:
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_nphdl = iid;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_ncode = NT_ABORT_TASK;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		case IN_GLOBAL_LOGO:
-			isp_prt(isp, ISP_LOGTINFO, "%s: all ports logged out", __func__);
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_nphdl = NIL_HANDLE;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_ncode = NT_GLOBAL_LOGOUT;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		case IN_PORT_CHANGED:
-			isp_prt(isp, ISP_LOGTINFO, "%s: port changed", __func__);
-			ISP_MEMZERO(&notify, sizeof (isp_notify_t));
-			notify.nt_hba = isp;
-			notify.nt_wwn = INI_ANY;
-			notify.nt_nphdl = NIL_HANDLE;
-			notify.nt_sid = PORT_ANY;
-			notify.nt_did = PORT_ANY;
-			notify.nt_ncode = NT_CHANGED;
-			notify.nt_need_ack = 1;
-			notify.nt_lreserved = local;
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-			break;
-
-		default:
-			ISP_SNPRINTF(local, sizeof local, "%s: unknown status to RQSTYPE_NOTIFY (0x%x)", __func__, status);
-			isp_print_bytes(isp, local, QENTRY_LEN, vptr);
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, local);
+			isp_handle_notify_24xx(isp, inot_24xx);
 			break;
 		}
+		if (ISP_CAP_2KLOGIN(isp))
+			isp_get_notify_fc_e(isp, inote_fcp, (in_fcentry_e_t *)local);
+		else
+			isp_get_notify_fc(isp, inot_fcp, (in_fcentry_t *)local);
+		isp_handle_notify(isp, (in_fcentry_t *)local);
 		break;
 
 	case RQSTYPE_NOTIFY_ACK:
@@ -1405,7 +1303,84 @@ isp_handle_ctio7(ispsoftc_t *isp, ct7_entry_t *ct)
 }
 
 static void
-isp_handle_24xx_inotify(ispsoftc_t *isp, in_fcentry_24xx_t *inot_24xx)
+isp_handle_notify(ispsoftc_t *isp, in_fcentry_t *inp)
+{
+	fcportdb_t *lp;
+	uint64_t wwn;
+	uint32_t sid;
+	uint16_t nphdl, status;
+	isp_notify_t notify;
+
+	status = inp->in_status;
+	isp_prt(isp, ISP_LOGTDEBUG0, "Immediate Notify, status=0x%x seqid=0x%x",
+	    status, inp->in_seqid);
+	switch (status) {
+	case IN_MSG_RECEIVED:
+	case IN_IDE_RECEIVED:
+		isp_got_msg_fc(isp, inp);
+		return;
+	case IN_RSRC_UNAVAIL:
+		isp_prt(isp, ISP_LOGINFO, "Firmware out of ATIOs");
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inp);
+		return;
+	}
+
+	if (ISP_CAP_2KLOGIN(isp))
+		nphdl = ((in_fcentry_e_t *)inp)->in_iid;
+	else
+		nphdl = inp->in_iid;
+	if (isp_find_pdb_by_handle(isp, 0, nphdl, &lp)) {
+		wwn = lp->port_wwn;
+		sid = lp->portid;
+	} else {
+		wwn = INI_ANY;
+		sid = PORT_ANY;
+	}
+
+	ISP_MEMZERO(&notify, sizeof (isp_notify_t));
+	notify.nt_hba = isp;
+	notify.nt_wwn = wwn;
+	notify.nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
+	notify.nt_nphdl = nphdl;
+	notify.nt_sid = sid;
+	notify.nt_did = PORT_ANY;
+	if (ISP_CAP_SCCFW(isp))
+		notify.nt_lun = inp->in_scclun;
+	else
+		notify.nt_lun = inp->in_lun;
+	notify.nt_tagval = inp->in_seqid;
+	notify.nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
+	notify.nt_need_ack = 1;
+	notify.nt_channel = 0;
+	notify.nt_lreserved = inp;
+
+	switch (status) {
+	case IN_RESET:
+		notify.nt_ncode = NT_BUS_RESET;
+		break;
+	case IN_PORT_LOGOUT:
+		notify.nt_ncode = NT_LOGOUT;
+		break;
+	case IN_ABORT_TASK:
+		notify.nt_ncode = NT_ABORT_TASK;
+		break;
+	case IN_GLOBAL_LOGO:
+		notify.nt_ncode = NT_GLOBAL_LOGOUT;
+		break;
+	case IN_PORT_CHANGED:
+		notify.nt_ncode = NT_CHANGED;
+		break;
+	default:
+		isp_prt(isp, ISP_LOGINFO, "%s: unhandled status (0x%x)",
+		    __func__, status);
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inp);
+		return;
+	}
+	isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
+}
+
+static void
+isp_handle_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot_24xx)
 {
 	uint8_t ochan, chan, lochan, hichan;
 
