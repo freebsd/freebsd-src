@@ -181,8 +181,6 @@ void isp_put_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
 void isp_get_ctio2(ispsoftc_t *, ct2_entry_t *, ct2_entry_t *);
 void isp_get_ctio2e(ispsoftc_t *, ct2e_entry_t *, ct2e_entry_t *);
 void isp_get_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
-void isp_put_enable_lun(ispsoftc_t *, lun_entry_t *, lun_entry_t *);
-void isp_get_enable_lun(ispsoftc_t *, lun_entry_t *, lun_entry_t *);
 void isp_put_notify_fc(ispsoftc_t *, in_fcentry_t *, in_fcentry_t *);
 void isp_put_notify_fc_e(ispsoftc_t *, in_fcentry_e_t *, in_fcentry_e_t *);
 void isp_put_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
