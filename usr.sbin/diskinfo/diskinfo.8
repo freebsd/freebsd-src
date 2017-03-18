@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2004
+.Dd September 22, 2016
 .Dt DISKINFO 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd get information about disk device
 .Sh SYNOPSIS
 .Nm
-.Op Fl ctv
+.Op Fl citv
 .Ar disk ...
 .Sh DESCRIPTION
 The
@@ -57,6 +57,10 @@ option, the fields will be printed one per line with a descriptive comment.
 The
 .Fl c
 option triggers a simple measurement of the I/O read command overhead.
+.Pp
+The
+.Fl i
+option triggers a simple IOPS benchmark.
 .Pp
 The
 .Fl t
