@@ -1619,7 +1619,7 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			    sizeof(linux_tv)));
 			/* NOTREACHED */
 		case LOCAL_PEERCRED:
-			if (args->optlen != sizeof(lxu))
+			if (args->optlen < sizeof(lxu))
 				return (EINVAL);
 			xulen = sizeof(xu);
 			error = kern_getsockopt(td, args->s, bsd_args.level,
