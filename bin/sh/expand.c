@@ -768,8 +768,10 @@ again: /* jump here after setting a variable with ${var=text} */
 	case VSTRIMLEFTMAX:
 	case VSTRIMRIGHT:
 	case VSTRIMRIGHTMAX:
-		if (!set)
+		if (!set) {
+			set = 1;
 			break;
+		}
 		/*
 		 * Terminate the string and start recording the pattern
 		 * right after it
