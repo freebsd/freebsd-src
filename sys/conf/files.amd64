@@ -179,8 +179,9 @@ aesni_wrap.o			optional aesni				\
 	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesni_wrap.o"
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
+crypto/des/des_enc.c		optional	crypto | ipsec | \
+	ipsec_support | netsmb
 crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock

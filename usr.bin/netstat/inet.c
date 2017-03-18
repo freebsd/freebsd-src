@@ -858,12 +858,25 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/successful ECN handshake%s}\n");
 	p(tcps_ecn_rcwnd, "\t{:congestion-reductions/%ju} "
 	    "{N:/time%s ECN reduced the congestion window}\n");
+
+	xo_close_container("ecn");
+	xo_open_container("tcp-signature");
+	p(tcps_sig_rcvgoodsig, "\t{:received-good-signature/%ju} "
+	    "{N:/packet%s with matching signature received}\n");
+	p(tcps_sig_rcvbadsig, "\t{:received-bad-signature/%ju} "
+	    "{N:/packet%s with bad signature received}\n");
+	p(tcps_sig_err_buildsig, "\t{:failed-make-signature/%ju} "
+	    "{N:/time%s failed to make signature due to no SA}\n");
+	p(tcps_sig_err_sigopt, "\t{:no-signature-expected/%ju} "
+	    "{N:/time%s unexpected signature received}\n");
+	p(tcps_sig_err_nosigopt, "\t{:no-signature-provided/%ju} "
+	    "{N:/time%s no signature provided by segment}\n");
  #undef p
  #undef p1a
  #undef p2
  #undef p2a
  #undef p3
-	xo_close_container("ecn");
+	xo_close_container("tcp-signature");
 
 	xo_open_container("TCP connection count by state");
 	xo_emit("{T:/TCP connection count by state}:\n");

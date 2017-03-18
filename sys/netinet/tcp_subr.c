@@ -114,15 +114,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/xform.h>
-#ifdef INET6
-#include <netipsec/ipsec6.h>
-#endif
-#include <netipsec/key.h>
-#include <sys/syslog.h>
-#endif /*IPSEC*/
+#include <netipsec/ipsec_support.h>
 
 #include <machine/in_cksum.h>
 #include <sys/md5.h>
@@ -228,12 +220,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_VNET | CTLFLAG_
 static int	tcp_soreceive_stream;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, soreceive_stream, CTLFLAG_RDTUN,
     &tcp_soreceive_stream, 0, "Using soreceive_stream for TCP sockets");
-
-#ifdef TCP_SIGNATURE
-static int	tcp_sig_checksigs = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, signature_verify_input, CTLFLAG_RW,
-    &tcp_sig_checksigs, 0, "Verify RFC2385 digests on inbound traffic");
-#endif
 
 VNET_DEFINE(uma_zone_t, sack_hole_zone);
 #define	V_sack_hole_zone		VNET(sack_hole_zone)
@@ -1049,12 +1035,11 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			to.to_tsecr = tp->ts_recent;
 			to.to_flags |= TOF_TS;
 		}
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		/* TCP-MD5 (RFC2385). */
 		if (tp->t_flags & TF_SIGNATURE)
 			to.to_flags |= TOF_SIGNATURE;
 #endif
-
 		/* Add the options. */
 		tlen += optlen = tcp_addoptions(&to, optp);
 
@@ -1110,10 +1095,13 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		nth->th_win = htons((u_short)win);
 	nth->th_urp = 0;
 
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 	if (to.to_flags & TOF_SIGNATURE) {
-		tcp_signature_compute(m, 0, 0, optlen, to.to_signature,
-		    IPSEC_DIR_OUTBOUND);
+		if (!TCPMD5_ENABLED() ||
+		    TCPMD5_OUTPUT(m, nth, to.to_signature) != 0) {
+			m_freem(m);
+			return;
+		}
 	}
 #endif
 
@@ -2483,7 +2471,7 @@ tcp_maxseg(const struct tcpcb *tp)
 			optlen = TCPOLEN_TSTAMP_APPA;
 		else
 			optlen = 0;
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		if (tp->t_flags & TF_SIGNATURE)
 			optlen += PAD(TCPOLEN_SIGNATURE);
 #endif
@@ -2499,7 +2487,7 @@ tcp_maxseg(const struct tcpcb *tp)
 			optlen = PAD(TCPOLEN_MAXSEG);
 		if (tp->t_flags & TF_REQ_SCALE)
 			optlen += PAD(TCPOLEN_WINDOW);
-#ifdef TCP_SIGNATURE
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		if (tp->t_flags & TF_SIGNATURE)
 			optlen += PAD(TCPOLEN_SIGNATURE);
 #endif
@@ -2510,343 +2498,6 @@ tcp_maxseg(const struct tcpcb *tp)
 	optlen = min(optlen, TCP_MAXOLEN);
 	return (tp->t_maxseg - optlen);
 }
-
-#ifdef IPSEC
-/* compute ESP/AH header size for TCP, including outer IP header. */
-size_t
-ipsec_hdrsiz_tcp(struct tcpcb *tp)
-{
-	struct inpcb *inp;
-	struct mbuf *m;
-	size_t hdrsiz;
-	struct ip *ip;
-#ifdef INET6
-	struct ip6_hdr *ip6;
-#endif
-	struct tcphdr *th;
-
-	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL) ||
-		(!key_havesp(IPSEC_DIR_OUTBOUND)))
-		return (0);
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (!m)
-		return (0);
-
-#ifdef INET6
-	if ((inp->inp_vflag & INP_IPV6) != 0) {
-		ip6 = mtod(m, struct ip6_hdr *);
-		th = (struct tcphdr *)(ip6 + 1);
-		m->m_pkthdr.len = m->m_len =
-			sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
-		tcpip_fillheaders(inp, ip6, th);
-		hdrsiz = ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
-	} else
-#endif /* INET6 */
-	{
-		ip = mtod(m, struct ip *);
-		th = (struct tcphdr *)(ip + 1);
-		m->m_pkthdr.len = m->m_len = sizeof(struct tcpiphdr);
-		tcpip_fillheaders(inp, ip, th);
-		hdrsiz = ipsec_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
-	}
-
-	m_free(m);
-	return (hdrsiz);
-}
-#endif /* IPSEC */
-
-#ifdef TCP_SIGNATURE
-/*
- * Callback function invoked by m_apply() to digest TCP segment data
- * contained within an mbuf chain.
- */
-static int
-tcp_signature_apply(void *fstate, void *data, u_int len)
-{
-
-	MD5Update(fstate, (u_char *)data, len);
-	return (0);
-}
-
-/*
- * XXX The key is retrieved from the system's PF_KEY SADB, by keying a
- * search with the destination IP address, and a 'magic SPI' to be
- * determined by the application. This is hardcoded elsewhere to 1179
-*/
-struct secasvar *
-tcp_get_sav(struct mbuf *m, u_int direction)
-{
-	union sockaddr_union dst;
-	struct secasvar *sav;
-	struct ip *ip;
-#ifdef INET6
-	struct ip6_hdr *ip6;
-	char ip6buf[INET6_ADDRSTRLEN];
-#endif
-
-	/* Extract the destination from the IP header in the mbuf. */
-	bzero(&dst, sizeof(union sockaddr_union));
-	ip = mtod(m, struct ip *);
-#ifdef INET6
-	ip6 = NULL;	/* Make the compiler happy. */
-#endif
-	switch (ip->ip_v) {
-#ifdef INET
-	case IPVERSION:
-		dst.sa.sa_len = sizeof(struct sockaddr_in);
-		dst.sa.sa_family = AF_INET;
-		dst.sin.sin_addr = (direction == IPSEC_DIR_INBOUND) ?
-		    ip->ip_src : ip->ip_dst;
-		break;
-#endif
-#ifdef INET6
-	case (IPV6_VERSION >> 4):
-		ip6 = mtod(m, struct ip6_hdr *);
-		dst.sa.sa_len = sizeof(struct sockaddr_in6);
-		dst.sa.sa_family = AF_INET6;
-		dst.sin6.sin6_addr = (direction == IPSEC_DIR_INBOUND) ?
-		    ip6->ip6_src : ip6->ip6_dst;
-		break;
-#endif
-	default:
-		return (NULL);
-		/* NOTREACHED */
-		break;
-	}
-
-	/* Look up an SADB entry which matches the address of the peer. */
-	sav = KEY_ALLOCSA(&dst, IPPROTO_TCP, htonl(TCP_SIG_SPI));
-	if (sav == NULL) {
-		ipseclog((LOG_ERR, "%s: SADB lookup failed for %s\n", __func__,
-		    (ip->ip_v == IPVERSION) ? inet_ntoa(dst.sin.sin_addr) :
-#ifdef INET6
-			(ip->ip_v == (IPV6_VERSION >> 4)) ?
-			    ip6_sprintf(ip6buf, &dst.sin6.sin6_addr) :
-#endif
-			"(unsupported)"));
-	}
-
-	return (sav);
-}
-
-/*
- * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
- *
- * Parameters:
- * m		pointer to head of mbuf chain
- * len		length of TCP segment data, excluding options
- * optlen	length of TCP segment options
- * buf		pointer to storage for computed MD5 digest
- * sav		pointer to security assosiation
- *
- * We do this over ip, tcphdr, segment data, and the key in the SADB.
- * When called from tcp_input(), we can be sure that th_sum has been
- * zeroed out and verified already.
- *
- * Releases reference to SADB key before return. 
- *
- * Return 0 if successful, otherwise return -1.
- *
- */
-int
-tcp_signature_do_compute(struct mbuf *m, int len, int optlen,
-    u_char *buf, struct secasvar *sav)
-{
-#ifdef INET
-	struct ippseudo ippseudo;
-#endif
-	MD5_CTX ctx;
-	int doff;
-	struct ip *ip;
-#ifdef INET
-	struct ipovly *ipovly;
-#endif
-	struct tcphdr *th;
-#ifdef INET6
-	struct ip6_hdr *ip6;
-	struct in6_addr in6;
-	uint32_t plen;
-	uint16_t nhdr;
-#endif
-	u_short savecsum;
-
-	KASSERT(m != NULL, ("NULL mbuf chain"));
-	KASSERT(buf != NULL, ("NULL signature pointer"));
-
-	/* Extract the destination from the IP header in the mbuf. */
-	ip = mtod(m, struct ip *);
-#ifdef INET6
-	ip6 = NULL;	/* Make the compiler happy. */
-#endif
-
-	MD5Init(&ctx);
-	/*
-	 * Step 1: Update MD5 hash with IP(v6) pseudo-header.
-	 *
-	 * XXX The ippseudo header MUST be digested in network byte order,
-	 * or else we'll fail the regression test. Assume all fields we've
-	 * been doing arithmetic on have been in host byte order.
-	 * XXX One cannot depend on ipovly->ih_len here. When called from
-	 * tcp_output(), the underlying ip_len member has not yet been set.
-	 */
-	switch (ip->ip_v) {
-#ifdef INET
-	case IPVERSION:
-		ipovly = (struct ipovly *)ip;
-		ippseudo.ippseudo_src = ipovly->ih_src;
-		ippseudo.ippseudo_dst = ipovly->ih_dst;
-		ippseudo.ippseudo_pad = 0;
-		ippseudo.ippseudo_p = IPPROTO_TCP;
-		ippseudo.ippseudo_len = htons(len + sizeof(struct tcphdr) +
-		    optlen);
-		MD5Update(&ctx, (char *)&ippseudo, sizeof(struct ippseudo));
-
-		th = (struct tcphdr *)((u_char *)ip + sizeof(struct ip));
-		doff = sizeof(struct ip) + sizeof(struct tcphdr) + optlen;
-		break;
-#endif
-#ifdef INET6
-	/*
-	 * RFC 2385, 2.0  Proposal
-	 * For IPv6, the pseudo-header is as described in RFC 2460, namely the
-	 * 128-bit source IPv6 address, 128-bit destination IPv6 address, zero-
-	 * extended next header value (to form 32 bits), and 32-bit segment
-	 * length.
-	 * Note: Upper-Layer Packet Length comes before Next Header.
-	 */
-	case (IPV6_VERSION >> 4):
-		ip6 = mtod(m, struct ip6_hdr *);
-		in6 = ip6->ip6_src;
-		in6_clearscope(&in6);
-		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));
-		in6 = ip6->ip6_dst;
-		in6_clearscope(&in6);
-		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));
-		plen = htonl(len + sizeof(struct tcphdr) + optlen);
-		MD5Update(&ctx, (char *)&plen, sizeof(uint32_t));
-		nhdr = 0;
-		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
-		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
-		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
-		nhdr = IPPROTO_TCP;
-		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
-
-		th = (struct tcphdr *)((u_char *)ip6 + sizeof(struct ip6_hdr));
-		doff = sizeof(struct ip6_hdr) + sizeof(struct tcphdr) + optlen;
-		break;
-#endif
-	default:
-		KEY_FREESAV(&sav);
-		return (-1);
-		/* NOTREACHED */
-		break;
-	}
-
-
-	/*
-	 * Step 2: Update MD5 hash with TCP header, excluding options.
-	 * The TCP checksum must be set to zero.
-	 */
-	savecsum = th->th_sum;
-	th->th_sum = 0;
-	MD5Update(&ctx, (char *)th, sizeof(struct tcphdr));
-	th->th_sum = savecsum;
-
-	/*
-	 * Step 3: Update MD5 hash with TCP segment data.
-	 *         Use m_apply() to avoid an early m_pullup().
-	 */
-	if (len > 0)
-		m_apply(m, doff, len, tcp_signature_apply, &ctx);
-
-	/*
-	 * Step 4: Update MD5 hash with shared secret.
-	 */
-	MD5Update(&ctx, sav->key_auth->key_data, _KEYLEN(sav->key_auth));
-	MD5Final(buf, &ctx);
-
-	key_sa_recordxfer(sav, m);
-	KEY_FREESAV(&sav);
-	return (0);
-}
-
-/*
- * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
- *
- * Return 0 if successful, otherwise return -1.
- */
-int
-tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
-    u_char *buf, u_int direction)
-{
-	struct secasvar *sav;
-
-	if ((sav = tcp_get_sav(m, direction)) == NULL)
-		return (-1);
-
-	return (tcp_signature_do_compute(m, len, optlen, buf, sav));
-}
-
-/*
- * Verify the TCP-MD5 hash of a TCP segment. (RFC2385)
- *
- * Parameters:
- * m		pointer to head of mbuf chain
- * len		length of TCP segment data, excluding options
- * optlen	length of TCP segment options
- * buf		pointer to storage for computed MD5 digest
- * direction	direction of flow (IPSEC_DIR_INBOUND or OUTBOUND)
- *
- * Return 1 if successful, otherwise return 0.
- */
-int
-tcp_signature_verify(struct mbuf *m, int off0, int tlen, int optlen,
-    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag)
-{
-	char tmpdigest[TCP_SIGLEN];
-
-	if (tcp_sig_checksigs == 0)
-		return (1);
-	if ((tcpbflag & TF_SIGNATURE) == 0) {
-		if ((to->to_flags & TOF_SIGNATURE) != 0) {
-
-			/*
-			 * If this socket is not expecting signature but
-			 * the segment contains signature just fail.
-			 */
-			TCPSTAT_INC(tcps_sig_err_sigopt);
-			TCPSTAT_INC(tcps_sig_rcvbadsig);
-			return (0);
-		}
-
-		/* Signature is not expected, and not present in segment. */
-		return (1);
-	}
-
-	/*
-	 * If this socket is expecting signature but the segment does not
-	 * contain any just fail.
-	 */
-	if ((to->to_flags & TOF_SIGNATURE) == 0) {
-		TCPSTAT_INC(tcps_sig_err_nosigopt);
-		TCPSTAT_INC(tcps_sig_rcvbadsig);
-		return (0);
-	}
-	if (tcp_signature_compute(m, off0, tlen, optlen, &tmpdigest[0],
-	    IPSEC_DIR_INBOUND) == -1) {
-		TCPSTAT_INC(tcps_sig_err_buildsig);
-		TCPSTAT_INC(tcps_sig_rcvbadsig);
-		return (0);
-	}
-	
-	if (bcmp(to->to_signature, &tmpdigest[0], TCP_SIGLEN) != 0) {
-		TCPSTAT_INC(tcps_sig_rcvbadsig);
-		return (0);
-	}
-	TCPSTAT_INC(tcps_sig_rcvgoodsig);
-	return (1);
-}
-#endif /* TCP_SIGNATURE */
 
 static int
 sysctl_drop(SYSCTL_HANDLER_ARGS)

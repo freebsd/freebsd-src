@@ -423,8 +423,7 @@ IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPSEC			opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
-IPSEC_FILTERTUNNEL	opt_ipsec.h
-IPSEC_NAT_T		opt_ipsec.h
+IPSEC_SUPPORT		opt_ipsec.h
 IPSTEALTH
 KRPC
 LIBALIAS
@@ -446,7 +445,7 @@ SIFTR
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_RFC7413		opt_inet.h
 TCP_RFC7413_MAX_KEYS	opt_inet.h
-TCP_SIGNATURE		opt_inet.h
+TCP_SIGNATURE		opt_ipsec.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
 FLOWTABLE		opt_route.h

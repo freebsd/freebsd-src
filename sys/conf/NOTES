@@ -613,23 +613,12 @@ options 	TCP_OFFLOAD		# TCP offload support.
 # In order to enable IPSEC you MUST also add device crypto to 
 # your kernel configuration
 options 	IPSEC			#IP security (requires device crypto)
+
+# Option IPSEC_SUPPORT does not enable IPsec, but makes it possible to 
+# load it as a kernel module. You still MUST add device crypto to your kernel
+# configuration.
+options		IPSEC_SUPPORT
 #options 	IPSEC_DEBUG		#debug for IP security
-#
-# #DEPRECATED#
-# Set IPSEC_FILTERTUNNEL to change the default of the sysctl to force packets
-# coming through a tunnel to be processed by any configured packet filtering
-# twice. The default is that packets coming out of a tunnel are _not_ processed;
-# they are assumed trusted.
-#
-# IPSEC history is preserved for such packets, and can be filtered
-# using ipfw(8)'s 'ipsec' keyword, when this option is enabled.
-#
-#options 	IPSEC_FILTERTUNNEL	#filter ipsec packets from a tunnel
-#
-# Set IPSEC_NAT_T to enable NAT-Traversal support.  This enables
-# optional UDP encapsulation of ESP packets.
-#
-options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
 #
 # SMB/CIFS requester
@@ -1015,7 +1004,8 @@ options 	ACCEPT_FILTER_HTTP
 # carried in TCP option 19. This option is commonly used to protect
 # TCP sessions (e.g. BGP) where IPSEC is not available nor desirable.
 # This is enabled on a per-socket basis using the TCP_MD5SIG socket option.
-# This requires the use of 'device crypto' and 'options IPSEC'.
+# This requires the use of 'device crypto' and either 'options IPSEC' or
+# 'options IPSEC_SUPPORT'.
 options 	TCP_SIGNATURE		#include support for RFC 2385
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL

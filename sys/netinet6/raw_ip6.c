@@ -104,10 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/send.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#endif /* IPSEC */
+#include <netipsec/ipsec_support.h>
 
 #include <machine/stdarg.h>
 
@@ -258,14 +255,18 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		if (last != NULL) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 			/*
 			 * Check AH/ESP integrity.
 			 */
-			if (n && ipsec6_in_reject(n, last)) {
-				m_freem(n);
-				/* Do not inject data into pcb. */
-			} else
+			if (IPSEC_ENABLED(ipv6)) {
+				if (n != NULL &&
+				    IPSEC_CHECK_POLICY(ipv6, n, last) != 0) {
+					m_freem(n);
+					/* Do not inject data into pcb. */
+					n = NULL;
+				}
+			}
 #endif /* IPSEC */
 			if (n) {
 				if (last->inp_flags & INP_CONTROLOPTS ||
@@ -289,11 +290,12 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		last = in6p;
 	}
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/*
 	 * Check AH/ESP integrity.
 	 */
-	if ((last != NULL) && ipsec6_in_reject(m, last)) {
+	if (IPSEC_ENABLED(ipv6) && last != NULL &&
+	    IPSEC_CHECK_POLICY(ipv6, m, last) != 0) {
 		m_freem(m);
 		IP6STAT_DEC(ip6s_delivered);
 		/* Do not inject data into pcb. */

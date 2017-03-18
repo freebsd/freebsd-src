@@ -115,7 +115,7 @@ key_output(struct mbuf *m, struct socket *so, ...)
 
 	M_ASSERTPKTHDR(m);
 
-	KEYDEBUG(KEYDEBUG_KEY_DUMP, kdebug_mbuf(m));
+	KEYDBG(KEY_DUMP, kdebug_mbuf(m));
 
 	msg = mtod(m, struct sadb_msg *);
 	PFKEYSTAT_INC(out_msgtype[msg->sadb_msg_type]);
@@ -181,9 +181,9 @@ key_sendup(struct socket *so, struct sadb_msg *msg, u_int len, int target)
 	if (so == NULL || msg == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	KEYDEBUG(KEYDEBUG_KEY_DUMP,
-		printf("%s: \n", __func__);
-		kdebug_sadb(msg));
+	KEYDBG(KEY_DUMP,
+	    printf("%s: \n", __func__);
+	    kdebug_sadb(msg));
 
 	/*
 	 * we increment statistics here, just in case we have ENOBUFS

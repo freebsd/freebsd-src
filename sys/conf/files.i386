@@ -143,7 +143,7 @@ compat/svr4/svr4_syscallnames.c	optional compat_svr4
 compat/svr4/svr4_sysent.c	optional compat_svr4
 compat/svr4/svr4_sysvec.c	optional compat_svr4
 compat/svr4/svr4_termios.c	optional compat_svr4
-bf_enc.o			optional crypto | ipsec	\
+bf_enc.o			optional crypto | ipsec	| ipsec_support \
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
 	no-implicit-rule
@@ -159,7 +159,7 @@ aesni_wrap.o			optional aesni				\
 	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesni_wrap.o"
-crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | netsmb
+crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | ipsec_support | netsmb
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
 crypto/via/padlock_hash.c	optional padlock

@@ -90,10 +90,6 @@ __FBSDID("$FreeBSD$");
 
 static struct pr_usrreqs nousrreqs;
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#endif /* IPSEC */
-
 #ifdef SCTP
 #include <netinet/in_pcb.h>
 #include <netinet/sctp_pcb.h>
@@ -152,7 +148,7 @@ struct protosw inetsw[] = {
 	.pr_type =		SOCK_SEQPACKET,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD,
+	.pr_flags =		PR_WANTRCVD|PR_LASTHDR,
 	.pr_input =		sctp_input,
 	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
@@ -164,7 +160,7 @@ struct protosw inetsw[] = {
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_LASTHDR,
 	.pr_input =		sctp_input,
 	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
@@ -222,34 +218,6 @@ struct protosw inetsw[] = {
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
-#ifdef IPSEC
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_AH,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		ah4_input,
-	.pr_ctlinput =		ah4_ctlinput,
-	.pr_usrreqs =		&nousrreqs
-},
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_ESP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		esp4_input,
-	.pr_ctlinput =		esp4_ctlinput,
-	.pr_usrreqs =		&nousrreqs
-},
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_IPCOMP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		ipcomp4_input,
-	.pr_usrreqs =		&nousrreqs
-},
-#endif /* IPSEC */
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
@@ -366,7 +334,7 @@ SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
 SYSCTL_NODE(_net_inet, IPPROTO_SCTP,	sctp,	CTLFLAG_RW, 0,	"SCTP");
 #endif
 SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 /* XXX no protocol # to use, pick something "reserved" */
 SYSCTL_NODE(_net_inet, 253,		ipsec,	CTLFLAG_RW, 0,	"IPSEC");
 SYSCTL_NODE(_net_inet, IPPROTO_AH,	ah,	CTLFLAG_RW, 0,	"AH");
