@@ -16,6 +16,15 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20170319:
+	Many changes in the IPsec code have been merged from the FreeBSD-CURRENT
+	branch. The IPSEC_FILTERTUNNEL kernel option is removed in favour of
+	corresponding sysctl. The IPSEC_NAT_T kernel option is also removed,
+	and now NAT-T is supported by default. Security associations now use  
+	the single namespace for SPI allocation, so if you use several manually
+	configured security associations with the same SPI, this configuration
+	needs modification.
+
 20161217:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.1.
 	Please see the 20141231 entry below for information about prerequisites
