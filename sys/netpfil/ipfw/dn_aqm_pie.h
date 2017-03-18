@@ -37,16 +37,16 @@
 #define DN_AQM_PIE 2
 #define PIE_DQ_THRESHOLD_BITS 14
 /* 2^14 =16KB */
-#define PIE_DQ_THRESHOLD (1UL << PIE_DQ_THRESHOLD_BITS) 
+#define PIE_DQ_THRESHOLD (1L << PIE_DQ_THRESHOLD_BITS) 
 #define MEAN_PKTSIZE 800
 
 /* 31-bits because random() generates range from 0->(2**31)-1 */
 #define PIE_PROB_BITS 31
-#define PIE_MAX_PROB ((1ULL<<PIE_PROB_BITS) -1)
+#define PIE_MAX_PROB ((1LL<<PIE_PROB_BITS) -1)
 
 /* for 16-bits, we have 3-bits for integer part and 13-bits for fraction */
 #define PIE_FIX_POINT_BITS 13
-#define PIE_SCALE (1UL<<PIE_FIX_POINT_BITS)
+#define PIE_SCALE (1L<<PIE_FIX_POINT_BITS)
 
 
 /* PIE options */
