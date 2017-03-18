@@ -315,88 +315,57 @@ scteken_nop(void)
  * libteken routines.
  */
 
-static const unsigned char fgcolors_normal[TC_NCOLORS] = {
-	FG_BLACK,     FG_RED,          FG_GREEN,      FG_BROWN,
-	FG_BLUE,      FG_MAGENTA,      FG_CYAN,       FG_LIGHTGREY,
+static const teken_color_t sc_to_te_color[] = {
+	TC_BLACK,     TC_BLUE,         TC_GREEN,     TC_CYAN,
+	TC_RED,       TC_MAGENTA,      TC_BROWN,     TC_WHITE,
 };
 
-static const unsigned char fgcolors_bold[TC_NCOLORS] = {
-	FG_DARKGREY,  FG_LIGHTRED,     FG_LIGHTGREEN, FG_YELLOW,
-	FG_LIGHTBLUE, FG_LIGHTMAGENTA, FG_LIGHTCYAN,  FG_WHITE,
-};
-
-static const unsigned char bgcolors[TC_NCOLORS] = {
-	BG_BLACK,     BG_RED,          BG_GREEN,      BG_BROWN,
-	BG_BLUE,      BG_MAGENTA,      BG_CYAN,       BG_LIGHTGREY,
+static const unsigned char te_to_sc_color[] = {
+	FG_BLACK,     FG_RED,          FG_GREEN,     FG_BROWN,
+	FG_BLUE,      FG_MAGENTA,      FG_CYAN,      FG_LIGHTGREY,
 };
 
 static void
 scteken_sc_to_te_attr(unsigned char color, teken_attr_t *a)
 {
-	teken_color_t fg, bg;
 
 	/*
-	 * XXX: Reverse conversion of syscons to teken attributes. Not
-	 * realiable. Maybe we should turn it into a 1:1 mapping one of
-	 * these days?
+	 * Conversions of attrs are not reversible.  Since sc attrs are
+	 * pure colors in the simplest mode (16-color graphics) and the
+	 * API is too deficient to tell us the mode, always convert to
+	 * pure colors.  The conversion is essentially the identity except
+	 * for reordering the non-brightness bits in the 2 color numbers.
 	 */
-
 	a->ta_format = 0;
-	a->ta_fgcolor = TC_WHITE;
-	a->ta_bgcolor = TC_BLACK;
-
-#ifdef FG_BLINK
-	if (color & FG_BLINK) {
-		a->ta_format |= TF_BLINK;
-		color &= ~FG_BLINK;
-	}
-#endif /* FG_BLINK */
-
-	for (fg = 0; fg < TC_NCOLORS; fg++) {
-		for (bg = 0; bg < TC_NCOLORS; bg++) {
-			if ((fgcolors_normal[fg] | bgcolors[bg]) == color) {
-				a->ta_fgcolor = fg;
-				a->ta_bgcolor = bg;
-				return;
-			}
-
-			if ((fgcolors_bold[fg] | bgcolors[bg]) == color) {
-				a->ta_fgcolor = fg;
-				a->ta_bgcolor = bg;
-				a->ta_format |= TF_BOLD;
-				return;
-			}
-		}
-	}
+	a->ta_fgcolor = sc_to_te_color[color & 7] | (color & 8);
+	a->ta_bgcolor = sc_to_te_color[(color >> 4) & 7] | ((color >> 4) & 8);
 }
 
 static int
 scteken_te_to_sc_attr(const teken_attr_t *a)
 {
-	int attr = 0;
+	int attr;
 	teken_color_t fg, bg;
 
 	if (a->ta_format & TF_REVERSE) {
-		fg = teken_256to8(a->ta_bgcolor);
-		bg = teken_256to8(a->ta_fgcolor);
+		fg = a->ta_bgcolor;
+		bg = a->ta_fgcolor;
 	} else {
-		fg = teken_256to8(a->ta_fgcolor);
-		bg = teken_256to8(a->ta_bgcolor);
+		fg = a->ta_fgcolor;
+		bg = a->ta_bgcolor;
 	}
-	if (a->ta_format & TF_BOLD)
-		attr |= fgcolors_bold[fg];
-	else
-		attr |= fgcolors_normal[fg];
-	attr |= bgcolors[bg];
+	if (fg >= 16)
+		fg = teken_256to16(fg);
+	if (bg >= 16)
+		bg = teken_256to16(bg);
+	attr = te_to_sc_color[fg & 7] | (fg & 8) |
+	    ((te_to_sc_color[bg & 7] | (bg & 8)) << 4);
 
-#ifdef FG_UNDERLINE
-	if (a->ta_format & TF_UNDERLINE)
-		attr |= FG_UNDERLINE;
-#endif /* FG_UNDERLINE */
-#ifdef FG_BLINK
+	/* XXX: underline mapping for Hercules adapter can be better. */
+	if (a->ta_format & (TF_BOLD | TF_UNDERLINE))
+		attr ^= 8;
 	if (a->ta_format & TF_BLINK)
-		attr |= FG_BLINK;
-#endif /* FG_BLINK */
+		attr ^= 0x80;
 
 	return (attr);
 }
