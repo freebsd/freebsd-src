@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
+#include <machine/fdt.h>
 
 #include <arm/freescale/imx/imx51_ccmvar.h>
 #include <arm/freescale/imx/imx51_ccmreg.h>
@@ -95,10 +96,34 @@ __FBSDID("$FreeBSD$");
 #define	IMX51_CKIL_FREQ	32768
 #endif
 
+/*
+ * The fdt data does not provide reg properties describing the DPLL register
+ * blocks we need to access, presumably because the needed addresses are
+ * hard-coded within the linux driver.  That leaves us with no choice but to do
+ * the same thing, if we want to run with vendor-supplied fdt data.  So here we
+ * have tables of the physical addresses we need for each soc, and we'll use
+ * bus_space_map() at attach() time to get access to them.
+ */
+static uint32_t imx51_dpll_addrs[IMX51_N_DPLLS] = {
+	0x83f80000,	/* DPLL1 */
+	0x83f84000,	/* DPLL2 */
+	0x83f88000,	/* DPLL3 */
+};
+
+static uint32_t imx53_dpll_addrs[IMX51_N_DPLLS] = {
+	0x63f80000,     /* DPLL1 */
+	0x63f84000,     /* DPLL2 */
+	0x63f88000,     /* DPLL3 */
+};
+
+#define	DPLL_REGS_SZ	(16 * 1024)
+
 struct imxccm_softc {
 	device_t	sc_dev;
-	struct resource *res[7];
+	struct resource *ccmregs;
 	u_int64_t 	pll_freq[IMX51_N_DPLLS];
+	bus_space_tag_t    pllbst;
+	bus_space_handle_t pllbsh[IMX51_N_DPLLS];
 };
 
 struct imxccm_softc *ccm_softc = NULL;
@@ -126,15 +151,26 @@ static devclass_t imxccm_devclass;
 EARLY_DRIVER_MODULE(imxccm, simplebus, imxccm_driver, imxccm_devclass, 0, 0,
     BUS_PASS_CPU);
 
-static struct resource_spec imxccm_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Global registers */
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* DPLLIP1 */
-	{ SYS_RES_MEMORY,	2,	RF_ACTIVE },	/* DPLLIP2 */
-	{ SYS_RES_MEMORY,	3,	RF_ACTIVE },	/* DPLLIP3 */
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },    /* 71 */
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },    /* 72 */
-	{ -1, 0 }
-};
+static inline uint32_t
+pll_read_4(struct imxccm_softc *sc, int pll, int reg)
+{
+
+	return (bus_space_read_4(sc->pllbst, sc->pllbsh[pll - 1], reg));
+}
+
+static inline uint32_t
+ccm_read_4(struct imxccm_softc *sc, int reg)
+{
+
+	return (bus_read_4(sc->ccmregs, reg));
+}
+
+static inline void
+ccm_write_4(struct imxccm_softc *sc, int reg, uint32_t val)
+{
+
+	bus_write_4(sc->ccmregs, reg, val);
+}
 
 static int
 imxccm_match(device_t dev)
@@ -155,13 +191,40 @@ static int
 imxccm_attach(device_t dev)
 {
 	struct imxccm_softc *sc;
+	int idx;
+	u_int soc;
+	uint32_t *pll_addrs;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	if (bus_alloc_resources(dev, imxccm_spec, sc->res)) {
+	switch ((soc = imx_soc_type())) {
+	case IMXSOC_51:
+		pll_addrs = imx51_dpll_addrs;
+		break;
+	case IMXSOC_53:
+		pll_addrs = imx53_dpll_addrs;
+		break;
+	default:
+		device_printf(dev, "No support for SoC type 0x%08x\n", soc);
+		goto noclocks;
+	}
+
+	idx = 0;
+	sc->ccmregs = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &idx,
+	    RF_ACTIVE);
+	if (sc->ccmregs == NULL) {
 		device_printf(dev, "could not allocate resources\n");
-		return (ENXIO);
+		goto noclocks;
+	}
+
+	sc->pllbst = fdtbus_bs_tag;
+	for (idx = 0; idx < IMX51_N_DPLLS; ++idx) {
+		if (bus_space_map(sc->pllbst, pll_addrs[idx], DPLL_REGS_SZ, 0,
+		    &sc->pllbsh[idx]) != 0) {
+			device_printf(dev, "Cannot map DPLL registers\n");
+			goto noclocks;
+		}
 	}
 
 	ccm_softc = sc;
@@ -186,6 +249,10 @@ imxccm_attach(device_t dev)
 
 
 	return (0);
+
+noclocks:
+
+	panic("Cannot continue without clock support");
 }
 
 u_int
@@ -210,13 +277,13 @@ imx51_get_clock(enum imx51_clock clk)
 	case IMX51CLK_PLL3:
 		return ccm_softc->pll_freq[clk-IMX51CLK_PLL1];
 	case IMX51CLK_PLL1SW:
-		ccsr = bus_read_4(ccm_softc->res[0], CCMC_CCSR);
+		ccsr = ccm_read_4(ccm_softc, CCMC_CCSR);
 		if ((ccsr & CCSR_PLL1_SW_CLK_SEL) == 0)
 			return ccm_softc->pll_freq[1-1];
 		/* step clock */
 		/* FALLTHROUGH */
 	case IMX51CLK_PLL1STEP:
-		ccsr = bus_read_4(ccm_softc->res[0], CCMC_CCSR);
+		ccsr = ccm_read_4(ccm_softc, CCMC_CCSR);
 		switch ((ccsr & CCSR_STEP_SEL_MASK) >> CCSR_STEP_SEL_SHIFT) {
 		case 0:
 			return imx51_get_clock(IMX51CLK_LP_APM);
@@ -233,34 +300,34 @@ imx51_get_clock(enum imx51_clock clk)
 		}
 		/*NOTREACHED*/
 	case IMX51CLK_PLL2SW:
-		ccsr = bus_read_4(ccm_softc->res[0], CCMC_CCSR);
+		ccsr = ccm_read_4(ccm_softc, CCMC_CCSR);
 		if ((ccsr & CCSR_PLL2_SW_CLK_SEL) == 0)
 			return imx51_get_clock(IMX51CLK_PLL2);
 		return 0; /* XXX PLL2 bypass clk */
 	case IMX51CLK_PLL3SW:
-		ccsr = bus_read_4(ccm_softc->res[0], CCMC_CCSR);
+		ccsr = ccm_read_4(ccm_softc, CCMC_CCSR);
 		if ((ccsr & CCSR_PLL3_SW_CLK_SEL) == 0)
 			return imx51_get_clock(IMX51CLK_PLL3);
 		return 0; /* XXX PLL3 bypass clk */
 
 	case IMX51CLK_LP_APM:
-		ccsr = bus_read_4(ccm_softc->res[0], CCMC_CCSR);
+		ccsr = ccm_read_4(ccm_softc, CCMC_CCSR);
 		return (ccsr & CCSR_LP_APM) ?
 			    imx51_get_clock(IMX51CLK_FPM) : IMX51_OSC_FREQ;
 
 	case IMX51CLK_ARM_ROOT:
 		freq = imx51_get_clock(IMX51CLK_PLL1SW);
-		cacrr = bus_read_4(ccm_softc->res[0], CCMC_CACRR);
+		cacrr = ccm_read_4(ccm_softc, CCMC_CACRR);
 		return freq / (cacrr + 1);
 
 		/* ... */
 	case IMX51CLK_MAIN_BUS_CLK_SRC:
-		cbcdr = bus_read_4(ccm_softc->res[0], CCMC_CBCDR);
+		cbcdr = ccm_read_4(ccm_softc, CCMC_CBCDR);
 		if ((cbcdr & CBCDR_PERIPH_CLK_SEL) == 0)
 			freq = imx51_get_clock(IMX51CLK_PLL2SW);
 		else {
 			freq = 0;
-			cbcmr = bus_read_4(ccm_softc->res[0],  CCMC_CBCMR);
+			cbcmr = ccm_read_4(ccm_softc,  CCMC_CBCMR);
 			switch ((cbcmr & CBCMR_PERIPH_APM_SEL_MASK) >>
 				CBCMR_PERIPH_APM_SEL_SHIFT) {
 			case 0:
@@ -280,29 +347,29 @@ imx51_get_clock(enum imx51_clock clk)
 		return freq;
 	case IMX51CLK_MAIN_BUS_CLK:
 		freq = imx51_get_clock(IMX51CLK_MAIN_BUS_CLK_SRC);
-		cdcr = bus_read_4(ccm_softc->res[0], CCMC_CDCR);
+		cdcr = ccm_read_4(ccm_softc, CCMC_CDCR);
 		return freq / (1 + ((cdcr & CDCR_PERIPH_CLK_DVFS_PODF_MASK) >>
 			CDCR_PERIPH_CLK_DVFS_PODF_SHIFT));
 	case IMX51CLK_AHB_CLK_ROOT:
 		freq = imx51_get_clock(IMX51CLK_MAIN_BUS_CLK);
-		cbcdr = bus_read_4(ccm_softc->res[0], CCMC_CBCDR);
+		cbcdr = ccm_read_4(ccm_softc, CCMC_CBCDR);
 		return freq / (1 + ((cbcdr & CBCDR_AHB_PODF_MASK) >>
 				    CBCDR_AHB_PODF_SHIFT));
 	case IMX51CLK_IPG_CLK_ROOT:
 		freq = imx51_get_clock(IMX51CLK_AHB_CLK_ROOT);
-		cbcdr = bus_read_4(ccm_softc->res[0], CCMC_CBCDR);
+		cbcdr = ccm_read_4(ccm_softc, CCMC_CBCDR);
 		return freq / (1 + ((cbcdr & CBCDR_IPG_PODF_MASK) >>
 				    CBCDR_IPG_PODF_SHIFT));
 
 	case IMX51CLK_PERCLK_ROOT:
-		cbcmr = bus_read_4(ccm_softc->res[0], CCMC_CBCMR);
+		cbcmr = ccm_read_4(ccm_softc, CCMC_CBCMR);
 		if (cbcmr & CBCMR_PERCLK_IPG_SEL)
 			return imx51_get_clock(IMX51CLK_IPG_CLK_ROOT);
 		if (cbcmr & CBCMR_PERCLK_LP_APM_SEL)
 			freq = imx51_get_clock(IMX51CLK_LP_APM);
 		else
 			freq = imx51_get_clock(IMX51CLK_MAIN_BUS_CLK_SRC);
-		cbcdr = bus_read_4(ccm_softc->res[0], CCMC_CBCDR);
+		cbcdr = ccm_read_4(ccm_softc, CCMC_CBCDR);
 
 #ifdef IMXCCMDEBUG
 		printf("cbcmr=%x cbcdr=%x\n", cbcmr, cbcdr);
@@ -316,8 +383,8 @@ imx51_get_clock(enum imx51_clock clk)
 			CBCDR_PERCLK_PODF_SHIFT);
 		return freq;
 	case IMX51CLK_UART_CLK_ROOT:
-		cscdr1 = bus_read_4(ccm_softc->res[0], CCMC_CSCDR1);
-		cscmr1 = bus_read_4(ccm_softc->res[0], CCMC_CSCMR1);
+		cscdr1 = ccm_read_4(ccm_softc, CCMC_CSCDR1);
+		cscmr1 = ccm_read_4(ccm_softc, CCMC_CSCMR1);
 
 #ifdef IMXCCMDEBUG
 		printf("cscdr1=%x cscmr1=%x\n", cscdr1, cscmr1);
@@ -344,7 +411,7 @@ imx51_get_clock(enum imx51_clock clk)
 			CSCDR1_UART_CLK_PODF_SHIFT));
 	case IMX51CLK_IPU_HSP_CLK_ROOT:
 		freq = 0;
-		cbcmr = bus_read_4(ccm_softc->res[0],  CCMC_CBCMR);
+		cbcmr = ccm_read_4(ccm_softc,  CCMC_CBCMR);
 		switch ((cbcmr & CBCMR_IPU_HSP_CLK_SEL_MASK) >>
 				CBCMR_IPU_HSP_CLK_SEL_SHIFT) {
 			case 0:
@@ -387,16 +454,16 @@ imx51_get_pll_freq(u_int pll_no)
 
 	KASSERT(1 <= pll_no && pll_no <= IMX51_N_DPLLS, ("Wrong PLL id"));
 
-	dp_ctrl = bus_read_4(ccm_softc->res[pll_no], DPLL_DP_CTL);
+	dp_ctrl = pll_read_4(ccm_softc, pll_no, DPLL_DP_CTL);
 
 	if (dp_ctrl & DP_CTL_HFSM) {
-		dp_op = bus_read_4(ccm_softc->res[pll_no], DPLL_DP_HFS_OP);
-		dp_mfd = bus_read_4(ccm_softc->res[pll_no], DPLL_DP_HFS_MFD);
-		dp_mfn = bus_read_4(ccm_softc->res[pll_no], DPLL_DP_HFS_MFN);
+		dp_op  = pll_read_4(ccm_softc, pll_no, DPLL_DP_HFS_OP);
+		dp_mfd = pll_read_4(ccm_softc, pll_no, DPLL_DP_HFS_MFD);
+		dp_mfn = pll_read_4(ccm_softc, pll_no, DPLL_DP_HFS_MFN);
 	} else {
-		dp_op = bus_read_4(ccm_softc->res[pll_no], DPLL_DP_OP);
-		dp_mfd = bus_read_4(ccm_softc->res[pll_no], DPLL_DP_MFD);
-		dp_mfn = bus_read_4(ccm_softc->res[pll_no], DPLL_DP_MFN);
+		dp_op  = pll_read_4(ccm_softc, pll_no, DPLL_DP_OP);
+		dp_mfd = pll_read_4(ccm_softc, pll_no, DPLL_DP_MFD);
+		dp_mfn = pll_read_4(ccm_softc, pll_no, DPLL_DP_MFN);
 	}
 
 	pdf = dp_op & DP_OP_PDF_MASK;
@@ -415,7 +482,7 @@ imx51_get_pll_freq(u_int pll_no)
 		ref = 24000000; /* IMX51_OSC_FREQ */
 		break;
 	case DP_CTL_REF_CLK_SEL_FPM:
-		ccr = bus_read_4(ccm_softc->res[0], CCMC_CCR);
+		ccr = ccm_read_4(ccm_softc, CCMC_CCR);
 		if (ccr & CCR_FPM_MULT)
 		/* TODO: get from FDT "fsl,imx-ckil" */
 			ref = 32768 * 1024;
@@ -460,10 +527,10 @@ imx51_clk_gating(int clk_src, int mode)
 
 	group = CCMR_CCGR_MODULE(clk_src);
 	field = clk_src % CCMR_CCGR_NSOURCE;
-	reg = bus_read_4(ccm_softc->res[0], CCMC_CCGR(group));
+	reg = ccm_read_4(ccm_softc, CCMC_CCGR(group));
 	reg &= ~(0x03 << field * 2);
 	reg |= (mode << field * 2);
-	bus_write_4(ccm_softc->res[0], CCMC_CCGR(group), reg);
+	ccm_write_4(ccm_softc, CCMC_CCGR(group), reg);
 }
 
 int
@@ -471,7 +538,7 @@ imx51_get_clk_gating(int clk_src)
 {
 	uint32_t reg;
 
-	reg = bus_read_4(ccm_softc->res[0],
+	reg = ccm_read_4(ccm_softc,
 	    CCMC_CCGR(CCMR_CCGR_MODULE(clk_src)));
 	return ((reg >> (clk_src % CCMR_CCGR_NSOURCE) * 2) & 0x03);
 }
@@ -489,20 +556,20 @@ imx_ccm_usb_enable(device_t dev)
 	 * Select PLL2 as the source for the USB clock.
 	 * The default is PLL3, but U-boot changes it to PLL2.
 	 */
-	regval = bus_read_4(ccm_softc->res[0], CCMC_CSCMR1);
+	regval = ccm_read_4(ccm_softc, CCMC_CSCMR1);
 	regval &= ~CSCMR1_USBOH3_CLK_SEL_MASK;
 	regval |= 1 << CSCMR1_USBOH3_CLK_SEL_SHIFT;
-	bus_write_4(ccm_softc->res[0], CCMC_CSCMR1, regval);
+	ccm_write_4(ccm_softc, CCMC_CSCMR1, regval);
 
 	/*
 	 * Set the USB clock pre-divider to div-by-5, post-divider to div-by-2.
 	 */
-	regval = bus_read_4(ccm_softc->res[0], CCMC_CSCDR1);
+	regval = ccm_read_4(ccm_softc, CCMC_CSCDR1);
 	regval &= ~CSCDR1_USBOH3_CLK_PODF_MASK;
 	regval &= ~CSCDR1_USBOH3_CLK_PRED_MASK;
 	regval |= 4 << CSCDR1_USBOH3_CLK_PRED_SHIFT;
 	regval |= 1 << CSCDR1_USBOH3_CLK_PODF_SHIFT;
-	bus_write_4(ccm_softc->res[0], CCMC_CSCDR1, regval);
+	ccm_write_4(ccm_softc, CCMC_CSCDR1, regval);
 
 	/*
 	 * The same two clocks gates are used on imx51 and imx53.
@@ -522,9 +589,9 @@ imx_ccm_usbphy_enable(device_t dev)
 	 * strange, but we'll go with it until more is known.
 	 */
 	if (imx_soc_type() == IMXSOC_53) {
-		regval = bus_read_4(ccm_softc->res[0], CCMC_CSCMR1);
+		regval = ccm_read_4(ccm_softc, CCMC_CSCMR1);
 		regval |= 1 << CSCMR1_USBPHY_CLK_SEL_SHIFT;
-		bus_write_4(ccm_softc->res[0], CCMC_CSCMR1, regval);
+		ccm_write_4(ccm_softc, CCMC_CSCMR1, regval);
 	}
 
 	/*
