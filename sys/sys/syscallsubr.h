@@ -136,6 +136,8 @@ int	kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat);
 int	kern_kldunload(struct thread *td, int fileid, int flags);
 int	kern_linkat(struct thread *td, int fd1, int fd2, char *path1,
 	    char *path2, enum uio_seg segflg, int follow);
+int	kern_listen(struct thread *td, int s, int backlog);
+int	kern_lseek(struct thread *td, int fd, off_t offset, int whence);
 int	kern_lutimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_madvise(struct thread *td, uintptr_t addr, size_t len, int behav);
@@ -224,6 +226,7 @@ int	kern_shmat(struct thread *td, int shmid, const void *shmaddr,
 	    int shmflg);
 int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
 	    size_t *bufsz);
+int	kern_shutdown(struct thread *td, int s, int how);
 int	kern_sigaction(struct thread *td, int sig, const struct sigaction *act,
 	    struct sigaction *oact, int flags);
 int	kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss);
@@ -232,6 +235,7 @@ int	kern_sigprocmask(struct thread *td, int how,
 int	kern_sigsuspend(struct thread *td, sigset_t mask);
 int	kern_sigtimedwait(struct thread *td, sigset_t waitset,
 	    struct ksiginfo *ksi, struct timespec *timeout);
+int	kern_socket(struct thread *td, int domain, int type, int protocol);
 int	kern_statat(struct thread *td, int flag, int fd, char *path,
 	    enum uio_seg pathseg, struct stat *sbp,
 	    void (*hook)(struct vnode *vp, struct stat *sbp));
