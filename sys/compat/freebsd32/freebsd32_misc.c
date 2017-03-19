@@ -1467,12 +1467,8 @@ freebsd32_pwrite(struct thread *td, struct freebsd32_pwrite_args *uap)
 int
 ofreebsd32_lseek(struct thread *td, struct ofreebsd32_lseek_args *uap)
 {
-	struct lseek_args nuap;
 
-	nuap.fd = uap->fd;
-	nuap.offset = uap->offset;
-	nuap.whence = uap->whence;
-	return (sys_lseek(td, &nuap));
+	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
 }
 #endif
 
@@ -1480,13 +1476,10 @@ int
 freebsd32_lseek(struct thread *td, struct freebsd32_lseek_args *uap)
 {
 	int error;
-	struct lseek_args ap;
 	off_t pos;
 
-	ap.fd = uap->fd;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	ap.whence = uap->whence;
-	error = sys_lseek(td, &ap);
+	error = kern_lseek(td, uap->fd, PAIR32TO64(off_t, uap->offset),
+	    uap->whence);
 	/* Expand the quad return into two parts for eax and edx */
 	pos = td->td_uretoff.tdu_off;
 	td->td_retval[RETVAL_LO] = pos & 0xffffffff;	/* %eax */
@@ -1583,13 +1576,10 @@ int
 freebsd6_freebsd32_lseek(struct thread *td, struct freebsd6_freebsd32_lseek_args *uap)
 {
 	int error;
-	struct lseek_args ap;
 	off_t pos;
 
-	ap.fd = uap->fd;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	ap.whence = uap->whence;
-	error = sys_lseek(td, &ap);
+	error = kern_lseek(td, uap->fd, PAIR32TO64(off_t, uap->offset),
+	    uap->whence);
 	/* Expand the quad return into two parts for eax and edx */
 	pos = *(off_t *)(td->td_retval);
 	td->td_retval[RETVAL_LO] = pos & 0xffffffff;	/* %eax */

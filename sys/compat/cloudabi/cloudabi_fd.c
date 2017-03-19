@@ -203,26 +203,23 @@ cloudabi_sys_fd_replace(struct thread *td,
 int
 cloudabi_sys_fd_seek(struct thread *td, struct cloudabi_sys_fd_seek_args *uap)
 {
-	struct lseek_args lseek_args = {
-		.fd	= uap->fd,
-		.offset	= uap->offset
-	};
+	int whence;
 
 	switch (uap->whence) {
 	case CLOUDABI_WHENCE_CUR:
-		lseek_args.whence = SEEK_CUR;
+		whence = SEEK_CUR;
 		break;
 	case CLOUDABI_WHENCE_END:
-		lseek_args.whence = SEEK_END;
+		whence = SEEK_END;
 		break;
 	case CLOUDABI_WHENCE_SET:
-		lseek_args.whence = SEEK_SET;
+		whence = SEEK_SET;
 		break;
 	default:
 		return (EINVAL);
 	}
 
-	return (sys_lseek(td, &lseek_args));
+	return (kern_lseek(td, uap->fd, uap->offset, whence));
 }
 
 /* Converts a file descriptor to a CloudABI file descriptor type. */
