@@ -3363,11 +3363,8 @@ freebsd6_truncate(struct thread *td, struct freebsd6_truncate_args *uap)
 int
 freebsd6_ftruncate(struct thread *td, struct freebsd6_ftruncate_args *uap)
 {
-	struct ftruncate_args ouap;
 
-	ouap.fd = uap->fd;
-	ouap.length = uap->length;
-	return (sys_ftruncate(td, &ouap));
+	return (kern_ftruncate(td, uap->fd, uap->length));
 }
 #endif
 

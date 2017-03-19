@@ -1507,11 +1507,8 @@ freebsd32_truncate(struct thread *td, struct freebsd32_truncate_args *uap)
 int
 freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 {
-	struct ftruncate_args ap;
 
-	ap.fd = uap->fd;
-	ap.length = PAIR32TO64(off_t,uap->length);
-	return (sys_ftruncate(td, &ap));
+	return (kern_ftruncate(td, uap->fd, PAIR32TO64(off_t, uap->length)));
 }
 
 #ifdef COMPAT_43
@@ -1613,11 +1610,8 @@ freebsd6_freebsd32_truncate(struct thread *td, struct freebsd6_freebsd32_truncat
 int
 freebsd6_freebsd32_ftruncate(struct thread *td, struct freebsd6_freebsd32_ftruncate_args *uap)
 {
-	struct ftruncate_args ap;
 
-	ap.fd = uap->fd;
-	ap.length = PAIR32TO64(off_t,uap->length);
-	return (sys_ftruncate(td, &ap));
+	return (kern_ftruncate(td, uap->fd, PAIR32TO64(off_t, uap->length)));
 }
 #endif /* COMPAT_FREEBSD6 */
 
