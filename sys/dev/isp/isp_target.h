@@ -59,30 +59,19 @@ typedef enum {
 
 typedef struct isp_notify {
 	void *		nt_hba;		/* HBA tag */
-	void *		nt_tmd;
-	void *		nt_lreserved;
-	void *		nt_hreserved;
+	void *		nt_lreserved;	/* original IOCB pointer */
 	uint64_t	nt_wwn;		/* source (wwn) */
 	uint64_t	nt_tgt;		/* destination (wwn) */
 	uint64_t	nt_tagval;	/* tag value */
 	lun_id_t	nt_lun;		/* logical unit */
-	uint32_t
-			nt_sid		: 24;	/* source port id */
-	uint32_t
-			nt_failed	: 1,	/* notify operation failed */
-			nt_need_ack	: 1,	/* this notify needs an ACK */
-			nt_did		: 24;	/* destination port id */
+	uint32_t	nt_sid : 24;	/* source port id */
+	uint32_t	nt_did : 24;	/* destination port id */
 	uint16_t	nt_nphdl;	/* n-port handle */
 	uint8_t		nt_channel;	/* channel id */
+	uint8_t		nt_need_ack;	/* this notify needs an ACK */
 	isp_ncode_t	nt_ncode;	/* action */
 } isp_notify_t;
-#define MATCH_TMD(tmd, iid, lun, tag)                   \
-    (                                                   \
-        (tmd) &&                                        \
-        (iid == INI_ANY || iid == tmd->cd_iid) &&       \
-        (lun == LUN_ANY || lun == tmd->cd_lun) &&       \
-        (tag == TAG_ANY || tag == tmd->cd_tagval)       \
-    )
+
 /*
  * Debug macros
  */
