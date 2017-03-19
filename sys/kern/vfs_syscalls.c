@@ -3308,22 +3308,10 @@ struct otruncate_args {
 };
 #endif
 int
-otruncate(td, uap)
-	struct thread *td;
-	register struct otruncate_args /* {
-		char *path;
-		long length;
-	} */ *uap;
+otruncate(struct thread *td, struct otruncate_args *uap)
 {
-	struct truncate_args /* {
-		char *path;
-		int pad;
-		off_t length;
-	} */ nuap;
 
-	nuap.path = uap->path;
-	nuap.length = uap->length;
-	return (sys_truncate(td, &nuap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
 #endif /* COMPAT_43 */
 
@@ -3332,11 +3320,8 @@ otruncate(td, uap)
 int
 freebsd6_truncate(struct thread *td, struct freebsd6_truncate_args *uap)
 {
-	struct truncate_args ouap;
 
-	ouap.path = uap->path;
-	ouap.length = uap->length;
-	return (sys_truncate(td, &ouap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
 
 int

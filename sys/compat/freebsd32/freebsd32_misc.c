@@ -1490,11 +1490,9 @@ freebsd32_lseek(struct thread *td, struct freebsd32_lseek_args *uap)
 int
 freebsd32_truncate(struct thread *td, struct freebsd32_truncate_args *uap)
 {
-	struct truncate_args ap;
 
-	ap.path = uap->path;
-	ap.length = PAIR32TO64(off_t,uap->length);
-	return (sys_truncate(td, &ap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE,
+	    PAIR32TO64(off_t, uap->length)));
 }
 
 int
@@ -1590,11 +1588,9 @@ freebsd6_freebsd32_lseek(struct thread *td, struct freebsd6_freebsd32_lseek_args
 int
 freebsd6_freebsd32_truncate(struct thread *td, struct freebsd6_freebsd32_truncate_args *uap)
 {
-	struct truncate_args ap;
 
-	ap.path = uap->path;
-	ap.length = PAIR32TO64(off_t,uap->length);
-	return (sys_truncate(td, &ap));
+	return (kern_truncate(td, uap->path, UIO_USERSPACE,
+	    PAIR32TO64(off_t, uap->length)));
 }
 
 int
