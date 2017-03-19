@@ -189,6 +189,7 @@ exit1(struct thread *td, int rval, int signo)
 {
 	struct proc *p, *nq, *q, *t;
 	struct thread *tdt;
+	ksiginfo_t *ksi, *ksi1;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(rval == 0 || signo == 0, ("exit1 rv %d sig %d", rval, signo));
@@ -449,14 +450,32 @@ exit1(struct thread *td, int rval, int signo)
 		wakeup(q->p_reaper);
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
+		ksi = ksiginfo_alloc(TRUE);
 		PROC_LOCK(q);
 		q->p_sigparent = SIGCHLD;
 
 		if (!(q->p_flag & P_TRACED)) {
 			proc_reparent(q, q->p_reaper);
 			if (q->p_state == PRS_ZOMBIE) {
+				/*
+				 * Inform reaper about the reparented
+				 * zombie, since wait(2) has something
+				 * new to report.  Guarantee queueing
+				 * of the SIGCHLD signal, similar to
+				 * the _exit() behaviour, by providing
+				 * our ksiginfo.  Ksi is freed by the
+				 * signal delivery.
+				 */
+				if (q->p_ksi == NULL) {
+					ksi1 = NULL;
+				} else {
+					ksiginfo_copy(q->p_ksi, ksi);
+					ksi->ksi_flags |= KSI_INS;
+					ksi1 = ksi;
+					ksi = NULL;
+				}
 				PROC_LOCK(q->p_reaper);
-				pksignal(q->p_reaper, SIGCHLD, q->p_ksi);
+				pksignal(q->p_reaper, SIGCHLD, ksi1);
 				PROC_UNLOCK(q->p_reaper);
 			}
 		} else {
@@ -489,6 +508,8 @@ exit1(struct thread *td, int rval, int signo)
 			kern_psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);
+		if (ksi != NULL)
+			ksiginfo_free(ksi);
 	}
 
 	/*
