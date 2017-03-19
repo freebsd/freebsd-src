@@ -1442,25 +1442,17 @@ freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatf
 int
 freebsd32_pread(struct thread *td, struct freebsd32_pread_args *uap)
 {
-	struct pread_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	return (sys_pread(td, &ap));
+	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte,
+	    PAIR32TO64(off_t, uap->offset)));
 }
 
 int
 freebsd32_pwrite(struct thread *td, struct freebsd32_pwrite_args *uap)
 {
-	struct pwrite_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	return (sys_pwrite(td, &ap));
+	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte,
+	    PAIR32TO64(off_t, uap->offset)));
 }
 
 #ifdef COMPAT_43
@@ -1549,25 +1541,17 @@ freebsd32_getdirentries(struct thread *td,
 int
 freebsd6_freebsd32_pread(struct thread *td, struct freebsd6_freebsd32_pread_args *uap)
 {
-	struct pread_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	return (sys_pread(td, &ap));
+	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte,
+	    PAIR32TO64(off_t, uap->offset)));
 }
 
 int
 freebsd6_freebsd32_pwrite(struct thread *td, struct freebsd6_freebsd32_pwrite_args *uap)
 {
-	struct pwrite_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	return (sys_pwrite(td, &ap));
+	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte,
+	    PAIR32TO64(off_t, uap->offset)));
 }
 
 int

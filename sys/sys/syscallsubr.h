@@ -177,11 +177,15 @@ int	kern_posix_fallocate(struct thread *td, int fd, off_t offset,
 	    off_t len);
 int	kern_procctl(struct thread *td, enum idtype idtype, id_t id, int com,
 	    void *data);
+int	kern_pread(struct thread *td, int fd, void *buf, size_t nbyte,
+	    off_t offset);
 int	kern_preadv(struct thread *td, int fd, struct uio *auio, off_t offset);
 int	kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou,
 	    fd_set *ex, struct timeval *tvp, sigset_t *uset, int abi_nfdbits);
 int	kern_ptrace(struct thread *td, int req, pid_t pid, void *addr,
 	    int data);
+int	kern_pwrite(struct thread *td, int fd, const void *buf, size_t nbyte,
+	    off_t offset);
 int	kern_pwritev(struct thread *td, int fd, struct uio *auio, off_t offset);
 int	kern_readlinkat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, char *buf, enum uio_seg bufseg, size_t count);

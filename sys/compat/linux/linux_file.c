@@ -998,20 +998,13 @@ linux_fdatasync(td, uap)
 }
 
 int
-linux_pread(td, uap)
-	struct thread *td;
-	struct linux_pread_args *uap;
+linux_pread(struct thread *td, struct linux_pread_args *uap)
 {
-	struct pread_args bsd;
 	cap_rights_t rights;
 	struct vnode *vp;
 	int error;
 
-	bsd.fd = uap->fd;
-	bsd.buf = uap->buf;
-	bsd.nbyte = uap->nbyte;
-	bsd.offset = uap->offset;
-	error = sys_pread(td, &bsd);
+	error = kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset);
 	if (error == 0) {
 		/* This seems to violate POSIX but linux does it */
 		error = fgetvp(td, uap->fd,
@@ -1028,17 +1021,10 @@ linux_pread(td, uap)
 }
 
 int
-linux_pwrite(td, uap)
-	struct thread *td;
-	struct linux_pwrite_args *uap;
+linux_pwrite(struct thread *td, struct linux_pwrite_args *uap)
 {
-	struct pwrite_args bsd;
 
-	bsd.fd = uap->fd;
-	bsd.buf = uap->buf;
-	bsd.nbyte = uap->nbyte;
-	bsd.offset = uap->offset;
-	return (sys_pwrite(td, &bsd));
+	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
 
 int
