@@ -49,8 +49,6 @@ OLD_FILES+=sbin/ipftest
 OLD_FILES+=sbin/ipresend
 # 20170311: Remove WITHOUT_MANDOCDB option
 OLD_FILES+=usr/share/man/man1/makewhatis.1.gz
-# 20170311: remove GNU diff
-OLD_FILES+=usr/share/man/man7/diff.7.gz
 # 20170308: rename some tests
 OLD_FILES+=usr/tests/bin/pwait/pwait
 OLD_FILES+=usr/tests/usr.bin/timeout/timeout
