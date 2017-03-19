@@ -174,21 +174,22 @@ ath_tx_is_11n(struct ath_softc *sc)
 /*
  * Obtain the current TID from the given frame.
  *
- * Non-QoS frames need to go into TID 16 (IEEE80211_NONQOS_TID.)
- * This has implications for which AC/priority the packet is placed
- * in.
+ * Non-QoS frames get mapped to a TID so frames consistently
+ * go on a sensible queue.
  */
 static int
 ath_tx_gettid(struct ath_softc *sc, const struct mbuf *m0)
 {
 	const struct ieee80211_frame *wh;
-	int pri = M_WME_GETAC(m0);
 
 	wh = mtod(m0, const struct ieee80211_frame *);
+
+	/* Non-QoS: map frame to a TID queue for software queueing */
 	if (! IEEE80211_QOS_HAS_SEQ(wh))
-		return IEEE80211_NONQOS_TID;
-	else
-		return WME_AC_TO_TID(pri);
+		return (WME_AC_TO_TID(M_WME_GETAC(m0)));
+
+	/* QoS - fetch the TID from the header, ignore mbuf WME */
+	return (ieee80211_gettid(wh));
 }
 
 static void
@@ -211,30 +212,42 @@ ath_tx_set_retry(struct ath_softc *sc, struct ath_buf *bf)
  * Determine what the correct AC queue for the given frame
  * should be.
  *
- * This code assumes that the TIDs map consistently to
- * the underlying hardware (or software) ath_txq.
- * Since the sender may try to set an AC which is
- * arbitrary, non-QoS TIDs may end up being put on
- * completely different ACs. There's no way to put a
- * TID into multiple ath_txq's for scheduling, so
- * for now we override the AC/TXQ selection and set
- * non-QOS TID frames into the BE queue.
+ * For QoS frames, obey the TID.  That way things like
+ * management frames that are related to a given TID
+ * are thus serialised with the rest of the TID traffic,
+ * regardless of net80211 overriding priority.
  *
- * This may be completely incorrect - specifically,
- * some management frames may end up out of order
- * compared to the QoS traffic they're controlling.
- * I'll look into this later.
+ * For non-QoS frames, return the mbuf WMI priority.
+ *
+ * This has implications that higher priority non-QoS traffic
+ * may end up being scheduled before other non-QoS traffic,
+ * leading to out-of-sequence packets being emitted.
+ *
+ * (It'd be nice to log/count this so we can see if it
+ * really is a problem.)
+ *
+ * TODO: maybe we should throw multicast traffic, QoS or
+ * otherwise, into a separate TX queue?
  */
 static int
 ath_tx_getac(struct ath_softc *sc, const struct mbuf *m0)
 {
 	const struct ieee80211_frame *wh;
-	int pri = M_WME_GETAC(m0);
-	wh = mtod(m0, const struct ieee80211_frame *);
-	if (IEEE80211_QOS_HAS_SEQ(wh))
-		return pri;
 
-	return ATH_NONQOS_TID_AC;
+	wh = mtod(m0, const struct ieee80211_frame *);
+
+	/*
+	 * QoS data frame (sequence number or otherwise) -
+	 * return hardware queue mapping for the underlying
+	 * TID.
+	 */
+	if (IEEE80211_QOS_HAS_SEQ(wh))
+		return TID_TO_WME_AC(ieee80211_gettid(wh));
+
+	/*
+	 * Otherwise - return mbuf QoS pri.
+	 */
+	return (M_WME_GETAC(m0));
 }
 
 void
@@ -1550,6 +1563,8 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	const HAL_RATE_TABLE *rt;
 	HAL_BOOL shortPreamble;
 	struct ath_node *an;
+
+	/* XXX TODO: this pri is only used for non-QoS check, right? */
 	u_int pri;
 
 	/*
@@ -1618,7 +1633,8 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	//flags = HAL_TXDESC_CLRDMASK;		/* XXX needed for crypto errs */
 	flags = 0;
 	ismrr = 0;				/* default no multi-rate retry*/
-	pri = M_WME_GETAC(m0);			/* honor classification */
+
+	pri = ath_tx_getac(sc, m0);			/* honor classification */
 	/* XXX use txparams instead of fixed values */
 	/*
 	 * Calculate Atheros packet type from IEEE80211 packet header,
@@ -1899,7 +1915,18 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * Determine the target hardware queue.
 	 *
 	 * For multicast frames, the txq gets overridden appropriately
-	 * depending upon the state of PS.
+	 * depending upon the state of PS.  If powersave is enabled
+	 * then they get added to the cabq for later transmit.
+	 *
+	 * The "fun" issue here is that group addressed frames should
+	 * have the sequence number from a different pool, rather than
+	 * the per-TID pool.  That means that even QoS group addressed
+	 * frames will have a sequence number from that global value,
+	 * which means if we transmit different group addressed frames
+	 * at different traffic priorities, the sequence numbers will
+	 * all be out of whack.  So - chances are, the right thing
+	 * to do here is to always put group addressed frames into the BE
+	 * queue, and ignore the TID for queue selection.
 	 *
 	 * For any other frame, we do a TID/QoS lookup inside the frame
 	 * to see what the TID should be. If it's a non-QoS frame, the
@@ -1999,21 +2026,26 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/*
 	 * Don't do it whilst pending; the net80211 layer still
 	 * assigns them.
+	 *
+	 * Don't assign A-MPDU sequence numbers to group address
+	 * frames; they come from a different sequence number space.
 	 */
-	if (is_ampdu_tx) {
+	if (is_ampdu_tx && (! IEEE80211_IS_MULTICAST(wh->i_addr1))) {
 		/*
 		 * Always call; this function will
 		 * handle making sure that null data frames
-		 * don't get a sequence number from the current
-		 * TID and thus mess with the BAW.
+		 * and group-addressed frames don't get a sequence number
+		 * from the current TID and thus mess with the BAW.
 		 */
 		seqno = ath_tx_tid_seqno_assign(sc, ni, bf, m0);
 
 		/*
-		 * Don't add QoS NULL frames to the BAW.
+		 * Don't add QoS NULL frames and group-addressed frames
+		 * to the BAW.
 		 */
 		if (IEEE80211_QOS_HAS_SEQ(wh) &&
-		    subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL) {
+		    (! IEEE80211_IS_MULTICAST(wh->i_addr1)) &&
+		    (subtype != IEEE80211_FC0_SUBTYPE_QOS_NULL)) {
 			bf->bf_state.bfs_dobaw = 1;
 		}
 	}
@@ -2030,7 +2062,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		    "%s: tid %d: ampdu pending, seqno %d\n",
 		    __func__, tid, M_SEQNO_GET(m0));
 
-	/* This also sets up the DMA map */
+	/* This also sets up the DMA map; crypto; frame parameters, etc */
 	r = ath_tx_normal_setup(sc, ni, bf, m0, txq);
 
 	if (r != 0)
@@ -2148,13 +2180,21 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* Map ADDBA to the correct priority */
 	if (do_override) {
-#if 0
+#if 1
 		DPRINTF(sc, ATH_DEBUG_XMIT, 
 		    "%s: overriding tid %d pri %d -> %d\n",
 		    __func__, o_tid, pri, TID_TO_WME_AC(o_tid));
 #endif
 		pri = TID_TO_WME_AC(o_tid);
 	}
+
+	/*
+	 * "pri" is the hardware queue to transmit on.
+	 *
+	 * Look at the description in ath_tx_start() to understand
+	 * what needs to be "fixed" here so we just use the TID
+	 * for QoS frames.
+	 */
 
 	/* Handle encryption twiddling if needed */
 	if (! ath_tx_tag_crypto(sc, ni,
@@ -2931,22 +2971,25 @@ ath_tx_tid_unsched(struct ath_softc *sc, struct ath_tid *tid)
  * Assign a sequence number manually to the given frame.
  *
  * This should only be called for A-MPDU TX frames.
+ *
+ * Note: for group addressed frames, the sequence number
+ * should be from NONQOS_TID, and net80211 should have
+ * already assigned it for us.
  */
 static ieee80211_seq
 ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf, struct mbuf *m0)
 {
 	struct ieee80211_frame *wh;
-	int tid, pri;
+	int tid;
 	ieee80211_seq seqno;
 	uint8_t subtype;
 
-	/* TID lookup */
 	wh = mtod(m0, struct ieee80211_frame *);
-	pri = M_WME_GETAC(m0);			/* honor classification */
-	tid = WME_AC_TO_TID(pri);
-	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: pri=%d, tid=%d, qos has seq=%d\n",
-	    __func__, pri, tid, IEEE80211_QOS_HAS_SEQ(wh));
+	tid = ieee80211_gettid(wh);
+
+	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d, qos has seq=%d\n",
+	    __func__, tid, IEEE80211_QOS_HAS_SEQ(wh));
 
 	/* XXX Is it a control frame? Ignore */
 
@@ -2968,6 +3011,13 @@ ath_tx_tid_seqno_assign(struct ath_softc *sc, struct ieee80211_node *ni,
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 	if (subtype == IEEE80211_FC0_SUBTYPE_QOS_NULL) {
 		/* XXX no locking for this TID? This is a bit of a problem. */
+		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID];
+		INCR(ni->ni_txseqs[IEEE80211_NONQOS_TID], IEEE80211_SEQ_RANGE);
+	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		/*
+		 * group addressed frames get a sequence number from
+		 * a different sequence number space.
+		 */
 		seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID];
 		INCR(ni->ni_txseqs[IEEE80211_NONQOS_TID], IEEE80211_SEQ_RANGE);
 	} else {
