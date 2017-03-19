@@ -1817,44 +1817,17 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	sid = (aep->at_hdr.s_id[0] << 16) | (aep->at_hdr.s_id[1] << 8) | aep->at_hdr.s_id[2];
 	lun = CAM_EXTLUN_BYTE_SWIZZLE(be64dec(aep->at_cmnd.fcp_cmnd_lun));
 
-	/*
-	 * Find the N-port handle, and Virtual Port Index for this command.
-	 *
-	 * If we can't, we're somewhat in trouble because we can't actually respond w/o that information.
-	 * We also, as a matter of course, need to know the WWN of the initiator too.
-	 */
 	if (ISP_CAP_MULTI_ID(isp) && isp->isp_nchan > 1) {
-		/*
-		 * Find the right channel based upon D_ID
-		 */
+		/* Channel has to be derived from D_ID */
 		isp_find_chan_by_did(isp, did, &chan);
-
 		if (chan == ISP_NOCHAN) {
-			NANOTIME_T now;
-
-			/*
-			 * If we don't recognizer our own D_DID, terminate the exchange, unless we're within 2 seconds of startup
-			 * It's a bit tricky here as we need to stash this command *somewhere*.
-			 */
-			GET_NANOTIME(&now);
-			if (NANOTIME_SUB(&now, &isp->isp_init_time) > 2000000000ULL) {
-				isp_prt(isp, ISP_LOGWARN, "%s: [RX_ID 0x%x] D_ID %x not found on any channel- dropping", __func__, aep->at_rxid, did);
-				isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN, ECMD_TERMINATE, 0);
-				return;
-			}
-			tptr = get_lun_statep(isp, 0, 0);
-			if (tptr == NULL) {
-				tptr = get_lun_statep(isp, 0, CAM_LUN_WILDCARD);
-				if (tptr == NULL) {
-					isp_prt(isp, ISP_LOGWARN, "%s: [RX_ID 0x%x] D_ID %x not found on any channel and no tptr- dropping", __func__, aep->at_rxid, did);
-					isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN, ECMD_TERMINATE, 0);
-					return;
-				}
-			}
-			isp_prt(isp, ISP_LOGWARN, "%s: [RX_ID 0x%x] D_ID %x not found on any channel- deferring", __func__, aep->at_rxid, did);
-			goto noresrc;
+			isp_prt(isp, ISP_LOGWARN,
+			    "%s: [RX_ID 0x%x] D_ID %x not found on any channel",
+			    __func__, aep->at_rxid, did);
+			isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN,
+			    ECMD_TERMINATE, 0);
+			return;
 		}
-		isp_prt(isp, ISP_LOGTDEBUG0, "%s: [RX_ID 0x%x] D_ID 0x%06x found on Chan %d for S_ID 0x%06x", __func__, aep->at_rxid, did, chan, sid);
 	} else {
 		chan = 0;
 	}
