@@ -522,10 +522,7 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 		exitstatus = waitforjob(in.jp, (int *)NULL);
 		ungrabstackstr(p, dest);
 	}
-	TRACE(("expbackq: size=%td: \"%.*s\"\n",
-		((dest - stackblock()) - startloc),
-		(int)((dest - stackblock()) - startloc),
-		stackblock() + startloc));
+	TRACE(("expbackq: done\n"));
 	expdest = dest;
 	INTON;
 }
