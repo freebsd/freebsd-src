@@ -77,6 +77,16 @@
 #define	SDHCI_QUIRK_BOOT_NOACC				(1 << 21)
 /* Controller waits for busy responses. */
 #define	SDHCI_QUIRK_WAIT_WHILE_BUSY			(1 << 22)
+/* Controller supports eMMC DDR52 mode. */
+#define	SDHCI_QUIRK_MMC_DDR52				(1 << 23)
+/* Controller support for UHS DDR50 mode is broken. */
+#define	SDHCI_QUIRK_BROKEN_UHS_DDR50			(1 << 24)
+/* Controller support for eMMC HS200 mode is broken. */
+#define	SDHCI_QUIRK_BROKEN_MMC_HS200			(1 << 25)
+/* Controller reports support for eMMC HS400 mode as SDHCI_CAN_MMC_HS400. */
+#define	SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400		(1 << 26)
+/* Controller support for SDHCI_CTRL2_PRESET_VALUE is broken. */
+#define	SDHCI_QUIRK_PRESET_VALUE_BROKEN			(1 << 27)
 
 /*
  * Controller registers
@@ -237,6 +247,7 @@
 #define	 SDHCI_CTRL2_UHS_SDR50	0x0002
 #define	 SDHCI_CTRL2_UHS_SDR104	0x0003
 #define	 SDHCI_CTRL2_UHS_DDR50	0x0004
+#define	 SDHCI_CTRL2_MMC_HS400	0x0005	/* non-standard */
 
 #define	SDHCI_CAPABILITIES	0x40
 #define	 SDHCI_TIMEOUT_CLK_MASK	0x0000003F
@@ -276,6 +287,7 @@
 #define	 SDHCI_RETUNE_MODES_SHIFT 14
 #define	 SDHCI_CLOCK_MULT_MASK	0x00FF0000
 #define	 SDHCI_CLOCK_MULT_SHIFT	16
+#define	 SDHCI_CAN_MMC_HS400	0x80000000	/* non-standard */
 
 #define	SDHCI_MAX_CURRENT	0x48
 #define	SDHCI_FORCE_AUTO_EVENT	0x50
@@ -308,9 +320,13 @@
 
 SYSCTL_DECL(_hw_sdhci);
 
+extern u_int sdhci_quirk_clear;
+extern u_int sdhci_quirk_set;
+
 struct sdhci_slot {
 	u_int		quirks;		/* Chip specific quirks */
 	u_int		caps;		/* Override SDHCI_CAPABILITIES */
+	u_int		caps2;		/* Override SDHCI_CAPABILITIES2 */
 	device_t	bus;		/* Bus device */
 	device_t	dev;		/* Slot device */
 	u_char		num;		/* Slot number */
@@ -363,6 +379,7 @@ int sdhci_cleanup_slot(struct sdhci_slot *slot);
 int sdhci_generic_suspend(struct sdhci_slot *slot);
 int sdhci_generic_resume(struct sdhci_slot *slot);
 int sdhci_generic_update_ios(device_t brdev, device_t reqdev);
+int sdhci_generic_switch_vccq(device_t brdev, device_t reqdev);
 int sdhci_generic_request(device_t brdev, device_t reqdev,
     struct mmc_request *req);
 int sdhci_generic_get_ro(device_t brdev, device_t reqdev);
@@ -371,6 +388,7 @@ int sdhci_generic_release_host(device_t brdev, device_t reqdev);
 void sdhci_generic_intr(struct sdhci_slot *slot);
 uint32_t sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot);
 bool sdhci_generic_get_card_present(device_t brdev, struct sdhci_slot *slot);
+void sdhci_generic_set_uhs_timing(device_t brdev, struct sdhci_slot *slot);
 void sdhci_handle_card_present(struct sdhci_slot *slot, bool is_present);
 
 #endif	/* __SDHCI_H__ */
