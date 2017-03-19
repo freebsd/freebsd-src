@@ -158,6 +158,7 @@ MIASM =  \
 	ffclock_getcounter.o \
 	ffclock_setestimate.o \
 	ffclock_getestimate.o \
+	clock_nanosleep.o \
 	clock_getcpuclockid2.o \
 	ntp_gettime.o \
 	minherit.o \

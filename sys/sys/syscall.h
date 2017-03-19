@@ -218,6 +218,7 @@
 #define	SYS_ffclock_getcounter	241
 #define	SYS_ffclock_setestimate	242
 #define	SYS_ffclock_getestimate	243
+#define	SYS_clock_nanosleep	244
 #define	SYS_clock_getcpuclockid2	247
 #define	SYS_ntp_gettime	248
 #define	SYS_minherit	250
