@@ -139,7 +139,6 @@ isp_sbus_attach(device_t dev)
 	struct isp_sbussoftc *sbs = device_get_softc(dev);
 	ispsoftc_t *isp = &sbs->sbus_isp;
 	int tval, isp_debug, role, ispburst, default_id;
-	int ints_setup = 0;
 
 	sbs->sbus_dev = dev;
 	sbs->sbus_mdvec = mdvec;
@@ -262,12 +261,14 @@ isp_sbus_attach(device_t dev)
 		goto bad;
 	}
 
-	if (isp_setup_intr(dev, sbs->irq, ISP_IFLAGS, NULL, isp_platform_intr,
+	if (bus_setup_intr(dev, sbs->irq, ISP_IFLAGS, NULL, isp_platform_intr,
 	    isp, &sbs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
+		(void) bus_release_resource(dev, SYS_RES_IRQ,
+		    sbs->iqd, sbs->irq);
 		goto bad;
 	}
-	ints_setup++;
+	isp->isp_nirq = 1;
 
 	/*
 	 * Set up logging levels.
@@ -299,13 +300,10 @@ isp_sbus_attach(device_t dev)
 	return (0);
 
 bad:
-
-	if (sbs && ints_setup) {
+	if (isp->isp_nirq > 0) {
 		(void) bus_teardown_intr(dev, sbs->irq, sbs->ih);
-	}
-
-	if (sbs && sbs->irq) {
-		bus_release_resource(dev, SYS_RES_IRQ, sbs->iqd, sbs->irq);
+		(void) bus_release_resource(dev, SYS_RES_IRQ, sbs->iqd,
+		    sbs->irq);
 	}
 
 	if (sbs->regs) {
@@ -329,9 +327,11 @@ isp_sbus_detach(device_t dev)
 	ISP_LOCK(isp);
 	isp_shutdown(isp);
 	ISP_UNLOCK(isp);
-	if (sbs->ih)
+	if (isp->isp_nirq > 0) {
 		(void) bus_teardown_intr(dev, sbs->irq, sbs->ih);
-	(void) bus_release_resource(dev, SYS_RES_IRQ, sbs->iqd, sbs->irq);
+		(void) bus_release_resource(dev, SYS_RES_IRQ, sbs->iqd,
+		    sbs->irq);
+	}
 	(void) bus_release_resource(dev, SYS_RES_MEMORY, sbs->rgd, sbs->regs);
 	isp_sbus_mbxdmafree(isp);
 	mtx_destroy(&isp->isp_osinfo.lock);
