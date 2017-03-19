@@ -886,20 +886,20 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 		return (EACCES);
 	maxprot &= cap_maxprot;
 
+	/* See comment in vn_mmap(). */
+	if (
+#ifdef _LP64
+	    objsize > OFF_MAX ||
+#endif
+	    foff < 0 || foff > OFF_MAX - objsize)
+		return (EINVAL);
+
 #ifdef MAC
 	error = mac_posixshm_check_mmap(td->td_ucred, shmfd, prot, flags);
 	if (error != 0)
 		return (error);
 #endif
 	
-	/*
-	 * XXXRW: This validation is probably insufficient, and subject to
-	 * sign errors.  It should be fixed.
-	 */
-	if (foff >= shmfd->shm_size ||
-	    foff + objsize > round_page(shmfd->shm_size))
-		return (EINVAL);
-
 	mtx_lock(&shm_timestamp_lock);
 	vfs_timestamp(&shmfd->shm_atime);
 	mtx_unlock(&shm_timestamp_lock);
