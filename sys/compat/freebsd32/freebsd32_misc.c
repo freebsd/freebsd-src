@@ -129,6 +129,8 @@ CTASSERT(sizeof(struct sigaction32) == 24);
 
 static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
+static int freebsd32_user_clock_nanosleep(struct thread *td, clockid_t clock_id,
+    int flags, const struct timespec32 *ua_rqtp, struct timespec32 *ua_rmtp);
 
 void
 freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32)
@@ -2226,28 +2228,48 @@ ofreebsd32_sigstack(struct thread *td,
 int
 freebsd32_nanosleep(struct thread *td, struct freebsd32_nanosleep_args *uap)
 {
+
+	return (freebsd32_user_clock_nanosleep(td, CLOCK_REALTIME,
+	    TIMER_RELTIME, uap->rqtp, uap->rmtp));
+}
+
+int
+freebsd32_clock_nanosleep(struct thread *td,
+    struct freebsd32_clock_nanosleep_args *uap)
+{
+	int error;
+
+	error = freebsd32_user_clock_nanosleep(td, uap->clock_id, uap->flags,
+	    uap->rqtp, uap->rmtp);
+	return (kern_posix_error(td, error));
+}
+
+static int
+freebsd32_user_clock_nanosleep(struct thread *td, clockid_t clock_id,
+    int flags, const struct timespec32 *ua_rqtp, struct timespec32 *ua_rmtp)
+{
 	struct timespec32 rmt32, rqt32;
 	struct timespec rmt, rqt;
 	int error;
 
-	error = copyin(uap->rqtp, &rqt32, sizeof(rqt32));
+	error = copyin(ua_rqtp, &rqt32, sizeof(rqt32));
 	if (error)
 		return (error);
 
 	CP(rqt32, rqt, tv_sec);
 	CP(rqt32, rqt, tv_nsec);
 
-	if (uap->rmtp &&
-	    !useracc((caddr_t)uap->rmtp, sizeof(rmt), VM_PROT_WRITE))
+	if (ua_rmtp != NULL && (flags & TIMER_ABSTIME) == 0 &&
+	    !useracc(ua_rmtp, sizeof(rmt32), VM_PROT_WRITE))
 		return (EFAULT);
-	error = kern_nanosleep(td, &rqt, &rmt);
-	if (error == EINTR && uap->rmtp) {
+	error = kern_clock_nanosleep(td, clock_id, flags, &rqt, &rmt);
+	if (error == EINTR && ua_rmtp != NULL && (flags & TIMER_ABSTIME) == 0) {
 		int error2;
 
 		CP(rmt, rmt32, tv_sec);
 		CP(rmt, rmt32, tv_nsec);
 
-		error2 = copyout(&rmt32, uap->rmtp, sizeof(rmt32));
+		error2 = copyout(&rmt32, ua_rmtp, sizeof(rmt32));
 		if (error2)
 			error = error2;
 	}
