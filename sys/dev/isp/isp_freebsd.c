@@ -1591,7 +1591,6 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			xpt_done(ccb);
 			continue;
 		}
-		isp->isp_nactive++;
 		ccb->ccb_h.status = CAM_REQ_INPROG | CAM_SIM_QUEUED;
 		if (xfrlen) {
 			ccb->ccb_h.spriv_field0 = atp->bytes_xfered;
@@ -2113,9 +2112,6 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 	isp_destroy_handle(isp, handle);
 	resid = data_requested = PISP_PCMD(ccb)->datalen;
 	isp_free_pcmd(isp, ccb);
-	if (isp->isp_nactive) {
-		isp->isp_nactive--;
-	}
 
 	bus = XS_CHANNEL(ccb);
 	if (IS_24XX(isp)) {
