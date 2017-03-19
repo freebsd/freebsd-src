@@ -103,24 +103,6 @@ ff_age_all(void *arg, int npending)
 	ieee80211_ff_age_all(ic, ieee80211_ffagemax + 1);
 }
 
-static void
-ff_check_cancel_age_timer(struct ieee80211com *ic)
-{
-	struct ieee80211_superg *sg = ic->ic_superg;
-
-	IEEE80211_FF_LOCK_ASSERT(ic);
-
-	if (sg->ff_stageq[WME_AC_VO].depth == 0 &&
-	    sg->ff_stageq[WME_AC_VI].depth == 0 &&
-	    sg->ff_stageq[WME_AC_BE].depth == 0 &&
-	    sg->ff_stageq[WME_AC_BK].depth == 0) {
-		struct timeout_task *qtask = &sg->ff_qtimer;
-
-		/* NB: may be called from the task itself */
-		(void) taskqueue_cancel_timeout(ic->ic_tq, qtask, NULL);
-	}
-}
-
 void
 ieee80211_superg_attach(struct ieee80211com *ic)
 {
@@ -679,10 +661,9 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 		sq->head = m->m_nextpkt;
 		sq->depth--;
 	}
-	if (m == NULL) {
+	if (m == NULL)
 		sq->tail = NULL;
-		ff_check_cancel_age_timer(ic);
-	} else
+	else
 		M_AGE_SUB(m, quanta);
 	IEEE80211_FF_UNLOCK(ic);
 
@@ -732,7 +713,6 @@ stageq_remove(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf 
 			if (sq->tail == m)
 				sq->tail = mprev;
 			sq->depth--;
-			ff_check_cancel_age_timer(ic);
 			return;
 		}
 		mprev = m;
