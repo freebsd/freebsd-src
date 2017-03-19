@@ -940,15 +940,8 @@ linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 int
 linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 {
-	struct ftruncate_args /* {
-		int fd;
-		int pad;
-		off_t length;
-		} */ nuap;
 
-	nuap.fd = args->fd;
-	nuap.length = args->length;
-	return (sys_ftruncate(td, &nuap));
+	return (kern_ftruncate(td, args->fd, args->length));
 }
 
 int
