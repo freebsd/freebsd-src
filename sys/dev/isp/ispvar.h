@@ -553,7 +553,6 @@ struct ispsoftc {
 
 	volatile u_int		isp_mboxbsy;	/* mailbox command active */
 	volatile u_int		isp_state;
-	volatile u_int		isp_nactive;	/* how many commands active */
 	volatile mbreg_t	isp_curmbx;	/* currently active mailbox command */
 	volatile uint32_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile uint32_t	isp_reqidx;	/* index of next request */
