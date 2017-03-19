@@ -65,6 +65,18 @@
 INTERFACE mmcbr;
 
 #
+# Default implementations of some methods.
+#
+CODE {
+	static int
+	null_switch_vccq(device_t brdev __unused, device_t reqdev __unused)
+	{
+
+		return (0);
+	}
+};
+
+#
 # Called by the mmcbus to set up the IO pins correctly, the common/core
 # supply voltage (VDD/VCC) to use for the device, the clock frequency, the
 # type of SPI chip select, power mode and bus width.
@@ -73,6 +85,14 @@ METHOD int update_ios {
 	device_t	brdev;
 	device_t	reqdev;
 };
+
+#
+# Called by the mmcbus to switch the signaling voltage (VCCQ).
+#
+METHOD int switch_vccq {
+	device_t	brdev;
+	device_t	reqdev;
+} DEFAULT null_switch_vccq;
 
 #
 # Called by the mmcbus or its children to schedule a mmc request.  These

@@ -106,26 +106,41 @@ static const struct sdhci_device {
 	{ 0x0f148086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
 	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
-	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_MMC_DDR52 |
+	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN},
 	{ 0x0f158086,	0xffff,	"Intel Bay Trail SDXC Controller",
-	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x0f508086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
 	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
-	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_MMC_DDR52 |
+	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x22948086,	0xffff,	"Intel Braswell eMMC 4.5.1 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
 	    SDHCI_QUIRK_DATA_TIMEOUT_1MHZ |
 	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
-	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_MMC_DDR52 |
+	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x22968086,	0xffff,	"Intel Braswell SDXC Controller",
-	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x5aca8086,	0xffff,	"Intel Apollo Lake SDXC Controller",
-	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x5acc8086,	0xffff,	"Intel Apollo Lake eMMC 5.0 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
 	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
-	    SDHCI_QUIRK_WAIT_WHILE_BUSY },
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_MMC_DDR52 |
+	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
@@ -323,6 +338,8 @@ sdhci_pci_attach(device_t dev)
 			break;
 		}
 	}
+	sc->quirks &= ~sdhci_quirk_clear;
+	sc->quirks |= sdhci_quirk_set;
 	/* Some controllers need to be bumped into the right mode. */
 	if (sc->quirks & SDHCI_QUIRK_LOWER_FREQUENCY)
 		sdhci_lower_frequency(dev);
@@ -468,12 +485,13 @@ static device_method_t sdhci_methods[] = {
 
 	/* mmcbr_if */
 	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
+	DEVMETHOD(mmcbr_switch_vccq,	sdhci_generic_switch_vccq),
 	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
 	DEVMETHOD(mmcbr_get_ro,		sdhci_generic_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,   sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,   sdhci_generic_release_host),
 
-	/* SDHCI registers accessors */
+	/* SDHCI accessors */
 	DEVMETHOD(sdhci_read_1,		sdhci_pci_read_1),
 	DEVMETHOD(sdhci_read_2,		sdhci_pci_read_2),
 	DEVMETHOD(sdhci_read_4,		sdhci_pci_read_4),
@@ -482,6 +500,7 @@ static device_method_t sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_2,	sdhci_pci_write_2),
 	DEVMETHOD(sdhci_write_4,	sdhci_pci_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	sdhci_pci_write_multi_4),
+	DEVMETHOD(sdhci_set_uhs_timing,	sdhci_generic_set_uhs_timing),
 
 	DEVMETHOD_END
 };
