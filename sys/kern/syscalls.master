@@ -461,7 +461,9 @@
 				    struct ffclock_estimate *cest); }
 243	AUE_NULL	STD	{ int ffclock_getestimate( \
 				    struct ffclock_estimate *cest); }
-244	AUE_NULL	UNIMPL	nosys
+244	AUE_NULL	STD	{ int clock_nanosleep(clockid_t clock_id, \
+				    int flags, const struct timespec *rqtp, \
+				    struct timespec *rmtp); }
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys
 247	AUE_NULL	STD	{ int clock_getcpuclockid2(id_t id,\

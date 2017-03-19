@@ -56,6 +56,7 @@
 #define		bind				_bind
 #define		__cap_get_fd			___cap_get_fd
 #define		__cap_set_fd			___cap_set_fd
+#define		clock_nanosleep			_clock_nanosleep
 #define		close				_close
 #define		connect				_connect
 #define		dup				_dup
