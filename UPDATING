@@ -69,11 +69,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	removed as the userland we provide cannot use them. The KMS version
 	(sys/dev/drm2) support the same hardware.
 
-20170311:
-	GNU diff has been replaced by a BSD licensed diff. Some features of GNU
-	diff has not been implemented, if those are needed a newer version of
-	GNU diff is available via the diffutils package under the gdiff name.
-
 20170302:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 4.0.0.
 	Please see the 20141231 entry below for information about prerequisites
