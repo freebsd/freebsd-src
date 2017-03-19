@@ -132,7 +132,7 @@ static SYSCTL_NODE(_kern, OID_AUTO, ktrace, CTLFLAG_RD, 0, "KTRACE options");
 static u_int ktr_requestpool = KTRACE_REQUEST_POOL;
 TUNABLE_INT("kern.ktrace.request_pool", &ktr_requestpool);
 
-static u_int ktr_geniosize = PAGE_SIZE;
+u_int ktr_geniosize = PAGE_SIZE;
 TUNABLE_INT("kern.ktrace.genio_size", &ktr_geniosize);
 SYSCTL_UINT(_kern_ktrace, OID_AUTO, genio_size, CTLFLAG_RW, &ktr_geniosize,
     0, "Maximum size of genio event payload");
