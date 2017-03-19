@@ -700,17 +700,6 @@ usage(void)
 	exit(1);
 }
 
-char *
-checked_strdup(const char *s)
-{
-	char *c;
-
-	c = strdup(s);
-	if (c == NULL)
-		xo_err(1, "strdup");
-	return (c);
-}
-
 int
 main(int argc, char **argv)
 {
