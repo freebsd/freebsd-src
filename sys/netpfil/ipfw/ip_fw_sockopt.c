@@ -1821,6 +1821,8 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			break;
 
 		case O_IP_SRC_LOOKUP:
+			if (cmdlen > F_INSN_SIZE(ipfw_insn_u32))
+				goto bad_size;
 		case O_IP_DST_LOOKUP:
 			if (cmd->arg1 >= V_fw_tables_max) {
 				printf("ipfw: invalid table number %d\n",

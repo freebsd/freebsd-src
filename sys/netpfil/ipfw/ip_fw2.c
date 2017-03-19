@@ -382,8 +382,8 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain,
 	/* Check by name or by IP address */
 	if (cmd->name[0] != '\0') { /* match by name */
 		if (cmd->name[0] == '\1') /* use tablearg to match */
-			return ipfw_lookup_table_extended(chain, cmd->p.kidx, 0,
-				&ifp->if_index, tablearg);
+			return ipfw_lookup_table(chain, cmd->p.kidx, 0,
+			    &ifp->if_index, tablearg);
 		/* Check name */
 		if (cmd->p.glob) {
 			if (fnmatch(cmd->name, ifp->if_xname, 0) == 0)
@@ -1454,86 +1454,130 @@ do {								\
 				    src_ip.s_addr);
 				break;
 
-			case O_IP_SRC_LOOKUP:
 			case O_IP_DST_LOOKUP:
-				if (is_ipv4) {
-				    uint32_t key =
-					(cmd->opcode == O_IP_DST_LOOKUP) ?
-					    dst_ip.s_addr : src_ip.s_addr;
-				    uint32_t v = 0;
+			{
+				void *pkey;
+				uint32_t vidx, key;
+				uint16_t keylen;
 
-				    if (cmdlen > F_INSN_SIZE(ipfw_insn_u32)) {
-					/* generic lookup. The key must be
-					 * in 32bit big-endian format.
-					 */
-					v = ((ipfw_insn_u32 *)cmd)->d[1];
-					if (v == 0)
-					    key = dst_ip.s_addr;
-					else if (v == 1)
-					    key = src_ip.s_addr;
-					else if (v == 6) /* dscp */
-					    key = (ip->ip_tos >> 2) & 0x3f;
-					else if (offset != 0)
-					    break;
-					else if (proto != IPPROTO_TCP &&
-						proto != IPPROTO_UDP)
-					    break;
-					else if (v == 2)
-					    key = dst_port;
-					else if (v == 3)
-					    key = src_port;
+				if (cmdlen > F_INSN_SIZE(ipfw_insn_u32)) {
+					/* Determine lookup key type */
+					vidx = ((ipfw_insn_u32 *)cmd)->d[1];
+					if (vidx != 4 /* uid */ &&
+					    vidx != 5 /* jail */ &&
+					    is_ipv6 == 0 && is_ipv4 == 0)
+						break;
+					/* Determine key length */
+					if (vidx == 0 /* dst-ip */ ||
+					    vidx == 1 /* src-ip */)
+						keylen = is_ipv6 ?
+						    sizeof(struct in6_addr):
+						    sizeof(in_addr_t);
+					else {
+						keylen = sizeof(key);
+						pkey = &key;
+					}
+					if (vidx == 0 /* dst-ip */)
+						pkey = is_ipv4 ? (void *)&dst_ip:
+						    (void *)&args->f_id.dst_ip6;
+					else if (vidx == 1 /* src-ip */)
+						pkey = is_ipv4 ? (void *)&src_ip:
+						    (void *)&args->f_id.src_ip6;
+					else if (vidx == 6 /* dscp */) {
+						if (is_ipv4)
+							key = ip->ip_tos >> 2;
+						else {
+							key = args->f_id.flow_id6;
+							key = (key & 0x0f) << 2 |
+							    (key & 0xf000) >> 14;
+						}
+						key &= 0x3f;
+					} else if (vidx == 2 /* dst-port */ ||
+					    vidx == 3 /* src-port */) {
+						/* Skip fragments */
+						if (offset != 0)
+							break;
+						/* Skip proto without ports */
+						if (proto != IPPROTO_TCP &&
+						    proto != IPPROTO_UDP &&
+						    proto != IPPROTO_SCTP)
+							break;
+						if (vidx == 2 /* dst-port */)
+							key = dst_port;
+						else
+							key = src_port;
+					}
 #ifndef USERSPACE
-					else if (v == 4 || v == 5) {
-					    check_uidgid(
-						(ipfw_insn_u32 *)cmd,
-						args, &ucred_lookup,
+					else if (vidx == 4 /* uid */ ||
+					    vidx == 5 /* jail */) {
+						check_uidgid(
+						    (ipfw_insn_u32 *)cmd,
+						    args, &ucred_lookup,
 #ifdef __FreeBSD__
-						&ucred_cache);
-					    if (v == 4 /* O_UID */)
-						key = ucred_cache->cr_uid;
-					    else if (v == 5 /* O_JAIL */)
-						key = ucred_cache->cr_prison->pr_id;
+						    &ucred_cache);
+						if (vidx == 4 /* uid */)
+							key = ucred_cache->cr_uid;
+						else if (vidx == 5 /* jail */)
+							key = ucred_cache->cr_prison->pr_id;
 #else /* !__FreeBSD__ */
-						(void *)&ucred_cache);
-					    if (v ==4 /* O_UID */)
-						key = ucred_cache.uid;
-					    else if (v == 5 /* O_JAIL */)
-						key = ucred_cache.xid;
+						    (void *)&ucred_cache);
+						if (vidx == 4 /* uid */)
+							key = ucred_cache.uid;
+						else if (vidx == 5 /* jail */)
+							key = ucred_cache.xid;
 #endif /* !__FreeBSD__ */
 					}
 #endif /* !USERSPACE */
 					else
-					    break;
-				    }
-				    match = ipfw_lookup_table(chain,
-					cmd->arg1, key, &v);
-				    if (!match)
+						break;
+					match = ipfw_lookup_table(chain,
+					    cmd->arg1, keylen, pkey, &vidx);
+					if (!match)
+						break;
+					tablearg = vidx;
 					break;
-				    if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
-					match = ((ipfw_insn_u32 *)cmd)->d[0] ==
-					    TARG_VAL(chain, v, tag);
-				    else
-					tablearg = v;
-				} else if (is_ipv6) {
-					uint32_t v = 0;
-					void *pkey = (cmd->opcode == O_IP_DST_LOOKUP) ?
-						&args->f_id.dst_ip6: &args->f_id.src_ip6;
-					match = ipfw_lookup_table_extended(chain,
-							cmd->arg1,
-							sizeof(struct in6_addr),
-							pkey, &v);
-					if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
-						match = ((ipfw_insn_u32 *)cmd)->d[0] ==
-						    TARG_VAL(chain, v, tag);
-					if (match)
-						tablearg = v;
 				}
+				/* cmdlen =< F_INSN_SIZE(ipfw_insn_u32) */
+				/* FALLTHROUGH */
+			}
+			case O_IP_SRC_LOOKUP:
+			{
+				void *pkey;
+				uint32_t vidx;
+				uint16_t keylen;
+
+				if (is_ipv4) {
+					keylen = sizeof(in_addr_t);
+					if (cmd->opcode == O_IP_DST_LOOKUP)
+						pkey = &dst_ip;
+					else
+						pkey = &src_ip;
+				} else if (is_ipv6) {
+					keylen = sizeof(struct in6_addr);
+					if (cmd->opcode == O_IP_DST_LOOKUP)
+						pkey = &args->f_id.dst_ip6;
+					else
+						pkey = &args->f_id.src_ip6;
+				} else
+					break;
+				match = ipfw_lookup_table(chain, cmd->arg1,
+				    keylen, pkey, &vidx);
+				if (!match)
+					break;
+				if (cmdlen == F_INSN_SIZE(ipfw_insn_u32)) {
+					match = ((ipfw_insn_u32 *)cmd)->d[0] ==
+					    TARG_VAL(chain, vidx, tag);
+					if (!match)
+						break;
+				}
+				tablearg = vidx;
 				break;
+			}
 
 			case O_IP_FLOW_LOOKUP:
 				{
 					uint32_t v = 0;
-					match = ipfw_lookup_table_extended(chain,
+					match = ipfw_lookup_table(chain,
 					    cmd->arg1, 0, &args->f_id, &v);
 					if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
 						match = ((ipfw_insn_u32 *)cmd)->d[0] ==
