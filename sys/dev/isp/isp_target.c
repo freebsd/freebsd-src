@@ -919,6 +919,7 @@ isp_handle_abts(ispsoftc_t *isp, abts_t *abts)
 static void
 isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 {
+	fcportdb_t *lp;
 	int lun, iid;
 
 	if (ISP_CAP_SCCFW(isp)) {
@@ -975,9 +976,26 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		break;
 
 	case AT_CDB:		/* Got a CDB */
-		/*
-		 * Punt to platform specific layer.
-		 */
+
+		/* Make sure we have this inititor in port database. */
+		if (!IS_2100(isp) &&
+		    (isp_find_pdb_by_handle(isp, 0, iid, &lp) == 0 ||
+		     lp->state == FC_PORTDB_STATE_ZOMBIE)) {
+		        fcparam *fcp = FCPARAM(isp, 0);
+			uint64_t wwpn =
+				(((uint64_t) aep->at_wwpn[0]) << 48) |
+				(((uint64_t) aep->at_wwpn[1]) << 32) |
+				(((uint64_t) aep->at_wwpn[2]) << 16) |
+				(((uint64_t) aep->at_wwpn[3]) <<  0);
+			isp_add_wwn_entry(isp, 0, wwpn, INI_NONE,
+			    iid, PORT_ANY, 0);
+			if (fcp->isp_loopstate > LOOP_LTEST_DONE)
+				fcp->isp_loopstate = LOOP_LTEST_DONE;
+			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, 0,
+			    ISPASYNC_CHANGE_PDB, iid, 0x06, 0xff);
+		}
+
+		/* Punt to platform specific layer. */
 		isp_async(isp, ISPASYNC_TARGET_ACTION, aep);
 		break;
 

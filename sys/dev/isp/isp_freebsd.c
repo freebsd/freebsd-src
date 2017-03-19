@@ -1743,22 +1743,15 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	if (IS_2100(isp))
 		atiop->init_id = nphdl;
 	else {
-		if ((isp_find_pdb_by_handle(isp, 0, nphdl, &lp) == 0 ||
-		     lp->state == FC_PORTDB_STATE_ZOMBIE)) {
-			uint64_t wwpn =
-				(((uint64_t) aep->at_wwpn[0]) << 48) |
-				(((uint64_t) aep->at_wwpn[1]) << 32) |
-				(((uint64_t) aep->at_wwpn[2]) << 16) |
-				(((uint64_t) aep->at_wwpn[3]) <<  0);
-			isp_add_wwn_entry(isp, 0, wwpn, INI_NONE,
-			    nphdl, PORT_ANY, 0);
-			if (fcp->isp_loopstate > LOOP_LTEST_DONE)
-				fcp->isp_loopstate = LOOP_LTEST_DONE;
-			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, 0,
-			    ISPASYNC_CHANGE_PDB, nphdl, 0x06, 0xff);
-			isp_find_pdb_by_handle(isp, 0, nphdl, &lp);
+		if (isp_find_pdb_by_handle(isp, 0, nphdl, &lp)) {
+			atiop->init_id = FC_PORTDB_TGT(isp, 0, lp);
+		} else {
+			isp_prt(isp, ISP_LOGTINFO, "%s: port %x isn't in PDB",
+			    __func__, nphdl);
+			isp_dump_portdb(isp, 0);
+			isp_endcmd(isp, aep, NIL_HANDLE, 0, ECMD_TERMINATE, 0);
+			return;
 		}
-		atiop->init_id = FC_PORTDB_TGT(isp, 0, lp);
 	}
 	atiop->cdb_len = ATIO2_CDBLEN;
 	ISP_MEMCPY(atiop->cdb_io.cdb_bytes, aep->at_cdb, ATIO2_CDBLEN);
