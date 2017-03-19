@@ -94,6 +94,33 @@ SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"max hold time for fast-frame staging (ms)");
 
+static void
+ff_age_all(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	/* XXX cache timer value somewhere (racy) */
+	ieee80211_ff_age_all(ic, ieee80211_ffagemax + 1);
+}
+
+static void
+ff_check_cancel_age_timer(struct ieee80211com *ic)
+{
+	struct ieee80211_superg *sg = ic->ic_superg;
+
+	IEEE80211_FF_LOCK_ASSERT(ic);
+
+	if (sg->ff_stageq[WME_AC_VO].depth == 0 &&
+	    sg->ff_stageq[WME_AC_VI].depth == 0 &&
+	    sg->ff_stageq[WME_AC_BE].depth == 0 &&
+	    sg->ff_stageq[WME_AC_BK].depth == 0) {
+		struct timeout_task *qtask = &sg->ff_qtimer;
+
+		/* NB: may be called from the task itself */
+		(void) taskqueue_cancel_timeout(ic->ic_tq, qtask, NULL);
+	}
+}
+
 void
 ieee80211_superg_attach(struct ieee80211com *ic)
 {
@@ -109,6 +136,7 @@ ieee80211_superg_attach(struct ieee80211com *ic)
 		    __func__);
 		return;
 	}
+	TIMEOUT_TASK_INIT(ic->ic_tq, &sg->ff_qtimer, 0, ff_age_all, ic);
 	ic->ic_superg = sg;
 
 	/*
@@ -122,12 +150,16 @@ ieee80211_superg_attach(struct ieee80211com *ic)
 void
 ieee80211_superg_detach(struct ieee80211com *ic)
 {
-	IEEE80211_FF_LOCK_DESTROY(ic);
 
 	if (ic->ic_superg != NULL) {
+		struct timeout_task *qtask = &ic->ic_superg->ff_qtimer;
+
+		while (taskqueue_cancel_timeout(ic->ic_tq, qtask, NULL) != 0)
+			taskqueue_drain_timeout(ic->ic_tq, qtask);
 		IEEE80211_FREE(ic->ic_superg, M_80211_VAP);
 		ic->ic_superg = NULL;
 	}
+	IEEE80211_FF_LOCK_DESTROY(ic);
 }
 
 void
@@ -647,9 +679,10 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 		sq->head = m->m_nextpkt;
 		sq->depth--;
 	}
-	if (m == NULL)
+	if (m == NULL) {
 		sq->tail = NULL;
-	else
+		ff_check_cancel_age_timer(ic);
+	} else
 		M_AGE_SUB(m, quanta);
 	IEEE80211_FF_UNLOCK(ic);
 
@@ -668,8 +701,13 @@ stageq_add(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf *m)
 	if (sq->tail != NULL) {
 		sq->tail->m_nextpkt = m;
 		age -= M_AGE_GET(sq->head);
-	} else
+	} else {
 		sq->head = m;
+
+		/* Do not restart the timer if task was already scheduled. */
+		struct timeout_task *qtask = &ic->ic_superg->ff_qtimer;
+		taskqueue_enqueue_timeout(ic->ic_tq, qtask, -age);
+	}
 	KASSERT(age >= 0, ("age %d", age));
 	M_AGE_SET(m, age);
 	m->m_nextpkt = NULL;
@@ -694,6 +732,7 @@ stageq_remove(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf 
 			if (sq->tail == m)
 				sq->tail = mprev;
 			sq->depth--;
+			ff_check_cancel_age_timer(ic);
 			return;
 		}
 		mprev = m;
