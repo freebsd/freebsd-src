@@ -235,6 +235,12 @@ struct freebsd32_nanosleep_args {
 	char rqtp_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * rqtp; char rqtp_r_[PADR_(const struct timespec32 *)];
 	char rmtp_l_[PADL_(struct timespec32 *)]; struct timespec32 * rmtp; char rmtp_r_[PADR_(struct timespec32 *)];
 };
+struct freebsd32_clock_nanosleep_args {
+	char clock_id_l_[PADL_(clockid_t)]; clockid_t clock_id; char clock_id_r_[PADR_(clockid_t)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char rqtp_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * rqtp; char rqtp_r_[PADR_(const struct timespec32 *)];
+	char rmtp_l_[PADL_(struct timespec32 *)]; struct timespec32 * rmtp; char rmtp_r_[PADR_(struct timespec32 *)];
+};
 struct freebsd32_clock_getcpuclockid2_args {
 	char id1_l_[PADL_(uint32_t)]; uint32_t id1; char id1_r_[PADR_(uint32_t)];
 	char id2_l_[PADL_(uint32_t)]; uint32_t id2; char id2_r_[PADR_(uint32_t)];
@@ -727,6 +733,7 @@ int	freebsd32_ktimer_create(struct thread *, struct freebsd32_ktimer_create_args
 int	freebsd32_ktimer_settime(struct thread *, struct freebsd32_ktimer_settime_args *);
 int	freebsd32_ktimer_gettime(struct thread *, struct freebsd32_ktimer_gettime_args *);
 int	freebsd32_nanosleep(struct thread *, struct freebsd32_nanosleep_args *);
+int	freebsd32_clock_nanosleep(struct thread *, struct freebsd32_clock_nanosleep_args *);
 int	freebsd32_clock_getcpuclockid2(struct thread *, struct freebsd32_clock_getcpuclockid2_args *);
 int	freebsd32_aio_read(struct thread *, struct freebsd32_aio_read_args *);
 int	freebsd32_aio_write(struct thread *, struct freebsd32_aio_write_args *);
@@ -1185,6 +1192,7 @@ int	freebsd10_freebsd32_pipe(struct thread *, struct freebsd10_freebsd32_pipe_ar
 #define	FREEBSD32_SYS_AUE_freebsd32_ktimer_settime	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_ktimer_gettime	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_nanosleep	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_clock_nanosleep	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_clock_getcpuclockid2	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_read	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_write	AUE_NULL
