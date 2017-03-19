@@ -697,6 +697,12 @@ struct ffclock_setestimate_args {
 struct ffclock_getestimate_args {
 	char cest_l_[PADL_(struct ffclock_estimate *)]; struct ffclock_estimate * cest; char cest_r_[PADR_(struct ffclock_estimate *)];
 };
+struct clock_nanosleep_args {
+	char clock_id_l_[PADL_(clockid_t)]; clockid_t clock_id; char clock_id_r_[PADR_(clockid_t)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char rqtp_l_[PADL_(const struct timespec *)]; const struct timespec * rqtp; char rqtp_r_[PADR_(const struct timespec *)];
+	char rmtp_l_[PADL_(struct timespec *)]; struct timespec * rmtp; char rmtp_r_[PADR_(struct timespec *)];
+};
 struct clock_getcpuclockid2_args {
 	char id_l_[PADL_(id_t)]; id_t id; char id_r_[PADR_(id_t)];
 	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
@@ -1936,6 +1942,7 @@ int	sys_nanosleep(struct thread *, struct nanosleep_args *);
 int	sys_ffclock_getcounter(struct thread *, struct ffclock_getcounter_args *);
 int	sys_ffclock_setestimate(struct thread *, struct ffclock_setestimate_args *);
 int	sys_ffclock_getestimate(struct thread *, struct ffclock_getestimate_args *);
+int	sys_clock_nanosleep(struct thread *, struct clock_nanosleep_args *);
 int	sys_clock_getcpuclockid2(struct thread *, struct clock_getcpuclockid2_args *);
 int	sys_ntp_gettime(struct thread *, struct ntp_gettime_args *);
 int	sys_minherit(struct thread *, struct minherit_args *);
@@ -2706,6 +2713,7 @@ int	freebsd10_pipe(struct thread *, struct freebsd10_pipe_args *);
 #define	SYS_AUE_ffclock_getcounter	AUE_NULL
 #define	SYS_AUE_ffclock_setestimate	AUE_NULL
 #define	SYS_AUE_ffclock_getestimate	AUE_NULL
+#define	SYS_AUE_clock_nanosleep	AUE_NULL
 #define	SYS_AUE_clock_getcpuclockid2	AUE_NULL
 #define	SYS_AUE_ntp_gettime	AUE_NULL
 #define	SYS_AUE_minherit	AUE_MINHERIT
