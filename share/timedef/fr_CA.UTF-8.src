@@ -53,7 +53,7 @@ samedi
 %H:%M:%S
 #
 # x_fmt
-%d.%m.%Y
+%Y-%m-%d
 #
 # c_fmt
 %a %e %b %X %Y
