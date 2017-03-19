@@ -71,6 +71,7 @@ enum mmcbr_device_ivars {
     MMCBR_IVAR_OCR,
     MMCBR_IVAR_POWER_MODE,
     MMCBR_IVAR_VDD,
+    MMCBR_IVAR_VCCQ,
     MMCBR_IVAR_CAPS,
     MMCBR_IVAR_TIMING,
     MMCBR_IVAR_MAX_DATA,
@@ -94,6 +95,7 @@ MMCBR_ACCESSOR(mode, MODE, int)
 MMCBR_ACCESSOR(ocr, OCR, int)
 MMCBR_ACCESSOR(power_mode, POWER_MODE, int)
 MMCBR_ACCESSOR(vdd, VDD, int)
+MMCBR_ACCESSOR(vccq, VCCQ, int)
 MMCBR_ACCESSOR(caps, CAPS, int)
 MMCBR_ACCESSOR(timing, TIMING, int)
 MMCBR_ACCESSOR(max_data, MAX_DATA, int)
@@ -104,6 +106,13 @@ mmcbr_update_ios(device_t dev)
 {
 
 	return (MMCBR_UPDATE_IOS(device_get_parent(dev), dev));
+}
+
+static int __inline
+mmcbr_switch_vccq(device_t dev)
+{
+
+	return (MMCBR_SWITCH_VCCQ(device_get_parent(dev), dev));
 }
 
 static int __inline
