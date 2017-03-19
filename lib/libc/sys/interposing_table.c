@@ -48,6 +48,8 @@ int __wrap_accept4(int s, struct sockaddr * restrict addr,
 int __wrap_aio_suspend(const struct aiocb *const iocbs[], int niocb,
      const struct timespec *timeout);
 int __wrap_close(int fd);
+int __wrap_clock_nanosleep(clockid_t clock_id, int flags,
+    const struct timespec *rqtp, struct timespec *rmtp)
 int __wrap_connect(int s, const struct sockaddr *name, __socklen_t namelen);
 int __wrap_fcntl(int fd, int cmd, intptr_t arg);
 int __wrap_fdatasync(int fd);
@@ -115,6 +117,14 @@ __wrap_close(int fd)
 {
 
 	return (__sys_close(fd));
+}
+
+int
+__wrap_clock_nanosleep(clockid_t clock_id, int flags,
+    const struct timespec *rqtp, struct timespec *rmtp)
+{
+
+	return (__sys_clock_nanosleep(clock_id, flags, rqtp, rmtp));
 }
 
 int
@@ -421,6 +431,7 @@ interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 	SLOT_SYS(ppoll)
 	SLOT_LIBC(map_stacks_exec)
 	SLOT_SYS(fdatasync)
+	SLOT_SYS(clock_nanosleep)
 };
 #undef SLOT
 #undef SLOT_SYS

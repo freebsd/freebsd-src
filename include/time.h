@@ -169,12 +169,12 @@ void tzset(void);
 int clock_getres(clockid_t, struct timespec *);
 int clock_gettime(clockid_t, struct timespec *);
 int clock_settime(clockid_t, const struct timespec *);
-/* XXX missing: clock_nanosleep() */
 int nanosleep(const struct timespec *, struct timespec *);
 #endif /* __POSIX_VISIBLE >= 199309 */
 
 #if __POSIX_VISIBLE >= 200112
 int clock_getcpuclockid(pid_t, clockid_t *);
+int clock_nanosleep(clockid_t, int, const struct timespec *, struct timespec *);
 #endif
 
 #if __POSIX_VISIBLE >= 199506
