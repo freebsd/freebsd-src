@@ -28,7 +28,7 @@
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2016
+.Dd March 19, 2017
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -150,6 +150,13 @@ Replace current root filesystem with UFS mounted from
 .Pa /dev/ada0s1a :
 .Bd -literal -offset indent
 kenv vfs.root.mountfrom=ufs:/dev/ada0s1a
+reboot -r
+.Ed
+.Pp
+This mechanism can also be used with NFS, with a caveat that
+it only works with NFSv4, and requires a numeric IPv4 address:
+.Bd -literal -offset indent
+kenv vfs.root.mountfrom=nfs:192.168.1.1:/share/name
 reboot -r
 .Ed
 .Sh SEE ALSO
