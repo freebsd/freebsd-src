@@ -53,7 +53,8 @@ typedef enum {
 	NT_CHANGED,
 	NT_HBA_RESET,
 	NT_QUERY_TASK_SET,
-	NT_QUERY_ASYNC_EVENT
+	NT_QUERY_ASYNC_EVENT,
+	NT_SRR			/* Sequence Retransmission Request */
 } isp_ncode_t;
 
 typedef struct isp_notify {

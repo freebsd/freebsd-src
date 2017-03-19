@@ -152,7 +152,7 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 #define	hdrp		unp.hp
 	} unp;
 	uint8_t local[QENTRY_LEN];
-	int bus, type, len, level, rval = 1;
+	int type, len, level, rval = 1;
 
 	type = isp_get_response_type(isp, (isphdr_t *)vptr);
 	unp.vp = vptr;
@@ -214,11 +214,9 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp)
 		break;
 
 	case RQSTYPE_NOTIFY:
-		bus = 0;
 		if (IS_24XX(isp)) {
 			isp_get_notify_24xx(isp, inot_24xx, (in_fcentry_24xx_t *)local);
-			inot_24xx = (in_fcentry_24xx_t *) local;
-			isp_handle_notify_24xx(isp, inot_24xx);
+			isp_handle_notify_24xx(isp, (in_fcentry_24xx_t *)local);
 			break;
 		}
 		if (ISP_CAP_2KLOGIN(isp))
@@ -1380,51 +1378,152 @@ isp_handle_notify(ispsoftc_t *isp, in_fcentry_t *inp)
 }
 
 static void
-isp_handle_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot_24xx)
+isp_handle_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 {
-	uint8_t ochan, chan, lochan, hichan;
+	uint8_t chan;
+	uint16_t nphdl, prli_options = 0;
+	uint32_t portid;
+	fcportdb_t *lp;
+	char *msg = NULL;
+	uint8_t *ptr = (uint8_t *)inot;
+	uint64_t wwpn = INI_NONE, wwnn = INI_NONE;
+	isp_notify_t notify;
+	char buf[16];
 
-	/*
-	 * Check to see whether we got a wildcard channel.
-	 * If so, we have to iterate over all channels.
-	 */
-	ochan = chan = ISP_GET_VPIDX(isp, inot_24xx->in_vpidx);
-	if (chan == 0xff) {
-		lochan = 0;
-		hichan = isp->isp_nchan;
+	nphdl = inot->in_nphdl;
+	if (nphdl != NIL_HANDLE) {
+		portid = inot->in_portid_hi << 16 | inot->in_portid_lo;
 	} else {
-		if (chan >= isp->isp_nchan) {
-			char buf[64];
-			ISP_SNPRINTF(buf, sizeof buf, "%s: bad channel %d for status 0x%x", __func__, chan, inot_24xx->in_status);
-			isp_print_bytes(isp, buf, QENTRY_LEN, inot_24xx);
-			isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot_24xx);
-			return;
-		}
-		lochan = chan;
-		hichan = chan + 1;
+		portid = PORT_ANY;
 	}
-	isp_prt(isp, ISP_LOGTDEBUG1, "%s: Immediate Notify Channels %d..%d status=0x%x seqid=0x%x", __func__, lochan, hichan-1, inot_24xx->in_status, inot_24xx->in_rxid);
-	switch (inot_24xx->in_status) {
-	case IN24XX_LIP_RESET:
-	case IN24XX_LINK_RESET:
-	case IN24XX_PORT_LOGOUT:
-	case IN24XX_PORT_CHANGED:
-	case IN24XX_LINK_FAILED:
-	case IN24XX_SRR_RCVD:
+
+	chan = ISP_GET_VPIDX(isp, inot->in_vpidx);
+	if (chan >= isp->isp_nchan &&
+	    inot->in_status != IN24XX_LIP_RESET &&
+	    inot->in_status != IN24XX_LINK_RESET &&
+	    inot->in_status != IN24XX_LINK_FAILED) {
+		isp_prt(isp, ISP_LOGWARN, "%s: Received INOT with status %x on VP %x",
+		    __func__, inot->in_status, chan);
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
+		return;
+	}
+
+	switch (inot->in_status) {
 	case IN24XX_ELS_RCVD:
-		for (chan = lochan; chan < hichan; chan++) {
-			if (FCPARAM(isp, chan)->role == ISP_ROLE_NONE)
-				continue;
-			inot_24xx->in_reserved = 0; /* clear this for later usage */
-			inot_24xx->in_vpidx = chan;
-			isp_async(isp, ISPASYNC_TARGET_ACTION, inot_24xx);
+	{
+		/*
+		 * Note that we're just getting notification that an ELS was
+		 * received (possibly with some associated information sent
+		 * upstream).  This is *not* the same as being given the ELS
+		 * frame to accept or reject.
+		 */
+		switch (inot->in_status_subcode) {
+		case LOGO:
+			msg = "LOGO";
+			wwpn = be64dec(&ptr[IN24XX_PLOGI_WWPN_OFF]);
+			isp_del_wwn_entry(isp, chan, wwpn, nphdl, portid);
+			break;
+		case PRLO:
+			msg = "PRLO";
+			break;
+		case PLOGI:
+			msg = "PLOGI";
+			wwnn = be64dec(&ptr[IN24XX_PLOGI_WWNN_OFF]);
+			wwpn = be64dec(&ptr[IN24XX_PLOGI_WWPN_OFF]);
+			isp_add_wwn_entry(isp, chan, wwpn, wwnn,
+			    nphdl, portid, prli_options);
+			break;
+		case PRLI:
+			msg = "PRLI";
+			prli_options = inot->in_prli_options;
+			if (inot->in_flags & IN24XX_FLAG_PN_NN_VALID)
+				wwnn = be64dec(&ptr[IN24XX_PRLI_WWNN_OFF]);
+			wwpn = be64dec(&ptr[IN24XX_PRLI_WWPN_OFF]);
+			isp_add_wwn_entry(isp, chan, wwpn, wwnn,
+			    nphdl, portid, prli_options);
+			break;
+		case PDISC:
+			msg = "PDISC";
+			break;
+		case ADISC:
+			msg = "ADISC";
+			break;
+		default:
+			ISP_SNPRINTF(buf, sizeof (buf), "ELS 0x%x",
+			    inot->in_status_subcode);
+			msg = buf;
+			break;
 		}
-		inot_24xx->in_vpidx = ochan;
+		if (inot->in_flags & IN24XX_FLAG_PUREX_IOCB) {
+			isp_prt(isp, ISP_LOGERR, "%s Chan %d ELS N-port handle %x"
+			    " PortID 0x%06x marked as needing a PUREX response",
+			    msg, chan, nphdl, portid);
+			break;
+		}
+		isp_prt(isp, ISP_LOGTDEBUG0, "%s Chan %d ELS N-port handle %x"
+		    " PortID 0x%06x RX_ID 0x%x OX_ID 0x%x", msg, chan, nphdl,
+		    portid, inot->in_rxid, inot->in_oxid);
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
 		break;
+	}
+
+	case IN24XX_PORT_LOGOUT:
+		msg = "PORT LOGOUT";
+		if (isp_find_pdb_by_handle(isp, chan, nphdl, &lp))
+			isp_del_wwn_entry(isp, chan, lp->port_wwn, nphdl, lp->portid);
+		/* FALLTHROUGH */
+	case IN24XX_PORT_CHANGED:
+		if (msg == NULL)
+			msg = "PORT CHANGED";
+		/* FALLTHROUGH */
+	case IN24XX_LIP_RESET:
+		if (msg == NULL)
+			msg = "LIP RESET";
+		isp_prt(isp, ISP_LOGINFO, "Chan %d %s (sub-status 0x%x) for "
+		    "N-port handle 0x%x",
+		    chan, msg, inot->in_status_subcode, nphdl);
+
+		/*
+		 * All subcodes here are irrelevant. What is relevant
+		 * is that we need to terminate all active commands from
+		 * this initiator (known by N-port handle).
+		 */
+		/* XXX IMPLEMENT XXX */
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
+		break;
+
+	case IN24XX_SRR_RCVD:
+#ifdef	ISP_TARGET_MODE
+		ISP_MEMZERO(&notify, sizeof (isp_notify_t));
+		notify.nt_hba = isp;
+		notify.nt_wwn = INI_ANY;
+		notify.nt_tgt = FCPARAM(isp, chan)->isp_wwpn;
+		notify.nt_nphdl = nphdl;
+		notify.nt_sid = portid;
+		notify.nt_did = PORT_ANY;
+		notify.nt_lun = LUN_ANY;
+		notify.nt_tagval = inot->in_rxid;
+		notify.nt_tagval |= ((uint64_t)inot->in_srr_rxid << 32);
+		notify.nt_need_ack = 1;
+		notify.nt_channel = chan;
+		notify.nt_lreserved = inot;
+		notify.nt_ncode = NT_SRR;
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
+		break;
+#else
+		if (msg == NULL)
+			msg = "SRR RCVD";
+		/* FALLTHROUGH */
+#endif
+	case IN24XX_LINK_RESET:
+		if (msg == NULL)
+			msg = "LINK RESET";
+	case IN24XX_LINK_FAILED:
+		if (msg == NULL)
+			msg = "LINK FAILED";
 	default:
-		isp_prt(isp, ISP_LOGINFO, "%s: unhandled status (0x%x) for chan %d",
-		    __func__, inot_24xx->in_status, chan);
-		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot_24xx);
+		isp_prt(isp, ISP_LOGWARN, "Chan %d %s", chan, msg);
+		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
 		break;
 	}
 }
