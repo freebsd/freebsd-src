@@ -102,10 +102,6 @@ static const int imx_gpt_delay_count = 78;
 /* Try to divide down an available fast clock to this frequency. */
 #define	TARGET_FREQUENCY	1000000000
 
-/* Don't try to set an event timer period smaller than this. */
-#define	MIN_ET_PERIOD		10LLU
-
-
 static struct resource_spec imx_gpt_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
@@ -143,7 +139,7 @@ imx_gpt_attach(device_t dev)
 {
 	struct imx_gpt_softc *sc;
 	int ctlreg, err;
-	uint32_t basefreq, prescale;
+	uint32_t basefreq, prescale, setup_ticks, t1, t2;
 
 	sc = device_get_softc(dev);
 
@@ -249,13 +245,25 @@ imx_gpt_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/*
+	 * Measure how many clock ticks it takes to setup a one-shot event (it's
+	 * longer than you might think, due to wait states in accessing gpt
+	 * registers).  Scale up the result by a factor of 1.5 to be safe,
+	 * and use that to set the minimum eventtimer period we can schedule. In
+	 * the real world, the value works out to about 750ns on imx5 hardware.
+	 */
+	t1 = READ4(sc, IMX_GPT_CNT);
+	WRITE4(sc, IMX_GPT_OCR3, 0);
+	t2 = READ4(sc, IMX_GPT_CNT);
+	setup_ticks = ((t2 - t1 + 1) * 3) / 2;
+
 	/* Register as an eventtimer. */
 	sc->et.et_name = "iMXGPT";
 	sc->et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERIODIC;
 	sc->et.et_quality = 800;
 	sc->et.et_frequency = sc->clkfreq;
-	sc->et.et_min_period = (MIN_ET_PERIOD << 32) / sc->et.et_frequency;
-	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
+	sc->et.et_min_period = ((uint64_t)setup_ticks << 32) / sc->clkfreq;
+	sc->et.et_max_period = ((uint64_t)0xfffffffe  << 32) / sc->clkfreq;
 	sc->et.et_start = imx_gpt_timer_start;
 	sc->et.et_stop = imx_gpt_timer_stop;
 	sc->et.et_priv = sc;
