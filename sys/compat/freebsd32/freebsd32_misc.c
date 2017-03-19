@@ -2544,30 +2544,18 @@ int
 freebsd32_cpuset_getaffinity(struct thread *td,
     struct freebsd32_cpuset_getaffinity_args *uap)
 {
-	struct cpuset_getaffinity_args ap;
 
-	ap.level = uap->level;
-	ap.which = uap->which;
-	ap.id = PAIR32TO64(id_t,uap->id);
-	ap.cpusetsize = uap->cpusetsize;
-	ap.mask = uap->mask;
-
-	return (sys_cpuset_getaffinity(td, &ap));
+	return (kern_cpuset_getaffinity(td, uap->level, uap->which,
+	    PAIR32TO64(id_t,uap->id), uap->cpusetsize, uap->mask));
 }
 
 int
 freebsd32_cpuset_setaffinity(struct thread *td,
     struct freebsd32_cpuset_setaffinity_args *uap)
 {
-	struct cpuset_setaffinity_args ap;
 
-	ap.level = uap->level;
-	ap.which = uap->which;
-	ap.id = PAIR32TO64(id_t,uap->id);
-	ap.cpusetsize = uap->cpusetsize;
-	ap.mask = uap->mask;
-
-	return (sys_cpuset_setaffinity(td, &ap));
+	return (kern_cpuset_setaffinity(td, uap->level, uap->which,
+	    PAIR32TO64(id_t,uap->id), uap->cpusetsize, uap->mask));
 }
 
 int
