@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2016 Robert N. M. Watson
+ * Copyright (c) 2012-2017 Robert N. M. Watson
  * Copyright (c) 2012-2014 Michael Roe
  * All rights reserved.
  *
@@ -610,7 +610,6 @@ CCall_wrong_cc:
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
-
 CCall_local_argument:
 	dli	k0, (CHERI_EXCCODE_SW_LOCALARG << 8)
 	or	k0, k0, AT
@@ -618,7 +617,7 @@ CCall_local_argument:
 	csetcause	k0		/* Branch-delay slot. */
 
 CCall_stack_overflow:
-	dli	k0, ((CHERI_EXCCODE_CALL << 8) | 0)
+	dli	k0, ((CHERI_EXCCODE_SW_OVERFLOW << 8) | 0)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
@@ -872,7 +871,7 @@ CReturn_local_retval:
 	nop
 
 CReturn_stack_underflow:
-	dli	k0, ((CHERI_EXCCODE_RETURN << 8) | 0)
+	dli	k0, ((CHERI_EXCCODE_SW_UNDERFLOW << 8) | 0)
 	csetcause	k0
 	j	_C_LABEL(MipsUserGenException)
 	nop

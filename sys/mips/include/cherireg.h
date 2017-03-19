@@ -390,6 +390,8 @@
 #define	CHERI_EXCCODE_SW_LOCALARG	0x80	/* Non-global CCall argument. */
 #define	CHERI_EXCCODE_SW_LOCALRET	0x81	/* Non-global CReturn value. */
 #define	CHERI_EXCCODE_SW_CCALLREGS	0x82	/* Incorrect CCall registers. */
+#define	CHERI_EXCCODE_SW_OVERFLOW	0x83	/* Trusted stack overflow. */
+#define	CHERI_EXCCODE_SW_UNDERFLOW	0x84	/* Trusted stack underflow. */
 
 /*
  * How to turn the cause register into an exception code and register number.

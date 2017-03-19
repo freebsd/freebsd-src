@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2016 Robert N. M. Watson
+ * Copyright (c) 2011-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -84,6 +84,8 @@ static const char *cheri_exccode_sw_array[] = {
 	"local capability in argument",		/* CHERI_EXCCODE_SW_LOCALARG */
 	"local capability in return value",	/* CHERI_EXCCODE_SW_LOCALRET */
 	"incorrect CCall registers",		/* CHERI_EXCCODE_SW_CCALLREGS */
+	"trusted stack overflow",		/* CHERI_EXCCODE_SW_OVERFLOW */
+	"trusted stack underflow",		/* CHERI_EXCCODE_SW_UNDERFLOW */
 };
 static const int cheri_exccode_sw_array_length =
     sizeof(cheri_exccode_sw_array) / sizeof(cheri_exccode_sw_array[0]);
