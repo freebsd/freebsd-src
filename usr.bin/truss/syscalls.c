@@ -218,6 +218,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Name | IN, 0 }, { Stat | OUT, 1 } } },
 	{ .name = "lutimes", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Timeval2 | IN, 1 } } },
+	{ .name = "madvise", .ret_type = 1, .nargs = 3,
+	  .args = { { Ptr, 0 }, { Sizet, 1 }, { Madvice, 2 } } },
 	{ .name = "mkdir", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Octal, 1 } } },
 	{ .name = "mkdirat", .ret_type = 1, .nargs = 3,
@@ -1898,6 +1900,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Kldunloadflags:
 		print_integer_arg(sysdecode_kldunload_flags, fp,
 		    args[sc->offset]);
+		break;
+	case Madvice:
+		print_integer_arg(sysdecode_madvice, fp, args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
