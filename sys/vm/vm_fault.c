@@ -415,7 +415,7 @@ vm_fault_populate(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 		vm_fault_populate_cleanup(fs->first_object, pager_first,
 		    map_first - 1);
 	map_last = MIN(OFF_TO_IDX(fs->entry->end - fs->entry->start +
-	    fs->entry->offset), pager_last);
+	    fs->entry->offset) - 1, pager_last);
 	if (map_last < pager_last)
 		vm_fault_populate_cleanup(fs->first_object, map_last + 1,
 		    pager_last);
