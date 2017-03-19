@@ -358,8 +358,7 @@ vm_fault_populate(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 	MPASS(fs->lookup_still_valid);
 
 	pager_first = OFF_TO_IDX(fs->entry->offset);
-	pager_last = OFF_TO_IDX(fs->entry->offset + fs->entry->end -
-	    fs->entry->start) - 1;
+	pager_last = pager_first + atop(fs->entry->end - fs->entry->start) - 1;
 	unlock_map(fs);
 	unlock_vp(fs);
 
@@ -410,18 +409,20 @@ vm_fault_populate(struct faultstate *fs, vm_offset_t vaddr, vm_prot_t prot,
 	 * In case the pager expanded the range, clip it to fit into
 	 * the map entry.
 	 */
-	map_first = MAX(OFF_TO_IDX(fs->entry->offset), pager_first);
-	if (map_first > pager_first)
+	map_first = OFF_TO_IDX(fs->entry->offset);
+	if (map_first > pager_first) {
 		vm_fault_populate_cleanup(fs->first_object, pager_first,
 		    map_first - 1);
-	map_last = MIN(OFF_TO_IDX(fs->entry->end - fs->entry->start +
-	    fs->entry->offset) - 1, pager_last);
-	if (map_last < pager_last)
+		pager_first = map_first;
+	}
+	map_last = map_first + atop(fs->entry->end - fs->entry->start) - 1;
+	if (map_last < pager_last) {
 		vm_fault_populate_cleanup(fs->first_object, map_last + 1,
 		    pager_last);
-
-	for (pidx = map_first, m = vm_page_lookup(fs->first_object, pidx);
-	    pidx <= map_last; pidx++, m = vm_page_next(m)) {
+		pager_last = map_last;
+	}
+	for (pidx = pager_first, m = vm_page_lookup(fs->first_object, pidx);
+	    pidx <= pager_last; pidx++, m = vm_page_next(m)) {
 		vm_fault_populate_check_page(m);
 		vm_fault_dirty(fs->entry, m, prot, fault_type, fault_flags,
 		    true);
