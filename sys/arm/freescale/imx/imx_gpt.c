@@ -83,6 +83,7 @@ struct imx_gpt_softc {
 	uint32_t 		sc_period;
 	uint32_t 		sc_clksrc;
 	uint32_t 		clkfreq;
+	uint32_t		ir_reg;
 	struct eventtimer 	et;
 };
 
@@ -284,16 +285,20 @@ imx_gpt_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		/* Set expected value */
 		WRITE4(sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) + sc->sc_period);
 		/* Enable compare register 2 Interrupt */
-		SET4(sc, IMX_GPT_IR, GPT_IR_OF2);
+		sc->ir_reg |= GPT_IR_OF2;
+		WRITE4(sc, IMX_GPT_IR, sc->ir_reg);
 		return (0);
 	} else if (first != 0) {
+		/* Enable compare register 3 interrupt if not already on. */
+		if ((sc->ir_reg & GPT_IR_OF3) == 0) {
+			sc->ir_reg |= GPT_IR_OF3;
+			WRITE4(sc, IMX_GPT_IR, sc->ir_reg);
+		}
 		ticks = ((uint32_t)et->et_frequency * first) >> 32;
 		/* Do not disturb, otherwise event will be lost */
 		spinlock_enter();
 		/* Set expected value */
 		WRITE4(sc, IMX_GPT_OCR3, READ4(sc, IMX_GPT_CNT) + ticks);
-		/* Enable compare register 1 Interrupt */
-		SET4(sc, IMX_GPT_IR, GPT_IR_OF3);
 		/* Now everybody can relax */
 		spinlock_exit();
 		return (0);
@@ -309,9 +314,10 @@ imx_gpt_timer_stop(struct eventtimer *et)
 
 	sc = (struct imx_gpt_softc *)et->et_priv;
 
-	/* Disable OF2 Interrupt */
-	CLEAR4(sc, IMX_GPT_IR, GPT_IR_OF2);
-	WRITE4(sc, IMX_GPT_SR, GPT_IR_OF2);
+	/* Disable interrupts and clear any pending status. */
+	sc->ir_reg &= ~(GPT_IR_OF2 | GPT_IR_OF3);
+	WRITE4(sc, IMX_GPT_IR, sc->ir_reg);
+	WRITE4(sc, IMX_GPT_SR, GPT_IR_OF2 | GPT_IR_OF3);
 	sc->sc_period = 0;
 
 	return (0);
