@@ -2526,27 +2526,18 @@ int
 freebsd32_cpuset_setid(struct thread *td,
     struct freebsd32_cpuset_setid_args *uap)
 {
-	struct cpuset_setid_args ap;
 
-	ap.which = uap->which;
-	ap.id = PAIR32TO64(id_t,uap->id);
-	ap.setid = uap->setid;
-
-	return (sys_cpuset_setid(td, &ap));
+	return (kern_cpuset_setid(td, uap->which,
+	    PAIR32TO64(id_t, uap->id), uap->setid));
 }
 
 int
 freebsd32_cpuset_getid(struct thread *td,
     struct freebsd32_cpuset_getid_args *uap)
 {
-	struct cpuset_getid_args ap;
 
-	ap.level = uap->level;
-	ap.which = uap->which;
-	ap.id = PAIR32TO64(id_t,uap->id);
-	ap.setid = uap->setid;
-
-	return (sys_cpuset_getid(td, &ap));
+	return (kern_cpuset_getid(td, uap->level, uap->which,
+	    PAIR32TO64(id_t, uap->id), uap->setid));
 }
 
 int

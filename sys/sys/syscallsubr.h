@@ -87,6 +87,10 @@ int	kern_clock_settime(struct thread *td, clockid_t clock_id,
 int	kern_close(struct thread *td, int fd);
 int	kern_connectat(struct thread *td, int dirfd, int fd,
 	    struct sockaddr *sa);
+int	kern_cpuset_getid(struct thread *td, cpulevel_t level,
+	    cpuwhich_t which, id_t id, cpusetid_t *setid);
+int	kern_cpuset_setid(struct thread *td, cpuwhich_t which,
+	    id_t id, cpusetid_t setid);
 int	kern_dup(struct thread *td, u_int mode, int flags, int old, int new);
 int	kern_execve(struct thread *td, struct image_args *args,
 	    struct mac *mac_p);
