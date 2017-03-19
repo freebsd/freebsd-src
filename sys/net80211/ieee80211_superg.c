@@ -685,9 +685,8 @@ stageq_add(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf *m)
 	} else {
 		sq->head = m;
 
-		/* Do not restart the timer if task was already scheduled. */
 		struct timeout_task *qtask = &ic->ic_superg->ff_qtimer;
-		taskqueue_enqueue_timeout(ic->ic_tq, qtask, -age);
+		taskqueue_enqueue_timeout(ic->ic_tq, qtask, age);
 	}
 	KASSERT(age >= 0, ("age %d", age));
 	M_AGE_SET(m, age);
