@@ -544,7 +544,6 @@ struct ispsoftc {
 	uint32_t		isp_rqstoutrp;	/* register for REQOUTP */
 	uint32_t		isp_respinrp;	/* register for RESINP */
 	uint32_t		isp_respoutrp;	/* register for RESOUTP */
-	NANOTIME_T		isp_init_time;		/* time were last initialized */
 
 	/*
 	 * Volatile state
