@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170319: Remove zh_TW.Big5
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_TW.Big5
 # 20170313: move .../sys/geom/eli/... to .../sys/geom/class/eli/...
 OLD_FILES+=usr/tests/sys/geom/eli/pbkdf2/pbkdf2
 OLD_FILES+=usr/tests/sys/geom/eli/pbkdf2/Kyuafile
