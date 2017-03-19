@@ -2089,7 +2089,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	}
 
 	if (IS_26XX(isp)) {
-		/* We don't support MSI-X yet, so set this unconditionally. */
+		/* Use handshake to reduce global lock congestion. */
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHR;
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHA;
 	}
@@ -2186,6 +2186,12 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	isp_prt(isp, ISP_LOGDEBUG0, "isp_fibre_init_2400: atioq %04x%04x%04x%04x", DMA_WD3(isp->isp_atioq_dma), DMA_WD2(isp->isp_atioq_dma),
 	    DMA_WD1(isp->isp_atioq_dma), DMA_WD0(isp->isp_atioq_dma));
 #endif
+
+	if (ISP_CAP_MSIX(isp) && isp->isp_nirq >= 2) {
+		icbp->icb_msixresp = 1;
+		if (IS_26XX(isp) && isp->isp_nirq >= 3)
+			icbp->icb_msixatio = 2;
+	}
 
 	isp_prt(isp, ISP_LOGDEBUG0, "isp_fibre_init_2400: fwopt1 0x%x fwopt2 0x%x fwopt3 0x%x", icbp->icb_fwoptions1, icbp->icb_fwoptions2, icbp->icb_fwoptions3);
 

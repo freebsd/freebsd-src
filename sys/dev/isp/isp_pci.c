@@ -364,15 +364,17 @@ struct isp_pcisoftc {
 	struct resource *		regs;
 	struct resource *		regs1;
 	struct resource *		regs2;
-	void *				irq;
-	int				iqd;
+	struct {
+		int				iqd;
+		struct resource *		irq;
+		void *				ih;
+	} irq[ISP_MAX_IRQS];
 	int				rtp;
 	int				rgd;
 	int				rtp1;
 	int				rgd1;
 	int				rtp2;
 	int				rgd2;
-	void *				ih;
 	int16_t				pci_poff[_NREG_BLKS];
 	bus_dma_tag_t			dmat;
 	int				msicount;
@@ -691,8 +693,8 @@ isp_pci_attach(device_t dev)
 	isp_get_generic_options(dev, isp);
 
 	linesz = PCI_DFLT_LNSZ;
-	pcs->irq = pcs->regs = pcs->regs2 = NULL;
-	pcs->rgd = pcs->rtp = pcs->iqd = 0;
+	pcs->regs = pcs->regs2 = NULL;
+	pcs->rgd = pcs->rtp = 0;
 
 	pcs->pci_dev = dev;
 	pcs->pci_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
@@ -932,41 +934,6 @@ isp_pci_attach(device_t dev)
 	data &= ~1;
 	pci_write_config(dev, PCIR_ROMADDR, data, 4);
 
-	if (IS_26XX(isp)) {
-		/* 26XX chips support only MSI-X, so start from them. */
-		pcs->msicount = imin(pci_msix_count(dev), 1);
-		if (pcs->msicount > 0 &&
-		    (i = pci_alloc_msix(dev, &pcs->msicount)) == 0) {
-			pcs->iqd = 1;
-		} else {
-			pcs->msicount = 0;
-		}
-	}
-	if (pcs->msicount == 0 && (IS_24XX(isp) || IS_2322(isp))) {
-		/*
-		 * Older chips support both MSI and MSI-X, but I have
-		 * feeling that older firmware may not support MSI-X,
-		 * but we have no way to check the firmware flag here.
-		 */
-		pcs->msicount = imin(pci_msi_count(dev), 1);
-		if (pcs->msicount > 0 &&
-		    pci_alloc_msi(dev, &pcs->msicount) == 0) {
-			pcs->iqd = 1;
-		} else {
-			pcs->msicount = 0;
-		}
-	}
-	pcs->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &pcs->iqd, RF_ACTIVE | RF_SHAREABLE);
-	if (pcs->irq == NULL) {
-		device_printf(dev, "could not allocate interrupt\n");
-		goto bad;
-	}
-
-	if (isp_setup_intr(dev, pcs->irq, ISP_IFLAGS, NULL, isp_platform_intr, isp, &pcs->ih)) {
-		device_printf(dev, "could not setup interrupt\n");
-		goto bad;
-	}
-
 	/*
 	 * Last minute checks...
 	 */
@@ -992,11 +959,10 @@ isp_pci_attach(device_t dev)
 	return (0);
 
 bad:
-	if (pcs->ih) {
-		(void) bus_teardown_intr(dev, pcs->irq, pcs->ih);
-	}
-	if (pcs->irq) {
-		(void) bus_release_resource(dev, SYS_RES_IRQ, pcs->iqd, pcs->irq);
+	for (i = 0; i < isp->isp_nirq; i++) {
+		(void) bus_teardown_intr(dev, pcs->irq[i].irq, pcs->irq[i].ih);
+		(void) bus_release_resource(dev, SYS_RES_IRQ, pcs->irq[i].iqd,
+		    pcs->irq[0].irq);
 	}
 	if (pcs->msicount) {
 		pci_release_msi(dev);
@@ -1024,7 +990,7 @@ isp_pci_detach(device_t dev)
 {
 	struct isp_pcisoftc *pcs = device_get_softc(dev);
 	ispsoftc_t *isp = &pcs->pci_isp;
-	int status;
+	int i, status;
 
 	status = isp_detach(isp);
 	if (status)
@@ -1032,9 +998,11 @@ isp_pci_detach(device_t dev)
 	ISP_LOCK(isp);
 	isp_shutdown(isp);
 	ISP_UNLOCK(isp);
-	if (pcs->ih)
-		(void) bus_teardown_intr(dev, pcs->irq, pcs->ih);
-	(void) bus_release_resource(dev, SYS_RES_IRQ, pcs->iqd, pcs->irq);
+	for (i = 0; i < isp->isp_nirq; i++) {
+		(void) bus_teardown_intr(dev, pcs->irq[i].irq, pcs->irq[i].ih);
+		(void) bus_release_resource(dev, SYS_RES_IRQ, pcs->irq[i].iqd,
+		    pcs->irq[i].irq);
+	}
 	if (pcs->msicount)
 		pci_release_msi(dev);
 	(void) bus_release_resource(dev, pcs->rtp, pcs->rgd, pcs->regs);
@@ -2077,8 +2045,57 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 static int
 isp_pci_irqsetup(ispsoftc_t *isp)
 {
+	device_t dev = isp->isp_osinfo.dev;
+	struct isp_pcisoftc *pcs = device_get_softc(dev);
+	driver_intr_t *f;
+	int i, max_irq;
 
-	return (0);
+	/* Allocate IRQs only once. */
+	if (isp->isp_nirq > 0)
+		return (0);
+
+	if (ISP_CAP_MSIX(isp)) {
+		max_irq = min(ISP_MAX_IRQS, IS_26XX(isp) ? 3 : 2);
+		pcs->msicount = imin(pci_msix_count(dev), max_irq);
+		if (pcs->msicount > 0 &&
+		    pci_alloc_msix(dev, &pcs->msicount) != 0)
+			pcs->msicount = 0;
+	}
+	if (pcs->msicount == 0) {
+		pcs->msicount = imin(pci_msi_count(dev), 1);
+		if (pcs->msicount > 0 &&
+		    pci_alloc_msi(dev, &pcs->msicount) != 0)
+			pcs->msicount = 0;
+	}
+	for (i = 0; i < MAX(1, pcs->msicount); i++) {
+		pcs->irq[i].iqd = i + (pcs->msicount > 0);
+		pcs->irq[i].irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &pcs->irq[i].iqd, RF_ACTIVE | RF_SHAREABLE);
+		if (pcs->irq[i].irq == NULL) {
+			device_printf(dev, "could not allocate interrupt\n");
+			break;
+		}
+		if (i == 0)
+			f = isp_platform_intr;
+		else if (i == 1)
+			f = isp_platform_intr_resp;
+		else
+			f = isp_platform_intr_atio;
+		if (bus_setup_intr(dev, pcs->irq[i].irq, ISP_IFLAGS, NULL,
+		    f, isp, &pcs->irq[i].ih)) {
+			device_printf(dev, "could not setup interrupt\n");
+			(void) bus_release_resource(dev, SYS_RES_IRQ,
+			    pcs->irq[i].iqd, pcs->irq[i].irq);
+			break;
+		}
+		if (pcs->msicount > 1) {
+			bus_describe_intr(dev, pcs->irq[i].irq, pcs->irq[i].ih,
+			    "%d", i);
+		}
+		isp->isp_nirq = i + 1;
+	}
+
+	return (isp->isp_nirq == 0);
 }
 
 static void

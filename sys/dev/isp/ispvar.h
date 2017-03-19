@@ -80,6 +80,7 @@ struct ispmdvec {
 #endif
 #define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
 #define	ISP_MAX_LUNS(isp)	(isp)->isp_maxluns
+#define	ISP_MAX_IRQS		3
 
 /*
  * Macros to access ISP registers through bus specific layers-
@@ -526,6 +527,7 @@ struct ispsoftc {
 	uint16_t		isp_maxcmds;	/* max possible I/O cmds */
 	uint8_t			isp_type;	/* HBA Chip Type */
 	uint8_t			isp_revision;	/* HBA Chip H/W Revision */
+	uint8_t			isp_nirq;	/* number of IRQs */
 	uint16_t		isp_nchan;	/* number of channels */
 	uint32_t		isp_maxluns;	/* maximum luns supported */
 

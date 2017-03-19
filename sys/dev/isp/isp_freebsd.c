@@ -4160,6 +4160,34 @@ isp_platform_intr(void *arg)
 }
 
 void
+isp_platform_intr_resp(void *arg)
+{
+	ispsoftc_t *isp = arg;
+
+	ISP_LOCK(isp);
+	isp_intr_respq(isp);
+	ISP_UNLOCK(isp);
+
+	/* We have handshake enabled, so explicitly complete interrupt */
+	ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
+}
+
+void
+isp_platform_intr_atio(void *arg)
+{
+	ispsoftc_t *isp = arg;
+
+	ISP_LOCK(isp);
+#ifdef	ISP_TARGET_MODE
+	isp_intr_atioq(isp);
+#endif
+	ISP_UNLOCK(isp);
+
+	/* We have handshake enabled, so explicitly complete interrupt */
+	ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
+}
+
+void
 isp_common_dmateardown(ispsoftc_t *isp, struct ccb_scsiio *csio, uint32_t hdl)
 {
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
