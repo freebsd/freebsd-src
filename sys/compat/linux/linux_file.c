@@ -212,31 +212,19 @@ linux_open(struct thread *td, struct linux_open_args *args)
 int
 linux_lseek(struct thread *td, struct linux_lseek_args *args)
 {
-	struct lseek_args /* {
-		int fd;
-		int pad;
-		off_t offset;
-		int whence;
-	} */ tmp_args;
-	int error;
 
 #ifdef DEBUG
 	if (ldebug(lseek))
 		printf(ARGS(lseek, "%d, %ld, %d"),
 		    args->fdes, (long)args->off, args->whence);
 #endif
-	tmp_args.fd = args->fdes;
-	tmp_args.offset = (off_t)args->off;
-	tmp_args.whence = args->whence;
-	error = sys_lseek(td, &tmp_args);
-	return (error);
+	return (kern_lseek(td, args->fdes, args->off, args->whence));
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int
 linux_llseek(struct thread *td, struct linux_llseek_args *args)
 {
-	struct lseek_args bsd_args;
 	int error;
 	off_t off;
 
@@ -247,14 +235,12 @@ linux_llseek(struct thread *td, struct linux_llseek_args *args)
 #endif
 	off = (args->olow) | (((off_t) args->ohigh) << 32);
 
-	bsd_args.fd = args->fd;
-	bsd_args.offset = off;
-	bsd_args.whence = args->whence;
-
-	if ((error = sys_lseek(td, &bsd_args)))
+	error = kern_lseek(td, args->fd, off, args->whence);
+	if (error != 0)
 		return (error);
 
-	if ((error = copyout(td->td_retval, args->res, sizeof (off_t))))
+	error = copyout(td->td_retval, args->res, sizeof(off_t));
+	if (error != 0)
 		return (error);
 
 	td->td_retval[0] = 0;
