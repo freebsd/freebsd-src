@@ -280,17 +280,6 @@ rtwn_pci_rx_done(struct rtwn_softc *sc)
 
 		ring->cur = (ring->cur + 1) % RTWN_PCI_RX_LIST_COUNT;
 	}
-
-	/* Finished receive; age anything left on the FF queue by a little bump */
-	/*
-	 * XXX TODO: just make this a callout timer schedule so we can
-	 * flush the FF staging queue if we're approaching idle.
-	 */
-#ifdef  IEEE80211_SUPPORT_SUPERG
-	if (!(sc->sc_flags & RTWN_FW_LOADED) ||
-	    sc->sc_ratectl != RTWN_RATECTL_NET80211)
-		rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
-#endif
 }
 
 void
