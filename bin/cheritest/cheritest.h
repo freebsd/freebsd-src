@@ -67,6 +67,7 @@
 struct cheritest_child_state {
 	/* Fields filled in by the child signal handler. */
 	int		ccs_signum;
+	int		ccs_si_code;
 	register_t	ccs_mips_cause;
 	register_t	ccs_cp2_cause;
 	int		ccs_unwound;  /* If any trusted-stack frames unwound. */
@@ -104,6 +105,7 @@ extern struct cheritest_child_state *ccsp;
 					       and result. */
 #define	CT_FLAG_SANDBOX		0x00000100  /* Test requires that a libcheri
 					     * sandbox be created. */
+#define	CT_FLAG_SI_CODE		0x00000200  /* Check signal si_code. */
 
 #define	CHERITEST_SANDBOX_UNWOUND	0x123456789ULL
 
@@ -116,6 +118,7 @@ struct cheri_test {
 	const char *	(*ct_check_xfail)(const char *);
 	u_int		 ct_flags;
 	int		 ct_signum;
+	int		 ct_si_code;
 	register_t	 ct_mips_exccode;
 	register_t	 ct_cp2_exccode;
 	const char	*ct_stdin_string;
