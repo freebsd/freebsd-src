@@ -620,7 +620,7 @@ DoFile(const char *savedir, const char *device)
 	}
 
 	if (kdhl.panicstring[0] != '\0')
-		syslog(LOG_ALERT, "reboot after panic: %*s",
+		syslog(LOG_ALERT, "reboot after panic: %.*s",
 		    (int)sizeof(kdhl.panicstring), kdhl.panicstring);
 	else
 		syslog(LOG_ALERT, "reboot");
