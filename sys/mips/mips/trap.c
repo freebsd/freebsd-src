@@ -1070,6 +1070,7 @@ dofault:
 #endif
 		log_c2e_exception(msg, trapframe, type);
 		i = SIGPROT;
+		ucode = cheri_capcause_to_sicode(trapframe->capcause);
 		addr = trapframe->pc;
 		break;
 

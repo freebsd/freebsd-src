@@ -449,3 +449,75 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	}
 	cheri_log_exception_registers(frame);
 }
+
+int
+cheri_capcause_to_sicode(register_t capcause)
+{
+	uint8_t exccode;
+
+	exccode = (capcause & CHERI_CAPCAUSE_EXCCODE_MASK) >>
+	    CHERI_CAPCAUSE_EXCCODE_SHIFT;
+	switch (exccode) {
+	case CHERI_EXCCODE_LENGTH:
+		return (PROT_CHERI_BOUNDS);
+
+	case CHERI_EXCCODE_TAG:
+		return (PROT_CHERI_TAG);
+
+	case CHERI_EXCCODE_SEAL:
+		return (PROT_CHERI_SEALED);
+
+	case CHERI_EXCCODE_TYPE:
+		return (PROT_CHERI_TYPE);
+
+	case CHERI_EXCCODE_PERM_EXECUTE:
+	case CHERI_EXCCODE_PERM_LOAD:
+	case CHERI_EXCCODE_PERM_STORE:
+	case CHERI_EXCCODE_PERM_LOADCAP:
+	case CHERI_EXCCODE_PERM_STORECAP:
+	case CHERI_EXCCODE_PERM_SEAL:
+	case CHERI_EXCCODE_USER_PERM:
+		return (PROT_CHERI_PERM);
+
+	case CHERI_EXCCODE_TLBSTORE:
+		return (PROT_CHERI_STORETAG);
+
+	case CHERI_EXCCODE_IMPRECISE:
+		return (PROT_CHERI_IMPRECISE);
+
+	case CHERI_EXCCODE_GLOBAL:
+	case CHERI_EXCCODE_STORE_LOCALCAP:
+		return (PROT_CHERI_STORELOCAL);
+
+	case CHERI_EXCCODE_CALL:
+		return (PROT_CHERI_CCALL);
+
+	case CHERI_EXCCODE_RETURN:
+		return (PROT_CHERI_CRETURN);
+
+	case CHERI_EXCCODE_SYSTEM_REGS:
+		return (PROT_CHERI_SYSREG);
+
+	case CHERI_EXCCODE_SW_OVERFLOW:
+		return (PROT_CHERI_OVERFLOW);
+
+	case CHERI_EXCCODE_SW_UNDERFLOW:
+		return (PROT_CHERI_UNDERFLOW);
+
+	case CHERI_EXCCODE_SW_CCALLREGS:
+		return (PROT_CHERI_CCALLREGS);
+
+	case CHERI_EXCCODE_SW_LOCALARG:
+		return (PROT_CHERI_LOCALARG);
+
+	case CHERI_EXCCODE_SW_LOCALRET:
+		return (PROT_CHERI_LOCALRET);
+
+	case CHERI_EXCCODE_NONE:
+	default:
+		printf(
+		    "%s: Warning: Unknown capcause %u, returning si_code 0\n",
+		    __func__, exccode);
+		return (0);
+	}
+}

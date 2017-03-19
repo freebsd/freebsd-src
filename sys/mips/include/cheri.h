@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2016 Robert N. M. Watson
+ * Copyright (c) 2011-2017 Robert N. M. Watson
  * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
@@ -668,6 +668,13 @@ cheri_capability_store(u_int crn_from, struct chericap *cp)
 
         CHERI_CSC(crn_from, CHERI_CR_KDC, cp, 0);
 }
+#endif
+
+/*
+ * CHERI-MIPS-specific kernel utility functions.
+ */
+#ifdef _KERNEL
+int	cheri_capcause_to_sicode(register_t capcause);
 #endif
 
 /*
