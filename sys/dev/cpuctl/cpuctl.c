@@ -156,8 +156,9 @@ cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		return (ENXIO);
 	}
 	/* Require write flag for "write" requests. */
-	if ((cmd == CPUCTL_WRMSR || cmd == CPUCTL_UPDATE) &&
-	    ((flags & FWRITE) == 0))
+	if ((cmd == CPUCTL_MSRCBIT || cmd == CPUCTL_MSRSBIT ||
+	    cmd == CPUCTL_UPDATE || cmd == CPUCTL_WRMSR) &&
+	    (flags & FWRITE) == 0)
 		return (EPERM);
 	switch (cmd) {
 	case CPUCTL_RDMSR:
