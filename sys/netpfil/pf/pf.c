@@ -6245,6 +6245,9 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	    m->m_pkthdr.rcvif->if_bridge != ifp->if_bridge)))
 		fwdir = PF_FWD;
 
+	if (dir == PF_FWD)
+		dir = PF_OUT;
+
 	if (!V_pf_status.running)
 		return (PF_PASS);
 
