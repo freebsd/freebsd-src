@@ -2481,7 +2481,8 @@ vfs_vmio_iodone(struct buf *bp)
 	vm_page_t m;
 	vm_object_t obj;
 	struct vnode *vp;
-	int bogus, i, iosize;
+	int i, iosize, resid;
+	bool bogus;
 
 	obj = bp->b_bufobj->bo_object;
 	KASSERT(obj->paging_in_progress >= bp->b_npages,
@@ -2498,12 +2499,10 @@ vfs_vmio_iodone(struct buf *bp)
 	KASSERT(bp->b_offset != NOOFFSET,
 	    ("vfs_vmio_iodone: bp %p has no buffer offset", bp));
 
-	bogus = 0;
+	bogus = false;
 	iosize = bp->b_bcount - bp->b_resid;
 	VM_OBJECT_WLOCK(obj);
 	for (i = 0; i < bp->b_npages; i++) {
-		int resid;
-
 		resid = ((foff + PAGE_SIZE) & ~(off_t)PAGE_MASK) - foff;
 		if (resid > iosize)
 			resid = iosize;
@@ -2513,7 +2512,7 @@ vfs_vmio_iodone(struct buf *bp)
 		 */
 		m = bp->b_pages[i];
 		if (m == bogus_page) {
-			bogus = 1;
+			bogus = true;
 			m = vm_page_lookup(obj, OFF_TO_IDX(foff));
 			if (m == NULL)
 				panic("biodone: page disappeared!");
@@ -4211,10 +4210,11 @@ vfs_drain_busy_pages(struct buf *bp)
 void
 vfs_busy_pages(struct buf *bp, int clear_modify)
 {
-	int i, bogus;
 	vm_object_t obj;
 	vm_ooffset_t foff;
 	vm_page_t m;
+	int i;
+	bool bogus;
 
 	if (!(bp->b_flags & B_VMIO))
 		return;
@@ -4227,7 +4227,7 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 	vfs_drain_busy_pages(bp);
 	if (bp->b_bufsize != 0)
 		vfs_setdirty_locked_object(bp);
-	bogus = 0;
+	bogus = false;
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 
@@ -4256,7 +4256,7 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 		} else if (m->valid == VM_PAGE_BITS_ALL &&
 		    (bp->b_flags & B_CACHE) == 0) {
 			bp->b_pages[i] = bogus_page;
-			bogus++;
+			bogus = true;
 		}
 		foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 	}
