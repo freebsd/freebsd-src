@@ -271,6 +271,7 @@ imx_gpt_attach(device_t dev)
 
 	/* Register as a timecounter. */
 	imx_gpt_timecounter.tc_frequency = sc->clkfreq;
+	imx_gpt_timecounter.tc_priv = sc;
 	tc_init(&imx_gpt_timecounter);
 
 	/* If this is the first unit, store the softc for use in DELAY. */
@@ -368,14 +369,13 @@ imx_gpt_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-u_int
+static u_int
 imx_gpt_get_timecount(struct timecounter *tc)
 {
+	struct imx_gpt_softc *sc;
 
-	if (imx_gpt_sc == NULL)
-		return (0);
-
-	return (READ4(imx_gpt_sc, IMX_GPT_CNT));
+	sc = tc->tc_priv;
+	return (READ4(sc, IMX_GPT_CNT));
 }
 
 static device_method_t imx_gpt_methods[] = {
