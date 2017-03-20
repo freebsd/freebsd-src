@@ -26,7 +26,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_acl_freebsd.c 189427 2009-03-06 04:21:23Z kientzle $");
 
-#if HAVE_POSIX_ACL || HAVE_SUN_ACL
+#if ARCHIVE_ACL_POSIX1E
 #include <sys/acl.h>
 #if HAVE_ACL_GET_PERM
 #include <acl/libacl.h>
@@ -55,18 +55,18 @@ static struct archive_test_acl_t acls2[] = {
 };
 
 static int
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 acl_entry_get_perm(aclent_t *aclent)
 #else
 acl_entry_get_perm(acl_entry_t aclent)
 #endif
 {
 	int permset = 0;
-#if HAVE_POSIX_ACL
+#if ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_LIBACL
 	acl_permset_t opaque_ps;
 #endif
 
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	if (aclent->a_perm & 1)
 		permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
 	if (aclent->a_perm & 2)
@@ -127,114 +127,108 @@ acl_get_specific_entry(acl_t acl, acl_tag_t requested_tag_type, int requested_ta
 }
 #endif
 
+#if ARCHIVE_ACL_SUNOS
 static int
-#if HAVE_SUN_ACL
 acl_match(aclent_t *aclent, struct archive_test_acl_t *myacl)
-#else
-acl_match(acl_entry_t aclent, struct archive_test_acl_t *myacl)
-#endif
 {
-#if HAVE_POSIX_ACL
-	gid_t g, *gp;
-	uid_t u, *up;
-	acl_tag_t tag_type;
-#endif
 
 	if (myacl->permset != acl_entry_get_perm(aclent))
 		return (0);
 
-#if HAVE_SUN_ACL
-	switch (aclent->a_type)
-#else
-	acl_get_tag_type(aclent, &tag_type);
-	switch (tag_type)
-#endif
-	{
-#if HAVE_SUN_ACL
+	switch (aclent->a_type) {
 	case DEF_USER_OBJ:
 	case USER_OBJ:
-#else
-	case ACL_USER_OBJ:
-#endif
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER_OBJ) return (0);
 		break;
-#if HAVE_SUN_ACL
-	case DEF_USER:
-	case USER:
-#else
-	case ACL_USER:
-#endif
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER)
 			return (0);
-#if HAVE_SUN_ACL
 		if ((uid_t)myacl->qual != aclent->a_id)
 			return (0);
-#else
-		up = acl_get_qualifier(aclent);
-		u = *up;
-		acl_free(up);
-		if ((uid_t)myacl->qual != u)
-			return (0);
-#endif
 		break;
-#if HAVE_SUN_ACL
 	case DEF_GROUP_OBJ:
 	case GROUP_OBJ:
-#else
-	case ACL_GROUP_OBJ:
-#endif
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP_OBJ) return (0);
 		break;
-#if HAVE_SUN_ACL
 	case DEF_GROUP:
 	case GROUP:
-#else
-	case ACL_GROUP:
-#endif
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP)
 			return (0);
-#if HAVE_SUN_ACL
 		if ((gid_t)myacl->qual != aclent->a_id)
 			return (0);
-#else
-		gp = acl_get_qualifier(aclent);
-		g = *gp;
-		acl_free(gp);
-		if ((gid_t)myacl->qual != g)
-			return (0);
-#endif
 		break;
-#if HAVE_SUN_ACL
 	case DEF_CLASS_OBJ:
 	case CLASS_OBJ:
-#else
-	case ACL_MASK:
-#endif
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_MASK) return (0);
 		break;
-#if HAVE_SUN_ACL
 	case DEF_OTHER_OBJ:
 	case OTHER_OBJ:
-#else
-	case ACL_OTHER:
-#endif
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_OTHER) return (0);
 		break;
 	}
 	return (1);
 }
 
-static void
-#if HAVE_SUN_ACL
-compare_acls(void *aclp, int aclcnt, struct archive_test_acl_t *myacls, int n)
-#else
-compare_acls(acl_t acl, struct archive_test_acl_t *myacls, int n)
+#else	/* ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_LIBACL */
+static int
+acl_match(acl_entry_t aclent, struct archive_test_acl_t *myacl)
+{
+	gid_t g, *gp;
+	uid_t u, *up;
+	acl_tag_t tag_type;
+
+	if (myacl->permset != acl_entry_get_perm(aclent))
+		return (0);
+
+	acl_get_tag_type(aclent, &tag_type);
+	switch (tag_type) {
+	case ACL_USER_OBJ:
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER_OBJ) return (0);
+		break;
+	case ACL_USER:
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER)
+			return (0);
+		up = acl_get_qualifier(aclent);
+		u = *up;
+		acl_free(up);
+		if ((uid_t)myacl->qual != u)
+			return (0);
+		break;
+	case ACL_GROUP_OBJ:
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP_OBJ) return (0);
+		break;
+	case ACL_GROUP:
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP)
+			return (0);
+		gp = acl_get_qualifier(aclent);
+		g = *gp;
+		acl_free(gp);
+		if ((gid_t)myacl->qual != g)
+			return (0);
+		break;
+	case ACL_MASK:
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_MASK) return (0);
+		break;
+	case ACL_OTHER:
+		if (myacl->tag != ARCHIVE_ENTRY_ACL_OTHER) return (0);
+		break;
+	}
+	return (1);
+}
 #endif
+
+static void
+compare_acls(
+#if ARCHIVE_ACL_SUNOS
+    void *aclp, int aclcnt,
+#else
+    acl_t acl,
+#endif
+    struct archive_test_acl_t *myacls, int n)
 {
 	int *marker;
 	int matched;
 	int i;
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	int e;
 	aclent_t *acl_entry;
 #else
@@ -253,7 +247,7 @@ compare_acls(acl_t acl, struct archive_test_acl_t *myacls, int n)
 	 * Iterate over acls in system acl object, try to match each
 	 * one with an item in the myacls array.
 	 */
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	for(e = 0; e < aclcnt; e++) {
 		acl_entry = &((aclent_t *)aclp)[e];
 #else
@@ -288,9 +282,7 @@ compare_acls(acl_t acl, struct archive_test_acl_t *myacls, int n)
 	}
 	free(marker);
 }
-
 #endif
-
 
 /*
  * Verify ACL restore-to-disk.  This test is Platform-specific.
@@ -298,13 +290,13 @@ compare_acls(acl_t acl, struct archive_test_acl_t *myacls, int n)
 
 DEFINE_TEST(test_acl_platform_posix1e_restore)
 {
-#if !HAVE_SUN_ACL && !HAVE_POSIX_ACL
+#if !ARCHIVE_ACL_POSIX1E
 	skipping("POSIX.1e ACLs are not supported on this platform");
-#else	/* HAVE_SUN_ACL || HAVE_POSIX_ACL */
+#else	/* ARCHIVE_ACL_POSIX1E */
 	struct stat st;
 	struct archive *a;
 	struct archive_entry *ae;
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	void *aclp;
 	int aclcnt;
 #else
@@ -340,7 +332,7 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	/* Verify the data on disk. */
 	assertEqualInt(0, stat("test0", &st));
 	assertEqualInt(st.st_mtime, 123456);
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	aclp = sunacl_get(GETACL, &aclcnt, 0, "test0");
 	failure("acl(): errno = %d (%s)", errno, strerror(errno));
 	assert(aclp != NULL);
@@ -349,7 +341,7 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	failure("acl_get_file(): errno = %d (%s)", errno, strerror(errno));
 	assert(acl != (acl_t)NULL);
 #endif
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	compare_acls(aclp, aclcnt, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	free(aclp);
 	aclp = NULL;
@@ -358,7 +350,7 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
 	acl_free(acl);
 #endif
 
-#endif	/* HAVE_SUN_ACL || HAVE_POSIX_ACL */
+#endif	/* ARCHIVE_ACL_POSIX1E */
 }
 
 /*
@@ -366,15 +358,15 @@ DEFINE_TEST(test_acl_platform_posix1e_restore)
  */
 DEFINE_TEST(test_acl_platform_posix1e_read)
 {
-#if !HAVE_SUN_ACL && !HAVE_POSIX_ACL
+#if !ARCHIVE_ACL_POSIX1E
 	skipping("POSIX.1e ACLs are not supported on this platform");
-#else
+#else /* ARCHIVE_ACL_POSIX1E */
 	struct archive *a;
 	struct archive_entry *ae;
 	int n, fd, flags, dflags;
 	char *func, *acl_text;
 	const char *acl1_text, *acl2_text, *acl3_text;
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	void *aclp;
 	int aclcnt;
 #else
@@ -388,7 +380,7 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	 */
 
 	/* Create a test file f1 with acl1 */
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	acl1_text = "user::rwx,"
 	    "group::rwx,"
 	    "other:rwx,"
@@ -417,12 +409,12 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	fd = open("f1", O_WRONLY | O_CREAT | O_EXCL, 0777);
 	failure("Could not create test file?!");
 	if (!assert(fd >= 0)) {
-#if !HAVE_SUN_ACL
+#if !ARCHIVE_ACL_SUNOS
 		acl_free(acl1);
 #endif
 		return;
 	}
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	/* Check if Solaris filesystem supports POSIX.1e ACLs */
 	aclp = sunacl_get(GETACL, &aclcnt, fd, NULL);
 	if (aclp == 0)
@@ -440,12 +432,12 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	func = "acl_set_fd()";
 	n = acl_set_fd(fd, acl1);
 #endif
-#if !HAVE_SUN_ACL
+#if !ARCHIVE_ACL_SUNOS
 	acl_free(acl1);
 #endif
 
 	if (n != 0) {
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 		if (errno == ENOSYS || errno == ENOTSUP)
 #else
 		if (errno == EOPNOTSUPP || errno == EINVAL)
@@ -474,7 +466,7 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	 * to read ACLs, resulting in reading the ACL from a like-named
 	 * file in the wrong directory.
 	 */
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	acl2_text = "user::rwx,"
 	    "group::rwx,"
 	    "other:---,"
@@ -503,12 +495,12 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	fd = open("d/f1", O_WRONLY | O_CREAT | O_EXCL, 0777);
 	failure("Could not create test file?!");
 	if (!assert(fd >= 0)) {
-#if !HAVE_SUN_ACL
+#if !ARCHIVE_ACL_SUNOS
 		acl_free(acl2);
 #endif
 		return;
 	}
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	func = "facl()";
 	n = facl(fd, SETACL, (int)(sizeof(aclp2) / sizeof(aclp2[0])), aclp2);
 #else
@@ -525,7 +517,7 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	/* Create nested directory d2 with default ACLs */
 	assertMakeDir("d/d2", 0755);
 
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	acl3_text = "user::rwx,"
 	    "group::r-x,"
 	    "other:r-x,"
@@ -564,7 +556,7 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	assert((void *)acl3 != NULL);
 #endif
 
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	func = "acl()";
 	n = acl("d/d2", SETACL, (int)(sizeof(aclp3) / sizeof(aclp3[0])), aclp3);
 #else
@@ -580,7 +572,7 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_disk_open(a, "."));
 	assert(NULL != (ae = archive_entry_new()));
 
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	flags = ARCHIVE_ENTRY_ACL_TYPE_POSIX1E
 	    | ARCHIVE_ENTRY_ACL_STYLE_SEPARATOR_COMMA
 	    | ARCHIVE_ENTRY_ACL_STYLE_SOLARIS;
@@ -610,5 +602,5 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 
 	archive_entry_free(ae);
 	assertEqualInt(ARCHIVE_OK, archive_free(a));
-#endif
+#endif /* ARCHIVE_ACL_POSIX1E */
 }
