@@ -39,7 +39,6 @@
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
-#define _ARCHIVE_ACL_MAPS_DEFS
 #include "archive_acl_maps.h"
 
 #if ARCHIVE_ACL_LIBACL
