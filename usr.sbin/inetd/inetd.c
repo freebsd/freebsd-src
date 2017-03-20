@@ -214,7 +214,6 @@ __FBSDID("$FreeBSD$");
 #endif
 static void	close_sep(struct servtab *);
 static void	flag_signal(int);
-static void	flag_config(int);
 static void	config(void);
 static int	cpmip(const struct servtab *, int);
 static void	endconfig(void);
@@ -224,11 +223,9 @@ static struct servtab *getconfigent(void);
 static int	matchservent(const char *, const char *, const char *);
 static char	*nextline(FILE *);
 static void	addchild(struct servtab *, int);
-static void	flag_reapchild(int);
 static void	reapchild(void);
 static void	enable(struct servtab *);
 static void	disable(struct servtab *);
-static void	flag_retry(int);
 static void	retry(void);
 static int	setconfig(void);
 static void	setup(struct servtab *);
@@ -532,17 +529,17 @@ main(int argc, char **argv)
 	}
 #endif
 
-	sa.sa_flags = 0;
+	sa = (struct sigaction){
+	    .sa_flags = 0,
+	    .sa_handler = flag_signal,
+	};
 	sigemptyset(&sa.sa_mask);
 	sigaddset(&sa.sa_mask, SIGALRM);
 	sigaddset(&sa.sa_mask, SIGCHLD);
 	sigaddset(&sa.sa_mask, SIGHUP);
-	sa.sa_handler = flag_retry;
 	sigaction(SIGALRM, &sa, &saalrm);
 	config();
-	sa.sa_handler = flag_config;
 	sigaction(SIGHUP, &sa, &sahup);
-	sa.sa_handler = flag_reapchild;
 	sigaction(SIGCHLD, &sa, &sachld);
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, &sapipe);
@@ -591,30 +588,34 @@ main(int argc, char **argv)
 	    }
 	    /* handle any queued signal flags */
 	    if (FD_ISSET(signalpipe[0], &readable)) {
-		int nsig;
+		int nsig, signo;
+
 		if (ioctl(signalpipe[0], FIONREAD, &nsig) != 0) {
-		    syslog(LOG_ERR, "ioctl: %m");
-		    exit(EX_OSERR);
-		}
-		while (--nsig >= 0) {
-		    char c;
-		    if (read(signalpipe[0], &c, 1) != 1) {
-			syslog(LOG_ERR, "read: %m");
+			syslog(LOG_ERR, "ioctl: %m");
 			exit(EX_OSERR);
-		    }
-		    if (debug)
-			warnx("handling signal flag %c", c);
-		    switch(c) {
-		    case 'A': /* sigalrm */
-			retry();
-			break;
-		    case 'C': /* sigchld */
-			reapchild();
-			break;
-		    case 'H': /* sighup */
-			config();
-			break;
-		    }
+		}
+		nsig /= sizeof(signo);
+		while (--nsig >= 0) {
+			size_t len;
+
+			len = read(signalpipe[0], &signo, sizeof(signo));
+			if (len != sizeof(signo)) {
+				syslog(LOG_ERR, "read: %m");
+				exit(EX_OSERR);
+			}
+			if (debug)
+				warnx("handling signal flag %d", signo);
+			switch (signo) {
+			case SIGALRM:
+				retry();
+				break;
+			case SIGCHLD:
+				reapchild();
+				break;
+			case SIGHUP:
+				config();
+				break;
+			}
 		}
 	    }
 	    for (sep = servtab; n && sep; sep = sep->se_next)
@@ -900,11 +901,12 @@ main(int argc, char **argv)
  */
 
 static void
-flag_signal(int c)
+flag_signal(int signo)
 {
-	char ch = c;
+	size_t len;
 
-	if (write(signalpipe[1], &ch, 1) != 1) {
+	len = write(signalpipe[1], &signo, sizeof(signo));
+	if (len != sizeof(signo)) {
 		syslog(LOG_ERR, "write: %m");
 		_exit(EX_OSERR);
 	}
@@ -930,16 +932,6 @@ addchild(struct servtab *sep, pid_t pid)
 	sep->se_pids[sep->se_numchild++] = pid;
 	if (sep->se_numchild == sep->se_maxchild)
 		disable(sep);
-}
-
-/*
- * Some child process has exited. See if it's on somebody's list.
- */
-
-static void
-flag_reapchild(int signo __unused)
-{
-	flag_signal('C');
 }
 
 static void
@@ -978,12 +970,6 @@ reapchild(void)
 		}
 		reapchild_conn(pid);
 	}
-}
-
-static void
-flag_config(int signo __unused)
-{
-	flag_signal('H');
 }
 
 static void
@@ -1247,12 +1233,6 @@ unregisterrpc(struct servtab *sep)
                 (void) close(sep->se_fd);
         sep->se_fd = -1;
 	(void) sigsetmask(omask);
-}
-
-static void
-flag_retry(int signo __unused)
-{
-	flag_signal('A');
 }
 
 static void
