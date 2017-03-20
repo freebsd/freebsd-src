@@ -2907,8 +2907,17 @@ socksetup(struct peer *pe)
 		pe->pe_serv = "syslog";
 	error = getaddrinfo(pe->pe_name, pe->pe_serv, &hints, &res0);
 	if (error) {
-		logerror(gai_strerror(error));
+		char *msgbuf;
+
+		asprintf(&msgbuf, "getaddrinfo failed for %s%s: %s",
+		    pe->pe_name == NULL ? "" : pe->pe_name, pe->pe_serv,
+		    gai_strerror(error));
 		errno = 0;
+		if (msgbuf == NULL)
+			logerror(gai_strerror(error));
+		else
+			logerror(msgbuf);
+		free(msgbuf);
 		die(0);
 	}
 	for (res = res0; res != NULL; res = res->ai_next) {
