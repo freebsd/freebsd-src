@@ -237,7 +237,8 @@
 91	AUE_NULL	UNIMPL	getdopt
 ; XXX-BD: no practical way to check arg
 92	AUE_FCNTL	NOPROTO|NOPARSE|VARARG	{ int fcntl(int fd, int cmd, intptr_t arg); }
-93	AUE_SELECT	NOPROTO	{ int select(int nd, _Inout_opt_ fd_set *in, \
+93	AUE_SELECT	NOPROTO|NOPARSE	{ int select(int nd, \
+				    _Inout_opt_ fd_set *in, \
 				    _Inout_opt_ fd_set *ou, \
 				    _Inout_opt_ fd_set *ex, \
 				    _In_opt_ struct timeval *tv); }
@@ -1130,7 +1131,8 @@
 519	AUE_PDKILL	NOPROTO	{ int pdkill(int fd, int signum); }
 520	AUE_PDGETPID	NOPROTO	{ int pdgetpid(int fd, _Out_ pid_t *pidp); }
 521	AUE_PDWAIT	UNIMPL	pdwait4
-522	AUE_SELECT	NOPROTO	{ int pselect(int nd, _Inout_opt_ fd_set *in, \
+522	AUE_SELECT	NOPROTO|NOPARSE	{ int pselect(int nd, \
+				    _Inout_opt_ fd_set *in, \
 				    _Inout_opt_ fd_set *ou, \
 				    _Inout_opt_ fd_set *ex, \
 				    _In_opt_ const struct timespec *ts, \

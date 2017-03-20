@@ -2373,12 +2373,12 @@ SYS_STUB(394, int, mac_syscall,
 )
 
 SYS_STUB(395, int, getfsstat,
-    /* _protoargs */ (struct statfs * buf, long bufsize, int flags),
-    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, struct statfs * __capability  buf, long bufsize, int flags),
-    /* _protoargs_err */ (__capability int *stub_errno, struct statfs * __capability  buf, long bufsize, int flags),
-    /* _callargs */ ((struct statfs *)buf, bufsize, flags),
-    /* _callargs_chk */ (&ret, stub_errno, buf, bufsize, flags),
-    /* _callargs_err */ (&errno, (struct statfs *)buf, bufsize, flags),
+    /* _protoargs */ (struct statfs * buf, long bufsize, int mode),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, struct statfs * __capability  buf, long bufsize, int mode),
+    /* _protoargs_err */ (__capability int *stub_errno, struct statfs * __capability  buf, long bufsize, int mode),
+    /* _callargs */ ((struct statfs *)buf, bufsize, mode),
+    /* _callargs_chk */ (&ret, stub_errno, buf, bufsize, mode),
+    /* _callargs_err */ (&errno, (struct statfs *)buf, bufsize, mode),
     /* _localcheck */ {if (!(cheri_getperm(buf) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 

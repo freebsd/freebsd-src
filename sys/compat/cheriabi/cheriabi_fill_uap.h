@@ -1541,67 +1541,8 @@ CHERIABI_SYS_dup2_fill_uap(struct thread *td,
 static inline int	CHERIABI_SYS_fcntl_fill_uap(struct thread *td,
     struct fcntl_args *uap);
 
-static inline int
-CHERIABI_SYS_select_fill_uap(struct thread *td,
-    struct select_args *uap)
-{
-	struct chericap tmpcap;
-
-	/* [0] int nd */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_select, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->nd, CHERI_CR_CTEMP0);
-
-	/* [1] _Inout_opt_ fd_set * in */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_select, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->in),
-		    &tmpcap, sizeof(*uap->in), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	/* [2] _Inout_opt_ fd_set * ou */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_select, 2);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ou),
-		    &tmpcap, sizeof(*uap->ou), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	/* [3] _Inout_opt_ fd_set * ex */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_select, 3);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ex),
-		    &tmpcap, sizeof(*uap->ex), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	/* [4] _In_opt_ struct timeval * tv */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_select, 4);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->tv),
-		    &tmpcap, sizeof(*uap->tv), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
-}
+static inline int	CHERIABI_SYS_select_fill_uap(struct thread *td,
+    struct select_args *uap);
 
 static inline int
 CHERIABI_SYS_fsync_fill_uap(struct thread *td,
@@ -9293,79 +9234,8 @@ CHERIABI_SYS_pdgetpid_fill_uap(struct thread *td,
 	return (0);
 }
 
-static inline int
-CHERIABI_SYS_pselect_fill_uap(struct thread *td,
-    struct pselect_args *uap)
-{
-	struct chericap tmpcap;
-
-	/* [0] int nd */
-	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_pselect, 0);
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
-	CHERI_CTOINT(uap->nd, CHERI_CR_CTEMP0);
-
-	/* [1] _Inout_opt_ fd_set * in */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_pselect, 1);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->in),
-		    &tmpcap, sizeof(*uap->in), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	/* [2] _Inout_opt_ fd_set * ou */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_pselect, 2);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ou),
-		    &tmpcap, sizeof(*uap->ou), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	/* [3] _Inout_opt_ fd_set * ex */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD|CHERI_PERM_STORE);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_pselect, 3);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ex),
-		    &tmpcap, sizeof(*uap->ex), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	/* [4] _In_opt_ const struct timespec * ts */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_pselect, 4);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->ts),
-		    &tmpcap, sizeof(*uap->ts), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	/* [5] _In_opt_ const sigset_t * sm */
-	{
-		int error;
-		register_t reqperms = (CHERI_PERM_LOAD);
-
-		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_pselect, 5);
-		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->sm),
-		    &tmpcap, sizeof(*uap->sm), reqperms, 1);
-		if (error != 0)
-			return (error);
-	}
-
-	return (0);
-}
+static inline int	CHERIABI_SYS_pselect_fill_uap(struct thread *td,
+    struct pselect_args *uap);
 
 static inline int
 CHERIABI_SYS_getloginclass_fill_uap(struct thread *td,
