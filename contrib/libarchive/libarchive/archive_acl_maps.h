@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2017 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -22,24 +21,30 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
 
-#ifndef ARCHIVE_WRITE_DISK_PRIVATE_H_INCLUDED
-#define ARCHIVE_WRITE_DISK_PRIVATE_H_INCLUDED
+#ifndef ARCHIVE_ACL_MAPS_H_INCLUDED
+#define ARCHIVE_ACL_MAPS_H_INCLUDED
 
 #include "archive_platform_acl.h"
-#include "archive_acl_private.h"
-#include "archive_entry.h"
 
-struct archive_write_disk;
+typedef struct {
+	const int a_perm;	/* Libarchive permission or flag */
+	const int p_perm;	/* Platform permission or flag */
+} acl_perm_map_t;
 
-int archive_write_disk_set_acls(struct archive *, int, const char *,
-    struct archive_acl *, __LA_MODE_T);
-
+#if ARCHIVE_ACL_POSIX1E
+extern const acl_perm_map_t acl_posix_perm_map[];
+extern const int acl_posix_perm_map_size;
 #endif
+#if ARCHIVE_ACL_NFS4
+extern const acl_perm_map_t acl_nfs4_perm_map[];
+extern const int acl_nfs4_perm_map_size;
+extern const acl_perm_map_t acl_nfs4_flag_map[];
+extern const int acl_nfs4_flag_map_size;
+#endif
+#endif /* ARCHIVE_ACL_MAPS_H_INCLUDED */

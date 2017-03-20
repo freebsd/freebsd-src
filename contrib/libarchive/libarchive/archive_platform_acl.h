@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2017 Martin Matuska
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -26,20 +25,25 @@
  * $FreeBSD$
  */
 
-#ifndef __LIBARCHIVE_BUILD
-#error This header is only to be used internally to libarchive.
+/* !!ONLY FOR USE INTERNALLY TO LIBARCHIVE!! */
+
+#ifndef ARCHIVE_PLATFORM_ACL_H_INCLUDED
+#define ARCHIVE_PLATFORM_ACL_H_INCLUDED
+
+/*
+ * Determine what ACL types are supported
+ */
+#if ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_SUNOS || ARCHIVE_ACL_LIBACL
+#define ARCHIVE_ACL_POSIX1E     1
 #endif
 
-#ifndef ARCHIVE_WRITE_DISK_PRIVATE_H_INCLUDED
-#define ARCHIVE_WRITE_DISK_PRIVATE_H_INCLUDED
-
-#include "archive_platform_acl.h"
-#include "archive_acl_private.h"
-#include "archive_entry.h"
-
-struct archive_write_disk;
-
-int archive_write_disk_set_acls(struct archive *, int, const char *,
-    struct archive_acl *, __LA_MODE_T);
-
+#if ARCHIVE_ACL_FREEBSD_NFS4 || ARCHIVE_ACL_SUNOS_NFS4 || \
+    ARCHIVE_ACL_DARWIN  || ARCHIVE_ACL_LIBRICHACL
+#define ARCHIVE_ACL_NFS4        1
 #endif
+
+#if ARCHIVE_ACL_POSIX1E || ARCHIVE_ACL_NFS4
+#define ARCHIVE_ACL_SUPPORT     1
+#endif
+
+#endif	/* ARCHIVE_PLATFORM_ACL_H_INCLUDED */

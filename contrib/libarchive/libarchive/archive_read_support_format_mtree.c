@@ -1857,33 +1857,38 @@ mtree_atol8(char **p)
  * Note that this implementation does not (and should not!) obey
  * locale settings; you cannot simply substitute strtol here, since
  * it does obey locale.
+ *
+ * Convert the number pointed to by 'p' into a 64-bit signed integer.
+ * On return, 'p' points to the first non-digit following the number.
+ * On overflow, the function returns INT64_MIN or INT64_MAX.
  */
 static int64_t
 mtree_atol10(char **p)
 {
-	int64_t l, limit, last_digit_limit;
-	int base, digit, sign;
-
-	base = 10;
+	const int base = 10;
+	const int64_t limit = INT64_MAX / base;
+	const int64_t last_digit_limit = INT64_MAX % base;
+	int64_t l;
+	int sign;
 
 	if (**p == '-') {
 		sign = -1;
-		limit = ((uint64_t)(INT64_MAX) + 1) / base;
-		last_digit_limit = ((uint64_t)(INT64_MAX) + 1) % base;
 		++(*p);
 	} else {
 		sign = 1;
-		limit = INT64_MAX / base;
-		last_digit_limit = INT64_MAX % base;
 	}
 
 	l = 0;
-	digit = **p - '0';
-	while (digit >= 0 && digit < base) {
-		if (l > limit || (l == limit && digit > last_digit_limit))
+	while (**p >= '0' && **p < '0' + base) {
+		int digit = **p - '0';
+		if (l > limit || (l == limit && digit > last_digit_limit)) {
+			while (**p >= '0' && **p < '0' + base) {
+				++(*p);
+			}
 			return (sign < 0) ? INT64_MIN : INT64_MAX;
+		}
 		l = (l * base) + digit;
-		digit = *++(*p) - '0';
+		++(*p);
 	}
 	return (sign < 0) ? -l : l;
 }

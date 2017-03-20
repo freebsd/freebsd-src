@@ -1,3 +1,5 @@
+Mar 16, 2017: NFSv4 ACL support for Linux (librichacl)
+
 Feb 26, 2017: libarchive 3.3.1 released
     Security & Feature release
 
@@ -293,7 +295,7 @@ May 04, 2008: libarchive 2.5.3b released
 	* libarchive: Mark which entry strings are set; be accurate about
 	  distinguishing empty strings ("") from unset ones (NULL)
 	* tar: Don't crash reading entries with empty filenames
-	* libarchive_test, bsdtar_test, bsdcpio_test:  Better detaults:
+	* libarchive_test, bsdtar_test, bsdcpio_test:  Better defaults:
 	  run all tests, delete temp dirs, summarize repeated failures
 	* -no-undefined to libtool for Cygwin
 	* libarchive_test: Skip large file tests on systems with 32-bit off_t

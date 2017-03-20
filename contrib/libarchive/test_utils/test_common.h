@@ -127,42 +127,10 @@
 #define	O_BINARY 0
 #endif
 
-/*
- * If this platform has <sys/acl.h>, acl_create(), acl_init(),
- * acl_set_file(), and ACL_USER, we assume it has the rest of the
- * POSIX.1e draft functions used in archive_read_extract.c.
- */
-#if HAVE_SYS_ACL_H && HAVE_ACL_CREATE_ENTRY && HAVE_ACL_INIT && HAVE_ACL_SET_FILE
-#if HAVE_DECL_ACL_USER
-#define	HAVE_POSIX_ACL	1
-#elif HAVE_DECL_ACL_TYPE_EXTENDED
-#define	HAVE_DARWIN_ACL	1
-#endif
-#if HAVE_DECL_ACL_TYPE_NFS4
-#define	HAVE_FREEBSD_NFS4_ACL 1
-#endif
-#endif
-
-/*
- * If this platform has <sys/acl.h>, acl_get(), facl_get(), acl_set(),
- * facl_set() and types aclent_t and ace_t it uses Solaris-style ACL functions
- */
-#if HAVE_SYS_ACL_H && HAVE_ACL && HAVE_FACL && HAVE_ACLENT_T && \
-    HAVE_DECL_GETACL && HAVE_DECL_GETACLCNT && HAVE_DECL_SETACL
-#define HAVE_SUN_ACL    1
-#if HAVE_ACE_T && HAVE_DECL_ACE_GETACL && HAVE_DECL_ACE_GETACLCNT && \
-    HAVE_DECL_ACE_SETACL
-#define HAVE_SUN_NFS4_ACL       1
-#endif
-#endif
-
-/* Define if platform supports NFSv4 ACLs */
-#if HAVE_FREEBSD_NFS4_ACL || HAVE_SUN_NFS4_ACL || HAVE_DARWIN_ACL
-#define HAVE_NFS4_ACL   1
-#endif
-
+#include "archive_platform_acl.h"
 #define	ARCHIVE_TEST_ACL_TYPE_POSIX1E	1
 #define	ARCHIVE_TEST_ACL_TYPE_NFS4	2
+
 
 /*
  * Redefine DEFINE_TEST for use in defining the test functions.
@@ -378,7 +346,7 @@ int setTestAcl(const char *path);
 /* Return true if the file has large i-node number(>0xffffffff). */
 int is_LargeInode(const char *);
 
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 /* Fetch ACLs on Solaris using acl() or facl() */
 void *sunacl_get(int cmd, int *aclcnt, int fd, const char *path);
 #endif

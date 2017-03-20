@@ -73,8 +73,6 @@ static const acl_perm_t acl_perms[] = {
 #if HAVE_DARWIN_ACL || HAVE_FREEBSD_NFS4_ACL
 static const acl_flag_t acl_flags[] = {
 #if HAVE_DARWIN_ACL
-    ACL_FLAG_DEFER_INHERIT,
-    ACL_FLAG_NO_INHERIT,
     ACL_ENTRY_INHERITED,
     ACL_ENTRY_FILE_INHERIT,
     ACL_ENTRY_DIRECTORY_INHERIT,
