@@ -69,6 +69,9 @@ static uint32_t	bhnd_pmu1_alpclk0(struct bhnd_pmu_query *sc);
 
 static uint32_t	bhnd_pmu5_clock(struct bhnd_pmu_query *sc, u_int pll0, u_int m);
 
+static uint32_t	bhnd_pmu6_4706_clock(struct bhnd_pmu_query *sc, u_int pll0,
+		    u_int m);
+
 /* PMU resources */
 static bool	bhnd_pmu_res_depfltr_bb(struct bhnd_pmu_softc *sc);
 static bool	bhnd_pmu_res_depfltr_ncb(struct bhnd_pmu_softc *sc);
@@ -2329,6 +2332,47 @@ bhnd_pmu5_clock(struct bhnd_pmu_query *sc, u_int pll0, u_int m)
 	return ((fc / div) * 1000000);
 }
 
+static uint32_t
+bhnd_pmu6_4706_clock(struct bhnd_pmu_query *sc, u_int pll0, u_int m)
+{
+	uint32_t chipst, clock;
+	uint32_t ndiv, p1div, p2div, tmp;
+
+	/* Get N, P1 and P2 dividers to determine CPU clock */
+	BHND_PMU_WRITE_4(sc, BHND_PMU_PLL_CONTROL_ADDR,
+	    pll0 + BHND_PMU6_4706_PROCPLL_OFF);
+	BHND_PMU_READ_4(sc, BHND_PMU_PLL_CONTROL_ADDR);
+
+	tmp = BHND_PMU_READ_4(sc, BHND_PMU_PLL_CONTROL_DATA);
+	ndiv = BHND_PMU_GET_BITS(tmp, BHND_PMU6_4706_PROC_NDIV_INT);
+	p1div = BHND_PMU_GET_BITS(tmp, BHND_PMU6_4706_PROC_P1DIV);
+	p2div = BHND_PMU_GET_BITS(tmp, BHND_PMU6_4706_PROC_P2DIV);
+
+	/* Fixed 25MHz reference clock */
+	clock = 25 * 1000 * 1000;
+
+	/* The low-cost bonding uses an input divider of 4; otherwise, 2 */
+	chipst = sc->io->rd_chipst(sc->io_ctx);
+	if (chipst & CHIPC_CST4706_LOWCOST_PKG)
+		clock /= 4;
+	else
+		clock /= 2;
+
+	clock *= ndiv * p2div / p1div;
+
+	switch (m) {
+	case BHND_PMU6_MAINPLL_CPU:
+		return (clock);
+	case BHND_PMU6_MAINPLL_MEM:
+		return (clock / 2);
+	case BHND_PMU6_MAINPLL_SI:
+		return (clock / 4);
+	default:
+		PMU_LOG(sc, "bad m divider: %d", m);
+		return (0);
+	}
+}
+
 /**
  * Return the backplane clock frequency, in Hz.
  * 
@@ -2425,6 +2469,10 @@ bhnd_pmu_si_clock(struct bhnd_pmu_query *sc)
 		clock = bhnd_pmu5_clock(sc, BHND_PMU5357_MAINPLL_PLL0,
 		    BHND_PMU5_MAINPLL_SI);
 		break;
+	case BHND_CHIPID_BCM4706:
+		clock = bhnd_pmu6_4706_clock(sc, BHND_PMU4706_MAINPLL_PLL0,
+		    BHND_PMU6_MAINPLL_SI);
+		break;
 	case BHND_CHIPID_BCM53572:
 		clock = 75000000;
 		break;
@@ -2446,8 +2494,6 @@ bhnd_pmu_si_clock(struct bhnd_pmu_query *sc)
 uint32_t 
 bhnd_pmu_cpu_clock(struct bhnd_pmu_query *sc)
 {
-	uint32_t clock;
-
 	/* 5354 chip uses a non programmable PLL of frequency 240MHz */
 	if (sc->cid.chip_id == BHND_CHIPID_BCM5354)
 		return (240 * 1000 * 1000); /* 240MHz */
@@ -2466,27 +2512,27 @@ bhnd_pmu_cpu_clock(struct bhnd_pmu_query *sc)
 	    sc->cid.chip_id != BHND_CHIPID_BCM4336 &&
 	    sc->cid.chip_id != BHND_CHIPID_BCM4330)
 	{
-		u_int pll;
-
 		switch (sc->cid.chip_id) {
 		case BHND_CHIPID_BCM5356:
-			pll = BHND_PMU5356_MAINPLL_PLL0;
-			break;
+			return (bhnd_pmu5_clock(sc, BHND_PMU5356_MAINPLL_PLL0,
+			    BHND_PMU5_MAINPLL_CPU));
+
 		case BHND_CHIPID_BCM5357:
 		case BHND_CHIPID_BCM4749:
-			pll = BHND_PMU5357_MAINPLL_PLL0;
-			break;
+			return (bhnd_pmu5_clock(sc, BHND_PMU5357_MAINPLL_PLL0,
+			    BHND_PMU5_MAINPLL_CPU));
+
+		case BHND_CHIPID_BCM4706:
+			return (bhnd_pmu6_4706_clock(sc,
+			    BHND_PMU4706_MAINPLL_PLL0, BHND_PMU6_MAINPLL_CPU));
+
 		default:
-			pll = BHND_PMU4716_MAINPLL_PLL0;
-			break;
+			return (bhnd_pmu5_clock(sc, BHND_PMU4716_MAINPLL_PLL0,
+			    BHND_PMU5_MAINPLL_CPU));
 		}
-
-		clock = bhnd_pmu5_clock(sc, pll, BHND_PMU5_MAINPLL_CPU);
 	} else {
-		clock = bhnd_pmu_si_clock(sc);
+		return (bhnd_pmu_si_clock(sc));
 	}
-
-	return (clock);
 }
 
 /**
@@ -2497,8 +2543,6 @@ bhnd_pmu_cpu_clock(struct bhnd_pmu_query *sc)
 uint32_t
 bhnd_pmu_mem_clock(struct bhnd_pmu_query *sc)
 {
-	uint32_t clock;
-
 	if (BHND_PMU_REV(sc) >= 5 &&
 	    sc->cid.chip_id != BHND_CHIPID_BCM4329 &&
 	    sc->cid.chip_id != BHND_CHIPID_BCM4319 &&
@@ -2510,27 +2554,28 @@ bhnd_pmu_mem_clock(struct bhnd_pmu_query *sc)
 	    sc->cid.chip_id != BHND_CHIPID_BCM4336 &&
 	    sc->cid.chip_id != BHND_CHIPID_BCM4330)
 	{
-		u_int pll;
-
 		switch (sc->cid.chip_id) {
 		case BHND_CHIPID_BCM5356:
-			pll = BHND_PMU5356_MAINPLL_PLL0;
-			break;
+			return (bhnd_pmu5_clock(sc, BHND_PMU5356_MAINPLL_PLL0,
+			    BHND_PMU5_MAINPLL_MEM));
+
 		case BHND_CHIPID_BCM5357:
 		case BHND_CHIPID_BCM4749:
-			pll = BHND_PMU5357_MAINPLL_PLL0;
-			break;
+			return (bhnd_pmu5_clock(sc, BHND_PMU5357_MAINPLL_PLL0,
+			    BHND_PMU5_MAINPLL_MEM));
+
+		case BHND_CHIPID_BCM4706:
+			return (bhnd_pmu6_4706_clock(sc,
+			    BHND_PMU4706_MAINPLL_PLL0, BHND_PMU6_MAINPLL_MEM));
+
 		default:
-			pll = BHND_PMU4716_MAINPLL_PLL0;
-			break;
+			return (bhnd_pmu5_clock(sc, BHND_PMU4716_MAINPLL_PLL0,
+			    BHND_PMU5_MAINPLL_MEM));
 		}
 
-		clock = bhnd_pmu5_clock(sc, pll, BHND_PMU5_MAINPLL_MEM);
 	} else {
-		clock = bhnd_pmu_si_clock(sc);
+		return (bhnd_pmu_si_clock(sc));
 	}
-
-	return (clock);
 }
 
 /* Measure ILP clock frequency */
