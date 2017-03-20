@@ -342,7 +342,7 @@ pxe_open(struct open_file *f, ...)
 			}
 			if (intf_mtu != 0) {
 				char mtu[16];
-				sprintf(mtu, "%u", intf_mtu);
+				snprintf(sizeof(mtu), mtu, "%u", intf_mtu);
 				setenv("boot.netif.mtu", mtu, 1);
 			}
 			printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
