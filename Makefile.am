@@ -127,6 +127,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_pathmatch.c \
 	libarchive/archive_pathmatch.h \
 	libarchive/archive_platform.h \
+	libarchive/archive_platform_acl.h \
 	libarchive/archive_ppmd_private.h \
 	libarchive/archive_ppmd7.c \
 	libarchive/archive_ppmd7_private.h \
@@ -186,9 +187,9 @@ libarchive_la_SOURCES= \
 	libarchive/archive_string_composition.h \
 	libarchive/archive_string_sprintf.c \
 	libarchive/archive_util.c \
+	libarchive/archive_version_details.c \
 	libarchive/archive_virtual.c \
 	libarchive/archive_write.c \
-	libarchive/archive_write_disk_acl.c \
 	libarchive/archive_write_disk_posix.c \
 	libarchive/archive_write_disk_private.h \
 	libarchive/archive_write_disk_set_standard_lookup.c \
@@ -245,6 +246,38 @@ libarchive_la_SOURCES+= \
 	libarchive/archive_windows.c \
 	libarchive/archive_write_disk_windows.c \
 	libarchive/filter_fork_windows.c
+endif
+
+if INC_LINUX_ACL
+libarchive_la_SOURCES+= \
+	libarchive/archive_acl_maps.h \
+	libarchive/archive_acl_maps_linux.c \
+	libarchive/archive_read_disk_acl_linux.c \
+	libarchive/archive_write_disk_acl_linux.c
+else
+if INC_SUNOS_ACL
+libarchive_la_SOURCES+= \
+	libarchive/archive_acl_maps.h \
+	libarchive/archive_acl_maps_sunos.c \
+	libarchive/archive_read_disk_acl_sunos.c \
+	libarchive/archive_write_disk_acl_sunos.c
+else
+if INC_DARWIN_ACL
+libarchive_la_SOURCES+= \
+	libarchive/archive_acl_maps.h \
+	libarchive/archive_acl_maps_darwin.c \
+	libarchive/archive_read_disk_acl_darwin.c \
+	libarchive/archive_write_disk_acl_darwin.c
+else
+if INC_FREEBSD_ACL
+libarchive_la_SOURCES+= \
+	libarchive/archive_acl_maps.h \
+	libarchive/archive_acl_maps_freebsd.c \
+	libarchive/archive_read_disk_acl_freebsd.c \
+	libarchive/archive_write_disk_acl_freebsd.c
+endif
+endif
+endif
 endif
 
 # -no-undefined marks that libarchive doesn't rely on symbols

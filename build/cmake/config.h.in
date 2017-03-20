@@ -179,6 +179,27 @@ typedef uint64_t uintmax_t;
 /* Define ZLIB_WINAPI if zlib was built on Visual Studio. */
 #cmakedefine ZLIB_WINAPI 1
 
+/* Darwin ACL support */
+#cmakedefine ARCHIVE_ACL_DARWIN 1
+
+/* FreeBSD ACL support */
+#cmakedefine ARCHIVE_ACL_FREEBSD 1
+
+/* FreeBSD NFSv4 ACL support */
+#cmakedefine ARCHIVE_ACL_FREEBSD_NFS4 1
+
+/* Linux POSIX.1e ACL support via libacl */
+#cmakedefine ARCHIVE_ACL_LIBACL 1
+
+/* Linux NFSv4 ACL support via librichacl */
+#cmakedefine ARCHIVE_ACL_LIBRICHACL 1
+
+/* Solaris ACL support */
+#cmakedefine ARCHIVE_ACL_SUNOS 1
+
+/* Solaris NFSv4 ACL support */
+#cmakedefine ARCHIVE_ACL_SUNOS_NFS4 1
+
 /* MD5 via ARCHIVE_CRYPTO_MD5_LIBC supported. */
 #cmakedefine ARCHIVE_CRYPTO_MD5_LIBC 1
 
@@ -1012,6 +1033,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <sys/poll.h> header file. */
 #cmakedefine HAVE_SYS_POLL_H 1
+
+/* Define to 1 if you have the <sys/richacl.h> header file. */
+#cmakedefine HAVE_SYS_RICHACL_H 1
 
 /* Define to 1 if you have the <sys/select.h> header file. */
 #cmakedefine HAVE_SYS_SELECT_H 1

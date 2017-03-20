@@ -575,10 +575,55 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	if (a->flags & ARCHIVE_EXTRACT_TIME)
 		a->todo |= TODO_TIMES;
 	if (a->flags & ARCHIVE_EXTRACT_ACL) {
+#if ARCHIVE_ACL_DARWIN
+		/*
+		 * On MacOS, platform ACLs get stored in mac_metadata, too.
+		 * If we intend to extract mac_metadata and it is present
+		 * we skip extracting libarchive NFSv4 ACLs.
+		 */
+		size_t metadata_size;
+
+		if ((a->flags & ARCHIVE_EXTRACT_MAC_METADATA) == 0 ||
+		    archive_entry_mac_metadata(a->entry,
+		    &metadata_size) == NULL || metadata_size == 0)
+#endif
+#if ARCHIVE_ACL_LIBRICHACL
+		/*
+		 * RichACLs are stored in an extended attribute.
+		 * If we intend to extract extended attributes and have this
+		 * attribute we skip extracting libarchive NFSv4 ACLs.
+		 */
+		short extract_acls = 1;
+		if (a->flags & ARCHIVE_EXTRACT_XATTR && (
+		    archive_entry_acl_types(a->entry) &
+		    ARCHIVE_ENTRY_ACL_TYPE_NFS4)) {
+			const char *attr_name;
+			const void *attr_value;
+			size_t attr_size;
+			int i = archive_entry_xattr_reset(a->entry);
+			while (i--) {
+				archive_entry_xattr_next(a->entry, &attr_name,
+				    &attr_value, &attr_size);
+				if (attr_name != NULL && attr_value != NULL &&
+				    attr_size > 0 && strcmp(attr_name,
+				    "trusted.richacl") == 0) {
+					extract_acls = 0;
+					break;
+				}
+			}
+		}
+		if (extract_acls)
+#endif
+#if ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_LIBRICHACL
+		{
+#endif
 		if (archive_entry_filetype(a->entry) == AE_IFDIR)
 			a->deferred |= TODO_ACLS;
 		else
 			a->todo |= TODO_ACLS;
+#if ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_LIBRICHACL
+		}
+#endif
 	}
 	if (a->flags & ARCHIVE_EXTRACT_MAC_METADATA) {
 		if (archive_entry_filetype(a->entry) == AE_IFDIR)
@@ -1703,25 +1748,11 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 */
 	if (a->todo & TODO_ACLS) {
 		int r2;
-#ifdef HAVE_DARWIN_ACL
-		/*
-		 * On Mac OS, platform ACLs are stored also in mac_metadata by
-		 * the operating system. If mac_metadata is present it takes
-		 * precedence and we skip extracting libarchive NFSv4 ACLs
-		 */
-		const void *metadata;
-		size_t metadata_size;
-		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
-		if ((a->todo & TODO_MAC_METADATA) == 0 ||
-		    metadata == NULL || metadata_size == 0) {
-#endif
 		r2 = archive_write_disk_set_acls(&a->archive, a->fd,
 		    archive_entry_pathname(a->entry),
-		    archive_entry_acl(a->entry));
+		    archive_entry_acl(a->entry),
+		    archive_entry_mode(a->entry));
 		if (r2 < ret) ret = r2;
-#ifdef HAVE_DARWIN_ACL
-		}
-#endif
 	}
 
 finish_metadata:
@@ -2293,13 +2324,8 @@ _archive_write_disk_close(struct archive *_a)
 		if (p->fixup & TODO_MODE_BASE)
 			chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
-#ifdef HAVE_DARWIN_ACL
-			if ((p->fixup & TODO_MAC_METADATA) == 0 ||
-			    p->mac_metadata == NULL ||
-			    p->mac_metadata_size == 0)
-#endif
-				archive_write_disk_set_acls(&a->archive,
-				    -1, p->name, &p->acl);
+			archive_write_disk_set_acls(&a->archive, -1, p->name,
+			    &p->acl, p->mode);
 		if (p->fixup & TODO_FFLAGS)
 			set_fflags_platform(a, -1, p->name,
 			    p->mode, p->fflags_set, 0);
@@ -4238,6 +4264,20 @@ older(struct stat *st, struct archive_entry *entry)
 	/* Same age or newer, so not older. */
 	return (0);
 }
+
+#ifndef ARCHIVE_ACL_SUPPORT
+int
+archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
+    struct archive_acl *abstract_acl, __LA_MODE_T mode)
+{
+	(void)a; /* UNUSED */
+	(void)fd; /* UNUSED */
+	(void)name; /* UNUSED */
+	(void)abstract_acl; /* UNUSED */
+	(void)mode; /* UNUSED */
+	return (ARCHIVE_OK);
+}
+#endif
 
 #endif /* !_WIN32 || __CYGWIN__ */
 

@@ -14,6 +14,7 @@ SET(include_HEADERS
 # Sources and private headers
 SET(libarchive_SOURCES
   archive_acl.c
+  archive_acl_private.h
   archive_check_magic.c
   archive_cmdline.c
   archive_cmdline_private.h
@@ -47,6 +48,7 @@ SET(libarchive_SOURCES
   archive_pathmatch.c
   archive_pathmatch.h
   archive_platform.h
+  archive_platform_acl.h
   archive_ppmd_private.h
   archive_ppmd7.c
   archive_ppmd7_private.h
@@ -106,9 +108,9 @@ SET(libarchive_SOURCES
   archive_string_composition.h
   archive_string_sprintf.c
   archive_util.c
+  archive_version_details.c
   archive_virtual.c
   archive_write.c
-  archive_write_disk_acl.c
   archive_write_disk_posix.c
   archive_write_disk_private.h
   archive_write_disk_set_standard_lookup.c
@@ -209,6 +211,28 @@ IF(WIN32 AND NOT CYGWIN)
   LIST(APPEND libarchive_SOURCES archive_write_disk_windows.c)
   LIST(APPEND libarchive_SOURCES filter_fork_windows.c)
 ENDIF(WIN32 AND NOT CYGWIN)
+
+IF(ARCHIVE_ACL_DARWIN)
+  LIST(APPEND libarchive_SOURCES archive_acl_maps.h)
+  LIST(APPEND libarchive_SOURCES archive_acl_maps_darwin.c)
+  LIST(APPEND libarchive_SOURCES archive_read_disk_acl_darwin.c)
+  LIST(APPEND libarchive_SOURCES archive_write_disk_acl_darwin.c)
+ELSEIF(ARCHIVE_ACL_FREEBSD)
+  LIST(APPEND libarchive_SOURCES archive_acl_maps.h)
+  LIST(APPEND libarchive_SOURCES archive_acl_maps_freebsd.c)
+  LIST(APPEND libarchive_SOURCES archive_read_disk_acl_freebsd.c)
+  LIST(APPEND libarchive_SOURCES archive_write_disk_acl_freebsd.c)
+ELSEIF(ARCHIVE_ACL_LIBACL)
+  LIST(APPEND libarchive_SOURCES archive_acl_maps.h)
+  LIST(APPEND libarchive_SOURCES archive_acl_maps_linux.c)
+  LIST(APPEND libarchive_SOURCES archive_read_disk_acl_linux.c)
+  LIST(APPEND libarchive_SOURCES archive_write_disk_acl_linux.c)
+ELSEIF(ARCHIVE_ACL_SUNOS)
+  LIST(APPEND libarchive_SOURCES archive_acl_maps.h)
+  LIST(APPEND libarchive_SOURCES archive_acl_maps_sunos.c)
+  LIST(APPEND libarchive_SOURCES archive_read_disk_acl_sunos.c)
+  LIST(APPEND libarchive_SOURCES archive_write_disk_acl_sunos.c)
+ENDIF()
 
 # Libarchive is a shared library
 ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
