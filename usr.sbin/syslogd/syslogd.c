@@ -2901,7 +2901,8 @@ socksetup(struct peer *pe)
 		.ai_socktype = SOCK_DGRAM,
 		.ai_flags = AI_PASSIVE
 	};
-	dprintf("Try %s\n", pe->pe_name);
+	if (pe->pe_name != NULL)
+		dprintf("Trying peer: %s\n", pe->pe_name);
 	if (pe->pe_serv == NULL)
 		pe->pe_serv = "syslog";
 	error = getaddrinfo(pe->pe_name, pe->pe_serv, &hints, &res0);
