@@ -210,7 +210,7 @@ CRUNCH_LIBS+= -lcrypto
 CRUNCH_LIBS+= -lmd
 
 .if ${MK_NETCAT} != "no"
-CRUNCH_PROGS_usr.bin= nc
+CRUNCH_PROGS_usr.bin+=	nc
 .endif
 
 .if ${MK_VI} != "no"
