@@ -1718,13 +1718,13 @@ rtwn_node_alloc(struct ieee80211vap *vap,
 }
 
 static void
-rtwn_newassoc(struct ieee80211_node *ni, int isnew)
+rtwn_newassoc(struct ieee80211_node *ni, int isnew __unused)
 {
 	struct rtwn_softc *sc = ni->ni_ic->ic_softc;
 	struct rtwn_node *un = RTWN_NODE(ni);
 	int id;
 
-	if (!isnew)
+	if (un->id != RTWN_MACID_UNDEFINED)
 		return;
 
 	RTWN_NT_LOCK(sc);
