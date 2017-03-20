@@ -308,6 +308,7 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 		snprintf(cam_errbuf, CAM_ERRBUF_SIZE,
 			 "%s: couldn't malloc pattern buffer", func_name);
 		free(ccb.cdm.matches);
+		ccb.cdm.matches = NULL;
 		close(fd);
 		return(NULL);
 	}
@@ -371,7 +372,9 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 		periph_result = &ccb.cdm.matches[0].result.periph_result;
 		pass_unit = periph_result->unit_number;
 		free(ccb.cdm.matches);
+		ccb.cdm.matches = NULL;
 		free(ccb.cdm.patterns);
+		ccb.cdm.patterns = NULL;
 		close(fd);
 		sprintf(dev_path, "/dev/pass%d", pass_unit);
 		return(cam_real_open_device(dev_path, flags, device, NULL,
@@ -388,7 +391,9 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 
 btl_bailout:
 	free(ccb.cdm.matches);
+	ccb.cdm.matches = NULL;
 	free(ccb.cdm.patterns);
+	ccb.cdm.patterns = NULL;
 	close(fd);
 	return(NULL);
 }
