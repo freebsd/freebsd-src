@@ -267,7 +267,7 @@ Only inherit, do not apply the permission on the directory itself.
 .It Dv ARCHIVE_ENTRY_ACL_ENTRY_NO_PROPAGATE_INHERIT ( Sy n )
 Do not propagate inherit flags. Only first-level entries inherit ACLs.
 .It Dv ARCHIVE_ENTRY_ACL_ENTRY_SUCCESSFUL_ACCESS ( Sy S )
-Trigger alarm or audit on succesful access.
+Trigger alarm or audit on successful access.
 .It Dv ARCHIVE_ENTRY_ACL_ENTRY_FAILED_ACCESS ( Sy F )
 Trigger alarm or audit on failed access.
 .It Dv ARCHIVE_ENTRY_ACL_ENTRY_INHERITED ( Sy I )
@@ -279,7 +279,7 @@ and
 .Fn archive_entry_acl_add_entry_w
 add a single ACL entry.
 For the access ACL and non-extended principals, the classic Unix permissions
-are updated. An archive enry cannot contain both POSIX.1e and NFSv4 ACL
+are updated. An archive entry cannot contain both POSIX.1e and NFSv4 ACL
 entries.
 .Pp
 .Fn archive_entry_acl_clear
@@ -303,7 +303,7 @@ for POSIX.1e ACLs and
 for NFSv4 ACLs. For POSIX.1e ACLs if
 .Dv ARCHIVE_ENTRY_ACL_TYPE_ACCESS
 is included and at least one extended ACL entry is found,
-the three non-extened ACLs are added.
+the three non-extended ACLs are added.
 .Pp
 .Fn archive_entry_acl_from_text
 and
@@ -367,7 +367,7 @@ and
 .Fn archive_entry_acl_to_text_w
 convert the ACL entries for the given type into a
 .Pq wide
-string of ACL entries separated by newline. If the the pointer
+string of ACL entries separated by newline. If the pointer
 .Fa len_p
 is not NULL, then the function shall return the length of the string
 .Pq not including the NULL terminator
