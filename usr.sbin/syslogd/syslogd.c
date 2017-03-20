@@ -2117,6 +2117,7 @@ cfline(const char *line, const char *prog, const char *host)
 				(void)snprintf(ebuf, sizeof ebuf,
 				    "unknown priority name \"%s\"", buf);
 				logerror(ebuf);
+				free(f);
 				return (NULL);
 			}
 		}
@@ -2147,6 +2148,7 @@ cfline(const char *line, const char *prog, const char *host)
 					    "unknown facility name \"%s\"",
 					    buf);
 					logerror(ebuf);
+					free(f);
 					return (NULL);
 				}
 				f->f_pmask[i >> 3] = pri;
