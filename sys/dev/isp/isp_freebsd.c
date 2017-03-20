@@ -294,7 +294,6 @@ isp_attach(ispsoftc_t *isp)
 	callout_init_mtx(&isp->isp_osinfo.tmo, &isp->isp_osinfo.lock, 0);
 	isp_timer_count = hz >> 2;
 	callout_reset(&isp->isp_osinfo.tmo, isp_timer_count, isp_timer, isp);
-	isp->isp_osinfo.timer_active = 1;
 
 	isp->isp_osinfo.cdev = make_dev(&isp_cdevsw, du, UID_ROOT, GID_OPERATOR, 0600, "%s", nu);
 	if (isp->isp_osinfo.cdev) {
@@ -315,10 +314,6 @@ unwind:
 		ISP_UNLOCK(isp);
 		cam_sim_free(sim, FALSE);
 	}
-	if (isp->isp_osinfo.cdev) {
-		destroy_dev(isp->isp_osinfo.cdev);
-		isp->isp_osinfo.cdev = NULL;
-	}
 	cam_simq_free(isp->isp_osinfo.devq);
 	isp->isp_osinfo.devq = NULL;
 	return (-1);
@@ -327,35 +322,20 @@ unwind:
 int
 isp_detach(ispsoftc_t *isp)
 {
-	struct cam_sim *sim;
 	int chan;
-
-	ISP_LOCK(isp);
-	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1) {
-		ISP_GET_PC(isp, chan, sim, sim);
-		if (sim->refcount > 2) {
-			ISP_UNLOCK(isp);
-			return (EBUSY);
-		}
-	}
-	/* Tell spawned threads that we're exiting. */
-	isp->isp_osinfo.is_exiting = 1;
-	if (isp->isp_osinfo.timer_active) {
-		callout_stop(&isp->isp_osinfo.tmo);
-		isp->isp_osinfo.timer_active = 0;
-	}
-	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1)
-		isp_detach_chan(isp, chan);
-	ISP_UNLOCK(isp);
 
 	if (isp->isp_osinfo.cdev) {
 		destroy_dev(isp->isp_osinfo.cdev);
 		isp->isp_osinfo.cdev = NULL;
 	}
-	if (isp->isp_osinfo.devq != NULL) {
-		cam_simq_free(isp->isp_osinfo.devq);
-		isp->isp_osinfo.devq = NULL;
-	}
+	ISP_LOCK(isp);
+	/* Tell spawned threads that we're exiting. */
+	isp->isp_osinfo.is_exiting = 1;
+	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1)
+		isp_detach_chan(isp, chan);
+	ISP_UNLOCK(isp);
+	callout_drain(&isp->isp_osinfo.tmo);
+	cam_simq_free(isp->isp_osinfo.devq);
 	return (0);
 }
 
