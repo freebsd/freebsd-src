@@ -36,7 +36,6 @@
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
-#define _ARCHIVE_ACL_MAPS_DEFS
 #include "archive_acl_maps.h"
 
 const acl_perm_map_t acl_posix_perm_map[] = {

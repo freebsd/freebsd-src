@@ -37,7 +37,6 @@ typedef struct {
 	const int p_perm;	/* Platform permission or flag */
 } acl_perm_map_t;
 
-#ifndef _ARCHIVE_ACL_MAPS_DEFS
 #if ARCHIVE_ACL_POSIX1E
 extern const acl_perm_map_t acl_posix_perm_map[];
 extern const int acl_posix_perm_map_size;
@@ -48,5 +47,4 @@ extern const int acl_nfs4_perm_map_size;
 extern const acl_perm_map_t acl_nfs4_flag_map[];
 extern const int acl_nfs4_flag_map_size;
 #endif
-#endif /* !_ARCHIVE_ACL_MAPS_DEFS */
 #endif /* ARCHIVE_ACL_MAPS_H_INCLUDED */
