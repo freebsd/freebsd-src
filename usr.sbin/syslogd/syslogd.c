@@ -477,7 +477,15 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			bflag = 1;
-			if ((p = strchr(optarg, ':')) == NULL) {
+			p = strchr(optarg, ']');
+			if (p != NULL)
+				p = strchr(p + 1, ':');
+			else {
+				p = strchr(optarg, ':');
+				if (p != NULL && strchr(p + 1, ':') != NULL)
+					p = NULL; /* backward compatibility */
+			}
+			if (p == NULL) {
 				/* A hostname or filename only. */
 				addpeer(&(struct peer){
 					.pe_name = optarg,
