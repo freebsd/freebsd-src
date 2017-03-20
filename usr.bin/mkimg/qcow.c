@@ -217,7 +217,7 @@ qcow_write(int fd, u_int version)
 	ofs = clstrsz * l2clno;
 	nclstrs = 1 + clstr_l1tblsz + clstr_rctblsz;
 
-	l1tbl = calloc(1, clstrsz * clstr_l1tblsz);
+	l1tbl = calloc(clstr_l1tblsz, clstrsz);
 	if (l1tbl == NULL) {
 		error = ENOMEM;
 		goto out;
@@ -248,7 +248,7 @@ qcow_write(int fd, u_int version)
 	} while (n < clstr_rcblks);
 
 	if (rcclno > 0) {
-		rctbl = calloc(1, clstrsz * clstr_rctblsz);
+		rctbl = calloc(clstr_rctblsz, clstrsz);
 		if (rctbl == NULL) {
 			error = ENOMEM;
 			goto out;
@@ -298,7 +298,7 @@ qcow_write(int fd, u_int version)
 	l1tbl = NULL;
 
 	if (rcclno > 0) {
-		rcblk = calloc(1, clstrsz * clstr_rcblks);
+		rcblk = calloc(clstr_rcblks, clstrsz);
 		if (rcblk == NULL) {
 			error = ENOMEM;
 			goto out;
