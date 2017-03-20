@@ -399,8 +399,8 @@ FBSD_1.4 {
 };
 
 FBSD_1.5 {
-	 clock_nanosleep;
-	 fdatasync;
+	clock_nanosleep;
+	fdatasync;
 };
 
 FBSDprivate_1.0 {
