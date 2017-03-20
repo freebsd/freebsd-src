@@ -532,9 +532,8 @@ struct ispsoftc {
 	uint32_t		isp_maxluns;	/* maximum luns supported */
 
 	uint32_t		isp_clock	: 8,	/* input clock */
-						: 4,
+						: 5,
 				isp_port	: 1,	/* 23XX/24XX only */
-				isp_open	: 1,	/* opened (ioctl) */
 				isp_bustype	: 1,	/* SBus or PCI */
 				isp_loaded_fw	: 1,	/* loaded firmware */
 				isp_dblev	: 16;	/* debug log mask */
