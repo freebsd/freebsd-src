@@ -1,11 +1,11 @@
 /*-
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
- * Copyright (c) 2010 Broadcom Corporation
+ * Copyright (c) 2010-2015 Broadcom Corporation
  * All rights reserved.
  *
- * This file is derived from the sbchipc.h header distributed with
- * Broadcom's initial brcm80211 Linux driver release, as
- * contributed to the Linux staging repository.
+ * This file is derived from the sbchipc.h header contributed by Broadcom 
+ * to to the Linux staging repository, as well as later revisions of sbchipc.h
+ * distributed with the Asus RT-N16 firmware source code release.
  * 
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -927,6 +927,29 @@ enum {
 
 #define	CHIPC_CST43228_SDIO_OTP_PRESENT		0x10
 #define	CHIPC_CST43228_SDIO_RESET		0x20
+
+/* 4706 chipstatus reg bits */
+#define	CHIPC_CST4706_LOWCOST_PKG		(1<<0)	/* 0: full-featured package 1: low-cost package */
+#define	CHIPC_CST4706_SFLASH_PRESENT		(1<<1)	/* 0: parallel, 1: serial flash is present */
+#define	CHIPC_CST4706_SFLASH_TYPE		(1<<2)	/* 0: 8b-p/ST-s flash, 1: 16b-p/Atmal-s flash */
+#define	CHIPC_CST4706_MIPS_BENDIAN		(1<<3)	/* 0: little,  1: big endian */
+#define	CHIPC_CST4706_PCIE1_DISABLE		(1<<5)	/* PCIE1 enable strap pin */
+
+/* 4706 flashstrconfig reg bits */
+#define	CHIPC_FLSTRCF4706_MASK			0x000000ff
+#define	CHIPC_FLSTRCF4706_SF1			0x00000001      /* 2nd serial flash present */
+#define	CHIPC_FLSTRCF4706_PF1			0x00000002      /* 2nd parallel flash present */
+#define	CHIPC_FLSTRCF4706_SF1_TYPE		0x00000004      /* 2nd serial flash type : 0 : ST, 1 : Atmel */
+#define	CHIPC_FLSTRCF4706_NF1			0x00000008      /* 2nd NAND flash present */
+#define	CHIPC_FLSTRCF4706_1ST_MADDR_SEG_MASK	0x000000f0      /* Valid value mask */
+#define	CHIPC_FLSTRCF4706_1ST_MADDR_SEG_SHIFT	4
+#define	  CHIPC_FLSTRCF4706_1ST_MADDR_SEG_4MB	0x1		/* 4MB */
+#define	  CHIPC_FLSTRCF4706_1ST_MADDR_SEG_8MB	0x2		/* 8MB */
+#define	  CHIPC_FLSTRCF4706_1ST_MADDR_SEG_16MB	0x3		/* 16MB */
+#define	  CHIPC_FLSTRCF4706_1ST_MADDR_SEG_32MB	0x4		/* 32MB */
+#define	  CHIPC_FLSTRCF4706_1ST_MADDR_SEG_64MB	0x5		/* 64MB */
+#define	  CHIPC_FLSTRCF4706_1ST_MADDR_SEG_128MB	0x6		/* 128MB */
+#define	  CHIPC_FLSTRCF4706_1ST_MADDR_SEG_256MB	0x7		/* 256MB */
 
 /*
 * Register eci_inputlo bitfield values.
