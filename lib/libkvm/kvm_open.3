@@ -32,7 +32,7 @@
 .\"     @(#)kvm_open.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2017
+.Dd March 20, 2017
 .Dt KVM_OPEN 3
 .Os
 .Sh NAME
@@ -227,10 +227,29 @@ and
 write the error message into
 .Fa errbuf .
 .Pp
+.Rv -std kvm_close
+.Sh ERRORS
 The
 .Fn kvm_close
-function returns 0 on success and -1 on failure.
+function may fail and set the global variable
+.Va errno
+for any of the errors specified for
+.Xr close 2 .
+.Pp
+The
+.Fn kvm_close
+function may also fail and set
+.Va errno
+if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The value passed via
+.Fa kd
+was
+.Dv NULL .
+.El
 .Sh SEE ALSO
+.Xr close 2 ,
 .Xr open 2 ,
 .Xr kvm 3 ,
 .Xr kvm_getargv 3 ,
