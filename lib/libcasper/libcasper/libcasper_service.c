@@ -130,7 +130,7 @@ casper_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	return (0);
 }
 
-static void
+void
 service_execute(int chanfd)
 {
 	struct service *service;
@@ -172,7 +172,7 @@ casper_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	if (!casper_allowed_service(limits, servname))
 		return (ENOTCAPABLE);
 
-	if (zygote_clone(service_execute, &chanfd, &procfd) == -1)
+	if (zygote_clone_service_execute(&chanfd, &procfd) == -1)
 		return (errno);
 
 	nvl = nvlist_create(0);
