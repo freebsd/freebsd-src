@@ -292,7 +292,7 @@ kvm_close(kvm_t *kd)
 		free(kd->pt_map);
 	free((void *)kd);
 
-	return (0);
+	return (error);
 }
 
 int
