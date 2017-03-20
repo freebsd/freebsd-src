@@ -199,6 +199,8 @@ SRCF+=		stdatomic
 # Easy to suppress, but the result is unlikely to work so leave the symbol
 # unimplemented for now.
 SRCF:=  ${SRCF:Ngcc_personality_v0}
+# Currently needed for capability atomic load/swap
+SRCF+=		atomic
 .endif
 
 
