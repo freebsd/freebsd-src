@@ -214,6 +214,38 @@ struct fs_ops nfs_fsops = {
 
 static int nfs_read_size = NFSREAD_MIN_SIZE;
 
+/*
+ * Improve boot performance over NFS
+ */
+static void
+set_nfs_read_size(void)
+{
+	char *env, *end;
+	char buf[10];
+
+	if ((env = getenv("nfs.read_size")) != NULL) {
+		errno = 0;
+		nfs_read_size = (int)strtol(env, &end, 0);
+		if (errno != 0 || *env == '\0' || *end != '\0') {
+			printf("%s: bad value: \"%s\", defaulting to %d\n",
+			    "nfs.read_size", env, NFSREAD_MIN_SIZE);
+			nfs_read_size = NFSREAD_MIN_SIZE;
+		}
+	}
+	if (nfs_read_size < NFSREAD_MIN_SIZE) {
+		printf("%s: bad value: \"%d\", defaulting to %d\n",
+		    "nfs.read_size", nfs_read_size, NFSREAD_MIN_SIZE);
+		nfs_read_size = NFSREAD_MIN_SIZE;
+	}
+	if (nfs_read_size > NFSREAD_MAX_SIZE) {
+		printf("%s: bad value: \"%d\", defaulting to %d\n",
+		    "nfs.read_size", nfs_read_size, NFSREAD_MIN_SIZE);
+		nfs_read_size = NFSREAD_MAX_SIZE;
+	}
+	snprintf(buf, sizeof (buf), "%d", nfs_read_size);
+	setenv("nfs.read_size", buf, 1);
+}
+
 #ifdef	OLD_NFSV2
 /*
  * Fetch the root file handle (call mount daemon)
@@ -269,16 +301,7 @@ nfs_getrootfh(struct iodesc *d, char *path, u_char *fhp)
 		return (ntohl(repl->errno));
 	bcopy(repl->fh, fhp, sizeof(repl->fh));
 
-	/*
-	 * Improve boot performance over NFS
-	 */
-	if (getenv("nfs.read_size") != NULL)
-		nfs_read_size = strtol(getenv("nfs.read_size"), NULL, 0);
-	if (nfs_read_size < NFSREAD_MIN_SIZE)
-		nfs_read_size = NFSREAD_MIN_SIZE;
-	if (nfs_read_size > NFSREAD_MAX_SIZE)
-		nfs_read_size = NFSREAD_MAX_SIZE;
-
+	set_nfs_read_size();
 	return (0);
 }
 
@@ -885,6 +908,8 @@ nfs_getrootfh(struct iodesc *d, char *path, uint32_t *fhlenp, u_char *fhp)
 		return (ntohl(repl->errno));
 	*fhlenp = ntohl(repl->fhsize);
 	bcopy(repl->fh, fhp, *fhlenp);
+
+	set_nfs_read_size();
 	return (0);
 }
 
