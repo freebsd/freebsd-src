@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/limits.h>
 #include <sys/endian.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -403,11 +404,29 @@ vend_rfc1048(cp, len)
 			strlcpy(hostname, val, sizeof(hostname));
 		}
 		if (tag == TAG_INTF_MTU) {
+			intf_mtu = 0;
 			if ((val = getenv("dhcp.interface-mtu")) != NULL) {
-				intf_mtu = (u_int)strtoul(val, NULL, 0);
-			} else {
-				intf_mtu = be16dec(cp);
+				unsigned long tmp;
+				char *end;
+
+				errno = 0;
+				/*
+				 * Do not allow MTU to exceed max IPv4 packet
+				 * size, max value of 16-bit word.
+				 */
+				tmp = strtoul(val, &end, 0);
+				if (errno != 0 ||
+				    *val == '\0' || *end != '\0' ||
+				    tmp > USHRT_MAX) {
+					printf("%s: bad value: \"%s\", "
+					    "ignoring\n",
+					    "dhcp.interface-mtu", val);
+				} else {
+					intf_mtu = (u_int)tmp;
+				}
 			}
+			if (intf_mtu <= 0)
+				intf_mtu = be16dec(cp);
 		}
 #ifdef SUPPORT_DHCP
 		if (tag == TAG_DHCP_MSGTYPE) {
