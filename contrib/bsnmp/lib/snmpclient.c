@@ -947,6 +947,8 @@ open_client_udp(const char *host, const char *port)
 			if ((res = res->ai_next) == NULL) {
 				seterr(&snmp_client, "%s", strerror(errno));
 				freeaddrinfo(res0);
+				(void)close(snmp_client.fd);
+				snmp_client.fd = -1;
 				return (-1);
 			}
 		} else
