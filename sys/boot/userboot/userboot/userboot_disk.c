@@ -110,7 +110,6 @@ userdisk_cleanup(void)
 
 	if (userdisk_maxunit > 0)
 		free(ud_info);
-	disk_cleanup(&userboot_disk);
 }
 
 /*
