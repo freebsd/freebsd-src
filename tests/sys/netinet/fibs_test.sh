@@ -451,12 +451,12 @@ slaac_on_nondefault_fib6_head()
 }
 slaac_on_nondefault_fib6_body()
 {
-	atf_skip "BUG217871 SLAAC on a newly created epair sometimes fails to add routes"
 	# Configure the epair interfaces to use nonrouteable RFC3849
 	# addresses and non-default FIBs
-	ADDR="2001:db8::2"
-	GATEWAY="2001:db8::1"
-	SUBNET="2001:db8:"
+	PREFIX="2001:db8:$(printf "%x" `jot -r 1 0 65535`):$(printf "%x" `jot -r 1 0 65535`)"
+	ADDR="$PREFIX::2"
+	GATEWAY="$PREFIX::1"
+	SUBNET="$PREFIX:"
 	MASK="64"
 
 	# Check system configuration
@@ -509,18 +509,22 @@ slaac_on_nondefault_fib6_body()
 }
 slaac_on_nondefault_fib6_cleanup()
 {
-	cleanup_ifaces
 	if [ -f "rtadvd.pid" ]; then
-		pkill -F rtadvd.pid
+		# rtadvd can take a long time to shutdown.  Use SIGKILL to kill
+		# it right away.  The downside to using SIGKILL is that it
+		# won't send final RAs to all interfaces, but we don't care
+		# because we're about to destroy its interface anyway.
+		pkill -kill -F rtadvd.pid
 		rm -f rtadvd.pid
+	fi
+	cleanup_ifaces
+	if [ -f "forwarding.state" ] ; then
+		sysctl "net.inet6.ip6.forwarding"=`cat "forwarding.state"`
+		rm "forwarding.state"
 	fi
 	if [ -f "rfc6204w3.state" ] ; then
 		sysctl "net.inet6.ip6.rfc6204w3"=`cat "rfc6204w3.state"`
 		rm "rfc6204w3.state"
-	fi
-	if [ -f "forwarding.state" ] ; then
-		sysctl "net.inet6.ip6.forwarding"=`cat "forwarding.state"`
-		rm "forwarding.state"
 	fi
 }
 
