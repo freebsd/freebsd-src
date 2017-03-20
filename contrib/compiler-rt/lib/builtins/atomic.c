@@ -113,13 +113,13 @@ static __inline Lock *lock_for_pointer(void *ptr) {
   // lock.  
   hash >>= 4;
   // Use the next bits as the basis for the hash
-  intptr_t low = hash & SPINLOCK_MASK;
+  intptr_t low = hash & (intptr_t)SPINLOCK_MASK;
   // Now use the high(er) set of bits to perturb the hash, so that we don't
   // get collisions from atomic fields in a single object
   hash >>= 16;
   hash ^= low;
   // Return a pointer to the word to use
-  return locks + (hash & SPINLOCK_MASK);
+  return locks + (hash & (intptr_t)SPINLOCK_MASK);
 }
 
 /// Macros for determining whether a size is lock free.  Clang can not yet
