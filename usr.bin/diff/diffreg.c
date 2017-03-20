@@ -440,6 +440,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 				err(2, "unable to limit stdio");
 
 		caph_cache_catpages();
+		caph_cache_tzdata();
 		if (cap_enter() < 0 && errno != ENOSYS)
 			err(2, "unable to enter capability mode");
 	}
