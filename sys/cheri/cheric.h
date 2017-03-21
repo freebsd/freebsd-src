@@ -42,58 +42,58 @@
  * CHERI-aware Clang/LLVM, and full capability context switching, so not yet
  * usable in the kernel.
  */
-#define	cheri_getlen(x)		__builtin_cheri_get_cap_length(		\
+#define	cheri_getlen(x)		__builtin_mips_cheri_get_cap_length(		\
 				    __DECONST(__capability void *, (x)))
-#define	cheri_getbase(x)	__builtin_cheri_get_cap_base(		\
+#define	cheri_getbase(x)	__builtin_mips_cheri_get_cap_base(		\
 				    __DECONST(__capability void *, (x)))
-#define	cheri_getoffset(x)	__builtin_cheri_cap_offset_get(		\
+#define	cheri_getoffset(x)	__builtin_mips_cheri_cap_offset_get(		\
 				    __DECONST(__capability void *, (x)))
-#define	cheri_getperm(x)	__builtin_cheri_get_cap_perms(		\
+#define	cheri_getperm(x)	__builtin_mips_cheri_get_cap_perms(		\
 				    __DECONST(__capability void *, (x)))
-#define	cheri_getsealed(x)	__builtin_cheri_get_cap_sealed(		\
+#define	cheri_getsealed(x)	__builtin_mips_cheri_get_cap_sealed(		\
 				    __DECONST(__capability void *, (x)))
-#define	cheri_gettag(x)		__builtin_cheri_get_cap_tag(		\
+#define	cheri_gettag(x)		__builtin_mips_cheri_get_cap_tag(		\
 				    __DECONST(__capability void *, (x)))
-#define	cheri_gettype(x)	__builtin_cheri_get_cap_type(		\
+#define	cheri_gettype(x)	__builtin_mips_cheri_get_cap_type(		\
 				    __DECONST(__capability void *, (x)))
 
-#define	cheri_andperm(x, y)	__builtin_cheri_and_cap_perms(		\
+#define	cheri_andperm(x, y)	__builtin_mips_cheri_and_cap_perms(		\
 				    __DECONST(__capability void *, (x)), (y))
-#define	cheri_cleartag(x)	__builtin_cheri_clear_cap_tag(		\
+#define	cheri_cleartag(x)	__builtin_mips_cheri_clear_cap_tag(		\
 				    __DECONST(__capability void *, (x)))
-#define	cheri_incoffset(x, y)	__builtin_cheri_cap_offset_increment(	\
+#define	cheri_incoffset(x, y)	__builtin_mips_cheri_cap_offset_increment(	\
 				    __DECONST(__capability void *, (x)), (y))
-#define	cheri_setoffset(x, y)	__builtin_cheri_cap_offset_set(		\
+#define	cheri_setoffset(x, y)	__builtin_mips_cheri_cap_offset_set(		\
 				    __DECONST(__capability void *, (x)), (y))
 
-#define	cheri_seal(x, y)	__builtin_cheri_seal_cap(		 \
+#define	cheri_seal(x, y)	__builtin_mips_cheri_seal_cap(		 \
 				    __DECONST(__capability void *, (x)), \
 				    __DECONST(__capability void *, (y)))
-#define	cheri_unseal(x, y)	__builtin_cheri_unseal_cap(		 \
+#define	cheri_unseal(x, y)	__builtin_mips_cheri_unseal_cap(		 \
 				    __DECONST(__capability void *, (x)), \
 				    __DECONST(__capability void *, (y)))
 
-#define	cheri_getcause()	__builtin_cheri_get_cause()
-#define	cheri_setcause(x)	__builtin_cheri_set_cause(x)
+#define	cheri_getcause()	__builtin_mips_cheri_get_cause()
+#define	cheri_setcause(x)	__builtin_mips_cheri_set_cause(x)
 
-#define	cheri_ccheckperm(c, p)	__builtin_cheri_check_perms(		\
+#define	cheri_ccheckperm(c, p)	__builtin_mips_cheri_check_perms(		\
 				    __DECONST(__capability void *, (c)), (p))
-#define	cheri_cchecktype(c, t)	__builtin_cheri_check_type(		\
+#define	cheri_cchecktype(c, t)	__builtin_mips_cheri_check_type(		\
 				    __DECONST(__capability void *, (c)), (t))
 
-#define	cheri_getdefault()	__builtin_cheri_get_global_data_cap()
-#define	cheri_getidc()		__builtin_cheri_get_invoke_data_cap()
-#define	cheri_getkr0c()		__builtin_cheri_get_kernel_cap1()
-#define	cheri_getkr1c()		__builtin_cheri_get_kernel_cap2()
-#define	cheri_getkcc()		__builtin_cheri_get_kernel_code_cap()
-#define	cheri_getkdc()		__builtin_cheri_get_kernel_data_cap()
-#define	cheri_getepcc()		__builtin_cheri_get_exception_program_counter_cap()
-#define	cheri_getpcc()		__builtin_cheri_get_program_counter_cap()
-#define	cheri_getstack()	__builtin_memcap_stack_get()
+#define	cheri_getdefault()	__builtin_mips_cheri_get_global_data_cap()
+#define	cheri_getidc()		__builtin_mips_cheri_get_invoke_data_cap()
+#define	cheri_getkr0c()		__builtin_mips_cheri_get_kernel_cap1()
+#define	cheri_getkr1c()		__builtin_mips_cheri_get_kernel_cap2()
+#define	cheri_getkcc()		__builtin_mips_cheri_get_kernel_code_cap()
+#define	cheri_getkdc()		__builtin_mips_cheri_get_kernel_data_cap()
+#define	cheri_getepcc()		__builtin_mips_cheri_get_exception_program_counter_cap()
+#define	cheri_getpcc()		__builtin_mips_cheri_get_program_counter_cap()
+#define	cheri_getstack()	__builtin_cheri_stack_get()
 
 #define	cheri_local(c)		cheri_andperm((c), ~CHERI_PERM_GLOBAL)
 
-#define	cheri_csetbounds(x, y)	__builtin_memcap_bounds_set(		\
+#define	cheri_csetbounds(x, y)	__builtin_cheri_bounds_set(		\
 				    __DECONST(__capability void *, (x)), (y))
 
 /*

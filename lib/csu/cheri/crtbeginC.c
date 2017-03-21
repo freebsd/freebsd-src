@@ -102,8 +102,8 @@ crt_call_constructors(void)
 	    func++) {
 		if (*func != (mips_function_ptr)-1) {
 			cheri_function_ptr cheri_func =
-				(cheri_function_ptr)__builtin_memcap_offset_set(
-						__builtin_memcap_program_counter_get(), *func);
+				(cheri_function_ptr)__builtin_cheri_offset_set(
+						__builtin_cheri_program_counter_get(), *func);
 			cheri_func();
 		}
 	}
@@ -114,30 +114,30 @@ volatile int _int;
 void
 crt_init_globals()
 {
-	void *gdc = __builtin_memcap_global_data_get();
-	void *pcc = __builtin_memcap_program_counter_get();
+	void *gdc = __builtin_cheri_global_data_get();
+	void *pcc = __builtin_cheri_program_counter_get();
 
-	gdc = __builtin_memcap_perms_and(gdc, global_pointer_permissions);
-	pcc = __builtin_memcap_perms_and(pcc, function_pointer_permissions);
+	gdc = __builtin_cheri_perms_and(gdc, global_pointer_permissions);
+	pcc = __builtin_cheri_perms_and(pcc, function_pointer_permissions);
 
 	for (struct capreloc *reloc = &__start___cap_relocs ;
 	     reloc < &__stop___cap_relocs ; reloc++)
 	{
 		_Bool isFunction = (reloc->permissions & function_reloc_flag) ==
 			function_reloc_flag;
-		void **dest = __builtin_memcap_offset_set(gdc, reloc->capability_location);
+		void **dest = __builtin_cheri_offset_set(gdc, reloc->capability_location);
 		void *base = isFunction ? pcc : gdc;
-		void *src = __builtin_memcap_offset_set(base, reloc->object);
+		void *src = __builtin_cheri_offset_set(base, reloc->object);
 
 		if (reloc->object == 0x4cd70) {
-			base = __builtin_memcap_offset_set(base, reloc->permissions);
+			base = __builtin_cheri_offset_set(base, reloc->permissions);
 			_int = *(int *)base;
 		}
 		if (!isFunction && (reloc->size != 0) && (reloc->size != (size_t)-1))
 		{
-			src = __builtin_memcap_bounds_set(src, reloc->size);
+			src = __builtin_cheri_bounds_set(src, reloc->size);
 		}
-		src = __builtin_memcap_offset_increment(src, reloc->offset);
+		src = __builtin_cheri_offset_increment(src, reloc->offset);
 		*dest = src;
 	}
 }
