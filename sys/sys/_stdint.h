@@ -87,10 +87,13 @@ typedef	__uintmax_t		uintmax_t;
 #define	_UINTMAX_T_DECLARED
 #endif
 
+#ifndef _VADDR_T_DECLARED
 #ifndef __CHERI_PURE_CAPABILITY__
 typedef	__uintptr_t		vaddr_t;
 #else
 typedef	__uint64_t		vaddr_t;
+#endif
+#define _VADDR_T_DECLARED
 #endif
 
 #endif /* !_SYS__STDINT_H_ */
