@@ -143,7 +143,7 @@ isp_sbus_attach(device_t dev)
 	sbs->sbus_dev = dev;
 	sbs->sbus_mdvec = mdvec;
 	isp->isp_dev = dev;
-	mtx_init(&isp->isp_osinfo.lock, "isp", NULL, MTX_DEF);
+	mtx_init(&isp->isp_lock, "isp", NULL, MTX_DEF);
 
 	role = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -310,7 +310,7 @@ bad:
 		(void) bus_release_resource(dev, SYS_RES_MEMORY, sbs->rgd,
 		    sbs->regs);
 	}
-	mtx_destroy(&isp->isp_osinfo.lock);
+	mtx_destroy(&isp->isp_lock);
 	return (ENXIO);
 }
 
@@ -334,7 +334,7 @@ isp_sbus_detach(device_t dev)
 	}
 	(void) bus_release_resource(dev, SYS_RES_MEMORY, sbs->rgd, sbs->regs);
 	isp_sbus_mbxdmafree(isp);
-	mtx_destroy(&isp->isp_osinfo.lock);
+	mtx_destroy(&isp->isp_lock);
 	return (0);
 }
 
@@ -429,10 +429,11 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	if (isp->isp_rquest != NULL)
 		goto gotmaxcmds;
 
-	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_SBD(isp)), 1,
+	if (bus_dma_tag_create(bus_get_dma_tag(ISP_SBD(isp)), 1,
 	    BUS_SPACE_MAXADDR_24BIT+1, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR_32BIT, NULL, NULL, BUS_SPACE_MAXSIZE_32BIT,
-	    ISP_NSEG_MAX, BUS_SPACE_MAXADDR_24BIT, 0, &isp->isp_osinfo.dmat)) {
+	    ISP_NSEG_MAX, BUS_SPACE_MAXADDR_24BIT, 0,
+	    busdma_lock_mutex, &isp->isp_lock, &isp->isp_osinfo.dmat)) {
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
 		goto bad;
 	}
@@ -441,9 +442,10 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	 * Allocate and map the request queue.
 	 */
 	len = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
-	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, BUS_SPACE_MAXADDR_24BIT+1,
+	if (bus_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, BUS_SPACE_MAXADDR_24BIT+1,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    len, 1, len, 0, &isp->isp_osinfo.reqdmat)) {
+	    len, 1, len, 0, busdma_lock_mutex, &isp->isp_lock,
+	    &isp->isp_osinfo.reqdmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create request DMA tag");
 		goto bad;
 	}
@@ -468,9 +470,10 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	 * Allocate and map the result queue.
 	 */
 	len = ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
-	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, BUS_SPACE_MAXADDR_24BIT+1,
+	if (bus_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, BUS_SPACE_MAXADDR_24BIT+1,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    len, 1, len, 0, &isp->isp_osinfo.respdmat)) {
+	    len, 1, len, 0, busdma_lock_mutex, &isp->isp_lock,
+	    &isp->isp_osinfo.respdmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create response DMA tag");
 		goto bad;
 	}
@@ -512,7 +515,7 @@ gotmaxcmds:
 			}
 			goto bad;
 		}
-		callout_init_mtx(&pcmd->wdog, &isp->isp_osinfo.lock, 0);
+		callout_init_mtx(&pcmd->wdog, &isp->isp_lock, 0);
 		if (i == isp->isp_maxcmds-1) {
 			pcmd->next = NULL;
 		} else {

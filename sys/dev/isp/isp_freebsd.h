@@ -356,9 +356,9 @@ struct isposinfo {
 /*
  * Locking macros...
  */
-#define	ISP_LOCK(isp)	mtx_lock(&(isp)->isp_osinfo.lock)
-#define	ISP_UNLOCK(isp)	mtx_unlock(&(isp)->isp_osinfo.lock)
-#define	ISP_ASSERT_LOCKED(isp)	mtx_assert(&(isp)->isp_osinfo.lock, MA_OWNED)
+#define	ISP_LOCK(isp)	mtx_lock(&(isp)->isp_lock)
+#define	ISP_UNLOCK(isp)	mtx_unlock(&(isp)->isp_lock)
+#define	ISP_ASSERT_LOCKED(isp)	mtx_assert(&(isp)->isp_lock, MA_OWNED)
 
 /*
  * Required Macros/Defines
@@ -370,7 +370,7 @@ struct isposinfo {
 #define	ISP_SNPRINTF		snprintf
 #define	ISP_DELAY(x)		DELAY(x)
 #define	ISP_SLEEP(isp, x)	msleep_sbt(&(isp)->isp_osinfo.is_exiting, \
-    &(isp)->isp_osinfo.lock, 0, "isp_sleep", (x) * SBT_1US, 0, 0)
+    &(isp)->isp_lock, 0, "isp_sleep", (x) * SBT_1US, 0, 0)
 
 #define	ISP_MIN			imin
 
@@ -722,14 +722,6 @@ int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 /*
  * Platform Version specific defines
  */
-#define	BUS_DMA_ROOTARG(x)	bus_get_dma_tag(x)
-#define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
-	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
-	busdma_lock_mutex, &isp->isp_osinfo.lock, z)
-
-#define	isp_sim_alloc(a, b, c, d, e, f, g, h)	\
-	cam_sim_alloc(a, b, c, d, e, &(d)->isp_osinfo.lock, f, g, h)
-
 #define	ISP_PATH_PRT(i, l, p, ...)					\
 	if ((l) == ISP_LOGALL || ((l)& (i)->isp_dblev) != 0) {		\
                 xpt_print(p, __VA_ARGS__);				\
