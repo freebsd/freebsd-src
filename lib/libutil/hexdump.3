@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2017
+.Dd March 21, 2017
 .Dt HEXDUMP 3
 .Os
 .Sh NAME
@@ -38,16 +38,6 @@
 .In libutil.h
 .Ft void
 .Fn hexdump "void *ptr" "int length" "const char *hdr" "int flags"
-.In sys/types.h
-.In sys/sbuf.h
-.Ft void
-.Fo sbuf_hexdump
-.Fa "struct sbuf *sb"
-.Fa "void *ptr"
-.Fa "int length"
-.Fa "const char *hdr"
-.Fa "int flags"
-.Fc
 .Sh DESCRIPTION
 The
 .Fn hexdump
@@ -60,11 +50,6 @@ output will start with an offset count, followed by 16 hexadecimal values,
 followed by 16
 .Tn ASCII
 characters.
-.Pp
-The
-.Fn sbuf_hexdump
-function prints the hexdump to the supplied
-.Xr sbuf 9 .
 .Bl -tag -width indent
 .It Fa ptr
 Pointer to the array of bytes to print.
@@ -104,7 +89,7 @@ Do not print the character values on each line.
 .El
 .Sh SEE ALSO
 .Xr ascii 7 ,
-.Xr sbuf 9
+.Xr sbuf_hexdump 9
 .Sh AUTHORS
 This manual page was written by
 .An Scott Long .
