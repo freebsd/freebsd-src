@@ -199,7 +199,9 @@ xctrl_suspend()
 	int suspend_cancelled;
 
 	EVENTHANDLER_INVOKE(power_suspend_early);
+	xs_lock();
 	stop_all_proc();
+	xs_unlock();
 	EVENTHANDLER_INVOKE(power_suspend);
 
 #ifdef EARLY_AP_STARTUP
