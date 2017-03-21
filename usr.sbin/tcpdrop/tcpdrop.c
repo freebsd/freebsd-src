@@ -205,9 +205,8 @@ static bool
 tcpdropall(void)
 {
 	struct xinpgen *head, *xinp;
-	struct xtcpcb *xpcb;
-	struct tcpcb *tp;
-	struct inpcb *inp;
+	struct xtcpcb *xtp;
+	struct xinpcb *xip;
 	bool ok;
 
 	ok = true;
@@ -219,9 +218,8 @@ tcpdropall(void)
 
 	for (xinp = XINP_NEXT(head); xinp->xig_len > sizeof *xinp;
 	    xinp = XINP_NEXT(xinp)) {
-		xpcb = (struct xtcpcb *)xinp;
-		tp = &xpcb->xt_tp;
-		inp = &xpcb->xt_inp;
+		xtp = (struct xtcpcb *)xinp;
+		xip = &xtp->xt_inp;
 
 		/*
 		 * XXX
@@ -229,14 +227,14 @@ tcpdropall(void)
 		 */
 
 		/* Ignore PCBs which were freed during copyout.  */
-		if (inp->inp_gencnt > head->xig_gen)
+		if (xip->inp_gencnt > head->xig_gen)
 			continue;
 
 		/* Skip listening sockets.  */
-		if (tp->t_state == TCPS_LISTEN)
+		if (xtp->t_state == TCPS_LISTEN)
 			continue;
 
-		if (!tcpdropconn(&inp->inp_inc))
+		if (!tcpdropconn(&xip->inp_inc))
 			ok = false;
 	}
 	free(head);
