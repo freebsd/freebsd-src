@@ -32,7 +32,7 @@
 .\"     @(#)kvm_geterr.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd March 21, 2017
 .Dt KVM_GETERR 3
 .Os
 .Sh NAME
@@ -54,6 +54,15 @@ library call did not produce an error.
 The string returned is stored in memory owned by
 .Xr kvm 3
 so the message should be copied out and saved elsewhere if necessary.
+.Sh RETURN VALUES
+The function
+.Fn kvm_geterr
+will return "" if
+.Fa kd
+is
+.Dv NULL
+or an error has not been captured for
+.Fa kd .
 .Sh SEE ALSO
 .Xr kvm 3 ,
 .Xr kvm_close 3 ,
