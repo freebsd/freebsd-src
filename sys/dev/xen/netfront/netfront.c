@@ -509,6 +509,15 @@ netfront_resume(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
 
+	if (xen_suspend_cancelled) {
+		XN_RX_LOCK(info);
+		XN_TX_LOCK(info);
+		netfront_carrier_on(info);
+		XN_TX_UNLOCK(info);
+		XN_RX_UNLOCK(info);
+		return (0);
+	}
+
 	info->xn_resume = true;
 	netif_disconnect_backend(info);
 	return (0);
