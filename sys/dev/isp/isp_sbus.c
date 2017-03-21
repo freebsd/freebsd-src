@@ -585,7 +585,6 @@ typedef struct {
 	void *cmd_token;
 	void *rq;	/* original request */
 	int error;
-	bus_size_t mapsize;
 } mush_t;
 
 #define	MUSHERR_NOQENTRIES	-2
@@ -639,7 +638,6 @@ isp_sbus_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 	mp->cmd_token = csio;
 	mp->rq = ff;
 	mp->error = 0;
-	mp->mapsize = 0;
 
 	error = bus_dmamap_load_ccb(isp->isp_osinfo.dmat,
 	    PISP_PCMD(csio)->dmap, (union ccb *)csio, dma2, mp, 0);
