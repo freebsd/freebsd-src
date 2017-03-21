@@ -151,6 +151,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
 
+bool xen_suspend_cancelled;
 /*--------------------------- Forward Declarations --------------------------*/
 /** Function signature for shutdown event handlers. */
 typedef	void (xctrl_shutdown_handler_t)(void);
@@ -341,7 +342,6 @@ xctrl_suspend()
 #ifdef SMP
 	cpuset_t cpu_suspend_map;
 #endif
-	int suspend_cancelled;
 
 	EVENTHANDLER_INVOKE(power_suspend_early);
 	xs_lock();
@@ -396,16 +396,20 @@ xctrl_suspend()
 	intr_suspend();
 	xen_hvm_suspend();
 
-	suspend_cancelled = HYPERVISOR_suspend(0);
+	xen_suspend_cancelled = !!HYPERVISOR_suspend(0);
 
-	xen_hvm_resume(suspend_cancelled != 0);
-	intr_resume(suspend_cancelled != 0);
+	if (!xen_suspend_cancelled) {
+		xen_hvm_resume(false);
+	}
+	intr_resume(xen_suspend_cancelled != 0);
 	enable_intr();
 
 	/*
 	 * Reset grant table info.
 	 */
-	gnttab_resume();
+	if (!xen_suspend_cancelled) {
+		gnttab_resume();
+	}
 
 #ifdef SMP
 	/* Send an IPI_BITMAP in case there are pending bitmap IPIs. */
