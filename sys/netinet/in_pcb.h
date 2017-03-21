@@ -314,7 +314,7 @@ struct xinpgen {
 	u_int		xig_count;	/* number of PCBs at this time */
 	inp_gen_t	xig_gen;	/* generation count at this time */
 	so_gen_t	xig_sogen;	/* socket generation count this time */
-};
+} __aligned(8);
 #ifdef	_KERNEL
 void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
 #endif
