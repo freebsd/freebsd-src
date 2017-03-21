@@ -520,7 +520,9 @@ default:							\
 
 #define	XS_CDBLEN(ccb)		(ccb)->cdb_len
 #define	XS_XFRLEN(ccb)		(ccb)->dxfer_len
-#define	XS_TIME(ccb)		(ccb)->ccb_h.timeout
+#define	XS_TIME(ccb)	\
+	(((ccb)->ccb_h.timeout > 0xffff * 1000 - 999) ? 0 : \
+	  (((ccb)->ccb_h.timeout + 999) / 1000))
 #define	XS_GET_RESID(ccb)	(ccb)->resid
 #define	XS_SET_RESID(ccb, r)	(ccb)->resid = r
 #define	XS_STSP(ccb)		(&(ccb)->scsi_status)
@@ -711,7 +713,6 @@ void isp_mbox_wait_complete(ispsoftc_t *, mbreg_t *);
 void isp_mbox_notify_done(ispsoftc_t *);
 void isp_mbox_release(ispsoftc_t *);
 int isp_fc_scratch_acquire(ispsoftc_t *, int);
-int isp_mstohz(int);
 void isp_platform_intr(void *);
 void isp_platform_intr_resp(void *);
 void isp_platform_intr_atio(void *);

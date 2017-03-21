@@ -4500,12 +4500,8 @@ isp_start(XS_T *xs)
 			cdbp = t2->req_cdb;
 		}
 	}
+	*tptr = XS_TIME(xs);
 	ISP_MEMCPY(cdbp, XS_CDBP(xs), cdblen);
-
-	*tptr = (XS_TIME(xs) + 999) / 1000;
-	if (IS_24XX(isp) && *tptr > 0x1999) {
-		*tptr = 0x1999;
-	}
 
 	/* Whew. Thankfully the same for type 7 requests */
 	reqp->req_handle = isp_allocate_handle(isp, xs, ISP_HANDLE_INITIATOR);

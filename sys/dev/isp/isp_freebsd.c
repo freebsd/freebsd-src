@@ -1241,7 +1241,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			cto->ct_iid_hi = atp->sid >> 16;
 			cto->ct_oxid = atp->oxid;
 			cto->ct_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(ccb));
-			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
+			cto->ct_timeout = XS_TIME(ccb);
 			cto->ct_flags = atp->tattr << CT7_TASK_ATTR_SHIFT;
 
 			/*
@@ -1390,7 +1390,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					cto->ct_lun = ccb->ccb_h.target_lun;
 				}
 			}
-			cto->ct_timeout = (XS_TIME(ccb) + 999) / 1000;
+			cto->ct_timeout = XS_TIME(ccb);
 			cto->ct_rxid = cso->tag_id;
 
 			/*
@@ -2958,9 +2958,10 @@ isp_abort_inot(ispsoftc_t *isp, union ccb *ccb)
 static void
 isp_action(struct cam_sim *sim, union ccb *ccb)
 {
-	int bus, tgt, ts, error;
+	int bus, tgt, error;
 	ispsoftc_t *isp;
 	struct ccb_trans_settings *cts;
+	sbintime_t ts;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("isp_action\n"));
 
@@ -3010,15 +3011,12 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		switch (error) {
 		case CMD_QUEUED:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
-			if (ccb->ccb_h.timeout == CAM_TIME_INFINITY) {
+			if (ccb->ccb_h.timeout == CAM_TIME_INFINITY)
 				break;
-			}
-			ts = ccb->ccb_h.timeout;
-			if (ts == CAM_TIME_DEFAULT) {
-				ts = 60*1000;
-			}
-			ts = isp_mstohz(ts);
-			callout_reset(&PISP_PCMD(ccb)->wdog, ts, isp_watchdog, ccb);
+			/* Give firmware extra 10s to handle timeout. */
+			ts = SBT_1MS * ccb->ccb_h.timeout + 10 * SBT_1S;
+			callout_reset_sbt(&PISP_PCMD(ccb)->wdog, ts, 0,
+			    isp_watchdog, ccb, 0);
 			break;
 		case CMD_RQLATER:
 			isp_prt(isp, ISP_LOGDEBUG0, "%d.%jx retry later",
@@ -4095,23 +4093,6 @@ isp_fc_scratch_acquire(ispsoftc_t *isp, int chan)
 		isp->isp_osinfo.pc.fc[chan].fcbsy = 1;
 	}
 	return (ret);
-}
-
-int
-isp_mstohz(int ms)
-{
-	int hz;
-	struct timeval t;
-	t.tv_sec = ms / 1000;
-	t.tv_usec = (ms % 1000) * 1000;
-	hz = tvtohz(&t);
-	if (hz < 0) {
-		hz = 0x7fffffff;
-	}
-	if (hz == 0) {
-		hz = 1;
-	}
-	return (hz);
 }
 
 void
