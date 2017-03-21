@@ -126,9 +126,7 @@ zygote_main(int sock)
 		case ZYGOTE_SERVICE_EXECUTE:
 			func = service_execute;
 			break;
-
 		default:
-			/* XXXRW: Is there a better way to terminate here? */
 			exit(0);
 		}
 
