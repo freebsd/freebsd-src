@@ -1178,15 +1178,17 @@ xn_rxeof(struct netfront_rxq *rxq)
 
 			m->m_pkthdr.rcvif = ifp;
 			if ( rx->flags & NETRXF_data_validated ) {
-				/* Tell the stack the checksums are okay */
 				/*
-				 * XXX this isn't necessarily the case - need to add
-				 * check
+				 * According to mbuf(9) the correct way to tell
+				 * the stack that the checksum of an inbound
+				 * packet is correct, without it actually being
+				 * present (because the underlying interface
+				 * doesn't provide it), is to set the
+				 * CSUM_DATA_VALID and CSUM_PSEUDO_HDR flags,
+				 * and the csum_data field to 0xffff.
 				 */
-
-				m->m_pkthdr.csum_flags |=
-					(CSUM_IP_CHECKED | CSUM_IP_VALID | CSUM_DATA_VALID
-					    | CSUM_PSEUDO_HDR);
+				m->m_pkthdr.csum_flags |= (CSUM_DATA_VALID
+				    | CSUM_PSEUDO_HDR);
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 			if ((rx->flags & NETRXF_extra_info) != 0 &&
