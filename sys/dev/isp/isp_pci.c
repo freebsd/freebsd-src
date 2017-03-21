@@ -1841,18 +1841,6 @@ typedef struct {
 #define	MUSHERR_NOQENTRIES	-2
 
 #ifdef	ISP_TARGET_MODE
-static void tdma2_2(void *, bus_dma_segment_t *, int, bus_size_t, int);
-static void tdma2(void *, bus_dma_segment_t *, int, int);
-
-static void
-tdma2_2(void *arg, bus_dma_segment_t *dm_segs, int nseg, bus_size_t mapsize, int error)
-{
-	mush_t *mp;
-	mp = (mush_t *)arg;
-	mp->mapsize = mapsize;
-	tdma2(arg, dm_segs, nseg, error);
-}
-
 static void
 tdma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
@@ -1915,18 +1903,6 @@ tdma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 }
 #endif
-
-static void dma2_2(void *, bus_dma_segment_t *, int, bus_size_t, int);
-static void dma2(void *, bus_dma_segment_t *, int, int);
-
-static void
-dma2_2(void *arg, bus_dma_segment_t *dm_segs, int nseg, bus_size_t mapsize, int error)
-{
-	mush_t *mp;
-	mp = (mush_t *)arg;
-	mp->mapsize = mapsize;
-	dma2(arg, dm_segs, nseg, error);
-}
 
 static void
 dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
@@ -1997,7 +1973,6 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 {
 	mush_t mush, *mp;
 	void (*eptr)(void *, bus_dma_segment_t *, int, int);
-	void (*eptr2)(void *, bus_dma_segment_t *, int, bus_size_t, int);
 	int error;
 
 	mp = &mush;
@@ -2008,16 +1983,11 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 	mp->mapsize = 0;
 
 #ifdef	ISP_TARGET_MODE
-	if (csio->ccb_h.func_code == XPT_CONT_TARGET_IO) {
+	if (csio->ccb_h.func_code == XPT_CONT_TARGET_IO)
 		eptr = tdma2;
-		eptr2 = tdma2_2;
-	} else
+	else
 #endif
-	{
 		eptr = dma2;
-		eptr2 = dma2_2;
-	}
-
 
 	error = bus_dmamap_load_ccb(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap,
 	    (union ccb *)csio, eptr, mp, 0);
