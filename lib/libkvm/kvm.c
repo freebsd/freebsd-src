@@ -476,7 +476,7 @@ kvm_write(kvm_t *kd, u_long kva, const void *buf, size_t len)
 		len -= cw;
 	}
 
-	return (cp - (char *)buf);
+	return (cp - (const char *)buf);
 }
 
 int
