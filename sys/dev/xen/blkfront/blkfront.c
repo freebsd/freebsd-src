@@ -1537,6 +1537,11 @@ xbd_resume(device_t dev)
 {
 	struct xbd_softc *sc = device_get_softc(dev);
 
+	if (xen_suspend_cancelled) {
+		sc->xbd_state = XBD_STATE_CONNECTED;
+		return (0);
+	}
+
 	DPRINTK("xbd_resume: %s\n", xenbus_get_node(dev));
 
 	xbd_free(sc);
