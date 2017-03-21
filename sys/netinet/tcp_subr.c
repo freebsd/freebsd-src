@@ -1773,30 +1773,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xtcpcb xt;
-			void *inp_ppcb;
 
-			bzero(&xt, sizeof(xt));
-			xt.xt_len = sizeof xt;
-			/* XXX should avoid extra copy */
-			bcopy(inp, &xt.xt_inp, sizeof *inp);
-			inp_ppcb = inp->inp_ppcb;
-			if (inp_ppcb == NULL)
-				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
-			else if (inp->inp_flags & INP_TIMEWAIT) {
-				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
-				xt.xt_tp.t_state = TCPS_TIME_WAIT;
-			} else {
-				bcopy(inp_ppcb, &xt.xt_tp, sizeof xt.xt_tp);
-				if (xt.xt_tp.t_timers)
-					tcp_timer_to_xtimer(&xt.xt_tp, xt.xt_tp.t_timers, &xt.xt_timer);
-			}
-			if (inp->inp_socket != NULL)
-				sotoxsocket(inp->inp_socket, &xt.xt_socket);
-			else {
-				bzero(&xt.xt_socket, sizeof xt.xt_socket);
-				xt.xt_socket.xso_protocol = IPPROTO_TCP;
-			}
-			xt.xt_inp.inp_gencnt = inp->inp_gencnt;
+			tcp_inptoxtp(inp, &xt);
 			INP_RUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
 		} else
@@ -2764,4 +2742,54 @@ tcp_state_change(struct tcpcb *tp, int newstate)
 	TCPSTATES_INC(newstate);
 	tp->t_state = newstate;
 	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
+}
+
+/*
+ * Create an external-format (``xtcpcb'') structure using the information in
+ * the kernel-format tcpcb structure pointed to by tp.  This is done to
+ * reduce the spew of irrelevant information over this interface, to isolate
+ * user code from changes in the kernel structure, and potentially to provide
+ * information-hiding if we decide that some of this information should be
+ * hidden from users.
+ */
+void
+tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
+{
+	struct tcpcb *tp = intotcpcb(inp);
+	sbintime_t now;
+
+	if (inp->inp_flags & INP_TIMEWAIT) {
+		bzero(xt, sizeof(struct xtcpcb));
+		xt->t_state = TCPS_TIME_WAIT;
+	} else {
+		xt->t_state = tp->t_state;
+		xt->t_flags = tp->t_flags;
+		xt->t_sndzerowin = tp->t_sndzerowin;
+		xt->t_sndrexmitpack = tp->t_sndrexmitpack;
+		xt->t_rcvoopack = tp->t_rcvoopack;
+
+		now = getsbinuptime();
+#define	COPYTIMER(ttt)	do {						\
+		if (callout_active(&tp->t_timers->ttt))			\
+			xt->ttt = (tp->t_timers->ttt.c_time - now) /	\
+			    SBT_1MS;					\
+		else							\
+			xt->ttt = 0;					\
+} while (0)
+		COPYTIMER(tt_delack);
+		COPYTIMER(tt_rexmt);
+		COPYTIMER(tt_persist);
+		COPYTIMER(tt_keep);
+		COPYTIMER(tt_2msl);
+#undef COPYTIMER
+		xt->t_rcvtime = 1000 * (ticks - tp->t_rcvtime) / hz;
+
+		bcopy(tp->t_fb->tfb_tcp_block_name, xt->xt_stack,
+		    TCP_FUNCTION_NAME_LEN_MAX);
+	}
+
+	xt->xt_len = sizeof(struct xtcpcb);
+	in_pcbtoxinpcb(inp, &xt->xt_inp);
+	if (inp->inp_socket == NULL)
+		xt->xt_inp.xi_socket.xso_protocol = IPPROTO_TCP;
 }
