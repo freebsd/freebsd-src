@@ -1999,7 +1999,7 @@ _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .endif
 .if ${MK_GCC_BOOTSTRAP} != "no"
-_cc=		gnu/usr.bin/cc
+_gcc=		gnu/usr.bin/cc
 .endif
 .if ${MK_USB} != "no"
 _usb_tools=	usr.bin/sysinit
@@ -2015,7 +2015,7 @@ cross-tools: .MAKE .PHONY
     ${_binutils} \
     ${_elftctools} \
     ${_dtrace_tools} \
-    ${_cc} \
+    ${_gcc} \
     ${_btxld} \
     ${_usb_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
@@ -2087,7 +2087,7 @@ native-xtools: .PHONY
     usr.bin/ar \
     ${_binutils} \
     ${_elftctools} \
-    ${_cc} \
+    ${_gcc} \
     ${_gcc_tools} \
     ${_clang_libs} \
     ${_clang} \
@@ -2753,7 +2753,7 @@ _xb-cross-tools: .PHONY
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \
-    ${_cc}
+    ${_gcc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ obj; \
@@ -2790,7 +2790,7 @@ _xi-cross-tools: .PHONY
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \
-    ${_cc}
+    ${_gcc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
