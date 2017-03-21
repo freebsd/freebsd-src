@@ -343,6 +343,10 @@ xctrl_suspend()
 #endif
 	int suspend_cancelled;
 
+	EVENTHANDLER_INVOKE(power_suspend_early);
+	xs_lock();
+	stop_all_proc();
+	xs_unlock();
 	EVENTHANDLER_INVOKE(power_suspend);
 
 	if (smp_started) {
@@ -428,6 +432,8 @@ xctrl_suspend()
 		sched_unbind(curthread);
 		thread_unlock(curthread);
 	}
+
+	resume_all_proc();
 
 	EVENTHANDLER_INVOKE(power_resume);
 
