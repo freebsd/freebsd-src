@@ -141,7 +141,6 @@ static const struct cheri_test cheri_tests[] = {
 	 * Capability manipulation and use tests that sometimes generate
 	 * signals.
 	 */
-	/* XXXRW: Check this CP2 exception code number. */
 	{ .ct_name = "test_fault_cgetcause",
 	  .ct_desc = "Ensure CGetCause is unavailable in userspace",
 	  .ct_func = test_fault_cgetcause,
