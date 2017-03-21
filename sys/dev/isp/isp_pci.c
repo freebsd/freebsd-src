@@ -2054,6 +2054,7 @@ isp_pci_irqsetup(ispsoftc_t *isp)
 	if (isp->isp_nirq > 0)
 		return (0);
 
+	ISP_UNLOCK(isp);
 	if (ISP_CAP_MSIX(isp)) {
 		max_irq = min(ISP_MAX_IRQS, IS_26XX(isp) ? 3 : 2);
 		pcs->msicount = imin(pci_msix_count(dev), max_irq);
@@ -2094,6 +2095,7 @@ isp_pci_irqsetup(ispsoftc_t *isp)
 		}
 		isp->isp_nirq = i + 1;
 	}
+	ISP_LOCK(isp);
 
 	return (isp->isp_nirq == 0);
 }
