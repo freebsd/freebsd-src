@@ -105,21 +105,26 @@ static Lock locks[SPINLOCK_COUNT];
 #endif
 
 
+#ifndef _VADDR_T_DECLARED
+typedef	__uintptr_t	vaddr_t;
+#define	_VADDR_T_DECLARED
+#endif
+
 /// Returns a lock to use for a given pointer.  
 static __inline Lock *lock_for_pointer(void *ptr) {
-  intptr_t hash = (intptr_t)ptr;
+  vaddr_t hash = (vaddr_t)ptr;
   // Disregard the lowest 4 bits.  We want all values that may be part of the
   // same memory operation to hash to the same value and therefore use the same
   // lock.  
   hash >>= 4;
   // Use the next bits as the basis for the hash
-  intptr_t low = hash & (intptr_t)SPINLOCK_MASK;
+  vaddr_t low = hash & SPINLOCK_MASK;
   // Now use the high(er) set of bits to perturb the hash, so that we don't
   // get collisions from atomic fields in a single object
   hash >>= 16;
   hash ^= low;
   // Return a pointer to the word to use
-  return locks + (hash & (intptr_t)SPINLOCK_MASK);
+  return locks + (hash & SPINLOCK_MASK);
 }
 
 /// Macros for determining whether a size is lock free.  Clang can not yet
