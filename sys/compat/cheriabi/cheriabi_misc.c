@@ -566,7 +566,7 @@ cheriabi_copyinuio(struct iovec_c *iovp, u_int iovcnt, struct uio **uiop)
 		iov[i].iov_len = iov_c.iov_len;
 		error = cheriabi_cap_to_ptr((caddr_t *)&iov[i].iov_base,
 		    &iov_c.iov_base, iov[i].iov_len,
-		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 0);
+		    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD, 1);
 		if (error) {
 			free(uio, M_IOV);
 			return (error);
