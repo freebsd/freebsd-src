@@ -425,7 +425,7 @@ fail_point_sleep(struct fail_point *fp, int msecs,
 	int timo;
 
 	/* Convert from millisecs to ticks, rounding up */
-	timo = howmany(msecs * hz, 1000);
+	timo = howmany((int64_t)msecs * hz, 1000L);
 
 	if (timo > 0) {
 		if (!(fp->fp_flags & FAIL_POINT_USE_TIMEOUT_PATH)) {
