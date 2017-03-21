@@ -561,7 +561,7 @@ gather_inet(int proto)
 {
 	struct xinpgen *xig, *exig;
 	struct xinpcb *xip;
-	struct xtcpcb *xtp;
+	struct xtcpcb *xtp = NULL;
 	struct xsocket *so;
 	struct sock *sock;
 	struct addr *laddr, *faddr;
