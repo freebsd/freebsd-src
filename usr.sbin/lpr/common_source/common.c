@@ -167,11 +167,13 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 		 * realloc the maximum size.
 		 */
 		if (++nitems > arraysz) {
-			arraysz *= 2;
-			queue = (struct jobqueue **)realloc((char *)queue,
-			    arraysz * sizeof(struct jobqueue *));
-			if (queue == NULL)
+			queue = (struct jobqueue **)reallocarray((char *)queue,
+			    arraysz, 2 * sizeof(struct jobqueue *));
+			if (queue == NULL) {
+				free(q);
 				goto errdone;
+			}
+			arraysz *= 2;
 		}
 		queue[nitems-1] = q;
 	}
