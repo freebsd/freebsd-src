@@ -4241,7 +4241,7 @@ xpt_async_bcast(struct async_list *async_head,
 		struct cam_path *path, void *async_arg)
 {
 	struct async_node *cur_entry;
-	int lock;
+	struct mtx *mtx;
 
 	cur_entry = SLIST_FIRST(async_head);
 	while (cur_entry != NULL) {
@@ -4253,14 +4253,15 @@ xpt_async_bcast(struct async_list *async_head,
 		 */
 		next_entry = SLIST_NEXT(cur_entry, links);
 		if ((cur_entry->event_enable & async_code) != 0) {
-			lock = cur_entry->event_lock;
-			if (lock)
-				CAM_SIM_LOCK(path->device->sim);
+			mtx = cur_entry->event_lock ?
+			    path->device->sim->mtx : NULL;
+			if (mtx)
+				mtx_lock(mtx);
 			cur_entry->callback(cur_entry->callback_arg,
 					    async_code, path,
 					    async_arg);
-			if (lock)
-				CAM_SIM_UNLOCK(path->device->sim);
+			if (mtx)
+				mtx_unlock(mtx);
 		}
 		cur_entry = next_entry;
 	}
