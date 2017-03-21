@@ -224,13 +224,13 @@ selectport(long port, int onoff)
 }
 
 int
-checkport(struct inpcb *inp)
+checkport(struct in_conninfo *inc)
 {
 	struct pitem *p;
 
 	if (ports)
 	for (p = ports; p < ports+nports; p++)
-		if (p->port == inp->inp_lport || p->port == inp->inp_fport)
+		if (p->port == inc->inc_lport || p->port == inc->inc_fport)
 			return (p->onoff);
 	return (1);
 }
@@ -281,14 +281,14 @@ selecthost(struct in_addr *in, int onoff)
 }
 
 int
-checkhost(struct inpcb *inp)
+checkhost(struct in_conninfo *inc)
 {
 	struct hitem *p;
 
 	if (hosts)
 	for (p = hosts; p < hosts+nhosts; p++)
-		if (p->addr.s_addr == inp->inp_laddr.s_addr ||
-		    p->addr.s_addr == inp->inp_faddr.s_addr)
+		if (p->addr.s_addr == inc->inc_laddr.s_addr ||
+		    p->addr.s_addr == inc->inc_faddr.s_addr)
 			return (p->onoff);
 	return (1);
 }

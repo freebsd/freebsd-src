@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#define	_WANT_INPCB
 #include <netinet/in_pcb.h>
 
 #include <assert.h>

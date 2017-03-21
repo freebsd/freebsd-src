@@ -310,7 +310,7 @@ op_tcpconn(struct snmp_context *ctx __unused, struct snmp_value *value,
 	switch (value->var.subs[sub - 1]) {
 
 	  case LEAF_tcpConnState:
-		switch (tcpoids[i].tp->xt_tp.t_state) {
+		switch (tcpoids[i].tp->t_state) {
 
 		  case TCPS_CLOSED:
 			value->v.integer = 1;

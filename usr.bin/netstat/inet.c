@@ -91,7 +91,7 @@ static int udp_done, tcp_done, sdp_done;
 #endif /* INET6 */
 
 static int
-pcblist_sysctl(int proto, const char *name, char **bufp, int istcp __unused)
+pcblist_sysctl(int proto, const char *name, char **bufp)
 {
 	const char *mibvar;
 	char *buf;
@@ -181,120 +181,6 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	return (0);
 }
 
-static int
-pcblist_kvm(u_long off, char **bufp, int istcp)
-{
-	struct inpcbinfo pcbinfo;
-	struct inpcbhead listhead;
-	struct inpcb *inp;
-	struct xinpcb xi;
-	struct xinpgen xig;
-	struct xtcpcb xt;
-	struct socket so;
-	struct xsocket *xso;
-	char *buf, *p;
-	size_t len;
-
-	if (off == 0)
-		return (0);
-	kread(off, &pcbinfo, sizeof(pcbinfo));
-	if (istcp)
-		len = 2 * sizeof(xig) +
-		    (pcbinfo.ipi_count + pcbinfo.ipi_count / 8) *
-		    sizeof(struct xtcpcb);
-	else
-		len = 2 * sizeof(xig) +
-		    (pcbinfo.ipi_count + pcbinfo.ipi_count / 8) *
-		    sizeof(struct xinpcb);
-	if ((buf = malloc(len)) == NULL) {
-		xo_warnx("malloc %lu bytes", (u_long)len);
-		return (0);
-	}
-	p = buf;
-
-#define	COPYOUT(obj, size) do {						\
-	if (len < (size)) {						\
-		xo_warnx("buffer size exceeded");			\
-		goto fail;						\
-	}								\
-	bcopy((obj), p, (size));					\
-	len -= (size);							\
-	p += (size);							\
-} while (0)
-
-#define	KREAD(off, buf, len) do {					\
-	if (kread((uintptr_t)(off), (buf), (len)) != 0)			\
-		goto fail;						\
-} while (0)
-
-	/* Write out header. */
-	xig.xig_len = sizeof xig;
-	xig.xig_count = pcbinfo.ipi_count;
-	xig.xig_gen = pcbinfo.ipi_gencnt;
-	xig.xig_sogen = 0;
-	COPYOUT(&xig, sizeof xig);
-
-	/* Walk the PCB list. */
-	xt.xt_len = sizeof xt;
-	xi.xi_len = sizeof xi;
-	if (istcp)
-		xso = &xt.xt_socket;
-	else
-		xso = &xi.xi_socket;
-	KREAD(pcbinfo.ipi_listhead, &listhead, sizeof(listhead));
-	LIST_FOREACH(inp, &listhead, inp_list) {
-		if (istcp) {
-			KREAD(inp, &xt.xt_inp, sizeof(*inp));
-			inp = &xt.xt_inp;
-		} else {
-			KREAD(inp, &xi.xi_inp, sizeof(*inp));
-			inp = &xi.xi_inp;
-		}
-
-		if (inp->inp_gencnt > pcbinfo.ipi_gencnt)
-			continue;
-
-		if (istcp) {
-			if (inp->inp_ppcb == NULL)
-				bzero(&xt.xt_tp, sizeof xt.xt_tp);
-			else if (inp->inp_flags & INP_TIMEWAIT) {
-				bzero(&xt.xt_tp, sizeof xt.xt_tp);
-				xt.xt_tp.t_state = TCPS_TIME_WAIT;
-			} else
-				KREAD(inp->inp_ppcb, &xt.xt_tp,
-				    sizeof xt.xt_tp);
-		}
-		if (inp->inp_socket) {
-			KREAD(inp->inp_socket, &so, sizeof(so));
-			if (sotoxsocket(&so, xso) != 0)
-				goto fail;
-		} else {
-			bzero(xso, sizeof(*xso));
-			if (istcp)
-				xso->xso_protocol = IPPROTO_TCP;
-		}
-		if (istcp)
-			COPYOUT(&xt, sizeof xt);
-		else
-			COPYOUT(&xi, sizeof xi);
-	}
-
-	/* Reread the pcbinfo and write out the footer. */
-	kread(off, &pcbinfo, sizeof(pcbinfo));
-	xig.xig_count = pcbinfo.ipi_count;
-	xig.xig_gen = pcbinfo.ipi_gencnt;
-	COPYOUT(&xig, sizeof xig);
-
-	*bufp = buf;
-	return (1);
-
-fail:
-	free(buf);
-	return (0);
-#undef COPYOUT
-#undef KREAD
-}
-
 /*
  * Print a summary of connections related to an Internet
  * protocol.  For TCP, also give state of connection.
@@ -304,15 +190,14 @@ fail:
 void
 protopr(u_long off, const char *name, int af1, int proto)
 {
-	int istcp;
 	static int first = 1;
+	int istcp;
 	char *buf;
 	const char *vchar;
-	struct tcpcb *tp = NULL;
-	struct inpcb *inp;
+	struct xtcpcb *tp;
+	struct xinpcb *inp;
 	struct xinpgen *xig, *oxig;
 	struct xsocket *so;
-	struct xtcp_timer *timer;
 
 	istcp = 0;
 	switch (proto) {
@@ -341,28 +226,21 @@ protopr(u_long off, const char *name, int af1, int proto)
 #endif
 		break;
 	}
-	if (live) {
-		if (!pcblist_sysctl(proto, name, &buf, istcp))
-			return;
-	} else {
-		if (!pcblist_kvm(off, &buf, istcp))
-			return;
-	}
+
+	if (!pcblist_sysctl(proto, name, &buf))
+		return;
 
 	oxig = xig = (struct xinpgen *)buf;
 	for (xig = (struct xinpgen *)((char *)xig + xig->xig_len);
 	    xig->xig_len > sizeof(struct xinpgen);
 	    xig = (struct xinpgen *)((char *)xig + xig->xig_len)) {
 		if (istcp) {
-			timer = &((struct xtcpcb *)xig)->xt_timer;
-			tp = &((struct xtcpcb *)xig)->xt_tp;
-			inp = &((struct xtcpcb *)xig)->xt_inp;
-			so = &((struct xtcpcb *)xig)->xt_socket;
+			tp = (struct xtcpcb *)xig;
+			inp = &tp->xt_inp;
 		} else {
-			inp = &((struct xinpcb *)xig)->xi_inp;
-			so = &((struct xinpcb *)xig)->xi_socket;
-			timer = NULL;
+			inp = (struct xinpcb *)xig;
 		}
+		so = &inp->xi_socket;
 
 		/* Ignore sockets for protocols other than the desired one. */
 		if (so->xso_protocol != proto)
@@ -574,25 +452,25 @@ protopr(u_long off, const char *name, int af1, int proto)
 			    so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
 			    so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
 			    so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
-			if (timer != NULL)
+			if (istcp)
 				xo_emit(" {:retransmit-timer/%4d.%02d} "
 				    "{:persist-timer/%4d.%02d} "
 				    "{:keepalive-timer/%4d.%02d} "
 				    "{:msl2-timer/%4d.%02d} "
 				    "{:delay-ack-timer/%4d.%02d} "
 				    "{:inactivity-timer/%4d.%02d}",
-				    timer->tt_rexmt / 1000,
-				    (timer->tt_rexmt % 1000) / 10,
-				    timer->tt_persist / 1000,
-				    (timer->tt_persist % 1000) / 10,
-				    timer->tt_keep / 1000,
-				    (timer->tt_keep % 1000) / 10,
-				    timer->tt_2msl / 1000,
-				    (timer->tt_2msl % 1000) / 10,
-				    timer->tt_delack / 1000,
-				    (timer->tt_delack % 1000) / 10,
-				    timer->t_rcvtime / 1000,
-				    (timer->t_rcvtime % 1000) / 10);
+				    tp->tt_rexmt / 1000,
+				    (tp->tt_rexmt % 1000) / 10,
+				    tp->tt_persist / 1000,
+				    (tp->tt_persist % 1000) / 10,
+				    tp->tt_keep / 1000,
+				    (tp->tt_keep % 1000) / 10,
+				    tp->tt_2msl / 1000,
+				    (tp->tt_2msl % 1000) / 10,
+				    tp->tt_delack / 1000,
+				    (tp->tt_delack % 1000) / 10,
+				    tp->t_rcvtime / 1000,
+				    (tp->t_rcvtime % 1000) / 10);
 		}
 		if (istcp && !Lflag && !xflag && !Tflag && !Rflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)

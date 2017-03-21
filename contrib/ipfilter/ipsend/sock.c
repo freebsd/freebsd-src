@@ -78,8 +78,10 @@ typedef int     boolean_t;
 # include <net/route.h>
 #endif
 #include <netinet/ip_var.h>
+#define	_WANT_INPCB
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_timer.h>
+#define	_WANT_TCPCB
 #include <netinet/tcp_var.h>
 #include <stdio.h>
 #include <unistd.h>

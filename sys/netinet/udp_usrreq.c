@@ -905,13 +905,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
 
-			bzero(&xi, sizeof(xi));
-			xi.xi_len = sizeof xi;
-			/* XXX should avoid extra copy */
-			bcopy(inp, &xi.xi_inp, sizeof *inp);
-			if (inp->inp_socket)
-				sotoxsocket(inp->inp_socket, &xi.xi_socket);
-			xi.xi_inp.inp_gencnt = inp->inp_gencnt;
+			in_pcbtoxinpcb(inp, &xi);
 			INP_RUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
 		} else

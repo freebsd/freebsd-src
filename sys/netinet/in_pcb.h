@@ -53,7 +53,6 @@
 
 #define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
 #define	in6p_sp		inp_sp	/* for KAME src sync over BSD*'s */
-struct inpcbpolicy;
 
 /*
  * struct inpcb is the common protocol control block structure used in most
@@ -65,7 +64,7 @@ struct inpcbpolicy;
  */
 LIST_HEAD(inpcbhead, inpcb);
 LIST_HEAD(inpcbporthead, inpcbport);
-typedef	u_quad_t	inp_gen_t;
+typedef	uint64_t	inp_gen_t;
 
 /*
  * PCB with AF_INET6 null bind'ed laddr can receive AF_INET input packet.
@@ -130,9 +129,8 @@ struct in_conninfo {
 #define	inc6_laddr	inc_ie.ie6_laddr
 #define	inc6_zoneid	inc_ie.ie6_zoneid
 
-struct	icmp6_filter;
-
-/*-
+#if defined(_KERNEL) || defined(_WANT_INPCB)
+/*
  * struct inpcb captures the network layer state for TCP, UDP, and raw IPv4 and
  * IPv6 sockets.  In the case of TCP and UDP, further per-connection state is
  * hung off of inp_ppcb most of the time.  Almost all fields of struct inpcb
@@ -181,6 +179,8 @@ struct	icmp6_filter;
  * read-lock usage during modification, this model can be applied to other
  * protocols (especially SCTP).
  */
+struct icmp6_filter;
+struct inpcbpolicy;
 struct m_snd_tag;
 struct inpcb {
 	LIST_ENTRY(inpcb) inp_hash;	/* (h/i) hash list */
@@ -204,10 +204,8 @@ struct inpcb {
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
 	u_int	inp_refcount;		/* (i) refcount */
 	struct m_snd_tag *inp_snd_tag;	/* (i) send tag for outgoing mbufs */
-	void	*inp_pspare[4];		/* (x) general use */
 	uint32_t inp_flowtype;		/* (x) M_HASHTYPE value */
 	uint32_t inp_rss_listen_bucket;	/* (x) overridden RSS listen bucket */
-	u_int	inp_ispare[4];		/* (x) user cookie / general use */
 
 	/* Local and foreign ports, local and foreign addr. */
 	struct	in_conninfo inp_inc;	/* (i) list for PCB's local port */
@@ -218,23 +216,23 @@ struct inpcb {
 
 	/* Protocol-dependent part; options. */
 	struct {
-		u_char	inp4_ip_tos;		/* (i) type of service proto */
-		struct	mbuf *inp4_options;	/* (i) IP options */
-		struct	ip_moptions *inp4_moptions; /* (i) IP mcast options */
-	} inp_depend4;
+		u_char	inp_ip_tos;		/* (i) type of service proto */
+		struct mbuf		*inp_options;	/* (i) IP options */
+		struct ip_moptions	*inp_moptions;	/* (i) mcast options */
+	};
 	struct {
 		/* (i) IP options */
-		struct	mbuf *inp6_options;
+		struct mbuf		*in6p_options;
 		/* (i) IP6 options for outgoing packets */
-		struct	ip6_pktopts *inp6_outputopts;
+		struct ip6_pktopts	*in6p_outputopts;
 		/* (i) IP multicast options */
-		struct	ip6_moptions *inp6_moptions;
+		struct ip6_moptions	*in6p_moptions;
 		/* (i) ICMPv6 code type filter */
-		struct	icmp6_filter *inp6_icmp6filt;
+		struct icmp6_filter	*in6p_icmp6filt;
 		/* (i) IPV6_CHECKSUM setsockopt */
-		int	inp6_cksum;
-		short	inp6_hops;
-	} inp_depend6;
+		int	in6p_cksum;
+		short	in6p_hops;
+	};
 	LIST_ENTRY(inpcb) inp_portlist;	/* (i/h) */
 	struct	inpcbport *inp_phd;	/* (i/h) head of this list */
 #define inp_zero_size offsetof(struct inpcb, inp_gencnt)
@@ -249,24 +247,17 @@ struct inpcb {
 #define inp_route inp_rtu.inpu_route
 #define inp_route6 inp_rtu.inpu_route6
 };
+#endif	/* _KERNEL */
+
 #define	inp_fport	inp_inc.inc_fport
 #define	inp_lport	inp_inc.inc_lport
 #define	inp_faddr	inp_inc.inc_faddr
 #define	inp_laddr	inp_inc.inc_laddr
-#define	inp_ip_tos	inp_depend4.inp4_ip_tos
-#define	inp_options	inp_depend4.inp4_options
-#define	inp_moptions	inp_depend4.inp4_moptions
 
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
 #define	in6p_zoneid	inp_inc.inc6_zoneid
-#define	in6p_hops	inp_depend6.inp6_hops	/* default hop limit */
 #define	in6p_flowinfo	inp_flow
-#define	in6p_options	inp_depend6.inp6_options
-#define	in6p_outputopts	inp_depend6.inp6_outputopts
-#define	in6p_moptions	inp_depend6.inp6_moptions
-#define	in6p_icmp6filt	inp_depend6.inp6_icmp6filt
-#define	in6p_cksum	inp_depend6.inp6_cksum
 
 #define	inp_vnet	inp_pcbinfo->ipi_vnet
 
@@ -280,25 +271,53 @@ struct inpcb {
 /*
  * Interface exported to userland by various protocols which use inpcbs.  Hack
  * alert -- only define if struct xsocket is in scope.
+ * Fields prefixed with "xi_" are unique to this structure, and the rest
+ * match fields in the struct inpcb, to ease coding and porting.
+ *
+ * Legend:
+ * (s) - used by userland utilities in src
+ * (p) - used by utilities in ports
+ * (3) - is known to be used by third party software not in ports
+ * (n) - no known usage
  */
 #ifdef _SYS_SOCKETVAR_H_
-struct	xinpcb {
-	size_t	xi_len;		/* length of this structure */
-	struct	inpcb xi_inp;
-	struct	xsocket xi_socket;
-	u_quad_t	xi_alignment_hack;
+struct xinpcb {
+	size_t		xi_len;		/* length of this structure */
+	struct xsocket	xi_socket;		/* (s,p) */
+	struct in_conninfo inp_inc;		/* (s,p) */
+	uint64_t	inp_gencnt;		/* (s,p) */
+	union {
+		void	*inp_ppcb;		/* (s) netstat(1) */
+		int64_t	ph_ppcb;
+	};
+	int64_t		inp_spare64[4];
+	uint32_t	inp_flow;		/* (s) */
+	uint32_t	inp_flowid;		/* (s) */
+	uint32_t	inp_flowtype;		/* (s) */
+	int32_t		inp_flags;		/* (s,p) */
+	int32_t		inp_flags2;		/* (s) */
+	int32_t		inp_rss_listen_bucket;	/* (n) */
+	int32_t		in6p_cksum;		/* (n) */
+	int32_t		inp_spare32[4];
+	uint16_t	in6p_hops;		/* (n) */
+	uint8_t		inp_ip_tos;		/* (n) */
+	int8_t		pad8;
+	uint8_t		inp_vflag;		/* (s,p) */
+	uint8_t		inp_ip_ttl;		/* (n) */
+	uint8_t		inp_ip_p;		/* (n) */
+	uint8_t		inp_ip_minttl;		/* (n) */
+	int8_t		inp_spare8[4];
 };
 
-/*
- * struct xinpgen is cast to struct xinpcb, thus struct xinpgen must have
- * pointer alignment.  On CHERI size_t alignment is insufficent.
- */
-struct	xinpgen {
-	size_t	xig_len;	/* length of this structure */
-	u_int	xig_count;	/* number of PCBs at this time */
-	inp_gen_t xig_gen;	/* generation count at this time */
-	so_gen_t xig_sogen;	/* socket generation count at this time */
+struct xinpgen {
+	size_t		xig_len;	/* length of this structure */
+	u_int		xig_count;	/* number of PCBs at this time */
+	inp_gen_t	xig_gen;	/* generation count at this time */
+	so_gen_t	xig_sogen;	/* socket generation count this time */
 } __aligned(sizeof(void *));
+#ifdef	_KERNEL
+void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
+#endif
 #endif /* _SYS_SOCKETVAR_H_ */
 
 struct inpcbport {

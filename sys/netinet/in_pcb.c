@@ -2434,6 +2434,41 @@ so_sototcpcb(struct socket *so)
 	return (sototcpcb(so));
 }
 
+/*
+ * Create an external-format (``xinpcb'') structure using the information in
+ * the kernel-format in_pcb structure pointed to by inp.  This is done to
+ * reduce the spew of irrelevant information over this interface, to isolate
+ * user code from changes in the kernel structure, and potentially to provide
+ * information-hiding if we decide that some of this information should be
+ * hidden from users.
+ */
+void
+in_pcbtoxinpcb(const struct inpcb *inp, struct xinpcb *xi)
+{
+
+	xi->xi_len = sizeof(struct xinpcb);
+	if (inp->inp_socket)
+		sotoxsocket(inp->inp_socket, &xi->xi_socket);
+	else
+		bzero(&xi->xi_socket, sizeof(struct xsocket));
+	bcopy(&inp->inp_inc, &xi->inp_inc, sizeof(struct in_conninfo));
+	xi->inp_gencnt = inp->inp_gencnt;
+	xi->inp_ppcb = inp->inp_ppcb;
+	xi->inp_flow = inp->inp_flow;
+	xi->inp_flowid = inp->inp_flowid;
+	xi->inp_flowtype = inp->inp_flowtype;
+	xi->inp_flags = inp->inp_flags;
+	xi->inp_flags2 = inp->inp_flags2;
+	xi->inp_rss_listen_bucket = inp->inp_rss_listen_bucket;
+	xi->in6p_cksum = inp->in6p_cksum;
+	xi->in6p_hops = inp->in6p_hops;
+	xi->inp_ip_tos = inp->inp_ip_tos;
+	xi->inp_vflag = inp->inp_vflag;
+	xi->inp_ip_ttl = inp->inp_ip_ttl;
+	xi->inp_ip_p = inp->inp_ip_p;
+	xi->inp_ip_minttl = inp->inp_ip_minttl;
+}
+
 #ifdef DDB
 static void
 db_print_indent(int indent)

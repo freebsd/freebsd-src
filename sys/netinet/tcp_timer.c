@@ -1006,28 +1006,3 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 		tp->t_timers->tt_draincnt++;
 	}
 }
-
-#define	ticks_to_msecs(t)	(1000*(t) / hz)
-
-void
-tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
-    struct xtcp_timer *xtimer)
-{
-	sbintime_t now;
-
-	bzero(xtimer, sizeof(*xtimer));
-	if (timer == NULL)
-		return;
-	now = getsbinuptime();
-	if (callout_active(&timer->tt_delack))
-		xtimer->tt_delack = (timer->tt_delack.c_time - now) / SBT_1MS;
-	if (callout_active(&timer->tt_rexmt))
-		xtimer->tt_rexmt = (timer->tt_rexmt.c_time - now) / SBT_1MS;
-	if (callout_active(&timer->tt_persist))
-		xtimer->tt_persist = (timer->tt_persist.c_time - now) / SBT_1MS;
-	if (callout_active(&timer->tt_keep))
-		xtimer->tt_keep = (timer->tt_keep.c_time - now) / SBT_1MS;
-	if (callout_active(&timer->tt_2msl))
-		xtimer->tt_2msl = (timer->tt_2msl.c_time - now) / SBT_1MS;
-	xtimer->t_rcvtime = ticks_to_msecs(ticks - tp->t_rcvtime);
-}

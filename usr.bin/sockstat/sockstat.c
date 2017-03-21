@@ -562,8 +562,7 @@ gather_inet(int proto)
 {
 	struct xinpgen *xig, *exig;
 	struct xinpcb *xip;
-	struct xtcpcb *xtp;
-	struct inpcb *inp;
+	struct xtcpcb *xtp = NULL;
 	struct xsocket *so;
 	struct sock *sock;
 	struct addr *laddr, *faddr;
@@ -626,54 +625,52 @@ gather_inet(int proto)
 		xig = (struct xinpgen *)(void *)((char *)xig + xig->xig_len);
 		if (xig >= exig)
 			break;
-		xip = (struct xinpcb *)xig;
-		xtp = (struct xtcpcb *)xig;
 		switch (proto) {
 		case IPPROTO_TCP:
+			xtp = (struct xtcpcb *)xig;
+			xip = &xtp->xt_inp;
 			if (xtp->xt_len != sizeof(*xtp)) {
 				warnx("struct xtcpcb size mismatch");
 				goto out;
 			}
-			inp = &xtp->xt_inp;
-			so = &xtp->xt_socket;
-			protoname = xtp->xt_tp.t_flags & TF_TOE ? "toe" : "tcp";
+			protoname = xtp->t_flags & TF_TOE ? "toe" : "tcp";
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:
+			xip = (struct xinpcb *)xig;
 			if (xip->xi_len != sizeof(*xip)) {
 				warnx("struct xinpcb size mismatch");
 				goto out;
 			}
-			inp = &xip->xi_inp;
-			so = &xip->xi_socket;
 			break;
 		default:
 			errx(1, "protocol %d not supported", proto);
 		}
-		if ((inp->inp_vflag & vflag) == 0)
+		so = &xip->xi_socket;
+		if ((xip->inp_vflag & vflag) == 0)
 			continue;
-		if (inp->inp_vflag & INP_IPV4) {
-			if ((inp->inp_fport == 0 && !opt_l) ||
-			    (inp->inp_fport != 0 && !opt_c))
+		if (xip->inp_vflag & INP_IPV4) {
+			if ((xip->inp_fport == 0 && !opt_l) ||
+			    (xip->inp_fport != 0 && !opt_c))
 				continue;
 #define	__IN_IS_ADDR_LOOPBACK(pina) \
 	((ntohl((pina)->s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
 			if (opt_L &&
-			    (__IN_IS_ADDR_LOOPBACK(&inp->inp_faddr) ||
-			     __IN_IS_ADDR_LOOPBACK(&inp->inp_laddr)))
+			    (__IN_IS_ADDR_LOOPBACK(&xip->inp_faddr) ||
+			     __IN_IS_ADDR_LOOPBACK(&xip->inp_laddr)))
 				continue;
 #undef	__IN_IS_ADDR_LOOPBACK
-		} else if (inp->inp_vflag & INP_IPV6) {
-			if ((inp->inp_fport == 0 && !opt_l) ||
-			    (inp->inp_fport != 0 && !opt_c))
+		} else if (xip->inp_vflag & INP_IPV6) {
+			if ((xip->inp_fport == 0 && !opt_l) ||
+			    (xip->inp_fport != 0 && !opt_c))
 				continue;
 			if (opt_L &&
-			    (IN6_IS_ADDR_LOOPBACK(&inp->in6p_faddr) ||
-			     IN6_IS_ADDR_LOOPBACK(&inp->in6p_laddr)))
+			    (IN6_IS_ADDR_LOOPBACK(&xip->in6p_faddr) ||
+			     IN6_IS_ADDR_LOOPBACK(&xip->in6p_laddr)))
 				continue;
 		} else {
 			if (opt_v)
-				warnx("invalid vflag 0x%x", inp->inp_vflag);
+				warnx("invalid vflag 0x%x", xip->inp_vflag);
 			continue;
 		}
 		if ((sock = calloc(1, sizeof(*sock))) == NULL)
@@ -684,26 +681,26 @@ gather_inet(int proto)
 			err(1, "malloc()");
 		sock->socket = so->xso_so;
 		sock->proto = proto;
-		if (inp->inp_vflag & INP_IPV4) {
+		if (xip->inp_vflag & INP_IPV4) {
 			sock->family = AF_INET;
 			sockaddr(&laddr->address, sock->family,
-			    &inp->inp_laddr, inp->inp_lport);
+			    &xip->inp_laddr, xip->inp_lport);
 			sockaddr(&faddr->address, sock->family,
-			    &inp->inp_faddr, inp->inp_fport);
-		} else if (inp->inp_vflag & INP_IPV6) {
+			    &xip->inp_faddr, xip->inp_fport);
+		} else if (xip->inp_vflag & INP_IPV6) {
 			sock->family = AF_INET6;
 			sockaddr(&laddr->address, sock->family,
-			    &inp->in6p_laddr, inp->inp_lport);
+			    &xip->in6p_laddr, xip->inp_lport);
 			sockaddr(&faddr->address, sock->family,
-			    &inp->in6p_faddr, inp->inp_fport);
+			    &xip->in6p_faddr, xip->inp_fport);
 		}
 		laddr->next = NULL;
 		faddr->next = NULL;
 		sock->laddr = laddr;
 		sock->faddr = faddr;
-		sock->vflag = inp->inp_vflag;
+		sock->vflag = xip->inp_vflag;
 		if (proto == IPPROTO_TCP)
-			sock->state = xtp->xt_tp.t_state;
+			sock->state = xtp->t_state;
 		sock->protoname = protoname;
 		hash = (int)((uintptr_t)sock->socket % HASHSIZE);
 		sock->next = sockhash[hash];
