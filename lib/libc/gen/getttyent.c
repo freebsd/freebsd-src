@@ -110,9 +110,7 @@ auto_exists_status(const char *ty_name)
 		asprintf(&dev, "%s", ty_name);
 	else
 		asprintf(&dev, "/dev/%s", ty_name);
-	if (dev == NULL)
-		return 0;
-	if (stat(dev, &sb) == 0)
+	if (dev != NULL && stat(dev, &sb) == 0)
 		rv = TTY_ON;
 	free(dev);
 	return (rv);
