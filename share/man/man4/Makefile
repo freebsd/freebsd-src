@@ -206,7 +206,6 @@ MAN=	aac.4 \
 	if_ipsec.4 \
 	ifmib.4 \
 	ig4.4 \
-	igb.4 \
 	igmp.4 \
 	iic.4 \
 	iicbb.4 \
@@ -652,7 +651,6 @@ MLINKS+=hme.4 if_hme.4
 MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=${_attimer.4} ${_i8254.4}
-MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
 	ipfirewall.4 ipacct.4 \
