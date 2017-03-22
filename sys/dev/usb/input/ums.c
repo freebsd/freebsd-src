@@ -283,7 +283,7 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		if ((info->sc_flags & UMS_FLAG_Y_AXIS) &&
 		    (id == info->sc_iid_y))
-			dy = -hid_get_data(buf, len, &info->sc_loc_y);
+			dy -= hid_get_data(buf, len, &info->sc_loc_y);
 
 		if ((info->sc_flags & UMS_FLAG_Z_AXIS) &&
 		    (id == info->sc_iid_z)) {
