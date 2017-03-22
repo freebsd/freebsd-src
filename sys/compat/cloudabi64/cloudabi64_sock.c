@@ -29,9 +29,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/socket.h>
-#include <sys/syscallsubr.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 
@@ -48,53 +45,43 @@ int
 cloudabi64_sys_sock_recv(struct thread *td,
     struct cloudabi64_sys_sock_recv_args *uap)
 {
-	struct sockaddr_storage ss;
 	cloudabi64_recv_in_t ri;
 	cloudabi64_recv_out_t ro = {};
 	cloudabi64_iovec_t iovobj;
-	struct msghdr msghdr = {};
+	struct iovec *iov;
 	const cloudabi64_iovec_t *user_iov;
-	size_t i;
+	size_t i, rdatalen, rfdslen;
 	int error;
 
 	error = copyin(uap->in, &ri, sizeof(ri));
 	if (error != 0)
 		return (error);
 
-	/* Convert results in cloudabi_recv_in_t to struct msghdr. */
+	/* Convert iovecs to native format. */
 	if (ri.ri_data_len > UIO_MAXIOV)
 		return (EINVAL);
-	msghdr.msg_iovlen = ri.ri_data_len;
-	msghdr.msg_iov = malloc(msghdr.msg_iovlen * sizeof(struct iovec),
+	iov = malloc(ri.ri_data_len * sizeof(struct iovec),
 	    M_SOCKET, M_WAITOK);
 	user_iov = TO_PTR(ri.ri_data);
-	for (i = 0; i < msghdr.msg_iovlen; i++) {
+	for (i = 0; i < ri.ri_data_len; i++) {
 		error = copyin(&user_iov[i], &iovobj, sizeof(iovobj));
 		if (error != 0) {
-			free(msghdr.msg_iov, M_SOCKET);
+			free(iov, M_SOCKET);
 			return (error);
 		}
-		msghdr.msg_iov[i].iov_base = TO_PTR(iovobj.buf);
-		msghdr.msg_iov[i].iov_len = iovobj.buf_len;
+		iov[i].iov_base = TO_PTR(iovobj.buf);
+		iov[i].iov_len = iovobj.buf_len;
 	}
-	msghdr.msg_name = &ss;
-	msghdr.msg_namelen = sizeof(ss);
-	if (ri.ri_flags & CLOUDABI_MSG_PEEK)
-		msghdr.msg_flags |= MSG_PEEK;
-	if (ri.ri_flags & CLOUDABI_MSG_WAITALL)
-		msghdr.msg_flags |= MSG_WAITALL;
 
-	/* TODO(ed): Add file descriptor passing. */
-	error = kern_recvit(td, uap->sock, &msghdr, UIO_SYSSPACE, NULL);
-	free(msghdr.msg_iov, M_SOCKET);
+	error = cloudabi_sock_recv(td, uap->sock, iov, ri.ri_data_len,
+	    TO_PTR(ri.ri_fds), ri.ri_fds_len, ri.ri_flags, &rdatalen,
+	    &rfdslen, &ro.ro_peername, &ro.ro_flags);
+	free(iov, M_SOCKET);
 	if (error != 0)
 		return (error);
 
-	/* Convert results in msghdr to cloudabi_recv_out_t. */
-	ro.ro_datalen = td->td_retval[0];
-	cloudabi_convert_sockaddr((struct sockaddr *)&ss,
-	    MIN(msghdr.msg_namelen, sizeof(ss)), &ro.ro_peername);
-	td->td_retval[0] = 0;
+	ro.ro_datalen = rdatalen;
+	ro.ro_fdslen = rfdslen;
 	return (copyout(&ro, uap->out, sizeof(ro)));
 }
 

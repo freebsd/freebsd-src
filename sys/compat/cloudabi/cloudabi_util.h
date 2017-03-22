@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Nuxi, https://nuxi.nl/
+ * Copyright (c) 2015-2017 Nuxi, https://nuxi.nl/
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,10 +44,6 @@ int cloudabi_clock_time_get(struct thread *, cloudabi_clockid_t,
 /* Converts a FreeBSD errno to a CloudABI errno. */
 cloudabi_errno_t cloudabi_convert_errno(int);
 
-/* Converts FreeBSD's struct sockaddr to CloudABI's cloudabi_sockaddr_t. */
-void cloudabi_convert_sockaddr(const struct sockaddr *, socklen_t,
-    cloudabi_sockaddr_t *);
-
 /* Converts a file descriptor to a CloudABI file descriptor type. */
 cloudabi_filetype_t cloudabi_convert_filetype(const struct file *);
 
@@ -78,6 +74,9 @@ int cloudabi_futex_lock_wrlock(struct thread *, cloudabi_lock_t *,
     cloudabi_timestamp_t);
 
 /* Socket operations. */
+int cloudabi_sock_recv(struct thread *, cloudabi_fd_t, struct iovec *, size_t,
+    cloudabi_fd_t *, size_t, cloudabi_msgflags_t, size_t *, size_t *,
+    cloudabi_sockaddr_t *, cloudabi_msgflags_t *);
 int cloudabi_sock_send(struct thread *, cloudabi_fd_t, struct iovec *, size_t,
     const cloudabi_fd_t *, size_t, cloudabi_msgflags_t, size_t *);
 
