@@ -82,7 +82,12 @@ struct key_hint
 		struct g_hint		gh;
 		struct M_hint		Mh;
 	}			v;
-};
+}
+#ifdef __CHERI_PURE_CAPABILITY__
+/* We need this to be padded out to maintain pointer alignment. */
+__aligned(sizeof(void *))
+#endif
+;
 
 /*
  * Key value
@@ -91,7 +96,12 @@ struct key_value
 {
 	struct bwstring		*k; /* key string */
 	struct key_hint		 hint[0]; /* key sort hint */
-} __packed;
+}
+#ifndef __CHERI_PURE_CAPABILITY__
+/* Packing is gratutious... */
+__packed
+#endif
+;
 
 /*
  * Set of keys container object.

@@ -123,7 +123,12 @@ struct key_value *
 get_key_from_keys_array(struct keys_array *ka, size_t ind)
 {
 
-	return ((struct key_value *)((caddr_t)ka->key +
+	/*
+	 * The (void *) cast avoids complaints about alignment increases.
+	 * We ensure it is correct on architectures where it matters (CHERI)
+	 * by ensuring sufficent alignment of key_hint_size().
+	 */
+	return ((struct key_value *)(void *)((caddr_t)ka->key +
 	    ind * (sizeof(struct key_value) + key_hint_size())));
 }
 

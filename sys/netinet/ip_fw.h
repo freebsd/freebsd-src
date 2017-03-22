@@ -706,7 +706,13 @@ struct _ipfw_dyn_rule {
 	u_int16_t	dyn_type;	/* rule type			*/
 	u_int16_t	count;		/* refcount			*/
 	u_int16_t	kidx;		/* index of named object */
-} __packed __aligned(8);
+} __packed
+#ifndef __CHERI_PURE_CAPABILITY__
+__aligned(8)
+#else
+__aligned(sizeof(void *))
+#endif
+;
 
 /*
  * Definitions for IP option names.

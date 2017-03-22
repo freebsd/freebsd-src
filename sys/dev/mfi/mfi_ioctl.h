@@ -58,7 +58,15 @@ union mfi_sense_ptr {
 		uint32_t	low;
 		uint32_t	high;
 	} addr;
-} __packed;
+}
+#ifndef __CHERI_PURE_CAPABILITY__
+/*
+ * XXX-BD: This __packed appears to be gratutious and won't whole thing
+ * is a bit absurd in CheriABI.
+ */
+__packed
+#endif
+;
 
 #define MAX_IOCTL_SGE	16
 
@@ -132,7 +140,15 @@ struct mfi_ioc_passthru {
 	struct mfi_dcmd_frame	ioc_frame;
 	uint32_t		buf_size;
 	uint8_t			*buf;
-} __packed;
+}
+#ifndef __CHERI_PURE_CAPABILITY__
+/*
+ * Packing is gratutious, but part of the ABI.  Don't pack in CheriABI
+ * where it won't work.
+ */
+__packed
+#endif
+;
 
 #ifdef COMPAT_FREEBSD32
 struct mfi_ioc_passthru32 {
