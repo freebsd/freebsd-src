@@ -306,6 +306,8 @@
             ttyio
             ..
         ..
+        libcam
+        ..
         libcrypt
         ..
         libmp
