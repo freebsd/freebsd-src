@@ -351,9 +351,8 @@ read_excludes_file(char *file)
 	while ((buf = fgetln(fp, &len)) != NULL) {
 		if (buf[len - 1] == '\n')
 			len--;
-		pattern = xmalloc(len + 1);
-		memcpy(pattern, buf, len);
-		pattern[len] = '\0';
+		if ((pattern = strndup(buf, len)) == NULL)
+			err(2, "xstrndup");
 		push_excludes(pattern);
 	}
 	if (strcmp(file, "-") != 0)
