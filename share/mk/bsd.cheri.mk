@@ -62,7 +62,7 @@ _CHERI_CC+= -Wno-deprecated-declarations
 
 .if ${WANT_CHERI} == "pure" || ${WANT_CHERI} == "sandbox"
 OBJCOPY:=	objcopy
-_CHERI_CC+=	-mabi=sandbox -mxgot -fpic
+_CHERI_CC+=	-mabi=purecap -mxgot -fpic
 LIBDIR:=	/usr/libcheri
 ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
 CFLAGS+=	${CHERI_OPTIMIZATION_FLAGS:U-O2} -ftls-model=local-exec
