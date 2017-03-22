@@ -249,7 +249,11 @@ _kvm_mdopen(kvm_t *kd)
 #endif
 
 int
+#ifdef __arm__
 _arm_native(kvm_t *kd)
+#else
+_arm_native(kvm_t *kd __unused)
+#endif
 {
 
 #ifdef __arm__
@@ -263,7 +267,7 @@ _arm_native(kvm_t *kd)
 #endif
 }
 
-struct kvm_arch kvm_arm = {
+static struct kvm_arch kvm_arm = {
 	.ka_probe = _arm_probe,
 	.ka_initvtop = _arm_initvtop,
 	.ka_freevtop = _arm_freevtop,
