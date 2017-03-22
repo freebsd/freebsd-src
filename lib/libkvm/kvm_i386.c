@@ -409,7 +409,7 @@ _i386_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 }
 
 int
-_i386_native(kvm_t *kd)
+_i386_native(kvm_t *kd __unused)
 {
 
 #ifdef __i386__
@@ -419,7 +419,7 @@ _i386_native(kvm_t *kd)
 #endif
 }
 
-struct kvm_arch kvm_i386 = {
+static struct kvm_arch kvm_i386 = {
 	.ka_probe = _i386_probe,
 	.ka_initvtop = _i386_initvtop,
 	.ka_freevtop = _i386_freevtop,

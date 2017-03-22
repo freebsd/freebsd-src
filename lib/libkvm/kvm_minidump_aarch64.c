@@ -215,7 +215,7 @@ _aarch64_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 }
 
 static int
-_aarch64_native(kvm_t *kd)
+_aarch64_native(kvm_t *kd __unused)
 {
 
 #ifdef __aarch64__
@@ -225,7 +225,7 @@ _aarch64_native(kvm_t *kd)
 #endif
 }
 
-struct kvm_arch kvm_aarch64_minidump = {
+static struct kvm_arch kvm_aarch64_minidump = {
 	.ka_probe = _aarch64_minidump_probe,
 	.ka_initvtop = _aarch64_minidump_initvtop,
 	.ka_freevtop = _aarch64_minidump_freevtop,

@@ -209,7 +209,7 @@ invalid:
 	return (0);
 }
 
-struct kvm_arch kvm_arm_minidump = {
+static struct kvm_arch kvm_arm_minidump = {
 	.ka_probe = _arm_minidump_probe,
 	.ka_initvtop = _arm_minidump_initvtop,
 	.ka_freevtop = _arm_minidump_freevtop,

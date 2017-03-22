@@ -316,7 +316,7 @@ _amd64_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 }
 
 int
-_amd64_native(kvm_t *kd)
+_amd64_native(kvm_t *kd __unused)
 {
 
 #ifdef __amd64__
@@ -326,7 +326,7 @@ _amd64_native(kvm_t *kd)
 #endif
 }
 
-struct kvm_arch kvm_amd64 = {
+static struct kvm_arch kvm_amd64 = {
 	.ka_probe = _amd64_probe,
 	.ka_initvtop = _amd64_initvtop,
 	.ka_freevtop = _amd64_freevtop,

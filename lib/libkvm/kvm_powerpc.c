@@ -214,7 +214,7 @@ _powerpc_kvatop(kvm_t *kd, kvaddr_t va, off_t *ofs)
 }
 
 static int
-_powerpc_native(kvm_t *kd)
+_powerpc_native(kvm_t *kd __unused)
 {
 
 #if defined(__powerpc__) && !defined(__powerpc64__)
@@ -224,7 +224,7 @@ _powerpc_native(kvm_t *kd)
 #endif
 }
 
-struct kvm_arch kvm_powerpc = {
+static struct kvm_arch kvm_powerpc = {
 	.ka_probe = _powerpc_probe,
 	.ka_initvtop = _powerpc_initvtop,
 	.ka_freevtop = _powerpc_freevtop,
