@@ -183,4 +183,5 @@ Elf64_Brandinfo cloudabi64_brand = {
 	.sysvec		= &cloudabi64_elf_sysvec,
 	.flags		= BI_CAN_EXEC_DYN,
 	.compat_3_brand	= "CloudABI",
+	.interp_path	= "/nonexistent",
 };

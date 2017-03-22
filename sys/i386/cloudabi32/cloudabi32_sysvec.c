@@ -201,4 +201,5 @@ Elf32_Brandinfo cloudabi32_brand = {
 	.machine	= EM_386,
 	.sysvec		= &cloudabi32_elf_sysvec,
 	.compat_3_brand	= "CloudABI",
+	.interp_path	= "/nonexistent",
 };
