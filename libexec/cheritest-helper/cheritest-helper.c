@@ -420,32 +420,42 @@ invoke_get_var_constructor(void)
 register_t
 invoke_inflate(struct zstream_proxy *zspp)
 {
-	z_stream zs;
+	z_stream *zsp;
 
-	zs.zalloc = Z_NULL;
-	zs.zfree = Z_NULL;
-	zs.next_in = zspp->next_in;
-	zs.avail_in = zspp->avail_in;
-	zs.next_out = zspp->next_out;
-	zs.avail_out = zspp->avail_out;
-	if (inflateInit(&zs) != Z_OK) {
+	if ((zsp = calloc(1, sizeof(*zsp))) == NULL) {
+		printf("calloc\n");
+		abort();
+	}
+
+	zsp->zalloc = Z_NULL;
+	zsp->zfree = Z_NULL;
+	zsp->next_in = zspp->next_in;
+	zsp->avail_in = zspp->avail_in;
+	zsp->next_out = zspp->next_out;
+	zsp->avail_out = zspp->avail_out;
+	if (inflateInit(zsp) != Z_OK) {
 		printf("inflateInit");
+		free(zsp);
 		abort();
 	}
-	if (inflate(&zs, Z_FINISH) != Z_STREAM_END) {
+	if (inflate(zsp, Z_FINISH) != Z_STREAM_END) {
 		printf("inflate");
+		free(zsp);
 		abort();
 	}
-	if (inflateEnd(&zs) != Z_OK) {
+	if (inflateEnd(zsp) != Z_OK) {
 		printf("inflateEnd");
+		free(zsp);
 		abort();
 	}
-	zspp->next_in = zs.next_in;
-	zspp->avail_in = zs.avail_in;
-	zspp->next_out = zs.next_out;
-	zspp->avail_out = zs.avail_out;
-	zspp->total_in = zs.total_in;
-	zspp->total_out = zs.total_out;
+	zspp->next_in = zsp->next_in;
+	zspp->avail_in = zsp->avail_in;
+	zspp->next_out = zsp->next_out;
+	zspp->avail_out = zsp->avail_out;
+	zspp->total_in = zsp->total_in;
+	zspp->total_out = zsp->total_out;
+	free(zsp);
+
 	return (0);
 }
 
