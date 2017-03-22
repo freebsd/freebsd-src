@@ -43,4 +43,10 @@ CFLAGS+=	-I${.CURDIR} -I${SRCTOP}/sys
 
 SHLIB_MAJOR=	7
 
+.include <src.opts.mk>
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .include <bsd.lib.mk>
