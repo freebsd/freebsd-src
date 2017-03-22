@@ -76,6 +76,12 @@
 #define	CP15_ID_MMFR2(rr)	p15, 0, rr, c0, c1,  6 /* Memory Model Feature Register 2 */
 #define	CP15_ID_MMFR3(rr)	p15, 0, rr, c0, c1,  7 /* Memory Model Feature Register 3 */
 
+#define	CP15_HCR(rr)		p15, 4, rr, c1, c1, 0 /* Hyp Configuration Register */
+#define	CP15_HCPTR(rr)		p15, 4, rr, c1, c1, 2 /* Hyp Coprocessor Trap Register */
+#define	CP15_HSTR(rr)		p15, 4, rr, c1, c1, 3 /* Hyp System Trap Register */
+#define	CP15_HSCTLR(rr)		p15, 4, rr, c1, c0, 0 /* Hyp System Control Register */
+#define	CP15_HDCR(rr)		p15, 4, rr, c1, c1, 1 /* Hyp Debug Configuration Register */
+
 #define	CP15_ID_ISAR0(rr)	p15, 0, rr, c0, c2,  0 /* Instruction Set Attribute Register 0 */
 #define	CP15_ID_ISAR1(rr)	p15, 0, rr, c0, c2,  1 /* Instruction Set Attribute Register 1 */
 #define	CP15_ID_ISAR2(rr)	p15, 0, rr, c0, c2,  2 /* Instruction Set Attribute Register 2 */
@@ -265,6 +271,7 @@
 #define	CP15_MVBAR(rr)		p15, 0, rr, c12, c0, 1 /* Monitor Vector Base Address Register */
 
 #define	CP15_ISR(rr)		p15, 0, rr, c12, c1, 0 /* Interrupt Status Register */
+#define	CP15_HVBAR(rr)		p15, 4, rr, c12, c0, 0 /* Hyp Vector Base Address Register*/
 
 /*
  * CP15 C13 registers

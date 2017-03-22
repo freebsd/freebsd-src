@@ -67,6 +67,7 @@ arm/arm/in_cksum_arm.S		optional	inet | inet6
 arm/arm/intr.c			optional	!intrng
 kern/subr_intr.c		optional	intrng
 arm/arm/locore.S		standard	no-obj
+arm/arm/hypervisor-stub.S	optional	armv6
 arm/arm/machdep.c		standard
 arm/arm/machdep_boot.c		standard
 arm/arm/machdep_kdb.c		standard
