@@ -611,7 +611,7 @@ prepare(int i, FILE *fd, size_t filesize, int flags)
 
 	rewind(fd);
 
-	sz = ((unsigned long)filesize <= SIZE_MAX ? filesize : SIZE_MAX) / 25;
+	sz = MIN(filesize, SIZE_MAX) / 25;
 	if (sz < 100)
 		sz = 100;
 
