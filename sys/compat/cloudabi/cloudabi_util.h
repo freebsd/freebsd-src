@@ -77,6 +77,10 @@ int cloudabi_futex_lock_wrlock(struct thread *, cloudabi_lock_t *,
     cloudabi_scope_t, cloudabi_clockid_t, cloudabi_timestamp_t,
     cloudabi_timestamp_t);
 
+/* Socket operations. */
+int cloudabi_sock_send(struct thread *, cloudabi_fd_t, struct iovec *, size_t,
+    const cloudabi_fd_t *, size_t, cloudabi_msgflags_t, size_t *);
+
 /* vDSO setup and teardown. */
 void cloudabi_vdso_init(struct sysentvec *, char *, char *);
 void cloudabi_vdso_destroy(struct sysentvec *);
