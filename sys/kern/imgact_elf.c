@@ -282,6 +282,9 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 		bi = elf_brand_list[i];
 		if (bi == NULL)
 			continue;
+		if (interp != NULL &&
+		    (bi->flags & BI_BRAND_NOTE_ONLY_STATIC) != 0)
+			continue;
 		if (hdr->e_machine == bi->machine && (bi->flags &
 		    (BI_BRAND_NOTE|BI_BRAND_NOTE_MANDATORY)) != 0) {
 			ret = __elfN(check_note)(imgp, bi->brand_note, osrel);
@@ -314,7 +317,9 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	/* If the executable has a brand, search for it in the brand list. */
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
-		if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
+		if (bi == NULL || (bi->flags & BI_BRAND_NOTE_MANDATORY) != 0 ||
+		    (interp != NULL && (bi->flags &
+		    BI_BRAND_NOTE_ONLY_STATIC) != 0))
 			continue;
 		if (hdr->e_machine == bi->machine &&
 		    (hdr->e_ident[EI_OSABI] == bi->brand ||
@@ -360,7 +365,8 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	if (interp != NULL) {
 		for (i = 0; i < MAX_BRANDS; i++) {
 			bi = elf_brand_list[i];
-			if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
+			if (bi == NULL || (bi->flags & (BI_BRAND_NOTE_MANDATORY |
+			    BI_BRAND_NOTE_ONLY_STATIC)) != 0)
 				continue;
 			if (hdr->e_machine == bi->machine &&
 			    /* ELF image p_filesz includes terminating zero */
@@ -374,7 +380,9 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	/* Lacking a recognized interpreter, try the default brand */
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
-		if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
+		if (bi == NULL || (bi->flags & BI_BRAND_NOTE_MANDATORY) != 0 ||
+		    (interp != NULL && (bi->flags &
+		    BI_BRAND_NOTE_ONLY_STATIC) != 0))
 			continue;
 		if (hdr->e_machine == bi->machine &&
 		    __elfN(fallback_brand) == bi->brand)
