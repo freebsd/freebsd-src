@@ -30,7 +30,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -242,4 +244,52 @@ cloudabi_sys_sock_stat_get(struct thread *td,
 
 	fdrop(fp, td);
 	return (copyout(&ss, uap->buf, sizeof(ss)));
+}
+
+int
+cloudabi_sock_send(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
+    size_t datalen, const cloudabi_fd_t *fds, size_t fdslen,
+    cloudabi_msgflags_t flags, size_t *rdatalen)
+{
+	struct msghdr hdr = {
+		.msg_iov = data,
+		.msg_iovlen = datalen,
+	};
+	struct mbuf *control;
+	int error, mflags;
+
+	/* Convert flags. */
+	mflags = MSG_NOSIGNAL;
+	if (flags & CLOUDABI_MSG_EOR)
+		mflags |= MSG_EOR;
+
+	/* Convert file descriptor array to an SCM_RIGHTS message. */
+	if (fdslen > MCLBYTES || CMSG_SPACE(fdslen * sizeof(int)) > MCLBYTES) {
+		return (EINVAL);
+	} else if (fdslen > 0) {
+		struct cmsghdr *chdr;
+
+		control = m_get2(CMSG_SPACE(fdslen * sizeof(int)),
+		    M_WAITOK, MT_CONTROL, 0);
+		control->m_len = CMSG_SPACE(fdslen * sizeof(int));
+
+		chdr = mtod(control, struct cmsghdr *);
+		chdr->cmsg_len = CMSG_LEN(fdslen * sizeof(int));
+		chdr->cmsg_level = SOL_SOCKET;
+		chdr->cmsg_type = SCM_RIGHTS;
+		error = copyin(fds, CMSG_DATA(chdr), fdslen * sizeof(int));
+		if (error != 0) {
+			m_free(control);
+			return (error);
+		}
+	} else {
+		control = NULL;
+	}
+
+	error = kern_sendit(td, fd, &hdr, mflags, control, UIO_USERSPACE);
+	if (error != 0)
+		return (error);
+	*rdatalen = td->td_retval[0];
+	td->td_retval[0] = 0;
+	return (0);
 }
