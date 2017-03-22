@@ -1188,7 +1188,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"remu",    "z,s,t",    0x0000001b, 0xfc00ffff, RD_s|RD_t|WR_HILO,      0,		I1	},
 {"remu",    "d,v,t",	0,    (int) M_REMU_3,	INSN_MACRO,		0,		I1	},
 {"remu",    "d,v,I",	0,    (int) M_REMU_3I,	INSN_MACRO,		0,		I1	},
-{"rdhwr",   "t,K",	0x7c00003b, 0xffe007ff, WR_t,			0,		I33	},
+{"rdhwr",   "t,K",	0x7c00003b, 0xffe007ff, WR_t,			0,		I1	},
 {"rdpgpr",  "d,w",	0x41400000, 0xffe007ff, WR_d,			0,		I33	},
 {"rfe",     "",		0x42000010, 0xffffffff,	0,			0,		I1|T3	},
 {"rnas.qh", "X,Q",	0x78200025, 0xfc20f83f,	WR_D|RD_T|FP_D,		RD_MACC,	MX	},
