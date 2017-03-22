@@ -234,7 +234,7 @@ static int pageshift;		/* log base 2 of the pagesize */
     ((kip)->ki_swrss > (kip)->ki_rssize ? (kip)->ki_swrss - (kip)->ki_rssize : 0)
 
 /* useful externals */
-long percentages();
+long percentages(int cnt, int *out, long *new, long *old, long *diffs);
 
 #ifdef ORDER
 /*
