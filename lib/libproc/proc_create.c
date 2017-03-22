@@ -178,8 +178,7 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
     void *child_arg, struct proc_handle **pphdl)
 {
 	struct proc_handle *phdl;
-	int error = 0;
-	int status;
+	int error, status;
 	pid_t pid;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
@@ -217,16 +216,17 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 
 		/* Check for an unexpected status. */
 		if (!WIFSTOPPED(status)) {
-			error = errno;
+			error = EBUSY;
 			DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
 			goto bad;
-		} else
-			phdl->status = PS_STOP;
-	}
+		}
+		phdl->status = PS_STOP;
+
 bad:
-	if (error && phdl != NULL) {
-		proc_free(phdl);
-		phdl = NULL;
+		if (error != 0 && phdl != NULL) {
+			proc_free(phdl);
+			phdl = NULL;
+		}
 	}
 	*pphdl = phdl;
 	return (error);
