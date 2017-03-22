@@ -302,6 +302,7 @@ static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
 int in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
 
 extern int pf_end_threads;
+extern struct proc *pf_purge_proc;
 
 VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 
@@ -1428,19 +1429,14 @@ pf_purge_thread(void *unused __unused)
 	VNET_ITERATOR_DECL(vnet_iter);
 	u_int idx = 0;
 
-	for (;;) {
-		tsleep(pf_purge_thread, 0, "pftm", hz / 10);
+	sx_xlock(&pf_end_lock);
+	while (pf_end_threads == 0) {
+		sx_sleep(pf_purge_thread, &pf_end_lock, 0, "pftm", hz / 10);
 
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
 
-			if (pf_end_threads) {
-				pf_end_threads++;
-				wakeup(pf_purge_thread);
-				VNET_LIST_RUNLOCK();
-				kproc_exit(0);
-			}
 
 			/* Wait until V_pf_default_rule is initialized. */
 			if (V_pf_vnet_active == 0) {
@@ -1474,7 +1470,10 @@ pf_purge_thread(void *unused __unused)
 		}
 		VNET_LIST_RUNLOCK();
 	}
-	/* not reached */
+
+	pf_end_threads++;
+	sx_xunlock(&pf_end_lock);
+	kproc_exit(0);
 }
 
 void
