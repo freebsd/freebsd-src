@@ -39,6 +39,7 @@
 
 struct image_params;
 struct thread;
+struct vnode;
 
 /*
  * Structure used to pass information from the loader to the
