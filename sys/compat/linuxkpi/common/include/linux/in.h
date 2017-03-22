@@ -41,5 +41,7 @@
 
 #define	ipv4_is_zeronet(be)	IN_ZERONET(ntohl(be))
 #define	ipv4_is_loopback(be)	IN_LOOPBACK(ntohl(be))
+#define	ipv4_is_multicast(be)	IN_MULTICAST(ntohl(be))
+#define	ipv4_is_lbcast(be)	((be) == INADDR_BROADCAST)
 
 #endif	/* _LINUX_IN_H_ */
