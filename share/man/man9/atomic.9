@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jan 3, 2017
+.Dd March 22, 2017
 .Dt ATOMIC 9
 .Os
 .Sh NAME
@@ -226,9 +226,9 @@ if (*dst == old) {
 .Ed
 .El
 .Pp
-The
+Some architectures do not implement the
 .Fn atomic_cmpset
-functions are not implemented for the types
+functions for the types
 .Dq Li char ,
 .Dq Li short ,
 .Dq Li 8 ,
@@ -265,9 +265,9 @@ function also returns
 despite
 .Dl *old == *dst .
 .Pp
-The
+Some architectures do not implement the
 .Fn atomic_fcmpset
-functions are not implemented for the types
+functions for the types
 .Dq Li char ,
 .Dq Li short ,
 .Dq Li 8 ,
