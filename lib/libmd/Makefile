@@ -52,6 +52,13 @@ CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
 		sha256.ref sha256hl.c sha384hl.c sha384.ref \
 		sha512.ref sha512hl.c sha512t256.ref sha512thl.c
 
+# Need src tree sys/md5.h for MD5FileChunk prototype on older systems.
+SRCS+=		sys/md5.h
+CLEANDIRS=	sys
+CFLAGS+=	-I.
+sys/md5.h: ${.CURDIR}/../../sys/${.TARGET} .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
+
 # Define WEAK_REFS to provide weak aliases for libmd symbols
 #
 # Note that the same sources are also used internally by libcrypt,
