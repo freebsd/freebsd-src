@@ -731,8 +731,6 @@ isp_free_pcmd(ispsoftc_t *isp, union ccb *ccb)
 	if (ISP_PCMD(ccb)) {
 #ifdef	ISP_TARGET_MODE
 		PISP_PCMD(ccb)->datalen = 0;
-		PISP_PCMD(ccb)->totslen = 0;
-		PISP_PCMD(ccb)->cumslen = 0;
 		PISP_PCMD(ccb)->crn = 0;
 #endif
 		PISP_PCMD(ccb)->next = isp->isp_osinfo.pcmd_free;
@@ -2581,7 +2579,6 @@ isp_watchdog(void *arg)
 		isp_prt(isp, ISP_LOGERR, "%s: timeout for handle 0x%x", __func__, handle);
 		xs->ccb_h.status &= ~CAM_STATUS_MASK;
 		xs->ccb_h.status |= CAM_CMD_TIMEOUT;
-		isp_prt_endcmd(isp, xs);
 		isp_done(xs);
 	} else {
 		if (ohandle != ISP_HANDLE_FREE) {
