@@ -327,7 +327,11 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 				 * Again, prefer strictly matching
 				 * interpreter path.
 				 */
-				if (strlen(bi->interp_path) + 1 ==
+				if (interp_name_len == 0 &&
+				    bi->interp_path == NULL)
+					return (bi);
+				if (bi->interp_path != NULL &&
+				    strlen(bi->interp_path) + 1 ==
 				    interp_name_len && strncmp(interp,
 				    bi->interp_path, interp_name_len) == 0)
 					return (bi);
