@@ -198,9 +198,11 @@ VNET_DEFINE(int, pf_vnet_active);
 #define V_pf_vnet_active	VNET(pf_vnet_active)
 
 int pf_end_threads;
+struct proc *pf_purge_proc;
 
 struct rwlock			pf_rules_lock;
 struct sx			pf_ioctl_lock;
+struct sx			pf_end_lock;
 
 /* pfsync */
 pfsync_state_import_t 		*pfsync_state_import_ptr = NULL;
@@ -3730,6 +3732,7 @@ pf_load(void)
 
 	rw_init(&pf_rules_lock, "pf rulesets");
 	sx_init(&pf_ioctl_lock, "pf ioctl");
+	sx_init(&pf_end_lock, "pf end thread");
 
 	pf_mtag_initialize();
 
@@ -3738,7 +3741,7 @@ pf_load(void)
 		return (ENOMEM);
 
 	pf_end_threads = 0;
-	error = kproc_create(pf_purge_thread, NULL, NULL, 0, 0, "pf purge");
+	error = kproc_create(pf_purge_thread, NULL, &pf_purge_proc, 0, 0, "pf purge");
 	if (error != 0)
 		return (error);
 
@@ -3788,11 +3791,13 @@ pf_unload(void)
 {
 	int error = 0;
 
+	sx_xlock(&pf_end_lock);
 	pf_end_threads = 1;
 	while (pf_end_threads < 2) {
 		wakeup_one(pf_purge_thread);
-		tsleep(pf_purge_thread, 0, "pftmo", 0);
+		sx_sleep(pf_purge_proc, &pf_end_lock, 0, "pftmo", 0);
 	}
+	sx_xunlock(&pf_end_lock);
 
 	if (pf_dev != NULL)
 		destroy_dev(pf_dev);
@@ -3801,6 +3806,7 @@ pf_unload(void)
 
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&pf_ioctl_lock);
+	sx_destroy(&pf_end_lock);
 
 	return (error);
 }
