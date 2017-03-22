@@ -297,7 +297,7 @@ _amd64_minidump_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 		return (_amd64_minidump_vatop(kd, va, pa));
 }
 
-struct kvm_arch kvm_amd64_minidump = {
+static struct kvm_arch kvm_amd64_minidump = {
 	.ka_probe = _amd64_minidump_probe,
 	.ka_initvtop = _amd64_minidump_initvtop,
 	.ka_freevtop = _amd64_minidump_freevtop,
