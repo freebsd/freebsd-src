@@ -477,4 +477,7 @@
 
 #define THUMB_INSN_SIZE		2		/* Some are 4 bytes.  */
 
+/* ARM Hypervisor Related Defines */
+#define	ARM_CP15_HDCR_HPMN	0x0000001f
+
 #endif /* !MACHINE_ARMREG_H */
