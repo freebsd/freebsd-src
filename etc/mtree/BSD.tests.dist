@@ -626,6 +626,8 @@
         ..
         printf
         ..
+        pwait
+        ..
         sdiff
         ..
         sed

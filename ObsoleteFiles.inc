@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170308: rename some tests
+OLD_FILES+=usr/tests/bin/pwait/pwait
+OLD_FILES+=usr/tests/usr.bin/timeout/timeout
 # 20170214: Four files from ggate tests consolidated into one
 OLD_FILES+=usr/tests/sys/geom/class/gate/1_test
 OLD_FILES+=usr/tests/sys/geom/class/gate/2_test
