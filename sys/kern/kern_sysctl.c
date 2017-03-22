@@ -629,7 +629,8 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 	if (oidp == NULL)
 		return(EINVAL);
 	if ((oidp->oid_kind & CTLFLAG_DYN) == 0) {
-		printf("can't remove non-dynamic nodes!\n");
+		printf("Warning: can't remove non-dynamic nodes (%s)!\n",
+		    oidp->oid_name);
 		return (EINVAL);
 	}
 	/*
