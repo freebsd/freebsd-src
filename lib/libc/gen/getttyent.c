@@ -97,6 +97,26 @@ done:
 	return (0);
 }
 
+static int
+auto_exists_status(const char *ty_name)
+{
+	struct stat sb;
+	char *dev;
+	int rv;
+
+	rv = 0;
+	if (*ty_name == '/')
+		asprintf(&dev, "%s", ty_name);
+	else
+		asprintf(&dev, "/dev/%s", ty_name);
+	if (dev == NULL)
+		return 0;
+	if (stat(dev, &sb) == 0)
+		rv = TTY_ON;
+	free(dev);
+	return (rv);
+}
+
 struct ttyent *
 getttyent(void)
 {
@@ -161,6 +181,8 @@ getttyent(void)
 			tty.ty_status |= TTY_ON;
 		else if (scmp(_TTYS_ONIFCONSOLE))
 			tty.ty_status |= auto_tty_status(tty.ty_name);
+		else if (scmp(_TTYS_ONIFEXISTS))
+			tty.ty_status |= auto_exists_status(tty.ty_name);
 		else if (scmp(_TTYS_SECURE))
 			tty.ty_status |= TTY_SECURE;
 		else if (scmp(_TTYS_INSECURE))
