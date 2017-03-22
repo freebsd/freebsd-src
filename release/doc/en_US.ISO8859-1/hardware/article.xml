@@ -797,8 +797,6 @@
 
       &hwlist.hme;
 
-      &hwlist.igb;
-
       &hwlist.ipheth;
 
       &hwlist.ixgb;
