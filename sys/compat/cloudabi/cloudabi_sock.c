@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Nuxi, https://nuxi.nl/
+ * Copyright (c) 2015-2017 Nuxi, https://nuxi.nl/
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/cloudabi/cloudabi_util.h>
 
 /* Converts FreeBSD's struct sockaddr to CloudABI's cloudabi_sockaddr_t. */
-void
+static void
 cloudabi_convert_sockaddr(const struct sockaddr *sa, socklen_t sal,
     cloudabi_sockaddr_t *rsa)
 {
@@ -244,6 +244,81 @@ cloudabi_sys_sock_stat_get(struct thread *td,
 
 	fdrop(fp, td);
 	return (copyout(&ss, uap->buf, sizeof(ss)));
+}
+
+int
+cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
+    size_t datalen, cloudabi_fd_t *fds, size_t fdslen,
+    cloudabi_msgflags_t flags, size_t *rdatalen, size_t *rfdslen,
+    cloudabi_sockaddr_t *peername, cloudabi_msgflags_t *rflags)
+{
+	struct sockaddr_storage ss;
+	struct msghdr hdr = {
+		.msg_name = &ss,
+		.msg_namelen = sizeof(ss),
+		.msg_iov = data,
+		.msg_iovlen = datalen,
+	};
+	struct mbuf *control;
+	int error;
+
+	/* Convert flags. */
+	if (flags & CLOUDABI_MSG_PEEK)
+		hdr.msg_flags |= MSG_PEEK;
+	if (flags & CLOUDABI_MSG_WAITALL)
+		hdr.msg_flags |= MSG_WAITALL;
+
+	control = NULL;
+	error = kern_recvit(td, fd, &hdr, UIO_SYSSPACE,
+	    fdslen > 0 ? &control : NULL);
+	if (error != 0)
+		return (error);
+
+	/* Convert return values. */
+	*rdatalen = td->td_retval[0];
+	td->td_retval[0] = 0;
+	*rfdslen = 0;
+	cloudabi_convert_sockaddr((struct sockaddr *)&ss,
+	    MIN(hdr.msg_namelen, sizeof(ss)), peername);
+	*rflags = 0;
+	if (hdr.msg_flags & MSG_EOR)
+		*rflags |= CLOUDABI_MSG_EOR;
+	if (hdr.msg_flags & MSG_TRUNC)
+		*rflags |= CLOUDABI_MSG_TRUNC;
+
+	/* Extract file descriptors from SCM_RIGHTS messages. */
+	if (control != NULL) {
+		struct cmsghdr *chdr;
+
+		hdr.msg_control = mtod(control, void *);
+		hdr.msg_controllen = control->m_len;
+		for (chdr = CMSG_FIRSTHDR(&hdr); chdr != NULL;
+		    chdr = CMSG_NXTHDR(&hdr, chdr)) {
+			if (chdr->cmsg_level == SOL_SOCKET &&
+			    chdr->cmsg_type == SCM_RIGHTS) {
+				size_t nfds;
+
+				nfds = (chdr->cmsg_len - CMSG_LEN(0)) /
+				    sizeof(int);
+				if (nfds > fdslen) {
+					/* Unable to store file descriptors. */
+					nfds = fdslen;
+					*rflags |= CLOUDABI_MSG_CTRUNC;
+				}
+				error = copyout(CMSG_DATA(chdr), fds,
+				    nfds * sizeof(int));
+				if (error != 0) {
+					m_free(control);
+					return (error);
+				}
+				fds += nfds;
+				fdslen -= nfds;
+				*rfdslen += nfds;
+			}
+		}
+		m_free(control);
+	}
+	return (0);
 }
 
 int
