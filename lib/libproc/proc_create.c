@@ -184,6 +184,9 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		return (ENOENT);
 
+	error = 0;
+	phdl = NULL;
+
 	/* Fork a new process. */
 	if ((pid = vfork()) == -1)
 		error = errno;
