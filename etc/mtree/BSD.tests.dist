@@ -308,6 +308,8 @@
             ttyio
             ..
         ..
+        libcam
+        ..
         libcrypt
         ..
         libdevdctl
