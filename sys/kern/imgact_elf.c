@@ -321,8 +321,9 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			continue;
 		if (hdr->e_machine == bi->machine &&
 		    (hdr->e_ident[EI_OSABI] == bi->brand ||
+		    (bi->compat_3_brand != NULL &&
 		    strcmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
-		    bi->compat_3_brand) == 0)) {
+		    bi->compat_3_brand) == 0))) {
 			/* Looks good, but give brand a chance to veto */
 			if (!bi->header_supported ||
 			    bi->header_supported(imgp)) {
