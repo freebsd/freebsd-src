@@ -2449,7 +2449,6 @@ init386(int first)
 	/* XXX does this work? */
 	/* XXX yes! */
 	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];
-	ldt[LSOL26CALLS_SEL] = ldt[LSYS5CALLS_SEL];
 
 	/* transfer to user mode */
 
