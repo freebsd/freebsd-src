@@ -87,6 +87,7 @@ typedef struct DeviceContext DevCtx_t;
 struct DeviceContext {
 	volatile u_long	ref_count;
 	volatile u_long	cov_count;
+	int		pps_active;
 	PPSData_t	pps_data;
 	PPSDataEx_t	pps_buff[PPS_QUEUE_LEN];
 };

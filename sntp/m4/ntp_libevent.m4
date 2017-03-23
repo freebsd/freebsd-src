@@ -182,6 +182,9 @@ case "$ntp_use_local_libevent" in
     ac_configure_args=" --disable-libevent-install${ac_configure_args}"
     ac_configure_args=" --enable-silent-rules${ac_configure_args}"
     ac_configure_args=" --enable-function-sections${ac_configure_args}"
+    ac_configure_args=" LEP_CFLAGS='${NTP_HARD_CFLAGS}'${ac_configure_args}"
+    ac_configure_args=" LEP_CPPFLAGS='${NTP_HARD_CPPFLAGS}'${ac_configure_args}"
+    ac_configure_args=" LEP_LDFLAGS='${NTP_HARD_LDFLAGS}'${ac_configure_args}"
     AC_CONFIG_SUBDIRS([libevent])
     ;;
  *)

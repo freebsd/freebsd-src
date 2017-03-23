@@ -13,31 +13,17 @@
 #include <lib_strbuf.h>
 
 #ifdef OPENSSL
+#include "openssl/crypto.h"
 #include "openssl/err.h"
 #include "openssl/evp.h"
+#include "openssl/opensslv.h"
 #include "libssl_compat.h"
-
-void	atexit_ssl_cleanup(void);
 
 int ssl_init_done;
 
-void
-ssl_init(void)
-{
-	init_lib();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 
-	if (ssl_init_done)
-		return;
-
-	ERR_load_crypto_strings();
-	OpenSSL_add_all_algorithms();
-	atexit(&atexit_ssl_cleanup);
-
-	ssl_init_done = TRUE;
-}
-
-
-void
+static void
 atexit_ssl_cleanup(void)
 {
 	if (!ssl_init_done)
@@ -48,17 +34,44 @@ atexit_ssl_cleanup(void)
 	ERR_free_strings();
 }
 
+void
+ssl_init(void)
+{
+	init_lib();
+
+	if ( ! ssl_init_done) {
+	    ERR_load_crypto_strings();
+	    OpenSSL_add_all_algorithms();
+	    atexit(&atexit_ssl_cleanup);
+	    ssl_init_done = TRUE;
+	}
+}
+
+#else /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
+
+void
+ssl_init(void)
+{
+	init_lib();
+	ssl_init_done = TRUE;
+}
+
+#endif /* OPENSSL_VERSION_NUMBER */
+
 
 void
 ssl_check_version(void)
 {
-	if ((SSLeay() ^ OPENSSL_VERSION_NUMBER) & ~0xff0L) {
+	u_long	v;
+	
+	v = OpenSSL_version_num();
+	if ((v ^ OPENSSL_VERSION_NUMBER) & ~0xff0L) {
 		msyslog(LOG_WARNING,
 		    "OpenSSL version mismatch. Built against %lx, you have %lx",
-		    (u_long)OPENSSL_VERSION_NUMBER, SSLeay());
+		    (u_long)OPENSSL_VERSION_NUMBER, v);
 		fprintf(stderr,
 		    "OpenSSL version mismatch. Built against %lx, you have %lx\n",
-		    (u_long)OPENSSL_VERSION_NUMBER, SSLeay());
+		    (u_long)OPENSSL_VERSION_NUMBER, v);
 	}
 
 	INIT_SSL();

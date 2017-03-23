@@ -912,5 +912,9 @@ AC_SUBST([LIBEVENT_GC_SECTIONS])
 
 AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
 
+AC_SUBST([LEP_CFLAGS])
+AC_SUBST([LEP_CPPFLAGS])
+AC_SUBST([LEP_LDFLAGS])
+
 AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc] )
 AC_OUTPUT(Makefile)

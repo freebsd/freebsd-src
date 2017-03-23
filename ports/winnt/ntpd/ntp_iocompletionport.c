@@ -119,7 +119,6 @@ static void free_io_completion_port_mem(void);
 static	HANDLE	hndIOCPLPort;
 static	HANDLE	hMainThread;
 static	HANDLE	hMainRpcDone;
-static	BOOL	DoPPShack;
 
 DWORD	ActiveWaitHandles;
 HANDLE	WaitHandles[4];
@@ -227,25 +226,10 @@ void
 init_io_completion_port(void)
 {
 	OSVERSIONINFO vi;
-	const char *	envp;
 
 #   ifdef DEBUG
 	atexit(&free_io_completion_port_mem);
 #   endif
-
-	/* TODO: this should not be done via environment;
-	 * It would be much better to have this as proper config option.
-	 * (The same is true for the PPS API DLL list...)
-	 */
-	if (NULL != (envp = getenv("PPSAPI_HACK")))
-		/* check for [Tt]{rue}, [Yy]{es}, or '1' as first char*/
-		DoPPShack = !!strchr("yYtT1", (u_char)*envp);
-	else if (NULL != (envp = getenv("PPSAPI_DLLS")))
-		/* any non-empty list disables PPS hack */
-		DoPPShack = !*envp;
-	else
-		/* otherwise use the PPS hack */
-		DoPPShack = TRUE;
 
 	memset(&vi, 0, sizeof(vi));
 	vi.dwOSVersionInfoSize = sizeof(vi);
@@ -819,11 +803,15 @@ OnSerialWaitComplete(
 		 * more like the behaviour under a UN*Xish OS. On the other hand, it
 		 * will give a nasty surprise for people which have until now happily
 		 * taken the pps hack for granted, and after the first complaint, I have
-		 * decided to keep the old implementation unconditionally. So here it is:
+		 * decided to keep the old implementation.
+		 *
+		 * perlinger@ntp.org, 2017-03-04
+		 * If the loopback PPS API provider is active on this channel, the
+		 * PPS hack will be *disabled*.
 		 *
 		 * backward compat: 'usermode-pps-hack'
 		 */
-		if ((MS_RLSD_ON & modem_status) && DoPPShack) {
+		if ((MS_RLSD_ON & modem_status) && !(dev && dev->pps_active)) {
 			lpo->aux.DCDSTime = lpo->aux.RecvTime;
 			lpo->aux.flTsDCDS = 1;
 			DPRINTF(2, ("upps-hack: fd %d DCD PPS Rise at %s\n",
@@ -1301,7 +1289,7 @@ ntp_pps_attach_device(
 	DevCtx_t *	dev = NULL;
 
 	dev = DevCtxAttach(serial_devctx(hndIo));
-	if ( NULL == dev)
+	if (NULL == dev)
 		SetLastError(ERROR_INVALID_HANDLE);
 	return dev;
 }
@@ -1391,8 +1379,7 @@ io_completion_port_add_clock_io(
 		goto fail;
 	}
 
-	;
-	if ( ! (rio->ioreg_ctx = iopad = iohpCreate(rio))) {
+	if (NULL == (rio->ioreg_ctx = iopad = iohpCreate(rio))) {
 		msyslog(LOG_ERR, "%s: Failed to create shared lock",
 			msgh);
 		goto fail;
@@ -1401,13 +1388,13 @@ io_completion_port_add_clock_io(
 	iopad->riofd      = rio->fd;
 	iopad->rsrc.rio   = rio;
 
-	if (!(rio->device_ctx = DevCtxAttach(serial_devctx(h)))) {
+	if (NULL == (rio->device_ctx = DevCtxAttach(serial_devctx(h)))) {
 		msyslog(LOG_ERR, "%s: Failed to allocate device context",
 			msgh);
 		goto fail;
 	}
 
-	if ( ! (lpo = IoCtxAlloc(iopad, rio->device_ctx))) {
+	if (NULL == (lpo = IoCtxAlloc(iopad, rio->device_ctx))) {
 		msyslog(LOG_ERR, "%: Failed to allocate IO context",
 			msgh);
 		goto fail;
@@ -1594,7 +1581,6 @@ OnSocketSend(
 	static const char * const msg =
 		"OnSocketSend: send to socket failed";
 
-	IoHndPad_T *	iopad	= NULL;
 	endpt *		ep	= NULL;
 	int		rc;
 
@@ -1662,7 +1648,7 @@ io_completion_port_remove_interface(
 
 	INSIST(hndIOCPLPort && hMainRpcDone);
 	if (iopad)
-		iocpl_notify(iopad, OnInterfaceDetach, -1);
+		iocpl_notify(iopad, OnInterfaceDetach, (UINT_PTR)-1);
 }
 
 /* --------------------------------------------------------------------
