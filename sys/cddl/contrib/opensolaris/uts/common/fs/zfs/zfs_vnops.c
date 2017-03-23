@@ -1616,27 +1616,34 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		 * the vp for the snapshot directory.
 		 */
 		if (zdp->z_id == zfsvfs->z_root && zfsvfs->z_parent != zfsvfs) {
-			error = zfsctl_root_lookup(zfsvfs->z_parent->z_ctldir,
-			    "snapshot", vpp, NULL, 0, NULL, kcred,
-			    NULL, NULL, NULL);
+			struct componentname cn;
+			vnode_t *zfsctl_vp;
+			int ltype;
+
 			ZFS_EXIT(zfsvfs);
+			ltype = VOP_ISLOCKED(dvp);
+			VOP_UNLOCK(dvp, 0);
+			error = zfsctl_root(zfsvfs->z_parent, LK_SHARED,
+			    &zfsctl_vp);
 			if (error == 0) {
-				error = zfs_lookup_lock(dvp, *vpp, nm,
-				    cnp->cn_lkflags);
+				cn.cn_nameptr = "snapshot";
+				cn.cn_namelen = strlen(cn.cn_nameptr);
+				cn.cn_nameiop = cnp->cn_nameiop;
+				cn.cn_flags = cnp->cn_flags;
+				cn.cn_lkflags = cnp->cn_lkflags;
+				error = VOP_LOOKUP(zfsctl_vp, vpp, &cn);
+				vput(zfsctl_vp);
 			}
-			goto out;
+			vn_lock(dvp, ltype | LK_RETRY);
+			return (error);
 		}
 	}
 	if (zfs_has_ctldir(zdp) && strcmp(nm, ZFS_CTLDIR_NAME) == 0) {
-		error = 0;
-		if ((cnp->cn_flags & ISLASTCN) != 0 && nameiop != LOOKUP)
-			error = SET_ERROR(ENOTSUP);
-		else
-			*vpp = zfsctl_root(zdp);
 		ZFS_EXIT(zfsvfs);
-		if (error == 0)
-			error = zfs_lookup_lock(dvp, *vpp, nm, cnp->cn_lkflags);
-		goto out;
+		if ((cnp->cn_flags & ISLASTCN) != 0 && nameiop != LOOKUP)
+			return (SET_ERROR(ENOTSUP));
+		error = zfsctl_root(zfsvfs, cnp->cn_lkflags, vpp);
+		return (error);
 	}
 
 	/*
@@ -5961,7 +5968,7 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 	vhold(covered_vp);
 	ltype = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
-	error = vget(covered_vp, LK_EXCLUSIVE | LK_VNHELD, curthread);
+	error = vget(covered_vp, LK_SHARED | LK_VNHELD, curthread);
 	if (error == 0) {
 		error = VOP_VPTOCNP(covered_vp, ap->a_vpp, ap->a_cred,
 		    ap->a_buf, ap->a_buflen);

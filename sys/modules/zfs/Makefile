@@ -46,7 +46,6 @@ SRCS+=		opensolaris_atomic.c
 .endif
 
 .PATH:	${SUNW}/uts/common/fs
-SRCS+=	gfs.c
 SRCS+=	vnode.c
 
 .PATH:	${SUNW}/uts/common/os
