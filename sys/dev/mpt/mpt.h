@@ -331,8 +331,8 @@ typedef struct mpt_config_params {
 /**************************** MPI Target State Info ***************************/
 typedef struct {
 	uint32_t reply_desc;	/* current reply descriptor */
-	uint32_t resid;		/* current data residual */
 	uint32_t bytes_xfered;	/* current relative offset */
+	int resid;		/* current data residual */
 	union ccb *ccb;		/* pointer to currently active ccb */
 	request_t *req;		/* pointer to currently active assist request */
 	uint32_t
