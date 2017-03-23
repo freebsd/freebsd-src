@@ -302,6 +302,18 @@ typedef uint64_t uintmax_t;
 /* SHA512 via ARCHIVE_CRYPTO_SHA512_WIN supported. */
 #cmakedefine ARCHIVE_CRYPTO_SHA512_WIN 1
 
+/* AIX xattr support */
+#cmakedefine ARCHIVE_XATTR_AIX 1
+
+/* Darwin xattr support */
+#cmakedefine ARCHIVE_XATTR_DARWIN 1
+
+/* FreeBSD xattr support */
+#cmakedefine ARCHIVE_XATTR_FREEBSD 1
+
+/* Linux xattr support */
+#cmakedefine ARCHIVE_XATTR_LINUX 1
+
 /* Version number of bsdcpio */
 #cmakedefine BSDCPIO_VERSION_STRING "${BSDCPIO_VERSION_STRING}"
 
@@ -462,6 +474,10 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the declaration of `UINTMAX_MAX', and to 0 if you
    don't. */
 #cmakedefine HAVE_DECL_UINTMAX_MAX 1
+
+/* Define to 1 if you have the declaration of `XATTR_NOFOLLOW', and to 0 if
+   you don't. */
+#cmakedefine HAVE_DECL_XATTR_NOFOLLOW 1
 
 /* Define to 1 if you have the <direct.h> header file. */
 #cmakedefine HAVE_DIRECT_H 1
