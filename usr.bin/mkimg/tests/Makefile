@@ -2,7 +2,7 @@
 
 PACKAGE=	tests
 
-ATF_TESTS_SH=	mkimg
+ATF_TESTS_SH=	mkimg_test
 
 SOURCES!=	cd ${.CURDIR}; echo *.uu
 ${PACKAGE}FILES+=		${SOURCES:S,.gz.uu,,g}
