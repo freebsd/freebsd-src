@@ -1596,34 +1596,42 @@ mx4200_send(peer, fmt, va_alist)
 	struct refclockproc *pp;
 	struct mx4200unit *up;
 
-	register char *cp;
+	register char *cp, *ep;
 	register int n, m;
 	va_list ap;
 	char buf[1024];
 	u_char ck;
 
+	pp = peer->procptr;
+	up = pp->unitptr;
+
+	cp = buf;
+	ep = cp + sizeof(buf);
+	*cp++ = '$';
+	
 #if defined(__STDC__)
 	va_start(ap, fmt);
 #else
 	va_start(ap);
 #endif /* __STDC__ */
+	n = VSNPRINTF((cp, (size_t)(ep - cp), fmt, ap));
+	va_end(ap);
+	if (n < 0 || (size_t)n >= (size_t)(ep - cp))
+		goto overflow;
 
-	pp = peer->procptr;
-	up = pp->unitptr;
-
-	cp = buf;
-	*cp++ = '$';
-	n = VSNPRINTF((cp, sizeof(buf) - 1, fmt, ap));
 	ck = mx4200_cksum(cp, n);
+	cp += n;	    
+	n = SNPRINTF((cp, (size_t)(ep - cp), "*%02X\r\n", ck));
+	if (n < 0 || (size_t)n >= (size_t)(ep - cp))
+		goto overflow;
 	cp += n;
-	++n;
-	n += SNPRINTF((cp, sizeof(buf) - n - 5, "*%02X\r\n", ck));
-
-	m = write(pp->io.fd, buf, (unsigned)n);
+	m = write(pp->io.fd, buf, (unsigned)(cp - buf));
 	if (m < 0)
 		msyslog(LOG_ERR, "mx4200_send: write: %m (%s)", buf);
 	mx4200_debug(peer, "mx4200_send: %d %s\n", m, buf);
-	va_end(ap);
+	
+  overflow:
+	msyslog(LOG_ERR, "mx4200_send: %s", "data exceeds buffer size");
 }
 
 #else

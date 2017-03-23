@@ -15,15 +15,18 @@
  * ---------------------------------------------------------------------
  */
 #include "config.h"
-
-#include <string.h>
-#include <openssl/bn.h>
-#include <openssl/evp.h>
-
 #include "ntp_types.h"
 
 /* ----------------------------------------------------------------- */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#ifdef OPENSSL
+# include <string.h>
+# include <openssl/bn.h>
+# include <openssl/evp.h>
+#endif
+/* ----------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------- */
+#if defined(OPENSSL) && OPENSSL_VERSION_NUMBER < 0x10100000L
 /* ----------------------------------------------------------------- */
 
 #include "libssl_compat.h"
@@ -325,7 +328,7 @@ sslshim_X509_get_signature_nid(
 }
 
 /* ----------------------------------------------------------------- */
-#else /* OPENSSL_VERSION_NUMBER >= v1.1.0 */
+#else /* OPENSSL && OPENSSL_VERSION_NUMBER >= v1.1.0 */
 /* ----------------------------------------------------------------- */
 
 NONEMPTY_TRANSLATION_UNIT

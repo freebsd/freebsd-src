@@ -250,10 +250,10 @@ cvt_trimtsip(
 		    {
 		    case CMD_RCURTIME:
 			    {			/* GPS time */
-				    l_fp secs;
-				    int   week = getshort((unsigned char *)&mb(4));
-				    l_fp utcoffset;
-				    l_fp gpstime;
+				    l_fp  secs;
+				    u_int week = getshort((unsigned char *)&mb(4));
+				    l_fp  utcoffset;
+				    l_fp  gpstime;
 
 				    bp = &mb(0);
 				    if (fetch_ieee754(&bp, IEEE_SINGLE, &secs, trim_offsets) != IEEE_OK)

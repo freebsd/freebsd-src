@@ -2112,13 +2112,15 @@ save_ltc(
 	clockprocT * const pp,
 	const char * const tc)
 {
-	size_t len;
-
-	len = (tc) ? strlen(tc) : 0;
-	if (len >= sizeof(pp->a_lastcode))
-		len = sizeof(pp->a_lastcode) - 1;
+	size_t len = 0;
+	
+	if (tc) {
+		len = strlen(tc);
+		if (len >= sizeof(pp->a_lastcode))
+			len = sizeof(pp->a_lastcode) - 1;
+		memcpy(pp->a_lastcode, tc, len);
+	}
 	pp->lencode = (u_short)len;
-	memcpy(pp->a_lastcode, tc, len);
 	pp->a_lastcode[len] = '\0';
 }
 

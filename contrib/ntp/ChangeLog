@@ -1,6 +1,77 @@
 ---
+(4.2.8p10-win-beta1) 2017/03/21 Released by Harlan Stenn <stenn@ntp.org>
+(4.2.8p10)
+
+* [Sec 3389] NTP-01-016: Denial of Service via Malformed Config
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3388] NTP-01-014: Buffer Overflow in DPTS Clock
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3387] NTP-01-012: Authenticated DoS via Malicious Config Option
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3386] NTP-01-011: ntpq_stripquotes() returns incorrect Value
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3385] NTP-01-010: ereallocarray()/eallocarray() underused. HStenn
+* [Sec 3384] NTP-01-009: Privileged execution of User Library code
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3383] NTP-01-008: Stack Buffer Overflow from Command Line
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3382] NTP-01-007: Data Structure terminated insufficiently
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3380] NTP-01-005: Off-by-one in Oncore GPS Receiver
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3379] NTP-01-004: Potential Overflows in ctl_put() functions
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3378] NTP-01-003: Improper use of snprintf() in mx4200_send()
+  (Pentest report 01.2017) <perlinger@ntp.org>
+* [Sec 3377] NTP-01-002: Buffer Overflow in ntpq when fetching reslist
+  (Pentest report 01.2017) <perlinger@ntp.org
+* [Sec 3376] Support build "hardening" flags.  stenn@ntp.org
+* [Sec 3361] 0rigin (zero origin) DoS.  HStenn.
+* [Bug 3393] clang scan-build findings <perlinger@ntp.org>
+* [Bug 3363] Support for openssl-1.1.0 without compatibility modes
+  - rework of patch set from <ntp.org@eroen.eu>. <perlinger@ntp.org>
+* [Bug 3356] Bugfix 3072 breaks multicastclient <perlinger@ntp.org>
+* [Bug 3216] libntp audio ioctl() args incorrectly cast to int
+  on 4.4BSD-Lite derived platforms <perlinger@ntp.org>
+  - original patch by Majdi S. Abbas
+* [Bug 3215] 'make distcheck' fails with new BK repo format <perlinger@ntp.org>
+* [Bug 3173] forking async worker: interrupted pipe I/O <perlinger@ntp.org>
+  - initial patch by Christos Zoulas
+* [Bug 3139] (...) time_pps_create: Exec format error <perlinger@ntp.org>
+  - move loader API from 'inline' to proper source
+  - augment pathless dlls with absolute path to NTPD
+  - use 'msyslog()' instead of 'printf() 'for reporting trouble
+* [Bug 3107] Incorrect Logic for Peer Event Limiting <perlinger@ntp.org>
+  - applied patch by Matthew Van Gundy
+* [Bug 3065] Quiet warnings on NetBSD <perlinger@ntp.org>
+  - applied some of the patches provided by Havard. Not all of them
+    still match the current code base, and I did not touch libopt.
+* [Bug 3062] Change the process name of forked DNS worker <perlinger@ntp.org>
+  - applied patch by Reinhard Max. See bugzilla for limitations.
+* [Bug 2923] Trap Configuration Fail <perlinger@ntp.org>
+  - fixed dependency inversion from [Bug 2837]
+* [Bug 2896] Nothing happens if minsane < maxclock < minclock
+  - produce ERROR log message about dysfunctional daemon. <perlinger@ntp.org>
+* [Bug 2851] allow -4/-6 on restrict line with mask <perlinger@ntp.org>
+  - applied patch by Miroslav Lichvar for ntp4.2.6 compat
+* [Bug 2645] out-of-bound pointers in ctl_putsys and decode_bitflags
+  - Fixed these and some more locations of this pattern.
+    Probably din't get them all, though. <perlinger@ntp.org>
+* Update copyright year.
+* bk-7 trigger updates
+
+---
+(4.2.8p9-win) 2017/02/01 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 3144] NTP does not build without openSSL. <perlinger@ntp.org>
+  - added missed changeset for automatic openssl lib detection
+  - fixed some minor warning issues
+* [Bug 3095]  More compatibility with openssl 1.1. <perlinger@ntp.org>
+* configure.ac cleanup.  stenn@ntp.org
+* openssl configure cleanup.  stenn@ntp.org
+
+---
 (4.2.8p9) 2016/11/21 Released by Harlan Stenn <stenn@ntp.org>
-(4.2.8p9) 2016/MM/DD Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 3119] Trap crash <perlinger@ntp.org>
 * [Sec 3118] Mode 6 information disclosure and DDoS vector <perlinger@ntp.org>

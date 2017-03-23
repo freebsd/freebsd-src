@@ -410,7 +410,7 @@ blocking_getaddrinfo(
 			cp += sizeof(*ai);
 
 			/* transform ai_canonname into offset */
-			if (NULL != serialized_ai->ai_canonname) {
+			if (NULL != ai->ai_canonname) {
 				serialized_ai->ai_canonname = (char *)canons_octets;
 				canons_octets += strlen(ai->ai_canonname) + 1;
 			}

@@ -661,9 +661,6 @@ esac
 
 
 AC_CHECK_HEADERS([priv.h])
-
-AC_MSG_CHECKING([if we have solaris privileges])
-
 case "$ac_cv_header_priv_h" in
  yes)
     case "$host" in 
@@ -686,6 +683,7 @@ AC_ARG_ENABLE(
     [ntp_have_solarisprivs=$enableval]
 )
 
+AC_MSG_CHECKING([if we have solaris privileges])
 
 case "$ntp_have_solarisprivs" in
  yes)

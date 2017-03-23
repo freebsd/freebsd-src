@@ -1,4 +1,459 @@
----
+--
+NTP 4.2.8p10 (Harlan Stenn <stenn@ntp.org>, 2017/03/21) 
+
+Focus: Security, Bug fixes, enhancements.
+
+Severity: MEDIUM
+
+This release fixes 5 medium-, 6 low-, and 4 informational-severity
+vulnerabilities, and provides 15 other non-security fixes and improvements:
+
+* NTP-01-016 NTP: Denial of Service via Malformed Config (Medium)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3389 / CVE-2017-6464 / VU#325339
+   Affects: All versions of NTP-4, up to but not including ntp-4.2.8p10, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   CVSS2: MED 4.6 (AV:N/AC:H/Au:M/C:N/I:N/A:C)
+   CVSS3: MED 4.2 CVSS:3.0/AV:N/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:H
+   Summary:
+	A vulnerability found in the NTP server makes it possible for an
+	authenticated remote user to crash ntpd via a malformed mode
+	configuration directive.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page or
+	    the NTP Public Services Project Download Page
+	Properly monitor your ntpd instances, and auto-restart
+	    ntpd (without -g) if it stops running. 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-014 NTP: Buffer Overflow in DPTS Clock (Low)
+    Date Resolved: 21 Mar 2017
+    References: Sec 3388 / CVE-2017-6462 / VU#325339
+    Affects: All versions of NTP, up to but not including ntp-4.2.8p10, and ntp-4.3.0 up to, but not including ntp-4.3.94.
+    CVSS2: Low 1.0 (AV:L/AC:H/Au:S/C:N/I:N/A:P)
+    CVSS3: Low 1.6 CVSS:3.0/AV:P/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:L
+    Summary:
+	There is a potential for a buffer overflow in the legacy Datum
+	Programmable Time Server refclock driver.  Here the packets are
+	processed from the /dev/datum device and handled in
+	datum_pts_receive().  Since an attacker would be required to
+	somehow control a malicious /dev/datum device, this does not
+	appear to be a practical attack and renders this issue "Low" in
+	terms of severity.
+   Mitigation:
+	If you have a Datum reference clock installed and think somebody
+	    may maliciously change the device, upgrade to 4.2.8p10, or
+	    later, from the NTP Project Download Page or the NTP Public
+	    Services Project Download Page
+	Properly monitor your ntpd instances, and auto-restart
+	    ntpd (without -g) if it stops running. 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-012 NTP: Authenticated DoS via Malicious Config Option (Medium)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3387 / CVE-2017-6463 / VU#325339
+   Affects: All versions of ntp, up to but not including ntp-4.2.8p10, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   CVSS2: MED 4.6 (AV:N/AC:H/Au:M/C:N/I:N/A:C)
+   CVSS3: MED 4.2 CVSS:3.0/AV:N/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:H
+   Summary:
+	A vulnerability found in the NTP server allows an authenticated
+	remote attacker to crash the daemon by sending an invalid setting
+	via the :config directive.  The unpeer option expects a number or
+	an address as an argument.  In case the value is "0", a
+	segmentation fault occurs.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page 
+	Properly monitor your ntpd instances, and auto-restart
+	    ntpd (without -g) if it stops running. 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-011 NTP: ntpq_stripquotes() returns incorrect value (Informational)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3386
+   Affects: All versions of NTP, up to but not including ntp-4.2.8p10, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   CVSS2: None 0.0 (AV:N/AC:H/Au:N/C:N/I:N/A:N)
+   CVSS3: None 0.0 CVSS:3.0/AV:N/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:N
+   Summary:
+	The NTP Mode 6 monitoring and control client, ntpq, uses the
+	function ntpq_stripquotes() to remove quotes and escape characters
+	from a given string.  According to the documentation, the function
+	is supposed to return the number of copied bytes but due to
+	incorrect pointer usage this value is always zero.  Although the
+	return value of this function is never used in the code, this
+	flaw could lead to a vulnerability in the future.  Since relying
+	on wrong return values when performing memory operations is a
+	dangerous practice, it is recommended to return the correct value
+	in accordance with the documentation pertinent to the code.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	Properly monitor your ntpd instances, and auto-restart
+	    ntpd (without -g) if it stops running. 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-010 NTP: ereallocarray()/eallocarray() underused (Info)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3385
+   Affects: All versions of NTP, up to but not including ntp-4.2.8p10, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   Summary:
+	NTP makes use of several wrappers around the standard heap memory
+	allocation functions that are provided by libc.  This is mainly
+	done to introduce additional safety checks concentrated on
+	several goals.  First, they seek to ensure that memory is not
+	accidentally freed, secondly they verify that a correct amount
+	is always allocated and, thirdly, that allocation failures are
+	correctly handled.  There is an additional implementation for
+	scenarios where memory for a specific amount of items of the
+	same size needs to be allocated.  The handling can be found in
+	the oreallocarray() function for which a further number-of-elements
+	parameter needs to be provided.  Although no considerable threat
+	was identified as tied to a lack of use of this function, it is
+	recommended to correctly apply oreallocarray() as a preferred
+	option across all of the locations where it is possible.
+   Mitigation:
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-009 NTP: Privileged execution of User Library code (WINDOWS
+	PPSAPI ONLY) (Low)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3384 / CVE-2017-6455 / VU#325339
+   Affects: All Windows versions of ntp-4 that use the PPSAPI, up to but
+	not including ntp-4.2.8p10, and ntp-4.3.0 up to, but not
+	including ntp-4.3.94.
+   CVSS2: MED 3.8 (AV:L/AC:H/Au:S/C:N/I:N/A:C)
+   CVSS3: MED 4.0 CVSS:3.0/AV:L/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:H
+   Summary:
+	The Windows NT port has the added capability to preload DLLs
+	defined in the inherited global local environment variable
+	PPSAPI_DLLS.  The code contained within those libraries is then
+	called from the NTPD service, usually running with elevated
+	privileges. Depending on how securely the machine is setup and
+	configured, if ntpd is configured to use the PPSAPI under Windows
+	this can easily lead to a code injection.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page 
+   Credit:
+   This weakness was discovered by Cure53. 
+
+* NTP-01-008 NTP: Stack Buffer Overflow from Command Line (WINDOWS
+	installer ONLY) (Low)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3383 / CVE-2017-6452 / VU#325339
+   Affects: WINDOWS installer ONLY: All versions of the ntp-4 Windows
+	installer, up to but not including ntp-4.2.8p10, and ntp-4.3.0 up
+	to, but not including ntp-4.3.94.
+   CVSS2: Low 1.0 (AV:L/AC:H/Au:S/C:N/I:N/A:P)
+   CVSS3: Low 1.8 CVSS:3.0/AV:L/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:L
+   Summary:
+	The Windows installer for NTP calls strcat(), blindly appending
+	the string passed to the stack buffer in the addSourceToRegistry()
+	function.  The stack buffer is 70 bytes smaller than the buffer
+	in the calling main() function.  Together with the initially
+	copied Registry path, the combination causes a stack buffer
+	overflow and effectively overwrites the stack frame.  The
+	passed application path is actually limited to 256 bytes by the
+	operating system, but this is not sufficient to assure that the
+	affected stack buffer is consistently protected against
+	overflowing at all times.
+   Mitigation:
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	or the NTP Public Services Project Download Page 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-007 NTP: Data Structure terminated insufficiently (WINDOWS
+	installer ONLY) (Low)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3382 / CVE-2017-6459 / VU#325339
+   Affects: WINDOWS installer ONLY: All ntp-4 versions of the Windows
+	installer, up to but not including ntp-4.2.8p10, and ntp-4.3.0
+	up to, but not including ntp-4.3.94.
+   CVSS2: Low 1.0 (AV:L/AC:H/Au:S/C:N/I:N/A:P)
+   CVSS3: Low 1.8 CVSS:3.0/AV:L/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:L
+   Summary:
+	The Windows installer for NTP calls strcpy() with an argument
+	that specifically contains multiple null bytes.  strcpy() only
+	copies a single terminating null character into the target
+	buffer instead of copying the required double null bytes in the
+	addKeysToRegistry() function.  As a consequence, a garbage
+	registry entry can be created.  The additional arsize parameter
+	is erroneously set to contain two null bytes and the following
+	call to RegSetValueEx() claims to be passing in a multi-string
+	value, though this may not be true.
+   Mitigation:
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-006 NTP: Copious amounts of Unused Code (Informational)
+   References: Sec 3381
+   Summary:
+	The report says: Statically included external projects
+	potentially introduce several problems and the issue of having
+	extensive amounts of code that is "dead" in the resulting binary
+	must clearly be pointed out.  The unnecessary unused code may or
+	may not contain bugs and, quite possibly, might be leveraged for
+	code-gadget-based branch-flow redirection exploits.  Analogically,
+	having source trees statically included as well means a failure
+	in taking advantage of the free feature for periodical updates.
+	This solution is offered by the system's Package Manager. The
+	three libraries identified are libisc, libevent, and libopts.
+   Resolution:
+	For libisc, we already only use a portion of the original library.
+	We've found and fixed bugs in the original implementation (and
+	offered the patches to ISC), and plan to see what has changed
+	since we last upgraded the code.  libisc is generally not
+	installed, and when it it we usually only see the static libisc.a
+	file installed.  Until we know for sure that the bugs we've found
+	and fixed are fixed upstream, we're better off with the copy we
+	are using.
+
+        Version 1 of libevent was the only production version available
+	until recently, and we've been requiring version 2 for a long time.
+	But if the build system has at least version 2 of libevent
+	installed, we'll use the version that is installed on the system.
+	Otherwise, we provide a copy of libevent that we know works.
+
+        libopts is provided by GNU AutoGen, and that library and package
+	undergoes frequent API version updates.  The version of autogen
+	used to generate the tables for the code must match the API
+	version in libopts.  AutoGen can be ... difficult to build and
+	install, and very few developers really need it.  So we have it
+	on our build and development machines, and we provide the
+	specific version of the libopts code in the distribution to make
+	sure that the proper API version of libopts is available.
+
+        As for the point about there being code in these libraries that
+	NTP doesn't use, OK.  But other packages used these libraries as
+	well, and it is reasonable to assume that other people are paying
+	attention to security and code quality issues for the overall
+	libraries.  It takes significant resources to analyze and
+	customize these libraries to only include what we need, and to
+	date we believe the cost of this effort does not justify the benefit. 
+   Credit:
+	This issue was discovered by Cure53. 
+
+* NTP-01-005 NTP: Off-by-one in Oncore GPS Receiver (Low)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3380
+   Affects: All versions of NTP, up to but not including ntp-4.2.8p10, and
+   	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   CVSS2: None 0.0 (AV:L/AC:H/Au:N/C:N/I:N/A:N)
+   CVSS3: None 0.0 CVSS:3.0/AV:L/AC:H/PR:H/UI:N/S:U/C:N/I:N/A:N
+   Summary:
+	There is a fencepost error in a "recovery branch" of the code for
+	the Oncore GPS receiver if the communication link to the ONCORE
+	is weak / distorted and the decoding doesn't work.
+   Mitigation:
+        Upgrade to 4.2.8p10, or later, from the NTP Project Download Page or
+	    the NTP Public Services Project Download Page
+        Properly monitor your ntpd instances, and auto-restart
+	    ntpd (without -g) if it stops running. 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-004 NTP: Potential Overflows in ctl_put() functions (Medium)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3379 / CVE-2017-6458 / VU#325339
+   Affects: All versions of NTP, up to but not including ntp-4.2.8p10, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   CVSS2: MED 4.6 (AV:N/AC:H/Au:M/C:N/I:N/A:C)
+   CVSS3: MED 4.2 CVSS:3.0/AV:N/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:H
+   Summary:
+	ntpd makes use of different wrappers around ctl_putdata() to
+	create name/value ntpq (mode 6) response strings.  For example,
+	ctl_putstr() is usually used to send string data (variable names
+	or string data).  The formatting code was missing a length check
+	for variable names.  If somebody explicitly created any unusually
+	long variable names in ntpd (longer than 200-512 bytes, depending
+	on the type of variable), then if any of these variables are
+	added to the response list it would overflow a buffer.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	If you don't want to upgrade, then don't setvar variable names
+	    longer than 200-512 bytes in your ntp.conf file.
+	Properly monitor your ntpd instances, and auto-restart
+	    ntpd (without -g) if it stops running. 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-003 NTP: Improper use of snprintf() in mx4200_send() (Low)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3378 / CVE-2017-6451 / VU#325339
+   Affects: All versions of NTP, up to but not including ntp-4.2.8p10, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   CVSS2: LOW 0.8 (AV:L/AC:H/Au:M/C:N/I:N/A:P)
+   CVSS3: LOW 1.8 CVSS:3.0/AV:L/AC:H/PR:H/UI:R/S:U/C:N/I:L/A:N
+   Summary:
+	The legacy MX4200 refclock is only built if is specifically
+	enabled, and furthermore additional code changes are required to
+	compile and use it.  But it uses the libc functions snprintf()
+	and vsnprintf() incorrectly, which can lead to an out-of-bounds
+	memory write due to an improper handling of the return value of
+	snprintf()/vsnprintf().  Since the return value is used as an
+	iterator and it can be larger than the buffer's size, it is
+	possible for the iterator to point somewhere outside of the
+	allocated buffer space.  This results in an out-of-bound memory
+	write.  This behavior can be leveraged to overwrite a saved
+	instruction pointer on the stack and gain control over the
+	execution flow.  During testing it was not possible to identify
+	any malicious usage for this vulnerability.  Specifically, no
+	way for an attacker to exploit this vulnerability was ultimately
+	unveiled.  However, it has the potential to be exploited, so the
+	code should be fixed.
+   Mitigation, if you have a Magnavox MX4200 refclock:
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page.
+	Properly monitor your ntpd instances, and auto-restart
+	    ntpd (without -g) if it stops running. 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-002 NTP: Buffer Overflow in ntpq when fetching reslist from a
+	malicious ntpd (Medium)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3377 / CVE-2017-6460 / VU#325339
+   Affects: All versions of ntpq, up to but not including ntp-4.2.8p10, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   CVSS2: MED 4.9 (AV:N/AC:H/Au:S/C:N/I:N/A:C)
+   CVSS3: MED 4.2 CVSS:3.0/AV:N/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:H
+   Summary:
+	A stack buffer overflow in ntpq can be triggered by a malicious
+	ntpd server when ntpq requests the restriction list from the server.
+	This is due to a missing length check in the reslist() function.
+	It occurs whenever the function parses the server's response and
+	encounters a flagstr variable of an excessive length.  The string
+	will be copied into a fixed-size buffer, leading to an overflow on
+	the function's stack-frame.  Note well that this problem requires
+	a malicious server, and affects ntpq, not ntpd.
+   Mitigation:
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	If you can't upgrade your version of ntpq then if you want to know
+	    the reslist of an instance of ntpd that you do not control,
+	    know that if the target ntpd is malicious that it can send back
+	    a response that intends to crash your ntpq process. 
+   Credit:
+	This weakness was discovered by Cure53. 
+
+* NTP-01-001 NTP: Makefile does not enforce Security Flags (Informational)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3376
+   Affects: All versions of NTP, up to but not including ntp-4.2.8p10, and
+	ntp-4.3.0 up to, but not including ntp-4.3.94.
+   CVSS2: N/A
+   CVSS3: N/A
+   Summary:
+	The build process for NTP has not, by default, provided compile
+	or link flags to offer "hardened" security options.  Package
+	maintainers have always been able to provide hardening security
+	flags for their builds.  As of ntp-4.2.8p10, the NTP build
+	system has a way to provide OS-specific hardening flags.  Please
+	note that this is still not a really great solution because it
+	is specific to NTP builds.  It's inefficient to have every
+	package supply, track and maintain this information for every
+	target build.  It would be much better if there was a common way
+	for OSes to provide this information in a way that arbitrary
+	packages could benefit from it.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	Properly monitor your ntpd instances, and auto-restart
+	    ntpd (without -g) if it stops running. 
+   Credit:
+	This weakness was reported by Cure53. 
+
+* 0rigin DoS (Medium)
+   Date Resolved: 21 Mar 2017
+   References: Sec 3361 / CVE-2016-9042 / VU#325339
+   Affects: ntp-4.2.8p9 (21 Nov 2016), up to but not including ntp-4.2.8p10
+   CVSS2: MED 4.9 (AV:N/AC:H/Au:N/C:N/I:N/A:C) (worst case)
+   CVSS3: MED 4.4 CVSS:3.0/AV:N/AC:H/PR:H/UI:N/S:U/C:N/I:N/A:H (worst case)
+   Summary:
+	An exploitable denial of service vulnerability exists in the
+	origin timestamp check functionality of ntpd 4.2.8p9.  A specially
+	crafted unauthenticated network packet can be used to reset the
+	expected origin timestamp for target peers.  Legitimate replies
+	from targeted peers will fail the origin timestamp check (TEST2)
+	causing the reply to be dropped and creating a denial of service
+	condition.  This vulnerability can only be exploited if the
+	attacker can spoof all of the servers.
+   Mitigation:
+	Implement BCP-38.
+	Configure enough servers/peers that an attacker cannot target
+	    all of your time sources.
+	Upgrade to 4.2.8p10, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	Properly monitor your ntpd instances, and auto-restart
+	    ntpd (without -g) if it stops running. 
+   Credit:
+	This weakness was discovered by Matthew Van Gundy of Cisco. 
+
+Other fixes:
+
+* [Bug 3393] clang scan-build findings <perlinger@ntp.org>
+* [Bug 3363] Support for openssl-1.1.0 without compatibility modes
+  - rework of patch set from <ntp.org@eroen.eu>. <perlinger@ntp.org>
+* [Bug 3356] Bugfix 3072 breaks multicastclient <perlinger@ntp.org>
+* [Bug 3216] libntp audio ioctl() args incorrectly cast to int
+  on 4.4BSD-Lite derived platforms <perlinger@ntp.org>
+  - original patch by Majdi S. Abbas
+* [Bug 3215] 'make distcheck' fails with new BK repo format <perlinger@ntp.org>
+* [Bug 3173] forking async worker: interrupted pipe I/O <perlinger@ntp.org>
+  - initial patch by Christos Zoulas
+* [Bug 3139] (...) time_pps_create: Exec format error <perlinger@ntp.org>
+  - move loader API from 'inline' to proper source
+  - augment pathless dlls with absolute path to NTPD
+  - use 'msyslog()' instead of 'printf() 'for reporting trouble
+* [Bug 3107] Incorrect Logic for Peer Event Limiting <perlinger@ntp.org>
+  - applied patch by Matthew Van Gundy
+* [Bug 3065] Quiet warnings on NetBSD <perlinger@ntp.org>
+  - applied some of the patches provided by Havard. Not all of them
+    still match the current code base, and I did not touch libopt.
+* [Bug 3062] Change the process name of forked DNS worker <perlinger@ntp.org>
+  - applied patch by Reinhard Max. See bugzilla for limitations.
+* [Bug 2923] Trap Configuration Fail <perlinger@ntp.org>
+  - fixed dependency inversion from [Bug 2837]
+* [Bug 2896] Nothing happens if minsane < maxclock < minclock
+  - produce ERROR log message about dysfunctional daemon. <perlinger@ntp.org>
+* [Bug 2851] allow -4/-6 on restrict line with mask <perlinger@ntp.org>
+  - applied patch by Miroslav Lichvar for ntp4.2.6 compat
+* [Bug 2645] out-of-bound pointers in ctl_putsys and decode_bitflags
+  - Fixed these and some more locations of this pattern.
+    Probably din't get them all, though. <perlinger@ntp.org>
+* Update copyright year.
+
+--
+(4.2.8p9-win) 2017/02/01 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 3144] NTP does not build without openSSL. <perlinger@ntp.org>
+  - added missed changeset for automatic openssl lib detection
+  - fixed some minor warning issues
+* [Bug 3095]  More compatibility with openssl 1.1. <perlinger@ntp.org>
+* configure.ac cleanup.  stenn@ntp.org
+* openssl configure cleanup.  stenn@ntp.org
+
+--
 NTP 4.2.8p9 (Harlan Stenn <stenn@ntp.org>, 2016/11/21) 
 
 Focus: Security, Bug fixes, enhancements.

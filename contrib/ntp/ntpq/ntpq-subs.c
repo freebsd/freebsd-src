@@ -3614,11 +3614,13 @@ reslist(
 				if (NULL == val) {
 					row.flagstr[0] = '\0';
 					comprende = TRUE;
-				} else {
-					len = strlen(val);
+				} else if ((len = strlen(val)) < sizeof(row.flagstr)) {
 					memcpy(row.flagstr, val, len);
 					row.flagstr[len] = '\0';
 					comprende = TRUE;
+				} else {
+					 /* no flags, and still !comprende */
+					row.flagstr[0] = '\0';
 				}
 			}
 			break;

@@ -1,11 +1,11 @@
-.Dd November 21 2016
+.Dd March 21 2017
 .Dt NTP_CONF 5 File Formats
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.mdoc)
 .\"
 .\" $FreeBSD$
 .\"
-.\"  It has been AutoGen-ed  November 21, 2016 at 08:02:03 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  March 21, 2017 at 10:31:09 AM by AutoGen 5.18.5
 .\"  From the definitions    ntp.conf.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -13,6 +13,10 @@
 .Nd Network Time Protocol (NTP) daemon configuration file format
 .Sh SYNOPSIS
 .Nm
+.Op Fl \-option\-name
+.Op Fl \-option\-name Ar value
+.Pp
+All arguments must be options.
 .Pp
 .Sh DESCRIPTION
 The
@@ -196,7 +200,7 @@ provided in
 .It Ic pool
 For type s addresses, this command mobilizes a persistent
 client mode association with a number of remote servers.
-In this mode the local clock can be synchronized to the
+In this mode the local clock can synchronized to the
 remote server, but the remote server can never be synchronized to
 the local clock.
 .It Ic server
@@ -2985,7 +2989,7 @@ A snapshot of this documentation is available in HTML format in
 .Sh "AUTHORS"
 The University of Delaware and Network Time Foundation
 .Sh "COPYRIGHT"
-Copyright (C) 1992\-2016 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992\-2017 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .Sh BUGS
 The syntax checking is not picky; some combinations of

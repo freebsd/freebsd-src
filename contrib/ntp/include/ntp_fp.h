@@ -352,7 +352,7 @@ extern	int	buftvtots	(const char *, l_fp *);
 extern	char *	fptoa		(s_fp, short);
 extern	char *	fptoms		(s_fp, short);
 extern	int	hextolfp	(const char *, l_fp *);
-extern  void	gpstolfp	(int, int, unsigned long, l_fp *);
+extern  void	gpstolfp	(u_int, u_int, unsigned long, l_fp *);
 extern	int	mstolfp		(const char *, l_fp *);
 extern	char *	prettydate	(l_fp *);
 extern	char *	gmprettydate	(l_fp *);

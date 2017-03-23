@@ -712,8 +712,7 @@
 /* define to 1 if library is thread safe */
 #undef LDAP_API_FEATURE_X_OPENLDAP_THREAD_SAFE
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Does the target support multicast IP? */

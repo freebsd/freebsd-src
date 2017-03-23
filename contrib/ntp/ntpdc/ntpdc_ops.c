@@ -2108,7 +2108,7 @@ reset(
 		if (sreset[i].flag == 0) {
 			fprintf(fp, "Flag %s unknown\n",
 				pcmd->argval[res].string);
-			err++;
+			err = 1;
 		} else {
 			rflags.flags |= sreset[i].flag;
 		}

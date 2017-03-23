@@ -4,14 +4,17 @@ ACLOCAL_AMFLAGS = -I m4 -I libevent/m4 -I libopts/m4
 
 NULL =
 
-AM_CFLAGS = $(CFLAGS_NTP)
+AM_CFLAGS  = $(CFLAGS_NTP)
+AM_CFLAGS += $(NTP_HARD_CFLAGS)
 
 AM_CPPFLAGS  = $(SNTP_INCS)
 AM_CPPFLAGS += $(LIBOPTS_CFLAGS)
 AM_CPPFLAGS += $(CPPFLAGS_LIBEVENT)
 AM_CPPFLAGS += $(CPPFLAGS_NTP)
+AM_CPPFLAGS += $(NTP_HARD_CPPFLAGS)
 
-AM_LDFLAGS = $(LDFLAGS_NTP)
+AM_LDFLAGS  = $(LDFLAGS_NTP)
+AM_LDFLAGS += $(NTP_HARD_LDFLAGS)
 
 LDADD  = version.o
 LDADD += libsntp.a
@@ -92,6 +95,7 @@ EXTRA_DIST =				\
 	$(srcdir)/COPYRIGHT		\
 	ag-tpl				\
 	deps-ver			\
+	harden				\
 	invoke-sntp.menu		\
 	invoke-sntp.texi		\
 	@NTP_FORCE_LIBEVENT_DIST@	\
@@ -187,8 +191,7 @@ check-scm-rev: $(srcdir)/scm-rev
 	@: do-nothing
 
 $(srcdir)/scm-rev:
-	-test -r $(srcdir)/../SCCS/s.ChangeSet &&		\
-	    (bk version) >/dev/null 2>&1 &&			\
+	-bk root $(srcdir) >/dev/null 2>&1 &&			\
 	    cd $(srcdir)/.. &&					\
 	    x=`bk -R prs -hr+ -nd:I: ChangeSet` &&		\
 	    y=`cat sntp/scm-rev 2>/dev/null` || true &&		\

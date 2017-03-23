@@ -85,7 +85,7 @@ create_buffers(int nbufs)
 	buffer_shortfall = 0;
 
 #ifndef DEBUG
-	bufp = emalloc_zero(abuf * sizeof(*bufp));
+	bufp = eallocarray(abuf, sizeof(*bufp));
 #endif
 
 	for (i = 0; i < abuf; i++) {
