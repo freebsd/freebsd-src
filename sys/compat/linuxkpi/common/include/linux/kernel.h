@@ -224,6 +224,11 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 	log_once(LOG_INFO, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_cont(fmt, ...) \
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
+#define	pr_warn_ratelimited(...) do {		\
+	static time_t __ratelimited;		\
+	if (linux_ratelimited(&__ratelimited))	\
+		pr_warning(__VA_ARGS__);	\
+} while (0)
 
 #ifndef WARN
 #define	WARN(condition, ...) ({			\
@@ -330,5 +335,7 @@ abs64(int64_t x)
 {
 	return (x < 0 ? -x : x);
 }
+
+extern bool linux_ratelimited(time_t *);
 
 #endif	/* _LINUX_KERNEL_H_ */
