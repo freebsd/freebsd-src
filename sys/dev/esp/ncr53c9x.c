@@ -1013,9 +1013,9 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_target = sc->sc_ntarg - 1;
 		cpi->max_lun = 7;
 		cpi->initiator_id = sc->sc_id;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "NCR", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "NCR", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->bus_id = 0;
 		cpi->base_transfer_speed = 3300;
