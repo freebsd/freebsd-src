@@ -43,45 +43,97 @@
 .Fl c | e | f |
 .Fl n | q | u
 .Oc
+.Op Fl -brief
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
 .Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
+.Op Fl -rcs
+.Op Fl -show-c-function
+.Op Fl -starting-file
 .Op Fl -strip-trailing-cr
 .Op Fl -tabsize
-.Op Fl I Ar pattern
-.Op Fl L Ar label
+.Op Fl -text
+.Op Fl -unified
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl L Ar label | Fl -label Ar label
 .Ar file1 file2
 .Nm diff
 .Op Fl abdilpTtw
-.Op Fl I Ar pattern
-.Op Fl L Ar label
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl L Ar label | Fl -label Ar label
+.Op Fl -brief
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
 .Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
+.Op Fl -paginate
+.Op Fl -rcs
+.Op Fl -show-c-function
+.Op Fl -starting-file
 .Op Fl -strip-trailing-cr
 .Op Fl -tabsize
-.Fl C Ar number
+.Op Fl -text
+.Fl C Ar number | -context Ar number
 .Ar file1 file2
 .Nm diff
 .Op Fl abdiltw
-.Op Fl I Ar pattern
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl -brief
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
 .Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
+.Op Fl -paginate
+.Op Fl -rcs
+.Op Fl -show-c-function
+.Op Fl -starting-file
 .Op Fl -strip-trailing-cr
 .Op Fl -tabsize
-.Fl D Ar string
+.Op Fl -text
+.Fl D Ar string | Fl -ifdef Ar string
 .Ar file1 file2
 .Nm diff
 .Op Fl abdilpTtw
-.Op Fl I Ar pattern
-.Op Fl L Ar label
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
+.Op Fl L Ar label | Fl -label Ar label
+.Op Fl -brief
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
 .Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
+.Op Fl -paginate
+.Op Fl -rcs
+.Op Fl -show-c-function
+.Op Fl -starting-file
 .Op Fl -strip-trailing-cr
 .Op Fl -tabsize
-.Fl U Ar number
+.Op Fl -text
+.Fl U Ar number | Fl -unified Ar number
 .Ar file1 file2
 .Nm diff
 .Op Fl abdilNPprsTtw
@@ -89,17 +141,35 @@
 .Fl c | e | f |
 .Fl n | q | u
 .Oc
+.Op Fl -brief
+.Op Fl -context
+.Op Fl -ed
+.Op Fl -expand-tabs
+.Op Fl -forward-ed
+.Op Fl -ignore-all-space
 .Op Fl -ignore-case
+.Op Fl -ignore-space-change
+.Op Fl -initial-tab
+.Op Fl -minimal
+.Op Fl -new-file
 .Op Fl -no-ignore-file-name-case
 .Op Fl -normal
+.Op Fl -paginate
+.Op Fl -rcs
+.Op Fl -recursive
+.Op Fl -report-identical-files
+.Op Fl -show-c-function
 .Op Fl -strip-trailing-cr
 .Op Fl -tabsize
-.Op Fl I Ar pattern
+.Op Fl -text
+.Op Fl -unidirectional-new-file
+.Op Fl -unified
+.Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Bk -words
-.Op Fl L Ar label
-.Op Fl S Ar name
-.Op Fl X Ar file
-.Op Fl x Ar pattern
+.Op Fl L Ar label | Fl -label Ar label
+.Op Fl S Ar name | Fl -starting-file Ar name
+.Op Fl X Ar file | Fl -exclude-from Ar file
+.Op Fl x Ar pattern | Fl -exclude Ar pattern
 .Ek
 .Ar dir1 dir2
 .Sh DESCRIPTION
