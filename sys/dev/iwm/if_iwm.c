@@ -316,7 +316,6 @@ static int	iwm_mvm_load_ucode_wait_alive(struct iwm_softc *,
                                               enum iwm_ucode_type);
 static int	iwm_run_init_mvm_ucode(struct iwm_softc *, int);
 static int	iwm_rx_addbuf(struct iwm_softc *, int, int);
-static int	iwm_mvm_calc_rssi(struct iwm_softc *, struct iwm_rx_phy_info *);
 static int	iwm_mvm_get_signal_strength(struct iwm_softc *,
 					    struct iwm_rx_phy_info *);
 static void	iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *,
@@ -345,7 +344,7 @@ static int	iwm_raw_xmit(struct ieee80211_node *, struct mbuf *,
 static int	iwm_mvm_flush_tx_path(struct iwm_softc *sc,
 				      uint32_t tfd_msk, uint32_t flags);
 static int	iwm_mvm_send_add_sta_cmd_status(struct iwm_softc *,
-					        struct iwm_mvm_add_sta_cmd_v7 *,
+					        struct iwm_mvm_add_sta_cmd *,
                                                 int *);
 static int	iwm_mvm_sta_send_to_fw(struct iwm_softc *, struct iwm_node *,
                                        int);
@@ -865,12 +864,6 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	if (error) {
 		device_printf(sc->sc_dev, "firmware parse error %d, "
 		    "section type %d\n", error, tlv_type);
-	}
-
-	if (!(sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_PM_CMD_SUPPORT)) {
-		device_printf(sc->sc_dev,
-		    "device uses unsupported power ops\n");
-		error = ENOTSUP;
 	}
 
  out:
@@ -3043,38 +3036,6 @@ fail:
 }
 
 /* iwlwifi: mvm/rx.c */
-#define IWM_RSSI_OFFSET 50
-static int
-iwm_mvm_calc_rssi(struct iwm_softc *sc, struct iwm_rx_phy_info *phy_info)
-{
-	int rssi_a, rssi_b, rssi_a_dbm, rssi_b_dbm, max_rssi_dbm;
-	uint32_t agc_a, agc_b;
-	uint32_t val;
-
-	val = le32toh(phy_info->non_cfg_phy[IWM_RX_INFO_AGC_IDX]);
-	agc_a = (val & IWM_OFDM_AGC_A_MSK) >> IWM_OFDM_AGC_A_POS;
-	agc_b = (val & IWM_OFDM_AGC_B_MSK) >> IWM_OFDM_AGC_B_POS;
-
-	val = le32toh(phy_info->non_cfg_phy[IWM_RX_INFO_RSSI_AB_IDX]);
-	rssi_a = (val & IWM_OFDM_RSSI_INBAND_A_MSK) >> IWM_OFDM_RSSI_A_POS;
-	rssi_b = (val & IWM_OFDM_RSSI_INBAND_B_MSK) >> IWM_OFDM_RSSI_B_POS;
-
-	/*
-	 * dBm = rssi dB - agc dB - constant.
-	 * Higher AGC (higher radio gain) means lower signal.
-	 */
-	rssi_a_dbm = rssi_a - IWM_RSSI_OFFSET - agc_a;
-	rssi_b_dbm = rssi_b - IWM_RSSI_OFFSET - agc_b;
-	max_rssi_dbm = MAX(rssi_a_dbm, rssi_b_dbm);
-
-	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
-	    "Rssi In A %d B %d Max %d AGCA %d AGCB %d\n",
-	    rssi_a_dbm, rssi_b_dbm, max_rssi_dbm, agc_a, agc_b);
-
-	return max_rssi_dbm;
-}
-
-/* iwlwifi: mvm/rx.c */
 /*
  * iwm_mvm_get_signal_strength - use new rx PHY INFO API
  * values are reported by the fw as positive values - need to negate
@@ -3193,17 +3154,7 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m)
 		goto fail;
 	}
 
-	if (sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_RX_ENERGY_API) {
-		rssi = iwm_mvm_get_signal_strength(sc, phy_info);
-	} else {
-		rssi = iwm_mvm_calc_rssi(sc, phy_info);
-	}
-
-	/* Note: RSSI is absolute (ie a -ve value) */
-	if (rssi < IWM_MIN_DBM)
-		rssi = IWM_MIN_DBM;
-	else if (rssi > IWM_MAX_DBM)
-		rssi = IWM_MAX_DBM;
+	rssi = iwm_mvm_get_signal_strength(sc, phy_info);
 
 	/* Map it to relative value */
 	rssi = rssi - sc->sc_noise;
@@ -3882,7 +3833,7 @@ iwm_mvm_flush_tx_path(struct iwm_softc *sc, uint32_t tfd_msk, uint32_t flags)
 
 static int
 iwm_mvm_send_add_sta_cmd_status(struct iwm_softc *sc,
-	struct iwm_mvm_add_sta_cmd_v7 *cmd, int *status)
+	struct iwm_mvm_add_sta_cmd *cmd, int *status)
 {
 	return iwm_mvm_send_cmd_pdu_status(sc, IWM_ADD_STA, sizeof(*cmd),
 	    cmd, status);
@@ -3892,7 +3843,7 @@ iwm_mvm_send_add_sta_cmd_status(struct iwm_softc *sc,
 static int
 iwm_mvm_sta_send_to_fw(struct iwm_softc *sc, struct iwm_node *in, int update)
 {
-	struct iwm_mvm_add_sta_cmd_v7 add_sta_cmd;
+	struct iwm_mvm_add_sta_cmd add_sta_cmd;
 	int ret;
 	uint32_t status;
 
@@ -3950,7 +3901,7 @@ static int
 iwm_mvm_add_int_sta_common(struct iwm_softc *sc, struct iwm_int_sta *sta,
 	const uint8_t *addr, uint16_t mac_id, uint16_t color)
 {
-	struct iwm_mvm_add_sta_cmd_v7 cmd;
+	struct iwm_mvm_add_sta_cmd cmd;
 	int ret;
 	uint32_t status;
 
