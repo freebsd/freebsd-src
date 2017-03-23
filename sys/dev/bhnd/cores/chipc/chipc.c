@@ -69,6 +69,7 @@ static struct bhnd_device_quirk chipc_quirks[];
 /* Supported device identifiers */
 static const struct bhnd_device chipc_devices[] = {
 	BHND_DEVICE(BCM, CC, NULL, chipc_quirks),
+	BHND_DEVICE(BCM, 4706_CC, NULL, chipc_quirks),
 	BHND_DEVICE_END
 };
 
