@@ -567,6 +567,7 @@ extern zio_t *zio_unique_parent(zio_t *cio);
 extern void zio_add_child(zio_t *pio, zio_t *cio);
 
 extern void *zio_buf_alloc(size_t size);
+extern void *zio_buf_alloc_nowait(size_t size);
 extern void zio_buf_free(void *buf, size_t size);
 extern void *zio_data_buf_alloc(size_t size);
 extern void zio_data_buf_free(void *buf, size_t size);

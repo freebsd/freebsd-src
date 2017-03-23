@@ -647,6 +647,7 @@ static zio_t *
 vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 {
 	zio_t *first, *last, *aio, *dio, *mandatory, *nio;
+	void *abuf;
 	uint64_t maxgap = 0;
 	uint64_t size;
 	boolean_t stretch;
@@ -755,8 +756,12 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	size = IO_SPAN(first, last);
 	ASSERT3U(size, <=, zfs_vdev_aggregation_limit);
 
+	abuf = zio_buf_alloc_nowait(size);
+	if (abuf == NULL)
+		return (NULL);
+
 	aio = zio_vdev_delegated_io(first->io_vd, first->io_offset,
-	    zio_buf_alloc(size), size, first->io_type, zio->io_priority,
+	    abuf, size, first->io_type, zio->io_priority,
 	    flags | ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_QUEUE,
 	    vdev_queue_agg_io_done, NULL);
 	aio->io_timestamp = first->io_timestamp;
