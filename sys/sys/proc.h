@@ -492,6 +492,12 @@ do {									\
 #define	TD_ON_UPILOCK(td)	((td)->td_flags & TDF_UPIBLOCKED)
 #define TD_IS_IDLETHREAD(td)	((td)->td_flags & TDF_IDLETD)
 
+#define	KTDSTATE(td)							\
+	(((td)->td_inhibitors & TDI_SLEEPING) != 0 ? "sleep"  :		\
+	((td)->td_inhibitors & TDI_SUSPENDED) != 0 ? "suspended" :	\
+	((td)->td_inhibitors & TDI_SWAPPED) != 0 ? "swapped" :		\
+	((td)->td_inhibitors & TDI_LOCK) != 0 ? "blocked" :		\
+	((td)->td_inhibitors & TDI_IWAIT) != 0 ? "iwait" : "yielding")
 
 #define	TD_SET_INHIB(td, inhib) do {			\
 	(td)->td_state = TDS_INHIBITED;			\
