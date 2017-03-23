@@ -191,7 +191,7 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 	__ret;							\
 })
 
-#define	cmpxchg_relaxed	cmpxchg
+#define	cmpxchg_relaxed(...)	cmpxchg(__VA_ARGS__)
 
 #define	xchg(ptr, v) ({						\
 	__typeof(*(ptr)) __ret;					\
