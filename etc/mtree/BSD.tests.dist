@@ -24,6 +24,8 @@
         ..
         pkill
         ..
+        pwait
+        ..
         sh
             builtins
             ..
@@ -625,8 +627,6 @@
         opensm
         ..
         printf
-        ..
-        pwait
         ..
         sdiff
         ..
