@@ -463,6 +463,8 @@ atomic_cmpset_long(volatile u_long *dst, u_long old, u_long newe)
 	return (atomic_cmpset_32((volatile uint32_t *)dst, old, newe));
 }
 
+#ifdef _KERNEL
+/* atomic_fcmpset_32 is only defined for the kernel */
 static __inline u_long
 atomic_fcmpset_long(volatile u_long *dst, u_long *old, u_long newe)
 {
@@ -470,6 +472,7 @@ atomic_fcmpset_long(volatile u_long *dst, u_long *old, u_long newe)
 	return (atomic_fcmpset_32((volatile uint32_t *)dst,
 	    (uint32_t *)old, newe));
 }
+#endif
 
 static __inline u_long
 atomic_fetchadd_long(volatile u_long *p, u_long v)
