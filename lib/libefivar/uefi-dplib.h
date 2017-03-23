@@ -508,7 +508,16 @@ UefiDevicePathLibConvertTextToDevicePath (
 #define LShiftU64(x, s) ((x) << s)
 #define ReadUnaligned64(x)    le64dec(x)
 #define ReallocatePool(old, new, ptr) realloc(ptr, new)
-#define StrCmp(a, b) strcmp(a, b)
+/*
+ * Quirky StrCmp returns 0 if equal, 1 if not. This is what the code
+ * expects, though that expectation is likely a bug (it casts the
+ * return value. EDK2's StrCmp returns values just like C's strcmp,
+ * but the parse code casts this to an UINTN, which is bogus. This
+ * definition papers over that bogusness to do the right thing.  If
+ * iSCSI protocol string processing is ever fixed, we can remove this
+ * bletcherous kludge.
+ */
+#define StrCmp(a, b) (strcmp(a, b) != 0)
 #define StrCpyS(d, l, s) strcpy(d, s)
 #define StrHexToUint64(x) strtoll(x, NULL, 16)
 #define StrHexToUintn(x) strtoll(x, NULL, 16)
