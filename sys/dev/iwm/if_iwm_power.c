@@ -290,9 +290,6 @@ iwm_mvm_power_update_device(struct iwm_softc *sc)
 		.flags = htole16(IWM_DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK),
 	};
 
-	if (!(sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_DEVICE_PS_CMD))
-		return 0;
-
 	cmd.flags |= htole16(IWM_DEVICE_POWER_FLAGS_CAM_MSK);
 	IWM_DPRINTF(sc, IWM_DEBUG_PWRSAVE | IWM_DEBUG_CMD,
 	    "Sending device power command with flags = 0x%X\n", cmd.flags);
@@ -322,12 +319,8 @@ iwm_mvm_enable_beacon_filter(struct iwm_softc *sc, struct iwm_node *in)
 int
 iwm_mvm_disable_beacon_filter(struct iwm_softc *sc)
 {
-	struct iwm_beacon_filter_cmd cmd;
+	struct iwm_beacon_filter_cmd cmd = {};
 	int ret;
-
-	memset(&cmd, 0, sizeof(cmd));
-	if ((sc->sc_capaflags & IWM_UCODE_TLV_FLAGS_BF_UPDATED) == 0)
-		return 0;
 
 	ret = iwm_mvm_beacon_filter_send_cmd(sc, &cmd);
 	if (ret == 0)
