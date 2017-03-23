@@ -3179,9 +3179,6 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m)
 	len = le16toh(rx_res->byte_count);
 	rx_pkt_status = le32toh(*(uint32_t *)(pkt->data + sizeof(*rx_res) + len));
 
-	m->m_data = pkt->data + sizeof(*rx_res);
-	m->m_pkthdr.len = m->m_len = len;
-
 	if (__predict_false(phy_info->cfg_phy_cnt > 20)) {
 		device_printf(sc->sc_dev,
 		    "dsp size out of range [0,20]: %d\n",
@@ -3217,6 +3214,9 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m)
 		    __func__);
 		goto fail;
 	}
+
+	m->m_data = pkt->data + sizeof(*rx_res);
+	m->m_pkthdr.len = m->m_len = len;
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RECV,
 	    "%s: rssi=%d, noise=%d\n", __func__, rssi, sc->sc_noise);
