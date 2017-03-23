@@ -482,31 +482,20 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 	mpt->scinfo.fc.portid = mpt->mpt_fcport_page0.PortIdentifier;
 
 	mpt_lprt(mpt, MPT_PRT_INFO,
-	    "FC Port Page 0: Topology <%s> WWNN 0x%08x%08x WWPN 0x%08x%08x "
+	    "FC Port Page 0: Topology <%s> WWNN 0x%16jx WWPN 0x%16jx "
 	    "Speed %u-Gbit\n", topology,
-	    mpt->mpt_fcport_page0.WWNN.High,
-	    mpt->mpt_fcport_page0.WWNN.Low,
-	    mpt->mpt_fcport_page0.WWPN.High,
-	    mpt->mpt_fcport_page0.WWPN.Low,
+	    (uintmax_t)mpt->scinfo.fc.wwnn, (uintmax_t)mpt->scinfo.fc.wwpn,
 	    mpt->mpt_fcport_speed);
 	MPT_UNLOCK(mpt);
 	ctx = device_get_sysctl_ctx(mpt->dev);
 	tree = device_get_sysctl_tree(mpt->dev);
 
-	snprintf(mpt->scinfo.fc.wwnn, sizeof (mpt->scinfo.fc.wwnn),
-	    "0x%08x%08x", mpt->mpt_fcport_page0.WWNN.High,
-	    mpt->mpt_fcport_page0.WWNN.Low);
-
-	snprintf(mpt->scinfo.fc.wwpn, sizeof (mpt->scinfo.fc.wwpn),
-	    "0x%08x%08x", mpt->mpt_fcport_page0.WWPN.High,
-	    mpt->mpt_fcport_page0.WWPN.Low);
-
-	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "wwnn", CTLFLAG_RD, mpt->scinfo.fc.wwnn, 0,
+	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "wwnn", CTLFLAG_RD, &mpt->scinfo.fc.wwnn,
 	    "World Wide Node Name");
 
-	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	     "wwpn", CTLFLAG_RD, mpt->scinfo.fc.wwpn, 0,
+	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	     "wwpn", CTLFLAG_RD, &mpt->scinfo.fc.wwpn,
 	     "World Wide Port Name");
 
 	MPT_LOCK(mpt);
@@ -3526,6 +3515,36 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		cam_calc_geometry(ccg, /* extended */ 1);
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
+		break;
+	}
+	case XPT_GET_SIM_KNOB:
+	{
+		struct ccb_sim_knob *kp = &ccb->knob;
+
+		if (mpt->is_fc) {
+			kp->xport_specific.fc.wwnn = mpt->scinfo.fc.wwnn;
+			kp->xport_specific.fc.wwpn = mpt->scinfo.fc.wwpn;
+			switch (mpt->role) {
+			case MPT_ROLE_NONE:
+				kp->xport_specific.fc.role = KNOB_ROLE_NONE;
+				break;
+			case MPT_ROLE_INITIATOR:
+				kp->xport_specific.fc.role = KNOB_ROLE_INITIATOR;
+				break;
+			case MPT_ROLE_TARGET:
+				kp->xport_specific.fc.role = KNOB_ROLE_TARGET;
+				break;
+			case MPT_ROLE_BOTH:
+				kp->xport_specific.fc.role = KNOB_ROLE_BOTH;
+				break;
+			}
+			kp->xport_specific.fc.valid =
+			    KNOB_VALID_ADDRESS | KNOB_VALID_ROLE;
+			ccb->ccb_h.status = CAM_REQ_CMP;
+		} else {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+		}
+		xpt_done(ccb);
 		break;
 	}
 	case XPT_PATH_INQ:		/* Path routing inquiry */
