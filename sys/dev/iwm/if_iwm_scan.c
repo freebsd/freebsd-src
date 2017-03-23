@@ -272,7 +272,7 @@ iwm_mvm_lmac_scan_fill_channels(struct iwm_softc *sc,
 	int j;
 
 	for (nchan = j = 0;
-	    j < ic->ic_nchans && nchan < sc->sc_capa_n_scan_channels; j++) {
+	    j < ic->ic_nchans && nchan < sc->ucode_capa.n_scan_channels; j++) {
 		c = &ic->ic_channels[j];
 		/* For 2GHz, only populate 11b channels */
 		/* For 5GHz, only populate 11a channels */
@@ -316,7 +316,7 @@ iwm_mvm_umac_scan_fill_channels(struct iwm_softc *sc,
 	int j;
 
 	for (nchan = j = 0;
-	    j < ic->ic_nchans && nchan < sc->sc_capa_n_scan_channels; j++) {
+	    j < ic->ic_nchans && nchan < sc->ucode_capa.n_scan_channels; j++) {
 		c = &ic->ic_channels[j];
 		/* For 2GHz, only populate 11b channels */
 		/* For 5GHz, only populate 11a channels */
@@ -398,7 +398,7 @@ iwm_mvm_fill_probe_req(struct iwm_softc *sc, struct iwm_scan_probe_req *preq)
 	preq->band_data[0].len = htole16(frm - pos);
 	remain -= frm - pos;
 
-	if (isset(sc->sc_enabled_capa,
+	if (fw_has_capa(&sc->ucode_capa,
 	    IWM_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT)) {
 		if (remain < 3)
 			return ENOBUFS;
@@ -464,7 +464,7 @@ iwm_mvm_config_umac_scan(struct iwm_softc *sc)
 	    IWM_SCAN_CONFIG_RATE_36M | IWM_SCAN_CONFIG_RATE_48M |
 	    IWM_SCAN_CONFIG_RATE_54M);
 
-	cmd_size = sizeof(*scan_config) + sc->sc_capa_n_scan_channels;
+	cmd_size = sizeof(*scan_config) + sc->ucode_capa.n_scan_channels;
 
 	scan_config = malloc(cmd_size, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (scan_config == NULL)
@@ -492,7 +492,7 @@ iwm_mvm_config_umac_scan(struct iwm_softc *sc)
 	    IWM_CHANNEL_FLAG_PRE_SCAN_PASSIVE2ACTIVE;
 
 	for (nchan = j = 0;
-	    j < ic->ic_nchans && nchan < sc->sc_capa_n_scan_channels; j++) {
+	    j < ic->ic_nchans && nchan < sc->ucode_capa.n_scan_channels; j++) {
 		c = &ic->ic_channels[j];
 		/* For 2GHz, only populate 11b channels */
 		/* For 5GHz, only populate 11a channels */
@@ -550,7 +550,7 @@ iwm_mvm_umac_scan(struct iwm_softc *sc)
 
 	req_len = sizeof(struct iwm_scan_req_umac) +
 	    (sizeof(struct iwm_scan_channel_cfg_umac) *
-	    sc->sc_capa_n_scan_channels) +
+	    sc->ucode_capa.n_scan_channels) +
 	    sizeof(struct iwm_scan_req_umac_tail);
 	if (req_len > IWM_MAX_CMD_PAYLOAD_SIZE)
 		return ENOMEM;
@@ -584,7 +584,7 @@ iwm_mvm_umac_scan(struct iwm_softc *sc)
 
 	tail = (void *)((char *)&req->data +
 		sizeof(struct iwm_scan_channel_cfg_umac) *
-			sc->sc_capa_n_scan_channels);
+			sc->ucode_capa.n_scan_channels);
 
 	/* Check if we're doing an active directed scan. */
 	for (i = 0; i < nssid; i++) {
@@ -601,7 +601,7 @@ iwm_mvm_umac_scan(struct iwm_softc *sc)
 	} else
 		req->general_flags |= htole32(IWM_UMAC_SCAN_GEN_FLAGS_PASSIVE);
 
-	if (isset(sc->sc_enabled_capa,
+	if (fw_has_capa(&sc->ucode_capa,
 	    IWM_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT))
 		req->general_flags |=
 		    htole32(IWM_UMAC_SCAN_GEN_FLAGS_RRM_ENABLED);
@@ -644,7 +644,7 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 
 	req_len = sizeof(struct iwm_scan_req_lmac) +
 	    (sizeof(struct iwm_scan_channel_cfg_lmac) *
-	    sc->sc_capa_n_scan_channels) + sizeof(struct iwm_scan_probe_req);
+	    sc->ucode_capa.n_scan_channels) + sizeof(struct iwm_scan_probe_req);
 	if (req_len > IWM_MAX_CMD_PAYLOAD_SIZE)
 		return ENOMEM;
 	req = malloc(req_len, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -670,7 +670,7 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 	req->scan_flags = htole32(IWM_MVM_LMAC_SCAN_FLAG_PASS_ALL |
 	    IWM_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE |
 	    IWM_MVM_LMAC_SCAN_FLAG_EXTENDED_DWELL);
-	if (isset(sc->sc_enabled_capa,
+	if (fw_has_capa(&sc->ucode_capa,
 	    IWM_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT))
 		req->scan_flags |= htole32(IWM_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
 
@@ -716,7 +716,7 @@ iwm_mvm_lmac_scan(struct iwm_softc *sc)
 	ret = iwm_mvm_fill_probe_req(sc,
 			    (struct iwm_scan_probe_req *)(req->data +
 			    (sizeof(struct iwm_scan_channel_cfg_lmac) *
-			    sc->sc_capa_n_scan_channels)));
+			    sc->ucode_capa.n_scan_channels)));
 	if (ret) {
 		free(req, M_DEVBUF);
 		return ret;
@@ -804,7 +804,7 @@ iwm_mvm_scan_stop_wait(struct iwm_softc *sc)
 
 	IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "Preparing to stop scan\n");
 
-	if (isset(sc->sc_enabled_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
+	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
 		ret = iwm_mvm_umac_scan_abort(sc);
 	else
 		ret = iwm_mvm_lmac_scan_abort(sc);

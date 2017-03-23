@@ -166,6 +166,28 @@ enum iwm_ucode_type {
 	IWM_UCODE_TYPE_MAX
 };
 
+struct iwm_ucode_capabilities {
+	uint32_t max_probe_length;
+	uint32_t n_scan_channels;
+	uint32_t flags;
+	uint8_t enabled_api[howmany(IWM_NUM_UCODE_TLV_API, NBBY)];
+	uint8_t enabled_capa[howmany(IWM_NUM_UCODE_TLV_CAPA, NBBY)];
+};
+
+static inline int
+fw_has_api(const struct iwm_ucode_capabilities *capabilities,
+	   unsigned int api)
+{
+	return isset(capabilities->enabled_api, api);
+}
+
+static inline int
+fw_has_capa(const struct iwm_ucode_capabilities *capabilities,
+	    unsigned int capa)
+{
+	return isset(capabilities->enabled_capa, capa);
+}
+
 /* one for each uCode image (inst/data, init/runtime/wowlan) */
 struct iwm_fw_desc {
 	const void *data;	/* vmalloc'ed data */
@@ -440,12 +462,8 @@ struct iwm_softc {
 	int			ucode_loaded;
 	char			sc_fwver[32];
 
-	int			sc_capaflags;
-	int			sc_capa_max_probe_len;
-	int sc_capa_n_scan_channels;
-	uint32_t sc_ucode_api;
-	uint8_t sc_enabled_capa[howmany(IWM_NUM_UCODE_TLV_CAPA, NBBY)];
-	char sc_fw_mcc[3];
+	struct iwm_ucode_capabilities ucode_capa;
+	char			sc_fw_mcc[3];
 
 	int			sc_intmask;
 
