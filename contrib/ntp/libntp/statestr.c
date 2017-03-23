@@ -355,13 +355,12 @@ decode_bitflags(
 
 	for (b = 0; b < tab_ct; b++) {
 		if (tab[b].code & bits) {
-			rc = snprintf(pch, (lim - pch), "%s%s", sep,
+			size_t avail = lim - pch;
+			rc = snprintf(pch, avail, "%s%s", sep,
 				      tab[b].string);
-			if (rc < 0)
+			if ((size_t)rc >= avail)
 				goto toosmall;
-			pch += (u_int)rc;
-			if (pch >= lim)
-				goto toosmall;
+			pch += rc;
 			sep = sep2;
 		}
 	}
