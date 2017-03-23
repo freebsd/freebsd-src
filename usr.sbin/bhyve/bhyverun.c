@@ -1393,10 +1393,10 @@ lookup_guest_ncpus(struct restore_state *rstate)
 	return ((int)ncpus);
 }
 
-static void
+static int
 restore_vm_mem(struct vmctx *ctx, struct restore_state *rstate)
 {
-	vm_restore_mem(ctx, rstate->vmmem_map, rstate->vmmem_len);
+	return vm_restore_mem(ctx, rstate->vmmem_map, rstate->vmmem_len);
 }
 
 static int
@@ -2053,7 +2053,10 @@ main(int argc, char *argv[])
 	}
 
 	if (restore_file != NULL) {
-		restore_vm_mem(ctx, &rstate);
+		if (restore_vm_mem(ctx, &rstate) != 0) {
+			fprintf(stderr, "Failed to restore VM memory.\n");
+			exit(1);
+		}
 
 		if (restore_kernel_structs(ctx, &rstate) != 0) {
 			fprintf(stderr, "Failed to restore kernel structs.\n");

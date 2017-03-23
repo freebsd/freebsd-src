@@ -276,6 +276,6 @@ int	vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
 int	vm_restore_req(struct vmctx *ctx, enum snapshot_req req, char *buffer,
 		       size_t size);
 
-void	vm_restore_mem(struct vmctx *ctx, void *vm_mem, size_t size);
+int	vm_restore_mem(struct vmctx *ctx, void *vm_mem, size_t size);
 
 #endif	/* _VMMAPI_H_ */

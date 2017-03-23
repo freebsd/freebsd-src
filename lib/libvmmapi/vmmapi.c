@@ -292,9 +292,8 @@ vm_get_vm_mem(struct vmctx *ctx, char **lowmem, char **highmem, char *guest_base
 	}
 
 	if (guest_highmem_size > 0) {
-		printf("trying to mmap highmem in checkpoint device!");
 		mmap_vm_highmem = mmap(guest_baseaddr + 4 * GB, guest_highmem_size, PROT_READ | PROT_WRITE,
-				MAP_SHARED, ctx->fd_checkpoint, 0);
+				MAP_SHARED, ctx->fd_checkpoint, 4*GB);
 		if (mmap_vm_highmem == MAP_FAILED) {
 			perror("Failed to mmap vm's highmem segment");
 			error = -1;
@@ -1620,10 +1619,20 @@ vm_snapshot_req(struct vmctx *ctx, enum snapshot_req req, char *buffer, size_t m
 	return (error);
 }
 
-void
+int
 vm_restore_mem(struct vmctx *ctx, void *vm_mem, size_t size)
 {
-	memcpy(ctx->baseaddr, vm_mem, size);
+	if (ctx->lowmem + ctx->highmem != size) {
+		fprintf(stderr, "%s: mem size mismatch: %ld vs %ld\n",
+			__func__, ctx->lowmem + ctx->highmem, size);
+		return (-1);
+	}
+
+	memcpy(ctx->baseaddr, vm_mem, ctx->lowmem);
+	if (ctx->highmem > 0)
+		memcpy(ctx->baseaddr + 4*GB, vm_mem + ctx->lowmem, ctx->highmem);
+
+	return (0);
 }
 
 int
