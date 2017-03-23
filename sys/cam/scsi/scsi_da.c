@@ -2546,7 +2546,6 @@ daregister(struct cam_periph *periph, void *arg)
 	if ((cpi.hba_misc & PIM_UNMAPPED) != 0) {
 		softc->unmappedio = 1;
 		softc->disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
-		xpt_print(periph->path, "UNMAPPED\n");
 	}
 	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
 	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
