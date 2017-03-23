@@ -4712,19 +4712,13 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 		goto out;
 	}
 
-top:
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_write(tx, zp->z_id, off, len);
 
 	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
 	zfs_sa_upgrade_txholds(tx, zp);
-	err = dmu_tx_assign(tx, TXG_NOWAIT);
+	err = dmu_tx_assign(tx, TXG_WAIT);
 	if (err != 0) {
-		if (err == ERESTART) {
-			dmu_tx_wait(tx);
-			dmu_tx_abort(tx);
-			goto top;
-		}
 		dmu_tx_abort(tx);
 		goto out;
 	}
