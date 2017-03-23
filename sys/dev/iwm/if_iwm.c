@@ -484,6 +484,56 @@ iwm_set_default_calib(struct iwm_softc *sc, const void *data)
 	return 0;
 }
 
+static int
+iwm_set_ucode_api_flags(struct iwm_softc *sc, const uint8_t *data,
+			struct iwm_ucode_capabilities *capa)
+{
+	const struct iwm_ucode_api *ucode_api = (const void *)data;
+	uint32_t api_index = le32toh(ucode_api->api_index);
+	uint32_t api_flags = le32toh(ucode_api->api_flags);
+	int i;
+
+	if (api_index >= howmany(IWM_NUM_UCODE_TLV_API, 32)) {
+		device_printf(sc->sc_dev,
+		    "api flags index %d larger than supported by driver\n",
+		    api_index);
+		/* don't return an error so we can load FW that has more bits */
+		return 0;
+	}
+
+	for (i = 0; i < 32; i++) {
+		if (api_flags & (1U << i))
+			setbit(capa->enabled_api, i + 32 * api_index);
+	}
+
+	return 0;
+}
+
+static int
+iwm_set_ucode_capabilities(struct iwm_softc *sc, const uint8_t *data,
+			   struct iwm_ucode_capabilities *capa)
+{
+	const struct iwm_ucode_capa *ucode_capa = (const void *)data;
+	uint32_t api_index = le32toh(ucode_capa->api_index);
+	uint32_t api_flags = le32toh(ucode_capa->api_capa);
+	int i;
+
+	if (api_index >= howmany(IWM_NUM_UCODE_TLV_CAPA, 32)) {
+		device_printf(sc->sc_dev,
+		    "capa flags index %d larger than supported by driver\n",
+		    api_index);
+		/* don't return an error so we can load FW that has more bits */
+		return 0;
+	}
+
+	for (i = 0; i < 32; i++) {
+		if (api_flags & (1U << i))
+			setbit(capa->enabled_capa, i + 32 * api_index);
+	}
+
+	return 0;
+}
+
 static void
 iwm_fw_info_free(struct iwm_fw_info *fw)
 {
@@ -499,6 +549,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	struct iwm_fw_info *fw = &sc->sc_fw;
 	const struct iwm_tlv_ucode_header *uhdr;
 	struct iwm_ucode_tlv tlv;
+	struct iwm_ucode_capabilities *capa = &sc->ucode_capa;
 	enum iwm_ucode_tlv_type tlv_type;
 	const struct firmware *fwp;
 	const uint8_t *data;
@@ -535,9 +586,11 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	fw->fw_fp = fwp;
 
 	/* (Re-)Initialize default values. */
-	sc->sc_capaflags = 0;
-	sc->sc_capa_n_scan_channels = IWM_DEFAULT_SCAN_CHANNELS;
-	memset(sc->sc_enabled_capa, 0, sizeof(sc->sc_enabled_capa));
+	capa->flags = 0;
+	capa->max_probe_length = IWM_DEFAULT_MAX_PROBE_LENGTH;
+	capa->n_scan_channels = IWM_DEFAULT_SCAN_CHANNELS;
+	memset(capa->enabled_capa, 0, sizeof(capa->enabled_capa));
+	memset(capa->enabled_api, 0, sizeof(capa->enabled_api));
 	memset(sc->sc_fw_mcc, 0, sizeof(sc->sc_fw_mcc));
 
 	/*
@@ -590,10 +643,10 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				error = EINVAL;
 				goto parse_out;
 			}
-			sc->sc_capa_max_probe_len
-			    = le32toh(*(const uint32_t *)tlv_data);
+			capa->max_probe_length =
+			    le32toh(*(const uint32_t *)tlv_data);
 			/* limit it to something sensible */
-			if (sc->sc_capa_max_probe_len >
+			if (capa->max_probe_length >
 			    IWM_SCAN_OFFLOAD_PROBE_REQ_SIZE) {
 				IWM_DPRINTF(sc, IWM_DEBUG_FIRMWARE_TLV,
 				    "%s: IWM_UCODE_TLV_PROBE_MAX_LEN "
@@ -611,7 +664,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				error = EINVAL;
 				goto parse_out;
 			}
-			sc->sc_capaflags |= IWM_UCODE_TLV_FLAGS_PAN;
+			capa->flags |= IWM_UCODE_TLV_FLAGS_PAN;
 			break;
 		case IWM_UCODE_TLV_FLAGS:
 			if (tlv_len < sizeof(uint32_t)) {
@@ -633,7 +686,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			 *  2) TLV_FLAGS contains TLV_FLAGS_PAN
 			 * ==> this resets TLV_PAN to itself... hnnnk
 			 */
-			sc->sc_capaflags = le32toh(*(const uint32_t *)tlv_data);
+			capa->flags = le32toh(*(const uint32_t *)tlv_data);
 			break;
 		case IWM_UCODE_TLV_CSCHEME:
 			if ((error = iwm_store_cscheme(sc,
@@ -738,41 +791,25 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			break;
 
 		case IWM_UCODE_TLV_API_CHANGES_SET: {
-			const struct iwm_ucode_api *api;
-			if (tlv_len != sizeof(*api)) {
+			if (tlv_len != sizeof(struct iwm_ucode_api)) {
 				error = EINVAL;
 				goto parse_out;
 			}
-			api = (const struct iwm_ucode_api *)tlv_data;
-			/* Flags may exceed 32 bits in future firmware. */
-			if (le32toh(api->api_index) > 0) {
-				device_printf(sc->sc_dev,
-				    "unsupported API index %d\n",
-				    le32toh(api->api_index));
+			if (iwm_set_ucode_api_flags(sc, tlv_data, capa)) {
+				error = EINVAL;
 				goto parse_out;
 			}
-			sc->sc_ucode_api = le32toh(api->api_flags);
 			break;
 		}
 
 		case IWM_UCODE_TLV_ENABLED_CAPABILITIES: {
-			const struct iwm_ucode_capa *capa;
-			int idx, i;
-			if (tlv_len != sizeof(*capa)) {
+			if (tlv_len != sizeof(struct iwm_ucode_capa)) {
 				error = EINVAL;
 				goto parse_out;
 			}
-			capa = (const struct iwm_ucode_capa *)tlv_data;
-			idx = le32toh(capa->api_index);
-			if (idx >= howmany(IWM_NUM_UCODE_TLV_CAPA, 32)) {
-				device_printf(sc->sc_dev,
-				    "unsupported API index %d\n", idx);
+			if (iwm_set_ucode_capabilities(sc, tlv_data, capa)) {
+				error = EINVAL;
 				goto parse_out;
-			}
-			for (i = 0; i < 32; i++) {
-				if ((le32toh(capa->api_capa) & (1U << i)) == 0)
-					continue;
-				setbit(sc->sc_enabled_capa, i + (32 * idx));
 			}
 			break;
 		}
@@ -827,8 +864,8 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 				error = EINVAL;
 				goto parse_out;
 			}
-			sc->sc_capa_n_scan_channels =
-			  le32toh(*(const uint32_t *)tlv_data);
+			capa->n_scan_channels =
+			    le32toh(*(const uint32_t *)tlv_data);
 			break;
 
 		case IWM_UCODE_TLV_FW_VERSION:
@@ -4713,13 +4750,13 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	int n_channels;
 	uint16_t mcc;
 #endif
-	int resp_v2 = isset(sc->sc_enabled_capa,
+	int resp_v2 = fw_has_capa(&sc->ucode_capa,
 	    IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
 
 	memset(&mcc_cmd, 0, sizeof(mcc_cmd));
 	mcc_cmd.mcc = htole16(alpha2[0] << 8 | alpha2[1]);
-	if ((sc->sc_ucode_api & IWM_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
-	    isset(sc->sc_enabled_capa, IWM_UCODE_TLV_CAPA_LAR_MULTI_MCC))
+	if (fw_has_api(&sc->ucode_capa, IWM_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
+	    fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_LAR_MULTI_MCC))
 		mcc_cmd.source_id = IWM_MCC_SOURCE_GET_CURRENT;
 	else
 		mcc_cmd.source_id = IWM_MCC_SOURCE_OLD_FW;
@@ -4857,12 +4894,12 @@ iwm_init_hw(struct iwm_softc *sc)
 	if (error)
 		goto error;
 
-	if (isset(sc->sc_enabled_capa, IWM_UCODE_TLV_CAPA_LAR_SUPPORT)) {
+	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_LAR_SUPPORT)) {
 		if ((error = iwm_send_update_mcc_cmd(sc, "ZZ")) != 0)
 			goto error;
 	}
 
-	if (isset(sc->sc_enabled_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
+	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		if ((error = iwm_mvm_config_umac_scan(sc)) != 0)
 			goto error;
 	}
@@ -6263,7 +6300,7 @@ iwm_scan_start(struct ieee80211com *ic)
 		device_printf(sc->sc_dev,
 		    "%s: Previous scan not completed yet\n", __func__);
 	}
-	if (isset(sc->sc_enabled_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
+	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
 		error = iwm_mvm_umac_scan(sc);
 	else
 		error = iwm_mvm_lmac_scan(sc);
