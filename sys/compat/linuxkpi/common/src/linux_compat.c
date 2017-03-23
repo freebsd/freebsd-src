@@ -1484,20 +1484,6 @@ __unregister_chrdev(unsigned int major, unsigned int baseminor,
 bool linux_cpu_has_clflush;
 #endif
 
-bool
-linux_ratelimited(time_t *ptime)
-{
-	/* make sure uptime is not zero by OR'ing bit 31 */
-	time_t curr = time_uptime | (1U << 31);
-
-	/* check if one or more seconds have passed */
-	if (*ptime != curr) {
-		*ptime = curr;
-		return (1);
-	}
-	return (0);
-}
-
 static void
 linux_compat_init(void *arg)
 {
