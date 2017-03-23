@@ -1344,6 +1344,19 @@ bcma_erom_next_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 			goto failed;
 	}
 
+	/*
+	 * Seek to the next core entry (if any), skipping any dangling/invalid
+	 * region entries.
+	 * 
+	 * On the BCM4706, the EROM entry for the memory controller core
+	 * (0x4bf/0x52E) contains a dangling/unused slave wrapper port region
+	 * descriptor.
+	 */
+	if ((error = bcma_erom_seek_next(erom, BCMA_EROM_ENTRY_TYPE_CORE))) {
+		if (error != ENOENT)
+			goto failed;
+	}
+
 	*result = cfg;
 	return (0);
 	
