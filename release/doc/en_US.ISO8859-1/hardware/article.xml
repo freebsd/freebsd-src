@@ -777,6 +777,8 @@
 
       &hwlist.cxgb;
 
+      &hwlist.cxgbe;
+
       &hwlist.dc;
 
       &hwlist.de;
@@ -806,11 +808,15 @@
 
       &hwlist.ixgbe;
 
+      &hwlist.ixl;
+
       &hwlist.jme;
 
       &hwlist.kue;
 
       &hwlist.lge;
+
+      &hwlist.mlx4en;
 
       &hwlist.mlx5en;
 
