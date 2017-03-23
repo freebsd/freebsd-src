@@ -228,6 +228,41 @@ bhnd_nvram_data_probe_classes(struct bhnd_nvram_data **data,
 }
 
 /**
+ * Read a variable directly from @p io and decode as @p type.
+ * 
+ * This may be used to perform reading of NVRAM variables during the very
+ * early boot process, prior to the availability of the kernel allocator.
+ *
+ * @param		cls	An NVRAM class capable of parsing @p io.
+ * @param		io	NVRAM data to be parsed.
+ * @param		name	The raw name of the variable to be fetched,
+ *				including any device path (/pci/1/1/varname) or
+ *				alias prefix (0:varname).
+ * @param[out]		buf	On success, the requested value will be written
+ *				to this buffer. This argment may be NULL if
+ *				the value is not desired.
+ * @param[in,out]	len	The capacity of @p buf. On success, will be set
+ *				to the actual size of the requested value.
+ * @param		type	The data type to be written to @p buf.
+ *
+ * @retval 0		success
+ * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p len is too
+ *			small to hold the requested value.
+ * @retval ENOENT	If @p name is not found in @p io.
+ * @retval EFTYPE	If the variable data cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion would overflow @p type.
+ * @retval non-zero	If parsing @p io otherwise fails, a regular unix error
+ *			code will be returned.
+ */
+int
+bhnd_nvram_data_getvar_direct(bhnd_nvram_data_class *cls,
+    struct bhnd_nvram_io *io, const char *name, void *buf, size_t *len,
+    bhnd_nvram_type type)
+{
+	return (cls->op_getvar_direct(io, name, buf, len, type));
+}
+
+/**
  * Allocate and initialize a new instance of data class @p cls, copying and
  * parsing NVRAM data from @p io.
  *

@@ -144,7 +144,227 @@ bhnd_nvram_bcm_probe(struct bhnd_nvram_io *io)
 	if (le32toh(hdr.magic) != BCM_NVRAM_MAGIC)
 		return (ENXIO);
 
+	if (le32toh(hdr.size) > bhnd_nvram_io_getsize(io))
+		return (ENXIO);
+
 	return (BHND_NVRAM_DATA_PROBE_DEFAULT);
+}
+
+/**
+ * Parser states for bhnd_nvram_bcm_getvar_direct_common().
+ */
+typedef enum {
+	BCM_PARSE_KEY_START,
+	BCM_PARSE_KEY_CONT,
+	BCM_PARSE_KEY,
+	BCM_PARSE_NEXT_KEY,
+	BCM_PARSE_VALUE_START,
+	BCM_PARSE_VALUE
+} bcm_parse_state;
+
+static int
+bhnd_nvram_bcm_getvar_direct(struct bhnd_nvram_io *io, const char *name,
+    void *outp, size_t *olen, bhnd_nvram_type otype)
+{
+	return (bhnd_nvram_bcm_getvar_direct_common(io, name, outp, olen, otype,
+	    true));
+}
+
+/**
+ * Common BCM/BCMRAW implementation of bhnd_nvram_getvar_direct().
+ */
+int
+bhnd_nvram_bcm_getvar_direct_common(struct bhnd_nvram_io *io, const char *name,
+    void *outp, size_t *olen, bhnd_nvram_type otype, bool have_header)
+{
+	struct bhnd_nvram_bcmhdr	 hdr;
+	char				 buf[512];
+	bcm_parse_state			 pstate;
+	size_t				 limit, offset;
+	size_t				 buflen, bufpos;
+	size_t				 namelen, namepos;
+	size_t				 vlen;
+	int				 error;
+
+	limit = bhnd_nvram_io_getsize(io);
+	offset = 0;
+
+	/* Fetch and validate the header */
+	if (have_header) {
+		if ((error = bhnd_nvram_io_read(io, offset, &hdr, sizeof(hdr))))
+			return (error);
+
+		if (le32toh(hdr.magic) != BCM_NVRAM_MAGIC)
+			return (ENXIO);
+
+		offset += sizeof(hdr);
+		limit = bhnd_nv_ummin(le32toh(hdr.size), limit);
+	}
+
+	/* Loop our parser until we find the requested variable, or hit EOF */
+	pstate = BCM_PARSE_KEY_START;
+	buflen = 0;
+	bufpos = 0;
+	namelen = strlen(name);
+	namepos = 0;
+	vlen = 0;
+
+	while ((offset - bufpos) < limit) {
+		BHND_NV_ASSERT(bufpos <= buflen,
+		    ("buf position invalid (%zu > %zu)", bufpos, buflen));
+		BHND_NV_ASSERT(buflen <= sizeof(buf),
+		    ("buf length invalid (%zu > %zu", buflen, sizeof(buf)));
+
+		/* Repopulate our parse buffer? */
+		if (buflen - bufpos == 0) {
+			BHND_NV_ASSERT(offset < limit, ("offset overrun"));
+
+			buflen = bhnd_nv_ummin(sizeof(buf), limit - offset);
+			bufpos = 0;
+
+			error = bhnd_nvram_io_read(io, offset, buf, buflen);
+			if (error)
+				return (error);
+
+			offset += buflen;
+		}
+
+		switch (pstate) {
+		case BCM_PARSE_KEY_START:
+			BHND_NV_ASSERT(buflen - bufpos > 0, ("empty buffer!"));
+
+			/* An extra '\0' denotes NVRAM EOF */
+			if (buf[bufpos] == '\0')
+				return (ENOENT);
+
+			/* Reset name matching position */
+			namepos = 0;
+
+			/* Start name matching */
+			pstate = BCM_PARSE_KEY_CONT;
+			break;
+
+		case BCM_PARSE_KEY_CONT: {
+			size_t navail, nleft;
+
+			nleft = namelen - namepos;
+			navail = bhnd_nv_ummin(buflen - bufpos, nleft);
+
+			if (strncmp(name+namepos, buf+bufpos, navail) == 0) {
+				/* Matched */
+				namepos += navail;
+				bufpos += navail;
+
+				/* If we've matched the full variable name,
+				 * look for its trailing delimiter */
+				if (namepos == namelen)
+					pstate = BCM_PARSE_KEY;
+			} else {
+				/* No match; advance to next entry and restart
+				 * name matching */
+				pstate = BCM_PARSE_NEXT_KEY;
+			}
+
+			break;
+		}
+
+		case BCM_PARSE_KEY:
+			BHND_NV_ASSERT(buflen - bufpos > 0, ("empty buffer!"));
+
+			if (buf[bufpos] == '=') {
+				/* Key fully matched; advance past '=' and
+				 * parse the value */
+				bufpos++;
+				pstate = BCM_PARSE_VALUE_START;
+			} else {
+				/* No match; advance to next entry and restart
+				 * name matching */
+				pstate = BCM_PARSE_NEXT_KEY;
+			}
+
+			break;
+
+		case BCM_PARSE_NEXT_KEY: {
+			const char *p;
+
+			/* Scan for a '\0' terminator */
+			p = memchr(buf+bufpos, '\0', buflen - bufpos);
+
+			if (p != NULL) {
+				/* Found entry terminator; restart name
+				 * matching at next entry */
+				pstate = BCM_PARSE_KEY_START;
+				bufpos = (p - buf) + 1 /* skip '\0' */;
+			} else {
+				/* Consumed full buffer looking for '\0'; 
+				 * force repopulation of the buffer and
+				 * retry */
+				bufpos = buflen;
+			}
+
+			break;
+		}
+
+		case BCM_PARSE_VALUE_START: {
+			const char *p;
+
+			/* Scan for a '\0' terminator */
+			p = memchr(buf+bufpos, '\0', buflen - bufpos);
+
+			if (p != NULL) {
+				/* Found entry terminator; parse the value */
+				vlen = p - &buf[bufpos];
+				pstate = BCM_PARSE_VALUE;
+
+			} else if (p == NULL && offset == limit) {
+				/* Hit EOF without a terminating '\0';
+				 * treat the entry as implicitly terminated */
+				vlen = buflen - bufpos;
+				pstate = BCM_PARSE_VALUE;
+
+			} else if (p == NULL && bufpos > 0) {
+				size_t	nread;
+
+				/* Move existing value data to start of
+				 * buffer */
+				memmove(buf, buf+bufpos, buflen - bufpos);
+				buflen = bufpos;
+				bufpos = 0;
+
+				/* Populate full buffer to allow retry of
+				 * value parsing */
+				nread = bhnd_nv_ummin(sizeof(buf) - buflen,
+				    limit - offset);
+
+				error = bhnd_nvram_io_read(io, offset,
+				    buf+buflen, nread);
+				if (error)
+					return (error);
+
+				offset += nread;
+				buflen += nread;
+			} else {
+				/* Value exceeds our buffer capacity */
+				BHND_NV_LOG("cannot parse value for '%s' "
+				    "(exceeds %zu byte limit)\n", name,
+				    sizeof(buf));
+
+				return (ENXIO);
+			}
+
+			break;
+		}
+
+		case BCM_PARSE_VALUE:
+			BHND_NV_ASSERT(vlen <= buflen, ("value buf overrun"));
+
+			return (bhnd_nvram_value_coerce(buf+bufpos, vlen,
+			    BHND_NVRAM_TYPE_STRING, outp, olen, otype));
+		}
+	}
+
+	/* Variable not found */
+	return (ENOENT);
 }
 
 static int

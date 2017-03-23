@@ -69,4 +69,8 @@ struct bhnd_nvram_bcmhdr {
 	uint32_t sdram_ncdl;	/**< sdram_ncdl */
 } __packed;
 
+int	bhnd_nvram_bcm_getvar_direct_common(struct bhnd_nvram_io *io,
+	    const char *name, void *outp, size_t *olen, bhnd_nvram_type otype,
+	    bool have_header);
+
 #endif /* _BHND_NVRAM_BHND_NVRAM_BCMVAR_H_ */
