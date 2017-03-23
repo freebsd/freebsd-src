@@ -612,8 +612,8 @@ struct mpt_softc {
 			unsigned int initiator_id;
 		} spi;
 		struct {
-			char wwnn[19];
-			char wwpn[19];
+			uint64_t wwnn;
+			uint64_t wwpn;
 			uint32_t portid;
 		} fc;
 	} scinfo;
