@@ -33,8 +33,6 @@
 # include "ntp_syscall.h"
 #endif
 
-#include "libssl_compat.h"
-
 /*
  * Structure to hold request procedure information
  */
@@ -1549,21 +1547,15 @@ ctl_putstr(
 	)
 {
 	char buffer[512];
-	char *cp;
-	size_t tl;
+	int  rc;
 
-	tl = strlen(tag);
-	memcpy(buffer, tag, tl);
-	cp = buffer + tl;
-	if (len > 0) {
-		INSIST(tl + 3 + len <= sizeof(buffer));
-		*cp++ = '=';
-		*cp++ = '"';
-		memcpy(cp, data, len);
-		cp += len;
-		*cp++ = '"';
-	}
-	ctl_putdata(buffer, (u_int)(cp - buffer), 0);
+	INSIST(len < sizeof(buffer));
+	if (len)
+	    rc = snprintf(buffer, sizeof(buffer), "%s=\"%.*s\"", tag, (int)len, data);
+	else
+	    rc = snprintf(buffer, sizeof(buffer), "%s", tag);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1584,19 +1576,15 @@ ctl_putunqstr(
 	)
 {
 	char buffer[512];
-	char *cp;
-	size_t tl;
+	int  rc;
 
-	tl = strlen(tag);
-	memcpy(buffer, tag, tl);
-	cp = buffer + tl;
-	if (len > 0) {
-		INSIST(tl + 1 + len <= sizeof(buffer));
-		*cp++ = '=';
-		memcpy(cp, data, len);
-		cp += len;
-	}
-	ctl_putdata(buffer, (u_int)(cp - buffer), 0);
+	INSIST(len < sizeof(buffer));
+	if (len)
+	    rc = snprintf(buffer, sizeof(buffer), "%s=%.*s", tag, (int)len, data);
+	else
+	    rc = snprintf(buffer, sizeof(buffer), "%s", tag);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1611,20 +1599,14 @@ ctl_putdblf(
 	double		d
 	)
 {
-	char *cp;
-	const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-	*cp++ = '=';
-	INSIST((size_t)(cp - buffer) < sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), use_f ? "%.*f" : "%.*g",
-	    precision, d);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+	int  rc;
+	
+	rc = snprintf(buffer, sizeof(buffer),
+		      (use_f ? "%s=%.*f" : "%s=%.*g"),
+		      tag, precision, d);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 /*
@@ -1636,25 +1618,19 @@ ctl_putuint(
 	u_long uval
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
+	int  rc;
 
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "%lu", uval);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+	rc = snprintf(buffer, sizeof(buffer), "%s=%lu", tag, uval);
+	INSIST(rc >= 0 && rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 /*
- * ctl_putcal - write a decoded calendar data into the response
+ * ctl_putcal - write a decoded calendar data into the response.
+ * only used with AUTOKEY currently, so compiled conditional
  */
+#ifdef AUTOKEY
 static void
 ctl_putcal(
 	const char *tag,
@@ -1662,22 +1638,18 @@ ctl_putcal(
 	)
 {
 	char buffer[100];
-	unsigned numch;
+	int  rc;
 
-	numch = snprintf(buffer, sizeof(buffer),
-			"%s=%04d%02d%02d%02d%02d",
-			tag,
-			pcal->year,
-			pcal->month,
-			pcal->monthday,
-			pcal->hour,
-			pcal->minute
-			);
-	INSIST(numch < sizeof(buffer));
-	ctl_putdata(buffer, numch, 0);
-
-	return;
+	rc = snprintf(buffer, sizeof(buffer),
+		      "%s=%04d%02d%02d%02d%02d",
+		      tag,
+		      pcal->year, pcal->month, pcal->monthday,
+		      pcal->hour, pcal->minute
+		);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
+#endif
 
 /*
  * ctl_putfs - write a decoded filestamp into the response
@@ -1688,28 +1660,23 @@ ctl_putfs(
 	tstamp_t uval
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
 	struct tm *tm = NULL;
 	time_t fstamp;
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	fstamp = uval - JAN_1970;
+	int    rc;
+	
+	fstamp = (time_t)uval - JAN_1970;
 	tm = gmtime(&fstamp);
-	if (NULL ==  tm)
+	if (NULL == tm)
 		return;
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer),
-		 "%04d%02d%02d%02d%02d", tm->tm_year + 1900,
-		 tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+
+	rc = snprintf(buffer, sizeof(buffer),
+		      "%s=%04d%02d%02d%02d%02d",
+		      tag,
+		      tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+		      tm->tm_hour, tm->tm_min);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1723,20 +1690,12 @@ ctl_puthex(
 	u_long uval
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "0x%lx", uval);
-	cp += strlen(cp);
-	ctl_putdata(buffer,(unsigned)( cp - buffer ), 0);
+	int  rc;
+	
+	rc = snprintf(buffer, sizeof(buffer), "%s=0x%lx", tag, uval);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1749,20 +1708,12 @@ ctl_putint(
 	long ival
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "%ld", ival);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+	int  rc;
+	
+	rc = snprintf(buffer, sizeof(buffer), "%s=%ld", tag, ival);
+	INSIST(rc >= 0 && rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1775,21 +1726,14 @@ ctl_putts(
 	l_fp *ts
 	)
 {
-	register char *cp;
-	register const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
-	INSIST((size_t)(cp - buffer) < sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "0x%08x.%08x",
-		 (u_int)ts->l_ui, (u_int)ts->l_uf);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)( cp - buffer ), 0);
+	int  rc;
+	
+	rc = snprintf(buffer, sizeof(buffer),
+		      "%s=0x%08lx.%08lx",
+		      tag, (u_long)ts->l_ui, (u_long)ts->l_uf);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1803,24 +1747,17 @@ ctl_putadr(
 	sockaddr_u *addr
 	)
 {
-	register char *cp;
-	register const char *cq;
+	const char *cq;
 	char buffer[200];
-
-	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-
-	*cp++ = '=';
+	int  rc;
+	
 	if (NULL == addr)
 		cq = numtoa(addr32);
 	else
 		cq = stoa(addr);
-	INSIST((cp - buffer) < (int)sizeof(buffer));
-	snprintf(cp, sizeof(buffer) - (cp - buffer), "%s", cq);
-	cp += strlen(cp);
-	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+	rc = snprintf(buffer, sizeof(buffer), "%s=%s", tag, cq);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, 0);
 }
 
 
@@ -1833,34 +1770,22 @@ ctl_putrefid(
 	u_int32		refid
 	)
 {
-	char	output[16];
-	char *	optr;
-	char *	oplim;
-	char *	iptr;
-	char *	iplim;
-	char *	past_eq;
+	char buffer[128];
+	int  rc, i;
 
-	optr = output;
-	oplim = output + sizeof(output);
-	while (optr < oplim && '\0' != *tag)
-		*optr++ = *tag++;
-	if (optr < oplim) {
-		*optr++ = '=';
-		past_eq = optr;
-	}
-	if (!(optr < oplim))
-		return;
-	iptr = (char *)&refid;
-	iplim = iptr + sizeof(refid);
-	for ( ; optr < oplim && iptr < iplim && '\0' != *iptr;
-	     iptr++, optr++)
-		if (isprint((int)*iptr))
-			*optr = *iptr;
-		else
-			*optr = '.';
-	if (!(optr <= oplim))
-		optr = past_eq;
-	ctl_putdata(output, (u_int)(optr - output), FALSE);
+	union {
+		uint32_t w;
+		uint8_t  b[sizeof(uint32_t)];
+	} bytes;
+
+	bytes.w = refid;
+	for (i = 0; i < sizeof(bytes.b); ++i)
+		if (bytes.b[i] && !isprint(bytes.b[i]))
+			bytes.b[i] = '.';
+	rc = snprintf(buffer, sizeof(buffer), "%s=%.*s",
+		      tag, (int)sizeof(bytes.b), bytes.b);
+	INSIST(rc >= 0 && (size_t)rc < sizeof(buffer));
+	ctl_putdata(buffer, (u_int)rc, FALSE);
 }
 
 
@@ -1874,26 +1799,27 @@ ctl_putarray(
 	int start
 	)
 {
-	register char *cp;
-	register const char *cq;
+	char *cp, *ep;
 	char buffer[200];
-	int i;
+	int  i, rc;
+
 	cp = buffer;
-	cq = tag;
-	while (*cq != '\0')
-		*cp++ = *cq++;
-	*cp++ = '=';
+	ep = buffer + sizeof(buffer);
+
+	rc  = snprintf(cp, (size_t)(ep - cp), "%s=", tag);
+	INSIST(rc >= 0 && rc < (ep - cp));
+	cp += rc;
+
 	i = start;
 	do {
 		if (i == 0)
 			i = NTP_SHIFT;
 		i--;
-		INSIST((cp - buffer) < (int)sizeof(buffer));
-		snprintf(cp, sizeof(buffer) - (cp - buffer),
-			 " %.2f", arr[i] * 1e3);
-		cp += strlen(cp);
+		rc = snprintf(cp, (size_t)(ep - cp), " %.2f", arr[i] * 1e3);
+		INSIST(rc >= 0 && rc < (ep - cp));
+		cp += rc;
 	} while (i != start);
-	ctl_putdata(buffer, (unsigned)(cp - buffer), 0);
+	ctl_putdata(buffer, (u_int)(cp - buffer), 0);
 }
 
 /*
@@ -2087,7 +2013,7 @@ ctl_putsys(
 
 		buffp = buf;
 		buffend = buf + sizeof(buf);
-		if (buffp + strlen(sys_var[CS_VARLIST].text) + 4 > buffend)
+		if (strlen(sys_var[CS_VARLIST].text) > (sizeof(buf) - 4))
 			break;	/* really long var name */
 
 		snprintf(buffp, sizeof(buf), "%s=\"",sys_var[CS_VARLIST].text);
@@ -2097,7 +2023,7 @@ ctl_putsys(
 			if (k->flags & PADDING)
 				continue;
 			len = strlen(k->text);
-			if (buffp + len + 1 >= buffend)
+			if (len + 1 >= buffend - buffp)
 				break;
 			if (!firstVarName)
 				*buffp++ = ',';
@@ -2117,7 +2043,7 @@ ctl_putsys(
 				len = strlen(k->text);
 			else
 				len = ss1 - k->text;
-			if (buffp + len + 1 >= buffend)
+			if (len + 1 >= buffend - buffp)
 				break;
 			if (firstVarName) {
 				*buffp++ = ',';
@@ -2126,7 +2052,7 @@ ctl_putsys(
 			memcpy(buffp, k->text,(unsigned)len);
 			buffp += len;
 		}
-		if (buffp + 2 >= buffend)
+		if (2 >= buffend - buffp)
 			break;
 
 		*buffp++ = '"';
@@ -4995,7 +4921,7 @@ report_event(
 		u_char		errlast;
 
 		errlast = (u_char)err & ~PEER_EVENT;
-		if (peer->last_event == errlast)
+		if (peer->last_event != errlast)
 			peer->num_events = 0;
 		if (peer->num_events >= CTL_PEER_MAXEVENTS)
 			return;
