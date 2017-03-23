@@ -459,9 +459,9 @@ static device_method_t tegra_sdhci_methods[] = {
 };
 
 static devclass_t tegra_sdhci_devclass;
-static DEFINE_CLASS_0(sdhci, tegra_sdhci_driver, tegra_sdhci_methods,
+static DEFINE_CLASS_0(sdhci_tegra, tegra_sdhci_driver, tegra_sdhci_methods,
     sizeof(struct tegra_sdhci_softc));
 DRIVER_MODULE(sdhci_tegra, simplebus, tegra_sdhci_driver, tegra_sdhci_devclass,
     NULL, NULL);
 MODULE_DEPEND(sdhci_tegra, sdhci, 1, 1, 1);
-MMC_DECLARE_BRIDGE(sdhci);
+MMC_DECLARE_BRIDGE(sdhci_tegra);
