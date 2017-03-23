@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20170323:
+	The code that provides support for ZFS .zfs/ directory functionality
+	has been reimplemented.  It's not possible now to create a snapshot
+	by mkdir under .zfs/snapshot/.  That should be the only user visible
+	change.
+
 20170319:
 	Many changes in the IPsec code have been merged from the FreeBSD-CURRENT
 	branch. The IPSEC_FILTERTUNNEL kernel option is removed in favour of
