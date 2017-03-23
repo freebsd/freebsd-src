@@ -10,6 +10,7 @@ MAN=	acct.5 \
 	ar.5 \
 	a.out.5 \
 	${_boot.config.5} \
+	cd9660.5 \
 	core.5 \
 	devfs.5 \
 	devfs.conf.5 \
