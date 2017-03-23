@@ -48,14 +48,17 @@ public:
 	 * no variable of %var is set, then %bogus will be returned.
 	 */
 	const std::string &get_variable(const std::string &var) const;
-	/** Is there a variable of %var set in thi stable?
+	/** Is there a variable of %var set in this table?
 	 */
 	bool is_set(const std::string &var) const;
 	/** A completely bogus string.
 	 */
 	static const std::string bogus;
 	static const std::string nothing;
+
 private:
+	const std::string &fix_value(const std::string &val) const;
+
 	std::map<std::string, std::string> _vars;
 };
 
