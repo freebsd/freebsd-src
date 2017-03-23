@@ -1938,6 +1938,17 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		mtx = thread_lock_block(td);
 		tdq_load_rem(tdq, td);
 	}
+
+#if (KTR_COMPILE & KTR_SCHED) != 0
+	if (TD_IS_IDLETHREAD(td))
+		KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "idle",
+		    "prio:%d", td->td_priority);
+	else
+		KTR_STATE3(KTR_SCHED, "thread", sched_tdname(td), KTDSTATE(td),
+		    "prio:%d", td->td_priority, "wmesg:\"%s\"", td->td_wmesg,
+		    "lockname:\"%s\"", td->td_lockname);
+#endif
+
 	/*
 	 * We enter here with the thread blocked and assigned to the
 	 * appropriate cpu run-queue or sleep-queue and with the current
@@ -1988,6 +1999,10 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		thread_unblock_switch(td, mtx);
 		SDT_PROBE0(sched, , , remain__cpu);
 	}
+
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "running",
+	    "prio:%d", td->td_priority);
+
 	/*
 	 * Assert that all went well and return.
 	 */
