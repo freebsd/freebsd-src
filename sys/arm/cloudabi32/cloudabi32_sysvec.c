@@ -189,6 +189,5 @@ Elf32_Brandinfo cloudabi32_brand = {
 	.brand		= ELFOSABI_CLOUDABI,
 	.machine	= EM_ARM,
 	.sysvec		= &cloudabi32_elf_sysvec,
-	.compat_3_brand	= "CloudABI",
 	.flags		= BI_BRAND_ONLY_STATIC,
 };
