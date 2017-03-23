@@ -4430,6 +4430,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		/*
 		 * XXX Should be done after data transfer completes?
 		 */
+		csio->resid = csio->dxfer_len - ta->DataLength;
 		tgt->resid -= csio->dxfer_len;
 		tgt->bytes_xfered += csio->dxfer_len;
 
@@ -4732,7 +4733,11 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 #ifndef	WE_TRUST_AUTO_GOOD_STATUS
 		resplen = MIN_FCP_RESPONSE_SIZE;
 #endif
-		if (tgt->resid) {
+		if (tgt->resid < 0) {
+			rsp[2] |= htobe32(0x400); /* XXXX NEED MNEMONIC!!!! */
+			rsp[3] = htobe32(-tgt->resid);
+			resplen = MIN_FCP_RESPONSE_SIZE;
+		} else if (tgt->resid > 0) {
 			rsp[2] |= htobe32(0x800); /* XXXX NEED MNEMONIC!!!! */
 			rsp[3] = htobe32(tgt->resid);
 			resplen = MIN_FCP_RESPONSE_SIZE;
