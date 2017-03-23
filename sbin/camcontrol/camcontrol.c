@@ -5378,6 +5378,12 @@ cpi_print(struct ccb_pathinq *cpi)
 		fprintf(stdout, "%s ", adapter_str);
 
 		switch(i) {
+		case PIM_ATA_EXT:
+			str = "can understand ata_ext requests";
+			break;
+		case PIM_EXTLUNS:
+			str = "64bit extended LUNs supported";
+			break;
 		case PIM_SCANHILO:
 			str = "bus scans from high ID to low ID";
 			break;
@@ -5396,6 +5402,12 @@ cpi_print(struct ccb_pathinq *cpi)
 			break;
 		case PIM_SEQSCAN:
 			str = "scan bus sequentially";
+			break;
+		case PIM_UNMAPPED:
+			str = "unmapped I/O supported";
+			break;
+		case PIM_NOSCAN:
+			str = "does its own scanning";
 			break;
 		default:
 			str = "unknown PIM bit set";
