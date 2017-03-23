@@ -244,7 +244,6 @@ aac_cam_probe(device_t dev)
 {
 	struct aac_softc *sc;
 	struct aac_cam *camsc;
-	struct aac_softc *sc;
 
 	camsc = (struct aac_cam *)device_get_softc(dev);
 	if (!camsc->inf)
@@ -1138,7 +1137,6 @@ aac_container_complete(struct aac_command *cm)
 {
 	struct	aac_softc *sc;
 	union	ccb *ccb;
-	struct	aac_softc *sc;
 	u_int32_t status;
 
 	sc = cm->cm_sc;
@@ -1148,7 +1146,7 @@ aac_container_complete(struct aac_command *cm)
 
 	if (cm->cm_flags & AAC_CMD_RESET) {
 		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
-	} else if (status == ST_OK) {
+	} else if (status == ST_OK) {	
 		ccb->ccb_h.status = CAM_REQ_CMP;
 	} else if (status == ST_NOT_READY) {
 		ccb->ccb_h.status = CAM_BUSY;
