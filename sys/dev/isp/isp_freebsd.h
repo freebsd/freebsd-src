@@ -173,7 +173,6 @@ typedef struct tstate {
 struct isp_pcmd {
 	struct isp_pcmd *	next;
 	bus_dmamap_t 		dmap;		/* dma map for this command */
-	struct ispsoftc *	isp;		/* containing isp */
 	struct callout		wdog;		/* watchdog timer */
 	uint32_t		datalen;	/* data length for this command (target mode only) */
 };
