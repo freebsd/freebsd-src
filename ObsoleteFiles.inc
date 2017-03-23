@@ -38,6 +38,23 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170322: rename <x> to <x>_test to match the FreeBSD test suite name scheme
+OLD_FILES+=usr/tests/usr.bin/col/col
+OLD_FILES+=usr/tests/usr.bin/diff/diff
+OLD_FILES+=usr/tests/usr.bin/ident/ident
+OLD_FILES+=usr/tests/usr.bin/mkimg/mkimg
+OLD_FILES+=usr/tests/usr.bin/sdiff/sdiff
+OLD_FILES+=usr/tests/usr.bin/soelim/soelim
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_config_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_etcdir_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_lock_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupadd_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupdel_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupmod_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_useradd_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_userdel_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_usermod_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_usernext_test
 # 20170322: garbage collect old references to igb(4)
 OLD_FILES+=usr/share/man/man4/if_igb.4.gz
 OLD_FILES+=usr/share/man/man4/igb.4.gz
