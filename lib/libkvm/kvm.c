@@ -224,7 +224,7 @@ failed:
 	if (errout != 0)
 		strlcpy(errout, kd->errbuf, _POSIX2_LINE_MAX);
 	(void)kvm_close(kd);
-	return (0);
+	return (NULL);
 }
 
 kvm_t *
@@ -235,7 +235,7 @@ kvm_openfiles(const char *uf, const char *mf, const char *sf __unused, int flag,
 
 	if ((kd = calloc(1, sizeof(*kd))) == NULL) {
 		(void)strlcpy(errout, strerror(errno), _POSIX2_LINE_MAX);
-		return (0);
+		return (NULL);
 	}
 	kd->program = 0;
 	return (_kvm_open(kd, uf, mf, flag, errout));
@@ -251,7 +251,7 @@ kvm_open(const char *uf, const char *mf, const char *sf __unused, int flag,
 		if (errstr != NULL)
 			(void)fprintf(stderr, "%s: %s\n",
 				      errstr, strerror(errno));
-		return (0);
+		return (NULL);
 	}
 	kd->program = errstr;
 	return (_kvm_open(kd, uf, mf, flag, NULL));
