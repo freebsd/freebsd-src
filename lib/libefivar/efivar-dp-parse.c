@@ -3006,7 +3006,6 @@ DevPathFromTextVenMedia (
            );
 }
 
-#ifndef __FreeBSD__
 /**
   Converts a text device path node to File device path structure.
 
@@ -3023,6 +3022,7 @@ DevPathFromTextFilePath (
 {
   FILEPATH_DEVICE_PATH  *File;
 
+#ifndef __FreeBSD__
   File = (FILEPATH_DEVICE_PATH *) CreateDeviceNode (
                                     MEDIA_DEVICE_PATH,
                                     MEDIA_FILEPATH_DP,
@@ -3030,10 +3030,26 @@ DevPathFromTextFilePath (
                                     );
 
   StrCpyS (File->PathName, StrLen (TextDeviceNode) + 1, TextDeviceNode);
+#else
+  File = (FILEPATH_DEVICE_PATH *) CreateDeviceNode (
+                                    MEDIA_DEVICE_PATH,
+                                    MEDIA_FILEPATH_DP,
+                                    (UINT16) (sizeof (FILEPATH_DEVICE_PATH) + StrLen (TextDeviceNode) + 1)
+                                    );
+
+  /* 
+   * Note: We'd have to change the Tianocore header files to fix this
+   * to not need a cast.  Instead we just cast it here. The Interface
+   * to the user may have issues since this won't be a UCS-2
+   * string. Also note that in the original code, a NUL wasn't
+   * allocated for the end of the string, but we copy that below. This
+   * has been corrected.
+   */
+  StrCpyS ((char *)File->PathName, StrLen (TextDeviceNode) + 1, TextDeviceNode);
+#endif
 
   return (EFI_DEVICE_PATH_PROTOCOL *) File;
 }
-#endif
 
 /**
   Converts a text device path node to Media protocol device path structure.
@@ -3598,7 +3614,6 @@ UefiDevicePathLibConvertTextToDeviceNode (
     }
   }
 
-#ifndef __FreeBSD__
   if (FromText == NULL) {
     //
     // A file path
@@ -3606,9 +3621,6 @@ UefiDevicePathLibConvertTextToDeviceNode (
     FromText = DevPathFromTextFilePath;
     DeviceNode = FromText (DeviceNodeStr);
   } else {
-#else
-  {
-#endif
     DeviceNode = FromText (ParamStr);
     FreePool (ParamStr);
   }
