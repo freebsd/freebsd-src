@@ -324,8 +324,7 @@ static void	iwm_mvm_rx_rx_phy_cmd(struct iwm_softc *,
                                       struct iwm_rx_data *);
 static int	iwm_get_noise(struct iwm_softc *sc,
 		    const struct iwm_mvm_statistics_rx_non_phy *);
-static void	iwm_mvm_rx_rx_mpdu(struct iwm_softc *, struct iwm_rx_packet *,
-                                   struct iwm_rx_data *);
+static void	iwm_mvm_rx_rx_mpdu(struct iwm_softc *, struct mbuf *);
 static int	iwm_mvm_rx_tx_cmd_single(struct iwm_softc *,
                                          struct iwm_rx_packet *,
 				         struct iwm_node *);
@@ -3160,22 +3159,19 @@ iwm_get_noise(struct iwm_softc *sc,
  * Handles the actual data of the Rx packet from the fw
  */
 static void
-iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
-	struct iwm_rx_packet *pkt, struct iwm_rx_data *data)
+iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct ieee80211_rx_stats rxs;
-	struct mbuf *m;
 	struct iwm_rx_phy_info *phy_info;
 	struct iwm_rx_mpdu_res_start *rx_res;
+	struct iwm_rx_packet *pkt = mtod(m, struct iwm_rx_packet *);
 	uint32_t len;
 	uint32_t rx_pkt_status;
 	int rssi;
-
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	phy_info = &sc->sc_last_phy_info;
 	rx_res = (struct iwm_rx_mpdu_res_start *)pkt->data;
@@ -3183,7 +3179,6 @@ iwm_mvm_rx_rx_mpdu(struct iwm_softc *sc,
 	len = le16toh(rx_res->byte_count);
 	rx_pkt_status = le32toh(*(uint32_t *)(pkt->data + sizeof(*rx_res) + len));
 
-	m = data->m;
 	m->m_data = pkt->data + sizeof(*rx_res);
 	m->m_pkthdr.len = m->m_len = len;
 
@@ -5406,7 +5401,7 @@ iwm_notif_intr(struct iwm_softc *sc)
 			break;
 
 		case IWM_REPLY_RX_MPDU_CMD:
-			iwm_mvm_rx_rx_mpdu(sc, pkt, data);
+			iwm_mvm_rx_rx_mpdu(sc, data->m);
 			break;
 
 		case IWM_TX_CMD:
@@ -5449,7 +5444,8 @@ iwm_notif_intr(struct iwm_softc *sc)
 				}
 			}
 
-			break; }
+			break;
+		}
 
 		case IWM_MFUART_LOAD_NOTIFICATION:
 			break;
@@ -5465,7 +5461,8 @@ iwm_notif_intr(struct iwm_softc *sc)
 			stats = (void *)pkt->data;
 			memcpy(&sc->sc_stats, stats, sizeof(sc->sc_stats));
 			sc->sc_noise = iwm_get_noise(sc, &stats->rx.general);
-			break; }
+			break;
+		}
 
 		case IWM_NVM_ACCESS_CMD:
 		case IWM_MCC_UPDATE_CMD:
@@ -5485,7 +5482,8 @@ iwm_notif_intr(struct iwm_softc *sc)
 			IWM_DPRINTF(sc, IWM_DEBUG_RESET,
 			    "fw source %d sent CC '%s'\n",
 			    notif->source_id, sc->sc_fw_mcc);
-			break; }
+			break;
+		}
 
 		case IWM_DTS_MEASUREMENT_NOTIFICATION:
 		case IWM_WIDE_ID(IWM_PHY_OPS_GROUP,
