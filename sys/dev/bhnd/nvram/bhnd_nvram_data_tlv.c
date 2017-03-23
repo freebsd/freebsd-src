@@ -165,6 +165,78 @@ bhnd_nvram_tlv_probe(struct bhnd_nvram_io *io)
 }
 
 static int
+bhnd_nvram_tlv_getvar_direct(struct bhnd_nvram_io *io, const char *name,
+    void *buf, size_t *len, bhnd_nvram_type type)
+{
+	struct bhnd_nvram_tlv_env	 env;
+	char				 data[NVRAM_TLV_ENVP_DATA_MAX_LEN];
+	size_t				 data_len;
+	const char			*key, *value;
+	size_t				 keylen, vlen;
+	size_t				 namelen;
+	size_t				 next, off;
+	uint8_t				 tag;
+	int				 error;
+
+	namelen = strlen(name);
+
+	/* Iterate over the input looking for the requested variable */
+	next = 0;
+	while (!(error = bhnd_nvram_tlv_next_record(io, &next, &off, &tag))) {
+		switch (tag) {
+		case NVRAM_TLV_TYPE_END:
+			/* Not found */
+			return (ENOENT);
+
+		case NVRAM_TLV_TYPE_ENV:
+			/* Read the record header */
+			error = bhnd_nvram_io_read(io, off, &env, sizeof(env));
+			if (error) {
+				BHND_NV_LOG("error reading TLV_ENV record "
+				    "header: %d\n", error);
+				return (error);
+			}
+
+			/* Read the record data */
+			data_len = NVRAM_TLV_ENVP_DATA_LEN(&env);
+			error = bhnd_nvram_io_read(io, off + sizeof(env), data,
+			    data_len);
+			if (error) {
+				BHND_NV_LOG("error reading TLV_ENV record "
+				    "data: %d\n", error);
+				return (error);
+			}
+
+			/* Parse the key=value string */
+			error = bhnd_nvram_parse_env(data, data_len, '=', &key,
+			    &keylen, &value, &vlen);
+			if (error) {
+				BHND_NV_LOG("error parsing TLV_ENV data: %d\n",
+				    error);
+				return (error);
+			}
+
+			/* Match against requested variable name */
+			if (keylen == namelen && 
+			    strncmp(key, name, namelen) == 0)
+			{
+				return (bhnd_nvram_value_coerce(value, vlen,
+				    BHND_NVRAM_TYPE_STRING, buf, len, type));
+			}
+
+			break;
+
+		default:
+			/* Skip unknown tags */
+			break;
+		}
+	}
+
+	/* Hit I/O error */
+	return (error);
+}
+
+static int
 bhnd_nvram_tlv_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
     bhnd_nvram_plist *options, void *outp, size_t *olen)
 {

@@ -40,6 +40,8 @@
 
 #include <dev/bhnd/cores/pmu/bhnd_pmuvar.h>
 
+#include "bcm_nvram_cfevar.h"
+
 extern const struct bhnd_pmu_io	bcm_pmu_soc_io;
 
 struct bcm_platform {
@@ -65,6 +67,9 @@ struct bcm_platform {
 		bhnd_erom_t		 obj;
 	} erom;
 
+	struct bhnd_nvram_io	*nvram_io;	/**< NVRAM I/O context, or NULL if unavailable */
+	bhnd_nvram_data_class	*nvram_cls;	/**< NVRAM data class, or NULL if unavailable */
+
 #ifdef CFE
 	int			cfe_console;	/**< Console handle, or -1 */
 #endif
@@ -78,6 +83,10 @@ uint64_t		 bcm_get_alpfreq(struct bcm_platform *bp);
 uint64_t		 bcm_get_ilpfreq(struct bcm_platform *bp);
 
 u_int			 bcm_get_uart_rclk(struct bcm_platform *bp);
+
+int			 bcm_get_nvram(struct bcm_platform *bp,
+			     const char *name, void *outp, size_t *olen,
+			     bhnd_nvram_type type);
 
 #define	BCM_ERR(fmt, ...)	\
 	printf("%s: " fmt, __FUNCTION__, ##__VA_ARGS__)

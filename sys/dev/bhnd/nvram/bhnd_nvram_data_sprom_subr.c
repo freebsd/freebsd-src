@@ -51,7 +51,6 @@ static int	bhnd_nvram_opcode_idx_vid_compare(const void *key,
 		    const void *rhs);
 
 static int	bhnd_sprom_opcode_reset(bhnd_sprom_opcode_state *state);
-static int	bhnd_sprom_opcode_next_var(bhnd_sprom_opcode_state *state);
 
 static int	bhnd_sprom_opcode_set_type(bhnd_sprom_opcode_state *state,
 		    bhnd_nvram_type type);
@@ -108,8 +107,6 @@ bhnd_sprom_opcode_init(bhnd_sprom_opcode_state *state,
 		return (ENOMEM);
 
 	for (num_vars = 0; num_vars < num_idx; num_vars++) {
-		size_t opcodes;
-
 		/* Seek to next entry */
 		if ((error = bhnd_sprom_opcode_next_var(state))) {
 			SPROM_OP_BAD(state, "error reading expected variable "
@@ -118,36 +115,14 @@ bhnd_sprom_opcode_init(bhnd_sprom_opcode_state *state,
 			return (error);
 		}
 
-		/* We limit the SPROM index representations to the minimal
-		 * type widths capable of covering all known layouts */
-
-		/* Save SPROM image offset */
-		if (state->offset > UINT16_MAX) {
-			SPROM_OP_BAD(state, "cannot index large offset %u\n",
-			    state->offset);
+		/* Record entry state in our index */
+		error = bhnd_sprom_opcode_init_entry(state, &idx[num_vars]);
+		if (error) {
+			SPROM_OP_BAD(state, "error initializing index for "
+			    "entry: %d\n", error);
 			bhnd_nv_free(idx);
-			return (ENXIO);
+			return (error);
 		}
-		idx[num_vars].offset = state->offset;
-
-		/* Save current variable ID */
-		if (state->vid > UINT16_MAX) {
-			SPROM_OP_BAD(state, "cannot index large vid %zu\n",
-			    state->vid);
-			bhnd_nv_free(idx);
-			return (ENXIO);
-		}
-		idx[num_vars].vid = state->vid;
-
-		/* Save opcode position */
-		opcodes = (state->input - state->layout->bindings);
-		if (opcodes > UINT16_MAX) {
-			SPROM_OP_BAD(state, "cannot index large opcode offset "
-			    "%zu\n", opcodes);
-			bhnd_nv_free(idx);
-			return (ENXIO);
-		}
-		idx[num_vars].opcodes = opcodes;
 	}
 
 	/* Should have reached end of binding table; next read must return
@@ -312,6 +287,54 @@ bhnd_sprom_opcode_index_next(bhnd_sprom_opcode_state *state,
 		return (NULL);
 
 	return (&state->idx[idxpos]);
+}
+
+
+/**
+ * Initialize @p entry with the current variable's opcode state.
+ * 
+ * @param	state	The opcode state to be saved.
+ * @param[out]	entry	The opcode index entry to be initialized from @p state.
+ * 
+ * @retval 0		success
+ * @retval ENXIO	if @p state cannot be serialized as an index entry.
+ */
+int
+bhnd_sprom_opcode_init_entry(bhnd_sprom_opcode_state *state,
+    bhnd_sprom_opcode_idx_entry *entry)
+{
+	size_t opcodes;
+
+	/* We limit the SPROM index representations to the minimal type widths
+	 * capable of covering all known layouts */
+
+	/* Save SPROM image offset */
+	if (state->offset > UINT16_MAX) {
+		SPROM_OP_BAD(state, "cannot index large offset %u\n",
+		    state->offset);
+		return (ENXIO);
+	}
+
+	entry->offset = state->offset;
+
+	/* Save current variable ID */
+	if (state->vid > UINT16_MAX) {
+		SPROM_OP_BAD(state, "cannot index large vid %zu\n",
+		    state->vid);
+		return (ENXIO);
+	}
+	entry->vid = state->vid;
+
+	/* Save opcode position */
+	opcodes = (state->input - state->layout->bindings);
+	if (opcodes > UINT16_MAX) {
+		SPROM_OP_BAD(state, "cannot index large opcode offset "
+		    "%zu\n", opcodes);
+		return (ENXIO);
+	}
+	entry->opcodes = opcodes;
+
+	return (0);
 }
 
 /**
@@ -1255,7 +1278,7 @@ bhnd_sprom_opcode_step(bhnd_sprom_opcode_state *state, uint8_t *opcode)
  * returned.
  */
 int
-bhnd_sprom_opcode_parse_var(bhnd_sprom_opcode_state *state,
+bhnd_sprom_opcode_eval_var(bhnd_sprom_opcode_state *state,
     bhnd_sprom_opcode_idx_entry *entry)
 {
 	uint8_t	opcode;
@@ -1291,7 +1314,7 @@ bhnd_sprom_opcode_parse_var(bhnd_sprom_opcode_state *state,
  * @retval non-zero if evaluation otherwise fails, a regular unix error
  * code will be returned.
  */
-static int
+int
 bhnd_sprom_opcode_next_var(bhnd_sprom_opcode_state *state)
 {
 	uint8_t	opcode;

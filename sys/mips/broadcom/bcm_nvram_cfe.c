@@ -54,36 +54,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/cfe/cfe_error.h>
 #include <dev/cfe/cfe_ioctl.h>
 
-#include <dev/bhnd/nvram/bhnd_nvram_iovar.h>
-
 #include "bhnd_nvram_if.h"
 
+#include "bcm_machdep.h"
 #include "bcm_nvram_cfevar.h"
-
-/**
- * CFE-backed bhnd_nvram_io implementation.
- */
-struct bhnd_nvram_iocfe {
-	struct bhnd_nvram_io	 io;		/**< common I/O instance state */
-
-	char			*dname;		/**< CFE device name (borrowed) */
-	int			 fd;		/**< CFE file descriptor */
-	size_t			 offset;	/**< base offset */
-	size_t			 size;		/**< device size */
-	bool			 req_blk_erase;	/**< flash blocks must be erased
-						     before writing */
-};
 
 BHND_NVRAM_IOPS_DEFN(iocfe)
 
 #define IOCFE_LOG(_io, _fmt, ...)	\
 	printf("%s/%s: " _fmt, __FUNCTION__, (_io)->dname, ##__VA_ARGS__)
 
-static int			 bhnd_nvram_iocfe_new(struct bhnd_nvram_io **io,
-				     char *dname);
-
-static struct bhnd_nvram_io	*bhnd_nvram_find_cfedev(device_t dev,
-				     char **dname, bhnd_nvram_data_class **cls);
+static int	bcm_nvram_iocfe_init(struct bcm_nvram_iocfe *iocfe,
+		    char *dname);
 
 /** Known CFE NVRAM device names, in probe order. */
 static char *nvram_cfe_devs[] = {
@@ -99,31 +81,20 @@ static bhnd_nvram_data_class * const nvram_cfe_fmts[] = {
 	&bhnd_nvram_tlv_class
 };
 
-
 static int
 bhnd_nvram_cfe_probe(device_t dev)
 {
-	struct bhnd_nvram_io	*io;
-	bhnd_nvram_data_class	*cls;
-	const char		*cls_desc;
-	char			*dname;
-	char			*desc;
+	struct bcm_platform *bp;
 
-	/* Locate a usable CFE device */
-	io = bhnd_nvram_find_cfedev(dev, &dname, &cls);
-	if (io == NULL)
+	/* Fetch platform NVRAM I/O context */
+	bp = bcm_get_platform();
+	if (bp->nvram_io == NULL)
 		return (ENXIO);
-	bhnd_nvram_io_free(io);
 
-	/* Format the device description */
-	cls_desc = bhnd_nvram_data_class_desc(cls);
-	asprintf(&desc, M_DEVBUF, "%s CFE %s", cls_desc, dname);
-	if (desc != NULL) {
-		device_set_desc_copy(dev, desc);
-		free(desc, M_DEVBUF);
-	} else {
-		device_set_desc(dev, cls_desc);
-	}
+	KASSERT(bp->nvram_cls != NULL, ("missing NVRAM class"));
+
+	/* Set the device description */
+	device_set_desc(dev, bhnd_nvram_data_class_desc(bp->nvram_cls));
 
 	/* Refuse wildcard attachments */
 	return (BUS_PROBE_NOWILDCARD);
@@ -133,25 +104,19 @@ bhnd_nvram_cfe_probe(device_t dev)
 static int
 bhnd_nvram_cfe_attach(device_t dev)
 {
+	struct bcm_platform		*bp;
 	struct bhnd_nvram_cfe_softc	*sc;
-	bhnd_nvram_data_class		*cls;
-	struct bhnd_nvram_io		*io;
-	char				*dname;
 	int				 error;
+
+	bp = bcm_get_platform();
+	KASSERT(bp->nvram_io != NULL, ("missing NVRAM I/O context"));
+	KASSERT(bp->nvram_cls != NULL, ("missing NVRAM class"));
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	/* Locate NVRAM device via CFE */
-	io = bhnd_nvram_find_cfedev(dev, &dname, &cls);
-	if (io == NULL) {
-		device_printf(dev, "CFE NVRAM device not found\n");
-		return (ENXIO);
-	}
-
-	/* Initialize NVRAM store and free the I/O context */
-	error = bhnd_nvram_store_parse_new(&sc->store, io, cls);
-	bhnd_nvram_io_free(io);
+	error = bhnd_nvram_store_parse_new(&sc->store, bp->nvram_io,
+	    bp->nvram_cls);
 	if (error)
 		return (error);
 
@@ -201,79 +166,79 @@ bhnd_nvram_cfe_setvar(device_t dev, const char *name, const void *buf,
 }
 
 /**
- * Find, open, identify, and return an I/O context mapping our
- * CFE NVRAM device.
+ * Find, open, identify, and initialize an I/O context mapping the CFE NVRAM
+ * device.
  * 
- * @param	dev		bhnd_nvram_cfe device.
- * @param[out]	dname		On success, the CFE device name.
+ * @param[out]	iocfe		On success, an I/O context mapping the CFE NVRAM
+ *				device.
  * @param[out]	cls		On success, the identified NVRAM data format
  *				class.
  *
- * @retval	non-NULL success. the caller inherits ownership of the returned
- * NVRAM I/O context.
- * @retval	NULL if no usable CFE NVRAM device could be found.
+ * @retval 0		success. the caller inherits ownership of @p iocfe.
+ * @retval non-zero	if no usable CFE NVRAM device can be found, a standard
+ *			unix error will be returned.
  */
-static struct bhnd_nvram_io *
-bhnd_nvram_find_cfedev(device_t dev, char **dname, bhnd_nvram_data_class **cls)
+int
+bcm_nvram_find_cfedev(struct bcm_nvram_iocfe *iocfe,
+    bhnd_nvram_data_class **cls)
 {
-	struct bhnd_nvram_io	*io;
-	int			 devinfo;
-	int			 error, result;
+	char	*dname;
+	int	 devinfo;
+	int	 error, result;
 
 	for (u_int i = 0; i < nitems(nvram_cfe_fmts); i++) {
 		*cls = nvram_cfe_fmts[i];
 
 		for (u_int j = 0; j < nitems(nvram_cfe_devs); j++) {
-			*dname = nvram_cfe_devs[j];
+			dname = nvram_cfe_devs[j];
 
 			/* Does the device exist? */
-			if ((devinfo = cfe_getdevinfo(*dname)) < 0) {
+			if ((devinfo = cfe_getdevinfo(dname)) < 0) {
 				if (devinfo != CFE_ERR_DEVNOTFOUND) {
-					device_printf(dev, "cfe_getdevinfo(%s) "
-					    "failed: %d\n", *dname, devinfo);
+					BCM_ERR("cfe_getdevinfo(%s) failed: "
+					    "%d\n", dname, devinfo);
 				}
 
 				continue;
 			}
 
 			/* Open for reading */
-			if ((error = bhnd_nvram_iocfe_new(&io, *dname)))
+			if ((error = bcm_nvram_iocfe_init(iocfe, dname)))
 				continue;
 
 			/* Probe */
-			result = bhnd_nvram_data_probe(*cls, io);
+			result = bhnd_nvram_data_probe(*cls, &iocfe->io);
 			if (result <= 0) {
 				/* Found a supporting NVRAM data class */
-				return (io);
+				return (0);
 			}
 
 			/* Keep searching */
-			bhnd_nvram_io_free(io);
-			io = NULL;
+			bhnd_nvram_io_free(&iocfe->io);
 		}
 	}
 
-	return (NULL);
+	return (ENODEV);
 }
 
 
 /**
- * Allocate and return a new I/O context backed by a CFE device.
+ * Initialize a new CFE device-backed I/O context.
  *
- * The caller is responsible for deallocating the returned I/O context via
- * bhnd_nvram_io_free().
+ * The caller is responsible for releasing all resources held by the returned
+ * I/O context via bhnd_nvram_io_free().
  * 
- * @param[out] io On success, a valid I/O context for @p dname.
- * @param dname The name of the CFE device to be opened for reading.
+ * @param[out]	io	On success, will be initialized as an I/O context for
+ *			CFE device @p dname.
+ * @param	dname	The name of the CFE device to be opened for reading.
  *
- * @retval 0 success.
- * @retval non-zero if opening @p dname otherwise fails, a standard unix error
- * will be returned.
+ * @retval 0		success.
+ * @retval non-zero	if opening @p dname otherwise fails, a standard unix
+ *			error will be returned.
  */
 static int
-bhnd_nvram_iocfe_new(struct bhnd_nvram_io **io, char *dname)
+bcm_nvram_iocfe_init(struct bcm_nvram_iocfe *iocfe, char *dname)
 {
-	struct bhnd_nvram_iocfe	*iocfe;
 	nvram_info_t		 nvram_info;
 	int			 cerr, devinfo, dtype, rlen;
 	int64_t			 nv_offset;
@@ -281,7 +246,6 @@ bhnd_nvram_iocfe_new(struct bhnd_nvram_io **io, char *dname)
 	bool			 req_blk_erase;
 	int			 error;
 
-	iocfe = malloc(sizeof(*iocfe), M_DEVBUF, M_WAITOK);
 	iocfe->io.iops = &bhnd_nvram_iocfe_ops;
 	iocfe->dname = dname;
 
@@ -290,8 +254,7 @@ bhnd_nvram_iocfe_new(struct bhnd_nvram_io **io, char *dname)
 	if (iocfe->fd <= 0) {
 		IOCFE_LOG(iocfe, "cfe_open() failed: %d\n", iocfe->fd);
 
-		error = ENXIO;
-		goto failed;
+		return (ENXIO);
 	}
 
 	/* Try to fetch device info */
@@ -374,32 +337,29 @@ bhnd_nvram_iocfe_new(struct bhnd_nvram_io **io, char *dname)
 	iocfe->size = nv_size;
 	iocfe->req_blk_erase = req_blk_erase;
 
-	*io = &iocfe->io;
 	return (CFE_OK);
 
 failed:
 	if (iocfe->fd >= 0)
 		cfe_close(iocfe->fd);
 
-	free(iocfe, M_DEVBUF);
-
-	*io = NULL;
 	return (error);
 }
 
 static void
 bhnd_nvram_iocfe_free(struct bhnd_nvram_io *io)
 {
-	struct bhnd_nvram_iocfe	*iocfe = (struct bhnd_nvram_iocfe *)io;
+	struct bcm_nvram_iocfe	*iocfe = (struct bcm_nvram_iocfe *)io;
 
+	/* CFE I/O instances are statically allocated; we do not need to free
+	 * the instance itself */
 	cfe_close(iocfe->fd);
-	free(io, M_DEVBUF);
 }
 
 static size_t
 bhnd_nvram_iocfe_getsize(struct bhnd_nvram_io *io)
 {
-	struct bhnd_nvram_iocfe	*iocfe = (struct bhnd_nvram_iocfe *)io;
+	struct bcm_nvram_iocfe	*iocfe = (struct bcm_nvram_iocfe *)io;
 	return (iocfe->size);
 }
 
@@ -438,12 +398,12 @@ static int
 bhnd_nvram_iocfe_read(struct bhnd_nvram_io *io, size_t offset, void *buffer,
     size_t nbytes)
 {
-	struct bhnd_nvram_iocfe	*iocfe;
+	struct bcm_nvram_iocfe	*iocfe;
 	size_t			 remain;
 	int64_t			 cfe_offset;
 	int			 nr, nreq;
 
-	iocfe = (struct bhnd_nvram_iocfe *)io;
+	iocfe = (struct bcm_nvram_iocfe *)io;
 
 	/* Determine (and validate) the base CFE offset */
 #if (SIZE_MAX > INT64_MAX)

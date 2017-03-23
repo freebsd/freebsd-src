@@ -105,6 +105,11 @@ int			 bhnd_nvram_data_probe_classes(
 			     bhnd_nvram_data_class *classes[],
 			     size_t num_classes);
 
+int			 bhnd_nvram_data_getvar_direct(
+			     bhnd_nvram_data_class *cls,
+			     struct bhnd_nvram_io *io, const char *name,
+			     void *buf, size_t *len, bhnd_nvram_type type);
+
 int			 bhnd_nvram_data_new(bhnd_nvram_data_class *cls,
 			     struct bhnd_nvram_data **nv,
 			   struct bhnd_nvram_io *io);

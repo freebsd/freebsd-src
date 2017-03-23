@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>
+#include <dev/cfe/cfe_error.h>
 #endif
 
 #if 0
@@ -111,6 +112,10 @@ extern int	*end;
 
 static struct bcm_platform	 bcm_platform_data;
 static bool			 bcm_platform_data_avail = false;
+
+#ifdef CFE
+static struct bcm_nvram_iocfe	 bcm_cfe_nvram;
+#endif
 
 static const struct bhnd_core_match bcm_chipc_cores[] = {
 	{ BHND_MATCH_CORE(BHND_MFGID_BCM,	BHND_COREID_CC)		},
@@ -187,6 +192,40 @@ bcm_find_core(struct bcm_platform *bp, const struct bhnd_core_match *descs,
 		*addr = b_addr;
 
 	return (0);
+}
+
+/**
+ * Read a variable directly from NVRAM, decoding as @p type.
+ *
+ * @param		bp	Platform state.
+ * @param		name	The raw name of the variable to be fetched,
+ *				including any device path (/pci/1/1/varname) or
+ *				alias prefix (0:varname).
+ * @param[out]		buf	On success, the requested value will be written
+ *				to this buffer. This argment may be NULL if
+ *				the value is not desired.
+ * @param[in,out]	len	The capacity of @p buf. On success, will be set
+ *				to the actual size of the requested value.
+ * @param		type	The data type to be written to @p buf.
+ *
+ * @retval 0		success
+ * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p len is too
+ *			small to hold the requested value.
+ * @retval ENOENT	If @p name is not found.
+ * @retval EFTYPE	If the variable data cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion would overflow @p type.
+ * @retval non-zero	If parsing NVRAM otherwise fails, a regular unix error
+ *			code will be returned.
+ */
+int
+bcm_get_nvram(struct bcm_platform *bp, const char *name, void *buf, size_t *len,
+    bhnd_nvram_type type)
+{
+	if (bp->nvram_io == NULL || bp->nvram_cls == NULL)
+		return (ENOENT);
+
+	return (bhnd_nvram_data_getvar_direct(bp->nvram_cls, bp->nvram_io, name,
+	    buf, len, type));
 }
 
 /**
@@ -280,12 +319,20 @@ bcm_init_platform_data(struct bcm_platform *bp)
 	bool	aob, pmu;
 	int	error;
 
+#ifdef CFE
 	/* Fetch CFE console handle (if any). Must be initialized before
 	 * any calls to printf/early_putc. */
-#ifdef CFE
 	if ((bp->cfe_console = cfe_getstdhandle(CFE_STDHANDLE_CONSOLE)) < 0)
 		bp->cfe_console = -1;
-#endif
+
+	/* Probe CFE NVRAM sources */
+	bp->nvram_io = &bcm_cfe_nvram.io;
+	error = bcm_nvram_find_cfedev(&bcm_cfe_nvram, &bp->nvram_cls);
+	if (error) {
+		bp->nvram_io = NULL;
+		bp->nvram_cls = NULL;
+	}
+#endif /* CFE */
 
 	/* Probe and attach device table provider, populating our
 	 * chip identification */
