@@ -1517,7 +1517,7 @@ log_frame_dump(struct trapframe *frame)
 	    (intmax_t)frame->a0, (intmax_t)frame->a1, (intmax_t)frame->a2, (intmax_t)frame->a3);
 
 #if defined(__mips_n32) || defined(__mips_n64)
-	log(LOG_ERR, "\ta4: %#jx\ta5: %#jx\ta6: %#jx\ta6: %#jx\n",
+	log(LOG_ERR, "\ta4: %#jx\ta5: %#jx\ta6: %#jx\ta7: %#jx\n",
 	    (intmax_t)frame->a4, (intmax_t)frame->a5, (intmax_t)frame->a6, (intmax_t)frame->a7);
 
 	log(LOG_ERR, "\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
