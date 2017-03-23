@@ -128,6 +128,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_pathmatch.h \
 	libarchive/archive_platform.h \
 	libarchive/archive_platform_acl.h \
+	libarchive/archive_platform_xattr.h \
 	libarchive/archive_ppmd_private.h \
 	libarchive/archive_ppmd7.c \
 	libarchive/archive_ppmd7_private.h \
@@ -618,6 +619,7 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_write_format_zip_zip64.c \
 	libarchive/test/test_write_open_memory.c \
 	libarchive/test/test_write_read_format_zip.c \
+	libarchive/test/test_xattr_platform.c \
 	libarchive/test/test_zip_filename_encoding.c
 
 libarchive_test_CPPFLAGS= \
@@ -1009,6 +1011,7 @@ bsdtar_test_SOURCES= \
 	tar/test/test_option_s.c \
 	tar/test/test_option_uid_uname.c \
 	tar/test/test_option_uuencode.c \
+	tar/test/test_option_xattrs.c \
 	tar/test/test_option_xz.c \
 	tar/test/test_option_z.c \
 	tar/test/test_patterns.c \

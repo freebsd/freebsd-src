@@ -79,6 +79,9 @@
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
+#ifdef HAVE_SYS_RICHACL_H
+#include <sys/richacl.h>
+#endif
 #ifdef HAVE_WINDOWS_H
 #include <windows.h>
 #endif
@@ -131,6 +134,7 @@
 #define	ARCHIVE_TEST_ACL_TYPE_POSIX1E	1
 #define	ARCHIVE_TEST_ACL_TYPE_NFS4	2
 
+#include "archive_platform_xattr.h"
 
 /*
  * Redefine DEFINE_TEST for use in defining the test functions.
@@ -342,6 +346,12 @@ int canNodump(void);
 
 /* Set test ACLs */
 int setTestAcl(const char *path);
+
+/* Get extended attribute */
+const void *getXattr(const char *, const char *, size_t *);
+
+/* Set extended attribute */
+int setXattr(const char *, const char *, const void *, size_t);
 
 /* Return true if the file has large i-node number(>0xffffffff). */
 int is_LargeInode(const char *);

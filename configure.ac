@@ -253,7 +253,7 @@ esac
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([acl/libacl.h])
+AC_CHECK_HEADERS([acl/libacl.h attr/xattr.h])
 AC_CHECK_HEADERS([copyfile.h ctype.h])
 AC_CHECK_HEADERS([errno.h ext2fs/ext2_fs.h fcntl.h grp.h])
 
@@ -287,11 +287,11 @@ AS_VAR_IF([ac_cv_have_decl_FS_IOC_GETFLAGS], [yes],
 AC_CHECK_HEADERS([locale.h membership.h paths.h poll.h pthread.h pwd.h])
 AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
 AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
-AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/extattr.h])
+AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/ea.h sys/extattr.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/richacl.h])
 AC_CHECK_HEADERS([sys/select.h sys/statfs.h sys/statvfs.h])
-AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h])
+AC_CHECK_HEADERS([sys/time.h sys/utime.h sys/utsname.h sys/vfs.h sys/xattr.h])
 AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
 AC_CHECK_HEADERS([windows.h])
 # check windows.h first; the other headers require it.
@@ -675,18 +675,108 @@ AC_ARG_ENABLE([xattr],
 		[Disable Extended Attributes support (default: check)]))
 
 if test "x$enable_xattr" != "xno"; then
-	AC_CHECK_HEADERS([attr/xattr.h])
-	AC_CHECK_HEADERS([sys/xattr.h sys/ea.h])
-	AC_SEARCH_LIBS([setxattr], [attr])
-	AC_CHECK_FUNCS([extattr_get_file extattr_list_file])
-	AC_CHECK_FUNCS([extattr_set_fd extattr_set_file])
-	AC_CHECK_FUNCS([fgetxattr flistxattr fsetxattr getxattr])
-	AC_CHECK_FUNCS([lgetxattr listxattr llistxattr lsetxattr])
-	AC_CHECK_FUNCS([fgetea flistea fsetea getea])
-	AC_CHECK_FUNCS([lgetea listea llistea lsetea])
-	AC_CHECK_DECLS([EXTATTR_NAMESPACE_USER], [], [], [#include <sys/types.h>
+    AC_SEARCH_LIBS([setxattr], [attr])
+    AC_CHECK_DECLS([EXTATTR_NAMESPACE_USER], [], [], [#include <sys/types.h>
 #include <sys/extattr.h>
 ])
+    AC_CHECK_DECLS([XATTR_NOFOLLOW], [], [], [#include <sys/xattr.h>
+])
+    if test "x$ac_cv_header_sys_xattr_h" = "xyes" \
+	 -a "x$ac_cv_have_decl_XATTR_NOFOLLOW" = "xyes"; then
+	# Darwin extended attributes support
+	AC_CACHE_VAL([ac_cv_archive_xattr_darwin],
+	  [AC_CHECK_FUNCS(fgetxattr \
+			  flistxattr \
+			  fsetxattr \
+			  getxattr \
+			  listxattr \
+			  setxattr,
+	  [ac_cv_archive_xattr_darwin=yes],
+	  [ac_cv_archive_xattr_darwin=no],
+	  [#include <sys/xattr.h>
+])
+	]
+      )
+    elif test "x$ac_cv_header_sys_extattr_h" = "xyes" \
+           -a "x$ac_cv_have_decl_EXTATTR_NAMESPACE_USER" = "xyes"; then
+	# FreeBSD extended attributes support
+	AC_CACHE_VAL([ac_cv_archive_xattr_freebsd],
+	  [AC_CHECK_FUNCS(extattr_get_fd \
+			  extattr_get_file \
+			  extattr_get_link \
+			  extattr_list_fd \
+			  extattr_list_file \
+			  extattr_list_link \
+			  extattr_set_fd \
+			  extattr_set_link,
+	  [ac_cv_archive_xattr_freebsd=yes],
+	  [ac_cv_archive_xattr_freebsd=no],
+	  [#include <sys/types.h>
+#include <sys/extattr.h>
+])
+	  ]
+	)
+    elif test "x$ac_cv_header_sys_xattr_h" = "xyes" \
+	   -o "x$ac_cv_header_attr_xattr_h" = "xyes"; then
+	# Linux extended attributes support
+	AC_CACHE_VAL([ac_cv_archive_xattr_linux],
+	  [AC_CHECK_FUNCS(fgetxattr \
+			  flistxattr \
+			  fsetxattr \
+			  getxattr \
+			  lgetxattr \
+			  listxattr \
+			  llistxattr \
+			  lsetxattr,
+	  [ac_cv_archive_xattr_linux=yes],
+	  [ac_cv_archive_xattr_linux=no],
+	  [#if HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#if HAVE_SYS_XATTR_H
+#include <sys/xattr.h>
+#endif
+#if HAVE_ATTR_XATTR_H
+#include <attr/xatr.h>
+#endif
+])
+	]
+      )
+    elif test "x$ac_cv_header_sys_ea_h" = "xyes"; then
+	# AIX extended attributes support
+	AC_CACHE_VAL([ac_cv_archive_xattr_aix],
+	  [AC_CHECK_FUNCS(fgetea \
+			  flistea \
+			  fsetea \
+			  getea \
+			  lgetea \
+			  listea \
+			  llistea \
+			  lsetea,
+	  [ac_cv_archive_xattr_aix=yes],
+	  [ac_cv_archive_xattr_aix=no],
+	  [#include <sys/ea.h>
+])
+	  ]
+	)
+    fi
+
+    AC_MSG_CHECKING([for extended attributes support])
+    if test "x$ac_cv_archive_xattr_linux" = "xyes"; then
+	AC_DEFINE([ARCHIVE_XATTR_LINUX], [1], [Linux xattr support])
+	AC_MSG_RESULT([Linux])
+    elif test "x$ac_cv_archive_xattr_darwin" = "xyes"; then
+	AC_DEFINE([ARCHIVE_XATTR_DARWIN], [1], [Darwin xattr support])
+	AC_MSG_RESULT([Darwin])
+    elif test "x$ac_cv_archive_xattr_freebsd" = "xyes"; then
+	AC_DEFINE([ARCHIVE_XATTR_FREEBSD], [1], [FreeBSD xattr support])
+	AC_MSG_RESULT([FreeBSD])
+    elif test "x$ac_cv_archive_xattr_aix" = "xyes"; then
+	AC_DEFINE([ARCHIVE_XATTR_AIX], [1], [AIX xattr support])
+	AC_MSG_RESULT([AIX])
+    else
+	AC_MSG_RESULT([none])
+    fi
 fi
 
 # Check for ACL support

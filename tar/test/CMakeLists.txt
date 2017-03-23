@@ -58,6 +58,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_s.c
     test_option_uid_uname.c
     test_option_uuencode.c
+    test_option_xattrs.c
     test_option_xz.c
     test_option_z.c
     test_patterns.c
