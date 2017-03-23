@@ -388,6 +388,7 @@
     <ClInclude Include="..\..\include\clockstuff.h" />
     <ClInclude Include="..\..\include\config.h" />
     <ClInclude Include="..\..\include\gaa_compat.h" />
+    <ClInclude Include="..\..\include\msvc_ssl_autolib.h" />
     <ClInclude Include="..\..\include\netdb.h" />
     <ClInclude Include="..\..\include\ntp_iocompletionport.h" />
     <ClInclude Include="..\..\include\ntp_timer.h" />

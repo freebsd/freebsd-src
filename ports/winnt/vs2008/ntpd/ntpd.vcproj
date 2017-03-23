@@ -316,6 +316,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\ntpd\nt_ppsimpl.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\..\ntpd\ntp_config.c"
 				>
 			</File>

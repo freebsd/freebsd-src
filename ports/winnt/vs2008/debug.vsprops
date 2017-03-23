@@ -14,7 +14,7 @@
 	/>
 	<Tool
 		Name="VCLinkerTool"
-		AdditionalDependencies=" $(OPENSSL_LIB)\libeay32.lib"
+		AdditionalLibraryDirectories=" $(OPENSSL_LIB)\vc"
 		TargetMachine="1"
 	/>
 </VisualStudioPropertySheet>

@@ -21,6 +21,7 @@ LDADD =					\
 	$(NULL)
 
 AM_CFLAGS   = $(CFLAGS_NTP)
+AM_CFLAGS += $(NTP_HARD_CFLAGS)
 
 # HMS: we may not need some of these:
 AM_CPPFLAGS  = $(NTP_INCS)
@@ -29,8 +30,10 @@ AM_CPPFLAGS += -I$(top_srcdir)/include
 AM_CPPFLAGS += $(CPPFLAGS_NTP)
 AM_CPPFLAGS += -DUNITY_INCLUDE_CONFIG_H
 AM_CPPFLAGS += -I$(top_srcdir)/sntp/unity
+AM_CPPFLAGS += $(NTP_HARD_CPPFLAGS)
 
-AM_LDFLAGS = $(LDFLAGS_NTP)
+AM_LDFLAGS  = $(LDFLAGS_NTP)
+AM_LDFLAGS += $(NTP_HARD_LDFLAGS)
 
 bug_2803_SOURCES = 			\
 	bug-2803.c			\

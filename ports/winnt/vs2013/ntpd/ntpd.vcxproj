@@ -338,6 +338,7 @@
     <ClCompile Include="..\..\ntpd\ntp_iocpltypes.c" />
     <ClCompile Include="..\..\ntpd\ntservice.c" />
     <ClCompile Include="..\..\ntpd\nt_clockstuff.c" />
+    <ClCompile Include="..\..\ntpd\nt_ppsimpl.c" />
     <ClCompile Include="version.c" />
   </ItemGroup>
   <ItemGroup>

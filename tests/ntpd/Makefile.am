@@ -47,6 +47,7 @@ unity_tests_LDADD =				\
 	$(NULL)
 
 AM_CFLAGS   = $(CFLAGS_NTP)
+AM_CFLAGS += $(NTP_HARD_CFLAGS)
 
 AM_CPPFLAGS  = $(NTP_INCS)
 AM_CPPFLAGS += -I$(top_srcdir)/sntp
@@ -55,8 +56,10 @@ AM_CPPFLAGS += -I$(top_srcdir)/tests/libntp
 AM_CPPFLAGS += $(CPPFLAGS_NTP)
 AM_CPPFLAGS += -DUNITY_INCLUDE_CONFIG_H
 AM_CPPFLAGS += -I$(top_srcdir)/sntp/unity
+AM_CPPFLAGS += $(NTP_HARD_CPPFLAGS)
 
-AM_LDFLAGS = $(LDFLAGS_NTP)
+AM_LDFLAGS  = $(LDFLAGS_NTP)
+AM_LDFLAGS += $(NTP_HARD_LDFLAGS)
 
 BUILT_SOURCES +=			\
 	$(srcdir)/run-leapsec.c		\

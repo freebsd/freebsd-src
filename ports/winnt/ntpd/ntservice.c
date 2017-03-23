@@ -55,6 +55,7 @@ void ntservice_exit(void);
 void *wrap_dbg_malloc(size_t s, const char *f, int l);
 void *wrap_dbg_realloc(void *p, size_t s, const char *f, int l);
 void wrap_dbg_free(void *p);
+void wrap_dbg_free_ex(void *p, const char *f, int l);
 #endif
 
 void WINAPI
