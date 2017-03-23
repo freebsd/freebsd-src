@@ -55,6 +55,11 @@ int			 bhnd_nvram_data_generic_rp_copy_val(
 /** @see bhnd_nvram_data_probe() */
 typedef int		 (bhnd_nvram_data_op_probe)(struct bhnd_nvram_io *io);
 
+/** @see bhnd_nvram_data_probe() */
+typedef int		 (bhnd_nvram_data_op_getvar_direct)(
+			      struct bhnd_nvram_io *io, const char *name,
+			      void *outp, size_t *olen, bhnd_nvram_type otype);
+
 /** @see bhnd_nvram_data_serialize() */
 typedef int		 (bhnd_nvram_data_op_serialize)(
 			      bhnd_nvram_data_class *cls,
@@ -131,6 +136,7 @@ struct bhnd_nvram_data_class {
 	size_t				 size;		/**< instance size */
 
 	bhnd_nvram_data_op_probe		*op_probe;
+	bhnd_nvram_data_op_getvar_direct	*op_getvar_direct;
 	bhnd_nvram_data_op_serialize		*op_serialize;
 	bhnd_nvram_data_op_new			*op_new;
 	bhnd_nvram_data_op_free			*op_free;
@@ -184,6 +190,7 @@ struct bhnd_nvram_data {
  */
 #define	BHND_NVRAM_DATA_CLASS_ITER_METHODS(_cname, _macro)	\
 	_macro(_cname, probe)					\
+	_macro(_cname, getvar_direct)				\
 	_macro(_cname, serialize)				\
 	_macro(_cname, new)					\
 	_macro(_cname, free)					\

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "bhnd_nvram_private.h"
 
 #include "bhnd_nvram_datavar.h"
+#include "bhnd_nvram_data_bcmvar.h"
 
 /*
  * Broadcom-RAW NVRAM data class.
@@ -130,6 +131,14 @@ bhnd_nvram_bcmraw_probe(struct bhnd_nvram_io *io)
 		return (ENXIO);
 
 	return (BHND_NVRAM_DATA_PROBE_MAYBE + 1);
+}
+
+static int
+bhnd_nvram_bcmraw_getvar_direct(struct bhnd_nvram_io *io, const char *name,
+    void *buf, size_t *len, bhnd_nvram_type type)
+{
+	return (bhnd_nvram_bcm_getvar_direct_common(io, name, buf, len, type,
+	    false));
 }
 
 static int
