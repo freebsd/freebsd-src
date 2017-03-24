@@ -423,12 +423,10 @@ setup_mac_metadata(struct archive_read_disk *a,
 }
 #endif
 
-#if (HAVE_FGETXATTR && HAVE_FLISTXATTR && HAVE_LISTXATTR && \
-    HAVE_LLISTXATTR && HAVE_GETXATTR && HAVE_LGETXATTR) || \
-    (HAVE_FGETEA && HAVE_FLISTEA && HAVE_LISTEA)
+#if ARCHIVE_XATTR_LINUX || ARCHIVE_XATTR_DARWIN || ARCHIVE_XATTR_AIX
 
 /*
- * Linux and AIX extended attribute support.
+ * Linux, Darwin and AIX extended attribute support.
  *
  * TODO:  By using a stack-allocated buffer for the first
  * call to getxattr(), we might be able to avoid the second
@@ -446,21 +444,32 @@ setup_xattr(struct archive_read_disk *a,
 	ssize_t size;
 	void *value = NULL;
 
-#if HAVE_FGETXATTR
-	if (fd >= 0)
+
+	if (fd >= 0) {
+#if ARCHIVE_XATTR_LINUX
 		size = fgetxattr(fd, name, NULL, 0);
-	else if (!a->follow_symlinks)
-		size = lgetxattr(accpath, name, NULL, 0);
-	else
-		size = getxattr(accpath, name, NULL, 0);
-#elif HAVE_FGETEA
-	if (fd >= 0)
+#elif ARCHIVE_XATTR_DARWIN
+		size = fgetxattr(fd, name, NULL, 0, 0, 0);
+#elif ARCHIVE_XATTR_AIX
 		size = fgetea(fd, name, NULL, 0);
-	else if (!a->follow_symlinks)
+#endif
+	} else if (!a->follow_symlinks) {
+#if ARCHIVE_XATTR_LINUX
+		size = lgetxattr(accpath, name, NULL, 0);
+#elif ARCHIVE_XATTR_DARWIN
+		size = getxattr(accpath, name, NULL, 0, 0, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
 		size = lgetea(accpath, name, NULL, 0);
-	else
+#endif
+	} else {
+#if ARCHIVE_XATTR_LINUX
+		size = getxattr(accpath, name, NULL, 0);
+#elif ARCHIVE_XATTR_DARWIN
+		size = getxattr(accpath, name, NULL, 0, 0, 0);
+#elif ARCHIVE_XATTR_AIX
 		size = getea(accpath, name, NULL, 0);
 #endif
+	}
 
 	if (size == -1) {
 		archive_set_error(&a->archive, errno,
@@ -473,21 +482,32 @@ setup_xattr(struct archive_read_disk *a,
 		return (ARCHIVE_FATAL);
 	}
 
-#if HAVE_FGETXATTR
-	if (fd >= 0)
+
+	if (fd >= 0) {
+#if ARCHIVE_XATTR_LINUX
 		size = fgetxattr(fd, name, value, size);
-	else if (!a->follow_symlinks)
-		size = lgetxattr(accpath, name, value, size);
-	else
-		size = getxattr(accpath, name, value, size);
-#elif HAVE_FGETEA
-	if (fd >= 0)
+#elif ARCHIVE_XATTR_DARWIN
+		size = fgetxattr(fd, name, value, size, 0, 0);
+#elif ARCHIVE_XATTR_AIX
 		size = fgetea(fd, name, value, size);
-	else if (!a->follow_symlinks)
+#endif
+	} else if (!a->follow_symlinks) {
+#if ARCHIVE_XATTR_LINUX
+		size = lgetxattr(accpath, name, value, size);
+#elif ARCHIVE_XATTR_DARWIN
+		size = getxattr(accpath, name, value, size, 0, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
 		size = lgetea(accpath, name, value, size);
-	else
+#endif
+	} else {
+#if ARCHIVE_XATTR_LINUX
+		size = getxattr(accpath, name, value, size);
+#elif ARCHIVE_XATTR_DARWIN
+		size = getxattr(accpath, name, value, size, 0, 0);
+#elif ARCHIVE_XATTR_AIX
 		size = getea(accpath, name, value, size);
 #endif
+	}
 
 	if (size == -1) {
 		archive_set_error(&a->archive, errno,
@@ -517,21 +537,31 @@ setup_xattrs(struct archive_read_disk *a,
 			return (ARCHIVE_WARN);
 	}
 
-#if HAVE_FLISTXATTR
-	if (*fd >= 0)
+	if (*fd >= 0) {
+#if ARCHIVE_XATTR_LINUX
 		list_size = flistxattr(*fd, NULL, 0);
-	else if (!a->follow_symlinks)
-		list_size = llistxattr(path, NULL, 0);
-	else
-		list_size = listxattr(path, NULL, 0);
-#elif HAVE_FLISTEA
-	if (*fd >= 0)
+#elif ARCHIVE_XATTR_DARWIN
+		list_size = flistxattr(*fd, NULL, 0, 0);
+#elif ARCHIVE_XATTR_AIX
 		list_size = flistea(*fd, NULL, 0);
-	else if (!a->follow_symlinks)
+#endif
+	} else if (!a->follow_symlinks) {
+#if ARCHIVE_XATTR_LINUX
+		list_size = llistxattr(path, NULL, 0);
+#elif ARCHIVE_XATTR_DARWIN
+		list_size = listxattr(path, NULL, 0, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
 		list_size = llistea(path, NULL, 0);
-	else
+#endif
+	} else {
+#if ARCHIVE_XATTR_LINUX
+		list_size = listxattr(path, NULL, 0);
+#elif ARCHIVE_XATTR_DARWIN
+		list_size = listxattr(path, NULL, 0, 0);
+#elif ARCHIVE_XATTR_AIX
 		list_size = listea(path, NULL, 0);
 #endif
+	}
 
 	if (list_size == -1) {
 		if (errno == ENOTSUP || errno == ENOSYS)
@@ -549,21 +579,31 @@ setup_xattrs(struct archive_read_disk *a,
 		return (ARCHIVE_FATAL);
 	}
 
-#if HAVE_FLISTXATTR
-	if (*fd >= 0)
+	if (*fd >= 0) {
+#if ARCHIVE_XATTR_LINUX
 		list_size = flistxattr(*fd, list, list_size);
-	else if (!a->follow_symlinks)
-		list_size = llistxattr(path, list, list_size);
-	else
-		list_size = listxattr(path, list, list_size);
-#elif HAVE_FLISTEA
-	if (*fd >= 0)
+#elif ARCHIVE_XATTR_DARWIN
+		list_size = flistxattr(*fd, list, list_size, 0);
+#elif ARCHIVE_XATTR_AIX
 		list_size = flistea(*fd, list, list_size);
-	else if (!a->follow_symlinks)
+#endif
+	} else if (!a->follow_symlinks) {
+#if ARCHIVE_XATTR_LINUX
+		list_size = llistxattr(path, list, list_size);
+#elif ARCHIVE_XATTR_DARWIN
+		list_size = listxattr(path, list, list_size, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
 		list_size = llistea(path, list, list_size);
-	else
+#endif
+	} else {
+#if ARCHIVE_XATTR_LINUX
+		list_size = listxattr(path, list, list_size);
+#elif ARCHIVE_XATTR_DARWIN
+		list_size = listxattr(path, list, list_size, 0);
+#elif ARCHIVE_XATTR_AIX
 		list_size = listea(path, list, list_size);
 #endif
+	}
 
 	if (list_size == -1) {
 		archive_set_error(&a->archive, errno,
@@ -583,8 +623,7 @@ setup_xattrs(struct archive_read_disk *a,
 	return (ARCHIVE_OK);
 }
 
-#elif HAVE_EXTATTR_GET_FILE && HAVE_EXTATTR_LIST_FILE && \
-    HAVE_DECL_EXTATTR_NAMESPACE_USER
+#elif ARCHIVE_XATTR_FREEBSD
 
 /*
  * FreeBSD extattr interface.

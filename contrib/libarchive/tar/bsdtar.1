@@ -169,7 +169,7 @@ restricted pax format and bzip2 compression.
 (c, r, u, x modes only)
 Archive or extract POSIX.1e or NFSv4 ACLs. This is the reverse of
 .Fl Fl no-acls
-and the default behavior in c, r, and u modes (except Mac OS X) or if
+and the default behavior in c, r, and u modes (except on Mac OS X) or if
 .Nm
 is run in x mode as root. On Mac OS X this option translates extended ACLs
 to NFSv4 ACLs. To store extended ACLs the
@@ -396,7 +396,7 @@ except it compares mtime entries instead of ctime entries.
 Honor the nodump file flag by skipping this file.
 .It Fl Fl nopreserveHFSCompression
 (x mode only)
-Mac OS X specific(v10.6 or later). Do not compress extracted regular files
+Mac OS X specific (v10.6 or later). Do not compress extracted regular files
 which were compressed with HFS+ compression before archived.
 By default, compress the regular files again with HFS+ compression.
 .It Fl Fl null
@@ -416,7 +416,7 @@ Do not archive or extract POSIX.1e or NFSv4 ACLs. This is the reverse of
 .Fl Fl acls
 and the default behavior if
 .Nm
-is run as non-root in x mode (on Mac OS X also in c, r and u modes).
+is run as non-root in x mode (on Mac OS X as any user in c, r, u and x modes).
 .It Fl Fl no-fflags
 (c, r, u, x modes only)
 Do not archive or extract file flags. This is the reverse of

@@ -67,6 +67,17 @@
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
+#ifdef HAVE_SYS_EA_H
+#include <sys/ea.h>
+#endif
+#ifdef HAVE_SYS_EXTATTR_H
+#include <sys/extattr.h>
+#endif
+#if HAVE_SYS_XATTR_H
+#include <sys/xattr.h>
+#elif HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
+#endif
 #ifdef HAVE_SYS_RICHACL_H
 #include <sys/richacl.h>
 #endif
@@ -2437,6 +2448,83 @@ canNodump(void)
 #endif
 		return (1);
 #endif
+	return (0);
+}
+
+/* Get extended attribute from a path */
+const void *
+getXattr(const char *path, const char *name, size_t *sizep)
+{ 
+	void *value = NULL;
+#if ARCHIVE_XATTR_SUPPORT
+	ssize_t size;
+#if ARCHIVE_XATTR_LINUX
+	size = lgetxattr(path, name, NULL, 0);
+#elif ARCHIVE_XATTR_DARWIN
+	size = getxattr(path, name, NULL, 0, 0, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
+	size = lgetea(path, name, NULL, 0);
+#elif ARCHIVE_XATTR_FREEBSD
+	size = extattr_get_link(path, EXTATTR_NAMESPACE_USER, name + 5,
+	    NULL, 0);
+#endif
+
+	if (size >= 0) {
+		value = malloc(size);
+#if ARCHIVE_XATTR_LINUX
+		size = lgetxattr(path, name, value, size);
+#elif ARCHIVE_XATTR_DARWIN
+		size = getxattr(path, name, value, size, 0, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
+		size = lgetea(path, name, value, size);
+#elif ARCHIVE_XATTR_FREEBSD
+		size = extattr_get_link(path, EXTATTR_NAMESPACE_USER, name + 5,
+		    value, size);
+#endif
+		if (size < 0) {
+			free(value);
+			value = NULL;
+		}
+	}
+	if (size < 0)
+		*sizep = 0;
+	else
+		*sizep = (size_t)size;
+#else	/* !ARCHIVE_XATTR_SUPPORT */
+	(void)path;	/* UNUSED */
+	(void)name;	/* UNUSED */
+	*sizep = 0;
+#endif 	/* !ARCHIVE_XATTR_SUPPORT */
+	return (value);
+}
+
+/*
+ * Set extended attribute on a path
+ * Returns 0 on error, 1 on success
+ */
+int
+setXattr(const char *path, const char *name, const void *value, size_t size)
+{
+#if ARCHIVE_XATTR_SUPPORT
+#if ARCHIVE_XATTR_LINUX
+	if (lsetxattr(path, name, value, size, 0) == 0)
+#elif ARCHIVE_XATTR_DARWIN
+	if (setxattr(path, name, value, size, 0, XATTR_NOFOLLOW) == 0)
+#elif ARCHIVE_XATTR_AIX
+	if (lsetea(path, name, value, size, 0) == 0)
+#elif ARCHIVE_XATTR_FREEBSD
+	if (extattr_set_link(path, EXTATTR_NAMESPACE_USER, name + 5, value,
+	    size) > -1)
+#else
+	if (0)
+#endif
+		return (1);
+#else	/* !ARCHIVE_XATTR_SUPPORT */
+	(void)path;     /* UNUSED */
+	(void)name;	/* UNUSED */
+	(void)value;	/* UNUSED */
+	(void)size;	/* UNUSED */
+#endif	/* !ARCHIVE_XATTR_SUPPORT */
 	return (0);
 }
 

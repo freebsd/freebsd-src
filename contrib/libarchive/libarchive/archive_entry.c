@@ -1708,6 +1708,9 @@ static struct flag {
 #ifdef UF_COMPRESSED
 	{ "nocompressed",L"nocompressed",	UF_COMPRESSED,	0 },
 #endif
+#ifdef UF_HIDDEN
+	{ "nohidden",	L"nohidden",		UF_HIDDEN,	0 },
+#endif
 #if defined(FS_UNRM_FL)
         { "nouunlink",	L"nouunlink",		FS_UNRM_FL,	0},
 #elif defined(EXT2_UNRM_FL)

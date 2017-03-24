@@ -39,9 +39,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_EXTATTR_H
 #include <sys/extattr.h>
 #endif
-#if defined(HAVE_SYS_XATTR_H)
+#if HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
-#elif defined(HAVE_ATTR_XATTR_H)
+#elif HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
 #ifdef HAVE_SYS_EA_H
@@ -664,8 +664,21 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	}
 #endif
 
-	if (a->flags & ARCHIVE_EXTRACT_XATTR)
+	if (a->flags & ARCHIVE_EXTRACT_XATTR) {
+#if ARCHIVE_XATTR_DARWIN
+		/*
+		 * On MacOS, extended attributes get stored in mac_metadata,
+		 * too. If we intend to extract mac_metadata and it is present
+		 * we skip extracting extended attributes.
+		 */
+		size_t metadata_size;
+
+		if ((a->flags & ARCHIVE_EXTRACT_MAC_METADATA) == 0 ||
+		    archive_entry_mac_metadata(a->entry,
+		    &metadata_size) == NULL || metadata_size == 0)
+#endif
 		a->todo |= TODO_XATTR;
+	}
 	if (a->flags & ARCHIVE_EXTRACT_FFLAGS)
 		a->todo |= TODO_FFLAGS;
 	if (a->flags & ARCHIVE_EXTRACT_SECURE_SYMLINKS) {
@@ -4070,9 +4083,9 @@ skip_appledouble:
 }
 #endif
 
-#if HAVE_LSETXATTR || HAVE_LSETEA
+#if ARCHIVE_XATTR_LINUX || ARCHIVE_XATTR_DARWIN || ARCHIVE_XATTR_AIX
 /*
- * Restore extended attributes -  Linux and AIX implementations:
+ * Restore extended attributes -  Linux, Darwin and AIX implementations:
  * AIX' ea interface is syntaxwise identical to the Linux xattr interface.
  */
 static int
@@ -4092,20 +4105,22 @@ set_xattrs(struct archive_write_disk *a)
 				strncmp(name, "xfsroot.", 8) != 0 &&
 				strncmp(name, "system.", 7) != 0) {
 			int e;
-#if HAVE_FSETXATTR
-			if (a->fd >= 0)
+			if (a->fd >= 0) {
+#if ARCHIVE_XATTR_LINUX
 				e = fsetxattr(a->fd, name, value, size, 0);
-			else
-#elif HAVE_FSETEA
-			if (a->fd >= 0)
+#elif ARCHIVE_XATTR_DARWIN
+				e = fsetxattr(a->fd, name, value, size, 0, 0);
+#elif ARCHIVE_XATTR_AIX
 				e = fsetea(a->fd, name, value, size, 0);
-			else
 #endif
-			{
-#if HAVE_LSETXATTR
+			} else {
+#if ARCHIVE_XATTR_LINUX
 				e = lsetxattr(archive_entry_pathname(entry),
 				    name, value, size, 0);
-#elif HAVE_LSETEA
+#elif ARCHIVE_XATTR_DARWIN
+				e = setxattr(archive_entry_pathname(entry),
+				    name, value, size, 0, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
 				e = lsetea(archive_entry_pathname(entry),
 				    name, value, size, 0);
 #endif
@@ -4134,7 +4149,7 @@ set_xattrs(struct archive_write_disk *a)
 	}
 	return (ret);
 }
-#elif HAVE_EXTATTR_SET_FILE && HAVE_DECL_EXTATTR_NAMESPACE_USER
+#elif ARCHIVE_XATTR_FREEBSD
 /*
  * Restore extended attributes -  FreeBSD implementation
  */
@@ -4169,15 +4184,12 @@ set_xattrs(struct archive_write_disk *a)
 				continue;
 			}
 			errno = 0;
-#if HAVE_EXTATTR_SET_FD
-			if (a->fd >= 0)
+
+			if (a->fd >= 0) {
 				e = extattr_set_fd(a->fd, namespace, name,
 				    value, size);
-			else
-#endif
-			/* TODO: should we use extattr_set_link() instead? */
-			{
-				e = extattr_set_file(
+			} else {
+				e = extattr_set_link(
 				    archive_entry_pathname(entry), namespace,
 				    name, value, size);
 			}
