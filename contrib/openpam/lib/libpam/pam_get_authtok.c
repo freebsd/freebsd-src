@@ -122,9 +122,11 @@ pam_get_authtok(pam_handle_t *pamh,
 	if ((promptp = openpam_get_option(pamh, prompt_option)) != NULL)
 		prompt = promptp;
 	/* no prompt provided, see if there is one tucked away somewhere */
-	if (prompt == NULL)
-		if (pam_get_item(pamh, pitem, &promptp) && promptp != NULL)
+	if (prompt == NULL) {
+		r = pam_get_item(pamh, pitem, &promptp);
+		if (r == PAM_SUCCESS && promptp != NULL)
 			prompt = promptp;
+	}
 	/* fall back to hardcoded default */
 	if (prompt == NULL)
 		prompt = default_prompt;
