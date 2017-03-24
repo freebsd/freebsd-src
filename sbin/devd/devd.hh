@@ -57,7 +57,7 @@ public:
 	static const std::string nothing;
 
 private:
-	const std::string &fix_value(const std::string &val) const;
+	std::string fix_value(const std::string &val) const;
 
 	std::map<std::string, std::string> _vars;
 };
