@@ -3929,6 +3929,7 @@ ixgbe_handle_msf(void *context, int pending)
 	u32             autoneg;
 	bool            negotiate;
 
+	IXGBE_CORE_LOCK(adapter);
 	/* get_supported_phy_layer will call hw->phy.ops.identify_sfp() */
 	adapter->phy_layer = ixgbe_get_supported_physical_layer(hw);
 
