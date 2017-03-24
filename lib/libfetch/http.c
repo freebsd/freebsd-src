@@ -118,7 +118,7 @@ __FBSDID("$FreeBSD$");
 			    || (xyz) == HTTP_USE_PROXY \
 			    || (xyz) == HTTP_SEE_OTHER)
 
-#define HTTP_ERROR(xyz) ((xyz) > 400 && (xyz) < 599)
+#define HTTP_ERROR(xyz) ((xyz) >= 400 && (xyz) <= 599)
 
 
 /*****************************************************************************
@@ -1604,20 +1604,11 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		if ((conn = http_connect(url, purl, flags)) == NULL)
 			goto ouch;
 
+		/* append port number only if necessary */
 		host = url->host;
-#ifdef INET6
-		if (strchr(url->host, ':')) {
-			snprintf(hbuf, sizeof(hbuf), "[%s]", url->host);
-			host = hbuf;
-		}
-#endif
 		if (url->port != fetch_default_port(url->scheme)) {
-			if (host != hbuf) {
-				strcpy(hbuf, host);
-				host = hbuf;
-			}
-			snprintf(hbuf + strlen(hbuf),
-			    sizeof(hbuf) - strlen(hbuf), ":%d", url->port);
+			snprintf(hbuf, sizeof(hbuf), "%s:%d", host, url->port);
+			host = hbuf;
 		}
 
 		/* send request */
@@ -1925,7 +1916,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 
 		/* requested range not satisfiable */
 		if (conn->err == HTTP_BAD_RANGE) {
-			if (url->offset == size && url->length == 0) {
+			if (url->offset > 0 && url->length == 0) {
 				/* asked for 0 bytes; fake it */
 				offset = url->offset;
 				clength = -1;
