@@ -1529,14 +1529,14 @@ log_frame_dump(struct trapframe *frame)
 	log(LOG_ERR, "\tt4: %#18jx; t5: %#18jx; t6: %#18jx; t7: %#18jx\n",
 	    (intmax_t)frame->t4, (intmax_t)frame->t5, (intmax_t)frame->t6, (intmax_t)frame->t7);
 #endif
-	log(LOG_ERR, "\tt8: %#18jx; t9: %#18jx; s0: %#18jx; s1: %#18jx\n",
-	    (intmax_t)frame->t8, (intmax_t)frame->t9, (intmax_t)frame->s0, (intmax_t)frame->s1);
+	log(LOG_ERR, "\ts0: %#18jx; s1: %#18jx; s2: %#18jx; s3: %#18jx\n",
+	    (intmax_t)frame->s0, (intmax_t)frame->s1, (intmax_t)frame->s2, (intmax_t)frame->s3);
 
-	log(LOG_ERR, "\ts2: %#18jx; s3: %#18jx; s4: %#18jx; s5: %#18jx\n",
-	    (intmax_t)frame->s2, (intmax_t)frame->s3, (intmax_t)frame->s4, (intmax_t)frame->s5);
+	log(LOG_ERR, "\ts4: %#18jx; s5: %#18jx; s6: %#18jx; s7: %#18jx\n",
+	    (intmax_t)frame->s4, (intmax_t)frame->s5, (intmax_t)frame->s6, (intmax_t)frame->s7);
 
-	log(LOG_ERR, "\ts6: %#18jx; s7: %#18jx; k0: %#18jx; k1: %#18jx\n",
-	    (intmax_t)frame->s6, (intmax_t)frame->s7, (intmax_t)frame->k0, (intmax_t)frame->k1);
+	log(LOG_ERR, "\tt8: %#18jx; t9: %#18jx; k0: %#18jx; k1: %#18jx\n",
+	    (intmax_t)frame->t8, (intmax_t)frame->t9, (intmax_t)frame->k0, (intmax_t)frame->k1);
 
 	log(LOG_ERR, "\tgp: %#18jx; sp: %#18jx; s8: %#18jx; ra: %#18jx\n",
 	    (intmax_t)frame->gp, (intmax_t)frame->sp, (intmax_t)frame->s8, (intmax_t)frame->ra);
