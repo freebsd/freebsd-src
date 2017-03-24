@@ -105,7 +105,7 @@ struct ctlfe_lun_softc {
 	int	 atios_alloced;		/* Number of ATIOs not freed */
 	int	 inots_alloced;		/* Number of INOTs not freed */
 	struct task	refdrain_task;
-	TAILQ_HEAD(, ccb_hdr) work_queue;
+	STAILQ_HEAD(, ccb_hdr) work_queue;
 	STAILQ_ENTRY(ctlfe_lun_softc) links;
 };
 
@@ -449,7 +449,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	softc = (struct ctlfe_lun_softc *)arg;
 	bus_softc = softc->parent_softc;
 	
-	TAILQ_INIT(&softc->work_queue);
+	STAILQ_INIT(&softc->work_queue);
 	softc->periph = periph;
 	periph->softc = softc;
 
@@ -738,14 +738,13 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 
 next:
-	ccb_h = TAILQ_FIRST(&softc->work_queue);
+	/* Take the ATIO off the work queue */
+	ccb_h = STAILQ_FIRST(&softc->work_queue);
 	if (ccb_h == NULL) {
 		xpt_release_ccb(start_ccb);
 		return;
 	}
-
-	/* Take the ATIO off the work queue */
-	TAILQ_REMOVE(&softc->work_queue, ccb_h, periph_links.tqe);
+	STAILQ_REMOVE_HEAD(&softc->work_queue, periph_links.stqe);
 	atio = (struct ccb_accept_tio *)ccb_h;
 	io = (union ctl_io *)ccb_h->io_ptr;
 	csio = &start_ccb->csio;
@@ -870,7 +869,7 @@ next:
 	/*
 	 * If we still have work to do, ask for another CCB.
 	 */
-	if (!TAILQ_EMPTY(&softc->work_queue))
+	if (!STAILQ_EMPTY(&softc->work_queue))
 		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 }
 
@@ -1196,8 +1195,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			io->scsiio.io_hdr.status = CTL_STATUS_NONE;
 			io->io_hdr.flags |= CTL_FLAG_DMA_QUEUED;
 			xpt_release_ccb(done_ccb);
-			TAILQ_INSERT_HEAD(&softc->work_queue, &atio->ccb_h,
-					  periph_links.tqe);
+			STAILQ_INSERT_HEAD(&softc->work_queue, &atio->ccb_h,
+					  periph_links.stqe);
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 			break;
 		}
@@ -1811,7 +1810,7 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 	periph = softc->periph;
 	num_items = 0;
 
-	TAILQ_FOREACH(hdr, &softc->work_queue, periph_links.tqe) {
+	STAILQ_FOREACH(hdr, &softc->work_queue, periph_links.stqe) {
 		union ctl_io *io = hdr->io_ptr;
 
 		num_items++;
@@ -1866,8 +1865,8 @@ ctlfe_datamove(union ctl_io *io)
 	io->io_hdr.flags |= CTL_FLAG_DMA_QUEUED;
 	if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)
 		io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;
-	TAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
-			  periph_links.tqe);
+	STAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
+			  periph_links.stqe);
 	xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	cam_periph_unlock(periph);
 }
@@ -1919,8 +1918,8 @@ ctlfe_done(union ctl_io *io)
 		return;
 	} else {
 		io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;
-		TAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
-				  periph_links.tqe);
+		STAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
+				  periph_links.stqe);
 		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	}
 
