@@ -1510,46 +1510,46 @@ log_frame_dump(struct trapframe *frame)
 		__asm__ __volatile__("li $0, 0xdead");
 
 	log(LOG_ERR, "Trapframe Register Dump:\n");
-	log(LOG_ERR, "\tzero: %#jx\tat: %#jx\tv0: %#jx\tv1: %#jx\n",
+	log(LOG_ERR, "\t$0: %#18jx; at: %#18jx; v0: %#18jx; v1: %#18jx\n",
 	    (intmax_t)0, (intmax_t)frame->ast, (intmax_t)frame->v0, (intmax_t)frame->v1);
 
-	log(LOG_ERR, "\ta0: %#jx\ta1: %#jx\ta2: %#jx\ta3: %#jx\n",
+	log(LOG_ERR, "\ta0: %#18jx; a1: %#18jx; a2: %#18jx; a3: %#18jx\n",
 	    (intmax_t)frame->a0, (intmax_t)frame->a1, (intmax_t)frame->a2, (intmax_t)frame->a3);
 
 #if defined(__mips_n32) || defined(__mips_n64)
-	log(LOG_ERR, "\ta4: %#jx\ta5: %#jx\ta6: %#jx\ta7: %#jx\n",
+	log(LOG_ERR, "\ta4: %#18jx; a5: %#18jx; a6: %#18jx; a7: %#18jx\n",
 	    (intmax_t)frame->a4, (intmax_t)frame->a5, (intmax_t)frame->a6, (intmax_t)frame->a7);
 
-	log(LOG_ERR, "\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
+	log(LOG_ERR, "\tt0: %#18jx; t1: %#18jx; t2: %#18jx; t3: %#18jx\n",
 	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
 #else
-	log(LOG_ERR, "\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
+	log(LOG_ERR, "\tt0: %#18jx; t1: %#18jx; t2: %#18jx; t3: %#18jx\n",
 	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
 
-	log(LOG_ERR, "\tt4: %#jx\tt5: %#jx\tt6: %#jx\tt7: %#jx\n",
+	log(LOG_ERR, "\tt4: %#18jx; t5: %#18jx; t6: %#18jx; t7: %#18jx\n",
 	    (intmax_t)frame->t4, (intmax_t)frame->t5, (intmax_t)frame->t6, (intmax_t)frame->t7);
 #endif
-	log(LOG_ERR, "\tt8: %#jx\tt9: %#jx\ts0: %#jx\ts1: %#jx\n",
+	log(LOG_ERR, "\tt8: %#18jx; t9: %#18jx; s0: %#18jx; s1: %#18jx\n",
 	    (intmax_t)frame->t8, (intmax_t)frame->t9, (intmax_t)frame->s0, (intmax_t)frame->s1);
 
-	log(LOG_ERR, "\ts2: %#jx\ts3: %#jx\ts4: %#jx\ts5: %#jx\n",
+	log(LOG_ERR, "\ts2: %#18jx; s3: %#18jx; s4: %#18jx; s5: %#18jx\n",
 	    (intmax_t)frame->s2, (intmax_t)frame->s3, (intmax_t)frame->s4, (intmax_t)frame->s5);
 
-	log(LOG_ERR, "\ts6: %#jx\ts7: %#jx\tk0: %#jx\tk1: %#jx\n",
+	log(LOG_ERR, "\ts6: %#18jx; s7: %#18jx; k0: %#18jx; k1: %#18jx\n",
 	    (intmax_t)frame->s6, (intmax_t)frame->s7, (intmax_t)frame->k0, (intmax_t)frame->k1);
 
-	log(LOG_ERR, "\tgp: %#jx\tsp: %#jx\ts8: %#jx\tra: %#jx\n",
+	log(LOG_ERR, "\tgp: %#18jx; sp: %#18jx; s8: %#18jx; ra: %#18jx\n",
 	    (intmax_t)frame->gp, (intmax_t)frame->sp, (intmax_t)frame->s8, (intmax_t)frame->ra);
 
-	log(LOG_ERR, "\tsr: %#jx\tmullo: %#jx\tmulhi: %#jx\tbadvaddr: %#jx\n",
+	log(LOG_ERR, "\tstatus: %#jx; mullo: %#jx; mulhi: %#jx; badvaddr: %#jx\n",
 	    (intmax_t)frame->sr, (intmax_t)frame->mullo, (intmax_t)frame->mulhi, (intmax_t)frame->badvaddr);
 
 #ifdef IC_REG
-	log(LOG_ERR, "\tcause: %#jx\tpc: %#jx\tic: %#jx\n",
+	log(LOG_ERR, "\tcause: %#jx; pc: %#jx; ic: %#jx\n",
 	    (intmax_t)(uint32_t)frame->cause, (intmax_t)frame->pc,
 	    (intmax_t)frame->ic);
 #else
-	log(LOG_ERR, "\tcause: %#jx\tpc: %#jx\n",
+	log(LOG_ERR, "\tcause: %#jx; pc: %#jx\n",
 	    (intmax_t)(uint32_t)frame->cause, (intmax_t)frame->pc);
 #endif
 }
