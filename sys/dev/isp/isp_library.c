@@ -61,8 +61,8 @@ int
 isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t totalcnt, isp_ddir_t ddir, ispds64_t *ecmd)
 {
 	uint8_t storage[QENTRY_LEN];
-	uint8_t type, nqe;
-	uint32_t seg, curseg, seglim, nxt, nxtnxt, ddf;
+	uint8_t type, nqe, need64;
+	uint32_t seg, seglim, nxt, nxtnxt, ddf;
 	ispds_t *dsp = NULL;
 	ispds64_t *dsp64 = NULL;
 	void *qe0, *qe1;
@@ -88,8 +88,21 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 		goto copy_and_sync;
 	}
 
+	need64 = 0;
+	for (seg = 0; seg < nsegs; seg++)
+		need64 |= XS_NEED_DMA64_SEG(segp, seg);
+	if (need64) {
+		if (type == RQSTYPE_T2RQS)
+			((isphdr_t *)fqe)->rqs_entry_type = type = RQSTYPE_T3RQS;
+		else if (type == RQSTYPE_REQUEST)
+			((isphdr_t *)fqe)->rqs_entry_type = type = RQSTYPE_A64;
+		else if (type == RQSTYPE_CTIO2)
+			((isphdr_t *)fqe)->rqs_entry_type = type = RQSTYPE_CTIO3;
+	}
+
 	/*
-	 * First figure out how many pieces of data to transfer and what kind and how many we can put into the first queue entry.
+	 * First figure out how many pieces of data to transfer, what
+	 * kind and how many we can put into the first queue entry.
 	 */
 	switch (type) {
 	case RQSTYPE_REQUEST:
@@ -121,22 +134,33 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 		dsp64 = &((ispreqt7_t *)fqe)->req_dataseg;
 		seglim = 1;
 		break;
+#ifdef	ISP_TARGET_MODE
+	case RQSTYPE_CTIO2:
+		dsp = ((ct2_entry_t *)fqe)->rsp.m0.u.ct_dataseg;
+		seglim = ISP_RQDSEG_T2;
+		break;
+	case RQSTYPE_CTIO3:
+		dsp64 = ((ct2_entry_t *)fqe)->rsp.m0.u.ct_dataseg64;
+		seglim = ISP_RQDSEG_T3;
+		break;
+	case RQSTYPE_CTIO7:
+		dsp64 = &((ct7_entry_t *)fqe)->rsp.m0.ds;
+		seglim = 1;
+		break;
+#endif
 	default:
 		return (CMD_COMPLETE);
 	}
-
-	if (seglim > nsegs) {
+	if (seglim > nsegs)
 		seglim = nsegs;
-	}
-
-	for (seg = curseg = 0; curseg < seglim; curseg++) {
+	seg = 0;
+	while (seg < seglim) {
 		if (dsp64) {
 			XS_GET_DMA64_SEG(dsp64++, segp, seg++);
 		} else {
 			XS_GET_DMA_SEG(dsp++, segp, seg++);
 		}
 	}
-
 
 	/*
 	 * Second, start building additional continuation segments as needed.
@@ -164,10 +188,10 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 			crq->req_header.rqs_entry_count = 1;
 			dsp = crq->req_dataseg;
 		}
-		if (seg + seglim > nsegs) {
-			seglim = nsegs - seg;
-		}
-		for (curseg = 0; curseg < seglim; curseg++) {
+		seglim += seg;
+		if (seglim > nsegs)
+			seglim = nsegs;
+		while (seg < seglim) {
 			if (dsp64) {
 				XS_GET_DMA64_SEG(dsp64++, segp, seg++);
 			} else {
@@ -191,23 +215,17 @@ copy_and_sync:
 	switch (type) {
 	case RQSTYPE_REQUEST:
 		((ispreq_t *)fqe)->req_flags |= ddf;
-		/*
-		 * This is historical and not clear whether really needed.
-		 */
-		if (nsegs == 0) {
+		/* This is historical and not clear whether really needed. */
+		if (nsegs == 0)
 			nsegs = 1;
-		}
 		((ispreq_t *)fqe)->req_seg_count = nsegs;
 		isp_put_request(isp, fqe, qe0);
 		break;
 	case RQSTYPE_CMDONLY:
 		((ispreq_t *)fqe)->req_flags |= ddf;
-		/*
-		 * This is historical and not clear whether really needed.
-		 */
-		if (nsegs == 0) {
+		/* This is historical and not clear whether really needed. */
+		if (nsegs == 0)
 			nsegs = 1;
-		}
 		((ispextreq_t *)fqe)->req_seg_count = nsegs;
 		isp_put_extended_request(isp, fqe, qe0);
 		break;
@@ -233,11 +251,34 @@ copy_and_sync:
 		}
 		break;
 	case RQSTYPE_T7RQS:
-        	((ispreqt7_t *)fqe)->req_alen_datadir = ddf;
+		((ispreqt7_t *)fqe)->req_alen_datadir = ddf;
 		((ispreqt7_t *)fqe)->req_seg_count = nsegs;
 		((ispreqt7_t *)fqe)->req_dl = totalcnt;
 		isp_put_request_t7(isp, fqe, qe0);
 		break;
+#ifdef	ISP_TARGET_MODE
+	case RQSTYPE_CTIO2:
+	case RQSTYPE_CTIO3:
+		if (((ct2_entry_t *)fqe)->ct_flags & CT2_FLAG_MODE2) {
+			((ct2_entry_t *)fqe)->ct_seg_count = 1;
+		} else {
+			((ct2_entry_t *)fqe)->ct_seg_count = nsegs;
+		}
+		if (ISP_CAP_2KLOGIN(isp)) {
+			isp_put_ctio2e(isp, fqe, qe0);
+		} else {
+			isp_put_ctio2(isp, fqe, qe0);
+		}
+		break;
+	case RQSTYPE_CTIO7:
+		if (((ct7_entry_t *)fqe)->ct_flags & CT7_FLAG_MODE2) {
+			((ct7_entry_t *)fqe)->ct_seg_count = 1;
+		} else {
+			((ct7_entry_t *)fqe)->ct_seg_count = nsegs;
+		}
+		isp_put_ctio7(isp, fqe, qe0);
+		break;
+#endif
 	default:
 		return (CMD_COMPLETE);
 	}
@@ -2056,168 +2097,6 @@ isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *src, fcp_rsp_iu_t *dst)
 	ISP_IOZPUT_32(isp, src->fcp_rsp_snslen, &dst->fcp_rsp_snslen);
 	ISP_IOZPUT_32(isp, src->fcp_rsp_rsplen, &dst->fcp_rsp_rsplen);
 }
-
-#ifdef	ISP_TARGET_MODE
-
-/*
- * Command shipping- finish off first queue entry and do dma mapping and
- * additional segments as needed.
- *
- * Called with the first queue entry mostly filled out.
- * Our job here is to finish that and add additional data
- * segments if needed.
- *
- * We used to do synthetic entries to split data and status
- * at this level, but that started getting too tricky.
- */
-int
-isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t totalcnt, isp_ddir_t ddir, void *snsptr, uint32_t snslen)
-{
-	uint8_t storage[QENTRY_LEN];
-	uint8_t type, nqe;
-	uint32_t seg, curseg, seglim, nxt, nxtnxt;
-	ispds_t *dsp = NULL;
-	ispds64_t *dsp64 = NULL;
-	void *qe0, *qe1;
-
-	qe0 = isp_getrqentry(isp);
-	if (qe0 == NULL) {
-		return (CMD_EAGAIN);
-	}
-	nxt = ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp));
-
-	type = ((isphdr_t *)fqe)->rqs_entry_type;
-	nqe = 1;
-	seglim = 0;
-
-	/*
-	 * If we have data to transmit, figure out how many segments can fit into the first entry.
-	 */
-	if (ddir != ISP_NOXFR) {
-		/*
-		 * First, figure out how many pieces of data to transfer and what kind and how many we can put into the first queue entry.
-		 */
-		switch (type) {
-		case RQSTYPE_CTIO2:
-			dsp = ((ct2_entry_t *)fqe)->rsp.m0.u.ct_dataseg;
-			seglim = ISP_RQDSEG_T2;
-			break;
-		case RQSTYPE_CTIO3:
-			dsp64 = ((ct2_entry_t *)fqe)->rsp.m0.u.ct_dataseg64;
-			seglim = ISP_RQDSEG_T3;
-			break;
-		case RQSTYPE_CTIO7:
-			dsp64 = &((ct7_entry_t *)fqe)->rsp.m0.ds;
-			seglim = 1;
-			break;
-		default:
-			return (CMD_COMPLETE);
-		}
-	}
-
-	/*
-	 * First, fill out any of the data transfer stuff that fits
-	 * in the first queue entry.
-	 */
-	if (seglim > nsegs) {
-		seglim = nsegs;
-	}
-
-	for (seg = curseg = 0; curseg < seglim; curseg++) {
-		if (dsp64) {
-			XS_GET_DMA64_SEG(dsp64++, segp, seg++);
-		} else {
-			XS_GET_DMA_SEG(dsp++, segp, seg++);
-		}
-	}
-
-	/*
-	 * Second, start building additional continuation segments as needed.
-	 */
-	while (seg < nsegs) {
-		nxtnxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
-		if (nxtnxt == isp->isp_reqodx) {
-			isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
-			if (nxtnxt == isp->isp_reqodx)
-				return (CMD_EAGAIN);
-		}
-		ISP_MEMZERO(storage, QENTRY_LEN);
-		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);
-		nxt = nxtnxt;
-		if (dsp64) {
-			ispcontreq64_t *crq = (ispcontreq64_t *) storage;
-			seglim = ISP_CDSEG64;
-			crq->req_header.rqs_entry_type = RQSTYPE_A64_CONT;
-			crq->req_header.rqs_entry_count = 1;
-			dsp64 = crq->req_dataseg;
-		} else {
-			ispcontreq_t *crq = (ispcontreq_t *) storage;
-			seglim = ISP_CDSEG;
-			crq->req_header.rqs_entry_type = RQSTYPE_DATASEG;
-			crq->req_header.rqs_entry_count = 1;
-			dsp = crq->req_dataseg;
-		}
-		if (seg + seglim > nsegs) {
-			seglim = nsegs - seg;
-		}
-		for (curseg = 0; curseg < seglim; curseg++) {
-			if (dsp64) {
-				XS_GET_DMA64_SEG(dsp64++, segp, seg++);
-			} else {
-				XS_GET_DMA_SEG(dsp++, segp, seg++);
-			}
-		}
-		if (dsp64) {
-			isp_put_cont64_req(isp, (ispcontreq64_t *)storage, qe1);
-		} else {
-			isp_put_cont_req(isp, (ispcontreq_t *)storage, qe1);
-		}
-		if (isp->isp_dblev & ISP_LOGTDEBUG1) {
-			isp_print_bytes(isp, "additional queue entry",
-			    QENTRY_LEN, qe1);
-		}
-		nqe++;
-        }
-
-	/*
-	 * Third, not patch up the first queue entry with the number of segments
-	 * we actually are going to be transmitting. At the same time, handle
-	 * any mode 2 requests.
-	 */
-	((isphdr_t *)fqe)->rqs_entry_count = nqe;
-	switch (type) {
-	case RQSTYPE_CTIO2:
-	case RQSTYPE_CTIO3:
-		if (((ct2_entry_t *)fqe)->ct_flags & CT2_FLAG_MODE2) {
-			((ct2_entry_t *)fqe)->ct_seg_count = 1;
-		} else {
-			((ct2_entry_t *)fqe)->ct_seg_count = nsegs;
-		}
-		if (ISP_CAP_2KLOGIN(isp)) {
-			isp_put_ctio2e(isp, fqe, qe0);
-		} else {
-			isp_put_ctio2(isp, fqe, qe0);
-		}
-		break;
-	case RQSTYPE_CTIO7:
-		if (((ct7_entry_t *)fqe)->ct_flags & CT7_FLAG_MODE2) {
-			((ct7_entry_t *)fqe)->ct_seg_count = 1;
-		} else {
-			((ct7_entry_t *)fqe)->ct_seg_count = nsegs;
-		}
-		isp_put_ctio7(isp, fqe, qe0);
-		break;
-	default:
-		return (CMD_COMPLETE);
-	}
-	if (isp->isp_dblev & ISP_LOGTDEBUG1) {
-		isp_print_bytes(isp, "first queue entry", QENTRY_LEN, qe0);
-	}
-	ISP_ADD_REQUEST(isp, nxt);
-	return (CMD_QUEUED);
-}
-
-#endif
 
 /*
  * Find port database entries
