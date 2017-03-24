@@ -156,9 +156,8 @@ void isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *, fcp_rsp_iu_t *);
 #else
 #include "isp_target.h"
 #endif
-
-int isp_send_tgt_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, void *, uint32_t);
 #endif
+
 int isp_find_pdb_empty(ispsoftc_t *, int, fcportdb_t **);
 int isp_find_pdb_by_wwpn(ispsoftc_t *, int, uint64_t, fcportdb_t **);
 int isp_find_pdb_by_handle(ispsoftc_t *, int, uint16_t, fcportdb_t **);
