@@ -1232,11 +1232,7 @@ create_netdev(device_t dev)
 		if_initname(ifp, xnb->if_name,  IF_DUNIT_NONE);
 		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 		ifp->if_ioctl = xnb_ioctl;
-		ifp->if_output = ether_output;
 		ifp->if_start = xnb_start;
-#ifdef notyet
-		ifp->if_watchdog = xnb_watchdog;
-#endif
 		ifp->if_init = xnb_ifinit;
 		ifp->if_mtu = ETHERMTU;
 		ifp->if_snd.ifq_maxlen = NET_RX_RING_SIZE - 1;
