@@ -831,7 +831,8 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_start = epair_start;
 	ifp->if_ioctl = epair_ioctl;
 	ifp->if_init  = epair_init;
-	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setsendqready(ifp);
 	/* Assign a hopefully unique, locally administered etheraddr. */
 	eaddr[0] = 0x02;
 	eaddr[3] = (ifp->if_index >> 8) & 0xff;
@@ -857,7 +858,8 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_start = epair_start;
 	ifp->if_ioctl = epair_ioctl;
 	ifp->if_init  = epair_init;
-	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setsendqready(ifp);
 	/* We need to play some tricks here for the second interface. */
 	strlcpy(name, epairname, len);
 	error = if_clone_create(name, len, (caddr_t)scb);
