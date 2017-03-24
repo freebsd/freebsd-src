@@ -63,38 +63,14 @@ typedef __greg_t	__gregset_t[_NGREG];
 #define _REG_LR		_REG_R14
 #define _REG_PC		_REG_R15
 
-/*
- * Floating point register state
- */
-/* Note: the storage layout of this structure must be identical to ARMFPE! */
-typedef struct {
-	unsigned int	__fp_fpsr;
-	struct {
-		unsigned int	__fp_exponent;
-		unsigned int	__fp_mantissa_hi;
-		unsigned int	__fp_mantissa_lo;
-	}		__fp_fr[8];
-} __fpregset_t;
-
-typedef struct {
-	unsigned int	__vfp_fpscr;
-	unsigned int	__vfp_fstmx[33];
-	unsigned int	__vfp_fpsid;
-} __vfpregset_t;
-
 typedef struct {
 	__gregset_t	__gregs;
-	union {
-		__fpregset_t __fpregs;
-		__vfpregset_t __vfpregs;
-	} __fpu;
+
+	/*
+	 * Originally, rest of this structure was named __fpu, 35 * 4 bytes
+	 * long, never accessed from kernel. 
+	 */
+	unsigned int	mc_spare[35];
 } mcontext_t;
-
-/* Machine-dependent uc_flags */
-#define	_UC_ARM_VFP	0x00010000	/* FPU field is VFP */
-
-/* used by signal delivery to indicate status of signal stack */
-#define _UC_SETSTACK	0x00020000
-#define _UC_CLRSTACK	0x00040000
 
 #endif	/* !_MACHINE_MCONTEXT_H_ */
