@@ -30,12 +30,9 @@
 /* FreeBSD 5.0 and later has ACL and extattr support. */
 #if __FreeBSD__ > 4
 #define ARCHIVE_ACL_FREEBSD 1
+#define ARCHIVE_XATTR_FREEBSD 1
 #define HAVE_ACL_GET_PERM_NP 1
 #define HAVE_ARC4RANDOM_BUF 1
-#define HAVE_EXTATTR_GET_FILE 1
-#define HAVE_EXTATTR_LIST_FILE 1
-#define HAVE_EXTATTR_SET_FD 1
-#define HAVE_EXTATTR_SET_FILE 1
 #define HAVE_STRUCT_XVFSCONF 1
 #define HAVE_SYS_ACL_H 1
 #define HAVE_SYS_EXTATTR_H 1
