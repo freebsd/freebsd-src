@@ -728,6 +728,7 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	ieee80211_draintask(ic, &vap->iv_nstate_task);
 	ieee80211_draintask(ic, &vap->iv_swbmiss_task);
 	ieee80211_draintask(ic, &vap->iv_wme_task);
+	ieee80211_draintask(ic, &ic->ic_parent_task);
 
 	/* XXX band-aid until ifnet handles this for us */
 	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
