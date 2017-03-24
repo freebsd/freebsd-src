@@ -284,6 +284,7 @@ TESTS_SRCS= \
 	test_write_format_zip_zip64.c		\
 	test_write_open_memory.c		\
 	test_write_read_format_zip.c		\
+	test_xattr_platform.c			\
 	test_zip_filename_encoding.c
 
 # Deterministic failures:

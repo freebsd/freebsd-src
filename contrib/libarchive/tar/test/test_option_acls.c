@@ -25,9 +25,9 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#if HAVE_POSIX_ACL || HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_LIBACL
 static const acl_perm_t acl_perms[] = {
-#if HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_DARWIN
     ACL_READ_DATA,
     ACL_LIST_DIRECTORY,
     ACL_WRITE_DATA,
@@ -46,11 +46,11 @@ static const acl_perm_t acl_perms[] = {
     ACL_WRITE_SECURITY,
     ACL_CHANGE_OWNER,
     ACL_SYNCHRONIZE
-#else /* !HAVE_DARWIN_ACL */
+#else /* !ARCHIVE_ACL_DARWIN */
     ACL_EXECUTE,
     ACL_WRITE,
     ACL_READ,
-#if HAVE_FREEBSD_NFS4_ACL
+#if ARCHIVE_ACL_FREEBSD_NFS4
     ACL_READ_DATA,
     ACL_LIST_DIRECTORY,
     ACL_WRITE_DATA,
@@ -67,18 +67,18 @@ static const acl_perm_t acl_perms[] = {
     ACL_WRITE_ACL,
     ACL_WRITE_OWNER,
     ACL_SYNCHRONIZE
-#endif	/* HAVE_FREEBSD_NFS4_ACL */
-#endif /* !HAVE_DARWIN_ACL */
+#endif	/* ARCHIVE_ACL_FREEBSD_NFS4 */
+#endif /* !ARCHIVE_ACL_DARWIN */
 };
-#if HAVE_DARWIN_ACL || HAVE_FREEBSD_NFS4_ACL
+#if ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_FREEBSD_NFS4
 static const acl_flag_t acl_flags[] = {
-#if HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_DARWIN
     ACL_ENTRY_INHERITED,
     ACL_ENTRY_FILE_INHERIT,
     ACL_ENTRY_DIRECTORY_INHERIT,
     ACL_ENTRY_LIMIT_INHERIT,
     ACL_ENTRY_ONLY_INHERIT
-#else	/* HAVE_FREEBSD_NFS4_ACL */
+#else	/* ARCHIVE_ACL_FREEBSD_NFS4 */
     ACL_ENTRY_FILE_INHERIT,
     ACL_ENTRY_DIRECTORY_INHERIT,
     ACL_ENTRY_NO_PROPAGATE_INHERIT,
@@ -86,9 +86,9 @@ static const acl_flag_t acl_flags[] = {
     ACL_ENTRY_SUCCESSFUL_ACCESS,
     ACL_ENTRY_FAILED_ACCESS,
     ACL_ENTRY_INHERITED
-#endif	/* HAVE_FREEBSD_NFS4_ACL */
+#endif	/* ARCHIVE_ACL_FREEBSD_NFS4 */
 };
-#endif /* HAVE_DARWIN_ACL || HAVE_FREEBSD_NFS4_ACL */
+#endif /* ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_FREEBSD_NFS4 */
 
 /*
  * Compare two ACL entries on FreeBSD or on Mac OS X
@@ -100,10 +100,10 @@ compare_acl_entry(acl_entry_t ae_a, acl_entry_t ae_b, int is_nfs4)
 	acl_permset_t permset_a, permset_b;
 	int perm_a, perm_b, perm_start, perm_end;
 	void *qual_a, *qual_b;
-#if HAVE_FREEBSD_NFS4_ACL
+#if ARCHIVE_ACL_FREEBSD_NFS4
 	acl_entry_type_t type_a, type_b;
 #endif
-#if HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_FREEBSD_NFS4 || ARCHIVE_ACL_DARWIN
 	acl_flagset_t flagset_a, flagset_b;
 	int flag_a, flag_b;
 #endif
@@ -123,7 +123,7 @@ compare_acl_entry(acl_entry_t ae_a, acl_entry_t ae_b, int is_nfs4)
 		return (0);
 
 	/* Compare ACL qualifier */
-#if HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_DARWIN
 	if (tag_a == ACL_EXTENDED_ALLOW || tag_b == ACL_EXTENDED_DENY)
 #else
 	if (tag_a == ACL_USER || tag_a == ACL_GROUP)
@@ -139,7 +139,7 @@ compare_acl_entry(acl_entry_t ae_a, acl_entry_t ae_b, int is_nfs4)
 			acl_free(qual_a);
 			return (-1);
 		}
-#if HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_DARWIN
 		if (memcmp(((guid_t *)qual_a)->g_guid,
 		    ((guid_t *)qual_b)->g_guid, KAUTH_GUID_SIZE) != 0)
 #else
@@ -157,7 +157,7 @@ compare_acl_entry(acl_entry_t ae_a, acl_entry_t ae_b, int is_nfs4)
 		acl_free(qual_b);
 	}
 
-#if HAVE_FREEBSD_NFS4_ACL
+#if ARCHIVE_ACL_FREEBSD_NFS4
 	if (is_nfs4) {
 		/* Compare NFS4 ACL type */
 		r = acl_get_entry_type_np(ae_a, &type_a);
@@ -185,7 +185,7 @@ compare_acl_entry(acl_entry_t ae_a, acl_entry_t ae_b, int is_nfs4)
 
 	perm_start = 0;
 	perm_end = (int)(sizeof(acl_perms) / sizeof(acl_perms[0]));
-#if HAVE_FREEBSD_NFS4_ACL
+#if ARCHIVE_ACL_FREEBSD_NFS4
 	if (is_nfs4)
 		perm_start = 3;
 	else
@@ -193,7 +193,7 @@ compare_acl_entry(acl_entry_t ae_a, acl_entry_t ae_b, int is_nfs4)
 #endif
 	/* Cycle through all perms and compare their value */
 	for (i = perm_start; i < perm_end; i++) {
-#if HAVE_LIBACL
+#if ARCHIVE_ACL_LIBACL
 		perm_a = acl_get_perm(permset_a, acl_perms[i]);
 		perm_b = acl_get_perm(permset_b, acl_perms[i]);
 #else
@@ -206,7 +206,7 @@ compare_acl_entry(acl_entry_t ae_a, acl_entry_t ae_b, int is_nfs4)
 			return (0);
 	}
 
-#if HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_FREEBSD_NFS4 || ARCHIVE_ACL_DARWIN
 	if (is_nfs4) {
 		r = acl_get_flagset_np(ae_a, &flagset_a);
 		failure("acl_get_flagset_np() error: %s", strerror(errno));
@@ -227,14 +227,14 @@ compare_acl_entry(acl_entry_t ae_a, acl_entry_t ae_b, int is_nfs4)
 				return (0);
 		}
 	}
-#else	/* HAVE_FREEBSD_NFS4_ACL || HAVE_DARWIN_ACL*/
+#else	/* ARCHIVE_ACL_FREEBSD_NFS4 || ARCHIVE_ACL_DARWIN */
 	(void)is_nfs4;	/* UNUSED */
 #endif
 	return (1);
 }
-#endif	/* HAVE_POSIX_ACL || HAVE_DARWIN_ACL */
+#endif	/* ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_LIBACL */
 
-#if HAVE_SUN_ACL || HAVE_DARWIN_ACL || HAVE_POSIX_ACL
+#if ARCHIVE_ACL_SUPPORT
 /*
  * Clear default ACLs or inheritance flags
  */
@@ -243,15 +243,17 @@ clear_inheritance_flags(const char *path, int type)
 {
 	switch (type) {
 	case ARCHIVE_TEST_ACL_TYPE_POSIX1E:
-#if HAVE_POSIX_ACL
+#if ARCHIVE_ACL_POSIX1E
+#if !ARCHIVE_ACL_SUNOS
 		acl_delete_def_file(path);
 #else
 		/* Solaris */
 		setTestAcl(path);
 #endif
+#endif	/* ARCHIVE_ACL_POSIX1E */
 		break;
 	case ARCHIVE_TEST_ACL_TYPE_NFS4:
-#if HAVE_NFS4_ACL
+#if ARCHIVE_ACL_NFS4
 		setTestAcl(path);
 #endif
 		break;
@@ -266,31 +268,40 @@ compare_acls(const char *path_a, const char *path_b)
 {
 	int ret = 1;
 	int is_nfs4 = 0;
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	void *acl_a, *acl_b;
 	int aclcnt_a, aclcnt_b;
         aclent_t *aclent_a, *aclent_b;
         ace_t *ace_a, *ace_b;
 	int e;
-#else
+#elif ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_LIBACL
 	acl_t acl_a, acl_b;
 	acl_entry_t aclent_a, aclent_b;
 	int a, b, r;
 #endif
+#if ARCHIVE_ACL_LIBRICHACL
+	struct richacl *richacl_a, *richacl_b;
 
+	richacl_a = NULL;
+	richacl_b = NULL;
+#endif
+
+#if ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_LIBACL || \
+    ARCHIVE_ACL_SUNOS
 	acl_a = NULL;
 	acl_b = NULL;
-#if HAVE_SUN_ACL
+#endif
+#if ARCHIVE_ACL_SUNOS
 	acl_a = sunacl_get(GETACL, &aclcnt_a, 0, path_a);
 	if (acl_a == NULL) {
-#if HAVE_SUN_NFS4_ACL
+#if ARCHIVE_ACL_SUNOS_NFS4
 		is_nfs4 = 1;
 		acl_a = sunacl_get(ACE_GETACL, &aclcnt_a, 0, path_a);
 #endif
 		failure("acl_get() error: %s", strerror(errno));
 		if (assert(acl_a != NULL) == 0)
 			return (-1);
-#if HAVE_SUN_NFS4_ACL
+#if ARCHIVE_ACL_SUNOS_NFS4
 		acl_b = sunacl_get(ACE_GETACL, &aclcnt_b, 0, path_b);
 #endif
 	} else
@@ -321,7 +332,7 @@ compare_acls(const char *path_a, const char *path_b)
 				goto exit_free;
 			}
 		}
-#if HAVE_SUN_NFS4_ACL
+#if ARCHIVE_ACL_SUNOS_NFS4
 		else {
 			ace_a = &((ace_t *)acl_a)[e];
 			ace_b = &((ace_t *)acl_b)[e];
@@ -335,30 +346,57 @@ compare_acls(const char *path_a, const char *path_b)
 		}
 #endif
 	}
-#else	/* !HAVE_SUN_ACL */
-#if HAVE_DARWIN_ACL
+#else	/* !ARCHIVE_ACL_SUNOS */
+#if ARCHIVE_ACL_LIBRICHACL
+	richacl_a = richacl_get_file(path_a);
+#if !ARCHIVE_ACL_LIBACL
+	if (richacl_a == NULL &&
+	    (errno == ENODATA || errno == ENOTSUP || errno == ENOSYS))
+		return (0);
+	failure("richacl_get_file() error: %s (%s)", path_a, strerror(errno));
+	if (assert(richacl_a != NULL) == 0)
+		return (-1);
+#endif
+	if (richacl_a != NULL) {
+		richacl_b = richacl_get_file(path_b);
+		if (richacl_b == NULL &&
+		    (errno == ENODATA || errno == ENOTSUP || errno == ENOSYS))
+			return (0);
+		failure("richacl_get_file() error: %s (%s)", path_b,
+		    strerror(errno));
+		if (assert(richacl_b != NULL) == 0) {
+			richacl_free(richacl_a);
+			return (-1);
+		}
+		if (richacl_compare(richacl_a, richacl_b) == 0)
+			ret = 0;
+		richacl_free(richacl_a);
+		richacl_free(richacl_b);
+		return (ret);
+        }
+#endif /* ARCHIVE_ACL_LIBRICHACL */
+#if ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_LIBACL
+#if ARCHIVE_ACL_DARWIN
 	is_nfs4 = 1;
 	acl_a = acl_get_file(path_a, ACL_TYPE_EXTENDED);
-#elif HAVE_FREEBSD_NFS4_ACL
+#elif ARCHIVE_ACL_FREEBSD_NFS4
 	acl_a = acl_get_file(path_a, ACL_TYPE_NFS4);
 	if (acl_a != NULL)
 		is_nfs4 = 1;
 #endif
-#if !HAVE_DARWIN_ACL
 	if (acl_a == NULL)
 		acl_a = acl_get_file(path_a, ACL_TYPE_ACCESS);
-#endif
 	failure("acl_get_file() error: %s (%s)", path_a, strerror(errno));
 	if (assert(acl_a != NULL) == 0)
 		return (-1);
-#if HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_DARWIN
 	acl_b = acl_get_file(path_b, ACL_TYPE_EXTENDED);
-#elif HAVE_FREEBSD_NFS4_ACL
+#elif ARCHIVE_ACL_FREEBSD_NFS4
 	acl_b = acl_get_file(path_b, ACL_TYPE_NFS4);
 #endif
-#if !HAVE_DARWIN_ACL
+#if !ARCHIVE_ACL_DARWIN
 	if (acl_b == NULL) {
-#if HAVE_FREEBSD_NFS4_ACL
+#if ARCHIVE_ACL_FREEBSD_NFS4
 		if (is_nfs4) {
 			acl_free(acl_a);
 			return (0);
@@ -382,7 +420,7 @@ compare_acls(const char *path_a, const char *path_b)
 		ret = 0;
 		goto exit_free;
 	}
-#if HAVE_DARWIN_ACL
+#if ARCHIVE_ACL_DARWIN
 	while (a == 0 && b == 0)
 #else	/* FreeBSD, Linux */
 	while (a == 1 && b == 1)
@@ -399,9 +437,10 @@ compare_acls(const char *path_a, const char *path_b)
 	/* Entry count must match */
 	if (a != b)
 		ret = 0;
-#endif	/* !HAVE_SUN_ACL */
+#endif	/* ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_LIBACL */
+#endif	/* !ARCHIVE_ACL_SUNOS */
 exit_free:
-#if HAVE_SUN_ACL
+#if ARCHIVE_ACL_SUNOS
 	free(acl_a);
 	free(acl_b);
 #else
@@ -410,13 +449,13 @@ exit_free:
 #endif
 	return (ret);
 }
-#endif	/* HAVE_SUN_ACL || HAVE_DARWIN_ACL || HAVE_POSIX_ACL */
+#endif	/* ARCHIVE_ACL_SUPPORT */
 
 DEFINE_TEST(test_option_acls)
 {
-#if !HAVE_SUN_ACL && !HAVE_DARWIN_ACL && !HAVE_POSIX_ACL
+#if !ARCHIVE_ACL_SUPPORT
         skipping("ACLs are not supported on this platform");
-#else   /* HAVE_SUN_ACL || HAVE_DARWIN_ACL || HAVE_POSIX_ACL */
+#else   /* ARCHIVE_ACL_SUPPORT */
 	int acltype, r;
 
 	assertMakeFile("f", 0644, "a");
@@ -465,5 +504,5 @@ DEFINE_TEST(test_option_acls)
 	assertEqualInt(r, 0);
 	r = compare_acls("f", "noacls_noacls/f");
 	assertEqualInt(r, 0);
-#endif	/* HAVE_SUN_ACL || HAVE_DARWIN_ACL || HAVE_POSIX_ACL */
+#endif	/* ARCHIVE_ACL_SUPPORT */
 }
