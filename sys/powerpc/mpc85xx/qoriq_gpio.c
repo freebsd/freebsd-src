@@ -215,13 +215,18 @@ qoriq_gpio_pin_toggle(device_t dev, uint32_t pin)
 	return (0);
 }
 
+static struct ofw_compat_data gpio_matches[] = {
+    {"fsl,qoriq-gpio", 1},
+    {"fsl,pq3-gpio", 1},
+    {"fsl,mpc8572-gpio", 1},
+    {0, 0}
+};
+
 static int
 qoriq_gpio_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "fsl,qoriq-gpio") &&
-	    !ofw_bus_is_compatible(dev, "fsl,pq3-gpio") &&
-	    !ofw_bus_is_compatible(dev, "fsl,mpc8572-gpio"))
+	if (ofw_bus_search_compatible(dev, gpio_matches)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale QorIQ GPIO driver");
