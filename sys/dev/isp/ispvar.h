@@ -999,6 +999,7 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	XS_DMA_ADDR_T		Platform PCI DMA Address Type
  *	XS_GET_DMA_SEG(..)	Get 32 bit dma segment list value
  *	XS_GET_DMA64_SEG(..)	Get 64 bit dma segment list value
+ *	XS_NEED_DMA64_SEG(..)	dma segment needs 64 bit storage
  *	XS_ISP(xs)		gets an instance out of an XS_T
  *	XS_CHANNEL(xs)		gets the channel (bus # for DUALBUS cards) ""
  *	XS_TGT(xs)		gets the target ""

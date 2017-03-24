@@ -592,37 +592,36 @@ typedef struct {
 static void
 dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
-	mush_t *mp;
-	ispsoftc_t *isp;
-	struct ccb_scsiio *csio;
+	mush_t *mp = (mush_t *) arg;
+	ispsoftc_t *isp = mp->isp;
+	struct ccb_scsiio *csio = mp->cmd_token;
 	isp_ddir_t ddir;
-	ispreq_t *rq;
+	int sdir;
 
-	mp = (mush_t *) arg;
 	if (error) {
 		mp->error = error;
 		return;
 	}
-	csio = mp->cmd_token;
-	isp = mp->isp;
-	rq = mp->rq;
-	if (nseg) {
-		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
-			ddir = ISP_FROM_DEVICE;
-		} else if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
-			ddir = ISP_TO_DEVICE;
-		} else {
-			ddir = ISP_NOXFR;
-		}
-	} else {
-		dm_segs = NULL;
-		nseg = 0;
+	if (nseg == 0) {
 		ddir = ISP_NOXFR;
+	} else {
+		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+			ddir = ISP_FROM_DEVICE;
+		} else {
+			ddir = ISP_TO_DEVICE;
+		}
+		if ((csio->ccb_h.func_code == XPT_CONT_TARGET_IO) ^
+		    ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)) {
+			sdir = BUS_DMASYNC_PREREAD;
+		} else {
+			sdir = BUS_DMASYNC_PREWRITE;
+		}
+		bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap,
+		    sdir);
 	}
 
-	if (isp_send_cmd(isp, rq, dm_segs, nseg, XS_XFRLEN(csio), ddir, NULL) != CMD_QUEUED) {
+	if (isp_send_cmd(isp, mp->rq, dm_segs, nseg, XS_XFRLEN(csio),
+	    ddir, NULL) != CMD_QUEUED) {
 		mp->error = MUSHERR_NOQENTRIES;
 	}
 }
