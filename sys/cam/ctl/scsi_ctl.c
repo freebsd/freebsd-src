@@ -1502,18 +1502,14 @@ out:
 static void
 ctlfe_onoffline(void *arg, int online)
 {
-	struct ctlfe_softc *bus_softc;
+	struct ctlfe_softc *bus_softc = arg;
 	union ccb *ccb;
 	cam_status status;
 	struct cam_path *path;
-	int set_wwnn;
-
-	bus_softc = (struct ctlfe_softc *)arg;
-
-	set_wwnn = 0;
+	int set_wwnn = 0;
 
 	status = xpt_create_path(&path, /*periph*/ NULL, bus_softc->path_id,
-		CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
 		printf("%s: unable to create path!\n", __func__);
 		return;
@@ -1523,21 +1519,9 @@ ctlfe_onoffline(void *arg, int online)
 	ccb->ccb_h.func_code = XPT_GET_SIM_KNOB;
 	xpt_action(ccb);
 
-	/*
-	 * Copan WWN format:
-	 *
-	 * Bits 63-60:	0x5		NAA, IEEE registered name
-	 * Bits 59-36:	0x000ED5	IEEE Company name assigned to Copan
-	 * Bits 35-12:			Copan SSN (Sequential Serial Number)
-	 * Bits 11-8:			Type of port:
-	 *					1 == N-Port
-	 *					2 == F-Port
-	 *					3 == NL-Port
-	 * Bits 7-0:			0 == Node Name, >0 == Port Number
-	 */
+	/* Check whether we should change WWNs. */
 	if (online != 0) {
 		if ((ccb->knob.xport_specific.valid & KNOB_VALID_ADDRESS) != 0){
-
 			printf("%s: %s current WWNN %#jx\n", __func__,
 			       bus_softc->port_name,
 			       ccb->knob.xport_specific.fc.wwnn);
@@ -1570,43 +1554,59 @@ ctlfe_onoffline(void *arg, int online)
 				    false, 0,
 				    true, ccb->knob.xport_specific.fc.wwpn);
 			}
-
-
-			if (set_wwnn != 0) {
-				printf("%s: %s new WWNN %#jx\n", __func__,
-				       bus_softc->port_name,
-				ccb->knob.xport_specific.fc.wwnn);
-				printf("%s: %s new WWPN %#jx\n", __func__,
-				       bus_softc->port_name,
-				       ccb->knob.xport_specific.fc.wwpn);
-			}
 		} else {
 			printf("%s: %s has no valid WWNN/WWPN\n", __func__,
 			       bus_softc->port_name);
+			if (bus_softc->port.wwnn != 0) {
+				ccb->knob.xport_specific.fc.wwnn =
+				    bus_softc->port.wwnn;
+				set_wwnn = 1;
+			}
+			if (bus_softc->port.wwpn != 0) {
+				ccb->knob.xport_specific.fc.wwpn =
+				    bus_softc->port.wwpn;
+				set_wwnn = 1;
+			}
 		}
 	}
-	ccb->ccb_h.func_code = XPT_SET_SIM_KNOB;
-	ccb->knob.xport_specific.valid = KNOB_VALID_ROLE;
-	if (set_wwnn != 0)
-		ccb->knob.xport_specific.valid |= KNOB_VALID_ADDRESS;
+	if (set_wwnn) {
+		ccb->ccb_h.func_code = XPT_SET_SIM_KNOB;
+		ccb->knob.xport_specific.valid = KNOB_VALID_ADDRESS;
+		xpt_action(ccb);
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			printf("%s: %s (path id %d) failed set WWNs: %#x\n",
+			    __func__, bus_softc->port_name, bus_softc->path_id,
+			    ccb->ccb_h.status);
+		} else {
+			printf("%s: %s new WWNN %#jx\n", __func__,
+			       bus_softc->port_name,
+			       ccb->knob.xport_specific.fc.wwnn);
+			printf("%s: %s new WWPN %#jx\n", __func__,
+			       bus_softc->port_name,
+			       ccb->knob.xport_specific.fc.wwpn);
+		}
+	}
 
-	if (online != 0)
-		ccb->knob.xport_specific.fc.role |= KNOB_ROLE_TARGET;
-	else
-		ccb->knob.xport_specific.fc.role &= ~KNOB_ROLE_TARGET;
-
-	xpt_action(ccb);
-
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		printf("%s: SIM %s (path id %d) target %s failed with "
-		       "status %#x\n",
-		       __func__, bus_softc->port_name, bus_softc->path_id,
-		       (online != 0) ? "enable" : "disable",
-		       ccb->ccb_h.status);
-	} else {
-		printf("%s: SIM %s (path id %d) target %s succeeded\n",
-		       __func__, bus_softc->port_name, bus_softc->path_id,
-		       (online != 0) ? "enable" : "disable");
+	/* Check whether we should change role. */
+	if ((ccb->knob.xport_specific.valid & KNOB_VALID_ROLE) == 0 ||
+	    ((online != 0) ^
+	    ((ccb->knob.xport_specific.fc.role & KNOB_ROLE_TARGET) != 0)) != 0) {
+		ccb->ccb_h.func_code = XPT_SET_SIM_KNOB;
+		ccb->knob.xport_specific.valid = KNOB_VALID_ROLE;
+		if (online)
+			ccb->knob.xport_specific.fc.role |= KNOB_ROLE_TARGET;
+		else
+			ccb->knob.xport_specific.fc.role &= ~KNOB_ROLE_TARGET;
+		xpt_action(ccb);
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			printf("%s: %s (path id %d) failed %s target role: %#x\n",
+			    __func__, bus_softc->port_name, bus_softc->path_id,
+			    online ? "enable" : "disable", ccb->ccb_h.status);
+		} else {
+			printf("%s: %s (path id %d) target role %s succeeded\n",
+			    __func__, bus_softc->port_name, bus_softc->path_id,
+			    online ? "enable" : "disable");
+		}
 	}
 
 	xpt_free_path(path);
