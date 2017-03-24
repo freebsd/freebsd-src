@@ -682,8 +682,6 @@ isp_pci_attach(device_t dev)
 	pcs->pci_dev = dev;
 	isp->isp_dev = dev;
 	isp->isp_nchan = 1;
-	if (sizeof (bus_addr_t) > 4)
-		isp->isp_osinfo.sixtyfourbit = 1;
 	mtx_init(&isp->isp_lock, "isp", NULL, MTX_DEF);
 
 	/*
@@ -1527,7 +1525,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		slim = (1UL << 24);
 		llim = BUS_SPACE_MAXADDR_32BIT;
 	}
-	if (isp->isp_osinfo.sixtyfourbit)
+	if (sizeof (bus_size_t) > 4)
 		nsegs = ISP_NSEG64_MAX;
 	else
 		nsegs = ISP_NSEG_MAX;
@@ -1839,122 +1837,39 @@ typedef struct {
 
 #define	MUSHERR_NOQENTRIES	-2
 
-#ifdef	ISP_TARGET_MODE
-static void
-tdma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
-{
-	mush_t *mp;
-	ispsoftc_t *isp;
-	struct ccb_scsiio *csio;
-	isp_ddir_t ddir;
-	ispreq_t *rq;
-
-	mp = (mush_t *) arg;
-	if (error) {
-		mp->error = error;
-		return;
-	}
-	csio = mp->cmd_token;
-	isp = mp->isp;
-	rq = mp->rq;
-	if (nseg) {
-		if (isp->isp_osinfo.sixtyfourbit) {
-			if (nseg >= ISP_NSEG64_MAX) {
-				isp_prt(isp, ISP_LOGERR, "number of segments (%d) exceed maximum we can support (%d)", nseg, ISP_NSEG64_MAX);
-				mp->error = EFAULT;
-				return;
-			}
-			if (rq->req_header.rqs_entry_type == RQSTYPE_CTIO2) {
-				rq->req_header.rqs_entry_type = RQSTYPE_CTIO3;
-			}
-		} else {
-			if (nseg >= ISP_NSEG_MAX) {
-				isp_prt(isp, ISP_LOGERR, "number of segments (%d) exceed maximum we can support (%d)", nseg, ISP_NSEG_MAX);
-				mp->error = EFAULT;
-				return;
-			}
-		}
-		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
-			ddir = ISP_TO_DEVICE;
-		} else if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
-			ddir = ISP_FROM_DEVICE;
-		} else {
-			dm_segs = NULL;
-			nseg = 0;
-			ddir = ISP_NOXFR;
-		}
-	} else {
-		dm_segs = NULL;
-		nseg = 0;
-		ddir = ISP_NOXFR;
-	}
-
-	error = isp_send_tgt_cmd(isp, rq, dm_segs, nseg, XS_XFRLEN(csio), ddir, &csio->sense_data, csio->sense_len);
-	switch (error) {
-	case CMD_EAGAIN:
-		mp->error = MUSHERR_NOQENTRIES;
-	case CMD_QUEUED:
-		break;
-	default:
-		mp->error = EIO;
-	}
-}
-#endif
-
 static void
 dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
-	mush_t *mp;
-	ispsoftc_t *isp;
-	struct ccb_scsiio *csio;
+	mush_t *mp = (mush_t *) arg;
+	ispsoftc_t *isp= mp->isp;
+	struct ccb_scsiio *csio = mp->cmd_token;
 	isp_ddir_t ddir;
-	ispreq_t *rq;
+	int sdir;
 
-	mp = (mush_t *) arg;
 	if (error) {
 		mp->error = error;
 		return;
 	}
-	csio = mp->cmd_token;
-	isp = mp->isp;
-	rq = mp->rq;
-	if (nseg) {
-		if (isp->isp_osinfo.sixtyfourbit) {
-			if (nseg >= ISP_NSEG64_MAX) {
-				isp_prt(isp, ISP_LOGERR, "number of segments (%d) exceed maximum we can support (%d)", nseg, ISP_NSEG64_MAX);
-				mp->error = EFAULT;
-				return;
-			}
-			if (rq->req_header.rqs_entry_type == RQSTYPE_T2RQS) {
-				rq->req_header.rqs_entry_type = RQSTYPE_T3RQS;
-			} else if (rq->req_header.rqs_entry_type == RQSTYPE_REQUEST) {
-				rq->req_header.rqs_entry_type = RQSTYPE_A64;
-			}
-		} else {
-			if (nseg >= ISP_NSEG_MAX) {
-				isp_prt(isp, ISP_LOGERR, "number of segments (%d) exceed maximum we can support (%d)", nseg, ISP_NSEG_MAX);
-				mp->error = EFAULT;
-				return;
-			}
-		}
-		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
-			ddir = ISP_FROM_DEVICE;
-		} else if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
-			bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
-			ddir = ISP_TO_DEVICE;
-		} else {
-			ddir = ISP_NOXFR;
-		}
-	} else {
-		dm_segs = NULL;
-		nseg = 0;
+	if (nseg == 0) {
 		ddir = ISP_NOXFR;
+	} else {
+		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+			ddir = ISP_FROM_DEVICE;
+		} else {
+			ddir = ISP_TO_DEVICE;
+		}
+		if ((csio->ccb_h.func_code == XPT_CONT_TARGET_IO) ^
+		    ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)) {
+			sdir = BUS_DMASYNC_PREREAD;
+		} else {
+			sdir = BUS_DMASYNC_PREWRITE;
+		}
+		bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap,
+		    sdir);
 	}
 
-	error = isp_send_cmd(isp, rq, dm_segs, nseg, XS_XFRLEN(csio), ddir, (ispds64_t *)csio->req_map);
+	error = isp_send_cmd(isp, mp->rq, dm_segs, nseg, XS_XFRLEN(csio),
+	    ddir, (ispds64_t *)csio->req_map);
 	switch (error) {
 	case CMD_EAGAIN:
 		mp->error = MUSHERR_NOQENTRIES;
@@ -1971,7 +1886,6 @@ static int
 isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 {
 	mush_t mush, *mp;
-	void (*eptr)(void *, bus_dma_segment_t *, int, int);
 	int error;
 
 	mp = &mush;
@@ -1980,15 +1894,8 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 	mp->rq = ff;
 	mp->error = 0;
 
-#ifdef	ISP_TARGET_MODE
-	if (csio->ccb_h.func_code == XPT_CONT_TARGET_IO)
-		eptr = tdma2;
-	else
-#endif
-		eptr = dma2;
-
 	error = bus_dmamap_load_ccb(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap,
-	    (union ccb *)csio, eptr, mp, 0);
+	    (union ccb *)csio, dma2, mp, 0);
 	if (error == EINPROGRESS) {
 		bus_dmamap_unload(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap);
 		mp->error = EINVAL;
