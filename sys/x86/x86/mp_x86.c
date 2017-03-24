@@ -209,14 +209,14 @@ add_deterministic_cache(int type, int level, int share_count)
 
 	if (caches[level - 1].id_shift > pkg_id_shift) {
 		printf("WARNING: L%u data cache covers more "
-		    "APIC IDs than a package\n", level);
-		printf("%u > %u\n", caches[level - 1].id_shift, pkg_id_shift);
+		    "APIC IDs than a package (%u > %u)\n", level,
+		    caches[level - 1].id_shift, pkg_id_shift);
 		caches[level - 1].id_shift = pkg_id_shift;
 	}
 	if (caches[level - 1].id_shift < core_id_shift) {
-		printf("WARNING: L%u data cache covers less "
-		    "APIC IDs than a core\n", level);
-		printf("%u < %u\n", caches[level - 1].id_shift, core_id_shift);
+		printf("WARNING: L%u data cache covers fewer "
+		    "APIC IDs than a core (%u < %u)\n", level,
+		    caches[level - 1].id_shift, core_id_shift);
 		caches[level - 1].id_shift = core_id_shift;
 	}
 
