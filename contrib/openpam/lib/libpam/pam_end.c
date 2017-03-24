@@ -60,6 +60,8 @@ pam_end(pam_handle_t *pamh,
 	int i;
 
 	ENTER();
+	if (pamh == NULL)
+		RETURNC(PAM_SYSTEM_ERR);
 
 	/* clear module data */
 	while ((dp = pamh->module_data) != NULL) {
