@@ -417,24 +417,16 @@ var_list::is_set(const string &var) const
  * converted to ". For all other characters, both \ and following
  * character. So the string 'fre\:\"' is translated to 'fred\:"'.
  */
-const std::string &
+std::string
 var_list::fix_value(const std::string &val) const
 {
-	char *tmp, *dst;
-	const char *src;
-	std::string *rv;
+        std::string rv(val);
+        std::string::size_type pos(0);
 
-	dst = tmp = new char[val.length()];
-	src = val.c_str();
-	while (*src) {
-		if (*src == '\\' && src[1] == '"')
-			src++;
-		else
-			*dst++ = *src++;
-	}
-	rv = new string(tmp);
-	delete tmp;
-	return *rv;
+        while ((pos = rv.find("\\\"", pos)) != rv.npos) {
+                rv.erase(pos, 1);
+        }
+        return (rv);
 }
 
 void
