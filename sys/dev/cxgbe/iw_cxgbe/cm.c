@@ -2135,14 +2135,6 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto out;
 	}
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
-
-	if (!ep) {
-
-		CTR2(KTR_IW_CXGBE, "%s:cc2 %p", __func__, cm_id);
-		printk(KERN_ERR MOD "%s - cannot alloc ep.\n", __func__);
-		err = -ENOMEM;
-		goto out;
-	}
 	init_timer(&ep->timer);
 	ep->plen = conn_param->private_data_len;
 
@@ -2229,21 +2221,11 @@ out:
 int
 c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog)
 {
-	int rc;
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_listen_ep *ep;
 	struct socket *so = cm_id->so;
 
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
-	CTR5(KTR_IW_CXGBE, "%s: cm_id %p, lso %p, ep %p, inp %p", __func__,
-	    cm_id, so, ep, so->so_pcb);
-	if (ep == NULL) {
-		log(LOG_ERR, "%s: failed to alloc memory for endpoint\n",
-		    __func__);
-		rc = ENOMEM;
-		goto failed;
-	}
-
 	ep->com.cm_id = cm_id;
 	ref_cm_id(&ep->com);
 	ep->com.dev = dev;
@@ -2255,10 +2237,6 @@ c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog)
 
 	cm_id->provider_data = ep;
 	return (0);
-
-failed:
-	CTR3(KTR_IW_CXGBE, "%s: cm_id %p, FAILED (%d)", __func__, cm_id, rc);
-	return (-rc);
 }
 
 void
