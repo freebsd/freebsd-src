@@ -1,3 +1,4 @@
+ 22. Fix type of read in prompt confirmation (eg. rmstar) (David Kaspar)
  20. V6.20.00 - 20161124
  19. Don't resize the screen if it did not change size.
  18. V6.19.01 - 20161025
