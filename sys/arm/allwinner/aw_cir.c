@@ -89,7 +89,12 @@ __FBSDID("$FreeBSD$");
 
 /* IR Sample Configure Reg */
 #define	AW_IR_CIR			0x34
-/* Filter Threshold = 8 * 21.3 = ~128us < 200us */
+
+/*
+ * Frequency sample: 23437.5Hz (Cycle: 42.7us)
+ * Pulse of NEC Remote > 560us
+ */
+/* Filter Threshold = 8 * 42.7 = ~341us < 500us */
 #define	 AW_IR_RXFILT_VAL		(((8) & 0x3f) << 2)
 /* Idle Threshold = (2 + 1) * 128 * 42.7 = ~16.4ms > 9ms */
 #define	 AW_IR_RXIDLE_VAL		(((2) & 0xff) << 8)
@@ -317,12 +322,17 @@ aw_ir_intr(void *arg)
 
 	/* Read RX interrupt status */
 	val = READ(sc, AW_IR_RXSTA);
+	if (bootverbose)
+		device_printf(sc->dev, "RX interrupt status: %x\n", val);
 
 	/* Clean all pending interrupt statuses */
 	WRITE(sc, AW_IR_RXSTA, val | AW_IR_RXSTA_CLEARALL);
 
 	/* When Rx FIFO Data available or Packet end */
 	if (val & (AW_IR_RXINT_RAI_EN | AW_IR_RXINT_RPEI_EN)) {
+		if (bootverbose)
+			device_printf(sc->dev,
+			    "RX FIFO Data available or Packet end\n");
 		/* Get available message count in RX FIFO */
 		dcnt  = AW_IR_RXSTA_COUNTER(val);
 		/* Read FIFO */
