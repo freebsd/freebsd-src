@@ -433,11 +433,13 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 			TD_PINNED_ASSERT;
 			return (NULL);
 		}
-		error = domain_init_rmrr(domain1, dev);
-		if (error != 0) {
-			dmar_domain_destroy(domain1);
-			TD_PINNED_ASSERT;
-			return (NULL);
+		if (!id_mapped) {
+			error = domain_init_rmrr(domain1, dev);
+			if (error != 0) {
+				dmar_domain_destroy(domain1);
+				TD_PINNED_ASSERT;
+				return (NULL);
+			}
 		}
 		ctx1 = dmar_ctx_alloc(domain1, rid);
 		ctxp = dmar_map_ctx_entry(ctx1, &sf);
