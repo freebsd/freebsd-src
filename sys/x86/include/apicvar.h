@@ -210,7 +210,7 @@ struct apic_ops {
 	void	(*setup)(int);
 	void	(*dump)(const char *);
 	void	(*disable)(void);
-	void	(*eoi)(void);
+	void	(*eoi)(u_int vector);
 	int	(*id)(void);
 	int	(*intr_pending)(u_int);
 	void	(*set_logical_id)(u_int, u_int, u_int);
@@ -301,10 +301,10 @@ lapic_disable(void)
 }
 
 static inline void
-lapic_eoi(void)
+lapic_eoi(u_int vector)
 {
 
-	apic_ops.eoi();
+	apic_ops.eoi(vector);
 }
 
 static inline int
@@ -469,6 +469,7 @@ lapic_set_lvt_triggermode(u_int apic_id, u_int lvt, enum intr_trigger trigger)
 	return (apic_ops.set_lvt_triggermode(apic_id, lvt, trigger));
 }
 
+void	native_lapic_eoi(u_int vector);
 void	lapic_handle_cmc(void);
 void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
