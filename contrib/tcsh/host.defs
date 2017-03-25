@@ -1,5 +1,5 @@
 newcode :
-/* $Header: /p/tcsh/cvsroot/tcsh/host.defs,v 1.55 2012/01/11 20:20:15 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/host.defs,v 1.61 2015/05/26 18:56:19 christos Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -33,18 +33,19 @@ newcode :
  */
 #include "sh.h"
 
-RCSID("$tcsh: host.defs,v 1.55 2012/01/11 20:20:15 christos Exp $")
+RCSID("$tcsh: host.defs,v 1.61 2015/05/26 18:56:19 christos Exp $")
 
 endcode :
 
-macro	: M_mips64el : (defined(mips64) || defined(__mips64)) && (defined(MIPSEL) || defined(__MIPSEL))
-macro	: M_mips64eb : (defined(mips64) || defined(__mips64)) && (defined(MIPSEB) || defined(__MIPSEB))
-macro	: M_mipsel : (!defined(M_mips64el)) && (defined(mips) || defined(__mips)) && (defined(MIPSEL) || defined(__MIPSEL))
-macro	: M_mipseb : (!defined(M_mips64eb)) && (defined(mips) || defined(__mips)) && (defined(MIPSEB) || defined(__MIPSEB))
-macro	: M_i386 : (defined(i386) || defined(__i386__))
-macro	: M_i486 : (defined(i486) || defined(__i486__))
-macro	: M_i586 : (defined(i586) || defined(__i586__))
-macro	: M_i686 : (defined(i686) || defined(__i686__))
+macro	: M_mips64el : (defined(mips64) && defined(MIPSEL))
+macro	: M_mips64eb : (defined(mips64) && defined(MIPSEB))
+macro	: M_mipsel : (!defined(M_mips64el) && defined(mips) && defined(MIPSEL))
+macro	: M_mipseb : (!defined(M_mips64eb) && defined(mips) && defined(MIPSEB))
+macro	: M_amd64: (defined(amd64) || defined(x86_64))
+macro	: M_i386 : defined(i386)
+macro	: M_i486 : defined(i486)
+macro	: M_i586 : defined(i586)
+macro	: M_i686 : defined(i686)
 macro	: M_intel : (defined(M_i386) || defined(M_i486) || defined(M_i586))
 
 newdef	: defined(ns32000)
@@ -169,7 +170,7 @@ getconvex(void)
 endcode :
 enddef	:
 
-newdef : defined(__linux__) || defined(__CYGWIN__) || defined(__GNU__) || defined(__GLIBC__)
+newdef : defined(linux) || defined(CYGWIN) || defined(GNU) || defined(GLIBC)
 newcode :
 # include "tw.h"
 #include <sys/utsname.h>
@@ -240,7 +241,7 @@ hosttype:						: HOSTTYPE
 enddef	:
 
 
-newdef	: defined(__PARAGON__)
+newdef	: defined(PARAGON)
 comment : Intel Paragon running OSF/1
 vendor	:						: "intel"
 hosttype:						: "paragon"
@@ -277,7 +278,7 @@ machtype: defined(vax)					: "vax"
 enddef	:
 
 
-newdef	: defined(__hp_osf)
+newdef	: defined(hp_osf)
 comment : Hewlett Packard running OSF/1
 vendor	:						: "hp"
 hosttype: defined(pa_risc)				: "hp9000s700-osf1"
@@ -300,7 +301,7 @@ machtype: defined(hp800)				: "pa_risc"
 enddef	:
 
 
-newdef	: defined(hpux) || defined(__hpux)
+newdef	: defined(hpux)
 comment : Hewlett Packard running HP/UX
 vendor	:						: "hp"
 hosttype: defined(hp9000s800)				: "hp9000s800"
@@ -325,14 +326,15 @@ machtype:						: "m68k"
 enddef	:
 
 
-newdef	: defined(sun) || defined(__sun__)
+newdef	: defined(sun)
 comment : Sun Microsystems series 2 workstation (68010 based)
 comment : Sun Microsystems series 3 workstation (68020 based)
 comment : Sun Microsystems 386i workstation (386 based)
 comment : Sun Microsystems series 4 workstation (SPARC based)
 vendor	:						: "sun"
-hosttype: defined(M_i386) && !defined(__SVR4)		: "sun386i"
-hosttype: defined(M_i386) && defined(__SVR4)		: "i86pc"
+hosttype: defined(M_i386) && !defined(SVR4)		: "sun386i"
+hosttype: defined(M_i386) && defined(SVR4)		: "i86pc"
+hosttype: defined(M_amd64)				: "i86pc"
 hosttype: defined(mc68010)				: "sun2"
 hosttype: defined(mc68020)				: "sun3"
 hosttype: defined(sparc)				: "sun4"
@@ -345,6 +347,7 @@ machtype: defined(mc68020)				: "m68k"
 machtype: defined(sparcv9)				: "sparcv9"
 machtype: defined(sparc)				: "sparc"
 machtype: defined(M_i386)				: "i386"
+machtype: defined(M_amd64)				: "amd64"
 enddef	:
 
 
@@ -488,7 +491,7 @@ machtype: defined(M_i386)				: "i386"
 enddef	:
 
 
-newdef	: defined(__gnu_hurd__)
+newdef	: defined(gnu_hurd)
 comment : GNU/HURD
 vendor	: defined(M_intel)				: "intel"
 hosttype: defined(M_i686)				: "i686"
@@ -503,19 +506,19 @@ machtype: defined(M_i386)				: "i386-pc-gnu"
 enddef	:
 
 
-newdef	: defined(linux) || defined(__GNU__) || defined(__GLIBC__)
+newdef	: defined(linux) || defined(GNU) || defined(GLIBC)
 comment : Linus Torvalds's linux
 vendor	: defined(M_intel)				: "intel"
 hosttype:						: gethost()
 ostype	:						: getostype()
 machtype:						: getmach()
-vendor	: defined(__ANDROID__)				: "linux"
+vendor	: defined(ANDROID)				: "linux"
 vendor	: defined(alpha)				: "dec"
 vendor	: defined(PPC)					: "apple"
 enddef	:
 
 
-newdef	: defined(__EMX__)
+newdef	: defined(EMX)
 comment : OS/2 EMX [unix emulation under OS/2]
 vendor	: defined(M_intel)				: "intel"
 hosttype: defined(M_i386)				: "i386-emx"
@@ -524,10 +527,10 @@ machtype: defined(M_i386)				: "i386"
 enddef	:
 
 
-newdef	: defined(__NetBSD__) 
+newdef	: defined(NetBSD) 
 comment : NetBSD
 vendor	: defined(algor)				: "algoritmics"
-vendor	: defined(arm32) || defined(__arm__)		: "acorn"
+vendor	: defined(arm32) || defined(arm)		: "acorn"
 vendor	: defined(alpha)				: "digital"
 vendor	: defined(amiga)				: "commodore"
 vendor	: defined(atari)				: "atari"
@@ -543,13 +546,13 @@ vendor	: defined(sparc)				: "sun"
 vendor	: defined(sparc64)				: "sun"
 vendor	: defined(sun3)					: "sun"
 vendor	: defined(vax)					: "digital"
-vendor	: defined(x86_64)				: "amd"
+vendor	: defined(M_amd64)				: "amd"
 hosttype:						: "NetBSD"
 ostype	:						: "NetBSD"
 machtype: defined(alpha)				: "alpha"
 machtype: defined(algor)				: "algor"
-machtype: defined(arm32) || defined(__APCS_32__)	: "arm32"
-machtype: defined(arm26) || defined(__APCS_26__)	: "arm26"
+machtype: defined(arm32) || defined(APCS_32)		: "arm32"
+machtype: defined(arm26) || defined(APCS_26)		: "arm26"
 machtype: defined(arm)					: "arm"
 machtype: defined(sparc)				: "sparc"
 machtype: defined(sparc64)				: "sparc64"
@@ -561,25 +564,57 @@ machtype: defined(mips)					: "mips"
 machtype: defined(pc532)				: "pc532"
 machtype: defined(powerpc)				: "powerpc"
 machtype: defined(vax)					: "vax"
-machtype: defined(x86_64)				: "x86_64"
+machtype: defined(M_amd64)				: "x86_64"
 enddef	:
 
+newdef : defined(OpenBSD)
+comment        : OpenBSD
+vendor : defined(alpha)					: "digital"
+vendor : defined(M_amd64)				: "amd"
+vendor : defined(arm)					: "arm"
+vendor : defined(hppa) || defined(hppa64)		: "hp"
+vendor : defined(M_intel)				: "intel"
+vendor : defined(m68k)					: "motorola"
+vendor : defined(m88k)					: "motorola"
+vendor : defined(mips) && defined(sgi)			: "sgi"
+vendor : defined(powerpc)				: "motorola"
+vendor : defined(sh)					: "io-data"
+vendor : defined(sparc) || defined(sparc64)		: "sun"
+vendor : defined(vax)					: "digital"
+hosttype:						: "OpenBSD"
+ostype :						: "OpenBSD"
+machtype: defined(alpha)				: "alpha"
+machtype: defined(M_amd64)				: "amd64"
+machtype: defined(arm)					: "arm"
+machtype: defined(hppa)					: "hppa"
+machtype: defined(hppa64)				: "hppa64"
+machtype: defined(M_i386)				: "i386"
+machtype: defined(m68k)					: "m68k"
+machtype: defined(m88k)					: "m88k"
+machtype: defined(mips)					: "mips"
+machtype: defined(sh)					: "sh"
+machtype: defined(sparc64)				: "sparc64"
+machtype: defined(sparc)				: "sparc"
+machtype: defined(powerpc)				: "powerpc"
+machtype: defined(vax)					: "vax"
+enddef :
 
-newdef	: defined(__FreeBSD__) 
+
+newdef	: defined(FreeBSD) 
 comment : FreeBSD
 vendor	: defined(alpha)				: "digital"
-vendor	: defined(arm32) || defined(__arm__)		: "acorn"
+vendor	: defined(arm32) || defined(arm)		: "acorn"
 vendor	: defined(M_intel)				: "intel"
 vendor	: defined(ia64)					: "intel"
 vendor	: defined(mips)					: "mips"
 vendor	: defined(powerpc)				: "motorola"
 vendor	: defined(sparc)				: "sun"
 vendor	: defined(sparc64)				: "sun"
-vendor	: defined(x86_64)				: "amd"
+vendor	: defined(M_amd64)				: "amd"
 hosttype:						: "FreeBSD"
 ostype	:						: "FreeBSD"
 machtype: defined(alpha)				: "alpha"
-machtype: defined(arm32) || defined(__APCS_32__)	: "arm32"
+machtype: defined(arm32) || defined(APCS_32)		: "arm32"
 machtype: defined(arm)					: "arm"
 machtype: defined(ia64)					: "ia64"
 machtype: defined(M_i386)				: "i386"
@@ -587,11 +622,11 @@ machtype: defined(mips)					: "mips"
 machtype: defined(powerpc)				: "powerpc"
 machtype: defined(sparc)				: "sparc"
 machtype: defined(sparc64)				: "sparc64"
-machtype: defined(x86_64)				: "x86_64"
+machtype: defined(M_amd64)				: "x86_64"
 enddef	:
 
 
-newdef	: defined(__MidnightBSD__)
+newdef	: defined(MidnightBSD)
 comment : MidnightBSD
 vendor	: defined(M_intel)				: "intel"
 hosttype:						: "MidnightBSD"
@@ -819,13 +854,15 @@ machtype: defined(sparc)  				: "sparc"
 enddef	:
 
 
-newdef	: defined(__APPLE__) && defined(__MACH__)
+newdef	: defined(APPLE) && defined(MACH)
 comment : OS X
 vendor	:						: "apple"
 hosttype: defined(i386)					: "intel-pc"
 hosttype: defined(ppc)					: "powermac"
+hosttype: defined(M_amd64)				: "amd"
 ostype	:						: "darwin"
 machtype: defined(i386)					: "i386"
+machtype: defined(M_amd64)				: "x86_64"
 machtype: defined(ppc)					: "powerpc"
 enddef	:
 
@@ -855,7 +892,7 @@ machtype: defined(mc68000)				: "mc68000"
 enddef	:
 
 
-newdef	: defined(ultrix) || defined(__ultrix)
+newdef	: defined(ultrix)
 comment : Digital's Ultrix 
 vendor	:						: "dec"
 hosttype: defined(M_mipsel)				: "decstation"
@@ -917,7 +954,7 @@ hosttype:						: "masscomp"
 ostype	:						: "masscomp"
 enddef	:
 
-newdef	: defined(__MACHTEN__)
+newdef	: defined(MACHTEN)
 comment : Machintosh
 vendor	:						: "Tenon"
 hosttype:						: "Macintosh"
@@ -1040,7 +1077,7 @@ hosttype:						: "tekXD88"
 enddef	:
 
 
-newdef	: defined(__DGUX__)
+newdef	: defined(DGUX)
 comment : Data-General AViiON running DGUX
 hosttype:						: "aviion"
 ostype	:						: "dgux"
@@ -1074,14 +1111,14 @@ machtype:						: "m88k"
 enddef	:
 
 
-newdef	: defined(__clipper__)
+newdef	: defined(clipper)
 comment : Clipper Chipset (Intergraph)
 vendor	:						: "intergraph"
 hosttype:						: "clipper"
 machtype:						: "clipper"
 enddef	:
 
-newdef : defined(__QNX__)
+newdef : defined(QNX)
 ostype :						: "qnx"
 enddef :
 
@@ -1110,7 +1147,7 @@ machtype: #machine(sparc)				: "sparc"
 machtype:						: "bs2000"
 enddef	:
 
-newdef	: defined(__MVS__)
+newdef	: defined(MVS)
 comment : ibm uss s/390 (mainframe, EBCDIC)
 vendor	:						: "ibm"
 hosttype:						: "s390"
@@ -1134,7 +1171,7 @@ ostype	:						: "svr4"
 machtype: defined(M_i386)				: "i386"
 enddef	:
 
-newdef	: defined(__uxp__) || defined(__uxps__)
+newdef	: defined(uxp) || defined(uxps)
 comment : FUJITSU DS/90 7000
 vendor	:						: "fujitsu"
 hosttype:						: "ds90"
@@ -1142,9 +1179,9 @@ ostype	:						: "sysv4"
 machtype:						: "sparc"
 enddef	:
 
-newdef	: defined(__CYGWIN__)
+newdef	: defined(CYGWIN)
 comment : Cygwin
-vendor	:						: "intel"
+vendor	: defined(M_intel)				: "intel"
 hosttype:						: gethost()
 ostype	:						: getostype()
 machtype:						: getmach()
