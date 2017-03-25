@@ -77,6 +77,7 @@ static const struct {
 	{ HDA_CODEC_CS4207, 0,		"Cirrus Logic CS4207" },
 	{ HDA_CODEC_CS4210, 0,		"Cirrus Logic CS4210" },
 	{ HDA_CODEC_ALC221, 0,		"Realtek ALC221" },
+	{ HDA_CODEC_ALC233, 0,		"Realtek ALC233" },
 	{ HDA_CODEC_ALC260, 0,		"Realtek ALC260" },
 	{ HDA_CODEC_ALC262, 0,		"Realtek ALC262" },
 	{ HDA_CODEC_ALC267, 0,		"Realtek ALC267" },
