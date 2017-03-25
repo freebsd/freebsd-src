@@ -695,7 +695,7 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 
 	MPASS(child_so != NULL);
 
-	child_ep = alloc_ep(sizeof(*child_ep), M_WAITOK);
+	child_ep = alloc_ep(sizeof(*child_ep), GFP_KERNEL);
 
 	CTR5(KTR_IW_CXGBE,
 	    "%s: parent so %p, parent ep %p, child so %p, child ep %p",
@@ -2134,7 +2134,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = -EINVAL;
 		goto out;
 	}
-	ep = alloc_ep(sizeof(*ep), M_NOWAIT);
+	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 
 	if (!ep) {
 
