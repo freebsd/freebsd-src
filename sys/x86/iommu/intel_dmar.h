@@ -82,8 +82,8 @@ RB_PROTOTYPE(dmar_gas_entries_tree, dmar_map_entry, rb_entry,
 
 /*
  * The domain abstraction.  Most non-constant members of the domain
- * are locked by the owning dmar unit lock, not by the domain lock.
- * Most important, dmar lock protects the contexts list.
+ * are protected by owning dmar unit lock, not by the domain lock.
+ * Most important, the dmar lock protects the contexts list.
  *
  * The domain lock protects the address map for the domain, and list
  * of unload entries delayed.
