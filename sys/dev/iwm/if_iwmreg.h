@@ -5076,6 +5076,13 @@ enum iwm_scan_offload_complete_status {
 	IWM_SCAN_OFFLOAD_ABORTED	= 2,
 };
 
+enum iwm_scan_ebs_status {
+	IWM_SCAN_EBS_SUCCESS,
+	IWM_SCAN_EBS_FAILED,
+	IWM_SCAN_EBS_CHAN_NOT_FOUND,
+	IWM_SCAN_EBS_INACTIVE,
+};
+
 /**
  * struct iwm_lmac_scan_complete_notif - notifies end of scanning (all channels)
  *	SCAN_COMPLETE_NTF_API_S_VER_3

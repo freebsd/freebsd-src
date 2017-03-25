@@ -536,6 +536,8 @@ struct iwm_softc {
 	struct iwm_fw_paging	fw_paging_db[IWM_NUM_OF_FW_PAGING_BLOCKS];
 	uint16_t		num_of_paging_blk;
 	uint16_t		num_of_pages_in_last_blk;
+
+	boolean_t		last_ebs_successful;
 };
 
 #define IWM_LOCK_INIT(_sc) \

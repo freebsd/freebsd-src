@@ -4518,6 +4518,11 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 
 	case IEEE80211_S_ASSOC:
+		/*
+		 * EBS may be disabled due to previous failures reported by FW.
+		 * Reset EBS status here assuming environment has been changed.
+		 */
+                sc->last_ebs_successful = TRUE;
 		if ((error = iwm_assoc(vap, sc)) != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: failed to associate: %d\n", __func__,
@@ -5525,36 +5530,27 @@ iwm_notif_intr(struct iwm_softc *sc)
 		case IWM_INIT_COMPLETE_NOTIF:
 			break;
 
-		case IWM_SCAN_OFFLOAD_COMPLETE: {
-			struct iwm_periodic_scan_complete *notif;
-			notif = (void *)pkt->data;
+		case IWM_SCAN_OFFLOAD_COMPLETE:
+			iwm_mvm_rx_lmac_scan_complete_notif(sc, pkt);
 			if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
 				sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
 				ieee80211_runtask(ic, &sc->sc_es_task);
 			}
 			break;
-		}
 
 		case IWM_SCAN_ITERATION_COMPLETE: {
 			struct iwm_lmac_scan_complete_notif *notif;
 			notif = (void *)pkt->data;
-			ieee80211_runtask(&sc->sc_ic, &sc->sc_es_task);
- 			break;
+			break;
 		}
- 
-		case IWM_SCAN_COMPLETE_UMAC: {
-			struct iwm_umac_scan_complete *notif;
-			notif = (void *)pkt->data;
 
-			IWM_DPRINTF(sc, IWM_DEBUG_SCAN,
-			    "UMAC scan complete, status=0x%x\n",
-			    notif->status);
+		case IWM_SCAN_COMPLETE_UMAC:
+			iwm_mvm_rx_umac_scan_complete_notif(sc, pkt);
 			if (sc->sc_flags & IWM_FLAG_SCAN_RUNNING) {
 				sc->sc_flags &= ~IWM_FLAG_SCAN_RUNNING;
 				ieee80211_runtask(ic, &sc->sc_es_task);
 			}
 			break;
-		}
 
 		case IWM_SCAN_ITERATION_COMPLETE_UMAC: {
 			struct iwm_umac_scan_iter_complete_notif *notif;
@@ -5563,7 +5559,6 @@ iwm_notif_intr(struct iwm_softc *sc)
 			IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "UMAC scan iteration "
 			    "complete, status=0x%x, %d channels scanned\n",
 			    notif->status, notif->scanned_channels);
-			ieee80211_runtask(&sc->sc_ic, &sc->sc_es_task);
 			break;
 		}
 
@@ -5966,6 +5961,9 @@ iwm_attach(device_t dev)
 		device_printf(dev, "Cannot init phy_db\n");
 		goto fail;
 	}
+
+	/* Set EBS as successful as long as not stated otherwise by the FW. */
+	sc->last_ebs_successful = TRUE;
 
 	/* PCI attach */
 	error = iwm_pci_attach(dev);
