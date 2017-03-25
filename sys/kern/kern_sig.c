@@ -277,6 +277,7 @@ sigqueue_init(sigqueue_t *list, struct proc *p)
 {
 	SIGEMPTYSET(list->sq_signals);
 	SIGEMPTYSET(list->sq_kill);
+	SIGEMPTYSET(list->sq_ptrace);
 	TAILQ_INIT(&list->sq_list);
 	list->sq_proc = p;
 	list->sq_flags = SQ_INIT;
@@ -300,9 +301,15 @@ sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 	if (!SIGISMEMBER(sq->sq_signals, signo))
 		return (0);
 
+	if (SIGISMEMBER(sq->sq_ptrace, signo)) {
+		count++;
+		SIGDELSET(sq->sq_ptrace, signo);
+		si->ksi_flags |= KSI_PTRACE;
+	}
 	if (SIGISMEMBER(sq->sq_kill, signo)) {
 		count++;
-		SIGDELSET(sq->sq_kill, signo);
+		if (count == 1)
+			SIGDELSET(sq->sq_kill, signo);
 	}
 
 	TAILQ_FOREACH_SAFE(ksi, &sq->sq_list, ksi_link, next) {
@@ -346,7 +353,8 @@ sigqueue_take(ksiginfo_t *ksi)
 		if (kp->ksi_signo == ksi->ksi_signo)
 			break;
 	}
-	if (kp == NULL && !SIGISMEMBER(sq->sq_kill, ksi->ksi_signo))
+	if (kp == NULL && !SIGISMEMBER(sq->sq_kill, ksi->ksi_signo) &&
+	    !SIGISMEMBER(sq->sq_ptrace, ksi->ksi_signo))
 		SIGDELSET(sq->sq_signals, ksi->ksi_signo);
 }
 
@@ -359,6 +367,10 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 
 	KASSERT(sq->sq_flags & SQ_INIT, ("sigqueue not inited"));
 
+	/*
+	 * SIGKILL/SIGSTOP cannot be caught or masked, so take the fast path
+	 * for these signals.
+	 */
 	if (signo == SIGKILL || signo == SIGSTOP || si == NULL) {
 		SIGADDSET(sq->sq_kill, signo);
 		goto out_set_bit;
@@ -397,16 +409,19 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 		ksi->ksi_sigq = sq;
 	}
 
-	if ((si->ksi_flags & KSI_TRAP) != 0 ||
-	    (si->ksi_flags & KSI_SIGQ) == 0) {
-		if (ret != 0)
+	if (ret != 0) {
+		if ((si->ksi_flags & KSI_PTRACE) != 0) {
+			SIGADDSET(sq->sq_ptrace, signo);
+			ret = 0;
+			goto out_set_bit;
+		} else if ((si->ksi_flags & KSI_TRAP) != 0 ||
+		    (si->ksi_flags & KSI_SIGQ) == 0) {
 			SIGADDSET(sq->sq_kill, signo);
-		ret = 0;
-		goto out_set_bit;
-	}
-
-	if (ret != 0)
+			ret = 0;
+			goto out_set_bit;
+		}
 		return (ret);
+	}
 
 out_set_bit:
 	SIGADDSET(sq->sq_signals, signo);
@@ -433,6 +448,7 @@ sigqueue_flush(sigqueue_t *sq)
 
 	SIGEMPTYSET(sq->sq_signals);
 	SIGEMPTYSET(sq->sq_kill);
+	SIGEMPTYSET(sq->sq_ptrace);
 }
 
 static void
@@ -464,6 +480,11 @@ sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, const sigset_t *set)
 	SIGSETAND(tmp, *set);
 	SIGSETOR(dst->sq_kill, tmp);
 	SIGSETNAND(src->sq_kill, tmp);
+
+	tmp = src->sq_ptrace;
+	SIGSETAND(tmp, *set);
+	SIGSETOR(dst->sq_ptrace, tmp);
+	SIGSETNAND(src->sq_ptrace, tmp);
 
 	tmp = src->sq_signals;
 	SIGSETAND(tmp, *set);
@@ -501,6 +522,7 @@ sigqueue_delete_set(sigqueue_t *sq, const sigset_t *set)
 		}
 	}
 	SIGSETNAND(sq->sq_kill, *set);
+	SIGSETNAND(sq->sq_ptrace, *set);
 	SIGSETNAND(sq->sq_signals, *set);
 }
 
@@ -2474,69 +2496,116 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 	}
 }
 
+/*
+ * Stop the process for an event deemed interesting to the debugger. If si is
+ * non-NULL, this is a signal exchange; the new signal requested by the
+ * debugger will be returned for handling. If si is NULL, this is some other
+ * type of interesting event. The debugger may request a signal be delivered in
+ * that case as well, however it will be deferred until it can be handled.
+ */
 int
-ptracestop(struct thread *td, int sig)
+ptracestop(struct thread *td, int sig, ksiginfo_t *si)
 {
 	struct proc *p = td->td_proc;
+	struct thread *td2;
+	ksiginfo_t ksi;
+	int prop;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT(!(p->p_flag & P_WEXIT), ("Stopping exiting process"));
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 	    &p->p_mtx.lock_object, "Stopping for traced signal");
 
-	td->td_dbgflags |= TDB_XSIG;
 	td->td_xsig = sig;
-	CTR4(KTR_PTRACE, "ptracestop: tid %d (pid %d) flags %#x sig %d",
-	    td->td_tid, p->p_pid, td->td_dbgflags, sig);
-	PROC_SLOCK(p);
-	while ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_XSIG)) {
-		if (p->p_flag & P_SINGLE_EXIT &&
-		    !(td->td_dbgflags & TDB_EXIT)) {
-			/*
-			 * Ignore ptrace stops except for thread exit
-			 * events when the process exits.
-			 */
-			td->td_dbgflags &= ~TDB_XSIG;
-			PROC_SUNLOCK(p);
-			return (sig);
-		}
 
-		/*
-		 * Make wait(2) work.  Ensure that right after the
-		 * attach, the thread which was decided to become the
-		 * leader of attach gets reported to the waiter.
-		 * Otherwise, just avoid overwriting another thread's
-		 * assignment to p_xthread.  If another thread has
-		 * already set p_xthread, the current thread will get
-		 * a chance to report itself upon the next iteration.
-		 */
-		if ((td->td_dbgflags & TDB_FSTP) != 0 ||
-		    ((p->p_flag2 & P2_PTRACE_FSTP) == 0 &&
-		    p->p_xthread == NULL)) {
-			p->p_xstat = sig;
-			p->p_xthread = td;
-			td->td_dbgflags &= ~TDB_FSTP;
-			p->p_flag2 &= ~P2_PTRACE_FSTP;
-			p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
-			sig_suspend_threads(td, p, 0);
-		}
-		if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
-			td->td_dbgflags &= ~TDB_STOPATFORK;
-			cv_broadcast(&p->p_dbgwait);
-		}
-stopme:
-		thread_suspend_switch(td, p);
-		if (p->p_xthread == td)
-			p->p_xthread = NULL;
-		if (!(p->p_flag & P_TRACED))
-			break;
-		if (td->td_dbgflags & TDB_SUSPEND) {
-			if (p->p_flag & P_SINGLE_EXIT)
+	if (si == NULL || (si->ksi_flags & KSI_PTRACE) == 0) {
+		td->td_dbgflags |= TDB_XSIG;
+		CTR4(KTR_PTRACE, "ptracestop: tid %d (pid %d) flags %#x sig %d",
+		    td->td_tid, p->p_pid, td->td_dbgflags, sig);
+		PROC_SLOCK(p);
+		while ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_XSIG)) {
+			if (P_KILLED(p)) {
+				/*
+				 * Ensure that, if we've been PT_KILLed, the
+				 * exit status reflects that. Another thread
+				 * may also be in ptracestop(), having just
+				 * received the SIGKILL, but this thread was
+				 * unsuspended first.
+				 */
+				td->td_dbgflags &= ~TDB_XSIG;
+				td->td_xsig = SIGKILL;
+				p->p_ptevents = 0;
 				break;
-			goto stopme;
+			}
+			if (p->p_flag & P_SINGLE_EXIT &&
+			    !(td->td_dbgflags & TDB_EXIT)) {
+				/*
+				 * Ignore ptrace stops except for thread exit
+				 * events when the process exits.
+				 */
+				td->td_dbgflags &= ~TDB_XSIG;
+				PROC_SUNLOCK(p);
+				return (0);
+			}
+
+			/*
+			 * Make wait(2) work.  Ensure that right after the
+			 * attach, the thread which was decided to become the
+			 * leader of attach gets reported to the waiter.
+			 * Otherwise, just avoid overwriting another thread's
+			 * assignment to p_xthread.  If another thread has
+			 * already set p_xthread, the current thread will get
+			 * a chance to report itself upon the next iteration.
+			 */
+			if ((td->td_dbgflags & TDB_FSTP) != 0 ||
+			    ((p->p_flag2 & P2_PTRACE_FSTP) == 0 &&
+			    p->p_xthread == NULL)) {
+				p->p_xstat = sig;
+				p->p_xthread = td;
+				td->td_dbgflags &= ~TDB_FSTP;
+				p->p_flag2 &= ~P2_PTRACE_FSTP;
+				p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
+				sig_suspend_threads(td, p, 0);
+			}
+			if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
+				td->td_dbgflags &= ~TDB_STOPATFORK;
+				cv_broadcast(&p->p_dbgwait);
+			}
+stopme:
+			thread_suspend_switch(td, p);
+			if (p->p_xthread == td)
+				p->p_xthread = NULL;
+			if (!(p->p_flag & P_TRACED))
+				break;
+			if (td->td_dbgflags & TDB_SUSPEND) {
+				if (p->p_flag & P_SINGLE_EXIT)
+					break;
+				goto stopme;
+			}
 		}
+		PROC_SUNLOCK(p);
 	}
-	PROC_SUNLOCK(p);
+
+	if (si != NULL && sig == td->td_xsig) {
+		/* Parent wants us to take the original signal unchanged. */
+		si->ksi_flags |= KSI_HEAD;
+		if (sigqueue_add(&td->td_sigqueue, sig, si) != 0)
+			si->ksi_signo = 0;
+	} else if (td->td_xsig != 0) {
+		/*
+		 * If parent wants us to take a new signal, then it will leave
+		 * it in td->td_xsig; otherwise we just look for signals again.
+		 */
+		ksiginfo_init(&ksi);
+		ksi.ksi_signo = td->td_xsig;
+		ksi.ksi_flags |= KSI_PTRACE;
+		prop = sigprop(td->td_xsig);
+		td2 = sigtd(p, td->td_xsig, prop);
+		tdsendsignal(p, td2, td->td_xsig, &ksi);
+		if (td != td2)
+			return (0);
+	}
+
 	return (td->td_xsig);
 }
 
@@ -2653,7 +2722,7 @@ issignal(struct thread *td)
 	struct sigacts *ps;
 	struct sigqueue *queue;
 	sigset_t sigpending;
-	int sig, prop, newsig;
+	int sig, prop;
 
 	p = td->td_proc;
 	ps = p->p_sigacts;
@@ -2715,47 +2784,18 @@ issignal(struct thread *td)
 			}
 
 			mtx_unlock(&ps->ps_mtx);
-			newsig = ptracestop(td, sig);
+			sig = ptracestop(td, sig, &td->td_dbgksi);
 			mtx_lock(&ps->ps_mtx);
 
-			if (sig != newsig) {
-
-				/*
-				 * If parent wants us to take the signal,
-				 * then it will leave it in p->p_xstat;
-				 * otherwise we just look for signals again.
-				*/
-				if (newsig == 0)
-					continue;
-				sig = newsig;
-
-				/*
-				 * Put the new signal into td_sigqueue. If the
-				 * signal is being masked, look for other
-				 * signals.
-				 */
-				sigqueue_add(queue, sig, NULL);
-				if (SIGISMEMBER(td->td_sigmask, sig))
-					continue;
-				signotify(td);
-			} else {
-				if (td->td_dbgksi.ksi_signo != 0) {
-					td->td_dbgksi.ksi_flags |= KSI_HEAD;
-					if (sigqueue_add(&td->td_sigqueue, sig,
-					    &td->td_dbgksi) != 0)
-						td->td_dbgksi.ksi_signo = 0;
-				}
-				if (td->td_dbgksi.ksi_signo == 0)
-					sigqueue_add(&td->td_sigqueue, sig,
-					    NULL);
-			}
-
-			/*
+			/* 
+			 * Keep looking if the debugger discarded the signal
+			 * or replaced it with a masked signal.
+			 *
 			 * If the traced bit got turned off, go back up
 			 * to the top to rescan signals.  This ensures
 			 * that p_sig* and p_sigact are consistent.
 			 */
-			if ((p->p_flag & P_TRACED) == 0)
+			if (sig == 0 || (p->p_flag & P_TRACED) == 0)
 				continue;
 		}
 
