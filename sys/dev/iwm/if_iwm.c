@@ -4291,6 +4291,21 @@ iwm_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	    M_NOWAIT | M_ZERO);
 }
 
+uint8_t
+iwm_ridx2rate(struct ieee80211_rateset *rs, int ridx)
+{
+	int i;
+	uint8_t rval;
+
+	for (i = 0; i < rs->rs_nrates; i++) {
+		rval = (rs->rs_rates[i] & IEEE80211_RATE_VAL);
+		if (rval == iwm_rates[ridx].rate)
+			return rs->rs_rates[i];
+	}
+
+	return 0;
+}
+
 static void
 iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 {
