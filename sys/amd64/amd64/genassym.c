@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/assym.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/bus.h>
 #include <sys/proc.h>
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -61,7 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/proc.h>
+#include <machine/intr_machdep.h>
 #include <x86/apicreg.h>
+#include <x86/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
@@ -215,9 +218,18 @@ ASSYM(PC_LDT, offsetof(struct pcpu, pc_ldt));
 ASSYM(PC_COMMONTSSP, offsetof(struct pcpu, pc_commontssp));
 ASSYM(PC_TSS, offsetof(struct pcpu, pc_tss));
 ASSYM(PC_PM_SAVE_CNT, offsetof(struct pcpu, pc_pm_save_cnt));
- 
+
 ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);
 ASSYM(LA_ISR, LAPIC_ISR0 * LAPIC_MEM_MUL);
+
+ASSYM(IPI_INVLTLB, IPI_INVLTLB);
+ASSYM(IPI_INVLPG, IPI_INVLPG);
+ASSYM(IPI_INVLRNG, IPI_INVLRNG);
+ASSYM(IPI_INVLCACHE, IPI_INVLCACHE);
+ASSYM(IPI_BITMAP_VECTOR, IPI_BITMAP_VECTOR);
+ASSYM(IPI_STOP, IPI_STOP);
+ASSYM(IPI_SUSPEND, IPI_SUSPEND);
+ASSYM(IPI_RENDEZVOUS, IPI_RENDEZVOUS);
 
 ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
 ASSYM(KDSEL, GSEL(GDATA_SEL, SEL_KPL));
