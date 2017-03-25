@@ -472,13 +472,15 @@ dmar_get_ctx_for_dev(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 			    dmar->unit, dmar->segment, bus, slot,
 			    func, rid, domain->domain, domain->mgaw,
 			    domain->agaw, id_mapped ? "id" : "re");
+			dmar_unmap_pgtbl(sf);
 		} else {
-			/* Nothing needs to be done to destroy ctx1. */
+			dmar_unmap_pgtbl(sf);
 			dmar_domain_destroy(domain1);
+			/* Nothing needs to be done to destroy ctx1. */
+			free(ctx1, M_DMAR_CTX);
 			domain = ctx->domain;
 			ctx->refs++; /* tag referenced us */
 		}
-		dmar_unmap_pgtbl(sf);
 	} else {
 		domain = ctx->domain;
 		ctx->refs++; /* tag referenced us */
