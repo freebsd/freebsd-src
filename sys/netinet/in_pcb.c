@@ -328,6 +328,12 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #endif
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	refcount_init(&inp->inp_refcount, 1);	/* Reference from inpcbinfo */
+
+	/*
+	 * Routes in inpcb's can cache L2 as well; they are guaranteed
+	 * to be cleaned up.
+	 */
+	inp->inp_route.ro_flags = RT_LLE_CACHE;
 	INP_LIST_WUNLOCK(pcbinfo);
 #if defined(IPSEC) || defined(IPSEC_SUPPORT) || defined(MAC)
 out:
