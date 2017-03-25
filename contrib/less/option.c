@@ -23,8 +23,8 @@
 static struct loption *pendopt;
 public int plusoption = FALSE;
 
-static char *optstring();
-static int flip_triple();
+static char *optstring(char *s, char **p_str, char *printopt, char *validchars);
+static int flip_triple(int val, int lc);
 
 extern int screen_trashed;
 extern int less_is_more;

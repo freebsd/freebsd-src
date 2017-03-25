@@ -205,8 +205,9 @@ static int attrmode = AT_NORMAL;
 extern int binattr;
 
 #if !MSDOS_COMPILER
-static char *cheaper();
-static void tmodes();
+static char *cheaper(char *t1, char *t2, char *def);
+static void tmodes(char *incap, char *outcap, char **instr, char **outstr,
+	char *def_instr, char *def_outstr, char **spp);
 #endif
 
 /*
