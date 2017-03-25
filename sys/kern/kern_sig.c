@@ -2213,11 +2213,9 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	if (action == SIG_HOLD &&
 	    !((prop & SA_CONT) && (p->p_flag & P_STOPPED_SIG)))
 		return (ret);
-	/*
-	 * SIGKILL: Remove procfs STOPEVENTs and ptrace events.
-	 */
+
+	/* SIGKILL: Remove procfs STOPEVENTs. */
 	if (sig == SIGKILL) {
-		p->p_ptevents = 0;
 		/* from procfs_ioctl.c: PIOCBIC */
 		p->p_stops = 0;
 		/* from procfs_ioctl.c: PIOCCONT */
@@ -2893,14 +2891,15 @@ issignal(struct thread *td)
 				break;		/* == ignore */
 			}
 			/*
-			 * If there is a pending stop signal to process
-			 * with default action, stop here,
-			 * then clear the signal.  However,
-			 * if process is member of an orphaned
-			 * process group, ignore tty stop signals.
+			 * If there is a pending stop signal to process with
+			 * default action, stop here, then clear the signal.
+			 * Traced or exiting processes should ignore stops.
+			 * Additionally, a member of an orphaned process group
+			 * should ignore tty stops.
 			 */
 			if (prop & SA_STOP) {
-				if (p->p_flag & (P_TRACED|P_WEXIT) ||
+				if (p->p_flag &
+				    (P_TRACED | P_WEXIT | P_SINGLE_EXIT) ||
 				    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
