@@ -304,13 +304,17 @@ static pthread_key_t eh_key;
 static void exception_cleanup(_Unwind_Reason_Code reason, 
                               struct _Unwind_Exception *ex)
 {
-	__cxa_free_exception(static_cast<void*>(ex));
+	// Exception layout:
+	// [__cxa_exception [_Unwind_Exception]] [exception object]
+	//
+	// __cxa_free_exception expects a pointer to the exception object
+	__cxa_free_exception(static_cast<void*>(ex + 1));
 }
 static void dependent_exception_cleanup(_Unwind_Reason_Code reason, 
                               struct _Unwind_Exception *ex)
 {
 
-	__cxa_free_dependent_exception(static_cast<void*>(ex));
+	__cxa_free_dependent_exception(static_cast<void*>(ex + 1));
 }
 
 /**
@@ -340,7 +344,8 @@ static void thread_cleanup(void* thread_info)
 		if (info->foreign_exception_state != __cxa_thread_info::none)
 		{
 			_Unwind_Exception *e = reinterpret_cast<_Unwind_Exception*>(info->globals.caughtExceptions);
-			e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
+			if (e->exception_cleanup)
+				e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
 		}
 		else
 		{
@@ -567,6 +572,19 @@ static void free_exception(char *e)
 	}
 }
 
+#ifdef __LP64__
+/**
+ * There's an ABI bug in __cxa_exception: unwindHeader requires 16-byte
+ * alignment but it was broken by the addition of the referenceCount.
+ * The unwindHeader is at offset 0x58 in __cxa_exception.  In order to keep
+ * compatibility with consumers of the broken __cxa_exception, explicitly add
+ * padding on allocation (and account for it on free).
+ */
+static const int exception_alignment_padding = 8;
+#else
+static const int exception_alignment_padding = 0;
+#endif
+
 /**
  * Allocates an exception structure.  Returns a pointer to the space that can
  * be used to store an object of thrown_size bytes.  This function will use an
@@ -575,16 +593,19 @@ static void free_exception(char *e)
  */
 extern "C" void *__cxa_allocate_exception(size_t thrown_size)
 {
-	size_t size = thrown_size + sizeof(__cxa_exception);
+	size_t size = exception_alignment_padding + sizeof(__cxa_exception) +
+	    thrown_size;
 	char *buffer = alloc_or_die(size);
-	return buffer+sizeof(__cxa_exception);
+	return buffer + exception_alignment_padding + sizeof(__cxa_exception);
 }
 
 extern "C" void *__cxa_allocate_dependent_exception(void)
 {
-	size_t size = sizeof(__cxa_dependent_exception);
+	size_t size = exception_alignment_padding +
+	    sizeof(__cxa_dependent_exception);
 	char *buffer = alloc_or_die(size);
-	return buffer+sizeof(__cxa_dependent_exception);
+	return buffer + exception_alignment_padding +
+	    sizeof(__cxa_dependent_exception);
 }
 
 /**
@@ -612,7 +633,8 @@ extern "C" void __cxa_free_exception(void *thrown_exception)
 		}
 	}
 
-	free_exception(reinterpret_cast<char*>(ex));
+	free_exception(reinterpret_cast<char*>(ex) -
+	    exception_alignment_padding);
 }
 
 static void releaseException(__cxa_exception *exception)
@@ -639,7 +661,8 @@ void __cxa_free_dependent_exception(void *thrown_exception)
 	{
 		releaseException(realExceptionFromException(reinterpret_cast<__cxa_exception*>(ex)));
 	}
-	free_exception(reinterpret_cast<char*>(ex));
+	free_exception(reinterpret_cast<char*>(ex) -
+	    exception_alignment_padding);
 }
 
 /**
@@ -1282,12 +1305,13 @@ extern "C" void __cxa_end_catch()
 	
 	if (ti->foreign_exception_state != __cxa_thread_info::none)
 	{
-		globals->caughtExceptions = 0;
 		if (ti->foreign_exception_state != __cxa_thread_info::rethrown)
 		{
 			_Unwind_Exception *e = reinterpret_cast<_Unwind_Exception*>(ti->globals.caughtExceptions);
-			e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
+			if (e->exception_cleanup)
+				e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
 		}
+		globals->caughtExceptions = 0;
 		ti->foreign_exception_state = __cxa_thread_info::none;
 		return;
 	}
@@ -1472,6 +1496,15 @@ namespace std
 	{
 		__cxa_thread_info *info = thread_info();
 		return info->globals.uncaughtExceptions != 0;
+	}
+	/**
+	 * Returns the number of exceptions currently being thrown that have not
+	 * been caught.  This can occur inside a nested catch statement.
+	 */
+	int uncaught_exceptions() throw()
+	{
+		__cxa_thread_info *info = thread_info();
+		return info->globals.uncaughtExceptions;
 	}
 	/**
 	 * Returns the current unexpected handler.
