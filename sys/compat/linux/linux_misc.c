@@ -2534,3 +2534,17 @@ linux_getrandom(struct thread *td, struct linux_getrandom_args *args)
 
 	return (read_random_uio(&uio, args->flags & LINUX_GRND_NONBLOCK));
 }
+
+int
+linux_mincore(struct thread *td, struct linux_mincore_args *args)
+{
+	struct mincore_args bsd_args;
+
+	/* Needs to be page-aligned */
+	if (args->start & PAGE_MASK)
+		return (EINVAL);
+	bsd_args.addr = PTRIN(args->start);
+	bsd_args.len = args->len;
+	bsd_args.vec = args->vec;
+	return (sys_mincore(td, &bsd_args));
+}

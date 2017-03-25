@@ -82,7 +82,6 @@ DUMMY(sendfile);		/* different semantics */
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(pivot_root);
-DUMMY(mincore);
 DUMMY(lookup_dcookie);
 DUMMY(remap_file_pages);
 DUMMY(mbind);
