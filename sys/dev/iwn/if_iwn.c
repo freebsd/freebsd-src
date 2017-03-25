@@ -5120,7 +5120,7 @@ iwn_parent(struct ieee80211com *ic)
 		case 0:
 			ieee80211_start_all(ic);
 			break;
-		case EAGAIN:
+		case 1:
 			/* radio is disabled via RFkill switch */
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_rftoggle_task);
 			break;
@@ -8879,8 +8879,10 @@ iwn_init_locked(struct iwn_softc *sc)
 
 	/* Check that the radio is not disabled by hardware switch. */
 	if (!(IWN_READ(sc, IWN_GP_CNTRL) & IWN_GP_CNTRL_RFKILL)) {
-		error = EAGAIN;
-		goto fail;
+		iwn_stop_locked(sc);
+		DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
+
+		return (1);
 	}
 
 	/* Read firmware images from the filesystem. */
@@ -8921,7 +8923,7 @@ fail:
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end in error\n",__func__);
 
-	return (error);
+	return (-1);
 }
 
 static int
