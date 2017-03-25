@@ -26,6 +26,7 @@ static char sccsid[] = "@(#) tcpd.c 1.10 96/02/11 17:01:32";
 #include <stdio.h>
 #include <syslog.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifndef MAXPATHNAMELEN
 #define MAXPATHNAMELEN	BUFSIZ
