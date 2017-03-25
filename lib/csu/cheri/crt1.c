@@ -96,7 +96,7 @@ __attribute__((weak))
 extern struct capreloc __stop___cap_relocs;
 
 static void
-crt_init_globals()
+crt_init_globals(void)
 {
 	void *gdc = __builtin_cheri_global_data_get();
 	void *pcc = __builtin_cheri_program_counter_get();
