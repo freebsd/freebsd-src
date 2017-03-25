@@ -1,5 +1,5 @@
 .\" Copyright (c) 2013 Edward Tomasz Napierala
-.\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2015-2017 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,12 +24,12 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 19, 2017
+.Dd March 11, 2017
 .Dt CTL 4
 .Os
 .Sh NAME
 .Nm ctl
-.Nd CAM Target Layer / iSCSI target
+.Nd CAM Target Layer / SCSI target subsystem
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -48,12 +48,12 @@ ctl_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-subsystem provides SCSI disk and processor emulation.
+subsystem provides SCSI target devices emulation.
 It supports features such as:
 .Pp
 .Bl -bullet -compact
 .It
-Disk, processor and cdrom device emulation
+Disk, CD-ROM and processor device emulation
 .It
 Tagged queueing
 .It
@@ -61,32 +61,73 @@ SCSI task attribute support (ordered, head of queue, simple tags)
 .It
 SCSI implicit command ordering support
 .It
-Full task management support (abort, LUN reset, target reset, etc.)
+Full task management support (abort, query, reset, etc.)
 .It
-Support for multiple ports
+Support for multiple ports, initiators, targets and backing stores
 .It
-Support for multiple simultaneous initiators
-.It
-Support for multiple simultaneous backing stores
-.It
-Support for VMWare VAAI: COMPARE AND WRITE, XCOPY, WRITE SAME,
-and UNMAP commands
-.It
-Support for Microsoft ODX: POPULATE TOKEN/WRITE USING TOKEN,
-WRITE SAME, and UNMAP commands
+Support for VMWare VAAI and Microsoft ODX offload (COMPARE AND WRITE,
+XCOPY, POPULATE TOKEN/WRITE USING TOKEN, WRITE SAME and UNMAP)
 .It
 Persistent reservation support
 .It
-Mode sense/select support
+Extensive VPD/mode/log pages support
 .It
-Error injection support
+Featured error reporting, error injection and basic SMART support
 .It
 High Availability clustering support with ALUA
 .It
 All I/O handled in-kernel, no userland context switch overhead
 .El
 .Pp
-It also serves as a kernel component of the native iSCSI target.
+The
+.Nm
+subsystem includes multiple frontends to provide access using different
+transport protocols and implementations:
+.Bl -tag -width cfumass
+.It camsim
+Provides access for local system via virtual initiator mode
+.Xr CAM 4
+SIM.
+.It camtgt
+Provides access for remote systems via target mode
+.Xr CAM 4
+SIMs, such as Fibre Channel
+.Xr isp 4
+and
+.Xr mpt 4 .
+.It cfumass
+Provides access for remote systems via USB Mass Storage Class
+Bulk Only (BBB) Transport.
+.It ha
+Internal frontend used to receive requests from other node ports in
+High Availability cluster.
+.It ioctl
+Provides access for local user-level applications via
+.Xr ioctl 2
+based API.
+.It iscsi
+Combined with
+.Xr iscsi 4
+and
+.Xr ctld 8 ,
+provides access for remote systems via iSCSI protocol.
+.It tpc
+Internal frontend used to receive requests from Third Party Copy engine,
+implementing copy offload operations.
+.El
+.Pp
+The
+.Nm
+subsystem includes two backends to create logical units using different
+kinds of backing stores:
+.Bl -tag -width ramdisk
+.It block
+Stores data in ZFS ZVOLs, files or raw block devices.
+.It ramdisk
+Stores data in RAM, that makes it mostly useful for performance testing.
+Depending on configured capacity can work as black hole, thin or thick
+provisioned disk.
+.El
 .Sh SYSCTL VARIABLES
 The following variables are available as both
 .Xr sysctl 8
@@ -146,7 +187,7 @@ primary;
 .It 1
 secondary.
 .El
-This role can be overriden on per-LUN basis using "ha_role" LUN option,
+This role can be overridden on per-LUN basis using "ha_role" LUN option,
 so that for one LUN one node is primary, while for another -- another.
 Role change from primary to secondary for HA modes 0 and 2 closes backends,
 the opposite change -- opens.
