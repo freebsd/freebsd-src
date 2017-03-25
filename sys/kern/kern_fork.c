@@ -1083,7 +1083,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 			proc_reparent(p, dbg);
 			sx_xunlock(&proctree_lock);
 			td->td_dbgflags |= TDB_CHILD | TDB_SCX | TDB_FSTP;
-			ptracestop(td, SIGSTOP);
+			ptracestop(td, SIGSTOP, NULL);
 			td->td_dbgflags &= ~(TDB_CHILD | TDB_SCX);
 		} else {
 			/*
@@ -1104,7 +1104,7 @@ fork_return(struct thread *td, struct trapframe *frame)
 		_STOPEVENT(p, S_SCX, td->td_dbg_sc_code);
 		if ((p->p_ptevents & PTRACE_SCX) != 0 ||
 		    (td->td_dbgflags & TDB_BORN) != 0)
-			ptracestop(td, SIGTRAP);
+			ptracestop(td, SIGTRAP, NULL);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_BORN);
 		PROC_UNLOCK(p);
 	}

@@ -1125,6 +1125,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			td2->td_dbgflags &= ~TDB_XSIG;
 			td2->td_xsig = data;
 
+			/*
+			 * P_WKILLED is insurance that a PT_KILL/SIGKILL always
+			 * works immediately, even if another thread is
+			 * unsuspended first and attempts to handle a different
+			 * signal or if the POSIX.1b style signal queue cannot
+			 * accommodate any new signals.
+			 */
+			if (data == SIGKILL)
+				p->p_flag |= P_WKILLED;
+
 			if (req == PT_DETACH) {
 				FOREACH_THREAD_IN_PROC(p, td3)
 					td3->td_dbgflags &= ~TDB_SUSPEND;
