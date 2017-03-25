@@ -248,6 +248,7 @@ main(int argc, char **argv)
     char *tcp, *ttyn;
     int f, reenter;
     char **tempv;
+    const char *targinp = NULL;
     int osetintr;
     struct sigaction oparintr;
 
@@ -937,30 +938,7 @@ main(int argc, char **argv)
 		      *p &= ASCII;
 		  }
 #endif
-		arginp = SAVE(tempv[0]);
-
-		/*
-		 * we put the command into a variable
-		 */
-		if (arginp != NULL)
-		    setv(STRcommand, quote(Strsave(arginp)), VAR_READWRITE);
-
-		/*
-		 * * Give an error on -c arguments that end in * backslash to
-		 * ensure that you don't make * nonportable csh scripts.
-		 */
-		{
-		    int count;
-
-		    cp = Strend(arginp);
-		    count = 0;
-		    while (cp > arginp && *--cp == '\\')
-			++count;
-		    if ((count & 1) != 0) {
-			exiterr = 1;
-			stderror(ERR_ARGC);
-		    }
-		}
+		targinp = tempv[0];
 		prompt = 0;
 		nofile = 1;
 		break;
@@ -1205,7 +1183,7 @@ main(int argc, char **argv)
 	    sigset_interrupting(SIGXFSZ, queue_phup);
 #endif
 
-	if (quitit == 0 && arginp == 0) {
+	if (quitit == 0 && targinp == 0) {
 #ifdef SIGTSTP
 	    (void) signal(SIGTSTP, SIG_IGN);
 #endif
@@ -1323,7 +1301,7 @@ main(int argc, char **argv)
  */
     sigset_interrupting(SIGCHLD, queue_pchild);
 
-    if (intty && !arginp) 	
+    if (intty && !targinp) 	
 	(void) ed_Setup(editing);/* Get the tty state, and set defaults */
 				 /* Only alter the tty state if editing */
     
@@ -1358,7 +1336,7 @@ main(int argc, char **argv)
 #ifdef _PATH_DOTCSHRC
 	    (void) srcfile(_PATH_DOTCSHRC, 0, 0, NULL);
 #endif
-	    if (!arginp && !onelflg && !havhash)
+	    if (!targinp && !onelflg && !havhash)
 		dohash(NULL,NULL);
 #ifndef LOGINFIRST
 #ifdef _PATH_DOTLOGIN
@@ -1378,7 +1356,7 @@ main(int argc, char **argv)
 	if (!srccat(varval(STRhome), STRsldottcshrc))
 	    (void) srccat(varval(STRhome), STRsldotcshrc);
 
-	if (!arginp && !onelflg && !havhash)
+	if (!targinp && !onelflg && !havhash)
 	    dohash(NULL,NULL);
 
 	/*
@@ -1398,7 +1376,7 @@ main(int argc, char **argv)
     exitset--;
 
     /* Initing AFTER .cshrc is the Right Way */
-    if (intty && !arginp) {	/* PWP setup stuff */
+    if (intty && !targinp) {	/* PWP setup stuff */
 	ed_Init();		/* init the new line editor */
 #ifdef SIG_WINDOW
 	check_window_size(1);	/* mung environment */
@@ -1413,6 +1391,32 @@ main(int argc, char **argv)
     if (nexececho)
 	setNS(STRecho);
     
+
+    if (targinp) {
+	arginp = SAVE(targinp);
+	/*
+	 * we put the command into a variable
+	 */
+	if (arginp != NULL)
+	    setv(STRcommand, quote(Strsave(arginp)), VAR_READWRITE);
+
+	/*
+	 * * Give an error on -c arguments that end in * backslash to
+	 * ensure that you don't make * nonportable csh scripts.
+	 */
+	{
+	    int count;
+
+	    cp = Strend(arginp);
+	    count = 0;
+	    while (cp > arginp && *--cp == '\\')
+		++count;
+	    if ((count & 1) != 0) {
+		exiterr = 1;
+		stderror(ERR_ARGC);
+	    }
+	}
+    }
     /*
      * All the rest of the world is inside this call. The argument to process
      * indicates whether it should catch "error unwinds".  Thus if we are a
