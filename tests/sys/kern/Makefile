@@ -8,6 +8,7 @@ TESTSDIR=	${TESTSBASE}/sys/kern
 
 ATF_TESTS_C+=	kern_descrip_test
 ATF_TESTS_C+=	ptrace_test
+TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
 ATF_TESTS_C+=	unix_seqpacket_test
 ATF_TESTS_C+=	unix_passfd_test
