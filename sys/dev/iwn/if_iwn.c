@@ -2651,7 +2651,15 @@ iwn_read_eeprom_enhinfo(struct iwn_softc *sc)
 static struct ieee80211_node *
 iwn_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	return malloc(sizeof (struct iwn_node), M_80211_NODE,M_NOWAIT | M_ZERO);
+	struct iwn_node *wn;
+
+	wn = malloc(sizeof (struct iwn_node), M_80211_NODE, M_NOWAIT | M_ZERO);
+	if (wn == NULL)
+		return (NULL);
+
+	wn->id = IWN_ID_UNDEFINED;
+
+	return (&wn->ni);
 }
 
 static __inline int
@@ -7355,6 +7363,9 @@ iwn_ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
 	tid = MS(le16toh(baparamset), IEEE80211_BAPS_TID);
 	ssn = MS(le16toh(baseqctl), IEEE80211_BASEQ_START);
 
+	if (wn->id == IWN_ID_UNDEFINED)
+		return (ENOENT);
+
 	memset(&node, 0, sizeof node);
 	node.id = wn->id;
 	node.control = IWN_NODE_UPDATE;
@@ -7386,6 +7397,9 @@ iwn_ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
 
+	if (wn->id == IWN_ID_UNDEFINED)
+		goto end;
+
 	/* XXX: tid as an argument */
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
 		if (&ni->ni_rx_ampdu[tid] == rap)
@@ -7399,6 +7413,7 @@ iwn_ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 	node.delba_tid = tid;
 	DPRINTF(sc, IWN_DEBUG_RECV, "DELBA RA=%d TID=%d\n", wn->id, tid);
 	(void)ops->add_node(sc, &node, 1);
+end:
 	sc->sc_ampdu_rx_stop(ni, rap);
 }
 
@@ -7472,6 +7487,9 @@ iwn_ampdu_tx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
 	int error, qid;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
+
+	if (wn->id == IWN_ID_UNDEFINED)
+		return (0);
 
 	/* Enable TX for the specified RA/TID. */
 	wn->disable_tid &= ~(1 << tid);
