@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.exp.c,v 3.58 2011/12/25 15:21:50 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.exp.c,v 3.63 2015/12/09 17:17:43 christos Exp $ */
 /*
  * sh.exp.c: Expression evaluations
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.exp.c,v 3.58 2011/12/25 15:21:50 christos Exp $")
+RCSID("$tcsh: sh.exp.c,v 3.63 2015/12/09 17:17:43 christos Exp $")
 
 #include "tw.h"
 
@@ -172,6 +172,7 @@ sh_access(const Char *fname, int mode)
 		    mode <<= 3;
 		    break;
 		}
+	    xfree(groups);
 	}
     }
 # endif /* NGROUPS_MAX */
@@ -322,7 +323,7 @@ exp2c(Char ***vp, int ignore)
 	cleanup_push(p2, xfree);
 	etracc("exp2c p2", p2, vp);
 	if (!(ignore & TEXP_IGNORE))
-	    switch (i) {
+	    switch ((int)i) {
 
 	    case EQEQ:
 		i = eq(p1, p2);
@@ -367,7 +368,7 @@ exp3(Char ***vp, int ignore)
 	cleanup_push(p2, xfree);
 	etracc("exp3 p2", p2, vp);
 	if (!(ignore & TEXP_IGNORE))
-	    switch (i) {
+	    switch ((int)i) {
 
 	    case GTR:
 		i = egetn(p1) > egetn(p2);
@@ -632,7 +633,7 @@ filetest(Char *cp, Char ***vp, int ignore)
     int altout = 0;
     Char *ft = cp, *dp, *ep, *strdev, *strino, *strF, *str, valtest = '\0',
     *errval = STR0;
-    char *string, string0[22 + MB_LEN_MAX + 1];	// space for 64 bit octal
+    char *string, string0[22 + MB_LEN_MAX + 1];	/* space for 64 bit octal */
     time_t footime;
     struct passwd *pw;
     struct group *gr;
@@ -954,8 +955,7 @@ evalav(Char **v)
     struct wordent *wdp = hp;
 
     setcopy(STRstatus, STR0, VAR_READWRITE);
-    hp->prev = hp->next = hp;
-    hp->word = STRNULL;
+    initlex(hp);
     while (*v) {
 	struct wordent *new = xcalloc(1, sizeof *wdp);
 

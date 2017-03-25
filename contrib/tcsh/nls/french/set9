@@ -1,4 +1,4 @@
-$ $tcsh: set9,v 1.3 2011/02/04 18:19:36 christos Exp $
+$ $tcsh: set9,v 1.4 2015/05/26 17:38:25 christos Exp $
 $ ed.xmap.c
 $set 9
 1 AddXkey: touche d'extension nulle pas autorisé.\n
@@ -8,5 +8,5 @@ $set 9
 5 Certaines touches d'extension trop longues pour tampon d'impression interne
 6 Enumerate: BUG!! Pointeur Null passé!\n
 7 pas d'entrée
-8 Quelque chose doit suivre: %c\n
+8 Quelque chose doit suivre: '%c'\n
 9 Une constante Octale ne peut pas tenir dans un caractère.\n

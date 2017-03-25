@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.bind.c,v 3.45 2009/06/25 21:15:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.bind.c,v 3.46 2015/08/13 08:54:04 christos Exp $ */
 /*
  * tc.bind.c: Key binding functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.bind.c,v 3.45 2009/06/25 21:15:37 christos Exp $")
+RCSID("$tcsh: tc.bind.c,v 3.46 2015/08/13 08:54:04 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"
@@ -506,8 +506,14 @@ bindkey_usage(void)
 	    "    -v   bind all keys to vi bindings\n"));
     xprintf("%s", CGETS(20, 18,
 	    "    -e   bind all keys to emacs bindings\n"));
-    xprintf("%s", CGETS(20, 19,
-	    "    -d   bind all keys to default editor's bindings\n"));
+    xprintf(CGETS(20, 19,
+	    "    -d   bind all keys to default editor's bindings (%s)\n"),
+#ifdef VIDEFAULT
+	    "vi"
+#else /* EMACSDEFAULT */
+	    "emacs"
+#endif /* VIDEFAULT */
+	    );
     xprintf("%s", CGETS(20, 20,
 	    "    -l   list editor commands with descriptions\n"));
     xprintf("%s", CGETS(20, 21,

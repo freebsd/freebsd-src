@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.inputl.c,v 3.71 2010/12/22 17:26:04 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.inputl.c,v 3.73 2012/10/19 15:23:32 christos Exp $ */
 /*
  * ed.inputl.c: Input line handling.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: ed.inputl.c,v 3.71 2010/12/22 17:26:04 christos Exp $")
+RCSID("$tcsh: ed.inputl.c,v 3.73 2012/10/19 15:23:32 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -683,7 +683,7 @@ GetNextCommand(KEYCMD *cmdnum, Char *ch)
 #ifdef DSPMBYTE
 	     _enable_mbdisp &&
 #else
-	     MB_CUR_MAX == 1 &&
+	     MB_LEN_MAX == 1 &&
 #endif
 	     !adrof(STRnokanji) && (*ch & META)) {
 	    MetaNext = 0;
@@ -800,17 +800,13 @@ GetNextChar(Char *cp)
 		return -1;
 	    }
 	}
-	if (AsciiOnly) {
-	    *cp = (unsigned char)*cbuf;
-	} else {
-	    cbp++;
-	    if (normal_mbtowc(cp, cbuf, cbp) == -1) {
-		reset_mbtowc();
-		if (cbp < MB_CUR_MAX)
-		    continue; /* Maybe a partial character */
-		/* And drop the following bytes, if any */
-		*cp = (unsigned char)*cbuf | INVALID_BYTE;
-	    }
+	cbp++;
+	if (normal_mbtowc(cp, cbuf, cbp) == -1) {
+	    reset_mbtowc();
+	    if (cbp < MB_CUR_MAX)
+		continue; /* Maybe a partial character */
+	    /* And drop the following bytes, if any */
+	    *cp = (unsigned char)*cbuf | INVALID_BYTE;
 	}
 	break;
     }

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.proc.h,v 3.15 2011/04/14 18:25:25 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.proc.h,v 3.16 2016/05/24 17:41:12 christos Exp $ */
 /*
  * sh.proc.h: Process data structures and variables
  */
@@ -106,14 +106,15 @@ struct process {
 #define PBRACE		(1<<18)	/* Process is {} evaluation */
 
 /* defines for arguments to pprint */
-#define	NUMBER		01
-#define	NAME		02
-#define	REASON		04
-#define	AMPERSAND	010
-#define	FANCY		020
-#define	SHELLDIR	040	/* print shell's dir if not the same */
-#define	JOBDIR		0100	/* print job's dir if not the same */
-#define	AREASON		0200
+#define	NUMBER		0x001
+#define	NAME		0x002
+#define	REASON		0x004
+#define	AMPERSAND	0x008
+#define	FANCY		0x010
+#define	SHELLDIR	0x020	/* print shell's dir if not the same */
+#define	JOBDIR		0x040	/* print job's dir if not the same */
+#define	AREASON		0x080
+#define	JOBLIST		0x100
 
 EXTERN struct process proclist IZERO_STRUCT;/* list head of all processes */
 

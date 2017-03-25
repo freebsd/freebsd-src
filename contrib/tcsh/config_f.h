@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/config_f.h,v 3.47 2011/02/05 20:34:55 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/config_f.h,v 3.52 2016/04/16 15:44:18 christos Exp $ */
 /*
  * config_f.h -- configure various defines for tcsh
  *
@@ -38,6 +38,10 @@
 #ifndef _h_config_f
 #define _h_config_f
 
+#ifdef HAVE_FEATURES_H
+#include <features.h>		/* for __GLIBC__ */
+#endif
+
 /*
  * SHORT_STRINGS Use at least 16 bit characters instead of 8 bit chars
  * 	         This fixes up quoting problems and eases implementation
@@ -50,7 +54,7 @@
  * WIDE_STRINGS	Represent strings using wide characters
  *		Allows proper function in multibyte encodings like UTF-8
  */
-#if defined (SHORT_STRINGS) && defined (NLS) && !defined (WINNT_NATIVE) && !defined(_OSD_POSIX)
+#if defined (SHORT_STRINGS) && defined (NLS) && !defined (WINNT_NATIVE) && !defined(_OSD_POSIX) && SIZEOF_WCHAR_T > 1
 # define WIDE_STRINGS
 # if SIZEOF_WCHAR_T < 4
 #  define UTF16_STRINGS
@@ -135,7 +139,7 @@
  *		This can be much slower and no memory statistics will be
  *		provided.
  */
-#if defined(__MACHTEN__) || defined(PURIFY) || defined(MALLOC_TRACE) || defined(_OSD_POSIX) || defined(__MVS__) || defined (__CYGWIN__) || defined(__GLIBC__)
+#if defined(__MACHTEN__) || defined(PURIFY) || defined(MALLOC_TRACE) || defined(_OSD_POSIX) || defined(__MVS__) || defined (__CYGWIN__) || defined(__GLIBC__) || defined(__OpenBSD__) || defined(__APPLE__) || defined (__ANDROID__)
 # define SYSMALLOC
 #else
 # undef SYSMALLOC

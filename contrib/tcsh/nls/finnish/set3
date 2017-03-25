@@ -1,4 +1,4 @@
-$ $tcsh: set3,v 1.4 2011/02/04 18:19:34 christos Exp $
+$ $tcsh: set3,v 1.5 2015/09/01 14:08:28 kim Exp $
 $ Editor function descriptions
 $set 3 
 1 Siirry taaksepäin yksi merkki
@@ -114,11 +114,11 @@ $set 3
 111 Vi: peruuta muutos
 112 Vi: siirry rivin alkuun
 113 Suorita 'which' tälle komennolle
-114 Liimaa/lisää leikkauspuskurin sisältö kursorin paikalle
+114 Liitä leikkauspuskurin sisältö kursorin paikalle
 115 Korvaa viimeksi liimattu teksti aikaisemmalla leikkauksella
-116 (WIN32 only) Copy cut buffer to system clipboard
-117 (WIN32 only) Paste clipboard buffer at cursor position
-118 (WIN32 only) Convert each '/' in next word to '\\\\'
-119 (WIN32 only) Convert each '/' in previous word to '\\\\'
-120 (WIN32 only) Page visible console window up
-121 (WIN32 only) Page visible console window down
+116 (Vain WIN32) Kopioi leikkauspuskuri leikepöydälle
+117 (Vain WIN32) Liitä leikepöydän sisältö kursorin paikalle
+118 (Vain WIN32) Muuta jokainen '/' seuraavassa sanassa merkkijonoksi '\\\\'
+119 (Vain WIN32) Muuta jokainen '/' edellisessä sanassa merkkijonoksi '\\\\'
+120 (Vain WIN32) Näytä konsoli-ikkunan edellinen sivu
+121 (Vain WIN32) Näytä konsoli-ikkunan seuraava sivu

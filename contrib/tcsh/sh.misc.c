@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.misc.c,v 3.46 2010/05/08 00:41:58 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.misc.c,v 3.50 2015/06/06 21:19:08 christos Exp $ */
 /*
  * sh.misc.c: Miscelaneous functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.misc.c,v 3.46 2010/05/08 00:41:58 christos Exp $")
+RCSID("$tcsh: sh.misc.c,v 3.50 2015/06/06 21:19:08 christos Exp $")
 
 static	int	renum	(int, int);
 static  Char  **blkend	(Char **);
@@ -450,8 +450,13 @@ strip(Char *cp)
 
     if (!cp)
 	return (cp);
-    while ((*dp++ &= TRIM) != '\0')
-	continue;
+    while (*dp != '\0') {
+#if INVALID_BYTE != 0
+	if ((*dp & INVALID_BYTE) != INVALID_BYTE)    /* *dp < INVALID_BYTE */
+#endif
+		*dp &= TRIM;
+	dp++;
+    }
     return (cp);
 }
 
@@ -462,8 +467,17 @@ quote(Char *cp)
 
     if (!cp)
 	return (cp);
-    while (*dp != '\0')
-	*dp++ |= QUOTE;
+    while (*dp != '\0') {
+#ifdef WIDE_STRINGS
+	if ((*dp & 0xffffff80) == 0)	/* *dp < 0x80 */
+#elif defined SHORT_STRINGS
+	if ((*dp & 0xff80) == 0)	/* *dp < 0x80 */
+#else
+	if ((*dp & 0x80) == 0)		/* *dp < 0x80 */
+#endif
+	    *dp |= QUOTE;
+	dp++;
+    }
     return (cp);
 }
 
@@ -533,14 +547,16 @@ xclose(int fildes)
     if (fildes < 0)
 	return;
     while (close(fildes) == -1 && errno == EINTR)
-	handle_pending_signals();
+	if (handle_pending_signals())
+	    break;
 }
 
 void
 xclosedir(DIR *dirp)
 {
     while (closedir(dirp) == -1 && errno == EINTR)
-	handle_pending_signals();
+	if (handle_pending_signals())
+	    break;
 }
 
 int
@@ -549,7 +565,8 @@ xcreat(const char *path, mode_t mode)
     int res;
 
     while ((res = creat(path, mode)) == -1 && errno == EINTR)
-	handle_pending_signals();
+	if (handle_pending_signals())
+	    break;
     return res;
 }
 
@@ -560,7 +577,8 @@ xdup2(int fildes, int fildes2)
     int res;
 
     while ((res = dup2(fildes, fildes2)) == -1 && errno == EINTR)
-	handle_pending_signals();
+	if (handle_pending_signals())
+	    break;
     return res;
 }
 #endif
@@ -572,7 +590,8 @@ xgetgrgid(gid_t xgid)
 
     errno = 0;
     while ((res = getgrgid(xgid)) == NULL && errno == EINTR) {
-	handle_pending_signals();
+	if (handle_pending_signals())
+	    break;
 	errno = 0;
     }
     return res;
@@ -585,7 +604,8 @@ xgetpwnam(const char *name)
 
     errno = 0;
     while ((res = getpwnam(name)) == NULL && errno == EINTR) {
-	handle_pending_signals();
+	if (handle_pending_signals())
+	    break;
 	errno = 0;
     }
     return res;
@@ -598,7 +618,8 @@ xgetpwuid(uid_t xuid)
 
     errno = 0;
     while ((res = getpwuid(xuid)) == NULL && errno == EINTR) {
-	handle_pending_signals();
+	if (handle_pending_signals())
+	    break;
 	errno = 0;
     }
     return res;
@@ -611,7 +632,8 @@ xopen(const char *path, int oflag, ...)
 
     if ((oflag & O_CREAT) == 0) {
 	while ((res = open(path, oflag)) == -1 && errno == EINTR)
-	    handle_pending_signals();
+	    if (handle_pending_signals())
+		break;
     } else {
 	va_list ap;
 	mode_t mode;
@@ -623,7 +645,8 @@ xopen(const char *path, int oflag, ...)
 	mode = va_arg(ap, int);
 	va_end(ap);
 	while ((res = open(path, oflag, mode)) == -1 && errno == EINTR)
-	    handle_pending_signals();
+	    if (handle_pending_signals())
+		break;
     }
     return res;
 }
@@ -636,7 +659,8 @@ xread(int fildes, void *buf, size_t nbyte)
     /* This is where we will be blocked most of the time, so handle signals
        that didn't interrupt any system call. */
     do
-      handle_pending_signals();
+      if (handle_pending_signals())
+	  break;
     while ((res = read(fildes, buf, nbyte)) == -1 && errno == EINTR);
     return res;
 }
@@ -649,7 +673,8 @@ xtcsetattr(int fildes, int optional_actions, const struct termios *termios_p)
 
     while ((res = tcsetattr(fildes, optional_actions, termios_p)) == -1 &&
 	   errno == EINTR)
-	handle_pending_signals();
+	if (handle_pending_signals())
+	    break;
     return res;
 }
 #endif
@@ -662,7 +687,8 @@ xwrite(int fildes, const void *buf, size_t nbyte)
     /* This is where we will be blocked most of the time, so handle signals
        that didn't interrupt any system call. */
     do
-      handle_pending_signals();
+      if (handle_pending_signals())
+	  break;
     while ((res = write(fildes, buf, nbyte)) == -1 && errno == EINTR);
     return res;
 }

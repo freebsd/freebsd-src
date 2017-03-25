@@ -1,4 +1,4 @@
-$ $tcsh: set1,v 1.7 2011/02/04 18:19:36 christos Exp $
+$ $tcsh: set1,v 1.8 2015/05/26 17:38:25 christos Exp $
 $ Error messages
 $set 1
 1 Syntaxfehler
@@ -8,7 +8,7 @@ $set 1
 5 Keine Datei für $0
 6 Unvollständiger [] Modifizierer
 7 $ Ausweitung muß vor ] enden
-8 Falscher : Modifizierer in $ (%c)
+8 Falscher : Modifizierer in $ '%c'
 9 Indexfehler
 10 Falsche Nummer
 11 Keine Worte mehr
@@ -51,8 +51,8 @@ $set 1
 48 Nicht in while/foreach
 49 Keine Prozesse mehr
 50 Kein Treffer
-51 Fehlendes %c
-52 Überflüssiges %c
+51 Fehlendes '%c'
+52 Überflüssiges '%c'
 53 Kein Speicher mehr
 54 Kann keine Pipe erzeugen
 55 %s: %s
@@ -93,7 +93,7 @@ $set 1
 90 Falsche Ersetzung
 91 Keine vorhergehende linke Seite
 92 Rechte Seite zu lang
-93 Falscher ! Modifizierer: %c
+93 Falscher ! Modifizierer: '%c'
 94 Modifizierer fehlgeschlagen
 95 Überlauf des Ersetzungspuffers
 96 Falscher ! Argumentbezeichner
@@ -118,7 +118,7 @@ $set 1
 115 Kein Platz mehr für Termcap-Eintrag
 116 Benutzung: settc %s [yes|no]
 117 Unbekannte Fähigkeit `%s'
-118 Unbekannter Termcap-Parameter `%%%c'
+118 Unbekannter Termcap-Parameter '%%%c'
 119 Zu viele Argumente für `%s' (%d)
 120 `%s' erfordert %d Argumente
 121 Benutzung: echotc [-v|-s] [<Fähigkeit> [<Argumente>]]
@@ -137,4 +137,4 @@ $set 1
 134 Benutzung: unlimit [-fh] [Grenzen]
 135 $%S ist nur lesbar
 136 Kein solcher Job
-137 Unknown colorls variable `%c%c'
+137 Unknown colorls variable '%c%c'
