@@ -147,7 +147,7 @@ xen_pv_lapic_is_x2apic(void)
 }
 
 static void
-xen_pv_lapic_eoi(void)
+xen_pv_lapic_eoi(u_int vector)
 {
 
 	XEN_APIC_UNSUPPORTED;

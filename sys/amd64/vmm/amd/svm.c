@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 
+#include "vmm_host.h"
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
 #include "vmm_ktr.h"
@@ -1620,7 +1621,7 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 			 * Although not explicitly specified in APMv2 the
 			 * relative priorities were verified empirically.
 			 */
-			ipi_cpu(curcpu, IPI_AST);	/* XXX vmm_ipinum? */
+			ipi_cpu(curcpu, vmm_ipinum);
 		} else {
 			vm_nmi_clear(sc->vm, vcpu);
 
