@@ -384,6 +384,19 @@ user_add_with_pw_conf_body()
 	atf_check -s exit:0 \
 		${PW} useradd foo -C ${HOME}/pw.conf
 }
+atf_test_case user_add_defaultgroup
+user_add_defaultgroup_body()
+{
+	populate_etc_skel
+	echo 'defaultgroup = "plop"' > ${HOME}/pw.conf
+	atf_check -s exit:0 \
+		${PW} groupadd plop -g 442
+	atf_check -s exit:0 \
+		${PW} useradd foo -C ${HOME}/pw.conf
+	atf_check -s exit:0 \
+		-o inline:"foo:*:1001:442::0:0:User &:/home/foo:/bin/sh\n" \
+		${PW} usershow foo
+}
 
 atf_init_test_cases() {
 	atf_add_test_case user_add
@@ -419,4 +432,5 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_w_random
 	atf_add_test_case user_add_w_yes
 	atf_add_test_case user_add_with_pw_conf
+	atf_add_test_case user_add_defaultgroup
 }
