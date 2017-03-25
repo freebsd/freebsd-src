@@ -457,6 +457,16 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	softc->periph = periph;
 	periph->softc = softc;
 
+	/* Increase device openings to maximum for the SIM. */
+	if (bus_softc->sim->max_tagged_dev_openings >
+	    bus_softc->sim->max_dev_openings) {
+		cam_release_devq(periph->path,
+		    /*relsim_flags*/RELSIM_ADJUST_OPENINGS,
+		    /*openings*/bus_softc->sim->max_tagged_dev_openings,
+		    /*timeout*/0,
+		    /*getcount_only*/1);
+	}
+
 	xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	ccb.ccb_h.func_code = XPT_EN_LUN;
 	ccb.cel.grp6_len = 0;
@@ -1815,9 +1825,9 @@ static void
 ctlfe_dump_sim(struct cam_sim *sim)
 {
 
-	printf("%s%d: max tagged openings: %d, max dev openings: %d\n",
-	       sim->sim_name, sim->unit_number,
-	       sim->max_tagged_dev_openings, sim->max_dev_openings);
+	printf("%s%d: max dev openings: %d, max tagged dev openings: %d\n",
+	    sim->sim_name, sim->unit_number, sim->max_dev_openings,
+	    sim->max_tagged_dev_openings);
 }
 
 /*
@@ -1826,11 +1836,21 @@ ctlfe_dump_sim(struct cam_sim *sim)
 static void
 ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 {
+	struct cam_periph *periph = softc->periph;
 	struct ccb_hdr *hdr;
-	struct cam_periph *periph;
+	struct ccb_getdevstats cgds;
 	int num_items;
 
-	periph = softc->periph;
+	xpt_setup_ccb(&cgds.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+	cgds.ccb_h.func_code = XPT_GDEV_STATS;
+	xpt_action((union ccb *)&cgds);
+	if ((cgds.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		xpt_print(periph->path, "devq: openings %d, active %d, "
+		    "allocated %d, queued %d, held %d\n",
+		    cgds.dev_openings, cgds.dev_active, cgds.allocated,
+		    cgds.queued, cgds.held);
+	}
+
 	num_items = 0;
 
 	STAILQ_FOREACH(hdr, &softc->work_queue, periph_links.stqe) {
