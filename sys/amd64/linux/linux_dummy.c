@@ -59,7 +59,6 @@ UNIMPLEMENTED(tuxcall);
 UNIMPLEMENTED(uselib);
 UNIMPLEMENTED(vserver);
 
-DUMMY(mincore);
 DUMMY(sendfile);
 DUMMY(syslog);
 DUMMY(setfsuid);
