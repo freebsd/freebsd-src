@@ -432,19 +432,16 @@ db_printsym(db_expr_t off, db_strategy_t strategy)
 	db_expr_t	d;
 	char 		*filename;
 	const char	*name;
-	db_expr_t	value;
 	int 		linenum;
 	c_db_sym_t	cursym;
 
-	cursym = db_search_symbol(off, strategy, &d);
-	db_symbol_values(cursym, &name, &value);
-	if (name == NULL)
-		value = off;
-	if (value >= DB_SMALL_VALUE_MIN && value <= DB_SMALL_VALUE_MAX) {
+	if (off < 0 && off >= -db_maxoff) {
 		db_printf("%+#lr", (long)off);
 		return;
 	}
-	if (name == NULL || d >= (unsigned long)db_maxoff) {
+	cursym = db_search_symbol(off, strategy, &d);
+	db_symbol_values(cursym, &name, NULL);
+	if (name == NULL || d >= (db_addr_t)db_maxoff) {
 		db_printf("%#lr", (unsigned long)off);
 		return;
 	}
