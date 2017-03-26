@@ -83,6 +83,7 @@
 #define	NA_CONTROL_ENTRY		"naflags"
 #define	POLICY_CONTROL_ENTRY		"policy"
 #define	EXPIRE_AFTER_CONTROL_ENTRY	"expire-after"
+#define	QSZ_CONTROL_ENTRY		"qsize"
 
 #define	AU_CLASS_NAME_MAX	8
 #define	AU_CLASS_DESC_MAX	72
@@ -92,6 +93,8 @@
 #define	AU_LINE_MAX		256
 #define	MAX_AUDITSTRING_LEN	256
 #define	BSM_TEXTBUFSZ		MAX_AUDITSTRING_LEN	/* OpenSSH compatibility */
+
+#define USE_DEFAULT_QSZ		-1	/* Use system default queue size */
 
 /*
  * Arguments to au_close(3).
@@ -805,6 +808,7 @@ int			 getacdir(char *name, int len);
 int			 getacdist(void);
 int			 getacexpire(int *andflg, time_t *age, size_t *size);
 int			 getacfilesz(size_t *size_val);
+int			 getacqsize(int *size_val);
 int			 getacflg(char *auditstr, int len);
 int			 getachost(char *auditstr, size_t len);
 int			 getacmin(int *min_val);
@@ -1314,6 +1318,8 @@ void audit_token_to_au32(
 int audit_get_car(char *path, size_t sz);
 int audit_get_class(au_evclass_map_t *evc_map, size_t sz);
 int audit_set_class(au_evclass_map_t *evc_map, size_t sz);
+int audit_get_event(au_evname_map_t *evn_map, size_t sz);
+int audit_set_event(au_evname_map_t *evn_map, size_t sz);
 int audit_get_cond(int *cond);
 int audit_set_cond(int *cond);
 int audit_get_cwd(char *path, size_t sz);
