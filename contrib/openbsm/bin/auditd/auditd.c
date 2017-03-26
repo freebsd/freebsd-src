@@ -700,6 +700,17 @@ auditd_config_controls(void)
 		auditd_log_debug("Set audit trail size in kernel.");
 
 	/*
+	 * Configure audit trail queue size in kernel.
+	 */
+	err = auditd_set_qsize();
+	if (err) {
+		auditd_log_err("audit_set_qsize() %s: %m",
+		    auditd_strerror(err));
+		ret = -1;
+	} else
+		auditd_log_debug("Set audit trail queue in kernel.");
+
+	/*
 	 * Configure audit trail volume minimum free percentage of blocks in
 	 * kernel.
 	 */
