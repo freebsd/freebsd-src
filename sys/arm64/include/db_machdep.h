@@ -118,9 +118,6 @@ typedef long		db_expr_t;
 
 #define	next_instr_address(pc, bd)	((bd) ? (pc) : ((pc) + 4))
 
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
-
 #define	DB_ELFSIZE		64
 
 #endif /* !_MACHINE_DB_MACHDEP_H_ */
