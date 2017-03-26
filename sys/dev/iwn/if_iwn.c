@@ -3292,8 +3292,8 @@ iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	/* Runtime firmware should not send such a notification. */
 	if (sc->sc_flags & IWN_FLAG_CALIB_DONE){
-		DPRINTF(sc, IWN_DEBUG_TRACE, "->%s received after clib done\n",
-	    __func__);
+		DPRINTF(sc, IWN_DEBUG_TRACE,
+		    "->%s received after calib done\n", __func__);
 		return;
 	}
 	len = (le32toh(desc->len) & 0x3fff) - 4;
