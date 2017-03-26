@@ -89,6 +89,7 @@ MLINKS=	libbsm.3 bsm.3							\
 	au_control.3 getacflg.3						\
 	au_control.3 getacna.3						\
 	au_control.3 getacpol.3						\
+	au_control.3 getacqsize.3					\
 	au_control.3 au_poltostr.3					\
 	au_control.3 au_strtopol.3					\
 	au_domain.3 au_bsm_to_domain.3					\

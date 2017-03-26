@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 29, 2009
+.Dd April 7, 2016
 .Dt AUDITON 2
 .Os
 .Sh NAME
@@ -84,11 +84,13 @@ If
 .Dv AUDIT_ARGV
 is set, then the argument list passed to the
 .Xr execve 2
-system call will be audited.  If
+system call will be audited.
+If
 .Dv AUDIT_ARGE
 is set, then the environment variables passed to the
 .Xr execve 2
-system call will be audited.  The default policy is none of the audit policy
+system call will be audited.
+The default policy is none of the audit policy
 control flags set.
 .It Dv A_SETKAUDIT
 Set the host information.
@@ -114,9 +116,11 @@ These masks are used for non-attributable audit event preselection.
 The field
 .Fa am_success
 specifies which classes of successful audit events are to be logged to the
-audit trail. The field
+audit trail.
+The field
 .Fa am_failure
-specifies which classes of failed audit events are to be logged. The value of
+specifies which classes of failed audit events are to be logged.
+The value of
 both fields is the bitwise OR'ing of the audit event classes specified in
 .Fa bsm/audit.h .
 The various audit classes are described more fully in
@@ -197,9 +201,11 @@ or
 .Dv AUC_DISABLED .
 If
 .Dv AUC_NOAUDIT
-is set, then auditing is temporarily suspended. If
+is set, then auditing is temporarily suspended.
+If
 .Dv AUC_AUDITING
-is set, auditing is resumed. If
+is set, auditing is resumed.
+If
 .Dv AUC_DISABLED
 is set, the auditing system will
 shutdown, draining all audit records and closing out the audit trail file.
@@ -215,7 +221,8 @@ The field
 .Fa ec_number
 is the audit event and
 .Fa ec_class
-is the audit class mask. See
+is the audit class mask.
+See
 .Xr audit_event 5
 for more information on audit event to class mapping.
 .It Dv A_SETPMASK
@@ -256,7 +263,8 @@ The
 argument
 must point to a
 .Vt au_evclass_map_t
-structure. See the
+structure.
+See the
 .Dv A_SETCLASS
 section above for more information.
 .It Dv A_GETKAUDIT
@@ -301,7 +309,7 @@ argument
 must point to a
 .Vt auditpinfo_addr_t
 structure which is similar to the
-.Vt auditpinfo_addr_t
+.Vt auditpinfo_t
 structure described above.
 The exception is the
 .Fa ap_termid
@@ -327,7 +335,8 @@ structure.
 The audit session ID of the target session is passed
 into the kernel using the
 .Fa ai_asid
-field.  See
+field.
+See
 .Xr getaudit_addr 2
 for more information about the
 .Vt auditinfo_addr_t

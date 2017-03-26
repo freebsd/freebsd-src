@@ -35,10 +35,6 @@
 
 #include <assert.h>
 #include <errno.h>
-#ifdef __FreeBSD__
-#include <libutil.h>
-#include <printf.h>
-#endif
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -46,6 +42,11 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+
+#ifdef __FreeBSD__
+#include <libutil.h>
+#include <printf.h>
+#endif
 
 #include "pjdlog.h"
 

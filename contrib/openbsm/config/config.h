@@ -221,8 +221,7 @@
    slash. */
 #define LSTAT_FOLLOWS_SLASHED_SYMLINK 1
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
 
 /* Name of package */
@@ -235,7 +234,7 @@
 #define PACKAGE_NAME "OpenBSM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "OpenBSM 1.2-alpha4"
+#define PACKAGE_STRING "OpenBSM 1.2-alpha5"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "openbsm"
@@ -244,7 +243,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.2-alpha4"
+#define PACKAGE_VERSION "1.2-alpha5"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -280,7 +279,7 @@
 #define USE_SYS_ENDIAN_H /**/
 
 /* Version number of package */
-#define VERSION "1.2-alpha4"
+#define VERSION "1.2-alpha5"
 
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */
