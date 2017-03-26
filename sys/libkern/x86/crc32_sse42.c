@@ -31,14 +31,40 @@ __FBSDID("$FreeBSD$");
  */
 #ifdef USERSPACE_TESTING
 #include <stdint.h>
+#include <stdlib.h>
 #else
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/libkern.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #endif
 
-#include <nmmintrin.h>
+static __inline uint32_t
+_mm_crc32_u8(uint32_t x, uint8_t y)
+{
+	/*
+	 * clang (at least 3.9.[0-1]) pessimizes "rm" (y) and "m" (y)
+	 * significantly and "r" (y) a lot by copying y to a different
+	 * local variable (on the stack or in a register), so only use
+	 * the latter.  This costs a register and an instruction but
+	 * not a uop.
+	 */
+	__asm("crc32b %1,%0" : "+r" (x) : "r" (y));
+	return (x);
+}
+
+static __inline uint32_t
+_mm_crc32_u32(uint32_t x, uint32_t y)
+{
+	__asm("crc32l %1,%0" : "+r" (x) : "r" (y));
+	return (x);
+}
+
+static __inline uint64_t
+_mm_crc32_u64(uint64_t x, uint64_t y)
+{
+	__asm("crc32q %1,%0" : "+r" (x) : "r" (y));
+	return (x);
+}
 
 /* CRC-32C (iSCSI) polynomial in reversed bit order. */
 #define POLY	0x82f63b78
@@ -47,12 +73,18 @@ __FBSDID("$FreeBSD$");
  * Block sizes for three-way parallel crc computation.  LONG and SHORT must
  * both be powers of two.
  */
-#define LONG	8192
-#define SHORT	256
+#define LONG	128
+#define SHORT	64
 
-/* Tables for hardware crc that shift a crc by LONG and SHORT zeros. */
+/* 
+ * Tables for updating a crc for LONG, 2 * LONG, SHORT and 2 * SHORT bytes
+ * of value 0 later in the input stream, in the same way that the hardware
+ * would, but in software without calculating intermediate steps.
+ */
 static uint32_t crc32c_long[4][256];
+static uint32_t crc32c_2long[4][256];
 static uint32_t crc32c_short[4][256];
+static uint32_t crc32c_2short[4][256];
 
 /*
  * Multiply a matrix times a vector over the Galois field of two elements,
@@ -171,7 +203,9 @@ __attribute__((__constructor__))
 crc32c_init_hw(void)
 {
 	crc32c_zeros(crc32c_long, LONG);
+	crc32c_zeros(crc32c_2long, 2 * LONG);
 	crc32c_zeros(crc32c_short, SHORT);
+	crc32c_zeros(crc32c_2short, 2 * SHORT);
 }
 #ifdef _KERNEL
 SYSINIT(crc32c_sse42, SI_SUB_LOCK, SI_ORDER_ANY, crc32c_init_hw, NULL);
@@ -190,7 +224,11 @@ sse42_crc32c(uint32_t crc, const unsigned char *buf, unsigned len)
 	const size_t align = 4;
 #endif
 	const unsigned char *next, *end;
-	uint64_t crc0, crc1, crc2;      /* need to be 64 bits for crc32q */
+#ifdef __amd64__
+	uint64_t crc0, crc1, crc2;
+#else
+	uint32_t crc0, crc1, crc2;
+#endif
 
 	next = buf;
 	crc0 = crc;
@@ -202,6 +240,7 @@ sse42_crc32c(uint32_t crc, const unsigned char *buf, unsigned len)
 		len--;
 	}
 
+#if LONG > SHORT
 	/*
 	 * Compute the crc on sets of LONG*3 bytes, executing three independent
 	 * crc instructions, each on LONG bytes -- this is optimized for the
@@ -209,6 +248,7 @@ sse42_crc32c(uint32_t crc, const unsigned char *buf, unsigned len)
 	 * have a throughput of one crc per cycle, but a latency of three
 	 * cycles.
 	 */
+	crc = 0;
 	while (len >= LONG * 3) {
 		crc1 = 0;
 		crc2 = 0;
@@ -229,16 +269,64 @@ sse42_crc32c(uint32_t crc, const unsigned char *buf, unsigned len)
 #endif
 			next += align;
 		} while (next < end);
-		crc0 = crc32c_shift(crc32c_long, crc0) ^ crc1;
-		crc0 = crc32c_shift(crc32c_long, crc0) ^ crc2;
+		/*-
+		 * Update the crc.  Try to do it in parallel with the inner
+		 * loop.  'crc' is used to accumulate crc0 and crc1
+		 * produced by the inner loop so that the next iteration
+		 * of the loop doesn't depend on anything except crc2.
+		 *
+		 * The full expression for the update is:
+		 *     crc = S*S*S*crc + S*S*crc0 + S*crc1
+		 * where the terms are polynomials modulo the CRC polynomial.
+		 * We regroup this subtly as:
+		 *     crc = S*S * (S*crc + crc0) + S*crc1.
+		 * This has an extra dependency which reduces possible
+		 * parallelism for the expression, but it turns out to be
+		 * best to intentionally delay evaluation of this expression
+		 * so that it competes less with the inner loop.
+		 *
+		 * We also intentionally reduce parallelism by feedng back
+		 * crc2 to the inner loop as crc0 instead of accumulating
+		 * it in crc.  This synchronizes the loop with crc update.
+		 * CPU and/or compiler schedulers produced bad order without
+		 * this.
+		 *
+		 * Shifts take about 12 cycles each, so 3 here with 2
+		 * parallelizable take about 24 cycles and the crc update
+		 * takes slightly longer.  8 dependent crc32 instructions
+		 * can run in 24 cycles, so the 3-way blocking is worse
+		 * than useless for sizes less than 8 * <word size> = 64
+		 * on amd64.  In practice, SHORT = 32 confirms these
+		 * timing calculations by giving a small improvement
+		 * starting at size 96.  Then the inner loop takes about
+		 * 12 cycles and the crc update about 24, but these are
+		 * partly in parallel so the total time is less than the
+		 * 36 cycles that 12 dependent crc32 instructions would
+		 * take.
+		 *
+		 * To have a chance of completely hiding the overhead for
+		 * the crc update, the inner loop must take considerably
+		 * longer than 24 cycles.  LONG = 64 makes the inner loop
+		 * take about 24 cycles, so is not quite large enough.
+		 * LONG = 128 works OK.  Unhideable overheads are about
+		 * 12 cycles per inner loop.  All assuming timing like
+		 * Haswell.
+		 */
+		crc = crc32c_shift(crc32c_long, crc) ^ crc0;
+		crc1 = crc32c_shift(crc32c_long, crc1);
+		crc = crc32c_shift(crc32c_2long, crc) ^ crc1;
+		crc0 = crc2;
 		next += LONG * 2;
 		len -= LONG * 3;
 	}
+	crc0 ^= crc;
+#endif /* LONG > SHORT */
 
 	/*
 	 * Do the same thing, but now on SHORT*3 blocks for the remaining data
 	 * less than a LONG*3 block
 	 */
+	crc = 0;
 	while (len >= SHORT * 3) {
 		crc1 = 0;
 		crc2 = 0;
@@ -259,11 +347,14 @@ sse42_crc32c(uint32_t crc, const unsigned char *buf, unsigned len)
 #endif
 			next += align;
 		} while (next < end);
-		crc0 = crc32c_shift(crc32c_short, crc0) ^ crc1;
-		crc0 = crc32c_shift(crc32c_short, crc0) ^ crc2;
+		crc = crc32c_shift(crc32c_short, crc) ^ crc0;
+		crc1 = crc32c_shift(crc32c_short, crc1);
+		crc = crc32c_shift(crc32c_2short, crc) ^ crc1;
+		crc0 = crc2;
 		next += SHORT * 2;
 		len -= SHORT * 3;
 	}
+	crc0 ^= crc;
 
 	/* Compute the crc on the remaining bytes at native word size. */
 	end = next + (len - (len & (align - 1)));

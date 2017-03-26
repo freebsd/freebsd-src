@@ -524,11 +524,6 @@ kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
 kern/subr_sfbuf.c		standard
-crc32_sse42.o			standard				\
-	dependency	"$S/libkern/x86/crc32_sse42.c"			\
-	compile-with	"${CC} -c ${CFLAGS:N-nostdinc} ${WERROR} ${PROF} -msse4 ${.IMPSRC}" \
-	no-implicit-rule						\
-	clean		"crc32_sse42.o"
 libkern/divdi3.c		standard
 libkern/ffsll.c			standard
 libkern/flsll.c			standard
@@ -539,6 +534,7 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+libkern/x86/crc32_sse42.c	standard
 i386/xbox/xbox.c		optional xbox
 i386/xbox/xboxfb.c		optional xboxfb
 dev/fb/boot_font.c		optional xboxfb
