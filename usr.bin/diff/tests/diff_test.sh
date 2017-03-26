@@ -2,6 +2,7 @@
 
 atf_test_case simple
 atf_test_case unified
+atf_test_case header
 
 simple_body()
 {
@@ -46,8 +47,20 @@ unified_body()
 		diff -u9999 -L input_c1.in -L input_c2.in "$(atf_get_srcdir)/input_c1.in" "$(atf_get_srcdir)/input_c2.in"
 }
 
+header_body()
+{
+	export TZ=UTC
+	: > empty
+	echo hello > hello
+	touch -d 2015-04-03T01:02:03 empty
+	touch -d 2016-12-22T11:22:33 hello
+	atf_check -o "file:$(atf_get_srcdir)/header.out" -s eq:1 \
+		diff -u empty hello
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
 	atf_add_test_case unified
+	atf_add_test_case header
 }
