@@ -3944,6 +3944,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 			sc->errptr = le32toh(uc->errptr);
 			break;
 		}
+#ifdef IWN_DEBUG
 		case IWN_STATE_CHANGED:
 		{
 			/*
@@ -3953,27 +3954,26 @@ iwn_notif_intr(struct iwn_softc *sc)
 			 */
 			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
 			    BUS_DMASYNC_POSTREAD);
-#ifdef	IWN_DEBUG
+
 			uint32_t *status = (uint32_t *)(desc + 1);
 			DPRINTF(sc, IWN_DEBUG_INTR | IWN_DEBUG_STATE,
 			    "state changed to %x\n",
 			    le32toh(*status));
-#endif
 			break;
 		}
 		case IWN_START_SCAN:
 		{
 			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
 			    BUS_DMASYNC_POSTREAD);
-#ifdef	IWN_DEBUG
+
 			struct iwn_start_scan *scan =
 			    (struct iwn_start_scan *)(desc + 1);
 			DPRINTF(sc, IWN_DEBUG_ANY,
 			    "%s: scanning channel %d status %x\n",
 			    __func__, scan->chan, le32toh(scan->status));
-#endif
 			break;
 		}
+#endif
 		case IWN_STOP_SCAN:
 		{
 			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
