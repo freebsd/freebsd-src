@@ -61,9 +61,6 @@ typedef long		db_expr_t;
 #define	inst_load(ins)		(0)
 #define	inst_store(ins)		(0)
 
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
-
 #define	DB_ELFSIZE		64
 
 #endif /* !_MACHINE_DB_MACHDEP_H_ */
