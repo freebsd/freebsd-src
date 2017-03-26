@@ -63,6 +63,14 @@ typedef __greg_t	__gregset_t[_NGREG];
 #define _REG_LR		_REG_R14
 #define _REG_PC		_REG_R15
 
+/*
+ * Floating point register state
+ */
+typedef struct {
+	__uint64_t	mcv_reg[32];
+	__uint32_t	mcv_fpscr;
+} mcontext_vfp_t;
+
 typedef struct {
 	__gregset_t	__gregs;
 
@@ -70,7 +78,10 @@ typedef struct {
 	 * Originally, rest of this structure was named __fpu, 35 * 4 bytes
 	 * long, never accessed from kernel. 
 	 */
-	unsigned int	mc_spare[35];
+	size_t		mc_vfp_size;
+	void 		*mc_vfp_ptr;
+	unsigned int	mc_spare[33];
 } mcontext_t;
 
+#define UC_
 #endif	/* !_MACHINE_MCONTEXT_H_ */

@@ -146,105 +146,6 @@ static delay_func *delay_impl;
 static void *delay_arg;
 #endif
 
-void
-sendsig(catcher, ksi, mask)
-	sig_t catcher;
-	ksiginfo_t *ksi;
-	sigset_t *mask;
-{
-	struct thread *td;
-	struct proc *p;
-	struct trapframe *tf;
-	struct sigframe *fp, frame;
-	struct sigacts *psp;
-	struct sysentvec *sysent;
-	int onstack;
-	int sig;
-	int code;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	sig = ksi->ksi_signo;
-	code = ksi->ksi_code;
-	psp = p->p_sigacts;
-	mtx_assert(&psp->ps_mtx, MA_OWNED);
-	tf = td->td_frame;
-	onstack = sigonstack(tf->tf_usr_sp);
-
-	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
-	    catcher, sig);
-
-	/* Allocate and validate space for the signal handler context. */
-	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !(onstack) &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
-		    td->td_sigstk.ss_size);
-#if defined(COMPAT_43)
-		td->td_sigstk.ss_flags |= SS_ONSTACK;
-#endif
-	} else
-		fp = (struct sigframe *)td->td_frame->tf_usr_sp;
-
-	/* make room on the stack */
-	fp--;
-
-	/* make the stack aligned */
-	fp = (struct sigframe *)STACKALIGN(fp);
-	/* Populate the siginfo frame. */
-	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
-	frame.sf_si = ksi->ksi_info;
-	frame.sf_uc.uc_sigmask = *mask;
-	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK )
-	    ? ((onstack) ? SS_ONSTACK : 0) : SS_DISABLE;
-	frame.sf_uc.uc_stack = td->td_sigstk;
-	mtx_unlock(&psp->ps_mtx);
-	PROC_UNLOCK(td->td_proc);
-
-	/* Copy the sigframe out to the user's stack. */
-	if (copyout(&frame, fp, sizeof(*fp)) != 0) {
-		/* Process has trashed its stack. Kill it. */
-		CTR2(KTR_SIG, "sendsig: sigexit td=%p fp=%p", td, fp);
-		PROC_LOCK(p);
-		sigexit(td, SIGILL);
-	}
-
-	/*
-	 * Build context to run handler in.  We invoke the handler
-	 * directly, only returning via the trampoline.  Note the
-	 * trampoline version numbers are coordinated with machine-
-	 * dependent code in libc.
-	 */
-
-	tf->tf_r0 = sig;
-	tf->tf_r1 = (register_t)&fp->sf_si;
-	tf->tf_r2 = (register_t)&fp->sf_uc;
-
-	/* the trampoline uses r5 as the uc address */
-	tf->tf_r5 = (register_t)&fp->sf_uc;
-	tf->tf_pc = (register_t)catcher;
-	tf->tf_usr_sp = (register_t)fp;
-	sysent = p->p_sysent;
-	if (sysent->sv_sigcode_base != 0)
-		tf->tf_usr_lr = (register_t)sysent->sv_sigcode_base;
-	else
-		tf->tf_usr_lr = (register_t)(sysent->sv_psstrings -
-		    *(sysent->sv_szsigcode));
-	/* Set the mode to enter in the signal handler */
-#if __ARM_ARCH >= 7
-	if ((register_t)catcher & 1)
-		tf->tf_spsr |= PSR_T;
-	else
-		tf->tf_spsr &= ~PSR_T;
-#endif
-
-	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_usr_lr,
-	    tf->tf_usr_sp);
-
-	PROC_LOCK(p);
-	mtx_lock(&psp->ps_mtx);
-}
-
 struct kva_md_info kmi;
 
 /*
@@ -488,6 +389,47 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->tf_spsr = PSR_USR32_MODE;
 }
 
+
+#ifdef VFP
+/*
+ * Get machine VFP context.
+ */
+static void
+get_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
+{
+	struct pcb *curpcb;
+
+	curpcb = curthread->td_pcb;
+	critical_enter();
+
+	vfp_store(&curpcb->pcb_vfpstate, false);
+	memcpy(vfp->mcv_reg, curpcb->pcb_vfpstate.reg,
+	    sizeof(vfp->mcv_reg));
+	vfp->mcv_fpscr = curpcb->pcb_vfpstate.fpscr;
+
+	critical_exit();
+}
+
+/*
+ * Set machine VFP context.
+ */
+static void
+set_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
+{
+	struct pcb *curpcb;
+
+	curpcb = curthread->td_pcb;
+	critical_enter();
+
+	vfp_discard(td);
+	memcpy(curpcb->pcb_vfpstate.reg, vfp->mcv_reg,
+	    sizeof(curpcb->pcb_vfpstate.reg));
+	curpcb->pcb_vfpstate.fpscr = vfp->mcv_fpscr;
+
+	critical_exit();
+}
+#endif
+
 /*
  * Get machine context.
  */
@@ -520,6 +462,10 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	gr[_REG_LR]   = tf->tf_usr_lr;
 	gr[_REG_PC]   = tf->tf_pc;
 
+	mcp->mc_vfp_size = 0;
+	mcp->mc_vfp_ptr = NULL;
+	memset(&mcp->mc_spare, 0, sizeof(mcp->mc_spare));
+
 	return (0);
 }
 
@@ -532,8 +478,28 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 int
 set_mcontext(struct thread *td, mcontext_t *mcp)
 {
+	mcontext_vfp_t mc_vfp, *vfp;
 	struct trapframe *tf = td->td_frame;
 	const __greg_t *gr = mcp->__gregs;
+
+#ifdef WITNESS
+	if (mcp->mc_vfp_size != 0 && mcp->mc_vfp_size != sizeof(mc_vfp)) {
+		printf("%s: %s: Malformed mc_vfp_size: %d (0x%08X)\n",
+		    td->td_proc->p_comm, __func__,
+		    mcp->mc_vfp_size, mcp->mc_vfp_size);
+	} else if (mcp->mc_vfp_size != 0 && mcp->mc_vfp_ptr == NULL) {
+		printf("%s: %s: c_vfp_size != 0 but mc_vfp_ptr == NULL\n",
+		    td->td_proc->p_comm, __func__);
+	}
+#endif
+
+	if (mcp->mc_vfp_size == sizeof(mc_vfp) && mcp->mc_vfp_ptr != NULL) {
+		if (copyin(mcp->mc_vfp_ptr, &mc_vfp, sizeof(mc_vfp)) != 0)
+			return (EFAULT);
+		vfp = &mc_vfp;
+	} else {
+		vfp = NULL;
+	}
 
 	tf->tf_r0 = gr[_REG_R0];
 	tf->tf_r1 = gr[_REG_R1];
@@ -552,8 +518,118 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	tf->tf_usr_lr = gr[_REG_LR];
 	tf->tf_pc = gr[_REG_PC];
 	tf->tf_spsr = gr[_REG_CPSR];
-
+#ifdef VFP
+	if (vfp != NULL)
+		set_vfpcontext(td, vfp);
+#endif
 	return (0);
+}
+
+void
+sendsig(catcher, ksi, mask)
+	sig_t catcher;
+	ksiginfo_t *ksi;
+	sigset_t *mask;
+{
+	struct thread *td;
+	struct proc *p;
+	struct trapframe *tf;
+	struct sigframe *fp, frame;
+	struct sigacts *psp;
+	struct sysentvec *sysent;
+	int onstack;
+	int sig;
+	int code;
+
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	sig = ksi->ksi_signo;
+	code = ksi->ksi_code;
+	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
+	tf = td->td_frame;
+	onstack = sigonstack(tf->tf_usr_sp);
+
+	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
+	    catcher, sig);
+
+	/* Allocate and validate space for the signal handler context. */
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !(onstack) &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		fp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size);
+#if defined(COMPAT_43)
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
+#endif
+	} else
+		fp = (struct sigframe *)td->td_frame->tf_usr_sp;
+
+	/* make room on the stack */
+	fp--;
+
+	/* make the stack aligned */
+	fp = (struct sigframe *)STACKALIGN(fp);
+	/* Populate the siginfo frame. */
+	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
+#ifdef VFP
+	get_vfpcontext(td, &frame.sf_vfp);
+	frame.sf_uc.uc_mcontext.mc_vfp_size = sizeof(fp->sf_vfp);
+	frame.sf_uc.uc_mcontext.mc_vfp_ptr = &fp->sf_vfp;
+#else
+	frame.sf_uc.uc_mcontext.mc_vfp_size = 0;
+	frame.sf_uc.uc_mcontext.mc_vfp_ptr = NULL;
+#endif
+	frame.sf_si = ksi->ksi_info;
+	frame.sf_uc.uc_sigmask = *mask;
+	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK )
+	    ? ((onstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+	frame.sf_uc.uc_stack = td->td_sigstk;
+	mtx_unlock(&psp->ps_mtx);
+	PROC_UNLOCK(td->td_proc);
+
+	/* Copy the sigframe out to the user's stack. */
+	if (copyout(&frame, fp, sizeof(*fp)) != 0) {
+		/* Process has trashed its stack. Kill it. */
+		CTR2(KTR_SIG, "sendsig: sigexit td=%p fp=%p", td, fp);
+		PROC_LOCK(p);
+		sigexit(td, SIGILL);
+	}
+
+	/*
+	 * Build context to run handler in.  We invoke the handler
+	 * directly, only returning via the trampoline.  Note the
+	 * trampoline version numbers are coordinated with machine-
+	 * dependent code in libc.
+	 */
+
+	tf->tf_r0 = sig;
+	tf->tf_r1 = (register_t)&fp->sf_si;
+	tf->tf_r2 = (register_t)&fp->sf_uc;
+
+	/* the trampoline uses r5 as the uc address */
+	tf->tf_r5 = (register_t)&fp->sf_uc;
+	tf->tf_pc = (register_t)catcher;
+	tf->tf_usr_sp = (register_t)fp;
+	sysent = p->p_sysent;
+	if (sysent->sv_sigcode_base != 0)
+		tf->tf_usr_lr = (register_t)sysent->sv_sigcode_base;
+	else
+		tf->tf_usr_lr = (register_t)(sysent->sv_psstrings -
+		    *(sysent->sv_szsigcode));
+	/* Set the mode to enter in the signal handler */
+#if __ARM_ARCH >= 7
+	if ((register_t)catcher & 1)
+		tf->tf_spsr |= PSR_T;
+	else
+		tf->tf_spsr &= ~PSR_T;
+#endif
+
+	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_usr_lr,
+	    tf->tf_usr_sp);
+
+	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 
 int
@@ -578,7 +654,7 @@ sys_sigreturn(td, uap)
 	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
 	    (spsr & (PSR_I | PSR_F)) != 0)
 		return (EINVAL);
-		/* Restore register context. */
+	/* Restore register context. */
 	set_mcontext(td, &uc.uc_mcontext);
 
 	/* Restore signal mask. */

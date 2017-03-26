@@ -94,6 +94,7 @@ struct trapframe {
 struct sigframe {
 	siginfo_t       sf_si;          /* actual saved siginfo */
 	ucontext_t      sf_uc;          /* actual saved ucontext */
+	mcontext_vfp_t	sf_vfp;         /* actual saved VFP context */
 };
 
 
