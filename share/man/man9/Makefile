@@ -116,6 +116,7 @@ MAN=	accept_filter.9 \
 	disk.9 \
 	dnv.9 \
 	domain.9 \
+	dpcpu.9 \
 	drbr.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
