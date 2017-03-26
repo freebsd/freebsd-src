@@ -225,8 +225,6 @@ struct isp_fc {
 		simqfrozen	: 3,
 		default_id	: 8,
 		def_role	: 2,	/* default role */
-		gdt_running	: 1,
-		loop_dead	: 1,
 		loop_seen_once	: 1,
 		fcbsy		: 1,
 		ready		: 1;
