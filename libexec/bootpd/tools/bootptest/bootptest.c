@@ -122,10 +122,6 @@ unsigned char vm_cmu[4] = VM_CMU;
 unsigned char vm_rfc1048[4] = VM_RFC1048;
 short secs;						/* How long client has waited */
 
-char *get_errmsg();
-extern void bootp_print(struct bootp *bp, int length, u_short sport,
-    u_short dport);
-
 /*
  * Initialization such as command-line processing is done, then
  * the receiver loop is started.  Die when interrupted.

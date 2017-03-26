@@ -42,7 +42,6 @@
 #include "bootptest.h"
 
 /* These decode the vendor data. */
-extern int printfn(u_char *s, u_char *ep);
 static void rfc1048_print(u_char *bp, int length);
 static void cmu_print(u_char *bp, int length);
 static void other_print(u_char *bp, int length);
