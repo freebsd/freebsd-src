@@ -381,7 +381,7 @@ typedef int	sc_term_init_t(scr_stat *scp, void **tcp, int code);
 #define SC_TE_COLD_INIT	0
 #define SC_TE_WARM_INIT	1
 typedef int	sc_term_term_t(scr_stat *scp, void **tcp);
-typedef void	sc_term_puts_t(scr_stat *scp, u_char *buf, int len, int kernel);
+typedef void	sc_term_puts_t(scr_stat *scp, u_char *buf, int len);
 typedef int	sc_term_ioctl_t(scr_stat *scp, struct tty *tp, u_long cmd,
 				caddr_t data, struct thread *td);
 typedef int	sc_term_reset_t(scr_stat *scp, int code);
@@ -583,7 +583,6 @@ void		sc_paste(scr_stat *scp, const u_char *p, int count);
 void		sc_respond(scr_stat *scp, const u_char *p,
 			   int count, int wakeup);
 void		sc_bell(scr_stat *scp, int pitch, int duration);
-int		sc_kattr(void);
 
 /* schistory.c */
 #ifndef SC_NO_HISTORY
