@@ -3516,11 +3516,7 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
 	struct iwn4965_tx_stat *stat = (struct iwn4965_tx_stat *)(desc + 1);
-	struct iwn_tx_ring *ring;
-	int qid;
-
-	qid = desc->qid & 0xf;
-	ring = &sc->txq[qid];
+	int qid = desc->qid & 0xf;
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
 	    "qid %d idx %d RTS retries %d ACK retries %d nkill %d rate %x duration %d status %x\n",
@@ -3531,7 +3527,6 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	    stat->rate, le16toh(stat->duration),
 	    le32toh(stat->status));
 
-	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	if (qid >= sc->firstaggqueue) {
 		iwn_ampdu_tx_done(sc, qid, desc->idx, stat->nframes,
 		    stat->rtsfailcnt, stat->ackfailcnt, &stat->status);
@@ -3546,11 +3541,7 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
 	struct iwn5000_tx_stat *stat = (struct iwn5000_tx_stat *)(desc + 1);
-	struct iwn_tx_ring *ring;
-	int qid;
-
-	qid = desc->qid & 0xf;
-	ring = &sc->txq[qid];
+	int qid = desc->qid & 0xf;
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
 	    "qid %d idx %d RTS retries %d ACK retries %d nkill %d rate %x duration %d status %x\n",
@@ -3566,7 +3557,6 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	iwn5000_reset_sched(sc, desc->qid & 0xf, desc->idx);
 #endif
 
-	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	if (qid >= sc->firstaggqueue) {
 		iwn_ampdu_tx_done(sc, qid, desc->idx, stat->nframes,
 		    stat->rtsfailcnt, stat->ackfailcnt, &stat->status);
