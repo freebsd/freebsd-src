@@ -126,7 +126,8 @@ set_cpu(int cpu, struct thread *td)
 	sched_bind(td, cpu);
 	thread_unlock(td);
 	KASSERT(td->td_oncpu == cpu,
-	    ("[cpuctl,%d]: cannot bind to target cpu %d on cpu %d", __LINE__, cpu, td->td_oncpu));
+	    ("[cpuctl,%d]: cannot bind to target cpu %d on cpu %d", __LINE__,
+	    cpu, td->td_oncpu));
 }
 
 static void
@@ -145,11 +146,11 @@ restore_cpu(int oldcpu, int is_bound, struct thread *td)
 
 int
 cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
-	int flags, struct thread *td)
+    int flags, struct thread *td)
 {
-	int ret;
-	int cpu = dev2unit(dev);
+	int cpu, ret;
 
+	cpu = dev2unit(dev);
 	if (cpu > mp_maxid || !cpu_enabled(cpu)) {
 		DPRINTF("[cpuctl,%d]: bad cpu number %d\n", __LINE__, cpu);
 		return (ENXIO);
@@ -279,7 +280,8 @@ cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd, struct thread *td)
 			ret = wrmsr_safe(data->msr, reg & ~data->data);
 		critical_exit();
 	} else
-		panic("[cpuctl,%d]: unknown operation requested: %lu", __LINE__, cmd);
+		panic("[cpuctl,%d]: unknown operation requested: %lu",
+		    __LINE__, cmd);
 	restore_cpu(oldcpu, is_bound, td);
 	return (ret);
 }
@@ -311,7 +313,8 @@ cpuctl_do_update(int cpu, cpuctl_update_args_t *data, struct thread *td)
 		ret = update_intel(cpu, data, td);
 	else if(strncmp(vendor, AMD_VENDOR_ID, sizeof(AMD_VENDOR_ID)) == 0)
 		ret = update_amd(cpu, data, td);
-	else if(strncmp(vendor, CENTAUR_VENDOR_ID, sizeof(CENTAUR_VENDOR_ID)) == 0)
+	else if(strncmp(vendor, CENTAUR_VENDOR_ID, sizeof(CENTAUR_VENDOR_ID))
+	    == 0)
 		ret = update_via(cpu, data, td);
 	else
 		ret = ENXIO;
