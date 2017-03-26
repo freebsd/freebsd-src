@@ -20,7 +20,8 @@ ${PACKAGE}FILES+=	\
 	unified_p.out \
 	unified_c9999.out \
 	unified_9999.out \
-	header.out
+	header.out \
+	header_ns.out
 
 NETBSD_ATF_TESTS_SH+=	netbsd_diff_test
 
