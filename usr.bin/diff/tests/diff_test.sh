@@ -3,6 +3,7 @@
 atf_test_case simple
 atf_test_case unified
 atf_test_case header
+atf_test_case header_ns
 
 simple_body()
 {
@@ -58,9 +59,21 @@ header_body()
 		diff -u empty hello
 }
 
+header_ns_body()
+{
+	export TZ=UTC
+	: > empty
+	echo hello > hello
+	touch -d 2015-04-03T01:02:03.123456789 empty
+	touch -d 2016-12-22T11:22:33.987654321 hello
+	atf_check -o "file:$(atf_get_srcdir)/header_ns.out" -s eq:1 \
+		diff -u empty hello
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
 	atf_add_test_case unified
 	atf_add_test_case header
+	atf_add_test_case header_ns
 }
