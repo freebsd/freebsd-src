@@ -71,7 +71,7 @@ char *usage = "bootptest [-h] server-name [vendor-data-template-file]";
 
 #include "patchlevel.h"
 
-static void send_request();
+static void send_request(int s);
 
 #define LOG_ERR 1
 #define BUFLEN 1024
@@ -121,9 +121,6 @@ char *hostname;
 unsigned char vm_cmu[4] = VM_CMU;
 unsigned char vm_rfc1048[4] = VM_RFC1048;
 short secs;						/* How long client has waited */
-
-char *get_errmsg();
-extern void bootp_print();
 
 /*
  * Initialization such as command-line processing is done, then
@@ -429,7 +426,7 @@ main(argc, argv)
 		/* set globals needed by bootp_print() */
 		snaplen = n;
 		snapend = (unsigned char *) rcvbuf + snaplen;
-		bootp_print(rcvbuf, n, sin_from.sin_port, 0);
+		bootp_print((struct bootp *)rcvbuf, n, sin_from.sin_port, 0);
 		putchar('\n');
 		/*
 		 * This no longer exits immediately after receiving
@@ -447,7 +444,7 @@ send_request(s)
 {
 	/* Print the request packet. */
 	printf("Sending to %s", inet_ntoa(sin_server.sin_addr));
-	bootp_print(sndbuf, snaplen, sin_from.sin_port, 0);
+	bootp_print((struct bootp *)sndbuf, snaplen, sin_from.sin_port, 0);
 	putchar('\n');
 
 	/* Send the request packet. */
