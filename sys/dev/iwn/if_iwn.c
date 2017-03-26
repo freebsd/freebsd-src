@@ -4739,9 +4739,19 @@ iwn_tx_cmd(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m,
 		    segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
+			/* XXX fix this */
+			/*
+			 * NB: Do not return error;
+			 * original mbuf does not exist anymore.
+			 */
 			device_printf(sc->sc_dev,
-			    "%s: can't map mbuf (error %d)\n", __func__, error);
-			return error;
+			    "%s: can't map mbuf (error %d)\n",
+			    __func__, error);
+			if_inc_counter(ni->ni_vap->iv_ifp,
+			    IFCOUNTER_OERRORS, 1);
+			ieee80211_free_node(ni);
+			m_freem(m);
+			return 0;
 		}
 	}
 
