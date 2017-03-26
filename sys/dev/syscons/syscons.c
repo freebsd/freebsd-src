@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/serial.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/power.h>
@@ -97,6 +98,7 @@ static	int		sc_console_unit = -1;
 static	int		sc_saver_keyb_only = 1;
 static  scr_stat    	*sc_console;
 static  struct consdev	*sc_consptr;
+static	void		*kernel_console_ts[MAXCPU];
 static	scr_stat	main_console;
 static	struct tty 	*main_devs[MAXCONS];
 
@@ -181,7 +183,7 @@ static void scshutdown(void *, int);
 static void scsuspend(void *);
 static void scresume(void *);
 static u_int scgetc(sc_softc_t *sc, u_int flags, struct sc_cnstate *sp);
-static void sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
+static void sc_puts(scr_stat *scp, u_char *buf, int len);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
 static void sccnupdate(scr_stat *scp);
@@ -218,6 +220,7 @@ static void update_font(scr_stat *);
 static int save_kbd_state(scr_stat *scp);
 static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
+static int sc_kattr(void);
 static timeout_t blink_screen;
 static struct tty *sc_alloc_tty(int, int);
 
@@ -394,7 +397,7 @@ sctty_outwakeup(struct tty *tp)
 	if (len == 0)
 	    break;
 	SC_VIDEO_LOCK(scp->sc);
-	sc_puts(scp, buf, len, 0);
+	sc_puts(scp, buf, len);
 	SC_VIDEO_UNLOCK(scp->sc);
     }
 }
@@ -541,7 +544,8 @@ sc_attach_unit(int unit, int flags)
     sc_softc_t *sc;
     scr_stat *scp;
     struct cdev *dev;
-    int vc;
+    void *oldts, *ts;
+    int i, vc;
 
     if (!vty_enabled(VTY_SC))
         return ENXIO;
@@ -556,8 +560,27 @@ sc_attach_unit(int unit, int flags)
 	/* assert(sc_console != NULL) */
 	flags |= SC_KERNEL_CONSOLE;
 	scmeminit(NULL);
+
+	scinit(unit, flags);
+
+	if (sc_console->tsw->te_size > 0) {
+	    /* assert(sc_console->ts != NULL); */
+	    oldts = sc_console->ts;
+	    for (i = 0; i <= mp_maxid; i++) {
+		ts = malloc(sc_console->tsw->te_size, M_DEVBUF, M_WAITOK);
+		bcopy(oldts, ts, sc_console->tsw->te_size);
+		sc_console->ts = ts;
+		(*sc_console->tsw->te_default_attr)(sc_console, sc_kattrtab[i],
+						    SC_KERNEL_CONS_REV_ATTR);
+		kernel_console_ts[i] = ts;
+	    }
+	    sc_console->ts = oldts;
+    	    (*sc_console->tsw->te_default_attr)(sc_console, SC_NORM_ATTR,
+						SC_NORM_REV_ATTR);
+	}
+    } else {
+	scinit(unit, flags);
     }
-    scinit(unit, flags);
 
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     sc->config = flags;
@@ -1885,6 +1908,7 @@ sc_cnputc(struct consdev *cd, int c)
     struct sc_cnstate st;
     u_char buf[1];
     scr_stat *scp = sc_console;
+    void *oldts, *ts;
 #ifndef SC_NO_HISTORY
 #if 0
     struct tty *tp;
@@ -1948,7 +1972,16 @@ sc_cnputc(struct consdev *cd, int c)
 	if (atomic_load_acq_int(&sc_cnputc_loghead) - sc_cnputc_logtail >=
 	    sizeof(sc_cnputc_log))
 	    continue;
-	sc_puts(scp, buf, 1, 1);
+	/* Console output has a per-CPU "input" state.  Switch for it. */
+	oldts = scp->ts;
+	ts = kernel_console_ts[PCPU_GET(cpuid)];
+	if (ts != NULL) {
+	    scp->ts = ts;
+	    (*scp->tsw->te_set_cursor)(scp, scp->xpos, scp->ypos);
+	}
+	sc_puts(scp, buf, 1);
+	scp->ts = oldts;
+	(*scp->tsw->te_set_cursor)(scp, scp->xpos, scp->ypos);
     }
 
     s = spltty();	/* block sckbdevent and scrn_timer */
@@ -2890,7 +2923,7 @@ exchange_scr(sc_softc_t *sc)
 }
 
 static void
-sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
+sc_puts(scr_stat *scp, u_char *buf, int len)
 {
 #ifdef DEV_SPLASH
     /* make screensaver happy */
@@ -2899,7 +2932,7 @@ sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 #endif
 
     if (scp->tsw)
-	(*scp->tsw->te_puts)(scp, buf, len, kernel);
+	(*scp->tsw->te_puts)(scp, buf, len);
     if (scp->sc->delayed_next_scr)
 	sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
 }
@@ -3135,7 +3168,8 @@ scinit(int unit, int flags)
 			(void *)sc_buffer, FALSE);
 	    if (sc_init_emulator(scp, SC_DFLT_TERM))
 		sc_init_emulator(scp, "*");
-	    (*scp->tsw->te_default_attr)(scp, SC_NORM_ATTR, SC_NORM_REV_ATTR);
+	    (*scp->tsw->te_default_attr)(scp, SC_KERNEL_CONS_ATTR,
+					 SC_KERNEL_CONS_REV_ATTR);
 	} else {
 	    /* assert(sc_malloc) */
 	    sc->dev = malloc(sizeof(struct tty *)*sc->vtys, M_DEVBUF,
@@ -4068,9 +4102,11 @@ sc_bell(scr_stat *scp, int pitch, int duration)
     }
 }
 
-int
+static int
 sc_kattr(void)
 {
+    if (sc_console == NULL)
+	return (SC_KERNEL_CONS_ATTR);
     return (sc_kattrtab[PCPU_GET(cpuid) % nitems(sc_kattrtab)]);
 }
 
