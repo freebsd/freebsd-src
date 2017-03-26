@@ -1614,7 +1614,7 @@ print_header(const char *file1, const char *file2)
 	char buf2[256];
 	char end1[10];
 	char end2[10];
-	struct tm *tm_ptr1, *tm_ptr2;
+	struct tm tm1, tm2, *tm_ptr1, *tm_ptr2;
 	int nsec1 = TIMESPEC_NS (stb1.st_mtime);
 	int nsec2 = TIMESPEC_NS (stb2.st_mtime);
 
@@ -1626,8 +1626,8 @@ print_header(const char *file1, const char *file2)
 
 	if (cflag)
 		time_format = "%c";
-	tm_ptr1 = localtime(&stb1.st_mtime);
-	tm_ptr2 = localtime(&stb2.st_mtime);
+	tm_ptr1 = localtime_r(&stb1.st_mtime, &tm1);
+	tm_ptr2 = localtime_r(&stb2.st_mtime, &tm2);
 	strftime(buf1, 256, time_format, tm_ptr1);
 	strftime(buf2, 256, time_format, tm_ptr2);
 	if (!cflag) {
