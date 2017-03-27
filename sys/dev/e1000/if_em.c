@@ -4341,16 +4341,17 @@ em_if_debug(if_ctx_t ctx)
 static void
 em_print_debug_info(struct adapter *adapter)
 {
-	device_t dev = adapter->dev;
+	device_t dev = iflib_get_dev(adapter->ctx);
+	struct ifnet *ifp = iflib_get_ifp(adapter->ctx);
 	struct tx_ring *txr = &adapter->tx_queues->txr;
 	struct rx_ring *rxr = &adapter->rx_queues->rxr;
 
-	if (if_getdrvflags(adapter->ifp) & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		printf("Interface is RUNNING ");
 	else
 		printf("Interface is NOT RUNNING\n");
 
-	if (if_getdrvflags(adapter->ifp) & IFF_DRV_OACTIVE)
+	if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE)
 		printf("and INACTIVE\n");
 	else
 		printf("and ACTIVE\n");
