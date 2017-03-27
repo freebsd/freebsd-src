@@ -352,7 +352,7 @@ struct tunable_uint64 {
 	uint64_t *var;
 };
 #define	TUNABLE_UINT64(path, var)				\
-	static struct tunable_ulong __CONCAT(__tunable_uint64_, __LINE__) = { \
+	static struct tunable_uint64 __CONCAT(__tunable_uint64_, __LINE__) = { \
 		(path),						\
 		(var),						\
 	};							\
