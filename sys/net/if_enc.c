@@ -423,3 +423,4 @@ static moduledata_t enc_mod = {
 };
 
 DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_enc, 1);
