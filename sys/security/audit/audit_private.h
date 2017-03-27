@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 1999-2009 Apple Inc.
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -151,6 +157,7 @@ union auditon_udata {
 	au_stat_t		au_stat;
 	au_fstat_t		au_fstat;
 	auditinfo_addr_t	au_kau_info;
+	au_evname_map_t		au_evname;
 };
 
 struct posix_ipc_perm {
@@ -368,6 +375,34 @@ extern int			audit_in_failure;
 #define	AUDIT_OPEN_FLAGS	(FWRITE | O_APPEND)
 #define	AUDIT_CLOSE_FLAGS	(FWRITE | O_APPEND)
 
+/*
+ * Audit event-to-name mapping structure, maintained in audit_bsm_klib.c.  It
+ * appears in this header so that the DTrace audit provider can dereference
+ * instances passed back in the au_evname_foreach() callbacks.  Safe access to
+ * its fields rquires holding ene_lock (after it is visible in the global
+ * table).
+ *
+ * Locking:
+ * (c) - Constant after inserted in the global table
+ * (l) - Protected by ene_lock
+ * (m) - Protected by evnamemap_lock (audit_bsm_klib.c)
+ * (M) - Writes protected by evnamemap_lock; reads unprotected.
+ */
+struct evname_elem {
+	au_event_t		ene_event;			/* (c) */
+	char			ene_name[EVNAMEMAP_NAME_SIZE];	/* (l) */
+	LIST_ENTRY(evname_elem)	ene_entry;			/* (m) */
+	struct mtx		ene_lock;
+};
+
+#define	EVNAME_LOCK(ene)	mtx_lock(&(ene)->ene_lock)
+#define	EVNAME_UNLOCK(ene)	mtx_unlock(&(ene)->ene_lock)
+
+/*
+ * Callback function typedef for the same.
+ */
+typedef	void	(*au_evnamemap_callback_t)(struct evname_elem *ene);
+
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -387,6 +422,10 @@ int		 au_preselect(au_event_t event, au_class_t class,
 void		 au_evclassmap_init(void);
 void		 au_evclassmap_insert(au_event_t event, au_class_t class);
 au_class_t	 au_event_class(au_event_t event);
+void		 au_evnamemap_init(void);
+void		 au_evnamemap_insert(au_event_t event, const char *name);
+void		 au_evnamemap_foreach(au_evnamemap_callback_t callback);
+int		 au_event_name(au_event_t event, char *name);
 au_event_t	 audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg);
 au_event_t	 audit_flags_and_error_to_openevent(int oflags, int error);
 au_event_t	 audit_flags_and_error_to_openatevent(int oflags, int error);

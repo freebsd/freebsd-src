@@ -1,6 +1,12 @@
 /*
  * Copyright (c) 1999-2009 Apple Inc.
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -67,6 +73,7 @@ kau_init(void)
 {
 
 	au_evclassmap_init();
+	au_evnamemap_init();
 }
 
 /*
