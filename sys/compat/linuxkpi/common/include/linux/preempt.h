@@ -1,8 +1,5 @@
 /*-
- * Copyright (c) 2010 Isilon Systems, Inc.
- * Copyright (c) 2010 iX Systems, Inc.
- * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,16 +25,13 @@
  *
  * $FreeBSD$
  */
-#ifndef _ASM_PGTABLE_H_
-#define	_ASM_PGTABLE_H_
 
-#include <linux/page.h>
+#ifndef _LINUX_PREEMPT_H_
+#define	_LINUX_PREEMPT_H_
 
-typedef unsigned long	pteval_t;
-typedef unsigned long	pmdval_t;
-typedef unsigned long	pudval_t;
-typedef unsigned long	pgdval_t;
-typedef unsigned long	pgprotval_t;
-typedef struct page *pgtable_t;
+#include <linux/list.h>
 
-#endif	/* _ASM_PGTABLE_H_ */
+#define	in_interrupt() \
+	(curthread->td_intr_nesting_level || curthread->td_critnest)
+
+#endif					/* _LINUX_PREEMPT_H_ */
