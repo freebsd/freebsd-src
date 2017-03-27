@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * Copyright (c) 2015 François Tigeot
  * Copyright (c) 2015 Matthew Dillon <dillon@backplane.com>
  * All rights reserved.
@@ -37,8 +37,56 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/mm_types.h>
+#include <linux/pfn.h>
+
+#include <asm/pgtable.h>
 
 #define	PAGE_ALIGN(x)	ALIGN(x, PAGE_SIZE)
+
+/*
+ * Make sure our LinuxKPI defined virtual memory flags don't conflict
+ * with the ones defined by FreeBSD:
+ */
+CTASSERT((VM_PROT_ALL & -(1 << 8)) == 0);
+
+#define	VM_PFNINTERNAL		(1 << 8)	/* FreeBSD private flag to vm_insert_pfn() */
+#define	VM_MIXEDMAP		(1 << 9)
+#define	VM_NORESERVE		(1 << 10)
+#define	VM_PFNMAP		(1 << 11)
+#define	VM_IO			(1 << 12)
+#define	VM_MAYWRITE		(1 << 13)
+#define	VM_DONTCOPY		(1 << 14)
+#define	VM_DONTEXPAND		(1 << 15)
+#define	VM_DONTDUMP		(1 << 16)
+
+#define	VMA_MAX_PREFAULT_RECORD	1
+
+#define	FOLL_WRITE		(1 << 0)
+#define	FOLL_FORCE		(1 << 1)
+
+#define	VM_FAULT_OOM		(1 << 0)
+#define	VM_FAULT_SIGBUS		(1 << 1)
+#define	VM_FAULT_MAJOR		(1 << 2)
+#define	VM_FAULT_WRITE		(1 << 3)
+#define	VM_FAULT_HWPOISON	(1 << 4)
+#define	VM_FAULT_HWPOISON_LARGE	(1 << 5)
+#define	VM_FAULT_SIGSEGV	(1 << 6)
+#define	VM_FAULT_NOPAGE		(1 << 7)
+#define	VM_FAULT_LOCKED		(1 << 8)
+#define	VM_FAULT_RETRY		(1 << 9)
+#define	VM_FAULT_FALLBACK	(1 << 10)
+
+#define	FAULT_FLAG_WRITE	(1 << 0)
+#define	FAULT_FLAG_MKWRITE	(1 << 1)
+#define	FAULT_FLAG_ALLOW_RETRY	(1 << 2)
+#define	FAULT_FLAG_RETRY_NOWAIT	(1 << 3)
+#define	FAULT_FLAG_KILLABLE	(1 << 4)
+#define	FAULT_FLAG_TRIED	(1 << 5)
+#define	FAULT_FLAG_USER		(1 << 6)
+#define	FAULT_FLAG_REMOTE	(1 << 7)
+#define	FAULT_FLAG_INSTRUCTION	(1 << 8)
+
+typedef int (*pte_fn_t)(pte_t *, pgtable_t, unsigned long addr, void *data);
 
 struct vm_area_struct {
 	vm_offset_t	vm_start;
@@ -47,6 +95,19 @@ struct vm_area_struct {
 	vm_paddr_t	vm_pfn;		/* PFN For mmap. */
 	vm_size_t	vm_len;		/* length for mmap. */
 	vm_memattr_t	vm_page_prot;
+};
+
+struct vm_fault {
+	unsigned int flags;
+	pgoff_t	pgoff;
+	void   *virtual_address;	/* user-space address */
+	struct page *page;
+};
+
+struct vm_operations_struct {
+	void    (*open) (struct vm_area_struct *);
+	void    (*close) (struct vm_area_struct *);
+	int     (*fault) (struct vm_area_struct *, struct vm_fault *);
 };
 
 /*
@@ -70,12 +131,11 @@ get_order(unsigned long size)
 static inline void *
 lowmem_page_address(struct page *page)
 {
-
-	return page_address(page);
+	return (page_address(page));
 }
 
 /*
- * This only works via mmap ops.
+ * This only works via memory map operations.
  */
 static inline int
 io_remap_pfn_range(struct vm_area_struct *vma,
@@ -87,6 +147,27 @@ io_remap_pfn_range(struct vm_area_struct *vma,
 	vma->vm_len = size;
 
 	return (0);
+}
+
+static inline int
+apply_to_page_range(struct mm_struct *mm, unsigned long address,
+    unsigned long size, pte_fn_t fn, void *data)
+{
+	return (-ENOTSUP);
+}
+
+static inline int
+zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+    unsigned long size)
+{
+	return (-ENOTSUP);
+}
+
+static inline int
+remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
+    unsigned long pfn, unsigned long size, pgprot_t prot)
+{
+	return (-ENOTSUP);
 }
 
 static inline unsigned long
@@ -104,9 +185,79 @@ set_page_dirty(struct vm_page *page)
 }
 
 static inline void
-get_page(struct vm_page *page)
+set_page_dirty_lock(struct vm_page *page)
 {
-	vm_page_hold(page);
+	vm_page_lock(page);
+	vm_page_dirty(page);
+	vm_page_unlock(page);
 }
 
-#endif	/* _LINUX_MM_H_ */
+static inline void
+mark_page_accessed(struct vm_page *page)
+{
+	vm_page_reference(page);
+}
+
+static inline void
+get_page(struct vm_page *page)
+{
+	vm_page_lock(page);
+	vm_page_hold(page);
+	vm_page_wire(page);
+	vm_page_unlock(page);
+}
+
+extern long
+get_user_pages(unsigned long start, unsigned long nr_pages,
+    int gup_flags, struct page **,
+    struct vm_area_struct **);
+
+extern int
+__get_user_pages_fast(unsigned long start, int nr_pages, int write,
+    struct page **);
+
+extern long
+get_user_pages_remote(struct task_struct *, struct mm_struct *,
+    unsigned long start, unsigned long nr_pages,
+    int gup_flags, struct page **,
+    struct vm_area_struct **);
+
+static inline void
+put_page(struct vm_page *page)
+{
+	vm_page_lock(page);
+	vm_page_unwire(page, PQ_ACTIVE);
+	vm_page_unhold(page);
+	vm_page_unlock(page);
+}
+
+#define	copy_highpage(to, from) pmap_copy_page(from, to)
+
+static inline pgprot_t
+vm_get_page_prot(unsigned long vm_flags)
+{
+	return (vm_flags & VM_PROT_ALL);
+}
+
+extern int vm_insert_mixed(struct vm_area_struct *, unsigned long addr, pfn_t pfn);
+
+extern int
+vm_insert_pfn(struct vm_area_struct *, unsigned long addr,
+    unsigned long pfn);
+
+extern int
+vm_insert_pfn_prot(struct vm_area_struct *, unsigned long addr,
+    unsigned long pfn, pgprot_t pgprot);
+
+static inline vm_page_t
+vmalloc_to_page(const void *addr)
+{
+	vm_paddr_t paddr;
+
+	paddr = pmap_kextract((vm_offset_t)addr);
+	return (PHYS_TO_VM_PAGE(paddr));
+}
+
+extern int is_vmalloc_addr(const void *addr);
+
+#endif					/* _LINUX_MM_H_ */
