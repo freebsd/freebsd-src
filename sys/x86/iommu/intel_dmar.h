@@ -290,6 +290,8 @@ int dmar_enable_ir(struct dmar_unit *unit);
 int dmar_disable_ir(struct dmar_unit *unit);
 bool dmar_barrier_enter(struct dmar_unit *dmar, u_int barrier_id);
 void dmar_barrier_exit(struct dmar_unit *dmar, u_int barrier_id);
+uint64_t dmar_get_timeout(void);
+void dmar_update_timeout(uint64_t newval);
 
 int dmar_fault_intr(void *arg);
 void dmar_enable_fault_intr(struct dmar_unit *unit);
@@ -505,6 +507,36 @@ dmar_test_boundary(dmar_gaddr_t start, dmar_gaddr_t size,
 	if (boundary == 0)
 		return (true);
 	return (start + size <= ((start + boundary) & ~(boundary - 1)));
+}
+
+extern struct timespec dmar_hw_timeout;
+
+#define	DMAR_WAIT_UNTIL(cond)					\
+{								\
+	struct timespec last, curr;				\
+	bool forever;						\
+								\
+	if (dmar_hw_timeout.tv_sec == 0 &&			\
+	    dmar_hw_timeout.tv_nsec == 0) {			\
+		forever = true;					\
+	} else {						\
+		forever = false;				\
+		nanouptime(&curr);				\
+		last = curr;					\
+		timespecadd(&last, &dmar_hw_timeout);		\
+	}							\
+	for (;;) {						\
+		if (cond) {					\
+			error = 0;				\
+			break;					\
+		}						\
+		nanouptime(&curr);				\
+		if (!forever && timespeccmp(&last, &curr, <)) {	\
+			error = ETIMEDOUT;			\
+			break;					\
+		}						\
+		cpu_spinwait();					\
+	}							\
 }
 
 #ifdef INVARIANTS
