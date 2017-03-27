@@ -3040,7 +3040,7 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 	g_topology_assert_not();
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	if (sc->sc_provider_open != 0 || SCHEDULER_STOPPED()) {
+	if (sc->sc_provider_open != 0) {
 		switch (how) {
 		case G_MIRROR_DESTROY_SOFT:
 			G_MIRROR_DEBUG(1,
@@ -3373,6 +3373,9 @@ g_mirror_shutdown_post_sync(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 	struct g_mirror_softc *sc;
 	int error;
+
+	if (panicstr != NULL)
+		return;
 
 	mp = arg;
 	g_topology_lock();
