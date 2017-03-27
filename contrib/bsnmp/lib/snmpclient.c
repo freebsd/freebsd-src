@@ -947,6 +947,8 @@ open_client_udp(const char *host, const char *port)
 			if ((res = res->ai_next) == NULL) {
 				seterr(&snmp_client, "%s", strerror(errno));
 				freeaddrinfo(res0);
+				(void)close(snmp_client.fd);
+				snmp_client.fd = -1;
 				return (-1);
 			}
 		} else
@@ -1066,13 +1068,13 @@ snmp_open(const char *host, const char *port, const char *readcomm,
 	switch (snmp_client.trans) {
 
 	  case SNMP_TRANS_UDP:
-		if (open_client_udp(host, port))
+		if (open_client_udp(host, port) != 0)
 			return (-1);
 		break;
 
 	  case SNMP_TRANS_LOC_DGRAM:
 	  case SNMP_TRANS_LOC_STREAM:
-		if (open_client_local(host))
+		if (open_client_local(host) != 0)
 			return (-1);
 		break;
 
