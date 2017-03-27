@@ -50,6 +50,22 @@
 #define LK
 #endif
 
+	.text
+	SUPERALIGN_TEXT
+	/* End Of Interrupt to APIC */
+as_lapic_eoi:
+	cmpl	$0,x2apic_mode
+	jne	1f
+	movq	lapic_map,%rax
+	movl	$0,LA_EOI(%rax)
+	ret
+1:
+	movl	$MSR_APIC_EOI,%ecx
+	xorl	%eax,%eax
+	xorl	%edx,%edx
+	wrmsr
+	ret
+
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
  * each interrupt source, we use one entry point for each 32-bit word
@@ -166,7 +182,7 @@ IDTVEC(xen_intr_upcall)
 
 	SUPERALIGN_TEXT
 invltlb_ret:
-	call	native_lapic_eoi
+	call	as_lapic_eoi
 	POP_FRAME
 	jmp	doreti_iret
 
@@ -175,21 +191,18 @@ IDTVEC(invltlb)
 	PUSH_FRAME
 
 	call	invltlb_handler
-	movl	$IPI_INVLTLB, %edi
 	jmp	invltlb_ret
 
 IDTVEC(invltlb_pcid)
 	PUSH_FRAME
 
 	call	invltlb_pcid_handler
-	movl	$IPI_INVLTLB, %edi
 	jmp	invltlb_ret
 
 IDTVEC(invltlb_invpcid)
 	PUSH_FRAME
 
 	call	invltlb_invpcid_handler
-	movl	$IPI_INVLTLB, %edi
 	jmp	invltlb_ret
 
 /*
@@ -202,7 +215,6 @@ IDTVEC(invlpg)
 	PUSH_FRAME
 
 	call	invlpg_handler
-	movl	$IPI_INVLPG, %edi
 	jmp	invltlb_ret
 
 /*
@@ -214,7 +226,6 @@ IDTVEC(invlrng)
 	PUSH_FRAME
 
 	call	invlrng_handler
-	movl	$IPI_INVLRNG, %edi
 	jmp	invltlb_ret
 
 /*
@@ -226,7 +237,6 @@ IDTVEC(invlcache)
 	PUSH_FRAME
 
 	call	invlcache_handler
-	movl	$IPI_INVLCACHE, %edi
 	jmp	invltlb_ret
 
 /*
@@ -237,8 +247,7 @@ IDTVEC(invlcache)
 IDTVEC(ipi_intr_bitmap_handler)		
 	PUSH_FRAME
 
-	movl	$IPI_BITMAP_VECTOR, %edi
-	call	native_lapic_eoi
+	call	as_lapic_eoi
 	
 	FAKE_MCOUNT(TF_RIP(%rsp))
 
@@ -254,8 +263,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 IDTVEC(cpustop)
 	PUSH_FRAME
 
-	movl	$IPI_STOP, %edi
-	call	native_lapic_eoi
+	call	as_lapic_eoi
 
 	call	cpustop_handler
 	jmp	doreti
@@ -269,8 +277,7 @@ IDTVEC(cpususpend)
 	PUSH_FRAME
 
 	call	cpususpend_handler
-	movl	$IPI_SUSPEND, %edi
-	call	native_lapic_eoi
+	call	as_lapic_eoi
 	jmp	doreti
 
 /*
@@ -288,22 +295,37 @@ IDTVEC(rendezvous)
 	incq	(%rax)
 #endif
 	call	smp_rendezvous_action
-	movl	$IPI_RENDEZVOUS, %edi
-	call	native_lapic_eoi
+	call	as_lapic_eoi
 	jmp	doreti
 
 /*
  * IPI handler whose purpose is to interrupt the CPU with minimum overhead.
  * This is used by bhyve to force a host cpu executing in guest context to
  * trap into the hypervisor.
+ *
+ * This handler is different from other IPI handlers in the following aspects:
+ *
+ * 1. It doesn't push a trapframe on the stack.
+ *
+ * This implies that a DDB backtrace involving 'justreturn' will skip the
+ * function that was interrupted by this handler.
+ *
+ * 2. It doesn't 'swapgs' when userspace is interrupted.
+ *
+ * The 'justreturn' handler does not access any pcpu data so it is not an
+ * issue. Moreover the 'justreturn' handler can only be interrupted by an NMI
+ * whose handler already doesn't trust GS.base when kernel code is interrupted.
  */
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(justreturn)
-	PUSH_FRAME
-	movl	vmm_ipinum, %edi
-	call	native_lapic_eoi
-	POP_FRAME
+	pushq	%rax
+	pushq	%rcx
+	pushq	%rdx
+	call	as_lapic_eoi
+	popq	%rdx
+	popq	%rcx
+	popq	%rax
 	jmp	doreti_iret
 
 #endif /* SMP */

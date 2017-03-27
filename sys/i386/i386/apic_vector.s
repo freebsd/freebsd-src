@@ -44,6 +44,22 @@
 
 #include "assym.s"
 
+	.text
+	SUPERALIGN_TEXT
+	/* End Of Interrupt to APIC */
+as_lapic_eoi:
+	cmpl	$0,x2apic_mode
+	jne	1f
+	movl	lapic_map,%eax
+	movl	$0,LA_EOI(%eax)
+	ret
+1:
+	movl	$MSR_APIC_EOI,%ecx
+	xorl	%eax,%eax
+	xorl	%edx,%edx
+	wrmsr
+	ret
+
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
  * each interrupt source, we use one entry point for each 32-bit word
@@ -172,8 +188,7 @@ IDTVEC(xen_intr_upcall)
 	.text
 	SUPERALIGN_TEXT
 invltlb_ret:
-	call	native_lapic_eoi
-	add	$4, %esp
+	call	as_lapic_eoi
 	POP_FRAME
 	iret
 
@@ -185,7 +200,6 @@ IDTVEC(invltlb)
 
 	call	invltlb_handler
 
-	pushl	$IPI_INVLTLB
 	jmp	invltlb_ret
 
 /*
@@ -200,7 +214,6 @@ IDTVEC(invlpg)
 
 	call	invlpg_handler
 
-	pushl	$IPI_INVLPG
 	jmp	invltlb_ret
 
 /*
@@ -215,7 +228,6 @@ IDTVEC(invlrng)
 
 	call	invlrng_handler
 
-	pushl	$IPI_INVLRNG
 	jmp	invltlb_ret
 
 /*
@@ -230,7 +242,6 @@ IDTVEC(invlcache)
 
 	call	invlcache_handler
 
-	pushl	$IPI_INVLCACHE
 	jmp	invltlb_ret
 
 /*
@@ -243,10 +254,8 @@ IDTVEC(ipi_intr_bitmap_handler)
 	SET_KERNEL_SREGS
 	cld
 
-	pushl	$IPI_BITMAP_VECTOR
-	call	native_lapic_eoi
-	add	$4, %esp
-
+	call	as_lapic_eoi
+	
 	FAKE_MCOUNT(TF_EIP(%esp))
 
 	call	ipi_bitmap_handler
@@ -263,9 +272,7 @@ IDTVEC(cpustop)
 	SET_KERNEL_SREGS
 	cld
 
-	pushl	$IPI_STOP
-	call	native_lapic_eoi
-	add	$4, %esp
+	call	as_lapic_eoi
 	call	cpustop_handler
 
 	POP_FRAME
@@ -281,9 +288,7 @@ IDTVEC(cpususpend)
 	SET_KERNEL_SREGS
 	cld
 
-	pushl	$IPI_SUSPEND
-	call	native_lapic_eoi
-	add	$4, %esp
+	call	as_lapic_eoi
 	call	cpususpend_handler
 
 	POP_FRAME
@@ -308,9 +313,7 @@ IDTVEC(rendezvous)
 #endif
 	call	smp_rendezvous_action
 
-	pushl	$IPI_RENDEZVOUS
-	call	native_lapic_eoi
-	add	$4, %esp
+	call	as_lapic_eoi
 	POP_FRAME
 	iret
 	

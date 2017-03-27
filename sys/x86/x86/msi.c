@@ -177,18 +177,16 @@ msi_enable_source(struct intsrc *isrc)
 static void
 msi_disable_source(struct intsrc *isrc, int eoi)
 {
-	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
 	if (eoi == PIC_EOI)
-		lapic_eoi(msi->msi_vector);
+		lapic_eoi();
 }
 
 static void
 msi_eoi_source(struct intsrc *isrc)
 {
-	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
-	lapic_eoi(msi->msi_vector);
+	lapic_eoi();
 }
 
 static void

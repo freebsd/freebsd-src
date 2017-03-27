@@ -151,10 +151,10 @@ _ioapic_eoi_source(struct intsrc *isrc, int locked)
 	volatile uint32_t *apic_eoi;
 	uint32_t low1;
 
-	src = (struct ioapic_intsrc *)isrc;
-	lapic_eoi(src->io_vector);
+	lapic_eoi();
 	if (!lapic_eoi_suppression)
 		return;
+	src = (struct ioapic_intsrc *)isrc;
 	if (src->io_edgetrigger)
 		return;
 	io = (struct ioapic *)isrc->is_pic;
