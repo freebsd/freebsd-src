@@ -16,7 +16,5 @@ mips/atheros/ar531x/ar5312_chip.c		standard
 mips/atheros/ar71xx_bus_space_reversed.c	standard
 mips/mips/tick.c				standard
 
-dev/etherswitch/e6000sw/e6060sw.c		optional etherswitch
-
 # Non Intrng
 mips/mips/intr_machdep.c			optional !intrng
