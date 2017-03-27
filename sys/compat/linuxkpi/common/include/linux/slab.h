@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/limits.h>
 #include <vm/uma.h>
 
 #include <linux/types.h>
@@ -103,6 +104,12 @@ static inline void *
 __vmalloc(size_t size, gfp_t flags, int other)
 {
 	return (malloc(size, M_KMALLOC, linux_check_m_flags(flags)));
+}
+
+static inline void *
+vmalloc_32(size_t size)
+{
+	return (contigmalloc(size, M_KMALLOC, M_WAITOK, 0, UINT_MAX, 1, 1));
 }
 
 static inline void *
