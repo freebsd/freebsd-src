@@ -33,8 +33,6 @@
 #error "no user-serviceable parts inside"
 #endif
 
-extern int vmm_ipinum;
-
 struct xsave_limits {
 	int		xsave_enabled;
 	uint64_t	xcr0_allowed;
