@@ -227,11 +227,10 @@ add_deterministic_cache(int type, int level, int share_count)
  * Determine topology of processing units and caches for AMD CPUs.
  * See:
  *  - AMD CPUID Specification (Publication # 25481)
- *  - BKDG For AMD Family 10h Processors (Publication # 31116), section 2.15
  *  - BKDG for AMD NPT Family 0Fh Processors (Publication # 32559)
- * XXX At the moment the code does not recognize grouping of AMD CMT threads,
- * if supported, into cores, so each thread is treated as being in its own
- * core.  In other words, each logical CPU is considered to be a core.
+ *  - BKDG For AMD Family 10h Processors (Publication # 31116)
+ *  - BKDG For AMD Family 15h Models 00h-0Fh Processors (Publication # 42301)
+ *  - BKDG For AMD Family 16h Models 00h-0Fh Processors (Publication # 48751)
  */
 static void
 topo_probe_amd(void)
