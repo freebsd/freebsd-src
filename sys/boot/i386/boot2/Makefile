@@ -91,10 +91,18 @@ boot2.o: boot2.s
 
 SRCS=	boot2.c boot2.h
 
+# Gcc (4.2.1 at least) benefits from removing the forced alignment
+# clang doesn't. Make the removal as specific as possible to avoid
+# false positives (like path names with odd names for debugging info).
+# In the past, gcc benefited from nop removal, but not in 4.2.1.
+# Think of this as a poor-man's peephole optimizer for gcc 4.2.1
 boot2.s: boot2.c boot2.h ${.CURDIR}/../../common/ufsread.c
 	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.CURDIR}/boot2.c
-	sed -e '/align/d' -e '/nop/d' < boot2.s.tmp > boot2.s
-	rm -f boot2.s.tmp
+.if ${COMPILER_TYPE} == "gcc"
+	sed -e '/\.align 4/d' < boot2.s.tmp > boot2.s
+.else
+	cp boot2.s.tmp boot2.s
+.endif
 
 boot2.h: boot1.out
 	${NM} -t d ${.ALLSRC} | awk '/([0-9])+ T xread/ \
