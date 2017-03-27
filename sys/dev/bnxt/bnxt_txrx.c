@@ -452,7 +452,7 @@ bnxt_set_rsstype(if_rxd_info_t ri, uint8_t rss_hash_type)
 		ri->iri_rsstype = M_HASHTYPE_RSS_IPV6;
 		break;
 	default:
-		ri->iri_rsstype = M_HASHTYPE_OPAQUE;
+		ri->iri_rsstype = M_HASHTYPE_OPAQUE_HASH;
 		break;
 	}
 }
