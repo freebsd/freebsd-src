@@ -52,7 +52,6 @@ static const char prom3[] = "Chan %d [%u] PortID 0x%06x Departed because of %s";
 static void isp_freeze_loopdown(ispsoftc_t *, int);
 static void isp_loop_changed(ispsoftc_t *isp, int chan);
 static d_ioctl_t ispioctl;
-static void isp_intr_enable(void *);
 static void isp_cam_async(void *, uint32_t, struct cam_path *, void *);
 static void isp_poll(struct cam_sim *);
 static timeout_t isp_watchdog;
