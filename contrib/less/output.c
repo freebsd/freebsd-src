@@ -379,7 +379,7 @@ putchr(int c)
  * Output a string.
  */
 	public void
-putstr(char *s)
+putstr(constant char *s)
 {
 	while (*s != '\0')
 		putchr(*s++);
