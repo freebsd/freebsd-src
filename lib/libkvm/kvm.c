@@ -534,6 +534,10 @@ kvm_close(kvm_t *kd)
 {
 	int error = 0;
 
+	if (kd == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (kd->vmst != NULL)
 		kd->arch->ka_freevtop(kd);
 	if (kd->pmfd >= 0)
@@ -552,7 +556,7 @@ kvm_close(kvm_t *kd)
 		free((void *)kd->argv);
 	free((void *)kd);
 
-	return (0);
+	return (error);
 }
 
 /*
