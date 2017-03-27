@@ -7,6 +7,7 @@ SHLIB_MAJOR?=	0
 LIBADD+=	pthread
 
 SRCS=	sqlite3.c
+INCS=	sqlite3.h sqlite3ext.h
 
 SQLITE=	${SRCTOP}/contrib/sqlite3
 .PATH:	${SQLITE}

@@ -13,6 +13,10 @@
         private
             bsdstat
             ..
+            event
+            ..
+            sqlite3
+            ..
             ucl
             ..
         ..
