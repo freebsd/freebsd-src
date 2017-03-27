@@ -37,15 +37,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/capsicum.h>
+#include <sys/callout.h>
+#include <sys/ioctl.h>
 #include <sys/linker.h>
 #include <sys/queue.h>
-#include <sys/callout.h>
 #include <sys/sbuf.h>
-#include <sys/capsicum.h>
+#include <sys/stat.h>
 #include <assert.h>
 #include <bsdxml.h>
 #include <ctype.h>
