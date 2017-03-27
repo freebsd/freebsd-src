@@ -491,11 +491,11 @@ teken_state_numbers(teken_t *t, teken_char_t c)
  *   be twice as large as green in (0, 1, 2).
  */
 static const teken_color_t teken_256to8tab[] = {
-	/* xterm-16+ 8 dark colors: */
-	0, r, g, y, b, m, c, w,
+	/* xterm normal colors: */
+	k, r, g, y, b, m, c, w,
 
-	/* xterm-16+ 8 light colors: */
-	0, R, G, Y, B, M, C, W,
+	/* xterm bright colors: */
+	k, r, g, y, b, m, c, w,
 
 	/* Red0 submap. */
 	k, b, b, b, b, b,
@@ -559,11 +559,11 @@ static const teken_color_t teken_256to8tab[] = {
  * used for different fine tuning of the tables.
  */
 static const teken_color_t teken_256to16tab[] = {
-	/* xterm-16+ 8 dark colors: */
-	0, r, g, y, b, m, c, w,
+	/* xterm normal colors: */
+	k, r, g, y, b, m, c, w,
 
-	/* xterm-16+ 8 light colors: */
-	0, R, G, Y, B, M, C, W,
+	/* xterm bright colors: */
+	K, R, G, Y, B, M, C, W,
 
 	/* Red0 submap. */
 	k, b, b, b, b, b,
