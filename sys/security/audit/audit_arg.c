@@ -708,7 +708,8 @@ audit_arg_file(struct proc *p, struct file *fp)
  * Store a path as given by the user process for auditing into the audit
  * record stored on the user thread.  This function will allocate the memory
  * to store the path info if not already available.  This memory will be
- * freed when the audit record is freed.
+ * freed when the audit record is freed.  The path is canonlicalised with
+ * respect to the thread and directory descriptor passed.
  */
 static void
 audit_arg_upath(struct thread *td, int dirfd, char *upath, char **pathp)
