@@ -83,9 +83,6 @@ __FBSDID("$FreeBSD$");
 #define	GSEL_APIC	GSEL(GCODE_SEL, SEL_KPL)
 #endif
 
-#define	INTEL_SEOI	1
-#define	AMD_SEOI	2
-
 /* Sanity checks on IDT vectors. */
 CTASSERT(APIC_IO_INTS + APIC_NUM_IOINTS == APIC_TIMER_INT);
 CTASSERT(APIC_TIMER_INT < APIC_LOCAL_INTS);
@@ -186,10 +183,6 @@ static u_long lapic_timer_divisor, count_freq;
 static struct eventtimer lapic_et;
 #ifdef SMP
 static uint64_t lapic_ipi_wait_mult;
-#endif
-#ifdef __amd64__
-/* IPI vector used for VMM VCPU notifications. */
-int vmm_ipinum;
 #endif
 
 SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
@@ -319,6 +312,7 @@ static void	native_lapic_xapic_mode(void);
 static void	native_lapic_setup(int boot);
 static void	native_lapic_dump(const char *str);
 static void	native_lapic_disable(void);
+static void	native_lapic_eoi(void);
 static int	native_lapic_id(void);
 static int	native_lapic_intr_pending(u_int vector);
 static u_int	native_apic_cpuid(u_int apic_id);
@@ -453,31 +447,6 @@ elvt_mode(struct lapic *la, u_int idx, uint32_t value)
 	return (lvt_mode_impl(la, elvt, idx, value));
 }
 
-static inline uint32_t
-amd_read_ext_features(void)
-{
-	uint32_t version;
-
-	if (cpu_vendor_id != CPU_VENDOR_AMD)
-		return (0);
-	version = lapic_read32(LAPIC_VERSION);
-	if ((version & APIC_VER_AMD_EXT_SPACE) != 0)
-		return (lapic_read32(LAPIC_EXT_FEATURES));
-	return (0);
-}
-
-static inline uint32_t
-amd_read_elvt_count(void)
-{
-	uint32_t extf;
-	uint32_t count;
-
-	extf = amd_read_ext_features();
-	count = (extf & APIC_EXTF_ELVT_MASK) >> APIC_EXTF_ELVT_SHIFT;
-	count = min(count, APIC_ELVT_MAX + 1);
-	return (count);
-}
-
 /*
  * Map the local APIC and setup necessary interrupt vectors.
  */
@@ -487,9 +456,9 @@ native_lapic_init(vm_paddr_t addr)
 #ifdef SMP
 	uint64_t r, r1, r2, rx;
 #endif
-	uint32_t extf, ver;
+	uint32_t ver;
 	u_int regs[4];
-	int i, arat, seoi_enable;
+	int i, arat;
 
 	/*
 	 * Enable x2APIC mode if possible. Map the local APIC
@@ -577,27 +546,16 @@ native_lapic_init(vm_paddr_t addr)
 	 */
 	ver = lapic_read32(LAPIC_VERSION);
 	if ((ver & APIC_VER_EOI_SUPPRESSION) != 0) {
-		lapic_eoi_suppression = INTEL_SEOI;
-	} else {
-		extf = amd_read_ext_features();
-		if ((extf & APIC_EXTF_SEIO_CAP) != 0)
-			lapic_eoi_suppression = AMD_SEOI;
-	}
-	if (lapic_eoi_suppression != 0) {
-		seoi_enable = 1;
+		lapic_eoi_suppression = 1;
 		if (vm_guest == VM_GUEST_KVM) {
 			if (bootverbose)
 				printf(
 		       "KVM -- disabling lapic eoi suppression\n");
-			seoi_enable = 0;
+			lapic_eoi_suppression = 0;
 		}
 		TUNABLE_INT_FETCH("hw.lapic_eoi_suppression",
-		    &seoi_enable);
-		if (seoi_enable == 0)
-			lapic_eoi_suppression = 0;
+		    &lapic_eoi_suppression);
 	}
-	if (lapic_eoi_suppression != 0)
-		printf("LAPIC specific EOI enabled\n");
 
 #ifdef SMP
 #define	LOOPS	100000
@@ -684,6 +642,32 @@ native_lapic_create(u_int apic_id, int boot_cpu)
 #endif
 }
 
+static inline uint32_t
+amd_read_ext_features(void)
+{
+	uint32_t version;
+
+	if (cpu_vendor_id != CPU_VENDOR_AMD)
+		return (0);
+	version = lapic_read32(LAPIC_VERSION);
+	if ((version & APIC_VER_AMD_EXT_SPACE) != 0)
+		return (lapic_read32(LAPIC_EXT_FEATURES));
+	else
+		return (0);
+}
+
+static inline uint32_t
+amd_read_elvt_count(void)
+{
+	uint32_t extf;
+	uint32_t count;
+
+	extf = amd_read_ext_features();
+	count = (extf & APIC_EXTF_ELVT_MASK) >> APIC_EXTF_ELVT_SHIFT;
+	count = min(count, APIC_ELVT_MAX + 1);
+	return (count);
+}
+
 /*
  * Dump contents of local APIC registers
  */
@@ -718,11 +702,9 @@ native_lapic_dump(const char* str)
 	extf = amd_read_ext_features();
 	if (extf != 0) {
 		printf("   AMD ext features: 0x%08x\n", extf);
-		extf = lapic_read32(LAPIC_EXT_CTRL);
-		printf("    AMD ext control: 0x%08x\n", extf);
 		elvt_count = amd_read_elvt_count();
 		for (i = 0; i < elvt_count; i++)
-			printf("          AMD elvt%d: 0x%08x\n", i,
+			printf("   AMD elvt%d: 0x%08x\n", i,
 			    lapic_read32(LAPIC_EXT_LVT0 + i));
 	}
 }
@@ -1040,15 +1022,9 @@ lapic_enable(void)
 	value = lapic_read32(LAPIC_SVR);
 	value &= ~(APIC_SVR_VECTOR | APIC_SVR_FOCUS);
 	value |= APIC_SVR_FEN | APIC_SVR_SWEN | APIC_SPURIOUS_INT;
-	if (lapic_eoi_suppression == INTEL_SEOI)
+	if (lapic_eoi_suppression)
 		value |= APIC_SVR_EOI_SUPPRESSION;
 	lapic_write32(LAPIC_SVR, value);
-
-	if (lapic_eoi_suppression == AMD_SEOI) {
-		value = lapic_read32(LAPIC_EXT_CTRL);
-		value |= APIC_EXTF_SEIO_CAP;
-		lapic_write32(LAPIC_EXT_CTRL, value);
-	}
 }
 
 /* Reset the local APIC on the BSP during resume. */
@@ -1251,14 +1227,11 @@ lapic_set_tpr(u_int vector)
 #endif
 }
 
-void
-native_lapic_eoi(u_int vector)
+static void
+native_lapic_eoi(void)
 {
 
-	if (lapic_eoi_suppression == AMD_SEOI)
-		lapic_write32(LAPIC_EXT_SEOI, vector);
-	else
-		lapic_write32_nofence(LAPIC_EOI, 0);
+	lapic_write32_nofence(LAPIC_EOI, 0);
 }
 
 void
@@ -1279,7 +1252,7 @@ lapic_handle_timer(struct trapframe *frame)
 	struct thread *td;
 
 	/* Send EOI first thing. */
-	lapic_eoi(APIC_TIMER_INT);
+	lapic_eoi();
 
 #if defined(SMP) && !defined(SCHED_ULE)
 	/*
@@ -1400,7 +1373,7 @@ void
 lapic_handle_cmc(void)
 {
 
-	lapic_eoi(APIC_CMC_INT);
+	lapic_eoi();
 	cmc_intr();
 }
 
@@ -1474,7 +1447,7 @@ lapic_handle_error(void)
 	esr = lapic_read32(LAPIC_ESR);
 
 	printf("CPU%d: local APIC error 0x%x\n", PCPU_GET(cpuid), esr);
-	lapic_eoi(APIC_ERROR_INT);
+	lapic_eoi();
 }
 
 static u_int
