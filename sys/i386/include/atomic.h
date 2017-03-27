@@ -182,7 +182,7 @@ struct __hack
  *
  * Returns 0 on failure, non-zero on success.
  */
-#define	ATOMIC_CMPSET(TYPE)				\
+#define	ATOMIC_CMPSET(TYPE, CONS)			\
 static __inline int					\
 atomic_cmpset_##TYPE(volatile u_##TYPE *dst, u_##TYPE expect, u_##TYPE src) \
 {							\
@@ -196,7 +196,7 @@ atomic_cmpset_##TYPE(volatile u_##TYPE *dst, u_##TYPE expect, u_##TYPE src) \
 	: "=q" (res),			/* 0 */		\
 	  "+m" (*dst),			/* 1 */		\
 	  "+a" (expect)			/* 2 */		\
-	: "r" (src)			/* 3 */		\
+	: CONS (src)			/* 3 */		\
 	: "memory", "cc");				\
 	return (res);					\
 }							\
@@ -214,14 +214,14 @@ atomic_fcmpset_##TYPE(volatile u_##TYPE *dst, u_##TYPE *expect, u_##TYPE src) \
 	: "=q" (res),			/* 0 */		\
 	  "+m" (*dst),			/* 1 */		\
 	  "+a" (*expect)		/* 2 */		\
-	: "r" (src)			/* 3 */		\
+	: CONS (src)			/* 3 */		\
 	: "memory", "cc");				\
 	return (res);					\
 }
 
-ATOMIC_CMPSET(char);
-ATOMIC_CMPSET(short);
-ATOMIC_CMPSET(int);
+ATOMIC_CMPSET(char, "q");
+ATOMIC_CMPSET(short, "r");
+ATOMIC_CMPSET(int, "r");
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
