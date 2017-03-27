@@ -255,6 +255,22 @@ topo_probe_amd(void)
 		pkg_id_shift =
 		    mask_width((cpu_procinfo2 & AMDID_CMP_CORES) + 1);
 
+	/*
+	 * Families prior to 16h define the following value as
+	 * cores per compute unit and we don't really care about the AMD
+	 * compute units at the moment.  Perhaps we should treat them as
+	 * cores and cores within the compute units as hardware threads,
+	 * but that's up for debate.
+	 * Later families define the value as threads per compute unit,
+	 * so we are following AMD's nomenclature here.
+	 */
+	if ((amd_feature2 & AMDID2_TOPOLOGY) != 0 &&
+	    CPUID_TO_FAMILY(cpu_id) >= 0x16) {
+		cpuid_count(0x8000001e, 0, p);
+		share_count = ((p[1] >> 8) & 0xff) + 1;
+		core_id_shift = mask_width(share_count);
+	}
+
 	if ((amd_feature2 & AMDID2_TOPOLOGY) != 0) {
 		for (i = 0; ; i++) {
 			cpuid_count(0x8000001d, i, p);
