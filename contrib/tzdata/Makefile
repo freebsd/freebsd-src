@@ -72,11 +72,11 @@ MANDIR=		$(TOPDIR)/man
 
 LIBDIR=		$(TOPDIR)/lib
 
-# If you always want time values interpreted as "seconds since the epoch
-# (not counting leap seconds)", use
+# If you want only POSIX time, with time values interpreted as
+# seconds since the epoch (not counting leap seconds), use
 #	REDO=		posix_only
-# below.  If you always want right time values interpreted as "seconds since
-# the epoch" (counting leap seconds)", use
+# below.  If you want want only "right" time, with values interpreted
+# as seconds since the epoch (counting leap seconds), use
 #	REDO=		right_only
 # below.  If you want both sets of data available, with leap seconds not
 # counted normally, use
@@ -85,7 +85,10 @@ LIBDIR=		$(TOPDIR)/lib
 # normally, use
 #	REDO=		right_posix
 # below.  POSIX mandates that leap seconds not be counted; for compatibility
-# with it, use "posix_only" or "posix_right".
+# with it, use "posix_only" or "posix_right".  Use POSIX time on systems with
+# leap smearing; this can work better than unsmeared "right" time with
+# applications that are not leap second aware, and is closer to unsmeared
+# "right" time than unsmeared POSIX time is (e.g., 0.5 vs 1.0 s max error).
 
 REDO=		posix_right
 
@@ -165,7 +168,7 @@ GCC_DEBUG_FLAGS = -Dlint -g3 -O3 -fno-common -fstrict-aliasing \
 	-Wshadow -Wstrict-prototypes -Wsuggest-attribute=const \
 	-Wsuggest-attribute=format -Wsuggest-attribute=noreturn \
 	-Wsuggest-attribute=pure -Wtrampolines \
-	-Wunused -Wwrite-strings \
+	-Wundef -Wunused -Wwrite-strings \
 	-Wno-address -Wno-format-nonliteral -Wno-sign-compare \
 	-Wno-type-limits -Wno-unused-parameter
 #
