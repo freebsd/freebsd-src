@@ -63,10 +63,16 @@ __FBSDID("$FreeBSD$");
 #include <linux/mm.h>
 #include <linux/preempt.h>
 
+#if defined(__amd64__) || defined(__aarch64__) || defined(__riscv__)
+#define	LINUXKPI_HAVE_DMAP
+#else
+#undef	LINUXKPI_HAVE_DMAP
+#endif
+
 void *
 linux_page_address(struct page *page)
 {
-#ifdef __amd64__
+#ifdef LINUXKPI_HAVE_DMAP
 	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
 #else
 	if (page->object != kmem_object && page->object != kernel_object)
@@ -79,7 +85,7 @@ linux_page_address(struct page *page)
 vm_page_t
 linux_alloc_pages(gfp_t flags, unsigned int order)
 {
-#ifdef __amd64__
+#ifdef LINUXKPI_HAVE_DMAP
 	unsigned long npages = 1UL << order;
 	int req = (flags & M_ZERO) ? (VM_ALLOC_ZERO | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL) : (VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL);
@@ -137,7 +143,7 @@ retry:
 void
 linux_free_pages(vm_page_t page, unsigned int order)
 {
-#ifdef __amd64__
+#ifdef LINUXKPI_HAVE_DMAP
 	unsigned long npages = 1UL << order;
 	unsigned long x;
 
