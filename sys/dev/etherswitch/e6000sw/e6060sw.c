@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Hiroki Mori
+ * Copyright (c) 2016-2017 Hiroki Mori
  * Copyright (c) 2013 Luiz Otavio O Souza.
  * Copyright (c) 2011-2012 Stefan Bethke.
  * Copyright (c) 2012 Adrian Chadd.
@@ -32,8 +32,9 @@
 /*
  * This code is Marvell 88E6060 ethernet switch support code on etherswitch
  * framework. 
- * Current code is only support port base vlan. Not support ingress/egress
- * trailer. This switch chip can't work vlan(4) support.
+ * 88E6060 support is only port vlan support. Not support ingress/egress
+ * trailer.
+ * 88E6065 support is port and dot1q vlan. Also group base tag support.
  */
 
 #include <sys/param.h>
@@ -66,11 +67,43 @@
 #include "miibus_if.h"
 #include "etherswitch_if.h"
 
-#define	SMI_OFFSET	0x10
-#define	CORE_REGISTER	(SMI_OFFSET + 8)
-
+#define	CORE_REGISTER	0x8
 #define	SWITCH_ID	3
+
+#define	PORT_CONTROL	4
+#define	ENGRESSFSHIFT	2
+#define	ENGRESSFMASK	3
+#define	ENGRESSTAGSHIFT	12
+#define	ENGRESSTAGMASK	3
+
 #define	PORT_VLAN_MAP	6
+#define	FORCEMAPSHIFT	8
+#define	FORCEMAPMASK	1
+
+#define	PORT_DEFVLAN	7
+#define	DEFVIDMASK	0xfff
+#define	DEFPRIMASK	7
+
+#define	PORT_CONTROL2	8
+#define	DOT1QMODESHIFT	10
+#define	DOT1QMODEMASK	3
+#define	DOT1QNONE	0
+#define	DOT1QFALLBACK	1
+#define	DOT1QCHECK	2
+#define	DOT1QSECURE	3
+
+#define	GLOBAL_REGISTER	0xf
+
+#define	VTU_OPERATION	5
+#define	VTU_VID_REG	6
+#define	VTU_DATA1_REG	7
+#define	VTU_DATA2_REG	8
+#define	VTU_DATA3_REG	9
+#define	VTU_BUSY	0x8000
+#define	VTU_FLASH	1
+#define	VTU_LOAD_PURGE	3
+#define	VTU_GET_NEXT	4
+#define	VTU_VIOLATION	7
 
 MALLOC_DECLARE(M_E6060SW);
 MALLOC_DEFINE(M_E6060SW, "e6060sw", "e6060sw data structures");
@@ -90,7 +123,15 @@ struct e6060sw_softc {
 	struct ifnet	**ifp;
 	struct callout	callout_tick;
 	etherswitch_info_t	info;
+	int		smi_offset;
+	int		sw_model;
 };
+
+/* Switch Identifier DeviceID */
+
+#define	E6060		0x60
+#define	E6063		0x63		
+#define	E6065		0x65		
 
 #define	E6060SW_LOCK(_sc)			\
 	    mtx_lock(&(_sc)->sc_mtx)
@@ -112,24 +153,50 @@ static void e6060sw_tick(void *);
 static int e6060sw_ifmedia_upd(struct ifnet *);
 static void e6060sw_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
+static void e6060sw_setup(device_t dev);
+static int e6060sw_read_vtu(device_t dev, int num, int *data1, int *data2);
+static void e6060sw_set_vtu(device_t dev, int num, int data1, int data2);
+
 static int
 e6060sw_probe(device_t dev)
 {
 	int data;
 	struct e6060sw_softc *sc;
+	int devid, i;
+	char *devname;
+	char desc[80];
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
 
-	data = MDIO_READREG(device_get_parent(dev), CORE_REGISTER, SWITCH_ID);
-	if (bootverbose)
-		device_printf(dev,"Switch Identifier Register %x\n", data);
+	for (i = 0; i < 2; ++i) {
+		data = MDIO_READREG(device_get_parent(dev), 
+		    CORE_REGISTER + i * 0x10, SWITCH_ID);
+		if (bootverbose)
+			device_printf(dev,"Switch Identifier Register %x\n",
+			    data);
 
-	if ((data >> 4) != 0x060) {
-		return (ENXIO);
+		devid = data >> 4;
+		if (devid == E6060 || 
+		    devid == E6063 || devid == E6065) {
+			sc->sw_model = devid;
+			sc->smi_offset = i * 0x10;
+			break;
+		}
 	}
+	if (i == 2)
+		return (ENXIO);
 
-	device_set_desc_copy(dev, "Marvell 88E6060 MDIO switch driver");
+	if (devid == E6060)
+		devname = "88E6060";
+	else if (devid == E6063)
+		devname = "88E6063";
+	else if (devid == E6065)
+		devname = "88E6065";
+	sprintf(desc, "Marvell %s MDIO switch driver at 0x%02x",
+	    devname, sc->smi_offset);
+	device_set_desc_copy(dev, desc);
+
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -157,7 +224,7 @@ e6060sw_attach_phys(struct e6060sw_softc *sc)
 		    M_WAITOK | M_ZERO);
 		err = mii_attach(sc->sc_dev, sc->miibus[port], sc->ifp[port],
 		    e6060sw_ifmedia_upd, e6060sw_ifmedia_sts, \
-		    BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+		    BMSR_DEFCAPMASK, phy + sc->smi_offset, MII_OFFSET_ANY, 0);
 		DPRINTF(sc->sc_dev, "%s attached to pseudo interface %s\n",
 		    device_get_nameunit(*sc->miibus[port]),
 		    sc->ifp[port]->if_xname);
@@ -194,9 +261,15 @@ e6060sw_attach(device_t dev)
 	    sizeof(sc->info.es_name));
 
 	/* XXX Defaults */
-	sc->numports = 6;
-	sc->phymask = 0x1f;
-	sc->cpuport = 5;
+	if (sc->sw_model == E6063) {
+		sc->numports = 3;
+		sc->phymask = 0x07;
+		sc->cpuport = 2;
+	} else {
+		sc->numports = 6;
+		sc->phymask = 0x1f;
+		sc->cpuport = 5;
+	}
 	sc->media = 100;
 
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -208,8 +281,16 @@ e6060sw_attach(device_t dev)
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "media", &sc->media);
 
-	sc->info.es_nvlangroups = sc->numports;
-	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_PORT;
+	if (sc->sw_model == E6060) {
+		sc->info.es_nvlangroups = sc->numports;
+		sc->info.es_vlan_caps = ETHERSWITCH_VLAN_PORT;
+	} else {
+		sc->info.es_nvlangroups = 64;
+		sc->info.es_vlan_caps = ETHERSWITCH_VLAN_PORT | 
+		    ETHERSWITCH_VLAN_DOT1Q;
+	}
+
+	e6060sw_setup(dev);
 
 	sc->ifp = malloc(sizeof(struct ifnet *) * sc->numports, M_E6060SW,
 	    M_WAITOK | M_ZERO);
@@ -388,7 +469,13 @@ e6060sw_getport(device_t dev, etherswitch_port_t *p)
 
 	if (p->es_port < 0 || p->es_port >= sc->numports)
 		return (ENXIO);
+
 	p->es_pvid = 0;
+	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
+		p->es_pvid = MDIO_READREG(device_get_parent(dev), 
+		    CORE_REGISTER + sc->smi_offset + p->es_port,
+		    PORT_DEFVLAN) & 0xfff;
+	}
 
 	phy = sc->portphy[p->es_port];
 	mii = e6060sw_miiforport(sc, p->es_port);
@@ -423,14 +510,27 @@ e6060sw_setport(device_t dev, etherswitch_port_t *p)
 	struct mii_data *mii;
 	struct ifnet *ifp;
 	int err;
+	int data;
 
 	sc = device_get_softc(dev);
 
 	if (p->es_port < 0 || p->es_port >= sc->numports)
 		return (ENXIO);
 
+	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
+		data = MDIO_READREG(device_get_parent(dev), 
+		    CORE_REGISTER + sc->smi_offset + p->es_port,
+		    PORT_DEFVLAN);
+		data &= ~0xfff;
+		data |= p->es_pvid;
+		data |= 1 << 12;
+		MDIO_WRITEREG(device_get_parent(dev), 
+		    CORE_REGISTER + sc->smi_offset + p->es_port,
+		    PORT_DEFVLAN, data);
+	}
+
 	if (sc->portphy[p->es_port] == sc->cpuport)
-		return (ENXIO);
+		return(0);
 
 	mii = e6060sw_miiforport(sc, p->es_port);
 	if (mii == NULL)
@@ -447,17 +547,50 @@ static int
 e6060sw_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 {
 	struct e6060sw_softc *sc;
-	int data;
+	int data1, data2;
+	int vid;
+	int i, tag;
 
 	sc = device_get_softc(dev);
 
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_PORT) {
 		vg->es_vid = ETHERSWITCH_VID_VALID;
 		vg->es_vid |= vg->es_vlangroup;
-		data = MDIO_READREG(device_get_parent(dev), CORE_REGISTER + vg->es_vlangroup, PORT_VLAN_MAP);
-		vg->es_member_ports = data & 0x3f;
+		data1 = MDIO_READREG(device_get_parent(dev), 
+		    CORE_REGISTER + sc->smi_offset + vg->es_vlangroup,
+		    PORT_VLAN_MAP);
+		vg->es_member_ports = data1 & 0x3f;
 		vg->es_untagged_ports = vg->es_member_ports;
 		vg->es_fid = 0;
+	} else if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
+		if (vg->es_vlangroup == 0)
+			return (0);
+		vid = e6060sw_read_vtu(dev, vg->es_vlangroup, &data1, &data2);
+		if (vid > 0) {
+			vg->es_vid = ETHERSWITCH_VID_VALID;
+			vg->es_vid |= vid;
+			vg->es_member_ports = 0;
+			vg->es_untagged_ports = 0;
+			for (i = 0; i < 4; ++i) {
+				tag = data1 >> (i * 4) & 3;
+				if (tag == 0 || tag == 1) {
+					vg->es_member_ports |= 1 << i;
+					vg->es_untagged_ports |= 1 << i;
+				} else if (tag == 2) {
+					vg->es_member_ports |= 1 << i;
+				}
+			}
+			for (i = 0; i < 2; ++i) {
+				tag = data2 >> (i * 4) & 3;
+				if (tag == 0 || tag == 1) {
+					vg->es_member_ports |= 1 << (i + 4);
+					vg->es_untagged_ports |= 1 << (i + 4);
+				} else if (tag == 2) {
+					vg->es_member_ports |= 1 << (i + 4);
+				}
+			}
+
+		}
 	} else {
 		vg->es_vid = 0;
 	}
@@ -468,17 +601,49 @@ static int
 e6060sw_setvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 {
 	struct e6060sw_softc *sc;
-	int data;
+	int data1, data2;
+	int i;
 
 	sc = device_get_softc(dev);
 
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_PORT) {
-		data = MDIO_READREG(device_get_parent(dev), CORE_REGISTER + vg->es_vlangroup, PORT_VLAN_MAP);
-		data &= ~0x3f;
-		data |= vg->es_member_ports;
-		MDIO_WRITEREG(device_get_parent(dev), CORE_REGISTER + vg->es_vlangroup, PORT_VLAN_MAP, data);
-	} 
-
+		data1 = MDIO_READREG(device_get_parent(dev),
+		    CORE_REGISTER + sc->smi_offset + vg->es_vlangroup,
+		    PORT_VLAN_MAP);
+		data1 &= ~0x3f;
+		data1 |= vg->es_member_ports;
+		MDIO_WRITEREG(device_get_parent(dev),
+		    CORE_REGISTER + sc->smi_offset + vg->es_vlangroup,
+		    PORT_VLAN_MAP, data1); 
+	} else if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
+		if (vg->es_vlangroup == 0)
+			return (0);
+		data1 = 0;
+		data2 = 0;
+		for (i = 0; i < 6; ++i) {
+			if (vg->es_member_ports & 
+			    vg->es_untagged_ports & (1 << i)) {
+				if (i < 4) {
+					data1 |= (0xd << i * 4);
+				} else {
+					data2 |= (0xd << (i - 4) * 4);
+				}
+			} else if (vg->es_member_ports & (1 << i)) {
+				if (i < 4) {
+					data1 |= (0xe << i * 4);
+				} else {
+					data2 |= (0xe << (i - 4) * 4);
+				}
+			} else {
+				if (i < 4) {
+					data1 |= (0x3 << i * 4);
+				} else {
+					data2 |= (0x3 << (i - 4) * 4);
+				}
+			}
+		}
+		e6060sw_set_vtu(dev, vg->es_vlangroup, data1, data2);
+	}
 	return (0);
 }
 
@@ -497,11 +662,70 @@ e6060sw_reset_vlans(device_t dev)
 		ports &= ~(1 << i);
 		if (sc->vlan_mode == ETHERSWITCH_VLAN_PORT) {
 			data = i << 12;
+		} else if (sc->vlan_mode == 0) {
+			data = 1 << 8;
 		} else {
 			data = 0;
 		}
 		data |= ports;
-		MDIO_WRITEREG(device_get_parent(dev), CORE_REGISTER + i, PORT_VLAN_MAP, data);
+		MDIO_WRITEREG(device_get_parent(dev),
+		    CORE_REGISTER + sc->smi_offset + i, PORT_VLAN_MAP, data);
+	}
+}
+
+static void
+e6060sw_setup(device_t dev)
+{
+	struct e6060sw_softc *sc;
+	int i;
+	int data;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i <= sc->numports; i++) {
+		if (sc->sw_model == E6063 || sc->sw_model == E6065) {
+			data = MDIO_READREG(device_get_parent(dev),
+			    CORE_REGISTER + sc->smi_offset + i, PORT_VLAN_MAP);
+			data &= ~(FORCEMAPMASK << FORCEMAPSHIFT);
+			MDIO_WRITEREG(device_get_parent(dev),
+			    CORE_REGISTER + sc->smi_offset + i,
+			    PORT_VLAN_MAP, data);
+
+			data = MDIO_READREG(device_get_parent(dev),
+			    CORE_REGISTER + sc->smi_offset + i, PORT_CONTROL);
+			data |= 3 << ENGRESSFSHIFT;
+			MDIO_WRITEREG(device_get_parent(dev),
+			    CORE_REGISTER + sc->smi_offset + i, 
+			    PORT_CONTROL, data);
+		}
+	}
+}
+
+static void
+e6060sw_dot1q_mode(device_t dev, int mode)
+{
+	struct e6060sw_softc *sc;
+	int i;
+	int data;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i <= sc->numports; i++) {
+		data = MDIO_READREG(device_get_parent(dev),
+		    CORE_REGISTER + sc->smi_offset + i, PORT_CONTROL2);
+		data &= ~(DOT1QMODEMASK << DOT1QMODESHIFT);
+		data |= mode << DOT1QMODESHIFT;
+		MDIO_WRITEREG(device_get_parent(dev),
+		    CORE_REGISTER + sc->smi_offset + i, PORT_CONTROL2, data);
+
+		data = MDIO_READREG(device_get_parent(dev), 
+		    CORE_REGISTER + sc->smi_offset + i,
+		    PORT_DEFVLAN);
+		data &= ~0xfff;
+		data |= 1;
+		MDIO_WRITEREG(device_get_parent(dev), 
+		    CORE_REGISTER + sc->smi_offset + i,
+		    PORT_DEFVLAN, data);
 	}
 }
 
@@ -519,6 +743,101 @@ e6060sw_getconf(device_t dev, etherswitch_conf_t *conf)
 	return (0);
 }
 
+static void
+e6060sw_init_vtu(device_t dev)
+{
+	struct e6060sw_softc *sc;
+	int busy;
+
+	sc = device_get_softc(dev);
+
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_OPERATION, VTU_BUSY | (VTU_FLASH << 12));
+	while (1) {
+		busy = MDIO_READREG(device_get_parent(dev),
+		    GLOBAL_REGISTER + sc->smi_offset, VTU_OPERATION);
+		if ((busy & VTU_BUSY) == 0)
+			break;
+	}
+
+	/* initial member set at vlan 1*/
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_DATA1_REG, 0xcccc);
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_DATA2_REG, 0x00cc);
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_VID_REG, 0x1000 | 1);
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_OPERATION, VTU_BUSY | (VTU_LOAD_PURGE << 12) | 1);
+	while (1) {
+		busy = MDIO_READREG(device_get_parent(dev),
+		    GLOBAL_REGISTER + sc->smi_offset, VTU_OPERATION);
+		if ((busy & VTU_BUSY) == 0)
+			break;
+	}
+}
+
+static void
+e6060sw_set_vtu(device_t dev, int num, int data1, int data2)
+{
+	struct e6060sw_softc *sc;
+	int busy;
+
+	sc = device_get_softc(dev);
+
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_DATA1_REG, data1);
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_DATA2_REG, data2);
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_VID_REG, 0x1000 | num);
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_OPERATION, VTU_BUSY | (VTU_LOAD_PURGE << 12) | num);
+	while (1) {
+		busy = MDIO_READREG(device_get_parent(dev),
+		    GLOBAL_REGISTER + sc->smi_offset, VTU_OPERATION);
+		if ((busy & VTU_BUSY) == 0)
+			break;
+	}
+
+}
+
+static int
+e6060sw_read_vtu(device_t dev, int num, int *data1, int *data2)
+{
+	struct e6060sw_softc *sc;
+	int busy;
+
+	sc = device_get_softc(dev);
+
+	num = num - 1;
+
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_VID_REG, num & 0xfff);
+	/* Get Next */
+	MDIO_WRITEREG(device_get_parent(dev), GLOBAL_REGISTER + sc->smi_offset,
+	    VTU_OPERATION, VTU_BUSY | (VTU_GET_NEXT << 12));
+	while (1) {
+		busy = MDIO_READREG(device_get_parent(dev),
+		    GLOBAL_REGISTER + sc->smi_offset, VTU_OPERATION);
+		if ((busy & VTU_BUSY) == 0)
+			break;
+	}
+
+	int vid = MDIO_READREG(device_get_parent(dev),
+	    GLOBAL_REGISTER + sc->smi_offset, VTU_VID_REG);
+	if (vid & 0x1000) {
+		*data1 = MDIO_READREG(device_get_parent(dev),
+		    GLOBAL_REGISTER + sc->smi_offset, VTU_DATA1_REG);
+		*data2 = MDIO_READREG(device_get_parent(dev),
+		    GLOBAL_REGISTER + sc->smi_offset, VTU_DATA2_REG);
+		    
+		return (vid & 0xfff);
+	}
+
+	return (-1);
+}
+
 static int
 e6060sw_setconf(device_t dev, etherswitch_conf_t *conf)
 {
@@ -530,12 +849,19 @@ e6060sw_setconf(device_t dev, etherswitch_conf_t *conf)
 	if (conf->cmd & ETHERSWITCH_CONF_VLAN_MODE) {
 		if (conf->vlan_mode == ETHERSWITCH_VLAN_PORT) {
 			sc->vlan_mode = ETHERSWITCH_VLAN_PORT;
+			e6060sw_dot1q_mode(dev, DOT1QNONE);
+			e6060sw_reset_vlans(dev);
+		} else if ((sc->sw_model == E6063 || sc->sw_model == E6065) &&
+		    conf->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
+			sc->vlan_mode = ETHERSWITCH_VLAN_DOT1Q;
+			e6060sw_dot1q_mode(dev, DOT1QSECURE);
+			e6060sw_init_vtu(dev);
 		} else {
 			sc->vlan_mode = 0;
+			/* Reset VLANs. */
+			e6060sw_dot1q_mode(dev, DOT1QNONE);
+			e6060sw_reset_vlans(dev);
 		}
-
-		/* Reset VLANs. */
-		e6060sw_reset_vlans(dev);
 	}
 
 	return (0);
@@ -588,8 +914,6 @@ e6060sw_readphy(device_t dev, int phy, int reg)
 	struct e6060sw_softc *sc;
 	int data;
 
-	phy += SMI_OFFSET;
-
 	sc = device_get_softc(dev);
 	E6060SW_LOCK_ASSERT(sc, MA_NOTOWNED);
 
@@ -610,8 +934,6 @@ e6060sw_writephy(device_t dev, int phy, int reg, int data)
 {
 	struct e6060sw_softc *sc;
 	int err;
-
-	phy += SMI_OFFSET;
 
 	sc = device_get_softc(dev);
 	E6060SW_LOCK_ASSERT(sc, MA_NOTOWNED);
@@ -635,10 +957,10 @@ e6060sw_readreg(device_t dev, int addr)
 {
 	int devaddr, regaddr;
 
-	devaddr = (addr >> 5) & 0xf;
+	devaddr = (addr >> 5) & 0x1f;
 	regaddr = addr & 0x1f;
 
-	return MDIO_READREG(device_get_parent(dev), devaddr+SMI_OFFSET, regaddr);
+	return MDIO_READREG(device_get_parent(dev), devaddr, regaddr);
 }
 
 /* addr is 5-8 bit is SMI Device Addres, 0-4 bit is SMI Register Address */
@@ -648,10 +970,10 @@ e6060sw_writereg(device_t dev, int addr, int value)
 {
 	int devaddr, regaddr;
 
-	devaddr = (addr >> 5) & 0xf;
+	devaddr = (addr >> 5) & 0x1f;
 	regaddr = addr & 0x1f;
 
-	return (MDIO_WRITEREG(device_get_parent(dev), devaddr+SMI_OFFSET, regaddr, value));
+	return (MDIO_WRITEREG(device_get_parent(dev), devaddr, regaddr, value));
 }
 
 static device_method_t e6060sw_methods[] = {
