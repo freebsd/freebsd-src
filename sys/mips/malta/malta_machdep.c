@@ -249,6 +249,21 @@ platform_reset(void)
 	*c = MALTA_GORESET;
 }
 
+#ifdef CPU_QEMU_MALTA
+static void
+malta_poweroff(void *arg, int howto)
+{
+	char *c;
+
+	if ((howto & RB_POWEROFF) != 0) {
+		c = (char *)MIPS_PHYS_TO_KSEG0(MALTA_SOFTRES);
+		*c = MALTA_GORESET + 2;
+	}
+}
+
+EVENTHANDLER_DEFINE(shutdown_final, malta_poweroff, NULL, SHUTDOWN_PRI_LAST);
+#endif
+
 static uint64_t
 malta_cpu_freq(void)
 {
