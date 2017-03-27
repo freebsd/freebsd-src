@@ -1,8 +1,5 @@
 /*-
- * Copyright (c) 2010 Isilon Systems, Inc.
- * Copyright (c) 2010 iX Systems, Inc.
- * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,16 +25,32 @@
  *
  * $FreeBSD$
  */
-#ifndef _ASM_PGTABLE_H_
-#define	_ASM_PGTABLE_H_
 
-#include <linux/page.h>
+#ifndef _LINUX_PFN_T_H_
+#define	_LINUX_PFN_T_H_
 
-typedef unsigned long	pteval_t;
-typedef unsigned long	pmdval_t;
-typedef unsigned long	pudval_t;
-typedef unsigned long	pgdval_t;
-typedef unsigned long	pgprotval_t;
-typedef struct page *pgtable_t;
+#include <linux/mm.h>
 
-#endif	/* _ASM_PGTABLE_H_ */
+CTASSERT(PAGE_SHIFT > 4);
+
+#define	PFN_FLAGS_MASK (((u64)(PAGE_SIZE - 1)) << (64 - PAGE_SHIFT))
+#define	PFN_SG_CHAIN (1ULL << (64 - 1))
+#define	PFN_SG_LAST (1ULL << (64 - 2))
+#define	PFN_DEV (1ULL << (64 - 3))
+#define	PFN_MAP (1ULL << (64 - 4))
+
+static inline pfn_t
+__pfn_to_pfn_t(unsigned long pfn, u64 flags)
+{
+	pfn_t pfn_t = { pfn | (flags & PFN_FLAGS_MASK) };
+
+	return (pfn_t);
+}
+
+static inline pfn_t
+pfn_to_pfn_t(unsigned long pfn)
+{
+	return (__pfn_to_pfn_t (pfn, 0));
+}
+
+#endif					/* _LINUX_PFN_T_H_ */

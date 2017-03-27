@@ -1,8 +1,5 @@
 /*-
- * Copyright (c) 2010 Isilon Systems, Inc.
- * Copyright (c) 2010 iX Systems, Inc.
- * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,16 +25,20 @@
  *
  * $FreeBSD$
  */
-#ifndef _ASM_PGTABLE_H_
-#define	_ASM_PGTABLE_H_
 
-#include <linux/page.h>
+#ifndef _LINUX_PFN_H_
+#define	_LINUX_PFN_H_
 
-typedef unsigned long	pteval_t;
-typedef unsigned long	pmdval_t;
-typedef unsigned long	pudval_t;
-typedef unsigned long	pgdval_t;
-typedef unsigned long	pgprotval_t;
-typedef struct page *pgtable_t;
+#include <linux/types.h>
 
-#endif	/* _ASM_PGTABLE_H_ */
+typedef struct {
+	u64	val;
+} pfn_t;
+
+#define	PFN_ALIGN(x)	(((unsigned long)(x) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+#define	PFN_UP(x)	(((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
+#define	PFN_DOWN(x)	((x) >> PAGE_SHIFT)
+#define	PFN_PHYS(x)	((phys_addr_t)(x) << PAGE_SHIFT)
+#define	PHYS_PFN(x)	((unsigned long)((x) >> PAGE_SHIFT))
+
+#endif					/* _LINUX_PFN_H_ */

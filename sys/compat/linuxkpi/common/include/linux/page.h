@@ -40,6 +40,9 @@
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
 
+typedef unsigned long pte_t;
+typedef unsigned long pmd_t;
+typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 #define page	vm_page
