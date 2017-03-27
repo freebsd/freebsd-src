@@ -201,6 +201,7 @@ iwm_mvm_scan_rate_n_flags(struct iwm_softc *sc, int flags, int no_cck)
 		return htole32(IWM_RATE_6M_PLCP | tx_ant);
 }
 
+#ifdef IWM_DEBUG
 static const char *
 iwm_mvm_ebs_status_str(enum iwm_scan_ebs_status status)
 {
@@ -216,12 +217,18 @@ iwm_mvm_ebs_status_str(enum iwm_scan_ebs_status status)
 	}
 }
 
+static const char *
+iwm_mvm_offload_status_str(enum iwm_scan_offload_complete_status status)
+{
+	return (status == IWM_SCAN_OFFLOAD_ABORTED) ? "aborted" : "completed";
+}
+#endif
+
 void
 iwm_mvm_rx_lmac_scan_complete_notif(struct iwm_softc *sc,
     struct iwm_rx_packet *pkt)
 {
 	struct iwm_periodic_scan_complete *scan_notif = (void *)pkt->data;
-	boolean_t aborted = (scan_notif->status == IWM_SCAN_OFFLOAD_ABORTED);
 
 	/* If this happens, the firmware has mistakenly sent an LMAC
 	 * notification during UMAC scans -- warn and ignore it.
@@ -234,7 +241,7 @@ iwm_mvm_rx_lmac_scan_complete_notif(struct iwm_softc *sc,
 	}
 
 	IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "Regular scan %s, EBS status %s (FW)\n",
-	    aborted ? "aborted" : "completed",
+	    iwm_mvm_offload_status_str(scan_notif->status),
 	    iwm_mvm_ebs_status_str(scan_notif->ebs_status));
 
 	sc->last_ebs_successful =
@@ -248,13 +255,11 @@ iwm_mvm_rx_umac_scan_complete_notif(struct iwm_softc *sc,
     struct iwm_rx_packet *pkt)
 {
 	struct iwm_umac_scan_complete *notif = (void *)pkt->data;
-	uint32_t uid = le32toh(notif->uid);
-	boolean_t aborted = (notif->status == IWM_SCAN_OFFLOAD_ABORTED);
 
 	IWM_DPRINTF(sc, IWM_DEBUG_SCAN,
 	    "Scan completed, uid %u, status %s, EBS status %s\n",
-	    uid,
-	    aborted ? "aborted" : "completed",
+	    le32toh(notif->uid),
+	    iwm_mvm_offload_status_str(notif->status),
 	    iwm_mvm_ebs_status_str(notif->ebs_status));
 
 	if (notif->ebs_status != IWM_SCAN_EBS_SUCCESS &&
