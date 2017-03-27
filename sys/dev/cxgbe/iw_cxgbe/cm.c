@@ -76,15 +76,15 @@ static spinlock_t req_lock;
 static TAILQ_HEAD(c4iw_ep_list, c4iw_ep_common) req_list;
 static struct work_struct c4iw_task;
 static struct workqueue_struct *c4iw_taskq;
-static LIST_HEAD(timeout_list);
-static spinlock_t timeout_lock;
+static LIST_HEAD(err_cqe_list);
+static spinlock_t err_cqe_lock;
 
 static void process_req(struct work_struct *ctx);
 static void start_ep_timer(struct c4iw_ep *ep);
 static int stop_ep_timer(struct c4iw_ep *ep);
 static int set_tcpinfo(struct c4iw_ep *ep);
 static void process_timeout(struct c4iw_ep *ep);
-static void process_timedout_eps(void);
+static void process_err_cqes(void);
 static enum c4iw_ep_state state_read(struct c4iw_ep_common *epc);
 static void __state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
@@ -115,7 +115,10 @@ static void process_connected(struct c4iw_ep *ep);
 static int c4iw_so_upcall(struct socket *so, void *arg, int waitflag);
 static void process_socket_event(struct c4iw_ep *ep);
 static void release_ep_resources(struct c4iw_ep *ep);
-
+static int process_terminate(struct c4iw_ep *ep);
+static int terminate(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m);
+static int add_ep_to_req_list(struct c4iw_ep *ep, int ep_events);
 #define START_EP_TIMER(ep) \
     do { \
 	    CTR3(KTR_IW_CXGBE, "start_ep_timer (%s:%d) ep %p", \
@@ -224,22 +227,32 @@ static void process_timeout(struct c4iw_ep *ep)
 	return;
 }
 
-static void process_timedout_eps(void)
-{
-	struct c4iw_ep *ep;
+struct cqe_list_entry {
+	struct list_head entry;
+	struct c4iw_dev *rhp;
+	struct t4_cqe err_cqe;
+};
 
-	spin_lock(&timeout_lock);
-	while (!list_empty(&timeout_list)) {
+static void
+process_err_cqes(void)
+{
+	unsigned long flag;
+	struct cqe_list_entry *cle;
+
+	spin_lock_irqsave(&err_cqe_lock, flag);
+	while (!list_empty(&err_cqe_list)) {
 		struct list_head *tmp;
-		tmp = timeout_list.next;
+		tmp = err_cqe_list.next;
 		list_del(tmp);
 		tmp->next = tmp->prev = NULL;
-		spin_unlock(&timeout_lock);
-		ep = list_entry(tmp, struct c4iw_ep, entry);
-		process_timeout(ep);
-		spin_lock(&timeout_lock);
+		spin_unlock_irqrestore(&err_cqe_lock, flag);
+		cle = list_entry(tmp, struct cqe_list_entry, entry);
+		c4iw_ev_dispatch(cle->rhp, &cle->err_cqe);
+		free(cle, M_CXGBE);
+		spin_lock_irqsave(&err_cqe_lock, flag);
 	}
-	spin_unlock(&timeout_lock);
+	spin_unlock_irqrestore(&err_cqe_lock, flag);
+
 	return;
 }
 
@@ -247,23 +260,31 @@ static void
 process_req(struct work_struct *ctx)
 {
 	struct c4iw_ep_common *epc;
+	unsigned long flag;
+	int ep_events;
 
-	process_timedout_eps();
-	spin_lock(&req_lock);
+	process_err_cqes();
+	spin_lock_irqsave(&req_lock, flag);
 	while (!TAILQ_EMPTY(&req_list)) {
 		epc = TAILQ_FIRST(&req_list);
 		TAILQ_REMOVE(&req_list, epc, entry);
 		epc->entry.tqe_prev = NULL;
-		spin_unlock(&req_lock);
-		CTR3(KTR_IW_CXGBE, "%s so :%p, ep:%p", __func__,
-				epc->so, epc);
-		if (epc->so)
+		ep_events = epc->ep_events;
+		epc->ep_events = 0;
+		spin_unlock_irqrestore(&req_lock, flag);
+		CTR4(KTR_IW_CXGBE, "%s: so %p, ep %p, events 0x%x", __func__,
+		    epc->so, epc, ep_events);
+		if (ep_events & C4IW_EVENT_TERM)
+			process_terminate((struct c4iw_ep *)epc);
+		if (ep_events & C4IW_EVENT_TIMEOUT)
+			process_timeout((struct c4iw_ep *)epc);
+		if (ep_events & C4IW_EVENT_SOCKET)
 			process_socket_event((struct c4iw_ep *)epc);
 		c4iw_put_ep(epc);
-		process_timedout_eps();
-		spin_lock(&req_lock);
+		process_err_cqes();
+		spin_lock_irqsave(&req_lock, flag);
 	}
-	spin_unlock(&req_lock);
+	spin_unlock_irqrestore(&req_lock, flag);
 }
 
 /*
@@ -733,26 +754,60 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 }
 
 static int
+add_ep_to_req_list(struct c4iw_ep *ep, int new_ep_event)
+{
+	unsigned long flag;
+
+	spin_lock_irqsave(&req_lock, flag);
+	if (ep && ep->com.so) {
+		ep->com.ep_events |= new_ep_event;
+		if (!ep->com.entry.tqe_prev) {
+			c4iw_get_ep(&ep->com);
+			TAILQ_INSERT_TAIL(&req_list, &ep->com, entry);
+			queue_work(c4iw_taskq, &c4iw_task);
+		}
+	}
+	spin_unlock_irqrestore(&req_lock, flag);
+
+	return (0);
+}
+
+static int
 c4iw_so_upcall(struct socket *so, void *arg, int waitflag)
 {
 	struct c4iw_ep *ep = arg;
-
-	spin_lock(&req_lock);
 
 	CTR6(KTR_IW_CXGBE,
 	    "%s: so %p, so_state 0x%x, ep %p, ep_state %s, tqe_prev %p",
 	    __func__, so, so->so_state, ep, states[ep->com.state],
 	    ep->com.entry.tqe_prev);
 
-	if (ep && ep->com.so && !ep->com.entry.tqe_prev) {
-		KASSERT(ep->com.so == so, ("%s: XXX review.", __func__));
-		c4iw_get_ep(&ep->com);
-		TAILQ_INSERT_TAIL(&req_list, &ep->com, entry);
-		queue_work(c4iw_taskq, &c4iw_task);
-	}
+	MPASS(ep->com.so == so);
+	add_ep_to_req_list(ep, C4IW_EVENT_SOCKET);
 
-	spin_unlock(&req_lock);
 	return (SU_OK);
+}
+
+
+static int
+terminate(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	const struct cpl_rdma_terminate *cpl = mtod(m, const void *);
+	unsigned int tid = GET_TID(cpl);
+	struct toepcb *toep = lookup_tid(sc, tid);
+	struct socket *so;
+	struct c4iw_ep *ep;
+
+	INP_WLOCK(toep->inp);
+	so = inp_inpcbtosocket(toep->inp);
+	ep = so->so_rcv.sb_upcallarg;
+	INP_WUNLOCK(toep->inp);
+
+	CTR3(KTR_IW_CXGBE, "%s: so %p, ep %p", __func__, so, ep);
+	add_ep_to_req_list(ep, C4IW_EVENT_TERM);
+
+	return 0;
 }
 
 static void
@@ -2388,29 +2443,17 @@ int c4iw_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 static void ep_timeout(unsigned long arg)
 {
 	struct c4iw_ep *ep = (struct c4iw_ep *)arg;
-	int kickit = 0;
-
-	CTR2(KTR_IW_CXGBE, "%s:etB %p", __func__, ep);
-	spin_lock(&timeout_lock);
 
 	if (!test_and_set_bit(TIMEOUT, &ep->com.flags)) {
 
 		/*
 		 * Only insert if it is not already on the list.
 		 */
-		if (!ep->entry.next) {
-			list_add_tail(&ep->entry, &timeout_list);
-			kickit = 1;
+		if (!(ep->com.ep_events & C4IW_EVENT_TIMEOUT)) {
+			CTR2(KTR_IW_CXGBE, "%s:et1 %p", __func__, ep);
+			add_ep_to_req_list(ep, C4IW_EVENT_TIMEOUT);
 		}
 	}
-	spin_unlock(&timeout_lock);
-
-	if (kickit) {
-
-		CTR2(KTR_IW_CXGBE, "%s:et1 %p", __func__, ep);
-		queue_work(c4iw_taskq, &c4iw_task);
-	}
-	CTR2(KTR_IW_CXGBE, "%s:etE %p", __func__, ep);
 }
 
 static int fw6_wr_rpl(struct adapter *sc, const __be64 *rpl)
@@ -2430,40 +2473,38 @@ static int fw6_wr_rpl(struct adapter *sc, const __be64 *rpl)
 
 static int fw6_cqe_handler(struct adapter *sc, const __be64 *rpl)
 {
-	struct t4_cqe cqe =*(const struct t4_cqe *)(&rpl[0]);
+	struct cqe_list_entry *cle;
+	unsigned long flag;
 
-	CTR2(KTR_IW_CXGBE, "%s rpl %p", __func__, rpl);
-	c4iw_ev_dispatch(sc->iwarp_softc, &cqe);
+	cle = malloc(sizeof(*cle), M_CXGBE, M_NOWAIT);
+	cle->rhp = sc->iwarp_softc;
+	cle->err_cqe = *(const struct t4_cqe *)(&rpl[0]);
+
+	spin_lock_irqsave(&err_cqe_lock, flag);
+	list_add_tail(&cle->entry, &err_cqe_list);
+	queue_work(c4iw_taskq, &c4iw_task);
+	spin_unlock_irqrestore(&err_cqe_lock, flag);
 
 	return (0);
 }
 
-static int terminate(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+static int
+process_terminate(struct c4iw_ep *ep)
 {
-	struct adapter *sc = iq->adapter;
-	const struct cpl_rdma_terminate *cpl = mtod(m, const void *);
-	unsigned int tid = GET_TID(cpl);
 	struct c4iw_qp_attributes attrs;
-	struct toepcb *toep = lookup_tid(sc, tid);
-	struct socket *so;
-	struct c4iw_ep *ep;
-
-	INP_WLOCK(toep->inp);
-	so = inp_inpcbtosocket(toep->inp);
-	ep = so->so_rcv.sb_upcallarg;
-	INP_WUNLOCK(toep->inp);
 
 	CTR2(KTR_IW_CXGBE, "%s:tB %p %d", __func__, ep);
 
 	if (ep && ep->com.qp) {
 
-		printk(KERN_WARNING MOD "TERM received tid %u qpid %u\n", tid,
-				ep->com.qp->wq.sq.qid);
+		printk(KERN_WARNING MOD "TERM received tid %u qpid %u\n",
+				ep->hwtid, ep->com.qp->wq.sq.qid);
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
 		c4iw_modify_qp(ep->com.dev, ep->com.qp, C4IW_QP_ATTR_NEXT_STATE, &attrs,
 				1);
 	} else
-		printk(KERN_WARNING MOD "TERM received tid %u no ep/qp\n", tid);
+		printk(KERN_WARNING MOD "TERM received tid %u no ep/qp\n",
+								ep->hwtid);
 	CTR2(KTR_IW_CXGBE, "%s:tE %p %d", __func__, ep);
 
 	return 0;
@@ -2479,8 +2520,8 @@ int __init c4iw_cm_init(void)
 
 	TAILQ_INIT(&req_list);
 	spin_lock_init(&req_lock);
-	INIT_LIST_HEAD(&timeout_list);
-	spin_lock_init(&timeout_lock);
+	INIT_LIST_HEAD(&err_cqe_list);
+	spin_lock_init(&err_cqe_lock);
 
 	INIT_WORK(&c4iw_task, process_req);
 
@@ -2494,7 +2535,7 @@ int __init c4iw_cm_init(void)
 void __exit c4iw_cm_term(void)
 {
 	WARN_ON(!TAILQ_EMPTY(&req_list));
-	WARN_ON(!list_empty(&timeout_list));
+	WARN_ON(!list_empty(&err_cqe_list));
 	flush_workqueue(c4iw_taskq);
 	destroy_workqueue(c4iw_taskq);
 
