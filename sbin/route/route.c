@@ -288,7 +288,7 @@ fiboptlist_range(const char *arg, struct fibl_head_t *flh)
 			if (errno == 0) {
 				if (*endptr != '\0' ||
 				    fib[i] < 0 ||
-				    (numfibs != -1 && fib[i] > numfibs - 1)) 
+				    (numfibs != -1 && fib[i] > numfibs - 1))
 					errno = EINVAL;
 			}
 			if (errno)
@@ -1136,7 +1136,7 @@ inet_makenetandmask(u_long net, struct sockaddr_in *sin,
 			j <<= 8;
 		}
 		/* i holds the first non zero bit */
-		bits = 32 - (i*8);	
+		bits = 32 - (i*8);
 	}
 	if (bits != 0)
 		mask = 0xffffffff << (32 - bits);
@@ -1356,7 +1356,7 @@ prefixlen(const char *str)
 	int max;
 	char *p;
 
-	rtm_addrs |= RTA_NETMASK;	
+	rtm_addrs |= RTA_NETMASK;
 	switch (af) {
 #ifdef INET6
 	case AF_INET6:
@@ -1390,7 +1390,7 @@ prefixlen(const char *str)
 
 	if (len < 0 || max < len)
 		errx(EX_USAGE, "%s: invalid prefixlen", str);
-	
+
 	q = len >> 3;
 	r = len & 7;
 	memset((void *)p, 0, max / 8);
