@@ -89,7 +89,6 @@ static enum c4iw_ep_state state_read(struct c4iw_ep_common *epc);
 static void __state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void *alloc_ep(int size, gfp_t flags);
-void __free_ep(struct c4iw_ep_common *epc);
 static int find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
 		__be16 peer_port, u8 tos, struct nhop4_extended *pnh4);
 static void close_socket(struct socket *so);
@@ -936,16 +935,6 @@ alloc_ep(int size, gfp_t gfp)
 	c4iw_init_wr_wait(&epc->wr_wait);
 
 	return (epc);
-}
-
-void
-__free_ep(struct c4iw_ep_common *epc)
-{
-	CTR2(KTR_IW_CXGBE, "%s:feB %p", __func__, epc);
-	KASSERT(!epc->so, ("%s warning ep->so %p \n", __func__, epc->so));
-	KASSERT(!epc->entry.tqe_prev, ("%s epc %p still on req list!\n", __func__, epc));
-	free(epc, M_DEVBUF);
-	CTR2(KTR_IW_CXGBE, "%s:feE %p", __func__, epc);
 }
 
 void _c4iw_free_ep(struct kref *kref)
