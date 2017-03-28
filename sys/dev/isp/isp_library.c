@@ -632,28 +632,6 @@ isp_clear_commands(ispsoftc_t *isp)
 #endif
 }
 
-void
-isp_shutdown(ispsoftc_t *isp)
-{
-	if (IS_FC(isp)) {
-		if (IS_24XX(isp)) {
-			ISP_WRITE(isp, BIU2400_ICR, 0);
-			ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_PAUSE);
-		} else {
-			ISP_WRITE(isp, BIU_ICR, 0);
-			ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
-			ISP_WRITE(isp, BIU2100_CSR, BIU2100_FPM0_REGS);
-			ISP_WRITE(isp, FPM_DIAG_CONFIG, FPM_SOFT_RESET);
-			ISP_WRITE(isp, BIU2100_CSR, BIU2100_FB_REGS);
-			ISP_WRITE(isp, FBM_CMD, FBMCMD_FIFO_RESET_ALL);
-			ISP_WRITE(isp, BIU2100_CSR, BIU2100_RISC_REGS);
-		}
-	} else {
-		ISP_WRITE(isp, BIU_ICR, 0);
-		ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
-	}
-}
-
 /*
  * Functions to move stuff to a form that the QLogic RISC engine understands
  * and functions to move stuff back to a form the processor understands.
