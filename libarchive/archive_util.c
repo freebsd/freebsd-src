@@ -193,7 +193,7 @@ archive_copy_error(struct archive *dest, struct archive *src)
 void
 __archive_errx(int retvalue, const char *msg)
 {
-	static const char *msg1 = "Fatal Internal Error in libarchive: ";
+	static const char msg1[] = "Fatal Internal Error in libarchive: ";
 	size_t s;
 
 	s = write(2, msg1, strlen(msg1));
@@ -221,8 +221,8 @@ __archive_errx(int retvalue, const char *msg)
 int
 __archive_mktemp(const char *tmpdir)
 {
-	static const wchar_t *prefix = L"libarchive_";
-	static const wchar_t *suffix = L"XXXXXXXXXX";
+	static const wchar_t prefix[] = L"libarchive_";
+	static const wchar_t suffix[] = L"XXXXXXXXXX";
 	static const wchar_t num[] = {
 		L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7',
 		L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F',
