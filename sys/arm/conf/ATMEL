@@ -145,7 +145,6 @@ device		umass			# Disks/Mass storage - Requires scbus and da
 
 # USB device (gadget) support
 device		at91_dci		# Atmel's usb device
-device		usfs			# emulate a flash
 device		cdce			# emulate an ethernet
 device		usb_template		# Control of the gadget
 
