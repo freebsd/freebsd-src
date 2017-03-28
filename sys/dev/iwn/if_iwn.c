@@ -2994,7 +2994,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	struct iwn_ops *ops = &sc->ops;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct iwn_rx_ring *ring = &sc->rxq;
-	struct ieee80211_frame *wh;
+	struct ieee80211_frame_min *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m, *m1;
 	struct iwn_rx_stat *stat;
@@ -3096,9 +3096,9 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	m->m_pkthdr.len = m->m_len = len;
 
 	/* Grab a reference to the source node. */
-	wh = mtod(m, struct ieee80211_frame *);
+	wh = mtod(m, struct ieee80211_frame_min *);
 	if (len >= sizeof(struct ieee80211_frame_min))
-		ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
+		ni = ieee80211_find_rxnode(ic, wh);
 	else
 		ni = NULL;
 	nf = (ni != NULL && ni->ni_vap->iv_state == IEEE80211_S_RUN &&
@@ -3130,7 +3130,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	if (sc->sc_beacon_wait) {
 		uint8_t type, subtype;
 		/* NB: Re-assign wh */
-		wh = mtod(m, struct ieee80211_frame *);
+		wh = mtod(m, struct ieee80211_frame_min *);
 		type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 		subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 		/*
