@@ -95,8 +95,6 @@ __FBSDID("$FreeBSD$");
 #define	ID_SRPT				0xa1238086
 #define	ID_SRPTLP			0x9d238086
 
-#define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
-
 /* Internal functions */
 static int	ichsmb_pci_probe(device_t dev);
 static int	ichsmb_pci_attach(device_t dev);
