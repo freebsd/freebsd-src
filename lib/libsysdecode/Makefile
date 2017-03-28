@@ -110,6 +110,12 @@ CFLAGS.gcc.ioctl.c+= -Wno-unused
 
 CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
+.ifdef LIBCHERI
+# XXX-CHERI: need to set CPP to something sane
+# Work around packed struct in cissio.h
+CFLAGS.ioctl.c+=	-Wno-error-cheri-capability-misuse
+.endif
+
 DEPENDOBJS+=	tables.h
 tables.h: mktables
 	sh ${.CURDIR}/mktables ${DESTDIR}${INCLUDEDIR} ${.TARGET}
