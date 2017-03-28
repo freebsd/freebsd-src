@@ -139,9 +139,8 @@ ls_getdir(char **pathp)
     struct stat	sb;
     int		fd;
     const char	*cp;
-    char	*path, *tail;
+    char	*path;
     
-    tail = NULL;
     fd = -1;
 
     /* one extra byte for a possible trailing slash required */
