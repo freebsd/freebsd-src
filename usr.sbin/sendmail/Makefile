@@ -3,9 +3,6 @@
 
 .include <src.opts.mk>
 
-# linker error
-WANT_CHERI=none
-
 PACKAGE=sendmail
 SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 SMDIR=	${SENDMAIL_DIR}/src
