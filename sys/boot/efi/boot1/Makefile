@@ -20,7 +20,11 @@ CWARNFLAGS.zfs_module.c += -Wno-sign-compare
 CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
 CWARNFLAGS.skein.c += -Wno-cast-align
+.if ${COMPILER_TYPE} == "clang"
 CWARNFLAGS.skein.c += -Wno-missing-variable-declarations
+.else if ${COMPILER_TYPE} == "gcc"
+CWARNFLAGS.skein.c += -Wno-missing-declarations
+.endif
 .endif
 
 # architecture-specific loader code
