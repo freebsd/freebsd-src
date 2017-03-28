@@ -262,6 +262,10 @@ kvm_close(kvm_t *kd)
 {
 	int error = 0;
 
+	if (kd == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (kd->pmfd >= 0)
 		error |= close(kd->pmfd);
 	if (kd->vmfd >= 0)
