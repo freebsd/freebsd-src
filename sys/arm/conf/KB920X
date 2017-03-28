@@ -153,7 +153,6 @@ device		zyd			# ZyDAS zd1211/zd1211b wireless NICs
 
 # USB device (gadget) support
 device		at91_dci		# Atmel's usb device
-device		usfs			# emulate a flash
 device		cdce			# emulate an ethernet
 device		usb_template		# Control of the gadget
 
