@@ -4291,11 +4291,13 @@ changed:
 			mbox6 = 0;
 		}
 		isp_prt(isp, ISP_LOGERR, "Internal Firmware Error on bus %d @ RISC Address 0x%x", mbox6, mbox1);
+#if 0
 		mbox1 = isp->isp_osinfo.mbox_sleep_ok;
 		isp->isp_osinfo.mbox_sleep_ok = 0;
 		isp_reinit(isp, 1);
 		isp->isp_osinfo.mbox_sleep_ok = mbox1;
 		isp_async(isp, ISPASYNC_FW_RESTARTED, NULL);
+#endif
 		break;
 	}
 	default:
