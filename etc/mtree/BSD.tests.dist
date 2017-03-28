@@ -328,6 +328,8 @@
         ..
         libdevdctl
         ..
+        libkvm
+        ..
         libmp
         ..
         libnv
