@@ -66,7 +66,7 @@ boot1.out: boot1.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
 
 CLEANFILES+=	boot2 boot2.ld boot2.ldr boot2.bin boot2.out boot2.o \
-		boot2.s boot2.s.tmp boot2.h sio.o
+		boot2.h sio.o
 
 boot2: boot2.ld
 	@set -- `ls -l boot2.ld`; x=$$((7680-$$5)); \
@@ -86,23 +86,7 @@ boot2.bin: boot2.out
 boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
-boot2.o: boot2.s
-	${CC} ${ACFLAGS} -c boot2.s
-
 SRCS=	boot2.c boot2.h
-
-# Gcc (4.2.1 at least) benefits from removing the forced alignment
-# clang doesn't. Make the removal as specific as possible to avoid
-# false positives (like path names with odd names for debugging info).
-# In the past, gcc benefited from nop removal, but not in 4.2.1.
-# Think of this as a poor-man's peephole optimizer for gcc 4.2.1
-boot2.s: boot2.c boot2.h ${.CURDIR}/../../common/ufsread.c
-	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.CURDIR}/boot2.c
-.if ${COMPILER_TYPE} == "gcc"
-	sed -e '/\.align 4/d' < boot2.s.tmp > boot2.s
-.else
-	cp boot2.s.tmp boot2.s
-.endif
 
 boot2.h: boot1.out
 	${NM} -t d ${.ALLSRC} | awk '/([0-9])+ T xread/ \
