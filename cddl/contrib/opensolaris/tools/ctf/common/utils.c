@@ -60,6 +60,7 @@ getpname(void)
 	return (pname);
 }
 
+#if 0
 void
 vwarn(const char *format, va_list alist)
 {
@@ -84,6 +85,7 @@ warn(const char *format, ...)
 	vwarn(format, alist);
 	va_end(alist);
 }
+#endif
 
 void
 vdie(const char *format, va_list alist)
