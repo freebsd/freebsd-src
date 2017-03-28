@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpsnmpd 1ntpsnmpdman "21 Nov 2016" "4.2.8p9" "User Commands"
+.TH ntpsnmpd 1ntpsnmpdman "21 Mar 2017" "4.2.8p10" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-oTaGvl/ag-ATayul)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-yhaGex/ag-6haacx)
 .\"
-.\" It has been AutoGen-ed November 21, 2016 at 08:03:18 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed March 21, 2017 at 10:45:40 AM by AutoGen 5.18.5
 .\" From the definitions ntpsnmpd-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -138,7 +138,7 @@ it to autogen-users@lists.sourceforge.net.  Thank you.
 .NOP  "Heiko Gerstung" 
 .br
 .SH "COPYRIGHT"
-Copyright (C) 1992-2016 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2017 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
 Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
