@@ -1,11 +1,8 @@
 # $FreeBSD$
 
-# mislinked due to fake private libs
-WANT_CHERI=	none
-
 PROG=	asn1_compile
 MAN=
-LIBROKEN_A=	${.OBJDIR:H:H}/lib/libroken/libroken.a
+LIBROKEN_A=	${_LIB_OBJTOP}/kerberos5/lib/libroken/libroken.a
 LIBADD=	vers
 LDADD=	${LIBROKEN_A}
 DPADD=	${LIBROKEN_A}
