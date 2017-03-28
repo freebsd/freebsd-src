@@ -253,7 +253,7 @@ cmd_step_common(constant char *p, LWCHAR ch, int len, int *pwidth, int *bswidth)
 cmd_step_right(char **pp, int *pwidth, int *bswidth)
 {
 	char *p = *pp;
-	LWCHAR ch = step_char(pp, +1, p + strlen(p));
+	LWCHAR ch = step_char((constant char **)pp, +1, p + strlen(p));
 
 	return cmd_step_common(p, ch, *pp - p, pwidth, bswidth);
 }
@@ -265,7 +265,7 @@ cmd_step_right(char **pp, int *pwidth, int *bswidth)
 cmd_step_left(char **pp, int *pwidth, int *bswidth)
 {
 	char *p = *pp;
-	LWCHAR ch = step_char(pp, -1, cmdbuf);
+	LWCHAR ch = step_char((constant char **)pp, -1, cmdbuf);
 
 	return cmd_step_common(*pp, ch, p - *pp, pwidth, bswidth);
 }
@@ -648,7 +648,7 @@ cmd_kill(void)
  * Select an mlist structure to be the current command history.
  */
 	public void
-set_mlist(void *mlist, int cmdflags)
+set_mlist(constant void *mlist, int cmdflags)
 {
 #if CMD_HISTORY
 	curr_mlist = (struct mlist *) mlist;
@@ -729,7 +729,7 @@ cmd_updown(int action)
  * Add a string to an mlist.
  */
 	public void
-cmd_addhist(struct mlist *mlist, char *cmd, int modified)
+cmd_addhist(struct mlist *constant mlist, char *cmd, int modified)
 {
 #if CMD_HISTORY
 	struct mlist *ml;
@@ -918,7 +918,7 @@ cmd_istr(char *str)
 	for (s = str;  *s != '\0';  )
 	{
 		char *os = s;
-		step_char(&s, +1, endline);
+		step_char((constant char **)&s, +1, endline);
 		action = cmd_ichar(os, s - os);
 		if (action != CC_OK)
 		{

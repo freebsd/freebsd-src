@@ -474,7 +474,7 @@ pwidth(LWCHAR ch, int a, LWCHAR prev_ch)
 backc(void)
 {
 	LWCHAR prev_ch;
-	char *p = linebuf + curr;
+	constant char *p = linebuf + curr;
 	LWCHAR ch = step_char(&p, -1, linebuf + lmargin);
 	int width;
 
@@ -501,7 +501,7 @@ backc(void)
 	static int
 in_ansi_esc_seq(void)
 {
-	char *p;
+	constant char *p;
 
 	/*
 	 * Search backwards for either an ESC (which means we ARE in a seq);
@@ -585,7 +585,7 @@ store_char(LWCHAR ch, int a, char *rep, POSITION pos)
 	{
 		if (!is_ansi_end(ch) && !is_ansi_middle(ch)) {
 			/* Remove whole unrecognized sequence.  */
-			char *p = &linebuf[curr];
+			constant char *p = &linebuf[curr];
 			LWCHAR bch;
 			do {
 				bch = step_char(&p, -1, linebuf);
@@ -603,7 +603,7 @@ store_char(LWCHAR ch, int a, char *rep, POSITION pos)
 	}
 	else
 	{
-		char *p = &linebuf[curr];
+		constant char *p = &linebuf[curr];
 		LWCHAR prev_ch = step_char(&p, -1, linebuf);
 		w = pwidth(ch, a, prev_ch);
 	}

@@ -464,7 +464,7 @@ bin_file(int f)
 	int n;
 	int bin_count = 0;
 	char data[256];
-	char* p;
+	constant char* p;
 	char* pend;
 
 	if (!seekable(f))

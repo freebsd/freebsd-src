@@ -121,9 +121,9 @@ static struct pattern_info filter_info;
  * Are there any uppercase letters in this string?
  */
 	static int
-is_ucase(char *str)
+is_ucase(constant char *str)
 {
-	char *str_end = str + strlen(str);
+	constant char *str_end = str + strlen(str);
 	LWCHAR ch;
 
 	while (str < str_end)
@@ -144,7 +144,8 @@ set_pattern(struct pattern_info *info, char *pattern, int search_type)
 #if !NO_REGEX
 	if (pattern == NULL)
 		CLEAR_PATTERN(info->compiled);
-	else if (compile_pattern(pattern, search_type, &info->compiled) < 0)
+	else if (compile_pattern(pattern, search_type,
+	    (void **)&info->compiled) < 0)
 		return -1;
 #endif
 	/* Pattern compiled successfully; save the text too. */
@@ -180,7 +181,7 @@ clear_pattern(struct pattern_info *info)
 		free(info->text);
 	info->text = NULL;
 #if !NO_REGEX
-	uncompile_pattern(&info->compiled);
+	uncompile_pattern((void **)&info->compiled);
 #endif
 }
 

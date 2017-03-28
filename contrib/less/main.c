@@ -301,7 +301,7 @@ main(argc, argv)
  * (that is, to a buffer allocated by calloc).
  */
 	public char *
-save(char *s)
+save(constant char *s)
 {
 	register char *p;
 

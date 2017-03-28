@@ -1,4 +1,4 @@
-	public char * save (char *s);
+	public char * save (constant char *s);
 	public VOID_POINTER ecalloc (int count, unsigned int size);
 	public char * skipsp (char *s);
 	public char * skipnsp(char *s);
@@ -73,9 +73,9 @@ struct filestate;
 	public void clear_cmd (void);
 	public void cmd_putstr (constant char *s);
 	public int len_cmdbuf (void);
-	public void set_mlist (void *mlist, int cmdflags);
+	public void set_mlist (constant void *mlist, int cmdflags);
 struct mlist;
-	public void cmd_addhist (struct mlist *mlist, char *cmd, int modified);
+	public void cmd_addhist (struct mlist *constant mlist, char *cmd, int modified);
 	public void cmd_accept (void);
 	public int cmd_char (int c);
 	public LINENUM cmd_int (long *frac);
