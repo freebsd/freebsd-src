@@ -84,28 +84,9 @@ CFLAGS+=	-I${GCCLIB}/include
 CFLAGS+=	-I${GCCLIB}/libcpp/include
 CFLAGS+=	-I${GCCLIB}/libdecnumber
 
-.if exists(${.OBJDIR}/../cc_int)
-LIBBACKEND=	${.OBJDIR}/../cc_int/libbackend.a
-.else
-LIBBACKEND=	${.CURDIR}/../cc_int/libbackend.a
-.endif
-
-.if exists(${.OBJDIR}/../libiberty)
-LIBIBERTY=	${.OBJDIR}/../libiberty/libiberty.a
-.else
-LIBIBERTY=	${.CURDIR}/../libiberty/libiberty.a
-.endif
-
-.if exists(${.OBJDIR}/../libcpp)
-LIBCPP=		${.OBJDIR}/../libcpp/libcpp.a
-.else
-LIBCPP=		${.CURDIR}/../libcpp/libcpp.a
-.endif
-
-.if exists(${.OBJDIR}/../libdecnumber)
-LIBDECNUMBER=	${.OBJDIR}/../libdecnumber/libdecnumber.a
-.else
-LIBDECNUMBER=	${.CURDIR}/../libdecnumber/libdecnumber.a
-.endif
+LIBBACKEND=	${_LIB_OBJTOP}/gnu/usr.bin/cc/cc_int/libbackend.a
+LIBIBERTY=	${_LIB_OBJTOP}/gnu/usr.bin/cc/libiberty/libiberty.a
+LIBCPP=		${_LIB_OBJTOP}/gnu/usr.bin/cc/libcpp/libcpp.a
+LIBDECNUMBER=	${_LIB_OBJTOP}/gnu/usr.bin/cc/libdecnumber/libdecnumber.a
 
 .endif # !__CC_MAKEFILE_INC__

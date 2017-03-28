@@ -67,9 +67,9 @@ indexname=Ind
 ########################################################################
 # Libraries
 
-LIBGROFF=	${.OBJDIR}/${TOPREL}/src/libs/libgroff/libgroff.a
-LIBDRIVER=	${.OBJDIR}/${TOPREL}/src/libs/libdriver/libdriver.a
-LIBBIB=		${.OBJDIR}/${TOPREL}/src/libs/libbib/libbib.a
+LIBGROFF=	${_LIB_OBJTOP}/gnu/usr.bin/groff/src/libs/libgroff/libgroff.a
+LIBDRIVER=	${_LIB_OBJTOP}/gnu/usr.bin/groff/src/libs/libdriver/libdriver.a
+LIBBIB=		${_LIB_OBJTOP}/gnu/usr.bin/groff/src/libs/libbib/libbib.a
 
 CFLAGS+=	-DHAVE_CONFIG_H
 CFLAGS+=	-I${GROFF_DIST}/src/include -I${.CURDIR}/${TOPREL}/src/include
