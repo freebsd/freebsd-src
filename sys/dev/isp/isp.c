@@ -95,11 +95,11 @@ static const uint8_t alpa_map[] = {
 /*
  * Local function prototypes.
  */
-static int isp_parse_async(ispsoftc_t *, uint16_t);
-static int isp_parse_async_fc(ispsoftc_t *, uint16_t);
+static void isp_parse_async(ispsoftc_t *, uint16_t);
+static void isp_parse_async_fc(ispsoftc_t *, uint16_t);
 static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *, uint32_t *);
-static void isp_parse_status(ispsoftc_t *, ispstatusreq_t *, XS_T *, long *); static void
-isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *, long *);
+static void isp_parse_status(ispsoftc_t *, ispstatusreq_t *, XS_T *, long *);
+static void isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *, long *);
 static void isp_fastpost_complete(ispsoftc_t *, uint32_t);
 static void isp_scsi_init(ispsoftc_t *);
 static void isp_scsi_channel_init(ispsoftc_t *, int);
@@ -4950,10 +4950,10 @@ again:
 				isp_prt(isp, ISP_LOGWARN, "mailbox cmd (0x%x) with no waiters", info);
 			}
 		} else {
-			i = IS_FC(isp)? isp_parse_async_fc(isp, info) : isp_parse_async(isp, info);
-			if (i < 0) {
-				return;
-			}
+			if (IS_FC(isp))
+				isp_parse_async_fc(isp, info);
+			else
+				isp_parse_async(isp, info);
 		}
 		if ((IS_FC(isp) && info != ASYNC_RIOZIO_STALL) || isp->isp_state != ISP_RUNSTATE) {
 			goto out;
@@ -5504,13 +5504,10 @@ isp_prt_endcmd(ispsoftc_t *isp, XS_T *xs)
 
 /*
  * Parse an ASYNC mailbox complete
- *
- * Return non-zero if the event has been acknowledged.
  */
-static int
+static void
 isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 {
-	int acked = 0;
 	uint32_t h1 = 0, h2 = 0;
 	uint16_t chan = 0;
 
@@ -5529,9 +5526,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 	case ASYNC_BUS_RESET:
 		ISP_SET_SENDMARKER(isp, chan, 1);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, chan, mbox)) {
-			acked = 1;
-		}
+		isp_target_async(isp, chan, mbox);
 #endif
 		isp_async(isp, ISPASYNC_BUS_RESET, chan);
 		break;
@@ -5551,7 +5546,6 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		 * restart the firmware
 		 */
 		isp_async(isp, ISPASYNC_FW_CRASH);
-		acked = 1;
 		break;
 
 	case ASYNC_RQS_XFER_ERR:
@@ -5575,9 +5569,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_prt(isp, ISP_LOGWARN, "timeout initiated SCSI bus reset of chan %d", chan);
 		ISP_SET_SENDMARKER(isp, chan, 1);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, chan, mbox)) {
-			acked = 1;
-		}
+		isp_target_async(isp, chan, mbox);
 #endif
 		break;
 
@@ -5585,9 +5577,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_prt(isp, ISP_LOGINFO, "device reset on chan %d", chan);
 		ISP_SET_SENDMARKER(isp, chan, 1);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, chan, mbox)) {
-			acked = 1;
-		}
+		isp_target_async(isp, chan, mbox);
 #endif
 		break;
 
@@ -5687,14 +5677,12 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 	} else {
 		isp->isp_intoasync++;
 	}
-	return (acked);
 }
 
-static int
+static void
 isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 {
 	fcparam *fcp;
-	int acked = 0;
 	uint16_t chan;
 
 	if (IS_DUALBUS(isp)) {
@@ -5723,7 +5711,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * restart the firmware
 		 */
 		isp_async(isp, ISPASYNC_FW_CRASH);
-		acked = 1;
 		break;
 
 	case ASYNC_RQS_XFER_ERR:
@@ -5756,11 +5743,9 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 
 	case ASYNC_CTIO_DONE:
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, (ISP_READ(isp, OUTMAILBOX2) << 16) | ISP_READ(isp, OUTMAILBOX1), mbox)) {
-			acked = 1;
-		} else {
-			isp->isp_fphccmplt++;
-		}
+		isp_target_async(isp, (ISP_READ(isp, OUTMAILBOX2) << 16) |
+		    ISP_READ(isp, OUTMAILBOX1), mbox);
+		isp->isp_fphccmplt++;
 #else
 		isp_prt(isp, ISP_LOGWARN, "unexpected ASYNC CTIO done");
 #endif
@@ -5785,9 +5770,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			ISP_SET_SENDMARKER(isp, chan, 1);
 			isp_async(isp, ISPASYNC_LIP, chan);
 #ifdef	ISP_TARGET_MODE
-			if (isp_target_async(isp, chan, mbox)) {
-				acked = 1;
-			}
+			isp_target_async(isp, chan, mbox);
 #endif
 			/*
 			 * We've had problems with data corruption occurring on
@@ -5841,9 +5824,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			ISP_SET_SENDMARKER(isp, chan, 1);
 			isp_async(isp, ISPASYNC_LOOP_UP, chan);
 #ifdef	ISP_TARGET_MODE
-			if (isp_target_async(isp, chan, mbox)) {
-				acked = 1;
-			}
+			isp_target_async(isp, chan, mbox);
 #endif
 		}
 		break;
@@ -5862,9 +5843,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			fcp->isp_loopstate = LOOP_NIL;
 			isp_async(isp, ISPASYNC_LOOP_DOWN, chan);
 #ifdef	ISP_TARGET_MODE
-			if (isp_target_async(isp, chan, mbox)) {
-				acked = 1;
-			}
+			isp_target_async(isp, chan, mbox);
 #endif
 		}
 		break;
@@ -5884,9 +5863,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			isp_async(isp, ISPASYNC_LOOP_RESET, chan);
 #ifdef	ISP_TARGET_MODE
-			if (isp_target_async(isp, chan, mbox)) {
-				acked = 1;
-			}
+			isp_target_async(isp, chan, mbox);
 #endif
 		}
 		break;
@@ -5990,7 +5967,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			isp->isp_state = ISP_CRASHED;
 			isp_prt(isp, ISP_LOGERR, "FATAL CONNECTION ERROR");
 			isp_async(isp, ISPASYNC_FW_CRASH);
-			return (-1);
+			return;
 		case ISP_CONN_LOOPBACK:
 			isp_prt(isp, ISP_LOGWARN,
 			    "Looped Back in Point-to-Point mode");
@@ -6043,7 +6020,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 	if (mbox != ASYNC_CTIO_DONE && mbox != ASYNC_CMD_CMPLT) {
 		isp->isp_intoasync++;
 	}
-	return (acked);
 }
 
 /*
