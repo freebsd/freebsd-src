@@ -147,7 +147,7 @@ int	sys_cohort = 0;		/* cohort switch */
 int	sys_orphan = STRATUM_UNSPEC + 1; /* orphan stratum */
 int	sys_orphwait = NTP_ORPHWAIT; /* orphan wait */
 int	sys_beacon = BEACON;	/* manycast beacon interval */
-int	sys_ttlmax;		/* max ttl mapping vector index */
+u_int	sys_ttlmax;		/* max ttl mapping vector index */
 u_char	sys_ttl[MAX_TTL];	/* ttl mapping vector */
 
 /*
@@ -401,7 +401,7 @@ transmit(
 			peer_xmit(peer);
 		} else if (   sys_survivors < sys_minclock
 			   || peer_associations < sys_maxclock) {
-			if (peer->ttl < (u_int32)sys_ttlmax)
+			if (peer->ttl < sys_ttlmax)
 				peer->ttl++;
 			peer_xmit(peer);
 		}
@@ -1691,9 +1691,13 @@ receive(
 
 		if (0) {
 		} else if (L_ISZERO(&p_org)) {
-			char *action;
+			const char *action;
 
+#ifdef BUG3361
+			msyslog(LOG_INFO,
+				"receive: BUG 3361: Clearing peer->aorg ");
 			L_CLR(&peer->aorg);
+#endif
 			/**/
 			switch (hismode) {
 			/* We allow 0org for: */
@@ -1712,6 +1716,7 @@ receive(
 				peer->flash |= TEST2;	/* bogus */
 				break;
 			    default:
+				action = "";	/* for cranky compilers / MSVC */
 				INSIST(!"receive(): impossible hismode");
 				break;
 			}
@@ -3719,8 +3724,9 @@ peer_xmit(
 			}
 		}
 		peer->t21_bytes = sendlen;
-		sendpkt(&peer->srcadr, peer->dstadr, sys_ttl[peer->ttl],
-		    &xpkt, sendlen);
+		sendpkt(&peer->srcadr, peer->dstadr,
+			sys_ttl[(peer->ttl >= sys_ttlmax) ? sys_ttlmax : peer->ttl],
+			&xpkt, sendlen);
 		peer->sent++;
 		peer->throttle += (1 << peer->minpoll) - 2;
 
@@ -4030,8 +4036,9 @@ peer_xmit(
 		exit (-1);
 	}
 	peer->t21_bytes = sendlen;
-	sendpkt(&peer->srcadr, peer->dstadr, sys_ttl[peer->ttl], &xpkt,
-	    sendlen);
+	sendpkt(&peer->srcadr, peer->dstadr,
+		sys_ttl[(peer->ttl >= sys_ttlmax) ? sys_ttlmax : peer->ttl],
+		&xpkt, sendlen);
 	peer->sent++;
 	peer->throttle += (1 << peer->minpoll) - 2;
 
@@ -4054,7 +4061,7 @@ peer_xmit(
 		    ntoa(&peer->srcadr), peer->hmode, xkeyid, sendlen,
 		    peer->keynumber));
 #else	/* !AUTOKEY follows */
-	DPRINTF(1, ("peer_xmit: at %ld %s->%s mode %d keyid %08x len %d\n",
+	DPRINTF(1, ("peer_xmit: at %ld %s->%s mode %d keyid %08x len %zu\n",
 		    current_time, peer->dstadr ?
 		    ntoa(&peer->dstadr->sin) : "-",
 		    ntoa(&peer->srcadr), peer->hmode, xkeyid, sendlen));
@@ -4352,8 +4359,9 @@ pool_xmit(
 	get_systime(&xmt_tx);
 	pool->aorg = xmt_tx;
 	HTONL_FP(&xmt_tx, &xpkt.xmt);
-	sendpkt(rmtadr, lcladr,	sys_ttl[pool->ttl], &xpkt,
-		LEN_PKT_NOMAC);
+	sendpkt(rmtadr, lcladr,
+		sys_ttl[(pool->ttl >= sys_ttlmax) ? sys_ttlmax : pool->ttl],
+		&xpkt, LEN_PKT_NOMAC);
 	pool->sent++;
 	pool->throttle += (1 << pool->minpoll) - 2;
 	DPRINTF(1, ("pool_xmit: at %ld %s->%s pool\n",
@@ -4722,10 +4730,9 @@ init_proto(void)
 	sys_stattime = current_time;
 	orphwait = current_time + sys_orphwait;
 	proto_clr_stats();
-	for (i = 0; i < MAX_TTL; i++) {
+	for (i = 0; i < MAX_TTL; ++i)
 		sys_ttl[i] = (u_char)((i * 256) / MAX_TTL);
-		sys_ttlmax = i;
-	}
+	sys_ttlmax = (MAX_TTL - 1);
 	hardpps_enable = 0;
 	stats_control = 1;
 }
