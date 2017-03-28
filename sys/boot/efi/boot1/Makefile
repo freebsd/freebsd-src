@@ -37,6 +37,10 @@ CFLAGS+=	-DSKEIN_LOOP=111
 .PATH:		${.CURDIR}/../../../crypto/skein
 .endif
 
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
+CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
+.endif
+
 CFLAGS+=	-I.
 CFLAGS+=	-I${.CURDIR}/../include
 CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
