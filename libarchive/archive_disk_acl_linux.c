@@ -27,6 +27,8 @@
 
 #include "archive_platform.h"
 
+#if ARCHIVE_ACL_LIBACL || ARCHIVE_ACL_LIBRICHACL
+
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -738,3 +740,4 @@ archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
 #endif	/* ARCHIVE_ACL_LIBACL */
 	return (ret);
 }
+#endif /* ARCHIVE_ACL_LIBACL || ARCHIVE_ACL_LIBRICHACL */

@@ -250,32 +250,16 @@ libarchive_la_SOURCES+= \
 endif
 
 if INC_LINUX_ACL
-libarchive_la_SOURCES+= \
-	libarchive/archive_acl_maps.h \
-	libarchive/archive_acl_maps_linux.c \
-	libarchive/archive_read_disk_acl_linux.c \
-	libarchive/archive_write_disk_acl_linux.c
+libarchive_la_SOURCES+= libarchive/archive_disk_acl_linux.c
 else
 if INC_SUNOS_ACL
-libarchive_la_SOURCES+= \
-	libarchive/archive_acl_maps.h \
-	libarchive/archive_acl_maps_sunos.c \
-	libarchive/archive_read_disk_acl_sunos.c \
-	libarchive/archive_write_disk_acl_sunos.c
+libarchive_la_SOURCES+= libarchive/archive_disk_acl_sunos.c
 else
 if INC_DARWIN_ACL
-libarchive_la_SOURCES+= \
-	libarchive/archive_acl_maps.h \
-	libarchive/archive_acl_maps_darwin.c \
-	libarchive/archive_read_disk_acl_darwin.c \
-	libarchive/archive_write_disk_acl_darwin.c
+libarchive_la_SOURCES+= libarchive/archive_disk_acl_darwin.c
 else
 if INC_FREEBSD_ACL
-libarchive_la_SOURCES+= \
-	libarchive/archive_acl_maps.h \
-	libarchive/archive_acl_maps_freebsd.c \
-	libarchive/archive_read_disk_acl_freebsd.c \
-	libarchive/archive_write_disk_acl_freebsd.c
+libarchive_la_SOURCES+= libarchive/archive_disk_acl_freebsd.c
 endif
 endif
 endif
