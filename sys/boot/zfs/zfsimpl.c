@@ -494,7 +494,7 @@ vdev_find(uint64_t guid)
 }
 
 static vdev_t *
-vdev_create(uint64_t guid, vdev_read_t *read)
+vdev_create(uint64_t guid, vdev_read_t *_read)
 {
 	vdev_t *vdev;
 
@@ -503,7 +503,7 @@ vdev_create(uint64_t guid, vdev_read_t *read)
 	STAILQ_INIT(&vdev->v_children);
 	vdev->v_guid = guid;
 	vdev->v_state = VDEV_STATE_OFFLINE;
-	vdev->v_read = read;
+	vdev->v_read = _read;
 	vdev->v_phys_read = 0;
 	vdev->v_read_priv = 0;
 	STAILQ_INSERT_TAIL(&zfs_vdevs, vdev, v_alllink);
@@ -907,7 +907,7 @@ spa_all_status(void)
 }
 
 static int
-vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
+vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 {
 	vdev_t vtmp;
 	vdev_phys_t *vdev_label = (vdev_phys_t *) zap_scratch;
@@ -932,7 +932,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	 * uberblock is most current.
 	 */
 	memset(&vtmp, 0, sizeof(vtmp));
-	vtmp.v_phys_read = read;
+	vtmp.v_phys_read = _read;
 	vtmp.v_read_priv = read_priv;
 	off = offsetof(vdev_label_t, vl_vdev_phys);
 	BP_ZERO(&bp);
@@ -1060,7 +1060,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	 */
 	vdev = vdev_find(guid);
 	if (vdev) {
-		vdev->v_phys_read = read;
+		vdev->v_phys_read = _read;
 		vdev->v_read_priv = read_priv;
 		vdev->v_state = VDEV_STATE_HEALTHY;
 	} else {
