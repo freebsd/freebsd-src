@@ -57,13 +57,20 @@ AC_ARG_WITH(
 	[s Disable auto-added -R linker paths]
     )]
 )
+
 ntp_openssl=no
 ntp_openssl_from_pkg_config=no
+
 with_crypto=${with_crypto:-openssl,libcrypto}
 case "$with_crypto" in
  yes)
     with_crypto=openssl,libcrypto
 esac
+
+dnl AC_MSG_NOTICE(['%with_crypto:%{PKG_CONFIG:+notempty}:%{with_openssl_libdir-notgiven}:%{with_openssl_incdir-notgiven}'])
+dnl str="$with_crypto:${PKG_CONFIG:+notempty}:${with_openssl_libdir-notgiven}:${with_openssl_incdir-notgiven}"
+dnl AC_MSG_NOTICE([$str])
+
 case "$with_crypto:${PKG_CONFIG:+notempty}:${with_openssl_libdir-notgiven}:${with_openssl_incdir-notgiven}" in
  no:*) ;;
  *:notempty:notgiven:notgiven)
@@ -73,7 +80,7 @@ case "$with_crypto:${PKG_CONFIG:+notempty}:${with_openssl_libdir-notgiven}:${wit
 	    CPPFLAGS_NTP="$CPPFLAGS_NTP `$PKG_CONFIG --cflags-only-I $pkg`"
 	    CFLAGS_NTP="$CFLAGS_NTP `$PKG_CONFIG --cflags-only-other $pkg`"
 	    LDADD_NTP="$LDADD_NTP `$PKG_CONFIG --libs-only-L $pkg`"
-	    LDADD_NTP="$LDADD_NTP `$PKG_CONFIG --libs-only-l $pkg`"
+	    LDADD_NTP="$LDADD_NTP `$PKG_CONFIG --libs-only-l --static $pkg`"
 	    LDFLAGS_NTP="$LDFLAGS_NTP `$PKG_CONFIG --libs-only-other $pkg`"
 	    VER_SUFFIX=o
 	    ntp_openssl=yes
@@ -85,6 +92,11 @@ case "$with_crypto:${PKG_CONFIG:+notempty}:${with_openssl_libdir-notgiven}:${wit
 	AC_MSG_RESULT([no])
     done
 esac
+dnl AC_MSG_NOTICE([OpenSSL Phase I checks:])
+dnl AC_MSG_NOTICE([CPPFLAGS_NTP: $CPPFLAGS_NTP])
+dnl AC_MSG_NOTICE([CFLAGS_NTP: $CFLAGS_NTP])
+dnl AC_MSG_NOTICE([LDADD_NTP: $LDADD_NTP])
+dnl AC_MSG_NOTICE([LDFLAGS_NTP: $LDFLAGS_NTP])
 case "$with_crypto:$ntp_openssl" in
  no:*) ;;
  *:no)
@@ -369,6 +381,12 @@ case "$ntp_openssl" in
     AC_CHECK_FUNCS([EVP_MD_do_all_sorted])
     ;;
 esac
+
+dnl AC_MSG_NOTICE([OpenSSL final checks:])
+dnl AC_MSG_NOTICE([CPPFLAGS_NTP: $CPPFLAGS_NTP])
+dnl AC_MSG_NOTICE([CFLAGS_NTP: $CFLAGS_NTP])
+dnl AC_MSG_NOTICE([LDADD_NTP: $LDADD_NTP])
+dnl AC_MSG_NOTICE([LDFLAGS_NTP: $LDFLAGS_NTP])
 
 CPPFLAGS="$NTPO_SAVED_CPPFLAGS"
 LIBS="$NTPO_SAVED_LIBS"
