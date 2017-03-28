@@ -44,8 +44,8 @@ extern "C" {
    these types, if necessary.  These types should be sufficiently wide
    that any pointer or scalar can be cast to these types, and then
    cast back, without loss of precision.  */
-typedef unsigned long int splay_tree_key;
-typedef unsigned long int splay_tree_value;
+typedef __uintptr_t splay_tree_key;
+typedef __uintptr_t splay_tree_value;
 
 /* Forward declaration for a node in the tree.  */
 typedef struct splay_tree_node_s *splay_tree_node;

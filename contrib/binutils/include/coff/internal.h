@@ -436,7 +436,7 @@ struct internal_syment
     struct
     {
       long _n_zeroes;		/* new == 0			*/
-      long _n_offset;		/* offset into string table	*/
+      __intptr_t _n_offset;	/* offset into string table	*/
     }      _n_n;
     char *_n_nptr[2];		/* allows for overlaying	*/
   }     _n;

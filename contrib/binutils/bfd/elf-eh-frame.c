@@ -824,7 +824,8 @@ _bfd_elf_discard_section_eh_frame
 		}
 	      ecie->usage_count++;
 	      hdr_info->fde_count++;
-	      this_inf->cie_inf = (void *) (ecie - ecies);
+	      /* XXX-CHERI: this is storing a ptrdiff_t... */
+	      this_inf->cie_inf = (void *)(intptr_t) (ecie - ecies);
 	    }
 
 	  /* Skip the initial location and address range.  */
