@@ -114,9 +114,8 @@ device		bpf
 # USB Ethernet support, requires miibus
 device		miibus
 
-# Device mode support and USFS template
+# Device mode support
 device		usb_template    	# Control of the gadget
-device		usfs
 
 # Pinmux
 device		fdt_pinctrl
