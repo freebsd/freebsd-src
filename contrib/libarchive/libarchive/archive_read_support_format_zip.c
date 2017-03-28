@@ -347,7 +347,7 @@ fake_crc32(unsigned long crc, const void *buff, size_t len)
 	return 0;
 }
 
-static struct {
+static const struct {
 	int id;
 	const char * name;
 } compression_methods[] = {

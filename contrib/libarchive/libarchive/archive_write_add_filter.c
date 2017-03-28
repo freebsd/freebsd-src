@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 
 /* A table that maps filter codes to functions. */
-static
+static const
 struct { int code; int (*setter)(struct archive *); } codes[] =
 {
 	{ ARCHIVE_FILTER_NONE,		archive_write_add_filter_none },

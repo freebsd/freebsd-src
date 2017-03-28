@@ -399,41 +399,41 @@ bid_keycmp(const char *p, const char *key, ssize_t len)
 static int
 bid_keyword(const char *p,  ssize_t len)
 {
-	static const char *keys_c[] = {
+	static const char * const keys_c[] = {
 		"content", "contents", "cksum", NULL
 	};
-	static const char *keys_df[] = {
+	static const char * const keys_df[] = {
 		"device", "flags", NULL
 	};
-	static const char *keys_g[] = {
+	static const char * const keys_g[] = {
 		"gid", "gname", NULL
 	};
-	static const char *keys_il[] = {
+	static const char * const keys_il[] = {
 		"ignore", "inode", "link", NULL
 	};
-	static const char *keys_m[] = {
+	static const char * const keys_m[] = {
 		"md5", "md5digest", "mode", NULL
 	};
-	static const char *keys_no[] = {
+	static const char * const keys_no[] = {
 		"nlink", "nochange", "optional", NULL
 	};
-	static const char *keys_r[] = {
+	static const char * const keys_r[] = {
 		"resdevice", "rmd160", "rmd160digest", NULL
 	};
-	static const char *keys_s[] = {
+	static const char * const keys_s[] = {
 		"sha1", "sha1digest",
 		"sha256", "sha256digest",
 		"sha384", "sha384digest",
 		"sha512", "sha512digest",
 		"size", NULL
 	};
-	static const char *keys_t[] = {
+	static const char * const keys_t[] = {
 		"tags", "time", "type", NULL
 	};
-	static const char *keys_u[] = {
+	static const char * const keys_u[] = {
 		"uid", "uname",	NULL
 	};
-	const char **keys;
+	const char * const *keys;
 	int i;
 
 	switch (*p) {

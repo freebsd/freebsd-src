@@ -1638,7 +1638,7 @@ _archive_entry_acl_text_l(struct archive_entry *entry, int flags,
  * SUCH DAMAGE.
  */
 
-static struct flag {
+static const struct flag {
 	const char	*name;
 	const wchar_t	*wname;
 	unsigned long	 set;
@@ -1843,7 +1843,7 @@ ae_fflagstostr(unsigned long bitset, unsigned long bitclear)
 	char *string, *dp;
 	const char *sp;
 	unsigned long bits;
-	struct flag *flag;
+	const struct flag *flag;
 	size_t	length;
 
 	bits = bitset | bitclear;
@@ -1895,7 +1895,7 @@ static const char *
 ae_strtofflags(const char *s, unsigned long *setp, unsigned long *clrp)
 {
 	const char *start, *end;
-	struct flag *flag;
+	const struct flag *flag;
 	unsigned long set, clear;
 	const char *failed;
 
@@ -1963,7 +1963,7 @@ static const wchar_t *
 ae_wcstofflags(const wchar_t *s, unsigned long *setp, unsigned long *clrp)
 {
 	const wchar_t *start, *end;
-	struct flag *flag;
+	const struct flag *flag;
 	unsigned long set, clear;
 	const wchar_t *failed;
 

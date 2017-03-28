@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 
 /* A table that maps format codes to functions. */
-static
+static const
 struct { int code; int (*setter)(struct archive *); } codes[] =
 {
 	{ ARCHIVE_FORMAT_7ZIP,		archive_write_set_format_7zip },

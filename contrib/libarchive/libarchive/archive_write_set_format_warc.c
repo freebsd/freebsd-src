@@ -354,7 +354,7 @@ static ssize_t
 _popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
 {
 	static const char _ver[] = "WARC/1.0\r\n";
-	static const char *_typ[LAST_WT] = {
+	static const char * const _typ[LAST_WT] = {
 		NULL, "warcinfo", "metadata", "resource", NULL
 	};
 	char std_uuid[48U];
