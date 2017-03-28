@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../gptboot \
 		${.CURDIR}/../zfsboot ${.CURDIR}/../common \
 		${.CURDIR}/../../common ${.CURDIR}/../../../crypto/skein
@@ -34,7 +36,12 @@ CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline -Wno-tentative-definition-incomplete-type -Wno-pointer-sign
+	-Winline -Wno-pointer-sign
+
+.if ${COMPILER_TYPE} == "clang" || \
+    (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201)
+CFLAGS+=	-Wno-tentative-definition-incomplete-type
+.endif
 
 # Do not unroll skein loops, reduce code size
 CFLAGS+=	-DSKEIN_LOOP=111
