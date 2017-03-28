@@ -45,10 +45,10 @@ INCS=	archive.h archive_entry.h
 
 # Sources to be compiled.
 SRCS=	archive_acl.c					\
-	archive_acl_maps_freebsd.c			\
 	archive_check_magic.c				\
 	archive_cmdline.c				\
 	archive_cryptor.c				\
+	archive_disk_acl_freebsd.c			\
 	archive_digest.c				\
 	archive_entry.c					\
 	archive_entry_copy_stat.c			\
@@ -70,7 +70,6 @@ SRCS=	archive_acl.c					\
 	archive_read_add_passphrase.c			\
 	archive_read_append_filter.c			\
 	archive_read_data_into_fd.c			\
-	archive_read_disk_acl_freebsd.c			\
 	archive_read_disk_entry_from_file.c		\
 	archive_read_disk_posix.c			\
 	archive_read_disk_set_standard_lookup.c		\
@@ -118,7 +117,6 @@ SRCS=	archive_acl.c					\
 	archive_virtual.c				\
 	archive_write.c					\
 	archive_write_add_filter.c			\
-	archive_write_disk_acl_freebsd.c		\
 	archive_write_disk_set_standard_lookup.c	\
 	archive_write_disk_posix.c			\
 	archive_write_open_fd.c				\
