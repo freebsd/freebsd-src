@@ -864,6 +864,9 @@ INTERNAL_INC_DIRS=				\
 	include/rpcsvc				\
 	usr.sbin/amd/include
 INTERNAL_LIB_DIRS=				\
+	gnu/usr.bin/binutils/libbfd		\
+	gnu/usr.bin/binutils/libbinutils	\
+	gnu/usr.bin/binutils/libiberty		\
 	gnu/usr.bin/binutils/libopcodes		\
 	sbin/ipf/libipf				\
 	usr.sbin/amd/libamu			\

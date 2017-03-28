@@ -28,15 +28,20 @@ _PRIVATELIBS=	\
 
 _INTERNALLIBS=	\
 		amu \
+		bfd \
+		binutils \
 		bsnmptools \
 		cron \
 		elftc \
 		fifolog \
+		gdb \
+		iberty \
 		ipf \
 		lpr \
 		netbsd \
 		ntp \
 		ntpevent \
+		opcodes \
 		openbsd \
 		opts \
 		parse \
@@ -490,6 +495,21 @@ LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 LIBAMUDIR=	${_LIB_OBJTOP}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
+
+LIBBFDDIR=	${_LIB_OBJTOP}/gnu/usr.bin/binutils/libbfd
+LIBBFD?=	${LIBBFDDIR}/libbfd.a
+
+LIBBINUTILSDIR=	${_LIB_OBJTOP}/gnu/usr.bin/binutils/libbinutils
+LIBBINUTILS?=	${LIBBINUTILSDIR}/libbinutils.a
+
+LIBGDBDIR=	${_LIB_OBJTOP}/gnu/usr.bin/gdb/libgdb
+LIBGDB?=	${LIBGDBDIR}/libgdb.a
+
+LIBIBERTYDIR=	${_LIB_OBJTOP}/gnu/usr.bin/binutils/libiberty
+LIBIBERTY?=	${LIBIBERTYDIR}/libiberty.a
+
+LIBOPCODESDIR=	${_LIB_OBJTOP}/gnu/usr.bin/binutils/libopcodes
+LIBOPCODES?=	${LIBOPCODESDIR}/libopcodes.a
 
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no
