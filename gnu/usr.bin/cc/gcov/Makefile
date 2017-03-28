@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 .include <src.opts.mk>
 
-# linked due to fake private libs
+# gengtype can't handling __uintptr_t
 WANT_CHERI=	none
 
 .include "../Makefile.inc"

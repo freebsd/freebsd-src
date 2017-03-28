@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-# Being linked with n64 code
+# libgroff requires C++
 WANT_CHERI=none
 
 PROG=		pfbtops

@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-# mislinked due to fake private libs
+# gengtype can't handling __uintptr_t
 WANT_CHERI=	none
 
 .include "../Makefile.inc"
