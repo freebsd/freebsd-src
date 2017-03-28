@@ -183,9 +183,8 @@ device		umass			# Disks/Mass storage - Requires scbus and da
 device		uhid			# "Human Interface Devices"
 device		ukbd			# Allow keyboard like HIDs to control console
 
-# Device mode support and USFS template
+# Device mode support
 device		usb_template    	# Control of the gadget
-device		usfs
 
 # Ethernet
 device		loop
