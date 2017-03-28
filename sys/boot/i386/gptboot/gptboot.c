@@ -84,7 +84,9 @@ static struct dsk dsk;
 static char kname[1024];
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
+#ifdef LOADER_GELI_SUPPORT
 static struct geli_boot_args geliargs;
+#endif
 
 static vm_offset_t	high_heap_base;
 static uint32_t		bios_basemem, bios_extmem, high_heap_size;
@@ -476,16 +478,18 @@ load(void)
     bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
-    geliargs.size = sizeof(geliargs);
 #ifdef LOADER_GELI_SUPPORT
+    geliargs.size = sizeof(geliargs);
     bcopy(gelipw, geliargs.gelipw, sizeof(geliargs.gelipw));
     bzero(gelipw, sizeof(gelipw));
-#else
-	geliargs.gelipw[0] = '\0';
 #endif
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.part + 1, dsk.unit, 0xff),
-	   KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo), geliargs);
+	   KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo)
+#ifdef LOADER_GELI_SUPPORT
+	   , geliargs
+#endif
+	   );
 }
 
 static int
