@@ -187,7 +187,7 @@ struct lzx_stream {
 #define CFDATA_cbData		4
 #define CFDATA_cbUncomp		6
 
-static const char *compression_name[] = {
+static const char * const compression_name[] = {
 	"NONE",
 	"MSZIP",
 	"Quantum",
