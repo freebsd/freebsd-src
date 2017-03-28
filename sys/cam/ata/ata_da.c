@@ -774,10 +774,6 @@ static void		adashutdown(void *arg, int howto);
 static void		adasuspend(void *arg);
 static void		adaresume(void *arg);
 
-#ifndef	ADA_DEFAULT_LEGACY_ALIASES
-#define	ADA_DEFAULT_LEGACY_ALIASES	1
-#endif
-
 #ifndef ADA_DEFAULT_TIMEOUT
 #define ADA_DEFAULT_TIMEOUT 30	/* Timeout in seconds */
 #endif
