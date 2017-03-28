@@ -33,10 +33,12 @@ CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
 	-I${.CURDIR}/../btx/lib -I. \
 	-I${.CURDIR}/../boot2 \
 	-I${.CURDIR}/../../.. \
-	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
+	-Wall -Waggregate-return -Wbad-function-cast \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline -Wno-pointer-sign
+
+NO_WCAST_ALIGN=
 
 .if ${COMPILER_TYPE} == "clang" || \
     (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201)
