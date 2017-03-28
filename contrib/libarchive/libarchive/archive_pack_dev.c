@@ -280,7 +280,7 @@ pack_bsdos(int n, unsigned long numbers[], const char **error)
 
 		/* list of formats and pack functions */
 		/* this list must be sorted lexically */
-static struct format {
+static const struct format {
 	const char	*name;
 	pack_t		*pack;
 } formats[] = {
