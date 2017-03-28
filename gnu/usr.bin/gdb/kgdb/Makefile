@@ -1,18 +1,16 @@
 # $FreeBSD$
 
-# linker error
+.include <src.opts.mk>
+
+.if ${MK_CHERI_PURE} == "yes"
+# linker error / uses sbrk
 WANT_CHERI=	none
+.endif
 
 PROG=	kgdb${GDB_SUFFIX}
 SRCS=	main.c kld.c kthr.c trgt.c trgt_${TARGET_CPUARCH}.c
 WARNS?=	2
 
-BULIBS= ${OBJ_BU}/libbfd/libbfd.a ${OBJ_BU}/libopcodes/libopcodes.a \
-	${OBJ_BU}/libiberty/libiberty.a
-GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
-
-DPADD=	${GDBLIBS} ${BULIBS}
-LDADD=	${GDBLIBS} ${BULIBS}
-LIBADD+=	m readline ncursesw gnuregex kvm
+LIBADD+=	gdb bfd opcodes iberty m readline ncursesw gnuregex kvm
 
 .include <bsd.prog.mk>

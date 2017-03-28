@@ -2,8 +2,9 @@
 
 .include <src.opts.mk>
 
-# mislinked due to RELTOP
-WANT_CHERI=none
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI=pure
+.endif
 
 # BINDIR
 .include "${.CURDIR}/../../Makefile.inc"
@@ -99,9 +100,6 @@ CFLAGS.tc-mips.c=	-Wno-format-security
 NO_SHARED?=	yes
 .endif
 
-DPADD=	${RELTOP}/libbfd/libbfd.a
-DPADD+=	${RELTOP}/libiberty/libiberty.a
-DPADD+=	${RELTOP}/libopcodes/libopcodes.a
-LDADD=	${DPADD}
+LIBADD=       bfd iberty opcodes
 
 .include <bsd.prog.mk>

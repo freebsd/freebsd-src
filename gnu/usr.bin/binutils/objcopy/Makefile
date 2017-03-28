@@ -2,8 +2,9 @@
 
 .include <src.opts.mk>
 
-# mislinked due to RELTOP
-WANT_CHERI=	none
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI=	pure
+.endif
 
 .include "../Makefile.inc0"
 
@@ -14,9 +15,6 @@ SRCS=	objcopy.c not-strip.c
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils -I${SRCDIR}/bfd
-DPADD=	${RELTOP}/libbinutils/libbinutils.a
-DPADD+=	${RELTOP}/libbfd/libbfd.a
-DPADD+=	${RELTOP}/libiberty/libiberty.a
-LDADD=	${DPADD}
+LIBADD=	binutils bfd iberty
 
 .include <bsd.prog.mk>

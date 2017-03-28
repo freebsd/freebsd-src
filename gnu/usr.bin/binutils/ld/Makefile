@@ -2,8 +2,9 @@
 
 .include <src.opts.mk>
 
-# mislinked due to RELTOP
-WANT_CHERI=	none
+.if ${MK_CHERI_PURE} == "yes"
+WANT_CHERI=	pure
+.endif
 
 ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 .include "../Makefile.inc0"
@@ -46,9 +47,7 @@ CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd
 .if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?= yes
 .endif
-DPADD=	${RELTOP}/libbfd/libbfd.a
-DPADD+=	${RELTOP}/libiberty/libiberty.a
-LDADD=	${DPADD}
+LIBADD=		bfd iberty
 CLEANDIRS+=	ldscripts
 CLEANFILES+=	ldemul-list.h stringify.sed
 
