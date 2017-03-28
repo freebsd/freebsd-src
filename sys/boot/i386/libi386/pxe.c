@@ -621,13 +621,6 @@ bangpxe_call(int func)
 	v86.ctl  = V86_FLAGS;
 }
 
-time_t
-getsecs(void)
-{
-	time_t n = 0;
-	time(&n);
-	return n;
-}
 
 static int
 pxe_netif_match(struct netif *nif, void *machdep_hint)
