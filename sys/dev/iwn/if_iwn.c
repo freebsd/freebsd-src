@@ -196,16 +196,13 @@ static void	iwn_newassoc(struct ieee80211_node *, int);
 static int	iwn_media_change(struct ifnet *);
 static int	iwn_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwn_calib_timeout(void *);
-static void	iwn_rx_phy(struct iwn_softc *, struct iwn_rx_desc *,
-		    struct iwn_rx_data *);
+static void	iwn_rx_phy(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn_rx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
-static void	iwn_rx_compressed_ba(struct iwn_softc *, struct iwn_rx_desc *,
-		    struct iwn_rx_data *);
+static void	iwn_rx_compressed_ba(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn5000_rx_calib_results(struct iwn_softc *,
-		    struct iwn_rx_desc *, struct iwn_rx_data *);
-static void	iwn_rx_statistics(struct iwn_softc *, struct iwn_rx_desc *,
-		    struct iwn_rx_data *);
+		    struct iwn_rx_desc *);
+static void	iwn_rx_statistics(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn4965_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 static void	iwn5000_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
@@ -2975,13 +2972,11 @@ iwn_calib_timeout(void *arg)
  * followed by an MPDU_RX_DONE notification.
  */
 static void
-iwn_rx_phy(struct iwn_softc *sc, struct iwn_rx_desc *desc,
-    struct iwn_rx_data *data)
+iwn_rx_phy(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 {
 	struct iwn_rx_stat *stat = (struct iwn_rx_stat *)(desc + 1);
 
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: received PHY stats\n", __func__);
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	/* Save RX statistics, they will be used on MPDU_RX_DONE. */
 	memcpy(&sc->last_rx_stat, stat, sizeof (*stat));
@@ -3020,8 +3015,6 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		stat = &sc->last_rx_stat;
 	} else
 		stat = (struct iwn_rx_stat *)(desc + 1);
-
-	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	if (stat->cfg_phy_len > IWN_STAT_MAXLEN) {
 		device_printf(sc->sc_dev,
@@ -3176,8 +3169,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 /* Process an incoming Compressed BlockAck. */
 static void
-iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
-    struct iwn_rx_data *data)
+iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 {
 	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct iwn_ops *ops = &sc->ops;
@@ -3195,8 +3187,6 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	int tx_ok = 0, tx_err = 0;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE | IWN_DEBUG_XMIT, "->%s begin\n", __func__);
-
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	qid = le16toh(ba->qid);
 	txq = &sc->txq[ba->qid];
@@ -3282,8 +3272,7 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
  * firmware on response to a CMD_CALIB_CONFIG command (5000 only).
  */
 static void
-iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
-    struct iwn_rx_data *data)
+iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 {
 	struct iwn_phy_calib *calib = (struct iwn_phy_calib *)(desc + 1);
 	int len, idx = -1;
@@ -3297,7 +3286,6 @@ iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		return;
 	}
 	len = (le32toh(desc->len) & 0x3fff) - 4;
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	switch (calib->code) {
 	case IWN5000_PHY_CALIB_DC:
@@ -3406,8 +3394,7 @@ iwn_stats_update(struct iwn_softc *sc, struct iwn_calib_state *calib,
  * The latter is sent by the firmware after each received beacon.
  */
 static void
-iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
-    struct iwn_rx_data *data)
+iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 {
 	struct iwn_ops *ops = &sc->ops;
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -3426,8 +3413,6 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	    __func__);
 		return;
 	}
-
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE | IWN_DEBUG_STATS,
 	    "%s: received statistics, cmd %d, len %d\n",
@@ -3857,7 +3842,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 
 		switch (desc->type) {
 		case IWN_RX_PHY:
-			iwn_rx_phy(sc, desc, data);
+			iwn_rx_phy(sc, desc);
 			break;
 
 		case IWN_RX_DONE:		/* 4965AGN only. */
@@ -3868,7 +3853,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 
 		case IWN_RX_COMPRESSED_BA:
 			/* A Compressed BlockAck has been received. */
-			iwn_rx_compressed_ba(sc, desc, data);
+			iwn_rx_compressed_ba(sc, desc);
 			break;
 
 		case IWN_TX_DONE:
@@ -3878,7 +3863,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 
 		case IWN_RX_STATISTICS:
 		case IWN_BEACON_STATISTICS:
-			iwn_rx_statistics(sc, desc, data);
+			iwn_rx_statistics(sc, desc);
 			break;
 
 		case IWN_BEACON_MISSED:
@@ -3887,8 +3872,6 @@ iwn_notif_intr(struct iwn_softc *sc)
 			    (struct iwn_beacon_missed *)(desc + 1);
 			int misses;
 
-			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
-			    BUS_DMASYNC_POSTREAD);
 			misses = le32toh(miss->consecutive);
 
 			DPRINTF(sc, IWN_DEBUG_STATE,
@@ -3916,8 +3899,6 @@ iwn_notif_intr(struct iwn_softc *sc)
 			    (struct iwn_ucode_info *)(desc + 1);
 
 			/* The microcontroller is ready. */
-			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
-			    BUS_DMASYNC_POSTREAD);
 			DPRINTF(sc, IWN_DEBUG_RESET,
 			    "microcode alive notification version=%d.%d "
 			    "subtype=%x alive=%x\n", uc->major, uc->minor,
@@ -3944,9 +3925,6 @@ iwn_notif_intr(struct iwn_softc *sc)
 			 * noted. However, we handle this in iwn_intr as we
 			 * get both the enable/disble intr.
 			 */
-			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
-			    BUS_DMASYNC_POSTREAD);
-
 			uint32_t *status = (uint32_t *)(desc + 1);
 			DPRINTF(sc, IWN_DEBUG_INTR | IWN_DEBUG_STATE,
 			    "state changed to %x\n",
@@ -3955,9 +3933,6 @@ iwn_notif_intr(struct iwn_softc *sc)
 		}
 		case IWN_START_SCAN:
 		{
-			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
-			    BUS_DMASYNC_POSTREAD);
-
 			struct iwn_start_scan *scan =
 			    (struct iwn_start_scan *)(desc + 1);
 			DPRINTF(sc, IWN_DEBUG_ANY,
@@ -3968,8 +3943,6 @@ iwn_notif_intr(struct iwn_softc *sc)
 #endif
 		case IWN_STOP_SCAN:
 		{
-			bus_dmamap_sync(sc->rxq.data_dmat, data->map,
-			    BUS_DMASYNC_POSTREAD);
 #ifdef	IWN_DEBUG
 			struct iwn_stop_scan *scan =
 			    (struct iwn_stop_scan *)(desc + 1);
@@ -3985,7 +3958,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 			break;
 		}
 		case IWN5000_CALIBRATION_RESULT:
-			iwn5000_rx_calib_results(sc, desc, data);
+			iwn5000_rx_calib_results(sc, desc);
 			break;
 
 		case IWN5000_CALIBRATION_DONE:
