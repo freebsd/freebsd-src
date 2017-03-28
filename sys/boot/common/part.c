@@ -684,8 +684,9 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 		if (dp[1].dp_typ != DOSPTYP_HFS) {
 			table->type = PTABLE_NONE;
 			DEBUG("Incorrect PMBR, ignore it");
-		} else
+		} else {
 			DEBUG("Bootcamp detected");
+		}
 	}
 #ifdef LOADER_GPT_SUPPORT
 	if (table->type == PTABLE_GPT) {
