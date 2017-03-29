@@ -45,6 +45,7 @@ extern struct cam_periph *xpt_periph;
 
 extern struct periph_driver **periph_drivers;
 void periphdriver_register(void *);
+int periphdriver_unregister(void *);
 void periphdriver_init(int level);
 
 #include <sys/module.h>
@@ -56,8 +57,7 @@ void periphdriver_init(int level);
 			periphdriver_register(data); \
 			break; \
 		case MOD_UNLOAD: \
-			printf(#name " module unload - not possible for this module type\n"); \
-			return EINVAL; \
+			return (periphdriver_unregister(data)); \
 		default: \
 			return EOPNOTSUPP; \
 		} \
@@ -71,20 +71,26 @@ void periphdriver_init(int level);
 	DECLARE_MODULE(name, name ## _mod, SI_SUB_DRIVERS, SI_ORDER_ANY); \
 	MODULE_DEPEND(name, cam, 1, 1, 1)
 
-typedef void (periph_init_t)(void); /*
-				     * Callback informing the peripheral driver
-				     * it can perform it's initialization since
-				     * the XPT is now fully initialized.
-				     */
-typedef periph_init_t *periph_init_func_t;
+/*
+ * Callback informing the peripheral driver it can perform it's
+ * initialization since the XPT is now fully initialized.
+ */
+typedef void (periph_init_t)(void);
+
+/*
+ * Callback requesting the peripheral driver to remove its instances
+ * and shutdown, if possible.
+ */
+typedef int (periph_deinit_t)(void);
 
 struct periph_driver {
-	periph_init_func_t	 init;
-	char			 *driver_name;
+	periph_init_t		*init;
+	char			*driver_name;
 	TAILQ_HEAD(,cam_periph)	 units;
 	u_int			 generation;
 	u_int			 flags;
 #define CAM_PERIPH_DRV_EARLY		0x01
+	periph_deinit_t		*deinit;
 };
 
 typedef enum {
