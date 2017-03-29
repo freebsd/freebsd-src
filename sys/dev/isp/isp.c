@@ -1323,7 +1323,6 @@ isp_init(ispsoftc_t *isp)
 	} else {
 		isp_scsi_init(isp);
 	}
-	GET_NANOTIME(&isp->isp_init_time);
 }
 
 static void
@@ -2368,7 +2367,6 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 		    __func__, chan, vp.vp_mod_hdr.rqs_flags, vp.vp_mod_status);
 		return (EIO);
 	}
-	GET_NANOTIME(&isp->isp_init_time);
 	return (0);
 }
 
@@ -5655,7 +5653,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * These are broadcast events that have to be sent across
 		 * all active channels.
 		 */
-		GET_NANOTIME(&isp->isp_init_time);
 		for (chan = 0; chan < isp->isp_nchan; chan++) {
 			fcp = FCPARAM(isp, chan);
 			int topo = fcp->isp_topo;
@@ -5710,7 +5707,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * This is a broadcast event that has to be sent across
 		 * all active channels.
 		 */
-		GET_NANOTIME(&isp->isp_init_time);
 		for (chan = 0; chan < isp->isp_nchan; chan++) {
 			fcp = FCPARAM(isp, chan);
 			if (fcp->role == ISP_ROLE_NONE)
@@ -5750,7 +5746,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * This is a broadcast event that has to be sent across
 		 * all active channels.
 		 */
-		GET_NANOTIME(&isp->isp_init_time);
 		for (chan = 0; chan < isp->isp_nchan; chan++) {
 			fcp = FCPARAM(isp, chan);
 			if (fcp->role == ISP_ROLE_NONE)
@@ -5942,7 +5937,6 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 		portid = (uint32_t)rid.ridacq_vp_port_hi << 16 |
 		    rid.ridacq_vp_port_lo;
 		if (rid.ridacq_format == 0) {
-			GET_NANOTIME(&isp->isp_init_time);
 			for (chan = 0; chan < isp->isp_nchan; chan++) {
 				fcparam *fcp = FCPARAM(isp, chan);
 				if (fcp->role == ISP_ROLE_NONE)
