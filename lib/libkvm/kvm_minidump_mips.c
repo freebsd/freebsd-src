@@ -256,7 +256,11 @@ invalid:
 }
 
 static int
+#ifdef __mips__
 _mips_native(kvm_t *kd)
+#else
+_mips_native(kvm_t *kd __unused)
+#endif
 {
 
 #ifdef __mips__
@@ -284,7 +288,7 @@ _mips_native(kvm_t *kd)
 #endif
 }
 
-struct kvm_arch kvm_mips_minidump = {
+static struct kvm_arch kvm_mips_minidump = {
 	.ka_probe = _mips_minidump_probe,
 	.ka_initvtop = _mips_minidump_initvtop,
 	.ka_freevtop = _mips_minidump_freevtop,
