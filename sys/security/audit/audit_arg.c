@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 1999-2005 Apple Inc.
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -613,6 +619,19 @@ audit_arg_svipc_addr(void * addr)
 
 	ar->k_ar.ar_arg_svipc_addr = addr;
 	ARG_SET_VALID(ar, ARG_SVIPC_ADDR);
+}
+
+void
+audit_arg_svipc_which(int which)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_svipc_which = which;
+	ARG_SET_VALID(ar, ARG_SVIPC_WHICH);
 }
 
 void
