@@ -1267,9 +1267,9 @@ atf_init_test_cases()
 	atf_add_test_case medium_btree
 	atf_add_test_case medium_hash
 	atf_add_test_case medium_recno
-	atf_add_test_case big_btree
-	atf_add_test_case big_hash
-	atf_add_test_case big_recno
+	#atf_add_test_case big_btree
+	#atf_add_test_case big_hash
+	#atf_add_test_case big_recno
 	atf_add_test_case random_recno
 	atf_add_test_case reverse_recno
 	atf_add_test_case alternate_recno
