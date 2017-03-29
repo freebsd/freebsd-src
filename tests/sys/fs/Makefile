@@ -7,7 +7,7 @@ TESTSDIR=		${TESTSBASE}/sys/fs
 TESTSRC=		${SRCTOP}/contrib/netbsd-tests/fs
 
 #TESTS_SUBDIRS+=	nullfs	# XXX: needs rump
-TESTS_SUBDIRS+=		tmpfs
+#TESTS_SUBDIRS+=		tmpfs
 
 ${PACKAGE}FILES+=	h_funcs.subr
 ${PACKAGE}FILESDIR=	${TESTSDIR}
