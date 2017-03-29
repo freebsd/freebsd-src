@@ -5989,8 +5989,6 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 		return (1);
 	case RQSTYPE_ATIO:
 	case RQSTYPE_CTIO:
-	case RQSTYPE_ENABLE_LUN:
-	case RQSTYPE_MODIFY_LUN:
 	case RQSTYPE_NOTIFY:
 	case RQSTYPE_NOTIFY_ACK:
 	case RQSTYPE_CTIO1:
