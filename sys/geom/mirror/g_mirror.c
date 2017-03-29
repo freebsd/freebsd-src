@@ -2475,11 +2475,8 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 		if (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) == 0 &&
 		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_NEW) == 0) {
 			/*
-			 * No active disks or no disks at all,
-			 * so destroy device.
+			 * No usable disks, so destroy the device.
 			 */
-			if (sc->sc_provider != NULL)
-				g_mirror_destroy_provider(sc);
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 			break;
 		} else if (g_mirror_ndisks(sc,
