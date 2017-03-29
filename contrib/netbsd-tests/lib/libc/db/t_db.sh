@@ -1287,7 +1287,7 @@ atf_init_test_cases()
 	atf_add_test_case bsize_ffactor
 	atf_add_test_case four_char_hash
 	atf_add_test_case bsize_torture
-	atf_add_test_case btree_weird_page_split
+	#atf_add_test_case btree_weird_page_split
 	atf_add_test_case btree_tricky_page_split
 	# Begin FreeBSD
 	if false; then
