@@ -805,6 +805,45 @@ netif_release_tx_bufs(struct netfront_info *np)
 }
 
 static void
+netif_release_rx_bufs_copy(struct netfront_info *np)
+{
+	struct mbuf *m;
+	grant_ref_t ref;
+	unsigned int i, busy, inuse;
+
+	XN_RX_LOCK(np);
+
+	for (busy = inuse = i = 0; i < NET_RX_RING_SIZE; i++) {
+		ref = np->grant_rx_ref[i];
+
+		if (ref == GRANT_REF_INVALID)
+			continue;
+
+		inuse++;
+
+		m = np->rx_mbufs[i];
+
+		if (!gnttab_end_foreign_access_ref(ref)) {
+			busy++;
+			continue;
+		}
+
+		gnttab_release_grant_reference(&np->gref_rx_head, ref);
+		np->grant_rx_ref[i] = GRANT_REF_INVALID;
+		add_id_to_freelist(np->rx_mbufs, i);
+
+		m_freem(m);
+	}
+
+	if (busy != 0)
+		device_printf(np->xbdev,
+		    "Unable to release %u of %u in use grant references out of %ld total.\n",
+		    busy, inuse, NET_RX_RING_SIZE);
+
+	XN_RX_UNLOCK(np);
+}
+
+static void
 network_alloc_rx_buffers(struct netfront_info *sc)
 {
 	int otherend_id = xenbus_get_otherend_id(sc->xbdev);
@@ -2199,6 +2238,12 @@ netif_free(struct netfront_info *info)
 		info->xn_ifp = NULL;
 	}
 	ifmedia_removeall(&info->sc_media);
+	netif_release_tx_bufs(info);
+	if (info->copying_receiver)
+		netif_release_rx_bufs_copy(info);
+
+	gnttab_free_grant_references(info->gref_tx_head);
+	gnttab_free_grant_references(info->gref_rx_head);
 }
 
 static void
