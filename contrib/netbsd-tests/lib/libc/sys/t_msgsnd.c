@@ -242,7 +242,7 @@ ATF_TC_BODY(msgsnd_nonblock, tc)
 		for (;;) {
 
 			errno = 0;
-			rv = msgsnd(id, &msg, sizeof(struct msg), IPC_NOWAIT);
+			rv = msgsnd(id, &msg, sizeof(msg.buf), IPC_NOWAIT);
 
 			if (rv == -1 && errno == EAGAIN)
 				_exit(EXIT_SUCCESS);
