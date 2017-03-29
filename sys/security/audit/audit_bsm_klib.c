@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1999-2009 Apple Inc.
- * Copyright (c) 2005, 2016 Robert N. M. Watson
+ * Copyright (c) 2005, 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * Portions of this software were developed by BAE Systems, the University of
@@ -140,6 +140,29 @@ static const struct aue_open_event aue_openat[] = {
 	{ (O_WRONLY | O_CREAT | O_TRUNC),		AUE_OPENAT_WTC },
 	{ (O_WRONLY | O_TRUNC),				AUE_OPENAT_WT },
 };
+
+static const int aue_msgsys[] = {
+	/* 0 */ AUE_MSGCTL,
+	/* 1 */ AUE_MSGGET,
+	/* 2 */ AUE_MSGSND,
+	/* 3 */ AUE_MSGRCV,
+};
+static const int aue_msgsys_count = sizeof(aue_msgsys) / sizeof(int);
+
+static const int aue_semsys[] = {
+	/* 0 */ AUE_SEMCTL,
+	/* 1 */ AUE_SEMGET,
+	/* 2 */ AUE_SEMOP,
+};
+static const int aue_semsys_count = sizeof(aue_semsys) / sizeof(int);
+
+static const int aue_shmsys[] = {
+	/* 0 */ AUE_SHMAT,
+	/* 1 */ AUE_SHMDT,
+	/* 2 */ AUE_SHMGET,
+	/* 3 */ AUE_SHMCTL,
+};
+static const int aue_shmsys_count = sizeof(aue_shmsys) / sizeof(int);
 
 /*
  * Look up the class for an audit event in the class mapping table.
@@ -552,6 +575,43 @@ audit_semctl_to_event(int cmd)
 		/* We will audit a bad command. */
 		return (AUE_SEMCTL);
 	}
+}
+
+/*
+ * Convert msgsys(2), semsys(2), and shmsys(2) system-call variations into
+ * audit events, if possible.
+ */
+au_event_t
+audit_msgsys_to_event(int which)
+{
+
+	if ((which >= 0) && (which < aue_msgsys_count))
+		return (aue_msgsys[which]);
+
+	/* Audit a bad command. */
+	return (AUE_MSGSYS);
+}
+
+au_event_t
+audit_semsys_to_event(int which)
+{
+
+	if ((which >= 0) && (which < aue_semsys_count))
+		return (aue_semsys[which]);
+
+	/* Audit a bad command. */
+	return (AUE_SEMSYS);
+}
+
+au_event_t
+audit_shmsys_to_event(int which)
+{
+
+	if ((which >= 0) && (which < aue_shmsys_count))
+		return (aue_shmsys[which]);
+
+	/* Audit a bad command. */
+	return (AUE_SHMSYS);
 }
 
 /*
