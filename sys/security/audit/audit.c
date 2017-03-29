@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999-2005 Apple Inc.
- * Copyright (c) 2006-2007, 2016 Robert N. M. Watson
+ * Copyright (c) 2006-2007, 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * Portions of this software were developed by BAE Systems, the University of
@@ -471,6 +471,24 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	case AUE_AUDITON:
 		/* Convert the auditon() command to an event. */
 		ar->k_ar.ar_event = auditon_command_event(ar->k_ar.ar_arg_cmd);
+		break;
+
+	case AUE_MSGSYS:
+		if (ARG_IS_VALID(ar, ARG_SVIPC_WHICH))
+			ar->k_ar.ar_event =
+			    audit_msgsys_to_event(ar->k_ar.ar_arg_svipc_which);
+		break;
+
+	case AUE_SEMSYS:
+		if (ARG_IS_VALID(ar, ARG_SVIPC_WHICH))
+			ar->k_ar.ar_event =
+			    audit_semsys_to_event(ar->k_ar.ar_arg_svipc_which);
+		break;
+
+	case AUE_SHMSYS:
+		if (ARG_IS_VALID(ar, ARG_SVIPC_WHICH))
+			ar->k_ar.ar_event =
+			    audit_shmsys_to_event(ar->k_ar.ar_arg_svipc_which);
 		break;
 	}
 
