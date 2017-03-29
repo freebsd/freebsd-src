@@ -788,7 +788,6 @@ static void isp_target_start_ctio(ispsoftc_t *, union ccb *, enum Start_Ctio_How
 static void isp_handle_platform_atio2(ispsoftc_t *, at2_entry_t *);
 static void isp_handle_platform_atio7(ispsoftc_t *, at7_entry_t *);
 static void isp_handle_platform_ctio(ispsoftc_t *, void *);
-static void isp_handle_platform_notify_fc(ispsoftc_t *, in_fcentry_t *);
 static void isp_handle_platform_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *);
 static int isp_handle_platform_target_notify_ack(ispsoftc_t *, isp_notify_t *, uint32_t rsp);
 static void isp_handle_platform_target_tmf(ispsoftc_t *, isp_notify_t *);
@@ -2279,80 +2278,6 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 		isp_complete_ctio(ccb);
 	} else {
 		isp_target_putback_atio(ccb);
-	}
-}
-
-static void
-isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
-{
-	int needack = 1;
-	switch (inp->in_status) {
-	case IN_PORT_LOGOUT:
-		/*
-		 * XXX: Need to delete this initiator's WWN from the database
-		 * XXX: Need to send this LOGOUT upstream
-		 */
-		isp_prt(isp, ISP_LOGWARN, "port logout of S_ID 0x%x", inp->in_iid);
-		break;
-	case IN_PORT_CHANGED:
-		isp_prt(isp, ISP_LOGWARN, "port changed for S_ID 0x%x", inp->in_iid);
-		break;
-	case IN_GLOBAL_LOGO:
-		isp_del_all_wwn_entries(isp, 0);
-		isp_prt(isp, ISP_LOGINFO, "all ports logged out");
-		break;
-	case IN_ABORT_TASK:
-	{
-		lun_id_t lun;
-		uint16_t nphdl;
-		uint32_t sid;
-		uint64_t wwn;
-		fcportdb_t *lp;
-		isp_notify_t tmp, *nt = &tmp;
-
-		if (ISP_CAP_SCCFW(isp)) {
-			lun = inp->in_scclun;
-		} else {
-			lun = inp->in_lun;
-		}
-		if (ISP_CAP_2KLOGIN(isp)) {
-			nphdl = ((in_fcentry_e_t *)inp)->in_iid;
-		} else {
-			nphdl = inp->in_iid;
-		}
-		if (isp_find_pdb_by_handle(isp, 0, nphdl, &lp)) {
-			wwn = lp->port_wwn;
-			sid = lp->portid;
-		} else {
-			wwn = INI_ANY;
-			sid = PORT_ANY;
-		}
-		isp_prt(isp, ISP_LOGTDEBUG0, "ABORT TASK RX_ID %x WWN 0x%016llx",
-		    inp->in_seqid, (unsigned long long) wwn);
-
-		ISP_MEMZERO(nt, sizeof (isp_notify_t));
-		nt->nt_hba = isp;
-		nt->nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
-		nt->nt_wwn = wwn;
-		nt->nt_nphdl = nphdl;
-		nt->nt_sid = sid;
-		nt->nt_did = PORT_ANY;
-		nt->nt_lun = lun;
-		nt->nt_tagval = inp->in_seqid;
-		nt->nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
-		nt->nt_need_ack = 1;
-		nt->nt_channel = 0;
-		nt->nt_ncode = NT_ABORT_TASK;
-		nt->nt_lreserved = inp;
-		isp_handle_platform_target_tmf(isp, nt);
-		needack = 0;
-		break;
-	}
-	default:
-		break;
-	}
-	if (needack) {
-		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inp);
 	}
 }
 
@@ -4159,11 +4084,7 @@ changed:
 			isp_prt(isp, ISP_LOGWARN, "%s: unhandled target action 0x%x", __func__, hp->rqs_entry_type);
 			break;
 		case RQSTYPE_NOTIFY:
-			if (IS_24XX(isp)) {
-				isp_handle_platform_notify_24xx(isp, (in_fcentry_24xx_t *) hp);
-			} else {
-				isp_handle_platform_notify_fc(isp, (in_fcentry_t *) hp);
-			}
+			isp_handle_platform_notify_24xx(isp, (in_fcentry_24xx_t *) hp);
 			break;
 		case RQSTYPE_ATIO:
 			isp_handle_platform_atio7(isp, (at7_entry_t *) hp);
