@@ -186,7 +186,7 @@ DECLARE_FUN(cd9660);
 extern	u_int		debug;
 extern	int		dupsok;
 extern	struct timespec	start_time;
-extern struct stat stampst;
+extern	struct stat stampst;
 
 /*
  * If -x is specified, we want to exclude nodes which do not appear

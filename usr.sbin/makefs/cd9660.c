@@ -162,6 +162,7 @@ static cd9660node *cd9660_create_directory(iso9660_disk *, const char *,
     cd9660node *, cd9660node *);
 static cd9660node *cd9660_create_special_directory(iso9660_disk *, u_char,
     cd9660node *);
+static int  cd9660_add_generic_bootimage(iso9660_disk *, const char *);
 
 
 /*
@@ -2159,7 +2160,7 @@ cd9660_create_special_directory(iso9660_disk *diskStructure, u_char type,
 	return temp;
 }
 
-int
+static int
 cd9660_add_generic_bootimage(iso9660_disk *diskStructure, const char *bootimage)
 {
 	struct stat stbuf;
