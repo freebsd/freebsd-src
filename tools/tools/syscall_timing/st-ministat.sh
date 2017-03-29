@@ -3,8 +3,9 @@
 ST_ROOT="/syscall_timing"
 RESULTS="${ST_ROOT}/results"
 
-cd "${RESULTS}/cheri"
-for t in *; do
-	ministat -C5 "../mips/$t" "../hybrid/$t" "$t"
+cd "${RESULTS}"
+for t in ${RESULTS}/cheri/*; do
+	t=`basename "$t"`
+	ministat -C5 "cheri/$t" "hybrid/$t" "mips/$t"
 done
 
