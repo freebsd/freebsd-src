@@ -567,8 +567,9 @@ sc_attach_unit(int unit, int flags)
 	    /* assert(sc_console->ts != NULL); */
 	    oldts = sc_console->ts;
 	    for (i = 0; i <= mp_maxid; i++) {
-		ts = malloc(sc_console->tsw->te_size, M_DEVBUF, M_WAITOK);
-		bcopy(oldts, ts, sc_console->tsw->te_size);
+		ts = malloc(sc_console->tsw->te_size, M_DEVBUF,
+			    M_WAITOK | M_ZERO);
+		(*sc_console->tsw->te_init)(sc_console, &ts, SC_TE_COLD_INIT);
 		sc_console->ts = ts;
 		(*sc_console->tsw->te_default_attr)(sc_console, sc_kattrtab[i],
 						    SC_KERNEL_CONS_REV_ATTR);
@@ -1705,6 +1706,9 @@ sc_cninit(struct consdev *cp)
 static void
 sc_cnterm(struct consdev *cp)
 {
+    void *ts;
+    int i;
+
     /* we are not the kernel console any more, release everything */
 
     if (sc_console_unit < 0)
@@ -1715,6 +1719,12 @@ sc_cnterm(struct consdev *cp)
     sccnupdate(sc_console);
 #endif
 
+    for (i = 0; i <= mp_maxid; i++) {
+	ts = kernel_console_ts[i];
+	kernel_console_ts[i] = NULL;
+	(*sc_console->tsw->te_term)(sc_console, &ts);
+	free(ts, M_DEVBUF);
+    }
     scterm(sc_console_unit, SC_KERNEL_CONSOLE);
     sc_console_unit = -1;
     sc_console = NULL;
@@ -1977,11 +1987,11 @@ sc_cnputc(struct consdev *cd, int c)
 	ts = kernel_console_ts[PCPU_GET(cpuid)];
 	if (ts != NULL) {
 	    scp->ts = ts;
-	    (*scp->tsw->te_set_cursor)(scp, scp->xpos, scp->ypos);
+	    (*scp->tsw->te_sync)(scp);
 	}
 	sc_puts(scp, buf, 1);
 	scp->ts = oldts;
-	(*scp->tsw->te_set_cursor)(scp, scp->xpos, scp->ypos);
+	(*scp->tsw->te_sync)(scp);
     }
 
     s = spltty();	/* block sckbdevent and scrn_timer */
@@ -3196,7 +3206,7 @@ scinit(int unit, int flags)
 	scp->xpos = col;
 	scp->ypos = row;
 	scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
-	(*scp->tsw->te_set_cursor)(scp, col, row);
+	(*scp->tsw->te_sync)(scp);
 
 	/* Sync BIOS cursor shape to s/w (sc only). */
 	if (bios_value.cursor_end < scp->font_size)
@@ -3312,12 +3322,11 @@ scterm(int unit, int flags)
     scp = sc_get_stat(sc->dev[0]);
     if (scp->tsw)
 	(*scp->tsw->te_term)(scp, &scp->ts);
-    if (scp->ts != NULL)
-	free(scp->ts, M_DEVBUF);
     mtx_destroy(&sc->video_mtx);
 
     /* clear the structure */
     if (!(flags & SC_KERNEL_CONSOLE)) {
+	free(scp->ts, M_DEVBUF);
 	/* XXX: We need delete_dev() for this */
 	free(sc->dev, M_DEVBUF);
 #if 0
