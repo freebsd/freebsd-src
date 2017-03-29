@@ -322,7 +322,6 @@ void			cd9660_time_915(unsigned char *, time_t);
 
 /*** Boot Functions ***/
 int	cd9660_write_generic_bootimage(FILE *);
-int	cd9660_add_generic_bootimage(iso9660_disk *, const char *);
 int	cd9660_write_boot(iso9660_disk *, FILE *);
 int	cd9660_add_boot_disk(iso9660_disk *, const char *);
 int	cd9660_eltorito_add_boot_option(iso9660_disk *, const char *,
