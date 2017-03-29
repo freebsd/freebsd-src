@@ -211,7 +211,7 @@ ATF_TC_BODY(msgctl_pid, tc)
 
 	if (pid == 0) {
 
-		(void)msgsnd(id, &msg, sizeof(struct msg), IPC_NOWAIT);
+		(void)msgsnd(id, &msg, sizeof(msg.buf), IPC_NOWAIT);
 
 		_exit(EXIT_SUCCESS);
 	}
@@ -327,7 +327,7 @@ ATF_TC_BODY(msgctl_time, tc)
 	t = time(NULL);
 
 	(void)memset(&msgds, 0, sizeof(struct msqid_ds));
-	(void)msgsnd(id, &msg, sizeof(struct msg), IPC_NOWAIT);
+	(void)msgsnd(id, &msg, sizeof(msg.buf), IPC_NOWAIT);
 	(void)msgctl(id, IPC_STAT, &msgds);
 
 	if (llabs(t - msgds.msg_stime) > 1)
