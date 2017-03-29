@@ -1123,7 +1123,7 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *
 {
 	uint32_t hccr, r2hisr;
 
-	if (!(BXR2(isp, IspVirt2Off(isp, BIU_ISR) & BIU2100_ISR_RISC_INT))) {
+	if ((BXR2(isp, IspVirt2Off(isp, BIU_ISR)) & BIU2100_ISR_RISC_INT) == 0) {
 		*isrp = 0;
 		return (0);
 	}
