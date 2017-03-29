@@ -148,6 +148,7 @@ struct pargs {
  *      o - ktrace lock
  *      q - td_contested lock
  *      r - p_peers lock
+ *      s - see sleepq_switch(), sleeping_on_old_rtc(), and sleep(9)
  *      t - thread lock
  *	u - process stat lock
  *	w - process timer lock
@@ -282,6 +283,7 @@ struct thread {
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 	void		*td_su;		/* (k) FFS SU private */
+	int		td_rtcgen;	/* (s) rtc_generation of abs. sleep */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
