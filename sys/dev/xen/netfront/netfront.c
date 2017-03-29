@@ -837,7 +837,7 @@ netif_release_rx_bufs_copy(struct netfront_info *np)
 
 	if (busy != 0)
 		device_printf(np->xbdev,
-		    "Unable to release %u of %u in use grant references out of %ld total.\n",
+		    "Unable to release %u of %u in use grant references out of %zu total.\n",
 		    busy, inuse, NET_RX_RING_SIZE);
 
 	XN_RX_UNLOCK(np);
