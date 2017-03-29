@@ -84,7 +84,6 @@ struct stat stampst;
 static	fstype_t *get_fstype(const char *);
 static int get_tstamp(const char *, struct stat *);
 static	void	usage(fstype_t *, fsinfo_t *);
-int		main(int, char *[]);
 
 int
 main(int argc, char *argv[])
