@@ -240,10 +240,17 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
         Elf_Addr *got = obj->pltgot;
         const Elf_Sym *def;
         const Obj_Entry *defobj;
+        Elf_Addr *where;
         Elf_Addr target;
+        RtldLockState lockstate;
 
+	rlock_acquire(rtld_bind_lock, &lockstate);
+	if (sigsetjmp(lockstate.env, 0) != 0)
+		lock_upgrade(rtld_bind_lock, &lockstate);
+
+	where = &got[obj->local_gotno + reloff - obj->gotsym];
         def = find_symdef(reloff, obj, &defobj, SYMLOOK_IN_PLT, NULL,
-	    NULL);
+           &lockstate);
         if (def == NULL)
 		rtld_die();
 
@@ -251,9 +258,9 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
         dbg("bind now/fixup at %s sym # %jd in %s --> was=%p new=%p",
 	    obj->path,
 	    (intmax_t)reloff, defobj->strtab + def->st_name, 
-	    (void *)got[obj->local_gotno + reloff - obj->gotsym],
-	    (void *)target);
-        got[obj->local_gotno + reloff - obj->gotsym] = target;
+	    (void *)*where, (void *)target);
+	*where = target;
+	lock_release(rtld_bind_lock, &lockstate);
 	return (Elf_Addr)target;
 }
 
