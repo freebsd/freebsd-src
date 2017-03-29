@@ -53,14 +53,14 @@ __FBSDID("$FreeBSD$");
 
 static uint32_t isp_sbus_rd_reg(ispsoftc_t *, int);
 static void isp_sbus_wr_reg(ispsoftc_t *, int, uint32_t);
-static int isp_sbus_rd_isr(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
+static void isp_sbus_run_isr(ispsoftc_t *);
 static int isp_sbus_mbxdma(ispsoftc_t *);
 static void isp_sbus_mbxdmafree(ispsoftc_t *);
 static int isp_sbus_dmasetup(ispsoftc_t *, XS_T *, void *);
 static void isp_sbus_dumpregs(ispsoftc_t *, const char *);
 
 static struct ispmdvec mdvec = {
-	isp_sbus_rd_isr,
+	isp_sbus_run_isr,
 	isp_sbus_rd_reg,
 	isp_sbus_wr_reg,
 	isp_sbus_mbxdma,
@@ -344,23 +344,31 @@ isp_sbus_detach(device_t dev)
 
 #define	BXR2(isp, off)		bus_read_2((isp)->isp_regs, (off))
 
-static int
-isp_sbus_rd_isr(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *info)
+static void
+isp_sbus_run_isr(ispsoftc_t *isp)
 {
-	uint16_t isr, sema;
+	uint16_t isr, sema, info;
 
 	isr = BXR2(isp, IspVirt2Off(isp, BIU_ISR));
 	sema = BXR2(isp, IspVirt2Off(isp, BIU_SEMA));
 	isp_prt(isp, ISP_LOGDEBUG3, "ISR 0x%x SEMA 0x%x", isr, sema);
 	isr &= INT_PENDING_MASK(isp);
 	sema &= BIU_SEMA_LOCK;
-	if (isr == 0 && sema == 0) {
-		return (0);
-	}
-	*isrp = isr;
-	if ((*semap = sema) != 0)
-		*info = BXR2(isp, IspVirt2Off(isp, OUTMAILBOX0));
-	return (1);
+	if (isr == 0 && sema == 0)
+		return;
+	if (sema != 0) {
+		info = BXR2(isp, IspVirt2Off(isp, OUTMAILBOX0));
+		if (info & MBOX_COMMAND_COMPLETE)
+			isp_intr_mbox(isp, info);
+		else
+			isp_intr_async(isp, info);
+		if (isp->isp_state == ISP_RUNSTATE)
+			isp_intr_respq(isp);
+	} else
+		isp_intr_respq(isp);
+	ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
+	if (sema)
+		ISP_WRITE(isp, BIU_SEMA, 0);
 }
 
 static uint32_t
