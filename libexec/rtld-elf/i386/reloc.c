@@ -344,6 +344,20 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
     return 0;
 }
 
+/* Fixup the jump slot at "where" to transfer control to "target". */
+Elf_Addr
+reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
+    const struct Struct_Obj_Entry *obj, const struct Struct_Obj_Entry *refobj,
+    const Elf_Rel *rel)
+{
+#ifdef dbg
+	dbg("reloc_jmpslot: *%p = %p", where, (void *)target);
+#endif
+	if (!ld_bind_not)
+		*where = target;
+	return (target);
+}
+
 int
 reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
 {
