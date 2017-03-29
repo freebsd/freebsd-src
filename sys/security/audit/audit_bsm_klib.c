@@ -362,6 +362,35 @@ au_evnamemap_foreach(au_evnamemap_callback_t callback)
 	EVNAMEMAP_WUNLOCK();
 }
 
+#ifdef KDTRACE_HOOKS
+/*
+ * Look up an event-to-name mapping table entry by event number.  As evname
+ * elements are stable in memory, we can return the pointer without the table
+ * lock held -- but the caller will need to lock the element mutex before
+ * accessing element fields.
+ *
+ * NB: the event identifier in elements is stable and can be read without
+ * holding the evname_elem lock.
+ */
+struct evname_elem *
+au_evnamemap_lookup(au_event_t event)
+{
+	struct evname_list *enl;
+	struct evname_elem *ene;
+
+	EVNAMEMAP_RLOCK();
+	enl = &evnamemap_hash[event % EVNAMEMAP_HASH_TABLE_SIZE];
+	LIST_FOREACH(ene, &enl->enl_head, ene_entry) {
+		if (ene->ene_event == event)
+			goto out;
+	}
+	ene = NULL;
+out:
+	EVNAMEMAP_RUNLOCK();
+	return (ene);
+}
+#endif /* !KDTRACE_HOOKS */
+
 /*
  * Convert sysctl names and present arguments to events.
  */

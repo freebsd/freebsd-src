@@ -94,6 +94,8 @@ extern int			audit_arge;
 #define	AR_PRESELECT_USER_TRAIL	0x00004000U
 #define	AR_PRESELECT_USER_PIPE	0x00008000U
 
+#define	AR_PRESELECT_DTRACE	0x00010000U
+
 /*
  * Audit data is generated as a stream of struct audit_record structures,
  * linked by struct kaudit_record, and contain storage for possible audit so
@@ -323,6 +325,9 @@ struct kaudit_record {
 	void				*k_udata;	/* User data. */
 	u_int				 k_ulen;	/* User data length. */
 	struct uthread			*k_uthread;	/* Audited thread. */
+#ifdef KDTRACE_HOOKS
+	void				*k_dtaudit_state;
+#endif
 	TAILQ_ENTRY(kaudit_record)	 k_q;
 };
 TAILQ_HEAD(kaudit_queue, kaudit_record);
@@ -379,7 +384,7 @@ extern int			audit_in_failure;
  * Audit event-to-name mapping structure, maintained in audit_bsm_klib.c.  It
  * appears in this header so that the DTrace audit provider can dereference
  * instances passed back in the au_evname_foreach() callbacks.  Safe access to
- * its fields rquires holding ene_lock (after it is visible in the global
+ * its fields requires holding ene_lock (after it is visible in the global
  * table).
  *
  * Locking:
@@ -393,6 +398,16 @@ struct evname_elem {
 	char			ene_name[EVNAMEMAP_NAME_SIZE];	/* (l) */
 	LIST_ENTRY(evname_elem)	ene_entry;			/* (m) */
 	struct mtx		ene_lock;
+
+#ifdef KDTRACE_HOOKS
+	/* DTrace probe IDs; 0 if not yet registered. */
+	uint32_t		ene_commit_probe_id;		/* (M) */
+	uint32_t		ene_bsm_probe_id;		/* (M) */
+
+	/* Flags indicating if the probes enabled or not. */
+	int			ene_commit_probe_enabled;	/* (M) */
+	int			ene_bsm_probe_enabled;		/* (M) */
+#endif
 };
 
 #define	EVNAME_LOCK(ene)	mtx_lock(&(ene)->ene_lock)
@@ -402,6 +417,21 @@ struct evname_elem {
  * Callback function typedef for the same.
  */
 typedef	void	(*au_evnamemap_callback_t)(struct evname_elem *ene);
+
+/*
+ * DTrace audit provider (dtaudit) hooks -- to be set non-NULL when the audit
+ * provider is loaded and ready to be called into.
+ */
+#ifdef KDTRACE_HOOKS
+extern void	*(*dtaudit_hook_preselect)(au_id_t auid, au_event_t event,
+		    au_class_t class);
+extern int	(*dtaudit_hook_commit)(struct kaudit_record *kar,
+		    au_id_t auid, au_event_t event, au_class_t class,
+		    int sorf);
+extern void	(*dtaudit_hook_bsm)(struct kaudit_record *kar, au_id_t auid,
+		    au_event_t event, au_class_t class, int sorf,
+		    void *bsm_data, size_t bsm_len);
+#endif /* !KDTRACE_HOOKS */
 
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
@@ -425,6 +455,9 @@ au_class_t	 au_event_class(au_event_t event);
 void		 au_evnamemap_init(void);
 void		 au_evnamemap_insert(au_event_t event, const char *name);
 void		 au_evnamemap_foreach(au_evnamemap_callback_t callback);
+#ifdef KDTRACE_HOOKS
+struct evname_elem	*au_evnamemap_lookup(au_event_t event);
+#endif
 int		 au_event_name(au_event_t event, char *name);
 au_event_t	 audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg);
 au_event_t	 audit_flags_and_error_to_openevent(int oflags, int error);
