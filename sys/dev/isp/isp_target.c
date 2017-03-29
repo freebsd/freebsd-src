@@ -606,8 +606,8 @@ static void
 isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 {
 	isp_notify_t notify;
-	static const char f1[] = "%s from N-port handle 0x%x lun %jx seq 0x%x";
-	static const char f2[] = "unknown %s 0x%x lun %jx N-Port handle 0x%x task flags 0x%x seq 0x%x\n";
+	static const char f1[] = "%s from N-port handle 0x%x lun %x seq 0x%x";
+	static const char f2[] = "unknown %s 0x%x lun %x N-Port handle 0x%x task flags 0x%x seq 0x%x\n";
 	uint16_t seqid, nphdl;
 
 	ISP_MEMZERO(&notify, sizeof (isp_notify_t));
@@ -669,8 +669,8 @@ static void
 isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 {
 	isp_notify_t notify;
-	static const char f1[] = "%s from PortID 0x%06x lun %jx seq 0x%08x";
-	static const char f2[] = "unknown Task Flag 0x%x lun %jx PortID 0x%x tag 0x%08x";
+	static const char f1[] = "%s from PortID 0x%06x lun %x seq 0x%08x";
+	static const char f2[] = "unknown Task Flag 0x%x lun %x PortID 0x%x tag 0x%08x";
 	fcportdb_t *lp;
 	uint16_t chan;
 	uint32_t sid, did;
