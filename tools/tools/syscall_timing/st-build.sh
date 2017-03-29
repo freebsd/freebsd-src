@@ -20,6 +20,13 @@ make clean all
 cp "${ST_SRC}/syscall_timing" "${ST_INSTALL}/cheri/"
 
 CC="${CHERI_SDK256}/bin/clang" export CC
+CFLAGS="${CFLAGS_COMMON} --sysroot=${CHERI_SDK256}/sysroot -B${CHERI_SDK256}/bin -target cheri-unknown-freebsd -mabi=n64" export CFLAGS
+mkdir -p "${ST_INSTALL}/hybrid"
+cd "${ST_SRC}"
+make clean all
+cp "${ST_SRC}/syscall_timing" "${ST_INSTALL}/hybrid/"
+
+CC="${CHERI_SDK256}/bin/clang" export CC
 CFLAGS="${CFLAGS_COMMON} --sysroot=${CHERI_FREEBSD} -B${CHERI_SDK256}/bin -target mips64-unknown-freebsd -mabi=n64" export CFLAGS
 mkdir -p "${ST_INSTALL}/mips"
 cd "${ST_SRC}"

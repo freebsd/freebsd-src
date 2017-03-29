@@ -24,5 +24,6 @@ run_st() {
 }
 
 run_st "cheri"
+run_st "hybrid"
 run_st "mips"
 
