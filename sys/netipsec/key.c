@@ -1041,9 +1041,9 @@ key_allocsa_tunnel(union sockaddr_union *src, union sockaddr_union *dst,
 			continue;
 		if (proto != sah->saidx.proto)
 			continue;
-		if (key_sockaddrcmp(&src->sa, &sav->sah->saidx.src.sa, 0) != 0)
+		if (key_sockaddrcmp(&src->sa, &sah->saidx.src.sa, 0) != 0)
 			continue;
-		if (key_sockaddrcmp(&dst->sa, &sav->sah->saidx.dst.sa, 0) != 0)
+		if (key_sockaddrcmp(&dst->sa, &sah->saidx.dst.sa, 0) != 0)
 			continue;
 		/* XXXAE: is key_preferred_oldsa reasonably?*/
 		if (V_key_preferred_oldsa)
