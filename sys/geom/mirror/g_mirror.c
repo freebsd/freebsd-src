@@ -1917,6 +1917,10 @@ g_mirror_worker(void *arg)
 					kproc_exit(0);
 				}
 				mtx_lock(&sc->sc_queue_mtx);
+				if (bioq_first(&sc->sc_queue) != NULL) {
+					mtx_unlock(&sc->sc_queue_mtx);
+					continue;
+				}
 			}
 			sx_xunlock(&sc->sc_lock);
 			/*
