@@ -4332,7 +4332,8 @@ static void mem_intr_handler(struct adapter *adapter, int idx)
 	if (v & F_ECC_CE_INT_CAUSE) {
 		u32 cnt = G_ECC_CECNT(t4_read_reg(adapter, cnt_addr));
 
-		t4_edc_err_read(adapter, idx);
+		if (idx <= MEM_EDC1)
+			t4_edc_err_read(adapter, idx);
 
 		t4_write_reg(adapter, cnt_addr, V_ECC_CECNT(M_ECC_CECNT));
 		CH_WARN_RATELIMIT(adapter,
