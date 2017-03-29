@@ -61,9 +61,9 @@ static uint32_t isp_pci_rd_reg_2400(ispsoftc_t *, int);
 static void isp_pci_wr_reg_2400(ispsoftc_t *, int, uint32_t);
 static uint32_t isp_pci_rd_reg_2600(ispsoftc_t *, int);
 static void isp_pci_wr_reg_2600(ispsoftc_t *, int, uint32_t);
-static int isp_pci_rd_isr(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
-static int isp_pci_rd_isr_2300(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
-static int isp_pci_rd_isr_2400(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
+static void isp_pci_run_isr(ispsoftc_t *);
+static void isp_pci_run_isr_2300(ispsoftc_t *);
+static void isp_pci_run_isr_2400(ispsoftc_t *);
 static int isp_pci_mbxdma(ispsoftc_t *);
 static void isp_pci_mbxdmafree(ispsoftc_t *);
 static int isp_pci_dmasetup(ispsoftc_t *, XS_T *, void *);
@@ -71,7 +71,7 @@ static int isp_pci_irqsetup(ispsoftc_t *);
 static void isp_pci_dumpregs(ispsoftc_t *, const char *);
 
 static struct ispmdvec mdvec = {
-	isp_pci_rd_isr,
+	isp_pci_run_isr,
 	isp_pci_rd_reg,
 	isp_pci_wr_reg,
 	isp_pci_mbxdma,
@@ -84,7 +84,7 @@ static struct ispmdvec mdvec = {
 };
 
 static struct ispmdvec mdvec_1080 = {
-	isp_pci_rd_isr,
+	isp_pci_run_isr,
 	isp_pci_rd_reg_1080,
 	isp_pci_wr_reg_1080,
 	isp_pci_mbxdma,
@@ -97,7 +97,7 @@ static struct ispmdvec mdvec_1080 = {
 };
 
 static struct ispmdvec mdvec_12160 = {
-	isp_pci_rd_isr,
+	isp_pci_run_isr,
 	isp_pci_rd_reg_1080,
 	isp_pci_wr_reg_1080,
 	isp_pci_mbxdma,
@@ -110,7 +110,7 @@ static struct ispmdvec mdvec_12160 = {
 };
 
 static struct ispmdvec mdvec_2100 = {
-	isp_pci_rd_isr,
+	isp_pci_run_isr,
 	isp_pci_rd_reg,
 	isp_pci_wr_reg,
 	isp_pci_mbxdma,
@@ -121,7 +121,7 @@ static struct ispmdvec mdvec_2100 = {
 };
 
 static struct ispmdvec mdvec_2200 = {
-	isp_pci_rd_isr,
+	isp_pci_run_isr,
 	isp_pci_rd_reg,
 	isp_pci_wr_reg,
 	isp_pci_mbxdma,
@@ -132,7 +132,7 @@ static struct ispmdvec mdvec_2200 = {
 };
 
 static struct ispmdvec mdvec_2300 = {
-	isp_pci_rd_isr_2300,
+	isp_pci_run_isr_2300,
 	isp_pci_rd_reg,
 	isp_pci_wr_reg,
 	isp_pci_mbxdma,
@@ -143,7 +143,7 @@ static struct ispmdvec mdvec_2300 = {
 };
 
 static struct ispmdvec mdvec_2400 = {
-	isp_pci_rd_isr_2400,
+	isp_pci_run_isr_2400,
 	isp_pci_rd_reg_2400,
 	isp_pci_wr_reg_2400,
 	isp_pci_mbxdma,
@@ -154,7 +154,7 @@ static struct ispmdvec mdvec_2400 = {
 };
 
 static struct ispmdvec mdvec_2500 = {
-	isp_pci_rd_isr_2400,
+	isp_pci_run_isr_2400,
 	isp_pci_rd_reg_2400,
 	isp_pci_wr_reg_2400,
 	isp_pci_mbxdma,
@@ -165,7 +165,7 @@ static struct ispmdvec mdvec_2500 = {
 };
 
 static struct ispmdvec mdvec_2600 = {
-	isp_pci_rd_isr_2400,
+	isp_pci_run_isr_2400,
 	isp_pci_rd_reg_2600,
 	isp_pci_wr_reg_2600,
 	isp_pci_mbxdma,
@@ -1066,35 +1066,27 @@ isp_pci_detach(device_t dev)
 #define	B2R4(isp, off)		bus_read_4((isp)->isp_regs2, (off))
 #define	B2W4(isp, off, v)	bus_write_4((isp)->isp_regs2, (off), (v))
 
-static ISP_INLINE int
-isp_pci_rd_debounced(ispsoftc_t *isp, int off, uint16_t *rp)
+static ISP_INLINE uint16_t
+isp_pci_rd_debounced(ispsoftc_t *isp, int off)
 {
-	uint32_t val0, val1;
-	int i = 0;
+	uint16_t val, prev;
 
+	val = BXR2(isp, IspVirt2Off(isp, off));
 	do {
-		val0 = BXR2(isp, IspVirt2Off(isp, off));
-		val1 = BXR2(isp, IspVirt2Off(isp, off));
-	} while (val0 != val1 && ++i < 1000);
-	if (val0 != val1) {
-		return (1);
-	}
-	*rp = val0;
-	return (0);
+		prev = val;
+		val = BXR2(isp, IspVirt2Off(isp, off));
+	} while (val != prev);
+	return (val);
 }
 
-static int
-isp_pci_rd_isr(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *info)
+static void
+isp_pci_run_isr(ispsoftc_t *isp)
 {
-	uint16_t isr, sema;
+	uint16_t isr, sema, info;
 
 	if (IS_2100(isp)) {
-		if (isp_pci_rd_debounced(isp, BIU_ISR, &isr)) {
-		    return (0);
-		}
-		if (isp_pci_rd_debounced(isp, BIU_SEMA, &sema)) {
-		    return (0);
-		}
+		isr = isp_pci_rd_debounced(isp, BIU_ISR);
+		sema = isp_pci_rd_debounced(isp, BIU_SEMA);
 	} else {
 		isr = BXR2(isp, IspVirt2Off(isp, BIU_ISR));
 		sema = BXR2(isp, IspVirt2Off(isp, BIU_SEMA));
@@ -1102,59 +1094,61 @@ isp_pci_rd_isr(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *info)
 	isp_prt(isp, ISP_LOGDEBUG3, "ISR 0x%x SEMA 0x%x", isr, sema);
 	isr &= INT_PENDING_MASK(isp);
 	sema &= BIU_SEMA_LOCK;
-	if (isr == 0 && sema == 0) {
-		return (0);
-	}
-	*isrp = isr;
-	if ((*semap = sema) != 0) {
-		if (IS_2100(isp)) {
-			if (isp_pci_rd_debounced(isp, OUTMAILBOX0, info)) {
-				return (0);
-			}
-		} else {
-			*info = BXR2(isp, IspVirt2Off(isp, OUTMAILBOX0));
-		}
-	}
-	return (1);
+	if (isr == 0 && sema == 0)
+		return;
+	if (sema != 0) {
+		if (IS_2100(isp))
+			info = isp_pci_rd_debounced(isp, OUTMAILBOX0);
+		else
+			info = BXR2(isp, IspVirt2Off(isp, OUTMAILBOX0));
+		if (info & MBOX_COMMAND_COMPLETE)
+			isp_intr_mbox(isp, info);
+		else
+			isp_intr_async(isp, info);
+		if (!IS_FC(isp) && isp->isp_state == ISP_RUNSTATE)
+			isp_intr_respq(isp);
+	} else
+		isp_intr_respq(isp);
+	ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
+	if (sema)
+		ISP_WRITE(isp, BIU_SEMA, 0);
 }
 
-static int
-isp_pci_rd_isr_2300(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *info)
+static void
+isp_pci_run_isr_2300(ispsoftc_t *isp)
 {
 	uint32_t hccr, r2hisr;
+	uint16_t isr, info;
 
-	if ((BXR2(isp, IspVirt2Off(isp, BIU_ISR)) & BIU2100_ISR_RISC_INT) == 0) {
-		*isrp = 0;
-		return (0);
-	}
+	if ((BXR2(isp, IspVirt2Off(isp, BIU_ISR)) & BIU2100_ISR_RISC_INT) == 0)
+		return;
 	r2hisr = BXR4(isp, IspVirt2Off(isp, BIU_R2HSTSLO));
 	isp_prt(isp, ISP_LOGDEBUG3, "RISC2HOST ISR 0x%x", r2hisr);
-	if ((r2hisr & BIU_R2HST_INTR) == 0) {
-		*isrp = 0;
-		return (0);
-	}
-	switch ((*isrp = r2hisr & BIU_R2HST_ISTAT_MASK)) {
+	if ((r2hisr & BIU_R2HST_INTR) == 0)
+		return;
+	isr = r2hisr & BIU_R2HST_ISTAT_MASK;
+	info = r2hisr >> 16;
+	switch (isr) {
 	case ISPR2HST_ROM_MBX_OK:
 	case ISPR2HST_ROM_MBX_FAIL:
 	case ISPR2HST_MBX_OK:
 	case ISPR2HST_MBX_FAIL:
+		isp_intr_mbox(isp, info);
+		break;
 	case ISPR2HST_ASYNC_EVENT:
-		*semap = 1;
+		isp_intr_async(isp, info);
 		break;
 	case ISPR2HST_RIO_16:
-		*info = ASYNC_RIO16_1;
-		*semap = 1;
-		return (1);
+		isp_intr_async(isp, ASYNC_RIO16_1);
+		break;
 	case ISPR2HST_FPOST:
-		*info = ASYNC_CMD_CMPLT;
-		*semap = 1;
-		return (1);
+		isp_intr_async(isp, ASYNC_CMD_CMPLT);
+		break;
 	case ISPR2HST_FPOST_CTIO:
-		*info = ASYNC_CTIO_DONE;
-		*semap = 1;
-		return (1);
+		isp_intr_async(isp, ASYNC_CTIO_DONE);
+		break;
 	case ISPR2HST_RSPQ_UPDATE:
-		*semap = 0;
+		isp_intr_respq(isp);
 		break;
 	default:
 		hccr = ISP_READ(isp, HCCR);
@@ -1165,45 +1159,52 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *
 		} else {
 			isp_prt(isp, ISP_LOGERR, "unknown interrupt 0x%x\n", r2hisr);
 		}
-		return (0);
 	}
-	*info = (r2hisr >> 16);
-	return (1);
+	ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
+	ISP_WRITE(isp, BIU_SEMA, 0);
 }
 
-static int
-isp_pci_rd_isr_2400(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *info)
+static void
+isp_pci_run_isr_2400(ispsoftc_t *isp)
 {
 	uint32_t r2hisr;
+	uint16_t isr, info;
 
 	r2hisr = BXR4(isp, IspVirt2Off(isp, BIU2400_R2HSTSLO));
 	isp_prt(isp, ISP_LOGDEBUG3, "RISC2HOST ISR 0x%x", r2hisr);
-	if ((r2hisr & BIU_R2HST_INTR) == 0) {
-		*isrp = 0;
-		return (0);
-	}
-	switch ((*isrp = r2hisr & BIU_R2HST_ISTAT_MASK)) {
+	if ((r2hisr & BIU_R2HST_INTR) == 0)
+		return;
+	isr = r2hisr & BIU_R2HST_ISTAT_MASK;
+	info = (r2hisr >> 16);
+	switch (isr) {
 	case ISPR2HST_ROM_MBX_OK:
 	case ISPR2HST_ROM_MBX_FAIL:
 	case ISPR2HST_MBX_OK:
 	case ISPR2HST_MBX_FAIL:
+		isp_intr_mbox(isp, info);
+		break;
 	case ISPR2HST_ASYNC_EVENT:
-		*semap = 1;
+		isp_intr_async(isp, info);
 		break;
 	case ISPR2HST_RSPQ_UPDATE:
+		isp_intr_respq(isp);
+		break;
 	case ISPR2HST_RSPQ_UPDATE2:
-	case ISPR2HST_ATIO_UPDATE:
+#ifdef	ISP_TARGET_MODE
 	case ISPR2HST_ATIO_RSPQ_UPDATE:
+#endif
+		isp_intr_respq(isp);
+		/* FALLTHROUGH */
+#ifdef	ISP_TARGET_MODE
+	case ISPR2HST_ATIO_UPDATE:
 	case ISPR2HST_ATIO_UPDATE2:
-		*semap = 0;
+		isp_intr_atioq(isp);
+#endif
 		break;
 	default:
-		ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
 		isp_prt(isp, ISP_LOGERR, "unknown interrupt 0x%x\n", r2hisr);
-		return (0);
 	}
-	*info = (r2hisr >> 16);
-	return (1);
+	ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
 }
 
 static uint32_t
