@@ -5156,7 +5156,7 @@ static void
 cpi_print(struct ccb_pathinq *cpi)
 {
 	char adapter_str[1024];
-	int i;
+	uint64_t i;
 
 	snprintf(adapter_str, sizeof(adapter_str),
 		 "%s%d:", cpi->dev_name, cpi->unit_number);
@@ -5164,7 +5164,7 @@ cpi_print(struct ccb_pathinq *cpi)
 	fprintf(stdout, "%s SIM/HBA version: %d\n", adapter_str,
 		cpi->version_num);
 
-	for (i = 1; i < 0xff; i = i << 1) {
+	for (i = 1; i < UINT8_MAX; i = i << 1) {
 		const char *str;
 
 		if ((i & cpi->hba_inquiry) == 0)
@@ -5204,7 +5204,7 @@ cpi_print(struct ccb_pathinq *cpi)
 		fprintf(stdout, "%s\n", str);
 	}
 
-	for (i = 1; i < 0xff; i = i << 1) {
+	for (i = 1; i < UINT32_MAX; i = i << 1) {
 		const char *str;
 
 		if ((i & cpi->hba_misc) == 0)
@@ -5239,7 +5239,7 @@ cpi_print(struct ccb_pathinq *cpi)
 		fprintf(stdout, "%s\n", str);
 	}
 
-	for (i = 1; i < 0xff; i = i << 1) {
+	for (i = 1; i < UINT16_MAX; i = i << 1) {
 		const char *str;
 
 		if ((i & cpi->target_sprt) == 0)
