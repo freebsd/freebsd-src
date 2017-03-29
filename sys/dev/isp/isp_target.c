@@ -688,8 +688,11 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 		/* Channel has to be derived from D_ID */
 		isp_find_chan_by_did(isp, did, &chan);
 		if (chan == ISP_NOCHAN) {
-			isp_prt(isp, ISP_LOGWARN, "%s: D_ID 0x%x not found on any channel", __func__, did);
-			isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN, ECMD_TERMINATE, 0);
+			isp_prt(isp, ISP_LOGWARN,
+			    "%s: D_ID 0x%x not found on any channel",
+			    __func__, did);
+			isp_endcmd(isp, aep, NIL_HANDLE, ISP_NOCHAN,
+			    ECMD_TERMINATE, 0);
 			return;
 		}
 	} else {
@@ -891,17 +894,23 @@ isp_handle_abts(ispsoftc_t *isp, abts_t *abts)
 	nt->nt_did = did;
 	nt->nt_nphdl = abts->abts_nphdl;
 	nt->nt_sid = sid;
-	isp_find_chan_by_did(isp, did, &chan);
-	if (chan == ISP_NOCHAN) {
-		nt->nt_tgt = TGT_ANY;
-	} else {
-		nt->nt_tgt = FCPARAM(isp, chan)->isp_wwpn;
-		if (isp_find_pdb_by_handle(isp, chan, abts->abts_nphdl, &lp)) {
-			nt->nt_wwn = lp->port_wwn;
-		} else {
-			nt->nt_wwn = INI_ANY;
+	if (ISP_CAP_MULTI_ID(isp) && isp->isp_nchan > 1) {
+		/* Channel has to be derived from D_ID */
+		isp_find_chan_by_did(isp, did, &chan);
+		if (chan == ISP_NOCHAN) {
+			isp_prt(isp, ISP_LOGWARN,
+			    "%s: D_ID 0x%x not found on any channel",
+			    __func__, did);
+			isp_acknak_abts(isp, abts, ENXIO);
+			return;
 		}
-	}
+	} else
+		chan = 0;
+	nt->nt_tgt = FCPARAM(isp, chan)->isp_wwpn;
+	if (isp_find_pdb_by_handle(isp, chan, abts->abts_nphdl, &lp))
+		nt->nt_wwn = lp->port_wwn;
+	else
+		nt->nt_wwn = INI_ANY;
 	nt->nt_lun = LUN_ANY;
 	nt->nt_need_ack = 1;
 	nt->nt_tagval = abts->abts_rxid_task;
