@@ -174,6 +174,7 @@ MALLOC_DEFINE(M_CTLFE, "CAM CTL FE", "CAM CTL FE interface");
 static int		ctlfeinitialize(void);
 static int		ctlfeshutdown(void);
 static periph_init_t	ctlfeperiphinit;
+static periph_deinit_t	ctlfeperiphdeinit;
 static void		ctlfeasync(void *callback_arg, uint32_t code,
 				   struct cam_path *path, void *arg);
 static periph_ctor_t	ctlferegister;
@@ -202,7 +203,8 @@ static struct periph_driver ctlfe_driver =
 {
 	ctlfeperiphinit, "ctl",
 	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0,
-	CAM_PERIPH_DRV_EARLY
+	CAM_PERIPH_DRV_EARLY,
+	ctlfeperiphdeinit
 };
 
 static struct ctl_frontend ctlfe_frontend =
@@ -215,20 +217,24 @@ static struct ctl_frontend ctlfe_frontend =
 CTL_FRONTEND_DECLARE(ctlfe, ctlfe_frontend);
 
 static int
-ctlfeshutdown(void)
-{
-
-	/* CAM does not support periph driver unregister now. */
-	return (EBUSY);
-}
-
-static int
 ctlfeinitialize(void)
 {
 
 	STAILQ_INIT(&ctlfe_softc_list);
 	mtx_init(&ctlfe_list_mtx, ctlfe_mtx_desc, NULL, MTX_DEF);
 	periphdriver_register(&ctlfe_driver);
+	return (0);
+}
+
+static int
+ctlfeshutdown(void)
+{
+	int error;
+
+	error = periphdriver_unregister(&ctlfe_driver);
+	if (error != 0)
+		return (error);
+	mtx_destroy(&ctlfe_list_mtx);
 	return (0);
 }
 
@@ -243,6 +249,17 @@ ctlfeperiphinit(void)
 		printf("ctl: Failed to attach async callback due to CAM "
 		       "status 0x%x!\n", status);
 	}
+}
+
+static int
+ctlfeperiphdeinit(void)
+{
+
+	/* XXX: It would be good to tear down active ports here. */
+	if (!TAILQ_EMPTY(&ctlfe_driver.units))
+		return (EBUSY);
+	xpt_register_async(0, ctlfeasync, NULL, NULL);
+	return (0);
 }
 
 static void
