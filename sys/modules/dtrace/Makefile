@@ -2,7 +2,8 @@
 
 .include "Makefile.inc"
 
-SUBDIR=		dtmalloc	\
+SUBDIR=		dtaudit		\
+		dtmalloc	\
 		dtnfscl		\
 		dtrace		\
 		dtraceall	\
