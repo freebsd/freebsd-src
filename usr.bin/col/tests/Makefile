@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-ATF_TESTS_SH=	col
+ATF_TESTS_SH=	col_test
 
 FILES=		rlf.in \
 		rlf2.in
