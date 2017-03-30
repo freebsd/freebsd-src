@@ -2114,7 +2114,7 @@ iflib_timer(void *arg)
 	return;
 hung:
 	CTX_LOCK(ctx);
-	if_setdrvflagbits(ctx->ifc_ifp, 0, IFF_DRV_RUNNING);
+	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 	device_printf(ctx->ifc_dev,  "TX(%d) desc avail = %d, pidx = %d\n",
 				  txq->ift_id, TXQ_AVAIL(txq), txq->ift_pidx);
 
@@ -3516,8 +3516,11 @@ _task_fn_admin(void *context)
 	iflib_txq_t txq;
 	int i;
 
-	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
-		return;
+	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)) {
+		if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE)) {
+			return;
+		}
+	}
 
 	CTX_LOCK(ctx);
 	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++) {
