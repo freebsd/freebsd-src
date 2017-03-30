@@ -481,15 +481,34 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 
 	ciargs.changelist = kev;
 
+	if (args->op != LINUX_EPOLL_CTL_DEL) {
+		kev_flags = EV_ADD | EV_ENABLE;
+		error = epoll_to_kevent(td, epfp, args->fd, &le,
+		    &kev_flags, kev, &nchanges);
+		if (error != 0)
+			goto leave0;
+	}
+
 	switch (args->op) {
 	case LINUX_EPOLL_CTL_MOD:
 		error = epoll_delete_all_events(td, epfp, args->fd);
 		if (error != 0)
 			goto leave0;
-		/* FALLTHROUGH */
+		break;
 
 	case LINUX_EPOLL_CTL_ADD:
-			kev_flags = EV_ADD | EV_ENABLE;
+		/*
+		 * kqueue_register() return ENOENT if event does not exists
+		 * and the EV_ADD flag is not set.
+		 */
+		kev[0].flags &= ~EV_ADD;
+		error = kqfd_register(args->epfd, &kev[0], td, 1);
+		if (error != ENOENT) {
+			error = EEXIST;
+			goto leave0;
+		}
+		error = 0;
+		kev[0].flags |= EV_ADD;
 		break;
 
 	case LINUX_EPOLL_CTL_DEL:
@@ -501,11 +520,6 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 		error = EINVAL;
 		goto leave0;
 	}
-
-	error = epoll_to_kevent(td, epfp, args->fd, &le, &kev_flags,
-	    kev, &nchanges);
-	if (error != 0)
-		goto leave0;
 
 	epoll_fd_install(td, args->fd, le.data);
 
