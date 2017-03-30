@@ -99,10 +99,6 @@ DUMMY(move_pages);
 DUMMY(getcpu);
 /* linux 2.6.22: */
 DUMMY(signalfd);
-DUMMY(timerfd_create);
-/* linux 2.6.25: */
-DUMMY(timerfd_settime);
-DUMMY(timerfd_gettime);
 /* linux 2.6.27: */
 DUMMY(signalfd4);
 DUMMY(inotify_init1);
