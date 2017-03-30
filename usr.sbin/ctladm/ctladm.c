@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/ioctl.h>
 #include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/stat.h>
@@ -4152,6 +4153,13 @@ main(int argc, char **argv)
 			retval = 1;
 			goto bailout;
 		}
+#ifdef	WANT_ISCSI
+		else {
+			if (modfind("cfiscsi") == -1 &&
+			    kldload("cfiscsi") == -1)
+				warn("couldn't load cfiscsi");
+		}
+#endif
 	} else if ((command != CTLADM_CMD_HELP)
 		&& ((cmdargs & CTLADM_ARG_DEVICE) == 0)) {
 		fprintf(stderr, "%s: you must specify a device with the "

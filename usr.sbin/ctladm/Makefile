@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=		ctladm
 SRCS=		ctladm.c util.c ctl_util.c ctl_scsi_all.c
 .PATH:		${SRCTOP}/sys/cam/ctl
@@ -16,5 +18,9 @@ WARNS?= 3
 
 LIBADD=		cam sbuf bsdxml util
 MAN=		ctladm.8
+
+.if ${MK_ISCSI} != "no"
+CFLAGS+=	-DWANT_ISCSI
+.endif
 
 .include <bsd.prog.mk>

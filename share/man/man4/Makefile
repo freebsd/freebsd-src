@@ -887,6 +887,7 @@ _dtrace_udp.4=	dtrace_udp.4
 .endif
 
 .if ${MK_ISCSI} != "no"
+MAN+=		cfiscsi.4
 MAN+=		iscsi.4
 MAN+=		iscsi_initiator.4
 MAN+=		iser.4
