@@ -300,9 +300,11 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			 * this, we return first brand which accepted
 			 * our note and, optionally, header.
 			 */
-			if (ret && bi_m == NULL && (strlen(bi->interp_path) +
-			    1 != interp_name_len || strncmp(interp,
-			    bi->interp_path, interp_name_len) != 0)) {
+			if (ret && bi_m == NULL && interp != NULL &&
+			    (bi->interp_path == NULL ||
+			    (strlen(bi->interp_path) + 1 != interp_name_len ||
+			    strncmp(interp, bi->interp_path, interp_name_len)
+			    != 0))) {
 				bi_m = bi;
 				ret = 0;
 			}
@@ -369,6 +371,7 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			    != 0)
 				continue;
 			if (hdr->e_machine == bi->machine &&
+			    bi->interp_path != NULL &&
 			    /* ELF image p_filesz includes terminating zero */
 			    strlen(bi->interp_path) + 1 == interp_name_len &&
 			    strncmp(interp, bi->interp_path, interp_name_len)
