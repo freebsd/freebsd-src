@@ -887,11 +887,17 @@ struct mincore_args {
 int
 sys_mincore(struct thread *td, struct mincore_args *uap)
 {
+
+	return (kern_mincore(td, (uintptr_t)uap->addr, uap->len, uap->vec));
+}
+
+int
+kern_mincore(struct thread *td, uintptr_t addr0, size_t len, char *vec)
+{
 	vm_offset_t addr, first_addr;
 	vm_offset_t end, cend;
 	pmap_t pmap;
 	vm_map_t map;
-	char *vec;
 	int error = 0;
 	int vecindex, lastvecindex;
 	vm_map_entry_t current;
@@ -908,16 +914,11 @@ sys_mincore(struct thread *td, struct mincore_args *uap)
 	 * Make sure that the addresses presented are valid for user
 	 * mode.
 	 */
-	first_addr = addr = trunc_page((vm_offset_t) uap->addr);
-	end = addr + (vm_size_t)round_page(uap->len);
+	first_addr = addr = trunc_page(addr0);
+	end = addr + (vm_size_t)round_page(len);
 	map = &td->td_proc->p_vmspace->vm_map;
 	if (end > vm_map_max(map) || end < addr)
 		return (ENOMEM);
-
-	/*
-	 * Address of byte vector
-	 */
-	vec = uap->vec;
 
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 
