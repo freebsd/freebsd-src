@@ -30,12 +30,18 @@
  */
 /*-
  * Copyright (c) 2003-2005 McAfee, Inc.
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by McAfee
  * Research, the Security Research Division of McAfee, Inc under DARPA/SPAWAR
  * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS research
  * program.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -349,8 +355,10 @@ kern_shmdt_locked(struct thread *td, const void *shmaddr)
 {
 	struct proc *p = td->td_proc;
 	struct shmmap_state *shmmap_s;
-#ifdef MAC
+#if defined(AUDIT) || defined(MAC)
 	struct shmid_kernel *shmsegptr;
+#endif
+#ifdef MAC
 	int error;
 #endif
 	int i;
@@ -361,6 +369,7 @@ kern_shmdt_locked(struct thread *td, const void *shmaddr)
 	shmmap_s = p->p_vmspace->vm_shm;
  	if (shmmap_s == NULL)
 		return (EINVAL);
+	AUDIT_ARG_SVIPC_ID(shmmap_s->shmid);
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++) {
 		if (shmmap_s->shmid != -1 &&
 		    shmmap_s->va == (vm_offset_t)shmaddr) {
@@ -369,8 +378,10 @@ kern_shmdt_locked(struct thread *td, const void *shmaddr)
 	}
 	if (i == shminfo.shmseg)
 		return (EINVAL);
-#ifdef MAC
+#if (defined(AUDIT) && defined(KDTRACE_HOOKS)) || defined(MAC)
 	shmsegptr = &shmsegs[IPCID_TO_IX(shmmap_s->shmid)];
+#endif
+#ifdef MAC
 	error = mac_sysvshm_check_shmdt(td->td_ucred, shmsegptr);
 	if (error != 0)
 		return (error);
@@ -410,6 +421,9 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 	struct chericap shmaddr_cap;
 	vm_offset_t cap_base;
 #endif
+
+	AUDIT_ARG_SVIPC_ID(shmid);
+	AUDIT_ARG_VALUE(shmflg);
 
 	SYSVSHM_ASSERT_LOCKED();
 	rpr = shm_find_prison(td->td_ucred);
@@ -609,6 +623,9 @@ kern_shmctl_locked(struct thread *td, int shmid, int cmd, void *buf,
 	if (rpr == NULL)
 		return (ENOSYS);
 
+	AUDIT_ARG_SVIPC_ID(shmid);
+	AUDIT_ARG_SVIPC_CMD(cmd);
+
 	switch (cmd) {
 	/*
 	 * It is possible that kern_shmctl is being called from the Linux ABI
@@ -666,6 +683,7 @@ kern_shmctl_locked(struct thread *td, int shmid, int cmd, void *buf,
 		break;
 	case IPC_SET:
 		shmidp = (struct shmid_ds *)buf;
+		AUDIT_ARG_SVIPC_PERM(&shmidp->shm_perm);
 		error = ipcperm(td, &shmseg->u.shm_perm, IPC_M);
 		if (error != 0)
 			return (error);

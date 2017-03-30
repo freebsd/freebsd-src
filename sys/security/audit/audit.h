@@ -239,6 +239,11 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_pid((pid));					\
 } while (0)
 
+#define	AUDIT_ARG_POSIX_IPC_PERM(uid, gid, mode) do {			\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_posix_ipc_perm((uid), (gid), (mod));		\
+} while (0)
+
 #define	AUDIT_ARG_PROCESS(p) do {					\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_process((p));					\
@@ -287,6 +292,26 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_SUID(suid) do {					\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_suid((suid));					\
+} while (0)
+
+#define	AUDIT_ARG_SVIPC_CMD(cmd) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_svipc_cmd((cmd));				\
+} while (0)
+
+#define	AUDIT_ARG_SVIPC_PERM(perm) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_svipc_perm((perm));				\
+} while (0)
+
+#define	AUDIT_ARG_SVIPC_ID(id) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_svipc_id((id));				\
+} while (0)
+
+#define	AUDIT_ARG_SVIPC_ADDR(addr) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_svipc_addr((addr));				\
 } while (0)
 
 #define	AUDIT_ARG_SVIPC_WHICH(which) do {				\
@@ -375,6 +400,7 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_MODE(mode)
 #define	AUDIT_ARG_OWNER(uid, gid)
 #define	AUDIT_ARG_PID(pid)
+#define	AUDIT_ARG_POSIX_IPC_PERM(uid, gid, mode)
 #define	AUDIT_ARG_PROCESS(p)
 #define	AUDIT_ARG_RGID(rgid)
 #define	AUDIT_ARG_RIGHTS(rights)
@@ -385,6 +411,10 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_SOCKET(sodomain, sotype, soprotocol)
 #define	AUDIT_ARG_SOCKADDR(td, dirfd, sa)
 #define	AUDIT_ARG_SUID(suid)
+#define	AUDIT_ARG_SVIPC_CMD(cmd)
+#define	AUDIT_ARG_SVIPC_PERM(perm)
+#define	AUDIT_ARG_SVIPC_ID(id)
+#define	AUDIT_ARG_SVIPC_ADDR(addr)
 #define	AUDIT_ARG_SVIPC_WHICH(which)
 #define	AUDIT_ARG_TEXT(text)
 #define	AUDIT_ARG_UID(uid)
