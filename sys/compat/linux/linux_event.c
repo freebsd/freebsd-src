@@ -123,7 +123,6 @@ typedef uint64_t	eventfd_t;
 
 static fo_rdwr_t	eventfd_read;
 static fo_rdwr_t	eventfd_write;
-static fo_truncate_t	eventfd_truncate;
 static fo_ioctl_t	eventfd_ioctl;
 static fo_poll_t	eventfd_poll;
 static fo_kqfilter_t	eventfd_kqfilter;
@@ -134,7 +133,7 @@ static fo_fill_kinfo_t	eventfd_fill_kinfo;
 static struct fileops eventfdops = {
 	.fo_read = eventfd_read,
 	.fo_write = eventfd_write,
-	.fo_truncate = eventfd_truncate,
+	.fo_truncate = invfo_truncate,
 	.fo_ioctl = eventfd_ioctl,
 	.fo_poll = eventfd_poll,
 	.fo_kqfilter = eventfd_kqfilter,
@@ -207,7 +206,7 @@ epoll_create_common(struct thread *td, int flags)
 	int error;
 
 	error = kern_kqueue(td, flags, NULL);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	epoll_fd_install(td, EPOLL_DEF_SZ, 0);
@@ -378,7 +377,7 @@ epoll_kev_copyin(void *arg, struct kevent *kevp, int count)
 	struct epoll_copyin_args *args;
 
 	args = (struct epoll_copyin_args*) arg;
-	
+
 	memcpy(kevp, args->changelist, count * sizeof(*kevp));
 	args->changelist += count;
 
@@ -438,7 +437,7 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 		 * EVFILT_READ and EVFILT_WRITE, ignoring any errors
 		 */
 		error = epoll_delete_all_events(td, epfp, args->fd);
-		if (error)
+		if (error != 0)
 			goto leave0;
 		/* FALLTHROUGH */
 
@@ -458,7 +457,7 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 
 	error = epoll_to_kevent(td, epfp, args->fd, &le, &kev_flags,
 	    kev, &nchanges);
-	if (error)
+	if (error != 0)
 		goto leave0;
 
 	epoll_fd_install(td, args->fd, le.data);
@@ -622,7 +621,7 @@ eventfd_create(struct thread *td, uint32_t initval, int flags)
 
 	fdp = td->td_proc->p_fd;
 	error = falloc(td, &fp, &fd, fflags);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	efd = malloc(sizeof(*efd), M_EPOLL, M_WAITOK | M_ZERO);
@@ -681,7 +680,7 @@ eventfd_close(struct file *fp, struct thread *td)
 
 static int
 eventfd_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	int flags, struct thread *td)
+    int flags, struct thread *td)
 {
 	struct eventfd *efd;
 	eventfd_t count;
@@ -727,7 +726,7 @@ retry:
 
 static int
 eventfd_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	 int flags, struct thread *td)
+     int flags, struct thread *td)
 {
 	struct eventfd *efd;
 	eventfd_t count;
@@ -741,7 +740,7 @@ eventfd_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		return (EINVAL);
 
 	error = uiomove(&count, sizeof(eventfd_t), uio);
-	if (error)
+	if (error != 0)
 		return (error);
 	if (count == UINT64_MAX)
 		return (EINVAL);
@@ -773,7 +772,7 @@ retry:
 
 static int
 eventfd_poll(struct file *fp, int events, struct ucred *active_cred,
-	struct thread *td)
+    struct thread *td)
 {
 	struct eventfd *efd;
 	int revents = 0;
@@ -862,17 +861,8 @@ filt_eventfdwrite(struct knote *kn, long hint)
 
 /*ARGSUSED*/
 static int
-eventfd_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-	struct thread *td)
-{
-
-	return (ENXIO);
-}
-
-/*ARGSUSED*/
-static int
 eventfd_ioctl(struct file *fp, u_long cmd, void *data,
-	struct ucred *active_cred, struct thread *td)
+    struct ucred *active_cred, struct thread *td)
 {
 	struct eventfd *efd;
 
@@ -897,7 +887,7 @@ eventfd_ioctl(struct file *fp, u_long cmd, void *data,
 /*ARGSUSED*/
 static int
 eventfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
-	struct thread *td)
+    struct thread *td)
 {
 
 	return (ENXIO);
