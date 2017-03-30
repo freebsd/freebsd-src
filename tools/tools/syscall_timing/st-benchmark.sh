@@ -19,6 +19,8 @@ run_st() {
 
 	mkdir -p "${OUTPUT}"
 	for t in ${TEST_LIST}; do
+		export STATCOUNTERS_OUTPUT="${OUTPUT}/${t}.statcounters"
+		export STATCOUNTERS_FORMAT="human"
 		"${ST}" "${t}" | sed "1,2d" > "${OUTPUT}/${t}"
 	done
 }
