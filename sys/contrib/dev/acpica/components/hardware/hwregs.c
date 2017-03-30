@@ -5,9 +5,117 @@
  *
  ******************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,23 +132,23 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -53,6 +161,12 @@
 #if (!ACPI_REDUCED_HARDWARE)
 
 /* Local Prototypes */
+
+static UINT8
+AcpiHwGetAccessBitWidth (
+    UINT64                  Address,
+    ACPI_GENERIC_ADDRESS    *Reg,
+    UINT8                   MaxBitWidth);
 
 static ACPI_STATUS
 AcpiHwReadMultiple (
@@ -67,6 +181,90 @@ AcpiHwWriteMultiple (
     ACPI_GENERIC_ADDRESS    *RegisterB);
 
 #endif /* !ACPI_REDUCED_HARDWARE */
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiHwGetAccessBitWidth
+ *
+ * PARAMETERS:  Address             - GAS register address
+ *              Reg                 - GAS register structure
+ *              MaxBitWidth         - Max BitWidth supported (32 or 64)
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Obtain optimal access bit width
+ *
+ ******************************************************************************/
+
+static UINT8
+AcpiHwGetAccessBitWidth (
+    UINT64                  Address,
+    ACPI_GENERIC_ADDRESS    *Reg,
+    UINT8                   MaxBitWidth)
+{
+    UINT8                   AccessBitWidth;
+
+
+    /*
+     * GAS format "register", used by FADT:
+     *  1. Detected if BitOffset is 0 and BitWidth is 8/16/32/64;
+     *  2. AccessSize field is ignored and BitWidth field is used for
+     *     determining the boundary of the IO accesses.
+     * GAS format "region", used by APEI registers:
+     *  1. Detected if BitOffset is not 0 or BitWidth is not 8/16/32/64;
+     *  2. AccessSize field is used for determining the boundary of the
+     *     IO accesses;
+     *  3. BitOffset/BitWidth fields are used to describe the "region".
+     *
+     * Note: This algorithm assumes that the "Address" fields should always
+     *       contain aligned values.
+     */
+    if (!Reg->BitOffset && Reg->BitWidth &&
+        ACPI_IS_POWER_OF_TWO (Reg->BitWidth) &&
+        ACPI_IS_ALIGNED (Reg->BitWidth, 8))
+    {
+        AccessBitWidth = Reg->BitWidth;
+    }
+    else if (Reg->AccessWidth)
+    {
+        AccessBitWidth = (1 << (Reg->AccessWidth + 2));
+    }
+    else
+    {
+        AccessBitWidth = ACPI_ROUND_UP_POWER_OF_TWO_8 (
+            Reg->BitOffset + Reg->BitWidth);
+        if (AccessBitWidth <= 8)
+        {
+            AccessBitWidth = 8;
+        }
+        else
+        {
+            while (!ACPI_IS_ALIGNED (Address, AccessBitWidth >> 3))
+            {
+                AccessBitWidth >>= 1;
+            }
+        }
+    }
+
+    /* Maximum IO port access bit width is 32 */
+
+    if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_IO)
+    {
+        MaxBitWidth = 32;
+    }
+
+    /*
+     * Return access width according to the requested maximum access bit width,
+     * as the caller should know the format of the register and may enforce
+     * a 32-bit accesses.
+     */
+    if (AccessBitWidth < MaxBitWidth)
+    {
+        return (AccessBitWidth);
+    }
+    return (MaxBitWidth);
+}
 
 
 /******************************************************************************
@@ -91,6 +289,9 @@ AcpiHwValidateRegister (
     UINT8                   MaxBitWidth,
     UINT64                  *Address)
 {
+    UINT8                   BitWidth;
+    UINT8                   AccessWidth;
+
 
     /* Must have a valid pointer to a GAS structure */
 
@@ -120,24 +321,25 @@ AcpiHwValidateRegister (
         return (AE_SUPPORT);
     }
 
-    /* Validate the BitWidth */
+    /* Validate the AccessWidth */
 
-    if ((Reg->BitWidth != 8) &&
-        (Reg->BitWidth != 16) &&
-        (Reg->BitWidth != 32) &&
-        (Reg->BitWidth != MaxBitWidth))
+    if (Reg->AccessWidth > 4)
     {
         ACPI_ERROR ((AE_INFO,
-            "Unsupported register bit width: 0x%X", Reg->BitWidth));
+            "Unsupported register access width: 0x%X", Reg->AccessWidth));
         return (AE_SUPPORT);
     }
 
-    /* Validate the BitOffset. Just a warning for now. */
+    /* Validate the BitWidth, convert AccessWidth into number of bits */
 
-    if (Reg->BitOffset != 0)
+    AccessWidth = AcpiHwGetAccessBitWidth (*Address, Reg, MaxBitWidth);
+    BitWidth = ACPI_ROUND_UP (Reg->BitOffset + Reg->BitWidth, AccessWidth);
+    if (MaxBitWidth < BitWidth)
     {
         ACPI_WARNING ((AE_INFO,
-            "Unsupported register bit offset: 0x%X", Reg->BitOffset));
+            "Requested bit width 0x%X is smaller than register bit width 0x%X",
+            MaxBitWidth, BitWidth));
+        return (AE_SUPPORT);
     }
 
     return (AE_OK);
@@ -158,10 +360,7 @@ AcpiHwValidateRegister (
  *              64-bit values is not needed.
  *
  * LIMITATIONS: <These limitations also apply to AcpiHwWrite>
- *      BitWidth must be exactly 8, 16, or 32.
  *      SpaceID must be SystemMemory or SystemIO.
- *      BitOffset and AccessWidth are currently ignored, as there has
- *          not been a need to implement these.
  *
  ******************************************************************************/
 
@@ -171,7 +370,12 @@ AcpiHwRead (
     ACPI_GENERIC_ADDRESS    *Reg)
 {
     UINT64                  Address;
+    UINT8                   AccessWidth;
+    UINT32                  BitWidth;
+    UINT8                   BitOffset;
     UINT64                  Value64;
+    UINT32                  Value32;
+    UINT8                   Index;
     ACPI_STATUS             Status;
 
 
@@ -186,30 +390,58 @@ AcpiHwRead (
         return (Status);
     }
 
-    /* Initialize entire 32-bit return value to zero */
-
+    /*
+     * Initialize entire 32-bit return value to zero, convert AccessWidth
+     * into number of bits based
+     */
     *Value = 0;
+    AccessWidth = AcpiHwGetAccessBitWidth (Address, Reg, 32);
+    BitWidth = Reg->BitOffset + Reg->BitWidth;
+    BitOffset = Reg->BitOffset;
 
     /*
      * Two address spaces supported: Memory or IO. PCI_Config is
      * not supported here because the GAS structure is insufficient
      */
-    if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+    Index = 0;
+    while (BitWidth)
     {
-        Status = AcpiOsReadMemory ((ACPI_PHYSICAL_ADDRESS)
-            Address, &Value64, Reg->BitWidth);
+        if (BitOffset >= AccessWidth)
+        {
+            Value32 = 0;
+            BitOffset -= AccessWidth;
+        }
+        else
+        {
+            if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+            {
+                Status = AcpiOsReadMemory ((ACPI_PHYSICAL_ADDRESS)
+                    Address + Index * ACPI_DIV_8 (AccessWidth),
+                    &Value64, AccessWidth);
+                Value32 = (UINT32) Value64;
+            }
+            else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
+            {
+                Status = AcpiHwReadPort ((ACPI_IO_ADDRESS)
+                    Address + Index * ACPI_DIV_8 (AccessWidth),
+                    &Value32, AccessWidth);
+            }
+        }
 
-        *Value = (UINT32) Value64;
-    }
-    else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
-    {
-        Status = AcpiHwReadPort ((ACPI_IO_ADDRESS)
-            Address, Value, Reg->BitWidth);
+        /*
+         * Use offset style bit writes because "Index * AccessWidth" is
+         * ensured to be less than 32-bits by AcpiHwValidateRegister().
+         */
+        ACPI_SET_BITS (Value, Index * AccessWidth,
+            ACPI_MASK_BITS_ABOVE_32 (AccessWidth), Value32);
+
+        BitWidth -= BitWidth > AccessWidth ? AccessWidth : BitWidth;
+        Index++;
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO,
         "Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
-        *Value, Reg->BitWidth, ACPI_FORMAT_UINT64 (Address),
+        *Value, AccessWidth, ACPI_FORMAT_UINT64 (Address),
         AcpiUtGetRegionName (Reg->SpaceId)));
 
     return (Status);
@@ -237,6 +469,12 @@ AcpiHwWrite (
     ACPI_GENERIC_ADDRESS    *Reg)
 {
     UINT64                  Address;
+    UINT8                   AccessWidth;
+    UINT32                  BitWidth;
+    UINT8                   BitOffset;
+    UINT64                  Value64;
+    UINT32                  Value32;
+    UINT8                   Index;
     ACPI_STATUS             Status;
 
 
@@ -251,24 +489,58 @@ AcpiHwWrite (
         return (Status);
     }
 
+    /* Convert AccessWidth into number of bits based */
+
+    AccessWidth = AcpiHwGetAccessBitWidth (Address, Reg, 32);
+    BitWidth = Reg->BitOffset + Reg->BitWidth;
+    BitOffset = Reg->BitOffset;
+
     /*
      * Two address spaces supported: Memory or IO. PCI_Config is
      * not supported here because the GAS structure is insufficient
      */
-    if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+    Index = 0;
+    while (BitWidth)
     {
-        Status = AcpiOsWriteMemory ((ACPI_PHYSICAL_ADDRESS)
-            Address, (UINT64) Value, Reg->BitWidth);
-    }
-    else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
-    {
-        Status = AcpiHwWritePort ((ACPI_IO_ADDRESS)
-            Address, Value, Reg->BitWidth);
+        /*
+         * Use offset style bit reads because "Index * AccessWidth" is
+         * ensured to be less than 32-bits by AcpiHwValidateRegister().
+         */
+        Value32 = ACPI_GET_BITS (&Value, Index * AccessWidth,
+            ACPI_MASK_BITS_ABOVE_32 (AccessWidth));
+
+        if (BitOffset >= AccessWidth)
+        {
+            BitOffset -= AccessWidth;
+        }
+        else
+        {
+            if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+            {
+                Value64 = (UINT64) Value32;
+                Status = AcpiOsWriteMemory ((ACPI_PHYSICAL_ADDRESS)
+                    Address + Index * ACPI_DIV_8 (AccessWidth),
+                    Value64, AccessWidth);
+            }
+            else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
+            {
+                Status = AcpiHwWritePort ((ACPI_IO_ADDRESS)
+                    Address + Index * ACPI_DIV_8 (AccessWidth),
+                    Value32, AccessWidth);
+            }
+        }
+
+        /*
+         * Index * AccessWidth is ensured to be less than 32-bits by
+         * AcpiHwValidateRegister().
+         */
+        BitWidth -= BitWidth > AccessWidth ? AccessWidth : BitWidth;
+        Index++;
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO,
         "Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
-        Value, Reg->BitWidth, ACPI_FORMAT_UINT64 (Address),
+        Value, AccessWidth, ACPI_FORMAT_UINT64 (Address),
         AcpiUtGetRegionName (Reg->SpaceId)));
 
     return (Status);

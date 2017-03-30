@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/aclocal.h>
 #include <contrib/dev/acpica/include/actables.h>
 
 #include <machine/intr_machdep.h>
