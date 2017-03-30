@@ -97,9 +97,9 @@ current implementation.
 Keep this in mind when planning the mount limits, especially when expecting
 to place many small files on a tmpfs mount.
 .Pp
-When 
+When
 .Xr mmap 2
-is used on a file from a tmpfs mount, the swap VM object managing the 
+is used on a file from a tmpfs mount, the swap VM object managing the
 file pages is used to implement mapping and avoid double-copying of
 the file data.
 This quirk causes process inspection tools, like
@@ -147,8 +147,8 @@ memory file system:
 .Dl "mount -t tmpfs tmpfs /tmp"
 .Sh SEE ALSO
 .Xr procstat 1 ,
-.Xr nmount 2 ,
 .Xr mmap 2 ,
+.Xr nmount 2 ,
 .Xr unmount 2 ,
 .Xr fstab 5 ,
 .Xr mdmfs 8 ,
