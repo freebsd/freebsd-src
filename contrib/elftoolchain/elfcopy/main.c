@@ -674,6 +674,8 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 		if ((ifd = open(elftemp, O_RDONLY)) == -1)
 			err(EXIT_FAILURE, "open %s failed", src);
 		close(efd);
+		if (unlink(elftemp) < 0)
+			err(EXIT_FAILURE, "unlink %s failed", elftemp);
 		free(elftemp);
 	}
 
