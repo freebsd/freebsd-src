@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 
-MOD=	ipv6mib
+MOD=	ipv6MIB
 
 SRCS+=	ipv6.c
 SRCS+=	ipv6_addrPrefixTable.c
@@ -12,7 +12,7 @@ SRCS+=	ipv6_netToMediaTable.c
 SRCS+=	ipv6_routeTable.c
 SRCS+=	ipv6_sys.c
 
-XSYM=	ipv6MIB
+XSYM=	${MOD}
 
 MAN=	snmp_${MOD}.3
 

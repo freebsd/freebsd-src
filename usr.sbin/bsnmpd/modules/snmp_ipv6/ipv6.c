@@ -34,11 +34,11 @@ __FBSDID("$FreeBSD$");
 
 #include "ipv6.h"
 #include "ipv6_sys.h"
-#include "ipv6MIB_oid.h"
+#include "ipv6mib_oid.h"
 
 static struct lmodule *module;
 
-static const struct asn_oid oid_ipv6MIB = OIDX_ipv6MIB;
+static const struct asn_oid oid_ipv6mib = OIDX_ipv6MIB;
 
 uint32_t mib_ipv6_ipv6Interfaces;
 
@@ -112,15 +112,15 @@ op_ipv6MIBObjects(struct snmp_context *ctx __unused, struct snmp_value *value,
 }
 
 static void
-ipv6MIB_start(void)
+ipv6mib_start(void)
 {
 
-	ipv6_reg = or_register(&oid_ipv6MIB,
+	ipv6_reg = or_register(&oid_ipv6mib,
 	    "The (incomplete) MIB module for RFC 2465.", module);
 }
 
 static int
-ipv6MIB_init(struct lmodule *mod, int argc __unused, char *argv[] __unused)
+ipv6mib_init(struct lmodule *mod, int argc __unused, char *argv[] __unused)
 {
 	module = mod;
 
@@ -128,7 +128,7 @@ ipv6MIB_init(struct lmodule *mod, int argc __unused, char *argv[] __unused)
 }
 
 static int
-ipv6MIB_fini(void)
+ipv6mib_fini(void)
 {
 
 	or_unregister(ipv6_reg);
@@ -138,12 +138,12 @@ ipv6MIB_fini(void)
 
 const struct snmp_module config = {
 	"This module implements RFC 2465.",
-	ipv6MIB_init,
-	ipv6MIB_fini,
+	ipv6mib_init,
+	ipv6mib_fini,
 	NULL,
 	NULL,
 	NULL,
-	ipv6MIB_start,
+	ipv6mib_start,
 	NULL,
 	ipv6MIB_ctree,
 	ipv6MIB_CTREE_SIZE,
