@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2017, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,27 +131,28 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 #include <contrib/dev/acpica/include/acapps.h>
+#include <contrib/dev/acpica/include/acconvert.h>
 #include <time.h>
 
 #define _COMPONENT          ACPI_COMPILER
@@ -140,6 +249,7 @@ TrAllocateNode (
     UINT32                  ParseOpcode)
 {
     ACPI_PARSE_OBJECT       *Op;
+    ACPI_PARSE_OBJECT       *LatestNode;
 
 
     Op = TrGetNextNode ();
@@ -152,6 +262,79 @@ TrAllocateNode (
     Op->Asl.Column            = Gbl_CurrentColumn;
 
     UtSetParseOpName (Op);
+
+    /* The following is for capturing comments */
+
+    if(Gbl_CaptureComments)
+    {
+        LatestNode = Gbl_CommentState.Latest_Parse_Node;
+        Op->Asl.InlineComment     = NULL;
+        Op->Asl.EndNodeComment    = NULL;
+        Op->Asl.CommentList       = NULL;
+        Op->Asl.FileChanged       = FALSE;
+
+        /*
+         * Check to see if the file name has changed before resetting the
+         * latest parse node.
+         */
+        if (LatestNode &&
+            (ParseOpcode != PARSEOP_INCLUDE) &&
+            (ParseOpcode != PARSEOP_INCLUDE_END) &&
+            strcmp (LatestNode->Asl.Filename, Op->Asl.Filename))
+        {
+            CvDbgPrint ("latest node: %s\n", LatestNode->Asl.ParseOpName);
+            Op->Asl.FileChanged = TRUE;
+            if (Gbl_IncludeFileStack)
+            {
+                Op->Asl.ParentFilename = Gbl_IncludeFileStack->Filename;
+            }
+            else
+            {
+                Op->Asl.ParentFilename = NULL;
+            }
+        }
+
+        Gbl_CommentState.Latest_Parse_Node = Op;
+        CvDbgPrint ("trallocatenode=Set latest parse node to this node.\n");
+        CvDbgPrint ("           Op->Asl.ParseOpName = %s\n",
+            Gbl_CommentState.Latest_Parse_Node->Asl.ParseOpName);
+        CvDbgPrint ("           Op->Asl.ParseOpcode = 0x%x\n", ParseOpcode);
+
+        if (Op->Asl.FileChanged)
+        {
+            CvDbgPrint("    file has been changed!\n");
+        }
+
+        /*
+         * if this parse op's syntax uses () and {} (i.e. Package(1){0x00}) then
+         * set a flag in the comment state. This facilitates paring comments for
+         * these types of opcodes.
+         */
+        if ((CvParseOpBlockType(Op) == (BLOCK_PAREN | BLOCK_BRACE)) &&
+            (ParseOpcode != PARSEOP_DEFINITION_BLOCK))
+        {
+            CvDbgPrint ("Parsing paren/Brace node now!\n");
+            Gbl_CommentState.ParsingParenBraceNode = Op;
+        }
+
+        if (Gbl_Comment_List_Head)
+        {
+            CvDbgPrint ("Transferring...\n");
+            Op->Asl.CommentList = Gbl_Comment_List_Head;
+            Gbl_Comment_List_Head = NULL;
+            Gbl_Comment_List_Tail = NULL;
+            CvDbgPrint ("    Transferred current comment list to this node.\n");
+            CvDbgPrint ("    %s\n", Op->Asl.CommentList->Comment);
+        }
+        if (Gbl_Inline_Comment_Buffer)
+        {
+            Op->Asl.InlineComment = Gbl_Inline_Comment_Buffer;
+            Gbl_Inline_Comment_Buffer = NULL;
+            CvDbgPrint ("Transferred current inline comment list to this node.\n");
+        }
+
+    }
+
     return (Op);
 }
 
@@ -292,6 +475,13 @@ TrUpdateNode (
         /* Don't care about others, don't need to check QWORD */
 
         break;
+    }
+
+    /* Converter: if this is a method invocation, turn off capture comments. */
+    if (Gbl_CaptureComments &&
+        (ParseOpcode == PARSEOP_METHODCALL))
+    {
+        Gbl_CommentState.CaptureComments = FALSE;
     }
 
     return (Op);
@@ -1060,6 +1250,39 @@ TrCreateNode (
         {
             FirstChild = FALSE;
             Op->Asl.Child = Child;
+
+            /*
+             * For the ASL-/ASL+ converter: if the ParseOp is a connection,
+             * external, offset or accessAs, it means that the comments in the
+             * FirstChild belongs to their parent due to the parsing order in
+             * the .y files. To correct this, take the comments in the
+             * FirstChild place it in the parent. This also means that
+             * legitimate comments for the child gets put to the parent.
+             */
+            if (Gbl_CaptureComments &&
+                ((ParseOpcode == PARSEOP_CONNECTION) ||
+                 (ParseOpcode == PARSEOP_EXTERNAL) ||
+                 (ParseOpcode == PARSEOP_OFFSET) ||
+                 (ParseOpcode == PARSEOP_ACCESSAS)))
+            {
+                Op->Asl.CommentList      = Child->Asl.CommentList;
+                Op->Asl.EndBlkComment    = Child->Asl.EndBlkComment;
+                Op->Asl.InlineComment    = Child->Asl.InlineComment;
+                Op->Asl.FileChanged      = Child->Asl.FileChanged;
+
+                Child->Asl.CommentList   = NULL;
+                Child->Asl.EndBlkComment = NULL;
+                Child->Asl.InlineComment = NULL;
+                Child->Asl.FileChanged   = FALSE;
+
+                /*
+                 * These do not need to be "passed off". They can be copied
+                 * because the code for these opcodes should be printed in the
+                 * same file.
+                 */
+                Op->Asl.Filename         = Child->Asl.Filename;
+                Op->Asl.ParentFilename   = Child->Asl.ParentFilename;
+            }
         }
 
         /* Point all children to parent */
@@ -1072,6 +1295,18 @@ TrCreateNode (
         {
             PrevChild->Asl.Next = Child;
         };
+
+        /* Get the comment from last child in the resource template call */
+
+        if (Gbl_CaptureComments &&
+            (Op->Asl.ParseOpcode == PARSEOP_RESOURCETEMPLATE))
+        {
+            CvDbgPrint ("Transferred current comment list to this node.\n");
+            Op->Asl.CommentList = Child->Asl.CommentList;
+            Child->Asl.CommentList = NULL;
+            Op->Asl.InlineComment = Child->Asl.InlineComment;
+            Child->Asl.InlineComment = NULL;
+        }
 
         /*
          * This child might be a list, point all nodes in the list
@@ -1097,9 +1332,9 @@ TrCreateNode (
  * FUNCTION:    TrLinkChildren
  *
  * PARAMETERS:  Op                - An existing parse node
- *              NumChildren         - Number of children to follow
- *              ...                 - A list of child nodes to link to the new
- *                                    node. NumChildren long.
+ *              NumChildren        - Number of children to follow
+ *              ...                - A list of child nodes to link to the new
+ *                                   node. NumChildren long.
  *
  * RETURN:      The updated (linked) node
  *
@@ -1159,6 +1394,25 @@ TrLinkChildren (
         /* Nothing to do for other opcodes */
 
         break;
+    }
+
+    /* The following is for capturing comments */
+
+    if(Gbl_CaptureComments)
+    {
+        /*
+         * If there are "regular comments" detected at this point,
+         * then is an endBlk comment. Categorize it as so and distribute
+         * all regular comments to this parse node.
+         */
+        if (Gbl_Comment_List_Head)
+        {
+            Op->Asl.EndBlkComment = Gbl_Comment_List_Head;
+            CvDbgPrint ("EndBlk Comment for %s: %s",
+                Op->Asl.ParseOpName, Gbl_Comment_List_Head->Comment);
+            Gbl_Comment_List_Head = NULL;
+            Gbl_Comment_List_Tail = NULL;
+        }
     }
 
     /* Link the new node to it's children */
@@ -1224,6 +1478,13 @@ TrLinkChildren (
 
     va_end(ap);
     DbgPrint (ASL_PARSE_OUTPUT, "\n\n");
+
+
+    if(Gbl_CaptureComments)
+    {
+        Gbl_CommentState.Latest_Parse_Node = Op;
+        CvDbgPrint ("trlinkchildren=====Set latest parse node to this node.\n");
+    }
     return (Op);
 }
 
@@ -1391,6 +1652,19 @@ TrLinkChildNode (
         Op1, Op1 ? UtGetOpName(Op1->Asl.ParseOpcode): NULL,
         Op2, Op2 ? UtGetOpName(Op2->Asl.ParseOpcode): NULL);
 
+    /*
+     * Converter: if TrLinkChildNode is called to link a method call,
+     * turn on capture comments as it signifies that we are done parsing
+     * a method call.
+     */
+    if (Gbl_CaptureComments)
+    {
+        if (Op1->Asl.ParseOpcode == PARSEOP_METHODCALL)
+        {
+            Gbl_CommentState.CaptureComments = TRUE;
+        }
+        Gbl_CommentState.Latest_Parse_Node = Op1;
+    }
     if (!Op1 || !Op2)
     {
         return (Op1);
