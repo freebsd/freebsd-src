@@ -2,16 +2,12 @@
 
 .include <src.opts.mk>
 
-BINDIR=		/etc/newsyslog.conf.d
+BINDIR=		/etc/syslog.d
 
 FILES=
 
 .if ${MK_BSNMP} != "no"
 FILES+=		bsnmpd.conf
-.endif
-
-.if ${MK_OFED} != "no"
-FILES+=		opensm.conf
 .endif
 
 .include <bsd.prog.mk>

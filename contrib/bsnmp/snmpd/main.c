@@ -1480,7 +1480,7 @@ main(int argc, char *argv[])
 	FILE *fp;
 	int background = 1;
 	struct tport *p;
-	const char *prefix = "snmpd";
+	const char *prefix = "bsnmpd";
 	struct lmodule *m;
 	char *value = NULL, *option; /* XXX */
 	struct transport *t;
@@ -1592,7 +1592,7 @@ main(int argc, char *argv[])
 	/*
 	 * Initialize hosts_access(3) handler.
 	 */
-	request_init(&req, RQ_DAEMON, "snmpd", 0);
+	request_init(&req, RQ_DAEMON, "bsnmpd", 0);
 	sock_methods(&req);
 #endif
 
