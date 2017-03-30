@@ -66,6 +66,10 @@ _CHERI_CC+=	-mabi=purecap -mxgot -fpic
 LIBDIR:=	/usr/libcheri
 ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
 CFLAGS+=	${CHERI_OPTIMIZATION_FLAGS:U-O2} -ftls-model=local-exec
+# Clang no longer defines __LP64__ for Cheri purecap ABI but there are a
+# lot of files that use it to check for not 32-bit
+# XXXAR: Remove this once we have checked all the #ifdef __LP64__ uses
+CFLAGS+=	-D__LP64__=1
 ALLOW_SHARED_TEXTREL=	yes
 LDFLAGS+=	-Wl,-melf64btsmip_cheri_fbsd
 .if defined(__BSD_PROG_MK)
