@@ -24,15 +24,22 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2005
+.Dd January 24, 2017
 .Dt WPA_CLI 8
 .Os
 .Sh NAME
 .Nm wpa_cli
 .Nd "text-based frontend program for interacting with wpa_supplicant"
 .Sh SYNOPSIS
-.Nm
-.Op Ar commands
+.Nm wpa_cli
+.Op Fl p Ar path_to_ctrl_sockets
+.Op Fl i Ar ifname
+.Op Fl hvB
+.Op Fl a Ar action_file
+.Op Fl P Ar pid_file
+.Op Fl g Ar global_ctrl
+.Op Fl G Ar ping_interval
+.Ar command ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -144,26 +151,75 @@ Example request for generic token card challenge-response:
 CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
 > otp 2 9876
 .Ed
+.Sh OPTIONS
+These options are available:
+.Bl -tag -width indent
+.It Fl p Ar path
+Control sockets path.
+This should match the
+.Ic ctrl_interface
+in
+.Xr wpa_supplicant.conf 5 .
+The default path is
+.Pa /var/run/wpa_supplicant .
+.It Fl i Ar ifname
+Interface to be configured.
+By default, the first interface found in the socket path is used.
+.It Fl h
+Show help.
+.It Fl v
+Show version information.
+.It Fl B
+Run the daemon in the background.
+.It Fl a Ar action_file
+Run in daemon mode, executing the action file based on events from
+.Xr wpa_supplicant 8 .
+.It Fl P Ar pid_file
+PID file location.
+.It Fl g Ar global_ctrl
+Use a global control interface to
+.Xr wpa_supplicant 8
+rather than the default Unix domain sockets.
+.It Fl G Ar ping_interval
+Wait
+.Dq ping_interval
+seconds before sending each ping to
+.Xr wpa_supplicant 8 .
+See the
+.Ic ping
+command.
+.It command
+See available commands in the next section.
+.El
 .Sh COMMANDS
-The following commands may be supplied on the command line
+These commands can be supplied on the command line
 or at a prompt when operating interactively.
 .Bl -tag -width indent
 .It Ic status
 Report the current WPA/EAPOL/EAP status for the current interface.
+.It Ic ifname
+Show the current interface name.
+The default interface is the first interface found in the socket path.
+.It Ic ping
+Ping the
+.Xr wpa_supplicant 8
+utility.
+This command can be used to test the status of the
+.Xr wpa_supplicant 8
+daemon.
 .It Ic mib
 Report MIB variables (dot1x, dot11) for the current interface.
 .It Ic help
 Show usage help.
 .It Ic interface Op Ar ifname
 Show available interfaces and/or set the current interface
-when multiple are available.
+when multiple interfaces are available.
 .It Ic level Ar debug_level
 Change the debugging level in
 .Xr wpa_supplicant 8 .
 Larger numbers generate more messages.
 .It Ic license
-Display the full
-license for
+Display the full license for
 .Nm .
 .It Ic logoff
 Send the IEEE 802.1X EAPOL state machine into the
@@ -192,12 +248,68 @@ Force preauthentication of the specified
 Configure an identity for an SSID.
 .It Ic password Ar network_id password
 Configure a password for an SSID.
+.It Ic new_password Ar network_id password
+Change the password for an SSID.
+.It Ic PIN Ar network_id pin
+Configure a PIN for an SSID.
+.It Ic passphrase Ar network_id passphrase
+Configure a private key passphrase for an SSID.
+.It Ic bssid Ar network_id bssid
+Set a preferred BSSID for an SSID
+.It Ic blacklist Op Ar bssid | clear
+Add a BSSID to the blacklist.
+When invoked without any extra arguments, display the blacklist.
+Specifying
+.Ar clear
+causes
+.Nm
+to clear the blacklist.
+.It Ic list_networks
+List configured networks.
+.It Ic select_network Ar network_id
+Select a network and disable others.
+.It Ic enable_network Ar network_id
+Enable a network.
+.It Ic disable_network Ar network_id
+Disable a network.
+.It Ic add_network
+Add a network.
+.It Ic remove_network Ar network_id
+Remove a network.
+.It Ic set_network Op Ar network_id variable value
+Set network variables.
+Shows a list of variables when run without arguments.
+.It Ic get_network Ar network_id variable
+Get network variables.
+.It Ic disconnect
+Disconnect and wait for reassociate/reconnect command before connecting.
+.It Ic reconnect
+Similar to
+.Ic reassociate ,
+but only takes effect if already disconnected.
+.It Ic scan
+Request new BSS scan.
+.It Ic scan_results
+Get the latest BSS scan results.
+This command can be invoked after running a BSS scan with
+.Ic scan .
+.It Ic bss Op Ar idx | bssid
+Get a detailed BSS scan result for the network identified by
+.Dq bssid
+or
+.Dq idx .
 .It Ic otp Ar network_id password
 Configure a one-time password for an SSID.
 .It Ic terminate
 Force
 .Xr wpa_supplicant 8
 to terminate.
+.It Ic interface_add Ar ifname Op Ar confname driver ctrl_interface driver_param bridge_name
+Add a new interface with the given parameters.
+.It Ic interface_remove Ar ifname
+Remove the interface.
+.It Ic interface_list
+List available interfaces.
 .It Ic quit
 Exit
 .Nm .
@@ -217,6 +329,8 @@ utility was written by
 .An Jouni Malinen Aq Mt j@w1.fi .
 This manual page is derived from the
 .Pa README
-file included in the
+and
+.Pa wpa_cli.c
+files included in the
 .Nm wpa_supplicant
 distribution.
