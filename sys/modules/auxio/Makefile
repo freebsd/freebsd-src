@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/auxio
+.PATH: ${SRCTOP}/sys/dev/auxio
 
 KMOD=	auxio
 

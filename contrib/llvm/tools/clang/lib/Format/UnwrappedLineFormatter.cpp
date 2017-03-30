@@ -10,6 +10,7 @@
 #include "UnwrappedLineFormatter.h"
 #include "WhitespaceManager.h"
 #include "llvm/Support/Debug.h"
+#include <queue>
 
 #define DEBUG_TYPE "format-formatter"
 
@@ -150,7 +151,7 @@ public:
           MergedLines = 0;
     if (!DryRun)
       for (unsigned i = 0; i < MergedLines; ++i)
-        join(*Next[i], *Next[i + 1]);
+        join(*Next[0], *Next[i + 1]);
     Next = Next + MergedLines + 1;
     return Current;
   }

@@ -22,6 +22,6 @@ FILES=	9400n.jpg alice11.gif alice13.gif alice15.gif alice23.gif \
 	wingdorothy.gif
 .endif
 
-.PATH: ${.CURDIR}/../../../../contrib/ntp/html/pic
+.PATH: ${SRCTOP}/contrib/ntp/html/pic
 
 .include <bsd.prog.mk>

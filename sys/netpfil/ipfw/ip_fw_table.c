@@ -405,7 +405,7 @@ prepare_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
 	error = 0;
 	ta_buf_sz = ta->ta_buf_size;
 	if (count == 1) {
-		/* Sigle add/delete, use on-stack buffer */
+		/* Single add/delete, use on-stack buffer */
 		memset(*ta_buf, 0, TA_BUF_SZ);
 		ta_buf_m = *ta_buf;
 	} else {
@@ -1657,30 +1657,13 @@ ipfw_unref_table(struct ip_fw_chain *ch, uint16_t kidx)
 }
 
 /*
- * Lookup an IP @addr in table @tbl.
- * Stores found value in @val.
- *
- * Returns 1 if @addr was found.
- */
-int
-ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-    uint32_t *val)
-{
-	struct table_info *ti;
-
-	ti = KIDX_TO_TI(ch, tbl);
-
-	return (ti->lookup(ti, &addr, sizeof(in_addr_t), val));
-}
-
-/*
  * Lookup an arbtrary key @paddr of legth @plen in table @tbl.
  * Stores found value in @val.
  *
  * Returns 1 if key was found.
  */
 int
-ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
+ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
     void *paddr, uint32_t *val)
 {
 	struct table_info *ti;

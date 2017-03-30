@@ -1004,8 +1004,7 @@ camdd_probe_tape(int fd, char *filename, uint64_t *max_iosize,
 		goto bailout;
 	}
 
-	for (i = 0; i < sizeof(req_status_items) /
-	     sizeof(req_status_items[0]); i++) {
+	for (i = 0; i < nitems(req_status_items); i++) {
                 char *name;
 
 		name = __DECONST(char *, req_status_items[i].name);
@@ -3103,10 +3102,6 @@ camdd_rw(struct camdd_io_opts *io_opts, int num_io_opts, uint64_t max_io,
 		devs[i]->start_offset_bytes = io_opts[i].offset;
 
 		if (max_io != 0) {
-			devs[i]->sector_io_limit =
-			    (devs[i]->start_offset_bytes /
-			    devs[i]->sector_size) +
-			    (max_io / devs[i]->sector_size) - 1;
 			devs[i]->sector_io_limit =
 			    (devs[i]->start_offset_bytes /
 			    devs[i]->sector_size) +

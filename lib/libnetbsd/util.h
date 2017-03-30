@@ -37,6 +37,8 @@
 #include <libutil.h>
 
 char	*flags_to_string(u_long flags, const char *def);
+int	 sockaddr_snprintf(char *, size_t, const char *,
+			   const struct sockaddr *);
 int	 string_to_flags(char **stringp, u_long *setp, u_long *clrp);
 
 #endif

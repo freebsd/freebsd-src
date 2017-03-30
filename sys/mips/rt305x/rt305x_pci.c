@@ -481,6 +481,7 @@ static device_method_t rt305x_pci_methods[] = {
 	DEVMETHOD(pcib_read_config,	rt305x_pci_read_config),
 	DEVMETHOD(pcib_write_config,	rt305x_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	rt305x_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };

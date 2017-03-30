@@ -820,7 +820,7 @@ agp_close(struct cdev *kdev, int fflag, int devtype, struct thread *td)
 	/*
 	 * Clear the GATT and force release on last close
 	 */
-	while ((mem = TAILQ_FIRST(&sc->as_memory)) != 0) {
+	while ((mem = TAILQ_FIRST(&sc->as_memory)) != NULL) {
 		if (mem->am_is_bound)
 			AGP_UNBIND_MEMORY(dev, mem);
 		AGP_FREE_MEMORY(dev, mem);

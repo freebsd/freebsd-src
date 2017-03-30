@@ -69,7 +69,9 @@ typedef l_long		l_clock_t;
 typedef l_int		l_daddr_t;
 typedef l_ulong		l_dev_t;
 typedef l_uint		l_gid_t;
+typedef l_ushort	l_gid16_t;
 typedef l_uint		l_uid_t;
+typedef	l_ushort	l_uid16_t;
 typedef l_ulong		l_ino_t;
 typedef l_int		l_key_t;
 typedef l_long		l_loff_t;
@@ -380,60 +382,6 @@ union l_semun {
 	l_uintptr_t	__buf;
 	l_uintptr_t	__pad;
 };
-
-struct l_ipc_perm {
-	l_key_t		key;
-	l_uid_t		uid;
-	l_gid_t		gid;
-	l_uid_t		cuid;
-	l_gid_t		cgid;
-	l_ushort	mode;
-	l_ushort	seq;
-};
-
-/*
- * Socket defines
- */
-
-#define	LINUX_SOL_SOCKET	1
-#define	LINUX_SOL_IP		0
-#define	LINUX_SOL_IPX		256
-#define	LINUX_SOL_AX25		257
-#define	LINUX_SOL_TCP		6
-#define	LINUX_SOL_UDP		17
-
-#define	LINUX_SO_DEBUG		1
-#define	LINUX_SO_REUSEADDR	2
-#define	LINUX_SO_TYPE		3
-#define	LINUX_SO_ERROR		4
-#define	LINUX_SO_DONTROUTE	5
-#define	LINUX_SO_BROADCAST	6
-#define	LINUX_SO_SNDBUF		7
-#define	LINUX_SO_RCVBUF		8
-#define	LINUX_SO_KEEPALIVE	9
-#define	LINUX_SO_OOBINLINE	10
-#define	LINUX_SO_NO_CHECK	11
-#define	LINUX_SO_PRIORITY	12
-#define	LINUX_SO_LINGER		13
-#define	LINUX_SO_PASSCRED	16
-#define	LINUX_SO_PEERCRED	17
-#define	LINUX_SO_RCVLOWAT	18
-#define	LINUX_SO_SNDLOWAT	19
-#define	LINUX_SO_RCVTIMEO	20
-#define	LINUX_SO_SNDTIMEO	21
-#define	LINUX_SO_TIMESTAMP	29
-#define	LINUX_SO_ACCEPTCONN	30
-
-#define	LINUX_IP_TOS		1
-#define	LINUX_IP_TTL		2
-#define	LINUX_IP_HDRINCL	3
-#define	LINUX_IP_OPTIONS	4
-
-#define	LINUX_IP_MULTICAST_IF		32
-#define	LINUX_IP_MULTICAST_TTL		33
-#define	LINUX_IP_MULTICAST_LOOP		34
-#define	LINUX_IP_ADD_MEMBERSHIP		35
-#define	LINUX_IP_DROP_MEMBERSHIP	36
 
 struct l_sockaddr {
 	l_ushort	sa_family;

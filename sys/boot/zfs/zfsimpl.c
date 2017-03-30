@@ -68,8 +68,7 @@ static const char *features_for_read[] = {
  */
 static spa_list_t zfs_pools;
 
-static uint64_t zfs_crc64_table[256];
-static const dnode_phys_t *dnode_cache_obj = 0;
+static const dnode_phys_t *dnode_cache_obj = NULL;
 static uint64_t dnode_cache_bn;
 static char *dnode_cache_buf;
 static char *zap_scratch;
@@ -494,7 +493,7 @@ vdev_find(uint64_t guid)
 }
 
 static vdev_t *
-vdev_create(uint64_t guid, vdev_read_t *read)
+vdev_create(uint64_t guid, vdev_read_t *_read)
 {
 	vdev_t *vdev;
 
@@ -503,7 +502,7 @@ vdev_create(uint64_t guid, vdev_read_t *read)
 	STAILQ_INIT(&vdev->v_children);
 	vdev->v_guid = guid;
 	vdev->v_state = VDEV_STATE_OFFLINE;
-	vdev->v_read = read;
+	vdev->v_read = _read;
 	vdev->v_phys_read = 0;
 	vdev->v_read_priv = 0;
 	STAILQ_INSERT_TAIL(&zfs_vdevs, vdev, v_alllink);
@@ -907,7 +906,7 @@ spa_all_status(void)
 }
 
 static int
-vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
+vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 {
 	vdev_t vtmp;
 	vdev_phys_t *vdev_label = (vdev_phys_t *) zap_scratch;
@@ -932,7 +931,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	 * uberblock is most current.
 	 */
 	memset(&vtmp, 0, sizeof(vtmp));
-	vtmp.v_phys_read = read;
+	vtmp.v_phys_read = _read;
 	vtmp.v_read_priv = read_priv;
 	off = offsetof(vdev_label_t, vl_vdev_phys);
 	BP_ZERO(&bp);
@@ -1060,7 +1059,7 @@ vdev_probe(vdev_phys_read_t *read, void *read_priv, spa_t **spap)
 	 */
 	vdev = vdev_find(guid);
 	if (vdev) {
-		vdev->v_phys_read = read;
+		vdev->v_phys_read = _read;
 		vdev->v_read_priv = read_priv;
 		vdev->v_state = VDEV_STATE_HEALTHY;
 	} else {
@@ -1527,7 +1526,7 @@ fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name,
 	zc = &ZAP_LEAF_CHUNK(&zl, h);
 	while (zc->l_entry.le_hash != hash) {
 		if (zc->l_entry.le_next == 0xffff) {
-			zc = 0;
+			zc = NULL;
 			break;
 		}
 		zc = &ZAP_LEAF_CHUNK(&zl, zc->l_entry.le_next);
@@ -2264,6 +2263,61 @@ zfs_dnode_stat(const spa_t *spa, dnode_phys_t *dn, struct stat *sb)
 	return (0);
 }
 
+static int
+zfs_dnode_readlink(const spa_t *spa, dnode_phys_t *dn, char *path, size_t psize)
+{
+	int rc = 0;
+
+	if (dn->dn_bonustype == DMU_OT_SA) {
+		sa_hdr_phys_t *sahdrp = NULL;
+		size_t size = 0;
+		void *buf = NULL;
+		int hdrsize;
+		char *p;
+
+		if (dn->dn_bonuslen != 0)
+			sahdrp = (sa_hdr_phys_t *)DN_BONUS(dn);
+		else {
+			blkptr_t *bp;
+
+			if ((dn->dn_flags & DNODE_FLAG_SPILL_BLKPTR) == 0)
+				return (EIO);
+			bp = &dn->dn_spill;
+
+			size = BP_GET_LSIZE(bp);
+			buf = zfs_alloc(size);
+			rc = zio_read(spa, bp, buf);
+			if (rc != 0) {
+				zfs_free(buf, size);
+				return (rc);
+			}
+			sahdrp = buf;
+		}
+		hdrsize = SA_HDR_SIZE(sahdrp);
+		p = (char *)((uintptr_t)sahdrp + hdrsize + SA_SYMLINK_OFFSET);
+		memcpy(path, p, psize);
+		if (buf != NULL)
+			zfs_free(buf, size);
+		return (0);
+	}
+	/*
+	 * Second test is purely to silence bogus compiler
+	 * warning about accessing past the end of dn_bonus.
+	 */
+	if (psize + sizeof(znode_phys_t) <= dn->dn_bonuslen &&
+	    sizeof(znode_phys_t) <= sizeof(dn->dn_bonus)) {
+		memcpy(path, &dn->dn_bonus[sizeof(znode_phys_t)], psize);
+	} else {
+		rc = dnode_read(spa, dn, 0, path, psize);
+	}
+	return (rc);
+}
+
+struct obj_list {
+	uint64_t		objnum;
+	STAILQ_ENTRY(obj_list)	entry;
+};
+
 /*
  * Lookup a file and return its dnode.
  */
@@ -2271,7 +2325,7 @@ static int
 zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 {
 	int rc;
-	uint64_t objnum, rootnum, parentnum;
+	uint64_t objnum;
 	const spa_t *spa;
 	dnode_phys_t dn;
 	const char *p, *q;
@@ -2279,6 +2333,8 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 	char path[1024];
 	int symlinks_followed = 0;
 	struct stat sb;
+	struct obj_list *entry, *tentry;
+	STAILQ_HEAD(, obj_list) on_cache = STAILQ_HEAD_INITIALIZER(on_cache);
 
 	spa = mount->spa;
 	if (mount->objset.os_type != DMU_OST_ZFS) {
@@ -2287,87 +2343,119 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 		return (EIO);
 	}
 
+	if ((entry = malloc(sizeof(struct obj_list))) == NULL)
+		return (ENOMEM);
+
 	/*
 	 * Get the root directory dnode.
 	 */
 	rc = objset_get_dnode(spa, &mount->objset, MASTER_NODE_OBJ, &dn);
-	if (rc)
+	if (rc) {
+		free(entry);
 		return (rc);
+	}
 
-	rc = zap_lookup(spa, &dn, ZFS_ROOT_OBJ, sizeof (rootnum), 1, &rootnum);
-	if (rc)
+	rc = zap_lookup(spa, &dn, ZFS_ROOT_OBJ, sizeof (objnum), 1, &objnum);
+	if (rc) {
+		free(entry);
 		return (rc);
+	}
+	entry->objnum = objnum;
+	STAILQ_INSERT_HEAD(&on_cache, entry, entry);
 
-	rc = objset_get_dnode(spa, &mount->objset, rootnum, &dn);
-	if (rc)
-		return (rc);
+	rc = objset_get_dnode(spa, &mount->objset, objnum, &dn);
+	if (rc != 0)
+		goto done;
 
-	objnum = rootnum;
 	p = upath;
 	while (p && *p) {
+		rc = objset_get_dnode(spa, &mount->objset, objnum, &dn);
+		if (rc != 0)
+			goto done;
+
 		while (*p == '/')
 			p++;
-		if (!*p)
+		if (*p == '\0')
 			break;
-		q = strchr(p, '/');
-		if (q) {
-			memcpy(element, p, q - p);
-			element[q - p] = 0;
-			p = q;
-		} else {
-			strcpy(element, p);
-			p = 0;
+		q = p;
+		while (*q != '\0' && *q != '/')
+			q++;
+
+		/* skip dot */
+		if (p + 1 == q && p[0] == '.') {
+			p++;
+			continue;
+		}
+		/* double dot */
+		if (p + 2 == q && p[0] == '.' && p[1] == '.') {
+			p += 2;
+			if (STAILQ_FIRST(&on_cache) ==
+			    STAILQ_LAST(&on_cache, obj_list, entry)) {
+				rc = ENOENT;
+				goto done;
+			}
+			entry = STAILQ_FIRST(&on_cache);
+			STAILQ_REMOVE_HEAD(&on_cache, entry);
+			free(entry);
+			objnum = (STAILQ_FIRST(&on_cache))->objnum;
+			continue;
+		}
+		if (q - p + 1 > sizeof(element)) {
+			rc = ENAMETOOLONG;
+			goto done;
+		}
+		memcpy(element, p, q - p);
+		element[q - p] = 0;
+		p = q;
+
+		if ((rc = zfs_dnode_stat(spa, &dn, &sb)) != 0)
+			goto done;
+		if (!S_ISDIR(sb.st_mode)) {
+			rc = ENOTDIR;
+			goto done;
 		}
 
-		rc = zfs_dnode_stat(spa, &dn, &sb);
-		if (rc)
-			return (rc);
-		if (!S_ISDIR(sb.st_mode))
-			return (ENOTDIR);
-
-		parentnum = objnum;
 		rc = zap_lookup(spa, &dn, element, sizeof (objnum), 1, &objnum);
 		if (rc)
-			return (rc);
+			goto done;
 		objnum = ZFS_DIRENT_OBJ(objnum);
 
+		if ((entry = malloc(sizeof(struct obj_list))) == NULL) {
+			rc = ENOMEM;
+			goto done;
+		}
+		entry->objnum = objnum;
+		STAILQ_INSERT_HEAD(&on_cache, entry, entry);
 		rc = objset_get_dnode(spa, &mount->objset, objnum, &dn);
 		if (rc)
-			return (rc);
+			goto done;
 
 		/*
 		 * Check for symlink.
 		 */
 		rc = zfs_dnode_stat(spa, &dn, &sb);
 		if (rc)
-			return (rc);
+			goto done;
 		if (S_ISLNK(sb.st_mode)) {
-			if (symlinks_followed > 10)
-				return (EMLINK);
+			if (symlinks_followed > 10) {
+				rc = EMLINK;
+				goto done;
+			}
 			symlinks_followed++;
 
 			/*
 			 * Read the link value and copy the tail of our
 			 * current path onto the end.
 			 */
-			if (p)
-				strcpy(&path[sb.st_size], p);
-			else
-				path[sb.st_size] = 0;
-			/*
-			 * Second test is purely to silence bogus compiler
-			 * warning about accessing past the end of dn_bonus.
-			 */
-			if (sb.st_size + sizeof(znode_phys_t) <=
-			    dn.dn_bonuslen && sizeof(znode_phys_t) <=
-			    sizeof(dn.dn_bonus)) {
-				memcpy(path, &dn.dn_bonus[sizeof(znode_phys_t)],
-					sb.st_size);
-			} else {
-				rc = dnode_read(spa, &dn, 0, path, sb.st_size);
-				if (rc)
-					return (rc);
+			if (sb.st_size + strlen(p) + 1 > sizeof(path)) {
+				rc = ENAMETOOLONG;
+				goto done;
 			}
+			strcpy(&path[sb.st_size], p);
+
+			rc = zfs_dnode_readlink(spa, &dn, path, sb.st_size);
+			if (rc != 0)
+				goto done;
 
 			/*
 			 * Restart with the new path, starting either at
@@ -2375,14 +2463,25 @@ zfs_lookup(const struct zfsmount *mount, const char *upath, dnode_phys_t *dnode)
 			 * not the link is relative.
 			 */
 			p = path;
-			if (*p == '/')
-				objnum = rootnum;
-			else
-				objnum = parentnum;
-			objset_get_dnode(spa, &mount->objset, objnum, &dn);
+			if (*p == '/') {
+				while (STAILQ_FIRST(&on_cache) !=
+				    STAILQ_LAST(&on_cache, obj_list, entry)) {
+					entry = STAILQ_FIRST(&on_cache);
+					STAILQ_REMOVE_HEAD(&on_cache, entry);
+					free(entry);
+				}
+			} else {
+				entry = STAILQ_FIRST(&on_cache);
+				STAILQ_REMOVE_HEAD(&on_cache, entry);
+				free(entry);
+			}
+			objnum = (STAILQ_FIRST(&on_cache))->objnum;
 		}
 	}
 
 	*dnode = dn;
-	return (0);
+done:
+	STAILQ_FOREACH_SAFE(entry, &on_cache, entry, tentry)
+		free(entry);
+	return (rc);
 }

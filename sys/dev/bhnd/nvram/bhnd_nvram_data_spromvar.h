@@ -64,13 +64,19 @@ bhnd_sprom_opcode_idx_entry	*bhnd_sprom_opcode_index_next(
 				     bhnd_sprom_opcode_state *state,
 				     bhnd_sprom_opcode_idx_entry *prev);
 
-int				 bhnd_sprom_opcode_parse_var(
+int				 bhnd_sprom_opcode_init_entry(
+				     bhnd_sprom_opcode_state *state,
+				     bhnd_sprom_opcode_idx_entry *entry);
+
+int				 bhnd_sprom_opcode_eval_var(
 				     bhnd_sprom_opcode_state *state,
 				     bhnd_sprom_opcode_idx_entry *entry);
 
 int				 bhnd_sprom_opcode_seek(
 				     bhnd_sprom_opcode_state *state,
 				     bhnd_sprom_opcode_idx_entry *entry);
+int				 bhnd_sprom_opcode_next_var(
+				     bhnd_sprom_opcode_state *state);
 int				 bhnd_sprom_opcode_next_binding(
 				     bhnd_sprom_opcode_state *state);
 int				 bhnd_sprom_opcode_apply_scale(

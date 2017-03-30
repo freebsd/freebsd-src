@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.22 2016/12/12 19:07:42 sjg Exp $
+	$Id: meta2deps.py,v 1.24 2017/02/08 22:17:10 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -103,20 +103,36 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
         return p
     return None
 
+def cleanpath(path):
+    """cleanup path without using realpath(3)"""
+    if path.startswith('/'):
+        r = '/'
+    else:
+        r = ''
+    p = []
+    w = path.split('/')
+    for d in w:
+        if not d or d == '.':
+            continue
+        if d == '..':
+            p.pop()
+            continue
+        p.append(d)
+
+    return r + '/'.join(p)
+
 def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     """
     Return an absolute path, resolving via cwd or last_dir if needed.
-    this gets called a lot, so we try to avoid calling realpath
-    until we know we have something.
+    this gets called a lot, so we try to avoid calling realpath.
     """
     rpath = resolve(path, cwd, last_dir, debug, debug_out)
     if rpath:
         path = rpath
     if (path.find('/') < 0 or
         path.find('./') > 0 or
-        path.endswith('/..') or
-        os.path.islink(path)):
-        return os.path.realpath(path)
+        path.endswith('/..')):
+        path = cleanpath(path)
     return path
 
 def sort_unique(list, cmp=None, key=None, reverse=False):
@@ -126,6 +142,7 @@ def sort_unique(list, cmp=None, key=None, reverse=False):
     for e in list:
         if e == le:
             continue
+	le = e
         nl.append(e)
     return nl
 
@@ -504,6 +521,8 @@ class MetaFile:
         dir = abspath(dir, cwd, self.last_dir, self.debug, self.debug_out)
         if rdir == dir or rdir.find('./') > 0:
             rdir = None
+        if os.path.islink(dir):
+            rdir = os.path.realpath(dir)
         # now put path back together
         path = '/'.join([dir,base])
         if self.debug > 1:

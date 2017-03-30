@@ -16,6 +16,7 @@
 #define LLVM_LIB_TARGET_AARCH64_AARCH64CALLLOWERING
 
 #include "llvm/CodeGen/GlobalISel/CallLowering.h"
+#include "llvm/CodeGen/ValueTypes.h"
 
 namespace llvm {
 
@@ -27,10 +28,29 @@ class AArch64CallLowering: public CallLowering {
 
   bool lowerReturn(MachineIRBuilder &MIRBuiler, const Value *Val,
                    unsigned VReg) const override;
-  bool
-  lowerFormalArguments(MachineIRBuilder &MIRBuilder,
-                       const Function::ArgumentListType &Args,
-                       const SmallVectorImpl<unsigned> &VRegs) const override;
+
+  bool lowerFormalArguments(MachineIRBuilder &MIRBuilder, const Function &F,
+                            ArrayRef<unsigned> VRegs) const override;
+
+  bool lowerCall(MachineIRBuilder &MIRBuilder, const MachineOperand &Callee,
+                 const ArgInfo &OrigRet,
+                 ArrayRef<ArgInfo> OrigArgs) const override;
+
+private:
+  typedef std::function<void(MachineIRBuilder &, Type *, unsigned,
+                             CCValAssign &)>
+      RegHandler;
+
+  typedef std::function<void(MachineIRBuilder &, int, CCValAssign &)>
+      MemHandler;
+
+  typedef std::function<void(ArrayRef<unsigned>, ArrayRef<uint64_t>)>
+      SplitArgTy;
+
+  void splitToValueTypes(const ArgInfo &OrigArgInfo,
+                         SmallVectorImpl<ArgInfo> &SplitArgs,
+                         const DataLayout &DL, MachineRegisterInfo &MRI,
+                         SplitArgTy SplitArg) const;
 };
 } // End of namespace llvm;
 #endif

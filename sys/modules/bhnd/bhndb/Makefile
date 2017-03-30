@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/bhnd/bhndb
+.PATH: ${SRCTOP}/sys/dev/bhnd/bhndb
 
 KMOD=	bhndb
 SRCS=	bhndb.c bhndb_subr.c bhndb_hwdata.c \

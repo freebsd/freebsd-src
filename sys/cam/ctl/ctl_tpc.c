@@ -85,6 +85,7 @@ struct tpc_io {
 	uint8_t			 target;
 	uint32_t		 cscd;
 	uint64_t		 lun;
+	uint8_t			*buf;
 	struct tpc_list		*list;
 	struct runl		 run;
 	TAILQ_ENTRY(tpc_io)	 rlinks;
@@ -127,7 +128,6 @@ struct tpc_list {
 	off_t			 curbytes;
 	int			 curops;
 	int			 stage;
-	uint8_t			*buf;
 	off_t			 segsectors;
 	off_t			 segbytes;
 	int			 tbdio;
@@ -219,6 +219,21 @@ ctl_tpc_lun_init(struct ctl_lun *lun)
 {
 
 	TAILQ_INIT(&lun->tpc_lists);
+}
+
+void
+ctl_tpc_lun_clear(struct ctl_lun *lun, uint32_t initidx)
+{
+	struct tpc_list *list, *tlist;
+
+	TAILQ_FOREACH_SAFE(list, &lun->tpc_lists, links, tlist) {
+		if (initidx != -1 && list->init_idx != initidx)
+			continue;
+		if (!list->completed)
+			continue;
+		TAILQ_REMOVE(&lun->tpc_lists, list, links);
+		free(list, M_CTL);
+	}
 }
 
 void
@@ -813,9 +828,9 @@ tpc_process_b2b(struct tpc_list *list)
 		while ((tior = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tior, links);
 			ctl_free_io(tior->io);
+			free(tior->buf, M_CTL);
 			free(tior, M_CTL);
 		}
-		free(list->buf, M_CTL);
 		if (list->abort) {
 			ctl_set_task_aborted(list->ctsio);
 			return (CTL_RETVAL_ERROR);
@@ -874,7 +889,6 @@ tpc_process_b2b(struct tpc_list *list)
 		return (CTL_RETVAL_ERROR);
 	}
 
-	list->buf = malloc(numbytes, M_CTL, M_WAITOK);
 	list->segbytes = numbytes;
 	list->segsectors = numbytes / dstblock;
 	donebytes = 0;
@@ -894,11 +908,12 @@ tpc_process_b2b(struct tpc_list *list)
 
 		tior = malloc(sizeof(*tior), M_CTL, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&tior->run);
+		tior->buf = malloc(roundbytes, M_CTL, M_WAITOK);
 		tior->list = list;
 		TAILQ_INSERT_TAIL(&list->allio, tior, links);
 		tior->io = tpcl_alloc_io();
 		ctl_scsi_read_write(tior->io,
-				    /*data_ptr*/ &list->buf[donebytes],
+				    /*data_ptr*/ tior->buf,
 				    /*data_len*/ roundbytes,
 				    /*read_op*/ 1,
 				    /*byte2*/ 0,
@@ -919,7 +934,7 @@ tpc_process_b2b(struct tpc_list *list)
 		TAILQ_INSERT_TAIL(&list->allio, tiow, links);
 		tiow->io = tpcl_alloc_io();
 		ctl_scsi_read_write(tiow->io,
-				    /*data_ptr*/ &list->buf[donebytes],
+				    /*data_ptr*/ tior->buf,
 				    /*data_len*/ roundbytes,
 				    /*read_op*/ 0,
 				    /*byte2*/ 0,
@@ -1029,9 +1044,9 @@ tpc_process_register_key(struct tpc_list *list)
 		while ((tio = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tio, links);
 			ctl_free_io(tio->io);
+			free(tio->buf, M_CTL);
 			free(tio, M_CTL);
 		}
-		free(list->buf, M_CTL);
 		if (list->abort) {
 			ctl_set_task_aborted(list->ctsio);
 			return (CTL_RETVAL_ERROR);
@@ -1064,9 +1079,9 @@ tpc_process_register_key(struct tpc_list *list)
 	TAILQ_INSERT_TAIL(&list->allio, tio, links);
 	tio->io = tpcl_alloc_io();
 	datalen = sizeof(struct scsi_per_res_out_parms);
-	list->buf = malloc(datalen, M_CTL, M_WAITOK);
+	tio->buf = malloc(datalen, M_CTL, M_WAITOK);
 	ctl_scsi_persistent_res_out(tio->io,
-	    list->buf, datalen, SPRO_REGISTER, -1,
+	    tio->buf, datalen, SPRO_REGISTER, -1,
 	    scsi_8btou64(seg->res_key), scsi_8btou64(seg->sa_res_key),
 	    /*tag_type*/ CTL_TAG_SIMPLE, /*control*/ 0);
 	tio->io->io_hdr.retries = 3;
@@ -1166,9 +1181,9 @@ tpc_process_wut(struct tpc_list *list)
 		while ((tio = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tio, links);
 			ctl_free_io(tio->io);
+			free(tio->buf, M_CTL);
 			free(tio, M_CTL);
 		}
-		free(list->buf, M_CTL);
 		if (list->abort) {
 			ctl_set_task_aborted(list->ctsio);
 			return (CTL_RETVAL_ERROR);
@@ -1233,8 +1248,6 @@ tpc_process_wut(struct tpc_list *list)
 		return (CTL_RETVAL_ERROR);
 	}
 
-	list->buf = malloc(numbytes, M_CTL, M_WAITOK |
-	    (list->token == NULL ? M_ZERO : 0));
 	list->segbytes = numbytes;
 	list->segsectors = numbytes / dstblock;
 //printf("Copy chunk of %ju sectors from %ju to %ju\n", list->segsectors,
@@ -1257,11 +1270,12 @@ tpc_process_wut(struct tpc_list *list)
 
 		tior = malloc(sizeof(*tior), M_CTL, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&tior->run);
+		tior->buf = malloc(roundbytes, M_CTL, M_WAITOK);
 		tior->list = list;
 		TAILQ_INSERT_TAIL(&list->allio, tior, links);
 		tior->io = tpcl_alloc_io();
 		ctl_scsi_read_write(tior->io,
-				    /*data_ptr*/ &list->buf[donebytes],
+				    /*data_ptr*/ tior->buf,
 				    /*data_len*/ roundbytes,
 				    /*read_op*/ 1,
 				    /*byte2*/ 0,
@@ -1280,7 +1294,7 @@ tpc_process_wut(struct tpc_list *list)
 		TAILQ_INSERT_TAIL(&list->allio, tiow, links);
 		tiow->io = tpcl_alloc_io();
 		ctl_scsi_read_write(tiow->io,
-				    /*data_ptr*/ &list->buf[donebytes],
+				    /*data_ptr*/ tior->buf,
 				    /*data_len*/ roundbytes,
 				    /*read_op*/ 0,
 				    /*byte2*/ 0,

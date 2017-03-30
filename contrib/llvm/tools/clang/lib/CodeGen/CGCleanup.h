@@ -427,8 +427,7 @@ public:
 // EHCleanupScope ought to have alignment equal to that -- not more
 // (would be misaligned by the stack allocator), and not less (would
 // break the appended classes).
-static_assert(llvm::AlignOf<EHCleanupScope>::Alignment ==
-                  EHScopeStack::ScopeStackAlignment,
+static_assert(alignof(EHCleanupScope) == EHScopeStack::ScopeStackAlignment,
               "EHCleanupScope expected alignment");
 
 /// An exceptions scope which filters exceptions thrown through it.
@@ -617,6 +616,8 @@ struct EHPersonality {
   static const EHPersonality GNU_C_SJLJ;
   static const EHPersonality GNU_C_SEH;
   static const EHPersonality GNU_ObjC;
+  static const EHPersonality GNU_ObjC_SJLJ;
+  static const EHPersonality GNU_ObjC_SEH;
   static const EHPersonality GNUstep_ObjC;
   static const EHPersonality GNU_ObjCXX;
   static const EHPersonality NeXT_ObjC;

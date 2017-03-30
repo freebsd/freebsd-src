@@ -1043,6 +1043,11 @@ sbcut_internal(struct sockbuf *sb, int len)
 {
 	struct mbuf *m, *next, *mfree;
 
+	KASSERT(len >= 0, ("%s: len is %d but it is supposed to be >= 0",
+	    __func__, len));
+	KASSERT(len <= sb->sb_ccc, ("%s: len: %d is > ccc: %u",
+	    __func__, len, sb->sb_ccc));
+
 	next = (m = sb->sb_mb) ? m->m_nextpkt : 0;
 	mfree = NULL;
 

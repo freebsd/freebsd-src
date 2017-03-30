@@ -1,5 +1,5 @@
 # $FreeBSD$
-.PATH:  ${.CURDIR}/../../ofed/drivers/infiniband/hw/mthca
+.PATH:  ${SRCTOP}/sys/ofed/drivers/infiniband/hw/mthca
 
 KMOD    = mthca
 SRCS    = device_if.h bus_if.h pci_if.h vnode_if.h
@@ -9,8 +9,8 @@ SRCS+=	mthca_mr.c mthca_pd.c mthca_profile.c mthca_provider.c mthca_qp.c
 SRCS+=	mthca_reset.c mthca_srq.c mthca_uar.c
 SRCS+=	opt_inet.h opt_inet6.h
 
-CFLAGS+= -I${.CURDIR}/../../ofed/include
-CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
+CFLAGS+= -I${SRCTOP}/sys/ofed/include
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 
 .include <bsd.kmod.mk>
 

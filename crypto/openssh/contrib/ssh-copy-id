@@ -233,17 +233,17 @@ populate_new_ids() {
             -o ControlPath=none \
             -o LogLevel=INFO \
             -o PreferredAuthentications=publickey \
-            -o IdentitiesOnly=yes "$@" exit 2>$L_TMP_ID_FILE.stderr </dev/null
+            -o IdentitiesOnly=yes "$@" exit 2>"$L_TMP_ID_FILE.stderr" </dev/null
         if [ "$?" = "$L_SUCCESS" ] ; then
-          : > $L_TMP_ID_FILE
+          : > "$L_TMP_ID_FILE"
         else
-          grep 'Permission denied' $L_TMP_ID_FILE.stderr >/dev/null || {
-            sed -e 's/^/ERROR: /' <$L_TMP_ID_FILE.stderr >$L_TMP_ID_FILE
+          grep 'Permission denied' "$L_TMP_ID_FILE.stderr" >/dev/null || {
+            sed -e 's/^/ERROR: /' <"$L_TMP_ID_FILE.stderr" >"$L_TMP_ID_FILE"
             cat >/dev/null #consume the other keys, causing loop to end
           }
         fi
 
-        cat $L_TMP_ID_FILE
+        cat "$L_TMP_ID_FILE"
       done
     }
   )

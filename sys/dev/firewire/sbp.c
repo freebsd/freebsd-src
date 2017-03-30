@@ -425,7 +425,6 @@ sbp_alloc_lun(struct sbp_target *target)
 	int maxlun, lun, i;
 
 	sbp = target->sbp;
-	SBP_LOCK_ASSERT(sbp);
 	crom_init_context(&cc, target->fwdev->csrrom);
 	/* XXX shoud parse appropriate unit directories only */
 	maxlun = -1;
@@ -558,7 +557,9 @@ END_DEBUG
 				goto next;
 			}
 			callout_init_mtx(&ocb->timer, &sbp->mtx, 0);
+			SBP_LOCK(sbp);
 			sbp_free_ocb(sdev, ocb);
+			SBP_UNLOCK(sbp);
 		}
 next:
 		crom_next(&cc);
@@ -687,9 +688,8 @@ END_DEBUG
 	&& crom_has_specver((fwdev)->csrrom, CSRVAL_ANSIT10, CSRVAL_T10SBP2))
 
 static void
-sbp_probe_target(void *arg)
+sbp_probe_target(struct sbp_target *target)
 {
-	struct sbp_target *target = (struct sbp_target *)arg;
 	struct sbp_softc *sbp = target->sbp;
 	struct sbp_dev *sdev;
 	int i, alive;
@@ -701,8 +701,6 @@ SBP_DEBUG(1)
 		(!alive) ? " not " : "");
 END_DEBUG
 
-	sbp = target->sbp;
-	SBP_LOCK_ASSERT(sbp);
 	sbp_alloc_lun(target);
 
 	/* XXX untimeout mgm_ocb and dequeue */
@@ -718,7 +716,9 @@ END_DEBUG
 			sbp_probe_lun(sdev);
 			sbp_show_sdev_info(sdev);
 
+			SBP_LOCK(sbp);
 			sbp_abort_all_ocbs(sdev, CAM_SCSI_BUS_RESET);
+			SBP_UNLOCK(sbp);
 			switch (sdev->status) {
 			case SBP_DEV_RESET:
 				/* new or revived target */
@@ -773,9 +773,9 @@ SBP_DEBUG(0)
 	printf("sbp_post_busreset\n");
 END_DEBUG
 	SBP_LOCK(sbp);
-	if ((sbp->sim->flags & SIMQ_FREEZED) == 0) {
+	if ((sbp->flags & SIMQ_FREEZED) == 0) {
 		xpt_freeze_simq(sbp->sim, /*count*/1);
-		sbp->sim->flags |= SIMQ_FREEZED;
+		sbp->flags |= SIMQ_FREEZED;
 	}
 	microtime(&sbp->last_busreset);
 	SBP_UNLOCK(sbp);
@@ -800,19 +800,15 @@ END_DEBUG
 		sbp_cold--;
 
 	SBP_LOCK(sbp);
-#if 0
-	/*
-	 * XXX don't let CAM the bus rest.
-	 * CAM tries to do something with freezed (DEV_RETRY) devices.
-	 */
-	xpt_async(AC_BUS_RESET, sbp->path, /*arg*/ NULL);
-#endif
 
 	/* Garbage Collection */
 	for (i = 0; i < SBP_NUM_TARGETS; i++) {
 		target = &sbp->targets[i];
+		if (target->fwdev == NULL)
+			continue;
+
 		STAILQ_FOREACH(fwdev, &sbp->fd.fc->devices, link)
-			if (target->fwdev == NULL || target->fwdev == fwdev)
+			if (target->fwdev == fwdev)
 				break;
 		if (fwdev == NULL) {
 			/* device has removed in lower driver */
@@ -820,6 +816,7 @@ END_DEBUG
 			sbp_free_target(target);
 		}
 	}
+
 	/* traverse device list */
 	STAILQ_FOREACH(fwdev, &sbp->fd.fc->devices, link) {
 SBP_DEBUG(0)
@@ -846,12 +843,24 @@ END_DEBUG
 				continue;
 			}
 		}
-		sbp_probe_target((void *)target);
+
+		/*
+		 * It is safe to drop the lock here as the target is already
+		 * reserved, so there should be no contenders for it.
+		 * And the target is not yet exposed, so there should not be
+		 * any other accesses to it.
+		 * Finally, the list being iterated is protected somewhere else.
+		 */
+		SBP_UNLOCK(sbp);
+		sbp_probe_target(target);
+		SBP_LOCK(sbp);
 		if (target->num_lun == 0)
 			sbp_free_target(target);
 	}
-	xpt_release_simq(sbp->sim, /*run queue*/TRUE);
-	sbp->sim->flags &= ~SIMQ_FREEZED;
+	if ((sbp->flags & SIMQ_FREEZED) != 0) {
+		xpt_release_simq(sbp->sim, /*run queue*/TRUE);
+		sbp->flags &= ~SIMQ_FREEZED;
+	}
 	SBP_UNLOCK(sbp);
 }
 
@@ -959,30 +968,36 @@ sbp_next_dev(struct sbp_target *target, int lun)
 static void
 sbp_cam_scan_lun(struct cam_periph *periph, union ccb *ccb)
 {
+	struct sbp_softc *sbp;
 	struct sbp_target *target;
 	struct sbp_dev *sdev;
 
 	sdev = (struct sbp_dev *) ccb->ccb_h.ccb_sdev_ptr;
 	target = sdev->target;
-	SBP_LOCK_ASSERT(target->sbp);
+	sbp = target->sbp;
+	SBP_LOCK(sbp);
 SBP_DEBUG(0)
-	device_printf(sdev->target->sbp->fd.dev,
+	device_printf(sbp->fd.dev,
 		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 		sdev->status = SBP_DEV_ATTACHED;
 	} else {
-		device_printf(sdev->target->sbp->fd.dev,
+		device_printf(sbp->fd.dev,
 			"%s:%s failed\n", __func__, sdev->bustgtlun);
 	}
 	sdev = sbp_next_dev(target, sdev->lun_id + 1);
 	if (sdev == NULL) {
+		SBP_UNLOCK(sbp);
 		free(ccb, M_SBP);
 		return;
 	}
 	/* reuse ccb */
 	xpt_setup_ccb(&ccb->ccb_h, sdev->path, SCAN_PRI);
 	ccb->ccb_h.ccb_sdev_ptr = sdev;
+	ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
+	SBP_UNLOCK(sbp);
+
 	xpt_action(ccb);
 	xpt_release_devq(sdev->path, sdev->freeze, TRUE);
 	sdev->freeze = 1;
@@ -1011,6 +1026,8 @@ END_DEBUG
 		printf("sbp_cam_scan_target: malloc failed\n");
 		return;
 	}
+	SBP_UNLOCK(target->sbp);
+
 	xpt_setup_ccb(&ccb->ccb_h, sdev->path, SCAN_PRI);
 	ccb->ccb_h.func_code = XPT_SCAN_LUN;
 	ccb->ccb_h.cbfcnp = sbp_cam_scan_lun;
@@ -1020,6 +1037,8 @@ END_DEBUG
 
 	/* The scan is in progress now. */
 	xpt_action(ccb);
+
+	SBP_LOCK(target->sbp);
 	xpt_release_devq(sdev->path, sdev->freeze, TRUE);
 	sdev->freeze = 1;
 }
@@ -1977,8 +1996,8 @@ END_DEBUG
 	sbp->fd.post_explore = sbp_post_explore;
 
 	if (fc->status != -1) {
-		sbp_post_busreset((void *)sbp);
-		sbp_post_explore((void *)sbp);
+		sbp_post_busreset(sbp);
+		sbp_post_explore(sbp);
 	}
 	SBP_LOCK(sbp);
 	xpt_async(AC_BUS_RESET, sbp->path, /*arg*/ NULL);
@@ -2364,6 +2383,11 @@ SBP_DEBUG(2)
 END_DEBUG
 		if (sdev == NULL) {
 			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+			xpt_done(ccb);
+			return;
+		}
+		if (csio->cdb_len > sizeof(ocb->orb) - 5 * sizeof(uint32_t)) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			return;
 		}

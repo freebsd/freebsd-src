@@ -21,7 +21,7 @@ cloudabi32_vdso_blob.o		optional	compat_cloudabi32	\
 #
 linux_genassym.o		optional	compat_linux		\
 	dependency 	"$S/i386/linux/linux_genassym.c"		\
-	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
+	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"linux_genassym.o"
 #
@@ -42,18 +42,6 @@ linux_vdso.so			optional	compat_linux		\
 	compile-with	"${OBJCOPY} --input-target binary --output-target elf32-i386-freebsd --binary-architecture i386 linux_locore.o ${.TARGET}" \
 	no-implicit-rule						\
 	clean		"linux_vdso.so"
-#
-svr4_genassym.o			optional	compat_svr4		\
-	dependency 	"$S/i386/svr4/svr4_genassym.c"			\
-	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
-	no-obj no-implicit-rule						\
-	clean		"svr4_genassym.o"
-#
-svr4_assym.h			optional	compat_svr4		\
-	dependency 	"$S/kern/genassym.sh svr4_genassym.o"	   	\
-	compile-with	"sh $S/kern/genassym.sh svr4_genassym.o > ${.TARGET}" \
-	no-obj no-implicit-rule before-depend				\
-	clean		"svr4_assym.h"
 #
 font.h				optional	sc_dflt_font		\
 	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'static u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'static u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'static u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h"										\
@@ -127,22 +115,6 @@ compat/ndis/subr_ntoskrnl.c	optional ndisapi pci
 compat/ndis/subr_pe.c		optional ndisapi pci
 compat/ndis/subr_usbd.c		optional ndisapi pci
 compat/ndis/winx32_wrap.S	optional ndisapi pci
-compat/svr4/imgact_svr4.c	optional compat_svr4
-compat/svr4/svr4_fcntl.c	optional compat_svr4
-compat/svr4/svr4_filio.c	optional compat_svr4
-compat/svr4/svr4_ioctl.c	optional compat_svr4
-compat/svr4/svr4_ipc.c		optional compat_svr4
-compat/svr4/svr4_misc.c		optional compat_svr4
-compat/svr4/svr4_resource.c	optional compat_svr4
-compat/svr4/svr4_signal.c	optional compat_svr4
-compat/svr4/svr4_socket.c	optional compat_svr4
-compat/svr4/svr4_sockio.c	optional compat_svr4
-compat/svr4/svr4_stat.c		optional compat_svr4
-compat/svr4/svr4_stream.c	optional compat_svr4
-compat/svr4/svr4_syscallnames.c	optional compat_svr4
-compat/svr4/svr4_sysent.c	optional compat_svr4
-compat/svr4/svr4_sysvec.c	optional compat_svr4
-compat/svr4/svr4_termios.c	optional compat_svr4
 bf_enc.o			optional crypto | ipsec	| ipsec_support \
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
@@ -491,7 +463,6 @@ i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
 i386/i386/gdb_machdep.c		optional gdb
 i386/i386/geode.c		optional cpu_geode
-i386/i386/i686_mem.c		optional mem
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
@@ -547,22 +518,12 @@ i386/linux/linux_sysent.c	optional compat_linux
 i386/linux/linux_sysvec.c	optional compat_linux
 i386/pci/pci_cfgreg.c		optional pci
 i386/pci/pci_pir.c		optional pci
-i386/svr4/svr4_locore.s		optional compat_svr4	\
-	dependency	"svr4_assym.h"	\
-	warning "COMPAT_SVR4 is broken and should be avoided"
-i386/svr4/svr4_machdep.c	optional compat_svr4
-#
 isa/syscons_isa.c		optional sc
 isa/vga_isa.c			optional vga
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
 kern/subr_sfbuf.c		standard
-crc32_sse42.o			standard				\
-	dependency	"$S/libkern/x86/crc32_sse42.c"			\
-	compile-with	"${CC} -c ${CFLAGS:N-nostdinc} ${WERROR} ${PROF} -msse4 ${.IMPSRC}" \
-	no-implicit-rule						\
-	clean		"crc32_sse42.o"
 libkern/divdi3.c		standard
 libkern/ffsll.c			standard
 libkern/flsll.c			standard
@@ -573,6 +534,7 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+libkern/x86/crc32_sse42.c	standard
 i386/xbox/xbox.c		optional xbox
 i386/xbox/xboxfb.c		optional xboxfb
 dev/fb/boot_font.c		optional xboxfb
@@ -634,6 +596,7 @@ x86/x86/io_apic.c		optional apic
 x86/x86/legacy.c		standard
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
+x86/x86/x86_mem.c		optional mem
 x86/x86/mptable.c		optional apic
 x86/x86/mptable_pci.c		optional apic pci
 x86/x86/mp_x86.c		optional smp

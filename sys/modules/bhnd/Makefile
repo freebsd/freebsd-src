@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/bhnd
-.PATH: ${.CURDIR}/../../dev/bhnd/cores/chipc
-.PATH: ${.CURDIR}/../../dev/bhnd/cores/chipc/pwrctl
-.PATH: ${.CURDIR}/../../dev/bhnd/cores/pmu
-.PATH: ${.CURDIR}/../../dev/bhnd/nvram
+.PATH: ${SRCTOP}/sys/dev/bhnd
+.PATH: ${SRCTOP}/sys/dev/bhnd/cores/chipc
+.PATH: ${SRCTOP}/sys/dev/bhnd/cores/chipc/pwrctl
+.PATH: ${SRCTOP}/sys/dev/bhnd/cores/pmu
+.PATH: ${SRCTOP}/sys/dev/bhnd/nvram
 
 KMOD=	bhnd
 SRCS=	bhnd.c bhnd_subr.c

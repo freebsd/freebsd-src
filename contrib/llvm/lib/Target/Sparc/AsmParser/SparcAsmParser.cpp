@@ -84,7 +84,7 @@ class SparcAsmParser : public MCTargetAsmParser {
     return getSTI().getTargetTriple().getArch() == Triple::sparcv9;
   }
 
-  void expandSET(MCInst &Inst, SMLoc IDLoc,
+  bool expandSET(MCInst &Inst, SMLoc IDLoc,
                  SmallVectorImpl<MCInst> &Instructions);
 
 public:
@@ -121,7 +121,7 @@ public:
   static const MCPhysReg DoubleRegs[32] = {
     Sparc::D0,  Sparc::D1,  Sparc::D2,  Sparc::D3,
     Sparc::D4,  Sparc::D5,  Sparc::D6,  Sparc::D7,
-    Sparc::D8,  Sparc::D7,  Sparc::D8,  Sparc::D9,
+    Sparc::D8,  Sparc::D9,  Sparc::D10, Sparc::D11,
     Sparc::D12, Sparc::D13, Sparc::D14, Sparc::D15,
     Sparc::D16, Sparc::D17, Sparc::D18, Sparc::D19,
     Sparc::D20, Sparc::D21, Sparc::D22, Sparc::D23,
@@ -466,7 +466,7 @@ public:
 
 } // end namespace
 
-void SparcAsmParser::expandSET(MCInst &Inst, SMLoc IDLoc,
+bool SparcAsmParser::expandSET(MCInst &Inst, SMLoc IDLoc,
                                SmallVectorImpl<MCInst> &Instructions) {
   MCOperand MCRegOp = Inst.getOperand(0);
   MCOperand MCValOp = Inst.getOperand(1);
@@ -479,8 +479,8 @@ void SparcAsmParser::expandSET(MCInst &Inst, SMLoc IDLoc,
 
   // Allow either a signed or unsigned 32-bit immediate.
   if (RawImmValue < -2147483648LL || RawImmValue > 4294967295LL) {
-    Error(IDLoc, "set: argument must be between -2147483648 and 4294967295");
-    return;
+    return Error(IDLoc,
+                 "set: argument must be between -2147483648 and 4294967295");
   }
 
   // If the value was expressed as a large unsigned number, that's ok.
@@ -537,6 +537,7 @@ void SparcAsmParser::expandSET(MCInst &Inst, SMLoc IDLoc,
     TmpInst.addOperand(MCOperand::createExpr(Expr));
     Instructions.push_back(TmpInst);
   }
+  return false;
 }
 
 bool SparcAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
@@ -556,7 +557,8 @@ bool SparcAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
       Instructions.push_back(Inst);
       break;
     case SP::SET:
-      expandSET(Inst, IDLoc, Instructions);
+      if (expandSET(Inst, IDLoc, Instructions))
+        return true;
       break;
     }
 
@@ -626,13 +628,11 @@ bool SparcAsmParser::ParseInstruction(ParseInstructionInfo &Info,
     if (getLexer().is(AsmToken::Comma)) {
       if (parseBranchModifiers(Operands) != MatchOperand_Success) {
         SMLoc Loc = getLexer().getLoc();
-        Parser.eatToEndOfStatement();
         return Error(Loc, "unexpected token");
       }
     }
     if (parseOperand(Operands, Name) != MatchOperand_Success) {
       SMLoc Loc = getLexer().getLoc();
-      Parser.eatToEndOfStatement();
       return Error(Loc, "unexpected token");
     }
 
@@ -645,14 +645,12 @@ bool SparcAsmParser::ParseInstruction(ParseInstructionInfo &Info,
       // Parse and remember the operand.
       if (parseOperand(Operands, Name) != MatchOperand_Success) {
         SMLoc Loc = getLexer().getLoc();
-        Parser.eatToEndOfStatement();
         return Error(Loc, "unexpected token");
       }
     }
   }
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
     SMLoc Loc = getLexer().getLoc();
-    Parser.eatToEndOfStatement();
     return Error(Loc, "unexpected token");
   }
   Parser.Lex(); // Consume the EndOfStatement.
@@ -717,7 +715,7 @@ bool SparcAsmParser:: parseDirectiveWord(unsigned Size, SMLoc L) {
   return false;
 }
 
-SparcAsmParser::OperandMatchResultTy
+OperandMatchResultTy
 SparcAsmParser::parseMEMOperand(OperandVector &Operands) {
 
   SMLoc S, E;
@@ -755,7 +753,7 @@ SparcAsmParser::parseMEMOperand(OperandVector &Operands) {
   return MatchOperand_Success;
 }
 
-SparcAsmParser::OperandMatchResultTy
+OperandMatchResultTy
 SparcAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 
   OperandMatchResultTy ResTy = MatchOperandParserImpl(Operands, Mnemonic);
@@ -823,7 +821,7 @@ SparcAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   return MatchOperand_Success;
 }
 
-SparcAsmParser::OperandMatchResultTy
+OperandMatchResultTy
 SparcAsmParser::parseSparcAsmOperand(std::unique_ptr<SparcOperand> &Op,
                                      bool isCall) {
 
@@ -910,7 +908,7 @@ SparcAsmParser::parseSparcAsmOperand(std::unique_ptr<SparcOperand> &Op,
   return (Op) ? MatchOperand_Success : MatchOperand_ParseFail;
 }
 
-SparcAsmParser::OperandMatchResultTy
+OperandMatchResultTy
 SparcAsmParser::parseBranchModifiers(OperandVector &Operands) {
 
   // parse (,a|,pn|,pt)+
@@ -1265,9 +1263,9 @@ bool SparcAsmParser::matchSparcAsmModifiers(const MCExpr *&EVal,
 }
 
 extern "C" void LLVMInitializeSparcAsmParser() {
-  RegisterMCAsmParser<SparcAsmParser> A(TheSparcTarget);
-  RegisterMCAsmParser<SparcAsmParser> B(TheSparcV9Target);
-  RegisterMCAsmParser<SparcAsmParser> C(TheSparcelTarget);
+  RegisterMCAsmParser<SparcAsmParser> A(getTheSparcTarget());
+  RegisterMCAsmParser<SparcAsmParser> B(getTheSparcV9Target());
+  RegisterMCAsmParser<SparcAsmParser> C(getTheSparcelTarget());
 }
 
 #define GET_REGISTER_MATCHER

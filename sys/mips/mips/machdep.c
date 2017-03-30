@@ -18,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -475,6 +475,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 
 	pcpu->pc_next_asid = 1;
 	pcpu->pc_asid_generation = 1;
+	pcpu->pc_self = pcpu;
 #ifdef SMP
 	if ((vm_offset_t)pcpup >= VM_MIN_KERNEL_ADDRESS &&
 	    (vm_offset_t)pcpup <= VM_MAX_KERNEL_ADDRESS) {

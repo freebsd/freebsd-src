@@ -147,7 +147,7 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv, long vdso_adjust)
 	Elf_Shdr *shdr;
 	Elf_Dyn *dyn;
 	Elf_Sym *sym;
-	int i, symcnt;
+	int i, j, symcnt;
 
 	ehdr = (Elf_Ehdr *) sv->sv_sigcode;
 
@@ -205,7 +205,7 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv, long vdso_adjust)
 			sym = (Elf_Sym *)((caddr_t)ehdr + shdr[i].sh_offset);
 			symcnt = shdr[i].sh_size / sizeof(*sym);
 
-			for(i = 0; i < symcnt; i++, sym++) {
+			for(j = 0; j < symcnt; j++, sym++) {
 				if (sym->st_shndx == SHN_UNDEF ||
 				    sym->st_shndx == SHN_ABS)
 					continue;

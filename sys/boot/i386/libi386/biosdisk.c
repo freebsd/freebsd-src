@@ -137,7 +137,6 @@ static int bd_open(struct open_file *f, ...);
 static int bd_close(struct open_file *f);
 static int bd_ioctl(struct open_file *f, u_long cmd, void *data);
 static int bd_print(int verbose);
-static void bd_cleanup(void);
 
 #ifdef LOADER_GELI_SUPPORT
 static enum isgeli {
@@ -160,7 +159,7 @@ struct devsw biosdisk = {
 	bd_close,
 	bd_ioctl,
 	bd_print,
-	bd_cleanup
+	NULL
 };
 
 /*
@@ -229,13 +228,6 @@ bd_init(void)
 	}
 	bcache_add_dev(nbdinfo);
 	return(0);
-}
-
-static void
-bd_cleanup(void)
-{
-
-	disk_cleanup(&biosdisk);
 }
 
 /*
@@ -364,9 +356,7 @@ bd_print(int verbose)
 		dev.d_partition = -1;
 		if (disk_open(&dev,
 		    bdinfo[i].bd_sectorsize * bdinfo[i].bd_sectors,
-		    bdinfo[i].bd_sectorsize,
-		    (bdinfo[i].bd_flags & BD_FLOPPY) ?
-		    DISK_F_NOCACHE: 0) == 0) {
+		    bdinfo[i].bd_sectorsize) == 0) {
 			snprintf(line, sizeof(line), "    disk%d", i);
 			ret = disk_print(&dev, line, verbose);
 			disk_close(&dev);
@@ -421,8 +411,7 @@ bd_open(struct open_file *f, ...)
 	disk.d_partition = -1;
 	disk.d_offset = 0;
 	if (disk_open(&disk, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
-	    BD(dev).bd_sectorsize, (BD(dev).bd_flags & BD_FLOPPY) ?
-	    DISK_F_NOCACHE: 0) == 0) {
+	    BD(dev).bd_sectorsize) == 0) {
 
 		if (disk_ioctl(&disk, DIOCGMEDIASIZE, &size) == 0) {
 			size /= BD(dev).bd_sectorsize;
@@ -433,8 +422,7 @@ bd_open(struct open_file *f, ...)
 	}
 
 	err = disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
-	    BD(dev).bd_sectorsize, (BD(dev).bd_flags & BD_FLOPPY) ?
-	    DISK_F_NOCACHE: 0);
+	    BD(dev).bd_sectorsize);
 
 #ifdef LOADER_GELI_SUPPORT
 	static char gelipw[GELI_PW_MAXLEN];
@@ -571,7 +559,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 {
     struct disk_devdesc *dev = (struct disk_devdesc *)devdata;
     uint64_t		disk_blocks;
-    int			blks;
+    int			blks, rc;
 #ifdef BD_SUPPORT_FRAGS /* XXX: sector size */
     char		fragbuf[BIOSDISK_SECSIZE];
     size_t		fragsize;
@@ -628,8 +616,12 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
     case F_READ:
 	DEBUG("read %d from %lld to %p", blks, dblk, buf);
 
-	if (blks && bd_read(dev, dblk, blks, buf)) {
-	    DEBUG("read error");
+	if (blks && (rc = bd_read(dev, dblk, blks, buf))) {
+	    /* Filter out floppy controller errors */
+	    if (BD(dev).bd_flags != BD_FLOPPY || rc != 0x20) {
+		printf("read %d from %lld to %p, error: 0x%x", blks, dblk,
+		    buf, rc);
+	    }
 	    return (EIO);
 	}
 #ifdef BD_SUPPORT_FRAGS /* XXX: sector size */
@@ -688,7 +680,9 @@ bd_edd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
     v86.ds = VTOPSEG(&packet);
     v86.esi = VTOPOFF(&packet);
     v86int();
-    return (V86_CY(v86.efl));
+    if (V86_CY(v86.efl))
+	return (v86.eax >> 8);
+    return (0);
 }
 
 static int
@@ -722,7 +716,9 @@ bd_chs_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest,
     v86.es = VTOPSEG(dest);
     v86.ebx = VTOPOFF(dest);
     v86int();
-    return (V86_CY(v86.efl));
+    if (V86_CY(v86.efl))
+	return (v86.eax >> 8);
+    return (0);
 }
 
 static int
@@ -809,7 +805,7 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest, int write)
 	    DEBUG("Read %d sector(s) from %lld to %p (0x%x) %s", x,
 		dblk, p, VTOP(p), result ? "failed" : "ok");
 	if (result) {
-	    return(-1);
+	    return (result);
 	}
 	if (!write && bbuf != NULL)
 	    bcopy(bbuf, p, x * BD(dev).bd_sectorsize);
@@ -954,8 +950,7 @@ bd_getdev(struct i386_devdesc *d)
     if (biosdev == -1)				/* not a BIOS device */
 	return(-1);
     if (disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
-	BD(dev).bd_sectorsize,(BD(dev).bd_flags & BD_FLOPPY) ?
-	DISK_F_NOCACHE: 0) != 0)		/* oops, not a viable device */
+	BD(dev).bd_sectorsize) != 0)		/* oops, not a viable device */
 	    return (-1);
     else
 	disk_close(dev);

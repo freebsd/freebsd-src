@@ -1,4 +1,4 @@
-#	$OpenBSD: reexec.sh,v 1.8 2015/03/03 22:35:19 markus Exp $
+#	$OpenBSD: reexec.sh,v 1.10 2016/12/16 01:06:27 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="reexec tests"
@@ -39,8 +39,7 @@ echo "InvalidXXX=no" >> $OBJ/sshd_config
 
 copy_tests
 
-$SUDO kill `$SUDO cat $PIDFILE`
-rm -f $PIDFILE
+stop_sshd
 
 cp $OBJ/sshd_config.orig $OBJ/sshd_config
 
@@ -54,8 +53,7 @@ rm -f $SSHD_COPY
 
 copy_tests
 
-$SUDO kill `$SUDO cat $PIDFILE`
-rm -f $PIDFILE
+stop_sshd
 
 verbose "test reexec fallback without privsep"
 
@@ -67,7 +65,6 @@ rm -f $SSHD_COPY
 
 copy_tests
 
-$SUDO kill `$SUDO cat $PIDFILE`
-rm -f $PIDFILE
+stop_sshd
 
 fi

@@ -45,7 +45,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -1267,7 +1267,7 @@ in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 }
 
 void
-init_sin6(struct sockaddr_in6 *sin6, struct mbuf *m)
+init_sin6(struct sockaddr_in6 *sin6, struct mbuf *m, int srcordst)
 {
 	struct ip6_hdr *ip;
 
@@ -1275,7 +1275,7 @@ init_sin6(struct sockaddr_in6 *sin6, struct mbuf *m)
 	bzero(sin6, sizeof(*sin6));
 	sin6->sin6_len = sizeof(*sin6);
 	sin6->sin6_family = AF_INET6;
-	sin6->sin6_addr = ip->ip6_src;
+	sin6->sin6_addr = srcordst ? ip->ip6_dst : ip->ip6_src;
 
 	(void)sa6_recoverscope(sin6); /* XXX: should catch errors... */
 

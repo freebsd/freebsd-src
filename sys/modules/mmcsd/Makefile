@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/mmc
+.PATH: ${SRCTOP}/sys/dev/mmc
 
 KMOD=	mmcsd
-SRCS=	bus_if.h device_if.h mmcbr_if.h mmcbus_if.h mmcsd.c
+SRCS=	bus_if.h device_if.h mmc_subr.c mmcbr_if.h mmcbus_if.h mmcsd.c
 
 .include <bsd.kmod.mk>

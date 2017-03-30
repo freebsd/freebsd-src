@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/hifn
+.PATH:	${SRCTOP}/sys/dev/hifn
 KMOD	= hifn
 SRCS	= hifn7751.c opt_hifn.h
 SRCS   += device_if.h bus_if.h pci_if.h

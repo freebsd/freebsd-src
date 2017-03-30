@@ -553,7 +553,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 		return (NULL);
 	*nkp = pf_state_key_clone(*skp);
 	if (*nkp == NULL) {
-		uma_zfree(V_pf_state_key_z, skp);
+		uma_zfree(V_pf_state_key_z, *skp);
 		*skp = NULL;
 		return (NULL);
 	}

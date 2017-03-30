@@ -41,6 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
+#include <machine/platform.h>
+#include <machine/platformvar.h>
+
+#include <arm/freescale/imx/imx6_mp.h>
 
 #define	SCU_PHYSBASE			0x00a00000
 #define	SCU_SIZE			0x00001000
@@ -67,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #define	SRC_GPR1_C1ARG			0x24	/* Register for Core 1 entry arg */
 
 void
-platform_mp_setmaxid(void)
+imx6_mp_setmaxid(platform_t plat)
 {
 	bus_space_handle_t scu;
 	int hwcpu, ncpu;
@@ -92,8 +96,8 @@ platform_mp_setmaxid(void)
 	mp_maxid = ncpu - 1;
 }
 
-void    
-platform_mp_start_ap(void)
+void
+imx6_mp_start_ap(platform_t plat)
 {
 	bus_space_handle_t scu;
 	bus_space_handle_t src;

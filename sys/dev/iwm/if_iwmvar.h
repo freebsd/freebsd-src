@@ -138,10 +138,6 @@ struct iwm_tx_radiotap_header {
 
 
 #define IWM_UCODE_SECTION_MAX 16
-#define IWM_FWDMASEGSZ (192*1024)
-#define IWM_FWDMASEGSZ_8000 (320*1024)
-/* sanity check value */
-#define IWM_FWMAXSIZE (2*1024*1024)
 
 /*
  * fw_status is used to determine if we've already parsed the firmware file
@@ -170,17 +166,43 @@ enum iwm_ucode_type {
 	IWM_UCODE_TYPE_MAX
 };
 
+struct iwm_ucode_capabilities {
+	uint32_t max_probe_length;
+	uint32_t n_scan_channels;
+	uint32_t flags;
+	uint8_t enabled_api[howmany(IWM_NUM_UCODE_TLV_API, NBBY)];
+	uint8_t enabled_capa[howmany(IWM_NUM_UCODE_TLV_CAPA, NBBY)];
+};
+
+static inline int
+fw_has_api(const struct iwm_ucode_capabilities *capabilities,
+	   unsigned int api)
+{
+	return isset(capabilities->enabled_api, api);
+}
+
+static inline int
+fw_has_capa(const struct iwm_ucode_capabilities *capabilities,
+	    unsigned int capa)
+{
+	return isset(capabilities->enabled_capa, capa);
+}
+
+/* one for each uCode image (inst/data, init/runtime/wowlan) */
+struct iwm_fw_desc {
+	const void *data;	/* vmalloc'ed data */
+	uint32_t len;		/* size in bytes */
+	uint32_t offset;	/* offset in the device */
+};
+
 struct iwm_fw_info {
 	const struct firmware *fw_fp;
 	int fw_status;
 
 	struct iwm_fw_sects {
-		struct iwm_fw_onesect {
-			const void *fws_data;
-			uint32_t fws_len;
-			uint32_t fws_devoff;
-		} fw_sect[IWM_UCODE_SECTION_MAX];
+		struct iwm_fw_desc fw_sect[IWM_UCODE_SECTION_MAX];
 		int fw_count;
+		int is_dual_cpus;
 		uint32_t paging_mem_size;
 	} fw_sects[IWM_UCODE_TYPE_MAX];
 
@@ -246,6 +268,16 @@ struct iwm_dma_info {
 	bus_size_t		size;
 };
 
+/**
+ * struct iwm_fw_paging
+ * @fw_paging_block: dma memory info
+ * @fw_paging_size: page size
+ */
+struct iwm_fw_paging {
+	struct iwm_dma_info fw_paging_block;
+	uint32_t fw_paging_size;
+};
+
 #define IWM_TX_RING_COUNT	256
 #define IWM_TX_RING_LOMARK	192
 #define IWM_TX_RING_HIMARK	224
@@ -293,15 +325,6 @@ struct iwm_rx_ring {
 	bus_dmamap_t		spare_map;	/* for iwm_rx_addbuf() */
 	bus_dma_tag_t           data_dmat;
 	int			cur;
-};
-
-struct iwm_ucode_status {
-	uint32_t uc_error_event_table;
-	uint32_t uc_umac_error_event_table;
-	uint32_t uc_log_event_table;
-
-	int uc_ok;
-	int uc_intr;
 };
 
 #define IWM_CMD_RESP_MAX PAGE_SIZE
@@ -377,29 +400,7 @@ struct iwm_node {
 #define IWM_ICT_COUNT		(IWM_ICT_SIZE / sizeof (uint32_t))
 #define IWM_ICT_PADDR_SHIFT	12
 
-enum iwm_device_family {
-	IWM_DEVICE_FAMILY_UNDEFINED,
-	IWM_DEVICE_FAMILY_7000,
-	IWM_DEVICE_FAMILY_8000,
-};
-
-/**
- * struct iwm_cfg
- * @fw_name: Firmware filename.
- * @host_interrupt_operation_mode: device needs host interrupt operation
- *      mode set
- * @nvm_hw_section_num: the ID of the HW NVM section
- * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
- *      is in flight. This is due to a HW bug in 7260, 3160 and 7265.
- */
-struct iwm_cfg {
-	const char *fw_name;
-	uint16_t eeprom_size;
-	enum iwm_device_family device_family;
-	int host_interrupt_operation_mode;
-	uint8_t nvm_hw_section_num;
-	int apmg_wake_up_wa;
-};
+struct iwm_cfg;
 
 struct iwm_softc {
 	device_t		sc_dev;
@@ -436,7 +437,7 @@ struct iwm_softc {
 
 	/* TX scheduler rings. */
 	struct iwm_dma_info	sched_dma;
-	uint32_t		sched_base;
+	uint32_t		scd_base_addr;
 
 	/* TX/RX rings. */
 	struct iwm_tx_ring	txq[IWM_MVM_MAX_QUEUES];
@@ -457,16 +458,12 @@ struct iwm_softc {
 
 	int			sc_fw_chunk_done;
 
-	struct iwm_ucode_status	sc_uc;
-	enum iwm_ucode_type	sc_uc_current;
+	enum iwm_ucode_type	cur_ucode;
+	int			ucode_loaded;
 	char			sc_fwver[32];
 
-	int			sc_capaflags;
-	int			sc_capa_max_probe_len;
-	int sc_capa_n_scan_channels;
-	uint32_t sc_ucode_api;
-	uint8_t sc_enabled_capa[howmany(IWM_NUM_UCODE_TLV_CAPA, NBBY)];
-	char sc_fw_mcc[3];
+	struct iwm_ucode_capabilities ucode_capa;
+	char			sc_fw_mcc[3];
 
 	int			sc_intmask;
 
@@ -481,7 +478,6 @@ struct iwm_softc {
 	 */
 	int			sc_generation;
 
-	bus_size_t		sc_fwdmasegsz;
 	struct iwm_fw_info	sc_fw;
 	struct iwm_tlv_calib_ctrl sc_default_calib[IWM_UCODE_TYPE_MAX];
 
@@ -526,6 +522,22 @@ struct iwm_softc {
 	struct iwm_notif_wait_data *sc_notif_wait;
 
 	int			cmd_hold_nic_awake;
+
+	/* Firmware status */
+	uint32_t		error_event_table;
+	uint32_t		log_event_table;
+	uint32_t		umac_error_event_table;
+	int			support_umac_log;
+
+	/*
+	 * Paging parameters - All of the parameters should be set by the
+	 * opmode when paging is enabled
+	 */
+	struct iwm_fw_paging	fw_paging_db[IWM_NUM_OF_FW_PAGING_BLOCKS];
+	uint16_t		num_of_paging_blk;
+	uint16_t		num_of_pages_in_last_blk;
+
+	boolean_t		last_ebs_successful;
 };
 
 #define IWM_LOCK_INIT(_sc) \

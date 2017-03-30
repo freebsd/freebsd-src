@@ -72,6 +72,7 @@ static struct isa_pnp_id acpi_ns8250_ids[] = {
 	{0x1005d041, "Generic IRDA-compatible device"},	/* PNP0510 */
 	{0x1105d041, "Generic IRDA-compatible device"},	/* PNP0511 */
 	{0x04f0235c, "Wacom Tablet PC Screen"},		/* WACF004 */
+	{0x0ef0235c, "Wacom Tablet PC Screen 00e"},	/* WACF00e */
 	{0xe502aa1a, "Wacom Tablet at FuS Lifebook T"},	/* FUJ02E5 */
 	{0}
 };
@@ -109,13 +110,13 @@ uart_acpi_probe(device_t dev)
 #if defined(__i386__) || defined(__amd64__)
 	if (!ISA_PNP_PROBE(parent, dev, acpi_ns8250_ids)) {
 		sc->sc_class = &uart_ns8250_class;
-		return (uart_bus_probe(dev, 0, 0, 0, 0));
+		return (uart_bus_probe(dev, 0, 0, 0, 0, 0));
 	}
 
 	/* Add checks for non-ns8250 IDs here. */
 #elif defined(__aarch64__)
 	if ((sc->sc_class = uart_acpi_find_device(dev)) != NULL)
-		return (uart_bus_probe(dev, 2, 0, 0, 0));
+		return (uart_bus_probe(dev, 2, 0, 0, 0, 0));
 #endif
 
 	return (ENXIO);

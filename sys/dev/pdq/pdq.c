@@ -163,10 +163,6 @@ static const char * const * const pdq_pmd_types[] = {
 
 static const char * const pdq_descriptions[] = {
     "DEFPA PCI",
-    "DEFEA EISA",
-    "DEFTA TC",
-    "DEFAA Futurebus",
-    "DEFQA Q-bus",
 };
 
 static void
@@ -1088,8 +1084,7 @@ pdq_hwreset(
     state = PDQ_PSTS_ADAPTER_STATE(PDQ_CSR_READ(csrs, csr_port_status));
     if (state == PDQS_DMA_UNAVAILABLE)
 	return;
-    PDQ_CSR_WRITE(csrs, csr_port_data_a,
-		  (state == PDQS_HALTED && pdq->pdq_type != PDQ_DEFTA) ? 0 : PDQ_PRESET_SKIP_SELFTEST);
+    PDQ_CSR_WRITE(csrs, csr_port_data_a, PDQ_PRESET_SKIP_SELFTEST);
     PDQ_CSR_WRITE(csrs, csr_port_reset, 1);
     PDQ_OS_USEC_DELAY(100);
     PDQ_CSR_WRITE(csrs, csr_port_reset, 0);
@@ -1164,13 +1159,11 @@ pdq_stop(
     pdq_read_fwrev(&pdq->pdq_csrs, &pdq->pdq_fwrev);
     pdq->pdq_chip_rev = pdq_read_chiprev(&pdq->pdq_csrs);
 
-    if (pdq->pdq_type == PDQ_DEFPA) {
-	/*
-	 * Disable interrupts and DMA.
-	 */
-	PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_mode_control, 0);
-	PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_status, 0x10);
-    }
+    /*
+     * Disable interrupts and DMA.
+     */
+    PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_mode_control, 0);
+    PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_status, 0x10);
 
     /*
      * Flush all the databuf queues.
@@ -1229,27 +1222,21 @@ pdq_stop(
      * Allow the DEFPA to do DMA.  Then program the physical 
      * addresses of the consumer and descriptor blocks.
      */
-    if (pdq->pdq_type == PDQ_DEFPA) {
 #ifdef PDQTEST
-	PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_mode_control,
-		      PDQ_PFI_MODE_DMA_ENABLE);
+    PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_mode_control,
+	PDQ_PFI_MODE_DMA_ENABLE);
 #else
-	PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_mode_control,
-		      PDQ_PFI_MODE_DMA_ENABLE
-	    /*|PDQ_PFI_MODE_PFI_PCI_INTR*/|PDQ_PFI_MODE_PDQ_PCI_INTR);
+    PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_mode_control,
+	PDQ_PFI_MODE_DMA_ENABLE
+	/*|PDQ_PFI_MODE_PFI_PCI_INTR*/|PDQ_PFI_MODE_PDQ_PCI_INTR);
 #endif
-    }
 
     /*
      * Make sure the unsolicited queue has events ...
      */
     pdq_process_unsolicited_events(pdq);
 
-    if ((pdq->pdq_type == PDQ_DEFEA && pdq->pdq_chip_rev == PDQ_CHIP_REV_E)
-	    || pdq->pdq_type == PDQ_DEFTA)
-	PDQ_CSR_WRITE(csrs, csr_port_data_b, PDQ_DMA_BURST_16LW);
-    else
-	PDQ_CSR_WRITE(csrs, csr_port_data_b, PDQ_DMA_BURST_8LW);
+    PDQ_CSR_WRITE(csrs, csr_port_data_b, PDQ_DMA_BURST_8LW);
     PDQ_CSR_WRITE(csrs, csr_port_data_a, PDQ_SUB_CMD_DMA_BURST_SIZE_SET);
     pdq_do_port_control(csrs, PDQ_PCTL_SUB_CMD);
 
@@ -1408,8 +1395,7 @@ pdq_interrupt(
     pdq_uint32_t data;
     int progress = 0;
 
-    if (pdq->pdq_type == PDQ_DEFPA)
-	PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_status, 0x18);
+    PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_status, 0x18);
 
     while ((data = PDQ_CSR_READ(csrs, csr_port_status)) & PDQ_PSTS_INTR_PENDING) {
 	progress = 1;
@@ -1454,7 +1440,7 @@ pdq_interrupt(
 		    pdq_halt_code_t halt_code = PDQ_PSTS_HALT_ID(PDQ_CSR_READ(csrs, csr_port_status));
 		    printf(": halt code = %d (%s)\n",
 			   halt_code, pdq_halt_codes[halt_code]);
-		    if (halt_code == PDQH_DMA_ERROR && pdq->pdq_type == PDQ_DEFPA) {
+		    if (halt_code == PDQH_DMA_ERROR) {
 			PDQ_PRINTF(("\tPFI status = 0x%x, Host 0 Fatal Interrupt = 0x%x\n",
 			       PDQ_CSR_READ(&pdq->pdq_pci_csrs, csr_pfi_status),
 			       data & PDQ_HOST_INT_FATAL_ERROR));
@@ -1503,8 +1489,7 @@ pdq_interrupt(
 		PDQ_CSR_WRITE(csrs, csr_host_int_type_0, PDQ_HOST_INT_XMT_DATA_FLUSH);
 	    }
 	}
-	if (pdq->pdq_type == PDQ_DEFPA)
-	    PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_status, 0x18);
+	PDQ_CSR_WRITE(&pdq->pdq_pci_csrs, csr_pfi_status, 0x18);
     }
     return progress;
 }
@@ -1639,9 +1624,8 @@ pdq_initialize(
      * Initialize the CSR references.
      * the DEFAA (FutureBus+) skips a longword between registers
      */
-    pdq_init_csrs(&pdq->pdq_csrs, bus, csr_base, pdq->pdq_type == PDQ_DEFAA ? 2 : 1);
-    if (pdq->pdq_type == PDQ_DEFPA)
-	pdq_init_pci_csrs(&pdq->pdq_pci_csrs, bus, csr_base, 1);
+    pdq_init_csrs(&pdq->pdq_csrs, bus, csr_base, 1);
+    pdq_init_pci_csrs(&pdq->pdq_pci_csrs, bus, csr_base, 1);
 
     PDQ_PRINTF(("PDQ CSRs: BASE = " PDQ_OS_CSR_FMT "\n", pdq->pdq_csrs.csr_base));
     PDQ_PRINTF(("    Port Reset                = " PDQ_OS_CSR_FMT " [0x%08x]\n",
@@ -1774,7 +1758,7 @@ pdq_initialize(
     if (state == PDQS_HALTED) {
 	pdq_halt_code_t halt_code = PDQ_PSTS_HALT_ID(PDQ_CSR_READ(&pdq->pdq_csrs, csr_port_status));
 	printf("Halt code = %d (%s)\n", halt_code, pdq_halt_codes[halt_code]);
-	if (halt_code == PDQH_DMA_ERROR && pdq->pdq_type == PDQ_DEFPA)
+	if (halt_code == PDQH_DMA_ERROR)
 	    PDQ_PRINTF(("PFI status = 0x%x, Host 0 Fatal Interrupt = 0x%x\n",
 		       PDQ_CSR_READ(&pdq->pdq_pci_csrs, csr_pfi_status),
 		       PDQ_CSR_READ(&pdq->pdq_csrs, csr_host_int_type_0) & PDQ_HOST_INT_FATAL_ERROR));

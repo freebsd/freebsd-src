@@ -2154,7 +2154,7 @@ ieee802_11_if_print(netdissect_options *ndo,
 }
 
 
-/* $FreeBSD: projects/bsnmp-ipv6-mib/contrib/tcpdump/print-802_11.c 276788 2015-01-07 19:55:18Z delphij $ */
+/* $FreeBSD: projects/clang400-import/contrib/tcpdump/print-802_11.c 276788 2015-01-07 19:55:18Z delphij $ */
 /* NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp  */
 
 /*-

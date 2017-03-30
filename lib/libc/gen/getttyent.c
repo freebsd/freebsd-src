@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,14 +33,15 @@ static char sccsid[] = "@(#)getttyent.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ttyent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/sysctl.h>
+
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <string.h>
-
-#include <sys/types.h>
-#include <sys/sysctl.h>
+#include <ttyent.h>
 
 static char zapchar;
 static FILE *tf;
@@ -95,6 +96,24 @@ auto_tty_status(const char *ty_name)
 done:
 	free(buf);
 	return (0);
+}
+
+static int
+auto_exists_status(const char *ty_name)
+{
+	struct stat sb;
+	char *dev;
+	int rv;
+
+	rv = 0;
+	if (*ty_name == '/')
+		asprintf(&dev, "%s", ty_name);
+	else
+		asprintf(&dev, "/dev/%s", ty_name);
+	if (dev != NULL && stat(dev, &sb) == 0)
+		rv = TTY_ON;
+	free(dev);
+	return (rv);
 }
 
 struct ttyent *
@@ -161,6 +180,8 @@ getttyent(void)
 			tty.ty_status |= TTY_ON;
 		else if (scmp(_TTYS_ONIFCONSOLE))
 			tty.ty_status |= auto_tty_status(tty.ty_name);
+		else if (scmp(_TTYS_ONIFEXISTS))
+			tty.ty_status |= auto_exists_status(tty.ty_name);
 		else if (scmp(_TTYS_SECURE))
 			tty.ty_status |= TTY_SECURE;
 		else if (scmp(_TTYS_INSECURE))

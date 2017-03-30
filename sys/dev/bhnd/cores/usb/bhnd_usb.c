@@ -291,7 +291,7 @@ bhnd_usb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 		rv = rman_reserve_resource(&sc->mem_rman, start, end, count,
 		    flags, child);
-		if (rv == 0) {
+		if (rv == NULL) {
 			BHND_ERROR_DEV(bus, "could not reserve resource");
 			return (0);
 		}
@@ -312,7 +312,7 @@ bhnd_usb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 		rv = rman_reserve_resource(&sc->irq_rman, start, end, count,
 		    flags, child);
-		if (rv == 0) {
+		if (rv == NULL) {
 			BHND_ERROR_DEV(bus, "could not reserve resource");
 			return (0);
 		}

@@ -1503,11 +1503,10 @@ rum_tx_crypto_flags(struct rum_softc *sc, struct ieee80211_node *ni,
 static int
 rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct rum_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
 	struct ieee80211_key *k = NULL;
 	uint32_t flags = 0;
 	uint16_t dur;
@@ -1536,8 +1535,6 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
-
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2573_TX_NEED_ACK;
@@ -1642,7 +1639,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct rum_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k = NULL;
 	uint32_t flags = 0;
 	uint16_t dur;
@@ -1661,13 +1658,12 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		qos = 0;
 	ac = M_WME_GETAC(m0);
 
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (m0->m_flags & M_EAPOL)
+		rate = tp->mgmtrate;
+	else if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		rate = tp->mcastrate;
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;
-	else if (m0->m_flags & M_EAPOL)
-		rate = tp->mgmtrate;
 	else {
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
@@ -2190,12 +2186,11 @@ rum_set_chan(struct rum_softc *sc, struct ieee80211_channel *c)
 static void
 rum_set_maxretry(struct rum_softc *sc, struct ieee80211vap *vap)
 {
-	const struct ieee80211_txparam *tp;
 	struct ieee80211_node *ni = vap->iv_bss;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct rum_vap *rvp = RUM_VAP(vap);
 
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	rvp->maxretry = tp->maxretry < 0xf ? tp->maxretry : 0xf;
+	rvp->maxretry = MIN(tp->maxretry, 0xf);
 
 	rum_modbits(sc, RT2573_TXRX_CSR4, RT2573_SHORT_RETRY(rvp->maxretry) |
 	    RT2573_LONG_RETRY(rvp->maxretry),

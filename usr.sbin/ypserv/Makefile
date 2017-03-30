@@ -2,9 +2,8 @@
 
 .include <src.opts.mk>
 
-RPCDIR=	${.CURDIR}/../../include/rpcsvc
-.PATH: ${RPCDIR} \
-       ${.CURDIR}/common
+RPCDIR=	${SRCTOP}/include/rpcsvc
+.PATH: ${RPCDIR} ${.CURDIR}/common
 
 PROG=	ypserv
 MAN=	ypserv.8 ypinit.8

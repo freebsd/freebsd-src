@@ -41,9 +41,9 @@
 #define	NVRAM_MAGIC	0x48534C46
 
 void		chipc_register_slicer(chipc_flash flash_type);
-int		chipc_slicer_spi(device_t dev, struct flash_slice *slices,
-		    int *nslices);
-int		chipc_slicer_cfi(device_t dev, struct flash_slice *slices,
-		    int *nslices);
+int		chipc_slicer_spi(device_t dev, const char *provider,
+		    struct flash_slice *slices, int *nslices);
+int		chipc_slicer_cfi(device_t dev, const char *provider,
+		    struct flash_slice *slices, int *nslices);
 
 #endif /* _BHND_CORES_CHIPC_CHIPC_SLICER_H_ */

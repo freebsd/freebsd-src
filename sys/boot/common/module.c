@@ -183,6 +183,7 @@ command_load(int argc, char *argv[])
     return (error == 0 ? CMD_OK : CMD_CRIT);
 }
 
+#ifdef LOADER_GELI_SUPPORT
 COMMAND_SET(load_geli, "load_geli", "load a geli key", command_load_geli);
 
 static int
@@ -221,6 +222,7 @@ command_load_geli(int argc, char *argv[])
     sprintf(typestr, "%s:geli_keyfile%d", argv[1], num);
     return (file_loadraw(argv[2], typestr, 1) ? CMD_OK : CMD_ERROR);
 }
+#endif
 
 void
 unload(void)

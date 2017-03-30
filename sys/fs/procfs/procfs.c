@@ -104,8 +104,7 @@ procfs_attr(PFS_ATTR_ARGS)
 {
 
 	/* XXX inefficient, split into separate functions */
-	if (strcmp(pn->pn_name, "ctl") == 0 ||
-	    strcmp(pn->pn_name, "note") == 0 ||
+	if (strcmp(pn->pn_name, "note") == 0 ||
 	    strcmp(pn->pn_name, "notepg") == 0)
 		vap->va_mode = 0200;
 	else if (strcmp(pn->pn_name, "mem") == 0 ||
@@ -166,8 +165,6 @@ procfs_init(PFS_INIT_ARGS)
 	    procfs_attr, NULL, NULL, PFS_PROCDEP);
 	pfs_create_file(dir, "cmdline", procfs_doproccmdline,
 	    NULL, NULL, NULL, PFS_RD);
-	pfs_create_file(dir, "ctl", procfs_doprocctl,
-	    procfs_attr, NULL, NULL, PFS_WR);
 	pfs_create_file(dir, "dbregs", procfs_doprocdbregs,
 	    procfs_attr, procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
 	pfs_create_file(dir, "etype", procfs_doproctype,

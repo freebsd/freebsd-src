@@ -52,7 +52,7 @@
 		stdout-path = "serial2:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x80000000>;
 	};
@@ -62,19 +62,6 @@
 		#clock-cells = <0>;
 		clock-frequency = <125000000>;
 		clock-output-names = "ext_gmac";
-	};
-
-	io_domains: io-domains {
-		compatible = "rockchip,rk3288-io-voltage-domain";
-
-		audio-supply = <&vcca_33>;
-		flash0-supply = <&vcc_flash>;
-		flash1-supply = <&vcc_lan>;
-		gpio30-supply = <&vcc_io>;
-		gpio1830-supply = <&vcc_io>;
-		lcdc-supply = <&vcc_io>;
-		sdcard-supply = <&vccio_sd>;
-		wifi-supply = <&vcc_18>;
 	};
 
 	leds {
@@ -319,6 +306,19 @@
 
 &i2c5 {
 	status = "okay";
+};
+
+&io_domains {
+	status = "okay";
+
+	audio-supply = <&vcca_33>;
+	flash0-supply = <&vcc_flash>;
+	flash1-supply = <&vcc_lan>;
+	gpio30-supply = <&vcc_io>;
+	gpio1830-supply = <&vcc_io>;
+	lcdc-supply = <&vcc_io>;
+	sdcard-supply = <&vccio_sd>;
+	wifi-supply = <&vcc_18>;
 };
 
 &pinctrl {

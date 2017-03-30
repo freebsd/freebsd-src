@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -155,7 +155,7 @@ common:			if (set->cmd2 & CMD2_CLR) {
 	if (set >= endset) {						\
 		BITCMD *newset;						\
 		setlen += SET_LEN_INCR;					\
-		newset = realloc(saveset, sizeof(BITCMD) * setlen);	\
+		newset = reallocarray(saveset, setlen, sizeof(BITCMD));	\
 		if (newset == NULL)					\
 			goto out;					\
 		set = newset + (set - saveset);				\
@@ -175,7 +175,7 @@ setmode(const char *p)
 	mode_t mask, perm, permXbits, who;
 	long perml;
 	int equalopdone;
-	int setlen;
+	u_int setlen;
 
 	if (!*p) {
 		errno = EINVAL;
@@ -190,7 +190,7 @@ setmode(const char *p)
 
 	setlen = SET_LEN + 2;
 
-	if ((set = malloc((u_int)(sizeof(BITCMD) * setlen))) == NULL)
+	if ((set = malloc(setlen * sizeof(BITCMD))) == NULL)
 		return (NULL);
 	saveset = set;
 	endset = set + (setlen - 2);

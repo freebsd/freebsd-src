@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/journal
+.PATH: ${SRCTOP}/sys/geom/journal
 
 KMOD=	geom_journal
 SRCS=	g_journal.c

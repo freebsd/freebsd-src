@@ -27,7 +27,7 @@
  * Portions Copyright 2010 Robert Milkowski
  *
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  */
@@ -202,10 +202,21 @@ int zvol_maxphys = DMU_MAX_ACCESS/2;
  * Toggle unmap functionality.
  */
 boolean_t zvol_unmap_enabled = B_TRUE;
+
+/*
+ * If true, unmaps requested as synchronous are executed synchronously,
+ * otherwise all unmaps are asynchronous.
+ */
+boolean_t zvol_unmap_sync_enabled = B_FALSE;
+
 #ifndef illumos
 SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, unmap_enabled, CTLFLAG_RWTUN,
     &zvol_unmap_enabled, 0,
     "Enable UNMAP functionality");
+
+SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, unmap_sync_enabled, CTLFLAG_RWTUN,
+    &zvol_unmap_sync_enabled, 0,
+    "UNMAPs requested as sync are executed synchronously");
 
 static d_open_t		zvol_d_open;
 static d_close_t	zvol_d_close;
@@ -267,7 +278,16 @@ zvol_size_changed(zvol_state_t *zv, uint64_t volsize)
 		if (pp == NULL)
 			return;
 		g_topology_lock();
-		g_resize_provider(pp, zv->zv_volsize);
+
+		/*
+		 * Do not invoke resize event when initial size was zero.
+		 * ZVOL initializes the size on first open, this is not
+		 * real resizing.
+		 */
+		if (pp->mediasize == 0)
+			pp->mediasize = zv->zv_volsize;
+		else
+			g_resize_provider(pp, zv->zv_volsize);
 		g_topology_unlock();
 	}
 #endif	/* illumos */
@@ -2268,26 +2288,21 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 
 		zfs_range_unlock(rl);
 
-		if (error == 0) {
-			/*
-			 * If the write-cache is disabled or 'sync' property
-			 * is set to 'always' then treat this as a synchronous
-			 * operation (i.e. commit to zil).
-			 */
-			if (!(zv->zv_flags & ZVOL_WCE) ||
-			    (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS))
-				zil_commit(zv->zv_zilog, ZVOL_OBJ);
-
-			/*
-			 * If the caller really wants synchronous writes, and
-			 * can't wait for them, don't return until the write
-			 * is done.
-			 */
-			if (df.df_flags & DF_WAIT_SYNC) {
-				txg_wait_synced(
-				    dmu_objset_pool(zv->zv_objset), 0);
-			}
+		/*
+		 * If the write-cache is disabled, 'sync' property
+		 * is set to 'always', or if the caller is asking for
+		 * a synchronous free, commit this operation to the zil.
+		 * This will sync any previous uncommitted writes to the
+		 * zvol object.
+		 * Can be overridden by the zvol_unmap_sync_enabled tunable.
+		 */
+		if ((error == 0) && zvol_unmap_sync_enabled &&
+		    (!(zv->zv_flags & ZVOL_WCE) ||
+		    (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS) ||
+		    (df.df_flags & DF_WAIT_SYNC))) {
+			zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		}
+
 		return (error);
 	}
 

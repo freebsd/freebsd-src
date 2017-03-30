@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -165,8 +165,7 @@ kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, vm_memattr_t memattr)
 {
 	vm_object_t object = vmem == kmem_arena ? kmem_object : kernel_object;
-	vm_offset_t addr, i;
-	vm_ooffset_t offset;
+	vm_offset_t addr, i, offset;
 	vm_page_t m;
 	int pflags, tries;
 
@@ -179,7 +178,7 @@ kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		tries = 0;
 retry:
-		m = vm_page_alloc_contig(object, OFF_TO_IDX(offset + i),
+		m = vm_page_alloc_contig(object, atop(offset + i),
 		    pflags, 1, low, high, PAGE_SIZE, 0, memattr);
 		if (m == NULL) {
 			VM_OBJECT_WUNLOCK(object);
@@ -220,8 +219,7 @@ kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
     vm_memattr_t memattr)
 {
 	vm_object_t object = vmem == kmem_arena ? kmem_object : kernel_object;
-	vm_offset_t addr, tmp;
-	vm_ooffset_t offset;
+	vm_offset_t addr, offset, tmp;
 	vm_page_t end_m, m;
 	u_long npages;
 	int pflags, tries;
@@ -235,7 +233,7 @@ kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
 	VM_OBJECT_WLOCK(object);
 	tries = 0;
 retry:
-	m = vm_page_alloc_contig(object, OFF_TO_IDX(offset), pflags,
+	m = vm_page_alloc_contig(object, atop(offset), pflags,
 	    npages, low, high, alignment, boundary, memattr);
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
@@ -346,7 +344,7 @@ kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 retry:
-		m = vm_page_alloc(object, OFF_TO_IDX(offset + i), pflags);
+		m = vm_page_alloc(object, atop(offset + i), pflags);
 
 		/*
 		 * Ran out of space, free everything up and return. Don't need
@@ -398,7 +396,7 @@ kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		m = vm_page_lookup(object, OFF_TO_IDX(offset + i));
+		m = vm_page_lookup(object, atop(offset + i));
 		vm_page_unwire(m, PQ_NONE);
 		vm_page_free(m);
 	}
@@ -552,11 +550,13 @@ debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &i, 0, req);
 	if (error)
 		return (error);
-	if (i)	 
-		EVENTHANDLER_INVOKE(vm_lowmem, 0);
+	if ((i & ~(VM_LOW_KMEM | VM_LOW_PAGES)) != 0)
+		return (EINVAL);
+	if (i != 0)
+		EVENTHANDLER_INVOKE(vm_lowmem, i);
 	return (0);
 }
 
 SYSCTL_PROC(_debug, OID_AUTO, vm_lowmem, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
-    debug_vm_lowmem, "I", "set to trigger vm_lowmem event");
+    debug_vm_lowmem, "I", "set to trigger vm_lowmem event with given flags");
 #endif

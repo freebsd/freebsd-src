@@ -1,3 +1,3 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../../Makefile.inc"
+.include "${SRCTOP}/usr.sbin/Makefile.inc"

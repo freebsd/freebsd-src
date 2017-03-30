@@ -61,6 +61,7 @@ struct acpi_hpcib_softc {
     device_t		ap_dev;
     ACPI_HANDLE		ap_handle;
     int			ap_flags;
+    uint32_t		ap_osc_ctl;
 
     int			ap_segment;	/* PCI domain */
     int			ap_bus;		/* bios-assigned bus number */
@@ -105,6 +106,8 @@ static int		acpi_pcib_acpi_release_resource(device_t dev,
 			    struct resource *r);
 #endif
 #endif
+static int		acpi_pcib_request_feature(device_t pcib, device_t dev,
+			    enum pci_feature feature);
 
 static device_method_t acpi_pcib_acpi_methods[] = {
     /* Device interface */
@@ -145,6 +148,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
     DEVMETHOD(pcib_map_msi,		acpi_pcib_map_msi),
     DEVMETHOD(pcib_power_for_sleep,	acpi_pcib_power_for_sleep),
+    DEVMETHOD(pcib_request_feature,	acpi_pcib_request_feature),
 
     DEVMETHOD_END
 };
@@ -298,8 +302,8 @@ first_decoded_bus(struct acpi_hpcib_softc *sc, rman_res_t *startp)
 }
 #endif
 
-static void
-acpi_pcib_osc(struct acpi_hpcib_softc *sc)
+static int
+acpi_pcib_osc(struct acpi_hpcib_softc *sc, uint32_t osc_ctl)
 {
 	ACPI_STATUS status;
 	uint32_t cap_set[3];
@@ -317,33 +321,27 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc)
 	    PCIM_OSC_SUPPORT_MSI;
 
 	/* Control Field */
-	cap_set[PCI_OSC_CTL] = 0;
-
-#ifdef PCI_HP
-	/* Control Field: PCI Express Native Hot Plug */
-	cap_set[PCI_OSC_CTL] |= PCIM_OSC_CTL_PCIE_HP;
-#endif
+	sc->ap_osc_ctl |= osc_ctl;
+	cap_set[PCI_OSC_CTL] = sc->ap_osc_ctl;
 
 	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
 	    nitems(cap_set), cap_set, cap_set, false);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_FOUND)
-			return;
+			return (0);
 		device_printf(sc->ap_dev, "_OSC failed: %s\n",
 		    AcpiFormatException(status));
-		return;
+		return (EIO);
 	}
 
-	if (cap_set[PCI_OSC_STATUS] != 0) {
-		device_printf(sc->ap_dev, "_OSC returned error %#x\n",
-		    cap_set[0]);
-	}
+	if (cap_set[PCI_OSC_STATUS] == 0)
+		sc->ap_osc_ctl = cap_set[PCI_OSC_CTL];
 
-#ifdef PCI_HP
-	if ((cap_set[PCI_OSC_CTL] & PCIM_OSC_CTL_PCIE_HP) == 0 && bootverbose) {
-		device_printf(sc->ap_dev, "_OSC didn't allow HP control\n");
-	}
-#endif
+	if (cap_set[PCI_OSC_STATUS] != 0 ||
+	    (cap_set[PCI_OSC_CTL] & osc_ctl) != osc_ctl)
+		return (EIO);
+
+	return (0);
 }
 
 static int
@@ -372,7 +370,7 @@ acpi_pcib_acpi_attach(device_t dev)
     if (!acpi_DeviceIsPresent(dev))
 	return (ENXIO);
 
-    acpi_pcib_osc(sc);
+    acpi_pcib_osc(sc, 0);
 
     /*
      * Get our segment number by evaluating _SEG.
@@ -722,3 +720,25 @@ acpi_pcib_acpi_release_resource(device_t dev, device_t child, int type, int rid,
 }
 #endif
 #endif
+
+static int
+acpi_pcib_request_feature(device_t pcib, device_t dev, enum pci_feature feature)
+{
+	uint32_t osc_ctl;
+	struct acpi_hpcib_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	switch (feature) {
+	case PCI_FEATURE_HP:
+		osc_ctl = PCIM_OSC_CTL_PCIE_HP;
+		break;
+	case PCI_FEATURE_AER:
+		osc_ctl = PCIM_OSC_CTL_PCIE_AER;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (acpi_pcib_osc(sc, osc_ctl));
+}

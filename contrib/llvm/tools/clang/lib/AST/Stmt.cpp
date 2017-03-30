@@ -315,7 +315,7 @@ AttributedStmt *AttributedStmt::Create(const ASTContext &C, SourceLocation Loc,
                                        Stmt *SubStmt) {
   assert(!Attrs.empty() && "Attrs should not be empty");
   void *Mem = C.Allocate(sizeof(AttributedStmt) + sizeof(Attr *) * Attrs.size(),
-                         llvm::alignOf<AttributedStmt>());
+                         alignof(AttributedStmt));
   return new (Mem) AttributedStmt(Loc, Attrs, SubStmt);
 }
 
@@ -323,7 +323,7 @@ AttributedStmt *AttributedStmt::CreateEmpty(const ASTContext &C,
                                             unsigned NumAttrs) {
   assert(NumAttrs > 0 && "NumAttrs should be greater than zero");
   void *Mem = C.Allocate(sizeof(AttributedStmt) + sizeof(Attr *) * NumAttrs,
-                         llvm::alignOf<AttributedStmt>());
+                         alignof(AttributedStmt));
   return new (Mem) AttributedStmt(EmptyShell(), NumAttrs);
 }
 
@@ -533,15 +533,17 @@ unsigned GCCAsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
       DiagOffs = CurPtr-StrStart-1;
       return diag::err_asm_invalid_escape;
     }
-
+    // Handle escaped char and continue looping over the asm string.
     char EscapedChar = *CurPtr++;
-    if (EscapedChar == '%') {  // %% -> %
-      // Escaped percentage sign.
-      CurStringPiece += '%';
+    switch (EscapedChar) {
+    default:
+      break;
+    case '%': // %% -> %
+    case '{': // %{ -> {
+    case '}': // %} -> }
+      CurStringPiece += EscapedChar;
       continue;
-    }
-
-    if (EscapedChar == '=') {  // %= -> Generate an unique ID.
+    case '=': // %= -> Generate a unique ID.
       CurStringPiece += "${:uid}";
       continue;
     }
@@ -794,6 +796,10 @@ void IfStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
                                    VarRange.getEnd());
 }
 
+bool IfStmt::isObjCAvailabilityCheck() const {
+  return isa<ObjCAvailabilityCheckExpr>(SubExprs[COND]);
+}
+
 ForStmt::ForStmt(const ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar,
                  Expr *Inc, Stmt *Body, SourceLocation FL, SourceLocation LP,
                  SourceLocation RP)
@@ -998,7 +1004,7 @@ CapturedStmt::Capture *CapturedStmt::getStoredCaptures() const {
   unsigned Size = sizeof(CapturedStmt) + sizeof(Stmt *) * (NumCaptures + 1);
 
   // Offset of the first Capture object.
-  unsigned FirstCaptureOffset = llvm::alignTo(Size, llvm::alignOf<Capture>());
+  unsigned FirstCaptureOffset = llvm::alignTo(Size, alignof(Capture));
 
   return reinterpret_cast<Capture *>(
       reinterpret_cast<char *>(const_cast<CapturedStmt *>(this))
@@ -1055,7 +1061,7 @@ CapturedStmt *CapturedStmt::Create(const ASTContext &Context, Stmt *S,
   unsigned Size = sizeof(CapturedStmt) + sizeof(Stmt *) * (Captures.size() + 1);
   if (!Captures.empty()) {
     // Realign for the following Capture array.
-    Size = llvm::alignTo(Size, llvm::alignOf<Capture>());
+    Size = llvm::alignTo(Size, alignof(Capture));
     Size += sizeof(Capture) * Captures.size();
   }
 
@@ -1068,7 +1074,7 @@ CapturedStmt *CapturedStmt::CreateDeserialized(const ASTContext &Context,
   unsigned Size = sizeof(CapturedStmt) + sizeof(Stmt *) * (NumCaptures + 1);
   if (NumCaptures > 0) {
     // Realign for the following Capture array.
-    Size = llvm::alignTo(Size, llvm::alignOf<Capture>());
+    Size = llvm::alignTo(Size, alignof(Capture));
     Size += sizeof(Capture) * NumCaptures;
   }
 

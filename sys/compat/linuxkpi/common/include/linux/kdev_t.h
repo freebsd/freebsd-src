@@ -31,6 +31,8 @@
 #ifndef	_LINUX_KDEV_T_H_
 #define	_LINUX_KDEV_T_H_
 
+#include <sys/types.h>
+
 #define MAJOR(dev)      major((dev))
 #define MINOR(dev)      minor((dev))
 #define MKDEV(ma, mi)   makedev((ma), (mi))

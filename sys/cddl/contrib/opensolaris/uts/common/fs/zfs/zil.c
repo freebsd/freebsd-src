@@ -838,7 +838,7 @@ zil_flush_vdevs(zilog_t *zilog)
 	avl_tree_t *t = &zilog->zl_vdev_tree;
 	void *cookie = NULL;
 	zil_vdev_node_t *zv;
-	zio_t *zio;
+	zio_t *zio = NULL;
 
 	ASSERT(zilog->zl_writer);
 
@@ -851,12 +851,13 @@ zil_flush_vdevs(zilog_t *zilog)
 
 	spa_config_enter(spa, SCL_STATE, FTAG, RW_READER);
 
-	zio = zio_root(spa, NULL, NULL, ZIO_FLAG_CANFAIL);
-
 	while ((zv = avl_destroy_nodes(t, &cookie)) != NULL) {
 		vdev_t *vd = vdev_lookup_top(spa, zv->zv_vdev);
-		if (vd != NULL)
+		if (vd != NULL && !vd->vdev_nowritecache) {
+			if (zio == NULL)
+				zio = zio_root(spa, NULL, NULL, ZIO_FLAG_CANFAIL);
 			zio_flush(zio, vd);
+		}
 		kmem_free(zv, sizeof (*zv));
 	}
 
@@ -864,7 +865,8 @@ zil_flush_vdevs(zilog_t *zilog)
 	 * Wait for all the flushes to complete.  Not all devices actually
 	 * support the DKIOCFLUSHWRITECACHE ioctl, so it's OK if it fails.
 	 */
-	(void) zio_wait(zio);
+	if (zio)
+		(void) zio_wait(zio);
 
 	spa_config_exit(spa, SCL_STATE, FTAG);
 }
@@ -957,7 +959,7 @@ uint64_t zil_block_buckets[] = {
  * Calls are serialized.
  */
 static lwb_t *
-zil_lwb_write_start(zilog_t *zilog, lwb_t *lwb)
+zil_lwb_write_start(zilog_t *zilog, lwb_t *lwb, boolean_t last)
 {
 	lwb_t *nlwb = NULL;
 	zil_chain_t *zilc;
@@ -1058,6 +1060,8 @@ zil_lwb_write_start(zilog_t *zilog, lwb_t *lwb)
 	 */
 	bzero(lwb->lwb_buf + lwb->lwb_nused, wsz - lwb->lwb_nused);
 
+	if (last)
+		lwb->lwb_zio->io_pipeline &= ~ZIO_STAGE_ISSUE_ASYNC;
 	zio_nowait(lwb->lwb_zio); /* Kick off the write for the old log block */
 
 	/*
@@ -1101,7 +1105,7 @@ cont:
 	if (reclen > lwb_sp || (reclen + dlen > lwb_sp &&
 	    lwb_sp < ZIL_MAX_LOG_DATA / 8 && (dlen % ZIL_MAX_LOG_DATA == 0 ||
 	    lwb_sp < reclen + dlen % ZIL_MAX_LOG_DATA))) {
-		lwb = zil_lwb_write_start(zilog, lwb);
+		lwb = zil_lwb_write_start(zilog, lwb, B_FALSE);
 		if (lwb == NULL)
 			return (NULL);
 		zil_lwb_write_init(zilog, lwb);
@@ -1558,7 +1562,7 @@ zil_commit_writer(zilog_t *zilog)
 
 	/* write the last block out */
 	if (lwb != NULL && lwb->lwb_zio != NULL)
-		lwb = zil_lwb_write_start(zilog, lwb);
+		lwb = zil_lwb_write_start(zilog, lwb, B_TRUE);
 
 	zilog->zl_cur_used = 0;
 

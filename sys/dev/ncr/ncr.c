@@ -4152,10 +4152,6 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
-	case XPT_EN_LUN:		/* Enable LUN as a target */
-	case XPT_TARGET_IO:		/* Execute target I/O request */
-	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
 	case XPT_ABORT:			/* Abort the specified CCB */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
@@ -5210,7 +5206,7 @@ static void ncr_log_hard_error(ncb_p np, u_short sist, u_char dstat)
 	} else {
 		script_ofs	= dsp;
 		script_size	= 0;
-		script_base	= 0;
+		script_base	= NULL;
 		script_name	= "mem";
 	}
 
@@ -5813,7 +5809,7 @@ static void ncr_int_sir (ncb_p np)
 	u_char scntl3;
 	u_char chg, ofs, per, fak, wide;
 	u_char num = INB (nc_dsps);
-	nccb_p	cp=0;
+	nccb_p	cp = NULL;
 	u_long	dsa;
 	u_int	target = INB (nc_sdid) & 0x0f;
 	tcb_p	tp     = &np->target[target];

@@ -651,14 +651,26 @@ skip_fp_send:
 		ace_event_data =
 		    (pMpi26EventDataActiveCableExcept_t)fw_event->event_data;
 
-		if (ace_event_data->ReasonCode ==
-		    MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER) {
-			mpr_printf(sc, "Currently an active cable with "
+		switch(ace_event_data->ReasonCode) {
+		case MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER:
+		{
+			mpr_printf(sc, "Currently a cable with "
 			    "ReceptacleID %d cannot be powered and device "
 			    "connected to this active cable will not be seen. "
 			    "This active cable requires %d mW of power.\n",
 			    ace_event_data->ReceptacleID,
 			    ace_event_data->ActiveCablePowerRequirement);
+			break;
+		}
+		case MPI26_EVENT_ACTIVE_CABLE_DEGRADED:
+		{
+			mpr_printf(sc, "Currently a cable with "
+			    "ReceptacleID %d is not running at optimal speed "
+			    "(12 Gb/s rate)\n", ace_event_data->ReceptacleID);
+			break;
+		}
+		default:
+			break;
 		}
 		break;
 	}

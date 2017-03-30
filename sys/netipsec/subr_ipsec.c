@@ -126,9 +126,12 @@ ipsec6_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
 
 #ifdef IPSEC_SUPPORT
 /*
- * Declare IPSEC_SUPPORT as module even if IPSEC is defined.
- * tcpmd5.ko module depends from IPSEC_SUPPORT.
+ * IPSEC_SUPPORT - loading of ipsec.ko and tcpmd5.ko is supported.
+ * IPSEC + IPSEC_SUPPORT - loading tcpmd5.ko is supported.
+ * IPSEC + TCP_SIGNATURE - all is build in the kernel, do not build
+ *   IPSEC_SUPPORT.
  */
+#if !defined(IPSEC) || !defined(TCP_SIGNATURE)
 #define	IPSEC_MODULE_INCR	2
 static int
 ipsec_kmod_enter(volatile u_int *cntr)
@@ -181,6 +184,30 @@ type name (decl)							\
 	return (ret);							\
 }
 
+static int
+ipsec_support_modevent(module_t mod, int type, void *data)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		return (0);
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static moduledata_t ipsec_support_mod = {
+	"ipsec_support",
+	ipsec_support_modevent,
+	0
+};
+DECLARE_MODULE(ipsec_support, ipsec_support_mod, SI_SUB_PROTO_DOMAIN,
+    SI_ORDER_ANY);
+MODULE_VERSION(ipsec_support, 1);
+#endif /* !IPSEC || !TCP_SIGNATURE */
+
 #ifndef TCP_SIGNATURE
 /* Declare TCP-MD5 support as kernel module. */
 static struct tcpmd5_support tcpmd5_ipsec = {
@@ -222,30 +249,7 @@ tcpmd5_support_disable(void)
 		tcp_ipsec_support->methods = NULL;
 	}
 }
-#endif
-
-static int
-ipsec_support_modevent(module_t mod, int type, void *data)
-{
-
-	switch (type) {
-	case MOD_LOAD:
-		return (0);
-	case MOD_UNLOAD:
-		return (EBUSY);
-	default:
-		return (EOPNOTSUPP);
-	}
-}
-
-static moduledata_t ipsec_support_mod = {
-	"ipsec_support",
-	ipsec_support_modevent,
-	0
-};
-DECLARE_MODULE(ipsec_support, ipsec_support_mod, SI_SUB_PROTO_DOMAIN,
-    SI_ORDER_ANY);
-MODULE_VERSION(ipsec_support, 1);
+#endif /* !TCP_SIGNATURE */
 
 #ifndef IPSEC
 /*

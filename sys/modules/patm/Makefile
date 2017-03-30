@@ -2,7 +2,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #
-.PATH: ${.CURDIR}/../../dev/patm
+.PATH: ${SRCTOP}/sys/dev/patm
 
 KMOD=	if_patm
 SRCS=	if_patm.c if_patm_attach.c if_patm_ioctl.c if_patm_intr.c \

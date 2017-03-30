@@ -1,5 +1,20 @@
 OpenBSM Version History
 
+OpenBSM 1.2 alpha 5
+
+- Add a new "qsize" parameter in audit_control and the getacqsize(3) API to
+  query it, allowing to set the kernel's maximum audit queue length.
+- Add support to push a mapping between audit event names and event numbers
+  into the kernel (where supported) using new A_GETEVENT and A_SETEVENT
+  auditon(2) operations.
+- Add audit event identifiers for a number of new (and not-so-new) FreeBSD
+  system calls including those for asynchronous I/O, thread management, SCTP,
+  jails, multi-FIB support, and misc. POSIX interfaces such as
+  posix_fallocate(2) and posix_fadvise(2).
+- On operating systems supporting Capsicum, auditreduce(1) and praudit(1) now
+  run sandboxed.
+- Empty "flags" and "naflags" fields are now permitted in audit_control(5).
+
 OpenBSM 1.2 alpha 4
 
 - Fix praudit to emit correct XML.

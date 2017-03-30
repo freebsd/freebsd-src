@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCDIR=		${.CURDIR}/../../../../contrib/llvm/tools/clang
+SRCDIR=		${SRCTOP}/contrib/llvm/tools/clang
 
 .PATH: ${SRCDIR}
 

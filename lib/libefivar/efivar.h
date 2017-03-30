@@ -49,7 +49,11 @@
 #endif
 
 
+#ifndef _EFIVAR_EFI_GUID_T_DEF
+#define _EFIVAR_EFI_GUID_T_DEF
 typedef uuid_t efi_guid_t;
+#endif
+
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define	EFI_GUID(a, b, c, d, e0, e1, e2, e3, e4, e5)			\
 	((efi_guid_t) {(a), (b), (c), (d) >> 8, (d) & 0xff,		\
@@ -82,6 +86,16 @@ int efi_set_variable(efi_guid_t guid, const char *name,
     uint8_t *data, size_t data_size, uint32_t attributes, mode_t mode);
 int efi_str_to_guid(const char *s, efi_guid_t *guid);
 int efi_variables_supported(void);
+
+/* FreeBSD extensions */
+struct uuid_table
+{
+	const char *uuid_str;
+	const char *name;
+	efi_guid_t guid;
+};
+
+int efi_known_guid(struct uuid_table **);
 
 extern const efi_guid_t efi_guid_empty;
 

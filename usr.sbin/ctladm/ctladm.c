@@ -43,25 +43,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
-#include <sys/linker.h>
-#include <sys/queue.h>
 #include <sys/callout.h>
+#include <sys/ioctl.h>
+#include <sys/linker.h>
+#include <sys/module.h>
+#include <sys/queue.h>
 #include <sys/sbuf.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <sys/stat.h>
+#include <bsdxml.h>
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
-#include <errno.h>
-#include <err.h>
-#include <ctype.h>
-#include <bsdxml.h>
+#include <unistd.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/ctl/ctl.h>
@@ -4153,6 +4153,13 @@ main(int argc, char **argv)
 			retval = 1;
 			goto bailout;
 		}
+#ifdef	WANT_ISCSI
+		else {
+			if (modfind("cfiscsi") == -1 &&
+			    kldload("cfiscsi") == -1)
+				warn("couldn't load cfiscsi");
+		}
+#endif
 	} else if ((command != CTLADM_CMD_HELP)
 		&& ((cmdargs & CTLADM_ARG_DEVICE) == 0)) {
 		fprintf(stderr, "%s: you must specify a device with the "

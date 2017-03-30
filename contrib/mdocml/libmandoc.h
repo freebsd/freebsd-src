@@ -1,4 +1,4 @@
-/*	$Id: libmandoc.h,v 1.64 2016/07/19 13:36:13 schwarze Exp $ */
+/*	$Id: libmandoc.h,v 1.66 2017/02/18 13:43:52 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
@@ -43,7 +43,7 @@ void		 mandoc_msg(enum mandocerr, struct mparse *,
 			int, int, const char *);
 void		 mandoc_vmsg(enum mandocerr, struct mparse *,
 			int, int, const char *, ...)
-			__attribute__((__format__ (printf, 5, 6)));
+			__attribute__((__format__ (__printf__, 5, 6)));
 char		*mandoc_getarg(struct mparse *, char **, int, int *);
 char		*mandoc_normdate(struct mparse *, char *, int, int);
 int		 mandoc_eos(const char *, size_t);
@@ -59,7 +59,7 @@ int		 man_parseln(struct roff_man *, int, char *, int);
 void		 man_endparse(struct roff_man *);
 
 int		 preconv_cue(const struct buf *, size_t);
-int		 preconv_encode(struct buf *, size_t *,
+int		 preconv_encode(const struct buf *, size_t *,
 			struct buf *, size_t *, int *);
 
 void		 roff_free(struct roff *);

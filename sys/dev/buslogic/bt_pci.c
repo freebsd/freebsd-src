@@ -58,8 +58,8 @@ static int
 bt_pci_alloc_resources(device_t dev)
 {
 	int		type = 0, rid, zero;
-	struct resource *regs = 0;
-	struct resource *irq = 0;
+	struct resource *regs = NULL;
+	struct resource *irq = NULL;
 
 #if 0
 	/* XXX Memory Mapped I/O seems to cause problems */

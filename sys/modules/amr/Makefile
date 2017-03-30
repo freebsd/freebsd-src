@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/amr
+.PATH: ${SRCTOP}/sys/dev/amr
 
 SUBDIR= amr_cam
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"

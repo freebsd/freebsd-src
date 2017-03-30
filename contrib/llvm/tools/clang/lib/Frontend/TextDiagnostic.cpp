@@ -18,7 +18,7 @@
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Locale.h"
-#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
@@ -119,16 +119,17 @@ printableTextForNextCharacter(StringRef SourceLine, size_t *i,
   begin = reinterpret_cast<unsigned char const *>(&*(SourceLine.begin() + *i));
   end = begin + (SourceLine.size() - *i);
   
-  if (isLegalUTF8Sequence(begin, end)) {
-    UTF32 c;
-    UTF32 *cptr = &c;
+  if (llvm::isLegalUTF8Sequence(begin, end)) {
+    llvm::UTF32 c;
+    llvm::UTF32 *cptr = &c;
     unsigned char const *original_begin = begin;
-    unsigned char const *cp_end = begin+getNumBytesForUTF8(SourceLine[*i]);
+    unsigned char const *cp_end =
+        begin + llvm::getNumBytesForUTF8(SourceLine[*i]);
 
-    ConversionResult res = ConvertUTF8toUTF32(&begin, cp_end, &cptr, cptr+1,
-                                              strictConversion);
+    llvm::ConversionResult res = llvm::ConvertUTF8toUTF32(
+        &begin, cp_end, &cptr, cptr + 1, llvm::strictConversion);
     (void)res;
-    assert(conversionOK==res);
+    assert(llvm::conversionOK == res);
     assert(0 < begin-original_begin
            && "we must be further along in the string now");
     *i += begin-original_begin;
@@ -764,6 +765,22 @@ void TextDiagnostic::printDiagnosticMessage(raw_ostream &OS,
   OS << '\n';
 }
 
+void TextDiagnostic::emitFilename(StringRef Filename, const SourceManager &SM) {
+  SmallVector<char, 128> AbsoluteFilename;
+  if (DiagOpts->AbsolutePath) {
+    const DirectoryEntry *Dir = SM.getFileManager().getDirectory(
+        llvm::sys::path::parent_path(Filename));
+    if (Dir) {
+      StringRef DirName = SM.getFileManager().getCanonicalName(Dir);
+      llvm::sys::path::append(AbsoluteFilename, DirName,
+                              llvm::sys::path::filename(Filename));
+      Filename = StringRef(AbsoluteFilename.data(), AbsoluteFilename.size());
+    }
+  }
+
+  OS << Filename;
+}
+
 /// \brief Print out the file/line/column information and include trace.
 ///
 /// This method handlen the emission of the diagnostic location information.
@@ -780,7 +797,7 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
     if (FID.isValid()) {
       const FileEntry* FE = SM.getFileEntryForID(FID);
       if (FE && FE->isValid()) {
-        OS << FE->getName();
+        emitFilename(FE->getName(), SM);
         if (FE->isInPCH())
           OS << " (in PCH)";
         OS << ": ";
@@ -796,7 +813,7 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
   if (DiagOpts->ShowColors)
     OS.changeColor(savedColor, true);
 
-  OS << PLoc.getFilename();
+  emitFilename(PLoc.getFilename(), SM);
   switch (DiagOpts->getFormat()) {
   case DiagnosticOptions::Clang: OS << ':'  << LineNo; break;
   case DiagnosticOptions::MSVC:  OS << '('  << LineNo; break;

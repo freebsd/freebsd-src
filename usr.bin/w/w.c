@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -516,7 +516,7 @@ pr_header(time_t *nowp, int nusers)
 	/*
 	 * Print 1, 5, and 15 minute load averages.
 	 */
-	if (getloadavg(avenrun, sizeof(avenrun) / sizeof(avenrun[0])) == -1)
+	if (getloadavg(avenrun, nitems(avenrun)) == -1)
 		xo_emit(", no load average information available\n");
 	else {
 	        static const char *format[] = {
@@ -525,7 +525,7 @@ pr_header(time_t *nowp, int nusers)
 		    " {:load-average-15/%.2f}",
 		};
 		xo_emit(", load averages:");
-		for (i = 0; i < (int)(sizeof(avenrun) / sizeof(avenrun[0])); i++) {
+		for (i = 0; i < (int)(nitems(avenrun)); i++) {
 			if (use_comma && i > 0)
 				xo_emit(",");
 			xo_emit(format[i], avenrun[i]);

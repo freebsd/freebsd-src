@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2016
+.Dd March 13, 2017
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -551,8 +551,6 @@ Firmware images loaded by userland programs
 ASCII text files used by various games
 .It Pa groff_font/
 device description file for device name
-.It Pa info/
-GNU Info hypertext system
 .It Pa keys/
 known trusted and revoked keys.
 .Bl -tag -width ".Pa keys/pkg/" -compact
@@ -646,11 +644,6 @@ and
 .It Pa vi/
 localization support and utilities for
 .Xr vi 1
-.It Pa zoneinfo/
-timezone configuration information;
-see
-.Xr tzfile 5
-.El
 .It Pa vt/
 files used by vt;
 see
@@ -670,6 +663,11 @@ and
 .Xr kbdmap 1
 .\" .It Pa scrnmaps/
 .\" console screen maps
+.El
+.It Pa zoneinfo/
+timezone configuration information;
+see
+.Xr tzfile 5
 .El
 .It Pa src/
 .Bx ,
@@ -704,6 +702,9 @@ source code for files in
 files required to produce a
 .Fx
 release
+.It Pa rescue/
+source code for files in
+.Pa /rescue
 .It Pa sbin/
 source code for files in
 .Pa /sbin
@@ -715,6 +716,11 @@ source for files in
 .Pa /usr/share
 .It Pa sys/
 kernel source code
+.It Pa targets/
+support for experimental DIRDEPS_BUILD
+.It Pa tests/
+source code for files in
+.Pa /usr/tests
 .It Pa tools/
 tools used for maintenance and testing of
 .Fx

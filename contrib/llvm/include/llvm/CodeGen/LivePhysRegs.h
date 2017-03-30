@@ -31,8 +31,10 @@
 
 #include "llvm/ADT/SparseSet.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include <cassert>
+#include <utility>
 
 namespace llvm {
 
@@ -41,14 +43,15 @@ class MachineInstr;
 /// \brief A set of live physical registers with functions to track liveness
 /// when walking backward/forward through a basic block.
 class LivePhysRegs {
-  const TargetRegisterInfo *TRI;
+  const TargetRegisterInfo *TRI = nullptr;
   SparseSet<unsigned> LiveRegs;
 
   LivePhysRegs(const LivePhysRegs&) = delete;
   LivePhysRegs &operator=(const LivePhysRegs&) = delete;
+
 public:
   /// \brief Constructs a new empty LivePhysRegs set.
-  LivePhysRegs() : TRI(nullptr), LiveRegs() {}
+  LivePhysRegs() = default;
 
   /// \brief Constructs and initialize an empty LivePhysRegs set.
   LivePhysRegs(const TargetRegisterInfo *TRI) : TRI(TRI) {
@@ -57,11 +60,10 @@ public:
   }
 
   /// \brief Clear and initialize the LivePhysRegs set.
-  void init(const TargetRegisterInfo *TRI) {
-    assert(TRI && "Invalid TargetRegisterInfo pointer.");
-    this->TRI = TRI;
+  void init(const TargetRegisterInfo &TRI) {
+    this->TRI = &TRI;
     LiveRegs.clear();
-    LiveRegs.setUniverse(TRI->getNumRegs());
+    LiveRegs.setUniverse(TRI.getNumRegs());
   }
 
   /// \brief Clears the LivePhysRegs set.
@@ -141,6 +143,11 @@ public:
 
   /// \brief Dumps the currently live registers to the debug output.
   void dump() const;
+
+private:
+  /// Adds live-in registers from basic block @p MBB, taking associated
+  /// lane masks into consideration.
+  void addBlockLiveIns(const MachineBasicBlock &MBB);
 };
 
 inline raw_ostream &operator<<(raw_ostream &OS, const LivePhysRegs& LR) {
@@ -148,6 +155,13 @@ inline raw_ostream &operator<<(raw_ostream &OS, const LivePhysRegs& LR) {
   return OS;
 }
 
-} // namespace llvm
+/// Compute the live-in list for \p MBB assuming all of its successors live-in
+/// lists are up-to-date. Uses the given LivePhysReg instance \p LiveRegs; This
+/// is just here to avoid repeated heap allocations when calling this multiple
+/// times in a pass.
+void computeLiveIns(LivePhysRegs &LiveRegs, const TargetRegisterInfo &TRI,
+                    MachineBasicBlock &MBB);
 
-#endif
+} // end namespace llvm
+
+#endif // LLVM_CODEGEN_LIVEPHYSREGS_H

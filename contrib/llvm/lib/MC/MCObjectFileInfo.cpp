@@ -177,20 +177,6 @@ void MCObjectFileInfo::initMachOMCObjectFileInfo(const Triple &T) {
                            MachO::S_THREAD_LOCAL_VARIABLE_POINTERS,
                            SectionKind::getMetadata());
 
-  if (!PositionIndependent) {
-    StaticCtorSection = Ctx->getMachOSection("__TEXT", "__constructor", 0,
-                                             SectionKind::getData());
-    StaticDtorSection = Ctx->getMachOSection("__TEXT", "__destructor", 0,
-                                             SectionKind::getData());
-  } else {
-    StaticCtorSection = Ctx->getMachOSection("__DATA", "__mod_init_func",
-                                             MachO::S_MOD_INIT_FUNC_POINTERS,
-                                             SectionKind::getData());
-    StaticDtorSection = Ctx->getMachOSection("__DATA", "__mod_term_func",
-                                             MachO::S_MOD_TERM_FUNC_POINTERS,
-                                             SectionKind::getData());
-  }
-
   // Exception Handling.
   LSDASection = Ctx->getMachOSection("__TEXT", "__gcc_except_tab", 0,
                                      SectionKind::getReadOnlyWithRel());
@@ -311,6 +297,7 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T) {
     if (Ctx->getAsmInfo()->getExceptionHandlingType() == ExceptionHandling::ARM)
       break;
     // Fallthrough if not using EHABI
+    LLVM_FALLTHROUGH;
   case Triple::ppc:
   case Triple::x86:
     PersonalityEncoding = PositionIndependent
@@ -395,6 +382,14 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T) {
                     dwarf::DW_EH_PE_sdata4;
     // We don't support PC-relative LSDA references in GAS so we use the default
     // DW_EH_PE_absptr for those.
+
+    // FreeBSD must be explicit about the data size and using pcrel since it's
+    // assembler/linker won't do the automatic conversion that the Linux tools
+    // do.
+    if (T.isOSFreeBSD()) {
+      PersonalityEncoding |= dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4;
+      LSDAEncoding = dwarf::DW_EH_PE_pcrel | dwarf::DW_EH_PE_sdata4;
+    }
     break;
   case Triple::ppc64:
   case Triple::ppc64le:
@@ -497,12 +492,6 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T) {
   MergeableConst32Section =
       Ctx->getELFSection(".rodata.cst32", ELF::SHT_PROGBITS,
                          ELF::SHF_ALLOC | ELF::SHF_MERGE, 32, "");
-
-  StaticCtorSection = Ctx->getELFSection(".ctors", ELF::SHT_PROGBITS,
-                                         ELF::SHF_ALLOC | ELF::SHF_WRITE);
-
-  StaticDtorSection = Ctx->getELFSection(".dtors", ELF::SHT_PROGBITS,
-                                         ELF::SHF_ALLOC | ELF::SHF_WRITE);
 
   // Exception Handling Sections.
 
@@ -620,26 +609,6 @@ void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
   ReadOnlySection = Ctx->getCOFFSection(
       ".rdata", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA | COFF::IMAGE_SCN_MEM_READ,
       SectionKind::getReadOnly());
-
-  if (T.isKnownWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment()) {
-    StaticCtorSection =
-        Ctx->getCOFFSection(".CRT$XCU", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                                            COFF::IMAGE_SCN_MEM_READ,
-                            SectionKind::getReadOnly());
-    StaticDtorSection =
-        Ctx->getCOFFSection(".CRT$XTX", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                                            COFF::IMAGE_SCN_MEM_READ,
-                            SectionKind::getReadOnly());
-  } else {
-    StaticCtorSection = Ctx->getCOFFSection(
-        ".ctors", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                      COFF::IMAGE_SCN_MEM_READ | COFF::IMAGE_SCN_MEM_WRITE,
-        SectionKind::getData());
-    StaticDtorSection = Ctx->getCOFFSection(
-        ".dtors", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                      COFF::IMAGE_SCN_MEM_READ | COFF::IMAGE_SCN_MEM_WRITE,
-        SectionKind::getData());
-  }
 
   // FIXME: We're emitting LSDA info into a readonly section on COFF, even
   // though it contains relocatable pointers.  In PIC mode, this is probably a

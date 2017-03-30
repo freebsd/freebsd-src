@@ -17,6 +17,7 @@
 #include "clang/AST/AttrIterator.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/Basic/Specifiers.h"
+#include "clang/Basic/VersionTuple.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/iterator.h"
 #include "llvm/ADT/iterator_range.h"
@@ -32,6 +33,7 @@ class DeclContext;
 class DeclarationName;
 class DependentDiagnostic;
 class EnumDecl;
+class ExportDecl;
 class FunctionDecl;
 class FunctionType;
 enum Linkage : unsigned char;
@@ -566,6 +568,10 @@ public:
     return NextInContextAndBits.getInt() & ModulePrivateFlag;
   }
 
+  /// \brief Whether this declaration is exported (by virtue of being lexically
+  /// within an ExportDecl or by being a NamespaceDecl).
+  bool isExported() const;
+
   /// Return true if this declaration has an attribute which acts as
   /// definition of the entity, such as 'alias' or 'ifunc'.
   bool hasDefiningAttr() const;
@@ -603,7 +609,12 @@ public:
   /// AR_Available, will be set to a (possibly empty) message
   /// describing why the declaration has not been introduced, is
   /// deprecated, or is unavailable.
-  AvailabilityResult getAvailability(std::string *Message = nullptr) const;
+  ///
+  /// \param EnclosingVersion The version to compare with. If empty, assume the
+  /// deployment target version.
+  AvailabilityResult
+  getAvailability(std::string *Message = nullptr,
+                  VersionTuple EnclosingVersion = VersionTuple()) const;
 
   /// \brief Determine whether this declaration is marked 'deprecated'.
   ///
@@ -1129,6 +1140,7 @@ public:
 ///   ObjCMethodDecl
 ///   ObjCContainerDecl
 ///   LinkageSpecDecl
+///   ExportDecl
 ///   BlockDecl
 ///   OMPDeclareReductionDecl
 ///
@@ -1273,7 +1285,8 @@ public:
 
   /// \brief Test whether the context supports looking up names.
   bool isLookupContext() const {
-    return !isFunctionOrMethod() && DeclKind != Decl::LinkageSpec;
+    return !isFunctionOrMethod() && DeclKind != Decl::LinkageSpec &&
+           DeclKind != Decl::Export;
   }
 
   bool isFileContext() const {
@@ -1320,6 +1333,9 @@ public:
   /// \brief Determines whether this context or some of its ancestors is a
   /// linkage specification context that specifies C linkage.
   bool isExternCContext() const;
+
+  /// \brief Retrieve the nearest enclosing C linkage specification context.
+  const LinkageSpecDecl *getExternCContext() const;
 
   /// \brief Determines whether this context or some of its ancestors is a
   /// linkage specification context that specifies C++ linkage.

@@ -36,6 +36,8 @@ typedef struct {
 	volatile int64_t counter;
 } atomic64_t;
 
+#define	ATOMIC64_INIT(x)	{ .counter = (x) }
+
 /*------------------------------------------------------------------------*
  *	64-bit atomic operations
  *------------------------------------------------------------------------*/

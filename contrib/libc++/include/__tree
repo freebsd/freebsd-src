@@ -17,6 +17,8 @@
 #include <stdexcept>
 #include <algorithm>
 
+#include <__undef_min_max>
+
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
 #endif
@@ -25,9 +27,9 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Tp, class _Compare, class _Allocator> class __tree;
 template <class _Tp, class _NodePtr, class _DiffType>
-    class _LIBCPP_TYPE_VIS_ONLY __tree_iterator;
+    class _LIBCPP_TEMPLATE_VIS __tree_iterator;
 template <class _Tp, class _ConstNodePtr, class _DiffType>
-    class _LIBCPP_TYPE_VIS_ONLY __tree_const_iterator;
+    class _LIBCPP_TEMPLATE_VIS __tree_const_iterator;
 
 template <class _Pointer> class __tree_end_node;
 template <class _VoidPtr> class __tree_node_base;
@@ -42,8 +44,8 @@ struct __value_type;
 #endif
 
 template <class _Allocator> class __map_node_destructor;
-template <class _TreeIterator> class _LIBCPP_TYPE_VIS_ONLY __map_iterator;
-template <class _TreeIterator> class _LIBCPP_TYPE_VIS_ONLY __map_const_iterator;
+template <class _TreeIterator> class _LIBCPP_TEMPLATE_VIS __map_iterator;
+template <class _TreeIterator> class _LIBCPP_TEMPLATE_VIS __map_const_iterator;
 
 /*
 
@@ -797,7 +799,7 @@ public:
 
 
 template <class _Tp, class _NodePtr, class _DiffType>
-class _LIBCPP_TYPE_VIS_ONLY __tree_iterator
+class _LIBCPP_TEMPLATE_VIS __tree_iterator
 {
     typedef __tree_node_types<_NodePtr>                     _NodeTypes;
     typedef _NodePtr                                        __node_pointer;
@@ -861,16 +863,16 @@ private:
     _LIBCPP_INLINE_VISIBILITY
     __node_pointer __get_np() const { return static_cast<__node_pointer>(__ptr_); }
     template <class, class, class> friend class __tree;
-    template <class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY __tree_const_iterator;
-    template <class> friend class _LIBCPP_TYPE_VIS_ONLY __map_iterator;
-    template <class, class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY map;
-    template <class, class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY multimap;
-    template <class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY set;
-    template <class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY multiset;
+    template <class, class, class> friend class _LIBCPP_TEMPLATE_VIS __tree_const_iterator;
+    template <class> friend class _LIBCPP_TEMPLATE_VIS __map_iterator;
+    template <class, class, class, class> friend class _LIBCPP_TEMPLATE_VIS map;
+    template <class, class, class, class> friend class _LIBCPP_TEMPLATE_VIS multimap;
+    template <class, class, class> friend class _LIBCPP_TEMPLATE_VIS set;
+    template <class, class, class> friend class _LIBCPP_TEMPLATE_VIS multiset;
 };
 
 template <class _Tp, class _NodePtr, class _DiffType>
-class _LIBCPP_TYPE_VIS_ONLY __tree_const_iterator
+class _LIBCPP_TEMPLATE_VIS __tree_const_iterator
 {
     typedef __tree_node_types<_NodePtr>                     _NodeTypes;
     typedef typename _NodeTypes::__node_pointer             __node_pointer;
@@ -947,11 +949,11 @@ private:
     __node_pointer __get_np() const { return static_cast<__node_pointer>(__ptr_); }
 
     template <class, class, class> friend class __tree;
-    template <class, class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY map;
-    template <class, class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY multimap;
-    template <class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY set;
-    template <class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY multiset;
-    template <class> friend class _LIBCPP_TYPE_VIS_ONLY __map_const_iterator;
+    template <class, class, class, class> friend class _LIBCPP_TEMPLATE_VIS map;
+    template <class, class, class, class> friend class _LIBCPP_TEMPLATE_VIS multimap;
+    template <class, class, class> friend class _LIBCPP_TEMPLATE_VIS set;
+    template <class, class, class> friend class _LIBCPP_TEMPLATE_VIS multiset;
+    template <class> friend class _LIBCPP_TEMPLATE_VIS __map_const_iterator;
 
 };
 
@@ -1106,19 +1108,22 @@ public:
 
     _LIBCPP_INLINE_VISIBILITY
     size_type max_size() const _NOEXCEPT
-        {return __node_traits::max_size(__node_alloc());}
+        {return std::min<size_type>(
+                __node_traits::max_size(__node_alloc()),
+                numeric_limits<difference_type >::max());}
 
     void clear() _NOEXCEPT;
 
     void swap(__tree& __t)
+#if _LIBCPP_STD_VER <= 11
         _NOEXCEPT_(
             __is_nothrow_swappable<value_compare>::value
-#if _LIBCPP_STD_VER <= 11
             && (!__node_traits::propagate_on_container_swap::value ||
                  __is_nothrow_swappable<__node_allocator>::value)
-#endif
             );
-
+#else
+        _NOEXCEPT_(__is_nothrow_swappable<value_compare>::value);
+#endif
 
 #ifndef _LIBCPP_CXX03_LANG
     template <class _Key, class ..._Args>
@@ -1394,9 +1399,16 @@ private:
     __node_base_pointer&
         __find_leaf(const_iterator __hint,
                     __parent_pointer& __parent, const key_type& __v);
+    // FIXME: Make this function const qualified. Unfortunetly doing so
+    // breaks existing code which uses non-const callable comparators.
     template <class _Key>
     __node_base_pointer&
         __find_equal(__parent_pointer& __parent, const _Key& __v);
+    template <class _Key>
+    _LIBCPP_INLINE_VISIBILITY __node_base_pointer&
+    __find_equal(__parent_pointer& __parent, const _Key& __v) const {
+      return const_cast<__tree*>(this)->__find_equal(__parent, __v);
+    }
     template <class _Key>
     __node_base_pointer&
         __find_equal(const_iterator __hint, __parent_pointer& __parent,
@@ -1425,7 +1437,7 @@ private:
         __node_alloc() = __t.__node_alloc();
         }
     _LIBCPP_INLINE_VISIBILITY
-    void __copy_assign_alloc(const __tree& __t, false_type) {}
+    void __copy_assign_alloc(const __tree&, false_type) {}
 
     void __move_assign(__tree& __t, false_type);
     void __move_assign(__tree& __t, true_type)
@@ -1445,13 +1457,13 @@ private:
         _NOEXCEPT_(is_nothrow_move_assignable<__node_allocator>::value)
         {__node_alloc() = _VSTD::move(__t.__node_alloc());}
     _LIBCPP_INLINE_VISIBILITY
-    void __move_assign_alloc(__tree& __t, false_type) _NOEXCEPT {}
+    void __move_assign_alloc(__tree&, false_type) _NOEXCEPT {}
 
     __node_pointer __detach();
     static __node_pointer __detach(__node_pointer);
 
-    template <class, class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY map;
-    template <class, class, class, class> friend class _LIBCPP_TYPE_VIS_ONLY multimap;
+    template <class, class, class, class> friend class _LIBCPP_TEMPLATE_VIS map;
+    template <class, class, class, class> friend class _LIBCPP_TEMPLATE_VIS multimap;
 };
 
 template <class _Tp, class _Compare, class _Allocator>
@@ -1797,13 +1809,15 @@ __tree<_Tp, _Compare, _Allocator>::destroy(__node_pointer __nd) _NOEXCEPT
 template <class _Tp, class _Compare, class _Allocator>
 void
 __tree<_Tp, _Compare, _Allocator>::swap(__tree& __t)
+#if _LIBCPP_STD_VER <= 11
         _NOEXCEPT_(
             __is_nothrow_swappable<value_compare>::value
-#if _LIBCPP_STD_VER <= 11
             && (!__node_traits::propagate_on_container_swap::value ||
                  __is_nothrow_swappable<__node_allocator>::value)
-#endif
             )
+#else
+        _NOEXCEPT_(__is_nothrow_swappable<value_compare>::value)
+#endif
 {
     using _VSTD::swap;
     swap(__begin_node_, __t.__begin_node_);

@@ -312,8 +312,8 @@ compute_stats(struct ctl_io_stats *cur_stats,
  * conducive to programming, however.
  */
 
-#define	PRINT_BINTIME(prefix, bt) \
-	printf("%s %jd.%06ju\n", prefix, (intmax_t)(bt).sec, \
+#define	PRINT_BINTIME(bt) \
+	printf("%jd.%06ju", (intmax_t)(bt).sec, \
 	       (uintmax_t)(((bt).frac >> 32) * 1000000 >> 32))
 static const char *iotypes[] = {"NO IO", "READ", "WRITE"};
 
@@ -335,15 +335,15 @@ ctlstat_dump(struct ctlstat_context *ctx)
 			    stats[i].operations[iotype]);
 			printf("   dmas %ju\n", (uintmax_t)
 			    stats[i].dmas[iotype]);
-			PRINT_BINTIME("   io time", stats[i].time[iotype]);
-			PRINT_BINTIME("   dma time", stats[i].dma_time[iotype]);
+			printf("   io time ");
+			PRINT_BINTIME(stats[i].time[iotype]);
+			printf("\n   dma time ");
+			PRINT_BINTIME(stats[i].dma_time[iotype]);
+			printf("\n");
 		}
 	}
 }
 
-#define	JSON_BINTIME(prefix, bt) \
-	printf("\"%s\":%jd.%06ju,", prefix, (intmax_t)(bt).sec, \
-	    (uintmax_t)(((bt).frac >> 32) * 1000000 >> 32))
 static void
 ctlstat_json(struct ctlstat_context *ctx) {
 	int iotype, i;
@@ -357,14 +357,17 @@ ctlstat_json(struct ctlstat_context *ctx) {
 		    stats[i].item);
 		for (iotype = 0; iotype < CTL_STATS_NUM_TYPES; iotype++) {
 			printf("{\"type\":\"%s\",", iotypes[iotype]);
-			printf("\"bytes\":%ju,", (uintmax_t)stats[
-			       i].bytes[iotype]);
-			printf("\"operations\":%ju,", (uintmax_t)stats[
-			       i].operations[iotype]);
-			printf("\"dmas\":%ju}", (uintmax_t)
+			printf("\"bytes\":%ju,", (uintmax_t)
+			    stats[i].bytes[iotype]);
+			printf("\"operations\":%ju,", (uintmax_t)
+			    stats[i].operations[iotype]);
+			printf("\"dmas\":%ju,", (uintmax_t)
 			    stats[i].dmas[iotype]);
-			JSON_BINTIME("io time", stats[i].time[iotype]);
-			JSON_BINTIME("dma time", stats[i].dma_time[iotype]);
+			printf("\"io time\":");
+			PRINT_BINTIME(stats[i].time[iotype]);
+			printf(",\"dma time\":");
+			PRINT_BINTIME(stats[i].dma_time[iotype]);
+			printf("}");
 			if (iotype < (CTL_STATS_NUM_TYPES - 1))
 				printf(","); /* continue io array */
 		}

@@ -122,6 +122,7 @@ struct lvt {
 
 struct lapic {
 	struct lvt la_lvts[APIC_LVT_MAX + 1];
+	struct lvt la_elvts[APIC_ELVT_MAX + 1];;
 	u_int la_id:8;
 	u_int la_cluster:4;
 	u_int la_cluster_id:2;
@@ -144,6 +145,14 @@ static struct lvt lvts[APIC_LVT_MAX + 1] = {
 	{ 1, 1, 1, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_CMC_INT },	/* CMCI */
+};
+
+/* Global defaults for AMD local APIC ELVT entries. */
+static struct lvt elvts[APIC_ELVT_MAX + 1] = {
+	{ 1, 1, 1, 0, APIC_LVT_DM_FIXED, 0 },
+	{ 1, 1, 1, 0, APIC_LVT_DM_FIXED, APIC_CMC_INT },
+	{ 1, 1, 1, 0, APIC_LVT_DM_FIXED, 0 },
+	{ 1, 1, 1, 0, APIC_LVT_DM_FIXED, 0 },
 };
 
 static inthand_t *ioint_handlers[] = {
@@ -319,6 +328,7 @@ static int 	native_lapic_enable_pmc(void);
 static void 	native_lapic_disable_pmc(void);
 static void 	native_lapic_reenable_pmc(void);
 static void 	native_lapic_enable_cmc(void);
+static int 	native_lapic_enable_mca_elvt(void);
 static int 	native_lapic_set_lvt_mask(u_int apic_id, u_int lvt,
 		    u_char masked);
 static int 	native_lapic_set_lvt_mode(u_int apic_id, u_int lvt,
@@ -357,6 +367,7 @@ struct apic_ops apic_ops = {
 	.disable_pmc		= native_lapic_disable_pmc,
 	.reenable_pmc		= native_lapic_reenable_pmc,
 	.enable_cmc		= native_lapic_enable_cmc,
+	.enable_mca_elvt	= native_lapic_enable_mca_elvt,
 #ifdef SMP
 	.ipi_raw		= native_lapic_ipi_raw,
 	.ipi_vectored		= native_lapic_ipi_vectored,
@@ -371,15 +382,8 @@ struct apic_ops apic_ops = {
 };
 
 static uint32_t
-lvt_mode(struct lapic *la, u_int pin, uint32_t value)
+lvt_mode_impl(struct lapic *la, struct lvt *lvt, u_int pin, uint32_t value)
 {
-	struct lvt *lvt;
-
-	KASSERT(pin <= APIC_LVT_MAX, ("%s: pin %u out of range", __func__, pin));
-	if (la->la_lvts[pin].lvt_active)
-		lvt = &la->la_lvts[pin];
-	else
-		lvt = &lvts[pin];
 
 	value &= ~(APIC_LVT_M | APIC_LVT_TM | APIC_LVT_IIPP | APIC_LVT_DM |
 	    APIC_LVT_VECTOR);
@@ -398,7 +402,7 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 		if (!lvt->lvt_edgetrigger && bootverbose) {
 			printf("lapic%u: Forcing LINT%u to edge trigger\n",
 			    la->la_id, pin);
-			value |= APIC_LVT_TM;
+			value &= ~APIC_LVT_TM;
 		}
 		/* Use a vector of 0. */
 		break;
@@ -409,6 +413,38 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 		panic("bad APIC LVT delivery mode: %#x\n", value);
 	}
 	return (value);
+}
+
+static uint32_t
+lvt_mode(struct lapic *la, u_int pin, uint32_t value)
+{
+	struct lvt *lvt;
+
+	KASSERT(pin <= APIC_LVT_MAX,
+	    ("%s: pin %u out of range", __func__, pin));
+	if (la->la_lvts[pin].lvt_active)
+		lvt = &la->la_lvts[pin];
+	else
+		lvt = &lvts[pin];
+
+	return (lvt_mode_impl(la, lvt, pin, value));
+}
+
+static uint32_t
+elvt_mode(struct lapic *la, u_int idx, uint32_t value)
+{
+	struct lvt *elvt;
+
+	KASSERT(idx <= APIC_ELVT_MAX,
+	    ("%s: idx %u out of range", __func__, idx));
+
+	elvt = &la->la_elvts[idx];
+	KASSERT(elvt->lvt_active, ("%s: ELVT%u is not active", __func__, idx));
+	KASSERT(elvt->lvt_edgetrigger,
+	    ("%s: ELVT%u is not edge triggered", __func__, idx));
+	KASSERT(elvt->lvt_activehi,
+	    ("%s: ELVT%u is not active high", __func__, idx));
+	return (lvt_mode_impl(la, elvt, idx, value));
 }
 
 /*
@@ -583,6 +619,10 @@ native_lapic_create(u_int apic_id, int boot_cpu)
 		lapics[apic_id].la_lvts[i] = lvts[i];
 		lapics[apic_id].la_lvts[i].lvt_active = 0;
 	}
+	for (i = 0; i <= APIC_ELVT_MAX; i++) {
+		lapics[apic_id].la_elvts[i] = elvts[i];
+		lapics[apic_id].la_elvts[i].lvt_active = 0;
+	}
 	for (i = 0; i <= APIC_NUM_IOINTS; i++)
 	    lapics[apic_id].la_ioint_irqs[i] = -1;
 	lapics[apic_id].la_ioint_irqs[IDT_SYSCALL - APIC_IO_INTS] = IRQ_SYSCALL;
@@ -602,18 +642,49 @@ native_lapic_create(u_int apic_id, int boot_cpu)
 #endif
 }
 
+static inline uint32_t
+amd_read_ext_features(void)
+{
+	uint32_t version;
+
+	if (cpu_vendor_id != CPU_VENDOR_AMD)
+		return (0);
+	version = lapic_read32(LAPIC_VERSION);
+	if ((version & APIC_VER_AMD_EXT_SPACE) != 0)
+		return (lapic_read32(LAPIC_EXT_FEATURES));
+	else
+		return (0);
+}
+
+static inline uint32_t
+amd_read_elvt_count(void)
+{
+	uint32_t extf;
+	uint32_t count;
+
+	extf = amd_read_ext_features();
+	count = (extf & APIC_EXTF_ELVT_MASK) >> APIC_EXTF_ELVT_SHIFT;
+	count = min(count, APIC_ELVT_MAX + 1);
+	return (count);
+}
+
 /*
  * Dump contents of local APIC registers
  */
 static void
 native_lapic_dump(const char* str)
 {
+	uint32_t version;
 	uint32_t maxlvt;
+	uint32_t extf;
+	int elvt_count;
+	int i;
 
-	maxlvt = (lapic_read32(LAPIC_VERSION) & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
+	version = lapic_read32(LAPIC_VERSION);
+	maxlvt = (version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
 	printf("cpu%d %s:\n", PCPU_GET(cpuid), str);
 	printf("     ID: 0x%08x   VER: 0x%08x LDR: 0x%08x DFR: 0x%08x",
-	    lapic_read32(LAPIC_ID), lapic_read32(LAPIC_VERSION),
+	    lapic_read32(LAPIC_ID), version,
 	    lapic_read32(LAPIC_LDR), x2apic_mode ? 0 : lapic_read32(LAPIC_DFR));
 	if ((cpu_feature2 & CPUID2_X2APIC) != 0)
 		printf(" x2APIC: %d", x2apic_mode);
@@ -628,6 +699,14 @@ native_lapic_dump(const char* str)
 	printf("\n");
 	if (maxlvt >= APIC_LVT_CMCI)
 		printf("   cmci: 0x%08x\n", lapic_read32(LAPIC_LVT_CMCI));
+	extf = amd_read_ext_features();
+	if (extf != 0) {
+		printf("   AMD ext features: 0x%08x\n", extf);
+		elvt_count = amd_read_elvt_count();
+		for (i = 0; i < elvt_count; i++)
+			printf("   AMD elvt%d: 0x%08x\n", i,
+			    lapic_read32(LAPIC_EXT_LVT0 + i));
+	}
 }
 
 static void
@@ -645,15 +724,19 @@ static void
 native_lapic_setup(int boot)
 {
 	struct lapic *la;
+	uint32_t version;
 	uint32_t maxlvt;
 	register_t saveintr;
 	char buf[MAXCOMLEN + 1];
+	int elvt_count;
+	int i;
 
 	saveintr = intr_disable();
 
 	la = &lapics[lapic_id()];
 	KASSERT(la->la_present, ("missing APIC structure"));
-	maxlvt = (lapic_read32(LAPIC_VERSION) & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
+	version = lapic_read32(LAPIC_VERSION);
+	maxlvt = (version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
 
 	/* Initialize the TPR to allow all interrupts. */
 	lapic_set_tpr(0);
@@ -716,6 +799,13 @@ native_lapic_setup(int boot)
 	if (maxlvt >= APIC_LVT_CMCI) {
 		lapic_write32(LAPIC_LVT_CMCI, lvt_mode(la, APIC_LVT_CMCI,
 		    lapic_read32(LAPIC_LVT_CMCI)));
+	}
+
+	elvt_count = amd_read_elvt_count();
+	for (i = 0; i < elvt_count; i++) {
+		if (la->la_elvts[i].lvt_active)
+			lapic_write32(LAPIC_EXT_LVT0 + i,
+			    elvt_mode(la, i, lapic_read32(LAPIC_EXT_LVT0 + i)));
 	}
 
 	intr_restore(saveintr);
@@ -1309,6 +1399,37 @@ native_lapic_enable_cmc(void)
 	lapics[apic_id].la_lvts[APIC_LVT_CMCI].lvt_active = 1;
 	if (bootverbose)
 		printf("lapic%u: CMCI unmasked\n", apic_id);
+}
+
+static int
+native_lapic_enable_mca_elvt(void)
+{
+	u_int apic_id;
+	uint32_t value;
+	int elvt_count;
+
+#ifdef DEV_ATPIC
+	if (lapic_map == NULL)
+		return (-1);
+#endif
+
+	apic_id = PCPU_GET(apic_id);
+	KASSERT(lapics[apic_id].la_present,
+	    ("%s: missing APIC %u", __func__, apic_id));
+	elvt_count = amd_read_elvt_count();
+	if (elvt_count <= APIC_ELVT_MCA)
+		return (-1);
+
+	value = lapic_read32(LAPIC_EXT_LVT0 + APIC_ELVT_MCA);
+	if ((value & APIC_LVT_M) == 0) {
+		printf("AMD MCE Thresholding Extended LVT is already active\n");
+		return (-1);
+	}
+	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_masked = 0;
+	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_active = 1;
+	if (bootverbose)
+		printf("lapic%u: MCE Thresholding ELVT unmasked\n", apic_id);
+	return (APIC_ELVT_MCA);
 }
 
 void

@@ -57,7 +57,7 @@ SRCS=	common.c \
 	${GEN:S/.x$/.c/:S/.hx$/.h/}
 
 CFLAGS+=-I${KRB5DIR}/lib/hdb -I${KRB5DIR}/lib/asn1 \
-	-I${KRB5DIR}/lib/roken -I${.CURDIR}/../../../contrib/sqlite3/ \
+	-I${KRB5DIR}/lib/roken -I${SRCTOP}/contrib/sqlite3/ \
 	-I${KRB5DIR}/lib/krb5 \
 	-I. ${LDAPCFLAGS}
 CFLAGS+=-DHDB_DB_DIR="\"/var/heimdal\""

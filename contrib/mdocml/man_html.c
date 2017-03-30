@@ -1,4 +1,4 @@
-/*	$Id: man_html.c,v 1.129 2017/01/21 01:20:32 schwarze Exp $ */
+/*	$Id: man_html.c,v 1.133 2017/02/05 18:15:39 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -32,20 +32,13 @@
 #include "html.h"
 #include "main.h"
 
-/* TODO: preserve ident widths. */
 /* FIXME: have PD set the default vspace width. */
 
 #define	INDENT		  5
 
 #define	MAN_ARGS	  const struct roff_meta *man, \
 			  const struct roff_node *n, \
-			  struct mhtml *mh, \
 			  struct html *h
-
-struct	mhtml {
-	int		  fl;
-#define	MANH_LITERAL	 (1 << 0) /* literal context */
-};
 
 struct	htmlman {
 	int		(*pre)(MAN_ARGS);
@@ -57,6 +50,7 @@ static	void		  print_bvspace(struct html *,
 static	void		  print_man_head(MAN_ARGS);
 static	void		  print_man_nodelist(MAN_ARGS);
 static	void		  print_man_node(MAN_ARGS);
+static	int		  fillmode(struct html *, int);
 static	int		  a2width(const struct roff_node *,
 				struct roffsu *);
 static	int		  man_B_pre(MAN_ARGS);
@@ -74,7 +68,6 @@ static	int		  man_alt_pre(MAN_ARGS);
 static	int		  man_br_pre(MAN_ARGS);
 static	int		  man_ign_pre(MAN_ARGS);
 static	int		  man_in_pre(MAN_ARGS);
-static	int		  man_literal_pre(MAN_ARGS);
 static	void		  man_root_post(MAN_ARGS);
 static	void		  man_root_pre(MAN_ARGS);
 
@@ -101,8 +94,8 @@ static	const struct htmlman mans[MAN_MAX] = {
 	{ man_alt_pre, NULL }, /* IR */
 	{ man_alt_pre, NULL }, /* RI */
 	{ man_br_pre, NULL }, /* sp */
-	{ man_literal_pre, NULL }, /* nf */
-	{ man_literal_pre, NULL }, /* fi */
+	{ NULL, NULL }, /* nf */
+	{ NULL, NULL }, /* fi */
 	{ NULL, NULL }, /* RE */
 	{ man_RS_pre, NULL }, /* RS */
 	{ man_ign_pre, NULL }, /* DT */
@@ -112,8 +105,8 @@ static	const struct htmlman mans[MAN_MAX] = {
 	{ man_in_pre, NULL }, /* in */
 	{ man_ign_pre, NULL }, /* ft */
 	{ man_OP_pre, NULL }, /* OP */
-	{ man_literal_pre, NULL }, /* EX */
-	{ man_literal_pre, NULL }, /* EE */
+	{ NULL, NULL }, /* EX */
+	{ NULL, NULL }, /* EE */
 	{ man_UR_pre, NULL }, /* UR */
 	{ NULL, NULL }, /* UE */
 	{ man_ign_pre, NULL }, /* ll */
@@ -146,27 +139,25 @@ print_bvspace(struct html *h, const struct roff_node *n)
 void
 html_man(void *arg, const struct roff_man *man)
 {
-	struct mhtml	 mh;
 	struct html	*h;
 	struct tag	*t;
 
-	memset(&mh, 0, sizeof(mh));
 	h = (struct html *)arg;
 
 	if ((h->oflags & HTML_FRAGMENT) == 0) {
 		print_gen_decls(h);
 		print_otag(h, TAG_HTML, "");
 		t = print_otag(h, TAG_HEAD, "");
-		print_man_head(&man->meta, man->first, &mh, h);
+		print_man_head(&man->meta, man->first, h);
 		print_tagq(h, t);
 		print_otag(h, TAG_BODY, "");
 	}
 
-	man_root_pre(&man->meta, man->first, &mh, h);
+	man_root_pre(&man->meta, man->first, h);
 	t = print_otag(h, TAG_DIV, "c", "manual-text");
-	print_man_nodelist(&man->meta, man->first->child, &mh, h);
+	print_man_nodelist(&man->meta, man->first->child, h);
 	print_tagq(h, t);
-	man_root_post(&man->meta, man->first, &mh, h);
+	man_root_post(&man->meta, man->first, h);
 	print_tagq(h, NULL);
 }
 
@@ -187,7 +178,7 @@ print_man_nodelist(MAN_ARGS)
 {
 
 	while (n != NULL) {
-		print_man_node(man, n, mh, h);
+		print_man_node(man, n, h);
 		n = n->next;
 	}
 }
@@ -195,25 +186,95 @@ print_man_nodelist(MAN_ARGS)
 static void
 print_man_node(MAN_ARGS)
 {
-	int		 child;
-	struct tag	*t;
+	static int	 want_fillmode = MAN_fi;
+	static int	 save_fillmode;
 
-	child = 1;
-	t = h->tags.head;
+	struct tag	*t;
+	int		 child;
+
+	/*
+	 * Handle fill mode switch requests up front,
+	 * they would just cause trouble in the subsequent code.
+	 */
+
+	switch (n->tok) {
+	case MAN_nf:
+	case MAN_EX:
+		want_fillmode = MAN_nf;
+		return;
+	case MAN_fi:
+	case MAN_EE:
+		want_fillmode = MAN_fi;
+		if (fillmode(h, 0) == MAN_fi)
+			print_otag(h, TAG_BR, "");
+		return;
+	default:
+		break;
+	}
+
+	/* Set up fill mode for the upcoming node. */
 
 	switch (n->type) {
-	case ROFFT_TEXT:
-		if ('\0' == *n->string) {
-			print_paragraph(h);
-			return;
+	case ROFFT_BLOCK:
+		save_fillmode = 0;
+		/* Some block macros suspend or cancel .nf. */
+		switch (n->tok) {
+		case MAN_TP:  /* Tagged paragraphs		*/
+		case MAN_IP:  /* temporarily disable .nf	*/
+		case MAN_HP:  /* for the head.			*/
+			save_fillmode = want_fillmode;
+			/* FALLTHROUGH */
+		case MAN_SH:  /* Section headers		*/
+		case MAN_SS:  /* permanently cancel .nf.	*/
+			want_fillmode = MAN_fi;
+			/* FALLTHROUGH */
+		case MAN_PP:  /* These have no head.		*/
+		case MAN_LP:  /* They will simply		*/
+		case MAN_P:   /* reopen .nf in the body.	*/
+		case MAN_RS:
+		case MAN_UR:
+			fillmode(h, MAN_fi);
+			break;
+		default:
+			break;
 		}
-		if (n->flags & NODE_LINE && (*n->string == ' ' ||
-		    (n->prev != NULL && mh->fl & MANH_LITERAL &&
-		     ! (h->flags & HTML_NONEWLINE))))
+		break;
+	case ROFFT_TBL:
+		fillmode(h, MAN_fi);
+		break;
+	case ROFFT_ELEM:
+		/*
+		 * Some in-line macros produce tags and/or text
+		 * in the handler, so they require fill mode to be
+		 * configured up front just like for text nodes.
+		 * For the others, keep the traditional approach
+		 * of doing the same, for now.
+		 */
+		fillmode(h, want_fillmode);
+		break;
+	case ROFFT_TEXT:
+		if (fillmode(h, want_fillmode) == MAN_fi &&
+		    want_fillmode == MAN_fi &&
+		    n->flags & NODE_LINE && *n->string == ' ')
 			print_otag(h, TAG_BR, "");
-		print_text(h, n->string);
+		if (*n->string != '\0')
+			break;
+		print_paragraph(h);
 		return;
+	default:
+		break;
+	}
+
+	/* Produce output for this node. */
+
+	child = 1;
+	switch (n->type) {
+	case ROFFT_TEXT:
+		t = h->tag;
+		print_text(h, n->string);
+		break;
 	case ROFFT_EQN:
+		t = h->tag;
 		print_eqn(h, n->eqn);
 		break;
 	case ROFFT_TBL:
@@ -239,29 +300,55 @@ print_man_node(MAN_ARGS)
 		 * the "meta" table state.  This will be reopened on the
 		 * next table element.
 		 */
-		if (h->tblt) {
+		if (h->tblt)
 			print_tblclose(h);
-			t = h->tags.head;
-		}
+
+		t = h->tag;
 		if (mans[n->tok].pre)
-			child = (*mans[n->tok].pre)(man, n, mh, h);
+			child = (*mans[n->tok].pre)(man, n, h);
+
+		/* Some block macros resume .nf in the body. */
+		if (save_fillmode && n->type == ROFFT_BODY)
+			want_fillmode = save_fillmode;
+
 		break;
 	}
 
 	if (child && n->child)
-		print_man_nodelist(man, n->child, mh, h);
+		print_man_nodelist(man, n->child, h);
 
 	/* This will automatically close out any font scope. */
 	print_stagq(h, t);
 
-	switch (n->type) {
-	case ROFFT_EQN:
-		break;
-	default:
-		if (mans[n->tok].post)
-			(*mans[n->tok].post)(man, n, mh, h);
-		break;
+	if (fillmode(h, 0) == MAN_nf &&
+	    n->next != NULL && n->next->flags & NODE_LINE)
+		print_endline(h);
+}
+
+/*
+ * MAN_nf switches to no-fill mode, MAN_fi to fill mode.
+ * Other arguments do not switch.
+ * The old mode is returned.
+ */
+static int
+fillmode(struct html *h, int want)
+{
+	struct tag	*pre;
+	int		 had;
+
+	for (pre = h->tag; pre != NULL; pre = pre->next)
+		if (pre->tag == TAG_PRE)
+			break;
+
+	had = pre == NULL ? MAN_fi : MAN_nf;
+
+	if (want && want != had) {
+		if (want == MAN_nf)
+			print_otag(h, TAG_PRE, "");
+		else
+			print_tagq(h, pre);
 	}
+	return had;
 }
 
 static int
@@ -287,7 +374,6 @@ man_root_pre(MAN_ARGS)
 	mandoc_asprintf(&title, "%s(%s)", man->title, man->msec);
 
 	t = print_otag(h, TAG_TABLE, "c", "head");
-	print_otag(h, TAG_TBODY, "");
 	tt = print_otag(h, TAG_TR, "");
 
 	print_otag(h, TAG_TD, "c", "head-ltitle");
@@ -349,13 +435,8 @@ man_br_pre(MAN_ARGS)
 static int
 man_SH_pre(MAN_ARGS)
 {
-	if (n->type == ROFFT_BLOCK) {
-		mh->fl &= ~MANH_LITERAL;
-		return 1;
-	} else if (n->type == ROFFT_BODY)
-		return 1;
-
-	print_otag(h, TAG_H1, "c", "Sh");
+	if (n->type == ROFFT_HEAD)
+		print_otag(h, TAG_H1, "c", "Sh");
 	return 1;
 }
 
@@ -363,17 +444,11 @@ static int
 man_alt_pre(MAN_ARGS)
 {
 	const struct roff_node	*nn;
-	int		 i, savelit;
+	int		 i;
 	enum htmltag	 fp;
 	struct tag	*t;
 
-	if ((savelit = mh->fl & MANH_LITERAL))
-		print_otag(h, TAG_BR, "");
-
-	mh->fl &= ~MANH_LITERAL;
-
 	for (i = 0, nn = n->child; nn; nn = nn->next, i++) {
-		t = NULL;
 		switch (n->tok) {
 		case MAN_BI:
 			fp = i % 2 ? TAG_I : TAG_B;
@@ -400,18 +475,14 @@ man_alt_pre(MAN_ARGS)
 		if (i)
 			h->flags |= HTML_NOSPACE;
 
-		if (TAG_MAX != fp)
+		if (fp != TAG_MAX)
 			t = print_otag(h, fp, "");
 
-		print_man_node(man, nn, mh, h);
+		print_text(h, nn->string);
 
-		if (t)
+		if (fp != TAG_MAX)
 			print_tagq(h, t);
 	}
-
-	if (savelit)
-		mh->fl |= MANH_LITERAL;
-
 	return 0;
 }
 
@@ -427,13 +498,8 @@ man_SM_pre(MAN_ARGS)
 static int
 man_SS_pre(MAN_ARGS)
 {
-	if (n->type == ROFFT_BLOCK) {
-		mh->fl &= ~MANH_LITERAL;
-		return 1;
-	} else if (n->type == ROFFT_BODY)
-		return 1;
-
-	print_otag(h, TAG_H2, "c", "Ss");
+	if (n->type == ROFFT_HEAD)
+		print_otag(h, TAG_H2, "c", "Ss");
 	return 1;
 }
 
@@ -469,7 +535,7 @@ man_IP_pre(MAN_ARGS)
 	/* For IP, only print the first header element. */
 
 	if (MAN_IP == n->tok && n->child)
-		print_man_node(man, n->child, mh, h);
+		print_man_node(man, n->child, h);
 
 	/* For TP, only print next-line header elements. */
 
@@ -478,7 +544,7 @@ man_IP_pre(MAN_ARGS)
 		while (NULL != nn && 0 == (NODE_LINE & nn->flags))
 			nn = nn->next;
 		while (NULL != nn) {
-			print_man_node(man, nn, mh, h);
+			print_man_node(man, nn, h);
 			nn = nn->next;
 		}
 	}
@@ -552,19 +618,6 @@ man_I_pre(MAN_ARGS)
 }
 
 static int
-man_literal_pre(MAN_ARGS)
-{
-
-	if (MAN_fi == n->tok || MAN_EE == n->tok) {
-		print_otag(h, TAG_BR, "");
-		mh->fl &= ~MANH_LITERAL;
-	} else
-		mh->fl |= MANH_LITERAL;
-
-	return 0;
-}
-
-static int
 man_in_pre(MAN_ARGS)
 {
 	print_otag(h, TAG_BR, "");
@@ -610,7 +663,7 @@ man_UR_pre(MAN_ARGS)
 	if (n->next->child != NULL)
 		n = n->next;
 
-	print_man_nodelist(man, n->child, mh, h);
+	print_man_nodelist(man, n->child, h);
 
 	return 0;
 }

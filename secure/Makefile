@@ -21,7 +21,7 @@ SPROGS+=usr.sbin/sendmail
 # This target is used to rebuild these programs with crypto.
 secure: .MAKE .PHONY
 .for entry in ${SPROGS}
-	cd ${.CURDIR}/../${entry}; \
+	cd ${.CURDIR:H}/${entry}; \
 	${MAKE} cleandir; \
 	${MAKE} obj; \
 	${MAKE} all; \
@@ -31,7 +31,7 @@ secure: .MAKE .PHONY
 # This target is used to rebuild these programs without crypto.
 insecure: .MAKE .PHONY
 .for entry in ${SPROGS}
-	cd ${.CURDIR}/../${entry}; \
+	cd ${.CURDIR:H}/${entry}; \
 	${MAKE} MK_CRYPT=no cleandir; \
 	${MAKE} MK_CRYPT=no obj; \
 	${MAKE} MK_CRYPT=no all; \

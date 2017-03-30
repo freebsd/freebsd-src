@@ -153,7 +153,7 @@ fetch_syserr(void)
 	case EHOSTDOWN:
 		fetchLastErrCode = FETCH_DOWN;
 		break;
-default:
+	default:
 		fetchLastErrCode = FETCH_UNKNOWN;
 	}
 	snprintf(fetchLastErrString, MAXERRSTRING, "%s", strerror(errno));
@@ -248,37 +248,51 @@ fetch_resolve(const char *addr, int port, int af)
 {
 	char hbuf[256], sbuf[8];
 	struct addrinfo hints, *res;
-	const char *sep, *host, *service;
+	const char *hb, *he, *sep;
+	const char *host, *service;
 	int err, len;
 
-	/* split address if necessary */
-	err = EAI_SYSTEM;
-	if ((sep = strchr(addr, ':')) != NULL) {
+	/* first, check for a bracketed IPv6 address */
+	if (*addr == '[') {
+		hb = addr + 1;
+		if ((sep = strchr(hb, ']')) == NULL) {
+			errno = EINVAL;
+			goto syserr;
+		}
+		he = sep++;
+	} else {
+		hb = addr;
+		sep = strchrnul(hb, ':');
+		he = sep;
+	}
+
+	/* see if we need to copy the host name */
+	if (*he != '\0') {
 		len = snprintf(hbuf, sizeof(hbuf),
-		    "%.*s", (int)(sep - addr), addr);
+		    "%.*s", (int)(he - hb), hb);
 		if (len < 0)
-			return (NULL);
+			goto syserr;
 		if (len >= (int)sizeof(hbuf)) {
 			errno = ENAMETOOLONG;
-			fetch_syserr();
-			return (NULL);
+			goto syserr;
 		}
 		host = hbuf;
-		service = sep + 1;
-	} else if (port != 0) {
+	} else {
+		host = hb;
+	}
+
+	/* was it followed by a service name? */
+	if (*sep == '\0' && port != 0) {
 		if (port < 1 || port > 65535) {
 			errno = EINVAL;
-			fetch_syserr();
-			return (NULL);
+			goto syserr;
 		}
-		if (snprintf(sbuf, sizeof(sbuf), "%d", port) < 0) {
-			fetch_syserr();
-			return (NULL);
-		}
-		host = addr;
+		if (snprintf(sbuf, sizeof(sbuf), "%d", port) < 0)
+			goto syserr;
 		service = sbuf;
+	} else if (*sep != '\0') {
+		service = sep;
 	} else {
-		host = addr;
 		service = NULL;
 	}
 
@@ -292,6 +306,9 @@ fetch_resolve(const char *addr, int port, int af)
 		return (NULL);
 	}
 	return (res);
+syserr:
+	fetch_syserr();
+	return (NULL);
 }
 
 
@@ -371,7 +388,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	}
 	if (err != 0) {
 		if (verbose)
-			fetch_info("failed to connect to %s:%s", host, port);
+			fetch_info("failed to connect to %s:%d", host, port);
 		goto syserr;
 	}
 
@@ -1306,7 +1323,7 @@ fetch_add_entry(struct url_ent **p, int *size, int *len,
 	}
 
 	if (*len >= *size - 1) {
-		tmp = realloc(*p, (*size * 2 + 1) * sizeof(**p));
+		tmp = reallocarray(*p, *size * 2 + 1, sizeof(**p));
 		if (tmp == NULL) {
 			errno = ENOMEM;
 			fetch_syserr();
@@ -1339,16 +1356,11 @@ fetch_read_word(FILE *f)
 	return (word);
 }
 
-/*
- * Get authentication data for a URL from .netrc
- */
-int
-fetch_netrc_auth(struct url *url)
+static int
+fetch_netrc_open(void)
 {
+	const char *p;
 	char fn[PATH_MAX];
-	const char *word;
-	char *p;
-	FILE *f;
 
 	if ((p = getenv("NETRC")) != NULL) {
 		if (snprintf(fn, sizeof(fn), "%s", p) >= (int)sizeof(fn)) {
@@ -1368,8 +1380,25 @@ fetch_netrc_auth(struct url *url)
 			return (-1);
 	}
 
-	if ((f = fopen(fn, "r")) == NULL)
+	return (open(fn, O_RDONLY));
+}
+
+/*
+ * Get authentication data for a URL from .netrc
+ */
+int
+fetch_netrc_auth(struct url *url)
+{
+	const char *word;
+	FILE *f;
+
+	if (url->netrcfd == -2)
+		url->netrcfd = fetch_netrc_open();
+	if (url->netrcfd < 0)
 		return (-1);
+	if ((f = fdopen(url->netrcfd, "r")) == NULL)
+		return (-1);
+	rewind(f);
 	while ((word = fetch_read_word(f)) != NULL) {
 		if (strcmp(word, "default") == 0) {
 			DEBUG(fetch_info("Using default .netrc settings"));

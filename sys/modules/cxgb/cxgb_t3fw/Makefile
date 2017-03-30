@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-CXGB = ${.CURDIR}/../../../dev/cxgb
+CXGB = ${SRCTOP}/sys/dev/cxgb
 .PATH: ${CXGB} 
 
 KMOD= cxgb_t3fw

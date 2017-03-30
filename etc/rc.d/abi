@@ -43,25 +43,18 @@ linux_start()
 	fi
 }
 
-svr4_start()
-{
-	echo -n ' svr4'
-	load_kld -m svr4elf svr4
-}
-
 abi_start()
 {
 	local _echostop
 
 	_echostop=
-	if checkyesno sysvipc_enable || checkyesno linux_enable || checkyesno svr4_enable; then
+	if checkyesno sysvipc_enable || checkyesno linux_enable; then
 		echo -n 'Additional ABI support:'
 		_echostop=yes
 	fi
 
 	checkyesno sysvipc_enable && sysv_start
 	checkyesno linux_enable && linux_start
-	checkyesno svr4_enable && svr4_start
 
 	[ -n "${_echostop}" ] && echo '.'
 }

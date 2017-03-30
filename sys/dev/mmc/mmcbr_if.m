@@ -65,8 +65,21 @@
 INTERFACE mmcbr;
 
 #
-# Called by the mmcbus to setup the IO pins correctly, the voltage to use
-# for the card, the type of selects, power modes and bus width.
+# Default implementations of some methods.
+#
+CODE {
+	static int
+	null_switch_vccq(device_t brdev __unused, device_t reqdev __unused)
+	{
+
+		return (0);
+	}
+};
+
+#
+# Called by the mmcbus to set up the IO pins correctly, the common/core
+# supply voltage (VDD/VCC) to use for the device, the clock frequency, the
+# type of SPI chip select, power mode and bus width.
 #
 METHOD int update_ios {
 	device_t	brdev;
@@ -74,10 +87,18 @@ METHOD int update_ios {
 };
 
 #
+# Called by the mmcbus to switch the signaling voltage (VCCQ).
+#
+METHOD int switch_vccq {
+	device_t	brdev;
+	device_t	reqdev;
+} DEFAULT null_switch_vccq;
+
+#
 # Called by the mmcbus or its children to schedule a mmc request.  These
 # requests are queued.  Time passes.  The bridge then gets notification
-# of the status of request, who then notifies the requesting device via
-# the xfer_done mmcbus method.
+# of the status of the request, who then notifies the requesting device
+# by calling the completion function supplied as part of the request.
 #
 METHOD int request {
 	device_t	brdev;

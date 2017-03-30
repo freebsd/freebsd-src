@@ -29,7 +29,6 @@ MAN=	aac.4 \
 	age.4 \
 	agp.4 \
 	aha.4 \
-	ahb.4 \
 	ahc.4 \
 	ahci.4 \
 	ahd.4 \
@@ -103,7 +102,9 @@ MAN=	aac.4 \
 	cd.4 \
 	cdce.4 \
 	cfi.4 \
+	cfumass.4 \
 	ch.4 \
+	chromebook_platform.4 \
 	ciss.4 \
 	cloudabi.4 \
 	cm.4 \
@@ -204,7 +205,6 @@ MAN=	aac.4 \
 	if_ipsec.4 \
 	ifmib.4 \
 	ig4.4 \
-	igb.4 \
 	igmp.4 \
 	iic.4 \
 	iicbb.4 \
@@ -241,6 +241,7 @@ MAN=	aac.4 \
 	ixgbe.4 \
 	ixl.4 \
 	ixlv.4 \
+	jedec_ts.4 \
 	jme.4 \
 	joy.4 \
 	kbdmux.4 \
@@ -635,7 +636,6 @@ MLINKS+=fd.4 stderr.4 \
 	fd.4 stdout.4
 MLINKS+=fdt.4 FDT.4
 MLINKS+=firewire.4 ieee1394.4
-MLINKS+=fpa.4 fea.4
 MLINKS+=fwe.4 if_fwe.4
 MLINKS+=fwip.4 if_fwip.4
 MLINKS+=fxp.4 if_fxp.4
@@ -649,7 +649,6 @@ MLINKS+=hme.4 if_hme.4
 MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=${_attimer.4} ${_i8254.4}
-MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
 	ipfirewall.4 ipacct.4 \
@@ -885,6 +884,7 @@ _dtrace_udp.4=	dtrace_udp.4
 .endif
 
 .if ${MK_ISCSI} != "no"
+MAN+=		cfiscsi.4
 MAN+=		iscsi.4
 MAN+=		iscsi_initiator.4
 MAN+=		iser.4
@@ -895,7 +895,7 @@ MAN+=		mlx4ib.4
 .endif
 
 .if ${MK_TESTS} != "no"
-ATF=            ${.CURDIR}/../../../contrib/atf
+ATF=            ${SRCTOP}/contrib/atf
 .PATH:          ${ATF}/doc
 _atf_test_case.4=	atf-test-case.4
 .endif

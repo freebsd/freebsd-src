@@ -8,7 +8,6 @@ PROGS	=	pkt-gen nmreplay bridge vale-ctl
 CLEANFILES = $(PROGS) *.o
 MAN=
 CFLAGS += -Werror -Wall
-CFLAGS += -nostdinc -I ../../../sys -I/usr/include
 CFLAGS += -Wextra
 
 LDFLAGS += -lpthread

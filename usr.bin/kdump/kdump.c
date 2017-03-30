@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -840,6 +840,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				quad_slots = 1;
 			switch (ktr->ktr_code) {
 			case SYS_bindat:
+			case SYS_chflagsat:
 			case SYS_connectat:
 			case SYS_faccessat:
 			case SYS_fchmodat:
@@ -982,6 +983,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				narg--;
 				break;
 			case SYS_chflags:
+			case SYS_chflagsat:
 			case SYS_fchflags:
 			case SYS_lchflags:
 				print_number(ip, narg, c);

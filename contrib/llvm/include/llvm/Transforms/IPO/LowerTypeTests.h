@@ -60,10 +60,6 @@ struct BitSetInfo {
 
   bool containsGlobalOffset(uint64_t Offset) const;
 
-  bool containsValue(const DataLayout &DL,
-                     const DenseMap<GlobalObject *, uint64_t> &GlobalLayout,
-                     Value *V, uint64_t COffset = 0) const;
-
   void print(raw_ostream &OS) const;
 };
 
@@ -205,7 +201,7 @@ struct ByteArrayBuilder {
 
 class LowerTypeTestsPass : public PassInfoMixin<LowerTypeTestsPass> {
 public:
-  PreservedAnalyses run(Module &M, AnalysisManager<Module> &AM);
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };
 
 } // end namespace llvm

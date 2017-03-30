@@ -1,9 +1,13 @@
-# $Id: Makefile.am 648 2013-03-05 17:54:27Z des $
+# $Id: Makefile.am 834 2014-10-28 10:25:58Z des $
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 bin_PROGRAMS = su
 su_SOURCES = su.c
+if WITH_SYSTEM_LIBPAM
+su_LDADD = $(SYSTEM_LIBPAM)
+else
 su_LDADD = $(top_builddir)/lib/libpam/libpam.la
+endif
 
 dist_man1_MANS = su.1

@@ -49,18 +49,14 @@
 
 uint_t zfs_dbuf_evict_key;
 
-/*
- * Number of times that zfs_free_range() took the slow path while doing
- * a zfs receive.  A nonzero value indicates a potential performance problem.
- */
-uint64_t zfs_free_range_recv_miss;
-
 static boolean_t dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
 static void dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx);
 
 #ifndef __lint
 extern inline void dmu_buf_init_user(dmu_buf_user_t *dbu,
-    dmu_buf_evict_func_t *evict_func, dmu_buf_t **clear_on_evict_dbufp);
+    dmu_buf_evict_func_t *evict_func_sync,
+    dmu_buf_evict_func_t *evict_func_async,
+    dmu_buf_t **clear_on_evict_dbufp);
 #endif /* ! __lint */
 
 /*
@@ -367,11 +363,24 @@ dbuf_evict_user(dmu_buf_impl_t *db)
 #endif
 
 	/*
-	 * Invoke the callback from a taskq to avoid lock order reversals
-	 * and limit stack depth.
+	 * There are two eviction callbacks - one that we call synchronously
+	 * and one that we invoke via a taskq.  The async one is useful for
+	 * avoiding lock order reversals and limiting stack depth.
+	 *
+	 * Note that if we have a sync callback but no async callback,
+	 * it's likely that the sync callback will free the structure
+	 * containing the dbu.  In that case we need to take care to not
+	 * dereference dbu after calling the sync evict func.
 	 */
-	taskq_dispatch_ent(dbu_evict_taskq, dbu->dbu_evict_func, dbu, 0,
-	    &dbu->dbu_tqent);
+	boolean_t has_async = (dbu->dbu_evict_func_async != NULL);
+
+	if (dbu->dbu_evict_func_sync != NULL)
+		dbu->dbu_evict_func_sync(dbu);
+
+	if (has_async) {
+		taskq_dispatch_ent(dbu_evict_taskq, dbu->dbu_evict_func_async,
+		    dbu, 0, &dbu->dbu_tqent);
+	}
 }
 
 boolean_t
@@ -1220,9 +1229,6 @@ dbuf_unoverride(dbuf_dirty_record_t *dr)
  * Evict (if its unreferenced) or clear (if its referenced) any level-0
  * data blocks in the free range, so that any future readers will find
  * empty blocks.
- *
- * This is a no-op if the dataset is in the middle of an incremental
- * receive; see comment below for details.
  */
 void
 dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
@@ -1232,10 +1238,9 @@ dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 	dmu_buf_impl_t *db, *db_next;
 	uint64_t txg = tx->tx_txg;
 	avl_index_t where;
-	boolean_t freespill =
-	    (start_blkid == DMU_SPILL_BLKID || end_blkid == DMU_SPILL_BLKID);
 
-	if (end_blkid > dn->dn_maxblkid && !freespill)
+	if (end_blkid > dn->dn_maxblkid &&
+	    !(start_blkid == DMU_SPILL_BLKID || end_blkid == DMU_SPILL_BLKID))
 		end_blkid = dn->dn_maxblkid;
 	dprintf_dnode(dn, "start=%llu end=%llu\n", start_blkid, end_blkid);
 
@@ -1244,29 +1249,9 @@ dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 	db_search.db_state = DB_SEARCH;
 
 	mutex_enter(&dn->dn_dbufs_mtx);
-	if (start_blkid >= dn->dn_unlisted_l0_blkid && !freespill) {
-		/* There can't be any dbufs in this range; no need to search. */
-#ifdef DEBUG
-		db = avl_find(&dn->dn_dbufs, &db_search, &where);
-		ASSERT3P(db, ==, NULL);
-		db = avl_nearest(&dn->dn_dbufs, where, AVL_AFTER);
-		ASSERT(db == NULL || db->db_level > 0);
-#endif
-		mutex_exit(&dn->dn_dbufs_mtx);
-		return;
-	} else if (dmu_objset_is_receiving(dn->dn_objset)) {
-		/*
-		 * If we are receiving, we expect there to be no dbufs in
-		 * the range to be freed, because receive modifies each
-		 * block at most once, and in offset order.  If this is
-		 * not the case, it can lead to performance problems,
-		 * so note that we unexpectedly took the slow path.
-		 */
-		atomic_inc_64(&zfs_free_range_recv_miss);
-	}
-
 	db = avl_find(&dn->dn_dbufs, &db_search, &where);
 	ASSERT3P(db, ==, NULL);
+
 	db = avl_nearest(&dn->dn_dbufs, where, AVL_AFTER);
 
 	for (; db != NULL; db = db_next) {
@@ -2283,9 +2268,7 @@ dbuf_create(dnode_t *dn, uint8_t level, uint64_t blkid,
 		return (odb);
 	}
 	avl_add(&dn->dn_dbufs, db);
-	if (db->db_level == 0 && db->db_blkid >=
-	    dn->dn_unlisted_l0_blkid)
-		dn->dn_unlisted_l0_blkid = db->db_blkid + 1;
+
 	db->db_state = DB_UNCACHED;
 	mutex_exit(&dn->dn_dbufs_mtx);
 	arc_space_consume(sizeof (dmu_buf_impl_t), ARC_SPACE_OTHER);

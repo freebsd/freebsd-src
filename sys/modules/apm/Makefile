@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../i386/bios
+.PATH: ${SRCTOP}/sys/i386/bios
 
 KMOD=	apm
 SRCS=	apm.c apm.h

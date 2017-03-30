@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2016
+.Dd February 27, 2017
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -171,6 +171,10 @@ Virtio network interface.
 Virtio block storage interface.
 .It Li virtio-rnd
 Virtio RNG interface.
+.It Li virtio-console
+Virtio console interface, which exposes multiple ports
+to the guest in the form of simple char devices for simple IO
+between the guest and host userspaces.
 .It Li ahci
 AHCI controller attached to arbitrary devices.
 .It Li ahci-cd
@@ -270,6 +274,31 @@ The host device must have been reserved at boot-time using the
 .Va pptdev
 loader variable as described in
 .Xr vmm 4 .
+.Pp
+Virtio console devices:
+.Bl -tag -width 10n
+.It Li port1= Ns Pa /path/to/port1.sock Ns ,anotherport= Ns Pa ...
+A maximum of 16 ports per device can be created.
+Every port is named and corresponds to a Unix domain socket created by
+.Nm .
+.Nm
+accepts at most one connection per port at a time.
+.Pp
+Limitations:
+.Bl -bullet -offset 2n
+.It
+Due to lack of destructors in
+.Nm ,
+sockets on the filesystem must be cleaned up manually after
+.Nm
+exits.
+.It
+There is no way to use the "console port" feature, nor the console port
+resize as of now.
+.It
+Emergency write is advertised, but no-op as of now.
+.El
+.El
 .El
 .It Fl S
 Wire guest memory.

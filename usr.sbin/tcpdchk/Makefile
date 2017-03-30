@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../../contrib/tcp_wrappers
+.PATH: ${SRCTOP}/contrib/tcp_wrappers
 
 PROG=	tcpdchk
 MAN=	tcpdchk.8

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_end.c 648 2013-03-05 17:54:27Z des $
+ * $Id: pam_end.c 913 2017-01-21 15:11:12Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -90,12 +90,6 @@ pam_end(pam_handle_t *pamh,
 
 	RETURNC(PAM_SUCCESS);
 }
-
-/*
- * Error codes:
- *
- *	PAM_SYSTEM_ERR
- */
 
 /**
  * The =pam_end function terminates a PAM transaction and destroys the

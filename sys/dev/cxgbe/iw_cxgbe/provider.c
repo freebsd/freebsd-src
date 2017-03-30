@@ -190,7 +190,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 			    "%s:6 USER DB-GTS addr %p region %p, reglen %u",
 			    __func__, addr, va_udbs_res, len_udbs_res);
 #ifdef DOT5
-			if (is_t5(rdev->lldi.adapter_type) && map_udb_as_wc)
+			if (!is_t4(rdev->lldi.adapter_type) && map_udb_as_wc)
 				vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
 			else
 #endif

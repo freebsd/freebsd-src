@@ -57,15 +57,6 @@ struct InstantiationView {
   InstantiationView(StringRef FunctionName, unsigned Line,
                     std::unique_ptr<SourceCoverageView> View)
       : FunctionName(FunctionName), Line(Line), View(std::move(View)) {}
-  InstantiationView(InstantiationView &&RHS)
-      : FunctionName(std::move(RHS.FunctionName)), Line(std::move(RHS.Line)),
-        View(std::move(RHS.View)) {}
-  InstantiationView &operator=(InstantiationView &&RHS) {
-    FunctionName = std::move(RHS.FunctionName);
-    Line = std::move(RHS.Line);
-    View = std::move(RHS.View);
-    return *this;
-  }
 
   friend bool operator<(const InstantiationView &LHS,
                         const InstantiationView &RHS) {
@@ -99,8 +90,6 @@ struct LineCoverageStats {
 
 /// \brief A file manager that handles format-aware file creation.
 class CoveragePrinter {
-  const CoverageViewOptions &Opts;
-
 public:
   struct StreamDestructor {
     void operator()(raw_ostream *OS) const;
@@ -109,18 +98,20 @@ public:
   using OwnedStream = std::unique_ptr<raw_ostream, StreamDestructor>;
 
 protected:
+  const CoverageViewOptions &Opts;
+
   CoveragePrinter(const CoverageViewOptions &Opts) : Opts(Opts) {}
 
   /// \brief Return `OutputDir/ToplevelDir/Path.Extension`. If \p InToplevel is
   /// false, skip the ToplevelDir component. If \p Relative is false, skip the
   /// OutputDir component.
   std::string getOutputPath(StringRef Path, StringRef Extension,
-                            bool InToplevel, bool Relative = true);
+                            bool InToplevel, bool Relative = true) const;
 
   /// \brief If directory output is enabled, create a file in that directory
   /// at the path given by getOutputPath(). Otherwise, return stdout.
   Expected<OwnedStream> createOutputStream(StringRef Path, StringRef Extension,
-                                           bool InToplevel);
+                                           bool InToplevel) const;
 
   /// \brief Return the sub-directory name for file coverage reports.
   static StringRef getCoverageDir() { return "coverage"; }
@@ -142,7 +133,8 @@ public:
   virtual void closeViewFile(OwnedStream OS) = 0;
 
   /// \brief Create an index which lists reports for the given source files.
-  virtual Error createIndexFile(ArrayRef<StringRef> SourceFiles) = 0;
+  virtual Error createIndexFile(ArrayRef<std::string> SourceFiles,
+                                const coverage::CoverageMapping &Coverage) = 0;
 
   /// @}
 };
@@ -172,6 +164,9 @@ class SourceCoverageView {
   /// on display.
   std::vector<InstantiationView> InstantiationSubViews;
 
+  /// Get the first uncovered line number for the source file.
+  unsigned getFirstUncoveredLineNo();
+
 protected:
   struct LineRef {
     StringRef Line;
@@ -192,7 +187,7 @@ protected:
   virtual void renderViewFooter(raw_ostream &OS) = 0;
 
   /// \brief Render the source name for the view.
-  virtual void renderSourceName(raw_ostream &OS) = 0;
+  virtual void renderSourceName(raw_ostream &OS, bool WholeFile) = 0;
 
   /// \brief Render the line prefix at the given \p ViewDepth.
   virtual void renderLinePrefix(raw_ostream &OS, unsigned ViewDepth) = 0;
@@ -236,6 +231,14 @@ protected:
   virtual void renderInstantiationView(raw_ostream &OS, InstantiationView &ISV,
                                        unsigned ViewDepth) = 0;
 
+  /// \brief Render \p Title, a project title if one is available, and the
+  /// created time.
+  virtual void renderTitle(raw_ostream &OS, StringRef CellText) = 0;
+
+  /// \brief Render the table header for a given source file.
+  virtual void renderTableHeader(raw_ostream &OS, unsigned FirstUncoveredLineNo,
+                                 unsigned IndentLevel) = 0;
+
   /// @}
 
   /// \brief Format a count using engineering notation with 3 significant
@@ -262,7 +265,8 @@ public:
 
   virtual ~SourceCoverageView() {}
 
-  StringRef getSourceName() const { return SourceName; }
+  /// \brief Return the source name formatted for the host OS.
+  std::string getSourceName() const;
 
   const CoverageViewOptions &getOptions() const { return Options; }
 

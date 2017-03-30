@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/de
+.PATH: ${SRCTOP}/sys/dev/de
 
 KMOD=	if_de
 SRCS=	if_de.c opt_ddb.h device_if.h bus_if.h pci_if.h

@@ -4,6 +4,8 @@
 
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
 
+WARNS?=		0
+
 # All architectures on FreeBSD have fenv.h
 CFLAGS+=	-DHAVE_FENV_H
 
@@ -51,7 +53,7 @@ TAP_TESTS_C+=	conj_test
 # https://llvm.org/bugs/show_bug.cgi?id=26081
 TAP_TESTS_C+=	csqrt_test
 .endif
-TAP_TESTS_C+=	ctrig_test
+ATF_TESTS_C+=	ctrig_test
 TAP_TESTS_C+=	exponential_test
 TAP_TESTS_C+=	fenv_test
 TAP_TESTS_C+=	fma_test

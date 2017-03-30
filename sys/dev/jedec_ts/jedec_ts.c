@@ -104,7 +104,7 @@ ts_attach(device_t dev)
 	uint8_t addr;
 
 	addr = smbus_get_addr(dev);
-	if ((addr & 0x30) != 0x30) {
+	if ((addr & 0xf0) != 0x30) {
 		/* Up to 8 slave devices starting at 0x30. */
 		return (ENXIO);
 	}

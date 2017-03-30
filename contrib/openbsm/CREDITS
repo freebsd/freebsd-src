@@ -35,6 +35,7 @@ the development of OpenBSM:
     Joel Dahl
     Ryan Steinmetz
     The FreeBSD Foundation
+    Brooks Davis
 
 In addition, Coverity, Inc.'s Prevent(tm) static analysis tool and Gimpel
 Software's FlexeLint tool were used to identify a number of bugs in the

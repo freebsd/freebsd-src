@@ -112,17 +112,16 @@ static int
 rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m)
 {
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_key *k = NULL;
-	struct ieee80211_channel *chan;
 	struct ieee80211_frame *wh;
 	struct rtwn_tx_desc_common *txd;
 	struct rtwn_tx_buf buf;
 	uint8_t rate, ridx, type;
 	u_int cipher;
-	int ismcast, maxretry;
+	int ismcast;
 
 	RTWN_ASSERT_LOCKED(sc);
 
@@ -130,20 +129,15 @@ rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
-	chan = (ni->ni_chan != IEEE80211_CHAN_ANYC) ?
-		ni->ni_chan : ic->ic_curchan;
-	tp = &vap->iv_txparms[ieee80211_chan2mode(chan)];
-	maxretry = tp->maxretry;
-
 	/* Choose a TX rate index. */
-	if (type == IEEE80211_FC0_TYPE_MGT)
+	if (type == IEEE80211_FC0_TYPE_MGT ||
+	    type == IEEE80211_FC0_TYPE_CTL ||
+	    (m->m_flags & M_EAPOL) != 0)
 		rate = tp->mgmtrate;
 	else if (ismcast)
 		rate = tp->mcastrate;
 	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
 		rate = tp->ucastrate;
-	else if (m->m_flags & M_EAPOL)
-		rate = tp->mgmtrate;
 	else {
 		if (sc->sc_ratectl == RTWN_RATECTL_NET80211) {
 			/* XXX pass pktlen */
@@ -181,7 +175,7 @@ rtwn_tx_data(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	memset(txd, 0, sc->txdesc_len);
 	txd->txdw1 = htole32(SM(RTWN_TXDW1_CIPHER, rtwn_get_cipher(cipher)));
 
-	rtwn_fill_tx_desc(sc, ni, m, txd, ridx, maxretry);
+	rtwn_fill_tx_desc(sc, ni, m, txd, ridx, tp->maxretry);
 
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rtwn_tx_radiotap_header *tap = &sc->sc_txtap;

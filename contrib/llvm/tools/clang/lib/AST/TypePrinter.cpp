@@ -194,6 +194,7 @@ bool TypePrinter::canPrefixQualifiers(const Type *T,
     case Type::DependentName:
     case Type::DependentTemplateSpecialization:
     case Type::ObjCObject:
+    case Type::ObjCTypeParam:
     case Type::ObjCInterface:
     case Type::Atomic:
     case Type::Pipe:
@@ -724,6 +725,9 @@ void TypePrinter::printFunctionProtoAfter(const FunctionProtoType *T,
     case CC_X86_64SysV:
       OS << " __attribute__((sysv_abi))";
       break;
+    case CC_X86RegCall:
+      OS << " __attribute__((regcall))";
+      break;
     case CC_SpirFunction:
     case CC_OpenCLKernel:
       // Do nothing. These CCs are not available as attributes.
@@ -897,6 +901,10 @@ void TypePrinter::printAtomicAfter(const AtomicType *T, raw_ostream &OS) { }
 void TypePrinter::printPipeBefore(const PipeType *T, raw_ostream &OS) {
   IncludeStrongLifetimeRAII Strong(Policy);
 
+  if (T->isReadOnly())
+    OS << "read_only ";
+  else
+    OS << "write_only ";
   OS << "pipe ";
   print(T->getElementType(), OS, StringRef());
   spaceBeforePlaceHolder(OS);
@@ -1338,6 +1346,7 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
   case AttributedType::attr_pascal: OS << "pascal"; break;
   case AttributedType::attr_ms_abi: OS << "ms_abi"; break;
   case AttributedType::attr_sysv_abi: OS << "sysv_abi"; break;
+  case AttributedType::attr_regcall: OS << "regcall"; break;
   case AttributedType::attr_pcs:
   case AttributedType::attr_pcs_vfp: {
     OS << "pcs(";
@@ -1367,6 +1376,28 @@ void TypePrinter::printObjCInterfaceBefore(const ObjCInterfaceType *T,
 }
 void TypePrinter::printObjCInterfaceAfter(const ObjCInterfaceType *T, 
                                           raw_ostream &OS) { } 
+
+void TypePrinter::printObjCTypeParamBefore(const ObjCTypeParamType *T,
+                                          raw_ostream &OS) {
+  OS << T->getDecl()->getName();
+  if (!T->qual_empty()) {
+    bool isFirst = true;
+    OS << '<';
+    for (const auto *I : T->quals()) {
+      if (isFirst)
+        isFirst = false;
+      else
+        OS << ',';
+      OS << I->getName();
+    }
+    OS << '>';
+  }
+
+  spaceBeforePlaceHolder(OS);
+}
+
+void TypePrinter::printObjCTypeParamAfter(const ObjCTypeParamType *T,
+                                          raw_ostream &OS) { }
 
 void TypePrinter::printObjCObjectBefore(const ObjCObjectType *T,
                                         raw_ostream &OS) {

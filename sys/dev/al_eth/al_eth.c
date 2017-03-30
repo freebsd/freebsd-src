@@ -2009,7 +2009,7 @@ al_eth_enable_msix(struct al_eth_adapter *adapter)
 	adapter->msix_entries = malloc(msix_vecs*sizeof(*adapter->msix_entries),
 	    M_IFAL, M_ZERO | M_WAITOK);
 
-	if (adapter->msix_entries == 0) {
+	if (adapter->msix_entries == NULL) {
 		device_printf_dbg(adapter->dev, "failed to allocate"
 		    " msix_entries %d\n", msix_vecs);
 		rc = ENOMEM;
@@ -3544,7 +3544,7 @@ al_miibus_linkchg(device_t dev)
 	uint8_t duplex = 0;
 	uint8_t speed = 0;
 
-	if (adapter->mii == 0)
+	if (adapter->mii == NULL)
 		return;
 
 	if ((adapter->netdev->if_flags & IFF_UP) == 0)

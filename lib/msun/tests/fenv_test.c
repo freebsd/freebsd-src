@@ -64,61 +64,104 @@ static const int std_excepts[] = {
 /* init_exceptsets() initializes this to the power set of std_excepts[] */
 static int std_except_sets[1 << NEXCEPTS];
 
-static void init_exceptsets(void);
-
-static void test_dfl_env(void);
-static void test_fegsetenv(void);
-static void test_fegsetexceptflag(void);
-static void test_masking(void);
-static void test_fegsetround(void);
-static void test_feholdupdate(void);
-static void test_feraiseexcept(void);
-static void test_fetestclearexcept(void);
-
-static int getround(void);
-static void raiseexcept(int excepts);
-static void trap_handler(int sig);
-
 #pragma STDC FENV_ACCESS ON
-
-int
-main(int argc, char *argv[])
-{
-
-	printf("1..8\n");
-	init_exceptsets();
-	test_dfl_env();
-	printf("ok 1 - fenv\n");
-	test_fetestclearexcept();
-	printf("ok 2 - fenv\n");
-	test_fegsetexceptflag();
-	printf("ok 3 - fenv\n");
-	test_feraiseexcept();
-	printf("ok 4 - fenv\n");
-	test_fegsetround();
-	printf("ok 5 - fenv\n");
-	test_fegsetenv();
-	printf("ok 6 - fenv\n");
-	test_masking();
-	printf("ok 7 - fenv\n");
-	test_feholdupdate();
-	printf("ok 8 - fenv\n");
-
-	return (0);
-}
 
 /*
  * Initialize std_except_sets[] to the power set of std_excepts[]
  */
-void
+static void
 init_exceptsets(void)
 {
-	int i, j, sr;
+	unsigned i, j, sr;
 
 	for (i = 0; i < 1 << NEXCEPTS; i++) {
 		for (sr = i, j = 0; sr != 0; sr >>= 1, j++)
 			std_except_sets[i] |= std_excepts[j] & ((~sr & 1) - 1);
 	}
+}
+
+/*
+ * Raise a floating-point exception without relying on the standard
+ * library routines, which we are trying to test.
+ *
+ * XXX We can't raise an {over,under}flow without also raising an
+ * inexact exception.
+ */
+static void
+raiseexcept(int excepts)
+{
+	volatile double d;
+
+	/*
+	 * With a compiler that supports the FENV_ACCESS pragma
+	 * properly, simple expressions like '0.0 / 0.0' should
+	 * be sufficient to generate traps.  Unfortunately, we
+	 * need to bring a volatile variable into the equation
+	 * to prevent incorrect optimizations.
+	 */
+	if (excepts & FE_INVALID) {
+		d = 0.0;
+		d = 0.0 / d;
+	}
+	if (excepts & FE_DIVBYZERO) {
+		d = 0.0;
+		d = 1.0 / d;
+	}
+	if (excepts & FE_OVERFLOW) {
+		d = DBL_MAX;
+		d *= 2.0;
+	}
+	if (excepts & FE_UNDERFLOW) {
+		d = DBL_MIN;
+		d /= DBL_MAX;
+	}
+	if (excepts & FE_INEXACT) {
+		d = DBL_MIN;
+		d += 1.0;
+	}
+
+	/*
+	 * On the x86 (and some other architectures?) the FPU and
+	 * integer units are decoupled.  We need to execute an FWAIT
+	 * or a floating-point instruction to get synchronous exceptions.
+	 */
+	d = 1.0;
+	d += 1.0;
+}
+
+/*
+ * Determine the current rounding mode without relying on the fenv
+ * routines.  This function may raise an inexact exception.
+ */
+static int
+getround(void)
+{
+	volatile double d;
+
+	/*
+	 * This test works just as well with 0.0 - 0.0, except on ia64
+	 * where 0.0 - 0.0 gives the wrong sign when rounding downwards.
+	 */
+	d = 1.0;
+	d -= 1.0;
+	if (copysign(1.0, d) < 0.0)
+		return (FE_DOWNWARD);
+
+	d = 1.0;
+	if (d + (DBL_EPSILON * 3.0 / 4.0) == 1.0)
+		return (FE_TOWARDZERO);
+	if (d + (DBL_EPSILON * 1.0 / 4.0) > 1.0)
+		return (FE_UPWARD);
+
+	return (FE_TONEAREST);
+}
+
+static void
+trap_handler(int sig)
+{
+
+	assert(sig == SIGFPE);
+	_exit(0);
 }
 
 /*
@@ -347,7 +390,8 @@ static void
 test_masking(void)
 {
 	struct sigaction act;
-	int except, i, pass, raise, status;
+	int except, pass, raise, status;
+	unsigned i;
 
 	assert((fegetexcept() & ALL_STD_EXCEPT) == 0);
 	assert((feenableexcept(FE_INVALID|FE_OVERFLOW) & ALL_STD_EXCEPT) == 0);
@@ -427,7 +471,8 @@ test_feholdupdate(void)
 	fenv_t env;
 
 	struct sigaction act;
-	int except, i, pass, status, raise;
+	int except, pass, status, raise;
+	unsigned i;
 
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
@@ -452,7 +497,7 @@ test_feholdupdate(void)
 				 * We don't want to cause a fatal exception in
 				 * the child until the second pass, so we can
 				 * check other properties of feupdateenv().
-				 */				
+				 */
 				if (pass == 1)
 					assert((feenableexcept(except) &
 						   ALL_STD_EXCEPT) == 0);
@@ -491,86 +536,28 @@ test_feholdupdate(void)
 	assert(fetestexcept(FE_ALL_EXCEPT) == 0);
 }
 
-/*
- * Raise a floating-point exception without relying on the standard
- * library routines, which we are trying to test.
- *
- * XXX We can't raise an {over,under}flow without also raising an
- * inexact exception.
- */
-static void
-raiseexcept(int excepts)
-{
-	volatile double d;
-
-	/*
-	 * With a compiler that supports the FENV_ACCESS pragma
-	 * properly, simple expressions like '0.0 / 0.0' should
-	 * be sufficient to generate traps.  Unfortunately, we
-	 * need to bring a volatile variable into the equation
-	 * to prevent incorrect optimizations.
-	 */
-	if (excepts & FE_INVALID) {
-		d = 0.0;
-		d = 0.0 / d;
-	}
-	if (excepts & FE_DIVBYZERO) {
-		d = 0.0;
-		d = 1.0 / d;
-	}
-	if (excepts & FE_OVERFLOW) {
-		d = DBL_MAX;
-		d *= 2.0;
-	}
-	if (excepts & FE_UNDERFLOW) {
-		d = DBL_MIN;
-		d /= DBL_MAX;
-	}
-	if (excepts & FE_INEXACT) {
-		d = DBL_MIN;
-		d += 1.0;
-	}
-
-	/*
-	 * On the x86 (and some other architectures?) the FPU and
-	 * integer units are decoupled.  We need to execute an FWAIT
-	 * or a floating-point instruction to get synchronous exceptions.
-	 */
-	d = 1.0;
-	d += 1.0;
-}
-
-/*
- * Determine the current rounding mode without relying on the fenv
- * routines.  This function may raise an inexact exception.
- */
-static int
-getround(void)
-{
-	volatile double d;
-
-	/*
-	 * This test works just as well with 0.0 - 0.0, except on ia64
-	 * where 0.0 - 0.0 gives the wrong sign when rounding downwards.
-	 */
-	d = 1.0;
-	d -= 1.0;
-	if (copysign(1.0, d) < 0.0)
-		return (FE_DOWNWARD);
-
-	d = 1.0;
-	if (d + (DBL_EPSILON * 3.0 / 4.0) == 1.0)
-		return (FE_TOWARDZERO);
-	if (d + (DBL_EPSILON * 1.0 / 4.0) > 1.0)
-		return (FE_UPWARD);
-
-	return (FE_TONEAREST);
-}
-
-static void
-trap_handler(int sig)
+int
+main(void)
 {
 
-	assert(sig == SIGFPE);
-	_exit(0);
+	printf("1..8\n");
+	init_exceptsets();
+	test_dfl_env();
+	printf("ok 1 - fenv\n");
+	test_fetestclearexcept();
+	printf("ok 2 - fenv\n");
+	test_fegsetexceptflag();
+	printf("ok 3 - fenv\n");
+	test_feraiseexcept();
+	printf("ok 4 - fenv\n");
+	test_fegsetround();
+	printf("ok 5 - fenv\n");
+	test_fegsetenv();
+	printf("ok 6 - fenv\n");
+	test_masking();
+	printf("ok 7 - fenv\n");
+	test_feholdupdate();
+	printf("ok 8 - fenv\n");
+
+	return (0);
 }

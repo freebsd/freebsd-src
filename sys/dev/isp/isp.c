@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Local static data
  */
-static const char notresp[] = "Not RESPONSE in RESPONSE Queue (type 0x%x) @ idx %d (next %d) nlooked %d";
+static const char notresp[] = "Unknown IOCB in RESPONSE Queue (type 0x%x) @ idx %d (next %d)";
 static const char bun[] = "bad underrun (count %d, resid %d, status %s)";
 static const char lipd[] = "Chan %d LIP destroyed %d active commands";
 static const char sacq[] = "unable to acquire scratch area";
@@ -95,13 +95,12 @@ static const uint8_t alpa_map[] = {
 /*
  * Local function prototypes.
  */
-static int isp_parse_async(ispsoftc_t *, uint16_t);
-static int isp_parse_async_fc(ispsoftc_t *, uint16_t);
+static void isp_parse_async(ispsoftc_t *, uint16_t);
+static void isp_parse_async_fc(ispsoftc_t *, uint16_t);
 static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *, uint32_t *);
-static void isp_parse_status(ispsoftc_t *, ispstatusreq_t *, XS_T *, long *); static void
-isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *, long *);
+static void isp_parse_status(ispsoftc_t *, ispstatusreq_t *, XS_T *, uint32_t *);
+static void isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *, uint32_t *);
 static void isp_fastpost_complete(ispsoftc_t *, uint32_t);
-static int isp_mbox_continue(ispsoftc_t *);
 static void isp_scsi_init(ispsoftc_t *);
 static void isp_scsi_channel_init(ispsoftc_t *, int);
 static void isp_fibre_init(ispsoftc_t *);
@@ -130,7 +129,6 @@ static int isp_register_port_name_24xx(ispsoftc_t *, int);
 static int isp_register_node_name_24xx(ispsoftc_t *, int);
 static uint16_t isp_next_handle(ispsoftc_t *, uint16_t *);
 static int isp_fw_state(ispsoftc_t *, int);
-static void isp_mboxcmd_qnw(ispsoftc_t *, mbreg_t *, int);
 static void isp_mboxcmd(ispsoftc_t *, mbreg_t *);
 
 static void isp_spi_update(ispsoftc_t *, int);
@@ -178,13 +176,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	const char *btype = "????";
 	static const char dcrc[] = "Downloaded RISC Code Checksum Failure";
 
-	isp->isp_state = ISP_NILSTATE;
-	if (isp->isp_dead) {
-		isp_shutdown(isp);
-		ISP_DISABLE_INTS(isp);
-		return;
-	}
-
 	/*
 	 * Basic types (SCSI, FibreChannel and PCI or SBus)
 	 * have been set in the MD code. We figure out more
@@ -195,54 +186,8 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * for SCSI adapters and do other settings for the 2100.
 	 */
 
+	isp->isp_state = ISP_NILSTATE;
 	ISP_DISABLE_INTS(isp);
-
-	/*
-	 * Pick an initial maxcmds value which will be used
-	 * to allocate xflist pointer space. It may be changed
-	 * later by the firmware.
-	 */
-	if (IS_24XX(isp)) {
-		isp->isp_maxcmds = 4096;
-	} else if (IS_2322(isp)) {
-		isp->isp_maxcmds = 2048;
-	} else if (IS_23XX(isp) || IS_2200(isp)) {
-		isp->isp_maxcmds = 1024;
- 	} else {
-		isp->isp_maxcmds = 512;
-	}
-
-	/*
-	 * Set up DMA for the request and response queues.
-	 *
-	 * We do this now so we can use the request queue
-	 * for dma to load firmware from.
-	 */
-	if (ISP_MBOXDMASETUP(isp) != 0) {
-		isp_prt(isp, ISP_LOGERR, "Cannot setup DMA");
-		return;
-	}
-
-	/*
-	 * Set up default request/response queue in-pointer/out-pointer
-	 * register indices.
-	 */
-	if (IS_24XX(isp)) {
-		isp->isp_rqstinrp = BIU2400_REQINP;
-		isp->isp_rqstoutrp = BIU2400_REQOUTP;
-		isp->isp_respinrp = BIU2400_RSPINP;
-		isp->isp_respoutrp = BIU2400_RSPOUTP;
-	} else if (IS_23XX(isp)) {
-		isp->isp_rqstinrp = BIU_REQINP;
-		isp->isp_rqstoutrp = BIU_REQOUTP;
-		isp->isp_respinrp = BIU_RSPINP;
-		isp->isp_respoutrp = BIU_RSPOUTP;
-	} else {
-		isp->isp_rqstinrp = INMAILBOX4;
-		isp->isp_rqstoutrp = OUTMAILBOX4;
-		isp->isp_respinrp = OUTMAILBOX5;
-		isp->isp_respoutrp = INMAILBOX5;
-	}
 
 	/*
 	 * Put the board into PAUSE mode (so we can read the SXP registers
@@ -468,18 +413,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				isp->isp_clock = isp->isp_mdvec->dv_clock;
 			}
 		}
-
 	}
-
-	/*
-	 * Clear instrumentation
-	 */
-	isp->isp_intcnt = isp->isp_intbogus = 0;
-
-	/*
-	 * Do MD specific pre initialization
-	 */
-	ISP_RESET0(isp);
 
 	/*
 	 * Hit the chip over the head with hammer,
@@ -513,7 +447,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			}
 		}
 		if (val & BIU2400_DMA_ACTIVE) {
-			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR, "DMA Failed to Stop on Reset");
 			return;
 		}
@@ -533,7 +466,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			}
 		}
 		if (val & BIU2400_SOFT_RESET) {
-			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR, "Failed to come out of reset");
 			return;
 		}
@@ -572,7 +504,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		ISP_DELAY(100);
 		if (--loops < 0) {
 			ISP_DUMPREGS(isp, "chip reset timed out");
-			ISP_RESET0(isp);
 			return;
 		}
 	}
@@ -613,7 +544,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			}
 		}
 		if (val != 0) {
-			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR, "reset didn't clear");
 			return;
 		}
@@ -655,6 +585,26 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
 	}
 
+	/*
+	 * Set up default request/response queue in-pointer/out-pointer
+	 * register indices.
+	 */
+	if (IS_24XX(isp)) {
+		isp->isp_rqstinrp = BIU2400_REQINP;
+		isp->isp_rqstoutrp = BIU2400_REQOUTP;
+		isp->isp_respinrp = BIU2400_RSPINP;
+		isp->isp_respoutrp = BIU2400_RSPOUTP;
+	} else if (IS_23XX(isp)) {
+		isp->isp_rqstinrp = BIU_REQINP;
+		isp->isp_rqstoutrp = BIU_REQOUTP;
+		isp->isp_respinrp = BIU_RSPINP;
+		isp->isp_respoutrp = BIU_RSPOUTP;
+	} else {
+		isp->isp_rqstinrp = INMAILBOX4;
+		isp->isp_rqstoutrp = OUTMAILBOX4;
+		isp->isp_respinrp = OUTMAILBOX5;
+		isp->isp_respoutrp = INMAILBOX5;
+	}
 	ISP_WRITE(isp, isp->isp_rqstinrp, 0);
 	ISP_WRITE(isp, isp->isp_rqstoutrp, 0);
 	ISP_WRITE(isp, isp->isp_respinrp, 0);
@@ -668,10 +618,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, 0);
 	}
 
-	/*
-	 * Do MD specific post initialization
-	 */
-	ISP_RESET1(isp);
+	if (!IS_24XX(isp) && isp->isp_bustype == ISP_BT_PCI) {
+		/* Make sure the BIOS is disabled */
+		ISP_WRITE(isp, HCCR, PCI_HCCR_CMD_BIOS);
+	}
 
 	/*
 	 * Wait for everything to finish firing up.
@@ -686,7 +636,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		while (ISP_READ(isp, OUTMAILBOX0) == MBOX_BUSY) {
 			ISP_DELAY(100);
 			if (--loops < 0) {
-				ISP_RESET0(isp);
 				isp_prt(isp, ISP_LOGERR, "MBOX_BUSY never cleared on reset");
 				return;
 			}
@@ -707,14 +656,12 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		isp_prt(isp, ISP_LOGERR, "NOP command failed (%x)", mbs.param[0]);
-		ISP_RESET0(isp);
 		return;
 	}
 
 	/*
 	 * Do some operational tests
 	 */
-
 	if (IS_SCSI(isp) || IS_24XX(isp)) {
 		static const uint16_t patterns[MAX_MAILBOX] = {
 			0x0000, 0xdead, 0xbeef, 0xffff,
@@ -735,12 +682,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		}
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			ISP_RESET0(isp);
 			return;
 		}
 		for (i = 1; i < nmbox; i++) {
 			if (mbs.param[i] != patterns[i]) {
-				ISP_RESET0(isp);
 				isp_prt(isp, ISP_LOGERR, "Register Test Failed at Register %d: should have 0x%04x but got 0x%04x", i, patterns[i], mbs.param[i]);
 				return;
 			}
@@ -758,6 +703,17 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 */
 	if ((isp->isp_mdvec->dv_ispfw == NULL) || (isp->isp_confopts & ISP_CFG_NORELOAD)) {
 		dodnld = 0;
+	} else {
+
+		/*
+		 * Set up DMA for the request and response queues.
+		 * We do this now so we can use the request queue
+		 * for dma to load firmware from.
+		 */
+		if (ISP_MBOXDMASETUP(isp) != 0) {
+			isp_prt(isp, ISP_LOGERR, "Cannot setup DMA");
+			return;
+		}
 	}
 
 	if (IS_24XX(isp)) {
@@ -771,88 +727,47 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	isp->isp_loaded_fw = 0;
 	if (dodnld && IS_24XX(isp)) {
 		const uint32_t *ptr = isp->isp_mdvec->dv_ispfw;
-		int wordload;
+		uint32_t la, wi, wl;
 
 		/*
 		 * Keep loading until we run out of f/w.
 		 */
 		code_org = ptr[2];	/* 1st load address is our start addr */
-		wordload = 0;
 
 		for (;;) {
-			uint32_t la, wi, wl;
 
 			isp_prt(isp, ISP_LOGDEBUG0, "load 0x%x words of code at load address 0x%x", ptr[3], ptr[2]);
 
 			wi = 0;
 			la = ptr[2];
 			wl = ptr[3];
-
 			while (wi < ptr[3]) {
 				uint32_t *cp;
 				uint32_t nw;
 
-				nw = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) >> 2;
-				if (nw > wl) {
-					nw = wl;
-				}
+				nw = min(wl, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) / 4);
 				cp = isp->isp_rquest;
-				for (i = 0; i < nw; i++) {
-					ISP_IOXPUT_32(isp,  ptr[wi++], &cp[i]);
-					wl--;
-				}
+				for (i = 0; i < nw; i++)
+					ISP_IOXPUT_32(isp, ptr[wi + i], &cp[i]);
 				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
-	again:
-				MBSINIT(&mbs, 0, MBLOGALL, 0);
-				if (la < 0x10000 && nw < 0x10000) {
-					mbs.param[0] = MBOX_LOAD_RISC_RAM_2100;
-					mbs.param[1] = la;
-					mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
-					mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
-					mbs.param[4] = nw;
-					mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
-					mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
-					isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM 2100 %u words at load address 0x%x", nw, la);
-				} else if (wordload) {
-					union {
-						const uint32_t *cp;
-						uint32_t *np;
-					} ucd;
-					ucd.cp = (const uint32_t *)cp;
-					mbs.param[0] = MBOX_WRITE_RAM_WORD_EXTENDED;
-					mbs.param[1] = la;
-					mbs.param[2] = (*ucd.np);
-					mbs.param[3] = (*ucd.np) >> 16;
-					mbs.param[8] = la >> 16;
-					isp->isp_mbxwrk0 = nw - 1;
-					isp->isp_mbxworkp = ucd.np+1;
-					isp->isp_mbxwrk1 = (la + 1);
-					isp->isp_mbxwrk8 = (la + 1) >> 16;
-					isp_prt(isp, ISP_LOGDEBUG0, "WRITE RAM WORD EXTENDED %u words at load address 0x%x", nw, la);
-				} else {
-					mbs.param[0] = MBOX_LOAD_RISC_RAM;
-					mbs.param[1] = la;
-					mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
-					mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
-					mbs.param[4] = nw >> 16;
-					mbs.param[5] = nw;
-					mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
-					mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
-					mbs.param[8] = la >> 16;
-					isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM %u words at load address 0x%x", nw, la);
-				}
+				MBSINIT(&mbs, MBOX_LOAD_RISC_RAM, MBLOGALL, 0);
+				mbs.param[1] = la;
+				mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
+				mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
+				mbs.param[4] = nw >> 16;
+				mbs.param[5] = nw;
+				mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
+				mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
+				mbs.param[8] = la >> 16;
+				isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM %u words at load address 0x%x", nw, la);
 				isp_mboxcmd(isp, &mbs);
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-					if (mbs.param[0] == MBOX_HOST_INTERFACE_ERROR) {
-						isp_prt(isp, ISP_LOGERR, "switching to word load");
-						wordload = 1;
-						goto again;
-					}
-					isp_prt(isp, ISP_LOGERR, "F/W Risc Ram Load Failed");
-					ISP_RESET0(isp);
+					isp_prt(isp, ISP_LOGERR, "F/W download failed");
 					return;
 				}
 				la += nw;
+				wi += nw;
+				wl -= nw;
 			}
 
 			if (ptr[1] == 0) {
@@ -881,18 +796,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				uint16_t *cp;
 				uint16_t nw;
 
-				nw = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) >> 1;
-				if (nw > wl) {
-					nw = wl;
-				}
-				if (nw > (1 << 15)) {
-					nw = 1 << 15;
-				}
+				nw = min(wl, min((1 << 15), ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)) / 2));
 				cp = isp->isp_rquest;
-				for (i = 0; i < nw; i++) {
-					ISP_IOXPUT_16(isp,  ptr[wi++], &cp[i]);
-					wl--;
-				}
+				for (i = 0; i < nw; i++)
+					ISP_IOXPUT_16(isp, ptr[wi + i], &cp[i]);
 				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
 				MBSINIT(&mbs, 0, MBLOGALL, 0);
 				if (la < 0x10000) {
@@ -917,11 +824,12 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				}
 				isp_mboxcmd(isp, &mbs);
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-					isp_prt(isp, ISP_LOGERR, "F/W Risc Ram Load Failed");
-					ISP_RESET0(isp);
+					isp_prt(isp, ISP_LOGERR, "F/W download failed");
 					return;
 				}
 				la += nw;
+				wi += nw;
+				wl -= nw;
 			}
 
 			if (!IS_2322(isp)) {
@@ -946,23 +854,22 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		}
 		isp->isp_loaded_fw = 1;
 	} else if (dodnld) {
-		union {
-			const uint16_t *cp;
-			uint16_t *np;
-		} ucd;
-		ucd.cp = isp->isp_mdvec->dv_ispfw;
-		isp->isp_mbxworkp = &ucd.np[1];
-		isp->isp_mbxwrk0 = ucd.np[3] - 1;
-		isp->isp_mbxwrk1 = code_org + 1;
-		MBSINIT(&mbs, MBOX_WRITE_RAM_WORD, MBLOGNONE, 0);
-		mbs.param[1] = code_org;
-		mbs.param[2] = ucd.np[0];
-		isp_prt(isp, ISP_LOGDEBUG1, "WRITE RAM %u words at load address 0x%x", ucd.np[3], code_org);
-		isp_mboxcmd(isp, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			isp_prt(isp, ISP_LOGERR, "F/W download failed at word %d", isp->isp_mbxwrk1 - code_org);
-			ISP_RESET0(isp);
-			return;
+		const uint16_t *ptr = isp->isp_mdvec->dv_ispfw;
+		u_int i, wl;
+
+		wl = ptr[3];
+		isp_prt(isp, ISP_LOGDEBUG1,
+		    "WRITE RAM %u words at load address 0x%x", wl, code_org);
+		for (i = 0; i < wl; i++) {
+			MBSINIT(&mbs, MBOX_WRITE_RAM_WORD, MBLOGNONE, 0);
+			mbs.param[1] = code_org + i;
+			mbs.param[2] = ptr[i];
+			isp_mboxcmd(isp, &mbs);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+				isp_prt(isp, ISP_LOGERR,
+				    "F/W download failed at word %d", i);
+				return;
+			}
 		}
 	} else if (IS_26XX(isp)) {
 		MBSINIT(&mbs, MBOX_LOAD_FLASH_FIRMWARE, MBLOGALL, 5000000);
@@ -971,7 +878,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGERR, "Flash F/W load failed");
-			ISP_RESET0(isp);
 			return;
 		}
 	} else {
@@ -992,7 +898,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGERR, dcrc);
-			ISP_RESET0(isp);
 			return;
 		}
 	}
@@ -1003,8 +908,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * If we didn't actually download f/w,
 	 * we still need to (re)start it.
 	 */
-
-
 	MBSINIT(&mbs, MBOX_EXEC_FIRMWARE, MBLOGALL, 5000000);
 	if (IS_24XX(isp)) {
 		mbs.param[1] = code_org >> 16;
@@ -1027,7 +930,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	isp_mboxcmd(isp, &mbs);
 	if (IS_2322(isp) || IS_24XX(isp)) {
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			ISP_RESET0(isp);
 			return;
 		}
 	}
@@ -1051,7 +953,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	MBSINIT(&mbs, MBOX_ABOUT_FIRMWARE, MBLOGALL, 0);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		ISP_RESET0(isp);
 		return;
 	}
 
@@ -1249,22 +1150,16 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		MBSINIT(&mbs, MBOX_GET_RESOURCE_COUNT, MBLOGALL, 0);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			ISP_RESET0(isp);
 			return;
 		}
-		if (isp->isp_maxcmds >= mbs.param[3]) {
-			isp->isp_maxcmds = mbs.param[3];
-		}
+		isp->isp_maxcmds = mbs.param[3];
 	} else {
 		MBSINIT(&mbs, MBOX_GET_FIRMWARE_STATUS, MBLOGALL, 0);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			ISP_RESET0(isp);
 			return;
 		}
-		if (isp->isp_maxcmds >= mbs.param[2]) {
-			isp->isp_maxcmds = mbs.param[2];
-		}
+		isp->isp_maxcmds = mbs.param[2];
 	}
 	isp_prt(isp, ISP_LOGCONFIG, "%d max I/O command limit set", isp->isp_maxcmds);
 
@@ -1284,14 +1179,27 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			isp->isp_nchan = 1;
 		}
 	}
+
+	/*
+	 * Final DMA setup after we got isp_maxcmds.
+	 */
+	if (ISP_MBOXDMASETUP(isp) != 0) {
+		isp_prt(isp, ISP_LOGERR, "Cannot setup DMA");
+		return;
+	}
+
+	/*
+	 * Setup interrupts.
+	 */
+	if (ISP_IRQSETUP(isp) != 0) {
+		isp_prt(isp, ISP_LOGERR, "Cannot setup IRQ");
+		return;
+	}
+	ISP_ENABLE_INTS(isp);
+
 	if (IS_FC(isp)) {
 		for (i = 0; i < isp->isp_nchan; i++)
 			isp_change_fw_state(isp, i, FW_CONFIG_WAIT);
-	}
-	if (isp->isp_dead) {
-		isp_shutdown(isp);
-		ISP_DISABLE_INTS(isp);
-		return;
 	}
 
 	isp->isp_state = ISP_RESETSTATE;
@@ -1303,7 +1211,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * of knowing how many luns we support.
 	 *
 	 * Expanded lun firmware gives you 32 luns for SCSI cards and
-	 * 16384 luns for Fibre Channel cards.
+	 * unlimited luns for Fibre Channel cards.
 	 *
 	 * It turns out that even for QLogic 2100s with ROM 1.10 and above
 	 * we do get a firmware attributes word returned in mailbox register 6.
@@ -1351,7 +1259,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
  * Clean firmware shutdown.
  */
 static int
-isp_deinit(ispsoftc_t *isp)
+isp_stop(ispsoftc_t *isp)
 {
 	mbreg_t mbs;
 
@@ -1367,6 +1275,35 @@ isp_deinit(ispsoftc_t *isp)
 	mbs.param[8] = 0;
 	isp_mboxcmd(isp, &mbs);
 	return (mbs.param[0] == MBOX_COMMAND_COMPLETE ? 0 : mbs.param[0]);
+}
+
+/*
+ * Hardware shutdown.
+ */
+void
+isp_shutdown(ispsoftc_t *isp)
+{
+
+	if (isp->isp_state >= ISP_RESETSTATE)
+		isp_stop(isp);
+	ISP_DISABLE_INTS(isp);
+	if (IS_FC(isp)) {
+		if (IS_24XX(isp)) {
+			ISP_WRITE(isp, BIU2400_ICR, 0);
+			ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_PAUSE);
+		} else {
+			ISP_WRITE(isp, BIU_ICR, 0);
+			ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
+			ISP_WRITE(isp, BIU2100_CSR, BIU2100_FPM0_REGS);
+			ISP_WRITE(isp, FPM_DIAG_CONFIG, FPM_SOFT_RESET);
+			ISP_WRITE(isp, BIU2100_CSR, BIU2100_FB_REGS);
+			ISP_WRITE(isp, FBM_CMD, FBMCMD_FIFO_RESET_ALL);
+			ISP_WRITE(isp, BIU2100_CSR, BIU2100_RISC_REGS);
+		}
+	} else {
+		ISP_WRITE(isp, BIU_ICR, 0);
+		ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
+	}
 }
 
 /*
@@ -1386,7 +1323,6 @@ isp_init(ispsoftc_t *isp)
 	} else {
 		isp_scsi_init(isp);
 	}
-	GET_NANOTIME(&isp->isp_init_time);
 }
 
 static void
@@ -2153,7 +2089,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	}
 
 	if (IS_26XX(isp)) {
-		/* We don't support MSI-X yet, so set this unconditionally. */
+		/* Use handshake to reduce global lock congestion. */
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHR;
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHA;
 	}
@@ -2250,6 +2186,12 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	isp_prt(isp, ISP_LOGDEBUG0, "isp_fibre_init_2400: atioq %04x%04x%04x%04x", DMA_WD3(isp->isp_atioq_dma), DMA_WD2(isp->isp_atioq_dma),
 	    DMA_WD1(isp->isp_atioq_dma), DMA_WD0(isp->isp_atioq_dma));
 #endif
+
+	if (ISP_CAP_MSIX(isp) && isp->isp_nirq >= 2) {
+		icbp->icb_msixresp = 1;
+		if (IS_26XX(isp) && isp->isp_nirq >= 3)
+			icbp->icb_msixatio = 2;
+	}
 
 	isp_prt(isp, ISP_LOGDEBUG0, "isp_fibre_init_2400: fwopt1 0x%x fwopt2 0x%x fwopt3 0x%x", icbp->icb_fwoptions1, icbp->icb_fwoptions2, icbp->icb_fwoptions3);
 
@@ -2431,7 +2373,6 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 		    __func__, chan, vp.vp_mod_hdr.rqs_flags, vp.vp_mod_status);
 		return (EIO);
 	}
-	GET_NANOTIME(&isp->isp_init_time);
 	return (0);
 }
 
@@ -4317,7 +4258,7 @@ isp_start(XS_T *xs)
 
 	if (XS_CDBLEN(xs) > (IS_FC(isp)? 16 : 44) || XS_CDBLEN(xs) == 0) {
 		isp_prt(isp, ISP_LOGERR, "unsupported cdb length (%d, CDB[0]=0x%x)", XS_CDBLEN(xs), XS_CDBP(xs)[0] & 0xff);
-		XS_SETERR(xs, HBA_BOTCH);
+		XS_SETERR(xs, HBA_REQINVAL);
 		return (CMD_COMPLETE);
 	}
 
@@ -4343,19 +4284,18 @@ isp_start(XS_T *xs)
 			return (CMD_COMPLETE);
 		}
 
-		/*
-		 * Try again later.
-		 */
-		if (fcp->isp_loopstate != LOOP_READY) {
-			return (CMD_RQLATER);
-		}
-
 		isp_prt(isp, ISP_LOGDEBUG2, "XS_TGT(xs)=%d", target);
 		lp = &fcp->portdb[target];
 		if (target < 0 || target >= MAX_FC_TARG ||
 		    lp->is_target == 0) {
 			XS_SETERR(xs, HBA_SELTIMEOUT);
 			return (CMD_COMPLETE);
+		}
+		if (fcp->isp_loopstate != LOOP_READY) {
+			isp_prt(isp, ISP_LOGDEBUG1,
+			    "%d.%d.%jx loop is not ready",
+			    XS_CHANNEL(xs), target, (uintmax_t)XS_LUN(xs));
+			return (CMD_RQLATER);
 		}
 		if (lp->state == FC_PORTDB_STATE_ZOMBIE) {
 			isp_prt(isp, ISP_LOGDEBUG1,
@@ -4463,7 +4403,7 @@ isp_start(XS_T *xs)
 		((ispreqt7_t *)reqp)->req_task_attribute = ttype;
 	} else if (IS_FC(isp)) {
 		/*
-		 * See comment in isp_intr
+		 * See comment in isp_intr_respq
 		 */
 		/* XS_SET_RESID(xs, 0); */
 
@@ -4484,8 +4424,6 @@ isp_start(XS_T *xs)
 		}
 	}
 
-	tptr = &reqp->req_time;
-
 	/*
 	 * NB: we do not support long CDBs (yet)
 	 */
@@ -4494,19 +4432,20 @@ isp_start(XS_T *xs)
 	if (IS_SCSI(isp)) {
 		if (cdblen > sizeof (reqp->req_cdb)) {
 			isp_prt(isp, ISP_LOGERR, "Command Length %u too long for this chip", cdblen);
-			XS_SETERR(xs, HBA_BOTCH);
+			XS_SETERR(xs, HBA_REQINVAL);
 			return (CMD_COMPLETE);
 		}
 		reqp->req_target = target | (XS_CHANNEL(xs) << 7);
 		reqp->req_lun_trn = XS_LUN(xs);
-		cdbp = reqp->req_cdb;
 		reqp->req_cdblen = cdblen;
+		tptr = &reqp->req_time;
+		cdbp = reqp->req_cdb;
 	} else if (IS_24XX(isp)) {
 		ispreqt7_t *t7 = (ispreqt7_t *)local;
 
 		if (cdblen > sizeof (t7->req_cdb)) {
 			isp_prt(isp, ISP_LOGERR, "Command Length %u too long for this chip", cdblen);
-			XS_SETERR(xs, HBA_BOTCH);
+			XS_SETERR(xs, HBA_REQINVAL);
 			return (CMD_COMPLETE);
 		}
 
@@ -4514,15 +4453,7 @@ isp_start(XS_T *xs)
 		t7->req_tidlo = lp->portid;
 		t7->req_tidhi = lp->portid >> 16;
 		t7->req_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(xs));
-#if __FreeBSD_version >= 1000700
 		be64enc(t7->req_lun, CAM_EXTLUN_BYTE_SWIZZLE(XS_LUN(xs)));
-#else
-		if (XS_LUN(xs) >= 256) {
-			t7->req_lun[0] = XS_LUN(xs) >> 8;
-			t7->req_lun[0] |= 0x40;
-		}
-		t7->req_lun[1] = XS_LUN(xs);
-#endif
 		if (FCPARAM(isp, XS_CHANNEL(xs))->fctape_enabled && (lp->prli_word3 & PRLI_WD3_RETRY)) {
 			if (FCP_NEXT_CRN(isp, &t7->req_crn, xs)) {
 				isp_prt(isp, ISP_LOG_WARN1,
@@ -4539,7 +4470,7 @@ isp_start(XS_T *xs)
 
 		if (cdblen > sizeof t2->req_cdb) {
 			isp_prt(isp, ISP_LOGERR, "Command Length %u too long for this chip", cdblen);
-			XS_SETERR(xs, HBA_BOTCH);
+			XS_SETERR(xs, HBA_REQINVAL);
 			return (CMD_COMPLETE);
 		}
 		if (FCPARAM(isp, XS_CHANNEL(xs))->fctape_enabled && (lp->prli_word3 & PRLI_WD3_RETRY)) {
@@ -4555,32 +4486,22 @@ isp_start(XS_T *xs)
 			ispreqt2e_t *t2e = (ispreqt2e_t *)local;
 			t2e->req_target = lp->handle;
 			t2e->req_scclun = XS_LUN(xs);
-#if __FreeBSD_version < 1000700
-			if (XS_LUN(xs) >= 256)
-				t2e->req_scclun |= 0x4000;
-#endif
+			tptr = &t2e->req_time;
 			cdbp = t2e->req_cdb;
 		} else if (ISP_CAP_SCCFW(isp)) {
-			ispreqt2_t *t2 = (ispreqt2_t *)local;
 			t2->req_target = lp->handle;
 			t2->req_scclun = XS_LUN(xs);
-#if __FreeBSD_version < 1000700
-			if (XS_LUN(xs) >= 256)
-				t2->req_scclun |= 0x4000;
-#endif
+			tptr = &t2->req_time;
 			cdbp = t2->req_cdb;
 		} else {
 			t2->req_target = lp->handle;
 			t2->req_lun_trn = XS_LUN(xs);
+			tptr = &t2->req_time;
 			cdbp = t2->req_cdb;
 		}
 	}
+	*tptr = XS_TIME(xs);
 	ISP_MEMCPY(cdbp, XS_CDBP(xs), cdblen);
-
-	*tptr = (XS_TIME(xs) + 999) / 1000;
-	if (IS_24XX(isp) && *tptr > 0x1999) {
-		*tptr = 0x1999;
-	}
 
 	/* Whew. Thankfully the same for type 7 requests */
 	reqp->req_handle = isp_allocate_handle(isp, xs, ISP_HANDLE_INITIATOR);
@@ -4606,7 +4527,6 @@ isp_start(XS_T *xs)
 		return (dmaresult);
 	}
 	isp_xs_prt(isp, xs, ISP_LOGDEBUG0, "START cmd cdb[0]=0x%x datalen %ld", XS_CDBP(xs)[0], (long) XS_XFRLEN(xs));
-	isp->isp_nactive++;
 	return (CMD_QUEUED);
 }
 
@@ -4986,212 +4906,127 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
  * and the locking will be held throughout this function.
  */
 
-/*
- * Limit our stack depth by sticking with the max likely number
- * of completions on a request queue at any one time.
- */
-#ifndef	MAX_REQUESTQ_COMPLETIONS
-#define	MAX_REQUESTQ_COMPLETIONS	32
+#ifdef	ISP_TARGET_MODE
+void
+isp_intr_atioq(ispsoftc_t *isp)
+{
+	uint8_t qe[QENTRY_LEN];
+	isphdr_t *hp;
+	void *addr;
+	uint32_t iptr, optr, oop;
+
+	iptr = ISP_READ(isp, BIU2400_ATIO_RSPINP);
+	optr = isp->isp_atioodx;
+	while (optr != iptr) {
+		oop = optr;
+		MEMORYBARRIER(isp, SYNC_ATIOQ, oop, QENTRY_LEN, -1);
+		addr = ISP_QUEUE_ENTRY(isp->isp_atioq, oop);
+		isp_get_hdr(isp, addr, (isphdr_t *)qe);
+		hp = (isphdr_t *)qe;
+		switch (hp->rqs_entry_type) {
+		case RQSTYPE_NOTIFY:
+		case RQSTYPE_ATIO:
+			(void) isp_target_notify(isp, addr, &oop);
+			break;
+		default:
+			isp_print_qentry(isp, "?ATIOQ entry?", oop, addr);
+			break;
+		}
+		optr = ISP_NXT_QENTRY(oop, RESULT_QUEUE_LEN(isp));
+	}
+	if (isp->isp_atioodx != optr) {
+		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, optr);
+		isp->isp_atioodx = optr;
+	}
+}
 #endif
 
 void
-isp_intr(ispsoftc_t *isp, uint16_t isr, uint16_t sema, uint16_t info)
+isp_intr_async(ispsoftc_t *isp, uint16_t event)
 {
-	XS_T *complist[MAX_REQUESTQ_COMPLETIONS], *xs;
-	uint32_t iptr, optr, junk;
-	int i, nlooked = 0, ndone = 0, continuations_expected = 0;
-	int etype, last_etype = 0;
 
-again:
-	/*
-	 * Is this a mailbox related interrupt?
-	 * The mailbox semaphore will be nonzero if so.
-	 */
-	if (sema) {
- fmbox:
-		if (info & MBOX_COMMAND_COMPLETE) {
-			isp->isp_intmboxc++;
-			if (isp->isp_mboxbsy) {
-				int obits = isp->isp_obits;
-				isp->isp_mboxtmp[0] = info;
-				for (i = 1; i < ISP_NMBOX(isp); i++) {
-					if ((obits & (1 << i)) == 0) {
-						continue;
-					}
-					isp->isp_mboxtmp[i] = ISP_READ(isp, MBOX_OFF(i));
-				}
-				if (isp->isp_mbxwrk0) {
-					if (isp_mbox_continue(isp) == 0) {
-						return;
-					}
-				}
-				MBOX_NOTIFY_COMPLETE(isp);
-			} else {
-				isp_prt(isp, ISP_LOGWARN, "mailbox cmd (0x%x) with no waiters", info);
-			}
-		} else {
-			i = IS_FC(isp)? isp_parse_async_fc(isp, info) : isp_parse_async(isp, info);
-			if (i < 0) {
-				return;
-			}
-		}
-		if ((IS_FC(isp) && info != ASYNC_RIOZIO_STALL) || isp->isp_state != ISP_RUNSTATE) {
-			goto out;
-		}
+	if (IS_FC(isp))
+		isp_parse_async_fc(isp, event);
+	else
+		isp_parse_async(isp, event);
+}
+
+void
+isp_intr_mbox(ispsoftc_t *isp, uint16_t mbox0)
+{
+	int i, obits;
+
+	if (!isp->isp_mboxbsy) {
+		isp_prt(isp, ISP_LOGWARN, "mailbox 0x%x with no waiters", mbox0);
+		return;
 	}
+	obits = isp->isp_obits;
+	isp->isp_mboxtmp[0] = mbox0;
+	for (i = 1; i < ISP_NMBOX(isp); i++) {
+		if ((obits & (1 << i)) == 0)
+			continue;
+		isp->isp_mboxtmp[i] = ISP_READ(isp, MBOX_OFF(i));
+	}
+	MBOX_NOTIFY_COMPLETE(isp);
+}
+
+void
+isp_intr_respq(ispsoftc_t *isp)
+{
+	XS_T *xs, *cont_xs;
+	uint8_t qe[QENTRY_LEN];
+	ispstatusreq_t *sp = (ispstatusreq_t *)qe;
+	isp24xx_statusreq_t *sp2 = (isp24xx_statusreq_t *)qe;
+	isphdr_t *hp;
+	uint8_t *resp, *snsp;
+	int buddaboom, completion_status, cont = 0, etype, i;
+	int req_status_flags, req_state_flags, scsi_status;
+	uint32_t iptr, junk, cptr, optr, rlen, slen, sptr, totslen, resid;
 
 	/*
 	 * We can't be getting this now.
 	 */
 	if (isp->isp_state != ISP_RUNSTATE) {
-		/*
-		 * This seems to happen to 23XX and 24XX cards- don't know why.
-		 */
-		 if (isp->isp_mboxbsy && isp->isp_lastmbxcmd == MBOX_ABOUT_FIRMWARE) {
-			goto fmbox;
-		}
-		isp_prt(isp, ISP_LOGINFO, "interrupt (ISR=%x SEMA=%x INFO=%x) "
-		    "when not ready", isr, sema, info);
-		/*
-		 * Thank you very much!  *Burrrp*!
-		 */
-		isp->isp_residx = ISP_READ(isp, isp->isp_respinrp);
-		isp->isp_resodx = isp->isp_residx;
-		ISP_WRITE(isp, isp->isp_respoutrp, isp->isp_resodx);
-		if (IS_24XX(isp)) {
-			ISP_DISABLE_INTS(isp);
-		}
-		goto out;
+		isp_prt(isp, ISP_LOGINFO, "respq interrupt when not ready");
+		return;
 	}
 
-#ifdef	ISP_TARGET_MODE
-	/*
-	 * Check for ATIO Queue entries.
-	 */
-	if (IS_24XX(isp) &&
-	    (isr == ISPR2HST_ATIO_UPDATE || isr == ISPR2HST_ATIO_RSPQ_UPDATE ||
-	     isr == ISPR2HST_ATIO_UPDATE2)) {
-		iptr = ISP_READ(isp, BIU2400_ATIO_RSPINP);
-		optr = isp->isp_atioodx;
-
-		while (optr != iptr) {
-			uint8_t qe[QENTRY_LEN];
-			isphdr_t *hp;
-			uint32_t oop;
-			void *addr;
-
-			oop = optr;
-			MEMORYBARRIER(isp, SYNC_ATIOQ, oop, QENTRY_LEN, -1);
-			addr = ISP_QUEUE_ENTRY(isp->isp_atioq, oop);
-			isp_get_hdr(isp, addr, (isphdr_t *)qe);
-			hp = (isphdr_t *)qe;
-			switch (hp->rqs_entry_type) {
-			case RQSTYPE_NOTIFY:
-			case RQSTYPE_ATIO:
-				(void) isp_target_notify(isp, addr, &oop);
-				break;
-			default:
-				isp_print_qentry(isp, "?ATIOQ entry?", oop, addr);
-				break;
-			}
-			optr = ISP_NXT_QENTRY(oop, RESULT_QUEUE_LEN(isp));
-		}
-		if (isp->isp_atioodx != optr) {
-			ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, optr);
-			isp->isp_atioodx = optr;
-		}
-	}
-#endif
-
-	/*
-	 * You *must* read the Response Queue In Pointer
-	 * prior to clearing the RISC interrupt.
-	 *
-	 * Debounce the 2300 if revision less than 2.
-	 */
+	iptr = ISP_READ(isp, isp->isp_respinrp);
+	/* Debounce the 2300 if revision less than 2. */
 	if (IS_2100(isp) || (IS_2300(isp) && isp->isp_revision < 2)) {
-		i = 0;
 		do {
+			junk = iptr;
 			iptr = ISP_READ(isp, isp->isp_respinrp);
-			junk = ISP_READ(isp, isp->isp_respinrp);
-		} while (junk != iptr && ++i < 1000);
-
-		if (iptr != junk) {
-			isp_prt(isp, ISP_LOGWARN, "Response Queue Out Pointer Unstable (%x, %x)", iptr, junk);
-			goto out;
-		}
-	} else {
-		iptr = ISP_READ(isp, isp->isp_respinrp);
-	}
-
-	optr = isp->isp_resodx;
-	if (optr == iptr && sema == 0) {
-		/*
-		 * There are a lot of these- reasons unknown- mostly on
-		 * faster Alpha machines.
-		 *
-		 * I tried delaying after writing HCCR_CMD_CLEAR_RISC_INT to
-		 * make sure the old interrupt went away (to avoid 'ringing'
-		 * effects), but that didn't stop this from occurring.
-		 */
-		if (IS_24XX(isp)) {
-			junk = 0;
-		} else if (IS_23XX(isp)) {
-			ISP_DELAY(100);
-			iptr = ISP_READ(isp, isp->isp_respinrp);
-			junk = ISP_READ(isp, BIU_R2HSTSLO);
-		} else {
-			junk = ISP_READ(isp, BIU_ISR);
-		}
-		if (optr == iptr) {
-			if (IS_23XX(isp) || IS_24XX(isp)) {
-				;
-			} else {
-				sema = ISP_READ(isp, BIU_SEMA);
-				info = ISP_READ(isp, OUTMAILBOX0);
-				if ((sema & 0x3) && (info & 0x8000)) {
-					goto again;
-				}
-			}
-			isp->isp_intbogus++;
-			isp_prt(isp, ISP_LOGDEBUG1, "bogus intr- isr %x (%x) iptr %x optr %x", isr, junk, iptr, optr);
-		}
+		} while (junk != iptr);
 	}
 	isp->isp_residx = iptr;
 
+	optr = isp->isp_resodx;
 	while (optr != iptr) {
-		uint8_t qe[QENTRY_LEN];
-		ispstatusreq_t *sp = (ispstatusreq_t *) qe;
-		isphdr_t *hp;
-		int buddaboom, scsi_status, completion_status;
-		int req_status_flags, req_state_flags;
-		uint8_t *snsp, *resp;
-		uint32_t rlen, slen, totslen;
-		long resid;
-		uint16_t oop;
-
-		hp = (isphdr_t *) ISP_QUEUE_ENTRY(isp->isp_result, optr);
-		oop = optr;
+		sptr = cptr = optr;
+		hp = (isphdr_t *) ISP_QUEUE_ENTRY(isp->isp_result, cptr);
 		optr = ISP_NXT_QENTRY(optr, RESULT_QUEUE_LEN(isp));
-		nlooked++;
- read_again:
-		buddaboom = req_status_flags = req_state_flags = 0;
-		resid = 0L;
 
 		/*
 		 * Synchronize our view of this response queue entry.
 		 */
-		MEMORYBARRIER(isp, SYNC_RESULT, oop, QENTRY_LEN, -1);
+		MEMORYBARRIER(isp, SYNC_RESULT, cptr, QENTRY_LEN, -1);
 		if (isp->isp_dblev & ISP_LOGDEBUG1)
-			isp_print_qentry(isp, "Response Queue Entry", oop, hp);
+			isp_print_qentry(isp, "Response Queue Entry", cptr, hp);
 		isp_get_hdr(isp, hp, &sp->req_header);
 		etype = sp->req_header.rqs_entry_type;
 
+		/* We expected Status Continuation, but got different IOCB. */
+		if (cont > 0 && etype != RQSTYPE_STATUS_CONT) {
+			cont = 0;
+			isp_done(cont_xs);
+		}
+
 		if (IS_24XX(isp) && etype == RQSTYPE_RESPONSE) {
-			isp24xx_statusreq_t *sp2 = (isp24xx_statusreq_t *)qe;
 			isp_get_24xx_response(isp, (isp24xx_statusreq_t *)hp, sp2);
 			scsi_status = sp2->req_scsi_status;
 			completion_status = sp2->req_completion_status;
+			req_status_flags = 0;
 			if ((scsi_status & 0xff) != 0)
 				req_state_flags = RQSF_GOT_STATUS;
 			else
@@ -5210,83 +5045,53 @@ again:
 			for (i = 0; i < rio->req_header.rqs_seqno; i++) {
 				isp_fastpost_complete(isp, rio->req_handles[i]);
 			}
-			if (isp->isp_fpcchiwater < rio->req_header.rqs_seqno) {
-				isp->isp_fpcchiwater = rio->req_header.rqs_seqno;
-			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-			last_etype = etype;
 			continue;
 		} else if (etype == RQSTYPE_RIO2) {
 			isp_prt(isp, ISP_LOGERR, "dropping RIO2 response");
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-			last_etype = etype;
 			continue;
 		} else if (etype == RQSTYPE_STATUS_CONT) {
-			isp_get_cont_response(isp, (ispstatus_cont_t *) hp, (ispstatus_cont_t *) sp);
-			if (last_etype == RQSTYPE_RESPONSE && continuations_expected && ndone > 0 && (xs = complist[ndone-1]) != NULL) {
-				ispstatus_cont_t *scp = (ispstatus_cont_t *) sp;
-				XS_SENSE_APPEND(xs, scp->req_sense_data, sizeof (scp->req_sense_data));
-				isp_prt(isp, ISP_LOGDEBUG0|ISP_LOG_CWARN, "%d more Status Continuations expected", --continuations_expected);
+			ispstatus_cont_t *scp = (ispstatus_cont_t *)qe;
+			isp_get_cont_response(isp, (ispstatus_cont_t *)hp, scp);
+			if (cont > 0) {
+				i = min(cont, sizeof(scp->req_sense_data));
+				XS_SENSE_APPEND(cont_xs, scp->req_sense_data, i);
+				cont -= i;
+				if (cont == 0) {
+					isp_done(cont_xs);
+				} else {
+					isp_prt(isp, ISP_LOGDEBUG0|ISP_LOG_CWARN,
+					    "Expecting Status Continuations for %u bytes",
+					    cont);
+				}
 			} else {
 				isp_prt(isp, ISP_LOG_WARN1, "Ignored Continuation Response");
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			continue;
+		} else if (isp_handle_other_response(isp, etype, hp, &cptr)) {
+			/* More then one IOCB could be consumed. */
+			while (sptr != cptr) {
+				ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
+				sptr = ISP_NXT_QENTRY(sptr, RESULT_QUEUE_LEN(isp));
+				hp = (isphdr_t *)ISP_QUEUE_ENTRY(isp->isp_result, sptr);
+			}
+			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
+			optr = ISP_NXT_QENTRY(cptr, RESULT_QUEUE_LEN(isp));
+			continue;
 		} else {
-			/*
-			 * Somebody reachable via isp_handle_other_response
-			 * may have updated the response queue pointers for
-			 * us, so we reload our goal index.
-			 */
-			int r;
-			uint32_t tsto = oop;
-			r = isp_handle_other_response(isp, etype, hp, &tsto);
-			if (r < 0) {
-				goto read_again;
-			}
-			/*
-			 * If somebody updated the output pointer, then reset
-			 * optr to be one more than the updated amount.
-			 */
-			while (tsto != oop) {
-				optr = ISP_NXT_QENTRY(tsto, RESULT_QUEUE_LEN(isp));
-			}
-			if (r > 0) {
-				ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-				last_etype = etype;
-				continue;
-			}
-
-			/*
-			 * After this point, we'll just look at the header as
-			 * we don't know how to deal with the rest of the
-			 * response.
-			 */
-
-			/*
-			 * It really has to be a bounced request just copied
-			 * from the request queue to the response queue. If
-			 * not, something bad has happened.
-			 */
-			if (etype != RQSTYPE_REQUEST) {
-				isp_prt(isp, ISP_LOGERR, notresp, etype, oop, optr, nlooked);
-				ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-				last_etype = etype;
-				continue;
-			}
-			buddaboom = 1;
-			scsi_status = sp->req_scsi_status;
-			completion_status = sp->req_completion_status;
-			req_status_flags = sp->req_status_flags;
-			req_state_flags = sp->req_state_flags;
-			resid = sp->req_resid;
+			/* We don't know what was this -- log and skip. */
+			isp_prt(isp, ISP_LOGERR, notresp, etype, cptr, optr);
+			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
+			continue;
 		}
 
+		buddaboom = 0;
 		if (sp->req_header.rqs_flags & RQSFLAG_MASK) {
 			if (sp->req_header.rqs_flags & RQSFLAG_CONTINUATION) {
 				isp_print_qentry(isp, "unexpected continuation segment",
-				    oop, hp);
-				last_etype = etype;
+				    cptr, hp);
 				continue;
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_FULL) {
@@ -5297,23 +5102,22 @@ again:
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADHEADER) {
 				isp_print_qentry(isp, "bad header flag",
-				    oop, hp);
+				    cptr, hp);
 				buddaboom++;
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADPACKET) {
 				isp_print_qentry(isp, "bad request packet",
-				    oop, hp);
+				    cptr, hp);
 				buddaboom++;
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADCOUNT) {
 				isp_print_qentry(isp, "invalid entry count",
-				    oop, hp);
+				    cptr, hp);
 				buddaboom++;
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADORDER) {
 				isp_print_qentry(isp, "invalid IOCB ordering",
-				    oop, hp);
-				last_etype = etype;
+				    cptr, hp);
 				continue;
 			}
 		}
@@ -5331,7 +5135,6 @@ again:
 				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (status 0x%x)", sp->req_handle, ts);
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-			last_etype = etype;
 			continue;
 		}
 		if (req_status_flags & RQSTF_BUS_RESET) {
@@ -5346,13 +5149,11 @@ again:
 			XS_SETERR(xs, HBA_BOTCH);
 		}
 
-		resp = NULL;
-		rlen = 0;
-		snsp = NULL;
-		totslen = slen = 0;
+		resp = snsp = NULL;
+		rlen = slen = totslen = 0;
 		if (IS_24XX(isp) && (scsi_status & (RQCS_RV|RQCS_SV)) != 0) {
-			resp = ((isp24xx_statusreq_t *)sp)->req_rsp_sense;
-			rlen = ((isp24xx_statusreq_t *)sp)->req_response_len;
+			resp = sp2->req_rsp_sense;
+			rlen = sp2->req_response_len;
 		} else if (IS_FC(isp) && (scsi_status & RQCS_RV) != 0) {
 			resp = sp->req_response;
 			rlen = sp->req_response_len;
@@ -5365,232 +5166,124 @@ again:
 			 */
 			req_state_flags |= RQSF_GOT_STATUS|RQSF_GOT_SENSE;
 			if (IS_24XX(isp)) {
-				snsp = ((isp24xx_statusreq_t *)sp)->req_rsp_sense;
+				snsp = sp2->req_rsp_sense;
 				snsp += rlen;
-				totslen = ((isp24xx_statusreq_t *)sp)->req_sense_len;
-				slen = (sizeof (((isp24xx_statusreq_t *)sp)->req_rsp_sense)) - rlen;
-				if (totslen < slen)
-					slen = totslen; 
+				totslen = sp2->req_sense_len;
+				slen = sizeof(sp2->req_rsp_sense) - rlen;
 			} else {
 				snsp = sp->req_sense_data;
 				totslen = sp->req_sense_len;
-				slen = sizeof (sp->req_sense_data);
-				if (totslen < slen)
-					slen = totslen;
+				slen = sizeof(sp->req_sense_data);
 			}
 		} else if (IS_SCSI(isp) && (req_state_flags & RQSF_GOT_SENSE)) {
 			snsp = sp->req_sense_data;
 			totslen = sp->req_sense_len;
 			slen = sizeof (sp->req_sense_data);
-			if (totslen < slen)
-				slen = totslen;
 		}
-		if (req_state_flags & RQSF_GOT_STATUS) {
+		if (slen > totslen)
+			slen = totslen;
+		if (req_state_flags & RQSF_GOT_STATUS)
 			*XS_STSP(xs) = scsi_status & 0xff;
-		}
 
-		switch (etype) {
-		case RQSTYPE_RESPONSE:
-			if (resp && rlen >= 4 && resp[FCP_RSPNS_CODE_OFFSET] != 0) {
-				const char *ptr;
-				char lb[64];
-				const char *rnames[10] = {
-				    "Task Management function complete",
-				    "FCP_DATA length different than FCP_BURST_LEN",
-				    "FCP_CMND fields invalid",
-				    "FCP_DATA parameter mismatch with FCP_DATA_RO",
-				    "Task Management function rejected",
-				    "Task Management function failed",
-				    NULL,
-				    NULL,
-				    "Task Management function succeeded",
-				    "Task Management function incorrect logical unit number",
-				};
-				uint8_t code = resp[FCP_RSPNS_CODE_OFFSET];
-				if (code >= 10 || rnames[code] == NULL) {
-					ISP_SNPRINTF(lb, sizeof(lb),
-					    "Unknown FCP Response Code 0x%x",
-					    code);
-					ptr = lb;
-				} else {
-					ptr = rnames[code];
-				}
-				isp_xs_prt(isp, xs, ISP_LOGWARN,
-				    "FCP RESPONSE, LENGTH %u: %s CDB0=0x%02x",
-				    rlen, ptr, XS_CDBP(xs)[0] & 0xff);
-				if (code != 0 && code != 8)
-					XS_SETERR(xs, HBA_BOTCH);
-			}
-			if (IS_24XX(isp)) {
-				isp_parse_status_24xx(isp, (isp24xx_statusreq_t *)sp, xs, &resid);
+		if (rlen >= 4 && resp[FCP_RSPNS_CODE_OFFSET] != 0) {
+			const char *ptr;
+			char lb[64];
+			const char *rnames[10] = {
+			    "Task Management function complete",
+			    "FCP_DATA length different than FCP_BURST_LEN",
+			    "FCP_CMND fields invalid",
+			    "FCP_DATA parameter mismatch with FCP_DATA_RO",
+			    "Task Management function rejected",
+			    "Task Management function failed",
+			    NULL,
+			    NULL,
+			    "Task Management function succeeded",
+			    "Task Management function incorrect logical unit number",
+			};
+			uint8_t code = resp[FCP_RSPNS_CODE_OFFSET];
+			if (code >= 10 || rnames[code] == NULL) {
+				ISP_SNPRINTF(lb, sizeof(lb),
+				    "Unknown FCP Response Code 0x%x", code);
+				ptr = lb;
 			} else {
-				isp_parse_status(isp, (void *)sp, xs, &resid);
+				ptr = rnames[code];
 			}
-			if ((XS_NOERR(xs) || XS_ERR(xs) == HBA_NOERROR) && (*XS_STSP(xs) == SCSI_BUSY)) {
-				XS_SETERR(xs, HBA_TGTBSY);
+			isp_xs_prt(isp, xs, ISP_LOGWARN,
+			    "FCP RESPONSE, LENGTH %u: %s CDB0=0x%02x",
+			    rlen, ptr, XS_CDBP(xs)[0] & 0xff);
+			if (code != 0 && code != 8)
+				XS_SETERR(xs, HBA_BOTCH);
+		}
+		if (IS_24XX(isp))
+			isp_parse_status_24xx(isp, sp2, xs, &resid);
+		else
+			isp_parse_status(isp, sp, xs, &resid);
+		if ((XS_NOERR(xs) || XS_ERR(xs) == HBA_NOERROR) &&
+		    (*XS_STSP(xs) == SCSI_BUSY))
+			XS_SETERR(xs, HBA_TGTBSY);
+		if (IS_SCSI(isp)) {
+			XS_SET_RESID(xs, resid);
+			/*
+			 * A new synchronous rate was negotiated for
+			 * this target. Mark state such that we'll go
+			 * look up that which has changed later.
+			 */
+			if (req_status_flags & RQSTF_NEGOTIATION) {
+				int t = XS_TGT(xs);
+				sdparam *sdp = SDPARAM(isp, XS_CHANNEL(xs));
+				sdp->isp_devparam[t].dev_refresh = 1;
+				sdp->update = 1;
 			}
-			if (IS_SCSI(isp)) {
+		} else {
+			if (req_status_flags & RQSF_XFER_COMPLETE) {
+				XS_SET_RESID(xs, 0);
+			} else if (scsi_status & RQCS_RESID) {
 				XS_SET_RESID(xs, resid);
-				/*
-				 * A new synchronous rate was negotiated for
-				 * this target. Mark state such that we'll go
-				 * look up that which has changed later.
-				 */
-				if (req_status_flags & RQSTF_NEGOTIATION) {
-					int t = XS_TGT(xs);
-					sdparam *sdp = SDPARAM(isp, XS_CHANNEL(xs));
-					sdp->isp_devparam[t].dev_refresh = 1;
-					sdp->update = 1;
-				}
 			} else {
-				if (req_status_flags & RQSF_XFER_COMPLETE) {
-					XS_SET_RESID(xs, 0);
-				} else if (scsi_status & RQCS_RESID) {
-					XS_SET_RESID(xs, resid);
-				} else {
-					XS_SET_RESID(xs, 0);
-				}
+				XS_SET_RESID(xs, 0);
 			}
-			if (snsp && slen) {
-				if (totslen > slen) {
-					continuations_expected += ((totslen - slen + QENTRY_LEN - 5) / (QENTRY_LEN - 4));
-					if (ndone > (MAX_REQUESTQ_COMPLETIONS - continuations_expected - 1)) {
-						/* we'll lose some stats, but that's a small price to pay */
-						for (i = 0; i < ndone; i++) {
-							if (complist[i]) {
-								isp->isp_rsltccmplt++;
-								isp_done(complist[i]);
-							}
-						}
-						ndone = 0;
-					}
-					isp_prt(isp, ISP_LOGDEBUG0|ISP_LOG_CWARN, "Expecting %d more Status Continuations for total sense length of %u",
-					    continuations_expected, totslen);
-				}
-				XS_SAVE_SENSE(xs, snsp, totslen, slen);
-			} else if ((req_status_flags & RQSF_GOT_STATUS) && (scsi_status & 0xff) == SCSI_CHECK && IS_FC(isp)) {
-				isp_prt(isp, ISP_LOGWARN, "CHECK CONDITION w/o sense data for CDB=0x%x", XS_CDBP(xs)[0] & 0xff);
-				isp_print_qentry(isp, "CC with no Sense",
-				    oop, hp);
-			}
-			isp_prt(isp, ISP_LOGDEBUG2, "asked for %ld got raw resid %ld settled for %ld", (long) XS_XFRLEN(xs), resid, (long) XS_GET_RESID(xs));
-			break;
-		case RQSTYPE_REQUEST:
-		case RQSTYPE_A64:
-		case RQSTYPE_T2RQS:
-		case RQSTYPE_T3RQS:
-		case RQSTYPE_T7RQS:
-			if (!IS_24XX(isp) && (sp->req_header.rqs_flags & RQSFLAG_FULL)) {
-				/*
-				 * Force Queue Full status.
-				 */
-				*XS_STSP(xs) = SCSI_QFULL;
-				XS_SETERR(xs, HBA_NOERROR);
-			} else if (XS_NOERR(xs)) {
-				isp_prt(isp, ISP_LOG_WARN1,
-				    "%d.%d.%jx badness at %s:%u",
-				    XS_CHANNEL(xs), XS_TGT(xs),
-				    (uintmax_t)XS_LUN(xs),
-				    __func__, __LINE__);
-				XS_SETERR(xs, HBA_BOTCH);
-			}
-			XS_SET_RESID(xs, XS_XFRLEN(xs));
-			break;
-		default:
-			isp_print_qentry(isp, "Unhandled Response Type",
-			    oop, hp);
-			if (XS_NOERR(xs)) {
-				XS_SETERR(xs, HBA_BOTCH);
-			}
-			break;
 		}
+		if (slen > 0) {
+			XS_SAVE_SENSE(xs, snsp, slen);
+			if (totslen > slen) {
+				cont = totslen - slen;
+				cont_xs = xs;
+				isp_prt(isp, ISP_LOGDEBUG0|ISP_LOG_CWARN,
+				    "Expecting Status Continuations for %u bytes",
+				    cont);
+			}
+		}
+		isp_prt(isp, ISP_LOGDEBUG2, "asked for %lu got raw resid %lu settled for %lu",
+		    (u_long)XS_XFRLEN(xs), (u_long)resid, (u_long)XS_GET_RESID(xs));
 
-		/*
-		 * Free any DMA resources. As a side effect, this may
-		 * also do any cache flushing necessary for data coherence.
-		 */
-		if (XS_XFRLEN(xs)) {
+		if (XS_XFRLEN(xs))
 			ISP_DMAFREE(isp, xs, sp->req_handle);
-		}
 		isp_destroy_handle(isp, sp->req_handle);
 
-		if (isp->isp_nactive > 0) {
-		    isp->isp_nactive--;
-		}
-		complist[ndone++] = xs;	/* defer completion call until later */
 		ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-		last_etype = etype;
-		if (ndone == MAX_REQUESTQ_COMPLETIONS) {
-			break;
-		}
+
+		/* Complete command if we expect no Status Continuations. */
+		if (cont == 0)
+			isp_done(xs);
 	}
 
-	/*
-	 * If we looked at any commands, then it's valid to find out
-	 * what the outpointer is. It also is a trigger to update the
-	 * ISP's notion of what we've seen so far.
-	 */
-	if (nlooked) {
+	/* We haven't received all Status Continuations, but that is it. */
+	if (cont > 0)
+		isp_done(cont_xs);
+
+	/* If we processed any IOCBs, let ISP know about it. */
+	if (optr != isp->isp_resodx) {
 		ISP_WRITE(isp, isp->isp_respoutrp, optr);
 		isp->isp_resodx = optr;
-		if (isp->isp_rscchiwater < ndone)
-			isp->isp_rscchiwater = ndone;
-	}
-
-out:
-
-	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
-	} else {
-		ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-		ISP_WRITE(isp, BIU_SEMA, 0);
-	}
-
-	for (i = 0; i < ndone; i++) {
-		xs = complist[i];
-		if (xs) {
-			if (((isp->isp_dblev & (ISP_LOGDEBUG1|ISP_LOGDEBUG2|ISP_LOGDEBUG3))) ||
-			    ((isp->isp_dblev & (ISP_LOGDEBUG0|ISP_LOG_CWARN) && ((!XS_NOERR(xs)) || (*XS_STSP(xs) != SCSI_GOOD))))) {
-				isp_prt_endcmd(isp, xs);
-			}
-			isp->isp_rsltccmplt++;
-			isp_done(xs);
-		}
-	}
-}
-
-/*
- * Support routines.
- */
-
-void
-isp_prt_endcmd(ispsoftc_t *isp, XS_T *xs)
-{
-	char cdbstr[16 * 5 + 1];
-	int i, lim;
-
-	lim = XS_CDBLEN(xs) > 16? 16 : XS_CDBLEN(xs);
-	ISP_SNPRINTF(cdbstr, sizeof (cdbstr), "0x%02x ", XS_CDBP(xs)[0]);
-	for (i = 1; i < lim; i++) {
-		ISP_SNPRINTF(cdbstr, sizeof (cdbstr), "%s0x%02x ", cdbstr, XS_CDBP(xs)[i]);
-	}
-	if (XS_SENSE_VALID(xs)) {
-		isp_xs_prt(isp, xs, ISP_LOGALL, "FIN dl%d resid %ld CDB=%s SenseLength=%u/%u KEY/ASC/ASCQ=0x%02x/0x%02x/0x%02x",
-		    XS_XFRLEN(xs), (long) XS_GET_RESID(xs), cdbstr, XS_CUR_SNSLEN(xs), XS_TOT_SNSLEN(xs), XS_SNSKEY(xs), XS_SNSASC(xs), XS_SNSASCQ(xs));
-	} else {
-		isp_xs_prt(isp, xs, ISP_LOGALL, "FIN dl%d resid %ld CDB=%s STS 0x%x XS_ERR=0x%x", XS_XFRLEN(xs), (long) XS_GET_RESID(xs), cdbstr, *XS_STSP(xs), XS_ERR(xs));
 	}
 }
 
 /*
  * Parse an ASYNC mailbox complete
- *
- * Return non-zero if the event has been acknowledged.
  */
-static int
+static void
 isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 {
-	int acked = 0;
 	uint32_t h1 = 0, h2 = 0;
 	uint16_t chan = 0;
 
@@ -5609,14 +5302,11 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 	case ASYNC_BUS_RESET:
 		ISP_SET_SENDMARKER(isp, chan, 1);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, chan, mbox)) {
-			acked = 1;
-		}
+		isp_target_async(isp, chan, mbox);
 #endif
 		isp_async(isp, ISPASYNC_BUS_RESET, chan);
 		break;
 	case ASYNC_SYSTEM_ERROR:
-		isp->isp_dead = 1;
 		isp->isp_state = ISP_CRASHED;
 		/*
 		 * Were we waiting for a mailbox command to complete?
@@ -5632,7 +5322,6 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		 * restart the firmware
 		 */
 		isp_async(isp, ISPASYNC_FW_CRASH);
-		acked = 1;
 		break;
 
 	case ASYNC_RQS_XFER_ERR:
@@ -5656,9 +5345,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_prt(isp, ISP_LOGWARN, "timeout initiated SCSI bus reset of chan %d", chan);
 		ISP_SET_SENDMARKER(isp, chan, 1);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, chan, mbox)) {
-			acked = 1;
-		}
+		isp_target_async(isp, chan, mbox);
 #endif
 		break;
 
@@ -5666,9 +5353,7 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_prt(isp, ISP_LOGINFO, "device reset on chan %d", chan);
 		ISP_SET_SENDMARKER(isp, chan, 1);
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, chan, mbox)) {
-			acked = 1;
-		}
+		isp_target_async(isp, chan, mbox);
 #endif
 		break;
 
@@ -5757,25 +5442,14 @@ isp_parse_async(ispsoftc_t *isp, uint16_t mbox)
 		if (h2) {
 			isp_prt(isp, ISP_LOGDEBUG3, "fast post/rio completion of 0x%08x", h2);
 			isp_fastpost_complete(isp, h2);
-			if (isp->isp_fpcchiwater < 2) {
-				isp->isp_fpcchiwater = 2;
-			}
-		} else {
-			if (isp->isp_fpcchiwater < 1) {
-				isp->isp_fpcchiwater = 1;
-			}
 		}
-	} else {
-		isp->isp_intoasync++;
 	}
-	return (acked);
 }
 
-static int
+static void
 isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 {
 	fcparam *fcp;
-	int acked = 0;
 	uint16_t chan;
 
 	if (IS_DUALBUS(isp)) {
@@ -5787,7 +5461,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 
 	switch (mbox) {
 	case ASYNC_SYSTEM_ERROR:
-		isp->isp_dead = 1;
 		isp->isp_state = ISP_CRASHED;
 		FCPARAM(isp, chan)->isp_loopstate = LOOP_NIL;
 		isp_change_fw_state(isp, chan, FW_CONFIG_WAIT);
@@ -5805,7 +5478,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * restart the firmware
 		 */
 		isp_async(isp, ISPASYNC_FW_CRASH);
-		acked = 1;
 		break;
 
 	case ASYNC_RQS_XFER_ERR:
@@ -5828,21 +5500,16 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 
 	case ASYNC_CMD_CMPLT:
 		isp_fastpost_complete(isp, (ISP_READ(isp, OUTMAILBOX2) << 16) | ISP_READ(isp, OUTMAILBOX1));
-		if (isp->isp_fpcchiwater < 1) {
-			isp->isp_fpcchiwater = 1;
-		}
 		break;
 
 	case ASYNC_RIOZIO_STALL:
+		isp_intr_respq(isp);
 		break;
 
 	case ASYNC_CTIO_DONE:
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_async(isp, (ISP_READ(isp, OUTMAILBOX2) << 16) | ISP_READ(isp, OUTMAILBOX1), mbox)) {
-			acked = 1;
-		} else {
-			isp->isp_fphccmplt++;
-		}
+		isp_target_async(isp, (ISP_READ(isp, OUTMAILBOX2) << 16) |
+		    ISP_READ(isp, OUTMAILBOX1), mbox);
 #else
 		isp_prt(isp, ISP_LOGWARN, "unexpected ASYNC CTIO done");
 #endif
@@ -5855,7 +5522,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * These are broadcast events that have to be sent across
 		 * all active channels.
 		 */
-		GET_NANOTIME(&isp->isp_init_time);
 		for (chan = 0; chan < isp->isp_nchan; chan++) {
 			fcp = FCPARAM(isp, chan);
 			int topo = fcp->isp_topo;
@@ -5867,9 +5533,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			ISP_SET_SENDMARKER(isp, chan, 1);
 			isp_async(isp, ISPASYNC_LIP, chan);
 #ifdef	ISP_TARGET_MODE
-			if (isp_target_async(isp, chan, mbox)) {
-				acked = 1;
-			}
+			isp_target_async(isp, chan, mbox);
 #endif
 			/*
 			 * We've had problems with data corruption occurring on
@@ -5912,7 +5576,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * This is a broadcast event that has to be sent across
 		 * all active channels.
 		 */
-		GET_NANOTIME(&isp->isp_init_time);
 		for (chan = 0; chan < isp->isp_nchan; chan++) {
 			fcp = FCPARAM(isp, chan);
 			if (fcp->role == ISP_ROLE_NONE)
@@ -5923,9 +5586,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			ISP_SET_SENDMARKER(isp, chan, 1);
 			isp_async(isp, ISPASYNC_LOOP_UP, chan);
 #ifdef	ISP_TARGET_MODE
-			if (isp_target_async(isp, chan, mbox)) {
-				acked = 1;
-			}
+			isp_target_async(isp, chan, mbox);
 #endif
 		}
 		break;
@@ -5944,9 +5605,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			fcp->isp_loopstate = LOOP_NIL;
 			isp_async(isp, ISPASYNC_LOOP_DOWN, chan);
 #ifdef	ISP_TARGET_MODE
-			if (isp_target_async(isp, chan, mbox)) {
-				acked = 1;
-			}
+			isp_target_async(isp, chan, mbox);
 #endif
 		}
 		break;
@@ -5956,7 +5615,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		 * This is a broadcast event that has to be sent across
 		 * all active channels.
 		 */
-		GET_NANOTIME(&isp->isp_init_time);
 		for (chan = 0; chan < isp->isp_nchan; chan++) {
 			fcp = FCPARAM(isp, chan);
 			if (fcp->role == ISP_ROLE_NONE)
@@ -5966,9 +5624,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			isp_async(isp, ISPASYNC_LOOP_RESET, chan);
 #ifdef	ISP_TARGET_MODE
-			if (isp_target_async(isp, chan, mbox)) {
-				acked = 1;
-			}
+			isp_target_async(isp, chan, mbox);
 #endif
 		}
 		break;
@@ -6069,11 +5725,10 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			    "Point-to-Point -> Loop mode (BAD LIP)");
 			break;
 		case ISP_CONN_FATAL:
-			isp->isp_dead = 1;
 			isp->isp_state = ISP_CRASHED;
 			isp_prt(isp, ISP_LOGERR, "FATAL CONNECTION ERROR");
 			isp_async(isp, ISPASYNC_FW_CRASH);
-			return (-1);
+			return;
 		case ISP_CONN_LOOPBACK:
 			isp_prt(isp, ISP_LOGWARN,
 			    "Looped Back in Point-to-Point mode");
@@ -6123,10 +5778,6 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		isp_prt(isp, ISP_LOGWARN, "Unknown Async Code 0x%x", mbox);
 		break;
 	}
-	if (mbox != ASYNC_CTIO_DONE && mbox != ASYNC_CMD_CMPLT) {
-		isp->isp_intoasync++;
-	}
-	return (acked);
 }
 
 /*
@@ -6144,9 +5795,6 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 	void *ptr;
 
 	switch (type) {
-	case RQSTYPE_STATUS_CONT:
-		isp_prt(isp, ISP_LOG_WARN1, "Ignored Continuation Response");
-		return (1);
 	case RQSTYPE_MARKER:
 		isp_prt(isp, ISP_LOG_WARN1, "Marker Response");
 		return (1);
@@ -6155,7 +5803,6 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 		portid = (uint32_t)rid.ridacq_vp_port_hi << 16 |
 		    rid.ridacq_vp_port_lo;
 		if (rid.ridacq_format == 0) {
-			GET_NANOTIME(&isp->isp_init_time);
 			for (chan = 0; chan < isp->isp_nchan; chan++) {
 				fcparam *fcp = FCPARAM(isp, chan);
 				if (fcp->role == ISP_ROLE_NONE)
@@ -6202,8 +5849,6 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 		return (1);
 	case RQSTYPE_ATIO:
 	case RQSTYPE_CTIO:
-	case RQSTYPE_ENABLE_LUN:
-	case RQSTYPE_MODIFY_LUN:
 	case RQSTYPE_NOTIFY:
 	case RQSTYPE_NOTIFY_ACK:
 	case RQSTYPE_CTIO1:
@@ -6213,37 +5858,18 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 	case RQSTYPE_CTIO7:
 	case RQSTYPE_ABTS_RCVD:
 	case RQSTYPE_ABTS_RSP:
-		isp->isp_rsltccmplt++;	/* count as a response completion */
 #ifdef	ISP_TARGET_MODE
-		if (isp_target_notify(isp, (ispstatusreq_t *) hp, optrp)) {
-			return (1);
-		}
+		return (isp_target_notify(isp, (ispstatusreq_t *) hp, optrp));
 #endif
 		/* FALLTHROUGH */
 	case RQSTYPE_REQUEST:
 	default:
-		ISP_DELAY(100);
-		if (type != isp_get_response_type(isp, hp)) {
-			/*
-			 * This is questionable- we're just papering over
-			 * something we've seen on SMP linux in target
-			 * mode- we don't really know what's happening
-			 * here that causes us to think we've gotten
-			 * an entry, but that either the entry isn't
-			 * filled out yet or our CPU read data is stale.
-			 */
-			isp_prt(isp, ISP_LOGINFO,
-				"unstable type in response queue");
-			return (-1);
-		}
-		isp_prt(isp, ISP_LOGWARN, "Unhandled Response Type 0x%x",
-		    isp_get_response_type(isp, hp));
 		return (0);
 	}
 }
 
 static void
-isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
+isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, uint32_t *rp)
 {
 	switch (sp->req_completion_status & 0xff) {
 	case RQCS_COMPLETE:
@@ -6533,20 +6159,8 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
 
 		isp_prt(isp, ISP_LOGINFO, "port %s for target %d", reason, XS_TGT(xs));
 
-		/*
-		 * If we're on a local loop, force a LIP (which is overkill)
-		 * to force a re-login of this unit. If we're on fabric,
-		 * then we'll have to log in again as a matter of course.
-		 */
-		if (fcp->isp_topo == TOPO_NL_PORT ||
-		    fcp->isp_topo == TOPO_FL_PORT) {
-			mbreg_t mbs;
-			MBSINIT(&mbs, MBOX_INIT_LIP, MBLOGALL, 0);
-			if (ISP_CAP_2KLOGIN(isp)) {
-				mbs.ibits = (1 << 10);
-			}
-			isp_mboxcmd_qnw(isp, &mbs, 1);
-		}
+		/* XXX: Should we trigger rescan or FW announce change? */
+
 		if (XS_NOERR(xs)) {
 			lp = &fcp->portdb[XS_TGT(xs)];
 			if (lp->state == FC_PORTDB_STATE_ZOMBIE) {
@@ -6560,13 +6174,15 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
 	case RQCS_PORT_CHANGED:
 		isp_prt(isp, ISP_LOGWARN, "port changed for target %d", XS_TGT(xs));
 		if (XS_NOERR(xs)) {
-			XS_SETERR(xs, HBA_SELTIMEOUT);
+			*XS_STSP(xs) = SCSI_BUSY;
+			XS_SETERR(xs, HBA_TGTBSY);
 		}
 		return;
 
 	case RQCS_PORT_BUSY:
 		isp_prt(isp, ISP_LOGWARN, "port busy for target %d", XS_TGT(xs));
 		if (XS_NOERR(xs)) {
+			*XS_STSP(xs) = SCSI_BUSY;
 			XS_SETERR(xs, HBA_TGTBSY);
 		}
 		return;
@@ -6581,7 +6197,7 @@ isp_parse_status(ispsoftc_t *isp, ispstatusreq_t *sp, XS_T *xs, long *rp)
 }
 
 static void
-isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, long *rp)
+isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, uint32_t *rp)
 {
 	int ru_marked, sv_marked;
 	int chan = XS_CHANNEL(xs);
@@ -6692,9 +6308,8 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, long *
 		isp_prt(isp, ISP_LOGINFO, "Chan %d port %s for target %d",
 		    chan, reason, XS_TGT(xs));
 
-		/*
-		 * There is no MBOX_INIT_LIP for the 24XX.
-		 */
+		/* XXX: Should we trigger rescan or FW announce change? */
+
 		if (XS_NOERR(xs)) {
 			lp = &fcp->portdb[XS_TGT(xs)];
 			if (lp->state == FC_PORTDB_STATE_ZOMBIE) {
@@ -6708,10 +6323,10 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, long *
 	case RQCS_PORT_CHANGED:
 		isp_prt(isp, ISP_LOGWARN, "port changed for target %d chan %d", XS_TGT(xs), chan);
 		if (XS_NOERR(xs)) {
-			XS_SETERR(xs, HBA_SELTIMEOUT);
+			*XS_STSP(xs) = SCSI_BUSY;
+			XS_SETERR(xs, HBA_TGTBSY);
 		}
 		return;
-
 
 	case RQCS_24XX_ENOMEM:	/* f/w resource unavailable */
 		isp_prt(isp, ISP_LOGWARN, "f/w resource unavailable for target %d chan %d", XS_TGT(xs), chan);
@@ -6764,101 +6379,7 @@ isp_fastpost_complete(ispsoftc_t *isp, uint32_t fph)
 	if (XS_XFRLEN(xs)) {
 		ISP_DMAFREE(isp, xs, fph);
 	}
-	if (isp->isp_nactive) {
-		isp->isp_nactive--;
-	}
-	isp->isp_fphccmplt++;
 	isp_done(xs);
-}
-
-static int
-isp_mbox_continue(ispsoftc_t *isp)
-{
-	mbreg_t mbs;
-	uint16_t *ptr;
-	uint32_t offset;
-
-	switch (isp->isp_lastmbxcmd) {
-	case MBOX_WRITE_RAM_WORD:
-	case MBOX_READ_RAM_WORD:
-	case MBOX_WRITE_RAM_WORD_EXTENDED:
-	case MBOX_READ_RAM_WORD_EXTENDED:
-		break;
-	default:
-		return (1);
-	}
-	if (isp->isp_mboxtmp[0] != MBOX_COMMAND_COMPLETE) {
-		isp->isp_mbxwrk0 = 0;
-		return (-1);
-	}
-
-	/*
-	 * Clear the previous interrupt.
-	 */
-	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
-	} else {
-		ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
-		ISP_WRITE(isp, BIU_SEMA, 0);
-	}
-
-	/*
-	 * Continue with next word.
-	 */
-	ISP_MEMZERO(&mbs, sizeof (mbs));
-	ptr = isp->isp_mbxworkp;
-	switch (isp->isp_lastmbxcmd) {
-	case MBOX_WRITE_RAM_WORD:
-		mbs.param[1] = isp->isp_mbxwrk1++;
-		mbs.param[2] = *ptr++;
-		break;
-	case MBOX_READ_RAM_WORD:
-		*ptr++ = isp->isp_mboxtmp[2];
-		mbs.param[1] = isp->isp_mbxwrk1++;
-		break;
-	case MBOX_WRITE_RAM_WORD_EXTENDED:
-		if (IS_24XX(isp)) {
-			uint32_t *lptr = (uint32_t *)ptr;
-			mbs.param[2] = lptr[0];
-			mbs.param[3] = lptr[0] >> 16;
-			lptr++;
-			ptr = (uint16_t *)lptr;
-		} else {
-			mbs.param[2] = *ptr++;
-		}
-		offset = isp->isp_mbxwrk1;
-		offset |= isp->isp_mbxwrk8 << 16;
-		mbs.param[1] = offset;
-		mbs.param[8] = offset >> 16;
-		offset++;
-		isp->isp_mbxwrk1 = offset;
-		isp->isp_mbxwrk8 = offset >> 16;
-		break;
-	case MBOX_READ_RAM_WORD_EXTENDED:
-		if (IS_24XX(isp)) {
-			uint32_t *lptr = (uint32_t *)ptr;
-			uint32_t val = isp->isp_mboxtmp[2];
-			val |= (isp->isp_mboxtmp[3]) << 16;
-			*lptr++ = val;
-			ptr = (uint16_t *)lptr;
-		} else {
-			*ptr++ = isp->isp_mboxtmp[2];
-		}
-		offset = isp->isp_mbxwrk1;
-		offset |= isp->isp_mbxwrk8 << 16;
-		mbs.param[1] = offset;
-		mbs.param[8] = offset >> 16;
-		offset++;
-		isp->isp_mbxwrk1 = offset;
-		isp->isp_mbxwrk8 = offset >> 16;
-		break;
-	}
-	isp->isp_mbxworkp = ptr;
-	isp->isp_mbxwrk0--;
-	mbs.param[0] = isp->isp_lastmbxcmd;
-	mbs.logval = MBLOGALL;
-	isp_mboxcmd_qnw(isp, &mbs, 0);
-	return (0);
 }
 
 #define	ISP_SCSI_IBITS(op)		(mbpscsi[((op)<<1)])
@@ -7132,7 +6653,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x3f: */
 	ISP_FC_OPMAP(0x03, 0x01),	/* 0x40: MBOX_LOOP_PORT_BYPASS */
 	ISP_FC_OPMAP(0x03, 0x01),	/* 0x41: MBOX_LOOP_PORT_ENABLE */
-	ISP_FC_OPMAP_HALF(0x0, 0x01, 0x3, 0xcf),	/* 0x42: MBOX_GET_RESOURCE_COUNT */
+	ISP_FC_OPMAP_HALF(0x0, 0x01, 0x1f, 0xcf),	/* 0x42: MBOX_GET_RESOURCE_COUNT */
 	ISP_FC_OPMAP(0x01, 0x01),	/* 0x43: MBOX_REQUEST_OFFLINE_MODE */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x44: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x45: */
@@ -7333,49 +6854,6 @@ static const char *fc_mbcmd_names[] = {
 	"SEND LFA",
 	"LUN RESET"
 };
-
-static void
-isp_mboxcmd_qnw(ispsoftc_t *isp, mbreg_t *mbp, int nodelay)
-{
-	unsigned int ibits, obits, box, opcode;
-
-	opcode = mbp->param[0];
-	if (IS_FC(isp)) {
-		ibits = ISP_FC_IBITS(opcode);
-		obits = ISP_FC_OBITS(opcode);
-	} else {
-		ibits = ISP_SCSI_IBITS(opcode);
-		obits = ISP_SCSI_OBITS(opcode);
-	}
-	ibits |= mbp->ibits;
-	obits |= mbp->obits;
-	for (box = 0; box < ISP_NMBOX(isp); box++) {
-		if (ibits & (1 << box)) {
-			ISP_WRITE(isp, MBOX_OFF(box), mbp->param[box]);
-		}
-		if (nodelay == 0) {
-			isp->isp_mboxtmp[box] = mbp->param[box] = 0;
-		}
-	}
-	if (nodelay == 0) {
-		isp->isp_lastmbxcmd = opcode;
-		isp->isp_obits = obits;
-		isp->isp_mboxbsy = 1;
-	}
-	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_SET_HOST_INT);
-	} else {
-		ISP_WRITE(isp, HCCR, HCCR_CMD_SET_HOST_INT);
-	}
-	/*
-	 * Oddly enough, if we're not delaying for an answer,
-	 * delay a bit to give the f/w a chance to pick up the
-	 * command.
-	 */
-	if (nodelay) {
-		ISP_DELAY(1000);
-	}
-}
 
 static void
 isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
@@ -7910,14 +7388,13 @@ isp_reinit(ispsoftc_t *isp, int do_load_defaults)
 {
 	int i, res = 0;
 
-	if (isp->isp_state == ISP_RUNSTATE)
-		isp_deinit(isp);
+	if (isp->isp_state > ISP_RESETSTATE)
+		isp_stop(isp);
 	if (isp->isp_state != ISP_RESETSTATE)
 		isp_reset(isp, do_load_defaults);
 	if (isp->isp_state != ISP_RESETSTATE) {
 		res = EIO;
 		isp_prt(isp, ISP_LOGERR, "%s: cannot reset card", __func__);
-		ISP_DISABLE_INTS(isp);
 		goto cleanup;
 	}
 
@@ -7942,7 +7419,6 @@ isp_reinit(ispsoftc_t *isp, int do_load_defaults)
 	}
 
 cleanup:
-	isp->isp_nactive = 0;
 	isp_clear_commands(isp);
 	if (IS_FC(isp)) {
 		for (i = 0; i < isp->isp_nchan; i++)

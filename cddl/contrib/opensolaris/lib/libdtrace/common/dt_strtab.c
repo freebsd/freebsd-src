@@ -256,8 +256,10 @@ dt_strtab_insert(dt_strtab_t *sp, const char *str)
 	 * Now copy the string data into our buffer list, and then update
 	 * the global counts of strings and bytes.  Return str's byte offset.
 	 */
-	if (dt_strtab_copyin(sp, str, len + 1) == -1)
+	if (dt_strtab_copyin(sp, str, len + 1) == -1) {
+		free(hp);
 		return (-1L);
+	}
 
 	sp->str_nstrs++;
 	sp->str_size += len + 1;

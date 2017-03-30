@@ -1,6 +1,6 @@
 #	$FreeBSD$
 
-.PATH:	${.CURDIR}/../../contrib/pf/tftp-proxy
+.PATH:	${SRCTOP}/contrib/pf/tftp-proxy
 
 PROG=	tftp-proxy
 SRCS=	tftp-proxy.c filter.c

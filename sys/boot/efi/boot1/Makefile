@@ -20,7 +20,11 @@ CWARNFLAGS.zfs_module.c += -Wno-sign-compare
 CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
 CWARNFLAGS.zfs_module.c += -Wno-unused-function
 CWARNFLAGS.skein.c += -Wno-cast-align
+.if ${COMPILER_TYPE} == "clang"
 CWARNFLAGS.skein.c += -Wno-missing-variable-declarations
+.else if ${COMPILER_TYPE} == "gcc"
+CWARNFLAGS.skein.c += -Wno-missing-declarations
+.endif
 .endif
 
 # architecture-specific loader code
@@ -31,6 +35,10 @@ SRCS+=		skein.c skein_block.c
 # Do not unroll skein loops, reduce code size
 CFLAGS+=	-DSKEIN_LOOP=111
 .PATH:		${.CURDIR}/../../../crypto/skein
+.endif
+
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
+CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif
 
 CFLAGS+=	-I.
@@ -114,7 +122,7 @@ boot1.o: ${.CURDIR}/../../common/ufsread.c
 BOOT1_MAXSIZE?=	131072
 
 boot1.efifat: boot1.efi
-	@set -- `ls -l boot1.efi`; \
+	@set -- `ls -l ${.ALLSRC}`; \
 	x=$$(($$5-${BOOT1_MAXSIZE})); \
 	if [ $$x -ge 0 ]; then \
 	    echo "boot1 $$x bytes too large; regenerate FAT templates?" >&2 ;\
@@ -124,7 +132,7 @@ boot1.efifat: boot1.efi
 	uudecode ${.CURDIR}/fat-${MACHINE}.tmpl.bz2.uu
 	mv fat-${MACHINE}.tmpl.bz2 ${.TARGET}.bz2
 	bzip2 -f -d ${.TARGET}.bz2
-	${DD} if=boot1.efi of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
+	${DD} if=${.ALLSRC} of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
 
 CLEANFILES= boot1.efi boot1.efifat
 

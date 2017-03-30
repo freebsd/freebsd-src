@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <efivar.h>
+#include <efivar-dp.h>
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>
@@ -45,7 +46,10 @@ static struct option longopts[] = {
 	{ "attributes",		required_argument,	NULL,	't' },
 	{ "binary",		no_argument,		NULL,	'b' },
 	{ "delete",		no_argument,		NULL,   'D' },
+	{ "device",		no_argument,		NULL,   'd' },
+	{ "device-path",	no_argument,		NULL,   'd' },
 	{ "fromfile",		required_argument,	NULL,	'f' },
+	{ "guid",		no_argument,		NULL,	'g' },
 	{ "hex",		no_argument,		NULL,	'H' },
 	{ "list-guids",		no_argument,		NULL,	'L' },
 	{ "list",		no_argument,		NULL,	'l' },
@@ -59,7 +63,7 @@ static struct option longopts[] = {
 };
 
 
-static int aflag, Aflag, bflag, dflag, Dflag, Hflag, Nflag,
+static int aflag, Aflag, bflag, dflag, Dflag, gflag, Hflag, Nflag,
 	lflag, Lflag, Rflag, wflag, pflag;
 static char *varname;
 static u_long attrib = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
@@ -84,7 +88,7 @@ breakdown_name(char *name, efi_guid_t *guid, char **vname)
 		errx(1, "Invalid name: %s", name);
 	*vname = cp + 1;
 	*cp = '\0';
-	if (efi_str_to_guid(name, guid) < 0)
+	if (efi_name_to_guid(name, guid) < 0)
 		errx(1, "Invalid guid %s", name);
 }
 
@@ -196,6 +200,32 @@ bindump(uint8_t *data, size_t datalen)
 }
 
 static void
+devpath_dump(uint8_t *data, size_t datalen)
+{
+	char buffer[1024];
+
+	efidp_format_device_path(buffer, sizeof(buffer),
+	    (const_efidp)data, datalen);
+	if (!Nflag)
+		printf(": ");
+	printf("%s\n", buffer);
+}
+
+static void
+pretty_guid(efi_guid_t *guid, char **gname)
+{
+	char *pretty = NULL;
+
+	if (gflag)
+		efi_guid_to_name(guid, &pretty);
+
+	if (pretty == NULL)
+		efi_guid_to_str(guid, gname);
+	else
+		*gname = pretty;
+}
+
+static void
 print_var(efi_guid_t *guid, char *name)
 {
 	uint32_t att;
@@ -204,22 +234,25 @@ print_var(efi_guid_t *guid, char *name)
 	char *gname;
 	int rv;
 
-	efi_guid_to_str(guid, &gname);
-	if (!Nflag)
-		printf("%s-%s", gname, name);
+	pretty_guid(guid, &gname);
 	if (pflag) {
 		rv = efi_get_variable(*guid, name, &data, &datalen, &att);
 
 		if (rv < 0)
-			printf("\n --- Error getting value --- %d", errno);
-		else {
-			if (Aflag)
-				asciidump(data, datalen);
-			else if (bflag)
-				bindump(data, datalen);
-			else
-				hexdump(data, datalen);
-		}
+			err(1, "%s-%s", gname, name);
+
+		if (!Nflag)
+			printf("%s-%s", gname, name);
+		if (Aflag)
+			asciidump(data, datalen);
+		else if (bflag)
+			bindump(data, datalen);
+		else if (dflag)
+			devpath_dump(data, datalen);
+		else
+			hexdump(data, datalen);
+	} else {
+		printf("%s-%s", gname, name);
 	}
 	free(gname);
 	if (!Nflag)
@@ -251,11 +284,22 @@ print_variables(void)
 }
 
 static void
+print_known_guid(void)
+{
+	struct uuid_table *tbl;
+	int i, n;
+
+	n = efi_known_guid(&tbl);
+	for (i = 0; i < n; i++)
+		printf("%s %s\n", tbl[i].uuid_str, tbl[i].name);
+}
+
+static void
 parse_args(int argc, char **argv)
 {
 	int ch, i;
 
-	while ((ch = getopt_long(argc, argv, "aAbdDf:HlLNn:pRt:w",
+	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:pRt:w",
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -272,6 +316,9 @@ parse_args(int argc, char **argv)
 			break;
 		case 'D':
 			Dflag++;
+			break;
+		case 'g':
+			gflag++;
 			break;
 		case 'H':
 			Hflag++;
@@ -332,6 +379,8 @@ parse_args(int argc, char **argv)
 		delete_variable(varname);
 	else if (wflag)
 		write_variable(varname, NULL);
+	else if (Lflag)
+		print_known_guid();
 	else if (varname) {
 		pflag++;
 		print_variable(varname);

@@ -51,12 +51,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/reboot.h>
 #include <sys/serial.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/power.h>
@@ -90,20 +92,13 @@ __FBSDID("$FreeBSD$");
 /* NULL-safe version of "tty_opened()" */
 #define	tty_opened_ns(tp)	((tp) != NULL && tty_opened(tp))
 
-typedef struct default_attr {
-	int		std_color;		/* normal hardware color */
-	int		rev_color;		/* reverse hardware color */
-} default_attr;
-
-static default_attr user_default = {
-    SC_NORM_ATTR,
-    SC_NORM_REV_ATTR,
-};
+static	u_char		sc_kattrtab[MAXCPU];
 
 static	int		sc_console_unit = -1;
 static	int		sc_saver_keyb_only = 1;
 static  scr_stat    	*sc_console;
 static  struct consdev	*sc_consptr;
+static	void		*kernel_console_ts[MAXCPU];
 static	scr_stat	main_console;
 static	struct tty 	*main_devs[MAXCONS];
 
@@ -141,6 +136,8 @@ static	int		sc_no_suspend_vtswitch = 0;
 static	int		sc_susp_scr;
 
 static SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
+SYSCTL_OPAQUE(_hw_syscons, OID_AUTO, kattr, CTLFLAG_RW,
+    &sc_kattrtab, sizeof(sc_kattrtab), "CU", "kernel console attributes");
 static SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
     &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
@@ -186,7 +183,7 @@ static void scshutdown(void *, int);
 static void scsuspend(void *);
 static void scresume(void *);
 static u_int scgetc(sc_softc_t *sc, u_int flags, struct sc_cnstate *sp);
-static void sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
+static void sc_puts(scr_stat *scp, u_char *buf, int len);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
 static void sccnupdate(scr_stat *scp);
@@ -223,6 +220,7 @@ static void update_font(scr_stat *);
 static int save_kbd_state(scr_stat *scp);
 static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
+static int sc_kattr(void);
 static timeout_t blink_screen;
 static struct tty *sc_alloc_tty(int, int);
 
@@ -260,6 +258,62 @@ static struct cdevsw consolectl_devsw = {
 	.d_close	= consolectl_close,
 	.d_name		= "consolectl",
 };
+
+/* ec -- emergency console. */
+
+static	u_int	ec_scroffset;
+
+static void
+ec_putc(int c)
+{
+	uintptr_t fb;
+	u_short *scrptr;
+	u_int ind;
+	int attr, column, mysize, width, xsize, yborder, ysize;
+
+	if (c < 0 || c > 0xff || c == '\a')
+		return;
+	if (sc_console == NULL) {
+#if !defined(__amd64__) && !defined(__i386__)
+		return;
+#endif
+		/*
+		 * This is enough for ec_putc() to work very early on x86
+		 * if the kernel starts in normal color text mode.
+		 */
+		fb = 0xb8000;
+		xsize = 80;
+		ysize = 25;
+	} else {
+		if (main_console.status & GRAPHICS_MODE)
+			return;
+		fb = main_console.sc->adp->va_window;
+		xsize = main_console.xsize;
+		ysize = main_console.ysize;
+	}
+	yborder = ysize / 5;
+	scrptr = (u_short *)(void *)fb + xsize * yborder;
+	mysize = xsize * (ysize - 2 * yborder);
+	do {
+		ind = ec_scroffset;
+		column = ind % xsize;
+		width = (c == '\b' ? -1 : c == '\t' ? (column + 8) & ~7 :
+		    c == '\r' ? -column : c == '\n' ? xsize - column : 1);
+		if (width == 0 || (width < 0 && ind < -width))
+			return;
+	} while (atomic_cmpset_rel_int(&ec_scroffset, ind, ind + width) == 0);
+	if (c == '\b' || c == '\r')
+		return;
+	if (c == '\n')
+		ind += xsize;	/* XXX clearing from new pos is not atomic */
+
+	attr = sc_kattr();
+	if (c == '\t' || c == '\n')
+		c = ' ';
+	do
+		scrptr[ind++ % mysize] = (attr << 8) | c;
+	while (--width != 0);
+}
 
 int
 sc_probe_unit(int unit, int flags)
@@ -343,7 +397,7 @@ sctty_outwakeup(struct tty *tp)
 	if (len == 0)
 	    break;
 	SC_VIDEO_LOCK(scp->sc);
-	sc_puts(scp, buf, len, 0);
+	sc_puts(scp, buf, len);
 	SC_VIDEO_UNLOCK(scp->sc);
     }
 }
@@ -490,7 +544,8 @@ sc_attach_unit(int unit, int flags)
     sc_softc_t *sc;
     scr_stat *scp;
     struct cdev *dev;
-    int vc;
+    void *oldts, *ts;
+    int i, vc;
 
     if (!vty_enabled(VTY_SC))
         return ENXIO;
@@ -505,8 +560,28 @@ sc_attach_unit(int unit, int flags)
 	/* assert(sc_console != NULL) */
 	flags |= SC_KERNEL_CONSOLE;
 	scmeminit(NULL);
+
+	scinit(unit, flags);
+
+	if (sc_console->tsw->te_size > 0) {
+	    /* assert(sc_console->ts != NULL); */
+	    oldts = sc_console->ts;
+	    for (i = 0; i <= mp_maxid; i++) {
+		ts = malloc(sc_console->tsw->te_size, M_DEVBUF,
+			    M_WAITOK | M_ZERO);
+		(*sc_console->tsw->te_init)(sc_console, &ts, SC_TE_COLD_INIT);
+		sc_console->ts = ts;
+		(*sc_console->tsw->te_default_attr)(sc_console, sc_kattrtab[i],
+						    SC_KERNEL_CONS_REV_ATTR);
+		kernel_console_ts[i] = ts;
+	    }
+	    sc_console->ts = oldts;
+    	    (*sc_console->tsw->te_default_attr)(sc_console, SC_NORM_ATTR,
+						SC_NORM_REV_ATTR);
+	}
+    } else {
+	scinit(unit, flags);
     }
-    scinit(unit, flags);
 
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     sc->config = flags;
@@ -1631,6 +1706,9 @@ sc_cninit(struct consdev *cp)
 static void
 sc_cnterm(struct consdev *cp)
 {
+    void *ts;
+    int i;
+
     /* we are not the kernel console any more, release everything */
 
     if (sc_console_unit < 0)
@@ -1641,6 +1719,12 @@ sc_cnterm(struct consdev *cp)
     sccnupdate(sc_console);
 #endif
 
+    for (i = 0; i <= mp_maxid; i++) {
+	ts = kernel_console_ts[i];
+	kernel_console_ts[i] = NULL;
+	(*sc_console->tsw->te_term)(sc_console, &ts);
+	free(ts, M_DEVBUF);
+    }
     scterm(sc_console_unit, SC_KERNEL_CONSOLE);
     sc_console_unit = -1;
     sc_console = NULL;
@@ -1834,6 +1918,7 @@ sc_cnputc(struct consdev *cd, int c)
     struct sc_cnstate st;
     u_char buf[1];
     scr_stat *scp = sc_console;
+    void *oldts, *ts;
 #ifndef SC_NO_HISTORY
 #if 0
     struct tty *tp;
@@ -1856,10 +1941,13 @@ sc_cnputc(struct consdev *cd, int c)
     sc_cnputc_log[head % sizeof(sc_cnputc_log)] = c;
 
     /*
-     * If we couldn't open, return to defer output.
+     * If we couldn't open, do special reentrant output and return to defer
+     * normal output.
      */
-    if (!st.scr_opened)
+    if (!st.scr_opened) {
+	ec_putc(c);
 	return;
+    }
 
 #ifndef SC_NO_HISTORY
     if (scp == scp->sc->cur_scp && scp->status & SLKED) {
@@ -1894,7 +1982,16 @@ sc_cnputc(struct consdev *cd, int c)
 	if (atomic_load_acq_int(&sc_cnputc_loghead) - sc_cnputc_logtail >=
 	    sizeof(sc_cnputc_log))
 	    continue;
-	sc_puts(scp, buf, 1, 1);
+	/* Console output has a per-CPU "input" state.  Switch for it. */
+	oldts = scp->ts;
+	ts = kernel_console_ts[PCPU_GET(cpuid)];
+	if (ts != NULL) {
+	    scp->ts = ts;
+	    (*scp->tsw->te_sync)(scp);
+	}
+	sc_puts(scp, buf, 1);
+	scp->ts = oldts;
+	(*scp->tsw->te_sync)(scp);
     }
 
     s = spltty();	/* block sckbdevent and scrn_timer */
@@ -2836,7 +2933,7 @@ exchange_scr(sc_softc_t *sc)
 }
 
 static void
-sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
+sc_puts(scr_stat *scp, u_char *buf, int len)
 {
 #ifdef DEV_SPLASH
     /* make screensaver happy */
@@ -2845,7 +2942,7 @@ sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 #endif
 
     if (scp->tsw)
-	(*scp->tsw->te_puts)(scp, buf, len, kernel);
+	(*scp->tsw->te_puts)(scp, buf, len);
     if (scp->sc->delayed_next_scr)
 	sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
 }
@@ -2994,8 +3091,16 @@ scinit(int unit, int flags)
     int i;
 
     /* one time initialization */
-    if (init_done == COLD)
+    if (init_done == COLD) {
 	sc_get_bios_values(&bios_value);
+	for (i = 0; i < nitems(sc_kattrtab); i++) {
+#if SC_KERNEL_CONS_ATTR == FG_WHITE
+	    sc_kattrtab[i] = 8 + (i + FG_WHITE) % 8U;
+#else
+	    sc_kattrtab[i] = SC_KERNEL_CONS_ATTR;
+#endif
+	}
+    }
     init_done = WARM;
 
     /*
@@ -3071,21 +3176,10 @@ scinit(int unit, int flags)
 	    init_scp(sc, sc->first_vty, scp);
 	    sc_vtb_init(&scp->vtb, VTB_MEMORY, scp->xsize, scp->ysize,
 			(void *)sc_buffer, FALSE);
-
-	    /* move cursors to the initial positions */
-	    if (col >= scp->xsize)
-		col = 0;
-	    if (row >= scp->ysize)
-		row = scp->ysize - 1;
-	    scp->xpos = col;
-	    scp->ypos = row;
-	    scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
-
 	    if (sc_init_emulator(scp, SC_DFLT_TERM))
 		sc_init_emulator(scp, "*");
-	    (*scp->tsw->te_default_attr)(scp,
-					 user_default.std_color,
-					 user_default.rev_color);
+	    (*scp->tsw->te_default_attr)(scp, SC_KERNEL_CONS_ATTR,
+					 SC_KERNEL_CONS_REV_ATTR);
 	} else {
 	    /* assert(sc_malloc) */
 	    sc->dev = malloc(sizeof(struct tty *)*sc->vtys, M_DEVBUF,
@@ -3104,6 +3198,17 @@ scinit(int unit, int flags)
 	    sc_vtb_copy(&scp->scr, 0, &scp->vtb, 0, scp->xsize*scp->ysize);
 #endif
 
+	/* Sync h/w cursor position to s/w (sc and teken). */
+	if (col >= scp->xsize)
+	    col = 0;
+	if (row >= scp->ysize)
+	    row = scp->ysize - 1;
+	scp->xpos = col;
+	scp->ypos = row;
+	scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
+	(*scp->tsw->te_sync)(scp);
+
+	/* Sync BIOS cursor shape to s/w (sc only). */
 	if (bios_value.cursor_end < scp->font_size)
 	    sc->dflt_curs_attr.base = scp->font_size - 
 					  bios_value.cursor_end - 1;
@@ -3217,12 +3322,11 @@ scterm(int unit, int flags)
     scp = sc_get_stat(sc->dev[0]);
     if (scp->tsw)
 	(*scp->tsw->te_term)(scp, &scp->ts);
-    if (scp->ts != NULL)
-	free(scp->ts, M_DEVBUF);
     mtx_destroy(&sc->video_mtx);
 
     /* clear the structure */
     if (!(flags & SC_KERNEL_CONSOLE)) {
+	free(scp->ts, M_DEVBUF);
 	/* XXX: We need delete_dev() for this */
 	free(sc->dev, M_DEVBUF);
 #if 0
@@ -3499,8 +3603,7 @@ sc_init_emulator(scr_stat *scp, char *name)
     scp->rndr = rndr;
     scp->rndr->init(scp);
 
-    /* XXX */
-    (*sw->te_default_attr)(scp, user_default.std_color, user_default.rev_color);
+    (*sw->te_default_attr)(scp, SC_NORM_ATTR, SC_NORM_REV_ATTR);
     sc_clear_screen(scp);
 
     return 0;
@@ -4006,6 +4109,14 @@ sc_bell(scr_stat *scp, int pitch, int duration)
 	    pitch *= 2;
 	sysbeep(1193182 / pitch, duration);
     }
+}
+
+static int
+sc_kattr(void)
+{
+    if (sc_console == NULL)
+	return (SC_KERNEL_CONS_ATTR);
+    return (sc_kattrtab[PCPU_GET(cpuid) % nitems(sc_kattrtab)]);
 }
 
 static void

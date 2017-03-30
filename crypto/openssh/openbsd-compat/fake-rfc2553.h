@@ -1,9 +1,7 @@
-/* $Id: fake-rfc2553.h,v 1.16 2008/07/14 11:37:37 djm Exp $ */
-
 /*
  * Copyright (C) 2000-2003 Damien Miller.  All rights reserved.
  * Copyright (C) 1999 WIDE Project.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -15,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -47,7 +45,7 @@
 #endif
 
 /*
- * First, socket and INET6 related definitions 
+ * First, socket and INET6 related definitions
  */
 #ifndef HAVE_STRUCT_SOCKADDR_STORAGE
 # define	_SS_MAXSIZE	128	/* Implementation specific max size */
@@ -154,7 +152,7 @@ struct addrinfo {
 # undef getaddrinfo
 #endif
 #define getaddrinfo(a,b,c,d)	(ssh_getaddrinfo(a,b,c,d))
-int getaddrinfo(const char *, const char *, 
+int getaddrinfo(const char *, const char *,
     const struct addrinfo *, struct addrinfo **);
 #endif /* !HAVE_GETADDRINFO */
 
@@ -170,7 +168,7 @@ void freeaddrinfo(struct addrinfo *);
 
 #ifndef HAVE_GETNAMEINFO
 #define getnameinfo(a,b,c,d,e,f,g) (ssh_getnameinfo(a,b,c,d,e,f,g))
-int getnameinfo(const struct sockaddr *, size_t, char *, size_t, 
+int getnameinfo(const struct sockaddr *, size_t, char *, size_t,
     char *, size_t, int);
 #endif /* !HAVE_GETNAMEINFO */
 

@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 #-
 # Copyright (c) 2002-2003 Networks Associates Technology, Inc.
-# Copyright (c) 2004-2011 Dag-Erling Smørgrav
+# Copyright (c) 2004-2014 Dag-Erling Smørgrav
 # All rights reserved.
 #
 # This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -33,7 +33,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: gendoc.pl 736 2013-09-07 12:52:42Z des $
+# $Id: gendoc.pl 910 2017-01-21 12:22:08Z des $
 #
 
 use strict;
@@ -55,11 +55,11 @@ DARPA/SPAWAR contract N66001-01-C-8035
 as part of the DARPA CHATS research program.
 .Pp
 The OpenPAM library is maintained by
-.An Dag-Erling Sm\\(/orgrav Aq des\@des.no .",
+.An Dag-Erling Sm\\(/orgrav Aq Mt des\@des.no .",
     UIO => "developed for the University of Oslo by
-.An Dag-Erling Sm\\(/orgrav Aq des\@des.no .",
+.An Dag-Erling Sm\\(/orgrav Aq Mt des\@des.no .",
     DES => "developed by
-.An Dag-Erling Sm\\(/orgrav Aq des\@des.no .",
+.An Dag-Erling Sm\\(/orgrav Aq Mt des\@des.no .",
 );
 
 %PAMERR = (
@@ -292,7 +292,7 @@ sub parse_source($) {
 	}
 	s/\s*=($func)\b\s*/\n.Fn $1\n/gs;
 	s/\s*=($argnames)\b\s*/\n.Fa $1\n/gs;
-	s/\s*=(struct \w+(?: \*)?)\b\s*/\n.Vt $1\n/gs;
+	s/\s*=((?:enum|struct|union) \w+(?: \*)?)\b\s*/\n.Vt $1\n/gs;
 	s/\s*:([a-z][0-9a-z_]+)\b\s*/\n.Va $1\n/gs;
 	s/\s*;([a-z][0-9a-z_]+)\b\s*/\n.Dv $1\n/gs;
 	s/\s*=!([a-z][0-9a-z_]+)\b\s*/\n.Xr $1 3\n/gs;
@@ -446,16 +446,22 @@ sub gendoc($) {
 .Sh NAME
 .Nm $$func{name}
 .Nd $$func{descr}
-.Sh LIBRARY
+";
+    if ($func =~ m/^(?:open)?pam_/) {
+	$mdoc .= ".Sh LIBRARY
 .Lb libpam
-.Sh SYNOPSIS
+";
+    }
+    $mdoc .= ".Sh SYNOPSIS
 .In sys/types.h
 ";
     if ($$func{args} =~ m/\bFILE \*\b/) {
 	$mdoc .= ".In stdio.h\n";
     }
-    $mdoc .= ".In security/pam_appl.h
+    if ($$func{name} =~ m/^(?:open)?pam/) {
+	$mdoc .= ".In security/pam_appl.h
 ";
+    }
     if ($$func{name} =~ m/_sm_/) {
 	$mdoc .= ".In security/pam_modules.h\n";
     }
@@ -551,7 +557,7 @@ sub readproto($) {
     open(FILE, "<", "$fn")
 	or die("$fn: open(): $!\n");
     while (<FILE>) {
-	if (m/^\.Nm ((?:open)?pam_.*?)\s*$/) {
+	if (m/^\.Nm ((?:(?:open)?pam)_.*?)\s*$/) {
 	    $func{Nm} = $func{Nm} || $1;
 	} elsif (m/^\.Ft (\S.*?)\s*$/) {
 	    $func{Ft} = $func{Ft} || $1;
@@ -638,17 +644,9 @@ The following return codes are defined by
 .%T \"X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules\"
 .%D \"June 1997\"
 .Re
-.Sh AUTHORS
-The OpenPAM library and this manual page were developed for the
-.Fx
-Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.\\& under
-DARPA/SPAWAR contract N66001-01-C-8035
-.Pq Dq CBOSS ,
-as part of the DARPA CHATS research program.
-.Pp
-The OpenPAM library is maintained by
-.An Dag-Erling Sm\\(/orgrav Aq des\@des.no .
+";
+    print FILE ".Sh AUTHORS
+The OpenPAM library and this manual page were $AUTHORS{THINKSEC}
 ";
     close(FILE);
 }

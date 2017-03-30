@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2016
+.Dd March 3, 2017
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -102,21 +102,23 @@ options may be specified.
 The
 .Ar allowed_peer
 option may be any of the following:
-.Bl -tag -width "ipaddr/masklen[:service]XX"
+.Bl -tag -width "ipaddr[/prefixlen][:service]XX"
 .It Xo
 .Sm off
 .Ar ipaddr
-.No / Ar masklen
+.Op / Ar masklen
+.Op \&: Ar service
+.Pp
+.Ar ipaddr
+.Op / Ar prefixlen
 .Op \&: Ar service
 .Sm on
 .Xc
 Accept datagrams from
+.Ar ipaddr ,
 .Ar ipaddr
-(in the usual dotted quad notation) with
-.Ar masklen
-bits being taken into account when doing the address comparison.
-.Ar ipaddr
-can be also IPv6 address by enclosing the address with
+can be specified as an IPv4 address or as an IPv6
+address enclosed with
 .Ql \&[
 and
 .Ql \&] .
@@ -129,7 +131,7 @@ A
 .Ar service
 of
 .Ql \&*
-allows packets being sent from any UDP port.
+accepts UDP packets from any source port.
 The default
 .Ar service
 is
@@ -265,7 +267,7 @@ the default is
 .Pa /var/run/log .
 When a single
 .Fl p
-options are specified,
+option is specified,
 the default pathname is replaced with the specified one.
 When two or more
 .Fl p
@@ -282,7 +284,7 @@ the default is
 .Pa /var/run/logpriv .
 When a single
 .Fl S
-options are specified,
+option is specified,
 the default pathname is replaced with the specified one.
 When two or more
 .Fl S
@@ -309,7 +311,7 @@ which also disables logging to remote machines.
 .It Fl T
 Always use the local time and date for messages received from the network,
 instead of the timestamp field supplied in the message by the remote host.
-This is useful if some of the originating hosts can't keep time properly
+This is useful if some of the originating hosts cannot keep time properly
 or are unable to generate a correct timestamp.
 .It Fl u
 Unique priority logging.

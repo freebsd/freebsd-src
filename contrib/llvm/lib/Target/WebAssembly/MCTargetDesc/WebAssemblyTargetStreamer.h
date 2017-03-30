@@ -39,10 +39,14 @@ public:
   virtual void emitEndFunc() = 0;
   /// .functype
   virtual void emitIndirectFunctionType(StringRef name,
-                                        SmallVectorImpl<MVT> &SignatureVTs,
-                                        size_t NumResults) {
+                                        SmallVectorImpl<MVT> &Params,
+                                        SmallVectorImpl<MVT> &Results) {
     llvm_unreachable("emitIndirectFunctionType not implemented");
   }
+  /// .indidx
+  virtual void emitIndIdx(const MCExpr *Value) = 0;
+  /// .import_global
+  virtual void emitGlobalImport(StringRef name) = 0;
 };
 
 /// This part is for ascii assembly output
@@ -57,8 +61,10 @@ public:
   void emitLocal(ArrayRef<MVT> Types) override;
   void emitEndFunc() override;
   void emitIndirectFunctionType(StringRef name,
-                                SmallVectorImpl<MVT> &SignatureVTs,
-                                size_t NumResults) override;
+                                SmallVectorImpl<MVT> &Params,
+                                SmallVectorImpl<MVT> &Results) override;
+  void emitIndIdx(const MCExpr *Value) override;
+  void emitGlobalImport(StringRef name) override;
 };
 
 /// This part is for ELF object output
@@ -70,6 +76,11 @@ public:
   void emitResult(ArrayRef<MVT> Types) override;
   void emitLocal(ArrayRef<MVT> Types) override;
   void emitEndFunc() override;
+  void emitIndirectFunctionType(StringRef name,
+                                SmallVectorImpl<MVT> &Params,
+                                SmallVectorImpl<MVT> &Results) override;
+  void emitIndIdx(const MCExpr *Value) override;
+  void emitGlobalImport(StringRef name) override;
 };
 
 } // end namespace llvm

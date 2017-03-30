@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/malo
+.PATH: ${SRCTOP}/sys/dev/malo
 
 KMOD    = if_malo
 SRCS    = if_malo.c if_malohal.c if_malo_pci.c

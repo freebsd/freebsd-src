@@ -345,7 +345,9 @@ struct ichwd_softc {
 #define TCO_RLD1_TMR_MAX	0x003f
 #define TCO_RLD2_TMR_MAX	0x03ff
 
-/* approximate length in nanoseconds of one WDT tick (about 0.6 sec) */
+/* approximate length in nanoseconds of one WDT tick (about 0.6 sec) for TCO v1/v2 */
 #define ICHWD_TICK		600000000
+/* approximate length in nanoseconds of one WDT tick (about 1.0 sec) for TCO v3 */
+#define ICHWD_TCO_V3_TICK	1000000000
 
 #endif

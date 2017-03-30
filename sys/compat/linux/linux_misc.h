@@ -114,13 +114,6 @@ struct l_new_utsname {
 	char	domainname[LINUX_MAX_UTSNAME];
 };
 
-#define	LINUX_CLOCK_REALTIME		0
-#define	LINUX_CLOCK_MONOTONIC		1
-#define	LINUX_CLOCK_PROCESS_CPUTIME_ID	2
-#define	LINUX_CLOCK_THREAD_CPUTIME_ID	3
-#define	LINUX_CLOCK_REALTIME_HR		4
-#define	LINUX_CLOCK_MONOTONIC_HR	5
-
 #define LINUX_UTIME_NOW			0x3FFFFFFF
 #define LINUX_UTIME_OMIT		0x3FFFFFFE
 
@@ -151,6 +144,10 @@ extern int stclohz;
 #define	LINUX_RLIMIT_RTTIME	RLIM_NLIMITS + 6
 
 #define	LINUX_RLIM_INFINITY	(~0UL)
+
+/* Linux getrandom flags */
+#define	LINUX_GRND_NONBLOCK	0x0001
+#define	LINUX_GRND_RANDOM	0x0002
 
 int linux_common_wait(struct thread *td, int pid, int *status,
 			int options, struct rusage *ru);

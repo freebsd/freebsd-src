@@ -18,8 +18,6 @@ COMPAT_FREEBSD32	opt_compat.h
 #IBCS2			opt_dontuse.h
 #COMPAT_LINUX		opt_dontuse.h
 COMPAT_LINUX32		opt_compat.h
-#COMPAT_SVR4		opt_dontuse.h
-#DEBUG_SVR4		opt_svr4.h
 LINPROCFS		opt_dontuse.h
 LINSYSFS		opt_dontuse.h
 NDISAPI			opt_dontuse.h

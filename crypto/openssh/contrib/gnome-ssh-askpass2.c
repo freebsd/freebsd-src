@@ -57,19 +57,17 @@
 #include <gdk/gdkx.h>
 
 static void
-report_failed_grab (const char *what)
+report_failed_grab (GtkWidget *parent_window, const char *what)
 {
 	GtkWidget *err;
 
-	err = gtk_message_dialog_new(NULL, 0,
+	err = gtk_message_dialog_new(GTK_WINDOW(parent_window), 0,
 				     GTK_MESSAGE_ERROR,
 				     GTK_BUTTONS_CLOSE,
 				     "Could not grab %s. "
 				     "A malicious client may be eavesdropping "
 				     "on your session.", what);
 	gtk_window_set_position(GTK_WINDOW(err), GTK_WIN_POS_CENTER);
-	gtk_label_set_line_wrap(GTK_LABEL((GTK_MESSAGE_DIALOG(err))->label),
-				TRUE);
 
 	gtk_dialog_run(GTK_DIALOG(err));
 
@@ -89,22 +87,27 @@ passphrase_dialog(char *message)
 	const char *failed;
 	char *passphrase, *local;
 	int result, grab_tries, grab_server, grab_pointer;
-	GtkWidget *dialog, *entry;
+	GtkWidget *parent_window, *dialog, *entry;
 	GdkGrabStatus status;
 
 	grab_server = (getenv("GNOME_SSH_ASKPASS_GRAB_SERVER") != NULL);
 	grab_pointer = (getenv("GNOME_SSH_ASKPASS_GRAB_POINTER") != NULL);
 	grab_tries = 0;
 
-	dialog = gtk_message_dialog_new(NULL, 0,
+	/* Create an invisible parent window so that GtkDialog doesn't
+	 * complain.  */
+	parent_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+
+	dialog = gtk_message_dialog_new(GTK_WINDOW(parent_window), 0,
 					GTK_MESSAGE_QUESTION,
 					GTK_BUTTONS_OK_CANCEL,
 					"%s",
 					message);
 
 	entry = gtk_entry_new();
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), entry, FALSE,
-	    FALSE, 0);
+	gtk_box_pack_start(
+	    GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dialog))), entry,
+	    FALSE, FALSE, 0);
 	gtk_entry_set_visibility(GTK_ENTRY(entry), FALSE);
 	gtk_widget_grab_focus(entry);
 	gtk_widget_show(entry);
@@ -112,8 +115,6 @@ passphrase_dialog(char *message)
 	gtk_window_set_title(GTK_WINDOW(dialog), "OpenSSH");
 	gtk_window_set_position (GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
 	gtk_window_set_keep_above(GTK_WINDOW(dialog), TRUE);
-	gtk_label_set_line_wrap(GTK_LABEL((GTK_MESSAGE_DIALOG(dialog))->label),
-				TRUE);
 
 	/* Make <enter> close dialog */
 	gtk_dialog_set_default_response(GTK_DIALOG(dialog), GTK_RESPONSE_OK);
@@ -127,8 +128,8 @@ passphrase_dialog(char *message)
 	if (grab_pointer) {
 		for(;;) {
 			status = gdk_pointer_grab(
-			   (GTK_WIDGET(dialog))->window, TRUE, 0, NULL,
-			   NULL, GDK_CURRENT_TIME);
+			    (gtk_widget_get_window(GTK_WIDGET(dialog))), TRUE,
+			    0, NULL, NULL, GDK_CURRENT_TIME);
 			if (status == GDK_GRAB_SUCCESS)
 				break;
 			usleep(GRAB_WAIT * 1000);
@@ -139,8 +140,9 @@ passphrase_dialog(char *message)
 		}
 	}
 	for(;;) {
-		status = gdk_keyboard_grab((GTK_WIDGET(dialog))->window,
-		   FALSE, GDK_CURRENT_TIME);
+		status = gdk_keyboard_grab(
+		    gtk_widget_get_window(GTK_WIDGET(dialog)), FALSE,
+		    GDK_CURRENT_TIME);
 		if (status == GDK_GRAB_SUCCESS)
 			break;
 		usleep(GRAB_WAIT * 1000);
@@ -157,7 +159,7 @@ passphrase_dialog(char *message)
 
 	/* Ungrab */
 	if (grab_server)
-		XUngrabServer(GDK_DISPLAY());
+		XUngrabServer(gdk_x11_get_default_xdisplay());
 	if (grab_pointer)
 		gdk_pointer_ungrab(GDK_CURRENT_TIME);
 	gdk_keyboard_ungrab(GDK_CURRENT_TIME);
@@ -193,10 +195,10 @@ passphrase_dialog(char *message)
 	gdk_pointer_ungrab(GDK_CURRENT_TIME);
  nograb:
 	if (grab_server)
-		XUngrabServer(GDK_DISPLAY());
+		XUngrabServer(gdk_x11_get_default_xdisplay());
 	gtk_widget_destroy(dialog);
 	
-	report_failed_grab(failed);
+	report_failed_grab(parent_window, failed);
 
 	return (-1);
 }

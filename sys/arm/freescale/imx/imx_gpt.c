@@ -35,24 +35,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/malloc.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/watchdog.h>
 #include <machine/bus.h>
-#include <machine/cpu.h>
 #include <machine/intr.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/freescale/imx/imx_gptvar.h>
-#include <arm/freescale/imx/imx_gptreg.h>
-
-#include <sys/kdb.h>
 #include <arm/freescale/imx/imx_ccmvar.h>
+#include <arm/freescale/imx/imx_gptreg.h>
 
 #define	WRITE4(_sc, _r, _v)						\
 	    bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
@@ -80,8 +74,21 @@ static struct timecounter imx_gpt_timecounter = {
 	.tc_quality        = 1000,
 };
 
+struct imx_gpt_softc {
+	device_t 		sc_dev;
+	struct resource *	res[2];
+	bus_space_tag_t 	sc_iot;
+	bus_space_handle_t	sc_ioh;
+	void *			sc_ih;			/* interrupt handler */
+	uint32_t 		sc_period;
+	uint32_t 		sc_clksrc;
+	uint32_t 		clkfreq;
+	uint32_t		ir_reg;
+	struct eventtimer 	et;
+};
+
 /* Global softc pointer for use in DELAY(). */
-struct imx_gpt_softc *imx_gpt_sc = NULL;
+static struct imx_gpt_softc *imx_gpt_sc;
 
 /*
  * Hand-calibrated delay-loop counter.  This was calibrated on an i.MX6 running
@@ -95,10 +102,6 @@ static const int imx_gpt_delay_count = 78;
 /* Try to divide down an available fast clock to this frequency. */
 #define	TARGET_FREQUENCY	1000000000
 
-/* Don't try to set an event timer period smaller than this. */
-#define	MIN_ET_PERIOD		10LLU
-
-
 static struct resource_spec imx_gpt_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
@@ -106,7 +109,7 @@ static struct resource_spec imx_gpt_spec[] = {
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx6dl-gpt",  1},
+	{"fsl,imx6dl-gpt", 1},
 	{"fsl,imx6q-gpt",  1},
 	{"fsl,imx53-gpt",  1},
 	{"fsl,imx51-gpt",  1},
@@ -136,7 +139,7 @@ imx_gpt_attach(device_t dev)
 {
 	struct imx_gpt_softc *sc;
 	int ctlreg, err;
-	uint32_t basefreq, prescale;
+	uint32_t basefreq, prescale, setup_ticks, t1, t2;
 
 	sc = device_get_softc(dev);
 
@@ -242,13 +245,25 @@ imx_gpt_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/*
+	 * Measure how many clock ticks it takes to setup a one-shot event (it's
+	 * longer than you might think, due to wait states in accessing gpt
+	 * registers).  Scale up the result by a factor of 1.5 to be safe,
+	 * and use that to set the minimum eventtimer period we can schedule. In
+	 * the real world, the value works out to about 750ns on imx5 hardware.
+	 */
+	t1 = READ4(sc, IMX_GPT_CNT);
+	WRITE4(sc, IMX_GPT_OCR3, 0);
+	t2 = READ4(sc, IMX_GPT_CNT);
+	setup_ticks = ((t2 - t1 + 1) * 3) / 2;
+
 	/* Register as an eventtimer. */
 	sc->et.et_name = "iMXGPT";
 	sc->et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERIODIC;
 	sc->et.et_quality = 800;
 	sc->et.et_frequency = sc->clkfreq;
-	sc->et.et_min_period = (MIN_ET_PERIOD << 32) / sc->et.et_frequency;
-	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
+	sc->et.et_min_period = ((uint64_t)setup_ticks << 32) / sc->clkfreq;
+	sc->et.et_max_period = ((uint64_t)0xfffffffe  << 32) / sc->clkfreq;
 	sc->et.et_start = imx_gpt_timer_start;
 	sc->et.et_stop = imx_gpt_timer_stop;
 	sc->et.et_priv = sc;
@@ -256,6 +271,7 @@ imx_gpt_attach(device_t dev)
 
 	/* Register as a timecounter. */
 	imx_gpt_timecounter.tc_frequency = sc->clkfreq;
+	imx_gpt_timecounter.tc_priv = sc;
 	tc_init(&imx_gpt_timecounter);
 
 	/* If this is the first unit, store the softc for use in DELAY. */
@@ -278,16 +294,20 @@ imx_gpt_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		/* Set expected value */
 		WRITE4(sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) + sc->sc_period);
 		/* Enable compare register 2 Interrupt */
-		SET4(sc, IMX_GPT_IR, GPT_IR_OF2);
+		sc->ir_reg |= GPT_IR_OF2;
+		WRITE4(sc, IMX_GPT_IR, sc->ir_reg);
 		return (0);
 	} else if (first != 0) {
+		/* Enable compare register 3 interrupt if not already on. */
+		if ((sc->ir_reg & GPT_IR_OF3) == 0) {
+			sc->ir_reg |= GPT_IR_OF3;
+			WRITE4(sc, IMX_GPT_IR, sc->ir_reg);
+		}
 		ticks = ((uint32_t)et->et_frequency * first) >> 32;
 		/* Do not disturb, otherwise event will be lost */
 		spinlock_enter();
 		/* Set expected value */
 		WRITE4(sc, IMX_GPT_OCR3, READ4(sc, IMX_GPT_CNT) + ticks);
-		/* Enable compare register 1 Interrupt */
-		SET4(sc, IMX_GPT_IR, GPT_IR_OF3);
 		/* Now everybody can relax */
 		spinlock_exit();
 		return (0);
@@ -303,19 +323,13 @@ imx_gpt_timer_stop(struct eventtimer *et)
 
 	sc = (struct imx_gpt_softc *)et->et_priv;
 
-	/* Disable OF2 Interrupt */
-	CLEAR4(sc, IMX_GPT_IR, GPT_IR_OF2);
-	WRITE4(sc, IMX_GPT_SR, GPT_IR_OF2);
+	/* Disable interrupts and clear any pending status. */
+	sc->ir_reg &= ~(GPT_IR_OF2 | GPT_IR_OF3);
+	WRITE4(sc, IMX_GPT_IR, sc->ir_reg);
+	WRITE4(sc, IMX_GPT_SR, GPT_IR_OF2 | GPT_IR_OF3);
 	sc->sc_period = 0;
 
 	return (0);
-}
-
-int
-imx_gpt_get_timerfreq(struct imx_gpt_softc *sc)
-{
-
-	return (sc->clkfreq);
 }
 
 static int
@@ -355,14 +369,13 @@ imx_gpt_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-u_int
+static u_int
 imx_gpt_get_timecount(struct timecounter *tc)
 {
+	struct imx_gpt_softc *sc;
 
-	if (imx_gpt_sc == NULL)
-		return (0);
-
-	return (READ4(imx_gpt_sc, IMX_GPT_CNT));
+	sc = tc->tc_priv;
+	return (READ4(sc, IMX_GPT_CNT));
 }
 
 static device_method_t imx_gpt_methods[] = {

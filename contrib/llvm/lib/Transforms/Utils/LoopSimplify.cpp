@@ -361,25 +361,12 @@ static Loop *separateNestedLoop(Loop *L, BasicBlock *Preheader,
     // Fix LCSSA form for L. Some values, which previously were only used inside
     // L, can now be used in NewOuter loop. We need to insert phi-nodes for them
     // in corresponding exit blocks.
+    // We don't need to form LCSSA recursively, because there cannot be uses
+    // inside a newly created loop of defs from inner loops as those would
+    // already be a use of an LCSSA phi node.
+    formLCSSA(*L, *DT, LI, SE);
 
-    // Go through all instructions in OuterLoopBlocks and check if they are
-    // using operands from the inner loop. In this case we'll need to fix LCSSA
-    // for these instructions.
-    SmallSetVector<Instruction *, 8> WorklistSet;
-    for (BasicBlock *OuterBB: OuterLoopBlocks) {
-      for (Instruction &I : *OuterBB) {
-        for (Value *Op : I.operands()) {
-          Instruction *OpI = dyn_cast<Instruction>(Op);
-          if (!OpI || !L->contains(OpI))
-            continue;
-          WorklistSet.insert(OpI);
-        }
-      }
-    }
-    SmallVector<Instruction *, 8> Worklist(WorklistSet.begin(),
-                                           WorklistSet.end());
-    formLCSSAForInstructions(Worklist, *DT, *LI);
-    assert(NewOuter->isRecursivelyLCSSAForm(*DT) &&
+    assert(NewOuter->isRecursivelyLCSSAForm(*DT, *LI) &&
            "LCSSA is broken after separating nested loops!");
   }
 
@@ -483,13 +470,21 @@ static BasicBlock *insertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader,
   }
 
   // Now that all of the PHI nodes have been inserted and adjusted, modify the
-  // backedge blocks to just to the BEBlock instead of the header.
+  // backedge blocks to jump to the BEBlock instead of the header.
+  // If one of the backedges has llvm.loop metadata attached, we remove
+  // it from the backedge and add it to BEBlock.
+  unsigned LoopMDKind = BEBlock->getContext().getMDKindID("llvm.loop");
+  MDNode *LoopMD = nullptr;
   for (unsigned i = 0, e = BackedgeBlocks.size(); i != e; ++i) {
     TerminatorInst *TI = BackedgeBlocks[i]->getTerminator();
+    if (!LoopMD)
+      LoopMD = TI->getMetadata(LoopMDKind);
+    TI->setMetadata(LoopMDKind, nullptr);
     for (unsigned Op = 0, e = TI->getNumSuccessors(); Op != e; ++Op)
       if (TI->getSuccessor(Op) == Header)
         TI->setSuccessor(Op, BEBlock);
   }
+  BEBlock->getTerminator()->setMetadata(LoopMDKind, LoopMD);
 
   //===--- Update all analyses which we must preserve now -----------------===//
 
@@ -535,7 +530,7 @@ ReprocessLoop:
 
       // Zap the dead pred's terminator and replace it with unreachable.
       TerminatorInst *TI = P->getTerminator();
-      changeToUnreachable(TI, /*UseLLVMTrap=*/false);
+      changeToUnreachable(TI, /*UseLLVMTrap=*/false, PreserveLCSSA);
       Changed = true;
     }
   }
@@ -635,8 +630,10 @@ ReprocessLoop:
        (PN = dyn_cast<PHINode>(I++)); )
     if (Value *V = SimplifyInstruction(PN, DL, nullptr, DT, AC)) {
       if (SE) SE->forgetValue(PN);
-      PN->replaceAllUsesWith(V);
-      PN->eraseFromParent();
+      if (!PreserveLCSSA || LI->replacementPreservesLCSSAForm(PN, V)) {
+        PN->replaceAllUsesWith(V);
+        PN->eraseFromParent();
+      }
     }
 
   // If this loop has multiple exits and the exits all go to the same
@@ -821,8 +818,8 @@ bool LoopSimplify::runOnFunction(Function &F) {
   if (PreserveLCSSA) {
     assert(DT && "DT not available.");
     assert(LI && "LI not available.");
-    bool InLCSSA =
-        all_of(*LI, [&](Loop *L) { return L->isRecursivelyLCSSAForm(*DT); });
+    bool InLCSSA = all_of(
+        *LI, [&](Loop *L) { return L->isRecursivelyLCSSAForm(*DT, *LI); });
     assert(InLCSSA && "Requested to preserve LCSSA, but it's already broken.");
   }
 #endif
@@ -833,8 +830,8 @@ bool LoopSimplify::runOnFunction(Function &F) {
 
 #ifndef NDEBUG
   if (PreserveLCSSA) {
-    bool InLCSSA =
-        all_of(*LI, [&](Loop *L) { return L->isRecursivelyLCSSAForm(*DT); });
+    bool InLCSSA = all_of(
+        *LI, [&](Loop *L) { return L->isRecursivelyLCSSAForm(*DT, *LI); });
     assert(InLCSSA && "LCSSA is broken after loop-simplify.");
   }
 #endif
@@ -842,7 +839,7 @@ bool LoopSimplify::runOnFunction(Function &F) {
 }
 
 PreservedAnalyses LoopSimplifyPass::run(Function &F,
-                                        AnalysisManager<Function> &AM) {
+                                        FunctionAnalysisManager &AM) {
   bool Changed = false;
   LoopInfo *LI = &AM.getResult<LoopAnalysis>(F);
   DominatorTree *DT = &AM.getResult<DominatorTreeAnalysis>(F);
@@ -853,6 +850,10 @@ PreservedAnalyses LoopSimplifyPass::run(Function &F,
   // are in canonical SSA form, and that the pass itself preserves this form.
   for (LoopInfo::iterator I = LI->begin(), E = LI->end(); I != E; ++I)
     Changed |= simplifyLoop(*I, DT, LI, SE, AC, true /* PreserveLCSSA */);
+
+  // FIXME: We need to invalidate this to avoid PR28400. Is there a better
+  // solution?
+  AM.invalidate<ScalarEvolutionAnalysis>(F);
 
   if (!Changed)
     return PreservedAnalyses::all();

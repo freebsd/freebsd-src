@@ -1,4 +1,4 @@
-/*	$OpenBSD: inout.c,v 1.17 2012/11/07 11:06:14 otto Exp $	*/
+/*	$OpenBSD: inout.c,v 1.18 2014/12/01 13:13:00 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -261,7 +261,7 @@ read_string(struct source *src)
 			escape = false;
 			if (i == sz) {
 				new_sz = sz * 2;
-				p = brealloc(p, new_sz + 1);
+				p = breallocarray(p, 1, new_sz + 1);
 				sz = new_sz;
 			}
 			p[i++] = ch;

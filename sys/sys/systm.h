@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -128,7 +128,11 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
  * Otherwise, the kernel will deadlock since the scheduler isn't
  * going to run the thread that holds any lock we need.
  */
-#define	SCHEDULER_STOPPED() __predict_false(curthread->td_stopsched)
+#define	SCHEDULER_STOPPED_TD(td)  ({					\
+	MPASS((td) == curthread);					\
+	__predict_false((td)->td_stopsched);				\
+})
+#define	SCHEDULER_STOPPED() SCHEDULER_STOPPED_TD(curthread)
 
 /*
  * Align variables.
@@ -317,7 +321,6 @@ sbintime_t 	cpu_idleclock(void);
 void	cpu_activeclock(void);
 void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);
 void	cpu_et_frequency(struct eventtimer *et, uint64_t newfreq);
-extern int	cpu_deepest_sleep;
 extern int	cpu_disable_c2_sleep;
 extern int	cpu_disable_c3_sleep;
 
@@ -448,8 +451,6 @@ int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 
 void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
-
-extern void (*softdep_ast_cleanup)(void);
 
 void counted_warning(unsigned *counter, const char *msg);
 

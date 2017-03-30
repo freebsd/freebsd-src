@@ -2,8 +2,10 @@
 # $FreeBSD$
 #
 
-OPENBSMDIR=${.CURDIR}/../../contrib/openbsm
+OPENBSMDIR=${SRCTOP}/contrib/openbsm
 .PATH: ${OPENBSMDIR}/bin/praudit
+
+CFLAGS+=	-I${OPENBSMDIR}
 
 PROG=	praudit
 MAN=	praudit.1

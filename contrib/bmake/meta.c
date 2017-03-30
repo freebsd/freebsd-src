@@ -241,7 +241,7 @@ eat_dots(char *buf, size_t bufsz, int dots)
 }
 
 static char *
-meta_name(struct GNode *gn, char *mname, size_t mnamelen,
+meta_name(char *mname, size_t mnamelen,
 	  const char *dname,
 	  const char *tname,
 	  const char *cwd)
@@ -396,7 +396,7 @@ printCMD(void *cmdp, void *mfpp)
  * Do we need/want a .meta file ?
  */
 static Boolean
-meta_needed(GNode *gn, const char *dname, const char *tname,
+meta_needed(GNode *gn, const char *dname,
 	     char *objdir, int verbose)
 {
     struct stat fs;
@@ -476,7 +476,7 @@ meta_create(BuildMon *pbm, GNode *gn)
     tname = Var_Value(TARGET, gn, &p[i++]);
 
     /* if this succeeds objdir is realpath of dname */
-    if (!meta_needed(gn, dname, tname, objdir, TRUE))
+    if (!meta_needed(gn, dname, objdir, TRUE))
 	goto out;
     dname = objdir;
 
@@ -502,7 +502,7 @@ meta_create(BuildMon *pbm, GNode *gn)
 	/* Don't create meta data. */
 	goto out;
 
-    fname = meta_name(gn, pbm->meta_fname, sizeof(pbm->meta_fname),
+    fname = meta_name(pbm->meta_fname, sizeof(pbm->meta_fname),
 		      dname, tname, objdir);
 
 #ifdef DEBUG_META_MODE
@@ -1049,7 +1049,7 @@ meta_oodate(GNode *gn, Boolean oodate)
     tname = Var_Value(TARGET, gn, &pa[i++]);
 
     /* if this succeeds fname3 is realpath of dname */
-    if (!meta_needed(gn, dname, tname, fname3, FALSE))
+    if (!meta_needed(gn, dname, fname3, FALSE))
 	goto oodate_out;
     dname = fname3;
 
@@ -1063,7 +1063,7 @@ meta_oodate(GNode *gn, Boolean oodate)
      */
     Make_DoAllVar(gn);
 
-    meta_name(gn, fname, sizeof(fname), dname, tname, dname);
+    meta_name(fname, sizeof(fname), dname, tname, dname);
 
 #ifdef DEBUG_META_MODE
     if (DEBUG(META))

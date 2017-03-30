@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
  *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD: projects/bsnmp-ipv6-mib/contrib/tcpdump/rpc_msg.h 276788 2015-01-07 19:55:18Z delphij $
+ * $FreeBSD: projects/clang400-import/contrib/tcpdump/rpc_msg.h 276788 2015-01-07 19:55:18Z delphij $
  */
 
 /*

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/syscons/logo
+.PATH:	${SRCTOP}/sys/dev/syscons/logo
 
 KMOD=	beastie_saver
 SRCS=	beastie.c logo_saver.c

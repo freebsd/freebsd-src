@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-S=     ${.CURDIR}/../../..
+S=     ${SRCTOP}/sys
 
 .PATH: $S/dev/usb/misc
 

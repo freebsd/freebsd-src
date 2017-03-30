@@ -2,7 +2,7 @@
 
 PROG=	zonectl
 SRCS=	zonectl.c
-SDIR=	${.CURDIR}/../../sys
+SDIR=	${SRCTOP}/sys
 LIBADD= cam sbuf util
 MAN=	zonectl.8
 CFLAGS+=-g -O0

@@ -43,11 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
-#include <sys/timeet.h>
-#include <sys/timetc.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -1182,7 +1179,6 @@ driver_t dwmmc_driver = {
 
 static devclass_t dwmmc_devclass;
 
-DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, 0, 0);
-DRIVER_MODULE(dwmmc, ofwbus, dwmmc_driver, dwmmc_devclass, 0, 0);
-DRIVER_MODULE(mmc, dwmmc, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(dwmmc, mmc, 1, 1, 1);
+DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, NULL, NULL);
+DRIVER_MODULE(dwmmc, ofwbus, dwmmc_driver, dwmmc_devclass, NULL, NULL);
+MMC_DECLARE_BRIDGE(dwmmc);

@@ -1,7 +1,7 @@
 # $FreeBSD$
 # $NetBSD: Makefile.part,v 1.6 2008/10/25 22:35:36 apb Exp $
 
-MKESDB?= ${.OBJDIR}/../../../../usr.bin/mkesdb_static/mkesdb_static
+MKESDB?= ${.OBJDIR:H:H:H:H}/usr.bin/mkesdb_static/mkesdb_static
 
 PARTFILE?= ${.CURDIR}/${CODE}.part
 ALIASFILE?= ${.CURDIR}/${CODE}.alias
@@ -16,7 +16,7 @@ CODESETS?= ${PART:C/^/${CODE}${SEP}/}
 EPREFIX?= ${CODE}${SEP}
 .else
 CODESETS?= ${PART}
-EPREFIX?=	
+EPREFIX?=
 .endif
 ESUBDIR?= ${CODE}
 ESDB?=	${CODESETS:C/$/.esdb/:S/:/@/}

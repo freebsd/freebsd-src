@@ -223,9 +223,12 @@ struct sadb_x_policy {
   u_int16_t sadb_x_policy_exttype;
   u_int16_t sadb_x_policy_type;		/* See policy type of ipsec.h */
   u_int8_t sadb_x_policy_dir;		/* direction, see ipsec.h */
-  u_int8_t sadb_x_policy_reserved;
+  u_int8_t sadb_x_policy_scope;		/* scope, see ipsec.h */
   u_int32_t sadb_x_policy_id;
   u_int32_t sadb_x_policy_priority;
+#define	sadb_x_policy_reserved	sadb_x_policy_scope
+/* Policy with ifnet scope uses priority field to store ifindex */
+#define	sadb_x_policy_ifindex	sadb_x_policy_priority
 };
 _Static_assert(sizeof(struct sadb_x_policy) == 16, "struct size mismatch");
 

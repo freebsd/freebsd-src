@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -382,6 +382,8 @@ extern struct bintime bt_timethreshold;
 extern struct bintime bt_tickthreshold;
 extern sbintime_t sbt_timethreshold;
 extern sbintime_t sbt_tickthreshold;
+
+extern volatile int rtc_generation;
 
 /*
  * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()

@@ -2,7 +2,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 #
-.PATH: ${.CURDIR}/../../dev/hatm
+.PATH: ${SRCTOP}/sys/dev/hatm
 
 KMOD=	if_hatm
 SRCS=	if_hatm.c if_hatm_intr.c if_hatm_ioctl.c if_hatm_tx.c if_hatm_rx.c \

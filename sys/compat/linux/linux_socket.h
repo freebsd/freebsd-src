@@ -141,21 +141,15 @@ struct l_ucred {
 };
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-
 struct linux_accept_args {
-	int s;
-	l_uintptr_t addr;
-	l_uintptr_t namelen;
+	register_t s;
+	register_t addr;
+	register_t namelen;
 };
 
 int linux_accept(struct thread *td, struct linux_accept_args *args);
 
-#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
-
-
-
 /* Operations for socketcall */
-
 #define	LINUX_SOCKET 		1
 #define	LINUX_BIND		2
 #define	LINUX_CONNECT 		3
@@ -176,6 +170,40 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_ACCEPT4		18
 #define	LINUX_RECVMMSG		19
 #define	LINUX_SENDMMSG		20
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+
+/* Socket defines */
+#define	LINUX_SOL_SOCKET	1
+#define	LINUX_SOL_IP		0
+#define	LINUX_SOL_TCP		6
+#define	LINUX_SOL_UDP		17
+#define	LINUX_SOL_IPV6		41
+#define	LINUX_SOL_IPX		256
+#define	LINUX_SOL_AX25		257
+
+#define	LINUX_SO_DEBUG		1
+#define	LINUX_SO_REUSEADDR	2
+#define	LINUX_SO_TYPE		3
+#define	LINUX_SO_ERROR		4
+#define	LINUX_SO_DONTROUTE	5
+#define	LINUX_SO_BROADCAST	6
+#define	LINUX_SO_SNDBUF		7
+#define	LINUX_SO_RCVBUF		8
+#define	LINUX_SO_KEEPALIVE	9
+#define	LINUX_SO_OOBINLINE	10
+#define	LINUX_SO_NO_CHECK	11
+#define	LINUX_SO_PRIORITY	12
+#define	LINUX_SO_LINGER		13
+#ifndef LINUX_SO_PASSCRED	/* powerpc differs */
+#define	LINUX_SO_PASSCRED	16
+#define	LINUX_SO_PEERCRED	17
+#define	LINUX_SO_RCVLOWAT	18
+#define	LINUX_SO_SNDLOWAT	19
+#define	LINUX_SO_RCVTIMEO	20
+#define	LINUX_SO_SNDTIMEO	21
+#endif
+#define	LINUX_SO_TIMESTAMP	29
+#define	LINUX_SO_ACCEPTCONN	30
 
 /* Socket options */
 #define	LINUX_IP_TOS		1

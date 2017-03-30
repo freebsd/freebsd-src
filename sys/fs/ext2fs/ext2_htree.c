@@ -766,7 +766,6 @@ ext2_htree_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
 		root_entires = info.h_levels[0].h_entries;
 		newidxblock = malloc(blksize, M_TEMP, M_WAITOK | M_ZERO);
 		dst_node = (struct ext2fs_htree_node *)newidxblock;
-		dst_entries = dst_node->h_entries;
 		memset(&dst_node->h_fake_dirent, 0,
 		    sizeof(dst_node->h_fake_dirent));
 		dst_node->h_fake_dirent.e2d_reclen = blksize;

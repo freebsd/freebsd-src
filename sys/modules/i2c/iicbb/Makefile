@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../../../dev/iicbus
+.PATH:		${SRCTOP}/sys/dev/iicbus
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
     ${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc" || \
     ${MACHINE_CPUARCH} == "riscv"

@@ -1,7 +1,7 @@
 # $Cronyx: sys.modules.cp.Makefile,v 1.1.2.3 2004/04/28 16:17:57 rik Exp $
 # $FreeBSD$
 
-.PATH:  ${.CURDIR}/../../dev/cp
+.PATH:  ${SRCTOP}/sys/dev/cp
 KMOD	= if_cp
 SRCS	= if_cp.c cpddk.c
 SRCS   += opt_netgraph.h opt_ng_cronyx.h device_if.h bus_if.h \

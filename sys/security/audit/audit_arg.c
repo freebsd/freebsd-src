@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 1999-2005 Apple Inc.
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -616,6 +622,19 @@ audit_arg_svipc_addr(void * addr)
 }
 
 void
+audit_arg_svipc_which(int which)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_svipc_which = which;
+	ARG_SET_VALID(ar, ARG_SVIPC_WHICH);
+}
+
+void
 audit_arg_posix_ipc_perm(uid_t uid, gid_t gid, mode_t mode)
 {
 	struct kaudit_record *ar;
@@ -708,7 +727,8 @@ audit_arg_file(struct proc *p, struct file *fp)
  * Store a path as given by the user process for auditing into the audit
  * record stored on the user thread.  This function will allocate the memory
  * to store the path info if not already available.  This memory will be
- * freed when the audit record is freed.
+ * freed when the audit record is freed.  The path is canonlicalised with
+ * respect to the thread and directory descriptor passed.
  */
 static void
 audit_arg_upath(struct thread *td, int dirfd, char *upath, char **pathp)

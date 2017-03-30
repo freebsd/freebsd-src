@@ -1286,7 +1286,7 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 	desc = &sc->mgtq.desc[sc->mgtq.cur];
 	data = &sc->mgtq.data[sc->mgtq.cur];
 
-	rate = vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)].mgmtrate;
+	rate = ni->ni_txparms->mgmtrate;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
@@ -1435,7 +1435,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 	struct rt2661_tx_desc *desc;
 	struct rt2661_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k;
 	const struct chanAccParams *cap;
 	struct mbuf *mnew;
@@ -1446,11 +1446,10 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-		rate = tp->mcastrate;
-	} else if (m0->m_flags & M_EAPOL) {
+	if (m0->m_flags & M_EAPOL) {
 		rate = tp->mgmtrate;
+	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		rate = tp->mcastrate;
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		rate = tp->ucastrate;
 	} else {
@@ -1616,9 +1615,9 @@ rt2661_start(struct rt2661_softc *sc)
 		}
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (rt2661_tx_data(sc, m, ni, ac) != 0) {
-			ieee80211_free_node(ni);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
+			ieee80211_free_node(ni);
 			break;
 		}
 		sc->sc_tx_timer = 5;

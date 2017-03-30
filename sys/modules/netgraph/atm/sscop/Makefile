@@ -2,9 +2,9 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-LIBBASE= ${.CURDIR}/../../../../contrib/ngatm
+LIBBASE= ${SRCTOP}/sys/contrib/ngatm
 
-.PATH: ${.CURDIR}/../../../../netgraph/atm/sscop ${LIBBASE}/netnatm/saal
+.PATH: ${SRCTOP}/sys/netgraph/atm/sscop ${LIBBASE}/netnatm/saal
 
 KMOD=	ng_sscop
 SRCS= 	ng_sscop.c saal_sscop.c

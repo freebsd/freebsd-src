@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -148,6 +148,7 @@ struct pargs {
  *      o - ktrace lock
  *      q - td_contested lock
  *      r - p_peers lock
+ *      s - see sleepq_switch(), sleeping_on_old_rtc(), and sleep(9)
  *      t - thread lock
  *	u - process stat lock
  *	w - process timer lock
@@ -283,6 +284,7 @@ struct thread {
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 	void		*td_su;		/* (k) FFS SU private */
 	sbintime_t	td_sleeptimo;	/* (t) Sleep timeout. */
+	int		td_rtcgen;	/* (s) rtc_generation of abs. sleep */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -339,6 +341,7 @@ struct thread {
 	void		*td_emuldata;	/* Emulator state data */
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
+	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
 };
 
 struct thread0_storage {
@@ -485,6 +488,12 @@ do {									\
 #define	TD_ON_UPILOCK(td)	((td)->td_flags & TDF_UPIBLOCKED)
 #define TD_IS_IDLETHREAD(td)	((td)->td_flags & TDF_IDLETD)
 
+#define	KTDSTATE(td)							\
+	(((td)->td_inhibitors & TDI_SLEEPING) != 0 ? "sleep"  :		\
+	((td)->td_inhibitors & TDI_SUSPENDED) != 0 ? "suspended" :	\
+	((td)->td_inhibitors & TDI_SWAPPED) != 0 ? "swapped" :		\
+	((td)->td_inhibitors & TDI_LOCK) != 0 ? "blocked" :		\
+	((td)->td_inhibitors & TDI_IWAIT) != 0 ? "iwait" : "yielding")
 
 #define	TD_SET_INHIB(td, inhib) do {			\
 	(td)->td_state = TDS_INHIBITED;			\
@@ -1111,6 +1120,15 @@ td_get_sched(struct thread *td)
 {
 
 	return ((struct td_sched *)&td[1]);
+}
+
+extern void (*softdep_ast_cleanup)(struct thread *);
+static __inline void
+td_softdep_cleanup(struct thread *td)
+{
+
+	if (td->td_su != NULL && softdep_ast_cleanup != NULL)
+		softdep_ast_cleanup(td);
 }
 
 #endif	/* _KERNEL */

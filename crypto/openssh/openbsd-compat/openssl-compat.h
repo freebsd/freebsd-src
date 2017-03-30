@@ -1,5 +1,3 @@
-/* $Id: openssl-compat.h,v 1.31 2014/08/29 18:18:29 djm Exp $ */
-
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
  *
@@ -68,6 +66,12 @@ void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, size_t);
 #  error AES-GCM enabled without EVP_CIPHER_CTX_ctrl /* shouldn't happen */
 # else
 # define EVP_CIPHER_CTX_ctrl(a,b,c,d) (0)
+# endif
+#endif
+
+#if defined(HAVE_EVP_RIPEMD160)
+# if defined(OPENSSL_NO_RIPEMD) || defined(OPENSSL_NO_RMD160)
+#  undef HAVE_EVP_RIPEMD160
 # endif
 #endif
 

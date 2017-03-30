@@ -764,7 +764,7 @@ vpanic(const char *fmt, va_list ap)
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
-
+	printf("time = %jd\n", (intmax_t )time_second);
 #ifdef KDB
 	if (newpanic && trace_on_panic)
 		kdb_backtrace();

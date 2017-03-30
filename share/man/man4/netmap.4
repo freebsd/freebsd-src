@@ -27,16 +27,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2015
+.Dd March 2, 2017
 .Dt NETMAP 4
 .Os
 .Sh NAME
 .Nm netmap
 .Nd a framework for fast packet I/O
-.br
 .Nm VALE
 .Nd a fast VirtuAl Local Ethernet using the netmap API
-.br
+.Pp
 .Nm netmap pipes
 .Nd a shared memory packet transport channel
 .Sh SYNOPSIS
@@ -61,7 +60,7 @@ implementing a very fast and modular in-kernel software switch/dataplane;
 a shared memory packet transport channel;
 .It Nm netmap monitors
 a mechanism similar to
-.Xr bpf
+.Xr bpf 4
 to capture traffic
 .El
 .Pp
@@ -85,7 +84,7 @@ NICs without native
 .Nm
 support can still use the API in emulated mode,
 which uses unmodified device drivers and is 3-5 times faster than
-.Xr bpf
+.Xr bpf 4
 or raw sockets.
 .Pp
 Userspace clients can dynamically switch NICs into
@@ -175,8 +174,9 @@ ports (including
 and
 .Nm netmap pipe
 ports).
-Simpler, higher level functions are described in section
-.Xr LIBRARIES .
+Simpler, higher level functions are described in the
+.Sx LIBRARIES
+section.
 .Pp
 Ports and rings are created and controlled through a file descriptor,
 created by opening a special device
@@ -191,14 +191,14 @@ argument.
 .Va arg.nr_name
 specifies the netmap port name, as follows:
 .Bl -tag -width XXXX
-.It Dv OS network interface name (e.g. 'em0', 'eth1', ... )
+.It Dv OS network interface name (e.g., 'em0', 'eth1', ... )
 the data path of the NIC is disconnected from the host stack,
 and the file descriptor is bound to the NIC (one or all queues),
 or to the host stack;
 .It Dv valeSSS:PPP
 the file descriptor is bound to port PPP of VALE switch SSS.
 Switch instances and ports are dynamically created if necessary.
-.br
+.Pp
 Both SSS and PPP have the form [0-9a-zA-Z_]+ , the string
 cannot exceed IFNAMSIZ characters, and PPP cannot
 be the name of any existing OS network interface.
@@ -340,14 +340,14 @@ should not be assumed to be a power of two.
 .Pp
 .Va head
 is the first slot available to userspace;
-.br
+.Pp
 .Va cur
 is the wakeup point:
 select/poll will unblock when
 .Va tail
 passes
 .Va cur ;
-.br
+.Pp
 .Va tail
 is the first slot reserved to the kernel.
 .Pp
@@ -419,7 +419,7 @@ Below is an example of the evolution of a TX ring:
 .Fn select
 and
 .Fn poll
-will block if there is no space in the ring, i.e.
+will block if there is no space in the ring, i.e.,
 .Dl ring->cur == ring->tail
 and return when new slots have become available.
 .Pp
@@ -453,7 +453,7 @@ slots up to
 are returned to the kernel for further receives, and
 .Va tail
 may advance to report new incoming packets.
-.br
+.Pp
 Below is an example of the evolution of an RX ring:
 .Bd -literal
     after the syscall, there are some (h)eld and some (R)eceived slots
@@ -510,7 +510,7 @@ packet must not be used in the learning bridge code.
 indicates that the packet's payload is in a user-supplied buffer
 whose user virtual address is in the 'ptr' field of the slot.
 The size can reach 65535 bytes.
-.br
+.Pp
 This is only supported on the transmit ring of
 .Nm VALE
 ports, and it helps reducing data copies in the interconnection
@@ -592,8 +592,8 @@ indicate the size of transmit and receive rings.
 indicate the number of transmit
 and receive rings.
 Both ring number and sizes may be configured at runtime
-using interface-specific functions (e.g.
-.Xr ethtool
+using interface-specific functions (e.g.,
+.Xr ethtool 8
 ).
 .El
 .It Dv NIOCREGIF
@@ -611,7 +611,7 @@ The recommended way to bind a file descriptor to a port is
 to use function
 .Va nm_open(..)
 (see
-.Xr LIBRARIES )
+.Sx LIBRARIES )
 which parses names to access specific port types and
 enable features.
 In the following we document the main features.
@@ -761,7 +761,7 @@ The following functions are available:
 .Bl -tag -width XXXXX
 .It Va  struct nm_desc * nm_open(const char *ifname, const struct nmreq *req, uint64_t flags, const struct nm_desc *arg)
 similar to
-.Xr pcap_open ,
+.Xr pcap_open 3pcap ,
 binds a file descriptor to a port.
 .Bl -tag -width XX
 .It Va ifname
@@ -774,7 +774,7 @@ The nm_flags and nm_ringid values are overwritten by parsing
 ifname and flags, and other fields can be overridden through
 the other two arguments.
 .It Va arg
-points to a struct nm_desc containing arguments (e.g. from a previously
+points to a struct nm_desc containing arguments (e.g., from a previously
 open file descriptor) that should override the defaults.
 The fields are used as described below
 .It Va flags
@@ -830,10 +830,11 @@ mode but still significantly higher than various raw socket types
 Note that for slow devices (such as 1 Gbit/s and slower NICs,
 or several 10 Gbit/s NICs whose hardware is unable to sustain line rate),
 emulated and native mode will likely have similar or same throughput.
-.br
+.Pp
 When emulation is in use, packet sniffer programs such as tcpdump
-could see received packets before they are diverted by netmap. This behaviour
-is not intentional, being just an artifact of the implementation of emulation.
+could see received packets before they are diverted by netmap.
+This behaviour is not intentional, being just an artifact of the implementation
+of emulation.
 Note that in case the netmap application subsequently moves packets received
 from the emulated adapter onto the host RX ring, the sniffer will intercept
 those packets again, since the packets are injected to the host stack as they
@@ -854,11 +855,11 @@ and module parameters on Linux
 .Bl -tag -width indent
 .It Va dev.netmap.admode: 0
 Controls the use of native or emulated adapter mode.
-.br
+.Pp
 0 uses the best available option;
-.br
+.Pp
 1 forces native mode and fails if not available;
-.br
+.Pp
 2 forces emulated hence never fails.
 .It Va dev.netmap.generic_ringsize: 1024
 Ring size used for emulated netmap mode
@@ -939,7 +940,7 @@ directory in
 .Fx
 distributions.
 .Pp
-.Xr pkt-gen
+.Xr pkt-gen 8
 is a general purpose traffic source/sink.
 .Pp
 As an example
@@ -950,11 +951,11 @@ is a traffic sink.
 Both print traffic statistics, to help monitor
 how the system performs.
 .Pp
-.Xr pkt-gen
+.Xr pkt-gen 8
 has many options can be uses to set packet sizes, addresses,
 rates, and use multiple send/receive threads and cores.
 .Pp
-.Xr bridge
+.Xr bridge 4
 is another test program which interconnects two
 .Nm
 ports.
@@ -1046,7 +1047,7 @@ to replenish the receive ring:
 .Ed
 .Ss ACCESSING THE HOST STACK
 The host stack is for all practical purposes just a regular ring pair,
-which you can access with the netmap API (e.g. with
+which you can access with the netmap API (e.g., with
 .Dl nm_open("netmap:eth0^", ... ) ;
 All packets that the host would send to an interface in
 .Nm
@@ -1056,11 +1057,11 @@ TX ring are send up to the host stack.
 A simple way to test the performance of a
 .Nm VALE
 switch is to attach a sender and a receiver to it,
-e.g. running the following in two different terminals:
+e.g., running the following in two different terminals:
 .Dl pkt-gen -i vale1:a -f rx # receiver
 .Dl pkt-gen -i vale1:b -f tx # sender
 The same example can be used to test netmap pipes, by simply
-changing port names, e.g.
+changing port names, e.g.,
 .Dl pkt-gen -i vale2:x{3 -f rx # receiver on the master side
 .Dl pkt-gen -i vale2:x}3 -f tx # sender on the slave side
 .Pp
@@ -1128,7 +1129,7 @@ multiqueue, schedulers, packet filters.
 Multiple transmit and receive rings are supported natively
 and can be configured with ordinary OS tools,
 such as
-.Xr ethtool
+.Xr ethtool 8
 or
 device-specific sysctl variables.
 The same goes for Receive Packet Steering (RPS)

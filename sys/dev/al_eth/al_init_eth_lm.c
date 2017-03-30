@@ -1168,7 +1168,7 @@ al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
 		boolean_t lm_pause = lm_context->lm_pause(lm_context->i2c_context);
 		if (lm_pause == TRUE) {
 			*new_mode = AL_ETH_LM_MODE_DISCONNECTED;
-			if (link_fault != 0) {
+			if (link_fault != NULL) {
 				if (lm_context->link_state == AL_ETH_LM_LINK_UP)
 					*link_fault = FALSE;
 				else

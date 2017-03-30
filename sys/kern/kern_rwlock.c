@@ -267,9 +267,6 @@ _rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	struct rwlock *rw;
 	uintptr_t tid, v;
 
-	if (SCHEDULER_STOPPED())
-		return;
-
 	rw = rwlock2rw(c);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
@@ -296,9 +293,14 @@ int
 __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 {
 	struct rwlock *rw;
+	struct thread *td;
+	uintptr_t tid, v;
 	int rval;
+	bool recursed;
 
-	if (SCHEDULER_STOPPED())
+	td = curthread;
+	tid = (uintptr_t)td;
+	if (SCHEDULER_STOPPED_TD(td))
 		return (1);
 
 	rw = rwlock2rw(c);
@@ -309,20 +311,28 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_try_wlock() of destroyed rwlock @ %s:%d", file, line));
 
-	if (rw_wlocked(rw) &&
-	    (rw->lock_object.lo_flags & LO_RECURSABLE) != 0) {
-		rw->rw_recurse++;
-		atomic_set_ptr(&rw->rw_lock, RW_LOCK_WRITER_RECURSED);
-		rval = 1;
-	} else
-		rval = atomic_cmpset_acq_ptr(&rw->rw_lock, RW_UNLOCKED,
-		    (uintptr_t)curthread);
+	rval = 1;
+	recursed = false;
+	v = RW_UNLOCKED;
+	for (;;) {
+		if (atomic_fcmpset_acq_ptr(&rw->rw_lock, &v, tid))
+			break;
+		if (v == RW_UNLOCKED)
+			continue;
+		if (v == tid && (rw->lock_object.lo_flags & LO_RECURSABLE)) {
+			rw->rw_recurse++;
+			atomic_set_ptr(&rw->rw_lock, RW_LOCK_WRITER_RECURSED);
+			break;
+		}
+		rval = 0;
+		break;
+	}
 
 	LOCK_LOG_TRY("WLOCK", &rw->lock_object, 0, rval, file, line);
 	if (rval) {
 		WITNESS_LOCK(&rw->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
-		if (!rw_recursed(rw))
+		if (!recursed)
 			LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(rw__acquire,
 			    rw, 0, 0, file, line, LOCKSTAT_WRITER);
 		TD_LOCKS_INC(curthread);
@@ -335,9 +345,6 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 {
 	struct rwlock *rw;
 
-	if (SCHEDULER_STOPPED())
-		return;
-
 	rw = rwlock2rw(c);
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -347,7 +354,11 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, rw->rw_recurse, file,
 	    line);
 
+#ifdef LOCK_PROFILING
 	_rw_wunlock_hard(rw, (uintptr_t)curthread, file, line);
+#else
+	__rw_wunlock(rw, curthread, file, line);
+#endif
 
 	TD_LOCKS_DEC(curthread);
 }
@@ -639,13 +650,13 @@ __rw_try_rlock(volatile uintptr_t *c, const char *file, int line)
 	    ("rw_try_rlock() by idle thread %p on rwlock %s @ %s:%d",
 	    curthread, rw->lock_object.lo_name, file, line));
 
+	x = rw->rw_lock;
 	for (;;) {
-		x = rw->rw_lock;
 		KASSERT(rw->rw_lock != RW_DESTROYED,
 		    ("rw_try_rlock() of destroyed rwlock @ %s:%d", file, line));
 		if (!(x & RW_LOCK_READ))
 			break;
-		if (atomic_cmpset_acq_ptr(&rw->rw_lock, x, x + RW_ONE_READER)) {
+		if (atomic_fcmpset_acq_ptr(&rw->rw_lock, &x, x + RW_ONE_READER)) {
 			LOCK_LOG_TRY("RLOCK", &rw->lock_object, 0, 1, file,
 			    line);
 			WITNESS_LOCK(&rw->lock_object, LOP_TRYLOCK, file, line);
@@ -1140,7 +1151,7 @@ __rw_try_upgrade(volatile uintptr_t *c, const char *file, int line)
 		if (RW_READERS(v) > 1)
 			break;
 		if (!(v & RW_LOCK_WAITERS)) {
-			success = atomic_cmpset_ptr(&rw->rw_lock, v, tid);
+			success = atomic_cmpset_acq_ptr(&rw->rw_lock, v, tid);
 			if (!success)
 				continue;
 			break;

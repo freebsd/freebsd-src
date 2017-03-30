@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../crypto/armv8
+.PATH: ${SRCTOP}/sys/crypto/armv8
 
 KMOD=	armv8crypto
 SRCS=	armv8_crypto.c

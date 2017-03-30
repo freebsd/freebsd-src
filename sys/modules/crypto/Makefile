@@ -1,14 +1,14 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../opencrypto
-.PATH:	${.CURDIR}/../../crypto
-.PATH:	${.CURDIR}/../../crypto/blowfish
-.PATH:	${.CURDIR}/../../crypto/camellia
-.PATH:	${.CURDIR}/../../crypto/des
-.PATH:	${.CURDIR}/../../crypto/rijndael
-.PATH:	${.CURDIR}/../../crypto/sha2
-.PATH:	${.CURDIR}/../../crypto/siphash
-.PATH:	${.CURDIR}/../../crypto/skein
+.PATH:	${SRCTOP}/sys/opencrypto
+.PATH:	${SRCTOP}/sys/crypto
+.PATH:	${SRCTOP}/sys/crypto/blowfish
+.PATH:	${SRCTOP}/sys/crypto/camellia
+.PATH:	${SRCTOP}/sys/crypto/des
+.PATH:	${SRCTOP}/sys/crypto/rijndael
+.PATH:	${SRCTOP}/sys/crypto/sha2
+.PATH:	${SRCTOP}/sys/crypto/siphash
+.PATH:	${SRCTOP}/sys/crypto/skein
 
 KMOD	= crypto
 SRCS	= crypto.c cryptodev_if.c
@@ -20,7 +20,7 @@ SRCS	+= des_ecb.c des_enc.c des_setkey.c
 SRCS	+= sha1.c sha256c.c sha512c.c
 SRCS	+= skein.c skein_block.c
 .if exists(${MACHINE_ARCH}/skein_block_asm.s)
-.PATH:	${.CURDIR}/../../crypto/skein/${MACHINE_ARCH}
+.PATH:	${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
 SRCS	+= skein_block_asm.s
 CFLAGS	+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
 ACFLAGS	+= -DELF -Wa,--noexecstack

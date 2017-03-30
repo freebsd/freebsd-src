@@ -337,22 +337,6 @@ options 	MAXMEM=(128*1024)
 #options 	BROKEN_KEYBOARD_RESET
 
 #
-# EISA bus
-#
-# The EISA bus device is `eisa'.  It provides auto-detection and
-# configuration support for all devices on the EISA bus.
-
-device		eisa
-
-# By default, only 10 EISA slots are probed, since the slot numbers
-# above clash with the configuration address space of the PCI subsystem,
-# and the EISA probe is not very smart about this.  This is sufficient
-# for most machines, but in particular the HP NetServer LC series comes
-# with an onboard AIC7770 dual-channel SCSI controller on EISA slot #11,
-# thus you need to bump this figure to 12 for them.
-options 	EISA_SLOTS=12
-
-#
 # AGP GART support
 device		agp
 
@@ -524,11 +508,9 @@ device		cpufreq
 
 # Direct Rendering modules for 3D acceleration.
 device		drm		# DRM core module required by DRM drivers
-device		i915drm		# Intel i830 through i915
 device		mach64drm	# ATI Rage Pro, Rage Mobility P/M, Rage XL
 device		mgadrm		# AGP Matrox G200, G400, G450, G550
 device		r128drm		# ATI Rage 128
-device		radeondrm	# ATI Radeon
 device		savagedrm	# S3 Savage3D, Savage4
 device		sisdrm		# SiS 300/305, 540, 630
 device		tdfxdrm		# 3dfx Voodoo 3/4/5 and Banshee
@@ -969,26 +951,6 @@ options 	LINPROCFS
 #Enable the linux-like sys filesystem support (requires COMPAT_LINUX
 # and PSEUDOFS)
 options 	LINSYSFS
-
-#
-# SysVR4 ABI emulation
-#
-# The svr4 ABI emulator can be statically compiled into the kernel or loaded as
-# a KLD module.
-# The STREAMS network emulation code can also be compiled statically or as a
-# module.  If loaded as a module, it must be loaded before the svr4 module
-# (the /usr/sbin/svr4 script does this for you).  If compiling statically,
-# the `streams' device must be configured into any kernel which also
-# specifies COMPAT_SVR4.  It is possible to have a statically-configured
-# STREAMS device and a dynamically loadable svr4 emulator;  the /usr/sbin/svr4
-# script understands that it doesn't need to load the `streams' module under
-# those circumstances.
-# Caveat:  At this time, `options KTRACE' is required for the svr4 emulator
-# (whether static or dynamic).
-#
-options 	COMPAT_SVR4	# build emulator statically
-options 	DEBUG_SVR4	# enable verbose debugging
-device		streams		# STREAMS network driver (required for svr4).
 
 # Enable NDIS binary driver support
 options 	NDISAPI

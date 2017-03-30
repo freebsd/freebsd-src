@@ -1,9 +1,8 @@
 /*
- * Generic register and struct definitions for the Adaptech 154x/164x
+ * Generic register and struct definitions for the Adaptech 154x
  * SCSI host adapters. Product specific probe and attach routines can
  * be found in:
  *      aha 1542A/1542B/1542C/1542CF/1542CP	aha_isa.c
- *      aha 1640			aha_mca.c
  */
 /*-
  * Copyright (c) 1998 M. Warner Losh.
@@ -338,12 +337,6 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 		break;
 	case BOARD_1542:
 		snprintf(aha->model, sizeof(aha->model), "1540/1542 64 head BIOS");
-		break;
-	case BOARD_1640:
-		snprintf(aha->model, sizeof(aha->model), "1640");
-		break;
-	case BOARD_1740:
-		snprintf(aha->model, sizeof(aha->model), "1740A/1742A/1744");
 		break;
 	case BOARD_1542C:
 		snprintf(aha->model, sizeof(aha->model), "1542C");
@@ -838,10 +831,6 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 		}
 		break;
 	}
-	case XPT_EN_LUN:		/* Enable LUN as a target */
-	case XPT_TARGET_IO:		/* Execute target I/O request */
-	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
 	case XPT_ABORT:			/* Abort the specified CCB */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;

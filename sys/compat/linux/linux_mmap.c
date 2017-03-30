@@ -203,8 +203,23 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 		}
 	}
 
-	error = kern_mmap(td, addr, len, prot, bsd_flags, fd, pos);
+	/*
+	 * FreeBSD is free to ignore the address hint if MAP_FIXED wasn't
+	 * passed.  However, some Linux applications, like the ART runtime,
+	 * depend on the hint.  If the MAP_FIXED wasn't passed, but the
+	 * address is not zero, try with MAP_FIXED and MAP_EXCL first,
+	 * and fall back to the normal behaviour if that fails.
+	 */
+	if (addr != 0 && (bsd_flags & MAP_FIXED) == 0 &&
+	    (bsd_flags & MAP_EXCL) == 0) {
+		error = kern_mmap(td, addr, len, prot,
+		    bsd_flags | MAP_FIXED | MAP_EXCL, fd, pos);
+		if (error == 0)
+			goto out;
+	}
 
+	error = kern_mmap(td, addr, len, prot, bsd_flags, fd, pos);
+out:
 	LINUX_CTR2(mmap2, "return: %d (%p)", error, td->td_retval[0]);
 
 	return (error);

@@ -4799,12 +4799,11 @@ pmap_protect_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t sva,
 	    ("%s: sva is not 1mpage aligned", __func__));
 
 	opte1 = npte1 = pte1_load(pte1p);
-	if (pte1_is_managed(opte1)) {
+	if (pte1_is_managed(opte1) && pte1_is_dirty(opte1)) {
 		eva = sva + PTE1_SIZE;
 		for (va = sva, m = PHYS_TO_VM_PAGE(pte1_pa(opte1));
 		    va < eva; va += PAGE_SIZE, m++)
-			if (pte1_is_dirty(opte1))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 	}
 	if ((prot & VM_PROT_WRITE) == 0)
 		npte1 |= PTE1_RO | PTE1_NM;

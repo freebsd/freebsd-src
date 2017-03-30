@@ -732,10 +732,6 @@ DEV_RANDOM		opt_global.h
 DEV_SPLASH		opt_splash.h
 DEV_VLAN		opt_vlan.h
 
-# EISA support
-DEV_EISA		opt_eisa.h
-EISA_SLOTS		opt_eisa.h
-
 # ed driver
 ED_HPP			opt_ed.h
 ED_3C503		opt_ed.h

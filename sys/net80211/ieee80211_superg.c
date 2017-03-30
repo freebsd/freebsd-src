@@ -94,6 +94,15 @@ SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ffagemax, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"max hold time for fast-frame staging (ms)");
 
+static void
+ff_age_all(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	/* XXX cache timer value somewhere (racy) */
+	ieee80211_ff_age_all(ic, ieee80211_ffagemax + 1);
+}
+
 void
 ieee80211_superg_attach(struct ieee80211com *ic)
 {
@@ -109,6 +118,7 @@ ieee80211_superg_attach(struct ieee80211com *ic)
 		    __func__);
 		return;
 	}
+	TIMEOUT_TASK_INIT(ic->ic_tq, &sg->ff_qtimer, 0, ff_age_all, ic);
 	ic->ic_superg = sg;
 
 	/*
@@ -122,12 +132,16 @@ ieee80211_superg_attach(struct ieee80211com *ic)
 void
 ieee80211_superg_detach(struct ieee80211com *ic)
 {
-	IEEE80211_FF_LOCK_DESTROY(ic);
 
 	if (ic->ic_superg != NULL) {
+		struct timeout_task *qtask = &ic->ic_superg->ff_qtimer;
+
+		while (taskqueue_cancel_timeout(ic->ic_tq, qtask, NULL) != 0)
+			taskqueue_drain_timeout(ic->ic_tq, qtask);
 		IEEE80211_FREE(ic->ic_superg, M_80211_VAP);
 		ic->ic_superg = NULL;
 	}
+	IEEE80211_FF_LOCK_DESTROY(ic);
 }
 
 void
@@ -668,8 +682,12 @@ stageq_add(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf *m)
 	if (sq->tail != NULL) {
 		sq->tail->m_nextpkt = m;
 		age -= M_AGE_GET(sq->head);
-	} else
+	} else {
 		sq->head = m;
+
+		struct timeout_task *qtask = &ic->ic_superg->ff_qtimer;
+		taskqueue_enqueue_timeout(ic->ic_tq, qtask, age);
+	}
 	KASSERT(age >= 0, ("age %d", age));
 	M_AGE_SET(m, age);
 	m->m_nextpkt = NULL;

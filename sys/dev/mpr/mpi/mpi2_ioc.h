@@ -688,7 +688,10 @@ typedef struct _MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT
   MPI2_POINTER pMpi26EventDataActiveCableExcept_t;
 
 /* defines for ReasonCode field */
-#define MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER     (0x00)
+#define MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER	(0x00)
+#define MPI26_EVENT_ACTIVE_CABLE_PRESENT		(0x01) 
+#define MPI26_EVENT_ACTIVE_CABLE_DEGRADED		(0x02) 
+
 
 
 /* Hard Reset Received Event data */

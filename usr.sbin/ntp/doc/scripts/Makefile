@@ -10,6 +10,6 @@ FILES=	accopt.txt audio.txt authopt.txt clockopt.txt command.txt config.txt \
 	misc.txt miscopt.txt monopt.txt refclock.txt special.txt style.css
 .endif
 
-.PATH: ${.CURDIR}/../../../../contrib/ntp/html/scripts
+.PATH: ${SRCTOP}/contrib/ntp/html/scripts
 
 .include <bsd.prog.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/nand
+.PATH: ${SRCTOP}/sys/dev/nand
 
 KMOD = nand
 SRCS=	nand.c nand_bbt.c nand_cdev.c nand_generic.c nand_geom.c \

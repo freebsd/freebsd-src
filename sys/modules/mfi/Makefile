@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/mfi
+.PATH: ${SRCTOP}/sys/dev/mfi
 
 SUBDIR= mfip
 

@@ -95,12 +95,10 @@ namespace {
 
     MachineFunctionProperties getRequiredProperties() const override {
       return MachineFunctionProperties().set(
-          MachineFunctionProperties::Property::AllVRegsAllocated);
+          MachineFunctionProperties::Property::NoVRegs);
     }
 
-    const char *getPassName() const override {
-      return ARM_LOAD_STORE_OPT_NAME;
-    }
+    StringRef getPassName() const override { return ARM_LOAD_STORE_OPT_NAME; }
 
   private:
     /// A set of load/store MachineInstrs with same base register sorted by
@@ -562,7 +560,7 @@ void ARMLoadStoreOpt::moveLiveRegsBefore(const MachineBasicBlock &MBB,
     MachineBasicBlock::const_iterator Before) {
   // Initialize if we never queried in this block.
   if (!LiveRegsValid) {
-    LiveRegs.init(TRI);
+    LiveRegs.init(*TRI);
     LiveRegs.addLiveOuts(MBB);
     LiveRegPos = MBB.end();
     LiveRegsValid = true;
@@ -834,7 +832,7 @@ MachineInstr *ARMLoadStoreOpt::MergeOpsUpdate(const MergeCandidate &Cand) {
         assert(MO.isImplicit());
         unsigned DefReg = MO.getReg();
 
-        if (std::find(ImpDefs.begin(), ImpDefs.end(), DefReg) != ImpDefs.end())
+        if (is_contained(ImpDefs, DefReg))
           continue;
         // We can ignore cases where the super-reg is read and written.
         if (MI->readsRegister(DefReg))
@@ -1851,7 +1849,7 @@ bool ARMLoadStoreOpt::MergeReturnIntoLDM(MachineBasicBlock &MBB) {
   if (MBB.empty()) return false;
 
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
-  if (MBBI != MBB.begin() &&
+  if (MBBI != MBB.begin() && MBBI != MBB.end() &&
       (MBBI->getOpcode() == ARM::BX_RET ||
        MBBI->getOpcode() == ARM::tBX_RET ||
        MBBI->getOpcode() == ARM::MOVPCLR)) {
@@ -1953,7 +1951,7 @@ namespace {
 
     bool runOnMachineFunction(MachineFunction &Fn) override;
 
-    const char *getPassName() const override {
+    StringRef getPassName() const override {
       return ARM_PREALLOC_LOAD_STORE_OPT_NAME;
     }
 

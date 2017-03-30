@@ -39,8 +39,7 @@ static cl::opt<GVDAGType> ViewBlockFreqPropagationDAG(
                           "display a graph using the raw "
                           "integer fractional block frequency representation."),
                clEnumValN(GVDT_Count, "count", "display a graph using the real "
-                                               "profile count if available."),
-               clEnumValEnd));
+                                               "profile count if available.")));
 
 cl::opt<std::string>
     ViewBlockFreqFuncName("view-bfi-func-name", cl::Hidden,
@@ -60,24 +59,22 @@ namespace llvm {
 
 template <>
 struct GraphTraits<BlockFrequencyInfo *> {
-  typedef const BasicBlock NodeType;
+  typedef const BasicBlock *NodeRef;
   typedef succ_const_iterator ChildIteratorType;
-  typedef Function::const_iterator nodes_iterator;
+  typedef pointer_iterator<Function::const_iterator> nodes_iterator;
 
-  static inline const NodeType *getEntryNode(const BlockFrequencyInfo *G) {
+  static NodeRef getEntryNode(const BlockFrequencyInfo *G) {
     return &G->getFunction()->front();
   }
-  static ChildIteratorType child_begin(const NodeType *N) {
+  static ChildIteratorType child_begin(const NodeRef N) {
     return succ_begin(N);
   }
-  static ChildIteratorType child_end(const NodeType *N) {
-    return succ_end(N);
-  }
+  static ChildIteratorType child_end(const NodeRef N) { return succ_end(N); }
   static nodes_iterator nodes_begin(const BlockFrequencyInfo *G) {
-    return G->getFunction()->begin();
+    return nodes_iterator(G->getFunction()->begin());
   }
   static nodes_iterator nodes_end(const BlockFrequencyInfo *G) {
-    return G->getFunction()->end();
+    return nodes_iterator(G->getFunction()->end());
   }
 };
 
@@ -160,6 +157,13 @@ BlockFrequencyInfo::getBlockProfileCount(const BasicBlock *BB) const {
     return None;
 
   return BFI->getBlockProfileCount(*getFunction(), BB);
+}
+
+Optional<uint64_t>
+BlockFrequencyInfo::getProfileCountFromFreq(uint64_t Freq) const {
+  if (!BFI)
+    return None;
+  return BFI->getProfileCountFromFreq(*getFunction(), Freq);
 }
 
 void BlockFrequencyInfo::setBlockFreq(const BasicBlock *BB, uint64_t Freq) {
@@ -248,9 +252,9 @@ bool BlockFrequencyInfoWrapperPass::runOnFunction(Function &F) {
   return false;
 }
 
-char BlockFrequencyAnalysis::PassID;
+AnalysisKey BlockFrequencyAnalysis::Key;
 BlockFrequencyInfo BlockFrequencyAnalysis::run(Function &F,
-                                               AnalysisManager<Function> &AM) {
+                                               FunctionAnalysisManager &AM) {
   BlockFrequencyInfo BFI;
   BFI.calculate(F, AM.getResult<BranchProbabilityAnalysis>(F),
                 AM.getResult<LoopAnalysis>(F));
@@ -258,7 +262,7 @@ BlockFrequencyInfo BlockFrequencyAnalysis::run(Function &F,
 }
 
 PreservedAnalyses
-BlockFrequencyPrinterPass::run(Function &F, AnalysisManager<Function> &AM) {
+BlockFrequencyPrinterPass::run(Function &F, FunctionAnalysisManager &AM) {
   OS << "Printing analysis results of BFI for function "
      << "'" << F.getName() << "':"
      << "\n";

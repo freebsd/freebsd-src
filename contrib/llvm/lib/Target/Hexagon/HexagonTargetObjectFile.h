@@ -19,14 +19,15 @@ namespace llvm {
   public:
     void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
 
-    MCSection *SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
-        Mangler &Mang, const TargetMachine &TM) const override;
+    MCSection *SelectSectionForGlobal(const GlobalObject *GO, SectionKind Kind,
+                                      const TargetMachine &TM) const override;
 
-    MCSection *getExplicitSectionGlobal(const GlobalValue *GV, SectionKind Kind,
-        Mangler &Mang, const TargetMachine &TM) const override;
+    MCSection *getExplicitSectionGlobal(const GlobalObject *GO,
+                                        SectionKind Kind,
+                                        const TargetMachine &TM) const override;
 
-    bool isGlobalInSmallSection(const GlobalValue *GV, const TargetMachine &TM)
-        const;
+    bool isGlobalInSmallSection(const GlobalObject *GO,
+                                const TargetMachine &TM) const;
 
     bool isSmallDataEnabled() const;
 
@@ -39,8 +40,9 @@ namespace llvm {
     unsigned getSmallestAddressableSize(const Type *Ty, const GlobalValue *GV,
         const TargetMachine &TM) const;
 
-    MCSection *selectSmallSectionForGlobal(const GlobalValue *GV,
-        SectionKind Kind, Mangler &Mang, const TargetMachine &TM) const;
+    MCSection *selectSmallSectionForGlobal(const GlobalObject *GO,
+                                           SectionKind Kind,
+                                           const TargetMachine &TM) const;
   };
 
 } // namespace llvm

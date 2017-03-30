@@ -2439,7 +2439,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct zyd_tx_desc *desc;
 	struct zyd_tx_data *data;
 	struct ieee80211_frame *wh;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211_key *k;
 	int rate, totlen;
 	static const uint8_t ratediv[] = ZYD_TX_RATEDIV;
@@ -2453,11 +2453,10 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	sc->tx_nfree--;
 
 	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_MGT ||
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL) {
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
+	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL ||
+	    (m0->m_flags & M_EAPOL) != 0) {
 		rate = tp->mgmtrate;
 	} else {
-		tp = &vap->iv_txparms[ieee80211_chan2mode(ni->ni_chan)];
 		/* for data frames */
 		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 			rate = tp->mcastrate;
@@ -2582,10 +2581,10 @@ zyd_start(struct zyd_softc *sc)
 	while (sc->tx_nfree > 0 && (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		if (zyd_tx_start(sc, m, ni) != 0) {
-			ieee80211_free_node(ni);
 			m_freem(m);
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
+			ieee80211_free_node(ni);
 			break;
 		}
 	}

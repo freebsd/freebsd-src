@@ -17,9 +17,9 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  *                                                                   USA
  */
-
 %{
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "dtc.h"
 #include "srcpos.h"
@@ -27,17 +27,20 @@
 YYLTYPE yylloc;
 
 extern int yylex(void);
-extern void print_error(char const *fmt, ...);
 extern void yyerror(char const *s);
+#define ERROR(loc, ...) \
+	do { \
+		srcpos_error((loc), "Error", __VA_ARGS__); \
+		treesource_error = true; \
+	} while (0)
 
-extern struct boot_info *the_boot_info;
+extern struct dt_info *parser_output;
 extern bool treesource_error;
 %}
 
 %union {
 	char *propnodename;
 	char *labelref;
-	unsigned int cbase;
 	uint8_t byte;
 	struct data data;
 
@@ -52,9 +55,11 @@ extern bool treesource_error;
 	struct node *nodelist;
 	struct reserve_info *re;
 	uint64_t integer;
+	unsigned int flags;
 }
 
 %token DT_V1
+%token DT_PLUGIN
 %token DT_MEMRESERVE
 %token DT_LSHIFT DT_RSHIFT DT_LE DT_GE DT_EQ DT_NE DT_AND DT_OR
 %token DT_BITS
@@ -63,7 +68,6 @@ extern bool treesource_error;
 %token <propnodename> DT_PROPNODENAME
 %token <integer> DT_LITERAL
 %token <integer> DT_CHAR_LITERAL
-%token <cbase> DT_BASE
 %token <byte> DT_BYTE
 %token <data> DT_STRING
 %token <labelref> DT_LABEL
@@ -72,6 +76,8 @@ extern bool treesource_error;
 
 %type <data> propdata
 %type <data> propdataprefix
+%type <flags> header
+%type <flags> headers
 %type <re> memreserve
 %type <re> memreserves
 %type <array> arrayprefix
@@ -102,10 +108,31 @@ extern bool treesource_error;
 %%
 
 sourcefile:
-	  DT_V1 ';' memreserves devicetree
+	  headers memreserves devicetree
 		{
-			the_boot_info = build_boot_info($3, $4,
-							guess_boot_cpuid($4));
+			parser_output = build_dt_info($1, $2, $3,
+			                              guess_boot_cpuid($3));
+		}
+	;
+
+header:
+	  DT_V1 ';'
+		{
+			$$ = DTSF_V1;
+		}
+	| DT_V1 ';' DT_PLUGIN ';'
+		{
+			$$ = DTSF_V1 | DTSF_PLUGIN;
+		}
+	;
+
+headers:
+	  header
+	| header headers
+		{
+			if ($2 != $1)
+				ERROR(&yylloc, "Header flags don't match earlier ones");
+			$$ = $1;
 		}
 	;
 
@@ -141,6 +168,18 @@ devicetree:
 		{
 			$$ = merge_nodes($1, $3);
 		}
+
+	| devicetree DT_LABEL DT_REF nodedef
+		{
+			struct node *target = get_node_by_ref($1, $3);
+
+			if (target) {
+				add_label(&target->labels, $2);
+				merge_nodes(target, $4);
+			} else
+				ERROR(&yylloc, "Label or path %s not found", $3);
+			$$ = $1;
+		}
 	| devicetree DT_REF nodedef
 		{
 			struct node *target = get_node_by_ref($1, $2);
@@ -148,17 +187,18 @@ devicetree:
 			if (target)
 				merge_nodes(target, $3);
 			else
-				print_error("label or path, '%s', not found", $2);
+				ERROR(&yylloc, "Label or path %s not found", $2);
 			$$ = $1;
 		}
 	| devicetree DT_DEL_NODE DT_REF ';'
 		{
 			struct node *target = get_node_by_ref($1, $3);
 
-			if (!target)
-				print_error("label or path, '%s', not found", $3);
-			else
+			if (target)
 				delete_node(target);
+			else
+				ERROR(&yylloc, "Label or path %s not found", $3);
+
 
 			$$ = $1;
 		}
@@ -274,10 +314,9 @@ arrayprefix:
 			bits = $2;
 
 			if ((bits !=  8) && (bits != 16) &&
-			    (bits != 32) && (bits != 64))
-			{
-				print_error("Only 8, 16, 32 and 64-bit elements"
-					    " are currently supported");
+			    (bits != 32) && (bits != 64)) {
+				ERROR(&yylloc, "Array elements must be"
+				      " 8, 16, 32 or 64-bits");
 				bits = 32;
 			}
 
@@ -302,9 +341,8 @@ arrayprefix:
 				 * mask), all bits are one.
 				 */
 				if (($2 > mask) && (($2 | mask) != -1ULL))
-					print_error(
-						"integer value out of range "
-						"%016lx (%d bits)", $1.bits);
+					ERROR(&yylloc, "Value out of range for"
+					      " %d-bit array element", $1.bits);
 			}
 
 			$$.data = data_append_integer($1.data, $2, $1.bits);
@@ -318,7 +356,7 @@ arrayprefix:
 							  REF_PHANDLE,
 							  $2);
 			else
-				print_error("References are only allowed in "
+				ERROR(&yylloc, "References are only allowed in "
 					    "arrays with 32-bit elements.");
 
 			$$.data = data_append_integer($1.data, val, $1.bits);
@@ -400,8 +438,24 @@ integer_add:
 
 integer_mul:
 	  integer_mul '*' integer_unary { $$ = $1 * $3; }
-	| integer_mul '/' integer_unary { $$ = $1 / $3; }
-	| integer_mul '%' integer_unary { $$ = $1 % $3; }
+	| integer_mul '/' integer_unary
+		{
+			if ($3 != 0) {
+				$$ = $1 / $3;
+			} else {
+				ERROR(&yylloc, "Division by zero");
+				$$ = 0;
+			}
+		}
+	| integer_mul '%' integer_unary
+		{
+			if ($3 != 0) {
+				$$ = $1 % $3;
+			} else {
+				ERROR(&yylloc, "Division by zero");
+				$$ = 0;
+			}
+		}
 	| integer_unary
 	;
 
@@ -438,7 +492,7 @@ subnodes:
 		}
 	| subnode propdef
 		{
-			print_error("syntax error: properties must precede subnodes");
+			ERROR(&yylloc, "Properties must precede subnodes");
 			YYERROR;
 		}
 	;
@@ -461,17 +515,7 @@ subnode:
 
 %%
 
-void print_error(char const *fmt, ...)
+void yyerror(char const *s)
 {
-	va_list va;
-
-	va_start(va, fmt);
-	srcpos_verror(&yylloc, "Error", fmt, va);
-	va_end(va);
-
-	treesource_error = true;
-}
-
-void yyerror(char const *s) {
-	print_error("%s", s);
+	ERROR(&yylloc, "%s", s);
 }

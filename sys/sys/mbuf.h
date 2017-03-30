@@ -614,7 +614,7 @@ struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
-int		 m_mbuftouio(struct uio *, struct mbuf *, int);
+int		 m_mbuftouio(struct uio *, const struct mbuf *, int);
 void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
 struct mbuf	*m_prepend(struct mbuf *, int, int);
@@ -1320,5 +1320,18 @@ mbufq_prepend(struct mbufq *mq, struct mbuf *m)
 	STAILQ_INSERT_HEAD(&mq->mq_head, m, m_stailqpkt);
 	mq->mq_len++;
 }
+
+/*
+ * Note: this doesn't enforce the maximum list size for dst.
+ */
+static inline void
+mbufq_concat(struct mbufq *mq_dst, struct mbufq *mq_src)
+{
+
+	mq_dst->mq_len += mq_src->mq_len;
+	STAILQ_CONCAT(&mq_dst->mq_head, &mq_src->mq_head);
+	mq_src->mq_len = 0;
+}
+
 #endif /* _KERNEL */
 #endif /* !_SYS_MBUF_H_ */

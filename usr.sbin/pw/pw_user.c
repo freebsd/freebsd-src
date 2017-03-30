@@ -1177,7 +1177,7 @@ pw_user_add(int argc, char **argv, char *arg1)
 	char line[_PASSWORD_LEN+1], path[MAXPATHLEN];
 	char *gecos, *homedir, *skel, *walk, *userid, *groupid, *grname;
 	char *default_passwd, *name, *p;
-	const char *cfg;
+	const char *cfg = NULL;
 	login_cap_t *lc;
 	FILE *pfp, *fp;
 	intmax_t id = -1;
@@ -1356,6 +1356,9 @@ pw_user_add(int argc, char **argv, char *arg1)
 	if (GETPWNAM(name) != NULL)
 		errx(EX_DATAERR, "login name `%s' already exists", name);
 
+	if (!grname)
+		grname = cmdcnf->default_group;
+
 	pwd = &fakeuser;
 	pwd->pw_name = name;
 	pwd->pw_class = cmdcnf->default_class ? cmdcnf->default_class : "";
@@ -1485,7 +1488,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	struct group *grp;
 	StringList *groups = NULL;
 	char args[] = "C:qn:u:c:d:e:p:g:G:mM:l:k:s:w:L:h:H:NPYy:";
-	const char *cfg;
+	const char *cfg = NULL;
 	char *gecos, *homedir, *grname, *name, *newname, *walk, *skel, *shell;
 	char *passwd, *class, *nispasswd;
 	login_cap_t *lc;

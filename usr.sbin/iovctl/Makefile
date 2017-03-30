@@ -4,7 +4,7 @@ PROG=	iovctl
 SRCS=	iovctl.c parse.c validate.c
 LIBADD=	nv ucl m
 
-CFLAGS+=-I${.CURDIR}/../../contrib/libucl/include
+CFLAGS+=-I${SRCTOP}/contrib/libucl/include
 
 WARNS?=6
 

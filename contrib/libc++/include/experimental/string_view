@@ -192,7 +192,7 @@ namespace std {
 _LIBCPP_BEGIN_NAMESPACE_LFTS
 
     template<class _CharT, class _Traits = _VSTD::char_traits<_CharT> >
-    class _LIBCPP_TYPE_VIS_ONLY basic_string_view {
+    class _LIBCPP_TEMPLATE_VIS basic_string_view {
     public:
         // types
         typedef _Traits                                    traits_type;
@@ -281,7 +281,7 @@ _LIBCPP_BEGIN_NAMESPACE_LFTS
         const_reference at(size_type __pos) const
         {
             return __pos >= size()
-                ? (__libcpp_throw(out_of_range("string_view::at")), __data[0])
+                ? (__throw_out_of_range("string_view::at"), __data[0])
                 : __data[__pos];
         }
 
@@ -352,7 +352,7 @@ _LIBCPP_BEGIN_NAMESPACE_LFTS
         size_type copy(_CharT* __s, size_type __n, size_type __pos = 0) const
         {
             if ( __pos > size())
-                __libcpp_throw(out_of_range("string_view::copy"));
+                __throw_out_of_range("string_view::copy");
             size_type __rlen = _VSTD::min( __n, size() - __pos );
             _VSTD::copy_n(begin() + __pos, __rlen, __s );
             return __rlen;
@@ -362,11 +362,11 @@ _LIBCPP_BEGIN_NAMESPACE_LFTS
         basic_string_view substr(size_type __pos = 0, size_type __n = npos) const
         {
 //             if (__pos > size())
-//                 throw out_of_range("string_view::substr");
+//                 __throw_out_of_range("string_view::substr");
 //             size_type __rlen = _VSTD::min( __n, size() - __pos );
 //             return basic_string_view(data() + __pos, __rlen);
             return __pos > size()
-                ? (__libcpp_throw((out_of_range("string_view::substr"))), basic_string_view())
+                ? (__throw_out_of_range("string_view::substr"), basic_string_view())
                 : basic_string_view(data() + __pos, _VSTD::min(__n, size() - __pos));
         }
 
@@ -783,7 +783,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 // [string.view.hash]
 // Shamelessly stolen from <string>
 template<class _CharT, class _Traits>
-struct _LIBCPP_TYPE_VIS_ONLY hash<std::experimental::basic_string_view<_CharT, _Traits> >
+struct _LIBCPP_TEMPLATE_VIS hash<std::experimental::basic_string_view<_CharT, _Traits> >
     : public unary_function<std::experimental::basic_string_view<_CharT, _Traits>, size_t>
 {
     size_t operator()(const std::experimental::basic_string_view<_CharT, _Traits>& __val) const _NOEXCEPT;

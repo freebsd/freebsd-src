@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-GCCDIR=	${.CURDIR}/../../../../contrib/gcc
-GCCLIB=	${.CURDIR}/../../../../contrib/gcclibs
+GCCDIR=	${SRCTOP}/contrib/gcc
+GCCLIB=	${SRCTOP}/contrib/gcclibs
 
 .PATH: ${GCCLIB}/libssp ${GCCLIB}/libssp/ssp
 

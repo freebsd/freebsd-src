@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -44,20 +43,17 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcbrvar.h>
 
-#include "sdhci.h"
+#include <dev/sdhci/sdhci.h>
+
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
 
 /*
  * PCI registers
  */
-
 #define	PCI_SDHCI_IFPIO			0x00
 #define	PCI_SDHCI_IFDMA			0x01
 #define	PCI_SDHCI_IFVENDOR		0x02
@@ -109,17 +105,42 @@ static const struct sdhci_device {
 	    SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC },
 	{ 0x0f148086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_MMC_DDR52 |
+	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN},
+	{ 0x0f158086,	0xffff,	"Intel Bay Trail SDXC Controller",
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x0f508086,	0xffff,	"Intel Bay Trail eMMC 4.5 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_MMC_DDR52 |
+	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x22948086,	0xffff,	"Intel Braswell eMMC 4.5.1 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
 	    SDHCI_QUIRK_DATA_TIMEOUT_1MHZ |
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_MMC_DDR52 |
+	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
+	{ 0x22968086,	0xffff,	"Intel Braswell SDXC Controller",
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
+	{ 0x5aca8086,	0xffff,	"Intel Apollo Lake SDXC Controller",
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x5acc8086,	0xffff,	"Intel Apollo Lake eMMC 5.0 Controller",
 	    SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
-	    SDHCI_QUIRK_INTEL_POWER_UP_RESET },
+	    SDHCI_QUIRK_INTEL_POWER_UP_RESET |
+	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_MMC_DDR52 |
+	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
+	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
@@ -141,7 +162,7 @@ SYSCTL_INT(_hw_sdhci, OID_AUTO, enable_msi, CTLFLAG_RDTUN, &sdhci_enable_msi,
     0, "Enable MSI interrupts");
 
 static uint8_t
-sdhci_pci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
+sdhci_pci_read_1(device_t dev, struct sdhci_slot *slot __unused, bus_size_t off)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -151,8 +172,8 @@ sdhci_pci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_pci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-    uint8_t val)
+sdhci_pci_write_1(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off, uint8_t val)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -162,7 +183,7 @@ sdhci_pci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static uint16_t
-sdhci_pci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
+sdhci_pci_read_2(device_t dev, struct sdhci_slot *slot __unused, bus_size_t off)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -172,8 +193,8 @@ sdhci_pci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_pci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-    uint16_t val)
+sdhci_pci_write_2(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off, uint16_t val)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -183,7 +204,7 @@ sdhci_pci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static uint32_t
-sdhci_pci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
+sdhci_pci_read_4(device_t dev, struct sdhci_slot *slot __unused, bus_size_t off)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -193,8 +214,8 @@ sdhci_pci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 }
 
 static void
-sdhci_pci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-    uint32_t val)
+sdhci_pci_write_4(device_t dev, struct sdhci_slot *slot __unused,
+    bus_size_t off, uint32_t val)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 
@@ -204,7 +225,7 @@ sdhci_pci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-sdhci_pci_read_multi_4(device_t dev, struct sdhci_slot *slot,
+sdhci_pci_read_multi_4(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off, uint32_t *data, bus_size_t count)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
@@ -213,7 +234,7 @@ sdhci_pci_read_multi_4(device_t dev, struct sdhci_slot *slot,
 }
 
 static void
-sdhci_pci_write_multi_4(device_t dev, struct sdhci_slot *slot,
+sdhci_pci_write_multi_4(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off, uint32_t *data, bus_size_t count)
 {
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
@@ -317,6 +338,8 @@ sdhci_pci_attach(device_t dev)
 			break;
 		}
 	}
+	sc->quirks &= ~sdhci_quirk_clear;
+	sc->quirks |= sdhci_quirk_set;
 	/* Some controllers need to be bumped into the right mode. */
 	if (sc->quirks & SDHCI_QUIRK_LOWER_FREQUENCY)
 		sdhci_lower_frequency(dev);
@@ -462,12 +485,13 @@ static device_method_t sdhci_methods[] = {
 
 	/* mmcbr_if */
 	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
+	DEVMETHOD(mmcbr_switch_vccq,	sdhci_generic_switch_vccq),
 	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
 	DEVMETHOD(mmcbr_get_ro,		sdhci_generic_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,   sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,   sdhci_generic_release_host),
 
-	/* SDHCI registers accessors */
+	/* SDHCI accessors */
 	DEVMETHOD(sdhci_read_1,		sdhci_pci_read_1),
 	DEVMETHOD(sdhci_read_2,		sdhci_pci_read_2),
 	DEVMETHOD(sdhci_read_4,		sdhci_pci_read_4),
@@ -476,6 +500,7 @@ static device_method_t sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_2,	sdhci_pci_write_2),
 	DEVMETHOD(sdhci_write_4,	sdhci_pci_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	sdhci_pci_write_multi_4),
+	DEVMETHOD(sdhci_set_uhs_timing,	sdhci_generic_set_uhs_timing),
 
 	DEVMETHOD_END
 };
@@ -490,5 +515,4 @@ static devclass_t sdhci_pci_devclass;
 DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, sdhci_pci_devclass, NULL,
     NULL);
 MODULE_DEPEND(sdhci_pci, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_pci, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci_pci);

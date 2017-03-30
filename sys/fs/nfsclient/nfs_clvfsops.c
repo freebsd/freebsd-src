@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -749,8 +749,7 @@ static int
 nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
     struct sockaddr_in **sinp, char *dirpath, size_t dirpathsize, int *dirlenp)
 {
-	char nam[MNAMELEN + 1];
-	char *delimp, *hostp, *spec;
+	char *nam, *delimp, *hostp, *spec;
 	int error, have_bracket = 0, offset, rv, speclen;
 	struct sockaddr_in *sin;
 	size_t len;
@@ -758,6 +757,7 @@ nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
 	error = vfs_getopt(opts, "from", (void **)&spec, &speclen);
 	if (error != 0)
 		return (error);
+	nam = malloc(MNAMELEN + 1, M_TEMP, M_WAITOK);
 
 	/*
 	 * This part comes from sbin/mount_nfs/mount_nfs.c:getnfsargs().
@@ -776,6 +776,7 @@ nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
 		hostp = delimp + 1;
 	} else {
 		printf("%s: no <host>:<dirpath> nfs-name\n", __func__);
+		free(nam, M_TEMP);
 		return (EINVAL);
 	}
 	*delimp = '\0';
@@ -791,6 +792,7 @@ nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
 		spec[speclen - 1] = '\0';
 	if (strlen(hostp) + strlen(spec) + 1 > MNAMELEN) {
 		printf("%s: %s:%s: name too long", __func__, hostp, spec);
+		free(nam, M_TEMP);
 		return (EINVAL);
 	}
 	/* Make both '@' and ':' notations equal */
@@ -816,6 +818,7 @@ nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
 	if (rv != 1) {
 		printf("%s: cannot parse '%s', inet_pton() returned %d\n",
 		    __func__, hostp, rv);
+		free(nam, M_TEMP);
 		free(sin, M_SONAME);
 		return (EINVAL);
 	}
@@ -832,6 +835,7 @@ nfs_mount_parse_from(struct vfsoptlist *opts, char **hostnamep,
 	strlcpy(dirpath, spec, dirpathsize);
 	*dirlenp = strlen(dirpath);
 
+	free(nam, M_TEMP);
 	return (0);
 }
 
@@ -874,7 +878,7 @@ nfs_mount(struct mount *mp)
 	struct sockaddr *nam = NULL;
 	struct vnode *vp;
 	struct thread *td;
-	char hst[MNAMELEN];
+	char *hst;
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
 	char *cp, *opt, *name, *secname;
 	int nametimeo = NFS_DEFAULT_NAMETIMEO;
@@ -886,6 +890,7 @@ nfs_mount(struct mount *mp)
 
 	has_nfs_args_opt = 0;
 	has_nfs_from_opt = 0;
+	hst = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
 		error = EINVAL;
 		goto out;
@@ -1265,8 +1270,13 @@ nfs_mount(struct mount *mp)
 			error = EINVAL;
 			goto out;
 		}
-		bcopy(args.hostname, hst, MNAMELEN);
-		hst[MNAMELEN - 1] = '\0';
+		if (len >= MNAMELEN) {
+			vfs_mount_error(mp, "Hostname too long");
+			error = EINVAL;
+			goto out;
+		}
+		bcopy(args.hostname, hst, len);
+		hst[len] = '\0';
 	}
 
 	if (vfs_getopt(mp->mnt_optnew, "principal", (void **)&name, NULL) == 0)
@@ -1324,6 +1334,7 @@ out:
 			mp->mnt_kern_flag |= MNTK_NULL_NOCACHE;
 		MNT_IUNLOCK(mp);
 	}
+	free(hst, M_TEMP);
 	return (error);
 }
 

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 28, 2014
+.Dd February 20, 2017
 .Dt TIMEOUT 1
 .Os
 .Sh NAME
@@ -68,7 +68,9 @@ By default,
 .Ar SIGTERM .
 is sent.
 .It Fl k Ar time , Fl -kill-after Ar time
-Send a second kill signal if
+Send a
+.Ar SIGKILL
+signal if
 .Ar command
 is still running after
 .Ar time
@@ -127,3 +129,12 @@ the exit status return is 125.
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr signal 3
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 10.3 .
+.Sh AUTHORS
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org
+and
+.An Vsevolod Stakhov Aq Mt vsevolod@FreeBSD.org

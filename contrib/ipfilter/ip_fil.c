@@ -317,8 +317,8 @@ get_unit(name, family)
 	} else {
 		old_ifneta = ifneta;
 		nifs++;
-		ifneta = (struct ifnet **)realloc(ifneta,
-						  (nifs + 1) * sizeof(ifp));
+		ifneta = (struct ifnet **)reallocarray(ifneta, nifs + 1, 
+						  sizeof(ifp));
 		if (!ifneta) {
 			free(old_ifneta);
 			nifs = 0;

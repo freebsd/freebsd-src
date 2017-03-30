@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2013
+.Dd March 12, 2017
 .Dt GLABEL 8
 .Os
 .Sh NAME
@@ -55,6 +55,9 @@
 .Ar dev ...
 .Nm
 .Cm dump
+.Ar dev ...
+.Nm
+.Cm refresh
 .Ar dev ...
 .Nm
 .Cm list
@@ -186,6 +189,8 @@ Same as
 Clear metadata on the given devices.
 .It Cm dump
 Dump metadata stored on the given devices.
+.It Cm refresh
+Refresh / rediscover metadata from the given devices.
 .It Cm list
 See
 .Xr geom 8 .

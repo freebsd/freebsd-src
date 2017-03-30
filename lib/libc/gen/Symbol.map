@@ -415,6 +415,7 @@ FBSD_1.4 {
 FBSD_1.5 {
 	basename;
 	dirname;
+	sem_clockwait_np;
 };
 
 FBSDprivate_1.0 {

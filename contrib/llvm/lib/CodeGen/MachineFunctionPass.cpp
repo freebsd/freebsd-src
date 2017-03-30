@@ -22,7 +22,7 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/StackProtector.h"
 #include "llvm/IR/Dominators.h"
@@ -41,7 +41,9 @@ bool MachineFunctionPass::runOnFunction(Function &F) {
   if (F.hasAvailableExternallyLinkage())
     return false;
 
-  MachineFunction &MF = getAnalysis<MachineFunctionAnalysis>().getMF();
+  MachineModuleInfo &MMI = getAnalysis<MachineModuleInfo>();
+  MachineFunction &MF = MMI.getMachineFunction(F);
+
   MachineFunctionProperties &MFProps = MF.getProperties();
 
 #ifndef NDEBUG
@@ -49,7 +51,7 @@ bool MachineFunctionPass::runOnFunction(Function &F) {
     errs() << "MachineFunctionProperties required by " << getPassName()
            << " pass are not met by function " << F.getName() << ".\n"
            << "Required properties: ";
-    RequiredProperties.print(errs(), /*OnlySet=*/true);
+    RequiredProperties.print(errs());
     errs() << "\nCurrent properties: ";
     MFProps.print(errs());
     errs() << "\n";
@@ -60,13 +62,13 @@ bool MachineFunctionPass::runOnFunction(Function &F) {
   bool RV = runOnMachineFunction(MF);
 
   MFProps.set(SetProperties);
-  MFProps.clear(ClearedProperties);
+  MFProps.reset(ClearedProperties);
   return RV;
 }
 
 void MachineFunctionPass::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.addRequired<MachineFunctionAnalysis>();
-  AU.addPreserved<MachineFunctionAnalysis>();
+  AU.addRequired<MachineModuleInfo>();
+  AU.addPreserved<MachineModuleInfo>();
 
   // MachineFunctionPass preserves all LLVM IR passes, but there's no
   // high-level way to express this. Instead, just list a bunch of

@@ -105,8 +105,8 @@ fetch_udp(void)
 	     ptr->xig_len > sizeof(struct xinpgen);
              ptr = (struct xinpgen *)(void *)((char *)ptr + ptr->xig_len)) {
 		inp = (struct xinpcb *)ptr;
-		if (inp->xi_inp.inp_gencnt > xinpgen->xig_gen ||
-		    (inp->xi_inp.inp_vflag & INP_IPV4) == 0)
+		if (inp->inp_gencnt > xinpgen->xig_gen ||
+		    (inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 
 		udp_total++;
@@ -128,17 +128,17 @@ fetch_udp(void)
 	     ptr->xig_len > sizeof(struct xinpgen);
              ptr = (struct xinpgen *)(void *)((char *)ptr + ptr->xig_len)) {
 		inp = (struct xinpcb *)ptr;
-		if (inp->xi_inp.inp_gencnt > xinpgen->xig_gen ||
-		    (inp->xi_inp.inp_vflag & INP_IPV4) == 0)
+		if (inp->inp_gencnt > xinpgen->xig_gen ||
+		    (inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 		oid->inp = inp;
 		oid->index.len = 5;
-		inaddr = ntohl(inp->xi_inp.inp_laddr.s_addr);
+		inaddr = ntohl(inp->inp_laddr.s_addr);
 		oid->index.subs[0] = (inaddr >> 24) & 0xff;
 		oid->index.subs[1] = (inaddr >> 16) & 0xff;
 		oid->index.subs[2] = (inaddr >>  8) & 0xff;
 		oid->index.subs[3] = (inaddr >>  0) & 0xff;
-		oid->index.subs[4] = ntohs(inp->xi_inp.inp_lport);
+		oid->index.subs[4] = ntohs(inp->inp_lport);
 		oid++;
 	}
 

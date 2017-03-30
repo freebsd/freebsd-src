@@ -11,7 +11,7 @@ CFLAGS+=-DDEBUGSHELL -DSECURE -DLOGIN_CAP -DCOMPAT_SYSV_INIT
 LIBADD=	util crypt
 
 # Needed for getmntopts.c
-MOUNT=	${.CURDIR}/../../sbin/mount
+MOUNT=	${SRCTOP}/sbin/mount
 CFLAGS+=-I${MOUNT}
 .PATH:	${MOUNT}
 

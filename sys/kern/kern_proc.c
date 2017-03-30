@@ -191,11 +191,17 @@ static int
 proc_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct proc *p;
+	struct thread *td;
 
 	p = (struct proc *)mem;
 	SDT_PROBE4(proc, , ctor , entry, p, size, arg, flags);
 	EVENTHANDLER_INVOKE(process_ctor, p);
 	SDT_PROBE4(proc, , ctor , return, p, size, arg, flags);
+	td = FIRST_THREAD_IN_PROC(p);
+	if (td != NULL) {
+		/* Make sure all thread constructors are executed */
+		EVENTHANDLER_INVOKE(thread_ctor, td);
+	}
 	return (0);
 }
 
@@ -220,6 +226,9 @@ proc_dtor(void *mem, int size, void *arg)
 #endif
 		/* Free all OSD associated to this thread. */
 		osd_thread_exit(td);
+
+		/* Make sure all thread destructors are executed */
+		EVENTHANDLER_INVOKE(thread_dtor, td);
 	}
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
@@ -2249,7 +2258,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 		if (m_adv != NULL) {
 			m = m_adv;
 		} else {
-			pi_adv = OFF_TO_IDX(entry->end - addr);
+			pi_adv = atop(entry->end - addr);
 			pindex = pi;
 			for (tobj = obj;; tobj = tobj->backing_object) {
 				m = vm_page_find_least(tobj, pindex);
@@ -2273,7 +2282,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 		    (pmap_mincore(map->pmap, addr, &locked_pa) &
 		    MINCORE_SUPER) != 0) {
 			kve->kve_flags |= KVME_FLAG_SUPER;
-			pi_adv = OFF_TO_IDX(pagesizes[1]);
+			pi_adv = atop(pagesizes[1]);
 		} else {
 			/*
 			 * We do not test the found page on validity.

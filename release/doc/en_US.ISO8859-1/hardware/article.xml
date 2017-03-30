@@ -30,6 +30,9 @@
       <year>2012</year>
       <year>2013</year>
       <year>2014</year>
+      <year>2015</year>
+      <year>2016</year>
+      <year>2017</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -618,8 +621,6 @@
 
       &hwlist.aha;
 
-      &hwlist.ahb;
-
       &hwlist.ahc;
 
       &hwlist.ahci;
@@ -776,6 +777,8 @@
 
       &hwlist.cxgb;
 
+      &hwlist.cxgbe;
+
       &hwlist.dc;
 
       &hwlist.de;
@@ -799,19 +802,23 @@
 
       &hwlist.hme;
 
-      &hwlist.igb;
-
       &hwlist.ipheth;
 
       &hwlist.ixgb;
 
       &hwlist.ixgbe;
 
+      &hwlist.ixl;
+
       &hwlist.jme;
 
       &hwlist.kue;
 
       &hwlist.lge;
+
+      &hwlist.mlx4en;
+
+      &hwlist.mlx5en;
 
       &hwlist.msk;
 

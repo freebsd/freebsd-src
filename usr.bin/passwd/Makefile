@@ -9,7 +9,7 @@ BINMODE	 = 4555
 PRECIOUSPROG=
 LIBADD   = pam
 .if ${MK_NIS} != "no"
-SYMLINKS = ${BINDIR}/passwd ${BINDIR}/yppasswd
+SYMLINKS = passwd ${BINDIR}/yppasswd
 MLINKS	 = passwd.1 yppasswd.1
 .endif
 

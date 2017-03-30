@@ -6,7 +6,8 @@
 
 .PATH: ${SRCTOP}/contrib/cortex-strings/src/aarch64
 
-MDSRCS+=memchr.S \
+MDSRCS+= \
+	memchr.S \
 	memcmp.S \
 	memcpy.S \
 	memmove.S \

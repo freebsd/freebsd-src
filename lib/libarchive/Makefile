@@ -48,6 +48,7 @@ SRCS=	archive_acl.c					\
 	archive_check_magic.c				\
 	archive_cmdline.c				\
 	archive_cryptor.c				\
+	archive_disk_acl_freebsd.c			\
 	archive_digest.c				\
 	archive_entry.c					\
 	archive_entry_copy_stat.c			\
@@ -112,10 +113,10 @@ SRCS=	archive_acl.c					\
 	archive_string.c				\
 	archive_string_sprintf.c			\
 	archive_util.c					\
+	archive_version_details.c			\
 	archive_virtual.c				\
 	archive_write.c					\
 	archive_write_add_filter.c			\
-	archive_write_disk_acl.c			\
 	archive_write_disk_set_standard_lookup.c	\
 	archive_write_disk_posix.c			\
 	archive_write_open_fd.c				\

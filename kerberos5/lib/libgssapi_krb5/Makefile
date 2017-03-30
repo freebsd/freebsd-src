@@ -82,4 +82,4 @@ CFLAGS+=-I${KRB5DIR}/lib/roken -I.
 
 .include <bsd.lib.mk>
 
-.PATH: ${KRB5DIR}/lib/gssapi/krb5 ${.CURDIR}/../../../lib/libgssapi
+.PATH: ${KRB5DIR}/lib/gssapi/krb5 ${SRCTOP}/lib/libgssapi

@@ -86,7 +86,7 @@ void Preprocessor::EnterCachingLexMode() {
 const Token &Preprocessor::PeekAhead(unsigned N) {
   assert(CachedLexPos + N > CachedTokens.size() && "Confused caching.");
   ExitCachingLexMode();
-  for (unsigned C = CachedLexPos + N - CachedTokens.size(); C > 0; --C) {
+  for (size_t C = CachedLexPos + N - CachedTokens.size(); C > 0; --C) {
     CachedTokens.push_back(Token());
     Lex(CachedTokens.back());
   }
@@ -105,7 +105,7 @@ void Preprocessor::AnnotatePreviousCachedTokens(const Token &Tok) {
   for (CachedTokensTy::size_type i = CachedLexPos; i != 0; --i) {
     CachedTokensTy::iterator AnnotBegin = CachedTokens.begin() + i-1;
     if (AnnotBegin->getLocation() == Tok.getLocation()) {
-      assert((BacktrackPositions.empty() || BacktrackPositions.back() < i) &&
+      assert((BacktrackPositions.empty() || BacktrackPositions.back() <= i) &&
              "The backtrack pos points inside the annotated tokens!");
       // Replace the cached tokens with the single annotation token.
       if (i < CachedLexPos)

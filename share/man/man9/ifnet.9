@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2016
+.Dd March 22, 2017
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -485,7 +485,7 @@ to override the default implementation.
 This function is exposed in order to allow drivers to manage their own queues
 and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
 pair to ifq.
-The suggested internal software queueing mechanism is buf_ring.
+The suggested internal software queuing mechanism is buf_ring.
 .It Fn if_qflush
 Free mbufs in internally managed queues when the interface is marked down.
 This function must be installed after
@@ -494,7 +494,7 @@ to override the default implementation.
 This function is exposed in order to allow drivers to manage their own queues
 and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
 pair to ifq.
-The suggested internal software queueing mechanism is buf_ring.
+The suggested internal software queuing mechanism is buf_ring.
 .It Fn if_start
 Start queued output on an interface.
 This function is exposed in
@@ -826,7 +826,7 @@ The actual mode change is managed by the driver-specific
 .Fn if_ioctl
 routine.
 The
-.Xr polling
+.Xr polling 4
 handler returns the number of packets processed.
 .Ss The if_data Structure
 The

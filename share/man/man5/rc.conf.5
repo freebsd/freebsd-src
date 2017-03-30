@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2016
+.Dd February 26, 2017
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -182,7 +182,7 @@ Enabling this option is likely to increase your boot time if
 services are enabled that utilize the force_depend check.
 .It Ao Ar name Ac Ns Va _chroot
 .Pq Vt str
-.Xr chroot
+.Xr chroot 8
 to this directory before running the service.
 .It Ao Ar name Ac Ns Va _user
 .Pq Vt str
@@ -3631,11 +3631,6 @@ Set to
 .Dq Li YES
 to enable Linux/ELF binary emulation at system initial
 boot time.
-.It Va svr4_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-enable SysVR4 emulation at boot time.
 .It Va sysvipc_enable
 .Pq Vt bool
 If set to

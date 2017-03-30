@@ -75,6 +75,12 @@ atomic_long_dec(atomic_long_t *v)
 	return atomic_fetchadd_long(&v->counter, -1) - 1;
 }
 
+static inline long
+atomic_long_xchg(atomic_long_t *v, long val)
+{
+	return atomic_swap_long(&v->counter, val);
+}
+
 static inline int
 atomic_long_add_unless(atomic_long_t *v, long a, long u)
 {

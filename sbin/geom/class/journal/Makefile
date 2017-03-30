@@ -1,13 +1,13 @@
 # $FreeBSD$
 
 PACKAGE=runtime
-.PATH: ${.CURDIR}/../../misc
+.PATH: ${.CURDIR:H:H}/misc
 
 GEOM_CLASS=	journal
 SRCS+=	geom_journal_ufs.c
 
 LIBADD=	ufs md
 
-CFLAGS+=-I${.CURDIR}/../../../../sys
+CFLAGS+=-I${SRCTOP}/sys
 
 .include <bsd.lib.mk>

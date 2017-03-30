@@ -203,6 +203,7 @@ static const char rcsid[] =
  */
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #ifdef HAVE_SYS_SELECT_H
@@ -226,12 +227,18 @@ static const char rcsid[] =
 
 #include <arpa/inet.h>
 
+#ifdef HAVE_LIBCASPER
+#include <libcasper.h>
+#include <casper/cap_dns.h>
+#endif
+
 #ifdef	IPSEC
 #include <net/route.h>
 #include <netipsec/ipsec.h>	/* XXX */
 #endif	/* IPSEC */
 
 #include <ctype.h>
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -361,6 +368,10 @@ int printdiff = 0;		/* Print the difference between sent and quoted */
 extern int optind;
 extern int opterr;
 extern char *optarg;
+
+#ifdef HAVE_LIBCASPER
+static cap_channel_t *capdns;
+#endif
 
 /* Forwards */
 double	deltaT(struct timeval *, struct timeval *);
@@ -510,6 +521,13 @@ main(int argc, char **argv)
 	int requestPort = -1;
 	int sump = 0;
 	int sockerrno;
+#ifdef HAVE_LIBCASPER
+	const char *types[] = { "NAME", "ADDR" };
+	int families[1];
+	cap_channel_t *casper;
+#endif
+	cap_rights_t rights;
+	bool cansandbox;
 
 	/* Insure the socket fds won't be 0, 1 or 2 */
 	if (open(devnull, O_RDONLY) < 0 ||
@@ -538,6 +556,20 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
+#ifdef HAVE_LIBCASPER
+	casper = cap_init();
+	if (casper == NULL)
+		errx(1, "unable to create casper process");
+	capdns = cap_service_open(casper, "system.dns");
+	if (capdns == NULL)
+		errx(1, "unable to open system.dns service");
+	if (cap_dns_type_limit(capdns, types, 2) < 0)
+		errx(1, "unable to limit access to system.dns service");
+	families[0] = AF_INET;
+	if (cap_dns_family_limit(capdns, families, 1) < 0)
+		errx(1, "unable to limit access to system.dns service");
+#endif /* HAVE_LIBCASPER */
+
 #ifdef IPCTL_DEFTTL
 	{
 		int mib[4] = { CTL_NET, PF_INET, IPPROTO_IP, IPCTL_DEFTTL };
@@ -548,8 +580,12 @@ main(int argc, char **argv)
 			exit(1);
 		}
 	}
-#else
+#else /* !IPCTL_DEFTTL */
 	max_ttl = 30;
+#endif
+
+#ifdef HAVE_LIBCASPER
+	cap_close(casper);
 #endif
 
 	if (argv[0] == NULL)
@@ -964,6 +1000,52 @@ main(int argc, char **argv)
 		}
 	}
 
+	if (connect(sndsock, (struct sockaddr *)&whereto,
+	    sizeof(whereto)) != 0) {
+		Fprintf(stderr, "%s: connect: %s\n", prog, strerror(errno));
+		exit(1);
+	}
+
+#ifdef HAVE_LIBCASPER
+	cansandbox = true;
+#else
+	if (nflag)
+		cansandbox = true;
+	else
+		cansandbox = false;
+#endif
+
+	caph_cache_catpages();
+
+	/*
+	 * Here we enter capability mode. Further down access to global
+	 * namespaces (e.g filesystem) is restricted (see capsicum(4)).
+	 * We must connect(2) our socket before this point.
+	 */
+	if (cansandbox && cap_enter() < 0) {
+		if (errno != ENOSYS) {
+			Fprintf(stderr, "%s: cap_enter: %s\n", prog,
+			    strerror(errno));
+			exit(1);
+		} else {
+			cansandbox = false;
+		}
+	}
+
+	cap_rights_init(&rights, CAP_SEND, CAP_SETSOCKOPT);
+	if (cansandbox && cap_rights_limit(sndsock, &rights) < 0) {
+		Fprintf(stderr, "%s: cap_rights_limit sndsock: %s\n", prog,
+		    strerror(errno));
+		exit(1);
+	}
+
+	cap_rights_init(&rights, CAP_RECV, CAP_EVENT);
+	if (cansandbox && cap_rights_limit(s, &rights) < 0) {
+		Fprintf(stderr, "%s: cap_rights_limit s: %s\n", prog,
+		    strerror(errno));
+		exit(1);
+	}
+
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(sndsock, "in bypass") < 0)
 		errx(1, "%s", ipsec_strerror());
@@ -1251,8 +1333,7 @@ send_probe(int seq, int ttl)
 	}
 #endif
 
-	cc = sendto(sndsock, (char *)outip,
-	    packlen, 0, &whereto, sizeof(whereto));
+	cc = send(sndsock, (char *)outip, packlen, 0);
 	if (cc < 0 || cc != packlen)  {
 		if (cc < 0)
 			Fprintf(stderr, "%s: sendto: %s\n",
@@ -1770,7 +1851,12 @@ inetname(struct in_addr in)
 		else {
 			cp = strchr(domain, '.');
 			if (cp == NULL) {
-				hp = gethostbyname(domain);
+#ifdef HAVE_LIBCASPER
+				if (capdns != NULL)
+					hp = cap_gethostbyname(capdns, domain);
+				else
+#endif
+					hp = gethostbyname(domain);
 				if (hp != NULL)
 					cp = strchr(hp->h_name, '.');
 			}
@@ -1784,7 +1870,13 @@ inetname(struct in_addr in)
 		}
 	}
 	if (!nflag && in.s_addr != INADDR_ANY) {
-		hp = gethostbyaddr((char *)&in, sizeof(in), AF_INET);
+#ifdef HAVE_LIBCASPER
+		if (capdns != NULL)
+			hp = cap_gethostbyaddr(capdns, (char *)&in, sizeof(in),
+			    AF_INET);
+		else
+#endif
+			hp = gethostbyaddr((char *)&in, sizeof(in), AF_INET);
 		if (hp != NULL) {
 			if ((cp = strchr(hp->h_name, '.')) != NULL &&
 			    strcmp(cp + 1, domain) == 0)
@@ -1830,7 +1922,12 @@ gethostinfo(register char *hostname)
 		return (hi);
 	}
 
-	hp = gethostbyname(hostname);
+#ifdef HAVE_LIBCASPER
+	if (capdns != NULL)
+		hp = cap_gethostbyname(capdns, hostname);
+	else
+#endif
+		hp = gethostbyname(hostname);
 	if (hp == NULL) {
 		Fprintf(stderr, "%s: unknown host %s\n", prog, hostname);
 		exit(1);

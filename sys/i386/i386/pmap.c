@@ -301,6 +301,8 @@ static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static void pmap_flush_page(vm_page_t m);
 static int pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
+static void pmap_invalidate_pde_page(pmap_t pmap, vm_offset_t va,
+		    pd_entry_t pde);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
 static boolean_t pmap_is_referenced_pvh(struct md_page *pvh);
@@ -1258,6 +1260,27 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 		pmap_update_pde_invalidate(va, newpde);
 }
 #endif /* !SMP */
+
+static void
+pmap_invalidate_pde_page(pmap_t pmap, vm_offset_t va, pd_entry_t pde)
+{
+
+	/*
+	 * When the PDE has PG_PROMOTED set, the 2- or 4MB page mapping was
+	 * created by a promotion that did not invalidate the 512 or 1024 4KB
+	 * page mappings that might exist in the TLB.  Consequently, at this
+	 * point, the TLB may hold both 4KB and 2- or 4MB page mappings for
+	 * the address range [va, va + NBPDR).  Therefore, the entire range
+	 * must be invalidated here.  In contrast, when PG_PROMOTED is clear,
+	 * the TLB will not hold any 4KB page mappings for the address range
+	 * [va, va + NBPDR), and so a single INVLPG suffices to invalidate the
+	 * 2- or 4MB page mapping from the TLB.
+	 */
+	if ((pde & PG_PROMOTED) != 0)
+		pmap_invalidate_range(pmap, va, va + NBPDR - 1);
+	else
+		pmap_invalidate_page(pmap, va);
+}
 
 #define	PMAP_CLFLUSH_THRESHOLD	(2 * 1024 * 1024)
 
@@ -2649,7 +2672,8 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 			SLIST_INIT(&free);
 			sva = trunc_4mpage(va);
 			pmap_remove_pde(pmap, pde, sva, &free);
-			pmap_invalidate_range(pmap, sva, sva + NBPDR - 1);
+			if ((oldpde & PG_G) == 0)
+				pmap_invalidate_pde_page(pmap, sva, oldpde);
 			pmap_free_zero_pages(&free);
 			CTR2(KTR_PMAP, "pmap_demote_pde: failure for va %#x"
 			    " in pmap %p", va, pmap);
@@ -2819,23 +2843,9 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 	/*
 	 * Machines that don't support invlpg, also don't support
 	 * PG_G.
-	 *
-	 * When workaround_erratum383 is false, a promotion to a 2M/4M
-	 * page mapping does not invalidate the 512/1024 4K page mappings
-	 * from the TLB.  Consequently, at this point, the TLB may
-	 * hold both 4K and 2M/4M page mappings.  Therefore, the entire
-	 * range of addresses must be invalidated here.  In contrast,
-	 * when workaround_erratum383 is true, a promotion does
-	 * invalidate the 512/1024 4K page mappings, and so a single INVLPG
-	 * suffices to invalidate the 2M/4M page mapping.
 	 */
-	if ((oldpde & PG_G) != 0) {
-		if (workaround_erratum383)
-			pmap_invalidate_page(kernel_pmap, sva);
-		else
-			pmap_invalidate_range(kernel_pmap, sva,
-			    sva + NBPDR - 1);
-	}
+	if ((oldpde & PG_G) != 0)
+		pmap_invalidate_pde_page(kernel_pmap, sva, oldpde);
 
 	pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 	if (oldpde & PG_MANAGED) {
@@ -3129,12 +3139,12 @@ pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva, vm_prot_t prot)
 	anychanged = FALSE;
 retry:
 	oldpde = newpde = *pde;
-	if (oldpde & PG_MANAGED) {
+	if ((oldpde & (PG_MANAGED | PG_M | PG_RW)) ==
+	    (PG_MANAGED | PG_M | PG_RW)) {
 		eva = sva + NBPDR;
 		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 		    va < eva; va += PAGE_SIZE, m++)
-			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 	}
 	if ((prot & VM_PROT_WRITE) == 0)
 		newpde &= ~(PG_RW | PG_M);
@@ -3143,16 +3153,16 @@ retry:
 		newpde |= pg_nx;
 #endif
 	if (newpde != oldpde) {
-		if (!pde_cmpset(pde, oldpde, newpde))
+		/*
+		 * As an optimization to future operations on this PDE, clear
+		 * PG_PROMOTED.  The impending invalidation will remove any
+		 * lingering 4KB page mappings from the TLB.
+		 */
+		if (!pde_cmpset(pde, oldpde, newpde & ~PG_PROMOTED))
 			goto retry;
-		if (oldpde & PG_G) {
-			/* See pmap_remove_pde() for explanation. */
-			if (workaround_erratum383)
-				pmap_invalidate_page(kernel_pmap, sva);
-			else
-				pmap_invalidate_range(kernel_pmap, sva,
-				    sva + NBPDR - 1);
-		} else
+		if ((oldpde & PG_G) != 0)
+			pmap_invalidate_pde_page(kernel_pmap, sva, oldpde);
+		else
 			anychanged = TRUE;
 	}
 	return (anychanged);
@@ -3437,9 +3447,9 @@ setpte:
 	if (workaround_erratum383)
 		pmap_update_pde(pmap, va, pde, PG_PS | newpde);
 	else if (pmap == kernel_pmap)
-		pmap_kenter_pde(va, PG_PS | newpde);
+		pmap_kenter_pde(va, PG_PROMOTED | PG_PS | newpde);
 	else
-		pde_store(pde, PG_PS | newpde);
+		pde_store(pde, PG_PROMOTED | PG_PS | newpde);
 
 	pmap_pde_promotions++;
 	CTR2(KTR_PMAP, "pmap_promote_pde: success for va %#x"
@@ -3722,7 +3732,8 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	pmap->pm_stats.resident_count += NBPDR / PAGE_SIZE;
 
 	/*
-	 * Map the superpage.
+	 * Map the superpage.  (This is not a promoted mapping; there will not
+	 * be any lingering 4KB page mappings in the TLB.)
 	 */
 	pde_store(pde, newpde);
 

@@ -77,6 +77,8 @@ static g_ioctl_t g_disk_ioctl;
 static g_dumpconf_t g_disk_dumpconf;
 static g_provgone_t g_disk_providergone;
 
+static int g_disk_sysctl_flags(SYSCTL_HANDLER_ARGS);
+
 static struct g_class g_disk_class = {
 	.name = G_DISK_CLASS_NAME,
 	.version = G_VERSION,
@@ -725,6 +727,10 @@ g_disk_create(void *arg, int flag)
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "led",
 		    CTLFLAG_RWTUN, sc->led, sizeof(sc->led),
 		    "LED name");
+		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "flags",
+		    CTLTYPE_STRING | CTLFLAG_RD, dp, 0, g_disk_sysctl_flags,
+		    "A", "Report disk flags");
 	}
 	pp->private = sc;
 	dp->d_geom = gp;
@@ -992,6 +998,30 @@ g_kern_disks(void *p, int flag __unused)
 		sp = " ";
 	}
 	sbuf_finish(sb);
+}
+
+static int
+g_disk_sysctl_flags(SYSCTL_HANDLER_ARGS)
+{
+	struct disk *dp;
+	struct sbuf *sb;
+	int error;
+
+	sb = sbuf_new_auto();
+	dp = (struct disk *)arg1;
+	sbuf_printf(sb, "%b", dp->d_flags,
+		"\20"
+		"\2OPEN"
+		"\3CANDELETE"
+		"\4CANFLUSHCACHE"
+		"\5UNMAPPEDBIO"
+		"\6DIRECTCOMPLETION"
+		"\10CANZONE");
+
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (error);
 }
 
 static int

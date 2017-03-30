@@ -1826,6 +1826,8 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			break;
 
 		case O_IP_SRC_LOOKUP:
+			if (cmdlen > F_INSN_SIZE(ipfw_insn_u32))
+				goto bad_size;
 		case O_IP_DST_LOOKUP:
 			if (cmd->arg1 >= V_fw_tables_max) {
 				printf("ipfw: invalid table number %d\n",
@@ -2669,7 +2671,14 @@ ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd, struct tid_info *ti,
 		return (0);
 	}
 
-	/* Found. Bump refcount and update kidx. */
+	/*
+	 * Object is already exist.
+	 * Its subtype should match with expected value.
+	 */
+	if (ti->type != no->subtype)
+		return (EINVAL);
+
+	/* Bump refcount and update kidx. */
 	no->refcnt++;
 	rw->update(cmd, no->kidx);
 	return (0);
@@ -3135,7 +3144,7 @@ int
 classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx)
 {
 
-	if (find_op_rw(cmd, puidx, NULL) == 0)
+	if (find_op_rw(cmd, puidx, NULL) == NULL)
 		return (1);
 	return (0);
 }

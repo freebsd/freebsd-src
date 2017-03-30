@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/stg
+.PATH: ${SRCTOP}/sys/dev/stg
 
 KMOD=	stg
 SRCS=	tmc18c30.c tmc18c30_subr.c \

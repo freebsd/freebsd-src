@@ -123,7 +123,8 @@ typedef enum {
 	DA_Q_NO_RC16		= 0x10,
 	DA_Q_NO_UNMAP		= 0x20,
 	DA_Q_RETRY_BUSY		= 0x40,
-	DA_Q_SMR_DM		= 0x80
+	DA_Q_SMR_DM		= 0x80,
+	DA_Q_STRICT_UNMAP	= 0x100
 } da_quirks;
 
 #define DA_Q_BIT_STRING		\
@@ -135,7 +136,8 @@ typedef enum {
 	"\005NO_RC16"		\
 	"\006NO_UNMAP"		\
 	"\007RETRY_BUSY"	\
-	"\008SMR_DM"
+	"\010SMR_DM"		\
+	"\011STRICT_UNMAP"
 
 typedef enum {
 	DA_CCB_PROBE_RC		= 0x01,
@@ -310,6 +312,8 @@ struct da_softc {
 	u_int	 		maxio;
 	uint32_t		unmap_max_ranges;
 	uint32_t		unmap_max_lba; /* Max LBAs in UNMAP req */
+	uint32_t		unmap_gran;
+	uint32_t		unmap_gran_align;
 	uint64_t		ws_max_blks;
 	da_delete_methods	delete_method_pref;
 	da_delete_methods	delete_method;
@@ -468,9 +472,10 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*
 		 * VMware returns BUSY status when storage has transient
 		 * connectivity problems, so better wait.
+		 * Also VMware returns odd errors on misaligned UNMAPs.
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "VMware*", "*", "*"},
-		/*quirks*/ DA_Q_RETRY_BUSY
+		/*quirks*/ DA_Q_RETRY_BUSY | DA_Q_STRICT_UNMAP
 	},
 	/* USB mass storage devices supported by umass(4) */
 	{
@@ -2408,6 +2413,8 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->flags |= DA_FLAG_PACK_REMOVABLE;
 	softc->unmap_max_ranges = UNMAP_MAX_RANGES;
 	softc->unmap_max_lba = UNMAP_RANGE_MAX;
+	softc->unmap_gran = 0;
+	softc->unmap_gran_align = 0;
 	softc->ws_max_blks = WS16_MAX_BLKS;
 	softc->trim_max_ranges = ATA_TRIM_MAX_RANGES;
 	softc->rotating = 1;
@@ -2539,7 +2546,6 @@ daregister(struct cam_periph *periph, void *arg)
 	if ((cpi.hba_misc & PIM_UNMAPPED) != 0) {
 		softc->unmappedio = 1;
 		softc->disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
-		xpt_print(periph->path, "UNMAPPED\n");
 	}
 	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
 	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
@@ -3522,11 +3528,11 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 	struct da_softc *softc = (struct da_softc *)periph->softc;;
 	struct bio *bp1;
 	uint8_t *buf = softc->unmap_buf;
+	struct scsi_unmap_desc *d = (void *)&buf[UNMAP_HEAD_SIZE];
 	uint64_t lba, lastlba = (uint64_t)-1;
 	uint64_t totalcount = 0;
 	uint64_t count;
-	uint32_t lastcount = 0, c;
-	uint32_t off, ranges = 0;
+	uint32_t c, lastcount = 0, ranges = 0;
 
 	/*
 	 * Currently this doesn't take the UNMAP
@@ -3559,13 +3565,39 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		/* Try to extend the previous range. */
 		if (lba == lastlba) {
 			c = omin(count, UNMAP_RANGE_MAX - lastcount);
+			lastlba += c;
 			lastcount += c;
-			off = ((ranges - 1) * UNMAP_RANGE_SIZE) +
-			      UNMAP_HEAD_SIZE;
-			scsi_ulto4b(lastcount, &buf[off + 8]);
+			scsi_ulto4b(lastcount, d[ranges - 1].length);
 			count -= c;
-			lba +=c;
+			lba += c;
 			totalcount += c;
+		} else if ((softc->quirks & DA_Q_STRICT_UNMAP) &&
+		    softc->unmap_gran != 0) {
+			/* Align length of the previous range. */
+			if ((c = lastcount % softc->unmap_gran) != 0) {
+				if (lastcount <= c) {
+					totalcount -= lastcount;
+					lastlba = (uint64_t)-1;
+					lastcount = 0;
+					ranges--;
+				} else {
+					totalcount -= c;
+					lastlba -= c;
+					lastcount -= c;
+					scsi_ulto4b(lastcount, d[ranges - 1].length);
+				}
+			}
+			/* Align beginning of the new range. */
+			c = (lba - softc->unmap_gran_align) % softc->unmap_gran;
+			if (c != 0) {
+				c = softc->unmap_gran - c;
+				if (count <= c) {
+					count = 0;
+				} else {
+					lba += c;
+					count -= c;
+				}
+			}
 		}
 
 		while (count > 0) {
@@ -3580,16 +3612,15 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 				    ranges, softc->unmap_max_ranges);
 				break;
 			}
-			off = (ranges * UNMAP_RANGE_SIZE) + UNMAP_HEAD_SIZE;
-			scsi_u64to8b(lba, &buf[off + 0]);
-			scsi_ulto4b(c, &buf[off + 8]);
+			scsi_u64to8b(lba, d[ranges].lba);
+			scsi_ulto4b(c, d[ranges].length);
 			lba += c;
 			totalcount += c;
 			ranges++;
 			count -= c;
+			lastlba = lba;
 			lastcount = c;
 		}
-		lastlba = lba;
 		bp1 = cam_iosched_next_trim(softc->cam_iosched);
 		if (bp1 == NULL)
 			break;
@@ -3600,6 +3631,16 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 			break;
 		}
 	} while (1);
+
+	/* Align length of the last range. */
+	if ((softc->quirks & DA_Q_STRICT_UNMAP) && softc->unmap_gran != 0 &&
+	    (c = lastcount % softc->unmap_gran) != 0) {
+		if (lastcount <= c)
+			ranges--;
+		else
+			scsi_ulto4b(lastcount - c, d[ranges - 1].length);
+	}
+
 	scsi_ulto2b(ranges * 16 + 6, &buf[0]);
 	scsi_ulto2b(ranges * 16, &buf[2]);
 
@@ -4483,6 +4524,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				block_limits->max_unmap_lba_cnt);
 			uint32_t max_unmap_blk_cnt = scsi_4btoul(
 				block_limits->max_unmap_blk_cnt);
+			uint32_t unmap_gran = scsi_4btoul(
+				block_limits->opt_unmap_grain);
+			uint32_t unmap_gran_align = scsi_4btoul(
+				block_limits->unmap_grain_align);
 			uint64_t ws_max_blks = scsi_8btou64(
 				block_limits->max_write_same_length);
 
@@ -4500,6 +4545,14 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				softc->unmap_max_lba = max_unmap_lba_cnt;
 				softc->unmap_max_ranges = min(max_unmap_blk_cnt,
 					UNMAP_MAX_RANGES);
+				if (unmap_gran > 1) {
+					softc->unmap_gran = unmap_gran;
+					if (unmap_gran_align & 0x80000000) {
+						softc->unmap_gran_align =
+						    unmap_gran_align &
+						    0x7fffffff;
+					}
+				}
 			} else {
 				/*
 				 * Unexpected UNMAP limits which means the
@@ -5414,6 +5467,10 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 	} else if (softc->quirks & DA_Q_4K) {
 		dp->stripesize = 4096;
 		dp->stripeoffset = 0;
+	} else if (softc->unmap_gran != 0) {
+		dp->stripesize = block_len * softc->unmap_gran;
+		dp->stripeoffset = (dp->stripesize - block_len *
+		    softc->unmap_gran_align) % dp->stripesize;
 	} else {
 		dp->stripesize = 0;
 		dp->stripeoffset = 0;

@@ -66,16 +66,16 @@ osdep_uuidgen(mkimg_uuid_t *uuid)
 static void
 osdep_uuidgen(mkimg_uuid_t *uuid)
 {
-	struct timespec tp;
+	struct timeval tv;
 	uint64_t time = 0x01B21DD213814000LL;
 	u_int i;
 	uint16_t seq;
 
-	if (clock_gettime(CLOCK_REALTIME, &tp) == -1)
+	if (gettimeofday(&tv, NULL) == -1)
 		abort();
 
-	time += (uint64_t)tp.tv_sec * 10000000LL;
-	time += tp.tv_nsec / 100;
+	time += (uint64_t)tv.tv_sec * 10000000LL;
+	time += tv.tv_usec * 10;
 
 	uuid->time_low = (uint32_t)time;
 	uuid->time_mid = (uint16_t)(time >> 32);

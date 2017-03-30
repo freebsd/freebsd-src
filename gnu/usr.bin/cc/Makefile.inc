@@ -8,8 +8,8 @@
 __CC_MAKEFILE_INC__= ${MFILE}
 
 GCCVER=	4.2
-GCCDIR=	${.CURDIR}/../../../../contrib/gcc
-GCCLIB=	${.CURDIR}/../../../../contrib/gcclibs
+GCCDIR=	${SRCTOP}/contrib/gcc
+GCCLIB=	${SRCTOP}/contrib/gcclibs
 
 .include "Makefile.tgt"
 

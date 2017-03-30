@@ -33,9 +33,10 @@ class LoopInfo;
 
 /// This is the AA result object for the basic, local, and stateless alias
 /// analysis. It implements the AA query interface in an entirely stateless
-/// manner. As one consequence, it is never invalidated. While it does retain
-/// some storage, that is used as an optimization and not to preserve
-/// information from query to query.
+/// manner. As one consequence, it is never invalidated due to IR changes.
+/// While it does retain some storage, that is used as an optimization and not
+/// to preserve information from query to query. However it does retain handles
+/// to various other analyses and must be recomputed when those analyses are.
 class BasicAAResult : public AAResultBase<BasicAAResult> {
   friend AAResultBase<BasicAAResult>;
 
@@ -58,10 +59,9 @@ public:
       : AAResultBase(std::move(Arg)), DL(Arg.DL), TLI(Arg.TLI), AC(Arg.AC),
         DT(Arg.DT), LI(Arg.LI) {}
 
-  /// Handle invalidation events from the new pass manager.
-  ///
-  /// By definition, this result is stateless and so remains valid.
-  bool invalidate(Function &, const PreservedAnalyses &) { return false; }
+  /// Handle invalidation events in the new pass manager.
+  bool invalidate(Function &F, const PreservedAnalyses &PA,
+                  FunctionAnalysisManager::Invalidator &Inv);
 
   AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB);
 
@@ -185,25 +185,28 @@ private:
 
   AliasResult aliasPHI(const PHINode *PN, uint64_t PNSize,
                        const AAMDNodes &PNAAInfo, const Value *V2,
-                       uint64_t V2Size, const AAMDNodes &V2AAInfo);
+                       uint64_t V2Size, const AAMDNodes &V2AAInfo,
+                       const Value *UnderV2);
 
   AliasResult aliasSelect(const SelectInst *SI, uint64_t SISize,
                           const AAMDNodes &SIAAInfo, const Value *V2,
-                          uint64_t V2Size, const AAMDNodes &V2AAInfo);
+                          uint64_t V2Size, const AAMDNodes &V2AAInfo,
+                          const Value *UnderV2);
 
   AliasResult aliasCheck(const Value *V1, uint64_t V1Size, AAMDNodes V1AATag,
-                         const Value *V2, uint64_t V2Size, AAMDNodes V2AATag);
+                         const Value *V2, uint64_t V2Size, AAMDNodes V2AATag,
+                         const Value *O1 = nullptr, const Value *O2 = nullptr);
 };
 
 /// Analysis pass providing a never-invalidated alias analysis result.
 class BasicAA : public AnalysisInfoMixin<BasicAA> {
   friend AnalysisInfoMixin<BasicAA>;
-  static char PassID;
+  static AnalysisKey Key;
 
 public:
   typedef BasicAAResult Result;
 
-  BasicAAResult run(Function &F, AnalysisManager<Function> &AM);
+  BasicAAResult run(Function &F, FunctionAnalysisManager &AM);
 };
 
 /// Legacy wrapper pass to provide the BasicAAResult object.

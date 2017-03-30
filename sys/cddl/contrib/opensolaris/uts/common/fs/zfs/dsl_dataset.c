@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Portions Copyright (c) 2011 Martin Matuska <mm@FreeBSD.org>
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 RackTop Systems.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
@@ -279,16 +279,30 @@ dsl_dataset_block_freeable(dsl_dataset_t *ds, const blkptr_t *bp,
 	return (B_TRUE);
 }
 
+/*
+ * We have to release the fsid syncronously or we risk that a subsequent
+ * mount of the same dataset will fail to unique_insert the fsid.  This
+ * failure would manifest itself as the fsid of this dataset changing
+ * between mounts which makes NFS clients quite unhappy.
+ */
 static void
-dsl_dataset_evict(void *dbu)
+dsl_dataset_evict_sync(void *dbu)
+{
+	dsl_dataset_t *ds = dbu;
+
+	ASSERT(ds->ds_owner == NULL);
+
+	unique_remove(ds->ds_fsid_guid);
+}
+
+static void
+dsl_dataset_evict_async(void *dbu)
 {
 	dsl_dataset_t *ds = dbu;
 
 	ASSERT(ds->ds_owner == NULL);
 
 	ds->ds_dbuf = NULL;
-
-	unique_remove(ds->ds_fsid_guid);
 
 	if (ds->ds_objset != NULL)
 		dmu_objset_evict(ds->ds_objset);
@@ -528,7 +542,8 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 			ds->ds_reserved = ds->ds_quota = 0;
 		}
 
-		dmu_buf_init_user(&ds->ds_dbu, dsl_dataset_evict, &ds->ds_dbuf);
+		dmu_buf_init_user(&ds->ds_dbu, dsl_dataset_evict_sync,
+		    dsl_dataset_evict_async, &ds->ds_dbuf);
 		if (err == 0)
 			winner = dmu_buf_set_user_ie(dbuf, &ds->ds_dbu);
 
@@ -551,6 +566,16 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 		} else {
 			ds->ds_fsid_guid =
 			    unique_insert(dsl_dataset_phys(ds)->ds_fsid_guid);
+			if (ds->ds_fsid_guid !=
+			    dsl_dataset_phys(ds)->ds_fsid_guid) {
+				zfs_dbgmsg("ds_fsid_guid changed from "
+				    "%llx to %llx for pool %s dataset id %llu",
+				    (long long)
+				    dsl_dataset_phys(ds)->ds_fsid_guid,
+				    (long long)ds->ds_fsid_guid,
+				    spa_name(dp->dp_spa),
+				    dsobj);
+			}
 		}
 	}
 	ASSERT3P(ds->ds_dbuf, ==, dbuf);
@@ -1766,9 +1791,20 @@ get_clones_stat(dsl_dataset_t *ds, nvlist_t *nv)
 	zap_cursor_t zc;
 	zap_attribute_t za;
 	nvlist_t *propval = fnvlist_alloc();
-	nvlist_t *val = fnvlist_alloc();
+	nvlist_t *val;
 
 	ASSERT(dsl_pool_config_held(ds->ds_dir->dd_pool));
+
+	/*
+	 * We use nvlist_alloc() instead of fnvlist_alloc() because the
+	 * latter would allocate the list with NV_UNIQUE_NAME flag.
+	 * As a result, every time a clone name is appended to the list
+	 * it would be (linearly) searched for for a duplicate name.
+	 * We already know that all clone names must be unique and we
+	 * want avoid the quadratic complexity of double-checking that
+	 * because we can have a large number of clones.
+	 */
+	VERIFY0(nvlist_alloc(&val, 0, KM_SLEEP));
 
 	/*
 	 * There may be missing entries in ds_next_clones_obj

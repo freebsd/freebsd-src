@@ -528,24 +528,15 @@ iw_init_sock(struct iw_cm_id *cm_id)
 }
 
 static int
-iw_close_socket(struct iw_cm_id *cm_id, int close)
+iw_uninit_socket(struct iw_cm_id *cm_id)
 {
 	struct socket *so = cm_id->so;
-	int rc;
-
 
 	SOCK_LOCK(so);
 	soupcall_clear(so, SO_RCV);
 	SOCK_UNLOCK(so);
 
-	if (close)
-		rc = soclose(so);
-	else
-		rc = soshutdown(so, SHUT_WR | SHUT_RD);
-
-	cm_id->so = NULL;
-
-	return rc;
+	return (0);
 }
 
 static int
@@ -554,18 +545,17 @@ iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	int rc;
 
 	iw_init_sock(cm_id);
-	rc = solisten(cm_id->so, backlog, curthread);
+	rc = -solisten(cm_id->so, backlog, curthread);
 	if (rc != 0)
-		iw_close_socket(cm_id, 0);
-	return rc;
+		iw_uninit_socket(cm_id);
+	return (rc);
 }
 
 static int
 iw_destroy_listen(struct iw_cm_id *cm_id)
 {
-	int rc;
-	rc = iw_close_socket(cm_id, 0);
-	return rc;
+
+	return (iw_uninit_socket(cm_id));
 }
 
 
@@ -662,6 +652,9 @@ void iw_destroy_cm_id(struct iw_cm_id *cm_id)
 	destroy_cm_id(cm_id);
 
 	wait_for_completion(&cm_id_priv->destroy_comp);
+
+	if (cm_id->so)
+		sock_release(cm_id->so);
 
 	free_cm_id(cm_id_priv);
 }

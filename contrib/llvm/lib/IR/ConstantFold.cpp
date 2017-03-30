@@ -120,7 +120,6 @@ static Constant *FoldBitCast(Constant *V, Type *DestTy) {
             IdxList.push_back(Zero);
           } else if (SequentialType *STy =
                      dyn_cast<SequentialType>(ElTy)) {
-            if (ElTy->isPointerTy()) break;  // Can't index into pointers!
             ElTy = STy->getElementType();
             IdxList.push_back(Zero);
           } else {
@@ -545,7 +544,10 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
     } else if (CE->getOpcode() == Instruction::GetElementPtr &&
                // Do not fold addrspacecast (gep 0, .., 0). It might make the
                // addrspacecast uncanonicalized.
-               opc != Instruction::AddrSpaceCast) {
+               opc != Instruction::AddrSpaceCast &&
+               // Do not fold bitcast (gep) with inrange index, as this loses
+               // information.
+               !cast<GEPOperator>(CE)->getInRangeIndex().hasValue()) {
       // If all of the indexes in the GEP are null values, there is no pointer
       // adjustment going on.  We might as well cast the source pointer.
       bool isAllNull = true;
@@ -588,13 +590,13 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
     if (ConstantFP *FPC = dyn_cast<ConstantFP>(V)) {
       bool ignored;
       APFloat Val = FPC->getValueAPF();
-      Val.convert(DestTy->isHalfTy() ? APFloat::IEEEhalf :
-                  DestTy->isFloatTy() ? APFloat::IEEEsingle :
-                  DestTy->isDoubleTy() ? APFloat::IEEEdouble :
-                  DestTy->isX86_FP80Ty() ? APFloat::x87DoubleExtended :
-                  DestTy->isFP128Ty() ? APFloat::IEEEquad :
-                  DestTy->isPPC_FP128Ty() ? APFloat::PPCDoubleDouble :
-                  APFloat::Bogus,
+      Val.convert(DestTy->isHalfTy() ? APFloat::IEEEhalf() :
+                  DestTy->isFloatTy() ? APFloat::IEEEsingle() :
+                  DestTy->isDoubleTy() ? APFloat::IEEEdouble() :
+                  DestTy->isX86_FP80Ty() ? APFloat::x87DoubleExtended() :
+                  DestTy->isFP128Ty() ? APFloat::IEEEquad() :
+                  DestTy->isPPC_FP128Ty() ? APFloat::PPCDoubleDouble() :
+                  APFloat::Bogus(),
                   APFloat::rmNearestTiesToEven, &ignored);
       return ConstantFP::get(V->getContext(), Val);
     }
@@ -889,10 +891,8 @@ Constant *llvm::ConstantFoldInsertValueInstruction(Constant *Agg,
   unsigned NumElts;
   if (StructType *ST = dyn_cast<StructType>(Agg->getType()))
     NumElts = ST->getNumElements();
-  else if (ArrayType *AT = dyn_cast<ArrayType>(Agg->getType()))
-    NumElts = AT->getNumElements();
   else
-    NumElts = Agg->getType()->getVectorNumElements();
+    NumElts = cast<SequentialType>(Agg->getType())->getNumElements();
 
   SmallVector<Constant*, 32> Result;
   for (unsigned i = 0; i != NumElts; ++i) {
@@ -925,7 +925,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode,
         // Handle undef ^ undef -> 0 special case. This is a common
         // idiom (misuse).
         return Constant::getNullValue(C1->getType());
-      // Fallthrough
+      LLVM_FALLTHROUGH;
     case Instruction::Add:
     case Instruction::Sub:
       return UndefValue::get(C1->getType());
@@ -2016,22 +2016,8 @@ static bool isInBoundsIndices(ArrayRef<IndexTy> Idxs) {
 }
 
 /// Test whether a given ConstantInt is in-range for a SequentialType.
-static bool isIndexInRangeOfSequentialType(SequentialType *STy,
-                                           const ConstantInt *CI) {
-  // And indices are valid when indexing along a pointer
-  if (isa<PointerType>(STy))
-    return true;
-
-  uint64_t NumElements = 0;
-  // Determine the number of elements in our sequential type.
-  if (auto *ATy = dyn_cast<ArrayType>(STy))
-    NumElements = ATy->getNumElements();
-  else if (auto *VTy = dyn_cast<VectorType>(STy))
-    NumElements = VTy->getNumElements();
-
-  assert((isa<ArrayType>(STy) || NumElements > 0) &&
-         "didn't expect non-array type to have zero elements!");
-
+static bool isIndexInRangeOfArrayType(uint64_t NumElements,
+                                      const ConstantInt *CI) {
   // We cannot bounds check the index if it doesn't fit in an int64_t.
   if (CI->getValue().getActiveBits() > 64)
     return false;
@@ -2046,22 +2032,18 @@ static bool isIndexInRangeOfSequentialType(SequentialType *STy,
   return true;
 }
 
-template<typename IndexTy>
-static Constant *ConstantFoldGetElementPtrImpl(Type *PointeeTy, Constant *C,
-                                               bool inBounds,
-                                               ArrayRef<IndexTy> Idxs) {
+Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
+                                          bool InBounds,
+                                          Optional<unsigned> InRangeIndex,
+                                          ArrayRef<Value *> Idxs) {
   if (Idxs.empty()) return C;
   Constant *Idx0 = cast<Constant>(Idxs[0]);
   if ((Idxs.size() == 1 && Idx0->isNullValue()))
     return C;
 
   if (isa<UndefValue>(C)) {
-    PointerType *PtrTy = cast<PointerType>(C->getType()->getScalarType());
-    Type *Ty = GetElementPtrInst::getIndexedType(PointeeTy, Idxs);
-    assert(Ty && "Invalid indices for GEP!");
-    Type *GEPTy = PointerType::get(Ty, PtrTy->getAddressSpace());
-    if (VectorType *VT = dyn_cast<VectorType>(C->getType()))
-      GEPTy = VectorType::get(GEPTy, VT->getNumElements());
+    Type *GEPTy = GetElementPtrInst::getGEPReturnType(
+        C, makeArrayRef((Value * const *)Idxs.data(), Idxs.size()));
     return UndefValue::get(GEPTy);
   }
 
@@ -2090,10 +2072,10 @@ static Constant *ConstantFoldGetElementPtrImpl(Type *PointeeTy, Constant *C,
     // getelementptr instructions into a single instruction.
     //
     if (CE->getOpcode() == Instruction::GetElementPtr) {
-      Type *LastTy = nullptr;
+      gep_type_iterator LastI = gep_type_end(CE);
       for (gep_type_iterator I = gep_type_begin(CE), E = gep_type_end(CE);
            I != E; ++I)
-        LastTy = *I;
+        LastI = I;
 
       // We cannot combine indices if doing so would take us outside of an
       // array or vector.  Doing otherwise could trick us if we evaluated such a
@@ -2116,9 +2098,11 @@ static Constant *ConstantFoldGetElementPtrImpl(Type *PointeeTy, Constant *C,
       bool PerformFold = false;
       if (Idx0->isNullValue())
         PerformFold = true;
-      else if (SequentialType *STy = dyn_cast_or_null<SequentialType>(LastTy))
+      else if (LastI.isSequential())
         if (ConstantInt *CI = dyn_cast<ConstantInt>(Idx0))
-          PerformFold = isIndexInRangeOfSequentialType(STy, CI);
+          PerformFold =
+              !LastI.isBoundedSequential() ||
+              isIndexInRangeOfArrayType(LastI.getSequentialNumElements(), CI);
 
       if (PerformFold) {
         SmallVector<Value*, 16> NewIndices;
@@ -2150,9 +2134,18 @@ static Constant *ConstantFoldGetElementPtrImpl(Type *PointeeTy, Constant *C,
 
         NewIndices.push_back(Combined);
         NewIndices.append(Idxs.begin() + 1, Idxs.end());
+
+        // The combined GEP normally inherits its index inrange attribute from
+        // the inner GEP, but if the inner GEP's last index was adjusted by the
+        // outer GEP, any inbounds attribute on that index is invalidated.
+        Optional<unsigned> IRIndex = cast<GEPOperator>(CE)->getInRangeIndex();
+        if (IRIndex && *IRIndex == CE->getNumOperands() - 2 && !Idx0->isNullValue())
+          IRIndex = None;
+
         return ConstantExpr::getGetElementPtr(
             cast<GEPOperator>(CE)->getSourceElementType(), CE->getOperand(0),
-            NewIndices, inBounds && cast<GEPOperator>(CE)->isInBounds());
+            NewIndices, InBounds && cast<GEPOperator>(CE)->isInBounds(),
+            IRIndex);
       }
     }
 
@@ -2177,8 +2170,9 @@ static Constant *ConstantFoldGetElementPtrImpl(Type *PointeeTy, Constant *C,
         if (SrcArrayTy && DstArrayTy
             && SrcArrayTy->getElementType() == DstArrayTy->getElementType()
             && SrcPtrTy->getAddressSpace() == DstPtrTy->getAddressSpace())
-          return ConstantExpr::getGetElementPtr(
-              SrcArrayTy, (Constant *)CE->getOperand(0), Idxs, inBounds);
+          return ConstantExpr::getGetElementPtr(SrcArrayTy,
+                                                (Constant *)CE->getOperand(0),
+                                                Idxs, InBounds, InRangeIndex);
       }
     }
   }
@@ -2198,25 +2192,26 @@ static Constant *ConstantFoldGetElementPtrImpl(Type *PointeeTy, Constant *C,
       Unknown = true;
       continue;
     }
+    if (InRangeIndex && i == *InRangeIndex + 1) {
+      // If an index is marked inrange, we cannot apply this canonicalization to
+      // the following index, as that will cause the inrange index to point to
+      // the wrong element.
+      continue;
+    }
     if (isa<StructType>(Ty)) {
       // The verify makes sure that GEPs into a struct are in range.
       continue;
     }
     auto *STy = cast<SequentialType>(Ty);
-    if (isa<PointerType>(STy)) {
-      // We don't know if it's in range or not.
-      Unknown = true;
-      continue;
-    }
     if (isa<VectorType>(STy)) {
       // There can be awkward padding in after a non-power of two vector.
       Unknown = true;
       continue;
     }
-    if (isIndexInRangeOfSequentialType(STy, CI))
+    if (isIndexInRangeOfArrayType(STy->getNumElements(), CI))
       // It's in range, skip to the next index.
       continue;
-    if (!isa<SequentialType>(Prev)) {
+    if (isa<StructType>(Prev)) {
       // It's out of range, but the prior dimension is a struct
       // so we can't do anything about it.
       Unknown = true;
@@ -2260,27 +2255,17 @@ static Constant *ConstantFoldGetElementPtrImpl(Type *PointeeTy, Constant *C,
   if (!NewIdxs.empty()) {
     for (unsigned i = 0, e = Idxs.size(); i != e; ++i)
       if (!NewIdxs[i]) NewIdxs[i] = cast<Constant>(Idxs[i]);
-    return ConstantExpr::getGetElementPtr(PointeeTy, C, NewIdxs, inBounds);
+    return ConstantExpr::getGetElementPtr(PointeeTy, C, NewIdxs, InBounds,
+                                          InRangeIndex);
   }
 
   // If all indices are known integers and normalized, we can do a simple
   // check for the "inbounds" property.
-  if (!Unknown && !inBounds)
+  if (!Unknown && !InBounds)
     if (auto *GV = dyn_cast<GlobalVariable>(C))
       if (!GV->hasExternalWeakLinkage() && isInBoundsIndices(Idxs))
-        return ConstantExpr::getInBoundsGetElementPtr(PointeeTy, C, Idxs);
+        return ConstantExpr::getGetElementPtr(PointeeTy, C, Idxs,
+                                              /*InBounds=*/true, InRangeIndex);
 
   return nullptr;
-}
-
-Constant *llvm::ConstantFoldGetElementPtr(Type *Ty, Constant *C,
-                                          bool inBounds,
-                                          ArrayRef<Constant *> Idxs) {
-  return ConstantFoldGetElementPtrImpl(Ty, C, inBounds, Idxs);
-}
-
-Constant *llvm::ConstantFoldGetElementPtr(Type *Ty, Constant *C,
-                                          bool inBounds,
-                                          ArrayRef<Value *> Idxs) {
-  return ConstantFoldGetElementPtrImpl(Ty, C, inBounds, Idxs);
 }

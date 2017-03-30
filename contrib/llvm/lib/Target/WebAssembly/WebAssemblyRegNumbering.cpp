@@ -17,6 +17,7 @@
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "WebAssemblyMachineFunctionInfo.h"
 #include "WebAssemblySubtarget.h"
+#include "WebAssemblyUtilities.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -32,7 +33,7 @@ using namespace llvm;
 
 namespace {
 class WebAssemblyRegNumbering final : public MachineFunctionPass {
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "WebAssembly Register Numbering";
   }
 
@@ -68,20 +69,13 @@ bool WebAssemblyRegNumbering::runOnMachineFunction(MachineFunction &MF) {
   // variables. Assign the numbers for them first.
   MachineBasicBlock &EntryMBB = MF.front();
   for (MachineInstr &MI : EntryMBB) {
-    switch (MI.getOpcode()) {
-    case WebAssembly::ARGUMENT_I32:
-    case WebAssembly::ARGUMENT_I64:
-    case WebAssembly::ARGUMENT_F32:
-    case WebAssembly::ARGUMENT_F64: {
-      int64_t Imm = MI.getOperand(1).getImm();
-      DEBUG(dbgs() << "Arg VReg " << MI.getOperand(0).getReg() << " -> WAReg "
-                   << Imm << "\n");
-      MFI.setWAReg(MI.getOperand(0).getReg(), Imm);
+    if (!WebAssembly::isArgument(MI))
       break;
-    }
-    default:
-      break;
-    }
+
+    int64_t Imm = MI.getOperand(1).getImm();
+    DEBUG(dbgs() << "Arg VReg " << MI.getOperand(0).getReg() << " -> WAReg "
+                 << Imm << "\n");
+    MFI.setWAReg(MI.getOperand(0).getReg(), Imm);
   }
 
   // Then assign regular WebAssembly registers for all remaining used

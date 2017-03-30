@@ -144,7 +144,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 
 CTASSERT(sizeof(struct l_iovec32) == 8);
 
-static int
+int
 linux32_copyinuio(struct l_iovec32 *iovp, l_ulong iovcnt, struct uio **uiop)
 {
 	struct l_iovec32 iov32;

@@ -76,7 +76,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	struct uart_class *class;
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
-	u_int shift, rclk;
+	u_int shift, iowidth, rclk;
 	int br, err;
 
 	/* Allow overriding the FDT using the environment. */
@@ -88,7 +88,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (devtype != UART_DEV_CONSOLE)
 		return (ENXIO);
 
-	err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk, &shift);
+	err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk, &shift, &iowidth);
 	if (err != 0)
 		return (err);
 
@@ -97,6 +97,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	 */
 	di->bas.chan = 0;
 	di->bas.regshft = shift;
+	di->bas.regiowidth = iowidth;
 	di->baudrate = br;
 	di->bas.rclk = rclk;
 	di->ops = uart_getops(class);

@@ -161,7 +161,9 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
 			scope_id = sin6->sin6_scope_id;
 			if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
 				SCOPE_ID_CACHE(scope_id, sin6);
+			CURVNET_SET_QUIET(&init_net);
 			ifa = ifa_ifwithaddr(addr);
+			CURVNET_RESTORE();
 			sin6->sin6_port = port;
 			if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr))
 				SCOPE_ID_RESTORE(scope_id, sin6);
@@ -231,6 +233,9 @@ static int addr_resolve(struct sockaddr *src_in,
 	int bcast;
 	int is_gw = 0;
 	int error = 0;
+
+	CURVNET_SET_QUIET(&init_net);
+
 	/*
 	 * Determine whether the address is unicast, multicast, or broadcast
 	 * and whether the source interface is valid.
@@ -271,7 +276,9 @@ static int addr_resolve(struct sockaddr *src_in,
 			 * up first and verify that it is a local
 			 * interface:
 			 */
+			CURVNET_SET_QUIET(&init_net);
 			ifa = ifa_ifwithaddr(src_in);
+			CURVNET_RESTORE();
 			sin->sin_port = port;
 			if (ifa == NULL) {
 				error = ENETUNREACH;
@@ -312,7 +319,9 @@ static int addr_resolve(struct sockaddr *src_in,
 			 * up first and verify that it is a local
 			 * interface:
 			 */
+			CURVNET_SET_QUIET(&init_net);
 			ifa = ifa_ifwithaddr(src_in);
+			CURVNET_RESTORE();
 			sin6->sin6_port = port;
 			if (ifa == NULL) {
 				error = ENETUNREACH;
@@ -426,6 +435,8 @@ done:
 #endif
 	if (error == EWOULDBLOCK)
 		error = ENODATA;
+
+	CURVNET_RESTORE();
 	return -error;
 }
 

@@ -14,8 +14,9 @@ CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
 CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
 
 CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-I${_LIBARCHIVEDIR}/cat -I${_LIBARCHIVEDIR}/libarchive_fe
-CFLAGS+=	-I${_LIBARCHIVEDIR}/test_utils
+CFLAGS+=	-I${_LIBARCHIVEDIR}/cat -I${_LIBARCHIVEDIR}/cat/test
+CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive
+CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive_fe -I${_LIBARCHIVEDIR}/test_utils
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
@@ -40,11 +41,11 @@ TESTS_SRCS=	\
 	test_version.c
 
 SRCS.bsdcat_test= list.h			\
-	${TESTS_SRCS}				\
-	main.c
+	${TESTS_SRCS}
 
 .PATH:	${_LIBARCHIVEDIR}/test_utils
-SRCS.bsdcat_test+=	test_utils.c
+SRCS.bsdcat_test+=	test_main.c		\
+			test_utils.c
 
 LIBADD.bsdcat_test=	archive
 

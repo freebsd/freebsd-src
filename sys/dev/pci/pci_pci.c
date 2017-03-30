@@ -76,6 +76,8 @@ static void		pcib_pcie_ab_timeout(void *arg);
 static void		pcib_pcie_cc_timeout(void *arg);
 static void		pcib_pcie_dll_timeout(void *arg);
 #endif
+static int		pcib_request_feature(device_t pcib, device_t dev,
+			    enum pci_feature feature);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -119,6 +121,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_try_enable_ari,	pcib_try_enable_ari),
     DEVMETHOD(pcib_ari_enabled,		pcib_ari_enabled),
     DEVMETHOD(pcib_decode_rid,		pcib_ari_decode_rid),
+    DEVMETHOD(pcib_request_feature,	pcib_request_feature),
 
     DEVMETHOD_END
 };
@@ -957,6 +960,17 @@ pcib_probe_hotplug(struct pcib_softc *sc)
 		}
 	}
 
+	/*
+	 * Now that we're sure we want to do hot plug, ask the
+	 * firmware, if any, if that's OK.
+	 */
+	if (pcib_request_feature(device_get_parent(device_get_parent(dev)), dev,
+		PCI_FEATURE_HP) != 0) {
+		if (bootverbose)
+			device_printf(dev, "Unable to activate hot plug feature.\n");
+		return;
+	}
+
 	sc->flags |= PCIB_HOTPLUG;
 }
 
@@ -1145,7 +1159,7 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 }
 
 static void
-pcib_pcie_intr(void *arg)
+pcib_pcie_intr_hotplug(void *arg)
 {
 	struct pcib_softc *sc;
 	device_t dev;
@@ -1258,7 +1272,7 @@ pcib_pcie_cc_timeout(void *arg)
 	} else {
 		device_printf(dev,
 	    "Missed HotPlug interrupt waiting for Command Completion\n");
-		pcib_pcie_intr(sc);
+		pcib_pcie_intr_hotplug(sc);
 	}
 }
 
@@ -1281,7 +1295,7 @@ pcib_pcie_dll_timeout(void *arg)
 	} else if (sta != sc->pcie_link_sta) {
 		device_printf(dev,
 		    "Missed HotPlug interrupt waiting for DLL Active\n");
-		pcib_pcie_intr(sc);
+		pcib_pcie_intr_hotplug(sc);
 	}
 }
 
@@ -1327,7 +1341,7 @@ pcib_alloc_pcie_irq(struct pcib_softc *sc)
 	}
 
 	error = bus_setup_intr(dev, sc->pcie_irq, INTR_TYPE_MISC,
-	    NULL, pcib_pcie_intr, sc, &sc->pcie_ihand);
+	    NULL, pcib_pcie_intr_hotplug, sc, &sc->pcie_ihand);
 	if (error) {
 		device_printf(dev, "Failed to setup PCI-e interrupt handler\n");
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->pcie_irq);
@@ -2828,4 +2842,44 @@ pcib_try_enable_ari(device_t pcib, device_t dev)
 	pcib_enable_ari(sc, pcie_pos);
 
 	return (0);
+}
+
+int
+pcib_request_feature_allow(device_t pcib, device_t dev,
+    enum pci_feature feature)
+{
+	/*
+	 * No host firmware we have to negotiate with, so we allow
+	 * every valid feature requested.
+	 */
+	switch (feature) {
+	case PCI_FEATURE_AER:
+	case PCI_FEATURE_HP:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+/*
+ * Pass the request to use this PCI feature up the tree. Either there's a
+ * firmware like ACPI that's using this feature that will approve (or deny) the
+ * request to take it over, or the platform has no such firmware, in which case
+ * the request will be approved. If the request is approved, the OS is expected
+ * to make use of the feature or render it harmless.
+ */
+static int
+pcib_request_feature(device_t pcib, device_t dev, enum pci_feature feature)
+{
+	device_t bus;
+
+	/*
+	 * Our parent is necessarily a pci bus. Its parent will either be
+	 * another pci bridge (which passes it up) or a host bridge that can
+	 * approve or reject the request.
+	 */
+	bus = device_get_parent(pcib);
+	return (PCIB_REQUEST_FEATURE(device_get_parent(bus), dev, feature));
 }

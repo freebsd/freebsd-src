@@ -123,6 +123,7 @@ static device_method_t	ofw_pci_methods[] = {
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,	ofw_pci_maxslots),
 	DEVMETHOD(pcib_route_interrupt,	ofw_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),

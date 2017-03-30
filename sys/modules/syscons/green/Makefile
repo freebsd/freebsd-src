@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/syscons/green
+.PATH:	${SRCTOP}/sys/dev/syscons/green
 
 KMOD=	green_saver
 SRCS=	green_saver.c

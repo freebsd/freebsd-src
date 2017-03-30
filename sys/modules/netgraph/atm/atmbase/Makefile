@@ -3,9 +3,9 @@
 # Author: Harti Brandt <harti@freebsd.org>
 #
 
-LIBBASE= ${.CURDIR}/../../../../contrib/ngatm
+LIBBASE= ${SRCTOP}/sys/contrib/ngatm
 
-.PATH: ${.CURDIR}/../../../../netgraph/atm
+.PATH: ${SRCTOP}/sys/netgraph/atm
 .PATH: ${LIBBASE}/netnatm/misc
 .PATH: ${LIBBASE}/netnatm/msg
 

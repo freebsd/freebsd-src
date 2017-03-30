@@ -98,10 +98,16 @@ void	mtx_sysinit(void *arg);
 int	_mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file,
 	    int line);
 void	mutex_init(void);
+#if LOCK_DEBUG > 0
 void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	    int opts, const char *file, int line);
 void	__mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file,
 	    int line);
+#else
+void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v, uintptr_t tid);
+void	__mtx_unlock_sleep(volatile uintptr_t *c);
+#endif
+
 #ifdef SMP
 void	_mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	    int opts, const char *file, int line);
@@ -140,10 +146,17 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	_mtx_destroy(&(m)->mtx_lock)
 #define	mtx_trylock_flags_(m, o, f, l)					\
 	_mtx_trylock_flags_(&(m)->mtx_lock, o, f, l)
+#if LOCK_DEBUG > 0
 #define	_mtx_lock_sleep(m, v, t, o, f, l)				\
 	__mtx_lock_sleep(&(m)->mtx_lock, v, t, o, f, l)
 #define	_mtx_unlock_sleep(m, o, f, l)					\
 	__mtx_unlock_sleep(&(m)->mtx_lock, o, f, l)
+#else
+#define	_mtx_lock_sleep(m, v, t, o, f, l)				\
+	__mtx_lock_sleep(&(m)->mtx_lock, v, t)
+#define	_mtx_unlock_sleep(m, o, f, l)					\
+	__mtx_unlock_sleep(&(m)->mtx_lock)
+#endif
 #ifdef SMP
 #define	_mtx_lock_spin(m, v, t, o, f, l)				\
 	_mtx_lock_spin_cookie(&(m)->mtx_lock, v, t, o, f, l)
@@ -172,7 +185,7 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	atomic_cmpset_acq_ptr(&(mp)->mtx_lock, MTX_UNOWNED, (tid))
 
 #define _mtx_obtain_lock_fetch(mp, vp, tid)				\
-	atomic_fcmpset_rel_ptr(&(mp)->mtx_lock, vp, (tid))
+	atomic_fcmpset_acq_ptr(&(mp)->mtx_lock, vp, (tid))
 
 /* Try to release mtx_lock if it is unrecursed and uncontested. */
 #define _mtx_release_lock(mp, tid)					\
@@ -210,12 +223,9 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	uintptr_t _v = MTX_UNOWNED;					\
 									\
 	spinlock_enter();						\
-	if (!_mtx_obtain_lock_fetch((mp), &_v, _tid)) {			\
-		if (_v == _tid)						\
-			(mp)->mtx_recurse++;				\
-		else							\
-			_mtx_lock_spin((mp), _v, _tid, (opts), (file), (line));\
-	} else 								\
+	if (!_mtx_obtain_lock_fetch((mp), &_v, _tid)) 			\
+		_mtx_lock_spin((mp), _v, _tid, (opts), (file), (line)); \
+	else 								\
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire,	\
 		    mp, 0, 0, file, line);				\
 } while (0)

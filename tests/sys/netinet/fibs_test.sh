@@ -39,8 +39,7 @@
 # arpresolve only checked the default route.
 #
 # Outline:
-# Create two tap(4) interfaces
-# Simulate a crossover cable between them by using net/socat
+# Create two connected epair(4) interfaces
 # Use nping (from security/nmap) to send an ICMP echo request from one
 # interface to the other, spoofing the source IP.  The source IP must be
 # spoofed, or else it will already have an entry in the arp table.
@@ -51,7 +50,7 @@ arpresolve_checks_interface_fib_head()
 	atf_set "descr" "arpresolve should check the interface fib, not the default fib, for routes"
 	atf_set "require.user" "root"
 	atf_set "require.config" "fibs"
-	atf_set "require.progs" "socat nping"
+	atf_set "require.progs" "nping"
 }
 arpresolve_checks_interface_fib_body()
 {
@@ -74,19 +73,13 @@ arpresolve_checks_interface_fib_body()
 	fi
 	get_fibs 2
 
-	# Configure TAP interfaces
-	setup_tap "$FIB0" inet ${ADDR0} ${MASK0}
-	TAP0=$TAP
-	setup_tap "$FIB1" inet ${ADDR1} ${MASK1}
-	TAP1=$TAP
-
-	# Simulate a crossover cable
-	socat /dev/${TAP0} /dev/${TAP1} &
-	SOCAT_PID=$!
-	echo ${SOCAT_PID} >> "processes_to_kill"
+	# Configure epair interfaces
+	get_epair
+	setup_iface "$EPAIRA" "$FIB0" inet ${ADDR0} ${MASK0}
+	setup_iface "$EPAIRB" "$FIB1" inet ${ADDR1} ${MASK1}
 
 	# Send an ICMP echo request with a spoofed source IP
-	setfib 2 nping -c 1 -e ${TAP0} -S ${SPOOF_ADDR} \
+	setfib "$FIB0" nping -c 1 -e ${EPAIRA} -S ${SPOOF_ADDR} \
 		--source-mac ${SPOOF_MAC} --icmp --icmp-type "echo-request" \
 		--icmp-code 0 --icmp-id 0xdead --icmp-seq 1 --data 0xbeef \
 		${ADDR1}
@@ -94,17 +87,11 @@ arpresolve_checks_interface_fib_body()
 	# characteristic error message
 	dmesg | grep "llinfo.*${SPOOF_ADDR}"
 	# Check that the ARP entry exists
-	atf_check -o match:"${SPOOF_ADDR}.*expires" setfib 3 arp ${SPOOF_ADDR}
+	atf_check -o match:"${SPOOF_ADDR}.*expires" setfib "$FIB1" arp ${SPOOF_ADDR}
 }
 arpresolve_checks_interface_fib_cleanup()
 {
-	if [ -f processes_to_kill ]; then
-		for pid in $(cat processes_to_kill); do
-			kill "${pid}"
-		done
-		rm -f processes_to_kill
-	fi
-	cleanup_tap
+	cleanup_ifaces
 }
 
 
@@ -163,7 +150,7 @@ loopback_and_network_routes_on_nondefault_fib_body()
 
 loopback_and_network_routes_on_nondefault_fib_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
 }
 
 atf_test_case loopback_and_network_routes_on_nondefault_fib_inet6 cleanup
@@ -176,7 +163,6 @@ loopback_and_network_routes_on_nondefault_fib_inet6_head()
 
 loopback_and_network_routes_on_nondefault_fib_inet6_body()
 {
-	atf_expect_fail "PR196361 IPv6 network routes don't respect net.add_addr_allfibs=0"
 	# Configure the TAP interface to use a nonrouteable RFC3849
 	# address and a non-default fib
 	ADDR="2001:db8::2"
@@ -221,7 +207,7 @@ loopback_and_network_routes_on_nondefault_fib_inet6_body()
 
 loopback_and_network_routes_on_nondefault_fib_inet6_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
 }
 
 
@@ -270,7 +256,7 @@ default_route_with_multiple_fibs_on_same_subnet_body()
 
 default_route_with_multiple_fibs_on_same_subnet_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
 }
 
 atf_test_case default_route_with_multiple_fibs_on_same_subnet_inet6 cleanup
@@ -317,7 +303,7 @@ default_route_with_multiple_fibs_on_same_subnet_inet6_body()
 
 default_route_with_multiple_fibs_on_same_subnet_inet6_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
 }
 
 
@@ -357,7 +343,7 @@ same_ip_multiple_ifaces_fib0_body()
 }
 same_ip_multiple_ifaces_fib0_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
 }
 
 # Regression test for PR kern/189088
@@ -408,7 +394,7 @@ same_ip_multiple_ifaces_cleanup()
 {
 	# Due to PR kern/189088, we must destroy the interfaces in LIFO order
 	# in order for the routes to be correctly cleaned up.
-	for TAPD in `tail -r "tap_devices_to_cleanup"`; do
+	for TAPD in `tail -r "ifaces_to_cleanup"`; do
 		echo ifconfig ${TAPD} destroy
 		ifconfig ${TAPD} destroy
 	done
@@ -453,7 +439,93 @@ same_ip_multiple_ifaces_inet6_body()
 }
 same_ip_multiple_ifaces_inet6_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
+}
+
+atf_test_case slaac_on_nondefault_fib6 cleanup
+slaac_on_nondefault_fib6_head()
+{
+	atf_set "descr" "SLAAC correctly installs routes on non-default FIBs"
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs" "allow_sysctl_side_effects"
+}
+slaac_on_nondefault_fib6_body()
+{
+	# Configure the epair interfaces to use nonrouteable RFC3849
+	# addresses and non-default FIBs
+	PREFIX="2001:db8:$(printf "%x" `jot -r 1 0 65535`):$(printf "%x" `jot -r 1 0 65535`)"
+	ADDR="$PREFIX::2"
+	GATEWAY="$PREFIX::1"
+	SUBNET="$PREFIX:"
+	MASK="64"
+
+	# Check system configuration
+	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
+		atf_skip "This test requires net.add_addr_allfibs=0"
+	fi
+	get_fibs 2
+
+	sysctl -n "net.inet6.ip6.rfc6204w3" >> "rfc6204w3.state"
+	sysctl -n "net.inet6.ip6.forwarding" >> "forwarding.state"
+	# Enable forwarding so the kernel will send RAs
+	sysctl net.inet6.ip6.forwarding=1
+	# Enable RFC6204W3 mode so the kernel will enable default router
+	# selection while also forwarding packets
+	sysctl net.inet6.ip6.rfc6204w3=1
+
+	# Configure epair interfaces
+	get_epair
+	setup_iface "$EPAIRA" "$FIB0" inet6 ${ADDR} ${MASK}
+	echo setfib $FIB1 ifconfig "$EPAIRB" inet6 -ifdisabled accept_rtadv fib $FIB1 up
+	setfib $FIB1 ifconfig "$EPAIRB" inet6 -ifdisabled accept_rtadv fib $FIB1 up
+	rtadvd -p rtadvd.pid -C rtadvd.sock -c /dev/null "$EPAIRA"
+	rtsol "$EPAIRB"
+
+	# Check SLAAC address
+	atf_check -o match:"inet6 ${SUBNET}.*prefixlen ${MASK}.*autoconf" \
+		ifconfig "$EPAIRB"
+	# Check local route
+	atf_check -o match:"${SUBNET}.*\<UHS\>.*lo0" \
+		netstat -rnf inet6 -F $FIB1
+	# Check subnet route
+	atf_check -o match:"${SUBNET}:/${MASK}.*\<U\>.*$EPAIRB" \
+		netstat -rnf inet6 -F $FIB1
+	# Check default route
+	atf_check -o match:"default.*\<UG\>.*$EPAIRB" \
+		netstat -rnf inet6 -F $FIB1
+
+	# Check that none of the above routes appeared on other routes
+	for fib in $( seq 0 $(($(sysctl -n net.fibs) - 1))); do
+		if [ "$fib" = "$FIB1" -o "$fib" = "$FIB0" ]; then
+			continue
+		fi
+		atf_check -o not-match:"${SUBNET}.*\<UHS\>.*lo0" \
+			netstat -rnf inet6 -F $fib
+		atf_check -o not-match:"${SUBNET}:/${MASK}.*\<U\>.*$EPAIRB" \
+			netstat -rnf inet6 -F $fib
+		atf_check -o not-match:"default.*\<UG\>.*$EPAIRB" \
+			netstat -rnf inet6 -F $fib
+	done
+}
+slaac_on_nondefault_fib6_cleanup()
+{
+	if [ -f "rtadvd.pid" ]; then
+		# rtadvd can take a long time to shutdown.  Use SIGKILL to kill
+		# it right away.  The downside to using SIGKILL is that it
+		# won't send final RAs to all interfaces, but we don't care
+		# because we're about to destroy its interface anyway.
+		pkill -kill -F rtadvd.pid
+		rm -f rtadvd.pid
+	fi
+	cleanup_ifaces
+	if [ -f "forwarding.state" ] ; then
+		sysctl "net.inet6.ip6.forwarding"=`cat "forwarding.state"`
+		rm "forwarding.state"
+	fi
+	if [ -f "rfc6204w3.state" ] ; then
+		sysctl "net.inet6.ip6.rfc6204w3"=`cat "rfc6204w3.state"`
+		rm "rfc6204w3.state"
+	fi
 }
 
 # Regression test for kern/187550
@@ -491,7 +563,7 @@ subnet_route_with_multiple_fibs_on_same_subnet_body()
 
 subnet_route_with_multiple_fibs_on_same_subnet_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
 }
 
 atf_test_case subnet_route_with_multiple_fibs_on_same_subnet_inet6 cleanup
@@ -528,7 +600,7 @@ subnet_route_with_multiple_fibs_on_same_subnet_inet6_body()
 
 subnet_route_with_multiple_fibs_on_same_subnet_inet6_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
 }
 
 # Test that source address selection works correctly for UDP packets with
@@ -579,7 +651,7 @@ udp_dontroute_body()
 	# return ENETUNREACH, or send the packet to the wrong tap
 	atf_check -o ignore setfib ${FIB0} \
 		${SRCDIR}/udp_dontroute ${TARGET} /dev/${TARGET_TAP}
-	cleanup_tap
+	cleanup_ifaces
 
 	# Repeat, but this time target the other tap
 	setup_tap ${FIB0} inet ${ADDR0} ${MASK}
@@ -592,7 +664,7 @@ udp_dontroute_body()
 
 udp_dontroute_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
 }
 
 atf_test_case udp_dontroute6 cleanup
@@ -615,8 +687,6 @@ udp_dontroute6_body()
 	TARGET="2001:db8::100"
 	SRCDIR=`atf_get_srcdir`
 
-	atf_expect_fail "PR196361 IPv6 network routes don't respect net.add_addr_allfibs=0"
-
 	# Check system configuration
 	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
 		atf_skip "This test requires net.add_addr_allfibs=0"
@@ -634,7 +704,7 @@ udp_dontroute6_body()
 	# return ENETUNREACH, or send the packet to the wrong tap
 	atf_check -o ignore setfib ${FIB0} \
 		${SRCDIR}/udp_dontroute -6 ${TARGET} /dev/${TARGET_TAP}
-	cleanup_tap
+	cleanup_ifaces
 
 	# Repeat, but this time target the other tap
 	setup_tap ${FIB0} inet6 ${ADDR0} ${MASK} no_dad
@@ -647,7 +717,7 @@ udp_dontroute6_body()
 
 udp_dontroute6_cleanup()
 {
-	cleanup_tap
+	cleanup_ifaces
 }
 
 
@@ -661,6 +731,7 @@ atf_init_test_cases()
 	atf_add_test_case same_ip_multiple_ifaces_fib0
 	atf_add_test_case same_ip_multiple_ifaces
 	atf_add_test_case same_ip_multiple_ifaces_inet6
+	atf_add_test_case slaac_on_nondefault_fib6
 	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet
 	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet_inet6
 	atf_add_test_case udp_dontroute
@@ -688,22 +759,58 @@ get_fibs()
 	done
 }
 
+# Creates a new pair of connected epair(4) interface, registers them for
+# cleanup, and returns their namen via the environment variables EPAIRA and
+# EPAIRB
+get_epair()
+{
+	local EPAIRD
+
+	if EPAIRD=`ifconfig epair create`; then
+		# Record the epair device so we can clean it up later
+		echo ${EPAIRD} >> "ifaces_to_cleanup"
+		EPAIRA=${EPAIRD}
+		EPAIRB=${EPAIRD%a}b
+	else
+		atf_skip "Could not create epair(4) interfaces"
+	fi
+}
+
 # Creates a new tap(4) interface, registers it for cleanup, and returns the
 # name via the environment variable TAP
 get_tap()
 {
-	local TAPN=0
-	while ! ifconfig tap${TAPN} create > /dev/null 2>&1; do
-		if [ "$TAPN" -ge 8 ]; then
-			atf_skip "Could not create a tap(4) interface"
-		else
-			TAPN=$(($TAPN + 1))
-		fi
-	done
-	local TAPD=tap${TAPN}
-	# Record the TAP device so we can clean it up later
-	echo ${TAPD} >> "tap_devices_to_cleanup"
-	TAP=${TAPD}
+	local TAPD
+
+	if TAPD=`ifconfig tap create`; then
+		# Record the TAP device so we can clean it up later
+		echo ${TAPD} >> "ifaces_to_cleanup"
+		TAP=${TAPD}
+	else
+		atf_skip "Could not create a tap(4) interface"
+	fi
+}
+
+# Configure an ethernet interface
+# parameters:
+# Interface name
+# fib
+# Protocol (inet or inet6)
+# IP address
+# Netmask in number of bits (eg 24 or 8)
+# Extra flags
+# Return: None
+setup_iface()
+{
+	local IFACE=$1
+	local FIB=$2
+	local PROTO=$3
+	local ADDR=$4
+	local MASK=$5
+	local FLAGS=$6
+	echo setfib ${FIB} \
+		ifconfig $IFACE ${PROTO} ${ADDR}/${MASK} fib $FIB $FLAGS
+	setfib ${FIB} ifconfig $IFACE ${PROTO} ${ADDR}/${MASK} fib $FIB $FLAGS
 }
 
 # Create a tap(4) interface, configure it, and register it for cleanup.
@@ -716,23 +823,17 @@ get_tap()
 # Return: the tap interface name as the env variable TAP
 setup_tap()
 {
-	local FIB=$1
-	local PROTO=$2
-	local ADDR=$3
-	local MASK=$4
-	local FLAGS=$5
 	get_tap
-	echo setfib ${FIB} ifconfig $TAP ${PROTO} ${ADDR}/${MASK} fib $FIB $FLAGS
-	setfib ${FIB} ifconfig $TAP ${PROTO} ${ADDR}/${MASK} fib $FIB $FLAGS
+	setup_iface "$TAP" "$@"
 }
 
-cleanup_tap()
+cleanup_ifaces()
 {
-	if [ -f tap_devices_to_cleanup ]; then
-		for tap_device in $(cat tap_devices_to_cleanup); do
-			echo ifconfig "${tap_device}" destroy
-			ifconfig "${tap_device}" destroy 2>/dev/null || true
+	if [ -f ifaces_to_cleanup ]; then
+		for iface in $(cat ifaces_to_cleanup); do
+			echo ifconfig "${iface}" destroy
+			ifconfig "${iface}" destroy 2>/dev/null || true
 		done
-		rm -f tap_devices_to_cleanup
+		rm -f ifaces_to_cleanup
 	fi
 }

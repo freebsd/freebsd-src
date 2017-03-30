@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>
+#include <dev/cfe/cfe_error.h>
 #endif
 
 #if 0
@@ -98,9 +99,9 @@ __FBSDID("$FreeBSD$");
 
 static int	bcm_init_platform_data(struct bcm_platform *bp);
 
-static int	bcm_find_core(struct bcm_platform *bp, uint16_t vendor,
-		    uint16_t device, int unit, struct bhnd_core_info *info,
-		    uintptr_t *addr);
+static int	bcm_find_core(struct bcm_platform *bp,
+		    const struct bhnd_core_match *descs, size_t num_descs,
+		    struct bhnd_core_info *info, uintptr_t *addr);
 
 static int	bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls,
 		    kobj_ops_t erom_ops, bhnd_erom_t *erom, size_t esize,
@@ -111,6 +112,19 @@ extern int	*end;
 
 static struct bcm_platform	 bcm_platform_data;
 static bool			 bcm_platform_data_avail = false;
+
+#ifdef CFE
+static struct bcm_nvram_iocfe	 bcm_cfe_nvram;
+#endif
+
+static const struct bhnd_core_match bcm_chipc_cores[] = {
+	{ BHND_MATCH_CORE(BHND_MFGID_BCM,	BHND_COREID_CC)		},
+	{ BHND_MATCH_CORE(BHND_MFGID_BCM,	BHND_COREID_4706_CC)	},
+};
+
+static const struct bhnd_core_match bcm_pmu_cores[] = {
+	{ BHND_MATCH_CORE(BHND_MFGID_BCM,	BHND_COREID_PMU)	},
+};
 
 struct bcm_platform *
 bcm_get_platform(void)
@@ -133,39 +147,41 @@ bcm_get_bus_addr(void)
 }
 
 /**
- * Search the device enumeration table for a core matching @p vendor,
- * @p device, and @p unit.
+ * Search the device enumeration table for a core matching @p descs,
  * 
  * @param	bp		Platform state containing a valid EROM parser.
- * @param	vendor		The core's required vendor.
- * @param	device		The core's required device id.
- * @param	unit		The core's required unit number.
+ * @param	descs		The core match descriptor table.
+ * @param	num_descs	The number of match descriptors in @p descs.
  * @param[out]	info		If non-NULL, will be populated with the core
  *				info.
  * @param[out]	addr		If non-NULL, will be populated with the core's
  *				physical register address.
  */
 static int
-bcm_find_core(struct bcm_platform *bp, uint16_t vendor, uint16_t device,
-    int unit, struct bhnd_core_info *info, uintptr_t *addr)
+bcm_find_core(struct bcm_platform *bp, const struct bhnd_core_match *descs,
+    size_t num_descs, struct bhnd_core_info *info, uintptr_t *addr)
 {
-	struct bhnd_core_match	md;
 	bhnd_addr_t		b_addr;
 	bhnd_size_t		b_size;
 	int			error;
 
-	md = (struct bhnd_core_match) {
-		BHND_MATCH_CORE_VENDOR(vendor),
-		BHND_MATCH_CORE_ID(BHND_COREID_CC),
-		BHND_MATCH_CORE_UNIT(0)
-	};
-
 	/* Fetch core info */
-	error = bhnd_erom_lookup_core_addr(&bp->erom.obj, &md, BHND_PORT_DEVICE,
-	    0, 0, info, &b_addr, &b_size);
-	if (error)
-		return (error);
+	for (size_t i = 0; i < num_descs; i++) {
+		error = bhnd_erom_lookup_core_addr(&bp->erom.obj, &descs[i],
+		    BHND_PORT_DEVICE, 0, 0, info, &b_addr, &b_size);
 
+		/* Terminate search on first match */
+		if (error == 0)
+			break;
+
+		/* Terminate on first error (other than core not found) */
+		if (error != ENOENT)
+			return (error);
+
+		/* Continue search ... */
+	}
+
+	/* Provide the core's base address */
 	if (addr != NULL && b_addr > UINTPTR_MAX) {
 		BCM_ERR("core address %#jx overflows native address width\n",
 		    (uintmax_t)b_addr);
@@ -176,6 +192,40 @@ bcm_find_core(struct bcm_platform *bp, uint16_t vendor, uint16_t device,
 		*addr = b_addr;
 
 	return (0);
+}
+
+/**
+ * Read a variable directly from NVRAM, decoding as @p type.
+ *
+ * @param		bp	Platform state.
+ * @param		name	The raw name of the variable to be fetched,
+ *				including any device path (/pci/1/1/varname) or
+ *				alias prefix (0:varname).
+ * @param[out]		buf	On success, the requested value will be written
+ *				to this buffer. This argment may be NULL if
+ *				the value is not desired.
+ * @param[in,out]	len	The capacity of @p buf. On success, will be set
+ *				to the actual size of the requested value.
+ * @param		type	The data type to be written to @p buf.
+ *
+ * @retval 0		success
+ * @retval ENOMEM	If @p buf is non-NULL and a buffer of @p len is too
+ *			small to hold the requested value.
+ * @retval ENOENT	If @p name is not found.
+ * @retval EFTYPE	If the variable data cannot be coerced to @p type.
+ * @retval ERANGE	If value coercion would overflow @p type.
+ * @retval non-zero	If parsing NVRAM otherwise fails, a regular unix error
+ *			code will be returned.
+ */
+int
+bcm_get_nvram(struct bcm_platform *bp, const char *name, void *buf, size_t *len,
+    bhnd_nvram_type type)
+{
+	if (bp->nvram_io == NULL || bp->nvram_cls == NULL)
+		return (ENOENT);
+
+	return (bhnd_nvram_data_getvar_direct(bp->nvram_cls, bp->nvram_io, name,
+	    buf, len, type));
 }
 
 /**
@@ -269,12 +319,20 @@ bcm_init_platform_data(struct bcm_platform *bp)
 	bool	aob, pmu;
 	int	error;
 
+#ifdef CFE
 	/* Fetch CFE console handle (if any). Must be initialized before
 	 * any calls to printf/early_putc. */
-#ifdef CFE
 	if ((bp->cfe_console = cfe_getstdhandle(CFE_STDHANDLE_CONSOLE)) < 0)
 		bp->cfe_console = -1;
-#endif
+
+	/* Probe CFE NVRAM sources */
+	bp->nvram_io = &bcm_cfe_nvram.io;
+	error = bcm_nvram_find_cfedev(&bcm_cfe_nvram, &bp->nvram_cls);
+	if (error) {
+		bp->nvram_io = NULL;
+		bp->nvram_cls = NULL;
+	}
+#endif /* CFE */
 
 	/* Probe and attach device table provider, populating our
 	 * chip identification */
@@ -286,8 +344,8 @@ bcm_init_platform_data(struct bcm_platform *bp)
 	}
 
 	/* Fetch chipcommon core info */
-	error = bcm_find_core(bp, BHND_MFGID_BCM, BHND_COREID_CC, 0, &bp->cc_id,
-	    &bp->cc_addr);
+	error = bcm_find_core(bp, bcm_chipc_cores, nitems(bcm_chipc_cores),
+	    &bp->cc_id, &bp->cc_addr);
 	if (error) {
 		BCM_ERR("error locating chipc core: %d\n", error);
 		return (error);
@@ -306,9 +364,8 @@ bcm_init_platform_data(struct bcm_platform *bp)
 
 	if (pmu && aob) {
 		/* PMU block mapped to a PMU core on the Always-on-Bus (aob) */
-		error = bcm_find_core(bp, BHND_MFGID_BCM, BHND_COREID_PMU, 0,
+		error = bcm_find_core(bp, bcm_pmu_cores, nitems(bcm_pmu_cores),
 		    &bp->pmu_id,  &bp->pmu_addr);
-
 		if (error) {
 			BCM_ERR("error locating pmu core: %d\n", error);
 			return (error);

@@ -69,23 +69,8 @@ namespace llvm {
   };
 
   template <>
-  struct ilist_traits<IndexListEntry> : public ilist_default_traits<IndexListEntry> {
-  private:
-    mutable ilist_half_node<IndexListEntry> Sentinel;
-  public:
-    IndexListEntry *createSentinel() const {
-      return static_cast<IndexListEntry*>(&Sentinel);
-    }
-    void destroySentinel(IndexListEntry *) const {}
-
-    IndexListEntry *provideInitialHead() const { return createSentinel(); }
-    IndexListEntry *ensureHead(IndexListEntry*) const { return createSentinel(); }
-    static void noteHead(IndexListEntry*, IndexListEntry*) {}
-    void deleteNode(IndexListEntry *N) {}
-
-  private:
-    void createNode(const IndexListEntry &);
-  };
+  struct ilist_alloc_traits<IndexListEntry>
+      : public ilist_noalloc_traits<IndexListEntry> {};
 
   /// SlotIndex - An opaque wrapper around machine indexes.
   class SlotIndex {
@@ -361,9 +346,8 @@ namespace llvm {
 
     IndexListEntry* createEntry(MachineInstr *mi, unsigned index) {
       IndexListEntry *entry =
-        static_cast<IndexListEntry*>(
-          ileAllocator.Allocate(sizeof(IndexListEntry),
-          alignOf<IndexListEntry>()));
+          static_cast<IndexListEntry *>(ileAllocator.Allocate(
+              sizeof(IndexListEntry), alignof(IndexListEntry)));
 
       new (entry) IndexListEntry(mi, index);
 
@@ -421,7 +405,8 @@ namespace llvm {
     /// Returns the base index for the given instruction.
     SlotIndex getInstructionIndex(const MachineInstr &MI) const {
       // Instructions inside a bundle have the same number as the bundle itself.
-      Mi2IndexMap::const_iterator itr = mi2iMap.find(&getBundleStart(MI));
+      const MachineInstr &BundleStart = *getBundleStart(MI.getIterator());
+      Mi2IndexMap::const_iterator itr = mi2iMap.find(&BundleStart);
       assert(itr != mi2iMap.end() && "Instruction not found in maps.");
       return itr->second;
     }
@@ -632,11 +617,12 @@ namespace llvm {
     }
 
     /// ReplaceMachineInstrInMaps - Replacing a machine instr with a new one in
-    /// maps used by register allocator.
-    void replaceMachineInstrInMaps(MachineInstr &MI, MachineInstr &NewMI) {
+    /// maps used by register allocator. \returns the index where the new
+    /// instruction was inserted.
+    SlotIndex replaceMachineInstrInMaps(MachineInstr &MI, MachineInstr &NewMI) {
       Mi2IndexMap::iterator mi2iItr = mi2iMap.find(&MI);
       if (mi2iItr == mi2iMap.end())
-        return;
+        return SlotIndex();
       SlotIndex replaceBaseIndex = mi2iItr->second;
       IndexListEntry *miEntry(replaceBaseIndex.listEntry());
       assert(miEntry->getInstr() == &MI &&
@@ -644,6 +630,7 @@ namespace llvm {
       miEntry->setInstr(&NewMI);
       mi2iMap.erase(mi2iItr);
       mi2iMap.insert(std::make_pair(&NewMI, replaceBaseIndex));
+      return replaceBaseIndex;
     }
 
     /// Add the given MachineBasicBlock into the maps.

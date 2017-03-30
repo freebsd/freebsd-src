@@ -93,7 +93,7 @@ public:
   static const uint32_t SimpleModeMask = 0x00000700;
 
 public:
-  TypeIndex() : Index(0) {}
+  TypeIndex() : Index(static_cast<uint32_t>(SimpleTypeKind::None)) {}
   explicit TypeIndex(uint32_t Index) : Index(Index) {}
   explicit TypeIndex(SimpleTypeKind Kind)
       : Index(static_cast<uint32_t>(Kind)) {}
@@ -101,6 +101,7 @@ public:
       : Index(static_cast<uint32_t>(Kind) | static_cast<uint32_t>(Mode)) {}
 
   uint32_t getIndex() const { return Index; }
+  void setIndex(uint32_t I) { Index = I; }
   bool isSimple() const { return Index < FirstNonSimpleIndex; }
 
   bool isNoneType() const { return *this == None(); }

@@ -49,6 +49,8 @@
 enum irqreturn	{ IRQ_NONE = 0, IRQ_HANDLED, IRQ_WAKE_THREAD, };
 typedef enum irqreturn	irqreturn_t;
 
+struct device;
+
 struct class {
 	const char	*name;
 	struct module	*owner;
@@ -141,6 +143,18 @@ show_class_attr_string(struct class *class,
 #define	dev_notice(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_printk(lvl, dev, fmt, ...)					\
 	    device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
+
+#define	dev_err_ratelimited(dev, ...) do {	\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		dev_err(dev, __VA_ARGS__);	\
+} while (0)
+
+#define	dev_warn_ratelimited(dev, ...) do {	\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		dev_warn(dev, __VA_ARGS__);	\
+} while (0)
 
 static inline void *
 dev_get_drvdata(const struct device *dev)
@@ -413,7 +427,7 @@ class_create(struct module *owner, const char *name)
 
 	class = kzalloc(sizeof(*class), M_WAITOK);
 	class->owner = owner;
-	class->name= name;
+	class->name = name;
 	class->class_release = linux_class_kfree;
 	error = class_register(class);
 	if (error) {

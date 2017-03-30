@@ -6,8 +6,6 @@
 # $FreeBSD$
 #
 
-#NO_UNIVERSE
-
 include "BERI_DE4_BASE"
 
 ident		BERI_DE4_SDROOT

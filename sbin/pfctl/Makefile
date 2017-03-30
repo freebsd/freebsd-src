@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 # pf_ruleset.c is shared between kernel and pfctl
-.PATH: ${.CURDIR}/../../sys/netpfil/pf
+.PATH: ${SRCTOP}/sys/netpfil/pf
 
 PACKAGE=pf
 PROG=	pfctl

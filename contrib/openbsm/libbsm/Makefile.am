@@ -63,6 +63,7 @@ install-exec-hook:
 	  $(LN_S) -f au_control.3 getacmin.3 && \
 	  $(LN_S) -f au_control.3 getacna.3 && \
 	  $(LN_S) -f au_control.3 getacpol.3 && \
+	  $(LN_S) -f au_control.3 getacqsize.3 && \
 	  $(LN_S) -f au_control.3 au_poltostr.3 && \
 	  $(LN_S) -f au_control.3 ac_strtopol.3 && \
 	  $(LN_S) -f au_domain.3 au_bsm_to_domain.3 && \
@@ -92,7 +93,6 @@ install-exec-hook:
 	  $(LN_S) -f au_notify.3 au_get_state.3 && \
 	  $(LN_S) -f au_notify.3 au_notify_initialize.3 && \
 	  $(LN_S) -f au_notify.3 au_notify_terminate.3 && \
-	  $(LN_S) -f au_open.3 au_open.3 && \
 	  $(LN_S) -f au_open.3 au_write.3 && \
 	  $(LN_S) -f au_open.3 au_close.3 && \
 	  $(LN_S) -f au_open.3 au_close_buffer.3 && \

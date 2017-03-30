@@ -1,5 +1,3 @@
-/* $Id: bsd-misc.h,v 1.25 2013/08/04 11:48:41 dtucker Exp $ */
-
 /*
  * Copyright (c) 1999-2004 Damien Miller <djm@mindrot.org>
  *
@@ -49,7 +47,7 @@ int setegid(uid_t);
 
 #if !defined(HAVE_STRERROR) && defined(HAVE_SYS_ERRLIST) && defined(HAVE_SYS_NERR)
 const char *strerror(int);
-#endif 
+#endif
 
 #if !defined(HAVE_SETLINEBUF)
 #define setlinebuf(a)	(setvbuf((a), NULL, _IOLBF, 0))
@@ -124,6 +122,17 @@ pid_t getpgid(pid_t);
 
 #ifndef HAVE_PLEDGE
 int pledge(const char *promises, const char *paths[]);
+#endif
+
+/* bsd-err.h */
+#ifndef HAVE_ERR
+void err(int, const char *, ...) __attribute__((format(printf, 2, 3)));
+#endif
+#ifndef HAVE_ERRX
+void errx(int, const char *, ...) __attribute__((format(printf, 2, 3)));
+#endif
+#ifndef HAVE_WARN
+void warn(const char *, ...) __attribute__((format(printf, 1, 2)));
 #endif
 
 #endif /* _BSD_MISC_H */

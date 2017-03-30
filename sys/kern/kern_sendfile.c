@@ -689,11 +689,10 @@ retry_space:
 				goto done;
 			}
 			if (va.va_size != obj_size) {
-				if (nbytes == 0)
-					rem += va.va_size - obj_size;
-				else if (offset + nbytes > va.va_size)
-					rem -= (offset + nbytes - va.va_size);
 				obj_size = va.va_size;
+				rem = nbytes ?
+				    omin(nbytes + offset, obj_size) : obj_size;
+				rem -= off;
 			}
 		}
 

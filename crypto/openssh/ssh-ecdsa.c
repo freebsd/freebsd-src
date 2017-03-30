@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa.c,v 1.12 2015/12/11 04:21:12 mmcc Exp $ */
+/* $OpenBSD: ssh-ecdsa.c,v 1.13 2016/04/21 06:08:02 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -121,7 +121,8 @@ ssh_ecdsa_verify(const struct sshkey *key,
 	char *ktype = NULL;
 
 	if (key == NULL || key->ecdsa == NULL ||
-	    sshkey_type_plain(key->type) != KEY_ECDSA)
+	    sshkey_type_plain(key->type) != KEY_ECDSA ||
+	    signature == NULL || signaturelen == 0)
 		return SSH_ERR_INVALID_ARGUMENT;
 
 	if ((hash_alg = sshkey_ec_nid_to_hash_alg(key->ecdsa_nid)) == -1 ||

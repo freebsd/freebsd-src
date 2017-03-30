@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ed25519.c,v 1.6 2015/01/15 21:38:50 markus Exp $ */
+/* $OpenBSD: ssh-ed25519.c,v 1.7 2016/04/21 06:08:02 djm Exp $ */
 /*
  * Copyright (c) 2013 Markus Friedl <markus@openbsd.org>
  *
@@ -107,7 +107,8 @@ ssh_ed25519_verify(const struct sshkey *key,
 	if (key == NULL ||
 	    sshkey_type_plain(key->type) != KEY_ED25519 ||
 	    key->ed25519_pk == NULL ||
-	    datalen >= INT_MAX - crypto_sign_ed25519_BYTES)
+	    datalen >= INT_MAX - crypto_sign_ed25519_BYTES ||
+	    signature == NULL || signaturelen == 0)
 		return SSH_ERR_INVALID_ARGUMENT;
 
 	if ((b = sshbuf_from(signature, signaturelen)) == NULL)

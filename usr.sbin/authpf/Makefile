@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../contrib/pf/authpf
+.PATH:	${SRCTOP}/contrib/pf/authpf
 
 PROG=	authpf
 MAN=	authpf.8

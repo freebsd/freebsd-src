@@ -269,13 +269,13 @@ sx_try_slock_(struct sx *sx, const char *file, int line)
 	    ("sx_try_slock() by idle thread %p on sx %s @ %s:%d",
 	    curthread, sx->lock_object.lo_name, file, line));
 
+	x = sx->sx_lock;
 	for (;;) {
-		x = sx->sx_lock;
 		KASSERT(x != SX_LOCK_DESTROYED,
 		    ("sx_try_slock() of destroyed sx @ %s:%d", file, line));
 		if (!(x & SX_LOCK_SHARED))
 			break;
-		if (atomic_cmpset_acq_ptr(&sx->sx_lock, x, x + SX_ONE_SHARER)) {
+		if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, x + SX_ONE_SHARER)) {
 			LOCK_LOG_TRY("SLOCK", &sx->lock_object, 0, 1, file, line);
 			WITNESS_LOCK(&sx->lock_object, LOP_TRYLOCK, file, line);
 			LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire,
@@ -295,8 +295,6 @@ _sx_xlock(struct sx *sx, int opts, const char *file, int line)
 	uintptr_t tid, x;
 	int error = 0;
 
-	if (SCHEDULER_STOPPED())
-		return (0);
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
 	    ("sx_xlock() by idle thread %p on sx %s @ %s:%d",
 	    curthread, sx->lock_object.lo_name, file, line));
@@ -324,9 +322,14 @@ _sx_xlock(struct sx *sx, int opts, const char *file, int line)
 int
 sx_try_xlock_(struct sx *sx, const char *file, int line)
 {
+	struct thread *td;
+	uintptr_t tid, x;
 	int rval;
+	bool recursed;
 
-	if (SCHEDULER_STOPPED())
+	td = curthread;
+	tid = (uintptr_t)td;
+	if (SCHEDULER_STOPPED_TD(td))
 		return (1);
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
@@ -335,19 +338,28 @@ sx_try_xlock_(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_try_xlock() of destroyed sx @ %s:%d", file, line));
 
-	if (sx_xlocked(sx) &&
-	    (sx->lock_object.lo_flags & LO_RECURSABLE) != 0) {
-		sx->sx_recurse++;
-		atomic_set_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
-		rval = 1;
-	} else
-		rval = atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED,
-		    (uintptr_t)curthread);
+	rval = 1;
+	recursed = false;
+	x = SX_LOCK_UNLOCKED;
+	for (;;) {
+		if (atomic_fcmpset_acq_ptr(&sx->sx_lock, &x, tid))
+			break;
+		if (x == SX_LOCK_UNLOCKED)
+			continue;
+		if (x == tid && (sx->lock_object.lo_flags & LO_RECURSABLE)) {
+			sx->sx_recurse++;
+			atomic_set_ptr(&sx->sx_lock, SX_LOCK_RECURSED);
+			break;
+		}
+		rval = 0;
+		break;
+	}
+
 	LOCK_LOG_TRY("XLOCK", &sx->lock_object, 0, rval, file, line);
 	if (rval) {
 		WITNESS_LOCK(&sx->lock_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
-		if (!sx_recursed(sx))
+		if (!recursed)
 			LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire,
 			    sx, 0, 0, file, line, LOCKSTAT_WRITER);
 		TD_LOCKS_INC(curthread);
@@ -360,15 +372,17 @@ void
 _sx_xunlock(struct sx *sx, const char *file, int line)
 {
 
-	if (SCHEDULER_STOPPED())
-		return;
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_xunlock() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SA_XLOCKED, file, line);
 	WITNESS_UNLOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("XUNLOCK", &sx->lock_object, 0, sx->sx_recurse, file,
 	    line);
+#if LOCK_DEBUG > 0
 	_sx_xunlock_hard(sx, (uintptr_t)curthread, file, line);
+#else
+	__sx_xunlock(sx, curthread, file, line);
+#endif
 	TD_LOCKS_DEC(curthread);
 }
 
@@ -396,7 +410,7 @@ sx_try_upgrade_(struct sx *sx, const char *file, int line)
 	 * we will wake up the exclusive waiters when we drop the lock.
 	 */
 	x = sx->sx_lock & SX_LOCK_EXCLUSIVE_WAITERS;
-	success = atomic_cmpset_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1) | x,
+	success = atomic_cmpset_acq_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1) | x,
 	    (uintptr_t)curthread | x);
 	LOCK_LOG_TRY("XUPGRADE", &sx->lock_object, 0, success, file, line);
 	if (success) {

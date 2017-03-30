@@ -4,7 +4,7 @@
 # $FreeBSD$
 #
 
-GROWFS= ${.CURDIR}/../growfs
+GROWFS= ${.CURDIR:H}/growfs
 .PATH: ${GROWFS}
 
 PACKAGE=runtime

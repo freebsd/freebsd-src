@@ -16,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/limits.h>
 #include <sys/endian.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -344,6 +345,17 @@ bad:
 	return (-1);
 }
 
+int
+dhcp_try_rfc1048(u_char *cp, u_int len)
+{
+
+	expected_dhcpmsgtype = DHCPACK;
+	if (bcmp(vm_rfc1048, cp, sizeof(vm_rfc1048)) == 0) {
+		return (vend_rfc1048(cp, len));
+	}
+	return (-1);
+}
+
 static int
 vend_rfc1048(cp, len)
 	u_char *cp;
@@ -392,11 +404,29 @@ vend_rfc1048(cp, len)
 			strlcpy(hostname, val, sizeof(hostname));
 		}
 		if (tag == TAG_INTF_MTU) {
+			intf_mtu = 0;
 			if ((val = getenv("dhcp.interface-mtu")) != NULL) {
-				intf_mtu = (u_int)strtoul(val, NULL, 0);
-			} else {
-				intf_mtu = be16dec(cp);
+				unsigned long tmp;
+				char *end;
+
+				errno = 0;
+				/*
+				 * Do not allow MTU to exceed max IPv4 packet
+				 * size, max value of 16-bit word.
+				 */
+				tmp = strtoul(val, &end, 0);
+				if (errno != 0 ||
+				    *val == '\0' || *end != '\0' ||
+				    tmp > USHRT_MAX) {
+					printf("%s: bad value: \"%s\", "
+					    "ignoring\n",
+					    "dhcp.interface-mtu", val);
+				} else {
+					intf_mtu = (u_int)tmp;
+				}
 			}
+			if (intf_mtu <= 0)
+				intf_mtu = be16dec(cp);
 		}
 #ifdef SUPPORT_DHCP
 		if (tag == TAG_DHCP_MSGTYPE) {

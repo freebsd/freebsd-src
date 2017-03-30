@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
 
 #include <sparc64/pci/ofw_pci.h>
 #include <sparc64/pci/psychoreg.h>
@@ -141,6 +142,7 @@ static device_method_t psycho_methods[] = {
 	DEVMETHOD(pcib_read_config,	psycho_read_config),
 	DEVMETHOD(pcib_write_config,	psycho_write_config),
 	DEVMETHOD(pcib_route_interrupt,	psycho_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),

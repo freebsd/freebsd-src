@@ -26,7 +26,7 @@
 
 /*
  * Implementation of sleep queues used to hold queue of threads blocked on
- * a wait channel.  Sleep queues different from turnstiles in that wait
+ * a wait channel.  Sleep queues are different from turnstiles in that wait
  * channels are not owned by anyone, so there is no priority propagation.
  * Sleep queues can also provide a timeout and can also be interrupted by
  * signals.  That said, there are several similarities between the turnstile
@@ -36,7 +36,7 @@
  * a linked list of queues.  An individual queue is located by using a hash
  * to pick a chain, locking the chain, and then walking the chain searching
  * for the queue.  This means that a wait channel object does not need to
- * embed it's queue head just as locks do not embed their turnstile queue
+ * embed its queue head just as locks do not embed their turnstile queue
  * head.  Threads also carry around a sleep queue that they lend to the
  * wait channel when blocking.  Just as in turnstiles, the queue includes
  * a free list of the sleep queues of other threads blocked on the same
@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/stack.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
+
+#include <machine/atomic.h>
 
 #include <vm/uma.h>
 
@@ -98,7 +101,7 @@ __FBSDID("$FreeBSD$");
 #define	SC_LOOKUP(wc)	&sleepq_chains[SC_HASH(wc)]
 #define NR_SLEEPQS      2
 /*
- * There two different lists of sleep queues.  Both lists are connected
+ * There are two different lists of sleep queues.  Both lists are connected
  * via the sq_hash entries.  The first list is the sleep queue chain list
  * that a sleep queue is on when it is attached to a wait channel.  The
  * second list is the free list hung off of a sleep queue that is attached
@@ -183,7 +186,7 @@ init_sleepqueue_profiling(void)
 
 	for (i = 0; i < SC_TABLESIZE; i++) {
 		snprintf(chain_name, sizeof(chain_name), "%u", i);
-		chain_oid = SYSCTL_ADD_NODE(NULL, 
+		chain_oid = SYSCTL_ADD_NODE(NULL,
 		    SYSCTL_STATIC_CHILDREN(_debug_sleepq_chains), OID_AUTO,
 		    chain_name, CTLFLAG_RD, NULL, "sleepq chain stats");
 		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
@@ -218,7 +221,7 @@ init_sleepqueues(void)
 #else
 	    NULL, NULL, sleepq_init, NULL, UMA_ALIGN_CACHE, 0);
 #endif
-	
+
 	thread0.td_sleepqueue = sleepq_alloc();
 }
 
@@ -539,13 +542,14 @@ sleepq_switch(void *wchan, int pri)
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
 	struct thread *td;
+	bool rtc_changed;
 
 	td = curthread;
 	sc = SC_LOOKUP(wchan);
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
-	/* 
+	/*
 	 * If we have a sleep queue, then we've already been woken up, so
 	 * just return.
 	 */
@@ -558,8 +562,26 @@ sleepq_switch(void *wchan, int pri)
 	 * If TDF_TIMEOUT is set, then our sleep has been timed out
 	 * already but we are still on the sleep queue, so dequeue the
 	 * thread and return.
+	 *
+	 * Do the same if the real-time clock has been adjusted since this
+	 * thread calculated its timeout based on that clock.  This handles
+	 * the following race:
+	 * - The Ts thread needs to sleep until an absolute real-clock time.
+	 *   It copies the global rtc_generation into curthread->td_rtcgen,
+	 *   reads the RTC, and calculates a sleep duration based on that time.
+	 *   See umtxq_sleep() for an example.
+	 * - The Tc thread adjusts the RTC, bumps rtc_generation, and wakes
+	 *   threads that are sleeping until an absolute real-clock time.
+	 *   See tc_setclock() and the POSIX specification of clock_settime().
+	 * - Ts reaches the code below.  It holds the sleepqueue chain lock,
+	 *   so Tc has finished waking, so this thread must test td_rtcgen.
+	 * (The declaration of td_rtcgen refers to this comment.)
 	 */
-	if (td->td_flags & TDF_TIMEOUT) {
+	rtc_changed = td->td_rtcgen != 0 && td->td_rtcgen != rtc_generation;
+	if ((td->td_flags & TDF_TIMEOUT) || rtc_changed) {
+		if (rtc_changed) {
+			td->td_rtcgen = 0;
+		}
 		MPASS(TD_ON_SLEEPQ(td));
 		sq = sleepq_lookup(wchan);
 		if (sleepq_resume_thread(sq, td, 0)) {
@@ -572,7 +594,7 @@ sleepq_switch(void *wchan, int pri)
 #endif
 		}
 		mtx_unlock_spin(&sc->sc_lock);
-		return;		
+		return;
 	}
 #ifdef SLEEPQUEUE_PROFILING
 	if (prof_enabled)
@@ -886,6 +908,13 @@ sleepq_signal(void *wchan, int flags, int pri, int queue)
 	return (wakeup_swapper);
 }
 
+static bool
+match_any(struct thread *td __unused)
+{
+
+	return (true);
+}
+
 /*
  * Resume all threads sleeping on a specified wait channel.
  */
@@ -893,8 +922,6 @@ int
 sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue *sq;
-	struct thread *td, *tdn;
-	int wakeup_swapper;
 
 	CTR2(KTR_PROC, "sleepq_broadcast(%p, %d)", wchan, flags);
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
@@ -905,18 +932,33 @@ sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
 
+	return (sleepq_remove_matching(sq, queue, match_any, pri));
+}
+
+/*
+ * Resume threads on the sleep queue that match the given predicate.
+ */
+int
+sleepq_remove_matching(struct sleepqueue *sq, int queue,
+    bool (*matches)(struct thread *), int pri)
+{
+	struct thread *td, *tdn;
+	int wakeup_swapper;
+
 	/*
-	 * Resume all blocked threads on the sleep queue.  The last thread will
-	 * be given ownership of sq and may re-enqueue itself before
-	 * sleepq_resume_thread() returns, so we must cache the "next" queue
-	 * item at the beginning of the final iteration.
+	 * The last thread will be given ownership of sq and may
+	 * re-enqueue itself before sleepq_resume_thread() returns,
+	 * so we must cache the "next" queue item at the beginning
+	 * of the final iteration.
 	 */
 	wakeup_swapper = 0;
 	TAILQ_FOREACH_SAFE(td, &sq->sq_blocked[queue], td_slpq, tdn) {
 		thread_lock(td);
-		wakeup_swapper |= sleepq_resume_thread(sq, td, pri);
+		if (matches(td))
+			wakeup_swapper |= sleepq_resume_thread(sq, td, pri);
 		thread_unlock(td);
 	}
+
 	return (wakeup_swapper);
 }
 
@@ -1050,6 +1092,32 @@ sleepq_abort(struct thread *td, int intrval)
 
 	/* Thread is asleep on sleep queue sq, so wake it up. */
 	return (sleepq_resume_thread(sq, td, 0));
+}
+
+void
+sleepq_chains_remove_matching(bool (*matches)(struct thread *))
+{
+	struct sleepqueue_chain *sc;
+	struct sleepqueue *sq;
+	int i, wakeup_swapper;
+
+	wakeup_swapper = 0;
+	for (sc = &sleepq_chains[0]; sc < sleepq_chains + SC_TABLESIZE; ++sc) {
+		if (LIST_EMPTY(&sc->sc_queues)) {
+			continue;
+		}
+		mtx_lock_spin(&sc->sc_lock);
+		LIST_FOREACH(sq, &sc->sc_queues, sq_hash) {
+			for (i = 0; i < NR_SLEEPQS; ++i) {
+				wakeup_swapper |= sleepq_remove_matching(sq, i,
+				    matches, 0);
+			}
+		}
+		mtx_unlock_spin(&sc->sc_lock);
+	}
+	if (wakeup_swapper) {
+		kick_proc0();
+	}
 }
 
 /*

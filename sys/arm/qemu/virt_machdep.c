@@ -60,7 +60,6 @@ static platform_method_t virt_methods[] = {
 
 #ifdef SMP
 	PLATFORMMETHOD(platform_mp_start_ap,	virt_mp_start_ap),
-	PLATFORMMETHOD(platform_mp_setmaxid,	virt_mp_setmaxid),
 #endif
 
 	PLATFORMMETHOD_END,

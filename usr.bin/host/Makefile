@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-LDNSDIR=	${.CURDIR}/../../contrib/ldns
-LDNSHOSTDIR=	${.CURDIR}/../../contrib/ldns-host
+LDNSDIR=	${SRCTOP}/contrib/ldns
+LDNSHOSTDIR=	${SRCTOP}/contrib/ldns-host
 
 .PATH:		${LDNSHOSTDIR}
 

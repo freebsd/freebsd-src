@@ -402,16 +402,10 @@ struct linux_sigprocmask_args {
 	char mask_l_[PADL_(l_osigset_t *)]; l_osigset_t * mask; char mask_r_[PADR_(l_osigset_t *)];
 	char omask_l_[PADL_(l_osigset_t *)]; l_osigset_t * omask; char omask_r_[PADR_(l_osigset_t *)];
 };
-struct linux_create_module_args {
-	register_t dummy;
-};
 struct linux_init_module_args {
 	register_t dummy;
 };
 struct linux_delete_module_args {
-	register_t dummy;
-};
-struct linux_get_kernel_syms_args {
 	register_t dummy;
 };
 struct linux_quotactl_args {
@@ -523,12 +517,6 @@ struct linux_getresuid16_args {
 	char ruid_l_[PADL_(l_uid16_t *)]; l_uid16_t * ruid; char ruid_r_[PADR_(l_uid16_t *)];
 	char euid_l_[PADL_(l_uid16_t *)]; l_uid16_t * euid; char euid_r_[PADR_(l_uid16_t *)];
 	char suid_l_[PADL_(l_uid16_t *)]; l_uid16_t * suid; char suid_r_[PADR_(l_uid16_t *)];
-};
-struct linux_query_module_args {
-	register_t dummy;
-};
-struct linux_nfsservctl_args {
-	register_t dummy;
 };
 struct linux_setresgid16_args {
 	char rgid_l_[PADL_(l_gid16_t)]; l_gid16_t rgid; char rgid_r_[PADR_(l_gid16_t)];
@@ -1051,6 +1039,7 @@ struct linux_epoll_pwait_args {
 	char maxevents_l_[PADL_(l_int)]; l_int maxevents; char maxevents_r_[PADR_(l_int)];
 	char timeout_l_[PADL_(l_int)]; l_int timeout; char timeout_r_[PADR_(l_int)];
 	char mask_l_[PADL_(l_sigset_t *)]; l_sigset_t * mask; char mask_r_[PADR_(l_sigset_t *)];
+	char sigsetsize_l_[PADL_(l_size_t)]; l_size_t sigsetsize; char sigsetsize_r_[PADR_(l_size_t)];
 };
 struct linux_utimensat_args {
 	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
@@ -1062,7 +1051,8 @@ struct linux_signalfd_args {
 	register_t dummy;
 };
 struct linux_timerfd_create_args {
-	register_t dummy;
+	char clockid_l_[PADL_(l_int)]; l_int clockid; char clockid_r_[PADR_(l_int)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 };
 struct linux_eventfd_args {
 	char initval_l_[PADL_(l_uint)]; l_uint initval; char initval_r_[PADR_(l_uint)];
@@ -1074,10 +1064,14 @@ struct linux_fallocate_args {
 	char len_l_[PADL_(l_loff_t)]; l_loff_t len; char len_r_[PADR_(l_loff_t)];
 };
 struct linux_timerfd_settime_args {
-	register_t dummy;
+	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
+	char new_value_l_[PADL_(const struct l_itimerspec *)]; const struct l_itimerspec * new_value; char new_value_r_[PADR_(const struct l_itimerspec *)];
+	char old_value_l_[PADL_(struct l_itimerspec *)]; struct l_itimerspec * old_value; char old_value_r_[PADR_(struct l_itimerspec *)];
 };
 struct linux_timerfd_gettime_args {
-	register_t dummy;
+	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
+	char old_value_l_[PADL_(struct l_itimerspec *)]; struct l_itimerspec * old_value; char old_value_r_[PADR_(struct l_itimerspec *)];
 };
 struct linux_signalfd4_args {
 	register_t dummy;
@@ -1464,10 +1458,8 @@ int	linux_newuname(struct thread *, struct linux_newuname_args *);
 int	linux_adjtimex(struct thread *, struct linux_adjtimex_args *);
 int	linux_mprotect(struct thread *, struct linux_mprotect_args *);
 int	linux_sigprocmask(struct thread *, struct linux_sigprocmask_args *);
-int	linux_create_module(struct thread *, struct linux_create_module_args *);
 int	linux_init_module(struct thread *, struct linux_init_module_args *);
 int	linux_delete_module(struct thread *, struct linux_delete_module_args *);
-int	linux_get_kernel_syms(struct thread *, struct linux_get_kernel_syms_args *);
 int	linux_quotactl(struct thread *, struct linux_quotactl_args *);
 int	linux_bdflush(struct thread *, struct linux_bdflush_args *);
 int	linux_sysfs(struct thread *, struct linux_sysfs_args *);
@@ -1494,8 +1486,6 @@ int	linux_nanosleep(struct thread *, struct linux_nanosleep_args *);
 int	linux_mremap(struct thread *, struct linux_mremap_args *);
 int	linux_setresuid16(struct thread *, struct linux_setresuid16_args *);
 int	linux_getresuid16(struct thread *, struct linux_getresuid16_args *);
-int	linux_query_module(struct thread *, struct linux_query_module_args *);
-int	linux_nfsservctl(struct thread *, struct linux_nfsservctl_args *);
 int	linux_setresgid16(struct thread *, struct linux_setresgid16_args *);
 int	linux_getresgid16(struct thread *, struct linux_getresgid16_args *);
 int	linux_prctl(struct thread *, struct linux_prctl_args *);
@@ -1810,10 +1800,8 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 #define	LINUX32_SYS_AUE_linux_adjtimex	AUE_ADJTIME
 #define	LINUX32_SYS_AUE_linux_mprotect	AUE_MPROTECT
 #define	LINUX32_SYS_AUE_linux_sigprocmask	AUE_SIGPROCMASK
-#define	LINUX32_SYS_AUE_linux_create_module	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_init_module	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_delete_module	AUE_NULL
-#define	LINUX32_SYS_AUE_linux_get_kernel_syms	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_quotactl	AUE_QUOTACTL
 #define	LINUX32_SYS_AUE_linux_bdflush	AUE_BDFLUSH
 #define	LINUX32_SYS_AUE_linux_sysfs	AUE_NULL
@@ -1840,8 +1828,6 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 #define	LINUX32_SYS_AUE_linux_mremap	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_setresuid16	AUE_SETRESUID
 #define	LINUX32_SYS_AUE_linux_getresuid16	AUE_GETRESUID
-#define	LINUX32_SYS_AUE_linux_query_module	AUE_NULL
-#define	LINUX32_SYS_AUE_linux_nfsservctl	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_setresgid16	AUE_SETRESGID
 #define	LINUX32_SYS_AUE_linux_getresgid16	AUE_GETRESGID
 #define	LINUX32_SYS_AUE_linux_prctl	AUE_PRCTL

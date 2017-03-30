@@ -1917,6 +1917,10 @@ g_mirror_worker(void *arg)
 					kproc_exit(0);
 				}
 				mtx_lock(&sc->sc_queue_mtx);
+				if (bioq_first(&sc->sc_queue) != NULL) {
+					mtx_unlock(&sc->sc_queue_mtx);
+					continue;
+				}
 			}
 			sx_xunlock(&sc->sc_lock);
 			/*
@@ -2475,11 +2479,8 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 		if (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) == 0 &&
 		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_NEW) == 0) {
 			/*
-			 * No active disks or no disks at all,
-			 * so destroy device.
+			 * No usable disks, so destroy the device.
 			 */
-			if (sc->sc_provider != NULL)
-				g_mirror_destroy_provider(sc);
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 			break;
 		} else if (g_mirror_ndisks(sc,
@@ -3040,7 +3041,7 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 	g_topology_assert_not();
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	if (sc->sc_provider_open != 0 || SCHEDULER_STOPPED()) {
+	if (sc->sc_provider_open != 0) {
 		switch (how) {
 		case G_MIRROR_DESTROY_SOFT:
 			G_MIRROR_DEBUG(1,
@@ -3373,6 +3374,9 @@ g_mirror_shutdown_post_sync(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 	struct g_mirror_softc *sc;
 	int error;
+
+	if (panicstr != NULL)
+		return;
 
 	mp = arg;
 	g_topology_lock();

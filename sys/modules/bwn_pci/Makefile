@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/bwn
+.PATH: ${SRCTOP}/sys/dev/bwn
 
 KMOD=	if_bwn_pci
 SRCS=	if_bwn_pci.c bwn_mac.c

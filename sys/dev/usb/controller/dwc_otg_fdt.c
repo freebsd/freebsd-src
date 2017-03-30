@@ -57,6 +57,12 @@ __FBSDID("$FreeBSD$");
 
 static device_probe_t dwc_otg_probe;
 
+static struct ofw_compat_data compat_data[] = {
+	{ "synopsys,designware-hs-otg2",	1 },
+	{ "snps,dwc2",				1 },
+	{ NULL,					0 }
+};
+
 static int
 dwc_otg_probe(device_t dev)
 {
@@ -64,7 +70,7 @@ dwc_otg_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "synopsys,designware-hs-otg2"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "DWC OTG 2.0 integrated USB controller");

@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
-#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/lock.h>
@@ -60,15 +59,16 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <dev/gpio/gpiobusvar.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcbrvar.h>
 
 #include <dev/sdhci/sdhci.h>
 #include <dev/sdhci/sdhci_fdt_gpio.h>
+
+#include "mmcbr_if.h"
 #include "sdhci_if.h"
 
 struct fsl_sdhci_softc {
@@ -961,7 +961,6 @@ static device_method_t fsl_sdhci_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
@@ -981,7 +980,7 @@ static device_method_t fsl_sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_multi_4,	fsl_sdhci_write_multi_4),
 	DEVMETHOD(sdhci_get_card_present,fsl_sdhci_get_card_present),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t fsl_sdhci_devclass;
@@ -992,7 +991,7 @@ static driver_t fsl_sdhci_driver = {
 	sizeof(struct fsl_sdhci_softc),
 };
 
-DRIVER_MODULE(sdhci_fsl, simplebus, fsl_sdhci_driver, fsl_sdhci_devclass, 0, 0);
+DRIVER_MODULE(sdhci_fsl, simplebus, fsl_sdhci_driver, fsl_sdhci_devclass,
+    NULL, NULL);
 MODULE_DEPEND(sdhci_fsl, sdhci, 1, 1, 1);
-DRIVER_MODULE(mmc, sdhci_fsl, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(sdhci_fsl, mmc, 1, 1, 1);
+MMC_DECLARE_BRIDGE(sdhci_fsl);

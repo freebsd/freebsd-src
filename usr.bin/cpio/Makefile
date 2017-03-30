@@ -2,11 +2,11 @@
 
 .include <src.opts.mk>
 
-_LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
-_LIBARCHIVECONFDIR=	${.CURDIR}/../../lib/libarchive
+_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
+_LIBARCHIVECONFDIR=	${SRCTOP}/lib/libarchive
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=	3.2.2
+BSDCPIO_VERSION_STRING=	3.3.1
 
 .PATH:	${_LIBARCHIVEDIR}/cpio
 SRCS=	cpio.c cmdline.c

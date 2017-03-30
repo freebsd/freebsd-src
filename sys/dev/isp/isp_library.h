@@ -77,11 +77,6 @@ const char *isp_fc_toponame(fcparam *);
 void isp_clear_commands(ispsoftc_t *);
 
 /*
- * Common chip shutdown function
- */
-void isp_shutdown(ispsoftc_t *);
-
-/*
  * Put/Get routines to push from CPU view to device view
  * or to pull from device view to CPU view for various
  * data structures (IOCB)
@@ -161,9 +156,8 @@ void isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *, fcp_rsp_iu_t *);
 #else
 #include "isp_target.h"
 #endif
-
-int isp_send_tgt_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, void *, uint32_t);
 #endif
+
 int isp_find_pdb_empty(ispsoftc_t *, int, fcportdb_t **);
 int isp_find_pdb_by_wwpn(ispsoftc_t *, int, uint64_t, fcportdb_t **);
 int isp_find_pdb_by_handle(ispsoftc_t *, int, uint16_t, fcportdb_t **);
@@ -186,8 +180,6 @@ void isp_put_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
 void isp_get_ctio2(ispsoftc_t *, ct2_entry_t *, ct2_entry_t *);
 void isp_get_ctio2e(ispsoftc_t *, ct2e_entry_t *, ct2e_entry_t *);
 void isp_get_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
-void isp_put_enable_lun(ispsoftc_t *, lun_entry_t *, lun_entry_t *);
-void isp_get_enable_lun(ispsoftc_t *, lun_entry_t *, lun_entry_t *);
 void isp_put_notify_fc(ispsoftc_t *, in_fcentry_t *, in_fcentry_t *);
 void isp_put_notify_fc_e(ispsoftc_t *, in_fcentry_e_t *, in_fcentry_e_t *);
 void isp_put_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);

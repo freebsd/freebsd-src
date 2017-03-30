@@ -18,8 +18,10 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
+include 	"SOCFPGA"
 ident		SOCKIT-BERI
-include 	"SOCKIT.common"
 
 options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s4\"
 
@@ -32,4 +34,4 @@ device		altera_pio
 
 # Flattened Device Tree
 options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=socfpga-sockit-beri.dts
+makeoptions	FDT_DTS_FILE=socfpga_cyclone5_sockit_beri_sdmmc.dts

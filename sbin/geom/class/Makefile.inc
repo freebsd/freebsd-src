@@ -8,6 +8,6 @@ SRCS+=	geom_${GEOM_CLASS}.c subr.c
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
-CFLAGS+= -I${.CURDIR}/../..
+CFLAGS+= -I${.CURDIR:H:H}
 
 .include "../Makefile.inc"

@@ -2,7 +2,7 @@
 #
 # $FreeBSD$
 
-IOAT_SRC_PATH = ${.CURDIR}/../..
+IOAT_SRC_PATH = ${SRCTOP}/sys
 
 .PATH:  ${IOAT_SRC_PATH}/dev/ioat
 

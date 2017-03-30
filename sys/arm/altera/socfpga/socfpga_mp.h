@@ -30,5 +30,6 @@
 
 void socfpga_mp_setmaxid(platform_t);
 void socfpga_mp_start_ap(platform_t);
+void socfpga_a10_mp_start_ap(platform_t);
 
 #endif /* _SOCFPGA_MP_H_ */

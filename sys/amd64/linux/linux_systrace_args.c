@@ -1396,11 +1396,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* linux_create_module */
-	case 174: {
-		*n_args = 0;
-		break;
-	}
 	/* linux_init_module */
 	case 175: {
 		*n_args = 0;
@@ -1411,48 +1406,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* linux_get_kernel_syms */
-	case 177: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_query_module */
-	case 178: {
-		*n_args = 0;
-		break;
-	}
 	/* linux_quotactl */
 	case 179: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_nfsservctl */
-	case 180: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_getpmsg */
-	case 181: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_putpmsg */
-	case 182: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_afs_syscall */
-	case 183: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_tuxcall */
-	case 184: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_security */
-	case 185: {
 		*n_args = 0;
 		break;
 	}
@@ -1566,11 +1521,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* linux_set_thread_area */
-	case 205: {
-		*n_args = 0;
-		break;
-	}
 	/* linux_lookup_dcookie */
 	case 212: {
 		*n_args = 0;
@@ -1581,16 +1531,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_epoll_create_args *p = params;
 		iarg[0] = p->size; /* l_int */
 		*n_args = 1;
-		break;
-	}
-	/* linux_epoll_ctl_old */
-	case 214: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_epoll_wait_old */
-	case 215: {
-		*n_args = 0;
 		break;
 	}
 	/* linux_remap_file_pages */
@@ -2068,7 +2008,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[2] = p->maxevents; /* l_int */
 		iarg[3] = p->timeout; /* l_int */
 		uarg[4] = (intptr_t) p->mask; /* l_sigset_t * */
-		*n_args = 5;
+		iarg[5] = p->sigsetsize; /* l_size_t */
+		*n_args = 6;
 		break;
 	}
 	/* linux_signalfd */
@@ -2078,7 +2019,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_timerfd_create */
 	case 283: {
-		*n_args = 0;
+		struct linux_timerfd_create_args *p = params;
+		iarg[0] = p->clockid; /* l_int */
+		iarg[1] = p->flags; /* l_int */
+		*n_args = 2;
 		break;
 	}
 	/* linux_eventfd */
@@ -2100,12 +2044,20 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_timerfd_settime */
 	case 286: {
-		*n_args = 0;
+		struct linux_timerfd_settime_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		iarg[1] = p->flags; /* l_int */
+		uarg[2] = (intptr_t) p->new_value; /* const struct l_itimerspec * */
+		uarg[3] = (intptr_t) p->old_value; /* struct l_itimerspec * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_timerfd_gettime */
 	case 287: {
-		*n_args = 0;
+		struct linux_timerfd_gettime_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->old_value; /* struct l_itimerspec * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_accept4 */
@@ -4759,41 +4711,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* linux_create_module */
-	case 174:
-		break;
 	/* linux_init_module */
 	case 175:
 		break;
 	/* linux_delete_module */
 	case 176:
 		break;
-	/* linux_get_kernel_syms */
-	case 177:
-		break;
-	/* linux_query_module */
-	case 178:
-		break;
 	/* linux_quotactl */
 	case 179:
-		break;
-	/* linux_nfsservctl */
-	case 180:
-		break;
-	/* linux_getpmsg */
-	case 181:
-		break;
-	/* linux_putpmsg */
-	case 182:
-		break;
-	/* linux_afs_syscall */
-	case 183:
-		break;
-	/* linux_tuxcall */
-	case 184:
-		break;
-	/* linux_security */
-	case 185:
 		break;
 	/* linux_gettid */
 	case 186:
@@ -4914,9 +4839,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* linux_set_thread_area */
-	case 205:
-		break;
 	/* linux_lookup_dcookie */
 	case 212:
 		break;
@@ -4929,12 +4851,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		default:
 			break;
 		};
-		break;
-	/* linux_epoll_ctl_old */
-	case 214:
-		break;
-	/* linux_epoll_wait_old */
-	case 215:
 		break;
 	/* linux_remap_file_pages */
 	case 216:
@@ -5635,6 +5551,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		case 4:
 			p = "userland l_sigset_t *";
 			break;
+		case 5:
+			p = "l_size_t";
+			break;
 		default:
 			break;
 		};
@@ -5644,6 +5563,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timerfd_create */
 	case 283:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_eventfd */
 	case 284:
@@ -5676,9 +5605,35 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timerfd_settime */
 	case 286:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland const struct l_itimerspec *";
+			break;
+		case 3:
+			p = "userland struct l_itimerspec *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timerfd_gettime */
 	case 287:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland struct l_itimerspec *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_accept4 */
 	case 288:
@@ -7163,30 +7118,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_create_module */
-	case 174:
 	/* linux_init_module */
 	case 175:
 	/* linux_delete_module */
 	case 176:
-	/* linux_get_kernel_syms */
-	case 177:
-	/* linux_query_module */
-	case 178:
 	/* linux_quotactl */
 	case 179:
-	/* linux_nfsservctl */
-	case 180:
-	/* linux_getpmsg */
-	case 181:
-	/* linux_putpmsg */
-	case 182:
-	/* linux_afs_syscall */
-	case 183:
-	/* linux_tuxcall */
-	case 184:
-	/* linux_security */
-	case 185:
 	/* linux_gettid */
 	case 186:
 	/* linux_setxattr */
@@ -7238,8 +7175,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_set_thread_area */
-	case 205:
 	/* linux_lookup_dcookie */
 	case 212:
 	/* linux_epoll_create */
@@ -7247,10 +7182,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_epoll_ctl_old */
-	case 214:
-	/* linux_epoll_wait_old */
-	case 215:
 	/* linux_remap_file_pages */
 	case 216:
 	/* linux_getdents64 */
@@ -7494,6 +7425,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 282:
 	/* linux_timerfd_create */
 	case 283:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_eventfd */
 	case 284:
 		if (ndx == 0 || ndx == 1)
@@ -7506,8 +7440,14 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timerfd_settime */
 	case 286:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timerfd_gettime */
 	case 287:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_accept4 */
 	case 288:
 		if (ndx == 0 || ndx == 1)

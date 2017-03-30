@@ -4,16 +4,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 1995
+.Dd February 15, 2017
 .Dt FPA 4
 .Os
 .Sh NAME
-.Nm fpa ,
-.Nm fea
+.Nm fpa
 .Nd device drivers for DEC FDDI controllers
 .Sh SYNOPSIS
 .Cd "device fpa"
-.Cd "device fea"
 .Pp
 .Fx
 only:
@@ -21,25 +19,9 @@ only:
 .Sh DESCRIPTION
 The
 .Nm
-and
-.Nm fea
-device drivers provide support for the DEC DEFPA PCI FDDI Controller and
-the DEC DEFEA EISA FDDI Controller, respectively.
-All variants of either
+device driver provide support for the DEC DEFPA PCI FDDI Controller.
+All variants of the
 controller are supported including the DAS and SAS configurations.
-.Sh DIAGNOSTICS
-.Bl -diag
-.It "fea%d: error: desired IRQ of %d does not match device's actual IRQ (%d)"
-The device probe detected that the DEFEA board is configured for a different
-interrupt than the one specified in the kernel configuration file.
-.It "fea%d: error: memory not enabled! ECU reconfiguration required"
-The device probe found that no device memory had been configured on the
-DEFEA.
-Although the DEFEA can be configured with no device memory, this driver
-requires a minimum of 1K device memory to be set up.
-The ECU (EISA Configuration
-Utility) will need to be run to change the settings.
-.El
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
@@ -47,9 +29,7 @@ Utility) will need to be run to change the settings.
 .Sh AUTHORS
 The
 .Nm
-and
-.Nm fea
-device drivers and this manual page were written by
+device driver and this manual page were written by
 .An Matt Thomas .
 .Sh CAVEATS
 Normally, the device driver will not enable the reception of SMT frames.

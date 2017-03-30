@@ -717,7 +717,7 @@ bad:
  *	ipsec esp/tunnel/LocalIP-RemoteIP/unique:reqid
  */
 static int
-ipsec_newpolicies(struct secpolicy *sp[IPSEC_SPCOUNT],
+ipsec_newpolicies(struct ipsec_softc *sc, struct secpolicy *sp[IPSEC_SPCOUNT],
     const struct sockaddr *src, const struct sockaddr *dst, uint32_t reqid)
 {
 	struct ipsecrequest *isr;
@@ -734,6 +734,8 @@ ipsec_newpolicies(struct secpolicy *sp[IPSEC_SPCOUNT],
 		sp[i]->state = IPSEC_SPSTATE_DEAD;
 		sp[i]->req[sp[i]->tcount++] = isr;
 		sp[i]->created = time_second;
+		/* Use priority field to store if_index */
+		sp[i]->priority = sc->ifp->if_index;
 		isr->level = IPSEC_LEVEL_UNIQUE;
 		isr->saidx.proto = IPPROTO_ESP;
 		isr->saidx.mode = IPSEC_MODE_TUNNEL;
@@ -936,7 +938,7 @@ ipsec_set_tunnel(struct ipsec_softc *sc, struct sockaddr *src,
 	sx_assert(&ipsec_ioctl_sx, SA_XLOCKED);
 
 	/* Allocate SP with new addresses. */
-	if (ipsec_newpolicies(sp, src, dst, reqid) == 0) {
+	if (ipsec_newpolicies(sc, sp, src, dst, reqid) == 0) {
 		/* Add new policies to SPDB */
 		if (key_register_ifnet(sp, IPSEC_SPCOUNT) != 0) {
 			for (i = 0; i < IPSEC_SPCOUNT; i++)

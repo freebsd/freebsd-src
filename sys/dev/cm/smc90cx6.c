@@ -373,7 +373,7 @@ cm_start_locked(ifp)
 	m = arc_frag_next(ifp);
 	buffer = sc->sc_tx_act ^ 1;
 
-	if (m == 0)
+	if (m == NULL)
 		return;
 
 #ifdef CM_DEBUG
@@ -388,7 +388,7 @@ cm_start_locked(ifp)
 #endif
 	cm_ram_ptr = buffer * 512;
 
-	if (m == 0)
+	if (m == NULL)
 		return;
 
 	/* write the addresses to RAM and throw them away */
@@ -505,7 +505,7 @@ cm_srint_locked(vsc)
 	/* Allocate header mbuf */
 	MGETHDR(m, M_NOWAIT, MT_DATA);
 
-	if (m == 0) {
+	if (m == NULL) {
 		/*
 		 * in case s.th. goes wrong with mem, drop it
 		 * to make sure the receiver can be started again
@@ -546,7 +546,7 @@ cm_srint_locked(vsc)
 		}
 	}
 
-	if (m == 0) {
+	if (m == NULL) {
 		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto cleanup;
 	}

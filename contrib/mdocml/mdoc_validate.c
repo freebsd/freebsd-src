@@ -1,4 +1,4 @@
-/*	$Id: mdoc_validate.c,v 1.317 2017/01/11 17:39:53 schwarze Exp $ */
+/*	$Id: mdoc_validate.c,v 1.318 2017/02/06 03:44:58 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -1013,6 +1013,16 @@ post_nm(POST_ARGS)
 	    (mdoc->lastsec == SEC_NAME && n->child == NULL))
 		mandoc_msg(MANDOCERR_NM_NONAME, mdoc->parse,
 		    n->line, n->pos, "Nm");
+
+	if ((n->type != ROFFT_ELEM && n->type != ROFFT_HEAD) ||
+	    (n->child != NULL && n->child->type == ROFFT_TEXT) ||
+	    mdoc->meta.name == NULL)
+		return;
+
+	mdoc->next = ROFF_NEXT_CHILD;
+	roff_word_alloc(mdoc, n->line, n->pos, mdoc->meta.name);
+	mdoc->last->flags |= NODE_NOSRC;
+	mdoc->last = n;
 }
 
 static void

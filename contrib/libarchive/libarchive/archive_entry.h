@@ -30,7 +30,7 @@
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
 /* Note: Compiler will complain if this does not match archive.h! */
-#define	ARCHIVE_VERSION_NUMBER 3002002
+#define	ARCHIVE_VERSION_NUMBER 3003001
 
 /*
  * Note: archive_entry.h is for use outside of libarchive; the
@@ -63,6 +63,27 @@ typedef long long la_int64_t;
 #  else
 typedef int64_t la_int64_t;
 #  endif
+# endif
+#endif
+
+/* The la_ssize_t should match the type used in 'struct stat' */
+#if !defined(__LA_SSIZE_T_DEFINED)
+/* Older code relied on the __LA_SSIZE_T macro; after 4.0 we'll switch to the typedef exclusively. */
+# if ARCHIVE_VERSION_NUMBER < 4000000
+#define __LA_SSIZE_T la_ssize_t
+# endif
+#define __LA_SSIZE_T_DEFINED
+# if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__WATCOMC__)
+#  if defined(_SSIZE_T_DEFINED) || defined(_SSIZE_T_)
+typedef ssize_t la_ssize_t;
+#  elif defined(_WIN64)
+typedef __int64 la_ssize_t;
+#  else
+typedef long la_ssize_t;
+#  endif
+# else
+# include <unistd.h>  /* ssize_t */
+typedef ssize_t la_ssize_t;
 # endif
 #endif
 
@@ -526,9 +547,9 @@ __LA_DECL int	 archive_entry_acl_next_w(struct archive_entry *, int /* want_type
 #define	ARCHIVE_ENTRY_ACL_STYLE_COMPACT		0x00000010
 
 __LA_DECL wchar_t *archive_entry_acl_to_text_w(struct archive_entry *,
-	    ssize_t * /* len */, int /* flags */);
+	    la_ssize_t * /* len */, int /* flags */);
 __LA_DECL char *archive_entry_acl_to_text(struct archive_entry *,
-	    ssize_t * /* len */, int /* flags */);
+	    la_ssize_t * /* len */, int /* flags */);
 __LA_DECL int archive_entry_acl_from_text_w(struct archive_entry *,
 	    const wchar_t * /* wtext */, int /* type */);
 __LA_DECL int archive_entry_acl_from_text(struct archive_entry *,

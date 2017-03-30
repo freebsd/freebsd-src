@@ -4,7 +4,7 @@
 VOLUME=		usd/20.meref
 SRCS=		meref.me-sed
 MACROS=		-me
-GROFFDIR=	${.CURDIR}/../../../../contrib/groff
+GROFFDIR=	${SRCTOP}/contrib/groff
 SRCDIR=		${GROFFDIR}/doc
 
 version=`cat ${GROFFDIR}/VERSION`

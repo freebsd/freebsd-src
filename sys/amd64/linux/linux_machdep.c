@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
 
+#include <x86/include/sysarch.h>
 
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
@@ -226,28 +227,34 @@ int
 linux_arch_prctl(struct thread *td, struct linux_arch_prctl_args *args)
 {
 	int error;
-	struct pcb *pcb;
+	struct sysarch_args bsd_args;
 
 	LINUX_CTR2(arch_prctl, "0x%x, %p", args->code, args->addr);
 
-	error = ENOTSUP;
-	pcb = td->td_pcb;
-
 	switch (args->code) {
-	case LINUX_ARCH_GET_GS:
-		error = copyout(&pcb->pcb_gsbase, (unsigned long *)args->addr,
-		    sizeof(args->addr));
-		break;
 	case LINUX_ARCH_SET_GS:
-		if (args->addr >= VM_MAXUSER_ADDRESS)
-			return(EPERM);
-		break;
-	case LINUX_ARCH_GET_FS:
-		error = copyout(&pcb->pcb_fsbase, (unsigned long *)args->addr,
-		    sizeof(args->addr));
+		bsd_args.op = AMD64_SET_GSBASE;
+		bsd_args.parms = (void *)args->addr;
+		error = sysarch(td, &bsd_args);
+		if (error == EINVAL)
+			error = EPERM;
 		break;
 	case LINUX_ARCH_SET_FS:
-		error = linux_set_cloned_tls(td, (void *)args->addr);
+		bsd_args.op = AMD64_SET_FSBASE;
+		bsd_args.parms = (void *)args->addr;
+		error = sysarch(td, &bsd_args);
+		if (error == EINVAL)
+			error = EPERM;
+		break;
+	case LINUX_ARCH_GET_FS:
+		bsd_args.op = AMD64_GET_FSBASE;
+		bsd_args.parms = (void *)args->addr;
+		error = sysarch(td, &bsd_args);
+		break;
+	case LINUX_ARCH_GET_GS:
+		bsd_args.op = AMD64_GET_GSBASE;
+		bsd_args.parms = (void *)args->addr;
+		error = sysarch(td, &bsd_args);
 		break;
 	default:
 		error = EINVAL;

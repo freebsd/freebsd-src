@@ -94,7 +94,7 @@ static const float finites[] =
 
 
 /* Tests for 0 */
-void
+static void
 test_zero(void)
 {
 
@@ -109,10 +109,10 @@ test_zero(void)
  * Tests for NaN.  The signs of the results are indeterminate unless the
  * imaginary part is 0.
  */
-void
-test_nan()
+static void
+test_nan(void)
 {
-	int i;
+	unsigned i;
 
 	/* cexp(x + NaNi) = NaN + NaNi and optionally raises invalid */
 	/* cexp(NaN + yi) = NaN + NaNi and optionally raises invalid (|y|>0) */
@@ -142,10 +142,10 @@ test_nan()
 		ALL_STD_EXCEPT, 0, 0);
 }
 
-void
+static void
 test_inf(void)
 {
-	int i;
+	unsigned i;
 
 	/* cexp(x + inf i) = NaN + NaNi and raises invalid */
 	for (i = 0; i < nitems(finites); i++) {
@@ -184,10 +184,10 @@ test_inf(void)
 		ALL_STD_EXCEPT, 0, 1);
 }
 
-void
+static void
 test_reals(void)
 {
-	int i;
+	unsigned i;
 
 	for (i = 0; i < nitems(finites); i++) {
 		/* XXX could check exceptions more meticulously */
@@ -207,10 +207,10 @@ test_reals(void)
 	}
 }
 
-void
+static void
 test_imaginaries(void)
 {
-	int i;
+	unsigned i;
 
 	for (i = 0; i < nitems(finites); i++) {
 		printf("# Run %d..\n", i);
@@ -229,7 +229,7 @@ test_imaginaries(void)
 	}
 }
 
-void
+static void
 test_small(void)
 {
 	static const double tests[] = {
@@ -242,7 +242,7 @@ test_small(void)
 	};
 	double a, b;
 	double x, y;
-	int i;
+	unsigned i;
 
 	for (i = 0; i < nitems(tests); i += 4) {
 		printf("# Run %d..\n", i);
@@ -260,7 +260,7 @@ test_small(void)
 }
 
 /* Test inputs with a real part r that would overflow exp(r). */
-void
+static void
 test_large(void)
 {
 
@@ -288,7 +288,7 @@ test_large(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 	printf("1..7\n");

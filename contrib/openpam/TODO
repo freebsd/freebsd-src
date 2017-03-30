@@ -1,15 +1,9 @@
-Before the next release:
+- Fix try_first_pass / use_first_pass (pam_get_authtok() code &
+  documentation are slightly incorrect, OpenPAM's pam_unix(8) is
+  incorrect, all FreeBSD modules are broken)
 
- - Rewrite openpam_ttyconv(3).
-   - mostly done, needs review.
+- Add loop detection to openpam_load_chain().
 
- - Fix try_first_pass / use_first_pass (pam_get_authtok() code &
-   documentation are slightly incorrect, OpenPAM's pam_unix(8) is
-   incorrect, all FreeBSD modules are broken)
+- Complete unit tests for openpam_dispatch().
 
- - Add loop detection to openpam_load_chain().
-
- - Look into the possibility of implementing a version of (or a
-   wrapper for) openpam_log() which respects the PAM_SILENT flag and
-   the no_warn module option.  This would eliminate the need for
-   FreeBSD's _pam_verbose_error().
+- Stop using PAM_SYMBOL_ERR incorrectly.

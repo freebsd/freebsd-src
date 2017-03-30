@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
  * This is needed because clang constant-folds fma in ways that are incorrect
  * in rounding modes other than FE_TONEAREST.
  */
-volatile double one = 1.0;
+static volatile double one = 1.0;
 
 static void
 test_zeroes(void)
@@ -472,10 +472,10 @@ test_double_rounding(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int rmodes[] = { FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO };
-	int i, j;
+	unsigned i, j;
 
 #if defined(__i386__)
 	printf("1..0 # SKIP all testcases fail on i386\n");

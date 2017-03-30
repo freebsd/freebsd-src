@@ -597,8 +597,8 @@ spa_lookup(const char *name)
  * If the zfs_deadman_enabled flag is set then it inspects all vdev queues
  * looking for potentially hung I/Os.
  */
-void
-spa_deadman(void *arg)
+static void
+spa_deadman(void *arg, int pending)
 {
 	spa_t *spa = arg;
 
@@ -626,6 +626,16 @@ spa_deadman(void *arg)
 #endif
 #endif
 }
+
+#if defined(__FreeBSD__) && defined(_KERNEL)
+static void
+spa_deadman_timeout(void *arg)
+{
+	spa_t *spa = arg;
+
+	taskqueue_enqueue(taskqueue_thread, &spa->spa_deadman_task);
+}
+#endif
 
 /*
  * Create an uninitialized spa_t with the given name.  Requires
@@ -698,7 +708,23 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	mutex_exit(&cpu_lock);
 #else	/* !illumos */
 #ifdef _KERNEL
+	/*
+	 * callout(9) does not provide a way to initialize a callout with
+	 * a function and an argument, so we use callout_reset() to schedule
+	 * the callout in the very distant future.  Even if that event ever
+	 * fires, it should be okayas we won't have any active zio-s.
+	 * But normally spa_sync() will reschedule the callout with a proper
+	 * timeout.
+	 * callout(9) does not allow the callback function to sleep but
+	 * vdev_deadman() needs to acquire vq_lock and illumos mutexes are
+	 * emulated using sx(9).  For this reason spa_deadman_timeout()
+	 * will schedule spa_deadman() as task on a taskqueue that allows
+	 * sleeping.
+	 */
+	TASK_INIT(&spa->spa_deadman_task, 0, spa_deadman, spa);
 	callout_init(&spa->spa_deadman_cycid, 1);
+	callout_reset_sbt(&spa->spa_deadman_cycid, SBT_MAX, 0,
+	    spa_deadman_timeout, spa, 0);
 #endif
 #endif
 	refcount_create(&spa->spa_refcount);
@@ -811,6 +837,7 @@ spa_remove(spa_t *spa)
 #else	/* !illumos */
 #ifdef _KERNEL
 	callout_drain(&spa->spa_deadman_cycid);
+	taskqueue_drain(taskqueue_thread, &spa->spa_deadman_task);
 #endif
 #endif
 
@@ -1977,6 +2004,7 @@ spa_init(int mode)
 	refcount_sysinit();
 	unique_init();
 	range_tree_init();
+	metaslab_alloc_trace_init();
 	zio_init();
 	lz4_init();
 	dmu_init();
@@ -2006,6 +2034,7 @@ spa_fini(void)
 	dmu_fini();
 	lz4_fini();
 	zio_fini();
+	metaslab_alloc_trace_fini();
 	range_tree_fini();
 	unique_fini();
 	refcount_fini();

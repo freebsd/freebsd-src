@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-rsa.c,v 1.58 2015/12/11 04:21:12 mmcc Exp $ */
+/* $OpenBSD: ssh-rsa.c,v 1.60 2016/09/12 23:39:34 djm Exp $ */
 /*
  * Copyright (c) 2000, 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -53,7 +53,8 @@ rsa_hash_alg_ident(int hash_alg)
 static int
 rsa_hash_alg_from_ident(const char *ident)
 {
-	if (strcmp(ident, "ssh-rsa") == 0)
+	if (strcmp(ident, "ssh-rsa") == 0 ||
+	    strcmp(ident, "ssh-rsa-cert-v01@openssh.com") == 0)
 		return SSH_DIGEST_SHA1;
 	if (strcmp(ident, "rsa-sha2-256") == 0)
 		return SSH_DIGEST_SHA256;
@@ -93,8 +94,7 @@ ssh_rsa_sign(const struct sshkey *key, u_char **sigp, size_t *lenp,
 	if (sigp != NULL)
 		*sigp = NULL;
 
-	if (alg_ident == NULL || strlen(alg_ident) == 0 ||
-	    strncmp(alg_ident, "ssh-rsa-cert", strlen("ssh-rsa-cert")) == 0)
+	if (alg_ident == NULL || strlen(alg_ident) == 0)
 		hash_alg = SSH_DIGEST_SHA1;
 	else
 		hash_alg = rsa_hash_alg_from_ident(alg_ident);
@@ -172,7 +172,8 @@ ssh_rsa_verify(const struct sshkey *key,
 
 	if (key == NULL || key->rsa == NULL ||
 	    sshkey_type_plain(key->type) != KEY_RSA ||
-	    BN_num_bits(key->rsa->n) < SSH_RSA_MINIMUM_MODULUS_SIZE)
+	    BN_num_bits(key->rsa->n) < SSH_RSA_MINIMUM_MODULUS_SIZE ||
+	    sig == NULL || siglen == 0)
 		return SSH_ERR_INVALID_ARGUMENT;
 
 	if ((b = sshbuf_from(sig, siglen)) == NULL)

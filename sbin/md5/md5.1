@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd January 7, 2017
+.Dd March 2, 2017
 .Dt MD5 1
 .Os
 .Sh NAME
@@ -84,21 +84,17 @@ in a secure manner before being encrypted with a private
 key under a public-key cryptosystem such as
 .Tn RSA .
 .Pp
+The
 .Tn MD5
-has been completely broken as far as finding collisions is
-concerned, and should not be relied upon to produce unique outputs.
-This also means that
-.Tn MD5
-should not be used as part of a cryptographic signature scheme.
-At the current time (2014-05-17) there is no publicly known method to
-.Dq reverse
-MD5, i.e., to find an input given a hash value.
-.Pp
+and
 .Tn SHA-1
-currently (2014-05-17) has no known collisions, but an attack has been
-found which is faster than a brute-force search, placing the security of
-.Tn SHA-1
-in doubt.
+algorithms have been proven to be vulnerable to practical collision
+attacks and should not be relied upon to produce unique outputs, nor
+should they be used as part of a cryptographic signature scheme.
+As of 2017-03-02, there is no publicly known method to
+.Em reverse
+either algorithm, i.e. to find an input that produces a specific
+output.
 .Pp
 .Tn SHA-512t256
 is a version of
@@ -111,6 +107,8 @@ The hashes are not interchangeable.
 .Pp
 It is recommended that all new applications use
 .Tn SHA-512
+or
+.Tn SKEIN-512
 instead of one of the other hash functions.
 .Pp
 The following options may be used in any combination and must

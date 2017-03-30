@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../dev/sound/macio
+.PATH: ${SRCTOP}/sys/dev/sound/macio
 
 KMOD=	snd_ai2s
 SRCS=	device_if.h bus_if.h ofw_bus_if.h

@@ -4,14 +4,14 @@
 .include <src.opts.mk>
 
 PACKAGE=sendmail
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 SMDIR=	${SENDMAIL_DIR}/src
 .PATH: ${SMDIR}
 
 BINDIR=	${LIBEXECDIR}/sendmail
 
 PROG=	sendmail
-MAN=	mailq.1 newaliases.1 aliases.5 sendmail.8 
+MAN=	mailq.1 newaliases.1 aliases.5 sendmail.8
 MLINKS+=sendmail.8 hoststat.8
 MLINKS+=sendmail.8 purgestat.8
 SRCS=	alias.c arpadate.c bf.c collect.c conf.c control.c \

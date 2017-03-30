@@ -39,11 +39,134 @@ __FBSDID("$FreeBSD$");
 
 #include "loader_efi.h"
 
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/cpufunc.h>
+#include <machine/specialreg.h>
+
+/*
+ * The code is excerpted from sys/x86/x86/identcpu.c: identify_cpu(),
+ * identify_hypervisor(), and dev/hyperv/vmbus/hyperv.c: hyperv_identify().
+ */
+#define CPUID_LEAF_HV_MAXLEAF		0x40000000
+#define CPUID_LEAF_HV_INTERFACE		0x40000001
+#define CPUID_LEAF_HV_FEATURES		0x40000003
+#define CPUID_LEAF_HV_LIMITS		0x40000005
+#define CPUID_HV_IFACE_HYPERV		0x31237648	/* HV#1 */
+#define CPUID_HV_MSR_TIME_REFCNT	0x0002	/* MSR_HV_TIME_REF_COUNT */
+#define CPUID_HV_MSR_HYPERCALL		0x0020
+
+static int
+running_on_hyperv(void)
+{
+	char hv_vendor[16];
+	uint32_t regs[4];
+
+	do_cpuid(1, regs);
+	if ((regs[2] & CPUID2_HV) == 0)
+		return (0);
+
+	do_cpuid(CPUID_LEAF_HV_MAXLEAF, regs);
+	if (regs[0] < CPUID_LEAF_HV_LIMITS)
+		return (0);
+
+	((uint32_t *)&hv_vendor)[0] = regs[1];
+	((uint32_t *)&hv_vendor)[1] = regs[2];
+	((uint32_t *)&hv_vendor)[2] = regs[3];
+	hv_vendor[12] = '\0';
+	if (strcmp(hv_vendor, "Microsoft Hv") != 0)
+		return (0);
+
+	do_cpuid(CPUID_LEAF_HV_INTERFACE, regs);
+	if (regs[0] != CPUID_HV_IFACE_HYPERV)
+		return (0);
+
+	do_cpuid(CPUID_LEAF_HV_FEATURES, regs);
+	if ((regs[0] & CPUID_HV_MSR_HYPERCALL) == 0)
+		return (0);
+	if ((regs[0] & CPUID_HV_MSR_TIME_REFCNT) == 0)
+		return (0);
+
+	return (1);
+}
+
+#define KERNEL_PHYSICAL_BASE (2*1024*1024)
+
+static void
+efi_verify_staging_size(unsigned long *nr_pages)
+{
+	UINTN sz;
+	EFI_MEMORY_DESCRIPTOR *map, *p;
+	EFI_PHYSICAL_ADDRESS start, end;
+	UINTN key, dsz;
+	UINT32 dver;
+	EFI_STATUS status;
+	int i, ndesc;
+	unsigned long available_pages = 0;
+
+	sz = 0;
+	status = BS->GetMemoryMap(&sz, 0, &key, &dsz, &dver);
+	if (status != EFI_BUFFER_TOO_SMALL) {
+		printf("Can't determine memory map size\n");
+		return;
+	}
+
+	map = malloc(sz);
+	status = BS->GetMemoryMap(&sz, map, &key, &dsz, &dver);
+	if (EFI_ERROR(status)) {
+		printf("Can't read memory map\n");
+		goto out;
+	}
+
+	ndesc = sz / dsz;
+	for (i = 0, p = map; i < ndesc;
+	     i++, p = NextMemoryDescriptor(p, dsz)) {
+		start = p->PhysicalStart;
+		end = start + p->NumberOfPages * EFI_PAGE_SIZE;
+
+		if (KERNEL_PHYSICAL_BASE < start ||
+		    KERNEL_PHYSICAL_BASE >= end)
+			continue;
+
+		available_pages = p->NumberOfPages -
+			((KERNEL_PHYSICAL_BASE - start) >> EFI_PAGE_SHIFT);
+		break;
+	}
+
+	if (available_pages == 0) {
+		printf("Can't find valid memory map for staging area!\n");
+		goto out;
+	}
+
+	i++;
+	p = NextMemoryDescriptor(p, dsz);
+
+	for ( ; i < ndesc;
+	     i++, p = NextMemoryDescriptor(p, dsz)) {
+		if (p->Type != EfiConventionalMemory &&
+		    p->Type != EfiLoaderData)
+			break;
+
+		if (p->PhysicalStart != end)
+			break;
+
+		end = p->PhysicalStart + p->NumberOfPages * EFI_PAGE_SIZE;
+
+		available_pages += p->NumberOfPages;
+	}
+
+	if (*nr_pages > available_pages) {
+		printf("Staging area's size is reduced: %ld -> %ld!\n",
+		    *nr_pages, available_pages);
+		*nr_pages = available_pages;
+	}
+out:
+	free(map);
+}
+#endif /* __i386__ || __amd64__ */
+
 #ifndef EFI_STAGING_SIZE
 #define	EFI_STAGING_SIZE	64
 #endif
-
-#define	STAGE_PAGES	EFI_SIZE_TO_PAGES((EFI_STAGING_SIZE) * 1024 * 1024)
 
 EFI_PHYSICAL_ADDRESS	staging, staging_end;
 int			stage_offset_set = 0;
@@ -54,14 +177,37 @@ efi_copy_init(void)
 {
 	EFI_STATUS	status;
 
+	unsigned long nr_pages;
+
+	nr_pages = EFI_SIZE_TO_PAGES((EFI_STAGING_SIZE) * 1024 * 1024);
+
+#if defined(__i386__) || defined(__amd64__)
+	/*
+	 * We'll decrease nr_pages, if it's too big. Currently we only
+	 * apply this to FreeBSD VM running on Hyper-V. Why? Please see
+	 * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=211746#c28
+	 */
+	if (running_on_hyperv())
+		efi_verify_staging_size(&nr_pages);
+
+	/*
+	 * The staging area must reside in the the first 1GB physical
+	 * memory: see elf64_exec() in
+	 * boot/efi/loader/arch/amd64/elf64_freebsd.c.
+	 */
+	staging = 1024*1024*1024;
+	status = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData,
+	    nr_pages, &staging);
+#else
 	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-	    STAGE_PAGES, &staging);
+	    nr_pages, &staging);
+#endif
 	if (EFI_ERROR(status)) {
 		printf("failed to allocate staging area: %lu\n",
 		    EFI_ERROR_CODE(status));
 		return (status);
 	}
-	staging_end = staging + STAGE_PAGES * EFI_PAGE_SIZE;
+	staging_end = staging + nr_pages * EFI_PAGE_SIZE;
 
 #if defined(__aarch64__) || defined(__arm__)
 	/*

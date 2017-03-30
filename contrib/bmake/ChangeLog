@@ -1,3 +1,32 @@
+2017-03-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170301
+	  Merge with NetBSD make, pick up
+	  o main.c: use -C arg as is rather than getcwd()
+	    if they identify the same directory.
+	  o parse.c: ensure loadfile buffer is \n terminated in non-mmap case
+
+2017-02-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170201
+	  Merge with NetBSD make, pick up
+	  o var.c: allow :_=var and avoid use of special context.
+
+2017-01-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170130
+	  Merge with NetBSD make, pick up
+	  o var.c: add :range and :_
+	  o main.c: partially initialize Dir_* before MainParseArgs()
+	    can be called.
+	    If -V, skip Main_ExportMAKEFLAGS()
+
+2017-01-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170114
+	  Merge with NetBSD make, pick up
+	  o var.c: allow specifying the utc value used by :{gm,local}time
+
 2016-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20161212

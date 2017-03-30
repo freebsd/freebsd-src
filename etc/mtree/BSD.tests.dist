@@ -22,6 +22,8 @@
         ..
         pkill
         ..
+        pwait
+        ..
         sh
             builtins
             ..
@@ -308,6 +310,8 @@
             ttyio
             ..
         ..
+        libcam
+        ..
         libcasper
             services
                 cap_dns
@@ -324,11 +328,11 @@
         ..
         libdevdctl
         ..
+        libkvm
+        ..
         libmp
         ..
         libnv
-        ..
-        libpam
         ..
         libproc
         ..
@@ -608,6 +612,8 @@
         ..
         cut
         ..
+        diff
+        ..
         dirname
         ..
         file2c
@@ -617,6 +623,8 @@
         gzip
         ..
         ident
+        ..
+        indent
         ..
         join
         ..

@@ -20,7 +20,7 @@ namespace llvm {
 ///
 namespace TargetOpcode {
 enum {
-#define HANDLE_TARGET_OPCODE(OPC, NUM) OPC = NUM,
+#define HANDLE_TARGET_OPCODE(OPC) OPC,
 #define HANDLE_TARGET_OPCODE_MARKER(IDENT, OPC) IDENT = OPC,
 #include "llvm/Target/TargetOpcodes.def"
 };
@@ -31,6 +31,11 @@ enum {
 static inline bool isPreISelGenericOpcode(unsigned Opcode) {
   return Opcode >= TargetOpcode::PRE_ISEL_GENERIC_OPCODE_START &&
          Opcode <= TargetOpcode::PRE_ISEL_GENERIC_OPCODE_END;
+}
+
+/// Check whether the given Opcode is a target-specific opcode.
+static inline bool isTargetSpecificOpcode(unsigned Opcode) {
+  return Opcode > TargetOpcode::PRE_ISEL_GENERIC_OPCODE_END;
 }
 } // end namespace llvm
 

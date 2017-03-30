@@ -16,19 +16,20 @@
 #ifndef AARCH64_ARCH
 #define AARCH64_ARCH(NAME, ID, CPU_ATTR, SUB_ARCH, ARCH_ATTR, ARCH_FPU, ARCH_BASE_EXT)
 #endif
+AARCH64_ARCH("invalid", AK_INVALID, nullptr, nullptr,
+             ARMBuildAttrs::CPUArch::v8_A, FK_NONE, AArch64::AEK_NONE)
 AARCH64_ARCH("armv8-a", AK_ARMV8A, "8-A", "v8", ARMBuildAttrs::CPUArch::v8_A,
              FK_CRYPTO_NEON_FP_ARMV8,
              (AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_FP |
-              AArch64::AEK_SIMD | AArch64::AEK_FP16 | AArch64::AEK_PROFILE))
+              AArch64::AEK_SIMD | AArch64::AEK_LSE))
 AARCH64_ARCH("armv8.1-a", AK_ARMV8_1A, "8.1-A", "v8.1a",
              ARMBuildAttrs::CPUArch::v8_A, FK_CRYPTO_NEON_FP_ARMV8,
              (AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_FP |
-              AArch64::AEK_SIMD | AArch64::AEK_FP16 | AArch64::AEK_PROFILE))
+              AArch64::AEK_SIMD | AArch64::AEK_LSE))
 AARCH64_ARCH("armv8.2-a", AK_ARMV8_2A, "8.2-A", "v8.2a",
              ARMBuildAttrs::CPUArch::v8_A, FK_CRYPTO_NEON_FP_ARMV8,
              (AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_FP |
-              AArch64::AEK_SIMD | AArch64::AEK_FP16 | AArch64::AEK_PROFILE |
-              AArch64::AEK_RAS))
+              AArch64::AEK_SIMD | AArch64::AEK_RAS | AArch64::AEK_LSE))
 #undef AARCH64_ARCH
 
 #ifndef AARCH64_ARCH_EXT_NAME
@@ -38,6 +39,7 @@ AARCH64_ARCH("armv8.2-a", AK_ARMV8_2A, "8.2-A", "v8.2a",
 AARCH64_ARCH_EXT_NAME("invalid",  AArch64::AEK_INVALID,  nullptr,  nullptr)
 AARCH64_ARCH_EXT_NAME("none",     AArch64::AEK_NONE,     nullptr,  nullptr)
 AARCH64_ARCH_EXT_NAME("crc",      AArch64::AEK_CRC,      "+crc",   "-crc")
+AARCH64_ARCH_EXT_NAME("lse",      AArch64::AEK_LSE,      "+lse",   "-lse")
 AARCH64_ARCH_EXT_NAME("crypto",   AArch64::AEK_CRYPTO,   "+crypto","-crypto")
 AARCH64_ARCH_EXT_NAME("fp",       AArch64::AEK_FP,       "+fp-armv8",  "-fp-armv8")
 AARCH64_ARCH_EXT_NAME("simd",     AArch64::AEK_SIMD,     "+neon",  "-neon")
@@ -62,6 +64,12 @@ AARCH64_CPU_NAME("cortex-a73", AK_ARMV8A, FK_CRYPTO_NEON_FP_ARMV8, false,
 AARCH64_CPU_NAME("cyclone", AK_ARMV8A, FK_CRYPTO_NEON_FP_ARMV8, false,
                 (AArch64::AEK_SIMD | AArch64::AEK_CRYPTO))
 AARCH64_CPU_NAME("exynos-m1", AK_ARMV8A, FK_CRYPTO_NEON_FP_ARMV8, false,
+                (AArch64::AEK_SIMD | AArch64::AEK_CRC | AArch64::AEK_CRYPTO))
+AARCH64_CPU_NAME("exynos-m2", AK_ARMV8A, FK_CRYPTO_NEON_FP_ARMV8, false,
+                (AArch64::AEK_SIMD | AArch64::AEK_CRC | AArch64::AEK_CRYPTO))
+AARCH64_CPU_NAME("exynos-m3", AK_ARMV8A, FK_CRYPTO_NEON_FP_ARMV8, false,
+                (AArch64::AEK_SIMD | AArch64::AEK_CRC | AArch64::AEK_CRYPTO))
+AARCH64_CPU_NAME("falkor", AK_ARMV8A, FK_CRYPTO_NEON_FP_ARMV8, false,
                 (AArch64::AEK_SIMD | AArch64::AEK_CRC | AArch64::AEK_CRYPTO))
 AARCH64_CPU_NAME("kryo", AK_ARMV8A, FK_CRYPTO_NEON_FP_ARMV8, false,
                 (AArch64::AEK_SIMD | AArch64::AEK_CRC | AArch64::AEK_CRYPTO))

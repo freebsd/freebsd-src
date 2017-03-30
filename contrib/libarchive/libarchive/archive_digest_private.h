@@ -143,6 +143,7 @@
   defined(ARCHIVE_CRYPTO_SHA256_WIN) ||\
   defined(ARCHIVE_CRYPTO_SHA384_WIN) ||\
   defined(ARCHIVE_CRYPTO_SHA512_WIN)
+#include <windows.h>
 #include <wincrypt.h>
 typedef struct {
   int   valid;

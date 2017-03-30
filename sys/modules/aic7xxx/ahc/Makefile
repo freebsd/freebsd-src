@@ -1,14 +1,11 @@
 
 # $FreeBSD$
 
-SYSDIR?=${.CURDIR}/../../..
+SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 .PATH:	${SYSDIR}/dev/aic7xxx
 KMOD=	ahc
-.if ${MK_EISA} != "no"
-SUBDIR+= ahc_eisa
-.endif
 SUBDIR+= ahc_isa ahc_pci
 
 GENSRCS= aic7xxx_seq.h aic7xxx_reg.h

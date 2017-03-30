@@ -46,12 +46,15 @@ __FBSDID("$FreeBSD$");
 #define T4_ULPTX_MIN_IO 32
 #define C4IW_MAX_INLINE_SIZE 96
 
-static int mr_exceeds_hw_limits(struct c4iw_dev *dev, u64 length)
+static int
+mr_exceeds_hw_limits(struct c4iw_dev *dev, u64 length)
 {
-	return (is_t4(dev->rdev.adap) ||
+
+	return ((is_t4(dev->rdev.adap) ||
 		is_t5(dev->rdev.adap)) &&
-		length >= 8*1024*1024*1024ULL;
+		length >= 8*1024*1024*1024ULL);
 }
+
 static int
 write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 {
@@ -340,9 +343,6 @@ static int build_phys_page_list(struct ib_phys_buf *buffer_list,
 			mask |= (buffer_list[i].addr + buffer_list[i].size +
 				PAGE_SIZE - 1) & PAGE_MASK;
 	}
-
-	if (*total_size > 0xFFFFFFFFULL)
-		return -ENOMEM;
 
 	/* Find largest page shift we can use to cover buffers */
 	for (*shift = PAGE_SHIFT; *shift < 27; ++(*shift))

@@ -17,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -304,7 +304,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 {
 	struct sockaddr *append_sa;
 	struct socket *so;
-	struct mbuf *opts = NULL;
+	struct mbuf *tmpopts, *opts = NULL;
 #ifdef INET6
 	struct sockaddr_in6 udp_in6;
 #endif
@@ -319,7 +319,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	if (up->u_tun_func != NULL) {
 		in_pcbref(inp);
 		INP_RUNLOCK(inp);
-		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)udp_in,
+		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)&udp_in[0],
 		    up->u_tun_ctx);
 		INP_RLOCK(inp);
 		return (in_pcbrele_rlocked(inp));
@@ -355,16 +355,27 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 #endif /* INET6 */
 			ip_savecontrol(inp, &opts, ip, n);
 	}
+	if ((inp->inp_vflag & INP_IPV4) && (inp->inp_flags2 & INP_ORIGDSTADDR)) {
+		tmpopts = sbcreatecontrol((caddr_t)&udp_in[1],
+			sizeof(struct sockaddr_in), IP_ORIGDSTADDR, IPPROTO_IP);
+		if (tmpopts) {
+			if (opts) {
+				tmpopts->m_next = opts;
+				opts = tmpopts;
+			} else
+				opts = tmpopts;
+		}
+	}
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6) {
 		bzero(&udp_in6, sizeof(udp_in6));
 		udp_in6.sin6_len = sizeof(udp_in6);
 		udp_in6.sin6_family = AF_INET6;
-		in6_sin_2_v4mapsin6(udp_in, &udp_in6);
+		in6_sin_2_v4mapsin6(&udp_in[0], &udp_in6);
 		append_sa = (struct sockaddr *)&udp_in6;
 	} else
 #endif /* INET6 */
-		append_sa = (struct sockaddr *)udp_in;
+		append_sa = (struct sockaddr *)&udp_in[0];
 	m_adj(n, off);
 
 	so = inp->inp_socket;
@@ -390,7 +401,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	uint16_t len, ip_len;
 	struct inpcbinfo *pcbinfo;
 	struct ip save_ip;
-	struct sockaddr_in udp_in;
+	struct sockaddr_in udp_in[2];
 	struct mbuf *m;
 	struct m_tag *fwd_tag;
 	int cscov_partial, iphlen;
@@ -435,11 +446,15 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	 * Construct sockaddr format source address.  Stuff source address
 	 * and datagram in user buffer.
 	 */
-	bzero(&udp_in, sizeof(udp_in));
-	udp_in.sin_len = sizeof(udp_in);
-	udp_in.sin_family = AF_INET;
-	udp_in.sin_port = uh->uh_sport;
-	udp_in.sin_addr = ip->ip_src;
+	bzero(&udp_in[0], sizeof(struct sockaddr_in) * 2);
+	udp_in[0].sin_len = sizeof(struct sockaddr_in);
+	udp_in[0].sin_family = AF_INET;
+	udp_in[0].sin_port = uh->uh_sport;
+	udp_in[0].sin_addr = ip->ip_src;
+	udp_in[1].sin_len = sizeof(struct sockaddr_in);
+	udp_in[1].sin_family = AF_INET;
+	udp_in[1].sin_port = uh->uh_dport;
+	udp_in[1].sin_addr = ip->ip_dst;
 
 	/*
 	 * Make mbuf data length reflect UDP length.  If not enough data to
@@ -568,7 +583,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 
 				blocked = imo_multi_filter(imo, ifp,
 					(struct sockaddr *)&group,
-					(struct sockaddr *)&udp_in);
+					(struct sockaddr *)&udp_in[0]);
 				if (blocked != MCAST_PASS) {
 					if (blocked == MCAST_NOTGMEMBER)
 						IPSTAT_INC(ips_notmember);
@@ -587,7 +602,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 					UDP_PROBE(receive, NULL, last, ip,
 					    last, uh);
 					if (udp_append(last, ip, n, iphlen,
-						&udp_in)) {
+						udp_in)) {
 						goto inp_lost;
 					}
 				}
@@ -620,7 +635,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			goto badunlocked;
 		}
 		UDP_PROBE(receive, NULL, last, ip, last, uh);
-		if (udp_append(last, ip, m, iphlen, &udp_in) == 0) 
+		if (udp_append(last, ip, m, iphlen, udp_in) == 0) 
 			INP_RUNLOCK(last);
 	inp_lost:
 		INP_INFO_RUNLOCK(pcbinfo);
@@ -710,7 +725,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	UDP_PROBE(receive, NULL, inp, ip, inp, uh);
-	if (udp_append(inp, ip, m, iphlen, &udp_in) == 0) 
+	if (udp_append(inp, ip, m, iphlen, udp_in) == 0) 
 		INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 
@@ -890,13 +905,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
 
-			bzero(&xi, sizeof(xi));
-			xi.xi_len = sizeof xi;
-			/* XXX should avoid extra copy */
-			bcopy(inp, &xi.xi_inp, sizeof *inp);
-			if (inp->inp_socket)
-				sotoxsocket(inp->inp_socket, &xi.xi_socket);
-			xi.xi_inp.inp_gencnt = inp->inp_gencnt;
+			in_pcbtoxinpcb(inp, &xi);
 			INP_RUNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
 		} else

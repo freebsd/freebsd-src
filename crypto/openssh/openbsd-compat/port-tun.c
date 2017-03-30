@@ -68,7 +68,7 @@ sys_tun_open(int tun, int mode)
 		return (-1);
 	}
 
-	bzero(&ifr, sizeof(ifr));	
+	bzero(&ifr, sizeof(ifr));
 
 	if (mode == SSH_TUNMODE_ETHERNET) {
 		ifr.ifr_flags = IFF_TAP;

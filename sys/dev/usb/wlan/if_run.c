@@ -3310,8 +3310,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
-	struct ieee80211_channel *chan;
-	const struct ieee80211_txparam *tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct run_node *rn = RUN_NODE(ni);
 	struct run_tx_data *data;
 	struct rt2870_txd *txd;
@@ -3359,9 +3358,6 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	RUN_DPRINTF(sc, RUN_DEBUG_XMIT, "qos %d\tqid %d\ttid %d\tqflags %x\n",
 	    qos, qid, tid, qflags);
-
-	chan = (ni->ni_chan != IEEE80211_CHAN_ANYC)?ni->ni_chan:ic->ic_curchan;
-	tp = &vap->iv_txparms[ieee80211_chan2mode(chan)];
 
 	/* pickup a rate index */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||

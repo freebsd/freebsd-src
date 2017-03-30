@@ -37,6 +37,13 @@ LiveInterval &LiveRangeEdit::createEmptyIntervalFrom(unsigned OldReg) {
     VRM->setIsSplitFromReg(VReg, VRM->getOriginal(OldReg));
   }
   LiveInterval &LI = LIS.createEmptyInterval(VReg);
+  // Create empty subranges if the OldReg's interval has them. Do not create
+  // the main range here---it will be constructed later after the subranges
+  // have been finalized.
+  LiveInterval &OldLI = LIS.getInterval(OldReg);
+  VNInfo::Allocator &Alloc = LIS.getVNInfoAllocator();
+  for (LiveInterval::SubRange &S : OldLI.subranges())
+    LI.createSubRange(Alloc, S.LaneMask);
   return LI;
 }
 
@@ -66,6 +73,8 @@ void LiveRangeEdit::scanRemattable(AliasAnalysis *aa) {
     unsigned Original = VRM->getOriginal(getReg());
     LiveInterval &OrigLI = LIS.getInterval(Original);
     VNInfo *OrigVNI = OrigLI.getVNInfoAt(VNI->def);
+    if (!OrigVNI)
+      continue;
     MachineInstr *DefMI = LIS.getInstructionFromIndex(OrigVNI->def);
     if (!DefMI)
       continue;
@@ -94,7 +103,7 @@ bool LiveRangeEdit::allUsesAvailableAt(const MachineInstr *OrigMI,
 
     // We can't remat physreg uses, unless it is a constant.
     if (TargetRegisterInfo::isPhysicalRegister(MO.getReg())) {
-      if (MRI.isConstantPhysReg(MO.getReg(), *OrigMI->getParent()->getParent()))
+      if (MRI.isConstantPhysReg(MO.getReg()))
         continue;
       return false;
     }
@@ -227,7 +236,7 @@ bool LiveRangeEdit::useIsKill(const LiveInterval &LI,
   unsigned SubReg = MO.getSubReg();
   LaneBitmask LaneMask = TRI.getSubRegIndexLaneMask(SubReg);
   for (const LiveInterval::SubRange &S : LI.subranges()) {
-    if ((S.LaneMask & LaneMask) != 0 && S.Query(Idx).isKill())
+    if ((S.LaneMask & LaneMask).any() && S.Query(Idx).isKill())
       return true;
   }
   return false;
@@ -263,7 +272,11 @@ void LiveRangeEdit::eliminateDeadDef(MachineInstr *MI, ToShrinkSet &ToShrink,
   bool ReadsPhysRegs = false;
   bool isOrigDef = false;
   unsigned Dest;
-  if (VRM && MI->getOperand(0).isReg()) {
+  // Only optimize rematerialize case when the instruction has one def, since
+  // otherwise we could leave some dead defs in the code.  This case is
+  // extremely rare.
+  if (VRM && MI->getOperand(0).isReg() && MI->getOperand(0).isDef() &&
+      MI->getDesc().getNumDefs() == 1) {
     Dest = MI->getOperand(0).getReg();
     unsigned Original = VRM->getOriginal(Dest);
     LiveInterval &OrigLI = LIS.getInterval(Original);
@@ -335,6 +348,7 @@ void LiveRangeEdit::eliminateDeadDef(MachineInstr *MI, ToShrinkSet &ToShrink,
     // allocations of the func are done.
     if (isOrigDef && DeadRemats && TII.isTriviallyReMaterializable(*MI, AA)) {
       LiveInterval &NewLI = createEmptyIntervalFrom(Dest);
+      NewLI.removeEmptySubRanges();
       VNInfo *VNI = NewLI.getNextValue(Idx, LIS.getVNInfoAllocator());
       NewLI.addSegment(LiveInterval::Segment(Idx, Idx.getDeadSlot(), VNI));
       pop_back();
@@ -427,6 +441,9 @@ LiveRangeEdit::MRI_NoteNewVirtualRegister(unsigned VReg)
 {
   if (VRM)
     VRM->grow();
+
+  if (Parent && !Parent->isSpillable())
+    LIS.getInterval(VReg).markNotSpillable();
 
   NewRegs.push_back(VReg);
 }

@@ -27,9 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#ifdef __i386__
-#include "opt_eisa.h"
-#endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -128,17 +125,9 @@ legacy_attach(device_t dev)
 	bus_generic_attach(dev);
 
 	/*
-	 * If we didn't see EISA or ISA on a pci bridge, create some
+	 * If we didn't see ISA on a pci bridge, create some
 	 * connection points now so they show up "on motherboard".
 	 */
-#ifdef DEV_EISA
-	if (!devclass_get_device(devclass_find("eisa"), 0)) {
-		child = BUS_ADD_CHILD(dev, 0, "eisa", 0);
-		if (child == NULL)
-			panic("legacy_attach eisa");
-		device_probe_and_attach(child);
-	}
-#endif
 	if (!devclass_get_device(devclass_find("isa"), 0)) {
 		child = BUS_ADD_CHILD(dev, 0, "isa", 0);
 		if (child == NULL)

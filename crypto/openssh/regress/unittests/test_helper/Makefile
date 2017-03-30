@@ -1,9 +1,8 @@
-#	$OpenBSD: Makefile,v 1.2 2015/01/20 22:58:57 djm Exp $
+#	$OpenBSD: Makefile,v 1.3 2016/07/04 18:01:44 guenther Exp $
 
 LIB=	test_helper
 SRCS=	test_helper.c fuzz.c
 
-DEBUGLIBS= no
 NOPROFILE= yes
 NOPIC=	yes
 

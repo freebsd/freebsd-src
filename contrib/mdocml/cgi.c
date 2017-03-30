@@ -1,4 +1,4 @@
-/*	$Id: cgi.c,v 1.144 2017/01/21 01:20:31 schwarze Exp $ */
+/*	$Id: cgi.c,v 1.147 2017/02/08 13:34:27 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@usta.de>
@@ -21,7 +21,9 @@
 #include <sys/time.h>
 
 #include <ctype.h>
+#if HAVE_ERR
 #include <err.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -113,7 +115,7 @@ static	const char *const sec_names[] = {
 static	const int sec_MAX = sizeof(sec_names) / sizeof(char *);
 
 static	const char *const arch_names[] = {
-    "amd64",       "alpha",       "armv7",
+    "amd64",       "alpha",       "armv7",	"arm64",
     "hppa",        "i386",        "landisk",
     "loongson",    "luna88k",     "macppc",      "mips64",
     "octeon",      "sgi",         "socppc",      "sparc64",
@@ -799,6 +801,7 @@ resp_format(const struct req *req, const char *file)
 
 	memset(&conf, 0, sizeof(conf));
 	conf.fragment = 1;
+	conf.style = mandoc_strdup(CSS_DIR "/mandoc.css");
 	usepath = strcmp(req->q.manpath, req->p[0]);
 	mandoc_asprintf(&conf.man, "/%s%s%%N.%%S",
 	    usepath ? req->q.manpath : "", usepath ? "/" : "");
@@ -826,6 +829,7 @@ resp_format(const struct req *req, const char *file)
 	mparse_free(mp);
 	mchars_free();
 	free(conf.man);
+	free(conf.style);
 }
 
 static void

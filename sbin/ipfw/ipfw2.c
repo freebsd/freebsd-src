@@ -1483,7 +1483,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				    cmd->arg1, IPFW_TLV_STATE_NAME);
 			else
 				ename = NULL;
-			bprintf(bp, " %s", ename ? ename: "any");
+			bprintf(bp, " :%s", ename ? ename: "any");
 			/* avoid printing anything else */
 			flags = HAVE_PROTO | HAVE_SRCIP |
 				HAVE_DSTIP | HAVE_IP;
@@ -2076,7 +2076,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 
 			case O_KEEP_STATE:
 				bprintf(bp, " keep-state");
-				bprintf(bp, " %s",
+				bprintf(bp, " :%s",
 				    object_search_ctlv(fo->tstate, cmd->arg1,
 				    IPFW_TLV_STATE_NAME));
 				break;
@@ -2095,7 +2095,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 						comma = ",";
 					}
 				bprint_uint_arg(bp, " ", c->conn_limit);
-				bprintf(bp, " %s",
+				bprintf(bp, " :%s",
 				    object_search_ctlv(fo->tstate, cmd->arg1,
 				    IPFW_TLV_STATE_NAME));
 				break;
@@ -2198,7 +2198,7 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 	} else
 		bprintf(bp, " UNKNOWN <-> UNKNOWN");
 	if (d->kidx != 0)
-		bprintf(bp, " %s", object_search_ctlv(fo->tstate,
+		bprintf(bp, " :%s", object_search_ctlv(fo->tstate,
 		    d->kidx, IPFW_TLV_STATE_NAME));
 }
 
@@ -3714,27 +3714,25 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	case TOK_CHECKSTATE:
 		have_state = action;
 		action->opcode = O_CHECK_STATE;
-		if (*av == NULL) {
+		if (*av == NULL ||
+		    match_token(rule_options, *av) == TOK_COMMENT) {
 			action->arg1 = pack_object(tstate,
 			    default_state_name, IPFW_TLV_STATE_NAME);
 			break;
 		}
-		if (strcmp(*av, "any") == 0)
-			action->arg1 = 0;
-		else if ((i = match_token(rule_options, *av)) != -1) {
-			action->arg1 = pack_object(tstate,
-			    default_state_name, IPFW_TLV_STATE_NAME);
-			if (i != TOK_COMMENT)
-				warn("Ambiguous state name '%s', '%s'"
-				    " used instead.\n", *av,
-				    default_state_name);
+		if (*av[0] == ':') {
+			if (strcmp(*av + 1, "any") == 0)
+				action->arg1 = 0;
+			else if (state_check_name(*av + 1) == 0)
+				action->arg1 = pack_object(tstate, *av + 1,
+				    IPFW_TLV_STATE_NAME);
+			else
+				errx(EX_DATAERR, "Invalid state name %s",
+				    *av);
+			av++;
 			break;
-		} else if (state_check_name(*av) == 0)
-			action->arg1 = pack_object(tstate, *av,
-			    IPFW_TLV_STATE_NAME);
-		else
-			errx(EX_DATAERR, "Invalid state name %s", *av);
-		av++;
+		}
+		errx(EX_DATAERR, "Invalid state name %s", *av);
 		break;
 
 	case TOK_ACCEPT:
@@ -4577,22 +4575,16 @@ read_options:
 			if (have_state)
 				errx(EX_USAGE, "only one of keep-state "
 					"and limit is allowed");
-			if (*av == NULL ||
-			    (i = match_token(rule_options, *av)) != -1) {
-				if (*av != NULL && i != TOK_COMMENT)
-					warn("Ambiguous state name '%s',"
-					    " '%s' used instead.\n", *av,
-					    default_state_name);
-				uidx = pack_object(tstate, default_state_name,
-				    IPFW_TLV_STATE_NAME);
-			} else {
-				if (state_check_name(*av) != 0)
+			if (*av != NULL && *av[0] == ':') {
+				if (state_check_name(*av + 1) != 0)
 					errx(EX_DATAERR,
 					    "Invalid state name %s", *av);
-				uidx = pack_object(tstate, *av,
+				uidx = pack_object(tstate, *av + 1,
 				    IPFW_TLV_STATE_NAME);
 				av++;
-			}
+			} else
+				uidx = pack_object(tstate, default_state_name,
+				    IPFW_TLV_STATE_NAME);
 			have_state = cmd;
 			fill_cmd(cmd, O_KEEP_STATE, 0, uidx);
 			break;
@@ -4629,22 +4621,16 @@ read_options:
 			    TOK_LIMIT, rule_options);
 			av++;
 
-			if (*av == NULL ||
-			    (i = match_token(rule_options, *av)) != -1) {
-				if (*av != NULL && i != TOK_COMMENT)
-					warn("Ambiguous state name '%s',"
-					    " '%s' used instead.\n", *av,
-					    default_state_name);
-				cmd->arg1 = pack_object(tstate,
-				    default_state_name, IPFW_TLV_STATE_NAME);
-			} else {
-				if (state_check_name(*av) != 0)
+			if (*av != NULL && *av[0] == ':') {
+				if (state_check_name(*av + 1) != 0)
 					errx(EX_DATAERR,
 					    "Invalid state name %s", *av);
-				cmd->arg1 = pack_object(tstate, *av,
+				cmd->arg1 = pack_object(tstate, *av + 1,
 				    IPFW_TLV_STATE_NAME);
 				av++;
-			}
+			} else
+				cmd->arg1 = pack_object(tstate,
+				    default_state_name, IPFW_TLV_STATE_NAME);
 			break;
 		}
 

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../../contrib/hyperv/tools/scripts
+.PATH:		${SRCTOP}/contrib/hyperv/tools/scripts
 
 BINDIR=		${LIBEXECDIR}/hyperv
 

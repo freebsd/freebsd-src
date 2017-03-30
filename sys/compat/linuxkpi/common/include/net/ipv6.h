@@ -35,8 +35,12 @@
 #include <netinet/in.h>
 #include <linux/types.h>
 
-#define	ipv6_addr_loopback IN6_IS_ADDR_LOOPBACK
-#define	ipv6_addr_copy(dst, src)					\
+#define	IPV6_DEFAULT_HOPLIMIT 64
+
+#define	ipv6_addr_loopback(addr) IN6_IS_ADDR_LOOPBACK(addr)
+#define	ipv6_addr_any(addr) IN6_IS_ADDR_UNSPECIFIED(addr)
+
+#define	ipv6_addr_copy(dst, src)			\
 	memcpy((dst), (src), sizeof(struct in6_addr))
 
 static inline void

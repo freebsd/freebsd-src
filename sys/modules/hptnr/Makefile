@@ -1,5 +1,5 @@
 # $FreeBSD$
-HPTNR=	${.CURDIR}/../../dev/hptnr
+HPTNR=	${SRCTOP}/sys/dev/hptnr
 .PATH:	${HPTNR}
 
 KMOD=	hptnr

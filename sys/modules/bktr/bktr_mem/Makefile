@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/bktr
+.PATH: ${SRCTOP}/sys/dev/bktr
 
 KMOD=	bktr_mem 
 SRCS=	bktr_mem.c

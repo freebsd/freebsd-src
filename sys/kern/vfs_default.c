@@ -718,8 +718,8 @@ loop2:
 			 * to write them out.
 			 */
 			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
-				if ((error = bp->b_error) == 0)
-					continue;
+				if ((error = bp->b_error) != 0)
+					break;
 			if (error == 0 && --maxretry >= 0)
 				goto loop1;
 			error = EAGAIN;
@@ -1100,10 +1100,10 @@ vop_stdadvise(struct vop_advise_args *ap)
 		if (vp->v_object != NULL) {
 			start = trunc_page(ap->a_start);
 			end = round_page(ap->a_end);
-			VM_OBJECT_WLOCK(vp->v_object);
+			VM_OBJECT_RLOCK(vp->v_object);
 			vm_object_page_noreuse(vp->v_object, OFF_TO_IDX(start),
 			    OFF_TO_IDX(end));
-			VM_OBJECT_WUNLOCK(vp->v_object);
+			VM_OBJECT_RUNLOCK(vp->v_object);
 		}
 
 		bo = &vp->v_bufobj;

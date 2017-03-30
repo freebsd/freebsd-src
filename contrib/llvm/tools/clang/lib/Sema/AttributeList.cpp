@@ -20,7 +20,6 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringSwitch.h"
 using namespace clang;
 
 IdentifierLoc *IdentifierLoc::create(ASTContext &Ctx, SourceLocation Loc,
@@ -63,7 +62,7 @@ void *AttributeFactory::allocate(size_t size) {
   }
 
   // Otherwise, allocate something new.
-  return Alloc.Allocate(size, llvm::AlignOf<AttributeFactory>::Alignment);
+  return Alloc.Allocate(size, alignof(AttributeFactory));
 }
 
 void AttributeFactory::reclaimPool(AttributeList *cur) {

@@ -520,6 +520,7 @@ save_segsum(struct nandfs_segment_summary *ss)
 static void
 create_fsdata(void)
 {
+	struct uuid tmp;
 
 	memset(&fsdata, 0, sizeof(struct nandfs_fsdata));
 
@@ -540,7 +541,8 @@ create_fsdata(void)
 	fsdata.f_checkpoint_size = sizeof(struct nandfs_checkpoint);
 	fsdata.f_segment_usage_size = sizeof(struct nandfs_segment_usage);
 
-	uuidgen(&fsdata.f_uuid, 1);
+	uuidgen(&tmp, 1);
+	fsdata.f_uuid = tmp;
 
 	if (volumelabel)
 		memcpy(fsdata.f_volume_name, volumelabel, 16);

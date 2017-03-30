@@ -76,9 +76,7 @@ public:
   RABasic();
 
   /// Return the pass name.
-  const char* getPassName() const override {
-    return "Basic Register Allocator";
-  }
+  StringRef getPassName() const override { return "Basic Register Allocator"; }
 
   /// RABasic analysis usage.
   void getAnalysisUsage(AnalysisUsage &AU) const override;
@@ -104,6 +102,11 @@ public:
 
   /// Perform register allocation.
   bool runOnMachineFunction(MachineFunction &mf) override;
+
+  MachineFunctionProperties getRequiredProperties() const override {
+    return MachineFunctionProperties().set(
+        MachineFunctionProperties::Property::NoPHIs);
+  }
 
   // Helper for spilling all live virtual registers currently unified under preg
   // that interfere with the most recently queried lvr.  Return true if spilling

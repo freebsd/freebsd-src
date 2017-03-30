@@ -1318,15 +1318,16 @@ node_getmimoinfo(const struct ieee80211_node *ni,
 
 	bzero(info, sizeof(*info));
 
-	for (i = 0; i < ni->ni_mimo_chains; i++) {
+	for (i = 0; i < MIN(IEEE80211_MAX_CHAINS, ni->ni_mimo_chains); i++) {
+		/* Note: for now, just pri20 channel info */
 		avgrssi = ni->ni_mimo_rssi_ctl[i];
 		if (avgrssi == IEEE80211_RSSI_DUMMY_MARKER) {
-			info->rssi[i] = 0;
+			info->ch[i].rssi[0] = 0;
 		} else {
 			rssi = IEEE80211_RSSI_GET(avgrssi);
-			info->rssi[i] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
+			info->ch[i].rssi[0] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
 		}
-		info->noise[i] = ni->ni_mimo_noise_ctl[i];
+		info->ch[i].noise[0] = ni->ni_mimo_noise_ctl[i];
 	}
 
 	/* XXX ext radios? */

@@ -1000,6 +1000,9 @@ nvme_qpair_fail(struct nvme_qpair *qpair)
 	struct nvme_tracker		*tr;
 	struct nvme_request		*req;
 
+	if (!mtx_initialized(&qpair->lock))
+		return;
+
 	mtx_lock(&qpair->lock);
 
 	while (!STAILQ_EMPTY(&qpair->queued_req)) {

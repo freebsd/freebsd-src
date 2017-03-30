@@ -65,6 +65,8 @@ usage() {
 	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
 	echo "       -p: pass-through a host PCI device at bus/slot/func (e.g. 10/0/0)"
 	echo "       -t: tap device for virtio-net (default is $DEFAULT_TAPDEV)"
+	echo "       -u: RTC keeps UTC time"
+	echo "       -w: ignore unimplemented MSRs"
 	echo ""
 	[ -n "$msg" ] && errmsg "$msg"
 	exit 1
@@ -93,7 +95,7 @@ loader_opt=""
 bhyverun_opt="-H -A -P"
 pass_total=0
 
-while getopts ac:C:d:e:g:hH:iI:l:m:p:t: c ; do
+while getopts ac:C:d:e:g:hH:iI:l:m:p:t:uw c ; do
 	case $c in
 	a)
 		bhyverun_opt="${bhyverun_opt} -a"
@@ -139,6 +141,12 @@ while getopts ac:C:d:e:g:hH:iI:l:m:p:t: c ; do
 	t)
 		eval "tap_dev${tap_total}=\"${OPTARG}\""
 		tap_total=$(($tap_total + 1))
+		;;
+	u)	
+		bhyverun_opt="${bhyverun_opt} -u"
+		;;
+	w)
+		bhyverun_opt="${bhyverun_opt} -w"
 		;;
 	*)
 		usage

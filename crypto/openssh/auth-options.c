@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.70 2015/12/10 17:08:40 mmcc Exp $ */
+/* $OpenBSD: auth-options.c,v 1.72 2016/11/30 02:57:40 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -29,6 +29,7 @@
 #include "ssherr.h"
 #include "log.h"
 #include "canohost.h"
+#include "packet.h"
 #include "sshbuf.h"
 #include "misc.h"
 #include "channels.h"
@@ -120,6 +121,7 @@ match_flag(const char *opt, int allow_negate, char **optsp, const char *msg)
 int
 auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 {
+	struct ssh *ssh = active_state;		/* XXX */
 	const char *cp;
 	int i, r;
 
@@ -273,9 +275,9 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 		}
 		cp = "from=\"";
 		if (strncasecmp(opts, cp, strlen(cp)) == 0) {
-			const char *remote_ip = get_remote_ipaddr();
-			const char *remote_host = get_canonical_hostname(
-			    options.use_dns);
+			const char *remote_ip = ssh_remote_ipaddr(ssh);
+			const char *remote_host = auth_get_canonical_hostname(
+			    ssh, options.use_dns);
 			char *patterns = xmalloc(strlen(opts) + 1);
 
 			opts += strlen(cp);
@@ -457,6 +459,7 @@ parse_option_list(struct sshbuf *oblob, struct passwd *pw,
     char **cert_forced_command,
     int *cert_source_address_done)
 {
+	struct ssh *ssh = active_state;		/* XXX */
 	char *command, *allowed;
 	const char *remote_ip;
 	char *name = NULL;
@@ -530,7 +533,7 @@ parse_option_list(struct sshbuf *oblob, struct passwd *pw,
 					free(allowed);
 					goto out;
 				}
-				remote_ip = get_remote_ipaddr();
+				remote_ip = ssh_remote_ipaddr(ssh);
 				result = addr_match_cidr_list(remote_ip,
 				    allowed);
 				free(allowed);
@@ -598,7 +601,7 @@ parse_option_list(struct sshbuf *oblob, struct passwd *pw,
  * options so this must be called after auth_parse_options().
  */
 int
-auth_cert_options(struct sshkey *k, struct passwd *pw)
+auth_cert_options(struct sshkey *k, struct passwd *pw, const char **reason)
 {
 	int cert_no_port_forwarding_flag = 1;
 	int cert_no_agent_forwarding_flag = 1;
@@ -607,6 +610,8 @@ auth_cert_options(struct sshkey *k, struct passwd *pw)
 	int cert_no_user_rc = 1;
 	char *cert_forced_command = NULL;
 	int cert_source_address_done = 0;
+
+	*reason = "invalid certificate options";
 
 	/* Separate options and extensions for v01 certs */
 	if (parse_option_list(k->cert->critical, pw,
@@ -629,11 +634,24 @@ auth_cert_options(struct sshkey *k, struct passwd *pw)
 	no_x11_forwarding_flag |= cert_no_x11_forwarding_flag;
 	no_pty_flag |= cert_no_pty_flag;
 	no_user_rc |= cert_no_user_rc;
-	/* CA-specified forced command supersedes key option */
-	if (cert_forced_command != NULL) {
-		free(forced_command);
+	/*
+	 * Only permit both CA and key option forced-command if they match.
+	 * Otherwise refuse the certificate.
+	 */
+	if (cert_forced_command != NULL && forced_command != NULL) {
+		if (strcmp(forced_command, cert_forced_command) == 0) {
+			free(forced_command);
+			forced_command = cert_forced_command;
+		} else {
+			*reason = "certificate and key options forced command "
+			    "do not match";
+			free(cert_forced_command);
+			return -1;
+		}
+	} else if (cert_forced_command != NULL)
 		forced_command = cert_forced_command;
-	}
+	/* success */
+	*reason = NULL;
 	return 0;
 }
 

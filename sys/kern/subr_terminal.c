@@ -130,9 +130,34 @@ static const teken_attr_t default_message = {
 	.ta_format	= TCHAR_FORMAT(TERMINAL_NORM_ATTR)
 };
 
+/* Fudge fg brightness as TF_BOLD (shifted). */
+#define	TCOLOR_FG_FUDGED(color) __extension__ ({			\
+	teken_color_t _c;						\
+									\
+	_c = (color);							\
+	TCOLOR_FG(_c & 7) | ((_c & 8) << 18);				\
+})
+
+/* Fudge bg brightness as TF_BLINK (shifted). */
+#define	TCOLOR_BG_FUDGED(color) __extension__ ({			\
+	teken_color_t _c;						\
+									\
+	_c = (color);							\
+	TCOLOR_BG(_c & 7) | ((_c & 8) << 20);				\
+})
+
+#define	TCOLOR_256TO16(color) __extension__ ({				\
+	teken_color_t _c;						\
+									\
+	_c = (color);							\
+	if (_c >= 16)							\
+		_c = teken_256to16(_c);					\
+	_c;								\
+})
+
 #define	TCHAR_CREATE(c, a)	((c) | TFORMAT((a)->ta_format) |	\
-	TCOLOR_FG(teken_256to8((a)->ta_fgcolor)) |			\
-	TCOLOR_BG(teken_256to8((a)->ta_bgcolor)))
+	TCOLOR_FG_FUDGED(TCOLOR_256TO16((a)->ta_fgcolor)) |		\
+	TCOLOR_BG_FUDGED(TCOLOR_256TO16((a)->ta_bgcolor)))
 
 static void
 terminal_init(struct terminal *tm)
@@ -375,7 +400,10 @@ termtty_outwakeup(struct tty *tp)
 		TERMINAL_UNLOCK_TTY(tm);
 	}
 
-	tm->tm_class->tc_done(tm);
+	TERMINAL_LOCK_TTY(tm);
+	if (!(tm->tm_flags & TF_MUTE))
+		tm->tm_class->tc_done(tm);
+	TERMINAL_UNLOCK_TTY(tm);
 	if (flags & TF_BELL)
 		tm->tm_class->tc_bell(tm);
 }
@@ -545,10 +573,9 @@ termcn_cnputc(struct consdev *cp, int c)
 		teken_set_curattr(&tm->tm_emulator, &kernel_message);
 		teken_input(&tm->tm_emulator, &cv, 1);
 		teken_set_curattr(&tm->tm_emulator, &backup);
+		tm->tm_class->tc_done(tm);
 	}
 	TERMINAL_UNLOCK_CONS(tm);
-
-	tm->tm_class->tc_done(tm);
 }
 
 /*

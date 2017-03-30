@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitset.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -1217,15 +1218,16 @@ keg_small_init(uma_keg_t keg)
 	u_int memused;
 	u_int wastedspace;
 	u_int shsize;
+	u_int slabsize;
 
 	if (keg->uk_flags & UMA_ZONE_PCPU) {
 		u_int ncpus = (mp_maxid + 1) ? (mp_maxid + 1) : MAXCPU;
 
-		keg->uk_slabsize = sizeof(struct pcpu);
+		slabsize = sizeof(struct pcpu);
 		keg->uk_ppera = howmany(ncpus * sizeof(struct pcpu),
 		    PAGE_SIZE);
 	} else {
-		keg->uk_slabsize = UMA_SLAB_SIZE;
+		slabsize = UMA_SLAB_SIZE;
 		keg->uk_ppera = 1;
 	}
 
@@ -1235,8 +1237,8 @@ keg_small_init(uma_keg_t keg)
 	 * allocation bits for we round it up.
 	 */
 	rsize = keg->uk_size;
-	if (rsize < keg->uk_slabsize / SLAB_SETSIZE)
-		rsize = keg->uk_slabsize / SLAB_SETSIZE;
+	if (rsize < slabsize / SLAB_SETSIZE)
+		rsize = slabsize / SLAB_SETSIZE;
 	if (rsize & keg->uk_align)
 		rsize = (rsize & ~keg->uk_align) + (keg->uk_align + 1);
 	keg->uk_rsize = rsize;
@@ -1250,12 +1252,12 @@ keg_small_init(uma_keg_t keg)
 	else 
 		shsize = sizeof(struct uma_slab);
 
-	keg->uk_ipers = (keg->uk_slabsize - shsize) / rsize;
+	keg->uk_ipers = (slabsize - shsize) / rsize;
 	KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_SETSIZE,
 	    ("%s: keg->uk_ipers %u", __func__, keg->uk_ipers));
 
 	memused = keg->uk_ipers * rsize + shsize;
-	wastedspace = keg->uk_slabsize - memused;
+	wastedspace = slabsize - memused;
 
 	/*
 	 * We can't do OFFPAGE if we're internal or if we've been
@@ -1276,9 +1278,9 @@ keg_small_init(uma_keg_t keg)
 	 * Historically this was not done because the VM could not
 	 * efficiently handle contiguous allocations.
 	 */
-	if ((wastedspace >= keg->uk_slabsize / UMA_MAX_WASTE) &&
-	    (keg->uk_ipers < (keg->uk_slabsize / keg->uk_rsize))) {
-		keg->uk_ipers = keg->uk_slabsize / keg->uk_rsize;
+	if ((wastedspace >= slabsize / UMA_MAX_WASTE) &&
+	    (keg->uk_ipers < (slabsize / keg->uk_rsize))) {
+		keg->uk_ipers = slabsize / keg->uk_rsize;
 		KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_SETSIZE,
 		    ("%s: keg->uk_ipers %u", __func__, keg->uk_ipers));
 #ifdef UMA_DEBUG
@@ -1287,8 +1289,8 @@ keg_small_init(uma_keg_t keg)
 		    "maximum wasted space allowed = %d, "
 		    "calculated ipers = %d, "
 		    "new wasted space = %d\n", keg->uk_name, wastedspace,
-		    keg->uk_slabsize / UMA_MAX_WASTE, keg->uk_ipers,
-		    keg->uk_slabsize - keg->uk_ipers * keg->uk_rsize);
+		    slabsize / UMA_MAX_WASTE, keg->uk_ipers,
+		    slabsize - keg->uk_ipers * keg->uk_rsize);
 #endif
 		keg->uk_flags |= UMA_ZONE_OFFPAGE;
 	}
@@ -1321,7 +1323,6 @@ keg_large_init(uma_keg_t keg)
 	    ("%s: Cannot large-init a UMA_ZONE_PCPU keg", __func__));
 
 	keg->uk_ppera = howmany(keg->uk_size, PAGE_SIZE);
-	keg->uk_slabsize = keg->uk_ppera * PAGE_SIZE;
 	keg->uk_ipers = 1;
 	keg->uk_rsize = keg->uk_size;
 
@@ -1373,7 +1374,6 @@ keg_cachespread_init(uma_keg_t keg)
 	pages = MIN(pages, (128 * 1024) / PAGE_SIZE);
 	keg->uk_rsize = rsize;
 	keg->uk_ppera = pages;
-	keg->uk_slabsize = UMA_SLAB_SIZE;
 	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
 	keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
 	KASSERT(keg->uk_ipers <= SLAB_SETSIZE,
@@ -1505,7 +1505,8 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	printf("UMA: %s(%p) size %d(%d) flags %#x ipers %d ppera %d out %d free %d\n",
 	    zone->uz_name, zone, keg->uk_size, keg->uk_rsize, keg->uk_flags,
 	    keg->uk_ipers, keg->uk_ppera,
-	    (keg->uk_ipers * keg->uk_pages) - keg->uk_free, keg->uk_free);
+	    (keg->uk_pages / keg->uk_ppera) * keg->uk_ipers - keg->uk_free,
+	    keg->uk_free);
 #endif
 
 	LIST_INSERT_HEAD(&keg->uk_zones, zone, uz_link);
@@ -2916,7 +2917,7 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	keg->uk_maxpages = (nitems / keg->uk_ipers) * keg->uk_ppera;
 	if (keg->uk_maxpages * keg->uk_ipers < nitems)
 		keg->uk_maxpages += keg->uk_ppera;
-	nitems = keg->uk_maxpages * keg->uk_ipers;
+	nitems = (keg->uk_maxpages / keg->uk_ppera) * keg->uk_ipers;
 	KEG_UNLOCK(keg);
 
 	return (nitems);
@@ -2933,7 +2934,7 @@ uma_zone_get_max(uma_zone_t zone)
 	if (keg == NULL)
 		return (0);
 	KEG_LOCK(keg);
-	nitems = keg->uk_maxpages * keg->uk_ipers;
+	nitems = (keg->uk_maxpages / keg->uk_ppera) * keg->uk_ipers;
 	KEG_UNLOCK(keg);
 
 	return (nitems);
@@ -3094,13 +3095,14 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 
 	if (pages * keg->uk_ipers < count)
 		pages++;
+	pages *= keg->uk_ppera;
 
 #ifdef UMA_MD_SMALL_ALLOC
 	if (keg->uk_ppera > 1) {
 #else
 	if (1) {
 #endif
-		kva = kva_alloc((vm_size_t)pages * UMA_SLAB_SIZE);
+		kva = kva_alloc((vm_size_t)pages * PAGE_SIZE);
 		if (kva == 0)
 			return (0);
 	} else
@@ -3199,6 +3201,9 @@ uma_reclaim_worker(void *arg __unused)
 		    "umarcl", 0);
 		if (uma_reclaim_needed) {
 			uma_reclaim_needed = 0;
+			sx_xunlock(&uma_drain_lock);
+			EVENTHANDLER_INVOKE(vm_lowmem, VM_LOW_KMEM);
+			sx_xlock(&uma_drain_lock);
 			uma_reclaim_locked(true);
 		}
 	}
@@ -3297,8 +3302,8 @@ uma_print_keg(uma_keg_t keg)
 	    "out %d free %d limit %d\n",
 	    keg->uk_name, keg, keg->uk_size, keg->uk_rsize, keg->uk_flags,
 	    keg->uk_ipers, keg->uk_ppera,
-	    (keg->uk_ipers * keg->uk_pages) - keg->uk_free, keg->uk_free,
-	    (keg->uk_maxpages / keg->uk_ppera) * keg->uk_ipers);
+	    (keg->uk_pages / keg->uk_ppera) * keg->uk_ipers - keg->uk_free,
+	    keg->uk_free, (keg->uk_maxpages / keg->uk_ppera) * keg->uk_ipers);
 	printf("Part slabs:\n");
 	LIST_FOREACH(slab, &keg->uk_part_slab, us_link)
 		slab_print(slab);

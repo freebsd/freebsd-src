@@ -92,7 +92,7 @@
  *
  *	from: @(#)pmap_prot.h 1.14 88/02/08 SMI
  *	from: @(#)pmap_prot.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD: projects/bsnmp-ipv6-mib/contrib/tcpdump/print-sunrpc.c 276788 2015-01-07 19:55:18Z delphij $
+ * $FreeBSD: projects/clang400-import/contrib/tcpdump/print-sunrpc.c 276788 2015-01-07 19:55:18Z delphij $
  */
 
 /*

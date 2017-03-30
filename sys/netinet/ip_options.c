@@ -12,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -196,16 +196,19 @@ ip_dooptions(struct mbuf *m, int pass)
 #endif
 			if (!V_ip_dosourceroute) {
 				if (V_ipforwarding) {
-					char buf[16]; /* aaa.bbb.ccc.ddd\0 */
+					char srcbuf[INET_ADDRSTRLEN];
+					char dstbuf[INET_ADDRSTRLEN];
+
 					/*
 					 * Acting as a router, so generate
 					 * ICMP
 					 */
 nosourcerouting:
-					strcpy(buf, inet_ntoa(ip->ip_dst));
 					log(LOG_WARNING, 
-					    "attempted source route from %s to %s\n",
-					    inet_ntoa(ip->ip_src), buf);
+					    "attempted source route from %s "
+					    "to %s\n",
+					    inet_ntoa_r(ip->ip_src, srcbuf),
+					    inet_ntoa_r(ip->ip_dst, dstbuf));
 					type = ICMP_UNREACH;
 					code = ICMP_UNREACH_SRCFAIL;
 					goto bad;

@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.68 2016/06/07 00:40:00 sjg Exp $	*/
+/*	$NetBSD: dir.c,v 1.69 2017/01/31 06:54:23 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: dir.c,v 1.68 2016/06/07 00:40:00 sjg Exp $";
+static char rcsid[] = "$NetBSD: dir.c,v 1.69 2017/01/31 06:54:23 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)dir.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: dir.c,v 1.68 2016/06/07 00:40:00 sjg Exp $");
+__RCSID("$NetBSD: dir.c,v 1.69 2017/01/31 06:54:23 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -346,11 +346,13 @@ cached_lstat(const char *pathname, void *st)
 void
 Dir_Init(const char *cdname)
 {
-    dirSearchPath = Lst_Init(FALSE);
-    openDirectories = Lst_Init(FALSE);
-    Hash_InitTable(&mtimes, 0);
-    Hash_InitTable(&lmtimes, 0);
-
+    if (!cdname) {
+	dirSearchPath = Lst_Init(FALSE);
+	openDirectories = Lst_Init(FALSE);
+	Hash_InitTable(&mtimes, 0);
+	Hash_InitTable(&lmtimes, 0);
+	return;
+    }
     Dir_InitCur(cdname);
 
     dotLast = bmake_malloc(sizeof(Path));

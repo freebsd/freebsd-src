@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-T6FW=	${.CURDIR}/../../../dev/cxgbe/firmware
+T6FW=	${SRCTOP}/sys/dev/cxgbe/firmware
 .PATH: ${T6FW}
 
 KMOD=	t6fw_cfg

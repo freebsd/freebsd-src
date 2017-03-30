@@ -11,7 +11,7 @@ KPROGS=	lib/libpam \
 # This target is used to rebuild these programs WITH Kerberos.
 kerberize:
 .for entry in ${KPROGS}
-	cd ${.CURDIR}/../${entry}; \
+	cd ${.CURDIR:H}/${entry}; \
 	${MAKE} cleandir; \
 	${MAKE} obj; \
 	${MAKE} all; \
@@ -21,7 +21,7 @@ kerberize:
 # This target is used to rebuild these programs WITHOUT Kerberos.
 dekerberize:
 .for entry in ${KPROGS}
-	cd ${.CURDIR}/../${entry}; \
+	cd ${.CURDIR:H}/${entry}; \
 	${MAKE} MK_KERBEROS=no cleandir; \
 	${MAKE} MK_KERBEROS=no obj; \
 	${MAKE} MK_KERBEROS=no all; \

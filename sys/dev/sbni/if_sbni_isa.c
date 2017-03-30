@@ -132,7 +132,7 @@ sbni_attach_isa(device_t dev)
 	} else {
 		struct sbni_softc  *master;
 
-		if ((master = connect_to_master(sc)) == 0) {
+		if ((master = connect_to_master(sc)) == NULL) {
 			device_printf(dev, "failed to alloc irq\n");
 			sbni_release_resources(sc);
 			return (ENXIO);

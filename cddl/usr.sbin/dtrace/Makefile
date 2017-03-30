@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/dtrace
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/dtrace
 
 PROG=		dtrace
 SRCS=		dtrace.c
@@ -10,8 +10,8 @@ BINDIR?=	/usr/sbin
 
 WARNS?=		1
 
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
-		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
+CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \
+		-I${SRCTOP}/cddl/compat/opensolaris/include \
 		-I${OPENSOLARIS_USR_DISTDIR}/head \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libproc/common \

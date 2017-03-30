@@ -112,7 +112,8 @@ extern int io_compare();
 #endif
 time_t time();
 
-caddr_t get_process_info();
+caddr_t get_process_info(struct system_info *si, struct process_select *sel,
+    int (*compare)(const void *, const void *));
 
 /* different routines for displaying the user's identification */
 /* (values assigned to get_userid) */
@@ -120,15 +121,16 @@ char *username();
 char *itoa7();
 
 /* pointers to display routines */
-void (*d_loadave)() = i_loadave;
-void (*d_procstates)() = i_procstates;
-void (*d_cpustates)() = i_cpustates;
-void (*d_memory)() = i_memory;
-void (*d_arc)() = i_arc;
-void (*d_swap)() = i_swap;
-void (*d_message)() = i_message;
-void (*d_header)() = i_header;
-void (*d_process)() = i_process;
+void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
+void (*d_procstates)(int total, int *brkdn) = i_procstates;
+void (*d_cpustates)(int *states) = i_cpustates;
+void (*d_memory)(int *stats) = i_memory;
+void (*d_arc)(int *stats) = i_arc;
+void (*d_carc)(int *stats) = i_carc;
+void (*d_swap)(int *stats) = i_swap;
+void (*d_message)(void) = i_message;
+void (*d_header)(char *text) = i_header;
+void (*d_process)(int line, char *thisline) = i_process;
 
 void reset_display(void);
 
@@ -658,6 +660,7 @@ restart:
 	/* display memory stats */
 	(*d_memory)(system_info.memory);
 	(*d_arc)(system_info.arc);
+	(*d_carc)(system_info.carc);
 
 	/* display swap stats */
 	(*d_swap)(system_info.swap);
@@ -724,6 +727,7 @@ restart:
 		    d_cpustates = u_cpustates;
 		    d_memory = u_memory;
 		    d_arc = u_arc;
+		    d_carc = u_carc;
 		    d_swap = u_swap;
 		    d_message = u_message;
 		    d_header = u_header;
@@ -1190,6 +1194,7 @@ reset_display()
     d_cpustates  = i_cpustates;
     d_memory     = i_memory;
     d_arc        = i_arc;
+    d_carc       = i_carc;
     d_swap       = i_swap;
     d_message	 = i_message;
     d_header	 = i_header;

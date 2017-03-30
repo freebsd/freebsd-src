@@ -61,6 +61,11 @@ check_base_iso9660_image_contents()
 	atf_check -e empty -o empty -s exit:0 test -f $TEST_MOUNT_DIR/c
 }
 
+check_cd9660_support() {
+	kldstat -m cd9660 || \
+		atf_skip "Requires cd9660 filesystem support to be present in the kernel"
+}
+
 atf_test_case D_flag cleanup
 D_flag_body()
 {
@@ -91,6 +96,8 @@ D_flag_cleanup()
 atf_test_case F_flag cleanup
 F_flag_body()
 {
+	check_cd9660_support
+
 	create_test_inputs
 
 	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
@@ -110,6 +117,8 @@ F_flag_cleanup()
 atf_test_case from_mtree_spec_file cleanup
 from_mtree_spec_file_body()
 {
+	check_cd9660_support
+
 	create_test_inputs
 
 	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
@@ -130,6 +139,8 @@ from_mtree_spec_file_cleanup()
 atf_test_case from_multiple_dirs cleanup
 from_multiple_dirs_body()
 {
+	check_cd9660_support
+
 	test_inputs_dir2=$TMPDIR/inputs2
 
 	create_test_inputs
@@ -152,6 +163,8 @@ from_multiple_dirs_cleanup()
 atf_test_case from_single_dir cleanup
 from_single_dir_body()
 {
+	check_cd9660_support
+
 	create_test_inputs
 
 	atf_check -e empty -o empty -s exit:0 \

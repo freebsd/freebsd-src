@@ -11,6 +11,9 @@ arm/altera/socfpga/socfpga_gpio.c		optional gpio
 
 dev/mmc/host/dwmmc.c				optional dwmmc
 
+# Arria 10
+arm/altera/socfpga/socfpga_a10_manager.c	standard
+
 # BERI specific
 dev/beri/beri_ring.c				optional beri_ring
 dev/beri/beri_mem.c				optional beri_mem

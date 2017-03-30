@@ -523,6 +523,14 @@ enum c4iw_qp_state {
 	C4IW_QP_STATE_TOT
 };
 
+/*
+ * IW_CXGBE event bits.
+ * These bits are used for handling all events for a particular 'ep' serially.
+ */
+#define	C4IW_EVENT_SOCKET	0x0001
+#define	C4IW_EVENT_TIMEOUT	0x0002
+#define	C4IW_EVENT_TERM		0x0004
+
 static inline int c4iw_convert_state(enum ib_qp_state ib_state)
 {
 	switch (ib_state) {
@@ -558,6 +566,8 @@ static inline int to_ib_qp_state(int c4iw_qp_state)
 	}
 	return IB_QPS_ERR;
 }
+
+#define C4IW_DRAIN_OPCODE FW_RI_SGE_EC_CR_RETURN
 
 static inline u32 c4iw_ib_to_tpt_access(int a)
 {
@@ -754,7 +764,7 @@ struct c4iw_ep_common {
         int rpl_done;
         struct thread *thread;
         struct socket *so;
-	struct mutex so_mutex;
+	int ep_events;
 };
 
 struct c4iw_listen_ep {
@@ -767,7 +777,6 @@ struct c4iw_ep {
 	struct c4iw_ep_common com;
 	struct c4iw_ep *parent_ep;
 	struct timer_list timer;
-	struct list_head entry;
 	unsigned int atid;
 	u32 hwtid;
 	u32 snd_seq;

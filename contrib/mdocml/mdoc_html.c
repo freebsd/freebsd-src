@@ -1,4 +1,4 @@
-/*	$Id: mdoc_html.c,v 1.260 2017/01/21 02:09:51 schwarze Exp $ */
+/*	$Id: mdoc_html.c,v 1.271 2017/02/16 03:00:23 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014, 2015, 2016, 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -110,6 +110,7 @@ static	int		  mdoc_skip_pre(MDOC_ARGS);
 static	int		  mdoc_sm_pre(MDOC_ARGS);
 static	int		  mdoc_sp_pre(MDOC_ARGS);
 static	int		  mdoc_ss_pre(MDOC_ARGS);
+static	int		  mdoc_st_pre(MDOC_ARGS);
 static	int		  mdoc_sx_pre(MDOC_ARGS);
 static	int		  mdoc_sy_pre(MDOC_ARGS);
 static	int		  mdoc_va_pre(MDOC_ARGS);
@@ -155,7 +156,7 @@ static	const struct htmlmdoc mdocs[MDOC_MAX] = {
 	{mdoc_ft_pre, NULL}, /* Ot */
 	{mdoc_pa_pre, NULL}, /* Pa */
 	{mdoc_ex_pre, NULL}, /* Rv */
-	{NULL, NULL}, /* St */
+	{mdoc_st_pre, NULL}, /* St */
 	{mdoc_va_pre, NULL}, /* Va */
 	{mdoc_vt_pre, NULL}, /* Vt */
 	{mdoc_xr_pre, NULL}, /* Xr */
@@ -173,7 +174,7 @@ static	const struct htmlmdoc mdocs[MDOC_MAX] = {
 	{NULL, NULL}, /* Ac */
 	{mdoc_quote_pre, mdoc_quote_post}, /* Ao */
 	{mdoc_quote_pre, mdoc_quote_post}, /* Aq */
-	{NULL, NULL}, /* At */
+	{mdoc_xx_pre, NULL}, /* At */
 	{NULL, NULL}, /* Bc */
 	{mdoc_bf_pre, NULL}, /* Bf */
 	{mdoc_quote_pre, mdoc_quote_post}, /* Bo */
@@ -349,7 +350,7 @@ print_mdoc_node(MDOC_ARGS)
 		return;
 
 	child = 1;
-	t = h->tags.head;
+	t = h->tag;
 	n->flags &= ~NODE_ENDED;
 
 	switch (n->type) {
@@ -389,7 +390,7 @@ print_mdoc_node(MDOC_ARGS)
 		 */
 		if (h->tblt != NULL) {
 			print_tblclose(h);
-			t = h->tags.head;
+			t = h->tag;
 		}
 		assert(h->tblt == NULL);
 		if (mdocs[n->tok].pre && (n->end == ENDBODY_NOT || n->child))
@@ -416,8 +417,6 @@ print_mdoc_node(MDOC_ARGS)
 		(*mdocs[n->tok].post)(meta, n, h);
 		if (n->end != ENDBODY_NOT)
 			n->body->flags |= NODE_ENDED;
-		if (n->end == ENDBODY_NOSPACE)
-			h->flags |= HTML_NOSPACE;
 		break;
 	}
 }
@@ -428,7 +427,6 @@ mdoc_root_post(MDOC_ARGS)
 	struct tag	*t, *tt;
 
 	t = print_otag(h, TAG_TABLE, "c", "foot");
-	print_otag(h, TAG_TBODY, "");
 	tt = print_otag(h, TAG_TR, "");
 
 	print_otag(h, TAG_TD, "c", "foot-date");
@@ -459,7 +457,6 @@ mdoc_root_pre(MDOC_ARGS)
 		    meta->title, meta->msec);
 
 	t = print_otag(h, TAG_TABLE, "c", "head");
-	print_otag(h, TAG_TBODY, "");
 	tt = print_otag(h, TAG_TR, "");
 
 	print_otag(h, TAG_TD, "c", "head-ltitle");
@@ -507,22 +504,18 @@ mdoc_sh_pre(MDOC_ARGS)
 	char	*id;
 
 	switch (n->type) {
-	case ROFFT_BLOCK:
-		return 1;
+	case ROFFT_HEAD:
+		id = make_id(n);
+		print_otag(h, TAG_H1, "ci", "Sh", id);
+		free(id);
+		break;
 	case ROFFT_BODY:
 		if (n->sec == SEC_AUTHORS)
 			h->flags &= ~(HTML_SPLIT|HTML_NOSPLIT);
-		return 1;
+		break;
 	default:
 		break;
 	}
-
-	if ((id = make_id(n)) != NULL) {
-		print_otag(h, TAG_H1, "ci", "Sh", id);
-		free(id);
-	} else
-		print_otag(h, TAG_H1, "c", "Sh");
-
 	return 1;
 }
 
@@ -534,12 +527,9 @@ mdoc_ss_pre(MDOC_ARGS)
 	if (n->type != ROFFT_HEAD)
 		return 1;
 
-	if ((id = make_id(n)) != NULL) {
-		print_otag(h, TAG_H2, "ci", "Ss", id);
-		free(id);
-	} else
-		print_otag(h, TAG_H2, "c", "Ss");
-
+	id = make_id(n);
+	print_otag(h, TAG_H2, "ci", "Ss", id);
+	free(id);
 	return 1;
 }
 
@@ -581,6 +571,7 @@ mdoc_nd_pre(MDOC_ARGS)
 static int
 mdoc_nm_pre(MDOC_ARGS)
 {
+	struct tag	*t;
 	int		 len;
 
 	switch (n->type) {
@@ -589,8 +580,6 @@ mdoc_nm_pre(MDOC_ARGS)
 		/* FALLTHROUGH */
 	case ROFFT_ELEM:
 		print_otag(h, TAG_B, "c", "Nm");
-		if (n->child == NULL && meta->name != NULL)
-			print_text(h, meta->name);
 		return 1;
 	case ROFFT_BODY:
 		print_otag(h, TAG_TD, "");
@@ -609,9 +598,10 @@ mdoc_nm_pre(MDOC_ARGS)
 	if (len == 0 && meta->name != NULL)
 		len = html_strlen(meta->name);
 
+	t = print_otag(h, TAG_COLGROUP, "");
 	print_otag(h, TAG_COL, "shw", len);
 	print_otag(h, TAG_COL, "");
-	print_otag(h, TAG_TBODY, "");
+	print_tagq(h, t);
 	print_otag(h, TAG_TR, "");
 	return 1;
 }
@@ -656,7 +646,7 @@ mdoc_ns_pre(MDOC_ARGS)
 static int
 mdoc_ar_pre(MDOC_ARGS)
 {
-	print_otag(h, TAG_I, "c", "Ar");
+	print_otag(h, TAG_VAR, "c", "Ar");
 	return 1;
 }
 
@@ -671,6 +661,7 @@ static int
 mdoc_it_pre(MDOC_ARGS)
 {
 	const struct roff_node	*bl;
+	struct tag		*t;
 	const char		*cattr;
 	enum mdoc_list		 type;
 
@@ -738,7 +729,6 @@ mdoc_it_pre(MDOC_ARGS)
 	case LIST_hang:
 	case LIST_inset:
 	case LIST_ohang:
-	case LIST_tag:
 		switch (n->type) {
 		case ROFFT_HEAD:
 			if (bl->norm->Bl.comp)
@@ -749,11 +739,37 @@ mdoc_it_pre(MDOC_ARGS)
 				print_otag(h, TAG_B, "c", cattr);
 			break;
 		case ROFFT_BODY:
-			if (bl->norm->Bl.width == NULL)
+			print_otag(h, TAG_DD, "cswl", cattr,
+			    bl->norm->Bl.width);
+			break;
+		default:
+			break;
+		}
+		break;
+	case LIST_tag:
+		switch (n->type) {
+		case ROFFT_HEAD:
+			if (h->style != NULL && !bl->norm->Bl.comp &&
+			    (n->parent->prev == NULL ||
+			     n->parent->prev->body->child != NULL)) {
+				t = print_otag(h, TAG_DT, "csWl",
+				    cattr, bl->norm->Bl.width);
+				print_text(h, "\\ ");
+				print_tagq(h, t);
+				t = print_otag(h, TAG_DD, "c", cattr);
+				print_text(h, "\\ ");
+				print_tagq(h, t);
+			}
+			print_otag(h, TAG_DT, "csWl", cattr,
+			    bl->norm->Bl.width);
+			break;
+		case ROFFT_BODY:
+			if (n->child == NULL) {
+				print_otag(h, TAG_DD, "css?", cattr,
+				    "width", "auto");
+				print_text(h, "\\ ");
+			} else
 				print_otag(h, TAG_DD, "c", cattr);
-			else
-				print_otag(h, TAG_DD, "cswl", cattr,
-				    bl->norm->Bl.width);
 			break;
 		default:
 			break;
@@ -782,18 +798,20 @@ mdoc_it_pre(MDOC_ARGS)
 static int
 mdoc_bl_pre(MDOC_ARGS)
 {
+	struct tag	*t;
+	struct mdoc_bl	*bl;
 	const char	*cattr;
-	int		 i;
+	size_t		 i;
 	enum htmltag	 elemtype;
 
-	if (n->type == ROFFT_BODY) {
-		if (LIST_column == n->norm->Bl.type)
-			print_otag(h, TAG_TBODY, "");
-		return 1;
-	}
+	bl = &n->norm->Bl;
 
-	if (n->type == ROFFT_HEAD) {
-		if (LIST_column != n->norm->Bl.type)
+	switch (n->type) {
+	case ROFFT_BODY:
+		return 1;
+
+	case ROFFT_HEAD:
+		if (bl->type != LIST_column || bl->ncols == 0)
 			return 0;
 
 		/*
@@ -803,14 +821,18 @@ mdoc_bl_pre(MDOC_ARGS)
 		 * screen and we want to preserve that behaviour.
 		 */
 
-		for (i = 0; i < (int)n->norm->Bl.ncols - 1; i++)
-			print_otag(h, TAG_COL, "sww", n->norm->Bl.cols[i]);
-		print_otag(h, TAG_COL, "swW", n->norm->Bl.cols[i]);
-
+		t = print_otag(h, TAG_COLGROUP, "");
+		for (i = 0; i < bl->ncols - 1; i++)
+			print_otag(h, TAG_COL, "sww", bl->cols[i]);
+		print_otag(h, TAG_COL, "swW", bl->cols[i]);
+		print_tagq(h, t);
 		return 0;
+
+	default:
+		break;
 	}
 
-	switch (n->norm->Bl.type) {
+	switch (bl->type) {
 	case LIST_bullet:
 		elemtype = TAG_UL;
 		cattr = "Bl-bullet";
@@ -845,9 +867,11 @@ mdoc_bl_pre(MDOC_ARGS)
 		cattr = "Bl-ohang";
 		break;
 	case LIST_tag:
-		elemtype = TAG_DL;
 		cattr = "Bl-tag";
-		break;
+		if (bl->offs)
+			print_otag(h, TAG_DIV, "cswl", cattr, bl->offs);
+		print_otag(h, TAG_DL, "cswl", cattr, bl->width);
+		return 1;
 	case LIST_column:
 		elemtype = TAG_TABLE;
 		cattr = "Bl-column";
@@ -855,12 +879,7 @@ mdoc_bl_pre(MDOC_ARGS)
 	default:
 		abort();
 	}
-
-	if (n->norm->Bl.offs)
-		print_otag(h, elemtype, "cswl", cattr, n->norm->Bl.offs);
-	else
-		print_otag(h, elemtype, "c", cattr);
-
+	print_otag(h, elemtype, "cswl", cattr, bl->offs);
 	return 1;
 }
 
@@ -869,6 +888,13 @@ mdoc_ex_pre(MDOC_ARGS)
 {
 	if (n->prev)
 		print_otag(h, TAG_BR, "");
+	return 1;
+}
+
+static int
+mdoc_st_pre(MDOC_ARGS)
+{
+	print_otag(h, TAG_SPAN, "c", "St");
 	return 1;
 }
 
@@ -898,12 +924,9 @@ mdoc_sx_pre(MDOC_ARGS)
 {
 	char	*id;
 
-	if ((id = make_id(n)) != NULL) {
-		print_otag(h, TAG_A, "chR", "Sx", id);
-		free(id);
-	} else
-		print_otag(h, TAG_A, "c", "Sx");
-
+	id = make_id(n);
+	print_otag(h, TAG_A, "chR", "Sx", id);
+	free(id);
 	return 1;
 }
 
@@ -1069,12 +1092,12 @@ mdoc_fa_pre(MDOC_ARGS)
 	struct tag		*t;
 
 	if (n->parent->tok != MDOC_Fo) {
-		print_otag(h, TAG_I, "c", "Fa");
+		print_otag(h, TAG_VAR, "c", "Fa");
 		return 1;
 	}
 
 	for (nn = n->child; nn; nn = nn->next) {
-		t = print_otag(h, TAG_I, "c", "Fa");
+		t = print_otag(h, TAG_VAR, "c", "Fa");
 		print_text(h, nn->string);
 		print_tagq(h, t);
 		if (nn->next) {
@@ -1153,7 +1176,7 @@ mdoc_vt_pre(MDOC_ARGS)
 	} else if (n->type == ROFFT_HEAD)
 		return 0;
 
-	print_otag(h, TAG_I, "c", "Vt");
+	print_otag(h, TAG_VAR, "c", "Vt");
 	return 1;
 }
 
@@ -1161,7 +1184,7 @@ static int
 mdoc_ft_pre(MDOC_ARGS)
 {
 	synopsis_pre(h, n);
-	print_otag(h, TAG_I, "c", "Ft");
+	print_otag(h, TAG_VAR, "c", "Ft");
 	return 1;
 }
 
@@ -1182,7 +1205,7 @@ mdoc_fn_pre(MDOC_ARGS)
 
 	ep = strchr(sp, ' ');
 	if (NULL != ep) {
-		t = print_otag(h, TAG_I, "c", "Ft");
+		t = print_otag(h, TAG_VAR, "c", "Ft");
 
 		while (ep) {
 			sz = MIN((int)(ep - sp), BUFSIZ - 1);
@@ -1208,10 +1231,10 @@ mdoc_fn_pre(MDOC_ARGS)
 
 	for (n = n->child->next; n; n = n->next) {
 		if (NODE_SYNPRETTY & n->flags)
-			t = print_otag(h, TAG_I, "css?", "Fa",
+			t = print_otag(h, TAG_VAR, "css?", "Fa",
 			    "white-space", "nowrap");
 		else
-			t = print_otag(h, TAG_I, "c", "Fa");
+			t = print_otag(h, TAG_VAR, "c", "Fa");
 		print_text(h, n->string);
 		print_tagq(h, t);
 		if (n->next) {
@@ -1419,7 +1442,7 @@ mdoc_ic_pre(MDOC_ARGS)
 static int
 mdoc_va_pre(MDOC_ARGS)
 {
-	print_otag(h, TAG_I, "c", "Va");
+	print_otag(h, TAG_VAR, "c", "Va");
 	return 1;
 }
 
@@ -1450,7 +1473,7 @@ mdoc_bf_pre(MDOC_ARGS)
 	else if (FONT_Li == n->norm->Bf.font)
 		cattr = "Li";
 	else
-		cattr = "none";
+		cattr = "No";
 
 	/*
 	 * We want this to be inline-formatted, but needs to be div to
@@ -1493,7 +1516,7 @@ mdoc_rs_pre(MDOC_ARGS)
 	if (n->prev && SEC_SEE_ALSO == n->sec)
 		print_paragraph(h);
 
-	print_otag(h, TAG_SPAN, "c", "Rs");
+	print_otag(h, TAG_CITE, "c", "Rs");
 	return 1;
 }
 

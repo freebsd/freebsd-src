@@ -149,7 +149,6 @@ struct ieee80211com {
 	struct task		ic_chan_task;	/* deferred channel change */
 	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
 	struct task		ic_chw_task;	/* deferred HT CHW update */
-	struct task		ic_wme_task;	/* deferred WME update */
 	struct task		ic_restart_task; /* deferred device restart */
 
 	counter_u64_t		ic_ierrors;	/* input errors */
@@ -175,6 +174,7 @@ struct ieee80211com {
 	uint16_t		ic_holdover;	/* PM hold over duration */
 	uint16_t		ic_txpowlimit;	/* global tx power limit */
 	struct ieee80211_rateset ic_sup_rates[IEEE80211_MODE_MAX];
+	struct ieee80211_htrateset ic_sup_htrates;
 
 	/*
 	 * Channel state:
@@ -556,6 +556,10 @@ struct ieee80211vap {
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    const struct sockaddr *, struct route *);
 
+	int			(*iv_wme_update)(struct ieee80211vap *,
+				    const struct wmeParams *wme_params);
+	struct task		iv_wme_task;	/* deferred VAP WME update */
+
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
@@ -692,6 +696,8 @@ int	ieee80211_vap_attach(struct ieee80211vap *,
 void	ieee80211_vap_detach(struct ieee80211vap *);
 const struct ieee80211_rateset *ieee80211_get_suprates(struct ieee80211com *ic,
 		const struct ieee80211_channel *);
+const struct ieee80211_htrateset *ieee80211_get_suphtrates(
+		struct ieee80211com *, const struct ieee80211_channel *);
 void	ieee80211_announce(struct ieee80211com *);
 void	ieee80211_announce_channels(struct ieee80211com *);
 void	ieee80211_drain(struct ieee80211com *);

@@ -764,3 +764,32 @@ linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args
 
 	return (error);
 }
+
+int
+linux_rt_tgsigqueueinfo(struct thread *td, struct linux_rt_tgsigqueueinfo_args *args)
+{
+	l_siginfo_t linfo;
+	struct thread *tds;
+	ksiginfo_t ksi;
+	int error;
+	int sig;
+
+	if (!LINUX_SIG_VALID(args->sig))
+		return (EINVAL);
+
+	error = copyin(args->uinfo, &linfo, sizeof(linfo));
+	if (error != 0)
+		return (error);
+
+	if (linfo.lsi_code >= 0)
+		return (EPERM);
+
+	tds = linux_tdfind(td, args->tid, args->tgid);
+	if (tds == NULL)
+		return (ESRCH);
+
+	sig = linux_to_bsd_signal(args->sig);
+	ksiginfo_init(&ksi);
+	lsiginfo_to_ksiginfo(&linfo, &ksi, sig);
+	return (linux_do_tkill(td, tds, &ksi));
+}

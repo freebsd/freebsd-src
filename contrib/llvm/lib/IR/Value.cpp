@@ -124,10 +124,10 @@ bool Value::isUsedInBasicBlock(const BasicBlock *BB) const {
   const_user_iterator UI = user_begin(), UE = user_end();
   for (; BI != BE && UI != UE; ++BI, ++UI) {
     // Scan basic block: Check if this Value is used by the instruction at BI.
-    if (std::find(BI->op_begin(), BI->op_end(), this) != BI->op_end())
+    if (is_contained(BI->operands(), this))
       return true;
     // Scan use list: Check if the use at UI is in BB.
-    const Instruction *User = dyn_cast<Instruction>(*UI);
+    const auto *User = dyn_cast<Instruction>(*UI);
     if (User && User->getParent() == BB)
       return true;
   }
@@ -143,16 +143,16 @@ static bool getSymTab(Value *V, ValueSymbolTable *&ST) {
   if (Instruction *I = dyn_cast<Instruction>(V)) {
     if (BasicBlock *P = I->getParent())
       if (Function *PP = P->getParent())
-        ST = &PP->getValueSymbolTable();
+        ST = PP->getValueSymbolTable();
   } else if (BasicBlock *BB = dyn_cast<BasicBlock>(V)) {
     if (Function *P = BB->getParent())
-      ST = &P->getValueSymbolTable();
+      ST = P->getValueSymbolTable();
   } else if (GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
     if (Module *P = GV->getParent())
       ST = &P->getValueSymbolTable();
   } else if (Argument *A = dyn_cast<Argument>(V)) {
     if (Function *P = A->getParent())
-      ST = &P->getValueSymbolTable();
+      ST = P->getValueSymbolTable();
   } else {
     assert(isa<Constant>(V) && "Unknown value type!");
     return true;  // no name is setable for this.
@@ -367,7 +367,7 @@ static bool contains(Value *Expr, Value *V) {
 }
 #endif // NDEBUG
 
-void Value::replaceAllUsesWith(Value *New) {
+void Value::doRAUW(Value *New, bool NoMetadata) {
   assert(New && "Value::replaceAllUsesWith(<null>) is invalid!");
   assert(!contains(New, this) &&
          "this->replaceAllUsesWith(expr(this)) is NOT valid!");
@@ -377,7 +377,7 @@ void Value::replaceAllUsesWith(Value *New) {
   // Notify all ValueHandles (if present) that this value is going away.
   if (HasValueHandle)
     ValueHandleBase::ValueIsRAUWd(this, New);
-  if (isUsedByMetadata())
+  if (!NoMetadata && isUsedByMetadata())
     ValueAsMetadata::handleRAUW(this, New);
 
   while (!use_empty()) {
@@ -396,6 +396,14 @@ void Value::replaceAllUsesWith(Value *New) {
 
   if (BasicBlock *BB = dyn_cast<BasicBlock>(this))
     BB->replaceSuccessorsPhiUsesWith(cast<BasicBlock>(New));
+}
+
+void Value::replaceAllUsesWith(Value *New) {
+  doRAUW(New, false /* NoMetadata */);
+}
+
+void Value::replaceNonMetadataUsesWith(Value *New) {
+  doRAUW(New, true /* NoMetadata */);
 }
 
 // Like replaceAllUsesWith except it does not handle constants or basic blocks.
@@ -449,7 +457,7 @@ static Value *stripPointerCastsAndOffsets(Value *V) {
       case PSK_InBoundsConstantIndices:
         if (!GEP->hasAllConstantIndices())
           return V;
-        // fallthrough
+        LLVM_FALLTHROUGH;
       case PSK_InBounds:
         if (!GEP->isInBounds())
           return V;
@@ -664,6 +672,16 @@ void Value::reverseUseList() {
   Head->setPrev(&UseList);
 }
 
+bool Value::isSwiftError() const {
+  auto *Arg = dyn_cast<Argument>(this);
+  if (Arg)
+    return Arg->hasSwiftErrorAttr();
+  auto *Alloca = dyn_cast<AllocaInst>(this);
+  if (!Alloca)
+    return false;
+  return Alloca->isSwiftError();
+}
+
 //===----------------------------------------------------------------------===//
 //                             ValueHandleBase Class
 //===----------------------------------------------------------------------===//
@@ -848,7 +866,7 @@ void ValueHandleBase::ValueIsRAUWd(Value *Old, Value *New) {
       // virtual (or inline) interface to handle this though, so instead we make
       // the TrackingVH accessors guarantee that a client never sees this value.
 
-      // FALLTHROUGH
+      LLVM_FALLTHROUGH;
     case Weak:
       // Weak goes to the new value, which will unlink it from Old's list.
       Entry->operator=(New);

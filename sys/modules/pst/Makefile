@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/pst
+.PATH: ${SRCTOP}/sys/dev/pst
 
 KMOD=	pst
 SRCS=	pst-pci.c pst-iop.c pst-raid.c

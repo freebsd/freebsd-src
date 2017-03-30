@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../compat/linprocfs
+.PATH: ${SRCTOP}/sys/compat/linprocfs
 
 KMOD=	linprocfs
 SRCS=	vnode_if.h \

@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_char.7,v 1.63 2015/09/02 15:38:35 schwarze Exp $
+.\"	$Id: mandoc_char.7,v 1.64 2017/02/05 21:41:21 schwarze Exp $
 .\"
 .\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -16,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 2 2015 $
+.Dd $Mdocdate: February 5 2017 $
 .Dt MANDOC_CHAR 7
 .Os
 .Sh NAME
@@ -61,6 +61,30 @@ The hyphen does not need to be escaped:
 blue-eyed
 lorry-driver
 .Ed
+.Pp
+If a word on a text input line contains a hyphen, a formatter may decide
+to insert an output line break after the hyphen if that helps filling
+the current output line, but the whole word would overflow the line.
+If it is important that the word is not broken across lines in this
+way, a zero-width space
+.Pq Sq \e&
+can be inserted before or after the hyphen.
+While
+.Xr mandoc 1
+never breaks the output line after hyphens adjacent to a zero-width
+space, after any of the other dash- or hyphen-like characters
+represented by escape sequences, or after hyphens inside words in
+macro arguments, other software may not respect these rules and may
+break the line even in such cases.
+.Pp
+Some
+.Xr roff 7
+implementations contains dictionaries allowing to break the line
+at syllable boundaries even inside words that contain no hyphens.
+Such automatic hyphenation is not supported by
+.Xr mandoc 1 ,
+which only breaks the line at whitespace, and inside words only
+after existing hyphens.
 .Pp
 The mathematical minus sign is used for negative numbers or subtraction.
 It should be written as

@@ -98,42 +98,6 @@ linux_kern_lstat(struct thread *td, char *path, enum uio_seg pathseg,
 	    pathseg, sbp));
 }
 
-/*
- * XXX: This was removed from newstat_copyout(), and almost identical
- * XXX: code was in stat64_copyout().  findcdev() needs to be replaced
- * XXX: with something that does lookup and locking properly.
- * XXX: When somebody fixes this: please try to avoid duplicating it.
- */
-#if 0
-static void
-disk_foo(struct somestat *tbuf)
-{
-	struct cdevsw *cdevsw;
-	struct cdev *dev;
-
-	/* Lie about disk drives which are character devices
-	 * in FreeBSD but block devices under Linux.
-	 */
-	if (S_ISCHR(tbuf.st_mode) &&
-	    (dev = findcdev(buf->st_rdev)) != NULL) {
-		cdevsw = dev_refthread(dev);
-		if (cdevsw != NULL) {
-			if (cdevsw->d_flags & D_DISK) {
-				tbuf.st_mode &= ~S_IFMT;
-				tbuf.st_mode |= S_IFBLK;
-
-				/* XXX this may not be quite right */
-				/* Map major number to 0 */
-				tbuf.st_dev = minor(buf->st_dev) & 0xf;
-				tbuf.st_rdev = buf->st_rdev & 0xff;
-			}
-			dev_relthread(dev);
-		}
-	}
-
-}
-#endif
-
 static void
 translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 {
@@ -339,7 +303,9 @@ struct l_statfs {
 	l_long		f_ffree;
 	l_fsid_t	f_fsid;
 	l_long		f_namelen;
-	l_long		f_spare[6];
+	l_long		f_frsize;
+	l_long		f_flags;
+	l_long		f_spare[4];
 };
 
 #define	LINUX_CODA_SUPER_MAGIC	0x73757245L
@@ -407,6 +373,9 @@ bsd_to_linux_statfs(struct statfs *bsd_statfs, struct l_statfs *linux_statfs)
 	linux_statfs->f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
 	linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
 	linux_statfs->f_namelen = MAXNAMLEN;
+	linux_statfs->f_frsize = bsd_statfs->f_bsize;
+	linux_statfs->f_flags = 0;
+	memset(linux_statfs->f_spare, 0, sizeof(linux_statfs->f_spare));
 
 	return (0);
 }
@@ -451,6 +420,9 @@ bsd_to_linux_statfs64(struct statfs *bsd_statfs, struct l_statfs64 *linux_statfs
 	linux_statfs->f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
 	linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
 	linux_statfs->f_namelen = MAXNAMLEN;
+	linux_statfs->f_frsize = bsd_statfs->f_bsize;
+	linux_statfs->f_flags = 0;
+	memset(linux_statfs->f_spare, 0, sizeof(linux_statfs->f_spare));
 }
 
 int

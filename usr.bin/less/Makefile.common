@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-LSDIR=	${.CURDIR}/../../contrib/less
+LSDIR=	${SRCTOP}/contrib/less
 .PATH:	${LSDIR}
 
-CFLAGS+=-I${.CURDIR}/../less -I${LSDIR}
+CFLAGS+=-I${SRCTOP}/usr.bin/less -I${LSDIR}
 WARNS?=	1
 
 .SUFFIXES: .nro .1

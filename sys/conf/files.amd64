@@ -34,7 +34,7 @@ cloudabi64_vdso_blob.o		optional	compat_cloudabi64	\
 #
 linux32_genassym.o		optional	compat_linux32		\
 	dependency 	"$S/amd64/linux32/linux32_genassym.c"		\
-	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
+	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"linux32_genassym.o"
 #
@@ -58,7 +58,7 @@ linux32_vdso.so		optional	compat_linux32			\
 #
 ia32_genassym.o			standard				\
 	dependency 	"$S/compat/ia32/ia32_genassym.c"		\
-	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
+	compile-with	"${CC} ${CFLAGS:N-flto:N-fno-common} -c ${.IMPSRC}" \
 	no-obj no-implicit-rule						\
 	clean		"ia32_genassym.o"
 #
@@ -125,7 +125,6 @@ acpi_wakedata.h			optional	acpi			\
 	no-obj no-implicit-rule	before-depend				\
 	clean		"acpi_wakedata.h"
 #
-amd64/amd64/amd64_mem.c		optional	mem
 #amd64/amd64/apic_vector.S	standard
 amd64/amd64/atomic.c		standard
 amd64/amd64/bios.c		standard
@@ -546,6 +545,9 @@ isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/kern_clocksource.c		standard
 kern/link_elf_obj.c		standard
+libkern/x86/crc32_sse42.c	standard
+libkern/memmove.c		standard
+libkern/memset.c		standard
 #
 # IA32 binary support
 #
@@ -603,14 +605,6 @@ compat/ndis/subr_pe.c		optional	ndisapi pci
 compat/ndis/subr_usbd.c		optional	ndisapi pci
 compat/ndis/winx64_wrap.S	optional	ndisapi pci
 #
-crc32_sse42.o			standard				\
-	dependency	"$S/libkern/x86/crc32_sse42.c"			\
-	compile-with	"${CC} -c ${CFLAGS:N-nostdinc} ${WERROR} ${PROF} -msse4 ${.IMPSRC}" \
-	no-implicit-rule						\
-	clean		"crc32_sse42.o"
-libkern/memmove.c		standard
-libkern/memset.c		standard
-#
 # x86 real mode BIOS emulator, required by dpms/pci/vesa
 #
 compat/x86bios/x86bios.c	optional x86bios | dpms | pci | vesa
@@ -667,6 +661,7 @@ x86/x86/io_apic.c		standard
 x86/x86/legacy.c		standard
 x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard
+x86/x86/x86_mem.c		optional	mem
 x86/x86/mptable.c		optional	mptable
 x86/x86/mptable_pci.c		optional	mptable pci
 x86/x86/mp_x86.c		optional	smp

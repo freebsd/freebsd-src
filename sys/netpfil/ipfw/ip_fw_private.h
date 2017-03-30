@@ -741,10 +741,8 @@ struct table_info;
 typedef int (table_lookup_t)(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val);
 
-int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
-    uint32_t *val);
-int ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl,
-    uint16_t plen, void *paddr, uint32_t *val);
+int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
+    void *paddr, uint32_t *val);
 struct named_object *ipfw_objhash_lookup_table_kidx(struct ip_fw_chain *ch,
     uint16_t kidx);
 int ipfw_ref_table(struct ip_fw_chain *ch, ipfw_obj_ntlv *ntlv, uint16_t *kidx);

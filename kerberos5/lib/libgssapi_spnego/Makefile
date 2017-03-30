@@ -31,7 +31,7 @@ CFLAGS+=-I${KRB5DIR}/lib/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/spnego
 CFLAGS+=-I${KRB5DIR}/lib/asn1
-CFLAGS+=-I${.CURDIR}/../../../lib/libgssapi
+CFLAGS+=-I${SRCTOP}/lib/libgssapi
 CFLAGS+=-I${KRB5DIR}/lib/roken -I.
 
 CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} \
@@ -45,7 +45,7 @@ ${GEN}: spnego.asn1 spnego.opt
 
 .SUFFIXES: .h .c .x .hx
 
-.x.c:   
+.x.c:
 	${CP} ${.IMPSRC} ${.TARGET}
 
 .hx.h:
@@ -55,4 +55,4 @@ ${GEN}: spnego.asn1 spnego.opt
 
 .SUFFIXES: .h .c .x .hx
 
-.PATH: ${KRB5DIR}/lib/gssapi/spnego ${.CURDIR}/../../../lib/libgssapi ${.CURDIR}/../libgssapi_krb5
+.PATH: ${KRB5DIR}/lib/gssapi/spnego ${SRCTOP}/lib/libgssapi ${.CURDIR:H}/libgssapi_krb5

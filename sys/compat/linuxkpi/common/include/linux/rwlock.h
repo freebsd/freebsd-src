@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/libkern.h>
 
 typedef struct {
 	struct rwlock rw;

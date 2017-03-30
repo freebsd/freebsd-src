@@ -38,7 +38,6 @@
 
 __FBSDID("$FreeBSD$");
 
-
 #if __ARM_ARCH >= 7
 #if defined(__ARM_ARCH_7VE__) || defined(__clang__)
 /*
@@ -46,11 +45,6 @@ __FBSDID("$FreeBSD$");
  * when enabled. llvm >= 3.6 supports it too.
  */
 .arch_extension virt
-#define	MSR_ELR_HYP(regnum)	msr	elr_hyp, lr
-#define	ERET	eret
-#else
-#define MSR_ELR_HYP(regnum) .word (0xe12ef300 | regnum)
-#define ERET .word 0xe160006e
 #endif
 #endif /* __ARM_ARCH >= 7 */
 
@@ -61,12 +55,17 @@ __FBSDID("$FreeBSD$");
 	.align	2
 
 #if __ARM_ARCH >= 7
-#define	LEAVE_HYP							\
+#define	HANDLE_HYP							\
 	/* Leave HYP mode */						;\
 	mrs	r0, cpsr						;\
 	and	r0, r0, #(PSR_MODE)   /* Mode is in the low 5 bits of CPSR */ ;\
 	teq	r0, #(PSR_HYP32_MODE) /* Hyp Mode? */			;\
 	bne	1f							;\
+	/* Install Hypervisor Stub Exception Vector */			;\
+	bl hypervisor_stub_vect_install					;\
+	mov	r0, 0							;\
+	adr	r1, hypmode_enabled					;\
+	str	r0, [r1]						;\
 	/* Ensure that IRQ, FIQ and Aborts will be disabled after eret */ ;\
 	mrs	r0, cpsr						;\
 	bic	r0, r0, #(PSR_MODE)					;\
@@ -74,12 +73,16 @@ __FBSDID("$FreeBSD$");
 	orr	r0, r0, #(PSR_I | PSR_F | PSR_A)			;\
 	msr	spsr_cxsf, r0						;\
 	/* Exit hypervisor mode */					;\
-	adr	lr, 1f							;\
+	adr	lr, 2f							;\
 	MSR_ELR_HYP(14)							;\
 	ERET								;\
-1:
+1:									;\
+	mov	r0, -1							;\
+	adr	r1, hypmode_enabled					;\
+	str	r0, [r1]						;\
+2:
 #else
-#define	LEAVE_HYP
+#define	HANDLE_HYP
 #endif /* __ARM_ARCH >= 7 */
 
 /*
@@ -107,7 +110,8 @@ ASENTRY_NP(_start)
 	mov	r10, r2		/* Save meta data */
 	mov	r11, r3		/* Future expansion */
 
-	LEAVE_HYP
+	# If HYP-MODE is active, install an exception vector stub
+	HANDLE_HYP
 
 	/*
 	 * Check whether data cache is enabled.  If it is, then we know
@@ -411,6 +415,9 @@ build_pagetables:
 
 VA_TO_PA_POINTER(Lpagetable, boot_pt1)
 
+	.global _C_LABEL(hypmode_enabled)
+_C_LABEL(hypmode_enabled):
+	.word 0
 
 .Lstart:
 	.word	_edata			/* Note that these three items are */
@@ -444,7 +451,7 @@ ASENTRY_NP(mpentry)
 	/* Make sure interrupts are disabled. */
 	cpsid	ifa
 
-	LEAVE_HYP
+	HANDLE_HYP
 
 	/* Setup core, disable all caches. */
 	mrc	CP15_SCTLR(r0)

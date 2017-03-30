@@ -54,6 +54,12 @@ public:
   /// that contains the header.
   MachineBasicBlock *getBottomBlock();
 
+  /// \brief Find the block that contains the loop control variable and the
+  /// loop test. This will return the latch block if it's one of the exiting
+  /// blocks. Otherwise, return the exiting block. Return 'null' when
+  /// multiple exiting blocks are present.
+  MachineBasicBlock *findLoopControlBlock();
+
   void dump() const;
 
 private:
@@ -80,6 +86,14 @@ public:
   }
 
   LoopInfoBase<MachineBasicBlock, MachineLoop>& getBase() { return LI; }
+
+  /// \brief Find the block that either is the loop preheader, or could
+  /// speculatively be used as the preheader. This is e.g. useful to place
+  /// loop setup code. Code that cannot be speculated should not be placed
+  /// here. SpeculativePreheader is controlling whether it also tries to
+  /// find the speculative preheader if the regular preheader is not present.
+  MachineBasicBlock *findLoopPreheader(MachineLoop *L,
+                                       bool SpeculativePreheader = false) const;
 
   /// The iterator interface to the top-level loops in the current function.
   typedef LoopInfoBase<MachineBasicBlock, MachineLoop>::iterator iterator;
@@ -148,29 +162,21 @@ public:
 
 // Allow clients to walk the list of nested loops...
 template <> struct GraphTraits<const MachineLoop*> {
-  typedef const MachineLoop NodeType;
+  typedef const MachineLoop *NodeRef;
   typedef MachineLoopInfo::iterator ChildIteratorType;
 
-  static NodeType *getEntryNode(const MachineLoop *L) { return L; }
-  static inline ChildIteratorType child_begin(NodeType *N) {
-    return N->begin();
-  }
-  static inline ChildIteratorType child_end(NodeType *N) {
-    return N->end();
-  }
+  static NodeRef getEntryNode(const MachineLoop *L) { return L; }
+  static ChildIteratorType child_begin(NodeRef N) { return N->begin(); }
+  static ChildIteratorType child_end(NodeRef N) { return N->end(); }
 };
 
 template <> struct GraphTraits<MachineLoop*> {
-  typedef MachineLoop NodeType;
+  typedef MachineLoop *NodeRef;
   typedef MachineLoopInfo::iterator ChildIteratorType;
 
-  static NodeType *getEntryNode(MachineLoop *L) { return L; }
-  static inline ChildIteratorType child_begin(NodeType *N) {
-    return N->begin();
-  }
-  static inline ChildIteratorType child_end(NodeType *N) {
-    return N->end();
-  }
+  static NodeRef getEntryNode(MachineLoop *L) { return L; }
+  static ChildIteratorType child_begin(NodeRef N) { return N->begin(); }
+  static ChildIteratorType child_end(NodeRef N) { return N->end(); }
 };
 
 } // End llvm namespace

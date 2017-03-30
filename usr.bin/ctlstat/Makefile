@@ -2,7 +2,7 @@
 
 PROG=		ctlstat
 MAN=		ctlstat.8
-SDIR=		${.CURDIR}/../../sys
+SDIR=		${SRCTOP}/sys
 CFLAGS+=	-I${SDIR}
 
 .include <bsd.prog.mk>

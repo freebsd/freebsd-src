@@ -302,7 +302,7 @@ namespace llvm {
       N_EXT  = 0x01
     };
 
-    enum NListType {
+    enum NListType : uint8_t {
       // Constants for the "n_type & N_TYPE" llvm::MachO::nlist and
       // llvm::MachO::nlist_64
       N_UNDF = 0x0u,
@@ -578,6 +578,7 @@ namespace llvm {
       uint32_t header_addr;
     };
 
+    // The fvmlib_command is obsolete and no longer supported.
     struct fvmlib_command {
       uint32_t  cmd;
       uint32_t cmdsize;
@@ -621,6 +622,7 @@ namespace llvm {
       uint32_t sub_library;
     };
 
+    // The prebound_dylib_command is obsolete and no longer supported.
     struct prebound_dylib_command {
       uint32_t cmd;
       uint32_t cmdsize;
@@ -740,6 +742,7 @@ namespace llvm {
                flags:8;
     };
 
+    // The twolevel_hints_command is obsolete and no longer supported.
     struct twolevel_hints_command {
       uint32_t cmd;
       uint32_t cmdsize;
@@ -747,11 +750,13 @@ namespace llvm {
       uint32_t nhints;
     };
 
+    // The twolevel_hints_command is obsolete and no longer supported.
     struct twolevel_hint {
       uint32_t isub_image:8,
                itoc:24;
     };
 
+    // The prebind_cksum_command is obsolete and no longer supported.
     struct prebind_cksum_command {
       uint32_t cmd;
       uint32_t cmdsize;
@@ -835,6 +840,7 @@ namespace llvm {
       uint32_t count;
     };
 
+    // The symseg_command is obsolete and no longer supported.
     struct symseg_command {
       uint32_t cmd;
       uint32_t cmdsize;
@@ -842,11 +848,13 @@ namespace llvm {
       uint32_t size;
     };
 
+    // The ident_command is obsolete and no longer supported.
     struct ident_command {
       uint32_t cmd;
       uint32_t cmdsize;
     };
 
+    // The fvmfile_command is obsolete and no longer supported.
     struct fvmfile_command {
       uint32_t cmd;
       uint32_t cmdsize;
@@ -1268,12 +1276,14 @@ namespace llvm {
       sys::swapByteOrder(C);
     }
 
+    // The prebind_cksum_command is obsolete and no longer supported.
     inline void swapStruct(prebind_cksum_command &C) {
       sys::swapByteOrder(C.cmd);
       sys::swapByteOrder(C.cmdsize);
       sys::swapByteOrder(C.cksum);
     }
 
+    // The twolevel_hints_command is obsolete and no longer supported.
     inline void swapStruct(twolevel_hints_command &C) {
       sys::swapByteOrder(C.cmd);
       sys::swapByteOrder(C.cmdsize);
@@ -1281,6 +1291,7 @@ namespace llvm {
       sys::swapByteOrder(C.nhints);
     }
 
+    // The prebound_dylib_command is obsolete and no longer supported.
     inline void swapStruct(prebound_dylib_command &C) {
       sys::swapByteOrder(C.cmd);
       sys::swapByteOrder(C.cmdsize);
@@ -1289,6 +1300,7 @@ namespace llvm {
       sys::swapByteOrder(C.linked_modules);
     }
 
+    // The fvmfile_command is obsolete and no longer supported.
     inline void swapStruct(fvmfile_command &C) {
       sys::swapByteOrder(C.cmd);
       sys::swapByteOrder(C.cmdsize);
@@ -1296,6 +1308,7 @@ namespace llvm {
       sys::swapByteOrder(C.header_addr);
     }
 
+    // The symseg_command is obsolete and no longer supported.
     inline void swapStruct(symseg_command &C) {
       sys::swapByteOrder(C.cmd);
       sys::swapByteOrder(C.cmdsize);
@@ -1303,6 +1316,7 @@ namespace llvm {
       sys::swapByteOrder(C.size);
     }
 
+    // The ident_command is obsolete and no longer supported.
     inline void swapStruct(ident_command &C) {
       sys::swapByteOrder(C.cmd);
       sys::swapByteOrder(C.cmdsize);
@@ -1314,6 +1328,7 @@ namespace llvm {
       sys::swapByteOrder(C.header_addr);
     }
 
+    // The fvmlib_command is obsolete and no longer supported.
     inline void swapStruct(fvmlib_command &C) {
       sys::swapByteOrder(C.cmd);
       sys::swapByteOrder(C.cmdsize);
@@ -1709,6 +1724,204 @@ namespace llvm {
       sizeof(x86_float_state_t) / sizeof(uint32_t);
     const uint32_t x86_EXCEPTION_STATE_COUNT =
       sizeof(x86_exception_state_t) / sizeof(uint32_t);
+
+    struct arm_thread_state32_t {
+      uint32_t r[13];
+      uint32_t sp;
+      uint32_t lr;
+      uint32_t pc;
+      uint32_t cpsr;
+    };
+
+    inline void swapStruct(arm_thread_state32_t &x) {
+      for (int i = 0; i < 13; i++)
+        sys::swapByteOrder(x.r[i]);
+      sys::swapByteOrder(x.sp);
+      sys::swapByteOrder(x.lr);
+      sys::swapByteOrder(x.pc);
+      sys::swapByteOrder(x.cpsr);
+    }
+
+    struct arm_thread_state64_t {
+      uint64_t x[29];
+      uint64_t fp;
+      uint64_t lr;
+      uint64_t sp;
+      uint64_t pc;
+      uint32_t cpsr;
+      uint32_t pad;
+    };
+
+    inline void swapStruct(arm_thread_state64_t &x) {
+      for (int i = 0; i < 29; i++)
+        sys::swapByteOrder(x.x[i]);
+      sys::swapByteOrder(x.fp);
+      sys::swapByteOrder(x.lr);
+      sys::swapByteOrder(x.sp);
+      sys::swapByteOrder(x.pc);
+      sys::swapByteOrder(x.cpsr);
+    }
+
+    struct arm_state_hdr_t {
+      uint32_t flavor;
+      uint32_t count;
+    };
+
+    struct arm_thread_state_t {
+      arm_state_hdr_t tsh;
+      union {
+        arm_thread_state32_t ts32;
+      } uts;
+    };
+
+    inline void swapStruct(arm_state_hdr_t &x) {
+      sys::swapByteOrder(x.flavor);
+      sys::swapByteOrder(x.count);
+    }
+
+    enum ARMThreadFlavors {
+      ARM_THREAD_STATE      = 1,
+      ARM_VFP_STATE         = 2,
+      ARM_EXCEPTION_STATE   = 3,
+      ARM_DEBUG_STATE       = 4,
+      ARN_THREAD_STATE_NONE = 5,
+      ARM_THREAD_STATE64    = 6,
+      ARM_EXCEPTION_STATE64 = 7
+    };
+
+    inline void swapStruct(arm_thread_state_t &x) {
+      swapStruct(x.tsh);
+      if (x.tsh.flavor == ARM_THREAD_STATE)
+        swapStruct(x.uts.ts32);
+    }
+
+    const uint32_t ARM_THREAD_STATE_COUNT =
+      sizeof(arm_thread_state32_t) / sizeof(uint32_t);
+
+    const uint32_t ARM_THREAD_STATE64_COUNT =
+      sizeof(arm_thread_state64_t) / sizeof(uint32_t);
+
+    struct ppc_thread_state32_t {
+      uint32_t srr0;
+      uint32_t srr1;
+      uint32_t r0;
+      uint32_t r1;
+      uint32_t r2;
+      uint32_t r3;
+      uint32_t r4;
+      uint32_t r5;
+      uint32_t r6;
+      uint32_t r7;
+      uint32_t r8;
+      uint32_t r9;
+      uint32_t r10;
+      uint32_t r11;
+      uint32_t r12;
+      uint32_t r13;
+      uint32_t r14;
+      uint32_t r15;
+      uint32_t r16;
+      uint32_t r17;
+      uint32_t r18;
+      uint32_t r19;
+      uint32_t r20;
+      uint32_t r21;
+      uint32_t r22;
+      uint32_t r23;
+      uint32_t r24;
+      uint32_t r25;
+      uint32_t r26;
+      uint32_t r27;
+      uint32_t r28;
+      uint32_t r29;
+      uint32_t r30;
+      uint32_t r31;
+      uint32_t ct;
+      uint32_t xer;
+      uint32_t lr;
+      uint32_t ctr;
+      uint32_t mq;
+      uint32_t vrsave;
+    };
+
+    inline void swapStruct(ppc_thread_state32_t &x) {
+      sys::swapByteOrder(x.srr0);
+      sys::swapByteOrder(x.srr1);
+      sys::swapByteOrder(x.r0);
+      sys::swapByteOrder(x.r1);
+      sys::swapByteOrder(x.r2);
+      sys::swapByteOrder(x.r3);
+      sys::swapByteOrder(x.r4);
+      sys::swapByteOrder(x.r5);
+      sys::swapByteOrder(x.r6);
+      sys::swapByteOrder(x.r7);
+      sys::swapByteOrder(x.r8);
+      sys::swapByteOrder(x.r9);
+      sys::swapByteOrder(x.r10);
+      sys::swapByteOrder(x.r11);
+      sys::swapByteOrder(x.r12);
+      sys::swapByteOrder(x.r13);
+      sys::swapByteOrder(x.r14);
+      sys::swapByteOrder(x.r15);
+      sys::swapByteOrder(x.r16);
+      sys::swapByteOrder(x.r17);
+      sys::swapByteOrder(x.r18);
+      sys::swapByteOrder(x.r19);
+      sys::swapByteOrder(x.r20);
+      sys::swapByteOrder(x.r21);
+      sys::swapByteOrder(x.r22);
+      sys::swapByteOrder(x.r23);
+      sys::swapByteOrder(x.r24);
+      sys::swapByteOrder(x.r25);
+      sys::swapByteOrder(x.r26);
+      sys::swapByteOrder(x.r27);
+      sys::swapByteOrder(x.r28);
+      sys::swapByteOrder(x.r29);
+      sys::swapByteOrder(x.r30);
+      sys::swapByteOrder(x.r31);
+      sys::swapByteOrder(x.ct);
+      sys::swapByteOrder(x.xer);
+      sys::swapByteOrder(x.lr);
+      sys::swapByteOrder(x.ctr);
+      sys::swapByteOrder(x.mq);
+      sys::swapByteOrder(x.vrsave);
+    }
+
+    struct ppc_state_hdr_t {
+      uint32_t flavor;
+      uint32_t count;
+    };
+
+    struct ppc_thread_state_t {
+      ppc_state_hdr_t tsh;
+      union {
+        ppc_thread_state32_t ts32;
+      } uts;
+    };
+
+    inline void swapStruct(ppc_state_hdr_t &x) {
+      sys::swapByteOrder(x.flavor);
+      sys::swapByteOrder(x.count);
+    }
+
+    enum PPCThreadFlavors {
+      PPC_THREAD_STATE      = 1,
+      PPC_FLOAT_STATE       = 2,
+      PPC_EXCEPTION_STATE   = 3,
+      PPC_VECTOR_STATE      = 4,
+      PPC_THREAD_STATE64    = 5,
+      PPC_EXCEPTION_STATE64 = 6,
+      PPC_THREAD_STATE_NONE = 7
+    };
+
+    inline void swapStruct(ppc_thread_state_t &x) {
+      swapStruct(x.tsh);
+      if (x.tsh.flavor == PPC_THREAD_STATE)
+        swapStruct(x.uts.ts32);
+    }
+
+    const uint32_t PPC_THREAD_STATE_COUNT =
+      sizeof(ppc_thread_state32_t) / sizeof(uint32_t);
 
     // Define a union of all load command structs
     #define LOAD_COMMAND_STRUCT(LCStruct) LCStruct LCStruct##_data;

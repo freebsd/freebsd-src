@@ -1,6 +1,6 @@
-# $Id: meta.stage.mk,v 1.47 2016/12/07 23:07:49 sjg Exp $
+# $Id: meta.stage.mk,v 1.48 2017/03/01 22:48:07 sjg Exp $
 #
-#	@(#) Copyright (c) 2011, Simon J. Gerraty
+#	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -14,7 +14,7 @@
 #
 
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+# the guard target is defined later
 
 .if ${.MAKE.DEPENDFILE_PREFERENCE:U${.MAKE.DEPENDFILE}:M*.${MACHINE}} != ""
 # this is generally safer anyway
@@ -127,26 +127,17 @@ STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
   done; :; }
 
 # this is simple, a list of the "staged" files depends on this,
-_STAGE_BASENAME_USE:	.USE ${.TARGET:T}
+_STAGE_BASENAME_USE:	.USE .dirdep ${.TARGET:T}
 	@${STAGE_FILE_SCRIPT}; StageFiles ${.TARGET:H:${STAGE_DIR_FILTER}} ${.TARGET:T}
 
-_STAGE_AS_BASENAME_USE:        .USE ${.TARGET:T}
+_STAGE_AS_BASENAME_USE:        .USE .dirdep ${.TARGET:T}
 	@${STAGE_AS_SCRIPT}; StageAs ${.TARGET:H:${STAGE_DIR_FILTER}} ${.TARGET:T} ${STAGE_AS_${.TARGET:T}:U${.TARGET:T}}
 
-.if !empty(STAGE_INCSDIR)
-STAGE_TARGETS += stage_incs
-STAGE_INCS ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
 stage_includes: stage_incs
 stage_incs:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_INCSDIR:${STAGE_DIR_FILTER}} ${STAGE_INCS}
 	@touch $@
-.endif
-
-.if !empty(STAGE_LIBDIR)
-STAGE_TARGETS += stage_libs
-
-STAGE_LIBS ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
 stage_libs:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${STAGE_LIBS}
@@ -159,6 +150,18 @@ stage_libs:	.dirdep
 .endif
 .endif
 	@touch $@
+
+.endif				# first time
+
+
+.if !empty(STAGE_INCSDIR)
+STAGE_TARGETS += stage_incs
+STAGE_INCS ?= ${.ALLSRC:N.dirdep:Nstage_*}
+.endif
+
+.if !empty(STAGE_LIBDIR)
+STAGE_TARGETS += stage_libs
+STAGE_LIBS ?= ${.ALLSRC:N.dirdep:Nstage_*}
 .endif
 
 .if !empty(STAGE_DIR)
@@ -184,6 +187,8 @@ STAGE_LINKS_DIR.$s ?= ${STAGE_OBJTOP}
 STAGE_SYMLINKS_DIR.$s ?= ${STAGE_OBJTOP}
 
 STAGE_TARGETS += stage_files
+.if !target(.stage_files.$s)
+.stage_files.$s:
 .if $s != "_default"
 stage_files:	stage_files.$s
 stage_files.$s:	.dirdep
@@ -192,8 +197,11 @@ stage_files:	.dirdep
 .endif
 	@${STAGE_FILE_SCRIPT}; StageFiles ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s}
 	@touch $@
+.endif
 
 STAGE_TARGETS += stage_links
+.if !target(.stage_links.$s)
+.stage_links.$s:
 .if $s != "_default"
 stage_links:	stage_links.$s
 stage_links.$s:	.dirdep
@@ -202,8 +210,11 @@ stage_links:	.dirdep
 .endif
 	@${STAGE_LINKS_SCRIPT}; StageLinks ${STAGE_LINKS_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_LINKS.$s}
 	@touch $@
+.endif
 
 STAGE_TARGETS += stage_symlinks
+.if !target(.stage_symlinks.$s)
+.stage_symlinks.$s:
 .if $s != "_default"
 stage_symlinks:	stage_symlinks.$s
 stage_symlinks.$s:	.dirdep
@@ -212,6 +223,7 @@ stage_symlinks:	.dirdep
 .endif
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_SYMLINKS_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_SYMLINKS.$s}
 	@touch $@
+.endif
 
 .endfor
 .endif
@@ -231,21 +243,31 @@ STAGE_TARGETS += stage_as stage_as_and_symlink
 STAGE_AS.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 STAGE_AS_AND_SYMLINK.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
+.if !target(.stage_as.$s)
+.stage_as.$s:
 stage_as:	stage_as.$s
 stage_as.$s:	.dirdep
 	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
 	@touch $@
+.endif
 
+.if !target(.stage_as_and_symlink.$s)
+.stage_as_and_symlink.$s:
 stage_as_and_symlink:	stage_as_and_symlink.$s
 stage_as_and_symlink.$s:	.dirdep
 	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:@f@${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}} $f@}
 	@touch $@
+.endif
 
 .endfor
 .endif
 
 CLEANFILES += ${STAGE_TARGETS} stage_incs stage_includes
+
+# this lot also only makes sense the first time...
+.if !target(__${.PARSEFILE}__)
+__${.PARSEFILE}__:
 
 # stage_*links usually needs to follow any others.
 # for non-jobs mode the order here matters

@@ -11,6 +11,10 @@
         private
             bsdstat
             ..
+            event
+            ..
+            sqlite3
+            ..
             ucl
             ..
         ..
@@ -19,7 +23,7 @@
         aout
         ..
         clang
-            3.9.1
+            4.0.0
                 include
                     sanitizer
                     ..
@@ -504,8 +508,6 @@
                 ..
             ..
         ..
-        info
-        ..
         keys
             pkg
                 revoked
@@ -892,8 +894,6 @@
             zh_CN.UTF-8
             ..
             zh_HK.UTF-8
-            ..
-            zh_TW.Big5
             ..
             zh_TW.UTF-8
             ..
@@ -1383,11 +1383,7 @@
             ..
             zh_CN.eucCN
             ..
-            zh_HK.Big5HKSCS
-            ..
             zh_HK.UTF-8
-            ..
-            zh_TW.Big5
             ..
             zh_TW.UTF-8
             ..

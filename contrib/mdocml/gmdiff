@@ -19,7 +19,7 @@ if [ `id -u` -eq 0 ]; then
 fi
 
 if [ $# -eq 0 ]; then
-  echo "usage: $0 -h manual_source_file ..."
+  echo "usage: $0 [-h] manual_source_file ..."
   exit 1
 fi
 
@@ -33,7 +33,7 @@ else
   EQN="eqn -Tascii"
   ROFF="groff -ww -Tascii -P -c"
 fi
-MOPT="-Werror $MOPT"
+MOPT="-Werror -Tascii $MOPT"
 
 while [ -n "$1" ]; do
   file=$1

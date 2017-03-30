@@ -228,7 +228,7 @@
 #include <system_error>
 #include <utility>
 #include <iomanip> // for quoted
-#include <experimental/string_view>
+#include <string_view>
 
 #include <__debug>
 
@@ -249,7 +249,7 @@ struct _LIBCPP_TYPE_VIS space_info
   uintmax_t available;
 };
 
-enum class _LIBCPP_TYPE_VIS file_type : signed char
+enum class _LIBCPP_ENUM_VIS file_type : signed char
 {
     none       = 0,
     not_found  = -1,
@@ -263,7 +263,7 @@ enum class _LIBCPP_TYPE_VIS file_type : signed char
     unknown    = 8
 };
 
-enum class _LIBCPP_TYPE_VIS perms : unsigned
+enum class _LIBCPP_ENUM_VIS perms : unsigned
 {
     none         = 0,
 
@@ -323,7 +323,7 @@ _LIBCPP_INLINE_VISIBILITY
 inline perms& operator^=(perms& _LHS, perms _RHS)
 { return _LHS = _LHS ^ _RHS; }
 
-enum class _LIBCPP_TYPE_VIS copy_options : unsigned short
+enum class _LIBCPP_ENUM_VIS copy_options : unsigned short
 {
     none               = 0,
     skip_existing      = 1,
@@ -367,7 +367,7 @@ inline copy_options& operator^=(copy_options& _LHS, copy_options _RHS)
 { return _LHS = _LHS ^ _RHS; }
 
 
-enum class directory_options : unsigned char
+enum class _LIBCPP_ENUM_VIS directory_options : unsigned char
 {
     none                     = 0,
     follow_directory_symlink = 1,
@@ -453,6 +453,9 @@ class _LIBCPP_TYPE_VIS directory_entry;
 template <class _Tp> struct __can_convert_char {
   static const bool value = false;
 };
+template <class _Tp> struct __can_convert_char<const _Tp>
+    : public __can_convert_char<_Tp> {
+};
 template <> struct __can_convert_char<char> {
     static const bool value = true;
     using __char_type = char;
@@ -490,6 +493,21 @@ struct __is_pathable_string<basic_string<_ECharT, _Traits, _Alloc>,
 : public __can_convert_char<_ECharT>
 {
     using _Str = basic_string<_ECharT, _Traits, _Alloc>;
+    using _Base = __can_convert_char<_ECharT>;
+    static _ECharT const* __range_begin(_Str const& __s) { return __s.data(); }
+    static _ECharT const* __range_end(_Str const& __s) { return __s.data() + __s.length(); }
+    static _ECharT __first_or_null(_Str const& __s) {
+        return __s.empty() ? _ECharT{} : __s[0];
+    }
+};
+
+
+template <class _ECharT, class _Traits>
+struct __is_pathable_string<basic_string_view<_ECharT, _Traits>,
+                            _Void<typename __can_convert_char<_ECharT>::__char_type>>
+: public __can_convert_char<_ECharT>
+{
+    using _Str = basic_string_view<_ECharT, _Traits>;
     using _Base = __can_convert_char<_ECharT>;
     static _ECharT const* __range_begin(_Str const& __s) { return __s.data(); }
     static _ECharT const* __range_end(_Str const& __s) { return __s.data() + __s.length(); }
@@ -605,10 +623,20 @@ struct _PathCVT {
 
 template <>
 struct _PathCVT<char> {
+
     template <class _Iter>
-    static void __append_range(string& __dest, _Iter __b, _Iter __e) {
+    static typename enable_if<
+        __is_exactly_input_iterator<_Iter>::value
+    >::type __append_range(string& __dest, _Iter __b, _Iter __e) {
         for (; __b != __e; ++__b)
             __dest.push_back(*__b);
+    }
+
+    template <class _Iter>
+    static typename enable_if<
+        __is_forward_iterator<_Iter>::value
+    >::type __append_range(string& __dest, _Iter __b, _Iter __e) {
+        __dest.__append_forward_unsafe(__b, __e);
     }
 
     template <class _Iter>
@@ -622,7 +650,8 @@ struct _PathCVT<char> {
     static void __append_source(string& __dest, _Source const& __s)
     {
         using _Traits = __is_pathable<_Source>;
-        __append_range(__dest, _Traits::__range_begin(__s), _Traits::__range_end(__s));
+        __append_range(__dest, _Traits::__range_begin(__s),
+                               _Traits::__range_end(__s));
     }
 };
 
@@ -642,6 +671,7 @@ class _LIBCPP_TYPE_VIS path
 public:
     typedef char value_type;
     typedef basic_string<value_type> string_type;
+    typedef _VSTD::string_view __string_view;
     static _LIBCPP_CONSTEXPR value_type preferred_separator = '/';
 
     // constructors and destructor
@@ -740,6 +770,8 @@ private:
 public:
     // appends
     path& operator/=(const path& __p) {
+        _LIBCPP_ASSERT(!__p.has_root_name(),
+                      "cannot append to a path with a root name");
         __append_sep_if_needed(__p.empty() ? char{} : __p.__pn_[0]);
         __pn_ += __p.native();
         return *this;
@@ -788,6 +820,12 @@ public:
     }
 
     _LIBCPP_INLINE_VISIBILITY
+    path& operator+=(__string_view __x) {
+        __pn_ += __x;
+        return *this;
+    }
+
+    _LIBCPP_INLINE_VISIBILITY
     path& operator+=(const value_type* __x) {
         __pn_ += __x;
         return *this;
@@ -798,7 +836,6 @@ public:
         __pn_ += __x;
         return *this;
     }
-
 
     template <class _ECharT>
     typename enable_if<__can_convert_char<_ECharT>::value, path&>::type
@@ -837,7 +874,15 @@ public:
     }
 
     path& make_preferred() { return *this; }
-    path& remove_filename() { return *this = parent_path(); }
+
+    _LIBCPP_INLINE_VISIBILITY
+    path& remove_filename() {
+      if (__pn_.size() == __root_path_raw().size())
+        clear();
+      else
+        __pn_ = __parent_path();
+      return *this;
+    }
 
     path& replace_filename(const path& __replacement) {
         remove_filename();
@@ -896,37 +941,39 @@ public:
     std::u32string generic_u32string() const { return string<char32_t>(); }
 
 private:
-    _LIBCPP_FUNC_VIS int __compare(const value_type*) const;
-    _LIBCPP_FUNC_VIS string_view __root_name() const;
-    _LIBCPP_FUNC_VIS string_view __root_directory() const;
-    _LIBCPP_FUNC_VIS string_view __relative_path() const;
-    _LIBCPP_FUNC_VIS string_view __parent_path() const;
-    _LIBCPP_FUNC_VIS string_view __filename() const;
-    _LIBCPP_FUNC_VIS string_view __stem() const;
-    _LIBCPP_FUNC_VIS string_view __extension() const;
+    _LIBCPP_FUNC_VIS int __compare(__string_view) const;
+    _LIBCPP_FUNC_VIS __string_view __root_name() const;
+    _LIBCPP_FUNC_VIS __string_view __root_directory() const;
+    _LIBCPP_FUNC_VIS __string_view __root_path_raw() const;
+    _LIBCPP_FUNC_VIS __string_view __relative_path() const;
+    _LIBCPP_FUNC_VIS __string_view __parent_path() const;
+    _LIBCPP_FUNC_VIS __string_view __filename() const;
+    _LIBCPP_FUNC_VIS __string_view __stem() const;
+    _LIBCPP_FUNC_VIS __string_view __extension() const;
 
 public:
     // compare
-    _LIBCPP_INLINE_VISIBILITY int compare(const path& __p) const _NOEXCEPT { return __compare(__p.c_str());}
-    _LIBCPP_INLINE_VISIBILITY int compare(const string_type& __s) const { return __compare(__s.c_str()); }
+    _LIBCPP_INLINE_VISIBILITY int compare(const path& __p) const _NOEXCEPT { return __compare(__p.__pn_);}
+    _LIBCPP_INLINE_VISIBILITY int compare(const string_type& __s) const { return __compare(__s); }
+    _LIBCPP_INLINE_VISIBILITY int compare(__string_view __s) const { return __compare(__s); }
     _LIBCPP_INLINE_VISIBILITY int compare(const value_type* __s) const  { return __compare(__s); }
 
     // decomposition
-    _LIBCPP_INLINE_VISIBILITY path root_name()      const { return  __root_name().to_string(); }
-    _LIBCPP_INLINE_VISIBILITY path root_directory() const { return  __root_directory().to_string(); }
-    _LIBCPP_INLINE_VISIBILITY path root_path()      const { return root_name().append(__root_directory().to_string()); }
-    _LIBCPP_INLINE_VISIBILITY path relative_path()  const { return __relative_path().to_string(); }
-    _LIBCPP_INLINE_VISIBILITY path parent_path()    const { return __parent_path().to_string(); }
-    _LIBCPP_INLINE_VISIBILITY path filename()       const { return __filename().to_string(); }
-    _LIBCPP_INLINE_VISIBILITY path stem()           const { return __stem().to_string();}
-    _LIBCPP_INLINE_VISIBILITY path extension()      const { return __extension().to_string(); }
+    _LIBCPP_INLINE_VISIBILITY path root_name()      const { return  string_type(__root_name()); }
+    _LIBCPP_INLINE_VISIBILITY path root_directory() const { return  string_type(__root_directory()); }
+    _LIBCPP_INLINE_VISIBILITY path root_path()      const { return root_name().append(string_type(__root_directory())); }
+    _LIBCPP_INLINE_VISIBILITY path relative_path()  const { return string_type(__relative_path()); }
+    _LIBCPP_INLINE_VISIBILITY path parent_path()    const { return string_type(__parent_path()); }
+    _LIBCPP_INLINE_VISIBILITY path filename()       const { return string_type(__filename()); }
+    _LIBCPP_INLINE_VISIBILITY path stem()           const { return string_type(__stem());}
+    _LIBCPP_INLINE_VISIBILITY path extension()      const { return string_type(__extension()); }
 
     // query
     _LIBCPP_INLINE_VISIBILITY bool empty() const _NOEXCEPT { return __pn_.empty(); }
 
     _LIBCPP_INLINE_VISIBILITY bool has_root_name()      const { return !__root_name().empty(); }
     _LIBCPP_INLINE_VISIBILITY bool has_root_directory() const { return !__root_directory().empty(); }
-    _LIBCPP_INLINE_VISIBILITY bool has_root_path()      const { return !(__root_name().empty() && __root_directory().empty()); }
+    _LIBCPP_INLINE_VISIBILITY bool has_root_path()      const { return !__root_path_raw().empty(); }
     _LIBCPP_INLINE_VISIBILITY bool has_relative_path()  const { return !__relative_path().empty(); }
     _LIBCPP_INLINE_VISIBILITY bool has_parent_path()    const { return !__parent_path().empty(); }
     _LIBCPP_INLINE_VISIBILITY bool has_filename()       const { return !__filename().empty(); }
@@ -945,7 +992,7 @@ public:
 
 private:
     inline _LIBCPP_INLINE_VISIBILITY
-    path& __assign_view(string_view const& __s) noexcept { __pn_ = __s.to_string(); return *this; }
+    path& __assign_view(__string_view const& __s) noexcept { __pn_ = string_type(__s); return *this; }
     string_type __pn_;
 };
 
@@ -1047,7 +1094,8 @@ public:
     typedef const path&                reference;
 public:
     _LIBCPP_INLINE_VISIBILITY
-    iterator() : __elem_(), __path_ptr_(nullptr), __pos_(0) {}
+    iterator() : __stashed_elem_(), __path_ptr_(nullptr),
+                 __entry_(), __state_(__singular) {}
 
     iterator(const iterator&) = default;
     ~iterator() = default;
@@ -1056,16 +1104,20 @@ public:
 
     _LIBCPP_INLINE_VISIBILITY
     reference operator*() const {
-        return __elem_;
+        return __stashed_elem_;
     }
 
     _LIBCPP_INLINE_VISIBILITY
     pointer operator->() const {
-        return &__elem_;
+        return &__stashed_elem_;
     }
 
     _LIBCPP_INLINE_VISIBILITY
     iterator& operator++() {
+        _LIBCPP_ASSERT(__state_ != __singular,
+                       "attempting to increment a singular iterator");
+        _LIBCPP_ASSERT(__state_ != __at_end,
+                      "attempting to increment the end iterator");
         return __increment();
     }
 
@@ -1078,6 +1130,10 @@ public:
 
     _LIBCPP_INLINE_VISIBILITY
     iterator& operator--() {
+        _LIBCPP_ASSERT(__state_ != __singular,
+                       "attempting to decrement a singular iterator");
+        _LIBCPP_ASSERT(__entry_.data() != __path_ptr_->native().data(),
+                       "attempting to decrement the begin iterator");
         return __decrement();
     }
 
@@ -1090,20 +1146,26 @@ public:
 
 private:
     friend class path;
+
+    static constexpr unsigned char __singular = 0;
+    static constexpr unsigned char __at_end = 6;
+
+    inline _LIBCPP_INLINE_VISIBILITY
     friend bool operator==(const iterator&, const iterator&);
 
     _LIBCPP_FUNC_VIS iterator& __increment();
     _LIBCPP_FUNC_VIS iterator& __decrement();
 
-    path __elem_;
+    path __stashed_elem_;
     const path* __path_ptr_;
-    size_t __pos_;
+    path::__string_view __entry_;
+    unsigned char __state_;
 };
 
 inline _LIBCPP_INLINE_VISIBILITY
 bool operator==(const path::iterator& __lhs, const path::iterator& __rhs) {
     return __lhs.__path_ptr_ == __rhs.__path_ptr_ &&
-           __lhs.__pos_      == __rhs.__pos_;
+           __lhs.__entry_.data() == __rhs.__entry_.data();
 }
 
 inline _LIBCPP_INLINE_VISIBILITY
@@ -1153,6 +1215,21 @@ private:
     typedef pair<path, path> _Storage;
     shared_ptr<_Storage> __paths_;
 };
+
+template <class... _Args>
+_LIBCPP_NORETURN inline _LIBCPP_ALWAYS_INLINE
+#ifndef _LIBCPP_NO_EXCEPTIONS
+void __throw_filesystem_error(_Args && ...__args)
+{
+    throw filesystem_error(std::forward<_Args>(__args)...);
+}
+#else
+void __throw_filesystem_error(_Args&&...)
+{
+    _VSTD::abort();
+}
+#endif
+
 
 // operational functions
 
@@ -1865,6 +1942,7 @@ public:
     { return __increment(&__ec); }
 
 private:
+    inline _LIBCPP_INLINE_VISIBILITY
     friend bool operator==(const directory_iterator& __lhs,
                            const directory_iterator& __rhs) _NOEXCEPT;
 
@@ -2014,6 +2092,7 @@ private:
     _LIBCPP_FUNC_VIS
     void __pop(error_code* __ec=nullptr);
 
+    inline _LIBCPP_INLINE_VISIBILITY
     friend bool operator==(const recursive_directory_iterator&,
                            const recursive_directory_iterator&) _NOEXCEPT;
 
@@ -2023,9 +2102,9 @@ private:
 };                                     // class recursive_directory_iterator
 
 
-_LIBCPP_INLINE_VISIBILITY
-inline bool operator==(const recursive_directory_iterator& __lhs,
-                        const recursive_directory_iterator& __rhs) _NOEXCEPT
+inline _LIBCPP_INLINE_VISIBILITY
+bool operator==(const recursive_directory_iterator& __lhs,
+                const recursive_directory_iterator& __rhs) _NOEXCEPT
 {
     return __lhs.__imp_ == __rhs.__imp_;
 }

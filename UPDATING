@@ -51,6 +51,55 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170329:
+	The ctl.ko module no longer implements the iSCSI target frontend:
+	cfiscsi.ko does instead.
+
+	If building cfiscsi.ko as a kernel module, the module can be loaded
+	via one of the following methods:
+	- `cfiscsi_load="YES"` in loader.conf(5).
+	- Add `cfiscsi` to `$kld_list` in rc.conf(5).
+	- ctladm(8)/ctld(8), when compiled with iSCSI support
+	  (`WITH_ISCSI=yes` in src.conf(5))
+
+	Please see cfiscsi(4) for more details.
+
+20170316:
+	The mmcsd.ko module now additionally depends on geom_flashmap.ko.
+	Also, mmc.ko and mmcsd.ko need to be a matching pair built from the
+	same source (previously, the dependency of mmcsd.ko on mmc.ko was
+	missing, but mmcsd.ko now will refuse to load if it is incompatible
+	with mmc.ko).
+
+20170315:
+	The syntax of ipfw(8) named states was changed to avoid ambiguity.
+	If you have used named states in the firewall rules, you need to modify
+	them after installworld and before rebooting. Now named states must
+	be prefixed with colon.
+
+20170311:
+	The old drm (sys/dev/drm/) drivers for i915 and radeon have been
+	removed as the userland we provide cannot use them. The KMS version
+	(sys/dev/drm2) support the same hardware.
+
+20170302:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 4.0.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
+20170221:
+	The code that provides support for ZFS .zfs/ directory functionality
+	has been reimplemented.  It's not possible now to create a snapshot
+	by mkdir under .zfs/snapshot/.  That should be the only user visible
+	change.
+
+20170216:
+	EISA bus support has been removed. The WITH_EISA option is no longer
+	valid.
+
+20170215:
+	MCA bus support has been removed.
+
 20170127:
 	The WITH_LLD_AS_LD / WITHOUT_LLD_AS_LD build knobs have been renamed
 	WITH_LLD_IS_LD / WITHOUT_LLD_IS_LD, for consistency with CLANG_IS_CC.

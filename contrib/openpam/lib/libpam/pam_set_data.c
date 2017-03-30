@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_set_data.c 648 2013-03-05 17:54:27Z des $
+ * $Id: pam_set_data.c 913 2017-01-21 15:11:12Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -64,8 +64,6 @@ pam_set_data(pam_handle_t *pamh,
 	pam_data_t *dp;
 
 	ENTERS(module_data_name);
-	if (pamh == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 	for (dp = pamh->module_data; dp != NULL; dp = dp->next) {
 		if (strcmp(dp->name, module_data_name) == 0) {
 			if (dp->cleanup)

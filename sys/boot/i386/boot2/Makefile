@@ -25,7 +25,6 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 CFLAGS=	-fomit-frame-pointer \
 	-mrtd \
 	-mregparm=3 \
-	-DUSE_XREAD \
 	-D${BOOT2_UFS} \
 	-DFLAGS=${BOOT_BOOT1_FLAGS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
@@ -39,8 +38,6 @@ CFLAGS=	-fomit-frame-pointer \
 	-Winline
 
 CFLAGS.gcc+=	-Os \
-		-fno-guess-branch-probability \
-		-fno-unit-at-a-time \
 		--param max-inline-insns-single=100
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} <= 40201
 CFLAGS.gcc+=   -mno-align-long-strings
@@ -67,12 +64,14 @@ boot1.out: boot1.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
 
 CLEANFILES+=	boot2 boot2.ld boot2.ldr boot2.bin boot2.out boot2.o \
-		boot2.s boot2.s.tmp boot2.h sio.o
+		boot2.h sio.o
+
+BOOT2SIZE=	7680
 
 boot2: boot2.ld
-	@set -- `ls -l boot2.ld`; x=$$((7680-$$5)); \
+	@set -- `ls -l ${.ALLSRC}`; x=$$((${BOOT2SIZE}-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
-	${DD} if=boot2.ld of=${.TARGET} obs=7680 conv=osync
+	${DD} if=${.ALLSRC} of=${.TARGET} obs=${BOOT2SIZE} conv=osync
 
 boot2.ld: boot2.ldr boot2.bin ${BTXKERN}
 	btxld -v -E ${ORG2} -f bin -b ${BTXKERN} -l boot2.ldr \
@@ -87,15 +86,7 @@ boot2.bin: boot2.out
 boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
-boot2.o: boot2.s
-	${CC} ${ACFLAGS} -c boot2.s
-
 SRCS=	boot2.c boot2.h
-
-boot2.s: boot2.c boot2.h ${.CURDIR}/../../common/ufsread.c
-	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.CURDIR}/boot2.c
-	sed -e '/align/d' -e '/nop/d' < boot2.s.tmp > boot2.s
-	rm -f boot2.s.tmp
 
 boot2.h: boot1.out
 	${NM} -t d ${.ALLSRC} | awk '/([0-9])+ T xread/ \

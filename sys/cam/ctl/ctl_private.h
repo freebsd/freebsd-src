@@ -390,10 +390,7 @@ struct ctl_lun {
 	TAILQ_HEAD(ctl_ooaq, ctl_io_hdr)  ooa_queue;
 	TAILQ_HEAD(ctl_blockq,ctl_io_hdr) blocked_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
-#ifdef CTL_WITH_CA
-	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
-	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
-#endif
+	struct scsi_sense_data		*pending_sense[CTL_MAX_PORTS];
 	ctl_ua_type			*pending_ua[CTL_MAX_PORTS];
 	uint8_t				ua_tpt_info[8];
 	time_t				lasttpt;
@@ -531,6 +528,7 @@ int ctl_get_lba_status(struct ctl_scsiio *ctsio);
 void ctl_tpc_init(struct ctl_softc *softc);
 void ctl_tpc_shutdown(struct ctl_softc *softc);
 void ctl_tpc_lun_init(struct ctl_lun *lun);
+void ctl_tpc_lun_clear(struct ctl_lun *lun, uint32_t initidx);
 void ctl_tpc_lun_shutdown(struct ctl_lun *lun);
 int ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len);
 int ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio);

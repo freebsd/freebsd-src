@@ -231,14 +231,16 @@ iscsi_session_send_postponed(struct iscsi_session *is)
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
-	while (!STAILQ_EMPTY(&is->is_postponed)) {
-		request = STAILQ_FIRST(&is->is_postponed);
+	if (STAILQ_EMPTY(&is->is_postponed))
+		return;
+	while ((request = STAILQ_FIRST(&is->is_postponed)) != NULL) {
 		postpone = iscsi_pdu_prepare(request);
 		if (postpone)
-			break;
+			return;
 		STAILQ_REMOVE_HEAD(&is->is_postponed, ip_next);
 		icl_pdu_queue(request);
 	}
+	xpt_release_simq(is->is_sim, 1);
 }
 
 static void
@@ -252,6 +254,8 @@ iscsi_pdu_queue_locked(struct icl_pdu *request)
 	iscsi_session_send_postponed(is);
 	postpone = iscsi_pdu_prepare(request);
 	if (postpone) {
+		if (STAILQ_EMPTY(&is->is_postponed))
+			xpt_freeze_simq(is->is_sim, 1);
 		STAILQ_INSERT_TAIL(&is->is_postponed, request, ip_next);
 		return;
 	}
@@ -339,8 +343,9 @@ iscsi_session_cleanup(struct iscsi_session *is, bool destroy_sim)
 	/*
 	 * Remove postponed PDUs.
 	 */
-	while (!STAILQ_EMPTY(&is->is_postponed)) {
-		pdu = STAILQ_FIRST(&is->is_postponed);
+	if (!STAILQ_EMPTY(&is->is_postponed))
+		xpt_release_simq(is->is_sim, 1);
+	while ((pdu = STAILQ_FIRST(&is->is_postponed)) != NULL) {
 		STAILQ_REMOVE_HEAD(&is->is_postponed, ip_next);
 		icl_pdu_free(pdu);
 	}
@@ -475,15 +480,14 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 static void
 iscsi_maintenance_thread(void *arg)
 {
-	struct iscsi_session *is;
+	struct iscsi_session *is = arg;
 
-	is = arg;
-
+	ISCSI_SESSION_LOCK(is);
 	for (;;) {
-		ISCSI_SESSION_LOCK(is);
 		if (is->is_reconnecting == false &&
 		    is->is_terminating == false &&
-		    STAILQ_EMPTY(&is->is_postponed))
+		    (STAILQ_EMPTY(&is->is_postponed) ||
+		     ISCSI_SNGT(is->is_cmdsn, is->is_maxcmdsn)))
 			cv_wait(&is->is_maintenance_cv, &is->is_lock);
 
 		/* Terminate supersedes reconnect. */
@@ -497,12 +501,13 @@ iscsi_maintenance_thread(void *arg)
 		if (is->is_reconnecting) {
 			ISCSI_SESSION_UNLOCK(is);
 			iscsi_maintenance_thread_reconnect(is);
+			ISCSI_SESSION_LOCK(is);
 			continue;
 		}
 
 		iscsi_session_send_postponed(is);
-		ISCSI_SESSION_UNLOCK(is);
 	}
+	ISCSI_SESSION_UNLOCK(is);
 }
 
 static void

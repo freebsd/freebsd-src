@@ -542,7 +542,7 @@ init_TSC_tc(void)
 	 * result incorrect runtimes for kernel idle threads (but not
 	 * for any non-idle threads).
 	 */
-	if (cpu_deepest_sleep >= 2 && cpu_vendor_id == CPU_VENDOR_INTEL &&
+	if (cpu_vendor_id == CPU_VENDOR_INTEL &&
 	    (amd_pminfo & AMDPM_TSC_INVARIANT) == 0) {
 		tsc_timecounter.tc_flags |= TC_FLAGS_C2STOP;
 		if (bootverbose)

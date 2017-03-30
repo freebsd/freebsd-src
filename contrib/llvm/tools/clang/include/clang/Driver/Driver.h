@@ -12,21 +12,20 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Driver/Action.h"
 #include "clang/Driver/Phases.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
-#include "llvm/Support/Path.h" // FIXME: Kill when CompilationInfo lands.
 
 #include <list>
 #include <map>
-#include <memory>
-#include <set>
 #include <string>
 
 namespace llvm {
+class Triple;
+
 namespace opt {
   class Arg;
   class ArgList;
@@ -44,7 +43,6 @@ class FileSystem;
 
 namespace driver {
 
-  class Action;
   class Command;
   class Compilation;
   class InputInfo;
@@ -93,6 +91,26 @@ class Driver {
   LTOKind LTOMode;
 
 public:
+  enum OpenMPRuntimeKind {
+    /// An unknown OpenMP runtime. We can't generate effective OpenMP code
+    /// without knowing what runtime to target.
+    OMPRT_Unknown,
+
+    /// The LLVM OpenMP runtime. When completed and integrated, this will become
+    /// the default for Clang.
+    OMPRT_OMP,
+
+    /// The GNU OpenMP runtime. Clang doesn't support generating OpenMP code for
+    /// this runtime but can swallow the pragmas, and find and link against the
+    /// runtime library itself.
+    OMPRT_GOMP,
+
+    /// The legacy name for the LLVM OpenMP runtime from when it was the Intel
+    /// OpenMP runtime. We support this mode for users with existing
+    /// dependencies on this runtime library name.
+    OMPRT_IOMP5
+  };
+
   // Diag - Forwarding function for diagnostics.
   DiagnosticBuilder Diag(unsigned DiagID) const {
     return Diags.Report(DiagID);
@@ -132,9 +150,6 @@ public:
   /// If the standard library is used
   bool UseStdLib;
 
-  /// Default target triple.
-  std::string DefaultTargetTriple;
-
   /// Driver title to use with help.
   std::string DriverTitle;
 
@@ -160,6 +175,9 @@ public:
   /// Whether the driver is just the preprocessor.
   bool CCCIsCPP() const { return Mode == CPPMode; }
 
+  /// Whether the driver should follow gcc like behavior.
+  bool CCCIsCC() const { return Mode == GCCMode; }
+
   /// Whether the driver should follow cl.exe like behavior.
   bool IsCLMode() const { return Mode == CLMode; }
 
@@ -183,6 +201,9 @@ public:
   unsigned CCGenDiagnostics : 1;
 
 private:
+  /// Default target triple.
+  std::string DefaultTargetTriple;
+
   /// Name to use when invoking gcc/g++.
   std::string CCCGenericGCCName;
 
@@ -222,8 +243,22 @@ private:
   // Before executing jobs, sets up response files for commands that need them.
   void setUpResponseFiles(Compilation &C, Command &Cmd);
 
-  void generatePrefixedToolNames(const char *Tool, const ToolChain &TC,
+  void generatePrefixedToolNames(StringRef Tool, const ToolChain &TC,
                                  SmallVectorImpl<std::string> &Names) const;
+
+  /// \brief Find the appropriate .crash diagonostic file for the child crash
+  /// under this driver and copy it out to a temporary destination with the
+  /// other reproducer related files (.sh, .cache, etc). If not found, suggest a
+  /// directory for the user to look at.
+  ///
+  /// \param ReproCrashFilename The file path to copy the .crash to.
+  /// \param CrashDiagDir       The suggested directory for the user to look at
+  ///                           in case the search or copy fails.
+  ///
+  /// \returns If the .crash is found and successfully copied return true,
+  /// otherwise false and return the suggested directory in \p CrashDiagDir.
+  bool getCrashDiagnosticFile(StringRef ReproCrashFilename,
+                              SmallString<128> &CrashDiagDir);
 
 public:
   Driver(StringRef ClangExecutable, StringRef DefaultTargetTriple,
@@ -268,8 +303,17 @@ public:
   bool isSaveTempsEnabled() const { return SaveTemps != SaveTempsNone; }
   bool isSaveTempsObj() const { return SaveTemps == SaveTempsObj; }
 
-  bool embedBitcodeEnabled() const { return BitcodeEmbed == EmbedBitcode; }
-  bool embedBitcodeMarkerOnly() const { return BitcodeEmbed == EmbedMarker; }
+  bool embedBitcodeEnabled() const { return BitcodeEmbed != EmbedNone; }
+  bool embedBitcodeInObject() const {
+    // LTO has no object file output so ignore embed bitcode option in LTO.
+    return (BitcodeEmbed == EmbedBitcode) && !isUsingLTO();
+  }
+  bool embedBitcodeMarkerOnly() const {
+    return (BitcodeEmbed == EmbedMarker) && !isUsingLTO();
+  }
+
+  /// Compute the desired OpenMP runtime from the flags provided.
+  OpenMPRuntimeKind getOpenMPRuntime(const llvm::opt::ArgList &Args) const;
 
   /// @}
   /// @name Primary Functionality
@@ -293,7 +337,7 @@ public:
   /// @{
 
   /// ParseDriverMode - Look for and handle the driver mode option in Args.
-  void ParseDriverMode(ArrayRef<const char *> Args);
+  void ParseDriverMode(StringRef ProgramName, ArrayRef<const char *> Args);
 
   /// ParseArgStrings - Parse the given list of strings into an
   /// ArgList.
@@ -340,7 +384,7 @@ public:
   /// up response files, removing temporary files, etc.
   int ExecuteCompilation(Compilation &C,
      SmallVectorImpl< std::pair<int, const Command *> > &FailingCommands);
-  
+
   /// generateCompilationDiagnostics - Generate diagnostics information 
   /// including preprocessed source file(s).
   /// 
@@ -368,7 +412,7 @@ public:
   /// directories to search.
   //
   // FIXME: This should be in CompilationInfo.
-  std::string GetFilePath(const char *Name, const ToolChain &TC) const;
+  std::string GetFilePath(StringRef Name, const ToolChain &TC) const;
 
   /// GetProgramPath - Lookup \p Name in the list of program search paths.
   ///
@@ -376,7 +420,7 @@ public:
   /// directories to search.
   //
   // FIXME: This should be in CompilationInfo.
-  std::string GetProgramPath(const char *Name, const ToolChain &TC) const;
+  std::string GetProgramPath(StringRef Name, const ToolChain &TC) const;
 
   /// HandleImmediateArgs - Handle any arguments which should be
   /// treated before building actions or binding tools.
@@ -393,14 +437,14 @@ public:
 
   /// BuildJobsForAction - Construct the jobs to perform for the action \p A and
   /// return an InputInfo for the result of running \p A.  Will only construct
-  /// jobs for a given (Action, ToolChain, BoundArch) tuple once.
+  /// jobs for a given (Action, ToolChain, BoundArch, DeviceKind) tuple once.
   InputInfo
   BuildJobsForAction(Compilation &C, const Action *A, const ToolChain *TC,
-                     const char *BoundArch, bool AtTopLevel, bool MultipleArchs,
+                     StringRef BoundArch, bool AtTopLevel, bool MultipleArchs,
                      const char *LinkingOutput,
                      std::map<std::pair<const Action *, std::string>, InputInfo>
                          &CachedResults,
-                     bool BuildForOffloadDevice) const;
+                     Action::OffloadKind TargetDeviceOffloadKind) const;
 
   /// Returns the default name for linked images (e.g., "a.out").
   const char *getDefaultImageName() const;
@@ -418,7 +462,7 @@ public:
   /// \param MultipleArchs - Whether multiple -arch options were supplied.
   /// \param NormalizedTriple - The normalized triple of the relevant target.
   const char *GetNamedOutputPath(Compilation &C, const JobAction &JA,
-                                 const char *BaseInput, const char *BoundArch,
+                                 const char *BaseInput, StringRef BoundArch,
                                  bool AtTopLevel, bool MultipleArchs,
                                  StringRef NormalizedTriple) const;
 
@@ -426,7 +470,7 @@ public:
   /// as part of compilation; the file will have the given prefix and suffix.
   ///
   /// GCC goes to extra lengths here to be a bit more robust.
-  std::string GetTemporaryPath(StringRef Prefix, const char *Suffix) const;
+  std::string GetTemporaryPath(StringRef Prefix, StringRef Suffix) const;
 
   /// Return the pathname of the pch file in clang-cl mode.
   std::string GetClPchPath(Compilation &C, StringRef BaseName) const;
@@ -442,6 +486,10 @@ public:
   LTOKind getLTOMode() const { return LTOMode; }
 
 private:
+  /// Set the driver mode (cl, gcc, etc) from an option string of the form
+  /// --driver-mode=<mode>.
+  void setDriverModeFromOption(StringRef Opt);
+
   /// Parse the \p Args list for LTO options and record the type of LTO
   /// compilation based on which -f(no-)?lto(=.*)? option occurs last.
   void setLTOMode(const llvm::opt::ArgList &Args);
@@ -463,12 +511,11 @@ private:
   /// jobs specifically for the given action, but will use the cache when
   /// building jobs for the Action's inputs.
   InputInfo BuildJobsForActionNoCache(
-      Compilation &C, const Action *A, const ToolChain *TC,
-      const char *BoundArch, bool AtTopLevel, bool MultipleArchs,
-      const char *LinkingOutput,
+      Compilation &C, const Action *A, const ToolChain *TC, StringRef BoundArch,
+      bool AtTopLevel, bool MultipleArchs, const char *LinkingOutput,
       std::map<std::pair<const Action *, std::string>, InputInfo>
           &CachedResults,
-      bool BuildForOffloadDevice) const;
+      Action::OffloadKind TargetDeviceOffloadKind) const;
 
 public:
   /// GetReleaseVersion - Parse (([0-9]+)(.([0-9]+)(.([0-9]+)?))?)? and
@@ -478,9 +525,8 @@ public:
   /// \return True if the entire string was parsed (9.2), or all
   /// groups were parsed (10.3.5extrastuff). HadExtra is true if all
   /// groups were parsed but extra characters remain at the end.
-  static bool GetReleaseVersion(const char *Str, unsigned &Major,
-                                unsigned &Minor, unsigned &Micro,
-                                bool &HadExtra);
+  static bool GetReleaseVersion(StringRef Str, unsigned &Major, unsigned &Minor,
+                                unsigned &Micro, bool &HadExtra);
 
   /// Parse digits from a string \p Str and fulfill \p Digits with
   /// the parsed numbers. This method assumes that the max number of
@@ -488,7 +534,7 @@ public:
   ///
   /// \return True if the entire string was parsed and there are
   /// no extra characters remaining at the end.
-  static bool GetReleaseVersion(const char *Str,
+  static bool GetReleaseVersion(StringRef Str,
                                 MutableArrayRef<unsigned> Digits);
 };
 

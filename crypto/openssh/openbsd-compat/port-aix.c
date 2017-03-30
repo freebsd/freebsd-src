@@ -179,7 +179,7 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
 	do {
 		result = authenticate((char *)name, (char *)password, &reenter,
 		    &authmsg);
-		aix_remove_embedded_newlines(authmsg);	
+		aix_remove_embedded_newlines(authmsg);
 		debug3("AIX/authenticate result %d, authmsg %.100s", result,
 		    authmsg);
 	} while (reenter);
@@ -337,11 +337,11 @@ aix_setauthdb(const char *user)
 		debug3("%s: Could not open userdb to read", __func__);
 		return;
 	}
-	
+
 	if (getuserattr((char *)user, S_REGISTRY, &registry, SEC_CHAR) == 0) {
 		if (setauthdb(registry, old_registry) == 0)
 			debug3("AIX/setauthdb set registry '%s'", registry);
-		else 
+		else
 			debug3("AIX/setauthdb set registry '%s' failed: %s",
 			    registry, strerror(errno));
 	} else

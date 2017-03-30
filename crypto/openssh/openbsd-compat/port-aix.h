@@ -1,5 +1,3 @@
-/* $Id: port-aix.h,v 1.32 2009/12/20 23:49:22 dtucker Exp $ */
-
 /*
  *
  * Copyright (c) 2001 Gert Doering.  All rights reserved.

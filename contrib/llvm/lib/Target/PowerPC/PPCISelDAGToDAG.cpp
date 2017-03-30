@@ -215,7 +215,7 @@ namespace {
 
     void InsertVRSaveCode(MachineFunction &MF);
 
-    const char *getPassName() const override {
+    StringRef getPassName() const override {
       return "PowerPC DAG->DAG Pattern Instruction Selection";
     }
 
@@ -334,12 +334,12 @@ SDNode *PPCDAGToDAGISel::getGlobalBaseReg() {
         }
       } else {
         GlobalBaseReg =
-          RegInfo->createVirtualRegister(&PPC::GPRC_NOR0RegClass);
+          RegInfo->createVirtualRegister(&PPC::GPRC_and_GPRC_NOR0RegClass);
         BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR));
         BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MFLR), GlobalBaseReg);
       }
     } else {
-      GlobalBaseReg = RegInfo->createVirtualRegister(&PPC::G8RC_NOX0RegClass);
+      GlobalBaseReg = RegInfo->createVirtualRegister(&PPC::G8RC_and_G8RC_NOX0RegClass);
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR8));
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MFLR8), GlobalBaseReg);
     }
@@ -633,6 +633,13 @@ static unsigned getInt64CountDirect(int64_t Imm) {
   // If no shift, we're done.
   if (!Shift) return Result;
 
+  // If Hi word == Lo word,
+  // we can use rldimi to insert the Lo word into Hi word.
+  if ((unsigned)(Imm & 0xFFFFFFFF) == Remainder) {
+    ++Result;
+    return Result;
+  }
+
   // Shift for next step if the upper 32-bits were not zero.
   if (Imm)
     ++Result;
@@ -730,6 +737,14 @@ static SDNode *getInt64Direct(SelectionDAG *CurDAG, const SDLoc &dl,
 
   // If no shift, we're done.
   if (!Shift) return Result;
+
+  // If Hi word == Lo word,
+  // we can use rldimi to insert the Lo word into Hi word.
+  if ((unsigned)(Imm & 0xFFFFFFFF) == Remainder) {
+    SDValue Ops[] =
+      { SDValue(Result, 0), SDValue(Result, 0), getI32Imm(Shift), getI32Imm(0)};
+    return CurDAG->getMachineNode(PPC::RLDIMI, dl, MVT::i64, Ops);
+  }
 
   // Shift for next step if the upper 32-bits were not zero.
   if (Imm) {
@@ -912,84 +927,95 @@ class BitPermutationSelector {
     }
   };
 
-  // Return true if something interesting was deduced, return false if we're
+  using ValueBitsMemoizedValue = std::pair<bool, SmallVector<ValueBit, 64>>;
+  using ValueBitsMemoizer =
+      DenseMap<SDValue, std::unique_ptr<ValueBitsMemoizedValue>>;
+  ValueBitsMemoizer Memoizer;
+
+  // Return a pair of bool and a SmallVector pointer to a memoization entry.
+  // The bool is true if something interesting was deduced, otherwise if we're
   // providing only a generic representation of V (or something else likewise
-  // uninteresting for instruction selection).
-  bool getValueBits(SDValue V, SmallVector<ValueBit, 64> &Bits) {
+  // uninteresting for instruction selection) through the SmallVector.
+  std::pair<bool, SmallVector<ValueBit, 64> *> getValueBits(SDValue V,
+                                                            unsigned NumBits) {
+    auto &ValueEntry = Memoizer[V];
+    if (ValueEntry)
+      return std::make_pair(ValueEntry->first, &ValueEntry->second);
+    ValueEntry.reset(new ValueBitsMemoizedValue());
+    bool &Interesting = ValueEntry->first;
+    SmallVector<ValueBit, 64> &Bits = ValueEntry->second;
+    Bits.resize(NumBits);
+
     switch (V.getOpcode()) {
     default: break;
     case ISD::ROTL:
       if (isa<ConstantSDNode>(V.getOperand(1))) {
         unsigned RotAmt = V.getConstantOperandVal(1);
 
-        SmallVector<ValueBit, 64> LHSBits(Bits.size());
-        getValueBits(V.getOperand(0), LHSBits);
+        const auto &LHSBits = *getValueBits(V.getOperand(0), NumBits).second;
 
-        for (unsigned i = 0; i < Bits.size(); ++i)
-          Bits[i] = LHSBits[i < RotAmt ? i + (Bits.size() - RotAmt) : i - RotAmt];
+        for (unsigned i = 0; i < NumBits; ++i)
+          Bits[i] = LHSBits[i < RotAmt ? i + (NumBits - RotAmt) : i - RotAmt];
 
-        return true;
+        return std::make_pair(Interesting = true, &Bits);
       }
       break;
     case ISD::SHL:
       if (isa<ConstantSDNode>(V.getOperand(1))) {
         unsigned ShiftAmt = V.getConstantOperandVal(1);
 
-        SmallVector<ValueBit, 64> LHSBits(Bits.size());
-        getValueBits(V.getOperand(0), LHSBits);
+        const auto &LHSBits = *getValueBits(V.getOperand(0), NumBits).second;
 
-        for (unsigned i = ShiftAmt; i < Bits.size(); ++i)
+        for (unsigned i = ShiftAmt; i < NumBits; ++i)
           Bits[i] = LHSBits[i - ShiftAmt];
 
         for (unsigned i = 0; i < ShiftAmt; ++i)
           Bits[i] = ValueBit(ValueBit::ConstZero);
 
-        return true;
+        return std::make_pair(Interesting = true, &Bits);
       }
       break;
     case ISD::SRL:
       if (isa<ConstantSDNode>(V.getOperand(1))) {
         unsigned ShiftAmt = V.getConstantOperandVal(1);
 
-        SmallVector<ValueBit, 64> LHSBits(Bits.size());
-        getValueBits(V.getOperand(0), LHSBits);
+        const auto &LHSBits = *getValueBits(V.getOperand(0), NumBits).second;
 
-        for (unsigned i = 0; i < Bits.size() - ShiftAmt; ++i)
+        for (unsigned i = 0; i < NumBits - ShiftAmt; ++i)
           Bits[i] = LHSBits[i + ShiftAmt];
 
-        for (unsigned i = Bits.size() - ShiftAmt; i < Bits.size(); ++i)
+        for (unsigned i = NumBits - ShiftAmt; i < NumBits; ++i)
           Bits[i] = ValueBit(ValueBit::ConstZero);
 
-        return true;
+        return std::make_pair(Interesting = true, &Bits);
       }
       break;
     case ISD::AND:
       if (isa<ConstantSDNode>(V.getOperand(1))) {
         uint64_t Mask = V.getConstantOperandVal(1);
 
-        SmallVector<ValueBit, 64> LHSBits(Bits.size());
-        bool LHSTrivial = getValueBits(V.getOperand(0), LHSBits);
-
-        for (unsigned i = 0; i < Bits.size(); ++i)
-          if (((Mask >> i) & 1) == 1)
-            Bits[i] = LHSBits[i];
-          else
-            Bits[i] = ValueBit(ValueBit::ConstZero);
-
+        const SmallVector<ValueBit, 64> *LHSBits;
         // Mark this as interesting, only if the LHS was also interesting. This
         // prevents the overall procedure from matching a single immediate 'and'
         // (which is non-optimal because such an and might be folded with other
         // things if we don't select it here).
-        return LHSTrivial;
+        std::tie(Interesting, LHSBits) = getValueBits(V.getOperand(0), NumBits);
+
+        for (unsigned i = 0; i < NumBits; ++i)
+          if (((Mask >> i) & 1) == 1)
+            Bits[i] = (*LHSBits)[i];
+          else
+            Bits[i] = ValueBit(ValueBit::ConstZero);
+
+        return std::make_pair(Interesting, &Bits);
       }
       break;
     case ISD::OR: {
-      SmallVector<ValueBit, 64> LHSBits(Bits.size()), RHSBits(Bits.size());
-      getValueBits(V.getOperand(0), LHSBits);
-      getValueBits(V.getOperand(1), RHSBits);
+      const auto &LHSBits = *getValueBits(V.getOperand(0), NumBits).second;
+      const auto &RHSBits = *getValueBits(V.getOperand(1), NumBits).second;
 
       bool AllDisjoint = true;
-      for (unsigned i = 0; i < Bits.size(); ++i)
+      for (unsigned i = 0; i < NumBits; ++i)
         if (LHSBits[i].isZero())
           Bits[i] = RHSBits[i];
         else if (RHSBits[i].isZero())
@@ -1002,14 +1028,14 @@ class BitPermutationSelector {
       if (!AllDisjoint)
         break;
 
-      return true;
+      return std::make_pair(Interesting = true, &Bits);
     }
     }
 
-    for (unsigned i = 0; i < Bits.size(); ++i)
+    for (unsigned i = 0; i < NumBits; ++i)
       Bits[i] = ValueBit(V, i);
 
-    return false;
+    return std::make_pair(Interesting = false, &Bits);
   }
 
   // For each value (except the constant ones), compute the left-rotate amount
@@ -1648,9 +1674,12 @@ class BitPermutationSelector {
 
       unsigned NumRLInsts = 0;
       bool FirstBG = true;
+      bool MoreBG = false;
       for (auto &BG : BitGroups) {
-        if (!MatchingBG(BG))
+        if (!MatchingBG(BG)) {
+          MoreBG = true;
           continue;
+        }
         NumRLInsts +=
           SelectRotMask64Count(BG.RLAmt, BG.Repl32, BG.StartIdx, BG.EndIdx,
                                !FirstBG);
@@ -1668,7 +1697,10 @@ class BitPermutationSelector {
       // because that exposes more opportunities for CSE.
       if (NumAndInsts > NumRLInsts)
         continue;
-      if (Use32BitInsts && NumAndInsts == NumRLInsts)
+      // When merging multiple bit groups, instruction or is used.
+      // But when rotate is used, rldimi can inert the rotated value into any
+      // register, so instruction or can be avoided.
+      if ((Use32BitInsts || MoreBG) && NumAndInsts == NumRLInsts)
         continue;
 
       DEBUG(dbgs() << "\t\t\t\tusing masking\n");
@@ -1886,8 +1918,7 @@ class BitPermutationSelector {
   }
 
   void eraseMatchingBitGroups(function_ref<bool(const BitGroup &)> F) {
-    BitGroups.erase(std::remove_if(BitGroups.begin(), BitGroups.end(), F),
-                    BitGroups.end());
+    BitGroups.erase(remove_if(BitGroups, F), BitGroups.end());
   }
 
   SmallVector<ValueBit, 64> Bits;
@@ -1910,9 +1941,12 @@ public:
   // rotate-and-shift/shift/and/or instructions, using a set of heuristics
   // known to produce optimial code for common cases (like i32 byte swapping).
   SDNode *Select(SDNode *N) {
-    Bits.resize(N->getValueType(0).getSizeInBits());
-    if (!getValueBits(SDValue(N, 0), Bits))
+    Memoizer.clear();
+    auto Result =
+        getValueBits(SDValue(N, 0), N->getValueType(0).getSizeInBits());
+    if (!Result.first)
       return nullptr;
+    Bits = std::move(*Result.second);
 
     DEBUG(dbgs() << "Considering bit-permutation-based instruction"
                     " selection for:    ");
@@ -2623,6 +2657,23 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
       MB = 64 - countTrailingOnes(Imm64);
       SH = 0;
 
+      if (Val.getOpcode() == ISD::ANY_EXTEND) {
+        auto Op0 = Val.getOperand(0);
+        if ( Op0.getOpcode() == ISD::SRL &&
+           isInt32Immediate(Op0.getOperand(1).getNode(), Imm) && Imm <= MB) {
+
+           auto ResultType = Val.getNode()->getValueType(0);
+           auto ImDef = CurDAG->getMachineNode(PPC::IMPLICIT_DEF, dl,
+                                               ResultType);
+           SDValue IDVal (ImDef, 0);
+
+           Val = SDValue(CurDAG->getMachineNode(PPC::INSERT_SUBREG, dl,
+                         ResultType, IDVal, Op0.getOperand(0),
+                         getI32Imm(1, dl)), 0);
+           SH = 64 - Imm;
+        }
+      }
+
       // If the operand is a logical right shift, we can fold it into this
       // instruction: rldicl(rldicl(x, 64-n, n), 0, mb) -> rldicl(x, 64-n, mb)
       // for n <= mb. The right shift is really a left rotate followed by a
@@ -3187,7 +3238,7 @@ SDValue PPCDAGToDAGISel::combineToCMPB(SDNode *N) {
           Op0.getOperand(1) == Op1.getOperand(1) && CC == ISD::SETEQ &&
           isa<ConstantSDNode>(Op0.getOperand(1))) {
 
-        unsigned Bits = Op0.getValueType().getSizeInBits();
+        unsigned Bits = Op0.getValueSizeInBits();
         if (b != Bits/8-1)
           return false;
         if (Op0.getConstantOperandVal(1) != Bits-8)
@@ -3215,9 +3266,9 @@ SDValue PPCDAGToDAGISel::combineToCMPB(SDNode *N) {
 
         // Now we need to make sure that the upper bytes are known to be
         // zero.
-        unsigned Bits = Op0.getValueType().getSizeInBits();
-        if (!CurDAG->MaskedValueIsZero(Op0,
-              APInt::getHighBitsSet(Bits, Bits - (b+1)*8)))
+        unsigned Bits = Op0.getValueSizeInBits();
+        if (!CurDAG->MaskedValueIsZero(
+                Op0, APInt::getHighBitsSet(Bits, Bits - (b + 1) * 8)))
           return false;
 
         LHS = Op0.getOperand(0);
@@ -3250,7 +3301,7 @@ SDValue PPCDAGToDAGISel::combineToCMPB(SDNode *N) {
     } else if (Op.getOpcode() == ISD::SRL) {
       if (!isa<ConstantSDNode>(Op.getOperand(1)))
         return false;
-      unsigned Bits = Op.getValueType().getSizeInBits();
+      unsigned Bits = Op.getValueSizeInBits();
       if (b != Bits/8-1)
         return false;
       if (Op.getConstantOperandVal(1) != Bits-8)
@@ -3562,7 +3613,8 @@ void PPCDAGToDAGISel::PeepholeCROps() {
                    Op.getOperand(0) == Op.getOperand(1))
             Op2Not = true;
         }
-        }  // fallthrough
+        LLVM_FALLTHROUGH;
+      }
       case PPC::BC:
       case PPC::BCn:
       case PPC::SELECT_I4:
@@ -3989,8 +4041,9 @@ static bool PeepholePPC64ZExtGather(SDValue Op32,
     return true;
   }
 
-  // CNTLZW always produces a 64-bit value in [0,32], and so is zero extended.
-  if (Op32.getMachineOpcode() == PPC::CNTLZW) {
+  // CNT[LT]ZW always produce a 64-bit value in [0,32], and so is zero extended.
+  if (Op32.getMachineOpcode() == PPC::CNTLZW ||
+      Op32.getMachineOpcode() == PPC::CNTTZW) {
     ToPromote.insert(Op32.getNode());
     return true;
   }
@@ -4185,6 +4238,7 @@ void PPCDAGToDAGISel::PeepholePPC64ZExt() {
       case PPC::LHBRX:     NewOpcode = PPC::LHBRX8; break;
       case PPC::LWBRX:     NewOpcode = PPC::LWBRX8; break;
       case PPC::CNTLZW:    NewOpcode = PPC::CNTLZW8; break;
+      case PPC::CNTTZW:    NewOpcode = PPC::CNTTZW8; break;
       case PPC::RLWIMI:    NewOpcode = PPC::RLWIMI8; break;
       case PPC::OR:        NewOpcode = PPC::OR8; break;
       case PPC::SELECT_I4: NewOpcode = PPC::SELECT_I8; break;
@@ -4312,13 +4366,6 @@ void PPCDAGToDAGISel::PeepholePPC64() {
     if (!Base.isMachineOpcode())
       continue;
 
-    // On targets with fusion, we don't want this to fire and remove a fusion
-    // opportunity, unless a) it results in another fusion opportunity or
-    // b) optimizing for size.
-    if (PPCSubTarget->hasFusion() &&
-        (!MF->getFunction()->optForSize() && !Base.hasOneUse()))
-      continue;
-
     unsigned Flags = 0;
     bool ReplaceFlags = true;
 
@@ -4363,15 +4410,64 @@ void PPCDAGToDAGISel::PeepholePPC64() {
     }
 
     SDValue ImmOpnd = Base.getOperand(1);
-    int MaxDisplacement = 0;
+
+    // On PPC64, the TOC base pointer is guaranteed by the ABI only to have
+    // 8-byte alignment, and so we can only use offsets less than 8 (otherwise,
+    // we might have needed different @ha relocation values for the offset
+    // pointers).
+    int MaxDisplacement = 7;
     if (GlobalAddressSDNode *GA = dyn_cast<GlobalAddressSDNode>(ImmOpnd)) {
       const GlobalValue *GV = GA->getGlobal();
-      MaxDisplacement = GV->getAlignment() - 1;
+      MaxDisplacement = std::min((int) GV->getAlignment() - 1, MaxDisplacement);
     }
 
+    bool UpdateHBase = false;
+    SDValue HBase = Base.getOperand(0);
+
     int Offset = N->getConstantOperandVal(FirstOp);
-    if (Offset < 0 || Offset > MaxDisplacement)
-      continue;
+    if (ReplaceFlags) {
+      if (Offset < 0 || Offset > MaxDisplacement) {
+        // If we have a addi(toc@l)/addis(toc@ha) pair, and the addis has only
+        // one use, then we can do this for any offset, we just need to also
+        // update the offset (i.e. the symbol addend) on the addis also.
+        if (Base.getMachineOpcode() != PPC::ADDItocL)
+          continue;
+
+        if (!HBase.isMachineOpcode() ||
+            HBase.getMachineOpcode() != PPC::ADDIStocHA)
+          continue;
+
+        if (!Base.hasOneUse() || !HBase.hasOneUse())
+          continue;
+
+        SDValue HImmOpnd = HBase.getOperand(1);
+        if (HImmOpnd != ImmOpnd)
+          continue;
+
+        UpdateHBase = true;
+      }
+    } else {
+      // If we're directly folding the addend from an addi instruction, then:
+      //  1. In general, the offset on the memory access must be zero.
+      //  2. If the addend is a constant, then it can be combined with a
+      //     non-zero offset, but only if the result meets the encoding
+      //     requirements.
+      if (auto *C = dyn_cast<ConstantSDNode>(ImmOpnd)) {
+        Offset += C->getSExtValue();
+
+        if ((StorageOpcode == PPC::LWA || StorageOpcode == PPC::LD ||
+             StorageOpcode == PPC::STD) && (Offset % 4) != 0)
+          continue;
+
+        if (!isInt<16>(Offset))
+          continue;
+
+        ImmOpnd = CurDAG->getTargetConstant(Offset, SDLoc(ImmOpnd),
+                                            ImmOpnd.getValueType());
+      } else if (Offset != 0) {
+        continue;
+      }
+    }
 
     // We found an opportunity.  Reverse the operands from the add
     // immediate and substitute them into the load or store.  If
@@ -4413,6 +4509,10 @@ void PPCDAGToDAGISel::PeepholePPC64() {
     else // Load
       (void)CurDAG->UpdateNodeOperands(N, ImmOpnd, Base.getOperand(0),
                                        N->getOperand(2));
+
+    if (UpdateHBase)
+      (void)CurDAG->UpdateNodeOperands(HBase.getNode(), HBase.getOperand(0),
+                                       ImmOpnd);
 
     // The add-immediate may now be dead, in which case remove it.
     if (Base.getNode()->use_empty())

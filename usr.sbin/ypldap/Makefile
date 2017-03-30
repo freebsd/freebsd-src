@@ -12,8 +12,8 @@ MAN=		ypldap.8 ypldap.conf.5
 LIBADD=		openbsd event util rpcsvc
 
 CFLAGS+=-I${.CURDIR}
-CFLAGS+=-I${.CURDIR}/../../contrib/pf/libevent
-CFLAGS+=-I${.CURDIR}/../../lib/libopenbsd
+CFLAGS+=-I${SRCTOP}/contrib/pf/libevent
+CFLAGS+=-I${SRCTOP}/lib/libopenbsd
 
 WARNS=	2
 

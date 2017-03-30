@@ -40,6 +40,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
 #include <assert.h>
@@ -50,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/stat.h>
 
 #include "makefs.h"
 #include "mtree.h"
@@ -333,6 +333,7 @@ apply_specfile(const char *specfile, const char *dir, fsnode *parent, int specon
 				/* merge in the changes */
 	apply_specdir(dir, root, parent, speconly);
 
+	free_nodes(root);
 }
 
 static void

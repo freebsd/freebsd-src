@@ -1,4 +1,4 @@
-%define ver 7.2p2
+%define ver 7.4p1
 %define rel 1
 
 # OpenSSH privilege separation requires a user & group ID
@@ -72,8 +72,8 @@ Release: %{rel}rescue
 %else
 Release: %{rel}
 %endif
-URL: http://www.openssh.com/portable.html
-Source0: ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-%{version}.tar.gz
+URL: https://www.openssh.com/portable.html
+Source0: https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-%{version}.tar.gz
 %if ! %{no_x11_askpass}
 Source1: http://www.jmknoble.net/software/x11-ssh-askpass/x11-ssh-askpass-%{aversion}.tar.gz
 %endif
@@ -358,8 +358,6 @@ fi
 %attr(0644,root,root) %{_mandir}/man1/ssh.1*
 %attr(0644,root,root) %{_mandir}/man5/ssh_config.5*
 %attr(0644,root,root) %config(noreplace) %{_sysconfdir}/ssh/ssh_config
-%attr(-,root,root) %{_bindir}/slogin
-%attr(-,root,root) %{_mandir}/man1/slogin.1*
 %if ! %{rescue}
 %attr(2755,root,nobody) %{_bindir}/ssh-agent
 %attr(0755,root,root) %{_bindir}/ssh-add

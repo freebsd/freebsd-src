@@ -1,5 +1,3 @@
-/* $Id: bsd-waitpid.h,v 1.5 2003/08/29 16:59:52 mouring Exp $ */
-
 /*
  * Copyright (c) 2000 Ben Lindstrom.  All rights reserved.
  *

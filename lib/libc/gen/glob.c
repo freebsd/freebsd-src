@@ -18,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -850,7 +850,7 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
     const char *origpat)
 {
 	char **pathv;
-	size_t i, newsize, len;
+	size_t i, newn, len;
 	char *copy;
 	const Char *p;
 
@@ -860,9 +860,9 @@ globextend(const Char *path, glob_t *pglob, struct glob_limit *limit,
 		return (GLOB_NOSPACE);
 	}
 
-	newsize = sizeof(*pathv) * (2 + pglob->gl_pathc + pglob->gl_offs);
-	/* realloc(NULL, newsize) is equivalent to malloc(newsize). */
-	pathv = realloc((void *)pglob->gl_pathv, newsize);
+	newn = 2 + pglob->gl_pathc + pglob->gl_offs;
+	/* reallocarray(NULL, newn, size) is equivalent to malloc(newn*size). */
+	pathv = reallocarray(pglob->gl_pathv, newn, sizeof(*pathv));
 	if (pathv == NULL)
 		return (GLOB_NOSPACE);
 

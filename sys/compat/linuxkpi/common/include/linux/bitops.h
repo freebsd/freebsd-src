@@ -31,16 +31,20 @@
 #ifndef	_LINUX_BITOPS_H_
 #define	_LINUX_BITOPS_H_
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/libkern.h>
 
 #define	BIT(nr)			(1UL << (nr))
+#define	BIT_ULL(nr)		(1ULL << (nr))
 #ifdef __LP64__
 #define	BITS_PER_LONG		64
 #else
 #define	BITS_PER_LONG		32
 #endif
+
 #define	BITMAP_FIRST_WORD_MASK(start)	(~0UL << ((start) % BITS_PER_LONG))
 #define	BITMAP_LAST_WORD_MASK(n)	(~0UL >> (BITS_PER_LONG - (n)))
 #define	BITS_TO_LONGS(n)	howmany((n), BITS_PER_LONG)
@@ -48,6 +52,12 @@
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
 #define	GENMASK(h, l)		(((~0UL) >> (BITS_PER_LONG - (h) - 1)) & ((~0UL) << (l)))
 #define BITS_PER_BYTE           8
+
+#define	hweight8(x)	bitcount((uint8_t)(x))
+#define	hweight16(x)	bitcount16(x)
+#define	hweight32(x)	bitcount32(x)
+#define	hweight64(x)	bitcount64(x)
+#define	hweight_long(x)	bitcountl(x)
 
 static inline int
 __ffs(int mask)
@@ -73,10 +83,15 @@ __flsl(long mask)
 	return (flsl(mask) - 1);
 }
 
+static inline int
+fls64(uint64_t mask)
+{
+	return (flsll(mask));
+}
+
 static inline uint32_t
 ror32(uint32_t word, unsigned int shift)
 {
-
 	return ((word >> shift) | (word << (32 - shift)));
 }
 
@@ -337,6 +352,21 @@ test_and_clear_bit(long bit, volatile unsigned long *var)
 }
 
 static inline int
+__test_and_clear_bit(long bit, volatile unsigned long *var)
+{
+	long val;
+
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
+
+	val = *var;
+	*var &= ~bit;
+
+	return !!(val & bit);
+}
+
+static inline int
 test_and_set_bit(long bit, volatile unsigned long *var)
 {
 	long val;
@@ -347,6 +377,21 @@ test_and_set_bit(long bit, volatile unsigned long *var)
 	do {
 		val = *var;
 	} while (atomic_cmpset_long(var, val, val | bit) == 0);
+
+	return !!(val & bit);
+}
+
+static inline int
+__test_and_set_bit(long bit, volatile unsigned long *var)
+{
+	long val;
+
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
+
+	val = *var;
+	*var |= bit;
 
 	return !!(val & bit);
 }
@@ -508,6 +553,14 @@ bitmap_equal(const unsigned long *pa,
 			return (0);
 	}
 	return (1);
+}
+
+static inline uint64_t
+sign_extend64(uint64_t value, int index)
+{
+	uint8_t shift = 63 - index;
+
+	return ((int64_t)(value << shift) >> shift);
 }
 
 #endif	/* _LINUX_BITOPS_H_ */

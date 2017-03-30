@@ -421,3 +421,68 @@ iwm_free_resp(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	sc->sc_wantresp = -1;
 	wakeup(&sc->sc_wantresp);
 }
+
+static void
+iwm_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+        if (error != 0)
+                return;
+	KASSERT(nsegs == 1, ("too many DMA segments, %d should be 1", nsegs));
+	*(bus_addr_t *)arg = segs[0].ds_addr;
+}
+
+int
+iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
+    bus_size_t size, bus_size_t alignment)
+{
+	int error;
+
+	dma->tag = NULL;
+	dma->map = NULL;
+	dma->size = size;
+	dma->vaddr = NULL;
+
+	error = bus_dma_tag_create(tag, alignment,
+            0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
+            1, size, 0, NULL, NULL, &dma->tag);
+        if (error != 0)
+                goto fail;
+
+        error = bus_dmamem_alloc(dma->tag, (void **)&dma->vaddr,
+            BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, &dma->map);
+        if (error != 0)
+                goto fail;
+
+        error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr, size,
+            iwm_dma_map_addr, &dma->paddr, BUS_DMA_NOWAIT);
+        if (error != 0) {
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
+		goto fail;
+	}
+
+	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
+
+	return 0;
+
+fail:
+	iwm_dma_contig_free(dma);
+
+	return error;
+}
+
+void
+iwm_dma_contig_free(struct iwm_dma_info *dma)
+{
+	if (dma->vaddr != NULL) {
+		bus_dmamap_sync(dma->tag, dma->map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(dma->tag, dma->map);
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
+	}
+	if (dma->tag != NULL) {
+		bus_dma_tag_destroy(dma->tag);
+		dma->tag = NULL;
+	}
+}

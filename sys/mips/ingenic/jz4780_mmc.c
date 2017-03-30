@@ -968,7 +968,6 @@ static device_method_t jz4780_mmc_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	jz4780_mmc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	jz4780_mmc_write_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	jz4780_mmc_update_ios),
@@ -988,6 +987,6 @@ static driver_t jz4780_mmc_driver = {
 	sizeof(struct jz4780_mmc_softc),
 };
 
-DRIVER_MODULE(jzmmc, simplebus, jz4780_mmc_driver, jz4780_mmc_devclass, 0, 0);
-DRIVER_MODULE(mmc, jzmmc, mmc_driver, mmc_devclass, NULL, NULL);
-MODULE_DEPEND(jzmmc, mmc, 1, 1, 1);
+DRIVER_MODULE(jzmmc, simplebus, jz4780_mmc_driver, jz4780_mmc_devclass, NULL,
+    NULL);
+MMC_DECLARE_BRIDGE(jzmmc);

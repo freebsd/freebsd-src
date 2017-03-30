@@ -8,6 +8,6 @@ WARNS?=	2
 MAN=	quotacheck.8
 LIBADD=	util
 
-.PATH:	${.CURDIR}/../fsck ${.CURDIR}/../fsck_ffs
+.PATH:	${.CURDIR:H}/fsck ${.CURDIR:H}/fsck_ffs
 
 .include <bsd.prog.mk>

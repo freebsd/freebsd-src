@@ -1,7 +1,12 @@
 /*
  * Copyright (c) 1999-2009 Apple Inc.
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005, 2016-2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/sem.h>
 #include <sys/sbuf.h>
+#include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -75,6 +81,30 @@ static struct evclass_list	evclass_hash[EVCLASSMAP_HASH_TABLE_SIZE];
 #define	EVCLASS_RUNLOCK()	rw_runlock(&evclass_lock)
 #define	EVCLASS_WLOCK()		rw_wlock(&evclass_lock)
 #define	EVCLASS_WUNLOCK()	rw_wunlock(&evclass_lock)
+
+/*
+ * Hash table maintaining a mapping from audit event numbers to audit event
+ * names.  For now, used only by DTrace, but present always so that userspace
+ * tools can register and inspect fields consistently even if DTrace is not
+ * present.
+ *
+ * struct evname_elem is defined in audit_private.h so that audit_dtrace.c can
+ * use the definition.
+ */
+#define	EVNAMEMAP_HASH_TABLE_SIZE	251
+struct evname_list {
+	LIST_HEAD(, evname_elem)	enl_head;
+};
+
+static MALLOC_DEFINE(M_AUDITEVNAME, "audit_evname", "Audit event name");
+static struct sx		evnamemap_lock;
+static struct evname_list	evnamemap_hash[EVNAMEMAP_HASH_TABLE_SIZE];
+
+#define	EVNAMEMAP_LOCK_INIT()	sx_init(&evnamemap_lock, "evnamemap_lock");
+#define	EVNAMEMAP_RLOCK()	sx_slock(&evnamemap_lock)
+#define	EVNAMEMAP_RUNLOCK()	sx_sunlock(&evnamemap_lock)
+#define	EVNAMEMAP_WLOCK()	sx_xlock(&evnamemap_lock)
+#define	EVNAMEMAP_WUNLOCK()	sx_xunlock(&evnamemap_lock)
 
 struct aue_open_event {
 	int		aoe_flags;
@@ -110,6 +140,29 @@ static const struct aue_open_event aue_openat[] = {
 	{ (O_WRONLY | O_CREAT | O_TRUNC),		AUE_OPENAT_WTC },
 	{ (O_WRONLY | O_TRUNC),				AUE_OPENAT_WT },
 };
+
+static const int aue_msgsys[] = {
+	/* 0 */ AUE_MSGCTL,
+	/* 1 */ AUE_MSGGET,
+	/* 2 */ AUE_MSGSND,
+	/* 3 */ AUE_MSGRCV,
+};
+static const int aue_msgsys_count = sizeof(aue_msgsys) / sizeof(int);
+
+static const int aue_semsys[] = {
+	/* 0 */ AUE_SEMCTL,
+	/* 1 */ AUE_SEMGET,
+	/* 2 */ AUE_SEMOP,
+};
+static const int aue_semsys_count = sizeof(aue_semsys) / sizeof(int);
+
+static const int aue_shmsys[] = {
+	/* 0 */ AUE_SHMAT,
+	/* 1 */ AUE_SHMDT,
+	/* 2 */ AUE_SHMGET,
+	/* 3 */ AUE_SHMCTL,
+};
+static const int aue_shmsys_count = sizeof(aue_shmsys) / sizeof(int);
 
 /*
  * Look up the class for an audit event in the class mapping table.
@@ -220,6 +273,146 @@ au_preselect(au_event_t event, au_class_t class, au_mask_t *mask_p, int sorf)
 	else
 		return (0);
 }
+
+/*
+ * Look up the name for an audit event in the event-to-name mapping table.
+ */
+int
+au_event_name(au_event_t event, char *name)
+{
+	struct evname_list *enl;
+	struct evname_elem *ene;
+	int error;
+
+	error = ENOENT;
+	EVNAMEMAP_RLOCK();
+	enl = &evnamemap_hash[event % EVNAMEMAP_HASH_TABLE_SIZE];
+	LIST_FOREACH(ene, &enl->enl_head, ene_entry) {
+		if (ene->ene_event == event) {
+			strlcpy(name, ene->ene_name, EVNAMEMAP_NAME_SIZE);
+			error = 0;
+			goto out;
+		}
+	}
+out:
+	EVNAMEMAP_RUNLOCK();
+	return (error);
+}
+
+/*
+ * Insert a event-to-name mapping.  If the event already exists in the
+ * mapping, then replace the mapping with the new one.
+ *
+ * XXX There is currently no constraints placed on the number of mappings.
+ * May want to either limit to a number, or in terms of memory usage.
+ *
+ * XXXRW: Accepts truncated name -- but perhaps should return failure instead?
+ *
+ * XXXRW: It could be we need a way to remove existing names...?
+ *
+ * XXXRW: We handle collisions between numbers, but I wonder if we also need a
+ * way to handle name collisions, for DTrace, where probe names must be
+ * unique?
+ */
+void
+au_evnamemap_insert(au_event_t event, const char *name)
+{
+	struct evname_list *enl;
+	struct evname_elem *ene, *ene_new;
+
+	/*
+	 * Pessimistically, always allocate storage before acquiring lock.
+	 * Free if there is already a mapping for this event.
+	 */
+	ene_new = malloc(sizeof(*ene_new), M_AUDITEVNAME, M_WAITOK | M_ZERO);
+	EVNAMEMAP_WLOCK();
+	enl = &evnamemap_hash[event % EVNAMEMAP_HASH_TABLE_SIZE];
+	LIST_FOREACH(ene, &enl->enl_head, ene_entry) {
+		if (ene->ene_event == event) {
+			EVNAME_LOCK(ene);
+			(void)strlcpy(ene->ene_name, name,
+			    sizeof(ene->ene_name));
+			EVNAME_UNLOCK(ene);
+			EVNAMEMAP_WUNLOCK();
+			free(ene_new, M_AUDITEVNAME);
+			return;
+		}
+	}
+	ene = ene_new;
+	mtx_init(&ene->ene_lock, "au_evnamemap", NULL, MTX_DEF);
+	ene->ene_event = event;
+	(void)strlcpy(ene->ene_name, name, sizeof(ene->ene_name));
+	LIST_INSERT_HEAD(&enl->enl_head, ene, ene_entry);
+	EVNAMEMAP_WUNLOCK();
+}
+
+void
+au_evnamemap_init(void)
+{
+	int i;
+
+	EVNAMEMAP_LOCK_INIT();
+	for (i = 0; i < EVNAMEMAP_HASH_TABLE_SIZE; i++)
+		LIST_INIT(&evnamemap_hash[i].enl_head);
+
+	/*
+	 * XXXRW: Unlike the event-to-class mapping, we don't attempt to
+	 * pre-populate the list.  Perhaps we should...?  But not sure we
+	 * really want to duplicate /etc/security/audit_event in the kernel
+	 * -- and we'd need a way to remove names?
+	 */
+}
+
+/*
+ * The DTrace audit provider occasionally needs to walk the entries in the
+ * event-to-name mapping table, and uses this public interface to do so.  A
+ * write lock is acquired so that the provider can safely update its fields in
+ * table entries.
+ */
+void
+au_evnamemap_foreach(au_evnamemap_callback_t callback)
+{
+	struct evname_list *enl;
+	struct evname_elem *ene;
+	int i;
+
+	EVNAMEMAP_WLOCK();
+	for (i = 0; i < EVNAMEMAP_HASH_TABLE_SIZE; i++) {
+		enl = &evnamemap_hash[i];
+		LIST_FOREACH(ene, &enl->enl_head, ene_entry)
+			callback(ene);
+	}
+	EVNAMEMAP_WUNLOCK();
+}
+
+#ifdef KDTRACE_HOOKS
+/*
+ * Look up an event-to-name mapping table entry by event number.  As evname
+ * elements are stable in memory, we can return the pointer without the table
+ * lock held -- but the caller will need to lock the element mutex before
+ * accessing element fields.
+ *
+ * NB: the event identifier in elements is stable and can be read without
+ * holding the evname_elem lock.
+ */
+struct evname_elem *
+au_evnamemap_lookup(au_event_t event)
+{
+	struct evname_list *enl;
+	struct evname_elem *ene;
+
+	EVNAMEMAP_RLOCK();
+	enl = &evnamemap_hash[event % EVNAMEMAP_HASH_TABLE_SIZE];
+	LIST_FOREACH(ene, &enl->enl_head, ene_entry) {
+		if (ene->ene_event == event)
+			goto out;
+	}
+	ene = NULL;
+out:
+	EVNAMEMAP_RUNLOCK();
+	return (ene);
+}
+#endif /* !KDTRACE_HOOKS */
 
 /*
  * Convert sysctl names and present arguments to events.
@@ -382,6 +575,43 @@ audit_semctl_to_event(int cmd)
 		/* We will audit a bad command. */
 		return (AUE_SEMCTL);
 	}
+}
+
+/*
+ * Convert msgsys(2), semsys(2), and shmsys(2) system-call variations into
+ * audit events, if possible.
+ */
+au_event_t
+audit_msgsys_to_event(int which)
+{
+
+	if ((which >= 0) && (which < aue_msgsys_count))
+		return (aue_msgsys[which]);
+
+	/* Audit a bad command. */
+	return (AUE_MSGSYS);
+}
+
+au_event_t
+audit_semsys_to_event(int which)
+{
+
+	if ((which >= 0) && (which < aue_semsys_count))
+		return (aue_semsys[which]);
+
+	/* Audit a bad command. */
+	return (AUE_SEMSYS);
+}
+
+au_event_t
+audit_shmsys_to_event(int which)
+{
+
+	if ((which >= 0) && (which < aue_shmsys_count))
+		return (aue_shmsys[which]);
+
+	/* Audit a bad command. */
+	return (AUE_SHMSYS);
 }
 
 /*

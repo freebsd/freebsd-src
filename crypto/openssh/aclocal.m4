@@ -1,5 +1,3 @@
-dnl $Id: aclocal.m4,v 1.13 2014/01/22 10:30:12 djm Exp $
-dnl
 dnl OpenSSH-specific autoconf macros
 dnl
 
@@ -59,7 +57,8 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	long long int p = n * o;
+	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
 	exit(0);
 }
 	]])],
@@ -96,7 +95,8 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	long long p = n * o;
+	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
 	exit(0);
 }
 		]])],

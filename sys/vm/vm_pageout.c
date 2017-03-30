@@ -1332,7 +1332,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * Decrease registered cache sizes.
 		 */
 		SDT_PROBE0(vm, , , vm__lowmem_scan);
-		EVENTHANDLER_INVOKE(vm_lowmem, 0);
+		EVENTHANDLER_INVOKE(vm_lowmem, VM_LOW_PAGES);
 		/*
 		 * We do this explicitly after the caches have been
 		 * drained above.

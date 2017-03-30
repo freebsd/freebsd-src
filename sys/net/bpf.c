@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -2677,6 +2677,10 @@ bpf_ifdetach(void *arg __unused, struct ifnet *ifp)
 {
 	struct bpf_if *bp, *bp_temp;
 	int nmatched = 0;
+
+	/* Ignore ifnet renaming. */
+	if (ifp->if_flags & IFF_RENAMING)
+		return;
 
 	BPF_LOCK();
 	/*

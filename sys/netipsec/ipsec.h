@@ -179,6 +179,12 @@ struct secspacq {
 #define IPSEC_POLICY_ENTRUST	3	/* consulting SPD if present. */
 #define IPSEC_POLICY_BYPASS	4	/* only for privileged socket. */
 
+/* Policy scope */
+#define	IPSEC_POLICYSCOPE_ANY		0x00	/* unspecified */
+#define	IPSEC_POLICYSCOPE_GLOBAL	0x01	/* global scope */
+#define	IPSEC_POLICYSCOPE_IFNET		0x02	/* if_ipsec(4) scope */
+#define	IPSEC_POLICYSCOPE_PCB		0x04	/* PCB scope */
+
 /* Security protocol level */
 #define	IPSEC_LEVEL_DEFAULT	0	/* reference to system default */
 #define	IPSEC_LEVEL_USE		1	/* use SA if present. */

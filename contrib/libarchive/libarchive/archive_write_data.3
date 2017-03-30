@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd February 28, 2017
 .Dt ARCHIVE_WRITE_DATA 3
 .Os
 .Sh NAME
-.Nm archive_write_data
+.Nm archive_write_data ,
+.Nm archive_write_data_block
 .Nd functions for creating archives
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -36,8 +37,27 @@ Streaming Archive Library (libarchive, -larchive)
 .In archive.h
 .Ft la_ssize_t
 .Fn archive_write_data "struct archive *" "const void *" "size_t"
+.Ft la_ssize_t
+.Fn archive_write_data_block "struct archive *" "const void *" "size_t size" "int64_t offset"
 .Sh DESCRIPTION
+.Bl -tag -width indent
+.It Fn archive_write_data
 Write data corresponding to the header just written.
+.It Fn archive_write_data_block
+Write data corresponding to the header just written.
+This is like
+.Fn archive_write_data
+except that it performs a seek on the file being
+written to the specified offset before writing the data.
+This is useful when restoring sparse files from archive
+formats that support sparse files.
+Returns number of bytes written or -1 on error.
+(Note: This is currently not supported for
+.Tn archive_write
+handles, only for
+.Tn archive_write_disk
+handles.
+.El
 .\" .Sh EXAMPLE
 .\"
 .Sh RETURN VALUES

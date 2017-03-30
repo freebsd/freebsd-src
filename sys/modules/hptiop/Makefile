@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/hptiop
+.PATH: ${SRCTOP}/sys/dev/hptiop
 
 KMOD=	hptiop
 SRCS=	hptiop.c

@@ -282,7 +282,7 @@ public:
       // Print the IR for the PCH container to the debug output.
       llvm::SmallString<0> Buffer;
       clang::EmitBackendOutput(
-          Diags, CodeGenOpts, TargetOpts, LangOpts,
+          Diags, HeaderSearchOpts, CodeGenOpts, TargetOpts, LangOpts,
           Ctx.getTargetInfo().getDataLayout(), M.get(),
           BackendAction::Backend_EmitLL,
           llvm::make_unique<llvm::raw_svector_ostream>(Buffer));
@@ -290,9 +290,10 @@ public:
     });
 
     // Use the LLVM backend to emit the pch container.
-    clang::EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, LangOpts,
-                             Ctx.getTargetInfo().getDataLayout(), M.get(),
-                             BackendAction::Backend_EmitObj, std::move(OS));
+    clang::EmitBackendOutput(Diags, HeaderSearchOpts, CodeGenOpts, TargetOpts,
+                             LangOpts, Ctx.getTargetInfo().getDataLayout(),
+                             M.get(), BackendAction::Backend_EmitObj,
+                             std::move(OS));
 
     // Free the memory for the temporary buffer.
     llvm::SmallVector<char, 0> Empty;
@@ -312,27 +313,30 @@ ObjectFilePCHContainerWriter::CreatePCHContainerGenerator(
       CI, MainFileName, OutputFileName, std::move(OS), Buffer);
 }
 
-void ObjectFilePCHContainerReader::ExtractPCH(
-    llvm::MemoryBufferRef Buffer, llvm::BitstreamReader &StreamFile) const {
-  if (auto OF = llvm::object::ObjectFile::createObjectFile(Buffer)) {
-    auto *Obj = OF.get().get();
-    bool IsCOFF = isa<llvm::object::COFFObjectFile>(Obj);
+StringRef
+ObjectFilePCHContainerReader::ExtractPCH(llvm::MemoryBufferRef Buffer) const {
+  StringRef PCH;
+  auto OFOrErr = llvm::object::ObjectFile::createObjectFile(Buffer);
+  if (OFOrErr) {
+    auto &OF = OFOrErr.get();
+    bool IsCOFF = isa<llvm::object::COFFObjectFile>(*OF);
     // Find the clang AST section in the container.
-    for (auto &Section : OF->get()->sections()) {
+    for (auto &Section : OF->sections()) {
       StringRef Name;
       Section.getName(Name);
-      if ((!IsCOFF && Name == "__clangast") ||
-          ( IsCOFF && Name ==   "clangast")) {
-        StringRef Buf;
-        Section.getContents(Buf);
-        StreamFile.init((const unsigned char *)Buf.begin(),
-                        (const unsigned char *)Buf.end());
-        return;
+      if ((!IsCOFF && Name == "__clangast") || (IsCOFF && Name == "clangast")) {
+        Section.getContents(PCH);
+        return PCH;
       }
     }
   }
-
-  // As a fallback, treat the buffer as a raw AST.
-  StreamFile.init((const unsigned char *)Buffer.getBufferStart(),
-                  (const unsigned char *)Buffer.getBufferEnd());
+  handleAllErrors(OFOrErr.takeError(), [&](const llvm::ErrorInfoBase &EIB) {
+    if (EIB.convertToErrorCode() ==
+        llvm::object::object_error::invalid_file_type)
+      // As a fallback, treat the buffer as a raw AST.
+      PCH = Buffer.getBuffer();
+    else
+      EIB.log(llvm::errs());
+  });
+  return PCH;
 }

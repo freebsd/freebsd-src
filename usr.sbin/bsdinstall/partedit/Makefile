@@ -4,7 +4,7 @@ BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	partedit
 LINKS= ${BINDIR}/partedit ${BINDIR}/autopart \
        ${BINDIR}/partedit ${BINDIR}/scriptedpart
-SYMLINKS= ${BINDIR}/partedit /usr/sbin/sade
+SYMLINKS= ../libexec/bsdinstall/partedit /usr/sbin/sade
 LIBADD+=	geom ncursesw util dialog m
 
 PARTEDIT_ARCH= ${MACHINE}

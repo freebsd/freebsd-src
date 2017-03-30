@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.str.c,v 3.42 2012/01/10 21:34:31 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.str.c,v 3.47 2015/06/06 21:19:08 christos Exp $ */
 /*
  * tc.str.c: Short string package
  * 	     This has been a lesson of how to write buggy code!
@@ -36,7 +36,7 @@
 #include <assert.h>
 #include <limits.h>
 
-RCSID("$tcsh: tc.str.c,v 3.42 2012/01/10 21:34:31 christos Exp $")
+RCSID("$tcsh: tc.str.c,v 3.47 2015/06/06 21:19:08 christos Exp $")
 
 #define MALLOC_INCR	128
 #ifdef WIDE_STRINGS
@@ -66,10 +66,24 @@ one_wctomb(char *s, Char wchar)
 {
     int len;
 
-    if (wchar & INVALID_BYTE) {
-	s[0] = wchar & 0xFF;
+#if INVALID_BYTE != 0
+    if ((wchar & INVALID_BYTE) == INVALID_BYTE) {    /* wchar >= INVALID_BYTE */
+	/* invalid char
+	 * exmaple)
+	 * if wchar = f0000090(=90|INVALID_BYTE), then *s = ffffff90 */
+	*s = (char)wchar;
 	len = 1;
+#else
+    if (wchar & (CHAR & INVALID_BYTE)) {
+	s[0] = wchar & (CHAR & 0xFF);
+	len = 1;
+#endif
     } else {
+#if INVALID_BYTE != 0
+	wchar &= MAX_UTF32;
+#else
+	wchar &= CHAR;
+#endif
 #ifdef UTF16_STRINGS
 	if (wchar >= 0x10000) {
 	    /* UTF-16 systems can't handle these values directly in calls to
@@ -224,7 +238,7 @@ short2str(const Char *src)
     dst = sdst;
     edst = &dst[dstsize];
     while (*src) {
-	dst += one_wctomb(dst, *src & CHAR);
+	dst += one_wctomb(dst, *src);
 	src++;
 	if (dst >= edst) {
 	    char *wdst = dst;
@@ -544,7 +558,7 @@ short2qstr(const Char *src)
 		dst = &edst[-MALLOC_INCR];
 	    }
 	}
-	dst += one_wctomb(dst, *src & CHAR);
+	dst += one_wctomb(dst, *src);
 	src++;
 	if (dst >= edst) {
 	    ptrdiff_t i = dst - edst;
@@ -559,7 +573,7 @@ short2qstr(const Char *src)
 }
 
 struct blk_buf *
-bb_alloc()
+bb_alloc(void)
 {
     return xcalloc(1, sizeof(struct blk_buf));
 }
@@ -590,10 +604,14 @@ bb_cleanup(void *xbb)
     struct blk_buf *bb;
     size_t i;
 
-    bb = xbb;
-    for (i = 0; i < bb->len; i++)
-	xfree(bb->vec[i]);
-    xfree(bb->vec);
+    bb = (struct blk_buf *)xbb;
+    if (bb->vec) {
+	for (i = 0; i < bb->len; i++)
+	    xfree(bb->vec[i]);
+	xfree(bb->vec);
+    }
+    bb->vec = NULL;
+    bb->len = 0;
 }
 
 void

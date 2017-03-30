@@ -14,5 +14,5 @@ FIRMWS=	${_FIRM}:${KMOD}
 #
 #FIRMWARE_LICENSE=
 
-${_FIRM}: ${.CURDIR}/../../../../contrib/dev/drm2/radeonkmsfw/${_FIRM}.uu
+${_FIRM}: ${SRCTOP}/sys/contrib/dev/drm2/radeonkmsfw/${_FIRM}.uu
 	uudecode -p $? > ${.TARGET}

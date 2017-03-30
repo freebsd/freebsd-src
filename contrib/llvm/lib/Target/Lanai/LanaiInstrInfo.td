@@ -115,9 +115,6 @@ def imm10 : Operand<i32>, PatLeaf<(imm), [{
   let ParserMatchClass = Imm10AsmOperand;
 }
 
-def immZExt21 : PatLeaf<(imm),
-                        [{return isUInt<21>(N->getZExtValue()); }], LO21>;
-
 def LoImm16AsmOperand : AsmOperandClass { let Name = "LoImm16"; }
 def i32lo16z : Operand<i32>, PatLeaf<(i32 imm), [{
     // i32lo16 predicate - true if the 32-bit immediate has only rightmost 16
@@ -833,11 +830,6 @@ def TRAILZ : InstSpecial<0b011, (outs GPR:$Rd), (ins GPR:$Rs1),
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns
 //===----------------------------------------------------------------------===//
-
-// i32 0 and R0 can be used interchangeably.
-def : Pat<(i32 0), (i32 R0)>;
-// i32 -1 and R1 can be used interchangeably.
-def : Pat<(i32 -1), (i32 R1)>;
 
 // unsigned 16-bit immediate
 def : Pat<(i32 i32lo16z:$imm), (OR_I_LO (i32 R0), imm:$imm)>;

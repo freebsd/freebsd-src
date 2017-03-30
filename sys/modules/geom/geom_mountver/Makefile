@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/mountver
+.PATH: ${SRCTOP}/sys/geom/mountver
 
 KMOD=	geom_mountver
 SRCS=	g_mountver.c

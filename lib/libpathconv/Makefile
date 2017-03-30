@@ -10,7 +10,7 @@ INCS=		pathconv.h
 SRCS=		abs2rel.c rel2abs.c
 
 
-#VERSION_DEF=	${.CURDIR}/../libc/Versions.def
+#VERSION_DEF=	${SRCTOP/lib/libc/Versions.def
 #SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 .if ${MK_TESTS} != "no"

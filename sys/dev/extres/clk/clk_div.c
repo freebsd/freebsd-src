@@ -195,7 +195,8 @@ clknode_div_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 		hw_i_div--;
 
 	*stop = 1;
-	if (hw_i_div > sc->i_mask) {
+	if (hw_i_div > sc->i_mask &&
+	    ((sc->div_flags & CLK_DIV_WITH_TABLE) == 0)) {
 		/* XXX Or only return error? */
 		printf("%s: %s integer divider is too big: %u\n",
 		    clknode_get_name(clk), __func__, hw_i_div);

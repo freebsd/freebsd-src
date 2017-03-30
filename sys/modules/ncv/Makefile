@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/ncv
+.PATH: ${SRCTOP}/sys/dev/ncv
 
 KMOD=	ncv
 SRCS=	ncr53c500_pccard.c ncr53c500.c 

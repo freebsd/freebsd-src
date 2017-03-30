@@ -20,7 +20,8 @@
 
 #include "includes.h"
 
-#ifdef WITH_OPENSSL
+#ifdef WITH_SSH1
+#if defined(WITH_OPENSSL) && !defined(OPENSSL_NO_BF)
 
 #include <sys/types.h>
 
@@ -100,4 +101,6 @@ evp_ssh1_bf(void)
 	ssh1_bf.key_len = 32;
 	return (&ssh1_bf);
 }
-#endif /* WITH_OPENSSL */
+#endif /* defined(WITH_OPENSSL) && !defined(OPENSSL_NO_BF) */
+
+#endif /* WITH_SSH1 */

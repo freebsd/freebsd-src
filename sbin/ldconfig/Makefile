@@ -3,7 +3,7 @@
 PACKAGE=runtime
 PROG=	ldconfig
 SRCS=	elfhints.c ldconfig.c shlib.c support.c
-LDDIR?= ${.CURDIR}/../../libexec/rtld-aout
+LDDIR?= ${SRCTOP}/libexec/rtld-aout
 CFLAGS+=-I${LDDIR} -DFREEBSD_AOUT
 MAN=	ldconfig.8
 

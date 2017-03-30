@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-int			cpu_deepest_sleep = 0;	/* Deepest Cx state available. */
 int			cpu_disable_c2_sleep = 0; /* Timer dies in C2. */
 int			cpu_disable_c3_sleep = 0; /* Timer dies in C3. */
 

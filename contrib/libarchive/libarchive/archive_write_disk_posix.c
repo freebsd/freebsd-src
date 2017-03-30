@@ -39,9 +39,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_EXTATTR_H
 #include <sys/extattr.h>
 #endif
-#if defined(HAVE_SYS_XATTR_H)
+#if HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
-#elif defined(HAVE_ATTR_XATTR_H)
+#elif HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
 #ifdef HAVE_SYS_EA_H
@@ -575,10 +575,55 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	if (a->flags & ARCHIVE_EXTRACT_TIME)
 		a->todo |= TODO_TIMES;
 	if (a->flags & ARCHIVE_EXTRACT_ACL) {
+#if ARCHIVE_ACL_DARWIN
+		/*
+		 * On MacOS, platform ACLs get stored in mac_metadata, too.
+		 * If we intend to extract mac_metadata and it is present
+		 * we skip extracting libarchive NFSv4 ACLs.
+		 */
+		size_t metadata_size;
+
+		if ((a->flags & ARCHIVE_EXTRACT_MAC_METADATA) == 0 ||
+		    archive_entry_mac_metadata(a->entry,
+		    &metadata_size) == NULL || metadata_size == 0)
+#endif
+#if ARCHIVE_ACL_LIBRICHACL
+		/*
+		 * RichACLs are stored in an extended attribute.
+		 * If we intend to extract extended attributes and have this
+		 * attribute we skip extracting libarchive NFSv4 ACLs.
+		 */
+		short extract_acls = 1;
+		if (a->flags & ARCHIVE_EXTRACT_XATTR && (
+		    archive_entry_acl_types(a->entry) &
+		    ARCHIVE_ENTRY_ACL_TYPE_NFS4)) {
+			const char *attr_name;
+			const void *attr_value;
+			size_t attr_size;
+			int i = archive_entry_xattr_reset(a->entry);
+			while (i--) {
+				archive_entry_xattr_next(a->entry, &attr_name,
+				    &attr_value, &attr_size);
+				if (attr_name != NULL && attr_value != NULL &&
+				    attr_size > 0 && strcmp(attr_name,
+				    "trusted.richacl") == 0) {
+					extract_acls = 0;
+					break;
+				}
+			}
+		}
+		if (extract_acls)
+#endif
+#if ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_LIBRICHACL
+		{
+#endif
 		if (archive_entry_filetype(a->entry) == AE_IFDIR)
 			a->deferred |= TODO_ACLS;
 		else
 			a->todo |= TODO_ACLS;
+#if ARCHIVE_ACL_DARWIN || ARCHIVE_ACL_LIBRICHACL
+		}
+#endif
 	}
 	if (a->flags & ARCHIVE_EXTRACT_MAC_METADATA) {
 		if (archive_entry_filetype(a->entry) == AE_IFDIR)
@@ -619,8 +664,21 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	}
 #endif
 
-	if (a->flags & ARCHIVE_EXTRACT_XATTR)
+	if (a->flags & ARCHIVE_EXTRACT_XATTR) {
+#if ARCHIVE_XATTR_DARWIN
+		/*
+		 * On MacOS, extended attributes get stored in mac_metadata,
+		 * too. If we intend to extract mac_metadata and it is present
+		 * we skip extracting extended attributes.
+		 */
+		size_t metadata_size;
+
+		if ((a->flags & ARCHIVE_EXTRACT_MAC_METADATA) == 0 ||
+		    archive_entry_mac_metadata(a->entry,
+		    &metadata_size) == NULL || metadata_size == 0)
+#endif
 		a->todo |= TODO_XATTR;
+	}
 	if (a->flags & ARCHIVE_EXTRACT_FFLAGS)
 		a->todo |= TODO_FFLAGS;
 	if (a->flags & ARCHIVE_EXTRACT_SECURE_SYMLINKS) {
@@ -1703,24 +1761,11 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 */
 	if (a->todo & TODO_ACLS) {
 		int r2;
-#ifdef HAVE_DARWIN_ACL
-		/*
-		 * On Mac OS, platform ACLs are stored also in mac_metadata by
-		 * the operating system. If mac_metadata is present it takes
-		 * precedence and we skip extracting libarchive NFSv4 ACLs
-		 */
-		const void *metadata;
-		size_t metadata_size;
-		metadata = archive_entry_mac_metadata(a->entry, &metadata_size);
-		if (metadata == NULL || metadata_size == 0) {
-#endif
 		r2 = archive_write_disk_set_acls(&a->archive, a->fd,
 		    archive_entry_pathname(a->entry),
-		    archive_entry_acl(a->entry));
+		    archive_entry_acl(a->entry),
+		    archive_entry_mode(a->entry));
 		if (r2 < ret) ret = r2;
-#ifdef HAVE_DARWIN_ACL
-		}
-#endif
 	}
 
 finish_metadata:
@@ -2067,6 +2112,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	int r;
 	/* these for check_symlinks_fsobj */
 	char *linkname_copy;	/* non-const copy of linkname */
+	struct stat st;
 	struct archive_string error_string;
 	int error_number;
 
@@ -2131,11 +2177,20 @@ create_filesystem_object(struct archive_write_disk *a)
 			a->todo = 0;
 			a->deferred = 0;
 		} else if (r == 0 && a->filesize > 0) {
-			a->fd = open(a->name, O_WRONLY | O_TRUNC | O_BINARY
-			    | O_CLOEXEC | O_NOFOLLOW);
-			__archive_ensure_cloexec_flag(a->fd);
-			if (a->fd < 0)
+#ifdef HAVE_LSTAT
+			r = lstat(a->name, &st);
+#else
+			r = stat(a->name, &st);
+#endif
+			if (r != 0)
 				r = errno;
+			else if ((st.st_mode & AE_IFMT) == AE_IFREG) {
+				a->fd = open(a->name, O_WRONLY | O_TRUNC |
+				    O_BINARY | O_CLOEXEC | O_NOFOLLOW);
+				__archive_ensure_cloexec_flag(a->fd);
+				if (a->fd < 0)
+					r = errno;
+			}
 		}
 		return (r);
 #endif
@@ -2282,12 +2337,8 @@ _archive_write_disk_close(struct archive *_a)
 		if (p->fixup & TODO_MODE_BASE)
 			chmod(p->name, p->mode);
 		if (p->fixup & TODO_ACLS)
-#ifdef HAVE_DARWIN_ACL
-			if (p->mac_metadata == NULL ||
-			    p->mac_metadata_size == 0)
-#endif
-				archive_write_disk_set_acls(&a->archive,
-				    -1, p->name, &p->acl);
+			archive_write_disk_set_acls(&a->archive, -1, p->name,
+			    &p->acl, p->mode);
 		if (p->fixup & TODO_FFLAGS)
 			set_fflags_platform(a, -1, p->name,
 			    p->mode, p->fflags_set, 0);
@@ -2455,7 +2506,7 @@ fsobj_error(int *a_eno, struct archive_string *a_estr,
 	if (a_eno)
 		*a_eno = err;
 	if (a_estr)
-		archive_string_sprintf(a_estr, errstr, path);
+		archive_string_sprintf(a_estr, "%s%s", errstr, path);
 }
 
 /*
@@ -2561,7 +2612,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				 * with the deep-directory editing.
 				 */
 				fsobj_error(a_eno, a_estr, errno,
-				    "Could not stat %s", path);
+				    "Could not stat ", path);
 				res = ARCHIVE_FAILED;
 				break;
 			}
@@ -2570,7 +2621,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				if (chdir(head) != 0) {
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, errno,
-					    "Could not chdir %s", path);
+					    "Could not chdir ", path);
 					res = (ARCHIVE_FATAL);
 					break;
 				}
@@ -2587,7 +2638,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				if (unlink(head)) {
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, errno,
-					    "Could not remove symlink %s",
+					    "Could not remove symlink ",
 					    path);
 					res = ARCHIVE_FAILED;
 					break;
@@ -2606,7 +2657,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				/*
 				if (!S_ISLNK(path)) {
 					fsobj_error(a_eno, a_estr, 0,
-					    "Removing symlink %s", path);
+					    "Removing symlink ", path);
 				}
 				*/
 				/* Symlink gone.  No more problem! */
@@ -2618,7 +2669,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, 0,
 					    "Cannot remove intervening "
-					    "symlink %s", path);
+					    "symlink ", path);
 					res = ARCHIVE_FAILED;
 					break;
 				}
@@ -2640,7 +2691,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 					} else {
 						fsobj_error(a_eno, a_estr,
 						    errno,
-						    "Could not stat %s", path);
+						    "Could not stat ", path);
 						res = (ARCHIVE_FAILED);
 						break;
 					}
@@ -2649,7 +2700,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 						tail[0] = c;
 						fsobj_error(a_eno, a_estr,
 						    errno,
-						    "Could not chdir %s", path);
+						    "Could not chdir ", path);
 						res = (ARCHIVE_FATAL);
 						break;
 					}
@@ -2662,14 +2713,14 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 					tail[0] = c;
 					fsobj_error(a_eno, a_estr, 0,
 					    "Cannot extract through "
-					    "symlink %s", path);
+					    "symlink ", path);
 					res = ARCHIVE_FAILED;
 					break;
 				}
 			} else {
 				tail[0] = c;
 				fsobj_error(a_eno, a_estr, 0,
-				    "Cannot extract through symlink %s", path);
+				    "Cannot extract through symlink ", path);
 				res = ARCHIVE_FAILED;
 				break;
 			}
@@ -3455,11 +3506,18 @@ set_fflags(struct archive_write_disk *a)
 #ifdef UF_APPEND
 	critical_flags |= UF_APPEND;
 #endif
-#ifdef EXT2_APPEND_FL
+#if defined(FS_APPEND_FL)
+	critical_flags |= FS_APPEND_FL;
+#elif defined(EXT2_APPEND_FL)
 	critical_flags |= EXT2_APPEND_FL;
 #endif
-#ifdef EXT2_IMMUTABLE_FL
+#if defined(FS_IMMUTABLE_FL)
+	critical_flags |= FS_IMMUTABLE_FL;
+#elif defined(EXT2_IMMUTABLE_FL)
 	critical_flags |= EXT2_IMMUTABLE_FL;
+#endif
+#ifdef FS_JOURNAL_DATA_FL
+	critical_flags |= FS_JOURNAL_DATA_FL;
 #endif
 
 	if (a->todo & TODO_FFLAGS) {
@@ -3572,7 +3630,10 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	return (ARCHIVE_WARN);
 }
 
-#elif defined(EXT2_IOC_GETFLAGS) && defined(EXT2_IOC_SETFLAGS) && defined(HAVE_WORKING_EXT2_IOC_GETFLAGS)
+#elif (defined(FS_IOC_GETFLAGS) && defined(FS_IOC_SETFLAGS) && \
+       defined(HAVE_WORKING_FS_IOC_GETFLAGS)) || \
+      (defined(EXT2_IOC_GETFLAGS) && defined(EXT2_IOC_SETFLAGS) && \
+       defined(HAVE_WORKING_EXT2_IOC_GETFLAGS))
 /*
  * Linux uses ioctl() to read and write file flags.
  */
@@ -3585,7 +3646,7 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	int newflags, oldflags;
 	int sf_mask = 0;
 
-	if (set == 0  && clear == 0)
+	if (set == 0 && clear == 0)
 		return (ARCHIVE_OK);
 	/* Only regular files and dirs can have flags. */
 	if (!S_ISREG(mode) && !S_ISDIR(mode))
@@ -3606,11 +3667,18 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	 * defines. (?)  The code below degrades reasonably gracefully
 	 * if sf_mask is incomplete.
 	 */
-#ifdef EXT2_IMMUTABLE_FL
+#if defined(FS_IMMUTABLE_FL)
+	sf_mask |= FS_IMMUTABLE_FL;
+#elif defined(EXT2_IMMUTABLE_FL)
 	sf_mask |= EXT2_IMMUTABLE_FL;
 #endif
-#ifdef EXT2_APPEND_FL
+#if defined(FS_APPEND_FL)
+	sf_mask |= FS_APPEND_FL;
+#elif defined(EXT2_APPEND_FL)
 	sf_mask |= EXT2_APPEND_FL;
+#endif
+#if defined(FS_JOURNAL_DATA_FL)
+	sf_mask |= FS_JOURNAL_DATA_FL;
 #endif
 	/*
 	 * XXX As above, this would be way simpler if we didn't have
@@ -3619,12 +3687,24 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	ret = ARCHIVE_OK;
 
 	/* Read the current file flags. */
-	if (ioctl(myfd, EXT2_IOC_GETFLAGS, &oldflags) < 0)
+	if (ioctl(myfd,
+#ifdef FS_IOC_GETFLAGS
+	    FS_IOC_GETFLAGS,
+#else
+	    EXT2_IOC_GETFLAGS,
+#endif
+	    &oldflags) < 0)
 		goto fail;
 
 	/* Try setting the flags as given. */
 	newflags = (oldflags & ~clear) | set;
-	if (ioctl(myfd, EXT2_IOC_SETFLAGS, &newflags) >= 0)
+	if (ioctl(myfd,
+#ifdef FS_IOC_SETFLAGS
+	    FS_IOC_SETFLAGS,
+#else
+	    EXT2_IOC_SETFLAGS,
+#endif
+	    &newflags) >= 0)
 		goto cleanup;
 	if (errno != EPERM)
 		goto fail;
@@ -3633,7 +3713,13 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	newflags &= ~sf_mask;
 	oldflags &= sf_mask;
 	newflags |= oldflags;
-	if (ioctl(myfd, EXT2_IOC_SETFLAGS, &newflags) >= 0)
+	if (ioctl(myfd,
+#ifdef FS_IOC_SETFLAGS
+	    FS_IOC_SETFLAGS,
+#else
+	    EXT2_IOC_SETFLAGS,
+#endif
+	    &newflags) >= 0)
 		goto cleanup;
 
 	/* We couldn't set the flags, so report the failure. */
@@ -3997,9 +4083,9 @@ skip_appledouble:
 }
 #endif
 
-#if HAVE_LSETXATTR || HAVE_LSETEA
+#if ARCHIVE_XATTR_LINUX || ARCHIVE_XATTR_DARWIN || ARCHIVE_XATTR_AIX
 /*
- * Restore extended attributes -  Linux and AIX implementations:
+ * Restore extended attributes -  Linux, Darwin and AIX implementations:
  * AIX' ea interface is syntaxwise identical to the Linux xattr interface.
  */
 static int
@@ -4019,20 +4105,22 @@ set_xattrs(struct archive_write_disk *a)
 				strncmp(name, "xfsroot.", 8) != 0 &&
 				strncmp(name, "system.", 7) != 0) {
 			int e;
-#if HAVE_FSETXATTR
-			if (a->fd >= 0)
+			if (a->fd >= 0) {
+#if ARCHIVE_XATTR_LINUX
 				e = fsetxattr(a->fd, name, value, size, 0);
-			else
-#elif HAVE_FSETEA
-			if (a->fd >= 0)
+#elif ARCHIVE_XATTR_DARWIN
+				e = fsetxattr(a->fd, name, value, size, 0, 0);
+#elif ARCHIVE_XATTR_AIX
 				e = fsetea(a->fd, name, value, size, 0);
-			else
 #endif
-			{
-#if HAVE_LSETXATTR
+			} else {
+#if ARCHIVE_XATTR_LINUX
 				e = lsetxattr(archive_entry_pathname(entry),
 				    name, value, size, 0);
-#elif HAVE_LSETEA
+#elif ARCHIVE_XATTR_DARWIN
+				e = setxattr(archive_entry_pathname(entry),
+				    name, value, size, 0, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
 				e = lsetea(archive_entry_pathname(entry),
 				    name, value, size, 0);
 #endif
@@ -4061,7 +4149,7 @@ set_xattrs(struct archive_write_disk *a)
 	}
 	return (ret);
 }
-#elif HAVE_EXTATTR_SET_FILE && HAVE_DECL_EXTATTR_NAMESPACE_USER
+#elif ARCHIVE_XATTR_FREEBSD
 /*
  * Restore extended attributes -  FreeBSD implementation
  */
@@ -4096,15 +4184,12 @@ set_xattrs(struct archive_write_disk *a)
 				continue;
 			}
 			errno = 0;
-#if HAVE_EXTATTR_SET_FD
-			if (a->fd >= 0)
+
+			if (a->fd >= 0) {
 				e = extattr_set_fd(a->fd, namespace, name,
 				    value, size);
-			else
-#endif
-			/* TODO: should we use extattr_set_link() instead? */
-			{
-				e = extattr_set_file(
+			} else {
+				e = extattr_set_link(
 				    archive_entry_pathname(entry), namespace,
 				    name, value, size);
 			}
@@ -4191,6 +4276,20 @@ older(struct stat *st, struct archive_entry *entry)
 	/* Same age or newer, so not older. */
 	return (0);
 }
+
+#ifndef ARCHIVE_ACL_SUPPORT
+int
+archive_write_disk_set_acls(struct archive *a, int fd, const char *name,
+    struct archive_acl *abstract_acl, __LA_MODE_T mode)
+{
+	(void)a; /* UNUSED */
+	(void)fd; /* UNUSED */
+	(void)name; /* UNUSED */
+	(void)abstract_acl; /* UNUSED */
+	(void)mode; /* UNUSED */
+	return (ARCHIVE_OK);
+}
+#endif
 
 #endif /* !_WIN32 || __CYGWIN__ */
 

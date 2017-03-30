@@ -247,7 +247,7 @@ aac_cam_probe(device_t dev)
 	camsc = (struct aac_cam *)device_get_softc(dev);
 	if (!camsc->inf)
 		return (0);
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
+	fwprintf(camsc->inf->aac_sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	return (0);
 }
 
@@ -1136,13 +1136,13 @@ aac_container_complete(struct aac_command *cm)
 	union	ccb *ccb;
 	u_int32_t status;
 
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
+	fwprintf(cm->cm_sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	ccb = cm->cm_ccb;
 	status = ((u_int32_t *)cm->cm_fib->data)[0];
 
 	if (cm->cm_flags & AAC_CMD_RESET) {
 		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
-	} else if (status == ST_OK) {	
+	} else if (status == ST_OK) {
 		ccb->ccb_h.status = CAM_REQ_CMP;
 	} else if (status == ST_NOT_READY) {
 		ccb->ccb_h.status = CAM_BUSY;

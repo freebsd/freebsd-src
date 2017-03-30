@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../timed
+.PATH: ${.CURDIR:H}/timed
 
 PROG=	timedc
 MAN=	timedc.8

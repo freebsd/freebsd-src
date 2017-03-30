@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -66,9 +66,14 @@ static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 
 SET_DECLARE(kvm_arch, struct kvm_arch);
 
+static char _kd_is_null[] = "";
+
 char *
 kvm_geterr(kvm_t *kd)
 {
+
+	if (kd == NULL)
+		return (_kd_is_null);
 	return (kd->errbuf);
 }
 
@@ -217,7 +222,7 @@ failed:
 	if (errout != NULL)
 		strlcpy(errout, kd->errbuf, _POSIX2_LINE_MAX);
 	(void)kvm_close(kd);
-	return (0);
+	return (NULL);
 }
 
 kvm_t *
@@ -230,7 +235,7 @@ kvm_openfiles(const char *uf, const char *mf, const char *sf __unused, int flag,
 		if (errout != NULL)
 			(void)strlcpy(errout, strerror(errno),
 			    _POSIX2_LINE_MAX);
-		return (0);
+		return (NULL);
 	}
 	return (_kvm_open(kd, uf, mf, flag, errout));
 }
@@ -245,7 +250,7 @@ kvm_open(const char *uf, const char *mf, const char *sf __unused, int flag,
 		if (errstr != NULL)
 			(void)fprintf(stderr, "%s: %s\n",
 				      errstr, strerror(errno));
-		return (0);
+		return (NULL);
 	}
 	kd->program = errstr;
 	return (_kvm_open(kd, uf, mf, flag, NULL));
@@ -261,7 +266,7 @@ kvm_open2(const char *uf, const char *mf, int flag, char *errout,
 		if (errout != NULL)
 			(void)strlcpy(errout, strerror(errno),
 			    _POSIX2_LINE_MAX);
-		return (0);
+		return (NULL);
 	}
 	kd->resolve_symbol = resolver;
 	return (_kvm_open(kd, uf, mf, flag, errout));
@@ -272,6 +277,10 @@ kvm_close(kvm_t *kd)
 {
 	int error = 0;
 
+	if (kd == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (kd->vmst != NULL)
 		kd->arch->ka_freevtop(kd);
 	if (kd->pmfd >= 0)
@@ -292,7 +301,7 @@ kvm_close(kvm_t *kd)
 		free(kd->pt_map);
 	free((void *)kd);
 
-	return (0);
+	return (error);
 }
 
 int
@@ -467,7 +476,7 @@ kvm_write(kvm_t *kd, u_long kva, const void *buf, size_t len)
 		len -= cw;
 	}
 
-	return (cp - (char *)buf);
+	return (cp - (const char *)buf);
 }
 
 int

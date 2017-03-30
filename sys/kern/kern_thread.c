@@ -192,6 +192,8 @@ thread_dtor(void *mem, int size, void *arg)
 #endif
 	/* Free all OSD associated to this thread. */
 	osd_thread_exit(td);
+	td_softdep_cleanup(td);
+	MPASS(td->td_su == NULL);
 
 	EVENTHANDLER_INVOKE(thread_dtor, td);
 	tid_free(td->td_tid);
@@ -471,6 +473,7 @@ thread_exit(void)
 	KASSERT(p != NULL, ("thread exiting without a process"));
 	CTR3(KTR_PROC, "thread_exit: thread %p (pid %ld, %s)", td,
 	    (long)p->p_pid, td->td_name);
+	SDT_PROBE0(proc, , , lwp__exit);
 	KASSERT(TAILQ_EMPTY(&td->td_sigqueue.sq_list), ("signal pending"));
 
 #ifdef AUDIT

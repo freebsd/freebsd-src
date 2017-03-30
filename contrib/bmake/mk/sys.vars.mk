@@ -1,4 +1,4 @@
-# $Id: sys.vars.mk,v 1.1 2016/10/01 19:11:55 sjg Exp $
+# $Id: sys.vars.mk,v 1.2 2017/01/31 07:44:45 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -65,6 +65,15 @@ M_P2V = tu:C,[./-],_,g
 M_tA = tA
 .else
 M_tA = C,.*,('cd' & \&\& 'pwd') 2> /dev/null || echo &,:sh
+.endif
+
+.if ${MAKE_VERSION:U0} >= 20170130
+# M_cmpv allows comparing dotted versions like 3.1.2
+# ${3.1.2:L:${M_cmpv}} -> 3001002
+# we use big jumps to handle 3 digits per dot:
+# ${123.456.789:L:${M_cmpv}} -> 123456789
+M_cmpv.units = 1 1000 1000000
+M_cmpv = S,., ,g:_:range:@i@+ $${_:[-$$i]} \* $${M_cmpv.units:[$$i]}@:S,^,expr 0 ,1:sh
 .endif
 
 # absoulte path to what we are reading.

@@ -309,11 +309,12 @@ ck_epoch_scan(struct ck_epoch *global,
 {
 	ck_stack_entry_t *cursor;
 
-	*af = false;
 	if (cr == NULL) {
 		cursor = CK_STACK_FIRST(&global->records);
+		*af = false;
 	} else {
 		cursor = &cr->record_next;
+		*af = true;
 	}
 
 	while (cursor != NULL) {

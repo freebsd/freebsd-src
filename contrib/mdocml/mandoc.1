@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.1,v 1.171 2017/01/21 02:32:39 schwarze Exp $
+.\"	$Id: mandoc.1,v 1.174 2017/02/10 15:45:28 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2012, 2014-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 21 2017 $
+.Dd $Mdocdate: February 10 2017 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -538,12 +538,25 @@ A closing parenthesis if the node is a closing delimiter.
 .It
 A full stop if the node ends a sentence.
 .It
+BROKEN if the node is a block broken by another block.
+.It
 NOSRC if the node is not in the input file,
 but automatically generated from macros.
 .It
 NOPRT if the node is not supposed to generate output
 for any output format.
 .El
+.El
+.Pp
+The following
+.Fl O
+argument is accepted:
+.Bl -tag -width Ds
+.It Cm noval
+Skip validation and show the unvalidated syntax tree.
+This can help to find out whether a given behaviour is caused by
+the parser or by the validator.
+Meta data is not available in this case.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width MANPAGER
@@ -1357,6 +1370,10 @@ it is hard to predict which tab stop position the tab will advance to.
 Whitespace at the end of input lines is almost never semantically
 significant \(em but in the odd case where it might be, it is
 extremely confusing when reviewing and maintaining documents.
+.It Sy "new sentence, new line"
+.Pq mdoc
+A new sentence starts in the middle of a text line.
+Start it on a new input line to help formatters produce correct spacing.
 .It Sy "bad comment style"
 .Pq roff
 Comment lines start with a dot, a backslash, and a double-quote character.
@@ -1832,6 +1849,19 @@ as if they were a text line.
 .Xr mdoc 7 ,
 .Xr roff 7 ,
 .Xr tbl 7
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Ox 4.8 .
+The option
+.Fl I
+appeared in
+.Ox 5.2 ,
+and
+.Fl aCcfhKklMSsw
+in
+.Ox 5.7 .
 .Sh AUTHORS
 .An -nosplit
 The

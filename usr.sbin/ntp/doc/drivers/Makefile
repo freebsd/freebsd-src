@@ -16,6 +16,6 @@ FILES=	driver1.html driver10.html driver11.html driver12.html driver16.html \
 	driver9.html mx4200data.html oncore-shmem.html tf582_4.html
 .endif
 
-.PATH: ${.CURDIR}/../../../../contrib/ntp/html/drivers
+.PATH: ${SRCTOP}/contrib/ntp/html/drivers
 
 .include <bsd.prog.mk>

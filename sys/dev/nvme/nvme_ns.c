@@ -512,13 +512,22 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	}
 
 	/*
+	 * If the size of is zero, chances are this isn't a valid
+	 * namespace (eg one that's not been configured yet). The
+	 * standard says the entire id will be zeros, so this is a
+	 * cheap way to test for that.
+	 */
+	if (ns->data.nsze == 0)
+		return (ENXIO);
+
+	/*
 	 * Note: format is a 0-based value, so > is appropriate here,
 	 *  not >=.
 	 */
 	if (ns->data.flbas.format > ns->data.nlbaf) {
 		printf("lba format %d exceeds number supported (%d)\n",
 		    ns->data.flbas.format, ns->data.nlbaf+1);
-		return (1);
+		return (ENXIO);
 	}
 
 	if (ctrlr->cdata.oncs.dsm)

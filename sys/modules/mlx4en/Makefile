@@ -1,5 +1,5 @@
 # $FreeBSD$
-.PATH:  ${.CURDIR}/../../dev/mlx4/mlx4_en
+.PATH:  ${SRCTOP}/sys/dev/mlx4/mlx4_en
 
 KMOD=	mlx4en
 SRCS=	device_if.h bus_if.h pci_if.h vnode_if.h \
@@ -12,7 +12,7 @@ SRCS=	device_if.h bus_if.h pci_if.h vnode_if.h \
 	mlx4_en_rx.c \
 	mlx4_en_tx.c
 
-CFLAGS+= -I${.CURDIR}/../../ofed/include
-CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
+CFLAGS+= -I${SRCTOP}/sys/ofed/include
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 
 .include <bsd.kmod.mk>

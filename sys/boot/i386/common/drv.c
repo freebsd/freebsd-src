@@ -25,9 +25,6 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "drv.h"
 #include "edd.h"
-#ifdef USE_XREAD
-#include "xreadorg.h"
-#endif
 
 static struct edd_params params;
 
@@ -50,9 +47,7 @@ drvsize(struct dsk *dskp)
 	return (params.sectors);
 }
 
-#ifndef USE_XREAD
 static struct edd_packet packet;
-#endif
 
 int
 drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
@@ -61,7 +56,6 @@ drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 
 	if (!OPT_CHECK(RBX_QUIET))
 		printf("%c\b", c = c << 8 | c >> 24);
-#ifndef USE_XREAD
 	packet.len = sizeof(struct edd_packet);
 	packet.count = nblk;
 	packet.off = VTOPOFF(buf);
@@ -73,15 +67,6 @@ drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 	v86.edx = dskp->drive;
 	v86.ds = VTOPSEG(&packet);
 	v86.esi = VTOPOFF(&packet);
-#else	/* USE_XREAD */
-	v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
-	v86.addr = XREADORG;		/* call to xread in boot1 */
-	v86.es = VTOPSEG(buf);
-	v86.eax = lba;
-	v86.ebx = VTOPOFF(buf);
-	v86.ecx = lba >> 32;
-	v86.edx = nblk << 8 | dskp->drive;
-#endif	/* USE_XREAD */
 	v86int();
 	if (V86_CY(v86.efl)) {
 		printf("%s: error %u lba %u\n",

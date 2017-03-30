@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.109 2016/02/15 09:47:49 dtucker Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.110 2016/09/12 01:22:38 deraadt Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -17,7 +17,6 @@
 
 #include "includes.h"
 
-#include <sys/param.h>	/* MIN */
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef HAVE_SYS_TIME_H
@@ -28,9 +27,6 @@
 #endif
 #ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
-#endif
-#ifdef HAVE_SYS_PRCTL_H
-#include <sys/prctl.h>
 #endif
 
 #include <dirent.h>
@@ -508,7 +504,7 @@ status_to_message(u_int32_t status)
 		"Operation unsupported",	/* SSH_FX_OP_UNSUPPORTED */
 		"Unknown error"			/* Others */
 	};
-	return (status_messages[MIN(status,SSH2_FX_MAX)]);
+	return (status_messages[MINIMUM(status,SSH2_FX_MAX)]);
 }
 
 static void
@@ -1588,16 +1584,13 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 
 	log_init(__progname, log_level, log_facility, log_stderr);
 
-#if defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)
 	/*
-	 * On Linux, we should try to avoid making /proc/self/{mem,maps}
+	 * On platforms where we can, avoid making /proc/self/{mem,maps}
 	 * available to the user so that sftp access doesn't automatically
 	 * imply arbitrary code execution access that will break
 	 * restricted configurations.
 	 */
-	if (prctl(PR_SET_DUMPABLE, 0) != 0)
-		fatal("unable to make the process undumpable");
-#endif /* defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE) */
+	platform_disable_tracing(1);	/* strict */
 
 	/* Drop any fine-grained privileges we don't need */
 	platform_pledge_sftp_server();

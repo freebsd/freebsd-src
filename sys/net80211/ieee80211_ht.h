@@ -177,8 +177,7 @@ struct ieee80211_mcs_rates {
 	uint16_t	ht40_rate_400ns;
 };
 extern const struct ieee80211_mcs_rates ieee80211_htrates[];
-const struct ieee80211_htrateset *ieee80211_get_suphtrates(
-		struct ieee80211com *, const struct ieee80211_channel *);
+void	ieee80211_init_suphtrates(struct ieee80211com *);
 
 struct ieee80211_node;
 int	ieee80211_setup_htrates(struct ieee80211_node *,

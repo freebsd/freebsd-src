@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.31 2015/12/11 04:21:12 mmcc Exp $ */
+/* $OpenBSD: sshkey.c,v 1.41 2016/10/24 01:09:17 dtucker Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -27,7 +27,6 @@
 
 #include "includes.h"
 
-#include <sys/param.h>	/* MIN MAX */
 #include <sys/types.h>
 #include <netinet/in.h>
 
@@ -196,7 +195,7 @@ sshkey_ecdsa_nid_from_name(const char *name)
 }
 
 char *
-key_alg_list(int certs_only, int plain_only)
+sshkey_alg_list(int certs_only, int plain_only, char sep)
 {
 	char *tmp, *ret = NULL;
 	size_t nlen, rlen = 0;
@@ -208,7 +207,7 @@ key_alg_list(int certs_only, int plain_only)
 		if ((certs_only && !kt->cert) || (plain_only && kt->cert))
 			continue;
 		if (ret != NULL)
-			ret[rlen++] = '\n';
+			ret[rlen++] = sep;
 		nlen = strlen(kt->name);
 		if ((tmp = realloc(ret, rlen + nlen + 2)) == NULL) {
 			free(ret);
@@ -513,7 +512,6 @@ sshkey_new(int type)
 	default:
 		free(k);
 		return NULL;
-		break;
 	}
 
 	if (sshkey_is_cert(k)) {
@@ -888,9 +886,12 @@ sshkey_fingerprint_raw(const struct sshkey *k, int dgst_alg,
 		int nlen = BN_num_bytes(k->rsa->n);
 		int elen = BN_num_bytes(k->rsa->e);
 
+		if (nlen < 0 || elen < 0 || nlen >= INT_MAX - elen) {
+			r = SSH_ERR_INVALID_FORMAT;
+			goto out;
+		}
 		blob_len = nlen + elen;
-		if (nlen >= INT_MAX - elen ||
-		    (blob = malloc(blob_len)) == NULL) {
+		if ((blob = malloc(blob_len)) == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
@@ -1082,10 +1083,10 @@ fingerprint_randomart(const char *alg, u_char *dgst_raw, size_t dgst_raw_len,
 			y += (input & 0x2) ? 1 : -1;
 
 			/* assure we are still in bounds */
-			x = MAX(x, 0);
-			y = MAX(y, 0);
-			x = MIN(x, FLDSIZE_X - 1);
-			y = MIN(y, FLDSIZE_Y - 1);
+			x = MAXIMUM(x, 0);
+			y = MAXIMUM(y, 0);
+			x = MINIMUM(x, FLDSIZE_X - 1);
+			y = MINIMUM(y, FLDSIZE_Y - 1);
 
 			/* augment the field */
 			if (field[x][y] < len - 2)
@@ -1126,7 +1127,7 @@ fingerprint_randomart(const char *alg, u_char *dgst_raw, size_t dgst_raw_len,
 	for (y = 0; y < FLDSIZE_Y; y++) {
 		*p++ = '|';
 		for (x = 0; x < FLDSIZE_X; x++)
-			*p++ = augmentation_string[MIN(field[x][y], len)];
+			*p++ = augmentation_string[MINIMUM(field[x][y], len)];
 		*p++ = '|';
 		*p++ = '\n';
 	}
@@ -1966,7 +1967,8 @@ sshkey_from_blob_internal(struct sshbuf *b, struct sshkey **keyp,
 #ifdef DEBUG_PK /* XXX */
 	sshbuf_dump(b, stderr);
 #endif
-	*keyp = NULL;
+	if (keyp != NULL)
+		*keyp = NULL;
 	if ((copy = sshbuf_fromb(b)) == NULL) {
 		ret = SSH_ERR_ALLOC_FAIL;
 		goto out;
@@ -2121,8 +2123,10 @@ sshkey_from_blob_internal(struct sshbuf *b, struct sshkey **keyp,
 		goto out;
 	}
 	ret = 0;
-	*keyp = key;
-	key = NULL;
+	if (keyp != NULL) {
+		*keyp = key;
+		key = NULL;
+	}
  out:
 	sshbuf_free(copy);
 	sshkey_free(key);
@@ -2367,7 +2371,7 @@ sshkey_drop_cert(struct sshkey *k)
 
 /* Sign a certified key, (re-)generating the signed certblob. */
 int
-sshkey_certify(struct sshkey *k, struct sshkey *ca)
+sshkey_certify(struct sshkey *k, struct sshkey *ca, const char *alg)
 {
 	struct sshbuf *principals = NULL;
 	u_char *ca_blob = NULL, *sig_blob = NULL, nonce[32];
@@ -2457,7 +2461,7 @@ sshkey_certify(struct sshkey *k, struct sshkey *ca)
 
 	/* Sign the whole mess */
 	if ((ret = sshkey_sign(ca, &sig_blob, &sig_len, sshbuf_ptr(cert),
-	    sshbuf_len(cert), NULL, 0)) != 0)
+	    sshbuf_len(cert), alg, 0)) != 0)
 		goto out;
 
 	/* Append signature and we are done */
@@ -2859,6 +2863,14 @@ sshkey_ec_validate_public(const EC_GROUP *group, const EC_POINT *public)
 	BIGNUM *order, *x, *y, *tmp;
 	int ret = SSH_ERR_KEY_INVALID_EC_VALUE;
 
+	/*
+	 * NB. This assumes OpenSSL has already verified that the public
+	 * point lies on the curve. This is done by EC_POINT_oct2point()
+	 * implicitly calling EC_POINT_is_on_curve(). If this code is ever
+	 * reachable with public points not unmarshalled using
+	 * EC_POINT_oct2point then the caller will need to explicitly check.
+	 */
+
 	if ((bnctx = BN_CTX_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 	BN_CTX_start(bnctx);
@@ -3026,12 +3038,10 @@ sshkey_private_to_blob2(const struct sshkey *prv, struct sshbuf *blob,
 	size_t i, pubkeylen, keylen, ivlen, blocksize, authlen;
 	u_int check;
 	int r = SSH_ERR_INTERNAL_ERROR;
-	struct sshcipher_ctx ciphercontext;
+	struct sshcipher_ctx *ciphercontext = NULL;
 	const struct sshcipher *cipher;
 	const char *kdfname = KDFNAME;
 	struct sshbuf *encoded = NULL, *encrypted = NULL, *kdf = NULL;
-
-	memset(&ciphercontext, 0, sizeof(ciphercontext));
 
 	if (rounds <= 0)
 		rounds = DEFAULT_ROUNDS;
@@ -3119,7 +3129,7 @@ sshkey_private_to_blob2(const struct sshkey *prv, struct sshbuf *blob,
 	if ((r = sshbuf_reserve(encoded,
 	    sshbuf_len(encrypted) + authlen, &cp)) != 0)
 		goto out;
-	if ((r = cipher_crypt(&ciphercontext, 0, cp,
+	if ((r = cipher_crypt(ciphercontext, 0, cp,
 	    sshbuf_ptr(encrypted), sshbuf_len(encrypted), 0, authlen)) != 0)
 		goto out;
 
@@ -3151,7 +3161,7 @@ sshkey_private_to_blob2(const struct sshkey *prv, struct sshbuf *blob,
 	sshbuf_free(kdf);
 	sshbuf_free(encoded);
 	sshbuf_free(encrypted);
-	cipher_cleanup(&ciphercontext);
+	cipher_free(ciphercontext);
 	explicit_bzero(salt, sizeof(salt));
 	if (key != NULL) {
 		explicit_bzero(key, keylen + ivlen);
@@ -3180,12 +3190,11 @@ sshkey_parse_private2(struct sshbuf *blob, int type, const char *passphrase,
 	size_t i, keylen = 0, ivlen = 0, authlen = 0, slen = 0;
 	struct sshbuf *encoded = NULL, *decoded = NULL;
 	struct sshbuf *kdf = NULL, *decrypted = NULL;
-	struct sshcipher_ctx ciphercontext;
+	struct sshcipher_ctx *ciphercontext = NULL;
 	struct sshkey *k = NULL;
 	u_char *key = NULL, *salt = NULL, *dp, pad, last;
 	u_int blocksize, rounds, nkeys, encrypted_len, check1, check2;
 
-	memset(&ciphercontext, 0, sizeof(ciphercontext));
 	if (keyp != NULL)
 		*keyp = NULL;
 	if (commentp != NULL)
@@ -3314,7 +3323,7 @@ sshkey_parse_private2(struct sshbuf *blob, int type, const char *passphrase,
 	    (r = cipher_init(&ciphercontext, cipher, key, keylen,
 	    key + keylen, ivlen, 0)) != 0)
 		goto out;
-	if ((r = cipher_crypt(&ciphercontext, 0, dp, sshbuf_ptr(decoded),
+	if ((r = cipher_crypt(ciphercontext, 0, dp, sshbuf_ptr(decoded),
 	    encrypted_len, 0, authlen)) != 0) {
 		/* an integrity error here indicates an incorrect passphrase */
 		if (r == SSH_ERR_MAC_INVALID)
@@ -3368,7 +3377,7 @@ sshkey_parse_private2(struct sshbuf *blob, int type, const char *passphrase,
 	}
  out:
 	pad = 0;
-	cipher_cleanup(&ciphercontext);
+	cipher_free(ciphercontext);
 	free(ciphername);
 	free(kdfname);
 	free(comment);
@@ -3402,7 +3411,7 @@ sshkey_private_rsa1_to_blob(struct sshkey *key, struct sshbuf *blob,
 	struct sshbuf *buffer = NULL, *encrypted = NULL;
 	u_char buf[8];
 	int r, cipher_num;
-	struct sshcipher_ctx ciphercontext;
+	struct sshcipher_ctx *ciphercontext = NULL;
 	const struct sshcipher *cipher;
 	u_char *cp;
 
@@ -3472,16 +3481,14 @@ sshkey_private_rsa1_to_blob(struct sshkey *key, struct sshbuf *blob,
 	if ((r = cipher_set_key_string(&ciphercontext, cipher, passphrase,
 	    CIPHER_ENCRYPT)) != 0)
 		goto out;
-	if ((r = cipher_crypt(&ciphercontext, 0, cp,
+	if ((r = cipher_crypt(ciphercontext, 0, cp,
 	    sshbuf_ptr(buffer), sshbuf_len(buffer), 0, 0)) != 0)
-		goto out;
-	if ((r = cipher_cleanup(&ciphercontext)) != 0)
 		goto out;
 
 	r = sshbuf_putb(blob, encrypted);
 
  out:
-	explicit_bzero(&ciphercontext, sizeof(ciphercontext));
+	cipher_free(ciphercontext);
 	explicit_bzero(buf, sizeof(buf));
 	sshbuf_free(buffer);
 	sshbuf_free(encrypted);
@@ -3631,12 +3638,10 @@ sshkey_parse_public_rsa1_fileblob(struct sshbuf *blob,
 	/* The encrypted private part is not parsed by this function. */
 
 	r = 0;
-	if (keyp != NULL)
+	if (keyp != NULL) {
 		*keyp = pub;
-	else
-		sshkey_free(pub);
-	pub = NULL;
-
+		pub = NULL;
+	}
  out:
 	sshbuf_free(copy);
 	sshkey_free(pub);
@@ -3653,11 +3658,12 @@ sshkey_parse_private_rsa1(struct sshbuf *blob, const char *passphrase,
 	struct sshbuf *decrypted = NULL, *copy = NULL;
 	u_char *cp;
 	char *comment = NULL;
-	struct sshcipher_ctx ciphercontext;
+	struct sshcipher_ctx *ciphercontext = NULL;
 	const struct sshcipher *cipher;
 	struct sshkey *prv = NULL;
 
-	*keyp = NULL;
+	if (keyp != NULL)
+		*keyp = NULL;
 	if (commentp != NULL)
 		*commentp = NULL;
 
@@ -3710,12 +3716,8 @@ sshkey_parse_private_rsa1(struct sshbuf *blob, const char *passphrase,
 	if ((r = cipher_set_key_string(&ciphercontext, cipher, passphrase,
 	    CIPHER_DECRYPT)) != 0)
 		goto out;
-	if ((r = cipher_crypt(&ciphercontext, 0, cp,
-	    sshbuf_ptr(copy), sshbuf_len(copy), 0, 0)) != 0) {
-		cipher_cleanup(&ciphercontext);
-		goto out;
-	}
-	if ((r = cipher_cleanup(&ciphercontext)) != 0)
+	if ((r = cipher_crypt(ciphercontext, 0, cp,
+	    sshbuf_ptr(copy), sshbuf_len(copy), 0, 0)) != 0)
 		goto out;
 
 	if ((r = sshbuf_get_u16(decrypted, &check1)) != 0 ||
@@ -3743,14 +3745,16 @@ sshkey_parse_private_rsa1(struct sshbuf *blob, const char *passphrase,
 		goto out;
 	}
 	r = 0;
-	*keyp = prv;
-	prv = NULL;
+	if (keyp != NULL) {
+		*keyp = prv;
+		prv = NULL;
+	}
 	if (commentp != NULL) {
 		*commentp = comment;
 		comment = NULL;
 	}
  out:
-	explicit_bzero(&ciphercontext, sizeof(ciphercontext));
+	cipher_free(ciphercontext);
 	free(comment);
 	sshkey_free(prv);
 	sshbuf_free(copy);
@@ -3769,7 +3773,8 @@ sshkey_parse_private_pem_fileblob(struct sshbuf *blob, int type,
 	BIO *bio = NULL;
 	int r;
 
-	*keyp = NULL;
+	if (keyp != NULL)
+		*keyp = NULL;
 
 	if ((bio = BIO_new(BIO_s_mem())) == NULL || sshbuf_len(blob) > INT_MAX)
 		return SSH_ERR_ALLOC_FAIL;
@@ -3838,8 +3843,10 @@ sshkey_parse_private_pem_fileblob(struct sshbuf *blob, int type,
 		goto out;
 	}
 	r = 0;
-	*keyp = prv;
-	prv = NULL;
+	if (keyp != NULL) {
+		*keyp = prv;
+		prv = NULL;
+	}
  out:
 	BIO_free(bio);
 	if (pk != NULL)
@@ -3853,7 +3860,8 @@ int
 sshkey_parse_private_fileblob_type(struct sshbuf *blob, int type,
     const char *passphrase, struct sshkey **keyp, char **commentp)
 {
-	*keyp = NULL;
+	if (keyp != NULL)
+		*keyp = NULL;
 	if (commentp != NULL)
 		*commentp = NULL;
 

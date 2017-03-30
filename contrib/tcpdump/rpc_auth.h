@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- * $FreeBSD: projects/bsnmp-ipv6-mib/contrib/tcpdump/rpc_auth.h 276788 2015-01-07 19:55:18Z delphij $
+ * $FreeBSD: projects/clang400-import/contrib/tcpdump/rpc_auth.h 276788 2015-01-07 19:55:18Z delphij $
  */
 
 /*

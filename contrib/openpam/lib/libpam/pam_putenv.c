@@ -32,13 +32,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_putenv.c 648 2013-03-05 17:54:27Z des $
+ * $Id: pam_putenv.c 914 2017-01-21 15:15:29Z des $
  */
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -58,15 +59,16 @@ pam_putenv(pam_handle_t *pamh,
 	const char *namevalue)
 {
 	char **env, *p;
+	size_t env_size;
 	int i;
 
 	ENTER();
-	if (pamh == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 
 	/* sanity checks */
-	if (namevalue == NULL || (p = strchr(namevalue, '=')) == NULL)
+	if ((p = strchr(namevalue, '=')) == NULL) {
+		errno = EINVAL;
 		RETURNC(PAM_SYSTEM_ERR);
+	}
 
 	/* see if the variable is already in the environment */
 	if ((i = openpam_findenv(pamh, namevalue, p - namevalue)) >= 0) {
@@ -79,12 +81,12 @@ pam_putenv(pam_handle_t *pamh,
 
 	/* grow the environment list if necessary */
 	if (pamh->env_count == pamh->env_size) {
-		env = realloc(pamh->env,
-		    sizeof(char *) * (pamh->env_size * 2 + 1));
+		env_size = pamh->env_size * 2 + 1;
+		env = realloc(pamh->env, sizeof(char *) * env_size);
 		if (env == NULL)
 			RETURNC(PAM_BUF_ERR);
 		pamh->env = env;
-		pamh->env_size = pamh->env_size * 2 + 1;
+		pamh->env_size = env_size;
 	}
 
 	/* add the variable at the end */

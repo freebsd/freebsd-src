@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../i386/ibcs2
+.PATH: ${SRCTOP}/sys/i386/ibcs2
 
 KMOD=	ibcs2
 SRCS=	ibcs2_errno.c ibcs2_ipc.c ibcs2_stat.c ibcs2_misc.c \

@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-TELNETDIR=	${.CURDIR}/../../contrib/telnet
+TELNETDIR=	${SRCTOP}/contrib/telnet
 .PATH:		${TELNETDIR}/telnet
 
 PROG=		telnet

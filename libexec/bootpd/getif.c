@@ -36,7 +36,7 @@
 static struct ifreq ifreq[10];	/* Holds interface configuration */
 static struct ifconf ifconf;	/* points to ifreq */
 
-static int nmatch();
+static int nmatch(u_char *ca, u_char *cb);
 
 /* Return a pointer to the interface struct for the passed address. */
 struct ifreq *

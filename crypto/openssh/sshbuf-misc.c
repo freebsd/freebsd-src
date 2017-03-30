@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-misc.c,v 1.5 2015/10/05 17:11:21 djm Exp $	*/
+/*	$OpenBSD: sshbuf-misc.c,v 1.6 2016/05/02 08:49:03 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -134,5 +134,28 @@ sshbuf_b64tod(struct sshbuf *buf, const char *b64)
 	explicit_bzero(p, plen);
 	free(p);
 	return 0;
+}
+
+char *
+sshbuf_dup_string(struct sshbuf *buf)
+{
+	const u_char *p = NULL, *s = sshbuf_ptr(buf);
+	size_t l = sshbuf_len(buf);
+	char *r;
+
+	if (s == NULL || l > SIZE_MAX)
+		return NULL;
+	/* accept a nul only as the last character in the buffer */
+	if (l > 0 && (p = memchr(s, '\0', l)) != NULL) {
+		if (p != s + l - 1)
+			return NULL;
+		l--; /* the nul is put back below */
+	}
+	if ((r = malloc(l + 1)) == NULL)
+		return NULL;
+	if (l > 0)
+		memcpy(r, s, l);
+	r[l] = '\0';
+	return r;
 }
 

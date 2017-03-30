@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 1999-2009 Apple Inc.
+ * Copyright (c) 2016 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -195,10 +201,12 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 	case A_SETCOND:
 	case A_OLDSETCOND:
 	case A_SETCLASS:
+	case A_SETEVENT:
 	case A_SETPMASK:
 	case A_SETFSIZE:
 	case A_SETKAUDIT:
 	case A_GETCLASS:
+	case A_GETEVENT:
 	case A_GETPINFO:
 	case A_GETPINFO_ADDR:
 	case A_SENDTRIGGER:
@@ -404,11 +412,31 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 		    udata.au_evclass.ec_number);
 		break;
 
+	case A_GETEVENT:
+		if (uap->length != sizeof(udata.au_evname))
+			return (EINVAL);
+		error = au_event_name(udata.au_evname.en_number,
+		    udata.au_evname.en_name);
+		if (error != 0)
+			return (error);
+		break;
+
 	case A_SETCLASS:
 		if (uap->length != sizeof(udata.au_evclass))
 			return (EINVAL);
 		au_evclassmap_insert(udata.au_evclass.ec_number,
 		    udata.au_evclass.ec_class);
+		break;
+
+	case A_SETEVENT:
+		if (uap->length != sizeof(udata.au_evname))
+			return (EINVAL);
+
+		/* Ensure nul termination from userspace. */
+		udata.au_evname.en_name[sizeof(udata.au_evname.en_name) - 1]
+		    = 0;
+		au_evnamemap_insert(udata.au_evname.en_number,
+		    udata.au_evname.en_name);
 		break;
 
 	case A_GETPINFO:

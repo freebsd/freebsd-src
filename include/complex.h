@@ -67,6 +67,10 @@ double complex	cacos(double complex);
 float complex	cacosf(float complex);
 double complex	cacosh(double complex);
 float complex	cacoshf(float complex);
+long double complex
+		cacoshl(long double complex);
+long double complex
+		cacosl(long double complex);
 double		carg(double complex);
 float		cargf(float complex);
 long double	cargl(long double complex);
@@ -74,10 +78,18 @@ double complex	casin(double complex);
 float complex	casinf(float complex);
 double complex	casinh(double complex);
 float complex	casinhf(float complex);
+long double complex
+		casinhl(long double complex);
+long double complex
+		casinl(long double complex);
 double complex	catan(double complex);
 float complex	catanf(float complex);
 double complex	catanh(double complex);
 float complex	catanhf(float complex);
+long double complex
+		catanhl(long double complex);
+long double complex
+		catanl(long double complex);
 double complex	ccos(double complex);
 float complex	ccosf(float complex);
 double complex	ccosh(double complex);

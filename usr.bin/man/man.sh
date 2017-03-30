@@ -68,7 +68,23 @@ build_manpath() {
 
 	# If the user has set a manpath, who are we to argue.
 	if [ -n "$MANPATH" ]; then
-		return
+		case "$MANPATH" in
+		*:) PREPEND_MANPATH=${MANPATH} ;;
+		:*) APPEND_MANPATH=${MANPATH} ;;
+		*::*)
+			PREPEND_MANPATH=${MANPATH%%::*}
+			APPEND_MANPATH=${MANPATH#*::}
+			;;
+		*) return ;;
+		esac
+	fi
+
+	if [ -n "$PREPEND_MANPATH" ]; then
+		IFS=:
+		for path in $PREPEND_MANPATH; do
+			add_to_manpath "$path"
+		done
+		unset IFS
 	fi
 
 	search_path
@@ -82,6 +98,13 @@ build_manpath() {
 
 	parse_configs
 
+	if [ -n "$APPEND_MANPATH" ]; then
+		IFS=:
+		for path in $APPEND_MANPATH; do
+			add_to_manpath "$path"
+		done
+		unset IFS
+	fi
 	# Trim leading colon
 	MANPATH=${manpath#:}
 
@@ -238,10 +261,6 @@ manpath_usage() {
 # Usage: manpath_warnings
 # Display some warnings to stderr.
 manpath_warnings() {
-	if [ -z "$Lflag" -a -n "$MANPATH" ]; then
-		echo "(Warning: MANPATH environment variable set)" >&2
-	fi
-
 	if [ -n "$Lflag" -a -n "$MANLOCALES" ]; then
 		echo "(Warning: MANLOCALES environment variable set)" >&2
 	fi
@@ -759,24 +778,19 @@ search_path() {
 
 	IFS=:
 	for path in $PATH; do
-		# Do a little special casing since the base manpages
-		# are in /usr/share/man instead of /usr/man or /man.
-		case "$path" in
-		/bin|/usr/bin)	add_to_manpath "/usr/share/man" ;;
-		*)	if add_to_manpath "$path/man"; then
-				:
-			elif add_to_manpath "$path/MAN"; then
-				:
-			else
-				case "$path" in
-				*/bin)	p="${path%/bin}/man"
-					add_to_manpath "$p"
-					;;
-				*)	;;
-				esac
-			fi
-			;;
-		esac
+		if add_to_manpath "$path/man"; then
+			:
+		elif add_to_manpath "$path/MAN"; then
+			:
+		else
+			case "$path" in
+			*/bin)	p="${path%/bin}/share/man"
+				add_to_manpath "$p"
+				p="${path%/bin}/man"
+				add_to_manpath "$p"
+				;;
+			esac
+		fi
 	done
 	unset IFS
 
@@ -986,7 +1000,7 @@ SYSCTL=/sbin/sysctl
 
 debug=0
 man_default_sections='1:8:2:3:n:4:5:6:7:9:l'
-man_default_path='/usr/share/man:/usr/share/openssl/man:/usr/local/man'
+man_default_path='/usr/share/man:/usr/share/openssl/man:/usr/local/share/man:/usr/local/man'
 cattool='/usr/bin/zcat -f'
 
 config_global='/etc/man.conf'

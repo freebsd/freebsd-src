@@ -99,6 +99,7 @@ void		 sbuf_start_section(struct sbuf *, ssize_t *);
 ssize_t		 sbuf_end_section(struct sbuf *, ssize_t, size_t, int);
 void		 sbuf_hexdump(struct sbuf *, const void *, int, const char *,
 		     int);
+void		 sbuf_putbuf(struct sbuf *);
 
 #ifdef _KERNEL
 struct uio;
