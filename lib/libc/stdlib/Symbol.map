@@ -119,6 +119,9 @@ FBSD_1.4 {
 FBSD_1.5 {
 	__cxa_thread_atexit;
 	__cxa_thread_atexit_impl;
+	abort_handler_s;
+	ignore_handler_s;
+	set_constraint_handler_s;
 };
 
 FBSDprivate_1.0 {
