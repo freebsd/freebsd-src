@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2009
+.Dd May 23, 2014
 .Dt FSCK 8
 .Os
 .Sh NAME
@@ -110,6 +110,18 @@ etc.
 The disk drive containing each file system is inferred from the shortest prefix
 of the device name that ends in a digit; the remaining characters are assumed
 to be the partition and slice designators.
+.Pp
+If the
+.Fl t
+or
+.Fl T
+flags are not specified,
+.Nm
+will attempt to determine the file system type and call the
+appropriated file system check utility.
+Failure to detect the file system type will cause
+.Nm
+to fail with a message that the partition has an unknown file system type.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
