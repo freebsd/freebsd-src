@@ -1351,7 +1351,7 @@ send:
 		ipov->ih_len = save;
 	}
 #endif /* TCPDEBUG */
-	TCP_PROBE3(debug__output, tp, th, mtod(m, const char *));
+	TCP_PROBE3(debug__output, tp, th, m);
 
 	/*
 	 * Fill in IP length and desired time to live and
