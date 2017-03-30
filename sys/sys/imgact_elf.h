@@ -38,6 +38,7 @@
 #define	AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
 
 struct thread;
+struct vnode;
 
 /*
  * Structure used to pass information from the loader to the
