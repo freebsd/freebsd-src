@@ -483,11 +483,6 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 
 	switch (args->op) {
 	case LINUX_EPOLL_CTL_MOD:
-		/*
-		 * We don't memorize which events were set for this FD
-		 * on this level, so just delete all we could have set:
-		 * EVFILT_READ and EVFILT_WRITE, ignoring any errors
-		 */
 		error = epoll_delete_all_events(td, epfp, args->fd);
 		if (error != 0)
 			goto leave0;
@@ -644,19 +639,11 @@ epoll_delete_event(struct thread *td, struct file *epfp, int fd, int filter)
 	struct kevent_copyops k_ops = { &ciargs,
 					NULL,
 					epoll_kev_copyin};
-	int error;
 
 	ciargs.changelist = &kev;
 	EV_SET(&kev, fd, filter, EV_DELETE | EV_DISABLE, 0, 0, 0);
 
-	error = kern_kevent_fp(td, epfp, 1, 0, &k_ops, NULL);
-
-	/*
-	 * here we ignore ENONT, because we don't keep track of events here
-	 */
-	if (error == ENOENT)
-		error = 0;
-	return (error);
+	return (kern_kevent_fp(td, epfp, 1, 0, &k_ops, NULL));
 }
 
 static int
@@ -667,8 +654,8 @@ epoll_delete_all_events(struct thread *td, struct file *epfp, int fd)
 	error1 = epoll_delete_event(td, epfp, fd, EVFILT_READ);
 	error2 = epoll_delete_event(td, epfp, fd, EVFILT_WRITE);
 
-	/* report any errors we got */
-	return (error1 == 0 ? error2 : error1);
+	/* return 0 if at least one result positive */
+	return (error1 == 0 ? 0 : error2);
 }
 
 static int
