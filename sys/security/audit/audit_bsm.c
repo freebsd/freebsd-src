@@ -530,6 +530,23 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	 */
 	switch(ar->ar_event) {
 	case AUE_ACCEPT:
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
+			tok = au_to_sock_inet((struct sockaddr_in *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_SADDRUNIX)) {
+			tok = au_to_sock_unix((struct sockaddr_un *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+			UPATH1_TOKENS;
+		}
+		break;
+
 	case AUE_BIND:
 	case AUE_LISTEN:
 	case AUE_CONNECT:
@@ -537,7 +554,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_RECVFROM:
 	case AUE_RECVMSG:
 	case AUE_SEND:
-	case AUE_SENDFILE:
 	case AUE_SENDMSG:
 	case AUE_SENDTO:
 		/*
@@ -574,6 +590,22 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 			UPATH1_TOKENS;
 		}
+		break;
+
+	case AUE_SENDFILE:
+		FD_VNODE1_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
+			tok = au_to_sock_inet((struct sockaddr_in *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_SADDRUNIX)) {
+			tok = au_to_sock_unix((struct sockaddr_un *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+			UPATH1_TOKENS;
+		}
+		/* XXX Need to handle ARG_SADDRINET6 */
 		break;
 
 	case AUE_SOCKET:
@@ -747,6 +779,26 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		/*
 		 * Header, subject, and return tokens added at end.
 		 */
+		break;
+
+	case AUE_ACL_DELETE_FD:
+	case AUE_ACL_DELETE_FILE:
+	case AUE_ACL_CHECK_FD:
+	case AUE_ACL_CHECK_FILE:
+	case AUE_ACL_CHECK_LINK:
+	case AUE_ACL_DELETE_LINK:
+	case AUE_ACL_GET_FD:
+	case AUE_ACL_GET_FILE:
+	case AUE_ACL_GET_LINK:
+	case AUE_ACL_SET_FD:
+	case AUE_ACL_SET_FILE:
+	case AUE_ACL_SET_LINK:
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "type", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		ATFD1_TOKENS(1);
+		UPATH1_VNODE1_TOKENS;
 		break;
 
 	case AUE_CHDIR:
@@ -959,6 +1011,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_GETDIRENTRIESATTR:
 	case AUE_LSEEK:
 	case AUE_POLL:
+	case AUE_POSIX_FALLOCATE:
 	case AUE_PREAD:
 	case AUE_PWRITE:
 	case AUE_READ:
@@ -1245,6 +1298,18 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		UPATH1_VNODE1_TOKENS;
 		break;
 
+	case AUE_PROCCTL:
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "idtype", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_CMD)) {
+			tok = au_to_arg32(2, "com", ar->ar_arg_cmd);
+			kau_write(rec, tok);
+		}
+		PROCESS_PID_TOKENS(3);
+		break;
+
 	case AUE_PTRACE:
 		if (ARG_IS_VALID(kar, ARG_CMD)) {
 			tok = au_to_arg32(1, "request", ar->ar_arg_cmd);
@@ -1499,7 +1564,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	/* AUE_SHMOPEN, AUE_SHMUNLINK, AUE_SEMOPEN, AUE_SEMCLOSE
 	 * and AUE_SEMUNLINK are Posix IPC */
 	case AUE_SHMOPEN:
-		if (ARG_IS_VALID(kar, ARG_SVIPC_ADDR)) {
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
 			tok = au_to_arg32(2, "flags", ar->ar_arg_fflags);
 			kau_write(rec, tok);
 		}
@@ -1510,10 +1575,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		/* FALLTHROUGH */
 
 	case AUE_SHMUNLINK:
-		if (ARG_IS_VALID(kar, ARG_TEXT)) {
-			tok = au_to_text(ar->ar_arg_text);
-			kau_write(rec, tok);
-		}
+		UPATH1_TOKENS;
 		if (ARG_IS_VALID(kar, ARG_POSIX_IPC_PERM)) {
 			struct ipc_perm perm;
 
