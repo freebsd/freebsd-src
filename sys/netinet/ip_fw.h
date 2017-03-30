@@ -683,7 +683,8 @@ struct _ipfw_dyn_rule {
 					/* to generate keepalives)	*/
 	u_int16_t	dyn_type;	/* rule type			*/
 	u_int16_t	count;		/* refcount			*/
-};
+	u_int16_t	kidx;		/* index of named object */
+} __packed __aligned(8);
 
 /*
  * Definitions for IP option names.
@@ -784,6 +785,7 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_TBLENT_LIST	8
 #define	IPFW_TLV_RANGE		9
 #define	IPFW_TLV_EACTION	10
+#define	IPFW_TLV_STATE_NAME	14
 
 #define	IPFW_TLV_EACTION_BASE	1000
 #define	IPFW_TLV_EACTION_NAME(arg)	(IPFW_TLV_EACTION_BASE + (arg))

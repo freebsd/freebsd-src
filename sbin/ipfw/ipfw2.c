@@ -588,7 +588,7 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
  * Returns 0 on success or errno otherwise.
  */
 int
-do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
+do_set3(int optname, ip_fw3_opheader *op3, size_t optlen)
 {
 
 	if (co.test_only)
@@ -618,6 +618,7 @@ int
 do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 {
 	int error;
+	socklen_t len;
 
 	if (co.test_only)
 		return (0);
@@ -629,8 +630,9 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 
 	op3->opcode = optname;
 
-	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3,
-	    (socklen_t *)optlen);
+	len = *optlen;
+	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, &len);
+	*optlen = len;
 
 	return (error);
 }
@@ -1403,6 +1405,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	int l;
 	ipfw_insn *cmd, *has_eaction = NULL, *tagptr = NULL;
 	const char *comment = NULL;	/* ptr to comment if we have one */
+	const char *ename;
 	int proto = 0;		/* default */
 	int flags = 0;	/* prerequisites */
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
@@ -1472,6 +1475,12 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		switch(cmd->opcode) {
 		case O_CHECK_STATE:
 			bprintf(bp, "check-state");
+			if (cmd->arg1 != 0)
+				ename = object_search_ctlv(fo->tstate,
+				    cmd->arg1, IPFW_TLV_STATE_NAME);
+			else
+				ename = NULL;
+			bprintf(bp, " :%s", ename ? ename: "any");
 			/* avoid printing anything else */
 			flags = HAVE_PROTO | HAVE_SRCIP |
 				HAVE_DSTIP | HAVE_IP;
@@ -1589,8 +1598,6 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			break;
 
 		case O_EXTERNAL_ACTION: {
-			const char *ename;
-
 			/*
 			 * The external action can consists of two following
 			 * each other opcodes - O_EXTERNAL_ACTION and
@@ -1611,8 +1618,6 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		}
 
 		case O_EXTERNAL_INSTANCE: {
-			const char *ename;
-
 			if (has_eaction == NULL)
 				break;
 			/*
@@ -2068,6 +2073,9 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 
 			case O_KEEP_STATE:
 				bprintf(bp, " keep-state");
+				bprintf(bp, " :%s",
+				    object_search_ctlv(fo->tstate, cmd->arg1,
+				    IPFW_TLV_STATE_NAME));
 				break;
 
 			case O_LIMIT: {
@@ -2084,6 +2092,9 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 						comma = ",";
 					}
 				bprint_uint_arg(bp, " ", c->conn_limit);
+				bprintf(bp, " :%s",
+				    object_search_ctlv(fo->tstate, cmd->arg1,
+				    IPFW_TLV_STATE_NAME));
 				break;
 			}
 
@@ -2182,7 +2193,10 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 		bprintf(bp, " <-> %s %d", inet_ntop(AF_INET6, &d->id.dst_ip6,
 		    buf, sizeof(buf)), d->id.dst_port);
 	} else
-		bprintf(bp, " UNKNOWN <-> UNKNOWN\n");
+		bprintf(bp, " UNKNOWN <-> UNKNOWN");
+	if (d->kidx != 0)
+		bprintf(bp, " :%s", object_search_ctlv(fo->tstate,
+		    d->kidx, IPFW_TLV_STATE_NAME));
 }
 
 static int
@@ -2820,6 +2834,18 @@ ipfw_check_object_name(const char *name)
 			continue;
 		return (EINVAL);
 	}
+	return (0);
+}
+
+static char *default_state_name = "default";
+static int
+state_check_name(const char *name)
+{
+
+	if (ipfw_check_object_name(name) != 0)
+		return (EINVAL);
+	if (strcmp(name, "any") == 0)
+		return (EINVAL);
 	return (0);
 }
 
@@ -3685,6 +3711,25 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	case TOK_CHECKSTATE:
 		have_state = action;
 		action->opcode = O_CHECK_STATE;
+		if (*av == NULL ||
+		    match_token(rule_options, *av) == TOK_COMMENT) {
+			action->arg1 = pack_object(tstate,
+			    default_state_name, IPFW_TLV_STATE_NAME);
+			break;
+		}
+		if (*av[0] == ':') {
+			if (strcmp(*av + 1, "any") == 0)
+				action->arg1 = 0;
+			else if (state_check_name(*av + 1) == 0)
+				action->arg1 = pack_object(tstate, *av + 1,
+				    IPFW_TLV_STATE_NAME);
+			else
+				errx(EX_DATAERR, "Invalid state name %s",
+				    *av);
+			av++;
+			break;
+		}
+		errx(EX_DATAERR, "Invalid state name %s", *av);
 		break;
 
 	case TOK_ACCEPT:
@@ -4073,8 +4118,17 @@ chkarg:
 		cmd = next_cmd(cmd, &cblen);
 	}
 
-	if (have_state)	/* must be a check-state, we are done */
+	if (have_state)	{ /* must be a check-state, we are done */
+		if (*av != NULL &&
+		    match_token(rule_options, *av) == TOK_COMMENT) {
+			/* check-state has a comment */
+			av++;
+			fill_comment(cmd, av, cblen);
+			cmd = next_cmd(cmd, &cblen);
+			av[0] = NULL;
+		}
 		goto done;
+	}
 
 #define OR_START(target)					\
 	if (av[0] && (*av[0] == '(' || *av[0] == '{')) { 	\
@@ -4509,16 +4563,29 @@ read_options:
 			av++;
 			break;
 
-		case TOK_KEEPSTATE:
+		case TOK_KEEPSTATE: {
+			uint16_t uidx;
+
 			if (open_par)
 				errx(EX_USAGE, "keep-state cannot be part "
 				    "of an or block");
 			if (have_state)
 				errx(EX_USAGE, "only one of keep-state "
 					"and limit is allowed");
+			if (*av != NULL && *av[0] == ':') {
+				if (state_check_name(*av + 1) != 0)
+					errx(EX_DATAERR,
+					    "Invalid state name %s", *av);
+				uidx = pack_object(tstate, *av + 1,
+				    IPFW_TLV_STATE_NAME);
+				av++;
+			} else
+				uidx = pack_object(tstate, default_state_name,
+				    IPFW_TLV_STATE_NAME);
 			have_state = cmd;
-			fill_cmd(cmd, O_KEEP_STATE, 0, 0);
+			fill_cmd(cmd, O_KEEP_STATE, 0, uidx);
 			break;
+		}
 
 		case TOK_LIMIT: {
 			ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
@@ -4549,8 +4616,18 @@ read_options:
 
 			GET_UINT_ARG(c->conn_limit, IPFW_ARG_MIN, IPFW_ARG_MAX,
 			    TOK_LIMIT, rule_options);
-
 			av++;
+
+			if (*av != NULL && *av[0] == ':') {
+				if (state_check_name(*av + 1) != 0)
+					errx(EX_DATAERR,
+					    "Invalid state name %s", *av);
+				cmd->arg1 = pack_object(tstate, *av + 1,
+				    IPFW_TLV_STATE_NAME);
+				av++;
+			} else
+				cmd->arg1 = pack_object(tstate,
+				    default_state_name, IPFW_TLV_STATE_NAME);
 			break;
 		}
 
@@ -4756,7 +4833,7 @@ done:
 	 * generate O_PROBE_STATE if necessary
 	 */
 	if (have_state && have_state->opcode != O_CHECK_STATE) {
-		fill_cmd(dst, O_PROBE_STATE, 0, 0);
+		fill_cmd(dst, O_PROBE_STATE, 0, have_state->arg1);
 		dst = next_cmd(dst, &rblen);
 	}
 
@@ -5141,6 +5218,7 @@ static struct _s_x intcmds[] = {
 
 static struct _s_x otypes[] = {
 	{ "EACTION",	IPFW_TLV_EACTION },
+	{ "DYNSTATE",	IPFW_TLV_STATE_NAME },
 	{ NULL, 0 }
 };
 
