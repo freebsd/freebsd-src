@@ -52,6 +52,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 ****************************** SPECIAL WARNING: ******************************
 
 20170329:
+	The default program prefix for "bsnmpd" has been changed from "snmpd"
+	to "bsnmpd", to match the program.
+
+	This has the following effects:
+	- The default configuration file (/etc/snmpd.config) has been renamed
+	  to /etc/bsnmpd.config .
+	- The default engine file (/var/snmpd.engine) is changed to
+	  /var/bsnmpd.engine .
+	- The default pidfile (/var/run/snmpd.pid) has been renamed to
+	  /var/run/bsnmpd.pid .
+	- The default syslog message prefix is changed from "snmpd" to
+	  "bsnmpd".
+
+	The default bsnmpd socket was changed from /var/run/snmpd.sock to
+	/var/run/bsnmpd.sock .
+
+20170329:
 	The ctl.ko module no longer implements the iSCSI target frontend:
 	cfiscsi.ko does instead.
 
