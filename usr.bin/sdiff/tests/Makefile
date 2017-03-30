@@ -2,7 +2,7 @@
 
 PACKAGE=	tests
 
-ATF_TESTS_SH=	sdiff
+ATF_TESTS_SH=	sdiff_test
 
 ${PACKAGE}FILES+=	\
 	d_dot.in \
