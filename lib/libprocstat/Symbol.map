@@ -36,3 +36,8 @@ FBSD_1.3 {
 	procstat_getvmmap;
 	procstat_open_core;
 };
+
+FBSD_1.5 {
+	procstat_freeptlwpinfo;
+	procstat_getptlwpinfo;
+};
