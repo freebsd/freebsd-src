@@ -286,6 +286,7 @@ MAN=	aac.4 \
 	mk48txx.4 \
 	mld.4 \
 	mlx.4 \
+	mlx4en.4 \
 	mlx5en.4 \
 	mly.4 \
 	mmc.4 \
@@ -892,6 +893,10 @@ _dtrace_udp.4=	dtrace_udp.4
 MAN+=		iscsi.4
 MAN+=		iscsi_initiator.4
 MAN+=		iser.4
+.endif
+
+.if ${MK_OFED} != "no"
+MAN+=		mlx4ib.4
 .endif
 
 .if ${MK_TESTS} != "no"
