@@ -16,7 +16,7 @@ LDADD=		-lbsdxml -ll -lmd -lsbuf -lutil
 YFLAGS+=	-v
 CLEANFILES=	y.tab.c y.tab.h y.output
 
-WARNS=		6
+WARNS?=		6
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
 .include <bsd.prog.mk>
