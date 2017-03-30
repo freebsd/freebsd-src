@@ -177,7 +177,7 @@ static struct fileops timerfdops = {
 	.fo_read = timerfd_read,
 	.fo_write = invfo_rdwr,
 	.fo_truncate = invfo_truncate,
-	.fo_ioctl = invfo_ioctl,
+	.fo_ioctl = eventfd_ioctl,
 	.fo_poll = timerfd_poll,
 	.fo_kqfilter = timerfd_kqfilter,
 	.fo_stat = timerfd_stat,
@@ -760,7 +760,7 @@ eventfd_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	mtx_lock(&efd->efd_lock);
 retry:
 	if (efd->efd_count == 0) {
-		if ((efd->efd_flags & LINUX_O_NONBLOCK) != 0) {
+		if ((fp->f_flag & FNONBLOCK) != 0) {
 			mtx_unlock(&efd->efd_lock);
 			return (EAGAIN);
 		}
@@ -811,7 +811,7 @@ eventfd_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	mtx_lock(&efd->efd_lock);
 retry:
 	if (UINT64_MAX - efd->efd_count <= count) {
-		if ((efd->efd_flags & LINUX_O_NONBLOCK) != 0) {
+		if ((fp->f_flag & FNONBLOCK) != 0) {
 			mtx_unlock(&efd->efd_lock);
 			/* Do not not return the number of bytes written */
 			uio->uio_resid += sizeof(eventfd_t);
@@ -927,19 +927,18 @@ static int
 eventfd_ioctl(struct file *fp, u_long cmd, void *data,
     struct ucred *active_cred, struct thread *td)
 {
-	struct eventfd *efd;
 
-	efd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
+	if (fp->f_data == NULL || (fp->f_type != DTYPE_LINUXEFD &&
+	    fp->f_type != DTYPE_LINUXTFD))
 		return (EINVAL);
 
 	switch (cmd)
 	{
 	case FIONBIO:
-		if (*(int *)data)
-			efd->efd_flags |= LINUX_O_NONBLOCK;
+		if ((*(int *)data))
+			atomic_set_int(&fp->f_flag, FNONBLOCK);
 		else
-			efd->efd_flags &= ~LINUX_O_NONBLOCK;
+			atomic_clear_int(&fp->f_flag, FNONBLOCK);
 	case FIOASYNC:
 		return (0);
 	default:
