@@ -111,7 +111,7 @@ struct l_itimerspec {
 	struct l_timespec it_value;
 };
 
-void native_to_linux_timespec(struct l_timespec *,
+int native_to_linux_timespec(struct l_timespec *,
 				     struct timespec *);
 int linux_to_native_timespec(struct timespec *,
 				     struct l_timespec *);
