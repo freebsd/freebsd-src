@@ -769,21 +769,34 @@ dhcpack(struct packet *packet)
 	if (ip->client->new->expiry < 60)
 		ip->client->new->expiry = 60;
 
-	/* Take the server-provided renewal time if there is one;
-	   otherwise figure it out according to the spec. */
-	if (ip->client->new->options[DHO_DHCP_RENEWAL_TIME].len)
+        /* Unless overridden in the config, take the server-provided renewal
+         * time if there is one; otherwise figure it out according to the spec.
+         * Also make sure the renewal time does not exceed the expiry time.
+         */
+        if (ip->client->config->default_actions[DHO_DHCP_RENEWAL_TIME] ==
+            ACTION_SUPERSEDE)
+		ip->client->new->renewal = getULong(
+		    ip->client->config->defaults[DHO_DHCP_RENEWAL_TIME].data);
+        else if (ip->client->new->options[DHO_DHCP_RENEWAL_TIME].len)
 		ip->client->new->renewal = getULong(
 		    ip->client->new->options[DHO_DHCP_RENEWAL_TIME].data);
 	else
 		ip->client->new->renewal = ip->client->new->expiry / 2;
+        if (ip->client->new->renewal > ip->client->new->expiry / 2)
+                ip->client->new->renewal = ip->client->new->expiry / 2;
 
 	/* Same deal with the rebind time. */
-	if (ip->client->new->options[DHO_DHCP_REBINDING_TIME].len)
+        if (ip->client->config->default_actions[DHO_DHCP_REBINDING_TIME] ==
+            ACTION_SUPERSEDE)
+		ip->client->new->rebind = getULong(
+		    ip->client->config->defaults[DHO_DHCP_REBINDING_TIME].data);
+        else if (ip->client->new->options[DHO_DHCP_REBINDING_TIME].len)
 		ip->client->new->rebind = getULong(
 		    ip->client->new->options[DHO_DHCP_REBINDING_TIME].data);
 	else
-		ip->client->new->rebind = ip->client->new->renewal +
-		    ip->client->new->renewal / 2 + ip->client->new->renewal / 4;
+		ip->client->new->rebind = ip->client->new->renewal * 7 / 4;
+        if (ip->client->new->rebind > ip->client->new->renewal * 7 / 4)
+                ip->client->new->rebind = ip->client->new->renewal * 7 / 4;
 
 	ip->client->new->expiry += cur_time;
 	/* Lease lengths can never be negative. */
