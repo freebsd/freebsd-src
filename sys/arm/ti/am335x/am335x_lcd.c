@@ -342,7 +342,7 @@ am335x_mode_is_valid(const struct videomode *mode)
 static void
 am335x_read_hdmi_property(device_t dev)
 {
-	phandle_t node;
+	phandle_t node, xref;
 	phandle_t endpoint;
 	phandle_t hdmi_xref;
 	struct am335x_lcd_softc *sc;
@@ -372,13 +372,15 @@ am335x_read_hdmi_property(device_t dev)
 		return;
 
 	for (endpoint = OF_child(node); endpoint != 0; endpoint = OF_peer(endpoint)) {
-		if (OF_getencprop(endpoint, "remote-endpoint", &node, sizeof(node)) != -1) {
-			/* port node of remote endpoint */
-			node = OF_node_from_xref(node);
-			/* port/ node */
+		if (OF_getencprop(endpoint, "remote-endpoint", &xref, sizeof(xref)) != -1) {
+			/* port/port@0/endpoint@0 */
+			node = OF_node_from_xref(xref);
+			/* port/port@0 */
 			node = OF_parent(node);
-			/* actual owner of port/endpoint, in our case HDMI framer */
-			sc->sc_hdmi_framer = OF_parent(node);
+			/* port */
+			node = OF_parent(node);
+			/* actual owner of port, in our case HDMI framer */
+			sc->sc_hdmi_framer = OF_xref_from_node(OF_parent(node));
 			if (sc->sc_hdmi_framer != 0)
 				return;
 		}
