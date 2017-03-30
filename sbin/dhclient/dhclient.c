@@ -756,7 +756,11 @@ dhcpack(struct packet *packet)
 	cancel_timeout(send_request, ip);
 
 	/* Figure out the lease time. */
-	if (ip->client->new->options[DHO_DHCP_LEASE_TIME].data)
+        if (ip->client->config->default_actions[DHO_DHCP_LEASE_TIME] ==
+            ACTION_SUPERSEDE)
+		ip->client->new->expiry = getULong(
+		    ip->client->config->defaults[DHO_DHCP_LEASE_TIME].data);
+        else if (ip->client->new->options[DHO_DHCP_LEASE_TIME].data)
 		ip->client->new->expiry = getULong(
 		    ip->client->new->options[DHO_DHCP_LEASE_TIME].data);
 	else
