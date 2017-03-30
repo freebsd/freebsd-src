@@ -195,6 +195,7 @@ __END_DECLS
 #define	ERELOOKUP	(-5)		/* retry the directory lookup */
 #endif
 
+#ifndef _KERNEL
 #if __EXT1_VISIBLE
 /* ISO/IEC 9899:2011 K.3.2.2 */
 #ifndef _ERRNO_T_DEFINED
@@ -202,5 +203,6 @@ __END_DECLS
 typedef int errno_t;
 #endif
 #endif /* __EXT1_VISIBLE */
+#endif
 
 #endif
