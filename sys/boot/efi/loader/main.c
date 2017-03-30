@@ -796,66 +796,45 @@ COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
 
 #ifdef EFI_ZFS_BOOT
 static void
-efipart_probe_img(pdinfo_list_t *hdi)
-{
-	EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
-	EFI_LOADED_IMAGE *img;
-	pdinfo_t *hd, *pd = NULL;
-	char devname[SPECNAMELEN + 1];
-
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
-
-	/*
-	 * Search for the booted image device handle from hard disk list.
-	 * Note, this does also include usb sticks, and we assume there is no
-	 * ZFS on floppies nor cd.
-	 * However, we might have booted from floppy (unlikely) or CD,
-	 * so we should not surprised if we can not find the handle.
-	 */
-	STAILQ_FOREACH(hd, hdi, pd_link) {
-		if (hd->pd_handle == img->DeviceHandle)
-			break;
-		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
-			if (pd->pd_handle == img->DeviceHandle)
-				break;
-		}
-		if (pd != NULL)
-			break;
-	}
-	if (hd != NULL) {
-		if (pd != NULL) {
-			snprintf(devname, sizeof(devname), "%s%dp%d:",
-			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
-		} else {
-			snprintf(devname, sizeof(devname), "%s%d:",
-			    efipart_hddev.dv_name, hd->pd_unit);
-		}
-		(void) zfs_probe_dev(devname, &pool_guid);
-	}
-}
-
-static void
 efi_zfs_probe(void)
 {
 	pdinfo_list_t *hdi;
-	pdinfo_t *hd;
+	pdinfo_t *hd, *pd = NULL;
+	EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
+	EFI_LOADED_IMAGE *img;
+	EFI_HANDLE boot_disk = NULL;
 	char devname[SPECNAMELEN + 1];
+	uint64_t *guidp = NULL;
 
+	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
+
+	/* Find the handle for the boot disk. */
 	hdi = efiblk_get_pdinfo_list(&efipart_hddev);
+	STAILQ_FOREACH(hd, hdi, pd_link) {
+		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
+			if (pd->pd_handle == img->DeviceHandle)
+				boot_disk = hd->pd_handle;
+		}
+	}
+
 	/*
-	 * First probe the boot device (from where loader.efi was read),
-	 * and set pool_guid global variable if we are booting from zfs.
-	 * Since loader is running, we do have an access to the device,
-	 * however, it might not be zfs.
+	 * We provide non-NULL guid pointer if the disk was used for boot,
+	 * and reset after the first found pool.
+	 * Technically this solution is not very correct, we assume the boot
+	 * pool is the first pool on this disk.
 	 */
 
-	if (pool_guid == 0)
-		efipart_probe_img(hdi);
-
 	STAILQ_FOREACH(hd, hdi, pd_link) {
-		snprintf(devname, sizeof(devname), "%s%d:",
-		    efipart_hddev.dv_name, hd->pd_unit);
-		(void) zfs_probe_dev(devname, NULL);
+		if (hd->pd_handle == boot_disk)
+			guidp = &pool_guid;
+
+		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
+			snprintf(devname, sizeof(devname), "%s%dp%d:",
+			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
+			(void) zfs_probe_dev(devname, guidp);
+			if (guidp != NULL && pool_guid != 0)
+				guidp = NULL;
+		}
 	}
 }
 #endif
