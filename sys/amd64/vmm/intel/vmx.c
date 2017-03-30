@@ -3773,6 +3773,14 @@ vmx_restore_vmcs(struct vmcs *new_vmcs, struct vmcs *old_vmcs)
 	int error = 0;
 	struct seg_desc desc;
 
+	if (vmclear(new_vmcs)) {
+		printf("%s: Error when vmclear new vmcs.\n", __func__);
+	}
+	if (vmclear(old_vmcs)) {
+		printf("%s: Error when vmclear old vmcs.\n", __func__);
+	}
+
+	/* Restore guest registers */
 	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_CR0, &val);
 	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_CR0, val);
 
@@ -3794,6 +3802,7 @@ vmx_restore_vmcs(struct vmcs *new_vmcs, struct vmcs *old_vmcs)
 	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_RFLAGS, &val);
 	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_RFLAGS, val);
 
+	/* Guest segments */
 	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_ES, &val);
 	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_ES, val);
 	error += vmcs_getdesc(old_vmcs, 0, VM_REG_GUEST_ES, &desc);
@@ -3842,6 +3851,7 @@ vmx_restore_vmcs(struct vmcs *new_vmcs, struct vmcs *old_vmcs)
 	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_EFER, &val);
 	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_EFER, val);
 
+	/* Guest page tables */
 	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE0, &val);
 	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE0, val);
 
@@ -3853,6 +3863,34 @@ vmx_restore_vmcs(struct vmcs *new_vmcs, struct vmcs *old_vmcs)
 
 	error += vmcs_getreg(old_vmcs, 0, VM_REG_GUEST_PDPTE3, &val);
 	error += vmcs_setreg(new_vmcs, 0, VM_REG_GUEST_PDPTE3, val);
+
+	/* Other guest state */
+	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_CS, &val);
+	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_CS, val);
+
+	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_ESP, &val);
+	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_ESP, val);
+
+	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_EIP, &val);
+	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_IA32_SYSENTER_EIP, val);
+
+	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_INTERRUPTIBILITY, &val);
+	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_INTERRUPTIBILITY, val);
+
+	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_ACTIVITY, &val);
+	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_ACTIVITY, val);
+
+	error += vmcs_getany(old_vmcs, 0, VMCS_GUEST_IA32_EFER, &val);
+	error += vmcs_setany(new_vmcs, 0, VMCS_GUEST_IA32_EFER, val);
+
+	error += vmcs_getany(old_vmcs, 0, VMCS_ENTRY_CTLS, &val);
+	error += vmcs_setany(new_vmcs, 0, VMCS_ENTRY_CTLS, val);
+
+	error += vmcs_getany(old_vmcs, 0, VMCS_EXIT_CTLS, &val);
+	error += vmcs_setany(new_vmcs, 0, VMCS_EXIT_CTLS, val);
+
+	if (error)
+		printf("%s: error num: %d\n", __func__, error);
 
 	return (error);
 }

@@ -55,6 +55,8 @@ int	vmcs_getdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
 int	vmcs_setdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
+int	vmcs_getany(struct vmcs *vmcs, int running, int ident, uint64_t *val);
+int	vmcs_setany(struct vmcs *vmcs, int running, int ident, uint64_t val);
 
 /*
  * Avoid header pollution caused by inline use of 'vtophys()' in vmx_cpufunc.h

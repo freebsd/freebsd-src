@@ -428,6 +428,38 @@ done:
 	return (error);
 }
 
+int
+vmcs_getany(struct vmcs *vmcs, int running, int ident, uint64_t *val)
+{
+	int error;
+
+	if (!running)
+		VMPTRLD(vmcs);
+
+	error = vmread(ident, val);
+
+	if (!running)
+		VMCLEAR(vmcs);
+
+	return (error);
+}
+
+int
+vmcs_setany(struct vmcs *vmcs, int running, int ident, uint64_t val)
+{
+	int error;
+
+	if (!running)
+		VMPTRLD(vmcs);
+
+	error = vmwrite(ident, val);
+
+	if (!running)
+		VMCLEAR(vmcs);
+
+	return (error);
+}
+
 #ifdef DDB
 extern int vmxon_enabled[];
 
