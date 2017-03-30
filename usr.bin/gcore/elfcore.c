@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2017 Dell EMC
  * Copyright (c) 2007 Sandvine Incorporated
  * Copyright (c) 1998 John D. Polstra
  * All rights reserved.
@@ -102,6 +103,7 @@ static void *elf_note_fpregset(void *, size_t *);
 static void *elf_note_prpsinfo(void *, size_t *);
 static void *elf_note_prstatus(void *, size_t *);
 static void *elf_note_thrmisc(void *, size_t *);
+static void *elf_note_ptlwpinfo(void *, size_t *);
 #if defined(__i386__) || defined(__amd64__)
 static void *elf_note_x86_xstate(void *, size_t *);
 #endif
@@ -360,6 +362,7 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 		elf_putnote(NT_PRSTATUS, elf_note_prstatus, tids + i, sb);
 		elf_putnote(NT_FPREGSET, elf_note_fpregset, tids + i, sb);
 		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
+		elf_putnote(NT_PTLWPINFO, elf_note_ptlwpinfo, tids + i, sb);
 #if defined(__i386__) || defined(__amd64__)
 		elf_putnote(NT_X86_XSTATE, elf_note_x86_xstate, tids + i, sb);
 #endif
@@ -687,6 +690,24 @@ elf_note_thrmisc(void *arg, size_t *sizep)
 
 	*sizep = sizeof(*thrmisc);
 	return (thrmisc);
+}
+
+static void *
+elf_note_ptlwpinfo(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	void *p;
+
+	tid = *(lwpid_t *)arg;
+	p = calloc(1, sizeof(int) + sizeof(struct ptrace_lwpinfo));
+	if (p == NULL)
+		errx(1, "out of memory");
+	*(int *)p = sizeof(struct ptrace_lwpinfo);
+	ptrace(PT_LWPINFO, tid,
+	    (char *)p + sizeof (int), sizeof(struct ptrace_lwpinfo));
+
+	*sizep = sizeof(int) + sizeof(struct ptrace_lwpinfo);
+	return (p);
 }
 
 #if defined(__i386__) || defined(__amd64__)

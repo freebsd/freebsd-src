@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
+ * Copyright (c) 2017 Dell EMC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,6 +102,7 @@
 struct kinfo_kstack;
 struct kinfo_vmentry;
 struct procstat;
+struct ptrace_lwpinfo;
 struct rlimit;
 struct filestat {
 	int	fs_type;	/* Descriptor type. */
@@ -172,6 +174,8 @@ void	procstat_freekstack(struct procstat *procstat,
 void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
 void	procstat_freefiles(struct procstat *procstat,
     struct filestat_list *head);
+void	procstat_freeptlwpinfo(struct procstat *procstat,
+    struct ptrace_lwpinfo *pl);
 void	procstat_freevmmap(struct procstat *procstat,
     struct kinfo_vmentry *vmmap);
 struct filestat_list	*procstat_getfiles(struct procstat *procstat,
@@ -196,6 +200,8 @@ char	**procstat_getargv(struct procstat *procstat, struct kinfo_proc *p,
 Elf_Auxinfo	*procstat_getauxv(struct procstat *procstat,
     struct kinfo_proc *kp, unsigned int *cntp);
 #endif
+struct ptrace_lwpinfo	*procstat_getptlwpinfo(struct procstat *procstat,
+    unsigned int *cntp);
 char	**procstat_getenvv(struct procstat *procstat, struct kinfo_proc *p,
     size_t nchr);
 gid_t	*procstat_getgroups(struct procstat *procstat, struct kinfo_proc *kp,

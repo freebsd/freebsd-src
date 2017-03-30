@@ -37,6 +37,11 @@ FBSD_1.3 {
 	procstat_open_core;
 };
 
+FBSD_1.5 {
+	procstat_freeptlwpinfo;
+	procstat_getptlwpinfo;
+};
+
 FBSDprivate_1.0 {
 	/*
 	 * XXX-JHB: Export .size.<var> symbols for <var>'s that are
