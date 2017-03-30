@@ -530,23 +530,32 @@ static int
 linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
     int maxevents, int timeout, sigset_t *uset)
 {
-	struct file *epfp;
-	struct timespec ts, *tsp;
-	cap_rights_t rights;
 	struct epoll_copyout_args coargs;
 	struct kevent_copyops k_ops = { &coargs,
 					epoll_kev_copyout,
 					NULL};
+	struct timespec ts, *tsp;
+	cap_rights_t rights;
+	struct file *epfp;
+	sigset_t omask;
 	int error;
 
 	if (maxevents <= 0 || maxevents > LINUX_MAX_EVENTS)
 		return (EINVAL);
 
+	error = fget(td, epfd,
+	    cap_rights_init(&rights, CAP_KQUEUE_EVENT), &epfp);
+	if (error != 0)
+		return (error);
+	if (epfp->f_type != DTYPE_KQUEUE) {
+		error = EINVAL;
+		goto leave1;
+	}
 	if (uset != NULL) {
 		error = kern_sigprocmask(td, SIG_SETMASK, uset,
-		    &td->td_oldsigmask, 0);
+		    &omask, 0);
 		if (error != 0)
-			return (error);
+			goto leave1;
 		td->td_pflags |= TDP_OLDMASK;
 		/*
 		 * Make sure that ast() is called on return to
@@ -558,14 +567,6 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 		thread_unlock(td);
 	}
 
-	error = fget(td, epfd,
-	    cap_rights_init(&rights, CAP_KQUEUE_EVENT), &epfp);
-	if (error != 0)
-		return (error);
-	if (epfp->f_type != DTYPE_KQUEUE) {
-		error = EINVAL;
-		goto leave;
-	}
 
 	coargs.leventlist = events;
 	coargs.p = td->td_proc;
@@ -575,7 +576,7 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 	if (timeout != -1) {
 		if (timeout < 0) {
 			error = EINVAL;
-			goto leave;
+			goto leave0;
 		}
 		/* Convert from milliseconds to timespec. */
 		ts.tv_sec = timeout / 1000;
@@ -595,7 +596,12 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 	 */
 	if (error == 0)
 		td->td_retval[0] = coargs.count;
-leave:
+
+leave0:
+	if (uset != NULL)
+		error = kern_sigprocmask(td, SIG_SETMASK, &omask,
+		    NULL, 0);
+leave1:
 	fdrop(epfp, td);
 	return (error);
 }
