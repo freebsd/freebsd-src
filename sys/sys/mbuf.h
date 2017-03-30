@@ -1320,5 +1320,18 @@ mbufq_prepend(struct mbufq *mq, struct mbuf *m)
 	STAILQ_INSERT_HEAD(&mq->mq_head, m, m_stailqpkt);
 	mq->mq_len++;
 }
+
+/*
+ * Note: this doesn't enforce the maximum list size for dst.
+ */
+static inline void
+mbufq_concat(struct mbufq *mq_dst, struct mbufq *mq_src)
+{
+
+	mq_dst->mq_len += mq_src->mq_len;
+	STAILQ_CONCAT(&mq_dst->mq_head, &mq_src->mq_head);
+	mq_src->mq_len = 0;
+}
+
 #endif /* _KERNEL */
 #endif /* !_SYS_MBUF_H_ */
