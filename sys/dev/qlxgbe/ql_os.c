@@ -1072,6 +1072,8 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 		if (mask & IFCAP_VLAN_HWTSO)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		if (mask & IFCAP_LRO)
+			ifp->if_capenable ^= IFCAP_LRO;
 
 		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 			qla_init(ha);
@@ -1496,7 +1498,6 @@ qla_qflush(struct ifnet *ifp)
 
         return;
 }
-
 
 static void
 qla_stop(qla_host_t *ha)

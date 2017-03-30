@@ -1674,6 +1674,8 @@ typedef struct _qla_hw {
 	uint32_t	max_tx_segs;
 	uint32_t	min_lro_pkt_size;
 	
+	uint32_t        enable_hw_lro;
+	uint32_t        enable_soft_lro;
 	uint32_t        enable_9kb;
 
 	uint32_t	user_pri_nic;
