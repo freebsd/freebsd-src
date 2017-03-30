@@ -184,8 +184,8 @@ static struct vmm_ops *ops;
 /*
  * XXX: Updated VMRUN to test vcpu restoring
  */
-#define	VMRUN(vmi, vcpu, rip, pmap, evinfo, restored) \
-	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap, evinfo, restored) : ENXIO)
+#define	VMRUN(vmi, vcpu, rip, pmap, evinfo) \
+	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap, evinfo) : ENXIO)
 #define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
 #define	VMSPACE_ALLOC(min, max) \
 	(ops != NULL ? (*ops->vmspace_alloc)(min, max) : NULL)
@@ -1737,7 +1737,6 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	uint64_t tscval;
 	struct vm_exit *vme;
 	bool retu, intr_disabled;
-	int restored;
 	pmap_t pmap;
 
 	vcpuid = vmrun->cpuid;
@@ -1756,7 +1755,6 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	pmap = vmspace_pmap(vm->vmspace);
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
-	restored = vmrun->restored;
 	evinfo.rptr = &vm->rendezvous_func;
 	evinfo.sptr = &vm->suspend;
 	evinfo.iptr = &vcpu->reqidle;
@@ -1774,7 +1772,7 @@ restart:
 	restore_guest_fpustate(vcpu);
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
-	error = VMRUN(vm->cookie, vcpuid, vcpu->nextrip, pmap, &evinfo, restored);
+	error = VMRUN(vm->cookie, vcpuid, vcpu->nextrip, pmap, &evinfo);
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
@@ -1784,7 +1782,6 @@ restart:
 	if (curthread->td_critnest != 1)
 		return (EINVAL);
 	critical_exit();
-	restored = 0;
 
 	if (error == 0) {
 		retu = false;

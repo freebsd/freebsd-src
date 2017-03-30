@@ -671,6 +671,7 @@ vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *ret_val)
 }
 
 int
+<<<<<<< HEAD
 vm_set_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
     const int *regnums, uint64_t *regvals)
 {
@@ -705,14 +706,13 @@ vm_get_register_set(struct vmctx *ctx, int vcpu, unsigned int count,
 }
 
 int
-vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int restored)
+vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 {
 	int error;
 	struct vm_run vmrun;
 
 	bzero(&vmrun, sizeof(vmrun));
 	vmrun.cpuid = vcpu;
-	vmrun.restored = restored;
 
 	error = ioctl(ctx->fd, VM_RUN, &vmrun);
 	bcopy(&vmrun.vm_exit, vmexit, sizeof(struct vm_exit));

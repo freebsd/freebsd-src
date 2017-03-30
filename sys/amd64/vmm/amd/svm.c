@@ -1928,7 +1928,7 @@ svm_dr_leave_guest(struct svm_regctx *gctx)
  */
 static int
 svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap, 
-	struct vm_eventinfo *evinfo, int restored)
+	struct vm_eventinfo *evinfo)
 {
 	struct svm_regctx *gctx;
 	struct svm_softc *svm_sc;

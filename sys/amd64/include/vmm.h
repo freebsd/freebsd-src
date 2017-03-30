@@ -151,7 +151,7 @@ typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-		    struct pmap *pmap, struct vm_eventinfo *info, int restored);
+		    struct pmap *pmap, struct vm_eventinfo *info);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);

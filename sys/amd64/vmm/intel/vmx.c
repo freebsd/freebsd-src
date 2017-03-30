@@ -2828,7 +2828,7 @@ vmx_dr_leave_guest(struct vmxctx *vmxctx)
  */
 static int
 vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
-    struct vm_eventinfo *evinfo, int restored)
+    struct vm_eventinfo *evinfo)
 {
 	int rc, handled, launched = 0;
 	struct vmx *vmx;
@@ -2847,12 +2847,6 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	vmxctx = &vmx->ctx[vcpu];
 	vlapic = vm_lapic(vm, vcpu);
 	vmexit = vm_exitinfo(vm, vcpu);
-
-	if (restored) {
-		rc = vmclear(vmcs);
-		if (rc != 0)
-			panic("%s: vmclear(%p) error %d", __func__, vmcs, rc);
-	}
 
 	KASSERT(vmxctx->pmap == pmap,
 	    ("pmap %p different than ctx pmap %p", pmap, vmxctx->pmap));

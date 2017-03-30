@@ -85,7 +85,6 @@ struct vm_register_set {
 
 struct vm_run {
 	int		cpuid;
-	int		restored;
 	struct vm_exit	vm_exit;
 };
 

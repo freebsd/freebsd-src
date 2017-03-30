@@ -204,7 +204,6 @@ static int strictio;
 static int strictmsr = 1;
 
 static int acpi;
-static int restored = 0;
 
 static char *progname;
 static const int BSP = 0;
@@ -848,8 +847,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 	assert(error == 0);
 
 	while (1) {
-		error = vm_run(ctx, vcpu, &vmexit[vcpu], restored);
-		restored = 0;
+		error = vm_run(ctx, vcpu, &vmexit[vcpu]);
 		if (error != 0)
 			break;
 
@@ -1896,7 +1894,6 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			restore_file = optarg;
-			restored = 1;
 			break;
 		case 's':
 			if (strncmp(optarg, "help", strlen(optarg)) == 0) {
