@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2017 Juniper Networks.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,9 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -25,59 +21,43 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)stddef.h	8.1 (Berkeley) 6/2/93
- *
- * $FreeBSD$
  */
 
-#ifndef _STDDEF_H_
-#define _STDDEF_H_
-
 #include <sys/cdefs.h>
-#include <sys/_null.h>
-#include <sys/_types.h>
+__FBSDID("$FreeBSD$");
 
-#ifndef _PTRDIFF_T_DECLARED
-typedef	__ptrdiff_t	ptrdiff_t;
-#define	_PTRDIFF_T_DECLARED
-#endif
+#include <assert.h>
+#include <stdlib.h>
 
-#if __BSD_VISIBLE
-#ifndef _RUNE_T_DECLARED
-typedef	__rune_t	rune_t;
-#define	_RUNE_T_DECLARED
-#endif
-#endif
+#include <atf-c.h>
 
-#ifndef _SIZE_T_DECLARED
-typedef	__size_t	size_t;
-#define	_SIZE_T_DECLARED
-#endif
+/* null */
+ATF_TC_WITHOUT_HEAD(null_handler);
+ATF_TC_BODY(null_handler, tc)
+{
+	assert(set_constraint_handler_s(abort_handler_s) == NULL);
+}
 
-#ifndef	__cplusplus
-#ifndef _WCHAR_T_DECLARED
-typedef	___wchar_t	wchar_t;
-#define	_WCHAR_T_DECLARED
-#endif
-#endif
+/* abort handler */
+ATF_TC_WITHOUT_HEAD(abort_handler);
+ATF_TC_BODY(abort_handler, tc)
+{
+	set_constraint_handler_s(abort_handler_s);
+	assert(set_constraint_handler_s(ignore_handler_s) == abort_handler_s);
+}
 
-#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201103L
-#ifndef __CLANG_MAX_ALIGN_T_DEFINED
-typedef	__max_align_t	max_align_t;
-#define __CLANG_MAX_ALIGN_T_DEFINED
-#define _GCC_MAX_ALIGN_T
-#endif
-#endif
+/* ignore handler */
+ATF_TC_WITHOUT_HEAD(ignore_handler);
+ATF_TC_BODY(ignore_handler, tc)
+{
+	set_constraint_handler_s(ignore_handler_s);
+	assert(set_constraint_handler_s(abort_handler_s) == ignore_handler_s);
+}
 
-#define	offsetof(type, member)	__offsetof(type, member)
-
-#if __EXT1_VISIBLE
-/* ISO/IEC 9899:2011 K.3.3.2 */
-#ifndef _RSIZE_T_DEFINED
-#define _RSIZE_T_DEFINED
-typedef size_t rsize_t;
-#endif
-#endif /* __EXT1_VISIBLE */
-
-#endif /* _STDDEF_H_ */
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, null_handler);
+	ATF_TP_ADD_TC(tp, abort_handler);
+	ATF_TP_ADD_TC(tp, ignore_handler);
+	return (atf_no_error());
+}

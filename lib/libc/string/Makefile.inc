@@ -10,7 +10,7 @@ CFLAGS+= -I${LIBC_SRCTOP}/locale
 MISRCS+=bcmp.c bcopy.c bzero.c explicit_bzero.c \
 	ffs.c ffsl.c ffsll.c fls.c flsl.c flsll.c \
 	memccpy.c memchr.c memrchr.c memcmp.c \
-	memcpy.c memmem.c memmove.c memset.c \
+	memcpy.c memmem.c memmove.c memset.c memset_s.c \
 	stpcpy.c stpncpy.c strcasecmp.c \
 	strcat.c strcasestr.c strchr.c strchrnul.c strcmp.c strcoll.c strcpy.c\
 	strcspn.c strdup.c strerror.c strlcat.c strlcpy.c strlen.c strmode.c \
