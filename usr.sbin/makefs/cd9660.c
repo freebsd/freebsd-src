@@ -1066,7 +1066,7 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 
 	tmp = malloc(ISO_FILENAME_MAXLENGTH_WITH_PADDING);
 
-	while (i < num) {
+	while (i < num && iter) {
 		powers = 1;
 		count = 0;
 		digits = 1;
