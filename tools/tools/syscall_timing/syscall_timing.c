@@ -178,7 +178,6 @@ test_getpriority(uintmax_t num, uintmax_t int_arg, const char *path)
 	return (i);
 }
 
-
 uintmax_t
 test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
 {
@@ -202,6 +201,31 @@ test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
 			err(-1, "test_pipe: pipe");
 		close(fd[0]);
 		close(fd[1]);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
+test_select(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	fd_set readfds, writefds, exceptfds;
+	struct timeval tv;
+	uintmax_t i;
+	int error;
+
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+	FD_ZERO(&exceptfds);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		(void)select(0, &readfds, &writefds, &exceptfds, &tv);
 	}
 	benchmark_stop();
 	return (i);
@@ -653,6 +677,7 @@ static const struct test tests[] = {
 	{ "gettimeofday", test_gettimeofday },
 	{ "getpriority", test_getpriority },
 	{ "pipe", test_pipe },
+	{ "select", test_select },
 	{ "socket_local_stream", test_socket_stream, .t_int = PF_LOCAL },
 	{ "socket_local_dgram", test_socket_dgram, .t_int = PF_LOCAL },
 	{ "socketpair_stream", test_socketpair_stream },
