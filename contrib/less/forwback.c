@@ -48,7 +48,7 @@ extern char *tagoption;
  * Sound the bell to indicate user is trying to move past end of file.
  */
 	static void
-eof_bell()
+eof_bell(void)
 {
 	if (quiet == NOT_QUIET)
 		bell();
@@ -60,7 +60,7 @@ eof_bell()
  * Check to see if the end of file is currently displayed.
  */
 	public int
-eof_displayed()
+eof_displayed(void)
 {
 	POSITION pos;
 
@@ -87,7 +87,7 @@ eof_displayed()
  * Check to see if the entire file is currently displayed.
  */
 	public int
-entire_file_displayed()
+entire_file_displayed(void)
 {
 	POSITION pos;
 
@@ -107,7 +107,7 @@ entire_file_displayed()
  * for the first time.
  */
 	public void
-squish_check()
+squish_check(void)
 {
 	if (!squished)
 		return;
@@ -125,12 +125,7 @@ squish_check()
  *   The first real line after the blanks will start at ch_zero().
  */
 	public void
-forw(n, pos, force, only_last, nblank)
-	register int n;
-	POSITION pos;
-	int force;
-	int only_last;
-	int nblank;
+forw(int n, POSITION pos, int force, int only_last, int nblank)
 {
 	int nlines = 0;
 	int do_repaint;
@@ -302,11 +297,7 @@ forw(n, pos, force, only_last, nblank)
  * Display n lines, scrolling backward.
  */
 	public void
-back(n, pos, force, only_last)
-	register int n;
-	POSITION pos;
-	int force;
-	int only_last;
+back(int n, POSITION pos, int force, int only_last)
 {
 	int nlines = 0;
 	int do_repaint;
@@ -364,10 +355,7 @@ back(n, pos, force, only_last)
  * Start just after the line currently displayed at the bottom of the screen.
  */
 	public void
-forward(n, force, only_last)
-	int n;
-	int force;
-	int only_last;
+forward(int n, int force, int only_last)
 {
 	POSITION pos;
 
@@ -416,10 +404,7 @@ forward(n, force, only_last)
  * Start just before the line currently displayed at the top of the screen.
  */
 	public void
-backward(n, force, only_last)
-	int n;
-	int force;
-	int only_last;
+backward(int n, int force, int only_last)
 {
 	POSITION pos;
 
@@ -439,7 +424,7 @@ backward(n, force, only_last)
  * top_scroll, as well as back_scroll.
  */
 	public int
-get_back_scroll()
+get_back_scroll(void)
 {
 	if (no_back_scroll)
 		return (0);

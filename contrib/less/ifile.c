@@ -49,9 +49,7 @@ static struct ifile anchor = { &anchor, &anchor, NULL, NULL, 0, 0, '\0',
 static int ifiles = 0;
 
 	static void
-incr_index(p, incr)
-	register struct ifile *p;
-	int incr;
+incr_index(struct ifile *p, int incr)
 {
 	for (;  p != &anchor;  p = p->h_next)
 		p->h_index += incr;
@@ -61,9 +59,7 @@ incr_index(p, incr)
  * Link an ifile into the ifile list.
  */
 	static void
-link_ifile(p, prev)
-	struct ifile *p;
-	struct ifile *prev;
+link_ifile(struct ifile *p, struct ifile *prev)
 {
 	/*
 	 * Link into list.
@@ -87,8 +83,7 @@ link_ifile(p, prev)
  * Unlink an ifile from the ifile list.
  */
 	static void
-unlink_ifile(p)
-	struct ifile *p;
+unlink_ifile(struct ifile *p)
 {
 	p->h_next->h_prev = p->h_prev;
 	p->h_prev->h_next = p->h_next;
@@ -103,11 +98,9 @@ unlink_ifile(p)
  * Return a pointer to the new ifile structure.
  */
 	static struct ifile *
-new_ifile(filename, prev)
-	char *filename;
-	struct ifile *prev;
+new_ifile(char *filename, struct ifile *prev)
 {
-	register struct ifile *p;
+	struct ifile *p;
 
 	/*
 	 * Allocate and initialize structure.
@@ -126,10 +119,9 @@ new_ifile(filename, prev)
  * Delete an existing ifile structure.
  */
 	public void
-del_ifile(h)
-	IFILE h;
+del_ifile(IFILE h)
 {
-	register struct ifile *p;
+	struct ifile *p;
 
 	if (h == NULL_IFILE)
 		return;
@@ -150,10 +142,9 @@ del_ifile(h)
  * Get the ifile after a given one in the list.
  */
 	public IFILE
-next_ifile(h)
-	IFILE h;
+next_ifile(IFILE h)
 {
-	register struct ifile *p;
+	struct ifile *p;
 
 	p = (h == NULL_IFILE) ? &anchor : int_ifile(h);
 	if (p->h_next == &anchor)
@@ -165,10 +156,9 @@ next_ifile(h)
  * Get the ifile before a given one in the list.
  */
 	public IFILE
-prev_ifile(h)
-	IFILE h;
+prev_ifile(IFILE h)
 {
-	register struct ifile *p;
+	struct ifile *p;
 
 	p = (h == NULL_IFILE) ? &anchor : int_ifile(h);
 	if (p->h_prev == &anchor)
@@ -180,8 +170,7 @@ prev_ifile(h)
  * Return a different ifile from the given one.
  */
 	public IFILE
-getoff_ifile(ifile)
-	IFILE ifile;
+getoff_ifile(IFILE ifile)
 {
 	IFILE newifile;
 	
@@ -196,7 +185,7 @@ getoff_ifile(ifile)
  * Return the number of ifiles.
  */
 	public int
-nifile()
+nifile(void)
 {
 	return (ifiles);
 }
@@ -205,10 +194,9 @@ nifile()
  * Find an ifile structure, given a filename.
  */
 	static struct ifile *
-find_ifile(filename)
-	char *filename;
+find_ifile(char *filename)
 {
-	register struct ifile *p;
+	struct ifile *p;
 
 	for (p = anchor.h_next;  p != &anchor;  p = p->h_next)
 		if (strcmp(filename, p->h_filename) == 0)
@@ -222,11 +210,9 @@ find_ifile(filename)
  * insert the new ifile after "prev" in the list.
  */
 	public IFILE
-get_ifile(filename, prev)
-	char *filename;
-	IFILE prev;
+get_ifile(char *filename, IFILE prev)
 {
-	register struct ifile *p;
+	struct ifile *p;
 
 	if ((p = find_ifile(filename)) == NULL)
 		p = new_ifile(filename, int_ifile(prev));
@@ -237,8 +223,7 @@ get_ifile(filename, prev)
  * Get the filename associated with a ifile.
  */
 	public char *
-get_filename(ifile)
-	IFILE ifile;
+get_filename(IFILE ifile)
 {
 	if (ifile == NULL)
 		return (NULL);
@@ -249,8 +234,7 @@ get_filename(ifile)
  * Get the index of the file associated with a ifile.
  */
 	public int
-get_index(ifile)
-	IFILE ifile;
+get_index(IFILE ifile)
 {
 	return (int_ifile(ifile)->h_index); 
 }
@@ -259,9 +243,7 @@ get_index(ifile)
  * Save the file position to be associated with a given file.
  */
 	public void
-store_pos(ifile, scrpos)
-	IFILE ifile;
-	struct scrpos *scrpos;
+store_pos(IFILE ifile, struct scrpos *scrpos)
 {
 	int_ifile(ifile)->h_scrpos = *scrpos;
 }
@@ -271,9 +253,7 @@ store_pos(ifile, scrpos)
  * If no position has been associated with the file, return NULL_POSITION.
  */
 	public void
-get_pos(ifile, scrpos)
-	IFILE ifile;
-	struct scrpos *scrpos;
+get_pos(IFILE ifile, struct scrpos *scrpos)
 {
 	*scrpos = int_ifile(ifile)->h_scrpos;
 }
@@ -282,8 +262,7 @@ get_pos(ifile, scrpos)
  * Mark the ifile as "opened".
  */
 	public void
-set_open(ifile)
-	IFILE ifile;
+set_open(IFILE ifile)
 {
 	int_ifile(ifile)->h_opened = 1;
 }
@@ -292,47 +271,40 @@ set_open(ifile)
  * Return whether the ifile has been opened previously.
  */
 	public int
-opened(ifile)
-	IFILE ifile;
+opened(IFILE ifile)
 {
 	return (int_ifile(ifile)->h_opened);
 }
 
 	public void
-hold_ifile(ifile, incr)
-	IFILE ifile;
-	int incr;
+hold_ifile(IFILE ifile, int incr)
 {
 	int_ifile(ifile)->h_hold += incr;
 }
 
 	public int
-held_ifile(ifile)
-	IFILE ifile;
+held_ifile(IFILE ifile)
 {
 	return (int_ifile(ifile)->h_hold);
 }
 
 	public void *
-get_filestate(ifile)
-	IFILE ifile;
+get_filestate(IFILE ifile)
 {
 	return (int_ifile(ifile)->h_filestate);
 }
 
 	public void
-set_filestate(ifile, filestate)
-	IFILE ifile;
-	void *filestate;
+set_filestate(IFILE ifile, void *filestate)
 {
 	int_ifile(ifile)->h_filestate = filestate;
 }
 
 #if 0
 	public void
-if_dump()
+if_dump(void)
 {
-	register struct ifile *p;
+	struct ifile *p;
 
 	for (p = anchor.h_next;  p != &anchor;  p = p->h_next)
 	{
