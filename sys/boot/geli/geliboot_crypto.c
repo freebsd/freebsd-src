@@ -110,7 +110,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 {
 	u_char iv[keysize];
 
-	bzero(iv, sizeof(iv));
+	explicit_bzero(iv, sizeof(iv));
 	return (geliboot_crypt(algo, enc, data, datasize, key, keysize, iv));
 }
 

@@ -926,7 +926,7 @@ load(void)
     zfsargs.primary_pool = primary_spa->spa_guid;
 #ifdef LOADER_GELI_SUPPORT
     bcopy(gelipw, zfsargs.gelipw, sizeof(zfsargs.gelipw));
-    bzero(gelipw, sizeof(gelipw));
+    explicit_bzero(gelipw, sizeof(gelipw));
 #else
     zfsargs.gelipw[0] = '\0';
 #endif
