@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Kevin Lo
+ * Copyright (c) 2014, 2017 Kevin Lo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,10 +68,16 @@ struct uled_softc {
 
 	uint8_t			sc_state;
 #define	ULED_ENABLED	0x01
+
+	int			sc_flags;
+#define	ULED_FLAG_BLINK1	0x0001
 };
 
-/* prototypes */
+/* Initial commands. */
+static uint8_t blink1[] = { 0x1, 'v', 0, 0, 0, 0, 0, 0 };
+static uint8_t dl100b[] = { 0x1f, 0x2, 0, 0x5f, 0, 0, 0x1a, 0x3 };
 
+/* Prototypes. */
 static device_probe_t	uled_probe;
 static device_attach_t	uled_attach;
 static device_detach_t	uled_detach;
@@ -88,7 +94,7 @@ static struct usb_fifo_methods uled_fifo_methods = {
 };
 
 static usb_error_t	uled_ctrl_msg(struct uled_softc *, uint8_t, uint8_t,
-			    uint16_t, uint16_t, void *buf, uint16_t);
+			    uint16_t, uint16_t, void *, uint16_t);
 static int		uled_enable(struct uled_softc *);
 
 static devclass_t uled_devclass;
@@ -108,7 +114,10 @@ static driver_t uled_driver = {
 };
 
 static const STRUCT_USB_HOST_ID uled_devs[] = {
-	{USB_VPI(USB_VENDOR_DREAMLINK, USB_PRODUCT_DREAMLINK_DL100B, 0)},
+#define	ULED_DEV(v,p,i)	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
+	ULED_DEV(DREAMLINK, DL100B, 0),
+	ULED_DEV(THINGM, BLINK1, ULED_FLAG_BLINK1),
+#undef ULED_DEV
 };
 
 DRIVER_MODULE(uled, uhub, uled_driver, uled_devclass, NULL, NULL);
@@ -141,6 +150,7 @@ uled_attach(device_t dev)
 	uaa = device_get_ivars(dev);
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
+	sc->sc_flags = USB_GET_DRIVER_INFO(uaa);
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uled lock", NULL, MTX_DEF | MTX_RECURSE);
@@ -194,9 +204,10 @@ uled_ctrl_msg(struct uled_softc *sc, uint8_t rt, uint8_t reqno,
 static int
 uled_enable(struct uled_softc *sc)
 {
-	static uint8_t cmdbuf[] = { 0x1f, 0x02, 0x00, 0x5f, 0x00, 0x00, 0x1a,
-	    0x03 };
+	uint8_t *cmdbuf;
 	int error;
+
+	cmdbuf = (sc->sc_flags & ULED_FLAG_BLINK1) ? blink1 : dl100b;
 
 	sc->sc_state |= ULED_ENABLED;
 	mtx_lock(&sc->sc_mtx);
@@ -257,12 +268,21 @@ uled_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
 		sc->sc_color.green = color.green;
 		sc->sc_color.blue = color.blue;
 
-		buf[0] = color.red;
-		buf[1] = color.green;
-		buf[2] = color.blue;
-		buf[3] = buf[4] = buf[5] = 0;
-		buf[6] = 0x1a;
-		buf[7] = 0x05;
+		if (sc->sc_flags & ULED_FLAG_BLINK1) {
+			buf[0] = 0x1;
+			buf[1] = 'n';
+			buf[2] = color.red;
+			buf[3] = color.green;
+			buf[4] = color.blue;
+			buf[5] = buf[6] = buf[7] = 0;
+		} else {
+			buf[0] = color.red;
+			buf[1] = color.green;
+			buf[2] = color.blue;
+			buf[3] = buf[4] = buf[5] = 0;
+			buf[6] = 0x1a;
+			buf[7] = 0x05;
+		}
 		error = uled_ctrl_msg(sc, UT_WRITE_CLASS_INTERFACE,
 		    UR_SET_REPORT, 0x200, 0, buf, sizeof(buf));
 		break;
