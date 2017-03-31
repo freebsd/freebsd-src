@@ -204,6 +204,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"cincbase", "+w,+b,m",	    0x48800002, 0xffe0003f, 0, 0, I1},
 {"csetlen",  "+w,+b,m",	    0x48800003, 0xffe0003f, 0, 0, I1},
 {"csetbounds", "+w,+b,m",   0x48200000, 0xffe0003f, 0, 0, I1},
+{"csetboundsexact", "+w,+b,m", 0x48000009, 0xffe0003f, 0, 0, I1},
 {"csetcause", "m",          0x48800004, 0xfffff83f, 0, 0, I1},
 {"csetdefault", "+b",       0x49a00000, 0xffff07ff, 0, 0, I1},
 {"cgetdefault", "+w",       0x49a00000, 0xffe0ffff, 0, 0, I1},
