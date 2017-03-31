@@ -16,6 +16,7 @@ CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
 
 CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-I${LIBARCHIVEDIR}/cpio -I${LIBARCHIVEDIR}/cpio/test
+CFLAGS+=	-I${LIBARCHIVEDIR}/libarchive
 CFLAGS+=	-I${LIBARCHIVEDIR}/libarchive_fe -I${LIBARCHIVEDIR}/test_utils
 
 # Uncomment to link against dmalloc
