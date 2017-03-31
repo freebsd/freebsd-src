@@ -66,7 +66,6 @@ static const char *features_for_read[] = {
  */
 static spa_list_t zfs_pools;
 
-static uint64_t zfs_crc64_table[256];
 static const dnode_phys_t *dnode_cache_obj = 0;
 static uint64_t dnode_cache_bn;
 static char *dnode_cache_buf;
