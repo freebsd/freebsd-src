@@ -173,19 +173,19 @@ geli_attach(struct dsk *dskp, const char *passphrase)
 			    sizeof(geli_e->md.md_salt), passphrase,
 			    geli_e->md.md_iterations);
 			g_eli_crypto_hmac_update(&ctx, dkey, sizeof(dkey));
-			bzero(&dkey, sizeof(dkey));
+			explicit_bzero(dkey, sizeof(dkey));
 		}
 
 		g_eli_crypto_hmac_final(&ctx, key, 0);
 
 		error = g_eli_mkey_decrypt(&geli_e->md, key, mkey, &keynum);
-		bzero(&key, sizeof(key));
+		explicit_bzero(key, sizeof(key));
 		if (error == -1) {
-			bzero(&mkey, sizeof(mkey));
+			explicit_bzero(mkey, sizeof(mkey));
 			printf("Bad GELI key: %d\n", error);
 			return (error);
 		} else if (error != 0) {
-			bzero(&mkey, sizeof(mkey));
+			explicit_bzero(mkey, sizeof(mkey));
 			printf("Failed to decrypt GELI master key: %d\n", error);
 			return (error);
 		}
@@ -203,7 +203,7 @@ geli_attach(struct dsk *dskp, const char *passphrase)
 			g_eli_crypto_hmac(mkp, G_ELI_MAXKEYLEN, "\x10", 1,
 			    geli_e->sc.sc_ekey, 0);
 		}
-		bzero(&mkey, sizeof(mkey));
+		explicit_bzero(mkey, sizeof(mkey));
 
 		/* Initialize the per-sector IV. */
 		switch (geli_e->sc.sc_ealgo) {
@@ -279,13 +279,13 @@ geli_read(struct dsk *dskp, off_t offset, u_char *buf, size_t bytes)
 			    geli_e->sc.sc_ekeylen, iv);
 
 			if (error != 0) {
-				bzero(&gkey, sizeof(gkey));
+				explicit_bzero(&gkey, sizeof(gkey));
 				printf("Failed to decrypt in geli_read()!");
 				return (error);
 			}
 			pbuf += secsize;
 		}
-		bzero(&gkey, sizeof(gkey));
+		explicit_bzero(&gkey, sizeof(gkey));
 		return (0);
 	}
 
