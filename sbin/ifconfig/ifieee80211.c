@@ -1758,6 +1758,7 @@ set80211shortgi(const char *val, int d, int s, const struct afswtch *rafp)
 		0, NULL);
 }
 
+/* XXX 11ac density/size is different */
 static void
 set80211ampdu(const char *val, int d, int s, const struct afswtch *rafp)
 {
@@ -1831,6 +1832,7 @@ DECL_CMD_FUNC(set80211ampdulimit, val, d)
 	set80211(s, IEEE80211_IOC_AMPDU_LIMIT, v, 0, NULL);
 }
 
+/* XXX 11ac density/size is different */
 static
 DECL_CMD_FUNC(set80211ampdudensity, val, d)
 {
@@ -4957,6 +4959,7 @@ end:
 				break;
 			}
 		}
+		/* XXX 11ac density/size is different */
 		if (get80211val(s, IEEE80211_IOC_AMPDU_LIMIT, &val) != -1) {
 			switch (val) {
 			case IEEE80211_HTCAP_MAXRXAMPDU_8K:
@@ -4973,6 +4976,7 @@ end:
 				break;
 			}
 		}
+		/* XXX 11ac density/size is different */
 		if (get80211val(s, IEEE80211_IOC_AMPDU_DENSITY, &val) != -1) {
 			switch (val) {
 			case IEEE80211_HTCAP_MPDUDENSITY_NA:
@@ -5054,6 +5058,8 @@ end:
 			else if (verbose)
 				LINE_CHECK("-rifs");
 		}
+
+		/* XXX VHT STBC? */
 		if (get80211val(s, IEEE80211_IOC_STBC, &val) != -1) {
 			switch (val) {
 			case 0:
