@@ -144,13 +144,13 @@ static int ch_addbuf();
  * Get the character pointed to by the read pointer.
  */
 	int
-ch_get()
+ch_get(void)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
-	register int n;
-	register int slept;
-	register int h;
+	struct buf *bp;
+	struct bufnode *bn;
+	int n;
+	int slept;
+	int h;
 	POSITION pos;
 	POSITION len;
 
@@ -378,8 +378,7 @@ ch_get()
  * a single char onto an input file descriptor.
  */
 	public void
-ch_ungetchar(c)
-	int c;
+ch_ungetchar(int c)
 {
 	if (c != -1 && ch_ungotchar != -1)
 		error("ch_ungetchar overrun", NULL_PARG);
@@ -392,7 +391,7 @@ ch_ungetchar(c)
  * If we haven't read all of standard input into it, do that now.
  */
 	public void
-end_logfile()
+end_logfile(void)
 {
 	static int tried = FALSE;
 
@@ -417,10 +416,10 @@ end_logfile()
  * Write all the existing buffered data to the log file.
  */
 	public void
-sync_logfile()
+sync_logfile(void)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
+	struct buf *bp;
+	struct bufnode *bn;
 	int warned = FALSE;
 	BLOCKNUM block;
 	BLOCKNUM nblocks;
@@ -454,12 +453,11 @@ sync_logfile()
  * Determine if a specific block is currently in one of the buffers.
  */
 	static int
-buffered(block)
-	BLOCKNUM block;
+buffered(BLOCKNUM block)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
-	register int h;
+	struct buf *bp;
+	struct bufnode *bn;
+	int h;
 
 	h = BUFHASH(block);
 	FOR_BUFS_IN_CHAIN(h, bn)
@@ -476,8 +474,7 @@ buffered(block)
  * Return 0 if successful, non-zero if can't seek there.
  */
 	public int
-ch_seek(pos)
-	register POSITION pos;
+ch_seek(POSITION pos)
 {
 	BLOCKNUM new_block;
 	POSITION len;
@@ -515,7 +512,7 @@ ch_seek(pos)
  * Seek to the end of the file.
  */
 	public int
-ch_end_seek()
+ch_end_seek(void)
 {
 	POSITION len;
 
@@ -542,10 +539,10 @@ ch_end_seek()
  * Seek to the last position in the file that is currently buffered.
  */
 	public int
-ch_end_buffer_seek()
+ch_end_buffer_seek(void)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
+	struct buf *bp;
+	struct bufnode *bn;
 	POSITION buf_pos;
 	POSITION end_pos;
 
@@ -570,10 +567,10 @@ ch_end_buffer_seek()
  * beginning of the pipe is no longer buffered.
  */
 	public int
-ch_beg_seek()
+ch_beg_seek(void)
 {
-	register struct bufnode *bn;
-	register struct bufnode *firstbn;
+	struct bufnode *bn;
+	struct bufnode *firstbn;
 
 	/*
 	 * Try a plain ch_seek first.
@@ -602,7 +599,7 @@ ch_beg_seek()
  * Return the length of the file, if known.
  */
 	public POSITION
-ch_length()
+ch_length(void)
 {
 	if (thisfile == NULL)
 		return (NULL_POSITION);
@@ -619,7 +616,7 @@ ch_length()
  * Return the current position in the file.
  */
 	public POSITION
-ch_tell()
+ch_tell(void)
 {
 	if (thisfile == NULL)
 		return (NULL_POSITION);
@@ -630,9 +627,9 @@ ch_tell()
  * Get the current char and post-increment the read pointer.
  */
 	public int
-ch_forw_get()
+ch_forw_get(void)
 {
-	register int c;
+	int c;
 
 	if (thisfile == NULL)
 		return (EOI);
@@ -653,7 +650,7 @@ ch_forw_get()
  * Pre-decrement the read pointer and get the new current char.
  */
 	public int
-ch_back_get()
+ch_back_get(void)
 {
 	if (thisfile == NULL)
 		return (EOI);
@@ -676,8 +673,7 @@ ch_back_get()
  * bufspace is in units of 1024 bytes.  -1 mean no limit.
  */
 	public void
-ch_setbufspace(bufspace)
-	int bufspace;
+ch_setbufspace(int bufspace)
 {
 	if (bufspace < 0)
 		maxbufs = -1;
@@ -693,9 +689,9 @@ ch_setbufspace(bufspace)
  * Flush (discard) any saved file state, including buffer contents.
  */
 	public void
-ch_flush()
+ch_flush(void)
 {
-	register struct bufnode *bn;
+	struct bufnode *bn;
 
 	if (thisfile == NULL)
 		return;
@@ -760,10 +756,10 @@ ch_flush()
  * The buffer is added to the tail of the buffer chain.
  */
 	static int
-ch_addbuf()
+ch_addbuf(void)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
+	struct buf *bp;
+	struct bufnode *bn;
 
 	/*
 	 * Allocate and initialize a new buffer and link it 
@@ -785,9 +781,9 @@ ch_addbuf()
  *
  */
 	static void
-init_hashtbl()
+init_hashtbl(void)
 {
-	register int h;
+	int h;
 
 	for (h = 0;  h < BUFHASH_SIZE;  h++)
 	{
@@ -800,9 +796,9 @@ init_hashtbl()
  * Delete all buffers for this file.
  */
 	static void
-ch_delbufs()
+ch_delbufs(void)
 {
-	register struct bufnode *bn;
+	struct bufnode *bn;
 
 	while (ch_bufhead != END_OF_CHAIN)
 	{
@@ -818,8 +814,7 @@ ch_delbufs()
  * Is it possible to seek on a file descriptor?
  */
 	public int
-seekable(f)
-	int f;
+seekable(int f)
 {
 #if MSDOS_COMPILER
 	extern int fd0;
@@ -840,7 +835,7 @@ seekable(f)
  * This is used after an ignore_eof read, during which the EOF may change.
  */
 	public void
-ch_set_eof()
+ch_set_eof(void)
 {
 	ch_fsize = ch_fpos;
 }
@@ -850,9 +845,7 @@ ch_set_eof()
  * Initialize file state for a new file.
  */
 	public void
-ch_init(f, flags)
-	int f;
-	int flags;
+ch_init(int f, int flags)
 {
 	/*
 	 * See if we already have a filestate for this file.
@@ -891,7 +884,7 @@ ch_init(f, flags)
  * Close a filestate.
  */
 	public void
-ch_close()
+ch_close(void)
 {
 	int keepstate = FALSE;
 
@@ -934,7 +927,7 @@ ch_close()
  * Return ch_flags for the current file.
  */
 	public int
-ch_getflags()
+ch_getflags(void)
 {
 	if (thisfile == NULL)
 		return (0);

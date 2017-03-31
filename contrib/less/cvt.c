@@ -20,9 +20,7 @@ extern int utf_mode;
  * Get the length of a buffer needed to convert a string.
  */
 	public int
-cvt_length(len, ops)
-	int len;
-	int ops;
+cvt_length(int len, int ops)
 {
 	if (utf_mode)
 		/*
@@ -38,8 +36,7 @@ cvt_length(len, ops)
  * Allocate a chpos array for use by cvt_text.
  */
 	public int *
-cvt_alloc_chpos(len)
-	int len;
+cvt_alloc_chpos(int len)
 {
 	int i;
 	int *chpos = (int *) ecalloc(sizeof(int), len);
@@ -55,17 +52,12 @@ cvt_alloc_chpos(len)
  * odst character (when it was in osrc) is returned in the chpos array.
  */
 	public void
-cvt_text(odst, osrc, chpos, lenp, ops)
-	char *odst;
-	char *osrc;
-	int *chpos;
-	int *lenp;
-	int ops;
+cvt_text(char *odst, char *osrc, int *chpos, int *lenp, int ops)
 {
 	char *dst;
 	char *edst = odst;
 	char *src;
-	register char *src_end;
+	char *src_end;
 	LWCHAR ch;
 
 	if (lenp != NULL)
@@ -77,7 +69,7 @@ cvt_text(odst, osrc, chpos, lenp, ops)
 	{
 		int src_pos = (int) (src - osrc);
 		int dst_pos = (int) (dst - odst);
-		ch = step_char(&src, +1, src_end);
+		ch = step_char((constant char **)&src, +1, src_end);
 		if ((ops & CVT_BS) && ch == '\b' && dst > odst)
 		{
 			/* Delete backspace and preceding char. */

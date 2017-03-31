@@ -66,7 +66,7 @@ static char *mp;
  * Initialize the prompt prototype strings.
  */
 	public void
-init_prompt()
+init_prompt(void)
 {
 	prproto[0] = save(s_proto);
 	prproto[1] = save(less_is_more ? more_proto : m_proto);
@@ -80,8 +80,7 @@ init_prompt()
  * Append a string to the end of the message.
  */
 	static void
-ap_str(s)
-	char *s;
+ap_str(char *s)
 {
 	int len;
 
@@ -97,8 +96,7 @@ ap_str(s)
  * Append a character to the end of the message.
  */
 	static void
-ap_char(c)
-	char c;
+ap_char(char c)
 {
 	char buf[2];
 
@@ -111,8 +109,7 @@ ap_char(c)
  * Append a POSITION (as a decimal integer) to the end of the message.
  */
 	static void
-ap_pos(pos)
-	POSITION pos;
+ap_pos(POSITION pos)
 {
 	char buf[INT_STRLEN_BOUND(pos) + 2];
 
@@ -124,8 +121,7 @@ ap_pos(pos)
  * Append a line number to the end of the message.
  */
  	static void
-ap_linenum(linenum)
-	LINENUM linenum;
+ap_linenum(LINENUM linenum)
 {
 	char buf[INT_STRLEN_BOUND(linenum) + 2];
 
@@ -137,8 +133,7 @@ ap_linenum(linenum)
  * Append an integer to the end of the message.
  */
 	static void
-ap_int(num)
-	int num;
+ap_int(int num)
 {
 	char buf[INT_STRLEN_BOUND(num) + 2];
 
@@ -150,7 +145,7 @@ ap_int(num)
  * Append a question mark to the end of the message.
  */
 	static void
-ap_quest()
+ap_quest(void)
 {
 	ap_str("?");
 }
@@ -159,8 +154,7 @@ ap_quest()
  * Return the "current" byte offset in the file.
  */
 	static POSITION
-curr_byte(where)
-	int where;
+curr_byte(int where)
 {
 	POSITION pos;
 
@@ -179,9 +173,7 @@ curr_byte(where)
  * Here we decode that letter and return the appropriate boolean value.
  */
 	static int
-cond(c, where)
-	char c;
-	int where;
+cond(char c, int where)
 {
 	POSITION len;
 
@@ -243,10 +235,7 @@ cond(c, where)
  * usually by appending something to the message being built.
  */
 	static void
-protochar(c, where, iseditproto)
-	int c;
-	int where;
-	int iseditproto;
+protochar(int c, int where, int iseditproto)
 {
 	POSITION pos;
 	POSITION len;
@@ -393,10 +382,9 @@ protochar(c, where, iseditproto)
  * We must keep track of nested IFs and skip them properly.
  */
 	static constant char *
-skipcond(p)
-	register constant char *p;
+skipcond(constant char *p)
 {
-	register int iflevel;
+	int iflevel;
 
 	/*
 	 * We came in here after processing a ? or :,
@@ -451,9 +439,7 @@ skipcond(p)
  * Decode a char that represents a position on the screen.
  */
 	static constant char *
-wherechar(p, wp)
-	char constant *p;
-	int *wp;
+wherechar(char constant *p, int *wp)
 {
 	switch (*p)
 	{
@@ -475,12 +461,10 @@ wherechar(p, wp)
  * Construct a message based on a prototype string.
  */
 	public char *
-pr_expand(proto, maxwidth)
-	constant char *proto;
-	int maxwidth;
+pr_expand(constant char *proto, int maxwidth)
 {
-	register constant char *p;
-	register int c;
+	constant char *p;
+	int c;
 	int where;
 
 	mp = message;
@@ -551,7 +535,7 @@ pr_expand(proto, maxwidth)
  * Return a message suitable for printing by the "=" command.
  */
 	public char *
-eq_message()
+eq_message(void)
 {
 	return (pr_expand(eqproto, 0));
 }
@@ -563,7 +547,7 @@ eq_message()
  * and the caller will prompt with a colon.
  */
 	public char *
-pr_string()
+pr_string(void)
 {
 	char *prompt;
 	int type;
@@ -580,7 +564,7 @@ pr_string()
  * Return a message suitable for printing while waiting in the F command.
  */
 	public char *
-wait_message()
+wait_message(void)
 {
 	return (pr_expand(wproto, sc_width-so_s_width-so_e_width-2));
 }

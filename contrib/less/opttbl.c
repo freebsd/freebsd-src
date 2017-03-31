@@ -464,9 +464,9 @@ static struct loption option[] =
  * Initialize each option to its default value.
  */
 	public void
-init_option()
+init_option(void)
 {
-	register struct loption *o;
+	struct loption *o;
 	char *p;
 
 	p = lgetenv("LESS_IS_MORE");
@@ -489,10 +489,9 @@ init_option()
  * Find an option in the option table, given its option letter.
  */
 	public struct loption *
-findopt(c)
-	int c;
+findopt(int c)
 {
-	register struct loption *o;
+	struct loption *o;
 
 	for (o = option;  o->oletter != '\0';  o++)
 	{
@@ -508,8 +507,7 @@ findopt(c)
  *
  */
 	static int
-is_optchar(c)
-	char c;
+is_optchar(char c)
 {
 	if (ASCII_IS_UPPER(c))
 		return 1;
@@ -527,15 +525,12 @@ is_optchar(c)
  * p_oname if non-NULL is set to point to the full option name.
  */
 	public struct loption *
-findopt_name(p_optname, p_oname, p_err)
-	char **p_optname;
-	char **p_oname;
-	int *p_err;
+findopt_name(char **p_optname, char **p_oname, int *p_err)
 {
 	char *optname = *p_optname;
-	register struct loption *o;
-	register struct optname *oname;
-	register int len;
+	struct loption *o;
+	struct optname *oname;
+	int len;
 	int uppercase;
 	struct loption *maxo = NULL;
 	struct optname *maxoname = NULL;

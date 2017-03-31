@@ -528,6 +528,6 @@ struct wchar_range_table
 #include "funcs.h"
 
 /* Functions not included in funcs.h */
-void postoa();
-void linenumtoa();
-void inttoa();
+void postoa(POSITION num, char *buf);
+void linenumtoa(LINENUM num, char *buf);
+void inttoa(int num, char *buf);

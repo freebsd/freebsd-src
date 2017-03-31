@@ -75,9 +75,7 @@ extern int bl_fg_color, bl_bg_color;
  * Handler for -o option.
  */
 	public void
-opt_o(type, s)
-	int type;
-	char *s;
+opt_o(int type, char *s)
 {
 	PARG parg;
 
@@ -125,9 +123,7 @@ opt_o(type, s)
  * Handler for -O option.
  */
 	public void
-opt__O(type, s)
-	int type;
-	char *s;
+opt__O(int type, char *s)
 {
 	force_logfile = TRUE;
 	opt_o(type, s);
@@ -138,9 +134,7 @@ opt__O(type, s)
  * Handlers for -j option.
  */
 	public void
-opt_j(type, s)
-	int type;
-	char *s;
+opt_j(int type, char *s)
 {
 	PARG parg;
 	char buf[16];
@@ -192,7 +186,7 @@ opt_j(type, s)
 }
 
 	public void
-calc_jump_sline()
+calc_jump_sline(void)
 {
 	if (jump_sline_fraction < 0)
 		return;
@@ -203,9 +197,7 @@ calc_jump_sline()
  * Handlers for -# option.
  */
 	public void
-opt_shift(type, s)
-	int type;
-	char *s;
+opt_shift(int type, char *s)
 {
 	PARG parg;
 	char buf[16];
@@ -256,7 +248,7 @@ opt_shift(type, s)
 	}
 }
 	public void
-calc_shift_count()
+calc_shift_count(void)
 {
 	if (shift_count_fraction < 0)
 		return;
@@ -265,9 +257,7 @@ calc_shift_count()
 
 #if USERFILE
 	public void
-opt_k(type, s)
-	int type;
-	char *s;
+opt_k(int type, char *s)
 {
 	PARG parg;
 
@@ -289,9 +279,7 @@ opt_k(type, s)
  * Handler for -t option.
  */
 	public void
-opt_t(type, s)
-	int type;
-	char *s;
+opt_t(int type, char *s)
 {
 	IFILE save_ifile;
 	POSITION pos;
@@ -330,9 +318,7 @@ opt_t(type, s)
  * Handler for -T option.
  */
 	public void
-opt__T(type, s)
-	int type;
-	char *s;
+opt__T(int type, char *s)
 {
 	PARG parg;
 
@@ -359,9 +345,7 @@ opt__T(type, s)
  * Handler for -p option.
  */
 	public void
-opt_p(type, s)
-	int type;
-	register char *s;
+opt_p(int type, char *s)
 {
 	switch (type)
 	{
@@ -395,11 +379,9 @@ opt_p(type, s)
  * Handler for -P option.
  */
 	public void
-opt__P(type, s)
-	int type;
-	register char *s;
+opt__P(int type, char *s)
 {
-	register char **proto;
+	char **proto;
 	PARG parg;
 
 	switch (type)
@@ -434,9 +416,7 @@ opt__P(type, s)
  */
 	/*ARGSUSED*/
 	public void
-opt_b(type, s)
-	int type;
-	char *s;
+opt_b(int type, char *s)
 {
 	switch (type)
 	{
@@ -457,9 +437,7 @@ opt_b(type, s)
  */
 	/*ARGSUSED*/
 	public void
-opt_i(type, s)
-	int type;
-	char *s;
+opt_i(int type, char *s)
 {
 	switch (type)
 	{
@@ -477,9 +455,7 @@ opt_i(type, s)
  */
 	/*ARGSUSED*/
 	public void
-opt__V(type, s)
-	int type;
-	char *s;
+opt__V(int type, char *s)
 {
 	switch (type)
 	{
@@ -532,10 +508,7 @@ opt__V(type, s)
  * Parse an MSDOS color descriptor.
  */
    	static void
-colordesc(s, fg_color, bg_color)
-	char *s;
-	int *fg_color;
-	int *bg_color;
+colordesc(char *s, int *fg_color, int *bg_color)
 {
 	int fg, bg;
 	int err;
@@ -569,9 +542,7 @@ colordesc(s, fg_color, bg_color)
  */
 	/*ARGSUSED*/
 	public void
-opt_D(type, s)
-	int type;
-	char *s;
+opt_D(int type, char *s)
 {
 	switch (type)
 	{
@@ -614,9 +585,7 @@ opt_D(type, s)
  * Handler for the -x option.
  */
 	public void
-opt_x(type, s)
-	int type;
-	register char *s;
+opt_x(int type, char *s)
 {
 	extern int tabstops[];
 	extern int ntabstops;
@@ -672,9 +641,7 @@ opt_x(type, s)
  * Handler for the -" option.
  */
 	public void
-opt_quote(type, s)
-	int type;
-	register char *s;
+opt_quote(int type, char *s)
 {
 	char buf[3];
 	PARG parg;
@@ -715,9 +682,7 @@ opt_quote(type, s)
  */
 	/*ARGSUSED*/
 	public void
-opt_query(type, s)
-	int type;
-	char *s;
+opt_query(int type, char *s)
 {
 	switch (type)
 	{
@@ -734,7 +699,7 @@ opt_query(type, s)
  * Get the "screen window" size.
  */
 	public int
-get_swindow()
+get_swindow(void)
 {
 	if (swindow > 0)
 		return (swindow);

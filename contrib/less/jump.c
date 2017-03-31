@@ -26,7 +26,7 @@ extern int top_scroll;
  * Jump to the end of the file.
  */
 	public void
-jump_forw()
+jump_forw(void)
 {
 	POSITION pos;
 	POSITION end_pos;
@@ -64,7 +64,7 @@ jump_forw()
  * Jump to the last buffered line in the file.
  */
 	public void
-jump_forw_buffered()
+jump_forw_buffered(void)
 {
 	POSITION end;
 
@@ -82,8 +82,7 @@ jump_forw_buffered()
  * Jump to line n in the file.
  */
 	public void
-jump_back(linenum)
-	LINENUM linenum;
+jump_back(LINENUM linenum)
 {
 	POSITION pos;
 	PARG parg;
@@ -115,7 +114,7 @@ jump_back(linenum)
  * Repaint the screen.
  */
 	public void
-repaint()
+repaint(void)
 {
 	struct scrpos scrpos;
 	/*
@@ -131,9 +130,7 @@ repaint()
  * Jump to a specified percentage into the file.
  */
 	public void
-jump_percent(percent, fraction)
-	int percent;
-	long fraction;
+jump_percent(int percent, long fraction)
 {
 	POSITION pos, len;
 
@@ -164,9 +161,7 @@ jump_percent(percent, fraction)
  * the first character in a line.
  */
 	public void
-jump_line_loc(pos, sline)
-	POSITION pos;
-	int sline;
+jump_line_loc(POSITION pos, int sline)
 {
 	int c;
 
@@ -192,11 +187,9 @@ jump_line_loc(pos, sline)
  * Place the target line on a specified line on the screen.
  */
 	public void
-jump_loc(pos, sline)
-	POSITION pos;
-	int sline;
+jump_loc(POSITION pos, int sline)
 {
-	register int nline;
+	int nline;
 	POSITION tpos;
 	POSITION bpos;
 
