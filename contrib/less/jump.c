@@ -189,7 +189,7 @@ jump_line_loc(POSITION pos, int sline)
 	public void
 jump_loc(POSITION pos, int sline)
 {
-	register int nline;
+	int nline;
 	POSITION tpos;
 	POSITION bpos;
 

@@ -381,7 +381,7 @@ opt_p(int type, char *s)
 	public void
 opt__P(int type, char *s)
 {
-	register char **proto;
+	char **proto;
 	PARG parg;
 
 	switch (type)

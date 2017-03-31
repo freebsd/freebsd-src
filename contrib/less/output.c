@@ -45,8 +45,8 @@ extern int bl_fg_color, bl_bg_color;
 	public void
 put_line(void)
 {
-	register int c;
-	register int i;
+	int c;
+	int i;
 	int a;
 
 	if (ABORT_SIGS())
@@ -95,8 +95,8 @@ static char *ob = obuf;
 	public void
 flush(void)
 {
-	register int n;
-	register int fd;
+	int n;
+	int fd;
 
 	n = (int) (ob - obuf);
 	if (n == 0)
@@ -396,7 +396,7 @@ void funcname(num, buf) \
 { \
 	int neg = (num < 0); \
 	char tbuf[INT_STRLEN_BOUND(num)+2]; \
-	register char *s = tbuf + sizeof(tbuf); \
+	char *s = tbuf + sizeof(tbuf); \
 	if (neg) num = -num; \
 	*--s = '\0'; \
 	do { \
@@ -441,10 +441,10 @@ iprint_linenum(LINENUM num)
  * using a more portable argument list mechanism than printf's.
  */
 	static int
-less_printf(register char *fmt, PARG *parg)
+less_printf(char *fmt, PARG *parg)
 {
-	register char *s;
-	register int col;
+	char *s;
+	int col;
 
 	col = 0;
 	while (*fmt != '\0')
@@ -578,7 +578,7 @@ ierror(char *fmt, PARG *parg)
 	public int
 query(char *fmt, PARG *parg)
 {
-	register int c;
+	int c;
 	int col = 0;
 
 	if (any_display && is_tty)

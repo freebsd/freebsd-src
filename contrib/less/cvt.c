@@ -57,7 +57,7 @@ cvt_text(char *odst, char *osrc, int *chpos, int *lenp, int ops)
 	char *dst;
 	char *edst = odst;
 	char *src;
-	register char *src_end;
+	char *src_end;
 	LWCHAR ch;
 
 	if (lenp != NULL)

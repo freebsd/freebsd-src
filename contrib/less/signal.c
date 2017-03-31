@@ -190,7 +190,7 @@ init_signals(int on)
 	public void
 psignals(void)
 {
-	register int tsignals;
+	int tsignals;
 
 	if ((tsignals = sigs) == 0)
 		return;

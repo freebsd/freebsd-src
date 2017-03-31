@@ -303,7 +303,7 @@ main(argc, argv)
 	public char *
 save(constant char *s)
 {
-	register char *p;
+	char *p;
 
 	p = (char *) ecalloc(strlen(s)+1, sizeof(char));
 	strcpy(p, s);
@@ -317,7 +317,7 @@ save(constant char *s)
 	public VOID_POINTER
 ecalloc(int count, unsigned int size)
 {
-	register VOID_POINTER p;
+	VOID_POINTER p;
 
 	p = (VOID_POINTER) calloc(count, size);
 	if (p != NULL)
@@ -332,7 +332,7 @@ ecalloc(int count, unsigned int size)
  * Skip leading spaces in a string.
  */
 	public char *
-skipsp(register char *s)
+skipsp(char *s)
 {
 	while (*s == ' ' || *s == '\t')	
 		s++;
@@ -347,9 +347,9 @@ skipsp(register char *s)
 	public int
 sprefix(char *ps, char *s, int uppercase)
 {
-	register int c;
-	register int sc;
-	register int len = 0;
+	int c;
+	int sc;
+	int len = 0;
 
 	for ( ;  *s != '\0';  s++, ps++)
 	{

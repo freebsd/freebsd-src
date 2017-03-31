@@ -90,7 +90,7 @@ static struct tag *curtag;
 	public void
 cleantags(void)
 {
-	register struct tag *tp;
+	struct tag *tp;
 
 	/*
 	 * Delete any existing tag list.
@@ -112,7 +112,7 @@ cleantags(void)
 	static struct tag *
 maketagent(char *name, char *file, LINENUM linenum, char *pattern, int endline)
 {
-	register struct tag *tp;
+	struct tag *tp;
 
 	tp = (struct tag *) ecalloc(sizeof(struct tag), 1);
 	tp->tag_file = (char *) ecalloc(strlen(file) + 1, sizeof(char));
@@ -260,8 +260,8 @@ curr_tag(void)
 findctag(char *tag)
 {
 	char *p;
-	register FILE *f;
-	register int taglen;
+	FILE *f;
+	int taglen;
 	LINENUM taglinenum;
 	char *tagfile;
 	char *tagpattern;

@@ -144,13 +144,13 @@ static int ch_addbuf();
  * Get the character pointed to by the read pointer.
  */
 	int
-ch_get()
+ch_get(void)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
-	register int n;
-	register int slept;
-	register int h;
+	struct buf *bp;
+	struct bufnode *bn;
+	int n;
+	int slept;
+	int h;
 	POSITION pos;
 	POSITION len;
 
@@ -418,8 +418,8 @@ end_logfile(void)
 	public void
 sync_logfile(void)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
+	struct buf *bp;
+	struct bufnode *bn;
 	int warned = FALSE;
 	BLOCKNUM block;
 	BLOCKNUM nblocks;
@@ -455,9 +455,9 @@ sync_logfile(void)
 	static int
 buffered(BLOCKNUM block)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
-	register int h;
+	struct buf *bp;
+	struct bufnode *bn;
+	int h;
 
 	h = BUFHASH(block);
 	FOR_BUFS_IN_CHAIN(h, bn)
@@ -541,8 +541,8 @@ ch_end_seek(void)
 	public int
 ch_end_buffer_seek(void)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
+	struct buf *bp;
+	struct bufnode *bn;
 	POSITION buf_pos;
 	POSITION end_pos;
 
@@ -569,8 +569,8 @@ ch_end_buffer_seek(void)
 	public int
 ch_beg_seek(void)
 {
-	register struct bufnode *bn;
-	register struct bufnode *firstbn;
+	struct bufnode *bn;
+	struct bufnode *firstbn;
 
 	/*
 	 * Try a plain ch_seek first.
@@ -629,7 +629,7 @@ ch_tell(void)
 	public int
 ch_forw_get(void)
 {
-	register int c;
+	int c;
 
 	if (thisfile == NULL)
 		return (EOI);
@@ -691,7 +691,7 @@ ch_setbufspace(int bufspace)
 	public void
 ch_flush(void)
 {
-	register struct bufnode *bn;
+	struct bufnode *bn;
 
 	if (thisfile == NULL)
 		return;
@@ -758,8 +758,8 @@ ch_flush(void)
 	static int
 ch_addbuf(void)
 {
-	register struct buf *bp;
-	register struct bufnode *bn;
+	struct buf *bp;
+	struct bufnode *bn;
 
 	/*
 	 * Allocate and initialize a new buffer and link it 
@@ -783,7 +783,7 @@ ch_addbuf(void)
 	static void
 init_hashtbl(void)
 {
-	register int h;
+	int h;
 
 	for (h = 0;  h < BUFHASH_SIZE;  h++)
 	{
@@ -798,7 +798,7 @@ init_hashtbl(void)
 	static void
 ch_delbufs(void)
 {
-	register struct bufnode *bn;
+	struct bufnode *bn;
 
 	while (ch_bufhead != END_OF_CHAIN)
 	{

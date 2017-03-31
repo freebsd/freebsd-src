@@ -26,12 +26,12 @@
 	public void
 match_brac(int obrac, int cbrac, int forwdir, int n)
 {
-	register int c;
-	register int nest;
+	int c;
+	int nest;
 	POSITION pos;
-	int (*chget)();
+	int (*chget)(void);
 
-	extern int ch_forw_get(), ch_back_get();
+	extern int ch_forw_get(void), ch_back_get(void);
 
 	/*
 	 * Seek to the line containing the open bracket.

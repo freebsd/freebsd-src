@@ -62,7 +62,7 @@ extern int sigs;
 	public int
 iread(int fd, char *buf, unsigned int len)
 {
-	register int n;
+	int n;
 
 start:
 #if MSDOS_COMPILER==WIN32C
@@ -221,8 +221,8 @@ strerror(int err)
 	public char *
 errno_message(char *filename)
 {
-	register char *p;
-	register char *m;
+	char *p;
+	char *m;
 	int len;
 #if HAVE_ERRNO
 #if MUST_DEFINE_ERRNO

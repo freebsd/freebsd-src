@@ -204,7 +204,7 @@ mca_opt_toggle(void)
 	static void
 exec_mca(void)
 {
-	register char *cbuf;
+	char *cbuf;
 
 	cmd_exec();
 	cbuf = get_cmdbuf();
@@ -681,7 +681,7 @@ make_display(void)
 	static void
 prompt(void)
 {
-	register constant char *p;
+	constant char *p;
 
 	if (ungot != NULL && !ungot->ug_end_command)
 	{
@@ -843,7 +843,7 @@ ungetcc(int c)
 	public void
 ungetsc(char *s)
 {
-	register char *p;
+	char *p;
 
 	for (p = s + strlen(s) - 1;  p >= s;  p--)
 		ungetcc(*p);
@@ -857,7 +857,7 @@ ungetsc(char *s)
 	static void
 multi_search(char *pattern, int n, int silent)
 {
-	register int nomore;
+	int nomore;
 	IFILE save_ifile;
 	int changed_file;
 
@@ -991,9 +991,9 @@ forw_loop(int until_hilite)
 	public void
 commands(void)
 {
-	register int c;
-	register int action;
-	register char *cbuf;
+	int c;
+	int action;
+	char *cbuf;
 	int newaction;
 	int save_search_type;
 	char *extra;

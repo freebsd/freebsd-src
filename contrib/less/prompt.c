@@ -384,7 +384,7 @@ protochar(int c, int where, int iseditproto)
 	static constant char *
 skipcond(constant char *p)
 {
-	register int iflevel;
+	int iflevel;
 
 	/*
 	 * We came in here after processing a ? or :,
@@ -463,8 +463,8 @@ wherechar(char constant *p, int *wp)
 	public char *
 pr_expand(constant char *proto, int maxwidth)
 {
-	register constant char *p;
-	register int c;
+	constant char *p;
+	int c;
 	int where;
 
 	mp = message;

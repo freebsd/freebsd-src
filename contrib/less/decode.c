@@ -231,9 +231,9 @@ static struct tablelist *list_sysvar_tables = NULL;
 	static void
 expand_special_keys(char *table, int len)
 {
-	register char *fm;
-	register char *to;
-	register int a;
+	char *fm;
+	char *to;
+	int a;
 	char *repl;
 	int klen;
 
@@ -320,7 +320,7 @@ init_cmds(void)
 	static int
 add_cmd_table(struct tablelist **tlist, char *buf, int len)
 {
-	register struct tablelist *t;
+	struct tablelist *t;
 
 	if (len == 0)
 		return (0);
@@ -377,9 +377,9 @@ add_var_table(struct tablelist **tlist, char *buf, int len)
 	static int
 cmd_search(char *cmd, char *table, char *endtable, char **sp)
 {
-	register char *p;
-	register char *q;
-	register int a;
+	char *p;
+	char *q;
+	int a;
 
 	*sp = NULL;
 	for (p = table, q = cmd;  p < endtable;  p++, q++)
@@ -465,8 +465,8 @@ cmd_search(char *cmd, char *table, char *endtable, char **sp)
 	static int
 cmd_decode(struct tablelist *tlist, char *cmd, char **sp)
 {
-	register struct tablelist *t;
-	register int action = A_INVALID;
+	struct tablelist *t;
+	int action = A_INVALID;
 
 	/*
 	 * Search thru all the command tables.
@@ -565,8 +565,8 @@ old_lesskey(char *buf, int len)
 new_lesskey(char *buf, int len, int sysvar)
 {
 	char *p;
-	register int c;
-	register int n;
+	int c;
+	int n;
 
 	/*
 	 * New-style lesskey file.
@@ -615,10 +615,10 @@ new_lesskey(char *buf, int len, int sysvar)
 	public int
 lesskey(char *filename, int sysvar)
 {
-	register char *buf;
-	register POSITION len;
-	register long n;
-	register int f;
+	char *buf;
+	POSITION len;
+	long n;
+	int f;
 
 	if (secure)
 		return (1);

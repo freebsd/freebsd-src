@@ -354,9 +354,9 @@ init_tables(void)
 	char *
 tstr(char **pp, int xlate)
 {
-	register char *p;
-	register char ch;
-	register int i;
+	char *p;
+	char ch;
+	int i;
 	static char buf[10];
 	static char tstr_control_k[] =
 		{ SK_SPECIAL_KEY, SK_CONTROL_K, 6, 1, 1, 1, '\0' };
@@ -491,7 +491,7 @@ skipnsp(char *s)
 	char *
 clean_line(char *s)
 {
-	register int i;
+	int i;
 
 	s = skipsp(s);
 	for (i = 0;  s[i] != '\n' && s[i] != '\r' && s[i] != '\0';  i++)

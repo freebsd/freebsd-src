@@ -40,10 +40,10 @@ extern IFILE curr_ifile;
 	public void
 lsystem(char *cmd, char *donemsg)
 {
-	register int inp;
+	int inp;
 #if HAVE_SHELL
-	register char *shell;
-	register char *p;
+	char *shell;
+	char *p;
 #endif
 	IFILE save_ifile;
 #if MSDOS_COMPILER && MSDOS_COMPILER!=WIN32C
@@ -282,8 +282,8 @@ pipe_mark(int c, char *cmd)
 	public int
 pipe_data(char *cmd, POSITION spos, POSITION epos)
 {
-	register FILE *f;
-	register int c;
+	FILE *f;
+	int c;
 	extern FILE *popen();
 
 	/*

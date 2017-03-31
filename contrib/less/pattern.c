@@ -236,9 +236,9 @@ is_null_pattern(void *pattern)
 	static int
 match(char *pattern, int pattern_len, char *buf, int buf_len, char **pfound, char **pend)
 {
-	register char *pp, *lp;
-	register char *pattern_end = pattern + pattern_len;
-	register char *buf_end = buf + buf_len;
+	char *pp, *lp;
+	char *pattern_end = pattern + pattern_len;
+	char *buf_end = buf + buf_len;
 
 	for ( ;  buf < buf_end;  buf++)
 	{

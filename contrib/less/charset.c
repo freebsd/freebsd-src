@@ -132,9 +132,9 @@ public int binattr = AT_STANDOUT;
 	static void
 ichardef(char *s)
 {
-	register char *cp;
-	register int n;
-	register char v;
+	char *cp;
+	int n;
+	char v;
 
 	n = 0;
 	v = 0;
@@ -188,8 +188,8 @@ ichardef(char *s)
 	static int
 icharset(char *name, int no_error)
 {
-	register struct charset *p;
-	register struct cs_alias *a;
+	struct charset *p;
+	struct cs_alias *a;
 
 	if (name == NULL || *name == '\0')
 		return (0);
@@ -229,7 +229,7 @@ icharset(char *name, int no_error)
 	static void
 ilocale(void)
 {
-	register int c;
+	int c;
 
 	for (c = 0;  c < (int) sizeof(chardef);  c++)
 	{

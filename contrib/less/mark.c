@@ -59,7 +59,7 @@ getumark(int c)
 	static struct mark *
 getmark(int c)
 {
-	register struct mark *m;
+	struct mark *m;
 	static struct mark sm;
 
 	switch (c)
@@ -133,7 +133,7 @@ badmark(int c)
 	public void
 setmark(int c)
 {
-	register struct mark *m;
+	struct mark *m;
 	struct scrpos scrpos;
 
 	m = getumark(c);
@@ -167,7 +167,7 @@ lastmark(void)
 	public void
 gomark(int c)
 {
-	register struct mark *m;
+	struct mark *m;
 	struct scrpos scrpos;
 
 	m = getmark(c);
@@ -214,7 +214,7 @@ gomark(int c)
 	public POSITION
 markpos(int c)
 {
-	register struct mark *m;
+	struct mark *m;
 
 	m = getmark(c);
 	if (m == NULL)

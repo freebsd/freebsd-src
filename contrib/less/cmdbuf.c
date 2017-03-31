@@ -504,7 +504,7 @@ cmd_ichar(char *cs, int clen)
 	static int
 cmd_erase(void)
 {
-	register char *s;
+	char *s;
 	int clen;
 
 	if (cp == cmdbuf)
@@ -1387,8 +1387,8 @@ histfile_name(void)
  * Read a .lesshst file and call a callback for each line in the file.
  */
 	static void
-read_cmdhist2(void (*action)(void*,struct mlist*,char*), void *uparam, int skip_search,
-    int skip_shell)
+read_cmdhist2(void (*action)(void*,struct mlist*,char*), void *uparam,
+    int skip_search, int skip_shell)
 {
 	struct mlist *ml = NULL;
 	char line[CMDBUF_SIZE];
@@ -1448,8 +1448,8 @@ read_cmdhist2(void (*action)(void*,struct mlist*,char*), void *uparam, int skip_
 }
 
 	static void
-read_cmdhist(void (*action)(void*,struct mlist*,char*), void *uparam, int skip_search,
-     int skip_shell)
+read_cmdhist(void (*action)(void*,struct mlist*,char*), void *uparam,
+    int skip_search, int skip_shell)
 {
 	read_cmdhist2(action, uparam, skip_search, skip_shell);
 	(*action)(uparam, NULL, NULL); /* signal end of file */

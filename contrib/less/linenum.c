@@ -75,7 +75,7 @@ extern int screen_trashed;
 	public void
 clr_linenum(void)
 {
-	register struct linenum_info *p;
+	struct linenum_info *p;
 
 	/*
 	 * Put all the entries on the free list.
@@ -122,11 +122,11 @@ calcgap(struct linenum_info *p)
 	public void
 add_lnum(LINENUM linenum, POSITION pos)
 {
-	register struct linenum_info *p;
-	register struct linenum_info *new;
-	register struct linenum_info *nextp;
-	register struct linenum_info *prevp;
-	register POSITION mingap;
+	struct linenum_info *p;
+	struct linenum_info *new;
+	struct linenum_info *nextp;
+	struct linenum_info *prevp;
+	POSITION mingap;
 
 	/*
 	 * Find the proper place in the list for the new one.
@@ -261,8 +261,8 @@ abort_long(void)
 	public LINENUM
 find_linenum(POSITION pos)
 {
-	register struct linenum_info *p;
-	register LINENUM linenum;
+	struct linenum_info *p;
+	LINENUM linenum;
 	POSITION cpos;
 
 	if (!linenums)
@@ -375,7 +375,7 @@ find_linenum(POSITION pos)
 	public POSITION
 find_pos(LINENUM linenum)
 {
-	register struct linenum_info *p;
+	struct linenum_info *p;
 	POSITION cpos;
 	LINENUM clinenum;
 

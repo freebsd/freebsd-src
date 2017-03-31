@@ -66,8 +66,8 @@ propt(int c)
 	public void
 scan_option(char *s)
 {
-	register struct loption *o;
-	register int optc;
+	struct loption *o;
+	int optc;
 	char *optname;
 	char *printopt;
 	char *str;
@@ -298,7 +298,7 @@ scan_option(char *s)
 	public void
 toggle_option(struct loption *o, int lower, char *s, int how_toggle)
 {
-	register int num;
+	int num;
 	int no_prompt;
 	int err;
 	PARG parg;
@@ -552,8 +552,8 @@ nopendopt(void)
 	static char *
 optstring(char *s, char **p_str, char *printopt, char *validchars)
 {
-	register char *p;
-	register char *out;
+	char *p;
+	char *out;
 
 	if (*s == '\0')
 	{
@@ -611,9 +611,9 @@ num_error(char *printopt, int *errp)
 	public int
 getnum(char **sp, char *printopt, int *errp)
 {
-	register char *s;
-	register int n;
-	register int neg;
+	char *s;
+	int n;
+	int neg;
 
 	s = skipsp(*sp);
 	neg = FALSE;
@@ -645,7 +645,7 @@ getnum(char **sp, char *printopt, int *errp)
 	public long
 getfraction(char **sp, char *printopt, int *errp)
 {
-	register char *s;
+	char *s;
 	long frac = 0;
 	int fraclen = 0;
 

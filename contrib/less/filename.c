@@ -258,7 +258,7 @@ dirfile(char *dirname, char *filename)
 	public char *
 homefile(char *filename)
 {
-	register char *pathname;
+	char *pathname;
 
 	/*
 	 * Try $HOME/filename.
@@ -307,9 +307,9 @@ homefile(char *filename)
 	public char *
 fexpand(char *s)
 {
-	register char *fr, *to;
-	register int n;
-	register char *e;
+	char *fr, *to;
+	int n;
+	char *e;
 	IFILE ifile;
 
 #define	fchar_ifile(c) \
@@ -677,9 +677,9 @@ lglob(char *filename)
 	 * The globbing function returns a single name, and
 	 * is called multiple times to walk thru all names.
 	 */
-	register char *p;
-	register int len;
-	register int n;
+	char *p;
+	int len;
+	int n;
 	char *pathname;
 	char *qpathname;
 	DECL_GLOB_NAME(fnd,drive,dir,fname,ext,handle)
@@ -997,7 +997,7 @@ is_dir(char *filename)
 #else
 #ifdef _OSK
 {
-	register int f;
+	int f;
 
 	f = open(filename, S_IREAD | S_IFDIR);
 	if (f >= 0)
@@ -1018,7 +1018,7 @@ is_dir(char *filename)
 	public char *
 bad_file(char *filename)
 {
-	register char *m = NULL;
+	char *m = NULL;
 
 	filename = shell_unquote(filename);
 	if (!force_open && is_dir(filename))

@@ -695,7 +695,7 @@ edit_stdin(void)
 	public void
 cat_file(void)
 {
-	register int c;
+	int c;
 
 	while ((c = ch_forw_get()) != EOI)
 		putchr(c);
@@ -712,8 +712,8 @@ cat_file(void)
 	public void
 use_logfile(char *filename)
 {
-	register int exists;
-	register int answer;
+	int exists;
+	int answer;
 	PARG parg;
 
 	if (ch_getflags() & CH_CANSEEK)

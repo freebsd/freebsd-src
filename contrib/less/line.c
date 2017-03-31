@@ -167,8 +167,8 @@ prewind(void)
 	public void
 plinenum(POSITION pos)
 {
-	register LINENUM linenum = 0;
-	register int i;
+	LINENUM linenum = 0;
+	int i;
 
 	if (linenums == OPT_ONPLUS)
 	{
@@ -826,7 +826,7 @@ pappend(unsigned char c, POSITION pos)
 	static int
 do_append(LWCHAR ch, char *rep, POSITION pos)
 {
-	register int a;
+	int a;
 	LWCHAR prev_ch;
 
 	a = AT_NORMAL;
@@ -1111,8 +1111,8 @@ null_line(void)
 	public POSITION
 forw_raw_line(POSITION curr_pos, char **linep, int *line_lenp)
 {
-	register int n;
-	register int c;
+	int n;
+	int c;
 	POSITION new_pos;
 
 	if (curr_pos == NULL_POSITION || ch_seek(curr_pos) ||
@@ -1157,8 +1157,8 @@ forw_raw_line(POSITION curr_pos, char **linep, int *line_lenp)
 	public POSITION
 back_raw_line(POSITION curr_pos, char **linep, int *line_lenp)
 {
-	register int n;
-	register int c;
+	int n;
+	int c;
 	POSITION new_pos;
 
 	if (curr_pos == NULL_POSITION || curr_pos <= ch_zero() ||
