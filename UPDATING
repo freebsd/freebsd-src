@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170331:
+	Binds and sends to the IPv4 loopback address (127.0.0.1) will now
+	use any explicitly assigned loopback address available in the jail
+	instead of using the first assigned IPv4 address of the jail.
+
 20170329:
 	The ctl.ko module no longer implements the iSCSI target frontend:
 	cfiscsi.ko does instead.
