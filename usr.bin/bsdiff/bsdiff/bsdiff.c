@@ -54,12 +54,8 @@ static off_t matchlen(u_char *old,off_t oldsize,u_char *new,off_t newsize)
 {
 	off_t i;
 
-printf("old=%p new=%p\n", old, new);
-//printf("oldsize=%ld newsize=%ld\n", oldsize, newsize);
-	for(i=0;(i<oldsize)&&(i<newsize);i++) {
-//printf("old[%ld] != new[%ld]\n", i, i);
+	for(i=0;(i<oldsize)&&(i<newsize);i++)
 		if(old[i]!=new[i]) break;
-	}
 
 	return i;
 }
@@ -70,9 +66,6 @@ static off_t search(off_t *I,u_char *old,off_t oldsize,
 	off_t x,y;
 
 	if(en-st<2) {
-printf("oldsize=%ld, newsize=%ld\n", oldsize, newsize);
-printf("x=matchlen(old, oldsize=%ld st=%ld I[st]=%ld, new, newsize=%ld)\n", oldsize-I[st], st, I[st], newsize);
-printf("y=matchlen(old, oldsize=%ld en=%ld I[en]=%ld, new, newsize=%ld)\n", oldsize-I[en], en, I[en], newsize);
 		x=matchlen(old+I[st],oldsize-I[st],new,newsize);
 		y=matchlen(old+I[en],oldsize-I[en],new,newsize);
 
