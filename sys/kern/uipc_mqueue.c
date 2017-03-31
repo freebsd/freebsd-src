@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -85,6 +91,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
+
+#include <security/audit/audit.h>
 
 FEATURE(p1003_1b_mqueue, "POSIX P1003.1B message queues support");
 
@@ -2012,6 +2020,9 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 	struct mqueue *mq;
 	int fd, error, len, cmode;
 
+	AUDIT_ARG_FFLAGS(flags);
+	AUDIT_ARG_MODE(mode);
+
 	fdp = td->td_proc->p_fd;
 	cmode = (((mode & ~fdp->fd_cmask) & ALLPERMS) & ~S_ISTXT);
 	mq = NULL;
@@ -2034,6 +2045,7 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 	len = strlen(path);
 	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)
 		return (EINVAL);
+	AUDIT_ARG_UPATH1_CANON(path);
 
 	error = falloc(td, &fp, &fd, O_CLOEXEC);
 	if (error)
@@ -2133,6 +2145,7 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 	len = strlen(path);
 	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)
 		return (EINVAL);
+	AUDIT_ARG_UPATH1_CANON(path);
 
 	sx_xlock(&mqfs_data.mi_lock);
 	pn = mqfs_search(mqfs_data.mi_root, path + 1, len - 1, td->td_ucred);
@@ -2210,6 +2223,7 @@ kern_kmq_setattr(struct thread *td, int mqd, const struct mq_attr *attr,
 	u_int oflag, flag;
 	int error;
 
+	AUDIT_ARG_FD(mqd);
 	if (attr != NULL && (attr->mq_flags & ~O_NONBLOCK) != 0)
 		return (EINVAL);
 	error = getmq(td, mqd, &fp, NULL, &mq);
@@ -2260,6 +2274,7 @@ sys_kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
 	int error;
 	int waitok;
 
+	AUDIT_ARG_FD(uap->mqd);
 	error = getmq_read(td, uap->mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
@@ -2285,6 +2300,7 @@ sys_kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 	struct timespec *abs_timeout, ets;
 	int error, waitok;
 
+	AUDIT_ARG_FD(uap->mqd);
 	error = getmq_write(td, uap->mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
@@ -2315,6 +2331,7 @@ kern_kmq_notify(struct thread *td, int mqd, struct sigevent *sigev)
 	struct mqueue_notifier *nt, *newnt = NULL;
 	int error;
 
+	AUDIT_ARG_FD(mqd);
 	if (sigev != NULL) {
 		if (sigev->sigev_notify != SIGEV_SIGNAL &&
 		    sigev->sigev_notify != SIGEV_THREAD_ID &&
@@ -2780,6 +2797,7 @@ freebsd32_kmq_timedsend(struct thread *td,
 	int error;
 	int waitok;
 
+	AUDIT_ARG_FD(uap->mqd);
 	error = getmq_write(td, uap->mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
@@ -2809,6 +2827,7 @@ freebsd32_kmq_timedreceive(struct thread *td,
 	struct timespec *abs_timeout, ets;
 	int error, waitok;
 
+	AUDIT_ARG_FD(uap->mqd);
 	error = getmq_read(td, uap->mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
