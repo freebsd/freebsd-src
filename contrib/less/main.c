@@ -301,10 +301,9 @@ main(argc, argv)
  * (that is, to a buffer allocated by calloc).
  */
 	public char *
-save(s)
-	char *s;
+save(constant char *s)
 {
-	register char *p;
+	char *p;
 
 	p = (char *) ecalloc(strlen(s)+1, sizeof(char));
 	strcpy(p, s);
@@ -316,11 +315,9 @@ save(s)
  * Like calloc(), but never returns an error (NULL).
  */
 	public VOID_POINTER
-ecalloc(count, size)
-	int count;
-	unsigned int size;
+ecalloc(int count, unsigned int size)
 {
-	register VOID_POINTER p;
+	VOID_POINTER p;
 
 	p = (VOID_POINTER) calloc(count, size);
 	if (p != NULL)
@@ -335,8 +332,7 @@ ecalloc(count, size)
  * Skip leading spaces in a string.
  */
 	public char *
-skipsp(s)
-	register char *s;
+skipsp(char *s)
 {
 	while (*s == ' ' || *s == '\t')	
 		s++;
@@ -349,14 +345,11 @@ skipsp(s)
  * character; the remainder of the first string may be either case.
  */
 	public int
-sprefix(ps, s, uppercase)
-	char *ps;
-	char *s;
-	int uppercase;
+sprefix(char *ps, char *s, int uppercase)
 {
-	register int c;
-	register int sc;
-	register int len = 0;
+	int c;
+	int sc;
+	int len = 0;
 
 	for ( ;  *s != '\0';  s++, ps++)
 	{
@@ -382,8 +375,7 @@ sprefix(ps, s, uppercase)
  * Exit the program.
  */
 	public void
-quit(status)
-	int status;
+quit(int status)
 {
 	static int save_status;
 

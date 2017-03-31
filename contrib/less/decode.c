@@ -229,13 +229,11 @@ static struct tablelist *list_sysvar_tables = NULL;
  * Expand special key abbreviations in a command table.
  */
 	static void
-expand_special_keys(table, len)
-	char *table;
-	int len;
+expand_special_keys(char *table, int len)
 {
-	register char *fm;
-	register char *to;
-	register int a;
+	char *fm;
+	char *to;
+	int a;
 	char *repl;
 	int klen;
 
@@ -290,7 +288,7 @@ expand_special_keys(table, len)
  * Initialize the command lists.
  */
 	public void
-init_cmds()
+init_cmds(void)
 {
 	/*
 	 * Add the default command tables.
@@ -320,12 +318,9 @@ init_cmds()
  * Add a command table.
  */
 	static int
-add_cmd_table(tlist, buf, len)
-	struct tablelist **tlist;
-	char *buf;
-	int len;
+add_cmd_table(struct tablelist **tlist, char *buf, int len)
 {
-	register struct tablelist *t;
+	struct tablelist *t;
 
 	if (len == 0)
 		return (0);
@@ -350,9 +345,7 @@ add_cmd_table(tlist, buf, len)
  * Add a command table.
  */
 	public void
-add_fcmd_table(buf, len)
-	char *buf;
-	int len;
+add_fcmd_table(char *buf, int len)
 {
 	if (add_cmd_table(&list_fcmd_tables, buf, len) < 0)
 		error("Warning: some commands disabled", NULL_PARG);
@@ -362,9 +355,7 @@ add_fcmd_table(buf, len)
  * Add an editing command table.
  */
 	public void
-add_ecmd_table(buf, len)
-	char *buf;
-	int len;
+add_ecmd_table(char *buf, int len)
 {
 	if (add_cmd_table(&list_ecmd_tables, buf, len) < 0)
 		error("Warning: some edit commands disabled", NULL_PARG);
@@ -374,10 +365,7 @@ add_ecmd_table(buf, len)
  * Add an environment variable table.
  */
 	static void
-add_var_table(tlist, buf, len)
-	struct tablelist **tlist;
-	char *buf;
-	int len;
+add_var_table(struct tablelist **tlist, char *buf, int len)
 {
 	if (add_cmd_table(tlist, buf, len) < 0)
 		error("Warning: environment variables from lesskey file unavailable", NULL_PARG);
@@ -387,15 +375,11 @@ add_var_table(tlist, buf, len)
  * Search a single command table for the command string in cmd.
  */
 	static int
-cmd_search(cmd, table, endtable, sp)
-	char *cmd;
-	char *table;
-	char *endtable;
-	char **sp;
+cmd_search(char *cmd, char *table, char *endtable, char **sp)
 {
-	register char *p;
-	register char *q;
-	register int a;
+	char *p;
+	char *q;
+	int a;
 
 	*sp = NULL;
 	for (p = table, q = cmd;  p < endtable;  p++, q++)
@@ -479,13 +463,10 @@ cmd_search(cmd, table, endtable, sp)
  * The "extra" string, if any, is returned in sp.
  */
 	static int
-cmd_decode(tlist, cmd, sp)
-	struct tablelist *tlist;
-	char *cmd;
-	char **sp;
+cmd_decode(struct tablelist *tlist, char *cmd, char **sp)
 {
-	register struct tablelist *t;
-	register int action = A_INVALID;
+	struct tablelist *t;
+	int action = A_INVALID;
 
 	/*
 	 * Search thru all the command tables.
@@ -506,9 +487,7 @@ cmd_decode(tlist, cmd, sp)
  * Decode a command from the cmdtables list.
  */
 	public int
-fcmd_decode(cmd, sp)
-	char *cmd;
-	char **sp;
+fcmd_decode(char *cmd, char **sp)
 {
 	return (cmd_decode(list_fcmd_tables, cmd, sp));
 }
@@ -517,9 +496,7 @@ fcmd_decode(cmd, sp)
  * Decode a command from the edittables list.
  */
 	public int
-ecmd_decode(cmd, sp)
-	char *cmd;
-	char **sp;
+ecmd_decode(char *cmd, char **sp)
 {
 	return (cmd_decode(list_ecmd_tables, cmd, sp));
 }
@@ -529,8 +506,7 @@ ecmd_decode(cmd, sp)
  * Looks first in the lesskey file, then in the real environment.
  */
 	public char *
-lgetenv(var)
-	char *var;
+lgetenv(char *var)
 {
 	int a;
 	char *s;
@@ -554,8 +530,7 @@ lgetenv(var)
  * two bytes, low order first, in radix KRADIX.
  */
 	static int
-gint(sp)
-	char **sp;
+gint(char **sp)
 {
 	int n;
 
@@ -568,9 +543,7 @@ gint(sp)
  * Process an old (pre-v241) lesskey file.
  */
 	static int
-old_lesskey(buf, len)
-	char *buf;
-	int len;
+old_lesskey(char *buf, int len)
 {
 	/*
 	 * Old-style lesskey file.
@@ -589,14 +562,11 @@ old_lesskey(buf, len)
  * Process a new (post-v241) lesskey file.
  */
 	static int
-new_lesskey(buf, len, sysvar)
-	char *buf;
-	int len;
-	int sysvar;
+new_lesskey(char *buf, int len, int sysvar)
 {
 	char *p;
-	register int c;
-	register int n;
+	int c;
+	int n;
 
 	/*
 	 * New-style lesskey file.
@@ -643,14 +613,12 @@ new_lesskey(buf, len, sysvar)
  * Set up a user command table, based on a "lesskey" file.
  */
 	public int
-lesskey(filename, sysvar)
-	char *filename;
-	int sysvar;
+lesskey(char *filename, int sysvar)
 {
-	register char *buf;
-	register POSITION len;
-	register long n;
-	register int f;
+	char *buf;
+	POSITION len;
+	long n;
+	int f;
 
 	if (secure)
 		return (1);
@@ -713,10 +681,7 @@ lesskey(filename, sysvar)
  * Add the standard lesskey file "$HOME/.less"
  */
 	public void
-add_hometable(envname, def_filename, sysvar)
-	char *envname;
-	char *def_filename;
-	int sysvar;
+add_hometable(char *envname, char *def_filename, int sysvar)
 {
 	char *filename;
 	PARG parg;
@@ -742,9 +707,7 @@ add_hometable(envname, def_filename, sysvar)
  * See if a char is a special line-editing command.
  */
 	public int
-editchar(c, flags)
-	int c;
-	int flags;
+editchar(int c, int flags)
 {
 	int action;
 	int nch;

@@ -60,12 +60,9 @@ extern int sigs;
  * any pending iread().
  */
 	public int
-iread(fd, buf, len)
-	int fd;
-	char *buf;
-	unsigned int len;
+iread(int fd, char *buf, unsigned int len)
 {
-	register int n;
+	int n;
 
 start:
 #if MSDOS_COMPILER==WIN32C
@@ -176,7 +173,7 @@ start:
  * Interrupt a pending iread().
  */
 	public void
-intread()
+intread(void)
 {
 	LONG_JUMP(read_label, 1);
 }
@@ -186,7 +183,7 @@ intread()
  */
 #if HAVE_TIME
 	public time_type
-get_time()
+get_time(void)
 {
 	time_type t;
 
@@ -201,8 +198,7 @@ get_time()
  * Local version of strerror, if not available from the system.
  */
 	static char *
-strerror(err)
-	int err;
+strerror(int err)
 {
 #if HAVE_SYS_ERRLIST
 	static char buf[16];
@@ -223,11 +219,10 @@ strerror(err)
  * errno_message: Return an error message based on the value of "errno".
  */
 	public char *
-errno_message(filename)
-	char *filename;
+errno_message(char *filename)
 {
-	register char *p;
-	register char *m;
+	char *p;
+	char *m;
 	int len;
 #if HAVE_ERRNO
 #if MUST_DEFINE_ERRNO
@@ -246,8 +241,7 @@ errno_message(filename)
 /* #define HAVE_FLOAT 0 */
 
 	static POSITION
-muldiv(val, num, den)
-	POSITION val, num, den;
+muldiv(POSITION val, POSITION num, POSITION den)
 {
 #if HAVE_FLOAT
 	double v = (((double) val) * num) / den;
@@ -270,8 +264,7 @@ muldiv(val, num, den)
  * {{ Assumes a POSITION is a long int. }}
  */
 	public int
-percentage(num, den)
-	POSITION num, den;
+percentage(POSITION num, POSITION den)
 {
 	return (int) muldiv(num,  (POSITION) 100, den);
 }
@@ -280,10 +273,7 @@ percentage(num, den)
  * Return the specified percentage of a POSITION.
  */
 	public POSITION
-percent_pos(pos, percent, fraction)
-	POSITION pos;
-	int percent;
-	long fraction;
+percent_pos(POSITION pos, int percent, long fraction)
 {
 	/* Change percent (parts per 100) to perden (parts per NUM_FRAC_DENOM). */
 	POSITION perden = (percent * (NUM_FRAC_DENOM / 100)) + (fraction / 100);
@@ -334,9 +324,7 @@ memcpy(dst, src, len)
  * This implements an ANSI-style intercept setup for Microware C 3.2
  */
 	public int 
-os9_signal(type, handler)
-	int type;
-	RETSIGTYPE (*handler)();
+os9_signal(int type, RETSIGTYPE (*handler)())
 {
 	intercept(handler);
 }
