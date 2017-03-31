@@ -56,7 +56,8 @@
 #include <stdarg.h>
 #include <time.h>
 
-/* ACL support */
+#ifdef HAVE_SIGNAL_H
+#endif
 #ifdef HAVE_ACL_LIBACL_H
 #include <acl/libacl.h>
 #endif
@@ -66,7 +67,21 @@
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
-#if HAVE_DARWIN_ACL
+#ifdef HAVE_SYS_EA_H
+#include <sys/ea.h>
+#endif
+#ifdef HAVE_SYS_EXTATTR_H
+#include <sys/extattr.h>
+#endif
+#if HAVE_SYS_XATTR_H
+#include <sys/xattr.h>
+#elif HAVE_ATTR_XATTR_H
+#include <attr/xattr.h>
+#endif
+#ifdef HAVE_SYS_RICHACL_H
+#include <sys/richacl.h>
+#endif
+#if HAVE_MEMBERSHIP_H
 #include <membership.h>
 #endif
 
@@ -2436,7 +2451,84 @@ canNodump(void)
 	return (0);
 }
 
-#if HAVE_SUN_ACL
+/* Get extended attribute from a path */
+const void *
+getXattr(const char *path, const char *name, size_t *sizep)
+{ 
+	void *value = NULL;
+#if ARCHIVE_XATTR_SUPPORT
+	ssize_t size;
+#if ARCHIVE_XATTR_LINUX
+	size = lgetxattr(path, name, NULL, 0);
+#elif ARCHIVE_XATTR_DARWIN
+	size = getxattr(path, name, NULL, 0, 0, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
+	size = lgetea(path, name, NULL, 0);
+#elif ARCHIVE_XATTR_FREEBSD
+	size = extattr_get_link(path, EXTATTR_NAMESPACE_USER, name + 5,
+	    NULL, 0);
+#endif
+
+	if (size >= 0) {
+		value = malloc(size);
+#if ARCHIVE_XATTR_LINUX
+		size = lgetxattr(path, name, value, size);
+#elif ARCHIVE_XATTR_DARWIN
+		size = getxattr(path, name, value, size, 0, XATTR_NOFOLLOW);
+#elif ARCHIVE_XATTR_AIX
+		size = lgetea(path, name, value, size);
+#elif ARCHIVE_XATTR_FREEBSD
+		size = extattr_get_link(path, EXTATTR_NAMESPACE_USER, name + 5,
+		    value, size);
+#endif
+		if (size < 0) {
+			free(value);
+			value = NULL;
+		}
+	}
+	if (size < 0)
+		*sizep = 0;
+	else
+		*sizep = (size_t)size;
+#else	/* !ARCHIVE_XATTR_SUPPORT */
+	(void)path;	/* UNUSED */
+	(void)name;	/* UNUSED */
+	*sizep = 0;
+#endif 	/* !ARCHIVE_XATTR_SUPPORT */
+	return (value);
+}
+
+/*
+ * Set extended attribute on a path
+ * Returns 0 on error, 1 on success
+ */
+int
+setXattr(const char *path, const char *name, const void *value, size_t size)
+{
+#if ARCHIVE_XATTR_SUPPORT
+#if ARCHIVE_XATTR_LINUX
+	if (lsetxattr(path, name, value, size, 0) == 0)
+#elif ARCHIVE_XATTR_DARWIN
+	if (setxattr(path, name, value, size, 0, XATTR_NOFOLLOW) == 0)
+#elif ARCHIVE_XATTR_AIX
+	if (lsetea(path, name, value, size, 0) == 0)
+#elif ARCHIVE_XATTR_FREEBSD
+	if (extattr_set_link(path, EXTATTR_NAMESPACE_USER, name + 5, value,
+	    size) > -1)
+#else
+	if (0)
+#endif
+		return (1);
+#else	/* !ARCHIVE_XATTR_SUPPORT */
+	(void)path;     /* UNUSED */
+	(void)name;	/* UNUSED */
+	(void)value;	/* UNUSED */
+	(void)size;	/* UNUSED */
+#endif	/* !ARCHIVE_XATTR_SUPPORT */
+	return (0);
+}
+
+#if ARCHIVE_ACL_SUNOS
 /* Fetch ACLs on Solaris using acl() or facl() */
 void *
 sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
@@ -2449,7 +2541,7 @@ sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
 		cntcmd = GETACLCNT;
 		size = sizeof(aclent_t);
 	}
-#if HAVE_SUN_NFS4_ACL
+#if ARCHIVE_ACL_SUNOS_NFS4
 	else if (cmd == ACE_GETACL) {
 		cntcmd = ACE_GETACLCNT;
 		size = sizeof(ace_t);
@@ -2492,7 +2584,7 @@ sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
 	*aclcnt = cnt;
 	return (aclp);
 }
-#endif /* HAVE_SUN_ACL */
+#endif /* ARCHIVE_ACL_SUNOS */
 
 /*
  * Set test ACLs on a path
@@ -2504,19 +2596,22 @@ sunacl_get(int cmd, int *aclcnt, int fd, const char *path)
 int
 setTestAcl(const char *path)
 {
-#if HAVE_POSIX_ACL || HAVE_NFS4_ACL
+#if ARCHIVE_ACL_SUPPORT
 	int r = 1;
-#if !HAVE_SUN_ACL
+#if ARCHIVE_ACL_LIBACL || ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_DARWIN
 	acl_t acl;
 #endif
-#if HAVE_POSIX_ACL /* Linux, FreeBSD POSIX.1e */
+#if ARCHIVE_ACL_LIBRICHACL
+	struct richacl *richacl;
+#endif
+#if ARCHIVE_ACL_LIBACL || ARCHIVE_ACL_FREEBSD
 	const char *acltext_posix1e = "user:1:rw-,"
 	    "group:15:r-x,"
 	    "user::rwx,"
 	    "group::rwx,"
 	    "other::r-x,"
 	    "mask::rwx";
-#elif HAVE_SUN_ACL /* Solaris POSIX.1e */
+#elif ARCHIVE_ACL_SUNOS /* Solaris POSIX.1e */
 	aclent_t aclp_posix1e[] = {
 	    { USER_OBJ, -1, 4 | 2 | 1 },
 	    { USER, 1, 4 | 2 },
@@ -2526,13 +2621,22 @@ setTestAcl(const char *path)
 	    { OTHER_OBJ, -1, 4 | 2 | 1 }
 	};
 #endif
-#if HAVE_FREEBSD_NFS4_ACL /* FreeBSD NFS4 */
+#if ARCHIVE_ACL_FREEBSD /* FreeBSD NFS4 */
 	const char *acltext_nfs4 = "user:1:rwpaRcs::allow:1,"
 	    "group:15:rxaRcs::allow:15,"
 	    "owner@:rwpxaARWcCos::allow,"
 	    "group@:rwpxaRcs::allow,"
 	    "everyone@:rxaRcs::allow";
-#elif HAVE_SUN_NFS4_ACL /* Solaris NFS4 */
+#elif ARCHIVE_ACL_LIBRICHACL
+	const char *acltext_nfs4 = "owner:rwpxaARWcCoS::mask,"
+	    "group:rwpxaRcS::mask,"
+	    "other:rxaRcS::mask,"
+	    "user:1:rwpaRcS::allow,"
+	    "group:15:rxaRcS::allow,"
+	    "owner@:rwpxaARWcCoS::allow,"
+	    "group@:rwpxaRcS::allow,"
+	    "everyone@:rxaRcS::allow";
+#elif ARCHIVE_ACL_SUNOS_NFS4 /* Solaris NFS4 */
 	ace_t aclp_nfs4[] = {
 	    { 1, ACE_READ_DATA | ACE_WRITE_DATA | ACE_APPEND_DATA |
 	      ACE_READ_ATTRIBUTES | ACE_READ_NAMED_ATTRS | ACE_READ_ACL |
@@ -2553,7 +2657,7 @@ setTestAcl(const char *path)
 	      ACE_READ_NAMED_ATTRS | ACE_READ_ACL | ACE_SYNCHRONIZE,
 	      ACE_EVERYONE, ACE_ACCESS_ALLOWED_ACE_TYPE }
 	};
-#elif HAVE_DARWIN_ACL /* Mac OS X */
+#elif ARCHIVE_ACL_DARWIN /* Mac OS X */
 	acl_entry_t aclent;
 	acl_permset_t permset;
 	const uid_t uid = 1;
@@ -2571,14 +2675,19 @@ setTestAcl(const char *path)
 		ACL_SYNCHRONIZE
 #endif
 	};
-#endif /* HAVE_DARWIN_ACL */
+#endif /* ARCHIVE_ACL_DARWIN */
 
-#if HAVE_FREEBSD_NFS4_ACL
+#if ARCHIVE_ACL_FREEBSD
 	acl = acl_from_text(acltext_nfs4);
 	failure("acl_from_text() error: %s", strerror(errno));
 	if (assert(acl != NULL) == 0)
 		return (0);
-#elif HAVE_DARWIN_ACL
+#elif ARCHIVE_ACL_LIBRICHACL
+	richacl = richacl_from_text(acltext_nfs4, NULL, NULL);
+	failure("richacl_from_text() error: %s", strerror(errno));
+	if (assert(richacl != NULL) == 0)
+		return (0);
+#elif ARCHIVE_ACL_DARWIN
 	acl = acl_init(1);
 	failure("acl_init() error: %s", strerror(errno));
 	if (assert(acl != NULL) == 0)
@@ -2605,33 +2714,36 @@ setTestAcl(const char *path)
 	failure("acl_set_permset() error: %s", strerror(errno));
 	if (assertEqualInt(r, 0) == 0)
 		goto testacl_free;
-	r = mbr_identifier_to_uuid(ID_TYPE_UID, &uid, sizeof(uid_t), uuid);
-	failure("mbr_identifier_to_uuid() error: %s", strerror(errno));
+	r = mbr_uid_to_uuid(uid, uuid);
+	failure("mbr_uid_to_uuid() error: %s", strerror(errno));
 	if (assertEqualInt(r, 0) == 0)
 		goto testacl_free;
 	r = acl_set_qualifier(aclent, uuid);
 	failure("acl_set_qualifier() error: %s", strerror(errno));
 	if (assertEqualInt(r, 0) == 0)
 		goto testacl_free;
-#endif /* HAVE_DARWIN_ACL */
+#endif /* ARCHIVE_ACL_DARWIN */
 
-#if HAVE_NFS4_ACL
-#if HAVE_FREEBSD_NFS4_ACL
+#if ARCHIVE_ACL_NFS4
+#if ARCHIVE_ACL_FREEBSD
 	r = acl_set_file(path, ACL_TYPE_NFS4, acl);
 	acl_free(acl);
-#elif HAVE_SUN_NFS4_ACL
+#elif ARCHIVE_ACL_LIBRICHACL
+	r = richacl_set_file(path, richacl);
+	richacl_free(richacl);
+#elif ARCHIVE_ACL_SUNOS_NFS4
 	r = acl(path, ACE_SETACL,
 	    (int)(sizeof(aclp_nfs4)/sizeof(aclp_nfs4[0])), aclp_nfs4);
-#elif HAVE_DARWIN_ACL
+#elif ARCHIVE_ACL_DARWIN
 	r = acl_set_file(path, ACL_TYPE_EXTENDED, acl);
 	acl_free(acl);
 #endif
 	if (r == 0)
 		return (ARCHIVE_TEST_ACL_TYPE_NFS4);
-#endif	/* HAVE_NFS4_ACL */
+#endif	/* ARCHIVE_ACL_NFS4 */
 
-#if HAVE_POSIX_ACL || HAVE_SUN_ACL
-#if HAVE_POSIX_ACL
+#if ARCHIVE_ACL_POSIX1E
+#if ARCHIVE_ACL_FREEBSD || ARCHIVE_ACL_LIBACL
 	acl = acl_from_text(acltext_posix1e);
 	failure("acl_from_text() error: %s", strerror(errno));
 	if (assert(acl != NULL) == 0)
@@ -2639,7 +2751,7 @@ setTestAcl(const char *path)
 
 	r = acl_set_file(path, ACL_TYPE_ACCESS, acl);
 	acl_free(acl);
-#elif HAVE_SUN_ACL
+#elif ARCHIVE_ACL_SUNOS
 	r = acl(path, SETACL,
 	    (int)(sizeof(aclp_posix1e)/sizeof(aclp_posix1e[0])), aclp_posix1e);
 #endif
@@ -2647,12 +2759,12 @@ setTestAcl(const char *path)
 		return (ARCHIVE_TEST_ACL_TYPE_POSIX1E);
 	else
 		return (0);
-#endif /* HAVE_POSIX_ACL || HAVE_SUN_ACL */
-#if HAVE_DARWIN_ACL
+#endif /* ARCHIVE_ACL_POSIX1E */
+#if ARCHIVE_ACL_DARWIN
 testacl_free:
 	acl_free(acl);
 #endif
-#endif /* HAVE_POSIX_ACL || HAVE_NFS4_ACL */
+#endif /* ARCHIVE_ACL_SUPPORT */
 	(void)path;	/* UNUSED */
 	return (0);
 }

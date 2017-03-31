@@ -347,7 +347,7 @@ fake_crc32(unsigned long crc, const void *buff, size_t len)
 	return 0;
 }
 
-static struct {
+static const struct {
 	int id;
 	const char * name;
 } compression_methods[] = {
@@ -2407,7 +2407,7 @@ read_eocd(struct zip *zip, const char *p, int64_t current_offset)
  * Examine Zip64 EOCD locator:  If it's valid, store the information
  * from it.
  */
-static void
+static int
 read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 {
 	int64_t eocd64_offset;
@@ -2417,35 +2417,37 @@ read_zip64_eocd(struct archive_read *a, struct zip *zip, const char *p)
 
 	/* Central dir must be on first volume. */
 	if (archive_le32dec(p + 4) != 0)
-		return;
+		return 0;
 	/* Must be only a single volume. */
 	if (archive_le32dec(p + 16) != 1)
-		return;
+		return 0;
 
 	/* Find the Zip64 EOCD record. */
 	eocd64_offset = archive_le64dec(p + 8);
 	if (__archive_read_seek(a, eocd64_offset, SEEK_SET) < 0)
-		return;
+		return 0;
 	if ((p = __archive_read_ahead(a, 56, NULL)) == NULL)
-		return;
+		return 0;
 	/* Make sure we can read all of it. */
 	eocd64_size = archive_le64dec(p + 4) + 12;
 	if (eocd64_size < 56 || eocd64_size > 16384)
-		return;
+		return 0;
 	if ((p = __archive_read_ahead(a, (size_t)eocd64_size, NULL)) == NULL)
-		return;
+		return 0;
 
 	/* Sanity-check the EOCD64 */
 	if (archive_le32dec(p + 16) != 0) /* Must be disk #0 */
-		return;
+		return 0;
 	if (archive_le32dec(p + 20) != 0) /* CD must be on disk #0 */
-		return;
+		return 0;
 	/* CD can't be split. */
 	if (archive_le64dec(p + 24) != archive_le64dec(p + 32))
-		return;
+		return 0;
 
 	/* Save the central directory offset for later use. */
 	zip->central_directory_offset = archive_le64dec(p + 48);
+
+	return 32;
 }
 
 static int
@@ -2483,15 +2485,14 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 			if (memcmp(p + i, "PK\005\006", 4) == 0) {
 				int ret = read_eocd(zip, p + i,
 				    current_offset + i);
-				if (ret > 0) {
-					/* Zip64 EOCD locator precedes
-					 * regular EOCD if present. */
-					if (i >= 20
-					    && memcmp(p + i - 20, "PK\006\007", 4) == 0) {
-						read_zip64_eocd(a, zip, p + i - 20);
-					}
-					return (ret);
+				/* Zip64 EOCD locator precedes
+				 * regular EOCD if present. */
+				if (i >= 20 && memcmp(p + i - 20, "PK\006\007", 4) == 0) {
+					int ret_zip64 = read_zip64_eocd(a, zip, p + i - 20);
+					if (ret_zip64 > ret)
+						ret = ret_zip64;
 				}
+				return (ret);
 			}
 			i -= 4;
 			break;
