@@ -481,7 +481,7 @@ load(void)
 #ifdef LOADER_GELI_SUPPORT
     geliargs.size = sizeof(geliargs);
     bcopy(gelipw, geliargs.gelipw, sizeof(geliargs.gelipw));
-    bzero(gelipw, sizeof(gelipw));
+    explicit_bzero(gelipw, sizeof(gelipw));
 #endif
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.part + 1, dsk.unit, 0xff),
