@@ -316,6 +316,7 @@ machine_init(struct statics *statics, char do_unames)
 {
 	int i, j, empty, pagesize;
 	uint64_t arc_size;
+	boolean_t carc_en;
 	size_t size;
 	struct passwd *pw;
 
@@ -327,9 +328,9 @@ machine_init(struct statics *statics, char do_unames)
 	    size != sizeof(smpmode))
 		smpmode = 0;
 
-	size = sizeof(arc_size);
-	if (sysctlbyname("vfs.zfs.compressed_arc_enabled", &arc_size, &size,
-	    NULL, 0) == 0 && arc_size == 1)
+	size = sizeof(carc_en);
+	if (sysctlbyname("vfs.zfs.compressed_arc_enabled", &carc_en, &size,
+	    NULL, 0) == 0 && carc_en == 1)
 		carc_enabled = 1;
 	size = sizeof(arc_size);
 	if (sysctlbyname("kstat.zfs.misc.arcstats.size", &arc_size, &size,
