@@ -4452,15 +4452,21 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	cap_rights_t rights;
 	off_t olen, ooffset;
 	int error;
+#ifdef AUDIT
+	int audited_vnode1 = 0;
+#endif
 
+	AUDIT_ARG_FD(fd);
 	if (offset < 0 || len <= 0)
 		return (EINVAL);
 	/* Check for wrap. */
 	if (offset > OFF_MAX - len)
 		return (EFBIG);
+	AUDIT_ARG_FD(fd);
 	error = fget(td, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
 	if (error != 0)
 		return (error);
+	AUDIT_ARG_FILE(td->td_proc, fp);
 	if ((fp->f_ops->fo_flags & DFLAG_SEEKABLE) == 0) {
 		error = ESPIPE;
 		goto out;
@@ -4494,6 +4500,12 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 			vn_finished_write(mp);
 			break;
 		}
+#ifdef AUDIT
+		if (!audited_vnode1) {
+			AUDIT_ARG_VNODE1(vp);
+			audited_vnode1 = 1;
+		}
+#endif
 #ifdef MAC
 		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
 		if (error == 0)
@@ -4544,6 +4556,7 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 
 	if (offset < 0 || len < 0 || offset > OFF_MAX - len)
 		return (EINVAL);
+	AUDIT_ARG_VALUE(advice);
 	switch (advice) {
 	case POSIX_FADV_SEQUENTIAL:
 	case POSIX_FADV_RANDOM:
@@ -4559,9 +4572,11 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 		return (EINVAL);
 	}
 	/* XXX: CAP_POSIX_FADVISE? */
+	AUDIT_ARG_FD(fd);
 	error = fget(td, fd, cap_rights_init(&rights), &fp);
 	if (error != 0)
 		goto out;
+	AUDIT_ARG_FILE(td->td_proc, fp);
 	if ((fp->f_ops->fo_flags & DFLAG_SEEKABLE) == 0) {
 		error = ESPIPE;
 		goto out;
