@@ -105,6 +105,7 @@ struct inode {
 	int32_t		i_ctimensec;	/* Last inode change time. */
 	int32_t		i_birthnsec;	/* Inode creation time. */
 	uint32_t	i_gen;		/* Generation number. */
+	uint64_t	i_facl;		/* EA block number. */
 	uint32_t	i_flags;	/* Status flags (chflags). */
 	uint32_t	i_db[EXT2_NDADDR]; /* Direct disk blocks. */
 	uint32_t	i_ib[EXT2_NIADDR]; /* Indirect disk blocks. */
