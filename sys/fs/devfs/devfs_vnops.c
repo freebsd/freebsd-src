@@ -677,32 +677,6 @@ devfs_close_f(struct file *fp, struct thread *td)
 }
 
 static int
-devfs_fsync(struct vop_fsync_args *ap)
-{
-	int error;
-	struct bufobj *bo;
-	struct devfs_dirent *de;
-
-	if (!vn_isdisk(ap->a_vp, &error)) {
-		bo = &ap->a_vp->v_bufobj;
-		de = ap->a_vp->v_data;
-		if (error == ENXIO && bo->bo_dirty.bv_cnt > 0) {
-			printf("Device %s went missing before all of the data "
-			    "could be written to it; expect data loss.\n",
-			    de->de_dirent->d_name);
-
-			error = vop_stdfsync(ap);
-			if (bo->bo_dirty.bv_cnt != 0 || error != 0)
-				printf("devfs_fsync: vop_stdfsync failed.");
-		}
-
-		return (0);
-	}
-
-	return (vop_stdfsync(ap));
-}
-
-static int
 devfs_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
@@ -1896,7 +1870,7 @@ static struct vop_vector devfs_specops = {
 	.vop_bmap =		VOP_PANIC,
 	.vop_close =		devfs_close,
 	.vop_create =		VOP_PANIC,
-	.vop_fsync =		devfs_fsync,
+	.vop_fsync =		vop_stdfsync,
 	.vop_getattr =		devfs_getattr,
 	.vop_link =		VOP_PANIC,
 	.vop_mkdir =		VOP_PANIC,
