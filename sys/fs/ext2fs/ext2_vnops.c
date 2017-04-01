@@ -64,6 +64,7 @@
 #include <sys/event.h>
 #include <sys/conf.h>
 #include <sys/file.h>
+#include <sys/extattr.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -84,6 +85,7 @@
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
 #include <fs/ext2fs/ext2_mount.h>
+#include <fs/ext2fs/ext2_extattr.h>
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
@@ -114,6 +116,8 @@ static vop_setattr_t	ext2_setattr;
 static vop_strategy_t	ext2_strategy;
 static vop_symlink_t	ext2_symlink;
 static vop_write_t	ext2_write;
+static vop_getextattr_t	ext2_getextattr;
+static vop_listextattr_t	ext2_listextattr;
 static vop_vptofh_t	ext2_vptofh;
 static vop_close_t	ext2fifo_close;
 static vop_kqfilter_t	ext2fifo_kqfilter;
@@ -152,6 +156,8 @@ struct vop_vector ext2_vnodeops = {
 	.vop_strategy =		ext2_strategy,
 	.vop_symlink =		ext2_symlink,
 	.vop_write =		ext2_write,
+	.vop_getextattr =	ext2_getextattr,
+	.vop_listextattr =	ext2_listextattr,
 	.vop_vptofh =		ext2_vptofh,
 };
 
@@ -1475,6 +1481,88 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 		error = EINVAL;
 		break;
 	}
+	return (error);
+}
+
+/*
+ * Vnode operation to retrieve a named extended attribute.
+ */
+static int
+ext2_getextattr(struct vop_getextattr_args *ap)
+{
+	struct inode *ip;
+	struct m_ext2fs *fs;
+	int error;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
+		return (EOPNOTSUPP);
+
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VREAD);
+	if (error)
+		return (error);
+
+	if (ap->a_size != NULL)
+		*ap->a_size = 0;
+
+	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
+		error = ext2_extattr_inode_get(ip, ap->a_attrnamespace,
+		    ap->a_name, ap->a_uio, ap->a_size);
+		if (error)
+			return (error);
+	}
+
+	if (ip->i_facl)
+		error = ext2_extattr_block_get(ip, ap->a_attrnamespace,
+		    ap->a_name, ap->a_uio, ap->a_size);
+
+	return (error);
+}
+
+/*
+ * Vnode operation to retrieve extended attributes on a vnode.
+ */
+static int
+ext2_listextattr(struct vop_listextattr_args *ap)
+{
+	struct inode *ip;
+	struct m_ext2fs *fs;
+	int error;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
+		return (EOPNOTSUPP);
+
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VREAD);
+	if (error)
+		return (error);
+
+	if (ap->a_size != NULL)
+		*ap->a_size = 0;
+
+	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
+		error = ext2_extattr_inode_list(ip, ap->a_attrnamespace,
+		    ap->a_uio, ap->a_size);
+		if(error)
+			return (error);
+	}
+
+	if(ip->i_facl)
+		error = ext2_extattr_block_list(ip, ap->a_attrnamespace,
+		    ap->a_uio, ap->a_size);
+
 	return (error);
 }
 
