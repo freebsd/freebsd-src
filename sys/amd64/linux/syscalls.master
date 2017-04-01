@@ -219,7 +219,7 @@
 99	AUE_NULL	STD	{ int linux_sysinfo(struct l_sysinfo *info); }
 100	AUE_NULL	STD	{ int linux_times(struct l_times_argv *buf); }
 101	AUE_PTRACE	STD	{ int linux_ptrace(l_long req, l_long pid, \
-				    l_long addr, l_long data); }
+				    l_ulong addr, l_ulong data); }
 102	AUE_GETUID	STD	{ int linux_getuid(void); }
 103	AUE_NULL	STD	{ int linux_syslog(l_int type, char *buf, \
 				    l_int len); }
