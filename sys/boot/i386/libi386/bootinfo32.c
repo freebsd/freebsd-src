@@ -32,9 +32,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/linker.h>
 #include <machine/bootinfo.h>
+#include <machine/metadata.h>
 #include "bootstrap.h"
 #include "libi386.h"
 #include "btxv86.h"
+
+#ifdef LOADER_GELI_SUPPORT
+#include "geliboot.h"
+
+static const size_t keybuf_size = sizeof(struct keybuf) +
+    (GELI_MAX_KEYS * sizeof(struct keybuf_ent));
+#endif
 
 static struct bootinfo  bi;
 
@@ -146,11 +154,15 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     int				bootdevnr, i, howto;
     char			*kernelname;
     const char			*kernelpath;
+#ifdef LOADER_GELI_SUPPORT
+    char                        buf[keybuf_size];
+    struct keybuf               *keybuf = (struct keybuf *)buf;
+#endif
 
     howto = bi_getboothowto(args);
 
-    /* 
-     * Allow the environment variable 'rootdev' to override the supplied device 
+    /*
+     * Allow the environment variable 'rootdev' to override the supplied device
      * This should perhaps go to MI code and/or have $rootdev tested/set by
      * MI code before launching the kernel.
      */
@@ -185,7 +197,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     case DEVT_NET:
     case DEVT_ZFS:
 	    break;
-	    
+
     default:
 	printf("WARNING - don't know how to boot from device type %d\n", rootdev->d_type);
     }
@@ -221,6 +233,11 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
     file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
     bios_addsmapdata(kfp);
+#ifdef LOADER_GELI_SUPPORT
+    geli_fill_keybuf(keybuf);
+    file_addmetadata(kfp, MODINFOMD_KEYBUF, keybuf_size, buf);
+    bzero(buf, sizeof(buf));
+#endif
 
     /* Figure out the size and location of the metadata */
     *modulep = addr;
