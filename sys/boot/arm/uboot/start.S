@@ -45,6 +45,13 @@ _start:
 	orr	ip, ip, #(CPU_CONTROL_AFLT_ENABLE)
 	mcr     p15, 0, ip, c1, c0, 0
 #endif
+
+	/*
+	 * Save r0 and r1 (argc and argv passed from u-boot), and lr (trashed
+	 * by the call to self_reloc below) until we're ready to call main().
+	 */
+	push	{r0, r1, lr}
+
 	/* 
 	 * Do self-relocation when the weak external symbol _DYNAMIC is non-NULL.
 	 * When linked as a dynamic relocatable file, the linker automatically
@@ -71,9 +78,11 @@ _start:
 	str	r9, [ip, #4]
 
 	/* 
+	 * First restore argc, argv, and the u-boot return address, then
 	 * Start loader.  This is basically a tail-recursion call; if main()
 	 * returns, it returns to u-boot (which reports the value returned r0).
 	 */
+	pop	{r0, r1, lr}
 	b	main
 
 	/* 
