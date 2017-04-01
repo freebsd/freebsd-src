@@ -436,3 +436,18 @@ mpc85xx_fix_errata(vm_offset_t va_ccsr)
 err:
 	return;
 }
+
+uint32_t
+mpc85xx_get_system_clock(void)
+{
+	phandle_t soc;
+	uint32_t freq;
+
+	soc = OF_finddevice("/soc");
+	freq = 0;
+
+	/* freq isn't modified on error. */
+	OF_getencprop(soc, "bus-frequency", (void *)&freq, sizeof(freq));
+
+	return (freq / 2);
+}
