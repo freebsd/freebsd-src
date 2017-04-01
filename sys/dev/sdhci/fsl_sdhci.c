@@ -58,6 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx_ccmvar.h>
 #endif
 
+#ifdef __powerpc__
+#include <powerpc/mpc85xx/mpc85xx.h>
+#endif
+
 #include <dev/gpio/gpiobusvar.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -767,7 +771,6 @@ fsl_sdhci_get_card_present(device_t dev, struct sdhci_slot *slot)
 static uint32_t
 fsl_sdhci_get_platform_clock(device_t dev)
 {
-	device_t parent;
 	phandle_t node;
 	uint32_t clock;
 
@@ -777,23 +780,14 @@ fsl_sdhci_get_platform_clock(device_t dev)
 	if((OF_getprop(node, "clock-frequency", (void *)&clock,
 	    sizeof(clock)) <= 0) || (clock == 0)) {
 
-		/*
-		 * Trying to get clock from parent device (soc) if correct
-		 * clock cannot be acquired from sdhci node.
-		 */
-		parent = device_get_parent(dev);
-		node = ofw_bus_get_node(parent);
+		clock = mpc85xx_get_system_clock();
 
-		/* Get soc properties */
-		if ((OF_getprop(node, "bus-frequency", (void *)&clock,
-		    sizeof(clock)) <= 0) || (clock == 0)) {
+		if (clock == 0) {
 			device_printf(dev,"Cannot acquire correct sdhci "
 			    "frequency from DTS.\n");
 
 			return (0);
 		}
-		/* eSDHC clock is 1/2 platform clock. */
-		clock /= 2;
 	}
 
 	if (bootverbose)
