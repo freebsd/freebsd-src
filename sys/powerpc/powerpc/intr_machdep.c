@@ -451,7 +451,7 @@ powerpc_enable_intr(void)
 		if (error)
 			continue;
 
-		if (i->trig == -1)
+		if (i->trig == INTR_TRIGGER_INVALID)
 			PIC_TRANSLATE_CODE(i->pic, i->intline, i->fwcode,
 			    &i->trig, &i->pol);
 		if (i->trig != INTR_TRIGGER_CONFORM ||
@@ -497,7 +497,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 		error = powerpc_map_irq(i);
 
 		if (!error) {
-			if (i->trig == -1)
+			if (i->trig == INTR_TRIGGER_INVALID)
 				PIC_TRANSLATE_CODE(i->pic, i->intline,
 				    i->fwcode, &i->trig, &i->pol);
 	
@@ -545,7 +545,7 @@ powerpc_fw_config_intr(int irq, int sense_code)
 	if (i == NULL)
 		return (ENOMEM);
 
-	i->trig = -1;
+	i->trig = INTR_TRIGGER_INVALID;
 	i->pol = INTR_POLARITY_CONFORM;
 	i->fwcode = sense_code;
 

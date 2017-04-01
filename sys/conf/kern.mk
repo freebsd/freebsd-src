@@ -147,9 +147,7 @@ INLINE_LIMIT?=	8000
 # Also explicitly disable Altivec instructions inside the kernel.
 #
 .if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-mno-altivec
-CFLAGS.clang+=	-mllvm -disable-ppc-float-in-variadic=true
-CFLAGS.gcc+=	-msoft-float
+CFLAGS+=	-mno-altivec -msoft-float
 INLINE_LIMIT?=	15000
 .endif
 

@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 #define	FAULTBUF_CR	22
 #define	FAULTBUF_R14	3
 
+#define	MOREARGS(sp)	((caddr_t)((uintptr_t)(sp) + \
+    sizeof(struct callframe) - 3*sizeof(register_t))) /* more args go here */
+
 static void	trap_fatal(struct trapframe *frame);
 static void	printtrap(u_int vector, struct trapframe *frame, int isfatal,
 		    int user);
@@ -280,7 +283,7 @@ trap(struct trapframe *frame)
 		case EXC_DEBUG:	/* Single stepping */
 			mtspr(SPR_DBSR, mfspr(SPR_DBSR));
 			frame->srr1 &= ~PSL_DE;
-			frame->cpu.booke.dbcr0 &= ~(DBCR0_IDM || DBCR0_IC);
+			frame->cpu.booke.dbcr0 &= ~(DBCR0_IDM | DBCR0_IC);
 			sig = SIGTRAP;
 			ucode = TRAP_TRACE;
 			break;
