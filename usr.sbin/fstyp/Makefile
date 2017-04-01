@@ -13,7 +13,6 @@ MAN=	fstyp.8
 
 WARNS?=	2
 
-.include <src.opts.mk>
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
