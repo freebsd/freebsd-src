@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/eli/g_eli.h>
 #include <geom/eli/pkcs5v2.h>
 
+#include <crypto/intake.h>
+
 FEATURE(geom_eli, "GEOM crypto module");
 
 MALLOC_DEFINE(M_ELI, "eli data", "GEOM_ELI Data");
@@ -111,13 +113,39 @@ fetch_loader_passphrase(void * dummy)
 }
 SYSINIT(geli_fetch_loader_passphrase, SI_SUB_KMEM + 1, SI_ORDER_ANY,
     fetch_loader_passphrase, NULL);
+
 static void
-zero_boot_passcache(void * dummy)
+zero_boot_passcache(void)
 {
 
-	memset(cached_passphrase, 0, sizeof(cached_passphrase));
+        explicit_bzero(cached_passphrase, sizeof(cached_passphrase));
 }
-EVENTHANDLER_DEFINE(mountroot, zero_boot_passcache, NULL, 0);
+
+static void
+zero_geli_intake_keys(void)
+{
+        struct keybuf *keybuf;
+        int i;
+
+        if ((keybuf = get_keybuf()) != NULL) {
+                /* Scan the key buffer, clear all GELI keys. */
+                for (i = 0; i < keybuf->kb_nents; i++) {
+                         if (keybuf->kb_ents[i].ke_type == KEYBUF_TYPE_GELI) {
+                                 explicit_bzero(keybuf->kb_ents[i].ke_data,
+                                     sizeof(keybuf->kb_ents[i].ke_data));
+                                 keybuf->kb_ents[i].ke_type = KEYBUF_TYPE_NONE;
+                         }
+                }
+        }
+}
+
+static void
+zero_intake_passcache(void *dummy)
+{
+        zero_boot_passcache();
+        zero_geli_intake_keys();
+}
+EVENTHANDLER_DEFINE(mountroot, zero_intake_passcache, NULL, 0);
 
 static eventhandler_tag g_eli_pre_sync = NULL;
 
@@ -997,6 +1025,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	u_char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN];
 	u_int i, nkey, nkeyfiles, tries;
 	int error;
+        struct keybuf *keybuf;
 
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
@@ -1035,97 +1064,114 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		tries = g_eli_tries;
 	}
 
-	for (i = 0; i <= tries; i++) {
-		g_eli_crypto_hmac_init(&ctx, NULL, 0);
+        if ((keybuf = get_keybuf()) != NULL) {
+                /* Scan the key buffer, try all GELI keys. */
+                for (i = 0; i < keybuf->kb_nents; i++) {
+                         if (keybuf->kb_ents[i].ke_type == KEYBUF_TYPE_GELI) {
+                                 memcpy(key, keybuf->kb_ents[i].ke_data,
+                                     sizeof(key));
 
-		/*
-		 * Load all key files.
-		 */
-		nkeyfiles = g_eli_keyfiles_load(&ctx, pp->name);
+                                 if (g_eli_mkey_decrypt(&md, key,
+                                     mkey, &nkey) == 0 ) {
+                                         explicit_bzero(key, sizeof(key));
+                                         goto have_key;
+                                 }
+                         }
+                }
+        }
 
-		if (nkeyfiles == 0 && md.md_iterations == -1) {
-			/*
-			 * No key files and no passphrase, something is
-			 * definitely wrong here.
-			 * geli(8) doesn't allow for such situation, so assume
-			 * that there was really no passphrase and in that case
-			 * key files are no properly defined in loader.conf.
-			 */
-			G_ELI_DEBUG(0,
-			    "Found no key files in loader.conf for %s.",
-			    pp->name);
-			return (NULL);
-		}
+        for (i = 0; i <= tries; i++) {
+                g_eli_crypto_hmac_init(&ctx, NULL, 0);
 
-		/* Ask for the passphrase if defined. */
-		if (md.md_iterations >= 0) {
-			/* Try first with cached passphrase. */
-			if (i == 0) {
-				if (!g_eli_boot_passcache)
-					continue;
-				memcpy(passphrase, cached_passphrase,
-				    sizeof(passphrase));
-			} else {
-				printf("Enter passphrase for %s: ", pp->name);
-				cngets(passphrase, sizeof(passphrase),
-				    g_eli_visible_passphrase);
-				memcpy(cached_passphrase, passphrase,
-				    sizeof(passphrase));
-			}
-		}
+                /*
+                 * Load all key files.
+                 */
+                nkeyfiles = g_eli_keyfiles_load(&ctx, pp->name);
 
-		/*
-		 * Prepare Derived-Key from the user passphrase.
-		 */
-		if (md.md_iterations == 0) {
-			g_eli_crypto_hmac_update(&ctx, md.md_salt,
-			    sizeof(md.md_salt));
-			g_eli_crypto_hmac_update(&ctx, passphrase,
-			    strlen(passphrase));
-			bzero(passphrase, sizeof(passphrase));
-		} else if (md.md_iterations > 0) {
-			u_char dkey[G_ELI_USERKEYLEN];
+                if (nkeyfiles == 0 && md.md_iterations == -1) {
+                        /*
+                         * No key files and no passphrase, something is
+                         * definitely wrong here.
+                         * geli(8) doesn't allow for such situation, so assume
+                         * that there was really no passphrase and in that case
+                         * key files are no properly defined in loader.conf.
+                         */
+                        G_ELI_DEBUG(0,
+                            "Found no key files in loader.conf for %s.",
+                            pp->name);
+                        return (NULL);
+                }
 
-			pkcs5v2_genkey(dkey, sizeof(dkey), md.md_salt,
-			    sizeof(md.md_salt), passphrase, md.md_iterations);
-			bzero(passphrase, sizeof(passphrase));
-			g_eli_crypto_hmac_update(&ctx, dkey, sizeof(dkey));
-			bzero(dkey, sizeof(dkey));
-		}
+                /* Ask for the passphrase if defined. */
+                if (md.md_iterations >= 0) {
+                        /* Try first with cached passphrase. */
+                        if (i == 0) {
+                                if (!g_eli_boot_passcache)
+                                        continue;
+                                memcpy(passphrase, cached_passphrase,
+                                    sizeof(passphrase));
+                        } else {
+                                printf("Enter passphrase for %s: ", pp->name);
+                                cngets(passphrase, sizeof(passphrase),
+                                    g_eli_visible_passphrase);
+                                memcpy(cached_passphrase, passphrase,
+                                    sizeof(passphrase));
+                        }
+                }
 
-		g_eli_crypto_hmac_final(&ctx, key, 0);
+                /*
+                 * Prepare Derived-Key from the user passphrase.
+                 */
+                if (md.md_iterations == 0) {
+                        g_eli_crypto_hmac_update(&ctx, md.md_salt,
+                            sizeof(md.md_salt));
+                        g_eli_crypto_hmac_update(&ctx, passphrase,
+                            strlen(passphrase));
+                        explicit_bzero(passphrase, sizeof(passphrase));
+                } else if (md.md_iterations > 0) {
+                        u_char dkey[G_ELI_USERKEYLEN];
 
-		/*
-		 * Decrypt Master-Key.
-		 */
-		error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
-		bzero(key, sizeof(key));
-		if (error == -1) {
-			if (i == tries) {
-				G_ELI_DEBUG(0,
-				    "Wrong key for %s. No tries left.",
-				    pp->name);
-				g_eli_keyfiles_clear(pp->name);
-				return (NULL);
-			}
-			if (i > 0) {
-				G_ELI_DEBUG(0,
-				    "Wrong key for %s. Tries left: %u.",
-				    pp->name, tries - i);
-			}
-			/* Try again. */
-			continue;
-		} else if (error > 0) {
-			G_ELI_DEBUG(0,
-			    "Cannot decrypt Master Key for %s (error=%d).",
-			    pp->name, error);
-			g_eli_keyfiles_clear(pp->name);
-			return (NULL);
-		}
-		g_eli_keyfiles_clear(pp->name);
-		G_ELI_DEBUG(1, "Using Master Key %u for %s.", nkey, pp->name);
-		break;
-	}
+                        pkcs5v2_genkey(dkey, sizeof(dkey), md.md_salt,
+                            sizeof(md.md_salt), passphrase, md.md_iterations);
+                        bzero(passphrase, sizeof(passphrase));
+                        g_eli_crypto_hmac_update(&ctx, dkey, sizeof(dkey));
+                        explicit_bzero(dkey, sizeof(dkey));
+                }
+
+                g_eli_crypto_hmac_final(&ctx, key, 0);
+
+                /*
+                 * Decrypt Master-Key.
+                 */
+                error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
+                bzero(key, sizeof(key));
+                if (error == -1) {
+                        if (i == tries) {
+                                G_ELI_DEBUG(0,
+                                    "Wrong key for %s. No tries left.",
+                                    pp->name);
+                                g_eli_keyfiles_clear(pp->name);
+                                return (NULL);
+                        }
+                        if (i > 0) {
+                                G_ELI_DEBUG(0,
+                                    "Wrong key for %s. Tries left: %u.",
+                                    pp->name, tries - i);
+                        }
+                        /* Try again. */
+                        continue;
+                } else if (error > 0) {
+                        G_ELI_DEBUG(0,
+                            "Cannot decrypt Master Key for %s (error=%d).",
+                            pp->name, error);
+                        g_eli_keyfiles_clear(pp->name);
+                        return (NULL);
+                }
+                g_eli_keyfiles_clear(pp->name);
+                G_ELI_DEBUG(1, "Using Master Key %u for %s.", nkey, pp->name);
+                break;
+        }
+have_key:
 
 	/*
 	 * We have correct key, let's attach provider.

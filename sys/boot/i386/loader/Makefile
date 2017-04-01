@@ -61,6 +61,7 @@ CFLAGS+=	-DLOADER_NANDFS_SUPPORT
 .endif
 .if !defined(LOADER_NO_GELI_SUPPORT)
 CFLAGS+=	-DLOADER_GELI_SUPPORT
+CFLAGS+=	-I${.CURDIR}/../../geli
 LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
 .PATH:		${.CURDIR}/../../../opencrypto
 SRCS+=		xform_aes_xts.c
