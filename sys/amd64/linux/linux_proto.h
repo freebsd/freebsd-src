@@ -424,8 +424,8 @@ struct linux_times_args {
 struct linux_ptrace_args {
 	char req_l_[PADL_(l_long)]; l_long req; char req_r_[PADR_(l_long)];
 	char pid_l_[PADL_(l_long)]; l_long pid; char pid_r_[PADR_(l_long)];
-	char addr_l_[PADL_(l_long)]; l_long addr; char addr_r_[PADR_(l_long)];
-	char data_l_[PADL_(l_long)]; l_long data; char data_r_[PADR_(l_long)];
+	char addr_l_[PADL_(l_ulong)]; l_ulong addr; char addr_r_[PADR_(l_ulong)];
+	char data_l_[PADL_(l_ulong)]; l_ulong data; char data_r_[PADR_(l_ulong)];
 };
 struct linux_getuid_args {
 	register_t dummy;

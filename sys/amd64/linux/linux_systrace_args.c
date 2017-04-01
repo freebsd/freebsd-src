@@ -874,8 +874,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_ptrace_args *p = params;
 		iarg[0] = p->req; /* l_long */
 		iarg[1] = p->pid; /* l_long */
-		iarg[2] = p->addr; /* l_long */
-		iarg[3] = p->data; /* l_long */
+		iarg[2] = p->addr; /* l_ulong */
+		iarg[3] = p->data; /* l_ulong */
 		*n_args = 4;
 		break;
 	}
@@ -3983,10 +3983,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_long";
 			break;
 		case 2:
-			p = "l_long";
+			p = "l_ulong";
 			break;
 		case 3:
-			p = "l_long";
+			p = "l_ulong";
 			break;
 		default:
 			break;
