@@ -114,8 +114,10 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 	ip->i_flag |= (ei->e2di_flags & EXT3_INDEX) ? IN_E3INDEX : 0;
 	ip->i_flag |= (ei->e2di_flags & EXT4_EXTENTS) ? IN_E4EXTENTS : 0;
 	ip->i_blocks = ei->e2di_nblock;
+	ip->i_facl = ei->e2di_facl;
 	if (E2DI_HAS_HUGE_FILE(ip)) {
 		ip->i_blocks |= (uint64_t)ei->e2di_nblock_high << 32;
+		ip->i_facl |= (uint64_t)ei->e2di_facl_high << 32;
 		if (ei->e2di_flags & EXT4_HUGE_FILE)
 			ip->i_blocks = fsbtodb(ip->i_e2fs, ip->i_blocks);
 	}
