@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2015
+.Dd March 31, 2015
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -133,6 +133,10 @@ respectively.
 Refer to the
 .Xr periodic 8
 manual page for how script return codes are interpreted.
+.It Va anticongestion_sleeptime
+.Pq Vt int
+The maximum number of seconds to randomly sleep in order to smooth bursty loads
+on a shared resource, such as a download mirror.
 .El
 .Pp
 The following variables are used by the standard scripts that reside in
