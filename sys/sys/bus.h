@@ -265,6 +265,7 @@ enum intr_type {
 };
 
 enum intr_trigger {
+	INTR_TRIGGER_INVALID = -1,
 	INTR_TRIGGER_CONFORM = 0,
 	INTR_TRIGGER_EDGE = 1,
 	INTR_TRIGGER_LEVEL = 2

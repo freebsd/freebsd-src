@@ -89,10 +89,11 @@
 	name:
 
 #ifdef __powerpc64__
-#define TOC_REF(name)	__CONCAT(.L,name)
+#define TOC_NAME_FOR_REF(name)	__CONCAT(.L,name)
+#define	TOC_REF(name)	TOC_NAME_FOR_REF(name)@toc
 #define TOC_ENTRY(name) \
 	.section ".toc","aw"; \
-	TOC_REF(name): \
+	TOC_NAME_FOR_REF(name): \
         .tc name[TC],name
 #endif
 
