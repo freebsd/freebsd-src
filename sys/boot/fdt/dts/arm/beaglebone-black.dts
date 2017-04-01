@@ -49,12 +49,6 @@
 	};
 };
 
-&i2c0 {
-	tda998x: tda19988 {
-		status = "okay";
- 	};
-};
-
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
@@ -77,11 +71,5 @@
 };
 
 &lcdc {
-	hdmi = <&tda998x>;
-};
-
-/ {
-	hdmi {
-		status = "disabled";
-	};
+	hdmi = <&tda19988>;
 };
