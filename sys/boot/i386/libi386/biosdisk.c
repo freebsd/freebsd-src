@@ -472,6 +472,11 @@ bd_open(struct open_file *f, ...)
 		}
 		if (geli_taste(bios_read, &dskp,
 		    entry->part.end - entry->part.start) == 0) {
+			if (geli_havekey(&dskp) == 0) {
+				geli_status[dev->d_unit][dskp.slice] = ISGELI_YES;
+				geli_part++;
+				continue;
+			}
 			if ((passphrase = getenv("kern.geom.eli.passphrase"))
 			    != NULL) {
 				/* Use the cached passphrase */
@@ -484,6 +489,7 @@ bd_open(struct open_file *f, ...)
 				bzero(gelipw, sizeof(gelipw));
 				geli_status[dev->d_unit][dskp.slice] = ISGELI_YES;
 				geli_part++;
+				continue;
 			}
 		} else
 			geli_status[dev->d_unit][dskp.slice] = ISGELI_NO;

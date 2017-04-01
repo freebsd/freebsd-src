@@ -121,7 +121,7 @@ static struct dmadat *dmadat;
 void exit(int);
 void reboot(void);
 static void load(void);
-static int parse(void);
+static int parse_cmd(void);
 static void bios_getmem(void);
 void *malloc(size_t n);
 void free(void *ptr);
@@ -159,6 +159,7 @@ strdup(const char *s)
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.c"
 static char gelipw[GELI_PW_MAXLEN];
+static struct keybuf *gelibuf;
 #endif
 
 #include "zfsimpl.c"
@@ -502,7 +503,8 @@ probe_drive(struct dsk *dsk)
 	elba--;
     }
     if (geli_taste(vdev_read, dsk, elba) == 0) {
-	if (geli_passphrase(&gelipw, dsk->unit, ':', 0, dsk) == 0) {
+	if (geli_havekey(dsk) == 0 || geli_passphrase(&gelipw, dsk->unit,
+	  ':', 0, dsk) == 0) {
 	    if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 		return;
 	    }
@@ -559,7 +561,8 @@ probe_drive(struct dsk *dsk)
 #ifdef LOADER_GELI_SUPPORT
 		else if (geli_taste(vdev_read, dsk, ent->ent_lba_end -
 			 ent->ent_lba_start) == 0) {
-		    if (geli_passphrase(&gelipw, dsk->unit, 'p', dsk->slice, dsk) == 0) {
+		    if (geli_havekey(dsk) == 0 || geli_passphrase(&gelipw,
+		      dsk->unit, 'p', dsk->slice, dsk) == 0) {
 			/*
 			 * This slice has GELI, check it for ZFS.
 			 */
@@ -597,7 +600,8 @@ trymbr:
 #ifdef LOADER_GELI_SUPPORT
 	else if (geli_taste(vdev_read, dsk, dp[i].dp_size -
 		 dp[i].dp_start) == 0) {
-	    if (geli_passphrase(&gelipw, dsk->unit, 's', i, dsk) == 0) {
+	    if (geli_havekey(dsk) == 0 || geli_passphrase(&gelipw, dsk->unit,
+	      's', i, dsk) == 0) {
 		/*
 		 * This slice has GELI, check it for ZFS.
 		 */
@@ -729,7 +733,7 @@ main(void)
 		 */
 		nextboot = 1;
 		memcpy(cmddup, cmd, sizeof(cmd));
-		if (parse()) {
+		if (parse_cmd()) {
 		    printf("failed to parse pad2 area of primary vdev\n");
 		    reboot();
 		}
@@ -756,11 +760,11 @@ main(void)
 
     if (*cmd) {
 	/*
-	 * Note that parse() is destructive to cmd[] and we also want
+	 * Note that parse_cmd() is destructive to cmd[] and we also want
 	 * to honor RBX_QUIET option that could be present in cmd[].
 	 */
 	memcpy(cmddup, cmd, sizeof(cmd));
-	if (parse())
+	if (parse_cmd())
 	    autoboot = 0;
 	if (!OPT_CHECK(RBX_QUIET))
 	    printf("%s: %s\n", PATH_CONFIG, cmddup);
@@ -810,7 +814,7 @@ main(void)
 	else if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    putchar('\n');
 	autoboot = 0;
-	if (parse())
+	if (parse_cmd())
 	    putchar('\a');
 	else
 	    load();
@@ -925,8 +929,12 @@ load(void)
     zfsargs.root = zfsmount.rootobj;
     zfsargs.primary_pool = primary_spa->spa_guid;
 #ifdef LOADER_GELI_SUPPORT
-    bcopy(gelipw, zfsargs.gelipw, sizeof(zfsargs.gelipw));
     explicit_bzero(gelipw, sizeof(gelipw));
+    gelibuf = malloc(sizeof(struct keybuf) + (GELI_MAX_KEYS * sizeof(struct keybuf_ent)));
+    geli_fill_keybuf(gelibuf);
+    zfsargs.notapw = '\0';
+    zfsargs.keybuf_sentinel = KEYBUF_SENTINEL;
+    zfsargs.keybuf = gelibuf;
 #else
     zfsargs.gelipw[0] = '\0';
 #endif
@@ -979,7 +987,7 @@ zfs_mount_ds(char *dsname)
 }
 
 static int
-parse(void)
+parse_cmd(void)
 {
     char *arg = cmd;
     char *ep, *p, *q;

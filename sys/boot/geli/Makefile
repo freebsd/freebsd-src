@@ -40,6 +40,7 @@ SRCS+=		md5c.c
 # AES implementation from sys/crypto
 .PATH: ${.CURDIR}/../../crypto/rijndael
 CFLAGS+=	-I${.CURDIR}/../../
+CFLAGS+=	-I${.CURDIR}/../common/
 # Remove asserts
 CFLAGS+=	-DNDEBUG
 SRCS+=		rijndael-alg-fst.c rijndael-api-fst.c rijndael-api.c

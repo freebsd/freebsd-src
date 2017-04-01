@@ -31,6 +31,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "geliboot_internal.h"
 #include "geliboot.h"
 
 int
