@@ -93,6 +93,8 @@ device		random
 device		scbus
 device		scc
 device		sec
+device  	spibus
+device  	spigen
 device		tsec
 device  	dpaa
 device		tun
