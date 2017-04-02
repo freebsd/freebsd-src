@@ -951,7 +951,7 @@ ahci_handle_read_log(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf16[0x13] = 1; /* SATA NCQ Send and Receive Log -- 1 page */
 	} else if (cfis[4] == 0x10) {	/* NCQ Command Error Log */
 		memcpy(buf8, p->err_cfis, sizeof(p->err_cfis));
-		ahci_checksum(buf8, sizeof(buf8));
+		ahci_checksum(buf8, sizeof(buf));
 	} else if (cfis[4] == 0x13) {	/* SATA NCQ Send and Receive Log */
 		if (blockif_candelete(p->bctx) && !blockif_is_ro(p->bctx)) {
 			buf[0x00] = 1;	/* SFQ DSM supported */
