@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "memalloc.h"
 #include "mystring.h"
 #include "alias.h"
-#include "options.h"	/* XXX for argptr (should remove?) */
+#include "options.h"
 #include "builtins.h"
 
 #define ATABSIZE 39
