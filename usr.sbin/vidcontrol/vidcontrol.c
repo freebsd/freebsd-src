@@ -850,8 +850,7 @@ get_normal_colors(int argc, char **argv, int *_index)
 		normal_fore_color=color;
 		colors_changed = 1;
 		if (*_index < argc
-		    && (color = get_color_number(argv[*_index])) != -1
-		    && color < 8) {
+		    && (color = get_color_number(argv[*_index])) != -1) {
 			(*_index)++;
 			fprintf(stderr, "\033[=%dG", color);
 			normal_back_color=color;
@@ -874,8 +873,7 @@ get_reverse_colors(int argc, char **argv, int *_index)
 		revers_fore_color=color;
 		colors_changed = 1;
 		if (*_index < argc
-		    && (color = get_color_number(argv[*_index])) != -1
-		    && color < 8) {
+		    && (color = get_color_number(argv[*_index])) != -1) {
 			(*_index)++;
 			fprintf(stderr, "\033[=%dI", color);
 			revers_back_color=color;
@@ -1477,18 +1475,8 @@ main(int argc, char **argv)
 
 	get_normal_colors(argc, argv, &optind);
 
-	if (colors_changed || video_mode_changed) {
-		if (!(new_mode_info.vi_flags & V_INFO_GRAPHICS)) {
-			if ((normal_back_color < 8) && (revers_back_color < 8)) {
-				set_colors();
-			} else {
-				revert();
-				errx(1, "bg color for text modes must be < 8");
-			}
-		} else {
-			set_colors();
-		}
-	}
+	if (colors_changed || video_mode_changed)
+		set_colors();
 
 	if ((optind != argc) || (argc == 1))
 		usage();
