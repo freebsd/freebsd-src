@@ -1,7 +1,7 @@
-/*	$Id: mansearch.h,v 1.24 2015/11/07 14:01:16 schwarze Exp $ */
+/*	$Id: mansearch.h,v 1.27 2016/08/01 12:31:00 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013, 2014, 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,6 +17,12 @@
  */
 
 #define	MANDOC_DB	 "mandoc.db"
+#define	MANDOCDB_MAGIC	 0x3a7d0cdb
+#define	MANDOCDB_VERSION 1
+
+#define	MACRO_MAX	 36
+#define	KEY_Nd		 39
+#define	KEY_MAX		 40
 
 #define	TYPE_arch	 0x0000000000000001ULL
 #define	TYPE_sec	 0x0000000000000002ULL
@@ -66,9 +72,11 @@
 #define	NAME_FILE	 0x0000004000000010ULL
 #define	NAME_MASK	 0x000000000000001fULL
 
-#define	FORM_CAT	 0  /* manual page is preformatted */
-#define	FORM_SRC	 1  /* format is mdoc(7) or man(7) */
-#define	FORM_NONE	 4  /* format is unknown */
+enum	form {
+	FORM_SRC = 1,	/* Format is mdoc(7) or man(7). */
+	FORM_CAT,	/* Manual page is preformatted. */
+	FORM_NONE	/* Format is unknown. */
+};
 
 enum	argmode {
 	ARG_FILE = 0,
@@ -84,7 +92,7 @@ struct	manpage {
 	size_t		 ipath; /* number of the manpath */
 	uint64_t	 bits; /* name type mask */
 	int		 sec; /* section number, 10 means invalid */
-	int		 form; /* 0 == catpage */
+	enum form	 form;
 };
 
 struct	mansearch {
@@ -98,7 +106,6 @@ struct	mansearch {
 
 struct	manpaths;
 
-int	mansearch_setup(int);
 int	mansearch(const struct mansearch *cfg, /* options */
 		const struct manpaths *paths, /* manpaths */
 		int argc, /* size of argv */

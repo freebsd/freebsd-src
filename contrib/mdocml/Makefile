@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.488 2016/07/12 05:18:38 kristaps Exp $
+# $Id: Makefile,v 1.493 2016/11/19 15:24:51 schwarze Exp $
 #
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 # Copyright (c) 2011, 2013-2016 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,27 +15,29 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-VERSION = 1.13.4
+VERSION = 1.14.0
 
 # === LIST OF FILES ====================================================
 
-TESTSRCS	 = test-dirent-namlen.c \
+TESTSRCS	 = test-be32toh.c \
+		   test-dirent-namlen.c \
+		   test-EFTYPE.c \
 		   test-err.c \
 		   test-fts.c \
 		   test-getline.c \
 		   test-getsubopt.c \
 		   test-isblank.c \
 		   test-mkdtemp.c \
-		   test-mmap.c \
+		   test-nanosleep.c \
+		   test-ntohl.c \
 		   test-ohash.c \
+		   test-PATH_MAX.c \
 		   test-pledge.c \
 		   test-progname.c \
 		   test-reallocarray.c \
 		   test-rewb-bsd.c \
 		   test-rewb-sysv.c \
 		   test-sandbox_init.c \
-		   test-sqlite3.c \
-		   test-sqlite3_errstr.c \
 		   test-strcasestr.c \
 		   test-stringlist.c \
 		   test-strlcat.c \
@@ -58,7 +60,6 @@ SRCS		 = att.c \
 		   compat_ohash.c \
 		   compat_progname.c \
 		   compat_reallocarray.c \
-		   compat_sqlite3_errstr.c \
 		   compat_strcasestr.c \
 		   compat_stringlist.c \
 		   compat_strlcat.c \
@@ -66,6 +67,12 @@ SRCS		 = att.c \
 		   compat_strsep.c \
 		   compat_strtonum.c \
 		   compat_vasprintf.c \
+		   dba.c \
+		   dba_array.c \
+		   dba_read.c \
+		   dba_write.c \
+		   dbm.c \
+		   dbm_map.c \
 		   demandoc.c \
 		   eqn.c \
 		   eqn_html.c \
@@ -86,7 +93,6 @@ SRCS		 = att.c \
 		   manpage.c \
 		   manpath.c \
 		   mansearch.c \
-		   mansearch_const.c \
 		   mdoc.c \
 		   mdoc_argv.c \
 		   mdoc_hash.c \
@@ -128,6 +134,11 @@ DISTFILES	 = INSTALL \
 		   compat_stringlist.h \
 		   configure \
 		   configure.local.example \
+		   dba.h \
+		   dba_array.h \
+		   dba_write.h \
+		   dbm.h \
+		   dbm_map.h \
 		   demandoc.1 \
 		   eqn.7 \
 		   gmdiff \
@@ -220,7 +231,6 @@ COMPAT_OBJS	 = compat_err.o \
 		   compat_ohash.o \
 		   compat_progname.o \
 		   compat_reallocarray.o \
-		   compat_sqlite3_errstr.o \
 		   compat_strcasestr.o \
 		   compat_strlcat.o \
 		   compat_strlcpy.o \
@@ -244,28 +254,35 @@ MANDOC_TERM_OBJS = eqn_term.o \
 		   term_ps.o \
 		   tbl_term.o
 
-BASE_OBJS	 = $(MANDOC_HTML_OBJS) \
+DBM_OBJS	 = dbm.o \
+		   dbm_map.o \
+		   mansearch.o
+
+DBA_OBJS	 = dba.o \
+		   dba_array.o \
+		   dba_read.o \
+		   dba_write.o \
+		   mandocdb.o
+
+MAIN_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   $(MANDOC_MAN_OBJS) \
 		   $(MANDOC_TERM_OBJS) \
+		   $(DBM_OBJS) \
+		   $(DBA_OBJS) \
 		   main.o \
 		   manpath.o \
 		   out.o \
 		   tag.o \
 		   tree.o
 
-MAIN_OBJS	 = $(BASE_OBJS)
-
-DB_OBJS		 = mandocdb.o \
-		   mansearch.o \
-		   mansearch_const.o
-
 CGI_OBJS	 = $(MANDOC_HTML_OBJS) \
+		   $(DBM_OBJS) \
 		   cgi.o \
-		   mansearch.o \
-		   mansearch_const.o \
 		   out.o
 
-MANPAGE_OBJS	 = manpage.o mansearch.o mansearch_const.o manpath.o
+MANPAGE_OBJS	 = $(DBM_OBJS) \
+		   manpage.o \
+		   manpath.o
 
 DEMANDOC_OBJS	 = demandoc.o
 
@@ -329,7 +346,7 @@ www: $(WWW_OBJS) $(WWW_MANS)
 
 $(WWW_MANS): mandoc
 
-.PHONY: base-install cgi-install db-install install www-install
+.PHONY: base-install cgi-install install www-install
 .PHONY: clean distclean depend
 
 include Makefile.depend
@@ -341,7 +358,7 @@ distclean: clean
 
 clean:
 	rm -f libmandoc.a $(LIBMANDOC_OBJS) $(COMPAT_OBJS)
-	rm -f mandoc $(BASE_OBJS) $(DB_OBJS)
+	rm -f mandoc $(MAIN_OBJS)
 	rm -f man.cgi $(CGI_OBJS)
 	rm -f manpage $(MANPAGE_OBJS)
 	rm -f demandoc $(DEMANDOC_OBJS)
@@ -351,49 +368,44 @@ clean:
 
 base-install: base-build
 	mkdir -p $(DESTDIR)$(BINDIR)
-	mkdir -p $(DESTDIR)$(LIBDIR)
-	mkdir -p $(DESTDIR)$(INCLUDEDIR)
+	mkdir -p $(DESTDIR)$(SBINDIR)
 	mkdir -p $(DESTDIR)$(MANDIR)/man1
-	mkdir -p $(DESTDIR)$(MANDIR)/man3
 	mkdir -p $(DESTDIR)$(MANDIR)/man5
 	mkdir -p $(DESTDIR)$(MANDIR)/man7
+	mkdir -p $(DESTDIR)$(MANDIR)/man8
 	$(INSTALL_PROGRAM) mandoc demandoc $(DESTDIR)$(BINDIR)
 	$(INSTALL_PROGRAM) soelim $(DESTDIR)$(BINDIR)/$(BINM_SOELIM)
 	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_MAN)
-	$(INSTALL_LIB) libmandoc.a $(DESTDIR)$(LIBDIR)
-	$(INSTALL_LIB) man.h mandoc.h mandoc_aux.h mdoc.h roff.h \
-		$(DESTDIR)$(INCLUDEDIR)
+	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_APROPOS)
+	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_WHATIS)
+	ln -f $(DESTDIR)$(BINDIR)/mandoc \
+		$(DESTDIR)$(SBINDIR)/$(BINM_MAKEWHATIS)
 	$(INSTALL_MAN) mandoc.1 demandoc.1 $(DESTDIR)$(MANDIR)/man1
 	$(INSTALL_MAN) soelim.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_SOELIM).1
 	$(INSTALL_MAN) man.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_MAN).1
-	$(INSTALL_MAN) mandoc.3 mandoc_escape.3 mandoc_malloc.3 \
-		mchars_alloc.3 tbl.3 $(DESTDIR)$(MANDIR)/man3
+	$(INSTALL_MAN) apropos.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1
+	ln -f $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1 \
+		$(DESTDIR)$(MANDIR)/man1/$(BINM_WHATIS).1
 	$(INSTALL_MAN) man.conf.5 $(DESTDIR)$(MANDIR)/man5/${MANM_MANCONF}.5
+	$(INSTALL_MAN) mandoc.db.5 $(DESTDIR)$(MANDIR)/man5
 	$(INSTALL_MAN) man.7 $(DESTDIR)$(MANDIR)/man7/${MANM_MAN}.7
 	$(INSTALL_MAN) mdoc.7 $(DESTDIR)$(MANDIR)/man7/${MANM_MDOC}.7
 	$(INSTALL_MAN) roff.7 $(DESTDIR)$(MANDIR)/man7/${MANM_ROFF}.7
 	$(INSTALL_MAN) eqn.7 $(DESTDIR)$(MANDIR)/man7/${MANM_EQN}.7
 	$(INSTALL_MAN) tbl.7 $(DESTDIR)$(MANDIR)/man7/${MANM_TBL}.7
 	$(INSTALL_MAN) mandoc_char.7 $(DESTDIR)$(MANDIR)/man7
-
-db-install: base-build
-	mkdir -p $(DESTDIR)$(BINDIR)
-	mkdir -p $(DESTDIR)$(SBINDIR)
-	mkdir -p $(DESTDIR)$(MANDIR)/man1
-	mkdir -p $(DESTDIR)$(MANDIR)/man3
-	mkdir -p $(DESTDIR)$(MANDIR)/man5
-	mkdir -p $(DESTDIR)$(MANDIR)/man8
-	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_APROPOS)
-	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_WHATIS)
-	ln -f $(DESTDIR)$(BINDIR)/mandoc \
-		$(DESTDIR)$(SBINDIR)/$(BINM_MAKEWHATIS)
-	$(INSTALL_MAN) apropos.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1
-	ln -f $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1 \
-		$(DESTDIR)$(MANDIR)/man1/$(BINM_WHATIS).1
-	$(INSTALL_MAN) mansearch.3 $(DESTDIR)$(MANDIR)/man3
-	$(INSTALL_MAN) mandoc.db.5 $(DESTDIR)$(MANDIR)/man5
 	$(INSTALL_MAN) makewhatis.8 \
 		$(DESTDIR)$(MANDIR)/man8/$(BINM_MAKEWHATIS).8
+
+lib-install: base-build
+	mkdir -p $(DESTDIR)$(LIBDIR)
+	mkdir -p $(DESTDIR)$(INCLUDEDIR)
+	mkdir -p $(DESTDIR)$(MANDIR)/man3
+	$(INSTALL_LIB) libmandoc.a $(DESTDIR)$(LIBDIR)
+	$(INSTALL_LIB) man.h mandoc.h mandoc_aux.h mdoc.h roff.h \
+		$(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL_MAN) mandoc.3 mandoc_escape.3 mandoc_malloc.3 \
+		mansearch.3 mchars_alloc.3 tbl.3 $(DESTDIR)$(MANDIR)/man3
 
 cgi-install: cgi-build
 	mkdir -p $(DESTDIR)$(CGIBINDIR)

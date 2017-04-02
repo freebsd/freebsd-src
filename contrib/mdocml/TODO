@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.218 2016/06/05 21:06:04 schwarze Exp $
+* $Id: TODO,v 1.223 2017/01/17 15:32:43 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -31,15 +31,6 @@ Many issues are annotated for difficulty as follows:
 
 Obviously, as the issues have not been solved yet, these annotations
 are mere guesses, and some may be wrong.
-
-************************************************************************
-* crashes
-************************************************************************
-
-- The abort() in bufcat(), html.c, can be triggered via buffmt_includes()
-  by running -Thtml -Oincludes on a file containing a long .In argument.
-  Fixing this will probably require reworking the whole bufcat() concept.
-  loc **  exist *  algo *  size **  imp **
 
 ************************************************************************
 * missing features
@@ -212,6 +203,13 @@ are mere guesses, and some may be wrong.
   and can be mixed with actual data on the same table line
   synaptics(4) found by tedu@  Mon, 17 Aug 2015 21:17:42 -0400
   loc **  exist **  algo **  size **  imp ***
+
+- break long text into lines inside cells
+  net/lftp(1) from jirib via bentley@ Sep 13, 2016
+
+- layout l1 for a column of max text width 3 reduces the following
+  inter-column spacing for groff, but not for mandoc
+  net/lftp(1) from jirib via bentley@ Sep 13, 2016
 
 - the "w" layout option is ignored
   synaptics(4) found by tedu@  Mon, 17 Aug 2015 21:17:42 -0400
@@ -529,16 +527,6 @@ are mere guesses, and some may be wrong.
   loc **  exist **  algo **  size *  imp **
 
 ************************************************************************
-* portability
-************************************************************************
-
-- systems having UTF-8 but not en_US.UTF-8
-  call locale(1) from ./configure, select a UTF-8-locale,
-  and use that for test-wchar.c and term_ascii.c
-  to Markus Waldeck  Sat, 18 Jul 2015 01:55:37 +0200
-  loc *  exist *  algo *  size *  imp *
-
-************************************************************************
 * warning issues
 ************************************************************************
 
@@ -612,7 +600,6 @@ are mere guesses, and some may be wrong.
 ************************************************************************
 
 - Why are we using MAP_SHARED, not MAP_PRIVATE for mmap(2)?
-  How does SQLITE_CONFIG_PAGECACHE actually work?  Document it!
   from kristaps@  Sat, 09 Aug 2014 13:51:36 +0200
 
 Several areas can be cleaned up to make mandoc even faster.  These are
@@ -631,6 +618,13 @@ Several areas can be cleaned up to make mandoc even faster.  These are
 * structural issues
 ************************************************************************
 
+- POSIX says in the documentation of sysconf(3) that PATH_MAX
+  is allowed to be so large that it is a bad idea to use it
+  for sizing static buffers.  So use dynamic buffers throughout.
+  See the file test-PATH_MAX.c for details.
+  Found by Aaron M. Ucko in the GNU Hurd via Bdale Garbee,
+  https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=829624
+
 - We use the input line number at several places to distinguish
   same-line from different-line input.  That plainly doesn't work
   with user-defined macros, leading to random breakage.
@@ -645,11 +639,6 @@ Several areas can be cleaned up to make mandoc even faster.  These are
 
 - struct mparse refactoring
   Steffen Nurpmeso  Thu, 04 Sep 2014 12:50:00 +0200
-
-- Consider creating some views that will make the database more
-  readable from the sqlite3 shell.  Consider using them to
-  abstract from the database structure, too.
-  suggested by espie@  Sat, 19 Apr 2014 14:52:57 +0200
 
 ************************************************************************
 * CGI issues

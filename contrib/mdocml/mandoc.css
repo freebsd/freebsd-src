@@ -1,159 +1,173 @@
-/* $Id: mandoc.css,v 1.2 2016/04/13 10:19:23 schwarze Exp $ */
-
+/* $Id: mandoc.css,v 1.13 2017/01/21 02:29:57 schwarze Exp $ */
 /*
- * This is an example style-sheet provided for mandoc(1) and the -Thtml
- * or -Txhtml output mode.
- *
- * It mimics the appearance of the traditional cvsweb output.
- *
- * See mdoc(7) and man(7) for macro explanations.
+ * Standard style sheet for mandoc(1) -Thtml and man.cgi(8).
  */
 
-html		{ max-width: 880px; margin-left: 1em; }
-body		{ font-size: smaller; font-family: Helvetica,Arial,sans-serif; }
-body > div			{ padding-left: 2em;
-				  padding-top: 1em; }
-body > div.mandoc,
-body > div#mancgi		{ padding-left: 0em;
-				  padding-top: 0em; }
-body > div.results		{ font-size: smaller; }
-#mancgi fieldset		{ text-align: center;
-				  border: thin solid silver;
-				  border-radius: 1em;
-			  	  font-size: small; }
-#mancgi input[name=expr] 	{ width: 25%; }
-.results td.title		{ vertical-align: top;
-				  padding-right: 1em; }
-h1		{ margin-bottom: 1ex; font-size: 110% } 
-div.section > h1 { margin-left: -4ex; } /* Section header (Sh, SH). */
-h2		{ margin-bottom: 1ex; font-size: 105%; margin-left: -2ex; } /* Sub-section header (Ss, SS). */
-table		{ width: 100%; margin-top: 0ex; margin-bottom: 0ex; } /* All tables. */
-td		{ vertical-align: top; } /* All table cells. */
-p		{ } /* Paragraph: Pp, Lp. */
-blockquote	{ margin-left: 5ex; margin-top: 0ex; margin-bottom: 0ex; } /* D1. */
-div.section	{ margin-bottom: 2ex; margin-left: 5ex; } /* Sections (Sh, SH). */
-div.subsection	{ } /* Sub-sections (Ss, SS). */
-table.synopsis	{ } /* SYNOPSIS section table. */
-div.spacer	{ margin: 1em 0; }
+/* Global defaults. */
 
-/* Preamble structure. */
+html {		max-width: 100ex; }
+body {		font-family: Helvetica,Arial,sans-serif; }
+table {		margin-top: 0em;
+		margin-bottom: 0em; }
+td {		vertical-align: top; }
+ul, ol, dl {	margin-top: 0em;
+		margin-bottom: 0em; }
+li, dt {	margin-top: 1em; }
 
-table.foot	{ font-size: smaller; margin-top: 1em; border-top: 1px dotted #dddddd; } /* Document footer. */
-td.foot-date	{ width: 50%; } /* Document footer: date. */
-td.foot-os	{ width: 50%; } /* Document footer: OS/source. */
-table.head	{ font-size: smaller; margin-bottom: 1em; border-bottom: 1px dotted #dddddd; } /* Document header. */
-td.head-ltitle	{ width: 10%; } /* Document header: left-title. */
-td.head-vol	{ width: 80%; } /* Document header: volume. */
-td.head-rtitle	{ width: 10%; } /* Document header: right-title. */
+/* Search form and search results. */
 
-/* General font modes. */
+fieldset {	border: thin solid silver;
+		border-radius: 1em;
+		text-align: center; }
+input[name=expr] {
+		width: 25%; }
 
-i		{ } /* Italic: BI, IB, I, (implicit). */
-.emph		{ font-style: italic; font-weight: normal; } /* Emphasis: Em, Bl -emphasis. */
-b		{ } /* Bold: SB, BI, IB, BR, RB, B, (implicit). */
-.symb		{ font-style: normal; font-weight: bold; } /* Symbolic: Sy, Ms, Bf -symbolic. */
-small		{ } /* Small: SB, SM. */
-.lit		{ font-style: normal; font-weight: normal; font-family: monospace; } /* Literal: Dl, Li, Ql, Bf -literal, Bl -literal, Bl -unfilled. */
+table.results {	margin-top: 1em;
+		margin-left: 2em;
+		font-size: smaller; }
 
-/* Block modes. */
+/* Header and footer lines. */
 
-.display	{ } /* Top of all Bd, D1, Dl. */
-.list		{ } /* Top of all Bl. */
+table.head {	width: 100%;
+		border-bottom: 1px dotted #808080;
+		margin-bottom: 1em;
+		font-size: smaller; }
+td.head-vol {	text-align: center; }
+td.head-rtitle {
+		text-align: right; }
+span.Nd { }
 
-/* Context-specific modes. */
+table.foot {	width: 100%;
+		border-top: 1px dotted #808080;
+		margin-top: 1em;
+		font-size: smaller; }
+td.foot-os {	text-align: right; }
 
-i.addr		{ font-weight: normal; } /* Address (Ad). */
-i.arg		{ font-weight: normal; } /* Command argument (Ar). */
-span.author	{ } /* Author name (An). */
-b.cmd		{ font-style: normal; } /* Command (Cm). */
-b.config	{ font-style: normal; } /* Config statement (Cd). */
-span.define	{ } /* Defines (Dv). */
-span.desc	{ } /* Nd.  After em-dash. */
-b.diag		{ font-style: normal; } /* Diagnostic (Bl -diag). */
-span.env	{ } /* Environment variables (Ev). */
-span.errno	{ } /* Error string (Er). */
-i.farg		{ font-weight: normal; } /* Function argument (Fa, Fn). */
-i.file		{ font-weight: normal; } /* File (Pa). */
-b.flag		{ font-style: normal; } /* Flag (Fl, Cm). */
-b.fname		{ font-style: normal; } /* Function name (Fa, Fn, Rv). */
-i.ftype		{ font-weight: normal; } /* Function types (Ft, Fn). */
-b.includes	{ font-style: normal; } /* Header includes (In). */
-span.lib	{ } /* Library (Lb). */
-i.link-sec	{ font-weight: normal; } /* Section links (Sx). */
-b.macro		{ font-style: normal; } /* Macro-ish thing (Fd). */
-b.name		{ font-style: normal; } /* Name of utility (Nm). */
-span.opt	{ } /* Options (Op, Oo/Oc). */
-span.ref	{ } /* Citations (Rs). */
-span.ref-auth	{ } /* Reference author (%A). */
-i.ref-book	{ font-weight: normal; } /* Reference book (%B). */
-span.ref-city	{ } /* Reference city (%C). */
-span.ref-date	{ } /* Reference date (%D). */
-i.ref-issue	{ font-weight: normal; } /* Reference issuer/publisher (%I). */
-i.ref-jrnl	{ font-weight: normal; } /* Reference journal (%J). */
-span.ref-num	{ } /* Reference number (%N). */
-span.ref-opt	{ } /* Reference optionals (%O). */
-span.ref-page	{ } /* Reference page (%P). */
-span.ref-corp	{ } /* Reference corporate/foreign author (%Q). */
-span.ref-rep	{ } /* Reference report (%R). */
-span.ref-title	{ text-decoration: underline; } /* Reference title (%T). */
-span.ref-vol	{ } /* Reference volume (%V). */
-span.type	{ font-style: italic; font-weight: normal; } /* Variable types (Vt). */
-span.unix	{ } /* Unices (Ux, Ox, Nx, Fx, Bx, Bsx, Dx). */
-b.utility	{ font-style: normal; } /* Name of utility (Ex). */
-b.var		{ font-style: normal; } /* Variables (Rv). */
+/* Sections and paragraphs. */
 
-a.link-ext	{ } /* Off-site link (Lk). */
-a.link-includes	{ } /* Include-file link (In). */
-a.link-mail	{ } /* Mailto links (Mt). */
-a.link-man	{ } /* Manual links (Xr). */
-a.link-ref	{ } /* Reference section links (%Q). */
-a.link-sec	{ } /* Section links (Sx). */
+div.manual-text {
+		margin-left: 5ex; }
+h1.Sh {		margin-top: 2ex;
+		margin-bottom: 1ex;
+		margin-left: -4ex;
+		font-size: 110%; }
+h2.Ss {		margin-top: 2ex;
+		margin-bottom: 1ex;
+		margin-left: -2ex;
+		font-size: 105%; }
+div.Pp {	margin: 1ex 0ex; }
+a.Sx { }
+a.Xr { }
 
-/* Formatting for lists.  See mdoc(7). */
+/* Displays and lists. */
 
-dl.list-diag	{ }
-dt.list-diag	{ }
-dd.list-diag	{ }
+div.Bd { }
+div.D1 {	margin-left: 5ex; }
 
-dl.list-hang	{ }
-dt.list-hang	{ }
-dd.list-hang	{ }
+ul.Bl-bullet {	list-style-type: disc;
+		padding-left: 1em; }
+li.It-bullet { }
+ul.Bl-dash {	list-style-type: none;
+		padding-left: 0em; }
+li.It-dash:before {
+		content: "\2014  "; }
+ul.Bl-item {	list-style-type: none;
+		padding-left: 0em; }
+li.It-item { }
 
-dl.list-inset	{ }
-dt.list-inset	{ }
-dd.list-inset	{ }
+ol.Bl-enum {	padding-left: 2em; }
+li.It-enum { }
 
-dl.list-ohang	{ }
-dt.list-ohang	{ }
-dd.list-ohang	{ margin-left: 0ex; }
+dl.Bl-diag { }
+dt.It-diag { }
+dd.It-diag { }
+b.It-diag {	font-style: normal; }
+dl.Bl-hang { }
+dt.It-hang { }
+dd.It-hang { }
+dl.Bl-inset { }
+dt.It-inset { }
+dd.It-inset { }
+dl.Bl-ohang { }
+dt.It-ohang { }
+dd.It-ohang {	margin-left: 0ex; }
+dl.Bl-tag { }
+dt.It-tag { }
+dd.It-tag { }
 
-dl.list-tag	{ }
-dt.list-tag	{ }
-dd.list-tag	{ }
+table.Bl-column { }
+tr.It-column { }
+td.It-column {	margin-top: 1em; }
 
-table.list-col	{ }
-tr.list-col	{ }
-td.list-col	{ }
+span.Rs	{ }
+span.RsA { }
+i.RsB {		font-weight: normal; }
+span.RsC { }
+span.RsD { }
+i.RsI {		font-weight: normal; }
+i.RsJ {		font-weight: normal; }
+span.RsN { }
+span.RsO { }
+span.RsP { }
+span.RsQ { }
+span.RsR { }
+span.RsT {	text-decoration: underline; }
+a.RsU { }
+span.RsV { }
 
-ul.list-bul	{ list-style-type: disc; padding-left: 1em; }
-li.list-bul	{ }
+span.eqn { }
+table.tbl { }
 
-ul.list-dash	{ list-style-type: none; padding-left: 0em; }
-li.list-dash:before { content: "\2014  "; }
+/* Semantic markup for command line utilities. */
 
-ul.list-hyph	{ list-style-type: none; padding-left: 0em; }
-li.list-hyph:before { content: "\2013  "; }
+table.Nm { }
+b.Nm {		font-style: normal; }
+b.Fl {		font-style: normal; }
+b.Cm {		font-style: normal; }
+i.Ar {		font-weight: normal; }
+span.Op { }
+b.Ic {		font-style: normal; }
+code.Ev {	font-style: normal;
+		font-weight: normal;
+		font-family: monospace; }
+i.Pa {		font-weight: normal; }
 
-ul.list-item	{ list-style-type: none; padding-left: 0em; }
-li.list-item	{ }
+/* Semantic markup for function libraries. */
 
-ol.list-enum	{ padding-left: 2em; }
-li.list-enum	{ }
+span.Lb { }
+b.In {		font-style: normal; }
+a.In { }
+b.Fd {		font-style: normal; }
+i.Ft {		font-weight: normal; }
+b.Fn {		font-style: normal; }
+i.Fa {		font-weight: normal; }
+i.Vt {		font-weight: normal; }
+i.Va {		font-weight: normal; }
+code.Dv {	font-style: normal;
+		font-weight: normal;
+		font-family: monospace; }
+code.Er {	font-style: normal;
+		font-weight: normal;
+		font-family: monospace; }
 
-/* Equation modes.  See eqn(7). */
+/* Various semantic markup. */
 
-span.eqn	{ }
+span.An { }
+a.Lk { }
+a.Mt { }
+b.Cd {		font-style: normal; }
+i.Ad {		font-weight: normal; }
+b.Ms {		font-style: normal; }
+a.Ux { }
 
-/* Table modes.  See tbl(7). */
+/* Physical markup. */
 
-table.tbl	{ }
+.No {		font-style: normal;
+		font-weight: normal; }
+.Em {		font-style: italic;
+		font-weight: normal; }
+.Sy {		font-style: normal;
+		font-weight: bold; }
+.Li {		font-style: normal;
+		font-weight: normal;
+		font-family: monospace; }
