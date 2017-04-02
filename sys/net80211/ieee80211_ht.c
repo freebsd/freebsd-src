@@ -644,6 +644,40 @@ ampdu_dispatch(struct ieee80211_node *ni, struct mbuf *m)
 	(void) ieee80211_input(ni, m, 0, 0);
 }
 
+static void
+ampdu_rx_moveup(struct ieee80211_rx_ampdu *rap, struct ieee80211_node *ni,
+    int i, int winstart)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	if (rap->rxa_qframes != 0) {
+		int n = rap->rxa_qframes, j;
+
+		if (winstart != -1) {
+			/*
+			 * NB: in window-sliding mode, loop assumes i > 0
+			 * and/or rxa_m[0] is NULL
+			 */
+			KASSERT(rap->rxa_m[0] == NULL,
+			    ("%s: BA window slot 0 occupied", __func__));
+		}
+		for (j = i+1; j < rap->rxa_wnd; j++) {
+			if (rap->rxa_m[j] != NULL) {
+				rap->rxa_m[j-i] = rap->rxa_m[j];
+				rap->rxa_m[j] = NULL;
+				if (--n == 0)
+					break;
+			}
+		}
+		KASSERT(n == 0, ("%s: lost %d frames, qframes %d off %d "
+		    "BA win <%d:%d> winstart %d",
+		    __func__, n, rap->rxa_qframes, i, rap->rxa_start,
+		    IEEE80211_SEQ_ADD(rap->rxa_start, rap->rxa_wnd-1),
+		    winstart));
+		vap->iv_stats.is_ampdu_rx_copy += rap->rxa_qframes;
+	}
+}
+
 /*
  * Dispatch as many frames as possible from the re-order queue.
  * Frames will always be "at the front"; we process all frames
@@ -674,19 +708,8 @@ ampdu_rx_dispatch(struct ieee80211_rx_ampdu *rap, struct ieee80211_node *ni)
 	 * If frames remain, copy the mbuf pointers down so
 	 * they correspond to the offsets in the new window.
 	 */
-	if (rap->rxa_qframes != 0) {
-		int n = rap->rxa_qframes, j;
-		for (j = i+1; j < rap->rxa_wnd; j++) {
-			if (rap->rxa_m[j] != NULL) {
-				rap->rxa_m[j-i] = rap->rxa_m[j];
-				rap->rxa_m[j] = NULL;
-				if (--n == 0)
-					break;
-			}
-		}
-		KASSERT(n == 0, ("lost %d frames", n));
-		vap->iv_stats.is_ampdu_rx_copy += rap->rxa_qframes;
-	}
+	ampdu_rx_moveup(rap, ni, i, -1);
+
 	/*
 	 * Adjust the start of the BA window to
 	 * reflect the frames just dispatched.
@@ -761,27 +784,8 @@ ampdu_rx_flush_upto(struct ieee80211_node *ni,
 	 * If frames remain, copy the mbuf pointers down so
 	 * they correspond to the offsets in the new window.
 	 */
-	if (rap->rxa_qframes != 0) {
-		int n = rap->rxa_qframes, j;
+	ampdu_rx_moveup(rap, ni, i, winstart);
 
-		/* NB: this loop assumes i > 0 and/or rxa_m[0] is NULL */
-		KASSERT(rap->rxa_m[0] == NULL,
-		    ("%s: BA window slot 0 occupied", __func__));
-		for (j = i+1; j < rap->rxa_wnd; j++) {
-			if (rap->rxa_m[j] != NULL) {
-				rap->rxa_m[j-i] = rap->rxa_m[j];
-				rap->rxa_m[j] = NULL;
-				if (--n == 0)
-					break;
-			}
-		}
-		KASSERT(n == 0, ("%s: lost %d frames, qframes %d off %d "
-		    "BA win <%d:%d> winstart %d",
-		    __func__, n, rap->rxa_qframes, i, rap->rxa_start,
-		    IEEE80211_SEQ_ADD(rap->rxa_start, rap->rxa_wnd-1),
-		    winstart));
-		vap->iv_stats.is_ampdu_rx_copy += rap->rxa_qframes;
-	}
 	/*
 	 * Move the start of the BA window; we use the
 	 * sequence number of the last MSDU that was
