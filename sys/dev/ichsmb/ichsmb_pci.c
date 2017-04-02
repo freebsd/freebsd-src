@@ -78,7 +78,9 @@ __FBSDID("$FreeBSD$");
 #define	ID_82801GB			0x27da
 #define	ID_82801H			0x283e
 #define	ID_82801I			0x2930
+#define	ID_EP80579			0x5032
 #define	ID_82801JI			0x3a30
+#define	ID_82801JD			0x3a60
 #define	ID_PCH				0x3b30
 #define	ID_6300ESB			0x25a4
 #define	ID_631xESB			0x269b
@@ -92,9 +94,16 @@ __FBSDID("$FreeBSD$");
 #define	ID_LPTLP			0x9c22
 #define	ID_WCPT				0x8ca2
 #define	ID_WCPTLP			0x9ca2
+#define	ID_BAYTRAIL			0x0f12
+#define	ID_BRASWELL			0x2292
 #define	ID_WELLSBURG			0x8d22
 #define	ID_SRPT				0xa123
 #define	ID_SRPTLP			0x9d23
+#define	ID_DENVERTON			0x19df
+#define	ID_BROXTON			0x5ad4
+#define	ID_LEWISBURG			0xa1a3
+#define	ID_LEWISBURG2			0xa223
+#define	ID_KABYLAKE			0xa2a3
 
 static const struct ichsmb_device {
 	uint16_t	id;
@@ -113,7 +122,9 @@ static const struct ichsmb_device {
 	{ ID_82801GB,	"Intel 82801GB (ICH7) SMBus controller"		},
 	{ ID_82801H,	"Intel 82801H (ICH8) SMBus controller"		},
 	{ ID_82801I,	"Intel 82801I (ICH9) SMBus controller"		},
+	{ ID_EP80579,	"Intel EP80579 SMBus controller"		},
 	{ ID_82801JI,	"Intel 82801JI (ICH10) SMBus controller"	},
+	{ ID_82801JD,	"Intel 82801JD (ICH10) SMBus controller"	},
 	{ ID_PCH,	"Intel PCH SMBus controller"			},
 	{ ID_6300ESB,	"Intel 6300ESB (ICH) SMBus controller"		},
 	{ ID_631xESB,	"Intel 631xESB/6321ESB (ESB2) SMBus controller"	},
@@ -126,10 +137,17 @@ static const struct ichsmb_device {
 	{ ID_LPTLP,	"Intel Lynx Point-LP SMBus controller"		},
 	{ ID_WCPT,	"Intel Wildcat Point SMBus controller"		},
 	{ ID_WCPTLP,	"Intel Wildcat Point-LP SMBus controller"	},
+	{ ID_BAYTRAIL,	"Intel Baytrail SMBus controller"		},
+	{ ID_BRASWELL,	"Intel Braswell SMBus controller"		},
 	{ ID_COLETOCRK,	"Intel Coleto Creek SMBus controller"		},
 	{ ID_WELLSBURG,	"Intel Wellsburg SMBus controller"		},
 	{ ID_SRPT,	"Intel Sunrise Point-H SMBus controller"	},
 	{ ID_SRPTLP,	"Intel Sunrise Point-LP SMBus controller"	},
+	{ ID_DENVERTON,	"Intel Denverton SMBus controller"		},
+	{ ID_BROXTON,	"Intel Broxton SMBus controller"		},
+	{ ID_LEWISBURG,	"Intel Lewisburg SMBus controller"		},
+	{ ID_LEWISBURG2,"Intel Lewisburg SMBus controller"		},
+	{ ID_KABYLAKE,	"Intel Kaby Lake SMBus controller"		},
 	{ 0, NULL },
 };
 
