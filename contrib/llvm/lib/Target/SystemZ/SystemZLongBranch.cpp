@@ -133,14 +133,12 @@ public:
   SystemZLongBranch(const SystemZTargetMachine &tm)
     : MachineFunctionPass(ID), TII(nullptr) {}
 
-  const char *getPassName() const override {
-    return "SystemZ Long Branch";
-  }
+  StringRef getPassName() const override { return "SystemZ Long Branch"; }
 
   bool runOnMachineFunction(MachineFunction &F) override;
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
-        MachineFunctionProperties::Property::AllVRegsAllocated);
+        MachineFunctionProperties::Property::NoVRegs);
   }
 
 private:
@@ -227,6 +225,10 @@ TerminatorInfo SystemZLongBranch::describeTerminator(MachineInstr &MI) {
     case SystemZ::BRCTG:
       // Relaxes to A(G)HI and BRCL, which is 6 bytes longer.
       Terminator.ExtraRelaxSize = 6;
+      break;
+    case SystemZ::BRCTH:
+      // Never needs to be relaxed.
+      Terminator.ExtraRelaxSize = 0;
       break;
     case SystemZ::CRJ:
     case SystemZ::CLRJ:

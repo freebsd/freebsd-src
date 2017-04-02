@@ -59,6 +59,9 @@ class MachineDominatorTree : public MachineFunctionPass {
   /// such as BB == elt.NewBB.
   mutable SmallSet<MachineBasicBlock *, 32> NewBBs;
 
+  /// The DominatorTreeBase that is used to compute a normal dominator tree
+  DominatorTreeBase<MachineBasicBlock>* DT;
+
   /// \brief Apply all the recorded critical edges to the DT.
   /// This updates the underlying DT information in a way that uses
   /// the fast query path of DT as much as possible.
@@ -68,7 +71,6 @@ class MachineDominatorTree : public MachineFunctionPass {
 
 public:
   static char ID; // Pass ID, replacement for typeid
-  DominatorTreeBase<MachineBasicBlock>* DT;
 
   MachineDominatorTree();
 
@@ -271,14 +273,12 @@ public:
 
 template <class Node, class ChildIterator>
 struct MachineDomTreeGraphTraitsBase {
-  typedef Node NodeType;
+  typedef Node *NodeRef;
   typedef ChildIterator ChildIteratorType;
 
-  static NodeType *getEntryNode(NodeType *N) { return N; }
-  static inline ChildIteratorType child_begin(NodeType *N) {
-    return N->begin();
-  }
-  static inline ChildIteratorType child_end(NodeType *N) { return N->end(); }
+  static NodeRef getEntryNode(NodeRef N) { return N; }
+  static ChildIteratorType child_begin(NodeRef N) { return N->begin(); }
+  static ChildIteratorType child_end(NodeRef N) { return N->end(); }
 };
 
 template <class T> struct GraphTraits;
@@ -296,7 +296,7 @@ struct GraphTraits<const MachineDomTreeNode *>
 
 template <> struct GraphTraits<MachineDominatorTree*>
   : public GraphTraits<MachineDomTreeNode *> {
-  static NodeType *getEntryNode(MachineDominatorTree *DT) {
+  static NodeRef getEntryNode(MachineDominatorTree *DT) {
     return DT->getRootNode();
   }
 };

@@ -42,8 +42,8 @@ void DWARFDebugLine::Prologue::dump(raw_ostream &OS) const {
      << format("     opcode_base: %u\n", OpcodeBase);
 
   for (uint32_t i = 0; i < StandardOpcodeLengths.size(); ++i)
-    OS << format("standard_opcode_lengths[%s] = %u\n", LNStandardString(i + 1),
-                 StandardOpcodeLengths[i]);
+    OS << format("standard_opcode_lengths[%s] = %u\n",
+                 LNStandardString(i + 1).data(), StandardOpcodeLengths[i]);
 
   if (!IncludeDirectories.empty())
     for (uint32_t i = 0; i < IncludeDirectories.size(); ++i)
@@ -624,12 +624,17 @@ bool DWARFDebugLine::LineTable::lookupAddressRange(
   return true;
 }
 
-bool DWARFDebugLine::LineTable::getFileNameByIndex(uint64_t FileIndex,
-                                                   const char *CompDir,
-                                                   FileLineInfoKind Kind,
-                                                   std::string &Result) const {
-  if (FileIndex == 0 || FileIndex > Prologue.FileNames.size() ||
-      Kind == FileLineInfoKind::None)
+bool
+DWARFDebugLine::LineTable::hasFileAtIndex(uint64_t FileIndex) const {
+  return FileIndex != 0 && FileIndex <= Prologue.FileNames.size();
+}
+
+bool
+DWARFDebugLine::LineTable::getFileNameByIndex(uint64_t FileIndex,
+                                              const char *CompDir,
+                                              FileLineInfoKind Kind,
+                                              std::string &Result) const {
+  if (Kind == FileLineInfoKind::None || !hasFileAtIndex(FileIndex))
     return false;
   const FileNameEntry &Entry = Prologue.FileNames[FileIndex - 1];
   const char *FileName = Entry.Name;
@@ -673,5 +678,6 @@ bool DWARFDebugLine::LineTable::getFileLineInfoForAddress(
     return false;
   Result.Line = Row.Line;
   Result.Column = Row.Column;
+  Result.Discriminator = Row.Discriminator;
   return true;
 }

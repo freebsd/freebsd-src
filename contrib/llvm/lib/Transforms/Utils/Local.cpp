@@ -340,6 +340,10 @@ bool llvm::isInstructionTriviallyDead(Instruction *I,
     if (Constant *C = dyn_cast<Constant>(CI->getArgOperand(0)))
       return C->isNullValue() || isa<UndefValue>(C);
 
+  if (CallSite CS = CallSite(I))
+    if (isMathLibCallNoop(CS, TLI))
+      return true;
+
   return false;
 }
 
@@ -886,6 +890,17 @@ bool llvm::TryToSimplifyUncondBranchFromEmptyBlock(BasicBlock *BB) {
     }
   }
 
+  // If the unconditional branch we replaced contains llvm.loop metadata, we
+  // add the metadata to the branch instructions in the predecessors.
+  unsigned LoopMDKind = BB->getContext().getMDKindID("llvm.loop");
+  Instruction *TI = BB->getTerminator();
+  if (TI)
+    if (MDNode *LoopMD = TI->getMetadata(LoopMDKind))
+      for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI) {
+        BasicBlock *Pred = *PI;
+        Pred->getTerminator()->setMetadata(LoopMDKind, LoopMD);
+      }
+
   // Everything that jumped to BB now goes to Succ.
   BB->replaceAllUsesWith(Succ);
   if (!Succ->hasName()) Succ->takeName(BB);
@@ -1001,10 +1016,6 @@ static unsigned enforceKnownAlignment(Value *V, unsigned Align,
   return Align;
 }
 
-/// getOrEnforceKnownAlignment - If the specified pointer has an alignment that
-/// we can determine, return it, otherwise return 0.  If PrefAlign is specified,
-/// and it is more than the alignment of the ultimate object, see if we can
-/// increase the alignment of the ultimate object, making this check succeed.
 unsigned llvm::getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
                                           const DataLayout &DL,
                                           const Instruction *CxtI,
@@ -1057,9 +1068,27 @@ static bool LdStHasDebugValue(DILocalVariable *DIVar, DIExpression *DIExpr,
   return false;
 }
 
+/// See if there is a dbg.value intrinsic for DIVar for the PHI node.
+static bool PhiHasDebugValue(DILocalVariable *DIVar, 
+                             DIExpression *DIExpr,
+                             PHINode *APN) {
+  // Since we can't guarantee that the original dbg.declare instrinsic
+  // is removed by LowerDbgDeclare(), we need to make sure that we are
+  // not inserting the same dbg.value intrinsic over and over.
+  DbgValueList DbgValues;
+  FindAllocaDbgValues(DbgValues, APN);
+  for (auto DVI : DbgValues) {
+    assert (DVI->getValue() == APN);
+    assert (DVI->getOffset() == 0);
+    if ((DVI->getVariable() == DIVar) && (DVI->getExpression() == DIExpr))
+      return true;
+  }
+  return false;
+}
+
 /// Inserts a llvm.dbg.value intrinsic before a store to an alloca'd value
 /// that has an associated llvm.dbg.decl intrinsic.
-bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+void llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
                                            StoreInst *SI, DIBuilder &Builder) {
   auto *DIVar = DDI->getVariable();
   auto *DIExpr = DDI->getExpression();
@@ -1073,26 +1102,27 @@ bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
   if (SExtInst *SExt = dyn_cast<SExtInst>(SI->getOperand(0)))
     ExtendedArg = dyn_cast<Argument>(SExt->getOperand(0));
   if (ExtendedArg) {
-    // We're now only describing a subset of the variable. The piece we're
+    // We're now only describing a subset of the variable. The fragment we're
     // describing will always be smaller than the variable size, because
     // VariableSize == Size of Alloca described by DDI. Since SI stores
     // to the alloca described by DDI, if it's first operand is an extend,
     // we're guaranteed that before extension, the value was narrower than
     // the size of the alloca, hence the size of the described variable.
     SmallVector<uint64_t, 3> Ops;
-    unsigned PieceOffset = 0;
-    // If this already is a bit piece, we drop the bit piece from the expression
-    // and record the offset.
-    if (DIExpr->isBitPiece()) {
+    unsigned FragmentOffset = 0;
+    // If this already is a bit fragment, we drop the bit fragment from the
+    // expression and record the offset.
+    auto Fragment = DIExpr->getFragmentInfo();
+    if (Fragment) {
       Ops.append(DIExpr->elements_begin(), DIExpr->elements_end()-3);
-      PieceOffset = DIExpr->getBitPieceOffset();
+      FragmentOffset = Fragment->OffsetInBits;
     } else {
       Ops.append(DIExpr->elements_begin(), DIExpr->elements_end());
     }
-    Ops.push_back(dwarf::DW_OP_bit_piece);
-    Ops.push_back(PieceOffset); // Offset
+    Ops.push_back(dwarf::DW_OP_LLVM_fragment);
+    Ops.push_back(FragmentOffset);
     const DataLayout &DL = DDI->getModule()->getDataLayout();
-    Ops.push_back(DL.getTypeSizeInBits(ExtendedArg->getType())); // Size
+    Ops.push_back(DL.getTypeSizeInBits(ExtendedArg->getType()));
     auto NewDIExpr = Builder.createExpression(Ops);
     if (!LdStHasDebugValue(DIVar, NewDIExpr, SI))
       Builder.insertDbgValueIntrinsic(ExtendedArg, 0, DIVar, NewDIExpr,
@@ -1100,19 +1130,18 @@ bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
   } else if (!LdStHasDebugValue(DIVar, DIExpr, SI))
     Builder.insertDbgValueIntrinsic(SI->getOperand(0), 0, DIVar, DIExpr,
                                     DDI->getDebugLoc(), SI);
-  return true;
 }
 
 /// Inserts a llvm.dbg.value intrinsic before a load of an alloca'd value
 /// that has an associated llvm.dbg.decl intrinsic.
-bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+void llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
                                            LoadInst *LI, DIBuilder &Builder) {
   auto *DIVar = DDI->getVariable();
   auto *DIExpr = DDI->getExpression();
   assert(DIVar && "Missing variable");
 
   if (LdStHasDebugValue(DIVar, DIExpr, LI))
-    return true;
+    return;
 
   // We are now tracking the loaded value instead of the address. In the
   // future if multi-location support is added to the IR, it might be
@@ -1121,7 +1150,28 @@ bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
   Instruction *DbgValue = Builder.insertDbgValueIntrinsic(
       LI, 0, DIVar, DIExpr, DDI->getDebugLoc(), (Instruction *)nullptr);
   DbgValue->insertAfter(LI);
-  return true;
+}
+
+/// Inserts a llvm.dbg.value intrinsic after a phi 
+/// that has an associated llvm.dbg.decl intrinsic.
+void llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+                                           PHINode *APN, DIBuilder &Builder) {
+  auto *DIVar = DDI->getVariable();
+  auto *DIExpr = DDI->getExpression();
+  assert(DIVar && "Missing variable");
+
+  if (PhiHasDebugValue(DIVar, DIExpr, APN))
+    return;
+
+  BasicBlock *BB = APN->getParent();
+  auto InsertionPt = BB->getFirstInsertionPt();
+
+  // The block may be a catchswitch block, which does not have a valid
+  // insertion point.
+  // FIXME: Insert dbg.value markers in the successors when appropriate.
+  if (InsertionPt != BB->end())
+    Builder.insertDbgValueIntrinsic(APN, 0, DIVar, DIExpr, DDI->getDebugLoc(),
+                                    &*InsertionPt);
 }
 
 /// Determine whether this alloca is either a VLA or an array.
@@ -1189,6 +1239,16 @@ DbgDeclareInst *llvm::FindAllocaDbgDeclare(Value *V) {
           return DDI;
 
   return nullptr;
+}
+
+/// FindAllocaDbgValues - Finds the llvm.dbg.value intrinsics describing the
+/// alloca 'V', if any.
+void llvm::FindAllocaDbgValues(DbgValueList &DbgValues, Value *V) {
+  if (auto *L = LocalAsMetadata::getIfExists(V))
+    if (auto *MDV = MetadataAsValue::getIfExists(V->getContext(), L))
+      for (User *U : MDV->users())
+        if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(U))
+          DbgValues.push_back(DVI);
 }
 
 static void DIExprAddDeref(SmallVectorImpl<uint64_t> &Expr) {
@@ -1310,12 +1370,13 @@ unsigned llvm::removeAllNonTerminatorAndEHPadInstructions(BasicBlock *BB) {
   return NumDeadInst;
 }
 
-unsigned llvm::changeToUnreachable(Instruction *I, bool UseLLVMTrap) {
+unsigned llvm::changeToUnreachable(Instruction *I, bool UseLLVMTrap,
+                                   bool PreserveLCSSA) {
   BasicBlock *BB = I->getParent();
   // Loop over all of the successors, removing BB's entry from any PHI
   // nodes.
   for (BasicBlock *Successor : successors(BB))
-    Successor->removePredecessor(BB);
+    Successor->removePredecessor(BB, PreserveLCSSA);
 
   // Insert a call to llvm.trap right before this.  This turns the undefined
   // behavior into a hard fail instead of falling through into random code.
@@ -1358,6 +1419,43 @@ static void changeToCall(InvokeInst *II) {
   // Update PHI nodes in the unwind destination
   II->getUnwindDest()->removePredecessor(II->getParent());
   II->eraseFromParent();
+}
+
+BasicBlock *llvm::changeToInvokeAndSplitBasicBlock(CallInst *CI,
+                                                   BasicBlock *UnwindEdge) {
+  BasicBlock *BB = CI->getParent();
+
+  // Convert this function call into an invoke instruction.  First, split the
+  // basic block.
+  BasicBlock *Split =
+      BB->splitBasicBlock(CI->getIterator(), CI->getName() + ".noexc");
+
+  // Delete the unconditional branch inserted by splitBasicBlock
+  BB->getInstList().pop_back();
+
+  // Create the new invoke instruction.
+  SmallVector<Value *, 8> InvokeArgs(CI->arg_begin(), CI->arg_end());
+  SmallVector<OperandBundleDef, 1> OpBundles;
+
+  CI->getOperandBundlesAsDefs(OpBundles);
+
+  // Note: we're round tripping operand bundles through memory here, and that
+  // can potentially be avoided with a cleverer API design that we do not have
+  // as of this time.
+
+  InvokeInst *II = InvokeInst::Create(CI->getCalledValue(), Split, UnwindEdge,
+                                      InvokeArgs, OpBundles, CI->getName(), BB);
+  II->setDebugLoc(CI->getDebugLoc());
+  II->setCallingConv(CI->getCallingConv());
+  II->setAttributes(CI->getAttributes());
+
+  // Make sure that anything using the call now uses the invoke!  This also
+  // updates the CallGraph if present, because it uses a WeakVH.
+  CI->replaceAllUsesWith(II);
+
+  // Delete the original call
+  Split->getInstList().pop_front();
+  return Split;
 }
 
 static bool markAliveBlocks(Function &F,
@@ -1586,10 +1684,10 @@ void llvm::combineMetadata(Instruction *K, const Instruction *J,
   SmallVector<std::pair<unsigned, MDNode *>, 4> Metadata;
   K->dropUnknownNonDebugMetadata(KnownIDs);
   K->getAllMetadataOtherThanDebugLoc(Metadata);
-  for (unsigned i = 0, n = Metadata.size(); i < n; ++i) {
-    unsigned Kind = Metadata[i].first;
+  for (const auto &MD : Metadata) {
+    unsigned Kind = MD.first;
     MDNode *JMD = J->getMetadata(Kind);
-    MDNode *KMD = Metadata[i].second;
+    MDNode *KMD = MD.second;
 
     switch (Kind) {
       default:
@@ -1644,6 +1742,17 @@ void llvm::combineMetadata(Instruction *K, const Instruction *J,
   if (auto *JMD = J->getMetadata(LLVMContext::MD_invariant_group))
     if (isa<LoadInst>(K) || isa<StoreInst>(K))
       K->setMetadata(LLVMContext::MD_invariant_group, JMD);
+}
+
+void llvm::combineMetadataForCSE(Instruction *K, const Instruction *J) {
+  unsigned KnownIDs[] = {
+      LLVMContext::MD_tbaa,            LLVMContext::MD_alias_scope,
+      LLVMContext::MD_noalias,         LLVMContext::MD_range,
+      LLVMContext::MD_invariant_load,  LLVMContext::MD_nonnull,
+      LLVMContext::MD_invariant_group, LLVMContext::MD_align,
+      LLVMContext::MD_dereferenceable,
+      LLVMContext::MD_dereferenceable_or_null};
+  combineMetadata(K, J, KnownIDs);
 }
 
 unsigned llvm::replaceDominatedUsesWith(Value *From, Value *To,
@@ -1703,6 +1812,7 @@ bool llvm::callsGCLeafFunction(ImmutableCallSite CS) {
   return false;
 }
 
+namespace {
 /// A potential constituent of a bitreverse or bswap expression. See
 /// collectBitParts for a fuller explanation.
 struct BitPart {
@@ -1718,6 +1828,7 @@ struct BitPart {
 
   enum { Unset = -1 };
 };
+} // end anonymous namespace
 
 /// Analyze the specified subexpression and see if it is capable of providing
 /// pieces of a bswap or bitreverse. The subexpression provides a potential
@@ -1954,23 +2065,12 @@ bool llvm::recognizeBSwapOrBitReverseIdiom(
 // in ASan/MSan/TSan/DFSan, and thus make us miss some memory accesses,
 // we mark affected calls as NoBuiltin, which will disable optimization
 // in CodeGen.
-void llvm::maybeMarkSanitizerLibraryCallNoBuiltin(CallInst *CI,
-                                          const TargetLibraryInfo *TLI) {
+void llvm::maybeMarkSanitizerLibraryCallNoBuiltin(
+    CallInst *CI, const TargetLibraryInfo *TLI) {
   Function *F = CI->getCalledFunction();
   LibFunc::Func Func;
-  if (!F || F->hasLocalLinkage() || !F->hasName() ||
-      !TLI->getLibFunc(F->getName(), Func))
-    return;
-  switch (Func) {
-    default: break;
-    case LibFunc::memcmp:
-    case LibFunc::memchr:
-    case LibFunc::strcpy:
-    case LibFunc::stpcpy:
-    case LibFunc::strcmp:
-    case LibFunc::strlen:
-    case LibFunc::strnlen:
-      CI->addAttribute(AttributeSet::FunctionIndex, Attribute::NoBuiltin);
-      break;
-  }
+  if (F && !F->hasLocalLinkage() && F->hasName() &&
+      TLI->getLibFunc(F->getName(), Func) && TLI->hasOptimizedCodeGen(Func) &&
+      !F->doesNotAccessMemory())
+    CI->addAttribute(AttributeSet::FunctionIndex, Attribute::NoBuiltin);
 }

@@ -29,10 +29,4 @@ SYMLINKS+=	libcompiler_rt.a ${LIBDIR}/libgcc.a
 SYMLINKS+=	libcompiler_rt_p.a ${LIBDIR}/libgcc_p.a
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
-    ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_ARCH:Marmv6*}
-AFLAGS+=	--noexecstack
-ACFLAGS+=	-Wa,--noexecstack
-.endif
-
 .include <bsd.lib.mk>

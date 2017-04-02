@@ -40,7 +40,9 @@ namespace frontend {
     EmitCodeGenOnly,        ///< Generate machine code, but don't emit anything.
     EmitObj,                ///< Emit a .o file.
     FixIt,                  ///< Parse and apply any fixits to the source.
-    GenerateModule,         ///< Generate pre-compiled module.
+    GenerateModule,         ///< Generate pre-compiled module from a module map.
+    GenerateModuleInterface,///< Generate pre-compiled module from a C++ module
+                            ///< interface file.
     GeneratePCH,            ///< Generate pre-compiled header.
     GeneratePTH,            ///< Generate pre-tokenized header.
     InitOnly,               ///< Only execute frontend initialization.
@@ -241,7 +243,7 @@ public:
   std::vector<std::string> Plugins;
 
   /// The list of module file extensions.
-  std::vector<IntrusiveRefCntPtr<ModuleFileExtension>> ModuleFileExtensions;
+  std::vector<std::shared_ptr<ModuleFileExtension>> ModuleFileExtensions;
 
   /// \brief The list of module map files to load before processing the input.
   std::vector<std::string> ModuleMapFiles;
@@ -270,6 +272,9 @@ public:
   /// \brief If non-empty, search the pch input file as it was a header
   // included by this file.
   std::string FindPchSource;
+
+  /// Filename to write statistics to.
+  std::string StatsFile;
 
 public:
   FrontendOptions() :

@@ -59,18 +59,32 @@ public:
   typedef LiveRange::Segment Segment;
   typedef IteratorT iterator;
 
-  VNInfo *createDeadDef(SlotIndex Def, VNInfo::Allocator &VNInfoAllocator) {
+  /// A counterpart of LiveRange::createDeadDef: Make sure the range has a
+  /// value defined at @p Def.
+  /// If @p ForVNI is null, and there is no value defined at @p Def, a new
+  /// value will be allocated using @p VNInfoAllocator.
+  /// If @p ForVNI is null, the return value is the value defined at @p Def,
+  /// either a pre-existing one, or the one newly created.
+  /// If @p ForVNI is not null, then @p Def should be the location where
+  /// @p ForVNI is defined. If the range does not have a value defined at
+  /// @p Def, the value @p ForVNI will be used instead of allocating a new
+  /// one. If the range already has a value defined at @p Def, it must be
+  /// same as @p ForVNI. In either case, @p ForVNI will be the return value.
+  VNInfo *createDeadDef(SlotIndex Def, VNInfo::Allocator *VNInfoAllocator,
+                        VNInfo *ForVNI) {
     assert(!Def.isDead() && "Cannot define a value at the dead slot");
-
+    assert((!ForVNI || ForVNI->def == Def) &&
+           "If ForVNI is specified, it must match Def");
     iterator I = impl().find(Def);
     if (I == segments().end()) {
-      VNInfo *VNI = LR->getNextValue(Def, VNInfoAllocator);
+      VNInfo *VNI = ForVNI ? ForVNI : LR->getNextValue(Def, *VNInfoAllocator);
       impl().insertAtEnd(Segment(Def, Def.getDeadSlot(), VNI));
       return VNI;
     }
 
     Segment *S = segmentAt(I);
     if (SlotIndex::isSameInstr(Def, S->start)) {
+      assert((!ForVNI || ForVNI == S->valno) && "Value number mismatch");
       assert(S->valno->def == S->start && "Inconsistent existing value def");
 
       // It is possible to have both normal and early-clobber defs of the same
@@ -84,7 +98,7 @@ public:
       return S->valno;
     }
     assert(SlotIndex::isEarlierInstr(Def, S->start) && "Already live at def");
-    VNInfo *VNI = LR->getNextValue(Def, VNInfoAllocator);
+    VNInfo *VNI = ForVNI ? ForVNI : LR->getNextValue(Def, *VNInfoAllocator);
     segments().insert(I, Segment(Def, Def.getDeadSlot(), VNI));
     return VNI;
   }
@@ -93,7 +107,7 @@ public:
     if (segments().empty())
       return nullptr;
     iterator I =
-        impl().findInsertPos(Segment(Use.getPrevSlot(), Use, nullptr));
+      impl().findInsertPos(Segment(Use.getPrevSlot(), Use, nullptr));
     if (I == segments().begin())
       return nullptr;
     --I;
@@ -102,6 +116,25 @@ public:
     if (I->end < Use)
       extendSegmentEndTo(I, Use);
     return I->valno;
+  }
+
+  std::pair<VNInfo*,bool> extendInBlock(ArrayRef<SlotIndex> Undefs,
+      SlotIndex StartIdx, SlotIndex Use) {
+    if (segments().empty())
+      return std::make_pair(nullptr, false);
+    SlotIndex BeforeUse = Use.getPrevSlot();
+    iterator I = impl().findInsertPos(Segment(BeforeUse, Use, nullptr));
+    if (I == segments().begin())
+      return std::make_pair(nullptr, LR->isUndefIn(Undefs, StartIdx, BeforeUse));
+    --I;
+    if (I->end <= StartIdx)
+      return std::make_pair(nullptr, LR->isUndefIn(Undefs, StartIdx, BeforeUse));
+    if (I->end < Use) {
+      if (LR->isUndefIn(Undefs, I->end, BeforeUse))
+        return std::make_pair(nullptr, true);
+      extendSegmentEndTo(I, Use);
+    }
+    return std::make_pair(I->valno, false);
   }
 
   /// This method is used when we want to extend the segment specified
@@ -320,13 +353,20 @@ LiveRange::iterator LiveRange::find(SlotIndex Pos) {
   return I;
 }
 
-VNInfo *LiveRange::createDeadDef(SlotIndex Def,
-                                  VNInfo::Allocator &VNInfoAllocator) {
+VNInfo *LiveRange::createDeadDef(SlotIndex Def, VNInfo::Allocator &VNIAlloc) {
   // Use the segment set, if it is available.
   if (segmentSet != nullptr)
-    return CalcLiveRangeUtilSet(this).createDeadDef(Def, VNInfoAllocator);
+    return CalcLiveRangeUtilSet(this).createDeadDef(Def, &VNIAlloc, nullptr);
   // Otherwise use the segment vector.
-  return CalcLiveRangeUtilVector(this).createDeadDef(Def, VNInfoAllocator);
+  return CalcLiveRangeUtilVector(this).createDeadDef(Def, &VNIAlloc, nullptr);
+}
+
+VNInfo *LiveRange::createDeadDef(VNInfo *VNI) {
+  // Use the segment set, if it is available.
+  if (segmentSet != nullptr)
+    return CalcLiveRangeUtilSet(this).createDeadDef(VNI->def, nullptr, VNI);
+  // Otherwise use the segment vector.
+  return CalcLiveRangeUtilVector(this).createDeadDef(VNI->def, nullptr, VNI);
 }
 
 // overlaps - Return true if the intersection of the two live ranges is
@@ -507,9 +547,15 @@ void LiveRange::append(const Segment S) {
   segments.push_back(S);
 }
 
-/// extendInBlock - If this range is live before Kill in the basic
-/// block that starts at StartIdx, extend it to be live up to Kill and return
-/// the value. If there is no live range before Kill, return NULL.
+std::pair<VNInfo*,bool> LiveRange::extendInBlock(ArrayRef<SlotIndex> Undefs,
+    SlotIndex StartIdx, SlotIndex Kill) {
+  // Use the segment set, if it is available.
+  if (segmentSet != nullptr)
+    return CalcLiveRangeUtilSet(this).extendInBlock(Undefs, StartIdx, Kill);
+  // Otherwise use the segment vector.
+  return CalcLiveRangeUtilVector(this).extendInBlock(Undefs, StartIdx, Kill);
+}
+
 VNInfo *LiveRange::extendInBlock(SlotIndex StartIdx, SlotIndex Kill) {
   // Use the segment set, if it is available.
   if (segmentSet != nullptr)
@@ -571,7 +617,7 @@ void LiveRange::removeSegment(SlotIndex Start, SlotIndex End,
 /// Also remove the value# from value# list.
 void LiveRange::removeValNo(VNInfo *ValNo) {
   if (empty()) return;
-  segments.erase(std::remove_if(begin(), end(), [ValNo](const Segment &S) {
+  segments.erase(remove_if(*this, [ValNo](const Segment &S) {
     return S.valno == ValNo;
   }), end());
   // Now that ValNo is dead, remove it.
@@ -824,6 +870,30 @@ unsigned LiveInterval::getSize() const {
   return Sum;
 }
 
+void LiveInterval::computeSubRangeUndefs(SmallVectorImpl<SlotIndex> &Undefs,
+                                         LaneBitmask LaneMask,
+                                         const MachineRegisterInfo &MRI,
+                                         const SlotIndexes &Indexes) const {
+  assert(TargetRegisterInfo::isVirtualRegister(reg));
+  LaneBitmask VRegMask = MRI.getMaxLaneMaskForVReg(reg);
+  assert((VRegMask & LaneMask).any());
+  const TargetRegisterInfo &TRI = *MRI.getTargetRegisterInfo();
+  for (const MachineOperand &MO : MRI.def_operands(reg)) {
+    if (!MO.isUndef())
+      continue;
+    unsigned SubReg = MO.getSubReg();
+    assert(SubReg != 0 && "Undef should only be set on subreg defs");
+    LaneBitmask DefMask = TRI.getSubRegIndexLaneMask(SubReg);
+    LaneBitmask UndefMask = VRegMask & ~DefMask;
+    if ((UndefMask & LaneMask).any()) {
+      const MachineInstr &MI = *MO.getParent();
+      bool EarlyClobber = MO.isEarlyClobber();
+      SlotIndex Pos = Indexes.getInstructionIndex(MI).getRegSlot(EarlyClobber);
+      Undefs.push_back(Pos);
+    }
+  }
+}
+
 raw_ostream& llvm::operator<<(raw_ostream& os, const LiveRange::Segment &S) {
   return os << '[' << S.start << ',' << S.end << ':' << S.valno->id << ')';
 }
@@ -912,15 +982,16 @@ void LiveInterval::verify(const MachineRegisterInfo *MRI) const {
   super::verify();
 
   // Make sure SubRanges are fine and LaneMasks are disjunct.
-  LaneBitmask Mask = 0;
-  LaneBitmask MaxMask = MRI != nullptr ? MRI->getMaxLaneMaskForVReg(reg) : ~0u;
+  LaneBitmask Mask;
+  LaneBitmask MaxMask = MRI != nullptr ? MRI->getMaxLaneMaskForVReg(reg)
+                                       : LaneBitmask::getAll();
   for (const SubRange &SR : subranges()) {
     // Subrange lanemask should be disjunct to any previous subrange masks.
-    assert((Mask & SR.LaneMask) == 0);
+    assert((Mask & SR.LaneMask).none());
     Mask |= SR.LaneMask;
 
     // subrange mask should not contained in maximum lane mask for the vreg.
-    assert((Mask & ~MaxMask) == 0);
+    assert((Mask & ~MaxMask).none());
     // empty subranges must be removed.
     assert(!SR.empty());
 

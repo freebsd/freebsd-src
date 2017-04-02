@@ -100,7 +100,7 @@ private:
                                          const X86RegisterInfo &RegInfo,
                                          DenseSet<unsigned int> &UsedRegs);
 
-  const char *getPassName() const override { return "X86 Optimize Call Frame"; }
+  StringRef getPassName() const override { return "X86 Optimize Call Frame"; }
 
   const TargetInstrInfo *TII;
   const X86FrameLowering *TFL;
@@ -134,7 +134,7 @@ bool X86CallFrameOptimization::isLegal(MachineFunction &MF) {
   // in the compact unwind encoding that Darwin uses. So, bail if there
   // is a danger of that being generated.
   if (STI->isTargetDarwin() &&
-      (!MF.getMMI().getLandingPads().empty() ||
+      (!MF.getLandingPads().empty() ||
        (MF.getFunction()->needsUnwindTableEntry() && !TFL->hasFP(MF))))
     return false;
 
@@ -180,7 +180,7 @@ bool X86CallFrameOptimization::isProfitable(MachineFunction &MF,
   // This transformation is always a win when we do not expect to have
   // a reserved call frame. Under other circumstances, it may be either
   // a win or a loss, and requires a heuristic.
-  bool CannotReserveFrame = MF.getFrameInfo()->hasVarSizedObjects();
+  bool CannotReserveFrame = MF.getFrameInfo().hasVarSizedObjects();
   if (CannotReserveFrame)
     return true;
 
@@ -230,7 +230,7 @@ bool X86CallFrameOptimization::runOnMachineFunction(MachineFunction &MF) {
   assert(isPowerOf2_32(SlotSize) && "Expect power of 2 stack slot size");
   Log2SlotSize = Log2_32(SlotSize);
 
-  if (!isLegal(MF))
+  if (skipFunction(*MF.getFunction()) || !isLegal(MF))
     return false;
 
   unsigned FrameSetupOpcode = TII->getCallFrameSetupOpcode();
@@ -345,10 +345,10 @@ void X86CallFrameOptimization::collectCallInfo(MachineFunction &MF,
     return;
   }
 
-  // For globals in PIC mode, we can have some LEAs here.
-  // Ignore them, they don't bother us.
+  // Skip over DEBUG_VALUE.
+  // For globals in PIC mode, we can have some LEAs here. Skip them as well.
   // TODO: Extend this to something that covers more cases.
-  while (I->getOpcode() == X86::LEA32r)
+  while (I->getOpcode() == X86::LEA32r || I->isDebugValue())
     ++I;
 
   unsigned StackPtr = RegInfo.getStackRegister();

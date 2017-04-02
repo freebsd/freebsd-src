@@ -22,7 +22,6 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -63,7 +62,6 @@ public:
   void checkPreStmt(const DeclStmt *DS, CheckerContext &C) const;
   void checkLiveSymbols(ProgramStateRef state, SymbolReaper &SR) const;
   void checkDeadSymbols(SymbolReaper &SR, CheckerContext &C) const;
-  bool wantsRegionChangeUpdate(ProgramStateRef state) const;
 
   ProgramStateRef
     checkRegionChanges(ProgramStateRef state,
@@ -686,6 +684,7 @@ SVal CStringChecker::getCStringLengthForRegion(CheckerContext &C,
   QualType sizeTy = svalBuilder.getContext().getSizeType();
   SVal strLength = svalBuilder.getMetadataSymbolVal(CStringChecker::getTag(),
                                                     MR, Ex, sizeTy,
+                                                    C.getLocationContext(),
                                                     C.blockCount());
 
   if (!hypothetical) {
@@ -2110,11 +2109,6 @@ void CStringChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
   }
 
   C.addTransition(state);
-}
-
-bool CStringChecker::wantsRegionChangeUpdate(ProgramStateRef state) const {
-  CStringLengthTy Entries = state->get<CStringLength>();
-  return !Entries.isEmpty();
 }
 
 ProgramStateRef

@@ -58,10 +58,9 @@ std::unique_ptr<ASTConsumer> RawPCHContainerWriter::CreatePCHContainerGenerator(
   return llvm::make_unique<RawPCHContainerGenerator>(std::move(OS), Buffer);
 }
 
-void RawPCHContainerReader::ExtractPCH(
-    llvm::MemoryBufferRef Buffer, llvm::BitstreamReader &StreamFile) const {
-  StreamFile.init((const unsigned char *)Buffer.getBufferStart(),
-                  (const unsigned char *)Buffer.getBufferEnd());
+StringRef
+RawPCHContainerReader::ExtractPCH(llvm::MemoryBufferRef Buffer) const {
+  return Buffer.getBuffer();
 }
 
 PCHContainerOperations::PCHContainerOperations() {

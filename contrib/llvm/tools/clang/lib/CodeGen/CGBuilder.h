@@ -102,11 +102,6 @@ public:
     assert(Addr->getType()->getPointerElementType() == Ty);
     return CreateAlignedLoad(Addr, Align.getQuantity(), Name);
   }
-  llvm::LoadInst *CreateAlignedLoad(llvm::Value *Addr, CharUnits Align,
-                                    bool IsVolatile,
-                                    const llvm::Twine &Name = "") {
-    return CreateAlignedLoad(Addr, Align.getQuantity(), IsVolatile, Name);
-  }
 
   // Note that we intentionally hide the CreateStore APIs that don't
   // take an alignment.
@@ -124,19 +119,6 @@ public:
   
   // FIXME: these "default-aligned" APIs should be removed,
   // but I don't feel like fixing all the builtin code right now.
-  llvm::LoadInst *CreateDefaultAlignedLoad(llvm::Value *Addr,
-                                           const llvm::Twine &Name = "") {
-    return CGBuilderBaseTy::CreateLoad(Addr, false, Name);
-  }
-  llvm::LoadInst *CreateDefaultAlignedLoad(llvm::Value *Addr,
-                                           const char *Name) {
-    return CGBuilderBaseTy::CreateLoad(Addr, false, Name);
-  }
-  llvm::LoadInst *CreateDefaultAlignedLoad(llvm::Value *Addr, bool IsVolatile,
-                                           const llvm::Twine &Name = "") {
-    return CGBuilderBaseTy::CreateLoad(Addr, IsVolatile, Name);
-  }
-
   llvm::StoreInst *CreateDefaultAlignedStore(llvm::Value *Val,
                                              llvm::Value *Addr,
                                              bool IsVolatile = false) {

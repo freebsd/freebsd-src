@@ -12,6 +12,7 @@
 
 #include "lld/Core/LLVM.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include <utility>
 #include <vector>
 
@@ -20,27 +21,30 @@ namespace elf {
 
 class ScriptParserBase {
 public:
-  explicit ScriptParserBase(StringRef S) : Input(S), Tokens(tokenize(S)) {}
-  explicit ScriptParserBase(std::vector<StringRef> Tokens)
-      : Input(""), Tokens(std::move(Tokens)) {}
+  explicit ScriptParserBase(MemoryBufferRef MB);
 
-protected:
   void setError(const Twine &Msg);
-  static std::vector<StringRef> tokenize(StringRef S);
+  void tokenize(MemoryBufferRef MB);
   static StringRef skipSpace(StringRef S);
   bool atEOF();
   StringRef next();
   StringRef peek();
-  bool skip(StringRef Tok);
+  void skip();
+  bool consume(StringRef Tok);
   void expect(StringRef Expect);
+  std::string getCurrentLocation();
 
-  size_t getPos();
-  void printErrorPos();
-
-  StringRef Input;
+  std::vector<MemoryBufferRef> MBs;
   std::vector<StringRef> Tokens;
   size_t Pos = 0;
   bool Error = false;
+
+private:
+  StringRef getLine();
+  size_t getLineNumber();
+  size_t getColumnNumber();
+
+  MemoryBufferRef getCurrentMB();
 };
 
 } // namespace elf

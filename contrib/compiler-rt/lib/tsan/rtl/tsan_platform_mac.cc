@@ -20,10 +20,12 @@
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_posix.h"
 #include "sanitizer_common/sanitizer_procmaps.h"
+#include "sanitizer_common/sanitizer_stackdepot.h"
 #include "tsan_platform.h"
 #include "tsan_rtl.h"
 #include "tsan_flags.h"
 
+#include <mach/mach.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -42,7 +44,7 @@
 
 namespace __tsan {
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 static void *SignalSafeGetOrAllocate(uptr *dst, uptr size) {
   atomic_uintptr_t *a = (atomic_uintptr_t *)dst;
   void *val = (void *)atomic_load_relaxed(a);
@@ -100,17 +102,83 @@ void cur_thread_finalize() {
 }
 #endif
 
-uptr GetShadowMemoryConsumption() {
-  return 0;
-}
-
 void FlushShadowMemory() {
 }
 
-void WriteMemoryProfile(char *buf, uptr buf_size, uptr nthread, uptr nlive) {
+static void RegionMemUsage(uptr start, uptr end, uptr *res, uptr *dirty) {
+  vm_address_t address = start;
+  vm_address_t end_address = end;
+  uptr resident_pages = 0;
+  uptr dirty_pages = 0;
+  while (address < end_address) {
+    vm_size_t vm_region_size;
+    mach_msg_type_number_t count = VM_REGION_EXTENDED_INFO_COUNT;
+    vm_region_extended_info_data_t vm_region_info;
+    mach_port_t object_name;
+    kern_return_t ret = vm_region_64(
+        mach_task_self(), &address, &vm_region_size, VM_REGION_EXTENDED_INFO,
+        (vm_region_info_t)&vm_region_info, &count, &object_name);
+    if (ret != KERN_SUCCESS) break;
+
+    resident_pages += vm_region_info.pages_resident;
+    dirty_pages += vm_region_info.pages_dirtied;
+
+    address += vm_region_size;
+  }
+  *res = resident_pages * GetPageSizeCached();
+  *dirty = dirty_pages * GetPageSizeCached();
 }
 
-#ifndef SANITIZER_GO
+void WriteMemoryProfile(char *buf, uptr buf_size, uptr nthread, uptr nlive) {
+  uptr shadow_res, shadow_dirty;
+  uptr meta_res, meta_dirty;
+  uptr trace_res, trace_dirty;
+  RegionMemUsage(ShadowBeg(), ShadowEnd(), &shadow_res, &shadow_dirty);
+  RegionMemUsage(MetaShadowBeg(), MetaShadowEnd(), &meta_res, &meta_dirty);
+  RegionMemUsage(TraceMemBeg(), TraceMemEnd(), &trace_res, &trace_dirty);
+
+#if !SANITIZER_GO
+  uptr low_res, low_dirty;
+  uptr high_res, high_dirty;
+  uptr heap_res, heap_dirty;
+  RegionMemUsage(LoAppMemBeg(), LoAppMemEnd(), &low_res, &low_dirty);
+  RegionMemUsage(HiAppMemBeg(), HiAppMemEnd(), &high_res, &high_dirty);
+  RegionMemUsage(HeapMemBeg(), HeapMemEnd(), &heap_res, &heap_dirty);
+#else  // !SANITIZER_GO
+  uptr app_res, app_dirty;
+  RegionMemUsage(AppMemBeg(), AppMemEnd(), &app_res, &app_dirty);
+#endif
+
+  StackDepotStats *stacks = StackDepotGetStats();
+  internal_snprintf(buf, buf_size,
+    "shadow   (0x%016zx-0x%016zx): resident %zd kB, dirty %zd kB\n"
+    "meta     (0x%016zx-0x%016zx): resident %zd kB, dirty %zd kB\n"
+    "traces   (0x%016zx-0x%016zx): resident %zd kB, dirty %zd kB\n"
+#if !SANITIZER_GO
+    "low app  (0x%016zx-0x%016zx): resident %zd kB, dirty %zd kB\n"
+    "high app (0x%016zx-0x%016zx): resident %zd kB, dirty %zd kB\n"
+    "heap     (0x%016zx-0x%016zx): resident %zd kB, dirty %zd kB\n"
+#else  // !SANITIZER_GO
+    "app      (0x%016zx-0x%016zx): resident %zd kB, dirty %zd kB\n"
+#endif
+    "stacks: %ld unique IDs, %ld kB allocated\n"
+    "threads: %ld total, %ld live\n"
+    "------------------------------\n",
+    ShadowBeg(), ShadowEnd(), shadow_res / 1024, shadow_dirty / 1024,
+    MetaShadowBeg(), MetaShadowEnd(), meta_res / 1024, meta_dirty / 1024,
+    TraceMemBeg(), TraceMemEnd(), trace_res / 1024, trace_dirty / 1024,
+#if !SANITIZER_GO
+    LoAppMemBeg(), LoAppMemEnd(), low_res / 1024, low_dirty / 1024,
+    HiAppMemBeg(), HiAppMemEnd(), high_res / 1024, high_dirty / 1024,
+    HeapMemBeg(), HeapMemEnd(), heap_res / 1024, heap_dirty / 1024,
+#else  // !SANITIZER_GO
+    AppMemBeg(), AppMemEnd(), app_res / 1024, app_dirty / 1024,
+#endif
+    stacks->n_uniq_ids, stacks->allocated / 1024,
+    nthread, nlive);
+}
+
+#if !SANITIZER_GO
 void InitializeShadowMemoryPlatform() { }
 
 // On OS X, GCD worker threads are created without a call to pthread_create. We
@@ -160,7 +228,7 @@ void InitializePlatformEarly() {
 
 void InitializePlatform() {
   DisableCoreDumperIfNecessary();
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
   CheckAndProtect();
 
   CHECK_EQ(main_thread_identity, 0);
@@ -171,7 +239,7 @@ void InitializePlatform() {
 #endif
 }
 
-#ifndef SANITIZER_GO
+#if !SANITIZER_GO
 // Note: this function runs with async signals enabled,
 // so it must not touch any tsan state.
 int call_pthread_cancel_with_cleanup(int(*fn)(void *c, void *m,

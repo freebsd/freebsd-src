@@ -296,6 +296,10 @@ namespace llvm {
       return SrcAS < 256 && DestAS < 256;
     }
 
+    bool isJumpTableRelative() const override {
+      return getTargetMachine().isPositionIndependent() || ABI.IsN64();
+    }
+
   protected:
     SDValue getGlobalReg(SelectionDAG &DAG, EVT Ty) const;
 
@@ -426,7 +430,6 @@ namespace llvm {
                             TargetLowering::CallLoweringInfo &CLI) const;
 
     // Lower Operand specifics
-    SDValue lowerBR_JT(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
     SDValue lowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
@@ -471,7 +474,7 @@ namespace llvm {
     void passByValArg(SDValue Chain, const SDLoc &DL,
                       std::deque<std::pair<unsigned, SDValue>> &RegsToPass,
                       SmallVectorImpl<SDValue> &MemOpChains, SDValue StackPtr,
-                      MachineFrameInfo *MFI, SelectionDAG &DAG, SDValue Arg,
+                      MachineFrameInfo &MFI, SelectionDAG &DAG, SDValue Arg,
                       unsigned FirstReg, unsigned LastReg,
                       const ISD::ArgFlagsTy &Flags, bool isLittle,
                       const CCValAssign &VA) const;

@@ -54,28 +54,29 @@ static cl::opt<unsigned>
 
 void MachineFunctionInitializer::anchor() {}
 
-void MachineFunctionProperties::print(raw_ostream &ROS, bool OnlySet) const {
-  // Leave this function even in NDEBUG as an out-of-line anchor.
-#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-  for (BitVector::size_type i = 0; i < Properties.size(); ++i) {
-    bool HasProperty = Properties[i];
-    if (OnlySet && !HasProperty)
-      continue;
-    switch(static_cast<Property>(i)) {
-      case Property::IsSSA:
-        ROS << (HasProperty ? "SSA, " : "Post SSA, ");
-        break;
-      case Property::TracksLiveness:
-        ROS << (HasProperty ? "" : "not ") << "tracking liveness, ";
-        break;
-      case Property::AllVRegsAllocated:
-        ROS << (HasProperty ? "AllVRegsAllocated" : "HasVRegs");
-        break;
-      default:
-        break;
-    }
+static const char *getPropertyName(MachineFunctionProperties::Property Prop) {
+  typedef MachineFunctionProperties::Property P;
+  switch(Prop) {
+  case P::FailedISel: return "FailedISel";
+  case P::IsSSA: return "IsSSA";
+  case P::Legalized: return "Legalized";
+  case P::NoPHIs: return "NoPHIs";
+  case P::NoVRegs: return "NoVRegs";
+  case P::RegBankSelected: return "RegBankSelected";
+  case P::Selected: return "Selected";
+  case P::TracksLiveness: return "TracksLiveness";
   }
-#endif
+  llvm_unreachable("Invalid machine function property");
+}
+
+void MachineFunctionProperties::print(raw_ostream &OS) const {
+  const char *Separator = "";
+  for (BitVector::size_type I = 0; I < Properties.size(); ++I) {
+    if (!Properties[I])
+      continue;
+    OS << Separator << getPropertyName(static_cast<Property>(I));
+    Separator = ", ";
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -85,7 +86,7 @@ void MachineFunctionProperties::print(raw_ostream &ROS, bool OnlySet) const {
 // Out-of-line virtual method.
 MachineFunctionInfo::~MachineFunctionInfo() {}
 
-void ilist_traits<MachineBasicBlock>::deleteNode(MachineBasicBlock *MBB) {
+void ilist_alloc_traits<MachineBasicBlock>::deleteNode(MachineBasicBlock *MBB) {
   MBB->getParent()->DeleteMachineBasicBlock(MBB);
 }
 
@@ -100,6 +101,11 @@ MachineFunction::MachineFunction(const Function *F, const TargetMachine &TM,
                                  unsigned FunctionNum, MachineModuleInfo &mmi)
     : Fn(F), Target(TM), STI(TM.getSubtargetImpl(*F)), Ctx(mmi.getContext()),
       MMI(mmi) {
+  FunctionNumber = FunctionNum;
+  init();
+}
+
+void MachineFunction::init() {
   // Assume the function starts in SSA form with correct liveness.
   Properties.set(MachineFunctionProperties::Property::IsSSA);
   Properties.set(MachineFunctionProperties::Property::TracksLiveness);
@@ -112,11 +118,11 @@ MachineFunction::MachineFunction(const Function *F, const TargetMachine &TM,
   // We can realign the stack if the target supports it and the user hasn't
   // explicitly asked us not to.
   bool CanRealignSP = STI->getFrameLowering()->isStackRealignable() &&
-                      !F->hasFnAttribute("no-realign-stack");
+                      !Fn->hasFnAttribute("no-realign-stack");
   FrameInfo = new (Allocator) MachineFrameInfo(
       getFnStackAlignment(STI, Fn), /*StackRealignable=*/CanRealignSP,
       /*ForceRealign=*/CanRealignSP &&
-          F->hasFnAttribute(Attribute::StackAlignment));
+          Fn->hasFnAttribute(Attribute::StackAlignment));
 
   if (Fn->hasFnAttribute(Attribute::StackAlignment))
     FrameInfo->ensureMaxAlignment(Fn->getFnStackAlignment());
@@ -133,15 +139,14 @@ MachineFunction::MachineFunction(const Function *F, const TargetMachine &TM,
   if (AlignAllFunctions)
     Alignment = AlignAllFunctions;
 
-  FunctionNumber = FunctionNum;
   JumpTableInfo = nullptr;
 
   if (isFuncletEHPersonality(classifyEHPersonality(
-          F->hasPersonalityFn() ? F->getPersonalityFn() : nullptr))) {
+          Fn->hasPersonalityFn() ? Fn->getPersonalityFn() : nullptr))) {
     WinEHInfo = new (Allocator) WinEHFuncInfo();
   }
 
-  assert(TM.isCompatibleDataLayout(getDataLayout()) &&
+  assert(Target.isCompatibleDataLayout(getDataLayout()) &&
          "Can't create a MachineFunction using a Module with a "
          "Target-incompatible DataLayout attached\n");
 
@@ -149,6 +154,11 @@ MachineFunction::MachineFunction(const Function *F, const TargetMachine &TM,
 }
 
 MachineFunction::~MachineFunction() {
+  clear();
+}
+
+void MachineFunction::clear() {
+  Properties.reset();
   // Don't call destructors on MachineInstr and MachineOperand. All of their
   // memory comes from the BumpPtrAllocator which is about to be purged.
   //
@@ -296,9 +306,12 @@ MachineFunction::DeleteMachineBasicBlock(MachineBasicBlock *MBB) {
 
 MachineMemOperand *MachineFunction::getMachineMemOperand(
     MachinePointerInfo PtrInfo, MachineMemOperand::Flags f, uint64_t s,
-    unsigned base_alignment, const AAMDNodes &AAInfo, const MDNode *Ranges) {
+    unsigned base_alignment, const AAMDNodes &AAInfo, const MDNode *Ranges,
+    SynchronizationScope SynchScope, AtomicOrdering Ordering,
+    AtomicOrdering FailureOrdering) {
   return new (Allocator)
-      MachineMemOperand(PtrInfo, f, s, base_alignment, AAInfo, Ranges);
+      MachineMemOperand(PtrInfo, f, s, base_alignment, AAInfo, Ranges,
+                        SynchScope, Ordering, FailureOrdering);
 }
 
 MachineMemOperand *
@@ -308,13 +321,15 @@ MachineFunction::getMachineMemOperand(const MachineMemOperand *MMO,
     return new (Allocator)
                MachineMemOperand(MachinePointerInfo(MMO->getValue(),
                                                     MMO->getOffset()+Offset),
-                                 MMO->getFlags(), Size,
-                                 MMO->getBaseAlignment());
+                                 MMO->getFlags(), Size, MMO->getBaseAlignment(),
+                                 AAMDNodes(), nullptr, MMO->getSynchScope(),
+                                 MMO->getOrdering(), MMO->getFailureOrdering());
   return new (Allocator)
              MachineMemOperand(MachinePointerInfo(MMO->getPseudoValue(),
                                                   MMO->getOffset()+Offset),
-                               MMO->getFlags(), Size,
-                               MMO->getBaseAlignment());
+                               MMO->getFlags(), Size, MMO->getBaseAlignment(),
+                               AAMDNodes(), nullptr, MMO->getSynchScope(),
+                               MMO->getOrdering(), MMO->getFailureOrdering());
 }
 
 MachineInstr::mmo_iterator
@@ -345,7 +360,9 @@ MachineFunction::extractLoadMemRefs(MachineInstr::mmo_iterator Begin,
           getMachineMemOperand((*I)->getPointerInfo(),
                                (*I)->getFlags() & ~MachineMemOperand::MOStore,
                                (*I)->getSize(), (*I)->getBaseAlignment(),
-                               (*I)->getAAInfo());
+                               (*I)->getAAInfo(), nullptr,
+                               (*I)->getSynchScope(), (*I)->getOrdering(),
+                               (*I)->getFailureOrdering());
         Result[Index] = JustLoad;
       }
       ++Index;
@@ -377,7 +394,9 @@ MachineFunction::extractStoreMemRefs(MachineInstr::mmo_iterator Begin,
           getMachineMemOperand((*I)->getPointerInfo(),
                                (*I)->getFlags() & ~MachineMemOperand::MOLoad,
                                (*I)->getSize(), (*I)->getBaseAlignment(),
-                               (*I)->getAAInfo());
+                               (*I)->getAAInfo(), nullptr,
+                               (*I)->getSynchScope(), (*I)->getOrdering(),
+                               (*I)->getFailureOrdering());
         Result[Index] = JustStore;
       }
       ++Index;
@@ -406,9 +425,8 @@ StringRef MachineFunction::getName() const {
 
 void MachineFunction::print(raw_ostream &OS, const SlotIndexes *Indexes) const {
   OS << "# Machine code for function " << getName() << ": ";
-  OS << "Properties: <";
   getProperties().print(OS);
-  OS << ">\n";
+  OS << '\n';
 
   // Print Frame Information
   FrameInfo->print(*this, OS);
@@ -535,8 +553,8 @@ MCSymbol *MachineFunction::getJTISymbol(unsigned JTI, MCContext &Ctx,
   assert(JumpTableInfo && "No jump tables");
   assert(JTI < JumpTableInfo->getJumpTables().size() && "Invalid JTI!");
 
-  const char *Prefix = isLinkerPrivate ? DL.getLinkerPrivateGlobalPrefix()
-                                       : DL.getPrivateGlobalPrefix();
+  StringRef Prefix = isLinkerPrivate ? DL.getLinkerPrivateGlobalPrefix()
+                                     : DL.getPrivateGlobalPrefix();
   SmallString<60> Name;
   raw_svector_ostream(Name)
     << Prefix << "JTI" << getFunctionNumber() << '_' << JTI;
@@ -549,6 +567,193 @@ MCSymbol *MachineFunction::getPICBaseSymbol() const {
   return Ctx.getOrCreateSymbol(Twine(DL.getPrivateGlobalPrefix()) +
                                Twine(getFunctionNumber()) + "$pb");
 }
+
+/// \name Exception Handling
+/// \{
+
+LandingPadInfo &
+MachineFunction::getOrCreateLandingPadInfo(MachineBasicBlock *LandingPad) {
+  unsigned N = LandingPads.size();
+  for (unsigned i = 0; i < N; ++i) {
+    LandingPadInfo &LP = LandingPads[i];
+    if (LP.LandingPadBlock == LandingPad)
+      return LP;
+  }
+
+  LandingPads.push_back(LandingPadInfo(LandingPad));
+  return LandingPads[N];
+}
+
+void MachineFunction::addInvoke(MachineBasicBlock *LandingPad,
+                                MCSymbol *BeginLabel, MCSymbol *EndLabel) {
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  LP.BeginLabels.push_back(BeginLabel);
+  LP.EndLabels.push_back(EndLabel);
+}
+
+MCSymbol *MachineFunction::addLandingPad(MachineBasicBlock *LandingPad) {
+  MCSymbol *LandingPadLabel = Ctx.createTempSymbol();
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  LP.LandingPadLabel = LandingPadLabel;
+  return LandingPadLabel;
+}
+
+void MachineFunction::addCatchTypeInfo(MachineBasicBlock *LandingPad,
+                                       ArrayRef<const GlobalValue *> TyInfo) {
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  for (unsigned N = TyInfo.size(); N; --N)
+    LP.TypeIds.push_back(getTypeIDFor(TyInfo[N - 1]));
+}
+
+void MachineFunction::addFilterTypeInfo(MachineBasicBlock *LandingPad,
+                                        ArrayRef<const GlobalValue *> TyInfo) {
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  std::vector<unsigned> IdsInFilter(TyInfo.size());
+  for (unsigned I = 0, E = TyInfo.size(); I != E; ++I)
+    IdsInFilter[I] = getTypeIDFor(TyInfo[I]);
+  LP.TypeIds.push_back(getFilterIDFor(IdsInFilter));
+}
+
+void MachineFunction::tidyLandingPads(DenseMap<MCSymbol*, uintptr_t> *LPMap) {
+  for (unsigned i = 0; i != LandingPads.size(); ) {
+    LandingPadInfo &LandingPad = LandingPads[i];
+    if (LandingPad.LandingPadLabel &&
+        !LandingPad.LandingPadLabel->isDefined() &&
+        (!LPMap || (*LPMap)[LandingPad.LandingPadLabel] == 0))
+      LandingPad.LandingPadLabel = nullptr;
+
+    // Special case: we *should* emit LPs with null LP MBB. This indicates
+    // "nounwind" case.
+    if (!LandingPad.LandingPadLabel && LandingPad.LandingPadBlock) {
+      LandingPads.erase(LandingPads.begin() + i);
+      continue;
+    }
+
+    for (unsigned j = 0, e = LandingPads[i].BeginLabels.size(); j != e; ++j) {
+      MCSymbol *BeginLabel = LandingPad.BeginLabels[j];
+      MCSymbol *EndLabel = LandingPad.EndLabels[j];
+      if ((BeginLabel->isDefined() ||
+           (LPMap && (*LPMap)[BeginLabel] != 0)) &&
+          (EndLabel->isDefined() ||
+           (LPMap && (*LPMap)[EndLabel] != 0))) continue;
+
+      LandingPad.BeginLabels.erase(LandingPad.BeginLabels.begin() + j);
+      LandingPad.EndLabels.erase(LandingPad.EndLabels.begin() + j);
+      --j;
+      --e;
+    }
+
+    // Remove landing pads with no try-ranges.
+    if (LandingPads[i].BeginLabels.empty()) {
+      LandingPads.erase(LandingPads.begin() + i);
+      continue;
+    }
+
+    // If there is no landing pad, ensure that the list of typeids is empty.
+    // If the only typeid is a cleanup, this is the same as having no typeids.
+    if (!LandingPad.LandingPadBlock ||
+        (LandingPad.TypeIds.size() == 1 && !LandingPad.TypeIds[0]))
+      LandingPad.TypeIds.clear();
+    ++i;
+  }
+}
+
+void MachineFunction::addCleanup(MachineBasicBlock *LandingPad) {
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  LP.TypeIds.push_back(0);
+}
+
+void MachineFunction::addSEHCatchHandler(MachineBasicBlock *LandingPad,
+                                         const Function *Filter,
+                                         const BlockAddress *RecoverBA) {
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  SEHHandler Handler;
+  Handler.FilterOrFinally = Filter;
+  Handler.RecoverBA = RecoverBA;
+  LP.SEHHandlers.push_back(Handler);
+}
+
+void MachineFunction::addSEHCleanupHandler(MachineBasicBlock *LandingPad,
+                                           const Function *Cleanup) {
+  LandingPadInfo &LP = getOrCreateLandingPadInfo(LandingPad);
+  SEHHandler Handler;
+  Handler.FilterOrFinally = Cleanup;
+  Handler.RecoverBA = nullptr;
+  LP.SEHHandlers.push_back(Handler);
+}
+
+void MachineFunction::setCallSiteLandingPad(MCSymbol *Sym,
+                                            ArrayRef<unsigned> Sites) {
+  LPadToCallSiteMap[Sym].append(Sites.begin(), Sites.end());
+}
+
+unsigned MachineFunction::getTypeIDFor(const GlobalValue *TI) {
+  for (unsigned i = 0, N = TypeInfos.size(); i != N; ++i)
+    if (TypeInfos[i] == TI) return i + 1;
+
+  TypeInfos.push_back(TI);
+  return TypeInfos.size();
+}
+
+int MachineFunction::getFilterIDFor(std::vector<unsigned> &TyIds) {
+  // If the new filter coincides with the tail of an existing filter, then
+  // re-use the existing filter.  Folding filters more than this requires
+  // re-ordering filters and/or their elements - probably not worth it.
+  for (std::vector<unsigned>::iterator I = FilterEnds.begin(),
+       E = FilterEnds.end(); I != E; ++I) {
+    unsigned i = *I, j = TyIds.size();
+
+    while (i && j)
+      if (FilterIds[--i] != TyIds[--j])
+        goto try_next;
+
+    if (!j)
+      // The new filter coincides with range [i, end) of the existing filter.
+      return -(1 + i);
+
+try_next:;
+  }
+
+  // Add the new filter.
+  int FilterID = -(1 + FilterIds.size());
+  FilterIds.reserve(FilterIds.size() + TyIds.size() + 1);
+  FilterIds.insert(FilterIds.end(), TyIds.begin(), TyIds.end());
+  FilterEnds.push_back(FilterIds.size());
+  FilterIds.push_back(0); // terminator
+  return FilterID;
+}
+
+void llvm::addLandingPadInfo(const LandingPadInst &I, MachineBasicBlock &MBB) {
+  MachineFunction &MF = *MBB.getParent();
+  if (const auto *PF = dyn_cast<Function>(
+          I.getParent()->getParent()->getPersonalityFn()->stripPointerCasts()))
+    MF.getMMI().addPersonality(PF);
+
+  if (I.isCleanup())
+    MF.addCleanup(&MBB);
+
+  // FIXME: New EH - Add the clauses in reverse order. This isn't 100% correct,
+  //        but we need to do it this way because of how the DWARF EH emitter
+  //        processes the clauses.
+  for (unsigned i = I.getNumClauses(); i != 0; --i) {
+    Value *Val = I.getClause(i - 1);
+    if (I.isCatch(i - 1)) {
+      MF.addCatchTypeInfo(&MBB,
+                          dyn_cast<GlobalValue>(Val->stripPointerCasts()));
+    } else {
+      // Add filters in a list.
+      Constant *CVal = cast<Constant>(Val);
+      SmallVector<const GlobalValue *, 4> FilterList;
+      for (User::op_iterator II = CVal->op_begin(), IE = CVal->op_end();
+           II != IE; ++II)
+        FilterList.push_back(cast<GlobalValue>((*II)->stripPointerCasts()));
+
+      MF.addFilterTypeInfo(&MBB, FilterList);
+    }
+  }
+}
+
+/// \}
 
 //===----------------------------------------------------------------------===//
 //  MachineFrameInfo implementation
@@ -634,11 +839,11 @@ int MachineFrameInfo::CreateFixedObject(uint64_t Size, int64_t SPOffset,
 /// Create a spill slot at a fixed location on the stack.
 /// Returns an index with a negative value.
 int MachineFrameInfo::CreateFixedSpillStackObject(uint64_t Size,
-                                                  int64_t SPOffset) {
+                                                  int64_t SPOffset,
+                                                  bool Immutable) {
   unsigned Align = MinAlign(SPOffset, ForcedRealign ? 1 : StackAlignment);
   Align = clampStackAlignment(!StackRealignable, Align, StackAlignment);
-  Objects.insert(Objects.begin(), StackObject(Size, Align, SPOffset,
-                                              /*Immutable*/ true,
+  Objects.insert(Objects.begin(), StackObject(Size, Align, SPOffset, Immutable,
                                               /*isSS*/ true,
                                               /*Alloca*/ nullptr,
                                               /*isAliased*/ false));
@@ -890,13 +1095,20 @@ MachineConstantPoolEntry::getSectionKind(const DataLayout *DL) const {
 }
 
 MachineConstantPool::~MachineConstantPool() {
+  // A constant may be a member of both Constants and MachineCPVsSharingEntries,
+  // so keep track of which we've deleted to avoid double deletions.
+  DenseSet<MachineConstantPoolValue*> Deleted;
   for (unsigned i = 0, e = Constants.size(); i != e; ++i)
-    if (Constants[i].isMachineConstantPoolEntry())
+    if (Constants[i].isMachineConstantPoolEntry()) {
+      Deleted.insert(Constants[i].Val.MachineCPVal);
       delete Constants[i].Val.MachineCPVal;
+    }
   for (DenseSet<MachineConstantPoolValue*>::iterator I =
        MachineCPVsSharingEntries.begin(), E = MachineCPVsSharingEntries.end();
-       I != E; ++I)
-    delete *I;
+       I != E; ++I) {
+    if (Deleted.count(*I) == 0)
+      delete *I;
+  }
 }
 
 /// Test whether the given two constants can be allocated the same constant pool

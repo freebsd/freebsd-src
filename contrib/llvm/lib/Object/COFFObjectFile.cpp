@@ -157,6 +157,13 @@ uint64_t COFFObjectFile::getSymbolValueImpl(DataRefImpl Ref) const {
   return getCOFFSymbol(Ref).getValue();
 }
 
+uint32_t COFFObjectFile::getSymbolAlignment(DataRefImpl Ref) const {
+  // MSVC/link.exe seems to align symbols to the next-power-of-2
+  // up to 32 bytes.
+  COFFSymbolRef Symb = getCOFFSymbol(Ref);
+  return std::min(uint64_t(32), PowerOf2Ceil(Symb.getValue()));
+}
+
 Expected<uint64_t> COFFObjectFile::getSymbolAddress(DataRefImpl Ref) const {
   uint64_t Result = getSymbolValue(Ref);
   COFFSymbolRef Symb = getCOFFSymbol(Ref);
@@ -487,17 +494,18 @@ std::error_code COFFObjectFile::getHintName(uint32_t Rva, uint16_t &Hint,
   return std::error_code();
 }
 
-std::error_code COFFObjectFile::getDebugPDBInfo(const debug_directory *DebugDir,
-                                                const debug_pdb_info *&PDBInfo,
-                                                StringRef &PDBFileName) const {
+std::error_code
+COFFObjectFile::getDebugPDBInfo(const debug_directory *DebugDir,
+                                const codeview::DebugInfo *&PDBInfo,
+                                StringRef &PDBFileName) const {
   ArrayRef<uint8_t> InfoBytes;
   if (std::error_code EC = getRvaAndSizeAsBytes(
           DebugDir->AddressOfRawData, DebugDir->SizeOfData, InfoBytes))
     return EC;
-  if (InfoBytes.size() < sizeof(debug_pdb_info) + 1)
+  if (InfoBytes.size() < sizeof(*PDBInfo) + 1)
     return object_error::parse_failed;
-  PDBInfo = reinterpret_cast<const debug_pdb_info *>(InfoBytes.data());
-  InfoBytes = InfoBytes.drop_front(sizeof(debug_pdb_info));
+  PDBInfo = reinterpret_cast<const codeview::DebugInfo *>(InfoBytes.data());
+  InfoBytes = InfoBytes.drop_front(sizeof(*PDBInfo));
   PDBFileName = StringRef(reinterpret_cast<const char *>(InfoBytes.data()),
                           InfoBytes.size());
   // Truncate the name at the first null byte. Ignore any padding.
@@ -505,8 +513,9 @@ std::error_code COFFObjectFile::getDebugPDBInfo(const debug_directory *DebugDir,
   return std::error_code();
 }
 
-std::error_code COFFObjectFile::getDebugPDBInfo(const debug_pdb_info *&PDBInfo,
-                                                StringRef &PDBFileName) const {
+std::error_code
+COFFObjectFile::getDebugPDBInfo(const codeview::DebugInfo *&PDBInfo,
+                                StringRef &PDBFileName) const {
   for (const debug_directory &D : debug_directories())
     if (D.Type == COFF::IMAGE_DEBUG_TYPE_CODEVIEW)
       return getDebugPDBInfo(&D, PDBInfo, PDBFileName);
@@ -538,7 +547,7 @@ std::error_code COFFObjectFile::initImportTablePtr() {
   if (std::error_code EC = checkOffset(Data, IntPtr, DataEntry->Size))
     return EC;
   ImportDirectory = reinterpret_cast<
-      const import_directory_table_entry *>(IntPtr);
+      const coff_import_directory_table_entry *>(IntPtr);
   return std::error_code();
 }
 
@@ -716,8 +725,10 @@ COFFObjectFile::COFFObjectFile(MemoryBufferRef Object, std::error_code &EC)
     }
     if ((EC = getObject(DataDirectory, Data, DataDirAddr, DataDirSize)))
       return;
-    CurPtr += COFFHeader->SizeOfOptionalHeader;
   }
+
+  if (COFFHeader)
+    CurPtr += COFFHeader->SizeOfOptionalHeader;
 
   if ((EC = getObject(SectionTable, Data, base() + CurPtr,
                       (uint64_t)getNumberOfSections() * sizeof(coff_section))))
@@ -725,8 +736,12 @@ COFFObjectFile::COFFObjectFile(MemoryBufferRef Object, std::error_code &EC)
 
   // Initialize the pointer to the symbol table.
   if (getPointerToSymbolTable() != 0) {
-    if ((EC = initSymbolTablePtr()))
-      return;
+    if ((EC = initSymbolTablePtr())) {
+      SymbolTable16 = nullptr;
+      SymbolTable32 = nullptr;
+      StringTable = nullptr;
+      StringTableSize = 0;
+    }
   } else {
     // We had better not have any symbols if we don't have a symbol table.
     if (getNumberOfSymbols() != 0) {
@@ -756,13 +771,13 @@ COFFObjectFile::COFFObjectFile(MemoryBufferRef Object, std::error_code &EC)
   EC = std::error_code();
 }
 
-basic_symbol_iterator COFFObjectFile::symbol_begin_impl() const {
+basic_symbol_iterator COFFObjectFile::symbol_begin() const {
   DataRefImpl Ret;
   Ret.p = getSymbolTable();
   return basic_symbol_iterator(SymbolRef(Ret, this));
 }
 
-basic_symbol_iterator COFFObjectFile::symbol_end_impl() const {
+basic_symbol_iterator COFFObjectFile::symbol_end() const {
   // The symbol table ends where the string table begins.
   DataRefImpl Ret;
   Ret.p = reinterpret_cast<uintptr_t>(StringTable);
@@ -772,7 +787,7 @@ basic_symbol_iterator COFFObjectFile::symbol_end_impl() const {
 import_directory_iterator COFFObjectFile::import_directory_begin() const {
   if (!ImportDirectory)
     return import_directory_end();
-  if (ImportDirectory[0].ImportLookupTableRVA == 0)
+  if (ImportDirectory->isNull())
     return import_directory_end();
   return import_directory_iterator(
       ImportDirectoryEntryRef(ImportDirectory, 0, this));
@@ -1201,14 +1216,14 @@ operator==(const ImportDirectoryEntryRef &Other) const {
 
 void ImportDirectoryEntryRef::moveNext() {
   ++Index;
-  if (ImportTable[Index].ImportLookupTableRVA == 0) {
+  if (ImportTable[Index].isNull()) {
     Index = -1;
     ImportTable = nullptr;
   }
 }
 
 std::error_code ImportDirectoryEntryRef::getImportTableEntry(
-    const import_directory_table_entry *&Result) const {
+    const coff_import_directory_table_entry *&Result) const {
   return getObject(Result, OwningObject->Data, ImportTable + Index);
 }
 
@@ -1250,19 +1265,34 @@ importedSymbolEnd(uint32_t RVA, const COFFObjectFile *Object) {
 
 imported_symbol_iterator
 ImportDirectoryEntryRef::imported_symbol_begin() const {
-  return importedSymbolBegin(ImportTable[Index].ImportLookupTableRVA,
+  return importedSymbolBegin(ImportTable[Index].ImportAddressTableRVA,
                              OwningObject);
 }
 
 imported_symbol_iterator
 ImportDirectoryEntryRef::imported_symbol_end() const {
-  return importedSymbolEnd(ImportTable[Index].ImportLookupTableRVA,
+  return importedSymbolEnd(ImportTable[Index].ImportAddressTableRVA,
                            OwningObject);
 }
 
 iterator_range<imported_symbol_iterator>
 ImportDirectoryEntryRef::imported_symbols() const {
   return make_range(imported_symbol_begin(), imported_symbol_end());
+}
+
+imported_symbol_iterator ImportDirectoryEntryRef::lookup_table_begin() const {
+  return importedSymbolBegin(ImportTable[Index].ImportLookupTableRVA,
+                             OwningObject);
+}
+
+imported_symbol_iterator ImportDirectoryEntryRef::lookup_table_end() const {
+  return importedSymbolEnd(ImportTable[Index].ImportLookupTableRVA,
+                           OwningObject);
+}
+
+iterator_range<imported_symbol_iterator>
+ImportDirectoryEntryRef::lookup_table_symbols() const {
+  return make_range(lookup_table_begin(), lookup_table_end());
 }
 
 std::error_code ImportDirectoryEntryRef::getName(StringRef &Result) const {

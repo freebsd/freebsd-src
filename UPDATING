@@ -16,6 +16,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20170402:
+	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 4.0.0.
+	Please see the 20141231 entry below for information about prerequisites
+	and upgrading, if you are not already using clang 3.5.0 or higher.
+
 20170323:
 	The code that provides support for ZFS .zfs/ directory functionality
 	has been reimplemented.  It's not possible now to create a snapshot

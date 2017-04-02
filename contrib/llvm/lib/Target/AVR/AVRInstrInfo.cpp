@@ -27,6 +27,7 @@
 
 #include "AVR.h"
 #include "AVRMachineFunctionInfo.h"
+#include "AVRRegisterInfo.h"
 #include "AVRTargetMachine.h"
 #include "MCTargetDesc/AVRMCTargetDesc.h"
 
@@ -42,22 +43,41 @@ void AVRInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator MI,
                                const DebugLoc &DL, unsigned DestReg,
                                unsigned SrcReg, bool KillSrc) const {
+  const AVRSubtarget &STI = MBB.getParent()->getSubtarget<AVRSubtarget>();
+  const AVRRegisterInfo &TRI = *STI.getRegisterInfo();
   unsigned Opc;
 
-  if (AVR::GPR8RegClass.contains(DestReg, SrcReg)) {
-    Opc = AVR::MOVRdRr;
-  } else if (AVR::DREGSRegClass.contains(DestReg, SrcReg)) {
-    Opc = AVR::MOVWRdRr;
-  } else if (SrcReg == AVR::SP && AVR::DREGSRegClass.contains(DestReg)) {
-    Opc = AVR::SPREAD;
-  } else if (DestReg == AVR::SP && AVR::DREGSRegClass.contains(SrcReg)) {
-    Opc = AVR::SPWRITE;
-  } else {
-    llvm_unreachable("Impossible reg-to-reg copy");
-  }
+  // Not all AVR devices support the 16-bit `MOVW` instruction.
+  if (AVR::DREGSRegClass.contains(DestReg, SrcReg)) {
+    if (STI.hasMOVW()) {
+      BuildMI(MBB, MI, DL, get(AVR::MOVWRdRr), DestReg)
+          .addReg(SrcReg, getKillRegState(KillSrc));
+    } else {
+      unsigned DestLo, DestHi, SrcLo, SrcHi;
 
-  BuildMI(MBB, MI, DL, get(Opc), DestReg)
-      .addReg(SrcReg, getKillRegState(KillSrc));
+      TRI.splitReg(DestReg, DestLo, DestHi);
+      TRI.splitReg(SrcReg,  SrcLo,  SrcHi);
+
+      // Copy each individual register with the `MOV` instruction.
+      BuildMI(MBB, MI, DL, get(AVR::MOVRdRr), DestLo)
+        .addReg(SrcLo, getKillRegState(KillSrc));
+      BuildMI(MBB, MI, DL, get(AVR::MOVRdRr), DestHi)
+        .addReg(SrcHi, getKillRegState(KillSrc));
+    }
+  } else {
+    if (AVR::GPR8RegClass.contains(DestReg, SrcReg)) {
+      Opc = AVR::MOVRdRr;
+    } else if (SrcReg == AVR::SP && AVR::DREGSRegClass.contains(DestReg)) {
+      Opc = AVR::SPREAD;
+    } else if (DestReg == AVR::SP && AVR::DREGSRegClass.contains(SrcReg)) {
+      Opc = AVR::SPWRITE;
+    } else {
+      llvm_unreachable("Impossible reg-to-reg copy");
+    }
+
+    BuildMI(MBB, MI, DL, get(Opc), DestReg)
+        .addReg(SrcReg, getKillRegState(KillSrc));
+  }
 }
 
 unsigned AVRInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
@@ -105,13 +125,16 @@ void AVRInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                        const TargetRegisterClass *RC,
                                        const TargetRegisterInfo *TRI) const {
   MachineFunction &MF = *MBB.getParent();
+  AVRMachineFunctionInfo *AFI = MF.getInfo<AVRMachineFunctionInfo>();
+
+  AFI->setHasSpills(true);
 
   DebugLoc DL;
   if (MI != MBB.end()) {
     DL = MI->getDebugLoc();
   }
 
-  const MachineFrameInfo &MFI = *MF.getFrameInfo();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
 
   MachineMemOperand *MMO = MF.getMachineMemOperand(
       MachinePointerInfo::getFixedStack(MF, FrameIndex),
@@ -145,7 +168,7 @@ void AVRInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   }
 
   MachineFunction &MF = *MBB.getParent();
-  const MachineFrameInfo &MFI = *MF.getFrameInfo();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
 
   MachineMemOperand *MMO = MF.getMachineMemOperand(
       MachinePointerInfo::getFixedStack(MF, FrameIndex),
@@ -373,13 +396,16 @@ bool AVRInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
   return false;
 }
 
-unsigned AVRInstrInfo::InsertBranch(MachineBasicBlock &MBB,
+unsigned AVRInstrInfo::insertBranch(MachineBasicBlock &MBB,
                                     MachineBasicBlock *TBB,
                                     MachineBasicBlock *FBB,
                                     ArrayRef<MachineOperand> Cond,
-                                    const DebugLoc &DL) const {
+                                    const DebugLoc &DL,
+                                    int *BytesAdded) const {
+  assert(!BytesAdded && "code size not handled");
+
   // Shouldn't be a fall through.
-  assert(TBB && "InsertBranch must not be told to insert a fallthrough");
+  assert(TBB && "insertBranch must not be told to insert a fallthrough");
   assert((Cond.size() == 1 || Cond.size() == 0) &&
          "AVR branch conditions have one component!");
 
@@ -404,7 +430,10 @@ unsigned AVRInstrInfo::InsertBranch(MachineBasicBlock &MBB,
   return Count;
 }
 
-unsigned AVRInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
+unsigned AVRInstrInfo::removeBranch(MachineBasicBlock &MBB,
+                                    int *BytesRemoved) const {
+  assert(!BytesRemoved && "code size not handled");
+
   MachineBasicBlock::iterator I = MBB.end();
   unsigned Count = 0;
 
@@ -429,7 +458,7 @@ unsigned AVRInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
   return Count;
 }
 
-bool AVRInstrInfo::ReverseBranchCondition(
+bool AVRInstrInfo::reverseBranchCondition(
     SmallVectorImpl<MachineOperand> &Cond) const {
   assert(Cond.size() == 1 && "Invalid AVR branch condition!");
 
@@ -439,8 +468,8 @@ bool AVRInstrInfo::ReverseBranchCondition(
   return false;
 }
 
-unsigned AVRInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
-  unsigned Opcode = MI->getOpcode();
+unsigned AVRInstrInfo::getInstSizeInBytes(const MachineInstr &MI) const {
+  unsigned Opcode = MI.getOpcode();
 
   switch (Opcode) {
   // A regular instruction
@@ -454,13 +483,16 @@ unsigned AVRInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
   case TargetOpcode::DBG_VALUE:
     return 0;
   case TargetOpcode::INLINEASM: {
-    const MachineFunction *MF = MI->getParent()->getParent();
-    const AVRTargetMachine &TM = static_cast<const AVRTargetMachine&>(MF->getTarget());
-    const TargetInstrInfo &TII = *TM.getSubtargetImpl()->getInstrInfo();
-    return TII.getInlineAsmLength(MI->getOperand(0).getSymbolName(),
+    const MachineFunction &MF = *MI.getParent()->getParent();
+    const AVRTargetMachine &TM = static_cast<const AVRTargetMachine&>(MF.getTarget());
+    const AVRSubtarget &STI = MF.getSubtarget<AVRSubtarget>();
+    const TargetInstrInfo &TII = *STI.getInstrInfo();
+
+    return TII.getInlineAsmLength(MI.getOperand(0).getSymbolName(),
                                   *TM.getMCAsmInfo());
   }
   }
 }
 
 } // end of namespace llvm
+

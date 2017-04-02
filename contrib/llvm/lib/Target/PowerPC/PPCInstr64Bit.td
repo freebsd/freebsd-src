@@ -65,16 +65,6 @@ def SRL64 : SDNodeXForm<imm, [{
                            : getI32Imm(0, SDLoc(N));
 }]>;
 
-def HI32_48 : SDNodeXForm<imm, [{
-  // Transformation function: shift the immediate value down into the low bits.
-  return getI32Imm((unsigned short)(N->getZExtValue() >> 32, SDLoc(N)));
-}]>;
-
-def HI48_64 : SDNodeXForm<imm, [{
-  // Transformation function: shift the immediate value down into the low bits.
-  return getI32Imm((unsigned short)(N->getZExtValue() >> 48, SDLoc(N)));
-}]>;
-
 
 //===----------------------------------------------------------------------===//
 // Calls.
@@ -1163,6 +1153,9 @@ defm FCFID  : XForm_26r<63, 846, (outs f8rc:$frD), (ins f8rc:$frB),
                         [(set f64:$frD, (PPCfcfid f64:$frB))]>, isPPC64;
 defm FCTID  : XForm_26r<63, 814, (outs f8rc:$frD), (ins f8rc:$frB),
                         "fctid", "$frD, $frB", IIC_FPGeneral,
+                        []>, isPPC64;
+defm FCTIDU : XForm_26r<63, 942, (outs f8rc:$frD), (ins f8rc:$frB),
+                        "fctidu", "$frD, $frB", IIC_FPGeneral,
                         []>, isPPC64;
 defm FCTIDZ : XForm_26r<63, 815, (outs f8rc:$frD), (ins f8rc:$frB),
                         "fctidz", "$frD, $frB", IIC_FPGeneral,

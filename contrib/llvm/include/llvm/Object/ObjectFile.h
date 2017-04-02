@@ -29,6 +29,7 @@ namespace object {
 class ObjectFile;
 class COFFObjectFile;
 class MachOObjectFile;
+class WasmObjectFile;
 
 class SymbolRef;
 class symbol_iterator;
@@ -300,8 +301,12 @@ public:
   createELFObjectFile(MemoryBufferRef Object);
 
   static Expected<std::unique_ptr<MachOObjectFile>>
-  createMachOObjectFile(MemoryBufferRef Object);
+  createMachOObjectFile(MemoryBufferRef Object,
+                        uint32_t UniversalCputype = 0,
+                        uint32_t UniversalIndex = 0);
 
+  static Expected<std::unique_ptr<WasmObjectFile>>
+  createWasmObjectFile(MemoryBufferRef Object);
 };
 
 // Inline function definitions.

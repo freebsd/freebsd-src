@@ -90,7 +90,11 @@ enum {
   CCD_ProbablyNotObjCCollection = 15,
 
   /// \brief An Objective-C method being used as a property.
-  CCD_MethodAsProperty = 2
+  CCD_MethodAsProperty = 2,
+
+  /// \brief An Objective-C block property completed as a setter with a
+  /// block placeholder.
+  CCD_BlockPropertySetter = 3
 };
 
 /// \brief Priority value factors by which we will divide or multiply the
@@ -505,23 +509,18 @@ public:
 };
 
 /// \brief Allocator for a cached set of global code completions.
-class GlobalCodeCompletionAllocator 
-  : public CodeCompletionAllocator,
-    public RefCountedBase<GlobalCodeCompletionAllocator>
-{
-
-};
+class GlobalCodeCompletionAllocator : public CodeCompletionAllocator {};
 
 class CodeCompletionTUInfo {
   llvm::DenseMap<const DeclContext *, StringRef> ParentNames;
-  IntrusiveRefCntPtr<GlobalCodeCompletionAllocator> AllocatorRef;
+  std::shared_ptr<GlobalCodeCompletionAllocator> AllocatorRef;
 
 public:
   explicit CodeCompletionTUInfo(
-      IntrusiveRefCntPtr<GlobalCodeCompletionAllocator> Allocator)
+      std::shared_ptr<GlobalCodeCompletionAllocator> Allocator)
       : AllocatorRef(std::move(Allocator)) {}
 
-  IntrusiveRefCntPtr<GlobalCodeCompletionAllocator> getAllocatorRef() const {
+  std::shared_ptr<GlobalCodeCompletionAllocator> getAllocatorRef() const {
     return AllocatorRef;
   }
   CodeCompletionAllocator &getAllocator() const {
@@ -737,7 +736,7 @@ public:
 
   /// \brief Build a result that refers to a pattern with an associated
   /// declaration.
-  CodeCompletionResult(CodeCompletionString *Pattern, NamedDecl *D,
+  CodeCompletionResult(CodeCompletionString *Pattern, const NamedDecl *D,
                        unsigned Priority)
     : Declaration(D), Pattern(Pattern), Priority(Priority), StartParameter(0),
       Kind(RK_Pattern), Availability(CXAvailability_Available), Hidden(false),
@@ -913,6 +912,13 @@ public:
   /// \brief Deregisters and destroys this code-completion consumer.
   virtual ~CodeCompleteConsumer();
 
+  /// \name Code-completion filtering
+  /// \brief Check if the result should be filtered out.
+  virtual bool isResultFilteredOut(StringRef Filter,
+                                   CodeCompletionResult Results) {
+    return false;
+  }
+
   /// \name Code-completion callbacks
   //@{
   /// \brief Process the finalized code-completion results.
@@ -954,8 +960,8 @@ public:
   /// results to the given raw output stream.
   PrintingCodeCompleteConsumer(const CodeCompleteOptions &CodeCompleteOpts,
                                raw_ostream &OS)
-    : CodeCompleteConsumer(CodeCompleteOpts, false), OS(OS),
-      CCTUInfo(new GlobalCodeCompletionAllocator) {}
+      : CodeCompleteConsumer(CodeCompleteOpts, false), OS(OS),
+        CCTUInfo(std::make_shared<GlobalCodeCompletionAllocator>()) {}
 
   /// \brief Prints the finalized code-completion results.
   void ProcessCodeCompleteResults(Sema &S, CodeCompletionContext Context,
@@ -965,6 +971,8 @@ public:
   void ProcessOverloadCandidates(Sema &S, unsigned CurrentArg,
                                  OverloadCandidate *Candidates,
                                  unsigned NumCandidates) override;
+
+  bool isResultFilteredOut(StringRef Filter, CodeCompletionResult Results) override;
 
   CodeCompletionAllocator &getAllocator() override {
     return CCTUInfo.getAllocator();

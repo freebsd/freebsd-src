@@ -54,9 +54,9 @@ static MCDisassembler *createWebAssemblyDisassembler(const Target &T,
 
 extern "C" void LLVMInitializeWebAssemblyDisassembler() {
   // Register the disassembler for each target.
-  TargetRegistry::RegisterMCDisassembler(TheWebAssemblyTarget32,
+  TargetRegistry::RegisterMCDisassembler(getTheWebAssemblyTarget32(),
                                          createWebAssemblyDisassembler);
-  TargetRegistry::RegisterMCDisassembler(TheWebAssemblyTarget64,
+  TargetRegistry::RegisterMCDisassembler(getTheWebAssemblyTarget64(),
                                          createWebAssemblyDisassembler);
 }
 
@@ -93,6 +93,7 @@ MCDisassembler::DecodeStatus WebAssemblyDisassembler::getInstruction(
     const MCOperandInfo &Info = Desc.OpInfo[i];
     switch (Info.OperandType) {
     case MCOI::OPERAND_IMMEDIATE:
+    case WebAssembly::OPERAND_LOCAL:
     case WebAssembly::OPERAND_P2ALIGN:
     case WebAssembly::OPERAND_BASIC_BLOCK: {
       if (Pos + sizeof(uint64_t) > Bytes.size())
@@ -110,8 +111,8 @@ MCDisassembler::DecodeStatus WebAssemblyDisassembler::getInstruction(
       MI.addOperand(MCOperand::createReg(Reg));
       break;
     }
-    case WebAssembly::OPERAND_FP32IMM:
-    case WebAssembly::OPERAND_FP64IMM: {
+    case WebAssembly::OPERAND_F32IMM:
+    case WebAssembly::OPERAND_F64IMM: {
       // TODO: MC converts all floating point immediate operands to double.
       // This is fine for numeric values, but may cause NaNs to change bits.
       if (Pos + sizeof(uint64_t) > Bytes.size())

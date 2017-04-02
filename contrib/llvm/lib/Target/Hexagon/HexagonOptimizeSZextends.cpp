@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/MachineFunctionAnalysis.h"
 #include "llvm/CodeGen/StackProtector.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
@@ -38,13 +37,9 @@ namespace {
     }
     bool runOnFunction(Function &F) override;
 
-    const char *getPassName() const override {
-      return "Remove sign extends";
-    }
+    StringRef getPassName() const override { return "Remove sign extends"; }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addRequired<MachineFunctionAnalysis>();
-      AU.addPreserved<MachineFunctionAnalysis>();
       AU.addPreserved<StackProtector>();
       FunctionPass::getAnalysisUsage(AU);
     }

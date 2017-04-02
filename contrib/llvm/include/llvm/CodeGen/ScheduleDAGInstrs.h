@@ -100,7 +100,7 @@ namespace llvm {
   class ScheduleDAGInstrs : public ScheduleDAG {
   protected:
     const MachineLoopInfo *MLI;
-    const MachineFrameInfo *MFI;
+    const MachineFrameInfo &MFI;
 
     /// TargetSchedModel provides an interface to the machine model.
     TargetSchedModel SchedModel;
@@ -137,11 +137,6 @@ namespace llvm {
     /// After calling BuildSchedGraph, each machine instruction in the current
     /// scheduling region is mapped to an SUnit.
     DenseMap<MachineInstr*, SUnit*> MISUnitMap;
-
-    /// After calling BuildSchedGraph, each vreg used in the scheduling region
-    /// is mapped to a set of SUnits. These include all local vreg uses, not
-    /// just the uses for a singly defined vreg.
-    VReg2SUnitMultiMap VRegUses;
 
     /// State internal to DAG building.
     /// -------------------------------
@@ -333,8 +328,6 @@ namespace llvm {
     /// Returns a mask for which lanes get read/written by the given (register)
     /// machine operand.
     LaneBitmask getLaneMaskForMO(const MachineOperand &MO) const;
-
-    void collectVRegUses(SUnit *SU);
   };
 
   /// newSUnit - Creates a new SUnit and return a ptr to it.
@@ -345,7 +338,6 @@ namespace llvm {
     SUnits.emplace_back(MI, (unsigned)SUnits.size());
     assert((Addr == nullptr || Addr == &SUnits[0]) &&
            "SUnits std::vector reallocated on the fly!");
-    SUnits.back().OrigNode = &SUnits.back();
     return &SUnits.back();
   }
 

@@ -242,8 +242,8 @@ static const MemoryMapParams Linux_X86_64_MemoryMapParams = {
 
 // mips64 Linux
 static const MemoryMapParams Linux_MIPS64_MemoryMapParams = {
-  0x004000000000,  // AndMask
-  0,               // XorMask (not used)
+  0,               // AndMask (not used)
+  0x008000000000,  // XorMask
   0,               // ShadowBase (not used)
   0x002000000000,  // OriginBase
 };
@@ -312,11 +312,12 @@ static const PlatformMemoryMapParams FreeBSD_X86_MemoryMapParams = {
 /// uninitialized reads.
 class MemorySanitizer : public FunctionPass {
  public:
-  MemorySanitizer(int TrackOrigins = 0)
+  MemorySanitizer(int TrackOrigins = 0, bool Recover = false)
       : FunctionPass(ID),
         TrackOrigins(std::max(TrackOrigins, (int)ClTrackOrigins)),
+        Recover(Recover || ClKeepGoing),
         WarningFn(nullptr) {}
-  const char *getPassName() const override { return "MemorySanitizer"; }
+  StringRef getPassName() const override { return "MemorySanitizer"; }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<TargetLibraryInfoWrapperPass>();
   }
@@ -329,6 +330,7 @@ class MemorySanitizer : public FunctionPass {
 
   /// \brief Track origins (allocation points) of uninitialized values.
   int TrackOrigins;
+  bool Recover;
 
   LLVMContext *C;
   Type *IntptrTy;
@@ -395,8 +397,8 @@ INITIALIZE_PASS_END(
     MemorySanitizer, "msan",
     "MemorySanitizer: detects uninitialized reads.", false, false)
 
-FunctionPass *llvm::createMemorySanitizerPass(int TrackOrigins) {
-  return new MemorySanitizer(TrackOrigins);
+FunctionPass *llvm::createMemorySanitizerPass(int TrackOrigins, bool Recover) {
+  return new MemorySanitizer(TrackOrigins, Recover);
 }
 
 /// \brief Create a non-const global initialized with the given string.
@@ -421,8 +423,8 @@ void MemorySanitizer::initializeCallbacks(Module &M) {
   // Create the callback.
   // FIXME: this function should have "Cold" calling conv,
   // which is not yet implemented.
-  StringRef WarningFnName = ClKeepGoing ? "__msan_warning"
-                                        : "__msan_warning_noreturn";
+  StringRef WarningFnName = Recover ? "__msan_warning"
+                                    : "__msan_warning_noreturn";
   WarningFn = M.getOrInsertFunction(WarningFnName, IRB.getVoidTy(), nullptr);
 
   for (size_t AccessSizeIndex = 0; AccessSizeIndex < kNumberOfAccessSizes;
@@ -566,9 +568,9 @@ bool MemorySanitizer::doInitialization(Module &M) {
     new GlobalVariable(M, IRB.getInt32Ty(), true, GlobalValue::WeakODRLinkage,
                        IRB.getInt32(TrackOrigins), "__msan_track_origins");
 
-  if (ClKeepGoing)
+  if (Recover)
     new GlobalVariable(M, IRB.getInt32Ty(), true, GlobalValue::WeakODRLinkage,
-                       IRB.getInt32(ClKeepGoing), "__msan_keep_going");
+                       IRB.getInt32(Recover), "__msan_keep_going");
 
   return true;
 }
@@ -792,7 +794,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
         }
         IRB.CreateCall(MS.WarningFn, {});
         IRB.CreateCall(MS.EmptyAsm, {});
-        // FIXME: Insert UnreachableInst if !ClKeepGoing?
+        // FIXME: Insert UnreachableInst if !MS.Recover?
         // This may invalidate some of the following checks and needs to be done
         // at the very end.
       }
@@ -815,7 +817,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
                                     getCleanShadow(ConvertedShadow), "_mscmp");
       Instruction *CheckTerm = SplitBlockAndInsertIfThen(
           Cmp, OrigIns,
-          /* Unreachable */ !ClKeepGoing, MS.ColdCallWeights);
+          /* Unreachable */ !MS.Recover, MS.ColdCallWeights);
 
       IRB.SetInsertPoint(CheckTerm);
       if (MS.TrackOrigins) {
@@ -2360,6 +2362,29 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
     case llvm::Intrinsic::x86_sse_cvttps2pi:
       handleVectorConvertIntrinsic(I, 2);
       break;
+
+    case llvm::Intrinsic::x86_avx512_psll_w_512:
+    case llvm::Intrinsic::x86_avx512_psll_d_512:
+    case llvm::Intrinsic::x86_avx512_psll_q_512:
+    case llvm::Intrinsic::x86_avx512_pslli_w_512:
+    case llvm::Intrinsic::x86_avx512_pslli_d_512:
+    case llvm::Intrinsic::x86_avx512_pslli_q_512:
+    case llvm::Intrinsic::x86_avx512_psrl_w_512:
+    case llvm::Intrinsic::x86_avx512_psrl_d_512:
+    case llvm::Intrinsic::x86_avx512_psrl_q_512:
+    case llvm::Intrinsic::x86_avx512_psra_w_512:
+    case llvm::Intrinsic::x86_avx512_psra_d_512:
+    case llvm::Intrinsic::x86_avx512_psra_q_512:
+    case llvm::Intrinsic::x86_avx512_psrli_w_512:
+    case llvm::Intrinsic::x86_avx512_psrli_d_512:
+    case llvm::Intrinsic::x86_avx512_psrli_q_512:
+    case llvm::Intrinsic::x86_avx512_psrai_w_512:
+    case llvm::Intrinsic::x86_avx512_psrai_d_512:
+    case llvm::Intrinsic::x86_avx512_psrai_q_512:
+    case llvm::Intrinsic::x86_avx512_psra_q_256:
+    case llvm::Intrinsic::x86_avx512_psra_q_128:
+    case llvm::Intrinsic::x86_avx512_psrai_q_256:
+    case llvm::Intrinsic::x86_avx512_psrai_q_128:
     case llvm::Intrinsic::x86_avx2_psll_w:
     case llvm::Intrinsic::x86_avx2_psll_d:
     case llvm::Intrinsic::x86_avx2_psll_q:
@@ -2412,14 +2437,22 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
       break;
     case llvm::Intrinsic::x86_avx2_psllv_d:
     case llvm::Intrinsic::x86_avx2_psllv_d_256:
+    case llvm::Intrinsic::x86_avx512_psllv_d_512:
     case llvm::Intrinsic::x86_avx2_psllv_q:
     case llvm::Intrinsic::x86_avx2_psllv_q_256:
+    case llvm::Intrinsic::x86_avx512_psllv_q_512:
     case llvm::Intrinsic::x86_avx2_psrlv_d:
     case llvm::Intrinsic::x86_avx2_psrlv_d_256:
+    case llvm::Intrinsic::x86_avx512_psrlv_d_512:
     case llvm::Intrinsic::x86_avx2_psrlv_q:
     case llvm::Intrinsic::x86_avx2_psrlv_q_256:
+    case llvm::Intrinsic::x86_avx512_psrlv_q_512:
     case llvm::Intrinsic::x86_avx2_psrav_d:
     case llvm::Intrinsic::x86_avx2_psrav_d_256:
+    case llvm::Intrinsic::x86_avx512_psrav_d_512:
+    case llvm::Intrinsic::x86_avx512_psrav_q_128:
+    case llvm::Intrinsic::x86_avx512_psrav_q_256:
+    case llvm::Intrinsic::x86_avx512_psrav_q_512:
       handleVectorShiftIntrinsic(I, /* Variable */ true);
       break;
 

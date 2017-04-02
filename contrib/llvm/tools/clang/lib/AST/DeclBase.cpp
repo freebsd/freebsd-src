@@ -28,7 +28,6 @@
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/TargetInfo.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 using namespace clang;
@@ -46,8 +45,7 @@ void Decl::updateOutOfDate(IdentifierInfo &II) const {
 }
 
 #define DECL(DERIVED, BASE)                                                    \
-  static_assert(llvm::AlignOf<Decl>::Alignment >=                              \
-                    llvm::AlignOf<DERIVED##Decl>::Alignment,                   \
+  static_assert(alignof(Decl) >= alignof(DERIVED##Decl),                       \
                 "Alignment sufficient after objects prepended to " #DERIVED);
 #define ABSTRACT_DECL(DECL)
 #include "clang/AST/DeclNodes.inc"
@@ -56,7 +54,7 @@ void *Decl::operator new(std::size_t Size, const ASTContext &Context,
                          unsigned ID, std::size_t Extra) {
   // Allocate an extra 8 bytes worth of storage, which ensures that the
   // resulting pointer will still be 8-byte aligned.
-  static_assert(sizeof(unsigned) * 2 >= llvm::AlignOf<Decl>::Alignment,
+  static_assert(sizeof(unsigned) * 2 >= alignof(Decl),
                 "Decl won't be misaligned");
   void *Start = Context.Allocate(Size + Extra + 8);
   void *Result = (char*)Start + 8;
@@ -81,8 +79,7 @@ void *Decl::operator new(std::size_t Size, const ASTContext &Ctx,
     // Ensure required alignment of the resulting object by adding extra
     // padding at the start if required.
     size_t ExtraAlign =
-        llvm::OffsetToAlignment(sizeof(Module *),
-                                llvm::AlignOf<Decl>::Alignment);
+        llvm::OffsetToAlignment(sizeof(Module *), alignof(Decl));
     char *Buffer = reinterpret_cast<char *>(
         ::operator new(ExtraAlign + sizeof(Module *) + Size + Extra, Ctx));
     Buffer += ExtraAlign;
@@ -112,11 +109,23 @@ const char *Decl::getDeclKindName() const {
 void Decl::setInvalidDecl(bool Invalid) {
   InvalidDecl = Invalid;
   assert(!isa<TagDecl>(this) || !cast<TagDecl>(this)->isCompleteDefinition());
-  if (Invalid && !isa<ParmVarDecl>(this)) {
+  if (!Invalid) {
+    return;
+  }
+
+  if (!isa<ParmVarDecl>(this)) {
     // Defensive maneuver for ill-formed code: we're likely not to make it to
     // a point where we set the access specifier, so default it to "public"
     // to avoid triggering asserts elsewhere in the front end. 
     setAccess(AS_public);
+  }
+
+  // Marking a DecompositionDecl as invalid implies all the child BindingDecl's
+  // are invalid too.
+  if (DecompositionDecl *DD = dyn_cast<DecompositionDecl>(this)) {
+    for (BindingDecl *Binding : DD->bindings()) {
+      Binding->setInvalidDecl();
+    }
   }
 }
 
@@ -378,6 +387,22 @@ bool Decl::isReferenced() const {
   return false; 
 }
 
+bool Decl::isExported() const {
+  if (isModulePrivate())
+    return false;
+  // Namespaces are always exported.
+  if (isa<TranslationUnitDecl>(this) || isa<NamespaceDecl>(this))
+    return true;
+  // Otherwise, this is a strictly lexical check.
+  for (auto *DC = getLexicalDeclContext(); DC; DC = DC->getLexicalParent()) {
+    if (cast<Decl>(DC)->isModulePrivate())
+      return false;
+    if (isa<ExportDecl>(DC))
+      return true;
+  }
+  return false;
+}
+
 bool Decl::hasDefiningAttr() const {
   return hasAttr<AliasAttr>() || hasAttr<IFuncAttr>();
 }
@@ -401,11 +426,12 @@ const Attr *Decl::getDefiningAttr() const {
 /// diagnostics.
 static AvailabilityResult CheckAvailability(ASTContext &Context,
                                             const AvailabilityAttr *A,
-                                            std::string *Message) {
-  VersionTuple TargetMinVersion =
-    Context.getTargetInfo().getPlatformMinVersion();
+                                            std::string *Message,
+                                            VersionTuple EnclosingVersion) {
+  if (EnclosingVersion.empty())
+    EnclosingVersion = Context.getTargetInfo().getPlatformMinVersion();
 
-  if (TargetMinVersion.empty())
+  if (EnclosingVersion.empty())
     return AR_Available;
 
   // Check if this is an App Extension "platform", and if so chop off
@@ -450,7 +476,7 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
 
   // Make sure that this declaration has already been introduced.
   if (!A->getIntroduced().empty() && 
-      TargetMinVersion < A->getIntroduced()) {
+      EnclosingVersion < A->getIntroduced()) {
     if (Message) {
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
@@ -464,7 +490,7 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
   }
 
   // Make sure that this declaration hasn't been obsoleted.
-  if (!A->getObsoleted().empty() && TargetMinVersion >= A->getObsoleted()) {
+  if (!A->getObsoleted().empty() && EnclosingVersion >= A->getObsoleted()) {
     if (Message) {
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
@@ -478,7 +504,7 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
   }
 
   // Make sure that this declaration hasn't been deprecated.
-  if (!A->getDeprecated().empty() && TargetMinVersion >= A->getDeprecated()) {
+  if (!A->getDeprecated().empty() && EnclosingVersion >= A->getDeprecated()) {
     if (Message) {
       Message->clear();
       llvm::raw_string_ostream Out(*Message);
@@ -494,9 +520,10 @@ static AvailabilityResult CheckAvailability(ASTContext &Context,
   return AR_Available;
 }
 
-AvailabilityResult Decl::getAvailability(std::string *Message) const {
+AvailabilityResult Decl::getAvailability(std::string *Message,
+                                         VersionTuple EnclosingVersion) const {
   if (auto *FTD = dyn_cast<FunctionTemplateDecl>(this))
-    return FTD->getTemplatedDecl()->getAvailability(Message);
+    return FTD->getTemplatedDecl()->getAvailability(Message, EnclosingVersion);
 
   AvailabilityResult Result = AR_Available;
   std::string ResultMessage;
@@ -521,7 +548,7 @@ AvailabilityResult Decl::getAvailability(std::string *Message) const {
 
     if (const auto *Availability = dyn_cast<AvailabilityAttr>(A)) {
       AvailabilityResult AR = CheckAvailability(getASTContext(), Availability,
-                                                Message);
+                                                Message, EnclosingVersion);
 
       if (AR == AR_Unavailable)
         return AR_Unavailable;
@@ -580,8 +607,8 @@ bool Decl::isWeakImported() const {
       return true;
 
     if (const auto *Availability = dyn_cast<AvailabilityAttr>(A)) {
-      if (CheckAvailability(getASTContext(), Availability,
-                            nullptr) == AR_NotYetIntroduced)
+      if (CheckAvailability(getASTContext(), Availability, nullptr,
+                            VersionTuple()) == AR_NotYetIntroduced)
         return true;
     }
   }
@@ -599,6 +626,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case CXXConversion:
     case EnumConstant:
     case Var:
+    case Binding:
     case ImplicitParam:
     case ParmVar:
     case ObjCMethod:
@@ -623,10 +651,12 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case Typedef:
     case TypeAlias:
     case TypeAliasTemplate:
-    case UnresolvedUsingTypename:
     case TemplateTypeParm:
     case ObjCTypeParam:
       return IDNS_Ordinary | IDNS_Type;
+
+    case UnresolvedUsingTypename:
+      return IDNS_Ordinary | IDNS_Type | IDNS_Using;
 
     case UsingShadow:
       return 0; // we'll actually overwrite this later
@@ -635,6 +665,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
       return IDNS_Ordinary | IDNS_Using;
 
     case Using:
+    case UsingPack:
       return IDNS_Using;
 
     case ObjCProtocol:
@@ -670,6 +701,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case FriendTemplate:
     case AccessSpec:
     case LinkageSpec:
+    case Export:
     case FileScopeAsm:
     case StaticAssert:
     case ObjCPropertyImpl:
@@ -679,6 +711,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case Captured:
     case TranslationUnit:
     case ExternCContext:
+    case Decomposition:
 
     case UsingDirective:
     case BuiltinTemplate:
@@ -954,7 +987,7 @@ bool DeclContext::isDependentContext() const {
 bool DeclContext::isTransparentContext() const {
   if (DeclKind == Decl::Enum)
     return !cast<EnumDecl>(this)->isScoped();
-  else if (DeclKind == Decl::LinkageSpec)
+  else if (DeclKind == Decl::LinkageSpec || DeclKind == Decl::Export)
     return true;
 
   return false;
@@ -972,6 +1005,18 @@ static bool isLinkageSpecContext(const DeclContext *DC,
 
 bool DeclContext::isExternCContext() const {
   return isLinkageSpecContext(this, clang::LinkageSpecDecl::lang_c);
+}
+
+const LinkageSpecDecl *DeclContext::getExternCContext() const {
+  const DeclContext *DC = this;
+  while (DC->getDeclKind() != Decl::TranslationUnit) {
+    if (DC->getDeclKind() == Decl::LinkageSpec &&
+        cast<LinkageSpecDecl>(DC)->getLanguage() ==
+            clang::LinkageSpecDecl::lang_c)
+      return cast<LinkageSpecDecl>(DC);
+    DC = DC->getLexicalParent();
+  }
+  return nullptr;
 }
 
 bool DeclContext::isExternCXXContext() const {
@@ -993,6 +1038,7 @@ DeclContext *DeclContext::getPrimaryContext() {
   case Decl::TranslationUnit:
   case Decl::ExternCContext:
   case Decl::LinkageSpec:
+  case Decl::Export:
   case Decl::Block:
   case Decl::Captured:
   case Decl::OMPDeclareReduction:
@@ -1405,8 +1451,8 @@ NamedDecl *const DeclContextLookupResult::SingleElementDummyList = nullptr;
 
 DeclContext::lookup_result
 DeclContext::lookup(DeclarationName Name) const {
-  assert(DeclKind != Decl::LinkageSpec &&
-         "Should not perform lookups into linkage specs!");
+  assert(DeclKind != Decl::LinkageSpec && DeclKind != Decl::Export &&
+         "should not perform lookups into transparent contexts");
 
   const DeclContext *PrimaryContext = getPrimaryContext();
   if (PrimaryContext != this)
@@ -1467,8 +1513,8 @@ DeclContext::lookup(DeclarationName Name) const {
 
 DeclContext::lookup_result
 DeclContext::noload_lookup(DeclarationName Name) {
-  assert(DeclKind != Decl::LinkageSpec &&
-         "Should not perform lookups into linkage specs!");
+  assert(DeclKind != Decl::LinkageSpec && DeclKind != Decl::Export &&
+         "should not perform lookups into transparent contexts");
 
   DeclContext *PrimaryContext = getPrimaryContext();
   if (PrimaryContext != this)

@@ -15,6 +15,7 @@
 #ifndef LLVM_CODEGEN_PBQP_GRAPH_H
 #define LLVM_CODEGEN_PBQP_GRAPH_H
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
 #include <algorithm>
 #include <cassert>
@@ -109,27 +110,11 @@ namespace PBQP {
         ThisEdgeAdjIdxs[1] = NodeEntry::getInvalidAdjEdgeIdx();
       }
 
-      void invalidate() {
-        NIds[0] = NIds[1] = Graph::invalidNodeId();
-        ThisEdgeAdjIdxs[0] = ThisEdgeAdjIdxs[1] =
-          NodeEntry::getInvalidAdjEdgeIdx();
-        Costs = nullptr;
-      }
-
       void connectToN(Graph &G, EdgeId ThisEdgeId, unsigned NIdx) {
         assert(ThisEdgeAdjIdxs[NIdx] == NodeEntry::getInvalidAdjEdgeIdx() &&
                "Edge already connected to NIds[NIdx].");
         NodeEntry &N = G.getNode(NIds[NIdx]);
         ThisEdgeAdjIdxs[NIdx] = N.addAdjEdgeId(ThisEdgeId);
-      }
-
-      void connectTo(Graph &G, EdgeId ThisEdgeId, NodeId NId) {
-        if (NId == NIds[0])
-          connectToN(G, ThisEdgeId, 0);
-        else {
-          assert(NId == NIds[1] && "Edge does not connect NId.");
-          connectToN(G, ThisEdgeId, 1);
-        }
       }
 
       void connect(Graph &G, EdgeId ThisEdgeId) {
@@ -262,9 +247,7 @@ namespace PBQP {
 
     private:
       NodeId findNextInUse(NodeId NId) const {
-        while (NId < EndNId &&
-               std::find(FreeNodeIds.begin(), FreeNodeIds.end(), NId) !=
-               FreeNodeIds.end()) {
+        while (NId < EndNId && is_contained(FreeNodeIds, NId)) {
           ++NId;
         }
         return NId;
@@ -288,9 +271,7 @@ namespace PBQP {
 
     private:
       EdgeId findNextInUse(EdgeId EId) const {
-        while (EId < EndEId &&
-               std::find(FreeEdgeIds.begin(), FreeEdgeIds.end(), EId) !=
-               FreeEdgeIds.end()) {
+        while (EId < EndEId && is_contained(FreeEdgeIds, EId)) {
           ++EId;
         }
         return EId;

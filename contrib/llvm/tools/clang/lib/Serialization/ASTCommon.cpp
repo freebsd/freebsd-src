@@ -183,6 +183,7 @@ serialization::getDefinitiveDeclContext(const DeclContext *DC) {
   case Decl::ExternCContext:
   case Decl::Namespace:
   case Decl::LinkageSpec:
+  case Decl::Export:
     return nullptr;
 
   // C/C++ tag types can only be defined in one place.
@@ -284,6 +285,7 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   case Decl::NonTypeTemplateParm:
   case Decl::TemplateTemplateParm:
   case Decl::Using:
+  case Decl::UsingPack:
   case Decl::ObjCMethod:
   case Decl::ObjCCategory:
   case Decl::ObjCCategoryImpl:
@@ -291,6 +293,7 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   case Decl::ObjCProperty:
   case Decl::ObjCCompatibleAlias:
   case Decl::LinkageSpec:
+  case Decl::Export:
   case Decl::ObjCPropertyImpl:
   case Decl::PragmaComment:
   case Decl::PragmaDetectMismatch:
@@ -307,6 +310,8 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   case Decl::OMPCapturedExpr:
   case Decl::OMPDeclareReduction:
   case Decl::BuiltinTemplate:
+  case Decl::Decomposition:
+  case Decl::Binding:
     return false;
 
   // These indirectly derive from Redeclarable<T> but are not actually

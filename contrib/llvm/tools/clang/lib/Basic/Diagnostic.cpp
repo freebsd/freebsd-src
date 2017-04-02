@@ -55,10 +55,12 @@ static void DummyArgToStringFn(DiagnosticsEngine::ArgumentKind AK, intptr_t QT,
   Output.append(Str.begin(), Str.end());
 }
 
-DiagnosticsEngine::DiagnosticsEngine(
-    const IntrusiveRefCntPtr<DiagnosticIDs> &diags, DiagnosticOptions *DiagOpts,
-    DiagnosticConsumer *client, bool ShouldOwnClient)
-    : Diags(diags), DiagOpts(DiagOpts), Client(nullptr), SourceMgr(nullptr) {
+DiagnosticsEngine::DiagnosticsEngine(IntrusiveRefCntPtr<DiagnosticIDs> diags,
+                                     DiagnosticOptions *DiagOpts,
+                                     DiagnosticConsumer *client,
+                                     bool ShouldOwnClient)
+    : Diags(std::move(diags)), DiagOpts(DiagOpts), Client(nullptr),
+      SourceMgr(nullptr) {
   setClient(client, ShouldOwnClient);
   ArgToStringFn = DummyArgToStringFn;
   ArgToStringCookie = nullptr;
@@ -740,7 +742,10 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
         //   "%diff{compare $ to $|other text}1,2"
         // treat it as:
         //   "compare %1 to %2"
-        const char *Pipe = ScanFormat(Argument, Argument + ArgumentLen, '|');
+        const char *ArgumentEnd = Argument + ArgumentLen;
+        const char *Pipe = ScanFormat(Argument, ArgumentEnd, '|');
+        assert(ScanFormat(Pipe + 1, ArgumentEnd, '|') == ArgumentEnd &&
+               "Found too many '|'s in a %diff modifier!");
         const char *FirstDollar = ScanFormat(Argument, Pipe, '$');
         const char *SecondDollar = ScanFormat(FirstDollar + 1, Pipe, '$');
         const char ArgStr1[] = { '%', static_cast<char>('0' + ArgNo) };
@@ -1008,7 +1013,7 @@ PartialDiagnostic::StorageAllocator::StorageAllocator() {
 PartialDiagnostic::StorageAllocator::~StorageAllocator() {
   // Don't assert if we are in a CrashRecovery context, as this invariant may
   // be invalidated during a crash.
-  assert((NumFreeListEntries == NumCached || 
-          llvm::CrashRecoveryContext::isRecoveringFromCrash()) && 
-         "A partial is on the lamb");
+  assert((NumFreeListEntries == NumCached ||
+          llvm::CrashRecoveryContext::isRecoveringFromCrash()) &&
+         "A partial is on the lam");
 }

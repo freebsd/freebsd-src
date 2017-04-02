@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "PPCInstrInfo.h"
 #include "MCTargetDesc/PPCMCTargetDesc.h"
 #include "MCTargetDesc/PPCFixupKinds.h"
 #include "llvm/ADT/Statistic.h"
@@ -105,6 +106,9 @@ public:
   void encodeInstruction(const MCInst &MI, raw_ostream &OS,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const override {
+    verifyInstructionPredicates(MI,
+                                computeAvailableFeatures(STI.getFeatureBits()));
+
     unsigned Opcode = MI.getOpcode();
     const MCInstrDesc &Desc = MCII.get(Opcode);
 
@@ -138,7 +142,11 @@ public:
     
     ++MCNumEmitted;  // Keep track of the # of mi's emitted.
   }
-  
+
+private:
+  uint64_t computeAvailableFeatures(const FeatureBitset &FB) const;
+  void verifyInstructionPredicates(const MCInst &MI,
+                                   uint64_t AvailableFeatures) const;
 };
   
 } // end anonymous namespace
@@ -350,7 +358,6 @@ get_crbitm_encoding(const MCInst &MI, unsigned OpNo,
   return 0x80 >> CTX.getRegisterInfo()->getEncodingValue(MO.getReg());
 }
 
-
 unsigned PPCMCCodeEmitter::
 getMachineOpValue(const MCInst &MI, const MCOperand &MO,
                   SmallVectorImpl<MCFixup> &Fixups,
@@ -361,7 +368,14 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
     assert((MI.getOpcode() != PPC::MTOCRF && MI.getOpcode() != PPC::MTOCRF8 &&
             MI.getOpcode() != PPC::MFOCRF && MI.getOpcode() != PPC::MFOCRF8) ||
            MO.getReg() < PPC::CR0 || MO.getReg() > PPC::CR7);
-    return CTX.getRegisterInfo()->getEncodingValue(MO.getReg());
+    unsigned Reg = MO.getReg();
+    unsigned Encode = CTX.getRegisterInfo()->getEncodingValue(Reg);
+
+    if ((MCII.get(MI.getOpcode()).TSFlags & PPCII::UseVSXReg))
+      if (PPCInstrInfo::isVRRegister(Reg))
+        Encode += 32;
+
+    return Encode;
   }
   
   assert(MO.isImm() &&
@@ -370,4 +384,6 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
 }
 
 
+
+#define ENABLE_INSTR_PREDICATE_VERIFIER
 #include "PPCGenMCCodeEmitter.inc"
