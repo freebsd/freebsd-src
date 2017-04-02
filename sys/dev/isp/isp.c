@@ -4530,7 +4530,6 @@ isp_start(XS_T *xs)
 		return (dmaresult);
 	}
 	isp_xs_prt(isp, xs, ISP_LOGDEBUG0, "START cmd cdb[0]=0x%x datalen %ld", XS_CDBP(xs)[0], (long) XS_XFRLEN(xs));
-	isp->isp_nactive++;
 	return (CMD_QUEUED);
 }
 
@@ -5359,9 +5358,6 @@ isp_intr_respq(ispsoftc_t *isp)
 		}
 		isp_destroy_handle(isp, sp->req_handle);
 
-		if (isp->isp_nactive > 0) {
-		    isp->isp_nactive--;
-		}
 		complist[ndone++] = xs;	/* defer completion call until later */
 		ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 		last_etype = etype;
@@ -5932,9 +5928,6 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 	void *ptr;
 
 	switch (type) {
-	case RQSTYPE_STATUS_CONT:
-		isp_prt(isp, ISP_LOG_WARN1, "Ignored Continuation Response");
-		return (1);
 	case RQSTYPE_MARKER:
 		isp_prt(isp, ISP_LOG_WARN1, "Marker Response");
 		return (1);
@@ -6535,9 +6528,6 @@ isp_fastpost_complete(ispsoftc_t *isp, uint32_t fph)
 	*XS_STSP(xs) = SCSI_GOOD;
 	if (XS_XFRLEN(xs)) {
 		ISP_DMAFREE(isp, xs, fph);
-	}
-	if (isp->isp_nactive) {
-		isp->isp_nactive--;
 	}
 	isp_done(xs);
 }
@@ -7579,7 +7569,6 @@ isp_reinit(ispsoftc_t *isp, int do_load_defaults)
 	}
 
 cleanup:
-	isp->isp_nactive = 0;
 	isp_clear_commands(isp);
 	if (IS_FC(isp)) {
 		for (i = 0; i < isp->isp_nchan; i++)
