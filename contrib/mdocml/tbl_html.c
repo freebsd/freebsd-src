@@ -1,7 +1,7 @@
-/*	$Id: tbl_html.c,v 1.18 2015/10/12 00:08:16 schwarze Exp $ */
+/*	$Id: tbl_html.c,v 1.19 2017/01/17 01:47:51 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -50,9 +50,6 @@ html_tbl_strlen(const char *p, void *arg)
 static void
 html_tblopen(struct html *h, const struct tbl_span *sp)
 {
-	struct htmlpair	 tag;
-	struct roffsu	 su;
-	struct roffcol	*col;
 	int		 ic;
 
 	if (h->tbl.cols == NULL) {
@@ -62,19 +59,12 @@ html_tblopen(struct html *h, const struct tbl_span *sp)
 	}
 
 	assert(NULL == h->tblt);
-	PAIR_CLASS_INIT(&tag, "tbl");
-	h->tblt = print_otag(h, TAG_TABLE, 1, &tag);
+	h->tblt = print_otag(h, TAG_TABLE, "c", "tbl");
 
-	for (ic = 0; ic < sp->opts->cols; ic++) {
-		bufinit(h);
-		col = h->tbl.cols + ic;
-		SCALE_HS_INIT(&su, col->width);
-		bufcat_su(h, "width", &su);
-		PAIR_STYLE_INIT(&tag, h);
-		print_otag(h, TAG_COL, 1, &tag);
-	}
+	for (ic = 0; ic < sp->opts->cols; ic++)
+		print_otag(h, TAG_COL, "shw", h->tbl.cols[ic].width);
 
-	print_otag(h, TAG_TBODY, 0, NULL);
+	print_otag(h, TAG_TBODY, "");
 }
 
 void
@@ -90,7 +80,6 @@ void
 print_tbl(struct html *h, const struct tbl_span *sp)
 {
 	const struct tbl_dat *dp;
-	struct htmlpair	 tag;
 	struct tag	*tt;
 	int		 ic;
 
@@ -104,19 +93,18 @@ print_tbl(struct html *h, const struct tbl_span *sp)
 	h->flags |= HTML_NONOSPACE;
 	h->flags |= HTML_NOSPACE;
 
-	tt = print_otag(h, TAG_TR, 0, NULL);
+	tt = print_otag(h, TAG_TR, "");
 
 	switch (sp->pos) {
 	case TBL_SPAN_HORIZ:
 	case TBL_SPAN_DHORIZ:
-		PAIR_INIT(&tag, ATTR_COLSPAN, "0");
-		print_otag(h, TAG_TD, 1, &tag);
+		print_otag(h, TAG_TD, "?", "colspan", "0");
 		break;
 	default:
 		dp = sp->first;
 		for (ic = 0; ic < sp->opts->cols; ic++) {
 			print_stagq(h, tt);
-			print_otag(h, TAG_TD, 0, NULL);
+			print_otag(h, TAG_TD, "");
 
 			if (dp == NULL || dp->layout->col > ic)
 				continue;

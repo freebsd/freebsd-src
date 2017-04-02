@@ -1,7 +1,7 @@
-/*	$Id: tree.c,v 1.69 2015/10/12 00:08:16 schwarze Exp $ */
+/*	$Id: tree.c,v 1.72 2017/01/12 17:29:33 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013, 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -33,6 +33,7 @@
 
 static	void	print_box(const struct eqn_box *, int);
 static	void	print_man(const struct roff_node *, int);
+static	void	print_meta(const struct roff_meta *);
 static	void	print_mdoc(const struct roff_node *, int);
 static	void	print_span(const struct tbl_span *, int);
 
@@ -40,15 +41,38 @@ static	void	print_span(const struct tbl_span *, int);
 void
 tree_mdoc(void *arg, const struct roff_man *mdoc)
 {
-
+	print_meta(&mdoc->meta);
+	putchar('\n');
 	print_mdoc(mdoc->first->child, 0);
 }
 
 void
 tree_man(void *arg, const struct roff_man *man)
 {
-
+	print_meta(&man->meta);
+	if (man->meta.hasbody == 0)
+		puts("body  = empty");
+	putchar('\n');
 	print_man(man->first->child, 0);
+}
+
+static void
+print_meta(const struct roff_meta *meta)
+{
+	if (meta->title != NULL)
+		printf("title = \"%s\"\n", meta->title);
+	if (meta->name != NULL)
+		printf("name  = \"%s\"\n", meta->name);
+	if (meta->msec != NULL)
+		printf("sec   = \"%s\"\n", meta->msec);
+	if (meta->vol != NULL)
+		printf("vol   = \"%s\"\n", meta->vol);
+	if (meta->arch != NULL)
+		printf("arch  = \"%s\"\n", meta->arch);
+	if (meta->os != NULL)
+		printf("os    = \"%s\"\n", meta->os);
+	if (meta->date != NULL)
+		printf("date  = \"%s\"\n", meta->date);
 }
 
 static void
@@ -159,15 +183,19 @@ print_mdoc(const struct roff_node *n, int indent)
 		}
 
 		putchar(' ');
-		if (MDOC_DELIMO & n->flags)
+		if (NODE_DELIMO & n->flags)
 			putchar('(');
-		if (MDOC_LINE & n->flags)
+		if (NODE_LINE & n->flags)
 			putchar('*');
 		printf("%d:%d", n->line, n->pos + 1);
-		if (MDOC_DELIMC & n->flags)
+		if (NODE_DELIMC & n->flags)
 			putchar(')');
-		if (MDOC_EOS & n->flags)
+		if (NODE_EOS & n->flags)
 			putchar('.');
+		if (NODE_NOSRC & n->flags)
+			printf(" NOSRC");
+		if (NODE_NOPRT & n->flags)
+			printf(" NOPRT");
 		putchar('\n');
 	}
 
@@ -248,10 +276,10 @@ print_man(const struct roff_node *n, int indent)
 		for (i = 0; i < indent; i++)
 			putchar(' ');
 		printf("%s (%s) ", p, t);
-		if (MAN_LINE & n->flags)
+		if (NODE_LINE & n->flags)
 			putchar('*');
 		printf("%d:%d", n->line, n->pos + 1);
-		if (MAN_EOS & n->flags)
+		if (NODE_EOS & n->flags)
 			putchar('.');
 		putchar('\n');
 	}

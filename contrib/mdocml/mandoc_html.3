@@ -1,6 +1,6 @@
-.\"	$Id: mandoc_html.3,v 1.1 2014/07/23 18:13:09 schwarze Exp $
+.\"	$Id: mandoc_html.3,v 1.3 2017/01/17 15:32:44 schwarze Exp $
 .\"
-.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2014, 2017 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 23 2014 $
+.Dd $Mdocdate: January 17 2017 $
 .Dt MANDOC_HTML 3
 .Os
 .Sh NAME
@@ -30,8 +30,8 @@
 .Fo print_otag
 .Fa "struct html *h"
 .Fa "enum htmltag tag"
-.Fa "int sz"
-.Fa "const struct htmlpair *p"
+.Fa "const char *fmt"
+.Fa ...
 .Fc
 .Ft void
 .Fo print_tagq
@@ -84,15 +84,6 @@ These structures are declared in
 .Bl -tag -width Ds
 .It Vt struct html
 Internal state of the HTML formatter.
-.It Vt struct htmlpair
-Holds one HTML attribute.
-Members are
-.Fa "enum htmlattr key"
-and
-.Fa "const char *val" .
-Helper macros
-.Fn PAIR_*
-are provided to support initialization of such structures.
 .It Vt struct tag
 One entry for the LIFO stack of HTML elements.
 Members are
@@ -134,14 +125,136 @@ The function
 .Fn print_otag
 prints the start tag of an HTML element with the name
 .Fa tag ,
-including the
-.Fa sz
-attributes that can optionally be provided in the
-.Fa p
-array.
-It uses the private function
-.Fn print_attr
-which in turn uses the private function
+optionally including the attributes specified by
+.Fa fmt .
+If
+.Fa fmt
+is the empty string, no attributes are written.
+Each letter of
+.Fa fmt
+specifies one attribute to write.
+Most attributes require one
+.Va char *
+argument which becomes the value of the attribute.
+The arguments have to be given in the same order as the attribute letters.
+.Bl -tag -width 1n -offset indent
+.It Cm c
+Print a
+.Cm class
+attribute.
+.It Cm h
+Print a
+.Cm href
+attribute.
+This attribute letter can optionally be followed by a modifier letter.
+If followed by
+.Cm R ,
+it formats the link as a local one by prefixing a
+.Sq #
+character.
+If followed by
+.Cm I ,
+it interpretes the argument as a header file name
+and generates a link using the
+.Xr mandoc 1
+.Fl O Cm includes
+option.
+If followed by
+.Cm M ,
+it takes two arguments instead of one, a manual page name and
+section, and formats them as a link to a manual page using the
+.Xr mandoc 1
+.Fl O Cm man
+option.
+.It Cm i
+Print an
+.Cm id
+attribute.
+.It Cm \&?
+Print an arbitrary attribute.
+This format letter requires two
+.Vt char *
+arguments, the attribute name and the value.
+.It Cm s
+Print a
+.Cm style
+attribute.
+If present, it must be the last format letter.
+In contrast to the other format letters, this one does not yet
+print the value and does not require an argument.
+Instead, the rest of the format string consists of pairs of
+argument type letters and style name letters.
+.El
+.Pp
+Argument type letters each require on argument as follows:
+.Bl -tag -width 1n -offset indent
+.It Cm h
+Requires one
+.Vt int
+argument, interpreted as a horizontal length in units of
+.Dv SCALE_EN .
+.It Cm s
+Requires one
+.Vt char *
+argument, used as a style value.
+.It Cm u
+Requires one
+.Vt struct roffsu *
+argument, used as a length.
+.It Cm v
+Requires one
+.Vt int
+argument, interpreted as a vertical length in units of
+.Dv SCALE_VS .
+.It Cm w
+Requires one
+.Vt char *
+argument, interpreted as an
+.Xr mdoc 7 Ns -style
+width specifier.
+.El
+.Pp
+Style name letters decide what to do with the preceding argument:
+.Bl -tag -width 1n -offset indent
+.It Cm b
+Set
+.Cm margin-bottom
+to the given length.
+.It Cm h
+Set
+.Cm height
+to the given length.
+.It Cm i
+Set
+.Cm text-indent
+to the given length.
+.It Cm l
+Set
+.Cm margin-left
+to the given length.
+.It Cm t
+Set
+.Cm margin-top
+to the given length.
+.It Cm w
+Set
+.Cm width
+to the given length.
+.It Cm W
+Set
+.Cm min-width
+to the given length.
+.It Cm \&?
+The special pair
+.Cm s?
+requires two
+.Vt char *
+arguments.
+The first is the style name, the second its value.
+.El
+.Pp
+.Fn print_otag
+uses the private function
 .Fn print_encode
 to take care of HTML encoding.
 If required by the element type, it remembers in
@@ -173,28 +286,6 @@ in an HTML font selection element using the
 and
 .Fn print_tagq
 functions.
-.Pp
-The functions
-.Fn bufinit ,
-.Fn bufcat* ,
-and
-.Fn buffmt*
-do not directly produce output but buffer text in the
-.Fa buf
-member of
-.Fa h .
-They are not used internally by
-.Pa html.c
-but intended for use by the language-specific formatters
-to ease preparation of strings for the
-.Fa p
-argument of
-.Fn print_otag
-and for the
-.Fa word
-argument of
-.Fn print_text .
-Consequently, these functions do not do any HTML encoding.
 .Pp
 The functions
 .Fn html_strlen ,

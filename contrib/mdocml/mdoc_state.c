@@ -1,4 +1,4 @@
-/*	$Id: mdoc_state.c,v 1.3 2015/10/30 18:53:54 schwarze Exp $ */
+/*	$Id: mdoc_state.c,v 1.4 2017/01/10 13:47:00 schwarze Exp $ */
 /*
  * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -249,7 +249,7 @@ state_sh(STATE_ARGS)
 	if (n->type != ROFFT_HEAD)
 		return;
 
-	if ( ! (n->flags & MDOC_VALID)) {
+	if ( ! (n->flags & NODE_VALID)) {
 		secname = NULL;
 		deroff(&secname, n);
 

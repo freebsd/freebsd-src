@@ -1,6 +1,6 @@
-/*	$Id: mansearch_const.c,v 1.7 2014/12/01 08:05:52 schwarze Exp $ */
+/*	$Id: dba_write.h,v 1.1 2016/07/19 21:31:55 schwarze Exp $ */
 /*
- * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,21 +13,18 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Internal interface to low-level functions
+ * for serializing allocation-based data to disk.
+ * For use by dba_array.c and dba.c only.
  */
-#include "config.h"
 
-#include <sys/types.h>
-
-#include <stdint.h>
-
-#include "mansearch.h"
-
-const int mansearch_keymax = 40;
-
-const char *const mansearch_keynames[40] = {
-	"arch", "sec",	"Xr",	"Ar",	"Fa",	"Fl",	"Dv",	"Fn",
-	"Ic",	"Pa",	"Cm",	"Li",	"Em",	"Cd",	"Va",	"Ft",
-	"Tn",	"Er",	"Ev",	"Sy",	"Sh",	"In",	"Ss",	"Ox",
-	"An",	"Mt",	"St",	"Bx",	"At",	"Nx",	"Fx",	"Lk",
-	"Ms",	"Bsx",	"Dx",	"Rs",	"Vt",	"Lb",	"Nm",	"Nd"
-};
+int	 dba_open(const char *);
+int	 dba_close(void);
+int32_t	 dba_tell(void);
+void	 dba_seek(int32_t);
+int32_t	 dba_align(void);
+int32_t	 dba_skip(int32_t, int32_t);
+void	 dba_char_write(int);
+void	 dba_str_write(const char *);
+void	 dba_int_write(int32_t);
