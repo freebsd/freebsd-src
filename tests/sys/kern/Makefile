@@ -32,7 +32,7 @@ LIBADD.mqueue_test+=	rt
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 ATF_TESTS_C+=	libkern_crc32
-CFLAGS.libkern_crc32+=	-msse4 -DUSERSPACE_TESTING
+CFLAGS.libkern_crc32+=	-DUSERSPACE_TESTING
 LDADD.libkern_crc32+=	${SRCTOP}/sys/libkern/x86/crc32_sse42.c
 .endif
 
