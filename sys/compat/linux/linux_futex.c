@@ -294,9 +294,6 @@ futex_copyin_timeout(int op, struct l_timespec *luts, int clockrt,
 	error = linux_to_native_timespec(ts, &lts);
 	if (error)
 		return (error);
-	if (ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000)
-		return (EINVAL);
-
 	if (clockrt) {
 		nanotime(&kts);
 		timespecsub(ts, &kts);
