@@ -82,6 +82,9 @@ CFLAGS+=	-I${.CURDIR}/../../ofw/libofw/
 # where to get libstand from
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
+# Need sys/ for crypto/intake.h
+CFLAGS+=	-I${SRCTOP}/sys
+
 DPADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSTAND}
 LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} -lstand
 
