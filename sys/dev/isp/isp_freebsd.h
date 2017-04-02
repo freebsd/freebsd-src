@@ -297,16 +297,7 @@ struct isposinfo {
 	struct isp_pcmd *	pcmd_pool;
 	struct isp_pcmd *	pcmd_free;
 
-	uint32_t
-#ifdef	ISP_TARGET_MODE
-		tmwanted	: 1,
-		tmbusy		: 1,
-#else
-				: 2,
-#endif
-		sixtyfourbit	: 1,	/* sixtyfour bit platform */
-		timer_active	: 1,
-		autoconf	: 1;
+	int			sixtyfourbit;	/* sixtyfour bit platform */
 	int			mbox_sleeping;
 	int			mbox_sleep_ok;
 	int			mboxbsy;
