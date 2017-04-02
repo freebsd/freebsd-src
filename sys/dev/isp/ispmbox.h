@@ -895,6 +895,8 @@ typedef struct {
 	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID) : 0)
 #define	ISP_GET_VPIDX(isp, tag) \
 	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
+#define	ISP_CAP_MSIX(isp)	\
+	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MSIX) : 0)
 #define	ISP_CAP_VP0(isp)	\
 	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_VP0) : 0)
 

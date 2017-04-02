@@ -722,6 +722,8 @@ void isp_mbox_release(ispsoftc_t *);
 int isp_fc_scratch_acquire(ispsoftc_t *, int);
 int isp_mstohz(int);
 void isp_platform_intr(void *);
+void isp_platform_intr_resp(void *);
+void isp_platform_intr_atio(void *);
 void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
 void isp_fcp_reset_crn(ispsoftc_t *, int, uint32_t, int);
 int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
@@ -733,8 +735,6 @@ int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 #define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
 	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
 	busdma_lock_mutex, &isp->isp_osinfo.lock, z)
-
-#define	isp_setup_intr	bus_setup_intr
 
 #define	isp_sim_alloc(a, b, c, d, e, f, g, h)	\
 	cam_sim_alloc(a, b, c, d, e, &(d)->isp_osinfo.lock, f, g, h)
