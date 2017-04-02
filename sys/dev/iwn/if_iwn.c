@@ -3501,7 +3501,7 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
 	struct iwn4965_tx_stat *stat = (struct iwn4965_tx_stat *)(desc + 1);
-	int qid = desc->qid & 0xf;
+	int qid = desc->qid & IWN_RX_DESC_QID_MSK;
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
 	    "qid %d idx %d RTS retries %d ACK retries %d nkill %d rate %x duration %d status %x\n",
@@ -3526,7 +3526,7 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
     struct iwn_rx_data *data)
 {
 	struct iwn5000_tx_stat *stat = (struct iwn5000_tx_stat *)(desc + 1);
-	int qid = desc->qid & 0xf;
+	int qid = desc->qid & IWN_RX_DESC_QID_MSK;
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
 	    "qid %d idx %d RTS retries %d ACK retries %d nkill %d rate %x duration %d status %x\n",
@@ -3539,7 +3539,7 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 #ifdef notyet
 	/* Reset TX scheduler slot. */
-	iwn5000_reset_sched(sc, desc->qid & 0xf, desc->idx);
+	iwn5000_reset_sched(sc, qid, desc->idx);
 #endif
 
 	if (qid >= sc->firstaggqueue) {
@@ -3559,7 +3559,7 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int rtsfailcnt,
     int ackfailcnt, uint8_t status)
 {
 	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
-	struct iwn_tx_ring *ring = &sc->txq[desc->qid & 0xf];
+	struct iwn_tx_ring *ring = &sc->txq[desc->qid & IWN_RX_DESC_QID_MSK];
 	struct iwn_tx_data *data = &ring->data[desc->idx];
 	struct mbuf *m;
 	struct ieee80211_node *ni;
@@ -3833,9 +3833,9 @@ iwn_notif_intr(struct iwn_softc *sc)
 
 		DPRINTF(sc, IWN_DEBUG_RECV,
 		    "%s: cur=%d; qid %x idx %d flags %x type %d(%s) len %d\n",
-		    __func__, sc->rxq.cur, desc->qid & 0xf, desc->idx, desc->flags,
-		    desc->type, iwn_intr_str(desc->type),
-		    le16toh(desc->len));
+		    __func__, sc->rxq.cur, desc->qid & IWN_RX_DESC_QID_MSK,
+		    desc->idx, desc->flags, desc->type,
+		    iwn_intr_str(desc->type), le16toh(desc->len));
 
 		if (!(desc->qid & IWN_UNSOLICITED_RX_NOTIF))	/* Reply to a command. */
 			iwn_cmd_done(sc, desc);
