@@ -585,12 +585,9 @@ typedef struct {
 	void *cmd_token;
 	void *rq;	/* original request */
 	int error;
-	bus_size_t mapsize;
 } mush_t;
 
 #define	MUSHERR_NOQENTRIES	-2
-
-static void dma2(void *, bus_dma_segment_t *, int, int);
 
 static void
 dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
@@ -634,7 +631,6 @@ static int
 isp_sbus_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 {
 	mush_t mush, *mp;
-	void (*eptr)(void *, bus_dma_segment_t *, int, int);
 	int error;
 
 	mp = &mush;
@@ -642,12 +638,9 @@ isp_sbus_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 	mp->cmd_token = csio;
 	mp->rq = ff;
 	mp->error = 0;
-	mp->mapsize = 0;
-
-	eptr = dma2;
 
 	error = bus_dmamap_load_ccb(isp->isp_osinfo.dmat,
-	    PISP_PCMD(csio)->dmap, (union ccb *)csio, eptr, mp, 0);
+	    PISP_PCMD(csio)->dmap, (union ccb *)csio, dma2, mp, 0);
 	if (error == EINPROGRESS) {
 		bus_dmamap_unload(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap);
 		mp->error = EINVAL;
