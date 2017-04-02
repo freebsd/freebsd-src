@@ -10,5 +10,6 @@ SRCS=	bus_if.h device_if.h pci_if.h \
 .if ${MACHINE} == sparc64
 SRCS+=	isp_sbus.c ofw_bus_if.h
 .endif
+CFLAGS+=	-Wformat -Wall -Werror
 
 .include <bsd.kmod.mk>
