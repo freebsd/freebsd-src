@@ -141,7 +141,7 @@ linux_to_native_timespec(struct timespec *ntp, struct l_timespec *ltp)
 
 	LIN_SDT_PROBE2(time, linux_to_native_timespec, entry, ntp, ltp);
 
-	if (ltp->tv_sec < 0 || (l_ulong)ltp->tv_nsec > 999999999L) {
+	if (ltp->tv_sec < 0 || ltp->tv_nsec < 0 || ltp->tv_nsec > 999999999) {
 		LIN_SDT_PROBE1(time, linux_to_native_timespec, return, EINVAL);
 		return (EINVAL);
 	}
