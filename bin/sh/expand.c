@@ -98,8 +98,8 @@ static const char *expari(const char *, struct nodelist **restrict, int,
 static void expbackq(union node *, int, int, struct worddest *);
 static const char *subevalvar_trim(const char *, struct nodelist **restrict,
     int, int, int);
-static void subevalvar_misc(const char *, struct nodelist *, const char *, int,
-    int, int);
+static const char *subevalvar_misc(const char *, struct nodelist **restrict,
+    const char *, int, int, int);
 static const char *evalvar(const char *, struct nodelist **restrict, int,
     struct worddest *);
 static int varisset(const char *, int);
@@ -615,15 +615,14 @@ subevalvar_trim(const char *p, struct nodelist **restrict argbackq, int strloc,
 }
 
 
-static void
-subevalvar_misc(const char *p, struct nodelist *argbackq, const char *var, int subtype, int startloc,
-  int varflags)
+static const char *
+subevalvar_misc(const char *p, struct nodelist **restrict argbackq,
+    const char *var, int subtype, int startloc, int varflags)
 {
 	char *startp;
-	struct nodelist *argbackqcopy = argbackq;
 	int amount;
 
-	argstr(p, &argbackqcopy, EXP_TILDE, NULL);
+	p = argstr(p, argbackq, EXP_TILDE, NULL);
 	STACKSTRNUL(expdest);
 	startp = stackblock() + startloc;
 
@@ -632,7 +631,7 @@ subevalvar_misc(const char *p, struct nodelist *argbackq, const char *var, int s
 		setvar(var, startp, 0);
 		amount = startp - expdest;
 		STADJUST(amount, expdest);
-		return;
+		return p;
 
 	case VSQUESTION:
 		if (*p != CTLENDVAR) {
@@ -677,7 +676,6 @@ evalvar(const char *p, struct nodelist **restrict argbackq, int flag,
 	if (! is_name(*p))
 		special = 1;
 	p = strchr(p, '=') + 1;
-again: /* jump here after setting a variable with ${var=text} */
 	if (varflags & VSLINENO) {
 		set = 1;
 		special = 1;
@@ -786,11 +784,12 @@ again: /* jump here after setting a variable with ${var=text} */
 	case VSASSIGN:
 	case VSQUESTION:
 		if (!set) {
-			subevalvar_misc(p, *argbackq, var, subtype,
+			p = subevalvar_misc(p, argbackq, var, subtype,
 			    startloc, varflags);
 			/* assert(subtype == VSASSIGN); */
-			varflags &= ~VSNUL;
-			goto again;
+			val = lookupvar(var);
+			strtodest(val, flag, subtype, varflags & VSQUOTE, dst);
+			return p;
 		}
 		break;
 
