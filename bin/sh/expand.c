@@ -96,7 +96,8 @@ static const char *exptilde(const char *, int);
 static const char *expari(const char *, struct nodelist **restrict, int,
     struct worddest *);
 static void expbackq(union node *, int, int, struct worddest *);
-static void subevalvar_trim(const char *, struct nodelist *, int, int, int);
+static const char *subevalvar_trim(const char *, struct nodelist **restrict,
+    int, int, int);
 static void subevalvar_misc(const char *, struct nodelist *, const char *, int,
     int, int);
 static const char *evalvar(const char *, struct nodelist **restrict, int,
@@ -540,18 +541,17 @@ recordleft(const char *str, const char *loc, char *startp)
 		*startp++ = *loc++;
 }
 
-static void
-subevalvar_trim(const char *p, struct nodelist *argbackq, int strloc,
+static const char *
+subevalvar_trim(const char *p, struct nodelist **restrict argbackq, int strloc,
     int subtype, int startloc)
 {
 	char *startp;
 	char *loc = NULL;
 	char *str;
 	int c = 0;
-	struct nodelist *argbackqcopy = argbackq;
 	int amount;
 
-	argstr(p, &argbackqcopy, EXP_CASE | EXP_TILDE, NULL);
+	p = argstr(p, argbackq, EXP_CASE | EXP_TILDE, NULL);
 	STACKSTRNUL(expdest);
 	startp = stackblock() + startloc;
 	str = stackblock() + strloc;
@@ -564,7 +564,7 @@ subevalvar_trim(const char *p, struct nodelist *argbackq, int strloc,
 			if (patmatch(str, startp)) {
 				*loc = c;
 				recordleft(str, loc, startp);
-				return;
+				return p;
 			}
 			*loc = c;
 		}
@@ -577,7 +577,7 @@ subevalvar_trim(const char *p, struct nodelist *argbackq, int strloc,
 			if (patmatch(str, startp)) {
 				*loc = c;
 				recordleft(str, loc, startp);
-				return;
+				return p;
 			}
 			*loc = c;
 			loc--;
@@ -589,7 +589,7 @@ subevalvar_trim(const char *p, struct nodelist *argbackq, int strloc,
 			if (patmatch(str, loc)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
-				return;
+				return p;
 			}
 			loc--;
 		}
@@ -600,7 +600,7 @@ subevalvar_trim(const char *p, struct nodelist *argbackq, int strloc,
 			if (patmatch(str, loc)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
-				return;
+				return p;
 			}
 		}
 		break;
@@ -611,6 +611,7 @@ subevalvar_trim(const char *p, struct nodelist *argbackq, int strloc,
 	}
 	amount = (expdest - stackblock() - strloc) + 1;
 	STADJUST(-amount, expdest);
+	return p;
 }
 
 
@@ -776,11 +777,11 @@ again: /* jump here after setting a variable with ${var=text} */
 		 */
 		STPUTC('\0', expdest);
 		patloc = expdest - stackblock();
-		subevalvar_trim(p, *argbackq, patloc, subtype, startloc);
+		p = subevalvar_trim(p, argbackq, patloc, subtype, startloc);
 		reprocess(startloc, flag, VSNORMAL, varflags & VSQUOTE, dst);
 		if (flag & EXP_SPLIT && *var == '@' && varflags & VSQUOTE)
 			dst->state = WORD_QUOTEMARK;
-		break;
+		return p;
 
 	case VSASSIGN:
 	case VSQUESTION:
