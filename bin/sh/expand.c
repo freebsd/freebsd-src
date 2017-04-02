@@ -753,15 +753,14 @@ again: /* jump here after setting a variable with ${var=text} */
 		break;
 
 	case VSNORMAL:
-		break;
+		return p;
 
 	case VSPLUS:
 	case VSMINUS:
 		if (!set) {
-			argstr(p, argbackq,
+			return argstr(p, argbackq,
 			    flag | (flag & EXP_SPLIT ? EXP_SPLIT_LIT : 0) |
 			    (varflags & VSQUOTE ? EXP_LIT_QUOTED : 0), dst);
-			break;
 		}
 		break;
 
@@ -769,10 +768,8 @@ again: /* jump here after setting a variable with ${var=text} */
 	case VSTRIMLEFTMAX:
 	case VSTRIMRIGHT:
 	case VSTRIMRIGHTMAX:
-		if (!set) {
-			set = 1;
+		if (!set)
 			break;
-		}
 		/*
 		 * Terminate the string and start recording the pattern
 		 * right after it
@@ -805,15 +802,14 @@ again: /* jump here after setting a variable with ${var=text} */
 		abort();
 	}
 
-	if (subtype != VSNORMAL) {	/* skip to end of alternative */
+	{	/* skip to end of alternative */
 		int nesting = 1;
 		for (;;) {
 			if ((c = *p++) == CTLESC)
 				p++;
-			else if (c == CTLBACKQ || c == (CTLBACKQ|CTLQUOTE)) {
-				if (set)
-					*argbackq = (*argbackq)->next;
-			} else if (c == CTLVAR) {
+			else if (c == CTLBACKQ || c == (CTLBACKQ|CTLQUOTE))
+				*argbackq = (*argbackq)->next;
+			else if (c == CTLVAR) {
 				if ((*p++ & VSTYPE) != VSNORMAL)
 					nesting++;
 			} else if (c == CTLENDVAR) {
