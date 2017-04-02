@@ -64,11 +64,14 @@ public:
     ppc64le,        // PPC64LE: powerpc64le
     r600,           // R600: AMD GPUs HD2XXX - HD6XXX
     amdgcn,         // AMDGCN: AMD GCN GPUs
+    riscv32,        // RISC-V (32-bit): riscv32
+    riscv64,        // RISC-V (64-bit): riscv64
     sparc,          // Sparc: sparc
     sparcv9,        // Sparcv9: Sparcv9
     sparcel,        // Sparc: (endianness = little). NB: 'Sparcle' is a CPU variant
     systemz,        // SystemZ: s390x
     tce,            // TCE (http://tce.cs.tut.fi/): tce
+    tcele,          // TCE little endian (http://tce.cs.tut.fi/): tcele
     thumb,          // Thumb (little endian): thumb, thumbv.*
     thumbeb,        // Thumb (big endian): thumbeb
     x86,            // X86: i[3-9]86
@@ -99,6 +102,7 @@ public:
     ARMSubArch_v8_2a,
     ARMSubArch_v8_1a,
     ARMSubArch_v8,
+    ARMSubArch_v8r,
     ARMSubArch_v8m_baseline,
     ARMSubArch_v8m_mainline,
     ARMSubArch_v7,
@@ -144,6 +148,7 @@ public:
     Darwin,
     DragonFly,
     FreeBSD,
+    Fuchsia,
     IOS,
     KFreeBSD,
     Linux,
@@ -168,7 +173,8 @@ public:
     TvOS,       // Apple tvOS
     WatchOS,    // Apple watchOS
     Mesa3D,
-    LastOSType = Mesa3D
+    Contiki,
+    LastOSType = Contiki
   };
   enum EnvironmentType {
     UnknownEnvironment,
@@ -191,7 +197,8 @@ public:
     Cygnus,
     AMDOpenCL,
     CoreCLR,
-    LastEnvironmentType = CoreCLR
+    OpenCL,
+    LastEnvironmentType = OpenCL
   };
   enum ObjectFormatType {
     UnknownObjectFormat,
@@ -461,6 +468,10 @@ public:
     return getOS() == Triple::FreeBSD;
   }
 
+  bool isOSFuchsia() const {
+    return getOS() == Triple::Fuchsia;
+  }
+
   bool isOSDragonFly() const { return getOS() == Triple::DragonFly; }
 
   bool isOSSolaris() const {
@@ -480,6 +491,10 @@ public:
     return Env == Triple::GNU || Env == Triple::GNUABI64 ||
            Env == Triple::GNUEABI || Env == Triple::GNUEABIHF ||
            Env == Triple::GNUX32;
+  }
+
+  bool isOSContiki() const {
+    return getOS() == Triple::Contiki;
   }
 
   /// Checks if the environment could be MSVC.
@@ -690,7 +705,7 @@ public:
   /// @{
 
   /// getArchTypeName - Get the canonical name for the \p Kind architecture.
-  static const char *getArchTypeName(ArchType Kind);
+  static StringRef getArchTypeName(ArchType Kind);
 
   /// getArchTypePrefix - Get the "prefix" canonical name for the \p Kind
   /// architecture. This is the prefix used by the architecture specific
@@ -698,17 +713,17 @@ public:
   /// Intrinsic::getIntrinsicForGCCBuiltin().
   ///
   /// \return - The architecture prefix, or 0 if none is defined.
-  static const char *getArchTypePrefix(ArchType Kind);
+  static StringRef getArchTypePrefix(ArchType Kind);
 
   /// getVendorTypeName - Get the canonical name for the \p Kind vendor.
-  static const char *getVendorTypeName(VendorType Kind);
+  static StringRef getVendorTypeName(VendorType Kind);
 
   /// getOSTypeName - Get the canonical name for the \p Kind operating system.
-  static const char *getOSTypeName(OSType Kind);
+  static StringRef getOSTypeName(OSType Kind);
 
   /// getEnvironmentTypeName - Get the canonical name for the \p Kind
   /// environment.
-  static const char *getEnvironmentTypeName(EnvironmentType Kind);
+  static StringRef getEnvironmentTypeName(EnvironmentType Kind);
 
   /// @}
   /// @name Static helpers for converting alternate architecture names.

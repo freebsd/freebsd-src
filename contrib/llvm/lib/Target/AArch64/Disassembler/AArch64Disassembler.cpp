@@ -237,18 +237,18 @@ createAArch64ExternalSymbolizer(const Triple &TT, LLVMOpInfoCallback GetOpInfo,
 }
 
 extern "C" void LLVMInitializeAArch64Disassembler() {
-  TargetRegistry::RegisterMCDisassembler(TheAArch64leTarget,
+  TargetRegistry::RegisterMCDisassembler(getTheAArch64leTarget(),
                                          createAArch64Disassembler);
-  TargetRegistry::RegisterMCDisassembler(TheAArch64beTarget,
+  TargetRegistry::RegisterMCDisassembler(getTheAArch64beTarget(),
                                          createAArch64Disassembler);
-  TargetRegistry::RegisterMCSymbolizer(TheAArch64leTarget,
+  TargetRegistry::RegisterMCSymbolizer(getTheAArch64leTarget(),
                                        createAArch64ExternalSymbolizer);
-  TargetRegistry::RegisterMCSymbolizer(TheAArch64beTarget,
+  TargetRegistry::RegisterMCSymbolizer(getTheAArch64beTarget(),
                                        createAArch64ExternalSymbolizer);
 
-  TargetRegistry::RegisterMCDisassembler(TheARM64Target,
+  TargetRegistry::RegisterMCDisassembler(getTheARM64Target(),
                                          createAArch64Disassembler);
-  TargetRegistry::RegisterMCSymbolizer(TheARM64Target,
+  TargetRegistry::RegisterMCSymbolizer(getTheARM64Target(),
                                        createAArch64ExternalSymbolizer);
 }
 
@@ -1097,7 +1097,7 @@ static DecodeStatus DecodeExclusiveLdStInstruction(llvm::MCInst &Inst,
   case AArch64::STXRB:
   case AArch64::STXRH:
     DecodeGPR32RegisterClass(Inst, Rs, Addr, Decoder);
-  // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case AArch64::LDARW:
   case AArch64::LDARB:
   case AArch64::LDARH:
@@ -1121,7 +1121,7 @@ static DecodeStatus DecodeExclusiveLdStInstruction(llvm::MCInst &Inst,
   case AArch64::STLXRX:
   case AArch64::STXRX:
     DecodeGPR32RegisterClass(Inst, Rs, Addr, Decoder);
-  // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case AArch64::LDARX:
   case AArch64::LDAXRX:
   case AArch64::LDXRX:
@@ -1133,7 +1133,7 @@ static DecodeStatus DecodeExclusiveLdStInstruction(llvm::MCInst &Inst,
   case AArch64::STLXPW:
   case AArch64::STXPW:
     DecodeGPR32RegisterClass(Inst, Rs, Addr, Decoder);
-  // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case AArch64::LDAXPW:
   case AArch64::LDXPW:
     DecodeGPR32RegisterClass(Inst, Rt, Addr, Decoder);
@@ -1142,7 +1142,7 @@ static DecodeStatus DecodeExclusiveLdStInstruction(llvm::MCInst &Inst,
   case AArch64::STLXPX:
   case AArch64::STXPX:
     DecodeGPR32RegisterClass(Inst, Rs, Addr, Decoder);
-  // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case AArch64::LDAXPX:
   case AArch64::LDXPX:
     DecodeGPR64RegisterClass(Inst, Rt, Addr, Decoder);
@@ -1218,7 +1218,7 @@ static DecodeStatus DecodePairLdStInstruction(llvm::MCInst &Inst, uint32_t insn,
   case AArch64::STPXpre:
   case AArch64::LDPSWpre:
     NeedsDisjointWritebackTransfer = true;
-    // Fallthrough
+    LLVM_FALLTHROUGH;
   case AArch64::LDNPXi:
   case AArch64::STNPXi:
   case AArch64::LDPXi:
@@ -1232,7 +1232,7 @@ static DecodeStatus DecodePairLdStInstruction(llvm::MCInst &Inst, uint32_t insn,
   case AArch64::LDPWpre:
   case AArch64::STPWpre:
     NeedsDisjointWritebackTransfer = true;
-    // Fallthrough
+    LLVM_FALLTHROUGH;
   case AArch64::LDNPWi:
   case AArch64::STNPWi:
   case AArch64::LDPWi:

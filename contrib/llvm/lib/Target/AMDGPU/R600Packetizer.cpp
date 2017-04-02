@@ -47,9 +47,7 @@ public:
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
-  const char *getPassName() const override {
-    return "R600 Packetizer";
-  }
+  StringRef getPassName() const override { return "R600 Packetizer"; }
 
   bool runOnMachineFunction(MachineFunction &Fn) override;
 };
@@ -283,7 +281,7 @@ public:
       return false;
     }
 
-    // We cannot read LDS source registrs from the Trans slot.
+    // We cannot read LDS source registers from the Trans slot.
     if (isTransSlot && TII->readsLDSSrcReg(MI))
       return false;
 

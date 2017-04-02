@@ -54,7 +54,8 @@ struct MapUnmapCallback {
     diff = p + size - RoundDown(p + size, kPageSize);
     if (diff != 0)
       size -= diff;
-    FlushUnneededShadowMemory((uptr)MemToMeta(p), size / kMetaRatio);
+    uptr p_meta = (uptr)MemToMeta(p);
+    ReleaseMemoryPagesToOS(p_meta, p_meta + size / kMetaRatio);
   }
 };
 
@@ -111,7 +112,9 @@ ScopedGlobalProcessor::~ScopedGlobalProcessor() {
 }
 
 void InitializeAllocator() {
-  allocator()->Init(common_flags()->allocator_may_return_null);
+  allocator()->Init(
+      common_flags()->allocator_may_return_null,
+      common_flags()->allocator_release_to_os_interval_ms);
 }
 
 void InitializeAllocatorLate() {
@@ -148,7 +151,7 @@ static void SignalUnsafeCall(ThreadState *thr, uptr pc) {
 
 void *user_alloc(ThreadState *thr, uptr pc, uptr sz, uptr align, bool signal) {
   if ((sz >= (1ull << 40)) || (align >= (1ull << 40)))
-    return allocator()->ReturnNullOrDie();
+    return allocator()->ReturnNullOrDieOnBadRequest();
   void *p = allocator()->Allocate(&thr->proc()->alloc_cache, sz, align);
   if (p == 0)
     return 0;
@@ -161,7 +164,7 @@ void *user_alloc(ThreadState *thr, uptr pc, uptr sz, uptr align, bool signal) {
 
 void *user_calloc(ThreadState *thr, uptr pc, uptr size, uptr n) {
   if (CallocShouldReturnNullDueToOverflow(size, n))
-    return allocator()->ReturnNullOrDie();
+    return allocator()->ReturnNullOrDieOnBadRequest();
   void *p = user_alloc(thr, pc, n * size);
   if (p)
     internal_memset(p, 0, n * size);
@@ -195,20 +198,16 @@ void OnUserFree(ThreadState *thr, uptr pc, uptr p, bool write) {
 }
 
 void *user_realloc(ThreadState *thr, uptr pc, void *p, uptr sz) {
-  void *p2 = 0;
   // FIXME: Handle "shrinking" more efficiently,
   // it seems that some software actually does this.
-  if (sz) {
-    p2 = user_alloc(thr, pc, sz);
-    if (p2 == 0)
-      return 0;
-    if (p) {
-      uptr oldsz = user_alloc_usable_size(p);
-      internal_memcpy(p2, p, min(oldsz, sz));
-    }
-  }
-  if (p)
+  void *p2 = user_alloc(thr, pc, sz);
+  if (p2 == 0)
+    return 0;
+  if (p) {
+    uptr oldsz = user_alloc_usable_size(p);
+    internal_memcpy(p2, p, min(oldsz, sz));
     user_free(thr, pc, p);
+  }
   return p2;
 }
 

@@ -35,10 +35,11 @@ Expected<std::unique_ptr<SymbolicFile>> SymbolicFile::createSymbolicFile(
   switch (Type) {
   case sys::fs::file_magic::bitcode:
     if (Context)
-      return errorOrToExpected(IRObjectFile::create(Object, *Context));
-  // Fallthrough
+      return IRObjectFile::create(Object, *Context);
+    LLVM_FALLTHROUGH;
   case sys::fs::file_magic::unknown:
   case sys::fs::file_magic::archive:
+  case sys::fs::file_magic::coff_cl_gl_object:
   case sys::fs::file_magic::macho_universal_binary:
   case sys::fs::file_magic::windows_resource:
     return errorCodeToError(object_error::invalid_file_type);
@@ -57,6 +58,7 @@ Expected<std::unique_ptr<SymbolicFile>> SymbolicFile::createSymbolicFile(
   case sys::fs::file_magic::macho_dsym_companion:
   case sys::fs::file_magic::macho_kext_bundle:
   case sys::fs::file_magic::pecoff_executable:
+  case sys::fs::file_magic::wasm_object:
     return ObjectFile::createObjectFile(Object, Type);
   case sys::fs::file_magic::coff_import_library:
     return std::unique_ptr<SymbolicFile>(new COFFImportFile(Object));
@@ -73,9 +75,9 @@ Expected<std::unique_ptr<SymbolicFile>> SymbolicFile::createSymbolicFile(
     if (!BCData)
       return std::move(Obj);
 
-    return errorOrToExpected(IRObjectFile::create(
-                                 MemoryBufferRef(BCData->getBuffer(),
-                                 Object.getBufferIdentifier()), *Context));
+    return IRObjectFile::create(
+        MemoryBufferRef(BCData->getBuffer(), Object.getBufferIdentifier()),
+        *Context);
   }
   }
   llvm_unreachable("Unexpected Binary File Type");

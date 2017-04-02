@@ -28,7 +28,7 @@ namespace lld {
 namespace coff {
 
 SectionChunk::SectionChunk(ObjectFile *F, const coff_section *H)
-    : Chunk(SectionKind), Repl(this), File(F), Header(H),
+    : Chunk(SectionKind), Repl(this), Header(H), File(F),
       Relocs(File->getCOFFObj()->getRelocations(Header)),
       NumRelocs(std::distance(Relocs.begin(), Relocs.end())) {
   // Initialize SectionName.
@@ -81,11 +81,23 @@ void SectionChunk::applyRelX86(uint8_t *Off, uint16_t Type, Defined *Sym,
 }
 
 static void applyMOV(uint8_t *Off, uint16_t V) {
-  or16(Off, ((V & 0x800) >> 1) | ((V >> 12) & 0xf));
-  or16(Off + 2, ((V & 0x700) << 4) | (V & 0xff));
+  write16le(Off, (read16le(Off) & 0xfbf0) | ((V & 0x800) >> 1) | ((V >> 12) & 0xf));
+  write16le(Off + 2, (read16le(Off + 2) & 0x8f00) | ((V & 0x700) << 4) | (V & 0xff));
+}
+
+static uint16_t readMOV(uint8_t *Off) {
+  uint16_t Opcode1 = read16le(Off);
+  uint16_t Opcode2 = read16le(Off + 2);
+  uint16_t Imm = (Opcode2 & 0x00ff) | ((Opcode2 >> 4) & 0x0700);
+  Imm |= ((Opcode1 << 1) & 0x0800) | ((Opcode1 & 0x000f) << 12);
+  return Imm;
 }
 
 static void applyMOV32T(uint8_t *Off, uint32_t V) {
+  uint16_t ImmW = readMOV(Off);     // read MOVW operand
+  uint16_t ImmT = readMOV(Off + 4); // read MOVT operand
+  uint32_t Imm = ImmW | (ImmT << 16);
+  V += Imm;                         // add the immediate offset
   applyMOV(Off, V);           // set MOVW operand
   applyMOV(Off + 4, V >> 16); // set MOVT operand
 }
@@ -99,11 +111,14 @@ static void applyBranch20T(uint8_t *Off, int32_t V) {
 }
 
 static void applyBranch24T(uint8_t *Off, int32_t V) {
+  if (!isInt<25>(V))
+    fatal("relocation out of range");
   uint32_t S = V < 0 ? 1 : 0;
   uint32_t J1 = ((~V >> 23) & 1) ^ S;
   uint32_t J2 = ((~V >> 22) & 1) ^ S;
   or16(Off, (S << 10) | ((V >> 12) & 0x3ff));
-  or16(Off + 2, (J1 << 13) | (J2 << 11) | ((V >> 1) & 0x7ff));
+  // Clear out the J1 and J2 bits which may be set.
+  write16le(Off + 2, (read16le(Off + 2) & 0xd000) | (J1 << 13) | (J2 << 11) | ((V >> 1) & 0x7ff));
 }
 
 void SectionChunk::applyRelARM(uint8_t *Off, uint16_t Type, Defined *Sym,
@@ -119,6 +134,7 @@ void SectionChunk::applyRelARM(uint8_t *Off, uint16_t Type, Defined *Sym,
   case IMAGE_REL_ARM_BRANCH20T: applyBranch20T(Off, S - P - 4); break;
   case IMAGE_REL_ARM_BRANCH24T: applyBranch24T(Off, S - P - 4); break;
   case IMAGE_REL_ARM_BLX23T:    applyBranch24T(Off, S - P - 4); break;
+  case IMAGE_REL_ARM_SECREL:    add32(Off, Sym->getSecrel()); break;
   default:
     fatal("unsupported relocation type");
   }
@@ -134,7 +150,7 @@ void SectionChunk::writeTo(uint8_t *Buf) const {
   // Apply relocations.
   for (const coff_relocation &Rel : Relocs) {
     uint8_t *Off = Buf + OutputSectionOff + Rel.VirtualAddress;
-    SymbolBody *Body = File->getSymbolBody(Rel.SymbolTableIndex)->repl();
+    SymbolBody *Body = File->getSymbolBody(Rel.SymbolTableIndex);
     Defined *Sym = cast<Defined>(Body);
     uint64_t P = RVA + Rel.VirtualAddress;
     switch (Config->Machine) {
@@ -187,7 +203,7 @@ void SectionChunk::getBaserels(std::vector<Baserel> *Res) {
     uint8_t Ty = getBaserelType(Rel);
     if (Ty == IMAGE_REL_BASED_ABSOLUTE)
       continue;
-    SymbolBody *Body = File->getSymbolBody(Rel.SymbolTableIndex)->repl();
+    SymbolBody *Body = File->getSymbolBody(Rel.SymbolTableIndex);
     if (isa<DefinedAbsolute>(Body))
       continue;
     Res->emplace_back(RVA + Rel.VirtualAddress, Ty);
@@ -210,7 +226,7 @@ void SectionChunk::printDiscardedMessage() const {
   // Removed by dead-stripping. If it's removed by ICF, ICF already
   // printed out the name, so don't repeat that here.
   if (Sym && this == Repl)
-    llvm::outs() << "Discarded " << Sym->getName() << "\n";
+    outs() << "Discarded " << Sym->getName() << "\n";
 }
 
 StringRef SectionChunk::getDebugName() {
@@ -233,7 +249,7 @@ void SectionChunk::replace(SectionChunk *Other) {
 CommonChunk::CommonChunk(const COFFSymbolRef S) : Sym(S) {
   // Common symbols are aligned on natural boundaries up to 32 bytes.
   // This is what MSVC link.exe does.
-  Align = std::min(uint64_t(32), NextPowerOf2(Sym.getValue()));
+  Align = std::min(uint64_t(32), PowerOf2Ceil(Sym.getValue()));
 }
 
 uint32_t CommonChunk::getPermissions() const {

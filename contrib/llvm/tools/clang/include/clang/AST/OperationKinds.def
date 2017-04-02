@@ -321,9 +321,14 @@ CAST_OPERATION(BuiltinFnToFnPtr)
 // Convert a zero value for OpenCL event_t initialization.
 CAST_OPERATION(ZeroToOCLEvent)
 
+// Convert a zero value for OpenCL queue_t initialization.
+CAST_OPERATION(ZeroToOCLQueue)
+
 // Convert a pointer to a different address space.
 CAST_OPERATION(AddressSpaceConversion)
 
+// Convert an integer initializer to an OpenCL sampler.
+CAST_OPERATION(IntToOCLSampler)
 
 //===- Binary Operations  -------------------------------------------------===//
 // Operators listed in order of precedence.

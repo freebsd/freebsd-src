@@ -74,8 +74,11 @@ COMMON_FLAG(bool, allocator_may_return_null, false,
 COMMON_FLAG(bool, print_summary, true,
             "If false, disable printing error summaries in addition to error "
             "reports.")
+COMMON_FLAG(int, print_module_map, 0,
+            "OS X only. 0 = don't print, 1 = print only once before process "
+            "exits, 2 = print after each report.")
 COMMON_FLAG(bool, check_printf, true, "Check printf arguments.")
-COMMON_FLAG(bool, handle_segv, SANITIZER_NEEDS_SEGV,
+COMMON_FLAG(bool, handle_segv, true,
             "If set, registers the tool's custom SIGSEGV/SIGBUS handler.")
 COMMON_FLAG(bool, handle_abort, false,
             "If set, registers the tool's custom SIGABRT handler.")
@@ -118,6 +121,12 @@ COMMON_FLAG(uptr, soft_rss_limit_mb, 0,
             " until the RSS goes below the soft limit."
             " This limit does not affect memory allocations other than"
             " malloc/new.")
+COMMON_FLAG(bool, heap_profile, false, "Experimental heap profiler, asan-only")
+COMMON_FLAG(s32, allocator_release_to_os_interval_ms, kReleaseToOSIntervalNever,
+            "Experimental. Only affects a 64-bit allocator. If set, tries to "
+            "release unused memory to the OS, but not more often than this "
+            "interval (in milliseconds). Negative values mean do not attempt "
+            "to release memory to the OS.\n")
 COMMON_FLAG(bool, can_use_proc_maps_statm, true,
             "If false, do not attempt to read /proc/maps/statm."
             " Mostly useful for testing sanitizers.")
@@ -144,19 +153,16 @@ COMMON_FLAG(bool, coverage_direct, SANITIZER_ANDROID,
 COMMON_FLAG(const char *, coverage_dir, ".",
             "Target directory for coverage dumps. Defaults to the current "
             "directory.")
-COMMON_FLAG(bool, coverage_pc_buffer, true,
-            "If set (and if 'coverage' is set too), the pcs would be collected "
-            "in a buffer.")
 COMMON_FLAG(bool, full_address_space, false,
             "Sanitize complete address space; "
             "by default kernel area on 32-bit platforms will not be sanitized")
 COMMON_FLAG(bool, print_suppressions, true,
             "Print matched suppressions at exit.")
 COMMON_FLAG(
-    bool, disable_coredump, (SANITIZER_WORDSIZE == 64),
-    "Disable core dumping. By default, disable_core=1 on 64-bit to avoid "
-    "dumping a 16T+ core file. Ignored on OSes that don't dump core by"
-    "default and for sanitizers that don't reserve lots of virtual memory.")
+    bool, disable_coredump, (SANITIZER_WORDSIZE == 64) && !SANITIZER_GO,
+    "Disable core dumping. By default, disable_coredump=1 on 64-bit to avoid"
+    " dumping a 16T+ core file. Ignored on OSes that don't dump core by"
+    " default and for sanitizers that don't reserve lots of virtual memory.")
 COMMON_FLAG(bool, use_madv_dontdump, true,
           "If set, instructs kernel to not store the (huge) shadow "
           "in core file.")
@@ -216,7 +222,7 @@ COMMON_FLAG(bool, decorate_proc_maps, false, "If set, decorate sanitizer "
 COMMON_FLAG(int, exitcode, 1, "Override the program exit status if the tool "
                               "found an error")
 COMMON_FLAG(
-    bool, abort_on_error, SANITIZER_MAC,
+    bool, abort_on_error, SANITIZER_ANDROID || SANITIZER_MAC,
     "If set, the tool calls abort() instead of _exit() after printing the "
     "error report.")
 COMMON_FLAG(bool, suppress_equal_pcs, true,

@@ -60,19 +60,19 @@ void WebAssemblyInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
           ? MRI.getRegClass(DestReg)
           : MRI.getTargetRegisterInfo()->getMinimalPhysRegClass(DestReg);
 
-  unsigned CopyLocalOpcode;
+  unsigned CopyOpcode;
   if (RC == &WebAssembly::I32RegClass)
-    CopyLocalOpcode = WebAssembly::COPY_LOCAL_I32;
+    CopyOpcode = WebAssembly::COPY_I32;
   else if (RC == &WebAssembly::I64RegClass)
-    CopyLocalOpcode = WebAssembly::COPY_LOCAL_I64;
+    CopyOpcode = WebAssembly::COPY_I64;
   else if (RC == &WebAssembly::F32RegClass)
-    CopyLocalOpcode = WebAssembly::COPY_LOCAL_F32;
+    CopyOpcode = WebAssembly::COPY_F32;
   else if (RC == &WebAssembly::F64RegClass)
-    CopyLocalOpcode = WebAssembly::COPY_LOCAL_F64;
+    CopyOpcode = WebAssembly::COPY_F64;
   else
     llvm_unreachable("Unexpected register class");
 
-  BuildMI(MBB, I, DL, get(CopyLocalOpcode), DestReg)
+  BuildMI(MBB, I, DL, get(CopyOpcode), DestReg)
       .addReg(SrcReg, KillSrc ? RegState::Kill : 0);
 }
 
@@ -142,7 +142,10 @@ bool WebAssemblyInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
   return false;
 }
 
-unsigned WebAssemblyInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
+unsigned WebAssemblyInstrInfo::removeBranch(MachineBasicBlock &MBB,
+                                            int *BytesRemoved) const {
+  assert(!BytesRemoved && "code size not handled");
+
   MachineBasicBlock::instr_iterator I = MBB.instr_end();
   unsigned Count = 0;
 
@@ -161,11 +164,14 @@ unsigned WebAssemblyInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
   return Count;
 }
 
-unsigned WebAssemblyInstrInfo::InsertBranch(MachineBasicBlock &MBB,
+unsigned WebAssemblyInstrInfo::insertBranch(MachineBasicBlock &MBB,
                                             MachineBasicBlock *TBB,
                                             MachineBasicBlock *FBB,
                                             ArrayRef<MachineOperand> Cond,
-                                            const DebugLoc &DL) const {
+                                            const DebugLoc &DL,
+                                            int *BytesAdded) const {
+  assert(!BytesAdded && "code size not handled");
+
   if (Cond.empty()) {
     if (!TBB)
       return 0;
@@ -190,7 +196,7 @@ unsigned WebAssemblyInstrInfo::InsertBranch(MachineBasicBlock &MBB,
   return 2;
 }
 
-bool WebAssemblyInstrInfo::ReverseBranchCondition(
+bool WebAssemblyInstrInfo::reverseBranchCondition(
     SmallVectorImpl<MachineOperand> &Cond) const {
   assert(Cond.size() == 2 && "Expected a flag and a successor block");
   Cond.front() = MachineOperand::CreateImm(!Cond.front().getImm());

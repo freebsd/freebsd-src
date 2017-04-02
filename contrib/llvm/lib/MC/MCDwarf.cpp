@@ -122,7 +122,8 @@ EmitDwarfLineTable(MCObjectStreamer *MCOS, MCSection *Section,
       MCOS->EmitIntValue(dwarf::DW_LNS_set_column, 1);
       MCOS->EmitULEB128IntValue(Column);
     }
-    if (Discriminator != LineEntry.getDiscriminator()) {
+    if (Discriminator != LineEntry.getDiscriminator() &&
+        MCOS->getContext().getDwarfVersion() >= 4) {
       Discriminator = LineEntry.getDiscriminator();
       unsigned Size = getULEB128Size(Discriminator);
       MCOS->EmitIntValue(dwarf::DW_LNS_extended_op, 1);
@@ -916,7 +917,7 @@ void MCGenDwarfLabelEntry::Make(MCSymbol *Symbol, MCStreamer *MCOS,
   MCContext &context = MCOS->getContext();
   // We won't create dwarf labels for symbols in sections that we are not
   // generating debug info for.
-  if (!context.getGenDwarfSectionSyms().count(MCOS->getCurrentSection().first))
+  if (!context.getGenDwarfSectionSyms().count(MCOS->getCurrentSectionOnly()))
     return;
 
   // The dwarf label's name does not have the symbol name's leading

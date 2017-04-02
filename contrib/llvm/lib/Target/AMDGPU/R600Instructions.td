@@ -242,20 +242,6 @@ def TEX_SHADOW_ARRAY : PatLeaf<
   }]
 >;
 
-def TEX_MSAA : PatLeaf<
-  (imm),
-  [{uint32_t TType = (uint32_t)N->getZExtValue();
-    return TType == 14;
-  }]
->;
-
-def TEX_ARRAY_MSAA : PatLeaf<
-  (imm),
-  [{uint32_t TType = (uint32_t)N->getZExtValue();
-    return TType == 15;
-  }]
->;
-
 class EG_CF_RAT <bits <8> cfinst, bits <6> ratinst, bits<4> ratid, bits<4> mask,
                  dag outs, dag ins, string asm, list<dag> pattern> :
     InstR600ISA <outs, ins, asm, pattern>,
@@ -283,8 +269,8 @@ class EG_CF_RAT <bits <8> cfinst, bits <6> ratinst, bits<4> ratid, bits<4> mask,
 
 }
 
-class VTX_READ <string name, bits<8> buffer_id, dag outs, list<dag> pattern>
-    : InstR600ISA <outs, (ins MEMxi:$src_gpr), !strconcat("  ", name), pattern>,
+class VTX_READ <string name, dag outs, list<dag> pattern>
+    : InstR600ISA <outs, (ins MEMxi:$src_gpr, i8imm:$buffer_id), !strconcat("  ", name, ", #$buffer_id"), pattern>,
       VTX_WORD1_GPR {
 
   // Static fields
@@ -333,9 +319,9 @@ class LoadParamFrag <PatFrag load_type> : PatFrag <
             (cast<LoadSDNode>(N)->getAddressSpace() == AMDGPUAS::PARAM_I_ADDRESS); }]
 >;
 
-def load_param : LoadParamFrag<load>;
-def load_param_exti8 : LoadParamFrag<az_extloadi8>;
-def load_param_exti16 : LoadParamFrag<az_extloadi16>;
+def vtx_id3_az_extloadi8 : LoadParamFrag<az_extloadi8>;
+def vtx_id3_az_extloadi16 : LoadParamFrag<az_extloadi16>;
+def vtx_id3_load : LoadParamFrag<load>;
 
 class LoadVtxId1 <PatFrag load> : PatFrag <
   (ops node:$ptr), (load node:$ptr), [{
@@ -450,11 +436,6 @@ def INTERP_LOAD_P0 : R600_1OP <0xE0, "INTERP_LOAD_P0", []>;
 // Export Instructions
 //===----------------------------------------------------------------------===//
 
-def ExportType : SDTypeProfile<0, 7, [SDTCisFP<0>, SDTCisInt<1>]>;
-
-def EXPORT: SDNode<"AMDGPUISD::EXPORT", ExportType,
-  [SDNPHasChain, SDNPSideEffect]>;
-
 class ExportWord0 {
   field bits<32> Word0;
 
@@ -500,7 +481,7 @@ class ExportBufWord1 {
 }
 
 multiclass ExportPattern<Instruction ExportInst, bits<8> cf_inst> {
-  def : Pat<(EXPORT (v4f32 R600_Reg128:$src), (i32 imm:$base), (i32 imm:$type),
+  def : Pat<(R600_EXPORT (v4f32 R600_Reg128:$src), (i32 imm:$base), (i32 imm:$type),
     (i32 imm:$swz_x), (i32 imm:$swz_y), (i32 imm:$swz_z), (i32 imm:$swz_w)),
         (ExportInst R600_Reg128:$src, imm:$type, imm:$base,
         imm:$swz_x, imm:$swz_y, imm:$swz_z, imm:$swz_w, cf_inst, 0)
@@ -745,6 +726,20 @@ def RNDNE : R600_1OP_Helper <0x13, "RNDNE", frint>;
 def FLOOR : R600_1OP_Helper <0x14, "FLOOR", ffloor>;
 
 def MOV : R600_1OP <0x19, "MOV", []>;
+
+
+// This is a hack to get rid of DUMMY_CHAIN nodes.
+// Most DUMMY_CHAINs should be eliminated during legalization, but undef
+// values can sneak in some to selection.
+let isPseudo = 1, isCodeGenOnly = 1 in {
+def DUMMY_CHAIN : AMDGPUInst <
+  (outs),
+  (ins),
+  "DUMMY_CHAIN",
+  [(R600dummy_chain)]
+>;
+} // end let isPseudo = 1, isCodeGenOnly = 1
+
 
 let isPseudo = 1, isCodeGenOnly = 1, usesCustomInserter = 1 in {
 
@@ -1073,18 +1068,27 @@ class LSHL_Common <bits<11> inst> : R600_2OP_Helper <inst, "LSHL", shl>;
 class LSHR_Common <bits<11> inst> : R600_2OP_Helper <inst, "LSHR", srl>;
 class ASHR_Common <bits<11> inst> : R600_2OP_Helper <inst, "ASHR", sra>;
 class MULHI_INT_Common <bits<11> inst> : R600_2OP_Helper <
-  inst, "MULHI_INT", mulhs
-> {
+  inst, "MULHI_INT", mulhs> {
   let Itinerary = TransALU;
 }
+
+class MULHI_INT24_Common <bits<11> inst> : R600_2OP_Helper <
+  inst, "MULHI_INT24", AMDGPUmulhi_i24> {
+  let Itinerary = VecALU;
+}
+
 class MULHI_UINT_Common <bits<11> inst> : R600_2OP_Helper <
-  inst, "MULHI", mulhu
-> {
+  inst, "MULHI", mulhu> {
   let Itinerary = TransALU;
 }
+
+class MULHI_UINT24_Common <bits<11> inst> : R600_2OP_Helper <
+  inst, "MULHI_UINT24", AMDGPUmulhi_u24> {
+  let Itinerary = VecALU;
+}
+
 class MULLO_INT_Common <bits<11> inst> : R600_2OP_Helper <
-  inst, "MULLO_INT", mul
-> {
+  inst, "MULLO_INT", mul> {
   let Itinerary = TransALU;
 }
 class MULLO_UINT_Common <bits<11> inst> : R600_2OP <inst, "MULLO_UINT", []> {
@@ -1278,6 +1282,17 @@ let Predicates = [isR600] in {
 
 defm R600_ : RegisterLoadStore <R600_Reg32, FRAMEri, ADDRIndirect>;
 
+// Hardcode channel to 0
+// NOTE: LSHR is not available here. LSHR is per family instruction
+def : Pat <
+  (i32 (load_private ADDRIndirect:$addr) ),
+  (R600_RegisterLoad FRAMEri:$addr, (i32 0))
+>;
+def : Pat <
+  (store_private i32:$val, ADDRIndirect:$addr),
+  (R600_RegisterStore i32:$val, FRAMEri:$addr, (i32 0))
+>;
+
 
 //===----------------------------------------------------------------------===//
 // Pseudo instructions
@@ -1366,8 +1381,8 @@ def CONST_COPY : Instruction {
 } // end usesCustomInserter = 1, isCodeGenOnly = 1, isPseudo = 1, Namespace = "AMDGPU"
 
 def TEX_VTX_CONSTBUF :
-  InstR600ISA <(outs R600_Reg128:$dst), (ins MEMxi:$ptr, i32imm:$BUFFER_ID), "VTX_READ_eg $dst, $ptr",
-      [(set v4i32:$dst, (CONST_ADDRESS ADDRGA_VAR_OFFSET:$ptr, (i32 imm:$BUFFER_ID)))]>,
+  InstR600ISA <(outs R600_Reg128:$dst), (ins MEMxi:$ptr, i32imm:$buffer_id), "VTX_READ_eg $dst, $ptr",
+      [(set v4i32:$dst, (CONST_ADDRESS ADDRGA_VAR_OFFSET:$ptr, (i32 imm:$buffer_id)))]>,
   VTX_WORD1_GPR, VTX_WORD0_eg {
 
   let VC_INST = 0;
@@ -1420,7 +1435,7 @@ def TEX_VTX_CONSTBUF :
 }
 
 def TEX_VTX_TEXBUF:
-  InstR600ISA <(outs R600_Reg128:$dst), (ins MEMxi:$ptr, i32imm:$BUFFER_ID), "TEX_VTX_EXPLICIT_READ $dst, $ptr">,
+  InstR600ISA <(outs R600_Reg128:$dst), (ins MEMxi:$ptr, i32imm:$buffer_id), "TEX_VTX_EXPLICIT_READ $dst, $ptr">,
 VTX_WORD1_GPR, VTX_WORD0_eg {
 
 let VC_INST = 0;

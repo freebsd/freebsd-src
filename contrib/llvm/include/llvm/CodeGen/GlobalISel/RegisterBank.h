@@ -37,15 +37,13 @@ private:
   /// initialized yet.
   static const unsigned InvalidID;
 
-  /// Only the RegisterBankInfo can create RegisterBank.
-  /// The default constructor will leave the object in
-  /// an invalid state. I.e. isValid() == false.
-  /// The field must be updated to fix that.
-  RegisterBank();
-
+  /// Only the RegisterBankInfo can initialize RegisterBank properly.
   friend RegisterBankInfo;
 
 public:
+  RegisterBank(unsigned ID, const char *Name, unsigned Size,
+               const uint32_t *ContainedRegClasses);
+
   /// Get the identifier of this register bank.
   unsigned getID() const { return ID; }
 

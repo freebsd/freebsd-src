@@ -60,7 +60,7 @@ void MipsFunctionInfo::createEhDataRegsFI() {
             ? &Mips::GPR64RegClass
             : &Mips::GPR32RegClass;
 
-    EhDataRegFI[I] = MF.getFrameInfo()->CreateStackObject(RC->getSize(),
+    EhDataRegFI[I] = MF.getFrameInfo().CreateStackObject(RC->getSize(),
         RC->getAlignment(), false);
   }
 }
@@ -68,12 +68,12 @@ void MipsFunctionInfo::createEhDataRegsFI() {
 void MipsFunctionInfo::createISRRegFI() {
   // ISRs require spill slots for Status & ErrorPC Coprocessor 0 registers.
   // The current implementation only supports Mips32r2+ not Mips64rX. Status
-  // is always 32 bits, ErrorPC is 32 or 64 bits dependant on architecture,
+  // is always 32 bits, ErrorPC is 32 or 64 bits dependent on architecture,
   // however Mips32r2+ is the supported architecture.
   const TargetRegisterClass *RC = &Mips::GPR32RegClass;
 
   for (int I = 0; I < 2; ++I)
-    ISRDataRegFI[I] = MF.getFrameInfo()->CreateStackObject(
+    ISRDataRegFI[I] = MF.getFrameInfo().CreateStackObject(
         RC->getSize(), RC->getAlignment(), false);
 }
 
@@ -95,7 +95,7 @@ MachinePointerInfo MipsFunctionInfo::callPtrInfo(const GlobalValue *GV) {
 
 int MipsFunctionInfo::getMoveF64ViaSpillFI(const TargetRegisterClass *RC) {
   if (MoveF64ViaSpillFI == -1) {
-    MoveF64ViaSpillFI = MF.getFrameInfo()->CreateStackObject(
+    MoveF64ViaSpillFI = MF.getFrameInfo().CreateStackObject(
         RC->getSize(), RC->getAlignment(), false);
   }
   return MoveF64ViaSpillFI;

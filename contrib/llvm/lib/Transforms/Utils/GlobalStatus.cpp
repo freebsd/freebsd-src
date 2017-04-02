@@ -20,9 +20,8 @@ using namespace llvm;
 /// and release, then return AcquireRelease.
 ///
 static AtomicOrdering strongerOrdering(AtomicOrdering X, AtomicOrdering Y) {
-  if (X == AtomicOrdering::Acquire && Y == AtomicOrdering::Release)
-    return AtomicOrdering::AcquireRelease;
-  if (Y == AtomicOrdering::Acquire && X == AtomicOrdering::Release)
+  if ((X == AtomicOrdering::Acquire && Y == AtomicOrdering::Release) ||
+      (Y == AtomicOrdering::Acquire && X == AtomicOrdering::Release))
     return AtomicOrdering::AcquireRelease;
   return (AtomicOrdering)std::max((unsigned)X, (unsigned)Y);
 }
@@ -35,7 +34,7 @@ bool llvm::isSafeToDestroyConstant(const Constant *C) {
   if (isa<GlobalValue>(C))
     return false;
 
-  if (isa<ConstantInt>(C) || isa<ConstantFP>(C))
+  if (isa<ConstantData>(C))
     return false;
 
   for (const User *U : C->users())

@@ -18,6 +18,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/iterator.h"
 #include "llvm/ProfileData/InstrProf.h"
@@ -75,6 +76,7 @@ class IndexedInstrProfReader;
 namespace coverage {
 
 class CoverageMappingReader;
+struct CoverageMappingRecord;
 
 class CoverageMapping;
 struct CounterExpressions;
@@ -244,22 +246,6 @@ struct CounterMappingRegion {
   inline std::pair<unsigned, unsigned> endLoc() const {
     return std::pair<unsigned, unsigned>(LineEnd, ColumnEnd);
   }
-
-  bool operator<(const CounterMappingRegion &Other) const {
-    if (FileID != Other.FileID)
-      return FileID < Other.FileID;
-    return startLoc() < Other.startLoc();
-  }
-
-  bool contains(const CounterMappingRegion &Other) const {
-    if (FileID != Other.FileID)
-      return false;
-    if (startLoc() > Other.startLoc())
-      return false;
-    if (endLoc() < Other.endLoc())
-      return false;
-    return true;
-  }
 };
 
 /// \brief Associates a source range with an execution count.
@@ -304,6 +290,9 @@ struct FunctionRecord {
 
   FunctionRecord(StringRef Name, ArrayRef<StringRef> Filenames)
       : Name(Name), Filenames(Filenames.begin(), Filenames.end()) {}
+
+  FunctionRecord(FunctionRecord &&FR) = default;
+  FunctionRecord &operator=(FunctionRecord &&) = default;
 
   void pushRegion(CounterMappingRegion Region, uint64_t Count) {
     if (CountedRegions.empty())
@@ -411,19 +400,19 @@ public:
 
   CoverageData(StringRef Filename) : Filename(Filename) {}
 
-  CoverageData(CoverageData &&RHS)
-      : Filename(std::move(RHS.Filename)), Segments(std::move(RHS.Segments)),
-        Expansions(std::move(RHS.Expansions)) {}
-
   /// \brief Get the name of the file this data covers.
   StringRef getFilename() const { return Filename; }
 
-  std::vector<CoverageSegment>::iterator begin() { return Segments.begin(); }
-  std::vector<CoverageSegment>::iterator end() { return Segments.end(); }
-  bool empty() { return Segments.empty(); }
+  std::vector<CoverageSegment>::const_iterator begin() const {
+    return Segments.begin();
+  }
+  std::vector<CoverageSegment>::const_iterator end() const {
+    return Segments.end();
+  }
+  bool empty() const { return Segments.empty(); }
 
   /// \brief Expansions that can be further processed.
-  ArrayRef<ExpansionRecord> getExpansions() { return Expansions; }
+  ArrayRef<ExpansionRecord> getExpansions() const { return Expansions; }
 };
 
 /// \brief The mapping of profile information to coverage data.
@@ -431,10 +420,18 @@ public:
 /// This is the main interface to get coverage information, using a profile to
 /// fill out execution counts.
 class CoverageMapping {
+  StringSet<> FunctionNames;
   std::vector<FunctionRecord> Functions;
   unsigned MismatchedFunctionCount;
 
   CoverageMapping() : MismatchedFunctionCount(0) {}
+
+  CoverageMapping(const CoverageMapping &) = delete;
+  const CoverageMapping &operator=(const CoverageMapping &) = delete;
+
+  /// \brief Add a function record corresponding to \p Record.
+  Error loadFunctionRecord(const CoverageMappingRecord &Record,
+                           IndexedInstrProfReader &ProfileReader);
 
 public:
   /// \brief Load the coverage mapping using the given readers.
@@ -442,9 +439,19 @@ public:
   load(CoverageMappingReader &CoverageReader,
        IndexedInstrProfReader &ProfileReader);
 
+  static Expected<std::unique_ptr<CoverageMapping>>
+  load(ArrayRef<std::unique_ptr<CoverageMappingReader>> CoverageReaders,
+       IndexedInstrProfReader &ProfileReader);
+
   /// \brief Load the coverage mapping from the given files.
   static Expected<std::unique_ptr<CoverageMapping>>
   load(StringRef ObjectFilename, StringRef ProfileFilename,
+       StringRef Arch = StringRef()) {
+    return load(ArrayRef<StringRef>(ObjectFilename), ProfileFilename, Arch);
+  }
+
+  static Expected<std::unique_ptr<CoverageMapping>>
+  load(ArrayRef<StringRef> ObjectFilenames, StringRef ProfileFilename,
        StringRef Arch = StringRef());
 
   /// \brief The number of functions that couldn't have their profiles mapped.
@@ -453,7 +460,8 @@ public:
   /// can't be associated with any coverage information.
   unsigned getMismatchedCount() { return MismatchedFunctionCount; }
 
-  /// \brief Returns the list of files that are covered.
+  /// \brief Returns a lexicographically sorted, unique list of files that are
+  /// covered.
   std::vector<StringRef> getUniqueSourceFiles() const;
 
   /// \brief Get the coverage for a particular file.

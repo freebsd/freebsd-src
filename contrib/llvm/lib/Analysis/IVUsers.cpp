@@ -16,8 +16,8 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CodeMetrics.h"
+#include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/LoopPassManager.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Constants.h"
@@ -34,22 +34,11 @@ using namespace llvm;
 
 #define DEBUG_TYPE "iv-users"
 
-char IVUsersAnalysis::PassID;
+AnalysisKey IVUsersAnalysis::Key;
 
-IVUsers IVUsersAnalysis::run(Loop &L, AnalysisManager<Loop> &AM) {
-  const auto &FAM =
-      AM.getResult<FunctionAnalysisManagerLoopProxy>(L).getManager();
-  Function *F = L.getHeader()->getParent();
-
-  return IVUsers(&L, FAM.getCachedResult<AssumptionAnalysis>(*F),
-                 FAM.getCachedResult<LoopAnalysis>(*F),
-                 FAM.getCachedResult<DominatorTreeAnalysis>(*F),
-                 FAM.getCachedResult<ScalarEvolutionAnalysis>(*F));
-}
-
-PreservedAnalyses IVUsersPrinterPass::run(Loop &L, AnalysisManager<Loop> &AM) {
-  AM.getResult<IVUsersAnalysis>(L).print(OS);
-  return PreservedAnalyses::all();
+IVUsers IVUsersAnalysis::run(Loop &L, LoopAnalysisManager &AM,
+                             LoopStandardAnalysisResults &AR) {
+  return IVUsers(&L, &AR.AC, &AR.LI, &AR.DT, &AR.SE);
 }
 
 char IVUsersWrapperPass::ID = 0;

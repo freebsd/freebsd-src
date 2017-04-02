@@ -382,22 +382,22 @@ ArchHandler_x86_64::getReferenceInfo(const Relocation &reloc,
     if (auto ec = atomFromSymbolIndex(reloc.symbol, target))
       return ec;
     *addend = *(const little32_t *)fixupContent;
-    return llvm::Error();
+    return llvm::Error::success();
   case ripRel32Minus1:
     if (auto ec = atomFromSymbolIndex(reloc.symbol, target))
       return ec;
     *addend = (int32_t)*(const little32_t *)fixupContent + 1;
-    return llvm::Error();
+    return llvm::Error::success();
   case ripRel32Minus2:
     if (auto ec = atomFromSymbolIndex(reloc.symbol, target))
       return ec;
     *addend = (int32_t)*(const little32_t *)fixupContent + 2;
-    return llvm::Error();
+    return llvm::Error::success();
   case ripRel32Minus4:
     if (auto ec = atomFromSymbolIndex(reloc.symbol, target))
       return ec;
     *addend = (int32_t)*(const little32_t *)fixupContent + 4;
-    return llvm::Error();
+    return llvm::Error::success();
   case ripRel32Anon:
     targetAddress = fixupAddress + 4 + *(const little32_t *)fixupContent;
     return atomFromAddress(reloc.symbol, targetAddress, target, addend);
@@ -416,7 +416,7 @@ ArchHandler_x86_64::getReferenceInfo(const Relocation &reloc,
     if (auto ec = atomFromSymbolIndex(reloc.symbol, target))
       return ec;
     *addend = *(const little32_t *)fixupContent;
-    return llvm::Error();
+    return llvm::Error::success();
   case tlvInitSectionOffset:
   case pointer64:
     if (auto ec = atomFromSymbolIndex(reloc.symbol, target))
@@ -429,7 +429,7 @@ ArchHandler_x86_64::getReferenceInfo(const Relocation &reloc,
       assert(*addend == 0 && "TLV-init has non-zero addend?");
     } else
       *addend = *(const little64_t *)fixupContent;
-    return llvm::Error();
+    return llvm::Error::success();
   case pointer64Anon:
     targetAddress = *(const little64_t *)fixupContent;
     return atomFromAddress(reloc.symbol, targetAddress, target, addend);
@@ -463,7 +463,10 @@ ArchHandler_x86_64::getPairReferenceInfo(const normalized::Relocation &reloc1,
       return ec;
     uint64_t encodedAddend = (int64_t)*(const little64_t *)fixupContent;
     if (inAtom == fromTarget) {
-      *kind = delta64;
+      if (inAtom->contentType() == DefinedAtom::typeCFI)
+        *kind = unwindFDEToFunction;
+      else
+        *kind = delta64;
       *addend = encodedAddend + offsetInAtom;
     } else if (inAtom == *target) {
       *kind = negDelta64;
@@ -471,7 +474,7 @@ ArchHandler_x86_64::getPairReferenceInfo(const normalized::Relocation &reloc1,
       *target = fromTarget;
     } else
       return llvm::make_error<GenericError>("Invalid pointer diff");
-    return llvm::Error();
+    return llvm::Error::success();
   }
   case ((X86_64_RELOC_SUBTRACTOR | rExtern | rLength4) << 16 |
         X86_64_RELOC_UNSIGNED    | rExtern | rLength4): {
@@ -487,7 +490,7 @@ ArchHandler_x86_64::getPairReferenceInfo(const normalized::Relocation &reloc1,
       *target = fromTarget;
     } else
       return llvm::make_error<GenericError>("Invalid pointer diff");
-    return llvm::Error();
+    return llvm::Error::success();
   }
   case ((X86_64_RELOC_SUBTRACTOR | rExtern | rLength8) << 16 |
         X86_64_RELOC_UNSIGNED              | rLength8):

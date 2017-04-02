@@ -35,9 +35,6 @@ def SDT_ZWrapOffset         : SDTypeProfile<1, 2,
                                              SDTCisSameAs<0, 2>,
                                              SDTCisPtrTy<0>]>;
 def SDT_ZAdjDynAlloc        : SDTypeProfile<1, 0, [SDTCisVT<0, i64>]>;
-def SDT_ZExtractAccess      : SDTypeProfile<1, 1,
-                                            [SDTCisVT<0, i32>,
-                                             SDTCisVT<1, i32>]>;
 def SDT_ZGR128Binary32      : SDTypeProfile<1, 2,
                                             [SDTCisVT<0, untyped>,
                                              SDTCisVT<1, untyped>,
@@ -186,8 +183,6 @@ def z_br_ccmask         : SDNode<"SystemZISD::BR_CCMASK", SDT_ZBRCCMask,
 def z_select_ccmask     : SDNode<"SystemZISD::SELECT_CCMASK", SDT_ZSelectCCMask,
     		                 [SDNPInGlue]>;
 def z_adjdynalloc       : SDNode<"SystemZISD::ADJDYNALLOC", SDT_ZAdjDynAlloc>;
-def z_extract_access    : SDNode<"SystemZISD::EXTRACT_ACCESS",
-                                 SDT_ZExtractAccess>;
 def z_popcnt            : SDNode<"SystemZISD::POPCNT", SDTIntUnaryOp>;
 def z_umul_lohi64       : SDNode<"SystemZISD::UMUL_LOHI64", SDT_ZGR128Binary64>;
 def z_sdivrem32         : SDNode<"SystemZISD::SDIVREM32", SDT_ZGR128Binary32>;
@@ -387,15 +382,6 @@ def zext8  : PatFrag<(ops node:$src), (and node:$src, 0xff)>;
 def zext16 : PatFrag<(ops node:$src), (and node:$src, 0xffff)>;
 def zext32 : PatFrag<(ops node:$src), (zext (i32 node:$src))>;
 
-// Match extensions of an i32 to an i64, followed by an AND of the low
-// i8 or i16 part.
-def zext8dbl : PatFrag<(ops node:$src), (zext8 (anyext node:$src))>;
-def zext16dbl : PatFrag<(ops node:$src), (zext16 (anyext node:$src))>;
-
-// Typed floating-point loads.
-def loadf32 : PatFrag<(ops node:$src), (f32 (load node:$src))>;
-def loadf64 : PatFrag<(ops node:$src), (f64 (load node:$src))>;
-
 // Extending loads in which the extension type can be signed.
 def asextload : PatFrag<(ops node:$ptr), (unindexedload node:$ptr), [{
   unsigned Type = cast<LoadSDNode>(N)->getExtensionType();
@@ -529,7 +515,7 @@ def inserthf : PatFrag<(ops node:$src1, node:$src2),
 // ORs that can be treated as insertions.
 def or_as_inserti8 : PatFrag<(ops node:$src1, node:$src2),
                              (or node:$src1, node:$src2), [{
-  unsigned BitWidth = N->getValueType(0).getScalarType().getSizeInBits();
+  unsigned BitWidth = N->getValueType(0).getScalarSizeInBits();
   return CurDAG->MaskedValueIsZero(N->getOperand(0),
                                    APInt::getLowBitsSet(BitWidth, 8));
 }]>;
@@ -537,7 +523,7 @@ def or_as_inserti8 : PatFrag<(ops node:$src1, node:$src2),
 // ORs that can be treated as reversed insertions.
 def or_as_revinserti8 : PatFrag<(ops node:$src1, node:$src2),
                                 (or node:$src1, node:$src2), [{
-  unsigned BitWidth = N->getValueType(0).getScalarType().getSizeInBits();
+  unsigned BitWidth = N->getValueType(0).getScalarSizeInBits();
   return CurDAG->MaskedValueIsZero(N->getOperand(1),
                                    APInt::getLowBitsSet(BitWidth, 8));
 }]>;
@@ -583,6 +569,12 @@ class loadu<SDPatternOperator operator, SDPatternOperator load = load>
 class storeu<SDPatternOperator operator, SDPatternOperator store = store>
   : PatFrag<(ops node:$value, node:$addr),
             (store (operator node:$value), node:$addr)>;
+
+// Create a store operator that performs the given inherent operation
+// and stores the resulting value.
+class storei<SDPatternOperator operator, SDPatternOperator store = store>
+  : PatFrag<(ops node:$addr),
+            (store (operator), node:$addr)>;
 
 // Vector representation of all-zeros and all-ones.
 def z_vzero : PatFrag<(ops), (bitconvert (v16i8 (z_byte_mask (i32 0))))>;

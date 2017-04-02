@@ -30,20 +30,44 @@ namespace llvm {
 namespace rdf {
   struct Liveness {
   public:
-    typedef std::map<MachineBasicBlock*,RegisterSet> LiveMapType;
-    typedef std::map<RegisterRef,NodeSet> RefMap;
+    // This is really a std::map, except that it provides a non-trivial
+    // default constructor to the element accessed via [].
+    struct LiveMapType {
+      LiveMapType(const TargetRegisterInfo &tri) : Empty(tri) {}
+
+      RegisterAggr &operator[] (MachineBasicBlock *B) {
+        return Map.emplace(B, Empty).first->second;
+      }
+    private:
+      RegisterAggr Empty;
+      std::map<MachineBasicBlock*,RegisterAggr> Map;
+    };
+
+    typedef std::pair<NodeId,LaneBitmask> NodeRef;
+    typedef std::set<NodeRef> NodeRefSet;
+    // RegisterId in RefMap must be normalized.
+    typedef std::map<RegisterId,NodeRefSet> RefMap;
 
     Liveness(MachineRegisterInfo &mri, const DataFlowGraph &g)
       : DFG(g), TRI(g.getTRI()), MDT(g.getDT()), MDF(g.getDF()),
-        RAI(g.getRAI()), MRI(mri), Empty(), Trace(false) {}
+        MRI(mri), LiveMap(g.getTRI()), Empty(), NoRegs(g.getTRI()),
+        Trace(false) {}
 
     NodeList getAllReachingDefs(RegisterRef RefRR, NodeAddr<RefNode*> RefA,
-        bool FullChain = false, const RegisterSet &DefRRs = RegisterSet());
-    NodeList getAllReachingDefs(NodeAddr<RefNode*> RefA);
+        bool FullChain, const RegisterAggr &DefRRs);
+    NodeList getAllReachingDefs(NodeAddr<RefNode*> RefA) {
+      return getAllReachingDefs(RefA.Addr->getRegRef(DFG), RefA, false, NoRegs);
+    }
+    NodeList getAllReachingDefs(RegisterRef RefRR, NodeAddr<RefNode*> RefA) {
+      return getAllReachingDefs(RefRR, RefA, false, NoRegs);
+    }
     NodeSet getAllReachingDefsRec(RegisterRef RefRR, NodeAddr<RefNode*> RefA,
         NodeSet &Visited, const NodeSet &Defs);
     NodeSet getAllReachedUses(RegisterRef RefRR, NodeAddr<DefNode*> DefA,
-        const RegisterSet &DefRRs = RegisterSet());
+        const RegisterAggr &DefRRs);
+    NodeSet getAllReachedUses(RegisterRef RefRR, NodeAddr<DefNode*> DefA) {
+      return getAllReachedUses(RefRR, DefA, NoRegs);
+    }
 
     LiveMapType &getLiveMap() { return LiveMap; }
     const LiveMapType &getLiveMap() const { return LiveMap; }
@@ -65,10 +89,10 @@ namespace rdf {
     const TargetRegisterInfo &TRI;
     const MachineDominatorTree &MDT;
     const MachineDominanceFrontier &MDF;
-    const RegisterAliasInfo &RAI;
     MachineRegisterInfo &MRI;
     LiveMapType LiveMap;
     const RefMap Empty;
+    const RegisterAggr NoRegs;
     bool Trace;
 
     // Cache of mapping from node ids (for RefNodes) to the containing
@@ -79,7 +103,8 @@ namespace rdf {
 
     // Phi information:
     //
-    // map: NodeId -> (map: RegisterRef -> NodeSet)
+    // RealUseMap
+    // map: NodeId -> (map: RegisterId -> NodeRefSet)
     //      phi id -> (map: register -> set of reached non-phi uses)
     std::map<NodeId, RefMap> RealUseMap;
 
@@ -96,10 +121,9 @@ namespace rdf {
     // the dominator tree), create a map: block -> set of uses live on exit.
     std::map<MachineBasicBlock*,RefMap> PhiLOX;
 
-    bool isRestricted(NodeAddr<InstrNode*> IA, NodeAddr<RefNode*> RA,
+    bool isRestrictedToRef(NodeAddr<InstrNode*> IA, NodeAddr<RefNode*> RA,
         RegisterRef RR) const;
     RegisterRef getRestrictedRegRef(NodeAddr<RefNode*> RA) const;
-    unsigned getPhysReg(RegisterRef RR) const;
     MachineBasicBlock *getBlockWithRef(NodeId RN) const;
     void traverse(MachineBasicBlock *B, RefMap &LiveIn);
     void emptify(RefMap &M);

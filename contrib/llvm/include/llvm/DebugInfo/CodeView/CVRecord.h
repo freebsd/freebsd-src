@@ -11,46 +11,73 @@
 #define LLVM_DEBUGINFO_CODEVIEW_RECORDITERATOR_H
 
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/iterator_range.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/DebugInfo/CodeView/CodeViewError.h"
 #include "llvm/DebugInfo/CodeView/RecordSerialization.h"
-#include "llvm/DebugInfo/CodeView/StreamInterface.h"
-#include "llvm/DebugInfo/CodeView/StreamReader.h"
+#include "llvm/DebugInfo/MSF/StreamReader.h"
+#include "llvm/DebugInfo/MSF/StreamRef.h"
 #include "llvm/Support/Endian.h"
+#include "llvm/Support/Error.h"
+#include <cstdint>
 
 namespace llvm {
+
 namespace codeview {
 
-template <typename Kind> struct CVRecord {
-  uint32_t Length;
+template <typename Kind> class CVRecord {
+public:
+  CVRecord() = default;
+  CVRecord(Kind K, ArrayRef<uint8_t> Data) : Type(K), RecordData(Data) {}
+
+  uint32_t length() const { return RecordData.size(); }
+  Kind kind() const { return Type; }
+  ArrayRef<uint8_t> data() const { return RecordData; }
+
+  ArrayRef<uint8_t> content() const {
+    return RecordData.drop_front(sizeof(RecordPrefix));
+  }
+
+  Optional<uint32_t> hash() const { return Hash; }
+
+  void setHash(uint32_t Value) { Hash = Value; }
+
   Kind Type;
-  ArrayRef<uint8_t> Data;
-  ArrayRef<uint8_t> RawData;
+  ArrayRef<uint8_t> RecordData;
+  Optional<uint32_t> Hash;
 };
 
-template <typename Kind> struct VarStreamArrayExtractor<CVRecord<Kind>> {
-  Error operator()(StreamRef Stream, uint32_t &Len,
-                   CVRecord<Kind> &Item) const {
+} // end namespace codeview
+
+namespace msf {
+
+template <typename Kind>
+struct VarStreamArrayExtractor<codeview::CVRecord<Kind>> {
+  Error operator()(ReadableStreamRef Stream, uint32_t &Len,
+                   codeview::CVRecord<Kind> &Item) const {
+    using namespace codeview;
     const RecordPrefix *Prefix = nullptr;
     StreamReader Reader(Stream);
     uint32_t Offset = Reader.getOffset();
 
     if (auto EC = Reader.readObject(Prefix))
       return EC;
-    Item.Length = Prefix->RecordLen;
-    if (Item.Length < 2)
+    if (Prefix->RecordLen < 2)
       return make_error<CodeViewError>(cv_error_code::corrupt_record);
-    Item.Type = static_cast<Kind>(uint16_t(Prefix->RecordKind));
+    Kind K = static_cast<Kind>(uint16_t(Prefix->RecordKind));
 
     Reader.setOffset(Offset);
+    ArrayRef<uint8_t> RawData;
     if (auto EC =
-            Reader.readBytes(Item.RawData, Item.Length + sizeof(uint16_t)))
+            Reader.readBytes(RawData, Prefix->RecordLen + sizeof(uint16_t)))
       return EC;
-    Item.Data = Item.RawData.slice(sizeof(RecordPrefix));
-    Len = Prefix->RecordLen + 2;
+    Item = codeview::CVRecord<Kind>(K, RawData);
+    Len = Item.length();
     return Error::success();
   }
 };
-}
-}
 
-#endif
+} // end namespace msf
+
+} // end namespace llvm
+
+#endif // LLVM_DEBUGINFO_CODEVIEW_RECORDITERATOR_H

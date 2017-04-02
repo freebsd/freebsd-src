@@ -207,6 +207,14 @@ void native(const Twine &path, SmallVectorImpl<char> &result);
 /// @param path A path that is transformed to native format.
 void native(SmallVectorImpl<char> &path);
 
+/// @brief Replaces backslashes with slashes if Windows.
+///
+/// @param path processed path
+/// @result The result of replacing backslashes with forward slashes if Windows.
+/// On Unix, this function is a no-op because backslashes are valid path
+/// chracters.
+std::string convert_to_slash(StringRef path);
+
 /// @}
 /// @name Lexical Observers
 /// @{
@@ -445,7 +453,8 @@ StringRef remove_leading_dotslash(StringRef path);
 /// @brief In-place remove any './' and optionally '../' components from a path.
 ///
 /// @param path processed path
-/// @param remove_dot_dot specify if '../' should be removed
+/// @param remove_dot_dot specify if '../' (except for leading "../") should be
+/// removed
 /// @result True if path was changed
 bool remove_dots(SmallVectorImpl<char> &path, bool remove_dot_dot = false);
 

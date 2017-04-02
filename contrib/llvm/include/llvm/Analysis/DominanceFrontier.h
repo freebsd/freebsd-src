@@ -171,14 +171,14 @@ extern template class ForwardDominanceFrontierBase<BasicBlock>;
 class DominanceFrontierAnalysis
     : public AnalysisInfoMixin<DominanceFrontierAnalysis> {
   friend AnalysisInfoMixin<DominanceFrontierAnalysis>;
-  static char PassID;
+  static AnalysisKey Key;
 
 public:
   /// \brief Provide the result typedef for this analysis pass.
   typedef DominanceFrontier Result;
 
   /// \brief Run the analysis pass over a function and produce a dominator tree.
-  DominanceFrontier run(Function &F, AnalysisManager<Function> &AM);
+  DominanceFrontier run(Function &F, FunctionAnalysisManager &AM);
 };
 
 /// \brief Printer pass for the \c DominanceFrontier.
@@ -188,7 +188,7 @@ class DominanceFrontierPrinterPass
 
 public:
   explicit DominanceFrontierPrinterPass(raw_ostream &OS);
-  PreservedAnalyses run(Function &F, AnalysisManager<Function> &AM);
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
 } // End llvm namespace

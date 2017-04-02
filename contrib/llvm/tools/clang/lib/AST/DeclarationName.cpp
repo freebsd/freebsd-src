@@ -11,14 +11,13 @@
 // classes.
 //
 //===----------------------------------------------------------------------===//
+#include "clang/AST/DeclarationName.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
-#include "clang/AST/DeclarationName.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/TypeOrdering.h"
 #include "clang/Basic/IdentifierTable.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -96,12 +95,18 @@ int DeclarationName::compare(DeclarationName LHS, DeclarationName RHS) {
   case DeclarationName::ObjCMultiArgSelector: {
     Selector LHSSelector = LHS.getObjCSelector();
     Selector RHSSelector = RHS.getObjCSelector();
+    // getNumArgs for ZeroArgSelector returns 0, but we still need to compare.
+    if (LHS.getNameKind() == DeclarationName::ObjCZeroArgSelector &&
+        RHS.getNameKind() == DeclarationName::ObjCZeroArgSelector) {
+      return LHSSelector.getAsIdentifierInfo()->getName().compare(
+             RHSSelector.getAsIdentifierInfo()->getName());
+    }
     unsigned LN = LHSSelector.getNumArgs(), RN = RHSSelector.getNumArgs();
     for (unsigned I = 0, N = std::min(LN, RN); I != N; ++I) {
       switch (LHSSelector.getNameForSlot(I).compare(
                                                RHSSelector.getNameForSlot(I))) {
-      case -1: return true;
-      case 1: return false;
+      case -1: return -1;
+      case 1: return 1;
       default: break;
       }
     }

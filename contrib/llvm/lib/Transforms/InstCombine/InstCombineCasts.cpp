@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "InstCombineInternal.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/PatternMatch.h"
@@ -161,8 +162,8 @@ Value *InstCombiner::EvaluateInDifferentType(Value *V, Type *Ty,
   if (Constant *C = dyn_cast<Constant>(V)) {
     C = ConstantExpr::getIntegerCast(C, Ty, isSigned /*Sext or ZExt*/);
     // If we got a constantexpr back, try to simplify it with DL info.
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C))
-      C = ConstantFoldConstantExpression(CE, DL, TLI);
+    if (Constant *FoldedC = ConstantFoldConstant(C, DL, &TLI))
+      C = FoldedC;
     return C;
   }
 
@@ -227,20 +228,14 @@ Value *InstCombiner::EvaluateInDifferentType(Value *V, Type *Ty,
   return InsertNewInstWith(Res, *I);
 }
 
+Instruction::CastOps InstCombiner::isEliminableCastPair(const CastInst *CI1,
+                                                        const CastInst *CI2) {
+  Type *SrcTy = CI1->getSrcTy();
+  Type *MidTy = CI1->getDestTy();
+  Type *DstTy = CI2->getDestTy();
 
-/// This function is a wrapper around CastInst::isEliminableCastPair. It
-/// simply extracts arguments and returns what that function returns.
-static Instruction::CastOps
-isEliminableCastPair(const CastInst *CI, ///< First cast instruction
-                     unsigned opcode,    ///< Opcode for the second cast
-                     Type *DstTy,        ///< Target type for the second cast
-                     const DataLayout &DL) {
-  Type *SrcTy = CI->getOperand(0)->getType();   // A from above
-  Type *MidTy = CI->getType();                  // B from above
-
-  // Get the opcodes of the two Cast instructions
-  Instruction::CastOps firstOp = Instruction::CastOps(CI->getOpcode());
-  Instruction::CastOps secondOp = Instruction::CastOps(opcode);
+  Instruction::CastOps firstOp = Instruction::CastOps(CI1->getOpcode());
+  Instruction::CastOps secondOp = Instruction::CastOps(CI2->getOpcode());
   Type *SrcIntPtrTy =
       SrcTy->isPtrOrPtrVectorTy() ? DL.getIntPtrType(SrcTy) : nullptr;
   Type *MidIntPtrTy =
@@ -260,54 +255,28 @@ isEliminableCastPair(const CastInst *CI, ///< First cast instruction
   return Instruction::CastOps(Res);
 }
 
-/// Return true if the cast from "V to Ty" actually results in any code being
-/// generated and is interesting to optimize out.
-/// If the cast can be eliminated by some other simple transformation, we prefer
-/// to do the simplification first.
-bool InstCombiner::ShouldOptimizeCast(Instruction::CastOps opc, const Value *V,
-                                      Type *Ty) {
-  // Noop casts and casts of constants should be eliminated trivially.
-  if (V->getType() == Ty || isa<Constant>(V)) return false;
-
-  // If this is another cast that can be eliminated, we prefer to have it
-  // eliminated.
-  if (const CastInst *CI = dyn_cast<CastInst>(V))
-    if (isEliminableCastPair(CI, opc, Ty, DL))
-      return false;
-
-  // If this is a vector sext from a compare, then we don't want to break the
-  // idiom where each element of the extended vector is either zero or all ones.
-  if (opc == Instruction::SExt && isa<CmpInst>(V) && Ty->isVectorTy())
-    return false;
-
-  return true;
-}
-
-
 /// @brief Implement the transforms common to all CastInst visitors.
 Instruction *InstCombiner::commonCastTransforms(CastInst &CI) {
   Value *Src = CI.getOperand(0);
 
-  // Many cases of "cast of a cast" are eliminable. If it's eliminable we just
-  // eliminate it now.
-  if (CastInst *CSrc = dyn_cast<CastInst>(Src)) {   // A->B->C cast
-    if (Instruction::CastOps opc =
-            isEliminableCastPair(CSrc, CI.getOpcode(), CI.getType(), DL)) {
+  // Try to eliminate a cast of a cast.
+  if (auto *CSrc = dyn_cast<CastInst>(Src)) {   // A->B->C cast
+    if (Instruction::CastOps NewOpc = isEliminableCastPair(CSrc, &CI)) {
       // The first cast (CSrc) is eliminable so we need to fix up or replace
       // the second cast (CI). CSrc will then have a good chance of being dead.
-      return CastInst::Create(opc, CSrc->getOperand(0), CI.getType());
+      return CastInst::Create(NewOpc, CSrc->getOperand(0), CI.getType());
     }
   }
 
-  // If we are casting a select then fold the cast into the select
-  if (SelectInst *SI = dyn_cast<SelectInst>(Src))
+  // If we are casting a select, then fold the cast into the select.
+  if (auto *SI = dyn_cast<SelectInst>(Src))
     if (Instruction *NV = FoldOpIntoSelect(CI, SI))
       return NV;
 
-  // If we are casting a PHI then fold the cast into the PHI
+  // If we are casting a PHI, then fold the cast into the PHI.
   if (isa<PHINode>(Src)) {
-    // We don't do this if this would create a PHI node with an illegal type if
-    // it is currently legal.
+    // Don't do this if it would create a PHI node with an illegal type from a
+    // legal type.
     if (!Src->getType()->isIntegerTy() || !CI.getType()->isIntegerTy() ||
         ShouldChangeType(CI.getType(), Src->getType()))
       if (Instruction *NV = FoldOpIntoPhi(CI))
@@ -474,19 +443,39 @@ static Instruction *foldVecTruncToExtElt(TruncInst &Trunc, InstCombiner &IC,
   return ExtractElementInst::Create(VecInput, IC.Builder->getInt32(Elt));
 }
 
+/// Try to narrow the width of bitwise logic instructions with constants.
+Instruction *InstCombiner::shrinkBitwiseLogic(TruncInst &Trunc) {
+  Type *SrcTy = Trunc.getSrcTy();
+  Type *DestTy = Trunc.getType();
+  if (isa<IntegerType>(SrcTy) && !ShouldChangeType(SrcTy, DestTy))
+    return nullptr;
+
+  BinaryOperator *LogicOp;
+  Constant *C;
+  if (!match(Trunc.getOperand(0), m_OneUse(m_BinOp(LogicOp))) ||
+      !LogicOp->isBitwiseLogicOp() ||
+      !match(LogicOp->getOperand(1), m_Constant(C)))
+    return nullptr;
+
+  // trunc (logic X, C) --> logic (trunc X, C')
+  Constant *NarrowC = ConstantExpr::getTrunc(C, DestTy);
+  Value *NarrowOp0 = Builder->CreateTrunc(LogicOp->getOperand(0), DestTy);
+  return BinaryOperator::Create(LogicOp->getOpcode(), NarrowOp0, NarrowC);
+}
+
 Instruction *InstCombiner::visitTrunc(TruncInst &CI) {
   if (Instruction *Result = commonCastTransforms(CI))
     return Result;
 
   // Test if the trunc is the user of a select which is part of a
   // minimum or maximum operation. If so, don't do any more simplification.
-  // Even simplifying demanded bits can break the canonical form of a 
+  // Even simplifying demanded bits can break the canonical form of a
   // min/max.
   Value *LHS, *RHS;
   if (SelectInst *SI = dyn_cast<SelectInst>(CI.getOperand(0)))
     if (matchSelectPattern(SI, LHS, RHS).Flavor != SPF_UNKNOWN)
       return nullptr;
-  
+
   // See if we can simplify any instructions used by the input whose sole
   // purpose is to compute bits we don't care about.
   if (SimplifyDemandedInstructionBits(CI))
@@ -562,14 +551,26 @@ Instruction *InstCombiner::visitTrunc(TruncInst &CI) {
     }
   }
 
-  // Transform "trunc (and X, cst)" -> "and (trunc X), cst" so long as the dest
-  // type isn't non-native.
+  if (Instruction *I = shrinkBitwiseLogic(CI))
+    return I;
+
   if (Src->hasOneUse() && isa<IntegerType>(SrcTy) &&
-      ShouldChangeType(SrcTy, DestTy) &&
-      match(Src, m_And(m_Value(A), m_ConstantInt(Cst)))) {
-    Value *NewTrunc = Builder->CreateTrunc(A, DestTy, A->getName() + ".tr");
-    return BinaryOperator::CreateAnd(NewTrunc,
-                                     ConstantExpr::getTrunc(Cst, DestTy));
+      ShouldChangeType(SrcTy, DestTy)) {
+    // Transform "trunc (shl X, cst)" -> "shl (trunc X), cst" so long as the
+    // dest type is native and cst < dest size.
+    if (match(Src, m_Shl(m_Value(A), m_ConstantInt(Cst))) &&
+        !match(A, m_Shr(m_Value(), m_Constant()))) {
+      // Skip shifts of shift by constants. It undoes a combine in
+      // FoldShiftByConstant and is the extend in reg pattern.
+      const unsigned DestSize = DestTy->getScalarSizeInBits();
+      if (Cst->getValue().ult(DestSize)) {
+        Value *NewTrunc = Builder->CreateTrunc(A, DestTy, A->getName() + ".tr");
+
+        return BinaryOperator::Create(
+          Instruction::Shl, NewTrunc,
+          ConstantInt::get(DestTy, Cst->getValue().trunc(DestSize)));
+      }
+    }
   }
 
   if (Instruction *I = foldVecTruncToExtElt(CI, *this, DL))
@@ -578,10 +579,8 @@ Instruction *InstCombiner::visitTrunc(TruncInst &CI) {
   return nullptr;
 }
 
-/// Transform (zext icmp) to bitwise / integer operations in order to eliminate
-/// the icmp.
-Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
-                                             bool DoXform) {
+Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, ZExtInst &CI,
+                                             bool DoTransform) {
   // If we are just checking for a icmp eq of a single bit and zext'ing it
   // to an integer, then shift the bit to the appropriate place and then
   // cast to integer to avoid the comparison.
@@ -592,7 +591,7 @@ Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
     // zext (x >s -1) to i32 --> (x>>u31)^1  true if signbit clear.
     if ((ICI->getPredicate() == ICmpInst::ICMP_SLT && Op1CV == 0) ||
         (ICI->getPredicate() == ICmpInst::ICMP_SGT && Op1CV.isAllOnesValue())) {
-      if (!DoXform) return ICI;
+      if (!DoTransform) return ICI;
 
       Value *In = ICI->getOperand(0);
       Value *Sh = ConstantInt::get(In->getType(),
@@ -627,7 +626,7 @@ Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
 
       APInt KnownZeroMask(~KnownZero);
       if (KnownZeroMask.isPowerOf2()) { // Exactly 1 possible 1?
-        if (!DoXform) return ICI;
+        if (!DoTransform) return ICI;
 
         bool isNE = ICI->getPredicate() == ICmpInst::ICMP_NE;
         if (Op1CV != 0 && (Op1CV != KnownZeroMask)) {
@@ -655,7 +654,9 @@ Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
 
         if (CI.getType() == In->getType())
           return replaceInstUsesWith(CI, In);
-        return CastInst::CreateIntegerCast(In, CI.getType(), false/*ZExt*/);
+
+        Value *IntCast = Builder->CreateIntCast(In, CI.getType(), false);
+        return replaceInstUsesWith(CI, IntCast);
       }
     }
   }
@@ -678,7 +679,7 @@ Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
         APInt KnownBits = KnownZeroLHS | KnownOneLHS;
         APInt UnknownBit = ~KnownBits;
         if (UnknownBit.countPopulation() == 1) {
-          if (!DoXform) return ICI;
+          if (!DoTransform) return ICI;
 
           Value *Result = Builder->CreateXor(LHS, RHS);
 
@@ -760,9 +761,7 @@ static bool canEvaluateZExtd(Value *V, Type *Ty, unsigned &BitsToClear,
 
     // If the operation is an AND/OR/XOR and the bits to clear are zero in the
     // other side, BitsToClear is ok.
-    if (Tmp == 0 &&
-        (Opc == Instruction::And || Opc == Instruction::Or ||
-         Opc == Instruction::Xor)) {
+    if (Tmp == 0 && I->isBitwiseLogicOp()) {
       // We use MaskedValueIsZero here for generality, but the case we care
       // about the most is constant RHS.
       unsigned VSize = V->getType()->getScalarSizeInBits();
@@ -922,16 +921,26 @@ Instruction *InstCombiner::visitZExt(ZExtInst &CI) {
 
   BinaryOperator *SrcI = dyn_cast<BinaryOperator>(Src);
   if (SrcI && SrcI->getOpcode() == Instruction::Or) {
-    // zext (or icmp, icmp) --> or (zext icmp), (zext icmp) if at least one
-    // of the (zext icmp) will be transformed.
+    // zext (or icmp, icmp) -> or (zext icmp), (zext icmp) if at least one
+    // of the (zext icmp) can be eliminated. If so, immediately perform the
+    // according elimination.
     ICmpInst *LHS = dyn_cast<ICmpInst>(SrcI->getOperand(0));
     ICmpInst *RHS = dyn_cast<ICmpInst>(SrcI->getOperand(1));
     if (LHS && RHS && LHS->hasOneUse() && RHS->hasOneUse() &&
         (transformZExtICmp(LHS, CI, false) ||
          transformZExtICmp(RHS, CI, false))) {
+      // zext (or icmp, icmp) -> or (zext icmp), (zext icmp)
       Value *LCast = Builder->CreateZExt(LHS, CI.getType(), LHS->getName());
       Value *RCast = Builder->CreateZExt(RHS, CI.getType(), RHS->getName());
-      return BinaryOperator::Create(Instruction::Or, LCast, RCast);
+      BinaryOperator *Or = BinaryOperator::Create(Instruction::Or, LCast, RCast);
+
+      // Perform the elimination.
+      if (auto *LZExt = dyn_cast<ZExtInst>(LCast))
+        transformZExtICmp(LHS, *LZExt);
+      if (auto *RZExt = dyn_cast<ZExtInst>(RCast))
+        transformZExtICmp(RHS, *RZExt);
+
+      return Or;
     }
   }
 
@@ -950,14 +959,6 @@ Instruction *InstCombiner::visitZExt(ZExtInst &CI) {
       X->getType() == CI.getType()) {
     Constant *ZC = ConstantExpr::getZExt(C, CI.getType());
     return BinaryOperator::CreateXor(Builder->CreateAnd(X, ZC), ZC);
-  }
-
-  // zext (xor i1 X, true) to i32  --> xor (zext i1 X to i32), 1
-  if (SrcI && SrcI->hasOneUse() &&
-      SrcI->getType()->getScalarType()->isIntegerTy(1) &&
-      match(SrcI, m_Not(m_Value(X))) && (!X->hasOneUse() || !isa<CmpInst>(X))) {
-    Value *New = Builder->CreateZExt(X, CI.getType());
-    return BinaryOperator::CreateXor(New, ConstantInt::get(CI.getType(), 1));
   }
 
   return nullptr;
@@ -1132,7 +1133,7 @@ Instruction *InstCombiner::visitSExt(SExtInst &CI) {
   Type *SrcTy = Src->getType(), *DestTy = CI.getType();
 
   // If we know that the value being extended is positive, we can use a zext
-  // instead. 
+  // instead.
   bool KnownZero, KnownOne;
   ComputeSignBit(Src, KnownZero, KnownOne, 0, &CI);
   if (KnownZero) {
@@ -1238,14 +1239,14 @@ static Value *lookThroughFPExtensions(Value *V) {
     if (CFP->getType() == Type::getPPC_FP128Ty(V->getContext()))
       return V;  // No constant folding of this.
     // See if the value can be truncated to half and then reextended.
-    if (Value *V = fitsInFPType(CFP, APFloat::IEEEhalf))
+    if (Value *V = fitsInFPType(CFP, APFloat::IEEEhalf()))
       return V;
     // See if the value can be truncated to float and then reextended.
-    if (Value *V = fitsInFPType(CFP, APFloat::IEEEsingle))
+    if (Value *V = fitsInFPType(CFP, APFloat::IEEEsingle()))
       return V;
     if (CFP->getType()->isDoubleTy())
       return V;  // Won't shrink.
-    if (Value *V = fitsInFPType(CFP, APFloat::IEEEdouble))
+    if (Value *V = fitsInFPType(CFP, APFloat::IEEEdouble()))
       return V;
     // Don't try to shrink to various long double types.
   }
@@ -1789,6 +1790,205 @@ static Instruction *canonicalizeBitCastExtElt(BitCastInst &BitCast,
   return ExtractElementInst::Create(NewBC, ExtElt->getIndexOperand());
 }
 
+/// Change the type of a bitwise logic operation if we can eliminate a bitcast.
+static Instruction *foldBitCastBitwiseLogic(BitCastInst &BitCast,
+                                            InstCombiner::BuilderTy &Builder) {
+  Type *DestTy = BitCast.getType();
+  BinaryOperator *BO;
+  if (!DestTy->getScalarType()->isIntegerTy() ||
+      !match(BitCast.getOperand(0), m_OneUse(m_BinOp(BO))) ||
+      !BO->isBitwiseLogicOp())
+    return nullptr;
+  
+  // FIXME: This transform is restricted to vector types to avoid backend
+  // problems caused by creating potentially illegal operations. If a fix-up is
+  // added to handle that situation, we can remove this check.
+  if (!DestTy->isVectorTy() || !BO->getType()->isVectorTy())
+    return nullptr;
+  
+  Value *X;
+  if (match(BO->getOperand(0), m_OneUse(m_BitCast(m_Value(X)))) &&
+      X->getType() == DestTy && !isa<Constant>(X)) {
+    // bitcast(logic(bitcast(X), Y)) --> logic'(X, bitcast(Y))
+    Value *CastedOp1 = Builder.CreateBitCast(BO->getOperand(1), DestTy);
+    return BinaryOperator::Create(BO->getOpcode(), X, CastedOp1);
+  }
+
+  if (match(BO->getOperand(1), m_OneUse(m_BitCast(m_Value(X)))) &&
+      X->getType() == DestTy && !isa<Constant>(X)) {
+    // bitcast(logic(Y, bitcast(X))) --> logic'(bitcast(Y), X)
+    Value *CastedOp0 = Builder.CreateBitCast(BO->getOperand(0), DestTy);
+    return BinaryOperator::Create(BO->getOpcode(), CastedOp0, X);
+  }
+
+  return nullptr;
+}
+
+/// Change the type of a select if we can eliminate a bitcast.
+static Instruction *foldBitCastSelect(BitCastInst &BitCast,
+                                      InstCombiner::BuilderTy &Builder) {
+  Value *Cond, *TVal, *FVal;
+  if (!match(BitCast.getOperand(0),
+             m_OneUse(m_Select(m_Value(Cond), m_Value(TVal), m_Value(FVal)))))
+    return nullptr;
+
+  // A vector select must maintain the same number of elements in its operands.
+  Type *CondTy = Cond->getType();
+  Type *DestTy = BitCast.getType();
+  if (CondTy->isVectorTy()) {
+    if (!DestTy->isVectorTy())
+      return nullptr;
+    if (DestTy->getVectorNumElements() != CondTy->getVectorNumElements())
+      return nullptr;
+  }
+
+  // FIXME: This transform is restricted from changing the select between
+  // scalars and vectors to avoid backend problems caused by creating
+  // potentially illegal operations. If a fix-up is added to handle that
+  // situation, we can remove this check.
+  if (DestTy->isVectorTy() != TVal->getType()->isVectorTy())
+    return nullptr;
+
+  auto *Sel = cast<Instruction>(BitCast.getOperand(0));
+  Value *X;
+  if (match(TVal, m_OneUse(m_BitCast(m_Value(X)))) && X->getType() == DestTy &&
+      !isa<Constant>(X)) {
+    // bitcast(select(Cond, bitcast(X), Y)) --> select'(Cond, X, bitcast(Y))
+    Value *CastedVal = Builder.CreateBitCast(FVal, DestTy);
+    return SelectInst::Create(Cond, X, CastedVal, "", nullptr, Sel);
+  }
+
+  if (match(FVal, m_OneUse(m_BitCast(m_Value(X)))) && X->getType() == DestTy &&
+      !isa<Constant>(X)) {
+    // bitcast(select(Cond, Y, bitcast(X))) --> select'(Cond, bitcast(Y), X)
+    Value *CastedVal = Builder.CreateBitCast(TVal, DestTy);
+    return SelectInst::Create(Cond, CastedVal, X, "", nullptr, Sel);
+  }
+
+  return nullptr;
+}
+
+/// Check if all users of CI are StoreInsts.
+static bool hasStoreUsersOnly(CastInst &CI) {
+  for (User *U : CI.users()) {
+    if (!isa<StoreInst>(U))
+      return false;
+  }
+  return true;
+}
+
+/// This function handles following case
+///
+///     A  ->  B    cast
+///     PHI
+///     B  ->  A    cast
+///
+/// All the related PHI nodes can be replaced by new PHI nodes with type A.
+/// The uses of \p CI can be changed to the new PHI node corresponding to \p PN.
+Instruction *InstCombiner::optimizeBitCastFromPhi(CastInst &CI, PHINode *PN) {
+  // BitCast used by Store can be handled in InstCombineLoadStoreAlloca.cpp.
+  if (hasStoreUsersOnly(CI))
+    return nullptr;
+
+  Value *Src = CI.getOperand(0);
+  Type *SrcTy = Src->getType();         // Type B
+  Type *DestTy = CI.getType();          // Type A
+
+  SmallVector<PHINode *, 4> PhiWorklist;
+  SmallSetVector<PHINode *, 4> OldPhiNodes;
+
+  // Find all of the A->B casts and PHI nodes.
+  // We need to inpect all related PHI nodes, but PHIs can be cyclic, so
+  // OldPhiNodes is used to track all known PHI nodes, before adding a new
+  // PHI to PhiWorklist, it is checked against and added to OldPhiNodes first.
+  PhiWorklist.push_back(PN);
+  OldPhiNodes.insert(PN);
+  while (!PhiWorklist.empty()) {
+    auto *OldPN = PhiWorklist.pop_back_val();
+    for (Value *IncValue : OldPN->incoming_values()) {
+      if (isa<Constant>(IncValue))
+        continue;
+
+      if (auto *LI = dyn_cast<LoadInst>(IncValue)) {
+        // If there is a sequence of one or more load instructions, each loaded
+        // value is used as address of later load instruction, bitcast is
+        // necessary to change the value type, don't optimize it. For
+        // simplicity we give up if the load address comes from another load.
+        Value *Addr = LI->getOperand(0);
+        if (Addr == &CI || isa<LoadInst>(Addr))
+          return nullptr;
+        if (LI->hasOneUse() && LI->isSimple())
+          continue;
+        // If a LoadInst has more than one use, changing the type of loaded
+        // value may create another bitcast.
+        return nullptr;
+      }
+
+      if (auto *PNode = dyn_cast<PHINode>(IncValue)) {
+        if (OldPhiNodes.insert(PNode))
+          PhiWorklist.push_back(PNode);
+        continue;
+      }
+
+      auto *BCI = dyn_cast<BitCastInst>(IncValue);
+      // We can't handle other instructions.
+      if (!BCI)
+        return nullptr;
+
+      // Verify it's a A->B cast.
+      Type *TyA = BCI->getOperand(0)->getType();
+      Type *TyB = BCI->getType();
+      if (TyA != DestTy || TyB != SrcTy)
+        return nullptr;
+    }
+  }
+
+  // For each old PHI node, create a corresponding new PHI node with a type A.
+  SmallDenseMap<PHINode *, PHINode *> NewPNodes;
+  for (auto *OldPN : OldPhiNodes) {
+    Builder->SetInsertPoint(OldPN);
+    PHINode *NewPN = Builder->CreatePHI(DestTy, OldPN->getNumOperands());
+    NewPNodes[OldPN] = NewPN;
+  }
+
+  // Fill in the operands of new PHI nodes.
+  for (auto *OldPN : OldPhiNodes) {
+    PHINode *NewPN = NewPNodes[OldPN];
+    for (unsigned j = 0, e = OldPN->getNumOperands(); j != e; ++j) {
+      Value *V = OldPN->getOperand(j);
+      Value *NewV = nullptr;
+      if (auto *C = dyn_cast<Constant>(V)) {
+        NewV = ConstantExpr::getBitCast(C, DestTy);
+      } else if (auto *LI = dyn_cast<LoadInst>(V)) {
+        Builder->SetInsertPoint(LI->getNextNode());
+        NewV = Builder->CreateBitCast(LI, DestTy);
+        Worklist.Add(LI);
+      } else if (auto *BCI = dyn_cast<BitCastInst>(V)) {
+        NewV = BCI->getOperand(0);
+      } else if (auto *PrevPN = dyn_cast<PHINode>(V)) {
+        NewV = NewPNodes[PrevPN];
+      }
+      assert(NewV);
+      NewPN->addIncoming(NewV, OldPN->getIncomingBlock(j));
+    }
+  }
+
+  // If there is a store with type B, change it to type A.
+  for (User *U : PN->users()) {
+    auto *SI = dyn_cast<StoreInst>(U);
+    if (SI && SI->isSimple() && SI->getOperand(0) == PN) {
+      Builder->SetInsertPoint(SI);
+      auto *NewBC =
+          cast<BitCastInst>(Builder->CreateBitCast(NewPNodes[PN], SrcTy));
+      SI->setOperand(0, NewBC);
+      Worklist.Add(SI);
+      assert(hasStoreUsersOnly(*NewBC));
+    }
+  }
+
+  return replaceInstUsesWith(CI, NewPNodes[PN]);
+}
+
 Instruction *InstCombiner::visitBitCast(BitCastInst &CI) {
   // If the operands are integer typed then apply the integer transforms,
   // otherwise just apply the common ones.
@@ -1912,7 +2112,18 @@ Instruction *InstCombiner::visitBitCast(BitCastInst &CI) {
     }
   }
 
+  // Handle the A->B->A cast, and there is an intervening PHI node.
+  if (PHINode *PN = dyn_cast<PHINode>(Src))
+    if (Instruction *I = optimizeBitCastFromPhi(CI, PN))
+      return I;
+
   if (Instruction *I = canonicalizeBitCastExtElt(CI, *this, DL))
+    return I;
+
+  if (Instruction *I = foldBitCastBitwiseLogic(CI, *Builder))
+    return I;
+
+  if (Instruction *I = foldBitCastSelect(CI, *Builder))
     return I;
 
   if (SrcTy->isPointerTy())

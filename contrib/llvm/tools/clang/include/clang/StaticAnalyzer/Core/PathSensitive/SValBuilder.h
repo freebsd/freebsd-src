@@ -198,9 +198,13 @@ public:
   DefinedOrUnknownSVal getDerivedRegionValueSymbolVal(
       SymbolRef parentSymbol, const TypedValueRegion *region);
 
-  DefinedSVal getMetadataSymbolVal(
-      const void *symbolTag, const MemRegion *region,
-      const Expr *expr, QualType type, unsigned count);
+  DefinedSVal getMetadataSymbolVal(const void *symbolTag,
+                                   const MemRegion *region,
+                                   const Expr *expr, QualType type,
+                                   const LocationContext *LCtx,
+                                   unsigned count);
+
+  DefinedSVal getMemberPointer(const DeclaratorDecl *DD);
 
   DefinedSVal getFunctionPointer(const FunctionDecl *func);
   
@@ -222,6 +226,14 @@ public:
                              const TypedValueRegion *region) {
     return nonloc::LazyCompoundVal(
         BasicVals.getLazyCompoundValData(store, region));
+  }
+
+  NonLoc makePointerToMember(const DeclaratorDecl *DD) {
+    return nonloc::PointerToMember(DD);
+  }
+
+  NonLoc makePointerToMember(const PointerToMemberData *PTMD) {
+    return nonloc::PointerToMember(PTMD);
   }
 
   NonLoc makeZeroArrayIndex() {

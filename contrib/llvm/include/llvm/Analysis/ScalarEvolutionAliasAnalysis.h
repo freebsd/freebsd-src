@@ -40,12 +40,12 @@ private:
 /// Analysis pass providing a never-invalidated alias analysis result.
 class SCEVAA : public AnalysisInfoMixin<SCEVAA> {
   friend AnalysisInfoMixin<SCEVAA>;
-  static char PassID;
+  static AnalysisKey Key;
 
 public:
   typedef SCEVAAResult Result;
 
-  SCEVAAResult run(Function &F, AnalysisManager<Function> &AM);
+  SCEVAAResult run(Function &F, FunctionAnalysisManager &AM);
 };
 
 /// Legacy wrapper pass to provide the SCEVAAResult object.

@@ -109,6 +109,7 @@ def IIC_SprSLBIE     : InstrItinClass;
 def IIC_SprSLBIEG    : InstrItinClass;
 def IIC_SprSLBMTE    : InstrItinClass;
 def IIC_SprSLBMFEE   : InstrItinClass;
+def IIC_SprSLBMFEV   : InstrItinClass;
 def IIC_SprSLBIA     : InstrItinClass;
 def IIC_SprSLBSYNC   : InstrItinClass;
 def IIC_SprTLBIA     : InstrItinClass;
@@ -117,6 +118,8 @@ def IIC_SprTLBIE     : InstrItinClass;
 def IIC_SprABORT     : InstrItinClass;
 def IIC_SprMSGSYNC   : InstrItinClass;
 def IIC_SprSTOP      : InstrItinClass;
+def IIC_SprMFPMR     : InstrItinClass;
+def IIC_SprMTPMR     : InstrItinClass;
 
 //===----------------------------------------------------------------------===//
 // Processor instruction itineraries.
@@ -128,6 +131,7 @@ include "PPCScheduleG4Plus.td"
 include "PPCScheduleG5.td"
 include "PPCScheduleP7.td"
 include "PPCScheduleP8.td"
+include "PPCScheduleP9.td"
 include "PPCScheduleA2.td"
 include "PPCScheduleE500mc.td"
 include "PPCScheduleE5500.td"

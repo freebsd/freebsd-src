@@ -11,66 +11,56 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXTargetMachine.h"
-#include "MCTargetDesc/NVPTXMCAsmInfo.h"
 #include "NVPTX.h"
 #include "NVPTXAllocaHoisting.h"
 #include "NVPTXLowerAggrCopies.h"
+#include "NVPTXTargetMachine.h"
 #include "NVPTXTargetObjectFile.h"
 #include "NVPTXTargetTransformInfo.h"
-#include "llvm/Analysis/Passes.h"
-#include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineFunctionAnalysis.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/MC/MCAsmInfo.h"
-#include "llvm/MC/MCInstrInfo.h"
-#include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Vectorize.h"
+#include <cassert>
+#include <string>
 
 using namespace llvm;
 
-static cl::opt<bool> UseInferAddressSpaces(
-    "nvptx-use-infer-addrspace", cl::init(false), cl::Hidden,
-    cl::desc("Optimize address spaces using NVPTXInferAddressSpaces instead of "
-             "NVPTXFavorNonGenericAddrSpaces"));
+// LSV is still relatively new; this switch lets us turn it off in case we
+// encounter (or suspect) a bug.
+static cl::opt<bool>
+    DisableLoadStoreVectorizer("disable-nvptx-load-store-vectorizer",
+                               cl::desc("Disable load/store vectorizer"),
+                               cl::init(false), cl::Hidden);
 
 namespace llvm {
+
 void initializeNVVMIntrRangePass(PassRegistry&);
 void initializeNVVMReflectPass(PassRegistry&);
 void initializeGenericToNVVMPass(PassRegistry&);
 void initializeNVPTXAllocaHoistingPass(PassRegistry &);
 void initializeNVPTXAssignValidGlobalNamesPass(PassRegistry&);
-void initializeNVPTXFavorNonGenericAddrSpacesPass(PassRegistry &);
 void initializeNVPTXInferAddressSpacesPass(PassRegistry &);
 void initializeNVPTXLowerAggrCopiesPass(PassRegistry &);
-void initializeNVPTXLowerKernelArgsPass(PassRegistry &);
+void initializeNVPTXLowerArgsPass(PassRegistry &);
 void initializeNVPTXLowerAllocaPass(PassRegistry &);
-}
+
+} // end namespace llvm
 
 extern "C" void LLVMInitializeNVPTXTarget() {
   // Register the target.
-  RegisterTargetMachine<NVPTXTargetMachine32> X(TheNVPTXTarget32);
-  RegisterTargetMachine<NVPTXTargetMachine64> Y(TheNVPTXTarget64);
+  RegisterTargetMachine<NVPTXTargetMachine32> X(getTheNVPTXTarget32());
+  RegisterTargetMachine<NVPTXTargetMachine64> Y(getTheNVPTXTarget64());
 
   // FIXME: This pass is really intended to be invoked during IR optimization,
   // but it's very NVPTX-specific.
@@ -80,9 +70,8 @@ extern "C" void LLVMInitializeNVPTXTarget() {
   initializeGenericToNVVMPass(PR);
   initializeNVPTXAllocaHoistingPass(PR);
   initializeNVPTXAssignValidGlobalNamesPass(PR);
-  initializeNVPTXFavorNonGenericAddrSpacesPass(PR);
   initializeNVPTXInferAddressSpacesPass(PR);
-  initializeNVPTXLowerKernelArgsPass(PR);
+  initializeNVPTXLowerArgsPass(PR);
   initializeNVPTXLowerAllocaPass(PR);
   initializeNVPTXLowerAggrCopiesPass(PR);
 }
@@ -109,7 +98,7 @@ NVPTXTargetMachine::NVPTXTargetMachine(const Target &T, const Triple &TT,
     : LLVMTargetMachine(T, computeDataLayout(is64bit), TT, CPU, FS, Options,
                         Reloc::PIC_, CM, OL),
       is64bit(is64bit),
-      TLOF(make_unique<NVPTXTargetObjectFile>()),
+      TLOF(llvm::make_unique<NVPTXTargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this) {
   if (TT.getOS() == Triple::NVCL)
     drvInterface = NVPTX::NVCL;
@@ -118,7 +107,7 @@ NVPTXTargetMachine::NVPTXTargetMachine(const Target &T, const Triple &TT,
   initAsmInfo();
 }
 
-NVPTXTargetMachine::~NVPTXTargetMachine() {}
+NVPTXTargetMachine::~NVPTXTargetMachine() = default;
 
 void NVPTXTargetMachine32::anchor() {}
 
@@ -141,6 +130,7 @@ NVPTXTargetMachine64::NVPTXTargetMachine64(const Target &T, const Triple &TT,
     : NVPTXTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
 
 namespace {
+
 class NVPTXPassConfig : public TargetPassConfig {
 public:
   NVPTXPassConfig(NVPTXTargetMachine *TM, PassManagerBase &PM)
@@ -170,6 +160,7 @@ private:
   // Add passes that perform straight-line scalar optimizations.
   void addStraightLineScalarOptimizationPasses();
 };
+
 } // end anonymous namespace
 
 TargetPassConfig *NVPTXTargetMachine::createPassConfig(PassManagerBase &PM) {
@@ -195,19 +186,11 @@ void NVPTXPassConfig::addEarlyCSEOrGVNPass() {
 }
 
 void NVPTXPassConfig::addAddressSpaceInferencePasses() {
-  // NVPTXLowerKernelArgs emits alloca for byval parameters which can often
+  // NVPTXLowerArgs emits alloca for byval parameters which can often
   // be eliminated by SROA.
   addPass(createSROAPass());
   addPass(createNVPTXLowerAllocaPass());
-  if (UseInferAddressSpaces) {
-    addPass(createNVPTXInferAddressSpacesPass());
-  } else {
-    addPass(createNVPTXFavorNonGenericAddrSpacesPass());
-    // FavorNonGenericAddrSpaces shortcuts unnecessary addrspacecasts, and leave
-    // them unused. We could remove dead code in an ad-hoc manner, but that
-    // requires manual work and might be error-prone.
-    addPass(createDeadCodeEliminationPass());
-  }
+  addPass(createNVPTXInferAddressSpacesPass());
 }
 
 void NVPTXPassConfig::addStraightLineScalarOptimizationPasses() {
@@ -253,11 +236,13 @@ void NVPTXPassConfig::addIRPasses() {
   addPass(createNVPTXAssignValidGlobalNamesPass());
   addPass(createGenericToNVVMPass());
 
-  // NVPTXLowerKernelArgs is required for correctness and should be run right
+  // NVPTXLowerArgs is required for correctness and should be run right
   // before the address space inference passes.
-  addPass(createNVPTXLowerKernelArgsPass(&getNVPTXTargetMachine()));
+  addPass(createNVPTXLowerArgsPass(&getNVPTXTargetMachine()));
   if (getOptLevel() != CodeGenOpt::None) {
     addAddressSpaceInferencePasses();
+    if (!DisableLoadStoreVectorizer)
+      addPass(createLoadStoreVectorizerPass());
     addStraightLineScalarOptimizationPasses();
   }
 

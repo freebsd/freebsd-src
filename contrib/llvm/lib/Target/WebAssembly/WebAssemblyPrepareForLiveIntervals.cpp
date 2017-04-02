@@ -23,6 +23,7 @@
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "WebAssemblyMachineFunctionInfo.h"
 #include "WebAssemblySubtarget.h"
+#include "WebAssemblyUtilities.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -40,7 +41,7 @@ public:
   WebAssemblyPrepareForLiveIntervals() : MachineFunctionPass(ID) {}
 
 private:
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "WebAssembly Prepare For LiveIntervals";
   }
 
@@ -58,23 +59,10 @@ FunctionPass *llvm::createWebAssemblyPrepareForLiveIntervals() {
   return new WebAssemblyPrepareForLiveIntervals();
 }
 
-/// Test whether the given instruction is an ARGUMENT.
-static bool IsArgument(const MachineInstr *MI) {
-  switch (MI->getOpcode()) {
-  case WebAssembly::ARGUMENT_I32:
-  case WebAssembly::ARGUMENT_I64:
-  case WebAssembly::ARGUMENT_F32:
-  case WebAssembly::ARGUMENT_F64:
-    return true;
-  default:
-    return false;
-  }
-}
-
 // Test whether the given register has an ARGUMENT def.
 static bool HasArgumentDef(unsigned Reg, const MachineRegisterInfo &MRI) {
-  for (auto &Def : MRI.def_instructions(Reg))
-    if (IsArgument(&Def))
+  for (const auto &Def : MRI.def_instructions(Reg))
+    if (WebAssembly::isArgument(Def))
       return true;
   return false;
 }
@@ -122,10 +110,10 @@ bool WebAssemblyPrepareForLiveIntervals::runOnMachineFunction(MachineFunction &M
   // Move ARGUMENT_* instructions to the top of the entry block, so that their
   // liveness reflects the fact that these really are live-in values.
   for (auto MII = Entry.begin(), MIE = Entry.end(); MII != MIE; ) {
-    MachineInstr *MI = &*MII++;
-    if (IsArgument(MI)) {
-      MI->removeFromParent();
-      Entry.insert(Entry.begin(), MI);
+    MachineInstr &MI = *MII++;
+    if (WebAssembly::isArgument(MI)) {
+      MI.removeFromParent();
+      Entry.insert(Entry.begin(), &MI);
     }
   }
 

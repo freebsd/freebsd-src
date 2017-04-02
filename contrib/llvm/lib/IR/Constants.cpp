@@ -198,22 +198,22 @@ Constant *Constant::getNullValue(Type *Ty) {
     return ConstantInt::get(Ty, 0);
   case Type::HalfTyID:
     return ConstantFP::get(Ty->getContext(),
-                           APFloat::getZero(APFloat::IEEEhalf));
+                           APFloat::getZero(APFloat::IEEEhalf()));
   case Type::FloatTyID:
     return ConstantFP::get(Ty->getContext(),
-                           APFloat::getZero(APFloat::IEEEsingle));
+                           APFloat::getZero(APFloat::IEEEsingle()));
   case Type::DoubleTyID:
     return ConstantFP::get(Ty->getContext(),
-                           APFloat::getZero(APFloat::IEEEdouble));
+                           APFloat::getZero(APFloat::IEEEdouble()));
   case Type::X86_FP80TyID:
     return ConstantFP::get(Ty->getContext(),
-                           APFloat::getZero(APFloat::x87DoubleExtended));
+                           APFloat::getZero(APFloat::x87DoubleExtended()));
   case Type::FP128TyID:
     return ConstantFP::get(Ty->getContext(),
-                           APFloat::getZero(APFloat::IEEEquad));
+                           APFloat::getZero(APFloat::IEEEquad()));
   case Type::PPC_FP128TyID:
     return ConstantFP::get(Ty->getContext(),
-                           APFloat(APFloat::PPCDoubleDouble,
+                           APFloat(APFloat::PPCDoubleDouble(),
                                    APInt::getNullValue(128)));
   case Type::PointerTyID:
     return ConstantPointerNull::get(cast<PointerType>(Ty));
@@ -347,10 +347,8 @@ static bool canTrapImpl(const Constant *C,
     return false;
   case Instruction::UDiv:
   case Instruction::SDiv:
-  case Instruction::FDiv:
   case Instruction::URem:
   case Instruction::SRem:
-  case Instruction::FRem:
     // Div and rem can trap if the RHS is not known to be non-zero.
     if (!isa<ConstantInt>(CE->getOperand(1)) ||CE->getOperand(1)->isNullValue())
       return true;
@@ -547,14 +545,14 @@ Constant *ConstantInt::getFalse(Type *Ty) {
 ConstantInt *ConstantInt::get(LLVMContext &Context, const APInt &V) {
   // get an existing value or the insertion position
   LLVMContextImpl *pImpl = Context.pImpl;
-  ConstantInt *&Slot = pImpl->IntConstants[V];
+  std::unique_ptr<ConstantInt> &Slot = pImpl->IntConstants[V];
   if (!Slot) {
     // Get the corresponding integer type for the bit width of the value.
     IntegerType *ITy = IntegerType::get(Context, V.getBitWidth());
-    Slot = new ConstantInt(ITy, V);
+    Slot.reset(new ConstantInt(ITy, V));
   }
   assert(Slot->getType() == IntegerType::get(Context, V.getBitWidth()));
-  return Slot;
+  return Slot.get();
 }
 
 Constant *ConstantInt::get(Type *Ty, uint64_t V, bool isSigned) {
@@ -606,18 +604,18 @@ void ConstantInt::destroyConstantImpl() {
 
 static const fltSemantics *TypeToFloatSemantics(Type *Ty) {
   if (Ty->isHalfTy())
-    return &APFloat::IEEEhalf;
+    return &APFloat::IEEEhalf();
   if (Ty->isFloatTy())
-    return &APFloat::IEEEsingle;
+    return &APFloat::IEEEsingle();
   if (Ty->isDoubleTy())
-    return &APFloat::IEEEdouble;
+    return &APFloat::IEEEdouble();
   if (Ty->isX86_FP80Ty())
-    return &APFloat::x87DoubleExtended;
+    return &APFloat::x87DoubleExtended();
   else if (Ty->isFP128Ty())
-    return &APFloat::IEEEquad;
+    return &APFloat::IEEEquad();
 
   assert(Ty->isPPC_FP128Ty() && "Unknown FP format");
-  return &APFloat::PPCDoubleDouble;
+  return &APFloat::PPCDoubleDouble();
 }
 
 void ConstantFP::anchor() { }
@@ -687,29 +685,29 @@ Constant *ConstantFP::getZeroValueForNegation(Type *Ty) {
 ConstantFP* ConstantFP::get(LLVMContext &Context, const APFloat& V) {
   LLVMContextImpl* pImpl = Context.pImpl;
 
-  ConstantFP *&Slot = pImpl->FPConstants[V];
+  std::unique_ptr<ConstantFP> &Slot = pImpl->FPConstants[V];
 
   if (!Slot) {
     Type *Ty;
-    if (&V.getSemantics() == &APFloat::IEEEhalf)
+    if (&V.getSemantics() == &APFloat::IEEEhalf())
       Ty = Type::getHalfTy(Context);
-    else if (&V.getSemantics() == &APFloat::IEEEsingle)
+    else if (&V.getSemantics() == &APFloat::IEEEsingle())
       Ty = Type::getFloatTy(Context);
-    else if (&V.getSemantics() == &APFloat::IEEEdouble)
+    else if (&V.getSemantics() == &APFloat::IEEEdouble())
       Ty = Type::getDoubleTy(Context);
-    else if (&V.getSemantics() == &APFloat::x87DoubleExtended)
+    else if (&V.getSemantics() == &APFloat::x87DoubleExtended())
       Ty = Type::getX86_FP80Ty(Context);
-    else if (&V.getSemantics() == &APFloat::IEEEquad)
+    else if (&V.getSemantics() == &APFloat::IEEEquad())
       Ty = Type::getFP128Ty(Context);
     else {
-      assert(&V.getSemantics() == &APFloat::PPCDoubleDouble && 
+      assert(&V.getSemantics() == &APFloat::PPCDoubleDouble() && 
              "Unknown FP format");
       Ty = Type::getPPC_FP128Ty(Context);
     }
-    Slot = new ConstantFP(Ty, V);
+    Slot.reset(new ConstantFP(Ty, V));
   }
 
-  return Slot;
+  return Slot.get();
 }
 
 Constant *ConstantFP::getInfinity(Type *Ty, bool Negative) {
@@ -796,10 +794,8 @@ UndefValue *UndefValue::getElementValue(unsigned Idx) const {
 
 unsigned UndefValue::getNumElements() const {
   Type *Ty = getType();
-  if (auto *AT = dyn_cast<ArrayType>(Ty))
-    return AT->getNumElements();
-  if (auto *VT = dyn_cast<VectorType>(Ty))
-    return VT->getNumElements();
+  if (auto *ST = dyn_cast<SequentialType>(Ty))
+    return ST->getNumElements();
   return Ty->getStructNumElements();
 }
 
@@ -1075,19 +1071,16 @@ bool ConstantExpr::isGEPWithNoNotionalOverIndexing() const {
   gep_type_iterator GEPI = gep_type_begin(this), E = gep_type_end(this);
   User::const_op_iterator OI = std::next(this->op_begin());
 
-  // Skip the first index, as it has no static limit.
-  ++GEPI;
-  ++OI;
-
-  // The remaining indices must be compile-time known integers within the
-  // bounds of the corresponding notional static array types.
+  // The remaining indices may be compile-time known integers within the bounds
+  // of the corresponding notional static array types.
   for (; GEPI != E; ++GEPI, ++OI) {
-    ConstantInt *CI = dyn_cast<ConstantInt>(*OI);
-    if (!CI) return false;
-    if (ArrayType *ATy = dyn_cast<ArrayType>(*GEPI))
-      if (CI->getValue().getActiveBits() > 64 ||
-          CI->getZExtValue() >= ATy->getNumElements())
-        return false;
+    if (isa<UndefValue>(*OI))
+      continue;
+    auto *CI = dyn_cast<ConstantInt>(*OI);
+    if (!CI || (GEPI.isBoundedSequential() &&
+                (CI->getValue().getActiveBits() > 64 ||
+                 CI->getZExtValue() >= GEPI.getSequentialNumElements())))
+      return false;
   }
 
   // All the indices checked out.
@@ -1169,7 +1162,7 @@ Constant *ConstantExpr::getWithOperands(ArrayRef<Constant *> Ops, Type *Ty,
     assert(SrcTy || (Ops[0]->getType() == getOperand(0)->getType()));
     return ConstantExpr::getGetElementPtr(
         SrcTy ? SrcTy : GEPO->getSourceElementType(), Ops[0], Ops.slice(1),
-        GEPO->isInBounds(), OnlyIfReducedTy);
+        GEPO->isInBounds(), GEPO->getInRangeIndex(), OnlyIfReducedTy);
   }
   case Instruction::ICmp:
   case Instruction::FCmp:
@@ -1217,40 +1210,40 @@ bool ConstantFP::isValueValidForType(Type *Ty, const APFloat& Val) {
 
   // FIXME rounding mode needs to be more flexible
   case Type::HalfTyID: {
-    if (&Val2.getSemantics() == &APFloat::IEEEhalf)
+    if (&Val2.getSemantics() == &APFloat::IEEEhalf())
       return true;
-    Val2.convert(APFloat::IEEEhalf, APFloat::rmNearestTiesToEven, &losesInfo);
+    Val2.convert(APFloat::IEEEhalf(), APFloat::rmNearestTiesToEven, &losesInfo);
     return !losesInfo;
   }
   case Type::FloatTyID: {
-    if (&Val2.getSemantics() == &APFloat::IEEEsingle)
+    if (&Val2.getSemantics() == &APFloat::IEEEsingle())
       return true;
-    Val2.convert(APFloat::IEEEsingle, APFloat::rmNearestTiesToEven, &losesInfo);
+    Val2.convert(APFloat::IEEEsingle(), APFloat::rmNearestTiesToEven, &losesInfo);
     return !losesInfo;
   }
   case Type::DoubleTyID: {
-    if (&Val2.getSemantics() == &APFloat::IEEEhalf ||
-        &Val2.getSemantics() == &APFloat::IEEEsingle ||
-        &Val2.getSemantics() == &APFloat::IEEEdouble)
+    if (&Val2.getSemantics() == &APFloat::IEEEhalf() ||
+        &Val2.getSemantics() == &APFloat::IEEEsingle() ||
+        &Val2.getSemantics() == &APFloat::IEEEdouble())
       return true;
-    Val2.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven, &losesInfo);
+    Val2.convert(APFloat::IEEEdouble(), APFloat::rmNearestTiesToEven, &losesInfo);
     return !losesInfo;
   }
   case Type::X86_FP80TyID:
-    return &Val2.getSemantics() == &APFloat::IEEEhalf ||
-           &Val2.getSemantics() == &APFloat::IEEEsingle || 
-           &Val2.getSemantics() == &APFloat::IEEEdouble ||
-           &Val2.getSemantics() == &APFloat::x87DoubleExtended;
+    return &Val2.getSemantics() == &APFloat::IEEEhalf() ||
+           &Val2.getSemantics() == &APFloat::IEEEsingle() || 
+           &Val2.getSemantics() == &APFloat::IEEEdouble() ||
+           &Val2.getSemantics() == &APFloat::x87DoubleExtended();
   case Type::FP128TyID:
-    return &Val2.getSemantics() == &APFloat::IEEEhalf ||
-           &Val2.getSemantics() == &APFloat::IEEEsingle || 
-           &Val2.getSemantics() == &APFloat::IEEEdouble ||
-           &Val2.getSemantics() == &APFloat::IEEEquad;
+    return &Val2.getSemantics() == &APFloat::IEEEhalf() ||
+           &Val2.getSemantics() == &APFloat::IEEEsingle() || 
+           &Val2.getSemantics() == &APFloat::IEEEdouble() ||
+           &Val2.getSemantics() == &APFloat::IEEEquad();
   case Type::PPC_FP128TyID:
-    return &Val2.getSemantics() == &APFloat::IEEEhalf ||
-           &Val2.getSemantics() == &APFloat::IEEEsingle || 
-           &Val2.getSemantics() == &APFloat::IEEEdouble ||
-           &Val2.getSemantics() == &APFloat::PPCDoubleDouble;
+    return &Val2.getSemantics() == &APFloat::IEEEhalf() ||
+           &Val2.getSemantics() == &APFloat::IEEEsingle() || 
+           &Val2.getSemantics() == &APFloat::IEEEdouble() ||
+           &Val2.getSemantics() == &APFloat::PPCDoubleDouble();
   }
 }
 
@@ -1261,12 +1254,13 @@ bool ConstantFP::isValueValidForType(Type *Ty, const APFloat& Val) {
 ConstantAggregateZero *ConstantAggregateZero::get(Type *Ty) {
   assert((Ty->isStructTy() || Ty->isArrayTy() || Ty->isVectorTy()) &&
          "Cannot create an aggregate zero of non-aggregate type!");
-  
-  ConstantAggregateZero *&Entry = Ty->getContext().pImpl->CAZConstants[Ty];
-  if (!Entry)
-    Entry = new ConstantAggregateZero(Ty);
 
-  return Entry;
+  std::unique_ptr<ConstantAggregateZero> &Entry =
+      Ty->getContext().pImpl->CAZConstants[Ty];
+  if (!Entry)
+    Entry.reset(new ConstantAggregateZero(Ty));
+
+  return Entry.get();
 }
 
 /// Remove the constant from the constant table.
@@ -1327,11 +1321,12 @@ const APInt &Constant::getUniqueInteger() const {
 //
 
 ConstantPointerNull *ConstantPointerNull::get(PointerType *Ty) {
-  ConstantPointerNull *&Entry = Ty->getContext().pImpl->CPNConstants[Ty];
+  std::unique_ptr<ConstantPointerNull> &Entry =
+      Ty->getContext().pImpl->CPNConstants[Ty];
   if (!Entry)
-    Entry = new ConstantPointerNull(Ty);
+    Entry.reset(new ConstantPointerNull(Ty));
 
-  return Entry;
+  return Entry.get();
 }
 
 /// Remove the constant from the constant table.
@@ -1340,11 +1335,11 @@ void ConstantPointerNull::destroyConstantImpl() {
 }
 
 UndefValue *UndefValue::get(Type *Ty) {
-  UndefValue *&Entry = Ty->getContext().pImpl->UVConstants[Ty];
+  std::unique_ptr<UndefValue> &Entry = Ty->getContext().pImpl->UVConstants[Ty];
   if (!Entry)
-    Entry = new UndefValue(Ty);
+    Entry.reset(new UndefValue(Ty));
 
-  return Entry;
+  return Entry.get();
 }
 
 /// Remove the constant from the constant table.
@@ -1893,6 +1888,7 @@ Constant *ConstantExpr::getSelect(Constant *C, Constant *V1, Constant *V2,
 
 Constant *ConstantExpr::getGetElementPtr(Type *Ty, Constant *C,
                                          ArrayRef<Value *> Idxs, bool InBounds,
+                                         Optional<unsigned> InRangeIndex,
                                          Type *OnlyIfReducedTy) {
   if (!Ty)
     Ty = cast<PointerType>(C->getType()->getScalarType())->getElementType();
@@ -1901,7 +1897,8 @@ Constant *ConstantExpr::getGetElementPtr(Type *Ty, Constant *C,
         Ty ==
         cast<PointerType>(C->getType()->getScalarType())->getContainedType(0u));
 
-  if (Constant *FC = ConstantFoldGetElementPtr(Ty, C, InBounds, Idxs))
+  if (Constant *FC =
+          ConstantFoldGetElementPtr(Ty, C, InBounds, InRangeIndex, Idxs))
     return FC;          // Fold a few common cases.
 
   // Get the result type of the getelementptr!
@@ -1937,9 +1934,12 @@ Constant *ConstantExpr::getGetElementPtr(Type *Ty, Constant *C,
       Idx = ConstantVector::getSplat(NumVecElts, Idx);
     ArgVec.push_back(Idx);
   }
+
+  unsigned SubClassOptionalData = InBounds ? GEPOperator::IsInBounds : 0;
+  if (InRangeIndex && *InRangeIndex < 63)
+    SubClassOptionalData |= (*InRangeIndex + 1) << 1;
   const ConstantExprKeyType Key(Instruction::GetElementPtr, ArgVec, 0,
-                                InBounds ? GEPOperator::IsInBounds : 0, None,
-                                Ty);
+                                SubClassOptionalData, None, Ty);
 
   LLVMContextImpl *pImpl = C->getContext().pImpl;
   return pImpl->ExprConstants.getOrCreate(ReqTy, Key);
@@ -2610,15 +2610,15 @@ APFloat ConstantDataSequential::getElementAsAPFloat(unsigned Elt) const {
     llvm_unreachable("Accessor can only be used when element is float/double!");
   case Type::HalfTyID: {
     auto EltVal = *reinterpret_cast<const uint16_t *>(EltPtr);
-    return APFloat(APFloat::IEEEhalf, APInt(16, EltVal));
+    return APFloat(APFloat::IEEEhalf(), APInt(16, EltVal));
   }
   case Type::FloatTyID: {
     auto EltVal = *reinterpret_cast<const uint32_t *>(EltPtr);
-    return APFloat(APFloat::IEEEsingle, APInt(32, EltVal));
+    return APFloat(APFloat::IEEEsingle(), APInt(32, EltVal));
   }
   case Type::DoubleTyID: {
     auto EltVal = *reinterpret_cast<const uint64_t *>(EltPtr);
-    return APFloat(APFloat::IEEEdouble, APInt(64, EltVal));
+    return APFloat(APFloat::IEEEdouble(), APInt(64, EltVal));
   }
   }
 }

@@ -270,6 +270,14 @@ unsigned MipsELFObjectWriter::getRelocType(MCContext &Ctx,
   case Mips::fixup_Mips_64:
   case FK_Data_8:
     return ELF::R_MIPS_64;
+  case FK_DTPRel_4:
+    return ELF::R_MIPS_TLS_DTPREL32;
+  case FK_DTPRel_8:
+    return ELF::R_MIPS_TLS_DTPREL64;
+  case FK_TPRel_4:
+    return ELF::R_MIPS_TLS_TPREL32;
+  case FK_TPRel_8:
+    return ELF::R_MIPS_TLS_TPREL64;
   case FK_GPRel_4:
     if (isN64()) {
       unsigned Type = (unsigned)ELF::R_MIPS_NONE;
@@ -329,6 +337,8 @@ unsigned MipsELFObjectWriter::getRelocType(MCContext &Ctx,
     return ELF::R_MIPS_HIGHER;
   case Mips::fixup_Mips_HIGHEST:
     return ELF::R_MIPS_HIGHEST;
+  case Mips::fixup_Mips_SUB:
+    return ELF::R_MIPS_SUB;
   case Mips::fixup_Mips_GOT_HI16:
     return ELF::R_MIPS_GOT_HI16;
   case Mips::fixup_Mips_GOT_LO16:
@@ -365,6 +375,8 @@ unsigned MipsELFObjectWriter::getRelocType(MCContext &Ctx,
     return ELF::R_MICROMIPS_TLS_TPREL_HI16;
   case Mips::fixup_MICROMIPS_TLS_TPREL_LO16:
     return ELF::R_MICROMIPS_TLS_TPREL_LO16;
+  case Mips::fixup_MICROMIPS_SUB:
+    return ELF::R_MICROMIPS_SUB;
   }
 
   llvm_unreachable("invalid fixup kind!");
@@ -407,6 +419,13 @@ unsigned MipsELFObjectWriter::getRelocType(MCContext &Ctx,
 /// always match using the expressions from the source.
 void MipsELFObjectWriter::sortRelocs(const MCAssembler &Asm,
                                      std::vector<ELFRelocationEntry> &Relocs) {
+
+  // We do not need to sort the relocation table for RELA relocations which
+  // N32/N64 uses as the relocation addend contains the value we require,
+  // rather than it being split across a pair of relocations.
+  if (hasRelocationAddend())
+    return;
+
   if (Relocs.size() < 2)
     return;
 
@@ -527,7 +546,7 @@ bool MipsELFObjectWriter::needsRelocateWithSymbol(const MCSymbol &Sym,
   case ELF::R_MIPS_GPREL32:
     if (cast<MCSymbolELF>(Sym).getOther() & ELF::STO_MIPS_MICROMIPS)
       return true;
-    // fallthrough
+    LLVM_FALLTHROUGH;
   case ELF::R_MIPS_26:
   case ELF::R_MIPS_64:
   case ELF::R_MIPS_GPREL16:

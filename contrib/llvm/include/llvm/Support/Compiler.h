@@ -33,6 +33,10 @@
 # define __has_attribute(x) 0
 #endif
 
+#ifndef __has_cpp_attribute
+# define __has_cpp_attribute(x) 0
+#endif
+
 #ifndef __has_builtin
 # define __has_builtin(x) 0
 #endif
@@ -56,24 +60,17 @@
 /// \macro LLVM_MSC_PREREQ
 /// \brief Is the compiler MSVC of at least the specified version?
 /// The common \param version values to check for are:
-///  * 1800: Microsoft Visual Studio 2013 / 12.0
 ///  * 1900: Microsoft Visual Studio 2015 / 14.0
 #ifdef _MSC_VER
 #define LLVM_MSC_PREREQ(version) (_MSC_VER >= (version))
 
-// We require at least MSVC 2013.
-#if !LLVM_MSC_PREREQ(1800)
-#error LLVM requires at least MSVC 2013.
+// We require at least MSVC 2015.
+#if !LLVM_MSC_PREREQ(1900)
+#error LLVM requires at least MSVC 2015.
 #endif
 
 #else
 #define LLVM_MSC_PREREQ(version) 0
-#endif
-
-#if !defined(_MSC_VER) || defined(__clang__) || LLVM_MSC_PREREQ(1900)
-#define LLVM_NOEXCEPT noexcept
-#else
-#define LLVM_NOEXCEPT throw()
 #endif
 
 /// \brief Does the compiler support ref-qualifiers for *this?
@@ -96,12 +93,6 @@
 #define LLVM_LVALUE_FUNCTION
 #endif
 
-#if __has_feature(cxx_constexpr) || defined(__GXX_EXPERIMENTAL_CXX0X__) || LLVM_MSC_PREREQ(1900)
-# define LLVM_CONSTEXPR constexpr
-#else
-# define LLVM_CONSTEXPR
-#endif
-
 /// LLVM_LIBRARY_VISIBILITY - If a class marked with this attribute is linked
 /// into a shared library, then the class should be private to the library and
 /// not accessible from outside it.  Can also be used to mark variables and
@@ -112,6 +103,12 @@
 #define LLVM_LIBRARY_VISIBILITY __attribute__ ((visibility("hidden")))
 #else
 #define LLVM_LIBRARY_VISIBILITY
+#endif
+
+#if defined(__GNUC__)
+#define LLVM_PREFETCH(addr, rw, locality) __builtin_prefetch(addr, rw, locality)
+#else
+#define LLVM_PREFETCH(addr, rw, locality)
 #endif
 
 #if __has_attribute(sentinel) || LLVM_GNUC_PREREQ(3, 0, 0)
@@ -126,12 +123,17 @@
 #define LLVM_ATTRIBUTE_USED
 #endif
 
-#if __has_attribute(warn_unused_result) || LLVM_GNUC_PREREQ(3, 4, 0)
-#define LLVM_ATTRIBUTE_UNUSED_RESULT __attribute__((__warn_unused_result__))
-#elif defined(_MSC_VER)
-#define LLVM_ATTRIBUTE_UNUSED_RESULT _Check_return_
+/// LLVM_NODISCARD - Warn if a type or return value is discarded.
+#if __cplusplus > 201402L && __has_cpp_attribute(nodiscard)
+#define LLVM_NODISCARD [[nodiscard]]
+#elif !__cplusplus
+// Workaround for llvm.org/PR23435, since clang 3.6 and below emit a spurious
+// error when __has_cpp_attribute is given a scoped attribute in C mode.
+#define LLVM_NODISCARD
+#elif __has_cpp_attribute(clang::warn_unused_result)
+#define LLVM_NODISCARD [[clang::warn_unused_result]]
 #else
-#define LLVM_ATTRIBUTE_UNUSED_RESULT
+#define LLVM_NODISCARD
 #endif
 
 // Some compilers warn about unused functions. When a function is sometimes
@@ -228,6 +230,19 @@
 #define LLVM_ATTRIBUTE_RETURNS_NOALIAS
 #endif
 
+/// LLVM_FALLTHROUGH - Mark fallthrough cases in switch statements.
+#if __cplusplus > 201402L && __has_cpp_attribute(fallthrough)
+#define LLVM_FALLTHROUGH [[fallthrough]]
+#elif !__cplusplus
+// Workaround for llvm.org/PR23435, since clang 3.6 and below emit a spurious
+// error when __has_cpp_attribute is given a scoped attribute in C mode.
+#define LLVM_FALLTHROUGH
+#elif __has_cpp_attribute(clang::fallthrough)
+#define LLVM_FALLTHROUGH [[clang::fallthrough]]
+#else
+#define LLVM_FALLTHROUGH
+#endif
+
 /// LLVM_EXTENSION - Support compilers where we have a keyword to suppress
 /// pedantic diagnostics.
 #ifdef __GNUC__
@@ -304,15 +319,8 @@
 #endif
 
 /// \macro LLVM_ALIGNAS
-/// \brief Used to specify a minimum alignment for a structure or variable. The
-/// alignment must be a constant integer. Use LLVM_PTR_SIZE to compute
-/// alignments in terms of the size of a pointer.
-///
-/// Note that __declspec(align) has special quirks, it's not legal to pass a
-/// structure with __declspec(align) as a formal parameter.
-#ifdef _MSC_VER
-# define LLVM_ALIGNAS(x) __declspec(align(x))
-#elif __GNUC__ && !__has_feature(cxx_alignas) && !LLVM_GNUC_PREREQ(4, 8, 0)
+/// \brief Used to specify a minimum alignment for a structure or variable.
+#if __GNUC__ && !__has_feature(cxx_alignas) && !LLVM_GNUC_PREREQ(4, 8, 1)
 # define LLVM_ALIGNAS(x) __attribute__((aligned(x)))
 #else
 # define LLVM_ALIGNAS(x) alignas(x)
@@ -362,15 +370,6 @@
 # define LLVM_PTR_SIZE sizeof(void *)
 #endif
 
-/// \macro LLVM_FUNCTION_NAME
-/// \brief Expands to __func__ on compilers which support it.  Otherwise,
-/// expands to a compiler-dependent replacement.
-#if defined(_MSC_VER)
-# define LLVM_FUNCTION_NAME __FUNCTION__
-#else
-# define LLVM_FUNCTION_NAME __func__
-#endif
-
 /// \macro LLVM_MEMORY_SANITIZER_BUILD
 /// \brief Whether LLVM itself is built with MemorySanitizer instrumentation.
 #if __has_feature(memory_sanitizer)
@@ -405,12 +404,16 @@
 // Thread Sanitizer is a tool that finds races in code.
 // See http://code.google.com/p/data-race-test/wiki/DynamicAnnotations .
 // tsan detects these exact functions by name.
+#ifdef __cplusplus
 extern "C" {
+#endif
 void AnnotateHappensAfter(const char *file, int line, const volatile void *cv);
 void AnnotateHappensBefore(const char *file, int line, const volatile void *cv);
 void AnnotateIgnoreWritesBegin(const char *file, int line);
 void AnnotateIgnoreWritesEnd(const char *file, int line);
+#ifdef __cplusplus
 }
+#endif
 
 // This marker is used to define a happens-before arc. The race detector will
 // infer an arc from the begin to the end when they share the same pointer
@@ -447,6 +450,19 @@ void AnnotateIgnoreWritesEnd(const char *file, int line);
 #define LLVM_DUMP_METHOD LLVM_ATTRIBUTE_NOINLINE LLVM_ATTRIBUTE_USED
 #else
 #define LLVM_DUMP_METHOD LLVM_ATTRIBUTE_NOINLINE
+#endif
+
+/// \macro LLVM_PRETTY_FUNCTION
+/// \brief Gets a user-friendly looking function signature for the current scope
+/// using the best available method on each platform.  The exact format of the
+/// resulting string is implementation specific and non-portable, so this should
+/// only be used, for example, for logging or diagnostics.
+#if defined(_MSC_VER)
+#define LLVM_PRETTY_FUNCTION __FUNCSIG__
+#elif defined(__GNUC__) || defined(__clang__)
+#define LLVM_PRETTY_FUNCTION __PRETTY_FUNCTION__
+#else 
+#define LLVM_PRETTY_FUNCTION __func__
 #endif
 
 /// \macro LLVM_THREAD_LOCAL

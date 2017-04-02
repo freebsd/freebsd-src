@@ -21,6 +21,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/IR/ValueMap.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
@@ -176,13 +177,14 @@ void CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
 class InlineFunctionInfo {
 public:
   explicit InlineFunctionInfo(CallGraph *cg = nullptr,
-                              AssumptionCacheTracker *ACT = nullptr)
-      : CG(cg), ACT(ACT) {}
+                              std::function<AssumptionCache &(Function &)>
+                                  *GetAssumptionCache = nullptr)
+      : CG(cg), GetAssumptionCache(GetAssumptionCache) {}
 
   /// CG - If non-null, InlineFunction will update the callgraph to reflect the
   /// changes it makes.
   CallGraph *CG;
-  AssumptionCacheTracker *ACT;
+  std::function<AssumptionCache &(Function &)> *GetAssumptionCache;
 
   /// StaticAllocas - InlineFunction fills this in with all static allocas that
   /// get copied into the caller.
@@ -192,9 +194,17 @@ public:
   /// inlined from the callee.  This is only filled in if CG is non-null.
   SmallVector<WeakVH, 8> InlinedCalls;
 
+  /// All of the new call sites inlined into the caller.
+  ///
+  /// 'InlineFunction' fills this in by scanning the inlined instructions, and
+  /// only if CG is null. If CG is non-null, instead the value handle
+  /// `InlinedCalls` above is used.
+  SmallVector<CallSite, 8> InlinedCallSites;
+
   void reset() {
     StaticAllocas.clear();
     InlinedCalls.clear();
+    InlinedCallSites.clear();
   }
 };
 
@@ -208,6 +218,10 @@ public:
 /// exists in the instruction stream.  Similarly this will inline a recursive
 /// function by one level.
 ///
+/// Note that while this routine is allowed to cleanup and optimize the
+/// *inlined* code to minimize the actual inserted code, it must not delete
+/// code in the caller as users of this routine may have pointers to
+/// instructions in the caller that need to remain stable.
 bool InlineFunction(CallInst *C, InlineFunctionInfo &IFI,
                     AAResults *CalleeAAR = nullptr, bool InsertLifetime = true);
 bool InlineFunction(InvokeInst *II, InlineFunctionInfo &IFI,
