@@ -235,6 +235,7 @@ static struct _s_x ether_types[] = {
 };
 
 static struct _s_x rule_eactions[] = {
+	{ "nptv6",		TOK_NPTV6 },
 	{ NULL, 0 }	/* terminator */
 };
 
