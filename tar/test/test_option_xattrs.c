@@ -33,7 +33,7 @@ DEFINE_TEST(test_option_xattrs)
 
 	const char *testattr = "user.libarchive.test";
 	const char *testval = "testval";
-	const void *readval;
+	void *readval;
 	size_t size;
 	int r;
 
@@ -62,6 +62,7 @@ DEFINE_TEST(test_option_xattrs)
 	readval = getXattr("xattrs_xattrs/f", testattr, &size);
 	if(assertEqualInt(size, strlen(testval) + 1) != 0)
 		assertEqualMem(readval, testval, size);
+	free(readval);
 
 	/* Extract xattrs without xattrs */
 	assertMakeDir("xattrs_noxattrs", 0755);
