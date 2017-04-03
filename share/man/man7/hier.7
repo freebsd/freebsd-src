@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2017
+.Dd April 3, 2017
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -716,6 +716,67 @@ source for files in
 .Pa /usr/share
 .It Pa sys/
 kernel source code
+.Bl -tag -width ".Pa opencrypto/" -compact
+.It Pa amd64/
+AMD64 architecture support
+.It Pa arm/
+ARM architecture support
+.It Pa arm64/
+ARMv8 architecture support
+.It Pa boot/
+bootloader code
+.It Pa cam/
+.Xr cam 4
+.It Pa cddl/
+CDDL-licensed optional sources, including ZFS
+and DTrace
+.It Pa ddb/
+.Xr ddb 4
+.It Pa fs/
+most filesystems
+.It Pa dev/
+device drivers
+.It Pa geom/
+.Xr geom 4
+.It Pa i386/
+i386 (32 bit) architecture support
+.It Pa kern/
+main part of the kernel
+.It Pa mips/
+MIPS architecture support
+.It Pa net80211/
+.Xr net80211 4
+.It Pa netgraph/
+.Xr netgraph 4
+.It Pa netinet/
+.Xr inet 4
+.It Pa netinet6/
+.Xr inet6 4
+.It Pa netipsec/
+.Xr ipsec 4
+.It Pa netpfil/
+.Xr ipfw 4
+and
+.Xr pf 4
+.It Pa opencrypto/
+.Xr crypto 7
+.It Pa powerpc/
+PowerPC/POWER architecture support
+.It Pa riscv/
+RISC-V architecture support
+.It Pa security/
+.Xr audit 4
+and
+.Xr mac 4
+.It Pa sparc64/
+SPARC64 architecture support
+.It Pa sys/
+kernel headers
+.It Pa ufs/
+Unix File System
+.It Pa x86/
+code shared by AMD64 and i386 architectures
+.El
 .It Pa targets/
 support for experimental DIRDEPS_BUILD
 .It Pa tests/
