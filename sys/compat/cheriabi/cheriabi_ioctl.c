@@ -377,19 +377,16 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 			break;
 		}
 
-		i = 0;
-		do {
-			reqsize = cheriabi_ioctl_iru_data_consumers[i].size;
-			reqperms = cheriabi_ioctl_iru_data_consumers[i].perms;
-		} while(cheriabi_ioctl_iru_data_consumers[i].cmd != com &&
-		    cheriabi_ioctl_iru_data_consumers[i].cmd != 0);
+		for(i = 0; cheriabi_ioctl_iru_data_consumers[i].cmd != com;
+		    cheriabi_ioctl_iru_data_consumers[i].cmd != 0; i++) {
+			if (cheriabi_ioctl_iru_data_consumers[i].cmd == 0)
+				return (EINVAL);
+		}
+		reqsize = cheriabi_ioctl_iru_data_consumers[i].size;
+		reqperms = cheriabi_ioctl_iru_data_consumers[i].perms;
 
-		error = cheriabi_cap_to_ptr((caddr_t *)&ifr->ifr_data,
-		    &ifr_c->ifr_data, reqsize, reqperms, 1);
-		if (error != 0)
-			return (error);
-
-		return (0);
+		return (cheriabi_cap_to_ptr((caddr_t *)&ifr->ifr_data,
+		    &ifr_c->ifr_data, reqsize, reqperms, 1));
 	}
 
 	/* Other struct ifreq consumers */
