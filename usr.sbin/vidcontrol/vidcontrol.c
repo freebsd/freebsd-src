@@ -94,10 +94,6 @@ static int	hex = 0;
 static int	vesa_cols;
 static int	vesa_rows;
 static int	font_height;
-static int	colors_changed;
-static int	video_mode_changed;
-static int	normal_fore_color, normal_back_color;
-static int	revers_fore_color, revers_back_color;
 static int	vt4_mode = 0;
 static struct	vid_info info;
 static struct	video_info new_mode_info;
@@ -140,11 +136,6 @@ init(void)
 
 	if (ioctl(0, CONS_MODEINFO, &cur_info.video_mode_info) == -1)
 		errc(1, errno, "getting video mode parameters");
-
-	normal_fore_color = cur_info.console_info.mv_norm.fore;
-	normal_back_color = cur_info.console_info.mv_norm.back;
-	revers_fore_color = cur_info.console_info.mv_rev.fore;
-	revers_back_color = cur_info.console_info.mv_rev.back;
 }
 
 
@@ -163,8 +154,6 @@ revert(void)
 	ioctl(0, VT_ACTIVATE, cur_info.active_vty);
 
 	fprintf(stderr, "\033[=%dA", cur_info.console_info.mv_ovscan);
-	fprintf(stderr, "\033[=%dF", cur_info.console_info.mv_norm.fore);
-	fprintf(stderr, "\033[=%dG", cur_info.console_info.mv_norm.back);
 	fprintf(stderr, "\033[=%dH", cur_info.console_info.mv_rev.fore);
 	fprintf(stderr, "\033[=%dI", cur_info.console_info.mv_rev.back);
 
@@ -185,6 +174,10 @@ revert(void)
 
 		ioctl(0, KDRASTER, size);
 	}
+
+	/* Restore some colors last since mode setting forgets some. */
+	fprintf(stderr, "\033[=%dF", cur_info.console_info.mv_norm.fore);
+	fprintf(stderr, "\033[=%dG", cur_info.console_info.mv_norm.back);
 }
 
 
@@ -657,7 +650,7 @@ set_cursor_type(char *appearance)
  * Set the video mode.
  */
 
-static int
+static void
 video_mode(int argc, char **argv, int *mode_index)
 {
 	static struct {
@@ -728,10 +721,11 @@ video_mode(int argc, char **argv, int *mode_index)
 			}
 
 			if (modes[i].name == NULL)
-				return EXIT_FAILURE;
+				return;
 			if (ioctl(0, mode, NULL) < 0) {
-				warn("cannot set videomode");
-				return EXIT_FAILURE;
+				ioerr = errno;
+				revert();
+				errc(1, ioerr, "cannot set videomode");
 			}
 		}
 
@@ -805,16 +799,19 @@ video_mode(int argc, char **argv, int *mode_index)
 				else
 					ioctl(0, _IO('S', cur_mode), NULL);
 				revert();
-				warnc(ioerr, "cannot activate raster display");
-				return EXIT_FAILURE;
+				errc(1, ioerr,
+				    "cannot activate raster display");
 			}
 		}
 
-		video_mode_changed = 1;
+		/* Recover from mode setting forgetting colors. */
+		fprintf(stderr, "\033[=%dF",
+		    cur_info.console_info.mv_norm.fore);
+		fprintf(stderr, "\033[=%dG",
+		    cur_info.console_info.mv_norm.back);
 
 		(*mode_index)++;
 	}
-	return EXIT_SUCCESS;
 }
 
 
@@ -836,63 +833,43 @@ get_color_number(char *color)
 
 
 /*
- * Get normal text and background colors.
+ * Set normal text and background colors.
  */
 
 static void
-get_normal_colors(int argc, char **argv, int *_index)
+set_normal_colors(int argc, char **argv, int *_index)
 {
 	int color;
 
 	if (*_index < argc && (color = get_color_number(argv[*_index])) != -1) {
 		(*_index)++;
 		fprintf(stderr, "\033[=%dF", color);
-		normal_fore_color=color;
-		colors_changed = 1;
 		if (*_index < argc
 		    && (color = get_color_number(argv[*_index])) != -1) {
 			(*_index)++;
 			fprintf(stderr, "\033[=%dG", color);
-			normal_back_color=color;
 		}
 	}
 }
 
 
 /*
- * Get reverse text and background colors.
+ * Set reverse text and background colors.
  */
 
 static void
-get_reverse_colors(int argc, char **argv, int *_index)
+set_reverse_colors(int argc, char **argv, int *_index)
 {
 	int color;
 
 	if ((color = get_color_number(argv[*(_index)-1])) != -1) {
 		fprintf(stderr, "\033[=%dH", color);
-		revers_fore_color=color;
-		colors_changed = 1;
 		if (*_index < argc
 		    && (color = get_color_number(argv[*_index])) != -1) {
 			(*_index)++;
 			fprintf(stderr, "\033[=%dI", color);
-			revers_back_color=color;
 		}
 	}
-}
-
-
-/*
- * Set normal and reverse foreground and background colors.
- */
-
-static void
-set_colors(void)
-{
-	fprintf(stderr, "\033[=%dF", normal_fore_color);
-	fprintf(stderr, "\033[=%dG", normal_back_color);
-	fprintf(stderr, "\033[=%dH", revers_fore_color);
-	fprintf(stderr, "\033[=%dI", revers_back_color);
 }
 
 
@@ -1342,7 +1319,6 @@ main(int argc, char **argv)
 	char    *font, *type, *termmode;
 	const char *opts;
 	int	dumpmod, dumpopt, opt;
-	int	reterr;
 
 	vt4_mode = is_vt4();
 
@@ -1435,7 +1411,7 @@ main(int argc, char **argv)
 			dumpmod = DUMP_FMT_TXT;
 			break;
 		case 'r':
-			get_reverse_colors(argc, argv, &optind);
+			set_reverse_colors(argc, argv, &optind);
 			break;
 		case 'S':
 			set_lockswitch(optarg);
@@ -1461,25 +1437,19 @@ main(int argc, char **argv)
 
 	if (dumpmod != 0)
 		dump_screen(dumpmod, dumpopt);
-	reterr = video_mode(argc, argv, &optind);
-	get_normal_colors(argc, argv, &optind);
+	video_mode(argc, argv, &optind);
+	set_normal_colors(argc, argv, &optind);
 
 	if (optind < argc && !strcmp(argv[optind], "show")) {
 		test_frame();
 		optind++;
 	}
 
-	video_mode(argc, argv, &optind);
 	if (termmode != NULL)
 		set_terminal_mode(termmode);
 
-	get_normal_colors(argc, argv, &optind);
-
-	if (colors_changed || video_mode_changed)
-		set_colors();
-
 	if ((optind != argc) || (argc == 1))
 		usage();
-	return reterr;
+	return (0);
 }
 
