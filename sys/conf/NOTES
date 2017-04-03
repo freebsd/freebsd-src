@@ -971,6 +971,9 @@ device		lagg
 #
 # IPFIREWALL_NPTV6 adds support for in kernel NPTv6 in ipfw.
 #
+# IPFIREWALL_PMOD adds support for protocols modification module. Currently
+# it supports only TCP MSS modification.
+#
 # IPSTEALTH enables code to support stealth forwarding (i.e., forwarding
 # packets without touching the TTL).  This can be useful to hide firewalls
 # from traceroute and similar tools.
