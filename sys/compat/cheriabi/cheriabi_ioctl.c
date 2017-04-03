@@ -378,7 +378,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		}
 
 		for(i = 0; cheriabi_ioctl_iru_data_consumers[i].cmd != com;
-		    cheriabi_ioctl_iru_data_consumers[i].cmd != 0; i++) {
+		    i++) {
 			if (cheriabi_ioctl_iru_data_consumers[i].cmd == 0)
 				return (EINVAL);
 		}
