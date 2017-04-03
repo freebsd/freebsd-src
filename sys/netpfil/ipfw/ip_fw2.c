@@ -992,7 +992,6 @@ ipfw_chk(struct ip_fw_args *args)
 	int is_ipv4 = 0;
 
 	int done = 0;		/* flag to exit the outer loop */
-	IPFW_RLOCK_TRACKER;
 
 	if (m->m_flags & M_SKIP_FIREWALL || (! V_ipfw_vnet_ready))
 		return (IP_FW_PASS);	/* accept */
