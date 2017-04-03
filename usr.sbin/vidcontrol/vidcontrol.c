@@ -1167,6 +1167,7 @@ static void
 test_frame(void)
 {
 	vid_info_t info;
+	char *bg, *sep;
 	int i, fore;
 
 	info.size = sizeof(info);
@@ -1174,15 +1175,25 @@ test_frame(void)
 		err(1, "getting console information");
 
 	fore = 15;
+	if (info.mv_csz < 80) {
+		bg = "BG";
+		sep = " ";
+	} else {
+		bg = "BACKGROUND";
+		sep = "    ";
+	}
 
 	fprintf(stdout, "\033[=0G\n\n");
 	for (i=0; i<8; i++) {
-		fprintf(stdout, "\033[=%dF\033[=0G        %2d \033[=%dF%-16s"
-				"\033[=%dF\033[=0G        %2d \033[=%dF%-16s        "
-				"\033[=%dF %2d \033[=%dGBACKGROUND\033[=0G\n",
-			fore, i, i, legal_colors[i],
-			fore, i+8, i+8, legal_colors[i+8],
-			fore, i, i);
+		fprintf(stdout,
+		    "\033[=%dF\033[=0G%2d \033[=%dF%-7s%s"
+		    "\033[=%dF\033[=0G%2d \033[=%dF%-12s%s"
+		    "\033[=%dF%2d \033[=%dG%s\033[=0G%s"
+		    "\033[=%dF%2d \033[=%dG%s\033[=0G\n",
+		    fore, i, i, legal_colors[i], sep,
+		    fore, i + 8, i + 8, legal_colors[i + 8], sep,
+		    fore, i, i, bg, sep,
+		    fore, i + 8, i + 8, bg);
 	}
 	fprintf(stdout, "\033[=%dF\033[=%dG\033[=%dH\033[=%dI\n",
 		info.mv_norm.fore, info.mv_norm.back,
