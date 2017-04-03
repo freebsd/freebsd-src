@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2017
+.Dd April 3, 2017
 .Dt ARCHIVE_WRITE_DISK 3
 .Os
 .Sh NAME
@@ -96,6 +96,33 @@ performance optimization in practice.
 The options field consists of a bitwise OR of one or more of the
 following values:
 .Bl -tag -compact -width "indent"
+.It Cm ARCHIVE_EXTRACT_ACL
+Attempt to restore Access Control Lists.
+By default, extended ACLs are ignored.
+.It Cm ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS
+Before removing a file system object prior to replacing it, clear
+platform-specific file flags which might prevent its removal.
+.It Cm ARCHIVE_EXTRACT_FFLAGS
+Attempt to restore file attributes (file flags).
+By default, file attributes are ignored.
+See
+.Xr chattr 1
+.Pq Linux
+or
+.Xr chflags 1
+.Pq FreeBSD, Mac OS X
+for more information on file attributes.
+.It Cm ARCHIVE_EXTRACT_MAC_METADATA
+Mac OS X specific. Restore metadata using
+.Xr copyfile 3 .
+By default,
+.Xr copyfile 3
+metadata is ignored.
+.It Cm ARCHIVE_EXTRACT_NO_OVERWRITE
+Existing files on disk will not be overwritten.
+By default, existing regular files are truncated and overwritten;
+existing directories will have their permissions updated;
+other pre-existing objects are unlinked and recreated from scratch.
 .It Cm ARCHIVE_EXTRACT_OWNER
 The user and group IDs should be set on the restored file.
 By default, the user and group IDs are not restored.
@@ -111,43 +138,9 @@ is not specified, then SUID and SGID bits will only be restored
 if the default user and group IDs of newly-created objects on disk
 happen to match those specified in the archive entry.
 By default, only basic permissions are restored, and umask is obeyed.
-.It Cm ARCHIVE_EXTRACT_TIME
-The timestamps (mtime, ctime, and atime) should be restored.
-By default, they are ignored.
-Note that restoring of atime is not currently supported.
-.It Cm ARCHIVE_EXTRACT_NO_OVERWRITE
-Existing files on disk will not be overwritten.
-By default, existing regular files are truncated and overwritten;
-existing directories will have their permissions updated;
-other pre-existing objects are unlinked and recreated from scratch.
-.It Cm ARCHIVE_EXTRACT_UNLINK
-Existing files on disk will be unlinked before any attempt to
-create them.
-In some cases, this can prove to be a significant performance improvement.
-By default, existing files are truncated and rewritten, but
-the file is not recreated.
-In particular, the default behavior does not break existing hard links.
-.It Cm ARCHIVE_EXTRACT_ACL
-Attempt to restore ACLs.
-By default, extended ACLs are ignored.
-.It Cm ARCHIVE_EXTRACT_FFLAGS
-Attempt to restore extended file flags.
-By default, file flags are ignored.
-.It Cm ARCHIVE_EXTRACT_XATTR
-Attempt to restore POSIX.1e extended attributes.
-By default, they are ignored.
-.It Cm ARCHIVE_EXTRACT_SECURE_SYMLINKS
-Refuse to extract any object whose final location would be altered
-by a symlink on disk.
-This is intended to help guard against a variety of mischief
-caused by archives that (deliberately or otherwise) extract
-files outside of the current directory.
-The default is not to perform this check.
-If
-.Cm ARCHIVE_EXTRACT_UNLINK
-is specified together with this option, the library will
-remove any intermediate symlinks it finds and return an
-error only if such symlink could not be removed.
+.It Cm ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS
+Refuse to extract an absolute path.
+The default is to not refuse such paths.
 .It Cm ARCHIVE_EXTRACT_SECURE_NODOTDOT
 Refuse to extract a path that contains a
 .Pa ..
@@ -156,16 +149,45 @@ The default is to not refuse such paths.
 Note that paths ending in
 .Pa ..
 always cause an error, regardless of this flag.
-.It Cm ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS
-Refuse to extract an absolute path.
-The default is to not refuse such paths.
+.It Cm ARCHIVE_EXTRACT_SECURE_SYMLINKS
+Refuse to extract any object whose final location would be altered
+by a symlink on disk.
+This is intended to help guard against a variety of mischief
+caused by archives that (deliberately or otherwise) extract
+files outside of the current directory.
+The default is not to perform this check.
+If
 .It Cm ARCHIVE_EXTRACT_SPARSE
 Scan data for blocks of NUL bytes and try to recreate them with holes.
 This results in sparse files, independent of whether the archive format
 supports or uses them.
-.It Cm ARCHIVE_EXTRACT_CLEAR_NOCHANGE_FFLAGS
-Before removing a file system object prior to replacing it, clear
-platform-specific file flags which might prevent its removal.
+.Cm ARCHIVE_EXTRACT_UNLINK
+is specified together with this option, the library will
+remove any intermediate symlinks it finds and return an
+error only if such symlink could not be removed.
+.It Cm ARCHIVE_EXTRACT_TIME
+The timestamps (mtime, ctime, and atime) should be restored.
+By default, they are ignored.
+Note that restoring of atime is not currently supported.
+.It Cm ARCHIVE_EXTRACT_UNLINK
+Existing files on disk will be unlinked before any attempt to
+create them.
+In some cases, this can prove to be a significant performance improvement.
+By default, existing files are truncated and rewritten, but
+the file is not recreated.
+In particular, the default behavior does not break existing hard links.
+.It Cm ARCHIVE_EXTRACT_XATTR
+Attempt to restore extended file attributes.
+By default, they are ignored.
+See
+.Xr xattr 7
+.Pq Linux ,
+.Xr xattr 2
+.Pq Mac OS X ,
+or
+.Xr getextattr 8
+.Pq FreeBSD
+for more information on extended file attributes.
 .El
 .It Xo
 .Fn archive_write_disk_set_group_lookup ,
