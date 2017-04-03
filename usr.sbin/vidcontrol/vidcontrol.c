@@ -1167,7 +1167,7 @@ static void
 test_frame(void)
 {
 	vid_info_t info;
-	char *bg, *sep;
+	const char *bg, *sep;
 	int i, fore;
 
 	info.size = sizeof(info);
