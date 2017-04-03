@@ -264,6 +264,11 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 				snprintf(SNPARGS(action2, 0), "Call %d",
 				    cmd->arg1);
 			break;
+		case O_EXTERNAL_ACTION:
+			snprintf(SNPARGS(action2, 0), "Eaction %s",
+			    ((struct named_object *)SRV_OBJECT(chain,
+			    cmd->arg1))->name);
+			break;
 		default:
 			action = "UNKNOWN";
 			break;
