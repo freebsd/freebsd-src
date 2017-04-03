@@ -290,8 +290,6 @@ static void	em_handle_link(void *context);
 
 static void	em_enable_vectors_82574(if_ctx_t);
 
-static void	em_set_sysctl_value(struct adapter *, const char *,
-		    const char *, int *, int);
 static int	em_set_flowcntl(SYSCTL_HANDLER_ARGS);
 static int	em_sysctl_eee(SYSCTL_HANDLER_ARGS);
 static void	em_if_led_func(if_ctx_t ctx, int onoff);
@@ -895,11 +893,6 @@ em_if_attach_pre(if_ctx_t ctx)
 	    &adapter->tx_itr,
 	    E1000_REGISTER(hw, E1000_ITR),
 	    DEFAULT_ITR);
-
-	/* Sysctl for limiting the amount of work done in the taskqueue */
-	em_set_sysctl_value(adapter, "rx_processing_limit",
-	    "max number of rx packets to process", &adapter->rx_process_limit,
-	    em_rx_process_limit);
 
 	hw->mac.autoneg = DO_AUTO_NEG;
 	hw->phy.autoneg_wait_to_complete = FALSE;
@@ -4216,17 +4209,6 @@ em_add_int_delay_sysctl(struct adapter *adapter, const char *name,
 	    OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW,
 	    info, 0, em_sysctl_int_delay, "I", description);
 }
-
-static void
-em_set_sysctl_value(struct adapter *adapter, const char *name,
-	const char *description, int *limit, int value)
-{
-	*limit = value;
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
-	    OID_AUTO, name, CTLFLAG_RW, limit, value, description);
-}
-
 
 /*
  * Set flow control using sysctl:
