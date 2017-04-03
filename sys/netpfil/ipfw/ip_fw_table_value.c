@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/queue.h>
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
+#include <net/pfil.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
