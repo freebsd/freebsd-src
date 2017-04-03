@@ -202,6 +202,7 @@ find_currdev(EFI_LOADED_IMAGE *img)
 		    env_nounset);
 		env_setenv("loaddev", EV_VOLATILE, devname, env_noset,
 		    env_nounset);
+		init_zfs_bootenv(devname);
 		return (0);
 	}
 #endif /* EFI_ZFS_BOOT */
