@@ -418,7 +418,7 @@ command_reloadbe(int argc, char *argv[])
 	    /* There does not appear to be a ZFS pool here, exit without error */
 	    return (CMD_OK);
 	}
-	err = zfs_bootenv(getenv("zfs_be_root"));
+	err = zfs_bootenv(root);
     }
 
     if (err != 0) {
