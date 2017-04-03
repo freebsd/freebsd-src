@@ -360,8 +360,10 @@ compare_acls(const char *path_a, const char *path_b)
 	if (richacl_a != NULL) {
 		richacl_b = richacl_get_file(path_b);
 		if (richacl_b == NULL &&
-		    (errno == ENODATA || errno == ENOTSUP || errno == ENOSYS))
+		    (errno == ENODATA || errno == ENOTSUP || errno == ENOSYS)) {
+			richacl_free(richacl_a);
 			return (0);
+		}
 		failure("richacl_get_file() error: %s (%s)", path_b,
 		    strerror(errno));
 		if (assert(richacl_b != NULL) == 0) {
