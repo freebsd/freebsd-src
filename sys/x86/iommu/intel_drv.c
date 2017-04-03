@@ -402,6 +402,7 @@ dmar_attach(device_t dev)
 {
 	struct dmar_unit *unit;
 	ACPI_DMAR_HARDWARE_UNIT *dmaru;
+	uint64_t timeout;
 	int i, error;
 
 	unit = device_get_softc(dev);
@@ -425,6 +426,10 @@ dmar_attach(device_t dev)
 	if (bootverbose)
 		dmar_print_caps(dev, unit, dmaru);
 	dmar_quirks_post_ident(unit);
+
+	timeout = dmar_get_timeout();
+	TUNABLE_UINT64_FETCH("hw.dmar.timeout", &timeout);
+	dmar_update_timeout(timeout);
 
 	for (i = 0; i < DMAR_INTR_TOTAL; i++)
 		unit->intrs[i].irq = -1;
