@@ -1736,11 +1736,16 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 				return (EINVAL);
 			}
 			ci->object_opcodes++;
-			/* Do we have O_EXTERNAL_INSTANCE opcode? */
+			/*
+			 * Do we have O_EXTERNAL_INSTANCE or O_EXTERNAL_DATA
+			 * opcode?
+			 */
 			if (l != cmdlen) {
 				l -= cmdlen;
 				cmd += cmdlen;
 				cmdlen = F_LEN(cmd);
+				if (cmd->opcode == O_EXTERNAL_DATA)
+					goto check_action;
 				if (cmd->opcode != O_EXTERNAL_INSTANCE) {
 					printf("ipfw: invalid opcode "
 					    "next to external action %u\n",
@@ -2618,11 +2623,11 @@ unref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule)
 			continue;
 		no = rw->find_bykidx(ch, kidx);
 
-		KASSERT(no != NULL, ("table id %d not found", kidx));
+		KASSERT(no != NULL, ("object id %d not found", kidx));
 		KASSERT(no->subtype == subtype,
-		    ("wrong type %d (%d) for table id %d",
+		    ("wrong type %d (%d) for object id %d",
 		    no->subtype, subtype, kidx));
-		KASSERT(no->refcnt > 0, ("refcount for table %d is %d",
+		KASSERT(no->refcnt > 0, ("refcount for object %d is %d",
 		    kidx, no->refcnt));
 
 		if (no->refcnt == 1 && rw->destroy_object != NULL)
