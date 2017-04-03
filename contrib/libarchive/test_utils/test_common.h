@@ -348,7 +348,7 @@ int canNodump(void);
 int setTestAcl(const char *path);
 
 /* Get extended attribute */
-const void *getXattr(const char *, const char *, size_t *);
+void *getXattr(const char *, const char *, size_t *);
 
 /* Set extended attribute */
 int setXattr(const char *, const char *, const void *, size_t);

@@ -2451,8 +2451,8 @@ canNodump(void)
 	return (0);
 }
 
-/* Get extended attribute from a path */
-const void *
+/* Get extended attribute value from a path */
+void *
 getXattr(const char *path, const char *name, size_t *sizep)
 { 
 	void *value = NULL;
