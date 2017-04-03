@@ -110,6 +110,13 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_DUMP_SOPTCODES	116	/* Dump available sopts/versions */
 #define	IP_FW_DUMP_SRVOBJECTS	117	/* Dump existing named objects */
 
+#define	IP_FW_NPTV6_CREATE	150	/* Create NPTv6 instance */
+#define	IP_FW_NPTV6_DESTROY	151	/* Destroy NPTv6 instance */
+#define	IP_FW_NPTV6_CONFIG	152	/* Modify NPTv6 instance */
+#define	IP_FW_NPTV6_LIST	153	/* List NPTv6 instances */
+#define	IP_FW_NPTV6_STATS	154	/* Get NPTv6 instance statistics */
+#define	IP_FW_NPTV6_RESET_STATS	155	/* Reset NPTv6 instance statistics */
+
 /*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
@@ -785,6 +792,7 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_TBLENT_LIST	8
 #define	IPFW_TLV_RANGE		9
 #define	IPFW_TLV_EACTION	10
+#define	IPFW_TLV_COUNTERS	11
 #define	IPFW_TLV_STATE_NAME	14
 
 #define	IPFW_TLV_EACTION_BASE	1000

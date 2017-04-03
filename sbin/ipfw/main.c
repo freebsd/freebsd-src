@@ -425,6 +425,8 @@ ipfw_main(int oldac, char **oldav)
 	if (co.use_set || try_next) {
 		if (_substrcmp(*av, "delete") == 0)
 			ipfw_delete(av);
+		else if (!strncmp(*av, "nptv6", strlen(*av)))
+			ipfw_nptv6_handler(ac, av);
 		else if (_substrcmp(*av, "flush") == 0)
 			ipfw_flush(co.do_force);
 		else if (_substrcmp(*av, "zero") == 0)
