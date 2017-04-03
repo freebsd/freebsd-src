@@ -96,7 +96,6 @@ static int	vesa_rows;
 static int	font_height;
 static int	vt4_mode = 0;
 static int	video_mode_changed;
-static struct	vid_info info;
 static struct	video_info new_mode_info;
 
 
@@ -121,7 +120,6 @@ init(void)
 		err(1, "getting active vty");
 
 	cur_info.console_info.size = sizeof(cur_info.console_info);
-
 	if (ioctl(0, CONS_GETINFO, &cur_info.console_info) == -1)
 		err(1, "getting console information");
 
@@ -487,7 +485,7 @@ load_font(const char *type, const char *filename)
 	const char	*b[] = {filename, NULL};
 	const char	*c[] = {"", size_sufx, NULL};
 	const char	*d[] = {"", ".fnt", NULL};
-	vid_info_t _info;
+	vid_info_t info;
 
 	struct sizeinfo {
 		int w;
@@ -501,14 +499,13 @@ load_font(const char *type, const char *filename)
 	if (vt4_mode) {
 		size_sufx[0] = '\0';
 	} else {
-		_info.size = sizeof(_info);
-		if (ioctl(0, CONS_GETINFO, &_info) == -1) {
+		info.size = sizeof(info);
+		if (ioctl(0, CONS_GETINFO, &info) == -1) {
 			revert();
-			warn("failed to obtain current video mode parameters");
-			return;
+			err(1, "getting console information");
 		}
 
-		snprintf(size_sufx, sizeof(size_sufx), "-8x%d", _info.font_size);
+		snprintf(size_sufx, sizeof(size_sufx), "-8x%d", info.font_size);
 	}
 	fd = openguess((vt4_mode == 0) ? a : vt4a, b, c, d, &name);
 
@@ -1074,7 +1071,7 @@ static void
 show_mode_info(void)
 {
 	char buf[80];
-	struct video_info _info;
+	struct video_info info;
 	int c;
 	int mm;
 	int mode;
@@ -1084,28 +1081,28 @@ show_mode_info(void)
 	printf("---------------------------------------"
 	       "---------------------------------------\n");
 
-	memset(&_info, 0, sizeof(_info));
+	memset(&info, 0, sizeof(info));
 	for (mode = 0; mode <= M_VESA_MODE_MAX; ++mode) {
-		_info.vi_mode = mode;
-		if (ioctl(0, CONS_MODEINFO, &_info))
+		info.vi_mode = mode;
+		if (ioctl(0, CONS_MODEINFO, &info))
 			continue;
-		if (_info.vi_mode != mode)
+		if (info.vi_mode != mode)
 			continue;
-		if (_info.vi_width == 0 && _info.vi_height == 0 &&
-		    _info.vi_cwidth == 0 && _info.vi_cheight == 0)
+		if (info.vi_width == 0 && info.vi_height == 0 &&
+		    info.vi_cwidth == 0 && info.vi_cheight == 0)
 			continue;
 
 		printf("%3d (0x%03x)", mode, mode);
-    		printf(" 0x%08x", _info.vi_flags);
-		if (_info.vi_flags & V_INFO_GRAPHICS) {
+    		printf(" 0x%08x", info.vi_flags);
+		if (info.vi_flags & V_INFO_GRAPHICS) {
 			c = 'G';
 
-			if (_info.vi_mem_model == V_INFO_MM_PLANAR)
+			if (info.vi_mem_model == V_INFO_MM_PLANAR)
 				snprintf(buf, sizeof(buf), "%dx%dx%d %d",
-				    _info.vi_width, _info.vi_height, 
-				    _info.vi_depth, _info.vi_planes);
+				    info.vi_width, info.vi_height, 
+				    info.vi_depth, info.vi_planes);
 			else {
-				switch (_info.vi_mem_model) {
+				switch (info.vi_mem_model) {
 				case V_INFO_MM_PACKED:
 					mm = 'P';
 					break;
@@ -1126,25 +1123,25 @@ show_mode_info(void)
 					break;
 				}
 				snprintf(buf, sizeof(buf), "%dx%dx%d %c",
-				    _info.vi_width, _info.vi_height, 
-				    _info.vi_depth, mm);
+				    info.vi_width, info.vi_height, 
+				    info.vi_depth, mm);
 			}
 		} else {
 			c = 'T';
 
 			snprintf(buf, sizeof(buf), "%dx%d",
-				 _info.vi_width, _info.vi_height);
+				 info.vi_width, info.vi_height);
 		}
 
 		printf(" %c %-15s", c, buf);
 		snprintf(buf, sizeof(buf), "%dx%d", 
-			 _info.vi_cwidth, _info.vi_cheight); 
+			 info.vi_cwidth, info.vi_cheight); 
 		printf(" %-5s", buf);
     		printf(" 0x%05zx %2dk %2dk", 
-		       _info.vi_window, (int)_info.vi_window_size/1024, 
-		       (int)_info.vi_window_gran/1024);
+		       info.vi_window, (int)info.vi_window_size/1024, 
+		       (int)info.vi_window_gran/1024);
     		printf(" 0x%08zx %dk\n",
-		       _info.vi_buffer, (int)_info.vi_buffer_size/1024);
+		       info.vi_buffer, (int)info.vi_buffer_size/1024);
 	}
 }
 
@@ -1169,7 +1166,12 @@ show_info(char *arg)
 static void
 test_frame(void)
 {
+	vid_info_t info;
 	int i, fore;
+
+	info.size = sizeof(info);
+	if (ioctl(0, CONS_GETINFO, &info) == -1)
+		err(1, "getting console information");
 
 	fore = 15;
 
@@ -1199,21 +1201,19 @@ static void
 dump_screen(int mode, int opt)
 {
 	scrshot_t shot;
-	vid_info_t _info;
+	vid_info_t info;
 
-	_info.size = sizeof(_info);
-
-	if (ioctl(0, CONS_GETINFO, &_info) == -1) {
+	info.size = sizeof(info);
+	if (ioctl(0, CONS_GETINFO, &info) == -1) {
 		revert();
-		err(1, "obtaining current video mode parameters");
-		return;
+		err(1, "getting console information");
 	}
 
 	shot.x = shot.y = 0;
-	shot.xsize = _info.mv_csz;
-	shot.ysize = _info.mv_rsz;
+	shot.xsize = info.mv_csz;
+	shot.ysize = info.mv_rsz;
 	if (opt == DUMP_ALL)
-		shot.ysize += _info.mv_hsz;
+		shot.ysize += info.mv_hsz;
 
 	shot.buf = alloca(shot.xsize * shot.ysize * sizeof(u_int16_t));
 	if (shot.buf == NULL) {
@@ -1329,10 +1329,6 @@ main(int argc, char **argv)
 
 	init();
 
-	info.size = sizeof(info);
-
-	if (ioctl(0, CONS_GETINFO, &info) == -1)
-		err(1, "must be on a virtual console");
 	dumpmod = 0;
 	dumpopt = DUMP_FBF;
 	termmode = NULL;
