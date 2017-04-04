@@ -42,7 +42,6 @@
 
 #include "hashtable.h"
 #include "tre-fastmatch.h"
-#include "xmalloc.h"
 
 static int	fastcmp(const fastmatch_t *fg, const void *data,
 			tre_str_type_t type);
@@ -53,9 +52,9 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
 #define FAIL_COMP(errcode)						\
   {									\
     if (fg->pattern)							\
-      xfree(fg->pattern);						\
+      free(fg->pattern);						\
     if (fg->wpattern)							\
-      xfree(fg->wpattern);						\
+      free(fg->wpattern);						\
     if (fg->qsBc_table)							\
       hashtable_free(fg->qsBc_table);					\
     fg = NULL;								\
@@ -92,7 +91,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
     if (siz == (size_t)-1)						\
       return REG_BADPAT;						\
     fg->len = siz;							\
-    fg->pattern = xmalloc(siz + 1);					\
+    fg->pattern = malloc(siz + 1);					\
     if (fg->pattern == NULL)						\
       return REG_ESPACE;						\
     wcstombs(fg->pattern, fg->wpattern, siz);				\
@@ -340,7 +339,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
 #define FILL_BMGS							\
   if (!fg->hasdot)							\
     {									\
-      fg->sbmGs = xmalloc(fg->len * sizeof(int));			\
+      fg->sbmGs = malloc(fg->len * sizeof(int));			\
       if (!fg->sbmGs)							\
 	return REG_ESPACE;						\
       if (fg->len == 1)							\
@@ -356,7 +355,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
 #define FILL_BMGS_WIDE							\
   if (!fg->hasdot)							\
     {									\
-      fg->bmGs = xmalloc(fg->wlen * sizeof(int));			\
+      fg->bmGs = malloc(fg->wlen * sizeof(int));			\
       if (!fg->bmGs)							\
 	return REG_ESPACE;						\
       if (fg->wlen == 1)						\
@@ -376,13 +375,13 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
       {									\
 	if (fg->icase)							\
 	  {								\
-	    wp = xmalloc(plen * sizeof(tre_char_t));			\
+	    wp = malloc(plen * sizeof(tre_char_t));			\
 	    if (wp == NULL)						\
 	      return REG_ESPACE;					\
 	    for (unsigned int i = 0; i < plen; i++)			\
 	      wp[i] = towlower(pat[i]);					\
 	    _CALC_BMGS(arr, wp, plen);					\
-	    xfree(wp);							\
+	    free(wp);							\
 	  }								\
 	else								\
 	  _CALC_BMGS(arr, pat, plen);					\
@@ -391,13 +390,13 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
       {									\
 	if (fg->icase)							\
 	  {								\
-	    p = xmalloc(plen);						\
+	    p = malloc(plen);						\
 	    if (p == NULL)						\
 	      return REG_ESPACE;					\
 	    for (unsigned int i = 0; i < plen; i++)			\
 	      p[i] = tolower((unsigned char)pat[i]);                    \
 	    _CALC_BMGS(arr, p, plen);					\
-	    xfree(p);							\
+	    free(p);							\
 	  }								\
 	else								\
 	  _CALC_BMGS(arr, pat, plen);					\
@@ -408,7 +407,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
   {									\
     int f = 0, g;							\
 									\
-    int *suff = xmalloc(plen * sizeof(int));				\
+    int *suff = malloc(plen * sizeof(int));				\
     if (suff == NULL)							\
       return REG_ESPACE;						\
 									\
@@ -440,7 +439,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
     for (unsigned int i = 0; i <= plen - 2; i++)			\
       arr[plen - 1 - suff[i]] = plen - 1 - i;				\
 									\
-    xfree(suff);							\
+    free(suff);							\
   }
 
 /*
@@ -449,7 +448,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
  */
 #define SAVE_PATTERN(src, srclen, dst, dstlen)				\
   dstlen = srclen;							\
-  dst = xmalloc((dstlen + 1) * sizeof(tre_char_t));			\
+  dst = malloc((dstlen + 1) * sizeof(tre_char_t));			\
   if (dst == NULL)							\
     return REG_ESPACE;							\
   if (dstlen > 0)							\
@@ -489,11 +488,11 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
   if (n == 0)								\
     {									\
       fg->matchall = true;						\
-      fg->pattern = xmalloc(sizeof(char));				\
+      fg->pattern = malloc(sizeof(char));				\
       if (!fg->pattern)							\
 	FAIL_COMP(REG_ESPACE);						\
       fg->pattern[0] = '\0';						\
-      fg->wpattern = xmalloc(sizeof(tre_char_t));			\
+      fg->wpattern = malloc(sizeof(tre_char_t));			\
       if (!fg->wpattern)						\
 	FAIL_COMP(REG_ESPACE);						\
       fg->wpattern[0] = TRE_CHAR('\0');					\
@@ -580,7 +579,7 @@ tre_compile_fast(fastmatch_t *fg, const tre_char_t *pat, size_t n,
   if (fg->word && (TRE_MB_CUR_MAX > 1))
     return REG_BADPAT;
 
-  tmp = xmalloc((n + 1) * sizeof(tre_char_t));
+  tmp = malloc((n + 1) * sizeof(tre_char_t));
   if (tmp == NULL)
     return REG_ESPACE;
 
@@ -631,10 +630,10 @@ tre_compile_fast(fastmatch_t *fg, const tre_char_t *pat, size_t n,
 	    if (escaped)
 	      {
 		if (!_escmap)
-		  _escmap = xmalloc(n * sizeof(bool));
+		  _escmap = malloc(n * sizeof(bool));
 		if (!_escmap)
 		  {
-		    xfree(tmp);
+		    free(tmp);
 		    return REG_ESPACE;
 		  }
 		_escmap[i] = true;
@@ -688,7 +687,7 @@ tre_compile_fast(fastmatch_t *fg, const tre_char_t *pat, size_t n,
 	}
       continue;
 badpat:
-      xfree(tmp);
+      free(tmp);
       DPRINT(("tre_compile_fast: compilation of pattern failed, falling"
 	      "back to NFA\n"));
       return REG_BADPAT;
@@ -715,7 +714,7 @@ badpat:
     {
       if (fg->wescmap != NULL)
 	{
-	  fg->escmap = xmalloc(fg->len * sizeof(bool));
+	  fg->escmap = malloc(fg->len * sizeof(bool));
 	  if (!fg->escmap)
 	    {
 	      tre_free_fast(fg);
@@ -746,7 +745,7 @@ badpat:
   fg->escmap = _escmap;
 #endif
 
-  xfree(tmp);
+  free(tmp);
 
   DPRINT(("tre_compile_fast: pattern: %s, len %zu, bol %c, eol %c, "
 	 "icase: %c, word: %c, newline %c\n", fg->pattern, fg->len,
@@ -977,16 +976,16 @@ tre_free_fast(fastmatch_t *fg)
 #ifdef TRE_WCHAR
   hashtable_free(fg->qsBc_table);
   if (!fg->hasdot)
-    xfree(fg->bmGs);
+    free(fg->bmGs);
   if (fg->wescmap)
-    xfree(fg->wescmap);
-  xfree(fg->wpattern);
+    free(fg->wescmap);
+  free(fg->wpattern);
 #endif
   if (!fg->hasdot)
-    xfree(fg->sbmGs);
+    free(fg->sbmGs);
   if (fg->escmap)
-    xfree(fg->escmap);
-  xfree(fg->pattern);
+    free(fg->escmap);
+  free(fg->pattern);
 }
 
 /*

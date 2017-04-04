@@ -34,7 +34,6 @@
 #include <string.h>
 
 #include "tre-fastmatch.h"
-#include "xmalloc.h"
 
 int
 tre_fixncomp(fastmatch_t *preg, const char *regex, size_t n, int cflags)
