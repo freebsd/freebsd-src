@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/bus_dma.h>
 #include <sys/endian.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
@@ -71,8 +72,8 @@ static int	tsec_alloc_dma_desc(device_t dev, bus_dma_tag_t *dtag,
     bus_dmamap_t *dmap, bus_size_t dsize, void **vaddr, void *raddr,
     const char *dname);
 static void	tsec_dma_ctl(struct tsec_softc *sc, int state);
-static int	tsec_encap(struct tsec_softc *sc, struct mbuf *m_head,
-    int fcb_inserted);
+static void	 tsec_encap(struct ifnet *ifp, struct tsec_softc *sc,
+    struct mbuf *m0, uint16_t fcb_flags, int *start_tx);
 static void	tsec_free_dma(struct tsec_softc *sc);
 static void	tsec_free_dma_desc(bus_dma_tag_t dtag, bus_dmamap_t dmap, void *vaddr);
 static int	tsec_ifmedia_upd(struct ifnet *ifp);
@@ -119,8 +120,6 @@ tsec_attach(struct tsec_softc *sc)
 {
 	uint8_t hwaddr[ETHER_ADDR_LEN];
 	struct ifnet *ifp;
-	bus_dmamap_t *map_ptr;
-	bus_dmamap_t **map_pptr;
 	int error = 0;
 	int i;
 
@@ -175,7 +174,7 @@ tsec_attach(struct tsec_softc *sc)
 	    BUS_SPACE_MAXADDR,			/* highaddr */
 	    NULL, NULL,				/* filtfunc, filtfuncarg */
 	    MCLBYTES * (TSEC_TX_NUM_DESC - 1),	/* maxsize */
-	    TSEC_TX_NUM_DESC - 1,		/* nsegments */
+	    TSEC_TX_MAX_DMA_SEGS,		/* nsegments */
 	    MCLBYTES, 0,			/* maxsegsz, flags */
 	    NULL, NULL,				/* lockfunc, lockfuncarg */
 	    &sc->tsec_tx_mtag);			/* dmat */
@@ -205,17 +204,15 @@ tsec_attach(struct tsec_softc *sc)
 	}
 
 	/* Create TX busdma maps */
-	map_ptr = sc->tx_map_data;
-	map_pptr = sc->tx_map_unused_data;
-
 	for (i = 0; i < TSEC_TX_NUM_DESC; i++) {
-		map_pptr[i] = &map_ptr[i];
-		error = bus_dmamap_create(sc->tsec_tx_mtag, 0, map_pptr[i]);
+		error = bus_dmamap_create(sc->tsec_tx_mtag, 0,
+		   &sc->tx_bufmap[i].map);
 		if (error) {
 			device_printf(sc->dev, "failed to init TX ring\n");
 			tsec_detach(sc);
 			return (ENXIO);
 		}
+		sc->tx_bufmap[i].map_initialized = 1;
 	}
 
 	/* Create RX busdma maps and zero mbuf handlers */
@@ -726,18 +723,16 @@ static void
 tsec_start_locked(struct ifnet *ifp)
 {
 	struct tsec_softc *sc;
-	struct mbuf *m0, *mtmp;
+	struct mbuf *m0;
 	struct tsec_tx_fcb *tx_fcb;
-	unsigned int queued = 0;
-	int csum_flags, fcb_inserted = 0;
+	int csum_flags;
+	int start_tx;
+	uint16_t fcb_flags;
 
 	sc = ifp->if_softc;
+	start_tx = 0;
 
 	TSEC_TRANSMIT_LOCK_ASSERT(sc);
-
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
-		return;
 
 	if (sc->tsec_link == 0)
 		return;
@@ -745,105 +740,118 @@ tsec_start_locked(struct ifnet *ifp)
 	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	for (;;) {
+
+		if (TSEC_FREE_TX_DESC(sc) < TSEC_TX_MAX_DMA_SEGS) {
+			/* No free descriptors */
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
+
 		/* Get packet from the queue */
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 		if (m0 == NULL)
 			break;
 
 		/* Insert TCP/IP Off-load frame control block */
+		fcb_flags = 0;
 		csum_flags = m0->m_pkthdr.csum_flags;
 		if (csum_flags) {
-
 			M_PREPEND(m0, sizeof(struct tsec_tx_fcb), M_NOWAIT);
 			if (m0 == NULL)
 				break;
 
-			tx_fcb = mtod(m0, struct tsec_tx_fcb *);
-			tx_fcb->flags = 0;
-			tx_fcb->l3_offset = ETHER_HDR_LEN;
-			tx_fcb->l4_offset = sizeof(struct ip);
-
 			if (csum_flags & CSUM_IP)
-				tx_fcb->flags |= TSEC_TX_FCB_IP4 |
+				fcb_flags |= TSEC_TX_FCB_IP4 |
 				    TSEC_TX_FCB_CSUM_IP;
 
 			if (csum_flags & CSUM_TCP)
-				tx_fcb->flags |= TSEC_TX_FCB_TCP |
+				fcb_flags |= TSEC_TX_FCB_TCP |
 				    TSEC_TX_FCB_CSUM_TCP_UDP;
 
 			if (csum_flags & CSUM_UDP)
-				tx_fcb->flags |= TSEC_TX_FCB_UDP |
+				fcb_flags |= TSEC_TX_FCB_UDP |
 				    TSEC_TX_FCB_CSUM_TCP_UDP;
 
-			fcb_inserted = 1;
+			tx_fcb = mtod(m0, struct tsec_tx_fcb *);
+			tx_fcb->flags = fcb_flags;
+			tx_fcb->l3_offset = ETHER_HDR_LEN;
+			tx_fcb->l4_offset = sizeof(struct ip);
 		}
 
-		mtmp = m_defrag(m0, M_NOWAIT);
-		if (mtmp)
-			m0 = mtmp;
-
-		if (tsec_encap(sc, m0, fcb_inserted)) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m0);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
-		queued++;
-		BPF_MTAP(ifp, m0);
+		tsec_encap(ifp, sc, m0, fcb_flags, &start_tx);
 	}
 	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	if (queued) {
+	if (start_tx) {
 		/* Enable transmitter and watchdog timer */
 		TSEC_WRITE(sc, TSEC_REG_TSTAT, TSEC_TSTAT_THLT);
 		sc->tsec_watchdog = 5;
 	}
 }
 
-static int
-tsec_encap(struct tsec_softc *sc, struct mbuf *m0, int fcb_inserted)
+static void
+tsec_encap(struct ifnet *ifp, struct tsec_softc *sc, struct mbuf *m0,
+    uint16_t fcb_flags, int *start_tx)
 {
-	struct tsec_desc *tx_desc = NULL;
-	struct ifnet *ifp;
-	bus_dma_segment_t segs[TSEC_TX_NUM_DESC];
-	bus_dmamap_t *mapp;
-	int csum_flag = 0, error, seg, nsegs;
+	bus_dma_segment_t segs[TSEC_TX_MAX_DMA_SEGS];
+	int error, i, nsegs;
+	struct tsec_bufmap *tx_bufmap;
+	uint32_t tx_idx;
+	uint16_t flags;
 
 	TSEC_TRANSMIT_LOCK_ASSERT(sc);
 
-	ifp = sc->tsec_ifp;
-
-	if (TSEC_FREE_TX_DESC(sc) == 0) {
-		/* No free descriptors */
-		return (-1);
-	}
-
-	/* Fetch unused map */
-	mapp = TSEC_ALLOC_TX_MAP(sc);
-
+	tx_idx = sc->tx_idx_head;
+	tx_bufmap = &sc->tx_bufmap[tx_idx];
+ 
 	/* Create mapping in DMA memory */
-	error = bus_dmamap_load_mbuf_sg(sc->tsec_tx_mtag,
-	    *mapp, m0, segs, &nsegs, BUS_DMA_NOWAIT);
-	if (error != 0 || nsegs > TSEC_FREE_TX_DESC(sc) || nsegs <= 0) {
-		bus_dmamap_unload(sc->tsec_tx_mtag, *mapp);
-		TSEC_FREE_TX_MAP(sc, mapp);
-		return ((error != 0) ? error : -1);
+	error = bus_dmamap_load_mbuf_sg(sc->tsec_tx_mtag, tx_bufmap->map, m0,
+	    segs, &nsegs, BUS_DMA_NOWAIT);
+	if (error == EFBIG) {
+		/* Too many segments!  Defrag and try again. */
+		struct mbuf *m = m_defrag(m0, M_NOWAIT);
+
+		if (m == NULL) {
+			m_freem(m0);
+			return;
+		}
+		m0 = m;
+		error = bus_dmamap_load_mbuf_sg(sc->tsec_tx_mtag,
+		    tx_bufmap->map, m0, segs, &nsegs, BUS_DMA_NOWAIT);
 	}
-	bus_dmamap_sync(sc->tsec_tx_mtag, *mapp, BUS_DMASYNC_PREWRITE);
+	if (error != 0) {
+		/* Give up. */
+		m_freem(m0);
+		return;
+	}
 
-	if ((ifp->if_flags & IFF_DEBUG) && (nsegs > 1))
-		if_printf(ifp, "TX buffer has %d segments\n", nsegs);
+	bus_dmamap_sync(sc->tsec_tx_mtag, tx_bufmap->map,
+	    BUS_DMASYNC_PREWRITE);
+	tx_bufmap->mbuf = m0;
+ 
+	/*
+	 * Fill in the TX descriptors back to front so that READY bit in first
+	 * descriptor is set last.
+	 */
+	tx_idx = (tx_idx + (uint32_t)nsegs) & (TSEC_TX_NUM_DESC - 1);
+	sc->tx_idx_head = tx_idx;
+	flags = TSEC_TXBD_L | TSEC_TXBD_I | TSEC_TXBD_R | TSEC_TXBD_TC;
+	for (i = nsegs - 1; i >= 0; i--) {
+		struct tsec_desc *tx_desc;
 
-	if (fcb_inserted)
-		csum_flag = TSEC_TXBD_TOE;
+		tx_idx = (tx_idx - 1) & (TSEC_TX_NUM_DESC - 1);
+		tx_desc = &sc->tsec_tx_vaddr[tx_idx];
+		tx_desc->length = segs[i].ds_len;
+		tx_desc->bufptr = segs[i].ds_addr;
 
-	/* Everything is ok, now we can send buffers */
-	for (seg = 0; seg < nsegs; seg++) {
-		tx_desc = TSEC_GET_CUR_TX_DESC(sc);
+		if (i == 0) {
+			wmb();
 
-		tx_desc->length = segs[seg].ds_len;
-		tx_desc->bufptr = segs[seg].ds_addr;
+			if (fcb_flags != 0)
+				flags |= TSEC_TXBD_TOE;
+		}
 
 		/*
 		 * Set flags:
@@ -853,17 +861,14 @@ tsec_encap(struct tsec_softc *sc, struct mbuf *m0, int fcb_inserted)
 		 *   - transmit the CRC sequence after the last data byte
 		 *   - interrupt after the last buffer
 		 */
-		tx_desc->flags =
-		    (tx_desc->flags & TSEC_TXBD_W) |
-		    ((seg == 0) ? csum_flag : 0) | TSEC_TXBD_R | TSEC_TXBD_TC |
-		    ((seg == nsegs - 1) ? TSEC_TXBD_L | TSEC_TXBD_I : 0);
+		tx_desc->flags = (tx_idx == (TSEC_TX_NUM_DESC - 1) ?
+		    TSEC_TXBD_W : 0) | flags;
+
+		flags &= ~(TSEC_TXBD_L | TSEC_TXBD_I);
 	}
 
-	/* Save mbuf and DMA mapping for release at later stage */
-	TSEC_PUT_TX_MBUF(sc, m0);
-	TSEC_PUT_TX_MAP(sc, mapp);
-
-	return (0);
+	BPF_MTAP(ifp, m0);
+	*start_tx = 1;
 }
 
 static void
@@ -1174,9 +1179,9 @@ tsec_free_dma(struct tsec_softc *sc)
 
 	/* Free TX maps */
 	for (i = 0; i < TSEC_TX_NUM_DESC; i++)
-		if (sc->tx_map_data[i] != NULL)
+		if (sc->tx_bufmap[i].map_initialized)
 			bus_dmamap_destroy(sc->tsec_tx_mtag,
-			    sc->tx_map_data[i]);
+			    sc->tx_bufmap[i].map);
 	/* Destroy tag for TX mbufs */
 	bus_dma_tag_destroy(sc->tsec_tx_mtag);
 
@@ -1211,8 +1216,6 @@ static void
 tsec_stop(struct tsec_softc *sc)
 {
 	struct ifnet *ifp;
-	struct mbuf *m0;
-	bus_dmamap_t *mapp;
 	uint32_t tmpval;
 
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
@@ -1229,16 +1232,15 @@ tsec_stop(struct tsec_softc *sc)
 	tsec_dma_ctl(sc, 0);
 
 	/* Remove pending data from TX queue */
-	while (!TSEC_EMPTYQ_TX_MBUF(sc)) {
-		m0 = TSEC_GET_TX_MBUF(sc);
-		mapp = TSEC_GET_TX_MAP(sc);
-
-		bus_dmamap_sync(sc->tsec_tx_mtag, *mapp,
+	while (sc->tx_idx_tail != sc->tx_idx_head) {
+		bus_dmamap_sync(sc->tsec_tx_mtag,
+		    sc->tx_bufmap[sc->tx_idx_tail].map,
 		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(sc->tsec_tx_mtag, *mapp);
-
-		TSEC_FREE_TX_MAP(sc, mapp);
-		m_freem(m0);
+		bus_dmamap_unload(sc->tsec_tx_mtag,
+		    sc->tx_bufmap[sc->tx_idx_tail].map);
+		m_freem(sc->tx_bufmap[sc->tx_idx_tail].mbuf);
+		sc->tx_idx_tail = (sc->tx_idx_tail + 1)
+		    & (TSEC_TX_NUM_DESC - 1);
 	}
 
 	/* Disable RX and TX */
@@ -1362,7 +1364,7 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 
 		if (tsec_new_rxbuf(sc->tsec_rx_mtag, rx_data[i].map,
 		    &rx_data[i].mbuf, &rx_data[i].paddr)) {
-			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			/*
 			 * We ran out of mbufs; didn't consume current
 			 * descriptor and have to return it to the queue.
@@ -1432,11 +1434,8 @@ tsec_receive_intr(void *arg)
 static void
 tsec_transmit_intr_locked(struct tsec_softc *sc)
 {
-	struct tsec_desc *tx_desc;
 	struct ifnet *ifp;
-	struct mbuf *m0;
-	bus_dmamap_t *mapp;
-	int send = 0;
+	uint32_t tx_idx;
 
 	TSEC_TRANSMIT_LOCK_ASSERT(sc);
 
@@ -1455,44 +1454,41 @@ tsec_transmit_intr_locked(struct tsec_softc *sc)
 	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	while (TSEC_CUR_DIFF_DIRTY_TX_DESC(sc)) {
-		tx_desc = TSEC_GET_DIRTY_TX_DESC(sc);
+	tx_idx = sc->tx_idx_tail;
+	while (tx_idx != sc->tx_idx_head) {
+		struct tsec_desc *tx_desc;
+		struct tsec_bufmap *tx_bufmap;
+
+		tx_desc = &sc->tsec_tx_vaddr[tx_idx];
 		if (tx_desc->flags & TSEC_TXBD_R) {
-			TSEC_BACK_DIRTY_TX_DESC(sc);
 			break;
 		}
 
-		if ((tx_desc->flags & TSEC_TXBD_L) == 0)
+		tx_bufmap = &sc->tx_bufmap[tx_idx];
+		tx_idx = (tx_idx + 1) & (TSEC_TX_NUM_DESC - 1);
+		if (tx_bufmap->mbuf == NULL)
 			continue;
 
 		/*
 		 * This is the last buf in this packet, so unmap and free it.
 		 */
-		m0 = TSEC_GET_TX_MBUF(sc);
-		mapp = TSEC_GET_TX_MAP(sc);
-
-		bus_dmamap_sync(sc->tsec_tx_mtag, *mapp,
+		bus_dmamap_sync(sc->tsec_tx_mtag, tx_bufmap->map,
 		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(sc->tsec_tx_mtag, *mapp);
-
-		TSEC_FREE_TX_MAP(sc, mapp);
-		m_freem(m0);
+		bus_dmamap_unload(sc->tsec_tx_mtag, tx_bufmap->map);
+		m_freem(tx_bufmap->mbuf);
+		tx_bufmap->mbuf = NULL;
 
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		send = 1;
 	}
+	sc->tx_idx_tail = tx_idx;
 	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	if (send) {
-		/* Now send anything that was pending */
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		tsec_start_locked(ifp);
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	tsec_start_locked(ifp);
 
-		/* Stop wathdog if all sent */
-		if (TSEC_EMPTYQ_TX_MBUF(sc))
-			sc->tsec_watchdog = 0;
-	}
+	if (sc->tx_idx_tail == sc->tx_idx_head)
+		sc->tsec_watchdog = 0;
 }
 
 void
@@ -1543,9 +1539,8 @@ tsec_error_intr_locked(struct tsec_softc *sc, int count)
 		TSEC_WRITE(sc, TSEC_REG_TSTAT, TSEC_TSTAT_THLT);
 	}
 
-	/* Check receiver errors */
+	/* Check for discarded frame due to a lack of buffers */
 	if (eflags & TSEC_IEVENT_BSY) {
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 
 		/* Get data from RX buffers */
