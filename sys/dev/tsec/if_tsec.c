@@ -1597,7 +1597,7 @@ tsec_miibus_readreg(device_t dev, int phy, int reg)
 	rv = TSEC_PHY_READ(sc, TSEC_REG_MIIMSTAT);
 	TSEC_PHY_UNLOCK();
 
-	if (timeout == 0)
+	if (timeout)
 		device_printf(dev, "Timeout while reading from PHY!\n");
 
 	return (rv);
@@ -1617,7 +1617,7 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 	timeout = tsec_mii_wait(sc, TSEC_MIIMIND_BUSY);
 	TSEC_PHY_UNLOCK();
 
-	if (timeout == 0)
+	if (timeout)
 		device_printf(dev, "Timeout while writing to PHY!\n");
 
 	return (0);
