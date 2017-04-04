@@ -7,6 +7,9 @@ PROG=	mount_nfs
 SRCS=	mount_nfs.c getmntopts.c mounttab.c
 MAN=	mount_nfs.8
 
+# Length violation
+WANT_CHERI=none
+
 MOUNT=	${.CURDIR:H}/mount
 UMNTALL= ${SRCTOP}/usr.sbin/rpc.umntall
 CFLAGS+= -DNFS -I${MOUNT} -I${UMNTALL}
