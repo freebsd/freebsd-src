@@ -290,15 +290,9 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		struct ifreq_c *ifr_c = data;
 		register_t reqperms;
 
-		/*
-		 * The memory layout of struct ifreq and struct ifreq_c
-		 * is identical unless ifr_buffer or ifr_data are used.
-		 * In the ifr_buffer case, ifr_buffer.length is even in
-		 * the same location.  Thus we can initialize our struct
-		 * ifreq from data and fix up the pointer.
-		 */
 		ifr = malloc(sizeof(struct ifreq), M_IOCTLOPS, M_WAITOK);
-		memcpy(ifr, ifr_c, sizeof(struct ifreq));
+		memcpy(&ifr->ifr_name, &ifr_c->ifr_name, sizeof(ifr->ifr_name));
+		ifr->ifr_buffer.length = ifr_c->ifr_buffer.length;
 		*t_datap = ifr;
 		*t_comp = _IOC_NEWTYPE(com, struct ifreq);
 		switch (com) {
@@ -354,14 +348,8 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 		register_t reqperms;
 		int i;
 
-		/*
-		 * The memory layout of struct ifreq and struct ifreq_c
-		 * is identical unless ifr_buffer or ifr_data are used.
-		 * Thus we can initialize our struct ifreq from data and
-		 * fix up the pointer.
-		 */
 		ifr = malloc(sizeof(struct ifreq), M_IOCTLOPS, M_WAITOK);
-		memcpy(ifr, ifr_c, sizeof(struct ifreq));
+		memcpy(&ifr->ifr_name, &ifr_c->ifr_name, sizeof(ifr->ifr_name));
 		*t_datap = ifr;
 		switch (com) {
 		case BXE_IOC_RD_NVRAM_C:	/* requires parsing for size */
@@ -441,12 +429,17 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 	case SIOCZATHSTATS_C:
 	case SIOCZIWISTATS_C:
 	case TAPGIFNAME_C: {
+		struct ifreq *ifr;
+		struct ifreq_c *ifr_c = data;
 		/*
-		 * The memory layout of struct ifreq and struct ifreq_c
-		 * is identical unless ifr_buffer or ifr_data are used
-		 * translate the command, but don't allocate storage.
+		 * The memory layout of ifr_ifru is the same is identical
+		 * unless ifr_buffer or ifr_data are used.  The offset
+		 * will differ in CHERI256 so copy seperately.
 		 */
-		*t_datap = NULL;
+		ifr = malloc(sizeof(struct ifreq), M_IOCTLOPS, M_WAITOK);
+		memcpy(&ifr->ifr_name, &ifr_c->ifr_name, sizeof(ifr->ifr_name));
+		memcpy(&ifr->ifr_ifru, &ifr_c->ifr_ifru, sizeof(ifr->ifr_ifru));
+		*t_datap = ifr;
 		*t_comp = _IOC_NEWTYPE(com, struct ifreq);
 		return (0);
 	}
@@ -630,7 +623,67 @@ cheriabi_ioctl_translate_out(u_long com, void *data, void *t_data)
 		break;
 	}
 
-	/* Other struct ifreq consumers don't allocate translation space. */
+	/* Other struct ifreq consumers */
+	case BIOCGETIF_C:
+	case BIOCSETIF_C:
+	case GREGADDRD_C:
+	case GREGADDRS_C:
+	case GREGPROTO_C:
+	case GRESADDRD_C:
+	case GRESADDRS_C:
+	case GRESPROTO_C:
+	case SIOCADDMULTI_C:
+	case SIOCDELMULTI_C:
+	case SIOCDIFADDR_C:
+	case SIOCDIFPHYADDR_C:
+	case SIOCGHWFLAGS_C:
+	case SIOCGIFBRDADDR_C:
+	case SIOCGIFCAP_C:
+	case SIOCGIFDSTADDR_C:
+	case SIOCGIFFIB_C:
+	case SIOCGIFFLAGS_C:
+	case SIOCGIFINDEX_C:
+	case SIOCGIFMETRIC_C:
+	case SIOCGIFMTU_C:
+	case SIOCGIFNETMASK_C:
+	case SIOCGIFPDSTADDR_C:
+	case SIOCGIFPHYS_C:
+	case SIOCGIFPSRCADDR_C:
+	case SIOCGINSTATS_C:
+	case SIOCGPRIVATE_0_C:
+	case SIOCGPRIVATE_1_C:
+	case SIOCGTUNFIB_C:
+	case SIOCIFCREATE_C:
+	case SIOCIFDESTROY_C:
+	case SIOCRINSTATS_C:
+	case SIOCSIFADDR_C:
+	case SIOCSIFBRDADDR_C:
+	case SIOCSIFCAP_C:
+	case SIOCSIFDSTADDR_C:
+	case SIOCSIFFIB_C:
+	case SIOCSIFFLAGS_C:
+	case SIOCSIFLLADDR_C:
+	case SIOCSIFMEDIA_C:
+	case SIOCSIFMETRIC_C:
+	case SIOCSIFMTU_C:
+	case SIOCSIFNETMASK_C:
+	case SIOCSIFPHYS_C:
+	case SIOCSIFRVNET_C:
+	case SIOCSIFVNET_C:
+	case SIOCSTUNFIB_C:
+	case SIOCSVH_C:
+	case SIOCZATHSTATS_C:
+	case SIOCZIWISTATS_C:
+	case TAPGIFNAME_C: {
+		struct ifreq *ifr = t_data;
+		struct ifreq_c *ifr_c = data;
+
+		/* XXX-BD: does anyone actually update ifr_name? */
+		memcpy(ifr_c->ifr_name, ifr->ifr_name,
+		    sizeof(ifr_c->ifr_name));
+		memcpy(&ifr_c->ifr_ifru, &ifr->ifr_ifru, sizeof(ifr->ifr_ifru));
+		break;
+	}
 
 	default:
 		printf("%s: unhandled IOC_OUT command 0x%lx\n", __func__, com);
