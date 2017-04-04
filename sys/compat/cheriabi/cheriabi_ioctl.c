@@ -462,6 +462,65 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 			return(error);
 		return (0);
 	}
+
+	case SIOCAIFGROUP_C:
+	case SIOCGIFGROUP_C:
+	case SIOCDIFGROUP_C:
+	case SIOCGIFGMEMB_C: {
+		struct ifgroupreq	*ifgrp;
+		struct ifgroupreq_c	*ifgrp_c = data;
+
+		ifgrp = malloc(sizeof(struct ifgroupreq), M_IOCTLOPS,
+		     M_WAITOK | M_ZERO);
+		*t_datap = ifgrp;
+		*t_comp = _IOC_NEWTYPE(com, struct ifgroupreq);
+
+		memcpy(ifgrp->ifgr_name, ifgrp_c->ifgr_name,
+		    sizeof(ifgrp->ifgr_name));
+		CP((*ifgrp_c), (*ifgrp), ifgr_len);
+		switch (com) {
+		case SIOCAIFGROUP_C:
+		case SIOCDIFGROUP_C:
+			memcpy(ifgrp->ifgr_group, ifgrp_c->ifgr_group,
+			   sizeof(ifgrp->ifgr_group));
+			break;
+		case SIOCGIFGROUP_C:
+		case SIOCGIFGMEMB_C:
+			error = cheriabi_cap_to_ptr(
+			    (caddr_t *)&ifgrp->ifgr_groups,
+			    &ifgrp_c->ifgr_groups, ifgrp->ifgr_len,
+			    CHERI_PERM_STORE, 1);
+			if (error != 0)
+				return(error);
+			break;
+		}
+		return (0);
+	}
+
+	case SIOCGIFMEDIA_C:
+	case SIOCGIFXMEDIA_C: {
+		struct ifmediareq	*ifmp;
+		struct ifmediareq_c	*ifmp_c = data;
+
+		ifmp = malloc(sizeof(struct ifmediareq), M_IOCTLOPS,
+		     M_WAITOK | M_ZERO);
+		*t_datap = ifmp;
+		*t_comp = _IOC_NEWTYPE(com, struct ifmediareq);
+
+		memcpy(ifmp->ifm_name, ifmp_c->ifm_name,
+		    sizeof(ifmp->ifm_name));
+		/*
+		 * No need to copy _active, _current, _mask, or _status,
+		 * they just get written to.
+		 */
+		CP((*ifmp_c), (*ifmp), ifm_count);
+		error = cheriabi_cap_to_ptr((caddr_t *)&ifmp->ifm_ulist,
+		    &ifmp_c->ifm_ulist, ifmp->ifm_count * sizeof(int),
+		    CHERI_PERM_STORE, 1);
+		if (error != 0)
+			return(error);
+		return (0);
+	}
 		
 	default:
 		return (EINVAL);
@@ -685,6 +744,30 @@ cheriabi_ioctl_translate_out(u_long com, void *data, void *t_data)
 		break;
 	}
 
+	case SIOCAIFGROUP_C:
+	case SIOCGIFGROUP_C:
+	case SIOCDIFGROUP_C:
+	case SIOCGIFGMEMB_C: {
+		struct ifgroupreq	*ifgrp = t_data;
+		struct ifgroupreq_c	*ifgrp_c = data;
+
+		CP((*ifgrp), (*ifgrp_c), ifgr_len);
+		break;
+	}
+
+	case SIOCGIFMEDIA_C:
+	case SIOCGIFXMEDIA_C: {
+		struct ifmediareq	*ifmp = t_data;
+		struct ifmediareq_c	*ifmp_c = data;
+
+		CP((*ifmp), (*ifmp_c), ifm_current);
+		CP((*ifmp), (*ifmp_c), ifm_mask);
+		CP((*ifmp), (*ifmp_c), ifm_status);
+		CP((*ifmp), (*ifmp_c), ifm_active);
+		CP((*ifmp), (*ifmp_c), ifm_count);
+		break;
+	}
+
 	default:
 		printf("%s: unhandled command 0x%lx _IO%s('%c', %d, %d)\n",
 		    __func__, com,
@@ -805,6 +888,14 @@ ioctl_data_contains_pointers(u_long cmd)
 	case SIOCZATHSTATS_C:
 	case SIOCZIWISTATS_C:
 	case TAPGIFNAME_C:
+
+	case SIOCAIFGROUP_C:
+	case SIOCGIFGROUP_C:
+	case SIOCDIFGROUP_C:
+	case SIOCGIFGMEMB_C:
+
+	case SIOCGIFMEDIA_C:
+	case SIOCGIFXMEDIA_C:
 
 		return (1);
 	default:

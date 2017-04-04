@@ -371,4 +371,31 @@ static const struct {
 
 int	ioctl_data_contains_pointers(u_long cmd);
 
+struct ifgroupreq_c {
+	char	ifgr_name[IFNAMSIZ];
+	u_int	ifgr_len;
+	union {
+		char	ifgru_group[IFNAMSIZ];
+		struct chericap	ifgru_groups;	/* struct ifg_req * */
+	} ifgr_ifgru;
+};
+
+#define	SIOCAIFGROUP_C		_IOC_NEWTYPE(SIOCAIFGROUP, struct ifgroupreq_c)
+#define	SIOCGIFGROUP_C		_IOC_NEWTYPE(SIOCGIFGROUP, struct ifgroupreq_c)
+#define	SIOCDIFGROUP_C		_IOC_NEWTYPE(SIOCDIFGROUP, struct ifgroupreq_c)
+#define	SIOCGIFGMEMB_C		_IOC_NEWTYPE(SIOCGIFGMEMB, struct ifgroupreq_c)
+
+struct ifmediareq_c {
+	char		ifm_name[IFNAMSIZ];
+	int		ifm_current;
+	int		ifm_mask;
+	int		ifm_status;
+	int		ifm_active;
+	int		ifm_count;
+	struct chericap	ifm_ulist;	/* int * */
+};
+
+#define	SIOCGIFMEDIA_C		_IOC_NEWTYPE(SIOCGIFMEDIA, struct ifmediareq_c)
+#define	SIOCGIFXMEDIA_C		_IOC_NEWTYPE(SIOCGIFXMEDIA, struct ifmediareq_c)
+
 #endif	/* _COMPAT_CHERIABI_IOCTL_H_ */
