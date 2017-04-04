@@ -424,12 +424,13 @@ CHERIABI_SYS_auditon_fill_uap(struct thread *td,
 	case A_GETFSIZE:
 	case A_GETCOND:
 		reqperms |= CHERI_PERM_STORE;
+		break;
 	default:
 		return (EINVAL);
 	}
 
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_auditon, 1);
-	error = cheriabi_cap_to_ptr((caddr_t *)uap->data, &tmpcap,
+	error = cheriabi_cap_to_ptr((caddr_t *)&uap->data, &tmpcap,
 	    uap->length, reqperms, 1);
 	if (error != 0)
 		return (error);
