@@ -282,6 +282,9 @@ procline(struct str *l, int nottext)
 	int c = 0, m = 0, r = 0, lastmatches = 0, leflags = eflags;
 	int startm = 0;
 
+	/* Initialize to avoid a false positive warning from GCC. */
+	lastmatch.rm_so = lastmatch.rm_eo = 0;
+
 	/* Loop to process the whole line */
 	while (st <= l->len) {
 		lastmatches = 0;
