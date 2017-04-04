@@ -216,6 +216,7 @@ typedef struct if_softc_ctx {
 	iflib_intr_mode_t isc_intr;
 	uint16_t isc_max_frame_size; /* set at init time by driver */
 	pci_vendor_info_t isc_vendor_info;	/* set by iflib prior to attach_pre */
+	int isc_disable_msix;
 	if_txrx_t isc_txrx;
 } *if_softc_ctx_t;
 
