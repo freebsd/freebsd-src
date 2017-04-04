@@ -337,7 +337,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
  * Fills in the good suffix table for SB/MB strings.
  */
 #define FILL_BMGS							\
-  if (!fg->hasdot)							\
+  if (fg->len > 0 && !fg->hasdot)					\
     {									\
       fg->sbmGs = malloc(fg->len * sizeof(int));			\
       if (!fg->sbmGs)							\
@@ -353,7 +353,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
  * Fills in the good suffix table for wide strings.
  */
 #define FILL_BMGS_WIDE							\
-  if (!fg->hasdot)							\
+  if (fg->wlen > 0 && !fg->hasdot)					\
     {									\
       fg->bmGs = malloc(fg->wlen * sizeof(int));			\
       if (!fg->bmGs)							\
