@@ -561,7 +561,7 @@ print_limit(rlim_t limit, unsigned divisor, const char * inf, const char * pfx, 
     char numbr[64];
 
     if (limit == RLIM_INFINITY)
-	strcpy(numbr, inf);
+	strlcpy(numbr, inf, sizeof(numbr));
     else
 	sprintf(numbr, "%jd", (intmax_t)((limit + divisor/2) / divisor));
     printf(pfx, which, numbr);
