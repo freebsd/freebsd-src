@@ -818,7 +818,7 @@ int
 cheriabi_ioctl(struct thread *td, struct cheriabi_ioctl_args *uap)
 {
 	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(SYS_IOCTL_SMALL_ALIGN);
-	u_long com, t_com;
+	u_long com, t_com, o_com;
 	int arg, error;
 	u_int size;
 	caddr_t data;
@@ -873,6 +873,7 @@ cheriabi_ioctl(struct thread *td, struct cheriabi_ioctl_args *uap)
 		error = cheriabi_ioctl_translate_in(com, data, &t_com, &t_data);
 		if (error != 0)
 			goto out;
+		o_com = com;
 		com = t_com;
 	} else if (com & IOC_OUT) {
 		/*
@@ -888,7 +889,7 @@ cheriabi_ioctl(struct thread *td, struct cheriabi_ioctl_args *uap)
 		error = kern_ioctl(td, uap->fd, com, t_data);
 
 	if (t_data && error == 0)
-		error = cheriabi_ioctl_translate_out(com, data, t_data);
+		error = cheriabi_ioctl_translate_out(o_com, data, t_data);
 	if (error == 0 && (com & IOC_OUT)) {
 		if (t_data)
 			error = copyoutcap(data, uap->data, (u_int)size);
