@@ -370,7 +370,7 @@ tsec_mii_wait(struct tsec_softc *sc, uint32_t flags)
 
 	timeout = TSEC_READ_RETRY;
 	while ((TSEC_PHY_READ(sc, TSEC_REG_MIIMIND) & flags) && --timeout)
-	    DELAY(TSEC_READ_DELAY);
+		DELAY(TSEC_READ_DELAY);
 
 	return (timeout == 0);
 }
@@ -927,10 +927,7 @@ tsec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct tsec_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	device_t dev;
 	int mask, error = 0;
-
-	dev = sc->dev;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -1290,7 +1287,6 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 	struct ifnet *ifp;
 	struct rx_data_type *rx_data;
 	struct mbuf *m;
-	device_t dev;
 	uint32_t i;
 	int c, rx_npkts;
 	uint16_t flags;
@@ -1299,7 +1295,6 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 
 	ifp = sc->tsec_ifp;
 	rx_data = sc->rx_data;
-	dev = sc->dev;
 	rx_npkts = 0;
 
 	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap,
