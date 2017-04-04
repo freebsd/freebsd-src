@@ -686,7 +686,12 @@ cheriabi_ioctl_translate_out(u_long com, void *data, void *t_data)
 	}
 
 	default:
-		printf("%s: unhandled IOC_OUT command 0x%lx\n", __func__, com);
+		printf("%s: unhandled command 0x%lx _IO%s('%c', %d, %d)\n",
+		    __func__, com,
+		    (IOC_VOID & com) ? (IOCPARM_LEN(com) == 0 ? "" : "INT") :
+		    ((IOC_OUT & com) ? ((IOC_IN & com) ? "WR" : "W") : "R"),
+		    (int)IOCGROUP(com), (int)(com & 0xFF),
+		    (int)IOCPARM_LEN(com));
 		error = EINVAL;
 	}
 
