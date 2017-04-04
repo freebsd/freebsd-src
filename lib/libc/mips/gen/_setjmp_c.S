@@ -126,8 +126,8 @@ NESTED(_setjmp, SETJMP_FRAME_SIZE, ra)
 	cgetdefault	$c4
 	csc		$c4, t1, (_JB_CHERI_DDC * _MIPS_SZCAP/8)($c3)
 
-	move		v0, zero
 	cjr		$c17
+	move		v0, zero
 END(_setjmp)
 
 #define LONGJMP_FRAME_SIZE	(CALLFRAME_SIZ + _MIPS_SZCAP/8)
