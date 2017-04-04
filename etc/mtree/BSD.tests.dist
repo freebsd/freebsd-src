@@ -642,6 +642,8 @@
         ..
         opensm
         ..
+        pr
+        ..
         printf
         ..
         sdiff
