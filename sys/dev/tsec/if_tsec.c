@@ -357,13 +357,33 @@ tsec_init(void *xsc)
 	TSEC_GLOBAL_UNLOCK(sc);
 }
 
+static int
+tsec_mii_wait(struct tsec_softc *sc, uint32_t flags)
+{
+	int timeout;
+
+	/*
+	 * The status indicators are not set immediatly after a command.
+	 * Discard the first value.
+	 */
+	TSEC_PHY_READ(sc, TSEC_REG_MIIMIND);
+
+	timeout = TSEC_READ_RETRY;
+	while ((TSEC_PHY_READ(sc, TSEC_REG_MIIMIND) & flags) && --timeout)
+	    DELAY(TSEC_READ_DELAY);
+
+	return (timeout == 0);
+}
+
+
 static void
 tsec_init_locked(struct tsec_softc *sc)
 {
 	struct tsec_desc *tx_desc = sc->tsec_tx_vaddr;
 	struct tsec_desc *rx_desc = sc->tsec_rx_vaddr;
 	struct ifnet *ifp = sc->tsec_ifp;
-	uint32_t timeout, val, i;
+	uint32_t val, i;
+	int timeout;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
@@ -422,15 +442,13 @@ tsec_init_locked(struct tsec_softc *sc)
 	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_CLKDIV28);
 
 	/* Step 8: Read MII Mgmt indicator register and check for Busy = 0 */
-	timeout = TSEC_READ_RETRY;
-	while (--timeout && (TSEC_PHY_READ(sc, TSEC_REG_MIIMIND) &
-	    TSEC_MIIMIND_BUSY))
-		DELAY(TSEC_READ_DELAY);
-	if (timeout == 0) {
+	timeout = tsec_mii_wait(sc, TSEC_MIIMIND_BUSY);
+
+	TSEC_PHY_UNLOCK(sc);
+	if (timeout) {
 		if_printf(ifp, "tsec_init_locked(): Mgmt busy timeout\n");
 		return;
 	}
-	TSEC_PHY_UNLOCK(sc);
 
 	/* Step 9: Setup the MII Mgmt */
 	mii_mediachg(sc->tsec_mii);
@@ -1570,7 +1588,7 @@ int
 tsec_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct tsec_softc *sc;
-	uint32_t timeout;
+	int timeout;
 	int rv;
 
 	sc = device_get_softc(dev);
@@ -1580,16 +1598,12 @@ tsec_miibus_readreg(device_t dev, int phy, int reg)
 	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCOM, 0);
 	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCOM, TSEC_MIIMCOM_READCYCLE);
 
-	timeout = TSEC_READ_RETRY;
-	while (--timeout && TSEC_PHY_READ(sc, TSEC_REG_MIIMIND) &
-	    (TSEC_MIIMIND_NOTVALID | TSEC_MIIMIND_BUSY))
-		DELAY(TSEC_READ_DELAY);
+	timeout = tsec_mii_wait(sc, TSEC_MIIMIND_NOTVALID | TSEC_MIIMIND_BUSY);
+	rv = TSEC_PHY_READ(sc, TSEC_REG_MIIMSTAT);
+	TSEC_PHY_UNLOCK();
 
 	if (timeout == 0)
 		device_printf(dev, "Timeout while reading from PHY!\n");
-
-	rv = TSEC_PHY_READ(sc, TSEC_REG_MIIMSTAT);
-	TSEC_PHY_UNLOCK();
 
 	return (rv);
 }
@@ -1598,18 +1612,14 @@ int
 tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	struct tsec_softc *sc;
-	uint32_t timeout;
+	int timeout;
 
 	sc = device_get_softc(dev);
 
 	TSEC_PHY_LOCK();
 	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
 	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCON, value);
-
-	timeout = TSEC_READ_RETRY;
-	while (--timeout && (TSEC_READ(sc, TSEC_REG_MIIMIND) &
-	    TSEC_MIIMIND_BUSY))
-		DELAY(TSEC_READ_DELAY);
+	timeout = tsec_mii_wait(sc, TSEC_MIIMIND_BUSY);
 	TSEC_PHY_UNLOCK();
 
 	if (timeout == 0)
