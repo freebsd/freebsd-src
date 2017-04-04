@@ -1374,14 +1374,14 @@ CHERIABI_SYS_getgroups_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->gidsetsize, CHERI_CR_CTEMP0);
 
-	/* [1] _Out_writes_(gidsetsize) gid_t * gidset */
+	/* [1] _Out_writes_opt_(gidsetsize) gid_t * gidset */
 	{
 		int error;
 		register_t reqperms = (CHERI_PERM_STORE);
 
 		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_getgroups, 1);
 		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->gidset),
-		    &tmpcap, (sizeof(*uap->gidset) * uap->gidsetsize), reqperms, 0);
+		    &tmpcap, (sizeof(*uap->gidset) * uap->gidsetsize), reqperms, 1);
 		if (error != 0)
 			return (error);
 	}

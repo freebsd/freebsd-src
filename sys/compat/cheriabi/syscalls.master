@@ -217,7 +217,8 @@
 				    _Out_writes_bytes_(len/PAGE_SIZE) \
 				    char *vec); }
 79	AUE_GETGROUPS	NOPROTO	{ int getgroups(u_int gidsetsize, \
-				    _Out_writes_(gidsetsize) gid_t *gidset); }
+				    _Out_writes_opt_(gidsetsize) \
+				    gid_t *gidset); }
 80	AUE_SETGROUPS	NOPROTO	{ int setgroups(u_int gidsetsize, \
 				    _In_reads_(gidsetsize) gid_t *gidset); }
 81	AUE_GETPGRP	NOPROTO	{ int getpgrp(void); }
