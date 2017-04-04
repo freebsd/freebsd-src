@@ -2486,7 +2486,7 @@ xpt_action_default(union ccb *start_ccb)
 {
 	struct cam_path *path;
 	struct cam_sim *sim;
-	int lock;
+	struct mtx *mtx;
 
 	path = start_ccb->ccb_h.path;
 	CAM_DEBUG(path, CAM_DEBUG_TRACE,
@@ -2647,16 +2647,18 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_PATH_INQ:
 call_sim:
 		sim = path->bus->sim;
-		lock = (mtx_owned(sim->mtx) == 0);
-		if (lock)
-			CAM_SIM_LOCK(sim);
+		mtx = sim->mtx;
+		if (mtx && !mtx_owned(mtx))
+			mtx_lock(mtx);
+		else
+			mtx = NULL;
 		CAM_DEBUG(path, CAM_DEBUG_TRACE,
 		    ("sim->sim_action: func=%#x\n", start_ccb->ccb_h.func_code));
 		(*(sim->sim_action))(sim, start_ccb);
 		CAM_DEBUG(path, CAM_DEBUG_TRACE,
 		    ("sim->sim_action: status=%#x\n", start_ccb->ccb_h.status));
-		if (lock)
-			CAM_SIM_UNLOCK(sim);
+		if (mtx)
+			mtx_unlock(mtx);
 		break;
 	case XPT_PATH_STATS:
 		start_ccb->cpis.last_reset = path->bus->last_reset;
@@ -2878,8 +2880,8 @@ call_sim:
 				break;
 			}
 			cur_entry->event_enable = csa->event_enable;
-			cur_entry->event_lock =
-			    mtx_owned(path->bus->sim->mtx) ? 1 : 0;
+			cur_entry->event_lock = (path->bus->sim->mtx &&
+			    mtx_owned(path->bus->sim->mtx)) ? 1 : 0;
 			cur_entry->callback_arg = csa->callback_arg;
 			cur_entry->callback = csa->callback;
 			SLIST_INSERT_HEAD(async_head, cur_entry, links);
@@ -3044,10 +3046,12 @@ xpt_polled_action(union ccb *start_ccb)
 	struct	  cam_sim *sim;
 	struct	  cam_devq *devq;
 	struct	  cam_ed *dev;
+	struct mtx *mtx;
 
 	timeout = start_ccb->ccb_h.timeout * 10;
 	sim = start_ccb->ccb_h.path->bus->sim;
 	devq = sim->devq;
+	mtx = sim->mtx;
 	dev = start_ccb->ccb_h.path->device;
 
 	mtx_unlock(&dev->device_mtx);
@@ -3062,9 +3066,11 @@ xpt_polled_action(union ccb *start_ccb)
 	    (--timeout > 0)) {
 		mtx_unlock(&devq->send_mtx);
 		DELAY(100);
-		CAM_SIM_LOCK(sim);
+		if (mtx)
+			mtx_lock(mtx);
 		(*(sim->sim_poll))(sim);
-		CAM_SIM_UNLOCK(sim);
+		if (mtx)
+			mtx_unlock(mtx);
 		camisr_runqueue();
 		mtx_lock(&devq->send_mtx);
 	}
@@ -3074,9 +3080,11 @@ xpt_polled_action(union ccb *start_ccb)
 	if (timeout != 0) {
 		xpt_action(start_ccb);
 		while(--timeout > 0) {
-			CAM_SIM_LOCK(sim);
+			if (mtx)
+				mtx_lock(mtx);
 			(*(sim->sim_poll))(sim);
-			CAM_SIM_UNLOCK(sim);
+			if (mtx)
+				mtx_unlock(mtx);
 			camisr_runqueue();
 			if ((start_ccb->ccb_h.status  & CAM_STATUS_MASK)
 			    != CAM_REQ_INPROG)
@@ -3234,7 +3242,7 @@ static void
 xpt_run_devq(struct cam_devq *devq)
 {
 	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
-	int lock;
+	struct mtx *mtx;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_devq\n"));
 
@@ -3336,13 +3344,15 @@ xpt_run_devq(struct cam_devq *devq)
 		 * queued device, rather than the one from the calling bus.
 		 */
 		sim = device->sim;
-		lock = (mtx_owned(sim->mtx) == 0);
-		if (lock)
-			CAM_SIM_LOCK(sim);
+		mtx = sim->mtx;
+		if (mtx && !mtx_owned(mtx))
+			mtx_lock(mtx);
+		else
+			mtx = NULL;
 		work_ccb->ccb_h.qos.sim_data = sbinuptime(); // xxx uintprt_t too small 32bit platforms
 		(*(sim->sim_action))(sim, work_ccb);
-		if (lock)
-			CAM_SIM_UNLOCK(sim);
+		if (mtx)
+			mtx_unlock(mtx);
 		mtx_lock(&devq->send_mtx);
 	}
 	devq->send_queue.qfrozen_cnt--;
@@ -3848,8 +3858,6 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	struct cam_path *path;
 	cam_status status;
 
-	mtx_assert(sim->mtx, MA_OWNED);
-
 	sim->bus_id = bus;
 	new_bus = (struct cam_eb *)malloc(sizeof(*new_bus),
 					  M_CAMXPT, M_NOWAIT|M_ZERO);
@@ -4206,7 +4214,7 @@ xpt_async_bcast(struct async_list *async_head,
 		struct cam_path *path, void *async_arg)
 {
 	struct async_node *cur_entry;
-	int lock;
+	struct mtx *mtx;
 
 	cur_entry = SLIST_FIRST(async_head);
 	while (cur_entry != NULL) {
@@ -4218,14 +4226,15 @@ xpt_async_bcast(struct async_list *async_head,
 		 */
 		next_entry = SLIST_NEXT(cur_entry, links);
 		if ((cur_entry->event_enable & async_code) != 0) {
-			lock = cur_entry->event_lock;
-			if (lock)
-				CAM_SIM_LOCK(path->device->sim);
+			mtx = cur_entry->event_lock ?
+			    path->device->sim->mtx : NULL;
+			if (mtx)
+				mtx_lock(mtx);
 			cur_entry->callback(cur_entry->callback_arg,
 					    async_code, path,
 					    async_arg);
-			if (lock)
-				CAM_SIM_UNLOCK(path->device->sim);
+			if (mtx)
+				mtx_unlock(mtx);
 		}
 		cur_entry = next_entry;
 	}
