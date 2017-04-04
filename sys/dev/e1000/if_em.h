@@ -368,7 +368,6 @@ struct tx_ring {
 	void                    *tag;
 	struct resource         *res;
         unsigned long		tx_irq;
-        unsigned long		no_desc_avail;
 
 	/* Saved csum offloading context information */
 	int			csum_flags;
