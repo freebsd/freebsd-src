@@ -696,7 +696,7 @@ spdadd 10.0.11.41/32[21] 10.0.11.33/32[any] any
 Use TCP MD5 between two numerically specified hosts:
 .Bd -literal -offset indent
 add 10.1.10.34 10.1.10.36 tcp 0x1000 -A tcp-md5 "TCP-MD5 BGP secret" ;
-add 10.1.10.36 10.1.10.34 tcp 0x1000 -A tcp-md5 "TCP-MD5 BGP secret" ;
+add 10.1.10.36 10.1.10.34 tcp 0x1001 -A tcp-md5 "TCP-MD5 BGP secret" ;
 .Ed
 .\"
 .Sh SEE ALSO
