@@ -1542,9 +1542,6 @@ tsec_error_intr_locked(struct tsec_softc *sc, int count)
 	/* Check for discarded frame due to a lack of buffers */
 	if (eflags & TSEC_IEVENT_BSY) {
 		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
-
-		/* Get data from RX buffers */
-		tsec_receive_intr_locked(sc, count);
 	}
 
 	if (ifp->if_flags & IFF_DEBUG)
