@@ -3785,12 +3785,11 @@ vfsconf2x32(struct sysctl_req *req, struct vfsconf *vfsp)
 {
 	struct xvfsconf32 xvfsp;
 
+	bzero(&xvfsp, sizeof(xvfsp));
 	strcpy(xvfsp.vfc_name, vfsp->vfc_name);
 	xvfsp.vfc_typenum = vfsp->vfc_typenum;
 	xvfsp.vfc_refcount = vfsp->vfc_refcount;
 	xvfsp.vfc_flags = vfsp->vfc_flags;
-	xvfsp.vfc_vfsops = 0;
-	xvfsp.vfc_next = 0;
 	return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
 }
 #endif
