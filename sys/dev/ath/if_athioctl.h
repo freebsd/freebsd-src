@@ -171,9 +171,9 @@ struct ath_stats {
 	u_int32_t	ast_pad[10];
 };
 
-#define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
-#define	SIOCZATHSTATS	_IOWR('i', 139, struct ifreq)
-#define	SIOCGATHAGSTATS	_IOWR('i', 141, struct ifreq)
+#define	SIOCGATHSTATS	_IOWR('i', 237, struct ifreq)
+#define	SIOCZATHSTATS	_IOWR('i', 239, struct ifreq)
+#define	SIOCGATHAGSTATS	_IOWR('i', 241, struct ifreq)
 
 struct ath_diag {
 	char	ad_name[IFNAMSIZ];	/* if name, e.g. "ath0" */
