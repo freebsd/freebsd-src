@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
 #include <machine/pcb.h>
 #endif
-#include <machine/metadata.h>
 
 SDT_PROVIDER_DEFINE(opencrypto);
 
