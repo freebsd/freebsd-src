@@ -703,10 +703,11 @@ check_startmsgs()
 #	If argument has a given prefix, then change the operation as follows:
 #		Prefix	Operation
 #		------	---------
-#		fast	Skip the pid check, and set rc_fast=yes, rc_quiet=yes
-#		force	Set ${rcvar} to YES, and set rc_force=yes
-#		one	Set ${rcvar} to YES
-#		quiet	Don't output some diagnostics, and set rc_quiet=yes
+#		debug	Enable debugging messages and set rc_debug to yes
+#		fast	Skip the pid check and set rc_fast and rc_quiet to yes
+#		force	Skip sanity checks and set ${rcvar} and rc_force to yes
+#		one	Set ${rcvar} and set rc_one to yes
+#		quiet	Don't output some diagnostics, and set rc_quiet to yes
 #
 #	The following globals are used:
 #
@@ -856,6 +857,8 @@ check_startmsgs()
 #	rc_arg		Argument to command, after fast/force/one processing
 #			performed
 #
+#	rc_debug	True if "debug" was provided
+#
 #	rc_flags	Flags to start the default command with.
 #			Defaults to ${name}_flags, unless overridden
 #			by $flags from the environment.
@@ -863,9 +866,11 @@ check_startmsgs()
 #
 #	rc_pid		PID of command (if appropriate)
 #
-#	rc_fast		Not empty if "fast" was provided (q.v.)
+#	rc_fast		Not empty if "fast" was provided
 #
-#	rc_force	Not empty if "force" was provided (q.v.)
+#	rc_force	Not empty if "force" was provided
+#
+#	rc_one		Not empty if "one" was provided
 #
 #	rc_quiet	Not empty if "quiet" was provided
 #
@@ -884,34 +889,47 @@ run_rc_command()
 	shift 1
 	rc_extra_args="$*"
 
-	_rc_prefix=
-	case "$rc_arg" in
-	fast*)				# "fast" prefix; don't check pid
-		rc_arg=${rc_arg#fast}
-		rc_fast=yes
-		rc_quiet=yes
-		;;
-	force*)				# "force" prefix; always run
-		rc_force=yes
-		_rc_prefix=force
-		rc_arg=${rc_arg#${_rc_prefix}}
+	: ${rc_debug:=no} ${rc_fast:=no} ${rc_force:=no} ${rc_one:=no} ${rc_quiet:=no}
+	while :; do
+		case "$rc_arg" in
+		debug*)			# "debug" prefix; enable debugging
+			rc_debug=yes
+			rc_quiet=no
+			rc_arg=${rc_arg#debug}
+			_rc_prefix="${_rc_prefix}debug"
+			;;
+		fast*)			# "fast" prefix; don't check pid
+			rc_fast=yes
+			rc_quiet=yes
+			rc_arg=${rc_arg#fast}
+			_rc_prefix="${_rc_prefix}fast"
+			;;
+		force*)			# "force" prefix; always run
+			rc_force=yes
+			rc_arg=${rc_arg#force}
+			_rc_prefix="${_rc_prefix}force"
+			;;
+		one*)			# "one" prefix; set ${rcvar}=yes
+			rc_one=yes
+			rc_arg=${rc_arg#one}
+			_rc_prefix="${_rc_prefix}one"
+			;;
+		quiet*)			# "quiet" prefix; omit some messages
+			rc_quiet=yes
+			rc_arg=${rc_arg#quiet}
+			_rc_prefix="${_rc_prefix}quiet"
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+	if checkyesno rc_force || checkyesno rc_one ; then
 		if [ -n "${rcvar}" ]; then
 			eval ${rcvar}=YES
 		fi
-		;;
-	one*)				# "one" prefix; set ${rcvar}=yes
-		_rc_prefix=one
-		rc_arg=${rc_arg#${_rc_prefix}}
-		if [ -n "${rcvar}" ]; then
-			eval ${rcvar}=YES
-		fi
-		;;
-	quiet*)				# "quiet" prefix; omit some messages
-		_rc_prefix=quiet
-		rc_arg=${rc_arg#${_rc_prefix}}
-		rc_quiet=yes
-		;;
-	esac
+	fi
+	debug "_rc_prefix=${_rc_prefix}"
 
 	eval _override_command=\$${name}_program
 	command=${_override_command:-$command}
