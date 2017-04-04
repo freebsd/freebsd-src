@@ -3883,9 +3883,6 @@ em_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tx_irq",
 				CTLFLAG_RD, &txr->tx_irq,
 				"Queue MSI-X Transmit Interrupts");
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "no_desc_avail",
-				CTLFLAG_RD, &txr->no_desc_avail,
-				"Queue No Descriptor Available");
 	}
 
 	for (int j = 0; j < adapter->rx_num_queues; j++, rx_que++) {
