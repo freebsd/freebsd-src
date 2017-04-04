@@ -70,10 +70,15 @@ long_name_head() {
 }
 long_name_body() {
 	check_fs
+
+	if ! NAME_MAX=$(getconf NAME_MAX .); then
+		atf_skip "Filesystem not reporting NAME_MAX; skipping testcase"
+	fi
+
 	# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=208965
 	atf_expect_fail "BUG 208965 extattr(2) doesn't allow maxlen attr names"
 
-	ATTRNAME=`jot -b X -s "" 255 0`
+	ATTRNAME=`jot -b X -s "" $NAME_MAX 0`
 	touch foo
 	atf_check -s exit:0 -o empty setextattr user $ATTRNAME myvalue foo
 	atf_check -s exit:0 -o inline:"${ATTRNAME}\n" lsextattr -q user foo
