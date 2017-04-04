@@ -34,7 +34,7 @@
 .Dt GREP 1
 .Os
 .Sh NAME
-.Nm grep , egrep , fgrep ,
+.Nm grep , egrep , fgrep , rgrep ,
 .Nm zgrep , zegrep , zfgrep
 .Nd file pattern searcher
 .Sh SYNOPSIS
@@ -341,6 +341,10 @@ will only search a file until a match has been found,
 making searches potentially less expensive.
 .It Fl R , Fl r , Fl Fl recursive
 Recursively search subdirectories listed.
+(i.e. force
+.Nm grep
+to behave as
+.Nm rgrep ) .
 .It Fl S
 If
 .Fl R
