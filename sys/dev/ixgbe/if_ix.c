@@ -5991,7 +5991,7 @@ ixgbe_add_vf(device_t dev, u16 vfnum, const nvlist_t *config)
 		 */
 		vf->flags |= IXGBE_VF_CAP_MAC;
 
-	vf->flags = IXGBE_VF_ACTIVE;
+	vf->flags |= IXGBE_VF_ACTIVE;
 
 	ixgbe_init_vf(adapter, vf);
 	IXGBE_CORE_UNLOCK(adapter);
