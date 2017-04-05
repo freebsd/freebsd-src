@@ -452,7 +452,7 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 	${AWK} -f ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
 .endif
 
-.if !empty(SRCS:Massym.s)
+.if !empty(SRCS:Massym.s) || !empty(DPSRCS:Massym.s)
 CLEANFILES+=	assym.s genassym.o
 DEPENDOBJS+=	genassym.o
 assym.s: genassym.o
