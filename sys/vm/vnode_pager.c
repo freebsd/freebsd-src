@@ -1193,18 +1193,12 @@ int
 vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
     int flags, int *rtvals)
 {
-	int i;
 	vm_object_t object;
 	vm_page_t m;
-	int count;
-
-	int maxsize, ncount;
 	vm_ooffset_t poffset;
 	struct uio auio;
 	struct iovec aiov;
-	int error;
-	int ioflags;
-	int ppscheck = 0;
+	int count, error, i, ioflags, maxsize, ncount, ppscheck;
 	static struct timeval lastfail;
 	static int curfail;
 
@@ -1300,6 +1294,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	PCPU_INC(cnt.v_vnodeout);
 	PCPU_ADD(cnt.v_vnodepgsout, ncount);
 
+	ppscheck = 0;
 	if (error) {
 		if ((ppscheck = ppsratecheck(&lastfail, &curfail, 1)))
 			printf("vnode_pager_putpages: I/O error %d\n", error);
