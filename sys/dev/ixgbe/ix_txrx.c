@@ -1431,20 +1431,10 @@ fail:
 
 static void     
 ixgbe_free_receive_ring(struct rx_ring *rxr)
-{ 
-	struct ixgbe_rx_buf       *rxbuf;
+{
 
 	for (int i = 0; i < rxr->num_desc; i++) {
-		rxbuf = &rxr->rx_buffers[i];
-		if (rxbuf->buf != NULL) {
-			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
-			rxbuf->buf->m_flags |= M_PKTHDR;
-			m_freem(rxbuf->buf);
-			rxbuf->buf = NULL;
-			rxbuf->flags = 0;
-		}
+		ixgbe_rx_discard(rxr, i);
 	}
 }
 
@@ -1596,7 +1586,9 @@ fail:
 	 */
 	for (int i = 0; i < j; ++i) {
 		rxr = &adapter->rx_rings[i];
+		IXGBE_RX_LOCK(rxr);
 		ixgbe_free_receive_ring(rxr);
+		IXGBE_RX_UNLOCK(rxr);
 	}
 
 	return (ENOBUFS);
@@ -1645,14 +1637,7 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
 	if (rxr->rx_buffers != NULL) {
 		for (int i = 0; i < adapter->num_rx_desc; i++) {
 			rxbuf = &rxr->rx_buffers[i];
-			if (rxbuf->buf != NULL) {
-				bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
-				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
-				rxbuf->buf->m_flags |= M_PKTHDR;
-				m_freem(rxbuf->buf);
-			}
-			rxbuf->buf = NULL;
+			ixgbe_rx_discard(rxr, i);
 			if (rxbuf->pmap != NULL) {
 				bus_dmamap_destroy(rxr->ptag, rxbuf->pmap);
 				rxbuf->pmap = NULL;
@@ -1722,11 +1707,12 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 	*/
 
 	if (rbuf->fmp != NULL) {/* Partial chain ? */
-		rbuf->fmp->m_flags |= M_PKTHDR;
+		bus_dmamap_sync(rxr->ptag, rbuf->pmap, BUS_DMASYNC_POSTREAD);
 		m_freem(rbuf->fmp);
 		rbuf->fmp = NULL;
 		rbuf->buf = NULL; /* rbuf->buf is part of fmp's chain */
 	} else if (rbuf->buf) {
+		bus_dmamap_sync(rxr->ptag, rbuf->pmap, BUS_DMASYNC_POSTREAD);
 		m_free(rbuf->buf);
 		rbuf->buf = NULL;
 	}
@@ -1813,6 +1799,8 @@ ixgbe_rxeof(struct ix_queue *que)
 			ixgbe_rx_discard(rxr, i);
 			goto next_desc;
 		}
+
+		bus_dmamap_sync(rxr->ptag, rbuf->pmap, BUS_DMASYNC_POSTREAD);
 
 		/*
 		** On 82599 which supports a hardware
