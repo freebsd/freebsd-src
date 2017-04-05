@@ -1275,7 +1275,7 @@ again:
 					error = error1;
 				break;
 			}
-		} else if ((n + on) == biosize) {
+		} else if ((n + on) == biosize || (ioflag & IO_ASYNC) != 0) {
 			bp->b_flags |= B_ASYNC;
 			(void) ncl_writebp(bp, 0, NULL);
 		} else {
