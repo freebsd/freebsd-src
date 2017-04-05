@@ -2800,7 +2800,7 @@ em_free_pci_resources(struct adapter *adapter)
 
 	if (adapter->msix_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(EM_MSIX_BAR), adapter->msix_mem);
+		    adapter->memrid, adapter->msix_mem);
 
 	if (adapter->memory != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -2834,9 +2834,9 @@ em_setup_msix(struct adapter *adapter)
 			em_enable_vectors_82574(adapter);
 #endif
 		/* Map the MSIX BAR */
-		int rid = PCIR_BAR(EM_MSIX_BAR);
+		adapter->memrid = PCIR_BAR(EM_MSIX_BAR);
 		adapter->msix_mem = bus_alloc_resource_any(dev,
-		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
+		    SYS_RES_MEMORY, &adapter->memrid, RF_ACTIVE);
        		if (adapter->msix_mem == NULL) {
 			/* May not be enabled */
                		device_printf(adapter->dev,
@@ -2887,7 +2887,7 @@ msix_one:
 msi:
 	if (adapter->msix_mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(EM_MSIX_BAR), adapter->msix_mem);
+		    adapter->memrid, adapter->msix_mem);
 		adapter->msix_mem = NULL;
 	}
        	val = 1;

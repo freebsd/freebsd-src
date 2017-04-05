@@ -2901,7 +2901,7 @@ igb_setup_msix(struct adapter *adapter)
 msi:
        	if (adapter->msix_mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(IGB_MSIX_BAR), adapter->msix_mem);
+		    adapter->memrid, adapter->msix_mem);
 		adapter->msix_mem = NULL;
 	}
        	msgs = 1;
