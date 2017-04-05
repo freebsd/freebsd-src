@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#include <ufs/ufs/dir.h>
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/gjournal.h>
 #include <ufs/ufs/quota.h>
@@ -1434,7 +1435,7 @@ ffs_statfs(mp, sbp)
 	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - UFS_ROOTINO;
 	sbp->f_ffree = fs->fs_cstotal.cs_nifree + fs->fs_pendinginodes;
 	UFS_UNLOCK(ump);
-	sbp->f_namemax = NAME_MAX;
+	sbp->f_namemax = UFS_MAXNAMLEN;
 	return (0);
 }
 
