@@ -38,6 +38,7 @@ SRCF+=		divxc3
 SRCF+=		enable_execute_stack
 SRCF+=		eprintf
 SRCF+=		extendhfsf2
+SRCF+=		ffssi2
 SRCF+=		ffsdi2
 SRCF+=		ffsti2
 SRCF+=		fixdfdi
