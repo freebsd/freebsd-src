@@ -1386,7 +1386,6 @@ nxtfile(int argc, char **argv, const char **fname, char *buf, int dt)
 					(void)fprintf(err,
 						"pr: cannot stat %s, %s\n",
 						argv[eoptind], strerror(errno));
-					fclose(inf);
 					return(NULL);
 				}
 				timeptr = localtime(&(statbuf.st_mtime));
