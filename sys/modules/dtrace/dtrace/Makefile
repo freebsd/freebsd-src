@@ -27,7 +27,7 @@ CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/intel \
 SRCS+=		bus_if.h device_if.h vnode_if.h
 
 # Needed for dtrace_asm.S
-SRCS+=		assym.s
+DPSRCS+=	assym.s
 
 # These are needed for assym.s
 SRCS+=		opt_compat.h opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
@@ -54,20 +54,6 @@ EXPORT_SYMS=	dtrace_register \
 		dtrace_probe_lookup
 
 dtrace_asm.o:  assym.s
-
-.if ${MACHINE_CPUARCH} == "arm"
-assym.o: assym.s
-	${AS} -meabi=5 -o assym.o assym.s
-.endif
-
-.if ${MACHINE_CPUARCH} == "riscv"
-assym.o: assym.s
-.if ${TARGET_ARCH:Mriscv*sf}
-	${AS} -mfloat-abi=soft -o assym.o assym.s
-.else
-	${AS} -mfloat-abi=double -o assym.o assym.s
-.endif
-.endif
 
 .include <bsd.kmod.mk>
 
