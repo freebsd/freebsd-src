@@ -2446,7 +2446,7 @@ ufs_pathconf(ap)
 		*ap->a_retval = LINK_MAX;
 		break;
 	case _PC_NAME_MAX:
-		*ap->a_retval = NAME_MAX;
+		*ap->a_retval = UFS_MAXNAMLEN;
 		break;
 	case _PC_PATH_MAX:
 		*ap->a_retval = PATH_MAX;
