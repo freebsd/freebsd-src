@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-# broken: EPROT in select
-WANT_CHERI=none
-
 .include <src.opts.mk>
 
 PROG=	sshd
