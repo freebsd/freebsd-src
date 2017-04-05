@@ -242,17 +242,16 @@ struct vstor_packet {
 #define SRB_STATUS_PENDING		0x00
 #define SRB_STATUS_SUCCESS		0x01
 #define SRB_STATUS_ABORTED		0x02
-#define SRB_STATUS_ABORT_FAILED	0x03
 #define SRB_STATUS_ERROR 		0x04
-#define SRB_STATUS_BUSY			0x05
-
+#define SRB_STATUS_INVALID_LUN          0x20
 /**
  * SRB Status Masks (can be combined with above status codes)
  */
 #define SRB_STATUS_QUEUE_FROZEN         0x40
 #define SRB_STATUS_AUTOSENSE_VALID      0x80
-#define SRB_STATUS_INVALID_LUN          0X20
 
+#define SRB_STATUS(status)	\
+	((status) & ~(SRB_STATUS_AUTOSENSE_VALID | SRB_STATUS_QUEUE_FROZEN))
 /*
  * SRB Flag Bits
  */

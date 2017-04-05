@@ -2148,19 +2148,20 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	int srb_status = SRB_STATUS(vm_srb->srb_status);
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
 		const struct scsi_generic *cmd;
 
 		cmd = (const struct scsi_generic *)
 		    ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 		     csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes);
-		if (vm_srb->srb_status != SRB_STATUS_SUCCESS) {
+		if (srb_status != SRB_STATUS_SUCCESS) {
 			/*
 			 * If there are errors, for example, invalid LUN,
 			 * host will inform VM through SRB status.
 			 */
 			if (bootverbose) {
-				if (vm_srb->srb_status == SRB_STATUS_INVALID_LUN) {
+				if (srb_status == SRB_STATUS_INVALID_LUN) {
 					xpt_print(ccb->ccb_h.path,
 					    "invalid LUN %d for op: %s\n",
 					    vm_srb->lun,
@@ -2168,7 +2169,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 				} else {
 					xpt_print(ccb->ccb_h.path,
 					    "Unknown SRB flag: %d for op: %s\n",
-					    vm_srb->srb_status,
+					    srb_status,
 					    scsi_op_desc(cmd->opcode, NULL));
 				}
 			}
@@ -2191,7 +2192,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 		}
 
 		if (cmd->opcode == INQUIRY &&
-		    vm_srb->srb_status == SRB_STATUS_SUCCESS) {
+		    srb_status == SRB_STATUS_SUCCESS) {
 			int resp_xfer_len, resp_buf_len, data_len;
 			uint8_t *resp_buf = (uint8_t *)csio->data_ptr;
 			struct scsi_inquiry_data *inq_data =
