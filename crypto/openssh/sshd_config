@@ -62,7 +62,7 @@
 #PermitEmptyPasswords no
 
 # Change to no to disable PAM authentication
-#ChallengeResponseAuthentication yes
+ChallengeResponseAuthentication no
 
 # Kerberos options
 #KerberosAuthentication no
@@ -83,7 +83,7 @@
 # If you just want the PAM account and session checks to run without
 # PAM authentication, then enable this but set PasswordAuthentication
 # and ChallengeResponseAuthentication to 'no'.
-#UsePAM yes
+UsePAM no
 
 #AllowAgentForwarding yes
 #AllowTcpForwarding yes
