@@ -979,9 +979,11 @@ hn_rndis_query_hwcaps(struct hn_softc *sc, struct ndis_offload *caps)
 }
 
 int
-hn_rndis_attach(struct hn_softc *sc, int mtu)
+hn_rndis_attach(struct hn_softc *sc, int mtu, int *init_done)
 {
 	int error;
+
+	*init_done = 0;
 
 	/*
 	 * Initialize RNDIS.
@@ -989,6 +991,7 @@ hn_rndis_attach(struct hn_softc *sc, int mtu)
 	error = hn_rndis_init(sc);
 	if (error)
 		return (error);
+	*init_done = 1;
 
 	/*
 	 * Configure NDIS offload settings.
