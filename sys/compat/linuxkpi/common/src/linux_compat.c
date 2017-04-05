@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/compat.h>
+#include <linux/poll.h>
 
 #include <vm/vm_pager.h>
 
@@ -430,14 +431,12 @@ done:
 static int
 linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct file *file;
 	int error;
 
 	file = td->td_fpop;
-	ldev = dev->si_drv1;
-	if (ldev == NULL)
+	if (dev->si_drv1 == NULL)
 		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
@@ -566,16 +565,14 @@ static int
 linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
-	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct file *file;
 	unsigned size;
 	int error;
 
 	file = td->td_fpop;
-	ldev = dev->si_drv1;
-	if (ldev == NULL)
-		return (0);
+	if (dev->si_drv1 == NULL)
+		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -612,7 +609,6 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 static int
 linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct thread *td;
 	struct file *file;
@@ -621,9 +617,8 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 	td = curthread;
 	file = td->td_fpop;
-	ldev = dev->si_drv1;
-	if (ldev == NULL)
-		return (0);
+	if (dev->si_drv1 == NULL)
+		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -650,7 +645,6 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 static int
 linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct thread *td;
 	struct file *file;
@@ -659,9 +653,8 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	td = curthread;
 	file = td->td_fpop;
-	ldev = dev->si_drv1;
-	if (ldev == NULL)
-		return (0);
+	if (dev->si_drv1 == NULL)
+		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
@@ -688,18 +681,16 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 static int
 linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 {
-	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct file *file;
 	int revents;
-	int error;
+
+	if (dev->si_drv1 == NULL)
+		goto error;
+	if (devfs_get_cdevpriv((void **)&filp) != 0)
+		goto error;
 
 	file = td->td_fpop;
-	ldev = dev->si_drv1;
-	if (ldev == NULL)
-		return (0);
-	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
-		return (error);
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
 	if (filp->f_op->poll)
@@ -708,13 +699,14 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 		revents = 0;
 
 	return (revents);
+error:
+	return (events & (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
 }
 
 static int
 linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **object, int nprot)
 {
-	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct thread *td;
 	struct file *file;
@@ -723,8 +715,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 	td = curthread;
 	file = td->td_fpop;
-	ldev = dev->si_drv1;
-	if (ldev == NULL)
+	if (dev->si_drv1 == NULL)
 		return (ENODEV);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
