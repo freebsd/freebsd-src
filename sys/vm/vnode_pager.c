@@ -1198,7 +1198,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	vm_ooffset_t poffset;
 	struct uio auio;
 	struct iovec aiov;
-	int count, error, i, ioflags, maxsize, ncount, ppscheck;
+	int count, error, i, maxsize, ncount, ppscheck;
 	static struct timeval lastfail;
 	static int curfail;
 
@@ -1265,22 +1265,6 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	}
 	VM_OBJECT_WUNLOCK(object);
 
-	/*
-	 * pageouts are already clustered, use IO_ASYNC to force a bawrite()
-	 * rather then a bdwrite() to prevent paging I/O from saturating 
-	 * the buffer cache.  Dummy-up the sequential heuristic to cause
-	 * large ranges to cluster.  If neither IO_SYNC or IO_ASYNC is set,
-	 * the system decides how to cluster.
-	 */
-	ioflags = IO_VMIO;
-	if (flags & (VM_PAGER_PUT_SYNC | VM_PAGER_PUT_INVAL))
-		ioflags |= IO_SYNC;
-	else if ((flags & VM_PAGER_CLUSTER_OK) == 0)
-		ioflags |= IO_ASYNC;
-	ioflags |= (flags & VM_PAGER_PUT_INVAL) ? IO_INVAL: 0;
-	ioflags |= (flags & VM_PAGER_PUT_NOREUSE) ? IO_NOREUSE : 0;
-	ioflags |= IO_SEQMAX << IO_SEQSHIFT;
-
 	aiov.iov_base = (caddr_t) 0;
 	aiov.iov_len = maxsize;
 	auio.uio_iov = &aiov;
@@ -1290,7 +1274,8 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_resid = maxsize;
 	auio.uio_td = (struct thread *) 0;
-	error = VOP_WRITE(vp, &auio, ioflags, curthread->td_ucred);
+	error = VOP_WRITE(vp, &auio, vnode_pager_putpages_ioflags(flags),
+	    curthread->td_ucred);
 	PCPU_INC(cnt.v_vnodeout);
 	PCPU_ADD(cnt.v_vnodepgsout, ncount);
 
@@ -1308,6 +1293,30 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 		rtvals[i] = VM_PAGER_OK;
 	}
 	return rtvals[0];
+}
+
+int
+vnode_pager_putpages_ioflags(int pager_flags)
+{
+	int ioflags;
+
+	/*
+	 * Pageouts are already clustered, use IO_ASYNC to force a
+	 * bawrite() rather then a bdwrite() to prevent paging I/O
+	 * from saturating the buffer cache.  Dummy-up the sequential
+	 * heuristic to cause large ranges to cluster.  If neither
+	 * IO_SYNC or IO_ASYNC is set, the system decides how to
+	 * cluster.
+	 */
+	ioflags = IO_VMIO;
+	if ((pager_flags & (VM_PAGER_PUT_SYNC | VM_PAGER_PUT_INVAL)) != 0)
+		ioflags |= IO_SYNC;
+	else if ((pager_flags & VM_PAGER_CLUSTER_OK) == 0)
+		ioflags |= IO_ASYNC;
+	ioflags |= (pager_flags & VM_PAGER_PUT_INVAL) != 0 ? IO_INVAL: 0;
+	ioflags |= (pager_flags & VM_PAGER_PUT_NOREUSE) != 0 ? IO_NOREUSE : 0;
+	ioflags |= IO_SEQMAX << IO_SEQSHIFT;
+	return (ioflags);
 }
 
 void
