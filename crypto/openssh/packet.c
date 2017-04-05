@@ -2501,9 +2501,8 @@ newkeys_to_blob(struct sshbuf *m, struct ssh *ssh, int mode)
 		return r;
 	if ((b = sshbuf_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
-	/* The cipher struct is constant and shared, you export pointer */
 	if ((r = sshbuf_put_cstring(b, enc->name)) != 0 ||
-	    (r = sshbuf_put(b, &enc->cipher, sizeof(enc->cipher))) != 0 ||
+	    (r = sshbuf_put_cstring(b, cipher_get_name(enc->cipher))) != 0 ||
 	    (r = sshbuf_put_u32(b, enc->enabled)) != 0 ||
 	    (r = sshbuf_put_u32(b, enc->block_size)) != 0 ||
 	    (r = sshbuf_put_string(b, enc->key, enc->key_len)) != 0 ||
@@ -2587,6 +2586,7 @@ ssh_packet_get_state(struct ssh *ssh, struct sshbuf *m)
 static int
 newkeys_from_blob(struct sshbuf *m, struct ssh *ssh, int mode)
 {
+	char *cipher_name;
 	struct sshbuf *b = NULL;
 	struct sshcomp *comp;
 	struct sshenc *enc;
@@ -2609,12 +2609,14 @@ newkeys_from_blob(struct sshbuf *m, struct ssh *ssh, int mode)
 	comp = &newkey->comp;
 
 	if ((r = sshbuf_get_cstring(b, &enc->name, NULL)) != 0 ||
-	    (r = sshbuf_get(b, &enc->cipher, sizeof(enc->cipher))) != 0 ||
+	    (r = sshbuf_get_cstring(b, &cipher_name, NULL)) != 0 ||
 	    (r = sshbuf_get_u32(b, (u_int *)&enc->enabled)) != 0 ||
 	    (r = sshbuf_get_u32(b, &enc->block_size)) != 0 ||
 	    (r = sshbuf_get_string(b, &enc->key, &keylen)) != 0 ||
 	    (r = sshbuf_get_string(b, &enc->iv, &ivlen)) != 0)
 		goto out;
+	enc->cipher = cipher_by_name(cipher_name);
+	free(cipher_name);
 	if (cipher_authlen(enc->cipher) == 0) {
 		if ((r = sshbuf_get_cstring(b, &mac->name, NULL)) != 0)
 			goto out;
