@@ -261,6 +261,7 @@ static void			hn_rndis_rx_data(struct hn_rx_ring *,
 				    const void *, int);
 static void			hn_rndis_rx_status(struct hn_softc *,
 				    const void *, int);
+static void			hn_rndis_init_fixat(struct hn_softc *, int);
 
 static void			hn_nvs_handle_notify(struct hn_softc *,
 				    const struct vmbus_chanpkt_hdr *);
@@ -328,6 +329,8 @@ static void			hn_resume_mgmt(struct hn_softc *);
 static void			hn_suspend_mgmt_taskfunc(void *, int);
 static void			hn_chan_drain(struct hn_softc *,
 				    struct vmbus_channel *);
+static void			hn_disable_rx(struct hn_softc *);
+static void			hn_drain_rxtx(struct hn_softc *, int);
 static void			hn_polling(struct hn_softc *, u_int);
 static void			hn_chan_polling(struct vmbus_channel *, u_int);
 
@@ -2266,6 +2269,18 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 
 	/* If the VF is active, inject the packet through the VF */
 	ifp = rxr->hn_vf ? rxr->hn_vf : rxr->hn_ifp;
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		/*
+		 * NOTE:
+		 * See the NOTE of hn_rndis_init_fixat().  This
+		 * function can be reached, immediately after the
+		 * RNDIS is initialized but before the ifnet is
+		 * setup on the hn_attach() path; drop the unexpected
+		 * packets.
+		 */
+		return (0);
+	}
 
 	if (dlen <= MHLEN) {
 		m_new = m_gethdr(M_NOWAIT, MT_DATA);
@@ -4711,6 +4726,27 @@ hn_synth_attachable(const struct hn_softc *sc)
 	return (true);
 }
 
+/*
+ * Make sure that the RX filter is zero after the successful
+ * RNDIS initialization.
+ *
+ * NOTE:
+ * Under certain conditions on certain versions of Hyper-V,
+ * the RNDIS rxfilter is _not_ zero on the hypervisor side
+ * after the successful RNDIS initialization, which breaks
+ * the assumption of any following code (well, it breaks the
+ * RNDIS API contract actually).  Clear the RNDIS rxfilter
+ * explicitly, drain packets sneaking through, and drain the
+ * interrupt taskqueues scheduled due to the stealth packets.
+ */
+static void
+hn_rndis_init_fixat(struct hn_softc *sc, int nchan)
+{
+
+	hn_disable_rx(sc);
+	hn_drain_rxtx(sc, nchan);
+}
+
 static int
 hn_synth_attach(struct hn_softc *sc, int mtu)
 {
@@ -4718,7 +4754,7 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 #define ATTACHED_RNDIS		0x0004
 
 	struct ndis_rssprm_toeplitz *rss = &sc->hn_rss;
-	int error, nsubch, nchan, i;
+	int error, nsubch, nchan = 1, i, rndis_inited;
 	uint32_t old_caps, attached = 0;
 
 	KASSERT((sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) == 0,
@@ -4753,10 +4789,11 @@ hn_synth_attach(struct hn_softc *sc, int mtu)
 	/*
 	 * Attach RNDIS _after_ NVS is attached.
 	 */
-	error = hn_rndis_attach(sc, mtu);
+	error = hn_rndis_attach(sc, mtu, &rndis_inited);
+	if (rndis_inited)
+		attached |= ATTACHED_RNDIS;
 	if (error)
 		goto failed;
-	attached |= ATTACHED_RNDIS;
 
 	/*
 	 * Make sure capabilities are not changed.
@@ -4859,14 +4896,18 @@ back:
 	 * Fixup transmission aggregation setup.
 	 */
 	hn_set_txagg(sc);
+	hn_rndis_init_fixat(sc, nchan);
 	return (0);
 
 failed:
 	if (sc->hn_flags & HN_FLAG_SYNTH_ATTACHED) {
+		hn_rndis_init_fixat(sc, nchan);
 		hn_synth_detach(sc);
 	} else {
-		if (attached & ATTACHED_RNDIS)
+		if (attached & ATTACHED_RNDIS) {
+			hn_rndis_init_fixat(sc, nchan);
 			hn_rndis_detach(sc);
+		}
 		if (attached & ATTACHED_NVS)
 			hn_nvs_detach(sc);
 		hn_chan_detach(sc, sc->hn_prichan);
@@ -4946,11 +4987,56 @@ hn_chan_drain(struct hn_softc *sc, struct vmbus_channel *chan)
 }
 
 static void
-hn_suspend_data(struct hn_softc *sc)
+hn_disable_rx(struct hn_softc *sc)
+{
+
+	/*
+	 * Disable RX by clearing RX filter forcefully.
+	 */
+	sc->hn_rx_filter = NDIS_PACKET_TYPE_NONE;
+	hn_rndis_set_rxfilter(sc, sc->hn_rx_filter); /* ignore error */
+
+	/*
+	 * Give RNDIS enough time to flush all pending data packets.
+	 */
+	pause("waitrx", (200 * hz) / 1000);
+}
+
+/*
+ * NOTE:
+ * RX/TX _must_ have been suspended/disabled, before this function
+ * is called.
+ */
+static void
+hn_drain_rxtx(struct hn_softc *sc, int nchan)
 {
 	struct vmbus_channel **subch = NULL;
+	int nsubch;
+
+	/*
+	 * Drain RX/TX bufrings and interrupts.
+	 */
+	nsubch = nchan - 1;
+	if (nsubch > 0)
+		subch = vmbus_subchan_get(sc->hn_prichan, nsubch);
+
+	if (subch != NULL) {
+		int i;
+
+		for (i = 0; i < nsubch; ++i)
+			hn_chan_drain(sc, subch[i]);
+	}
+	hn_chan_drain(sc, sc->hn_prichan);
+
+	if (subch != NULL)
+		vmbus_subchan_rel(subch, nsubch);
+}
+
+static void
+hn_suspend_data(struct hn_softc *sc)
+{
 	struct hn_tx_ring *txr;
-	int i, nsubch;
+	int i;
 
 	HN_LOCK_ASSERT(sc);
 
@@ -4978,38 +5064,21 @@ hn_suspend_data(struct hn_softc *sc)
 	}
 
 	/*
-	 * Disable RX by clearing RX filter.
+	 * Disable RX.
 	 */
-	hn_set_rxfilter(sc, NDIS_PACKET_TYPE_NONE);
+	hn_disable_rx(sc);
 
 	/*
-	 * Give RNDIS enough time to flush all pending data packets.
+	 * Drain RX/TX.
 	 */
-	pause("waitrx", (200 * hz) / 1000);
-
-	/*
-	 * Drain RX/TX bufrings and interrupts.
-	 */
-	nsubch = sc->hn_rx_ring_inuse - 1;
-	if (nsubch > 0)
-		subch = vmbus_subchan_get(sc->hn_prichan, nsubch);
-
-	if (subch != NULL) {
-		for (i = 0; i < nsubch; ++i)
-			hn_chan_drain(sc, subch[i]);
-	}
-	hn_chan_drain(sc, sc->hn_prichan);
-
-	if (subch != NULL)
-		vmbus_subchan_rel(subch, nsubch);
+	hn_drain_rxtx(sc, sc->hn_rx_ring_inuse);
 
 	/*
 	 * Drain any pending TX tasks.
 	 *
 	 * NOTE:
-	 * The above hn_chan_drain() can dispatch TX tasks, so the TX
-	 * tasks will have to be drained _after_ the above hn_chan_drain()
-	 * calls.
+	 * The above hn_drain_rxtx() can dispatch TX tasks, so the TX
+	 * tasks will have to be drained _after_ the above hn_drain_rxtx().
 	 */
 	for (i = 0; i < sc->hn_tx_ring_inuse; ++i) {
 		txr = &sc->hn_tx_ring[i];
