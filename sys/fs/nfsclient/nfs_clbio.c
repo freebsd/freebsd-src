@@ -394,8 +394,8 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 	 */
 	old_lock = ncl_upgrade_vnlock(vp);
 	if (vp->v_iflag & VI_DOOMED) {
-		ncl_downgrade_vnlock(vp, old_lock);
-		return (EBADF);
+		error = EBADF;
+		goto out;
 	}
 
 	mtx_lock(&np->n_mtx);
@@ -406,7 +406,9 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 				panic("nfs: bioread, not dir");
 			ncl_invaldir(vp);
 			error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
-			if (error)
+			if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
+				error = EBADF;
+			if (error != 0)
 				goto out;
 		}
 		np->n_attrstamp = 0;
@@ -429,7 +431,9 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 			if (vp->v_type == VDIR)
 				ncl_invaldir(vp);
 			error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
-			if (error)
+			if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
+				error = EBADF;
+			if (error != 0)
 				goto out;
 			mtx_lock(&np->n_mtx);
 			np->n_mtime = vattr.va_mtime;
@@ -439,7 +443,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 	}
 out:
 	ncl_downgrade_vnlock(vp, old_lock);
-	return error;
+	return (error);
 }
 
 /*
@@ -623,6 +627,9 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		    while (error == NFSERR_BAD_COOKIE) {
 			ncl_invaldir(vp);
 			error = ncl_vinvalbuf(vp, 0, td, 1);
+			if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
+				return (EBADF);
+
 			/*
 			 * Yuck! The directory has been modified on the
 			 * server. The only way to get the block is by
@@ -943,8 +950,11 @@ ncl_write(struct vop_write_args *ap)
 #endif
 			np->n_attrstamp = 0;
 			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-			error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
-			if (error)
+			error = ncl_vinvalbuf(vp, V_SAVE | ((ioflag &
+			    IO_VMIO) != 0 ? V_VMIO : 0), td, 1);
+			if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
+				error = EBADF;
+			if (error != 0)
 				return (error);
 		} else
 			mtx_unlock(&np->n_mtx);
@@ -1023,8 +1033,12 @@ ncl_write(struct vop_write_args *ap)
 			if (wouldcommit > nmp->nm_wcommitsize) {
 				np->n_attrstamp = 0;
 				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-				error = ncl_vinvalbuf(vp, V_SAVE, td, 1);
-				if (error)
+				error = ncl_vinvalbuf(vp, V_SAVE | ((ioflag &
+				    IO_VMIO) != 0 ? V_VMIO : 0), td, 1);
+				if (error == 0 &&
+				    (vp->v_iflag & VI_DOOMED) != 0)
+					error = EBADF;
+				if (error != 0)
 					return (error);
 				wouldcommit = biosize;
 			}
