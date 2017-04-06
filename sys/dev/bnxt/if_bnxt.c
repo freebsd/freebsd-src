@@ -177,7 +177,8 @@ static void bnxt_update_admin_status(if_ctx_t ctx);
 
 /* Interrupt enable / disable */
 static void bnxt_intr_enable(if_ctx_t ctx);
-static int bnxt_queue_intr_enable(if_ctx_t ctx, uint16_t qid);
+static int bnxt_rx_queue_intr_enable(if_ctx_t ctx, uint16_t qid);
+static int bnxt_tx_queue_intr_enable(if_ctx_t ctx, uint16_t qid);
 static void bnxt_disable_intr(if_ctx_t ctx);
 static int bnxt_msix_intr_assign(if_ctx_t ctx, int msix);
 
@@ -253,8 +254,8 @@ static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_update_admin_status, bnxt_update_admin_status),
 
 	DEVMETHOD(ifdi_intr_enable, bnxt_intr_enable),
-	DEVMETHOD(ifdi_tx_queue_intr_enable, bnxt_queue_intr_enable),
-	DEVMETHOD(ifdi_rx_queue_intr_enable, bnxt_queue_intr_enable),
+	DEVMETHOD(ifdi_tx_queue_intr_enable, bnxt_tx_queue_intr_enable),
+	DEVMETHOD(ifdi_rx_queue_intr_enable, bnxt_rx_queue_intr_enable),
 	DEVMETHOD(ifdi_intr_disable, bnxt_disable_intr),
 	DEVMETHOD(ifdi_msix_intr_assign, bnxt_msix_intr_assign),
 
@@ -1437,7 +1438,16 @@ bnxt_intr_enable(if_ctx_t ctx)
 
 /* Enable interrupt for a single queue */
 static int
-bnxt_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
+bnxt_tx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
+{
+	struct bnxt_softc *softc = iflib_get_softc(ctx);
+
+	bnxt_do_enable_intr(&softc->tx_cp_rings[qid]);
+	return 0;
+}
+
+static int
+bnxt_rx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
@@ -1482,7 +1492,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 
 	for (i=0; i<softc->scctx->isc_nrxqsets; i++) {
 		rc = iflib_irq_alloc_generic(ctx, &softc->rx_cp_rings[i].irq,
-		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RXTX,
+		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RX,
 		    bnxt_handle_rx_cp, &softc->rx_cp_rings[i], i, "rx_cp");
 		if (rc) {
 			device_printf(iflib_get_dev(ctx),
