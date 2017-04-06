@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/disk.h>
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/boot.h>
@@ -837,5 +838,15 @@ efi_zfs_probe(void)
 				guidp = NULL;
 		}
 	}
+}
+
+uint64_t
+ldi_get_size(void *priv)
+{
+	int fd = (uintptr_t) priv;
+	uint64_t size;
+
+	ioctl(fd, DIOCGMEDIASIZE, &size);
+	return (size);
 }
 #endif
