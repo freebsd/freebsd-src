@@ -10,6 +10,10 @@ SHLIB_MAJOR	= 6
 SYMBOL_MAPS=    ${.CURDIR}/Symbol.map
 VERSION_DEF=	${.CURDIR}/Version.def
 
+.include <src.opts.mk>
+
 .PATH:	${SRCTOP}/sys/kern
+
+SUBDIR.${MK_TESTS}+=	tests
 
 .include <bsd.lib.mk>

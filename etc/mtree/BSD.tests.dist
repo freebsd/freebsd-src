@@ -338,6 +338,8 @@
         ..
         librt
         ..
+        libsbuf
+        ..
         libthr
             dlopen
             ..
