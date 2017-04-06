@@ -106,12 +106,6 @@
 .Fa "size_t len"
 .Fc
 .Ft int
-.Fo sbuf_bcopyin
-.Fa "struct sbuf *s"
-.Fa "const void *uaddr"
-.Fa "size_t len"
-.Fc
-.Ft int
 .Fo sbuf_bcpy
 .Fa "struct sbuf *s"
 .Fa "const void *buf"
@@ -126,12 +120,6 @@
 .Fo sbuf_cpy
 .Fa "struct sbuf *s"
 .Fa "const char *str"
-.Fc
-.Ft int
-.Fo sbuf_copyin
-.Fa "struct sbuf *s"
-.Fa "const void *uaddr"
-.Fa "size_t len"
 .Fc
 .Ft int
 .Fo sbuf_printf
@@ -207,6 +195,21 @@
 .Fo sbuf_putbuf
 .Fa "struct sbuf *s"
 .Fc
+.Fd #ifdef _KERNEL
+.In sys/types.h
+.In sys/sbuf.h
+.Ft int
+.Fo sbuf_bcopyin
+.Fa "struct sbuf *s"
+.Fa "const void *uaddr"
+.Fa "size_t len"
+.Fc
+.Ft int
+.Fo sbuf_copyin
+.Fa "struct sbuf *s"
+.Fa "const void *uaddr"
+.Fa "size_t len"
+.Fc
 .In sys/sysctl.h
 .Ft struct sbuf *
 .Fo sbuf_new_for_sysctl
@@ -215,6 +218,7 @@
 .Fa "int length"
 .Fa "struct sysctl_req *req"
 .Fc
+.Fd #endif	/* _KERNEL */
 .Sh DESCRIPTION
 The
 .Nm
