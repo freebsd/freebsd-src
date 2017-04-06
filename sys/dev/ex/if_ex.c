@@ -812,7 +812,7 @@ rx_another: ;
 
 
 static int
-ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
+ex_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ex_softc *	sc = ifp->if_softc;
 	struct ifreq *		ifr = (struct ifreq *)data;
