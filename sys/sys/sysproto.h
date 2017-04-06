@@ -855,7 +855,7 @@ struct munlockall_args {
 };
 struct __getcwd_args {
 	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
-	char buflen_l_[PADL_(u_int)]; u_int buflen; char buflen_r_[PADR_(u_int)];
+	char buflen_l_[PADL_(size_t)]; size_t buflen; char buflen_r_[PADR_(size_t)];
 };
 struct sched_setparam_args {
 	char pid_l_[PADL_(pid_t)]; pid_t pid; char pid_r_[PADR_(pid_t)];
