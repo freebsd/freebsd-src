@@ -38,6 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/mm_types.h>
 #include <linux/pfn.h>
+#include <linux/list.h>
 
 #include <asm/pgtable.h>
 
@@ -89,12 +90,25 @@ CTASSERT((VM_PROT_ALL & -(1 << 8)) == 0);
 typedef int (*pte_fn_t)(pte_t *, pgtable_t, unsigned long addr, void *data);
 
 struct vm_area_struct {
-	vm_offset_t	vm_start;
-	vm_offset_t	vm_end;
-	vm_offset_t	vm_pgoff;
-	vm_paddr_t	vm_pfn;		/* PFN For mmap. */
-	vm_size_t	vm_len;		/* length for mmap. */
-	vm_memattr_t	vm_page_prot;
+	vm_offset_t vm_start;
+	vm_offset_t vm_end;
+	vm_offset_t vm_pgoff;
+	pgprot_t vm_page_prot;
+	unsigned long vm_flags;
+	struct mm_struct *vm_mm;
+	void   *vm_private_data;
+	const struct vm_operations_struct *vm_ops;
+	struct linux_file *vm_file;
+
+	/* internal operation */
+	vm_paddr_t vm_pfn;		/* PFN for memory map */
+	vm_size_t vm_len;		/* length for memory map */
+	vm_pindex_t vm_pfn_first;
+	int	vm_pfn_count;
+	int    *vm_pfn_pcount;
+	vm_object_t vm_obj;
+	vm_map_t vm_cached_map;
+	TAILQ_ENTRY(vm_area_struct) vm_entry;
 };
 
 struct vm_fault {
