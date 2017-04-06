@@ -60,7 +60,7 @@ struct sched_param;
 struct __wrusage;
 
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
-	    u_int buflen, u_int path_max);
+	    size_t buflen, size_t path_max);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
 	    socklen_t *namelen, struct file **fp);
 int	kern_accept4(struct thread *td, int s, struct sockaddr **name,
