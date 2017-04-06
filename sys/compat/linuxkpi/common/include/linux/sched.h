@@ -145,4 +145,6 @@ schedule_timeout(signed long timeout)
 	return 0;
 }
 
+#define	need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
+
 #endif	/* _LINUX_SCHED_H_ */
