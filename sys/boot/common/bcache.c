@@ -295,7 +295,11 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
      * Our choice of 16 read ahead blocks will always fit inside the bcache.
      */
 
-    ra = bc->bcache_nblks - BHASH(bc, p_blk + p_size);
+    if ((rw & F_NORA) == F_NORA)
+	ra = 0;
+    else
+	ra = bc->bcache_nblks - BHASH(bc, p_blk + p_size);
+
     if (ra != 0 && ra != bc->bcache_nblks) { /* do we have RA space? */
 	ra = MIN(bc->ra, ra - 1);
 	ra = rounddown(ra, 16);		/* multiple of 16 blocks */
@@ -316,6 +320,7 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
      * in either case we should return the data in bcache and only
      * return error if there is no data.
      */
+    rw &= F_MASK;
     result = dd->dv_strategy(dd->dv_devdata, rw, p_blk,
 	p_size * bcache_blksize, p_buf, &r_size);
 
@@ -381,10 +386,11 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 	((size * 2 / bcache_blksize) > bcache_nblks)) {
 	DEBUG("bypass %zu from %qu", size / bcache_blksize, blk);
 	bcache_bypasses++;
+	rw &= F_MASK;
 	return (dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
     }
 
-    switch (rw) {
+    switch (rw & F_MASK) {
     case F_READ:
 	nblk = size / bcache_blksize;
 	if (size != 0 && nblk == 0)
@@ -423,7 +429,7 @@ bcache_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 
 	return (ret);
     case F_WRITE:
-	return write_strategy(devdata, rw, blk, size, buf, rsize);
+	return write_strategy(devdata, F_WRITE, blk, size, buf, rsize);
     }
     return -1;
 }
