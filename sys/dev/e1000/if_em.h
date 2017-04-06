@@ -400,6 +400,7 @@ struct adapter {
 	struct resource *memory;
 	struct resource *flash;
 	struct resource *msix_mem;
+	int		memrid;
 
 	struct resource	*res;
 	void		*tag;
