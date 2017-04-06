@@ -42,8 +42,12 @@ static MALLOC_DEFINE(M_LINUX_CURRENT, "linuxcurrent", "LinuxKPI task structure")
 int
 linux_alloc_current(struct thread *td, int flags)
 {
+	struct proc *proc;
+	struct thread *td_other;
 	struct task_struct *ts;
+	struct task_struct *ts_other;
 	struct mm_struct *mm;
+	struct mm_struct *mm_other;
 
 	MPASS(td->td_lkpi_task == NULL);
 
@@ -57,22 +61,55 @@ linux_alloc_current(struct thread *td, int flags)
 		return (ENOMEM);
 	}
 
+	/* setup new task structure */
 	atomic_set(&ts->kthread_flags, 0);
 	ts->task_thread = td;
 	ts->comm = td->td_name;
 	ts->pid = td->td_tid;
-	ts->mm = mm;
 	atomic_set(&ts->usage, 1);
 	ts->state = TASK_RUNNING;
 
-	/* setup mm_struct */
-	init_rwsem(&mm->mmap_sem);
-	atomic_set(&mm->mm_count, 1);
-	atomic_set(&mm->mm_users, 1);
-	mm->vmspace = vmspace_acquire_ref(td->td_proc);
+	proc = td->td_proc;
+
+	/* check if another thread already has a mm_struct */
+	PROC_LOCK(proc);
+	FOREACH_THREAD_IN_PROC(proc, td_other) {
+		ts_other = td_other->td_lkpi_task;
+		if (ts_other == NULL)
+			continue;
+
+		mm_other = ts_other->mm;
+		if (mm_other == NULL)
+			continue;
+
+		/* try to share other mm_struct */
+		if (atomic_inc_not_zero(&mm_other->mm_users)) {
+			/* set mm_struct pointer */
+			ts->mm = mm_other;
+			break;
+		}
+	}
+
+	/* use allocated mm_struct as a fallback */
+	if (ts->mm == NULL) {
+		/* setup new mm_struct */
+		init_rwsem(&mm->mmap_sem);
+		atomic_set(&mm->mm_count, 1);
+		atomic_set(&mm->mm_users, 1);
+		mm->vmspace = vmspace_acquire_ref(proc);
+		/* set mm_struct pointer */
+		ts->mm = mm;
+		/* clear pointer to not free memory */
+		mm = NULL;
+	}
 
 	/* store pointer to task struct */
 	td->td_lkpi_task = ts;
+	PROC_UNLOCK(proc);
+
+	/* free mm_struct pointer, if any */
+	free(mm, M_LINUX_CURRENT);
+
 	return (0);
 }
 
