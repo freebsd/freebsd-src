@@ -929,9 +929,6 @@ run_rc_command()
 			eval ${rcvar}=YES
 		fi
 	fi
-	if ! checkyesno rc_force; then
-		rc_force=
-	fi
 	debug "_rc_prefix=${_rc_prefix}"
 
 	eval _override_command=\$${name}_program
