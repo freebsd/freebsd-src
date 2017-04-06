@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/kobject.h>
 #include <linux/slab.h>
 #include <linux/idr.h>

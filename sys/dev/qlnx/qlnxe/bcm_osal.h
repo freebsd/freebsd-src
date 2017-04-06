@@ -35,7 +35,7 @@
 #include <sys/bitstring.h>
 
 #if __FreeBSD_version >= 1100090
-#include <compat/linuxkpi/common/include/linux/bitops.h>
+#include <linux/bitmap.h>
 #else
 #include <ofed/include/linux/bitops.h>
 #endif

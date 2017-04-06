@@ -43,6 +43,8 @@
 #include <linux/pid.h>
 #include <linux/slab.h>
 #include <linux/mm_types.h>
+#include <linux/string.h>
+#include <linux/bitmap.h>
 
 #include <asm/atomic.h>
 
