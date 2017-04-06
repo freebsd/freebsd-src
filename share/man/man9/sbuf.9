@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2015
+.Dd April 5, 2017
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -567,6 +567,7 @@ function (the userland version)
 will return zero for success and \-1 and set errno on error.
 .Sh EXAMPLES
 .Bd -literal -compact
+#include <sys/types.h>
 #include <sys/sbuf.h>
 
 struct sbuf *sb;
