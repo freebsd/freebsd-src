@@ -57,6 +57,8 @@ CFLAGS += -DECORE_PACKAGE
 CFLAGS += -DCONFIG_ECORE_L2
 CFLAGS += -DECORE_CONFIG_DIRECT_HWFN
 
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
+
 #CFLAGS += -g
 #CFLAGS += -fno-inline
 
