@@ -1336,7 +1336,7 @@
 #define LDAP_API_FEATURE_X_OPENLDAP_THREAD_SAFE 1
 
 /* leap smear mechanism */
-/* #undef LEAP_SMEAR */
+#define LEAP_SMEAR 1
 
 /* Define to any value to include libseccomp sandboxing. */
 /* #undef LIBSECCOMP */
