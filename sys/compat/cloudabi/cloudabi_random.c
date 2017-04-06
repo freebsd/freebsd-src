@@ -38,7 +38,7 @@ cloudabi_sys_random_get(struct thread *td,
 {
 	struct iovec iov = {
 		.iov_base = uap->buf,
-		.iov_len = uap->nbyte
+		.iov_len = uap->buf_len
 	};
 	struct uio uio = {
 		.uio_iov = &iov,

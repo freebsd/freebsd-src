@@ -146,7 +146,7 @@ cloudabi_sys_file_create(struct thread *td,
 	char *path;
 	int error;
 
-	error = copyin_path(uap->path, uap->pathlen, &path);
+	error = copyin_path(uap->path, uap->path_len, &path);
 	if (error != 0)
 		return (error);
 
@@ -177,10 +177,10 @@ cloudabi_sys_file_link(struct thread *td,
 	char *path1, *path2;
 	int error;
 
-	error = copyin_path(uap->path1, uap->path1len, &path1);
+	error = copyin_path(uap->path1, uap->path1_len, &path1);
 	if (error != 0)
 		return (error);
-	error = copyin_path(uap->path2, uap->path2len, &path2);
+	error = copyin_path(uap->path2, uap->path2_len, &path2);
 	if (error != 0) {
 		cloudabi_freestr(path1);
 		return (error);
@@ -261,7 +261,7 @@ cloudabi_sys_file_open(struct thread *td,
 	fp->f_flag = fflags & FMASK;
 
 	/* Open path. */
-	error = copyin_path(uap->path, uap->pathlen, &path);
+	error = copyin_path(uap->path, uap->path_len, &path);
 	if (error != 0) {
 		fdrop(fp, td);
 		return (error);
@@ -380,7 +380,7 @@ cloudabi_sys_file_readdir(struct thread *td,
 {
 	struct iovec iov = {
 		.iov_base = uap->buf,
-		.iov_len = uap->nbyte
+		.iov_len = uap->buf_len
 	};
 	struct uio uio = {
 		.uio_iov = &iov,
@@ -494,7 +494,7 @@ done:
 		return (error);
 
 	/* Return number of bytes copied to userspace. */
-	td->td_retval[0] = uap->nbyte - uio.uio_resid;
+	td->td_retval[0] = uap->buf_len - uio.uio_resid;
 	return (0);
 }
 
@@ -505,12 +505,12 @@ cloudabi_sys_file_readlink(struct thread *td,
 	char *path;
 	int error;
 
-	error = copyin_path(uap->path, uap->pathlen, &path);
+	error = copyin_path(uap->path, uap->path_len, &path);
 	if (error != 0)
 		return (error);
 
 	error = kern_readlinkat(td, uap->fd, path, UIO_SYSSPACE,
-	    uap->buf, UIO_USERSPACE, uap->bufsize);
+	    uap->buf, UIO_USERSPACE, uap->buf_len);
 	cloudabi_freestr(path);
 	return (error);
 }
@@ -522,16 +522,16 @@ cloudabi_sys_file_rename(struct thread *td,
 	char *old, *new;
 	int error;
 
-	error = copyin_path(uap->old, uap->oldlen, &old);
+	error = copyin_path(uap->path1, uap->path1_len, &old);
 	if (error != 0)
 		return (error);
-	error = copyin_path(uap->new, uap->newlen, &new);
+	error = copyin_path(uap->path2, uap->path2_len, &new);
 	if (error != 0) {
 		cloudabi_freestr(old);
 		return (error);
 	}
 
-	error = kern_renameat(td, uap->oldfd, old, uap->newfd, new,
+	error = kern_renameat(td, uap->fd1, old, uap->fd2, new,
 	    UIO_SYSSPACE);
 	cloudabi_freestr(old);
 	cloudabi_freestr(new);
@@ -653,7 +653,7 @@ cloudabi_sys_file_stat_get(struct thread *td,
 	char *path;
 	int error;
 
-	error = copyin_path(uap->path, uap->pathlen, &path);
+	error = copyin_path(uap->path, uap->path_len, &path);
 	if (error != 0)
 		return (error);
 
@@ -707,7 +707,7 @@ cloudabi_sys_file_stat_put(struct thread *td,
 	error = copyin(uap->buf, &fs, sizeof(fs));
 	if (error != 0)
 		return (error);
-	error = copyin_path(uap->path, uap->pathlen, &path);
+	error = copyin_path(uap->path, uap->path_len, &path);
 	if (error != 0)
 		return (error);
 
@@ -726,10 +726,10 @@ cloudabi_sys_file_symlink(struct thread *td,
 	char *path1, *path2;
 	int error;
 
-	error = copyin_path(uap->path1, uap->path1len, &path1);
+	error = copyin_path(uap->path1, uap->path1_len, &path1);
 	if (error != 0)
 		return (error);
-	error = copyin_path(uap->path2, uap->path2len, &path2);
+	error = copyin_path(uap->path2, uap->path2_len, &path2);
 	if (error != 0) {
 		cloudabi_freestr(path1);
 		return (error);
@@ -748,7 +748,7 @@ cloudabi_sys_file_unlink(struct thread *td,
 	char *path;
 	int error;
 
-	error = copyin_path(uap->path, uap->pathlen, &path);
+	error = copyin_path(uap->path, uap->path_len, &path);
 	if (error != 0)
 		return (error);
 

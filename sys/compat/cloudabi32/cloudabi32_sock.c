@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Nuxi, https://nuxi.nl/
+ * Copyright (c) 2015-2017 Nuxi, https://nuxi.nl/
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,9 +29,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/socket.h>
-#include <sys/syscallsubr.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 
@@ -48,53 +45,43 @@ int
 cloudabi32_sys_sock_recv(struct thread *td,
     struct cloudabi32_sys_sock_recv_args *uap)
 {
-	struct sockaddr_storage ss;
 	cloudabi32_recv_in_t ri;
 	cloudabi32_recv_out_t ro = {};
 	cloudabi32_iovec_t iovobj;
-	struct msghdr msghdr = {};
+	struct iovec *iov;
 	const cloudabi32_iovec_t *user_iov;
-	size_t i;
+	size_t i, rdatalen, rfdslen;
 	int error;
 
 	error = copyin(uap->in, &ri, sizeof(ri));
 	if (error != 0)
 		return (error);
 
-	/* Convert results in cloudabi_recv_in_t to struct msghdr. */
-	if (ri.ri_datalen > UIO_MAXIOV)
+	/* Convert iovecs to native format. */
+	if (ri.ri_data_len > UIO_MAXIOV)
 		return (EINVAL);
-	msghdr.msg_iovlen = ri.ri_datalen;
-	msghdr.msg_iov = malloc(msghdr.msg_iovlen * sizeof(struct iovec),
+	iov = malloc(ri.ri_data_len * sizeof(struct iovec),
 	    M_SOCKET, M_WAITOK);
 	user_iov = TO_PTR(ri.ri_data);
-	for (i = 0; i < msghdr.msg_iovlen; i++) {
+	for (i = 0; i < ri.ri_data_len; i++) {
 		error = copyin(&user_iov[i], &iovobj, sizeof(iovobj));
 		if (error != 0) {
-			free(msghdr.msg_iov, M_SOCKET);
+			free(iov, M_SOCKET);
 			return (error);
 		}
-		msghdr.msg_iov[i].iov_base = TO_PTR(iovobj.iov_base);
-		msghdr.msg_iov[i].iov_len = iovobj.iov_len;
+		iov[i].iov_base = TO_PTR(iovobj.buf);
+		iov[i].iov_len = iovobj.buf_len;
 	}
-	msghdr.msg_name = &ss;
-	msghdr.msg_namelen = sizeof(ss);
-	if (ri.ri_flags & CLOUDABI_MSG_PEEK)
-		msghdr.msg_flags |= MSG_PEEK;
-	if (ri.ri_flags & CLOUDABI_MSG_WAITALL)
-		msghdr.msg_flags |= MSG_WAITALL;
 
-	/* TODO(ed): Add file descriptor passing. */
-	error = kern_recvit(td, uap->sock, &msghdr, UIO_SYSSPACE, NULL);
-	free(msghdr.msg_iov, M_SOCKET);
+	error = cloudabi_sock_recv(td, uap->sock, iov, ri.ri_data_len,
+	    TO_PTR(ri.ri_fds), ri.ri_fds_len, ri.ri_flags, &rdatalen,
+	    &rfdslen, &ro.ro_peername, &ro.ro_flags);
+	free(iov, M_SOCKET);
 	if (error != 0)
 		return (error);
 
-	/* Convert results in msghdr to cloudabi_recv_out_t. */
-	ro.ro_datalen = td->td_retval[0];
-	cloudabi_convert_sockaddr((struct sockaddr *)&ss,
-	    MIN(msghdr.msg_namelen, sizeof(ss)), &ro.ro_peername);
-	td->td_retval[0] = 0;
+	ro.ro_datalen = rdatalen;
+	ro.ro_fdslen = rfdslen;
 	return (copyout(&ro, uap->out, sizeof(ro)));
 }
 
@@ -105,44 +92,37 @@ cloudabi32_sys_sock_send(struct thread *td,
 	cloudabi32_send_in_t si;
 	cloudabi32_send_out_t so = {};
 	cloudabi32_ciovec_t iovobj;
-	struct msghdr msghdr = {};
+	struct iovec *iov;
 	const cloudabi32_ciovec_t *user_iov;
-	size_t i;
-	int error, flags;
+	size_t datalen, i;
+	int error;
 
 	error = copyin(uap->in, &si, sizeof(si));
 	if (error != 0)
 		return (error);
 
-	/* Convert results in cloudabi_send_in_t to struct msghdr. */
-	if (si.si_datalen > UIO_MAXIOV)
+	/* Convert iovecs to native format. */
+	if (si.si_data_len > UIO_MAXIOV)
 		return (EINVAL);
-	msghdr.msg_iovlen = si.si_datalen;
-	msghdr.msg_iov = malloc(msghdr.msg_iovlen * sizeof(struct iovec),
+	iov = malloc(si.si_data_len * sizeof(struct iovec),
 	    M_SOCKET, M_WAITOK);
 	user_iov = TO_PTR(si.si_data);
-	for (i = 0; i < msghdr.msg_iovlen; i++) {
+	for (i = 0; i < si.si_data_len; i++) {
 		error = copyin(&user_iov[i], &iovobj, sizeof(iovobj));
 		if (error != 0) {
-			free(msghdr.msg_iov, M_SOCKET);
+			free(iov, M_SOCKET);
 			return (error);
 		}
-		msghdr.msg_iov[i].iov_base = TO_PTR(iovobj.iov_base);
-		msghdr.msg_iov[i].iov_len = iovobj.iov_len;
+		iov[i].iov_base = TO_PTR(iovobj.buf);
+		iov[i].iov_len = iovobj.buf_len;
 	}
 
-	flags = MSG_NOSIGNAL;
-	if (si.si_flags & CLOUDABI_MSG_EOR)
-		flags |= MSG_EOR;
-
-	/* TODO(ed): Add file descriptor passing. */
-	error = kern_sendit(td, uap->sock, &msghdr, flags, NULL, UIO_USERSPACE);
-	free(msghdr.msg_iov, M_SOCKET);
+	error = cloudabi_sock_send(td, uap->sock, iov, si.si_data_len,
+	    TO_PTR(si.si_fds), si.si_fds_len, si.si_flags, &datalen);
+	free(iov, M_SOCKET);
 	if (error != 0)
 		return (error);
 
-	/* Convert results in msghdr to cloudabi_send_out_t. */
-	so.so_datalen = td->td_retval[0];
-	td->td_retval[0] = 0;
+	so.so_datalen = datalen;
 	return (copyout(&so, uap->out, sizeof(so)));
 }
