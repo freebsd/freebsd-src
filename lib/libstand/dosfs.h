@@ -96,6 +96,8 @@ typedef union {
 
 typedef struct {
     struct open_file *fd;       /* file descriptor */
+    u_char *fatbuf;             /* FAT cache buffer */
+    u_int fatbuf_blknum;        /* number of 128K block in FAT cache buffer */
     u_int links;                /* active links to structure */
     u_int spc;                  /* sectors per cluster */
     u_int bsize;                /* cluster size in bytes */
