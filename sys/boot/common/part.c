@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <uuid.h>
 
 #ifdef PART_DEBUG
-#define	DEBUG(fmt, args...) printf("%s: " fmt "\n" , __func__ , ## args)
+#define	DEBUG(fmt, args...) printf("%s: " fmt "\n", __func__, ## args)
 #else
 #define	DEBUG(fmt, args...)
 #endif
@@ -145,7 +145,7 @@ gpt_parttype(uuid_t type)
 	return (PART_UNKNOWN);
 }
 
-static struct gpt_hdr*
+static struct gpt_hdr *
 gpt_checkhdr(struct gpt_hdr *hdr, uint64_t lba_self, uint64_t lba_last,
     uint16_t sectorsize)
 {
@@ -199,7 +199,7 @@ gpt_checkhdr(struct gpt_hdr *hdr, uint64_t lba_self, uint64_t lba_last,
 }
 
 static int
-gpt_checktbl(const struct gpt_hdr *hdr, u_char *tbl, size_t size,
+gpt_checktbl(const struct gpt_hdr *hdr, uint8_t *tbl, size_t size,
     uint64_t lba_last)
 {
 	struct gpt_ent *ent;
@@ -226,13 +226,13 @@ gpt_checktbl(const struct gpt_hdr *hdr, u_char *tbl, size_t size,
 	return (0);
 }
 
-static struct ptable*
+static struct ptable *
 ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 {
 	struct pentry *entry;
 	struct gpt_hdr *phdr, hdr;
 	struct gpt_ent *ent;
-	u_char *buf, *tbl;
+	uint8_t *buf, *tbl;
 	uint64_t offset;
 	int pri, sec;
 	size_t size, i;
@@ -379,7 +379,7 @@ mbr_parttype(uint8_t type)
 	return (PART_UNKNOWN);
 }
 
-static struct ptable*
+static struct ptable *
 ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 {
 	struct dos_partition *dp;
@@ -457,13 +457,13 @@ bsd_parttype(uint8_t type)
 	return (PART_UNKNOWN);
 }
 
-static struct ptable*
+static struct ptable *
 ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 {
 	struct disklabel *dl;
 	struct partition *part;
 	struct pentry *entry;
-	u_char *buf;
+	uint8_t *buf;
 	uint32_t raw_offset;
 	int i;
 
@@ -539,12 +539,12 @@ vtoc8_parttype(uint16_t type)
 	return (PART_UNKNOWN);
 }
 
-static struct ptable*
+static struct ptable *
 ptable_vtoc8read(struct ptable *table, void *dev, diskread_t dread)
 {
 	struct pentry *entry;
 	struct vtoc8 *dl;
-	u_char *buf;
+	uint8_t *buf;
 	uint16_t sum, heads, sectors;
 	int i;
 
@@ -603,13 +603,13 @@ out:
 }
 #endif /* LOADER_VTOC8_SUPPORT */
 
-struct ptable*
+struct ptable *
 ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
     diskread_t *dread)
 {
 	struct dos_partition *dp;
 	struct ptable *table;
-	u_char *buf;
+	uint8_t *buf;
 	int i, count;
 #ifdef LOADER_MBR_SUPPORT
 	struct pentry *entry;
@@ -795,14 +795,14 @@ ptable_getpart(const struct ptable *table, struct ptable_entry *part, int index)
  * 5: Active FAT/FAT32 slice
  * 6: non-active FAT/FAT32 slice
  */
-#define PREF_RAWDISK	0
-#define PREF_FBSD_ACT	1
-#define PREF_FBSD	2
-#define PREF_LINUX_ACT	3
-#define PREF_LINUX	4
-#define PREF_DOS_ACT	5
-#define PREF_DOS	6
-#define PREF_NONE	7
+#define	PREF_RAWDISK	0
+#define	PREF_FBSD_ACT	1
+#define	PREF_FBSD	2
+#define	PREF_LINUX_ACT	3
+#define	PREF_LINUX	4
+#define	PREF_DOS_ACT	5
+#define	PREF_DOS	6
+#define	PREF_NONE	7
 int
 ptable_getbestpart(const struct ptable *table, struct ptable_entry *part)
 {
@@ -884,12 +884,12 @@ ptable_iterate(const struct ptable *table, void *arg, ptable_iterate_t *iter)
 #endif
 #ifdef LOADER_VTOC8_SUPPORT
 		if (table->type == PTABLE_VTOC8)
-			sprintf(name, "%c", (u_char) 'a' +
+			sprintf(name, "%c", (uint8_t) 'a' +
 			    entry->part.index);
 		else
 #endif
 		if (table->type == PTABLE_BSD)
-			sprintf(name, "%c", (u_char) 'a' +
+			sprintf(name, "%c", (uint8_t) 'a' +
 			    entry->part.index);
 		if ((ret = iter(arg, name, &entry->part)) != 0)
 			return (ret);
