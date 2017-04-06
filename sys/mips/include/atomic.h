@@ -586,12 +586,12 @@ atomic_cmpset_rel_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 	return (atomic_cmpset_32(p, cmpval, newval));
 }
 
-#ifndef __CHERI_PURE_CAPABILITY__
 static __inline uint32_t
 atomic_fcmpset_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 {
 	uint32_t ret;
 
+#ifndef __CHERI_PURE_CAPABILITY__
 	__asm __volatile (
 		"1:\n\t"
 		"ll	%0, %1\n\t"		/* load old value */
@@ -607,6 +607,28 @@ atomic_fcmpset_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 		: "=&r" (ret), "+m" (*p), "=m" (*cmpval)
 		: "r" (newval), "r" (*cmpval)
 		: "memory");
+#else
+	uint32_t tmp;
+	uint32_t expected = *cmpval;
+
+
+	__asm __volatile (
+		"1:\n\t"
+		"cllw	%[ret], %[ptr]\n\t"		/* load old value */
+		"bne	%[ret], %[expected], 2f\n\t"	/* compare */
+		"move	%[tmp], %[ret]\n\t"		/* save loaded value */
+		"cscw	%[ret], %[newval], %[ptr]\n\t"	/* attempt to store */
+		"beqz	%[ret], 1b\n\t"			/* if it failed, spin */
+		"j	3f\n\t"
+		"2:\n\t"
+		"csw	%[tmp], $0, 0(%[cmpval])\n\t"	/* store loaded value */
+		"li	%[ret], 0\n\t"
+		"3:\n"
+		: [ret] "=&r" (ret), [tmp] "=&r" (tmp), [ptr]"=C" (p),
+		    [cmpval]"=C" (cmpval)
+		: [newval] "r" (newval), [expected] "r" (expected)
+		: "memory");
+#endif
 	return ret;
 }
 
@@ -626,7 +648,6 @@ atomic_fcmpset_rel_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 	mips_sync();
 	return (atomic_fcmpset_32(p, cmpval, newval));
 }
-#endif
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
@@ -728,12 +749,12 @@ atomic_cmpset_rel_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	return (atomic_cmpset_64(p, cmpval, newval));
 }
 
-#ifndef __CHERI_PURE_CAPABILITY__
 static __inline uint32_t
 atomic_fcmpset_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 {
         uint32_t ret;
 
+#ifndef __CHERI_PURE_CAPABILITY__
         __asm __volatile (
                 "1:\n\t"
 		"lld	%0, %1\n\t"		/* load old value */
@@ -749,7 +770,27 @@ atomic_fcmpset_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
                 : "=&r" (ret), "+m" (*p), "=m" (*cmpval)
                 : "r" (newval), "r" (*cmpval)
                 : "memory");
+#else
+	uint64_t tmp;
+	uint64_t expected = *cmpval;
 
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%[ret], %[ptr]\n\t"		/* load old value */
+		"bne	%[ret], %[expected], 2f\n\t"	/* compare */
+		"move	%[tmp], %[ret]\n\t"		/* save loaded value */
+		"cscd	%[ret], %[newval], %[ptr]\n\t"	/* attempt to store */
+		"beqz	%[ret], 1b\n\t"			/* if it failed, spin */
+		"j	3f\n\t"
+		"2:\n\t"
+		"csd	%[tmp], $0, 0(%[cmpval])\n\t"	/* store loaded value */
+		"li	%[ret], 0\n\t"
+		"3:\n"
+		: [ret] "=&r" (ret), [tmp] "=&r" (tmp), [ptr]"=C" (p),
+		    [cmpval]"=C" (cmpval)
+		: [newval] "r" (newval), [expected] "r" (expected)
+		: "memory");
+#endif
 	return ret;
 }
 
@@ -769,7 +810,6 @@ atomic_fcmpset_rel_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 	mips_sync();
 	return (atomic_fcmpset_64(p, cmpval, newval));
 }
-#endif
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
