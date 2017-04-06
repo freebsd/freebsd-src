@@ -324,11 +324,18 @@ struct fs {
 	int32_t  fs_pad;		/* due to alignment of fs_swuid */
 /* these fields retain the current block allocation info */
 	int32_t	 fs_cgrotor;		/* last cg searched */
+#ifndef __CHERI_PURE_CAPABILITY__
 	void 	*fs_ocsp[NOCSPTRS];	/* padding; was list of fs_cs buffers */
 	u_int8_t *fs_contigdirs;	/* (u) # of contig. allocated dirs */
 	struct	csum *fs_csp;		/* (u) cg summary info buffer */
 	int32_t	*fs_maxcluster;		/* (u) max cluster in each cyl group */
 	u_int	*fs_active;		/* (u) used by snapshots to track fs */
+#else
+	u_int64_t cheri_align_pad;	/* Pad to 32-byte alignment */
+	int32_t	*fs_maxcluster;		/* Used by libufs */
+	struct	csum *fs_csp;		/* Used by fsck */
+	char	fs_ocsp[128 - (2*sizeof(void *)) - 8];
+#endif
 	int32_t	 fs_old_cpc;		/* cyl per cycle in postbl */
 	int32_t	 fs_maxbsize;		/* maximum blocking factor permitted */
 	int64_t	 fs_unrefs;		/* number of unreferenced inodes */
@@ -366,6 +373,10 @@ struct fs {
 };
 
 /* Sanity checking. */
+#ifdef __CHERI_PURE_CAPABILITY__
+_Static_assert(!(sizeof(struct fs) < 1376), "struct fs is too small");
+_Static_assert(!(sizeof(struct fs) > 1376), "struct fs is too large");
+#endif
 #ifdef CTASSERT
 CTASSERT(sizeof(struct fs) == 1376);
 #endif
