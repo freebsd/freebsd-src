@@ -54,7 +54,7 @@ Compiled flattened device tree (FDT) files; see
 and
 .Xr dtc 1
 .It Pa firmware/
-Loadable modules containing binary firmware for hardware that needs
+loadable kernel modules containing binary firmware for hardware that needs
 firmware downloaded to it to function
 .It Pa kernel/
 pure kernel executable (the operating system loaded into memory
@@ -64,9 +64,8 @@ third-party loadable kernel modules;
 see
 .Xr kldstat 8
 .It Pa zfs/
-Contains
 .Xr zfs 8
-zpool cache files.
+zpool cache files
 .El
 .It Pa /cdrom/
 default mount point for CD-ROM drives
@@ -115,7 +114,7 @@ scripts that are run daily, weekly, and monthly, via
 see
 .Xr periodic 8
 .It Pa rc.d/
-System and daemon startup/control scripts;
+system and daemon startup/control scripts;
 see
 .Xr rc 8
 .It Pa security/
@@ -199,7 +198,7 @@ C++ include files
 C include files for the Common Access Methods Layer
 .Bl -tag -width "kerberos5/" -compact
 .It Pa scsi/
-The SCSI device on top of CAM
+SCSI device on top of CAM
 .El
 .It Pa dev/
 C include files for programming various
@@ -207,7 +206,7 @@ C include files for programming various
 devices
 .Bl -tag -width "kerberos5/" -compact
 .It Pa ic/
-Various header files describing driver- and bus-independent
+various header files describing driver- and bus-independent
 hardware circuits
 .It Pa ofw/
 Open Firmware support
@@ -216,17 +215,16 @@ Open Firmware support
 see
 .Xr pbio 4
 .It Pa ppbus/
-The parallel port bus;
+parallel port bus;
 see
 .Xr ppbus 4
 .It Pa usb/
-The USB subsystem
+USB subsystem
 .It Pa utopia/
-Physical chip driver for ATM interfaces;
+physical chip driver for ATM interfaces;
 see
 .Xr utopia 4
 .It Pa wi/
-The
 .Xr wi 4
 WaveLAN driver
 .El
@@ -527,7 +525,7 @@ Chinese translations of documents in /usr/share/doc
 .It Pa examples/
 various examples for users and programmers
 .It Pa firmware/
-Firmware images loaded by userland programs
+firmware images loaded by userland programs
 .It Pa games/
 ASCII text files used by various games
 .It Pa groff_font/
@@ -584,7 +582,7 @@ example
 MIBs, example files and tree definitions for the SNMP daemon.
 .Bl -tag -width Fl -compact
 .It Pa defs/
-Tree definition files for use with
+tree definition files for use with
 .Xr gensnmptree 1
 .It Pa mibs/
 MIB files
@@ -656,7 +654,7 @@ third-party, and/or local source files
 .It Pa bin/
 source code for files in /bin
 .It Pa cddl/
-Utilities covered by the Common Development and Distribution License
+utilities covered by the Common Development and Distribution License
 .It Pa contrib/
 source code for contributed software
 .It Pa crypto/
@@ -665,7 +663,7 @@ source code for contributed cryptography software
 source code for files in
 .Pa /etc
 .It Pa gnu/
-Utilities covered by the GNU General Public License
+utilities covered by the GNU General Public License
 .It Pa include/
 source code for files in
 .Pa /usr/include
