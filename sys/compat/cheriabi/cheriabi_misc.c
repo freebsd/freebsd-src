@@ -511,7 +511,6 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		 */
 		kevp[i].udata = malloc(2*sizeof(struct chericap), M_KQUEUE,
 		    M_WAITOK);
-		kevp[i].flags |= EV_FREEUDATA;
 		cheri_capability_copy(kevp[i].udata, &ks_c[i].ident);
 		cheri_capability_copy((struct chericap *)kevp[i].udata + 1,
 		    &ks_c[i].udata);

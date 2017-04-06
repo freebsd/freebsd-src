@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/syscallsubr.h>
 #include <sys/taskqueue.h>
@@ -584,7 +585,7 @@ knote_fork(struct knlist *list, int pid)
 		kev.data = kn->kn_id;		/* parent */
 		/* preserve udata */
 #ifdef CPU_CHERI
-		if (kn->kn_flags & EV_FREEUDATA) {
+		if (SV_CURPROC_FLAG(SV_CHERI)) {
 			kev.udata = malloc(sizeof(struct chericap), M_KQUEUE,
 			    M_WAITOK);
 			cheri_capability_load(CHERI_CR_CTEMP0,
@@ -597,7 +598,7 @@ knote_fork(struct knlist *list, int pid)
 		if (error) {
 			kn->kn_fflags |= NOTE_TRACKERR;
 #ifdef CPU_CHERI
-			if (kn->kn_flags & EV_FREEUDATA)
+			if (SV_CURPROC_FLAG(SV_CHERI))
 				free(kev.udata, M_KQUEUE);
 #endif
 		}
@@ -1395,7 +1396,7 @@ findkn:
 	KQ_UNLOCK(kq);
 	knl = kn_list_lock(kn);
 #ifdef CPU_CHERI
-	if (kn->kn_kevent.flags & EV_FREEUDATA)
+	if (SV_CURPROC_FLAG(SV_CHERI))
 		free(kn->kn_kevent.udata, M_KQUEUE);
 #endif
 	kn->kn_kevent.udata = kev->udata;
@@ -2525,7 +2526,7 @@ knote_free(struct knote *kn)
 {
 
 #ifdef CPU_CHERI
-	if (kn && (kn->kn_kevent.flags & EV_FREEUDATA))
+	if (kn && SV_CURPROC_FLAG(SV_CHERI))
 		free(kn->kn_kevent.udata, M_KQUEUE);
 #endif
 	uma_zfree(knote_zone, kn);

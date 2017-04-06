@@ -87,7 +87,6 @@ struct kevent {
 #define	EV_DROP		0x1000		/* note should be dropped */
 #define EV_FLAG1	0x2000		/* filter-specific flag */
 #define EV_FLAG2	0x4000		/* filter-specific flag */
-#define EV_FREEUDATA	0x8000		/* udata must be freed */
 
 /* returned values */
 #define EV_EOF		0x8000		/* EOF detected */
