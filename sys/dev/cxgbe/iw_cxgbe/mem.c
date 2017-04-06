@@ -345,7 +345,8 @@ static int build_phys_page_list(struct ib_phys_buf *buffer_list,
 	}
 
 	/* Find largest page shift we can use to cover buffers */
-	for (*shift = PAGE_SHIFT; *shift < 27; ++(*shift))
+	for (*shift = PAGE_SHIFT; *shift < PAGE_SHIFT + M_FW_RI_TPTE_PS;
+	    ++(*shift))
 		if ((1ULL << *shift) & mask)
 			break;
 
