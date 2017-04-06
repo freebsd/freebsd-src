@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <util.h>
 
 #include "makefs.h"
 
@@ -205,9 +206,7 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int u1 __unused,
 		}
 	}
 	if (bp == NULL) {
-		if ((bp = calloc(1, sizeof(struct buf))) == NULL)
-			err(1, "getblk: calloc");
-
+		bp = ecalloc(1, sizeof(*bp));
 		bp->b_bufsize = 0;
 		bp->b_blkno = bp->b_lblkno = blkno;
 		bp->b_fd = fd;
@@ -217,9 +216,7 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int u1 __unused,
 	}
 	bp->b_bcount = size;
 	if (bp->b_data == NULL || bp->b_bcount > bp->b_bufsize) {
-		n = realloc(bp->b_data, size);
-		if (n == NULL)
-			err(1, "getblk: realloc b_data %ld", bp->b_bcount);
+		n = erealloc(bp->b_data, size);
 		memset(n, 0, size);
 		bp->b_data = n;
 		bp->b_bufsize = size;

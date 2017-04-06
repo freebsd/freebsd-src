@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <util.h>
 
 #include "makefs.h"
 #include "mtree.h"
@@ -352,10 +353,7 @@ set_option(const option_t *options, const char *option, char *buf, size_t len)
 
 	assert(option != NULL);
 
-	if ((var = strdup(option)) == NULL) {
-		err(EXIT_FAILURE, "Allocating memory for copy of option string");
-	}
-
+	var = estrdup(option);
 	for (val = var; *val; val++)
 		if (*val == '=') {
 			*val++ = '\0';
@@ -396,8 +394,7 @@ set_option_var(const option_t *options, const char *var, const char *val,
 			    options[i].maximum);
 			break;
 		case OPT_STRPTR:
-			if ((s = strdup(val)) == NULL)
-				err(1, NULL);
+			s = estrdup(val);
 			*(char **)options[i].value = s;
 			break;
 		case OPT_STRBUF:
@@ -440,14 +437,11 @@ option_t *
 copy_opts(const option_t *o)
 {
 	size_t i;
-	void *rv;
 
 	for (i = 0; o[i].name; i++)
 		continue;
 	i++;
-	if ((rv = calloc(i, sizeof(*o))) == NULL)
-		err(1, "calloc");
-	return memcpy(rv, o, i * sizeof(*o));
+	return memcpy(ecalloc(i, sizeof(*o)), o, i * sizeof(*o));
 }
 
 static int

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <util.h>
 
 #include "makefs.h"
 #include "ffs.h"
@@ -402,8 +403,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 	size = sblock.fs_cssize;
 	if (sblock.fs_contigsumsize > 0)
 		size += sblock.fs_ncg * sizeof(int32_t);
-	if ((space = (char *)calloc(1, size)) == NULL)
-		err(1, "memory allocation error for cg summaries");
+	space = ecalloc(1, size);
 	sblock.fs_csp = space;
 	space = (char *)space + sblock.fs_cssize;
 	if (sblock.fs_contigsumsize > 0) {
@@ -492,11 +492,7 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 		iobufsize = SBLOCKSIZE + 3 * sblock.fs_bsize;
 	else
 		iobufsize = 4 * sblock.fs_bsize;
-	if ((iobuf = malloc(iobufsize)) == NULL) {
-		printf("Cannot allocate I/O buffer\n");
-		exit(38);
-	}
-	memset(iobuf, 0, iobufsize);
+	iobuf = ecalloc(1, iobufsize);
 	/*
 	 * Make a copy of the superblock into the buffer that we will be
 	 * writing out in each cylinder group.
@@ -562,8 +558,7 @@ ffs_write_superblock(struct fs *fs, const fsinfo_t *fsopts)
 	size = fs->fs_cssize;
 	blks = howmany(size, fs->fs_fsize);
 	space = (void *)fs->fs_csp;
-	if ((wrbuf = malloc(size)) == NULL)
-		err(1, "ffs_write_superblock: malloc %d", size);
+	wrbuf = emalloc(size);
 	for (i = 0; i < blks; i+= fs->fs_frag) {
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)

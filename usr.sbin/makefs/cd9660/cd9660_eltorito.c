@@ -34,6 +34,7 @@
 
 #include "cd9660.h"
 #include "cd9660_eltorito.h"
+#include <util.h>
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -73,10 +74,7 @@ cd9660_add_boot_disk(iso9660_disk *diskStructure, const char *boot_info)
 	}
 
 	/* First decode the boot information */
-	if ((temp = strdup(boot_info)) == NULL) {
-		warn("%s: strdup", __func__);
-		return 0;
-	}
+	temp = estrdup(boot_info);
 
 	sysname = temp;
 	filename = strchr(sysname, ';');
@@ -93,12 +91,7 @@ cd9660_add_boot_disk(iso9660_disk *diskStructure, const char *boot_info)
 		printf("Found bootdisk with system %s, and filename %s\n",
 		    sysname, filename);
 	}
-	if ((new_image = malloc(sizeof(*new_image))) == NULL) {
-		warn("%s: malloc", __func__);
-		free(temp);
-		return 0;
-	}
-	(void)memset(new_image, 0, sizeof(*new_image));
+	new_image = ecalloc(1, sizeof(*new_image));
 	new_image->loadSegment = 0;	/* default for now */
 
 	/* Decode System */
@@ -118,12 +111,7 @@ cd9660_add_boot_disk(iso9660_disk *diskStructure, const char *boot_info)
 	}
 
 
-	if ((new_image->filename = strdup(filename)) == NULL) {
-		warn("%s: strdup", __func__);
-		free(temp);
-		free(new_image);
-		return 0;
-	}
+	new_image->filename = estrdup(filename);
 
 	free(temp);
 
@@ -226,12 +214,7 @@ cd9660_eltorito_add_boot_option(iso9660_disk *diskStructure,
 static struct boot_catalog_entry *
 cd9660_init_boot_catalog_entry(void)
 {
-	struct boot_catalog_entry *temp;
-
-	if ((temp = malloc(sizeof(*temp))) == NULL)
-		return NULL;
-
-	return memset(temp, 0, sizeof(*temp));
+	return ecalloc(1, sizeof(struct boot_catalog_entry));
 }
 
 static struct boot_catalog_entry *
@@ -244,11 +227,6 @@ cd9660_boot_setup_validation_entry(char sys)
 	int i;
 	entry = cd9660_init_boot_catalog_entry();
 
-	if (entry == NULL) {
-		warnx("Error: memory allocation failed in "
-		      "cd9660_boot_setup_validation_entry");
-		return 0;
-	}
 	ve = &entry->entry_data.VE;
 
 	ve->header_id[0] = 1;

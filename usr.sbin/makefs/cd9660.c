@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <util.h>
 
 #include "makefs.h"
 #include "cd9660.h"
@@ -172,10 +173,8 @@ static int  cd9660_add_generic_bootimage(iso9660_disk *, const char *);
 static cd9660node *
 cd9660_allocate_cd9660node(void)
 {
-	cd9660node *temp;
+	cd9660node *temp = ecalloc(1, sizeof(*temp));
 
-	if ((temp = calloc(1, sizeof(cd9660node))) == NULL)
-		err(EXIT_FAILURE, "%s: calloc", __func__);
 	TAILQ_INIT(&temp->cn_children);
 	temp->parent = temp->dot_record = temp->dot_dot_record = NULL;
 	temp->ptnext = temp->ptprev = temp->ptlast = NULL;
@@ -252,10 +251,7 @@ cd9660_set_defaults(iso9660_disk *diskStructure)
 void
 cd9660_prep_opts(fsinfo_t *fsopts)
 {
-	iso9660_disk *diskStructure;
-
-	if ((diskStructure = calloc(1, sizeof(*diskStructure))) == NULL)
-		err(EXIT_FAILURE, "%s: calloc", __func__);
+	iso9660_disk *diskStructure = ecalloc(1, sizeof(*diskStructure));
 
 #define OPT_STR(letter, name, desc) \
 	{ letter, name, NULL, OPT_STRBUF, 0, 0, desc }
@@ -439,9 +435,7 @@ cd9660_parse_opts(const char *option, fsinfo_t *fsopts)
 				rv = 0;
 			} else {
 				diskStructure->boot_image_directory =
-				    malloc(strlen(buf) + 1);
-				if (diskStructure->boot_image_directory == NULL)
-					err(1, "malloc");
+				    emalloc(strlen(buf) + 1);
 				/* BIG TODO: Add the max length function here */
 				rv = cd9660_arguments_set_string(buf, desc, 12,
 				    'd', diskStructure->boot_image_directory);
@@ -521,12 +515,7 @@ cd9660_makefs(const char *image, const char *dir, fsnode *root,
 	/* Actually, we now need to add the REAL root node, at level 0 */
 
 	real_root = cd9660_allocate_cd9660node();
-	if ((real_root->isoDirRecord =
-		malloc( sizeof(iso_directory_record_cd9660) )) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("cd9660_makefs");
-		exit(1);
-	}
-
+	real_root->isoDirRecord = emalloc(sizeof(*real_root->isoDirRecord));
 	/* Leave filename blank for root */
 	memset(real_root->isoDirRecord->name, 0,
 	    ISO_FILENAME_MAXLENGTH_WITH_PADDING);
@@ -770,11 +759,7 @@ cd9660_setup_volume_descriptors(iso9660_disk *diskStructure)
 	volume_descriptor *temp, *t;
 
 	/* Set up the PVD */
-	if ((temp = malloc(sizeof(volume_descriptor))) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("cd9660_setup_volume_descriptors");
-		exit(1);
-	}
-
+	temp = emalloc(sizeof(*temp));
 	temp->volumeDescriptorData =
 	   (unsigned char *)&diskStructure->primaryDescriptor;
 	temp->volumeDescriptorData[0] = ISO_VOLUME_DESCRIPTOR_PVD;
@@ -787,19 +772,10 @@ cd9660_setup_volume_descriptors(iso9660_disk *diskStructure)
 	sector++;
 	/* Set up boot support if enabled. BVD must reside in sector 17 */
 	if (diskStructure->is_bootable) {
-		if ((t = malloc(sizeof(volume_descriptor))) == NULL) {
-			CD9660_MEM_ALLOC_ERROR(
-			    "cd9660_setup_volume_descriptors");
-			exit(1);
-		}
-		if ((t->volumeDescriptorData = malloc(2048)) == NULL) {
-			CD9660_MEM_ALLOC_ERROR(
-			    "cd9660_setup_volume_descriptors");
-			exit(1);
-		}
+		t = emalloc(sizeof(*t));
+		t->volumeDescriptorData = ecalloc(1, 2048);
 		temp->next = t;
 		temp = t;
-		memset(t->volumeDescriptorData, 0, 2048);
 		t->sector = 17;
 		if (diskStructure->verbose_level > 0)
 			printf("Setting up boot volume descriptor\n");
@@ -808,17 +784,9 @@ cd9660_setup_volume_descriptors(iso9660_disk *diskStructure)
 	}
 
 	/* Set up the terminator */
-	if ((t = malloc(sizeof(volume_descriptor))) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("cd9660_setup_volume_descriptors");
-		exit(1);
-	}
-	if ((t->volumeDescriptorData = malloc(2048)) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("cd9660_setup_volume_descriptors");
-		exit(1);
-	}
-
+	t = emalloc(sizeof(*t));
+	t->volumeDescriptorData = ecalloc(1, 2048);
 	temp->next = t;
-	memset(t->volumeDescriptorData, 0, 2048);
 	t->volumeDescriptorData[0] = ISO_VOLUME_DESCRIPTOR_TERMINATOR;
 	t->next = NULL;
 	t->volumeDescriptorData[6] = 1;
@@ -838,12 +806,7 @@ cd9660_setup_volume_descriptors(iso9660_disk *diskStructure)
 static int
 cd9660_fill_extended_attribute_record(cd9660node *node)
 {
-	if ((node->isoExtAttributes =
-	    malloc(sizeof(struct iso_extended_attributes))) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("cd9660_fill_extended_attribute_record");
-		exit(1);
-	};
-
+	node->isoExtAttributes = emalloc(sizeof(*node->isoExtAttributes));
 	return 1;
 }
 #endif
@@ -901,12 +864,7 @@ cd9660_translate_node(iso9660_disk *diskStructure, fsnode *node,
 			printf("%s: NULL node passed, returning\n", __func__);
 		return 0;
 	}
-	if ((newnode->isoDirRecord =
-		malloc(sizeof(iso_directory_record_cd9660))) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("cd9660_translate_node");
-		return 0;
-	}
-
+	newnode->isoDirRecord = emalloc(sizeof(*newnode->isoDirRecord));
 	/* Set the node pointer */
 	newnode->node = node;
 
@@ -1113,7 +1071,7 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 	else
 		maxlength = ISO_FILENAME_MAXLENGTH_BEFORE_VERSION;
 
-	tmp = malloc(ISO_FILENAME_MAXLENGTH_WITH_PADDING);
+	tmp = emalloc(ISO_FILENAME_MAXLENGTH_WITH_PADDING);
 
 	while (i < num && iter) {
 		powers = 1;
@@ -1552,9 +1510,7 @@ struct ptq_entry
 } *n;
 
 #define PTQUEUE_NEW(n,s,r,t){\
-	n = malloc(sizeof(struct s));	\
-	if (n == NULL)	\
-		return r; \
+	n = emalloc(sizeof(struct s));	\
 	n->node = t;\
 }
 
@@ -2006,24 +1962,9 @@ cd9660_create_virtual_entry(iso9660_disk *diskStructure, const char *name,
 	if (temp == NULL)
 		return NULL;
 
-	if ((tfsnode = malloc(sizeof(fsnode))) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("cd9660_create_virtual_entry");
-		return NULL;
-	}
-
-	/* Assume for now name is a valid length */
-	if ((tfsnode->name = malloc(strlen(name) + 1)) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("cd9660_create_virtual_entry");
-		return NULL;
-	}
-
-	if ((temp->isoDirRecord =
-	    malloc(sizeof(iso_directory_record_cd9660))) == NULL) {
-		CD9660_MEM_ALLOC_ERROR("cd9660_create_virtual_entry");
-		return NULL;
-	}
-
-	strcpy(tfsnode->name, name);
+	tfsnode = emalloc(sizeof(*tfsnode));
+	tfsnode->name = estrdup(name);
+	temp->isoDirRecord = emalloc(sizeof(*temp->isoDirRecord));
 
 	cd9660_convert_filename(diskStructure, tfsnode->name,
 	    temp->isoDirRecord->name, file);
@@ -2075,8 +2016,7 @@ cd9660_create_file(iso9660_disk *diskStructure, const char *name,
 
 	temp->type = CD9660_TYPE_FILE | CD9660_TYPE_VIRTUAL;
 
-	if ((temp->node->inode = calloc(1, sizeof(fsinode))) == NULL)
-		return NULL;
+	temp->node->inode = ecalloc(1, sizeof(*temp->node->inode));
 	*temp->node->inode = *me->node->inode;
 
 	if (cd9660_translate_node_common(diskStructure, temp) == 0)
@@ -2103,8 +2043,7 @@ cd9660_create_directory(iso9660_disk *diskStructure, const char *name,
 
 	temp->type = CD9660_TYPE_DIR | CD9660_TYPE_VIRTUAL;
 
-	if ((temp->node->inode = calloc(1, sizeof(fsinode))) == NULL)
-		return NULL;
+	temp->node->inode = ecalloc(1, sizeof(*temp->node->inode));
 	*temp->node->inode = *me->node->inode;
 
 	if (cd9660_translate_node_common(diskStructure, temp) == 0)
@@ -2172,10 +2111,7 @@ cd9660_add_generic_bootimage(iso9660_disk *diskStructure, const char *bootimage)
 		return 0;
 	}
 
-	if ((diskStructure->generic_bootimage = strdup(bootimage)) == NULL) {
-		warn("%s: strdup", __func__);
-		return 0;
-	}
+	diskStructure->generic_bootimage = estrdup(bootimage);
 
 	/* Get information about the file */
 	if (lstat(diskStructure->generic_bootimage, &stbuf) == -1)

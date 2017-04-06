@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <util.h>
 
 #include "makefs.h"
 #include "ffs.h"
@@ -149,10 +150,7 @@ int	sectorsize;		/* XXX: for buf.c::getblk() */
 void
 ffs_prep_opts(fsinfo_t *fsopts)
 {
-	ffs_opt_t *ffs_opts;
-
-	if ((ffs_opts = calloc(1, sizeof(ffs_opt_t))) == NULL)
-		err(1, "Allocating memory for ffs_options");
+	ffs_opt_t *ffs_opts = ecalloc(1, sizeof(*ffs_opts));
 
 	const option_t ffs_options[] = {
 	    { 'b', "bsize", &ffs_opts->bsize, OPT_INT32,
@@ -518,10 +516,7 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 			printf("zero-ing image `%s', %lld sectors, "
 			    "using %d byte chunks\n", image, (long long)bufrem,
 			    bufsize);
-		if ((buf = calloc(1, bufsize)) == NULL) {
-			warn("Can't create buffer for sector");
-			return (-1);
-		}
+		buf = ecalloc(1, bufsize);
 	}
 	while (bufrem > 0) {
 		i = write(fsopts->fd, buf, MIN(bufsize, bufrem));
@@ -919,8 +914,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 		goto write_inode_and_leave;		/* mmm, cheating */
 
 	if (isfile) {
-		if ((fbuf = malloc(ffs_opts->bsize)) == NULL)
-			err(1, "Allocating memory for write buffer");
+		fbuf = emalloc(ffs_opts->bsize);
 		if ((ffd = open((char *)buf, O_RDONLY, 0444)) == -1) {
 			warn("Can't open `%s' for reading", (char *)buf);
 			goto leave_ffs_write_file;
@@ -1047,8 +1041,7 @@ ffs_make_dirbuf(dirbuf_t *dbuf, const char *name, fsnode *node, int needswap)
 		if (debug & DEBUG_FS_MAKE_DIRBUF)
 			printf("ffs_make_dirbuf: growing buf to %d\n",
 			    dbuf->size + DIRBLKSIZ);
-		if ((newbuf = realloc(dbuf->buf, dbuf->size + DIRBLKSIZ)) == NULL)
-			err(1, "Allocating memory for directory buffer");
+		newbuf = erealloc(dbuf->buf, dbuf->size + DIRBLKSIZ);
 		dbuf->buf = newbuf;
 		dbuf->size += DIRBLKSIZ;
 		memset(dbuf->buf + dbuf->size - DIRBLKSIZ, 0, DIRBLKSIZ);
@@ -1099,10 +1092,7 @@ ffs_write_inode(union dinode *dp, uint32_t ino, const fsinfo_t *fsopts)
 
 	assert (isclr(cg_inosused_swap(cgp, fsopts->needswap), cgino));
 
-	buf = malloc(fs->fs_bsize);
-	if (buf == NULL)
-		errx(1, "ffs_write_inode: cg %d: can't alloc inode block", cg);
-
+	buf = emalloc(fs->fs_bsize);
 	dp1 = (struct ufs1_dinode *)buf;
 	dp2 = (struct ufs2_dinode *)buf;
 
