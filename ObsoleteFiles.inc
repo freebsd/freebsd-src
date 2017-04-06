@@ -40,16 +40,16 @@
 
 # 20170322: rename <x> to <x>_test to match the FreeBSD test suite name scheme
 OLD_FILES+=usr/tests/usr.bin/col/col
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_config_test
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_etcdir_test
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_lock_test
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupadd_test
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupdel_test
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupmod_test
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_useradd_test
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_userdel_test
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_usermod_test
-OLD_FILES+=usr/tests/usr.sbin/pw/pw_usernext_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_config
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_etcdir
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupadd
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupdel
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupmod
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_lock
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_useradd
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_userdel
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_usermod
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_usernext
 # 20170214: Four files from ggate tests consolidated into one
 OLD_FILES+=usr/tests/sys/geom/class/gate/1_test
 OLD_FILES+=usr/tests/sys/geom/class/gate/2_test
