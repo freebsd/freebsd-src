@@ -573,7 +573,7 @@
 323	AUE_NULL	OBSOL	thr_wakeup
 324	AUE_MLOCKALL	STD	{ int mlockall(int how); }
 325	AUE_MUNLOCKALL	STD	{ int munlockall(void); }
-326	AUE_GETCWD	STD	{ int __getcwd(char *buf, u_int buflen); }
+326	AUE_GETCWD	STD	{ int __getcwd(char *buf, size_t buflen); }
 
 327	AUE_NULL	STD	{ int sched_setparam (pid_t pid, \
 				    const struct sched_param *param); }
