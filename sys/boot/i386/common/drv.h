@@ -36,7 +36,7 @@ struct dsk {
 	unsigned int slice;
 	int part;
 	daddr_t start;
-	int init;
+	uint64_t size;
 };
 
 int drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk);

@@ -81,6 +81,7 @@ int	zfs_parsedev(struct zfs_devdesc *dev, const char *devspec,
 char	*zfs_fmtdev(void *vdev);
 int	zfs_probe_dev(const char *devname, uint64_t *pool_guid);
 int	zfs_list(const char *name);
+uint64_t ldi_get_size(void *);
 void	init_zfs_bootenv(char *currdev);
 int	zfs_bootenv(const char *name);
 int	zfs_belist_add(const char *name, uint64_t __unused);
