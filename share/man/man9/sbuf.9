@@ -66,57 +66,135 @@
 .Ft typedef\ int ( sbuf_drain_func ) ( void\ *arg, const\ char\ *data, int\ len ) ;
 .Pp
 .Ft struct sbuf *
-.Fn sbuf_new "struct sbuf *s" "char *buf" "int length" "int flags"
+.Fo sbuf_new
+.Fa "struct sbuf *s"
+.Fa "char *buf"
+.Fa "int length"
+.Fa "int flags"
+.Fc
 .Ft struct sbuf *
-.Fn sbuf_new_auto
+.Fo sbuf_new_auto
+.Fa "void"
+.Fc
 .Ft void
-.Fn sbuf_clear "struct sbuf *s"
+.Fo sbuf_clear
+.Fa "struct sbuf *s"
+.Fc
 .Ft int
-.Fn sbuf_get_flags "struct sbuf *s"
+.Fo sbuf_get_flags
+.Fa "struct sbuf *s"
+.Fc
 .Ft void
-.Fn sbuf_set_flags "struct sbuf *s" "int flags"
+.Fo sbuf_set_flags
+.Fa "struct sbuf *s"
+.Fa "int flags"
+.Fc
 .Ft void
-.Fn sbuf_clear_flags "struct sbuf *s" "int flags"
+.Fo sbuf_clear_flags
+.Fa "struct sbuf *s"
+.Fa "int flags"
+.Fc
 .Ft int
-.Fn sbuf_setpos "struct sbuf *s" "int pos"
+.Fo sbuf_setpos
+.Fa "struct sbuf *s"
+.Fa "int pos"
+.Fc
 .Ft int
-.Fn sbuf_bcat "struct sbuf *s" "const void *buf" "size_t len"
+.Fo sbuf_bcat
+.Fa "struct sbuf *s"
+.Fa "const void *buf"
+.Fa "size_t len"
+.Fc
 .Ft int
-.Fn sbuf_bcopyin "struct sbuf *s" "const void *uaddr" "size_t len"
+.Fo sbuf_bcopyin
+.Fa "struct sbuf *s"
+.Fa "const void *uaddr"
+.Fa "size_t len"
+.Fc
 .Ft int
-.Fn sbuf_bcpy "struct sbuf *s" "const void *buf" "size_t len"
+.Fo sbuf_bcpy
+.Fa "struct sbuf *s"
+.Fa "const void *buf"
+.Fa "size_t len"
+.Fc
 .Ft int
-.Fn sbuf_cat "struct sbuf *s" "const char *str"
+.Fo sbuf_cat
+.Fa "struct sbuf *s"
+.Fa "const char *str"
+.Fc
 .Ft int
-.Fn sbuf_copyin "struct sbuf *s" "const void *uaddr" "size_t len"
+.Fo sbuf_cpy
+.Fa "struct sbuf *s"
+.Fa "const char *str"
+.Fc
 .Ft int
-.Fn sbuf_cpy "struct sbuf *s" "const char *str"
+.Fo sbuf_copyin
+.Fa "struct sbuf *s"
+.Fa "const void *uaddr"
+.Fa "size_t len"
+.Fc
 .Ft int
-.Fn sbuf_printf "struct sbuf *s" "const char *fmt" "..."
+.Fo sbuf_printf
+.Fa "struct sbuf *s"
+.Fa "const char *fmt" "..."
+.Fc
 .Ft int
-.Fn sbuf_vprintf "struct sbuf *s" "const char *fmt" "va_list ap"
+.Fo sbuf_vprintf
+.Fa "struct sbuf *s"
+.Fa "const char *fmt"
+.Fa "va_list ap"
+.Fc
 .Ft int
-.Fn sbuf_putc "struct sbuf *s" "int c"
+.Fo sbuf_putc
+.Fa "struct sbuf *s"
+.Fa "int c"
+.Fc
 .Ft void
-.Fn sbuf_set_drain "struct sbuf *s" "sbuf_drain_func *func" "void *arg"
+.Fo sbuf_set_drain
+.Fa "struct sbuf *s"
+.Fa "sbuf_drain_func *func"
+.Fa "void *arg"
+.Fc
 .Ft int
-.Fn sbuf_trim "struct sbuf *s"
+.Fo sbuf_trim
+.Fa "struct sbuf *s"
+.Fc
 .Ft int
-.Fn sbuf_error "struct sbuf *s"
+.Fo sbuf_error
+.Fa "struct sbuf *s"
+.Fc
 .Ft int
-.Fn sbuf_finish "struct sbuf *s"
+.Fo sbuf_finish
+.Fa "struct sbuf *s"
+.Fc
 .Ft char *
-.Fn sbuf_data "struct sbuf *s"
+.Fo sbuf_data
+.Fa "struct sbuf *s"
+.Fc
 .Ft ssize_t
-.Fn sbuf_len "struct sbuf *s"
+.Fo sbuf_len
+.Fa "struct sbuf *s"
+.Fc
 .Ft int
-.Fn sbuf_done "struct sbuf *s"
+.Fo sbuf_done
+.Fa "struct sbuf *s"
+.Fc
 .Ft void
-.Fn sbuf_delete "struct sbuf *s"
+.Fo sbuf_delete
+.Fa "struct sbuf *s"
+.Fc
 .Ft void
-.Fn sbuf_start_section "struct sbuf *s" "ssize_t *old_lenp"
+.Fo sbuf_start_section
+.Fa "struct sbuf *s"
+.Fa "ssize_t *old_lenp"
+.Fc
 .Ft ssize_t
-.Fn sbuf_end_section "struct sbuf *s" "ssize_t old_len" "size_t pad" "int c"
+.Fo sbuf_end_section
+.Fa "struct sbuf *s"
+.Fa "ssize_t old_len"
+.Fa "size_t pad"
+.Fa "int c"
+.Fc
 .Ft void
 .Fo sbuf_hexdump
 .Fa "struct sbuf *sb"
@@ -126,10 +204,17 @@
 .Fa "int flags"
 .Fc
 .Ft void
-.Fn sbuf_putbuf "struct sbuf *s"
+.Fo sbuf_putbuf
+.Fa "struct sbuf *s"
+.Fc
 .In sys/sysctl.h
 .Ft struct sbuf *
-.Fn sbuf_new_for_sysctl "struct sbuf *s" "char *buf" "int length" "struct sysctl_req *req"
+.Fo sbuf_new_for_sysctl
+.Fa "struct sbuf *s"
+.Fa "char *buf"
+.Fa "int length"
+.Fa "struct sysctl_req *req"
+.Fc
 .Sh DESCRIPTION
 The
 .Nm
