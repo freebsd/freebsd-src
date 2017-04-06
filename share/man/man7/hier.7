@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2017
+.Dd April 6, 2017
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -58,7 +58,7 @@ Loadable modules containing binary firmware for hardware that needs
 firmware downloaded to it to function
 .It Pa kernel/
 pure kernel executable (the operating system loaded into memory
-at boot time)
+at boot time) and kernel modules
 .It Pa modules/
 third-party loadable kernel modules;
 see
@@ -85,8 +85,6 @@ device special files managed by
 file descriptor files;
 see
 .Xr \&fd 4
-.It Pa net/
-network devices
 .El
 .It Pa /etc/
 system configuration files and scripts
@@ -191,8 +189,6 @@ such as Linux
 standard C include files
 .Pp
 .Bl -tag -width "kerberos5/" -compact
-.It Pa altq/
-C include files for alternate queueing
 .It Pa arpa/
 C include files for Internet service protocols
 .It Pa bsnmp/
@@ -236,13 +232,8 @@ WaveLAN driver
 .El
 .It Pa fs/
 .Bl -tag -width "kerberos5/" -compact
-.It Pa cd9660/
-iso9660 file system
 .It Pa fdescfs/
 per-process file descriptors file system
-.It Pa fifofs/
-.St -p1003.1
-FIFOs file system
 .It Pa msdosfs/
 MS-DOS file system
 .It Pa nfs/
@@ -275,8 +266,6 @@ RAID3 GEOM class
 STRIPE GEOM class
 .El
 .Pp
-.It Pa isc/
-ISC utility library libisc include files
 .It Pa libmilter/
 C include files for libmilter,
 the
@@ -286,6 +275,10 @@ mail filter API
 machine-specific C include files
 .It Pa net/
 miscellaneous network C include files
+.Bl -tag -width "altq/" -compact
+.It Pa altq/
+C include files for alternate queueing
+.El
 .It Pa net80211/
 C include files for 802.11 wireless networking;
 see
@@ -321,12 +314,8 @@ include files for the UNI signalling protocol
 SMB/CIFS requester
 .It Pa nfs/
 C include files for NFS (Network File System) version 2 and 3 (legacy)
-.It Pa objc/
-Objective C include files
 .It Pa openssl/
 OpenSSL (Cryptography/SSL toolkit) headers
-.It Pa pccard/
-PC-CARD controllers
 .It Pa protocols/
 C include files for Berkeley service protocols
 .It Pa readline/
@@ -388,9 +377,6 @@ standalone debug data for the kernel and base system libraries and binaries
 DTrace library scripts
 .It Pa engines/
 OpenSSL (Cryptography/SSL toolkit) dynamically loadable engines
-.It Pa private/
-Private system libraries not for use by third-party programs.
-ABI and API stability are not guaranteed.
 .El
 .Pp
 .It Pa libdata/
@@ -436,8 +422,8 @@ see
 .It Pa local/
 local executables, libraries, etc.
 Also used as the default destination for the
-.Fx
-ports framework.
+.Xr ports 7
+framework.
 Within
 .Pa local/ ,
 the general layout sketched out by
@@ -464,9 +450,10 @@ architecture-specific target tree produced by building the
 .Pa /usr/src
 tree
 .It Pa ports/
-The
+.Xr ports 7 ,
+the
 .Fx
-ports collection (optional).
+ports collection.
 .It Pa sbin/
 system daemons & system utilities (executed by users)
 .It Pa share/
@@ -486,14 +473,8 @@ see
 .It Pa freebsd
 .Fx Ns -specific
 terms, proper names, and jargon
-.It Pa words
-common words
 .It Pa web2
 words from Webster's 2nd International
-.It Pa papers/
-reference databases;
-see
-.Xr refer 1
 .El
 .Pp
 .It Pa doc/
@@ -553,8 +534,8 @@ ASCII text files used by various games
 device description file for device name
 .It Pa keys/
 known trusted and revoked keys.
-.Bl -tag -width "keys/pkg/" -compact
-.It Pa keys/pkg/
+.Bl -tag -width "pkg/" -compact
+.It Pa pkg/
 fingerprints for
 .Xr pkg 7
 and
@@ -567,8 +548,6 @@ see
 .Xr setlocale 3
 .It Pa man/
 manual pages
-.It Pa mdocml/
-data files used by mdocml
 .It Pa me/
 macros for use with the me macro package;
 see
@@ -694,6 +673,8 @@ source code for files in
 build infrastructure for kerberos version 5
 .It Pa lib/
 source code for files in
+.Pa /lib
+and
 .Pa /usr/lib
 .It Pa libexec/
 source code for files in
@@ -727,6 +708,8 @@ ARMv8 architecture support
 bootloader code
 .It Pa cam/
 .Xr cam 4
+and
+.Xr ctl 4
 .It Pa cddl/
 CDDL-licensed optional sources, including ZFS
 and DTrace
