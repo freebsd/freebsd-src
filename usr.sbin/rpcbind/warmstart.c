@@ -90,7 +90,7 @@ write_struct(char *filename, xdrproc_t structproc, void *list)
 	(void) umask(omask);
 	xdrstdio_create(&xdrs, fp, XDR_ENCODE);
 
-	if (structproc(&xdrs, list) == FALSE) {
+	if (structproc(&xdrs, list, 0) == FALSE) {
 		syslog(LOG_ERR, "rpcbind: xdr_%s: failed", filename);
 		fclose(fp);
 		return (FALSE);
@@ -127,7 +127,7 @@ read_struct(char *filename, xdrproc_t structproc, void *list)
 	}
 	xdrstdio_create(&xdrs, fp, XDR_DECODE);
 
-	if (structproc(&xdrs, list) == FALSE) {
+	if (structproc(&xdrs, list, 0) == FALSE) {
 		fprintf(stderr, "rpcbind: xdr_%s: failed\n", filename);
 		fclose(fp);
 		goto error;

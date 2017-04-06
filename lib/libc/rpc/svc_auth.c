@@ -152,7 +152,7 @@ static bool_t
 svcauth_null_wrap(SVCAUTH *auth, XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr)
 {
 
-	return (xdr_func(xdrs, xdr_ptr));
+	return (xdr_func(xdrs, xdr_ptr, 0));
 }
 
 struct svc_auth_ops svc_auth_null_ops = {

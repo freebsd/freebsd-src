@@ -148,7 +148,7 @@ xdr_sizeof(xdrproc_t func, void *data)
 	x.x_private = (caddr_t) NULL;
 	x.x_base = (caddr_t) 0;
 
-	stat = func(&x, data);
+	stat = func(&x, data, 0);
 	if (x.x_private)
 		free(x.x_private);
 	return (stat == TRUE ? (unsigned) x.x_handy: 0);

@@ -1203,7 +1203,7 @@ svc_rpc_gss_wrap(SVCAUTH *auth, XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr)
 	client = (struct svc_rpc_gss_client *) auth->svc_ah_private;
 	if (client->cl_state != CLIENT_ESTABLISHED
 	    || client->cl_rawcred.service == rpc_gss_svc_none) {
-		return xdr_func(xdrs, xdr_ptr);
+		return xdr_func(xdrs, xdr_ptr, 0);
 	}
 	return (xdr_rpc_gss_wrap_data(xdrs, xdr_func, xdr_ptr,
 		client->cl_ctx, client->cl_qop,
@@ -1220,7 +1220,7 @@ svc_rpc_gss_unwrap(SVCAUTH *auth, XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr
 	client = (struct svc_rpc_gss_client *) auth->svc_ah_private;
 	if (client->cl_state != CLIENT_ESTABLISHED
 	    || client->cl_rawcred.service == rpc_gss_svc_none) {
-		return xdr_func(xdrs, xdr_ptr);
+		return xdr_func(xdrs, xdr_ptr, 0);
 	}
 	return (xdr_rpc_gss_unwrap_data(xdrs, xdr_func, xdr_ptr,
 		client->cl_ctx, client->cl_qop,

@@ -592,5 +592,5 @@ xdr_pri_free(XDRPROC_T_TYPE xdr_args, caddr_t args_ptr)
   XDR xdr;
 
   xdr.x_op = XDR_FREE;
-  return ((*xdr_args) (&xdr, (caddr_t *) args_ptr));
+  return ((*xdr_args) (&xdr, (caddr_t *) args_ptr, 0));
 }

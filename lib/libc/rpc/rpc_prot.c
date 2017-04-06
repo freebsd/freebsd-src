@@ -116,7 +116,8 @@ xdr_accepted_reply(XDR *xdrs, struct accepted_reply *ar)
 	switch (ar->ar_stat) {
 
 	case SUCCESS:
-		return ((*(ar->ar_results.proc))(xdrs, ar->ar_results.where));
+		return ((*(ar->ar_results.proc))(xdrs, ar->ar_results.where,
+		    0));
 
 	case PROG_MISMATCH:
 		if (!xdr_rpcvers(xdrs, &(ar->ar_vers.low)))

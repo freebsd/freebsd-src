@@ -406,7 +406,7 @@ call_again_same_xid:
 		if ((! XDR_PUTBYTES(xdrs, cu->cu_outhdr, cu->cu_xdrpos)) ||
 		    (! XDR_PUTINT32(xdrs, &proc)) ||
 		    (! AUTH_MARSHALL(cl->cl_auth, xdrs)) ||
-		    (! (*xargs)(xdrs, argsp))) {
+		    (! (*xargs)(xdrs, argsp, 0))) {
 			cu->cu_error.re_status = RPC_CANTENCODEARGS;
 			goto out;
 		}
@@ -629,7 +629,7 @@ clnt_dg_freeres(CLIENT *cl, xdrproc_t xdr_res, void *res_ptr)
 	while (dg_fd_locks[cu->cu_fd])
 		cond_wait(&dg_cv[cu->cu_fd], &clnt_fd_lock);
 	xdrs->x_op = XDR_FREE;
-	dummy = (*xdr_res)(xdrs, res_ptr);
+	dummy = (*xdr_res)(xdrs, res_ptr, 0);
 	mutex_unlock(&clnt_fd_lock);
 	thr_sigsetmask(SIG_SETMASK, &mask, NULL);
 	cond_signal(&dg_cv[cu->cu_fd]);

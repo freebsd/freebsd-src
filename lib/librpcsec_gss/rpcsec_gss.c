@@ -652,7 +652,7 @@ __rpc_gss_wrap(AUTH *auth, void *header, size_t headerlen,
 	
 	if (gd->gd_state != RPCSEC_GSS_ESTABLISHED ||
 	    gd->gd_cred.gc_svc == rpc_gss_svc_none) {
-		return (xdr_args(xdrs, args_ptr));
+		return (xdr_args(xdrs, args_ptr, 0));
 	}
 	return (xdr_rpc_gss_wrap_data(xdrs, xdr_args, args_ptr,
 		gd->gd_ctx, gd->gd_qop, gd->gd_cred.gc_svc,
@@ -670,7 +670,7 @@ __rpc_gss_unwrap(AUTH *auth, XDR *xdrs, xdrproc_t xdr_func, void *xdr_ptr)
 	
 	if (gd->gd_state != RPCSEC_GSS_ESTABLISHED ||
 	    gd->gd_cred.gc_svc == rpc_gss_svc_none) {
-		return (xdr_func(xdrs, xdr_ptr));
+		return (xdr_func(xdrs, xdr_ptr, 0));
 	}
 	return (xdr_rpc_gss_unwrap_data(xdrs, xdr_func, xdr_ptr,
 		gd->gd_ctx, gd->gd_qop, gd->gd_cred.gc_svc,

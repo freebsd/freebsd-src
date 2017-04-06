@@ -229,7 +229,7 @@ svc_raw_freeargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 
 	xdrs = &srp->xdr_stream;
 	xdrs->x_op = XDR_FREE;
-	return (*xdr_args)(xdrs, args_ptr);
+	return (*xdr_args)(xdrs, args_ptr, 0);
 }
 
 /*ARGSUSED*/

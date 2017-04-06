@@ -81,7 +81,7 @@ xdr_free(xdrproc_t proc, void *objp)
 	XDR x;
 	
 	x.x_op = XDR_FREE;
-	(*proc)(&x, objp);
+	(*proc)(&x, objp, 0);
 }
 
 /*
@@ -652,14 +652,14 @@ xdr_union(XDR *xdrs, enum_t *dscmp, char *unp, const struct xdr_discrim *choices
 	 */
 	for (; choices->proc != NULL_xdrproc_t; choices++) {
 		if (choices->value == dscm)
-			return ((*(choices->proc))(xdrs, unp));
+			return ((*(choices->proc))(xdrs, unp, 0));
 	}
 
 	/*
 	 * no match - execute the default xdr routine if there is one
 	 */
 	return ((dfault == NULL_xdrproc_t) ? FALSE :
-	    (*dfault)(xdrs, unp));
+	    (*dfault)(xdrs, unp, 0));
 }
 
 

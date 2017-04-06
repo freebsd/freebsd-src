@@ -625,7 +625,7 @@ rpc_broadcast_exp(rpcprog_t prog, rpcvers_t vers, rpcproc_t proc,
 			xdrs->x_op = XDR_FREE;
 			msg.acpted_rply.ar_results.proc = (xdrproc_t) xdr_void;
 			(void) xdr_replymsg(xdrs, &msg);
-			(void) (*xresults)(xdrs, resultsp);
+			(void) (*xresults)(xdrs, resultsp, 0);
 			XDR_DESTROY(xdrs);
 			if (done) {
 				stat = RPC_SUCCESS;

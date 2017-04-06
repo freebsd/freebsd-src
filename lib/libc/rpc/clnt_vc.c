@@ -359,7 +359,7 @@ call_again:
 		if ((! XDR_PUTBYTES(xdrs, ct->ct_u.ct_mcallc, ct->ct_mpos)) ||
 		    (! XDR_PUTINT32(xdrs, &proc)) ||
 		    (! AUTH_MARSHALL(cl->cl_auth, xdrs)) ||
-		    (! (*xdr_args)(xdrs, args_ptr))) {
+		    (! (*xdr_args)(xdrs, args_ptr, 0))) {
 			if (ct->ct_error.re_status == RPC_SUCCESS)
 				ct->ct_error.re_status = RPC_CANTENCODEARGS;
 			(void)xdrrec_endofrecord(xdrs, TRUE);
@@ -429,7 +429,8 @@ call_again:
 			ct->ct_error.re_why = AUTH_INVALIDRESP;
 		} else {
 			if (cl->cl_auth->ah_cred.oa_flavor != RPCSEC_GSS) {
-				reply_stat = (*xdr_results)(xdrs, results_ptr);
+				reply_stat = (*xdr_results)(xdrs, results_ptr,
+				    0);
 			} else {
 				reply_stat = __rpc_gss_unwrap(cl->cl_auth,
 				    xdrs, xdr_results, results_ptr);
@@ -488,7 +489,7 @@ clnt_vc_freeres(CLIENT *cl, xdrproc_t xdr_res, void *res_ptr)
 	while (vc_fd_locks[ct->ct_fd])
 		cond_wait(&vc_cv[ct->ct_fd], &clnt_fd_lock);
 	xdrs->x_op = XDR_FREE;
-	dummy = (*xdr_res)(xdrs, res_ptr);
+	dummy = (*xdr_res)(xdrs, res_ptr, 0);
 	mutex_unlock(&clnt_fd_lock);
 	thr_sigsetmask(SIG_SETMASK, &(mask), NULL);
 	cond_signal(&vc_cv[ct->ct_fd]);

@@ -153,7 +153,7 @@ make_rpc_packet(char *buf, int buflen, u_long proc, struct rpc_msg *mp, voidp ar
   /*
    * Arguments
    */
-  if (!(*arg_xdr) (&msg_xdr, arg))
+  if (!(*arg_xdr) (&msg_xdr, arg, 0))
     return -EIO;
 
   /*

@@ -131,14 +131,7 @@ typedef struct XDR {
  * to be decoded.  If this pointer is 0, then the type routines should
  * allocate dynamic storage of the appropriate size and return it.
  */
-#ifdef _KERNEL
 typedef	bool_t (*xdrproc_t)(XDR *, void *, u_int);
-#else
-/*
- * XXX can't actually prototype it, because some take three args!!!
- */
-typedef	bool_t (*xdrproc_t)(XDR *, ...);
-#endif
 
 /*
  * Operations defined on a XDR handle

@@ -266,7 +266,7 @@ xdr_rpcb_rmtcallargs(XDR *xdrs, struct rpcb_rmtcallargs *p)
 		return (FALSE);
 	}
 	argposition = XDR_GETPOS(xdrs);
-	if (! (*objp->xdr_args)(xdrs, objp->args.args_val)) {
+	if (! (*objp->xdr_args)(xdrs, objp->args.args_val, 0)) {
 		return (FALSE);
 	}
 	position = XDR_GETPOS(xdrs);
@@ -295,7 +295,7 @@ xdr_rpcb_rmtcallres(XDR *xdrs, struct rpcb_rmtcallres *p)
 	if (!xdr_u_int(xdrs, &objp->results.results_len)) {
 		return (FALSE);
 	}
-	dummy = (*(objp->xdr_res))(xdrs, objp->results.results_val);
+	dummy = (*(objp->xdr_res))(xdrs, objp->results.results_val, 0);
 	return (dummy);
 }
 

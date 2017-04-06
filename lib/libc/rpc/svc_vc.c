@@ -617,7 +617,7 @@ svc_vc_freeargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 	xdrs = &(((struct cf_conn *)(xprt->xp_p1))->xdrs);
 
 	xdrs->x_op = XDR_FREE;
-	return ((*xdr_args)(xdrs, args_ptr));
+	return ((*xdr_args)(xdrs, args_ptr, 0));
 }
 
 static bool_t

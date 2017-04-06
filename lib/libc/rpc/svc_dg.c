@@ -386,7 +386,7 @@ svc_dg_freeargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 	XDR *xdrs = &(su_data(xprt)->su_xdrs);
 
 	xdrs->x_op = XDR_FREE;
-	return (*xdr_args)(xdrs, args_ptr);
+	return (*xdr_args)(xdrs, args_ptr, 0);
 }
 
 static void

@@ -349,7 +349,7 @@ rpc_wrap_bcast(char *resultp, struct netbuf *addr, struct netconfig *nconf)
 	else
 		clnt_broadcast_result = (resultproc_t)thr_getspecific(clnt_broadcast_key);
 	return (*clnt_broadcast_result)(resultp,
-				(struct sockaddr_in *)addr->buf);
+				(struct sockaddr_in *)addr->buf, NULL);
 }
 
 /*

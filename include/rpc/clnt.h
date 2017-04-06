@@ -516,7 +516,7 @@ __END_DECLS
  *	const char		*nettype;	-- Transport type
  */
 
-typedef bool_t (*resultproc_t)(caddr_t, ...);
+typedef bool_t (*resultproc_t)(caddr_t, void *, void *);
 
 __BEGIN_DECLS
 extern enum clnt_stat rpc_broadcast(const rpcprog_t, const rpcvers_t,

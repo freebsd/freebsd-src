@@ -108,7 +108,7 @@ xdr_rpc_gss_wrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 	XDR_SETPOS(xdrs, start + 4);
 	
 	/* Marshal rpc_gss_data_t (sequence number + arguments). */
-	if (!xdr_u_int(xdrs, &seq) || !xdr_func(xdrs, xdr_ptr))
+	if (!xdr_u_int(xdrs, &seq) || !xdr_func(xdrs, xdr_ptr, 0))
 		return (FALSE);
 	end = XDR_GETPOS(xdrs);
 
@@ -216,7 +216,7 @@ xdr_rpc_gss_unwrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 	/* Decode rpc_gss_data_t (sequence number + arguments). */
 	xdrmem_create(&tmpxdrs, databuf.value, databuf.length, XDR_DECODE);
 	xdr_stat = (xdr_u_int(&tmpxdrs, &seq_num) &&
-	    xdr_func(&tmpxdrs, xdr_ptr));
+	    xdr_func(&tmpxdrs, xdr_ptr, 0));
 	XDR_DESTROY(&tmpxdrs);
 
 	/*
