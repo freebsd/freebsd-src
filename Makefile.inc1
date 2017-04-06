@@ -466,7 +466,7 @@ CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		CPUTYPE=${TARGET_CPUTYPE}
 .if ${MK_META_MODE} != "no"
 # Don't rebuild build-tools targets during normal build.
-CROSSENV+=	BUILD_TOOLS_META=.NOMETA_CMP
+CROSSENV+=	BUILD_TOOLS_META=.NOMETA
 .endif
 .if ${MK_GROFF} != "no"
 CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
@@ -2712,7 +2712,7 @@ CDMAKE=${CDENV} PATH=${CDTMP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
 CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${NOFUN}
 .if ${MK_META_MODE} != "no"
 # Don't rebuild build-tools targets during normal build.
-CD2MAKE+=	BUILD_TOOLS_META=.NOMETA_CMP
+CD2MAKE+=	BUILD_TOOLS_META=.NOMETA
 .endif
 XDDESTDIR=${DESTDIR}/${XDTP}
 .if !defined(OSREL)
