@@ -514,7 +514,7 @@ struct ib_mr *c4iw_register_phys_mem(struct ib_pd *pd,
 	mhp->attr.va_fbo = *iova_start;
 	mhp->attr.page_size = shift - 12;
 
-	mhp->attr.len = (u32) total_size;
+	mhp->attr.len = total_size;
 	mhp->attr.pbl_size = npages;
 	ret = register_mem(rhp, php, mhp, shift);
 	if (ret)
