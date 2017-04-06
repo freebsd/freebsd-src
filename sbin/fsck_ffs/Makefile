@@ -1,9 +1,6 @@
 # $FreeBSD$
 #	@(#)Makefile	8.2 (Berkeley) 4/27/95
 
-# broken: can't find superblock
-WANT_CHERI=none
-
 PACKAGE=runtime
 PROG=	fsck_ffs
 LINKS+=	${BINDIR}/fsck_ffs ${BINDIR}/fsck_ufs
