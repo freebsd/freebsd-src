@@ -6754,10 +6754,15 @@ static void
 bwn_txpwr(void *arg, int npending)
 {
 	struct bwn_mac *mac = arg;
-	struct bwn_softc *sc = mac->mac_sc;
+	struct bwn_softc *sc;
+
+	if (mac == NULL)
+		return;
+
+	sc = mac->mac_sc;
 
 	BWN_LOCK(sc);
-	if (mac && mac->mac_status >= BWN_MAC_STATUS_STARTED &&
+	if (mac->mac_status >= BWN_MAC_STATUS_STARTED &&
 	    mac->mac_phy.set_txpwr != NULL)
 		mac->mac_phy.set_txpwr(mac);
 	BWN_UNLOCK(sc);
