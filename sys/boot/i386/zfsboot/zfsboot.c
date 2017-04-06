@@ -468,6 +468,23 @@ copy_dsk(struct dsk *dsk)
     return (newdsk);
 }
 
+/*
+ * The "layered" ioctl to read disk/partition size. Unfortunately
+ * the zfsboot case is hardest, because we do not have full software
+ * stack available, so we need to do some manual work here.
+ */
+uint64_t
+ldi_get_size(void *priv)
+{
+	struct dsk *dskp = priv;
+	uint64_t size = dskp->size;
+
+	if (dskp->start == 0)
+		size = drvsize(dskp);
+
+	return (size * DEV_BSIZE);
+}
+
 static void
 probe_drive(struct dsk *dsk)
 {
@@ -549,6 +566,7 @@ probe_drive(struct dsk *dsk)
 	    if (memcmp(&ent->ent_type, &freebsd_zfs_uuid,
 		     sizeof(uuid_t)) == 0) {
 		dsk->start = ent->ent_lba_start;
+		dsk->size = ent->ent_lba_end - ent->ent_lba_start + 1;
 		dsk->slice = part + 1;
 		dsk->part = 255;
 		if (vdev_probe(vdev_read, dsk, NULL) == 0) {
@@ -593,6 +611,7 @@ trymbr:
 	if (!dp[i].dp_typ)
 	    continue;
 	dsk->start = dp[i].dp_start;
+	dsk->size = dp[i].dp_size;
 	dsk->slice = i + 1;
 	if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 	    dsk = copy_dsk(dsk);
@@ -648,7 +667,7 @@ main(void)
     dsk->slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
     dsk->part = 0;
     dsk->start = 0;
-    dsk->init = 0;
+    dsk->size = 0;
 
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
@@ -699,7 +718,7 @@ main(void)
 	dsk->slice = 0;
 	dsk->part = 0;
 	dsk->start = 0;
-	dsk->init = 0;
+	dsk->size = 0;
 	probe_drive(dsk);
     }
 
