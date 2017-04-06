@@ -2045,8 +2045,8 @@ sys___getcwd(struct thread *td, struct __getcwd_args *uap)
 }
 
 int
-kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen,
-    u_int path_max)
+kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, size_t buflen,
+    size_t path_max)
 {
 	char *bp, *tmpbuf;
 	struct filedesc *fdp;
