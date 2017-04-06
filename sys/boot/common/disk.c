@@ -87,7 +87,12 @@ ptblread(void *d, void *buf, size_t blocks, uint64_t offset)
 
 	dev = (struct disk_devdesc *)d;
 	od = (struct open_disk *)dev->d_opendata;
-	return (dev->d_dev->dv_strategy(dev, F_READ, offset,
+
+	/*
+	 * As the GPT backup partition is located at the end of the disk,
+	 * to avoid reading past disk end, flag bcache not to use RA.
+	 */
+	return (dev->d_dev->dv_strategy(dev, F_READ | F_NORA, offset,
 	    blocks * od->sectorsize, (char *)buf, NULL));
 }
 
