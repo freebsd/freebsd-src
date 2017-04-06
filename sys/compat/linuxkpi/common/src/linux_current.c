@@ -158,12 +158,27 @@ struct task_struct *
 linux_pid_task(pid_t pid)
 {
 	struct thread *td;
+	struct proc *p;
 
+	/* try to find corresponding thread */
 	td = tdfind(pid, -1);
 	if (td != NULL) {
 		struct task_struct *ts = td->td_lkpi_task;
 		PROC_UNLOCK(td->td_proc);
 		return (ts);
+	}
+
+	/* try to find corresponding procedure */
+	p = pfind(pid);
+	if (p != NULL) {
+		FOREACH_THREAD_IN_PROC(p, td) {
+			struct task_struct *ts = td->td_lkpi_task;
+			if (ts != NULL) {
+				PROC_UNLOCK(p);
+				return (ts);
+			}
+		}
+		PROC_UNLOCK(p);
 	}
 	return (NULL);
 }
@@ -172,7 +187,9 @@ struct task_struct *
 linux_get_pid_task(pid_t pid)
 {
 	struct thread *td;
+	struct proc *p;
 
+	/* try to find corresponding thread */
 	td = tdfind(pid, -1);
 	if (td != NULL) {
 		struct task_struct *ts = td->td_lkpi_task;
@@ -180,6 +197,20 @@ linux_get_pid_task(pid_t pid)
 			get_task_struct(ts);
 		PROC_UNLOCK(td->td_proc);
 		return (ts);
+	}
+
+	/* try to find corresponding procedure */
+	p = pfind(pid);
+	if (p != NULL) {
+		FOREACH_THREAD_IN_PROC(p, td) {
+			struct task_struct *ts = td->td_lkpi_task;
+			if (ts != NULL) {
+				get_task_struct(ts);
+				PROC_UNLOCK(p);
+				return (ts);
+			}
+		}
+		PROC_UNLOCK(p);
 	}
 	return (NULL);
 }
