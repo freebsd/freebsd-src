@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2016
+.Dd April 6, 2017
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -116,6 +116,12 @@ set in
 .Ar debug-mask .
 XXX: document these
 .It Fl F Ar mtree-specfile
+.Em This is almost certainly not the option you are looking for.
+To create an image from a list of files in an mtree format manifest,
+specify it as the last argument on the commandline, not as a the
+argument to
+.Fl F .
+.Pp
 Use
 .Ar mtree-specfile
 as an
