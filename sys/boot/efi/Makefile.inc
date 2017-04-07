@@ -9,8 +9,12 @@ CFLAGS+=	-mno-aes
 
 # Options used when building app-specific efi components
 # See conf/kern.mk for the correct set of these
-CFLAGS+=	-ffreestanding -Wformat -msoft-float ${CFLAGS_NO_SIMD}
+CFLAGS+=	-ffreestanding -Wformat ${CFLAGS_NO_SIMD}
 LDFLAGS+=	-nostdlib
+
+.if ${MACHINE_CPUARCH} != "aarch64"
+CFLAGS+=	-msoft-float
+.endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-fshort-wchar

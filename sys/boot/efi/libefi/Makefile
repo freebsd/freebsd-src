@@ -30,7 +30,7 @@ CWARNFLAGS.efipart.c+=	-Wno-format
 CWARNFLAGS.env.c+=	-Wno-format
 
 .if ${MACHINE_CPUARCH} == "aarch64"
-CFLAGS+=	-msoft-float -mgeneral-regs-only
+CFLAGS+=	-mgeneral-regs-only
 .endif
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -fPIC -mno-red-zone
