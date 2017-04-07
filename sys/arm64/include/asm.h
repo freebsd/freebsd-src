@@ -57,6 +57,9 @@
 #define	PIC_SYM(x,y)	x
 #endif
 
+/* Alias for link register x30 */
+#define	lr		x30
+
 /*
  * Sets the trap fault handler. The exception handler will return to the
  * address in the handler register on a data abort or the xzr register to
