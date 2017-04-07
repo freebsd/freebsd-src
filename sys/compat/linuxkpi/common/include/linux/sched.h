@@ -74,7 +74,11 @@ struct task_struct {
 	struct completion exited;
 };
 
-#define	current		((struct task_struct *)curthread->td_lkpi_task)
+#define	current	({ \
+	struct thread *__td = curthread; \
+	linux_set_current(__td); \
+	((struct task_struct *)__td->td_lkpi_task); \
+})
 
 #define	task_pid_group_leader(task) (task)->task_thread->td_proc->p_pid
 #define	task_pid(task)		((task)->pid)
