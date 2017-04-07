@@ -348,11 +348,11 @@ linux_msqid_pushdown(l_int ver, struct l_msqid64_ds *linux_msqid64, caddr_t uadd
 			linux_msqid.msg_cbytes = linux_msqid64->msg_cbytes;
 		linux_msqid.msg_lcbytes = linux_msqid64->msg_cbytes;
 		if (linux_msqid64->msg_qnum > USHRT_MAX)
-			linux_msqid.msg_qnum = linux_msqid64->msg_qnum;
+			linux_msqid.msg_qnum = USHRT_MAX;
 		else
 			linux_msqid.msg_qnum = linux_msqid64->msg_qnum;
 		if (linux_msqid64->msg_qbytes > USHRT_MAX)
-			linux_msqid.msg_qbytes = linux_msqid64->msg_qbytes;
+			linux_msqid.msg_qbytes = USHRT_MAX;
 		else
 			linux_msqid.msg_qbytes = linux_msqid64->msg_qbytes;
 		linux_msqid.msg_lqbytes = linux_msqid64->msg_qbytes;
