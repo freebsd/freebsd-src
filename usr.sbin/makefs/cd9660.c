@@ -815,15 +815,14 @@ static int
 cd9660_translate_node_common(iso9660_disk *diskStructure, cd9660node *newnode)
 {
 	time_t tstamp = stampst.st_ino ? stampst.st_mtime : time(NULL);
-	int test;
 	u_char flag;
 	char temp[ISO_FILENAME_MAXLENGTH_WITH_PADDING];
 
 	/* Now populate the isoDirRecord structure */
 	memset(temp, 0, ISO_FILENAME_MAXLENGTH_WITH_PADDING);
 
-	test = cd9660_convert_filename(diskStructure, newnode->node->name,
-		temp, !(S_ISDIR(newnode->node->type)));
+	(void)cd9660_convert_filename(diskStructure, newnode->node->name,
+	    temp, !(S_ISDIR(newnode->node->type)));
 
 	flag = ISO_FLAG_CLEAR;
 	if (S_ISDIR(newnode->node->type))
@@ -1111,7 +1110,7 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 		 * See if you can spot them all :)
 		 */
 
-		/*
+#if 0
 		if (diskStructure->isoLevel == 1) {
 			numbts = 8 - digits - delete_chars;
 			if (dot < 0) {
@@ -1122,7 +1121,7 @@ cd9660_rename_filename(iso9660_disk *diskStructure, cd9660node *iter, int num,
 				}
 			}
 		}
-		*/
+#endif
 
 		/* (copying just the filename before the '.' */
 		memcpy(tmp, (iter->o_name), numbts);
