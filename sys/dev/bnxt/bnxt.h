@@ -100,6 +100,9 @@ __FBSDID("$FreeBSD$");
 #define BNXT_RSS_HASH_TYPE_IPV6		5
 #define BNXT_GET_RSS_PROFILE_ID(rss_hash_type) ((rss_hash_type >> 1) & 0x1F)
 
+#define BNXT_NO_MORE_WOL_FILTERS	0xFFFF
+#define bnxt_wol_supported(softc)	((softc)->flags & BNXT_FLAG_WOL_CAP)
+
 /* Completion related defines */
 #define CMP_VALID(cmp, v_bit) \
 	((!!(((struct cmpl_base *)(cmp))->info3_v & htole32(CMPL_BASE_V))) == !!(v_bit) )
@@ -512,7 +515,8 @@ struct bnxt_softc {
 	struct bnxt_bar_info	hwrm_bar;
 	struct bnxt_bar_info	doorbell_bar;
 	struct bnxt_link_info	link_info;
-#define BNXT_FLAG_NPAR		1
+#define BNXT_FLAG_NPAR		0x1
+#define BNXT_FLAG_WOL_CAP	0x2
 	uint32_t		flags;
 	uint32_t		total_msix;
 
@@ -562,6 +566,8 @@ struct bnxt_softc {
 	struct bnxt_full_tpa_start *tpa_start;
 	struct bnxt_ver_info	*ver_info;
 	struct bnxt_nvram_info	*nvm_info;
+	bool wol;
+	uint8_t wol_filter_id;
 };
 
 struct bnxt_filter_info {
