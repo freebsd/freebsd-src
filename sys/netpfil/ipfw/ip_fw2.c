@@ -2616,8 +2616,17 @@ do {								\
 				 * consider this as rule matching and
 				 * update counters.
 				 */
-				if (retval == 0 && done == 0)
+				if (retval == 0 && done == 0) {
 					IPFW_INC_RULE_COUNTER(f, pktlen);
+					/*
+					 * Reset the result of the last
+					 * dynamic state lookup.
+					 * External action can change
+					 * @args content, and it may be
+					 * used for new state lookup later.
+					 */
+					dyn_dir = MATCH_UNKNOWN;
+				}
 				break;
 
 			default:
