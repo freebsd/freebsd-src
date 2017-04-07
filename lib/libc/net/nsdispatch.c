@@ -213,7 +213,7 @@ vector_append(const void *elem, void *vec, unsigned int *count, size_t esize)
 	void	*p;
 
 	if ((*count % ELEMSPERCHUNK) == 0) {
-		p = realloc(vec, (*count + ELEMSPERCHUNK) * esize);
+		p = reallocarray(vec, *count + ELEMSPERCHUNK, esize);
 		if (p == NULL) {
 			nss_log_simple(LOG_ERR, "memory allocation failure");
 			return (vec);
