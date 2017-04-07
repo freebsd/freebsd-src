@@ -3705,6 +3705,11 @@ em_update_stats_counters(struct adapter *adapter)
 	adapter->stats.xonrxc += E1000_READ_REG(&adapter->hw, E1000_XONRXC);
 	adapter->stats.xontxc += E1000_READ_REG(&adapter->hw, E1000_XONTXC);
 	adapter->stats.xoffrxc += E1000_READ_REG(&adapter->hw, E1000_XOFFRXC);
+	/*
+	 ** For watchdog management we need to know if we have been
+	 ** paused during the last interval, so capture that here.
+	*/
+	adapter->shared->isc_pause_frames = adapter->stats.xoffrxc;
 	adapter->stats.xofftxc += E1000_READ_REG(&adapter->hw, E1000_XOFFTXC);
 	adapter->stats.fcruc += E1000_READ_REG(&adapter->hw, E1000_FCRUC);
 	adapter->stats.prc64 += E1000_READ_REG(&adapter->hw, E1000_PRC64);
