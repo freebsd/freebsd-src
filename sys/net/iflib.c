@@ -170,7 +170,6 @@ struct iflib_ctx {
 
 	int ifc_link_state;
 	int ifc_link_irq;
-	int ifc_pause_frames;
 	int ifc_watchdog_events;
 	struct cdev *ifc_led_dev;
 	struct resource *ifc_msix_mem;
@@ -2087,6 +2086,7 @@ iflib_timer(void *arg)
 {
 	iflib_txq_t txq = arg;
 	if_ctx_t ctx = txq->ift_ctx;
+	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 
 	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
 		return;
@@ -2098,7 +2098,7 @@ iflib_timer(void *arg)
 	IFDI_TIMER(ctx, txq->ift_id);
 	if ((txq->ift_qstatus == IFLIB_QUEUE_HUNG) &&
 	    ((txq->ift_cleaned_prev == txq->ift_cleaned) ||
-	     (ctx->ifc_pause_frames == 0)))
+	     (sctx->isc_pause_frames == 0)))
 		goto hung;
 
 	if (ifmp_ring_is_stalled(txq->ift_br))
@@ -2108,7 +2108,7 @@ iflib_timer(void *arg)
 	if (txq->ift_db_pending)
 		GROUPTASK_ENQUEUE(&txq->ift_task);
 
-	ctx->ifc_pause_frames = 0;
+	sctx->isc_pause_frames = 0;
 	if (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING) 
 		callout_reset_on(&txq->ift_timer, hz/2, iflib_timer, txq, txq->ift_timer.c_cpu);
 	return;
@@ -2120,7 +2120,6 @@ hung:
 
 	IFDI_WATCHDOG_RESET(ctx);
 	ctx->ifc_watchdog_events++;
-	ctx->ifc_pause_frames = 0;
 
 	ctx->ifc_flags |= IFC_DO_RESET;
 	iflib_admin_intr_deferred(ctx);
