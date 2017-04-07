@@ -217,9 +217,12 @@ INSTALL		?=	install
 LEX		?=	lex
 LFLAGS		?=
 
+# LDFLAGS is for CC, _LDFLAGS is for LD.  Generate _LDFLAGS from
+# LDFLAGS by stripping -Wl, from pass-through arguments and dropping
+# compiler driver flags (e.g. -mabi=*) that conflict with flags to LD.
 LD		?=	ld
-LDFLAGS		?=				# LDFLAGS is for CC, 
-_LDFLAGS	=	${LDFLAGS:S/-Wl,//g}	# strip -Wl, for LD
+LDFLAGS		?=
+_LDFLAGS	=	${LDFLAGS:S/-Wl,//g:N-mabi=*}
 
 LINT		?=	lint
 LINTFLAGS	?=	-cghapbx
