@@ -200,7 +200,7 @@ bios_getmem(void)
 
     /*
      * If we have extended memory and did not find a suitable heap
-     * region in the SMAP, use the last 3MB of 'extended' memory as a
+     * region in the SMAP, use the last HEAP_MIN of 'extended' memory as a
      * high heap candidate.
      */
     if (bios_extmem >= HEAP_MIN && high_heap_size < HEAP_MIN) {
