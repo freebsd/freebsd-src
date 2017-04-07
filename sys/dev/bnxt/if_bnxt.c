@@ -189,6 +189,10 @@ static void bnxt_vlan_unregister(if_ctx_t ctx, uint16_t vtag);
 /* ioctl */
 static int bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 
+static int bnxt_shutdown(if_ctx_t ctx);
+static int bnxt_suspend(if_ctx_t ctx);
+static int bnxt_resume(if_ctx_t ctx);
+
 /* Internal support functions */
 static int bnxt_probe_phy(struct bnxt_softc *softc);
 static void bnxt_add_media_types(struct bnxt_softc *softc);
@@ -206,6 +210,8 @@ static void bnxt_handle_async_event(struct bnxt_softc *softc,
     struct cmpl_base *cmpl);
 static uint8_t get_phy_type(struct bnxt_softc *softc);
 static uint64_t bnxt_get_baudrate(struct bnxt_link_info *link);
+static void bnxt_get_wol_settings(struct bnxt_softc *softc);
+static int bnxt_wol_config(if_ctx_t ctx);
 
 /*
  * Device Interface Declaration
@@ -263,6 +269,10 @@ static device_method_t bnxt_iflib_methods[] = {
 	DEVMETHOD(ifdi_vlan_unregister, bnxt_vlan_unregister),
 
 	DEVMETHOD(ifdi_priv_ioctl, bnxt_priv_ioctl),
+
+	DEVMETHOD(ifdi_suspend, bnxt_suspend),
+	DEVMETHOD(ifdi_shutdown, bnxt_shutdown),
+	DEVMETHOD(ifdi_resume, bnxt_resume),
 
 	DEVMETHOD_END
 };
@@ -678,6 +688,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	rc = bnxt_hwrm_func_qcaps(softc);
 	if (rc)
 		goto failed;
+
 	iflib_set_mac(ctx, softc->func.mac_addr);
 
 	scctx->isc_txrx = &bnxt_txrx;
@@ -694,12 +705,17 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    /* These likely get lost... */
 	    IFCAP_VLAN_HWCSUM | IFCAP_JUMBO_MTU;
 
+	if (bnxt_wol_supported(softc))
+		scctx->isc_capenable |= IFCAP_WOL_MAGIC;
+
 	/* Get the queue config */
 	rc = bnxt_hwrm_queue_qportcfg(softc);
 	if (rc) {
 		device_printf(softc->dev, "attach: hwrm qportcfg failed\n");
 		goto failed;
 	}
+
+	bnxt_get_wol_settings(softc);
 
 	/* Now perform a function reset */
 	rc = bnxt_hwrm_func_reset(softc);
@@ -839,6 +855,7 @@ bnxt_detach(if_ctx_t ctx)
 	struct bnxt_vlan_tag *tmp;
 	int i;
 
+	bnxt_wol_config(ctx);
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_free_sysctl_ctx(softc);
 	bnxt_hwrm_func_reset(softc);
@@ -1547,6 +1564,58 @@ bnxt_vlan_unregister(if_ctx_t ctx, uint16_t vtag)
 			break;
 		}
 	}
+}
+
+static int
+bnxt_wol_config(if_ctx_t ctx)
+{
+	struct bnxt_softc *softc = iflib_get_softc(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
+
+	if (!softc)
+		return -EBUSY;
+
+	if (!bnxt_wol_supported(softc))
+		return -ENOTSUP;
+
+	if (if_getcapabilities(ifp) & IFCAP_WOL_MAGIC) {
+		if (!softc->wol) {
+			if (bnxt_hwrm_alloc_wol_fltr(softc))
+				return -EBUSY;
+			softc->wol = 1;
+		}
+	} else {
+		if (softc->wol) {
+			if (bnxt_hwrm_free_wol_fltr(softc))
+				return -EBUSY;
+			softc->wol = 0;
+		}
+	}
+
+	return 0;
+}
+
+static int
+bnxt_shutdown(if_ctx_t ctx)
+{
+	bnxt_wol_config(ctx);
+	return 0;
+}
+
+static int
+bnxt_suspend(if_ctx_t ctx)
+{
+	bnxt_wol_config(ctx);
+	return 0;
+}
+
+static int
+bnxt_resume(if_ctx_t ctx)
+{
+	struct bnxt_softc *softc = iflib_get_softc(ctx);
+
+	bnxt_get_wol_settings(softc);
+	return 0;
 }
 
 static int
@@ -2421,4 +2490,17 @@ bnxt_get_baudrate(struct bnxt_link_info *link)
 		return IF_Mbps(10);
 	}
 	return IF_Gbps(100);
+}
+
+static void
+bnxt_get_wol_settings(struct bnxt_softc *softc)
+{
+	uint16_t wol_handle = 0;
+
+	if (!bnxt_wol_supported(softc))
+		return;
+
+	do {
+		wol_handle = bnxt_hwrm_get_wol_fltrs(softc, wol_handle);
+	} while (wol_handle && wol_handle != BNXT_NO_MORE_WOL_FILTERS);
 }

@@ -398,6 +398,10 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	if (rc)
 		goto fail;
 
+	if (resp->flags &
+	    htole32(HWRM_FUNC_QCAPS_OUTPUT_FLAGS_WOL_MAGICPKT_SUPPORTED))
+		softc->flags |= BNXT_FLAG_WOL_CAP;
+
 	func->fw_fid = le16toh(resp->fid);
 	memcpy(func->mac_addr, resp->mac_address, ETHER_ADDR_LEN);
 	func->max_rsscos_ctxs = le16toh(resp->max_rsscos_ctx);
@@ -1482,4 +1486,64 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 exit:
 	BNXT_HWRM_UNLOCK(softc);
 	return rc;
+}
+
+uint16_t
+bnxt_hwrm_get_wol_fltrs(struct bnxt_softc *softc, uint16_t handle)
+{
+	struct hwrm_wol_filter_qcfg_input req = {0};
+	struct hwrm_wol_filter_qcfg_output *resp =
+			(void *)softc->hwrm_cmd_resp.idi_vaddr;
+	uint16_t next_handle = 0;
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_WOL_FILTER_QCFG);
+	req.port_id = htole16(softc->pf.port_id);
+	req.handle = htole16(handle);
+	rc = hwrm_send_message(softc, &req, sizeof(req));
+	if (!rc) {
+		next_handle = le16toh(resp->next_handle);
+		if (next_handle != 0) {
+			if (resp->wol_type ==
+				HWRM_WOL_FILTER_ALLOC_INPUT_WOL_TYPE_MAGICPKT) {
+				softc->wol = 1;
+				softc->wol_filter_id = resp->wol_filter_id;
+			}
+		}
+	}
+	return next_handle;
+}
+
+int
+bnxt_hwrm_alloc_wol_fltr(struct bnxt_softc *softc)
+{
+	struct hwrm_wol_filter_alloc_input req = {0};
+	struct hwrm_wol_filter_alloc_output *resp =
+		(void *)softc->hwrm_cmd_resp.idi_vaddr;
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_WOL_FILTER_ALLOC);
+	req.port_id = htole16(softc->pf.port_id);
+	req.wol_type = HWRM_WOL_FILTER_ALLOC_INPUT_WOL_TYPE_MAGICPKT;
+	req.enables =
+		htole32(HWRM_WOL_FILTER_ALLOC_INPUT_ENABLES_MAC_ADDRESS);
+	memcpy(req.mac_address, softc->func.mac_addr, ETHER_ADDR_LEN);
+	rc = hwrm_send_message(softc, &req, sizeof(req));
+	if (!rc)
+		softc->wol_filter_id = resp->wol_filter_id;
+
+	return rc;
+}
+
+int
+bnxt_hwrm_free_wol_fltr(struct bnxt_softc *softc)
+{
+	struct hwrm_wol_filter_free_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_WOL_FILTER_FREE);
+	req.port_id = htole16(softc->pf.port_id);
+	req.enables =
+		htole32(HWRM_WOL_FILTER_FREE_INPUT_ENABLES_WOL_FILTER_ID);
+	req.wol_filter_id = softc->wol_filter_id;
+	return hwrm_send_message(softc, &req, sizeof(req));
 }
