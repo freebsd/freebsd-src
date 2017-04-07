@@ -56,7 +56,8 @@
 #define	__devexit
 #define __exit
 #define	__rcu
-#define	__stringify(x)			#x
+#define	___stringify(...)		#__VA_ARGS__
+#define	__stringify(...)		___stringify(__VA_ARGS__)
 #define	__attribute_const__		__attribute__((__const__))
 #undef __always_inline
 #define	__always_inline			inline
