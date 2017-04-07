@@ -37,6 +37,10 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 
+#ifdef __CHERI__
+#include <cheri/cheri.h>
+#endif
+
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -51,6 +55,9 @@
 
 static struct timespec ts_start, ts_end;
 static int alarm_timeout;
+#ifdef __CHERI__
+static volatile int trace;
+#endif
 static volatile int alarm_fired;
 
 #define timespecsub(vvp, uvp)						\
@@ -82,12 +89,22 @@ benchmark_start(void)
 	}
 	error = clock_gettime(CLOCK_REALTIME, &ts_start);
 	assert(error == 0);
+
+#ifdef __CHERI__
+	if (trace)
+		CHERI_START_TRACE;
+#endif
 }
 
 static void
 benchmark_stop(void)
 {
 	int error;
+
+#ifdef __CHERI__
+	if (trace)
+		CHERI_STOP_TRACE;
+#endif
 
 	error = clock_gettime(CLOCK_REALTIME, &ts_end);
 	assert(error == 0);
@@ -781,7 +798,7 @@ usage(void)
 	int i;
 
 	fprintf(stderr, "syscall_timing [-i iterations] [-l loops] "
-	    "[-p path] [-s seconds] test\n");
+	    "[-p path] [-s seconds] [-t] test\n");
 	for (i = 0; i < tests_count; i++)
 		fprintf(stderr, "  %s\n", tests[i].t_name);
 	exit(-1);
@@ -802,9 +819,12 @@ main(int argc, char *argv[])
 	alarm_timeout = 1;
 	iterations = 0;
 	loops = 10;
+#ifdef __CHERI__
+	trace = 0;
+#endif
 	path = NULL;
 	tmp_path = NULL;
-	while ((ch = getopt(argc, argv, "i:l:p:s:")) != -1) {
+	while ((ch = getopt(argc, argv, "i:l:p:s:t")) != -1) {
 		switch (ch) {
 		case 'i':
 			ll = strtol(optarg, &endp, 10);
@@ -829,6 +849,14 @@ main(int argc, char *argv[])
 			if (*endp != 0 || ll < 1 || ll > 60*60)
 				usage();
 			alarm_timeout = ll;
+			break;
+
+		case 't':
+#ifdef __CHERI__
+			trace = 1;
+#else
+			errx(1, "compiled without __CHERI__");
+#endif
 			break;
 
 		case '?':
