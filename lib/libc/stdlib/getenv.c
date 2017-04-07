@@ -272,8 +272,8 @@ __rebuild_environ(int newEnvironSize)
 	/* Resize environ. */
 	if (newEnvironSize > environSize) {
 		tmpEnvironSize = newEnvironSize * 2;
-		tmpEnviron = realloc(intEnviron, sizeof (*intEnviron) *
-		    (tmpEnvironSize + 1));
+		tmpEnviron = reallocarray(intEnviron, tmpEnvironSize + 1,
+		    sizeof(*intEnviron));
 		if (tmpEnviron == NULL)
 			return (-1);
 		environSize = tmpEnvironSize;
@@ -306,8 +306,8 @@ __enlarge_env(void)
 	envVarsTotal++;
 	if (envVarsTotal > envVarsSize) {
 		newEnvVarsSize = envVarsTotal * 2;
-		tmpEnvVars = realloc(envVars, sizeof (*envVars) *
-		    newEnvVarsSize);
+		tmpEnvVars = reallocarray(envVars, newEnvVarsSize,
+		    sizeof(*envVars));
 		if (tmpEnvVars == NULL) {
 			envVarsTotal--;
 			return (false);
