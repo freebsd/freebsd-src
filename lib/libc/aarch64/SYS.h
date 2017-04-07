@@ -45,12 +45,19 @@ ENTRY(__sys_##name);						\
 	ret;							\
 END(__sys_##name)
 
+/*
+ * Conditional jumps can only go up to one megabyte in either
+ * direction, and cerror can be located anywhere, so we have
+ * to jump around to use more capable unconditional branch
+ * instruction.
+ */
 #define	PSEUDO(name)						\
 ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
 	_SYSCALL(name);						\
-	b.cs	cerror;						\
+	b.cs	1f;						\
 	ret;							\
+1:	b	cerror;						\
 END(__sys_##name)
 
 #define	RSYSCALL(name)						\
@@ -58,6 +65,7 @@ ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, name);			\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
 	_SYSCALL(name);						\
-	b.cs	cerror;						\
+	b.cs	1f;						\
 	ret;							\
+1:	b	cerror;						\
 END(__sys_##name)
