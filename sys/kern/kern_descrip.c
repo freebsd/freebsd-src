@@ -3573,11 +3573,11 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	return (error != 0 ? error : error2);
 }
 
+#ifdef COMPAT_FREEBSD7
 #ifdef KINFO_OFILE_SIZE
 CTASSERT(sizeof(struct kinfo_ofile) == KINFO_OFILE_SIZE);
 #endif
 
-#ifdef COMPAT_FREEBSD7
 static void
 kinfo_to_okinfo(struct kinfo_file *kif, struct kinfo_ofile *okif)
 {
