@@ -597,7 +597,7 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	append_arg(&mnt_argv, execname);
 	mangle(optbuf, &mnt_argv);
 	if (mountprog != NULL)
-		strcpy(execname, mountprog);
+		strlcpy(execname, mountprog, sizeof(execname));
 
 	append_arg(&mnt_argv, strdup(spec));
 	append_arg(&mnt_argv, strdup(name));
@@ -902,8 +902,9 @@ putfsent(struct statfs *ent)
 
 	if (strncmp(ent->f_mntfromname, "<below>", 7) == 0 ||
 	    strncmp(ent->f_mntfromname, "<above>", 7) == 0) {
-		strcpy(ent->f_mntfromname, (strnstr(ent->f_mntfromname, ":", 8)
-		    +1));
+		strlcpy(ent->f_mntfromname,
+		    (strnstr(ent->f_mntfromname, ":", 8) +1),
+		    sizeof(ent->f_mntfromname));
 	}
 
 	l = strlen(ent->f_mntfromname);
