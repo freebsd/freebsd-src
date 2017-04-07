@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2001
+.Dd April 7, 2017
 .Dt FDCONTROL 8
 .Os
 .Sh NAME
@@ -94,30 +94,6 @@ Again, together with
 some more text will be returned, including the total capacity of the
 density settings in kilobytes.
 .Ss Debug Control
-If the
-.Xr fdc 4
-driver was configured with the
-.Dv FDC_DEBUG
-option, by default, device debugging information is still disabled
-since it could produce huge amounts of kernel messages.
-It needs to
-be turned on using
-.Nm
-together with
-.Dq Fl d Li 1 ,
-usually immediately before starting an operation on the respective
-device the debug information is wanted for, and later turned off again
-using
-.Dq Fl d Li 0 .
-Note that debugging levels are a driver's global option that will
-affect any drives and controllers using the
-.Xr fdc 4
-driver, regardless which
-.Ar device
-was specified on the
-.Nm
-command line.
-.Ss Density Control
 The
 .Xr fdc 4
 control utilities support two different options how to specify device
