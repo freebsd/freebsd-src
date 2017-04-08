@@ -40,19 +40,9 @@ SRCS+=		uncompr.c
 SRCS+=		zopen.c
 SRCS+=		zutil.c
 
-#.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
-#.PATH:		${ZLIBSRC}/contrib/asm686
-#SRCS+=		match.S
-#CFLAGS+=	-DASMV -DNO_UNDERLINE
-#ACFLAGS+=	-Wa,--noexecstack
-#.endif
-
-#.if ${MACHINE_ARCH} == "amd64"
-#.PATH:		${ZLIBSRC}/contrib/gcc_gvmat64
-#SRCS+=		gvmat64.S
-#CFLAGS+=	-DASMV -DNO_UNDERLINE
-#ACFLAGS+=	-Wa,--noexecstack
-#.endif
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64
+CFLAGS+=	-DUNALIGNED_OK
+.endif
 
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
