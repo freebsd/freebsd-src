@@ -271,13 +271,11 @@ gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 			c = sc_vtb_getc(&scp->vtb, at);
 			vidd_putc(scp->sc->adp, at, c,
 			    (a >> 4) | ((a & 0xf) << 4));
-			scp->cursor_saveunder_attr = a;
-			scp->cursor_saveunder_char = c;
 		} else {
 			if (scp->status & VR_CURSOR_ON)
 				vidd_putc(scp->sc->adp, at,
-				    scp->cursor_saveunder_char,
-				    scp->cursor_saveunder_attr);
+				    sc_vtb_getc(&scp->vtb, at),
+				    sc_vtb_geta(&scp->vtb, at) >> 8);
 			scp->status &= ~VR_CURSOR_ON;
 		}
 	}
