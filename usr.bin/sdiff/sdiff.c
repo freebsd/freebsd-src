@@ -213,7 +213,6 @@ main(int argc, char **argv)
 	int ch, fd[2] = {-1}, status;
 	pid_t pid=0;
 	const char *outfile = NULL;
-	struct option *popt;
 	char **diffargv, *diffprog = DIFF_PATH, *filename1, *filename2,
 	     *tmp1, *tmp2, *s1, *s2;
 	int i;
@@ -260,7 +259,6 @@ main(int argc, char **argv)
 		case 'i':
 		case 't':
 		case 'W':
-			for(popt = longopts; ch != popt->val && popt->name != NULL; popt++);
 			diffargv[1]  = realloc(diffargv[1], sizeof(char) * strlen(diffargv[1]) + 2);
 			/*
 			 * In diff, the 'W' option is 'w' and the 'w' is 'W'.
