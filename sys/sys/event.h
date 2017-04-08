@@ -173,7 +173,7 @@ struct knlist {
 #define	KNF_LISTLOCKED	0x0001			/* knlist is locked */
 #define	KNF_NOKQLOCK	0x0002			/* do not keep KQ_LOCK */
 
-#define KNOTE(list, hist, flags)	knote(list, hist, flags)
+#define KNOTE(list, hint, flags)	knote(list, hint, flags)
 #define KNOTE_LOCKED(list, hint)	knote(list, hint, KNF_LISTLOCKED)
 #define KNOTE_UNLOCKED(list, hint)	knote(list, hint, 0)
 
