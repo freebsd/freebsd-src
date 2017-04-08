@@ -236,7 +236,9 @@ static void
 topo_probe_amd(void)
 {
 	u_int p[4];
+	uint64_t v;
 	int level;
+	int nodes_per_socket;
 	int share_count;
 	int type;
 	int i;
@@ -295,13 +297,18 @@ topo_probe_amd(void)
 				caches[1].present = 1;
 			}
 			if (((p[3] >> 18) & 0x3fff) != 0) {
-
-				/*
-				 * TODO: Account for dual-node processors
-				 * where each node within a package has its own
-				 * L3 cache.
-				 */
-				caches[2].id_shift = pkg_id_shift;
+				nodes_per_socket = 1;
+				if ((amd_feature2 & AMDID2_NODE_ID) != 0) {
+					/*
+					 * Handle multi-node processors that
+					 * have multiple chips, each with its
+					 * own L3 cache, on the same die.
+					 */
+					v = rdmsr(0xc001100c);
+					nodes_per_socket = 1 + ((v >> 3) & 0x7);
+				}
+				caches[2].id_shift =
+				    pkg_id_shift - mask_width(nodes_per_socket);
 				caches[2].present = 1;
 			}
 		}
