@@ -728,7 +728,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		if (info.rti_info[RTAX_NETMASK] == NULL &&
 		    rtm->rtm_type == RTM_GET) {
 			/*
-			 * Provide logest prefix match for
+			 * Provide longest prefix match for
 			 * address lookup (no mask).
 			 * 'route -n get addr'
 			 */
