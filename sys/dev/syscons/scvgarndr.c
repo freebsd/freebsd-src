@@ -294,8 +294,6 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 	sc_softc_t *sc;
 
 	sc = scp->sc;
-	scp->cursor_saveunder_char = c;
-	scp->cursor_saveunder_attr = a;
 
 #ifndef SC_NO_FONT_LOADING
 	if (scp->curs_attr.flags & CONS_CHAR_CURSOR) {
@@ -372,18 +370,18 @@ vga_txtcursor(scr_stat *scp, int at, int blink, int on, int flip)
 		if (on) {
 			scp->status |= VR_CURSOR_ON;
 			draw_txtcharcursor(scp, at,
-					   sc_vtb_getc(&scp->scr, at),
-					   sc_vtb_geta(&scp->scr, at),
+					   sc_vtb_getc(&scp->vtb, at),
+					   sc_vtb_geta(&scp->vtb, at),
 					   flip);
 		} else {
-			cursor_attr = scp->cursor_saveunder_attr;
+			cursor_attr = sc_vtb_geta(&scp->vtb, at);
 			if (flip)
 				cursor_attr = (cursor_attr & 0x8800)
 					| ((cursor_attr & 0x7000) >> 4)
 					| ((cursor_attr & 0x0700) << 4);
 			if (scp->status & VR_CURSOR_ON)
 				sc_vtb_putc(&scp->scr, at,
-					    scp->cursor_saveunder_char,
+					    sc_vtb_getc(&scp->vtb, at),
 					    cursor_attr);
 			scp->status &= ~VR_CURSOR_ON;
 		}
