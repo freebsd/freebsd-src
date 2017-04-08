@@ -312,8 +312,6 @@ typedef struct scr_stat {
 
 	int		cursor_pos;		/* cursor buffer position */
 	int		cursor_oldpos;		/* cursor old buffer position */
-	u_short		cursor_saveunder_char;	/* saved char under cursor */
-	u_short		cursor_saveunder_attr;	/* saved attr under cursor */
 	struct cursor_attr dflt_curs_attr;
 	struct cursor_attr curr_curs_attr;
 	struct cursor_attr curs_attr;
