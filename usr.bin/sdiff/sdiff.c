@@ -259,7 +259,6 @@ main(int argc, char **argv)
 		case 'E':
 		case 'i':
 		case 't':
-		case 'H':
 		case 'W':
 			for(popt = longopts; ch != popt->val && popt->name != NULL; popt++);
 			diffargv[1]  = realloc(diffargv[1], sizeof(char) * strlen(diffargv[1]) + 2);
@@ -270,6 +269,9 @@ main(int argc, char **argv)
 				sprintf(diffargv[1], "%sw", diffargv[1]);
 			else
 				sprintf(diffargv[1], "%s%c", diffargv[1], ch);
+			break;
+		case 'H':
+			diffargv[diffargc++] = "--speed-large-files";
 			break;
 		case DIFFPROG_OPT:
 			diffargv[0] = diffprog = optarg;
@@ -1151,7 +1153,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: sdiff [-abdilstW] [-I regexp] [-o outfile] [-w width] file1"
+	    "usage: sdiff [-abdilstHW] [-I regexp] [-o outfile] [-w width] file1"
 	    " file2\n");
 	exit(2);
 }
