@@ -450,16 +450,6 @@ TARGET_ARCHES_powerpc?=	powerpc powerpc64 powerpcspe
 TARGET_ARCHES_${target}?= ${target}
 .endfor
 
-# XXX Remove arm64 from universe if the required binutils package is missing.
-# It does not build with the in-tree linker.
-.if !exists(/usr/local/aarch64-freebsd/bin/ld) && ${TARGETS:Marm64}
-_UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:Narm64}
-universe: universe_arm64_skip .PHONY
-universe_epilogue: universe_arm64_skip .PHONY
-universe_arm64_skip: universe_prologue .PHONY
-	@echo ">> arm64 skipped - install aarch64-binutils port or package to build"
-.endif
-
 .if defined(UNIVERSE_TARGET)
 MAKE_JUST_WORLDS=	YES
 .else
