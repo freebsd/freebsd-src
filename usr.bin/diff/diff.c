@@ -55,6 +55,7 @@ enum {
 	OPT_NO_IGN_FN_CASE,
 	OPT_NORMAL,
 	OPT_HORIZON_LINES,
+	OPT_SPEED_LARGE_FILES,
 };
 
 static struct option longopts[] = {
@@ -87,6 +88,7 @@ static struct option longopts[] = {
 	{ "horizon-lines",		required_argument,	NULL,	OPT_HORIZON_LINES },
 	{ "no-ignore-file-name-case",	no_argument,		NULL,	OPT_NO_IGN_FN_CASE },
 	{ "normal",			no_argument,		NULL,	OPT_NORMAL },
+	{ "speed-large-files",		no_argument,		NULL,	OPT_SPEED_LARGE_FILES},
 	{ "strip-trailing-cr",		no_argument,		NULL,	OPT_STRIPCR },
 	{ "tabsize",			optional_argument,	NULL,	OPT_TSIZE },
 	{ NULL,				0,			0,	'\0'}
@@ -245,6 +247,8 @@ main(int argc, char **argv)
 				usage();
 			}
 			break;
+		case OPT_SPEED_LARGE_FILES:
+			break; /* ignore but needed for compatibility with GNU diff */
 		case OPT_STRIPCR:
 			dflags |= D_STRIPCR;
 			break;
