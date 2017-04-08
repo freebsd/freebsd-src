@@ -1167,9 +1167,6 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	uint8_t  *u8;
 	int bpp;
 
-	if (!on)
-		return;
-
 	bpp = scp->sc->adp->va_info.vi_depth;
 
 	if ((bpp == 16) && (scp->sc->adp->va_info.vi_pixel_fsizes[1] == 5))
@@ -1180,6 +1177,9 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 
 	xend = imin(x + 16, scp->xpixel);
 	yend = imin(y + 16, scp->ypixel);
+
+	if (on)
+		goto do_on;
 
 	p = scp->sc->adp->va_window + y_old * line_width + x_old * pixel_size;
 
@@ -1205,7 +1205,9 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 
 		p += line_width;
 	}
+	return;
 
+do_on:
 	p = scp->sc->adp->va_window + y * line_width + x * pixel_size;
 
 	for (i = 0; i < (yend - y); i++) {
