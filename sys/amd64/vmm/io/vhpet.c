@@ -761,3 +761,63 @@ vhpet_getcap(struct vm_hpet_cap *cap)
 	cap->capabilities = vhpet_capabilities();
 	return (0);
 }
+
+int
+vhpet_snapshot(struct vhpet *vhpet, void *buffer,
+		 size_t buf_size, size_t *snapshot_size)
+{
+	int error;
+
+	if (buf_size < sizeof(struct vhpet)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+				__func__, buf_size, sizeof(struct vhpet));
+		return (EINVAL);
+	}
+
+	error = copyout(vhpet, buffer, sizeof(struct vhpet));
+	if (error) {
+		printf("%s: failed to copy vhpet data to user buffer\n",
+				__func__);
+		*snapshot_size = 0;
+		return (error);
+	}
+
+	*snapshot_size = sizeof(struct vhpet);
+	return (0);
+}
+
+int
+vhpet_restore(struct vhpet *vhpet, void *buffer, size_t buf_size)
+{
+	int i;
+	struct vhpet *old_vhpet;
+
+	if (buffer == NULL) {
+		printf("%s: buffer was NULL\n", __func__);
+		return (EINVAL);
+	}
+
+	if (buf_size != sizeof(struct vhpet)) {
+		printf("%s: restore buffer size mismatch: %lu != %lu\n",
+				__func__, buf_size, sizeof(struct vhpet));
+		return (EINVAL);
+	}
+
+	old_vhpet = (struct vhpet *)buffer;
+
+	vhpet->freq_sbt = old_vhpet->freq_sbt;
+	vhpet->config = old_vhpet->config;
+	vhpet->isr = old_vhpet->isr;
+	vhpet->countbase = old_vhpet->countbase;
+	vhpet->countbase_sbt = old_vhpet->countbase_sbt;
+
+	for (i = 0; i < VHPET_NUM_TIMERS; i++) {
+		vhpet->timer[i].cap_config = old_vhpet->timer[i].cap_config;
+		vhpet->timer[i].msireg = old_vhpet->timer[i].msireg;
+		vhpet->timer[i].compval = old_vhpet->timer[i].compval;
+		vhpet->timer[i].comprate = old_vhpet->timer[i].comprate;
+		vhpet->timer[i].callout_sbt = old_vhpet->timer[i].callout_sbt;
+	}
+
+	return (0);
+}

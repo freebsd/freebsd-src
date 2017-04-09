@@ -42,5 +42,8 @@ int	vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val,
 int	vhpet_mmio_read(void *vm, int vcpuid, uint64_t gpa, uint64_t *val,
 	    int size, void *arg);
 int	vhpet_getcap(struct vm_hpet_cap *cap);
+int	vhpet_snapshot(struct vhpet *vhpet, void *buffer,
+	    size_t buf_size, size_t *snapshot_size);
+int	vhpet_restore(struct vhpet *vhpet, void *buffer, size_t buf_size);
 
 #endif	/* _VHPET_H_ */

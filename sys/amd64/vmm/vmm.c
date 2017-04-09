@@ -2830,6 +2830,12 @@ vm_snapshot_vioapic(struct vm *vm, void *buffer, size_t buf_size, size_t *snapsh
 	return vioapic_snapshot(vm_ioapic(vm), buffer, buf_size, snapshot_size);
 }
 
+static int
+vm_snapshot_vhpet(struct vm *vm, void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	return vhpet_snapshot(vm_hpet(vm), buffer, buf_size, snapshot_size);
+}
+
 /*
  * Save kernel-side structures to user-space for snapshotting.
  */
@@ -2854,6 +2860,9 @@ vm_snapshot_req(struct vm *vm, enum snapshot_req req, void *buffer,
 		break;
 	case STRUCT_LAPIC:
 		ret = vm_snapshot_lapic(vm, buffer, buf_size, snapshot_size);
+		break;
+	case STRUCT_VHPET:
+		ret = vm_snapshot_vhpet(vm, buffer, buf_size, snapshot_size);
 		break;
 	default:
 		printf("%s: failed to find the requested type\n", __func__);
@@ -2932,6 +2941,12 @@ vm_restore_vioapic(struct vm *vm, void *buffer, size_t buf_size)
 	return vioapic_restore(vm_ioapic(vm), buffer, buf_size);
 }
 
+static int
+vm_restore_vhpet(struct vm *vm, void *buffer, size_t buf_size)
+{
+	return vhpet_restore(vm_hpet(vm), buffer, buf_size);
+}
+
 int
 vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_size)
 {
@@ -2962,6 +2977,9 @@ vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_si
 		break;
 	case STRUCT_VIOAPIC:
 		ret = vm_restore_vioapic(vm, kbuf, buf_size);
+		break;
+	case STRUCT_VHPET:
+		ret = vm_restore_vhpet(vm, kbuf, buf_size);
 		break;
 	default:
 		printf("%s: failed to find type to restore\n", __func__);

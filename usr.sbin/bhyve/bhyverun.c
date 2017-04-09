@@ -1410,6 +1410,7 @@ restore_kernel_structs(struct vmctx *ctx, struct restore_state *rstate)
 		STRUCT_VLAPIC,
 		STRUCT_LAPIC,
 		STRUCT_VIOAPIC,
+		STRUCT_VHPET,
 	};
 
 	for (i = 0; i < sizeof(structs)/sizeof(structs[0]); i++) {
@@ -1440,9 +1441,10 @@ vm_snapshot_structs(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 		STRUCT_VIOAPIC,
 		STRUCT_VLAPIC,
 		STRUCT_LAPIC,
+		STRUCT_VHPET,
 	};
 
-	char *snapshot_struct_names[] = {"vm", "vmx", "vioapic", "vlapic", "lapic"};
+	char *snapshot_struct_names[] = {"vm", "vmx", "vioapic", "vlapic", "lapic", "vhpet"};
 
 	buffer = malloc(SNAPSHOT_BUFFER_SIZE * sizeof(char));
 	if (buffer == NULL) {
