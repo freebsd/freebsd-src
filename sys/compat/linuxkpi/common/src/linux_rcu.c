@@ -105,7 +105,7 @@ linux_rcu_runtime_init(void *arg __unused)
 		ck_epoch_record_t *record;
 
 		record = malloc(sizeof(*record), M_LRCU, M_WAITOK | M_ZERO);
-		ck_epoch_register(&linux_epoch, record);
+		ck_epoch_register(&linux_epoch, record, NULL);
 
 		DPCPU_ID_SET(i, linux_reader_epoch_record, record);
 	}
@@ -116,7 +116,7 @@ linux_rcu_runtime_init(void *arg __unused)
 
 		record = malloc(sizeof(*record), M_LRCU, M_WAITOK | M_ZERO);
 
-		ck_epoch_register(&linux_epoch, &record->epoch_record);
+		ck_epoch_register(&linux_epoch, &record->epoch_record, NULL);
 		mtx_init(&record->head_lock, "LRCU-HEAD", NULL, MTX_DEF);
 		mtx_init(&record->sync_lock, "LRCU-SYNC", NULL, MTX_DEF);
 		TASK_INIT(&record->task, 0, linux_rcu_cleaner_func, record);
@@ -170,14 +170,14 @@ linux_srcu_get_record(void)
 	 * NOTE: The only records that are unregistered and can be
 	 * recycled are srcu_epoch_records.
 	 */
-	record = (struct srcu_epoch_record *)ck_epoch_recycle(&linux_epoch);
+	record = (struct srcu_epoch_record *)ck_epoch_recycle(&linux_epoch, NULL);
 	if (__predict_true(record != NULL))
 		return (record);
 
 	record = malloc(sizeof(*record), M_LRCU, M_WAITOK | M_ZERO);
 	mtx_init(&record->read_lock, "SRCU-READ", NULL, MTX_DEF | MTX_NOWITNESS);
 	mtx_init(&record->sync_lock, "SRCU-SYNC", NULL, MTX_DEF | MTX_NOWITNESS);
-	ck_epoch_register(&linux_epoch, &record->epoch_record);
+	ck_epoch_register(&linux_epoch, &record->epoch_record, NULL);
 
 	return (record);
 }
