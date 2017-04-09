@@ -1190,7 +1190,7 @@ nfsrpc_setattrrpc(vnode_t vp, struct vattr *vap,
 		return (error);
 	if (nd->nd_flag & (ND_NFSV3 | ND_NFSV4))
 		error = nfscl_wcc_data(nd, vp, rnap, attrflagp, NULL, stuff);
-	if ((nd->nd_flag & ND_NFSV4) && !error)
+	if ((nd->nd_flag & (ND_NFSV4 | ND_NOMOREDATA)) == ND_NFSV4 && !error)
 		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
 	if (!(nd->nd_flag & ND_NFSV3) && !nd->nd_repstat && !error)
 		error = nfscl_postop_attr(nd, rnap, attrflagp, stuff);
