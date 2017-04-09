@@ -1056,7 +1056,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		G_ELI_DEBUG(0, "No valid keys on %s.", pp->name);
 		return (NULL);
 	}
-	if (md.md_iterations == -1) {
+	if (md.md_passphrases == 0) {
 		/* If there is no passphrase, we try only once. */
 		tries = 1;
 	} else {
@@ -1088,7 +1088,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
                  */
                 nkeyfiles = g_eli_keyfiles_load(&ctx, pp->name);
 
-                if (nkeyfiles == 0 && md.md_iterations == -1) {
+                if (nkeyfiles == 0 && md.md_passphrases == 0) {
                         /*
                          * No key files and no passphrase, something is
                          * definitely wrong here.
@@ -1103,7 +1103,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
                 }
 
                 /* Ask for the passphrase if defined. */
-                if (md.md_iterations >= 0) {
+                if (md.md_passphrases != 0) {
                         /* Try first with cached passphrase. */
                         if (i == 0) {
                                 if (!g_eli_boot_passcache)
