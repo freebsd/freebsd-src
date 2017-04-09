@@ -466,8 +466,8 @@ disable_idle(struct acpi_cpu_softc *sc)
      * is called and executed in such a context with interrupts being re-enabled
      * right before return.
      */
-    smp_rendezvous_cpus(cpuset, smp_no_rendevous_barrier, NULL,
-	smp_no_rendevous_barrier, NULL);
+    smp_rendezvous_cpus(cpuset, smp_no_rendezvous_barrier, NULL,
+	smp_no_rendezvous_barrier, NULL);
 }
 
 static void

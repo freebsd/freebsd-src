@@ -125,8 +125,8 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 	else
 		CPU_SETOF(cpu, &cpus);
 
-	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
-	    smp_no_rendevous_barrier, arg);
+	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, func,
+	    smp_no_rendezvous_barrier, arg);
 }
 
 static void
@@ -331,7 +331,7 @@ dtrace_gethrtime_init(void *arg)
 
 		smp_rendezvous_cpus(map, NULL,
 		    dtrace_gethrtime_init_cpu,
-		    smp_no_rendevous_barrier, (void *)(uintptr_t) i);
+		    smp_no_rendezvous_barrier, (void *)(uintptr_t) i);
 
 		tsc_skew[i] = tgt_cpu_tsc - hst_cpu_tsc;
 	}

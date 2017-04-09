@@ -148,8 +148,8 @@ counter_u64_zero_inline(counter_u64_t c)
 			*(uint64_t *)((char *)c + sizeof(struct pcpu) * i) = 0;
 		critical_exit();
 	} else {
-		smp_rendezvous(smp_no_rendevous_barrier,
-		    counter_u64_zero_one_cpu, smp_no_rendevous_barrier, c);
+		smp_rendezvous(smp_no_rendezvous_barrier,
+		    counter_u64_zero_one_cpu, smp_no_rendezvous_barrier, c);
 	}
 }
 #endif
