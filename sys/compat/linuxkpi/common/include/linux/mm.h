@@ -91,7 +91,7 @@ CTASSERT((VM_PROT_ALL & -(1 << 8)) == 0);
 #define	FAULT_FLAG_REMOTE	(1 << 7)
 #define	FAULT_FLAG_INSTRUCTION	(1 << 8)
 
-typedef int (*pte_fn_t)(pte_t *, pgtable_t, unsigned long addr, void *data);
+typedef int (*pte_fn_t)(linux_pte_t *, pgtable_t, unsigned long addr, void *data);
 
 struct vm_area_struct {
 	vm_offset_t vm_start;
