@@ -102,6 +102,7 @@ MAN=	aac.4 \
 	cd.4 \
 	cdce.4 \
 	cfi.4 \
+	cfumass.4 \
 	ch.4 \
 	chromebook_platform.4 \
 	ciss.4 \

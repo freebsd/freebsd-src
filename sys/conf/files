@@ -2772,6 +2772,7 @@ dev/usb/controller/usb_controller.c	optional usb
 #
 # USB storage drivers
 #
+dev/usb/storage/cfumass.c	optional cfumass ctl
 dev/usb/storage/umass.c		optional umass
 dev/usb/storage/urio.c		optional urio
 dev/usb/storage/ustorage_fs.c	optional usfs
