@@ -78,7 +78,7 @@ static platform_cpu_reset_t imx6_cpu_reset;
  * We validate that we have data that looks like we expect before changing it:
  *  - SOC node exists and has GPC as its interrupt parent.
  *  - GPC node exists and has GIC as its interrupt parent.
- *  - GIC node exists and is its own interrupt parent.
+ *  - GIC node exists and is its own interrupt parent or has no parent.
  *
  * This applies to all models of imx6.  Luckily all of them have the devices
  * involved at the same addresses on the same buses, so we don't need any
@@ -102,14 +102,20 @@ fix_fdt_interrupt_data(void)
 	if (result <= 0)
 		return;
 
+	/* GIC node may be child of soc node, or appear directly at root. */
 	gicnode = OF_finddevice("/soc/interrupt-controller@00a01000");
+	if (gicnode == -1) {
+		gicnode = OF_finddevice("/interrupt-controller@00a01000");
 	if (gicnode == -1)
 		return;
+	}
+	gicxref = OF_xref_from_node(gicnode);
+
+	/* If gic node has no parent, pretend it is its own parent. */
 	result = OF_getencprop(gicnode, "interrupt-parent", &gicipar,
 	    sizeof(gicipar));
 	if (result <= 0)
-		return;
-	gicxref = OF_xref_from_node(gicnode);
+		gicipar = gicxref;
 
 	gpcnode = OF_finddevice("/soc/aips-bus@02000000/gpc@020dc000");
 	if (gpcnode == -1)
