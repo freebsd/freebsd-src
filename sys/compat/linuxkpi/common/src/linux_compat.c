@@ -411,7 +411,7 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	MPASS(vmap->vm_private_data == vm_obj->handle);
 
 	/* fill out VM fault structure */
-	vmf.virtual_address = (void *)(pidx << PAGE_SHIFT);
+	vmf.virtual_address = (void *)((uintptr_t)pidx << PAGE_SHIFT);
 	vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 	vmf.pgoff = 0;
 	vmf.page = NULL;
