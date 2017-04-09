@@ -443,12 +443,12 @@ retry:
 	for (i = 0, tsc = data; i < N; i++, tsc += size)
 		smp_rendezvous(tsc_read_0, tsc_read_1, tsc_read_2, tsc);
 	smp_tsc = 1;	/* XXX */
-	smp_rendezvous(smp_no_rendevous_barrier, comp_smp_tsc,
-	    smp_no_rendevous_barrier, data);
+	smp_rendezvous(smp_no_rendezvous_barrier, comp_smp_tsc,
+	    smp_no_rendezvous_barrier, data);
 	if (!smp_tsc && adj < smp_tsc_adjust) {
 		adj++;
-		smp_rendezvous(smp_no_rendevous_barrier, adj_smp_tsc,
-		    smp_no_rendevous_barrier, data);
+		smp_rendezvous(smp_no_rendezvous_barrier, adj_smp_tsc,
+		    smp_no_rendezvous_barrier, data);
 		goto retry;
 	}
 	free(data, M_TEMP);
