@@ -83,6 +83,7 @@ struct ck_epoch_ref {
 };
 
 struct ck_epoch_record {
+	ck_stack_entry_t record_next;
 	struct ck_epoch *global;
 	unsigned int state;
 	unsigned int epoch;
@@ -92,17 +93,16 @@ struct ck_epoch_record {
 	} local CK_CC_CACHELINE;
 	unsigned int n_pending;
 	unsigned int n_peak;
-	unsigned long n_dispatch;
+	unsigned int n_dispatch;
+	void *ct;
 	ck_stack_t pending[CK_EPOCH_LENGTH];
-	ck_stack_entry_t record_next;
 } CK_CC_CACHELINE;
 typedef struct ck_epoch_record ck_epoch_record_t;
 
 struct ck_epoch {
 	unsigned int epoch;
-	char pad[CK_MD_CACHELINE - sizeof(unsigned int)];
-	ck_stack_t records;
 	unsigned int n_free;
+	ck_stack_t records;
 };
 typedef struct ck_epoch ck_epoch_t;
 
@@ -110,7 +110,14 @@ typedef struct ck_epoch ck_epoch_t;
  * Internal functions.
  */
 void _ck_epoch_addref(ck_epoch_record_t *, ck_epoch_section_t *);
-void _ck_epoch_delref(ck_epoch_record_t *, ck_epoch_section_t *);
+bool _ck_epoch_delref(ck_epoch_record_t *, ck_epoch_section_t *);
+
+CK_CC_FORCE_INLINE static void *
+ck_epoch_record_ct(const ck_epoch_record_t *record)
+{
+
+	return ck_pr_load_ptr(&record->ct);
+}
 
 /*
  * Marks the beginning of an epoch-protected section.
@@ -160,9 +167,10 @@ ck_epoch_begin(ck_epoch_record_t *record, ck_epoch_section_t *section)
 }
 
 /*
- * Marks the end of an epoch-protected section.
+ * Marks the end of an epoch-protected section. Returns true if no more
+ * sections exist for the caller.
  */
-CK_CC_FORCE_INLINE static void
+CK_CC_FORCE_INLINE static bool
 ck_epoch_end(ck_epoch_record_t *record, ck_epoch_section_t *section)
 {
 
@@ -170,15 +178,19 @@ ck_epoch_end(ck_epoch_record_t *record, ck_epoch_section_t *section)
 	ck_pr_store_uint(&record->active, record->active - 1);
 
 	if (section != NULL)
-		_ck_epoch_delref(record, section);
+		return _ck_epoch_delref(record, section);
 
-	return;
+	return record->active == 0;
 }
 
 /*
  * Defers the execution of the function pointed to by the "cb"
  * argument until an epoch counter loop. This allows for a
  * non-blocking deferral.
+ *
+ * We can get away without a fence here due to the monotonic nature
+ * of the epoch counter. Worst case, this will result in some delays
+ * before object destruction.
  */
 CK_CC_FORCE_INLINE static void
 ck_epoch_call(ck_epoch_record_t *record,
@@ -195,13 +207,74 @@ ck_epoch_call(ck_epoch_record_t *record,
 	return;
 }
 
+/*
+ * Same as ck_epoch_call, but allows for records to be shared and is reentrant.
+ */
+CK_CC_FORCE_INLINE static void
+ck_epoch_call_strict(ck_epoch_record_t *record,
+	      ck_epoch_entry_t *entry,
+	      ck_epoch_cb_t *function)
+{
+	struct ck_epoch *epoch = record->global;
+	unsigned int e = ck_pr_load_uint(&epoch->epoch);
+	unsigned int offset = e & (CK_EPOCH_LENGTH - 1);
+
+	ck_pr_inc_uint(&record->n_pending);
+	entry->function = function;
+
+	/* Store fence is implied by push operation. */
+	ck_stack_push_upmc(&record->pending[offset], &entry->stack_entry);
+	return;
+}
+
+/*
+ * This callback is used for synchronize_wait to allow for custom blocking
+ * behavior.
+ */
+typedef void ck_epoch_wait_cb_t(ck_epoch_t *, ck_epoch_record_t *,
+    void *);
+
+/*
+ * Return latest epoch value. This operation provides load ordering.
+ */
+CK_CC_FORCE_INLINE static unsigned int
+ck_epoch_value(const ck_epoch_t *ep)
+{
+
+	ck_pr_fence_load();
+	return ck_pr_load_uint(&ep->epoch);
+}
+
 void ck_epoch_init(ck_epoch_t *);
-ck_epoch_record_t *ck_epoch_recycle(ck_epoch_t *);
-void ck_epoch_register(ck_epoch_t *, ck_epoch_record_t *);
+
+/*
+ * Attempts to recycle an unused epoch record. If one is successfully
+ * allocated, the record context pointer is also updated.
+ */
+ck_epoch_record_t *ck_epoch_recycle(ck_epoch_t *, void *);
+
+/*
+ * Registers an epoch record. An optional context pointer may be passed that
+ * is retrievable with ck_epoch_record_ct.
+ */
+void ck_epoch_register(ck_epoch_t *, ck_epoch_record_t *, void *);
+
+/*
+ * Marks a record as available for re-use by a subsequent recycle operation.
+ * Note that the record cannot be physically destroyed.
+ */
 void ck_epoch_unregister(ck_epoch_record_t *);
+
 bool ck_epoch_poll(ck_epoch_record_t *);
 void ck_epoch_synchronize(ck_epoch_record_t *);
+void ck_epoch_synchronize_wait(ck_epoch_t *, ck_epoch_wait_cb_t *, void *);
 void ck_epoch_barrier(ck_epoch_record_t *);
+void ck_epoch_barrier_wait(ck_epoch_record_t *, ck_epoch_wait_cb_t *, void *);
+
+/*
+ * Reclaim entries associated with a record. This is safe to call only on
+ * the caller's record or records that are using call_strict.
+ */
 void ck_epoch_reclaim(ck_epoch_record_t *);
 
 #endif /* CK_EPOCH_H */

@@ -139,7 +139,7 @@ CK_STACK_CONTAINER(struct ck_epoch_entry, stack_entry,
 
 #define CK_EPOCH_SENSE_MASK	(CK_EPOCH_SENSE - 1)
 
-void
+bool
 _ck_epoch_delref(struct ck_epoch_record *record,
     struct ck_epoch_section *section)
 {
@@ -150,7 +150,7 @@ _ck_epoch_delref(struct ck_epoch_record *record,
 	current->count--;
 
 	if (current->count > 0)
-		return;
+		return false;
 
 	/*
 	 * If the current bucket no longer has any references, then
@@ -161,8 +161,7 @@ _ck_epoch_delref(struct ck_epoch_record *record,
 	 * If no other active bucket exists, then the record will go
 	 * inactive in order to allow for forward progress.
 	 */
-	other = &record->local.bucket[(i + 1) &
-	    CK_EPOCH_SENSE_MASK];
+	other = &record->local.bucket[(i + 1) & CK_EPOCH_SENSE_MASK];
 	if (other->count > 0 &&
 	    ((int)(current->epoch - other->epoch) < 0)) {
 		/*
@@ -172,7 +171,7 @@ _ck_epoch_delref(struct ck_epoch_record *record,
 		ck_pr_store_uint(&record->epoch, other->epoch);
 	}
 
-	return;
+	return true;
 }
 
 void
@@ -230,7 +229,7 @@ ck_epoch_init(struct ck_epoch *global)
 }
 
 struct ck_epoch_record *
-ck_epoch_recycle(struct ck_epoch *global)
+ck_epoch_recycle(struct ck_epoch *global, void *ct)
 {
 	struct ck_epoch_record *record;
 	ck_stack_entry_t *cursor;
@@ -249,6 +248,12 @@ ck_epoch_recycle(struct ck_epoch *global)
 			    CK_EPOCH_STATE_USED);
 			if (state == CK_EPOCH_STATE_FREE) {
 				ck_pr_dec_uint(&global->n_free);
+				ck_pr_store_ptr(&record->ct, ct);
+
+				/*
+				 * The context pointer is ordered by a
+				 * subsequent protected section.
+				 */
 				return record;
 			}
 		}
@@ -258,7 +263,8 @@ ck_epoch_recycle(struct ck_epoch *global)
 }
 
 void
-ck_epoch_register(struct ck_epoch *global, struct ck_epoch_record *record)
+ck_epoch_register(struct ck_epoch *global, struct ck_epoch_record *record,
+    void *ct)
 {
 	size_t i;
 
@@ -269,6 +275,7 @@ ck_epoch_register(struct ck_epoch *global, struct ck_epoch_record *record)
 	record->n_dispatch = 0;
 	record->n_peak = 0;
 	record->n_pending = 0;
+	record->ct = ct;
 	memset(&record->local, 0, sizeof record->local);
 
 	for (i = 0; i < CK_EPOCH_LENGTH; i++)
@@ -295,6 +302,7 @@ ck_epoch_unregister(struct ck_epoch_record *record)
 	for (i = 0; i < CK_EPOCH_LENGTH; i++)
 		ck_stack_init(&record->pending[i]);
 
+	ck_pr_store_ptr(&record->ct, NULL);
 	ck_pr_fence_store();
 	ck_pr_store_uint(&record->state, CK_EPOCH_STATE_FREE);
 	ck_pr_inc_uint(&global->n_free);
@@ -345,11 +353,10 @@ ck_epoch_dispatch(struct ck_epoch_record *record, unsigned int e)
 {
 	unsigned int epoch = e & (CK_EPOCH_LENGTH - 1);
 	ck_stack_entry_t *head, *next, *cursor;
+	unsigned int n_pending, n_peak;
 	unsigned int i = 0;
 
-	head = CK_STACK_FIRST(&record->pending[epoch]);
-	ck_stack_init(&record->pending[epoch]);
-
+	head = ck_stack_batch_pop_upmc(&record->pending[epoch]);
 	for (cursor = head; cursor != NULL; cursor = next) {
 		struct ck_epoch_entry *entry =
 		    ck_epoch_entry_container(cursor);
@@ -359,11 +366,18 @@ ck_epoch_dispatch(struct ck_epoch_record *record, unsigned int e)
 		i++;
 	}
 
-	if (record->n_pending > record->n_peak)
-		record->n_peak = record->n_pending;
+	n_peak = ck_pr_load_uint(&record->n_peak);
+	n_pending = ck_pr_load_uint(&record->n_pending);
 
-	record->n_dispatch += i;
-	record->n_pending -= i;
+	/* We don't require accuracy around peak calculation. */
+	if (n_pending > n_peak)
+		ck_pr_store_uint(&record->n_peak, n_peak);
+
+	if (i > 0) {
+		ck_pr_add_uint(&record->n_dispatch, i);
+		ck_pr_sub_uint(&record->n_pending, i);
+	}
+
 	return;
 }
 
@@ -381,13 +395,24 @@ ck_epoch_reclaim(struct ck_epoch_record *record)
 	return;
 }
 
+CK_CC_FORCE_INLINE static void
+epoch_block(struct ck_epoch *global, struct ck_epoch_record *cr,
+    ck_epoch_wait_cb_t *cb, void *ct)
+{
+
+	if (cb != NULL)
+		cb(global, cr, ct);
+
+	return;
+}
+
 /*
  * This function must not be called with-in read section.
  */
 void
-ck_epoch_synchronize(struct ck_epoch_record *record)
+ck_epoch_synchronize_wait(struct ck_epoch *global,
+    ck_epoch_wait_cb_t *cb, void *ct)
 {
-	struct ck_epoch *global = record->global;
 	struct ck_epoch_record *cr;
 	unsigned int delta, epoch, goal, i;
 	bool active;
@@ -424,10 +449,27 @@ ck_epoch_synchronize(struct ck_epoch_record *record)
 			 * period.
 			 */
 			e_d = ck_pr_load_uint(&global->epoch);
-			if (e_d != delta) {
-				delta = e_d;
-				goto reload;
+			if (e_d == delta) {
+				epoch_block(global, cr, cb, ct);
+				continue;
 			}
+
+			/*
+			 * If the epoch has been updated, we may have already
+			 * met our goal.
+			 */
+			delta = e_d;
+			if ((goal > epoch) & (delta >= goal))
+				goto leave;
+
+			epoch_block(global, cr, cb, ct);
+
+			/*
+			 * If the epoch has been updated, then a grace period
+			 * requires that all threads are observed idle at the
+			 * same epoch.
+			 */
+			cr = NULL;
 		}
 
 		/*
@@ -459,20 +501,6 @@ ck_epoch_synchronize(struct ck_epoch_record *record)
 		 * Otherwise, we have just acquired latest snapshot.
 		 */
 		delta = delta + r;
-		continue;
-
-reload:
-		if ((goal > epoch) & (delta >= goal)) {
-			/*
-			 * Right now, epoch overflow is handled as an edge
-			 * case. If we have already observed an epoch
-			 * generation, then we can be sure no hazardous
-			 * references exist to objects from this generation. We
-			 * can actually avoid an addtional scan step at this
-			 * point.
-			 */
-			break;
-		}
 	}
 
 	/*
@@ -480,8 +508,16 @@ reload:
 	 * However, if non-temporal instructions are used, full barrier
 	 * semantics are necessary.
 	 */
+leave:
 	ck_pr_fence_memory();
-	record->epoch = delta;
+	return;
+}
+
+void
+ck_epoch_synchronize(struct ck_epoch_record *record)
+{
+
+	ck_epoch_synchronize_wait(record->global, NULL, NULL);
 	return;
 }
 
@@ -490,6 +526,16 @@ ck_epoch_barrier(struct ck_epoch_record *record)
 {
 
 	ck_epoch_synchronize(record);
+	ck_epoch_reclaim(record);
+	return;
+}
+
+void
+ck_epoch_barrier_wait(struct ck_epoch_record *record, ck_epoch_wait_cb_t *cb,
+    void *ct)
+{
+
+	ck_epoch_synchronize_wait(record->global, cb, ct);
 	ck_epoch_reclaim(record);
 	return;
 }
@@ -509,7 +555,6 @@ ck_epoch_poll(struct ck_epoch_record *record)
 {
 	bool active;
 	unsigned int epoch;
-	unsigned int snapshot;
 	struct ck_epoch_record *cr = NULL;
 	struct ck_epoch *global = record->global;
 
@@ -533,12 +578,7 @@ ck_epoch_poll(struct ck_epoch_record *record)
 	}
 
 	/* If an active thread exists, rely on epoch observation. */
-	if (ck_pr_cas_uint_value(&global->epoch, epoch, epoch + 1,
-	    &snapshot) == false) {
-		record->epoch = snapshot;
-	} else {
-		record->epoch = epoch + 1;
-	}
+	(void)ck_pr_cas_uint(&global->epoch, epoch, epoch + 1);
 
 	ck_epoch_dispatch(record, epoch + 1);
 	return true;
