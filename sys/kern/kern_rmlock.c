@@ -556,9 +556,9 @@ _rm_wlock(struct rmlock *rm)
 		 */
 #ifdef SMP
 		smp_rendezvous_cpus(readcpus,
-		    smp_no_rendevous_barrier,
+		    smp_no_rendezvous_barrier,
 		    rm_cleanIPI,
-		    smp_no_rendevous_barrier,
+		    smp_no_rendezvous_barrier,
 		    rm);
 
 #else
