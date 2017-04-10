@@ -622,6 +622,53 @@ OF_seek(ihandle_t instance, u_int64_t pos)
 	return (args.status);
 }
 
+/* Blocks. */
+unsigned int
+OF_blocks(ihandle_t instance)
+{
+	static struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+		cell_t instance;
+		cell_t result;
+		cell_t blocks;
+	} args = {
+		(cell_t)"#blocks",
+		2,
+		1,
+	};
+
+	args.instance = instance;
+	if (openfirmware(&args) == -1)
+		return ((unsigned int)-1);
+	return (args.blocks);
+}
+
+/* Block size. */
+int
+OF_block_size(ihandle_t instance)
+{
+	static struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+		cell_t instance;
+		cell_t result;
+		cell_t size;
+	} args = {
+		(cell_t)"block-size",
+		2,
+		1,
+	};
+
+	args.instance = instance;
+	if (openfirmware(&args) == -1)
+		return (512);
+	return (args.size);
+}
+
+/* 
 /*
  * Memory functions
  */
