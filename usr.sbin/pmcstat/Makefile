@@ -2,9 +2,6 @@
 # $FreeBSD$
 #
 
-# Compiler crash (CTSRD-CHERI/llvm#211)
-WANT_CHERI=none
-
 PROG=	pmcstat
 MAN=	pmcstat.8
 

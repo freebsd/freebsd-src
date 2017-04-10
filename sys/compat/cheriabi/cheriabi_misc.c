@@ -155,12 +155,6 @@ static int cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count);
 static register_t cheriabi_mmap_prot2perms(int prot);
 
-struct kevent_userptrs {
-	struct chericap	ident;
-	struct chericap	data;
-	struct chericap	udata;
-};
-
 int
 cheriabi_syscall(struct thread *td, struct cheriabi_syscall_args *uap)
 {
@@ -437,7 +431,6 @@ cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct cheriabi_kevent_args *uap;
 	struct kevent_c	ks_c[KQ_NEVENTS];
-	struct kevent_userptrs *uptrs;
 	int i, error = 0;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
@@ -447,15 +440,15 @@ cheriabi_kevent_copyout(void *arg, struct kevent *kevp, int count)
 		CP(kevp[i], ks_c[i], filter);
 		CP(kevp[i], ks_c[i], flags);
 		CP(kevp[i], ks_c[i], fflags);
+		CP(kevp[i], ks_c[i], data);
 
 		/*
-		 * Retrieve the ident, data, and udata capabilities stashed by
+		 * Retrieve the ident and udata capabilities stashed by
 		 * cheriabi_kevent_copyin().
 		 */
-		uptrs = kevp[i].udata;
-		cheri_capability_copy(&ks_c[i].ident, &uptrs->ident);
-		cheri_capability_copy(&ks_c[i].data, &uptrs->data);
-		cheri_capability_copy(&ks_c[i].udata, &uptrs->udata);
+		cheri_capability_copy(&ks_c[i].ident, kevp[i].udata);
+		cheri_capability_copy(&ks_c[i].udata,
+		    (struct chericap *)kevp[i].udata + 1);
 	}
 	error = copyoutcap(ks_c, uap->eventlist, count * sizeof(*ks_c));
 	if (error == 0)
@@ -471,7 +464,6 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 {
 	struct cheriabi_kevent_args *uap;
 	struct kevent_c	ks_c[KQ_NEVENTS];
-	struct kevent_userptrs *uptrs;
 	int error, i, tag;
 	register_t perms;
 
@@ -501,6 +493,7 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 		CP(ks_c[i], kevp[i], filter);
 		CP(ks_c[i], kevp[i], flags);
 		CP(ks_c[i], kevp[i], fflags);
+		CP(ks_c[i], kevp[i], data);
 
 		if (ks_c[i].flags & EV_DELETE)
 			continue;
@@ -513,14 +506,14 @@ cheriabi_kevent_copyin(void *arg, struct kevent *kevp, int count)
 				return (EPROT);
 		}
 		/*
-		 * We stash the real ident, data, and udata capabilities in
-		 * a malloced struct in udata.
+		 * We stash the real ident and udata capabilities in
+		 * a malloced array in udata.
 		 */
-		uptrs = malloc(sizeof(*uptrs), M_KQUEUE, M_WAITOK);
-		kevp[i].udata = uptrs;
-		cheri_capability_copy(&uptrs->ident, &ks_c[i].ident);
-		cheri_capability_copy(&uptrs->data, &ks_c[i].data);
-		cheri_capability_copy(&uptrs->udata, &ks_c[i].udata);
+		kevp[i].udata = malloc(2*sizeof(struct chericap), M_KQUEUE,
+		    M_WAITOK);
+		cheri_capability_copy(kevp[i].udata, &ks_c[i].ident);
+		cheri_capability_copy((struct chericap *)kevp[i].udata + 1,
+		    &ks_c[i].udata);
 	}
 done:
 	return (error);
