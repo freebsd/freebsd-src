@@ -62,7 +62,11 @@ struct kevent {
 	short		filter;		/* filter for event */
 	unsigned short	flags;
 	unsigned int	fflags;
+#ifndef __CHERI_PURE_CAPABILITY__
 	__intptr_t	data;
+#else
+	int64_t		data;		/* All consumers use integers */
+#endif
 	void		*udata;		/* opaque user data identifier */
 };
 

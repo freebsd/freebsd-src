@@ -159,7 +159,7 @@ struct kevent_c {
 	short		filter;		/* filter for event */
 	u_short		flags;
 	u_int		fflags;
-	struct chericap	data;
+	int64_t		data;
 	struct chericap	udata;		/* opaque user data identifier */
 };
 
