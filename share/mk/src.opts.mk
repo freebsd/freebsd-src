@@ -408,6 +408,7 @@ MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
 MK_INCLUDES:=	no
+MK_LLD:=	no
 MK_LLDB:=	no
 .endif
 
