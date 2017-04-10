@@ -1655,6 +1655,8 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	vm_map_entry_t new_entry;
 
 	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT(entry->end > start && entry->start < start,
+	    ("_vm_map_clip_start: invalid clip of entry %p", entry));
 
 	/*
 	 * Split off the front portion -- note that we must insert the new
@@ -1739,6 +1741,8 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	vm_map_entry_t new_entry;
 
 	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT(entry->start < end && entry->end > end,
+	    ("_vm_map_clip_end: invalid clip of entry %p", entry));
 
 	/*
 	 * If there is no object backing this entry, we might as well create
