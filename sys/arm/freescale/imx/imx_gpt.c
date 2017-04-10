@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
+#ifdef MULTIDELAY
+#include <machine/machdep.h> /* For arm_set_delay */
+#endif
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -61,6 +64,8 @@ static u_int	imx_gpt_get_timecount(struct timecounter *);
 static int	imx_gpt_timer_start(struct eventtimer *, sbintime_t,
     sbintime_t);
 static int	imx_gpt_timer_stop(struct eventtimer *);
+
+static void imx_gpt_do_delay(int, void *);
 
 static int imx_gpt_intr(void *);
 static int imx_gpt_probe(device_t);
@@ -87,6 +92,7 @@ struct imx_gpt_softc {
 	struct eventtimer 	et;
 };
 
+#ifndef MULTIDELAY
 /* Global softc pointer for use in DELAY(). */
 static struct imx_gpt_softc *imx_gpt_sc;
 
@@ -98,6 +104,7 @@ static struct imx_gpt_softc *imx_gpt_sc;
  * we're attached the delay loop switches to using the timer hardware.
  */
 static const int imx_gpt_delay_count = 78;
+#endif
 
 /* Try to divide down an available fast clock to this frequency. */
 #define	TARGET_FREQUENCY	1000000000
@@ -275,8 +282,13 @@ imx_gpt_attach(device_t dev)
 	tc_init(&imx_gpt_timecounter);
 
 	/* If this is the first unit, store the softc for use in DELAY. */
-	if (device_get_unit(dev) == 0)
-	    imx_gpt_sc = sc;
+	if (device_get_unit(dev) == 0) {
+#ifdef MULTIDELAY
+		arm_set_delay(imx_gpt_do_delay, sc);
+#else
+		imx_gpt_sc = sc;
+#endif
+	}
 
 	return (0);
 }
@@ -396,18 +408,11 @@ static devclass_t imx_gpt_devclass;
 EARLY_DRIVER_MODULE(imx_gpt, simplebus, imx_gpt_driver, imx_gpt_devclass, 0,
     0, BUS_PASS_TIMER);
 
-void
-DELAY(int usec)
+static void
+imx_gpt_do_delay(int usec, void *arg)
 {
+	struct imx_gpt_softc *sc = arg;
 	uint64_t curcnt, endcnt, startcnt, ticks;
-
-	/* If the timer hardware is not accessible, just use a loop. */
-	if (imx_gpt_sc == NULL) {
-		while (usec-- > 0)
-			for (ticks = 0; ticks < imx_gpt_delay_count; ++ticks)
-				cpufunc_nullop();
-		return;
-	}
 
 	/*
 	 * Calculate the tick count with 64-bit values so that it works for any
@@ -417,12 +422,30 @@ DELAY(int usec)
 	 * that doing this on each loop iteration is inefficient -- we're trying
 	 * to waste time here.
 	 */
-	ticks = 1 + ((uint64_t)usec * imx_gpt_sc->clkfreq) / 1000000;
-	curcnt = startcnt = READ4(imx_gpt_sc, IMX_GPT_CNT);
+	ticks = 1 + ((uint64_t)usec * sc->clkfreq) / 1000000;
+	curcnt = startcnt = READ4(sc, IMX_GPT_CNT);
 	endcnt = startcnt + ticks;
 	while (curcnt < endcnt) {
-		curcnt = READ4(imx_gpt_sc, IMX_GPT_CNT);
+		curcnt = READ4(sc, IMX_GPT_CNT);
 		if (curcnt < startcnt)
 			curcnt += 1ULL << 32;
 	}
 }
+
+#ifndef MULTIDELAY
+void
+DELAY(int usec)
+{
+	uint64_t ticks;
+
+	/* If the timer hardware is not accessible, just use a loop. */
+	if (imx_gpt_sc == NULL) {
+		while (usec-- > 0)
+			for (ticks = 0; ticks < imx_gpt_delay_count; ++ticks)
+				cpufunc_nullop();
+		return;
+	} else
+		imx_gpt_do_delay(usec, imx_gpt_sc);
+
+}
+#endif

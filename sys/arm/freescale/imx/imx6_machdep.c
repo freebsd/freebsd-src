@@ -324,7 +324,7 @@ static platform_method_t imx6_methods[] = {
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF2(imx6, imx6s, "i.MX6 Solo", 0, "fsl,imx6s", 0);
-FDT_PLATFORM_DEF2(imx6, imx6d, "i.MX6 Dual", 0, "fsl,imx6dl", 0);
-FDT_PLATFORM_DEF2(imx6, imx6q, "i.MX6 Quad", 0, "fsl,imx6q", 0);
-FDT_PLATFORM_DEF2(imx6, imx6ul, "i.MX6 UltraLite", 0, "fsl,imx6ul", 0);
+FDT_PLATFORM_DEF2(imx6, imx6s, "i.MX6 Solo", 0, "fsl,imx6s", 80);
+FDT_PLATFORM_DEF2(imx6, imx6d, "i.MX6 Dual", 0, "fsl,imx6dl", 80);
+FDT_PLATFORM_DEF2(imx6, imx6q, "i.MX6 Quad", 0, "fsl,imx6q", 80);
+FDT_PLATFORM_DEF2(imx6, imx6ul, "i.MX6 UltraLite", 0, "fsl,imx6ul", 67);
