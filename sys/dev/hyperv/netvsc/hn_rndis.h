@@ -33,7 +33,7 @@
 
 struct hn_softc;
 
-int		hn_rndis_attach(struct hn_softc *sc, int mtu);
+int		hn_rndis_attach(struct hn_softc *sc, int mtu, int *init_done);
 void		hn_rndis_detach(struct hn_softc *sc);
 int		hn_rndis_conf_rss(struct hn_softc *sc, uint16_t flags);
 int		hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt);
