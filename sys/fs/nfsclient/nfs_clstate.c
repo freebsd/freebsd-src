@@ -797,8 +797,18 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 	    (mp->mnt_kern_flag & MNTK_UNMOUNTF) == 0)
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
 		    NFSCLSTATEMUTEXPTR, mp);
-	if (!igotlock)
+	if (igotlock == 0) {
+		/*
+		 * Call nfsv4_lock() with "iwantlock == 0" so that it will
+		 * wait for a pending exclusive lock request.  This gives the
+		 * exclusive lock request priority over this shared lock
+		 * request.
+		 * An exclusive lock on nfsc_lock is used mainly for server
+		 * crash recoveries.
+		 */
+		nfsv4_lock(&clp->nfsc_lock, 0, NULL, NFSCLSTATEMUTEXPTR, mp);
 		nfsv4_getref(&clp->nfsc_lock, NULL, NFSCLSTATEMUTEXPTR, mp);
+	}
 	if (igotlock == 0 && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
 		/*
 		 * Both nfsv4_lock() and nfsv4_getref() know to check
