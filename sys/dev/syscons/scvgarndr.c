@@ -1101,21 +1101,16 @@ remove_pxlmouse_planar(scr_stat *scp, int x, int y)
 {
 	vm_offset_t p;
 	int col, row;
-	int pos;
 	int line_width;
 	int ymax;
 	int i;
 
-	/* erase the mouse cursor image */
+	/*
+	 * The caller will remove parts of the mouse image over the text
+	 * window better than we can do.  Remove only parts over the border.
+	 */
 	col = x/8 - scp->xoff;
 	row = y/scp->font_size - scp->yoff;
-	pos = row*scp->xsize + col;
-	i = (col < scp->xsize - 1) ? 2 : 1;
-	(*scp->rndr->draw)(scp, pos, i, FALSE);
-	if (row < scp->ysize - 1)
-		(*scp->rndr->draw)(scp, pos + scp->xsize, i, FALSE);
-
-	/* paint border if necessary */
 	line_width = scp->sc->adp->va_line_width;
 	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */

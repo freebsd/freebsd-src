@@ -335,28 +335,14 @@ static void
 gfb_mouse(scr_stat *scp, int x, int y, int on)
 {
 #ifdef __sparc64__
-		vidd_putm(scp->sc->adp, x, y, mouse_pointer,
-		    on ? 0xffffffff : 0x0, 22, 12);
+	vidd_putm(scp->sc->adp, x, y, mouse_pointer,
+	    on ? 0xffffffff : 0x0, 22, 12);
 #else
-	int i, pos;
-
 	if (on) {
-
-		/* Display the mouse pointer image... */
 		vidd_putm(scp->sc->adp, x, y, mouse_pointer,
 		    0xffffffff, 16, 8);
 	} else {
-
-		/*
-		   Erase the mouse cursor image by redrawing the text
-		   underneath it...
-		*/
-		return;
-		pos = x*scp->xsize + y;
-		i = (y < scp->xsize - 1) ? 2 : 1;
-		(*scp->rndr->draw)(scp, pos, i, FALSE);
-		if (x < scp->ysize - 1)
-			(*scp->rndr->draw)(scp, pos + scp->xsize, i, FALSE);
+		/* XXX: removal is incomplete for h/w cursors and borders. */
 	}
 #endif
 }
