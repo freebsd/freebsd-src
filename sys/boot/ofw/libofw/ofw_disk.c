@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <stand.h>
+#include <sys/disk.h>
 
 #include "bootstrap.h"
 #include "libofw.h"
@@ -154,11 +155,26 @@ ofwd_close(struct open_file *f)
 }
 
 static int
-ofwd_ioctl(struct open_file *f __unused, u_long cmd __unused,
-    void *data __unused)
+ofwd_ioctl(struct open_file *f, u_long cmd, void *data)
 {
+	struct ofw_devdesc *dev = f->f_devdata;
+	int block_size;
+	unsigned int n;
 
-	return (EINVAL);
+	switch (cmd) {
+	case DIOCGSECTORSIZE:
+		block_size = OF_block_size(dev->d_handle);
+		*(u_int *)data = block_size;
+		break;
+	case DIOCGMEDIASIZE:
+		block_size = OF_block_size(dev->d_handle);
+		n = OF_blocks(dev->d_handle);
+		*(uint64_t *)data = (uint64_t)(n * block_size);
+		break;
+	default:
+		return (ENOTTY);
+	}
+	return (0);
 }
 
 static int
