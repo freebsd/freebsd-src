@@ -1555,13 +1555,16 @@ vlan_capabilities(struct ifvlan *ifv)
 	 * offloading requires hardware VLAN tagging.
 	 */
 	if (p->if_capabilities & IFCAP_VLAN_HWCSUM)
-		ifp->if_capabilities = p->if_capabilities & IFCAP_HWCSUM;
+		ifp->if_capabilities =
+		    p->if_capabilities & (IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6);
 
 	if (p->if_capenable & IFCAP_VLAN_HWCSUM &&
 	    p->if_capenable & IFCAP_VLAN_HWTAGGING) {
-		ifp->if_capenable = p->if_capenable & IFCAP_HWCSUM;
+		ifp->if_capenable =
+		    p->if_capenable & (IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6);
 		ifp->if_hwassist = p->if_hwassist & (CSUM_IP | CSUM_TCP |
-		    CSUM_UDP | CSUM_SCTP);
+		    CSUM_UDP | CSUM_SCTP | CSUM_TCP_IPV6 | CSUM_UDP_IPV6 |
+		    CSUM_SCTP_IPV6);
 	} else {
 		ifp->if_capenable = 0;
 		ifp->if_hwassist = 0;
