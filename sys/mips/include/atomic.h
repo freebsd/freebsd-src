@@ -611,12 +611,10 @@ atomic_fcmpset_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 	uint32_t tmp;
 	uint32_t expected = *cmpval;
 
-
 	__asm __volatile (
 		"1:\n\t"
-		"cllw	%[ret], %[ptr]\n\t"		/* load old value */
-		"bne	%[ret], %[expected], 2f\n\t"	/* compare */
-		"move	%[tmp], %[ret]\n\t"		/* save loaded value */
+		"cllw	%[tmp], %[ptr]\n\t"		/* load old value */
+		"bne	%[tmp], %[expected], 2f\n\t"	/* compare */
 		"cscw	%[ret], %[newval], %[ptr]\n\t"	/* attempt to store */
 		"beqz	%[ret], 1b\n\t"			/* if it failed, spin */
 		"j	3f\n\t"
@@ -624,8 +622,8 @@ atomic_fcmpset_32(__volatile uint32_t *p, uint32_t *cmpval, uint32_t newval)
 		"csw	%[tmp], $0, 0(%[cmpval])\n\t"	/* store loaded value */
 		"li	%[ret], 0\n\t"
 		"3:\n"
-		: [ret] "=&r" (ret), [tmp] "=&r" (tmp), [ptr]"=C" (p),
-		    [cmpval]"=C" (cmpval)
+		: [ret] "=&r" (ret), [tmp] "=&r" (tmp), [ptr]"+C" (p),
+		    [cmpval]"+C" (cmpval)
 		: [newval] "r" (newval), [expected] "r" (expected)
 		: "memory");
 #endif
@@ -776,9 +774,8 @@ atomic_fcmpset_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 
 	__asm __volatile (
 		"1:\n\t"
-		"clld	%[ret], %[ptr]\n\t"		/* load old value */
-		"bne	%[ret], %[expected], 2f\n\t"	/* compare */
-		"move	%[tmp], %[ret]\n\t"		/* save loaded value */
+		"clld	%[tmp], %[ptr]\n\t"		/* load old value */
+		"bne	%[tmp], %[expected], 2f\n\t"	/* compare */
 		"cscd	%[ret], %[newval], %[ptr]\n\t"	/* attempt to store */
 		"beqz	%[ret], 1b\n\t"			/* if it failed, spin */
 		"j	3f\n\t"
@@ -786,8 +783,8 @@ atomic_fcmpset_64(__volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 		"csd	%[tmp], $0, 0(%[cmpval])\n\t"	/* store loaded value */
 		"li	%[ret], 0\n\t"
 		"3:\n"
-		: [ret] "=&r" (ret), [tmp] "=&r" (tmp), [ptr]"=C" (p),
-		    [cmpval]"=C" (cmpval)
+		: [ret] "=&r" (ret), [tmp] "=&r" (tmp), [ptr]"+C" (p),
+		    [cmpval]"+C" (cmpval)
 		: [newval] "r" (newval), [expected] "r" (expected)
 		: "memory");
 #endif
