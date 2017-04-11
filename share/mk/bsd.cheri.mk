@@ -85,7 +85,7 @@ CHERI_LLD_BROKEN=	yes
 .ifdef CHERI_LLD_BROKEN
 LDFLAGS+=	-fuse-ld=bfd
 .else
-LDFLAGS+=	-fuse-ld=lld
+LDFLAGS+=	-fuse-ld=lld -Wl,-z,norelro
 .endif
 .endif
 .else
