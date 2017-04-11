@@ -804,38 +804,26 @@ efi_zfs_probe(void)
 	pdinfo_t *hd, *pd = NULL;
 	EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
 	EFI_LOADED_IMAGE *img;
-	EFI_HANDLE boot_disk = NULL;
 	char devname[SPECNAMELEN + 1];
-	uint64_t *guidp = NULL;
 
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
-
-	/* Find the handle for the boot disk. */
 	hdi = efiblk_get_pdinfo_list(&efipart_hddev);
-	STAILQ_FOREACH(hd, hdi, pd_link) {
-		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
-			if (pd->pd_handle == img->DeviceHandle)
-				boot_disk = hd->pd_handle;
-		}
-	}
 
 	/*
-	 * We provide non-NULL guid pointer if the disk was used for boot,
-	 * and reset after the first found pool.
-	 * Technically this solution is not very correct, we assume the boot
-	 * pool is the first pool on this disk.
+	 * Find the handle for the boot device. The boot1 did find the
+	 * device with loader binary, now we need to search for the
+	 * same device and if it is part of the zfs pool, we record the
+	 * pool GUID for currdev setup.
 	 */
-
 	STAILQ_FOREACH(hd, hdi, pd_link) {
-		if (hd->pd_handle == boot_disk)
-			guidp = &pool_guid;
-
 		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
+
 			snprintf(devname, sizeof(devname), "%s%dp%d:",
 			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
-			(void) zfs_probe_dev(devname, guidp);
-			if (guidp != NULL && pool_guid != 0)
-				guidp = NULL;
+			if (pd->pd_handle == img->DeviceHandle)
+				(void) zfs_probe_dev(devname, &pool_guid);
+			else
+				(void) zfs_probe_dev(devname, NULL);
 		}
 	}
 }
