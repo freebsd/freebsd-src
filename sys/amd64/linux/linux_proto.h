@@ -606,40 +606,13 @@ struct linux_setdomainname_args {
 struct linux_iopl_args {
 	char level_l_[PADL_(l_uint)]; l_uint level; char level_r_[PADR_(l_uint)];
 };
-struct linux_create_module_args {
-	register_t dummy;
-};
 struct linux_init_module_args {
 	register_t dummy;
 };
 struct linux_delete_module_args {
 	register_t dummy;
 };
-struct linux_get_kernel_syms_args {
-	register_t dummy;
-};
-struct linux_query_module_args {
-	register_t dummy;
-};
 struct linux_quotactl_args {
-	register_t dummy;
-};
-struct linux_nfsservctl_args {
-	register_t dummy;
-};
-struct linux_getpmsg_args {
-	register_t dummy;
-};
-struct linux_putpmsg_args {
-	register_t dummy;
-};
-struct linux_afs_syscall_args {
-	register_t dummy;
-};
-struct linux_tuxcall_args {
-	register_t dummy;
-};
-struct linux_security_args {
 	register_t dummy;
 };
 struct linux_gettid_args {
@@ -706,20 +679,11 @@ struct linux_sched_getaffinity_args {
 	char len_l_[PADL_(l_uint)]; l_uint len; char len_r_[PADR_(l_uint)];
 	char user_mask_ptr_l_[PADL_(l_ulong *)]; l_ulong * user_mask_ptr; char user_mask_ptr_r_[PADR_(l_ulong *)];
 };
-struct linux_set_thread_area_args {
-	register_t dummy;
-};
 struct linux_lookup_dcookie_args {
 	register_t dummy;
 };
 struct linux_epoll_create_args {
 	char size_l_[PADL_(l_int)]; l_int size; char size_r_[PADR_(l_int)];
-};
-struct linux_epoll_ctl_old_args {
-	register_t dummy;
-};
-struct linux_epoll_wait_old_args {
-	register_t dummy;
 };
 struct linux_remap_file_pages_args {
 	register_t dummy;
@@ -1378,18 +1342,9 @@ int	linux_reboot(struct thread *, struct linux_reboot_args *);
 int	linux_sethostname(struct thread *, struct linux_sethostname_args *);
 int	linux_setdomainname(struct thread *, struct linux_setdomainname_args *);
 int	linux_iopl(struct thread *, struct linux_iopl_args *);
-int	linux_create_module(struct thread *, struct linux_create_module_args *);
 int	linux_init_module(struct thread *, struct linux_init_module_args *);
 int	linux_delete_module(struct thread *, struct linux_delete_module_args *);
-int	linux_get_kernel_syms(struct thread *, struct linux_get_kernel_syms_args *);
-int	linux_query_module(struct thread *, struct linux_query_module_args *);
 int	linux_quotactl(struct thread *, struct linux_quotactl_args *);
-int	linux_nfsservctl(struct thread *, struct linux_nfsservctl_args *);
-int	linux_getpmsg(struct thread *, struct linux_getpmsg_args *);
-int	linux_putpmsg(struct thread *, struct linux_putpmsg_args *);
-int	linux_afs_syscall(struct thread *, struct linux_afs_syscall_args *);
-int	linux_tuxcall(struct thread *, struct linux_tuxcall_args *);
-int	linux_security(struct thread *, struct linux_security_args *);
 int	linux_gettid(struct thread *, struct linux_gettid_args *);
 int	linux_setxattr(struct thread *, struct linux_setxattr_args *);
 int	linux_lsetxattr(struct thread *, struct linux_lsetxattr_args *);
@@ -1408,11 +1363,8 @@ int	linux_time(struct thread *, struct linux_time_args *);
 int	linux_sys_futex(struct thread *, struct linux_sys_futex_args *);
 int	linux_sched_setaffinity(struct thread *, struct linux_sched_setaffinity_args *);
 int	linux_sched_getaffinity(struct thread *, struct linux_sched_getaffinity_args *);
-int	linux_set_thread_area(struct thread *, struct linux_set_thread_area_args *);
 int	linux_lookup_dcookie(struct thread *, struct linux_lookup_dcookie_args *);
 int	linux_epoll_create(struct thread *, struct linux_epoll_create_args *);
-int	linux_epoll_ctl_old(struct thread *, struct linux_epoll_ctl_old_args *);
-int	linux_epoll_wait_old(struct thread *, struct linux_epoll_wait_old_args *);
 int	linux_remap_file_pages(struct thread *, struct linux_remap_file_pages_args *);
 int	linux_getdents64(struct thread *, struct linux_getdents64_args *);
 int	linux_set_tid_address(struct thread *, struct linux_set_tid_address_args *);
@@ -1690,18 +1642,9 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 #define	LINUX_SYS_AUE_linux_sethostname	AUE_SYSCTL
 #define	LINUX_SYS_AUE_linux_setdomainname	AUE_SYSCTL
 #define	LINUX_SYS_AUE_linux_iopl	AUE_NULL
-#define	LINUX_SYS_AUE_linux_create_module	AUE_NULL
 #define	LINUX_SYS_AUE_linux_init_module	AUE_NULL
 #define	LINUX_SYS_AUE_linux_delete_module	AUE_NULL
-#define	LINUX_SYS_AUE_linux_get_kernel_syms	AUE_NULL
-#define	LINUX_SYS_AUE_linux_query_module	AUE_NULL
 #define	LINUX_SYS_AUE_linux_quotactl	AUE_QUOTACTL
-#define	LINUX_SYS_AUE_linux_nfsservctl	AUE_NULL
-#define	LINUX_SYS_AUE_linux_getpmsg	AUE_GETPMSG
-#define	LINUX_SYS_AUE_linux_putpmsg	AUE_PUTPMSG
-#define	LINUX_SYS_AUE_linux_afs_syscall	AUE_NULL
-#define	LINUX_SYS_AUE_linux_tuxcall	AUE_NULL
-#define	LINUX_SYS_AUE_linux_security	AUE_NULL
 #define	LINUX_SYS_AUE_linux_gettid	AUE_NULL
 #define	LINUX_SYS_AUE_linux_setxattr	AUE_NULL
 #define	LINUX_SYS_AUE_linux_lsetxattr	AUE_NULL
@@ -1720,11 +1663,8 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 #define	LINUX_SYS_AUE_linux_sys_futex	AUE_NULL
 #define	LINUX_SYS_AUE_linux_sched_setaffinity	AUE_NULL
 #define	LINUX_SYS_AUE_linux_sched_getaffinity	AUE_NULL
-#define	LINUX_SYS_AUE_linux_set_thread_area	AUE_NULL
 #define	LINUX_SYS_AUE_linux_lookup_dcookie	AUE_NULL
 #define	LINUX_SYS_AUE_linux_epoll_create	AUE_NULL
-#define	LINUX_SYS_AUE_linux_epoll_ctl_old	AUE_NULL
-#define	LINUX_SYS_AUE_linux_epoll_wait_old	AUE_NULL
 #define	LINUX_SYS_AUE_linux_remap_file_pages	AUE_NULL
 #define	LINUX_SYS_AUE_linux_getdents64	AUE_GETDIRENTRIES
 #define	LINUX_SYS_AUE_linux_set_tid_address	AUE_NULL

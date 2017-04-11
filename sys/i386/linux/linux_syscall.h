@@ -122,10 +122,8 @@
 #define	LINUX_SYS_linux_adjtimex	124
 #define	LINUX_SYS_linux_mprotect	125
 #define	LINUX_SYS_linux_sigprocmask	126
-#define	LINUX_SYS_linux_create_module	127
 #define	LINUX_SYS_linux_init_module	128
 #define	LINUX_SYS_linux_delete_module	129
-#define	LINUX_SYS_linux_get_kernel_syms	130
 #define	LINUX_SYS_linux_quotactl	131
 #define	LINUX_SYS_getpgid	132
 #define	LINUX_SYS_fchdir	133
@@ -161,9 +159,7 @@
 #define	LINUX_SYS_linux_setresuid16	164
 #define	LINUX_SYS_linux_getresuid16	165
 #define	LINUX_SYS_linux_vm86	166
-#define	LINUX_SYS_linux_query_module	167
 #define	LINUX_SYS_poll	168
-#define	LINUX_SYS_linux_nfsservctl	169
 #define	LINUX_SYS_linux_setresgid16	170
 #define	LINUX_SYS_linux_getresgid16	171
 #define	LINUX_SYS_linux_prctl	172
