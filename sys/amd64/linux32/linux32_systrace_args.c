@@ -854,11 +854,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* linux_create_module */
-	case 127: {
-		*n_args = 0;
-		break;
-	}
 	/* linux_init_module */
 	case 128: {
 		*n_args = 0;
@@ -866,11 +861,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_delete_module */
 	case 129: {
-		*n_args = 0;
-		break;
-	}
-	/* linux_get_kernel_syms */
-	case 130: {
 		*n_args = 0;
 		break;
 	}
@@ -1139,11 +1129,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* linux_query_module */
-	case 167: {
-		*n_args = 0;
-		break;
-	}
 	/* poll */
 	case 168: {
 		struct poll_args *p = params;
@@ -1151,11 +1136,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = p->nfds; /* unsigned int */
 		iarg[2] = p->timeout; /* int */
 		*n_args = 3;
-		break;
-	}
-	/* linux_nfsservctl */
-	case 169: {
-		*n_args = 0;
 		break;
 	}
 	/* linux_setresgid16 */
@@ -4026,17 +4006,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* linux_create_module */
-	case 127:
-		break;
 	/* linux_init_module */
 	case 128:
 		break;
 	/* linux_delete_module */
 	case 129:
-		break;
-	/* linux_get_kernel_syms */
-	case 130:
 		break;
 	/* linux_quotactl */
 	case 131:
@@ -4455,9 +4429,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* linux_query_module */
-	case 167:
-		break;
 	/* poll */
 	case 168:
 		switch(ndx) {
@@ -4473,9 +4444,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		default:
 			break;
 		};
-		break;
-	/* linux_nfsservctl */
-	case 169:
 		break;
 	/* linux_setresgid16 */
 	case 170:
@@ -7464,14 +7432,10 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_create_module */
-	case 127:
 	/* linux_init_module */
 	case 128:
 	/* linux_delete_module */
 	case 129:
-	/* linux_get_kernel_syms */
-	case 130:
 	/* linux_quotactl */
 	case 131:
 	/* getpgid */
@@ -7630,15 +7594,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_query_module */
-	case 167:
 	/* poll */
 	case 168:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_nfsservctl */
-	case 169:
 	/* linux_setresgid16 */
 	case 170:
 		if (ndx == 0 || ndx == 1)
