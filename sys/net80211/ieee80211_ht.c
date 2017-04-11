@@ -513,23 +513,67 @@ ieee80211_decap_amsdu(struct ieee80211_node *ni, struct mbuf *m)
 }
 
 /*
+ * Add the given frame to the current RX reorder slot.
+ *
+ * For future offloaded A-MSDU handling where multiple frames with
+ * the same sequence number show up here, this routine will append
+ * those frames as long as they're appropriately tagged.
+ */
+static int
+ampdu_rx_add_slot(struct ieee80211_rx_ampdu *rap, int off, int tid,
+    ieee80211_seq rxseq,
+    struct ieee80211_node *ni,
+    struct mbuf *m)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	if (rap->rxa_m[off] == NULL) {
+		rap->rxa_m[off] = m;
+		rap->rxa_qframes++;
+		rap->rxa_qbytes += m->m_pkthdr.len;
+		vap->iv_stats.is_ampdu_rx_reorder++;
+		return (0);
+	} else {
+		IEEE80211_DISCARD_MAC(vap,
+		    IEEE80211_MSG_INPUT | IEEE80211_MSG_11N,
+		    ni->ni_macaddr, "a-mpdu duplicate",
+		    "seqno %u tid %u BA win <%u:%u>",
+		    rxseq, tid, rap->rxa_start,
+		    IEEE80211_SEQ_ADD(rap->rxa_start, rap->rxa_wnd-1));
+		vap->iv_stats.is_rx_dup++;
+		IEEE80211_NODE_STAT(ni, rx_dup);
+		m_freem(m);
+		return (-1);
+	}
+}
+
+static void
+ampdu_rx_purge_slot(struct ieee80211_rx_ampdu *rap, int i)
+{
+	struct mbuf *m;
+
+	m = rap->rxa_m[i];
+	if (m == NULL)
+		return;
+
+	rap->rxa_m[i] = NULL;
+	rap->rxa_qbytes -= m->m_pkthdr.len;
+	rap->rxa_qframes--;
+	m_freem(m);
+}
+
+/*
  * Purge all frames in the A-MPDU re-order queue.
  */
 static void
 ampdu_rx_purge(struct ieee80211_rx_ampdu *rap)
 {
-	struct mbuf *m;
 	int i;
 
 	for (i = 0; i < rap->rxa_wnd; i++) {
-		m = rap->rxa_m[i];
-		if (m != NULL) {
-			rap->rxa_m[i] = NULL;
-			rap->rxa_qbytes -= m->m_pkthdr.len;
-			m_freem(m);
-			if (--rap->rxa_qframes == 0)
-				break;
-		}
+		ampdu_rx_purge_slot(rap, i);
+		if (rap->rxa_qframes == 0)
+			break;
 	}
 	KASSERT(rap->rxa_qbytes == 0 && rap->rxa_qframes == 0,
 	    ("lost %u data, %u frames on ampdu rx q",
@@ -949,23 +993,9 @@ again:
 			rap->rxa_age = ticks;
 		}
 
-		/* save packet */
-		if (rap->rxa_m[off] == NULL) {
-			rap->rxa_m[off] = m;
-			rap->rxa_qframes++;
-			rap->rxa_qbytes += m->m_pkthdr.len;
-			vap->iv_stats.is_ampdu_rx_reorder++;
-		} else {
-			IEEE80211_DISCARD_MAC(vap,
-			    IEEE80211_MSG_INPUT | IEEE80211_MSG_11N,
-			    ni->ni_macaddr, "a-mpdu duplicate",
-			    "seqno %u tid %u BA win <%u:%u>",
-			    rxseq, tid, rap->rxa_start,
-			    IEEE80211_SEQ_ADD(rap->rxa_start, rap->rxa_wnd-1));
-			vap->iv_stats.is_rx_dup++;
-			IEEE80211_NODE_STAT(ni, rx_dup);
-			m_freem(m);
-		}
+		/* save packet - this consumes, no matter what */
+		ampdu_rx_add_slot(rap, off, tid, rxseq, ni, m);
+
 		return CONSUMED;
 	}
 	if (off < IEEE80211_SEQ_BA_RANGE) {
