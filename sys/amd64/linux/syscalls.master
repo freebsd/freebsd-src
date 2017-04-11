@@ -333,18 +333,18 @@
 				    l_int len); }
 172	AUE_NULL	STD	{ int linux_iopl(l_uint level); }
 173	AUE_NULL	UNIMPL	ioperm
-174	AUE_NULL	STD	{ int linux_create_module(void); }
+174	AUE_NULL	UNIMPL	create_module
 175	AUE_NULL	STD	{ int linux_init_module(void); }
 176	AUE_NULL	STD	{ int linux_delete_module(void); }
-177	AUE_NULL	STD	{ int linux_get_kernel_syms(void); }
-178	AUE_NULL	STD	{ int linux_query_module(void); }
+177	AUE_NULL	UNIMPL	get_kernel_syms
+178	AUE_NULL	UNIMPL	query_module
 179	AUE_QUOTACTL	STD	{ int linux_quotactl(void); }
-180	AUE_NULL	STD	{ int linux_nfsservctl(void); }
-181	AUE_GETPMSG	STD	{ int linux_getpmsg(void); }
-182	AUE_PUTPMSG	STD	{ int linux_putpmsg(void); }
-183	AUE_NULL	STD	{ int linux_afs_syscall(void); }
-184	AUE_NULL	STD	{ int linux_tuxcall(void); }
-185	AUE_NULL	STD	{ int linux_security(void); }
+180	AUE_NULL	UNIMPL	nfsservctl
+181	AUE_GETPMSG	UNIMPL	getpmsg
+182	AUE_PUTPMSG	UNIMPL	putpmsg
+183	AUE_NULL	UNIMPL	afs_syscall
+184	AUE_NULL	UNIMPL	tuxcall
+185	AUE_NULL	UNIMPL	security
 186	AUE_NULL	STD	{ int linux_gettid(void); }
 187	AUE_NULL	UNIMPL	linux_readahead
 188	AUE_NULL	STD	{ int linux_setxattr(void); }
@@ -367,17 +367,17 @@
 				    l_ulong *user_mask_ptr); }
 204	AUE_NULL	STD	{ int linux_sched_getaffinity(l_pid_t pid, l_uint len, \
 				    l_ulong *user_mask_ptr); }
-205	AUE_NULL	STD	{ int linux_set_thread_area(void); }
+205	AUE_NULL	UNIMPL	set_thread_area
 206	AUE_NULL	UNIMPL	linux_io_setup
 207	AUE_NULL	UNIMPL	linux_io_destroy
 208	AUE_NULL	UNIMPL	linux_io_getevents
 209	AUE_NULL	UNIMPL	linux_io_submit
 210	AUE_NULL	UNIMPL	linux_io_cancel
-211	AUE_NULL	UNIMPL	linux_get_thread_area
+211	AUE_NULL	UNIMPL	get_thread_area
 212	AUE_NULL	STD	{ int linux_lookup_dcookie(void); }
 213	AUE_NULL	STD	{ int linux_epoll_create(l_int size); }
-214	AUE_NULL	STD	{ int linux_epoll_ctl_old(void); }
-215	AUE_NULL	STD	{ int linux_epoll_wait_old(void); }
+214	AUE_NULL	UNIMPL	epoll_ctl_old
+215	AUE_NULL	UNIMPL	epoll_wait_old
 216	AUE_NULL	STD	{ int linux_remap_file_pages(void); }
 217	AUE_GETDIRENTRIES	STD { int linux_getdents64(l_uint fd, \
 				    void *dirent, l_uint count); }

@@ -45,6 +45,24 @@ __FBSDID("$FreeBSD$");
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
+UNIMPLEMENTED(afs_syscall);
+UNIMPLEMENTED(break);
+UNIMPLEMENTED(create_module);	/* added in linux 1.0 removed in 2.6 */
+UNIMPLEMENTED(ftime);
+UNIMPLEMENTED(get_kernel_syms);	/* added in linux 1.0 removed in 2.6 */
+UNIMPLEMENTED(getpmsg);
+UNIMPLEMENTED(gtty);
+UNIMPLEMENTED(stty);
+UNIMPLEMENTED(lock);
+UNIMPLEMENTED(mpx);
+UNIMPLEMENTED(nfsservctl);	/* added in linux 2.2 removed in 3.1 */
+UNIMPLEMENTED(prof);
+UNIMPLEMENTED(profil);
+UNIMPLEMENTED(putpmsg);
+UNIMPLEMENTED(query_module);	/* added in linux 2.2 removed in 2.6 */
+UNIMPLEMENTED(ulimit);
+UNIMPLEMENTED(vserver);
+
 DUMMY(stime);
 DUMMY(fstat);
 DUMMY(olduname);
@@ -54,16 +72,12 @@ DUMMY(vhangup);
 DUMMY(vm86old);
 DUMMY(swapoff);
 DUMMY(adjtimex);
-DUMMY(create_module);
 DUMMY(init_module);
 DUMMY(delete_module);
-DUMMY(get_kernel_syms);
 DUMMY(quotactl);
 DUMMY(bdflush);
 DUMMY(sysfs);
 DUMMY(vm86);
-DUMMY(query_module);
-DUMMY(nfsservctl);
 DUMMY(sendfile);		/* different semantics */
 DUMMY(setfsuid);
 DUMMY(setfsgid);
