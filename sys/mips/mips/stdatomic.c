@@ -33,6 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdatomic.h>
 #include <sys/types.h>
 
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif /* _KERNEL */
+
 #if defined(__SYNC_ATOMICS)
 
 /*
