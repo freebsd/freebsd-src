@@ -606,7 +606,7 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 		l1_slot = ((va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
 
 		pmap_load_store(&pagetable_dmap[l1_slot],
-		    (pa & ~L1_OFFSET) | ATTR_DEFAULT |
+		    (pa & ~L1_OFFSET) | ATTR_DEFAULT | ATTR_XN |
 		    ATTR_IDX(CACHED_MEMORY) | L1_BLOCK);
 	}
 
@@ -2428,14 +2428,16 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	vm_offset_t va, va_next;
 	pd_entry_t *l0, *l1, *l2;
-	pt_entry_t *l3p, l3;
+	pt_entry_t *l3p, l3, nbits;
 
-	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
+	KASSERT((prot & ~VM_PROT_ALL) == 0, ("invalid prot %x", prot));
+	if (prot == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
 		return;
 	}
 
-	if ((prot & VM_PROT_WRITE) == VM_PROT_WRITE)
+	if ((prot & (VM_PROT_WRITE | VM_PROT_EXECUTE)) ==
+	    (VM_PROT_WRITE | VM_PROT_EXECUTE))
 		return;
 
 	PMAP_LOCK(pmap);
@@ -2480,17 +2482,25 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		for (l3p = pmap_l2_to_l3(l2, sva); sva != va_next; l3p++,
 		    sva += L3_SIZE) {
 			l3 = pmap_load(l3p);
-			if (pmap_l3_valid(l3)) {
+			if (!pmap_l3_valid(l3))
+				continue;
+
+			nbits = 0;
+			if ((prot & VM_PROT_WRITE) == 0) {
 				if ((l3 & ATTR_SW_MANAGED) &&
 				    pmap_page_dirty(l3)) {
 					vm_page_dirty(PHYS_TO_VM_PAGE(l3 &
 					    ~ATTR_MASK));
 				}
-				pmap_set(l3p, ATTR_AP(ATTR_AP_RO));
-				PTE_SYNC(l3p);
-				/* XXX: Use pmap_invalidate_range */
-				pmap_invalidate_page(pmap, va);
+				nbits |= ATTR_AP(ATTR_AP_RO);
 			}
+			if ((prot & VM_PROT_EXECUTE) == 0)
+				nbits |= ATTR_XN;
+
+			pmap_set(l3p, nbits);
+			PTE_SYNC(l3p);
+			/* XXX: Use pmap_invalidate_range */
+			pmap_invalidate_page(pmap, va);
 		}
 	}
 	PMAP_UNLOCK(pmap);
@@ -2709,6 +2719,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	    L3_PAGE);
 	if ((prot & VM_PROT_WRITE) == 0)
 		new_l3 |= ATTR_AP(ATTR_AP_RO);
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		new_l3 |= ATTR_XN;
 	if ((flags & PMAP_ENTER_WIRED) != 0)
 		new_l3 |= ATTR_SW_WIRED;
 	if ((va >> 63) == 0)
@@ -3115,6 +3127,8 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 
 	pa = VM_PAGE_TO_PHYS(m) | ATTR_DEFAULT | ATTR_IDX(m->md.pv_memattr) |
 	    ATTR_AP(ATTR_AP_RO) | L3_PAGE;
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		pa |= ATTR_XN;
 
 	/*
 	 * Now validate mapping with RO protection
