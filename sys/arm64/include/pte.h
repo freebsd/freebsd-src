@@ -46,6 +46,11 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 /* Bits 58:55 are reserved for software */
 #define	ATTR_SW_MANAGED	(1UL << 56)
 #define	ATTR_SW_WIRED	(1UL << 55)
+#define	ATTR_UXN	(1UL << 54)
+#define	ATTR_PXN	(1UL << 53)
+#define	ATTR_XN		(ATTR_PXN | ATTR_UXN)
+#define	ATTR_CONTIGUOUS	(1UL << 52)
+#define	ATTR_DBM	(1UL << 51)
 #define	ATTR_nG		(1 << 11)
 #define	ATTR_AF		(1 << 10)
 #define	ATTR_SH(x)	((x) << 8)
