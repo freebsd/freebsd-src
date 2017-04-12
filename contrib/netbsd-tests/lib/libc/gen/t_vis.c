@@ -68,7 +68,12 @@ ATF_TC_BODY(strvis_basic, tc)
 	char *srcbuf, *dstbuf, *visbuf;
 	unsigned int i, j;
 
-	ATF_REQUIRE((dstbuf = malloc(SIZE)) != NULL);
+	/*
+	 * NB: unvis(3) stats that dstbuf should be the size of visbuf
+	 * (the source buffer).  In practice, 1-byte larger than srcbuf
+	 * is sufficient to accommodate the undocumented '\0' termination.
+	 */
+	ATF_REQUIRE((dstbuf = malloc(SIZE + 1)) != NULL);
 	ATF_REQUIRE((srcbuf = malloc(SIZE)) != NULL);
 	ATF_REQUIRE((visbuf = malloc(SIZE * 4 + 1)) != NULL);
 
