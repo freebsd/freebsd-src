@@ -458,6 +458,20 @@ static int
 netfront_resume(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
+	u_int i;
+
+	if (xen_suspend_cancelled) {
+		for (i = 0; i < info->num_queues; i++) {
+			XN_RX_LOCK(&info->rxq[i]);
+			XN_TX_LOCK(&info->txq[i]);
+		}
+		netfront_carrier_on(info);
+		for (i = 0; i < info->num_queues; i++) {
+			XN_RX_UNLOCK(&info->rxq[i]);
+			XN_TX_UNLOCK(&info->txq[i]);
+		}
+		return (0);
+	}
 
 	netif_disconnect_backend(info);
 	return (0);

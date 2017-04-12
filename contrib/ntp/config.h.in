@@ -1342,8 +1342,7 @@
 /* Should we align with the NIST lockclock scheme? */
 #undef LOCKCLOCK
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Does the target support multicast IP? */
@@ -1394,9 +1393,6 @@
 
 /* Should we NOT read /dev/kmem? */
 #undef NOKMEM
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
 
 /* Should we avoid #warning on option name collisions? */
 #undef NO_OPTION_NAME_WARNINGS
