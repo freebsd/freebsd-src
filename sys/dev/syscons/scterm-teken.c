@@ -72,6 +72,8 @@ typedef struct {
 
 static teken_stat	reserved_teken_stat;
 
+static void scteken_sync_internal(scr_stat *, teken_stat *);
+
 static sc_term_sw_t sc_term_scteken = {
 	{ NULL, NULL },
 	"scteken",			/* emulator name */
@@ -116,7 +118,7 @@ static int
 scteken_init(scr_stat *scp, void **softc, int code)
 {
 	teken_stat *ts;
-	teken_pos_t tp;
+	teken_attr_t ta;
 
 	if (*softc == NULL) {
 		if (reserved_teken_stat.ts_busy)
@@ -131,17 +133,16 @@ scteken_init(scr_stat *scp, void **softc, int code)
 		ts->ts_busy = 1;
 		/* FALLTHROUGH */
 	case SC_TE_WARM_INIT:
+		ta = *teken_get_defattr(&ts->ts_teken);
 		teken_init(&ts->ts_teken, &scteken_funcs, scp);
+		teken_set_defattr(&ts->ts_teken, &ta);
 #ifndef TEKEN_UTF8
 		teken_set_8bit(&ts->ts_teken);
 #endif /* !TEKEN_UTF8 */
 #ifdef TEKEN_CONS25
 		teken_set_cons25(&ts->ts_teken);
 #endif /* TEKEN_CONS25 */
-
-		tp.tp_row = scp->ysize;
-		tp.tp_col = scp->xsize;
-		teken_set_winsize(&ts->ts_teken, &tp);
+		scteken_sync_internal(scp, ts);
 		break;
 	}
 
@@ -219,7 +220,7 @@ scteken_clear(scr_stat *scp)
 	teken_stat *ts = scp->ts;
 
 	sc_move_cursor(scp, 0, 0);
-	scteken_sync(scp);
+	scteken_sync_internal(scp, ts);
 	sc_vtb_clear(&scp->vtb, scp->sc->scr_map[0x20],
 		     scteken_te_to_sc_attr(teken_get_curattr(&ts->ts_teken))
 		     << 8);
@@ -284,9 +285,8 @@ scteken_fkeystr(scr_stat *scp, int c)
 }
 
 static void
-scteken_sync(scr_stat *scp)
+scteken_sync_internal(scr_stat *scp, teken_stat *ts)
 {
-	teken_stat *ts = scp->ts;
 	teken_pos_t tp;
 
 	tp.tp_col = scp->xsize;
@@ -295,6 +295,12 @@ scteken_sync(scr_stat *scp)
 	tp.tp_col = scp->xpos;
 	tp.tp_row = scp->ypos;
 	teken_set_cursor(&ts->ts_teken, &tp);
+}
+
+static void
+scteken_sync(scr_stat *scp)
+{
+	scteken_sync_internal(scp, scp->ts);
 }
 
 static void
