@@ -179,7 +179,9 @@ cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
 	size_t slen;
 	int error;
 
-	path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	if (td->td_md.md_cheriabi_pathbuf == NULL)
+		td->td_md.md_cheriabi_pathbuf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	path = td->td_md.md_cheriabi_pathbuf;
 	error = cheriabi_copyinstrarg(td, CHERIABI_SYS_cheriabi_openat, 1,
 	    path, MAXPATHLEN, &slen);
 	if (error)
@@ -188,7 +190,6 @@ cheriabi_openat(struct thread *td, struct cheriabi_openat_args *uap)
 	error = kern_openat(td, uap->fd, path, UIO_SYSSPACE,
 	    uap->flag, uap->mode);
 fail:
-	free(path, M_TEMP);
 	return (error);
 }
 

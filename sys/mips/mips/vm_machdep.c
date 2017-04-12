@@ -186,6 +186,7 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	cheri_capability_copy(&td2->td_md.md_tls_cap, &td1->td_md.md_tls_cap);
 	cheri_capability_copy(&p2->p_md.md_cheri_mmap_cap,
 	    &p1->p_md.md_cheri_mmap_cap);
+	td1->td_md.md_cheriabi_pathbuf = NULL;
 #endif
 	/*
 	 * XXXRW: Ensure capability coprocessor is enabled for both kernel and
@@ -276,6 +277,12 @@ cpu_thread_free(struct thread *td)
 		octeon_cop2_free_ctx(td->td_md.md_ucop2);
 	td->td_md.md_cop2 = NULL;
 	td->td_md.md_ucop2 = NULL;
+#endif
+#ifdef	CPU_CHERI
+#ifdef COMPAT_CHERIABI
+	free(td->td_md.md_cheriabi_pathbuf, M_TEMP);
+	td->td_md.md_cheriabi_pathbuf = NULL;
+#endif
 #endif
 }
 
