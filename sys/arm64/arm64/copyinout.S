@@ -103,7 +103,8 @@ ENTRY(copyinstr)
 	ldr	x7, =VM_MAXUSER_ADDRESS
 1:	cmp	x0, x7
 	b.cs	copyio_fault
-	ldrb	w4, [x0], #1	/* Load from uaddr */
+	ldtrb	w4, [x0]	/* Load from uaddr */
+	add	x0, x0, #1	/* Next char */
 	strb	w4, [x1], #1	/* Store in kaddr */
 	add	x5, x5, #1	/* count++ */
 	cbz	w4, 2f		/* Break when NUL-terminated */
