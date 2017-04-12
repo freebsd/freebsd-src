@@ -519,8 +519,8 @@ DoFile(const char *savedir, const char *device)
 	}
 
 	if (verbose) {
-		printf("mediasize = %lld\n", (long long)mediasize);
-		printf("sectorsize = %u\n", sectorsize);
+		printf("mediasize = %lld bytes\n", (long long)mediasize);
+		printf("sectorsize = %u bytes\n", sectorsize);
 	}
 
 	if (sectorsize < sizeof(kdhl)) {
