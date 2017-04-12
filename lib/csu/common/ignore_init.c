@@ -61,7 +61,7 @@ extern int _DYNAMIC;
 #define weak_array_size(name)	\
 	((name##_start == NULL) ? 0 : ((name##_end) - (name##_start)))
 
-char **environ;
+char **environ = NULL;
 const char *__progname = "";
 
 static void
