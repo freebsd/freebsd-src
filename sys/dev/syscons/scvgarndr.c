@@ -1038,34 +1038,26 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	yoff = y - rounddown(y, line_width);
 	ymax = imin(y + 16, scp->ypixel);
 
-	outw(GDCIDX, 0x0805);		/* read mode 1, write mode 0 */
+	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0001);		/* set/reset enable */
-	outw(GDCIDX, 0x0002);		/* color compare */
-	outw(GDCIDX, 0x0007);		/* color don't care */
 	outw(GDCIDX, 0xff08);		/* bit mask */
 	outw(GDCIDX, 0x0803);		/* data rotate/function select (and) */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
 	if (x < scp->xpixel - 8) {
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
-			m = ~(mouse_and_mask[j] >> xoff);
-#if defined(__i386__) || defined(__amd64__)
-			*(u_char *)p &= m >> 8;
-			*(u_char *)(p + 1) &= m;
-#else
-			writeb(p, readb(p) & (m >> 8));
-			writeb(p + 1, readb(p + 1) & (m >> 8));
-#endif
+			m = ~((mouse_and_mask[j] & ~mouse_or_mask[j]) >> xoff);
+			readb(p);
+			writeb(p, m >> 8);
+			readb(p + 1);
+			writeb(p + 1, m);
 			p += line_width;
 		}
 	} else {
 		xoff += 8;
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
-			m = ~(mouse_and_mask[j] >> xoff);
-#if defined(__i386__) || defined(__amd64__)
-			*(u_char *)p &= m;
-#else
-			writeb(p, readb(p) & (m >> 8));
-#endif
+			m = ~((mouse_and_mask[j] & ~mouse_or_mask[j]) >> xoff);
+			readb(p);
+			writeb(p, m);
 			p += line_width;
 		}
 	}
@@ -1074,27 +1066,20 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	if (x < scp->xpixel - 8) {
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
 			m = mouse_or_mask[j] >> xoff;
-#if defined(__i386__) || defined(__amd64__)
-			*(u_char *)p &= m >> 8;
-			*(u_char *)(p + 1) &= m;
-#else
-			writeb(p, readb(p) & (m >> 8));
-			writeb(p + 1, readb(p + 1) & (m >> 8));
-#endif
+			readb(p);
+			writeb(p, m >> 8);
+			readb(p + 1);
+			writeb(p + 1, m);
 			p += line_width;
 		}
 	} else {
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
 			m = mouse_or_mask[j] >> xoff;
-#if defined(__i386__) || defined(__amd64__)
-			*(u_char *)p &= m;
-#else
-			writeb(p, readb(p) & (m >> 8));
-#endif
+			readb(p);
+			writeb(p, m);
 			p += line_width;
 		}
 	}
-	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */
 }
 
