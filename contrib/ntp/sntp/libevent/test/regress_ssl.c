@@ -50,12 +50,20 @@
 #include "tinytest.h"
 #include "tinytest_macros.h"
 
+#include <openssl/asn1.h>
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
+#include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
+#include <openssl/opensslv.h>
+#include <openssl/x509.h>
 
 #include <string.h>
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#define OpenSSL_version_num SSLeay
+#endif /* OPENSSL_VERSION_NUMBER */
 
 /* A short pre-generated key, to save the cost of doing an RSA key generation
  * step during the unit tests.  It's only 512 bits long, and it is published
@@ -122,9 +130,15 @@ getcert(void)
 	X509_set_subject_name(x509, name);
 	X509_set_issuer_name(x509, name);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	X509_time_adj(X509_get_notBefore(x509), 0, &now);
 	now += 3600;
 	X509_time_adj(X509_get_notAfter(x509), 0, &now);
+#else /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
+	X509_time_adj(X509_getm_notBefore(x509), 0, &now);
+	now += 3600;
+	X509_time_adj(X509_getm_notAfter(x509), 0, &now);
+#endif /* OPENSSL_VERSION_NUMBER */
 	X509_set_pubkey(x509, key);
 	tt_assert(0 != X509_sign(x509, key, EVP_sha1()));
 
@@ -163,8 +177,8 @@ init_ssl(void)
 	ERR_load_crypto_strings();
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
-	if (SSLeay() != OPENSSL_VERSION_NUMBER) {
-		TT_DECLARE("WARN", ("Version mismatch for openssl: compiled with %lx but running with %lx", (unsigned long)OPENSSL_VERSION_NUMBER, (unsigned long) SSLeay()));
+	if (OpenSSL_version_num() != OPENSSL_VERSION_NUMBER) {
+		TT_DECLARE("WARN", ("Version mismatch for openssl: compiled with %lx but running with %lx", (unsigned long)OPENSSL_VERSION_NUMBER, (unsigned long) OpenSSL_version_num()));
 	}
 }
 
@@ -302,8 +316,8 @@ regress_bufferevent_openssl(void *arg)
 	init_ssl();
 
 	if (strstr((char*)data->setup_data, "renegotiate")) {
-		if (SSLeay() >= 0x10001000 &&
-		    SSLeay() <  0x1000104f) {
+		if (OpenSSL_version_num() >= 0x10001000 &&
+		    OpenSSL_version_num() <  0x1000104f) {
 			/* 1.0.1 up to 1.0.1c has a bug where TLS1.1 and 1.2
 			 * can't renegotiate with themselves. Disable. */
 			disable_tls_11_and_12 = 1;
