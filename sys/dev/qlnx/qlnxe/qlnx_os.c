@@ -2167,9 +2167,6 @@ qlnx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 
 			QLNX_UNLOCK(ha);
-
-			if (ret)
-				ret = EINVAL;
 		}
 
 		break;
@@ -5910,25 +5907,26 @@ qlnx_update_rx_prod(struct ecore_hwfn *p_hwfn, struct qlnx_rx_queue *rxq)
 
         uint16_t	 	bd_prod;
         uint16_t		cqe_prod;
-        struct eth_rx_prod_data	rx_prods = {0};
+	union {
+		struct eth_rx_prod_data rx_prod_data;
+		uint32_t		data32;
+	} rx_prods;
 
         bd_prod = ecore_chain_get_prod_idx(&rxq->rx_bd_ring);
         cqe_prod = ecore_chain_get_prod_idx(&rxq->rx_comp_ring);
 
         /* Update producers */
-        rx_prods.bd_prod = htole16(bd_prod);
-        rx_prods.cqe_prod = htole16(cqe_prod);
+        rx_prods.rx_prod_data.bd_prod = htole16(bd_prod);
+        rx_prods.rx_prod_data.cqe_prod = htole16(cqe_prod);
 
         /* Make sure that the BD and SGE data is updated before updating the
          * producers since FW might read the BD/SGE right after the producer
          * is updated.
          */
 	wmb();
-	//bus_barrier(ha->pci_reg,  0, 0, BUS_SPACE_BARRIER_READ);
-	//bus_barrier(ha->pci_dbells,  0, 0, BUS_SPACE_BARRIER_READ);
 
         internal_ram_wr(p_hwfn, rxq->hw_rxq_prod_addr,
-		sizeof(rx_prods), (u32 *)&rx_prods);
+		sizeof(rx_prods), &rx_prods.data32);
 
         /* mmiowb is needed to synchronize doorbell writes from more than one
          * processor. It guarantees that the write arrives to the device before
@@ -6342,9 +6340,8 @@ qlnx_remove_all_mcast_mac(qlnx_host_t *ha)
 			ha->mcast[i].addr[2] || ha->mcast[i].addr[3] ||
 			ha->mcast[i].addr[4] || ha->mcast[i].addr[5]) {
 
-			memcpy(&mcast->mac[0], &ha->mcast[i].addr[0], ETH_ALEN);
+			memcpy(&mcast->mac[i], &ha->mcast[i].addr[0], ETH_ALEN);
 			mcast->num_mc_addrs++;
-			mcast++;
 		}
 	}
 	mcast = &ha->ecore_mcast;
@@ -6363,7 +6360,7 @@ qlnx_clean_filters(qlnx_host_t *ha)
         int	rc = 0;
 
 	/* Remove all unicast macs */
-	qlnx_remove_all_ucast_mac(ha);
+	rc = qlnx_remove_all_ucast_mac(ha);
 	if (rc)
 		return rc;
 

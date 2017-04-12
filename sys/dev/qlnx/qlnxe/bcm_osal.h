@@ -144,7 +144,14 @@ rounddown_pow_of_two(unsigned long x)
 #define OSAL_CPU_TO_LE16(val) htole16(val)
 #define OSAL_LE16_TO_CPU(val) le16toh(val)
 
-#define OSAL_CACHE_LINE_SIZE CACHE_LINE_SIZE
+static __inline uint32_t
+qlnx_get_cache_line_size(void)
+{
+	return (CACHE_LINE_SIZE);
+}
+
+#define OSAL_CACHE_LINE_SIZE qlnx_get_cache_line_size()
+
 #define OSAL_BE32 uint32_t
 #define dma_addr_t bus_addr_t
 #define osal_size_t size_t
