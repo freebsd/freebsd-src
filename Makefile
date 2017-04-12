@@ -440,15 +440,27 @@ worlds: .PHONY
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-TARGETS?=amd64 arm arm64 i386 mips powerpc sparc64
+TARGETS?=amd64 arm arm64 i386 mips powerpc riscv sparc64
 _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	arm armeb armv6
 TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32 mipselhf mipshf mips64elhf mips64hf
 TARGET_ARCHES_powerpc?=	powerpc powerpc64 powerpcspe
+TARGET_ARCHES_riscv?=	riscv64 riscv64sf
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
 .endfor
+
+MAKE_PARAMS_riscv?=	CROSS_TOOLCHAIN=riscv64-gcc
+
+# XXX Remove riscv from universe if the required toolchain package is missing.
+.if !exists(/usr/local/share/toolchains/riscv64-gcc.mk) && ${TARGETS:Mriscv}
+_UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:Nriscv}
+universe: universe_riscv_skip .PHONY
+universe_epilogue: universe_riscv_skip .PHONY
+universe_riscv_skip: universe_prologue .PHONY
+	@echo ">> riscv skipped - install riscv64-xtoolchain-gcc port or package to build"
+.endif
 
 .if defined(UNIVERSE_TARGET)
 MAKE_JUST_WORLDS=	YES
@@ -499,6 +511,7 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE .PHONY
 	    ${SUB_MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
 	    TARGET=${target} \
 	    TARGET_ARCH=${target_arch} \
+	    ${MAKE_PARAMS_${target}} \
 	    > _.${target}.${target_arch}.${UNIVERSE_TARGET} 2>&1 || \
 	    (echo "${target}.${target_arch} ${UNIVERSE_TARGET} failed," \
 	    "check _.${target}.${target_arch}.${UNIVERSE_TARGET} for details" | \
@@ -554,6 +567,7 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    ${SUB_MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
 	    TARGET_ARCH=${TARGET_ARCH_${kernel}} \
+	    ${MAKE_PARAMS_${TARGET}} \
 	    KERNCONF=${kernel} \
 	    > _.${TARGET}.${kernel} 2>&1 || \
 	    (echo "${TARGET} ${kernel} kernel failed," \
