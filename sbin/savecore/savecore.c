@@ -303,7 +303,8 @@ check_space(const char *savedir, off_t dumpsize, int bounds)
 	needed -= saved_dump_size(bounds);
 	if ((minfree > 0 ? spacefree : totfree) - needed < minfree) {
 		syslog(LOG_WARNING,
-	"no dump, not enough free space on device (%lld available, need %lld)",
+		    "no dump: not enough free space on device (%lldkB "
+		    "available; need at least %lldkB)",
 		    (long long)(minfree > 0 ? spacefree : totfree),
 		    (long long)needed);
 		return (0);
