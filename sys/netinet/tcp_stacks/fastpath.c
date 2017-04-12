@@ -132,6 +132,8 @@ VNET_DECLARE(int, tcp_insecure_rst);
 #define	V_tcp_insecure_rst	VNET(tcp_insecure_rst)
 VNET_DECLARE(int, tcp_insecure_syn);
 #define	V_tcp_insecure_syn	VNET(tcp_insecure_syn)
+VNET_DECLARE(int, drop_synfin);
+#define	V_drop_synfin	VNET(drop_synfin)
 
 static void	 tcp_do_segment_fastslow(struct mbuf *, struct tcphdr *,
 			struct socket *, struct tcpcb *, int, int, uint8_t,
@@ -1729,7 +1731,6 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct tcpopt to;
 
 	thflags = th->th_flags;
-	tp->sackhint.last_sack_ack = 0;
 	inc = &tp->t_inpcb->inp_inc;
 	nsegs = max(1, m->m_pkthdr.lro_nsegs);
 	/*
@@ -1759,6 +1760,23 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					    __func__));
 	KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: TCPS_TIME_WAIT",
 						__func__));
+
+	if ((thflags & TH_SYN) && (thflags & TH_FIN) && V_drop_synfin) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: "
+			    "SYN|FIN segment ignored (based on "
+			    "sysctl setting)\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+		if (ti_locked == TI_RLOCKED) {
+			INP_INFO_RUNLOCK(&V_tcbinfo);
+		}
+		INP_WUNLOCK(tp->t_inpcb);
+		m_freem(m);
+		return;
+	}
+
+	tp->sackhint.last_sack_ack = 0;
 
 	/*
 	 * Segment received on connection.
@@ -2175,7 +2193,6 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct tcpopt to;
 
 	thflags = th->th_flags;
-	tp->sackhint.last_sack_ack = 0;
 	inc = &tp->t_inpcb->inp_inc;
 	/*
 	 * If this is either a state-changing packet or current state isn't
@@ -2204,6 +2221,23 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					    __func__));
 	KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: TCPS_TIME_WAIT",
 						__func__));
+
+	if ((thflags & TH_SYN) && (thflags & TH_FIN) && V_drop_synfin) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: "
+			    "SYN|FIN segment ignored (based on "
+			    "sysctl setting)\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+		if (ti_locked == TI_RLOCKED) {
+			INP_INFO_RUNLOCK(&V_tcbinfo);
+		}
+		INP_WUNLOCK(tp->t_inpcb);
+		m_freem(m);
+		return;
+	}
+
+	tp->sackhint.last_sack_ack = 0;
 
 	/*
 	 * Segment received on connection.
