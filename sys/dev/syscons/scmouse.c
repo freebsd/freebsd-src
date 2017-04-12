@@ -252,7 +252,7 @@ sc_remove_mouse_image(scr_stat *scp)
     i = scp->mouse_oldpos;
     mark_for_update(scp, i);
     mark_for_update(scp, i);
-    cols = 1 + howmany(10 - 1, scp->font_width);	/* up to VGA cursor width 9 */
+    cols = 1 + howmany(10 - 1, scp->font_width); /* up to VGA cursor width 9 */
     cols = imax(cols, 2);	/* in case it is text mode 2x2 char cells */
     cols = imin(cols, scp->xsize - i % scp->xsize);
     rows = 1 + howmany(16 - 1, scp->font_size);	/* up to VGA cursor height 16 */
