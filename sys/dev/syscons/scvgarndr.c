@@ -159,6 +159,8 @@ RENDERER_MODULE(vga, vga_set);
 
 #ifndef SC_NO_CUTPASTE
 #if !defined(SC_ALT_MOUSE_IMAGE) || defined(SC_PIXEL_MODE)
+#define	MOUSE_IMAGE_HEIGHT	13
+#define	MOUSE_IMAGE_WIDTH	9
 static u_short mouse_and_mask[16] = {
 	0xc000, 0xe000, 0xf000, 0xf800, 0xfc00, 0xfe00, 0xff00, 0xff80,
 	0xfe00, 0x1e00, 0x1f00, 0x0f00, 0x0f00, 0x0000, 0x0000, 0x0000
@@ -1100,49 +1102,31 @@ static void
 remove_pxlmouse_planar(scr_stat *scp, int x, int y)
 {
 	vm_offset_t p;
-	int col, row;
-	int line_width;
-	int ymax;
-	int i;
+	int bx, by, i, line_width, xend, xoff, yend, yoff;
 
 	/*
-	 * The caller will remove parts of the mouse image over the text
-	 * window better than we can do.  Remove only parts over the border.
+	 * It is only necessary to remove the mouse image where it overlaps
+	 * the border.  Determine the overlap, and do nothing if it is empty.
 	 */
-	col = x/8 - scp->xoff;
-	row = y/scp->font_size - scp->yoff;
+	bx = (scp->xoff + scp->xsize) * 8;
+	by = (scp->yoff + scp->ysize) * scp->font_size;
+	xend = imin(x + MOUSE_IMAGE_WIDTH, scp->xpixel);
+	yend = imin(y + MOUSE_IMAGE_HEIGHT, scp->ypixel);
+	if (xend <= bx && yend <= by)
+		return;
+
+	/* Repaint the non-empty overlap. */
 	line_width = scp->sc->adp->va_line_width;
 	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */
 	outw(GDCIDX, 0x0f01);		/* set/reset enable */
 	outw(GDCIDX, 0xff08);		/* bit mask */
 	outw(GDCIDX, (scp->border << 8) | 0x00);	/* set/reset */
-	if (row == scp->ysize - 1) {
-		i = (scp->ysize + scp->yoff)*scp->font_size;
-		ymax = imin(i + scp->font_size, scp->ypixel);
-		p = scp->sc->adp->va_window + i*line_width + scp->xoff + col;
-		if (col < scp->xsize - 1) {
-			for (; i < ymax; ++i) {
-				writeb(p, 0);
-				writeb(p + 1, 0);
-				p += line_width;
-			}
-		} else {
-			for (; i < ymax; ++i) {
-				writeb(p, 0);
-				p += line_width;
-			}
-		}
-	}
-	if ((col == scp->xsize - 1) && (scp->xoff > 0)) {
-		i = (row + scp->yoff)*scp->font_size;
-		ymax = imin(i + scp->font_size*2, scp->ypixel);
-		p = scp->sc->adp->va_window + i*line_width
-			+ scp->xoff + scp->xsize;
-		for (; i < ymax; ++i) {
+	for (i = x / 8, xoff = i * 8; xoff < xend; ++i, xoff += 8) {
+		yoff = (xoff >= bx) ? y : by;
+		p = scp->sc->adp->va_window + yoff * line_width + i;
+		for (; yoff < yend; ++yoff, p += line_width)
 			writeb(p, 0);
-			p += line_width;
-		}
 	}
 	outw(GDCIDX, 0x0000);		/* set/reset */
 	outw(GDCIDX, 0x0001);		/* set/reset enable */
@@ -1162,6 +1146,16 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	uint8_t  *u8;
 	int bpp;
 
+	/*
+	 * Determine overlap with the border and then if removing, do nothing
+	 * if the overlap is empty.
+	 */
+	xend = imin(x + 16, scp->xpixel);
+	yend = imin(y + 16, scp->ypixel);
+	if (!on && xend <= (scp->xoff + scp->xsize) * 8 &&
+	    yend <= (scp->yoff + scp->ysize) * scp->font_size)
+		return;
+
 	bpp = scp->sc->adp->va_info.vi_depth;
 
 	if ((bpp == 16) && (scp->sc->adp->va_info.vi_pixel_fsizes[1] == 5))
@@ -1170,11 +1164,17 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	line_width = scp->sc->adp->va_line_width;
 	pixel_size = scp->sc->adp->va_info.vi_pixel_size;
 
-	xend = imin(x + 16, scp->xpixel);
-	yend = imin(y + 16, scp->ypixel);
-
 	if (on)
 		goto do_on;
+
+	/*
+	 * Repaint overlap with the border and nearby.  Unlike in the planar
+	 * case, we kept track of everything under the cursor so can restore
+	 * it all, but we don't completely trust the saved state to be still
+	 * relevant, so do nothing if it is obviously stale.
+	 */
+	if (x != x_old || y != y_old || xend != xend_old || yend != yend_old)
+		return;
 
 	p = scp->sc->adp->va_window + y_old * line_width + x_old * pixel_size;
 
