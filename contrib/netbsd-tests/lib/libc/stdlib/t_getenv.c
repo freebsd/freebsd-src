@@ -160,8 +160,13 @@ ATF_TC_BODY(setenv_basic, tc)
 	   Both FreeBSD and OS/X does not validate the second
 	   argument to setenv(3)
 	 */
+#ifndef __CHERI_PURE_CAPABILITY__
 	atf_tc_expect_signal(SIGSEGV, "FreeBSD does not validate the second "
 	    "argument to setenv(3); see bin/189805");
+#else
+	atf_tc_expect_signal(SIGPROT, "FreeBSD does not validate the second "
+	    "argument to setenv(3); see bin/189805");
+#endif
 #endif
 
 	ATF_CHECK_ERRNO(EINVAL, setenv("var", NULL, 1) == -1);
