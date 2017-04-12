@@ -668,6 +668,24 @@ cheri_capability_store(u_int crn_from, struct chericap *cp)
 
         CHERI_CSC(crn_from, CHERI_CR_KDC, cp, 0);
 }
+
+/*
+ * Because contexts contain tagged capabilities, we can't just use memcpy()
+ * on the data structure.  Once the C compiler knows about capabilities, then
+ * direct structure assignment should be plausible.  In the mean time, an
+ * explicit capability context copy routine is required.
+ *
+ * XXXRW: Compiler should know how to do copies of tagged capabilities.
+ *
+ * XXXRW: Compiler should be providing us with the temporary register.
+ */
+static inline void
+cheri_capability_copy(struct chericap *cp_to, struct chericap *cp_from)
+{
+
+	cheri_capability_load(CHERI_CR_CTEMP0, cp_from);
+	cheri_capability_store(CHERI_CR_CTEMP0, cp_to);
+}
 #endif
 
 /*

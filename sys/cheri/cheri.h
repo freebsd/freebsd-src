@@ -144,8 +144,6 @@ struct cheri_stack {
  * capabilities themselves.
  */
 #ifdef _KERNEL
-void	cheri_capability_copy(struct chericap *cp_to,
-	    struct chericap *cp_from);
 void	cheri_capability_set(struct chericap *cp, uint32_t uperms,
 	    void *basep, size_t length, off_t off);
 void	cheri_capability_set_null(struct chericap *cp);
