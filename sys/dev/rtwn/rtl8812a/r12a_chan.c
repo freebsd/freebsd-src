@@ -247,7 +247,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 	if (sc->sc_debug & RTWN_DEBUG_TXPWR) {
 		/* Dump per-rate Tx power values. */
 		printf("Tx power for chain %d:\n", chain);
-		for (ridx = RTWN_RIDX_CCK1; ridx < RTWN_RIDX_COUNT; ridx++)
+		for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++)
 			printf("Rate %d = %u\n", ridx, power[ridx]);
 	}
 #endif

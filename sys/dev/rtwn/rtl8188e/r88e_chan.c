@@ -110,7 +110,7 @@ r88e_get_txpower(struct rtwn_softc *sc, int chain,
 		for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++)
 			power[ridx] = base->pwr[0][ridx];
 	}
-	for (ridx = RTWN_RIDX_OFDM6; ridx < RTWN_RIDX_COUNT; ridx++) {
+	for (ridx = RTWN_RIDX_OFDM6; ridx <= max_mcs; ridx++) {
 		if (rs->regulatory == 3)
 			power[ridx] = base->pwr[0][ridx];
 		else if (rs->regulatory == 1) {
