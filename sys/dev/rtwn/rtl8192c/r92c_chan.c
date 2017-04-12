@@ -229,13 +229,13 @@ r92c_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		rtwn_r92c_get_txpower(sc, i, c, power);
 #ifdef RTWN_DEBUG
 		if (sc->sc_debug & RTWN_DEBUG_TXPWR) {
-			int ridx;
+			int max_mcs, ridx;
+
+			max_mcs = RTWN_RIDX_MCS(sc->ntxchains * 8 - 1);
 
 			/* Dump per-rate Tx power values. */
 			printf("Tx power for chain %d:\n", i);
-			for (ridx = RTWN_RIDX_CCK1;
-			     ridx < RTWN_RIDX_COUNT;
-			     ridx++)
+			for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++)
 				printf("Rate %d = %u\n", ridx, power[ridx]);
 		}
 #endif
