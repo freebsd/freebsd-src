@@ -59,13 +59,12 @@ usage(void)
 }
 
 static int
-isdir(const char *path)
+isdir(const char *path, struct stat *stbufp)
 {
-	struct stat stbuf;
 
-	if (stat(path, &stbuf) < 0)
+	if (stat(path, stbufp) < 0)
 		return (-1);
-        if (!S_ISDIR(stbuf.st_mode))
+        if (!S_ISDIR(stbufp->st_mode))
 		return (0);
 	return (1);
 }
@@ -74,8 +73,9 @@ static int
 issamefs(const char *path, struct statfs *stfsp)
 {
 	struct statfs stfsbuf;
+	struct stat stbuf;
 
-	if (isdir(path) != 1)
+	if (isdir(path, &stbuf) != 1)
 		return (-1);
 	if (statfs(path, &stfsbuf) < 0)
 		return (-1);
@@ -123,7 +123,7 @@ main(int argc, char **argv)
 	}
 	if (statfs(path, &stfsbuf) < 0)
 		err(1, "%s", path);
-	switch (isdir(path)) {
+	switch (isdir(path, &stbuf)) {
 	case -1:
 		err(1, "%s", path);
 	case 0:
