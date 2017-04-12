@@ -8,14 +8,17 @@ run_st() {
 
 	ST="${ST_ROOT}/${NAME}/syscall_timing"
 	if [ ! -x "${ST}" ]; then
-		echo "The ${ST} is not executable; exiting" > /dev/stderr
+		echo "${0}: ${ST} is not executable; exiting" > /dev/stderr
 		exit 1
 	fi
+
+	echo "${0}: binary details:"
+	file "${ST}"
 
 	TEST_LIST=`${ST} 2>&1 | sed 1d`
 
 	OUTPUT="${RESULTS}/${NAME}"
-	echo "Test results will be at ${OUTPUT}/."
+	echo "${0}: test results will be at ${OUTPUT}/"
 
 	mkdir -p "${OUTPUT}"
 	for t in ${TEST_LIST}; do
@@ -24,7 +27,14 @@ run_st() {
 	done
 }
 
+echo "${0}: uname:"
+uname -a
+
+echo "${0}: invariants/witness:"
+sysctl -a | grep -E '(invariants|witness)'
+
 run_st "cheri"
 run_st "hybrid"
 run_st "mips"
 
+echo "${0}: done"
