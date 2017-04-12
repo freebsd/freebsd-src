@@ -98,11 +98,15 @@
 #include "ntp-keygen-opts.h"
 
 #ifdef OPENSSL
+#include "openssl/asn1.h"
 #include "openssl/bn.h"
+#include "openssl/crypto.h"
 #include "openssl/evp.h"
 #include "openssl/err.h"
 #include "openssl/rand.h"
+#include "openssl/opensslv.h"
 #include "openssl/pem.h"
+#include "openssl/x509.h"
 #include "openssl/x509v3.h"
 #include <openssl/objects.h>
 #include "libssl_compat.h"
@@ -326,6 +330,10 @@ main(
 	int	i, cnt;
 	char *	ptr;
 #endif	/* AUTOKEY */
+#ifdef OPENSSL
+	const char *sslvtext;
+	int sslvmatch;
+#endif /* OPENSSL */
 
 	progname = argv[0];
 
@@ -363,12 +371,14 @@ main(
 	argv += optct;	// Just in case we care later.
 
 #ifdef OPENSSL
-	if (SSLeay() == SSLEAY_VERSION_NUMBER)
+	sslvtext = OpenSSL_version(OPENSSL_VERSION);
+	sslvmatch = OpenSSL_version_num() == OPENSSL_VERSION_NUMBER;
+	if (sslvmatch)
 		fprintf(stderr, "Using OpenSSL version %s\n",
-			SSLeay_version(SSLEAY_VERSION));
+			sslvtext);
 	else
 		fprintf(stderr, "Built against OpenSSL %s, using version %s\n",
-			OPENSSL_VERSION_TEXT, SSLeay_version(SSLEAY_VERSION));
+			OPENSSL_VERSION_TEXT, sslvtext);
 #endif /* OPENSSL */
 
 	debug = OPT_VALUE_SET_DEBUG_LEVEL;
@@ -464,8 +474,10 @@ main(
 	/*
 	 * Seed random number generator and grow weeds.
 	 */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	ERR_load_crypto_strings();
 	OpenSSL_add_all_algorithms();
+#endif /* OPENSSL_VERSION_NUMBER */
 	if (!RAND_status()) {
 		if (RAND_file_name(pathbuf, sizeof(pathbuf)) == NULL) {
 			fprintf(stderr, "RAND_file_name %s\n",
@@ -1970,8 +1982,8 @@ x509	(
 	ASN1_INTEGER_set(serial, (long)epoch + JAN_1970);
 	X509_set_serialNumber(cert, serial);
 	ASN1_INTEGER_free(serial);
-	X509_time_adj(X509_get_notBefore(cert), 0L, &epoch);
-	X509_time_adj(X509_get_notAfter(cert), lifetime * SECSPERDAY, &epoch);
+	X509_time_adj(X509_getm_notBefore(cert), 0L, &epoch);
+	X509_time_adj(X509_getm_notAfter(cert), lifetime * SECSPERDAY, &epoch);
 	subj = X509_get_subject_name(cert);
 	X509_NAME_add_entry_by_txt(subj, "commonName", MBSTRING_ASC,
 	    (u_char *)name, -1, -1, 0);

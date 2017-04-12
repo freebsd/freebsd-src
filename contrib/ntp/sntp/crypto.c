@@ -2,7 +2,7 @@
 #include "crypto.h"
 #include <ctype.h>
 #include "isc/string.h"
-#include "libssl_compat.h"
+#include "ntp_md5.h"
 
 struct key *key_ptr;
 size_t key_cnt = 0;
