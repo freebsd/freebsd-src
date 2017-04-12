@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <paths.h>
 #include <pthread.h>		/* we just need the limits */
+#include <semaphore.h>
 #include <time.h>
 #include <unistd.h>
 #include "un-namespace.h"
@@ -299,13 +300,9 @@ do_NAME_MAX:
 		mib[1] = CTL_P1003_1B_RTSIG_MAX;
 		goto yesno;
 	case _SC_SEM_NSEMS_MAX:
-		mib[0] = CTL_P1003_1B;
-		mib[1] = CTL_P1003_1B_SEM_NSEMS_MAX;
-		goto yesno;
+		return (-1);
 	case _SC_SEM_VALUE_MAX:
-		mib[0] = CTL_P1003_1B;
-		mib[1] = CTL_P1003_1B_SEM_VALUE_MAX;
-		goto yesno;
+		return (SEM_VALUE_MAX);
 	case _SC_SIGQUEUE_MAX:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_SIGQUEUE_MAX;
