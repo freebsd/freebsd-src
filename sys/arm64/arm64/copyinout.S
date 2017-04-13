@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
  */
 ENTRY(copyio_fault)
 	SET_FAULT_HANDLER(xzr, x1) /* Clear the handler */
+	EXIT_USER_ACCESS_CHECK(w0, x1)
 copyio_fault_nopcb:
 	mov	x0, #EFAULT
 	ret
@@ -99,6 +100,7 @@ ENTRY(copyinstr)
 
 	adr	x6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
+	ENTER_USER_ACCESS(w6, x7)
 
 	ldr	x7, =VM_MAXUSER_ADDRESS
 1:	cmp	x0, x7
@@ -111,7 +113,9 @@ ENTRY(copyinstr)
 	sub	x2, x2, #1	/* len-- */
 	cbnz	x2, 1b
 
-2:	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
+2:	EXIT_USER_ACCESS(w6)
+	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
+
 
 3:	cbz	x3, 4f		/* Check if done != NULL */
 	str	x5, [x3]	/* done = count */
@@ -145,7 +149,7 @@ END(copyinstr)
 copycommon:
 	adr	x6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
-
+	ENTER_USER_ACCESS(w6, x7)
 
 	/* Check alignment */
 	orr	x3, x0, x1
@@ -214,6 +218,7 @@ last_byte:
 	strb	w3, [x1]
 
 ending:
+	EXIT_USER_ACCESS_CHECK(w6, x7)
 	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
 
 	mov	x0, xzr		/* return 0 */

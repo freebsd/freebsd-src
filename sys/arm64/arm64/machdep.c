@@ -118,6 +118,7 @@ int64_t dcache_line_size;	/* The minimum D cache line size */
 int64_t icache_line_size;	/* The minimum I cache line size */
 int64_t idcache_line_size;	/* The minimum cache line size */
 int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
+int has_pan;
 
 /* pagezero_* implementations are provided in support.S */
 void pagezero_simple(void *);
@@ -125,6 +126,37 @@ void pagezero_cache(void *);
 
 /* pagezero_simple is default pagezero */
 void (*pagezero)(void *p) = pagezero_simple;
+
+static void
+pan_setup(void)
+{
+	uint64_t id_aa64mfr1;
+
+	id_aa64mfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
+	if (ID_AA64MMFR1_PAN(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE)
+		has_pan = 1;
+}
+
+void
+pan_enable(void)
+{
+
+	/*
+	 * The LLVM integrated assembler doesn't understand the PAN
+	 * PSTATE field. Because of this we need to manually create
+	 * the instruction in an asm block. This is equivalent to:
+	 * msr pan, #1
+	 *
+	 * This sets the PAN bit, stopping the kernel from accessing
+	 * memory when userspace can also access it unless the kernel
+	 * uses the userspace load/store instructions.
+	 */
+	if (has_pan) {
+		WRITE_SPECIALREG(sctlr_el1,
+		    READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
+		__asm __volatile(".inst 0xd500409f | (0x1 << 8)");
+	}
+}
 
 static void
 cpu_startup(void *dummy)
@@ -997,6 +1029,7 @@ initarm(struct arm64_bootparams *abp)
 	init_param1();
 
 	cache_setup();
+	pan_setup();
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(abp->kern_l0pt, abp->kern_l1pt,
@@ -1019,6 +1052,7 @@ initarm(struct arm64_bootparams *abp)
 
 	dbg_monitor_init();
 	kdb_init();
+	pan_enable();
 
 	early_boot = 0;
 }

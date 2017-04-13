@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 ENTRY(fsu_fault)
 	SET_FAULT_HANDLER(xzr, x1)	/* Reset the handler function */
+	EXIT_USER_ACCESS_CHECK(w0, x1)
 fsu_fault_nopcb:
 	mov	x0, #-1
 	ret
@@ -57,11 +58,13 @@ ENTRY(casueword32)
 	b.cs	fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x4)	/* And set it */
+	ENTER_USER_ACCESS(w6, x4)
 1:	ldxr	w4, [x0]		/* Load-exclusive the data */
 	cmp	w4, w1			/* Compare */
 	b.ne	2f			/* Not equal, exit */
 	stxr	w5, w3, [x0]		/* Store the new data */
 	cbnz	w5, 1b			/* Retry on failure */
+	EXIT_USER_ACCESS(w6)
 2:	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
 	str	w4, [x2]		/* Store the read data */
 	mov	x0, #0			/* Success */
@@ -77,11 +80,13 @@ ENTRY(casueword)
 	b.cs	fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x4)	/* And set it */
+	ENTER_USER_ACCESS(w6, x4)
 1:	ldxr	x4, [x0]		/* Load-exclusive the data */
 	cmp	x4, x1			/* Compare */
 	b.ne	2f			/* Not equal, exit */
 	stxr	w5, x3, [x0]		/* Store the new data */
 	cbnz	w5, 1b			/* Retry on failure */
+	EXIT_USER_ACCESS(w6)
 2:	SET_FAULT_HANDLER(xzr, x5)	/* Reset the fault handler */
 	str	x4, [x2]		/* Store the read data */
 	mov	x0, #0			/* Success */
@@ -224,6 +229,7 @@ END(suword)
  */
 ENTRY(fsu_intr_fault)
 	SET_FAULT_HANDLER(xzr, x1)	/* Reset the handler function */
+	EXIT_USER_ACCESS_CHECK(w0, x1)
 	mov	x0, #-1
 	ret
 END(fsu_fault)
