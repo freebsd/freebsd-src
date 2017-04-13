@@ -133,7 +133,11 @@ ATF_TC_BODY(mprotect_access, tc)
 		errno = 0;
 
 		ATF_REQUIRE(mprotect(map, page, PROT_WRITE) != 0);
+#ifndef __CHERI_PURE_CAPABILITY__
 		ATF_REQUIRE(errno == EACCES);
+#else
+		ATF_REQUIRE(errno == EPROT);
+#endif
 		ATF_REQUIRE(munmap(map, page) == 0);
 	}
 
@@ -156,7 +160,11 @@ ATF_TC_BODY(mprotect_err, tc)
 	errno = 0;
 
 	ATF_REQUIRE(mprotect((char *)-1, 1, PROT_READ) != 0);
+#ifndef __CHERI_PURE_CAPABILITY__
 	ATF_REQUIRE(errno == EINVAL);
+#else
+	ATF_REQUIRE(errno == EFAULT);
+#endif
 }
 
 #ifdef __NetBSD__
