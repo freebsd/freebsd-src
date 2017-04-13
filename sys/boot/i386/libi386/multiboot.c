@@ -267,13 +267,52 @@ multiboot_exec(struct preloaded_file *fp)
 	 * information is placed at the start of the second module and
 	 * the original modulep value is saved together with the other
 	 * metadata, so we can relocate everything.
+	 *
+	 * Native layout:
+	 *           fp->f_addr + fp->f_size
+	 * +---------+----------------+------------+
+	 * |         |                |            |
+	 * | Kernel  |    Modules     |  Metadata  |
+	 * |         |                |            |
+	 * +---------+----------------+------------+
+	 * fp->f_addr                 modulep      kernend
+	 *
+	 * Xen layout:
+	 *
+	 * Initial:
+	 *                      fp->f_addr + fp->f_size
+	 * +---------+----------+----------------+------------+
+	 * |         |          |                |            |
+	 * | Kernel  | Reserved |    Modules     |  Metadata  |
+	 * |         |          |                |  dry run   |
+	 * +---------+----------+----------------+------------+
+	 * fp->f_addr
+	 *
+	 * After metadata polacement (ie: final):
+	 *                                  fp->f_addr + fp->f_size
+	 * +-----------+---------+----------+----------------+
+	 * |           |         |          |                |
+	 * |  Kernel   |  Free   | Metadata |    Modules     |
+	 * |           |         |          |                |
+	 * +-----------+---------+----------+----------------+
+	 * fp->f_addr            modulep                     kernend
+	 * \__________/          \__________________________/
+	 *  Multiboot module 0    Multiboot module 1
 	 */
+
 	fp = file_findfile(NULL, "elf kernel");
 	if (fp == NULL) {
 		printf("No FreeBSD kernel provided, aborting\n");
 		error = EINVAL;
 		goto error;
 	}
+
+	if (fp->f_metadata != NULL) {
+		printf("FreeBSD kernel already contains metadata, aborting\n");
+		error = EINVAL;
+		goto error;
+	}
+
 
 	mb_mod = malloc(sizeof(struct multiboot_mod_list) * NUM_MODULES);
 	if (mb_mod == NULL) {
@@ -311,6 +350,9 @@ multiboot_exec(struct preloaded_file *fp)
 		error = ENOMEM;
 		goto error;
 	}
+
+	/* Clean the metadata added to the kernel in the bi_load64 dry run */
+	file_removemetadata(fp);
 
 	/*
 	 * This is the position where the second multiboot module
