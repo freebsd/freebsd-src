@@ -1528,12 +1528,12 @@ _binutils=	gnu/usr.bin/binutils
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .else
-_cc=		gnu/usr.bin/cc
+_gcc=		gnu/usr.bin/cc
 .endif
 
 # The boot2 for pc98 requires gcc.
 .if ${TARGET} == "pc98"
-_cc=		gnu/usr.bin/cc
+_gcc=		gnu/usr.bin/cc
 .endif
 .endif
 
@@ -1542,7 +1542,7 @@ cross-tools: .MAKE .PHONY
     ${_clang_libs} \
     ${_clang} \
     ${_binutils} \
-    ${_cc} \
+    ${_gcc} \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
@@ -1598,7 +1598,7 @@ native-xtools: .PHONY
     ${_clang_tblgen} \
     usr.bin/ar \
     ${_binutils} \
-    ${_cc} \
+    ${_gcc} \
     ${_gcc_tools} \
     ${_clang_libs} \
     ${_clang} \
@@ -2188,7 +2188,7 @@ _xb-cross-tools: .PHONY
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \
-    ${_cc}
+    ${_gcc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ obj; \
@@ -2221,7 +2221,7 @@ _xi-cross-tools: .PHONY
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \
-    ${_cc}
+    ${_gcc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
