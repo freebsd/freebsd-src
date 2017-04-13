@@ -74,6 +74,8 @@ ATF_TC_BODY(msgget_excl, tc)
 	 * O_CREAT and IPC_EXCL set. This should fail.
 	 */
 	id = msgget(MSG_KEY, IPC_CREAT | 0600);
+	if (id == -1 && errno == ENOSYS)
+		atf_tc_skip("%s: msgctl not supported", __func__);
 
 	if (id < 0)
 		atf_tc_fail("failed to create message queue");
@@ -120,8 +122,16 @@ ATF_TC_BODY(msgget_exit, tc)
 
 	if (pid == 0) {
 
-		if (msgget(MSG_KEY, IPC_CREAT | IPC_EXCL | 0600) == -1)
-			_exit(EXIT_FAILURE);
+		if (msgget(MSG_KEY, IPC_CREAT | IPC_EXCL | 0600) == -1) {
+			if (errno == ENOSYS) {
+				/*
+				 * Fib about our status if we're going
+				 * to call skip in our parent.
+				 */
+				_exit(EXIT_SUCCESS);
+			} else
+				_exit(EXIT_FAILURE);
+		}
 
 		_exit(EXIT_SUCCESS);
 	}
@@ -132,6 +142,8 @@ ATF_TC_BODY(msgget_exit, tc)
 		atf_tc_fail("failed to create message queue");
 
 	id = msgget(MSG_KEY, 0);
+	if (id == -1 && errno == ENOSYS)
+		atf_tc_skip("%s: msgctl not supported", __func__);
 
 	if (id == -1)
 		atf_tc_fail("message queue was removed on process exit");
@@ -163,6 +175,8 @@ ATF_TC_BODY(msgget_init, tc)
 
 	t = time(NULL);
 	id = msgget(MSG_KEY, IPC_CREAT | 0600);
+	if (id == -1 && errno == ENOSYS)
+		atf_tc_skip("%s: msgctl not supported", __func__);
 
 	ATF_REQUIRE(id !=-1);
 	ATF_REQUIRE(msgctl(id, IPC_STAT, &msgds) == 0);
@@ -219,8 +233,12 @@ ATF_TC_BODY(msgget_limit, tc)
 		 * message queues. Thus, bypass the unit test when
 		 * this precondition is not met, for reason or another.
 		 */
-		if (buf[i] == -1)
+		if (buf[i] == -1) {
+			if (errno == ENOSYS)
+				atf_tc_skip("%s: msgctl not supported",
+				    __func__);
 			goto out;
+		}
 	}
 
 	i++;
@@ -265,6 +283,8 @@ ATF_TC_BODY(msgget_mode, tc)
 		(void)memset(&msgds, 0, sizeof(struct msqid_ds));
 
 		id = msgget(MSG_KEY, IPC_CREAT | IPC_EXCL | (int)mode[i]);
+		if (id == -1 && errno == ENOSYS)
+			atf_tc_skip("%s: msgctl not supported", __func__);
 
 		ATF_REQUIRE(id != -1);
 		ATF_REQUIRE(msgctl(id, IPC_STAT, &msgds) == 0);

@@ -82,6 +82,9 @@ ATF_TC_BODY(msgctl_err, tc)
 	(void)memset(&msgds, 0, sizeof(struct msqid_ds));
 
 	id = msgget(MSG_KEY, IPC_CREAT | 0600);
+	if (id == -1 && errno == ENOSYS)
+		atf_tc_skip("%s: msgctl not supported", __func__);
+
 	ATF_REQUIRE(id != -1);
 
 	errno = 0;
@@ -122,6 +125,8 @@ ATF_TC_BODY(msgctl_perm, tc)
 
 	pw = getpwnam("nobody");
 	id = msgget(MSG_KEY, IPC_CREAT | 0600);
+	if (id == -1 && errno == ENOSYS)
+		atf_tc_skip("%s: msgctl not supported", __func__);
 
 	ATF_REQUIRE(id != -1);
 	ATF_REQUIRE(pw != NULL);
@@ -196,6 +201,9 @@ ATF_TC_BODY(msgctl_pid, tc)
 	pid_t pid;
 
 	id = msgget(MSG_KEY, IPC_CREAT | 0600);
+	if (id == -1 && errno == ENOSYS)
+		atf_tc_skip("%s: msgctl not supported", __func__);
+
 	ATF_REQUIRE(id != -1);
 
 	pid = fork();
@@ -262,6 +270,8 @@ ATF_TC_BODY(msgctl_set, tc)
 
 	pw = getpwnam("nobody");
 	id = msgget(MSG_KEY, IPC_CREAT | 0600);
+	if (id == -1 && errno == ENOSYS)
+		atf_tc_skip("%s: msgctl not supported", __func__);
 
 	ATF_REQUIRE(id != -1);
 	ATF_REQUIRE(pw != NULL);
@@ -309,6 +319,9 @@ ATF_TC_BODY(msgctl_time, tc)
 	int id;
 
 	id = msgget(MSG_KEY, IPC_CREAT | 0600);
+	if (id == -1 && errno == ENOSYS)
+		atf_tc_skip("%s: msgctl not supported", __func__);
+
 	ATF_REQUIRE(id != -1);
 
 	t = time(NULL);
