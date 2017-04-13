@@ -46,10 +46,12 @@ errmsg() {
 usage() {
 	local msg=$1
 
-	echo "Usage: vmrun.sh [-ahi] [-c <CPUs>] [-C <console>] [-d <disk file>]"
-	echo "                [-e <name=value>] [-g <gdbport> ] [-H <directory>]"
+	echo "Usage: vmrun.sh [-aEhiTv] [-c <CPUs>] [-C <console>] [-d <disk file>]"
+	echo "                [-e <name=value>] [-f <path of firmware>] [-F <size>]"
+	echo "                [-g <gdbport> ] [-H <directory>]"
 	echo "                [-I <location of installation iso>] [-l <loader>]"
-	echo "                [-m <memsize>] [-t <tapdev>] <vmname>"
+	echo "                [-L <VNC IP for UEFI framebuffer>]"
+	echo "                [-m <memsize>] [-P <port>] [-t <tapdev>] <vmname>"
 	echo ""
 	echo "       -h: display this help message"
 	echo "       -a: force memory mapped local APIC access"
@@ -57,15 +59,22 @@ usage() {
 	echo "       -C: console device (default is ${DEFAULT_CONSOLE})"
 	echo "       -d: virtio diskdev file (default is ${DEFAULT_VIRTIO_DISK})"
 	echo "       -e: set FreeBSD loader environment variable"
+	echo "       -E: Use UEFI mode"
+	echo "       -f: Use a specific UEFI firmware"
+	echo "       -F: Use a custom UEFI GOP framebuffer size (default: w=1024,h=768)"
 	echo "       -g: listen for connection from kgdb at <gdbport>"
 	echo "       -H: host filesystem to export to the loader"
 	echo "       -i: force boot of the Installation CDROM image"
 	echo "       -I: Installation CDROM image location (default is ${DEFAULT_ISOFILE})"
 	echo "       -l: the OS loader to use (default is /boot/userboot.so)"
+	echo "       -L: IP address for UEFI GOP VNC server (default: 127.0.0.1)"
 	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
 	echo "       -p: pass-through a host PCI device at bus/slot/func (e.g. 10/0/0)"
+	echo "       -P: UEFI GOP VNC port (default: 5900)"
 	echo "       -t: tap device for virtio-net (default is $DEFAULT_TAPDEV)"
+	echo "       -T: Enable tablet device (for UEFI GOP)"
 	echo "       -u: RTC keeps UTC time"
+	echo "       -v: Wait for VNC client connection before booting VM"
 	echo "       -w: ignore unimplemented MSRs"
 	echo ""
 	[ -n "$msg" ] && errmsg "$msg"
@@ -95,7 +104,16 @@ loader_opt=""
 bhyverun_opt="-H -A -P"
 pass_total=0
 
-while getopts ac:C:d:e:g:hH:iI:l:m:p:t:uw c ; do
+# EFI-specific options
+efi_mode=0
+efi_firmware="/usr/local/share/uefi-firmware/BHYVE_UEFI.fd"
+vncwait=""
+vnchost="127.0.0.1"
+vncport=5900
+fbsize="w=1024,h=768"
+tablet=""
+
+while getopts ac:C:d:e:Ef:F:g:hH:iI:l:m:p:P:t:Tuvw c ; do
 	case $c in
 	a)
 		bhyverun_opt="${bhyverun_opt} -a"
@@ -116,6 +134,15 @@ while getopts ac:C:d:e:g:hH:iI:l:m:p:t:uw c ; do
 	e)
 		loader_opt="${loader_opt} -e ${OPTARG}"
 		;;
+	E)
+		efi_mode=1
+		;;
+	f)
+		efi_firmware="${OPTARG}"
+		;;
+	F)
+		fbsize="${OPTARG}"
+		;;
 	g)	
 		gdbport=${OPTARG}
 		;;
@@ -131,6 +158,9 @@ while getopts ac:C:d:e:g:hH:iI:l:m:p:t:uw c ; do
 	l)
 		loader_opt="${loader_opt} -l ${OPTARG}"
 		;;
+	L)
+		vnchost="${OPTARG}"
+		;;
 	m)
 		memsize=${OPTARG}
 		;;
@@ -138,12 +168,21 @@ while getopts ac:C:d:e:g:hH:iI:l:m:p:t:uw c ; do
 		eval "pass_dev${pass_total}=\"${OPTARG}\""
 		pass_total=$(($pass_total + 1))
 		;;
+	P)
+		vncport="${OPTARG}"
+		;;
 	t)
 		eval "tap_dev${tap_total}=\"${OPTARG}\""
 		tap_total=$(($tap_total + 1))
 		;;
+	T)
+		tablet="-s 30,xhci,tablet"
+		;;
 	u)	
 		bhyverun_opt="${bhyverun_opt} -u"
+		;;
+	v)
+		vncwait=",wait"
 		;;
 	w)
 		bhyverun_opt="${bhyverun_opt} -w"
@@ -179,6 +218,13 @@ fi
 if [ ${pass_total} -gt 0 ]; then
 	loader_opt="${loader_opt} -S"
 	bhyverun_opt="${bhyverun_opt} -S"
+fi
+
+if [ ${efi_mode} -gt 0 ]; then
+	if [ ! -f ${efi_firmware} ]; then
+		echo "Error: EFI Firmware ${efi_firmware} doesn't exist. Try: pkg install uefi-edk2-bhyve"
+		exit 1
+	fi
 fi
 
 make_and_check_diskdev()
@@ -243,11 +289,13 @@ while [ 1 ]; do
 		installer_opt=""
 	fi
 
-	${LOADER} -c ${console} -m ${memsize} ${BOOTDISKS} ${loader_opt} \
-		${vmname}
-	bhyve_exit=$?
-	if [ $bhyve_exit -ne 0 ]; then
-		break
+	if [ ${efi_mode} -eq 0 ]; then
+		${LOADER} -c ${console} -m ${memsize} ${BOOTDISKS} ${loader_opt} \
+			${vmname}
+		bhyve_exit=$?
+		if [ $bhyve_exit -ne 0 ]; then
+			break
+		fi
 	fi
 
 	#
@@ -281,10 +329,18 @@ while [ 1 ]; do
 	    i=$(($i + 1))
         done
 
+	efiargs=""
+	if [ ${efi_mode} -gt 0 ]; then
+		efiargs="-s 29,fbuf,tcp=${vnchost}:${vncport},${fbsize}${vncwait}"
+		efiargs="${efiargs} -l bootrom,${efi_firmware}"
+		efiargs="${efiargs} ${tablet}"
+	fi
+
 	${FBSDRUN} -c ${cpus} -m ${memsize} ${bhyverun_opt}		\
 		-g ${gdbport}						\
 		-s 0:0,hostbridge					\
 		-s 1:0,lpc						\
+		${efiargs}						\
 		${devargs}						\
 		-l com1,${console}					\
 		${installer_opt}					\
