@@ -69,6 +69,12 @@ recurse_symlink_head()
 }
 recurse_symlink_body()
 {
+	# Begin FreeBSD
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU ]; then
+		atf_expect_fail "this test doesn't pass with gnu grep from ports"
+	fi
+	# End FreeBSD
 	mkdir -p test/c/d
 	(cd test/c/d && ln -s ../d .)
 	echo "Test string" > test/c/match
@@ -153,6 +159,12 @@ context_head()
 }
 context_body()
 {
+	# Begin FreeBSD
+	grep_type
+	if [ $? -eq $GREP_TYPE_BSD ]; then
+		atf_expect_fail "this test doesn't pass with BSD grep yet"
+	fi
+	# End FreeBSD
 	cp $(atf_get_srcdir)/d_context_*.* .
 
 	atf_check -o file:d_context_a.out grep -C2 bamboo d_context_a.in
@@ -214,6 +226,12 @@ context2_head()
 }
 context2_body()
 {
+	# Begin FreeBSD
+	grep_type
+	if [ $? -eq $GREP_TYPE_BSD ]; then
+		atf_expect_fail "this test doesn't pass with BSD grep yet"
+	fi
+	# End FreeBSD
 	printf "haddock\000cod\000plaice\000" > test1
 	printf "mackeral\000cod\000crab\000" > test2
 
@@ -227,6 +245,38 @@ context2_body()
 	    grep -z -C1 cod test1 test2
 }
 # Begin FreeBSD
+
+# What grep(1) are we working with?
+# - 0 : bsdgrep
+# - 1 : gnu grep 2.51 (base)
+# - 2 : gnu grep (ports)
+GREP_TYPE_BSD=0
+GREP_TYPE_GNU_FREEBSD=1
+GREP_TYPE_GNU=2
+GREP_TYPE_UNKNOWN=3
+
+grep_type()
+{
+	local grep_version=$(grep --version)
+
+	case "$grep_version" in
+	*"BSD grep"*)
+		return $GREP_TYPE_BSD
+		;;
+	*"GNU grep"*)
+		case "$grep_version" in
+		*2.5.1-FreeBSD*)
+			return $GREP_TYPE_GNU_FREEBSD
+			;;
+		*)
+			return $GREP_TYPE_GNU
+			;;
+		esac
+		;;
+	esac
+	atf_fail "unknown grep type: $grep_version"
+}
+
 atf_test_case oflag_zerolen
 oflag_zerolen_head()
 {
@@ -234,6 +284,11 @@ oflag_zerolen_head()
 }
 oflag_zerolen_body()
 {
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
+		atf_expect_fail "this test doesn't pass with gnu grep in base"
+	fi
+
 	atf_check -o file:"$(atf_get_srcdir)/d_oflag_zerolen_a.out" \
 	    grep -Eo '(^|:)0*' "$(atf_get_srcdir)/d_oflag_zerolen_a.in"
 
@@ -271,6 +326,11 @@ color_head()
 }
 color_body()
 {
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
+		atf_expect_fail "this test doesn't pass with gnu grep in base"
+	fi
+
 	echo 'abcd*' > grepfile
 	echo 'abc$' >> grepfile
 	echo '^abc' >> grepfile
