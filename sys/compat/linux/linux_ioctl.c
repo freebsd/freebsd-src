@@ -3185,7 +3185,12 @@ linux_to_bsd_v4l2_standard(struct l_v4l2_standard *lvstd, struct v4l2_standard *
 {
 	vstd->index = lvstd->index;
 	vstd->id = lvstd->id;
-	memcpy(&vstd->name, &lvstd->name, sizeof(*lvstd) - offsetof(struct l_v4l2_standard, name));
+	CTASSERT(sizeof(vstd->name) == sizeof(lvstd->name));
+	memcpy(vstd->name, lvstd->name, sizeof(vstd->name));
+	vstd->frameperiod = lvstd->frameperiod;
+	vstd->framelines = lvstd->framelines;
+	CTASSERT(sizeof(vstd->reserved) == sizeof(lvstd->reserved));
+	memcpy(vstd->reserved, lvstd->reserved, sizeof(vstd->reserved));
 	return (0);
 }
 
@@ -3194,7 +3199,12 @@ bsd_to_linux_v4l2_standard(struct v4l2_standard *vstd, struct l_v4l2_standard *l
 {
 	lvstd->index = vstd->index;
 	lvstd->id = vstd->id;
-	memcpy(&lvstd->name, &vstd->name, sizeof(*lvstd) - offsetof(struct l_v4l2_standard, name));
+	CTASSERT(sizeof(vstd->name) == sizeof(lvstd->name));
+	memcpy(lvstd->name, vstd->name, sizeof(lvstd->name));
+	lvstd->frameperiod = vstd->frameperiod;
+	lvstd->framelines = vstd->framelines;
+	CTASSERT(sizeof(vstd->reserved) == sizeof(lvstd->reserved));
+	memcpy(lvstd->reserved, vstd->reserved, sizeof(lvstd->reserved));
 	return (0);
 }
 
