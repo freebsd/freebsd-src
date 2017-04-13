@@ -246,8 +246,10 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		goto cleanup;
 	}
 	for (i = 0; i < vofs; i++)
-		if (we->we_wordv[i] != NULL)
-			we->we_wordv[i] += nstrings - we->we_strings;
+		if (we->we_wordv[i] != NULL) {
+			we->we_wordv[i] = nstrings +
+			    (we->we_wordv[i] - we->we_strings);
+		}
 	we->we_strings = nstrings;
 
 	if (we_read_fully(pdes[0], we->we_strings + sofs, nbytes) != nbytes) {
