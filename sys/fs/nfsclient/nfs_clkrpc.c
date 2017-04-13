@@ -278,6 +278,11 @@ nfsrvd_cbinit(int terminating)
 		while (nfs_numnfscbd > 0)
 			msleep(&nfs_numnfscbd, NFSDLOCKMUTEXPTR, PZERO, 
 			    "nfscbdt", 0);
+		if (nfscbd_pool != NULL) {
+			NFSD_UNLOCK();
+			svcpool_close(nfscbd_pool);
+			NFSD_LOCK();
+		}
 	}
 
 	if (nfscbd_pool == NULL) {
