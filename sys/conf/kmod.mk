@@ -453,6 +453,7 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 
 .if !empty(SRCS:Massym.s)
 CLEANFILES+=	assym.s genassym.o
+DEPENDOBJS+=	genassym.o
 assym.s: genassym.o
 .if defined(KERNBUILDDIR)
 genassym.o: opt_global.h
