@@ -347,7 +347,7 @@ else printf(" fhl=0\n");
 	     */
 	    if (!error)
 		op->nfso_opencnt++;
-	    nfscl_openrelease(op, error, newone);
+	    nfscl_openrelease(nmp, op, error, newone);
 	    if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
 		error == NFSERR_BADSESSION) {
@@ -1893,7 +1893,7 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		if (dp != NULL)
 			(void) nfscl_deleg(nmp->nm_mountp, owp->nfsow_clp,
 			    (*nfhpp)->nfh_fh, (*nfhpp)->nfh_len, cred, p, &dp);
-		nfscl_ownerrelease(owp, error, newone, unlocked);
+		nfscl_ownerrelease(nmp, owp, error, newone, unlocked);
 		if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
 		    error == NFSERR_BADSESSION) {
@@ -2198,7 +2198,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 				error = ret;
 		    }
 		}
-		nfscl_openrelease(op, error, newone);
+		nfscl_openrelease(nmp, op, error, newone);
 		*unlockedp = 1;
 	}
 	if (nd->nd_repstat != 0 && error == 0)
