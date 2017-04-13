@@ -2319,7 +2319,6 @@ ta_del_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	tb = (struct ta_buf_ifidx *)ta_buf;
 	ifname = (char *)tei->paddr;
 	icfg = (struct iftable_cfg *)ta_state;
-	ife = tb->ife;
 
 	ife = (struct ifentry *)ipfw_objhash_lookup_name(icfg->ii, 0, ifname);
 

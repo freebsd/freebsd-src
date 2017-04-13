@@ -978,7 +978,6 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 
 		if (parent->count >= conn_limit) {
 			if (V_fw_verbose && last_log != time_uptime) {
-				last_log = time_uptime;
 				char sbuf[24];
 				last_log = time_uptime;
 				snprintf(sbuf, sizeof(sbuf),
