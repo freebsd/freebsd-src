@@ -502,8 +502,8 @@ int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,
     int *, int *, int);
 int nfscl_getstateid(vnode_t, u_int8_t *, int, u_int32_t, int, struct ucred *,
     NFSPROC_T *, nfsv4stateid_t *, void **);
-void nfscl_ownerrelease(struct nfsclowner *, int, int, int);
-void nfscl_openrelease(struct nfsclopen *, int, int);
+void nfscl_ownerrelease(struct nfsmount *, struct nfsclowner *, int, int, int);
+void nfscl_openrelease(struct nfsmount *, struct nfsclopen *, int, int);
 int nfscl_getcl(struct mount *, struct ucred *, NFSPROC_T *, int,
     struct nfsclclient **);
 struct nfsclclient *nfscl_findcl(struct nfsmount *);
