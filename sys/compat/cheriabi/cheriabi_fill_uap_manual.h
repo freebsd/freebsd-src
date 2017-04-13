@@ -89,7 +89,6 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
 	struct chericap tmpcap;
 	u_int tag;
 	int error;
-	register_t perms, reqperms;
 	register_t sealed;
 	size_t base, length, offset;
 	size_t addr_adjust;
@@ -99,28 +98,31 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CTOINT(uap->len, CHERI_CR_CTEMP0);
 
-	/* [0] _In_pagerange_(len) const void * addr */
+	/* [0] _Pagerange_opt_(len) const void * addr */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mincore, 0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 	if (!tag) {
-		return (EPROT);
+		/*
+		 * Allow addr to be NULL, but don't let the caller examine
+		 * mappings they don't have access to.
+		 */
+		CHERI_CTOINT(uap->addr, CHERI_CR_CTEMP0);
+		if (uap->addr != NULL)
+			return (EPROT);
 	} else {
 		CHERI_CGETSEALED(sealed, CHERI_CR_CTEMP0);
 		if (sealed)
 			return (EPROT);
 
-		CHERI_CGETPERM(perms, CHERI_CR_CTEMP0);
-		reqperms = CHERI_PERM_LOAD;
-		if ((perms & reqperms) != reqperms)
-			return (EPROT);
+		/* Don't require any perms. */
 
 		CHERI_CGETLEN(length, CHERI_CR_CTEMP0);
-		CHERI_CGETLEN(offset, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(offset, CHERI_CR_CTEMP0);
 		if (offset >= length)
 			return (EPROT);
 		length -= offset;
-		CHERI_CGETLEN(base, CHERI_CR_CTEMP0);
+		CHERI_CGETBASE(base, CHERI_CR_CTEMP0);
 		if (rounddown2(base + offset, PAGE_SIZE) < base)
 			return (EPROT);
 		addr_adjust = ((base + offset) & PAGE_MASK);
@@ -141,7 +143,7 @@ CHERIABI_SYS_mincore_fill_uap(struct thread *td,
 	 */
 	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_mincore, 2);
 	error = cheriabi_cap_to_ptr((caddr_t *)&uap->vec, &tmpcap,
-	    roundup2(uap->len + addr_adjust, PAGE_SIZE) / PAGE_SIZE,
+	    roundup2(uap->len, PAGE_SIZE) / PAGE_SIZE,
 	    CHERI_PERM_STORE, 0);
 	if (error != 0)
 		return (error);

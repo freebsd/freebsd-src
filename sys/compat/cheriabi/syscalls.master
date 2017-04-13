@@ -212,7 +212,7 @@
 77	AUE_NULL	OBSOL	vlimit
 ; XXX-BD: missing round up of len for misaligned addr
 78	AUE_MINCORE	NOPROTO|NOPARSE	{ int mincore( \
-				    _Pagerange_(len) const void *addr, \
+				    _Pagerange_opt_(len) const void *addr, \
 				    size_t len, \
 				    _Out_writes_bytes_(len/PAGE_SIZE) \
 				    char *vec); }
