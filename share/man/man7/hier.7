@@ -32,7 +32,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2015
+.Dd March 13, 2017
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -653,11 +653,6 @@ and
 .It Pa vi/
 localization support and utilities for
 .Xr vi 1
-.It Pa zoneinfo/
-timezone configuration information;
-see
-.Xr tzfile 5
-.El
 .It Pa vt/
 files used by vt;
 see
@@ -677,6 +672,11 @@ and
 .Xr kbdmap 1
 .\" .It Pa scrnmaps/
 .\" console screen maps
+.El
+.It Pa zoneinfo/
+timezone configuration information;
+see
+.Xr tzfile 5
 .El
 .It Pa src/
 .Bx ,
