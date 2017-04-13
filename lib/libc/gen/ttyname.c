@@ -61,6 +61,10 @@ ttyname_r(int fd, char *buf, size_t len)
 {
 	size_t used;
 
+	/* Don't write off the end of a zero-length buffer. */
+	if (len < 1)
+		return (ERANGE);
+
 	*buf = '\0';
 
 	/* Must be a terminal. */
