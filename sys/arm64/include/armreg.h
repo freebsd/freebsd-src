@@ -384,8 +384,8 @@
 #define	PAR_S_MASK		(0x1 << PAR_S_SHIFT)
 
 /* SCTLR_EL1 - System Control Register */
-#define	SCTLR_RES0	0xc8222400	/* Reserved, write 0 */
-#define	SCTLR_RES1	0x30d00800	/* Reserved, write 1 */
+#define	SCTLR_RES0	0xc8222400	/* Reserved ARMv8.0, write 0 */
+#define	SCTLR_RES1	0x30d00800	/* Reserved ARMv8.0, write 1 */
 
 #define	SCTLR_M		0x00000001
 #define	SCTLR_A		0x00000002
@@ -403,9 +403,13 @@
 #define	SCTLR_nTWI	0x00010000
 #define	SCTLR_nTWE	0x00040000
 #define	SCTLR_WXN	0x00080000
+#define	SCTLR_IESB	0x00200000
+#define	SCTLR_SPAN	0x00800000
 #define	SCTLR_EOE	0x01000000
 #define	SCTLR_EE	0x02000000
 #define	SCTLR_UCI	0x04000000
+#define	SCTLR_nTLSMD	0x10000000
+#define	SCTLR_LSMAOE	0x20000000
 
 /* SPSR_EL1 */
 /*
