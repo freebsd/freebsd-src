@@ -32,12 +32,15 @@ work()
 		sub("^0*", "", w)
 		if (w == "")
 			w = "0"
+		hex = ""
+		if (w != "0")
+			hex = "0x"
 		sub("w3$", "", $3)
 		# This still has minor problems representing INT_MIN, etc. 
 		# E.g.,
 		# with 32-bit 2''s complement ints, this prints -0x80000000,
 		# which has the wrong type (unsigned int).
-		printf("#define\t%s\t%s0x%s\n", $3, sign, w)
+		printf("#define\t%s\t%s%s%s\n", $3, sign, hex, w)
 	} '
 }
 
