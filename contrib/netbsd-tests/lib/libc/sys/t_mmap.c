@@ -227,7 +227,11 @@ ATF_TC_BODY(mmap_err, tc)
 	map = mmap(&addr, page, PROT_READ, MAP_FIXED|MAP_PRIVATE, -1, 0);
 
 	ATF_REQUIRE(map == MAP_FAILED);
+#ifndef __CHERI_PURE_CAPABILITY__
 	ATF_REQUIRE(errno == EINVAL);
+#else
+	ATF_REQUIRE(errno == EPROT);
+#endif
 
 	errno = 0;
 	map = mmap(NULL, page, PROT_READ, MAP_ANON|MAP_PRIVATE, INT_MAX, 0);
@@ -335,6 +339,10 @@ ATF_TC_BODY(mmap_prot_2, tc)
 	pid_t pid;
 	int sta;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	atf_tc_skip("%s: test makes no sense under CheriABI", __func__);
+#endif
+
 	/*
 	 * Make a PROT_NONE mapping and try to access it.
 	 * If we catch a SIGSEGV, all works as expected.
@@ -370,6 +378,9 @@ ATF_TC_BODY(mmap_prot_3, tc)
 	void *map;
 	pid_t pid;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+	atf_tc_skip("%s: test makes no sense under CheriABI", __func__);
+#endif
 	/*
 	 * Open a file, change the permissions
 	 * to read-only, and try to map it as
