@@ -63,6 +63,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 #endif /* !_KERNEL */
 
 static void kdebug_sadb_prop(struct sadb_ext *);
@@ -73,6 +74,8 @@ static void kdebug_sadb_sa(struct sadb_ext *);
 static void kdebug_sadb_address(struct sadb_ext *);
 static void kdebug_sadb_key(struct sadb_ext *);
 static void kdebug_sadb_x_sa2(struct sadb_ext *);
+static void kdebug_sadb_x_sa_replay(struct sadb_ext *);
+static void kdebug_sadb_x_natt(struct sadb_ext *);
 
 #ifdef _KERNEL
 static void kdebug_secreplay(struct secreplay *);
@@ -131,6 +134,10 @@ kdebug_sadb(struct sadb_msg *base)
 		case SADB_EXT_ADDRESS_SRC:
 		case SADB_EXT_ADDRESS_DST:
 		case SADB_EXT_ADDRESS_PROXY:
+		case SADB_X_EXT_NAT_T_OAI:
+		case SADB_X_EXT_NAT_T_OAR:
+		case SADB_X_EXT_NEW_ADDRESS_SRC:
+		case SADB_X_EXT_NEW_ADDRESS_DST:
 			kdebug_sadb_address(ext);
 			break;
 		case SADB_EXT_KEY_AUTH:
@@ -158,6 +165,14 @@ kdebug_sadb(struct sadb_msg *base)
 			break;
 		case SADB_X_EXT_SA2:
 			kdebug_sadb_x_sa2(ext);
+			break;
+		case SADB_X_EXT_SA_REPLAY:
+			kdebug_sadb_x_sa_replay(ext);
+			break;
+		case SADB_X_EXT_NAT_T_TYPE:
+		case SADB_X_EXT_NAT_T_SPORT:
+		case SADB_X_EXT_NAT_T_DPORT:
+			kdebug_sadb_x_natt(ext);
 			break;
 		default:
 			printf("%s: invalid ext_type %u\n", __func__,
@@ -342,8 +357,6 @@ kdebug_sadb_address(struct sadb_ext *ext)
 	    ((u_char *)&addr->sadb_address_reserved)[1]);
 
 	kdebug_sockaddr((struct sockaddr *)((caddr_t)ext + sizeof(*addr)));
-
-	return;
 }
 
 static void
@@ -392,6 +405,41 @@ kdebug_sadb_x_sa2(struct sadb_ext *ext)
 	return;
 }
 
+static void
+kdebug_sadb_x_sa_replay(struct sadb_ext *ext)
+{
+	struct sadb_x_sa_replay *replay;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("%s: NULL pointer was passed.\n", __func__);
+
+	replay = (struct sadb_x_sa_replay *)ext;
+	printf("sadb_x_sa_replay{ replay=%u }\n",
+	    replay->sadb_x_sa_replay_replay);
+}
+
+static void
+kdebug_sadb_x_natt(struct sadb_ext *ext)
+{
+	struct sadb_x_nat_t_type *type;
+	struct sadb_x_nat_t_port *port;
+
+	/* sanity check */
+	if (ext == NULL)
+		panic("%s: NULL pointer was passed.\n", __func__);
+
+	if (ext->sadb_ext_type == SADB_X_EXT_NAT_T_TYPE) {
+		type = (struct sadb_x_nat_t_type *)ext;
+		printf("sadb_x_nat_t_type{ type=%u }\n",
+		    type->sadb_x_nat_t_type_type);
+	} else {
+		port = (struct sadb_x_nat_t_port *)ext;
+		printf("sadb_x_nat_t_port{ port=%u }\n",
+		    ntohs(port->sadb_x_nat_t_port_port));
+	}
+}
+
 void
 kdebug_sadb_x_policy(struct sadb_ext *ext)
 {
@@ -402,9 +450,11 @@ kdebug_sadb_x_policy(struct sadb_ext *ext)
 	if (ext == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	printf("sadb_x_policy{ type=%u dir=%u id=%x }\n",
+	printf("sadb_x_policy{ type=%u dir=%u id=%x scope=%u %s=%u }\n",
 		xpl->sadb_x_policy_type, xpl->sadb_x_policy_dir,
-		xpl->sadb_x_policy_id);
+		xpl->sadb_x_policy_id, xpl->sadb_x_policy_scope,
+		xpl->sadb_x_policy_scope == IPSEC_POLICYSCOPE_IFNET ?
+		"ifindex": "priority", xpl->sadb_x_policy_priority);
 
 	if (xpl->sadb_x_policy_type == IPSEC_POLICY_IPSEC) {
 		int tlen;
@@ -850,39 +900,42 @@ ipsec_sa2str(struct secasvar *sav, char *buf, size_t size)
 void
 kdebug_sockaddr(struct sockaddr *addr)
 {
-	struct sockaddr_in *sin4;
-#ifdef INET6
-	struct sockaddr_in6 *sin6;
-#endif
+	char buf[IPSEC_ADDRSTRLEN];
 
 	/* sanity check */
 	if (addr == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	/* NOTE: We deal with port number as host byte order. */
-	printf("sockaddr{ len=%u family=%u", addr->sa_len, addr->sa_family);
-
 	switch (addr->sa_family) {
-	case AF_INET:
-		sin4 = (struct sockaddr_in *)addr;
-		printf(" port=%u\n", ntohs(sin4->sin_port));
-		ipsec_hexdump((caddr_t)&sin4->sin_addr, sizeof(sin4->sin_addr));
+#ifdef INET
+	case AF_INET: {
+		struct sockaddr_in *sin;
+
+		sin = (struct sockaddr_in *)addr;
+		inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
 		break;
-#ifdef INET6
-	case AF_INET6:
-		sin6 = (struct sockaddr_in6 *)addr;
-		printf(" port=%u\n", ntohs(sin6->sin6_port));
-		printf("  flowinfo=0x%08x, scope_id=0x%08x\n",
-		    sin6->sin6_flowinfo, sin6->sin6_scope_id);
-		ipsec_hexdump((caddr_t)&sin6->sin6_addr,
-		    sizeof(sin6->sin6_addr));
-		break;
-#endif
 	}
+#endif
+#ifdef INET6
+	case AF_INET6: {
+		struct sockaddr_in6 *sin6;
 
-	printf("  }\n");
-
-	return;
+		sin6 = (struct sockaddr_in6 *)addr;
+		if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+			snprintf(buf, sizeof(buf), "%s%%%u",
+			    inet_ntop(AF_INET6, &sin6->sin6_addr, buf,
+			    sizeof(buf)), sin6->sin6_scope_id);
+		} else
+			inet_ntop(AF_INET6, &sin6->sin6_addr, buf,
+			    sizeof(buf));
+		break;
+	}
+#endif
+	default:
+		sprintf(buf, "unknown");
+	}
+	printf("sockaddr{ len=%u family=%u addr=%s }\n", addr->sa_len,
+	    addr->sa_family, buf);
 }
 
 void
