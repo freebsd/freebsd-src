@@ -415,11 +415,6 @@ nfs_mountroot(struct mount *mp)
 		nfs_convert_diskless();
 
 	/*
-	 * XXX splnet, so networks will receive...
-	 */
-	splnet();
-
-	/*
 	 * Do enough of ifconfig(8) so that the critical net interface can
 	 * talk to the server.
 	 */
@@ -558,11 +553,8 @@ static void
 nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
     const char *hostname, struct ucred *cred, struct thread *td)
 {
-	int s;
 	int adjsock;
 	char *p;
-
-	s = splnet();
 
 	/*
 	 * Set read-only flag if requested; otherwise, clear it if this is
@@ -609,7 +601,6 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 
 	/* Update flags atomically.  Don't change the lock bits. */
 	nmp->nm_flag = argp->flags | nmp->nm_flag;
-	splx(s);
 
 	if ((argp->flags & NFSMNT_TIMEO) && argp->timeo > 0) {
 		nmp->nm_timeo = (argp->timeo * NFS_HZ + 5) / 10;
