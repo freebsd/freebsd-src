@@ -45,6 +45,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <netdb.h>
 #include <ctype.h>
 #include <errno.h>
@@ -513,6 +514,8 @@ extension
 				return -1;
 			}
 			p_replay = $2;
+			if (p_replay > (UINT32_MAX - 32) >> 3)
+				yyerror("replay window is too large");
 		}
 	|	F_LIFETIME_HARD DECSTRING { p_lt_hard = $2; }
 	|	F_LIFETIME_SOFT DECSTRING { p_lt_soft = $2; }
@@ -899,6 +902,7 @@ setkeymsg_addr(type, satype, srcs, dsts, no_spi)
 	int l, l0, len;
 	struct sadb_sa m_sa;
 	struct sadb_x_sa2 m_sa2;
+	struct sadb_x_sa_replay m_replay;
 	struct sadb_address m_addr;
 	struct addrinfo *s, *d;
 	int n;
@@ -920,7 +924,8 @@ setkeymsg_addr(type, satype, srcs, dsts, no_spi)
 		m_sa.sadb_sa_len = PFKEY_UNIT64(len);
 		m_sa.sadb_sa_exttype = SADB_EXT_SA;
 		m_sa.sadb_sa_spi = htonl(p_spi);
-		m_sa.sadb_sa_replay = p_replay;
+		m_sa.sadb_sa_replay = p_replay > UINT8_MAX ? UINT8_MAX:
+		    p_replay;
 		m_sa.sadb_sa_state = 0;
 		m_sa.sadb_sa_auth = p_alg_auth;
 		m_sa.sadb_sa_encrypt = p_alg_enc;
@@ -937,6 +942,17 @@ setkeymsg_addr(type, satype, srcs, dsts, no_spi)
 
 		memcpy(buf + l, &m_sa2, len);
 		l += len;
+
+		if (p_replay > UINT8_MAX) {
+			len = sizeof(struct sadb_x_sa_replay);
+			m_replay.sadb_x_sa_replay_len = PFKEY_UNIT64(len);
+			m_replay.sadb_x_sa_replay_exttype =
+			    SADB_X_EXT_SA_REPLAY;
+			m_replay.sadb_x_sa_replay_replay = p_replay << 3;
+
+			memcpy(buf + l, &m_replay, len);
+			l += len;
+		}
 	}
 
 	l0 = l;
@@ -1017,6 +1033,7 @@ setkeymsg_add(type, satype, srcs, dsts)
 	struct sadb_sa m_sa;
 	struct sadb_x_sa2 m_sa2;
 	struct sadb_address m_addr;
+	struct sadb_x_sa_replay m_replay;
 	struct addrinfo *s, *d;
 	int n;
 	int plen;
@@ -1100,7 +1117,7 @@ setkeymsg_add(type, satype, srcs, dsts)
 	m_sa.sadb_sa_len = PFKEY_UNIT64(len);
 	m_sa.sadb_sa_exttype = SADB_EXT_SA;
 	m_sa.sadb_sa_spi = htonl(p_spi);
-	m_sa.sadb_sa_replay = p_replay;
+	m_sa.sadb_sa_replay = p_replay > UINT8_MAX ? UINT8_MAX: p_replay;
 	m_sa.sadb_sa_state = 0;
 	m_sa.sadb_sa_auth = p_alg_auth;
 	m_sa.sadb_sa_encrypt = p_alg_enc;
@@ -1118,6 +1135,15 @@ setkeymsg_add(type, satype, srcs, dsts)
 	memcpy(buf + l, &m_sa2, len);
 	l += len;
 
+	if (p_replay > UINT8_MAX) {
+		len = sizeof(struct sadb_x_sa_replay);
+		m_replay.sadb_x_sa_replay_len = PFKEY_UNIT64(len);
+		m_replay.sadb_x_sa_replay_exttype = SADB_X_EXT_SA_REPLAY;
+		m_replay.sadb_x_sa_replay_replay = p_replay << 3;
+
+		memcpy(buf + l, &m_replay, len);
+		l += len;
+	}
 	l0 = l;
 	n = 0;
 
