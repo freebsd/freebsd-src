@@ -366,6 +366,9 @@ struct adapter_params {
 
 	unsigned int ofldq_wr_cred;
 	unsigned int eo_wr_cred;
+
+	unsigned int max_ordird_qp;
+	unsigned int max_ird_adapter;
 };
 
 #define CHELSIO_T4		0x4
