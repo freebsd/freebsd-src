@@ -437,11 +437,11 @@ arm_gic_v3_intr(void *arg)
 #endif
 		} else if (active_irq >= GIC_FIRST_PPI &&
 		    active_irq <= GIC_LAST_SPI) {
-			if (gi->gi_pol == INTR_TRIGGER_EDGE)
+			if (gi->gi_trig == INTR_TRIGGER_EDGE)
 				gic_icc_write(EOIR1, gi->gi_irq);
 
 			if (intr_isrc_dispatch(&gi->gi_isrc, tf) != 0) {
-				if (gi->gi_pol != INTR_TRIGGER_EDGE)
+				if (gi->gi_trig != INTR_TRIGGER_EDGE)
 					gic_icc_write(EOIR1, gi->gi_irq);
 				gic_v3_disable_intr(sc->dev, &gi->gi_isrc);
 				device_printf(sc->dev,
@@ -781,7 +781,7 @@ gic_v3_post_filter(device_t dev, struct intr_irqsrc *isrc)
 {
 	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
 
-	if (gi->gi_pol == INTR_TRIGGER_EDGE)
+	if (gi->gi_trig == INTR_TRIGGER_EDGE)
 		return;
 
 	gic_icc_write(EOIR1, gi->gi_irq);
