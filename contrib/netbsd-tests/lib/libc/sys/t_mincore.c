@@ -250,7 +250,9 @@ ATF_TC_BODY(mincore_resid, tc)
 
 	ATF_REQUIRE(check_residency(addr2, npgs) == npgs);
 	ATF_REQUIRE(check_residency(addr3, npgs) == 0);
+#ifndef __CHERI_PURE_CAPABILITY__
 	ATF_REQUIRE(mprotect(addr3, npgs * page, PROT_READ) == 0);
+#endif
 	ATF_REQUIRE(check_residency(addr, npgs) == npgs);
 	ATF_REQUIRE(check_residency(addr2, npgs) == npgs);
 
