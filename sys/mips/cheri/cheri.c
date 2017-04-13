@@ -266,23 +266,6 @@ cheri_capability_set_user_sealcap(struct chericap *cp)
 }
 
 void
-cheri_capability_set_null(struct chericap *cp)
-{
-
-	CHERI_CFROMPTR(CHERI_CR_CTEMP0, CHERI_CR_KDC, NULL);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
-}
-
-void
-cheri_capability_setoffset(struct chericap *cp, register_t offset)
-{
-
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, cp, 0);
-	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, offset);
-	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
-}
-
-void
 cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 {
 	struct trapframe *frame;
