@@ -987,7 +987,7 @@ arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		gi->gi_trig = trig;
 
 		/* Edge triggered interrupts need an early EOI sent */
-		if (gi->gi_pol == INTR_TRIGGER_EDGE)
+		if (gi->gi_trig == INTR_TRIGGER_EDGE)
 			gi->gi_flags |= GI_FLAG_EARLY_EOI;
 	}
 
