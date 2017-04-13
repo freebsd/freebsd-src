@@ -2728,7 +2728,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3 |= ATTR_XN;
 	if ((flags & PMAP_ENTER_WIRED) != 0)
 		new_l3 |= ATTR_SW_WIRED;
-	if ((va >> 63) == 0)
+	if (va < VM_MAXUSER_ADDRESS)
 		new_l3 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
 
 	CTR2(KTR_PMAP, "pmap_enter: %.16lx -> %.16lx", va, pa);
