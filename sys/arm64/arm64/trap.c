@@ -184,7 +184,7 @@ data_abort(struct trapframe *frame, uint64_t esr, uint64_t far, int lower)
 		map = &p->p_vmspace->vm_map;
 	else {
 		/* The top bit tells us which range to use */
-		if ((far >> 63) == 1) {
+		if (far >= VM_MAXUSER_ADDRESS) {
 			map = kernel_map;
 		} else {
 			map = &p->p_vmspace->vm_map;
