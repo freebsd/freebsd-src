@@ -272,6 +272,7 @@ init_secondary(uint64_t cpu)
 #endif
 
 	dbg_monitor_init();
+	pan_enable();
 
 	/* Enable interrupts */
 	intr_enable();

@@ -71,4 +71,23 @@
 	ldr	tmp, [tmp, #TD_PCB];		/* Load the pcb */	\
 	str	handler, [tmp, #PCB_ONFAULT]	/* Set the handler */
 
+#define	ENTER_USER_ACCESS(reg, tmp)					\
+	ldr	tmp, =has_pan;			/* Get the addr of has_pan */ \
+	ldr	reg, [tmp];			/* Read it */		\
+	cbz	reg, 997f;			/* If no PAN skip */	\
+	.inst	0xd500409f | (0 << 8);		/* Clear PAN */		\
+	997:
+
+#define	EXIT_USER_ACCESS(reg)						\
+	cbz	reg, 998f;			/* If no PAN skip */	\
+	.inst	0xd500409f | (1 << 8);		/* Set PAN */		\
+	998:
+
+#define	EXIT_USER_ACCESS_CHECK(reg, tmp)				\
+	ldr	tmp, =has_pan;			/* Get the addr of has_pan */ \
+	ldr	reg, [tmp];			/* Read it */		\
+	cbz	reg, 999f;			/* If no PAN skip */	\
+	.inst	0xd500409f | (1 << 8);		/* Set PAN */		\
+	999:
+
 #endif /* _MACHINE_ASM_H_ */

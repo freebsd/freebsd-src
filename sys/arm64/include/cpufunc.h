@@ -33,6 +33,8 @@
 
 #include <machine/armreg.h>
 
+void pan_enable(void);
+
 static __inline void
 breakpoint(void)
 {
