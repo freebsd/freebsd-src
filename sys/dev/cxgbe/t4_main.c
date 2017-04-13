@@ -3494,6 +3494,21 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.cq.size = val[3] - val[2] + 1;
 		sc->vres.ocq.start = val[4];
 		sc->vres.ocq.size = val[5] - val[4] + 1;
+
+		param[0] = FW_PARAM_PFVF(SRQ_START);
+		param[1] = FW_PARAM_PFVF(SRQ_END);
+		param[2] = FW_PARAM_DEV(MAXORDIRD_QP);
+		param[3] = FW_PARAM_DEV(MAXIRD_ADAPTER);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 4, param, val);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to query RDMA parameters(3): %d.\n", rc);
+			return (rc);
+		}
+		sc->vres.srq.start = val[0];
+		sc->vres.srq.size = val[1] - val[0] + 1;
+		sc->params.max_ordird_qp = val[2];
+		sc->params.max_ird_adapter = val[3];
 	}
 	if (sc->iscsicaps) {
 		param[0] = FW_PARAM_PFVF(ISCSI_START);
