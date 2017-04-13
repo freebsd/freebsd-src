@@ -5840,7 +5840,7 @@ qlnx_update_vport(struct ecore_dev *cdev,
 						ha->num_rss;
 
                 		fp = &ha->fp_array[fp_index];
-                        	rss->rss_ind_table[i] = fp->rxq->handle;
+                        	rss->rss_ind_table[j] = fp->rxq->handle;
 			}
 
 			for (j = 0; j < ECORE_RSS_IND_TABLE_SIZE;) {
