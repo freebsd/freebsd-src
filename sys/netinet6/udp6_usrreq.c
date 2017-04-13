@@ -187,6 +187,9 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	}
 	m_adj(n, off + sizeof(struct udphdr));
 
+	/* Clear any h/w csum flags as they are no longer valid. */
+	n->m_pkthdr.csum_flags &= ~CSUM_DATA_VALID;
+
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_rcv);
 	if (sbappendaddr_locked(&so->so_rcv, (struct sockaddr *)&fromsa[0], n,
