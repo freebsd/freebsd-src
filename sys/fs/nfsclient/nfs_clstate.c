@@ -3880,8 +3880,7 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 	if ((dp->nfsdl_flags & NFSCLDL_WRITE) && (np->n_flag & NMODIFIED)) {
 		np->n_flag |= NDELEGRECALL;
 		NFSUNLOCKNODE(np);
-		ret = ncl_flush(vp, MNT_WAIT, cred, p, 1,
-		    called_from_renewthread);
+		ret = ncl_flush(vp, MNT_WAIT, p, 1, called_from_renewthread);
 		NFSLOCKNODE(np);
 		np->n_flag &= ~NDELEGRECALL;
 	}
