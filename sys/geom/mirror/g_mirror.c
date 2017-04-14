@@ -3076,15 +3076,8 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 		}
 	}
 
-	g_topology_lock();
-	if (sc->sc_geom->softc == NULL) {
-		g_topology_unlock();
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0)
 		return (0);
-	}
-	sc->sc_geom->softc = NULL;
-	sc->sc_sync.ds_geom->softc = NULL;
-	g_topology_unlock();
-
 	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_WAIT;
 	G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
