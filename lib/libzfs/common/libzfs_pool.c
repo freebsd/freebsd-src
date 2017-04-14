@@ -818,7 +818,7 @@ zpool_prop_get_feature(zpool_handle_t *zhp, const char *propname, char *buf,
 	const char *feature = strchr(propname, '@') + 1;
 
 	supported = zpool_prop_feature(propname);
-	ASSERT(supported || zfs_prop_unsupported(propname));
+	ASSERT(supported || zpool_prop_unsupported(propname));
 
 	/*
 	 * Convert from feature name to feature guid. This conversion is
