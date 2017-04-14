@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kerneldump.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
@@ -278,7 +279,7 @@ static int
 check_space(const char *savedir, off_t dumpsize, int bounds)
 {
 	FILE *fp;
-	off_t minfree, spacefree, totfree, needed;
+	off_t available, minfree, spacefree, totfree, needed;
 	struct statfs fsbuf;
 	char buf[100];
 
@@ -294,19 +295,37 @@ check_space(const char *savedir, off_t dumpsize, int bounds)
 	else {
 		if (fgets(buf, sizeof(buf), fp) == NULL)
 			minfree = 0;
-		else
-			minfree = atoi(buf);
+		else {
+			char *endp;
+
+			errno = 0;
+			minfree = strtoll(buf, &endp, 10);
+			if (minfree == 0 && errno != 0)
+				minfree = -1;
+			else {
+				while (*endp != '\0' && isspace(*endp))
+					endp++;
+				if (*endp != '\0' || minfree < 0)
+					minfree = -1;
+			}
+			if (minfree < 0)
+				syslog(LOG_WARNING,
+				    "`minfree` didn't contain a valid size "
+				    "(`%s`). Defaulting to 0", buf);
+		}
 		(void)fclose(fp);
 	}
 
+	available = minfree > 0 ? spacefree - minfree : totfree;
 	needed = dumpsize / 1024 + 2;	/* 2 for info file */
 	needed -= saved_dump_size(bounds);
-	if ((minfree > 0 ? spacefree : totfree) - needed < minfree) {
+	if (available < needed) {
 		syslog(LOG_WARNING,
-		    "no dump: not enough free space on device (%lldkB "
-		    "available; need at least %lldkB)",
-		    (long long)(minfree > 0 ? spacefree : totfree),
-		    (long long)needed);
+		    "no dump: not enough free space on device (need at least "
+		    "%jdKiB for dump; %jdKiB available; %jdKiB reserved)",
+		    (intmax_t)needed,
+		    (intmax_t)available + minfree,
+		    (intmax_t)minfree);
 		return (0);
 	}
 	if (spacefree - needed < 0)
