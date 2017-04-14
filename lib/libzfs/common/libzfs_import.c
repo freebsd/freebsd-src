@@ -23,7 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
  * Copyright 2015 RackTop Systems.
- * Copyright 2016 Nexenta Systems, Inc.
+ * Copyright 2017 Nexenta Systems, Inc.
  */
 
 /*
@@ -94,31 +94,6 @@ typedef struct pool_list {
 	pool_entry_t		*pools;
 	name_entry_t		*names;
 } pool_list_t;
-
-static char *
-get_devid(const char *path)
-{
-	int fd;
-	ddi_devid_t devid;
-	char *minor, *ret;
-
-	if ((fd = open(path, O_RDONLY)) < 0)
-		return (NULL);
-
-	minor = NULL;
-	ret = NULL;
-	if (devid_get(fd, &devid) == 0) {
-		if (devid_get_minor_name(fd, &minor) == 0)
-			ret = devid_str_encode(devid, minor);
-		if (minor != NULL)
-			devid_str_free(minor);
-		devid_free(devid);
-	}
-	(void) close(fd);
-
-	return (ret);
-}
-
 
 /*
  * Go through and fix up any path and/or devid information for the given vdev
@@ -195,7 +170,7 @@ fix_paths(nvlist_t *nv, name_entry_t *names)
 	if (nvlist_add_string(nv, ZPOOL_CONFIG_PATH, best->ne_name) != 0)
 		return (-1);
 
-	if ((devid = get_devid(best->ne_name)) == NULL) {
+	if ((devid = devid_str_from_path(best->ne_name)) == NULL) {
 		(void) nvlist_remove_all(nv, ZPOOL_CONFIG_DEVID);
 	} else {
 		if (nvlist_add_string(nv, ZPOOL_CONFIG_DEVID, devid) != 0) {
