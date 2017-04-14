@@ -96,11 +96,6 @@ static const fs_operation_def_t zfs_vfsops_template[] = {
 	NULL,			NULL
 };
 
-static const fs_operation_def_t zfs_vfsops_eio_template[] = {
-	VFSNAME_FREEVFS,	{ .vfs_freevfs =  zfs_freevfs },
-	NULL,			NULL
-};
-
 /*
  * We need to keep a count of active fs's.
  * This is necessary to prevent our module
