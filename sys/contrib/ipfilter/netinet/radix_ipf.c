@@ -38,7 +38,7 @@ static void buildnodes __P((addrfamily_t *, addrfamily_t *,
 static ipf_rdx_node_t *ipf_rx_find_addr __P((ipf_rdx_node_t *, u_32_t *));
 static ipf_rdx_node_t *ipf_rx_lookup __P((ipf_rdx_head_t *, addrfamily_t *,
 					  addrfamily_t *));
-static ipf_rdx_node_t *ipf_rx_match __P((ipf_rdx_head_t *, addrfamily_t *));
+/*	$NetBSD: radix_ipf.c,v 1.6 2015/12/15 12:30:34 christos Exp $	*/
 
 /*
  * Foreword.
@@ -1509,6 +1509,8 @@ random_add(rnh)
 		add_addr(rnh, i, order[i]);
 		checktree(rnh);
 	}
+
+	free(order);
 }
 
 
@@ -1526,5 +1528,7 @@ random_delete(rnh)
 		delete_addr(rnh, i);
 		checktree(rnh);
 	}
+
+	free(order);
 }
 #endif /* RDX_DEBUG */
