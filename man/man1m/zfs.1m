@@ -28,7 +28,7 @@
 .\" Copyright (c) 2014 Integros [integros.com]
 .\" Copyright 2016 Nexenta Systems, Inc.
 .\"
-.Dd March 20, 2016
+.Dd April 9, 2016
 .Dt ZFS 1M
 .Os
 .Sh NAME
@@ -2459,7 +2459,7 @@ By default, a full stream is generated.
 .It Fl D
 Generate a deduplicated stream. Blocks which would have been sent multiple times
 in the send stream will only be sent once. The receiving system must also
-support this feature to recieve a deduplicated stream. This flag can be used
+support this feature to receive a deduplicated stream. This flag can be used
 regardless of the dataset's
 .Sy dedup
 property, but performance will be much better if the filesystem uses a
@@ -3500,7 +3500,7 @@ M       F       /tank/test/modified
 .Ed
 .El
 .Sh INTERFACE STABILITY
-.Sy Commited .
+.Sy Committed .
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr ssh 1 ,
