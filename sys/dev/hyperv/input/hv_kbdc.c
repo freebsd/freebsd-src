@@ -298,7 +298,6 @@ hv_kbd_read_channel(struct vmbus_channel *channel, void *context)
 	int ret = 0;
 
 	hv_kbd_sc *sc = (hv_kbd_sc*)context;
-	channel = vmbus_get_channel(sc->dev);
 	buf = sc->buf;
 	buflen = sc->buflen;
 	for (;;) {
