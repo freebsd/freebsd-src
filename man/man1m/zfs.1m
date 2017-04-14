@@ -773,7 +773,7 @@ in which case it will be interpreted as a snapshot in the same filesystem as
 this dataset. The
 .Em snapshot
 may be a full snapshot name
-.No Po Em filesystem Ns @ Ns Em snapshot Pc ,
+.Po Em filesystem Ns @ Ns Em snapshot Pc ,
 which for clones may be a snapshot in the origin's filesystem
 .Pq or the origin of the origin's filesystem, etc.
 .El
@@ -1620,7 +1620,7 @@ administrators can use them to annotate datasets
 .Pq file systems, volumes, and snapshots .
 .Pp
 User property names must contain a colon
-.No Po Ns Sy \&:  Ns Pc
+.Pq Qq Sy \&:
 character to distinguish them from native properties. They may contain lowercase
 letters, numbers, and the following punctuation characters: colon
 .Pq Qq Sy \&: ,
@@ -3527,7 +3527,7 @@ M       F       /tank/test/modified
 .Sh INTERFACE STABILITY
 .Sy Commited .
 .Sh SEE ALSO
-.Xr gzip 1,
+.Xr gzip 1 ,
 .Xr ssh 1 ,
 .Xr mount 1M ,
 .Xr share 1M ,
