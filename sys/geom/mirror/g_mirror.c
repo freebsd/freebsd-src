@@ -1176,6 +1176,11 @@ g_mirror_start(struct bio *bp)
 		return;
 	}
 	mtx_lock(&sc->sc_queue_mtx);
+	if (bp->bio_to->error != 0) {
+		mtx_unlock(&sc->sc_queue_mtx);
+		g_io_deliver(bp, bp->bio_to->error);
+		return;
+	}
 	bioq_insert_tail(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
 	G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
