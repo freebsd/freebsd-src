@@ -24,7 +24,7 @@
  * Use is subject to license terms.
  *
  * Portions Copyright 2007 Ramprakash Jelari
- * Copyright (c) 2014, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2014, 2016 by Delphix. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  */
 
@@ -162,6 +162,9 @@ changelist_postfix(prop_changelist_t *clp)
 	char shareopts[ZFS_MAXPROPLEN];
 	int errors = 0;
 	libzfs_handle_t *hdl;
+	size_t num_datasets = 0, i;
+	zfs_handle_t **zhandle_arr;
+	sa_init_selective_arg_t sharearg;
 
 	/*
 	 * If we're changing the mountpoint, attempt to destroy the underlying
@@ -186,8 +189,31 @@ changelist_postfix(prop_changelist_t *clp)
 		hdl = cn->cn_handle->zfs_hdl;
 		assert(hdl != NULL);
 		zfs_uninit_libshare(hdl);
-	}
 
+		/*
+		 * For efficiencies sake, we initialize libshare for only a few
+		 * shares (the ones affected here). Future initializations in
+		 * this process should just use the cached initialization.
+		 */
+		for (cn = uu_list_last(clp->cl_list); cn != NULL;
+		    cn = uu_list_prev(clp->cl_list, cn)) {
+			num_datasets++;
+		}
+
+		zhandle_arr = zfs_alloc(hdl,
+		    num_datasets * sizeof (zfs_handle_t *));
+		for (i = 0, cn = uu_list_last(clp->cl_list); cn != NULL;
+		    cn = uu_list_prev(clp->cl_list, cn)) {
+			zhandle_arr[i++] = cn->cn_handle;
+			zfs_refresh_properties(cn->cn_handle);
+		}
+		assert(i == num_datasets);
+		sharearg.zhandle_arr = zhandle_arr;
+		sharearg.zhandle_len = num_datasets;
+		errors = zfs_init_libshare_arg(hdl, SA_INIT_SHARE_API_SELECTIVE,
+		    &sharearg);
+		free(zhandle_arr);
+	}
 	/*
 	 * We walk the datasets in reverse, because we want to mount any parent
 	 * datasets before mounting the children.  We walk all datasets even if
@@ -211,8 +237,6 @@ changelist_postfix(prop_changelist_t *clp)
 		if (!cn->cn_needpost)
 			continue;
 		cn->cn_needpost = B_FALSE;
-
-		zfs_refresh_properties(cn->cn_handle);
 
 		if (ZFS_IS_VOLUME(cn->cn_handle))
 			continue;
