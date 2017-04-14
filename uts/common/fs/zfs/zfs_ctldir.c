@@ -117,7 +117,6 @@ vnodeops_t *zfsctl_ops_root;
 vnodeops_t *zfsctl_ops_snapdir;
 vnodeops_t *zfsctl_ops_snapshot;
 vnodeops_t *zfsctl_ops_shares;
-vnodeops_t *zfsctl_ops_shares_dir;
 
 static const fs_operation_def_t zfsctl_tops_root[];
 static const fs_operation_def_t zfsctl_tops_snapdir[];
@@ -133,8 +132,7 @@ static gfs_opsvec_t zfsctl_opsvec[] = {
 	{ ".zfs", zfsctl_tops_root, &zfsctl_ops_root },
 	{ ".zfs/snapshot", zfsctl_tops_snapdir, &zfsctl_ops_snapdir },
 	{ ".zfs/snapshot/vnode", zfsctl_tops_snapshot, &zfsctl_ops_snapshot },
-	{ ".zfs/shares", zfsctl_tops_shares, &zfsctl_ops_shares_dir },
-	{ ".zfs/shares/vnode", zfsctl_tops_shares, &zfsctl_ops_shares },
+	{ ".zfs/shares", zfsctl_tops_shares, &zfsctl_ops_shares },
 	{ NULL }
 };
 
@@ -178,14 +176,11 @@ zfsctl_fini(void)
 		vn_freevnodeops(zfsctl_ops_snapshot);
 	if (zfsctl_ops_shares)
 		vn_freevnodeops(zfsctl_ops_shares);
-	if (zfsctl_ops_shares_dir)
-		vn_freevnodeops(zfsctl_ops_shares_dir);
 
 	zfsctl_ops_root = NULL;
 	zfsctl_ops_snapdir = NULL;
 	zfsctl_ops_snapshot = NULL;
 	zfsctl_ops_shares = NULL;
-	zfsctl_ops_shares_dir = NULL;
 }
 
 boolean_t
@@ -194,8 +189,7 @@ zfsctl_is_node(vnode_t *vp)
 	return (vn_matchops(vp, zfsctl_ops_root) ||
 	    vn_matchops(vp, zfsctl_ops_snapdir) ||
 	    vn_matchops(vp, zfsctl_ops_snapshot) ||
-	    vn_matchops(vp, zfsctl_ops_shares) ||
-	    vn_matchops(vp, zfsctl_ops_shares_dir));
+	    vn_matchops(vp, zfsctl_ops_shares));
 
 }
 
@@ -209,7 +203,7 @@ zfsctl_root_inode_cb(vnode_t *vp, int index)
 {
 	zfsvfs_t *zfsvfs = vp->v_vfsp->vfs_data;
 
-	ASSERT(index <= 2);
+	ASSERT(index < 2);
 
 	if (index == 0)
 		return (ZFSCTL_INO_SNAPDIR);
