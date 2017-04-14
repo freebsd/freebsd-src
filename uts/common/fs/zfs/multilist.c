@@ -13,7 +13,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2017 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -21,6 +21,12 @@
 
 /* needed for spa_get_random() */
 #include <sys/spa.h>
+
+/*
+ * This overrides the number of sublists in each multilist_t, which defaults
+ * to the number of CPUs in the system (see multilist_create()).
+ */
+int zfs_multilist_num_sublists = 0;
 
 /*
  * Given the object contained on the list, return a pointer to the
@@ -59,9 +65,9 @@ multilist_d2l(multilist_t *ml, void *obj)
  *     requirement, but a general rule of thumb in order to garner the
  *     best multi-threaded performance out of the data structure.
  */
-void
-multilist_create(multilist_t *ml, size_t size, size_t offset, unsigned int num,
-    multilist_sublist_index_func_t *index_func)
+static void
+multilist_create_impl(multilist_t *ml, size_t size, size_t offset,
+    unsigned int num, multilist_sublist_index_func_t *index_func)
 {
 	ASSERT3P(ml, !=, NULL);
 	ASSERT3U(size, >, 0);
@@ -83,6 +89,26 @@ multilist_create(multilist_t *ml, size_t size, size_t offset, unsigned int num,
 		mutex_init(&mls->mls_lock, NULL, MUTEX_DEFAULT, NULL);
 		list_create(&mls->mls_list, size, offset);
 	}
+}
+
+/*
+ * Initialize a new sublist, using the default number of sublists
+ * (the number of CPUs, or at least 4, or the tunable
+ * zfs_multilist_num_sublists).
+ */
+void
+multilist_create(multilist_t *ml, size_t size, size_t offset,
+    multilist_sublist_index_func_t *index_func)
+{
+	int num_sublists;
+
+	if (zfs_multilist_num_sublists > 0) {
+		num_sublists = zfs_multilist_num_sublists;
+	} else {
+		num_sublists = MAX(boot_ncpus, 4);
+	}
+
+	multilist_create_impl(ml, size, offset, num_sublists, index_func);
 }
 
 /*
