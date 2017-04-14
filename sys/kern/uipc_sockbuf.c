@@ -796,7 +796,7 @@ sbappendaddr_locked_internal(struct sockbuf *sb, const struct sockaddr *asa,
 	bcopy(asa, mtod(m, caddr_t), asa->sa_len);
 	if (m0) {
 		m_clrprotoflags(m0);
-		m_tag_delete_chain(m0);
+		m_tag_delete_chain(m0, NULL);
 		/*
 		 * Clear some persistent info from pkthdr.
 		 * We don't use m_demote(), because some netgraph consumers
