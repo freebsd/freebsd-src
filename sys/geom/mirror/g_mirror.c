@@ -2170,6 +2170,11 @@ g_mirror_destroy_provider(struct g_mirror_softc *sc)
 	KASSERT(sc->sc_provider != NULL, ("NULL provider (device=%s).",
 	    sc->sc_name));
 
+	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
+			g_mirror_sync_stop(disk, 1);
+	}
+
 	g_topology_lock();
 	g_error_provider(sc->sc_provider, ENXIO);
 	mtx_lock(&sc->sc_queue_mtx);
@@ -2193,10 +2198,6 @@ g_mirror_destroy_provider(struct g_mirror_softc *sc)
 	sc->sc_provider = NULL;
 	G_MIRROR_DEBUG(0, "Device %s: provider destroyed.", sc->sc_name);
 	g_topology_unlock();
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
-			g_mirror_sync_stop(disk, 1);
-	}
 }
 
 static void
