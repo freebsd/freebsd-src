@@ -1045,9 +1045,9 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	outw(GDCIDX, 0x0803);		/* data rotate/function select (and) */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
 	for (i = y, j = 0; i < ymax; ++i, ++j) {
-		m = ~((mouse_and_mask[j] & ~mouse_or_mask[j]) >> xoff);
-		for (k = 0; k < 2; ++k) {
-			m1 = m >> (8 * (1 - k));
+		m = ~((mouse_and_mask[j] & ~mouse_or_mask[j]) << 8 >> xoff);
+		for (k = 0; k < 3; ++k) {
+			m1 = m >> (8 * (2 - k));
 			if (m1 != 0xff && x + 8 * k < scp->xpixel) {
 				readb(p + k);
 				writeb(p + k, m1);
@@ -1058,9 +1058,9 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	outw(GDCIDX, 0x1003);		/* data rotate/function select (or) */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
 	for (i = y, j = 0; i < ymax; ++i, ++j) {
-		m = mouse_or_mask[j] >> xoff;
-		for (k = 0; k < 2; ++k) {
-			m1 = m >> (8 * (1 - k));
+		m = mouse_or_mask[j] << 8 >> xoff;
+		for (k = 0; k < 3; ++k) {
+			m1 = m >> (8 * (2 - k));
 			if (m1 != 0 && x + 8 * k < scp->xpixel) {
 				readb(p + k);
 				writeb(p + k, m1);
