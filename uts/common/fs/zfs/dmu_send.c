@@ -576,6 +576,7 @@ send_traverse_thread(void *arg)
 	data = kmem_zalloc(sizeof (*data), KM_SLEEP);
 	data->eos_marker = B_TRUE;
 	bqueue_enqueue(&st_arg->q, data, 1);
+	thread_exit();
 }
 
 /*
@@ -2815,6 +2816,7 @@ receive_writer_thread(void *arg)
 	rwa->done = B_TRUE;
 	cv_signal(&rwa->cv);
 	mutex_exit(&rwa->mutex);
+	thread_exit();
 }
 
 static int
