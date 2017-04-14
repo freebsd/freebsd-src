@@ -16,6 +16,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20170414:
+	Binds and sends to the loopback addresses, IPv6 and IPv4, will now
+	use any explicitly assigned loopback address available in the jail
+	instead of using the first assigned address of the jail.
+
 20170402:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 4.0.0.
 	Please see the 20141231 entry below for information about prerequisites
