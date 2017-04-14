@@ -908,7 +908,8 @@ command.
 This property is not inherited.
 .It Xo
 .Sy checksum Ns = Ns Sy on Ns | Ns Sy off Ns | Ns Sy fletcher2 Ns | Ns
-.Sy fletcher4 Ns | Ns Sy sha256 Ns | Ns Sy noparity
+.Sy fletcher4 Ns | Ns Sy sha256 Ns | Ns Sy noparity Ns | Ns
+.Sy sha512 Ns | Ns Sy skein Ns | Ns Sy edonr
 .Xc
 Controls the checksum used to verify data integrity. The default value is
 .Sy on ,
@@ -926,6 +927,16 @@ This setting is used internally by a dump device residing on a RAID-Z pool and
 should not be used by any other dataset. Disabling checksums is
 .Sy NOT
 a recommended practice.
+.Pp
+The
+.Sy sha512 ,
+.Sy skein ,
+and
+.Sy edonr
+checksum algorithms require enabling the appropriate features on the
+pool. Please see
+.Xr zpool-features 5
+for more information on these algorithms.
 .Pp
 Changing this property affects only newly-written data.
 .It Xo
