@@ -626,13 +626,13 @@ libzfs_init(void)
 		return (NULL);
 	}
 
-	if ((hdl->libzfs_mnttab = fopen(MNTTAB, "r")) == NULL) {
+	if ((hdl->libzfs_mnttab = fopen(MNTTAB, "rF")) == NULL) {
 		(void) close(hdl->libzfs_fd);
 		free(hdl);
 		return (NULL);
 	}
 
-	hdl->libzfs_sharetab = fopen("/etc/dfs/sharetab", "r");
+	hdl->libzfs_sharetab = fopen("/etc/dfs/sharetab", "rF");
 
 	if (libzfs_core_init() != 0) {
 		(void) close(hdl->libzfs_fd);
