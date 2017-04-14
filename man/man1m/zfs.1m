@@ -748,7 +748,7 @@ or a user who has been granted the
 privilege with
 .Nm zfs Cm allow ,
 can access all groups' usage.
-.It Sy volblocksize Ns = Ns Em blocksize
+.It Sy volblocksize
 For volumes, specifies the block size of the volume. The
 .Sy blocksize
 cannot be changed once the volume has been written, so it should be set at
@@ -3026,7 +3026,7 @@ Recursively remove the permissions from this file system and all descendents.
 .Nm
 .Cm unallow
 .Op Fl r
-.Fl s @ Ns Ar setname
+.Fl s No @ Ns Ar setname
 .Oo Ar perm Ns | Ns @ Ns Ar setname Ns Oo , Ns Ar perm Ns | Ns @ Ns
 .Ar setname Oc Ns ... Oc
 .Ar filesystem Ns | Ns Ar volume
