@@ -132,9 +132,6 @@ uint64_t zfs_delay_scale = 1000 * 1000 * 1000 / 2000;
  */
 int zfs_sync_taskq_batch_pct = 75;
 
-hrtime_t zfs_throttle_delay = MSEC2NSEC(10);
-hrtime_t zfs_throttle_resolution = MSEC2NSEC(10);
-
 int
 dsl_pool_open_special_dir(dsl_pool_t *dp, const char *name, dsl_dir_t **ddp)
 {
