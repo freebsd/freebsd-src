@@ -17,24 +17,25 @@ FILES=	README \
 	telnetd \
 	xdm
 
+FILESDIR=	/etc/pam.d
+FILESMODE=	644
+
 .if ${MK_AT} != "no"
 FILESGROUPS+=	AT
 AT+=	atrun
 ATPACKAGE+=	at
-ATDIR=	/etc/pam.d
-ATMODE=	644
+ATDIR=		${FILESDIR}
+ATMODE=		${FILESMODE}
 .endif
 
 .if ${MK_RCMDS} != "no"
 FILESGROUPS+=	RCMDS
 RCMDS+=		rsh
 RCMDSPACKAGE+=	rcmds
-RCMDSDIR=	/etc/pam.d
-RCMDSMODE=	644
+RCMDSDIR=	${FILESDIR}
+RCMDSMODE=	${FILESMODE}
 .endif
 
-FILESDIR=	/etc/pam.d
-FILESMODE=	644
 FILESMODE_README=	444
 LINKS=	${FILESDIR}/ftpd ${FILESDIR}/ftp
 
