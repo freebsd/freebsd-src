@@ -1771,7 +1771,7 @@ storvsc_check_bounce_buffer_sgl(bus_dma_segment_t *sgl,
 			}
 			pre_aligned = TRUE;
 		} else {
-			tmp_bits |= 1 << i;
+			tmp_bits |= 1ULL << i;
 			if (!pre_aligned) {
 				if (phys_addr != vtophys(sgl[i-1].ds_addr +
 				    sgl[i-1].ds_len)) {
