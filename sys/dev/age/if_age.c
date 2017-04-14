@@ -2161,11 +2161,6 @@ age_int_task(void *arg, int pending)
 	    sc->age_cdata.age_cmb_block_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-#if 0
-	printf("INTR: 0x%08x\n", status);
-	status &= ~INTR_DIS_DMA;
-	CSR_WRITE_4(sc, AGE_INTR_STATUS, status | INTR_DIS_INT);
-#endif
 	ifp = sc->age_ifp;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		if ((status & INTR_CMB_RX) != 0)
