@@ -232,6 +232,9 @@ struct apic_ops {
 	/* CMC */
 	void	(*enable_cmc)(void);
 
+	/* AMD ELVT */
+	int	(*enable_mca_elvt)(void);
+
 	/* IPI */
 	void	(*ipi_raw)(register_t, u_int);
 	void	(*ipi_vectored)(u_int, int);
@@ -394,6 +397,13 @@ lapic_enable_cmc(void)
 {
 
 	apic_ops.enable_cmc();
+}
+
+static inline int
+lapic_enable_mca_elvt(void)
+{
+
+	return (apic_ops.enable_mca_elvt());
 }
 
 static inline void
