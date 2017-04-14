@@ -2557,6 +2557,36 @@ vnevent_rmdir(vnode_t *vp, vnode_t *dvp, char *name, caller_context_t *ct)
 }
 
 void
+vnevent_pre_rename_src(vnode_t *vp, vnode_t *dvp, char *name,
+    caller_context_t *ct)
+{
+	if (vp == NULL || vp->v_femhead == NULL) {
+		return;
+	}
+	(void) VOP_VNEVENT(vp, VE_PRE_RENAME_SRC, dvp, name, ct);
+}
+
+void
+vnevent_pre_rename_dest(vnode_t *vp, vnode_t *dvp, char *name,
+    caller_context_t *ct)
+{
+	if (vp == NULL || vp->v_femhead == NULL) {
+		return;
+	}
+	(void) VOP_VNEVENT(vp, VE_PRE_RENAME_DEST, dvp, name, ct);
+}
+
+void
+vnevent_pre_rename_dest_dir(vnode_t *vp, vnode_t *nvp, char *name,
+    caller_context_t *ct)
+{
+	if (vp == NULL || vp->v_femhead == NULL) {
+		return;
+	}
+	(void) VOP_VNEVENT(vp, VE_PRE_RENAME_DEST_DIR, nvp, name, ct);
+}
+
+void
 vnevent_create(vnode_t *vp, caller_context_t *ct)
 {
 	if (vp == NULL || vp->v_femhead == NULL) {
