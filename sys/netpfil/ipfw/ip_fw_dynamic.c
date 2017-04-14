@@ -1709,15 +1709,17 @@ ipfw_dyn_get_count(void)
 static void
 export_dyn_rule(ipfw_dyn_rule *src, ipfw_dyn_rule *dst)
 {
+	uint16_t rulenum;
 
+	rulenum = (uint16_t)src->rule->rulenum;
 	memcpy(dst, src, sizeof(*src));
-	memcpy(&(dst->rule), &(src->rule->rulenum), sizeof(src->rule->rulenum));
+	memcpy(&dst->rule, &rulenum, sizeof(rulenum));
 	/*
 	 * store set number into high word of
 	 * dst->rule pointer.
 	 */
-	memcpy((char *)&dst->rule + sizeof(src->rule->rulenum),
-	    &(src->rule->set), sizeof(src->rule->set));
+	memcpy((char *)&dst->rule + sizeof(rulenum), &src->rule->set,
+	    sizeof(src->rule->set));
 	/*
 	 * store a non-null value in "next".
 	 * The userland code will interpret a
@@ -1725,8 +1727,8 @@ export_dyn_rule(ipfw_dyn_rule *src, ipfw_dyn_rule *dst)
 	 * for the last dynamic rule.
 	 */
 	memcpy(&dst->next, &dst, sizeof(dst));
-	dst->expire =
-	    TIME_LEQ(dst->expire, time_uptime) ?  0 : dst->expire - time_uptime;
+	dst->expire = TIME_LEQ(dst->expire, time_uptime) ?  0:
+	    dst->expire - time_uptime;
 }
 
 /*
