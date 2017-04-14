@@ -1538,7 +1538,8 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	printf("UMA: %s(%p) size %d(%d) flags %#x ipers %d ppera %d out %d free %d\n",
 	    zone->uz_name, zone, keg->uk_size, keg->uk_rsize, keg->uk_flags,
 	    keg->uk_ipers, keg->uk_ppera,
-	    (keg->uk_ipers * keg->uk_pages) - keg->uk_free, keg->uk_free);
+	    (keg->uk_pages / keg->uk_ppera) * keg->uk_ipers - keg->uk_free,
+	    keg->uk_free);
 #endif
 
 	LIST_INSERT_HEAD(&keg->uk_zones, zone, uz_link);
@@ -2950,7 +2951,7 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	keg->uk_maxpages = (nitems / keg->uk_ipers) * keg->uk_ppera;
 	if (keg->uk_maxpages * keg->uk_ipers < nitems)
 		keg->uk_maxpages += keg->uk_ppera;
-	nitems = keg->uk_maxpages * keg->uk_ipers;
+	nitems = (keg->uk_maxpages / keg->uk_ppera) * keg->uk_ipers;
 	KEG_UNLOCK(keg);
 
 	return (nitems);
@@ -2967,7 +2968,7 @@ uma_zone_get_max(uma_zone_t zone)
 	if (keg == NULL)
 		return (0);
 	KEG_LOCK(keg);
-	nitems = keg->uk_maxpages * keg->uk_ipers;
+	nitems = (keg->uk_maxpages / keg->uk_ppera) * keg->uk_ipers;
 	KEG_UNLOCK(keg);
 
 	return (nitems);
@@ -3118,13 +3119,14 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 
 	if (pages * keg->uk_ipers < count)
 		pages++;
+	pages *= keg->uk_ppera;
 
 #ifdef UMA_MD_SMALL_ALLOC
 	if (keg->uk_ppera > 1) {
 #else
 	if (1) {
 #endif
-		kva = kva_alloc((vm_size_t)pages * UMA_SLAB_SIZE);
+		kva = kva_alloc((vm_size_t)pages * PAGE_SIZE);
 		if (kva == 0)
 			return (0);
 	} else
@@ -3344,8 +3346,8 @@ uma_print_keg(uma_keg_t keg)
 	    "out %d free %d limit %d\n",
 	    keg->uk_name, keg, keg->uk_size, keg->uk_rsize, keg->uk_flags,
 	    keg->uk_ipers, keg->uk_ppera,
-	    (keg->uk_ipers * keg->uk_pages) - keg->uk_free, keg->uk_free,
-	    (keg->uk_maxpages / keg->uk_ppera) * keg->uk_ipers);
+	    (keg->uk_pages / keg->uk_ppera) * keg->uk_ipers - keg->uk_free,
+	    keg->uk_free, (keg->uk_maxpages / keg->uk_ppera) * keg->uk_ipers);
 	printf("Part slabs:\n");
 	LIST_FOREACH(slab, &keg->uk_part_slab, us_link)
 		slab_print(slab);
