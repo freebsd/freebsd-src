@@ -1030,7 +1030,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	int line_width;
 	int xoff, yoff;
 	int ymax;
-	u_short m;
+	uint32_t m;
 	int i, j, k;
 	uint8_t m1;
 
