@@ -93,11 +93,11 @@ dmu_object_alloc(objset_t *os, dmu_object_type_t ot, int blocksize,
 	}
 
 	dnode_allocate(dn, ot, blocksize, 0, bonustype, bonuslen, tx);
-	dnode_rele(dn, FTAG);
-
 	mutex_exit(&os->os_obj_lock);
 
-	dmu_tx_add_new_object(tx, os, object);
+	dmu_tx_add_new_object(tx, dn);
+	dnode_rele(dn, FTAG);
+
 	return (object);
 }
 
@@ -115,9 +115,10 @@ dmu_object_claim(objset_t *os, uint64_t object, dmu_object_type_t ot,
 	if (err)
 		return (err);
 	dnode_allocate(dn, ot, blocksize, 0, bonustype, bonuslen, tx);
+	dmu_tx_add_new_object(tx, dn);
+
 	dnode_rele(dn, FTAG);
 
-	dmu_tx_add_new_object(tx, os, object);
 	return (0);
 }
 
