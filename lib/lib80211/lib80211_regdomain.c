@@ -569,6 +569,7 @@ cleanup_bands(netband_head *head)
 		nb = LIST_FIRST(head);
 		if (nb == NULL)
 			break;
+		LIST_REMOVE(nb, next);
 		free(nb);
 	}
 }
