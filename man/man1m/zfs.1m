@@ -21,7 +21,7 @@
 .\"
 .\" Copyright (c) 2009 Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright 2011 Joshua M. Clulow <josh@sysmgr.org>
-.\" Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+.\" Copyright (c) 2011, 2016 by Delphix. All rights reserved.
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2014 by Adam Stevko. All rights reserved.
@@ -615,22 +615,27 @@ The amount of space consumed by this dataset and all its descendents. This is
 the value that is checked against this dataset's quota and reservation. The
 space used does not include this dataset's reservation, but does take into
 account the reservations of any descendent datasets. The amount of space that a
-dataset consumes from its parent, as well as the amount of space that are freed
+dataset consumes from its parent, as well as the amount of space that is freed
 if this dataset is recursively destroyed, is the greater of its space used and
 its reservation.
 .Pp
-When snapshots
+The used space of a snapshot
 .Po see the
 .Sx Snapshots
 section
 .Pc
-are created, their space is initially shared between the snapshot and
-the file system, and possibly with previous snapshots. As the file system
-changes, space that was previously shared becomes unique to the snapshot, and
-counted in the snapshot's space used. Additionally, deleting snapshots can
-increase the amount of space unique to
-.Pq and used by
-other snapshots.
+is space that is referenced exclusively by this snapshot. If this snapshot is
+destroyed, the amount of
+.Sy used
+space will be freed. Space that is shared by multiple snapshots isn't accounted
+for in this metric. When a snapshot is destroyed, space that was previously
+shared with this snapshot can become unique to snapshots adjacent to it, thus
+changing the used space of those snapshots. The used space of the latest
+snapshot can also be affected by changes in the file system. Note that the
+.Sy used
+space of a snapshot is a subset of the
+.Sy written
+space of the snapshot.
 .Pp
 The amount of space used, available, or referenced does not take into account
 pending changes. Pending changes are generally accounted for within a few
@@ -754,8 +759,10 @@ for volumes is 8 Kbytes. Any power of 2 from 512 bytes to 128 Kbytes is valid.
 This property can also be referred to by its shortened column name,
 .Sy volblock .
 .It Sy written
-The amount of
+The amount of space
 .Sy referenced
+by this dataset, that was written since the previous snapshot
+.Pq i.e. that is not referenced by the previous snapshot .
 space written to this dataset since the previous snapshot.
 .It Sy written Ns @ Ns Em snapshot
 The amount of
