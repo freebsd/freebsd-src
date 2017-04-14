@@ -474,7 +474,7 @@ ipfr_frag_new(softc, softf, fin, pass, table
 			  IPFR_CMPSZ)) {
 			RWLOCK_EXIT(lock);
 			FBUMPD(ifs_exists);
-			KFREE(fra);
+			KFREE(fran);
 			return NULL;
 		}
 
