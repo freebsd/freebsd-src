@@ -372,9 +372,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		append_sa = (struct sockaddr *)&udp_in[0];
 	m_adj(n, off);
 
-	/* Clear any h/w csum flags as they are no longer valid. */
-	n->m_pkthdr.csum_flags &= ~(CSUM_DATA_VALID | CSUM_IP_VALID);
-
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_rcv);
 	if (sbappendaddr_locked(&so->so_rcv, append_sa, n, opts) == 0) {
