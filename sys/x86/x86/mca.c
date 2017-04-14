@@ -75,6 +75,11 @@ struct cmc_state {
 	int	max_threshold;
 	time_t	last_intr;
 };
+
+struct amd_et_state {
+	int	cur_threshold;
+	time_t	last_intr;
+};
 #endif
 
 struct mca_internal {
@@ -118,8 +123,18 @@ static struct task mca_refill_task, mca_scan_task;
 static struct mtx mca_lock;
 
 #ifdef DEV_APIC
-static struct cmc_state **cmc_state;	/* Indexed by cpuid, bank */
+static struct cmc_state **cmc_state;		/* Indexed by cpuid, bank. */
+static struct amd_et_state *amd_et_state;	/* Indexed by cpuid. */
 static int cmc_throttle = 60;	/* Time in seconds to throttle CMCI. */
+
+static int amd_elvt = -1;
+
+static inline bool
+amd_thresholding_supported(void)
+{
+	return (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    CPUID_TO_FAMILY(cpu_id) >= 0x10 && CPUID_TO_FAMILY(cpu_id) <= 0x16);
+}
 #endif
 
 static int
@@ -521,19 +536,15 @@ mca_record_entry(enum scan_mode mode, const struct mca_record *record)
  * cmc_throttle seconds or the periodic scan.  If a periodic scan
  * finds that the threshold is too high, it is lowered.
  */
-static void
-cmci_update(enum scan_mode mode, int bank, int valid, struct mca_record *rec)
+static int
+update_threshold(enum scan_mode mode, int valid, int last_intr, int count,
+    int cur_threshold, int max_threshold)
 {
-	struct cmc_state *cc;
-	uint64_t ctl;
 	u_int delta;
-	int count, limit;
+	int limit;
 
-	/* Fetch the current limit for this bank. */
-	cc = &cmc_state[PCPU_GET(cpuid)][bank];
-	ctl = rdmsr(MSR_MC_CTL2(bank));
-	count = (rec->mr_status & MC_STATUS_COR_COUNT) >> 38;
-	delta = (u_int)(time_uptime - cc->last_intr);
+	delta = (u_int)(time_uptime - last_intr);
+	limit = cur_threshold;
 
 	/*
 	 * If an interrupt was received less than cmc_throttle seconds
@@ -542,16 +553,11 @@ cmci_update(enum scan_mode mode, int bank, int valid, struct mca_record *rec)
 	 * double the threshold up to the max.
 	 */
 	if (mode == CMCI && valid) {
-		limit = ctl & MC_CTL2_THRESHOLD;
 		if (delta < cmc_throttle && count >= limit &&
-		    limit < cc->max_threshold) {
-			limit = min(limit << 1, cc->max_threshold);
-			ctl &= ~MC_CTL2_THRESHOLD;
-			ctl |= limit;
-			wrmsr(MSR_MC_CTL2(bank), ctl);
+		    limit < max_threshold) {
+			limit = min(limit << 1, max_threshold);
 		}
-		cc->last_intr = time_uptime;
-		return;
+		return (limit);
 	}
 
 	/*
@@ -559,30 +565,80 @@ cmci_update(enum scan_mode mode, int bank, int valid, struct mca_record *rec)
 	 * should be lowered.
 	 */
 	if (mode != POLLED)
-		return;
+		return (limit);
 
 	/* If a CMCI occured recently, do nothing for now. */
 	if (delta < cmc_throttle)
-		return;
+		return (limit);
 
 	/*
 	 * Compute a new limit based on the average rate of events per
 	 * cmc_throttle seconds since the last interrupt.
 	 */
 	if (valid) {
-		count = (rec->mr_status & MC_STATUS_COR_COUNT) >> 38;
 		limit = count * cmc_throttle / delta;
 		if (limit <= 0)
 			limit = 1;
-		else if (limit > cc->max_threshold)
-			limit = cc->max_threshold;
-	} else
+		else if (limit > max_threshold)
+			limit = max_threshold;
+	} else {
 		limit = 1;
-	if ((ctl & MC_CTL2_THRESHOLD) != limit) {
+	}
+	return (limit);
+}
+
+static void
+cmci_update(enum scan_mode mode, int bank, int valid, struct mca_record *rec)
+{
+	struct cmc_state *cc;
+	uint64_t ctl;
+	int cur_threshold, new_threshold;
+	int count;
+
+	/* Fetch the current limit for this bank. */
+	cc = &cmc_state[PCPU_GET(cpuid)][bank];
+	ctl = rdmsr(MSR_MC_CTL2(bank));
+	count = (rec->mr_status & MC_STATUS_COR_COUNT) >> 38;
+	cur_threshold = ctl & MC_CTL2_THRESHOLD;
+
+	new_threshold = update_threshold(mode, valid, cc->last_intr, count,
+	    cur_threshold, cc->max_threshold);
+
+	if (mode == CMCI && valid)
+		cc->last_intr = time_uptime;
+	if (new_threshold != cur_threshold) {
 		ctl &= ~MC_CTL2_THRESHOLD;
-		ctl |= limit;
+		ctl |= new_threshold;
 		wrmsr(MSR_MC_CTL2(bank), ctl);
 	}
+}
+
+static void
+amd_thresholding_update(enum scan_mode mode, int bank, int valid)
+{
+	struct amd_et_state *cc;
+	uint64_t misc;
+	int new_threshold;
+	int count;
+
+	KASSERT(bank == MC_AMDNB_BANK,
+	    ("%s: unexpected bank %d", __func__, bank));
+	cc = &amd_et_state[PCPU_GET(cpuid)];
+	misc = rdmsr(MSR_MC_MISC(bank));
+	count = (misc & MC_MISC_AMDNB_CNT_MASK) >> MC_MISC_AMDNB_CNT_SHIFT;
+	count = count - (MC_MISC_AMDNB_CNT_MAX - cc->cur_threshold);
+
+	new_threshold = update_threshold(mode, valid, cc->last_intr, count,
+	    cc->cur_threshold, MC_MISC_AMDNB_CNT_MAX);
+
+	cc->cur_threshold = new_threshold;
+	misc &= ~MC_MISC_AMDNB_CNT_MASK;
+	misc |= (uint64_t)(MC_MISC_AMDNB_CNT_MAX - cc->cur_threshold)
+	    << MC_MISC_AMDNB_CNT_SHIFT;
+	misc &= ~MC_MISC_AMDNB_OVERFLOW;
+	wrmsr(MSR_MC_MISC(bank), misc);
+	if (mode == CMCI && valid)
+		cc->last_intr = time_uptime;
 }
 #endif
 
@@ -638,8 +694,12 @@ mca_scan(enum scan_mode mode)
 		 * If this is a bank this CPU monitors via CMCI,
 		 * update the threshold.
 		 */
-		if (PCPU_GET(cmci_mask) & 1 << i)
-			cmci_update(mode, i, valid, &rec);
+		if (PCPU_GET(cmci_mask) & 1 << i) {
+			if (cmc_state != NULL)
+				cmci_update(mode, i, valid, &rec);
+			else
+				amd_thresholding_update(mode, i, valid);
+		}
 #endif
 	}
 	if (mode == POLLED)
@@ -751,6 +811,18 @@ cmci_setup(void)
 	    &cmc_throttle, 0, sysctl_positive_int, "I",
 	    "Interval in seconds to throttle corrected MC interrupts");
 }
+
+static void
+amd_thresholding_setup(void)
+{
+
+	amd_et_state = malloc((mp_maxid + 1) * sizeof(struct amd_et_state),
+	    M_MCA, M_WAITOK | M_ZERO);
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
+	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    &cmc_throttle, 0, sysctl_positive_int, "I",
+	    "Interval in seconds to throttle corrected MC interrupts");
+}
 #endif
 
 static void
@@ -789,6 +861,8 @@ mca_setup(uint64_t mcg_cap)
 #ifdef DEV_APIC
 	if (mcg_cap & MCG_CAP_CMCI_P)
 		cmci_setup();
+	else if (amd_thresholding_supported())
+		amd_thresholding_setup();
 #endif
 }
 
@@ -862,6 +936,82 @@ cmci_resume(int i)
 	ctl &= ~MC_CTL2_THRESHOLD;
 	ctl |= MC_CTL2_CMCI_EN | 1;
 	wrmsr(MSR_MC_CTL2(i), ctl);
+}
+
+static void
+amd_thresholding_start(struct amd_et_state *cc)
+{
+	uint64_t misc;
+
+	KASSERT(amd_elvt >= 0, ("ELVT offset is not set"));
+	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
+	misc &= ~MC_MISC_AMDNB_INT_MASK;
+	misc |= MC_MISC_AMDNB_INT_LVT;
+	misc &= ~MC_MISC_AMDNB_LVT_MASK;
+	misc |= (uint64_t)amd_elvt << MC_MISC_AMDNB_LVT_SHIFT;
+	misc &= ~MC_MISC_AMDNB_CNT_MASK;
+	misc |= (uint64_t)(MC_MISC_AMDNB_CNT_MAX - cc->cur_threshold)
+	    << MC_MISC_AMDNB_CNT_SHIFT;
+	misc &= ~MC_MISC_AMDNB_OVERFLOW;
+	misc |= MC_MISC_AMDNB_CNTEN;
+
+	wrmsr(MSR_MC_MISC(MC_AMDNB_BANK), misc);
+}
+
+static void
+amd_thresholding_init(void)
+{
+	struct amd_et_state *cc;
+	uint64_t misc;
+
+	/* The counter must be valid and present. */
+	misc = rdmsr(MSR_MC_MISC(MC_AMDNB_BANK));
+	if ((misc & (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP)) !=
+	    (MC_MISC_AMDNB_VAL | MC_MISC_AMDNB_CNTP))
+		return;
+
+	/* The register should not be locked. */
+	if ((misc & MC_MISC_AMDNB_LOCK) != 0)
+		return;
+
+	/*
+	 * If counter is enabled then either the firmware or another CPU
+	 * has already claimed it.
+	 */
+	if ((misc & MC_MISC_AMDNB_CNTEN) != 0)
+		return;
+
+	/*
+	 * Configure an Extended Interrupt LVT register for reporting
+	 * counter overflows if that feature is supported and the first
+	 * extended register is available.
+	 */
+	amd_elvt = lapic_enable_mca_elvt();
+	if (amd_elvt < 0)
+		return;
+
+	/* Re-use Intel CMC support infrastructure. */
+	cc = &amd_et_state[PCPU_GET(cpuid)];
+	cc->cur_threshold = 1;
+	amd_thresholding_start(cc);
+
+	/* Mark the NB bank as monitored. */
+	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | 1 << MC_AMDNB_BANK);
+}
+
+static void
+amd_thresholding_resume(void)
+{
+	struct amd_et_state *cc;
+
+	/* Nothing to do if this CPU doesn't monitor the NB bank. */
+	if ((PCPU_GET(cmci_mask) & 1 << MC_AMDNB_BANK) == 0)
+		return;
+
+	cc = &amd_et_state[PCPU_GET(cpuid)];
+	cc->last_intr = 0;
+	cc->cur_threshold = 1;
+	amd_thresholding_start(cc);
 }
 #endif
 
@@ -940,8 +1090,26 @@ _mca_init(int boot)
 		}
 
 #ifdef DEV_APIC
-		if (PCPU_GET(cmci_mask) != 0 && boot)
+		/*
+		 * AMD Processors from families 10h - 16h provide support
+		 * for Machine Check Error Thresholding.
+		 * The processors support counters of MC errors and they
+		 * can be configured to generate an interrupt when a counter
+		 * overflows.
+		 * The counters are all associated with Bank 4 and each
+		 * of them covers a group of errors reported via that bank.
+		 * At the moment only the DRAM Error Threshold Group is
+		 * supported.
+		 */
+		if (amd_thresholding_supported() &&
+		    (mcg_cap & MCG_CAP_COUNT) >= 4) {
+			if (boot)
+				amd_thresholding_init();
+			else
+				amd_thresholding_resume();
+		} else if (PCPU_GET(cmci_mask) != 0 && boot) {
 			lapic_enable_cmc();
+		}
 #endif
 	}
 
