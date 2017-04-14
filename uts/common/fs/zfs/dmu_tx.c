@@ -336,7 +336,6 @@ dmu_tx_hold_free_impl(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 	dmu_tx_t *tx;
 	dnode_t *dn;
 	int err;
-	zio_t *zio;
 
 	tx = txh->txh_tx;
 	ASSERT(tx->tx_txg == 0);
@@ -443,7 +442,7 @@ dmu_tx_hold_free_by_dnode(dmu_tx_t *tx, dnode_t *dn, uint64_t off, uint64_t len)
 }
 
 static void
-dmu_tx_hold_zap_impl(dmu_tx_hold_t *txh, int add, const char *name)
+dmu_tx_hold_zap_impl(dmu_tx_hold_t *txh, const char *name)
 {
 	dmu_tx_t *tx = txh->txh_tx;
 	dnode_t *dn;
@@ -504,7 +503,7 @@ dmu_tx_hold_zap(dmu_tx_t *tx, uint64_t object, int add, const char *name)
 	txh = dmu_tx_hold_object_impl(tx, tx->tx_objset,
 	    object, THT_ZAP, add, (uintptr_t)name);
 	if (txh != NULL)
-		dmu_tx_hold_zap_impl(txh, add, name);
+		dmu_tx_hold_zap_impl(txh, name);
 }
 
 void
@@ -517,7 +516,7 @@ dmu_tx_hold_zap_by_dnode(dmu_tx_t *tx, dnode_t *dn, int add, const char *name)
 
 	txh = dmu_tx_hold_dnode_impl(tx, dn, THT_ZAP, add, (uintptr_t)name);
 	if (txh != NULL)
-		dmu_tx_hold_zap_impl(txh, add, name);
+		dmu_tx_hold_zap_impl(txh, name);
 }
 
 void
