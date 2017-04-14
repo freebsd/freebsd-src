@@ -1218,15 +1218,16 @@ keg_small_init(uma_keg_t keg)
 	u_int memused;
 	u_int wastedspace;
 	u_int shsize;
+	u_int slabsize;
 
 	if (keg->uk_flags & UMA_ZONE_PCPU) {
 		u_int ncpus = (mp_maxid + 1) ? (mp_maxid + 1) : MAXCPU;
 
-		keg->uk_slabsize = sizeof(struct pcpu);
+		slabsize = sizeof(struct pcpu);
 		keg->uk_ppera = howmany(ncpus * sizeof(struct pcpu),
 		    PAGE_SIZE);
 	} else {
-		keg->uk_slabsize = UMA_SLAB_SIZE;
+		slabsize = UMA_SLAB_SIZE;
 		keg->uk_ppera = 1;
 	}
 
@@ -1236,8 +1237,8 @@ keg_small_init(uma_keg_t keg)
 	 * allocation bits for we round it up.
 	 */
 	rsize = keg->uk_size;
-	if (rsize < keg->uk_slabsize / SLAB_SETSIZE)
-		rsize = keg->uk_slabsize / SLAB_SETSIZE;
+	if (rsize < slabsize / SLAB_SETSIZE)
+		rsize = slabsize / SLAB_SETSIZE;
 	if (rsize & keg->uk_align)
 		rsize = (rsize & ~keg->uk_align) + (keg->uk_align + 1);
 	keg->uk_rsize = rsize;
@@ -1251,12 +1252,12 @@ keg_small_init(uma_keg_t keg)
 	else 
 		shsize = sizeof(struct uma_slab);
 
-	keg->uk_ipers = (keg->uk_slabsize - shsize) / rsize;
+	keg->uk_ipers = (slabsize - shsize) / rsize;
 	KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_SETSIZE,
 	    ("%s: keg->uk_ipers %u", __func__, keg->uk_ipers));
 
 	memused = keg->uk_ipers * rsize + shsize;
-	wastedspace = keg->uk_slabsize - memused;
+	wastedspace = slabsize - memused;
 
 	/*
 	 * We can't do OFFPAGE if we're internal or if we've been
@@ -1277,9 +1278,9 @@ keg_small_init(uma_keg_t keg)
 	 * Historically this was not done because the VM could not
 	 * efficiently handle contiguous allocations.
 	 */
-	if ((wastedspace >= keg->uk_slabsize / UMA_MAX_WASTE) &&
-	    (keg->uk_ipers < (keg->uk_slabsize / keg->uk_rsize))) {
-		keg->uk_ipers = keg->uk_slabsize / keg->uk_rsize;
+	if ((wastedspace >= slabsize / UMA_MAX_WASTE) &&
+	    (keg->uk_ipers < (slabsize / keg->uk_rsize))) {
+		keg->uk_ipers = slabsize / keg->uk_rsize;
 		KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= SLAB_SETSIZE,
 		    ("%s: keg->uk_ipers %u", __func__, keg->uk_ipers));
 #ifdef UMA_DEBUG
@@ -1288,8 +1289,8 @@ keg_small_init(uma_keg_t keg)
 		    "maximum wasted space allowed = %d, "
 		    "calculated ipers = %d, "
 		    "new wasted space = %d\n", keg->uk_name, wastedspace,
-		    keg->uk_slabsize / UMA_MAX_WASTE, keg->uk_ipers,
-		    keg->uk_slabsize - keg->uk_ipers * keg->uk_rsize);
+		    slabsize / UMA_MAX_WASTE, keg->uk_ipers,
+		    slabsize - keg->uk_ipers * keg->uk_rsize);
 #endif
 		keg->uk_flags |= UMA_ZONE_OFFPAGE;
 	}
@@ -1322,7 +1323,6 @@ keg_large_init(uma_keg_t keg)
 	    ("%s: Cannot large-init a UMA_ZONE_PCPU keg", __func__));
 
 	keg->uk_ppera = howmany(keg->uk_size, PAGE_SIZE);
-	keg->uk_slabsize = keg->uk_ppera * PAGE_SIZE;
 	keg->uk_ipers = 1;
 	keg->uk_rsize = keg->uk_size;
 
@@ -1374,7 +1374,6 @@ keg_cachespread_init(uma_keg_t keg)
 	pages = MIN(pages, (128 * 1024) / PAGE_SIZE);
 	keg->uk_rsize = rsize;
 	keg->uk_ppera = pages;
-	keg->uk_slabsize = UMA_SLAB_SIZE;
 	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
 	keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
 	KASSERT(keg->uk_ipers <= SLAB_SETSIZE,
