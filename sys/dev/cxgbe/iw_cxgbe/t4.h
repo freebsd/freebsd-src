@@ -61,7 +61,7 @@
 
 #define T4_MAX_NUM_QP (1<<16)
 #define T4_MAX_NUM_CQ (1<<15)
-#define T4_MAX_NUM_PD (1<<15)
+#define T4_MAX_NUM_PD 65536
 #define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
 #define T4_MAX_EQ_SIZE (65520 - T4_EQ_STATUS_ENTRIES)
 #define T4_MAX_IQ_SIZE (65520 - 1)
