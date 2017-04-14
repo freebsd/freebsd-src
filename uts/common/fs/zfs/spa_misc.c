@@ -1641,7 +1641,7 @@ spa_freeze_txg(spa_t *spa)
 
 /* ARGSUSED */
 uint64_t
-spa_get_asize(spa_t *spa, uint64_t lsize)
+spa_get_worst_case_asize(spa_t *spa, uint64_t lsize)
 {
 	return (lsize * spa_asize_inflation);
 }
