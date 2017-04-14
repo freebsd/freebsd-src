@@ -28,7 +28,7 @@
 .\" Copyright (c) 2014 Integros [integros.com]
 .\" Copyright 2016 Nexenta Systems, Inc.
 .\"
-.Dd April 9, 2016
+.Dd September 3, 2016
 .Dt ZFS 1M
 .Os
 .Sh NAME
@@ -2019,6 +2019,12 @@ Same as the
 option, but sorts by property in descending order.
 .It Fl d Ar depth
 Recursively display any children of the dataset, limiting the recursion to
+.Ar depth .
+A
+.Ar depth
+of
+.Sy 1
+will display only the dataset and its direct children.
 .It Fl o Ar property
 A comma-separated list of properties to display. The property must be:
 .Bl -bullet
@@ -2048,10 +2054,6 @@ Display numbers in parsable
 values.
 .It Fl r
 Recursively display any children of the dataset on the command line.
-.Ar depth .
-A depth of
-.Sy 1
-will display only the dataset and its direct children.
 .It Fl s Ar property
 A property for sorting the output by column in ascending order based on the
 value of the property. The property must be one of the properties described in
