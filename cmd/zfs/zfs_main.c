@@ -68,6 +68,7 @@
 #include <aclutils.h>
 #include <directory.h>
 #include <idmap.h>
+#include <libshare.h>
 
 #include "zfs_iter.h"
 #include "zfs_util.h"
@@ -6111,6 +6112,15 @@ share_mount(int op, int argc, char **argv)
 			return (0);
 
 		qsort(dslist, count, sizeof (void *), libzfs_dataset_cmp);
+		sa_init_selective_arg_t sharearg;
+		sharearg.zhandle_arr = dslist;
+		sharearg.zhandle_len = count;
+		if ((ret = zfs_init_libshare_arg(zfs_get_handle(dslist[0]),
+		    SA_INIT_SHARE_API_SELECTIVE, &sharearg)) != SA_OK) {
+			(void) fprintf(stderr,
+			    gettext("Could not initialize libshare, %d"), ret);
+			return (ret);
+		}
 
 		for (i = 0; i < count; i++) {
 			if (verbose)
