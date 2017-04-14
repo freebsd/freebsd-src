@@ -146,7 +146,7 @@ newfs_command(const char *fstype, char *command, int use_default)
 		strcpy(command, "zpool create -f -m none ");
 		if (getenv("BSDINSTALL_TMPBOOT") != NULL) {
 			char zfsboot_path[MAXPATHLEN];
-			sprintf(zfsboot_path, "%s/zfs",
+			snprintf(zfsboot_path, sizeof(zfsboot_path), "%s/zfs",
 			    getenv("BSDINSTALL_TMPBOOT"));
 			mkdir(zfsboot_path, S_IRWXU | S_IRGRP | S_IXGRP |
 			    S_IROTH | S_IXOTH);
