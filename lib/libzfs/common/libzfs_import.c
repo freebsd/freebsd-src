@@ -237,9 +237,12 @@ add_config(libzfs_handle_t *hdl, pool_list_t *pl, const char *path,
 			free(ne);
 			return (-1);
 		}
+
 		ne->ne_guid = vdev_guid;
 		ne->ne_next = pl->names;
 		pl->names = ne;
+
+		nvlist_free(config);
 		return (0);
 	}
 
