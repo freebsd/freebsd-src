@@ -1629,9 +1629,8 @@ and so forth
 .Pc
 can be used to manipulate both native properties and user properties. Use the
 .Nm zfs Cm inherit
-command to clear a user property . If the property is not defined in any parent
-dataset, it is removed entirely. Property values are limited to 1024
-characters.
+command to clear a user property. If the property is not defined in any parent
+dataset, it is removed entirely. Property values are limited to 8192 bytes.
 .Ss ZFS Volumes as Swap or Dump Devices
 During an initial installation a swap device and dump device are created on ZFS
 volumes in the ZFS root pool. By default, the swap area size is based on 1/2 the
