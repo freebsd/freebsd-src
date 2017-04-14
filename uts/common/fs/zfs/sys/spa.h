@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
@@ -36,6 +36,7 @@
 #include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <sys/fs/zfs.h>
+#include <sys/dmu.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -594,8 +595,6 @@ _NOTE(CONSTCOND) } while (0)
 	}								\
 	ASSERT(len < size);						\
 }
-
-#include <sys/dmu.h>
 
 #define	BP_GET_BUFC_TYPE(bp)						\
 	(((BP_GET_LEVEL(bp) > 0) || (DMU_OT_IS_METADATA(BP_GET_TYPE(bp)))) ? \
