@@ -1825,7 +1825,7 @@ g_mirror_try_destroy(struct g_mirror_softc *sc)
 	}
 	sc->sc_geom->softc = NULL;
 	sc->sc_sync.ds_geom->softc = NULL;
-	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_WAIT) != 0) {
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DRAIN) != 0) {
 		g_topology_unlock();
 		G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__,
 		    &sc->sc_worker);
@@ -2911,8 +2911,8 @@ g_mirror_destroy_delayed(void *arg, int flag)
 	sx_xlock(&sc->sc_lock);
 	KASSERT((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) == 0,
 	    ("DESTROY flag set on %s.", sc->sc_name));
-	KASSERT((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROYING) != 0,
-	    ("DESTROYING flag not set on %s.", sc->sc_name));
+	KASSERT((sc->sc_flags & G_MIRROR_DEVICE_FLAG_CLOSEWAIT) != 0,
+	    ("CLOSEWAIT flag not set on %s.", sc->sc_name));
 	G_MIRROR_DEBUG(1, "Destroying %s (delayed).", sc->sc_name);
 	error = g_mirror_destroy(sc, G_MIRROR_DESTROY_SOFT);
 	if (error != 0) {
@@ -2939,7 +2939,7 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0 ||
-	    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROYING) != 0 ||
+	    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_CLOSEWAIT) != 0 ||
 	    LIST_EMPTY(&sc->sc_disks)) {
 		if (acr > 0 || acw > 0 || ace > 0)
 			error = ENXIO;
@@ -2948,7 +2948,7 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 	sc->sc_provider_open += acr + acw + ace;
 	if (pp->acw + acw == 0)
 		g_mirror_idle(sc, 0);
-	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROYING) != 0 &&
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_CLOSEWAIT) != 0 &&
 	    sc->sc_provider_open == 0)
 		g_post_event(g_mirror_destroy_delayed, sc, M_WAITOK, sc, NULL);
 end:
@@ -3068,7 +3068,7 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 					g_mirror_sync_stop(disk, 1);
 				}
 			}
-			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROYING;
+			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_CLOSEWAIT;
 			return (EBUSY);
 		case G_MIRROR_DESTROY_HARD:
 			G_MIRROR_DEBUG(1, "Device %s is still open, so it "
@@ -3079,7 +3079,7 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0)
 		return (0);
 	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
-	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_WAIT;
+	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DRAIN;
 	G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
 	sx_xunlock(&sc->sc_lock);
 	mtx_lock(&sc->sc_queue_mtx);
