@@ -265,6 +265,10 @@ ksiginfo_alloc(int wait)
 void
 ksiginfo_free(ksiginfo_t *ksi)
 {
+#ifdef COMPAT_CHERIABI
+	if (ksi->ksi_flags & KSI_CHERI)
+		free(ksi->ksi_info.si_value.sival_ptr, M_TEMP);
+#endif
 	uma_zfree(ksiginfo_zone, ksi);
 }
 
@@ -272,6 +276,10 @@ static __inline int
 ksiginfo_tryfree(ksiginfo_t *ksi)
 {
 	if (!(ksi->ksi_flags & KSI_EXT)) {
+#ifdef COMPAT_CHERIABI
+		if (ksi->ksi_flags & KSI_CHERI)
+			free(ksi->ksi_info.si_value.sival_ptr, M_TEMP);
+#endif
 		uma_zfree(ksiginfo_zone, ksi);
 		return (1);
 	}

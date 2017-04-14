@@ -1598,7 +1598,6 @@ cheriabi_copyout_strings(struct image_params *imgp)
 int
 convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 {
-	int error;
 
 	CP(*sig_c, *sig, sigev_notify);
 	switch (sig->sigev_notify) {
@@ -1609,27 +1608,18 @@ convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 		/* FALLTHROUGH */
 	case SIGEV_SIGNAL:
 		CP(*sig_c, *sig, sigev_signo);
-		/*
-		 * XXX-BD: this conversion follows the freebsd32 pattern,
-		 * but seems likely to be wrong.  I think sigev should be
-		 * opaque to the kernel and current code is lazily assuming
-		 * it can be copied to avoid allocations.
-		 */
-		error = cheriabi_cap_to_ptr(
-		    (caddr_t *)&sig->sigev_value.sival_ptr,
-		    &sig_c->sigev_value.sival_ptr, 0, CHERI_PERM_GLOBAL, 1);
-		if (error)
-			return (error);
+		sig->sigev_value.sival_ptr = malloc(sizeof(sig_c->sigev_value),
+		    M_TEMP, M_WAITOK);
+		cheri_capability_copy(sig->sigev_value.sival_ptr,
+		    &sig_c->sigev_value.sival_ptr);
 		break;
 	case SIGEV_KEVENT:
 		CP(*sig_c, *sig, sigev_notify_kqueue);
 		CP(*sig_c, *sig, sigev_notify_kevent_flags);
-		/* XXX-BD: see comment above */
-		error = cheriabi_cap_to_ptr(
-		    (caddr_t *)&sig->sigev_value.sival_ptr,
-		    &sig_c->sigev_value.sival_ptr, 0, CHERI_PERM_GLOBAL, 1);
-		if (error)
-			return (error);
+		sig->sigev_value.sival_ptr = malloc(sizeof(sig_c->sigev_value),
+		    M_TEMP, M_WAITOK);
+		cheri_capability_copy(sig->sigev_value.sival_ptr,
+		    &sig_c->sigev_value.sival_ptr);
 		break;
 	default:
 		return (EINVAL);

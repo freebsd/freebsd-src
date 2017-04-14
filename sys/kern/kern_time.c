@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -1204,6 +1205,10 @@ kern_ktimer_create(struct thread *td, clockid_t clock_id, struct sigevent *evp,
 	    it->it_sigev.sigev_notify == SIGEV_THREAD_ID) {
 		it->it_ksi.ksi_signo = it->it_sigev.sigev_signo;
 		it->it_ksi.ksi_code = SI_TIMER;
+#ifdef	COMPAT_CHERIABI
+		if (td->td_proc && SV_PROC_FLAG(td->td_proc, SV_CHERI))
+			it->it_ksi.ksi_flags |= KSI_CHERI;
+#endif
 		it->it_ksi.ksi_value = it->it_sigev.sigev_value;
 		it->it_ksi.ksi_timerid = id;
 	}
