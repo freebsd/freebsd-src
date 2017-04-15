@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <regex.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
