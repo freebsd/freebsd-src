@@ -322,7 +322,7 @@ check_space(const char *savedir, off_t dumpsize, int bounds)
 	if (available < needed) {
 		syslog(LOG_WARNING,
 		    "no dump: not enough free space on device (need at least "
-		    "%jdKiB for dump; %jdKiB available; %jdKiB reserved)",
+		    "%jdkB for dump; %jdkB available; %jdkB reserved)",
 		    (intmax_t)needed,
 		    (intmax_t)available + minfree,
 		    (intmax_t)minfree);
