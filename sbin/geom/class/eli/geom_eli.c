@@ -75,6 +75,7 @@ static void eli_resize(struct gctl_req *req);
 static void eli_version(struct gctl_req *req);
 static void eli_clear(struct gctl_req *req);
 static void eli_dump(struct gctl_req *req);
+static void eli_verify(struct gctl_req *req);
 
 static int eli_backup_create(struct gctl_req *req, const char *prov,
     const char *file);
@@ -262,6 +263,15 @@ struct g_command class_commands[] = {
 	{ "dump", G_FLAG_VERBOSE, eli_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
+	{ "verify", G_FLAG_VERBOSE, eli_main,
+	    {
+		{ 'j', "passfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'k', "keyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-pv] [-j passfile] [-k keyfile] prov"
+	},
 	G_CMD_SENTINEL
 };
 
@@ -332,6 +342,8 @@ eli_main(struct gctl_req *req, unsigned int flags)
 		eli_dump(req);
 	else if (strcmp(name, "clear") == 0)
 		eli_clear(req);
+	else if (strcmp(name, "verify") == 0)
+		eli_verify(req);
 	else
 		gctl_error(req, "Unknown command: %s.", name);
 }
@@ -1723,4 +1735,53 @@ eli_dump(struct gctl_req *req)
 		eli_metadata_dump(&md);
 		printf("\n");
 	}
+}
+
+static void
+eli_verify(struct gctl_req *req)
+{
+	struct g_eli_metadata md;
+	const char *prov;
+	int nargs;
+	unsigned char key[G_ELI_USERKEYLEN], mkey[G_ELI_DATAIVKEYLEN];
+	unsigned int nkey;
+	int error;
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 1) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	prov = gctl_get_ascii(req, "arg0");
+
+	if (eli_metadata_read(req, prov, &md) == -1)
+		return;
+
+	if (md.md_keys == 0) {
+		gctl_error(req, "No valid keys on %s.", prov);
+		bzero(&md, sizeof(md));
+		return;
+	}
+
+	/* Generate key for Master Key decryption. */
+	if (eli_genkey(req, &md, key, false) == NULL) {
+		bzero(key, sizeof(key));
+		bzero(&md, sizeof(md));
+		return;
+	}
+
+	/* Decrypt Master Key. */
+	error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
+	bzero(mkey, sizeof(mkey));
+	bzero(key, sizeof(key));
+	bzero(&md, sizeof(md));
+	if (error != 0) {
+		if (error == -1)
+			gctl_error(req, "Wrong key for %s.", prov);
+		else /* if (error > 0) */ {
+			gctl_error(req, "Cannot decrypt Master Key: %s.",
+			    strerror(error));
+		}
+	} else if (verbose)
+		printf("Decrypted Master Key %u.\n", nkey);
 }

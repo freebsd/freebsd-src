@@ -135,6 +135,12 @@ utility:
 .Fl s Ar oldsize
 .Ar prov
 .Nm
+.Cm verify
+.Op Fl pv
+.Op Fl j Ar passfile
+.Op Fl k Ar keyfile
+.Ar prov
+.Nm
 .Cm version
 .Op Ar prov ...
 .Nm
@@ -696,6 +702,34 @@ Additional options include:
 .Bl -tag -width ".Fl s Ar oldsize"
 .It Fl s Ar oldsize
 The size of the provider before it was resized.
+.El
+.It Cm verify
+Verify the given passphrase/keyfile can be decrypt the Master Key on the
+given provider.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl j Ar passfile"
+.It Fl j Ar passfile
+Specifies a file which contains the passphrase component of the User Key
+(or part of it).
+For more information see the description of the
+.Fl J
+option for the
+.Cm init
+subcommand.
+.It Fl k Ar keyfile
+Specifies a file which contains the keyfile component of the User Key
+(or part of it).
+For more information see the description of the
+.Fl K
+option for the
+.Cm init
+subcommand.
+.It Fl p
+Do not use a passphrase as a component of the User Key.
+Cannot be combined with the
+.Fl j
+option.
 .El
 .It Cm version
 If no arguments are given, the
