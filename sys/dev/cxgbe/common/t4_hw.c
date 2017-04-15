@@ -7907,7 +7907,7 @@ int t4_init_sge_params(struct adapter *adapter)
 {
 	u32 r;
 	struct sge_params *sp = &adapter->params.sge;
-	unsigned i;
+	unsigned i, tscale = 1;
 
 	r = t4_read_reg(adapter, A_SGE_INGRESS_RX_THRESHOLD);
 	sp->counter_val[0] = G_THRESHOLD_0(r);
@@ -7915,15 +7915,24 @@ int t4_init_sge_params(struct adapter *adapter)
 	sp->counter_val[2] = G_THRESHOLD_2(r);
 	sp->counter_val[3] = G_THRESHOLD_3(r);
 
+	if (chip_id(adapter) >= CHELSIO_T6) {
+		r = t4_read_reg(adapter, A_SGE_ITP_CONTROL);
+		tscale = G_TSCALE(r);
+		if (tscale == 0)
+			tscale = 1;
+		else
+			tscale += 2;
+	}
+
 	r = t4_read_reg(adapter, A_SGE_TIMER_VALUE_0_AND_1);
-	sp->timer_val[0] = core_ticks_to_us(adapter, G_TIMERVALUE0(r));
-	sp->timer_val[1] = core_ticks_to_us(adapter, G_TIMERVALUE1(r));
+	sp->timer_val[0] = core_ticks_to_us(adapter, G_TIMERVALUE0(r)) * tscale;
+	sp->timer_val[1] = core_ticks_to_us(adapter, G_TIMERVALUE1(r)) * tscale;
 	r = t4_read_reg(adapter, A_SGE_TIMER_VALUE_2_AND_3);
-	sp->timer_val[2] = core_ticks_to_us(adapter, G_TIMERVALUE2(r));
-	sp->timer_val[3] = core_ticks_to_us(adapter, G_TIMERVALUE3(r));
+	sp->timer_val[2] = core_ticks_to_us(adapter, G_TIMERVALUE2(r)) * tscale;
+	sp->timer_val[3] = core_ticks_to_us(adapter, G_TIMERVALUE3(r)) * tscale;
 	r = t4_read_reg(adapter, A_SGE_TIMER_VALUE_4_AND_5);
-	sp->timer_val[4] = core_ticks_to_us(adapter, G_TIMERVALUE4(r));
-	sp->timer_val[5] = core_ticks_to_us(adapter, G_TIMERVALUE5(r));
+	sp->timer_val[4] = core_ticks_to_us(adapter, G_TIMERVALUE4(r)) * tscale;
+	sp->timer_val[5] = core_ticks_to_us(adapter, G_TIMERVALUE5(r)) * tscale;
 
 	r = t4_read_reg(adapter, A_SGE_CONM_CTRL);
 	sp->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
