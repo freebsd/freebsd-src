@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -28,19 +28,19 @@
  * $FreeBSD$
  */
 
-#ifndef _I386_LINUX_LINUX_IPC64_H_
-#define	_I386_LINUX_LINUX_IPC64_H_
+#ifndef _LINUX_IPC64_H_
+#define	_LINUX_IPC64_H_
 
 /*
- * The ipc64_perm structure for i386 architecture.
+ * The generic ipc64_perm structure.
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
  * Pad space is left for:
- * - 32-bit mode_t and seq
+ * - 32-bit mode_t on architectures that only had 16 bit
+ * - 32-bit seq
  * - 2 miscellaneous 32-bit values
  */
-
 struct l_ipc64_perm
 {
 	l_key_t		key;
@@ -49,7 +49,8 @@ struct l_ipc64_perm
 	l_uid_t		cuid;
 	l_gid_t		cgid;
 	l_mode_t	mode;
-	l_ushort	__pad1;
+			/* pad if mode_t is ushort: */
+	unsigned char	__pad1[sizeof(l_int) - sizeof(l_mode_t)];
 	l_ushort	seq;
 	l_ushort	__pad2;
 	l_ulong		__unused1;
@@ -57,7 +58,7 @@ struct l_ipc64_perm
 };
 
 /*
- * The msqid64_ds structure for i386 architecture.
+ * The generic msqid64_ds structure fro x86 architecture.
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
@@ -69,11 +70,17 @@ struct l_ipc64_perm
 struct l_msqid64_ds {
 	struct l_ipc64_perm msg_perm;
 	l_time_t	msg_stime;	/* last msgsnd time */
+#if !defined(__LP64__) || defined(COMPAT_LINUX32)
 	l_ulong		__unused1;
+#endif
 	l_time_t	msg_rtime;	/* last msgrcv time */
+#if !defined(__LP64__) || defined(COMPAT_LINUX32)
 	l_ulong		__unused2;
+#endif
 	l_time_t	msg_ctime;	/* last change time */
+#if !defined(__LP64__) || defined(COMPAT_LINUX32)
 	l_ulong		__unused3;
+#endif
 	l_ulong		msg_cbytes;	/* current number of bytes on queue */
 	l_ulong		msg_qnum;	/* number of messages in queue */
 	l_ulong		msg_qbytes;	/* max number of bytes on queue */
@@ -84,7 +91,7 @@ struct l_msqid64_ds {
 };
 
 /*
- * The semid64_ds structure for i386 architecture.
+ * The generic semid64_ds structure for x86 architecture.
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
@@ -105,7 +112,7 @@ struct l_semid64_ds {
 };
 
 /*
- * The shmid64_ds structure for i386 architecture.
+ * The generic shmid64_ds structure for x86 architecture.
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
@@ -118,11 +125,17 @@ struct l_shmid64_ds {
 	struct l_ipc64_perm shm_perm;	/* operation perms */
 	l_size_t	shm_segsz;	/* size of segment (bytes) */
 	l_time_t	shm_atime;	/* last attach time */
+#if !defined(__LP64__) || defined(COMPAT_LINUX32)
 	l_ulong		__unused1;
+#endif
 	l_time_t	shm_dtime;	/* last detach time */
+#if !defined(__LP64__) || defined(COMPAT_LINUX32)
 	l_ulong		__unused2;
+#endif
 	l_time_t	shm_ctime;	/* last change time */
+#if !defined(__LP64__) || defined(COMPAT_LINUX32)
 	l_ulong		__unused3;
+#endif
 	l_pid_t		shm_cpid;	/* pid of creator */
 	l_pid_t		shm_lpid;	/* pid of last operator */
 	l_ulong		shm_nattch;	/* no. of current attaches */
@@ -131,15 +144,15 @@ struct l_shmid64_ds {
 };
 
 struct l_shminfo64 {
-	l_ulong   	shmmax;
-	l_ulong   	shmmin;
-	l_ulong   	shmmni;
-	l_ulong   	shmseg;
-	l_ulong   	shmall;
+	l_ulong		shmmax;
+	l_ulong		shmmin;
+	l_ulong		shmmni;
+	l_ulong		shmseg;
+	l_ulong		shmall;
 	l_ulong   	__unused1;
-	l_ulong   	__unused2;
-	l_ulong   	__unused3;
-	l_ulong   	__unused4;
+	l_ulong		__unused2;
+	l_ulong		__unused3;
+	l_ulong		__unused4;
 };
 
-#endif /* !_I386_LINUX_LINUX_IPC64_H_ */
+#endif /* !LINUX_IPC64_H_ */
