@@ -1,3 +1,24 @@
+2017-04-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20170401
+
+	* meta2deps.py: add is_src so we can check if obj dependency
+	  is also a src dependency.
+
+2017-03-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20170326
+
+	* meta.stage.mk: do nothing if NO_STAGING is defined.
+
+2017-03-24  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* auto.obj.mk: handle the case of __objdir=obj or obj.${MACHINE} etc.
+
+2017-03-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* mkopt.sh: treat WITH_*=NO like no; ie. WITHOUT_*
+
 2017-03-01  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20170301

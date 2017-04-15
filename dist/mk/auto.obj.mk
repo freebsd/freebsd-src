@@ -1,4 +1,4 @@
-# $Id: auto.obj.mk,v 1.12 2015/12/16 01:57:06 sjg Exp $
+# $Id: auto.obj.mk,v 1.13 2017/03/24 20:53:22 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -57,7 +57,10 @@ __objdir_made != echo ${__objdir}/; umask ${OBJDIR_UMASK:U002}; \
 # This causes make to use the specified directory as .OBJDIR
 .OBJDIR: ${__objdir}
 .if ${.OBJDIR:tA} != ${__objdir:tA} && ${__objdir_made:Uno:M${__objdir}/*} != ""
+# watch out for __objdir being relative path
+.if !(${__objdir:M/*} == "" && ${.OBJDIR:tA} == ${${.CURDIR}/${__objdir}:L:tA})
 .error could not use ${__objdir}: .OBJDIR=${.OBJDIR}
+.endif
 .endif
 .endif
 .endif

@@ -1,5 +1,5 @@
 :
-# $Id: mkopt.sh,v 1.10 2015/06/07 17:29:08 sjg Exp $
+# $Id: mkopt.sh,v 1.11 2017/03/18 21:36:42 sjg Exp $
 #
 #	@(#) Copyright (c) 2014, Simon J. Gerraty
 #
@@ -40,7 +40,7 @@ _mk_opt() {
     eval "_mov=\$$_mo _wov=\$$_wo _wiv=\$$_wi"
 
     case "$_wiv" in
-    no) _wov=no;;
+    [Nn][Oo]) _wov=no;;
     esac
     _v=${_mov:-${_wov:+no}}
     _v=${_v:-${_wiv:+yes}}
