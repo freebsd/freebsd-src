@@ -3003,10 +3003,14 @@ socksetup(struct peer *pe)
 			continue;
 		}
 		dprintf("new socket fd is %d\n", s);
-		listen(s, 5);
+		if (res->ai_socktype != SOCK_DGRAM) {
+			listen(s, 5);
+		}
 		sl_recv = socklist_recv_sock;
-		dprintf("shutdown\n");
-		if (SecureMode || res->ai_family == AF_LOCAL) {
+#if defined(INET) || defined(INET6)
+		if (SecureMode && (res->ai_family == AF_INET ||
+		    res->ai_family == AF_INET6)) {
+			dprintf("shutdown\n");
 			/* Forbid communication in secure mode. */
 			if (shutdown(s, SHUT_RD) < 0 &&
 			    errno != ENOTCONN) {
@@ -3014,10 +3018,11 @@ socksetup(struct peer *pe)
 				if (!Debug)
 					die(0);
 			}
-			dprintf("listening on socket\n");
 			sl_recv = NULL;
 		} else
-			dprintf("sending on socket\n");
+#endif
+			dprintf("listening on socket\n");
+		dprintf("sending on socket\n");
 		addsock(res->ai_addr, res->ai_addrlen,
 		    &(struct socklist){
 			.sl_socket = s,
