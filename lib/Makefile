@@ -95,6 +95,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libxo \
 	liby \
 	libz \
+	libzstd \
 	ncurses
 
 # Inter-library dependencies.  When the makefile for a library contains LDADD

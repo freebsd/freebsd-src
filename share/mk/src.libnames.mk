@@ -24,7 +24,8 @@ _PRIVATELIBS=	\
 		sqlite3 \
 		ssh \
 		ucl \
-		unbound
+		unbound \
+		zstd
 
 _INTERNALLIBS=	\
 		amu \
