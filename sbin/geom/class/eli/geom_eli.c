@@ -1754,8 +1754,10 @@ eli_verify(struct gctl_req *req)
 	}
 	prov = gctl_get_ascii(req, "arg0");
 
-	if (eli_metadata_read(req, prov, &md) == -1)
+	if (eli_metadata_read(req, prov, &md) == -1) {
+		gctl_error(req, "Could not get metadata from %s.", prov);
 		return;
+	}
 
 	if (md.md_keys == 0) {
 		gctl_error(req, "No valid keys on %s.", prov);
@@ -1765,6 +1767,7 @@ eli_verify(struct gctl_req *req)
 
 	/* Generate key for Master Key decryption. */
 	if (eli_genkey(req, &md, key, false) == NULL) {
+		gctl_error(req, "Could not get generate key for %s.", prov);
 		bzero(key, sizeof(key));
 		bzero(&md, sizeof(md));
 		return;
