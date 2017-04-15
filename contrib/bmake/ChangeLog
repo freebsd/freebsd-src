@@ -1,8 +1,35 @@
+2017-04-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170413
+	  Merge with NetBSD make, pick up
+	  o main.c: when setting .OBJDIR ignore '$' in paths.
+
+	* job.c: use MALLOC_OPTIONS to set malloc_options.
+
+2017-04-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170411
+	  Merge with NetBSD make, pick up
+	  o str.c: Str_Match: allow [^a-z] to behave as expected.
+
+2017-03-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170326
+	  Merge with NetBSD make, pick up
+	  o main.c: purge relative paths from realpath cache when .OBJDIR
+	    is changed.
+
+2017-03-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170311
+	  Merge with NetBSD make, pick up
+          o main.c: only use -C arg "as is" if it starts with '/'.
+
 2017-03-01  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20170301
 	  Merge with NetBSD make, pick up
-	  o main.c: use -C arg as is rather than getcwd()
+	  o main.c: use -C arg "as is" rather than getcwd()
 	    if they identify the same directory.
 	  o parse.c: ensure loadfile buffer is \n terminated in non-mmap case
 

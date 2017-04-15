@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.86 2017/03/01 20:26:51 sjg Exp $
+# $Id: dirdeps.mk,v 1.87 2017/03/07 01:49:03 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -57,7 +57,7 @@
 #	distinguish them from others.
 #	
 #	Before each Makefile.depend file is read, we set 
-#	DEP_RELDIR to be the the RELDIR (path relative to SRCTOP) for
+#	DEP_RELDIR to be the RELDIR (path relative to SRCTOP) for
 #	its directory, and DEP_MACHINE etc according to the .<target_spec>
 #	represented by the suffix of the corresponding target.
 #	

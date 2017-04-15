@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.24 2017/02/08 22:17:10 sjg Exp $
+	$Id: meta2deps.py,v 1.25 2017/04/03 21:04:09 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -491,6 +491,21 @@ class MetaFile:
         if not file:
             f.close()
 
+    def is_src(self, base, dir, rdir):
+        """is base in srctop"""
+        for dir in [dir,rdir]:
+            if not dir:
+                continue
+            path = '/'.join([dir,base])
+            srctop = self.find_top(path, self.srctops)
+            if srctop:
+                if self.dpdeps:
+                    self.add(self.file_deps, path.replace(srctop,''), 'file')
+                self.add(self.src_deps, dir.replace(srctop,''), 'src')
+                self.seenit(dir)
+                return True
+        return False
+
     def parse_path(self, path, cwd, op=None, w=[]):
         """look at a path for the op specified"""
 
@@ -519,10 +534,9 @@ class MetaFile:
         # to the src dir, we may need to add dependencies for each
         rdir = dir
         dir = abspath(dir, cwd, self.last_dir, self.debug, self.debug_out)
-        if rdir == dir or rdir.find('./') > 0:
-            rdir = None
-        if os.path.islink(dir):
             rdir = os.path.realpath(dir)
+        if rdir == dir:
+            rdir = None
         # now put path back together
         path = '/'.join([dir,base])
         if self.debug > 1:
@@ -543,17 +557,9 @@ class MetaFile:
             # finally, we get down to it
             if dir == self.cwd or dir == self.curdir:
                 return
-            srctop = self.find_top(path, self.srctops)
-            if srctop:
-                if self.dpdeps:
-                    self.add(self.file_deps, path.replace(srctop,''), 'file')
-                self.add(self.src_deps, dir.replace(srctop,''), 'src')
+            if self.is_src(base, dir, rdir):
                 self.seenit(w[2])
-                self.seenit(dir)
-                if rdir and not rdir.startswith(srctop):
-                    dir = rdir      # for below
-                    rdir = None
-                else:
+                if not rdir:
                     return
 
             objroot = None

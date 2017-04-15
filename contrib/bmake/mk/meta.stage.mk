@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.48 2017/03/01 22:48:07 sjg Exp $
+# $Id: meta.stage.mk,v 1.49 2017/04/01 02:10:34 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
@@ -12,6 +12,8 @@
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
+
+.ifndef NO_STAGING
 
 .if !target(__${.PARSEFILE}__)
 # the guard target is defined later
@@ -321,6 +323,7 @@ stale_staged: staging .NOMETA
 		echo "Removing stale staged files..."; \
 		sed 's,.*,& &.dirdep,' ${.TARGET}.stale | xargs rm -f; }
 
+.endif
 .endif
 .endif
 .endif

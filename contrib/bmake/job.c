@@ -389,7 +389,10 @@ static void JobSigLock(sigset_t *);
 static void JobSigUnlock(sigset_t *);
 static void JobSigReset(void);
 
-const char *malloc_options="A";
+#if !defined(MALLOC_OPTIONS)
+# define MALLOC_OPTIONS "A"
+#endif
+const char *malloc_options= MALLOC_OPTIONS;
 
 static void
 job_table_dump(const char *where)

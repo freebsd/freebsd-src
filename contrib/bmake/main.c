@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.257 2017/02/08 17:47:36 christos Exp $	*/
+/*	$NetBSD: main.c,v 1.260 2017/04/13 13:55:23 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.257 2017/02/08 17:47:36 christos Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.260 2017/04/13 13:55:23 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.257 2017/02/08 17:47:36 christos Exp $");
+__RCSID("$NetBSD: main.c,v 1.260 2017/04/13 13:55:23 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -722,21 +722,14 @@ Boolean
 Main_SetObjdir(const char *fmt, ...)
 {
 	struct stat sb;
-	char *p, *path;
-	char buf[MAXPATHLEN + 1], pbuf[MAXPATHLEN + 1];
+	char *path;
+	char buf[MAXPATHLEN + 1];
 	Boolean rc = FALSE;
 	va_list ap;
 
 	va_start(ap, fmt);
-	vsnprintf(path = pbuf, MAXPATHLEN, fmt, ap);
+	vsnprintf(path = buf, MAXPATHLEN, fmt, ap);
 	va_end(ap);
-
-	/* expand variable substitutions */
-	if (strchr(path, '$') != 0) {
-		snprintf(buf, MAXPATHLEN, "%s", path);
-		path = p = Var_Subst(NULL, buf, VAR_GLOBAL, VARF_WANTRES);
-	} else
-		p = NULL;
 
 	if (path[0] != '/') {
 		snprintf(buf, MAXPATHLEN, "%s/%s", curdir, path);
@@ -753,25 +746,35 @@ Main_SetObjdir(const char *fmt, ...)
 			Var_Set(".OBJDIR", objdir, VAR_GLOBAL, 0);
 			setenv("PWD", objdir, 1);
 			Dir_InitDot();
+			cached_realpath(".OBJDIR", NULL); /* purge */
 			rc = TRUE;
 			if (enterFlag && strcmp(objdir, curdir) != 0)
 				enterFlagObj = TRUE;
 		}
 	}
 
-	free(p);
 	return rc;
 }
 
 static Boolean
 Main_SetVarObjdir(const char *var, const char *suffix)
 {
-	char *p1, *path;
-	if ((path = Var_Value(var, VAR_CMD, &p1)) == NULL)
+	char *p, *path, *xpath;
+
+	if ((path = Var_Value(var, VAR_CMD, &p)) == NULL)
 		return FALSE;
 
-	(void)Main_SetObjdir("%s%s", path, suffix);
-	free(p1);
+	/* expand variable substitutions */
+	if (strchr(path, '$') != 0)
+		xpath = Var_Subst(NULL, path, VAR_GLOBAL, VARF_WANTRES);
+	else
+		xpath = path;
+
+	(void)Main_SetObjdir("%s%s", xpath, suffix);
+
+	if (xpath != path)
+		free(xpath);
+	free(p);
 	return TRUE;
 }
 
@@ -1923,7 +1926,23 @@ cached_realpath(const char *pathname, char *resolved)
 	cache->flags = INTERNAL;
 #endif
     }
+    if (resolved == NULL && strcmp(pathname, ".OBJDIR") == 0) {
+	/* purge any relative paths */
+	Hash_Entry *he, *nhe;
+	Hash_Search hs;
 
+	he = Hash_EnumFirst(&cache->context, &hs);
+	while (he) {
+	    nhe = Hash_EnumNext(&hs);
+	    if (he->name[0] != '/') {
+		if (DEBUG(DIR))
+		    fprintf(stderr, "cached_realpath: purging %s\n", he->name);
+		Hash_DeleteEntry(&cache->context, he);
+	    }
+	    he = nhe;
+	}
+	return NULL;
+    }
     if ((rp = Var_Value(pathname, cache, &cp)) != NULL) {
 	/* a hit */
 	strlcpy(resolved, rp, MAXPATHLEN);
