@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.func.c,v 3.162 2011/02/26 00:07:06 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.func.c,v 3.176 2016/10/18 17:26:42 christos Exp $ */
 /*
  * sh.func.c: csh builtin functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.func.c,v 3.162 2011/02/26 00:07:06 christos Exp $")
+RCSID("$tcsh: sh.func.c,v 3.176 2016/10/18 17:26:42 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -799,8 +799,16 @@ search(int type, int level, Char *goal)
 	    break;
 
 	case TC_IF:
-	    while (getword(&word))
+	    while (getword(&word)) {
+		if (intty) {
+		    histent->word = Strsave(word.s);
+		    histent->next = xmalloc(sizeof(*histent));
+		    histent->next->prev = histent;
+		    histent = histent->next;
+		}
 		continue;
+	    }
+	    
 	    if ((type == TC_IF || type == TC_ELSE) &&
 		eq(word.s, STRthen))
 		level++;
@@ -893,7 +901,7 @@ search(int type, int level, Char *goal)
 static struct wordent *
 histgetword(struct wordent *histent) 
 {
-    int found = 0, first;
+    int first;
     eChar c, d;
     int e;
     struct Strbuf *tmp;
@@ -917,7 +925,6 @@ histgetword(struct wordent *histent)
 	if (c == '\n') 
 	    goto nl;
 	unreadc(c);
-	found = 1;
 	first = 1;
 	do {
 	    e = (c == '\\');
@@ -1038,6 +1045,17 @@ getword(struct Strbuf *wp)
 		goto past;
 	    if (wp)
 		Strbuf_append1(wp, (Char) c);
+	    if (!d && c == ')') {
+		if (!first && wp) {
+		    goto past_word_end;
+		} else {
+		    if (wp) {
+			wp->len = 1;
+			Strbuf_terminate(wp);
+		    }
+		    return found;
+		}
+	    }
 	    if (!first && !d && c == '(') {
 		if (wp)
 		    goto past_word_end;
@@ -1381,7 +1399,7 @@ dosetenv(Char **v, struct command *c)
 	stderror(ERR_NAME | ERR_VARBEGIN);
     do {
 	lp++;
-    } while (alnum(*lp));
+    } while (alnum(*lp) || *lp == '.');
     if (*lp != '\0')
 	stderror(ERR_NAME | ERR_VARALNUM);
 
@@ -1543,6 +1561,11 @@ dosetenv(Char **v, struct command *c)
 	cleanup_until(lp);
 	return;
     }
+    if (eq(vp, STRLSCOLORS)) {
+        parseLSCOLORS(lp);
+	cleanup_until(lp);
+	return;
+    }
 #endif /* COLOR_LS_F */
 
 #ifdef SIG_WINDOW
@@ -1670,6 +1693,8 @@ dounsetenv(Char **v, struct command *c)
 #ifdef COLOR_LS_F
 		else if (eq(name, STRLS_COLORS))
 		    parseLS_COLORS(n);
+		else if (eq(name, STRLSCOLORS))
+		    parseLSCOLORS(n);
 #endif /* COLOR_LS_F */
 #ifdef NLS_CATALOGS
 		else if (eq(name, STRNLSPATH)) {
@@ -1927,6 +1952,14 @@ struct limits limits[] =
     { RLIMIT_NOFILE, 	"descriptors", 1,	""		},
 # endif /* RLIMIT_NOFILE */
 
+# ifdef RLIMIT_NPTS
+    { RLIMIT_NPTS,	"pseudoterminals", 1,	""		},
+# endif /* RLIMIT_NPTS */
+
+# ifdef RLIMIT_KQUEUES
+    { RLIMIT_KQUEUES,	"kqueues",	1,	""		},
+# endif /* RLIMIT_KQUEUES */
+
 # ifdef RLIMIT_CONCUR
     { RLIMIT_CONCUR, 	"concurrency", 1,	"thread(s)"	},
 # endif /* RLIMIT_CONCUR */
@@ -1938,6 +1971,10 @@ struct limits limits[] =
 # ifdef RLIMIT_NPROC
     { RLIMIT_NPROC,	"maxproc",	1,	""		},
 # endif /* RLIMIT_NPROC */
+
+# ifdef RLIMIT_NTHR
+    { RLIMIT_NTHR,	"maxthread",	1,	""		},
+# endif /* RLIMIT_NTHR */
 
 # if defined(RLIMIT_OFILE) && !defined(RLIMIT_NOFILE)
     { RLIMIT_OFILE,	"openfiles",	1,	""		},
@@ -1954,6 +1991,10 @@ struct limits limits[] =
 # ifdef RLIMIT_LOCKS 
     { RLIMIT_LOCKS,	"maxlocks",	1,	""		}, 
 # endif /* RLIMIT_LOCKS */ 
+
+# ifdef RLIMIT_POSIXLOCKS
+    { RLIMIT_POSIXLOCKS,"posixlocks",	1,	""		},
+# endif /* RLIMIT_POSIXLOCKS */
 
 # ifdef RLIMIT_SIGPENDING 
     { RLIMIT_SIGPENDING,"maxsignal",	1,	""		}, 
@@ -2407,12 +2448,20 @@ doeval_cleanup(void *xstate)
     didcch = state->didcch;
 #endif /* CLOSE_ON_EXEC */
     didfds = state->didfds;
-    xclose(SHIN);
-    xclose(SHOUT);
-    xclose(SHDIAG);
+    if (state->saveIN != SHIN)
+	xclose(SHIN);
+    if (state->saveOUT != SHOUT)
+	xclose(SHOUT);
+    if (state->saveDIAG != SHDIAG)
+	xclose(SHDIAG);
     close_on_exec(SHIN = dmove(state->saveIN, state->SHIN), 1);
     close_on_exec(SHOUT = dmove(state->saveOUT, state->SHOUT), 1);
     close_on_exec(SHDIAG = dmove(state->saveDIAG, state->SHDIAG), 1);
+    if (didfds) {
+	close_on_exec(dcopy(SHIN, 0), 1);
+	close_on_exec(dcopy(SHOUT, 1), 1);
+	close_on_exec(dcopy(SHDIAG, 2), 1);
+    }
 }
 
 static Char **Ggv;
@@ -2680,4 +2729,23 @@ nlsclose(void)
 	    handle_pending_signals();
     }
 #endif /* NLS_CATALOGS */
+}
+
+int
+getYN(const char *prompt)
+{
+    int doit;
+    char c;
+
+    xprintf("%s", prompt);
+    flush();
+    (void) force_read(SHIN, &c, sizeof(c));
+    /* 
+     * Perhaps we should use the yesexpr from the
+     * actual locale
+     */
+    doit = (strchr(CGETS(22, 14, "Yy"), c) != NULL);
+    while (c != '\n' && force_read(SHIN, &c, sizeof(c)) == sizeof(c))
+	continue;
+    return doit;
 }

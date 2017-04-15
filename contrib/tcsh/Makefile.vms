@@ -1,4 +1,4 @@
-# $tcsh: Makefile.vms,v 1.39 2006/03/02 18:46:44 christos Exp $
+# $tcsh: Makefile.vms,v 1.40 2014/07/07 20:34:58 christos Exp $
 #	Makefile.vms	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -299,7 +299,7 @@ AVSRCS= Fixes MAKEDIFFS MAKESHAR NewThings README FAQ \
 	WishList config_f.h eight-bit.me glob.3 patchlevel.h \
 	pathnames.h tcsh.man Ported src.desc Imakefile imake.config \
 	README.imake complete.tcsh vmsreadme.txt termcap.vms snames.h \
-	host.defs gethost.c tcsh.man2html configure.in
+	host.defs gethost.c tcsh.man2html configure.ac aclocal.m4
 
 VHSRCS=${PVSRCS} ${AVSRCS}
 
