@@ -702,7 +702,7 @@ main(int argc, char *argv[])
 		    sizeof(fd_mask));
 
 		STAILQ_FOREACH(sl, &shead, next) {
-			if (sl->sl_socket != -1)
+			if (sl->sl_socket != -1 && sl->sl_recv != NULL)
 				FD_SET(sl->sl_socket, fdsr);
 		}
 		i = select(fdsrmax + 1, fdsr, NULL, NULL,
@@ -2877,6 +2877,7 @@ socksetup(struct peer *pe)
 	struct addrinfo hints, *res, *res0;
 	int error;
 	char *cp;
+	int (*sl_recv)(struct socklist *);
 	/*
 	 * We have to handle this case for backwards compatibility:
 	 * If there are two (or more) colons but no '[' and ']',
@@ -3003,6 +3004,7 @@ socksetup(struct peer *pe)
 		}
 		dprintf("new socket fd is %d\n", s);
 		listen(s, 5);
+		sl_recv = socklist_recv_sock;
 		dprintf("shutdown\n");
 		if (SecureMode || res->ai_family == AF_LOCAL) {
 			/* Forbid communication in secure mode. */
@@ -3013,13 +3015,14 @@ socksetup(struct peer *pe)
 					die(0);
 			}
 			dprintf("listening on socket\n");
+			sl_recv = NULL;
 		} else
 			dprintf("sending on socket\n");
 		addsock(res->ai_addr, res->ai_addrlen,
 		    &(struct socklist){
 			.sl_socket = s,
 			.sl_peer = pe,
-			.sl_recv = socklist_recv_sock
+			.sl_recv = sl_recv
 		});
 	}
 	freeaddrinfo(res0);
