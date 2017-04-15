@@ -61,7 +61,7 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define DEFAULT_DISPLAY_LEVEL 2
+#define DEFAULT_DISPLAY_LEVEL 1
 
 static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
