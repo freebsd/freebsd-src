@@ -130,7 +130,6 @@ linux_to_bsd_ipc_perm(struct l_ipc_perm *lpp, struct ipc_perm *bpp)
 	bpp->seq = lpp->seq;
 }
 
-
 static void
 bsd_to_linux_ipc_perm(struct ipc_perm *bpp, struct l_ipc_perm *lpp)
 {
@@ -158,11 +157,7 @@ struct l_msqid_ds {
 	l_ushort		msg_qbytes;	/* max number of bytes on queue */
 	l_pid_t			msg_lspid;	/* pid of last msgsnd */
 	l_pid_t			msg_lrpid;	/* last receive pid */
-}
-#if defined(__amd64__) && defined(COMPAT_LINUX32)
-__packed
-#endif
-;
+};
 
 struct l_semid_ds {
 	struct l_ipc_perm	sem_perm;
@@ -173,11 +168,7 @@ struct l_semid_ds {
 	l_uintptr_t		sem_pending_last;
 	l_uintptr_t		undo;
 	l_ushort		sem_nsems;
-}
-#if defined(__amd64__) && defined(COMPAT_LINUX32)
-__packed
-#endif
-;
+};
 
 struct l_shmid_ds {
 	struct l_ipc_perm	shm_perm;
