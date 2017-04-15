@@ -3,8 +3,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2017.03.16
-#	Date:    2017-03-16 03:15:01
+#	Version: 2017.04.03
+#	Date:    2017-04-03 03:15:02
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at http://pci-ids.ucw.cz/.
@@ -10674,7 +10674,7 @@
 	1430  GM206GL [Quadro M2000]
 	1431  GM206GL [Tesla M4]
 	1436  GM206GLM [Quadro M2200 Mobile]
-	15f0  GP100GL
+	15f0  GP100GL [Quadro GP100]
 	15f1  GP100GL
 	15f7  GP100GL [Tesla P100 PCIe 12GB]
 	15f8  GP100GL [Tesla P100 PCIe 16GB]
@@ -10707,7 +10707,7 @@
 	1ba0  GP104M [GeForce GTX 1080 Mobile]
 	1ba1  GP104M [GeForce GTX 1070 Mobile]
 	1bb0  GP104GL [Quadro P5000]
-	1bb1  GP104GL
+	1bb1  GP104GL [Quadro P4000]
 	1bb3  GP104GL [Tesla P4]
 	1bb4  GP104GL
 	1bb6  GP104GLM [Quadro P5000 Mobile]
@@ -10720,7 +10720,7 @@
 	1c02  GP106 [GeForce GTX 1060 3GB]
 	1c03  GP106 [GeForce GTX 1060 6GB]
 	1c20  GP106M [GeForce GTX 1060 Mobile]
-	1c30  GP106GL
+	1c30  GP106GL [Quadro P2000]
 	1c35  GP106
 	1c60  GP106M [GeForce GTX 1060 Mobile]
 	1c61  GP106M [GeForce GTX 1050 Ti Mobile]
@@ -10735,6 +10735,9 @@
 	1ca7  GP107GL
 	1ca8  GP107GL
 	1caa  GP107GL
+	1cb1  GP107GL [Quardo P1000]
+	1cb2  GP107GL [Quardo P600]
+	1cb3  GP107GL [Quardo P400]
 	1d01  GP108
 	1d81  GV100
 10df  Emulex Corporation
@@ -16467,7 +16470,7 @@
 		1028 1fc2  Express Flash NVMe PM1725 1.6TB SFF
 		1028 1fc4  Express Flash NVMe PM1725 1.6TB AIC
 	a822  NVMe SSD Controller 172Xa
-		1028 1fd9  Express Flash NVMe PM1725a 800GB SFF
+		1028 1fd9  Express Flash PM1725a 800GB SFF
 		1028 1fda  Express Flash PM1725a 1.6TB SFF
 		1028 1fdb  Express Flash PM1725a 3.2TB SFF
 		1028 1fdc  Express Flash PM1725a 6.4TB SFF
@@ -20300,6 +20303,7 @@
 1b79  Absolute Analysis
 1b85  OCZ Technology Group, Inc.
 	1041  RevoDrive 3 X2 PCI-Express SSD 240 GB (Marvell Controller)
+	6018  RD400/400A SSD
 	8788  RevoDrive Hybrid
 1b94  Signatec / Dynamic Signals Corp
 	e400  PX14400 Dual Xilinx Virtex5 based Digitizer
@@ -23094,6 +23098,7 @@
 		8086 0000  Ethernet Converged Network Adapter X710-T
 		8086 0001  Ethernet Converged Network Adapter X710-T4
 		8086 0002  Ethernet Converged Network Adapter X710-T4
+		8086 0003  Ethernet Converged Network Adapter X710-T
 		8086 1003  Ethernet Converged Network Adapter X710-T
 	158a  Ethernet Controller XXV710 for 25GbE backplane
 	158b  Ethernet Controller XXV710 for 25GbE SFP28
@@ -27004,7 +27009,7 @@
 		1001 8086  mPCI 3B Europe ZZE
 		1002 8086  mPCI 3B Japan ZZJ
 		1003 8086  mPCI 3B High-Band ZZH
-		1351 103c  Compaq NC6220
+		103c 1351  Compaq nc6220
 	4224  PRO/Wireless 2915ABG [Calexico2] Network Connection
 	4227  PRO/Wireless 3945ABG [Golan] Network Connection
 		8086 1010  ThinkPad R60e
@@ -27127,6 +27132,7 @@
 	5845  QEMU NVM Express Controller
 		1af4 1100  QEMU Virtual Machine
 	5902  HD Graphics 610
+	5912  HD Graphics 630
 	5a84  Celeron N3350/Pentium N4200/Atom E3900 Series Integrated Graphics Controller
 	5a88  Celeron N3350/Pentium N4200/Atom E3900 Series Imaging Unit
 	5a98  Celeron N3350/Pentium N4200/Atom E3900 Series Audio Cluster
