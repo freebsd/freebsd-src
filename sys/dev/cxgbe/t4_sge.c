@@ -150,6 +150,13 @@ TUNABLE_INT("hw.cxgbe.largest_rx_cluster", &largest_rx_cluster);
 static int safest_rx_cluster = PAGE_SIZE;
 TUNABLE_INT("hw.cxgbe.safest_rx_cluster", &safest_rx_cluster);
 
+/*
+ * The interrupt holdoff timers are multiplied by this value on T6+.
+ * 1 and 3-17 (both inclusive) are legal values.
+ */
+static int tscale = 1;
+TUNABLE_INT("hw.cxgbe.tscale", &tscale);
+
 struct txpkts {
 	u_int wr_type;		/* type 0 or type 1 */
 	u_int npkt;		/* # of packets in this work request */
@@ -391,6 +398,12 @@ t4_sge_modload(void)
 		cong_drop = 0;
 	}
 
+	if (tscale != 1 && (tscale < 3 || tscale > 17)) {
+		printf("Invalid hw.cxgbe.tscale value (%d),"
+		    " using 1 instead.\n", tscale);
+		tscale = 1;
+	}
+
 	extfree_refs = counter_u64_alloc(M_WAITOK);
 	extfree_rels = counter_u64_alloc(M_WAITOK);
 	counter_u64_zero(extfree_refs);
@@ -582,6 +595,15 @@ t4_tweak_chip_settings(struct adapter *sc)
 	v = V_TIMERVALUE4(us_to_core_ticks(sc, intr_timer[4])) |
 	    V_TIMERVALUE5(us_to_core_ticks(sc, intr_timer[5]));
 	t4_write_reg(sc, A_SGE_TIMER_VALUE_4_AND_5, v);
+
+	if (chip_id(sc) >= CHELSIO_T6) {
+		m = V_TSCALE(M_TSCALE);
+		if (tscale == 1)
+			v = 0;
+		else
+			v = V_TSCALE(tscale - 2);
+		t4_set_reg_field(sc, A_SGE_ITP_CONTROL, m, v);
+	}
 
 	/* 4K, 16K, 64K, 256K DDP "page sizes" for TDDP */
 	v = V_HPZ0(0) | V_HPZ1(2) | V_HPZ2(4) | V_HPZ3(6);
