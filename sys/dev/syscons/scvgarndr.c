@@ -173,6 +173,14 @@ static const struct mousedata mouse9x13 = { {
 	0x0c00, 0x0c00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000, },
 	9, 13,
 };
+
+static const struct mousedata mouse10x16 = { {
+	0xc000, 0xa000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8080,
+	0x8040, 0x83c0, 0x9200, 0xa900, 0xc900, 0x0480, 0x0480, 0x0300, }, {
+	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7c00, 0x7e00, 0x7f00,
+	0x7f80, 0x7c00, 0x6c00, 0x4600, 0x0600, 0x0300, 0x0300, 0x0000, },
+	10, 16,
+};
 #endif
 #endif
 
@@ -1042,7 +1050,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	int i, j, k;
 	uint8_t m1;
 
-	mdp = &mouse9x13;
+	mdp = (scp->font_size < 14) ? &mouse9x13 : &mouse10x16;
 	line_width = scp->sc->adp->va_line_width;
 	xoff = (x - scp->xoff*8)%8;
 	yoff = y - rounddown(y, line_width);
@@ -1087,7 +1095,7 @@ remove_pxlmouse_planar(scr_stat *scp, int x, int y)
 	vm_offset_t p;
 	int bx, by, i, line_width, xend, xoff, yend, yoff;
 
-	mdp = &mouse9x13;
+	mdp = (scp->font_size < 14) ? &mouse9x13 : &mouse10x16;
 
 	/*
 	 * It is only necessary to remove the mouse image where it overlaps
@@ -1132,7 +1140,7 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	uint8_t  *u8;
 	int bpp;
 
-	mdp = &mouse9x13;
+	mdp = (scp->font_size < 14) ? &mouse9x13 : &mouse10x16;
 
 	/*
 	 * Determine overlap with the border and then if removing, do nothing
