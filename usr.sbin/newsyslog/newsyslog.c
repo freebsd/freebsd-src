@@ -100,17 +100,22 @@ __FBSDID("$FreeBSD$");
 #define	COMPRESS_SUFFIX_XZ	".xz"
 #endif
 
+#ifndef	COMPRESS_SUFFIX_ZST
+#define	COMPRESS_SUFFIX_ZST	".zst"
+#endif
+
 #define	COMPRESS_SUFFIX_MAXLEN	MAX(MAX(sizeof(COMPRESS_SUFFIX_GZ),sizeof(COMPRESS_SUFFIX_BZ2)),sizeof(COMPRESS_SUFFIX_XZ))
 
 /*
  * Compression types
  */
-#define	COMPRESS_TYPES  4	/* Number of supported compression types */
+#define	COMPRESS_TYPES  5	/* Number of supported compression types */
 
 #define	COMPRESS_NONE	0
 #define	COMPRESS_GZIP	1
 #define	COMPRESS_BZIP2	2
 #define	COMPRESS_XZ	3
+#define COMPRESS_ZSTD	4
 
 /*
  * Bit-values for the 'flags' parsed from a config-file entry.
@@ -149,7 +154,8 @@ static const struct compress_types compress_type[COMPRESS_TYPES] = {
 	{ "", "", "" },					/* no compression */
 	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP },	/* gzip compression */
 	{ "J", COMPRESS_SUFFIX_BZ2, _PATH_BZIP2 },	/* bzip2 compression */
-	{ "X", COMPRESS_SUFFIX_XZ, _PATH_XZ }		/* xz compression */
+	{ "X", COMPRESS_SUFFIX_XZ, _PATH_XZ },		/* xz compression */
+	{ "Y", COMPRESS_SUFFIX_ZST, _PATH_ZSTD }	/* zst compression */
 };
 
 struct conf_entry {
@@ -1298,6 +1304,9 @@ no_trimat:
 				break;
 			case 'x':
 				working->compress = COMPRESS_XZ;
+				break;
+			case 'y':
+				working->compress = COMPRESS_ZSTD;
 				break;
 			case 'z':
 				working->compress = COMPRESS_GZIP;

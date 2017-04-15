@@ -27,3 +27,4 @@ provided "as is" without express or implied warranty.
 #define	_PATH_BZIP2	"/usr/bin/bzip2"
 #define	_PATH_GZIP	"/usr/bin/gzip"
 #define	_PATH_XZ	"/usr/bin/xz"
+#define	_PATH_ZSTD	"/usr/bin/zstd"
