@@ -159,15 +159,19 @@ RENDERER_MODULE(vga, vga_set);
 
 #ifndef SC_NO_CUTPASTE
 #if !defined(SC_ALT_MOUSE_IMAGE) || defined(SC_PIXEL_MODE)
-#define	MOUSE_IMAGE_HEIGHT	13
-#define	MOUSE_IMAGE_WIDTH	9
-static u_short mouse_and_mask[16] = {
-	0xc000, 0xe000, 0xf000, 0xf800, 0xfc00, 0xfe00, 0xff00, 0xff80,
-	0xfe00, 0x1e00, 0x1f00, 0x0f00, 0x0f00, 0x0000, 0x0000, 0x0000
+struct mousedata {
+	u_short	md_border[16];
+	u_short	md_interior[16];
+	u_short	md_width;
+	u_short	md_height;
 };
-static u_short mouse_or_mask[16] = {
+
+static const struct mousedata mouse9x13 = { {
+	0xc000, 0xa000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x9780,
+	0xf200, 0x1200, 0x1900, 0x0900, 0x0f00, 0x0000, 0x0000, 0x0000, }, {
 	0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7c00, 0x7e00, 0x6800,
-	0x0c00, 0x0c00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000
+	0x0c00, 0x0c00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000, },
+	9, 13,
 };
 #endif
 #endif
@@ -404,6 +408,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 {
 #ifndef SC_ALT_MOUSE_IMAGE
     if (ISMOUSEAVAIL(scp->sc->adp->va_flags)) {
+	const struct mousedata *mdp;
 	u_char font_buf[128];
 	u_short cursor[32];
 	u_char c;
@@ -411,6 +416,8 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	int xoffset, yoffset;
 	int crtc_addr;
 	int i;
+
+	mdp = &mouse9x13;
 
 	/* prepare mousepointer char's bitmaps */
 	pos = (y/scp->font_size - scp->yoff)*scp->xsize + x/8 - scp->xoff;
@@ -434,8 +441,8 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	yoffset = y%scp->font_size;
 	for (i = 0; i < 16; ++i) {
 		cursor[i + yoffset] =
-	    		(cursor[i + yoffset] & ~(mouse_and_mask[i] >> xoffset))
-	    		| (mouse_or_mask[i] >> xoffset);
+	    		(cursor[i + yoffset] & ~(mdp->md_border[i] >> xoffset))
+	    		| (mdp->md_interior[i] >> xoffset);
 	}
 	for (i = 0; i < scp->font_size; ++i) {
 		font_buf[i] = (cursor[i] & 0xff00) >> 8;
@@ -1026,6 +1033,7 @@ vga_pxlblink_planar(scr_stat *scp, int at, int flip)
 static void
 draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 {
+	const struct mousedata *mdp;
 	vm_offset_t p;
 	int line_width;
 	int xoff, yoff;
@@ -1034,10 +1042,11 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	int i, j, k;
 	uint8_t m1;
 
+	mdp = &mouse9x13;
 	line_width = scp->sc->adp->va_line_width;
 	xoff = (x - scp->xoff*8)%8;
 	yoff = y - rounddown(y, line_width);
-	ymax = imin(y + 16, scp->ypixel);
+	ymax = imin(y + mdp->md_height, scp->ypixel);
 
 	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0001);		/* set/reset enable */
@@ -1045,7 +1054,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	outw(GDCIDX, 0x0803);		/* data rotate/function select (and) */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
 	for (i = y, j = 0; i < ymax; ++i, ++j) {
-		m = ~((mouse_and_mask[j] & ~mouse_or_mask[j]) << 8 >> xoff);
+		m = ~(mdp->md_border[j] << 8 >> xoff);
 		for (k = 0; k < 3; ++k) {
 			m1 = m >> (8 * (2 - k));
 			if (m1 != 0xff && x + 8 * k < scp->xpixel) {
@@ -1058,7 +1067,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	outw(GDCIDX, 0x1003);		/* data rotate/function select (or) */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
 	for (i = y, j = 0; i < ymax; ++i, ++j) {
-		m = mouse_or_mask[j] << 8 >> xoff;
+		m = mdp->md_interior[j] << 8 >> xoff;
 		for (k = 0; k < 3; ++k) {
 			m1 = m >> (8 * (2 - k));
 			if (m1 != 0 && x + 8 * k < scp->xpixel) {
@@ -1074,8 +1083,11 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 static void
 remove_pxlmouse_planar(scr_stat *scp, int x, int y)
 {
+	const struct mousedata *mdp;
 	vm_offset_t p;
 	int bx, by, i, line_width, xend, xoff, yend, yoff;
+
+	mdp = &mouse9x13;
 
 	/*
 	 * It is only necessary to remove the mouse image where it overlaps
@@ -1083,8 +1095,8 @@ remove_pxlmouse_planar(scr_stat *scp, int x, int y)
 	 */
 	bx = (scp->xoff + scp->xsize) * 8;
 	by = (scp->yoff + scp->ysize) * scp->font_size;
-	xend = imin(x + MOUSE_IMAGE_WIDTH, scp->xpixel);
-	yend = imin(y + MOUSE_IMAGE_HEIGHT, scp->ypixel);
+	xend = imin(x + mdp->md_width, scp->xpixel);
+	yend = imin(y + mdp->md_height, scp->ypixel);
 	if (xend <= bx && yend <= by)
 		return;
 
@@ -1108,6 +1120,7 @@ remove_pxlmouse_planar(scr_stat *scp, int x, int y)
 static void 
 vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 {
+	const struct mousedata *mdp;
 	vm_offset_t p;
 	int line_width, pixel_size;
 	int xend, yend;
@@ -1119,12 +1132,14 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	uint8_t  *u8;
 	int bpp;
 
+	mdp = &mouse9x13;
+
 	/*
 	 * Determine overlap with the border and then if removing, do nothing
 	 * if the overlap is empty.
 	 */
-	xend = imin(x + 16, scp->xpixel);
-	yend = imin(y + 16, scp->ypixel);
+	xend = imin(x + mdp->md_width, scp->xpixel);
+	yend = imin(y + mdp->md_height, scp->ypixel);
 	if (!on && xend <= (scp->xoff + scp->xsize) * 8 &&
 	    yend <= (scp->yoff + scp->ysize) * scp->font_size)
 		return;
@@ -1184,33 +1199,33 @@ do_on:
 			case 32:
 				u32 = (uint32_t*)(p + j * pixel_size);
 				mouse_buf32[i * 16 + j] = *u32;
-				if (mouse_or_mask[i] & (1 << (15 - j)))
+				if (mdp->md_interior[i] & (1 << (15 - j)))
 					writel(u32, vga_palette32[15]);
-				else if (mouse_and_mask[i] & (1 << (15 - j)))
+				else if (mdp->md_border[i] & (1 << (15 - j)))
 					writel(u32, 0);
 				break;
 			case 16:
 				u16 = (uint16_t*)(p + j * pixel_size);
 				mouse_buf16[i * 16 + j] = *u16;
-				if (mouse_or_mask[i] & (1 << (15 - j)))
+				if (mdp->md_interior[i] & (1 << (15 - j)))
 					writew(u16, vga_palette16[15]);
-				else if (mouse_and_mask[i] & (1 << (15 - j)))
+				else if (mdp->md_border[i] & (1 << (15 - j)))
 					writew(u16, 0);
 				break;
 			case 15:
 				u16 = (uint16_t*)(p  + j * pixel_size);
 				mouse_buf16[i * 16 + j] = *u16;
-				if (mouse_or_mask[i] & (1 << (15 - j)))
+				if (mdp->md_interior[i] & (1 << (15 - j)))
 					writew(u16, vga_palette15[15]);
-				else if (mouse_and_mask[i] & (1 << (15 - j)))
+				else if (mdp->md_border[i] & (1 << (15 - j)))
 					writew(u16, 0);
 				break;
 			case 8:
 				u8 = (uint8_t*)(p + j * pixel_size);
 				mouse_buf8[i * 16 + j] = *u8;
-				if (mouse_or_mask[i] & (1 << (15 - j)))
+				if (mdp->md_interior[i] & (1 << (15 - j)))
 					writeb(u8, 15);
-				else if (mouse_and_mask[i] & (1 << (15 - j)))
+				else if (mdp->md_border[i] & (1 << (15 - j)))
 					writeb(u8, 0);
 				break;
 			}
