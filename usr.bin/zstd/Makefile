@@ -13,6 +13,7 @@ CFLAGS+=	-I${SRCTOP}/contrib/zstd/programs \
 		-I${SRCTOP}/contrib/zstd/lib/dictBuilder \
 		-I${SRCTOP}/contrib/zstd/lib \
 		-DXXH_NAMESPACE=ZSTD_
+SCRIPTS=	zstdgrep
 LINKS=	${BINDIR}/zstd ${BINDIR}/unzstd \
 	${BINDIR}/zstd ${BINDIR}/zstdcat
 MLINKS=	zstd.1 unzstd.1 \
