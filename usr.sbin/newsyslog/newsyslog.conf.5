@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd October 24, 2015
+.Dd April 15, 2017
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -303,6 +303,12 @@ indicates that
 should attempt to save disk space by compressing the rotated
 log file using
 .Xr xz 1 .
+.It Cm Y
+indicates that
+.Xr newsyslog 8
+should attempt to save disk space by compressing the rotated
+log file using
+.Xr zstd 1 .
 .It Cm N
 indicates that there is no process which needs to be signaled
 when this log file is rotated.
