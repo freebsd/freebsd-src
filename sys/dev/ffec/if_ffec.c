@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_vlan_var.h>
 
+#include <dev/fdt/fdt_common.h>
 #include <dev/ffec/if_ffecreg.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -113,6 +114,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx51-fec",	FECTYPE_GENERIC},
 	{"fsl,imx53-fec",	FECTYPE_IMX53},
 	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_GBE},
+	{"fsl,imx6ul-fec",	FECTYPE_IMX6},
 	{"fsl,mvf600-fec",	FECTYPE_MVF},
 	{"fsl,mvf-fec",		FECTYPE_MVF},
 	{NULL,		 	FECTYPE_NONE},
@@ -1424,8 +1426,9 @@ ffec_attach(device_t dev)
 	struct ffec_softc *sc;
 	struct ifnet *ifp = NULL;
 	struct mbuf *m;
+	void *dummy;
 	phandle_t ofw_node;
-	int error, rid;
+	int error, phynum, rid;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	char phy_conn_name[32];
 	uint32_t idx, mscr;
@@ -1695,8 +1698,11 @@ ffec_attach(device_t dev)
 	ffec_miigasket_setup(sc);
 
 	/* Attach the mii driver. */
+	if (fdt_get_phyaddr(ofw_node, dev, &phynum, &dummy) != 0) {
+		phynum = MII_PHY_ANY;
+	}
 	error = mii_attach(dev, &sc->miibus, ifp, ffec_media_change,
-	    ffec_media_status, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    ffec_media_status, BMSR_DEFCAPMASK, phynum, MII_OFFSET_ANY,
 	    (sc->fectype & FECTYPE_MVF) ? MIIF_FORCEANEG : 0);
 	if (error != 0) {
 		device_printf(dev, "PHY attach failed\n");
