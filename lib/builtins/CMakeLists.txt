@@ -71,6 +71,7 @@ set(GENERIC_SOURCES
   extendsfdf2.c
   extendhfsf2.c
   ffsdi2.c
+  ffssi2.c
   ffsti2.c
   fixdfdi.c
   fixdfsi.c
@@ -132,6 +133,7 @@ set(GENERIC_SOURCES
   negvdi2.c
   negvsi2.c
   negvti2.c
+  os_version_check.c
   paritydi2.c
   paritysi2.c
   parityti2.c
@@ -173,15 +175,6 @@ if(COMPILER_RT_HAS_ATOMIC_KEYWORD AND NOT COMPILER_RT_EXCLUDE_ATOMIC_BUILTIN)
     ${GENERIC_SOURCES}
     atomic.c)
 endif()
-
-set(MSVC_SOURCES
- divsc3.c
- divdc3.c
- divxc3.c
- mulsc3.c
- muldc3.c
- mulxc3.c)
-
 
 if(APPLE)
   set(GENERIC_SOURCES
@@ -262,9 +255,9 @@ else () # MSVC
       x86_64/floatdidf.c
       x86_64/floatdisf.c
       x86_64/floatdixf.c
-      ${MSVC_SOURCES})
+      ${GENERIC_SOURCES})
   set(x86_64h_SOURCES ${x86_64_SOURCES})
-  set(i386_SOURCES ${MSVC_SOURCES})
+  set(i386_SOURCES ${GENERIC_SOURCES})
   set(i686_SOURCES ${i386_SOURCES})
 endif () # if (NOT MSVC)
 
@@ -302,6 +295,13 @@ set(arm_SOURCES
   arm/umodsi3.S
   ${GENERIC_SOURCES})
 
+set(thumb1_SOURCES
+  arm/divsi3.S
+  arm/udivsi3.S
+  arm/comparesf2.S
+  arm/addsf3.S
+  ${GENERIC_SOURCES})
+
 set(arm_EABI_SOURCES
   arm/aeabi_cdcmp.S
   arm/aeabi_cdcmpeq_check_nan.c
@@ -320,6 +320,7 @@ set(arm_EABI_SOURCES
   arm/aeabi_memset.S
   arm/aeabi_uidivmod.S
   arm/aeabi_uldivmod.S)
+
 set(arm_Thumb1_JT_SOURCES
   arm/switch16.S
   arm/switch32.S
@@ -401,6 +402,10 @@ elseif(NOT WIN32)
     ${arm_SOURCES}
     ${arm_EABI_SOURCES}
     ${arm_Thumb1_SOURCES})
+
+  set(thumb1_SOURCES
+    ${thumb1_SOURCES}
+    ${arm_EABI_SOURCES})
 endif()
 
 set(aarch64_SOURCES
@@ -431,7 +436,7 @@ set(armv7k_SOURCES ${arm_SOURCES})
 set(arm64_SOURCES ${aarch64_SOURCES})
 
 # macho_embedded archs
-set(armv6m_SOURCES ${GENERIC_SOURCES})
+set(armv6m_SOURCES ${thumb1_SOURCES})
 set(armv7m_SOURCES ${arm_SOURCES})
 set(armv7em_SOURCES ${arm_SOURCES})
 
@@ -486,7 +491,7 @@ else ()
       # Needed for clear_cache on debug mode, due to r7's usage in inline asm.
       # Release mode already sets it via -O2/3, Debug mode doesn't.
       if (${arch} STREQUAL "armhf")
-        list(APPEND BUILTIN_CFLAGS -fomit-frame-pointer)
+        list(APPEND BUILTIN_CFLAGS -fomit-frame-pointer -DCOMPILER_RT_ARMHF_TARGET)
       endif()
 
       add_compiler_rt_runtime(clang_rt.builtins

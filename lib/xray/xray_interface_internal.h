@@ -48,10 +48,8 @@ struct XRaySledMap {
   size_t Entries;
 };
 
-uint64_t cycleFrequency();
-
 bool patchFunctionEntry(bool Enable, uint32_t FuncId,
-                        const XRaySledEntry &Sled);
+                        const XRaySledEntry &Sled, void (*Trampoline)());
 bool patchFunctionExit(bool Enable, uint32_t FuncId, const XRaySledEntry &Sled);
 bool patchFunctionTailExit(bool Enable, uint32_t FuncId,
                            const XRaySledEntry &Sled);
@@ -64,6 +62,7 @@ extern "C" {
 extern void __xray_FunctionEntry();
 extern void __xray_FunctionExit();
 extern void __xray_FunctionTailExit();
+extern void __xray_ArgLoggerEntry();
 }
 
 #endif

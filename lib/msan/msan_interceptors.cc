@@ -123,14 +123,6 @@ static void *AllocateFromLocalPool(uptr size_in_bytes) {
 #define CHECK_UNPOISONED_STRING(x, n)                           \
     CHECK_UNPOISONED_STRING_OF_LEN((x), internal_strlen(x), (n))
 
-INTERCEPTOR(SIZE_T, fread, void *ptr, SIZE_T size, SIZE_T nmemb, void *file) {
-  ENSURE_MSAN_INITED();
-  SIZE_T res = REAL(fread)(ptr, size, nmemb, file);
-  if (res > 0)
-    __msan_unpoison(ptr, res *size);
-  return res;
-}
-
 #if !SANITIZER_FREEBSD
 INTERCEPTOR(SIZE_T, fread_unlocked, void *ptr, SIZE_T size, SIZE_T nmemb,
             void *file) {
@@ -580,6 +572,13 @@ INTERCEPTOR(SIZE_T, wcslen, const wchar_t *s) {
   return res;
 }
 
+INTERCEPTOR(SIZE_T, wcsnlen, const wchar_t *s, SIZE_T n) {
+  ENSURE_MSAN_INITED();
+  SIZE_T res = REAL(wcsnlen)(s, n);
+  CHECK_UNPOISONED(s, sizeof(wchar_t) * Min(res + 1, n));
+  return res;
+}
+
 // wchar_t *wcschr(const wchar_t *wcs, wchar_t wc);
 INTERCEPTOR(wchar_t *, wcschr, void *s, wchar_t wc, void *ps) {
   ENSURE_MSAN_INITED();
@@ -594,6 +593,18 @@ INTERCEPTOR(wchar_t *, wcscpy, wchar_t *dest, const wchar_t *src) {
   wchar_t *res = REAL(wcscpy)(dest, src);
   CopyShadowAndOrigin(dest, src, sizeof(wchar_t) * (REAL(wcslen)(src) + 1),
                       &stack);
+  return res;
+}
+
+INTERCEPTOR(wchar_t *, wcsncpy, wchar_t *dest, const wchar_t *src,
+            SIZE_T n) {  // NOLINT
+  ENSURE_MSAN_INITED();
+  GET_STORE_STACK_TRACE;
+  SIZE_T copy_size = REAL(wcsnlen)(src, n);
+  if (copy_size < n) copy_size++;           // trailing \0
+  wchar_t *res = REAL(wcsncpy)(dest, src, n);  // NOLINT
+  CopyShadowAndOrigin(dest, src, copy_size * sizeof(wchar_t), &stack);
+  __msan_unpoison(dest + copy_size, (n - copy_size) * sizeof(wchar_t));
   return res;
 }
 
@@ -1565,8 +1576,10 @@ void InitializeInterceptors() {
   INTERCEPT_FUNCTION(mbtowc);
   INTERCEPT_FUNCTION(mbrtowc);
   INTERCEPT_FUNCTION(wcslen);
+  INTERCEPT_FUNCTION(wcsnlen);
   INTERCEPT_FUNCTION(wcschr);
   INTERCEPT_FUNCTION(wcscpy);
+  INTERCEPT_FUNCTION(wcsncpy);
   INTERCEPT_FUNCTION(wcscmp);
   INTERCEPT_FUNCTION(getenv);
   INTERCEPT_FUNCTION(setenv);
