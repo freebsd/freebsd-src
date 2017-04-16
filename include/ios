@@ -592,6 +592,9 @@ public:
     typedef typename traits_type::pos_type pos_type;
     typedef typename traits_type::off_type off_type;
 
+  // __true_value will generate undefined references when linking unless
+  // we give it internal linkage.
+
 #if defined(_LIBCPP_CXX03_LANG)
     _LIBCPP_ALWAYS_INLINE
     operator __cxx03_bool::__bool_type() const {

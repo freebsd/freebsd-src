@@ -80,21 +80,9 @@ constexpr adopt_lock_t  adopt_lock  = adopt_lock_t();
 
 #endif
 
-
-// Forward declare lock_guard as a variadic template even in C++03 to keep
-// the mangling consistent between dialects.
-#if defined(_LIBCPP_ABI_VARIADIC_LOCK_GUARD)
-template <class ..._Mutexes>
-class _LIBCPP_TEMPLATE_VIS lock_guard;
-#endif
-
 template <class _Mutex>
 class _LIBCPP_TEMPLATE_VIS _LIBCPP_THREAD_SAFETY_ANNOTATION(scoped_lockable)
-#if !defined(_LIBCPP_ABI_VARIADIC_LOCK_GUARD)
 lock_guard
-#else
-lock_guard<_Mutex>
-#endif
 {
 public:
     typedef _Mutex mutex_type;
@@ -316,20 +304,24 @@ public:
 
     void wait(unique_lock<mutex>& __lk) _NOEXCEPT;
     template <class _Predicate>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
         void wait(unique_lock<mutex>& __lk, _Predicate __pred);
 
     template <class _Clock, class _Duration>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
         cv_status
         wait_until(unique_lock<mutex>& __lk,
                    const chrono::time_point<_Clock, _Duration>& __t);
 
     template <class _Clock, class _Duration, class _Predicate>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
         bool
         wait_until(unique_lock<mutex>& __lk,
                    const chrono::time_point<_Clock, _Duration>& __t,
                    _Predicate __pred);
 
     template <class _Rep, class _Period>
+        _LIBCPP_METHOD_TEMPLATE_IMPLICIT_INSTANTIATION_VIS
         cv_status
         wait_for(unique_lock<mutex>& __lk,
                  const chrono::duration<_Rep, _Period>& __d);

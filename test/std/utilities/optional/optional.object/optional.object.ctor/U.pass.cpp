@@ -35,6 +35,11 @@ struct ExplicitThrow
     constexpr explicit ExplicitThrow(int x) { if (x != -1) TEST_THROW(6);}
 };
 
+struct ImplicitAny {
+  template <class U>
+  constexpr ImplicitAny(U&&) {}
+};
+
 
 template <class To, class From>
 constexpr bool implicit_conversion(optional<To>&& opt, const From& v)
@@ -61,11 +66,9 @@ constexpr bool explicit_conversion(Input&& in, const Expect& v)
 void test_implicit()
 {
     {
-        using T = long long;
         static_assert(implicit_conversion<long long>(42, 42), "");
     }
     {
-        using T = long double;
         static_assert(implicit_conversion<long double>(3.14, 3.14), "");
     }
     {
@@ -81,6 +84,15 @@ void test_implicit()
         using T = TestTypes::TestType;
         assert(implicit_conversion<T>(3, T(3)));
     }
+  {
+    using O = optional<ImplicitAny>;
+    static_assert(!test_convertible<O, std::in_place_t>(), "");
+    static_assert(!test_convertible<O, std::in_place_t&>(), "");
+    static_assert(!test_convertible<O, const std::in_place_t&>(), "");
+    static_assert(!test_convertible<O, std::in_place_t&&>(), "");
+    static_assert(!test_convertible<O, const std::in_place_t&&>(), "");
+
+  }
 #ifndef TEST_HAS_NO_EXCEPTIONS
     {
         try {
@@ -97,18 +109,15 @@ void test_implicit()
 void test_explicit() {
     {
         using T = ExplicitTrivialTestTypes::TestType;
-        using O = optional<T>;
         static_assert(explicit_conversion<T>(42, 42), "");
     }
     {
         using T = ExplicitConstexprTestTypes::TestType;
-        using O = optional<T>;
         static_assert(explicit_conversion<T>(42, 42), "");
         static_assert(!std::is_convertible<int, T>::value, "");
     }
     {
         using T = ExplicitTestTypes::TestType;
-        using O = optional<T>;
         T::reset();
         {
             assert(explicit_conversion<T>(42, 42));
