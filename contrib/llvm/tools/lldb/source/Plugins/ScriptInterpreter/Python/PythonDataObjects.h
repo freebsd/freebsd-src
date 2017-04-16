@@ -19,11 +19,12 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Flags.h"
+#include "lldb/Utility/Flags.h"
+
 #include "lldb/Core/StructuredData.h"
 #include "lldb/Host/File.h"
 #include "lldb/Interpreter/OptionValue.h"
+#include "lldb/Utility/ConstString.h"
 #include "lldb/lldb-defines.h"
 
 #include "llvm/ADT/ArrayRef.h"

@@ -14,10 +14,12 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Error.h"
 #include "lldb/Core/FormatEntity.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Error.h"
 #include "lldb/lldb-defines.h"
+#include "lldb/lldb-private-enumerations.h"
+#include "lldb/lldb-private-interfaces.h"
 
 namespace lldb_private {
 

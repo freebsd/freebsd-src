@@ -21,12 +21,13 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 // Project includes
-#include "lldb/Core/Error.h"
-#include "lldb/Host/OptionParser.h"
+#include "lldb/Utility/Error.h"
 #include "lldb/lldb-private-types.h"
 #include "lldb/lldb-types.h"
 
 namespace lldb_private {
+
+struct Option;
 
 typedef std::vector<std::tuple<std::string, int, std::string>> OptionArgVector;
 typedef std::shared_ptr<OptionArgVector> OptionArgVectorSP;
@@ -191,6 +192,15 @@ public:
   ///     also has a terminating NULL C string pointer
   //------------------------------------------------------------------
   const char **GetConstArgumentVector() const;
+
+  //------------------------------------------------------------------
+  /// Gets the argument as an ArrayRef. Note that the return value does *not*
+  /// have a nullptr const char * at the end, as the size of the list is
+  /// embedded in the ArrayRef object.
+  //------------------------------------------------------------------
+  llvm::ArrayRef<const char *> GetArgumentArrayRef() const {
+    return llvm::makeArrayRef(m_argv).drop_back();
+  }
 
   //------------------------------------------------------------------
   /// Appends a new argument to the end of the list argument list.

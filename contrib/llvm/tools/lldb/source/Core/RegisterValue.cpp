@@ -9,22 +9,27 @@
 
 #include "lldb/Core/RegisterValue.h"
 
-// C Includes
-// C++ Includes
-#include <vector>
+#include "lldb/Core/DumpDataExtractor.h"
+#include "lldb/Core/Scalar.h"
+#include "lldb/Interpreter/Args.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/Utility/StreamString.h"
+#include "lldb/lldb-defines.h"       // for LLDB_INVALID_ADDRESS
+#include "lldb/lldb-private-types.h" // for RegisterInfo, type128
 
-// Other libraries and framework includes
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 
-// Project includes
-#include "lldb/Core/DataExtractor.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Scalar.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Core/StreamString.h"
-#include "lldb/Host/StringConvert.h"
-#include "lldb/Interpreter/Args.h"
+#include <cstdint> // for uint8_t, uint32_t, uint64_t
+#include <string>  // for string
+#include <tuple>   // for tie, tuple
+#include <vector>
+
+#include <assert.h>   // for assert
+#include <inttypes.h> // for PRIx64
+#include <stdio.h>    // for sscanf
 
 using namespace lldb;
 using namespace lldb_private;
@@ -76,15 +81,15 @@ bool RegisterValue::Dump(Stream *s, const RegisterInfo *reg_info,
     if (format == eFormatDefault)
       format = reg_info->format;
 
-    data.Dump(s,
-              0,                    // Offset in "data"
-              format,               // Format to use when dumping
-              reg_info->byte_size,  // item_byte_size
-              1,                    // item_count
-              UINT32_MAX,           // num_per_line
-              LLDB_INVALID_ADDRESS, // base_addr
-              0,                    // item_bit_size
-              0);                   // item_bit_offset
+    DumpDataExtractor(data, s,
+                      0,                    // Offset in "data"
+                      format,               // Format to use when dumping
+                      reg_info->byte_size,  // item_byte_size
+                      1,                    // item_count
+                      UINT32_MAX,           // num_per_line
+                      LLDB_INVALID_ADDRESS, // base_addr
+                      0,                    // item_bit_size
+                      0);                   // item_bit_offset
     return true;
   }
   return false;

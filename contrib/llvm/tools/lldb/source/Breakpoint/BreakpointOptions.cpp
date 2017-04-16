@@ -14,14 +14,14 @@
 #include "lldb/Breakpoint/BreakpointOptions.h"
 
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Core/StringList.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadSpec.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/Utility/StringList.h"
 
 #include "llvm/ADT/STLExtras.h"
 

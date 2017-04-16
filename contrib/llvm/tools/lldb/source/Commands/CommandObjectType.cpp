@@ -16,13 +16,11 @@
 #include <functional>
 
 // Project includes
-#include "lldb/Core/ConstString.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/IOHandler.h"
-#include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/State.h"
-#include "lldb/Core/StringList.h"
 #include "lldb/DataFormatters/DataVisualization.h"
+#include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandObject.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -38,6 +36,9 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadList.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/RegularExpression.h"
+#include "lldb/Utility/StringList.h"
 
 // Other libraries and framework includes
 #include "llvm/ADT/STLExtras.h"
@@ -82,9 +83,9 @@ static bool WarnOnPotentialUnquotedUnsignedType(Args &command,
     return false;
 
   for (auto entry : llvm::enumerate(command.entries().drop_back())) {
-    if (entry.Value.ref != "unsigned")
+    if (entry.value().ref != "unsigned")
       continue;
-    auto next = command.entries()[entry.Index + 1].ref;
+    auto next = command.entries()[entry.index() + 1].ref;
     if (next == "int" || next == "short" || next == "char" || next == "long") {
       result.AppendWarningWithFormat(
           "unsigned %s being treated as two types. if you meant the combined "
@@ -1188,8 +1189,7 @@ protected:
         category_closure(category_sp);
     } else {
       DataVisualization::Categories::ForEach(
-          [this, &command, &result, &category_regex, &formatter_regex,
-           &category_closure](
+          [&category_regex, &category_closure](
               const lldb::TypeCategoryImplSP &category) -> bool {
             if (category_regex) {
               bool escape = true;

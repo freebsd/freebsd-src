@@ -51,6 +51,7 @@
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/FileSystem.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -142,14 +143,9 @@ public:
 
   ~InitializePythonRAII() {
     if (m_was_already_initialized) {
-      Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT |
-                                                      LIBLLDB_LOG_VERBOSE));
-
-      if (log) {
-        log->Printf("Releasing PyGILState. Returning to state = %slocked\n",
-                    m_was_already_initialized == PyGILState_UNLOCKED ? "un"
-                                                                     : "");
-      }
+      Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
+      LLDB_LOGV(log, "Releasing PyGILState. Returning to state = {0}locked",
+                m_was_already_initialized == PyGILState_UNLOCKED ? "un" : "");
       PyGILState_Release(m_gil_state);
     } else {
       // We initialized the threads in this function, just unlock the GIL.
@@ -174,15 +170,12 @@ private:
 
   void InitializeThreadsPrivate() {
     if (PyEval_ThreadsInitialized()) {
-      Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT |
-                                                      LIBLLDB_LOG_VERBOSE));
+      Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
 
       m_was_already_initialized = true;
       m_gil_state = PyGILState_Ensure();
-      if (log) {
-        log->Printf("Ensured PyGILState. Previous state = %slocked\n",
-                    m_gil_state == PyGILState_UNLOCKED ? "un" : "");
-      }
+      LLDB_LOGV(log, "Ensured PyGILState. Previous state = {0}locked\n",
+                m_gil_state == PyGILState_UNLOCKED ? "un" : "");
       return;
     }
 
@@ -212,12 +205,10 @@ ScriptInterpreterPython::Locker::Locker(ScriptInterpreterPython *py_interpreter,
 }
 
 bool ScriptInterpreterPython::Locker::DoAcquireLock() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT |
-                                                  LIBLLDB_LOG_VERBOSE));
+  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
   m_GILState = PyGILState_Ensure();
-  if (log)
-    log->Printf("Ensured PyGILState. Previous state = %slocked\n",
-                m_GILState == PyGILState_UNLOCKED ? "un" : "");
+  LLDB_LOGV(log, "Ensured PyGILState. Previous state = {0}locked",
+            m_GILState == PyGILState_UNLOCKED ? "un" : "");
 
   // we need to save the thread state when we first start the command
   // because we might decide to interrupt it while some action is taking
@@ -239,11 +230,9 @@ bool ScriptInterpreterPython::Locker::DoInitSession(uint16_t on_entry_flags,
 }
 
 bool ScriptInterpreterPython::Locker::DoFreeLock() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT |
-                                                  LIBLLDB_LOG_VERBOSE));
-  if (log)
-    log->Printf("Releasing PyGILState. Returning to state = %slocked\n",
-                m_GILState == PyGILState_UNLOCKED ? "un" : "");
+  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
+  LLDB_LOGV(log, "Releasing PyGILState. Returning to state = {0}locked",
+            m_GILState == PyGILState_UNLOCKED ? "un" : "");
   PyGILState_Release(m_GILState);
   m_python_interpreter->DecrementLockCount();
   return true;
@@ -338,9 +327,9 @@ ScriptInterpreterPython::~ScriptInterpreterPython() {
 }
 
 void ScriptInterpreterPython::Initialize() {
-  static std::once_flag g_once_flag;
+  static llvm::once_flag g_once_flag;
 
-  std::call_once(g_once_flag, []() {
+  llvm::call_once(g_once_flag, []() {
     PluginManager::RegisterPlugin(GetPluginNameStatic(),
                                   GetPluginDescriptionStatic(),
                                   lldb::eScriptLanguagePython, CreateInstance);
@@ -2587,9 +2576,13 @@ bool ScriptInterpreterPython::LoadScriptingModule(
                              Locker::NoSTDIN,
                    Locker::FreeAcquiredLock |
                        (init_session ? Locker::TearDownSession : 0));
+    namespace fs = llvm::sys::fs;
+    fs::file_status st;
+    std::error_code ec = status(target_file.GetPath(), st);
 
-    if (target_file.GetFileType() == FileSpec::eFileTypeInvalid ||
-        target_file.GetFileType() == FileSpec::eFileTypeUnknown) {
+    if (ec || st.type() == fs::file_type::status_error ||
+        st.type() == fs::file_type::type_unknown ||
+        st.type() == fs::file_type::file_not_found) {
       // if not a valid file of any sort, check if it might be a filename still
       // dot can't be used but / and \ can, and if either is found, reject
       if (strchr(pathname, '\\') || strchr(pathname, '/')) {
@@ -2598,9 +2591,7 @@ bool ScriptInterpreterPython::LoadScriptingModule(
       }
       basename = pathname; // not a filename, probably a package of some sort,
                            // let it go through
-    } else if (target_file.GetFileType() == FileSpec::eFileTypeDirectory ||
-               target_file.GetFileType() == FileSpec::eFileTypeRegular ||
-               target_file.GetFileType() == FileSpec::eFileTypeSymbolicLink) {
+    } else if (is_directory(st) || is_regular_file(st)) {
       std::string directory = target_file.GetDirectory().GetCString();
       replace_all(directory, "\\", "\\\\");
       replace_all(directory, "'", "\\'");

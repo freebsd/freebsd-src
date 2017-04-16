@@ -28,7 +28,6 @@
 #include "LLDBServerUtilities.h"
 #include "Plugins/Process/gdb-remote/GDBRemoteCommunicationServerLLGS.h"
 #include "Plugins/Process/gdb-remote/ProcessGDBRemoteLog.h"
-#include "lldb/Core/Error.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/HostGetOpt.h"
@@ -36,6 +35,7 @@
 #include "lldb/Host/Pipe.h"
 #include "lldb/Host/Socket.h"
 #include "lldb/Host/StringConvert.h"
+#include "lldb/Utility/Error.h"
 
 #ifndef LLGS_PROGRAM_NAME
 #define LLGS_PROGRAM_NAME "lldb-server"
@@ -424,11 +424,13 @@ int main_gdbserver(int argc, char *argv[]) {
     exit(option_error);
   }
 
-  if (!LLDBServerUtilities::SetupLogging(log_file, log_channels,
-                                         LLDB_LOG_OPTION_PREPEND_TIMESTAMP))
+  if (!LLDBServerUtilities::SetupLogging(
+          log_file, log_channels,
+          LLDB_LOG_OPTION_PREPEND_TIMESTAMP |
+              LLDB_LOG_OPTION_PREPEND_FILE_FUNCTION))
     return -1;
 
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(GDBR_LOG_VERBOSE));
+  Log *log(lldb_private::GetLogIfAnyCategoriesSet(GDBR_LOG_PROCESS));
   if (log) {
     log->Printf("lldb-server launch");
     for (int i = 0; i < argc; i++) {

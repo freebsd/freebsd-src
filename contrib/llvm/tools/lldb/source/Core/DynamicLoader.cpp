@@ -7,19 +7,25 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/DynamicLoader.h"
+
 #include "lldb/Core/Module.h"
+#include "lldb/Core/ModuleList.h" // for ModuleList
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Section.h"
+#include "lldb/Symbol/ObjectFile.h" // for ObjectFile
 #include "lldb/Target/MemoryRegionInfo.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
-#include "lldb/lldb-private.h"
+#include "lldb/Utility/ConstString.h"     // for ConstString
+#include "lldb/lldb-private-interfaces.h" // for DynamicLoaderCreateInstance
+
+#include "llvm/ADT/StringRef.h" // for StringRef
+
+#include <memory> // for shared_ptr, unique_ptr
+
+#include <assert.h> // for assert
 
 using namespace lldb;
 using namespace lldb_private;
@@ -78,7 +84,7 @@ ModuleSP DynamicLoader::GetTargetExecutable() {
     if (executable->GetFileSpec().Exists()) {
       ModuleSpec module_spec(executable->GetFileSpec(),
                              executable->GetArchitecture());
-      ModuleSP module_sp(new Module(module_spec));
+      auto module_sp = std::make_shared<Module>(module_spec);
 
       // Check if the executable has changed and set it to the target executable
       // if they differ.
@@ -189,7 +195,8 @@ ModuleSP DynamicLoader::LoadModuleAtAddress(const FileSpec &file,
     MemoryRegionInfo memory_info;
     Error error = m_process->GetMemoryRegionInfo(base_addr, memory_info);
     if (error.Success() && memory_info.GetMapped() &&
-        memory_info.GetRange().GetRangeBase() == base_addr) {
+        memory_info.GetRange().GetRangeBase() == base_addr && 
+        !(memory_info.GetName().IsEmpty())) {
       ModuleSpec new_module_spec(
           FileSpec(memory_info.GetName().AsCString(), false),
           target.GetArchitecture());
@@ -233,3 +240,10 @@ addr_t DynamicLoader::ReadPointer(addr_t addr) {
   else
     return value;
 }
+
+void DynamicLoader::LoadOperatingSystemPlugin(bool flush)
+{
+    if (m_process)
+        m_process->LoadOperatingSystemPlugin(flush);
+}
+

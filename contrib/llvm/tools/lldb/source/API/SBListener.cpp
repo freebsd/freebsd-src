@@ -15,8 +15,8 @@
 #include "lldb/Core/Broadcaster.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Listener.h"
-#include "lldb/Core/Log.h"
-#include "lldb/Core/StreamString.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/StreamString.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -301,6 +301,8 @@ bool SBListener::HandleBroadcastEvent(const SBEvent &event) {
     return m_opaque_sp->HandleBroadcastEvent(event.GetSP());
   return false;
 }
+
+lldb::ListenerSP SBListener::GetSP() { return m_opaque_sp; }
 
 Listener *SBListener::operator->() const { return m_opaque_sp.get(); }
 

@@ -9,18 +9,22 @@
 
 #include "lldb/Symbol/ObjectFile.h"
 #include "Plugins/ObjectContainer/BSD-Archive/ObjectContainerBSDArchive.h"
-#include "lldb/Core/DataBuffer.h"
-#include "lldb/Core/DataBufferHeap.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Symbol/ObjectContainer.h"
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/SectionLoadList.h"
+#include "lldb/Target/Target.h"
+#include "lldb/Utility/DataBuffer.h"
+#include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/DataBufferLLVM.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/RegularExpression.h"
 #include "lldb/lldb-private.h"
 
 using namespace lldb;
@@ -73,8 +77,8 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
         // and object container plug-ins can use these bytes to see if they
         // can parse this file.
         if (file_size > 0) {
-          data_sp = file->ReadFileContents(file_offset,
-                                           std::min<size_t>(512, file_size));
+          data_sp =
+              DataBufferLLVM::CreateSliceFromPath(file->GetPath(), 512, file_offset);
           data_offset = 0;
         }
       }
@@ -117,7 +121,8 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
             }
             // We failed to find any cached object files in the container
             // plug-ins, so lets read the first 512 bytes and try again below...
-            data_sp = archive_file.ReadFileContents(file_offset, 512);
+            data_sp = DataBufferLLVM::CreateSliceFromPath(archive_file.GetPath(),
+                                                     512, file_offset);
           }
         }
       }
@@ -203,7 +208,7 @@ size_t ObjectFile::GetModuleSpecifications(const FileSpec &file,
                                            lldb::offset_t file_offset,
                                            lldb::offset_t file_size,
                                            ModuleSpecList &specs) {
-  DataBufferSP data_sp(file.ReadFileContents(file_offset, 512));
+  DataBufferSP data_sp = DataBufferLLVM::CreateSliceFromPath(file.GetPath(), 512, file_offset);
   if (data_sp) {
     if (file_size == 0) {
       const lldb::offset_t actual_file_size = file.GetByteSize();
@@ -647,4 +652,41 @@ ConstString ObjectFile::GetNextSyntheticSymbolName() {
   ss.Printf("___lldb_unnamed_symbol%u$$%s", ++m_synthetic_symbol_idx,
             file_name.GetCString());
   return ConstString(ss.GetString());
+}
+
+Error ObjectFile::LoadInMemory(Target &target, bool set_pc) {
+  Error error;
+  ProcessSP process = target.CalculateProcess();
+  if (!process)
+    return Error("No Process");
+  if (set_pc && !GetEntryPointAddress().IsValid())
+    return Error("No entry address in object file");
+
+  SectionList *section_list = GetSectionList();
+  if (!section_list)
+      return Error("No section in object file");
+  size_t section_count = section_list->GetNumSections(0);
+  for (size_t i = 0; i < section_count; ++i) {
+    SectionSP section_sp = section_list->GetSectionAtIndex(i);
+    addr_t addr = target.GetSectionLoadList().GetSectionLoadAddress(section_sp);
+    if (addr != LLDB_INVALID_ADDRESS) {
+      DataExtractor section_data;
+      // We can skip sections like bss
+      if (section_sp->GetFileSize() == 0)
+        continue;
+      section_sp->GetSectionData(section_data);
+      lldb::offset_t written = process->WriteMemory(
+          addr, section_data.GetDataStart(), section_data.GetByteSize(), error);
+      if (written != section_data.GetByteSize())
+        return error;
+    }
+  }
+  if (set_pc) {
+    ThreadList &thread_list = process->GetThreadList();
+    ThreadSP curr_thread(thread_list.GetSelectedThread());
+    RegisterContextSP reg_context(curr_thread->GetRegisterContext());
+    Address file_entry = GetEntryPointAddress();
+    reg_context->SetPC(file_entry.GetLoadAddress(&target));
+  }
+  return error;
 }

@@ -8,14 +8,18 @@
 //===----------------------------------------------------------------------===//
 #include "lldb/Core/Timer.h"
 
+#include "lldb/Host/Host.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/lldb-types.h" // for thread_key_t
+
 #include <algorithm>
 #include <map>
 #include <mutex>
+#include <utility> // for pair
 #include <vector>
 
-#include "lldb/Core/Stream.h"
-#include "lldb/Host/Host.h"
-
+#include <assert.h> // for assert
+#include <stdarg.h> // for va_end, va_list, va_start
 #include <stdio.h>
 
 using namespace lldb_private;
