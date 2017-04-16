@@ -352,10 +352,19 @@ random_harvestq_prime(void *unused __unused)
 	 * Get entropy that may have been preloaded by loader(8)
 	 * and use it to pre-charge the entropy harvest queue.
 	 */
-	keyfile = preload_search_by_type(RANDOM_HARVESTQ_BOOT_ENTROPY_FILE);
+	keyfile = preload_search_by_type(RANDOM_CACHED_BOOT_ENTROPY_MODULE);
+#ifndef NO_BACKWARD_COMPATIBILITY
+	if (keyfile == NULL)
+	    keyfile = preload_search_by_type(RANDOM_LEGACY_BOOT_ENTROPY_MODULE);
+#endif
 	if (keyfile != NULL) {
 		data = preload_fetch_addr(keyfile);
 		size = preload_fetch_size(keyfile);
+		/* skip the first bit of the stash so others like arc4 can also have some. */
+		if (size > RANDOM_CACHED_SKIP_START) {
+			data += RANDOM_CACHED_SKIP_START;
+			size -= RANDOM_CACHED_SKIP_START;
+		}
 		/* Trim the size. If the admin has a file with a funny size, we lose some. Tough. */
 		size -= (size % sizeof(event.he_entropy));
 		if (data != NULL && size != 0) {
