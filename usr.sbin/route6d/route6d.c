@@ -1768,14 +1768,23 @@ rtrecv(void)
 			break;
 		default:
 			rtm = (struct rt_msghdr *)(void *)p;
-			addrs = rtm->rtm_addrs;
-			q = (char *)(rtm + 1);
 			if (rtm->rtm_version != RTM_VERSION) {
 				trace(1, "unexpected rtmsg version %d "
 					"(should be %d)\n",
 					rtm->rtm_version, RTM_VERSION);
 				continue;
 			}
+			/*
+			 * Only messages that use the struct rt_msghdr
+			 * format are allowed beyond this point.
+			 */
+			if (rtm->rtm_type > RTM_RESOLVE) {
+				trace(1, "rtmsg type %d ignored\n",
+					rtm->rtm_type);
+				continue;
+			}
+			addrs = rtm->rtm_addrs;
+			q = (char *)(rtm + 1);
 			if (rtm->rtm_pid == pid) {
 #if 0
 				trace(1, "rtmsg looped back to me, ignored\n");
@@ -2973,7 +2982,8 @@ getroute(struct netinfo6 *np, struct in6_addr *gw)
 			exit(1);
 		}
 		rtm = (struct rt_msghdr *)(void *)buf;
-	} while (rtm->rtm_seq != myseq || rtm->rtm_pid != pid);
+	} while (rtm->rtm_type != RTM_GET || rtm->rtm_seq != myseq ||
+	    rtm->rtm_pid != pid);
 	sin6 = (struct sockaddr_in6 *)(void *)&buf[sizeof(struct rt_msghdr)];
 	if (rtm->rtm_addrs & RTA_DST) {
 		sin6 = (struct sockaddr_in6 *)(void *)

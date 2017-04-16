@@ -156,7 +156,8 @@ findsaddr(register const struct sockaddr_in *to,
 			return (errbuf);
 		}
 
-	} while (rp->rtm_seq != seq || rp->rtm_pid != pid);
+	} while (rp->rtm_type != RTM_GET || rp->rtm_seq != seq ||
+	    rp->rtm_pid != pid);
 	close(s);
 
 
