@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2015 Mark R. V. Murray
+ * Copyright (c) 2000-2015, 2017 Mark R. V. Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,6 +95,10 @@ enum random_entropy_source {
 };
 
 #define RANDOM_HARVEST_EVERYTHING_MASK ((1 << (RANDOM_ENVIRONMENTAL_END + 1)) - 1)
+
+#define RANDOM_LEGACY_BOOT_ENTROPY_MODULE	"/boot/entropy"
+#define RANDOM_CACHED_BOOT_ENTROPY_MODULE	"boot_entropy_cache"
+#define	RANDOM_CACHED_SKIP_START	256
 
 #if defined(DEV_RANDOM)
 void random_harvest_queue(const void *, u_int, u_int, enum random_entropy_source);
