@@ -171,6 +171,10 @@ public:
 
   bool isSourceOfDivergence(const Value *V) { return false; }
 
+  unsigned getFlatAddressSpace () {
+    return -1;
+  }
+
   bool isLoweredToCall(const Function *F) {
     // FIXME: These should almost certainly not be handled here, and instead
     // handled with the help of TLI or the target itself. This was largely
@@ -251,6 +255,15 @@ public:
   bool shouldBuildLookupTables() { return true; }
   bool shouldBuildLookupTablesForConstant(Constant *C) { return true; }
 
+  unsigned getScalarizationOverhead(Type *Ty, bool Insert, bool Extract) {
+    return 0;
+  }
+
+  unsigned getOperandsScalarizationOverhead(ArrayRef<const Value *> Args,
+                                            unsigned VF) { return 0; }
+
+  bool supportsEfficientVectorElementLoadStore() { return false; }
+
   bool enableAggressiveInterleaving(bool LoopHasReductions) { return false; }
 
   bool enableInterleavedAccessVectorization() { return false; }
@@ -292,6 +305,13 @@ public:
 
   unsigned getRegisterBitWidth(bool Vector) { return 32; }
 
+  bool
+  shouldConsiderAddressTypePromotion(const Instruction &I,
+                                     bool &AllowPromotionWithoutCommonHeader) {
+    AllowPromotionWithoutCommonHeader = false;
+    return false;
+  }
+
   unsigned getCacheLineSize() { return 0; }
 
   unsigned getPrefetchDistance() { return 0; }
@@ -316,7 +336,8 @@ public:
     return 1;
   }
 
-  unsigned getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src) { return 1; }
+  unsigned getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src,
+                            const Instruction *I) { return 1; }
 
   unsigned getExtractWithExtendCost(unsigned Opcode, Type *Dst,
                                     VectorType *VecTy, unsigned Index) {
@@ -325,7 +346,8 @@ public:
 
   unsigned getCFInstrCost(unsigned Opcode) { return 1; }
 
-  unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy) {
+  unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy,
+                              const Instruction *I) {
     return 1;
   }
 
@@ -334,7 +356,7 @@ public:
   }
 
   unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
-                           unsigned AddressSpace) {
+                           unsigned AddressSpace, const Instruction *I) {
     return 1;
   }
 
@@ -358,11 +380,12 @@ public:
   }
 
   unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
-                                 ArrayRef<Type *> Tys, FastMathFlags FMF) {
+                                 ArrayRef<Type *> Tys, FastMathFlags FMF,
+                                 unsigned ScalarizationCostPassed) {
     return 1;
   }
   unsigned getIntrinsicInstrCost(Intrinsic::ID ID, Type *RetTy,
-                                 ArrayRef<Value *> Args, FastMathFlags FMF) {
+            ArrayRef<Value *> Args, FastMathFlags FMF, unsigned VF) {
     return 1;
   }
 

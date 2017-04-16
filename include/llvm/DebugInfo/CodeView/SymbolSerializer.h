@@ -12,8 +12,6 @@
 
 #include "llvm/DebugInfo/CodeView/SymbolRecordMapping.h"
 #include "llvm/DebugInfo/CodeView/SymbolVisitorCallbacks.h"
-#include "llvm/DebugInfo/MSF/ByteStream.h"
-#include "llvm/DebugInfo/MSF/StreamWriter.h"
 
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
@@ -21,14 +19,19 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/BinaryByteStream.h"
+#include "llvm/Support/BinaryStreamWriter.h"
 #include "llvm/Support/Error.h"
 
 namespace llvm {
+class BinaryStreamWriter;
 namespace codeview {
 
 class SymbolSerializer : public SymbolVisitorCallbacks {
-  uint32_t RecordStart = 0;
-  msf::StreamWriter &Writer;
+  BumpPtrAllocator &Storage;
+  std::vector<uint8_t> RecordBuffer;
+  MutableBinaryByteStream Stream;
+  BinaryStreamWriter Writer;
   SymbolRecordMapping Mapping;
   Optional<SymbolKind> CurrentSymbol;
 
@@ -42,40 +45,10 @@ class SymbolSerializer : public SymbolVisitorCallbacks {
   }
 
 public:
-  explicit SymbolSerializer(msf::StreamWriter &Writer)
-      : Writer(Writer), Mapping(Writer) {}
+  explicit SymbolSerializer(BumpPtrAllocator &Storage);
 
-  virtual Error visitSymbolBegin(CVSymbol &Record) override {
-    assert(!CurrentSymbol.hasValue() && "Already in a symbol mapping!");
-
-    RecordStart = Writer.getOffset();
-    if (auto EC = writeRecordPrefix(Record.kind()))
-      return EC;
-
-    CurrentSymbol = Record.kind();
-    if (auto EC = Mapping.visitSymbolBegin(Record))
-      return EC;
-
-    return Error::success();
-  }
-
-  virtual Error visitSymbolEnd(CVSymbol &Record) override {
-    assert(CurrentSymbol.hasValue() && "Not in a symbol mapping!");
-
-    if (auto EC = Mapping.visitSymbolEnd(Record))
-      return EC;
-
-    uint32_t RecordEnd = Writer.getOffset();
-    Writer.setOffset(RecordStart);
-    uint16_t Length = RecordEnd - Writer.getOffset() - 2;
-    if (auto EC = Writer.writeInteger(Length))
-      return EC;
-
-    Writer.setOffset(RecordEnd);
-    CurrentSymbol.reset();
-
-    return Error::success();
-  }
+  virtual Error visitSymbolBegin(CVSymbol &Record) override;
+  virtual Error visitSymbolEnd(CVSymbol &Record) override;
 
 #define SYMBOL_RECORD(EnumName, EnumVal, Name)                                 \
   virtual Error visitKnownRecord(CVSymbol &CVR, Name &Record) override {       \

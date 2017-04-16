@@ -71,7 +71,7 @@ bool BPFDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offset) {
   // Addresses of the form Addr+const or Addr|const
   if (CurDAG->isBaseWithConstantOffset(Addr)) {
     ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1));
-    if (isInt<32>(CN->getSExtValue())) {
+    if (isInt<16>(CN->getSExtValue())) {
 
       // If the first operand is a FI, get the TargetFI Node
       if (FrameIndexSDNode *FIN =
@@ -99,7 +99,7 @@ bool BPFDAGToDAGISel::SelectFIAddr(SDValue Addr, SDValue &Base, SDValue &Offset)
 
   // Addresses of the form Addr+const or Addr|const
   ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1));
-  if (isInt<32>(CN->getSExtValue())) {
+  if (isInt<16>(CN->getSExtValue())) {
 
     // If the first operand is a FI, get the TargetFI Node
     if (FrameIndexSDNode *FIN =
@@ -138,7 +138,7 @@ void BPFDAGToDAGISel::Select(SDNode *Node) {
     else
       errs() << "Error: ";
     errs() << "Unsupport signed division for DAG: ";
-    Node->dump(CurDAG);
+    Node->print(errs(), CurDAG);
     errs() << "Please convert to unsigned div/mod.\n";
     break;
   }

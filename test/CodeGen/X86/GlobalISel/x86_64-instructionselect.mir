@@ -1,0 +1,1022 @@
+# RUN: llc -mtriple=x86_64-linux-gnu                                  -global-isel -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s --check-prefix=ALL --check-prefix=NO_AVX512VL --check-prefix=NO_AVX512F --check-prefix=SSE
+# RUN: llc -mtriple=x86_64-linux-gnu -mattr=+avx                      -global-isel -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s --check-prefix=ALL --check-prefix=NO_AVX512VL --check-prefix=NO_AVX512F --check-prefix=AVX
+# RUN: llc -mtriple=x86_64-linux-gnu -mattr=+avx512f                  -global-isel -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s --check-prefix=ALL --check-prefix=NO_AVX512VL --check-prefix=AVX512ALL --check-prefix=AVX512F
+# RUN: llc -mtriple=x86_64-linux-gnu -mattr=+avx512f -mattr=+avx512vl -global-isel -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s --check-prefix=ALL --check-prefix=AVX512ALL --check-prefix=AVX512VL
+
+--- |
+  define i64 @test_add_i64(i64 %arg1, i64 %arg2) {
+    %ret = add i64 %arg1, %arg2
+    ret i64 %ret
+  }
+
+  define i32 @test_add_i32(i32 %arg1, i32 %arg2) {
+    %ret = add i32 %arg1, %arg2
+    ret i32 %ret
+  }
+
+  define i64 @test_sub_i64(i64 %arg1, i64 %arg2) {
+    %ret = sub i64 %arg1, %arg2
+    ret i64 %ret
+  }
+
+  define i32 @test_sub_i32(i32 %arg1, i32 %arg2) {
+    %ret = sub i32 %arg1, %arg2
+    ret i32 %ret
+  }
+
+  define float @test_add_float(float %arg1, float %arg2) {
+    %ret = fadd float %arg1, %arg2
+    ret float %ret
+  }
+
+  define double @test_add_double(double %arg1, double %arg2) {
+    %ret = fadd double %arg1, %arg2
+    ret double %ret
+  }
+
+  define float @test_sub_float(float %arg1, float %arg2) {
+    %ret = fsub float %arg1, %arg2
+    ret float %ret
+  }
+
+  define double @test_sub_double(double %arg1, double %arg2) {
+    %ret = fsub double %arg1, %arg2
+    ret double %ret
+  }
+
+  define <4 x i32> @test_add_v4i32(<4 x i32> %arg1, <4 x i32> %arg2) {
+    %ret = add <4 x i32> %arg1, %arg2
+    ret <4 x i32> %ret
+  }
+
+  define <4 x i32> @test_sub_v4i32(<4 x i32> %arg1, <4 x i32> %arg2) {
+    %ret = sub <4 x i32> %arg1, %arg2
+    ret <4 x i32> %ret
+  }
+
+  define <4 x float>  @test_add_v4f32(<4 x float> %arg1, <4 x float>  %arg2) {
+    %ret = fadd <4 x float>  %arg1, %arg2
+    ret <4 x float>  %ret
+  }
+
+  define <4 x float>  @test_sub_v4f32(<4 x float> %arg1, <4 x float>  %arg2) {
+    %ret = fsub <4 x float>  %arg1, %arg2
+    ret <4 x float>  %ret
+  }
+  
+    define i8 @test_load_i8(i8* %p1) {
+    %r = load i8, i8* %p1
+    ret i8 %r
+  }
+
+  define i16 @test_load_i16(i16* %p1) {
+    %r = load i16, i16* %p1
+    ret i16 %r
+  }
+
+  define i32 @test_load_i32(i32* %p1) {
+    %r = load i32, i32* %p1
+    ret i32 %r
+  }
+
+  define i64 @test_load_i64(i64* %p1) {
+    %r = load i64, i64* %p1
+    ret i64 %r
+  }
+
+  define float @test_load_float(float* %p1) {
+    %r = load float, float* %p1
+    ret float %r
+  }
+  
+  define float @test_load_float_vecreg(float* %p1) {
+    %r = load float, float* %p1
+    ret float %r
+  }
+  
+
+  define double @test_load_double(double* %p1) {
+    %r = load double, double* %p1
+    ret double %r
+  }
+
+  define double @test_load_double_vecreg(double* %p1) {
+    %r = load double, double* %p1
+    ret double %r
+  }
+
+  define <4 x i32> @test_load_v4i32_noalign(<4 x i32>* %p1) {
+    %r = load <4 x i32>, <4 x i32>* %p1, align 1
+    ret <4 x i32> %r
+  }
+
+  define <4 x i32> @test_load_v4i32_align(<4 x i32>* %p1) {
+    %r = load <4 x i32>, <4 x i32>* %p1, align 16
+    ret <4 x i32> %r
+  }
+
+  define i32* @test_store_i32(i32 %val, i32* %p1) {
+    store i32 %val, i32* %p1
+    ret i32* %p1
+  }
+
+  define i64* @test_store_i64(i64 %val, i64* %p1) {
+    store i64 %val, i64* %p1
+    ret i64* %p1
+  }
+
+  define float* @test_store_float(float %val, float* %p1) {
+    store float %val, float* %p1
+    ret float* %p1
+  }
+
+  define float* @test_store_float_vec(float %val, float* %p1) {
+    store float %val, float* %p1
+    ret float* %p1
+  }
+
+  define double* @test_store_double(double %val, double* %p1) {
+    store double %val, double* %p1
+    ret double* %p1
+  }
+  
+  define double* @test_store_double_vec(double %val, double* %p1) {
+    store double %val, double* %p1
+    ret double* %p1
+  }
+
+  define <4 x i32>* @test_store_v4i32_align(<4 x i32> %val, <4 x i32>* %p1) {
+    store <4 x i32> %val, <4 x i32>* %p1, align 16
+    ret <4 x i32>* %p1
+  }
+
+  define <4 x i32>* @test_store_v4i32_noalign(<4 x i32> %val, <4 x i32>* %p1) {
+    store <4 x i32> %val, <4 x i32>* %p1, align 1
+    ret <4 x i32>* %p1
+  }
+
+...
+
+---
+name:            test_add_i64
+legalized:       true
+regBankSelected: true
+# ALL:      registers:
+# ALL-NEXT:  - { id: 0, class: gr64 }
+# ALL-NEXT:  - { id: 1, class: gr64 }
+# ALL-NEXT:  - { id: 2, class: gr64 }
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
+# ALL:      %0 = COPY %rdi
+# ALL-NEXT: %1 = COPY %rsi
+# ALL-NEXT: %2 = ADD64rr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %edi, %esi
+
+    %0(s64) = COPY %rdi
+    %1(s64) = COPY %rsi
+    %2(s64) = G_ADD %0, %1
+    %rax = COPY %2(s64)
+
+...
+
+---
+name:            test_add_i32
+legalized:       true
+regBankSelected: true
+# ALL:      registers:
+# ALL-NEXT:  - { id: 0, class: gr32 }
+# ALL-NEXT:  - { id: 1, class: gr32 }
+# ALL-NEXT:  - { id: 2, class: gr32 }
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
+# ALL:      %0 = COPY %edi
+# ALL-NEXT: %1 = COPY %esi
+# ALL-NEXT: %2 = ADD32rr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %edi, %esi
+
+    %0(s32) = COPY %edi
+    %1(s32) = COPY %esi
+    %2(s32) = G_ADD %0, %1
+    %rax = COPY %2(s32)
+
+...
+
+---
+name:            test_sub_i64
+legalized:       true
+regBankSelected: true
+# ALL:      registers:
+# ALL-NEXT:  - { id: 0, class: gr64 }
+# ALL-NEXT:  - { id: 1, class: gr64 }
+# ALL-NEXT:  - { id: 2, class: gr64 }
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
+# ALL:      %0 = COPY %rdi
+# ALL-NEXT: %1 = COPY %rsi
+# ALL-NEXT: %2 = SUB64rr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %edi, %esi
+
+    %0(s64) = COPY %rdi
+    %1(s64) = COPY %rsi
+    %2(s64) = G_SUB %0, %1
+    %rax = COPY %2(s64)
+
+...
+
+---
+name:            test_sub_i32
+legalized:       true
+regBankSelected: true
+# ALL:      registers:
+# ALL-NEXT:  - { id: 0, class: gr32 }
+# ALL-NEXT:  - { id: 1, class: gr32 }
+# ALL-NEXT:  - { id: 2, class: gr32 }
+registers:
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
+# ALL:      %0 = COPY %edi
+# ALL-NEXT: %1 = COPY %esi
+# ALL-NEXT: %2 = SUB32rr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %edi, %esi
+
+    %0(s32) = COPY %edi
+    %1(s32) = COPY %esi
+    %2(s32) = G_SUB %0, %1
+    %rax = COPY %2(s32)
+
+...
+
+---
+name:            test_add_float
+alignment:       4
+legalized:       true
+regBankSelected: true
+selected:        false
+tracksRegLiveness: true
+# ALL: registers:
+# NO_AVX512F-NEXT:  - { id: 0, class: fr32 }
+# NO_AVX512F-NEXT:  - { id: 1, class: fr32 }
+# NO_AVX512F-NEXT:  - { id: 2, class: fr32 }
+# AVX512ALL-NEXT:  - { id: 0, class: fr32x }
+# AVX512ALL-NEXT:  - { id: 1, class: fr32x }
+# AVX512ALL-NEXT:  - { id: 2, class: fr32x }
+registers:
+  - { id: 0, class: vecr }
+  - { id: 1, class: vecr }
+  - { id: 2, class: vecr }
+# ALL:          %0 = COPY %xmm0
+# ALL-NEXT:     %1 = COPY %xmm1
+# SSE-NEXT:     %2 = ADDSSrr %0, %1
+# AVX-NEXT:     %2 = VADDSSrr %0, %1
+# AVX512F-NEXT: %2 = VADDSSZrr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %xmm0, %xmm1
+
+    %0(s32) = COPY %xmm0
+    %1(s32) = COPY %xmm1
+    %2(s32) = G_FADD %0, %1
+    %xmm0 = COPY %2(s32)
+    RET 0, implicit %xmm0
+
+...
+---
+name:            test_add_double
+alignment:       4
+legalized:       true
+regBankSelected: true
+selected:        false
+tracksRegLiveness: true
+# ALL: registers:
+# NO_AVX512F-NEXT:  - { id: 0, class: fr64 }
+# NO_AVX512F-NEXT:  - { id: 1, class: fr64 }
+# NO_AVX512F-NEXT:  - { id: 2, class: fr64 }
+# AVX512ALL-NEXT:  - { id: 0, class: fr64x }
+# AVX512ALL-NEXT:  - { id: 1, class: fr64x }
+# AVX512ALL-NEXT:  - { id: 2, class: fr64x }
+registers:
+  - { id: 0, class: vecr }
+  - { id: 1, class: vecr }
+  - { id: 2, class: vecr }
+# ALL:          %0 = COPY %xmm0
+# ALL-NEXT:     %1 = COPY %xmm1
+# SSE-NEXT:     %2 = ADDSDrr %0, %1
+# AVX-NEXT:     %2 = VADDSDrr %0, %1
+# AVX512F-NEXT: %2 = VADDSDZrr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %xmm0, %xmm1
+
+    %0(s64) = COPY %xmm0
+    %1(s64) = COPY %xmm1
+    %2(s64) = G_FADD %0, %1
+    %xmm0 = COPY %2(s64)
+    RET 0, implicit %xmm0
+
+...
+---
+name:            test_sub_float
+alignment:       4
+legalized:       true
+regBankSelected: true
+selected:        false
+tracksRegLiveness: true
+# ALL: registers:
+# NO_AVX512F-NEXT:  - { id: 0, class: fr32 }
+# NO_AVX512F-NEXT:  - { id: 1, class: fr32 }
+# NO_AVX512F-NEXT:  - { id: 2, class: fr32 }
+# AVX512ALL-NEXT:  - { id: 0, class: fr32x }
+# AVX512ALL-NEXT:  - { id: 1, class: fr32x }
+# AVX512ALL-NEXT:  - { id: 2, class: fr32x }
+registers:
+  - { id: 0, class: vecr }
+  - { id: 1, class: vecr }
+  - { id: 2, class: vecr }
+# ALL:          %0 = COPY %xmm0
+# ALL-NEXT:     %1 = COPY %xmm1
+# SSE-NEXT:     %2 = SUBSSrr %0, %1
+# AVX-NEXT:     %2 = VSUBSSrr %0, %1
+# AVX512F-NEXT: %2 = VSUBSSZrr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %xmm0, %xmm1
+
+    %0(s32) = COPY %xmm0
+    %1(s32) = COPY %xmm1
+    %2(s32) = G_FSUB %0, %1
+    %xmm0 = COPY %2(s32)
+    RET 0, implicit %xmm0
+
+...
+---
+name:            test_sub_double
+alignment:       4
+legalized:       true
+regBankSelected: true
+selected:        false
+tracksRegLiveness: true
+# ALL: registers:
+# NO_AVX512F-NEXT:  - { id: 0, class: fr64 }
+# NO_AVX512F-NEXT:  - { id: 1, class: fr64 }
+# NO_AVX512F-NEXT:  - { id: 2, class: fr64 }
+# AVX512ALL-NEXT:  - { id: 0, class: fr64x }
+# AVX512ALL-NEXT:  - { id: 1, class: fr64x }
+# AVX512ALL-NEXT:  - { id: 2, class: fr64x }
+registers:
+  - { id: 0, class: vecr }
+  - { id: 1, class: vecr }
+  - { id: 2, class: vecr }
+# ALL:          %0 = COPY %xmm0
+# ALL-NEXT:     %1 = COPY %xmm1
+# SSE-NEXT:     %2 = SUBSDrr %0, %1
+# AVX-NEXT:     %2 = VSUBSDrr %0, %1
+# AVX512F-NEXT: %2 = VSUBSDZrr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %xmm0, %xmm1
+
+    %0(s64) = COPY %xmm0
+    %1(s64) = COPY %xmm1
+    %2(s64) = G_FSUB %0, %1
+    %xmm0 = COPY %2(s64)
+    RET 0, implicit %xmm0
+...
+---
+name:            test_add_v4i32
+alignment:       4
+legalized:       true
+regBankSelected: true
+selected:        false
+tracksRegLiveness: true
+# ALL: registers:
+# NO_AVX512VL-NEXT:  - { id: 0, class: vr128 }
+# NO_AVX512VL-NEXT:  - { id: 1, class: vr128 }
+# NO_AVX512VL-NEXT:  - { id: 2, class: vr128 }
+# AVX512VL-NEXT:  - { id: 0, class: vr128x }
+# AVX512VL-NEXT:  - { id: 1, class: vr128x }
+# AVX512VL-NEXT:  - { id: 2, class: vr128x }
+registers:
+  - { id: 0, class: vecr }
+  - { id: 1, class: vecr }
+  - { id: 2, class: vecr }
+# ALL:           %0 = COPY %xmm0
+# ALL-NEXT:      %1 = COPY %xmm1
+# SSE-NEXT:      %2 = PADDDrr %0, %1
+# AVX-NEXT:      %2 = VPADDDrr %0, %1
+# AVX512F-NEXT:  %2 = VPADDDrr %0, %1
+# AVX512VL-NEXT: %2 = VPADDDZ128rr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %xmm0, %xmm1
+
+    %0(<4 x s32>) = COPY %xmm0
+    %1(<4 x s32>) = COPY %xmm1
+    %2(<4 x s32>) = G_ADD %0, %1
+    %xmm0 = COPY %2(<4 x s32>)
+    RET 0, implicit %xmm0
+
+...
+---
+name:            test_sub_v4i32
+alignment:       4
+legalized:       true
+regBankSelected: true
+selected:        false
+tracksRegLiveness: true
+# ALL: registers:
+# NO_AVX512VL-NEXT:  - { id: 0, class: vr128 }
+# NO_AVX512VL-NEXT:  - { id: 1, class: vr128 }
+# NO_AVX512VL-NEXT:  - { id: 2, class: vr128 }
+# AVX512VL-NEXT:  - { id: 0, class: vr128x }
+# AVX512VL-NEXT:  - { id: 1, class: vr128x }
+# AVX512VL-NEXT:  - { id: 2, class: vr128x }
+registers:
+  - { id: 0, class: vecr }
+  - { id: 1, class: vecr }
+  - { id: 2, class: vecr }
+# ALL:           %0 = COPY %xmm0
+# ALL-NEXT:      %1 = COPY %xmm1
+# SSE-NEXT:      %2 = PSUBDrr %0, %1
+# AVX-NEXT:      %2 = VPSUBDrr %0, %1
+# AVX512F-NEXT:  %2 = VPSUBDrr %0, %1
+# AVX512VL-NEXT: %2 = VPSUBDZ128rr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %xmm0, %xmm1
+
+    %0(<4 x s32>) = COPY %xmm0
+    %1(<4 x s32>) = COPY %xmm1
+    %2(<4 x s32>) = G_SUB %0, %1
+    %xmm0 = COPY %2(<4 x s32>)
+    RET 0, implicit %xmm0
+
+...
+---
+name:            test_add_v4f32
+alignment:       4
+legalized:       true
+regBankSelected: true
+selected:        false
+tracksRegLiveness: true
+# ALL: registers:
+# NO_AVX512VL-NEXT:  - { id: 0, class: vr128 }
+# NO_AVX512VL-NEXT:  - { id: 1, class: vr128 }
+# NO_AVX512VL-NEXT:  - { id: 2, class: vr128 }
+# AVX512VL-NEXT:  - { id: 0, class: vr128x }
+# AVX512VL-NEXT:  - { id: 1, class: vr128x }
+# AVX512VL-NEXT:  - { id: 2, class: vr128x }
+registers:
+  - { id: 0, class: vecr }
+  - { id: 1, class: vecr }
+  - { id: 2, class: vecr }
+# ALL:           %0 = COPY %xmm0
+# ALL-NEXT:      %1 = COPY %xmm1
+# SSE-NEXT:      %2 = ADDPSrr %0, %1
+# AVX-NEXT:      %2 = VADDPSrr %0, %1
+# AVX512F-NEXT:  %2 = VADDPSrr %0, %1
+# AVX512VL-NEXT: %2 = VADDPSZ128rr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %xmm0, %xmm1
+
+    %0(<4 x s32>) = COPY %xmm0
+    %1(<4 x s32>) = COPY %xmm1
+    %2(<4 x s32>) = G_FADD %0, %1
+    %xmm0 = COPY %2(<4 x s32>)
+    RET 0, implicit %xmm0
+
+...
+---
+name:            test_sub_v4f32
+alignment:       4
+legalized:       true
+regBankSelected: true
+selected:        false
+tracksRegLiveness: true
+# ALL: registers:
+# NO_AVX512VL-NEXT:  - { id: 0, class: vr128 }
+# NO_AVX512VL-NEXT:  - { id: 1, class: vr128 }
+# NO_AVX512VL-NEXT:  - { id: 2, class: vr128 }
+# AVX512VL-NEXT:  - { id: 0, class: vr128x }
+# AVX512VL-NEXT:  - { id: 1, class: vr128x }
+# AVX512VL-NEXT:  - { id: 2, class: vr128x }
+registers:
+  - { id: 0, class: vecr }
+  - { id: 1, class: vecr }
+  - { id: 2, class: vecr }
+# ALL:           %0 = COPY %xmm0
+# ALL-NEXT:      %1 = COPY %xmm1
+# SSE-NEXT:      %2 = SUBPSrr %0, %1
+# AVX-NEXT:      %2 = VSUBPSrr %0, %1
+# AVX512F-NEXT:  %2 = VSUBPSrr %0, %1
+# AVX512VL-NEXT: %2 = VSUBPSZ128rr %0, %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %xmm0, %xmm1
+
+    %0(<4 x s32>) = COPY %xmm0
+    %1(<4 x s32>) = COPY %xmm1
+    %2(<4 x s32>) = G_FSUB %0, %1
+    %xmm0 = COPY %2(<4 x s32>)
+    RET 0, implicit %xmm0
+
+...
+---
+# ALL-LABEL: name:            test_load_i8
+name:            test_load_i8
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: gr64 }
+# ALL:   - { id: 1, class: gr8 }
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+# ALL:     %0 = COPY %rdi
+# ALL:     %1 = MOV8rm %0, 1, _, 0, _ :: (load 1 from %ir.p1)
+# ALL:     %al = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(s8) = G_LOAD %0(p0) :: (load 1 from %ir.p1)
+    %al = COPY %1(s8)
+    RET 0, implicit %al
+
+...
+---
+# ALL-LABEL: name:            test_load_i16
+name:            test_load_i16
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: gr64 }
+# ALL:   - { id: 1, class: gr16 }
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+# ALL:     %0 = COPY %rdi
+# ALL:     %1 = MOV16rm %0, 1, _, 0, _ :: (load 2 from %ir.p1)
+# ALL:     %ax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(s16) = G_LOAD %0(p0) :: (load 2 from %ir.p1)
+    %ax = COPY %1(s16)
+    RET 0, implicit %ax
+
+...
+---
+# ALL-LABEL: name:            test_load_i32
+name:            test_load_i32
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: gr64 }
+# ALL:   - { id: 1, class: gr32 }
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+# ALL:     %0 = COPY %rdi
+# ALL:     %1 = MOV32rm %0, 1, _, 0, _ :: (load 4 from %ir.p1)
+# ALL:     %eax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(s32) = G_LOAD %0(p0) :: (load 4 from %ir.p1)
+    %eax = COPY %1(s32)
+    RET 0, implicit %eax
+
+...
+---
+# ALL-LABEL: name:            test_load_i64
+name:            test_load_i64
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: gr64 }
+# ALL:   - { id: 1, class: gr64 }
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+# ALL:     %0 = COPY %rdi
+# ALL:     %1 = MOV64rm %0, 1, _, 0, _ :: (load 8 from %ir.p1)
+# ALL:     %rax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(s64) = G_LOAD %0(p0) :: (load 8 from %ir.p1)
+    %rax = COPY %1(s64)
+    RET 0, implicit %rax
+
+...
+---
+# ALL-LABEL: name:            test_load_float
+name:            test_load_float
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: gr64 }
+# ALL:   - { id: 1, class: gr32 }
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+# ALL:     %0 = COPY %rdi
+# ALL:     %1 = MOV32rm %0, 1, _, 0, _ :: (load 4 from %ir.p1)
+# ALL:     %xmm0 = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(s32) = G_LOAD %0(p0) :: (load 4 from %ir.p1)
+    %xmm0 = COPY %1(s32)
+    RET 0, implicit %xmm0
+
+...
+---
+# ALL-LABEL: name:            test_load_float_vecreg
+name:            test_load_float_vecreg
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:          - { id: 0, class: gr64 }
+# NO_AVX512F:   - { id: 1, class: fr32 }
+# AVX512ALL:    - { id: 1, class: fr32x }
+  - { id: 0, class: gpr }
+  - { id: 1, class: vecr }
+# ALL:       %0 = COPY %rdi
+# SSE:       %1 = MOVSSrm %0, 1, _, 0, _ :: (load 4 from %ir.p1)
+# AVX:       %1 = VMOVSSrm %0, 1, _, 0, _ :: (load 4 from %ir.p1)
+# AVX512ALL: %1 = VMOVSSZrm %0, 1, _, 0, _ :: (load 4 from %ir.p1)
+# ALL: %xmm0 = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(s32) = G_LOAD %0(p0) :: (load 4 from %ir.p1)
+    %xmm0 = COPY %1(s32)
+    RET 0, implicit %xmm0
+
+...
+---
+# ALL-LABEL: name:            test_load_double
+name:            test_load_double
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: gr64 }
+# ALL:   - { id: 1, class: gr64 }
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+# ALL:     %0 = COPY %rdi
+# ALL:     %1 = MOV64rm %0, 1, _, 0, _ :: (load 8 from %ir.p1)
+# ALL:     %xmm0 = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(s64) = G_LOAD %0(p0) :: (load 8 from %ir.p1)
+    %xmm0 = COPY %1(s64)
+    RET 0, implicit %xmm0
+
+...
+---
+# ALL-LABEL: name:            test_load_double_vecreg
+name:            test_load_double_vecreg
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:          - { id: 0, class: gr64 }
+# NO_AVX512F:   - { id: 1, class: fr64 }
+# AVX512ALL:    - { id: 1, class: fr64x }
+  - { id: 0, class: gpr }
+  - { id: 1, class: vecr }
+# ALL:       %0 = COPY %rdi
+# SSE:       %1 = MOVSDrm %0, 1, _, 0, _ :: (load 8 from %ir.p1)
+# AVX:       %1 = VMOVSDrm %0, 1, _, 0, _ :: (load 8 from %ir.p1)
+# AVX512ALL: %1 = VMOVSDZrm %0, 1, _, 0, _ :: (load 8 from %ir.p1)
+# ALL: %xmm0 = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(s64) = G_LOAD %0(p0) :: (load 8 from %ir.p1)
+    %xmm0 = COPY %1(s64)
+    RET 0, implicit %xmm0
+
+...
+---
+# ALL-LABEL: name:            test_load_v4i32_noalign
+name:            test_load_v4i32_noalign
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:          - { id: 0, class: gr64 }
+# NO_AVX512F:   - { id: 1, class: vr128 }
+# AVX512ALL:    - { id: 1, class: vr128x }
+  - { id: 0, class: gpr }
+  - { id: 1, class: vecr }
+# ALL:      %0 = COPY %rdi
+# SSE:      %1 = MOVUPSrm %0, 1, _, 0, _ :: (load 16 from %ir.p1, align 1)
+# AVX:      %1 = VMOVUPSrm %0, 1, _, 0, _ :: (load 16 from %ir.p1, align 1)
+# AVX512F:  %1 = VMOVUPSZ128rm_NOVLX %0, 1, _, 0, _ :: (load 16 from %ir.p1, align 1)
+# AVX512VL: %1 = VMOVUPSZ128rm %0, 1, _, 0, _ :: (load 16 from %ir.p1, align 1)
+# ALL: %xmm0 = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(<4 x s32>) = G_LOAD %0(p0) :: (load 16 from %ir.p1, align 1)
+    %xmm0 = COPY %1(<4 x s32>)
+    RET 0, implicit %xmm0
+
+...
+---
+# ALL-LABEL: name:            test_load_v4i32_align
+name:            test_load_v4i32_align
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: gr64 }
+# NO_AVX512F:   - { id: 1, class: vr128 }
+# AVX512ALL:    - { id: 1, class: vr128x }
+  - { id: 0, class: gpr }
+  - { id: 1, class: vecr }
+# ALL:      %0 = COPY %rdi
+# SSE:      %1 = MOVAPSrm %0, 1, _, 0, _ :: (load 16 from %ir.p1)
+# AVX:      %1 = VMOVAPSrm %0, 1, _, 0, _ :: (load 16 from %ir.p1)
+# AVX512F:  %1 = VMOVAPSZ128rm_NOVLX %0, 1, _, 0, _ :: (load 16 from %ir.p1)
+# AVX512VL: %1 = VMOVAPSZ128rm %0, 1, _, 0, _ :: (load 16 from %ir.p1)
+# ALL: %xmm0 = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi
+
+    %0(p0) = COPY %rdi
+    %1(<4 x s32>) = G_LOAD %0(p0) :: (load 16 from %ir.p1)
+    %xmm0 = COPY %1(<4 x s32>)
+    RET 0, implicit %xmm0
+
+...
+---
+# ALL-LABEL: name:            test_store_i32
+name:            test_store_i32
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: gr32 }
+# ALL:   - { id: 1, class: gr64 }
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+# ALL:     %0 = COPY %edi
+# ALL:     %1 = COPY %rsi
+# ALL:     MOV32mr %1, 1, _, 0, _, %0 :: (store 4 into %ir.p1)
+# ALL:     %rax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %edi, %rsi
+
+    %0(s32) = COPY %edi
+    %1(p0) = COPY %rsi
+    G_STORE %0(s32), %1(p0) :: (store 4 into %ir.p1)
+    %rax = COPY %1(p0)
+    RET 0, implicit %rax
+
+...
+---
+# ALL-LABEL: name:            test_store_i64
+name:            test_store_i64
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: gr64 }
+# ALL:   - { id: 1, class: gr64 }
+  - { id: 0, class: gpr }
+  - { id: 1, class: gpr }
+# ALL:     %0 = COPY %rdi
+# ALL:     %1 = COPY %rsi
+# ALL:     MOV64mr %1, 1, _, 0, _, %0 :: (store 8 into %ir.p1)
+# ALL:     %rax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi, %rsi
+
+    %0(s64) = COPY %rdi
+    %1(p0) = COPY %rsi
+    G_STORE %0(s64), %1(p0) :: (store 8 into %ir.p1)
+    %rax = COPY %1(p0)
+    RET 0, implicit %rax
+
+...
+---
+# ALL-LABEL: name:            test_store_float
+name:            test_store_float
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: fr32x }
+# ALL:   - { id: 1, class: gr64 }
+# ALL:   - { id: 2, class: gr32 }
+  - { id: 0, class: vecr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
+# ALL:     %0 = COPY %xmm0
+# ALL:     %1 = COPY %rdi
+# ALL:     %2 = COPY %0
+# ALL:     MOV32mr %1, 1, _, 0, _, %2 :: (store 4 into %ir.p1)
+# ALL:     %rax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi, %xmm0
+
+    %0(s32) = COPY %xmm0
+    %1(p0) = COPY %rdi
+    %2(s32) = COPY %0(s32)
+    G_STORE %2(s32), %1(p0) :: (store 4 into %ir.p1)
+    %rax = COPY %1(p0)
+    RET 0, implicit %rax
+
+...
+---
+# ALL-LABEL: name:            test_store_float_vec
+name:            test_store_float_vec
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# NO_AVX512F:   - { id: 0, class: fr32 }
+# AVX512ALL:    - { id: 0, class: fr32x }
+# ALL:   - { id: 1, class: gr64 }
+  - { id: 0, class: vecr }
+  - { id: 1, class: gpr }
+# ALL:       %0 = COPY %xmm0
+# ALL:       %1 = COPY %rdi
+# SSE:       MOVSSmr %1, 1, _, 0, _, %0 :: (store 4 into %ir.p1)
+# AVX:       VMOVSSmr %1, 1, _, 0, _, %0 :: (store 4 into %ir.p1)
+# AVX512ALL: VMOVSSZmr %1, 1, _, 0, _, %0 :: (store 4 into %ir.p1)
+# ALL:       %rax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi, %xmm0
+
+    %0(s32) = COPY %xmm0
+    %1(p0) = COPY %rdi
+    G_STORE %0(s32), %1(p0) :: (store 4 into %ir.p1)
+    %rax = COPY %1(p0)
+    RET 0, implicit %rax
+
+...
+---
+# ALL-LABEL: name:            test_store_double
+name:            test_store_double
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# ALL:   - { id: 0, class: fr64x }
+# ALL:   - { id: 1, class: gr64 }
+# ALL:   - { id: 2, class: gr64 }
+  - { id: 0, class: vecr }
+  - { id: 1, class: gpr }
+  - { id: 2, class: gpr }
+# ALL:     %0 = COPY %xmm0
+# ALL:     %1 = COPY %rdi
+# ALL:     %2 = COPY %0
+# ALL:     MOV64mr %1, 1, _, 0, _, %2 :: (store 8 into %ir.p1)
+# ALL:     %rax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi, %xmm0
+
+    %0(s64) = COPY %xmm0
+    %1(p0) = COPY %rdi
+    %2(s64) = COPY %0(s64)
+    G_STORE %2(s64), %1(p0) :: (store 8 into %ir.p1)
+    %rax = COPY %1(p0)
+    RET 0, implicit %rax
+
+...
+---
+# ALL-LABEL: name:            test_store_double_vec
+name:            test_store_double_vec
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# NO_AVX512F:   - { id: 0, class: fr64 }
+# AVX512ALL:    - { id: 0, class: fr64x }
+# ALL:   - { id: 1, class: gr64 }
+  - { id: 0, class: vecr }
+  - { id: 1, class: gpr }
+# ALL:       %0 = COPY %xmm0
+# ALL:       %1 = COPY %rdi
+# SSE:       MOVSDmr %1, 1, _, 0, _, %0 :: (store 8 into %ir.p1)
+# AVX:       VMOVSDmr %1, 1, _, 0, _, %0 :: (store 8 into %ir.p1)
+# AVX512ALL: VMOVSDZmr %1, 1, _, 0, _, %0 :: (store 8 into %ir.p1)
+# ALL:       %rax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi, %xmm0
+
+    %0(s64) = COPY %xmm0
+    %1(p0) = COPY %rdi
+    G_STORE %0(s64), %1(p0) :: (store 8 into %ir.p1)
+    %rax = COPY %1(p0)
+    RET 0, implicit %rax
+
+...
+---
+# ALL-LABEL: name:            test_store_v4i32_align
+name:            test_store_v4i32_align
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# NO_AVX512F:   - { id: 0, class: vr128 }
+# AVX512ALL:    - { id: 0, class: vr128x }
+# ALL:   - { id: 1, class: gr64 }
+  - { id: 0, class: vecr }
+  - { id: 1, class: gpr }
+# ALL:       %0 = COPY %xmm0
+# ALL:       %1 = COPY %rdi
+# SSE:       MOVAPSmr %1, 1, _, 0, _, %0 :: (store 16 into %ir.p1)
+# AVX:       VMOVAPSmr %1, 1, _, 0, _, %0 :: (store 16 into %ir.p1)
+# AVX512F:   VMOVAPSZ128mr_NOVLX %1, 1, _, 0, _, %0 :: (store 16 into %ir.p1)
+# AVX512VL:  VMOVAPSZ128mr %1, 1, _, 0, _, %0 :: (store 16 into %ir.p1)
+# ALL:       %rax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi, %xmm0
+
+    %0(<4 x s32>) = COPY %xmm0
+    %1(p0) = COPY %rdi
+    G_STORE %0(<4 x s32>), %1(p0) :: (store 16 into %ir.p1, align 16)
+    %rax = COPY %1(p0)
+    RET 0, implicit %rax
+
+...
+---
+# ALL-LABEL: name:            test_store_v4i32_noalign
+name:            test_store_v4i32_noalign
+alignment:       4
+legalized:       true
+regBankSelected: true
+registers:
+# NO_AVX512F:   - { id: 0, class: vr128 }
+# AVX512ALL:    - { id: 0, class: vr128x }
+# ALL:   - { id: 1, class: gr64 }
+  - { id: 0, class: vecr }
+  - { id: 1, class: gpr }
+# ALL:       %0 = COPY %xmm0
+# ALL:       %1 = COPY %rdi
+# SSE:       MOVUPSmr %1, 1, _, 0, _, %0 :: (store 16 into %ir.p1, align 1)
+# AVX:       VMOVUPSmr %1, 1, _, 0, _, %0 :: (store 16 into %ir.p1, align 1)
+# AVX512F:   VMOVUPSZ128mr_NOVLX %1, 1, _, 0, _, %0 :: (store 16 into %ir.p1, align 1)
+# AVX512VL:  VMOVUPSZ128mr %1, 1, _, 0, _, %0 :: (store 16 into %ir.p1, align 1)
+# ALL:       %rax = COPY %1
+body:             |
+  bb.1 (%ir-block.0):
+    liveins: %rdi, %xmm0
+
+    %0(<4 x s32>) = COPY %xmm0
+    %1(p0) = COPY %rdi
+    G_STORE %0(<4 x s32>), %1(p0) :: (store 16 into %ir.p1, align 1)
+    %rax = COPY %1(p0)
+    RET 0, implicit %rax
+
+...

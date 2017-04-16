@@ -43,6 +43,18 @@ s_cbranch_execz 7
 s_cbranch_execnz 8
 // GCN: s_cbranch_execnz 8 ; encoding: [0x08,0x00,0x89,0xbf]
 
+s_cbranch_cdbgsys 9
+// GCN: s_cbranch_cdbgsys 9 ; encoding: [0x09,0x00,0x97,0xbf]
+
+s_cbranch_cdbgsys_and_user 10
+// GCN: s_cbranch_cdbgsys_and_user 10 ; encoding: [0x0a,0x00,0x9a,0xbf]
+
+s_cbranch_cdbgsys_or_user 11
+// GCN: s_cbranch_cdbgsys_or_user 11 ; encoding: [0x0b,0x00,0x99,0xbf]
+
+s_cbranch_cdbguser 12
+// GCN: s_cbranch_cdbguser 12 ; encoding: [0x0c,0x00,0x98,0xbf]
+
 s_barrier
 // GCN: s_barrier ; encoding: [0x00,0x00,0x8a,0xbf]
 
@@ -83,6 +95,9 @@ s_waitcnt vmcnt(0), expcnt(0)
 
 s_sethalt 9
 // GCN: s_sethalt 9 ; encoding: [0x09,0x00,0x8d,0xbf]
+
+s_setkill 7
+// GCN: s_setkill 7 ; encoding: [0x07,0x00,0x8b,0xbf]
 
 s_sleep 10
 // GCN: s_sleep 10 ; encoding: [0x0a,0x00,0x8e,0xbf]
@@ -187,4 +202,12 @@ s_set_gpr_idx_mode 0
 
 s_set_gpr_idx_mode 15
 // VI: s_set_gpr_idx_mode dst src0 src1 src2 ; encoding: [0x0f,0x00,0x9d,0xbf]
+// NOSICI: error: instruction not supported on this GPU
+
+s_endpgm_saved
+// VI: s_endpgm_saved ; encoding: [0x00,0x00,0x9b,0xbf]
+// NOSICI: error: instruction not supported on this GPU
+
+s_wakeup
+// VI: s_wakeup ; encoding: [0x00,0x00,0x83,0xbf]
 // NOSICI: error: instruction not supported on this GPU

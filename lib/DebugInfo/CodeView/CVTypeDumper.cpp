@@ -14,7 +14,7 @@
 #include "llvm/DebugInfo/CodeView/TypeDeserializer.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeVisitorCallbackPipeline.h"
-#include "llvm/DebugInfo/MSF/ByteStream.h"
+#include "llvm/Support/BinaryByteStream.h"
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -28,6 +28,8 @@ Error CVTypeDumper::dump(const CVType &Record, TypeVisitorCallbacks &Dumper) {
   Pipeline.addCallbackToPipeline(Dumper);
 
   CVTypeVisitor Visitor(Pipeline);
+  if (Handler)
+    Visitor.addTypeServerHandler(*Handler);
 
   CVType RecordCopy = Record;
   if (auto EC = Visitor.visitTypeRecord(RecordCopy))
@@ -45,6 +47,8 @@ Error CVTypeDumper::dump(const CVTypeArray &Types,
   Pipeline.addCallbackToPipeline(Dumper);
 
   CVTypeVisitor Visitor(Pipeline);
+  if (Handler)
+    Visitor.addTypeServerHandler(*Handler);
 
   if (auto EC = Visitor.visitTypeStream(Types))
     return EC;
@@ -52,9 +56,9 @@ Error CVTypeDumper::dump(const CVTypeArray &Types,
 }
 
 Error CVTypeDumper::dump(ArrayRef<uint8_t> Data, TypeVisitorCallbacks &Dumper) {
-  msf::ByteStream Stream(Data);
+  BinaryByteStream Stream(Data, llvm::support::little);
   CVTypeArray Types;
-  msf::StreamReader Reader(Stream);
+  BinaryStreamReader Reader(Stream);
   if (auto EC = Reader.readArray(Types, Reader.getLength()))
     return EC;
 

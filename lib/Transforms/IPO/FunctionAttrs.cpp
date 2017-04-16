@@ -49,31 +49,35 @@ STATISTIC(NumNoAlias, "Number of function returns marked noalias");
 STATISTIC(NumNonNullReturn, "Number of function returns marked nonnull");
 STATISTIC(NumNoRecurse, "Number of functions marked as norecurse");
 
+// FIXME: This is disabled by default to avoid exposing security vulnerabilities
+// in C/C++ code compiled by clang:
+// http://lists.llvm.org/pipermail/cfe-dev/2017-January/052066.html
+static cl::opt<bool> EnableNonnullArgPropagation(
+    "enable-nonnull-arg-prop", cl::Hidden,
+    cl::desc("Try to propagate nonnull argument attributes from callsites to "
+             "caller functions."));
+
 namespace {
 typedef SmallSetVector<Function *, 8> SCCNodeSet;
 }
 
-namespace {
-/// The three kinds of memory access relevant to 'readonly' and
-/// 'readnone' attributes.
-enum MemoryAccessKind {
-  MAK_ReadNone = 0,
-  MAK_ReadOnly = 1,
-  MAK_MayWrite = 2
-};
-}
-
-static MemoryAccessKind checkFunctionMemoryAccess(Function &F, AAResults &AAR,
+/// Returns the memory access attribute for function F using AAR for AA results,
+/// where SCCNodes is the current SCC.
+///
+/// If ThisBody is true, this function may examine the function body and will
+/// return a result pertaining to this copy of the function. If it is false, the
+/// result will be based only on AA results for the function declaration; it
+/// will be assumed that some other (perhaps less optimized) version of the
+/// function may be selected at link time.
+static MemoryAccessKind checkFunctionMemoryAccess(Function &F, bool ThisBody,
+                                                  AAResults &AAR,
                                                   const SCCNodeSet &SCCNodes) {
   FunctionModRefBehavior MRB = AAR.getModRefBehavior(&F);
   if (MRB == FMRB_DoesNotAccessMemory)
     // Already perfect!
     return MAK_ReadNone;
 
-  // Non-exact function definitions may not be selected at link time, and an
-  // alternative version that writes to memory may be selected.  See the comment
-  // on GlobalValue::isDefinitionExact for more details.
-  if (!F.hasExactDefinition()) {
+  if (!ThisBody) {
     if (AliasAnalysis::onlyReadsMemory(MRB))
       return MAK_ReadOnly;
 
@@ -172,9 +176,14 @@ static MemoryAccessKind checkFunctionMemoryAccess(Function &F, AAResults &AAR,
   return ReadsMemory ? MAK_ReadOnly : MAK_ReadNone;
 }
 
+MemoryAccessKind llvm::computeFunctionBodyMemoryAccess(Function &F,
+                                                       AAResults &AAR) {
+  return checkFunctionMemoryAccess(F, /*ThisBody=*/true, AAR, {});
+}
+
 /// Deduce readonly/readnone attributes for the SCC.
 template <typename AARGetterT>
-static bool addReadAttrs(const SCCNodeSet &SCCNodes, AARGetterT AARGetter) {
+static bool addReadAttrs(const SCCNodeSet &SCCNodes, AARGetterT &&AARGetter) {
   // Check if any of the functions in the SCC read or write memory.  If they
   // write memory then they can't be marked readnone or readonly.
   bool ReadsMemory = false;
@@ -182,7 +191,11 @@ static bool addReadAttrs(const SCCNodeSet &SCCNodes, AARGetterT AARGetter) {
     // Call the callable parameter to look up AA results for this function.
     AAResults &AAR = AARGetter(*F);
 
-    switch (checkFunctionMemoryAccess(*F, AAR, SCCNodes)) {
+    // Non-exact function definitions may not be selected at link time, and an
+    // alternative version that writes to memory may be selected.  See the
+    // comment on GlobalValue::isDefinitionExact for more details.
+    switch (checkFunctionMemoryAccess(*F, F->hasExactDefinition(),
+                                      AAR, SCCNodes)) {
     case MAK_MayWrite:
       return false;
     case MAK_ReadOnly:
@@ -212,11 +225,11 @@ static bool addReadAttrs(const SCCNodeSet &SCCNodes, AARGetterT AARGetter) {
     AttrBuilder B;
     B.addAttribute(Attribute::ReadOnly).addAttribute(Attribute::ReadNone);
     F->removeAttributes(
-        AttributeSet::FunctionIndex,
-        AttributeSet::get(F->getContext(), AttributeSet::FunctionIndex, B));
+        AttributeList::FunctionIndex,
+        AttributeList::get(F->getContext(), AttributeList::FunctionIndex, B));
 
     // Add in the new attribute.
-    F->addAttribute(AttributeSet::FunctionIndex,
+    F->addAttribute(AttributeList::FunctionIndex,
                     ReadsMemory ? Attribute::ReadOnly : Attribute::ReadNone);
 
     if (ReadsMemory)
@@ -522,12 +535,55 @@ static bool addArgumentReturnedAttrs(const SCCNodeSet &SCCNodes) {
 
     if (Value *RetArg = FindRetArg()) {
       auto *A = cast<Argument>(RetArg);
-      A->addAttr(AttributeSet::get(F->getContext(), A->getArgNo() + 1, B));
+      A->addAttr(AttributeList::get(F->getContext(), A->getArgNo() + 1, B));
       ++NumReturned;
       Changed = true;
     }
   }
 
+  return Changed;
+}
+
+/// If a callsite has arguments that are also arguments to the parent function,
+/// try to propagate attributes from the callsite's arguments to the parent's
+/// arguments. This may be important because inlining can cause information loss
+/// when attribute knowledge disappears with the inlined call.
+static bool addArgumentAttrsFromCallsites(Function &F) {
+  if (!EnableNonnullArgPropagation)
+    return false;
+
+  bool Changed = false;
+
+  // For an argument attribute to transfer from a callsite to the parent, the
+  // call must be guaranteed to execute every time the parent is called.
+  // Conservatively, just check for calls in the entry block that are guaranteed
+  // to execute.
+  // TODO: This could be enhanced by testing if the callsite post-dominates the
+  // entry block or by doing simple forward walks or backward walks to the
+  // callsite.
+  BasicBlock &Entry = F.getEntryBlock();
+  for (Instruction &I : Entry) {
+    if (auto CS = CallSite(&I)) {
+      if (auto *CalledFunc = CS.getCalledFunction()) {
+        for (auto &CSArg : CalledFunc->args()) {
+          if (!CSArg.hasNonNullAttr())
+            continue;
+
+          // If the non-null callsite argument operand is an argument to 'F'
+          // (the caller) and the call is guaranteed to execute, then the value
+          // must be non-null throughout 'F'.
+          auto *FArg = dyn_cast<Argument>(CS.getArgOperand(CSArg.getArgNo()));
+          if (FArg && !FArg->hasNonNullAttr()) {
+            FArg->addAttr(Attribute::NonNull);
+            Changed = true;
+          }
+        }
+      }
+    }
+    if (!isGuaranteedToTransferExecutionToSuccessor(&I))
+      break;
+  }
+  
   return Changed;
 }
 
@@ -549,6 +605,8 @@ static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
     if (!F->hasExactDefinition())
       continue;
 
+    Changed |= addArgumentAttrsFromCallsites(*F);
+
     // Functions that are readonly (or readnone) and nounwind and don't return
     // a value can't capture arguments. Don't analyze them.
     if (F->onlyReadsMemory() && F->doesNotThrow() &&
@@ -556,7 +614,7 @@ static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
       for (Function::arg_iterator A = F->arg_begin(), E = F->arg_end(); A != E;
            ++A) {
         if (A->getType()->isPointerTy() && !A->hasNoCaptureAttr()) {
-          A->addAttr(AttributeSet::get(F->getContext(), A->getArgNo() + 1, B));
+          A->addAttr(AttributeList::get(F->getContext(), A->getArgNo() + 1, B));
           ++NumNoCapture;
           Changed = true;
         }
@@ -576,7 +634,7 @@ static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
           if (Tracker.Uses.empty()) {
             // If it's trivially not captured, mark it nocapture now.
             A->addAttr(
-                AttributeSet::get(F->getContext(), A->getArgNo() + 1, B));
+                AttributeList::get(F->getContext(), A->getArgNo() + 1, B));
             ++NumNoCapture;
             Changed = true;
           } else {
@@ -604,7 +662,7 @@ static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
         if (R != Attribute::None) {
           AttrBuilder B;
           B.addAttribute(R);
-          A->addAttr(AttributeSet::get(A->getContext(), A->getArgNo() + 1, B));
+          A->addAttr(AttributeList::get(A->getContext(), A->getArgNo() + 1, B));
           Changed = true;
           R == Attribute::ReadOnly ? ++NumReadOnlyArg : ++NumReadNoneArg;
         }
@@ -629,7 +687,7 @@ static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
       if (ArgumentSCC[0]->Uses.size() == 1 &&
           ArgumentSCC[0]->Uses[0] == ArgumentSCC[0]) {
         Argument *A = ArgumentSCC[0]->Definition;
-        A->addAttr(AttributeSet::get(A->getContext(), A->getArgNo() + 1, B));
+        A->addAttr(AttributeList::get(A->getContext(), A->getArgNo() + 1, B));
         ++NumNoCapture;
         Changed = true;
       }
@@ -671,7 +729,7 @@ static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
 
     for (unsigned i = 0, e = ArgumentSCC.size(); i != e; ++i) {
       Argument *A = ArgumentSCC[i]->Definition;
-      A->addAttr(AttributeSet::get(A->getContext(), A->getArgNo() + 1, B));
+      A->addAttr(AttributeList::get(A->getContext(), A->getArgNo() + 1, B));
       ++NumNoCapture;
       Changed = true;
     }
@@ -708,8 +766,9 @@ static bool addArgumentAttrs(const SCCNodeSet &SCCNodes) {
       for (unsigned i = 0, e = ArgumentSCC.size(); i != e; ++i) {
         Argument *A = ArgumentSCC[i]->Definition;
         // Clear out existing readonly/readnone attributes
-        A->removeAttr(AttributeSet::get(A->getContext(), A->getArgNo() + 1, R));
-        A->addAttr(AttributeSet::get(A->getContext(), A->getArgNo() + 1, B));
+        A->removeAttr(
+            AttributeList::get(A->getContext(), A->getArgNo() + 1, R));
+        A->addAttr(AttributeList::get(A->getContext(), A->getArgNo() + 1, B));
         ReadAttr == Attribute::ReadOnly ? ++NumReadOnlyArg : ++NumReadNoneArg;
         Changed = true;
       }
@@ -769,7 +828,7 @@ static bool isFunctionMallocLike(Function *F, const SCCNodeSet &SCCNodes) {
       case Instruction::Call:
       case Instruction::Invoke: {
         CallSite CS(RVI);
-        if (CS.paramHasAttr(0, Attribute::NoAlias))
+        if (CS.hasRetAttr(Attribute::NoAlias))
           break;
         if (CS.getCalledFunction() && SCCNodes.count(CS.getCalledFunction()))
           break;
@@ -905,7 +964,7 @@ static bool addNonNullAttrs(const SCCNodeSet &SCCNodes) {
   // pointers.
   for (Function *F : SCCNodes) {
     // Already nonnull.
-    if (F->getAttributes().hasAttribute(AttributeSet::ReturnIndex,
+    if (F->getAttributes().hasAttribute(AttributeList::ReturnIndex,
                                         Attribute::NonNull))
       continue;
 
@@ -926,7 +985,7 @@ static bool addNonNullAttrs(const SCCNodeSet &SCCNodes) {
         // Mark the function eagerly since we may discover a function
         // which prevents us from speculating about the entire SCC
         DEBUG(dbgs() << "Eagerly marking " << F->getName() << " as nonnull\n");
-        F->addAttribute(AttributeSet::ReturnIndex, Attribute::NonNull);
+        F->addAttribute(AttributeList::ReturnIndex, Attribute::NonNull);
         ++NumNonNullReturn;
         MadeChange = true;
       }
@@ -939,13 +998,13 @@ static bool addNonNullAttrs(const SCCNodeSet &SCCNodes) {
 
   if (SCCReturnsNonNull) {
     for (Function *F : SCCNodes) {
-      if (F->getAttributes().hasAttribute(AttributeSet::ReturnIndex,
+      if (F->getAttributes().hasAttribute(AttributeList::ReturnIndex,
                                           Attribute::NonNull) ||
           !F->getReturnType()->isPointerTy())
         continue;
 
       DEBUG(dbgs() << "SCC marking " << F->getName() << " as nonnull\n");
-      F->addAttribute(AttributeSet::ReturnIndex, Attribute::NonNull);
+      F->addAttribute(AttributeList::ReturnIndex, Attribute::NonNull);
       ++NumNonNullReturn;
       MadeChange = true;
     }
@@ -1163,19 +1222,7 @@ static bool runImpl(CallGraphSCC &SCC, AARGetterT AARGetter) {
 bool PostOrderFunctionAttrsLegacyPass::runOnSCC(CallGraphSCC &SCC) {
   if (skipSCC(SCC))
     return false;
-
-  // We compute dedicated AA results for each function in the SCC as needed. We
-  // use a lambda referencing external objects so that they live long enough to
-  // be queried, but we re-use them each time.
-  Optional<BasicAAResult> BAR;
-  Optional<AAResults> AAR;
-  auto AARGetter = [&](Function &F) -> AAResults & {
-    BAR.emplace(createLegacyPMBasicAAResult(*this, F));
-    AAR.emplace(createLegacyPMAAResults(*this, F, *BAR));
-    return *AAR;
-  };
-
-  return runImpl(SCC, AARGetter);
+  return runImpl(SCC, LegacyAARGetter(*this));
 }
 
 namespace {
@@ -1275,16 +1322,9 @@ PreservedAnalyses
 ReversePostOrderFunctionAttrsPass::run(Module &M, ModuleAnalysisManager &AM) {
   auto &CG = AM.getResult<CallGraphAnalysis>(M);
 
-  bool Changed = deduceFunctionAttributeInRPO(M, CG);
-
-  // CallGraphAnalysis holds AssertingVH and must be invalidated eagerly so
-  // that other passes don't delete stuff from under it.
-  // FIXME: We need to invalidate this to avoid PR28400. Is there a better
-  // solution?
-  AM.invalidate<CallGraphAnalysis>(M);
-
-  if (!Changed)
+  if (!deduceFunctionAttributeInRPO(M, CG))
     return PreservedAnalyses::all();
+
   PreservedAnalyses PA;
   PA.preserve<CallGraphAnalysis>();
   return PA;

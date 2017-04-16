@@ -470,7 +470,7 @@ static MachineInstr *foldPatchpoint(MachineFunction &MF, MachineInstr &MI,
 
   // No need to fold return, the meta data, and function arguments
   for (unsigned i = 0; i < StartIdx; ++i)
-    MIB.addOperand(MI.getOperand(i));
+    MIB.add(MI.getOperand(i));
 
   for (unsigned i = StartIdx; i < MI.getNumOperands(); ++i) {
     MachineOperand &MO = MI.getOperand(i);
@@ -490,7 +490,7 @@ static MachineInstr *foldPatchpoint(MachineFunction &MF, MachineInstr &MI,
       MIB.addImm(SpillOffset);
     }
     else
-      MIB.addOperand(MO);
+      MIB.add(MO);
   }
   return NewMI;
 }
@@ -941,12 +941,10 @@ int TargetInstrInfo::getSPAdjust(const MachineInstr &MI) const {
   unsigned FrameSetupOpcode = getCallFrameSetupOpcode();
   unsigned FrameDestroyOpcode = getCallFrameDestroyOpcode();
 
-  if (MI.getOpcode() != FrameSetupOpcode &&
-      MI.getOpcode() != FrameDestroyOpcode)
+  if (!isFrameInstr(MI))
     return 0;
 
-  int SPAdj = MI.getOperand(0).getImm();
-  SPAdj = TFI->alignSPAdjust(SPAdj);
+  int SPAdj = TFI->alignSPAdjust(getFrameSize(MI));
 
   if ((!StackGrowsDown && MI.getOpcode() == FrameSetupOpcode) ||
       (StackGrowsDown && MI.getOpcode() == FrameDestroyOpcode))

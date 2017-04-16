@@ -432,9 +432,12 @@ Vectorizer::splitOddVectorElts(ArrayRef<Instruction *> Chain,
   unsigned ElementSizeBytes = ElementSizeBits / 8;
   unsigned SizeBytes = ElementSizeBytes * Chain.size();
   unsigned NumLeft = (SizeBytes - (SizeBytes % 4)) / ElementSizeBytes;
-  if (NumLeft == Chain.size())
-    --NumLeft;
-  else if (NumLeft == 0)
+  if (NumLeft == Chain.size()) {
+    if ((NumLeft & 1) == 0)
+      NumLeft /= 2; // Split even in half
+    else
+      --NumLeft;    // Split off last element
+  } else if (NumLeft == 0)
     NumLeft = 1;
   return std::make_pair(Chain.slice(0, NumLeft), Chain.slice(NumLeft));
 }
@@ -588,7 +591,7 @@ Vectorizer::collectInstructions(BasicBlock *BB) {
         continue;
 
       // Make sure all the users of a vector are constant-index extracts.
-      if (isa<VectorType>(Ty) && !all_of(LI->users(), [LI](const User *U) {
+      if (isa<VectorType>(Ty) && !all_of(LI->users(), [](const User *U) {
             const ExtractElementInst *EEI = dyn_cast<ExtractElementInst>(U);
             return EEI && isa<ConstantInt>(EEI->getOperand(1));
           }))
@@ -622,7 +625,7 @@ Vectorizer::collectInstructions(BasicBlock *BB) {
       if (TySize > VecRegSize / 2)
         continue;
 
-      if (isa<VectorType>(Ty) && !all_of(SI->users(), [SI](const User *U) {
+      if (isa<VectorType>(Ty) && !all_of(SI->users(), [](const User *U) {
             const ExtractElementInst *EEI = dyn_cast<ExtractElementInst>(U);
             return EEI && isa<ConstantInt>(EEI->getOperand(1));
           }))

@@ -102,6 +102,11 @@ static cl::opt<bool>
     OutputThinLTOBC("thinlto-bc",
                     cl::desc("Write output as ThinLTO-ready bitcode"));
 
+static cl::opt<std::string> ThinLinkBitcodeFile(
+    "thin-link-bitcode-file", cl::value_desc("filename"),
+    cl::desc(
+        "A file in which to write minimized bitcode for the thin link only"));
+
 static cl::opt<bool>
 NoVerify("disable-verify", cl::desc("Do not run the verifier"), cl::Hidden);
 
@@ -201,10 +206,10 @@ static cl::opt<bool>
 PrintBreakpoints("print-breakpoints-for-testing",
                  cl::desc("Print select breakpoints location for testing"));
 
-static cl::opt<std::string>
-DefaultDataLayout("default-data-layout",
-          cl::desc("data layout string to use if not specified by module"),
-          cl::value_desc("layout-string"), cl::init(""));
+static cl::opt<std::string> ClDataLayout("data-layout",
+                                         cl::desc("data layout string to use"),
+                                         cl::value_desc("layout-string"),
+                                         cl::init(""));
 
 static cl::opt<bool> PreserveBitcodeUseListOrder(
     "preserve-bc-uselistorder",
@@ -268,7 +273,7 @@ static void AddOptimizationPasses(legacy::PassManagerBase &MPM,
   if (DisableInline) {
     // No inlining pass
   } else if (OptLevel > 1) {
-    Builder.Inliner = createFunctionInliningPass(OptLevel, SizeLevel);
+    Builder.Inliner = createFunctionInliningPass(OptLevel, SizeLevel, false);
   } else {
     Builder.Inliner = createAlwaysInlinerLegacyPass();
   }
@@ -287,13 +292,8 @@ static void AddOptimizationPasses(legacy::PassManagerBase &MPM,
   Builder.SLPVectorize =
       DisableSLPVectorization ? false : OptLevel > 1 && SizeLevel < 2;
 
-  // Add target-specific passes that need to run as early as possible.
   if (TM)
-    Builder.addExtension(
-        PassManagerBuilder::EP_EarlyAsPossible,
-        [&](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-          TM->addEarlyAsPossiblePasses(PM);
-        });
+    TM->adjustPassManager(Builder);
 
   if (Coroutines)
     addCoroutinePassesToExtensionPoints(Builder);
@@ -453,12 +453,15 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // If we are supposed to override the target triple, do so now.
+  // If we are supposed to override the target triple or data layout, do so now.
   if (!TargetTriple.empty())
     M->setTargetTriple(Triple::normalize(TargetTriple));
+  if (!ClDataLayout.empty())
+    M->setDataLayout(ClDataLayout);
 
   // Figure out what stream we are supposed to write to...
   std::unique_ptr<tool_output_file> Out;
+  std::unique_ptr<tool_output_file> ThinLinkOut;
   if (NoOutput) {
     if (!OutputFilename.empty())
       errs() << "WARNING: The -o (output filename) option is ignored when\n"
@@ -473,6 +476,15 @@ int main(int argc, char **argv) {
     if (EC) {
       errs() << EC.message() << '\n';
       return 1;
+    }
+
+    if (!ThinLinkBitcodeFile.empty()) {
+      ThinLinkOut.reset(
+          new tool_output_file(ThinLinkBitcodeFile, EC, sys::fs::F_None));
+      if (EC) {
+        errs() << EC.message() << '\n';
+        return 1;
+      }
     }
   }
 
@@ -534,12 +546,6 @@ int main(int argc, char **argv) {
   if (DisableSimplifyLibCalls)
     TLII.disableAllFunctions();
   Passes.add(new TargetLibraryInfoWrapperPass(TLII));
-
-  // Add an appropriate DataLayout instance for this module.
-  const DataLayout &DL = M->getDataLayout();
-  if (DL.isDefault() && !DefaultDataLayout.empty()) {
-    M->setDataLayout(DefaultDataLayout);
-  }
 
   // Add internal analysis passes from the target machine.
   Passes.add(createTargetTransformInfoWrapperPass(TM ? TM->getTargetIRAnalysis()
@@ -709,7 +715,8 @@ int main(int argc, char **argv) {
         report_fatal_error("Text output is incompatible with -module-hash");
       Passes.add(createPrintModulePass(*OS, "", PreserveAssemblyUseListOrder));
     } else if (OutputThinLTOBC)
-      Passes.add(createWriteThinLTOBitcodePass(*OS));
+      Passes.add(createWriteThinLTOBitcodePass(
+          *OS, ThinLinkOut ? &ThinLinkOut->os() : nullptr));
     else
       Passes.add(createBitcodeWriterPass(*OS, PreserveBitcodeUseListOrder,
                                          EmitSummaryIndex, EmitModuleHash));
@@ -755,6 +762,9 @@ int main(int argc, char **argv) {
 
   if (YamlFile)
     YamlFile->keep();
+
+  if (ThinLinkOut)
+    ThinLinkOut->keep();
 
   return 0;
 }

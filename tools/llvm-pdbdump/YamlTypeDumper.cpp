@@ -17,7 +17,7 @@
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeSerializer.h"
 #include "llvm/DebugInfo/CodeView/TypeVisitorCallbackPipeline.h"
-#include "llvm/DebugInfo/PDB/Raw/TpiHashing.h"
+#include "llvm/DebugInfo/PDB/Native/TpiHashing.h"
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -194,6 +194,13 @@ template <> struct ScalarEnumerationTraits<WindowsRTClassKind> {
   }
 };
 
+template <> struct ScalarEnumerationTraits<LabelType> {
+  static void enumeration(IO &IO, LabelType &Value) {
+    IO.enumCase(Value, "Near", LabelType::Near);
+    IO.enumCase(Value, "Far", LabelType::Far);
+  }
+};
+
 template <> struct ScalarBitSetTraits<PointerOptions> {
   static void bitset(IO &IO, PointerOptions &Options) {
     IO.bitSetCase(Options, "None", PointerOptions::None);
@@ -291,7 +298,11 @@ void MappingTraits<StringIdRecord>::mapping(IO &IO, StringIdRecord &String) {
 }
 
 void MappingTraits<ArgListRecord>::mapping(IO &IO, ArgListRecord &Args) {
-  IO.mapRequired("ArgIndices", Args.StringIndices);
+  IO.mapRequired("ArgIndices", Args.ArgIndices);
+}
+
+void MappingTraits<StringListRecord>::mapping(IO &IO, StringListRecord &Strings) {
+  IO.mapRequired("StringIndices", Strings.StringIndices);
 }
 
 void MappingTraits<ClassRecord>::mapping(IO &IO, ClassRecord &Class) {
@@ -425,6 +436,10 @@ void MappingTraits<UdtModSourceLineRecord>::mapping(
 
 void MappingTraits<BuildInfoRecord>::mapping(IO &IO, BuildInfoRecord &Args) {
   IO.mapRequired("ArgIndices", Args.ArgIndices);
+}
+
+void MappingTraits<LabelRecord>::mapping(IO &IO, LabelRecord &R) {
+  IO.mapRequired("Mode", R.Mode);
 }
 
 void MappingTraits<NestedTypeRecord>::mapping(IO &IO,
@@ -573,8 +588,8 @@ struct MappingContextTraits<pdb::yaml::PdbTpiFieldListRecord,
     assert(IO.outputting());
     codeview::TypeVisitorCallbackPipeline Pipeline;
 
-    msf::ByteStream Data(Obj.Record.Data);
-    msf::StreamReader FieldReader(Data);
+    BinaryByteStream Data(Obj.Record.Data, llvm::support::little);
+    BinaryStreamReader FieldReader(Data);
     codeview::FieldListDeserializer Deserializer(FieldReader);
 
     // For PDB to Yaml, deserialize into a high level record type, then dump

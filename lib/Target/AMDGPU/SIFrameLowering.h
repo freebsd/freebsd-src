@@ -30,14 +30,15 @@ public:
                     MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF,
                     MachineBasicBlock &MBB) const override;
+  int getFrameIndexReference(const MachineFunction &MF, int FI,
+                             unsigned &FrameReg) const override;
 
   void processFunctionBeforeFrameFinalized(
     MachineFunction &MF,
     RegScavenger *RS = nullptr) const override;
 
 private:
-  void emitFlatScratchInit(const SIInstrInfo *TII,
-                           const SIRegisterInfo* TRI,
+  void emitFlatScratchInit(const SISubtarget &ST,
                            MachineFunction &MF,
                            MachineBasicBlock &MBB) const;
 

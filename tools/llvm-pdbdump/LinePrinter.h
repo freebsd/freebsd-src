@@ -20,20 +20,24 @@
 namespace llvm {
 namespace pdb {
 
+class ClassLayout;
+
 class LinePrinter {
   friend class WithColor;
 
 public:
-  LinePrinter(int Indent, raw_ostream &Stream);
+  LinePrinter(int Indent, bool UseColor, raw_ostream &Stream);
 
   void Indent();
   void Unindent();
   void NewLine();
 
+  bool hasColor() const { return UseColor; }
   raw_ostream &getStream() { return OS; }
   int getIndentLevel() const { return CurrentIndent; }
 
-  bool IsTypeExcluded(llvm::StringRef TypeName);
+  bool IsClassExcluded(const ClassLayout &Class);
+  bool IsTypeExcluded(llvm::StringRef TypeName, uint32_t Size);
   bool IsSymbolExcluded(llvm::StringRef SymbolName);
   bool IsCompilandExcluded(llvm::StringRef CompilandName);
 
@@ -48,6 +52,7 @@ private:
   raw_ostream &OS;
   int IndentSpaces;
   int CurrentIndent;
+  bool UseColor;
 
   std::list<Regex> ExcludeCompilandFilters;
   std::list<Regex> ExcludeTypeFilters;
@@ -68,6 +73,8 @@ enum class PDB_ColorItem {
   None,
   Address,
   Type,
+  Comment,
+  Padding,
   Keyword,
   Offset,
   Identifier,
@@ -87,6 +94,7 @@ public:
 private:
   void applyColor(PDB_ColorItem C);
   raw_ostream &OS;
+  bool UseColor;
 };
 }
 }

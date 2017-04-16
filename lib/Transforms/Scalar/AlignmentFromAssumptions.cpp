@@ -438,19 +438,13 @@ AlignmentFromAssumptionsPass::run(Function &F, FunctionAnalysisManager &AM) {
   AssumptionCache &AC = AM.getResult<AssumptionAnalysis>(F);
   ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
-  bool Changed = runImpl(F, AC, &SE, &DT);
-
-  // FIXME: We need to invalidate this to avoid PR28400. Is there a better
-  // solution?
-  AM.invalidate<ScalarEvolutionAnalysis>(F);
-
-  if (!Changed)
+  if (!runImpl(F, AC, &SE, &DT))
     return PreservedAnalyses::all();
+
   PreservedAnalyses PA;
+  PA.preserveSet<CFGAnalyses>();
   PA.preserve<AAManager>();
   PA.preserve<ScalarEvolutionAnalysis>();
   PA.preserve<GlobalsAA>();
-  PA.preserve<LoopAnalysis>();
-  PA.preserve<DominatorTreeAnalysis>();
   return PA;
 }

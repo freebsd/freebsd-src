@@ -580,56 +580,74 @@ bool EEVT::TypeSet::EnforceVectorSubVectorTypeIs(EEVT::TypeSet &VTOperand,
   return MadeChange;
 }
 
-/// EnforceVectorSameNumElts - 'this' is now constrained to
-/// be a vector with same num elements as VTOperand.
-bool EEVT::TypeSet::EnforceVectorSameNumElts(EEVT::TypeSet &VTOperand,
-                                             TreePattern &TP) {
+/// EnforceameNumElts - If VTOperand is a scalar, then 'this' is a scalar. If
+/// VTOperand is a vector, then 'this' must have the same number of elements.
+bool EEVT::TypeSet::EnforceSameNumElts(EEVT::TypeSet &VTOperand,
+                                       TreePattern &TP) {
   if (TP.hasError())
     return false;
 
-  // "This" must be a vector and "VTOperand" must be a vector.
   bool MadeChange = false;
-  MadeChange |= EnforceVector(TP);
-  MadeChange |= VTOperand.EnforceVector(TP);
 
-  // If we know one of the vector types, it forces the other type to agree.
+  if (isCompletelyUnknown())
+    MadeChange = FillWithPossibleTypes(TP);
+
+  if (VTOperand.isCompletelyUnknown())
+    MadeChange = VTOperand.FillWithPossibleTypes(TP);
+
+  // If one contains vectors but the other doesn't pull vectors out.
+  if (!hasVectorTypes())
+    MadeChange |= VTOperand.EnforceScalar(TP);
+  else if (!hasScalarTypes())
+    MadeChange |= VTOperand.EnforceVector(TP);
+  if (!VTOperand.hasVectorTypes())
+    MadeChange |= EnforceScalar(TP);
+  else if (!VTOperand.hasScalarTypes())
+    MadeChange |= EnforceVector(TP);
+
+  // If one type is a vector, make sure the other has the same element count.
+  // If this a scalar, then we are already done with the above.
   if (isConcrete()) {
     MVT IVT = getConcrete();
-    unsigned NumElems = IVT.getVectorNumElements();
+    if (IVT.isVector()) {
+      unsigned NumElems = IVT.getVectorNumElements();
 
-    // Only keep types that have same elements as 'this'.
-    TypeSet InputSet(VTOperand);
+      // Only keep types that have same elements as 'this'.
+      TypeSet InputSet(VTOperand);
 
-    auto I = remove_if(VTOperand.TypeVec, [NumElems](MVT VVT) {
-      return VVT.getVectorNumElements() != NumElems;
-    });
-    MadeChange |= I != VTOperand.TypeVec.end();
-    VTOperand.TypeVec.erase(I, VTOperand.TypeVec.end());
+      auto I = remove_if(VTOperand.TypeVec, [NumElems](MVT VVT) {
+        return VVT.getVectorNumElements() != NumElems;
+      });
+      MadeChange |= I != VTOperand.TypeVec.end();
+      VTOperand.TypeVec.erase(I, VTOperand.TypeVec.end());
 
-    if (VTOperand.TypeVec.empty()) {  // FIXME: Really want an SMLoc here!
-      TP.error("Type inference contradiction found, forcing '" +
-               InputSet.getName() + "' to have same number elements as '" +
-               getName() + "'");
-      return false;
+      if (VTOperand.TypeVec.empty()) {  // FIXME: Really want an SMLoc here!
+        TP.error("Type inference contradiction found, forcing '" +
+                 InputSet.getName() + "' to have same number elements as '" +
+                 getName() + "'");
+        return false;
+      }
     }
   } else if (VTOperand.isConcrete()) {
     MVT IVT = VTOperand.getConcrete();
-    unsigned NumElems = IVT.getVectorNumElements();
+    if (IVT.isVector()) {
+      unsigned NumElems = IVT.getVectorNumElements();
 
-    // Only keep types that have same elements as VTOperand.
-    TypeSet InputSet(*this);
+      // Only keep types that have same elements as VTOperand.
+      TypeSet InputSet(*this);
 
-    auto I = remove_if(TypeVec, [NumElems](MVT VVT) {
-      return VVT.getVectorNumElements() != NumElems;
-    });
-    MadeChange |= I != TypeVec.end();
-    TypeVec.erase(I, TypeVec.end());
+      auto I = remove_if(TypeVec, [NumElems](MVT VVT) {
+        return VVT.getVectorNumElements() != NumElems;
+      });
+      MadeChange |= I != TypeVec.end();
+      TypeVec.erase(I, TypeVec.end());
 
-    if (TypeVec.empty()) {  // FIXME: Really want an SMLoc here!
-      TP.error("Type inference contradiction found, forcing '" +
-               InputSet.getName() + "' to have same number elements than '" +
-               VTOperand.getName() + "'");
-      return false;
+      if (TypeVec.empty()) {  // FIXME: Really want an SMLoc here!
+        TP.error("Type inference contradiction found, forcing '" +
+                 InputSet.getName() + "' to have same number elements than '" +
+                 VTOperand.getName() + "'");
+        return false;
+      }
     }
   }
 
@@ -643,6 +661,12 @@ bool EEVT::TypeSet::EnforceSameSize(EEVT::TypeSet &VTOperand,
     return false;
 
   bool MadeChange = false;
+
+  if (isCompletelyUnknown())
+    MadeChange = FillWithPossibleTypes(TP);
+
+  if (VTOperand.isCompletelyUnknown())
+    MadeChange = VTOperand.FillWithPossibleTypes(TP);
 
   // If we know one of the types, it forces the other type agree.
   if (isConcrete()) {
@@ -1058,7 +1082,7 @@ bool SDTypeConstraint::ApplyTypeConstraint(TreePatternNode *N,
       getOperandNum(x.SDTCisSameNumEltsAs_Info.OtherOperandNum,
                     N, NodeInfo, OResNo);
     return OtherNode->getExtType(OResNo).
-      EnforceVectorSameNumElts(NodeToApply->getExtType(ResNo), TP);
+      EnforceSameNumElts(NodeToApply->getExtType(ResNo), TP);
   }
   case SDTCisSameSizeAs: {
     unsigned OResNo = 0;
@@ -1248,7 +1272,7 @@ static unsigned GetNumNodeResults(Record *Operator, CodeGenDAGPatterns &CDP) {
   if (Operator->isSubClassOf("ComplexPattern"))
     return 1;
 
-  Operator->dump();
+  errs() << *Operator;
   PrintFatalError("Unhandled node in GetNumNodeResults");
 }
 
@@ -2114,7 +2138,7 @@ TreePatternNode *TreePattern::ParseTreePattern(Init *TheInit, StringRef OpName){
 
   DagInit *Dag = dyn_cast<DagInit>(TheInit);
   if (!Dag) {
-    TheInit->dump();
+    TheInit->print(errs());
     error("Pattern has unexpected init kind!");
   }
   DefInit *OpDef = dyn_cast<DefInit>(Dag->getOperator());

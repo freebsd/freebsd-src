@@ -9,12 +9,12 @@
 # CHECK:   4 EXPORT        0000000e 0000000000000000 
 # CHECK:   5 ELEM          00000007 0000000000000000 
 # CHECK:   6 CODE          0000002a 0000000000000000 TEXT 
-# CHECK:   7 name          0000002c 0000000000000000 
+# CHECK:   7 name          0000003c 0000000000000000 
 
 # RUN: llvm-objdump -p %p/Inputs/test.wasm | FileCheck %s -check-prefix CHECK-HEADER
 
 # CHECK-HEADER: Program Header:
-# CHECK-HEADER: Version: 0xd
+# CHECK-HEADER: Version: 0x1
 
 # RUN: llvm-objdump -s --section=CODE %p/Inputs/test.wasm | FileCheck %s -check-prefix CHECK-SECTIONS
 

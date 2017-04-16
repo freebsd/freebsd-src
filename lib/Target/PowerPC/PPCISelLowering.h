@@ -17,13 +17,26 @@
 
 #include "PPC.h"
 #include "PPCInstrInfo.h"
-#include "PPCRegisterInfo.h"
 #include "llvm/CodeGen/CallingConvLower.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/CodeGen/SelectionDAGNodes.h"
+#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Target/TargetLowering.h"
+#include <utility>
 
 namespace llvm {
+
   namespace PPCISD {
+
     enum NodeType : unsigned {
       // Start the numbering where the builtin ops and target ops leave off.
       FIRST_NUMBER = ISD::BUILTIN_OP_END,
@@ -398,10 +411,12 @@ namespace llvm {
       /// the last operand.
       TOC_ENTRY
     };
-  }
+
+  } // end namespace PPCISD
 
   /// Define some predicates that are used for node matching.
   namespace PPC {
+
     /// isVPKUHUMShuffleMask - Return true if this is the shuffle mask for a
     /// VPKUHUM instruction.
     bool isVPKUHUMShuffleMask(ShuffleVectorSDNode *N, unsigned ShuffleKind,
@@ -465,7 +480,8 @@ namespace llvm {
     /// If this is a qvaligni shuffle mask, return the shift
     /// amount, otherwise return -1.
     int isQVALIGNIShuffleMask(SDNode *N);
-  }
+
+  } // end namespace PPC
 
   class PPCTargetLowering : public TargetLowering {
     const PPCSubtarget &Subtarget;
@@ -492,6 +508,7 @@ namespace llvm {
         return TypeWidenVector;
       return TargetLoweringBase::getPreferredVectorAction(VT);
     }
+
     bool useSoftFloat() const override;
 
     MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
@@ -512,6 +529,10 @@ namespace llvm {
 
     bool hasAndNotCompare(SDValue) const override {
       return true;
+    }
+
+    bool convertSetCCLogicToBitwiseLogic(EVT VT) const override {
+      return VT.isScalarInteger();
     }
 
     bool supportSplitCSR(MachineFunction *MF) const override {
@@ -587,6 +608,7 @@ namespace llvm {
     void computeKnownBitsForTargetNode(const SDValue Op,
                                        APInt &KnownZero,
                                        APInt &KnownOne,
+                                       const APInt &DemandedElts,
                                        const SelectionDAG &DAG,
                                        unsigned Depth = 0) const override;
 
@@ -694,6 +716,10 @@ namespace llvm {
     bool shouldConvertConstantLoadToIntImm(const APInt &Imm,
                                            Type *Ty) const override;
 
+    bool convertSelectOfConstantsToMath() const override {
+      return true;
+    }
+
     bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const override;
 
     bool getTgtMemIntrinsic(IntrinsicInfo &Info,
@@ -785,15 +811,13 @@ namespace llvm {
       SDValue Chain;
       SDValue ResChain;
       MachinePointerInfo MPI;
-      bool IsDereferenceable;
-      bool IsInvariant;
-      unsigned Alignment;
+      bool IsDereferenceable = false;
+      bool IsInvariant = false;
+      unsigned Alignment = 0;
       AAMDNodes AAInfo;
-      const MDNode *Ranges;
+      const MDNode *Ranges = nullptr;
 
-      ReuseLoadInfo()
-          : IsDereferenceable(false), IsInvariant(false), Alignment(0),
-            Ranges(nullptr) {}
+      ReuseLoadInfo() = default;
 
       MachineMemOperand::Flags MMOFlags() const {
         MachineMemOperand::Flags F = MachineMemOperand::MONone;
@@ -906,15 +930,13 @@ namespace llvm {
                          const SDLoc &dl, SelectionDAG &DAG,
                          SmallVectorImpl<SDValue> &InVals) const override;
 
-    SDValue
-      LowerCall(TargetLowering::CallLoweringInfo &CLI,
-                SmallVectorImpl<SDValue> &InVals) const override;
+    SDValue LowerCall(TargetLowering::CallLoweringInfo &CLI,
+                      SmallVectorImpl<SDValue> &InVals) const override;
 
-    bool
-      CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
-                   bool isVarArg,
-                   const SmallVectorImpl<ISD::OutputArg> &Outs,
-                   LLVMContext &Context) const override;
+    bool CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+                        bool isVarArg,
+                        const SmallVectorImpl<ISD::OutputArg> &Outs,
+                        LLVMContext &Context) const override;
 
     SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
                         const SmallVectorImpl<ISD::OutputArg> &Outs,
@@ -994,14 +1016,16 @@ namespace llvm {
     CCAssignFn *useFastISelCCs(unsigned Flag) const;
 
     SDValue
-      combineElementTruncationToVectorTruncation(SDNode *N,
-                                                 DAGCombinerInfo &DCI) const;
+    combineElementTruncationToVectorTruncation(SDNode *N,
+                                               DAGCombinerInfo &DCI) const;
   };
 
   namespace PPC {
+
     FastISel *createFastISel(FunctionLoweringInfo &FuncInfo,
                              const TargetLibraryInfo *LibInfo);
-  }
+
+  } // end namespace PPC
 
   bool CC_PPC32_SVR4_Custom_Dummy(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
                                   CCValAssign::LocInfo &LocInfo,
@@ -1026,6 +1050,7 @@ namespace llvm {
                                            CCValAssign::LocInfo &LocInfo,
                                            ISD::ArgFlagsTy &ArgFlags,
                                            CCState &State);
-}
 
-#endif   // LLVM_TARGET_POWERPC_PPC32ISELLOWERING_H
+} // end namespace llvm
+
+#endif // LLVM_TARGET_POWERPC_PPC32ISELLOWERING_H

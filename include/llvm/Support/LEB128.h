@@ -20,7 +20,8 @@
 namespace llvm {
 
 /// Utility function to encode a SLEB128 value to an output stream.
-inline void encodeSLEB128(int64_t Value, raw_ostream &OS) {
+inline void encodeSLEB128(int64_t Value, raw_ostream &OS,
+                          unsigned Padding = 0) {
   bool More;
   do {
     uint8_t Byte = Value & 0x7f;
@@ -28,10 +29,45 @@ inline void encodeSLEB128(int64_t Value, raw_ostream &OS) {
     Value >>= 7;
     More = !((((Value == 0 ) && ((Byte & 0x40) == 0)) ||
               ((Value == -1) && ((Byte & 0x40) != 0))));
-    if (More)
+    if (More || Padding != 0)
       Byte |= 0x80; // Mark this byte to show that more bytes will follow.
     OS << char(Byte);
   } while (More);
+
+  // Pad with 0x80 and emit a terminating byte at the end.
+  if (Padding != 0) {
+    uint8_t PadValue = Value < 0 ? 0x7f : 0x00;
+    for (; Padding != 1; --Padding)
+      OS << char(PadValue | 0x80);
+    OS << char(PadValue);
+  }
+}
+
+/// Utility function to encode a SLEB128 value to a buffer. Returns
+/// the length in bytes of the encoded value.
+inline unsigned encodeSLEB128(int64_t Value, uint8_t *p,
+                              unsigned Padding = 0) {
+  uint8_t *orig_p = p;
+  bool More;
+  do {
+    uint8_t Byte = Value & 0x7f;
+    // NOTE: this assumes that this signed shift is an arithmetic right shift.
+    Value >>= 7;
+    More = !((((Value == 0 ) && ((Byte & 0x40) == 0)) ||
+              ((Value == -1) && ((Byte & 0x40) != 0))));
+    if (More || Padding != 0)
+      Byte |= 0x80; // Mark this byte to show that more bytes will follow.
+    *p++ = Byte;
+  } while (More);
+
+  // Pad with 0x80 and emit a terminating byte at the end.
+  if (Padding != 0) {
+    uint8_t PadValue = Value < 0 ? 0x7f : 0x00;
+    for (; Padding != 1; --Padding)
+      *p++ = (PadValue | 0x80);
+    *p++ = PadValue;
+  }
+  return (unsigned)(p - orig_p);
 }
 
 /// Utility function to encode a ULEB128 value to an output stream.
@@ -77,11 +113,30 @@ inline unsigned encodeULEB128(uint64_t Value, uint8_t *p,
 
 
 /// Utility function to decode a ULEB128 value.
-inline uint64_t decodeULEB128(const uint8_t *p, unsigned *n = nullptr) {
+inline uint64_t decodeULEB128(const uint8_t *p, unsigned *n = nullptr,
+                              const uint8_t *end = nullptr,
+                              const char **error = nullptr) {
   const uint8_t *orig_p = p;
   uint64_t Value = 0;
   unsigned Shift = 0;
+  if(error)
+    *error = nullptr;
   do {
+    if(end && p == end){
+      if(error)
+        *error = "malformed uleb128, extends past end";
+      if (n)
+        *n = (unsigned)(p - orig_p);
+      return 0;
+    }
+    uint64_t Slice = *p & 0x7f;
+    if(Shift >= 64 || Slice << Shift >> Shift != Slice){
+      if(error)
+        *error = "uleb128 too big for uint64";
+      if (n)
+        *n = (unsigned)(p - orig_p);
+      return 0;
+    }
     Value += uint64_t(*p & 0x7f) << Shift;
     Shift += 7;
   } while (*p++ >= 128);
@@ -91,12 +146,21 @@ inline uint64_t decodeULEB128(const uint8_t *p, unsigned *n = nullptr) {
 }
 
 /// Utility function to decode a SLEB128 value.
-inline int64_t decodeSLEB128(const uint8_t *p, unsigned *n = nullptr) {
+inline int64_t decodeSLEB128(const uint8_t *p, unsigned *n = nullptr,
+                             const uint8_t *end = nullptr,
+                             const char **error = nullptr) {
   const uint8_t *orig_p = p;
   int64_t Value = 0;
   unsigned Shift = 0;
   uint8_t Byte;
   do {
+    if(end && p == end){
+      if(error)
+        *error = "malformed sleb128, extends past end";
+      if (n)
+        *n = (unsigned)(p - orig_p);
+      return 0;
+    }
     Byte = *p++;
     Value |= ((Byte & 0x7f) << Shift);
     Shift += 7;

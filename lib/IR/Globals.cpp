@@ -93,18 +93,6 @@ void GlobalObject::setAlignment(unsigned Align) {
   assert(getAlignment() == Align && "Alignment representation error!");
 }
 
-unsigned GlobalObject::getGlobalObjectSubClassData() const {
-  unsigned ValueData = getGlobalValueSubClassData();
-  return ValueData >> GlobalObjectBits;
-}
-
-void GlobalObject::setGlobalObjectSubClassData(unsigned Val) {
-  unsigned OldData = getGlobalValueSubClassData();
-  setGlobalValueSubClassData((OldData & GlobalObjectMask) |
-                             (Val << GlobalObjectBits));
-  assert(getGlobalObjectSubClassData() == Val && "representation error");
-}
-
 void GlobalObject::copyAttributesFrom(const GlobalValue *Src) {
   GlobalValue::copyAttributesFrom(Src);
   if (const auto *GV = dyn_cast<GlobalObject>(Src)) {
@@ -152,7 +140,7 @@ StringRef GlobalValue::getSection() const {
   return cast<GlobalObject>(this)->getSection();
 }
 
-Comdat *GlobalValue::getComdat() {
+const Comdat *GlobalValue::getComdat() const {
   if (auto *GA = dyn_cast<GlobalAlias>(this)) {
     // In general we cannot compute this at the IR level, but we try.
     if (const GlobalObject *GO = GA->getBaseObject())
@@ -177,7 +165,9 @@ void GlobalObject::setSection(StringRef S) {
 
   // Get or create a stable section name string and put it in the table in the
   // context.
-  S = getContext().pImpl->SectionStrings.insert(S).first->first();
+  if (!S.empty()) {
+    S = getContext().pImpl->SectionStrings.insert(S).first->first();
+  }
   getContext().pImpl->GlobalObjectSections[this] = S;
 
   // Update the HasSectionHashEntryBit. Setting the section to the empty string
@@ -240,7 +230,7 @@ bool GlobalValue::canIncreaseAlignment() const {
   return true;
 }
 
-GlobalObject *GlobalValue::getBaseObject() {
+const GlobalObject *GlobalValue::getBaseObject() const {
   if (auto *GO = dyn_cast<GlobalObject>(this))
     return GO;
   if (auto *GA = dyn_cast<GlobalAlias>(this))

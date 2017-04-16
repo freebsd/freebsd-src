@@ -7,11 +7,19 @@
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 
 ; Make sure that we can handle multiple integer induction variables.
+;
 ; CHECK-LABEL: @multi_int_induction(
-; CHECK: vector.body:
-; CHECK:  %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
-; CHECK:  %[[VAR:.*]] = trunc i64 %index to i32
-; CHECK:  %offset.idx = add i32 190, %[[VAR]]
+; CHECK:       vector.body:
+; CHECK-NEXT:    %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+; CHECK-NEXT:    %vec.ind = phi <2 x i32> [ <i32 190, i32 191>, %vector.ph ], [ %vec.ind.next, %vector.body ]
+; CHECK:         [[TMP3:%.*]] = add i64 %index, 0
+; CHECK-NEXT:    [[TMP4:%.*]] = getelementptr inbounds i32, i32* %A, i64 [[TMP3]]
+; CHECK-NEXT:    [[TMP5:%.*]] = getelementptr i32, i32* [[TMP4]], i32 0
+; CHECK-NEXT:    [[TMP6:%.*]] = bitcast i32* [[TMP5]] to <2 x i32>*
+; CHECK-NEXT:    store <2 x i32> %vec.ind, <2 x i32>* [[TMP6]], align 4
+; CHECK:         %index.next = add i64 %index, 2
+; CHECK-NEXT:    %vec.ind.next = add <2 x i32> %vec.ind, <i32 2, i32 2>
+; CHECK:         br i1 {{.*}}, label %middle.block, label %vector.body
 define void @multi_int_induction(i32* %A, i32 %N) {
 for.body.lr.ph:
   br label %for.body
@@ -764,4 +772,80 @@ for.body:
 
 exit:
   ret void
+}
+
+; CHECK-LABEL: @non_primary_iv_trunc(
+; CHECK:       vector.body:
+; CHECK-NEXT:    %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+; CHECK:         [[VEC_IND:%.*]] = phi <2 x i32> [ <i32 0, i32 2>, %vector.ph ], [ [[VEC_IND_NEXT:%.*]], %vector.body ]
+; CHECK:         [[TMP3:%.*]] = add i64 %index, 0
+; CHECK-NEXT:    [[TMP4:%.*]] = getelementptr inbounds i32, i32* %a, i64 [[TMP3]]
+; CHECK-NEXT:    [[TMP5:%.*]] = getelementptr i32, i32* [[TMP4]], i32 0
+; CHECK-NEXT:    [[TMP6:%.*]] = bitcast i32* [[TMP5]] to <2 x i32>*
+; CHECK-NEXT:    store <2 x i32> [[VEC_IND]], <2 x i32>* [[TMP6]], align 4
+; CHECK-NEXT:    %index.next = add i64 %index, 2
+; CHECK:         [[VEC_IND_NEXT]] = add <2 x i32> [[VEC_IND]], <i32 4, i32 4>
+; CHECK:         br i1 {{.*}}, label %middle.block, label %vector.body
+define void @non_primary_iv_trunc(i32* %a, i64 %n) {
+entry:
+  br label %for.body
+
+for.body:
+  %i = phi i64 [ %i.next, %for.body ], [ 0, %entry ]
+  %j = phi i64 [ %j.next, %for.body ], [ 0, %entry ]
+  %tmp0 = getelementptr inbounds i32, i32* %a, i64 %i
+  %tmp1 = trunc i64 %j to i32
+  store i32 %tmp1, i32* %tmp0, align 4
+  %i.next = add nuw nsw i64 %i, 1
+  %j.next = add nuw nsw i64 %j, 2
+  %cond = icmp slt i64 %i.next, %n
+  br i1 %cond, label %for.body, label %for.end
+
+for.end:
+  ret void
+}
+
+; PR32419. Ensure we transform truncated non-primary induction variables. In
+; the test case below we replace %tmp1 with a new induction variable. Because
+; the truncated value is non-primary, we must compute an offset from the
+; primary induction variable.
+;
+; CHECK-LABEL: @PR32419(
+; CHECK:       vector.body:
+; CHECK-NEXT:    [[INDEX:%.*]] = phi i32 [ 0, %vector.ph ], [ [[INDEX_NEXT:%.*]], %[[PRED_UREM_CONTINUE4:.*]] ]
+; CHECK:         [[OFFSET_IDX:%.*]] = add i32 -20, [[INDEX]]
+; CHECK-NEXT:    [[TMP1:%.*]] = trunc i32 [[OFFSET_IDX]] to i16
+; CHECK:         [[TMP8:%.*]] = add i16 [[TMP1]], 0
+; CHECK-NEXT:    [[TMP9:%.*]] = urem i16 %b, [[TMP8]]
+; CHECK:         [[TMP15:%.*]] = add i16 [[TMP1]], 1
+; CHECK-NEXT:    [[TMP16:%.*]] = urem i16 %b, [[TMP15]]
+; CHECK:       [[PRED_UREM_CONTINUE4]]:
+; CHECK:         br i1 {{.*}}, label %middle.block, label %vector.body
+;
+define i32 @PR32419(i32 %a, i16 %b) {
+entry:
+  br label %for.body
+
+for.body:
+  %i = phi i32 [ -20, %entry ], [ %i.next, %for.inc ]
+  %tmp0 = phi i32 [ %a, %entry ], [ %tmp6, %for.inc ]
+  %tmp1 = trunc i32 %i to i16
+  %tmp2 = icmp eq i16 %tmp1, 0
+  br i1 %tmp2, label %for.inc, label %for.cond
+
+for.cond:
+  %tmp3 = urem i16 %b, %tmp1
+  br label %for.inc
+
+for.inc:
+  %tmp4 = phi i16 [ %tmp3, %for.cond ], [ 0, %for.body ]
+  %tmp5 = sext i16 %tmp4 to i32
+  %tmp6 = or i32 %tmp0, %tmp5
+  %i.next = add nsw i32 %i, 1
+  %cond = icmp eq i32 %i.next, 0
+  br i1 %cond, label %for.end, label %for.body
+
+for.end:
+  %tmp7 = phi i32 [ %tmp6, %for.inc ]
+  ret i32 %tmp7
 }

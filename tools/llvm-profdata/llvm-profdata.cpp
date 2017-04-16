@@ -446,8 +446,58 @@ static int merge_main(int argc, const char *argv[]) {
   return 0;
 }
 
+typedef struct ValueSitesStats {
+  ValueSitesStats()
+      : TotalNumValueSites(0), TotalNumValueSitesWithValueProfile(0),
+        TotalNumValues(0) {}
+  uint64_t TotalNumValueSites;
+  uint64_t TotalNumValueSitesWithValueProfile;
+  uint64_t TotalNumValues;
+  std::vector<unsigned> ValueSitesHistogram;
+} ValueSitesStats;
+
+static void traverseAllValueSites(const InstrProfRecord &Func, uint32_t VK,
+                                  ValueSitesStats &Stats, raw_fd_ostream &OS,
+                                  InstrProfSymtab *Symtab) {
+  uint32_t NS = Func.getNumValueSites(VK);
+  Stats.TotalNumValueSites += NS;
+  for (size_t I = 0; I < NS; ++I) {
+    uint32_t NV = Func.getNumValueDataForSite(VK, I);
+    std::unique_ptr<InstrProfValueData[]> VD = Func.getValueForSite(VK, I);
+    Stats.TotalNumValues += NV;
+    if (NV) {
+      Stats.TotalNumValueSitesWithValueProfile++;
+      if (NV > Stats.ValueSitesHistogram.size())
+        Stats.ValueSitesHistogram.resize(NV, 0);
+      Stats.ValueSitesHistogram[NV - 1]++;
+    }
+    for (uint32_t V = 0; V < NV; V++) {
+      OS << "\t[ " << I << ", ";
+      if (Symtab == nullptr)
+        OS << VD[V].Value;
+      else
+        OS << Symtab->getFuncName(VD[V].Value);
+      OS << ", " << VD[V].Count << " ]\n";
+    }
+  }
+}
+
+static void showValueSitesStats(raw_fd_ostream &OS, uint32_t VK,
+                                ValueSitesStats &Stats) {
+  OS << "  Total number of sites: " << Stats.TotalNumValueSites << "\n";
+  OS << "  Total number of sites with values: "
+     << Stats.TotalNumValueSitesWithValueProfile << "\n";
+  OS << "  Total number of profiled values: " << Stats.TotalNumValues << "\n";
+
+  OS << "  Value sites histogram:\n\tNumTargets, SiteCount\n";
+  for (unsigned I = 0; I < Stats.ValueSitesHistogram.size(); I++) {
+    if (Stats.ValueSitesHistogram[I] > 0)
+      OS << "\t" << I + 1 << ", " << Stats.ValueSitesHistogram[I] << "\n";
+  }
+}
+
 static int showInstrProfile(const std::string &Filename, bool ShowCounts,
-                            bool ShowIndirectCallTargets,
+                            bool ShowIndirectCallTargets, bool ShowMemOPSizes,
                             bool ShowDetailedSummary,
                             std::vector<uint32_t> DetailedSummaryCutoffs,
                             bool ShowAllFunctions,
@@ -465,10 +515,8 @@ static int showInstrProfile(const std::string &Filename, bool ShowCounts,
   auto Reader = std::move(ReaderOrErr.get());
   bool IsIRInstr = Reader->isIRLevelProfile();
   size_t ShownFunctions = 0;
-  uint64_t TotalNumValueSites = 0;
-  uint64_t TotalNumValueSitesWithValueProfile = 0;
-  uint64_t TotalNumValues = 0;
-  std::vector<unsigned> ICHistogram;
+  int NumVPKind = IPVK_Last - IPVK_First + 1;
+  std::vector<ValueSitesStats> VPStats(NumVPKind);
   for (const auto &Func : *Reader) {
     bool Show =
         ShowAllFunctions || (!ShowFunction.empty() &&
@@ -502,6 +550,11 @@ static int showInstrProfile(const std::string &Filename, bool ShowCounts,
         OS << "    Indirect Call Site Count: "
            << Func.getNumValueSites(IPVK_IndirectCallTarget) << "\n";
 
+      uint32_t NumMemOPCalls = Func.getNumValueSites(IPVK_MemOPSize);
+      if (ShowMemOPSizes && NumMemOPCalls > 0)
+        OS << "    Number of Memory Intrinsics Calls: " << NumMemOPCalls
+           << "\n";
+
       if (ShowCounts) {
         OS << "    Block counts: [";
         size_t Start = (IsIRInstr ? 0 : 1);
@@ -512,27 +565,16 @@ static int showInstrProfile(const std::string &Filename, bool ShowCounts,
       }
 
       if (ShowIndirectCallTargets) {
-        InstrProfSymtab &Symtab = Reader->getSymtab();
-        uint32_t NS = Func.getNumValueSites(IPVK_IndirectCallTarget);
-        OS << "    Indirect Target Results: \n";
-        TotalNumValueSites += NS;
-        for (size_t I = 0; I < NS; ++I) {
-          uint32_t NV = Func.getNumValueDataForSite(IPVK_IndirectCallTarget, I);
-          std::unique_ptr<InstrProfValueData[]> VD =
-              Func.getValueForSite(IPVK_IndirectCallTarget, I);
-          TotalNumValues += NV;
-          if (NV) {
-            TotalNumValueSitesWithValueProfile++;
-            if (NV > ICHistogram.size())
-              ICHistogram.resize(NV, 0);
-            ICHistogram[NV - 1]++;
-          }
-          for (uint32_t V = 0; V < NV; V++) {
-            OS << "\t[ " << I << ", ";
-            OS << Symtab.getFuncName(VD[V].Value) << ", " << VD[V].Count
-               << " ]\n";
-          }
-        }
+        OS << "    Indirect Target Results:\n";
+        traverseAllValueSites(Func, IPVK_IndirectCallTarget,
+                              VPStats[IPVK_IndirectCallTarget], OS,
+                              &(Reader->getSymtab()));
+      }
+
+      if (ShowMemOPSizes && NumMemOPCalls > 0) {
+        OS << "    Memory Instrinsic Size Results:\n";
+        traverseAllValueSites(Func, IPVK_MemOPSize, VPStats[IPVK_MemOPSize], OS,
+                              nullptr);
       }
     }
   }
@@ -547,17 +589,16 @@ static int showInstrProfile(const std::string &Filename, bool ShowCounts,
   OS << "Total functions: " << PS->getNumFunctions() << "\n";
   OS << "Maximum function count: " << PS->getMaxFunctionCount() << "\n";
   OS << "Maximum internal block count: " << PS->getMaxInternalCount() << "\n";
-  if (ShownFunctions && ShowIndirectCallTargets) {
-    OS << "Total Number of Indirect Call Sites : " << TotalNumValueSites
-       << "\n";
-    OS << "Total Number of Sites With Values : "
-       << TotalNumValueSitesWithValueProfile << "\n";
-    OS << "Total Number of Profiled Values : " << TotalNumValues << "\n";
 
-    OS << "IC Value histogram : \n\tNumTargets, SiteCount\n";
-    for (unsigned I = 0; I < ICHistogram.size(); I++) {
-      OS << "\t" << I + 1 << ", " << ICHistogram[I] << "\n";
-    }
+  if (ShownFunctions && ShowIndirectCallTargets) {
+    OS << "Statistics for indirect call sites profile:\n";
+    showValueSitesStats(OS, IPVK_IndirectCallTarget,
+                        VPStats[IPVK_IndirectCallTarget]);
+  }
+
+  if (ShownFunctions && ShowMemOPSizes) {
+    OS << "Statistics for memory intrinsic calls sizes profile:\n";
+    showValueSitesStats(OS, IPVK_MemOPSize, VPStats[IPVK_MemOPSize]);
   }
 
   if (ShowDetailedSummary) {
@@ -608,6 +649,10 @@ static int show_main(int argc, const char *argv[]) {
   cl::opt<bool> ShowIndirectCallTargets(
       "ic-targets", cl::init(false),
       cl::desc("Show indirect call site target values for shown functions"));
+  cl::opt<bool> ShowMemOPSizes(
+      "memop-sizes", cl::init(false),
+      cl::desc("Show the profiled sizes of the memory intrinsic calls "
+               "for shown functions"));
   cl::opt<bool> ShowDetailedSummary("detailed-summary", cl::init(false),
                                     cl::desc("Show detailed profile summary"));
   cl::list<uint32_t> DetailedSummaryCutoffs(
@@ -646,8 +691,9 @@ static int show_main(int argc, const char *argv[]) {
                                 DetailedSummaryCutoffs.end());
   if (ProfileKind == instr)
     return showInstrProfile(Filename, ShowCounts, ShowIndirectCallTargets,
-                            ShowDetailedSummary, DetailedSummaryCutoffs,
-                            ShowAllFunctions, ShowFunction, TextFormat, OS);
+                            ShowMemOPSizes, ShowDetailedSummary,
+                            DetailedSummaryCutoffs, ShowAllFunctions,
+                            ShowFunction, TextFormat, OS);
   else
     return showSampleProfile(Filename, ShowCounts, ShowAllFunctions,
                              ShowFunction, OS);

@@ -93,6 +93,8 @@ class VOPC_Real <VOPC_Pseudo ps, int EncodingFamily> :
   let Constraints        = ps.Constraints;
   let DisableEncoding    = ps.DisableEncoding;
   let TSFlags            = ps.TSFlags;
+  let UseNamedOperandTable = ps.UseNamedOperandTable;
+  let Uses                 = ps.Uses;
 }
 
 class VOPC_SDWA_Pseudo <string OpName, VOPProfile P, list<dag> pattern=[]> :
@@ -165,13 +167,11 @@ multiclass VOPC_Pseudos <string opName,
     let isCommutable = 1;
   }
 
-  def _sdwa : VOPC_SDWA_Pseudo <opName, P>,
-              Commutable_REV<revOp#"_sdwa", !eq(revOp, opName)> {
+  def _sdwa : VOPC_SDWA_Pseudo <opName, P> {
     let Defs = !if(DefExec, [VCC, EXEC], [VCC]);
     let SchedRW = P.Schedule;
     let isConvergent = DefExec;
     let isCompare = 1;
-    let isCommutable = 1;
   }
 }
 
@@ -563,7 +563,7 @@ multiclass VOPC_CLASS_F16 <string opName> :
   VOPC_Class_Pseudos <opName, VOPC_I1_F16_I32, 0>;
 
 multiclass VOPCX_CLASS_F16 <string opName> :
-  VOPC_Class_Pseudos <opName, VOPC_I1_F32_I32, 1>;
+  VOPC_Class_Pseudos <opName, VOPC_I1_F16_I32, 1>;
 
 multiclass VOPC_CLASS_F32 <string opName> :
   VOPC_Class_Pseudos <opName, VOPC_I1_F32_I32, 0>;

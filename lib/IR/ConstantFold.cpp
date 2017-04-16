@@ -18,6 +18,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ConstantFold.h"
+#include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -606,17 +607,15 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
     if (ConstantFP *FPC = dyn_cast<ConstantFP>(V)) {
       const APFloat &V = FPC->getValueAPF();
       bool ignored;
-      uint64_t x[2];
       uint32_t DestBitWidth = cast<IntegerType>(DestTy)->getBitWidth();
+      APSInt IntVal(DestBitWidth, opc == Instruction::FPToUI);
       if (APFloat::opInvalidOp ==
-          V.convertToInteger(x, DestBitWidth, opc==Instruction::FPToSI,
-                             APFloat::rmTowardZero, &ignored)) {
+          V.convertToInteger(IntVal, APFloat::rmTowardZero, &ignored)) {
         // Undefined behavior invoked - the destination type can't represent
         // the input constant.
         return UndefValue::get(DestTy);
       }
-      APInt Val(DestBitWidth, x);
-      return ConstantInt::get(FPC->getContext(), Val);
+      return ConstantInt::get(FPC->getContext(), IntVal);
     }
     return nullptr; // Can't fold.
   case Instruction::IntToPtr:   //always treated as unsigned
@@ -1209,10 +1208,15 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode,
     SmallVector<Constant*, 16> Result;
     Type *Ty = IntegerType::get(VTy->getContext(), 32);
     for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-      Constant *LHS =
-        ConstantExpr::getExtractElement(C1, ConstantInt::get(Ty, i));
-      Constant *RHS =
-        ConstantExpr::getExtractElement(C2, ConstantInt::get(Ty, i));
+      Constant *ExtractIdx = ConstantInt::get(Ty, i);
+      Constant *LHS = ConstantExpr::getExtractElement(C1, ExtractIdx);
+      Constant *RHS = ConstantExpr::getExtractElement(C2, ExtractIdx);
+
+      // If any element of a divisor vector is zero, the whole op is undef.
+      if ((Opcode == Instruction::SDiv || Opcode == Instruction::UDiv ||
+           Opcode == Instruction::SRem || Opcode == Instruction::URem) &&
+          RHS->isNullValue())
+        return UndefValue::get(VTy);
 
       Result.push_back(ConstantExpr::get(Opcode, LHS, RHS));
     }
@@ -2231,7 +2235,8 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
     ConstantInt *Factor = ConstantInt::get(CI->getType(), NumElements);
     NewIdxs[i] = ConstantExpr::getSRem(CI, Factor);
 
-    Constant *PrevIdx = cast<Constant>(Idxs[i - 1]);
+    Constant *PrevIdx = NewIdxs[i-1] ? NewIdxs[i-1] :
+                           cast<Constant>(Idxs[i - 1]);
     Constant *Div = ConstantExpr::getSDiv(CI, Factor);
 
     unsigned CommonExtendedWidth =

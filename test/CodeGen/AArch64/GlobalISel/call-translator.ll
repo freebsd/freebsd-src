@@ -1,7 +1,9 @@
 ; RUN: llc -mtriple=aarch64-linux-gnu -O0 -stop-after=irtranslator -global-isel -verify-machineinstrs %s -o - 2>&1 | FileCheck %s
 
 ; CHECK-LABEL: name: test_trivial_call
+; CHECK: ADJCALLSTACKDOWN 0, implicit-def %sp, implicit %sp
 ; CHECK: BL @trivial_callee, csr_aarch64_aapcs, implicit-def %lr
+; CHECK: ADJCALLSTACKUP 0, 0, implicit-def %sp, implicit %sp
 declare void @trivial_callee()
 define void @test_trivial_call() {
   call void @trivial_callee()
@@ -61,7 +63,13 @@ define void @test_multiple_args(i64 %in) {
 ; CHECK: [[I64:%[0-9]+]](s64) = COPY %x0
 ; CHECK: [[I8:%[0-9]+]](s8) = COPY %w1
 ; CHECK: [[ADDR:%[0-9]+]](p0) = COPY %x2
-; CHECK: [[ARG:%[0-9]+]](s192) = G_SEQUENCE [[DBL]](s64), 0, [[I64]](s64), 64, [[I8]](s8), 128
+
+; CHECK: [[UNDEF:%[0-9]+]](s192) = IMPLICIT_DEF
+; CHECK: [[ARG0:%[0-9]+]](s192) = G_INSERT [[UNDEF]], [[DBL]](s64), 0
+; CHECK: [[ARG1:%[0-9]+]](s192) = G_INSERT [[ARG0]], [[I64]](s64), 64
+; CHECK: [[ARG2:%[0-9]+]](s192) = G_INSERT [[ARG1]], [[I8]](s8), 128
+; CHECK: [[ARG:%[0-9]+]](s192) = COPY [[ARG2]]
+
 ; CHECK: G_STORE [[ARG]](s192), [[ADDR]](p0)
 ; CHECK: RET_ReallyLR
 define void @test_struct_formal({double, i64, i8} %in, {double, i64, i8}* %addr) {
@@ -73,7 +81,11 @@ define void @test_struct_formal({double, i64, i8} %in, {double, i64, i8}* %addr)
 ; CHECK-LABEL: name: test_struct_return
 ; CHECK: [[ADDR:%[0-9]+]](p0) = COPY %x0
 ; CHECK: [[VAL:%[0-9]+]](s192) = G_LOAD [[ADDR]](p0)
-; CHECK: [[DBL:%[0-9]+]](s64), [[I64:%[0-9]+]](s64), [[I32:%[0-9]+]](s32) = G_EXTRACT [[VAL]](s192), 0, 64, 128
+
+; CHECK: [[DBL:%[0-9]+]](s64) = G_EXTRACT [[VAL]](s192), 0
+; CHECK: [[I64:%[0-9]+]](s64) = G_EXTRACT [[VAL]](s192), 64
+; CHECK: [[I32:%[0-9]+]](s32) = G_EXTRACT [[VAL]](s192), 128
+
 ; CHECK: %d0 = COPY [[DBL]](s64)
 ; CHECK: %x0 = COPY [[I64]](s64)
 ; CHECK: %w1 = COPY [[I32]](s32)
@@ -84,8 +96,14 @@ define {double, i64, i32} @test_struct_return({double, i64, i32}* %addr) {
 }
 
 ; CHECK-LABEL: name: test_arr_call
+; CHECK: hasCalls: true
 ; CHECK: [[ARG:%[0-9]+]](s256) = G_LOAD
-; CHECK: [[E0:%[0-9]+]](s64), [[E1:%[0-9]+]](s64), [[E2:%[0-9]+]](s64), [[E3:%[0-9]+]](s64) = G_EXTRACT [[ARG]](s256), 0, 64, 128, 192
+
+; CHECK: [[E0:%[0-9]+]](s64) = G_EXTRACT [[ARG]](s256), 0
+; CHECK: [[E1:%[0-9]+]](s64) = G_EXTRACT [[ARG]](s256), 64
+; CHECK: [[E2:%[0-9]+]](s64) = G_EXTRACT [[ARG]](s256), 128
+; CHECK: [[E3:%[0-9]+]](s64) = G_EXTRACT [[ARG]](s256), 192
+
 ; CHECK: %x0 = COPY [[E0]](s64)
 ; CHECK: %x1 = COPY [[E1]](s64)
 ; CHECK: %x2 = COPY [[E2]](s64)
@@ -168,6 +186,7 @@ define void @test_stack_slots([8 x i64], i64 %lhs, i64 %rhs, i64* %addr) {
 ; CHECK: [[C42:%[0-9]+]](s64) = G_CONSTANT i64 42
 ; CHECK: [[C12:%[0-9]+]](s64) = G_CONSTANT i64 12
 ; CHECK: [[PTR:%[0-9]+]](p0) = G_CONSTANT i64 0
+; CHECK: ADJCALLSTACKDOWN 24, implicit-def %sp, implicit %sp
 ; CHECK: [[SP:%[0-9]+]](p0) = COPY %sp
 ; CHECK: [[C42_OFFS:%[0-9]+]](s64) = G_CONSTANT i64 0
 ; CHECK: [[C42_LOC:%[0-9]+]](p0) = G_GEP [[SP]], [[C42_OFFS]](s64)
@@ -181,6 +200,7 @@ define void @test_stack_slots([8 x i64], i64 %lhs, i64 %rhs, i64* %addr) {
 ; CHECK: [[PTR_LOC:%[0-9]+]](p0) = G_GEP [[SP]], [[PTR_OFFS]](s64)
 ; CHECK: G_STORE [[PTR]](p0), [[PTR_LOC]](p0) :: (store 8 into stack + 16, align 0)
 ; CHECK: BL @test_stack_slots
+; CHECK: ADJCALLSTACKUP 24, 0, implicit-def %sp, implicit %sp
 define void @test_call_stack() {
   call void @test_stack_slots([8 x i64] undef, i64 42, i64 12, i64* null)
   ret void

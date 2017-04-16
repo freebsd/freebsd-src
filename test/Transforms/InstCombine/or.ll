@@ -207,19 +207,6 @@ define <2 x i1> @test18vec(<2 x i32> %A) {
   ret <2 x i1> %D
 }
 
-define i1 @test19(i32 %A) {
-; CHECK-LABEL: @test19(
-; CHECK-NEXT:    [[TMP1:%.*]] = or i32 %A, 1
-; CHECK-NEXT:    [[TMP2:%.*]] = icmp eq i32 [[TMP1]], 51
-; CHECK-NEXT:    ret i1 [[TMP2]]
-;
-  %B = icmp eq i32 %A, 50
-  %C = icmp eq i32 %A, 51
-  ;; (A&-2) == 50
-  %D = or i1 %B, %C
-  ret i1 %D
-}
-
 define i32 @test20(i32 %x) {
 ; CHECK-LABEL: @test20(
 ; CHECK-NEXT:    ret i32 %x
@@ -490,7 +477,7 @@ define i32 @orsext_to_sel_multi_use(i32 %x, i1 %y) {
 ; CHECK-LABEL: @orsext_to_sel_multi_use(
 ; CHECK-NEXT:    [[SEXT:%.*]] = sext i1 %y to i32
 ; CHECK-NEXT:    [[OR:%.*]] = or i32 [[SEXT]], %x
-; CHECK-NEXT:    [[ADD:%.*]] = add i32 [[SEXT]], [[OR]]
+; CHECK-NEXT:    [[ADD:%.*]] = add i32 [[OR]], [[SEXT]]
 ; CHECK-NEXT:    ret i32 [[ADD]]
 ;
   %sext = sext i1 %y to i32
@@ -521,7 +508,7 @@ define <2 x i132> @orsext_to_sel_vec_swap(<2 x i132> %x, <2 x i1> %y) {
 
 define i32 @test39(i32 %a, i32 %b) {
 ; CHECK-LABEL: @test39(
-; CHECK-NEXT:    [[OR:%.*]] = or i32 %a, %b
+; CHECK-NEXT:    [[OR:%.*]] = or i32 %b, %a
 ; CHECK-NEXT:    ret i32 [[OR]]
 ;
   %xor = xor i32 %a, -1
@@ -539,6 +526,42 @@ define i32 @test40(i32 %a, i32 %b) {
   %and = and i32 %a, %b
   %xor = xor i32 %a, -1
   %or = or i32 %and, %xor
+  ret i32 %or
+}
+
+define i32 @test40b(i32 %a, i32 %b) {
+; CHECK-LABEL: @test40b(
+; CHECK-NEXT:    [[XOR:%.*]] = xor i32 %a, -1
+; CHECK-NEXT:    [[OR:%.*]] = or i32 [[XOR]], %b
+; CHECK-NEXT:    ret i32 [[OR]]
+;
+  %and = and i32 %b, %a
+  %xor = xor i32 %a, -1
+  %or = or i32 %and, %xor
+  ret i32 %or
+}
+
+define i32 @test40c(i32 %a, i32 %b) {
+; CHECK-LABEL: @test40c(
+; CHECK-NEXT:    [[XOR:%.*]] = xor i32 %a, -1
+; CHECK-NEXT:    [[OR:%.*]] = or i32 [[XOR]], %b
+; CHECK-NEXT:    ret i32 [[OR]]
+;
+  %and = and i32 %b, %a
+  %xor = xor i32 %a, -1
+  %or = or i32 %xor, %and
+  ret i32 %or
+}
+
+define i32 @test40d(i32 %a, i32 %b) {
+; CHECK-LABEL: @test40d(
+; CHECK-NEXT:    [[XOR:%.*]] = xor i32 %a, -1
+; CHECK-NEXT:    [[OR:%.*]] = or i32 [[XOR]], %b
+; CHECK-NEXT:    ret i32 [[OR]]
+;
+  %and = and i32 %a, %b
+  %xor = xor i32 %a, -1
+  %or = or i32 %xor, %and
   ret i32 %or
 }
 
@@ -700,4 +723,139 @@ define i1 @test48(i64 %x, i1 %b) {
   %.b = or i1 %2, %b
   %3 = or i1 %1, %.b
   ret i1 %3
+}
+
+define i32 @test49(i1 %C) {
+; CHECK-LABEL: @test49(
+; CHECK-NEXT:    [[V:%.*]] = select i1 [[C:%.*]], i32 1019, i32 123
+; CHECK-NEXT:    ret i32 [[V]]
+;
+  %A = select i1 %C, i32 1000, i32 10
+  %V = or i32 %A, 123
+  ret i32 %V
+}
+
+define <2 x i32> @test49vec(i1 %C) {
+; CHECK-LABEL: @test49vec(
+; CHECK-NEXT:    [[V:%.*]] = select i1 [[C:%.*]], <2 x i32> <i32 1019, i32 1019>, <2 x i32> <i32 123, i32 123>
+; CHECK-NEXT:    ret <2 x i32> [[V]]
+;
+  %A = select i1 %C, <2 x i32> <i32 1000, i32 1000>, <2 x i32> <i32 10, i32 10>
+  %V = or <2 x i32> %A, <i32 123, i32 123>
+  ret <2 x i32> %V
+}
+
+define <2 x i32> @test49vec2(i1 %C) {
+; CHECK-LABEL: @test49vec2(
+; CHECK-NEXT:    [[V:%.*]] = select i1 [[C:%.*]], <2 x i32> <i32 1019, i32 2509>, <2 x i32> <i32 123, i32 351>
+; CHECK-NEXT:    ret <2 x i32> [[V]]
+;
+  %A = select i1 %C, <2 x i32> <i32 1000, i32 2500>, <2 x i32> <i32 10, i32 30>
+  %V = or <2 x i32> %A, <i32 123, i32 333>
+  ret <2 x i32> %V
+}
+
+define i32 @test50(i1 %which) {
+; CHECK-LABEL: @test50(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    br i1 [[WHICH:%.*]], label [[FINAL:%.*]], label [[DELAY:%.*]]
+; CHECK:       delay:
+; CHECK-NEXT:    br label [[FINAL]]
+; CHECK:       final:
+; CHECK-NEXT:    [[A:%.*]] = phi i32 [ 1019, [[ENTRY:%.*]] ], [ 123, [[DELAY]] ]
+; CHECK-NEXT:    ret i32 [[A]]
+;
+entry:
+  br i1 %which, label %final, label %delay
+
+delay:
+  br label %final
+
+final:
+  %A = phi i32 [ 1000, %entry ], [ 10, %delay ]
+  %value = or i32 %A, 123
+  ret i32 %value
+}
+
+define <2 x i32> @test50vec(i1 %which) {
+; CHECK-LABEL: @test50vec(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    br i1 [[WHICH:%.*]], label [[FINAL:%.*]], label [[DELAY:%.*]]
+; CHECK:       delay:
+; CHECK-NEXT:    br label [[FINAL]]
+; CHECK:       final:
+; CHECK-NEXT:    [[A:%.*]] = phi <2 x i32> [ <i32 1019, i32 1019>, [[ENTRY:%.*]] ], [ <i32 123, i32 123>, [[DELAY]] ]
+; CHECK-NEXT:    ret <2 x i32> [[A]]
+;
+entry:
+  br i1 %which, label %final, label %delay
+
+delay:
+  br label %final
+
+final:
+  %A = phi <2 x i32> [ <i32 1000, i32 1000>, %entry ], [ <i32 10, i32 10>, %delay ]
+  %value = or <2 x i32> %A, <i32 123, i32 123>
+  ret <2 x i32> %value
+}
+
+define <2 x i32> @test50vec2(i1 %which) {
+; CHECK-LABEL: @test50vec2(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    br i1 [[WHICH:%.*]], label [[FINAL:%.*]], label [[DELAY:%.*]]
+; CHECK:       delay:
+; CHECK-NEXT:    br label [[FINAL]]
+; CHECK:       final:
+; CHECK-NEXT:    [[A:%.*]] = phi <2 x i32> [ <i32 1019, i32 2509>, [[ENTRY:%.*]] ], [ <i32 123, i32 351>, [[DELAY]] ]
+; CHECK-NEXT:    ret <2 x i32> [[A]]
+;
+entry:
+  br i1 %which, label %final, label %delay
+
+delay:
+  br label %final
+
+final:
+  %A = phi <2 x i32> [ <i32 1000, i32 2500>, %entry ], [ <i32 10, i32 30>, %delay ]
+  %value = or <2 x i32> %A, <i32 123, i32 333>
+  ret <2 x i32> %value
+}
+
+define i8 @test51(i8 %a, i8 %b, i8 %c) {
+; CHECK-LABEL: @test51(
+; CHECK-NEXT:    [[W:%.*]] = mul i8 [[B:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[X:%.*]] = or i8 [[W]], [[A:%.*]]
+; CHECK-NEXT:    ret i8 [[X]]
+;
+  %w = mul i8 %b, %c
+  %z = xor i8 %a, -1
+  %y = and i8 %w, %z
+  %x = or i8 %y, %a
+  ret i8 %x
+}
+
+define i8 @test52(i8 %a, i8 %b, i8 %c) {
+; CHECK-LABEL: @test52(
+; CHECK-NEXT:    [[W:%.*]] = mul i8 [[B:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[X:%.*]] = or i8 [[W]], [[A:%.*]]
+; CHECK-NEXT:    ret i8 [[X]]
+;
+  %w = mul i8 %b, %c
+  %z = xor i8 %w, -1
+  %y = and i8 %z, %a
+  %x = or i8 %w, %y
+  ret i8 %x
+}
+
+define i8 @test53(i8 %a, i8 %b, i8 %c) {
+; CHECK-LABEL: @test53(
+; CHECK-NEXT:    [[W:%.*]] = mul i8 [[B:%.*]], [[C:%.*]]
+; CHECK-NEXT:    [[X:%.*]] = or i8 [[W]], [[A:%.*]]
+; CHECK-NEXT:    ret i8 [[X]]
+;
+  %w = mul i8 %b, %c
+  %z = xor i8 %w, -1
+  %y = and i8 %z, %a
+  %x = or i8 %w, %y
+  ret i8 %x
 }

@@ -1,4 +1,4 @@
-//===-- IndirectCallPromotion.cpp - Promote indirect calls to direct calls ===//
+//===-- IndirectCallPromotion.cpp - Optimizations based on value profiling ===//
 //
 //                      The LLVM Compiler Infrastructure
 //
@@ -17,6 +17,8 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Analysis/BlockFrequencyInfo.h"
+#include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/IndirectCallPromotionAnalysis.h"
 #include "llvm/Analysis/IndirectCallSiteVisitor.h"
 #include "llvm/IR/BasicBlock.h"
@@ -40,6 +42,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/PGOInstrumentation.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -53,6 +56,8 @@ using namespace llvm;
 
 STATISTIC(NumOfPGOICallPromotion, "Number of indirect call promotions.");
 STATISTIC(NumOfPGOICallsites, "Number of indirect call candidate sites.");
+STATISTIC(NumOfPGOMemOPOpt, "Number of memop intrinsics optimized.");
+STATISTIC(NumOfPGOMemOPAnnotate, "Number of memop intrinsics annotated.");
 
 // Command line option to disable indirect-call promotion with the default as
 // false. This is for debug purpose.
@@ -80,6 +85,12 @@ static cl::opt<bool> ICPLTOMode("icp-lto", cl::init(false), cl::Hidden,
                                 cl::desc("Run indirect-call promotion in LTO "
                                          "mode"));
 
+// Set if the pass is called in SamplePGO mode. The difference for SamplePGO
+// mode is it will add prof metadatato the created direct call.
+static cl::opt<bool>
+    ICPSamplePGOMode("icp-samplepgo", cl::init(false), cl::Hidden,
+                     cl::desc("Run indirect-call promotion in SamplePGO mode"));
+
 // If the option is set to true, only call instructions will be considered for
 // transformation -- invoke instructions will be ignored.
 static cl::opt<bool>
@@ -100,13 +111,51 @@ static cl::opt<bool>
     ICPDUMPAFTER("icp-dumpafter", cl::init(false), cl::Hidden,
                  cl::desc("Dump IR after transformation happens"));
 
+// The minimum call count to optimize memory intrinsic calls.
+static cl::opt<unsigned>
+    MemOPCountThreshold("pgo-memop-count-threshold", cl::Hidden, cl::ZeroOrMore,
+                        cl::init(1000),
+                        cl::desc("The minimum count to optimize memory "
+                                 "intrinsic calls"));
+
+// Command line option to disable memory intrinsic optimization. The default is
+// false. This is for debug purpose.
+static cl::opt<bool> DisableMemOPOPT("disable-memop-opt", cl::init(false),
+                                     cl::Hidden, cl::desc("Disable optimize"));
+
+// The percent threshold to optimize memory intrinsic calls.
+static cl::opt<unsigned>
+    MemOPPercentThreshold("pgo-memop-percent-threshold", cl::init(40),
+                          cl::Hidden, cl::ZeroOrMore,
+                          cl::desc("The percentage threshold for the "
+                                   "memory intrinsic calls optimization"));
+
+// Maximum number of versions for optimizing memory intrinsic call.
+static cl::opt<unsigned>
+    MemOPMaxVersion("pgo-memop-max-version", cl::init(3), cl::Hidden,
+                    cl::ZeroOrMore,
+                    cl::desc("The max version for the optimized memory "
+                             " intrinsic calls"));
+
+// Scale the counts from the annotation using the BB count value.
+static cl::opt<bool>
+    MemOPScaleCount("pgo-memop-scale-count", cl::init(true), cl::Hidden,
+                    cl::desc("Scale the memop size counts using the basic "
+                             " block count value"));
+
+// This option sets the rangge of precise profile memop sizes.
+extern cl::opt<std::string> MemOPSizeRange;
+
+// This option sets the value that groups large memop sizes
+extern cl::opt<unsigned> MemOPSizeLarge;
+
 namespace {
 class PGOIndirectCallPromotionLegacyPass : public ModulePass {
 public:
   static char ID;
 
-  PGOIndirectCallPromotionLegacyPass(bool InLTO = false)
-      : ModulePass(ID), InLTO(InLTO) {
+  PGOIndirectCallPromotionLegacyPass(bool InLTO = false, bool SamplePGO = false)
+      : ModulePass(ID), InLTO(InLTO), SamplePGO(SamplePGO) {
     initializePGOIndirectCallPromotionLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
@@ -119,6 +168,28 @@ private:
   // If this pass is called in LTO. We need to special handling the PGOFuncName
   // for the static variables due to LTO's internalization.
   bool InLTO;
+
+  // If this pass is called in SamplePGO. We need to add the prof metadata to
+  // the promoted direct call.
+  bool SamplePGO;
+};
+
+class PGOMemOPSizeOptLegacyPass : public FunctionPass {
+public:
+  static char ID;
+
+  PGOMemOPSizeOptLegacyPass() : FunctionPass(ID) {
+    initializePGOMemOPSizeOptLegacyPassPass(*PassRegistry::getPassRegistry());
+  }
+
+  StringRef getPassName() const override { return "PGOMemOPSize"; }
+
+private:
+  bool runOnFunction(Function &F) override;
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<BlockFrequencyInfoWrapperPass>();
+    AU.addPreserved<GlobalsAAWrapperPass>();
+  }
 };
 } // end anonymous namespace
 
@@ -128,8 +199,22 @@ INITIALIZE_PASS(PGOIndirectCallPromotionLegacyPass, "pgo-icall-prom",
                 "direct calls.",
                 false, false)
 
-ModulePass *llvm::createPGOIndirectCallPromotionLegacyPass(bool InLTO) {
-  return new PGOIndirectCallPromotionLegacyPass(InLTO);
+ModulePass *llvm::createPGOIndirectCallPromotionLegacyPass(bool InLTO,
+                                                           bool SamplePGO) {
+  return new PGOIndirectCallPromotionLegacyPass(InLTO, SamplePGO);
+}
+
+char PGOMemOPSizeOptLegacyPass::ID = 0;
+INITIALIZE_PASS_BEGIN(PGOMemOPSizeOptLegacyPass, "pgo-memop-opt",
+                      "Optimize memory intrinsic using its size value profile",
+                      false, false)
+INITIALIZE_PASS_DEPENDENCY(BlockFrequencyInfoWrapperPass)
+INITIALIZE_PASS_END(PGOMemOPSizeOptLegacyPass, "pgo-memop-opt",
+                    "Optimize memory intrinsic using its size value profile",
+                    false, false)
+
+FunctionPass *llvm::createPGOMemOPSizeOptLegacyPass() {
+  return new PGOMemOPSizeOptLegacyPass();
 }
 
 namespace {
@@ -144,17 +229,11 @@ private:
   // defines.
   InstrProfSymtab *Symtab;
 
-  enum TargetStatus {
-    OK,                   // Should be able to promote.
-    NotAvailableInModule, // Cannot find the target in current module.
-    ReturnTypeMismatch,   // Return type mismatch b/w target and indirect-call.
-    NumArgsMismatch,      // Number of arguments does not match.
-    ArgTypeMismatch       // Type mismatch in the arguments (cannot bitcast).
-  };
+  bool SamplePGO;
 
   // Test if we can legally promote this direct-call of Target.
-  TargetStatus isPromotionLegal(Instruction *Inst, uint64_t Target,
-                                Function *&F);
+  bool isPromotionLegal(Instruction *Inst, uint64_t Target, Function *&F,
+                        const char **Reason = nullptr);
 
   // A struct that records the direct target and it's call count.
   struct PromotionCandidate {
@@ -172,91 +251,77 @@ private:
       Instruction *Inst, const ArrayRef<InstrProfValueData> &ValueDataRef,
       uint64_t TotalCount, uint32_t NumCandidates);
 
-  // Main function that transforms Inst (either a indirect-call instruction, or
-  // an invoke instruction , to a conditional call to F. This is like:
-  //     if (Inst.CalledValue == F)
-  //        F(...);
-  //     else
-  //        Inst(...);
-  //     end
-  // TotalCount is the profile count value that the instruction executes.
-  // Count is the profile count value that F is the target function.
-  // These two values are being used to update the branch weight.
-  void promote(Instruction *Inst, Function *F, uint64_t Count,
-               uint64_t TotalCount);
-
   // Promote a list of targets for one indirect-call callsite. Return
   // the number of promotions.
   uint32_t tryToPromote(Instruction *Inst,
                         const std::vector<PromotionCandidate> &Candidates,
                         uint64_t &TotalCount);
 
-  static const char *StatusToString(const TargetStatus S) {
-    switch (S) {
-    case OK:
-      return "OK to promote";
-    case NotAvailableInModule:
-      return "Cannot find the target";
-    case ReturnTypeMismatch:
-      return "Return type mismatch";
-    case NumArgsMismatch:
-      return "The number of arguments mismatch";
-    case ArgTypeMismatch:
-      return "Argument Type mismatch";
-    }
-    llvm_unreachable("Should not reach here");
-  }
-
   // Noncopyable
   ICallPromotionFunc(const ICallPromotionFunc &other) = delete;
   ICallPromotionFunc &operator=(const ICallPromotionFunc &other) = delete;
 
 public:
-  ICallPromotionFunc(Function &Func, Module *Modu, InstrProfSymtab *Symtab)
-      : F(Func), M(Modu), Symtab(Symtab) {
-  }
+  ICallPromotionFunc(Function &Func, Module *Modu, InstrProfSymtab *Symtab,
+                     bool SamplePGO)
+      : F(Func), M(Modu), Symtab(Symtab), SamplePGO(SamplePGO) {}
 
   bool processFunction();
 };
 } // end anonymous namespace
 
-ICallPromotionFunc::TargetStatus
-ICallPromotionFunc::isPromotionLegal(Instruction *Inst, uint64_t Target,
-                                     Function *&TargetFunction) {
-  Function *DirectCallee = Symtab->getFunction(Target);
-  if (DirectCallee == nullptr)
-    return NotAvailableInModule;
+bool llvm::isLegalToPromote(Instruction *Inst, Function *F,
+                            const char **Reason) {
   // Check the return type.
   Type *CallRetType = Inst->getType();
   if (!CallRetType->isVoidTy()) {
-    Type *FuncRetType = DirectCallee->getReturnType();
+    Type *FuncRetType = F->getReturnType();
     if (FuncRetType != CallRetType &&
-        !CastInst::isBitCastable(FuncRetType, CallRetType))
-      return ReturnTypeMismatch;
+        !CastInst::isBitCastable(FuncRetType, CallRetType)) {
+      if (Reason)
+        *Reason = "Return type mismatch";
+      return false;
+    }
   }
 
   // Check if the arguments are compatible with the parameters
-  FunctionType *DirectCalleeType = DirectCallee->getFunctionType();
+  FunctionType *DirectCalleeType = F->getFunctionType();
   unsigned ParamNum = DirectCalleeType->getFunctionNumParams();
   CallSite CS(Inst);
   unsigned ArgNum = CS.arg_size();
 
-  if (ParamNum != ArgNum && !DirectCalleeType->isVarArg())
-    return NumArgsMismatch;
+  if (ParamNum != ArgNum && !DirectCalleeType->isVarArg()) {
+    if (Reason)
+      *Reason = "The number of arguments mismatch";
+    return false;
+  }
 
   for (unsigned I = 0; I < ParamNum; ++I) {
     Type *PTy = DirectCalleeType->getFunctionParamType(I);
     Type *ATy = CS.getArgument(I)->getType();
     if (PTy == ATy)
       continue;
-    if (!CastInst::castIsValid(Instruction::BitCast, CS.getArgument(I), PTy))
-      return ArgTypeMismatch;
+    if (!CastInst::castIsValid(Instruction::BitCast, CS.getArgument(I), PTy)) {
+      if (Reason)
+        *Reason = "Argument type mismatch";
+      return false;
+    }
   }
 
   DEBUG(dbgs() << " #" << NumOfPGOICallPromotion << " Promote the icall to "
-               << Symtab->getFuncName(Target) << "\n");
-  TargetFunction = DirectCallee;
-  return OK;
+               << F->getName() << "\n");
+  return true;
+}
+
+bool ICallPromotionFunc::isPromotionLegal(Instruction *Inst, uint64_t Target,
+                                          Function *&TargetFunction,
+                                          const char **Reason) {
+  TargetFunction = Symtab->getFunction(Target);
+  if (TargetFunction == nullptr) {
+    *Reason = "Cannot find the target";
+    return false;
+  }
+  return isLegalToPromote(Inst, TargetFunction, Reason);
 }
 
 // Indirect-call promotion heuristic. The direct targets are sorted based on
@@ -296,10 +361,9 @@ ICallPromotionFunc::getPromotionCandidatesForCallSite(
       break;
     }
     Function *TargetFunction = nullptr;
-    TargetStatus Status = isPromotionLegal(Inst, Target, TargetFunction);
-    if (Status != OK) {
+    const char *Reason = nullptr;
+    if (!isPromotionLegal(Inst, Target, TargetFunction, &Reason)) {
       StringRef TargetFuncName = Symtab->getFuncName(Target);
-      const char *Reason = StatusToString(Status);
       DEBUG(dbgs() << " Not promote: " << Reason << "\n");
       emitOptimizationRemarkMissed(
           F.getContext(), "pgo-icall-prom", F, Inst->getDebugLoc(),
@@ -532,8 +596,14 @@ static void insertCallRetPHI(Instruction *Inst, Instruction *CallResult,
 //     Ret = phi(Ret1, Ret2);
 // It adds type casts for the args do not match the parameters and the return
 // value. Branch weights metadata also updated.
-void ICallPromotionFunc::promote(Instruction *Inst, Function *DirectCallee,
-                                 uint64_t Count, uint64_t TotalCount) {
+// If \p AttachProfToDirectCall is true, a prof metadata is attached to the
+// new direct call to contain \p Count. This is used by SamplePGO inliner to
+// check callsite hotness.
+// Returns the promoted direct call instruction.
+Instruction *llvm::promoteIndirectCall(Instruction *Inst,
+                                       Function *DirectCallee, uint64_t Count,
+                                       uint64_t TotalCount,
+                                       bool AttachProfToDirectCall) {
   assert(DirectCallee != nullptr);
   BasicBlock *BB = Inst->getParent();
   // Just to suppress the non-debug build warning.
@@ -547,6 +617,14 @@ void ICallPromotionFunc::promote(Instruction *Inst, Function *DirectCallee,
 
   Instruction *NewInst =
       createDirectCallInst(Inst, DirectCallee, DirectCallBB, MergeBB);
+
+  if (AttachProfToDirectCall) {
+    SmallVector<uint32_t, 1> Weights;
+    Weights.push_back(Count);
+    MDBuilder MDB(NewInst->getContext());
+    dyn_cast<Instruction>(NewInst->stripPointerCasts())
+        ->setMetadata(LLVMContext::MD_prof, MDB.createBranchWeights(Weights));
+  }
 
   // Move Inst from MergeBB to IndirectCallBB.
   Inst->removeFromParent();
@@ -576,9 +654,10 @@ void ICallPromotionFunc::promote(Instruction *Inst, Function *DirectCallee,
   DEBUG(dbgs() << *BB << *DirectCallBB << *IndirectCallBB << *MergeBB << "\n");
 
   emitOptimizationRemark(
-      F.getContext(), "pgo-icall-prom", F, Inst->getDebugLoc(),
+      BB->getContext(), "pgo-icall-prom", *BB->getParent(), Inst->getDebugLoc(),
       Twine("Promote indirect call to ") + DirectCallee->getName() +
           " with count " + Twine(Count) + " out of " + Twine(TotalCount));
+  return NewInst;
 }
 
 // Promote indirect-call to conditional direct-call for one callsite.
@@ -589,7 +668,7 @@ uint32_t ICallPromotionFunc::tryToPromote(
 
   for (auto &C : Candidates) {
     uint64_t Count = C.Count;
-    promote(Inst, C.TargetFunction, Count, TotalCount);
+    promoteIndirectCall(Inst, C.TargetFunction, Count, TotalCount, SamplePGO);
     assert(TotalCount >= Count);
     TotalCount -= Count;
     NumOfPGOICallPromotion++;
@@ -630,7 +709,7 @@ bool ICallPromotionFunc::processFunction() {
 }
 
 // A wrapper function that does the actual work.
-static bool promoteIndirectCalls(Module &M, bool InLTO) {
+static bool promoteIndirectCalls(Module &M, bool InLTO, bool SamplePGO) {
   if (DisableICP)
     return false;
   InstrProfSymtab Symtab;
@@ -641,7 +720,7 @@ static bool promoteIndirectCalls(Module &M, bool InLTO) {
       continue;
     if (F.hasFnAttribute(Attribute::OptimizeNone))
       continue;
-    ICallPromotionFunc ICallPromotion(F, &M, &Symtab);
+    ICallPromotionFunc ICallPromotion(F, &M, &Symtab, SamplePGO);
     bool FuncChanged = ICallPromotion.processFunction();
     if (ICPDUMPAFTER && FuncChanged) {
       DEBUG(dbgs() << "\n== IR Dump After =="; F.print(dbgs()));
@@ -658,12 +737,289 @@ static bool promoteIndirectCalls(Module &M, bool InLTO) {
 
 bool PGOIndirectCallPromotionLegacyPass::runOnModule(Module &M) {
   // Command-line option has the priority for InLTO.
-  return promoteIndirectCalls(M, InLTO | ICPLTOMode);
+  return promoteIndirectCalls(M, InLTO | ICPLTOMode,
+                              SamplePGO | ICPSamplePGOMode);
 }
 
-PreservedAnalyses PGOIndirectCallPromotion::run(Module &M, ModuleAnalysisManager &AM) {
-  if (!promoteIndirectCalls(M, InLTO | ICPLTOMode))
+PreservedAnalyses PGOIndirectCallPromotion::run(Module &M,
+                                                ModuleAnalysisManager &AM) {
+  if (!promoteIndirectCalls(M, InLTO | ICPLTOMode,
+                            SamplePGO | ICPSamplePGOMode))
     return PreservedAnalyses::all();
 
   return PreservedAnalyses::none();
 }
+
+namespace {
+class MemOPSizeOpt : public InstVisitor<MemOPSizeOpt> {
+public:
+  MemOPSizeOpt(Function &Func, BlockFrequencyInfo &BFI)
+      : Func(Func), BFI(BFI), Changed(false) {
+    ValueDataArray =
+        llvm::make_unique<InstrProfValueData[]>(MemOPMaxVersion + 2);
+    // Get the MemOPSize range information from option MemOPSizeRange,
+    getMemOPSizeRangeFromOption(MemOPSizeRange, PreciseRangeStart,
+                                PreciseRangeLast);
+  }
+  bool isChanged() const { return Changed; }
+  void perform() {
+    WorkList.clear();
+    visit(Func);
+
+    for (auto &MI : WorkList) {
+      ++NumOfPGOMemOPAnnotate;
+      if (perform(MI)) {
+        Changed = true;
+        ++NumOfPGOMemOPOpt;
+        DEBUG(dbgs() << "MemOP calls: " << MI->getCalledFunction()->getName()
+                     << "is Transformed.\n");
+      }
+    }
+  }
+
+  void visitMemIntrinsic(MemIntrinsic &MI) {
+    Value *Length = MI.getLength();
+    // Not perform on constant length calls.
+    if (dyn_cast<ConstantInt>(Length))
+      return;
+    WorkList.push_back(&MI);
+  }
+
+private:
+  Function &Func;
+  BlockFrequencyInfo &BFI;
+  bool Changed;
+  std::vector<MemIntrinsic *> WorkList;
+  // Start of the previse range.
+  int64_t PreciseRangeStart;
+  // Last value of the previse range.
+  int64_t PreciseRangeLast;
+  // The space to read the profile annotation.
+  std::unique_ptr<InstrProfValueData[]> ValueDataArray;
+  bool perform(MemIntrinsic *MI);
+
+  // This kind shows which group the value falls in. For PreciseValue, we have
+  // the profile count for that value. LargeGroup groups the values that are in
+  // range [LargeValue, +inf). NonLargeGroup groups the rest of values.
+  enum MemOPSizeKind { PreciseValue, NonLargeGroup, LargeGroup };
+
+  MemOPSizeKind getMemOPSizeKind(int64_t Value) const {
+    if (Value == MemOPSizeLarge && MemOPSizeLarge != 0)
+      return LargeGroup;
+    if (Value == PreciseRangeLast + 1)
+      return NonLargeGroup;
+    return PreciseValue;
+  }
+};
+
+static const char *getMIName(const MemIntrinsic *MI) {
+  switch (MI->getIntrinsicID()) {
+  case Intrinsic::memcpy:
+    return "memcpy";
+  case Intrinsic::memmove:
+    return "memmove";
+  case Intrinsic::memset:
+    return "memset";
+  default:
+    return "unknown";
+  }
+}
+
+static bool isProfitable(uint64_t Count, uint64_t TotalCount) {
+  assert(Count <= TotalCount);
+  if (Count < MemOPCountThreshold)
+    return false;
+  if (Count < TotalCount * MemOPPercentThreshold / 100)
+    return false;
+  return true;
+}
+
+static inline uint64_t getScaledCount(uint64_t Count, uint64_t Num,
+                                      uint64_t Denom) {
+  if (!MemOPScaleCount)
+    return Count;
+  bool Overflowed;
+  uint64_t ScaleCount = SaturatingMultiply(Count, Num, &Overflowed);
+  return ScaleCount / Denom;
+}
+
+bool MemOPSizeOpt::perform(MemIntrinsic *MI) {
+  assert(MI);
+  if (MI->getIntrinsicID() == Intrinsic::memmove)
+    return false;
+
+  uint32_t NumVals, MaxNumPromotions = MemOPMaxVersion + 2;
+  uint64_t TotalCount;
+  if (!getValueProfDataFromInst(*MI, IPVK_MemOPSize, MaxNumPromotions,
+                                ValueDataArray.get(), NumVals, TotalCount))
+    return false;
+
+  uint64_t ActualCount = TotalCount;
+  uint64_t SavedTotalCount = TotalCount;
+  if (MemOPScaleCount) {
+    auto BBEdgeCount = BFI.getBlockProfileCount(MI->getParent());
+    if (!BBEdgeCount)
+      return false;
+    ActualCount = *BBEdgeCount;
+  }
+
+  if (ActualCount < MemOPCountThreshold)
+    return false;
+
+  ArrayRef<InstrProfValueData> VDs(ValueDataArray.get(), NumVals);
+  TotalCount = ActualCount;
+  if (MemOPScaleCount)
+    DEBUG(dbgs() << "Scale counts: numberator = " << ActualCount
+                 << " denominator = " << SavedTotalCount << "\n");
+
+  // Keeping track of the count of the default case:
+  uint64_t RemainCount = TotalCount;
+  SmallVector<uint64_t, 16> SizeIds;
+  SmallVector<uint64_t, 16> CaseCounts;
+  uint64_t MaxCount = 0;
+  unsigned Version = 0;
+  // Default case is in the front -- save the slot here.
+  CaseCounts.push_back(0);
+  for (auto &VD : VDs) {
+    int64_t V = VD.Value;
+    uint64_t C = VD.Count;
+    if (MemOPScaleCount)
+      C = getScaledCount(C, ActualCount, SavedTotalCount);
+
+    // Only care precise value here.
+    if (getMemOPSizeKind(V) != PreciseValue)
+      continue;
+
+    // ValueCounts are sorted on the count. Break at the first un-profitable
+    // value.
+    if (!isProfitable(C, RemainCount))
+      break;
+
+    SizeIds.push_back(V);
+    CaseCounts.push_back(C);
+    if (C > MaxCount)
+      MaxCount = C;
+
+    assert(RemainCount >= C);
+    RemainCount -= C;
+
+    if (++Version > MemOPMaxVersion && MemOPMaxVersion != 0)
+      break;
+  }
+
+  if (Version == 0)
+    return false;
+
+  CaseCounts[0] = RemainCount;
+  if (RemainCount > MaxCount)
+    MaxCount = RemainCount;
+
+  uint64_t SumForOpt = TotalCount - RemainCount;
+  DEBUG(dbgs() << "Read one memory intrinsic profile: " << SumForOpt << " vs "
+               << TotalCount << "\n");
+  DEBUG(
+      for (auto &VD
+           : VDs) { dbgs() << "  (" << VD.Value << "," << VD.Count << ")\n"; });
+
+  DEBUG(dbgs() << "Optimize one memory intrinsic call to " << Version
+               << " Versions\n");
+
+  // mem_op(..., size)
+  // ==>
+  // switch (size) {
+  //   case s1:
+  //      mem_op(..., s1);
+  //      goto merge_bb;
+  //   case s2:
+  //      mem_op(..., s2);
+  //      goto merge_bb;
+  //   ...
+  //   default:
+  //      mem_op(..., size);
+  //      goto merge_bb;
+  // }
+  // merge_bb:
+
+  BasicBlock *BB = MI->getParent();
+  DEBUG(dbgs() << "\n\n== Basic Block Before ==\n");
+  DEBUG(dbgs() << *BB << "\n");
+
+  BasicBlock *DefaultBB = SplitBlock(BB, MI);
+  BasicBlock::iterator It(*MI);
+  ++It;
+  assert(It != DefaultBB->end());
+  BasicBlock *MergeBB = SplitBlock(DefaultBB, &(*It));
+  DefaultBB->setName("MemOP.Default");
+  MergeBB->setName("MemOP.Merge");
+
+  auto &Ctx = Func.getContext();
+  IRBuilder<> IRB(BB);
+  BB->getTerminator()->eraseFromParent();
+  Value *SizeVar = MI->getLength();
+  SwitchInst *SI = IRB.CreateSwitch(SizeVar, DefaultBB, SizeIds.size());
+
+  // Clear the value profile data.
+  MI->setMetadata(LLVMContext::MD_prof, nullptr);
+
+  DEBUG(dbgs() << "\n\n== Basic Block After==\n");
+
+  for (uint64_t SizeId : SizeIds) {
+    ConstantInt *CaseSizeId = ConstantInt::get(Type::getInt64Ty(Ctx), SizeId);
+    BasicBlock *CaseBB = BasicBlock::Create(
+        Ctx, Twine("MemOP.Case.") + Twine(SizeId), &Func, DefaultBB);
+    Instruction *NewInst = MI->clone();
+    // Fix the argument.
+    dyn_cast<MemIntrinsic>(NewInst)->setLength(CaseSizeId);
+    CaseBB->getInstList().push_back(NewInst);
+    IRBuilder<> IRBCase(CaseBB);
+    IRBCase.CreateBr(MergeBB);
+    SI->addCase(CaseSizeId, CaseBB);
+    DEBUG(dbgs() << *CaseBB << "\n");
+  }
+  setProfMetadata(Func.getParent(), SI, CaseCounts, MaxCount);
+
+  DEBUG(dbgs() << *BB << "\n");
+  DEBUG(dbgs() << *DefaultBB << "\n");
+  DEBUG(dbgs() << *MergeBB << "\n");
+
+  emitOptimizationRemark(Func.getContext(), "memop-opt", Func,
+                         MI->getDebugLoc(),
+                         Twine("optimize ") + getMIName(MI) + " with count " +
+                             Twine(SumForOpt) + " out of " + Twine(TotalCount) +
+                             " for " + Twine(Version) + " versions");
+
+  return true;
+}
+} // namespace
+
+static bool PGOMemOPSizeOptImpl(Function &F, BlockFrequencyInfo &BFI) {
+  if (DisableMemOPOPT)
+    return false;
+
+  if (F.hasFnAttribute(Attribute::OptimizeForSize))
+    return false;
+  MemOPSizeOpt MemOPSizeOpt(F, BFI);
+  MemOPSizeOpt.perform();
+  return MemOPSizeOpt.isChanged();
+}
+
+bool PGOMemOPSizeOptLegacyPass::runOnFunction(Function &F) {
+  BlockFrequencyInfo &BFI =
+      getAnalysis<BlockFrequencyInfoWrapperPass>().getBFI();
+  return PGOMemOPSizeOptImpl(F, BFI);
+}
+
+namespace llvm {
+char &PGOMemOPSizeOptID = PGOMemOPSizeOptLegacyPass::ID;
+
+PreservedAnalyses PGOMemOPSizeOpt::run(Function &F,
+                                       FunctionAnalysisManager &FAM) {
+  auto &BFI = FAM.getResult<BlockFrequencyAnalysis>(F);
+  bool Changed = PGOMemOPSizeOptImpl(F, BFI);
+  if (!Changed)
+    return PreservedAnalyses::all();
+  auto  PA = PreservedAnalyses();
+  PA.preserve<GlobalsAA>();
+  return PA;
+}
+} // namespace llvm

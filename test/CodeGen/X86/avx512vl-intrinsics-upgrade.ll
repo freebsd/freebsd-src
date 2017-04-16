@@ -980,6 +980,7 @@ define i8 @test_pcmpeq_d_256(<8 x i32> %a, <8 x i32> %b) {
 ; CHECK:       ## BB#0:
 ; CHECK-NEXT:    vpcmpeqd %ymm1, %ymm0, %k0 ## encoding: [0x62,0xf1,0x7d,0x28,0x76,0xc1]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpeq.d.256(<8 x i32> %a, <8 x i32> %b, i8 -1)
   ret i8 %res
@@ -991,6 +992,7 @@ define i8 @test_mask_pcmpeq_d_256(<8 x i32> %a, <8 x i32> %b, i8 %mask) {
 ; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
 ; CHECK-NEXT:    vpcmpeqd %ymm1, %ymm0, %k0 {%k1} ## encoding: [0x62,0xf1,0x7d,0x29,0x76,0xc1]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpeq.d.256(<8 x i32> %a, <8 x i32> %b, i8 %mask)
   ret i8 %res
@@ -1005,6 +1007,7 @@ define i8 @test_pcmpeq_q_256(<4 x i64> %a, <4 x i64> %b) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpeq.q.256(<4 x i64> %a, <4 x i64> %b, i8 -1)
   ret i8 %res
@@ -1018,6 +1021,7 @@ define i8 @test_mask_pcmpeq_q_256(<4 x i64> %a, <4 x i64> %b, i8 %mask) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpeq.q.256(<4 x i64> %a, <4 x i64> %b, i8 %mask)
   ret i8 %res
@@ -1030,6 +1034,7 @@ define i8 @test_pcmpgt_d_256(<8 x i32> %a, <8 x i32> %b) {
 ; CHECK:       ## BB#0:
 ; CHECK-NEXT:    vpcmpgtd %ymm1, %ymm0, %k0 ## encoding: [0x62,0xf1,0x7d,0x28,0x66,0xc1]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpgt.d.256(<8 x i32> %a, <8 x i32> %b, i8 -1)
   ret i8 %res
@@ -1041,6 +1046,7 @@ define i8 @test_mask_pcmpgt_d_256(<8 x i32> %a, <8 x i32> %b, i8 %mask) {
 ; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
 ; CHECK-NEXT:    vpcmpgtd %ymm1, %ymm0, %k0 {%k1} ## encoding: [0x62,0xf1,0x7d,0x29,0x66,0xc1]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpgt.d.256(<8 x i32> %a, <8 x i32> %b, i8 %mask)
   ret i8 %res
@@ -1055,6 +1061,7 @@ define i8 @test_pcmpgt_q_256(<4 x i64> %a, <4 x i64> %b) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpgt.q.256(<4 x i64> %a, <4 x i64> %b, i8 -1)
   ret i8 %res
@@ -1068,6 +1075,7 @@ define i8 @test_mask_pcmpgt_q_256(<4 x i64> %a, <4 x i64> %b, i8 %mask) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpgt.q.256(<4 x i64> %a, <4 x i64> %b, i8 %mask)
   ret i8 %res
@@ -1082,6 +1090,7 @@ define i8 @test_pcmpeq_d_128(<4 x i32> %a, <4 x i32> %b) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpeq.d.128(<4 x i32> %a, <4 x i32> %b, i8 -1)
   ret i8 %res
@@ -1095,6 +1104,7 @@ define i8 @test_mask_pcmpeq_d_128(<4 x i32> %a, <4 x i32> %b, i8 %mask) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpeq.d.128(<4 x i32> %a, <4 x i32> %b, i8 %mask)
   ret i8 %res
@@ -1111,6 +1121,7 @@ define i8 @test_pcmpeq_q_128(<2 x i64> %a, <2 x i64> %b) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpeq.q.128(<2 x i64> %a, <2 x i64> %b, i8 -1)
   ret i8 %res
@@ -1126,6 +1137,7 @@ define i8 @test_mask_pcmpeq_q_128(<2 x i64> %a, <2 x i64> %b, i8 %mask) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpeq.q.128(<2 x i64> %a, <2 x i64> %b, i8 %mask)
   ret i8 %res
@@ -1140,6 +1152,7 @@ define i8 @test_pcmpgt_d_128(<4 x i32> %a, <4 x i32> %b) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpgt.d.128(<4 x i32> %a, <4 x i32> %b, i8 -1)
   ret i8 %res
@@ -1153,6 +1166,7 @@ define i8 @test_mask_pcmpgt_d_128(<4 x i32> %a, <4 x i32> %b, i8 %mask) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpgt.d.128(<4 x i32> %a, <4 x i32> %b, i8 %mask)
   ret i8 %res
@@ -1169,6 +1183,7 @@ define i8 @test_pcmpgt_q_128(<2 x i64> %a, <2 x i64> %b) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpgt.q.128(<2 x i64> %a, <2 x i64> %b, i8 -1)
   ret i8 %res
@@ -1184,6 +1199,7 @@ define i8 @test_mask_pcmpgt_q_128(<2 x i64> %a, <2 x i64> %b, i8 %mask) {
 ; CHECK-NEXT:    kshiftlw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x32,0xc0,0x0c]
 ; CHECK-NEXT:    kshiftrw $12, %k0, %k0 ## encoding: [0xc4,0xe3,0xf9,0x30,0xc0,0x0c]
 ; CHECK-NEXT:    kmovw %k0, %eax ## encoding: [0xc5,0xf8,0x93,0xc0]
+; CHECK-NEXT:    ## kill: %AL<def> %AL<kill> %EAX<kill>
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call i8 @llvm.x86.avx512.mask.pcmpgt.q.128(<2 x i64> %a, <2 x i64> %b, i8 %mask)
   ret i8 %res
@@ -2106,7 +2122,7 @@ declare <8 x i32> @llvm.x86.avx512.mask.pxor.d.256(<8 x i32>, <8 x i32>, <8 x i3
 define <4 x i32> @test_mask_andnot_epi32_rr_128(<4 x i32> %a, <4 x i32> %b) {
 ; CHECK-LABEL: test_mask_andnot_epi32_rr_128:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpandnd %xmm1, %xmm0, %xmm0 ## encoding: [0x62,0xf1,0x7d,0x08,0xdf,0xc1]
+; CHECK-NEXT:    vpandn %xmm1, %xmm0, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf9,0xdf,0xc1]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call <4 x i32> @llvm.x86.avx512.mask.pandn.d.128(<4 x i32> %a, <4 x i32> %b, <4 x i32> zeroinitializer, i8 -1)
   ret <4 x i32> %res
@@ -2136,7 +2152,7 @@ define <4 x i32> @test_mask_andnot_epi32_rrkz_128(<4 x i32> %a, <4 x i32> %b, i8
 define <4 x i32> @test_mask_andnot_epi32_rm_128(<4 x i32> %a, <4 x i32>* %ptr_b) {
 ; CHECK-LABEL: test_mask_andnot_epi32_rm_128:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpandnd (%rdi), %xmm0, %xmm0 ## encoding: [0x62,0xf1,0x7d,0x08,0xdf,0x07]
+; CHECK-NEXT:    vpandn (%rdi), %xmm0, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf9,0xdf,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %b = load <4 x i32>, <4 x i32>* %ptr_b
   %res = call <4 x i32> @llvm.x86.avx512.mask.pandn.d.128(<4 x i32> %a, <4 x i32> %b, <4 x i32> zeroinitializer, i8 -1)
@@ -2210,7 +2226,7 @@ declare <4 x i32> @llvm.x86.avx512.mask.pandn.d.128(<4 x i32>, <4 x i32>, <4 x i
 define <8 x i32> @test_mask_andnot_epi32_rr_256(<8 x i32> %a, <8 x i32> %b) {
 ; CHECK-LABEL: test_mask_andnot_epi32_rr_256:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpandnd %ymm1, %ymm0, %ymm0 ## encoding: [0x62,0xf1,0x7d,0x28,0xdf,0xc1]
+; CHECK-NEXT:    vpandn %ymm1, %ymm0, %ymm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfd,0xdf,0xc1]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call <8 x i32> @llvm.x86.avx512.mask.pandn.d.256(<8 x i32> %a, <8 x i32> %b, <8 x i32> zeroinitializer, i8 -1)
   ret <8 x i32> %res
@@ -2240,7 +2256,7 @@ define <8 x i32> @test_mask_andnot_epi32_rrkz_256(<8 x i32> %a, <8 x i32> %b, i8
 define <8 x i32> @test_mask_andnot_epi32_rm_256(<8 x i32> %a, <8 x i32>* %ptr_b) {
 ; CHECK-LABEL: test_mask_andnot_epi32_rm_256:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpandnd (%rdi), %ymm0, %ymm0 ## encoding: [0x62,0xf1,0x7d,0x28,0xdf,0x07]
+; CHECK-NEXT:    vpandn (%rdi), %ymm0, %ymm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfd,0xdf,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %b = load <8 x i32>, <8 x i32>* %ptr_b
   %res = call <8 x i32> @llvm.x86.avx512.mask.pandn.d.256(<8 x i32> %a, <8 x i32> %b, <8 x i32> zeroinitializer, i8 -1)
@@ -2314,7 +2330,7 @@ declare <8 x i32> @llvm.x86.avx512.mask.pandn.d.256(<8 x i32>, <8 x i32>, <8 x i
 define <2 x i64> @test_mask_andnot_epi64_rr_128(<2 x i64> %a, <2 x i64> %b) {
 ; CHECK-LABEL: test_mask_andnot_epi64_rr_128:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpandnq %xmm1, %xmm0, %xmm0 ## encoding: [0x62,0xf1,0xfd,0x08,0xdf,0xc1]
+; CHECK-NEXT:    vpandn %xmm1, %xmm0, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf9,0xdf,0xc1]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call <2 x i64> @llvm.x86.avx512.mask.pandn.q.128(<2 x i64> %a, <2 x i64> %b, <2 x i64> zeroinitializer, i8 -1)
   ret <2 x i64> %res
@@ -2344,7 +2360,7 @@ define <2 x i64> @test_mask_andnot_epi64_rrkz_128(<2 x i64> %a, <2 x i64> %b, i8
 define <2 x i64> @test_mask_andnot_epi64_rm_128(<2 x i64> %a, <2 x i64>* %ptr_b) {
 ; CHECK-LABEL: test_mask_andnot_epi64_rm_128:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpandnq (%rdi), %xmm0, %xmm0 ## encoding: [0x62,0xf1,0xfd,0x08,0xdf,0x07]
+; CHECK-NEXT:    vpandn (%rdi), %xmm0, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf9,0xdf,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %b = load <2 x i64>, <2 x i64>* %ptr_b
   %res = call <2 x i64> @llvm.x86.avx512.mask.pandn.q.128(<2 x i64> %a, <2 x i64> %b, <2 x i64> zeroinitializer, i8 -1)
@@ -2418,7 +2434,7 @@ declare <2 x i64> @llvm.x86.avx512.mask.pandn.q.128(<2 x i64>, <2 x i64>, <2 x i
 define <4 x i64> @test_mask_andnot_epi64_rr_256(<4 x i64> %a, <4 x i64> %b) {
 ; CHECK-LABEL: test_mask_andnot_epi64_rr_256:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpandnq %ymm1, %ymm0, %ymm0 ## encoding: [0x62,0xf1,0xfd,0x28,0xdf,0xc1]
+; CHECK-NEXT:    vpandn %ymm1, %ymm0, %ymm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfd,0xdf,0xc1]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %res = call <4 x i64> @llvm.x86.avx512.mask.pandn.q.256(<4 x i64> %a, <4 x i64> %b, <4 x i64> zeroinitializer, i8 -1)
   ret <4 x i64> %res
@@ -2448,7 +2464,7 @@ define <4 x i64> @test_mask_andnot_epi64_rrkz_256(<4 x i64> %a, <4 x i64> %b, i8
 define <4 x i64> @test_mask_andnot_epi64_rm_256(<4 x i64> %a, <4 x i64>* %ptr_b) {
 ; CHECK-LABEL: test_mask_andnot_epi64_rm_256:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:    vpandnq (%rdi), %ymm0, %ymm0 ## encoding: [0x62,0xf1,0xfd,0x28,0xdf,0x07]
+; CHECK-NEXT:    vpandn (%rdi), %ymm0, %ymm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfd,0xdf,0x07]
 ; CHECK-NEXT:    retq ## encoding: [0xc3]
   %b = load <4 x i64>, <4 x i64>* %ptr_b
   %res = call <4 x i64> @llvm.x86.avx512.mask.pandn.q.256(<4 x i64> %a, <4 x i64> %b, <4 x i64> zeroinitializer, i8 -1)
@@ -4833,3 +4849,128 @@ define <8 x i32>@test_int_x86_avx512_mask_inserti32x4_256(<8 x i32> %x0, <4 x i3
   %res4 = add <8 x i32> %res2, %res3
   ret <8 x i32> %res4
 }
+
+define <8 x float> @test_mm512_maskz_max_ps_256(<8 x float> %a0, <8 x float> %a1, i8 %mask) {
+; CHECK-LABEL: test_mm512_maskz_max_ps_256:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
+; CHECK-NEXT:    vmaxps %ymm1, %ymm0, %ymm0 {%k1} {z} ## encoding: [0x62,0xf1,0x7c,0xa9,0x5f,0xc1]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <8 x float> @llvm.x86.avx512.mask.max.ps.256(<8 x float> %a0, <8 x float> %a1, <8 x float>zeroinitializer, i8 %mask)
+  ret <8 x float> %res
+}
+
+define <8 x float> @test_mm512_mask_max_ps_256(<8 x float> %a0, <8 x float> %a1, <8 x float> %src, i8 %mask) {
+; CHECK-LABEL: test_mm512_mask_max_ps_256:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
+; CHECK-NEXT:    vmaxps %ymm1, %ymm0, %ymm2 {%k1} ## encoding: [0x62,0xf1,0x7c,0x29,0x5f,0xd1]
+; CHECK-NEXT:    vmovaps %ymm2, %ymm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfc,0x28,0xc2]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <8 x float> @llvm.x86.avx512.mask.max.ps.256(<8 x float> %a0, <8 x float> %a1, <8 x float> %src, i8 %mask)
+  ret <8 x float> %res
+}
+
+define <8 x float> @test_mm512_max_ps_256(<8 x float> %a0, <8 x float> %a1, i8 %mask) {
+; CHECK-LABEL: test_mm512_max_ps_256:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    vmaxps %ymm1, %ymm0, %ymm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfc,0x5f,0xc1]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <8 x float> @llvm.x86.avx512.mask.max.ps.256(<8 x float> %a0, <8 x float> %a1, <8 x float>zeroinitializer, i8 -1)
+  ret <8 x float> %res
+}
+declare <8 x float> @llvm.x86.avx512.mask.max.ps.256(<8 x float>, <8 x float>, <8 x float>, i8)
+
+define <4 x float> @test_mm512_maskz_max_ps_128(<4 x float> %a0, <4 x float> %a1, i8 %mask) {
+; CHECK-LABEL: test_mm512_maskz_max_ps_128:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
+; CHECK-NEXT:    vmaxps %xmm1, %xmm0, %xmm0 {%k1} {z} ## encoding: [0x62,0xf1,0x7c,0x89,0x5f,0xc1]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <4 x float> @llvm.x86.avx512.mask.max.ps.128(<4 x float> %a0, <4 x float> %a1, <4 x float>zeroinitializer, i8 %mask)
+  ret <4 x float> %res
+}
+
+define <4 x float> @test_mm512_mask_max_ps_128(<4 x float> %a0, <4 x float> %a1, <4 x float> %src, i8 %mask) {
+; CHECK-LABEL: test_mm512_mask_max_ps_128:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
+; CHECK-NEXT:    vmaxps %xmm1, %xmm0, %xmm2 {%k1} ## encoding: [0x62,0xf1,0x7c,0x09,0x5f,0xd1]
+; CHECK-NEXT:    vmovaps %xmm2, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf8,0x28,0xc2]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <4 x float> @llvm.x86.avx512.mask.max.ps.128(<4 x float> %a0, <4 x float> %a1, <4 x float> %src, i8 %mask)
+  ret <4 x float> %res
+}
+
+define <4 x float> @test_mm512_max_ps_128(<4 x float> %a0, <4 x float> %a1, i8 %mask) {
+; CHECK-LABEL: test_mm512_max_ps_128:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    vmaxps %xmm1, %xmm0, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf8,0x5f,0xc1]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <4 x float> @llvm.x86.avx512.mask.max.ps.128(<4 x float> %a0, <4 x float> %a1, <4 x float>zeroinitializer, i8 -1)
+  ret <4 x float> %res
+}
+declare <4 x float> @llvm.x86.avx512.mask.max.ps.128(<4 x float>, <4 x float>, <4 x float>, i8)
+
+define <8 x float> @test_mm512_maskz_min_ps_256(<8 x float> %a0, <8 x float> %a1, i8 %mask) {
+; CHECK-LABEL: test_mm512_maskz_min_ps_256:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
+; CHECK-NEXT:    vminps %ymm1, %ymm0, %ymm0 {%k1} {z} ## encoding: [0x62,0xf1,0x7c,0xa9,0x5d,0xc1]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <8 x float> @llvm.x86.avx512.mask.min.ps.256(<8 x float> %a0, <8 x float> %a1, <8 x float>zeroinitializer, i8 %mask)
+  ret <8 x float> %res
+}
+
+define <8 x float> @test_mm512_mask_min_ps_256(<8 x float> %a0, <8 x float> %a1, <8 x float> %src, i8 %mask) {
+; CHECK-LABEL: test_mm512_mask_min_ps_256:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
+; CHECK-NEXT:    vminps %ymm1, %ymm0, %ymm2 {%k1} ## encoding: [0x62,0xf1,0x7c,0x29,0x5d,0xd1]
+; CHECK-NEXT:    vmovaps %ymm2, %ymm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfc,0x28,0xc2]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <8 x float> @llvm.x86.avx512.mask.min.ps.256(<8 x float> %a0, <8 x float> %a1, <8 x float> %src, i8 %mask)
+  ret <8 x float> %res
+}
+
+define <8 x float> @test_mm512_min_ps_256(<8 x float> %a0, <8 x float> %a1, i8 %mask) {
+; CHECK-LABEL: test_mm512_min_ps_256:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    vminps %ymm1, %ymm0, %ymm0 ## EVEX TO VEX Compression encoding: [0xc5,0xfc,0x5d,0xc1]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <8 x float> @llvm.x86.avx512.mask.min.ps.256(<8 x float> %a0, <8 x float> %a1, <8 x float>zeroinitializer, i8 -1)
+  ret <8 x float> %res
+}
+declare <8 x float> @llvm.x86.avx512.mask.min.ps.256(<8 x float>, <8 x float>, <8 x float>, i8)
+
+define <4 x float> @test_mm512_maskz_min_ps_128(<4 x float> %a0, <4 x float> %a1, i8 %mask) {
+; CHECK-LABEL: test_mm512_maskz_min_ps_128:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
+; CHECK-NEXT:    vminps %xmm1, %xmm0, %xmm0 {%k1} {z} ## encoding: [0x62,0xf1,0x7c,0x89,0x5d,0xc1]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <4 x float> @llvm.x86.avx512.mask.min.ps.128(<4 x float> %a0, <4 x float> %a1, <4 x float>zeroinitializer, i8 %mask)
+  ret <4 x float> %res
+}
+
+define <4 x float> @test_mm512_mask_min_ps_128(<4 x float> %a0, <4 x float> %a1, <4 x float> %src, i8 %mask) {
+; CHECK-LABEL: test_mm512_mask_min_ps_128:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    kmovw %edi, %k1 ## encoding: [0xc5,0xf8,0x92,0xcf]
+; CHECK-NEXT:    vminps %xmm1, %xmm0, %xmm2 {%k1} ## encoding: [0x62,0xf1,0x7c,0x09,0x5d,0xd1]
+; CHECK-NEXT:    vmovaps %xmm2, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf8,0x28,0xc2]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <4 x float> @llvm.x86.avx512.mask.min.ps.128(<4 x float> %a0, <4 x float> %a1, <4 x float> %src, i8 %mask)
+  ret <4 x float> %res
+}
+
+define <4 x float> @test_mm512_min_ps_128(<4 x float> %a0, <4 x float> %a1, i8 %mask) {
+; CHECK-LABEL: test_mm512_min_ps_128:
+; CHECK:       ## BB#0:
+; CHECK-NEXT:    vminps %xmm1, %xmm0, %xmm0 ## EVEX TO VEX Compression encoding: [0xc5,0xf8,0x5d,0xc1]
+; CHECK-NEXT:    retq ## encoding: [0xc3]
+  %res = call <4 x float> @llvm.x86.avx512.mask.min.ps.128(<4 x float> %a0, <4 x float> %a1, <4 x float>zeroinitializer, i8 -1)
+  ret <4 x float> %res
+}
+declare <4 x float> @llvm.x86.avx512.mask.min.ps.128(<4 x float>, <4 x float>, <4 x float>, i8)
+

@@ -236,9 +236,9 @@ bool LoopIdiomRecognize::runOnLoop(Loop *L) {
   ApplyCodeSizeHeuristics =
       L->getHeader()->getParent()->optForSize() && UseLIRCodeSizeHeurs;
 
-  HasMemset = TLI->has(LibFunc::memset);
-  HasMemsetPattern = TLI->has(LibFunc::memset_pattern16);
-  HasMemcpy = TLI->has(LibFunc::memcpy);
+  HasMemset = TLI->has(LibFunc_memset);
+  HasMemsetPattern = TLI->has(LibFunc_memset_pattern16);
+  HasMemcpy = TLI->has(LibFunc_memcpy);
 
   if (HasMemset || HasMemsetPattern || HasMemcpy)
     if (SE->hasLoopInvariantBackedgeTakenCount(L))
@@ -823,7 +823,7 @@ bool LoopIdiomRecognize::processLoopStridedStore(
     Module *M = TheStore->getModule();
     Value *MSP =
         M->getOrInsertFunction("memset_pattern16", Builder.getVoidTy(),
-                               Int8PtrTy, Int8PtrTy, IntPtr, (void *)nullptr);
+                               Int8PtrTy, Int8PtrTy, IntPtr);
     inferLibFuncAttributes(*M->getFunction("memset_pattern16"), *TLI);
 
     // Otherwise we should form a memset_pattern16.  PatternValue is known to be

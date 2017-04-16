@@ -1196,6 +1196,9 @@ public:
 
   inline const_arg_iterator  arg_begin() const { return Args.begin(); }
   inline const_arg_iterator  arg_end  () const { return Args.end();   }
+  inline iterator_range<const_arg_iterator> args() const {
+    return llvm::make_range(arg_begin(), arg_end());
+  }
 
   inline size_t              arg_size () const { return Args.size();  }
   inline bool                arg_empty() const { return Args.empty(); }
@@ -1462,6 +1465,7 @@ public:
     ResolveFirst = b;
   }
 
+  void print(raw_ostream &OS) const;
   void dump() const;
 
   //===--------------------------------------------------------------------===//

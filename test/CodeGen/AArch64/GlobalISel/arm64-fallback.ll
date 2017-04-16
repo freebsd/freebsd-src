@@ -1,6 +1,6 @@
 ; RUN: not llc -O0 -global-isel -verify-machineinstrs %s -o - 2>&1 | FileCheck %s --check-prefix=ERROR
 ; RUN: llc -O0 -global-isel -global-isel-abort=0 -verify-machineinstrs %s -o - 2>&1 | FileCheck %s --check-prefix=FALLBACK
-; RUN: llc -O0 -global-isel -global-isel-abort=2 -verify-machineinstrs %s -o %t.out 2> %t.err
+; RUN: llc -O0 -global-isel -global-isel-abort=2 -pass-remarks-missed='gisel*' -verify-machineinstrs %s -o %t.out 2> %t.err
 ; RUN: FileCheck %s --check-prefix=FALLBACK-WITH-REPORT-OUT < %t.out
 ; RUN: FileCheck %s --check-prefix=FALLBACK-WITH-REPORT-ERR < %t.err
 ; This file checks that the fallback path to selection dag works.
@@ -14,10 +14,11 @@ target triple = "aarch64--"
 
 ; We use __fixunstfti as the common denominator for __fixunstfti on Linux and
 ; ___fixunstfti on iOS
-; ERROR: Unable to lower arguments
+; ERROR: unable to lower arguments: i128 (i128)* (in function: ABIi128)
 ; FALLBACK: ldr q0,
 ; FALLBACK-NEXT: bl __fixunstfti
 ;
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to lower arguments: i128 (i128)* (in function: ABIi128)
 ; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for ABIi128
 ; FALLBACK-WITH-REPORT-OUT-LABEL: ABIi128:
 ; FALLBACK-WITH-REPORT-OUT: ldr q0,
@@ -31,6 +32,7 @@ define i128 @ABIi128(i128 %arg1) {
 ; It happens that we don't handle ConstantArray instances yet during
 ; translation. Any other constant would be fine too.
 
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to translate constant: [1 x double] (in function: constant)
 ; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for constant
 ; FALLBACK-WITH-REPORT-OUT-LABEL: constant:
 ; FALLBACK-WITH-REPORT-OUT: fmov d0, #1.0
@@ -41,6 +43,7 @@ define [1 x double] @constant() {
   ; The key problem here is that we may fail to create an MBB referenced by a
   ; PHI. If so, we cannot complete the G_PHI and mustn't try or bad things
   ; happen.
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: cannot select: G_STORE %vreg4, %vreg2; mem:ST4[%addr] GPR:%vreg4,%vreg2 (in function: pending_phis)
 ; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for pending_phis
 ; FALLBACK-WITH-REPORT-OUT-LABEL: pending_phis:
 define i32 @pending_phis(i1 %tst, i32 %val, i32* %addr) {
@@ -60,6 +63,7 @@ false:
 }
 
   ; General legalizer inability to handle types whose size wasn't a power of 2.
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to legalize instruction: %vreg1<def>(s42) = G_LOAD %vreg0; mem:LD6[%addr](align=8) (in function: odd_type)
 ; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for odd_type
 ; FALLBACK-WITH-REPORT-OUT-LABEL: odd_type:
 define void @odd_type(i42* %addr) {
@@ -67,8 +71,17 @@ define void @odd_type(i42* %addr) {
   ret void
 }
 
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to legalize instruction: %vreg1<def>(<7 x s32>) = G_LOAD %vreg0; mem:LD28[%addr](align=32) (in function: odd_vector)
+; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for odd_vector
+; FALLBACK-WITH-REPORT-OUT-LABEL: odd_vector:
+define void @odd_vector(<7 x i32>* %addr) {
+  %vec = load <7 x i32>, <7 x i32>* %addr
+  ret void
+}
+
   ; RegBankSelect crashed when given invalid mappings, and AArch64's
   ; implementation produce valid-but-nonsense mappings for G_SEQUENCE.
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to map instruction
 ; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for sequence_mapping
 ; FALLBACK-WITH-REPORT-OUT-LABEL: sequence_mapping:
 define void @sequence_mapping([2 x i64] %in) {
@@ -76,42 +89,68 @@ define void @sequence_mapping([2 x i64] %in) {
 }
 
   ; Legalizer was asserting when it enountered an unexpected default action.
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to map instruction
 ; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for legal_default
 ; FALLBACK-WITH-REPORT-LABEL: legal_default:
-define void @legal_default(i64 %in) {
-  insertvalue [2 x i64] undef, i64 %in, 0
+define void @legal_default([8 x i8] %in) {
+  insertvalue { [4 x i8], [8 x i8], [4 x i8] } undef, [8 x i8] %in, 1
   ret void
 }
 
-; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for debug_insts
-; FALLBACK-WITH-REPORT-LABEL: debug_insts:
-define void @debug_insts(i32 %in) #0 !dbg !7 {
-entry:
-  %in.addr = alloca i32, align 4
-  store i32 %in, i32* %in.addr, align 4
-  call void @llvm.dbg.declare(metadata i32* %in.addr, metadata !11, metadata !12), !dbg !13
-  ret void, !dbg !14
+  ; AArch64 was asserting instead of returning an invalid mapping for unknown
+  ; sizes.
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to translate instruction: ret: '  ret i128 undef' (in function: sequence_sizes)
+; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for sequence_sizes
+; FALLBACK-WITH-REPORT-LABEL: sequence_sizes:
+define i128 @sequence_sizes([8 x i8] %in) {
+  ret i128 undef
 }
 
-; Function Attrs: nounwind readnone
-declare void @llvm.dbg.declare(metadata, metadata, metadata)
+; Just to make sure we don't accidentally emit a normal load/store.
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: cannot select: %vreg2<def>(s64) = G_LOAD %vreg0; mem:LD8[%addr] GPR:%vreg2,%vreg0 (in function: atomic_ops)
+; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for atomic_ops
+; FALLBACK-WITH-REPORT-LABEL: atomic_ops:
+define i64 @atomic_ops(i64* %addr) {
+  store atomic i64 0, i64* %addr unordered, align 8
+  %res = load atomic i64, i64* %addr seq_cst, align 8
+  ret i64 %res
+}
 
-!llvm.dbg.cu = !{!0}
-!llvm.module.flags = !{!3, !4, !5}
-!llvm.ident = !{!6}
+; Make sure we don't mess up metadata arguments.
+declare void @llvm.write_register.i64(metadata, i64)
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 4.0.0 (trunk 289075) (llvm/trunk 289080)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !2)
-!1 = !DIFile(filename: "tmp.c", directory: "/Users/tim/llvm/build")
-!2 = !{}
-!3 = !{i32 2, !"Dwarf Version", i32 4}
-!4 = !{i32 2, !"Debug Info Version", i32 3}
-!5 = !{i32 1, !"PIC Level", i32 2}
-!6 = !{!"clang version 4.0.0 (trunk 289075) (llvm/trunk 289080)"}
-!7 = distinct !DISubprogram(name: "foo", scope: !1, file: !1, line: 1, type: !8, isLocal: false, isDefinition: true, scopeLine: 1, flags: DIFlagPrototyped, isOptimized: false, unit: !0, variables: !2)
-!8 = !DISubroutineType(types: !9)
-!9 = !{null, !10}
-!10 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
-!11 = !DILocalVariable(name: "in", arg: 1, scope: !7, file: !1, line: 1, type: !10)
-!12 = !DIExpression()
-!13 = !DILocation(line: 1, column: 14, scope: !7)
-!14 = !DILocation(line: 2, column: 1, scope: !7)
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to translate instruction: call: ' call void @llvm.write_register.i64(metadata !0, i64 0)' (in function: test_write_register_intrin)
+; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for test_write_register_intrin
+; FALLBACK-WITH-REPORT-LABEL: test_write_register_intrin:
+define void @test_write_register_intrin() {
+  call void @llvm.write_register.i64(metadata !{!"sp"}, i64 0)
+  ret void
+}
+
+@_ZTIi = external global i8*
+declare i32 @__gxx_personality_v0(...)
+
+; Check that we fallback on invoke translation failures.
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to translate instruction: invoke: '  invoke void %callee(i128 0)
+; FALLBACK-WITH-REPORT-NEXT:   to label %continue unwind label %broken' (in function: invoke_weird_type)
+; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for invoke_weird_type
+; FALLBACK-WITH-REPORT-OUT-LABEL: invoke_weird_type:
+define void @invoke_weird_type(void(i128)* %callee) personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+  invoke void %callee(i128 0)
+    to label %continue unwind label %broken
+
+broken:
+  landingpad { i8*, i32 } catch i8* bitcast(i8** @_ZTIi to i8*)
+  ret void
+
+continue:
+  ret void
+}
+
+; Check that we fallback on invoke translation failures.
+; FALLBACK-WITH-REPORT-ERR: remark: <unknown>:0:0: unable to legalize instruction: %vreg0<def>(s128) = G_FCONSTANT quad 2
+; FALLBACK-WITH-REPORT-ERR: warning: Instruction selection used fallback path for test_quad_dump
+; FALLBACK-WITH-REPORT-OUT-LABEL: test_quad_dump:
+define fp128 @test_quad_dump() {
+  ret fp128 0xL00000000000000004000000000000000
+}

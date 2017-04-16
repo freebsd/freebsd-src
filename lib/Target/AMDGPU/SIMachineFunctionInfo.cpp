@@ -20,12 +20,6 @@
 
 using namespace llvm;
 
-static cl::opt<bool> EnableSpillSGPRToVGPR(
-  "amdgpu-spill-sgpr-to-vgpr",
-  cl::desc("Enable spilling VGPRs to SGPRs"),
-  cl::ReallyHidden,
-  cl::init(true));
-
 SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
   : AMDGPUMachineFunction(MF),
     TIDReg(AMDGPU::NoRegister),
@@ -47,13 +41,13 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
     WorkGroupInfoSystemSGPR(AMDGPU::NoRegister),
     PrivateSegmentWaveByteOffsetSystemSGPR(AMDGPU::NoRegister),
     PSInputAddr(0),
+    PSInputEnable(0),
     ReturnsVoid(true),
     FlatWorkGroupSizes(0, 0),
     WavesPerEU(0, 0),
     DebuggerWorkGroupIDStackObjectIndices({{0, 0, 0}}),
     DebuggerWorkItemIDStackObjectIndices({{0, 0, 0}}),
     LDSWaveSpillSize(0),
-    PSInputEna(0),
     NumUserSGPRs(0),
     NumSystemSGPRs(0),
     HasSpilledSGPRs(false),
@@ -81,34 +75,48 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
     PrivateMemoryInputPtr(false) {
   const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
   const Function *F = MF.getFunction();
+  FlatWorkGroupSizes = ST.getFlatWorkGroupSizes(*F);
+  WavesPerEU = ST.getWavesPerEU(*F);
 
-  PSInputAddr = AMDGPU::getInitialPSInputAddr(*F);
+  // Non-entry functions have no special inputs for now.
+  // TODO: Return early for non-entry CCs.
 
-  const MachineFrameInfo &FrameInfo = MF.getFrameInfo();
+  CallingConv::ID CC = F->getCallingConv();
+  if (CC == CallingConv::AMDGPU_PS)
+    PSInputAddr = AMDGPU::getInitialPSInputAddr(*F);
 
-  if (!AMDGPU::isShader(F->getCallingConv())) {
+  if (AMDGPU::isKernel(CC)) {
     KernargSegmentPtr = true;
     WorkGroupIDX = true;
     WorkItemIDX = true;
   }
 
-  if (F->hasFnAttribute("amdgpu-work-group-id-y") || ST.debuggerEmitPrologue())
+  if (ST.debuggerEmitPrologue()) {
+    // Enable everything.
     WorkGroupIDY = true;
-
-  if (F->hasFnAttribute("amdgpu-work-group-id-z") || ST.debuggerEmitPrologue())
     WorkGroupIDZ = true;
-
-  if (F->hasFnAttribute("amdgpu-work-item-id-y") || ST.debuggerEmitPrologue())
     WorkItemIDY = true;
-
-  if (F->hasFnAttribute("amdgpu-work-item-id-z") || ST.debuggerEmitPrologue())
     WorkItemIDZ = true;
+  } else {
+    if (F->hasFnAttribute("amdgpu-work-group-id-y"))
+      WorkGroupIDY = true;
+
+    if (F->hasFnAttribute("amdgpu-work-group-id-z"))
+      WorkGroupIDZ = true;
+
+    if (F->hasFnAttribute("amdgpu-work-item-id-y"))
+      WorkItemIDY = true;
+
+    if (F->hasFnAttribute("amdgpu-work-item-id-z"))
+      WorkItemIDZ = true;
+  }
 
   // X, XY, and XYZ are the only supported combinations, so make sure Y is
   // enabled if Z is.
   if (WorkItemIDZ)
     WorkItemIDY = true;
 
+  const MachineFrameInfo &FrameInfo = MF.getFrameInfo();
   bool MaySpill = ST.isVGPRSpillingEnabled(*F);
   bool HasStackObjects = FrameInfo.hasStackObjects();
 
@@ -135,12 +143,8 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
   // We don't need to worry about accessing spills with flat instructions.
   // TODO: On VI where we must use flat for global, we should be able to omit
   // this if it is never used for generic access.
-  if (HasStackObjects && ST.getGeneration() >= SISubtarget::SEA_ISLANDS &&
-      ST.isAmdHsaOS())
+  if (HasStackObjects && ST.hasFlatAddressSpace() && ST.isAmdHsaOS())
     FlatScratchInit = true;
-
-  FlatWorkGroupSizes = ST.getFlatWorkGroupSizes(*F);
-  WavesPerEU = ST.getWavesPerEU(*F);
 }
 
 unsigned SIMachineFunctionInfo::addPrivateSegmentBuffer(
@@ -193,45 +197,60 @@ unsigned SIMachineFunctionInfo::addPrivateMemoryPtr(const SIRegisterInfo &TRI) {
   return PrivateMemoryPtrUserSGPR;
 }
 
-SIMachineFunctionInfo::SpilledReg SIMachineFunctionInfo::getSpilledReg (
-                                                       MachineFunction *MF,
-                                                       unsigned FrameIndex,
-                                                       unsigned SubIdx) {
-  if (!EnableSpillSGPRToVGPR)
-    return SpilledReg();
+/// Reserve a slice of a VGPR to support spilling for FrameIndex \p FI.
+bool SIMachineFunctionInfo::allocateSGPRSpillToVGPR(MachineFunction &MF,
+                                                    int FI) {
+  std::vector<SpilledReg> &SpillLanes = SGPRToVGPRSpills[FI];
 
-  const SISubtarget &ST = MF->getSubtarget<SISubtarget>();
+  // This has already been allocated.
+  if (!SpillLanes.empty())
+    return true;
+
+  const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
   const SIRegisterInfo *TRI = ST.getRegisterInfo();
+  MachineFrameInfo &FrameInfo = MF.getFrameInfo();
+  MachineRegisterInfo &MRI = MF.getRegInfo();
+  unsigned WaveSize = ST.getWavefrontSize();
 
-  MachineFrameInfo &FrameInfo = MF->getFrameInfo();
-  MachineRegisterInfo &MRI = MF->getRegInfo();
-  int64_t Offset = FrameInfo.getObjectOffset(FrameIndex);
-  Offset += SubIdx * 4;
+  unsigned Size = FrameInfo.getObjectSize(FI);
+  assert(Size >= 4 && Size <= 64 && "invalid sgpr spill size");
+  assert(TRI->spillSGPRToVGPR() && "not spilling SGPRs to VGPRs");
 
-  unsigned LaneVGPRIdx = Offset / (64 * 4);
-  unsigned Lane = (Offset / 4) % 64;
+  int NumLanes = Size / 4;
 
-  struct SpilledReg Spill;
-  Spill.Lane = Lane;
+  // Make sure to handle the case where a wide SGPR spill may span between two
+  // VGPRs.
+  for (int I = 0; I < NumLanes; ++I, ++NumVGPRSpillLanes) {
+    unsigned LaneVGPR;
+    unsigned VGPRIndex = (NumVGPRSpillLanes % WaveSize);
 
-  if (!LaneVGPRs.count(LaneVGPRIdx)) {
-    unsigned LaneVGPR = TRI->findUnusedRegister(MRI, &AMDGPU::VGPR_32RegClass,
-                                                *MF);
+    if (VGPRIndex == 0) {
+      LaneVGPR = TRI->findUnusedRegister(MRI, &AMDGPU::VGPR_32RegClass, MF);
+      if (LaneVGPR == AMDGPU::NoRegister) {
+        // We have no VGPRs left for spilling SGPRs. Reset because we won't
+        // partially spill the SGPR to VGPRs.
+        SGPRToVGPRSpills.erase(FI);
+        NumVGPRSpillLanes -= I;
+        return false;
+      }
 
-    if (LaneVGPR == AMDGPU::NoRegister)
-      // We have no VGPRs left for spilling SGPRs.
-      return Spill;
+      SpillVGPRs.push_back(LaneVGPR);
 
-    LaneVGPRs[LaneVGPRIdx] = LaneVGPR;
-
-    // Add this register as live-in to all blocks to avoid machine verifer
-    // complaining about use of an undefined physical register.
-    for (MachineFunction::iterator BI = MF->begin(), BE = MF->end();
-         BI != BE; ++BI) {
-      BI->addLiveIn(LaneVGPR);
+      // Add this register as live-in to all blocks to avoid machine verifer
+      // complaining about use of an undefined physical register.
+      for (MachineBasicBlock &BB : MF)
+        BB.addLiveIn(LaneVGPR);
+    } else {
+      LaneVGPR = SpillVGPRs.back();
     }
+
+    SpillLanes.push_back(SpilledReg(LaneVGPR, VGPRIndex));
   }
 
-  Spill.VGPR = LaneVGPRs[LaneVGPRIdx];
-  return Spill;
+  return true;
+}
+
+void SIMachineFunctionInfo::removeSGPRToVGPRFrameIndices(MachineFrameInfo &MFI) {
+  for (auto &R : SGPRToVGPRSpills)
+    MFI.RemoveStackObject(R.first);
 }

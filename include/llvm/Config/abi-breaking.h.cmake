@@ -15,9 +15,8 @@
 /* Define to enable checks that alter the LLVM C++ ABI */
 #cmakedefine01 LLVM_ENABLE_ABI_BREAKING_CHECKS
 
-/* Define to disable the link-time checking of mismatch for
-   LLVM_ENABLE_ABI_BREAKING_CHECKS */
-#cmakedefine01 LLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING
+/* Allow selectively disabling link-time mismatch checking so that header-only
+   ADT content from LLVM can be used without linking libSupport. */
 #if !LLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING
 
 // ABI_BREAKING_CHECKS protection: provides link-time failure when clients build

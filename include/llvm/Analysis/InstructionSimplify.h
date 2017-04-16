@@ -42,6 +42,7 @@ namespace llvm {
   class Instruction;
   class DataLayout;
   class FastMathFlags;
+  class OptimizationRemarkEmitter;
   class TargetLibraryInfo;
   class Type;
   class Value;
@@ -246,6 +247,14 @@ namespace llvm {
                           AssumptionCache *AC = nullptr,
                           const Instruction *CxtI = nullptr);
 
+  /// Given operands for a ShuffleVectorInst, fold the result or return null.
+  Value *SimplifyShuffleVectorInst(Value *Op0, Value *Op1, Constant *Mask,
+                                   Type *RetTy, const DataLayout &DL,
+                                   const TargetLibraryInfo *TLI = nullptr,
+                                   const DominatorTree *DT = nullptr,
+                                   AssumptionCache *AC = nullptr,
+                                   const Instruction *CxtI = nullptr);
+
   //=== Helper functions for higher up the class hierarchy.
 
 
@@ -296,7 +305,8 @@ namespace llvm {
   Value *SimplifyInstruction(Instruction *I, const DataLayout &DL,
                              const TargetLibraryInfo *TLI = nullptr,
                              const DominatorTree *DT = nullptr,
-                             AssumptionCache *AC = nullptr);
+                             AssumptionCache *AC = nullptr,
+                             OptimizationRemarkEmitter *ORE = nullptr);
 
   /// Replace all uses of 'I' with 'SimpleV' and simplify the uses recursively.
   ///

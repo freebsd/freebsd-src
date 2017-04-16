@@ -169,6 +169,7 @@ void MachineFunction::clear() {
   InstructionRecycler.clear(Allocator);
   OperandRecycler.clear(Allocator);
   BasicBlockRecycler.clear(Allocator);
+  VariableDbgInfos.clear();
   if (RegInfo) {
     RegInfo->~MachineRegisterInfo();
     Allocator.Deallocate(RegInfo);
@@ -859,7 +860,9 @@ BitVector MachineFrameInfo::getPristineRegs(const MachineFunction &MF) const {
   if (!isCalleeSavedInfoValid())
     return BV;
 
-  for (const MCPhysReg *CSR = TRI->getCalleeSavedRegs(&MF); CSR && *CSR; ++CSR)
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
+  for (const MCPhysReg *CSR = MRI.getCalleeSavedRegs(); CSR && *CSR;
+       ++CSR)
     BV.set(*CSR);
 
   // Saved CSRs are not pristine.
@@ -956,7 +959,7 @@ void MachineFrameInfo::print(const MachineFunction &MF, raw_ostream &OS) const{
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-void MachineFrameInfo::dump(const MachineFunction &MF) const {
+LLVM_DUMP_METHOD void MachineFrameInfo::dump(const MachineFunction &MF) const {
   print(MF, dbgs());
 }
 #endif

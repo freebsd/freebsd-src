@@ -53,10 +53,19 @@ entry:
 
 define i32 @test.objectsize() {
 ; CHECK-LABEL: @test.objectsize(
-; CHECK: @llvm.objectsize.i32.p0i8
+; CHECK: @llvm.objectsize.i32.p0i8(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @a, i32 0, i32 0), i1 false, i1 false)
   %s = call i32 @llvm.objectsize.i32(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @a, i32 0, i32 0), i1 false)
   ret i32 %s
 }
+
+declare i64 @llvm.objectsize.i64.p0i8(i8*, i1) nounwind readonly
+define i64 @test.objectsize.2() {
+; CHECK-LABEL: @test.objectsize.2(
+; CHECK: @llvm.objectsize.i64.p0i8(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @a, i32 0, i32 0), i1 false, i1 false)
+  %s = call i64 @llvm.objectsize.i64.p0i8(i8* getelementptr inbounds ([60 x i8], [60 x i8]* @a, i32 0, i32 0), i1 false)
+  ret i64 %s
+}
+
 
 declare <2 x double> @llvm.masked.load.v2f64(<2 x double>* %ptrs, i32, <2 x i1> %mask, <2 x double> %src0)
 
@@ -101,6 +110,25 @@ define void @test.stackprotectorcheck() {
   ret void
 }
 
+declare void  @llvm.lifetime.start(i64, i8* nocapture) nounwind readonly
+declare void @llvm.lifetime.end(i64, i8* nocapture) nounwind
+
+define void @tests.lifetime.start.end() {
+  ; CHECK-LABEL: @tests.lifetime.start.end(
+  %a = alloca i8
+  call void @llvm.lifetime.start(i64 1, i8* %a)
+  ; CHECK: call void @llvm.lifetime.start.p0i8(i64 1, i8* %a)
+  store i8 0, i8* %a
+  call void @llvm.lifetime.end(i64 1, i8* %a)
+  ; CHECK: call void @llvm.lifetime.end.p0i8(i64 1, i8* %a)
+  ret void
+}
+
+
 ; This is part of @test.objectsize(), since llvm.objectsize declaration gets
 ; emitted at the end.
 ; CHECK: declare i32 @llvm.objectsize.i32.p0i8
+
+
+; CHECK: declare void @llvm.lifetime.start.p0i8(i64, i8* nocapture)
+; CHECK: declare void @llvm.lifetime.end.p0i8(i64, i8* nocapture)

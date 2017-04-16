@@ -28,7 +28,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/ValueSymbolTable.h"
-#include "llvm/Object/IRObjectFile.h"
+#include "llvm/Object/ModuleSymbolTable.h"
 #include "llvm/Pass.h"
 using namespace llvm;
 
@@ -84,6 +84,92 @@ static bool isNonRenamableLocal(const GlobalValue &GV) {
   return GV.hasSection() && GV.hasLocalLinkage();
 }
 
+/// Determine whether this call has all constant integer arguments (excluding
+/// "this") and summarize it to VCalls or ConstVCalls as appropriate.
+static void addVCallToSet(DevirtCallSite Call, GlobalValue::GUID Guid,
+                          SetVector<FunctionSummary::VFuncId> &VCalls,
+                          SetVector<FunctionSummary::ConstVCall> &ConstVCalls) {
+  std::vector<uint64_t> Args;
+  // Start from the second argument to skip the "this" pointer.
+  for (auto &Arg : make_range(Call.CS.arg_begin() + 1, Call.CS.arg_end())) {
+    auto *CI = dyn_cast<ConstantInt>(Arg);
+    if (!CI || CI->getBitWidth() > 64) {
+      VCalls.insert({Guid, Call.Offset});
+      return;
+    }
+    Args.push_back(CI->getZExtValue());
+  }
+  ConstVCalls.insert({{Guid, Call.Offset}, std::move(Args)});
+}
+
+/// If this intrinsic call requires that we add information to the function
+/// summary, do so via the non-constant reference arguments.
+static void addIntrinsicToSummary(
+    const CallInst *CI, SetVector<GlobalValue::GUID> &TypeTests,
+    SetVector<FunctionSummary::VFuncId> &TypeTestAssumeVCalls,
+    SetVector<FunctionSummary::VFuncId> &TypeCheckedLoadVCalls,
+    SetVector<FunctionSummary::ConstVCall> &TypeTestAssumeConstVCalls,
+    SetVector<FunctionSummary::ConstVCall> &TypeCheckedLoadConstVCalls) {
+  switch (CI->getCalledFunction()->getIntrinsicID()) {
+  case Intrinsic::type_test: {
+    auto *TypeMDVal = cast<MetadataAsValue>(CI->getArgOperand(1));
+    auto *TypeId = dyn_cast<MDString>(TypeMDVal->getMetadata());
+    if (!TypeId)
+      break;
+    GlobalValue::GUID Guid = GlobalValue::getGUID(TypeId->getString());
+
+    // Produce a summary from type.test intrinsics. We only summarize type.test
+    // intrinsics that are used other than by an llvm.assume intrinsic.
+    // Intrinsics that are assumed are relevant only to the devirtualization
+    // pass, not the type test lowering pass.
+    bool HasNonAssumeUses = llvm::any_of(CI->uses(), [](const Use &CIU) {
+      auto *AssumeCI = dyn_cast<CallInst>(CIU.getUser());
+      if (!AssumeCI)
+        return true;
+      Function *F = AssumeCI->getCalledFunction();
+      return !F || F->getIntrinsicID() != Intrinsic::assume;
+    });
+    if (HasNonAssumeUses)
+      TypeTests.insert(Guid);
+
+    SmallVector<DevirtCallSite, 4> DevirtCalls;
+    SmallVector<CallInst *, 4> Assumes;
+    findDevirtualizableCallsForTypeTest(DevirtCalls, Assumes, CI);
+    for (auto &Call : DevirtCalls)
+      addVCallToSet(Call, Guid, TypeTestAssumeVCalls,
+                    TypeTestAssumeConstVCalls);
+
+    break;
+  }
+
+  case Intrinsic::type_checked_load: {
+    auto *TypeMDVal = cast<MetadataAsValue>(CI->getArgOperand(2));
+    auto *TypeId = dyn_cast<MDString>(TypeMDVal->getMetadata());
+    if (!TypeId)
+      break;
+    GlobalValue::GUID Guid = GlobalValue::getGUID(TypeId->getString());
+
+    SmallVector<DevirtCallSite, 4> DevirtCalls;
+    SmallVector<Instruction *, 4> LoadedPtrs;
+    SmallVector<Instruction *, 4> Preds;
+    bool HasNonCallUses = false;
+    findDevirtualizableCallsForTypeCheckedLoad(DevirtCalls, LoadedPtrs, Preds,
+                                               HasNonCallUses, CI);
+    // Any non-call uses of the result of llvm.type.checked.load will
+    // prevent us from optimizing away the llvm.type.test.
+    if (HasNonCallUses)
+      TypeTests.insert(Guid);
+    for (auto &Call : DevirtCalls)
+      addVCallToSet(Call, Guid, TypeCheckedLoadVCalls,
+                    TypeCheckedLoadConstVCalls);
+
+    break;
+  }
+  default:
+    break;
+  }
+}
+
 static void
 computeFunctionSummary(ModuleSummaryIndex &Index, const Module &M,
                        const Function &F, BlockFrequencyInfo *BFI,
@@ -99,6 +185,10 @@ computeFunctionSummary(ModuleSummaryIndex &Index, const Module &M,
   MapVector<ValueInfo, CalleeInfo> CallGraphEdges;
   SetVector<ValueInfo> RefEdges;
   SetVector<GlobalValue::GUID> TypeTests;
+  SetVector<FunctionSummary::VFuncId> TypeTestAssumeVCalls,
+      TypeCheckedLoadVCalls;
+  SetVector<FunctionSummary::ConstVCall> TypeTestAssumeConstVCalls,
+      TypeCheckedLoadConstVCalls;
   ICallPromotionAnalysis ICallAnalysis;
 
   bool HasInlineAsmMaybeReferencingInternal = false;
@@ -133,29 +223,15 @@ computeFunctionSummary(ModuleSummaryIndex &Index, const Module &M,
       // Check if this is a direct call to a known function or a known
       // intrinsic, or an indirect call with profile data.
       if (CalledFunction) {
-        if (CalledFunction->isIntrinsic()) {
-          if (CalledFunction->getIntrinsicID() != Intrinsic::type_test)
-            continue;
-          // Produce a summary from type.test intrinsics. We only summarize
-          // type.test intrinsics that are used other than by an llvm.assume
-          // intrinsic. Intrinsics that are assumed are relevant only to the
-          // devirtualization pass, not the type test lowering pass.
-          bool HasNonAssumeUses = llvm::any_of(CI->uses(), [](const Use &CIU) {
-            auto *AssumeCI = dyn_cast<CallInst>(CIU.getUser());
-            if (!AssumeCI)
-              return true;
-            Function *F = AssumeCI->getCalledFunction();
-            return !F || F->getIntrinsicID() != Intrinsic::assume;
-          });
-          if (HasNonAssumeUses) {
-            auto *TypeMDVal = cast<MetadataAsValue>(CI->getArgOperand(1));
-            if (auto *TypeId = dyn_cast<MDString>(TypeMDVal->getMetadata()))
-              TypeTests.insert(GlobalValue::getGUID(TypeId->getString()));
-          }
+        if (CI && CalledFunction->isIntrinsic()) {
+          addIntrinsicToSummary(
+              CI, TypeTests, TypeTestAssumeVCalls, TypeCheckedLoadVCalls,
+              TypeTestAssumeConstVCalls, TypeCheckedLoadConstVCalls);
+          continue;
         }
         // We should have named any anonymous globals
         assert(CalledFunction->hasName());
-        auto ScaledCount = BFI ? BFI->getBlockProfileCount(&BB) : None;
+        auto ScaledCount = ProfileSummaryInfo::getProfileCount(&I, BFI);
         auto Hotness = ScaledCount ? getHotness(ScaledCount.getValue(), PSI)
                                    : CalleeInfo::HotnessType::Unknown;
 
@@ -183,6 +259,11 @@ computeFunctionSummary(ModuleSummaryIndex &Index, const Module &M,
       }
     }
 
+  // Explicit add hot edges to enforce importing for designated GUIDs for
+  // sample PGO, to enable the same inlines as the profiled optimized binary.
+  for (auto &I : F.getImportGUIDs())
+    CallGraphEdges[I].updateHotness(CalleeInfo::HotnessType::Hot);
+
   bool NonRenamableLocal = isNonRenamableLocal(F);
   bool NotEligibleForImport =
       NonRenamableLocal || HasInlineAsmMaybeReferencingInternal ||
@@ -193,7 +274,10 @@ computeFunctionSummary(ModuleSummaryIndex &Index, const Module &M,
                                     /* LiveRoot = */ false);
   auto FuncSummary = llvm::make_unique<FunctionSummary>(
       Flags, NumInsts, RefEdges.takeVector(), CallGraphEdges.takeVector(),
-      TypeTests.takeVector());
+      TypeTests.takeVector(), TypeTestAssumeVCalls.takeVector(),
+      TypeCheckedLoadVCalls.takeVector(),
+      TypeTestAssumeConstVCalls.takeVector(),
+      TypeCheckedLoadConstVCalls.takeVector());
   if (NonRenamableLocal)
     CantBePromoted.insert(F.getGUID());
   Index.addGlobalValueSummary(F.getName(), std::move(FuncSummary));
@@ -326,9 +410,8 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
     // be listed on the llvm.used or llvm.compiler.used global and marked as
     // referenced from there.
     ModuleSymbolTable::CollectAsmSymbols(
-        Triple(M.getTargetTriple()), M.getModuleInlineAsm(),
-        [&M, &Index, &CantBePromoted](StringRef Name,
-                                      object::BasicSymbolRef::Flags Flags) {
+        M, [&M, &Index, &CantBePromoted](StringRef Name,
+                                         object::BasicSymbolRef::Flags Flags) {
           // Symbols not marked as Weak or Global are local definitions.
           if (Flags & (object::BasicSymbolRef::SF_Weak |
                        object::BasicSymbolRef::SF_Global))
@@ -347,7 +430,11 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
                 llvm::make_unique<FunctionSummary>(
                     GVFlags, 0, ArrayRef<ValueInfo>{},
                     ArrayRef<FunctionSummary::EdgeTy>{},
-                    ArrayRef<GlobalValue::GUID>{});
+                    ArrayRef<GlobalValue::GUID>{},
+                    ArrayRef<FunctionSummary::VFuncId>{},
+                    ArrayRef<FunctionSummary::VFuncId>{},
+                    ArrayRef<FunctionSummary::ConstVCall>{},
+                    ArrayRef<FunctionSummary::ConstVCall>{});
             Index.addGlobalValueSummary(Name, std::move(Summary));
           } else {
             std::unique_ptr<GlobalVarSummary> Summary =
@@ -364,6 +451,12 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
     auto &Summary = GlobalList.second[0];
     bool AllRefsCanBeExternallyReferenced =
         llvm::all_of(Summary->refs(), [&](const ValueInfo &VI) {
+          // If a global value definition references an unnamed global,
+          // be conservative. They're valid IR so we don't want to crash
+          // when we encounter any of them but they're infrequent enough
+          // that we don't bother optimizing them.
+          if (!VI.getValue()->hasName())
+            return false;
           return !CantBePromoted.count(VI.getValue()->getGUID());
         });
     if (!AllRefsCanBeExternallyReferenced) {

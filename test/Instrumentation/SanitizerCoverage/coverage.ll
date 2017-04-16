@@ -1,13 +1,12 @@
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=0 -S | FileCheck %s --check-prefix=CHECK0
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=1 -S | FileCheck %s --check-prefix=CHECK1
-; RUN: opt < %s -sancov -sanitizer-coverage-level=2 -S | FileCheck %s --check-prefix=CHECK2
+; RUN: opt < %s -sancov -sanitizer-coverage-level=2 -S | FileCheck %s --check-prefix=CHECK_WITH_CHECK
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=2 -sanitizer-coverage-block-threshold=10 -S | FileCheck %s --check-prefix=CHECK2
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=2 -sanitizer-coverage-block-threshold=0  -S | FileCheck %s --check-prefix=CHECK_WITH_CHECK
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=2 -sanitizer-coverage-block-threshold=1  -S | FileCheck %s --check-prefix=CHECK_WITH_CHECK
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=3 -sanitizer-coverage-block-threshold=10 -S | FileCheck %s --check-prefix=CHECK3
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=4 -S | FileCheck %s --check-prefix=CHECK4
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=4 -sanitizer-coverage-trace-pc  -S | FileCheck %s --check-prefix=CHECK_TRACE_PC
-; RUN: opt < %s -sancov -sanitizer-coverage-level=4 -sanitizer-coverage-trace-pc-guard  -S | FileCheck %s --check-prefix=CHECK_TRACE_PC
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=3 -sanitizer-coverage-8bit-counters=1  -S | FileCheck %s --check-prefix=CHECK-8BIT
 
 ; RUN: opt < %s -sancov -sanitizer-coverage-level=2 -sanitizer-coverage-block-threshold=10 \

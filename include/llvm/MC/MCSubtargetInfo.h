@@ -1,4 +1,4 @@
-//==-- llvm/MC/MCSubtargetInfo.h - Subtarget Information ---------*- C++ -*-==//
+//===- llvm/MC/MCSubtargetInfo.h - Subtarget Information --------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,13 +15,19 @@
 #define LLVM_MC_MCSUBTARGETINFO_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCInstrItineraries.h"
+#include "llvm/MC/MCSchedule.h"
 #include "llvm/MC/SubtargetFeature.h"
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
 #include <string>
 
 namespace llvm {
-
-class StringRef;
+class MachineInstr;
+class MCInst;
 
 //===----------------------------------------------------------------------===//
 ///
@@ -45,10 +51,6 @@ class MCSubtargetInfo {
   const unsigned *ForwardingPaths;     // Forwarding paths
   FeatureBitset FeatureBits;           // Feature bits for current CPU + FS
 
-  MCSubtargetInfo() = delete;
-  MCSubtargetInfo &operator=(MCSubtargetInfo &&) = delete;
-  MCSubtargetInfo &operator=(const MCSubtargetInfo &) = delete;
-
 public:
   MCSubtargetInfo(const MCSubtargetInfo &) = default;
   MCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS,
@@ -58,6 +60,11 @@ public:
                   const MCWriteProcResEntry *WPR, const MCWriteLatencyEntry *WL,
                   const MCReadAdvanceEntry *RA, const InstrStage *IS,
                   const unsigned *OC, const unsigned *FP);
+  MCSubtargetInfo() = delete;
+  MCSubtargetInfo &operator=(const MCSubtargetInfo &) = delete;
+  MCSubtargetInfo &operator=(MCSubtargetInfo &&) = delete;
+
+  virtual ~MCSubtargetInfo() {}
 
   /// getTargetTriple - Return the target triple string.
   const Triple &getTargetTriple() const { return TargetTriple; }
@@ -164,8 +171,17 @@ public:
     auto Found = std::lower_bound(ProcDesc.begin(), ProcDesc.end(), CPU);
     return Found != ProcDesc.end() && StringRef(Found->Key) == CPU;
   }
+
+  /// Returns string representation of scheduler comment
+  virtual std::string getSchedInfoStr(const MachineInstr &MI) const {
+    return std::string();
+  }
+
+  virtual std::string getSchedInfoStr(MCInst const &MCI) const {
+    return std::string();
+  }
 };
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCSUBTARGETINFO_H

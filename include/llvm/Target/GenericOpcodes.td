@@ -91,6 +91,21 @@ def G_FCONSTANT : Instruction {
   let hasSideEffects = 0;
 }
 
+def G_VASTART : Instruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins type0:$list);
+  let hasSideEffects = 0;
+  let mayStore = 1;
+}
+
+def G_VAARG : Instruction {
+  let OutOperandList = (outs type0:$val);
+  let InOperandList = (ins type1:$list, unknown:$align);
+  let hasSideEffects = 0;
+  let mayLoad = 1;
+  let mayStore = 1;
+}
+
 //------------------------------------------------------------------------------
 // Binary ops.
 //------------------------------------------------------------------------------
@@ -101,13 +116,6 @@ def G_ADD : Instruction {
   let InOperandList = (ins type0:$src1, type0:$src2);
   let hasSideEffects = 0;
   let isCommutable = 1;
-}
-
-// Generic pointer offset.
-def G_GEP : Instruction {
-  let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src1, type1:$src2);
-  let hasSideEffects = 0;
 }
 
 // Generic subtraction.
@@ -224,6 +232,19 @@ def G_SELECT : Instruction {
   let hasSideEffects = 0;
 }
 
+// Generic pointer offset.
+def G_GEP : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type1:$src2);
+  let hasSideEffects = 0;
+}
+
+def G_PTR_MASK : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src, unknown:$bits);
+  let hasSideEffects = 0;
+}
+
 //------------------------------------------------------------------------------
 // Overflow ops
 //------------------------------------------------------------------------------
@@ -273,9 +294,33 @@ def G_SMULO : Instruction {
   let isCommutable = 1;
 }
 
+// Multiply two numbers at twice the incoming bit width (unsigned) and return
+// the high half of the result.
+def G_UMULH : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
+// Multiply two numbers at twice the incoming bit width (signed) and return
+// the high half of the result.
+def G_SMULH : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+  let isCommutable = 1;
+}
+
 //------------------------------------------------------------------------------
 // Floating Point Unary Ops.
 //------------------------------------------------------------------------------
+
+def G_FNEG : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src);
+  let hasSideEffects = 0;
+}
 
 def G_FPEXT : Instruction {
   let OutOperandList = (outs type0:$dst);
@@ -355,6 +400,13 @@ def G_FREM : Instruction {
   let hasSideEffects = 0;
 }
 
+// Floating point exponentiation.
+def G_FPOW : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src1, type0:$src2);
+  let hasSideEffects = 0;
+}
+
 //------------------------------------------------------------------------------
 // Memory ops
 //------------------------------------------------------------------------------
@@ -383,17 +435,24 @@ def G_STORE : Instruction {
 // indexes. This will almost certainly be mapped to sub-register COPYs after
 // register banks have been selected.
 def G_EXTRACT : Instruction {
+  let OutOperandList = (outs type0:$res);
+  let InOperandList = (ins type1:$src, unknown:$offset);
+  let hasSideEffects = 0;
+}
+
+// Extract multiple registers specified size, starting from blocks given by
+// indexes. This will almost certainly be mapped to sub-register COPYs after
+// register banks have been selected.
+def G_UNMERGE_VALUES : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
   let hasSideEffects = 0;
 }
 
-// Insert a sequence of smaller registers into a larger one at the specified
-// indices (interleaved with the values in the operand list "op0, bit0, op1,
-// bit1, ...")).
+// Insert a smaller register into a larger one at the specified bit-index.
 def G_INSERT : Instruction {
   let OutOperandList = (outs type0:$dst);
-  let InOperandList = (ins type0:$src, variable_ops);
+  let InOperandList = (ins type0:$src, type1:$op, unknown:$offset);
   let hasSideEffects = 0;
 }
 
@@ -401,6 +460,12 @@ def G_INSERT : Instruction {
 // bit 0). Essentially a G_INSERT where $src is an IMPLICIT_DEF, but it's so
 // important to legalization it probably deserves its own instruction.
 def G_SEQUENCE : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins variable_ops);
+  let hasSideEffects = 0;
+}
+
+def G_MERGE_VALUES : Instruction {
   let OutOperandList = (outs type0:$dst);
   let InOperandList = (ins variable_ops);
   let hasSideEffects = 0;
@@ -443,6 +508,40 @@ def G_BRCOND : Instruction {
   let hasSideEffects = 0;
   let isBranch = 1;
   let isTerminator = 1;
+}
+
+// Generic indirect branch.
+def G_BRINDIRECT : Instruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins type0:$src1);
+  let hasSideEffects = 0;
+  let isBranch = 1;
+  let isTerminator = 1;
+}
+
+//------------------------------------------------------------------------------
+// Vector ops
+//------------------------------------------------------------------------------
+
+// Generic insertelement.
+def G_INSERT_VECTOR_ELT : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src, type1:$elt, type2:$idx);
+  let hasSideEffects = 0;
+}
+
+// Generic extractelement.
+def G_EXTRACT_VECTOR_ELT : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type1:$src, type2:$idx);
+  let hasSideEffects = 0;
+}
+
+// Generic shufflevector.
+def G_SHUFFLE_VECTOR: Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type1:$v1, type1:$v2, type2:$mask);
+  let hasSideEffects = 0;
 }
 
 // TODO: Add the other generic opcodes.

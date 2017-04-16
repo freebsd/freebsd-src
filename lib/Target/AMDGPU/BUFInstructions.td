@@ -21,8 +21,8 @@ def MUBUFIntrinsicVOffset : ComplexPattern<i32, 3, "SelectMUBUFIntrinsicVOffset"
 class MubufLoad <SDPatternOperator op> : PatFrag <
   (ops node:$ptr), (op node:$ptr), [{
   auto const AS = cast<MemSDNode>(N)->getAddressSpace();
-  return AS == AMDGPUAS::GLOBAL_ADDRESS ||
-         AS == AMDGPUAS::CONSTANT_ADDRESS;
+  return AS == AMDGPUASI.GLOBAL_ADDRESS ||
+         AS == AMDGPUASI.CONSTANT_ADDRESS;
 }]>;
 
 def mubuf_load          : MubufLoad <load>;
@@ -704,12 +704,6 @@ def BUFFER_WBINVL1_VOL : MUBUF_Invalidate <"buffer_wbinvl1_vol",
 //===----------------------------------------------------------------------===//
 
 let Predicates = [isGCN] in {
-
-// int_SI_vs_load_input
-def : Pat<
-  (SIload_input v4i32:$tlst, imm:$attr_offset, i32:$buf_idx_vgpr),
-  (BUFFER_LOAD_FORMAT_XYZW_IDXEN $buf_idx_vgpr, $tlst, (i32 0), imm:$attr_offset, 0, 0, 0)
->;
 
 // Offset in an 32-bit VGPR
 def : Pat <

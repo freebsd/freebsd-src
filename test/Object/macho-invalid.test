@@ -83,8 +83,8 @@ RUN: not llvm-objdump -t %p/Inputs/macho-invalid-section-index-getSectionRawName
 RUN:      | FileCheck -check-prefix INVALID-SECTION-IDX-SYMBOL-SEC-objdump %s
 INVALID-SECTION-IDX-SYMBOL-SEC-objdump: truncated or malformed object (bad section index: 66 for symbol at index 8)
 
-RUN: not llvm-objdump -macho -private-headers %p/Inputs/macho-invalid-header 2>&1 | FileCheck -check-prefix INVALID-HEADER %s
-INVALID-HEADER: The file was not recognized as a valid object file
+RUN: llvm-objdump -macho -private-headers %p/Inputs/macho-invalid-header 2>&1 | FileCheck -check-prefix INVALID-HEADER %s
+INVALID-HEADER: is not an object file
 
 RUN: not llvm-objdump -macho -private-headers %p/Inputs/macho64-invalid-incomplete-segment-load-command 2>&1 | FileCheck -check-prefix INCOMPLETE-SEGMENT-LOADC %s
 INCOMPLETE-SEGMENT-LOADC: truncated or malformed object (load commands extend past the end of the file)
@@ -117,7 +117,7 @@ RUN: not llvm-objdump -macho -private-headers %p/Inputs/macho-invalid-segment-fi
 INVALID-SEGMENT-FILESIZE: macho-invalid-segment-filesize': truncated or malformed object (load command 0 fileoff field plus filesize field in LC_SEGMENT extends past the end of the file)
 
 RUN: not llvm-objdump -macho -private-headers %p/Inputs/macho-invalid-segment-vmsize 2>&1 | FileCheck -check-prefix INVALID-SEGMENT-VMSIZE %s
-INVALID-SEGMENT-VMSIZE: macho-invalid-segment-vmsize': truncated or malformed object (load command 0 fileoff field in LC_SEGMENT greater than vmsize field)
+INVALID-SEGMENT-VMSIZE: macho-invalid-segment-vmsize': truncated or malformed object (load command 0 filesize field in LC_SEGMENT greater than vmsize field)
 
 RUN: not llvm-objdump -macho -private-headers %p/Inputs/macho-invalid-section-offset 2>&1 | FileCheck -check-prefix INVALID-SECTION-FILEOFF %s
 INVALID-SECTION-FILEOFF: macho-invalid-section-offset': truncated or malformed object (offset field of section 0 in LC_SEGMENT command 0 extends past the end of the file)
@@ -505,3 +505,6 @@ INVALID-FAT-ARCH-OVERLAP: macho-invalid-fat-arch-overlap': truncated or malforme
 
 RUN: not llvm-objdump -macho -universal-headers %p/Inputs/macho-invalid-fat-arch-overlapheaders 2>&1 | FileCheck -check-prefix INVALID-FAT-ARCH-OVERLAPHEADERS %s
 INVALID-FAT-ARCH-OVERLAPHEADERS: macho-invalid-fat-arch-overlapheaders': truncated or malformed fat file (cputype (7) cpusubtype (3) offset 12 overlaps universal headers)
+
+RUN: not llvm-objdump -macho -private-headers %p/Inputs/macho-invalid-note 2>&1 | FileCheck -check-prefix INVALID-NOTE-COMMAND %s
+INVALID-NOTE-COMMAND: macho-invalid-note': truncated or malformed object (size field plus offset field of LC_NOTE command 0 extends past the end of the file)

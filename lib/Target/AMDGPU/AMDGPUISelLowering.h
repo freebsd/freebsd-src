@@ -16,6 +16,8 @@
 #ifndef LLVM_LIB_TARGET_AMDGPU_AMDGPUISELLOWERING_H
 #define LLVM_LIB_TARGET_AMDGPU_AMDGPUISELLOWERING_H
 
+#include "AMDGPU.h"
+#include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/Target/TargetLowering.h"
 
 namespace llvm {
@@ -34,10 +36,10 @@ private:
 
 protected:
   const AMDGPUSubtarget *Subtarget;
+  AMDGPUAS AMDGPUASI;
 
   SDValue LowerEXTRACT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
   /// \brief Split a vector store into multiple scalar stores.
   /// \returns The resulting chain.
 
@@ -47,7 +49,7 @@ protected:
   SDValue LowerFRINT(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFNEARBYINT(SDValue Op, SelectionDAG &DAG) const;
 
-  SDValue LowerFROUND32(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerFROUND32_16(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFROUND64(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFROUND(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerFFLOOR(SDValue Op, SelectionDAG &DAG) const;
@@ -70,6 +72,7 @@ protected:
   bool shouldCombineMemoryType(EVT VT) const;
   SDValue performLoadCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performStoreCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+  SDValue performClampCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
   SDValue splitBinaryBitConstantOpImpl(DAGCombinerInfo &DCI, const SDLoc &SL,
                                        unsigned Opc, SDValue LHS,
@@ -85,6 +88,7 @@ protected:
                              SDValue RHS, DAGCombinerInfo &DCI) const;
   SDValue performSelectCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performFNegCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+  SDValue performFAbsCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
   static EVT getEquivalentMemType(LLVMContext &Context, EVT VT);
 
@@ -111,8 +115,6 @@ protected:
                                     SmallVectorImpl<SDValue> &Results) const;
   void analyzeFormalArgumentsCompute(CCState &State,
                               const SmallVectorImpl<ISD::InputArg> &Ins) const;
-  void AnalyzeFormalArguments(CCState &State,
-                              const SmallVectorImpl<ISD::InputArg> &Ins) const;
   void AnalyzeReturn(CCState &State,
                      const SmallVectorImpl<ISD::OutputArg> &Outs) const;
 
@@ -120,7 +122,7 @@ public:
   AMDGPUTargetLowering(const TargetMachine &TM, const AMDGPUSubtarget &STI);
 
   bool mayIgnoreSignedZero(SDValue Op) const {
-    if (getTargetMachine().Options.UnsafeFPMath) // FIXME: nsz only
+    if (getTargetMachine().Options.NoSignedZerosFPMath)
       return true;
 
     if (const auto *BO = dyn_cast<BinaryWithFlagsSDNode>(Op))
@@ -158,6 +160,7 @@ public:
   bool isCheapToSpeculateCttz() const override;
   bool isCheapToSpeculateCtlz() const override;
 
+  static CCAssignFn *CCAssignFnForCall(CallingConv::ID CC, bool IsVarArg);
   SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
                       const SmallVectorImpl<ISD::OutputArg> &Outs,
                       const SmallVectorImpl<SDValue> &OutVals, const SDLoc &DL,
@@ -174,7 +177,7 @@ public:
                           SmallVectorImpl<SDValue> &Results,
                           SelectionDAG &DAG) const override;
 
-  SDValue CombineFMinMaxLegacy(const SDLoc &DL, EVT VT, SDValue LHS,
+  SDValue combineFMinMaxLegacy(const SDLoc &DL, EVT VT, SDValue LHS,
                                SDValue RHS, SDValue True, SDValue False,
                                SDValue CC, DAGCombinerInfo &DCI) const;
 
@@ -198,10 +201,12 @@ public:
   void computeKnownBitsForTargetNode(const SDValue Op,
                                      APInt &KnownZero,
                                      APInt &KnownOne,
+                                     const APInt &DemandedElts,
                                      const SelectionDAG &DAG,
                                      unsigned Depth = 0) const override;
 
-  unsigned ComputeNumSignBitsForTargetNode(SDValue Op, const SelectionDAG &DAG,
+  unsigned ComputeNumSignBitsForTargetNode(SDValue Op, const APInt &DemandedElts,
+                                           const SelectionDAG &DAG,
                                            unsigned Depth = 0) const override;
 
   /// \brief Helper function that adds Reg to the LiveIn list of the DAG's
@@ -222,6 +227,10 @@ public:
   /// type of implicit parameter.
   uint32_t getImplicitParameterOffset(const AMDGPUMachineFunction *MFI,
                                       const ImplicitParameter Param) const;
+
+  AMDGPUAS getAMDGPUAS() const {
+    return AMDGPUASI;
+  }
 };
 
 namespace AMDGPUISD {
@@ -229,15 +238,34 @@ namespace AMDGPUISD {
 enum NodeType : unsigned {
   // AMDIL ISD Opcodes
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
-  CALL,        // Function call based on a single integer
   UMUL,        // 32bit unsigned multiplication
   BRANCH_COND,
   // End AMDIL ISD Opcodes
+
+  // Function call.
+  CALL,
+
+  // Masked control flow nodes.
+  IF,
+  ELSE,
+  LOOP,
+
+  // A uniform kernel return that terminates the wavefront.
   ENDPGM,
-  RETURN,
+
+  // Return to a shader part's epilog code.
+  RETURN_TO_EPILOG,
+
+  // Return with values from a non-entry function.
+  RET_FLAG,
+
   DWORDADDR,
   FRACT,
+
+  /// CLAMP value between 0.0 and 1.0. NaN clamped to 0, following clamp output
+  /// modifier behavior with dx10_enable.
   CLAMP,
+
   // This is SETCC with the full mask result which is used for a compare with a
   // result bit per item in the wavefront.
   SETCC,
@@ -265,6 +293,9 @@ enum NodeType : unsigned {
   DIV_SCALE,
   DIV_FMAS,
   DIV_FIXUP,
+  // For emitting ISD::FMAD when f32 denormals are enabled because mac/mad is
+  // treated as an illegal operation.
+  FMAD_FTZ,
   TRIG_PREOP, // 1 ULP max error for f64
 
   // RCP, RSQ - For f32, 1 ULP max error, no denormal handling.
@@ -301,7 +332,6 @@ enum NodeType : unsigned {
   CONST_ADDRESS,
   REGISTER_LOAD,
   REGISTER_STORE,
-  LOAD_INPUT,
   SAMPLE,
   SAMPLEB,
   SAMPLED,
@@ -312,6 +342,18 @@ enum NodeType : unsigned {
   CVT_F32_UBYTE1,
   CVT_F32_UBYTE2,
   CVT_F32_UBYTE3,
+
+  // Convert two float 32 numbers into a single register holding two packed f16
+  // with round to zero.
+  CVT_PKRTZ_F16_F32,
+
+  // Same as the standard node, except the high bits of the resulting integer
+  // are known 0.
+  FP_TO_FP16,
+
+  // Wrapper around fp16 results that are known to zero the high bits.
+  FP16_ZEXT,
+
   /// This node is for VLIW targets and it is used to represent a vector
   /// that is stored in consecutive registers with the same channel.
   /// For example:

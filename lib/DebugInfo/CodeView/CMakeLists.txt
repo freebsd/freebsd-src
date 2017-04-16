@@ -5,16 +5,17 @@ add_llvm_library(LLVMDebugInfoCodeView
   CVTypeDumper.cpp
   CVTypeVisitor.cpp
   EnumTables.cpp
+  Formatters.cpp
   Line.cpp
   ModuleSubstream.cpp
   ModuleSubstreamVisitor.cpp
   RecordSerialization.cpp
   SymbolRecordMapping.cpp
   SymbolDumper.cpp
+  SymbolSerializer.cpp
   TypeDatabase.cpp
   TypeDatabaseVisitor.cpp
   TypeDumpVisitor.cpp
-  TypeRecord.cpp
   TypeRecordMapping.cpp
   TypeSerializer.cpp
   TypeStreamMerger.cpp

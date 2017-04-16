@@ -557,6 +557,14 @@ namespace llvm {
     /// string is well-formed in the given radix.
     bool getAsInteger(unsigned Radix, APInt &Result) const;
 
+    /// Parse the current string as an IEEE double-precision floating
+    /// point value.  The string must be a well-formed double.
+    ///
+    /// If \p AllowInexact is false, the function will fail if the string
+    /// cannot be represented exactly.  Otherwise, the function only fails
+    /// in case of an overflow or underflow.
+    bool getAsDouble(double &Result, bool AllowInexact = true) const;
+
     /// @}
     /// @name String Operations
     /// @{
@@ -600,7 +608,7 @@ namespace llvm {
       return drop_back(size() - N);
     }
 
-    /// Return a StringRef equal to 'this' but with only the first \p N
+    /// Return a StringRef equal to 'this' but with only the last \p N
     /// elements remaining.  If \p N is greater than the length of the
     /// string, the entire string is returned.
     LLVM_NODISCARD

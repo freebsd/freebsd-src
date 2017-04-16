@@ -56,7 +56,7 @@ GENERAL OPTIONS
  Search for :file:`{NAME}.cfg` and :file:`{NAME}.site.cfg` when searching for
  test suites, instead of :file:`lit.cfg` and :file:`lit.site.cfg`.
 
-.. option:: -D NAME, -D NAME=VALUE, --param NAME, --param NAME=VALUE
+.. option:: -D NAME[=VALUE], --param NAME[=VALUE]
 
  Add a user defined parameter ``NAME`` with the given ``VALUE`` (or the empty
  string if not given).  The meaning and use of these parameters is test suite
@@ -151,6 +151,23 @@ SELECTION OPTIONS
 .. option:: --shuffle
 
  Run the tests in a random order.
+
+.. option:: --num-shards=M
+
+ Divide the set of selected tests into ``M`` equal-sized subsets or
+ "shards", and run only one of them.  Must be used with the
+ ``--run-shard=N`` option, which selects the shard to run. The environment
+ variable ``LIT_NUM_SHARDS`` can also be used in place of this
+ option. These two options provide a coarse mechanism for paritioning large
+ testsuites, for parallel execution on separate machines (say in a large
+ testing farm).
+
+.. option:: --run-shard=N
+
+ Select which shard to run, assuming the ``--num-shards=M`` option was
+ provided. The two options must be used together, and the value of ``N``
+ must be in the range ``1..M``. The environment variable
+ ``LIT_RUN_SHARD`` can also be used in place of this option.
 
 ADDITIONAL OPTIONS
 ------------------
@@ -362,7 +379,7 @@ PRE-DEFINED SUBSTITUTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :program:`lit` provides various patterns that can be used with the RUN command.
-These are defined in TestRunner.py.
+These are defined in TestRunner.py. The base set of substitutions are:
 
  ========== ==============
   Macro      Substitution
@@ -374,17 +391,13 @@ These are defined in TestRunner.py.
  %t         temporary file name unique to the test
  %T         temporary directory unique to the test
  %%         %
- %/s        same as %s but replace all / with \\
- %/S        same as %S but replace all / with \\
- %/p        same as %p but replace all / with \\
- %/t        same as %t but replace all / with \\
- %/T        same as %T but replace all / with \\
  ========== ==============
 
-Further substitution patterns might be defined by each test module.
-See the modules :ref:`local-configuration-files`.
+Other substitutions are provided that are variations on this base set and
+further substitution patterns can be defined by each test module. See the
+modules :ref:`local-configuration-files`.
 
-More information on the testing infrastucture can be found in the
+More detailed information on substitutions can be found in the
 :doc:`../TestingGuide`.
 
 TEST RUN OUTPUT FORMAT

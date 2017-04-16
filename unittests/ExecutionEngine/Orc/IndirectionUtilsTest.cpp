@@ -20,17 +20,17 @@ TEST(IndirectionUtilsTest, MakeStub) {
   LLVMContext Context;
   ModuleBuilder MB(Context, "x86_64-apple-macosx10.10", "");
   Function *F = MB.createFunctionDecl<void(DummyStruct, DummyStruct)>("");
-  SmallVector<AttributeSet, 4> Attrs;
+  SmallVector<AttributeList, 4> Attrs;
   Attrs.push_back(
-    AttributeSet::get(MB.getModule()->getContext(), 1U,
-                      AttrBuilder().addAttribute(Attribute::StructRet)));
+      AttributeList::get(MB.getModule()->getContext(), 1U,
+                         AttrBuilder().addAttribute(Attribute::StructRet)));
   Attrs.push_back(
-    AttributeSet::get(MB.getModule()->getContext(), 2U,
-                      AttrBuilder().addAttribute(Attribute::ByVal)));
+      AttributeList::get(MB.getModule()->getContext(), 2U,
+                         AttrBuilder().addAttribute(Attribute::ByVal)));
   Attrs.push_back(
-    AttributeSet::get(MB.getModule()->getContext(), ~0U,
-                      AttrBuilder().addAttribute(Attribute::NoUnwind)));
-  F->setAttributes(AttributeSet::get(MB.getModule()->getContext(), Attrs));
+      AttributeList::get(MB.getModule()->getContext(), ~0U,
+                         AttrBuilder().addAttribute(Attribute::NoUnwind)));
+  F->setAttributes(AttributeList::get(MB.getModule()->getContext(), Attrs));
 
   auto ImplPtr = orc::createImplPointer(*F->getType(), *MB.getModule(), "", nullptr);
   orc::makeStub(*F, *ImplPtr);
@@ -42,7 +42,7 @@ TEST(IndirectionUtilsTest, MakeStub) {
   EXPECT_TRUE(Call->isTailCall()) << "Indirect call from stub should be tail call.";
   EXPECT_TRUE(Call->hasStructRetAttr())
     << "makeStub should propagate sret attr on 1st argument.";
-  EXPECT_TRUE(Call->paramHasAttr(2U, Attribute::ByVal))
+  EXPECT_TRUE(Call->paramHasAttr(1U, Attribute::ByVal))
     << "makeStub should propagate byval attr on 2nd argument.";
 }
 

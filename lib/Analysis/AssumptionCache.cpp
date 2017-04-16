@@ -24,6 +24,11 @@
 using namespace llvm;
 using namespace llvm::PatternMatch;
 
+static cl::opt<bool>
+    VerifyAssumptionCache("verify-assumption-cache", cl::Hidden,
+                          cl::desc("Enable verification of assumption cache"),
+                          cl::init(false));
+
 SmallVector<WeakVH, 1> &AssumptionCache::getOrInsertAffectedValues(Value *V) {
   // Try using find_as first to avoid creating extra value handles just for the
   // purpose of doing the lookup.
@@ -47,9 +52,11 @@ void AssumptionCache::updateAffectedValues(CallInst *CI) {
     } else if (auto *I = dyn_cast<Instruction>(V)) {
       Affected.push_back(I);
 
-      if (I->getOpcode() == Instruction::BitCast ||
-          I->getOpcode() == Instruction::PtrToInt) {
-        auto *Op = I->getOperand(0);
+      // Peek through unary operators to find the source of the condition.
+      Value *Op;
+      if (match(I, m_BitCast(m_Value(Op))) ||
+          match(I, m_PtrToInt(m_Value(Op))) ||
+          match(I, m_Not(m_Value(Op)))) {
         if (isa<Instruction>(Op) || isa<Argument>(Op))
           Affected.push_back(Op);
       }
@@ -229,7 +236,13 @@ AssumptionCache &AssumptionCacheTracker::getAssumptionCache(Function &F) {
 }
 
 void AssumptionCacheTracker::verifyAnalysis() const {
-#ifndef NDEBUG
+  // FIXME: In the long term the verifier should not be controllable with a
+  // flag. We should either fix all passes to correctly update the assumption
+  // cache and enable the verifier unconditionally or somehow arrange for the
+  // assumption list to be updated automatically by passes.
+  if (!VerifyAssumptionCache)
+    return;
+
   SmallPtrSet<const CallInst *, 4> AssumptionSet;
   for (const auto &I : AssumptionCaches) {
     for (auto &VH : I.second->assumptions())
@@ -238,11 +251,10 @@ void AssumptionCacheTracker::verifyAnalysis() const {
 
     for (const BasicBlock &B : cast<Function>(*I.first))
       for (const Instruction &II : B)
-        if (match(&II, m_Intrinsic<Intrinsic::assume>()))
-          assert(AssumptionSet.count(cast<CallInst>(&II)) &&
-                 "Assumption in scanned function not in cache");
+        if (match(&II, m_Intrinsic<Intrinsic::assume>()) &&
+            !AssumptionSet.count(cast<CallInst>(&II)))
+          report_fatal_error("Assumption in scanned function not in cache");
   }
-#endif
 }
 
 AssumptionCacheTracker::AssumptionCacheTracker() : ImmutablePass(ID) {

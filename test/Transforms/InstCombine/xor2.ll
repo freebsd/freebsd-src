@@ -110,7 +110,7 @@ define i32 @test6(i32 %x) {
 define i32 @test7(i32 %a, i32 %b) {
 ; CHECK-LABEL: @test7(
 ; CHECK-NEXT:    [[B_NOT:%.*]] = xor i32 %b, -1
-; CHECK-NEXT:    [[XOR:%.*]] = or i32 %a, [[B_NOT]]
+; CHECK-NEXT:    [[XOR:%.*]] = or i32 [[B_NOT]], %a
 ; CHECK-NEXT:    ret i32 [[XOR]]
 ;
   %or = or i32 %a, %b
@@ -123,7 +123,7 @@ define i32 @test7(i32 %a, i32 %b) {
 define i32 @test8(i32 %a, i32 %b) {
 ; CHECK-LABEL: @test8(
 ; CHECK-NEXT:    [[B_NOT:%.*]] = xor i32 %b, -1
-; CHECK-NEXT:    [[XOR:%.*]] = or i32 %a, [[B_NOT]]
+; CHECK-NEXT:    [[XOR:%.*]] = or i32 [[B_NOT]], %a
 ; CHECK-NEXT:    ret i32 [[XOR]]
 ;
   %neg = xor i32 %a, -1
@@ -144,6 +144,18 @@ define i32 @test9(i32 %b, i32 %c) {
   ret i32 %xor2
 }
 
+; (A & B) ^ (B ^ A) -> (A | B)
+define i32 @test9b(i32 %b, i32 %c) {
+; CHECK-LABEL: @test9b(
+; CHECK-NEXT:    [[XOR2:%.*]] = or i32 [[B:%.*]], [[C:%.*]]
+; CHECK-NEXT:    ret i32 [[XOR2]]
+;
+  %and = and i32 %b, %c
+  %xor = xor i32 %c, %b
+  %xor2 = xor i32 %and, %xor
+  ret i32 %xor2
+}
+
 ; (A ^ B) ^ (A & B) -> (A | B)
 define i32 @test10(i32 %b, i32 %c) {
 ; CHECK-LABEL: @test10(
@@ -152,6 +164,18 @@ define i32 @test10(i32 %b, i32 %c) {
 ;
   %xor = xor i32 %b, %c
   %and = and i32 %b, %c
+  %xor2 = xor i32 %xor, %and
+  ret i32 %xor2
+}
+
+; (A ^ B) ^ (A & B) -> (A | B)
+define i32 @test10b(i32 %b, i32 %c) {
+; CHECK-LABEL: @test10b(
+; CHECK-NEXT:    [[XOR2:%.*]] = or i32 [[B:%.*]], [[C:%.*]]
+; CHECK-NEXT:    ret i32 [[XOR2]]
+;
+  %xor = xor i32 %b, %c
+  %and = and i32 %c, %b
   %xor2 = xor i32 %xor, %and
   ret i32 %xor2
 }

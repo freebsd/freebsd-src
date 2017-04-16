@@ -52,7 +52,7 @@ static StringRef ToolName;
 
 // Show the error message and exit.
 LLVM_ATTRIBUTE_NORETURN static void fail(Twine Error) {
-  outs() << ToolName << ": " << Error << ".\n";
+  errs() << ToolName << ": " << Error << ".\n";
   exit(1);
 }
 
@@ -87,13 +87,14 @@ static cl::opt<bool> MRI("M", cl::desc(""));
 static cl::opt<std::string> Plugin("plugin", cl::desc("plugin (ignored for compatibility"));
 
 namespace {
-enum Format { Default, GNU, BSD };
+enum Format { Default, GNU, BSD, DARWIN };
 }
 
 static cl::opt<Format>
     FormatOpt("format", cl::desc("Archive format to create"),
               cl::values(clEnumValN(Default, "default", "default"),
                          clEnumValN(GNU, "gnu", "gnu"),
+                         clEnumValN(DARWIN, "darwin", "darwin"),
                          clEnumValN(BSD, "bsd", "bsd")));
 
 static std::string Options;
@@ -167,7 +168,7 @@ LLVM_ATTRIBUTE_NORETURN static void
 show_help(const std::string &msg) {
   errs() << ToolName << ": " << msg << "\n\n";
   cl::PrintHelpMessage();
-  std::exit(1);
+  exit(1);
 }
 
 // Extract the member filename from the command line for the [relpos] argument
@@ -376,7 +377,9 @@ static void doExtract(StringRef Name, const object::Archive::Child &C) {
   sys::fs::perms Mode = ModeOrErr.get();
 
   int FD;
-  failIfError(sys::fs::openFileForWrite(Name, FD, sys::fs::F_None, Mode), Name);
+  failIfError(sys::fs::openFileForWrite(sys::path::filename(Name), FD,
+                                        sys::fs::F_None, Mode),
+              Name);
 
   {
     raw_fd_ostream file(FD, false);
@@ -462,7 +465,7 @@ static void performReadOperation(ArchiveOperation Operation,
     return;
   for (StringRef Name : Members)
     errs() << Name << " was not found\n";
-  std::exit(1);
+  exit(1);
 }
 
 static void addMember(std::vector<NewArchiveMember> &Members,
@@ -623,8 +626,9 @@ computeNewArchiveMembers(ArchiveOperation Operation,
 }
 
 static object::Archive::Kind getDefaultForHost() {
-  return Triple(sys::getProcessTriple()).isOSDarwin() ? object::Archive::K_BSD
-                                                      : object::Archive::K_GNU;
+  return Triple(sys::getProcessTriple()).isOSDarwin()
+             ? object::Archive::K_DARWIN
+             : object::Archive::K_GNU;
 }
 
 static object::Archive::Kind getKindFromMember(const NewArchiveMember &Member) {
@@ -633,7 +637,7 @@ static object::Archive::Kind getKindFromMember(const NewArchiveMember &Member) {
 
   if (OptionalObject)
     return isa<object::MachOObjectFile>(**OptionalObject)
-               ? object::Archive::K_BSD
+               ? object::Archive::K_DARWIN
                : object::Archive::K_GNU;
 
   // squelch the error in case we had a non-object file
@@ -671,6 +675,11 @@ performWriteOperation(ArchiveOperation Operation,
     if (Thin)
       fail("Only the gnu format has a thin mode");
     Kind = object::Archive::K_BSD;
+    break;
+  case DARWIN:
+    if (Thin)
+      fail("Only the gnu format has a thin mode");
+    Kind = object::Archive::K_DARWIN;
     break;
   }
 
