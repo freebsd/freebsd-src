@@ -76,10 +76,13 @@ __FBSDID("$FreeBSD$");
 #define	MII_KSZ9031_TX_DATA_PAD_SKEW		0x6
 #define	MII_KSZ9031_CLOCK_PAD_SKEW		0x8
 
+#define	MII_KSZ8081_PHYCTL2			0x1f
+
 #define	PS_TO_REG(p)	((p) / 200)
 
 static int micphy_probe(device_t);
 static int micphy_attach(device_t);
+static void micphy_reset(struct mii_softc *);
 static int micphy_service(struct mii_softc *, struct mii_data *, int);
 
 static device_method_t micphy_methods[] = {
@@ -102,6 +105,7 @@ static driver_t micphy_driver = {
 DRIVER_MODULE(micphy, miibus, micphy_driver, micphy_devclass, 0, 0);
 
 static const struct mii_phydesc micphys[] = {
+	MII_PHY_DESC(MICREL, KSZ8081),
 	MII_PHY_DESC(MICREL, KSZ9021),
 	MII_PHY_DESC(MICREL, KSZ9031),
 	MII_PHY_END
@@ -110,7 +114,7 @@ static const struct mii_phydesc micphys[] = {
 static const struct mii_phy_funcs micphy_funcs = {
 	micphy_service,
 	ukphy_status,
-	mii_phy_reset
+	micphy_reset
 };
 
 static uint32_t
@@ -257,6 +261,10 @@ micphy_attach(device_t dev)
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &micphy_funcs, 1);
 	mii_phy_setmedia(sc);
 
+	/* Nothing further to configure for 8081 model. */
+	if (sc->mii_mpd_model == MII_MODEL_MICREL_KSZ8081)
+		return (0);
+
 	miibus = device_get_parent(dev);
 	parent = device_get_parent(miibus);
 
@@ -269,6 +277,24 @@ micphy_attach(device_t dev)
 		ksz9021_load_values(sc, node);
 
 	return (0);
+}
+
+static void
+micphy_reset(struct mii_softc *sc)
+{
+	int reg;
+
+	/*
+	 * The 8081 has no "sticky bits" that survive a soft reset; several bits
+	 * in the Phy Control Register 2 must be preserved across the reset.
+	 * These bits are set up by the bootloader; they control how the phy
+	 * interfaces to the board (such as clock frequency and LED behavior).
+	 */
+	if (sc->mii_mpd_model == MII_MODEL_MICREL_KSZ8081)
+		reg = PHY_READ(sc, MII_KSZ8081_PHYCTL2);
+	mii_phy_reset(sc);
+	if (sc->mii_mpd_model == MII_MODEL_MICREL_KSZ8081)
+		PHY_WRITE(sc, MII_KSZ8081_PHYCTL2, reg);
 }
 
 static int
