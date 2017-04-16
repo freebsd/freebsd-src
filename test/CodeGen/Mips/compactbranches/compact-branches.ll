@@ -1,5 +1,7 @@
-; RUN: llc -march=mipsel -mcpu=mips32r6 -relocation-model=static -disable-mips-delay-filler < %s | FileCheck %s -check-prefix=STATIC32
-; RUN: llc -march=mipsel -mcpu=mips64r6 -target-abi n64 -disable-mips-delay-filler < %s | FileCheck %s -check-prefix=PIC
+; RUN: llc -march=mipsel -mcpu=mips32r6 -relocation-model=static \
+; RUN:     -disable-mips-delay-filler < %s | FileCheck %s -check-prefix=STATIC32
+; RUN: llc -march=mipsel -mcpu=mips64r6 -relocation-model=pic -target-abi n64 \
+; RUN:     -disable-mips-delay-filler < %s | FileCheck %s -check-prefix=PIC
 
 ; Function Attrs: nounwind
 define void @l()  {
@@ -38,7 +40,7 @@ entry:
 ; PIC: jalrc $25
   %call1 = tail call i32 @i()
   %cmp = icmp eq i32 %call, %call1
-; CHECK beqc
+; CHECK: beqc
   br i1 %cmp, label %if.end, label %if.then
 
 if.then:                                          ; preds = %entry:
@@ -61,7 +63,7 @@ entry:
 ; PIC: jalrc $25
   %call = tail call i32 @k()
   %cmp = icmp slt i32 %call, 0
-; CHECK : bgez
+; CHECK: bgez
   br i1 %cmp, label %if.then, label %if.end
 
 if.then:                                          ; preds = %entry:

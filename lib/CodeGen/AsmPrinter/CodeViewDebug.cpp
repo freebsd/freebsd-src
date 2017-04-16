@@ -23,13 +23,13 @@
 #include "llvm/DebugInfo/CodeView/TypeIndex.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeVisitorCallbacks.h"
-#include "llvm/DebugInfo/MSF/ByteStream.h"
-#include "llvm/DebugInfo/MSF/StreamReader.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Support/BinaryByteStream.h"
+#include "llvm/Support/BinaryStreamReader.h"
 #include "llvm/Support/COFF.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Target/TargetFrameLowering.h"
@@ -38,7 +38,6 @@
 
 using namespace llvm;
 using namespace llvm::codeview;
-using namespace llvm::msf;
 
 CodeViewDebug::CodeViewDebug(AsmPrinter *AP)
     : DebugHandlerBase(AP), OS(*Asm->OutStreamer), Allocator(),
@@ -495,9 +494,9 @@ void CodeViewDebug::emitTypeInformation() {
       // comments. The MSVC linker doesn't do much type record validation,
       // so the first link of an invalid type record can succeed while
       // subsequent links will fail with LNK1285.
-      ByteStream Stream(Record);
+      BinaryByteStream Stream(Record, llvm::support::little);
       CVTypeArray Types;
-      StreamReader Reader(Stream);
+      BinaryStreamReader Reader(Stream);
       Error E = Reader.readArray(Types, Reader.getLength());
       if (!E) {
         TypeVisitorCallbacks C;
@@ -948,10 +947,10 @@ void CodeViewDebug::collectVariableInfo(const DISubprogram *SP) {
 
       // Handle fragments.
       auto Fragment = DIExpr->getFragmentInfo();
-      if (DIExpr && Fragment) {
+      if (Fragment) {
         IsSubfield = true;
         StructOffset = Fragment->OffsetInBits / 8;
-      } else if (DIExpr && DIExpr->getNumElements() > 0) {
+      } else if (DIExpr->getNumElements() > 0) {
         continue; // Ignore unrecognized exprs.
       }
 
@@ -1014,14 +1013,7 @@ void CodeViewDebug::collectVariableInfo(const DISubprogram *SP) {
   }
 }
 
-void CodeViewDebug::beginFunction(const MachineFunction *MF) {
-  assert(!CurFn && "Can't process two functions at once!");
-
-  if (!Asm || !MMI->hasDebugInfo() || !MF->getFunction()->getSubprogram())
-    return;
-
-  DebugHandlerBase::beginFunction(MF);
-
+void CodeViewDebug::beginFunctionImpl(const MachineFunction *MF) {
   const Function *GV = MF->getFunction();
   assert(FnDebugInfo.count(GV) == false);
   CurFn = &FnDebugInfo[GV];
@@ -1150,27 +1142,6 @@ TypeIndex CodeViewDebug::lowerTypeArray(const DICompositeType *Ty) {
 
   uint64_t ElementSize = getBaseTypeSize(ElementTypeRef) / 8;
 
-
-  // We want to assert that the element type multiplied by the array lengths
-  // match the size of the overall array. However, if we don't have complete
-  // type information for the base type, we can't make this assertion. This
-  // happens if limited debug info is enabled in this case:
-  //   struct VTableOptzn { VTableOptzn(); virtual ~VTableOptzn(); };
-  //   VTableOptzn array[3];
-  // The DICompositeType of VTableOptzn will have size zero, and the array will
-  // have size 3 * sizeof(void*), and we should avoid asserting.
-  //
-  // There is a related bug in the front-end where an array of a structure,
-  // which was declared as incomplete structure first, ends up not getting a
-  // size assigned to it. (PR28303)
-  // Example:
-  //   struct A(*p)[3];
-  //   struct A { int f; } a[3];
-  bool PartiallyIncomplete = false;
-  if (Ty->getSizeInBits() == 0 || ElementSize == 0) {
-    PartiallyIncomplete = true;
-  }
-
   // Add subranges to array type.
   DINodeArray Elements = Ty->getElements();
   for (int i = Elements.size() - 1; i >= 0; --i) {
@@ -1185,16 +1156,14 @@ TypeIndex CodeViewDebug::lowerTypeArray(const DICompositeType *Ty) {
     // Variable Length Array (VLA) has Count equal to '-1'.
     // Replace with Count '1', assume it is the minimum VLA length.
     // FIXME: Make front-end support VLA subrange and emit LF_DIMVARLU.
-    if (Count == -1) {
+    if (Count == -1)
       Count = 1;
-      PartiallyIncomplete = true;
-    }
 
     // Update the element size and element type index for subsequent subranges.
     ElementSize *= Count;
 
     // If this is the outermost array, use the size from the array. It will be
-    // more accurate if PartiallyIncomplete is true.
+    // more accurate if we had a VLA or an incomplete element type size.
     uint64_t ArraySize =
         (i == 0 && ElementSize == 0) ? Ty->getSizeInBits() / 8 : ElementSize;
 
@@ -1202,9 +1171,6 @@ TypeIndex CodeViewDebug::lowerTypeArray(const DICompositeType *Ty) {
     ArrayRecord AR(ElementTypeIndex, IndexType, ArraySize, Name);
     ElementTypeIndex = TypeTable.writeKnownType(AR);
   }
-
-  (void)PartiallyIncomplete;
-  assert(PartiallyIncomplete || ElementSize == (Ty->getSizeInBits() / 8));
 
   return ElementTypeIndex;
 }
@@ -2115,17 +2081,12 @@ void CodeViewDebug::emitLocalVariable(const LocalVariable &Var) {
   }
 }
 
-void CodeViewDebug::endFunction(const MachineFunction *MF) {
-  if (!Asm || !CurFn)  // We haven't created any debug info for this function.
-    return;
-
+void CodeViewDebug::endFunctionImpl(const MachineFunction *MF) {
   const Function *GV = MF->getFunction();
   assert(FnDebugInfo.count(GV));
   assert(CurFn == &FnDebugInfo[GV]);
 
   collectVariableInfo(GV->getSubprogram());
-
-  DebugHandlerBase::endFunction(MF);
 
   // Don't emit anything if we don't have any line tables.
   if (!CurFn->HaveLineInfo) {

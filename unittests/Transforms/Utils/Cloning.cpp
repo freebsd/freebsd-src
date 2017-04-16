@@ -163,7 +163,7 @@ TEST_F(CloneInstruction, Attributes) {
   Function *F2 = Function::Create(FT1, Function::ExternalLinkage);
 
   Attribute::AttrKind AK[] = { Attribute::NoCapture };
-  AttributeSet AS = AttributeSet::get(context, 0, AK);
+  AttributeList AS = AttributeList::get(context, 0, AK);
   Argument *A = &*F1->arg_begin();
   A->addAttr(AS);
 
@@ -199,6 +199,53 @@ TEST_F(CloneInstruction, CallingConvention) {
 
   delete F1;
   delete F2;
+}
+
+TEST_F(CloneInstruction, DuplicateInstructionsToSplit) {
+  Type *ArgTy1[] = {Type::getInt32PtrTy(context)};
+  FunctionType *FT = FunctionType::get(Type::getVoidTy(context), ArgTy1, false);
+  V = new Argument(Type::getInt32Ty(context));
+
+  Function *F = Function::Create(FT, Function::ExternalLinkage);
+
+  BasicBlock *BB1 = BasicBlock::Create(context, "", F);
+  IRBuilder<> Builder1(BB1);
+
+  BasicBlock *BB2 = BasicBlock::Create(context, "", F);
+  IRBuilder<> Builder2(BB2);
+
+  Builder1.CreateBr(BB2);
+
+  Instruction *AddInst = cast<Instruction>(Builder2.CreateAdd(V, V));
+  Instruction *MulInst = cast<Instruction>(Builder2.CreateMul(AddInst, V));
+  Instruction *SubInst = cast<Instruction>(Builder2.CreateSub(MulInst, V));
+  Builder2.CreateRetVoid();
+
+  ValueToValueMapTy Mapping;
+
+  auto Split = DuplicateInstructionsInSplitBetween(BB2, BB1, SubInst, Mapping);
+
+  EXPECT_TRUE(Split);
+  EXPECT_EQ(Mapping.size(), 2u);
+  EXPECT_TRUE(Mapping.find(AddInst) != Mapping.end());
+  EXPECT_TRUE(Mapping.find(MulInst) != Mapping.end());
+
+  auto AddSplit = dyn_cast<Instruction>(Mapping[AddInst]);
+  EXPECT_TRUE(AddSplit);
+  EXPECT_EQ(AddSplit->getOperand(0), V);
+  EXPECT_EQ(AddSplit->getOperand(1), V);
+  EXPECT_EQ(AddSplit->getParent(), Split);
+
+  auto MulSplit = dyn_cast<Instruction>(Mapping[MulInst]);
+  EXPECT_TRUE(MulSplit);
+  EXPECT_EQ(MulSplit->getOperand(0), AddSplit);
+  EXPECT_EQ(MulSplit->getOperand(1), V);
+  EXPECT_EQ(MulSplit->getParent(), Split);
+
+  EXPECT_EQ(AddSplit->getNextNode(), MulSplit);
+  EXPECT_EQ(MulSplit->getNextNode(), Split->getTerminator());
+
+  delete F;
 }
 
 class CloneFunc : public ::testing::Test {
@@ -405,10 +452,14 @@ protected:
   void SetupModule() { OldM = new Module("", C); }
 
   void CreateOldModule() {
+    auto *CD = OldM->getOrInsertComdat("comdat");
+    CD->setSelectionKind(Comdat::ExactMatch);
+
     auto GV = new GlobalVariable(
         *OldM, Type::getInt32Ty(C), false, GlobalValue::ExternalLinkage,
         ConstantInt::get(Type::getInt32Ty(C), 1), "gv");
     GV->addMetadata(LLVMContext::MD_type, *MDNode::get(C, {}));
+    GV->setComdat(CD);
 
     DIBuilder DBuilder(*OldM);
     IRBuilder<> IBuilder(C);
@@ -419,6 +470,7 @@ protected:
     auto *F =
         Function::Create(FuncType, GlobalValue::PrivateLinkage, "f", OldM);
     F->setPersonalityFn(PersFn);
+    F->setComdat(CD);
 
     // Create debug info
     auto *File = DBuilder.createFile("filename.c", "/file/dir/");
@@ -471,5 +523,16 @@ TEST_F(CloneModule, Subprogram) {
 TEST_F(CloneModule, GlobalMetadata) {
   GlobalVariable *NewGV = NewM->getGlobalVariable("gv");
   EXPECT_NE(nullptr, NewGV->getMetadata(LLVMContext::MD_type));
+}
+
+TEST_F(CloneModule, Comdat) {
+  GlobalVariable *NewGV = NewM->getGlobalVariable("gv");
+  auto *CD = NewGV->getComdat();
+  ASSERT_NE(nullptr, CD);
+  EXPECT_EQ("comdat", CD->getName());
+  EXPECT_EQ(Comdat::ExactMatch, CD->getSelectionKind());
+
+  Function *NewF = NewM->getFunction("f");
+  EXPECT_EQ(CD, NewF->getComdat());
 }
 }

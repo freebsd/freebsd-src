@@ -14,6 +14,8 @@
 #include "llvm/CodeGen/GlobalISel/RegisterBankInfo.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 
@@ -55,6 +57,45 @@ bool InstructionSelector::constrainSelectedInstRegOperands(
     // constrainOperandRegClass does that for us.
     MO.setReg(constrainOperandRegClass(MF, TRI, MRI, TII, RBI, I, I.getDesc(),
                                        Reg, OpI));
+
+    // Tie uses to defs as indicated in MCInstrDesc.
+    if (MO.isUse()) {
+      int DefIdx = I.getDesc().getOperandConstraint(OpI, MCOI::TIED_TO);
+      if (DefIdx != -1)
+        I.tieOperands(DefIdx, OpI);
+    }
   }
   return true;
+}
+
+Optional<int64_t>
+InstructionSelector::getConstantVRegVal(unsigned VReg,
+                                        const MachineRegisterInfo &MRI) const {
+  MachineInstr *MI = MRI.getVRegDef(VReg);
+  if (MI->getOpcode() != TargetOpcode::G_CONSTANT)
+    return None;
+
+  if (MI->getOperand(1).isImm())
+    return MI->getOperand(1).getImm();
+
+  if (MI->getOperand(1).isCImm() &&
+      MI->getOperand(1).getCImm()->getBitWidth() <= 64)
+    return MI->getOperand(1).getCImm()->getSExtValue();
+
+  return None;
+}
+
+bool InstructionSelector::isOperandImmEqual(
+    const MachineOperand &MO, int64_t Value,
+    const MachineRegisterInfo &MRI) const {
+
+  if (MO.getReg())
+    if (auto VRegVal = getConstantVRegVal(MO.getReg(), MRI))
+      return *VRegVal == Value;
+  return false;
+}
+
+bool InstructionSelector::isObviouslySafeToFold(MachineInstr &MI) const {
+  return !MI.mayLoadOrStore() && !MI.hasUnmodeledSideEffects() &&
+         MI.implicit_operands().begin() == MI.implicit_operands().end();
 }

@@ -226,6 +226,7 @@ public:
   MOCK_SYMBOL_ACCESSOR(getMachineType)
   MOCK_SYMBOL_ACCESSOR(getThunkOrdinal)
   MOCK_SYMBOL_ACCESSOR(getLength)
+  MOCK_SYMBOL_ACCESSOR(getVirtualBaseTableType)
   MOCK_SYMBOL_ACCESSOR(getLiveRangeLength)
   MOCK_SYMBOL_ACCESSOR(getVirtualAddress)
   MOCK_SYMBOL_ACCESSOR(getUdtKind)

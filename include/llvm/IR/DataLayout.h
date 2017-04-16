@@ -104,6 +104,7 @@ private:
   /// Defaults to false.
   bool BigEndian;
 
+  unsigned AllocaAddrSpace;
   unsigned StackNaturalAlign;
 
   enum ManglingModeT {
@@ -118,8 +119,19 @@ private:
 
   SmallVector<unsigned char, 8> LegalIntWidths;
 
-  /// \brief Primitive type alignment data.
-  SmallVector<LayoutAlignElem, 16> Alignments;
+  /// \brief Primitive type alignment data. This is sorted by type and bit
+  /// width during construction.
+  typedef SmallVector<LayoutAlignElem, 16> AlignmentsTy;
+  AlignmentsTy Alignments;
+
+  AlignmentsTy::const_iterator
+  findAlignmentLowerBound(AlignTypeEnum AlignType, uint32_t BitWidth) const {
+    return const_cast<DataLayout *>(this)->findAlignmentLowerBound(AlignType,
+                                                                   BitWidth);
+  }
+
+  AlignmentsTy::iterator
+  findAlignmentLowerBound(AlignTypeEnum AlignType, uint32_t BitWidth);
 
   /// \brief The string representation used to create this DataLayout
   std::string StringRepresentation;
@@ -133,14 +145,6 @@ private:
   }
 
   PointersTy::iterator findPointerLowerBound(uint32_t AddressSpace);
-
-  /// This member is a signal that a requested alignment type and bit width were
-  /// not found in the SmallVector.
-  static const LayoutAlignElem InvalidAlignmentElem;
-
-  /// This member is a signal that a requested pointer type and bit width were
-  /// not found in the DenseSet.
-  static const PointerAlignElem InvalidPointerElem;
 
   // The StructType -> StructLayout map.
   mutable void *LayoutMap;
@@ -158,22 +162,6 @@ private:
 
   /// Internal helper method that returns requested alignment for type.
   unsigned getAlignment(Type *Ty, bool abi_or_pref) const;
-
-  /// \brief Valid alignment predicate.
-  ///
-  /// Predicate that tests a LayoutAlignElem reference returned by get() against
-  /// InvalidAlignmentElem.
-  bool validAlignment(const LayoutAlignElem &align) const {
-    return &align != &InvalidAlignmentElem;
-  }
-
-  /// \brief Valid pointer predicate.
-  ///
-  /// Predicate that tests a PointerAlignElem reference returned by get()
-  /// against \c InvalidPointerElem.
-  bool validPointer(const PointerAlignElem &align) const {
-    return &align != &InvalidPointerElem;
-  }
 
   /// Parses a target data specification string. Assert if the string is
   /// malformed.
@@ -199,6 +187,7 @@ public:
     clear();
     StringRepresentation = DL.StringRepresentation;
     BigEndian = DL.isBigEndian();
+    AllocaAddrSpace = DL.AllocaAddrSpace;
     StackNaturalAlign = DL.StackNaturalAlign;
     ManglingMode = DL.ManglingMode;
     LegalIntWidths = DL.LegalIntWidths;
@@ -254,6 +243,7 @@ public:
   }
 
   unsigned getStackAlignment() const { return StackNaturalAlign; }
+  unsigned getAllocaAddrSpace() const { return AllocaAddrSpace; }
 
   bool hasMicrosoftFastStdCallMangling() const {
     return ManglingMode == MM_WinCOFFX86;

@@ -62,7 +62,7 @@ def SDTVecConv : SDTypeProfile<1, 2, [
 ]>;
 
 def PPClxvd2x  : SDNode<"PPCISD::LXVD2X", SDT_PPClxvd2x,
-                        [SDNPHasChain, SDNPMayLoad]>;
+                        [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
 def PPCstxvd2x : SDNode<"PPCISD::STXVD2X", SDT_PPCstxvd2x,
                         [SDNPHasChain, SDNPMayStore]>;
 def PPCxxswapd : SDNode<"PPCISD::XXSWAPD", SDT_PPCxxswapd, [SDNPHasChain]>;
@@ -117,7 +117,7 @@ let hasSideEffects = 0 in { // VSX instructions don't have side effects.
 let Uses = [RM] in {
 
   // Load indexed instructions
-  let mayLoad = 1 in {
+  let mayLoad = 1, mayStore = 0 in {
     let CodeSize = 3 in
     def LXSDX : XX1Form<31, 588,
                         (outs vsfrc:$XT), (ins memrr:$src),
@@ -142,7 +142,7 @@ let Uses = [RM] in {
   } // mayLoad
 
   // Store indexed instructions
-  let mayStore = 1 in {
+  let mayStore = 1, mayLoad = 0 in {
     let CodeSize = 3 in
     def STXSDX : XX1Form<31, 716,
                         (outs), (ins vsfrc:$XT, memrr:$dst),
@@ -1197,7 +1197,7 @@ let AddedComplexity = 400 in { // Prefer VSX patterns over non-VSX patterns.
                        [(set v4i32:$XT, (or v4i32:$XA, (vnot_ppc v4i32:$XB)))]>;
 
   // VSX scalar loads introduced in ISA 2.07
-  let mayLoad = 1 in {
+  let mayLoad = 1, mayStore = 0 in {
     let CodeSize = 3 in
     def LXSSPX : XX1Form<31, 524, (outs vssrc:$XT), (ins memrr:$src),
                          "lxsspx $XT, $src", IIC_LdStLFD,
@@ -1211,7 +1211,7 @@ let AddedComplexity = 400 in { // Prefer VSX patterns over non-VSX patterns.
   } // mayLoad
 
   // VSX scalar stores introduced in ISA 2.07
-  let mayStore = 1 in {
+  let mayStore = 1, mayLoad = 0 in {
     let CodeSize = 3 in
     def STXSSPX : XX1Form<31, 652, (outs), (ins vssrc:$XT, memrr:$dst),
                           "stxsspx $XT, $dst", IIC_LdStSTFD,
@@ -1410,6 +1410,11 @@ let Predicates = [HasDirectMove] in {
                               "mfvsrd $rA, $XT", IIC_VecGeneral,
                               [(set i64:$rA, (PPCmfvsr f64:$XT))]>,
       Requires<[In64BitMode]>;
+  let isCodeGenOnly = 1 in
+  def MFVRD : XX1_RS6_RD5_XO<31, 51, (outs g8rc:$rA), (ins vrrc:$XT),
+                             "mfvsrd $rA, $XT", IIC_VecGeneral,
+                             []>,
+      Requires<[In64BitMode]>;
   def MFVSRWZ : XX1_RS6_RD5_XO<31, 115, (outs gprc:$rA), (ins vsfrc:$XT),
                                "mfvsrwz $rA, $XT", IIC_VecGeneral,
                                [(set i32:$rA, (PPCmfvsr f64:$XT))]>;
@@ -1439,6 +1444,13 @@ let Predicates = [IsISA3_0, HasDirectMove] in {
 
 } // IsISA3_0, HasDirectMove
 } // UseVSXReg = 1
+
+// We want to parse this from asm, but we don't want to emit this as it would
+// be emitted with a VSX reg. So leave Emit = 0 here.
+def : InstAlias<"mfvrd $rA, $XT",
+                (MFVRD g8rc:$rA, vrrc:$XT), 0>;
+def : InstAlias<"mffprd $rA, $src",
+                (MFVSRD g8rc:$rA, f8rc:$src)>;
 
 /*  Direct moves of various widths from GPR's into VSR's. Each move lines
     the value up into element 0 (both BE and LE). Namely, entities smaller than
@@ -2186,7 +2198,7 @@ let AddedComplexity = 400, Predicates = [HasP9Vector] in {
   } // UseVSXReg = 1
 
   // Pattern for matching Vector HP -> Vector SP intrinsic. Defined as a
-  // seperate pattern so that it can convert the input register class from
+  // separate pattern so that it can convert the input register class from
   // VRRC(v8i16) to VSRC.
   def : Pat<(v4f32 (int_ppc_vsx_xvcvhpsp v8i16:$A)),
             (v4f32 (XVCVHPSP (COPY_TO_REGCLASS $A, VSRC)))>;
@@ -2335,7 +2347,7 @@ let AddedComplexity = 400, Predicates = [HasP9Vector] in {
 
   // When adding new D-Form loads/stores, be sure to update the ImmToIdxMap in
   // PPCRegisterInfo::PPCRegisterInfo and maybe save yourself some debugging.
-  let mayLoad = 1 in {
+  let mayLoad = 1, mayStore = 0 in {
   // Load Vector
   def LXV : DQ_RD6_RS5_DQ12<61, 1, (outs vsrc:$XT), (ins memrix16:$src),
                             "lxv $XT, $src", IIC_LdStLFD, []>, UseVSXReg;
@@ -2383,7 +2395,7 @@ let AddedComplexity = 400, Predicates = [HasP9Vector] in {
 
   // When adding new D-Form loads/stores, be sure to update the ImmToIdxMap in
   // PPCRegisterInfo::PPCRegisterInfo and maybe save yourself some debugging.
-  let mayStore = 1 in {
+  let mayStore = 1, mayLoad = 0 in {
   // Store Vector
   def STXV : DQ_RD6_RS5_DQ12<61, 5, (outs), (ins vsrc:$XT, memrix16:$dst),
                              "stxv $XT, $dst", IIC_LdStSTFD, []>, UseVSXReg;

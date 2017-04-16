@@ -482,7 +482,7 @@ MipsInstrInfo::genInstrWithNewOpc(unsigned NewOpc,
       MIB->RemoveOperand(0);
 
     for (unsigned J = 0, E = I->getDesc().getNumOperands(); J < E; ++J) {
-      MIB.addOperand(I->getOperand(J));
+      MIB.add(I->getOperand(J));
     }
 
     MIB.addImm(0);
@@ -492,7 +492,7 @@ MipsInstrInfo::genInstrWithNewOpc(unsigned NewOpc,
       if (BranchWithZeroOperand && (unsigned)ZeroOperandPosition == J)
         continue;
 
-      MIB.addOperand(I->getOperand(J));
+      MIB.add(I->getOperand(J));
     }
   }
 
@@ -500,4 +500,32 @@ MipsInstrInfo::genInstrWithNewOpc(unsigned NewOpc,
 
   MIB.setMemRefs(I->memoperands_begin(), I->memoperands_end());
   return MIB;
+}
+
+bool MipsInstrInfo::findCommutedOpIndices(MachineInstr &MI, unsigned &SrcOpIdx1,
+                                          unsigned &SrcOpIdx2) const {
+  assert(!MI.isBundle() &&
+         "TargetInstrInfo::findCommutedOpIndices() can't handle bundles");
+
+  const MCInstrDesc &MCID = MI.getDesc();
+  if (!MCID.isCommutable())
+    return false;
+
+  switch (MI.getOpcode()) {
+  case Mips::DPADD_U_H:
+  case Mips::DPADD_U_W:
+  case Mips::DPADD_U_D:
+  case Mips::DPADD_S_H:
+  case Mips::DPADD_S_W:
+  case Mips::DPADD_S_D: {
+    // The first operand is both input and output, so it should not commute
+    if (!fixCommutedOpIndices(SrcOpIdx1, SrcOpIdx2, 2, 3))
+      return false;
+
+    if (!MI.getOperand(SrcOpIdx1).isReg() || !MI.getOperand(SrcOpIdx2).isReg())
+      return false;
+    return true;
+  }
+  }
+  return TargetInstrInfo::findCommutedOpIndices(MI, SrcOpIdx1, SrcOpIdx2);
 }

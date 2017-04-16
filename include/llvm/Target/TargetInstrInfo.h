@@ -152,6 +152,31 @@ public:
   unsigned getCallFrameSetupOpcode() const { return CallFrameSetupOpcode; }
   unsigned getCallFrameDestroyOpcode() const { return CallFrameDestroyOpcode; }
 
+  /// Returns true if the argument is a frame pseudo instruction.
+  bool isFrameInstr(const MachineInstr &I) const {
+    return I.getOpcode() == getCallFrameSetupOpcode() ||
+      I.getOpcode() == getCallFrameDestroyOpcode();
+  }
+
+  /// Returns true if the argument is a frame setup pseudo instruction.
+  bool isFrameSetup(const MachineInstr &I) const {
+    return I.getOpcode() == getCallFrameSetupOpcode();
+  }
+
+  /// Returns size of the frame associated with the given frame instruction.
+  /// For frame setup instruction this is frame that is set up space set up
+  /// after the instruction. For frame destroy instruction this is the frame
+  /// freed by the caller.
+  /// Note, in some cases a call frame (or a part of it) may be prepared prior
+  /// to the frame setup instruction. It occurs in the calls that involve
+  /// inalloca arguments. This function reports only the size of the frame part
+  /// that is set up between the frame setup and destroy pseudo instructions.
+  int64_t getFrameSize(const MachineInstr &I) const {
+    assert(isFrameInstr(I));
+    assert(I.getOperand(0).getImm() >= 0);
+    return I.getOperand(0).getImm();
+  }
+
   unsigned getCatchReturnOpcode() const { return CatchRetOpcode; }
   unsigned getReturnOpcode() const { return ReturnOpcode; }
 
@@ -1070,15 +1095,6 @@ public:
     llvm_unreachable("target did not implement shouldClusterMemOps()");
   }
 
-  /// Can this target fuse the given instructions if they are scheduled
-  /// adjacent. Note that you have to add:
-  ///   DAG.addMutation(createMacroFusionDAGMutation());
-  /// to TargetPassConfig::createMachineScheduler() to have an effect.
-  virtual bool shouldScheduleAdjacent(const MachineInstr &First,
-                                      const MachineInstr &Second) const {
-    llvm_unreachable("target did not implement shouldScheduleAdjacent()");
-  }
-
   /// Reverses the branch condition of the specified condition list,
   /// returning false on success and true if it cannot be reversed.
   virtual
@@ -1108,6 +1124,25 @@ public:
   /// terminator instruction that has not been predicated.
   virtual bool isUnpredicatedTerminator(const MachineInstr &MI) const;
 
+  /// Returns true if MI is an unconditional tail call.
+  virtual bool isUnconditionalTailCall(const MachineInstr &MI) const {
+    return false;
+  }
+
+  /// Returns true if the tail call can be made conditional on BranchCond.
+  virtual bool
+  canMakeTailCallConditional(SmallVectorImpl<MachineOperand> &Cond,
+                             const MachineInstr &TailCall) const {
+    return false;
+  }
+
+  /// Replace the conditional branch in MBB with a conditional tail call.
+  virtual void replaceBranchWithTailCall(MachineBasicBlock &MBB,
+                                         SmallVectorImpl<MachineOperand> &Cond,
+                                         const MachineInstr &TailCall) const {
+    llvm_unreachable("Target didn't implement replaceBranchWithTailCall!");
+  }
+
   /// Convert the instruction into a predicated instruction.
   /// It returns true if the operation was successful.
   virtual bool PredicateInstruction(MachineInstr &MI,
@@ -1132,7 +1167,7 @@ public:
   /// Return true if the specified instruction can be predicated.
   /// By default, this returns true for every instruction with a
   /// PredicateOperand.
-  virtual bool isPredicable(MachineInstr &MI) const {
+  virtual bool isPredicable(const MachineInstr &MI) const {
     return MI.getDesc().isPredicable();
   }
 
@@ -1427,10 +1462,17 @@ public:
     return nullptr;
   }
 
-  // Sometimes, it is possible for the target
-  // to tell, even without aliasing information, that two MIs access different
-  // memory addresses. This function returns true if two MIs access different
-  // memory addresses and false otherwise.
+  /// Sometimes, it is possible for the target
+  /// to tell, even without aliasing information, that two MIs access different
+  /// memory addresses. This function returns true if two MIs access different
+  /// memory addresses and false otherwise.
+  ///
+  /// Assumes any physical registers used to compute addresses have the same
+  /// value for both instructions. (This is the most useful assumption for
+  /// post-RA scheduling.)
+  ///
+  /// See also MachineInstr::mayAlias, which is implemented on top of this
+  /// function.
   virtual bool
   areMemAccessesTriviallyDisjoint(MachineInstr &MIa, MachineInstr &MIb,
                                   AliasAnalysis *AA = nullptr) const {
@@ -1486,9 +1528,77 @@ public:
     return None;
   }
 
-  /// Determines whether |Inst| is a tail call instruction.
+  /// Determines whether \p Inst is a tail call instruction. Override this
+  /// method on targets that do not properly set MCID::Return and MCID::Call on
+  /// tail call instructions."
   virtual bool isTailCall(const MachineInstr &Inst) const {
+    return Inst.isReturn() && Inst.isCall();
+  }
+
+  /// True if the instruction is bound to the top of its basic block and no
+  /// other instructions shall be inserted before it. This can be implemented
+  /// to prevent register allocator to insert spills before such instructions.
+  virtual bool isBasicBlockPrologue(const MachineInstr &MI) const {
     return false;
+  }
+
+  /// \brief Return how many instructions would be saved by outlining a
+  /// sequence containing \p SequenceSize instructions that appears
+  /// \p Occurrences times in a module.
+  virtual unsigned getOutliningBenefit(size_t SequenceSize, size_t Occurrences,
+                                       bool CanBeTailCall) const {
+    llvm_unreachable(
+        "Target didn't implement TargetInstrInfo::getOutliningBenefit!");
+  }
+
+  /// Represents how an instruction should be mapped by the outliner.
+  /// \p Legal instructions are those which are safe to outline.
+  /// \p Illegal instructions are those which cannot be outlined.
+  /// \p Invisible instructions are instructions which can be outlined, but
+  /// shouldn't actually impact the outlining result.
+  enum MachineOutlinerInstrType {Legal, Illegal, Invisible};
+
+  /// Returns how or if \p MI should be outlined.
+  virtual MachineOutlinerInstrType getOutliningType(MachineInstr &MI) const {
+    llvm_unreachable(
+        "Target didn't implement TargetInstrInfo::getOutliningType!");
+  }
+
+  /// Insert a custom epilogue for outlined functions.
+  /// This may be empty, in which case no epilogue or return statement will be
+  /// emitted.
+  virtual void insertOutlinerEpilogue(MachineBasicBlock &MBB,
+                                      MachineFunction &MF,
+                                      bool IsTailCall) const {
+    llvm_unreachable(
+        "Target didn't implement TargetInstrInfo::insertOutlinerEpilogue!");
+  }
+
+  /// Insert a call to an outlined function into the program.
+  /// Returns an iterator to the spot where we inserted the call. This must be
+  /// implemented by the target.
+  virtual MachineBasicBlock::iterator
+  insertOutlinedCall(Module &M, MachineBasicBlock &MBB,
+                     MachineBasicBlock::iterator &It, MachineFunction &MF,
+                     bool IsTailCall) const {
+    llvm_unreachable(
+        "Target didn't implement TargetInstrInfo::insertOutlinedCall!");
+  }
+
+  /// Insert a custom prologue for outlined functions.
+  /// This may be empty, in which case no prologue will be emitted.
+  virtual void insertOutlinerPrologue(MachineBasicBlock &MBB,
+                                      MachineFunction &MF,
+                                      bool IsTailCall) const {
+    llvm_unreachable(
+        "Target didn't implement TargetInstrInfo::insertOutlinerPrologue!");
+  }
+
+  /// Return true if the function can safely be outlined from.
+  /// By default, this means that the function has no red zone.
+  virtual bool isFunctionSafeToOutlineFrom(MachineFunction &MF) const {
+    llvm_unreachable("Target didn't implement "
+                     "TargetInstrInfo::isFunctionSafeToOutlineFrom!");
   }
 
 private:

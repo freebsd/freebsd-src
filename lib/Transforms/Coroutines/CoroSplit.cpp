@@ -22,6 +22,7 @@
 #include "CoroInternal.h"
 #include "llvm/Analysis/CallGraphSCCPass.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
@@ -144,6 +145,33 @@ static void replaceFallthroughCoroEnd(IntrinsicInst *End,
   BB->getTerminator()->eraseFromParent();
 }
 
+// In Resumers, we replace unwind coro.end with True to force the immediate
+// unwind to caller.
+static void replaceUnwindCoroEnds(coro::Shape &Shape, ValueToValueMapTy &VMap) {
+  if (Shape.CoroEnds.empty())
+    return;
+
+  LLVMContext &Context = Shape.CoroEnds.front()->getContext();
+  auto *True = ConstantInt::getTrue(Context);
+  for (CoroEndInst *CE : Shape.CoroEnds) {
+    if (!CE->isUnwind())
+      continue;
+
+    auto *NewCE = cast<IntrinsicInst>(VMap[CE]);
+
+    // If coro.end has an associated bundle, add cleanupret instruction.
+    if (auto Bundle = NewCE->getOperandBundle(LLVMContext::OB_funclet)) {
+      Value *FromPad = Bundle->Inputs[0];
+      auto *CleanupRet = CleanupReturnInst::Create(FromPad, nullptr, NewCE);
+      NewCE->getParent()->splitBasicBlock(NewCE);
+      CleanupRet->getParent()->getTerminator()->eraseFromParent();
+    }
+
+    NewCE->replaceAllUsesWith(True);
+    NewCE->eraseFromParent();
+  }
+}
+
 // Rewrite final suspend point handling. We do not use suspend index to
 // represent the final suspend point. Instead we zero-out ResumeFnAddr in the
 // coroutine frame, since it is undefined behavior to resume a coroutine
@@ -157,9 +185,9 @@ static void handleFinalSuspend(IRBuilder<> &Builder, Value *FramePtr,
                                coro::Shape &Shape, SwitchInst *Switch,
                                bool IsDestroy) {
   assert(Shape.HasFinalSuspend);
-  auto FinalCase = --Switch->case_end();
-  BasicBlock *ResumeBB = FinalCase.getCaseSuccessor();
-  Switch->removeCase(FinalCase);
+  auto FinalCaseIt = std::prev(Switch->case_end());
+  BasicBlock *ResumeBB = FinalCaseIt->getCaseSuccessor();
+  Switch->removeCase(FinalCaseIt);
   if (IsDestroy) {
     BasicBlock *OldSwitchBB = Switch->getParent();
     auto *NewSwitchBB = OldSwitchBB->splitBasicBlock(Switch, "Switch");
@@ -195,7 +223,7 @@ static Function *createClone(Function &F, Twine Suffix, coro::Shape &Shape,
   // Replace all args with undefs. The buildCoroutineFrame algorithm already
   // rewritten access to the args that occurs after suspend points with loads
   // and stores to/from the coroutine frame.
-  for (Argument &A : F.getArgumentList())
+  for (Argument &A : F.args())
     VMap[&A] = UndefValue::get(A.getType());
 
   SmallVector<ReturnInst *, 4> Returns;
@@ -216,9 +244,9 @@ static Function *createClone(Function &F, Twine Suffix, coro::Shape &Shape,
 
   // Remove old return attributes.
   NewF->removeAttributes(
-      AttributeSet::ReturnIndex,
-      AttributeSet::get(
-          NewF->getContext(), AttributeSet::ReturnIndex,
+      AttributeList::ReturnIndex,
+      AttributeList::get(
+          NewF->getContext(), AttributeList::ReturnIndex,
           AttributeFuncs::typeIncompatible(NewF->getReturnType())));
 
   // Make AllocaSpillBlock the new entry block.
@@ -236,7 +264,7 @@ static Function *createClone(Function &F, Twine Suffix, coro::Shape &Shape,
   IRBuilder<> Builder(&NewF->getEntryBlock().front());
 
   // Remap frame pointer.
-  Argument *NewFramePtr = &NewF->getArgumentList().front();
+  Argument *NewFramePtr = &*NewF->arg_begin();
   Value *OldFramePtr = cast<Value>(VMap[Shape.FramePtr]);
   NewFramePtr->takeName(OldFramePtr);
   OldFramePtr->replaceAllUsesWith(NewFramePtr);
@@ -270,9 +298,7 @@ static Function *createClone(Function &F, Twine Suffix, coro::Shape &Shape,
 
   // Remove coro.end intrinsics.
   replaceFallthroughCoroEnd(Shape.CoroEnds.front(), VMap);
-  // FIXME: coming in upcoming patches:
-  // replaceUnwindCoroEnds(Shape.CoroEnds, VMap);
-
+  replaceUnwindCoroEnds(Shape, VMap);
   // Eliminate coro.free from the clones, replacing it with 'null' in cleanup,
   // to suppress deallocation code.
   coro::replaceCoroFree(cast<CoroIdInst>(VMap[Shape.CoroBegin->getId()]),
@@ -284,8 +310,16 @@ static Function *createClone(Function &F, Twine Suffix, coro::Shape &Shape,
 }
 
 static void removeCoroEnds(coro::Shape &Shape) {
-  for (CoroEndInst *CE : Shape.CoroEnds)
+  if (Shape.CoroEnds.empty())
+    return;
+
+  LLVMContext &Context = Shape.CoroEnds.front()->getContext();
+  auto *False = ConstantInt::getFalse(Context);
+
+  for (CoroEndInst *CE : Shape.CoroEnds) {
+    CE->replaceAllUsesWith(False);
     CE->eraseFromParent();
+  }
 }
 
 static void replaceFrameSize(coro::Shape &Shape) {

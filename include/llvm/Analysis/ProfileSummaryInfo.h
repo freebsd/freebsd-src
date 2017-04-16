@@ -29,6 +29,7 @@
 namespace llvm {
 class BasicBlock;
 class BlockFrequencyInfo;
+class CallSite;
 class ProfileSummary;
 /// \brief Analysis providing profile information.
 ///
@@ -44,7 +45,7 @@ class ProfileSummaryInfo {
 private:
   Module &M;
   std::unique_ptr<ProfileSummary> Summary;
-  void computeSummary();
+  bool computeSummary();
   void computeThresholds();
   // Count thresholds to answer isHotCount and isColdCount queries.
   Optional<uint64_t> HotCountThreshold, ColdCountThreshold;
@@ -53,16 +54,29 @@ public:
   ProfileSummaryInfo(Module &M) : M(M) {}
   ProfileSummaryInfo(ProfileSummaryInfo &&Arg)
       : M(Arg.M), Summary(std::move(Arg.Summary)) {}
+  /// Returns the profile count for \p CallInst.
+  static Optional<uint64_t> getProfileCount(const Instruction *CallInst,
+                                            BlockFrequencyInfo *BFI);
   /// \brief Returns true if \p F has hot function entry.
   bool isFunctionEntryHot(const Function *F);
+  /// Returns true if \p F has hot function entry or hot call edge.
+  bool isFunctionHotInCallGraph(const Function *F);
   /// \brief Returns true if \p F has cold function entry.
   bool isFunctionEntryCold(const Function *F);
+  /// Returns true if \p F has cold function entry or cold call edge.
+  bool isFunctionColdInCallGraph(const Function *F);
   /// \brief Returns true if \p F is a hot function.
   bool isHotCount(uint64_t C);
   /// \brief Returns true if count \p C is considered cold.
   bool isColdCount(uint64_t C);
   /// \brief Returns true if BasicBlock \p B is considered hot.
   bool isHotBB(const BasicBlock *B, BlockFrequencyInfo *BFI);
+  /// \brief Returns true if BasicBlock \p B is considered cold.
+  bool isColdBB(const BasicBlock *B, BlockFrequencyInfo *BFI);
+  /// \brief Returns true if CallSite \p CS is considered hot.
+  bool isHotCallSite(const CallSite &CS, BlockFrequencyInfo *BFI);
+  /// \brief Returns true if Callsite \p CS is considered cold.
+  bool isColdCallSite(const CallSite &CS, BlockFrequencyInfo *BFI);
 };
 
 /// An analysis pass based on legacy pass manager to deliver ProfileSummaryInfo.

@@ -28,6 +28,9 @@
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/InstCombine/InstCombineWorklist.h"
+#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Support/Dwarf.h"
+#include "llvm/IR/DIBuilder.h"
 
 #define DEBUG_TYPE "instcombine"
 
@@ -40,21 +43,29 @@ class DbgDeclareInst;
 class MemIntrinsic;
 class MemSetInst;
 
-/// \brief Assign a complexity or rank value to LLVM Values.
+/// Assign a complexity or rank value to LLVM Values. This is used to reduce
+/// the amount of pattern matching needed for compares and commutative
+/// instructions. For example, if we have:
+///   icmp ugt X, Constant
+/// or
+///   xor (add X, Constant), cast Z
+///
+/// We do not have to consider the commuted variants of these patterns because
+/// canonicalization based on complexity guarantees the above ordering.
 ///
 /// This routine maps IR values to various complexity ranks:
 ///   0 -> undef
 ///   1 -> Constants
 ///   2 -> Other non-instructions
 ///   3 -> Arguments
-///   3 -> Unary operations
-///   4 -> Other instructions
+///   4 -> Cast and (f)neg/not instructions
+///   5 -> Other instructions
 static inline unsigned getComplexity(Value *V) {
   if (isa<Instruction>(V)) {
-    if (BinaryOperator::isNeg(V) || BinaryOperator::isFNeg(V) ||
-        BinaryOperator::isNot(V))
-      return 3;
-    return 4;
+    if (isa<CastInst>(V) || BinaryOperator::isNeg(V) ||
+        BinaryOperator::isFNeg(V) || BinaryOperator::isNot(V))
+      return 4;
+    return 5;
   }
   if (isa<Argument>(V))
     return 3;
@@ -289,6 +300,7 @@ public:
   Instruction *visitLoadInst(LoadInst &LI);
   Instruction *visitStoreInst(StoreInst &SI);
   Instruction *visitBranchInst(BranchInst &BI);
+  Instruction *visitFenceInst(FenceInst &FI);
   Instruction *visitSwitchInst(SwitchInst &SI);
   Instruction *visitReturnInst(ReturnInst &RI);
   Instruction *visitInsertValueInst(InsertValueInst &IV);
@@ -313,9 +325,14 @@ public:
   bool replacedSelectWithOperand(SelectInst *SI, const ICmpInst *Icmp,
                                  const unsigned SIOpd);
 
+  /// Try to replace instruction \p I with value \p V which are pointers
+  /// in different address space.
+  /// \return true if successful.
+  bool replacePointer(Instruction &I, Value *V);
+
 private:
-  bool ShouldChangeType(unsigned FromBitWidth, unsigned ToBitWidth) const;
-  bool ShouldChangeType(Type *From, Type *To) const;
+  bool shouldChangeType(unsigned FromBitWidth, unsigned ToBitWidth) const;
+  bool shouldChangeType(Type *From, Type *To) const;
   Value *dyn_castNegVal(Value *V) const;
   Value *dyn_castFNegVal(Value *V, bool NoSignedZero = false) const;
   Type *FindElementAtOffset(PointerType *PtrTy, int64_t Offset,
@@ -456,8 +473,9 @@ public:
   /// methods should return the value returned by this function.
   Instruction *eraseInstFromFunction(Instruction &I) {
     DEBUG(dbgs() << "IC: ERASE " << I << '\n');
-
     assert(I.use_empty() && "Cannot erase instruction that is used!");
+    salvageDebugInfo(I);
+
     // Make sure that we reprocess all operands now that we reduced their
     // use counts.
     if (I.getNumOperands() < 8) {
@@ -499,6 +517,9 @@ public:
     return llvm::computeOverflowForUnsignedAdd(LHS, RHS, DL, &AC, CxtI, &DT);
   }
 
+  /// Maximum size of array considered when transforming.
+  uint64_t MaxArraySizeForCombine;
+
 private:
   /// \brief Performs a few simplifications for operators which are associative
   /// or commutative.
@@ -518,8 +539,16 @@ private:
   Value *SimplifyDemandedUseBits(Value *V, APInt DemandedMask, APInt &KnownZero,
                                  APInt &KnownOne, unsigned Depth,
                                  Instruction *CxtI);
-  bool SimplifyDemandedBits(Use &U, const APInt &DemandedMask, APInt &KnownZero,
+  bool SimplifyDemandedBits(Instruction *I, unsigned Op,
+                            const APInt &DemandedMask, APInt &KnownZero,
                             APInt &KnownOne, unsigned Depth = 0);
+  /// Helper routine of SimplifyDemandedUseBits. It computes KnownZero/KnownOne
+  /// bits. It also tries to handle simplifications that can be done based on
+  /// DemandedMask, but without modifying the Instruction.
+  Value *SimplifyMultipleUseDemandedBits(Instruction *I,
+                                         const APInt &DemandedMask,
+                                         APInt &KnownZero, APInt &KnownOne,
+                                         unsigned Depth, Instruction *CxtI);
   /// Helper routine of SimplifyDemandedUseBits. It tries to simplify demanded
   /// bit for "r1 = shr x, c1; r2 = shl r1, c2" instruction sequence.
   Value *SimplifyShrShlDemandedBits(Instruction *Lsr, Instruction *Sftl,
@@ -540,7 +569,7 @@ private:
   /// Given a binary operator, cast instruction, or select which has a PHI node
   /// as operand #0, see if we can fold the instruction into the PHI (which is
   /// only possible if all operands to the PHI are constants).
-  Instruction *FoldOpIntoPhi(Instruction &I);
+  Instruction *foldOpIntoPhi(Instruction &I, PHINode *PN);
 
   /// Given an instruction with a select as one operand and a constant as the
   /// other operand, try to fold the binary operator into the select arguments.
@@ -549,7 +578,7 @@ private:
   Instruction *FoldOpIntoSelect(Instruction &Op, SelectInst *SI);
 
   /// This is a convenience wrapper function for the above two functions.
-  Instruction *foldOpWithConstantIntoOperand(Instruction &I);
+  Instruction *foldOpWithConstantIntoOperand(BinaryOperator &I);
 
   /// \brief Try to rotate an operation below a PHI node, using PHI nodes for
   /// its operands.
@@ -628,16 +657,16 @@ private:
                             SelectPatternFlavor SPF2, Value *C);
   Instruction *foldSelectInstWithICmp(SelectInst &SI, ICmpInst *ICI);
 
-  Instruction *OptAndOp(Instruction *Op, ConstantInt *OpRHS,
+  Instruction *OptAndOp(BinaryOperator *Op, ConstantInt *OpRHS,
                         ConstantInt *AndRHS, BinaryOperator &TheAnd);
 
-  Value *FoldLogicalPlusAnd(Value *LHS, Value *RHS, ConstantInt *Mask,
-                            bool isSub, Instruction &I);
   Value *insertRangeTest(Value *V, const APInt &Lo, const APInt &Hi,
                          bool isSigned, bool Inside);
   Instruction *PromoteCastOfAllocation(BitCastInst &CI, AllocaInst &AI);
   Instruction *MatchBSwap(BinaryOperator &I);
   bool SimplifyStoreAtEndOfBlock(StoreInst &SI);
+
+  Instruction *SimplifyElementAtomicMemCpy(ElementAtomicMemCpyInst *AMI);
   Instruction *SimplifyMemTransfer(MemIntrinsic *MI);
   Instruction *SimplifyMemSet(MemSetInst *MI);
 

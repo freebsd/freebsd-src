@@ -119,11 +119,6 @@ FileType("filetype", cl::init(TargetMachine::CGFT_AssemblyFile),
                         "Emit nothing, for performance testing")));
 
 cl::opt<bool>
-EnableFPMAD("enable-fp-mad",
-            cl::desc("Enable less precise MAD instructions to be generated"),
-            cl::init(false));
-
-cl::opt<bool>
 DisableFPElim("disable-fp-elim",
               cl::desc("Disable frame pointer elimination optimization"),
               cl::init(false));
@@ -142,6 +137,12 @@ cl::opt<bool>
 EnableNoNaNsFPMath("enable-no-nans-fp-math",
                    cl::desc("Enable FP math optimizations that assume no NaNs"),
                    cl::init(false));
+
+cl::opt<bool>
+EnableNoSignedZerosFPMath("enable-no-signed-zeros-fp-math",
+                          cl::desc("Enable FP math optimizations that assume "
+                                   "the sign of 0 is insignificant"),
+                          cl::init(false));
 
 cl::opt<bool>
 EnableNoTrappingFPMath("enable-no-trapping-fp-math",
@@ -277,11 +278,11 @@ DebuggerTuningOpt("debugger-tune",
 // a TargetOptions object with CodeGen flags and returns it.
 static inline TargetOptions InitTargetOptionsFromCodeGenFlags() {
   TargetOptions Options;
-  Options.LessPreciseFPMADOption = EnableFPMAD;
   Options.AllowFPOpFusion = FuseFPOps;
   Options.UnsafeFPMath = EnableUnsafeFPMath;
   Options.NoInfsFPMath = EnableNoInfsFPMath;
   Options.NoNaNsFPMath = EnableNoNaNsFPMath;
+  Options.NoSignedZerosFPMath = EnableNoSignedZerosFPMath;
   Options.NoTrappingFPMath = EnableNoTrappingFPMath;
   Options.FPDenormalMode = DenormalMode;
   Options.HonorSignDependentRoundingFPMathOption =
@@ -345,28 +346,28 @@ static inline void setFunctionAttributes(StringRef CPU, StringRef Features,
                                          Module &M) {
   for (auto &F : M) {
     auto &Ctx = F.getContext();
-    AttributeSet Attrs = F.getAttributes(), NewAttrs;
+    AttributeList Attrs = F.getAttributes(), NewAttrs;
 
     if (!CPU.empty())
-      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeSet::FunctionIndex,
+      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeList::FunctionIndex,
                                        "target-cpu", CPU);
 
     if (!Features.empty())
-      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeSet::FunctionIndex,
+      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeList::FunctionIndex,
                                        "target-features", Features);
 
     if (DisableFPElim.getNumOccurrences() > 0)
-      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeSet::FunctionIndex,
+      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeList::FunctionIndex,
                                        "no-frame-pointer-elim",
                                        DisableFPElim ? "true" : "false");
 
     if (DisableTailCalls.getNumOccurrences() > 0)
-      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeSet::FunctionIndex,
+      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeList::FunctionIndex,
                                        "disable-tail-calls",
                                        toStringRef(DisableTailCalls));
 
     if (StackRealign)
-      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeSet::FunctionIndex,
+      NewAttrs = NewAttrs.addAttribute(Ctx, AttributeList::FunctionIndex,
                                        "stackrealign");
 
     if (TrapFuncName.getNumOccurrences() > 0)
@@ -376,12 +377,12 @@ static inline void setFunctionAttributes(StringRef CPU, StringRef Features,
             if (const auto *F = Call->getCalledFunction())
               if (F->getIntrinsicID() == Intrinsic::debugtrap ||
                   F->getIntrinsicID() == Intrinsic::trap)
-                Call->addAttribute(llvm::AttributeSet::FunctionIndex,
-                                   Attribute::get(Ctx, "trap-func-name",
-                                                  TrapFuncName));
+                Call->addAttribute(
+                    llvm::AttributeList::FunctionIndex,
+                    Attribute::get(Ctx, "trap-func-name", TrapFuncName));
 
     // Let NewAttrs override Attrs.
-    NewAttrs = Attrs.addAttributes(Ctx, AttributeSet::FunctionIndex, NewAttrs);
+    NewAttrs = Attrs.addAttributes(Ctx, AttributeList::FunctionIndex, NewAttrs);
     F.setAttributes(NewAttrs);
   }
 }

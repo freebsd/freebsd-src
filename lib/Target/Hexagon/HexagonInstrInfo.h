@@ -235,7 +235,7 @@ public:
   /// Return true if the specified instruction can be predicated.
   /// By default, this returns true for every instruction with a
   /// PredicateOperand.
-  bool isPredicable(MachineInstr &MI) const override;
+  bool isPredicable(const MachineInstr &MI) const override;
 
   /// Test if the given instruction should be considered a scheduling boundary.
   /// This primarily includes labels and terminators.
@@ -404,7 +404,7 @@ public:
                           const MachineBranchProbabilityInfo *MBPI) const;
   int getDotNewPredOp(const MachineInstr &MI,
                       const MachineBranchProbabilityInfo *MBPI) const;
-  int getDotOldOp(const int opc) const;
+  int getDotOldOp(const MachineInstr &MI) const;
   HexagonII::SubInstructionGroup getDuplexCandidateGroup(const MachineInstr &MI)
                                                          const;
   short getEquivalentHWInstr(const MachineInstr &MI) const;

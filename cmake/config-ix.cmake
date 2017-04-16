@@ -46,7 +46,6 @@ endfunction()
 check_include_file(dirent.h HAVE_DIRENT_H)
 check_include_file(dlfcn.h HAVE_DLFCN_H)
 check_include_file(errno.h HAVE_ERRNO_H)
-check_include_file(execinfo.h HAVE_EXECINFO_H)
 check_include_file(fcntl.h HAVE_FCNTL_H)
 check_include_file(inttypes.h HAVE_INTTYPES_H)
 check_include_file(link.h HAVE_LINK_H)
@@ -88,6 +87,15 @@ if(APPLE)
     HAVE_CRASHREPORTER_INFO)
 endif()
 
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  check_include_file(linux/magic.h HAVE_LINUX_MAGIC_H)
+  if(NOT HAVE_LINUX_MAGIC_H)
+    # older kernels use split files
+    check_include_file(linux/nfs_fs.h HAVE_LINUX_NFS_FS_H)
+    check_include_file(linux/smb.h HAVE_LINUX_SMB_H)
+  endif()
+endif()
+
 # library checks
 if( NOT PURE_WINDOWS )
   check_library_exists(pthread pthread_create "" HAVE_LIBPTHREAD)
@@ -115,7 +123,7 @@ if(HAVE_LIBPTHREAD)
   set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
   set(THREADS_HAVE_PTHREAD_ARG Off)
   find_package(Threads REQUIRED)
-  set(PTHREAD_LIB ${CMAKE_THREAD_LIBS_INIT})
+  set(LLVM_PTHREAD_LIB ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 # Don't look for these libraries on Windows. Also don't look for them if we're
@@ -156,7 +164,9 @@ endif()
 
 # function checks
 check_symbol_exists(arc4random "stdlib.h" HAVE_DECL_ARC4RANDOM)
-check_symbol_exists(backtrace "execinfo.h" HAVE_BACKTRACE)
+find_package(Backtrace)
+set(HAVE_BACKTRACE ${Backtrace_FOUND})
+set(BACKTRACE_HEADER ${Backtrace_HEADER})
 check_symbol_exists(_Unwind_Backtrace "unwind.h" HAVE__UNWIND_BACKTRACE)
 check_symbol_exists(getpagesize unistd.h HAVE_GETPAGESIZE)
 check_symbol_exists(sysconf unistd.h HAVE_SYSCONF)
@@ -227,6 +237,7 @@ if( HAVE_DLFCN_H )
     list(APPEND CMAKE_REQUIRED_LIBRARIES dl)
   endif()
   check_symbol_exists(dlopen dlfcn.h HAVE_DLOPEN)
+  check_symbol_exists(dladdr dlfcn.h HAVE_DLADDR)
   if( HAVE_LIBDL )
     list(REMOVE_ITEM CMAKE_REQUIRED_LIBRARIES dl)
   endif()
@@ -234,7 +245,15 @@ endif()
 
 check_symbol_exists(__GLIBC__ stdio.h LLVM_USING_GLIBC)
 if( LLVM_USING_GLIBC )
-  add_llvm_definitions( -D_GNU_SOURCE )
+  add_definitions( -D_GNU_SOURCE )
+endif()
+# This check requires _GNU_SOURCE
+if(HAVE_LIBPTHREAD)
+  check_library_exists(pthread pthread_getname_np "" HAVE_PTHREAD_GETNAME_NP)
+  check_library_exists(pthread pthread_setname_np "" HAVE_PTHREAD_SETNAME_NP)
+elseif(PTHREAD_IN_LIBC)
+  check_library_exists(c pthread_getname_np "" HAVE_PTHREAD_GETNAME_NP)
+  check_library_exists(c pthread_setname_np "" HAVE_PTHREAD_SETNAME_NP)
 endif()
 
 set(headers "sys/types.h")
@@ -489,8 +508,6 @@ if (LLVM_ENABLE_ZLIB )
   endif()
 endif()
 
-set(LLVM_PREFIX ${CMAKE_INSTALL_PREFIX})
-
 if (LLVM_ENABLE_DOXYGEN)
   message(STATUS "Doxygen enabled.")
   find_package(Doxygen REQUIRED)
@@ -547,6 +564,9 @@ set(LLVM_BINUTILS_INCDIR "" CACHE PATH
 	"PATH to binutils/include containing plugin-api.h for gold plugin.")
 
 if(CMAKE_HOST_APPLE AND APPLE)
+  if(NOT CMAKE_XCRUN)
+    find_program(CMAKE_XCRUN NAMES xcrun)
+  endif()
   if(CMAKE_XCRUN)
     execute_process(COMMAND ${CMAKE_XCRUN} -find ld
       OUTPUT_VARIABLE LD64_EXECUTABLE

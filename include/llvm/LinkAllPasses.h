@@ -75,6 +75,7 @@ namespace {
       (void) llvm::createCallGraphDOTPrinterPass();
       (void) llvm::createCallGraphViewerPass();
       (void) llvm::createCFGSimplificationPass();
+      (void) llvm::createLateCFGSimplificationPass();
       (void) llvm::createCFLAndersAAWrapperPass();
       (void) llvm::createCFLSteensAAWrapperPass();
       (void) llvm::createStructurizeCFGPass();
@@ -96,6 +97,7 @@ namespace {
       (void) llvm::createPGOInstrumentationGenLegacyPass();
       (void) llvm::createPGOInstrumentationUseLegacyPass();
       (void) llvm::createPGOIndirectCallPromotionLegacyPass();
+      (void) llvm::createPGOMemOPSizeOptLegacyPass();
       (void) llvm::createInstrProfilingLegacyPass();
       (void) llvm::createFunctionImportPass();
       (void) llvm::createFunctionInliningPass();
@@ -116,6 +118,7 @@ namespace {
       (void) llvm::createLazyValueInfoPass();
       (void) llvm::createLoopExtractorPass();
       (void) llvm::createLoopInterchangePass();
+      (void) llvm::createLoopPredicationPass();
       (void) llvm::createLoopSimplifyPass();
       (void) llvm::createLoopSimplifyCFGPass();
       (void) llvm::createLoopStrengthReducePass();

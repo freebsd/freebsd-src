@@ -16,6 +16,8 @@
 #include "llvm/CodeGen/GlobalISel/Legalizer.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerHelper.h"
 #include "llvm/CodeGen/GlobalISel/Legalizer.h"
+#include "llvm/CodeGen/GlobalISel/Utils.h"
+#include "llvm/CodeGen/MachineOptimizationRemarkEmitter.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/Support/Debug.h"
@@ -92,10 +94,7 @@ bool Legalizer::combineExtracts(MachineInstr &MI, MachineRegisterInfo &MRI,
            "unexpected physical register in G_SEQUENCE");
 
     // Finally we can replace the uses.
-    for (auto &Use : MRI.use_operands(ExtractReg)) {
-      Changed = true;
-      Use.setReg(OrigReg);
-    }
+    MRI.replaceRegWith(ExtractReg, OrigReg);
   }
 
   if (AllDefsReplaced) {
@@ -114,6 +113,36 @@ bool Legalizer::combineExtracts(MachineInstr &MI, MachineRegisterInfo &MRI,
   return Changed;
 }
 
+bool Legalizer::combineMerges(MachineInstr &MI, MachineRegisterInfo &MRI,
+                              const TargetInstrInfo &TII) {
+  if (MI.getOpcode() != TargetOpcode::G_UNMERGE_VALUES)
+    return false;
+
+  unsigned NumDefs = MI.getNumOperands() - 1;
+  unsigned SrcReg = MI.getOperand(NumDefs).getReg();
+  MachineInstr &MergeI = *MRI.def_instr_begin(SrcReg);
+  if (MergeI.getOpcode() != TargetOpcode::G_MERGE_VALUES)
+    return false;
+
+  if (MergeI.getNumOperands() - 1 != NumDefs)
+    return false;
+
+  // FIXME: is a COPY appropriate if the types mismatch? We know both registers
+  // are allocatable by now.
+  if (MRI.getType(MI.getOperand(0).getReg()) !=
+      MRI.getType(MergeI.getOperand(1).getReg()))
+    return false;
+
+  for (unsigned Idx = 0; Idx < NumDefs; ++Idx)
+    MRI.replaceRegWith(MI.getOperand(Idx).getReg(),
+                       MergeI.getOperand(Idx + 1).getReg());
+
+  MI.eraseFromParent();
+  if (MRI.use_empty(MergeI.getOperand(0).getReg()))
+    MergeI.eraseFromParent();
+  return true;
+}
+
 bool Legalizer::runOnMachineFunction(MachineFunction &MF) {
   // If the ISel pipeline failed, do not bother running that pass.
   if (MF.getProperties().hasProperty(
@@ -122,7 +151,7 @@ bool Legalizer::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(dbgs() << "Legalize Machine IR for: " << MF.getName() << '\n');
   init(MF);
   const TargetPassConfig &TPC = getAnalysis<TargetPassConfig>();
-  const LegalizerInfo &LegalizerInfo = *MF.getSubtarget().getLegalizerInfo();
+  MachineOptimizationRemarkEmitter MORE(MF, /*MBFI=*/nullptr);
   LegalizerHelper Helper(MF);
 
   // FIXME: an instruction may need more than one pass before it is legal. For
@@ -142,27 +171,33 @@ bool Legalizer::runOnMachineFunction(MachineFunction &MF) {
       // and are assumed to be legal.
       if (!isPreISelGenericOpcode(MI->getOpcode()))
         continue;
+      SmallVector<MachineInstr *, 4> WorkList;
+      Helper.MIRBuilder.recordInsertions(
+          [&](MachineInstr *MI) { WorkList.push_back(MI); });
+      WorkList.push_back(&*MI);
 
-      auto Res = Helper.legalizeInstr(*MI, LegalizerInfo);
-
-      // Error out if we couldn't legalize this instruction. We may want to fall
-      // back to DAG ISel instead in the future.
-      if (Res == LegalizerHelper::UnableToLegalize) {
-        if (!TPC.isGlobalISelAbortEnabled()) {
-          MF.getProperties().set(
-              MachineFunctionProperties::Property::FailedISel);
-          return false;
+      LegalizerHelper::LegalizeResult Res;
+      unsigned Idx = 0;
+      do {
+        Res = Helper.legalizeInstrStep(*WorkList[Idx]);
+        // Error out if we couldn't legalize this instruction. We may want to
+        // fall
+        // back to DAG ISel instead in the future.
+        if (Res == LegalizerHelper::UnableToLegalize) {
+          Helper.MIRBuilder.stopRecordingInsertions();
+          if (Res == LegalizerHelper::UnableToLegalize) {
+            reportGISelFailure(MF, TPC, MORE, "gisel-legalize",
+                               "unable to legalize instruction",
+                               *WorkList[Idx]);
+            return false;
+          }
         }
-        std::string Msg;
-        raw_string_ostream OS(Msg);
-        OS << "unable to legalize instruction: ";
-        MI->print(OS);
-        report_fatal_error(OS.str());
-      }
+        Changed |= Res == LegalizerHelper::Legalized;
+        ++Idx;
+      } while (Idx < WorkList.size());
 
-      Changed |= Res == LegalizerHelper::Legalized;
+      Helper.MIRBuilder.stopRecordingInsertions();
     }
-
 
   MachineRegisterInfo &MRI = MF.getRegInfo();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
@@ -173,6 +208,7 @@ bool Legalizer::runOnMachineFunction(MachineFunction &MF) {
       NextMI = std::next(MI);
 
       Changed |= combineExtracts(*MI, MRI, TII);
+      Changed |= combineMerges(*MI, MRI, TII);
     }
   }
 

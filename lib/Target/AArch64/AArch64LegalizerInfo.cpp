@@ -13,7 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64LegalizerInfo.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/Target/TargetOpcodes.h"
@@ -36,11 +39,14 @@ AArch64LegalizerInfo::AArch64LegalizerInfo() {
   const LLT v4s32 = LLT::vector(4, 32);
   const LLT v2s64 = LLT::vector(2, 64);
 
-  for (auto BinOp : {G_ADD, G_SUB, G_MUL, G_AND, G_OR, G_XOR, G_SHL}) {
+  for (unsigned BinOp : {G_ADD, G_SUB, G_MUL, G_AND, G_OR, G_XOR, G_SHL}) {
     // These operations naturally get the right answer when used on
     // GPR32, even if the actual type is narrower.
-    for (auto Ty : {s1, s8, s16, s32, s64, v2s32, v4s32, v2s64})
+    for (auto Ty : {s32, s64, v2s32, v4s32, v2s64})
       setAction({BinOp, Ty}, Legal);
+
+    for (auto Ty : {s1, s8, s16})
+      setAction({BinOp, Ty}, WidenScalar);
   }
 
   setAction({G_GEP, p0}, Legal);
@@ -49,7 +55,9 @@ AArch64LegalizerInfo::AArch64LegalizerInfo() {
   for (auto Ty : {s1, s8, s16, s32})
     setAction({G_GEP, 1, Ty}, WidenScalar);
 
-  for (auto BinOp : {G_LSHR, G_ASHR, G_SDIV, G_UDIV}) {
+  setAction({G_PTR_MASK, p0}, Legal);
+
+  for (unsigned BinOp : {G_LSHR, G_ASHR, G_SDIV, G_UDIV}) {
     for (auto Ty : {s32, s64})
       setAction({BinOp, Ty}, Legal);
 
@@ -57,25 +65,41 @@ AArch64LegalizerInfo::AArch64LegalizerInfo() {
       setAction({BinOp, Ty}, WidenScalar);
   }
 
-  for (auto BinOp : { G_SREM, G_UREM })
+  for (unsigned BinOp : {G_SREM, G_UREM})
     for (auto Ty : { s1, s8, s16, s32, s64 })
       setAction({BinOp, Ty}, Lower);
 
-  for (auto Op : { G_UADDE, G_USUBE, G_SADDO, G_SSUBO, G_SMULO, G_UMULO }) {
+  for (unsigned Op : {G_SMULO, G_UMULO})
+      setAction({Op, s64}, Lower);
+
+  for (unsigned Op : {G_UADDE, G_USUBE, G_SADDO, G_SSUBO, G_SMULH, G_UMULH}) {
     for (auto Ty : { s32, s64 })
       setAction({Op, Ty}, Legal);
 
     setAction({Op, 1, s1}, Legal);
   }
 
-  for (auto BinOp : {G_FADD, G_FSUB, G_FMUL, G_FDIV})
+  for (unsigned BinOp : {G_FADD, G_FSUB, G_FMUL, G_FDIV})
     for (auto Ty : {s32, s64})
       setAction({BinOp, Ty}, Legal);
 
-  setAction({G_FREM, s32}, Libcall);
-  setAction({G_FREM, s64}, Libcall);
+  for (unsigned BinOp : {G_FREM, G_FPOW}) {
+    setAction({BinOp, s32}, Libcall);
+    setAction({BinOp, s64}, Libcall);
+  }
 
-  for (auto MemOp : {G_LOAD, G_STORE}) {
+  for (auto Ty : {s32, s64, p0}) {
+    setAction({G_INSERT, Ty}, Legal);
+    setAction({G_INSERT, 1, Ty}, Legal);
+  }
+  for (auto Ty : {s1, s8, s16}) {
+    setAction({G_INSERT, Ty}, WidenScalar);
+    setAction({G_INSERT, 1, Ty}, Legal);
+    // FIXME: Can't widen the sources because that violates the constraints on
+    // G_INSERT (It seems entirely reasonable that inputs shouldn't overlap).
+  }
+
+  for (unsigned MemOp : {G_LOAD, G_STORE}) {
     for (auto Ty : {s8, s16, s32, s64, p0, v2s32})
       setAction({MemOp, Ty}, Legal);
 
@@ -141,11 +165,17 @@ AArch64LegalizerInfo::AArch64LegalizerInfo() {
     setAction({G_TRUNC, 1, Ty}, Legal);
 
   // Conversions
-  for (auto Ty : { s1, s8, s16, s32, s64 }) {
+  for (auto Ty : { s32, s64 }) {
     setAction({G_FPTOSI, 0, Ty}, Legal);
     setAction({G_FPTOUI, 0, Ty}, Legal);
     setAction({G_SITOFP, 1, Ty}, Legal);
     setAction({G_UITOFP, 1, Ty}, Legal);
+  }
+  for (auto Ty : { s1, s8, s16 }) {
+    setAction({G_FPTOSI, 0, Ty}, WidenScalar);
+    setAction({G_FPTOUI, 0, Ty}, WidenScalar);
+    setAction({G_SITOFP, 1, Ty}, WidenScalar);
+    setAction({G_UITOFP, 1, Ty}, WidenScalar);
   }
 
   for (auto Ty : { s32, s64 }) {
@@ -158,9 +188,13 @@ AArch64LegalizerInfo::AArch64LegalizerInfo() {
   // Control-flow
   for (auto Ty : {s1, s8, s16, s32})
     setAction({G_BRCOND, Ty}, Legal);
+  setAction({G_BRINDIRECT, p0}, Legal);
 
   // Select
-  for (auto Ty : {s1, s8, s16, s32, s64})
+  for (auto Ty : {s1, s8, s16})
+    setAction({G_SELECT, Ty}, WidenScalar);
+
+  for (auto Ty : {s32, s64, p0})
     setAction({G_SELECT, Ty}, Legal);
 
   setAction({G_SELECT, 1, s1}, Legal);
@@ -200,5 +234,82 @@ AArch64LegalizerInfo::AArch64LegalizerInfo() {
     setAction({G_BITCAST, 1, LLT::vector(32/EltSize, EltSize)}, Legal);
   }
 
+  setAction({G_VASTART, p0}, Legal);
+
+  // va_list must be a pointer, but most sized types are pretty easy to handle
+  // as the destination.
+  setAction({G_VAARG, 1, p0}, Legal);
+
+  for (auto Ty : {s8, s16, s32, s64, p0})
+    setAction({G_VAARG, Ty}, Custom);
+
   computeTables();
+}
+
+bool AArch64LegalizerInfo::legalizeCustom(MachineInstr &MI,
+                                          MachineRegisterInfo &MRI,
+                                          MachineIRBuilder &MIRBuilder) const {
+  switch (MI.getOpcode()) {
+  default:
+    // No idea what to do.
+    return false;
+  case TargetOpcode::G_VAARG:
+    return legalizeVaArg(MI, MRI, MIRBuilder);
+  }
+
+  llvm_unreachable("expected switch to return");
+}
+
+bool AArch64LegalizerInfo::legalizeVaArg(MachineInstr &MI,
+                                         MachineRegisterInfo &MRI,
+                                         MachineIRBuilder &MIRBuilder) const {
+  MIRBuilder.setInstr(MI);
+  MachineFunction &MF = MIRBuilder.getMF();
+  unsigned Align = MI.getOperand(2).getImm();
+  unsigned Dst = MI.getOperand(0).getReg();
+  unsigned ListPtr = MI.getOperand(1).getReg();
+
+  LLT PtrTy = MRI.getType(ListPtr);
+  LLT IntPtrTy = LLT::scalar(PtrTy.getSizeInBits());
+
+  const unsigned PtrSize = PtrTy.getSizeInBits() / 8;
+  unsigned List = MRI.createGenericVirtualRegister(PtrTy);
+  MIRBuilder.buildLoad(
+      List, ListPtr,
+      *MF.getMachineMemOperand(MachinePointerInfo(), MachineMemOperand::MOLoad,
+                               PtrSize, /* Align = */ PtrSize));
+
+  unsigned DstPtr;
+  if (Align > PtrSize) {
+    // Realign the list to the actual required alignment.
+    unsigned AlignMinus1 = MRI.createGenericVirtualRegister(IntPtrTy);
+    MIRBuilder.buildConstant(AlignMinus1, Align - 1);
+
+    unsigned ListTmp = MRI.createGenericVirtualRegister(PtrTy);
+    MIRBuilder.buildGEP(ListTmp, List, AlignMinus1);
+
+    DstPtr = MRI.createGenericVirtualRegister(PtrTy);
+    MIRBuilder.buildPtrMask(DstPtr, ListTmp, Log2_64(Align));
+  } else
+    DstPtr = List;
+
+  uint64_t ValSize = MRI.getType(Dst).getSizeInBits() / 8;
+  MIRBuilder.buildLoad(
+      Dst, DstPtr,
+      *MF.getMachineMemOperand(MachinePointerInfo(), MachineMemOperand::MOLoad,
+                               ValSize, std::max(Align, PtrSize)));
+
+  unsigned SizeReg = MRI.createGenericVirtualRegister(IntPtrTy);
+  MIRBuilder.buildConstant(SizeReg, alignTo(ValSize, PtrSize));
+
+  unsigned NewList = MRI.createGenericVirtualRegister(PtrTy);
+  MIRBuilder.buildGEP(NewList, DstPtr, SizeReg);
+
+  MIRBuilder.buildStore(
+      NewList, ListPtr,
+      *MF.getMachineMemOperand(MachinePointerInfo(), MachineMemOperand::MOStore,
+                               PtrSize, /* Align = */ PtrSize));
+
+  MI.eraseFromParent();
+  return true;
 }

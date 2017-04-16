@@ -76,7 +76,6 @@
 ; CHECK-NOT: {{DW_TAG|DW_AT}}
 ; CHECK: NULL
 
-
 ; CHECK: .debug_ranges contents:
 
 ; ... some addresses (depends on platform (such as platforms with function

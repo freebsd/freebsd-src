@@ -11,40 +11,65 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/SelectionDAG.h"
 #include "ScheduleDAGSDNodes.h"
 #include "SelectionDAGBuilder.h"
+#include "llvm/ADT/APInt.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/Analysis/CFG.h"
-#include "llvm/Analysis/EHPersonalities.h"
+#include "llvm/Analysis/OptimizationDiagnosticInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/GCMetadata.h"
-#include "llvm/CodeGen/GCStrategy.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/MachinePassRegistry.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/ScheduleHazardRecognizer.h"
+#include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
+#include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/StackProtector.h"
-#include "llvm/CodeGen/WinEHFuncInfo.h"
+#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DebugLoc.h"
+#include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/User.h"
+#include "llvm/MC/MCInstrDesc.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/BranchProbability.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/CodeGen.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -59,6 +84,13 @@
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 using namespace llvm;
 
@@ -73,104 +105,6 @@ STATISTIC(NumEntryBlocks, "Number of entry blocks encountered");
 STATISTIC(NumFastIselFailLowerArguments,
           "Number of entry blocks where fast isel failed to lower arguments");
 
-#ifndef NDEBUG
-static cl::opt<bool>
-EnableFastISelVerbose2("fast-isel-verbose2", cl::Hidden,
-          cl::desc("Enable extra verbose messages in the \"fast\" "
-                   "instruction selector"));
-
-  // Terminators
-STATISTIC(NumFastIselFailRet,"Fast isel fails on Ret");
-STATISTIC(NumFastIselFailBr,"Fast isel fails on Br");
-STATISTIC(NumFastIselFailSwitch,"Fast isel fails on Switch");
-STATISTIC(NumFastIselFailIndirectBr,"Fast isel fails on IndirectBr");
-STATISTIC(NumFastIselFailInvoke,"Fast isel fails on Invoke");
-STATISTIC(NumFastIselFailResume,"Fast isel fails on Resume");
-STATISTIC(NumFastIselFailUnreachable,"Fast isel fails on Unreachable");
-
-  // Standard binary operators...
-STATISTIC(NumFastIselFailAdd,"Fast isel fails on Add");
-STATISTIC(NumFastIselFailFAdd,"Fast isel fails on FAdd");
-STATISTIC(NumFastIselFailSub,"Fast isel fails on Sub");
-STATISTIC(NumFastIselFailFSub,"Fast isel fails on FSub");
-STATISTIC(NumFastIselFailMul,"Fast isel fails on Mul");
-STATISTIC(NumFastIselFailFMul,"Fast isel fails on FMul");
-STATISTIC(NumFastIselFailUDiv,"Fast isel fails on UDiv");
-STATISTIC(NumFastIselFailSDiv,"Fast isel fails on SDiv");
-STATISTIC(NumFastIselFailFDiv,"Fast isel fails on FDiv");
-STATISTIC(NumFastIselFailURem,"Fast isel fails on URem");
-STATISTIC(NumFastIselFailSRem,"Fast isel fails on SRem");
-STATISTIC(NumFastIselFailFRem,"Fast isel fails on FRem");
-
-  // Logical operators...
-STATISTIC(NumFastIselFailAnd,"Fast isel fails on And");
-STATISTIC(NumFastIselFailOr,"Fast isel fails on Or");
-STATISTIC(NumFastIselFailXor,"Fast isel fails on Xor");
-
-  // Memory instructions...
-STATISTIC(NumFastIselFailAlloca,"Fast isel fails on Alloca");
-STATISTIC(NumFastIselFailLoad,"Fast isel fails on Load");
-STATISTIC(NumFastIselFailStore,"Fast isel fails on Store");
-STATISTIC(NumFastIselFailAtomicCmpXchg,"Fast isel fails on AtomicCmpXchg");
-STATISTIC(NumFastIselFailAtomicRMW,"Fast isel fails on AtomicRWM");
-STATISTIC(NumFastIselFailFence,"Fast isel fails on Frence");
-STATISTIC(NumFastIselFailGetElementPtr,"Fast isel fails on GetElementPtr");
-
-  // Convert instructions...
-STATISTIC(NumFastIselFailTrunc,"Fast isel fails on Trunc");
-STATISTIC(NumFastIselFailZExt,"Fast isel fails on ZExt");
-STATISTIC(NumFastIselFailSExt,"Fast isel fails on SExt");
-STATISTIC(NumFastIselFailFPTrunc,"Fast isel fails on FPTrunc");
-STATISTIC(NumFastIselFailFPExt,"Fast isel fails on FPExt");
-STATISTIC(NumFastIselFailFPToUI,"Fast isel fails on FPToUI");
-STATISTIC(NumFastIselFailFPToSI,"Fast isel fails on FPToSI");
-STATISTIC(NumFastIselFailUIToFP,"Fast isel fails on UIToFP");
-STATISTIC(NumFastIselFailSIToFP,"Fast isel fails on SIToFP");
-STATISTIC(NumFastIselFailIntToPtr,"Fast isel fails on IntToPtr");
-STATISTIC(NumFastIselFailPtrToInt,"Fast isel fails on PtrToInt");
-STATISTIC(NumFastIselFailBitCast,"Fast isel fails on BitCast");
-
-  // Other instructions...
-STATISTIC(NumFastIselFailICmp,"Fast isel fails on ICmp");
-STATISTIC(NumFastIselFailFCmp,"Fast isel fails on FCmp");
-STATISTIC(NumFastIselFailPHI,"Fast isel fails on PHI");
-STATISTIC(NumFastIselFailSelect,"Fast isel fails on Select");
-STATISTIC(NumFastIselFailCall,"Fast isel fails on Call");
-STATISTIC(NumFastIselFailShl,"Fast isel fails on Shl");
-STATISTIC(NumFastIselFailLShr,"Fast isel fails on LShr");
-STATISTIC(NumFastIselFailAShr,"Fast isel fails on AShr");
-STATISTIC(NumFastIselFailVAArg,"Fast isel fails on VAArg");
-STATISTIC(NumFastIselFailExtractElement,"Fast isel fails on ExtractElement");
-STATISTIC(NumFastIselFailInsertElement,"Fast isel fails on InsertElement");
-STATISTIC(NumFastIselFailShuffleVector,"Fast isel fails on ShuffleVector");
-STATISTIC(NumFastIselFailExtractValue,"Fast isel fails on ExtractValue");
-STATISTIC(NumFastIselFailInsertValue,"Fast isel fails on InsertValue");
-STATISTIC(NumFastIselFailLandingPad,"Fast isel fails on LandingPad");
-
-// Intrinsic instructions...
-STATISTIC(NumFastIselFailIntrinsicCall, "Fast isel fails on Intrinsic call");
-STATISTIC(NumFastIselFailSAddWithOverflow,
-          "Fast isel fails on sadd.with.overflow");
-STATISTIC(NumFastIselFailUAddWithOverflow,
-          "Fast isel fails on uadd.with.overflow");
-STATISTIC(NumFastIselFailSSubWithOverflow,
-          "Fast isel fails on ssub.with.overflow");
-STATISTIC(NumFastIselFailUSubWithOverflow,
-          "Fast isel fails on usub.with.overflow");
-STATISTIC(NumFastIselFailSMulWithOverflow,
-          "Fast isel fails on smul.with.overflow");
-STATISTIC(NumFastIselFailUMulWithOverflow,
-          "Fast isel fails on umul.with.overflow");
-STATISTIC(NumFastIselFailFrameaddress, "Fast isel fails on Frameaddress");
-STATISTIC(NumFastIselFailSqrt, "Fast isel fails on sqrt call");
-STATISTIC(NumFastIselFailStackMap, "Fast isel fails on StackMap call");
-STATISTIC(NumFastIselFailPatchPoint, "Fast isel fails on PatchPoint call");
-#endif
-
-static cl::opt<bool>
-EnableFastISelVerbose("fast-isel-verbose", cl::Hidden,
-          cl::desc("Enable verbose messages in the \"fast\" "
-                   "instruction selector"));
 static cl::opt<int> EnableFastISelAbort(
     "fast-isel-abort", cl::Hidden,
     cl::desc("Enable abort calls when \"fast\" instruction selection "
@@ -178,6 +112,11 @@ static cl::opt<int> EnableFastISelAbort(
              "abort but for args, calls and terminators, 2 will also "
              "abort for argument lowering, and 3 will never fallback "
              "to SelectionDAG."));
+
+static cl::opt<bool> EnableFastISelFallbackReport(
+    "fast-isel-report-on-fallback", cl::Hidden,
+    cl::desc("Emit a diagnostic when \"fast\" instruction selection "
+             "falls back to SelectionDAG."));
 
 static cl::opt<bool>
 UseMBPI("use-mbpi",
@@ -238,7 +177,7 @@ MachinePassRegistry RegisterScheduler::Registry;
 ///
 //===---------------------------------------------------------------------===//
 static cl::opt<RegisterScheduler::FunctionPassCtor, false,
-               RegisterPassParser<RegisterScheduler> >
+               RegisterPassParser<RegisterScheduler>>
 ISHeuristic("pre-RA-sched",
             cl::init(&createDefaultScheduler), cl::Hidden,
             cl::desc("Instruction schedulers available (before register"
@@ -249,6 +188,7 @@ defaultListDAGScheduler("default", "Best scheduler for the target",
                         createDefaultScheduler);
 
 namespace llvm {
+
   //===--------------------------------------------------------------------===//
   /// \brief This class is used by SelectionDAGISel to temporarily override
   /// the optimization level on a per-function basis.
@@ -318,6 +258,7 @@ namespace llvm {
            "Unknown sched type!");
     return createILPListDAGScheduler(IS, OptLevel);
   }
+
 } // end namespace llvm
 
 // EmitInstrWithCustomInserter - This method should be implemented by targets
@@ -431,8 +372,6 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
           MachineFunctionProperties::Property::Selected))
     return false;
   // Do some sanity-checking on the command-line options.
-  assert((!EnableFastISelVerbose || TM.Options.EnableFastISel) &&
-         "-fast-isel-verbose requires -fast-isel");
   assert((!EnableFastISelAbort || TM.Options.EnableFastISel) &&
          "-fast-isel-abort > 0 requires -fast-isel");
 
@@ -457,12 +396,13 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   LibInfo = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   GFI = Fn.hasGC() ? &getAnalysis<GCModuleInfo>().getFunctionInfo(Fn) : nullptr;
+  ORE = make_unique<OptimizationRemarkEmitter>(&Fn);
 
   DEBUG(dbgs() << "\n\n\n=== " << Fn.getName() << "\n");
 
   SplitCriticalSideEffectEdges(const_cast<Function &>(Fn));
 
-  CurDAG->init(*MF);
+  CurDAG->init(*MF, *ORE);
   FuncInfo->set(Fn, *MF, CurDAG);
 
   if (UseMBPI && OptLevel != CodeGenOpt::None)
@@ -502,6 +442,10 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
     TLI->initializeSplitCSR(EntryMBB);
 
   SelectAllBasicBlocks(Fn);
+  if (FastISelFailed && EnableFastISelFallbackReport) {
+    DiagnosticInfoISelFallback DiagFallback(Fn);
+    Fn.getContext().diagnose(DiagFallback);
+  }
 
   // If the first basic block in the function has live ins that need to be
   // copied into vregs, emit the copies into the top of the block before
@@ -628,7 +572,7 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
     unsigned To = I->second;
     // If To is also scheduled to be replaced, find what its ultimate
     // replacement is.
-    for (;;) {
+    while (true) {
       DenseMap<unsigned, unsigned>::iterator J = FuncInfo->RegFixups.find(To);
       if (J == E) break;
       To = J->second;
@@ -666,13 +610,30 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   return true;
 }
 
+static void reportFastISelFailure(MachineFunction &MF,
+                                  OptimizationRemarkEmitter &ORE,
+                                  OptimizationRemarkMissed &R,
+                                  bool ShouldAbort) {
+  // Print the function name explicitly if we don't have a debug location (which
+  // makes the diagnostic less useful) or if we're going to emit a raw error.
+  if (!R.getLocation().isValid() || ShouldAbort)
+    R << (" (in function: " + MF.getName() + ")").str();
+
+  if (ShouldAbort)
+    report_fatal_error(R.getMsg());
+
+  ORE.emit(R);
+}
+
 void SelectionDAGISel::SelectBasicBlock(BasicBlock::const_iterator Begin,
                                         BasicBlock::const_iterator End,
                                         bool &HadTailCall) {
   // Lower the instructions. If a call is emitted as a tail call, cease emitting
   // nodes for this block.
-  for (BasicBlock::const_iterator I = Begin; I != End && !SDB->HasTailCall; ++I)
-    SDB->visit(*I);
+  for (BasicBlock::const_iterator I = Begin; I != End && !SDB->HasTailCall; ++I) {
+    if (!ElidedArgCopyInstrs.count(&*I))
+      SDB->visit(*I);
+  }
 
   // Make sure the root of the DAG is up-to-date.
   CurDAG->setRoot(SDB->getControlRoot());
@@ -731,6 +692,10 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   int BlockNumber = -1;
   (void)BlockNumber;
   bool MatchFilterBB = false; (void)MatchFilterBB;
+
+  // Pre-type legalization allow creation of any node types.
+  CurDAG->NewNodesMustHaveLegalTypes = false;
+
 #ifndef NDEBUG
   MatchFilterBB = (FilterDAGBasicBlockName.empty() ||
                    FilterDAGBasicBlockName ==
@@ -777,6 +742,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   DEBUG(dbgs() << "Type-legalized selection DAG: BB#" << BlockNumber
         << " '" << BlockName << "'\n"; CurDAG->dump());
 
+  // Only allow creation of legal node types.
   CurDAG->NewNodesMustHaveLegalTypes = true;
 
   if (Changed) {
@@ -802,11 +768,17 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   }
 
   if (Changed) {
+    DEBUG(dbgs() << "Vector-legalized selection DAG: BB#" << BlockNumber
+          << " '" << BlockName << "'\n"; CurDAG->dump());
+
     {
       NamedRegionTimer T("legalize_types2", "Type Legalization 2", GroupName,
                          GroupDescription, TimePassesIsEnabled);
       CurDAG->LegalizeTypes();
     }
+
+    DEBUG(dbgs() << "Vector/type-legalized selection DAG: BB#" << BlockNumber
+          << " '" << BlockName << "'\n"; CurDAG->dump());
 
     if (ViewDAGCombineLT && MatchFilterBB)
       CurDAG->viewGraph("dag-combine-lv input for " + BlockName);
@@ -907,10 +879,12 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 }
 
 namespace {
+
 /// ISelUpdater - helper class to handle updates of the instruction selection
 /// graph.
 class ISelUpdater : public SelectionDAG::DAGUpdateListener {
   SelectionDAG::allnodes_iterator &ISelPosition;
+
 public:
   ISelUpdater(SelectionDAG &DAG, SelectionDAG::allnodes_iterator &isp)
     : SelectionDAG::DAGUpdateListener(DAG), ISelPosition(isp) {}
@@ -923,7 +897,52 @@ public:
       ++ISelPosition;
   }
 };
+
 } // end anonymous namespace
+
+static bool isStrictFPOp(SDNode *Node, unsigned &NewOpc) {
+  unsigned OrigOpc = Node->getOpcode();
+  switch (OrigOpc) {
+    case ISD::STRICT_FADD: NewOpc = ISD::FADD; return true;
+    case ISD::STRICT_FSUB: NewOpc = ISD::FSUB; return true;
+    case ISD::STRICT_FMUL: NewOpc = ISD::FMUL; return true;
+    case ISD::STRICT_FDIV: NewOpc = ISD::FDIV; return true;
+    case ISD::STRICT_FREM: NewOpc = ISD::FREM; return true;
+    default: return false;
+  }
+}
+
+SDNode* SelectionDAGISel::MutateStrictFPToFP(SDNode *Node, unsigned NewOpc) {
+  assert(((Node->getOpcode() == ISD::STRICT_FADD && NewOpc == ISD::FADD) ||
+          (Node->getOpcode() == ISD::STRICT_FSUB && NewOpc == ISD::FSUB) ||
+          (Node->getOpcode() == ISD::STRICT_FMUL && NewOpc == ISD::FMUL) ||
+          (Node->getOpcode() == ISD::STRICT_FDIV && NewOpc == ISD::FDIV) ||
+          (Node->getOpcode() == ISD::STRICT_FREM && NewOpc == ISD::FREM)) &&
+          "Unexpected StrictFP opcode!");
+
+  // We're taking this node out of the chain, so we need to re-link things.
+  SDValue InputChain = Node->getOperand(0);
+  SDValue OutputChain = SDValue(Node, 1);
+  CurDAG->ReplaceAllUsesOfValueWith(OutputChain, InputChain);
+
+  SDVTList VTs = CurDAG->getVTList(Node->getOperand(1).getValueType());
+  SDValue Ops[2] = { Node->getOperand(1), Node->getOperand(2) };
+  SDNode *Res = CurDAG->MorphNodeTo(Node, NewOpc, VTs, Ops);
+  
+  // MorphNodeTo can operate in two ways: if an existing node with the
+  // specified operands exists, it can just return it.  Otherwise, it
+  // updates the node in place to have the requested operands.
+  if (Res == Node) {
+    // If we updated the node in place, reset the node ID.  To the isel,
+    // this should be just like a newly allocated machine node.
+    Res->setNodeId(-1);
+  } else {
+    CurDAG->ReplaceAllUsesWith(Node, Res);
+    CurDAG->RemoveDeadNode(Node);
+  }
+
+  return Res; 
+}
 
 void SelectionDAGISel::DoInstructionSelection() {
   DEBUG(dbgs() << "===== Instruction selection begins: BB#"
@@ -960,7 +979,23 @@ void SelectionDAGISel::DoInstructionSelection() {
       if (Node->use_empty())
         continue;
 
+      // When we are using non-default rounding modes or FP exception behavior
+      // FP operations are represented by StrictFP pseudo-operations.  They
+      // need to be simplified here so that the target-specific instruction
+      // selectors know how to handle them.
+      //
+      // If the current node is a strict FP pseudo-op, the isStrictFPOp()
+      // function will provide the corresponding normal FP opcode to which the
+      // node should be mutated.
+      unsigned NormalFPOpc = ISD::UNDEF;
+      bool IsStrictFPOp = isStrictFPOp(Node, NormalFPOpc);
+      if (IsStrictFPOp)
+        Node = MutateStrictFPToFP(Node, NormalFPOpc);
+
       Select(Node);
+
+      // FIXME: Add code here to attach an implicit def and use of
+      // target-specific FP environment registers.
     }
 
     CurDAG->setRoot(Dummy.getValue());
@@ -1046,116 +1081,6 @@ static bool isFoldedOrDeadInstruction(const Instruction *I,
          !FuncInfo->isExportedInst(I); // Exported instrs must be computed.
 }
 
-#ifndef NDEBUG
-// Collect per Instruction statistics for fast-isel misses.  Only those
-// instructions that cause the bail are accounted for.  It does not account for
-// instructions higher in the block.  Thus, summing the per instructions stats
-// will not add up to what is reported by NumFastIselFailures.
-static void collectFailStats(const Instruction *I) {
-  switch (I->getOpcode()) {
-  default: assert (0 && "<Invalid operator> ");
-
-  // Terminators
-  case Instruction::Ret:         NumFastIselFailRet++; return;
-  case Instruction::Br:          NumFastIselFailBr++; return;
-  case Instruction::Switch:      NumFastIselFailSwitch++; return;
-  case Instruction::IndirectBr:  NumFastIselFailIndirectBr++; return;
-  case Instruction::Invoke:      NumFastIselFailInvoke++; return;
-  case Instruction::Resume:      NumFastIselFailResume++; return;
-  case Instruction::Unreachable: NumFastIselFailUnreachable++; return;
-
-  // Standard binary operators...
-  case Instruction::Add:  NumFastIselFailAdd++; return;
-  case Instruction::FAdd: NumFastIselFailFAdd++; return;
-  case Instruction::Sub:  NumFastIselFailSub++; return;
-  case Instruction::FSub: NumFastIselFailFSub++; return;
-  case Instruction::Mul:  NumFastIselFailMul++; return;
-  case Instruction::FMul: NumFastIselFailFMul++; return;
-  case Instruction::UDiv: NumFastIselFailUDiv++; return;
-  case Instruction::SDiv: NumFastIselFailSDiv++; return;
-  case Instruction::FDiv: NumFastIselFailFDiv++; return;
-  case Instruction::URem: NumFastIselFailURem++; return;
-  case Instruction::SRem: NumFastIselFailSRem++; return;
-  case Instruction::FRem: NumFastIselFailFRem++; return;
-
-  // Logical operators...
-  case Instruction::And: NumFastIselFailAnd++; return;
-  case Instruction::Or:  NumFastIselFailOr++; return;
-  case Instruction::Xor: NumFastIselFailXor++; return;
-
-  // Memory instructions...
-  case Instruction::Alloca:        NumFastIselFailAlloca++; return;
-  case Instruction::Load:          NumFastIselFailLoad++; return;
-  case Instruction::Store:         NumFastIselFailStore++; return;
-  case Instruction::AtomicCmpXchg: NumFastIselFailAtomicCmpXchg++; return;
-  case Instruction::AtomicRMW:     NumFastIselFailAtomicRMW++; return;
-  case Instruction::Fence:         NumFastIselFailFence++; return;
-  case Instruction::GetElementPtr: NumFastIselFailGetElementPtr++; return;
-
-  // Convert instructions...
-  case Instruction::Trunc:    NumFastIselFailTrunc++; return;
-  case Instruction::ZExt:     NumFastIselFailZExt++; return;
-  case Instruction::SExt:     NumFastIselFailSExt++; return;
-  case Instruction::FPTrunc:  NumFastIselFailFPTrunc++; return;
-  case Instruction::FPExt:    NumFastIselFailFPExt++; return;
-  case Instruction::FPToUI:   NumFastIselFailFPToUI++; return;
-  case Instruction::FPToSI:   NumFastIselFailFPToSI++; return;
-  case Instruction::UIToFP:   NumFastIselFailUIToFP++; return;
-  case Instruction::SIToFP:   NumFastIselFailSIToFP++; return;
-  case Instruction::IntToPtr: NumFastIselFailIntToPtr++; return;
-  case Instruction::PtrToInt: NumFastIselFailPtrToInt++; return;
-  case Instruction::BitCast:  NumFastIselFailBitCast++; return;
-
-  // Other instructions...
-  case Instruction::ICmp:           NumFastIselFailICmp++; return;
-  case Instruction::FCmp:           NumFastIselFailFCmp++; return;
-  case Instruction::PHI:            NumFastIselFailPHI++; return;
-  case Instruction::Select:         NumFastIselFailSelect++; return;
-  case Instruction::Call: {
-    if (auto const *Intrinsic = dyn_cast<IntrinsicInst>(I)) {
-      switch (Intrinsic->getIntrinsicID()) {
-      default:
-        NumFastIselFailIntrinsicCall++; return;
-      case Intrinsic::sadd_with_overflow:
-        NumFastIselFailSAddWithOverflow++; return;
-      case Intrinsic::uadd_with_overflow:
-        NumFastIselFailUAddWithOverflow++; return;
-      case Intrinsic::ssub_with_overflow:
-        NumFastIselFailSSubWithOverflow++; return;
-      case Intrinsic::usub_with_overflow:
-        NumFastIselFailUSubWithOverflow++; return;
-      case Intrinsic::smul_with_overflow:
-        NumFastIselFailSMulWithOverflow++; return;
-      case Intrinsic::umul_with_overflow:
-        NumFastIselFailUMulWithOverflow++; return;
-      case Intrinsic::frameaddress:
-        NumFastIselFailFrameaddress++; return;
-      case Intrinsic::sqrt:
-          NumFastIselFailSqrt++; return;
-      case Intrinsic::experimental_stackmap:
-        NumFastIselFailStackMap++; return;
-      case Intrinsic::experimental_patchpoint_void: // fall-through
-      case Intrinsic::experimental_patchpoint_i64:
-        NumFastIselFailPatchPoint++; return;
-      }
-    }
-    NumFastIselFailCall++;
-    return;
-  }
-  case Instruction::Shl:            NumFastIselFailShl++; return;
-  case Instruction::LShr:           NumFastIselFailLShr++; return;
-  case Instruction::AShr:           NumFastIselFailAShr++; return;
-  case Instruction::VAArg:          NumFastIselFailVAArg++; return;
-  case Instruction::ExtractElement: NumFastIselFailExtractElement++; return;
-  case Instruction::InsertElement:  NumFastIselFailInsertElement++; return;
-  case Instruction::ShuffleVector:  NumFastIselFailShuffleVector++; return;
-  case Instruction::ExtractValue:   NumFastIselFailExtractValue++; return;
-  case Instruction::InsertValue:    NumFastIselFailInsertValue++; return;
-  case Instruction::LandingPad:     NumFastIselFailLandingPad++; return;
-  }
-}
-#endif // NDEBUG
-
 /// Set up SwiftErrorVals by going through the function. If the function has
 /// swifterror argument, it will be the first entry.
 static void setupSwiftErrorVals(const Function &Fn, const TargetLowering *TLI,
@@ -1190,9 +1115,9 @@ static void setupSwiftErrorVals(const Function &Fn, const TargetLowering *TLI,
 }
 
 static void createSwiftErrorEntriesInEntryBlock(FunctionLoweringInfo *FuncInfo,
+                                                FastISel *FastIS,
                                                 const TargetLowering *TLI,
                                                 const TargetInstrInfo *TII,
-                                                const BasicBlock *LLVMBB,
                                                 SelectionDAGBuilder *SDB) {
   if (!TLI->supportSwiftError())
     return;
@@ -1202,22 +1127,27 @@ static void createSwiftErrorEntriesInEntryBlock(FunctionLoweringInfo *FuncInfo,
   if (FuncInfo->SwiftErrorVals.empty())
     return;
 
-  if (pred_begin(LLVMBB) == pred_end(LLVMBB)) {
-    auto &DL = FuncInfo->MF->getDataLayout();
-    auto const *RC = TLI->getRegClassFor(TLI->getPointerTy(DL));
-    for (const auto *SwiftErrorVal : FuncInfo->SwiftErrorVals) {
-      // We will always generate a copy from the argument. It is always used at
-      // least by the 'return' of the swifterror.
-      if (FuncInfo->SwiftErrorArg && FuncInfo->SwiftErrorArg == SwiftErrorVal)
-        continue;
-      unsigned VReg = FuncInfo->MF->getRegInfo().createVirtualRegister(RC);
-      // Assign Undef to Vreg. We construct MI directly to make sure it works
-      // with FastISel.
-      BuildMI(*FuncInfo->MBB, FuncInfo->MBB->getFirstNonPHI(),
-              SDB->getCurDebugLoc(), TII->get(TargetOpcode::IMPLICIT_DEF),
-              VReg);
-      FuncInfo->setCurrentSwiftErrorVReg(FuncInfo->MBB, SwiftErrorVal, VReg);
-    }
+  assert(FuncInfo->MBB == &*FuncInfo->MF->begin() &&
+         "expected to insert into entry block");
+  auto &DL = FuncInfo->MF->getDataLayout();
+  auto const *RC = TLI->getRegClassFor(TLI->getPointerTy(DL));
+  for (const auto *SwiftErrorVal : FuncInfo->SwiftErrorVals) {
+    // We will always generate a copy from the argument. It is always used at
+    // least by the 'return' of the swifterror.
+    if (FuncInfo->SwiftErrorArg && FuncInfo->SwiftErrorArg == SwiftErrorVal)
+      continue;
+    unsigned VReg = FuncInfo->MF->getRegInfo().createVirtualRegister(RC);
+    // Assign Undef to Vreg. We construct MI directly to make sure it works
+    // with FastISel.
+    BuildMI(*FuncInfo->MBB, FuncInfo->MBB->getFirstNonPHI(),
+            SDB->getCurDebugLoc(), TII->get(TargetOpcode::IMPLICIT_DEF),
+            VReg);
+
+    // Keep FastIS informed about the value we just inserted.
+    if (FastIS)
+      FastIS->setLastLocalValue(&*std::prev(FuncInfo->InsertPt));
+
+    FuncInfo->setCurrentSwiftErrorVReg(FuncInfo->MBB, SwiftErrorVal, VReg);
   }
 }
 
@@ -1340,6 +1270,7 @@ static void propagateSwiftErrorVRegs(FunctionLoweringInfo *FuncInfo) {
 }
 
 void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
+  FastISelFailed = false;
   // Initialize the Fast-ISel state, if needed.
   FastISel *FastIS = nullptr;
   if (TM.Options.EnableFastISel)
@@ -1347,12 +1278,53 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
 
   setupSwiftErrorVals(Fn, TLI, FuncInfo);
 
-  // Iterate over all basic blocks in the function.
   ReversePostOrderTraversal<const Function*> RPOT(&Fn);
-  for (ReversePostOrderTraversal<const Function*>::rpo_iterator
-       I = RPOT.begin(), E = RPOT.end(); I != E; ++I) {
-    const BasicBlock *LLVMBB = *I;
 
+  // Lower arguments up front. An RPO iteration always visits the entry block
+  // first.
+  assert(*RPOT.begin() == &Fn.getEntryBlock());
+  ++NumEntryBlocks;
+
+  // Set up FuncInfo for ISel. Entry blocks never have PHIs.
+  FuncInfo->MBB = FuncInfo->MBBMap[&Fn.getEntryBlock()];
+  FuncInfo->InsertPt = FuncInfo->MBB->begin();
+
+  if (!FastIS) {
+    LowerArguments(Fn);
+  } else {
+    // See if fast isel can lower the arguments.
+    FastIS->startNewBlock();
+    if (!FastIS->lowerArguments()) {
+      FastISelFailed = true;
+      // Fast isel failed to lower these arguments
+      ++NumFastIselFailLowerArguments;
+
+      OptimizationRemarkMissed R("sdagisel", "FastISelFailure",
+                                 Fn.getSubprogram(),
+                                 &Fn.getEntryBlock());
+      R << "FastISel didn't lower all arguments: "
+        << ore::NV("Prototype", Fn.getType());
+      reportFastISelFailure(*MF, *ORE, R, EnableFastISelAbort > 1);
+
+      // Use SelectionDAG argument lowering
+      LowerArguments(Fn);
+      CurDAG->setRoot(SDB->getControlRoot());
+      SDB->clear();
+      CodeGenAndEmitDAG();
+    }
+
+    // If we inserted any instructions at the beginning, make a note of
+    // where they are, so we can be sure to emit subsequent instructions
+    // after them.
+    if (FuncInfo->InsertPt != FuncInfo->MBB->begin())
+      FastIS->setLastLocalValue(&*std::prev(FuncInfo->InsertPt));
+    else
+      FastIS->setLastLocalValue(nullptr);
+  }
+  createSwiftErrorEntriesInEntryBlock(FuncInfo, FastIS, TLI, TII, SDB);
+
+  // Iterate over all basic blocks in the function.
+  for (const BasicBlock *LLVMBB : RPOT) {
     if (OptLevel != CodeGenOpt::None) {
       bool AllPredsVisited = true;
       for (const_pred_iterator PI = pred_begin(LLVMBB), PE = pred_end(LLVMBB);
@@ -1384,8 +1356,9 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
     FuncInfo->MBB = FuncInfo->MBBMap[LLVMBB];
     if (!FuncInfo->MBB)
       continue; // Some blocks like catchpads have no code or MBB.
-    FuncInfo->InsertPt = FuncInfo->MBB->getFirstNonPHI();
-    createSwiftErrorEntriesInEntryBlock(FuncInfo, TLI, TII, LLVMBB, SDB);
+
+    // Insert new instructions after any phi or argument setup code.
+    FuncInfo->InsertPt = FuncInfo->MBB->end();
 
     // Setup an EH landing-pad block.
     FuncInfo->ExceptionPointerVirtReg = 0;
@@ -1396,35 +1369,8 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
 
     // Before doing SelectionDAG ISel, see if FastISel has been requested.
     if (FastIS) {
-      FastIS->startNewBlock();
-
-      // Emit code for any incoming arguments. This must happen before
-      // beginning FastISel on the entry block.
-      if (LLVMBB == &Fn.getEntryBlock()) {
-        ++NumEntryBlocks;
-
-        // Lower any arguments needed in this block if this is the entry block.
-        if (!FastIS->lowerArguments()) {
-          // Fast isel failed to lower these arguments
-          ++NumFastIselFailLowerArguments;
-          if (EnableFastISelAbort > 1)
-            report_fatal_error("FastISel didn't lower all arguments");
-
-          // Use SelectionDAG argument lowering
-          LowerArguments(Fn);
-          CurDAG->setRoot(SDB->getControlRoot());
-          SDB->clear();
-          CodeGenAndEmitDAG();
-        }
-
-        // If we inserted any instructions at the beginning, make a note of
-        // where they are, so we can be sure to emit subsequent instructions
-        // after them.
-        if (FuncInfo->InsertPt != FuncInfo->MBB->begin())
-          FastIS->setLastLocalValue(&*std::prev(FuncInfo->InsertPt));
-        else
-          FastIS->setLastLocalValue(nullptr);
-      }
+      if (LLVMBB != &Fn.getEntryBlock())
+        FastIS->startNewBlock();
 
       unsigned NumFastIselRemaining = std::distance(Begin, End);
       // Do FastISel on as many instructions as possible.
@@ -1432,7 +1378,8 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
         const Instruction *Inst = &*std::prev(BI);
 
         // If we no longer require this instruction, skip it.
-        if (isFoldedOrDeadInstruction(Inst, FuncInfo)) {
+        if (isFoldedOrDeadInstruction(Inst, FuncInfo) ||
+            ElidedArgCopyInstrs.count(Inst)) {
           --NumFastIselRemaining;
           continue;
         }
@@ -1443,6 +1390,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
 
         // Try to select the instruction with FastISel.
         if (FastIS->selectInstruction(Inst)) {
+          FastISelFailed = true;
           --NumFastIselRemaining;
           ++NumFastIselSuccess;
           // If fast isel succeeded, skip over all the folded instructions, and
@@ -1465,22 +1413,22 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
           continue;
         }
 
-#ifndef NDEBUG
-        if (EnableFastISelVerbose2)
-          collectFailStats(Inst);
-#endif
-
         // Then handle certain instructions as single-LLVM-Instruction blocks.
         if (isa<CallInst>(Inst)) {
+          OptimizationRemarkMissed R("sdagisel", "FastISelFailure",
+                                     Inst->getDebugLoc(), LLVMBB);
 
-          if (EnableFastISelVerbose || EnableFastISelAbort) {
-            dbgs() << "FastISel missed call: ";
-            Inst->dump();
+          R << "FastISel missed call";
+
+          if (R.isEnabled() || EnableFastISelAbort) {
+            std::string InstStrStorage;
+            raw_string_ostream InstStr(InstStrStorage);
+            InstStr << *Inst;
+
+            R << ": " << InstStr.str();
           }
-          if (EnableFastISelAbort > 2)
-            // FastISel selector couldn't handle something and bailed.
-            // For the purpose of debugging, just abort.
-            report_fatal_error("FastISel didn't select the entire block");
+
+          reportFastISelFailure(*MF, *ORE, R, EnableFastISelAbort > 2);
 
           if (!Inst->getType()->isVoidTy() && !Inst->getType()->isTokenTy() &&
               !Inst->use_empty()) {
@@ -1509,35 +1457,35 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
           continue;
         }
 
+        OptimizationRemarkMissed R("sdagisel", "FastISelFailure",
+                                   Inst->getDebugLoc(), LLVMBB);
+
         bool ShouldAbort = EnableFastISelAbort;
-        if (EnableFastISelVerbose || EnableFastISelAbort) {
-          if (isa<TerminatorInst>(Inst)) {
-            // Use a different message for terminator misses.
-            dbgs() << "FastISel missed terminator: ";
-            // Don't abort unless for terminator unless the level is really high
-            ShouldAbort = (EnableFastISelAbort > 2);
-          } else {
-            dbgs() << "FastISel miss: ";
-          }
-          Inst->dump();
+        if (isa<TerminatorInst>(Inst)) {
+          // Use a different message for terminator misses.
+          R << "FastISel missed terminator";
+          // Don't abort for terminator unless the level is really high
+          ShouldAbort = (EnableFastISelAbort > 2);
+        } else {
+          R << "FastISel missed";
         }
-        if (ShouldAbort)
-          // FastISel selector couldn't handle something and bailed.
-          // For the purpose of debugging, just abort.
-          report_fatal_error("FastISel didn't select the entire block");
+
+        if (R.isEnabled() || EnableFastISelAbort) {
+          std::string InstStrStorage;
+          raw_string_ostream InstStr(InstStrStorage);
+          InstStr << *Inst;
+          R << ": " << InstStr.str();
+        }
+
+        reportFastISelFailure(*MF, *ORE, R, ShouldAbort);
 
         NumFastIselFailures += NumFastIselRemaining;
         break;
       }
 
       FastIS->recomputeInsertPt();
-    } else {
-      // Lower any arguments needed in this block if this is the entry block.
-      if (LLVMBB == &Fn.getEntryBlock()) {
-        ++NumEntryBlocks;
-        LowerArguments(Fn);
-      }
     }
+
     if (getAnalysis<StackProtector>().shouldEmitSDCheck(*LLVMBB)) {
       bool FunctionBasedInstrumentation =
           TLI->getSSPStackGuardCheck(*Fn.getParent());
@@ -1556,10 +1504,17 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
       // block.
       bool HadTailCall;
       SelectBasicBlock(Begin, BI, HadTailCall);
+
+      // But if FastISel was run, we already selected some of the block.
+      // If we emitted a tail-call, we need to delete any previously emitted
+      // instruction that follows it.
+      if (HadTailCall && FuncInfo->InsertPt != FuncInfo->MBB->end())
+        FastIS->removeDeadCode(FuncInfo->InsertPt, FuncInfo->MBB->end());
     }
 
     FinishBasicBlock();
     FuncInfo->PHINodesToUpdate.clear();
+    ElidedArgCopyInstrs.clear();
   }
 
   propagateSwiftErrorVRegs(FuncInfo);
@@ -2177,7 +2132,6 @@ bool SelectionDAGISel::IsLegalToFold(SDValue N, SDNode *U, SDNode *Root,
     IgnoreChains = false;
   }
 
-
   SmallPtrSet<SDNode*, 16> Visited;
   return !findNonImmUse(Root, N.getNode(), U, Root, Visited, IgnoreChains);
 }
@@ -2554,7 +2508,7 @@ MorphNode(SDNode *Node, unsigned TargetOpc, SDVTList VTList,
 LLVM_ATTRIBUTE_ALWAYS_INLINE static inline bool
 CheckSame(const unsigned char *MatcherTable, unsigned &MatcherIndex,
           SDValue N,
-          const SmallVectorImpl<std::pair<SDValue, SDNode*> > &RecordedNodes) {
+          const SmallVectorImpl<std::pair<SDValue, SDNode*>> &RecordedNodes) {
   // Accept if it is exactly the same as a previously recorded node.
   unsigned RecNo = MatcherTable[MatcherIndex++];
   assert(RecNo < RecordedNodes.size() && "Invalid CheckSame");
@@ -2564,9 +2518,9 @@ CheckSame(const unsigned char *MatcherTable, unsigned &MatcherIndex,
 /// CheckChildSame - Implements OP_CheckChildXSame.
 LLVM_ATTRIBUTE_ALWAYS_INLINE static inline bool
 CheckChildSame(const unsigned char *MatcherTable, unsigned &MatcherIndex,
-             SDValue N,
-             const SmallVectorImpl<std::pair<SDValue, SDNode*> > &RecordedNodes,
-             unsigned ChildNo) {
+              SDValue N,
+              const SmallVectorImpl<std::pair<SDValue, SDNode*>> &RecordedNodes,
+              unsigned ChildNo) {
   if (ChildNo >= N.getNumOperands())
     return false;  // Match fails if out of range child #.
   return ::CheckSame(MatcherTable, MatcherIndex, N.getOperand(ChildNo),
@@ -2688,7 +2642,7 @@ static unsigned IsPredicateKnownToFail(const unsigned char *Table,
                                        unsigned Index, SDValue N,
                                        bool &Result,
                                        const SelectionDAGISel &SDISel,
-                 SmallVectorImpl<std::pair<SDValue, SDNode*> > &RecordedNodes) {
+                  SmallVectorImpl<std::pair<SDValue, SDNode*>> &RecordedNodes) {
   switch (Table[Index++]) {
   default:
     Result = false;
@@ -2756,6 +2710,7 @@ static unsigned IsPredicateKnownToFail(const unsigned char *Table,
 }
 
 namespace {
+
 struct MatchScope {
   /// FailIndex - If this match fails, this is the index to continue with.
   unsigned FailIndex;
@@ -2785,6 +2740,7 @@ class MatchStateUpdater : public SelectionDAG::DAGUpdateListener
   SDNode **NodeToMatch;
   SmallVectorImpl<std::pair<SDValue, SDNode *>> &RecordedNodes;
   SmallVectorImpl<MatchScope> &MatchScopes;
+
 public:
   MatchStateUpdater(SelectionDAG &DAG, SDNode **NodeToMatch,
                     SmallVectorImpl<std::pair<SDValue, SDNode *>> &RN,
@@ -2816,6 +2772,7 @@ public:
           J.setNode(E);
   }
 };
+
 } // end anonymous namespace
 
 void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
@@ -2921,7 +2878,7 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
     // with an OPC_SwitchOpcode instruction.  Populate the table now, since this
     // is the first time we're selecting an instruction.
     unsigned Idx = 1;
-    while (1) {
+    while (true) {
       // Get the size of this case.
       unsigned CaseSize = MatcherTable[Idx++];
       if (CaseSize & 128)
@@ -2942,7 +2899,7 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
       MatcherIndex = OpcodeOffset[N.getOpcode()];
   }
 
-  while (1) {
+  while (true) {
     assert(MatcherIndex < TableSize && "Invalid index");
 #ifndef NDEBUG
     unsigned CurrentOpcodeIndex = MatcherIndex;
@@ -2957,7 +2914,7 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
       // immediately fail, don't even bother pushing a scope for them.
       unsigned FailIndex;
 
-      while (1) {
+      while (true) {
         unsigned NumToSkip = MatcherTable[MatcherIndex++];
         if (NumToSkip & 128)
           NumToSkip = GetVBR(NumToSkip, MatcherTable, MatcherIndex);
@@ -3118,7 +3075,7 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
       unsigned CurNodeOpcode = N.getOpcode();
       unsigned SwitchStart = MatcherIndex-1; (void)SwitchStart;
       unsigned CaseSize;
-      while (1) {
+      while (true) {
         // Get the size of this case.
         CaseSize = MatcherTable[MatcherIndex++];
         if (CaseSize & 128)
@@ -3149,7 +3106,7 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
       MVT CurNodeVT = N.getSimpleValueType();
       unsigned SwitchStart = MatcherIndex-1; (void)SwitchStart;
       unsigned CaseSize;
-      while (1) {
+      while (true) {
         // Get the size of this case.
         CaseSize = MatcherTable[MatcherIndex++];
         if (CaseSize & 128)
@@ -3215,7 +3172,7 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
       // a single use.
       bool HasMultipleUses = false;
       for (unsigned i = 1, e = NodeStack.size()-1; i != e; ++i)
-        if (!NodeStack[i].hasOneUse()) {
+        if (!NodeStack[i].getNode()->hasOneUse()) {
           HasMultipleUses = true;
           break;
         }
@@ -3381,6 +3338,15 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
       RecordedNodes.push_back(std::pair<SDValue,SDNode*>(Res, nullptr));
       continue;
     }
+    case OPC_Coverage: {
+      // This is emitted right before MorphNode/EmitNode.
+      // So it should be safe to assume that this node has been selected
+      unsigned index = MatcherTable[MatcherIndex++];
+      index |= (MatcherTable[MatcherIndex++] << 8);
+      dbgs() << "COVERED: " << getPatternForIndex(index) << "\n";
+      dbgs() << "INCLUDED: " << getIncludePathForIndex(index) << "\n";
+      continue;
+    }
 
     case OPC_EmitNode:     case OPC_MorphNodeTo:
     case OPC_EmitNode0:    case OPC_EmitNode1:    case OPC_EmitNode2:
@@ -3473,7 +3439,6 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
           RecordedNodes.push_back(std::pair<SDValue,SDNode*>(SDValue(Res, i),
                                                              nullptr));
         }
-
       } else {
         assert(NodeToMatch->getOpcode() != ISD::DELETED_NODE &&
                "NodeToMatch was removed partway through selection");
@@ -3610,7 +3575,7 @@ void SelectionDAGISel::SelectCodeCommon(SDNode *NodeToMatch,
     // find a case to check.
     DEBUG(dbgs() << "  Match failed at index " << CurrentOpcodeIndex << "\n");
     ++NumDAGIselRetries;
-    while (1) {
+    while (true) {
       if (MatchScopes.empty()) {
         CannotYetSelect(NodeToMatch);
         return;

@@ -199,8 +199,7 @@ bool DAGTypeLegalizer::run() {
   // non-leaves.
   for (SDNode &Node : DAG.allnodes()) {
     if (Node.getNumOperands() == 0) {
-      Node.setNodeId(ReadyToProcess);
-      Worklist.push_back(&Node);
+      AddToWorklist(&Node);
     } else {
       Node.setNodeId(Unanalyzed);
     }
@@ -331,6 +330,12 @@ ScanOperands:
     // to the worklist etc.
     if (NeedsReanalyzing) {
       assert(N->getNodeId() == ReadyToProcess && "Node ID recalculated?");
+
+      // Remove any result values from SoftenedFloats as N will be revisited
+      // again.
+      for (unsigned i = 0, NumResults = N->getNumValues(); i < NumResults; ++i)
+        SoftenedFloats.erase(SDValue(N, i));
+
       N->setNodeId(NewNode);
       // Recompute the NodeId and correct processed operands, adding the node to
       // the worklist if ready.
@@ -749,6 +754,8 @@ void DAGTypeLegalizer::ReplaceValueWith(SDValue From, SDValue To) {
     // new uses of From due to CSE. If this happens, replace the new uses of
     // From with To.
   } while (!From.use_empty());
+
+  SoftenedFloats.erase(From);
 }
 
 void DAGTypeLegalizer::SetPromotedInteger(SDValue Op, SDValue Result) {
@@ -1077,8 +1084,8 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC, SDNode *Node,
     Type *ArgTy = ArgVT.getTypeForEVT(*DAG.getContext());
     Entry.Node = Node->getOperand(i);
     Entry.Ty = ArgTy;
-    Entry.isSExt = isSigned;
-    Entry.isZExt = !isSigned;
+    Entry.IsSExt = isSigned;
+    Entry.IsZExt = !isSigned;
     Args.push_back(Entry);
   }
   SDValue Callee = DAG.getExternalSymbol(TLI.getLibcallName(LC),
@@ -1087,9 +1094,12 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC, SDNode *Node,
   Type *RetTy = Node->getValueType(0).getTypeForEVT(*DAG.getContext());
 
   TargetLowering::CallLoweringInfo CLI(DAG);
-  CLI.setDebugLoc(SDLoc(Node)).setChain(InChain)
-    .setCallee(TLI.getLibcallCallingConv(LC), RetTy, Callee, std::move(Args))
-    .setSExtResult(isSigned).setZExtResult(!isSigned);
+  CLI.setDebugLoc(SDLoc(Node))
+      .setChain(InChain)
+      .setLibCallee(TLI.getLibcallCallingConv(LC), RetTy, Callee,
+                    std::move(Args))
+      .setSExtResult(isSigned)
+      .setZExtResult(!isSigned);
 
   std::pair<SDValue, SDValue> CallInfo = TLI.LowerCallTo(CLI);
 

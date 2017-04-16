@@ -113,7 +113,7 @@ void AMDGPUInstPrinter::printOffset(const MCInst *MI, unsigned OpNo,
                                     raw_ostream &O) {
   uint16_t Imm = MI->getOperand(OpNo).getImm();
   if (Imm != 0) {
-    O << " offset:";
+    O << ((OpNo == 0)? "offset:" : " offset:");
     printU16ImmDecOperand(MI, OpNo, O);
   }
 }
@@ -375,6 +375,14 @@ void AMDGPUInstPrinter::printImmediate16(uint32_t Imm,
     O << formatHex(static_cast<uint64_t>(Imm));
 }
 
+void AMDGPUInstPrinter::printImmediateV216(uint32_t Imm,
+                                           const MCSubtargetInfo &STI,
+                                           raw_ostream &O) {
+  uint16_t Lo16 = static_cast<uint16_t>(Imm);
+  assert(Lo16 == static_cast<uint16_t>(Imm >> 16));
+  printImmediate16(Lo16, STI, O);
+}
+
 void AMDGPUInstPrinter::printImmediate32(uint32_t Imm,
                                          const MCSubtargetInfo &STI,
                                          raw_ostream &O) {
@@ -489,6 +497,10 @@ void AMDGPUInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     case AMDGPU::OPERAND_REG_IMM_FP16:
       printImmediate16(Op.getImm(), STI, O);
       break;
+    case AMDGPU::OPERAND_REG_INLINE_C_V2FP16:
+    case AMDGPU::OPERAND_REG_INLINE_C_V2INT16:
+      printImmediateV216(Op.getImm(), STI, O);
+      break;
     case MCOI::OPERAND_UNKNOWN:
     case MCOI::OPERAND_PCREL:
       O << formatDec(Op.getImm());
@@ -531,13 +543,34 @@ void AMDGPUInstPrinter::printOperandAndFPInputMods(const MCInst *MI,
                                                    const MCSubtargetInfo &STI,
                                                    raw_ostream &O) {
   unsigned InputModifiers = MI->getOperand(OpNo).getImm();
-  if (InputModifiers & SISrcMods::NEG)
-    O << '-';
+
+  // Use 'neg(...)' instead of '-' to avoid ambiguity.
+  // This is important for integer literals because
+  // -1 is not the same value as neg(1).
+  bool NegMnemo = false;
+
+  if (InputModifiers & SISrcMods::NEG) {
+    if (OpNo + 1 < MI->getNumOperands() &&
+        (InputModifiers & SISrcMods::ABS) == 0) {
+      const MCOperand &Op = MI->getOperand(OpNo + 1);
+      NegMnemo = Op.isImm() || Op.isFPImm();
+    }
+    if (NegMnemo) {
+      O << "neg(";
+    } else {
+      O << '-';
+    }
+  }
+
   if (InputModifiers & SISrcMods::ABS)
     O << '|';
   printOperand(MI, OpNo + 1, STI, O);
   if (InputModifiers & SISrcMods::ABS)
     O << '|';
+
+  if (NegMnemo) {
+    O << ')';
+  }
 }
 
 void AMDGPUInstPrinter::printOperandAndIntInputMods(const MCInst *MI,
@@ -672,11 +705,19 @@ template <unsigned N>
 void AMDGPUInstPrinter::printExpSrcN(const MCInst *MI, unsigned OpNo,
                                      const MCSubtargetInfo &STI,
                                      raw_ostream &O) {
-  int EnIdx = AMDGPU::getNamedOperandIdx(MI->getOpcode(), AMDGPU::OpName::en);
+  unsigned Opc = MI->getOpcode();
+  int EnIdx = AMDGPU::getNamedOperandIdx(Opc, AMDGPU::OpName::en);
   unsigned En = MI->getOperand(EnIdx).getImm();
 
-  // FIXME: What do we do with compr? The meaning of en changes depending on if
-  // compr is set.
+  int ComprIdx = AMDGPU::getNamedOperandIdx(Opc, AMDGPU::OpName::compr);
+
+  // If compr is set, print as src0, src0, src1, src1
+  if (MI->getOperand(ComprIdx).getImm()) {
+    if (N == 1 || N == 2)
+      --OpNo;
+    else if (N == 3)
+      OpNo -= 2;
+  }
 
   if (En & (1 << N))
     printRegOperand(MI->getOperand(OpNo).getReg(), O, MRI);
@@ -728,6 +769,71 @@ void AMDGPUInstPrinter::printExpTgt(const MCInst *MI, unsigned OpNo,
     // Reserved values 10, 11
     O << " invalid_target_" << Tgt;
   }
+}
+
+static bool allOpsDefaultValue(const int* Ops, int NumOps, int Mod) {
+  int DefaultValue = (Mod == SISrcMods::OP_SEL_1);
+
+  for (int I = 0; I < NumOps; ++I) {
+    if (!!(Ops[I] & Mod) != DefaultValue)
+      return false;
+  }
+
+  return true;
+}
+
+static void printPackedModifier(const MCInst *MI, StringRef Name, unsigned Mod,
+                                raw_ostream &O) {
+  unsigned Opc = MI->getOpcode();
+  int NumOps = 0;
+  int Ops[3];
+
+  for (int OpName : { AMDGPU::OpName::src0_modifiers,
+                      AMDGPU::OpName::src1_modifiers,
+                      AMDGPU::OpName::src2_modifiers }) {
+    int Idx = AMDGPU::getNamedOperandIdx(Opc, OpName);
+    if (Idx == -1)
+      break;
+
+    Ops[NumOps++] = MI->getOperand(Idx).getImm();
+  }
+
+  if (allOpsDefaultValue(Ops, NumOps, Mod))
+    return;
+
+  O << Name;
+  for (int I = 0; I < NumOps; ++I) {
+    if (I != 0)
+      O << ',';
+
+    O << !!(Ops[I] & Mod);
+  }
+
+  O << ']';
+}
+
+void AMDGPUInstPrinter::printOpSel(const MCInst *MI, unsigned,
+                                   const MCSubtargetInfo &STI,
+                                   raw_ostream &O) {
+  printPackedModifier(MI, " op_sel:[", SISrcMods::OP_SEL_0, O);
+}
+
+void AMDGPUInstPrinter::printOpSelHi(const MCInst *MI, unsigned OpNo,
+                                     const MCSubtargetInfo &STI,
+                                     raw_ostream &O) {
+  printPackedModifier(MI, " op_sel_hi:[", SISrcMods::OP_SEL_1, O);
+}
+
+void AMDGPUInstPrinter::printNegLo(const MCInst *MI, unsigned OpNo,
+                                   const MCSubtargetInfo &STI,
+                                   raw_ostream &O) {
+  printPackedModifier(MI, " neg_lo:[", SISrcMods::NEG, O);
+}
+
+void AMDGPUInstPrinter::printNegHi(const MCInst *MI, unsigned OpNo,
+                                   const MCSubtargetInfo &STI,
+                                   raw_ostream &O) {
+  printPackedModifier(MI, " neg_hi:[", SISrcMods::NEG_HI, O);
 }
 
 void AMDGPUInstPrinter::printInterpSlot(const MCInst *MI, unsigned OpNum,
@@ -1057,27 +1163,28 @@ void AMDGPUInstPrinter::printSendMsg(const MCInst *MI, unsigned OpNo,
 void AMDGPUInstPrinter::printWaitFlag(const MCInst *MI, unsigned OpNo,
                                       const MCSubtargetInfo &STI,
                                       raw_ostream &O) {
-  IsaVersion IV = getIsaVersion(STI.getFeatureBits());
+  AMDGPU::IsaInfo::IsaVersion ISA =
+      AMDGPU::IsaInfo::getIsaVersion(STI.getFeatureBits());
 
   unsigned SImm16 = MI->getOperand(OpNo).getImm();
   unsigned Vmcnt, Expcnt, Lgkmcnt;
-  decodeWaitcnt(IV, SImm16, Vmcnt, Expcnt, Lgkmcnt);
+  decodeWaitcnt(ISA, SImm16, Vmcnt, Expcnt, Lgkmcnt);
 
   bool NeedSpace = false;
 
-  if (Vmcnt != getVmcntBitMask(IV)) {
+  if (Vmcnt != getVmcntBitMask(ISA)) {
     O << "vmcnt(" << Vmcnt << ')';
     NeedSpace = true;
   }
 
-  if (Expcnt != getExpcntBitMask(IV)) {
+  if (Expcnt != getExpcntBitMask(ISA)) {
     if (NeedSpace)
       O << ' ';
     O << "expcnt(" << Expcnt << ')';
     NeedSpace = true;
   }
 
-  if (Lgkmcnt != getLgkmcntBitMask(IV)) {
+  if (Lgkmcnt != getLgkmcntBitMask(ISA)) {
     if (NeedSpace)
       O << ' ';
     O << "lgkmcnt(" << Lgkmcnt << ')';

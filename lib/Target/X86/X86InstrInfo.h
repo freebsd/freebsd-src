@@ -182,6 +182,20 @@ public:
   ///
   const X86RegisterInfo &getRegisterInfo() const { return RI; }
 
+  /// Returns the stack pointer adjustment that happens inside the frame
+  /// setup..destroy sequence (e.g. by pushes, or inside the callee).
+  int64_t getFrameAdjustment(const MachineInstr &I) const {
+    assert(isFrameInstr(I));
+    return I.getOperand(1).getImm();
+  }
+
+  /// Sets the stack pointer adjustment made inside the frame made up by this
+  /// instruction.
+  void setFrameAdjustment(MachineInstr &I, int64_t V) const {
+    assert(isFrameInstr(I));
+    I.getOperand(1).setImm(V);
+  }
+
   /// getSPAdjust - This returns the stack pointer adjustment made by
   /// this instruction. For x86, we need to handle more complex call
   /// sequences involving PUSHes.
@@ -316,6 +330,13 @@ public:
 
   // Branch analysis.
   bool isUnpredicatedTerminator(const MachineInstr &MI) const override;
+  bool isUnconditionalTailCall(const MachineInstr &MI) const override;
+  bool canMakeTailCallConditional(SmallVectorImpl<MachineOperand> &Cond,
+                                  const MachineInstr &TailCall) const override;
+  void replaceBranchWithTailCall(MachineBasicBlock &MBB,
+                                 SmallVectorImpl<MachineOperand> &Cond,
+                                 const MachineInstr &TailCall) const override;
+
   bool analyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
                      MachineBasicBlock *&FBB,
                      SmallVectorImpl<MachineOperand> &Cond,
@@ -436,9 +457,6 @@ public:
                                int64_t Offset1, int64_t Offset2,
                                unsigned NumLoads) const override;
 
-  bool shouldScheduleAdjacent(const MachineInstr &First,
-                              const MachineInstr &Second) const override;
-
   void getNoopForMachoTarget(MCInst &NopInst) const override;
 
   bool
@@ -539,8 +557,28 @@ public:
   ArrayRef<std::pair<unsigned, const char *>>
   getSerializableDirectMachineOperandTargetFlags() const override;
 
-  bool isTailCall(const MachineInstr &Inst) const override;
+  unsigned getOutliningBenefit(size_t SequenceSize,
+                               size_t Occurrences,
+                               bool CanBeTailCall) const override;
 
+  bool isFunctionSafeToOutlineFrom(MachineFunction &MF) const override;
+
+  llvm::X86GenInstrInfo::MachineOutlinerInstrType
+  getOutliningType(MachineInstr &MI) const override;
+
+  void insertOutlinerEpilogue(MachineBasicBlock &MBB,
+                              MachineFunction &MF,
+                              bool IsTailCall) const override;
+
+  void insertOutlinerPrologue(MachineBasicBlock &MBB,
+                              MachineFunction &MF,
+                              bool isTailCall) const override;
+
+  MachineBasicBlock::iterator
+  insertOutlinedCall(Module &M, MachineBasicBlock &MBB,
+                     MachineBasicBlock::iterator &It,
+                     MachineFunction &MF,
+                     bool IsTailCall) const override;
 protected:
   /// Commutes the operands in the given instruction by changing the operands
   /// order and/or changing the instruction's opcode and/or the immediate value

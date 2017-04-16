@@ -1,10 +1,13 @@
-; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefix=GCN %s
+; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=GFX8 %s
+; RUN: llc -march=amdgcn -mcpu=gfx900 -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=GFX9 %s
 
 ; GCN-LABEL: {{^}}test_barrier:
-; GCN: buffer_store_dword
-; GCN: s_waitcnt
+; GFX8: buffer_store_dword
+; GFX8: s_waitcnt
+; GFX9: flat_store_dword
+; GFX9-NOT: s_waitcnt
 ; GCN: s_barrier
-define void @test_barrier(i32 addrspace(1)* %out) #0 {
+define amdgpu_kernel void @test_barrier(i32 addrspace(1)* %out) #0 {
 entry:
   %tmp = call i32 @llvm.amdgcn.workitem.id.x()
   %tmp1 = getelementptr i32, i32 addrspace(1)* %out, i32 %tmp

@@ -55,9 +55,9 @@ class MIRParserImpl {
   StringMap<std::unique_ptr<yaml::MachineFunction>> Functions;
   SlotMapping IRSlots;
   /// Maps from register class names to register classes.
-  StringMap<const TargetRegisterClass *> Names2RegClasses;
+  Name2RegClassMap Names2RegClasses;
   /// Maps from register bank names to register banks.
-  StringMap<const RegisterBank *> Names2RegBanks;
+  Name2RegBankMap Names2RegBanks;
 
 public:
   MIRParserImpl(std::unique_ptr<MemoryBuffer> Contents, StringRef Filename,
@@ -325,11 +325,15 @@ bool MIRParserImpl::initializeMachineFunction(MachineFunction &MF) {
     return error(Twine("no machine function information for function '") +
                  MF.getName() + "' in the MIR file");
   // TODO: Recreate the machine function.
+  initNames2RegClasses(MF);
+  initNames2RegBanks(MF);
   const yaml::MachineFunction &YamlMF = *It->getValue();
   if (YamlMF.Alignment)
     MF.setAlignment(YamlMF.Alignment);
   MF.setExposesReturnsTwice(YamlMF.ExposesReturnsTwice);
 
+  if (YamlMF.NoVRegs)
+    MF.getProperties().set(MachineFunctionProperties::Property::NoVRegs);
   if (YamlMF.Legalized)
     MF.getProperties().set(MachineFunctionProperties::Property::Legalized);
   if (YamlMF.RegBankSelected)
@@ -338,7 +342,8 @@ bool MIRParserImpl::initializeMachineFunction(MachineFunction &MF) {
   if (YamlMF.Selected)
     MF.getProperties().set(MachineFunctionProperties::Property::Selected);
 
-  PerFunctionMIParsingState PFS(MF, SM, IRSlots);
+  PerFunctionMIParsingState PFS(MF, SM, IRSlots, Names2RegClasses,
+                                Names2RegBanks);
   if (parseRegisterInfo(PFS, YamlMF))
     return true;
   if (!YamlMF.Constants.empty()) {
@@ -362,9 +367,6 @@ bool MIRParserImpl::initializeMachineFunction(MachineFunction &MF) {
   }
   PFS.SM = &SM;
 
-  if (MF.empty())
-    return error(Twine("machine function '") + Twine(MF.getName()) +
-                 "' requires at least one machine basic block in its body");
   // Initialize the frame information after creating all the MBBs so that the
   // MBB references in the frame information can be resolved.
   if (initializeFrameInfo(PFS, YamlMF))
@@ -462,17 +464,19 @@ bool MIRParserImpl::parseRegisterInfo(PerFunctionMIParsingState &PFS,
     RegInfo.addLiveIn(Reg, VReg);
   }
 
-  // Parse the callee saved register mask.
-  BitVector CalleeSavedRegisterMask(RegInfo.getUsedPhysRegsMask().size());
-  if (!YamlMF.CalleeSavedRegisters)
-    return false;
-  for (const auto &RegSource : YamlMF.CalleeSavedRegisters.getValue()) {
-    unsigned Reg = 0;
-    if (parseNamedRegisterReference(PFS, Reg, RegSource.Value, Error))
-      return error(Error, RegSource.SourceRange);
-    CalleeSavedRegisterMask[Reg] = true;
+  // Parse the callee saved registers (Registers that will
+  // be saved for the caller).
+  if (YamlMF.CalleeSavedRegisters) {
+    SmallVector<MCPhysReg, 16> CalleeSavedRegisters;
+    for (const auto &RegSource : YamlMF.CalleeSavedRegisters.getValue()) {
+      unsigned Reg = 0;
+      if (parseNamedRegisterReference(PFS, Reg, RegSource.Value, Error))
+        return error(Error, RegSource.SourceRange);
+      CalleeSavedRegisters.push_back(Reg);
+    }
+    RegInfo.setCalleeSavedRegs(CalleeSavedRegisters);
   }
-  RegInfo.setUsedPhysRegMask(CalleeSavedRegisterMask.flip());
+
   return false;
 }
 
@@ -505,14 +509,12 @@ bool MIRParserImpl::setupRegisterInfo(const PerFunctionMIParsingState &PFS,
   }
 
   // Compute MachineRegisterInfo::UsedPhysRegMask
-  if (!YamlMF.CalleeSavedRegisters) {
-    for (const MachineBasicBlock &MBB : MF) {
-      for (const MachineInstr &MI : MBB) {
-        for (const MachineOperand &MO : MI.operands()) {
-          if (!MO.isRegMask())
-            continue;
-          MRI.addPhysRegsUsedFromRegMask(MO.getRegMask());
-        }
+  for (const MachineBasicBlock &MBB : MF) {
+    for (const MachineInstr &MI : MBB) {
+      for (const MachineOperand &MO : MI.operands()) {
+        if (!MO.isRegMask())
+          continue;
+        MRI.addPhysRegsUsedFromRegMask(MO.getRegMask());
       }
     }
   }
@@ -818,7 +820,6 @@ void MIRParserImpl::initNames2RegBanks(const MachineFunction &MF) {
 
 const TargetRegisterClass *MIRParserImpl::getRegClass(const MachineFunction &MF,
                                                       StringRef Name) {
-  initNames2RegClasses(MF);
   auto RegClassInfo = Names2RegClasses.find(Name);
   if (RegClassInfo == Names2RegClasses.end())
     return nullptr;
@@ -827,7 +828,6 @@ const TargetRegisterClass *MIRParserImpl::getRegClass(const MachineFunction &MF,
 
 const RegisterBank *MIRParserImpl::getRegBank(const MachineFunction &MF,
                                               StringRef Name) {
-  initNames2RegBanks(MF);
   auto RegBankInfo = Names2RegBanks.find(Name);
   if (RegBankInfo == Names2RegBanks.end())
     return nullptr;

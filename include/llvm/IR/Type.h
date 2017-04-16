@@ -290,7 +290,11 @@ public:
 
   /// If this is a vector type, return the element type, otherwise return
   /// 'this'.
-  Type *getScalarType() const LLVM_READONLY;
+  Type *getScalarType() const {
+    if (isVectorTy())
+      return getVectorElementType();
+    return const_cast<Type*>(this);
+  }
 
   //===--------------------------------------------------------------------===//
   // Type Iteration support.
@@ -423,7 +427,7 @@ private:
 };
 
 // Printing of types.
-static inline raw_ostream &operator<<(raw_ostream &OS, Type &T) {
+static inline raw_ostream &operator<<(raw_ostream &OS, const Type &T) {
   T.print(OS);
   return OS;
 }

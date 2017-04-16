@@ -16,9 +16,9 @@
 #include "llvm/DebugInfo/CodeView/SymbolRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/MSF/MSFCommon.h"
+#include "llvm/DebugInfo/PDB/Native/PDBFile.h"
+#include "llvm/DebugInfo/PDB/Native/RawConstants.h"
 #include "llvm/DebugInfo/PDB/PDBTypes.h"
-#include "llvm/DebugInfo/PDB/Raw/PDBFile.h"
-#include "llvm/DebugInfo/PDB/Raw/RawConstants.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/YAMLTraits.h"
 
@@ -32,10 +32,10 @@ struct SerializationContext;
 
 struct MSFHeaders {
   msf::SuperBlock SuperBlock;
-  uint32_t NumDirectoryBlocks;
+  uint32_t NumDirectoryBlocks = 0;
   std::vector<uint32_t> DirectoryBlocks;
-  uint32_t NumStreams;
-  uint32_t FileSize;
+  uint32_t NumStreams = 0;
+  uint32_t FileSize = 0;
 };
 
 struct StreamBlockList {
@@ -48,10 +48,11 @@ struct NamedStreamMapping {
 };
 
 struct PdbInfoStream {
-  PdbRaw_ImplVer Version;
-  uint32_t Signature;
-  uint32_t Age;
+  PdbRaw_ImplVer Version = PdbImplVC70;
+  uint32_t Signature = 0;
+  uint32_t Age = 1;
   PDB_UniqueId Guid;
+  std::vector<PdbRaw_FeatureSig> Features;
   std::vector<NamedStreamMapping> NamedStreams;
 };
 
@@ -72,13 +73,13 @@ struct PdbDbiModuleInfo {
 };
 
 struct PdbDbiStream {
-  PdbRaw_DbiVer VerHeader;
-  uint32_t Age;
-  uint16_t BuildNumber;
-  uint32_t PdbDllVersion;
-  uint16_t PdbDllRbld;
-  uint16_t Flags;
-  PDB_Machine MachineType;
+  PdbRaw_DbiVer VerHeader = PdbDbiV70;
+  uint32_t Age = 1;
+  uint16_t BuildNumber = 0;
+  uint32_t PdbDllVersion = 0;
+  uint16_t PdbDllRbld = 0;
+  uint16_t Flags = 1;
+  PDB_Machine MachineType = PDB_Machine::x86;
 
   std::vector<PdbDbiModuleInfo> ModInfos;
 };
@@ -92,7 +93,7 @@ struct PdbTpiFieldListRecord {
 };
 
 struct PdbTpiStream {
-  PdbRaw_TpiVer Version;
+  PdbRaw_TpiVer Version = PdbTpiV80;
   std::vector<PdbTpiRecord> Records;
 };
 
@@ -106,6 +107,8 @@ struct PdbObject {
   Optional<PdbDbiStream> DbiStream;
   Optional<PdbTpiStream> TpiStream;
   Optional<PdbTpiStream> IpiStream;
+
+  Optional<std::vector<StringRef>> StringTable;
 
   BumpPtrAllocator &Allocator;
 };
@@ -136,30 +139,30 @@ template <> struct MappingTraits<pdb::yaml::PdbInfoStream> {
   static void mapping(IO &IO, pdb::yaml::PdbInfoStream &Obj);
 };
 
-template <> struct MappingTraits<pdb::yaml::PdbDbiStream> {
-  static void mapping(IO &IO, pdb::yaml::PdbDbiStream &Obj);
+template <> struct MappingContextTraits<pdb::yaml::PdbDbiStream, pdb::yaml::SerializationContext> {
+  static void mapping(IO &IO, pdb::yaml::PdbDbiStream &Obj, pdb::yaml::SerializationContext &Context);
 };
 
 template <>
-struct MappingContextTraits<pdb::yaml::PdbTpiStream, llvm::BumpPtrAllocator> {
+struct MappingContextTraits<pdb::yaml::PdbTpiStream, pdb::yaml::SerializationContext> {
   static void mapping(IO &IO, pdb::yaml::PdbTpiStream &Obj,
-                      llvm::BumpPtrAllocator &Allocator);
+    pdb::yaml::SerializationContext &Context);
 };
 
 template <> struct MappingTraits<pdb::yaml::NamedStreamMapping> {
   static void mapping(IO &IO, pdb::yaml::NamedStreamMapping &Obj);
 };
 
-template <> struct MappingTraits<pdb::yaml::PdbSymbolRecord> {
-  static void mapping(IO &IO, pdb::yaml::PdbSymbolRecord &Obj);
+template <> struct MappingContextTraits<pdb::yaml::PdbSymbolRecord, pdb::yaml::SerializationContext> {
+  static void mapping(IO &IO, pdb::yaml::PdbSymbolRecord &Obj, pdb::yaml::SerializationContext &Context);
 };
 
-template <> struct MappingTraits<pdb::yaml::PdbModiStream> {
-  static void mapping(IO &IO, pdb::yaml::PdbModiStream &Obj);
+template <> struct MappingContextTraits<pdb::yaml::PdbModiStream, pdb::yaml::SerializationContext> {
+  static void mapping(IO &IO, pdb::yaml::PdbModiStream &Obj, pdb::yaml::SerializationContext &Context);
 };
 
-template <> struct MappingTraits<pdb::yaml::PdbDbiModuleInfo> {
-  static void mapping(IO &IO, pdb::yaml::PdbDbiModuleInfo &Obj);
+template <> struct MappingContextTraits<pdb::yaml::PdbDbiModuleInfo, pdb::yaml::SerializationContext> {
+  static void mapping(IO &IO, pdb::yaml::PdbDbiModuleInfo &Obj, pdb::yaml::SerializationContext &Context);
 };
 
 template <>

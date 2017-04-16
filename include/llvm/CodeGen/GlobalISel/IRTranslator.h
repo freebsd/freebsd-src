@@ -34,6 +34,7 @@ class Instruction;
 class MachineBasicBlock;
 class MachineFunction;
 class MachineInstr;
+class OptimizationRemarkEmitter;
 class MachineRegisterInfo;
 class TargetPassConfig;
 
@@ -55,20 +56,19 @@ private:
   /// Mapping of the values of the current LLVM IR function
   /// to the related virtual registers.
   ValueToVReg ValToVReg;
-  // Constants are special because when we encounter one,
-  // we do not know at first where to insert the definition since
-  // this depends on all its uses.
-  // Thus, we will insert the sequences to materialize them when
-  // we know all their users.
-  // In the meantime, just keep it in a set.
-  // Note: Constants that end up as immediate in the related instructions,
-  // do not appear in that map.
-  SmallSetVector<const Constant *, 8> Constants;
 
   // N.b. it's not completely obvious that this will be sufficient for every
   // LLVM IR construct (with "invoke" being the obvious candidate to mess up our
   // lives.
   DenseMap<const BasicBlock *, MachineBasicBlock *> BBToMBB;
+
+  // One BasicBlock can be translated to multiple MachineBasicBlocks.  For such
+  // BasicBlocks translated to multiple MachineBasicBlocks, MachinePreds retains
+  // a mapping between the edges arriving at the BasicBlock to the corresponding
+  // created MachineBasicBlocks. Some BasicBlocks that get translated to a
+  // single MachineBasicBlock may also end up in this Map.
+  typedef std::pair<const BasicBlock *, const BasicBlock *> CFGEdge;
+  DenseMap<CFGEdge, SmallVector<MachineBasicBlock *, 1>> MachinePreds;
 
   // List of stubbed PHI instructions, for values and basic blocks to be filled
   // in once all MachineBasicBlocks have been created.
@@ -122,7 +122,9 @@ private:
   /// Translate an LLVM store instruction into generic IR.
   bool translateStore(const User &U, MachineIRBuilder &MIRBuilder);
 
-  bool translateMemcpy(const CallInst &CI, MachineIRBuilder &MIRBuilder);
+  /// Translate an LLVM string intrinsic (memcpy, memset, ...).
+  bool translateMemfunc(const CallInst &CI, MachineIRBuilder &MIRBuilder,
+                        unsigned Intrinsic);
 
   void getStackGuard(unsigned DstReg, MachineIRBuilder &MIRBuilder);
 
@@ -131,6 +133,8 @@ private:
 
   bool translateKnownIntrinsic(const CallInst &CI, Intrinsic::ID ID,
                                MachineIRBuilder &MIRBuilder);
+
+  bool translateInlineAsm(const CallInst &CI, MachineIRBuilder &MIRBuilder);
 
   /// Translate call instruction.
   /// \pre \p U is a call instruction.
@@ -144,11 +148,6 @@ private:
   /// given generic Opcode.
   bool translateCast(unsigned Opcode, const User &U,
                      MachineIRBuilder &MIRBuilder);
-
-  /// Translate static alloca instruction (i.e. one  of constant size and in the
-  /// first basic block).
-  bool translateStaticAlloca(const AllocaInst &Inst,
-                             MachineIRBuilder &MIRBuilder);
 
   /// Translate a phi instruction.
   bool translatePHI(const User &U, MachineIRBuilder &MIRBuilder);
@@ -182,6 +181,8 @@ private:
 
   bool translateSwitch(const User &U, MachineIRBuilder &MIRBuilder);
 
+  bool translateIndirectBr(const User &U, MachineIRBuilder &MIRBuilder);
+
   bool translateExtractValue(const User &U, MachineIRBuilder &MIRBuilder);
 
   bool translateInsertValue(const User &U, MachineIRBuilder &MIRBuilder);
@@ -190,11 +191,15 @@ private:
 
   bool translateGetElementPtr(const User &U, MachineIRBuilder &MIRBuilder);
 
+  bool translateAlloca(const User &U, MachineIRBuilder &MIRBuilder);
+
   /// Translate return (ret) instruction.
   /// The target needs to implement CallLowering::lowerReturn for
   /// this to succeed.
   /// \pre \p U is a return instruction.
   bool translateRet(const User &U, MachineIRBuilder &MIRBuilder);
+
+  bool translateFSub(const User &U, MachineIRBuilder &MIRBuilder);
 
   bool translateAdd(const User &U, MachineIRBuilder &MIRBuilder) {
     return translateBinaryOp(TargetOpcode::G_ADD, U, MIRBuilder);
@@ -226,9 +231,6 @@ private:
   }
   bool translateSRem(const User &U, MachineIRBuilder &MIRBuilder) {
     return translateBinaryOp(TargetOpcode::G_SREM, U, MIRBuilder);
-  }
-  bool translateAlloca(const User &U, MachineIRBuilder &MIRBuilder) {
-    return translateStaticAlloca(cast<AllocaInst>(U), MIRBuilder);
   }
   bool translateIntToPtr(const User &U, MachineIRBuilder &MIRBuilder) {
     return translateCast(TargetOpcode::G_INTTOPTR, U, MIRBuilder);
@@ -281,9 +283,6 @@ private:
   bool translateFAdd(const User &U, MachineIRBuilder &MIRBuilder) {
     return translateBinaryOp(TargetOpcode::G_FADD, U, MIRBuilder);
   }
-  bool translateFSub(const User &U, MachineIRBuilder &MIRBuilder) {
-    return translateBinaryOp(TargetOpcode::G_FSUB, U, MIRBuilder);
-  }
   bool translateFMul(const User &U, MachineIRBuilder &MIRBuilder) {
     return translateBinaryOp(TargetOpcode::G_FMUL, U, MIRBuilder);
   }
@@ -294,11 +293,16 @@ private:
     return translateBinaryOp(TargetOpcode::G_FREM, U, MIRBuilder);
   }
 
+  bool translateVAArg(const User &U, MachineIRBuilder &MIRBuilder);
+
+  bool translateInsertElement(const User &U, MachineIRBuilder &MIRBuilder);
+
+  bool translateExtractElement(const User &U, MachineIRBuilder &MIRBuilder);
+
+  bool translateShuffleVector(const User &U, MachineIRBuilder &MIRBuilder);
+
   // Stubs to keep the compiler happy while we implement the rest of the
   // translation.
-  bool translateIndirectBr(const User &U, MachineIRBuilder &MIRBuilder) {
-    return false;
-  }
   bool translateResume(const User &U, MachineIRBuilder &MIRBuilder) {
     return false;
   }
@@ -335,18 +339,6 @@ private:
   bool translateUserOp2(const User &U, MachineIRBuilder &MIRBuilder) {
     return false;
   }
-  bool translateVAArg(const User &U, MachineIRBuilder &MIRBuilder) {
-    return false;
-  }
-  bool translateExtractElement(const User &U, MachineIRBuilder &MIRBuilder) {
-    return false;
-  }
-  bool translateInsertElement(const User &U, MachineIRBuilder &MIRBuilder) {
-    return false;
-  }
-  bool translateShuffleVector(const User &U, MachineIRBuilder &MIRBuilder) {
-    return false;
-  }
 
   /// @}
 
@@ -371,6 +363,9 @@ private:
   /// Current target configuration. Controls how the pass handles errors.
   const TargetPassConfig *TPC;
 
+  /// Current optimization remark emitter. Used to report failures.
+  std::unique_ptr<OptimizationRemarkEmitter> ORE;
+
   // * Insert all the code needed to materialize the constants
   // at the proper place. E.g., Entry block or dominator block
   // of each constant depending on how fancy we want to be.
@@ -390,10 +385,27 @@ private:
   /// the type being accessed (according to the Module's DataLayout).
   unsigned getMemOpAlignment(const Instruction &I);
 
-  /// Get the MachineBasicBlock that represents \p BB.
-  /// If such basic block does not exist, it is created.
-  MachineBasicBlock &getOrCreateBB(const BasicBlock &BB);
+  /// Get the MachineBasicBlock that represents \p BB. Specifically, the block
+  /// returned will be the head of the translated block (suitable for branch
+  /// destinations).
+  MachineBasicBlock &getMBB(const BasicBlock &BB);
 
+  /// Record \p NewPred as a Machine predecessor to `Edge.second`, corresponding
+  /// to `Edge.first` at the IR level. This is used when IRTranslation creates
+  /// multiple MachineBasicBlocks for a given IR block and the CFG is no longer
+  /// represented simply by the IR-level CFG.
+  void addMachineCFGPred(CFGEdge Edge, MachineBasicBlock *NewPred);
+
+  /// Returns the Machine IR predecessors for the given IR CFG edge. Usually
+  /// this is just the single MachineBasicBlock corresponding to the predecessor
+  /// in the IR. More complex lowering can result in multiple MachineBasicBlocks
+  /// preceding the original though (e.g. switch instructions).
+  SmallVector<MachineBasicBlock *, 1> getMachinePredBBs(CFGEdge Edge) {
+    auto RemappedEdge = MachinePreds.find(Edge);
+    if (RemappedEdge != MachinePreds.end())
+      return RemappedEdge->second;
+    return SmallVector<MachineBasicBlock *, 4>(1, &getMBB(*Edge.first));
+  }
 
 public:
   // Ctor, nothing fancy.
@@ -407,13 +419,13 @@ public:
   //   CallLowering = MF.subtarget.getCallLowering()
   //   F = MF.getParent()
   //   MIRBuilder.reset(MF)
-  //   MIRBuilder.getOrCreateBB(F.getEntryBB())
+  //   getMBB(F.getEntryBB())
   //   CallLowering->translateArguments(MIRBuilder, F, ValToVReg)
   //   for each bb in F
-  //     MIRBuilder.getOrCreateBB(bb)
+  //     getMBB(bb)
   //     for each inst in bb
   //       if (!translate(MIRBuilder, inst, ValToVReg, ConstantToSequence))
-  //         report_fatal_error(“Don’t know how to translate input");
+  //         report_fatal_error("Don't know how to translate input");
   //   finalize()
   bool runOnMachineFunction(MachineFunction &MF) override;
 };

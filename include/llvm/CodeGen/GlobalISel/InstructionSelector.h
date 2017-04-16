@@ -16,8 +16,13 @@
 #ifndef LLVM_CODEGEN_GLOBALISEL_INSTRUCTIONSELECTOR_H
 #define LLVM_CODEGEN_GLOBALISEL_INSTRUCTIONSELECTOR_H
 
+#include "llvm/ADT/Optional.h"
+#include <cstdint>
+
 namespace llvm {
 class MachineInstr;
+class MachineOperand;
+class MachineRegisterInfo;
 class RegisterBankInfo;
 class TargetInstrInfo;
 class TargetRegisterInfo;
@@ -56,6 +61,14 @@ protected:
                                         const TargetInstrInfo &TII,
                                         const TargetRegisterInfo &TRI,
                                         const RegisterBankInfo &RBI) const;
+
+  Optional<int64_t> getConstantVRegVal(unsigned VReg,
+                                       const MachineRegisterInfo &MRI) const;
+
+  bool isOperandImmEqual(const MachineOperand &MO, int64_t Value,
+                         const MachineRegisterInfo &MRI) const;
+
+  bool isObviouslySafeToFold(MachineInstr &MI) const;
 };
 
 } // End namespace llvm.

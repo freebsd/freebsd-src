@@ -92,9 +92,6 @@ enum ModuleCodes {
   // ALIAS: [alias type, aliasee val#, linkage, visibility]
   MODULE_CODE_ALIAS_OLD = 9,
 
-  // MODULE_CODE_PURGEVALS: [numvals]
-  MODULE_CODE_PURGEVALS = 10,
-
   MODULE_CODE_GCNAME = 11, // GCNAME: [strchr x N]
   MODULE_CODE_COMDAT = 12, // COMDAT: [selection_kind, name]
 
@@ -213,8 +210,28 @@ enum GlobalValueSummarySymtabCodes {
   FS_COMBINED_ORIGINAL_NAME = 9,
   // VERSION of the summary, bumped when adding flags for instance.
   FS_VERSION = 10,
-  // The list of llvm.type.test type identifiers used by the following function.
+  // The list of llvm.type.test type identifiers used by the following function
+  // that are used other than by an llvm.assume.
+  // [n x typeid]
   FS_TYPE_TESTS = 11,
+  // The list of virtual calls made by this function using
+  // llvm.assume(llvm.type.test) intrinsics that do not have all constant
+  // integer arguments.
+  // [n x (typeid, offset)]
+  FS_TYPE_TEST_ASSUME_VCALLS = 12,
+  // The list of virtual calls made by this function using
+  // llvm.type.checked.load intrinsics that do not have all constant integer
+  // arguments.
+  // [n x (typeid, offset)]
+  FS_TYPE_CHECKED_LOAD_VCALLS = 13,
+  // Identifies a virtual call made by this function using an
+  // llvm.assume(llvm.type.test) intrinsic with all constant integer arguments.
+  // [typeid, offset, n x arg]
+  FS_TYPE_TEST_ASSUME_CONST_VCALL = 14,
+  // Identifies a virtual call made by this function using an
+  // llvm.type.checked.load intrinsic with all constant integer arguments.
+  // [typeid, offset, n x arg]
+  FS_TYPE_CHECKED_LOAD_CONST_VCALL = 15,
 };
 
 enum MetadataCodes {

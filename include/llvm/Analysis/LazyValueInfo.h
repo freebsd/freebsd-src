@@ -32,6 +32,7 @@ namespace llvm {
 class LazyValueInfo {
   friend class LazyValueInfoWrapperPass;
   AssumptionCache *AC = nullptr;
+  const DataLayout *DL = nullptr;
   class TargetLibraryInfo *TLI = nullptr;
   DominatorTree *DT = nullptr;
   void *PImpl = nullptr;
@@ -40,16 +41,17 @@ class LazyValueInfo {
 public:
   ~LazyValueInfo();
   LazyValueInfo() {}
-  LazyValueInfo(AssumptionCache *AC_, TargetLibraryInfo *TLI_,
+  LazyValueInfo(AssumptionCache *AC_, const DataLayout *DL_, TargetLibraryInfo *TLI_,
                 DominatorTree *DT_)
-      : AC(AC_), TLI(TLI_), DT(DT_) {}
+      : AC(AC_), DL(DL_), TLI(TLI_), DT(DT_) {}
   LazyValueInfo(LazyValueInfo &&Arg)
-      : AC(Arg.AC), TLI(Arg.TLI), DT(Arg.DT), PImpl(Arg.PImpl) {
+      : AC(Arg.AC), DL(Arg.DL), TLI(Arg.TLI), DT(Arg.DT), PImpl(Arg.PImpl) {
     Arg.PImpl = nullptr;
   }
   LazyValueInfo &operator=(LazyValueInfo &&Arg) {
     releaseMemory();
     AC = Arg.AC;
+    DL = Arg.DL;
     TLI = Arg.TLI;
     DT = Arg.DT;
     PImpl = Arg.PImpl;
@@ -98,8 +100,15 @@ public:
   /// Inform the analysis cache that we have erased a block.
   void eraseBlock(BasicBlock *BB);
 
+  /// Print the \LazyValueInfoCache.
+  void printCache(Function &F, raw_ostream &OS);
+
   // For old PM pass. Delete once LazyValueInfoWrapperPass is gone.
   void releaseMemory();
+
+  /// Handle invalidation events in the new pass manager.
+  bool invalidate(Function &F, const PreservedAnalyses &PA,
+                  FunctionAnalysisManager::Invalidator &Inv);
 };
 
 /// \brief Analysis to compute lazy value information.

@@ -17,16 +17,21 @@
 #include "MCTargetDesc/ARMBaseInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/Support/CodeGen.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include <array>
+#include <cstdint>
 
 #define GET_INSTRINFO_HEADER
 #include "ARMGenInstrInfo.inc"
 
 namespace llvm {
-  class ARMSubtarget;
-  class ARMBaseRegisterInfo;
+
+class ARMBaseRegisterInfo;
+class ARMSubtarget;
 
 class ARMBaseInstrInfo : public ARMGenInstrInfo {
   const ARMSubtarget &Subtarget;
@@ -106,7 +111,7 @@ public:
 
   // Return the non-pre/post incrementing version of 'Opc'. Return 0
   // if there is not such an opcode.
-  virtual unsigned getUnindexedOpcode(unsigned Opc) const =0;
+  virtual unsigned getUnindexedOpcode(unsigned Opc) const = 0;
 
   MachineInstr *convertToThreeAddress(MachineFunction::iterator &MFI,
                                       MachineInstr &MI,
@@ -156,7 +161,7 @@ public:
   bool DefinesPredicate(MachineInstr &MI,
                         std::vector<MachineOperand> &Pred) const override;
 
-  bool isPredicable(MachineInstr &MI) const override;
+  bool isPredicable(const MachineInstr &MI) const override;
 
   /// GetInstSize - Returns the size of the specified MachineInstr.
   ///
@@ -401,25 +406,28 @@ public:
   bool isSwiftFastImmShift(const MachineInstr *MI) const;
 };
 
-static inline
-const MachineInstrBuilder &AddDefaultPred(const MachineInstrBuilder &MIB) {
-  return MIB.addImm((int64_t)ARMCC::AL).addReg(0);
+/// Get the operands corresponding to the given \p Pred value. By default, the
+/// predicate register is assumed to be 0 (no register), but you can pass in a
+/// \p PredReg if that is not the case.
+static inline std::array<MachineOperand, 2> predOps(ARMCC::CondCodes Pred,
+                                                    unsigned PredReg = 0) {
+  return {{MachineOperand::CreateImm(static_cast<int64_t>(Pred)),
+           MachineOperand::CreateReg(PredReg, false)}};
 }
 
-static inline
-const MachineInstrBuilder &AddDefaultCC(const MachineInstrBuilder &MIB) {
-  return MIB.addReg(0);
+/// Get the operand corresponding to the conditional code result. By default,
+/// this is 0 (no register).
+static inline MachineOperand condCodeOp(unsigned CCReg = 0) {
+  return MachineOperand::CreateReg(CCReg, false);
 }
 
-static inline
-const MachineInstrBuilder &AddDefaultT1CC(const MachineInstrBuilder &MIB,
-                                          bool isDead = false) {
-  return MIB.addReg(ARM::CPSR, getDefRegState(true) | getDeadRegState(isDead));
-}
-
-static inline
-const MachineInstrBuilder &AddNoT1CC(const MachineInstrBuilder &MIB) {
-  return MIB.addReg(0);
+/// Get the operand corresponding to the conditional code result for Thumb1.
+/// This operand will always refer to CPSR and it will have the Define flag set.
+/// You can optionally set the Dead flag by means of \p isDead.
+static inline MachineOperand t1CondCodeOp(bool isDead = false) {
+  return MachineOperand::CreateReg(ARM::CPSR,
+                                   /*Define*/ true, /*Implicit*/ false,
+                                   /*Kill*/ false, isDead);
 }
 
 static inline
@@ -517,6 +525,6 @@ bool rewriteT2FrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
                          unsigned FrameReg, int &Offset,
                          const ARMBaseInstrInfo &TII);
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_TARGET_ARM_ARMBASEINSTRINFO_H

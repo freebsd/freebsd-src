@@ -448,6 +448,8 @@ bool llvm::AArch64::getExtensionFeatures(unsigned Extensions,
     Features.push_back("+spe");
   if (Extensions & AArch64::AEK_RAS)
     Features.push_back("+ras");
+  if (Extensions & AArch64::AEK_LSE)
+    Features.push_back("+lse");
 
   return true;
 }
@@ -725,6 +727,7 @@ unsigned llvm::ARM::parseArchProfile(StringRef Arch) {
   case ARM::AK_ARMV8R:
     return ARM::PK_R;
   case ARM::AK_ARMV7A:
+  case ARM::AK_ARMV7VE:
   case ARM::AK_ARMV7K:
   case ARM::AK_ARMV8A:
   case ARM::AK_ARMV8_1A:
@@ -761,6 +764,7 @@ unsigned llvm::ARM::parseArchVersion(StringRef Arch) {
   case ARM::AK_ARMV6M:
     return 6;
   case ARM::AK_ARMV7A:
+  case ARM::AK_ARMV7VE:
   case ARM::AK_ARMV7R:
   case ARM::AK_ARMV7M:
   case ARM::AK_ARMV7S:

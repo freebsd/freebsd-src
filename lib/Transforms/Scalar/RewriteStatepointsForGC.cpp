@@ -365,6 +365,11 @@ findBaseDefiningValueOfVector(Value *I) {
     // for particular sufflevector patterns.
     return BaseDefiningValueResult(I, false);
 
+  // The behavior of getelementptr instructions is the same for vector and
+  // non-vector data types.
+  if (auto *GEP = dyn_cast<GetElementPtrInst>(I))
+    return findBaseDefiningValue(GEP->getPointerOperand());
+
   // A PHI or Select is a base defining value.  The outer findBasePointer
   // algorithm is responsible for constructing a base value for this BDV.
   assert((isa<SelectInst>(I) || isa<PHINode>(I)) &&
@@ -634,7 +639,7 @@ static BDVState meetBDVStateImpl(const BDVState &LHS, const BDVState &RHS) {
 
 // Values of type BDVState form a lattice, and this function implements the meet
 // operation.
-static BDVState meetBDVState(BDVState LHS, BDVState RHS) {
+static BDVState meetBDVState(const BDVState &LHS, const BDVState &RHS) {
   BDVState Result = meetBDVStateImpl(LHS, RHS);
   assert(Result == meetBDVStateImpl(RHS, LHS) &&
          "Math is wrong: meet does not commute!");
@@ -1123,14 +1128,14 @@ normalizeForInvokeSafepoint(BasicBlock *BB, BasicBlock *InvokeParent,
 
 // Create new attribute set containing only attributes which can be transferred
 // from original call to the safepoint.
-static AttributeSet legalizeCallAttributes(AttributeSet AS) {
-  AttributeSet Ret;
+static AttributeList legalizeCallAttributes(AttributeList AS) {
+  AttributeList Ret;
 
   for (unsigned Slot = 0; Slot < AS.getNumSlots(); Slot++) {
     unsigned Index = AS.getSlotIndex(Slot);
 
-    if (Index == AttributeSet::ReturnIndex ||
-        Index == AttributeSet::FunctionIndex) {
+    if (Index == AttributeList::ReturnIndex ||
+        Index == AttributeList::FunctionIndex) {
 
       for (Attribute Attr : make_range(AS.begin(Slot), AS.end(Slot))) {
 
@@ -1148,7 +1153,7 @@ static AttributeSet legalizeCallAttributes(AttributeSet AS) {
 
         Ret = Ret.addAttributes(
             AS.getContext(), Index,
-            AttributeSet::get(AS.getContext(), Index, AttrBuilder(Attr)));
+            AttributeList::get(AS.getContext(), Index, AttrBuilder(Attr)));
       }
     }
 
@@ -1299,12 +1304,11 @@ static StringRef getDeoptLowering(CallSite CS) {
   const char *DeoptLowering = "deopt-lowering";
   if (CS.hasFnAttr(DeoptLowering)) {
     // FIXME: CallSite has a *really* confusing interface around attributes
-    // with values.  
-    const AttributeSet &CSAS = CS.getAttributes();
-    if (CSAS.hasAttribute(AttributeSet::FunctionIndex,
-                          DeoptLowering))
-      return CSAS.getAttribute(AttributeSet::FunctionIndex,
-                               DeoptLowering).getValueAsString();
+    // with values.
+    const AttributeList &CSAS = CS.getAttributes();
+    if (CSAS.hasAttribute(AttributeList::FunctionIndex, DeoptLowering))
+      return CSAS.getAttribute(AttributeList::FunctionIndex, DeoptLowering)
+          .getValueAsString();
     Function *F = CS.getCalledFunction();
     assert(F && F->hasFnAttribute(DeoptLowering));
     return F->getFnAttribute(DeoptLowering).getValueAsString();
@@ -1388,7 +1392,6 @@ makeStatepointExplicitImpl(const CallSite CS, /* to replace */
 
   // Create the statepoint given all the arguments
   Instruction *Token = nullptr;
-  AttributeSet ReturnAttrs;
   if (CS.isCall()) {
     CallInst *ToReplace = cast<CallInst>(CS.getInstruction());
     CallInst *Call = Builder.CreateGCStatepointCall(
@@ -1400,11 +1403,12 @@ makeStatepointExplicitImpl(const CallSite CS, /* to replace */
 
     // Currently we will fail on parameter attributes and on certain
     // function attributes.
-    AttributeSet NewAttrs = legalizeCallAttributes(ToReplace->getAttributes());
+    AttributeList NewAttrs = legalizeCallAttributes(ToReplace->getAttributes());
     // In case if we can handle this set of attributes - set up function attrs
     // directly on statepoint and return attrs later for gc_result intrinsic.
-    Call->setAttributes(NewAttrs.getFnAttributes());
-    ReturnAttrs = NewAttrs.getRetAttributes();
+    Call->setAttributes(AttributeList::get(Call->getContext(),
+                                           AttributeList::FunctionIndex,
+                                           NewAttrs.getFnAttributes()));
 
     Token = Call;
 
@@ -1428,11 +1432,12 @@ makeStatepointExplicitImpl(const CallSite CS, /* to replace */
 
     // Currently we will fail on parameter attributes and on certain
     // function attributes.
-    AttributeSet NewAttrs = legalizeCallAttributes(ToReplace->getAttributes());
+    AttributeList NewAttrs = legalizeCallAttributes(ToReplace->getAttributes());
     // In case if we can handle this set of attributes - set up function attrs
     // directly on statepoint and return attrs later for gc_result intrinsic.
-    Invoke->setAttributes(NewAttrs.getFnAttributes());
-    ReturnAttrs = NewAttrs.getRetAttributes();
+    Invoke->setAttributes(AttributeList::get(Invoke->getContext(),
+                                             AttributeList::FunctionIndex,
+                                             NewAttrs.getFnAttributes()));
 
     Token = Invoke;
 
@@ -1478,7 +1483,9 @@ makeStatepointExplicitImpl(const CallSite CS, /* to replace */
       StringRef Name =
           CS.getInstruction()->hasName() ? CS.getInstruction()->getName() : "";
       CallInst *GCResult = Builder.CreateGCResult(Token, CS.getType(), Name);
-      GCResult->setAttributes(CS.getAttributes().getRetAttributes());
+      GCResult->setAttributes(
+          AttributeList::get(GCResult->getContext(), AttributeList::ReturnIndex,
+                             CS.getAttributes().getRetAttributes()));
 
       // We cannot RAUW or delete CS.getInstruction() because it could be in the
       // live set of some other safepoint, in which case that safepoint's
@@ -1615,8 +1622,10 @@ static void relocationViaAlloca(
 
   // Emit alloca for "LiveValue" and record it in "allocaMap" and
   // "PromotableAllocas"
+  const DataLayout &DL = F.getParent()->getDataLayout();
   auto emitAllocaFor = [&](Value *LiveValue) {
-    AllocaInst *Alloca = new AllocaInst(LiveValue->getType(), "",
+    AllocaInst *Alloca = new AllocaInst(LiveValue->getType(),
+                                        DL.getAllocaAddrSpace(), "",
                                         F.getEntryBlock().getFirstNonPHI());
     AllocaMap[LiveValue] = Alloca;
     PromotableAllocas.push_back(Alloca);
@@ -1873,7 +1882,7 @@ chainToBasePointerCost(SmallVectorImpl<Instruction*> &Chain,
              "non noop cast is found during rematerialization");
 
       Type *SrcTy = CI->getOperand(0)->getType();
-      Cost += TTI.getCastInstrCost(CI->getOpcode(), CI->getType(), SrcTy);
+      Cost += TTI.getCastInstrCost(CI->getOpcode(), CI->getType(), SrcTy, CI);
 
     } else if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(Instr)) {
       // Cost of the address calculation
@@ -2304,7 +2313,7 @@ static void RemoveNonValidAttrAtIndex(LLVMContext &Ctx, AttrHolder &AH,
 
   if (!R.empty())
     AH.setAttributes(AH.getAttributes().removeAttributes(
-        Ctx, Index, AttributeSet::get(Ctx, Index, R)));
+        Ctx, Index, AttributeList::get(Ctx, Index, R)));
 }
 
 void
@@ -2316,7 +2325,7 @@ RewriteStatepointsForGC::stripNonValidAttributesFromPrototype(Function &F) {
       RemoveNonValidAttrAtIndex(Ctx, F, A.getArgNo() + 1);
 
   if (isa<PointerType>(F.getReturnType()))
-    RemoveNonValidAttrAtIndex(Ctx, F, AttributeSet::ReturnIndex);
+    RemoveNonValidAttrAtIndex(Ctx, F, AttributeList::ReturnIndex);
 }
 
 void RewriteStatepointsForGC::stripNonValidAttributesFromBody(Function &F) {
@@ -2351,7 +2360,7 @@ void RewriteStatepointsForGC::stripNonValidAttributesFromBody(Function &F) {
         if (isa<PointerType>(CS.getArgument(i)->getType()))
           RemoveNonValidAttrAtIndex(Ctx, CS, i + 1);
       if (isa<PointerType>(CS.getType()))
-        RemoveNonValidAttrAtIndex(Ctx, CS, AttributeSet::ReturnIndex);
+        RemoveNonValidAttrAtIndex(Ctx, CS, AttributeList::ReturnIndex);
     }
   }
 }

@@ -718,11 +718,11 @@ macro(add_llvm_executable name)
   if(NOT ARG_IGNORE_EXTERNALIZE_DEBUGINFO)
     llvm_externalize_debuginfo(${name})
   endif()
-  if (PTHREAD_LIB)
+  if (LLVM_PTHREAD_LIB)
     # libpthreads overrides some standard library symbols, so main
     # executable must be linked with it in order to provide consistent
     # API for all shared libaries loaded by this executable.
-    target_link_libraries(${name} ${PTHREAD_LIB})
+    target_link_libraries(${name} ${LLVM_PTHREAD_LIB})
   endif()
 endmacro(add_llvm_executable name)
 
@@ -1027,7 +1027,7 @@ function(add_unittest test_suite test_name)
   # libpthreads overrides some standard library symbols, so main
   # executable must be linked with it in order to provide consistent
   # API for all shared libaries loaded by this executable.
-  target_link_libraries(${test_name} gtest_main gtest ${PTHREAD_LIB})
+  target_link_libraries(${test_name} gtest_main gtest ${LLVM_PTHREAD_LIB})
 
   add_dependencies(${test_suite} ${test_name})
   get_target_property(test_suite_folder ${test_suite} FOLDER)
@@ -1387,7 +1387,11 @@ function(llvm_externalize_debuginfo name)
   endif()
 
   if(NOT LLVM_EXTERNALIZE_DEBUGINFO_SKIP_STRIP)
-    set(strip_command COMMAND xcrun strip -Sxl $<TARGET_FILE:${name}>)
+    if(APPLE)
+      set(strip_command COMMAND xcrun strip -Sxl $<TARGET_FILE:${name}>)
+    else()
+      set(strip_command COMMAND strip -gx $<TARGET_FILE:${name}>)
+    endif()
   endif()
 
   if(APPLE)
@@ -1403,7 +1407,11 @@ function(llvm_externalize_debuginfo name)
       ${strip_command}
       )
   else()
-    message(FATAL_ERROR "LLVM_EXTERNALIZE_DEBUGINFO isn't implemented for non-darwin platforms!")
+    add_custom_command(TARGET ${name} POST_BUILD
+      COMMAND objcopy --only-keep-debug $<TARGET_FILE:${name}> $<TARGET_FILE:${name}>.debug
+      ${strip_command} -R .gnu_debuglink
+      COMMAND objcopy --add-gnu-debuglink=$<TARGET_FILE:${name}>.debug $<TARGET_FILE:${name}>
+      )
   endif()
 endfunction()
 

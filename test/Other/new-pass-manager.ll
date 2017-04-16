@@ -384,95 +384,6 @@
 ; CHECK-O0-NEXT: Finished llvm::Module pass manager run
 
 ; RUN: opt -disable-output -disable-verify -debug-pass-manager \
-; RUN:     -passes='default<O1>' %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=CHECK-O --check-prefix=CHECK-O1
-; RUN: opt -disable-output -disable-verify -debug-pass-manager \
-; RUN:     -passes='default<O2>' %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=CHECK-O --check-prefix=CHECK-O2
-; RUN: opt -disable-output -disable-verify -debug-pass-manager \
-; RUN:     -passes='default<Os>' %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=CHECK-O --check-prefix=CHECK-Os
-; RUN: opt -disable-output -disable-verify -debug-pass-manager \
-; RUN:     -passes='default<Oz>' %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=CHECK-O --check-prefix=CHECK-Oz
-; RUN: opt -disable-output -disable-verify -debug-pass-manager \
-; RUN:     -passes='lto-pre-link<O2>' %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=CHECK-O --check-prefix=CHECK-O2
-; CHECK-O: Starting llvm::Module pass manager run
-; CHECK-O: Starting llvm::Module pass manager run
-; CHECK-O: Running pass: ForceFunctionAttrsPass
-; CHECK-O: Running pass: InferFunctionAttrsPass
-; CHECK-O: Starting llvm::Function pass manager run.
-; CHECK-O: Running pass: SimplifyCFGPass
-; CHECK-O: Running pass: SROA
-; CHECK-O: Running pass: EarlyCSEPass
-; CHECK-O: Running pass: LowerExpectIntrinsicPass
-; CHECK-O: Running pass: GVNHoistPass
-; CHECK-O: Finished llvm::Function pass manager run.
-; CHECK-O: Running pass: IPSCCPPass
-; CHECK-O: Running pass: GlobalOptPass
-; CHECK-O: Running pass: ModuleToFunctionPassAdaptor<{{.*}}PromotePass>
-; CHECK-O: Running pass: DeadArgumentEliminationPass
-; CHECK-O: Starting llvm::Function pass manager run.
-; CHECK-O: Running pass: InstCombinePass
-; CHECK-O: Running pass: SimplifyCFGPass
-; CHECK-O: Finished llvm::Function pass manager run.
-; CHECK-O: Starting CGSCC pass manager run.
-; CHECK-O: Starting llvm::Function pass manager run.
-; CHECK-O: Running pass: SROA
-; CHECK-O: Running pass: EarlyCSEPass
-; CHECK-O: Running pass: SpeculativeExecutionPass
-; CHECK-O: Running pass: JumpThreadingPass
-; CHECK-O: Running pass: CorrelatedValuePropagationPass
-; CHECK-O: Running pass: SimplifyCFGPass
-; CHECK-O: Running pass: InstCombinePass
-; CHECK-O1: Running pass: LibCallsShrinkWrapPass
-; CHECK-O2: Running pass: LibCallsShrinkWrapPass
-; CHECK-Os-NOT: Running pass: LibCallsShrinkWrapPass
-; CHECK-Oz-NOT: Running pass: LibCallsShrinkWrapPass
-; CHECK-O: Running pass: TailCallElimPass
-; CHECK-O: Running pass: SimplifyCFGPass
-; CHECK-O: Running pass: ReassociatePass
-; CHECK-O: Starting Loop pass manager run.
-; CHECK-O: Finished Loop pass manager run.
-; CHECK-O: Running pass: SimplifyCFGPass
-; CHECK-O: Running pass: InstCombinePass
-; CHECK-O: Starting Loop pass manager run.
-; CHECK-O: Finished Loop pass manager run.
-; CHECK-O: Running pass: MemCpyOptPass
-; CHECK-O: Running pass: SCCPPass
-; CHECK-O: Running pass: BDCEPass
-; CHECK-O: Running pass: InstCombinePass
-; CHECK-O: Running pass: JumpThreadingPass
-; CHECK-O: Running pass: CorrelatedValuePropagationPass
-; CHECK-O: Running pass: DSEPass
-; CHECK-O: Running pass: ADCEPass
-; CHECK-O: Running pass: SimplifyCFGPass
-; CHECK-O: Running pass: InstCombinePass
-; CHECK-O: Finished llvm::Function pass manager run.
-; CHECK-O: Finished CGSCC pass manager run.
-; CHECK-O: Running pass: EliminateAvailableExternallyPass
-; CHECK-O: Running pass: ReversePostOrderFunctionAttrsPass
-; CHECK-O: Starting llvm::Function pass manager run.
-; CHECK-O: Running pass: Float2IntPass
-; CHECK-O: Running pass: LoopDistributePass
-; CHECK-O: Running pass: InstCombinePass
-; CHECK-O: Running pass: SLPVectorizerPass
-; CHECK-O: Running pass: SimplifyCFGPass
-; CHECK-O: Running pass: InstCombinePass
-; CHECK-O: Running pass: AlignmentFromAssumptionsPass
-; CHECK-O: Finished llvm::Function pass manager run.
-; CHECK-O: Running pass: GlobalDCEPass
-; CHECK-O: Running pass: ConstantMergePass
-
-; RUN: opt -disable-output -disable-verify -debug-pass-manager \
-; RUN:     -passes='lto<O2>' %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=CHECK-LTO-O2
-; CHECK-LTO-O2: Starting llvm::Module pass manager run
-; CHECK-LTO-O2: Running pass: InstCombinePass
-; CHECK-LTO-O2: Running pass: SimplifyCFGPass
-
-; RUN: opt -disable-output -disable-verify -debug-pass-manager \
 ; RUN:     -passes='repeat<3>(no-op-module)' %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=CHECK-REPEAT-MODULE-PASS
 ; CHECK-REPEAT-MODULE-PASS: Starting llvm::Module pass manager run
@@ -539,14 +450,15 @@
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: InnerAnalysisManagerProxy<{{.*}}>
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Starting llvm::Function pass manager run
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Running pass: FunctionToLoopPassAdaptor
-; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: InnerAnalysisManagerProxy<{{.*}}>
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: LoopAnalysis
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: DominatorTreeAnalysis
+; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: AssumptionAnalysis
+; CHECK-REPEAT-LOOP-PASS-NEXT: Invalidating all non-preserved analyses
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: AAManager
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: TargetLibraryAnalysis
-; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: AssumptionAnalysis
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: ScalarEvolutionAnalysis
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: TargetIRAnalysis
+; CHECK-REPEAT-LOOP-PASS-NEXT: Running analysis: InnerAnalysisManagerProxy<{{.*}}>
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Starting Loop pass manager run
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Running pass: RepeatedPass
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Starting Loop pass manager run
@@ -560,6 +472,7 @@
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Finished Loop pass manager run
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Finished Loop pass manager run
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Finished llvm::Function pass manager run
+; CHECK-REPEAT-LOOP-PASS-NEXT: Invalidating all non-preserved analyses
 ; CHECK-REPEAT-LOOP-PASS-NEXT: Finished llvm::Module pass manager run
 
 define void @foo(i1 %x, i8* %p1, i8* %p2) {

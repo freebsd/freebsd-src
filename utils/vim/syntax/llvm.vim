@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:   llvm
 " Maintainer: The LLVM team, http://llvm.org/
-" Version:      $Revision: 285927 $
+" Version:      $Revision: 294808 $
 
 if version < 600
   syntax clear
@@ -123,6 +123,7 @@ syn keyword llvmKeyword
       \ readnone
       \ readonly
       \ release
+      \ returned
       \ returns_twice
       \ sanitize_address
       \ sanitize_memory

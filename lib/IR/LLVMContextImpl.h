@@ -352,22 +352,26 @@ template <> struct MDNodeKeyImpl<DIDerivedType> {
   uint64_t SizeInBits;
   uint64_t OffsetInBits;
   uint32_t AlignInBits;
+  Optional<unsigned> DWARFAddressSpace;
   unsigned Flags;
   Metadata *ExtraData;
 
   MDNodeKeyImpl(unsigned Tag, MDString *Name, Metadata *File, unsigned Line,
                 Metadata *Scope, Metadata *BaseType, uint64_t SizeInBits,
-                uint32_t AlignInBits, uint64_t OffsetInBits, unsigned Flags,
+                uint32_t AlignInBits, uint64_t OffsetInBits,
+                Optional<unsigned> DWARFAddressSpace, unsigned Flags,
                 Metadata *ExtraData)
       : Tag(Tag), Name(Name), File(File), Line(Line), Scope(Scope),
         BaseType(BaseType), SizeInBits(SizeInBits), OffsetInBits(OffsetInBits),
-        AlignInBits(AlignInBits), Flags(Flags), ExtraData(ExtraData) {}
+        AlignInBits(AlignInBits), DWARFAddressSpace(DWARFAddressSpace),
+        Flags(Flags), ExtraData(ExtraData) {}
   MDNodeKeyImpl(const DIDerivedType *N)
       : Tag(N->getTag()), Name(N->getRawName()), File(N->getRawFile()),
         Line(N->getLine()), Scope(N->getRawScope()),
         BaseType(N->getRawBaseType()), SizeInBits(N->getSizeInBits()),
         OffsetInBits(N->getOffsetInBits()), AlignInBits(N->getAlignInBits()),
-        Flags(N->getFlags()), ExtraData(N->getRawExtraData()) {}
+        DWARFAddressSpace(N->getDWARFAddressSpace()), Flags(N->getFlags()),
+        ExtraData(N->getRawExtraData()) {}
 
   bool isKeyOf(const DIDerivedType *RHS) const {
     return Tag == RHS->getTag() && Name == RHS->getRawName() &&
@@ -375,7 +379,9 @@ template <> struct MDNodeKeyImpl<DIDerivedType> {
            Scope == RHS->getRawScope() && BaseType == RHS->getRawBaseType() &&
            SizeInBits == RHS->getSizeInBits() &&
            AlignInBits == RHS->getAlignInBits() &&
-           OffsetInBits == RHS->getOffsetInBits() && Flags == RHS->getFlags() &&
+           OffsetInBits == RHS->getOffsetInBits() &&
+           DWARFAddressSpace == RHS->getDWARFAddressSpace() &&
+           Flags == RHS->getFlags() &&
            ExtraData == RHS->getRawExtraData();
   }
   unsigned getHashValue() const {
@@ -612,17 +618,19 @@ template <> struct MDNodeSubsetEqualImpl<DISubprogram> {
   typedef MDNodeKeyImpl<DISubprogram> KeyTy;
   static bool isSubsetEqual(const KeyTy &LHS, const DISubprogram *RHS) {
     return isDeclarationOfODRMember(LHS.IsDefinition, LHS.Scope,
-                                    LHS.LinkageName, RHS);
+                                    LHS.LinkageName, LHS.TemplateParams, RHS);
   }
   static bool isSubsetEqual(const DISubprogram *LHS, const DISubprogram *RHS) {
     return isDeclarationOfODRMember(LHS->isDefinition(), LHS->getRawScope(),
-                                    LHS->getRawLinkageName(), RHS);
+                                    LHS->getRawLinkageName(),
+                                    LHS->getRawTemplateParams(), RHS);
   }
 
   /// Subprograms compare equal if they declare the same function in an ODR
   /// type.
   static bool isDeclarationOfODRMember(bool IsDefinition, const Metadata *Scope,
                                        const MDString *LinkageName,
+                                       const Metadata *TemplateParams,
                                        const DISubprogram *RHS) {
     // Check whether the LHS is eligible.
     if (IsDefinition || !Scope || !LinkageName)
@@ -633,8 +641,14 @@ template <> struct MDNodeSubsetEqualImpl<DISubprogram> {
       return false;
 
     // Compare to the RHS.
+    // FIXME: We need to compare template parameters here to avoid incorrect
+    // collisions in mapMetadata when RF_MoveDistinctMDs and a ODR-DISubprogram
+    // has a non-ODR template parameter (i.e., a DICompositeType that does not
+    // have an identifier). Eventually we should decouple ODR logic from
+    // uniquing logic.
     return IsDefinition == RHS->isDefinition() && Scope == RHS->getRawScope() &&
-           LinkageName == RHS->getRawLinkageName();
+           LinkageName == RHS->getRawLinkageName() &&
+           TemplateParams == RHS->getRawTemplateParams();
   }
 };
 
@@ -1105,7 +1119,7 @@ public:
   FPMapTy FPConstants;
 
   FoldingSet<AttributeImpl> AttrsSet;
-  FoldingSet<AttributeSetImpl> AttrsLists;
+  FoldingSet<AttributeListImpl> AttrsLists;
   FoldingSet<AttributeSetNode> AttrsSetNodes;
 
   StringMap<MDString, BumpPtrAllocator> MDStringCache;

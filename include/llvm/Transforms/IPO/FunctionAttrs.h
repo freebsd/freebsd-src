@@ -20,6 +20,19 @@
 
 namespace llvm {
 
+class AAResults;
+
+/// The three kinds of memory access relevant to 'readonly' and
+/// 'readnone' attributes.
+enum MemoryAccessKind {
+  MAK_ReadNone = 0,
+  MAK_ReadOnly = 1,
+  MAK_MayWrite = 2
+};
+
+/// Returns the memory access properties of this copy of the function.
+MemoryAccessKind computeFunctionBodyMemoryAccess(Function &F, AAResults &AAR);
+
 /// Computes function attributes in post-order over the call graph.
 ///
 /// By operating in post-order, this pass computes precise attributes for
@@ -43,7 +56,7 @@ Pass *createPostOrderFunctionAttrsLegacyPass();
 /// This pass provides a general RPO or "top down" propagation of
 /// function attributes. For a few (rare) cases, we can deduce significantly
 /// more about function attributes by working in RPO, so this pass
-/// provides the compliment to the post-order pass above where the majority of
+/// provides the complement to the post-order pass above where the majority of
 /// deduction is performed.
 // FIXME: Currently there is no RPO CGSCC pass structure to slide into and so
 // this is a boring module pass, but eventually it should be an RPO CGSCC pass

@@ -31,6 +31,7 @@ class InstSI <dag outs, dag ins, string asm = "",
   field bit VOP2 = 0;
   field bit VOPC = 0;
   field bit VOP3 = 0;
+  field bit VOP3P = 0;
   field bit VINTRP = 0;
   field bit SDWA = 0;
   field bit DPP = 0;
@@ -78,6 +79,10 @@ class InstSI <dag outs, dag ins, string asm = "",
   // is unable to infer the encoding from the operands.
   field bit VOPAsmPrefer32Bit = 0;
 
+  // This bit indicates that this has a floating point result type, so
+  // the clamp modifier has floating point semantics.
+  field bit FPClamp = 0;
+
   // These need to be kept in sync with the enum in SIInstrFlags.
   let TSFlags{0} = SALU;
   let TSFlags{1} = VALU;
@@ -92,6 +97,7 @@ class InstSI <dag outs, dag ins, string asm = "",
   let TSFlags{8} = VOP2;
   let TSFlags{9} = VOPC;
   let TSFlags{10} = VOP3;
+  let TSFlags{12} = VOP3P;
 
   let TSFlags{13} = VINTRP;
   let TSFlags{14} = SDWA;
@@ -120,6 +126,7 @@ class InstSI <dag outs, dag ins, string asm = "",
   let TSFlags{39} = ScalarStore;
   let TSFlags{40} = FixedSize;
   let TSFlags{41} = VOPAsmPrefer32Bit;
+  let TSFlags{42} = FPClamp;
 
   let SchedRW = [Write32Bit];
 
@@ -131,19 +138,19 @@ class InstSI <dag outs, dag ins, string asm = "",
   let AsmVariantName = AMDGPUAsmVariants.Default;
 }
 
-class PseudoInstSI<dag outs, dag ins, list<dag> pattern = []>
-  : InstSI<outs, ins, "", pattern> {
+class PseudoInstSI<dag outs, dag ins, list<dag> pattern = [], string asm = "">
+  : InstSI<outs, ins, asm, pattern> {
   let isPseudo = 1;
   let isCodeGenOnly = 1;
 }
 
-class SPseudoInstSI<dag outs, dag ins, list<dag> pattern = []>
-  : PseudoInstSI<outs, ins, pattern> {
+class SPseudoInstSI<dag outs, dag ins, list<dag> pattern = [], string asm = "">
+  : PseudoInstSI<outs, ins, pattern, asm> {
   let SALU = 1;
 }
 
-class VPseudoInstSI<dag outs, dag ins, list<dag> pattern = []>
-  : PseudoInstSI<outs, ins, pattern> {
+class VPseudoInstSI<dag outs, dag ins, list<dag> pattern = [], string asm = "">
+  : PseudoInstSI<outs, ins, pattern, asm> {
   let VALU = 1;
   let Uses = [EXEC];
 }

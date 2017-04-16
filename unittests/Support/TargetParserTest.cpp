@@ -17,17 +17,17 @@ using namespace llvm;
 
 namespace {
 const char *ARMArch[] = {
-    "armv2",        "armv2a",      "armv3",        "armv3m",      "armv4",
-    "armv4t",       "armv5",       "armv5t",       "armv5e",      "armv5te",
-    "armv5tej",     "armv6",       "armv6j",       "armv6k",      "armv6hl",
-    "armv6t2",      "armv6kz",     "armv6z",       "armv6zk",     "armv6-m",
-    "armv6m",       "armv6sm",     "armv6s-m",     "armv7-a",     "armv7",
-    "armv7a",       "armv7hl",     "armv7l",       "armv7-r",     "armv7r",
-    "armv7-m",      "armv7m",      "armv7k",       "armv7s",      "armv7e-m",
-    "armv7em",      "armv8-a",     "armv8",        "armv8a",      "armv8.1-a",
-    "armv8.1a",     "armv8.2-a",   "armv8.2a",     "armv8-r",     "armv8r",
-    "armv8-m.base", "armv8m.base", "armv8-m.main", "armv8m.main", "iwmmxt",
-    "iwmmxt2",      "xscale"};
+    "armv2",     "armv2a",       "armv3",       "armv3m",       "armv4",
+    "armv4t",    "armv5",        "armv5t",      "armv5e",       "armv5te",
+    "armv5tej",  "armv6",        "armv6j",      "armv6k",       "armv6hl",
+    "armv6t2",   "armv6kz",      "armv6z",      "armv6zk",      "armv6-m",
+    "armv6m",    "armv6sm",      "armv6s-m",    "armv7-a",      "armv7",
+    "armv7a",    "armv7ve",      "armv7hl",     "armv7l",       "armv7-r",
+    "armv7r",    "armv7-m",      "armv7m",      "armv7k",       "armv7s",
+    "armv7e-m",  "armv7em",      "armv8-a",     "armv8",        "armv8a",
+    "armv8.1-a", "armv8.1a",     "armv8.2-a",   "armv8.2a",     "armv8-r",
+    "armv8r",    "armv8-m.base", "armv8m.base", "armv8-m.main", "armv8m.main",
+    "iwmmxt",    "iwmmxt2",      "xscale"};
 
 bool testARMCPU(StringRef CPUName, StringRef ExpectedArch,
                 StringRef ExpectedFPU, unsigned ExpectedFlags,
@@ -246,6 +246,10 @@ TEST(TargetParserTest, testARMCPU) {
                          ARM::AEK_VIRT | ARM::AEK_HWDIVARM |
                          ARM::AEK_HWDIV | ARM::AEK_DSP,
                          "8-A"));
+  EXPECT_TRUE(testARMCPU("cortex-m23", "armv8-m.base", "none",
+                         ARM::AEK_HWDIV, "8-M.Baseline"));
+  EXPECT_TRUE(testARMCPU("cortex-m33", "armv8-m.main", "fpv5-sp-d16",
+                         ARM::AEK_HWDIV | ARM::AEK_DSP, "8-M.Mainline"));
   EXPECT_TRUE(testARMCPU("iwmmxt", "iwmmxt", "none",
                          ARM::AEK_NONE, "iwmmxt"));
   EXPECT_TRUE(testARMCPU("xscale", "xscale", "none",
@@ -309,6 +313,9 @@ TEST(TargetParserTest, testARMArch) {
                           ARMBuildAttrs::CPUArch::v6_M));
   EXPECT_TRUE(
       testARMArch("armv7-a", "cortex-a8", "v7",
+                          ARMBuildAttrs::CPUArch::v7));
+  EXPECT_TRUE(
+      testARMArch("armv7ve", "generic", "v7ve",
                           ARMBuildAttrs::CPUArch::v7));
   EXPECT_TRUE(
       testARMArch("armv7-r", "cortex-r4", "v7r",
@@ -498,12 +505,12 @@ TEST(TargetParserTest, ARMparseHWDiv) {
 
 TEST(TargetParserTest, ARMparseArchEndianAndISA) {
   const char *Arch[] = {
-      "v2",    "v2a",    "v3",    "v3m",  "v4",   "v4t",  "v5",    "v5t",
-      "v5e",   "v5te",   "v5tej", "v6",   "v6j",  "v6k",  "v6hl",  "v6t2",
-      "v6kz",  "v6z",    "v6zk",  "v6-m", "v6m",  "v6sm", "v6s-m", "v7-a",
-      "v7",    "v7a",    "v7hl",  "v7l",  "v7-r", "v7r",  "v7-m",  "v7m",
-      "v7k",   "v7s",    "v7e-m", "v7em", "v8-a", "v8",   "v8a",   "v8.1-a",
-      "v8.1a", "v8.2-a", "v8.2a", "v8-r"};
+      "v2",     "v2a",   "v3",     "v3m",   "v4",   "v4t",  "v5",    "v5t",
+      "v5e",    "v5te",  "v5tej",  "v6",    "v6j",  "v6k",  "v6hl",  "v6t2",
+      "v6kz",   "v6z",   "v6zk",   "v6-m",  "v6m",  "v6sm", "v6s-m", "v7-a",
+      "v7",     "v7a",   "v7ve",   "v7hl",  "v7l",  "v7-r", "v7r",   "v7-m",
+      "v7m",    "v7k",   "v7s",    "v7e-m", "v7em", "v8-a", "v8",    "v8a",
+      "v8.1-a", "v8.1a", "v8.2-a", "v8.2a", "v8-r"};
 
   for (unsigned i = 0; i < array_lengthof(Arch); i++) {
     std::string arm_1 = "armeb" + (std::string)(Arch[i]);
@@ -555,6 +562,7 @@ TEST(TargetParserTest, ARMparseArchProfile) {
       EXPECT_EQ(ARM::PK_R, ARM::parseArchProfile(ARMArch[i]));
       continue;
     case ARM::AK_ARMV7A:
+    case ARM::AK_ARMV7VE:
     case ARM::AK_ARMV7K:
     case ARM::AK_ARMV8A:
     case ARM::AK_ARMV8_1A:
@@ -635,8 +643,29 @@ TEST(TargetParserTest, testAArch64CPU) {
       "kryo", "armv8-a", "crypto-neon-fp-armv8",
       AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_SIMD, "8-A"));
   EXPECT_TRUE(testAArch64CPU(
-      "vulcan", "armv8.1-a", "crypto-neon-fp-armv8",
-      AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_SIMD, "8.1-A"));
+      "thunderx2t99", "armv8.1-a", "crypto-neon-fp-armv8",
+      AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_LSE |
+      AArch64::AEK_SIMD, "8.1-A"));
+  EXPECT_TRUE(testAArch64CPU(
+      "thunderx", "armv8-a", "crypto-neon-fp-armv8",
+      AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_SIMD |
+      AArch64::AEK_FP | AArch64::AEK_PROFILE,
+      "8-A"));
+  EXPECT_TRUE(testAArch64CPU(
+      "thunderxt81", "armv8-a", "crypto-neon-fp-armv8",
+      AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_SIMD |
+      AArch64::AEK_FP | AArch64::AEK_PROFILE,
+      "8-A"));
+  EXPECT_TRUE(testAArch64CPU(
+      "thunderxt83", "armv8-a", "crypto-neon-fp-armv8",
+      AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_SIMD |
+      AArch64::AEK_FP | AArch64::AEK_PROFILE,
+      "8-A"));
+  EXPECT_TRUE(testAArch64CPU(
+      "thunderxt88", "armv8-a", "crypto-neon-fp-armv8",
+      AArch64::AEK_CRC | AArch64::AEK_CRYPTO | AArch64::AEK_SIMD |
+      AArch64::AEK_FP | AArch64::AEK_PROFILE,
+      "8-A"));
 }
 
 bool testAArch64Arch(StringRef Arch, StringRef DefaultCPU, StringRef SubArch,
@@ -672,7 +701,11 @@ TEST(TargetParserTest, testAArch64Extension) {
   EXPECT_FALSE(testAArch64Extension("cyclone", 0, "ras"));
   EXPECT_FALSE(testAArch64Extension("exynos-m1", 0, "ras"));
   EXPECT_FALSE(testAArch64Extension("kryo", 0, "ras"));
-  EXPECT_FALSE(testAArch64Extension("vulcan", 0, "ras"));
+  EXPECT_FALSE(testAArch64Extension("thunderx2t99", 0, "ras"));
+  EXPECT_FALSE(testAArch64Extension("thunderx", 0, "lse"));
+  EXPECT_FALSE(testAArch64Extension("thunderxt81", 0, "lse"));
+  EXPECT_FALSE(testAArch64Extension("thunderxt83", 0, "lse"));
+  EXPECT_FALSE(testAArch64Extension("thunderxt88", 0, "lse"));
 
   EXPECT_FALSE(testAArch64Extension(
       "generic", static_cast<unsigned>(AArch64::ArchKind::AK_ARMV8A), "ras"));

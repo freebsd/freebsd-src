@@ -558,7 +558,7 @@ bool InlineSpiller::reMaterializeFor(LiveInterval &VirtReg, MachineInstr &MI) {
       Edit->rematerializeAt(*MI.getParent(), MI, NewVReg, RM, TRI);
 
   // We take the DebugLoc from MI, since OrigMI may be attributed to a
-  // different source location. 
+  // different source location.
   auto *NewMI = LIS.getInstructionFromIndex(DefIdx);
   NewMI->setDebugLoc(MI.getDebugLoc());
 
@@ -686,7 +686,8 @@ bool InlineSpiller::coalesceStackAccess(MachineInstr *MI, unsigned Reg) {
   return true;
 }
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD
 // Dump the range of instructions from B to E with their slot indexes.
 static void dumpMachineInstrRangeWithSlotIndex(MachineBasicBlock::iterator B,
                                                MachineBasicBlock::iterator E,

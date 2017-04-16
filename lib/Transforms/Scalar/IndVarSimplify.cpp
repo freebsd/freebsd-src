@@ -231,8 +231,9 @@ static bool ConvertToSInt(const APFloat &APF, int64_t &IntVal) {
   bool isExact = false;
   // See if we can convert this to an int64_t
   uint64_t UIntVal;
-  if (APF.convertToInteger(&UIntVal, 64, true, APFloat::rmTowardZero,
-                           &isExact) != APFloat::opOK || !isExact)
+  if (APF.convertToInteger(makeMutableArrayRef(UIntVal), 64, true,
+                           APFloat::rmTowardZero, &isExact) != APFloat::opOK ||
+      !isExact)
     return false;
   IntVal = UIntVal;
   return true;
@@ -906,7 +907,7 @@ class WidenIV {
   SmallVector<NarrowIVDefUse, 8> NarrowIVUsers;
 
   enum ExtendKind { ZeroExtended, SignExtended, Unknown };
-  // A map tracking the kind of extension used to widen each narrow IV 
+  // A map tracking the kind of extension used to widen each narrow IV
   // and narrow IV user.
   // Key: pointer to a narrow IV or IV user.
   // Value: the kind of extension used to widen this Instruction.
@@ -1608,7 +1609,7 @@ void WidenIV::calculatePostIncRange(Instruction *NarrowDef,
       return;
 
     CmpInst::Predicate P =
-            TrueDest ? Pred : CmpInst::getInversePredicate(Pred);  
+            TrueDest ? Pred : CmpInst::getInversePredicate(Pred);
 
     auto CmpRHSRange = SE->getSignedRange(SE->getSCEV(CmpRHS));
     auto CmpConstrainedLHSRange =
@@ -1634,7 +1635,7 @@ void WidenIV::calculatePostIncRange(Instruction *NarrowDef,
   UpdateRangeFromGuards(NarrowUser);
 
   BasicBlock *NarrowUserBB = NarrowUser->getParent();
-  // If NarrowUserBB is statically unreachable asking dominator queries may 
+  // If NarrowUserBB is statically unreachable asking dominator queries may
   // yield surprising results. (e.g. the block may not have a dom tree node)
   if (!DT->isReachableFromEntry(NarrowUserBB))
     return;
@@ -2152,6 +2153,8 @@ linearFunctionTestReplace(Loop *L,
   Value *CmpIndVar = IndVar;
   const SCEV *IVCount = BackedgeTakenCount;
 
+  assert(L->getLoopLatch() && "Loop no longer in simplified form?");
+
   // If the exiting block is the same as the backedge block, we prefer to
   // compare against the post-incremented value, otherwise we must compare
   // against the preincremented value.
@@ -2376,6 +2379,7 @@ bool IndVarSimplify::run(Loop *L) {
   //    Loop::getCanonicalInductionVariable only supports loops with preheaders,
   //    and we're in trouble if we can't find the induction variable even when
   //    we've manually inserted one.
+  //  - LFTR relies on having a single backedge.
   if (!L->isLoopSimplifyForm())
     return false;
 
@@ -2492,8 +2496,9 @@ PreservedAnalyses IndVarSimplifyPass::run(Loop &L, LoopAnalysisManager &AM,
   if (!IVS.run(&L))
     return PreservedAnalyses::all();
 
-  // FIXME: This should also 'preserve the CFG'.
-  return getLoopPassPreservedAnalyses();
+  auto PA = getLoopPassPreservedAnalyses();
+  PA.preserveSet<CFGAnalyses>();
+  return PA;
 }
 
 namespace {

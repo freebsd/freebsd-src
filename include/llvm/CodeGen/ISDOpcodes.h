@@ -245,6 +245,12 @@ namespace ISD {
     /// Simple binary floating point operators.
     FADD, FSUB, FMUL, FDIV, FREM,
 
+    /// Constrained versions of the binary floating point operators.
+    /// These will be lowered to the simple operators before final selection.
+    /// They are used to limit optimizations while the DAG is being
+    /// optimized.
+    STRICT_FADD, STRICT_FSUB, STRICT_FMUL, STRICT_FDIV, STRICT_FREM,
+
     /// FMA - Perform a * b + c with no intermediate rounding step.
     FMA,
 
@@ -281,7 +287,8 @@ namespace ISD {
     /// EXTRACT_VECTOR_ELT(VECTOR, IDX) - Returns a single element from VECTOR
     /// identified by the (potentially variable) element number IDX.  If the
     /// return type is an integer type larger than the element type of the
-    /// vector, the result is extended to the width of the return type.
+    /// vector, the result is extended to the width of the return type. In
+    /// that case, the high bits are undefined.
     EXTRACT_VECTOR_ELT,
 
     /// CONCAT_VECTORS(VECTOR0, VECTOR1, ...) - Given a number of values of
@@ -331,6 +338,12 @@ namespace ISD {
 
     /// Bitwise operators - logical and, logical or, logical xor.
     AND, OR, XOR,
+
+    /// ABS - Determine the unsigned absolute value of a signed integer value of
+    /// the same bitwidth.
+    /// Note: A value of INT_MIN will return INT_MIN, no saturation or overflow
+    /// is performed.
+    ABS,
 
     /// Shift and rotation operations.  After legalization, the type of the
     /// shift amount is known to be TLI.getShiftAmountTy().  Before legalization
@@ -801,9 +814,10 @@ namespace ISD {
     PRE_INC,
     PRE_DEC,
     POST_INC,
-    POST_DEC,
-    LAST_INDEXED_MODE
+    POST_DEC
   };
+
+  static const int LAST_INDEXED_MODE = POST_DEC + 1;
 
   //===--------------------------------------------------------------------===//
   /// LoadExtType enum - This enum defines the three variants of LOADEXT
@@ -819,9 +833,10 @@ namespace ISD {
     NON_EXTLOAD = 0,
     EXTLOAD,
     SEXTLOAD,
-    ZEXTLOAD,
-    LAST_LOADEXT_TYPE
+    ZEXTLOAD
   };
+
+  static const int LAST_LOADEXT_TYPE = ZEXTLOAD + 1;
 
   NodeType getExtForLoadExtType(bool IsFP, LoadExtType);
 

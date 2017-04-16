@@ -120,12 +120,11 @@ void LivePhysRegs::print(raw_ostream &OS) const {
   OS << "\n";
 }
 
-/// Dumps the currently live registers to the debug output.
-LLVM_DUMP_METHOD void LivePhysRegs::dump() const {
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD void LivePhysRegs::dump() const {
   dbgs() << "  " << *this;
-#endif
 }
+#endif
 
 bool LivePhysRegs::available(const MachineRegisterInfo &MRI,
                              unsigned Reg) const {
@@ -161,7 +160,9 @@ void LivePhysRegs::addBlockLiveIns(const MachineBasicBlock &MBB) {
 static void addPristines(LivePhysRegs &LiveRegs, const MachineFunction &MF,
                          const MachineFrameInfo &MFI,
                          const TargetRegisterInfo &TRI) {
-  for (const MCPhysReg *CSR = TRI.getCalleeSavedRegs(&MF); CSR && *CSR; ++CSR)
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
+  for (const MCPhysReg *CSR = MRI.getCalleeSavedRegs(); CSR && *CSR;
+       ++CSR)
     LiveRegs.addReg(*CSR);
   for (const CalleeSavedInfo &Info : MFI.getCalleeSavedInfo())
     LiveRegs.removeReg(Info.getReg());
@@ -180,7 +181,8 @@ void LivePhysRegs::addLiveOuts(const MachineBasicBlock &MBB) {
     if (MBB.isReturnBlock()) {
       // The return block has no successors whose live-ins we could merge
       // below. So instead we add the callee saved registers manually.
-      for (const MCPhysReg *I = TRI->getCalleeSavedRegs(&MF); *I; ++I)
+      const MachineRegisterInfo &MRI = MF.getRegInfo();
+      for (const MCPhysReg *I = MRI.getCalleeSavedRegs(); *I; ++I)
         addReg(*I);
     } else {
       addPristines(*this, MF, MFI, *TRI);
