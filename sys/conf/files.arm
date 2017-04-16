@@ -61,7 +61,10 @@ arm/arm/intr.c			optional	!intrng
 kern/subr_intr.c		optional	intrng
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
+arm/arm/machdep_boot.c		standard
+arm/arm/machdep_kdb.c		standard
 arm/arm/machdep_intr.c		standard
+arm/arm/machdep_ptrace.c	standard
 arm/arm/mem.c			optional	mem
 arm/arm/minidump_machdep.c	optional	mem
 arm/arm/mp_machdep.c		optional	smp
