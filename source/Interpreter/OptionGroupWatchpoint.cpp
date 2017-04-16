@@ -13,8 +13,8 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/Args.h"
-#include "lldb/Utility/Utils.h"
 #include "lldb/lldb-enumerations.h"
 
 using namespace lldb;

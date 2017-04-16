@@ -25,6 +25,7 @@ all_categories = {
     'dsym': 'Tests that can be run with DSYM debug information',
     'gmodules': 'Tests that can be run with -gmodules debug information',
     'expression': 'Tests related to the expression parser',
+    'libc++': 'Test for libc++ data formatters',
     'objc': 'Tests related to the Objective-C programming language support',
     'pyapi': 'Tests related to the Python API',
     'basic_process': 'Basic process execution sniff tests.',
@@ -32,7 +33,8 @@ all_categories = {
     'dyntype': 'Tests related to dynamic type support',
     'stresstest': 'Tests related to stressing lldb limits',
     'flakey': 'Flakey test cases, i.e. tests that do not reliably pass at each execution',
-    'lldb-mi': 'lldb-mi tests'}
+    'lldb-mi': 'lldb-mi tests',
+    'darwin-log': 'Darwin log tests'}
 
 
 def unique_string_match(yourentry, list):
@@ -46,7 +48,7 @@ def unique_string_match(yourentry, list):
     return candidate
 
 
-def is_supported_on_platform(category, platform, compiler_paths):
+def is_supported_on_platform(category, platform, compiler_path):
     if category == "dwo":
         # -gsplit-dwarf is not implemented by clang on Windows.
         return platform in ["linux", "freebsd"]
@@ -56,17 +58,7 @@ def is_supported_on_platform(category, platform, compiler_paths):
         # First, check to see if the platform can even support gmodules.
         if platform not in ["linux", "freebsd", "darwin", "macosx", "ios"]:
             return False
-        # If all compilers specified support gmodules, we'll enable it.
-        for compiler_path in compiler_paths:
-            if not gmodules.is_compiler_clang_with_gmodules(compiler_path):
-                # Ideally in a multi-compiler scenario during a single test run, this would
-                # allow gmodules on compilers that support it and not on ones that don't.
-                # However, I didn't see an easy way for all the callers of this to know
-                # the compiler being used for a test invocation.  As we tend to run with
-                # a single compiler per test run, this shouldn't be a major
-                # issue.
-                return False
-        return True
+        return gmodules.is_compiler_clang_with_gmodules(compiler_path)
     return True
 
 

@@ -9,31 +9,30 @@
 
 #include "lldb/Core/ArchSpec.h"
 
-// C Includes
-// C++ Includes
-#include <cerrno>
-#include <cstdio>
-#include <string>
-
-// Other libraries and framework includes
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/COFF.h"
-#include "llvm/Support/ELF.h"
-#include "llvm/Support/Host.h"
-
-// Project includes
-#include "Plugins/Process/Utility/ARMDefines.h"
-#include "Plugins/Process/Utility/InstructionUtils.h"
-#include "lldb/Core/RegularExpression.h"
-#include "lldb/Core/StringList.h"
-#include "lldb/Host/Endian.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Platform.h"
-#include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/NameMatches.h"
-#include "lldb/Utility/SafeMachO.h"
+#include "lldb/Utility/Stream.h" // for Stream
+#include "lldb/Utility/StringList.h"
+#include "lldb/lldb-defines.h" // for LLDB_INVALID_C...
+#include "lldb/lldb-forward.h" // for RegisterContextSP
+
+#include "Plugins/Process/Utility/ARMDefines.h"
+#include "Plugins/Process/Utility/InstructionUtils.h"
+
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Twine.h" // for Twine
+#include "llvm/Support/COFF.h"
+#include "llvm/Support/Compiler.h" // for LLVM_FALLTHROUGH
+#include "llvm/Support/ELF.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/MachO.h" // for CPUType::CPU_T...
+
+#include <memory> // for shared_ptr
+#include <string>
+#include <tuple> // for tie, tuple
 
 using namespace lldb;
 using namespace lldb_private;
@@ -259,7 +258,7 @@ struct ArchDefinition {
 size_t ArchSpec::AutoComplete(llvm::StringRef name, StringList &matches) {
   if (!name.empty()) {
     for (uint32_t i = 0; i < llvm::array_lengthof(g_core_definitions); ++i) {
-      if (NameMatches(g_core_definitions[i].name, eNameMatchStartsWith, name))
+      if (NameMatches(g_core_definitions[i].name, NameMatch::StartsWith, name))
         matches.AppendString(g_core_definitions[i].name);
     }
   } else {
@@ -657,7 +656,7 @@ void ArchSpec::SetFlags(std::string elf_abi) {
   SetFlags(flag);
 }
 
-std::string ArchSpec::GetClangTargetCPU() {
+std::string ArchSpec::GetClangTargetCPU() const {
   std::string cpu;
   const llvm::Triple::ArchType machine = GetMachine();
 
@@ -1380,7 +1379,7 @@ static bool cores_match(const ArchSpec::Core core1, const ArchSpec::Core core2,
       if (core2 >= ArchSpec::kCore_mips32el_first &&
           core2 <= ArchSpec::kCore_mips32el_last)
         return true;
-      try_inverse = false;
+      try_inverse = true;
     }
     break;
 

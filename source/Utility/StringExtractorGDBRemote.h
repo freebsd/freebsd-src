@@ -10,12 +10,13 @@
 #ifndef utility_StringExtractorGDBRemote_h_
 #define utility_StringExtractorGDBRemote_h_
 
-// C Includes
-// C++ Includes
-#include <string>
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Utility/StringExtractor.h"
+#include "llvm/ADT/StringRef.h" // for StringRef
+
+#include <string>
+
+#include <stddef.h> // for size_t
+#include <stdint.h> // for uint8_t
 
 class StringExtractorGDBRemote : public StringExtractor {
 public:
@@ -96,6 +97,7 @@ public:
     // debug server packages
     eServerPacketType_QEnvironmentHexEncoded,
     eServerPacketType_QListThreadsInStopReply,
+    eServerPacketType_QPassSignals,
     eServerPacketType_QRestoreRegisterState,
     eServerPacketType_QSaveRegisterState,
     eServerPacketType_QSetLogging,

@@ -21,21 +21,21 @@
 
 // C++ Includes
 // Other libraries and framework includes
-#include "lldb/Core/Error.h"
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/Scalar.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/PseudoTerminal.h"
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/UnixSignals.h"
-#include "lldb/Utility/PseudoTerminal.h"
+#include "lldb/Utility/Error.h"
 
 #include "FreeBSDThread.h"
 #include "Plugins/Process/POSIX/CrashReason.h"
+#include "Plugins/Process/POSIX/ProcessPOSIXLog.h"
 #include "ProcessFreeBSD.h"
 #include "ProcessMonitor.h"
-#include "ProcessPOSIXLog.h"
 
 extern "C" {
 extern char **environ;
@@ -1141,11 +1141,19 @@ ProcessMessage ProcessMonitor::MonitorSIGTRAP(ProcessMonitor *monitor,
 
   case SI_KERNEL:
   case TRAP_BRKPT:
-    if (log)
-      log->Printf(
-          "ProcessMonitor::%s() received breakpoint event, tid = %" PRIu64,
-          __FUNCTION__, tid);
-    message = ProcessMessage::Break(tid);
+    if (monitor->m_process->IsSoftwareStepBreakpoint(tid)) {
+      if (log)
+        log->Printf("ProcessMonitor::%s() received sw single step breakpoint "
+                    "event, tid = %" PRIu64,
+                    __FUNCTION__, tid);
+      message = ProcessMessage::Trace(tid);
+    } else {
+      if (log)
+        log->Printf(
+            "ProcessMonitor::%s() received breakpoint event, tid = %" PRIu64,
+            __FUNCTION__, tid);
+      message = ProcessMessage::Break(tid);
+    }
     break;
   }
 

@@ -10,14 +10,15 @@
 #ifndef liblldb_NativeProcessProtocol_h_
 #define liblldb_NativeProcessProtocol_h_
 
-#include <mutex>
-#include <vector>
-
-#include "lldb/Core/Error.h"
 #include "lldb/Host/MainLoop.h"
+#include "lldb/Utility/Error.h"
 #include "lldb/lldb-private-forward.h"
 #include "lldb/lldb-types.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include <vector>
 
 #include "NativeBreakpointList.h"
 #include "NativeWatchpointList.h"
@@ -64,6 +65,12 @@ public:
 
   virtual Error Kill() = 0;
 
+  //------------------------------------------------------------------
+  // Tells a process not to stop the inferior on given signals
+  // and just reinject them back.
+  //------------------------------------------------------------------
+  virtual Error IgnoreSignals(llvm::ArrayRef<int> signals);
+
   //----------------------------------------------------------------------
   // Memory and memory region functions
   //----------------------------------------------------------------------
@@ -99,18 +106,28 @@ public:
   virtual Error SetBreakpoint(lldb::addr_t addr, uint32_t size,
                               bool hardware) = 0;
 
-  virtual Error RemoveBreakpoint(lldb::addr_t addr);
+  virtual Error RemoveBreakpoint(lldb::addr_t addr, bool hardware = false);
 
   virtual Error EnableBreakpoint(lldb::addr_t addr);
 
   virtual Error DisableBreakpoint(lldb::addr_t addr);
 
   //----------------------------------------------------------------------
+  // Hardware Breakpoint functions
+  //----------------------------------------------------------------------
+  virtual const HardwareBreakpointMap &GetHardwareBreakpointMap() const;
+
+  virtual Error SetHardwareBreakpoint(lldb::addr_t addr, size_t size);
+
+  virtual Error RemoveHardwareBreakpoint(lldb::addr_t addr);
+
+  //----------------------------------------------------------------------
   // Watchpoint functions
   //----------------------------------------------------------------------
   virtual const NativeWatchpointList::WatchpointMap &GetWatchpointMap() const;
 
-  virtual uint32_t GetMaxWatchpoints() const;
+  virtual llvm::Optional<std::pair<uint32_t, uint32_t>>
+  GetHardwareDebugSupportInfo() const;
 
   virtual Error SetWatchpoint(lldb::addr_t addr, size_t size,
                               uint32_t watch_flags, bool hardware);
@@ -133,6 +150,9 @@ public:
   bool CanResume() const { return m_state == lldb::eStateStopped; }
 
   bool GetByteOrder(lldb::ByteOrder &byte_order) const;
+
+  virtual llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
+  GetAuxvData() const = 0;
 
   //----------------------------------------------------------------------
   // Exit Status
@@ -305,8 +325,13 @@ protected:
   std::vector<NativeDelegate *> m_delegates;
   NativeBreakpointList m_breakpoint_list;
   NativeWatchpointList m_watchpoint_list;
+  HardwareBreakpointMap m_hw_breakpoints_map;
   int m_terminal_fd;
   uint32_t m_stop_id;
+
+  // Set of signal numbers that LLDB directly injects back to inferior
+  // without stopping it.
+  llvm::DenseSet<int> m_signals_to_ignore;
 
   // lldb_private::Host calls should be used to launch a process for debugging,
   // and

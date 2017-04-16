@@ -10,14 +10,15 @@
 #ifndef liblldb_ObjectFile_h_
 #define liblldb_ObjectFile_h_
 
-#include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/FileSpecList.h"
 #include "lldb/Core/ModuleChild.h"
 #include "lldb/Core/PluginInterface.h"
-#include "lldb/Host/Endian.h"
-#include "lldb/Host/FileSpec.h"
 #include "lldb/Symbol/Symtab.h"
 #include "lldb/Symbol/UnwindTable.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Endian.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/UUID.h"
 #include "lldb/lldb-private.h"
 
 namespace lldb_private {
@@ -563,6 +564,45 @@ public:
 
   virtual uint32_t GetNumThreadContexts() { return 0; }
 
+  //------------------------------------------------------------------
+  /// Some object files may have an identifier string embedded in them,
+  /// e.g. in a Mach-O core file using the LC_IDENT load command (which 
+  /// is obsolete, but can still be found in some old files)
+  ///
+  /// @return
+  ///     Returns the identifier string if one exists, else an empty
+  ///     string.
+  //------------------------------------------------------------------
+  virtual std::string GetIdentifierString () { 
+      return std::string(); 
+  }
+
+  //------------------------------------------------------------------
+  /// When the ObjectFile is a core file, lldb needs to locate the
+  /// "binary" in the core file.  lldb can iterate over the pages looking
+  /// for a valid binary, but some core files may have metadata 
+  /// describing where the main binary is exactly which removes ambiguity
+  /// when there are multiple binaries present in the captured memory pages.
+  ///
+  /// @param[out] address
+  ///   If the address of the binary is specified, this will be set.
+  ///   This is an address is the virtual address space of the core file
+  ///   memory segments; it is not an offset into the object file.
+  ///   If no address is available, will be set to LLDB_INVALID_ADDRESS.
+  ///
+  /// @param[out] uuid
+  ///   If the uuid of the binary is specified, this will be set.
+  ///   If no UUID is available, will be cleared.
+  ///
+  /// @return
+  ///   Returns true if either address or uuid has been set.
+  //------------------------------------------------------------------
+  virtual bool GetCorefileMainBinaryInfo (lldb::addr_t &address, UUID &uuid) {
+      address = LLDB_INVALID_ADDRESS;
+      uuid.Clear();
+      return false;
+  }
+
   virtual lldb::RegisterContextSP
   GetThreadContextAtIndex(uint32_t idx, lldb_private::Thread &thread) {
     return lldb::RegisterContextSP();
@@ -773,6 +813,20 @@ public:
   static lldb::SymbolType GetSymbolTypeFromName(
       llvm::StringRef name,
       lldb::SymbolType symbol_type_hint = lldb::eSymbolTypeUndefined);
+
+  //------------------------------------------------------------------
+  /// Loads this objfile to memory.
+  ///
+  /// Loads the bits needed to create an executable image to the memory.
+  /// It is useful with bare-metal targets where target does not have the
+  /// ability to start a process itself.
+  ///
+  /// @param[in] target
+  ///     Target where to load.
+  ///
+  /// @return
+  //------------------------------------------------------------------
+  virtual Error LoadInMemory(Target &target, bool set_pc);
 
 protected:
   //------------------------------------------------------------------

@@ -1,9 +1,20 @@
+add_subdirectory(Mocks)
+
 add_lldb_unittest(UtilityTests
-  ModuleCacheTest.cpp
+  ConstStringTest.cpp
+  ErrorTest.cpp
+  LogTest.cpp
+  NameMatchesTest.cpp
   StringExtractorTest.cpp
   TaskPoolTest.cpp
+  TildeExpressionResolverTest.cpp
   TimeoutTest.cpp
   UriParserTest.cpp
-  )
+  VASprintfTest.cpp
 
-add_unittest_inputs(UtilityTests TestModule.so)
+  LINK_LIBS
+      lldbUtility
+      lldbUtilityMocks
+  LINK_COMPONENTS
+    Support
+  )

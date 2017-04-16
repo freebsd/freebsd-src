@@ -8,13 +8,13 @@
 //===----------------------------------------------------------------------===//
 
 // Other libraries and framework includes
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/common/TCPSocket.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/UriParser.h"
 
 #include "PlatformAndroidRemoteGDBServer.h"
-#include "Utility/UriParser.h"
 
 #include <sstream>
 

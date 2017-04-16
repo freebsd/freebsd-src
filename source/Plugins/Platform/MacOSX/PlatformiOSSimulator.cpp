@@ -16,18 +16,20 @@
 // Project includes
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/ArchSpec.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/StreamString.h"
-#include "lldb/Host/FileSpec.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/StreamString.h"
+
+#include "llvm/Support/FileSystem.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -252,9 +254,9 @@ Error PlatformiOSSimulator::ResolveExecutable(
 }
 
 static FileSpec::EnumerateDirectoryResult
-EnumerateDirectoryCallback(void *baton, FileSpec::FileType file_type,
+EnumerateDirectoryCallback(void *baton, llvm::sys::fs::file_type ft,
                            const FileSpec &file_spec) {
-  if (file_type == FileSpec::eFileTypeDirectory) {
+  if (ft == llvm::sys::fs::file_type::directory_file) {
     const char *filename = file_spec.GetFilename().GetCString();
     if (filename &&
         strncmp(filename, "iPhoneSimulator", strlen("iPhoneSimulator")) == 0) {

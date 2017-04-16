@@ -17,6 +17,7 @@
 #include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/Mangled.h"
 #include "lldb/Core/Module.h"
+#include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectMemory.h"
@@ -221,18 +222,20 @@ bool StackFrame::ChangePC(addr_t pc) {
 
 const char *StackFrame::Disassemble() {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
-  if (m_disassembly.Empty())
-    return nullptr;
-
-  ExecutionContext exe_ctx(shared_from_this());
-  Target *target = exe_ctx.GetTargetPtr();
-  if (target) {
-    const char *plugin_name = nullptr;
-    const char *flavor = nullptr;
-    Disassembler::Disassemble(target->GetDebugger(), target->GetArchitecture(),
-                              plugin_name, flavor, exe_ctx, 0, false, 0, 0,
-                              m_disassembly);
+  if (m_disassembly.Empty()) {
+    ExecutionContext exe_ctx(shared_from_this());
+    Target *target = exe_ctx.GetTargetPtr();
+    if (target) {
+      const char *plugin_name = nullptr;
+      const char *flavor = nullptr;
+      Disassembler::Disassemble(target->GetDebugger(),
+                                target->GetArchitecture(), plugin_name, flavor,
+                                exe_ctx, 0, false, 0, 0, m_disassembly);
+    }
+    if (m_disassembly.Empty())
+      return nullptr;
   }
+
   return m_disassembly.GetData();
 }
 
@@ -425,7 +428,7 @@ VariableList *StackFrame::GetVariableList(bool get_file_globals) {
       m_variable_list_sp.reset(new VariableList());
       frame_block->AppendBlockVariables(can_create, get_child_variables,
                                         stop_if_child_block_is_inlined_function,
-                                        [this](Variable *v) { return true; },
+                                        [](Variable *v) { return true; },
                                         m_variable_list_sp.get());
     }
   }
@@ -604,8 +607,10 @@ ValueObjectSP StackFrame::GetValueForVariableExpressionPath(
     // Calculate the next separator index ahead of time
     ValueObjectSP child_valobj_sp;
     const char separator_type = var_expr[0];
+    bool expr_is_ptr = false;
     switch (separator_type) {
     case '-':
+      expr_is_ptr = true;
       if (var_expr.size() >= 2 && var_expr[1] != '>')
         return ValueObjectSP();
 
@@ -622,11 +627,32 @@ ValueObjectSP StackFrame::GetValueForVariableExpressionPath(
           return ValueObjectSP();
         }
       }
+
+      // If we have a non pointer type with a sythetic value then lets check if
+      // we have an sythetic dereference specified.
+      if (!valobj_sp->IsPointerType() && valobj_sp->HasSyntheticValue()) {
+        Error deref_error;
+        if (valobj_sp->GetCompilerType().IsReferenceType()) {
+          valobj_sp = valobj_sp->GetSyntheticValue()->Dereference(deref_error);
+          if (error.Fail()) {
+            error.SetErrorStringWithFormatv(
+                "Failed to dereference reference type: %s", deref_error);
+            return ValueObjectSP();
+          }
+        }
+
+        valobj_sp = valobj_sp->Dereference(deref_error);
+        if (error.Fail()) {
+          error.SetErrorStringWithFormatv(
+              "Failed to dereference sythetic value: %s", deref_error);
+          return ValueObjectSP();
+        }
+        expr_is_ptr = false;
+      }
+
       var_expr = var_expr.drop_front(); // Remove the '-'
       LLVM_FALLTHROUGH;
     case '.': {
-      const bool expr_is_ptr = var_expr[0] == '>';
-
       var_expr = var_expr.drop_front(); // Remove the '.' or '>'
       separator_idx = var_expr.find_first_of(".-[");
       ConstString child_name(var_expr.substr(0, var_expr.find_first_of(".-[")));
@@ -1186,9 +1212,14 @@ lldb::LanguageType StackFrame::GuessLanguage() {
   LanguageType lang_type = GetLanguage();
 
   if (lang_type == eLanguageTypeUnknown) {
-    Function *f = GetSymbolContext(eSymbolContextFunction).function;
-    if (f) {
-      lang_type = f->GetMangled().GuessLanguage();
+    SymbolContext sc = GetSymbolContext(eSymbolContextFunction 
+                                        | eSymbolContextSymbol);
+    if (sc.function) {
+      lang_type = sc.function->GetMangled().GuessLanguage();
+    }
+    else if (sc.symbol)
+    {
+      lang_type = sc.symbol->GetMangled().GuessLanguage();
     }
   }
 
@@ -1289,7 +1320,7 @@ lldb::ValueObjectSP StackFrame::GuessValueForAddress(lldb::addr_t addr) {
   DisassemblerSP disassembler_sp = Disassembler::DisassembleRange(
       target_arch, plugin_name, flavor, exe_ctx, pc_range, prefer_file_cache);
 
-  if (!disassembler_sp->GetInstructionList().GetSize()) {
+  if (!disassembler_sp || !disassembler_sp->GetInstructionList().GetSize()) {
     return ValueObjectSP();
   }
 

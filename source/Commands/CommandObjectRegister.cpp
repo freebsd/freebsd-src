@@ -14,10 +14,10 @@
 
 // Project includes
 #include "CommandObjectRegister.h"
-#include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/Scalar.h"
+#include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -31,6 +31,7 @@
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/DataExtractor.h"
 
 using namespace lldb;
 using namespace lldb_private;

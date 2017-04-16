@@ -28,7 +28,8 @@
 #endif
 
 #if defined(__linux__) || defined(__FreeBSD__) ||                              \
-    defined(__FreeBSD_kernel__) || defined(__APPLE__) || defined(__NetBSD__)
+    defined(__FreeBSD_kernel__) || defined(__APPLE__) ||                       \
+    defined(__NetBSD__) || defined(__OpenBSD__)
 #if !defined(__ANDROID__)
 #include <spawn.h>
 #endif
@@ -40,16 +41,16 @@
 #include <pthread_np.h>
 #endif
 
+#if defined(__NetBSD__)
+#include <lwp.h>
+#endif
+
 // C++ Includes
 
 // Other libraries and framework includes
 // Project includes
 
 #include "lldb/Core/ArchSpec.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Log.h"
-#include "lldb/Host/FileSpec.h"
-#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/HostProcess.h"
@@ -61,14 +62,18 @@
 #include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/CleanUp.h"
+#include "lldb/Utility/DataBufferLLVM.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/Log.h"
 #include "lldb/lldb-private-forward.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
 
 #if defined(_WIN32)
 #include "lldb/Host/windows/ProcessLauncherWindows.h"
-#elif defined(__linux__)
-#include "lldb/Host/linux/ProcessLauncherLinux.h"
+#elif defined(__linux__) || defined(__NetBSD__)
+#include "lldb/Host/posix/ProcessLauncherPosixFork.h"
 #else
 #include "lldb/Host/posix/ProcessLauncherPosix.h"
 #endif
@@ -180,7 +185,7 @@ static thread_result_t MonitorChildProcessThreadFunction(void *arg) {
   delete info;
 
   int status = -1;
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)
 #define __WALL 0
 #endif
   const int options = __WALL;
@@ -309,25 +314,6 @@ void Host::SystemLog(SystemLogType type, const char *format, ...) {
 lldb::pid_t Host::GetCurrentProcessID() { return ::getpid(); }
 
 #ifndef _WIN32
-
-lldb::tid_t Host::GetCurrentThreadID() {
-#if defined(__APPLE__)
-  // Calling "mach_thread_self()" bumps the reference count on the thread
-  // port, so we need to deallocate it. mach_task_self() doesn't bump the ref
-  // count.
-  thread_port_t thread_self = mach_thread_self();
-  mach_port_deallocate(mach_task_self(), thread_self);
-  return thread_self;
-#elif defined(__FreeBSD__)
-  return lldb::tid_t(pthread_getthreadid_np());
-#elif defined(__ANDROID__)
-  return lldb::tid_t(gettid());
-#elif defined(__linux__)
-  return lldb::tid_t(syscall(SYS_gettid));
-#else
-  return lldb::tid_t(pthread_self());
-#endif
-}
 
 lldb::thread_t Host::GetCurrentThread() {
   return lldb::thread_t(pthread_self());
@@ -601,23 +587,22 @@ Error Host::RunShellCommand(const Args &args, const FileSpec &working_dir,
             error.SetErrorStringWithFormat(
                 "shell command output is too large to fit into a std::string");
           } else {
-            std::vector<char> command_output(file_size);
-            output_file_spec.ReadFileContents(0, command_output.data(),
-                                              file_size, &error);
+            auto Buffer =
+                DataBufferLLVM::CreateFromPath(output_file_spec.GetPath());
             if (error.Success())
-              command_output_ptr->assign(command_output.data(), file_size);
+              command_output_ptr->assign(Buffer->GetChars(),
+                                         Buffer->GetByteSize());
           }
         }
       }
     }
   }
 
-  if (FileSystem::GetFileExists(output_file_spec))
-    FileSystem::Unlink(output_file_spec);
+  llvm::sys::fs::remove(output_file_spec.GetPath());
   return error;
 }
 
-// LaunchProcessPosixSpawn for Apple, Linux, FreeBSD and other GLIBC
+// LaunchProcessPosixSpawn for Apple, Linux, FreeBSD, NetBSD and other GLIBC
 // systems
 
 #if defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) ||        \
@@ -679,10 +664,10 @@ Error Host::LaunchProcessPosixSpawn(const char *exe_path,
   posix_spawnattr_t attr;
   error.SetError(::posix_spawnattr_init(&attr), eErrorTypePOSIX);
 
-  if (error.Fail() || log)
-    error.PutToLog(log, "::posix_spawnattr_init ( &attr )");
-  if (error.Fail())
+  if (error.Fail()) {
+    LLDB_LOG(log, "error: {0}, ::posix_spawnattr_init ( &attr )", error);
     return error;
+  }
 
   // Make a quick class that will cleanup the posix spawn attributes in case
   // we return in the middle of this function.
@@ -694,7 +679,7 @@ Error Host::LaunchProcessPosixSpawn(const char *exe_path,
   sigemptyset(&no_signals);
   sigfillset(&all_signals);
   ::posix_spawnattr_setsigmask(&attr, &no_signals);
-#if defined(__linux__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__)
   ::posix_spawnattr_setsigdefault(&attr, &no_signals);
 #else
   ::posix_spawnattr_setsigdefault(&attr, &all_signals);
@@ -703,11 +688,12 @@ Error Host::LaunchProcessPosixSpawn(const char *exe_path,
   short flags = GetPosixspawnFlags(launch_info);
 
   error.SetError(::posix_spawnattr_setflags(&attr, flags), eErrorTypePOSIX);
-  if (error.Fail() || log)
-    error.PutToLog(log, "::posix_spawnattr_setflags ( &attr, flags=0x%8.8x )",
-                   flags);
-  if (error.Fail())
+  if (error.Fail()) {
+    LLDB_LOG(log,
+             "error: {0}, ::posix_spawnattr_setflags ( &attr, flags={1:x} )",
+             error, flags);
     return error;
+  }
 
 // posix_spawnattr_setbinpref_np appears to be an Apple extension per:
 // http://www.unix.com/man-page/OSX/3/posix_spawnattr_setbinpref_np/
@@ -734,10 +720,10 @@ Error Host::LaunchProcessPosixSpawn(const char *exe_path,
       size_t ocount = 0;
       error.SetError(::posix_spawnattr_setbinpref_np(&attr, 1, &cpu, &ocount),
                      eErrorTypePOSIX);
-      if (error.Fail() || log)
-        error.PutToLog(log, "::posix_spawnattr_setbinpref_np ( &attr, 1, "
-                            "cpu_type = 0x%8.8x, count => %llu )",
-                       cpu, (uint64_t)ocount);
+      if (error.Fail())
+        LLDB_LOG(log, "error: {0}, ::posix_spawnattr_setbinpref_np ( &attr, 1, "
+                      "cpu_type = {1:x}, count => {2} )",
+                 error, cpu, ocount);
 
       if (error.Fail() || ocount != 1)
         return error;
@@ -788,14 +774,14 @@ Error Host::LaunchProcessPosixSpawn(const char *exe_path,
 #else
     if (::getcwd(current_dir, sizeof(current_dir)) == NULL) {
       error.SetError(errno, eErrorTypePOSIX);
-      error.LogIfError(log, "unable to save the current directory");
+      LLDB_LOG(log, "error: {0}, unable to save the current directory", error);
       return error;
     }
 
     if (::chdir(working_dir.GetCString()) == -1) {
       error.SetError(errno, eErrorTypePOSIX);
-      error.LogIfError(log, "unable to change working directory to %s",
-                       working_dir.GetCString());
+      LLDB_LOG(log, "error: {0}, unable to change working directory to {1}",
+               error, working_dir);
       return error;
     }
 #endif
@@ -807,10 +793,12 @@ Error Host::LaunchProcessPosixSpawn(const char *exe_path,
     posix_spawn_file_actions_t file_actions;
     error.SetError(::posix_spawn_file_actions_init(&file_actions),
                    eErrorTypePOSIX);
-    if (error.Fail() || log)
-      error.PutToLog(log, "::posix_spawn_file_actions_init ( &file_actions )");
-    if (error.Fail())
+    if (error.Fail()) {
+      LLDB_LOG(log,
+               "error: {0}, ::posix_spawn_file_actions_init ( &file_actions )",
+               error);
       return error;
+    }
 
     // Make a quick class that will cleanup the posix spawn attributes in case
     // we return in the middle of this function.
@@ -832,16 +820,14 @@ Error Host::LaunchProcessPosixSpawn(const char *exe_path,
         ::posix_spawnp(&result_pid, exe_path, &file_actions, &attr, argv, envp),
         eErrorTypePOSIX);
 
-    if (error.Fail() || log) {
-      error.PutToLog(
-          log, "::posix_spawnp ( pid => %i, path = '%s', file_actions = %p, "
-               "attr = %p, argv = %p, envp = %p )",
-          result_pid, exe_path, static_cast<void *>(&file_actions),
-          static_cast<void *>(&attr), reinterpret_cast<const void *>(argv),
-          reinterpret_cast<const void *>(envp));
+    if (error.Fail()) {
+      LLDB_LOG(log, "error: {0}, ::posix_spawnp(pid => {1}, path = '{2}', "
+                    "file_actions = {3}, "
+                    "attr = {4}, argv = {5}, envp = {6} )",
+               error, result_pid, exe_path, &file_actions, &attr, argv, envp);
       if (log) {
         for (int ii = 0; argv[ii]; ++ii)
-          log->Printf("argv[%i] = '%s'", ii, argv[ii]);
+          LLDB_LOG(log, "argv[{0}] = '{1}'", ii, argv[ii]);
       }
     }
 
@@ -850,16 +836,13 @@ Error Host::LaunchProcessPosixSpawn(const char *exe_path,
         ::posix_spawnp(&result_pid, exe_path, NULL, &attr, argv, envp),
         eErrorTypePOSIX);
 
-    if (error.Fail() || log) {
-      error.PutToLog(log, "::posix_spawnp ( pid => %i, path = '%s', "
-                          "file_actions = NULL, attr = %p, argv = %p, envp = "
-                          "%p )",
-                     result_pid, exe_path, static_cast<void *>(&attr),
-                     reinterpret_cast<const void *>(argv),
-                     reinterpret_cast<const void *>(envp));
+    if (error.Fail()) {
+      LLDB_LOG(log, "error: {0}, ::posix_spawnp ( pid => {1}, path = '{2}', "
+                    "file_actions = NULL, attr = {3}, argv = {4}, envp = {5} )",
+               error, result_pid, exe_path, &attr, argv, envp);
       if (log) {
         for (int ii = 0; argv[ii]; ++ii)
-          log->Printf("argv[%i] = '%s'", ii, argv[ii]);
+          LLDB_LOG(log, "argv[{0}] = '{1}'", ii, argv[ii]);
       }
     }
   }
@@ -872,8 +855,9 @@ Error Host::LaunchProcessPosixSpawn(const char *exe_path,
 #else
     if (::chdir(current_dir) == -1 && error.Success()) {
       error.SetError(errno, eErrorTypePOSIX);
-      error.LogIfError(log, "unable to change current directory back to %s",
-                       current_dir);
+      LLDB_LOG(log,
+               "error: {0}, unable to change current directory back to {1}",
+               error, current_dir);
     }
 #endif
   }
@@ -902,10 +886,10 @@ bool Host::AddPosixSpawnFileAction(void *_file_actions, const FileAction *info,
       error.SetError(
           ::posix_spawn_file_actions_addclose(file_actions, info->GetFD()),
           eErrorTypePOSIX);
-      if (log && (error.Fail() || log))
-        error.PutToLog(log,
-                       "posix_spawn_file_actions_addclose (action=%p, fd=%i)",
-                       static_cast<void *>(file_actions), info->GetFD());
+      if (error.Fail())
+        LLDB_LOG(log, "error: {0}, posix_spawn_file_actions_addclose "
+                      "(action={1}, fd={2})",
+                 error, file_actions, info->GetFD());
     }
     break;
 
@@ -921,12 +905,10 @@ bool Host::AddPosixSpawnFileAction(void *_file_actions, const FileAction *info,
           ::posix_spawn_file_actions_adddup2(file_actions, info->GetFD(),
                                              info->GetActionArgument()),
           eErrorTypePOSIX);
-      if (log && (error.Fail() || log))
-        error.PutToLog(
-            log,
-            "posix_spawn_file_actions_adddup2 (action=%p, fd=%i, dup_fd=%i)",
-            static_cast<void *>(file_actions), info->GetFD(),
-            info->GetActionArgument());
+      if (error.Fail())
+        LLDB_LOG(log, "error: {0}, posix_spawn_file_actions_adddup2 "
+                      "(action={1}, fd={2}, dup_fd={3})",
+                 error, file_actions, info->GetFD(), info->GetActionArgument());
     }
     break;
 
@@ -946,11 +928,11 @@ bool Host::AddPosixSpawnFileAction(void *_file_actions, const FileAction *info,
                          file_actions, info->GetFD(),
                          info->GetPath().str().c_str(), oflag, mode),
                      eErrorTypePOSIX);
-      if (error.Fail() || log)
-        error.PutToLog(log, "posix_spawn_file_actions_addopen (action=%p, "
-                            "fd=%i, path='%s', oflag=%i, mode=%i)",
-                       static_cast<void *>(file_actions), info->GetFD(),
-                       info->GetPath().str().c_str(), oflag, mode);
+      if (error.Fail())
+        LLDB_LOG(
+            log, "error: {0}, posix_spawn_file_actions_addopen (action={1}, "
+                 "fd={2}, path='{3}', oflag={4}, mode={5})",
+            error, file_actions, info->GetFD(), info->GetPath(), oflag, mode);
     }
     break;
   }
@@ -969,8 +951,8 @@ Error Host::LaunchProcess(ProcessLaunchInfo &launch_info) {
   std::unique_ptr<ProcessLauncher> delegate_launcher;
 #if defined(_WIN32)
   delegate_launcher.reset(new ProcessLauncherWindows());
-#elif defined(__linux__)
-  delegate_launcher.reset(new ProcessLauncherLinux());
+#elif defined(__linux__) || defined(__NetBSD__)
+  delegate_launcher.reset(new ProcessLauncherPosixFork());
 #else
   delegate_launcher.reset(new ProcessLauncherPosix());
 #endif

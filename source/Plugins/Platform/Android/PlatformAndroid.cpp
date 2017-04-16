@@ -7,11 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-#include "Utility/UriParser.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Scalar.h"
@@ -19,6 +14,8 @@
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/StringConvert.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/UriParser.h"
 
 // Project includes
 #include "AdbClient.h"
@@ -336,7 +333,7 @@ Error PlatformAndroid::DownloadSymbolFile(const lldb::ModuleSP &module_sp,
 
   // Create file remover for the temporary directory created on the device
   std::unique_ptr<std::string, std::function<void(std::string *)>>
-  tmpdir_remover(&tmpdir, [this, &adb](std::string *s) {
+  tmpdir_remover(&tmpdir, [&adb](std::string *s) {
     StreamString command;
     command.Printf("rm -rf %s", s->c_str());
     Error error = adb.Shell(command.GetData(), seconds(5), nullptr);

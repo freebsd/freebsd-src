@@ -9,45 +9,72 @@
 
 #include "lldb/Core/Module.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-#include "llvm/Support/Signals.h"
-#include "llvm/Support/raw_os_ostream.h"
-
-// Project includes
-#include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
-#include "Plugins/Language/ObjC/ObjCLanguage.h"
+#include "lldb/Core/AddressRange.h" // for AddressRange
 #include "lldb/Core/AddressResolverFileLine.h"
-#include "lldb/Core/DataBuffer.h"
-#include "lldb/Core/DataBufferHeap.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Log.h"
-#include "lldb/Core/ModuleList.h"
+#include "lldb/Core/Debugger.h"     // for Debugger
+#include "lldb/Core/FileSpecList.h" // for FileSpecList
+#include "lldb/Core/Mangled.h"      // for Mangled
 #include "lldb/Core/ModuleSpec.h"
-#include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegularExpression.h"
+#include "lldb/Core/SearchFilter.h" // for SearchFilt...
 #include "lldb/Core/Section.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
-#include "lldb/Host/Symbols.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/ScriptInterpreter.h"
 #include "lldb/Symbol/CompileUnit.h"
+#include "lldb/Symbol/Function.h" // for Function
 #include "lldb/Symbol/ObjectFile.h"
+#include "lldb/Symbol/Symbol.h" // for Symbol
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/SymbolVendor.h"
+#include "lldb/Symbol/Symtab.h"   // for Symtab
+#include "lldb/Symbol/Type.h"     // for Type
+#include "lldb/Symbol/TypeList.h" // for TypeList
 #include "lldb/Symbol/TypeMap.h"
 #include "lldb/Symbol/TypeSystem.h"
 #include "lldb/Target/Language.h"
+#include "lldb/Target/Platform.h" // for Platform
 #include "lldb/Target/Process.h"
-#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Logging.h" // for GetLogIfAn...
+#include "lldb/Utility/RegularExpression.h"
+#include "lldb/Utility/Stream.h" // for Stream
+#include "lldb/Utility/StreamString.h"
 
+#if defined(LLVM_ON_WIN32)
+#include "lldb/Host/windows/PosixApi.h" // for PATH_MAX
+#endif
+
+#include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
+#include "Plugins/Language/ObjC/ObjCLanguage.h"
 #include "Plugins/ObjectFile/JIT/ObjectFileJIT.h"
+
+#include "llvm/ADT/STLExtras.h"    // for make_unique
+#include "llvm/Support/Compiler.h" // for LLVM_PRETT...
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/raw_ostream.h" // for raw_string...
+
+#include <assert.h>    // for assert
+#include <cstdint>     // for uint32_t
+#include <inttypes.h>  // for PRIx64
+#include <map>         // for map
+#include <stdarg.h>    // for va_end
+#include <string.h>    // for size_t
+#include <type_traits> // for move
+#include <utility>     // for find, pair
+
+namespace lldb_private {
+class CompilerDeclContext;
+}
+namespace lldb_private {
+class VariableList;
+}
 
 using namespace lldb;
 using namespace lldb_private;
@@ -303,8 +330,7 @@ ObjectFile *Module::GetMemoryObjectFile(const lldb::ProcessSP &process_sp,
     std::lock_guard<std::recursive_mutex> guard(m_mutex);
     if (process_sp) {
       m_did_load_objfile = true;
-      std::unique_ptr<DataBufferHeap> data_ap(
-          new DataBufferHeap(size_to_read, 0));
+      auto data_ap = llvm::make_unique<DataBufferHeap>(size_to_read, 0);
       Error readmem_error;
       const size_t bytes_read =
           process_sp->ReadMemory(header_addr, data_ap->GetBytes(),
@@ -719,10 +745,10 @@ Module::LookupInfo::LookupInfo(const ConstString &name, uint32_t name_type_mask,
     }
 
     // Still try and get a basename in case someone specifies a name type mask
-    // of
-    // eFunctionNameTypeFull and a name like "A::func"
+    // of eFunctionNameTypeFull and a name like "A::func"
     if (basename.empty()) {
-      if (name_type_mask & eFunctionNameTypeFull) {
+      if (name_type_mask & eFunctionNameTypeFull &&
+          !CPlusPlusLanguage::IsCPPMangledName(name_cstr)) {
         CPlusPlusLanguage::MethodName cpp_method(name);
         basename = cpp_method.GetBasename();
         if (basename.empty())
@@ -770,30 +796,39 @@ void Module::LookupInfo::Prune(SymbolContextList &sc_list,
   }
 
   // If we have only full name matches we might have tried to set breakpoint on
-  // "func"
-  // and specified eFunctionNameTypeFull, but we might have found "a::func()",
-  // "a::b::func()", "c::func()", "func()" and "func". Only "func()" and "func"
-  // should
-  // end up matching.
+  // "func" and specified eFunctionNameTypeFull, but we might have found
+  // "a::func()", "a::b::func()", "c::func()", "func()" and "func". Only
+  // "func()" and "func" should end up matching.
   if (m_name_type_mask == eFunctionNameTypeFull) {
     SymbolContext sc;
     size_t i = start_idx;
     while (i < sc_list.GetSize()) {
       if (!sc_list.GetContextAtIndex(i, sc))
         break;
+      // Make sure the mangled and demangled names don't match before we try
+      // to pull anything out
+      ConstString mangled_name(sc.GetFunctionName(Mangled::ePreferMangled));
       ConstString full_name(sc.GetFunctionName());
-      CPlusPlusLanguage::MethodName cpp_method(full_name);
-      if (cpp_method.IsValid()) {
-        if (cpp_method.GetContext().empty()) {
-          if (cpp_method.GetBasename().compare(m_name.GetStringRef()) != 0) {
-            sc_list.RemoveContextAtIndex(i);
-            continue;
-          }
-        } else {
-          std::string qualified_name = cpp_method.GetScopeQualifiedName();
-          if (qualified_name.compare(m_name.GetCString()) != 0) {
-            sc_list.RemoveContextAtIndex(i);
-            continue;
+      if (mangled_name != m_name && full_name != m_name)
+      {
+        CPlusPlusLanguage::MethodName cpp_method(full_name);
+        if (cpp_method.IsValid()) {
+          if (cpp_method.GetContext().empty()) {
+            if (cpp_method.GetBasename().compare(m_name.GetStringRef()) != 0) {
+              sc_list.RemoveContextAtIndex(i);
+              continue;
+            }
+          } else {
+            std::string qualified_name;
+            llvm::StringRef anon_prefix("(anonymous namespace)");
+            if (cpp_method.GetContext() == anon_prefix)
+              qualified_name = cpp_method.GetBasename().str();
+            else
+              qualified_name = cpp_method.GetScopeQualifiedName();
+            if (qualified_name.compare(m_name.GetCString()) != 0) {
+              sc_list.RemoveContextAtIndex(i);
+              continue;
+            }
           }
         }
       }
@@ -1022,7 +1057,7 @@ size_t Module::FindTypes(
       // The "type_name_cstr" will have been modified if we have a valid type
       // class
       // prefix (like "struct", "class", "union", "typedef" etc).
-      FindTypes_Impl(sc, ConstString(type_name_cstr), nullptr, append,
+      FindTypes_Impl(sc, ConstString(type_basename), nullptr, append,
                      max_matches, searched_symbol_files, typesmap);
       typesmap.RemoveMismatchedTypes(type_class);
       num_matches = typesmap.GetSize();
@@ -1297,7 +1332,7 @@ void Module::SectionFileAddressesChanged() {
 SectionList *Module::GetUnifiedSectionList() {
   // Populate m_unified_sections_ap with sections from objfile.
   if (!m_sections_ap)
-    m_sections_ap.reset(new SectionList());
+    m_sections_ap = llvm::make_unique<SectionList>();
   return m_sections_ap.get();
 }
 
@@ -1430,7 +1465,7 @@ void Module::SetSymbolFileFileSpec(const FileSpec &file) {
         // ("/tmp/a.out.dSYM/Contents/Resources/DWARF/a.out"). So we need to
         // check this
 
-        if (file.IsDirectory()) {
+        if (llvm::sys::fs::is_directory(file.GetPath())) {
           std::string new_path(file.GetPath());
           std::string old_path(obj_file->GetFileSpec().GetPath());
           if (old_path.find(new_path) == 0) {
@@ -1644,7 +1679,8 @@ Module::CreateJITModule(const lldb::ObjectFileJITDelegateSP &delegate_sp) {
     // to the module, so we need to control the creation carefully in
     // this static function
     ModuleSP module_sp(new Module());
-    module_sp->m_objfile_sp.reset(new ObjectFileJIT(module_sp, delegate_sp));
+    module_sp->m_objfile_sp =
+        std::make_shared<ObjectFileJIT>(module_sp, delegate_sp);
     if (module_sp->m_objfile_sp) {
       // Once we get the object file, update our module with the object file's
       // architecture since it might differ in vendor/os if some parts were
@@ -1663,4 +1699,8 @@ bool Module::GetIsDynamicLinkEditor() {
     return obj_file->GetIsDynamicLinkEditor();
 
   return false;
+}
+
+Error Module::LoadInMemory(Target &target, bool set_pc) {
+  return m_objfile_sp->LoadInMemory(target, set_pc);
 }

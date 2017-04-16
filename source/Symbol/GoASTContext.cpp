@@ -11,12 +11,12 @@
 #include <utility>
 #include <vector>
 
+#include "lldb/Core/DumpDataExtractor.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/UniqueCStringMap.h"
 #include "lldb/Core/ValueObject.h"
-#include "lldb/DataFormatters/StringPrinter.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/GoASTContext.h"
 #include "lldb/Symbol/ObjectFile.h"
@@ -24,6 +24,8 @@
 #include "lldb/Symbol/Type.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Target.h"
+
+#include "llvm/Support/Threading.h"
 
 #include "Plugins/ExpressionParser/Go/GoUserExpression.h"
 #include "Plugins/SymbolFile/DWARF/DWARFASTParserGo.h"
@@ -593,8 +595,8 @@ GoASTContext::GetBasicTypeEnumeration(lldb::opaque_compiler_type_t type) {
   if (name) {
     typedef UniqueCStringMap<lldb::BasicType> TypeNameToBasicTypeMap;
     static TypeNameToBasicTypeMap g_type_map;
-    static std::once_flag g_once_flag;
-    std::call_once(g_once_flag, []() {
+    static llvm::once_flag g_once_flag;
+    llvm::call_once(g_once_flag, []() {
       // "void"
       g_type_map.Append(ConstString("void").GetStringRef(), eBasicTypeVoid);
       // "int"
@@ -1261,9 +1263,9 @@ bool GoASTContext::DumpTypeValue(lldb::opaque_compiler_type_t type, Stream *s,
       byte_size = 4;
       break;
     }
-    return data.Dump(s, byte_offset, format, byte_size, item_count, UINT32_MAX,
-                     LLDB_INVALID_ADDRESS, bitfield_bit_size,
-                     bitfield_bit_offset, exe_scope);
+    return DumpDataExtractor(data, s, byte_offset, format, byte_size,
+                             item_count, UINT32_MAX, LLDB_INVALID_ADDRESS,
+                             bitfield_bit_size, bitfield_bit_offset, exe_scope);
   }
   return 0;
 }

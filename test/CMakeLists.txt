@@ -43,11 +43,6 @@ set(LLDB_TEST_ARCH
 	${LLDB_DEFAULT_TEST_ARCH}
 	CACHE STRING "Specify the architecture to run LLDB tests as (x86|x64).  Determines whether tests are compiled with -m32 or -m64")
 
-# Scrub LLDB_TEST_COMPILER out of the CMake caches
-# TODO: remove the replace lines and the FORCE parameter in a few days once the
-# change has made its way through bots to clean up their CMake caches.
-string(REPLACE "-C;${LLDB_TEST_COMPILER}" "" LLDB_TEST_USER_ARGS_New "${LLDB_TEST_USER_ARGS}")
-
 if(LLDB_TEST_CLANG)
   set(LLDB_TEST_COMPILER $<TARGET_FILE:clang>)
 endif()
@@ -97,6 +92,15 @@ if(LLDB_BUILD_FRAMEWORK)
   list(APPEND LLDB_TEST_COMMON_ARGS --framework $<TARGET_FILE_DIR:liblldb>)
 endif()
 
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows|Darwin")
+  list(APPEND LLDB_TEST_COMMON_ARGS
+    --env ARCHIVER=${CMAKE_AR} --env OBJCOPY=${CMAKE_OBJCOPY})
+endif()
+
+if(CMAKE_HOST_APPLE)
+  list(APPEND LLDB_TEST_COMMON_ARGS --server $<TARGET_FILE:debugserver>)
+endif()
+
 add_python_test_target(check-lldb-single
   ${LLDB_SOURCE_DIR}/test/dotest.py
   "--no-multiprocess;${LLDB_TEST_COMMON_ARGS};${LLDB_TEST_USER_ARGS}"
@@ -112,3 +116,8 @@ add_python_test_target(check-lldb
   "${LLDB_DOTEST_ARGS}"
   "Testing LLDB (parallel execution, with a separate subprocess per test)"
   )
+
+add_custom_target(lldb-test-depends DEPENDS ${LLDB_TEST_DEPENDS})
+# This will add LLDB's test dependencies to the depenednecies for check-all and
+# include them in the test-depends target.
+set_property(GLOBAL APPEND PROPERTY LLVM_LIT_DEPENDS ${ARG_DEPENDS})

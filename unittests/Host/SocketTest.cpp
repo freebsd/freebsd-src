@@ -7,13 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#if defined(_MSC_VER) && (_HAS_EXCEPTIONS == 0)
-// Workaround for MSVC standard library bug, which fails to include <thread>
-// when
-// exceptions are disabled.
-#include <eh.h>
-#endif
-
 #include <cstdio>
 #include <functional>
 #include <thread>
@@ -203,17 +196,14 @@ TEST_F(SocketTest, TCPGetAddress) {
 }
 
 TEST_F(SocketTest, UDPConnect) {
-  Socket *socket_a;
-  Socket *socket_b;
+  Socket *socket;
 
   bool child_processes_inherit = false;
   auto error = UDPSocket::Connect("127.0.0.1:0", child_processes_inherit,
-                                  socket_a, socket_b);
+                                  socket);
 
-  std::unique_ptr<Socket> a_up(socket_a);
-  std::unique_ptr<Socket> b_up(socket_b);
+  std::unique_ptr<Socket> socket_up(socket);
 
   EXPECT_TRUE(error.Success());
-  EXPECT_TRUE(a_up->IsValid());
-  EXPECT_TRUE(b_up->IsValid());
+  EXPECT_TRUE(socket_up->IsValid());
 }

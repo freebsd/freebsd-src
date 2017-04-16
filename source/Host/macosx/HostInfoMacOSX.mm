@@ -11,13 +11,14 @@
 #include "Plugins/ScriptInterpreter/Python/lldb-python.h"
 #endif
 
-#include "lldb/Core/Log.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/macosx/HostInfoMacOSX.h"
 #include "lldb/Interpreter/Args.h"
+#include "lldb/Utility/Log.h"
 #include "lldb/Utility/SafeMachO.h"
 
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 
 // C++ Includes
@@ -152,7 +153,7 @@ bool HostInfoMacOSX::ComputeSupportExeDirectory(FileSpec &file_spec) {
     // the lldb driver.
     raw_path.append("/../bin");
     FileSpec support_dir_spec(raw_path, true);
-    if (!support_dir_spec.Exists() || !support_dir_spec.IsDirectory()) {
+    if (!llvm::sys::fs::is_directory(support_dir_spec.GetPath())) {
       Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST);
       if (log)
         log->Printf("HostInfoMacOSX::%s(): failed to find support directory",
@@ -334,5 +335,3 @@ void HostInfoMacOSX::ComputeHostArchitectureSupport(ArchSpec &arch_32,
     }
   }
 }
-
-uint32_t HostInfoMacOSX::GetMaxThreadNameLength() { return 64; }
