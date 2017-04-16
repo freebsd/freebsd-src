@@ -48,6 +48,8 @@ def color_diagnostics_eq: J<"color-diagnostics=">,
 def define_common: F<"define-common">,
   HelpText<"Assign space to common symbols">;
 
+def demangle: F<"demangle">, HelpText<"Demangle symbol names">;
+
 def disable_new_dtags: F<"disable-new-dtags">,
   HelpText<"Disable new dynamic tags">;
 
@@ -68,6 +70,8 @@ def dynamic_list: S<"dynamic-list">,
 def eh_frame_hdr: F<"eh-frame-hdr">,
   HelpText<"Request creation of .eh_frame_hdr section and PT_GNU_EH_FRAME segment header">;
 
+def emit_relocs: F<"emit-relocs">, HelpText<"Generate relocations in output">;
+
 def enable_new_dtags: F<"enable-new-dtags">,
   HelpText<"Enable new dynamic tags">;
 
@@ -79,6 +83,9 @@ def entry: S<"entry">, MetaVarName<"<entry>">,
 
 def error_limit: S<"error-limit">,
   HelpText<"Maximum number of errors to emit before stopping (0 = no limit)">;
+
+def error_unresolved_symbols: F<"error-unresolved-symbols">,
+  HelpText<"Report unresolved symbols as errors">;
 
 def export_dynamic: F<"export-dynamic">,
   HelpText<"Put symbols in the dynamic symbol table">;
@@ -124,6 +131,8 @@ def lto_O: J<"lto-O">, MetaVarName<"<opt-level>">,
 
 def m: JoinedOrSeparate<["-"], "m">, HelpText<"Set target emulation">;
 
+def Map: JS<"Map">, HelpText<"Print a link map to the specified file">;
+
 def nostdlib: F<"nostdlib">,
   HelpText<"Only search directories specified on the command line">;
 
@@ -138,6 +147,12 @@ def no_define_common: F<"no-define-common">,
 
 def no_demangle: F<"no-demangle">,
   HelpText<"Do not demangle symbol names">;
+
+def no_dynamic_linker: F<"no-dynamic-linker">,
+  HelpText<"Inhibit output of .interp section">;
+
+def no_export_dynamic: F<"no-export-dynamic">;
+def no_fatal_warnings: F<"no-fatal-warnings">;
 
 def no_gc_sections: F<"no-gc-sections">,
   HelpText<"Disable garbage collection of unused sections">;
@@ -170,13 +185,16 @@ def o: JoinedOrSeparate<["-"], "o">, MetaVarName<"<path>">,
 def oformat: Separate<["--"], "oformat">, MetaVarName<"<format>">,
   HelpText<"Specify the binary format for the output object file">;
 
-def omagic: F<"omagic">, MetaVarName<"<magic>">,
+def omagic: Flag<["--"], "omagic">, MetaVarName<"<magic>">,
   HelpText<"Set the text and data sections to be readable and writable">;
 
 def pie: F<"pie">, HelpText<"Create a position independent executable">;
 
 def print_gc_sections: F<"print-gc-sections">,
   HelpText<"List removed unused sections">;
+
+def print_map: F<"print-map">,
+  HelpText<"Print a link map to the standard output">;
 
 def reproduce: S<"reproduce">,
   HelpText<"Dump linker invocation and input files for debugging">;
@@ -221,7 +239,7 @@ def threads: F<"threads">, HelpText<"Run the linker multi-threaded">;
 
 def trace: F<"trace">, HelpText<"Print the names of the input files">;
 
-def trace_symbol : J<"trace-symbol=">, HelpText<"Trace references to symbols">;
+def trace_symbol : S<"trace-symbol">, HelpText<"Trace references to symbols">;
 
 def undefined: S<"undefined">,
   HelpText<"Force undefined symbol during linking">;
@@ -243,6 +261,9 @@ def version_script: S<"version-script">,
 
 def warn_common: F<"warn-common">,
   HelpText<"Warn about duplicate common symbols">;
+
+def warn_unresolved_symbols: F<"warn-unresolved-symbols">,
+  HelpText<"Report unresolved symbols as warnings">;
 
 def whole_archive: F<"whole-archive">,
   HelpText<"Force load of all members in a static library">;
@@ -267,6 +288,7 @@ def alias_define_common_dp: F<"dp">, Alias<define_common>;
 def alias_discard_all_x: Flag<["-"], "x">, Alias<discard_all>;
 def alias_discard_locals_X: Flag<["-"], "X">, Alias<discard_locals>;
 def alias_dynamic_list: J<"dynamic-list=">, Alias<dynamic_list>;
+def alias_emit_relocs: Flag<["-"], "q">, Alias<emit_relocs>;
 def alias_entry_e: JoinedOrSeparate<["-"], "e">, Alias<entry>;
 def alias_entry_entry: J<"entry=">, Alias<entry>;
 def alias_error_limit: J<"error-limit=">, Alias<error_limit>;
@@ -278,10 +300,12 @@ def alias_format_b: S<"b">, Alias<format>;
 def alias_hash_style_hash_style: J<"hash-style=">, Alias<hash_style>;
 def alias_init_init: J<"init=">, Alias<init>;
 def alias_l__library: J<"library=">, Alias<l>;
+def alias_Map_eq: J<"Map=">, Alias<Map>;
 def alias_omagic: Flag<["-"], "N">, Alias<omagic>;
 def alias_o_output: Joined<["--"], "output=">, Alias<o>;
 def alias_o_output2 : Separate<["--"], "output">, Alias<o>;
 def alias_pie_pic_executable: F<"pic-executable">, Alias<pie>;
+def alias_print_map_M: Flag<["-"], "M">, Alias<print_map>;
 def alias_relocatable_r: Flag<["-"], "r">, Alias<relocatable>;
 def alias_retain_symbols_file: S<"retain-symbols-file">, Alias<retain_symbols_file>;
 def alias_rpath_R: JoinedOrSeparate<["-"], "R">, Alias<rpath>;
@@ -297,6 +321,7 @@ def alias_strip_debug_S: Flag<["-"], "S">, Alias<strip_debug>;
 def alias_Tbss: J<"Tbss=">, Alias<Tbss>;
 def alias_Tdata: J<"Tdata=">, Alias<Tdata>;
 def alias_trace: Flag<["-"], "t">, Alias<trace>;
+def trace_trace_symbol_eq : J<"trace-symbol=">, Alias<trace_symbol>;
 def alias_trace_symbol_y : JoinedOrSeparate<["-"], "y">, Alias<trace_symbol>;
 def alias_Ttext: J<"Ttext=">, Alias<Ttext>;
 def alias_Ttext_segment: S<"Ttext-segment">, Alias<Ttext>;
@@ -329,17 +354,12 @@ def plugin_opt_eq: J<"plugin-opt=">;
 // Options listed below are silently ignored for now for compatibility.
 def allow_shlib_undefined: F<"allow-shlib-undefined">;
 def cref: Flag<["--"], "cref">;
-def demangle: F<"demangle">;
 def detect_odr_violations: F<"detect-odr-violations">;
 def g: Flag<["-"], "g">;
-def M: Flag<["-"], "M">;
-def Map: JS<"Map">;
 def no_add_needed: F<"no-add-needed">;
 def no_allow_shlib_undefined: F<"no-allow-shlib-undefined">;
 def no_copy_dt_needed_entries: F<"no-copy-dt-needed-entries">,
   Alias<no_add_needed>;
-def no_dynamic_linker: F<"no-dynamic-linker">;
-def no_fatal_warnings: F<"no-fatal-warnings">;
 def no_mmap_output_file: F<"no-mmap-output-file">;
 def no_warn_common: F<"no-warn-common">;
 def no_warn_mismatch: F<"no-warn-mismatch">;
@@ -355,7 +375,6 @@ def G: JoinedOrSeparate<["-"], "G">;
 def Qy : F<"Qy">;
 
 // Aliases for ignored options
-def alias_Map_eq: J<"Map=">, Alias<Map>;
 def alias_version_script_version_script: J<"version-script=">,
   Alias<version_script>;
 
@@ -368,5 +387,13 @@ def lto_partitions: J<"lto-partitions=">,
   HelpText<"Number of LTO codegen partitions">;
 def disable_verify: F<"disable-verify">;
 def mllvm: S<"mllvm">;
+def opt_remarks_filename: Separate<["--"], "opt-remarks-filename">,
+  HelpText<"YAML output file for optimization remarks">;
+def opt_remarks_with_hotness: Flag<["--"], "opt-remarks-with-hotness">,
+  HelpText<"Include hotness informations in the optimization remarks file">;
 def save_temps: F<"save-temps">;
+def thinlto_cache_dir: J<"thinlto-cache-dir=">,
+  HelpText<"Path to ThinLTO cached object file directory">;
+def thinlto_cache_policy: S<"thinlto-cache-policy">,
+  HelpText<"Pruning policy for the ThinLTO cache">;
 def thinlto_jobs: J<"thinlto-jobs=">, HelpText<"Number of ThinLTO jobs">;

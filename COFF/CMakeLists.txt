@@ -15,6 +15,8 @@ add_lld_library(lldCOFF
   ICF.cpp
   InputFiles.cpp
   Librarian.cpp
+  LTO.cpp
+  MapFile.cpp
   MarkLive.cpp
   ModuleDef.cpp
   PDB.cpp
@@ -25,6 +27,7 @@ add_lld_library(lldCOFF
 
   LINK_COMPONENTS
   ${LLVM_TARGETS_TO_BUILD}
+  BitReader
   Core
   DebugInfoCodeView
   DebugInfoMSF
@@ -40,7 +43,7 @@ add_lld_library(lldCOFF
 
   LINK_LIBS
   lldCore
-  ${PTHREAD_LIB}
+  ${LLVM_PTHREAD_LIB}
 
   DEPENDS
   COFFOptionsTableGen
