@@ -32,6 +32,10 @@ wordtab_t *parsefields(table, arg)
 			fields = malloc(2 * sizeof(*fields));
 		} else {
 			fields = reallocarray(fields, num + 1, sizeof(*fields));
+			if (fields == NULL) {
+				perror("memory allocation error at __LINE__ in __FUNCTIOIN__ in __FILE__");
+				abort();
+			}
 		}
 
 		if (t == NULL) {
