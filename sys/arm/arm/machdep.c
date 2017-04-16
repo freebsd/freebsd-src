@@ -76,7 +76,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#if defined(LINUX_BOOT_ABI)
 #include <sys/boot.h>
+#endif
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -412,7 +414,7 @@ arm_vector_init(vm_offset_t va, int which)
 	icache_sync(va, (ARM_NVEC * 2) * sizeof(u_int));
 
 	vector_page = va;
-
+#if __ARM_ARCH < 6
 	if (va == ARM_VECTORS_HIGH) {
 		/*
 		 * Enable high vectors in the system control reg (SCTLR).
@@ -427,6 +429,7 @@ arm_vector_init(vm_offset_t va, int which)
 		 */
 		cpu_control(CPU_CONTROL_VECRELOC, CPU_CONTROL_VECRELOC);
 	}
+#endif
 }
 
 static void

@@ -60,14 +60,12 @@ struct cpu_functions {
 	/* CPU functions */
 #if __ARM_ARCH < 6
 	void	(*cf_cpwait)		(void);
-#endif
 
 	/* MMU functions */
 
 	u_int	(*cf_control)		(u_int bic, u_int eor);
 	void	(*cf_setttb)		(u_int ttb);
 
-#if __ARM_ARCH < 6
 	/* TLB functions */
 
 	void	(*cf_tlb_flushID)	(void);
@@ -149,7 +147,9 @@ struct cpu_functions {
 
 	/* Other functions */
 
+#if __ARM_ARCH < 6
 	void	(*cf_drain_writebuf)	(void);
+#endif
 
 	void	(*cf_sleep)		(int mode);
 

@@ -241,9 +241,6 @@ struct cpu_functions sheeva_cpufuncs = {
 
 #ifdef CPU_MV_PJ4B
 struct cpu_functions pj4bv7_cpufuncs = {
-	/* MMU functions */
-	.cf_control = cpufunc_control,
-	.cf_setttb = armv7_setttb,
 
 	/* Cache operations */
 	.cf_l2cache_wbinv_all = (void *)cpufunc_nullop,
@@ -253,7 +250,6 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	.cf_l2cache_drain_writebuf = (void *)cpufunc_nullop,
 
 	/* Other functions */
-	.cf_drain_writebuf = armv7_drain_writebuf,
 	.cf_sleep = (void *)cpufunc_nullop,
 
 	/* Soft functions */
@@ -417,9 +413,6 @@ struct cpu_functions fa526_cpufuncs = {
 
 #if defined(CPU_ARM1176)
 struct cpu_functions arm1176_cpufuncs = {
-	/* MMU functions */
-	.cf_control = cpufunc_control,
-	.cf_setttb = arm11x6_setttb,
 
 	/* Cache operations */
 	.cf_l2cache_wbinv_all = (void *)cpufunc_nullop,
@@ -429,7 +422,6 @@ struct cpu_functions arm1176_cpufuncs = {
 	.cf_l2cache_drain_writebuf = (void *)cpufunc_nullop,
 
 	/* Other functions */
-	.cf_drain_writebuf = arm11_drain_writebuf,
 	.cf_sleep = arm11x6_sleep, 
 
 	/* Soft functions */
@@ -439,9 +431,6 @@ struct cpu_functions arm1176_cpufuncs = {
 
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
-	/* MMU functions */
-	.cf_control = cpufunc_control,
-	.cf_setttb = armv7_setttb,
 
 	/* Cache operations */
 
@@ -456,7 +445,6 @@ struct cpu_functions cortexa_cpufuncs = {
 	.cf_l2cache_drain_writebuf = (void *)cpufunc_nullop,
 
 	/* Other functions */
-	.cf_drain_writebuf = armv7_drain_writebuf,
 	.cf_sleep = armv7_cpu_sleep,
 
 	/* Soft functions */
