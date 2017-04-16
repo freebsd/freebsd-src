@@ -189,8 +189,6 @@ PLIST(mux_pll_srcs) = {"osc_div_clk", NULL, "pllP_out0", NULL}; /* FIXME */
 PLIST(mux_plle_src1) = {"osc_div_clk", "pllP_out0"};
 PLIST(mux_plle_src) = {"pllE_src1", "pllREFE_out"};
 PLIST(mux_plld_out0_plld2_out0) = {"pllD_out0", "pllD2_out0"};
-PLIST(mux_pllmcp_clkm) = {"pllM_out0", "pllC_out0", "pllP_out0", "clk_m",
-    "pllM_UD", "pllC2_out0", "pllC3_out0", "pllC_UD"};
 PLIST(mux_xusb_hs) = {"xusb_ss_div2", "pllU_60"};
 PLIST(mux_xusb_ss) = {"pc_xusb_ss", "osc_div_clk"};
 
@@ -240,7 +238,6 @@ static struct clk_mux_def tegra124_mux_clks[] = {
 	/* Base peripheral clocks. */
 	MUX(0, "dsia_mux", mux_plld_out0_plld2_out0, PLLD_BASE, 25, 1),
 	MUX(0, "dsib_mux", mux_plld_out0_plld2_out0, PLLD2_BASE, 25, 1),
-	MUX(0, "emc_mux", mux_pllmcp_clkm, CLK_SOURCE_EMC, 29, 3),
 
 	/* USB. */
 	MUX(TEGRA124_CLK_XUSB_HS_SRC, "xusb_hs", mux_xusb_hs, CLK_SOURCE_XUSB_SS, 25, 1),
