@@ -17,7 +17,7 @@ class CCIfNotInReg<CCAction A> : CCIf<"!ArgFlags.isInReg()", A> {}
 // Calling convention for SI
 def CC_SI : CallingConv<[
 
-  CCIfInReg<CCIfType<[f32, i32] , CCAssignToReg<[
+  CCIfInReg<CCIfType<[f32, i32, f16] , CCAssignToReg<[
     SGPR0, SGPR1, SGPR2, SGPR3, SGPR4, SGPR5, SGPR6, SGPR7,
     SGPR8, SGPR9, SGPR10, SGPR11, SGPR12, SGPR13, SGPR14, SGPR15,
     SGPR16, SGPR17, SGPR18, SGPR19, SGPR20, SGPR21, SGPR22, SGPR23,
@@ -25,17 +25,13 @@ def CC_SI : CallingConv<[
     SGPR32, SGPR33, SGPR34, SGPR35, SGPR36, SGPR37, SGPR38, SGPR39
   ]>>>,
 
-  CCIfInReg<CCIfType<[i64] , CCAssignToRegWithShadow<
-    [ SGPR0, SGPR2, SGPR4, SGPR6, SGPR8, SGPR10, SGPR12, SGPR14,
-      SGPR16, SGPR18, SGPR20, SGPR22, SGPR24, SGPR26, SGPR28, SGPR30,
-      SGPR32, SGPR34, SGPR36, SGPR38 ],
-    [ SGPR1, SGPR3, SGPR5, SGPR7, SGPR9, SGPR11, SGPR13, SGPR15,
-      SGPR17, SGPR19, SGPR21, SGPR23, SGPR25, SGPR27, SGPR29, SGPR31,
-      SGPR33, SGPR35, SGPR37, SGPR39 ]
-  >>>,
+  // We have no way of referring to the generated register tuples
+  // here, so use a custom function.
+  CCIfInReg<CCIfType<[i64], CCCustom<"allocateSGPRTuple">>>,
+  CCIfByVal<CCIfType<[i64], CCCustom<"allocateSGPRTuple">>>,
 
   // 32*4 + 4 is the minimum for a fetch shader consumer with 32 inputs.
-  CCIfNotInReg<CCIfType<[f32, i32] , CCAssignToReg<[
+  CCIfNotInReg<CCIfType<[f32, i32, f16] , CCAssignToReg<[
     VGPR0, VGPR1, VGPR2, VGPR3, VGPR4, VGPR5, VGPR6, VGPR7,
     VGPR8, VGPR9, VGPR10, VGPR11, VGPR12, VGPR13, VGPR14, VGPR15,
     VGPR16, VGPR17, VGPR18, VGPR19, VGPR20, VGPR21, VGPR22, VGPR23,
@@ -53,17 +49,7 @@ def CC_SI : CallingConv<[
     VGPR112, VGPR113, VGPR114, VGPR115, VGPR116, VGPR117, VGPR118, VGPR119,
     VGPR120, VGPR121, VGPR122, VGPR123, VGPR124, VGPR125, VGPR126, VGPR127,
     VGPR128, VGPR129, VGPR130, VGPR131, VGPR132, VGPR133, VGPR134, VGPR135
-  ]>>>,
-
-  CCIfByVal<CCIfType<[i64] , CCAssignToRegWithShadow<
-    [ SGPR0, SGPR2, SGPR4, SGPR6, SGPR8, SGPR10, SGPR12, SGPR14,
-      SGPR16, SGPR18, SGPR20, SGPR22, SGPR24, SGPR26, SGPR28, SGPR30,
-      SGPR32, SGPR34, SGPR36, SGPR38 ],
-    [ SGPR1, SGPR3, SGPR5, SGPR7, SGPR9, SGPR11, SGPR13, SGPR15,
-      SGPR17, SGPR19, SGPR21, SGPR23, SGPR25, SGPR27, SGPR29, SGPR31,
-      SGPR33, SGPR35, SGPR37, SGPR39 ]
-  >>>
-
+  ]>>>
 ]>;
 
 def RetCC_SI : CallingConv<[
@@ -76,7 +62,7 @@ def RetCC_SI : CallingConv<[
   ]>>,
 
   // 32*4 + 4 is the minimum for a fetch shader with 32 outputs.
-  CCIfType<[f32] , CCAssignToReg<[
+  CCIfType<[f32, f16] , CCAssignToReg<[
     VGPR0, VGPR1, VGPR2, VGPR3, VGPR4, VGPR5, VGPR6, VGPR7,
     VGPR8, VGPR9, VGPR10, VGPR11, VGPR12, VGPR13, VGPR14, VGPR15,
     VGPR16, VGPR17, VGPR18, VGPR19, VGPR20, VGPR21, VGPR22, VGPR23,

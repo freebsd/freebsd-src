@@ -24,12 +24,6 @@
 
 using namespace llvm;
 
-static cl::opt<bool> EnableSpillSGPRToSMEM(
-  "amdgpu-spill-sgpr-to-smem",
-  cl::desc("Use scalar stores to spill SGPRs if supported by subtarget"),
-  cl::init(false));
-
-
 static bool hasPressureSet(const int *PSets, unsigned PSetID) {
   for (unsigned i = 0; PSets[i] != -1; ++i) {
     if (PSets[i] == (int)PSetID)
@@ -49,9 +43,28 @@ void SIRegisterInfo::classifyPressureSet(unsigned PSetID, unsigned Reg,
   }
 }
 
-SIRegisterInfo::SIRegisterInfo() : AMDGPURegisterInfo(),
-                                   SGPRPressureSets(getNumRegPressureSets()),
-                                   VGPRPressureSets(getNumRegPressureSets()) {
+static cl::opt<bool> EnableSpillSGPRToSMEM(
+  "amdgpu-spill-sgpr-to-smem",
+  cl::desc("Use scalar stores to spill SGPRs if supported by subtarget"),
+  cl::init(false));
+
+static cl::opt<bool> EnableSpillSGPRToVGPR(
+  "amdgpu-spill-sgpr-to-vgpr",
+  cl::desc("Enable spilling VGPRs to SGPRs"),
+  cl::ReallyHidden,
+  cl::init(true));
+
+SIRegisterInfo::SIRegisterInfo(const SISubtarget &ST) :
+  AMDGPURegisterInfo(),
+  SGPRPressureSets(getNumRegPressureSets()),
+  VGPRPressureSets(getNumRegPressureSets()),
+  SpillSGPRToVGPR(false),
+  SpillSGPRToSMEM(false) {
+  if (EnableSpillSGPRToSMEM && ST.hasScalarStores())
+    SpillSGPRToSMEM = true;
+  else if (EnableSpillSGPRToVGPR)
+    SpillSGPRToVGPR = true;
+
   unsigned NumRegPressureSets = getNumRegPressureSets();
 
   SGPRSetID = NumRegPressureSets;
@@ -97,14 +110,18 @@ void SIRegisterInfo::reserveRegisterTuples(BitVector &Reserved, unsigned Reg) co
 
 unsigned SIRegisterInfo::reservedPrivateSegmentBufferReg(
   const MachineFunction &MF) const {
-  unsigned BaseIdx = alignDown(getMaxNumSGPRs(MF), 4) - 4;
+
+  const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
+  unsigned BaseIdx = alignDown(ST.getMaxNumSGPRs(MF), 4) - 4;
   unsigned BaseReg(AMDGPU::SGPR_32RegClass.getRegister(BaseIdx));
   return getMatchingSuperReg(BaseReg, AMDGPU::sub0, &AMDGPU::SReg_128RegClass);
 }
 
 unsigned SIRegisterInfo::reservedPrivateSegmentWaveByteOffsetReg(
   const MachineFunction &MF) const {
-  unsigned RegCount = getMaxNumSGPRs(MF);
+
+  const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
+  unsigned RegCount = ST.getMaxNumSGPRs(MF);
   unsigned Reg;
 
   // Try to place it in a hole after PrivateSegmentbufferReg.
@@ -129,6 +146,12 @@ BitVector SIRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   reserveRegisterTuples(Reserved, AMDGPU::EXEC);
   reserveRegisterTuples(Reserved, AMDGPU::FLAT_SCR);
 
+  // Reserve the memory aperture registers.
+  reserveRegisterTuples(Reserved, AMDGPU::SRC_SHARED_BASE);
+  reserveRegisterTuples(Reserved, AMDGPU::SRC_SHARED_LIMIT);
+  reserveRegisterTuples(Reserved, AMDGPU::SRC_PRIVATE_BASE);
+  reserveRegisterTuples(Reserved, AMDGPU::SRC_PRIVATE_LIMIT);
+
   // Reserve Trap Handler registers - support is not implemented in Codegen.
   reserveRegisterTuples(Reserved, AMDGPU::TBA);
   reserveRegisterTuples(Reserved, AMDGPU::TMA);
@@ -139,14 +162,16 @@ BitVector SIRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   reserveRegisterTuples(Reserved, AMDGPU::TTMP8_TTMP9);
   reserveRegisterTuples(Reserved, AMDGPU::TTMP10_TTMP11);
 
-  unsigned MaxNumSGPRs = getMaxNumSGPRs(MF);
+  const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
+
+  unsigned MaxNumSGPRs = ST.getMaxNumSGPRs(MF);
   unsigned TotalNumSGPRs = AMDGPU::SGPR_32RegClass.getNumRegs();
   for (unsigned i = MaxNumSGPRs; i < TotalNumSGPRs; ++i) {
     unsigned Reg = AMDGPU::SGPR_32RegClass.getRegister(i);
     reserveRegisterTuples(Reserved, Reg);
   }
 
-  unsigned MaxNumVGPRs = getMaxNumVGPRs(MF);
+  unsigned MaxNumVGPRs = ST.getMaxNumVGPRs(MF);
   unsigned TotalNumVGPRs = AMDGPU::VGPR_32RegClass.getNumRegs();
   for (unsigned i = MaxNumVGPRs; i < TotalNumVGPRs; ++i) {
     unsigned Reg = AMDGPU::VGPR_32RegClass.getRegister(i);
@@ -253,7 +278,6 @@ void SIRegisterInfo::materializeFrameBaseRegister(MachineBasicBlock *MBB,
   }
 
   MachineRegisterInfo &MRI = MF->getRegInfo();
-  unsigned UnusedCarry = MRI.createVirtualRegister(&AMDGPU::SReg_64RegClass);
   unsigned OffsetReg = MRI.createVirtualRegister(&AMDGPU::SReg_32_XM0RegClass);
 
   unsigned FIReg = MRI.createVirtualRegister(&AMDGPU::VGPR_32RegClass);
@@ -263,8 +287,7 @@ void SIRegisterInfo::materializeFrameBaseRegister(MachineBasicBlock *MBB,
   BuildMI(*MBB, Ins, DL, TII->get(AMDGPU::V_MOV_B32_e32), FIReg)
     .addFrameIndex(FrameIdx);
 
-  BuildMI(*MBB, Ins, DL, TII->get(AMDGPU::V_ADD_I32_e64), BaseReg)
-    .addReg(UnusedCarry, RegState::Define | RegState::Dead)
+  TII->getAddNoCarry(*MBB, Ins, DL, BaseReg)
     .addReg(OffsetReg, RegState::Kill)
     .addReg(FIReg);
 }
@@ -415,14 +438,14 @@ static bool buildMUBUFOffsetLoadStore(const SIInstrInfo *TII,
   unsigned Reg = TII->getNamedOperand(*MI, AMDGPU::OpName::vdata)->getReg();
 
   BuildMI(*MBB, MI, DL, TII->get(LoadStoreOp))
-    .addReg(Reg, getDefRegState(!IsStore))
-    .addOperand(*TII->getNamedOperand(*MI, AMDGPU::OpName::srsrc))
-    .addOperand(*TII->getNamedOperand(*MI, AMDGPU::OpName::soffset))
-    .addImm(Offset)
-    .addImm(0) // glc
-    .addImm(0) // slc
-    .addImm(0) // tfe
-    .setMemRefs(MI->memoperands_begin(), MI->memoperands_end());
+      .addReg(Reg, getDefRegState(!IsStore))
+      .add(*TII->getNamedOperand(*MI, AMDGPU::OpName::srsrc))
+      .add(*TII->getNamedOperand(*MI, AMDGPU::OpName::soffset))
+      .addImm(Offset)
+      .addImm(0) // glc
+      .addImm(0) // slc
+      .addImm(0) // tfe
+      .setMemRefs(MI->memoperands_begin(), MI->memoperands_end());
   return true;
 }
 
@@ -545,11 +568,20 @@ static std::pair<unsigned, unsigned> getSpillEltSize(unsigned SuperRegSize,
                       AMDGPU::S_BUFFER_LOAD_DWORD_SGPR};
 }
 
-void SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
+bool SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
                                int Index,
-                               RegScavenger *RS) const {
+                               RegScavenger *RS,
+                               bool OnlyToVGPR) const {
   MachineBasicBlock *MBB = MI->getParent();
   MachineFunction *MF = MBB->getParent();
+  SIMachineFunctionInfo *MFI = MF->getInfo<SIMachineFunctionInfo>();
+
+  ArrayRef<SIMachineFunctionInfo::SpilledReg> VGPRSpills
+    = MFI->getSGPRToVGPRSpills(Index);
+  bool SpillToVGPR = !VGPRSpills.empty();
+  if (OnlyToVGPR && !SpillToVGPR)
+    return false;
+
   MachineRegisterInfo &MRI = MF->getRegInfo();
   const SISubtarget &ST =  MF->getSubtarget<SISubtarget>();
   const SIInstrInfo *TII = ST.getInstrInfo();
@@ -558,10 +590,11 @@ void SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
   bool IsKill = MI->getOperand(0).isKill();
   const DebugLoc &DL = MI->getDebugLoc();
 
-  SIMachineFunctionInfo *MFI = MF->getInfo<SIMachineFunctionInfo>();
   MachineFrameInfo &FrameInfo = MF->getFrameInfo();
 
-  bool SpillToSMEM = ST.hasScalarStores() && EnableSpillSGPRToSMEM;
+  bool SpillToSMEM = spillSGPRToSMEM();
+  if (SpillToSMEM && OnlyToVGPR)
+    return false;
 
   assert(SuperReg != AMDGPU::M0 && "m0 should never spill");
 
@@ -634,9 +667,9 @@ void SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
       continue;
     }
 
-    struct SIMachineFunctionInfo::SpilledReg Spill =
-      MFI->getSpilledReg(MF, Index, i);
-    if (Spill.hasReg()) {
+    if (SpillToVGPR) {
+      SIMachineFunctionInfo::SpilledReg Spill = VGPRSpills[i];
+
       BuildMI(*MBB, MI, DL,
               TII->getMCOpcodeFromPseudo(AMDGPU::V_WRITELANE_B32),
               Spill.VGPR)
@@ -647,6 +680,10 @@ void SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
       // frame index, we should delete the frame index when all references to
       // it are fixed.
     } else {
+      // XXX - Can to VGPR spill fail for some subregisters but not others?
+      if (OnlyToVGPR)
+        return false;
+
       // Spill SGPR to a frame index.
       // TODO: Should VI try to spill to VGPR and then spill to SMEM?
       unsigned TmpReg = MRI.createVirtualRegister(&AMDGPU::VGPR_32RegClass);
@@ -690,22 +727,33 @@ void SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
 
   MI->eraseFromParent();
   MFI->addToSpilledSGPRs(NumSubRegs);
+  return true;
 }
 
-void SIRegisterInfo::restoreSGPR(MachineBasicBlock::iterator MI,
+bool SIRegisterInfo::restoreSGPR(MachineBasicBlock::iterator MI,
                                  int Index,
-                                 RegScavenger *RS) const {
+                                 RegScavenger *RS,
+                                 bool OnlyToVGPR) const {
   MachineFunction *MF = MI->getParent()->getParent();
   MachineRegisterInfo &MRI = MF->getRegInfo();
   MachineBasicBlock *MBB = MI->getParent();
   SIMachineFunctionInfo *MFI = MF->getInfo<SIMachineFunctionInfo>();
+
+  ArrayRef<SIMachineFunctionInfo::SpilledReg> VGPRSpills
+    = MFI->getSGPRToVGPRSpills(Index);
+  bool SpillToVGPR = !VGPRSpills.empty();
+  if (OnlyToVGPR && !SpillToVGPR)
+    return false;
+
   MachineFrameInfo &FrameInfo = MF->getFrameInfo();
   const SISubtarget &ST =  MF->getSubtarget<SISubtarget>();
   const SIInstrInfo *TII = ST.getInstrInfo();
   const DebugLoc &DL = MI->getDebugLoc();
 
   unsigned SuperReg = MI->getOperand(0).getReg();
-  bool SpillToSMEM = ST.hasScalarStores() && EnableSpillSGPRToSMEM;
+  bool SpillToSMEM = spillSGPRToSMEM();
+  if (SpillToSMEM && OnlyToVGPR)
+    return false;
 
   assert(SuperReg != AMDGPU::M0 && "m0 should never spill");
 
@@ -773,10 +821,8 @@ void SIRegisterInfo::restoreSGPR(MachineBasicBlock::iterator MI,
       continue;
     }
 
-    SIMachineFunctionInfo::SpilledReg Spill
-      = MFI->getSpilledReg(MF, Index, i);
-
-    if (Spill.hasReg()) {
+    if (SpillToVGPR) {
+      SIMachineFunctionInfo::SpilledReg Spill = VGPRSpills[i];
       auto MIB =
         BuildMI(*MBB, MI, DL, TII->getMCOpcodeFromPseudo(AMDGPU::V_READLANE_B32),
                 SubReg)
@@ -786,6 +832,9 @@ void SIRegisterInfo::restoreSGPR(MachineBasicBlock::iterator MI,
       if (NumSubRegs > 1)
         MIB.addReg(SuperReg, RegState::ImplicitDefine);
     } else {
+      if (OnlyToVGPR)
+        return false;
+
       // Restore SGPR from a stack slot.
       // FIXME: We should use S_LOAD_DWORD here for VI.
       unsigned TmpReg = MRI.createVirtualRegister(&AMDGPU::VGPR_32RegClass);
@@ -820,6 +869,32 @@ void SIRegisterInfo::restoreSGPR(MachineBasicBlock::iterator MI,
   }
 
   MI->eraseFromParent();
+  return true;
+}
+
+/// Special case of eliminateFrameIndex. Returns true if the SGPR was spilled to
+/// a VGPR and the stack slot can be safely eliminated when all other users are
+/// handled.
+bool SIRegisterInfo::eliminateSGPRToVGPRSpillFrameIndex(
+  MachineBasicBlock::iterator MI,
+  int FI,
+  RegScavenger *RS) const {
+  switch (MI->getOpcode()) {
+  case AMDGPU::SI_SPILL_S512_SAVE:
+  case AMDGPU::SI_SPILL_S256_SAVE:
+  case AMDGPU::SI_SPILL_S128_SAVE:
+  case AMDGPU::SI_SPILL_S64_SAVE:
+  case AMDGPU::SI_SPILL_S32_SAVE:
+    return spillSGPR(MI, FI, RS, true);
+  case AMDGPU::SI_SPILL_S512_RESTORE:
+  case AMDGPU::SI_SPILL_S256_RESTORE:
+  case AMDGPU::SI_SPILL_S128_RESTORE:
+  case AMDGPU::SI_SPILL_S64_RESTORE:
+  case AMDGPU::SI_SPILL_S32_RESTORE:
+    return restoreSGPR(MI, FI, RS, true);
+  default:
+    llvm_unreachable("not an SGPR spill instruction");
+  }
 }
 
 void SIRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
@@ -1156,210 +1231,6 @@ SIRegisterInfo::findUnusedRegister(const MachineRegisterInfo &MRI,
   return AMDGPU::NoRegister;
 }
 
-unsigned SIRegisterInfo::getTotalNumSGPRs(const SISubtarget &ST) const {
-  if (ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS)
-    return 800;
-  return 512;
-}
-
-unsigned SIRegisterInfo::getNumAddressableSGPRs(const SISubtarget &ST) const {
-  if (ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS)
-    return 102;
-  return 104;
-}
-
-unsigned SIRegisterInfo::getNumReservedSGPRs(const SISubtarget &ST,
-                                             const SIMachineFunctionInfo &MFI) const {
-  if (MFI.hasFlatScratchInit()) {
-    if (ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS)
-      return 6; // FLAT_SCRATCH, XNACK, VCC (in that order)
-
-    if (ST.getGeneration() == AMDGPUSubtarget::SEA_ISLANDS)
-      return 4; // FLAT_SCRATCH, VCC (in that order)
-  }
-
-  if (ST.isXNACKEnabled())
-    return 4; // XNACK, VCC (in that order)
-
-  return 2; // VCC.
-}
-
-unsigned SIRegisterInfo::getMinNumSGPRs(const SISubtarget &ST,
-                                        unsigned WavesPerEU) const {
-  if (ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
-    switch (WavesPerEU) {
-      case 0:  return 0;
-      case 10: return 0;
-      case 9:  return 0;
-      case 8:  return 81;
-      default: return 97;
-    }
-  } else {
-    switch (WavesPerEU) {
-      case 0:  return 0;
-      case 10: return 0;
-      case 9:  return 49;
-      case 8:  return 57;
-      case 7:  return 65;
-      case 6:  return 73;
-      case 5:  return 81;
-      default: return 97;
-    }
-  }
-}
-
-unsigned SIRegisterInfo::getMaxNumSGPRs(const SISubtarget &ST,
-                                        unsigned WavesPerEU,
-                                        bool Addressable) const {
-  if (ST.getGeneration() >= AMDGPUSubtarget::VOLCANIC_ISLANDS) {
-    switch (WavesPerEU) {
-      case 0:  return 80;
-      case 10: return 80;
-      case 9:  return 80;
-      case 8:  return 96;
-      default: return Addressable ? getNumAddressableSGPRs(ST) : 112;
-    }
-  } else {
-    switch (WavesPerEU) {
-      case 0:  return 48;
-      case 10: return 48;
-      case 9:  return 56;
-      case 8:  return 64;
-      case 7:  return 72;
-      case 6:  return 80;
-      case 5:  return 96;
-      default: return getNumAddressableSGPRs(ST);
-    }
-  }
-}
-
-unsigned SIRegisterInfo::getMaxNumSGPRs(const MachineFunction &MF) const {
-  const Function &F = *MF.getFunction();
-
-  const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
-  const SIMachineFunctionInfo &MFI = *MF.getInfo<SIMachineFunctionInfo>();
-
-  // Compute maximum number of SGPRs function can use using default/requested
-  // minimum number of waves per execution unit.
-  std::pair<unsigned, unsigned> WavesPerEU = MFI.getWavesPerEU();
-  unsigned MaxNumSGPRs = getMaxNumSGPRs(ST, WavesPerEU.first, false);
-  unsigned MaxNumAddressableSGPRs = getMaxNumSGPRs(ST, WavesPerEU.first, true);
-
-  // Check if maximum number of SGPRs was explicitly requested using
-  // "amdgpu-num-sgpr" attribute.
-  if (F.hasFnAttribute("amdgpu-num-sgpr")) {
-    unsigned Requested = AMDGPU::getIntegerAttribute(
-      F, "amdgpu-num-sgpr", MaxNumSGPRs);
-
-    // Make sure requested value does not violate subtarget's specifications.
-    if (Requested && (Requested <= getNumReservedSGPRs(ST, MFI)))
-      Requested = 0;
-
-    // If more SGPRs are required to support the input user/system SGPRs,
-    // increase to accommodate them.
-    //
-    // FIXME: This really ends up using the requested number of SGPRs + number
-    // of reserved special registers in total. Theoretically you could re-use
-    // the last input registers for these special registers, but this would
-    // require a lot of complexity to deal with the weird aliasing.
-    unsigned NumInputSGPRs = MFI.getNumPreloadedSGPRs();
-    if (Requested && Requested < NumInputSGPRs)
-      Requested = NumInputSGPRs;
-
-    // Make sure requested value is compatible with values implied by
-    // default/requested minimum/maximum number of waves per execution unit.
-    if (Requested && Requested > getMaxNumSGPRs(ST, WavesPerEU.first, false))
-      Requested = 0;
-    if (WavesPerEU.second &&
-        Requested && Requested < getMinNumSGPRs(ST, WavesPerEU.second))
-      Requested = 0;
-
-    if (Requested)
-      MaxNumSGPRs = Requested;
-  }
-
-  if (ST.hasSGPRInitBug())
-    MaxNumSGPRs = SISubtarget::FIXED_SGPR_COUNT_FOR_INIT_BUG;
-
-  return std::min(MaxNumSGPRs - getNumReservedSGPRs(ST, MFI),
-                  MaxNumAddressableSGPRs);
-}
-
-unsigned SIRegisterInfo::getNumDebuggerReservedVGPRs(
-  const SISubtarget &ST) const {
-  if (ST.debuggerReserveRegs())
-    return 4;
-  return 0;
-}
-
-unsigned SIRegisterInfo::getMinNumVGPRs(unsigned WavesPerEU) const {
-  switch (WavesPerEU) {
-    case 0:  return 0;
-    case 10: return 0;
-    case 9:  return 25;
-    case 8:  return 29;
-    case 7:  return 33;
-    case 6:  return 37;
-    case 5:  return 41;
-    case 4:  return 49;
-    case 3:  return 65;
-    case 2:  return 85;
-    default: return 129;
-  }
-}
-
-unsigned SIRegisterInfo::getMaxNumVGPRs(unsigned WavesPerEU) const {
-  switch (WavesPerEU) {
-    case 0:  return 24;
-    case 10: return 24;
-    case 9:  return 28;
-    case 8:  return 32;
-    case 7:  return 36;
-    case 6:  return 40;
-    case 5:  return 48;
-    case 4:  return 64;
-    case 3:  return 84;
-    case 2:  return 128;
-    default: return getTotalNumVGPRs();
-  }
-}
-
-unsigned SIRegisterInfo::getMaxNumVGPRs(const MachineFunction &MF) const {
-  const Function &F = *MF.getFunction();
-
-  const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
-  const SIMachineFunctionInfo &MFI = *MF.getInfo<SIMachineFunctionInfo>();
-
-  // Compute maximum number of VGPRs function can use using default/requested
-  // minimum number of waves per execution unit.
-  std::pair<unsigned, unsigned> WavesPerEU = MFI.getWavesPerEU();
-  unsigned MaxNumVGPRs = getMaxNumVGPRs(WavesPerEU.first);
-
-  // Check if maximum number of VGPRs was explicitly requested using
-  // "amdgpu-num-vgpr" attribute.
-  if (F.hasFnAttribute("amdgpu-num-vgpr")) {
-    unsigned Requested = AMDGPU::getIntegerAttribute(
-      F, "amdgpu-num-vgpr", MaxNumVGPRs);
-
-    // Make sure requested value does not violate subtarget's specifications.
-    if (Requested && Requested <= getNumDebuggerReservedVGPRs(ST))
-      Requested = 0;
-
-    // Make sure requested value is compatible with values implied by
-    // default/requested minimum/maximum number of waves per execution unit.
-    if (Requested && Requested > getMaxNumVGPRs(WavesPerEU.first))
-      Requested = 0;
-    if (WavesPerEU.second &&
-        Requested && Requested < getMinNumVGPRs(WavesPerEU.second))
-      Requested = 0;
-
-    if (Requested)
-      MaxNumVGPRs = Requested;
-  }
-
-  return MaxNumVGPRs - getNumDebuggerReservedVGPRs(ST);
-}
-
 ArrayRef<int16_t> SIRegisterInfo::getRegSplitParts(const TargetRegisterClass *RC,
                                                    unsigned EltSize) const {
   if (EltSize == 4) {
@@ -1475,4 +1346,63 @@ SIRegisterInfo::getRegClassForReg(const MachineRegisterInfo &MRI,
 bool SIRegisterInfo::isVGPR(const MachineRegisterInfo &MRI,
                             unsigned Reg) const {
   return hasVGPRs(getRegClassForReg(MRI, Reg));
+}
+
+bool SIRegisterInfo::shouldCoalesce(MachineInstr *MI,
+                                    const TargetRegisterClass *SrcRC,
+                                    unsigned SubReg,
+                                    const TargetRegisterClass *DstRC,
+                                    unsigned DstSubReg,
+                                    const TargetRegisterClass *NewRC) const {
+  unsigned SrcSize = SrcRC->getSize();
+  unsigned DstSize = DstRC->getSize();
+  unsigned NewSize = NewRC->getSize();
+
+  // Do not increase size of registers beyond dword, we would need to allocate
+  // adjacent registers and constraint regalloc more than needed.
+
+  // Always allow dword coalescing.
+  if (SrcSize <= 4 || DstSize <= 4)
+    return true;
+
+  return NewSize <= DstSize || NewSize <= SrcSize;
+}
+
+unsigned SIRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
+                                             MachineFunction &MF) const {
+
+  const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
+  const SIMachineFunctionInfo *MFI = MF.getInfo<SIMachineFunctionInfo>();
+
+  unsigned Occupancy = ST.getOccupancyWithLocalMemSize(MFI->getLDSSize(),
+                                                       *MF.getFunction());
+  switch (RC->getID()) {
+  default:
+    return AMDGPURegisterInfo::getRegPressureLimit(RC, MF);
+  case AMDGPU::VGPR_32RegClassID:
+    return std::min(ST.getMaxNumVGPRs(Occupancy), ST.getMaxNumVGPRs(MF));
+  case AMDGPU::SGPR_32RegClassID:
+    return std::min(ST.getMaxNumSGPRs(Occupancy, true), ST.getMaxNumSGPRs(MF));
+  }
+}
+
+unsigned SIRegisterInfo::getRegPressureSetLimit(const MachineFunction &MF,
+                                                unsigned Idx) const {
+  if (Idx == getVGPRPressureSet())
+    return getRegPressureLimit(&AMDGPU::VGPR_32RegClass,
+                               const_cast<MachineFunction &>(MF));
+
+  if (Idx == getSGPRPressureSet())
+    return getRegPressureLimit(&AMDGPU::SGPR_32RegClass,
+                               const_cast<MachineFunction &>(MF));
+
+  return AMDGPURegisterInfo::getRegPressureSetLimit(MF, Idx);
+}
+
+const int *SIRegisterInfo::getRegUnitPressureSets(unsigned RegUnit) const {
+  static const int Empty[] = { -1 };
+
+  if (hasRegUnit(AMDGPU::M0, RegUnit))
+    return Empty;
+  return AMDGPURegisterInfo::getRegUnitPressureSets(RegUnit);
 }

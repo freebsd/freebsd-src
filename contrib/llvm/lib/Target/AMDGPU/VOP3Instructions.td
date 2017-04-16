@@ -29,6 +29,26 @@ class getVOP3ModPat<VOPProfile P, SDPatternOperator node> {
                   ret1));
 }
 
+class getVOP3PModPat<VOPProfile P, SDPatternOperator node> {
+  list<dag> ret3 = [(set P.DstVT:$vdst,
+    (node (P.Src0VT !if(P.HasClamp, (VOP3PMods0 P.Src0VT:$src0, i32:$src0_modifiers, i1:$clamp),
+                                    (VOP3PMods P.Src0VT:$src0, i32:$src0_modifiers))),
+          (P.Src1VT (VOP3PMods P.Src1VT:$src1, i32:$src1_modifiers)),
+          (P.Src2VT (VOP3PMods P.Src2VT:$src2, i32:$src2_modifiers))))];
+
+  list<dag> ret2 = [(set P.DstVT:$vdst,
+    (node !if(P.HasClamp, (P.Src0VT (VOP3PMods0 P.Src0VT:$src0, i32:$src0_modifiers, i1:$clamp)),
+                          (P.Src0VT (VOP3PMods P.Src0VT:$src0, i32:$src0_modifiers))),
+          (P.Src1VT (VOP3PMods P.Src1VT:$src1, i32:$src1_modifiers))))];
+
+  list<dag> ret1 = [(set P.DstVT:$vdst,
+    (node (P.Src0VT (VOP3PMods0 P.Src0VT:$src0, i32:$src0_modifiers, i1:$clamp))))];
+
+  list<dag> ret = !if(!eq(P.NumSrcArgs, 3), ret3,
+                  !if(!eq(P.NumSrcArgs, 2), ret2,
+                  ret1));
+}
+
 class getVOP3Pat<VOPProfile P, SDPatternOperator node> {
   list<dag> ret3 = [(set P.DstVT:$vdst, (node P.Src0VT:$src0, P.Src1VT:$src1, P.Src2VT:$src2))];
   list<dag> ret2 = [(set P.DstVT:$vdst, (node P.Src0VT:$src0, P.Src1VT:$src1))];
@@ -84,6 +104,14 @@ def VOP3b_F32_I1_F32_F32_F32 : VOP3b_Profile<f32> {
 def VOP3b_F64_I1_F64_F64_F64 : VOP3b_Profile<f64> {
   // FIXME: Hack to stop printing _e64
   let DstRC = RegisterOperand<VReg_64>;
+}
+
+def VOP3b_I64_I1_I32_I32_I64 : VOPProfile<[i64, i32, i32, i64]> {
+  // FIXME: Hack to stop printing _e64
+  let DstRC = RegisterOperand<VReg_64>;
+
+  let Outs64 = (outs DstRC:$vdst, SReg_64:$sdst);
+  let Asm64 = " $vdst, $sdst, $src0, $src1, $src2";
 }
 
 //===----------------------------------------------------------------------===//
@@ -209,10 +237,8 @@ def V_QSAD_PK_U16_U8 : VOP3Inst <"v_qsad_pk_u16_u8", VOP3_Profile<VOP_I64_I64_I3
 def V_MQSAD_U32_U8 : VOP3Inst <"v_mqsad_u32_u8", VOP3_Profile<VOP_V4I32_I64_I32_V4I32>, int_amdgcn_mqsad_u32_u8>;
 
 let isCommutable = 1 in {
-def V_MAD_U64_U32 : VOP3Inst <"v_mad_u64_u32", VOP3_Profile<VOP_I64_I32_I32_I64>>;
-
-// XXX - Does this set VCC?
-def V_MAD_I64_I32 : VOP3Inst <"v_mad_i64_i32", VOP3_Profile<VOP_I64_I32_I32_I64>>;
+def V_MAD_U64_U32 : VOP3Inst <"v_mad_u64_u32", VOP3b_I64_I1_I32_I32_I64>;
+def V_MAD_I64_I32 : VOP3Inst <"v_mad_i64_i32", VOP3b_I64_I1_I32_I32_I64>;
 } // End isCommutable = 1
 
 } // End SubtargetPredicate = isCIVI
@@ -234,12 +260,14 @@ def V_MAD_I16 : VOP3Inst <"v_mad_i16", VOP3_Profile<VOP_I16_I16_I16_I16>>;
 
 }  // End isCommutable = 1
 
+def V_PERM_B32 : VOP3Inst <"v_perm_b32", VOP3_Profile<VOP_I32_I32_I32_I32>>;
+
 } // End SubtargetPredicate = isVI
 
 let Predicates = [isVI] in {
 
-multiclass Tenary_i16_Pats <SDPatternOperator op1, SDPatternOperator op2,
-                            Instruction inst, SDPatternOperator op3> {
+multiclass Ternary_i16_Pats <SDPatternOperator op1, SDPatternOperator op2,
+                             Instruction inst, SDPatternOperator op3> {
 def : Pat<
   (op2 (op1 i16:$src0, i16:$src1), i16:$src2),
   (inst i16:$src0, i16:$src1, i16:$src2)
@@ -258,10 +286,25 @@ def : Pat<
 >;
 }
 
-defm: Tenary_i16_Pats<mul, add, V_MAD_U16, zext>;
-defm: Tenary_i16_Pats<mul, add, V_MAD_I16, sext>;
+defm: Ternary_i16_Pats<mul, add, V_MAD_U16, zext>;
+defm: Ternary_i16_Pats<mul, add, V_MAD_I16, sext>;
 
 } // End Predicates = [isVI]
+
+let SubtargetPredicate = isGFX9 in {
+def V_PACK_B32_F16 : VOP3Inst <"v_pack_b32_f16", VOP3_Profile<VOP_B32_F16_F16>>;
+def V_LSHL_ADD_U32 : VOP3Inst <"v_lshl_add_u32", VOP3_Profile<VOP_I32_I32_I32_I32>>;
+def V_ADD_LSHL_U32 : VOP3Inst <"v_add_lshl_u32", VOP3_Profile<VOP_I32_I32_I32_I32>>;
+def V_ADD3_U32 : VOP3Inst <"v_add3_u32", VOP3_Profile<VOP_I32_I32_I32_I32>>;
+def V_LSHL_OR_B32 : VOP3Inst <"v_lshl_or_b32", VOP3_Profile<VOP_I32_I32_I32_I32>>;
+def V_AND_OR_B32 : VOP3Inst <"v_and_or_b32", VOP3_Profile<VOP_I32_I32_I32_I32>>;
+def V_OR3_B32 : VOP3Inst <"v_or3_b32", VOP3_Profile<VOP_I32_I32_I32_I32>>;
+
+def V_XAD_U32 : VOP3Inst <"v_xad_u32", VOP3_Profile<VOP_I32_I32_I32_I32>>;
+def V_MED3_F16 : VOP3Inst <"v_med3_f16", VOP3_Profile<VOP_F16_F16_F16_F16>, AMDGPUfmed3>;
+def V_MED3_I16 : VOP3Inst <"v_med3_i16", VOP3_Profile<VOP_I16_I16_I16_I16>, AMDGPUsmed3>;
+def V_MED3_U16 : VOP3Inst <"v_med3_u16", VOP3_Profile<VOP_I16_I16_I16_I16>, AMDGPUumed3>;
+}
 
 
 //===----------------------------------------------------------------------===//
@@ -351,11 +394,19 @@ multiclass VOP3_Real_ci<bits<9> op> {
   }
 }
 
+multiclass VOP3be_Real_ci<bits<9> op> {
+  def _ci : VOP3_Real<!cast<VOP3_Pseudo>(NAME), SIEncodingFamily.SI>,
+            VOP3be_si <op, !cast<VOP3_Pseudo>(NAME).Pfl> {
+    let AssemblerPredicates = [isCIOnly];
+    let DecoderNamespace = "CI";
+  }
+}
+
 defm V_MQSAD_U16_U8     : VOP3_Real_ci <0x172>;
 defm V_QSAD_PK_U16_U8   : VOP3_Real_ci <0x172>;
-defm V_MQSAD_U32_U8     : VOP3_Real_ci <0x174>;
-defm V_MAD_U64_U32      : VOP3_Real_ci <0x176>;
-defm V_MAD_I64_I32      : VOP3_Real_ci <0x177>;
+defm V_MQSAD_U32_U8     : VOP3_Real_ci <0x175>;
+defm V_MAD_U64_U32      : VOP3be_Real_ci <0x176>;
+defm V_MAD_I64_I32      : VOP3be_Real_ci <0x177>;
 
 //===----------------------------------------------------------------------===//
 // VI
@@ -376,8 +427,8 @@ multiclass VOP3be_Real_vi<bits<10> op> {
 } // End AssemblerPredicates = [isVI], DecoderNamespace = "VI"
 
 defm V_MQSAD_U16_U8     : VOP3_Real_vi <0x172>;
-defm V_MAD_U64_U32      : VOP3_Real_vi <0x176>;
-defm V_MAD_I64_I32      : VOP3_Real_vi <0x177>;
+defm V_MAD_U64_U32      : VOP3be_Real_vi <0x1E8>;
+defm V_MAD_I64_I32      : VOP3be_Real_vi <0x1E9>;
 
 defm V_MAD_LEGACY_F32   : VOP3_Real_vi <0x1c0>;
 defm V_MAD_F32          : VOP3_Real_vi <0x1c1>;
@@ -424,6 +475,8 @@ defm V_MAD_F16          : VOP3_Real_vi <0x1ea>;
 defm V_MAD_U16          : VOP3_Real_vi <0x1eb>;
 defm V_MAD_I16          : VOP3_Real_vi <0x1ec>;
 
+defm V_PERM_B32         : VOP3_Real_vi <0x1ed>;
+
 defm V_FMA_F16          : VOP3_Real_vi <0x1ee>;
 defm V_DIV_FIXUP_F16    : VOP3_Real_vi <0x1ef>;
 
@@ -449,3 +502,16 @@ defm V_LSHLREV_B64      : VOP3_Real_vi <0x28f>;
 defm V_LSHRREV_B64      : VOP3_Real_vi <0x290>;
 defm V_ASHRREV_I64      : VOP3_Real_vi <0x291>;
 defm V_TRIG_PREOP_F64   : VOP3_Real_vi <0x292>;
+
+defm V_LSHL_ADD_U32 : VOP3_Real_vi <0x1fd>;
+defm V_ADD_LSHL_U32 : VOP3_Real_vi <0x1fe>;
+defm V_ADD3_U32 : VOP3_Real_vi <0x1ff>;
+defm V_LSHL_OR_B32 : VOP3_Real_vi <0x200>;
+defm V_AND_OR_B32 : VOP3_Real_vi <0x201>;
+defm V_OR3_B32 : VOP3_Real_vi <0x202>;
+defm V_PACK_B32_F16 : VOP3_Real_vi <0x2a0>;
+
+defm V_XAD_U32 : VOP3_Real_vi <0x1f3>;
+defm V_MED3_F16 : VOP3_Real_vi <0x1fa>;
+defm V_MED3_I16 : VOP3_Real_vi <0x1fb>;
+defm V_MED3_U16 : VOP3_Real_vi <0x1fc>;

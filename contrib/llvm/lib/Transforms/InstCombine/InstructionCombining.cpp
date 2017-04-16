@@ -82,18 +82,24 @@ static cl::opt<bool>
 EnableExpensiveCombines("expensive-combines",
                         cl::desc("Enable expensive instruction combines"));
 
+static cl::opt<unsigned>
+MaxArraySize("instcombine-maxarray-size", cl::init(1024),
+             cl::desc("Maximum array size considered when doing a combine"));
+
 Value *InstCombiner::EmitGEPOffset(User *GEP) {
   return llvm::EmitGEPOffset(Builder, DL, GEP);
 }
 
 /// Return true if it is desirable to convert an integer computation from a
 /// given bit width to a new bit width.
-/// We don't want to convert from a legal to an illegal type for example or from
-/// a smaller to a larger illegal type.
-bool InstCombiner::ShouldChangeType(unsigned FromWidth,
+/// We don't want to convert from a legal to an illegal type or from a smaller
+/// to a larger illegal type. A width of '1' is always treated as a legal type
+/// because i1 is a fundamental type in IR, and there are many specialized
+/// optimizations for i1 types.
+bool InstCombiner::shouldChangeType(unsigned FromWidth,
                                     unsigned ToWidth) const {
-  bool FromLegal = DL.isLegalInteger(FromWidth);
-  bool ToLegal = DL.isLegalInteger(ToWidth);
+  bool FromLegal = FromWidth == 1 || DL.isLegalInteger(FromWidth);
+  bool ToLegal = ToWidth == 1 || DL.isLegalInteger(ToWidth);
 
   // If this is a legal integer from type, and the result would be an illegal
   // type, don't do the transformation.
@@ -109,14 +115,16 @@ bool InstCombiner::ShouldChangeType(unsigned FromWidth,
 }
 
 /// Return true if it is desirable to convert a computation from 'From' to 'To'.
-/// We don't want to convert from a legal to an illegal type for example or from
-/// a smaller to a larger illegal type.
-bool InstCombiner::ShouldChangeType(Type *From, Type *To) const {
+/// We don't want to convert from a legal to an illegal type or from a smaller
+/// to a larger illegal type. i1 is always treated as a legal type because it is
+/// a fundamental type in IR, and there are many specialized optimizations for
+/// i1 types.
+bool InstCombiner::shouldChangeType(Type *From, Type *To) const {
   assert(From->isIntegerTy() && To->isIntegerTy());
 
   unsigned FromWidth = From->getPrimitiveSizeInBits();
   unsigned ToWidth = To->getPrimitiveSizeInBits();
-  return ShouldChangeType(FromWidth, ToWidth);
+  return shouldChangeType(FromWidth, ToWidth);
 }
 
 // Return true, if No Signed Wrap should be maintained for I.
@@ -447,16 +455,11 @@ static bool RightDistributesOverLeft(Instruction::BinaryOps LOp,
 
 /// This function returns identity value for given opcode, which can be used to
 /// factor patterns like (X * 2) + X ==> (X * 2) + (X * 1) ==> X * (2 + 1).
-static Value *getIdentityValue(Instruction::BinaryOps OpCode, Value *V) {
+static Value *getIdentityValue(Instruction::BinaryOps Opcode, Value *V) {
   if (isa<Constant>(V))
     return nullptr;
 
-  if (OpCode == Instruction::Mul)
-    return ConstantInt::get(V->getType(), 1);
-
-  // TODO: We can handle other cases e.g. Instruction::And, Instruction::Or etc.
-
-  return nullptr;
+  return ConstantExpr::getBinOpIdentity(Opcode, V->getType());
 }
 
 /// This function factors binary ops which can be combined using distributive
@@ -468,8 +471,7 @@ static Value *getIdentityValue(Instruction::BinaryOps OpCode, Value *V) {
 static Instruction::BinaryOps
 getBinOpsForFactorization(Instruction::BinaryOps TopLevelOpcode,
                           BinaryOperator *Op, Value *&LHS, Value *&RHS) {
-  if (!Op)
-    return Instruction::BinaryOpsEnd;
+  assert(Op && "Expected a binary operator");
 
   LHS = Op->getOperand(0);
   RHS = Op->getOperand(1);
@@ -499,11 +501,7 @@ static Value *tryFactorization(InstCombiner::BuilderTy *Builder,
                                const DataLayout &DL, BinaryOperator &I,
                                Instruction::BinaryOps InnerOpcode, Value *A,
                                Value *B, Value *C, Value *D) {
-
-  // If any of A, B, C, D are null, we can not factor I, return early.
-  // Checking A and C should be enough.
-  if (!A || !C || !B || !D)
-    return nullptr;
+  assert(A && B && C && D && "All values must be provided");
 
   Value *V = nullptr;
   Value *SimplifiedInst = nullptr;
@@ -564,13 +562,11 @@ static Value *tryFactorization(InstCombiner::BuilderTy *Builder,
         if (isa<OverflowingBinaryOperator>(&I))
           HasNSW = I.hasNoSignedWrap();
 
-        if (BinaryOperator *Op0 = dyn_cast<BinaryOperator>(LHS))
-          if (isa<OverflowingBinaryOperator>(Op0))
-            HasNSW &= Op0->hasNoSignedWrap();
+        if (auto *LOBO = dyn_cast<OverflowingBinaryOperator>(LHS))
+          HasNSW &= LOBO->hasNoSignedWrap();
 
-        if (BinaryOperator *Op1 = dyn_cast<BinaryOperator>(RHS))
-          if (isa<OverflowingBinaryOperator>(Op1))
-            HasNSW &= Op1->hasNoSignedWrap();
+        if (auto *ROBO = dyn_cast<OverflowingBinaryOperator>(RHS))
+          HasNSW &= ROBO->hasNoSignedWrap();
 
         // We can propagate 'nsw' if we know that
         //  %Y = mul nsw i16 %X, C
@@ -599,31 +595,39 @@ Value *InstCombiner::SimplifyUsingDistributiveLaws(BinaryOperator &I) {
   Value *LHS = I.getOperand(0), *RHS = I.getOperand(1);
   BinaryOperator *Op0 = dyn_cast<BinaryOperator>(LHS);
   BinaryOperator *Op1 = dyn_cast<BinaryOperator>(RHS);
+  Instruction::BinaryOps TopLevelOpcode = I.getOpcode();
 
-  // Factorization.
-  Value *A = nullptr, *B = nullptr, *C = nullptr, *D = nullptr;
-  auto TopLevelOpcode = I.getOpcode();
-  auto LHSOpcode = getBinOpsForFactorization(TopLevelOpcode, Op0, A, B);
-  auto RHSOpcode = getBinOpsForFactorization(TopLevelOpcode, Op1, C, D);
+  {
+    // Factorization.
+    Value *A, *B, *C, *D;
+    Instruction::BinaryOps LHSOpcode, RHSOpcode;
+    if (Op0)
+      LHSOpcode = getBinOpsForFactorization(TopLevelOpcode, Op0, A, B);
+    if (Op1)
+      RHSOpcode = getBinOpsForFactorization(TopLevelOpcode, Op1, C, D);
 
-  // The instruction has the form "(A op' B) op (C op' D)".  Try to factorize
-  // a common term.
-  if (LHSOpcode == RHSOpcode) {
-    if (Value *V = tryFactorization(Builder, DL, I, LHSOpcode, A, B, C, D))
-      return V;
+    // The instruction has the form "(A op' B) op (C op' D)".  Try to factorize
+    // a common term.
+    if (Op0 && Op1 && LHSOpcode == RHSOpcode)
+      if (Value *V = tryFactorization(Builder, DL, I, LHSOpcode, A, B, C, D))
+        return V;
+
+    // The instruction has the form "(A op' B) op (C)".  Try to factorize common
+    // term.
+    if (Op0)
+      if (Value *Ident = getIdentityValue(LHSOpcode, RHS))
+        if (Value *V = tryFactorization(Builder, DL, I, LHSOpcode, A, B, RHS,
+                                        Ident))
+          return V;
+
+    // The instruction has the form "(B) op (C op' D)".  Try to factorize common
+    // term.
+    if (Op1)
+      if (Value *Ident = getIdentityValue(RHSOpcode, LHS))
+        if (Value *V = tryFactorization(Builder, DL, I, RHSOpcode, LHS, Ident,
+                                        C, D))
+          return V;
   }
-
-  // The instruction has the form "(A op' B) op (C)".  Try to factorize common
-  // term.
-  if (Value *V = tryFactorization(Builder, DL, I, LHSOpcode, A, B, RHS,
-                                  getIdentityValue(LHSOpcode, RHS)))
-    return V;
-
-  // The instruction has the form "(B) op (C op' D)".  Try to factorize common
-  // term.
-  if (Value *V = tryFactorization(Builder, DL, I, RHSOpcode, LHS,
-                                  getIdentityValue(RHSOpcode, LHS), C, D))
-    return V;
 
   // Expansion.
   if (Op0 && RightDistributesOverLeft(Op0->getOpcode(), TopLevelOpcode)) {
@@ -719,6 +723,21 @@ Value *InstCombiner::dyn_castNegVal(Value *V) const {
   if (ConstantDataVector *C = dyn_cast<ConstantDataVector>(V))
     if (C->getType()->getElementType()->isIntegerTy())
       return ConstantExpr::getNeg(C);
+
+  if (ConstantVector *CV = dyn_cast<ConstantVector>(V)) {
+    for (unsigned i = 0, e = CV->getNumOperands(); i != e; ++i) {
+      Constant *Elt = CV->getAggregateElement(i);
+      if (!Elt)
+        return nullptr;
+
+      if (isa<UndefValue>(Elt))
+        continue;
+
+      if (!isa<ConstantInt>(Elt))
+        return nullptr;
+    }
+    return ConstantExpr::getNeg(CV);
+  }
 
   return nullptr;
 }
@@ -820,8 +839,29 @@ Instruction *InstCombiner::FoldOpIntoSelect(Instruction &Op, SelectInst *SI) {
   return SelectInst::Create(SI->getCondition(), NewTV, NewFV, "", nullptr, SI);
 }
 
-Instruction *InstCombiner::FoldOpIntoPhi(Instruction &I) {
-  PHINode *PN = cast<PHINode>(I.getOperand(0));
+static Value *foldOperationIntoPhiValue(BinaryOperator *I, Value *InV,
+                                        InstCombiner *IC) {
+  bool ConstIsRHS = isa<Constant>(I->getOperand(1));
+  Constant *C = cast<Constant>(I->getOperand(ConstIsRHS));
+
+  if (auto *InC = dyn_cast<Constant>(InV)) {
+    if (ConstIsRHS)
+      return ConstantExpr::get(I->getOpcode(), InC, C);
+    return ConstantExpr::get(I->getOpcode(), C, InC);
+  }
+
+  Value *Op0 = InV, *Op1 = C;
+  if (!ConstIsRHS)
+    std::swap(Op0, Op1);
+
+  Value *RI = IC->Builder->CreateBinOp(I->getOpcode(), Op0, Op1, "phitmp");
+  auto *FPInst = dyn_cast<Instruction>(RI);
+  if (FPInst && isa<FPMathOperator>(FPInst))
+    FPInst->copyFastMathFlags(I);
+  return RI;
+}
+
+Instruction *InstCombiner::foldOpIntoPhi(Instruction &I, PHINode *PN) {
   unsigned NumPHIValues = PN->getNumIncomingValues();
   if (NumPHIValues == 0)
     return nullptr;
@@ -902,7 +942,11 @@ Instruction *InstCombiner::FoldOpIntoPhi(Instruction &I) {
       // Beware of ConstantExpr:  it may eventually evaluate to getNullValue,
       // even if currently isNullValue gives false.
       Constant *InC = dyn_cast<Constant>(PN->getIncomingValue(i));
-      if (InC && !isa<ConstantExpr>(InC))
+      // For vector constants, we cannot use isNullValue to fold into
+      // FalseVInPred versus TrueVInPred. When we have individual nonzero
+      // elements in the vector, we will incorrectly fold InC to
+      // `TrueVInPred`.
+      if (InC && !isa<ConstantExpr>(InC) && isa<ConstantInt>(InC))
         InV = InC->isNullValue() ? FalseVInPred : TrueVInPred;
       else
         InV = Builder->CreateSelect(PN->getIncomingValue(i),
@@ -923,15 +967,9 @@ Instruction *InstCombiner::FoldOpIntoPhi(Instruction &I) {
                                   C, "phitmp");
       NewPN->addIncoming(InV, PN->getIncomingBlock(i));
     }
-  } else if (I.getNumOperands() == 2) {
-    Constant *C = cast<Constant>(I.getOperand(1));
+  } else if (auto *BO = dyn_cast<BinaryOperator>(&I)) {
     for (unsigned i = 0; i != NumPHIValues; ++i) {
-      Value *InV = nullptr;
-      if (Constant *InC = dyn_cast<Constant>(PN->getIncomingValue(i)))
-        InV = ConstantExpr::get(I.getOpcode(), InC, C);
-      else
-        InV = Builder->CreateBinOp(cast<BinaryOperator>(I).getOpcode(),
-                                   PN->getIncomingValue(i), C, "phitmp");
+      Value *InV = foldOperationIntoPhiValue(BO, PN->getIncomingValue(i), this);
       NewPN->addIncoming(InV, PN->getIncomingBlock(i));
     }
   } else {
@@ -957,14 +995,14 @@ Instruction *InstCombiner::FoldOpIntoPhi(Instruction &I) {
   return replaceInstUsesWith(I, NewPN);
 }
 
-Instruction *InstCombiner::foldOpWithConstantIntoOperand(Instruction &I) {
+Instruction *InstCombiner::foldOpWithConstantIntoOperand(BinaryOperator &I) {
   assert(isa<Constant>(I.getOperand(1)) && "Unexpected operand type");
 
   if (auto *Sel = dyn_cast<SelectInst>(I.getOperand(0))) {
     if (Instruction *NewSel = FoldOpIntoSelect(I, Sel))
       return NewSel;
-  } else if (isa<PHINode>(I.getOperand(0))) {
-    if (Instruction *NewPhi = FoldOpIntoPhi(I))
+  } else if (auto *PN = dyn_cast<PHINode>(I.getOperand(0))) {
+    if (Instruction *NewPhi = foldOpIntoPhi(I, PN))
       return NewPhi;
   }
   return nullptr;
@@ -1315,22 +1353,19 @@ Value *InstCombiner::SimplifyVectorOp(BinaryOperator &Inst) {
   assert(cast<VectorType>(LHS->getType())->getNumElements() == VWidth);
   assert(cast<VectorType>(RHS->getType())->getNumElements() == VWidth);
 
-  // If both arguments of binary operation are shuffles, which use the same
-  // mask and shuffle within a single vector, it is worthwhile to move the
-  // shuffle after binary operation:
+  // If both arguments of the binary operation are shuffles that use the same
+  // mask and shuffle within a single vector, move the shuffle after the binop:
   //   Op(shuffle(v1, m), shuffle(v2, m)) -> shuffle(Op(v1, v2), m)
-  if (isa<ShuffleVectorInst>(LHS) && isa<ShuffleVectorInst>(RHS)) {
-    ShuffleVectorInst *LShuf = cast<ShuffleVectorInst>(LHS);
-    ShuffleVectorInst *RShuf = cast<ShuffleVectorInst>(RHS);
-    if (isa<UndefValue>(LShuf->getOperand(1)) &&
-        isa<UndefValue>(RShuf->getOperand(1)) &&
-        LShuf->getOperand(0)->getType() == RShuf->getOperand(0)->getType() &&
-        LShuf->getMask() == RShuf->getMask()) {
-      Value *NewBO = CreateBinOpAsGiven(Inst, LShuf->getOperand(0),
-          RShuf->getOperand(0), Builder);
-      return Builder->CreateShuffleVector(NewBO,
-          UndefValue::get(NewBO->getType()), LShuf->getMask());
-    }
+  auto *LShuf = dyn_cast<ShuffleVectorInst>(LHS);
+  auto *RShuf = dyn_cast<ShuffleVectorInst>(RHS);
+  if (LShuf && RShuf && LShuf->getMask() == RShuf->getMask() &&
+      isa<UndefValue>(LShuf->getOperand(1)) &&
+      isa<UndefValue>(RShuf->getOperand(1)) &&
+      LShuf->getOperand(0)->getType() == RShuf->getOperand(0)->getType()) {
+    Value *NewBO = CreateBinOpAsGiven(Inst, LShuf->getOperand(0),
+                                      RShuf->getOperand(0), Builder);
+    return Builder->CreateShuffleVector(
+        NewBO, UndefValue::get(NewBO->getType()), LShuf->getMask());
   }
 
   // If one argument is a shuffle within one vector, the other is a constant,
@@ -1559,27 +1594,21 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
       // Replace: gep (gep %P, long B), long A, ...
       // With:    T = long A+B; gep %P, T, ...
       //
-      Value *Sum;
       Value *SO1 = Src->getOperand(Src->getNumOperands()-1);
       Value *GO1 = GEP.getOperand(1);
-      if (SO1 == Constant::getNullValue(SO1->getType())) {
-        Sum = GO1;
-      } else if (GO1 == Constant::getNullValue(GO1->getType())) {
-        Sum = SO1;
-      } else {
-        // If they aren't the same type, then the input hasn't been processed
-        // by the loop above yet (which canonicalizes sequential index types to
-        // intptr_t).  Just avoid transforming this until the input has been
-        // normalized.
-        if (SO1->getType() != GO1->getType())
-          return nullptr;
-        // Only do the combine when GO1 and SO1 are both constants. Only in
-        // this case, we are sure the cost after the merge is never more than
-        // that before the merge.
-        if (!isa<Constant>(GO1) || !isa<Constant>(SO1))
-          return nullptr;
-        Sum = Builder->CreateAdd(SO1, GO1, PtrOp->getName()+".sum");
-      }
+
+      // If they aren't the same type, then the input hasn't been processed
+      // by the loop above yet (which canonicalizes sequential index types to
+      // intptr_t).  Just avoid transforming this until the input has been
+      // normalized.
+      if (SO1->getType() != GO1->getType())
+        return nullptr;
+
+      Value* Sum = SimplifyAddInst(GO1, SO1, false, false, DL, &TLI, &DT, &AC);
+      // Only do the combine when we are sure the cost after the
+      // merge is never more than that before the merge.
+      if (Sum == nullptr)
+        return nullptr;
 
       // Update the GEP in place if possible.
       if (Src->getNumOperands() == 2) {
@@ -1654,13 +1683,13 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
     }
   }
 
+  // We do not handle pointer-vector geps here.
+  if (GEP.getType()->isVectorTy())
+    return nullptr;
+
   // Handle gep(bitcast x) and gep(gep x, 0, 0, 0).
   Value *StrippedPtr = PtrOp->stripPointerCasts();
-  PointerType *StrippedPtrTy = dyn_cast<PointerType>(StrippedPtr->getType());
-
-  // We do not handle pointer-vector geps here.
-  if (!StrippedPtrTy)
-    return nullptr;
+  PointerType *StrippedPtrTy = cast<PointerType>(StrippedPtr->getType());
 
   if (StrippedPtr != PtrOp) {
     bool HasZeroPointerIndex = false;
@@ -2239,11 +2268,11 @@ Instruction *InstCombiner::visitSwitchInst(SwitchInst &SI) {
   ConstantInt *AddRHS;
   if (match(Cond, m_Add(m_Value(Op0), m_ConstantInt(AddRHS)))) {
     // Change 'switch (X+4) case 1:' into 'switch (X) case -3'.
-    for (SwitchInst::CaseIt CaseIter : SI.cases()) {
-      Constant *NewCase = ConstantExpr::getSub(CaseIter.getCaseValue(), AddRHS);
+    for (auto Case : SI.cases()) {
+      Constant *NewCase = ConstantExpr::getSub(Case.getCaseValue(), AddRHS);
       assert(isa<ConstantInt>(NewCase) &&
              "Result of expression should be constant");
-      CaseIter.setValue(cast<ConstantInt>(NewCase));
+      Case.setValue(cast<ConstantInt>(NewCase));
     }
     SI.setCondition(Op0);
     return &SI;
@@ -2275,9 +2304,9 @@ Instruction *InstCombiner::visitSwitchInst(SwitchInst &SI) {
     Value *NewCond = Builder->CreateTrunc(Cond, Ty, "trunc");
     SI.setCondition(NewCond);
 
-    for (SwitchInst::CaseIt CaseIter : SI.cases()) {
-      APInt TruncatedCase = CaseIter.getCaseValue()->getValue().trunc(NewWidth);
-      CaseIter.setValue(ConstantInt::get(SI.getContext(), TruncatedCase));
+    for (auto Case : SI.cases()) {
+      APInt TruncatedCase = Case.getCaseValue()->getValue().trunc(NewWidth);
+      Case.setValue(ConstantInt::get(SI.getContext(), TruncatedCase));
     }
     return &SI;
   }
@@ -2934,8 +2963,8 @@ bool InstCombiner::run() {
         Result->takeName(I);
 
         // Push the new instruction and any users onto the worklist.
-        Worklist.Add(Result);
         Worklist.AddUsersToWorkList(*Result);
+        Worklist.Add(Result);
 
         // Insert the new instruction into the basic block...
         BasicBlock *InstParent = I->getParent();
@@ -2958,8 +2987,8 @@ bool InstCombiner::run() {
         if (isInstructionTriviallyDead(I, &TLI)) {
           eraseInstFromFunction(*I);
         } else {
-          Worklist.Add(I);
           Worklist.AddUsersToWorkList(*I);
+          Worklist.Add(I);
         }
       }
       MadeIRChange = true;
@@ -3022,12 +3051,11 @@ static bool AddReachableCodeToWorklist(BasicBlock *BB, const DataLayout &DL,
         }
 
       // See if we can constant fold its operands.
-      for (User::op_iterator i = Inst->op_begin(), e = Inst->op_end(); i != e;
-           ++i) {
-        if (!isa<ConstantVector>(i) && !isa<ConstantExpr>(i))
+      for (Use &U : Inst->operands()) {
+        if (!isa<ConstantVector>(U) && !isa<ConstantExpr>(U))
           continue;
 
-        auto *C = cast<Constant>(i);
+        auto *C = cast<Constant>(U);
         Constant *&FoldRes = FoldedConstants[C];
         if (!FoldRes)
           FoldRes = ConstantFoldConstant(C, DL, TLI);
@@ -3035,7 +3063,10 @@ static bool AddReachableCodeToWorklist(BasicBlock *BB, const DataLayout &DL,
           FoldRes = C;
 
         if (FoldRes != C) {
-          *i = FoldRes;
+          DEBUG(dbgs() << "IC: ConstFold operand of: " << *Inst
+                       << "\n    Old = " << *C
+                       << "\n    New = " << *FoldRes << '\n');
+          U = FoldRes;
           MadeIRChange = true;
         }
       }
@@ -3055,17 +3086,7 @@ static bool AddReachableCodeToWorklist(BasicBlock *BB, const DataLayout &DL,
       }
     } else if (SwitchInst *SI = dyn_cast<SwitchInst>(TI)) {
       if (ConstantInt *Cond = dyn_cast<ConstantInt>(SI->getCondition())) {
-        // See if this is an explicit destination.
-        for (SwitchInst::CaseIt i = SI->case_begin(), e = SI->case_end();
-             i != e; ++i)
-          if (i.getCaseValue() == Cond) {
-            BasicBlock *ReachableBB = i.getCaseSuccessor();
-            Worklist.push_back(ReachableBB);
-            continue;
-          }
-
-        // Otherwise it is the default destination.
-        Worklist.push_back(SI->getDefaultDest());
+        Worklist.push_back(SI->findCaseValue(Cond)->getCaseSuccessor());
         continue;
       }
     }
@@ -3152,6 +3173,7 @@ combineInstructionsOverFunction(Function &F, InstCombineWorklist &Worklist,
 
     InstCombiner IC(Worklist, &Builder, F.optForMinSize(), ExpensiveCombines,
                     AA, AC, TLI, DT, DL, LI);
+    IC.MaxArraySizeForCombine = MaxArraySize;
     Changed |= IC.run();
 
     if (!Changed)
@@ -3176,9 +3198,10 @@ PreservedAnalyses InstCombinePass::run(Function &F,
     return PreservedAnalyses::all();
 
   // Mark all the analyses that instcombine updates as preserved.
-  // FIXME: This should also 'preserve the CFG'.
   PreservedAnalyses PA;
-  PA.preserve<DominatorTreeAnalysis>();
+  PA.preserveSet<CFGAnalyses>();
+  PA.preserve<AAManager>();
+  PA.preserve<GlobalsAA>();
   return PA;
 }
 

@@ -30,6 +30,8 @@ def HasLSE           : Predicate<"Subtarget->hasLSE()">,
                                  AssemblerPredicate<"FeatureLSE", "lse">;
 def HasRAS           : Predicate<"Subtarget->hasRAS()">,
                                  AssemblerPredicate<"FeatureRAS", "ras">;
+def HasRDM           : Predicate<"Subtarget->hasRDM()">,
+                                 AssemblerPredicate<"FeatureRDM", "rdm">;
 def HasPerfMon       : Predicate<"Subtarget->hasPerfMon()">;
 def HasFullFP16      : Predicate<"Subtarget->hasFullFP16()">,
                                  AssemblerPredicate<"FeatureFullFP16", "fullfp16">;
@@ -40,6 +42,11 @@ def IsLE             : Predicate<"Subtarget->isLittleEndian()">;
 def IsBE             : Predicate<"!Subtarget->isLittleEndian()">;
 def UseAlternateSExtLoadCVTF32
     : Predicate<"Subtarget->useAlternateSExtLoadCVTF32Pattern()">;
+
+def UseNegativeImmediates
+    : Predicate<"false">, AssemblerPredicate<"!FeatureNoNegativeImmediates",
+                                             "NegativeImmediates">;
+
 
 //===----------------------------------------------------------------------===//
 // AArch64-specific DAG Nodes.
@@ -424,8 +431,10 @@ def MSRpstateImm1 : MSRpstateImm0_1;
 def MSRpstateImm4 : MSRpstateImm0_15;
 
 // The thread pointer (on Linux, at least, where this has been implemented) is
-// TPIDR_EL0.
-def : Pat<(AArch64threadpointer), (MRS 0xde82)>;
+// TPIDR_EL0.  Add pseudo op so we can mark it as not having any side effects.
+let hasSideEffects = 0 in
+def MOVbaseTLS : Pseudo<(outs GPR64:$dst), (ins),
+                       [(set GPR64:$dst, AArch64threadpointer)]>, Sched<[]>;
 
 // The cycle counter PMC register is PMCCNTR_EL0.
 let Predicates = [HasPerfMon] in
@@ -574,31 +583,31 @@ def : Pat<(f64 fpimm:$in),
 // sequences.
 def : Pat<(AArch64WrapperLarge tglobaladdr:$g3, tglobaladdr:$g2,
                              tglobaladdr:$g1, tglobaladdr:$g0),
-          (MOVKXi (MOVKXi (MOVKXi (MOVZXi tglobaladdr:$g3, 48),
-                                  tglobaladdr:$g2, 32),
-                          tglobaladdr:$g1, 16),
-                  tglobaladdr:$g0, 0)>;
+          (MOVKXi (MOVKXi (MOVKXi (MOVZXi tglobaladdr:$g0, 0),
+                                  tglobaladdr:$g1, 16),
+                          tglobaladdr:$g2, 32),
+                  tglobaladdr:$g3, 48)>;
 
 def : Pat<(AArch64WrapperLarge tblockaddress:$g3, tblockaddress:$g2,
                              tblockaddress:$g1, tblockaddress:$g0),
-          (MOVKXi (MOVKXi (MOVKXi (MOVZXi tblockaddress:$g3, 48),
-                                  tblockaddress:$g2, 32),
-                          tblockaddress:$g1, 16),
-                  tblockaddress:$g0, 0)>;
+          (MOVKXi (MOVKXi (MOVKXi (MOVZXi tblockaddress:$g0, 0),
+                                  tblockaddress:$g1, 16),
+                          tblockaddress:$g2, 32),
+                  tblockaddress:$g3, 48)>;
 
 def : Pat<(AArch64WrapperLarge tconstpool:$g3, tconstpool:$g2,
                              tconstpool:$g1, tconstpool:$g0),
-          (MOVKXi (MOVKXi (MOVKXi (MOVZXi tconstpool:$g3, 48),
-                                  tconstpool:$g2, 32),
-                          tconstpool:$g1, 16),
-                  tconstpool:$g0, 0)>;
+          (MOVKXi (MOVKXi (MOVKXi (MOVZXi tconstpool:$g0, 0),
+                                  tconstpool:$g1, 16),
+                          tconstpool:$g2, 32),
+                  tconstpool:$g3, 48)>;
 
 def : Pat<(AArch64WrapperLarge tjumptable:$g3, tjumptable:$g2,
                              tjumptable:$g1, tjumptable:$g0),
-          (MOVKXi (MOVKXi (MOVKXi (MOVZXi tjumptable:$g3, 48),
-                                  tjumptable:$g2, 32),
-                          tjumptable:$g1, 16),
-                  tjumptable:$g0, 0)>;
+          (MOVKXi (MOVKXi (MOVKXi (MOVZXi tjumptable:$g0, 0),
+                                  tjumptable:$g1, 16),
+                          tjumptable:$g2, 32),
+                  tjumptable:$g3, 48)>;
 
 
 //===----------------------------------------------------------------------===//
@@ -3284,7 +3293,7 @@ defm UQSHL    : SIMDThreeScalarBHSD<1, 0b01001, "uqshl", int_aarch64_neon_uqshl>
 defm UQSUB    : SIMDThreeScalarBHSD<1, 0b00101, "uqsub", int_aarch64_neon_uqsub>;
 defm URSHL    : SIMDThreeScalarD<   1, 0b01010, "urshl", int_aarch64_neon_urshl>;
 defm USHL     : SIMDThreeScalarD<   1, 0b01000, "ushl", int_aarch64_neon_ushl>;
-let Predicates = [HasV8_1a] in {
+let Predicates = [HasRDM] in {
   defm SQRDMLAH : SIMDThreeScalarHSTied<1, 0, 0b10000, "sqrdmlah">;
   defm SQRDMLSH : SIMDThreeScalarHSTied<1, 0, 0b10001, "sqrdmlsh">;
   def : Pat<(i32 (int_aarch64_neon_sqadd
@@ -5029,7 +5038,7 @@ class SExtLoadi16CVTf64Pat<dag addrmode, dag INST>
                                0),
                              dsub)))>,
     Requires<[NotForCodeSize, UseAlternateSExtLoadCVTF32]>;
- 
+
 def : SExtLoadi16CVTf64Pat<(ro16.Wpat GPR64sp:$Rn, GPR32:$Rm, ro16.Wext:$ext),
                            (LDRHroW GPR64sp:$Rn, GPR32:$Rm, ro16.Wext:$ext)>;
 def : SExtLoadi16CVTf64Pat<(ro16.Xpat GPR64sp:$Rn, GPR64:$Rm, ro16.Xext:$ext),

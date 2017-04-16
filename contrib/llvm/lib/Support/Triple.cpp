@@ -510,6 +510,7 @@ static Triple::ObjectFormatType parseFormat(StringRef EnvironmentName) {
     .EndsWith("coff", Triple::COFF)
     .EndsWith("elf", Triple::ELF)
     .EndsWith("macho", Triple::MachO)
+    .EndsWith("wasm", Triple::Wasm)
     .Default(Triple::UnknownObjectFormat);
 }
 
@@ -550,6 +551,8 @@ static Triple::SubArchType parseSubArch(StringRef SubArchName) {
   case ARM::AK_ARMV7A:
   case ARM::AK_ARMV7R:
     return Triple::ARMSubArch_v7;
+  case ARM::AK_ARMV7VE:
+    return Triple::ARMSubArch_v7ve;
   case ARM::AK_ARMV7K:
     return Triple::ARMSubArch_v7k;
   case ARM::AK_ARMV7M:
@@ -581,6 +584,7 @@ static StringRef getObjectFormatTypeName(Triple::ObjectFormatType Kind) {
   case Triple::COFF: return "coff";
   case Triple::ELF: return "elf";
   case Triple::MachO: return "macho";
+  case Triple::Wasm: return "wasm";
   }
   llvm_unreachable("unknown object format type");
 }
@@ -1511,6 +1515,7 @@ StringRef Triple::getARMCPUForArch(StringRef MArch) const {
       return "strongarm";
     }
   case llvm::Triple::NaCl:
+  case llvm::Triple::OpenBSD:
     return "cortex-a8";
   default:
     switch (getEnvironment()) {

@@ -1877,6 +1877,7 @@ void SparcTargetLowering::computeKnownBitsForTargetNode
                                 (const SDValue Op,
                                  APInt &KnownZero,
                                  APInt &KnownOne,
+                                 const APInt &DemandedElts,
                                  const SelectionDAG &DAG,
                                  unsigned Depth) const {
   APInt KnownZero2, KnownOne2;
@@ -2177,8 +2178,8 @@ SparcTargetLowering::LowerF128Op(SDValue Op, SelectionDAG &DAG,
     Entry.Node = RetPtr;
     Entry.Ty   = PointerType::getUnqual(RetTy);
     if (!Subtarget->is64Bit())
-      Entry.isSRet = true;
-    Entry.isReturned = false;
+      Entry.IsSRet = true;
+    Entry.IsReturned = false;
     Args.push_back(Entry);
     RetTyABI = Type::getVoidTy(*DAG.getContext());
   }

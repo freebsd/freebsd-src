@@ -55,14 +55,15 @@ bool TargetLowering::isInTailCallPosition(SelectionDAG &DAG, SDNode *Node,
 
   // Conservatively require the attributes of the call to match those of
   // the return. Ignore noalias because it doesn't affect the call sequence.
-  AttributeSet CallerAttrs = F->getAttributes();
-  if (AttrBuilder(CallerAttrs, AttributeSet::ReturnIndex)
-      .removeAttribute(Attribute::NoAlias).hasAttributes())
+  AttributeList CallerAttrs = F->getAttributes();
+  if (AttrBuilder(CallerAttrs, AttributeList::ReturnIndex)
+          .removeAttribute(Attribute::NoAlias)
+          .hasAttributes())
     return false;
 
   // It's not safe to eliminate the sign / zero extension of the return value.
-  if (CallerAttrs.hasAttribute(AttributeSet::ReturnIndex, Attribute::ZExt) ||
-      CallerAttrs.hasAttribute(AttributeSet::ReturnIndex, Attribute::SExt))
+  if (CallerAttrs.hasAttribute(AttributeList::ReturnIndex, Attribute::ZExt) ||
+      CallerAttrs.hasAttribute(AttributeList::ReturnIndex, Attribute::SExt))
     return false;
 
   // Check if the only use is a function return node.
@@ -96,19 +97,20 @@ bool TargetLowering::parametersInCSRMatch(const MachineRegisterInfo &MRI,
 
 /// \brief Set CallLoweringInfo attribute flags based on a call instruction
 /// and called function attributes.
-void TargetLowering::ArgListEntry::setAttributes(ImmutableCallSite *CS,
-                                                 unsigned AttrIdx) {
-  isSExt     = CS->paramHasAttr(AttrIdx, Attribute::SExt);
-  isZExt     = CS->paramHasAttr(AttrIdx, Attribute::ZExt);
-  isInReg    = CS->paramHasAttr(AttrIdx, Attribute::InReg);
-  isSRet     = CS->paramHasAttr(AttrIdx, Attribute::StructRet);
-  isNest     = CS->paramHasAttr(AttrIdx, Attribute::Nest);
-  isByVal    = CS->paramHasAttr(AttrIdx, Attribute::ByVal);
-  isInAlloca = CS->paramHasAttr(AttrIdx, Attribute::InAlloca);
-  isReturned = CS->paramHasAttr(AttrIdx, Attribute::Returned);
-  isSwiftSelf = CS->paramHasAttr(AttrIdx, Attribute::SwiftSelf);
-  isSwiftError = CS->paramHasAttr(AttrIdx, Attribute::SwiftError);
-  Alignment  = CS->getParamAlignment(AttrIdx);
+void TargetLoweringBase::ArgListEntry::setAttributes(ImmutableCallSite *CS,
+                                                     unsigned ArgIdx) {
+  IsSExt = CS->paramHasAttr(ArgIdx, Attribute::SExt);
+  IsZExt = CS->paramHasAttr(ArgIdx, Attribute::ZExt);
+  IsInReg = CS->paramHasAttr(ArgIdx, Attribute::InReg);
+  IsSRet = CS->paramHasAttr(ArgIdx, Attribute::StructRet);
+  IsNest = CS->paramHasAttr(ArgIdx, Attribute::Nest);
+  IsByVal = CS->paramHasAttr(ArgIdx, Attribute::ByVal);
+  IsInAlloca = CS->paramHasAttr(ArgIdx, Attribute::InAlloca);
+  IsReturned = CS->paramHasAttr(ArgIdx, Attribute::Returned);
+  IsSwiftSelf = CS->paramHasAttr(ArgIdx, Attribute::SwiftSelf);
+  IsSwiftError = CS->paramHasAttr(ArgIdx, Attribute::SwiftError);
+  // FIXME: getParamAlignment is off by one from argument index.
+  Alignment  = CS->getParamAlignment(ArgIdx + 1);
 }
 
 /// Generate a libcall taking the given operands as arguments and returning a
@@ -125,8 +127,8 @@ TargetLowering::makeLibCall(SelectionDAG &DAG, RTLIB::Libcall LC, EVT RetVT,
   for (SDValue Op : Ops) {
     Entry.Node = Op;
     Entry.Ty = Entry.Node.getValueType().getTypeForEVT(*DAG.getContext());
-    Entry.isSExt = shouldSignExtendTypeInLibCall(Op.getValueType(), isSigned);
-    Entry.isZExt = !shouldSignExtendTypeInLibCall(Op.getValueType(), isSigned);
+    Entry.IsSExt = shouldSignExtendTypeInLibCall(Op.getValueType(), isSigned);
+    Entry.IsZExt = !shouldSignExtendTypeInLibCall(Op.getValueType(), isSigned);
     Args.push_back(Entry);
   }
 
@@ -138,10 +140,13 @@ TargetLowering::makeLibCall(SelectionDAG &DAG, RTLIB::Libcall LC, EVT RetVT,
   Type *RetTy = RetVT.getTypeForEVT(*DAG.getContext());
   TargetLowering::CallLoweringInfo CLI(DAG);
   bool signExtend = shouldSignExtendTypeInLibCall(RetVT, isSigned);
-  CLI.setDebugLoc(dl).setChain(DAG.getEntryNode())
-    .setCallee(getLibcallCallingConv(LC), RetTy, Callee, std::move(Args))
-    .setNoReturn(doesNotReturn).setDiscardResult(!isReturnValueUsed)
-    .setSExtResult(signExtend).setZExtResult(!signExtend);
+  CLI.setDebugLoc(dl)
+      .setChain(DAG.getEntryNode())
+      .setLibCallee(getLibcallCallingConv(LC), RetTy, Callee, std::move(Args))
+      .setNoReturn(doesNotReturn)
+      .setDiscardResult(!isReturnValueUsed)
+      .setSExtResult(signExtend)
+      .setZExtResult(!signExtend);
   return LowerCallTo(CLI);
 }
 
@@ -334,34 +339,35 @@ TargetLowering::isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const {
 //  Optimization Methods
 //===----------------------------------------------------------------------===//
 
-/// Check to see if the specified operand of the specified instruction is a
-/// constant integer. If so, check to see if there are any bits set in the
-/// constant that are not demanded. If so, shrink the constant and return true.
-bool TargetLowering::TargetLoweringOpt::ShrinkDemandedConstant(SDValue Op,
-                                                        const APInt &Demanded) {
-  SDLoc dl(Op);
+/// If the specified instruction has a constant integer operand and there are
+/// bits set in that constant that are not demanded, then clear those bits and
+/// return true.
+bool TargetLowering::TargetLoweringOpt::ShrinkDemandedConstant(
+    SDValue Op, const APInt &Demanded) {
+  SDLoc DL(Op);
+  unsigned Opcode = Op.getOpcode();
 
   // FIXME: ISD::SELECT, ISD::SELECT_CC
-  switch (Op.getOpcode()) {
-  default: break;
+  switch (Opcode) {
+  default:
+    break;
   case ISD::XOR:
   case ISD::AND:
   case ISD::OR: {
-    ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op.getOperand(1));
-    if (!C) return false;
-
-    if (Op.getOpcode() == ISD::XOR &&
-        (C->getAPIntValue() | (~Demanded)).isAllOnesValue())
+    auto *Op1C = dyn_cast<ConstantSDNode>(Op.getOperand(1));
+    if (!Op1C)
       return false;
 
-    // if we can expand it to have all bits set, do it
-    if (C->getAPIntValue().intersects(~Demanded)) {
+    // If this is a 'not' op, don't touch it because that's a canonical form.
+    const APInt &C = Op1C->getAPIntValue();
+    if (Opcode == ISD::XOR && (C | ~Demanded).isAllOnesValue())
+      return false;
+
+    if (C.intersects(~Demanded)) {
       EVT VT = Op.getValueType();
-      SDValue New = DAG.getNode(Op.getOpcode(), dl, VT, Op.getOperand(0),
-                                DAG.getConstant(Demanded &
-                                                C->getAPIntValue(),
-                                                dl, VT));
-      return CombineTo(Op, New);
+      SDValue NewC = DAG.getConstant(Demanded & C, DL, VT);
+      SDValue NewOp = DAG.getNode(Opcode, DL, VT, Op.getOperand(0), NewC);
+      return CombineTo(Op, NewOp);
     }
 
     break;
@@ -468,6 +474,21 @@ TargetLowering::TargetLoweringOpt::SimplifyDemandedBits(SDNode *User,
   // with it.
   DCI.AddToWorklist(User);
   return true;
+}
+
+bool TargetLowering::SimplifyDemandedBits(SDValue Op, APInt &DemandedMask,
+                                          DAGCombinerInfo &DCI) const {
+
+  SelectionDAG &DAG = DCI.DAG;
+  TargetLoweringOpt TLO(DAG, !DCI.isBeforeLegalize(),
+                        !DCI.isBeforeLegalizeOps());
+  APInt KnownZero, KnownOne;
+
+  bool Simplified = SimplifyDemandedBits(Op, DemandedMask, KnownZero, KnownOne,
+                                         TLO);
+  if (Simplified)
+    DCI.CommitTargetLoweringOpt(TLO);
+  return Simplified;
 }
 
 /// Look at Op. At this point, we know that only the DemandedMask bits of the
@@ -711,8 +732,8 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
       }
     }
 
-    KnownZero = KnownZeroOut;
-    KnownOne  = KnownOneOut;
+    KnownZero = std::move(KnownZeroOut);
+    KnownOne  = std::move(KnownOneOut);
     break;
   case ISD::SELECT:
     if (SimplifyDemandedBits(Op.getOperand(2), NewMask, KnownZero,
@@ -750,6 +771,33 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     KnownOne &= KnownOne2;
     KnownZero &= KnownZero2;
     break;
+  case ISD::SETCC: {
+    SDValue Op0 = Op.getOperand(0);
+    SDValue Op1 = Op.getOperand(1);
+    ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(2))->get();
+    // If (1) we only need the sign-bit, (2) the setcc operands are the same
+    // width as the setcc result, and (3) the result of a setcc conforms to 0 or
+    // -1, we may be able to bypass the setcc.
+    if (NewMask.isSignBit() && Op0.getScalarValueSizeInBits() == BitWidth &&
+        getBooleanContents(Op.getValueType()) ==
+            BooleanContent::ZeroOrNegativeOneBooleanContent) {
+      // If we're testing X < 0, then this compare isn't needed - just use X!
+      // FIXME: We're limiting to integer types here, but this should also work
+      // if we don't care about FP signed-zero. The use of SETLT with FP means
+      // that we don't care about NaNs.
+      if (CC == ISD::SETLT && Op1.getValueType().isInteger() &&
+          (isNullConstant(Op1) || ISD::isBuildVectorAllZeros(Op1.getNode())))
+        return TLO.CombineTo(Op, Op0);
+
+      // TODO: Should we check for other forms of sign-bit comparisons?
+      // Examples: X <= -1, X >= 0
+    }
+    if (getBooleanContents(Op0.getValueType()) ==
+            TargetLowering::ZeroOrOneBooleanContent &&
+        BitWidth > 1)
+      KnownZero.setBitsFrom(1);
+    break;
+  }
   case ISD::SHL:
     if (ConstantSDNode *SA = dyn_cast<ConstantSDNode>(Op.getOperand(1))) {
       unsigned ShAmt = SA->getZExtValue();
@@ -834,7 +882,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
       KnownZero <<= SA->getZExtValue();
       KnownOne  <<= SA->getZExtValue();
       // low bits known zero.
-      KnownZero |= APInt::getLowBitsSet(BitWidth, SA->getZExtValue());
+      KnownZero.setLowBits(SA->getZExtValue());
     }
     break;
   case ISD::SRL:
@@ -853,7 +901,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
       // If the shift is exact, then it does demand the low bits (and knows that
       // they are zero).
       if (cast<BinaryWithFlagsSDNode>(Op)->Flags.hasExact())
-        InDemandedMask |= APInt::getLowBitsSet(BitWidth, ShAmt);
+        InDemandedMask.setLowBits(ShAmt);
 
       // If this is ((X << C1) >>u ShAmt), see if we can simplify this into a
       // single shift.  We can do this if the top bits (which are shifted out)
@@ -884,8 +932,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
       KnownZero = KnownZero.lshr(ShAmt);
       KnownOne  = KnownOne.lshr(ShAmt);
 
-      APInt HighBits = APInt::getHighBitsSet(BitWidth, ShAmt);
-      KnownZero |= HighBits;  // High bits known zero.
+      KnownZero.setHighBits(ShAmt);  // High bits known zero.
     }
     break;
   case ISD::SRA:
@@ -911,7 +958,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
       // If the shift is exact, then it does demand the low bits (and knows that
       // they are zero).
       if (cast<BinaryWithFlagsSDNode>(Op)->Flags.hasExact())
-        InDemandedMask |= APInt::getLowBitsSet(BitWidth, ShAmt);
+        InDemandedMask.setLowBits(ShAmt);
 
       // If any of the demanded bits are produced by the sign extension, we also
       // demand the input sign bit.
@@ -1075,7 +1122,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     EVT InVT = Op.getOperand(0).getValueType();
     unsigned InBits = InVT.getScalarSizeInBits();
     APInt InMask    = APInt::getLowBitsSet(BitWidth, InBits);
-    APInt InSignBit = APInt::getBitsSet(BitWidth, InBits - 1, InBits);
+    APInt InSignBit = APInt::getOneBitSet(BitWidth, InBits - 1);
     APInt NewBits   = ~InMask & NewMask;
 
     // If none of the top bits are demanded, convert this into an any_extend.
@@ -1191,7 +1238,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
       return true;
     assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?");
 
-    KnownZero |= ~InMask & NewMask;
+    KnownZero |= ~InMask;
     break;
   }
   case ISD::BITCAST:
@@ -1281,6 +1328,7 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
 void TargetLowering::computeKnownBitsForTargetNode(const SDValue Op,
                                                    APInt &KnownZero,
                                                    APInt &KnownOne,
+                                                   const APInt &DemandedElts,
                                                    const SelectionDAG &DAG,
                                                    unsigned Depth) const {
   assert((Op.getOpcode() >= ISD::BUILTIN_OP_END ||
@@ -1295,6 +1343,7 @@ void TargetLowering::computeKnownBitsForTargetNode(const SDValue Op,
 /// This method can be implemented by targets that want to expose additional
 /// information about sign bits to the DAG Combiner.
 unsigned TargetLowering::ComputeNumSignBitsForTargetNode(SDValue Op,
+                                                         const APInt &,
                                                          const SelectionDAG &,
                                                          unsigned Depth) const {
   assert((Op.getOpcode() >= ISD::BUILTIN_OP_END ||
@@ -2050,6 +2099,16 @@ SDValue TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
     if (Cond == ISD::SETO || Cond == ISD::SETUO)
       return DAG.getSetCC(dl, VT, N0, N0, Cond);
 
+    // setcc (fneg x), C -> setcc swap(pred) x, -C
+    if (N0.getOpcode() == ISD::FNEG) {
+      ISD::CondCode SwapCond = ISD::getSetCCSwappedOperands(Cond);
+      if (DCI.isBeforeLegalizeOps() ||
+          isCondCodeLegal(SwapCond, N0.getSimpleValueType())) {
+        SDValue NegN1 = DAG.getNode(ISD::FNEG, dl, N0.getValueType(), N1);
+        return DAG.getSetCC(dl, VT, N0.getOperand(0), NegN1, SwapCond);
+      }
+    }
+
     // If the condition is not legal, see if we can find an equivalent one
     // which is legal.
     if (!isCondCodeLegal(Cond, N0.getSimpleValueType())) {
@@ -2470,10 +2529,7 @@ TargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *RI,
     std::make_pair(0u, static_cast<const TargetRegisterClass*>(nullptr));
 
   // Figure out which register class contains this reg.
-  for (TargetRegisterInfo::regclass_iterator RCI = RI->regclass_begin(),
-       E = RI->regclass_end(); RCI != E; ++RCI) {
-    const TargetRegisterClass *RC = *RCI;
-
+  for (const TargetRegisterClass *RC : RI->regclasses()) {
     // If none of the value types for this register class are valid, we
     // can't use it.  For example, 64-bit reg classes on 32-bit targets.
     if (!isLegalRC(RC))
@@ -2933,7 +2989,7 @@ static SDValue BuildExactSDIV(const TargetLowering &TLI, SDValue Op1, APInt d,
 SDValue TargetLowering::BuildSDIVPow2(SDNode *N, const APInt &Divisor,
                                       SelectionDAG &DAG,
                                       std::vector<SDNode *> *Created) const {
-  AttributeSet Attr = DAG.getMachineFunction().getFunction()->getAttributes();
+  AttributeList Attr = DAG.getMachineFunction().getFunction()->getAttributes();
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   if (TLI.isIntDivCheap(N->getValueType(0), Attr))
     return SDValue(N,0); // Lower SDIV as SDIV
@@ -3808,7 +3864,7 @@ SDValue TargetLowering::LowerToTLSEmulatedModel(const GlobalAddressSDNode *GA,
 
   TargetLowering::CallLoweringInfo CLI(DAG);
   CLI.setDebugLoc(dl).setChain(DAG.getEntryNode());
-  CLI.setCallee(CallingConv::C, VoidPtrType, EmuTlsGetAddr, std::move(Args));
+  CLI.setLibCallee(CallingConv::C, VoidPtrType, EmuTlsGetAddr, std::move(Args));
   std::pair<SDValue, SDValue> CallResult = LowerCallTo(CLI);
 
   // TLSADDR will be codegen'ed as call. Inform MFI that function has calls.

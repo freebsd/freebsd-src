@@ -457,8 +457,8 @@ Instruction *InstCombiner::FoldPHIArgZextsIntoPHI(PHINode &Phi) {
   }
 
   // The more common cases of a phi with no constant operands or just one
-  // variable operand are handled by FoldPHIArgOpIntoPHI() and FoldOpIntoPhi()
-  // respectively. FoldOpIntoPhi() wants to do the opposite transform that is
+  // variable operand are handled by FoldPHIArgOpIntoPHI() and foldOpIntoPhi()
+  // respectively. foldOpIntoPhi() wants to do the opposite transform that is
   // performed here. It tries to replicate a cast in the phi operand's basic
   // block to expose other folding opportunities. Thus, InstCombine will
   // infinite loop without this check.
@@ -507,7 +507,7 @@ Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
     // Be careful about transforming integer PHIs.  We don't want to pessimize
     // the code by turning an i32 into an i1293.
     if (PN.getType()->isIntegerTy() && CastSrcTy->isIntegerTy()) {
-      if (!ShouldChangeType(PN.getType(), CastSrcTy))
+      if (!shouldChangeType(PN.getType(), CastSrcTy))
         return nullptr;
     }
   } else if (isa<BinaryOperator>(FirstInst) || isa<CmpInst>(FirstInst)) {

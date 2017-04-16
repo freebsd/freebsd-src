@@ -14,22 +14,21 @@
 #ifndef LLVM_MC_MCSECTION_H
 #define LLVM_MC_MCSECTION_H
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/ilist.h"
-#include "llvm/ADT/ilist_node.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/MC/MCFragment.h"
 #include "llvm/MC/SectionKind.h"
-#include "llvm/Support/Compiler.h"
+#include <cassert>
+#include <utility>
 
 namespace llvm {
+
 class MCAsmInfo;
-class MCAssembler;
 class MCContext;
 class MCExpr;
-class MCFragment;
-class MCSection;
 class MCSymbol;
 class raw_ostream;
+class Triple;
 
 template <> struct ilist_alloc_traits<MCFragment> {
   static void deleteNode(MCFragment *V);
@@ -39,7 +38,7 @@ template <> struct ilist_alloc_traits<MCFragment> {
 /// current translation unit.  The MCContext class uniques and creates these.
 class MCSection {
 public:
-  enum SectionVariant { SV_COFF = 0, SV_ELF, SV_MachO };
+  enum SectionVariant { SV_COFF = 0, SV_ELF, SV_MachO, SV_Wasm };
 
   /// \brief Express the state of bundle locked groups while emitting code.
   enum BundleLockStateType {
@@ -57,9 +56,6 @@ public:
   typedef FragmentListType::reverse_iterator reverse_iterator;
 
 private:
-  MCSection(const MCSection &) = delete;
-  void operator=(const MCSection &) = delete;
-
   MCSymbol *Begin;
   MCSymbol *End = nullptr;
   /// The alignment requirement of this section.
@@ -77,12 +73,12 @@ private:
 
   /// \brief We've seen a bundle_lock directive but not its first instruction
   /// yet.
-  unsigned BundleGroupBeforeFirstInst : 1;
+  bool BundleGroupBeforeFirstInst : 1;
 
   /// Whether this section has had instructions emitted into it.
-  unsigned HasInstructions : 1;
+  bool HasInstructions : 1;
 
-  unsigned IsRegistered : 1;
+  bool IsRegistered : 1;
 
   MCDummyFragment DummyFragment;
 
@@ -93,12 +89,16 @@ private:
   SmallVector<std::pair<unsigned, MCFragment *>, 1> SubsectionFragmentMap;
 
 protected:
-  MCSection(SectionVariant V, SectionKind K, MCSymbol *Begin);
   SectionVariant Variant;
   SectionKind Kind;
+
+  MCSection(SectionVariant V, SectionKind K, MCSymbol *Begin);
   ~MCSection();
 
 public:
+  MCSection(const MCSection &) = delete;
+  MCSection &operator=(const MCSection &) = delete;
+
   SectionKind getKind() const { return Kind; }
 
   SectionVariant getVariant() const { return Variant; }
@@ -169,7 +169,8 @@ public:
 
   void dump();
 
-  virtual void PrintSwitchToSection(const MCAsmInfo &MAI, raw_ostream &OS,
+  virtual void PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
+                                    raw_ostream &OS,
                                     const MCExpr *Subsection) const = 0;
 
   /// Return true if a .align directive should use "optimized nops" to fill
@@ -183,4 +184,4 @@ public:
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCSECTION_H

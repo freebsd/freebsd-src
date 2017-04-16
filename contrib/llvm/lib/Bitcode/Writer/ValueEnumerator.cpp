@@ -432,12 +432,14 @@ unsigned ValueEnumerator::getValueID(const Value *V) const {
   return I->second-1;
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void ValueEnumerator::dump() const {
   print(dbgs(), ValueMap, "Default");
   dbgs() << '\n';
   print(dbgs(), MetadataMap, "MetaData");
   dbgs() << '\n';
 }
+#endif
 
 void ValueEnumerator::print(raw_ostream &OS, const ValueMapType &Map,
                             const char *Name) const {
@@ -452,7 +454,8 @@ void ValueEnumerator::print(raw_ostream &OS, const ValueMapType &Map,
       OS << "Value: " << V->getName();
     else
       OS << "Value: [null]\n";
-    V->dump();
+    V->print(errs());
+    errs() << '\n';
 
     OS << " Uses(" << std::distance(V->use_begin(),V->use_end()) << "):";
     for (const Use &U : V->uses()) {
@@ -549,7 +552,7 @@ void ValueEnumerator::EnumerateFunctionLocalMetadata(
 void ValueEnumerator::dropFunctionFromMetadata(
     MetadataMapType::value_type &FirstMD) {
   SmallVector<const MDNode *, 64> Worklist;
-  auto push = [this, &Worklist](MetadataMapType::value_type &MD) {
+  auto push = [&Worklist](MetadataMapType::value_type &MD) {
     auto &Entry = MD.second;
 
     // Nothing to do if this metadata isn't tagged.
@@ -884,7 +887,7 @@ void ValueEnumerator::EnumerateOperandType(const Value *V) {
   }
 }
 
-void ValueEnumerator::EnumerateAttributes(AttributeSet PAL) {
+void ValueEnumerator::EnumerateAttributes(AttributeList PAL) {
   if (PAL.isEmpty()) return;  // null is always 0.
 
   // Do a lookup.
@@ -897,7 +900,7 @@ void ValueEnumerator::EnumerateAttributes(AttributeSet PAL) {
 
   // Do lookups for all attribute groups.
   for (unsigned i = 0, e = PAL.getNumSlots(); i != e; ++i) {
-    AttributeSet AS = PAL.getSlotAttributes(i);
+    AttributeList AS = PAL.getSlotAttributes(i);
     unsigned &Entry = AttributeGroupMap[AS];
     if (Entry == 0) {
       AttributeGroups.push_back(AS);

@@ -863,6 +863,37 @@ void LiveInterval::clearSubRanges() {
   SubRanges = nullptr;
 }
 
+void LiveInterval::refineSubRanges(BumpPtrAllocator &Allocator,
+    LaneBitmask LaneMask, std::function<void(LiveInterval::SubRange&)> Apply) {
+
+  LaneBitmask ToApply = LaneMask;
+  for (SubRange &SR : subranges()) {
+    LaneBitmask SRMask = SR.LaneMask;
+    LaneBitmask Matching = SRMask & LaneMask;
+    if (Matching.none())
+      continue;
+
+    SubRange *MatchingRange;
+    if (SRMask == Matching) {
+      // The subrange fits (it does not cover bits outside \p LaneMask).
+      MatchingRange = &SR;
+    } else {
+      // We have to split the subrange into a matching and non-matching part.
+      // Reduce lanemask of existing lane to non-matching part.
+      SR.LaneMask = SRMask & ~Matching;
+      // Create a new subrange for the matching part
+      MatchingRange = createSubRangeFrom(Allocator, Matching, SR);
+    }
+    Apply(*MatchingRange);
+    ToApply &= ~Matching;
+  }
+  // Create a new subrange if there are uncovered bits left.
+  if (ToApply.any()) {
+    SubRange *NewRange = createSubRange(Allocator, ToApply);
+    Apply(*NewRange);
+  }
+}
+
 unsigned LiveInterval::getSize() const {
   unsigned Sum = 0;
   for (const Segment &S : segments)
@@ -1032,6 +1063,7 @@ void LiveInterval::verify(const MachineRegisterInfo *MRI) const {
 // When they exist, Spills.back().start <= LastStart,
 //                 and WriteI[-1].start <= LastStart.
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void LiveRangeUpdater::print(raw_ostream &OS) const {
   if (!isDirty()) {
     if (LR)
@@ -1058,6 +1090,7 @@ void LiveRangeUpdater::print(raw_ostream &OS) const {
 LLVM_DUMP_METHOD void LiveRangeUpdater::dump() const {
   print(errs());
 }
+#endif
 
 // Determine if A and B should be coalesced.
 static inline bool coalescable(const LiveRange::Segment &A,

@@ -136,8 +136,16 @@ Instruction *ConstantHoistingPass::findMatInsertPt(Instruction *Inst,
   if (Idx != ~0U && isa<PHINode>(Inst))
     return cast<PHINode>(Inst)->getIncomingBlock(Idx)->getTerminator();
 
-  BasicBlock *IDom = DT->getNode(Inst->getParent())->getIDom()->getBlock();
-  return IDom->getTerminator();
+  // This must be an EH pad. Iterate over immediate dominators until we find a
+  // non-EH pad. We need to skip over catchswitch blocks, which are both EH pads
+  // and terminators.
+  auto IDom = DT->getNode(Inst->getParent())->getIDom();
+  while (IDom->getBlock()->isEHPad()) {
+    assert(Entry != IDom->getBlock() && "eh pad in entry block");
+    IDom = IDom->getIDom();
+  }
+
+  return IDom->getBlock()->getTerminator();
 }
 
 /// \brief Find an insertion point that dominates all uses.
@@ -289,8 +297,8 @@ void ConstantHoistingPass::collectConstantCandidates(Function &Fn) {
 // bit widths (APInt Operator- does not like that). If the value cannot be
 // represented in uint64 we return an "empty" APInt. This is then interpreted
 // as the value is not in range.
-static llvm::Optional<APInt> calculateOffsetDiff(APInt V1, APInt V2)
-{
+static llvm::Optional<APInt> calculateOffsetDiff(const APInt &V1,
+                                                 const APInt &V2) {
   llvm::Optional<APInt> Res = None;
   unsigned BW = V1.getBitWidth() > V2.getBitWidth() ?
                 V1.getBitWidth() : V2.getBitWidth();
@@ -623,6 +631,7 @@ PreservedAnalyses ConstantHoistingPass::run(Function &F,
   if (!runImpl(F, TTI, DT, F.getEntryBlock()))
     return PreservedAnalyses::all();
 
-  // FIXME: This should also 'preserve the CFG'.
-  return PreservedAnalyses::none();
+  PreservedAnalyses PA;
+  PA.preserveSet<CFGAnalyses>();
+  return PA;
 }

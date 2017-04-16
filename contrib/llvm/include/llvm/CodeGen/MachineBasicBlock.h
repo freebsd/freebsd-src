@@ -128,7 +128,7 @@ public:
   /// to an LLVM basic block.
   const BasicBlock *getBasicBlock() const { return BB; }
 
-  /// Return the name of the corresponding LLVM basic block, or "(null)".
+  /// Return the name of the corresponding LLVM basic block, or an empty string.
   StringRef getName() const;
 
   /// Return a formatted string to identify this block and its parent function.
@@ -455,10 +455,19 @@ public:
   /// other block.
   bool isLayoutSuccessor(const MachineBasicBlock *MBB) const;
 
-  /// Return true if the block can implicitly transfer control to the block
-  /// after it by falling off the end of it.  This should return false if it can
-  /// reach the block after it, but it uses an explicit branch to do so (e.g., a
-  /// table jump).  True is a conservative answer.
+
+  /// Return the fallthrough block if the block can implicitly
+  /// transfer control to the block after it by falling off the end of
+  /// it.  This should return null if it can reach the block after
+  /// it, but it uses an explicit branch to do so (e.g., a table
+  /// jump).  Non-null return  is a conservative answer.
+  MachineBasicBlock *getFallThrough();
+
+  /// Return true if the block can implicitly transfer control to the
+  /// block after it by falling off the end of it.  This should return
+  /// false if it can reach the block after it, but it uses an
+  /// explicit branch to do so (e.g., a table jump).  True is a
+  /// conservative answer.
   bool canFallThrough();
 
   /// Returns a pointer to the first instruction in this block that is not a
@@ -663,6 +672,10 @@ public:
   DebugLoc findDebugLoc(iterator MBBI) {
     return findDebugLoc(MBBI.getInstrIterator());
   }
+
+  /// Find and return the merged DebugLoc of the branch instructions of the
+  /// block. Return UnknownLoc if there is none.
+  DebugLoc findBranchDebugLoc();
 
   /// Possible outcome of a register liveness query to computeRegisterLiveness()
   enum LivenessQueryResult {

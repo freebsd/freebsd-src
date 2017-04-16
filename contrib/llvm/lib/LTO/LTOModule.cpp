@@ -14,11 +14,12 @@
 
 #include "llvm/LTO/legacy/LTOModule.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Analysis/ObjectUtils.h"
 #include "llvm/Bitcode/BitcodeReader.h"
-#include "llvm/CodeGen/Analysis.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/MCExpr.h"
@@ -647,11 +648,15 @@ void LTOModule::parseMetadata() {
     }
   }
 
-  // Globals
+  // Globals - we only need to do this for COFF.
+  const Triple TT(_target->getTargetTriple());
+  if (!TT.isOSBinFormatCOFF())
+    return;
+  Mangler M;
   for (const NameAndAttributes &Sym : _symbols) {
     if (!Sym.symbol)
       continue;
-    _target->getObjFileLowering()->emitLinkerFlagsForGlobal(OS, Sym.symbol);
+    emitLinkerFlagsForGlobalCOFF(OS, Sym.symbol, TT, M);
   }
 
   // Add other interesting metadata here.

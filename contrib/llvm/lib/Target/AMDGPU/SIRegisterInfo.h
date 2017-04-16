@@ -21,8 +21,8 @@
 
 namespace llvm {
 
-class SISubtarget;
 class MachineRegisterInfo;
+class SISubtarget;
 class SIMachineFunctionInfo;
 
 class SIRegisterInfo final : public AMDGPURegisterInfo {
@@ -31,13 +31,22 @@ private:
   unsigned VGPRSetID;
   BitVector SGPRPressureSets;
   BitVector VGPRPressureSets;
+  bool SpillSGPRToVGPR;
+  bool SpillSGPRToSMEM;
 
   void reserveRegisterTuples(BitVector &, unsigned Reg) const;
   void classifyPressureSet(unsigned PSetID, unsigned Reg,
                            BitVector &PressureSets) const;
-
 public:
-  SIRegisterInfo();
+  SIRegisterInfo(const SISubtarget &ST);
+
+  bool spillSGPRToVGPR() const {
+    return SpillSGPRToVGPR;
+  }
+
+  bool spillSGPRToSMEM() const {
+    return SpillSGPRToSMEM;
+  }
 
   /// Return the end register initially reserved for the scratch buffer in case
   /// spilling is needed.
@@ -78,15 +87,21 @@ public:
   const TargetRegisterClass *getPointerRegClass(
     const MachineFunction &MF, unsigned Kind = 0) const override;
 
-  void spillSGPR(MachineBasicBlock::iterator MI,
-                 int FI, RegScavenger *RS) const;
+  /// If \p OnlyToVGPR is true, this will only succeed if this
+  bool spillSGPR(MachineBasicBlock::iterator MI,
+                 int FI, RegScavenger *RS,
+                 bool OnlyToVGPR = false) const;
 
-  void restoreSGPR(MachineBasicBlock::iterator MI,
-                   int FI, RegScavenger *RS) const;
+  bool restoreSGPR(MachineBasicBlock::iterator MI,
+                   int FI, RegScavenger *RS,
+                   bool OnlyToVGPR = false) const;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
                            unsigned FIOperandNum,
                            RegScavenger *RS) const override;
+
+  bool eliminateSGPRToVGPRSpillFrameIndex(MachineBasicBlock::iterator MI,
+                                          int FI, RegScavenger *RS) const;
 
   unsigned getHWRegIndex(unsigned Reg) const {
     return getEncodingValue(Reg) & 0xff;
@@ -195,74 +210,23 @@ public:
     return VGPRPressureSets.test(SetID) && !SGPRPressureSets.test(SetID);
   }
 
-  /// \returns SGPR allocation granularity supported by the subtarget.
-  unsigned getSGPRAllocGranule() const {
-    return 8;
-  }
-
-  /// \returns Total number of SGPRs supported by the subtarget.
-  unsigned getTotalNumSGPRs(const SISubtarget &ST) const;
-
-  /// \returns Number of addressable SGPRs supported by the subtarget.
-  unsigned getNumAddressableSGPRs(const SISubtarget &ST) const;
-
-  /// \returns Number of reserved SGPRs supported by the subtarget.
-  unsigned getNumReservedSGPRs(const SISubtarget &ST,
-                               const SIMachineFunctionInfo &MFI) const;
-
-  /// \returns Minimum number of SGPRs that meets given number of waves per
-  /// execution unit requirement for given subtarget.
-  unsigned getMinNumSGPRs(const SISubtarget &ST, unsigned WavesPerEU) const;
-
-  /// \returns Maximum number of SGPRs that meets given number of waves per
-  /// execution unit requirement for given subtarget.
-  unsigned getMaxNumSGPRs(const SISubtarget &ST, unsigned WavesPerEU,
-                          bool Addressable) const;
-
-  /// \returns Maximum number of SGPRs that meets number of waves per execution
-  /// unit requirement for function \p MF, or number of SGPRs explicitly
-  /// requested using "amdgpu-num-sgpr" attribute attached to function \p MF.
-  ///
-  /// \returns Value that meets number of waves per execution unit requirement
-  /// if explicitly requested value cannot be converted to integer, violates
-  /// subtarget's specifications, or does not meet number of waves per execution
-  /// unit requirement.
-  unsigned getMaxNumSGPRs(const MachineFunction &MF) const;
-
-  /// \returns VGPR allocation granularity supported by the subtarget.
-  unsigned getVGPRAllocGranule() const {
-    return 4;
-  }
-
-  /// \returns Total number of VGPRs supported by the subtarget.
-  unsigned getTotalNumVGPRs() const {
-    return 256;
-  }
-
-  /// \returns Number of reserved VGPRs for debugger use supported by the
-  /// subtarget.
-  unsigned getNumDebuggerReservedVGPRs(const SISubtarget &ST) const;
-
-  /// \returns Minimum number of SGPRs that meets given number of waves per
-  /// execution unit requirement.
-  unsigned getMinNumVGPRs(unsigned WavesPerEU) const;
-
-  /// \returns Maximum number of VGPRs that meets given number of waves per
-  /// execution unit requirement.
-  unsigned getMaxNumVGPRs(unsigned WavesPerEU) const;
-
-  /// \returns Maximum number of VGPRs that meets number of waves per execution
-  /// unit requirement for function \p MF, or number of VGPRs explicitly
-  /// requested using "amdgpu-num-vgpr" attribute attached to function \p MF.
-  ///
-  /// \returns Value that meets number of waves per execution unit requirement
-  /// if explicitly requested value cannot be converted to integer, violates
-  /// subtarget's specifications, or does not meet number of waves per execution
-  /// unit requirement.
-  unsigned getMaxNumVGPRs(const MachineFunction &MF) const;
-
   ArrayRef<int16_t> getRegSplitParts(const TargetRegisterClass *RC,
                                      unsigned EltSize) const;
+
+  bool shouldCoalesce(MachineInstr *MI,
+                      const TargetRegisterClass *SrcRC,
+                      unsigned SubReg,
+                      const TargetRegisterClass *DstRC,
+                      unsigned DstSubReg,
+                      const TargetRegisterClass *NewRC) const override;
+
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const override;
+
+  unsigned getRegPressureSetLimit(const MachineFunction &MF,
+                                  unsigned Idx) const override;
+
+  const int *getRegUnitPressureSets(unsigned RegUnit) const override;
 
 private:
   void buildSpillLoadStore(MachineBasicBlock::iterator MI,

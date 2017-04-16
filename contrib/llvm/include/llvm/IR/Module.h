@@ -311,7 +311,7 @@ public:
   ///   4. Finally, the function exists but has the wrong prototype: return the
   ///      function with a constantexpr cast to the right prototype.
   Constant *getOrInsertFunction(StringRef Name, FunctionType *T,
-                                AttributeSet AttributeList);
+                                AttributeList AttributeList);
 
   Constant *getOrInsertFunction(StringRef Name, FunctionType *T);
 
@@ -321,13 +321,22 @@ public:
   /// or a ConstantExpr BitCast of that type if the named function has a
   /// different type. This version of the method takes a null terminated list of
   /// function arguments, which makes it easier for clients to use.
+  template<typename... ArgsTy>
   Constant *getOrInsertFunction(StringRef Name,
-                                AttributeSet AttributeList,
-                                Type *RetTy, ...) LLVM_END_WITH_NULL;
+                                AttributeList AttributeList,
+                                Type *RetTy, ArgsTy... Args)
+  {
+    SmallVector<Type*, sizeof...(ArgsTy)> ArgTys{Args...};
+    return getOrInsertFunction(Name,
+                               FunctionType::get(RetTy, ArgTys, false),
+                               AttributeList);
+  }
 
   /// Same as above, but without the attributes.
-  Constant *getOrInsertFunction(StringRef Name, Type *RetTy, ...)
-    LLVM_END_WITH_NULL;
+  template<typename... ArgsTy>
+  Constant *getOrInsertFunction(StringRef Name, Type *RetTy, ArgsTy... Args) {
+    return getOrInsertFunction(Name, AttributeList{}, RetTy, Args...);
+  }
 
   /// Look up the specified function in the module symbol table. If it does not
   /// exist, return null.
@@ -345,20 +354,23 @@ public:
     return getGlobalVariable(Name, false);
   }
 
-  GlobalVariable *getGlobalVariable(StringRef Name, bool AllowInternal) const {
-    return const_cast<Module *>(this)->getGlobalVariable(Name, AllowInternal);
-  }
+  GlobalVariable *getGlobalVariable(StringRef Name, bool AllowInternal) const;
 
-  GlobalVariable *getGlobalVariable(StringRef Name, bool AllowInternal = false);
+  GlobalVariable *getGlobalVariable(StringRef Name,
+                                    bool AllowInternal = false) {
+    return static_cast<const Module *>(this)->getGlobalVariable(Name,
+                                                                AllowInternal);
+  }
 
   /// Return the global variable in the module with the specified name, of
   /// arbitrary type. This method returns null if a global with the specified
   /// name is not found.
-  GlobalVariable *getNamedGlobal(StringRef Name) {
+  const GlobalVariable *getNamedGlobal(StringRef Name) const {
     return getGlobalVariable(Name, true);
   }
-  const GlobalVariable *getNamedGlobal(StringRef Name) const {
-    return const_cast<Module *>(this)->getNamedGlobal(Name);
+  GlobalVariable *getNamedGlobal(StringRef Name) {
+    return const_cast<GlobalVariable *>(
+                       static_cast<const Module *>(this)->getNamedGlobal(Name));
   }
 
   /// Look up the specified global in the module symbol table.
@@ -615,6 +627,32 @@ public:
     return global_objects().end();
   }
 
+  typedef concat_iterator<GlobalValue, iterator, global_iterator,
+                          alias_iterator, ifunc_iterator>
+      global_value_iterator;
+  typedef concat_iterator<const GlobalValue, const_iterator,
+                          const_global_iterator, const_alias_iterator,
+                          const_ifunc_iterator>
+      const_global_value_iterator;
+
+  iterator_range<global_value_iterator> global_values() {
+    return concat<GlobalValue>(functions(), globals(), aliases(), ifuncs());
+  }
+  iterator_range<const_global_value_iterator> global_values() const {
+    return concat<const GlobalValue>(functions(), globals(), aliases(),
+                                     ifuncs());
+  }
+
+  global_value_iterator global_value_begin() { return global_values().begin(); }
+  global_value_iterator global_value_end() { return global_values().end(); }
+
+  const_global_value_iterator global_value_begin() const {
+    return global_values().begin();
+  }
+  const_global_value_iterator global_value_end() const {
+    return global_values().end();
+  }
+
   /// @}
   /// @name Named Metadata Iteration
   /// @{
@@ -725,6 +763,10 @@ public:
 /// @}
 /// @name Utility functions for querying Debug information.
 /// @{
+
+  /// \brief Returns the Number of Register ParametersDwarf Version by checking
+  /// module flags.
+  unsigned getNumberRegisterParameters() const;
 
   /// \brief Returns the Dwarf Version by checking module flags.
   unsigned getDwarfVersion() const;

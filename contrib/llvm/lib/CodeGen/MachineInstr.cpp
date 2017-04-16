@@ -262,8 +262,21 @@ bool MachineOperand::isIdenticalTo(const MachineOperand &Other) const {
     return getBlockAddress() == Other.getBlockAddress() &&
            getOffset() == Other.getOffset();
   case MachineOperand::MO_RegisterMask:
-  case MachineOperand::MO_RegisterLiveOut:
-    return getRegMask() == Other.getRegMask();
+  case MachineOperand::MO_RegisterLiveOut: {
+    // Shallow compare of the two RegMasks
+    const uint32_t *RegMask = getRegMask();
+    const uint32_t *OtherRegMask = Other.getRegMask();
+    if (RegMask == OtherRegMask)
+      return true;
+
+    // Calculate the size of the RegMask
+    const MachineFunction *MF = getParent()->getParent()->getParent();
+    const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
+    unsigned RegMaskSize = (TRI->getNumRegs() + 31) / 32;
+
+    // Deep compare of the two RegMasks
+    return std::equal(RegMask, RegMask + RegMaskSize, OtherRegMask);
+  }
   case MachineOperand::MO_MCSymbol:
     return getMCSymbol() == Other.getMCSymbol();
   case MachineOperand::MO_CFIIndex:
@@ -274,6 +287,8 @@ bool MachineOperand::isIdenticalTo(const MachineOperand &Other) const {
     return getIntrinsicID() == Other.getIntrinsicID();
   case MachineOperand::MO_Predicate:
     return getPredicate() == Other.getPredicate();
+  case MachineOperand::MO_Placeholder:
+    return true;
   }
   llvm_unreachable("Invalid machine operand type");
 }
@@ -322,6 +337,8 @@ hash_code llvm::hash_value(const MachineOperand &MO) {
     return hash_combine(MO.getType(), MO.getTargetFlags(), MO.getIntrinsicID());
   case MachineOperand::MO_Predicate:
     return hash_combine(MO.getType(), MO.getTargetFlags(), MO.getPredicate());
+  case MachineOperand::MO_Placeholder:
+    return hash_combine();
   }
   llvm_unreachable("Invalid machine operand type");
 }
@@ -403,6 +420,11 @@ void MachineOperand::print(raw_ostream &OS, ModuleSlotTracker &MST,
       bool Unused;
       APF.convert(APFloat::IEEEsingle(), APFloat::rmNearestTiesToEven, &Unused);
       OS << "half " << APF.convertToFloat();
+    } else if (getFPImm()->getType()->isFP128Ty()) {
+      APFloat APF = getFPImm()->getValueAPF();
+      SmallString<16> Str;
+      getFPImm()->getValueAPF().toString(Str);
+      OS << "quad " << Str;
     } else {
       OS << getFPImm()->getValueAPF().convertToDouble();
     }
@@ -491,7 +513,11 @@ void MachineOperand::print(raw_ostream &OS, ModuleSlotTracker &MST,
     auto Pred = static_cast<CmpInst::Predicate>(getPredicate());
     OS << '<' << (CmpInst::isIntPredicate(Pred) ? "intpred" : "floatpred")
        << CmpInst::getPredicateName(Pred) << '>';
+    break;
   }
+  case MachineOperand::MO_Placeholder:
+    OS << "<placeholder>";
+    break;
   }
   if (unsigned TF = getTargetFlags())
     OS << "[TF=" << TF << ']';
@@ -1571,6 +1597,65 @@ bool MachineInstr::isSafeToMove(AliasAnalysis *AA, bool &SawStore) const {
   return true;
 }
 
+bool MachineInstr::mayAlias(AliasAnalysis *AA, MachineInstr &Other,
+                            bool UseTBAA) {
+  const MachineFunction *MF = getParent()->getParent();
+  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
+
+  // If neither instruction stores to memory, they can't alias in any
+  // meaningful way, even if they read from the same address.
+  if (!mayStore() && !Other.mayStore())
+    return false;
+
+  // Let the target decide if memory accesses cannot possibly overlap.
+  if (TII->areMemAccessesTriviallyDisjoint(*this, Other, AA))
+    return false;
+
+  if (!AA)
+    return true;
+
+  // FIXME: Need to handle multiple memory operands to support all targets.
+  if (!hasOneMemOperand() || !Other.hasOneMemOperand())
+    return true;
+
+  MachineMemOperand *MMOa = *memoperands_begin();
+  MachineMemOperand *MMOb = *Other.memoperands_begin();
+
+  if (!MMOa->getValue() || !MMOb->getValue())
+    return true;
+
+  // The following interface to AA is fashioned after DAGCombiner::isAlias
+  // and operates with MachineMemOperand offset with some important
+  // assumptions:
+  //   - LLVM fundamentally assumes flat address spaces.
+  //   - MachineOperand offset can *only* result from legalization and
+  //     cannot affect queries other than the trivial case of overlap
+  //     checking.
+  //   - These offsets never wrap and never step outside
+  //     of allocated objects.
+  //   - There should never be any negative offsets here.
+  //
+  // FIXME: Modify API to hide this math from "user"
+  // FIXME: Even before we go to AA we can reason locally about some
+  // memory objects. It can save compile time, and possibly catch some
+  // corner cases not currently covered.
+
+  assert ((MMOa->getOffset() >= 0) && "Negative MachineMemOperand offset");
+  assert ((MMOb->getOffset() >= 0) && "Negative MachineMemOperand offset");
+
+  int64_t MinOffset = std::min(MMOa->getOffset(), MMOb->getOffset());
+  int64_t Overlapa = MMOa->getSize() + MMOa->getOffset() - MinOffset;
+  int64_t Overlapb = MMOb->getSize() + MMOb->getOffset() - MinOffset;
+
+  AliasResult AAResult =
+      AA->alias(MemoryLocation(MMOa->getValue(), Overlapa,
+                               UseTBAA ? MMOa->getAAInfo() : AAMDNodes()),
+                MemoryLocation(MMOb->getValue(), Overlapb,
+                               UseTBAA ? MMOb->getAAInfo() : AAMDNodes()));
+
+  return (AAResult != NoAlias);
+}
+
 /// hasOrderedMemoryRef - Return true if this instruction may have an ordered
 /// or volatile memory reference, or if the information describing the memory
 /// reference is not available. Return false if it is known to have no ordered
@@ -1692,14 +1777,14 @@ void MachineInstr::copyImplicitOps(MachineFunction &MF,
   }
 }
 
-LLVM_DUMP_METHOD void MachineInstr::dump(const TargetInstrInfo *TII) const {
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD void MachineInstr::dump() const {
   dbgs() << "  ";
-  print(dbgs(), false /* SkipOpers */, TII);
-#endif
+  print(dbgs());
 }
+#endif
 
-void MachineInstr::print(raw_ostream &OS, bool SkipOpers,
+void MachineInstr::print(raw_ostream &OS, bool SkipOpers, bool SkipDebugLoc,
                          const TargetInstrInfo *TII) const {
   const Module *M = nullptr;
   if (const MachineBasicBlock *MBB = getParent())
@@ -1707,11 +1792,12 @@ void MachineInstr::print(raw_ostream &OS, bool SkipOpers,
       M = MF->getFunction()->getParent();
 
   ModuleSlotTracker MST(M);
-  print(OS, MST, SkipOpers, TII);
+  print(OS, MST, SkipOpers, SkipDebugLoc, TII);
 }
 
 void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
-                         bool SkipOpers, const TargetInstrInfo *TII) const {
+                         bool SkipOpers, bool SkipDebugLoc,
+                         const TargetInstrInfo *TII) const {
   // We can be a bit tidier if we know the MachineFunction.
   const MachineFunction *MF = nullptr;
   const TargetRegisterInfo *TRI = nullptr;
@@ -1987,6 +2073,8 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
     }
     if (isIndirectDebugValue())
       OS << " indirect";
+  } else if (SkipDebugLoc) {
+    return;
   } else if (debugLoc && MF) {
     if (!HaveSemi)
       OS << ";";

@@ -31,7 +31,7 @@ template <typename T> struct PointerUnionTypeSelectorReturn {
 /// Get a type based on whether two types are the same or not.
 ///
 /// For:
-/// 
+///
 /// \code
 ///   typedef typename PointerUnionTypeSelector<T1, T2, EQ, NE>::Return Ret;
 /// \endcode
@@ -190,17 +190,17 @@ public:
 };
 
 template <typename PT1, typename PT2>
-static bool operator==(PointerUnion<PT1, PT2> lhs, PointerUnion<PT1, PT2> rhs) {
+bool operator==(PointerUnion<PT1, PT2> lhs, PointerUnion<PT1, PT2> rhs) {
   return lhs.getOpaqueValue() == rhs.getOpaqueValue();
 }
 
 template <typename PT1, typename PT2>
-static bool operator!=(PointerUnion<PT1, PT2> lhs, PointerUnion<PT1, PT2> rhs) {
+bool operator!=(PointerUnion<PT1, PT2> lhs, PointerUnion<PT1, PT2> rhs) {
   return lhs.getOpaqueValue() != rhs.getOpaqueValue();
 }
 
 template <typename PT1, typename PT2>
-static bool operator<(PointerUnion<PT1, PT2> lhs, PointerUnion<PT1, PT2> rhs) {
+bool operator<(PointerUnion<PT1, PT2> lhs, PointerUnion<PT1, PT2> rhs) {
   return lhs.getOpaqueValue() < rhs.getOpaqueValue();
 }
 

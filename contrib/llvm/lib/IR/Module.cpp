@@ -120,9 +120,8 @@ void Module::getOperandBundleTags(SmallVectorImpl<StringRef> &Result) const {
 // it.  This is nice because it allows most passes to get away with not handling
 // the symbol table directly for this common task.
 //
-Constant *Module::getOrInsertFunction(StringRef Name,
-                                      FunctionType *Ty,
-                                      AttributeSet AttributeList) {
+Constant *Module::getOrInsertFunction(StringRef Name, FunctionType *Ty,
+                                      AttributeList AttributeList) {
   // See if we have a definition for the specified function already.
   GlobalValue *F = getNamedValue(Name);
   if (!F) {
@@ -145,49 +144,7 @@ Constant *Module::getOrInsertFunction(StringRef Name,
 
 Constant *Module::getOrInsertFunction(StringRef Name,
                                       FunctionType *Ty) {
-  return getOrInsertFunction(Name, Ty, AttributeSet());
-}
-
-// getOrInsertFunction - Look up the specified function in the module symbol
-// table.  If it does not exist, add a prototype for the function and return it.
-// This version of the method takes a null terminated list of function
-// arguments, which makes it easier for clients to use.
-//
-Constant *Module::getOrInsertFunction(StringRef Name,
-                                      AttributeSet AttributeList,
-                                      Type *RetTy, ...) {
-  va_list Args;
-  va_start(Args, RetTy);
-
-  // Build the list of argument types...
-  std::vector<Type*> ArgTys;
-  while (Type *ArgTy = va_arg(Args, Type*))
-    ArgTys.push_back(ArgTy);
-
-  va_end(Args);
-
-  // Build the function type and chain to the other getOrInsertFunction...
-  return getOrInsertFunction(Name,
-                             FunctionType::get(RetTy, ArgTys, false),
-                             AttributeList);
-}
-
-Constant *Module::getOrInsertFunction(StringRef Name,
-                                      Type *RetTy, ...) {
-  va_list Args;
-  va_start(Args, RetTy);
-
-  // Build the list of argument types...
-  std::vector<Type*> ArgTys;
-  while (Type *ArgTy = va_arg(Args, Type*))
-    ArgTys.push_back(ArgTy);
-
-  va_end(Args);
-
-  // Build the function type and chain to the other getOrInsertFunction...
-  return getOrInsertFunction(Name,
-                             FunctionType::get(RetTy, ArgTys, false),
-                             AttributeSet());
+  return getOrInsertFunction(Name, Ty, AttributeList());
 }
 
 // getFunction - Look up the specified function in the module symbol table.
@@ -208,7 +165,8 @@ Function *Module::getFunction(StringRef Name) const {
 /// If AllowLocal is set to true, this function will return types that
 /// have an local. By default, these types are not returned.
 ///
-GlobalVariable *Module::getGlobalVariable(StringRef Name, bool AllowLocal) {
+GlobalVariable *Module::getGlobalVariable(StringRef Name,
+                                          bool AllowLocal) const {
   if (GlobalVariable *Result =
       dyn_cast_or_null<GlobalVariable>(getNamedValue(Name)))
     if (AllowLocal || !Result->hasLocalLinkage())
@@ -463,6 +421,14 @@ void Module::dropAllReferences() {
 
   for (GlobalIFunc &GIF : ifuncs())
     GIF.dropAllReferences();
+}
+
+unsigned Module::getNumberRegisterParameters() const {
+  auto *Val =
+      cast_or_null<ConstantAsMetadata>(getModuleFlag("NumRegisterParameters"));
+  if (!Val)
+    return 0;
+  return cast<ConstantInt>(Val->getValue())->getZExtValue();
 }
 
 unsigned Module::getDwarfVersion() const {

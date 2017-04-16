@@ -13,25 +13,27 @@
 
 #include "ARMSubtarget.h"
 #include "ARMFrameLowering.h"
-#include "ARMISelLowering.h"
 #include "ARMInstrInfo.h"
-#include "ARMMachineFunctionInfo.h"
-#include "ARMSelectionDAGInfo.h"
 #include "ARMSubtarget.h"
 #include "ARMTargetMachine.h"
+#include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "Thumb1FrameLowering.h"
 #include "Thumb1InstrInfo.h"
 #include "Thumb2InstrInfo.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/IR/Attributes.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/TargetParser.h"
+#include <cassert>
+#include <string>
 
 using namespace llvm;
 
@@ -104,7 +106,7 @@ ARMSubtarget::ARMSubtarget(const Triple &TT, const std::string &CPU,
                     : !isThumb()
                           ? (ARMBaseInstrInfo *)new ARMInstrInfo(*this)
                           : (ARMBaseInstrInfo *)new Thumb2InstrInfo(*this)),
-      TLInfo(TM, *this), GISel() {}
+      TLInfo(TM, *this) {}
 
 const CallLowering *ARMSubtarget::getCallLowering() const {
   assert(GISel && "Access to GlobalISel APIs not set");
@@ -148,11 +150,11 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
 
     if (isTargetDarwin()) {
       StringRef ArchName = TargetTriple.getArchName();
-      unsigned ArchKind = llvm::ARM::parseArch(ArchName);
-      if (ArchKind == llvm::ARM::AK_ARMV7S)
+      unsigned ArchKind = ARM::parseArch(ArchName);
+      if (ArchKind == ARM::AK_ARMV7S)
         // Default to the Swift CPU when targeting armv7s/thumbv7s.
         CPUString = "swift";
-      else if (ArchKind == llvm::ARM::AK_ARMV7K)
+      else if (ArchKind == ARM::AK_ARMV7K)
         // Default to the Cortex-a7 CPU when targeting armv7k/thumbv7k.
         // ARMv7k does not use SjLj exception handling.
         CPUString = "cortex-a7";
@@ -200,12 +202,12 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   // support in the assembler and linker to be used. This would need to be
   // fixed to fully support tail calls in Thumb1.
   //
-  // Doing this is tricky, since the LDM/POP instruction on Thumb doesn't take
-  // LR.  This means if we need to reload LR, it takes an extra instructions,
-  // which outweighs the value of the tail call; but here we don't know yet
-  // whether LR is going to be used.  Probably the right approach is to
-  // generate the tail call here and turn it back into CALL/RET in
-  // emitEpilogue if LR is used.
+  // For ARMv8-M, we /do/ implement tail calls.  Doing this is tricky for v8-M
+  // baseline, since the LDM/POP instruction on Thumb doesn't take LR.  This
+  // means if we need to reload LR, it takes extra instructions, which outweighs
+  // the value of the tail call; but here we don't know yet whether LR is going
+  // to be used. We generate the tail call here and turn it back into CALL/RET
+  // in emitEpilogue if LR is used.
 
   // Thumb1 PIC calls to external symbols use BX, so they can be tail calls,
   // but we need to make sure there are enough registers; the only valid
@@ -274,6 +276,7 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   case CortexM3:
   case ExynosM1:
   case CortexR52:
+  case Kryo:
     break;
   case Krait:
     PreISelOperandLatencyAdjustment = 1;

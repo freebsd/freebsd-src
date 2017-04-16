@@ -33,8 +33,6 @@ class X86TTIImpl : public BasicTTIImplBase<X86TTIImpl> {
   const X86Subtarget *ST;
   const X86TargetLowering *TLI;
 
-  int getScalarizationOverhead(Type *Ty, bool Insert, bool Extract);
-
   const X86Subtarget *getST() const { return ST; }
   const X86TargetLowering *getTLI() const { return TLI; }
 
@@ -53,7 +51,8 @@ public:
   /// @{
 
   unsigned getNumberOfRegisters(bool Vector);
-  unsigned getRegisterBitWidth(bool Vector);
+  unsigned getRegisterBitWidth(bool Vector) const;
+  unsigned getLoadStoreVecRegBitWidth(unsigned AS) const;
   unsigned getMaxInterleaveFactor(unsigned VF);
   int getArithmeticInstrCost(
       unsigned Opcode, Type *Ty,
@@ -63,11 +62,13 @@ public:
       TTI::OperandValueProperties Opd2PropInfo = TTI::OP_None,
       ArrayRef<const Value *> Args = ArrayRef<const Value *>());
   int getShuffleCost(TTI::ShuffleKind Kind, Type *Tp, int Index, Type *SubTp);
-  int getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src);
-  int getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy);
+  int getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src,
+                       const Instruction *I = nullptr);
+  int getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy,
+                         const Instruction *I = nullptr);
   int getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index);
   int getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
-                      unsigned AddressSpace);
+                      unsigned AddressSpace, const Instruction *I = nullptr);
   int getMaskedMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
                             unsigned AddressSpace);
   int getGatherScatterOpCost(unsigned Opcode, Type *DataTy, Value *Ptr,
@@ -76,9 +77,11 @@ public:
                                 const SCEV *Ptr);
 
   int getIntrinsicInstrCost(Intrinsic::ID IID, Type *RetTy,
-                            ArrayRef<Type *> Tys, FastMathFlags FMF);
+                            ArrayRef<Type *> Tys, FastMathFlags FMF,
+                            unsigned ScalarizationCostPassed = UINT_MAX);
   int getIntrinsicInstrCost(Intrinsic::ID IID, Type *RetTy,
-                            ArrayRef<Value *> Args, FastMathFlags FMF);
+                            ArrayRef<Value *> Args, FastMathFlags FMF,
+                            unsigned VF = 1);
 
   int getReductionCost(unsigned Opcode, Type *Ty, bool IsPairwiseForm);
 

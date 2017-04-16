@@ -905,7 +905,7 @@ rescheduleMIBelowKill(MachineBasicBlock::iterator &mi,
     ++End;
   }
 
-  // Check if the reschedule will not break depedencies.
+  // Check if the reschedule will not break dependencies.
   unsigned NumVisited = 0;
   MachineBasicBlock::iterator KillPos = KillMI;
   ++KillPos;
@@ -1785,7 +1785,7 @@ eliminateRegSequence(MachineBasicBlock::iterator &MBBI) {
     MachineInstr *CopyMI = BuildMI(*MI.getParent(), MI, MI.getDebugLoc(),
                                    TII->get(TargetOpcode::COPY))
                                .addReg(DstReg, RegState::Define, SubIdx)
-                               .addOperand(UseMO);
+                               .add(UseMO);
 
     // The first def needs an <undef> flag because there is no live register
     // before it.

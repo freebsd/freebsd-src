@@ -75,34 +75,11 @@ void LiveRangeCalc::calculate(LiveInterval &LI, bool TrackSubRegs) {
         LI.createSubRangeFrom(*Alloc, ClassMask, LI);
       }
 
-      LaneBitmask Mask = SubMask;
-      for (LiveInterval::SubRange &S : LI.subranges()) {
-        // A Mask for subregs common to the existing subrange and current def.
-        LaneBitmask Common = S.LaneMask & Mask;
-        if (Common.none())
-          continue;
-        LiveInterval::SubRange *CommonRange;
-        // A Mask for subregs covered by the subrange but not the current def.
-        LaneBitmask RM = S.LaneMask & ~Mask;
-        if (RM.any()) {
-          // Split the subrange S into two parts: one covered by the current
-          // def (CommonRange), and the one not affected by it (updated S).
-          S.LaneMask = RM;
-          CommonRange = LI.createSubRangeFrom(*Alloc, Common, S);
-        } else {
-          assert(Common == S.LaneMask);
-          CommonRange = &S;
-        }
+      LI.refineSubRanges(*Alloc, SubMask,
+          [&MO, this](LiveInterval::SubRange &SR) {
         if (MO.isDef())
-          createDeadDef(*Indexes, *Alloc, *CommonRange, MO);
-        Mask &= ~Common;
-      }
-      // Create a new SubRange for subregs we did not cover yet.
-      if (Mask.any()) {
-        LiveInterval::SubRange *NewRange = LI.createSubRange(*Alloc, Mask);
-        if (MO.isDef())
-          createDeadDef(*Indexes, *Alloc, *NewRange, MO);
-      }
+          createDeadDef(*Indexes, *Alloc, SR, MO);
+      });
     }
 
     // Create the def in the main liverange. We do not have to do this if
@@ -289,8 +266,7 @@ bool LiveRangeCalc::isDefOnEntry(LiveRange &LR, ArrayRef<SlotIndex> Undefs,
   if (UndefOnEntry[BN])
     return false;
 
-  auto MarkDefined =
-        [this,BN,&DefOnEntry,&UndefOnEntry] (MachineBasicBlock &B) -> bool {
+  auto MarkDefined = [BN, &DefOnEntry](MachineBasicBlock &B) -> bool {
     for (MachineBasicBlock *S : B.successors())
       DefOnEntry[S->getNumber()] = true;
     DefOnEntry[BN] = true;
@@ -311,7 +287,12 @@ bool LiveRangeCalc::isDefOnEntry(LiveRange &LR, ArrayRef<SlotIndex> Undefs,
       return MarkDefined(B);
     SlotIndex Begin, End;
     std::tie(Begin, End) = Indexes->getMBBRange(&B);
-    LiveRange::iterator UB = std::upper_bound(LR.begin(), LR.end(), End);
+    // Treat End as not belonging to B.
+    // If LR has a segment S that starts at the next block, i.e. [End, ...),
+    // std::upper_bound will return the segment following S. Instead,
+    // S should be treated as the first segment that does not overlap B.
+    LiveRange::iterator UB = std::upper_bound(LR.begin(), LR.end(),
+                                              End.getPrevSlot());
     if (UB != LR.begin()) {
       LiveRange::Segment &Seg = *std::prev(UB);
       if (Seg.end > Begin) {

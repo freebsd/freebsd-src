@@ -13,6 +13,9 @@
 #include "llvm/DebugInfo/DWARF/DWARFAbbreviationDeclaration.h"
 #include "llvm/DebugInfo/DWARF/DWARFContext.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugAbbrev.h"
+#include "llvm/DebugInfo/DWARF/DWARFDebugInfoEntry.h"
+#include "llvm/DebugInfo/DWARF/DWARFDie.h"
+#include "llvm/DebugInfo/DWARF/DWARFFormValue.h"
 #include "llvm/DebugInfo/DWARF/DWARFUnit.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Casting.h"
@@ -20,12 +23,12 @@
 #include "llvm/Support/Path.h"
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <vector>
 
-namespace llvm {
-
+using namespace llvm;
 using namespace dwarf;
 
 void DWARFUnitSectionBase::parse(DWARFContext &C, const DWARFSection &Section) {
@@ -87,7 +90,15 @@ bool DWARFUnit::getStringOffsetSectionItem(uint32_t Index,
 bool DWARFUnit::extractImpl(DataExtractor debug_info, uint32_t *offset_ptr) {
   Length = debug_info.getU32(offset_ptr);
   Version = debug_info.getU16(offset_ptr);
-  uint64_t AbbrOffset = debug_info.getU32(offset_ptr);
+  uint64_t AbbrOffset;
+  if (Version >= 5) {
+    UnitType = debug_info.getU8(offset_ptr);
+    AddrSize = debug_info.getU8(offset_ptr);
+    AbbrOffset = debug_info.getU32(offset_ptr);
+  } else {
+    AbbrOffset = debug_info.getU32(offset_ptr);
+    AddrSize = debug_info.getU8(offset_ptr);
+  }
   if (IndexEntry) {
     if (AbbrOffset)
       return false;
@@ -99,7 +110,6 @@ bool DWARFUnit::extractImpl(DataExtractor debug_info, uint32_t *offset_ptr) {
       return false;
     AbbrOffset = AbbrEntry->Offset;
   }
-  AddrSize = debug_info.getU8(offset_ptr);
 
   bool LengthOK = debug_info.isValidOffset(getNextUnitOffset() - 1);
   bool VersionOK = DWARFContext::isSupportedVersion(Version);
@@ -151,11 +161,11 @@ void DWARFUnit::clear() {
 }
 
 const char *DWARFUnit::getCompilationDir() {
-  return getUnitDIE().getAttributeValueAsString(DW_AT_comp_dir, nullptr);
+  return dwarf::toString(getUnitDIE().find(DW_AT_comp_dir), nullptr);
 }
 
 Optional<uint64_t> DWARFUnit::getDWOId() {
-  return getUnitDIE().getAttributeValueAsUnsignedConstant(DW_AT_GNU_dwo_id);
+  return toUnsigned(getUnitDIE().find(DW_AT_GNU_dwo_id));
 }
 
 void DWARFUnit::extractDIEsToVector(
@@ -225,17 +235,11 @@ size_t DWARFUnit::extractDIEsIfNeeded(bool CUDieOnly) {
   // If CU DIE was just parsed, copy several attribute values from it.
   if (!HasCUDie) {
     DWARFDie UnitDie = getUnitDIE();
-    auto BaseAddr = UnitDie.getAttributeValueAsAddress(DW_AT_low_pc);
-    if (!BaseAddr)
-      BaseAddr = UnitDie.getAttributeValueAsAddress(DW_AT_entry_pc);
+    auto BaseAddr = toAddress(UnitDie.find({DW_AT_low_pc, DW_AT_entry_pc}));
     if (BaseAddr)
       setBaseAddress(*BaseAddr);
-    AddrOffsetSectionBase =
-        UnitDie.getAttributeValueAsSectionOffset(DW_AT_GNU_addr_base)
-            .getValueOr(0);
-    RangeSectionBase =
-        UnitDie.getAttributeValueAsSectionOffset(DW_AT_rnglists_base)
-            .getValueOr(0);
+    AddrOffsetSectionBase = toSectionOffset(UnitDie.find(DW_AT_GNU_addr_base), 0);
+    RangeSectionBase = toSectionOffset(UnitDie.find(DW_AT_rnglists_base), 0);
     // Don't fall back to DW_AT_GNU_ranges_base: it should be ignored for
     // skeleton CU DIE, so that DWARF users not aware of it are not broken.
   }
@@ -243,8 +247,7 @@ size_t DWARFUnit::extractDIEsIfNeeded(bool CUDieOnly) {
   return DieArray.size();
 }
 
-DWARFUnit::DWOHolder::DWOHolder(StringRef DWOPath)
-    : DWOU(nullptr) {
+DWARFUnit::DWOHolder::DWOHolder(StringRef DWOPath) {
   auto Obj = object::ObjectFile::createObjectFile(DWOPath);
   if (!Obj) {
     // TODO: Actually report errors helpfully.
@@ -266,17 +269,16 @@ bool DWARFUnit::parseDWO() {
   DWARFDie UnitDie = getUnitDIE();
   if (!UnitDie)
     return false;
-  const char *DWOFileName =
-      UnitDie.getAttributeValueAsString(DW_AT_GNU_dwo_name, nullptr);
+  auto DWOFileName = dwarf::toString(UnitDie.find(DW_AT_GNU_dwo_name));
   if (!DWOFileName)
     return false;
-  const char *CompilationDir =
-      UnitDie.getAttributeValueAsString(DW_AT_comp_dir, nullptr);
+  auto CompilationDir = dwarf::toString(UnitDie.find(DW_AT_comp_dir));
   SmallString<16> AbsolutePath;
-  if (sys::path::is_relative(DWOFileName) && CompilationDir != nullptr) {
-    sys::path::append(AbsolutePath, CompilationDir);
+  if (sys::path::is_relative(*DWOFileName) && CompilationDir &&
+      *CompilationDir) {
+    sys::path::append(AbsolutePath, *CompilationDir);
   }
-  sys::path::append(AbsolutePath, DWOFileName);
+  sys::path::append(AbsolutePath, *DWOFileName);
   DWO = llvm::make_unique<DWOHolder>(AbsolutePath);
   DWARFUnit *DWOCU = DWO->getUnit();
   // Verify that compile unit in .dwo file is valid.
@@ -374,8 +376,8 @@ DWARFUnit::getInlinedChainForAddress(uint64_t Address,
     InlinedChain.clear();
 }
 
-const DWARFUnitIndex &getDWARFUnitIndex(DWARFContext &Context,
-                                        DWARFSectionKind Kind) {
+const DWARFUnitIndex &llvm::getDWARFUnitIndex(DWARFContext &Context,
+                                              DWARFSectionKind Kind) {
   if (Kind == DW_SECT_INFO)
     return Context.getCUIndex();
   assert(Kind == DW_SECT_TYPES);
@@ -413,11 +415,10 @@ DWARFDie DWARFUnit::getSibling(const DWARFDebugInfoEntry *Die) {
     return DWARFDie();
   
   // Find the next DIE whose depth is the same as the Die's depth.
-  for (size_t I=getDIEIndex(Die)+1, EndIdx = DieArray.size(); I<EndIdx; ++I) {
+  for (size_t I = getDIEIndex(Die) + 1, EndIdx = DieArray.size(); I < EndIdx;
+       ++I) {
     if (DieArray[I].getDepth() == Depth)
       return DWARFDie(this, &DieArray[I]);
   }
   return DWARFDie();
 }
-
-} // end namespace llvm

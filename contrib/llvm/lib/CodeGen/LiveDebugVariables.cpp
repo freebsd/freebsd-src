@@ -944,7 +944,7 @@ void UserValue::insertDebugValue(MachineBasicBlock *MBB, SlotIndex Idx,
             IsIndirect, Loc.getReg(), offset, Variable, Expression);
   else
     BuildMI(*MBB, I, getDebugLoc(), TII.get(TargetOpcode::DBG_VALUE))
-        .addOperand(Loc)
+        .add(Loc)
         .addImm(offset)
         .addMetadata(Variable)
         .addMetadata(Expression);
@@ -1005,7 +1005,7 @@ bool LiveDebugVariables::doInitialization(Module &M) {
   return Pass::doInitialization(M);
 }
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void LiveDebugVariables::dump() {
   if (pImpl)
     static_cast<LDVImpl*>(pImpl)->print(dbgs());

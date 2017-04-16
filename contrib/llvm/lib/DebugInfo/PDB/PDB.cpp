@@ -17,7 +17,7 @@
 #if LLVM_ENABLE_DIA_SDK
 #include "llvm/DebugInfo/PDB/DIA/DIASession.h"
 #endif
-#include "llvm/DebugInfo/PDB/Raw/RawSession.h"
+#include "llvm/DebugInfo/PDB/Native/NativeSession.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 
@@ -27,8 +27,8 @@ using namespace llvm::pdb;
 Error llvm::pdb::loadDataForPDB(PDB_ReaderType Type, StringRef Path,
                                 std::unique_ptr<IPDBSession> &Session) {
   // Create the correct concrete instance type based on the value of Type.
-  if (Type == PDB_ReaderType::Raw)
-    return RawSession::createFromPdb(Path, Session);
+  if (Type == PDB_ReaderType::Native)
+    return NativeSession::createFromPdb(Path, Session);
 
 #if LLVM_ENABLE_DIA_SDK
   return DIASession::createFromPdb(Path, Session);
@@ -40,8 +40,8 @@ Error llvm::pdb::loadDataForPDB(PDB_ReaderType Type, StringRef Path,
 Error llvm::pdb::loadDataForEXE(PDB_ReaderType Type, StringRef Path,
                                 std::unique_ptr<IPDBSession> &Session) {
   // Create the correct concrete instance type based on the value of Type.
-  if (Type == PDB_ReaderType::Raw)
-    return RawSession::createFromExe(Path, Session);
+  if (Type == PDB_ReaderType::Native)
+    return NativeSession::createFromExe(Path, Session);
 
 #if LLVM_ENABLE_DIA_SDK
   return DIASession::createFromExe(Path, Session);

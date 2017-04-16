@@ -48,6 +48,8 @@ class DenseSetImpl {
   static_assert(sizeof(typename MapTy::value_type) == sizeof(ValueT),
                 "DenseMap buckets unexpectedly large!");
   MapTy TheMap;
+  template <typename T>
+  using const_arg_type_t = typename const_pointer_or_const_ref<T>::type;
 
 public:
   typedef ValueT key_type;
@@ -78,7 +80,7 @@ public:
   }
 
   /// Return 1 if the specified key is in the set, 0 otherwise.
-  size_type count(const ValueT &V) const {
+  size_type count(const_arg_type_t<ValueT> V) const {
     return TheMap.count(V);
   }
 
@@ -90,9 +92,12 @@ public:
 
   // Iterators.
 
+  class ConstIterator;
+
   class Iterator {
     typename MapTy::iterator I;
     friend class DenseSetImpl;
+    friend class ConstIterator;
 
   public:
     typedef typename MapTy::iterator::difference_type difference_type;
@@ -101,20 +106,24 @@ public:
     typedef value_type &reference;
     typedef std::forward_iterator_tag iterator_category;
 
+    Iterator() = default;
     Iterator(const typename MapTy::iterator &i) : I(i) {}
 
     ValueT &operator*() { return I->getFirst(); }
+    const ValueT &operator*() const { return I->getFirst(); }
     ValueT *operator->() { return &I->getFirst(); }
+    const ValueT *operator->() const { return &I->getFirst(); }
 
     Iterator& operator++() { ++I; return *this; }
     Iterator operator++(int) { auto T = *this; ++I; return T; }
-    bool operator==(const Iterator& X) const { return I == X.I; }
-    bool operator!=(const Iterator& X) const { return I != X.I; }
+    bool operator==(const ConstIterator& X) const { return I == X.I; }
+    bool operator!=(const ConstIterator& X) const { return I != X.I; }
   };
 
   class ConstIterator {
     typename MapTy::const_iterator I;
     friend class DenseSet;
+    friend class Iterator;
 
   public:
     typedef typename MapTy::const_iterator::difference_type difference_type;
@@ -123,10 +132,14 @@ public:
     typedef value_type &reference;
     typedef std::forward_iterator_tag iterator_category;
 
+    ConstIterator(const Iterator &B) : I(B.I) {}
+
+    ConstIterator() = default;
+
     ConstIterator(const typename MapTy::const_iterator &i) : I(i) {}
 
-    const ValueT &operator*() { return I->getFirst(); }
-    const ValueT *operator->() { return &I->getFirst(); }
+    const ValueT &operator*() const { return I->getFirst(); }
+    const ValueT *operator->() const { return &I->getFirst(); }
 
     ConstIterator& operator++() { ++I; return *this; }
     ConstIterator operator++(int) { auto T = *this; ++I; return T; }
@@ -143,8 +156,8 @@ public:
   const_iterator begin() const { return ConstIterator(TheMap.begin()); }
   const_iterator end() const { return ConstIterator(TheMap.end()); }
 
-  iterator find(const ValueT &V) { return Iterator(TheMap.find(V)); }
-  const_iterator find(const ValueT &V) const {
+  iterator find(const_arg_type_t<ValueT> V) { return Iterator(TheMap.find(V)); }
+  const_iterator find(const_arg_type_t<ValueT> V) const {
     return ConstIterator(TheMap.find(V));
   }
 

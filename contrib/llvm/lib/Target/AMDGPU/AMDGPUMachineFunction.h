@@ -30,7 +30,11 @@ class AMDGPUMachineFunction : public MachineFunctionInfo {
   /// Start of implicit kernel args
   unsigned ABIArgOffset;
 
-  bool IsKernel;
+  // Kernels + shaders. i.e. functions called by the driver and not not called
+  // by other functions.
+  bool IsEntryFunction;
+
+  bool NoSignedZerosFPMath;
 
 public:
   AMDGPUMachineFunction(const MachineFunction &MF);
@@ -66,8 +70,12 @@ public:
     return LDSSize;
   }
 
-  bool isKernel() const {
-    return IsKernel;
+  bool isEntryFunction() const {
+    return IsEntryFunction;
+  }
+
+  bool hasNoSignedZerosFPMath() const {
+    return NoSignedZerosFPMath;
   }
 
   unsigned allocateLDSGlobal(const DataLayout &DL, const GlobalValue &GV);

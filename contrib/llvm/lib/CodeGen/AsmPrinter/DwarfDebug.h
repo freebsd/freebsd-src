@@ -89,7 +89,7 @@ public:
     assert(!MInsn && "Already initialized?");
 
     assert((!E || E->isValid()) && "Expected valid expression");
-    assert(~FI && "Expected valid index");
+    assert(FI != INT_MAX && "Expected valid index");
 
     FrameIndexExprs.push_back({FI, E});
   }
@@ -448,6 +448,15 @@ class DwarfDebug : public DebugHandlerBase {
   /// Collect variable information from the side table maintained by MF.
   void collectVariableInfoFromMFTable(DenseSet<InlinedVariable> &P);
 
+protected:
+  /// Gather pre-function debug information.
+  void beginFunctionImpl(const MachineFunction *MF) override;
+
+  /// Gather and emit post-function debug information.
+  void endFunctionImpl(const MachineFunction *MF) override;
+
+  void skippedNonDebugFunction() override;
+
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
@@ -462,12 +471,6 @@ public:
 
   /// Emit all Dwarf sections that should come after the content.
   void endModule() override;
-
-  /// Gather pre-function debug information.
-  void beginFunction(const MachineFunction *MF) override;
-
-  /// Gather and emit post-function debug information.
-  void endFunction(const MachineFunction *MF) override;
 
   /// Process beginning of an instruction.
   void beginInstruction(const MachineInstr *MI) override;

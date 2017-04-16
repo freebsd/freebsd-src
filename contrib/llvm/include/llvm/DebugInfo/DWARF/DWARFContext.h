@@ -1,4 +1,4 @@
-//===-- DWARFContext.h ------------------------------------------*- C++ -*-===//
+//===- DWARFContext.h -------------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,14 +7,15 @@
 //
 //===----------------------------------------------------------------------===/
 
-#ifndef LLVM_LIB_DEBUGINFO_DWARFCONTEXT_H
-#define LLVM_LIB_DEBUGINFO_DWARFCONTEXT_H
+#ifndef LLVM_DEBUGINFO_DWARF_DWARFCONTEXT_H
+#define LLVM_DEBUGINFO_DWARF_DWARFCONTEXT_H
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/DebugInfo/DIContext.h"
 #include "llvm/DebugInfo/DWARF/DWARFCompileUnit.h"
@@ -30,6 +31,7 @@
 #include "llvm/DebugInfo/DWARF/DWARFUnit.h"
 #include "llvm/DebugInfo/DWARF/DWARFUnitIndex.h"
 #include "llvm/Object/ObjectFile.h"
+#include "llvm/Support/Host.h"
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -37,6 +39,9 @@
 #include <utility>
 
 namespace llvm {
+
+class MemoryBuffer;
+class raw_ostream;
 
 // In place of applying the relocations to the data we've read from disk we use
 // a separate mapping table to the side and checking that at locations in the
@@ -293,9 +298,15 @@ class DWARFContextInMemory : public DWARFContext {
 
   SmallVector<SmallString<32>, 4> UncompressedSections;
 
+  StringRef *MapSectionToMember(StringRef Name);
+
 public:
   DWARFContextInMemory(const object::ObjectFile &Obj,
     const LoadedObjectInfo *L = nullptr);
+
+  DWARFContextInMemory(const StringMap<std::unique_ptr<MemoryBuffer>> &Sections,
+                       uint8_t AddrSize,
+                       bool isLittleEndian = sys::IsLittleEndianHost);
 
   bool isLittleEndian() const override { return IsLittleEndian; }
   uint8_t getAddressSize() const override { return AddressSize; }
@@ -321,20 +332,26 @@ public:
 
   // Sections for DWARF5 split dwarf proposal.
   const DWARFSection &getInfoDWOSection() override { return InfoDWOSection; }
+
   const TypeSectionMap &getTypesDWOSections() override {
     return TypesDWOSections;
   }
+
   StringRef getAbbrevDWOSection() override { return AbbrevDWOSection; }
   const DWARFSection &getLineDWOSection() override { return LineDWOSection; }
   const DWARFSection &getLocDWOSection() override { return LocDWOSection; }
   StringRef getStringDWOSection() override { return StringDWOSection; }
+
   StringRef getStringOffsetDWOSection() override {
     return StringOffsetDWOSection;
   }
+
   StringRef getRangeDWOSection() override { return RangeDWOSection; }
+
   StringRef getAddrSection() override {
     return AddrSection;
   }
+
   StringRef getCUIndexSection() override { return CUIndexSection; }
   StringRef getGdbIndexSection() override { return GdbIndexSection; }
   StringRef getTUIndexSection() override { return TUIndexSection; }
@@ -342,4 +359,4 @@ public:
 
 } // end namespace llvm
 
-#endif // LLVM_LIB_DEBUGINFO_DWARFCONTEXT_H
+#endif // LLVM_DEBUGINFO_DWARF_DWARFCONTEXT_H

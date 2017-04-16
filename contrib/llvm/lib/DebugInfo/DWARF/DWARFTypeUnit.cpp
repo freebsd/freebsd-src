@@ -1,4 +1,4 @@
-//===-- DWARFTypeUnit.cpp -------------------------------------------------===//
+//===- DWARFTypeUnit.cpp --------------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,11 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/DebugInfo/DIContext.h"
+#include "llvm/DebugInfo/DWARF/DWARFDebugAbbrev.h"
+#include "llvm/DebugInfo/DWARF/DWARFDie.h"
 #include "llvm/DebugInfo/DWARF/DWARFTypeUnit.h"
-#include "llvm/DebugInfo/DWARF/DWARFFormValue.h"
-#include "llvm/Support/Dwarf.h"
+#include "llvm/DebugInfo/DWARF/DWARFUnit.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cinttypes>
 
 using namespace llvm;
 
@@ -26,22 +29,24 @@ bool DWARFTypeUnit::extractImpl(DataExtractor debug_info,
 
 void DWARFTypeUnit::dump(raw_ostream &OS, bool SummarizeTypes) {
   DWARFDie TD = getDIEForOffset(TypeOffset + getOffset());
-  const char *Name = TD.getAttributeValueAsString(llvm::dwarf::DW_AT_name, "");
+  const char *Name = TD.getName(DINameKind::ShortName);
 
   if (SummarizeTypes) {
     OS << "name = '" << Name << "'"
-       << " type_signature = " << format("0x%16" PRIx64, TypeHash)
+       << " type_signature = " << format("0x%016" PRIx64, TypeHash)
        << " length = " << format("0x%08x", getLength()) << '\n';
     return;
   }
 
   OS << format("0x%08x", getOffset()) << ": Type Unit:"
      << " length = " << format("0x%08x", getLength())
-     << " version = " << format("0x%04x", getVersion())
-     << " abbr_offset = " << format("0x%04x", getAbbreviations()->getOffset())
+     << " version = " << format("0x%04x", getVersion());
+  if (getVersion() >= 5)
+    OS << " unit_type = " << dwarf::UnitTypeString(getUnitType());
+  OS << " abbr_offset = " << format("0x%04x", getAbbreviations()->getOffset())
      << " addr_size = " << format("0x%02x", getAddressByteSize())
      << " name = '" << Name << "'"
-     << " type_signature = " << format("0x%16" PRIx64, TypeHash)
+     << " type_signature = " << format("0x%016" PRIx64, TypeHash)
      << " type_offset = " << format("0x%04x", TypeOffset)
      << " (next unit at " << format("0x%08x", getNextUnitOffset()) << ")\n";
 

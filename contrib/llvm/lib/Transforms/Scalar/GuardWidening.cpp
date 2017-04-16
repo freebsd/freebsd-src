@@ -568,8 +568,7 @@ bool GuardWideningImpl::combineRangeChecks(
       return RC.getBase() == CurrentBase && RC.getLength() == CurrentLength;
     };
 
-    std::copy_if(Checks.begin(), Checks.end(),
-                 std::back_inserter(CurrentChecks), IsCurrentCheck);
+    copy_if(Checks, std::back_inserter(CurrentChecks), IsCurrentCheck);
     Checks.erase(remove_if(Checks, IsCurrentCheck), Checks.end());
 
     assert(CurrentChecks.size() != 0 && "We know we have at least one!");
@@ -658,8 +657,12 @@ PreservedAnalyses GuardWideningPass::run(Function &F,
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
   auto &LI = AM.getResult<LoopAnalysis>(F);
   auto &PDT = AM.getResult<PostDominatorTreeAnalysis>(F);
-  bool Changed = GuardWideningImpl(DT, PDT, LI).run();
-  return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
+  if (!GuardWideningImpl(DT, PDT, LI).run())
+    return PreservedAnalyses::all();
+
+  PreservedAnalyses PA;
+  PA.preserveSet<CFGAnalyses>();
+  return PA;
 }
 
 StringRef GuardWideningImpl::scoreTypeToString(WideningScore WS) {

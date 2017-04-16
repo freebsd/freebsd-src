@@ -1108,6 +1108,18 @@ public:
   /// the instruction's location and its intended destination.
   bool isSafeToMove(AliasAnalysis *AA, bool &SawStore) const;
 
+  /// Returns true if this instruction's memory access aliases the memory
+  /// access of Other.
+  //
+  /// Assumes any physical registers used to compute addresses
+  /// have the same value for both instructions.  Returns false if neither
+  /// instruction writes to memory.
+  ///
+  /// @param AA Optional alias analysis, used to compare memory operands.
+  /// @param Other MachineInstr to check aliasing against.
+  /// @param UseTBAA Whether to pass TBAA information to alias analysis.
+  bool mayAlias(AliasAnalysis *AA, MachineInstr &Other, bool UseTBAA);
+
   /// Return true if this instruction may have an ordered
   /// or volatile memory reference, or if the information describing the memory
   /// reference is not available. Return false if it is known to have no
@@ -1146,14 +1158,21 @@ public:
   /// instruction to this instruction.
   void copyImplicitOps(MachineFunction &MF, const MachineInstr &MI);
 
-  //
-  // Debugging support
-  //
-  void print(raw_ostream &OS, bool SkipOpers = false,
+  /// Debugging support
+  /// @{
+  /// Print this MI to \p OS.
+  /// Only print the defs and the opcode if \p SkipOpers is true.
+  /// Otherwise, also print operands if \p SkipDebugLoc is true.
+  /// Otherwise, also print the debug loc, with a terminating newline.
+  /// \p TII is used to print the opcode name.  If it's not present, but the
+  /// MI is in a function, the opcode will be printed using the function's TII.
+  void print(raw_ostream &OS, bool SkipOpers = false, bool SkipDebugLoc = false,
              const TargetInstrInfo *TII = nullptr) const;
   void print(raw_ostream &OS, ModuleSlotTracker &MST, bool SkipOpers = false,
+             bool SkipDebugLoc = false,
              const TargetInstrInfo *TII = nullptr) const;
-  void dump(const TargetInstrInfo *TII = nullptr) const;
+  void dump() const;
+  /// @}
 
   //===--------------------------------------------------------------------===//
   // Accessors used to build up machine instructions.

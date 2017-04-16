@@ -123,9 +123,12 @@ using namespace llvm;
 
 #define DEBUG_TYPE "asm-matcher-emitter"
 
+cl::OptionCategory AsmMatcherEmitterCat("Options for -gen-asm-matcher");
+
 static cl::opt<std::string>
-MatchPrefix("match-prefix", cl::init(""),
-            cl::desc("Only match instructions with the given prefix"));
+    MatchPrefix("match-prefix", cl::init(""),
+                cl::desc("Only match instructions with the given prefix"),
+                cl::cat(AsmMatcherEmitterCat));
 
 namespace {
 class AsmMatcherInfo;
@@ -2784,8 +2787,6 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
   }
   OS << "  void convertToMapAndConstraints(unsigned Kind,\n                ";
   OS << "           const OperandVector &Operands) override;\n";
-  if (HasMnemonicFirst)
-    OS << "  bool mnemonicIsValid(StringRef Mnemonic, unsigned VariantID);\n";
   OS << "  unsigned MatchInstructionImpl(const OperandVector &Operands,\n"
      << "                                MCInst &Inst,\n"
      << "                                uint64_t &ErrorInfo,"
@@ -2883,7 +2884,7 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
   StringTable.EmitString(OS);
   OS << ";\n\n";
 
-  // Emit the static match table; unused classes get initalized to 0 which is
+  // Emit the static match table; unused classes get initialized to 0 which is
   // guaranteed to be InvalidMatchClass.
   //
   // FIXME: We can reduce the size of this table very easily. First, we change
@@ -2965,28 +2966,6 @@ void AsmMatcherEmitter::run(raw_ostream &OS) {
     }
 
     OS << "};\n\n";
-  }
-
-  // A method to determine if a mnemonic is in the list.
-  if (HasMnemonicFirst) {
-    OS << "bool " << Target.getName() << ClassName << "::\n"
-       << "mnemonicIsValid(StringRef Mnemonic, unsigned VariantID) {\n";
-    OS << "  // Find the appropriate table for this asm variant.\n";
-    OS << "  const MatchEntry *Start, *End;\n";
-    OS << "  switch (VariantID) {\n";
-    OS << "  default: llvm_unreachable(\"invalid variant!\");\n";
-    for (unsigned VC = 0; VC != VariantCount; ++VC) {
-      Record *AsmVariant = Target.getAsmParserVariant(VC);
-      int AsmVariantNo = AsmVariant->getValueAsInt("Variant");
-      OS << "  case " << AsmVariantNo << ": Start = std::begin(MatchTable" << VC
-         << "); End = std::end(MatchTable" << VC << "); break;\n";
-    }
-    OS << "  }\n";
-    OS << "  // Search the table.\n";
-    OS << "  auto MnemonicRange = ";
-    OS << "std::equal_range(Start, End, Mnemonic, LessOpcode());\n";
-    OS << "  return MnemonicRange.first != MnemonicRange.second;\n";
-    OS << "}\n\n";
   }
 
   // Finally, build the match function.

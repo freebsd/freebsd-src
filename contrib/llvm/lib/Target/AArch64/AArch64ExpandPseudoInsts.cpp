@@ -17,6 +17,7 @@
 #include "MCTargetDesc/AArch64AddressingModes.h"
 #include "AArch64InstrInfo.h"
 #include "AArch64Subtarget.h"
+#include "Utils/AArch64BaseInfo.h"
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -70,9 +71,9 @@ static void transferImpOps(MachineInstr &OldMI, MachineInstrBuilder &UseMI,
     const MachineOperand &MO = OldMI.getOperand(i);
     assert(MO.isReg() && MO.getReg());
     if (MO.isUse())
-      UseMI.addOperand(MO);
+      UseMI.add(MO);
     else
-      DefMI.addOperand(MO);
+      DefMI.add(MO);
   }
 }
 
@@ -112,7 +113,7 @@ static bool tryOrrMovk(uint64_t UImm, uint64_t OrrImm, MachineInstr &MI,
     // Create the ORR-immediate instruction.
     MachineInstrBuilder MIB =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ORRXri))
-            .addOperand(MI.getOperand(0))
+            .add(MI.getOperand(0))
             .addReg(AArch64::XZR)
             .addImm(Encoding);
 
@@ -179,7 +180,7 @@ static bool tryToreplicateChunks(uint64_t UImm, MachineInstr &MI,
     // Create the ORR-immediate instruction.
     MachineInstrBuilder MIB =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ORRXri))
-            .addOperand(MI.getOperand(0))
+            .add(MI.getOperand(0))
             .addReg(AArch64::XZR)
             .addImm(Encoding);
 
@@ -362,7 +363,7 @@ static bool trySequenceOfOnes(uint64_t UImm, MachineInstr &MI,
   AArch64_AM::processLogicalImmediate(OrrImm, 64, Encoding);
   MachineInstrBuilder MIB =
       BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ORRXri))
-          .addOperand(MI.getOperand(0))
+          .add(MI.getOperand(0))
           .addReg(AArch64::XZR)
           .addImm(Encoding);
 
@@ -425,7 +426,7 @@ bool AArch64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
     unsigned Opc = (BitSize == 32 ? AArch64::ORRWri : AArch64::ORRXri);
     MachineInstrBuilder MIB =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(Opc))
-            .addOperand(MI.getOperand(0))
+            .add(MI.getOperand(0))
             .addReg(BitSize == 32 ? AArch64::WZR : AArch64::XZR)
             .addImm(Encoding);
     transferImpOps(MI, MIB, MIB);
@@ -539,15 +540,15 @@ bool AArch64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
   if (Imm != 0) {
     unsigned LZ = countLeadingZeros(Imm);
     unsigned TZ = countTrailingZeros(Imm);
-    Shift = ((63 - LZ) / 16) * 16;
-    LastShift = (TZ / 16) * 16;
+    Shift = (TZ / 16) * 16;
+    LastShift = ((63 - LZ) / 16) * 16;
   }
   unsigned Imm16 = (Imm >> Shift) & Mask;
   bool DstIsDead = MI.getOperand(0).isDead();
   MachineInstrBuilder MIB1 =
       BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(FirstOpc))
           .addReg(DstReg, RegState::Define |
-                              getDeadRegState(DstIsDead && Shift == LastShift))
+                  getDeadRegState(DstIsDead && Shift == LastShift))
           .addImm(Imm16)
           .addImm(AArch64_AM::getShifterImm(AArch64_AM::LSL, Shift));
 
@@ -564,15 +565,15 @@ bool AArch64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
 
   MachineInstrBuilder MIB2;
   unsigned Opc = (BitSize == 32 ? AArch64::MOVKWi : AArch64::MOVKXi);
-  while (Shift != LastShift) {
-    Shift -= 16;
+  while (Shift < LastShift) {
+    Shift += 16;
     Imm16 = (Imm >> Shift) & Mask;
     if (Imm16 == (isNeg ? Mask : 0))
       continue; // This 16-bit portion is already set correctly.
     MIB2 = BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(Opc))
                .addReg(DstReg,
                        RegState::Define |
-                           getDeadRegState(DstIsDead && Shift == LastShift))
+                       getDeadRegState(DstIsDead && Shift == LastShift))
                .addReg(DstReg)
                .addImm(Imm16)
                .addImm(AArch64_AM::getShifterImm(AArch64_AM::LSL, Shift));
@@ -627,7 +628,7 @@ bool AArch64ExpandPseudo::expandCMP_SWAP(
       .addReg(Addr.getReg());
   BuildMI(LoadCmpBB, DL, TII->get(CmpOp), ZeroReg)
       .addReg(Dest.getReg(), getKillRegState(Dest.isDead()))
-      .addOperand(Desired)
+      .add(Desired)
       .addImm(ExtendImm);
   BuildMI(LoadCmpBB, DL, TII->get(AArch64::Bcc))
       .addImm(AArch64CC::NE)
@@ -643,9 +644,7 @@ bool AArch64ExpandPseudo::expandCMP_SWAP(
   StoreBB->addLiveIn(New.getReg());
   addPostLoopLiveIns(StoreBB, LiveRegs);
 
-  BuildMI(StoreBB, DL, TII->get(StlrOp), StatusReg)
-      .addOperand(New)
-      .addOperand(Addr);
+  BuildMI(StoreBB, DL, TII->get(StlrOp), StatusReg).add(New).add(Addr);
   BuildMI(StoreBB, DL, TII->get(AArch64::CBNZW))
       .addReg(StatusReg, RegState::Kill)
       .addMBB(LoadCmpBB);
@@ -710,7 +709,7 @@ bool AArch64ExpandPseudo::expandCMP_SWAP_128(
       .addReg(Addr.getReg());
   BuildMI(LoadCmpBB, DL, TII->get(AArch64::SUBSXrs), AArch64::XZR)
       .addReg(DestLo.getReg(), getKillRegState(DestLo.isDead()))
-      .addOperand(DesiredLo)
+      .add(DesiredLo)
       .addImm(0);
   BuildMI(LoadCmpBB, DL, TII->get(AArch64::CSINCWr), StatusReg)
     .addUse(AArch64::WZR)
@@ -718,7 +717,7 @@ bool AArch64ExpandPseudo::expandCMP_SWAP_128(
     .addImm(AArch64CC::EQ);
   BuildMI(LoadCmpBB, DL, TII->get(AArch64::SUBSXrs), AArch64::XZR)
       .addReg(DestHi.getReg(), getKillRegState(DestHi.isDead()))
-      .addOperand(DesiredHi)
+      .add(DesiredHi)
       .addImm(0);
   BuildMI(LoadCmpBB, DL, TII->get(AArch64::CSINCWr), StatusReg)
       .addUse(StatusReg, RegState::Kill)
@@ -738,9 +737,9 @@ bool AArch64ExpandPseudo::expandCMP_SWAP_128(
   StoreBB->addLiveIn(NewHi.getReg());
   addPostLoopLiveIns(StoreBB, LiveRegs);
   BuildMI(StoreBB, DL, TII->get(AArch64::STLXPX), StatusReg)
-      .addOperand(NewLo)
-      .addOperand(NewHi)
-      .addOperand(Addr);
+      .add(NewLo)
+      .add(NewHi)
+      .add(Addr);
   BuildMI(StoreBB, DL, TII->get(AArch64::CBNZW))
       .addReg(StatusReg, RegState::Kill)
       .addMBB(LoadCmpBB);
@@ -825,8 +824,8 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     MachineInstrBuilder MIB1 =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(Opcode),
                 MI.getOperand(0).getReg())
-            .addOperand(MI.getOperand(1))
-            .addOperand(MI.getOperand(2))
+            .add(MI.getOperand(1))
+            .add(MI.getOperand(2))
             .addImm(AArch64_AM::getShifterImm(AArch64_AM::LSL, 0));
     transferImpOps(MI, MIB1, MIB1);
     MI.eraseFromParent();
@@ -842,7 +841,7 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ADRP), DstReg);
     MachineInstrBuilder MIB2 =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::LDRXui))
-            .addOperand(MI.getOperand(0))
+            .add(MI.getOperand(0))
             .addReg(DstReg);
 
     if (MO1.isGlobal()) {
@@ -878,16 +877,28 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     unsigned DstReg = MI.getOperand(0).getReg();
     MachineInstrBuilder MIB1 =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ADRP), DstReg)
-            .addOperand(MI.getOperand(1));
+            .add(MI.getOperand(1));
 
     MachineInstrBuilder MIB2 =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ADDXri))
-            .addOperand(MI.getOperand(0))
+            .add(MI.getOperand(0))
             .addReg(DstReg)
-            .addOperand(MI.getOperand(2))
+            .add(MI.getOperand(2))
             .addImm(0);
 
     transferImpOps(MI, MIB1, MIB2);
+    MI.eraseFromParent();
+    return true;
+  }
+  case AArch64::MOVbaseTLS: {
+    unsigned DstReg = MI.getOperand(0).getReg();
+    auto SysReg = AArch64SysReg::TPIDR_EL0;
+    MachineFunction *MF = MBB.getParent();
+    if (MF->getTarget().getTargetTriple().isOSFuchsia() &&
+        MF->getTarget().getCodeModel() == CodeModel::Kernel)
+      SysReg = AArch64SysReg::TPIDR_EL1;
+    BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::MRS), DstReg)
+        .addImm(SysReg);
     MI.eraseFromParent();
     return true;
   }

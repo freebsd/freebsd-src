@@ -49,8 +49,6 @@ class LazyValueInfo;
 
 template<typename T> class SmallVectorImpl;
 
-typedef SmallVector<DbgValueInst *, 1> DbgValueList;
-
 //===----------------------------------------------------------------------===//
 //  Local constant propagation.
 //
@@ -73,6 +71,12 @@ bool ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions = false,
 /// instruction has no side effects.
 bool isInstructionTriviallyDead(Instruction *I,
                                 const TargetLibraryInfo *TLI = nullptr);
+
+/// Return true if the result produced by the instruction would have no side
+/// effects if it was not used. This is equivalent to checking whether
+/// isInstructionTriviallyDead would be true if the use count was 0.
+bool wouldInstructionBeTriviallyDead(Instruction *I,
+                                     const TargetLibraryInfo *TLI = nullptr);
 
 /// If the specified value is a trivially dead instruction, delete it.
 /// If that makes any of its operands trivially dead, delete them too,
@@ -138,7 +142,8 @@ bool EliminateDuplicatePHINodes(BasicBlock *BB);
 /// eliminate.
 bool SimplifyCFG(BasicBlock *BB, const TargetTransformInfo &TTI,
                  unsigned BonusInstThreshold, AssumptionCache *AC = nullptr,
-                 SmallPtrSetImpl<BasicBlock *> *LoopHeaders = nullptr);
+                 SmallPtrSetImpl<BasicBlock *> *LoopHeaders = nullptr,
+                 bool LateSimplifyCFG = false);
 
 /// This function is used to flatten a CFG. For example, it uses parallel-and
 /// and parallel-or mode to collapse if-conditions and merge if-regions with
@@ -278,8 +283,11 @@ bool LowerDbgDeclare(Function &F);
 /// Finds the llvm.dbg.declare intrinsic corresponding to an alloca, if any.
 DbgDeclareInst *FindAllocaDbgDeclare(Value *V);
 
-/// Finds the llvm.dbg.value intrinsics corresponding to an alloca, if any.
-void FindAllocaDbgValues(DbgValueList &DbgValues, Value *V);
+/// Finds the llvm.dbg.value intrinsics describing a value.
+void findDbgValues(SmallVectorImpl<DbgValueInst *> &DbgValues, Value *V);
+
+/// Constants for \p replaceDbgDeclare and friends.
+enum { NoDeref = false, WithDeref = true };
 
 /// Replaces llvm.dbg.declare instruction when the address it describes
 /// is replaced with a new value. If Deref is true, an additional DW_OP_deref is
@@ -305,6 +313,11 @@ bool replaceDbgDeclareForAlloca(AllocaInst *AI, Value *NewAllocaAddress,
 /// the instructions they replace.
 void replaceDbgValueForAlloca(AllocaInst *AI, Value *NewAllocaAddress,
                               DIBuilder &Builder, int Offset = 0);
+
+/// Assuming the instruction \p I is going to be deleted, attempt to salvage any
+/// dbg.value intrinsics referring to \p I by rewriting its effect into a
+/// DIExpression.
+void salvageDebugInfo(Instruction &I);
 
 /// Remove all instructions from a basic block other than it's terminator
 /// and any present EH pad instructions.

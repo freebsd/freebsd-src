@@ -175,6 +175,8 @@ void MIRPrinter::print(const MachineFunction &MF) {
   YamlMF.Alignment = MF.getAlignment();
   YamlMF.ExposesReturnsTwice = MF.exposesReturnsTwice();
 
+  YamlMF.NoVRegs = MF.getProperties().hasProperty(
+      MachineFunctionProperties::Property::NoVRegs);
   YamlMF.Legalized = MF.getProperties().hasProperty(
       MachineFunctionProperties::Property::Legalized);
   YamlMF.RegBankSelected = MF.getProperties().hasProperty(
@@ -203,6 +205,25 @@ void MIRPrinter::print(const MachineFunction &MF) {
   StrOS.flush();
   yaml::Output Out(OS);
   Out << YamlMF;
+}
+
+static void printCustomRegMask(const uint32_t *RegMask, raw_ostream &OS,
+                               const TargetRegisterInfo *TRI) {
+  assert(RegMask && "Can't print an empty register mask");
+  OS << StringRef("CustomRegMask(");
+
+  bool IsRegInRegMaskFound = false;
+  for (int I = 0, E = TRI->getNumRegs(); I < E; I++) {
+    // Check whether the register is asserted in regmask.
+    if (RegMask[I / 32] & (1u << (I % 32))) {
+      if (IsRegInRegMaskFound)
+        OS << ',';
+      printReg(I, OS, TRI);
+      IsRegInRegMaskFound = true;
+    }
+  }
+
+  OS << ')';
 }
 
 void MIRPrinter::convert(yaml::MachineFunction &MF,
@@ -239,20 +260,18 @@ void MIRPrinter::convert(yaml::MachineFunction &MF,
       printReg(I->second, LiveIn.VirtualRegister, TRI);
     MF.LiveIns.push_back(LiveIn);
   }
-  // The used physical register mask is printed as an inverted callee saved
-  // register mask.
-  const BitVector &UsedPhysRegMask = RegInfo.getUsedPhysRegsMask();
-  if (UsedPhysRegMask.none())
-    return;
-  std::vector<yaml::FlowStringValue> CalleeSavedRegisters;
-  for (unsigned I = 0, E = UsedPhysRegMask.size(); I != E; ++I) {
-    if (!UsedPhysRegMask[I]) {
+
+  // Prints the callee saved registers.
+  if (RegInfo.isUpdatedCSRsInitialized()) {
+    const MCPhysReg *CalleeSavedRegs = RegInfo.getCalleeSavedRegs();
+    std::vector<yaml::FlowStringValue> CalleeSavedRegisters;
+    for (const MCPhysReg *I = CalleeSavedRegs; *I; ++I) {
       yaml::FlowStringValue Reg;
-      printReg(I, Reg, TRI);
+      printReg(*I, Reg, TRI);
       CalleeSavedRegisters.push_back(Reg);
     }
+    MF.CalleeSavedRegisters = CalleeSavedRegisters;
   }
-  MF.CalleeSavedRegisters = CalleeSavedRegisters;
 }
 
 void MIRPrinter::convert(ModuleSlotTracker &MST,
@@ -860,7 +879,7 @@ void MIPrinter::print(const MachineOperand &Op, const TargetRegisterInfo *TRI,
     if (RegMaskInfo != RegisterMaskIds.end())
       OS << StringRef(TRI->getRegMaskNames()[RegMaskInfo->second]).lower();
     else
-      llvm_unreachable("Can't print this machine register mask yet.");
+      printCustomRegMask(Op.getRegMask(), OS, TRI);
     break;
   }
   case MachineOperand::MO_RegisterLiveOut: {
@@ -906,6 +925,9 @@ void MIPrinter::print(const MachineOperand &Op, const TargetRegisterInfo *TRI,
        << CmpInst::getPredicateName(Pred) << ')';
     break;
   }
+  case MachineOperand::MO_Placeholder:
+    OS << "<placeholder>";
+    break;
   }
 }
 
@@ -926,6 +948,15 @@ void MIPrinter::print(const MachineMemOperand &Op) {
     assert(Op.isStore() && "Non load machine operand must be a store");
     OS << "store ";
   }
+
+  if (Op.getSynchScope() == SynchronizationScope::SingleThread)
+    OS << "singlethread ";
+
+  if (Op.getOrdering() != AtomicOrdering::NotAtomic)
+    OS << toIRString(Op.getOrdering()) << ' ';
+  if (Op.getFailureOrdering() != AtomicOrdering::NotAtomic)
+    OS << toIRString(Op.getFailureOrdering()) << ' ';
+
   OS << Op.getSize();
   if (const Value *Val = Op.getValue()) {
     OS << (Op.isLoad() ? " from " : " into ");
