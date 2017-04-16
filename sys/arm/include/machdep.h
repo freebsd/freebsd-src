@@ -33,11 +33,12 @@ void undefinedinstruction_bounce(struct trapframe *);
 /* Early boot related helper functions */
 struct arm_boot_params;
 vm_offset_t default_parse_boot_param(struct arm_boot_params *abp);
-vm_offset_t freebsd_parse_boot_param(struct arm_boot_params *abp);
-vm_offset_t linux_parse_boot_param(struct arm_boot_params *abp);
 vm_offset_t fake_preload_metadata(struct arm_boot_params *abp,
     void *dtb_ptr, size_t dtb_size);
 vm_offset_t parse_boot_param(struct arm_boot_params *abp);
+void arm_parse_fdt_bootargs(void);
+void arm_print_kenv(void);
+
 void arm_generic_initclocks(void);
 
 /* Board-specific attributes */
@@ -50,6 +51,13 @@ int arm_predict_branch(void *, u_int, register_t, register_t *,
 #ifdef MULTIDELAY
 typedef void delay_func(int, void *);
 void arm_set_delay(delay_func *, void *);
+#endif
+
+#ifdef EFI
+struct efi_map_header;
+struct mem_region;
+void arm_add_efi_map_entries(struct efi_map_header *efihdr,
+    struct mem_region *mr, int *mrcnt);
 #endif
 
 #endif /* !_MACHINE_MACHDEP_H_ */
