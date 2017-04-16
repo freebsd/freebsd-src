@@ -4,12 +4,27 @@ namespace std {
 namespace experimental {
 template <typename... T>
 struct coroutine_traits; // expected-note {{declared here}}
+
+template <class Promise = void>
+struct coroutine_handle {
+  coroutine_handle() = default;
+  static coroutine_handle from_address(void *) { return {}; }
+};
+
+template <>
+struct coroutine_handle<void> {
+  static coroutine_handle from_address(void *) { return {}; }
+  coroutine_handle() = default;
+  template <class PromiseType>
+  coroutine_handle(coroutine_handle<PromiseType>) {}
+};
+
 }
 }
 
 struct suspend_always {
   bool await_ready() { return false; }
-  void await_suspend() {}
+  void await_suspend(std::experimental::coroutine_handle<>) {}
   void await_resume() {}
 };
 
@@ -25,7 +40,7 @@ struct std::experimental::coroutine_traits<void, global_new_delete_tag> {
   };
 };
 
-// CHECK-LABEL: f0( 
+// CHECK-LABEL: f0(
 extern "C" void f0(global_new_delete_tag) {
   // CHECK: %[[ID:.+]] = call token @llvm.coro.id(i32 16
   // CHECK: %[[SIZE:.+]] = call i64 @llvm.coro.size.i64()
@@ -34,7 +49,7 @@ extern "C" void f0(global_new_delete_tag) {
   // CHECK: %[[FRAME:.+]] = call i8* @llvm.coro.frame()
   // CHECK: %[[MEM:.+]] = call i8* @llvm.coro.free(token %[[ID]], i8* %[[FRAME]])
   // CHECK: call void @_ZdlPv(i8* %[[MEM]])
-  co_await suspend_always{};
+  co_return;
 }
 
 struct promise_new_tag {};
@@ -50,7 +65,7 @@ struct std::experimental::coroutine_traits<void, promise_new_tag> {
   };
 };
 
-// CHECK-LABEL: f1( 
+// CHECK-LABEL: f1(
 extern "C" void f1(promise_new_tag ) {
   // CHECK: %[[ID:.+]] = call token @llvm.coro.id(i32 16
   // CHECK: %[[SIZE:.+]] = call i64 @llvm.coro.size.i64()
@@ -59,7 +74,7 @@ extern "C" void f1(promise_new_tag ) {
   // CHECK: %[[FRAME:.+]] = call i8* @llvm.coro.frame()
   // CHECK: %[[MEM:.+]] = call i8* @llvm.coro.free(token %[[ID]], i8* %[[FRAME]])
   // CHECK: call void @_ZdlPv(i8* %[[MEM]])
-  co_await suspend_always{};
+  co_return;
 }
 
 struct promise_delete_tag {};
@@ -75,7 +90,7 @@ struct std::experimental::coroutine_traits<void, promise_delete_tag> {
   };
 };
 
-// CHECK-LABEL: f2( 
+// CHECK-LABEL: f2(
 extern "C" void f2(promise_delete_tag) {
   // CHECK: %[[ID:.+]] = call token @llvm.coro.id(i32 16
   // CHECK: %[[SIZE:.+]] = call i64 @llvm.coro.size.i64()
@@ -84,7 +99,7 @@ extern "C" void f2(promise_delete_tag) {
   // CHECK: %[[FRAME:.+]] = call i8* @llvm.coro.frame()
   // CHECK: %[[MEM:.+]] = call i8* @llvm.coro.free(token %[[ID]], i8* %[[FRAME]])
   // CHECK: call void @_ZNSt12experimental16coroutine_traitsIJv18promise_delete_tagEE12promise_typedlEPv(i8* %[[MEM]])
-  co_await suspend_always{};
+  co_return;
 }
 
 struct promise_sized_delete_tag {};
@@ -100,7 +115,7 @@ struct std::experimental::coroutine_traits<void, promise_sized_delete_tag> {
   };
 };
 
-// CHECK-LABEL: f3( 
+// CHECK-LABEL: f3(
 extern "C" void f3(promise_sized_delete_tag) {
   // CHECK: %[[ID:.+]] = call token @llvm.coro.id(i32 16
   // CHECK: %[[SIZE:.+]] = call i64 @llvm.coro.size.i64()
@@ -110,5 +125,32 @@ extern "C" void f3(promise_sized_delete_tag) {
   // CHECK: %[[MEM:.+]] = call i8* @llvm.coro.free(token %[[ID]], i8* %[[FRAME]])
   // CHECK: %[[SIZE2:.+]] = call i64 @llvm.coro.size.i64()
   // CHECK: call void @_ZNSt12experimental16coroutine_traitsIJv24promise_sized_delete_tagEE12promise_typedlEPvm(i8* %[[MEM]], i64 %[[SIZE2]])
-  co_await suspend_always{};
+  co_return;
+}
+
+struct promise_on_alloc_failure_tag {};
+
+template<>
+struct std::experimental::coroutine_traits<int, promise_on_alloc_failure_tag> {
+  struct promise_type {
+    int get_return_object() {}
+    suspend_always initial_suspend() { return {}; }
+    suspend_always final_suspend() { return {}; }
+    void return_void() {}
+    static int get_return_object_on_allocation_failure() { return -1; }
+  };
+};
+
+// CHECK-LABEL: f4(
+extern "C" int f4(promise_on_alloc_failure_tag) {
+  // CHECK: %[[ID:.+]] = call token @llvm.coro.id(i32 16
+  // CHECK: %[[SIZE:.+]] = call i64 @llvm.coro.size.i64()
+  // CHECK: %[[MEM:.+]] = call i8* @_Znwm(i64 %[[SIZE]])
+  // CHECK: %[[OK:.+]] = icmp ne i8* %[[MEM]], null
+  // CHECK: br i1 %[[OK]], label %[[OKBB:.+]], label %[[ERRBB:.+]]
+
+  // CHECK: [[ERRBB]]:
+  // CHECK: %[[RETVAL:.+]] = call i32 @_ZNSt12experimental16coroutine_traitsIJi28promise_on_alloc_failure_tagEE12promise_type39get_return_object_on_allocation_failureEv(
+  // CHECK: ret i32 %[[RETVAL]]
+  co_return;
 }

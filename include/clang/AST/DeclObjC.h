@@ -381,15 +381,17 @@ public:
                        ArrayRef<SourceLocation> SelLocs = llvm::None);
 
   // Iterator access to parameter types.
-  typedef std::const_mem_fun_t<QualType, ParmVarDecl> deref_fun;
-  typedef llvm::mapped_iterator<param_const_iterator, deref_fun>
-  param_type_iterator;
+  struct GetTypeFn {
+    QualType operator()(const ParmVarDecl *PD) const { return PD->getType(); }
+  };
+  typedef llvm::mapped_iterator<param_const_iterator, GetTypeFn>
+      param_type_iterator;
 
   param_type_iterator param_type_begin() const {
-    return llvm::map_iterator(param_begin(), deref_fun(&ParmVarDecl::getType));
+    return llvm::map_iterator(param_begin(), GetTypeFn());
   }
   param_type_iterator param_type_end() const {
-    return llvm::map_iterator(param_end(), deref_fun(&ParmVarDecl::getType));
+    return llvm::map_iterator(param_end(), GetTypeFn());
   }
 
   /// createImplicitParams - Used to lazily create the self and cmd
@@ -743,6 +745,8 @@ private:
 
   Selector GetterName;    // getter name of NULL if no getter
   Selector SetterName;    // setter name of NULL if no setter
+  SourceLocation GetterNameLoc; // location of the getter attribute's value
+  SourceLocation SetterNameLoc; // location of the setter attribute's value
 
   ObjCMethodDecl *GetterMethodDecl; // Declaration of getter instance method
   ObjCMethodDecl *SetterMethodDecl; // Declaration of setter instance method
@@ -855,10 +859,18 @@ public:
   }
 
   Selector getGetterName() const { return GetterName; }
-  void setGetterName(Selector Sel) { GetterName = Sel; }
+  SourceLocation getGetterNameLoc() const { return GetterNameLoc; }
+  void setGetterName(Selector Sel, SourceLocation Loc = SourceLocation()) {
+    GetterName = Sel;
+    GetterNameLoc = Loc;
+  }
 
   Selector getSetterName() const { return SetterName; }
-  void setSetterName(Selector Sel) { SetterName = Sel; }
+  SourceLocation getSetterNameLoc() const { return SetterNameLoc; }
+  void setSetterName(Selector Sel, SourceLocation Loc = SourceLocation()) {
+    SetterName = Sel;
+    SetterNameLoc = Loc;
+  }
 
   ObjCMethodDecl *getGetterMethodDecl() const { return GetterMethodDecl; }
   void setGetterMethodDecl(ObjCMethodDecl *gDecl) { GetterMethodDecl = gDecl; }
@@ -2320,11 +2332,9 @@ class ObjCImplDecl : public ObjCContainerDecl {
 protected:
   ObjCImplDecl(Kind DK, DeclContext *DC,
                ObjCInterfaceDecl *classInterface,
+               IdentifierInfo *Id,
                SourceLocation nameLoc, SourceLocation atStartLoc)
-    : ObjCContainerDecl(DK, DC,
-                        classInterface? classInterface->getIdentifier()
-                                      : nullptr,
-                        nameLoc, atStartLoc),
+    : ObjCContainerDecl(DK, DC, Id, nameLoc, atStartLoc),
       ClassInterface(classInterface) {}
 
 public:
@@ -2386,9 +2396,6 @@ public:
 class ObjCCategoryImplDecl : public ObjCImplDecl {
   void anchor() override;
 
-  // Category name
-  IdentifierInfo *Id;
-
   // Category name location
   SourceLocation CategoryNameLoc;
 
@@ -2396,8 +2403,9 @@ class ObjCCategoryImplDecl : public ObjCImplDecl {
                        ObjCInterfaceDecl *classInterface,
                        SourceLocation nameLoc, SourceLocation atStartLoc,
                        SourceLocation CategoryNameLoc)
-    : ObjCImplDecl(ObjCCategoryImpl, DC, classInterface, nameLoc, atStartLoc),
-      Id(Id), CategoryNameLoc(CategoryNameLoc) {}
+    : ObjCImplDecl(ObjCCategoryImpl, DC, classInterface, Id,
+                   nameLoc, atStartLoc),
+      CategoryNameLoc(CategoryNameLoc) {}
 public:
   static ObjCCategoryImplDecl *Create(ASTContext &C, DeclContext *DC,
                                       IdentifierInfo *Id,
@@ -2407,36 +2415,9 @@ public:
                                       SourceLocation CategoryNameLoc);
   static ObjCCategoryImplDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
-  /// getIdentifier - Get the identifier that names the category
-  /// interface associated with this implementation.
-  /// FIXME: This is a bad API, we are hiding NamedDecl::getIdentifier()
-  /// with a different meaning. For example:
-  /// ((NamedDecl *)SomeCategoryImplDecl)->getIdentifier()
-  /// returns the class interface name, whereas
-  /// ((ObjCCategoryImplDecl *)SomeCategoryImplDecl)->getIdentifier()
-  /// returns the category name.
-  IdentifierInfo *getIdentifier() const {
-    return Id;
-  }
-  void setIdentifier(IdentifierInfo *II) { Id = II; }
-
   ObjCCategoryDecl *getCategoryDecl() const;
 
   SourceLocation getCategoryNameLoc() const { return CategoryNameLoc; }
-
-  /// getName - Get the name of identifier for the class interface associated
-  /// with this implementation as a StringRef.
-  //
-  // FIXME: This is a bad API, we are hiding NamedDecl::getName with a different
-  // meaning.
-  StringRef getName() const { return Id ? Id->getName() : StringRef(); }
-
-  /// @brief Get the name of the class associated with this interface.
-  //
-  // FIXME: Deprecated, move clients to getName().
-  std::string getNameAsString() const {
-    return getName();
-  }
 
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == ObjCCategoryImpl;}
@@ -2493,7 +2474,10 @@ class ObjCImplementationDecl : public ObjCImplDecl {
                          SourceLocation superLoc = SourceLocation(),
                          SourceLocation IvarLBraceLoc=SourceLocation(), 
                          SourceLocation IvarRBraceLoc=SourceLocation())
-    : ObjCImplDecl(ObjCImplementation, DC, classInterface, nameLoc, atStartLoc),
+    : ObjCImplDecl(ObjCImplementation, DC, classInterface,
+                   classInterface ? classInterface->getIdentifier()
+                                  : nullptr,
+                   nameLoc, atStartLoc),
        SuperClass(superDecl), SuperLoc(superLoc), IvarLBraceLoc(IvarLBraceLoc),
        IvarRBraceLoc(IvarRBraceLoc),
        IvarInitializers(nullptr), NumIvarInitializers(0),

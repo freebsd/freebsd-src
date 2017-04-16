@@ -131,7 +131,7 @@ ImplicitConversionRank clang::GetConversionRank(ImplicitConversionKind Kind) {
     ICR_Conversion,
     ICR_Conversion,
     ICR_Conversion,
-    ICR_Conversion,
+    ICR_OCL_Scalar_Widening,
     ICR_Complex_Real_Conversion,
     ICR_Conversion,
     ICR_Conversion,
@@ -917,40 +917,39 @@ static bool checkArgPlaceholdersForOverload(Sema &S,
   return false;
 }
 
-// IsOverload - Determine whether the given New declaration is an
-// overload of the declarations in Old. This routine returns false if
-// New and Old cannot be overloaded, e.g., if New has the same
-// signature as some function in Old (C++ 1.3.10) or if the Old
-// declarations aren't functions (or function templates) at all. When
-// it does return false, MatchedDecl will point to the decl that New
-// cannot be overloaded with.  This decl may be a UsingShadowDecl on
-// top of the underlying declaration.
-//
-// Example: Given the following input:
-//
-//   void f(int, float); // #1
-//   void f(int, int); // #2
-//   int f(int, int); // #3
-//
-// When we process #1, there is no previous declaration of "f",
-// so IsOverload will not be used.
-//
-// When we process #2, Old contains only the FunctionDecl for #1.  By
-// comparing the parameter types, we see that #1 and #2 are overloaded
-// (since they have different signatures), so this routine returns
-// false; MatchedDecl is unchanged.
-//
-// When we process #3, Old is an overload set containing #1 and #2. We
-// compare the signatures of #3 to #1 (they're overloaded, so we do
-// nothing) and then #3 to #2. Since the signatures of #3 and #2 are
-// identical (return types of functions are not part of the
-// signature), IsOverload returns false and MatchedDecl will be set to
-// point to the FunctionDecl for #2.
-//
-// 'NewIsUsingShadowDecl' indicates that 'New' is being introduced
-// into a class by a using declaration.  The rules for whether to hide
-// shadow declarations ignore some properties which otherwise figure
-// into a function template's signature.
+/// Determine whether the given New declaration is an overload of the
+/// declarations in Old. This routine returns Ovl_Match or Ovl_NonFunction if
+/// New and Old cannot be overloaded, e.g., if New has the same signature as
+/// some function in Old (C++ 1.3.10) or if the Old declarations aren't
+/// functions (or function templates) at all. When it does return Ovl_Match or
+/// Ovl_NonFunction, MatchedDecl will point to the decl that New cannot be
+/// overloaded with. This decl may be a UsingShadowDecl on top of the underlying
+/// declaration.
+///
+/// Example: Given the following input:
+///
+///   void f(int, float); // #1
+///   void f(int, int); // #2
+///   int f(int, int); // #3
+///
+/// When we process #1, there is no previous declaration of "f", so IsOverload
+/// will not be used.
+///
+/// When we process #2, Old contains only the FunctionDecl for #1. By comparing
+/// the parameter types, we see that #1 and #2 are overloaded (since they have
+/// different signatures), so this routine returns Ovl_Overload; MatchedDecl is
+/// unchanged.
+///
+/// When we process #3, Old is an overload set containing #1 and #2. We compare
+/// the signatures of #3 to #1 (they're overloaded, so we do nothing) and then
+/// #3 to #2. Since the signatures of #3 and #2 are identical (return types of
+/// functions are not part of the signature), IsOverload returns Ovl_Match and
+/// MatchedDecl will be set to point to the FunctionDecl for #2.
+///
+/// 'NewIsUsingShadowDecl' indicates that 'New' is being introduced into a class
+/// by a using declaration. The rules for whether to hide shadow declarations
+/// ignore some properties which otherwise figure into a function template's
+/// signature.
 Sema::OverloadKind
 Sema::CheckOverload(Scope *S, FunctionDecl *New, const LookupResult &Old,
                     NamedDecl *&Match, bool NewIsUsingDecl) {
@@ -4048,7 +4047,7 @@ CompareDerivedToBaseConversions(Sema &S, SourceLocation Loc,
         = S.Context.canAssignObjCInterfaces(ToPtr1, ToPtr2);
       bool ToAssignRight
         = S.Context.canAssignObjCInterfaces(ToPtr2, ToPtr1);
-      
+
       // A conversion to an a non-id object pointer type or qualified 'id' 
       // type is better than a conversion to 'id'.
       if (ToPtr1->isObjCIdType() &&
@@ -4082,11 +4081,25 @@ CompareDerivedToBaseConversions(Sema &S, SourceLocation Loc,
         return ImplicitConversionSequence::Better;
 
       //   -- "conversion of C* to B* is better than conversion of C* to A*,"
-      if (S.Context.hasSameType(FromType1, FromType2) && 
+      if (S.Context.hasSameType(FromType1, FromType2) &&
           !FromPtr1->isObjCIdType() && !FromPtr1->isObjCClassType() &&
-          (ToAssignLeft != ToAssignRight))
+          (ToAssignLeft != ToAssignRight)) {
+        if (FromPtr1->isSpecialized()) {
+          // "conversion of B<A> * to B * is better than conversion of B * to
+          // C *.
+          bool IsFirstSame =
+              FromPtr1->getInterfaceDecl() == ToPtr1->getInterfaceDecl();
+          bool IsSecondSame =
+              FromPtr1->getInterfaceDecl() == ToPtr2->getInterfaceDecl();
+          if (IsFirstSame) {
+            if (!IsSecondSame)
+              return ImplicitConversionSequence::Better;
+          } else if (IsSecondSame)
+            return ImplicitConversionSequence::Worse;
+        }
         return ToAssignLeft? ImplicitConversionSequence::Worse
                            : ImplicitConversionSequence::Better;
+      }
 
       //   -- "conversion of B* to A* is better than conversion of C* to A*,"
       if (S.Context.hasSameUnqualifiedType(ToType1, ToType2) &&
@@ -4264,7 +4277,7 @@ Sema::CompareReferenceRelationship(SourceLocation Loc,
     return Ref_Related;
 }
 
-/// \brief Look for a user-defined conversion to an value reference-compatible
+/// \brief Look for a user-defined conversion to a value reference-compatible
 ///        with DeclType. Return true if something definite is found.
 static bool
 FindConversionForRefInit(Sema &S, ImplicitConversionSequence &ICS,
@@ -5888,7 +5901,8 @@ Sema::AddOverloadCandidate(FunctionDecl *Function,
     return;
 
   // Overload resolution is always an unevaluated context.
-  EnterExpressionEvaluationContext Unevaluated(*this, Sema::Unevaluated);
+  EnterExpressionEvaluationContext Unevaluated(
+      *this, Sema::ExpressionEvaluationContext::Unevaluated);
 
   // Add this candidate
   OverloadCandidate &Candidate =
@@ -6307,30 +6321,45 @@ void Sema::AddFunctionCandidates(const UnresolvedSetImpl &Fns,
   for (UnresolvedSetIterator F = Fns.begin(), E = Fns.end(); F != E; ++F) {
     NamedDecl *D = F.getDecl()->getUnderlyingDecl();
     if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-      if (isa<CXXMethodDecl>(FD) && !cast<CXXMethodDecl>(FD)->isStatic())
+      if (isa<CXXMethodDecl>(FD) && !cast<CXXMethodDecl>(FD)->isStatic()) {
+        QualType ObjectType;
+        Expr::Classification ObjectClassification;
+        if (Expr *E = Args[0]) {
+          // Use the explit base to restrict the lookup:
+          ObjectType = E->getType();
+          ObjectClassification = E->Classify(Context);
+        } // .. else there is an implit base.
         AddMethodCandidate(cast<CXXMethodDecl>(FD), F.getPair(),
-                           cast<CXXMethodDecl>(FD)->getParent(),
-                           Args[0]->getType(), Args[0]->Classify(Context),
-                           Args.slice(1), CandidateSet, SuppressUserConversions,
-                           PartialOverloading);
-      else
+                           cast<CXXMethodDecl>(FD)->getParent(), ObjectType,
+                           ObjectClassification, Args.slice(1), CandidateSet,
+                           SuppressUserConversions, PartialOverloading);
+      } else {
         AddOverloadCandidate(FD, F.getPair(), Args, CandidateSet,
                              SuppressUserConversions, PartialOverloading);
+      }
     } else {
       FunctionTemplateDecl *FunTmpl = cast<FunctionTemplateDecl>(D);
       if (isa<CXXMethodDecl>(FunTmpl->getTemplatedDecl()) &&
-          !cast<CXXMethodDecl>(FunTmpl->getTemplatedDecl())->isStatic())
+          !cast<CXXMethodDecl>(FunTmpl->getTemplatedDecl())->isStatic()) {
+        QualType ObjectType;
+        Expr::Classification ObjectClassification;
+        if (Expr *E = Args[0]) {
+          // Use the explit base to restrict the lookup:
+          ObjectType = E->getType();
+          ObjectClassification = E->Classify(Context);
+        } // .. else there is an implit base.
         AddMethodTemplateCandidate(
             FunTmpl, F.getPair(),
             cast<CXXRecordDecl>(FunTmpl->getDeclContext()),
-            ExplicitTemplateArgs, Args[0]->getType(),
-            Args[0]->Classify(Context), Args.slice(1), CandidateSet,
-            SuppressUserConversions, PartialOverloading);
-      else
+            ExplicitTemplateArgs, ObjectType, ObjectClassification,
+            Args.slice(1), CandidateSet, SuppressUserConversions,
+            PartialOverloading);
+      } else {
         AddTemplateOverloadCandidate(FunTmpl, F.getPair(),
                                      ExplicitTemplateArgs, Args,
                                      CandidateSet, SuppressUserConversions,
                                      PartialOverloading);
+      }
     }
   }
 }
@@ -6396,7 +6425,8 @@ Sema::AddMethodCandidate(CXXMethodDecl *Method, DeclAccessPair FoundDecl,
     return;
 
   // Overload resolution is always an unevaluated context.
-  EnterExpressionEvaluationContext Unevaluated(*this, Sema::Unevaluated);
+  EnterExpressionEvaluationContext Unevaluated(
+      *this, Sema::ExpressionEvaluationContext::Unevaluated);
 
   // Add this candidate
   OverloadCandidate &Candidate =
@@ -6652,7 +6682,8 @@ bool Sema::CheckNonDependentConversions(
       CandidateSet.allocateConversionSequences(ThisConversions + Args.size());
 
   // Overload resolution is always an unevaluated context.
-  EnterExpressionEvaluationContext Unevaluated(*this, Sema::Unevaluated);
+  EnterExpressionEvaluationContext Unevaluated(
+      *this, Sema::ExpressionEvaluationContext::Unevaluated);
 
   // For a method call, check the 'this' conversion here too. DR1391 doesn't
   // require that, but this check should never result in a hard error, and
@@ -6760,7 +6791,8 @@ Sema::AddConversionCandidate(CXXConversionDecl *Conversion,
     return;
 
   // Overload resolution is always an unevaluated context.
-  EnterExpressionEvaluationContext Unevaluated(*this, Sema::Unevaluated);
+  EnterExpressionEvaluationContext Unevaluated(
+      *this, Sema::ExpressionEvaluationContext::Unevaluated);
 
   // Add this candidate
   OverloadCandidate &Candidate = CandidateSet.addCandidate(1);
@@ -6951,7 +6983,8 @@ void Sema::AddSurrogateCandidate(CXXConversionDecl *Conversion,
     return;
 
   // Overload resolution is always an unevaluated context.
-  EnterExpressionEvaluationContext Unevaluated(*this, Sema::Unevaluated);
+  EnterExpressionEvaluationContext Unevaluated(
+      *this, Sema::ExpressionEvaluationContext::Unevaluated);
 
   OverloadCandidate &Candidate = CandidateSet.addCandidate(Args.size() + 1);
   Candidate.FoundDecl = FoundDecl;
@@ -7109,7 +7142,8 @@ void Sema::AddBuiltinCandidate(QualType ResultTy, QualType *ParamTys,
                                bool IsAssignmentOperator,
                                unsigned NumContextualBoolArguments) {
   // Overload resolution is always an unevaluated context.
-  EnterExpressionEvaluationContext Unevaluated(*this, Sema::Unevaluated);
+  EnterExpressionEvaluationContext Unevaluated(
+      *this, Sema::ExpressionEvaluationContext::Unevaluated);
 
   // Add this candidate
   OverloadCandidate &Candidate = CandidateSet.addCandidate(Args.size());
@@ -8991,6 +9025,12 @@ bool clang::isBetterOverloadCandidate(Sema &S, const OverloadCandidate &Cand1,
     // C++14 [over.match.best]p1 section 2 bullet 3.
   }
 
+  //    -- F1 is generated from a deduction-guide and F2 is not
+  auto *Guide1 = dyn_cast_or_null<CXXDeductionGuideDecl>(Cand1.Function);
+  auto *Guide2 = dyn_cast_or_null<CXXDeductionGuideDecl>(Cand2.Function);
+  if (Guide1 && Guide2 && Guide1->isImplicit() != Guide2->isImplicit())
+    return Guide2->isImplicit();
+
   //    -- F1 is a non-template function and F2 is a function template
   //       specialization, or, if not that,
   bool Cand1IsSpecialization = Cand1.Function &&
@@ -9488,7 +9528,8 @@ static void DiagnoseBadConversion(Sema &S, OverloadCandidate *Cand,
         << (unsigned) FnKind << FnDesc
         << (FromExpr ? FromExpr->getSourceRange() : SourceRange())
         << FromTy
-        << FromQs.getAddressSpace() << ToQs.getAddressSpace()
+        << FromQs.getAddressSpaceAttributePrintValue()
+        << ToQs.getAddressSpaceAttributePrintValue()
         << (unsigned) isObjectArgument << I+1;
       MaybeEmitInheritedConstructorNote(S, Cand->FoundDecl);
       return;
@@ -11485,7 +11526,7 @@ DiagnoseTwoPhaseLookup(Sema &SemaRef, SourceLocation FnLoc,
                        TemplateArgumentListInfo *ExplicitTemplateArgs,
                        ArrayRef<Expr *> Args,
                        bool *DoDiagnoseEmptyLookup = nullptr) {
-  if (SemaRef.ActiveTemplateInstantiations.empty() || !SS.isEmpty())
+  if (!SemaRef.inTemplateInstantiation() || !SS.isEmpty())
     return false;
 
   for (DeclContext *DC = SemaRef.CurContext; DC; DC = DC->getParent()) {
@@ -11957,7 +11998,7 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, UnaryOperatorKind Opc,
                                      Fns.begin(), Fns.end());
     return new (Context)
         CXXOperatorCallExpr(Context, Op, Fn, ArgsArray, Context.DependentTy,
-                            VK_RValue, OpLoc, false);
+                            VK_RValue, OpLoc, FPOptions());
   }
 
   // Build an empty overload set.
@@ -12027,7 +12068,7 @@ Sema::CreateOverloadedUnaryOp(SourceLocation OpLoc, UnaryOperatorKind Opc,
       Args[0] = Input;
       CallExpr *TheCall =
         new (Context) CXXOperatorCallExpr(Context, Op, FnExpr.get(), ArgsArray,
-                                          ResultTy, VK, OpLoc, false);
+                                          ResultTy, VK, OpLoc, FPOptions());
 
       if (CheckCallReturnType(FnDecl->getReturnType(), OpLoc, TheCall, FnDecl))
         return ExprError();
@@ -12125,12 +12166,12 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
       if (Opc <= BO_Assign || Opc > BO_OrAssign)
         return new (Context) BinaryOperator(
             Args[0], Args[1], Opc, Context.DependentTy, VK_RValue, OK_Ordinary,
-            OpLoc, FPFeatures.fp_contract);
+            OpLoc, FPFeatures);
 
       return new (Context) CompoundAssignOperator(
           Args[0], Args[1], Opc, Context.DependentTy, VK_LValue, OK_Ordinary,
           Context.DependentTy, Context.DependentTy, OpLoc,
-          FPFeatures.fp_contract);
+          FPFeatures);
     }
 
     // FIXME: save results of ADL from here?
@@ -12144,7 +12185,7 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
                                      Fns.begin(), Fns.end());
     return new (Context)
         CXXOperatorCallExpr(Context, Op, Fn, Args, Context.DependentTy,
-                            VK_RValue, OpLoc, FPFeatures.fp_contract);
+                            VK_RValue, OpLoc, FPFeatures);
   }
 
   // Always do placeholder-like conversions on the RHS.
@@ -12259,7 +12300,7 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
         CXXOperatorCallExpr *TheCall =
           new (Context) CXXOperatorCallExpr(Context, Op, FnExpr.get(),
                                             Args, ResultTy, VK, OpLoc,
-                                            FPFeatures.fp_contract);
+                                            FPFeatures);
 
         if (CheckCallReturnType(FnDecl->getReturnType(), OpLoc, TheCall,
                                 FnDecl))
@@ -12407,7 +12448,7 @@ Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
 
     return new (Context)
         CXXOperatorCallExpr(Context, OO_Subscript, Fn, Args,
-                            Context.DependentTy, VK_RValue, RLoc, false);
+                            Context.DependentTy, VK_RValue, RLoc, FPOptions());
   }
 
   // Handle placeholders on both operands.
@@ -12483,7 +12524,7 @@ Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
           new (Context) CXXOperatorCallExpr(Context, OO_Subscript,
                                             FnExpr.get(), Args,
                                             ResultTy, VK, RLoc,
-                                            false);
+                                            FPOptions());
 
         if (CheckCallReturnType(FnDecl->getReturnType(), LLoc, TheCall, FnDecl))
           return ExprError();
@@ -13046,7 +13087,7 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Obj,
 
   CXXOperatorCallExpr *TheCall = new (Context)
       CXXOperatorCallExpr(Context, OO_Call, NewFn.get(), MethodArgs, ResultTy,
-                          VK, RParenLoc, false);
+                          VK, RParenLoc, FPOptions());
 
   if (CheckCallReturnType(Method->getReturnType(), LParenLoc, TheCall, Method))
     return true;
@@ -13226,7 +13267,7 @@ Sema::BuildOverloadedArrowExpr(Scope *S, Expr *Base, SourceLocation OpLoc,
   ResultTy = ResultTy.getNonLValueExprType(Context);
   CXXOperatorCallExpr *TheCall =
     new (Context) CXXOperatorCallExpr(Context, OO_Arrow, FnExpr.get(),
-                                      Base, ResultTy, VK, OpLoc, false);
+                                      Base, ResultTy, VK, OpLoc, FPOptions());
 
   if (CheckCallReturnType(Method->getReturnType(), OpLoc, TheCall, Method))
     return ExprError();

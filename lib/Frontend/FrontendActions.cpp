@@ -57,6 +57,7 @@ std::unique_ptr<ASTConsumer>
 ASTDumpAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
   return CreateASTDumper(CI.getFrontendOpts().ASTDumpFilter,
                          CI.getFrontendOpts().ASTDumpDecls,
+                         CI.getFrontendOpts().ASTDumpAll,
                          CI.getFrontendOpts().ASTDumpLookups);
 }
 
@@ -93,7 +94,7 @@ GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
   Consumers.push_back(llvm::make_unique<PCHGenerator>(
                         CI.getPreprocessor(), OutputFile, Sysroot,
                         Buffer, CI.getFrontendOpts().ModuleFileExtensions,
-                        /*AllowASTWithErrors*/false,
+      /*AllowASTWithErrors*/CI.getPreprocessorOpts().AllowPCHWithCompilerErrors,
                         /*IncludeTimestamps*/
                           +CI.getFrontendOpts().IncludeTimestamps));
   Consumers.push_back(CI.getPCHContainerWriter().CreatePCHContainerGenerator(
@@ -125,6 +126,12 @@ GeneratePCHAction::ComputeASTConsumerArguments(CompilerInstance &CI,
 
   OutputFile = CI.getFrontendOpts().OutputFile;
   return OS;
+}
+
+bool GeneratePCHAction::shouldEraseOutputFiles() {
+  if (getCompilerInstance().getPreprocessorOpts().AllowPCHWithCompilerErrors)
+    return false;
+  return ASTFrontendAction::shouldEraseOutputFiles();
 }
 
 bool GeneratePCHAction::BeginSourceFileAction(CompilerInstance &CI,
@@ -567,6 +574,7 @@ namespace {
                                  bool Complain) override {
       Out.indent(2) << "Header search options:\n";
       Out.indent(4) << "System root [-isysroot=]: '" << HSOpts.Sysroot << "'\n";
+      Out.indent(4) << "Resource dir [ -resource-dir=]: '" << HSOpts.ResourceDir << "'\n";
       Out.indent(4) << "Module Cache: '" << SpecificModuleCachePath << "'\n";
       DUMP_BOOLEAN(HSOpts.UseBuiltinIncludes,
                    "Use builtin include directories [-nobuiltininc]");

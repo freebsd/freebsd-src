@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -analyze -analyzer-checker=core,alpha.core,debug.ExprInspection -analyzer-store=region -verify %s
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core,alpha.core,debug.ExprInspection -analyzer-store=region -verify %s
+// RUN: %clang_analyze_cc1 -triple x86_64-apple-darwin9 -analyzer-checker=core,alpha.core,debug.ExprInspection -analyzer-store=region -verify %s
+// RUN: %clang_analyze_cc1 -triple i386-apple-darwin9 -analyzer-checker=core,alpha.core,debug.ExprInspection -analyzer-store=region -verify %s
 
 extern void clang_analyzer_eval(_Bool);
 
@@ -117,4 +117,9 @@ void castsToBool() {
 
   extern float globalFloat;
   clang_analyzer_eval(globalFloat); // expected-warning{{UNKNOWN}}
+}
+
+void locAsIntegerCasts(void *p) {
+  int x = (int) p;
+  clang_analyzer_eval(++x < 10); // no-crash // expected-warning{{UNKNOWN}}
 }

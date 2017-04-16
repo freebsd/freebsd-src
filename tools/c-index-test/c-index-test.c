@@ -710,6 +710,16 @@ static void PrintCursor(CXCursor Cursor, const char *CommentSchemaFile) {
         clang_getSpellingLocation(Loc, 0, &line, &column, 0);
         printf(":%d:%d", line, column);
       }
+
+      if (clang_getCursorKind(Referenced) == CXCursor_TypedefDecl) {
+        CXType T = clang_getCursorType(Referenced);
+        if (clang_Type_isTransparentTagTypedef(T)) {
+          CXType Underlying = clang_getTypedefDeclUnderlyingType(Referenced);
+          CXString S = clang_getTypeSpelling(Underlying);
+          printf(" (Transparent: %s)", clang_getCString(S));
+          clang_disposeString(S);
+        }
+      }
     }
 
     if (clang_isCursorDefinition(Cursor))
@@ -4452,12 +4462,12 @@ int main(int argc, const char **argv) {
   LIBXML_TEST_VERSION
 #endif
 
+  if (argc > 1 && strcmp(argv[1], "core") == 0)
+    return indextest_core_main(argc, argv);
+
   client_data.main_func = cindextest_main;
   client_data.argc = argc;
   client_data.argv = argv;
-
-  if (argc > 1 && strcmp(argv[1], "core") == 0)
-    client_data.main_func = indextest_core_main;
 
   if (getenv("CINDEXTEST_NOTHREADS"))
     return client_data.main_func(client_data.argc, client_data.argv);

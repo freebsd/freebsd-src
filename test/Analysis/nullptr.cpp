@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++11 -Wno-conversion-null -analyze -analyzer-checker=core,debug.ExprInspection -analyzer-store region -verify %s
+// RUN: %clang_analyze_cc1 -std=c++11 -Wno-conversion-null -analyzer-checker=core,debug.ExprInspection -analyzer-store region -verify %s
 
 void clang_analyzer_eval(int);
 
@@ -107,7 +107,7 @@ struct Type {
 void shouldNotCrash() {
   decltype(nullptr) p;
   if (getSymbol())
-    invokeF(p); // expected-warning{{Function call argument is an uninit}}
+    invokeF(p); // expected-warning{{1st function call argument is an uninit}}
   if (getSymbol())
     invokeF(nullptr);
   if (getSymbol()) {

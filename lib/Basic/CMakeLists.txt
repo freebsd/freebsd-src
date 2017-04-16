@@ -74,6 +74,7 @@ add_clang_library(clangBasic
   FileSystemStatCache.cpp
   IdentifierTable.cpp
   LangOptions.cpp
+  MemoryBufferCache.cpp
   Module.cpp
   ObjCRuntime.cpp
   OpenMPKinds.cpp
@@ -89,6 +90,7 @@ add_clang_library(clangBasic
   VersionTuple.cpp
   VirtualFileSystem.cpp
   Warnings.cpp
+  XRayLists.cpp
   ${version_inc}
   )
 

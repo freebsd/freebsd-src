@@ -15,7 +15,7 @@
 // CXX1Z:#define __GXX_EXPERIMENTAL_CXX0X__ 1
 // CXX1Z:#define __GXX_RTTI 1
 // CXX1Z:#define __GXX_WEAK__ 1
-// CXX1Z:#define __cplusplus 201406L
+// CXX1Z:#define __cplusplus 201703L
 // CXX1Z:#define __private_extern__ extern
 //
 //
@@ -115,7 +115,7 @@
 //
 // GXX1Z:#define __GNUG__ {{.*}}
 // GXX1Z:#define __GXX_WEAK__ 1
-// GXX1Z:#define __cplusplus 201406L
+// GXX1Z:#define __cplusplus 201703L
 // GXX1Z:#define __private_extern__ extern
 //
 //
@@ -830,6 +830,198 @@
 // AARCH64-NETBSD:#define __WINT_TYPE__ int
 // AARCH64-NETBSD:#define __WINT_WIDTH__ 32
 // AARCH64-NETBSD:#define __aarch64__ 1
+//
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=aarch64-openbsd < /dev/null | FileCheck -match-full-lines -check-prefix AARCH64-OPENBSD %s
+//
+// AARCH64-OPENBSD:#define _LP64 1
+// AARCH64-OPENBSD-NOT:#define __AARCH64EB__ 1
+// AARCH64-OPENBSD:#define __AARCH64EL__ 1
+// AARCH64-OPENBSD-NOT:#define __AARCH_BIG_ENDIAN 1
+// AARCH64-OPENBSD:#define __ARM_64BIT_STATE 1
+// AARCH64-OPENBSD:#define __ARM_ARCH 8
+// AARCH64-OPENBSD:#define __ARM_ARCH_ISA_A64 1
+// AARCH64-OPENBSD-NOT:#define __ARM_BIG_ENDIAN 1
+// AARCH64-OPENBSD:#define __BIGGEST_ALIGNMENT__ 16
+// AARCH64-OPENBSD:#define __BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__
+// AARCH64-OPENBSD:#define __CHAR16_TYPE__ unsigned short
+// AARCH64-OPENBSD:#define __CHAR32_TYPE__ unsigned int
+// AARCH64-OPENBSD:#define __CHAR_BIT__ 8
+// AARCH64-OPENBSD:#define __DBL_DENORM_MIN__ 4.9406564584124654e-324
+// AARCH64-OPENBSD:#define __DBL_DIG__ 15
+// AARCH64-OPENBSD:#define __DBL_EPSILON__ 2.2204460492503131e-16
+// AARCH64-OPENBSD:#define __DBL_HAS_DENORM__ 1
+// AARCH64-OPENBSD:#define __DBL_HAS_INFINITY__ 1
+// AARCH64-OPENBSD:#define __DBL_HAS_QUIET_NAN__ 1
+// AARCH64-OPENBSD:#define __DBL_MANT_DIG__ 53
+// AARCH64-OPENBSD:#define __DBL_MAX_10_EXP__ 308
+// AARCH64-OPENBSD:#define __DBL_MAX_EXP__ 1024
+// AARCH64-OPENBSD:#define __DBL_MAX__ 1.7976931348623157e+308
+// AARCH64-OPENBSD:#define __DBL_MIN_10_EXP__ (-307)
+// AARCH64-OPENBSD:#define __DBL_MIN_EXP__ (-1021)
+// AARCH64-OPENBSD:#define __DBL_MIN__ 2.2250738585072014e-308
+// AARCH64-OPENBSD:#define __DECIMAL_DIG__ __LDBL_DECIMAL_DIG__
+// AARCH64-OPENBSD:#define __ELF__ 1
+// AARCH64-OPENBSD:#define __FLT_DENORM_MIN__ 1.40129846e-45F
+// AARCH64-OPENBSD:#define __FLT_DIG__ 6
+// AARCH64-OPENBSD:#define __FLT_EPSILON__ 1.19209290e-7F
+// AARCH64-OPENBSD:#define __FLT_EVAL_METHOD__ 0
+// AARCH64-OPENBSD:#define __FLT_HAS_DENORM__ 1
+// AARCH64-OPENBSD:#define __FLT_HAS_INFINITY__ 1
+// AARCH64-OPENBSD:#define __FLT_HAS_QUIET_NAN__ 1
+// AARCH64-OPENBSD:#define __FLT_MANT_DIG__ 24
+// AARCH64-OPENBSD:#define __FLT_MAX_10_EXP__ 38
+// AARCH64-OPENBSD:#define __FLT_MAX_EXP__ 128
+// AARCH64-OPENBSD:#define __FLT_MAX__ 3.40282347e+38F
+// AARCH64-OPENBSD:#define __FLT_MIN_10_EXP__ (-37)
+// AARCH64-OPENBSD:#define __FLT_MIN_EXP__ (-125)
+// AARCH64-OPENBSD:#define __FLT_MIN__ 1.17549435e-38F
+// AARCH64-OPENBSD:#define __FLT_RADIX__ 2
+// AARCH64-OPENBSD:#define __INT16_C_SUFFIX__
+// AARCH64-OPENBSD:#define __INT16_FMTd__ "hd"
+// AARCH64-OPENBSD:#define __INT16_FMTi__ "hi"
+// AARCH64-OPENBSD:#define __INT16_MAX__ 32767
+// AARCH64-OPENBSD:#define __INT16_TYPE__ short
+// AARCH64-OPENBSD:#define __INT32_C_SUFFIX__
+// AARCH64-OPENBSD:#define __INT32_FMTd__ "d"
+// AARCH64-OPENBSD:#define __INT32_FMTi__ "i"
+// AARCH64-OPENBSD:#define __INT32_MAX__ 2147483647
+// AARCH64-OPENBSD:#define __INT32_TYPE__ int
+// AARCH64-OPENBSD:#define __INT64_C_SUFFIX__ LL
+// AARCH64-OPENBSD:#define __INT64_FMTd__ "lld"
+// AARCH64-OPENBSD:#define __INT64_FMTi__ "lli"
+// AARCH64-OPENBSD:#define __INT64_MAX__ 9223372036854775807LL
+// AARCH64-OPENBSD:#define __INT64_TYPE__ long long int
+// AARCH64-OPENBSD:#define __INT8_C_SUFFIX__
+// AARCH64-OPENBSD:#define __INT8_FMTd__ "hhd"
+// AARCH64-OPENBSD:#define __INT8_FMTi__ "hhi"
+// AARCH64-OPENBSD:#define __INT8_MAX__ 127
+// AARCH64-OPENBSD:#define __INT8_TYPE__ signed char
+// AARCH64-OPENBSD:#define __INTMAX_C_SUFFIX__ LL
+// AARCH64-OPENBSD:#define __INTMAX_FMTd__ "lld"
+// AARCH64-OPENBSD:#define __INTMAX_FMTi__ "lli"
+// AARCH64-OPENBSD:#define __INTMAX_MAX__ 9223372036854775807LL
+// AARCH64-OPENBSD:#define __INTMAX_TYPE__ long long int
+// AARCH64-OPENBSD:#define __INTMAX_WIDTH__ 64
+// AARCH64-OPENBSD:#define __INTPTR_FMTd__ "ld"
+// AARCH64-OPENBSD:#define __INTPTR_FMTi__ "li"
+// AARCH64-OPENBSD:#define __INTPTR_MAX__ 9223372036854775807L
+// AARCH64-OPENBSD:#define __INTPTR_TYPE__ long int
+// AARCH64-OPENBSD:#define __INTPTR_WIDTH__ 64
+// AARCH64-OPENBSD:#define __INT_FAST16_FMTd__ "hd"
+// AARCH64-OPENBSD:#define __INT_FAST16_FMTi__ "hi"
+// AARCH64-OPENBSD:#define __INT_FAST16_MAX__ 32767
+// AARCH64-OPENBSD:#define __INT_FAST16_TYPE__ short
+// AARCH64-OPENBSD:#define __INT_FAST32_FMTd__ "d"
+// AARCH64-OPENBSD:#define __INT_FAST32_FMTi__ "i"
+// AARCH64-OPENBSD:#define __INT_FAST32_MAX__ 2147483647
+// AARCH64-OPENBSD:#define __INT_FAST32_TYPE__ int
+// AARCH64-OPENBSD:#define __INT_FAST64_FMTd__ "ld"
+// AARCH64-OPENBSD:#define __INT_FAST64_FMTi__ "li"
+// AARCH64-OPENBSD:#define __INT_FAST64_MAX__ 9223372036854775807L
+// AARCH64-OPENBSD:#define __INT_FAST64_TYPE__ long int
+// AARCH64-OPENBSD:#define __INT_FAST8_FMTd__ "hhd"
+// AARCH64-OPENBSD:#define __INT_FAST8_FMTi__ "hhi"
+// AARCH64-OPENBSD:#define __INT_FAST8_MAX__ 127
+// AARCH64-OPENBSD:#define __INT_FAST8_TYPE__ signed char
+// AARCH64-OPENBSD:#define __INT_LEAST16_FMTd__ "hd"
+// AARCH64-OPENBSD:#define __INT_LEAST16_FMTi__ "hi"
+// AARCH64-OPENBSD:#define __INT_LEAST16_MAX__ 32767
+// AARCH64-OPENBSD:#define __INT_LEAST16_TYPE__ short
+// AARCH64-OPENBSD:#define __INT_LEAST32_FMTd__ "d"
+// AARCH64-OPENBSD:#define __INT_LEAST32_FMTi__ "i"
+// AARCH64-OPENBSD:#define __INT_LEAST32_MAX__ 2147483647
+// AARCH64-OPENSD:#define __INT_LEAST32_TYPE__ int
+// AARCH64-OPENBSD:#define __INT_LEAST64_FMTd__ "ld"
+// AARCH64-OPENBSD:#define __INT_LEAST64_FMTi__ "li"
+// AARCH64-OPENBSD:#define __INT_LEAST64_MAX__ 9223372036854775807L
+// AARCH64-OPENBSD:#define __INT_LEAST64_TYPE__ long int
+// AARCH64-OPENBSD:#define __INT_LEAST8_FMTd__ "hhd"
+// AARCH64-OPENBSD:#define __INT_LEAST8_FMTi__ "hhi"
+// AARCH64-OPENBSD:#define __INT_LEAST8_MAX__ 127
+// AARCH64-OPENBSD:#define __INT_LEAST8_TYPE__ signed char
+// AARCH64-OPENBSD:#define __INT_MAX__ 2147483647
+// AARCH64-OPENBSD:#define __LDBL_DENORM_MIN__ 6.47517511943802511092443895822764655e-4966L
+// AARCH64-OPENBSD:#define __LDBL_DIG__ 33
+// AARCH64-OPENBSD:#define __LDBL_EPSILON__ 1.92592994438723585305597794258492732e-34L
+// AARCH64-OPENBSD:#define __LDBL_HAS_DENORM__ 1
+// AARCH64-OPENBSD:#define __LDBL_HAS_INFINITY__ 1
+// AARCH64-OPENBSD:#define __LDBL_HAS_QUIET_NAN__ 1
+// AARCH64-OPENBSD:#define __LDBL_MANT_DIG__ 113
+// AARCH64-OPENBSD:#define __LDBL_MAX_10_EXP__ 4932
+// AARCH64-OPENBSD:#define __LDBL_MAX_EXP__ 16384
+// AARCH64-OPENBSD:#define __LDBL_MAX__ 1.18973149535723176508575932662800702e+4932L
+// AARCH64-OPENBSD:#define __LDBL_MIN_10_EXP__ (-4931)
+// AARCH64-OPENBSD:#define __LDBL_MIN_EXP__ (-16381)
+// AARCH64-OPENBSD:#define __LDBL_MIN__ 3.36210314311209350626267781732175260e-4932L
+// AARCH64-OPENBSD:#define __LITTLE_ENDIAN__ 1
+// AARCH64-OPENBSD:#define __LONG_LONG_MAX__ 9223372036854775807LL
+// AARCH64-OPENBSD:#define __LONG_MAX__ 9223372036854775807L
+// AARCH64-OPENBSD:#define __LP64__ 1
+// AARCH64-OPENBSD:#define __OpenBSD__ 1
+// AARCH64-OPENBSD:#define __POINTER_WIDTH__ 64
+// AARCH64-OPENBSD:#define __PTRDIFF_TYPE__ long int
+// AARCH64-OPENBSD:#define __PTRDIFF_WIDTH__ 64
+// AARCH64-OPENBSD:#define __SCHAR_MAX__ 127
+// AARCH64-OPENBSD:#define __SHRT_MAX__ 32767
+// AARCH64-OPENBSD:#define __SIG_ATOMIC_MAX__ 2147483647
+// AARCH64-OPENBSD:#define __SIG_ATOMIC_WIDTH__ 32
+// AARCH64-OPENBSD:#define __SIZEOF_DOUBLE__ 8
+// AARCH64-OPENBSD:#define __SIZEOF_FLOAT__ 4
+// AARCH64-OPENBSD:#define __SIZEOF_INT__ 4
+// AARCH64-OPENBSD:#define __SIZEOF_LONG_DOUBLE__ 16
+// AARCH64-OPENBSD:#define __SIZEOF_LONG_LONG__ 8
+// AARCH64-OPENBSD:#define __SIZEOF_LONG__ 8
+// AARCH64-OPENBSD:#define __SIZEOF_POINTER__ 8
+// AARCH64-OPENBSD:#define __SIZEOF_PTRDIFF_T__ 8
+// AARCH64-OPENBSD:#define __SIZEOF_SHORT__ 2
+// AARCH64-OPENBSD:#define __SIZEOF_SIZE_T__ 8
+// AARCH64-OPENBSD:#define __SIZEOF_WCHAR_T__ 4
+// AARCH64-OPENBSD:#define __SIZEOF_WINT_T__ 4
+// AARCH64-OPENBSD:#define __SIZE_MAX__ 18446744073709551615UL
+// AARCH64-OPENBSD:#define __SIZE_TYPE__ long unsigned int
+// AARCH64-OPENBSD:#define __SIZE_WIDTH__ 64
+// AARCH64-OPENBSD:#define __UINT16_C_SUFFIX__
+// AARCH64-OPENBSD:#define __UINT16_MAX__ 65535
+// AARCH64-OPENBSD:#define __UINT16_TYPE__ unsigned short
+// AARCH64-OPENBSD:#define __UINT32_C_SUFFIX__ U
+// AARCH64-OPENBSD:#define __UINT32_MAX__ 4294967295U
+// AARCH64-OPENBSD:#define __UINT32_TYPE__ unsigned int
+// AARCH64-OPENBSD:#define __UINT64_C_SUFFIX__ ULL
+// AARCH64-OPENBSD:#define __UINT64_MAX__ 18446744073709551615ULL
+// AARCH64-OPENBSD:#define __UINT64_TYPE__ long long unsigned int
+// AARCH64-OPENBSD:#define __UINT8_C_SUFFIX__
+// AARCH64-OPENBSD:#define __UINT8_MAX__ 255
+// AARCH64-OPENBSD:#define __UINT8_TYPE__ unsigned char
+// AARCH64-OPENBSD:#define __UINTMAX_C_SUFFIX__ ULL
+// AARCH64-OPENBSD:#define __UINTMAX_MAX__ 18446744073709551615ULL
+// AARCH64-OPENBSD:#define __UINTMAX_TYPE__ long long unsigned int
+// AARCH64-OPENBSD:#define __UINTMAX_WIDTH__ 64
+// AARCH64-OPENBSD:#define __UINTPTR_MAX__ 18446744073709551615UL
+// AARCH64-OPENBSD:#define __UINTPTR_TYPE__ long unsigned int
+// AARCH64-OPENBSD:#define __UINTPTR_WIDTH__ 64
+// AARCH64-OPENBSD:#define __UINT_FAST16_MAX__ 65535
+// AARCH64-OPENBSD:#define __UINT_FAST16_TYPE__ unsigned short
+// AARCH64-OPENBSD:#define __UINT_FAST32_MAX__ 4294967295U
+// AARCH64-OPENBSD:#define __UINT_FAST32_TYPE__ unsigned int
+// AARCH64-OPENBSD:#define __UINT_FAST64_MAX__ 18446744073709551615UL
+// AARCH64-OPENBSD:#define __UINT_FAST64_TYPE__ long unsigned int
+// AARCH64-OPENBSD:#define __UINT_FAST8_MAX__ 255
+// AARCH64-OPENBSD:#define __UINT_FAST8_TYPE__ unsigned char
+// AARCH64-OPENBSD:#define __UINT_LEAST16_MAX__ 65535
+// AARCH64-OPENBSD:#define __UINT_LEAST16_TYPE__ unsigned short
+// AARCH64-OPENBSD:#define __UINT_LEAST32_MAX__ 4294967295U
+// AARCH64-OPENBSD:#define __UINT_LEAST32_TYPE__ unsigned int
+// AARCH64-OPENBSD:#define __UINT_LEAST64_MAX__ 18446744073709551615UL
+// AARCH64-OPENBSD:#define __UINT_LEAST64_TYPE__ long unsigned int
+// AARCH64-OPENBSD:#define __UINT_LEAST8_MAX__ 255
+// AARCH64-OPENBSD:#define __UINT_LEAST8_TYPE__ unsigned char
+// AARCH64-OPENBSD:#define __USER_LABEL_PREFIX__
+// AARCH64-OPENBSD:#define __WCHAR_MAX__ 2147483647
+// AARCH64-OPENBSD:#define __WCHAR_TYPE__ int
+// AARCH64-OPENBSD:#define __WCHAR_WIDTH__ 32
+// AARCH64-OPENBSD:#define __WINT_TYPE__ int
+// AARCH64-OPENBSD:#define __WINT_WIDTH__ 32
+// AARCH64-OPENBSD:#define __aarch64__ 1
 //
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=aarch64-freebsd11 < /dev/null | FileCheck -match-full-lines -check-prefix AARCH64-FREEBSD %s
 //
@@ -3040,6 +3232,7 @@
 // MIPS32BE:#define __llvm__ 1
 // MIPS32BE:#define __mips 32
 // MIPS32BE:#define __mips__ 1
+// MIPS32BE:#define __mips_abicalls 1
 // MIPS32BE:#define __mips_fpr 32
 // MIPS32BE:#define __mips_hard_float 1
 // MIPS32BE:#define __mips_o32 1
@@ -3246,6 +3439,7 @@
 // MIPS32EL:#define __llvm__ 1
 // MIPS32EL:#define __mips 32
 // MIPS32EL:#define __mips__ 1
+// MIPS32EL:#define __mips_abicalls 1
 // MIPS32EL:#define __mips_fpr 32
 // MIPS32EL:#define __mips_hard_float 1
 // MIPS32EL:#define __mips_o32 1
@@ -3555,6 +3749,7 @@
 // MIPSN32BE: #define __mips64 1
 // MIPSN32BE: #define __mips64__ 1
 // MIPSN32BE: #define __mips__ 1
+// MIPSN32BE: #define __mips_abicalls 1
 // MIPSN32BE: #define __mips_fpr 64
 // MIPSN32BE: #define __mips_hard_float 1
 // MIPSN32BE: #define __mips_isa_rev 2
@@ -3861,6 +4056,7 @@
 // MIPSN32EL: #define __mips64 1
 // MIPSN32EL: #define __mips64__ 1
 // MIPSN32EL: #define __mips__ 1
+// MIPSN32EL: #define __mips_abicalls 1
 // MIPSN32EL: #define __mips_fpr 64
 // MIPSN32EL: #define __mips_hard_float 1
 // MIPSN32EL: #define __mips_isa_rev 2
@@ -4073,6 +4269,7 @@
 // MIPS64BE:#define __mips64 1
 // MIPS64BE:#define __mips64__ 1
 // MIPS64BE:#define __mips__ 1
+// MIPS64BE:#define __mips_abicalls 1
 // MIPS64BE:#define __mips_fpr 64
 // MIPS64BE:#define __mips_hard_float 1
 // MIPS64BE:#define __mips_n64 1
@@ -4282,6 +4479,7 @@
 // MIPS64EL:#define __mips64 1
 // MIPS64EL:#define __mips64__ 1
 // MIPS64EL:#define __mips__ 1
+// MIPS64EL:#define __mips_abicalls 1
 // MIPS64EL:#define __mips_fpr 64
 // MIPS64EL:#define __mips_hard_float 1
 // MIPS64EL:#define __mips_n64 1
@@ -4512,6 +4710,45 @@
 // MIPS-XXR6:#define _MIPS_FPSET 32
 // MIPS-XXR6:#define __mips_fpr 64
 // MIPS-XXR6:#define __mips_nan2008 1
+//
+// RUN: %clang_cc1 -target-cpu mips32 \
+// RUN:   -E -dM -triple=mips-unknown-netbsd -mrelocation-model pic < /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefix MIPS-ABICALLS-NETBSD %s
+// MIPS-ABICALLS-NETBSD-NOT: #define __ABICALLS__ 1
+// MIPS-ABICALLS-NETBSD: #define __mips_abicalls 1
+//
+// RUN: %clang_cc1 -target-cpu mips64 \
+// RUN:   -E -dM -triple=mips64-unknown-netbsd -mrelocation-model pic < \
+// RUN:   /dev/null | FileCheck -match-full-lines \
+// RUN:   -check-prefix MIPS-ABICALLS-NETBSD64 %s
+// MIPS-ABICALLS-NETBSD64-NOT: #define __ABICALLS__ 1
+// MIPS-ABICALLS-NETBSD64: #define __mips_abicalls 1
+//
+// RUN: %clang_cc1 -target-cpu mips32 \
+// RUN:   -E -dM -triple=mips-unknown-freebsd -mrelocation-model pic < /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefix MIPS-ABICALLS-FREEBSD %s
+// MIPS-ABICALLS-FREEBSD: #define __ABICALLS__ 1
+// MIPS-ABICALLS-FREEBSD: #define __mips_abicalls 1
+//
+// RUN: %clang_cc1 -target-cpu mips64 \
+// RUN:   -E -dM -triple=mips64-unknown-freebsd -mrelocation-model pic < \
+// RUN:   /dev/null | FileCheck -match-full-lines \
+// RUN:   -check-prefix MIPS-ABICALLS-FREEBSD64 %s
+// MIPS-ABICALLS-FREEBSD64: #define __ABICALLS__ 1
+// MIPS-ABICALLS-FREEBSD64: #define __mips_abicalls 1
+//
+// RUN: %clang_cc1 -target-cpu mips32 \
+// RUN:   -E -dM -triple=mips-unknown-openbsd -mrelocation-model pic < /dev/null \
+// RUN:   | FileCheck -match-full-lines -check-prefix MIPS-ABICALLS-OPENBSD %s
+// MIPS-ABICALLS-OPENBSD: #define __ABICALLS__ 1
+// MIPS-ABICALLS-OPENBSD: #define __mips_abicalls 1
+//
+// RUN: %clang_cc1 -target-cpu mips64 \
+// RUN:   -E -dM -triple=mips64-unknown-openbsd -mrelocation-model pic < \
+// RUN:   /dev/null | FileCheck -match-full-lines \
+// RUN:   -check-prefix MIPS-ABICALLS-OPENBSD64 %s
+// MIPS-ABICALLS-OPENBSD64: #define __ABICALLS__ 1
+// MIPS-ABICALLS-OPENBSD64: #define __mips_abicalls 1
 //
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=msp430-none-none < /dev/null | FileCheck -match-full-lines -check-prefix MSP430 %s
 // RUN: %clang_cc1 -x c++ -E -dM -ffreestanding -triple=msp430-none-none < /dev/null | FileCheck -match-full-lines -check-prefix MSP430 -check-prefix MSP430-CXX %s
@@ -5087,7 +5324,7 @@
 // PPC603E:#define _ARCH_PPCGR 1
 // PPC603E:#define _BIG_ENDIAN 1
 // PPC603E-NOT:#define _LP64
-// PPC603E:#define __BIGGEST_ALIGNMENT__ 8
+// PPC603E:#define __BIGGEST_ALIGNMENT__ 16
 // PPC603E:#define __BIG_ENDIAN__ 1
 // PPC603E:#define __BYTE_ORDER__ __ORDER_BIG_ENDIAN__
 // PPC603E:#define __CHAR16_TYPE__ unsigned short
@@ -5199,6 +5436,7 @@
 // PPC603E:#define __LDBL_MIN_10_EXP__ (-291)
 // PPC603E:#define __LDBL_MIN_EXP__ (-968)
 // PPC603E:#define __LDBL_MIN__ 2.00416836000897277799610805135016e-292L
+// PPC603E:#define __LONGDOUBLE128 1
 // PPC603E:#define __LONG_DOUBLE_128__ 1
 // PPC603E:#define __LONG_LONG_MAX__ 9223372036854775807LL
 // PPC603E:#define __LONG_MAX__ 2147483647L
@@ -5287,7 +5525,7 @@
 // PPC64:#define _ARCH_PWR7 1
 // PPC64:#define _BIG_ENDIAN 1
 // PPC64:#define _LP64 1
-// PPC64:#define __BIGGEST_ALIGNMENT__ 8
+// PPC64:#define __BIGGEST_ALIGNMENT__ 16
 // PPC64:#define __BIG_ENDIAN__ 1
 // PPC64:#define __BYTE_ORDER__ __ORDER_BIG_ENDIAN__
 // PPC64:#define __CHAR16_TYPE__ unsigned short
@@ -5323,6 +5561,7 @@
 // PPC64:#define __FLT_MIN_EXP__ (-125)
 // PPC64:#define __FLT_MIN__ 1.17549435e-38F
 // PPC64:#define __FLT_RADIX__ 2
+// PPC64:#define __HAVE_BSWAP__ 1
 // PPC64:#define __INT16_C_SUFFIX__
 // PPC64:#define __INT16_FMTd__ "hd"
 // PPC64:#define __INT16_FMTi__ "hi"
@@ -5400,6 +5639,7 @@
 // PPC64:#define __LDBL_MIN_10_EXP__ (-291)
 // PPC64:#define __LDBL_MIN_EXP__ (-968)
 // PPC64:#define __LDBL_MIN__ 2.00416836000897277799610805135016e-292L
+// PPC64:#define __LONGDOUBLE128 1
 // PPC64:#define __LONG_DOUBLE_128__ 1
 // PPC64:#define __LONG_LONG_MAX__ 9223372036854775807LL
 // PPC64:#define __LONG_MAX__ 9223372036854775807L
@@ -5491,7 +5731,7 @@
 // PPC64LE:#define _CALL_ELF 2
 // PPC64LE:#define _LITTLE_ENDIAN 1
 // PPC64LE:#define _LP64 1
-// PPC64LE:#define __BIGGEST_ALIGNMENT__ 8
+// PPC64LE:#define __BIGGEST_ALIGNMENT__ 16
 // PPC64LE:#define __BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__
 // PPC64LE:#define __CHAR16_TYPE__ unsigned short
 // PPC64LE:#define __CHAR32_TYPE__ unsigned int
@@ -5526,6 +5766,7 @@
 // PPC64LE:#define __FLT_MIN_EXP__ (-125)
 // PPC64LE:#define __FLT_MIN__ 1.17549435e-38F
 // PPC64LE:#define __FLT_RADIX__ 2
+// PPC64LE:#define __HAVE_BSWAP__ 1
 // PPC64LE:#define __INT16_C_SUFFIX__
 // PPC64LE:#define __INT16_FMTd__ "hd"
 // PPC64LE:#define __INT16_FMTi__ "hi"
@@ -5604,6 +5845,7 @@
 // PPC64LE:#define __LDBL_MIN_EXP__ (-968)
 // PPC64LE:#define __LDBL_MIN__ 2.00416836000897277799610805135016e-292L
 // PPC64LE:#define __LITTLE_ENDIAN__ 1
+// PPC64LE:#define __LONGDOUBLE128 1
 // PPC64LE:#define __LONG_DOUBLE_128__ 1
 // PPC64LE:#define __LONG_LONG_MAX__ 9223372036854775807LL
 // PPC64LE:#define __LONG_MAX__ 9223372036854775807L
@@ -5635,6 +5877,7 @@
 // PPC64LE:#define __SIZE_MAX__ 18446744073709551615UL
 // PPC64LE:#define __SIZE_TYPE__ long unsigned int
 // PPC64LE:#define __SIZE_WIDTH__ 64
+// PPC64LE:#define __STRUCT_PARM_ALIGN__ 16
 // PPC64LE:#define __UINT16_C_SUFFIX__
 // PPC64LE:#define __UINT16_MAX__ 65535
 // PPC64LE:#define __UINT16_TYPE__ unsigned short
@@ -5855,6 +6098,9 @@
 //
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=powerpc64-none-none -target-cpu power8 -fno-signed-char < /dev/null | FileCheck -match-full-lines -check-prefix PPCPOWER8 %s
 //
+// ppc64le also defaults to power8.
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=powerpc64le-none-none -target-cpu ppc64le -fno-signed-char < /dev/null | FileCheck -match-full-lines -check-prefix PPCPOWER8 %s
+//
 // PPCPOWER8:#define _ARCH_PPC 1
 // PPCPOWER8:#define _ARCH_PPC64 1
 // PPCPOWER8:#define _ARCH_PPCGR 1
@@ -5903,8 +6149,9 @@
 // PPC64-LINUX:#define _ARCH_PPC 1
 // PPC64-LINUX:#define _ARCH_PPC64 1
 // PPC64-LINUX:#define _BIG_ENDIAN 1
+// PPC64-LINUX:#define _CALL_LINUX 1
 // PPC64-LINUX:#define _LP64 1
-// PPC64-LINUX:#define __BIGGEST_ALIGNMENT__ 8
+// PPC64-LINUX:#define __BIGGEST_ALIGNMENT__ 16
 // PPC64-LINUX:#define __BIG_ENDIAN__ 1
 // PPC64-LINUX:#define __BYTE_ORDER__ __ORDER_BIG_ENDIAN__
 // PPC64-LINUX:#define __CHAR16_TYPE__ unsigned short
@@ -5940,6 +6187,7 @@
 // PPC64-LINUX:#define __FLT_MIN_EXP__ (-125)
 // PPC64-LINUX:#define __FLT_MIN__ 1.17549435e-38F
 // PPC64-LINUX:#define __FLT_RADIX__ 2
+// PPC64-LINUX:#define __HAVE_BSWAP__ 1
 // PPC64-LINUX:#define __INT16_C_SUFFIX__
 // PPC64-LINUX:#define __INT16_FMTd__ "hd"
 // PPC64-LINUX:#define __INT16_FMTi__ "hi"
@@ -6017,6 +6265,7 @@
 // PPC64-LINUX:#define __LDBL_MIN_10_EXP__ (-291)
 // PPC64-LINUX:#define __LDBL_MIN_EXP__ (-968)
 // PPC64-LINUX:#define __LDBL_MIN__ 2.00416836000897277799610805135016e-292L
+// PPC64-LINUX:#define __LONGDOUBLE128 1
 // PPC64-LINUX:#define __LONG_DOUBLE_128__ 1
 // PPC64-LINUX:#define __LONG_LONG_MAX__ 9223372036854775807LL
 // PPC64-LINUX:#define __LONG_MAX__ 9223372036854775807L
@@ -6105,12 +6354,17 @@
 // PPC64-ELFv1:#define _CALL_ELF 1
 // PPC64-ELFv2:#define _CALL_ELF 2
 //
+// Most of this is encompassed in other places.
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=powerpc64le-unknown-linux-gnu -target-abi elfv2 < /dev/null | FileCheck -match-full-lines -check-prefix PPC64LE-LINUX %s
+//
+// PPC64LE-LINUX:#define _CALL_LINUX 1
+//
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=powerpc-none-none -fno-signed-char < /dev/null | FileCheck -match-full-lines -check-prefix PPC %s
 //
 // PPC:#define _ARCH_PPC 1
 // PPC:#define _BIG_ENDIAN 1
 // PPC-NOT:#define _LP64
-// PPC:#define __BIGGEST_ALIGNMENT__ 8
+// PPC:#define __BIGGEST_ALIGNMENT__ 16
 // PPC:#define __BIG_ENDIAN__ 1
 // PPC:#define __BYTE_ORDER__ __ORDER_BIG_ENDIAN__
 // PPC:#define __CHAR16_TYPE__ unsigned short
@@ -6146,6 +6400,7 @@
 // PPC:#define __FLT_MIN_EXP__ (-125)
 // PPC:#define __FLT_MIN__ 1.17549435e-38F
 // PPC:#define __FLT_RADIX__ 2
+// PPC:#define __HAVE_BSWAP__ 1
 // PPC:#define __INT16_C_SUFFIX__
 // PPC:#define __INT16_FMTd__ "hd"
 // PPC:#define __INT16_FMTi__ "hi"
@@ -6223,6 +6478,7 @@
 // PPC:#define __LDBL_MIN_10_EXP__ (-291)
 // PPC:#define __LDBL_MIN_EXP__ (-968)
 // PPC:#define __LDBL_MIN__ 2.00416836000897277799610805135016e-292L
+// PPC:#define __LONGDOUBLE128 1
 // PPC:#define __LONG_DOUBLE_128__ 1
 // PPC:#define __LONG_LONG_MAX__ 9223372036854775807LL
 // PPC:#define __LONG_MAX__ 2147483647L
@@ -6301,7 +6557,7 @@
 // PPC-LINUX:#define _ARCH_PPC 1
 // PPC-LINUX:#define _BIG_ENDIAN 1
 // PPC-LINUX-NOT:#define _LP64
-// PPC-LINUX:#define __BIGGEST_ALIGNMENT__ 8
+// PPC-LINUX:#define __BIGGEST_ALIGNMENT__ 16
 // PPC-LINUX:#define __BIG_ENDIAN__ 1
 // PPC-LINUX:#define __BYTE_ORDER__ __ORDER_BIG_ENDIAN__
 // PPC-LINUX:#define __CHAR16_TYPE__ unsigned short
@@ -6337,6 +6593,7 @@
 // PPC-LINUX:#define __FLT_MIN_EXP__ (-125)
 // PPC-LINUX:#define __FLT_MIN__ 1.17549435e-38F
 // PPC-LINUX:#define __FLT_RADIX__ 2
+// PPC-LINUX:#define __HAVE_BSWAP__ 1
 // PPC-LINUX:#define __INT16_C_SUFFIX__
 // PPC-LINUX:#define __INT16_FMTd__ "hd"
 // PPC-LINUX:#define __INT16_FMTi__ "hi"
@@ -6414,6 +6671,7 @@
 // PPC-LINUX:#define __LDBL_MIN_10_EXP__ (-291)
 // PPC-LINUX:#define __LDBL_MIN_EXP__ (-968)
 // PPC-LINUX:#define __LDBL_MIN__ 2.00416836000897277799610805135016e-292L
+// PPC-LINUX:#define __LONGDOUBLE128 1
 // PPC-LINUX:#define __LONG_DOUBLE_128__ 1
 // PPC-LINUX:#define __LONG_LONG_MAX__ 9223372036854775807LL
 // PPC-LINUX:#define __LONG_MAX__ 2147483647L
@@ -6489,6 +6747,10 @@
 // PPC-LINUX:#define __powerpc__ 1
 // PPC-LINUX:#define __ppc__ 1
 //
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=powerpc-unknown-linux-gnu -fno-signed-char < /dev/null | FileCheck -match-full-lines -check-prefix PPC32-LINUX %s
+//
+// PPC32-LINUX-NOT: _CALL_LINUX
+//
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=powerpc-apple-darwin8 < /dev/null | FileCheck -match-full-lines -check-prefix PPC-DARWIN %s
 //
 // PPC-DARWIN:#define _ARCH_PPC 1
@@ -6528,6 +6790,7 @@
 // PPC-DARWIN:#define __FLT_MIN_EXP__ (-125)
 // PPC-DARWIN:#define __FLT_MIN__ 1.17549435e-38F
 // PPC-DARWIN:#define __FLT_RADIX__ 2
+// PPC-DARWIN:#define __HAVE_BSWAP__ 1
 // PPC-DARWIN:#define __INT16_C_SUFFIX__
 // PPC-DARWIN:#define __INT16_FMTd__ "hd"
 // PPC-DARWIN:#define __INT16_FMTi__ "hi"
@@ -6605,6 +6868,7 @@
 // PPC-DARWIN:#define __LDBL_MIN_10_EXP__ (-291)
 // PPC-DARWIN:#define __LDBL_MIN_EXP__ (-968)
 // PPC-DARWIN:#define __LDBL_MIN__ 2.00416836000897277799610805135016e-292L
+// PPC-DARWIN:#define __LONGDOUBLE128 1
 // PPC-DARWIN:#define __LONG_DOUBLE_128__ 1
 // PPC-DARWIN:#define __LONG_LONG_MAX__ 9223372036854775807LL
 // PPC-DARWIN:#define __LONG_MAX__ 2147483647L
@@ -6684,7 +6948,10 @@
 // PPC-DARWIN:#define __WINT_WIDTH__ 32
 // PPC-DARWIN:#define __powerpc__ 1
 // PPC-DARWIN:#define __ppc__ 1
-//
+
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=powerpc64-apple-darwin8 < /dev/null | FileCheck -match-full-lines -check-prefix PPC64-DARWIN %s
+// PPC64-DARWIN:#define __STRUCT_PARM_ALIGN__ 16
+
 // RUN: %clang_cc1 -x cl -E -dM -ffreestanding -triple=amdgcn < /dev/null | FileCheck -match-full-lines -check-prefix AMDGCN --check-prefix AMDGPU %s
 // RUN: %clang_cc1 -x cl -E -dM -ffreestanding -triple=r600 -target-cpu caicos < /dev/null | FileCheck -match-full-lines --check-prefix AMDGPU %s
 //
@@ -8466,6 +8733,7 @@
 // PS4:#define __unix__ 1
 // PS4:#define __x86_64 1
 // PS4:#define __x86_64__ 1
+// PS4:#define unix 1
 //
 // RUN: %clang_cc1 -E -dM -triple=x86_64-pc-mingw32 < /dev/null | FileCheck -match-full-lines -check-prefix X86-64-DECLSPEC %s
 // RUN: %clang_cc1 -E -dM -fms-extensions -triple=x86_64-unknown-mingw32 < /dev/null | FileCheck -match-full-lines -check-prefix X86-64-DECLSPEC %s
@@ -8523,8 +8791,12 @@
 // LANAI: #define __lanai__ 1
 //
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=amd64-unknown-openbsd6.1 < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=aarch64-unknown-openbsd6.1 < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=arm-unknown-openbsd6.1-gnueabi < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=i386-unknown-openbsd6.1 < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=powerpc-unknown-openbsd6.1 < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=mips64-unknown-openbsd6.1 < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
+// RUN: %clang_cc1 -E -dM -ffreestanding -triple=mips64el-unknown-openbsd6.1 < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
 // RUN: %clang_cc1 -E -dM -ffreestanding -triple=sparc64-unknown-openbsd6.1 < /dev/null | FileCheck -match-full-lines -check-prefix OPENBSD %s
 // OPENBSD:#define __ELF__ 1
 // OPENBSD:#define __INT16_TYPE__ short
@@ -8705,6 +8977,7 @@
 // WEBASSEMBLY32-NEXT:#define __LONG_MAX__ 2147483647L
 // WEBASSEMBLY32-NOT:#define __LP64__
 // WEBASSEMBLY32-NEXT:#define __NO_INLINE__ 1
+// WEBASSEMBLY32-NEXT:#define __OBJC_BOOL_IS_BOOL 0
 // WEBASSEMBLY32-NEXT:#define __ORDER_BIG_ENDIAN__ 4321
 // WEBASSEMBLY32-NEXT:#define __ORDER_LITTLE_ENDIAN__ 1234
 // WEBASSEMBLY32-NEXT:#define __ORDER_PDP_ENDIAN__ 3412
@@ -9020,6 +9293,7 @@
 // WEBASSEMBLY64-NEXT:#define __LONG_MAX__ 9223372036854775807L
 // WEBASSEMBLY64-NEXT:#define __LP64__ 1
 // WEBASSEMBLY64-NEXT:#define __NO_INLINE__ 1
+// WEBASSEMBLY64-NEXT:#define __OBJC_BOOL_IS_BOOL 0
 // WEBASSEMBLY64-NEXT:#define __ORDER_BIG_ENDIAN__ 4321
 // WEBASSEMBLY64-NEXT:#define __ORDER_LITTLE_ENDIAN__ 1234
 // WEBASSEMBLY64-NEXT:#define __ORDER_PDP_ENDIAN__ 3412

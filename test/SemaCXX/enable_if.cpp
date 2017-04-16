@@ -246,11 +246,11 @@ namespace FnPtrs {
 
   int noOvlNoCandidate(int m) __attribute__((enable_if(false, "")));
   void test8() {
-    int (*p)(int) = noOvlNoCandidate; // expected-error{{cannot take address of function 'noOvlNoCandidate' becuase it has one or more non-tautological enable_if conditions}}
-    int (*p2)(int) = &noOvlNoCandidate; // expected-error{{cannot take address of function 'noOvlNoCandidate' becuase it has one or more non-tautological enable_if conditions}}
+    int (*p)(int) = noOvlNoCandidate; // expected-error{{cannot take address of function 'noOvlNoCandidate' because it has one or more non-tautological enable_if conditions}}
+    int (*p2)(int) = &noOvlNoCandidate; // expected-error{{cannot take address of function 'noOvlNoCandidate' because it has one or more non-tautological enable_if conditions}}
     int (*a)(int);
-    a = noOvlNoCandidate; // expected-error{{cannot take address of function 'noOvlNoCandidate' becuase it has one or more non-tautological enable_if conditions}}
-    a = &noOvlNoCandidate; // expected-error{{cannot take address of function 'noOvlNoCandidate' becuase it has one or more non-tautological enable_if conditions}}
+    a = noOvlNoCandidate; // expected-error{{cannot take address of function 'noOvlNoCandidate' because it has one or more non-tautological enable_if conditions}}
+    a = &noOvlNoCandidate; // expected-error{{cannot take address of function 'noOvlNoCandidate' because it has one or more non-tautological enable_if conditions}}
   }
 }
 
@@ -471,4 +471,31 @@ namespace instantiate_constexpr_in_enable_if {
     void f() __attribute__((enable_if(ok(), "")));
   };
   void g() { X<int>().f(); }
+}
+
+namespace PR31934 {
+int foo(int a) __attribute__((enable_if(a, "")));
+int runFn(int (&)(int));
+
+void run() {
+  {
+    int (&bar)(int) = foo; // expected-error{{cannot take address of function 'foo'}}
+    int baz = runFn(foo); // expected-error{{cannot take address of function 'foo'}}
+  }
+
+  {
+    int (&bar)(int) = (foo); // expected-error{{cannot take address of function 'foo'}}
+    int baz = runFn((foo)); // expected-error{{cannot take address of function 'foo'}}
+  }
+
+  {
+    int (&bar)(int) = static_cast<int (&)(int)>(foo); // expected-error{{cannot take address of function 'foo'}}
+    int baz = runFn(static_cast<int (&)(int)>(foo)); // expected-error{{cannot take address of function 'foo'}}
+  }
+
+  {
+    int (&bar)(int) = static_cast<int (&)(int)>((foo)); // expected-error{{cannot take address of function 'foo'}}
+    int baz = runFn(static_cast<int (&)(int)>((foo))); // expected-error{{cannot take address of function 'foo'}}
+  }
+}
 }

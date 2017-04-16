@@ -55,9 +55,15 @@ void t7() {
     }
   }
   __asm {}
+  __asm {
+    ;
+    ; label
+    mov eax, ebx
+  }
 // CHECK: t7
 // CHECK: call void asm sideeffect inteldialect "int $$0x2cU", "~{dirflag},~{fpsr},~{flags}"()
 // CHECK: call void asm sideeffect inteldialect "", "~{dirflag},~{fpsr},~{flags}"()
+// CHECK: call void asm sideeffect inteldialect "mov eax, ebx", "~{eax},~{dirflag},~{fpsr},~{flags}"()
 }
 
 int t8() {
@@ -195,6 +201,8 @@ void t20() {
 // CHECK: mov eax, $$4
   __asm mov eax, LENGTH _bar
 // CHECK: mov eax, $$2
+  __asm mov eax, [eax + LENGTH foo * 4]
+// CHECK: mov eax, [eax + $$1 * $$4]
 
   __asm mov eax, TYPE foo
 // CHECK: mov eax, $$4
@@ -204,6 +212,8 @@ void t20() {
 // CHECK: mov eax, $$4
   __asm mov eax, TYPE _bar
 // CHECK: mov eax, $$1
+  __asm mov eax, [eax + TYPE foo * 4]
+// CHECK: mov eax, [eax + $$4 * $$4]
 
   __asm mov eax, SIZE foo
 // CHECK: mov eax, $$4
@@ -211,9 +221,12 @@ void t20() {
 // CHECK: mov eax, $$1
   __asm mov eax, SIZE _foo
 // CHECK: mov eax, $$16
+  __asm mov eax, [eax + SIZE _foo * 4]
+// CHECK: mov eax, [eax + $$16 * $$4]
   __asm mov eax, SIZE _bar
 // CHECK: mov eax, $$2
 // CHECK: "~{eax},~{dirflag},~{fpsr},~{flags}"()
+
 }
 
 void t21() {
@@ -642,6 +655,14 @@ void label6(){
   // CHECK-LABEL: define void @label6
   // CHECK: call void asm sideeffect inteldialect "jmp {{.*}}__MSASMLABEL_.${:uid}__label\0A\09{{.*}}__MSASMLABEL_.${:uid}__label:", "~{dirflag},~{fpsr},~{flags}"()
 }
+
+// Don't include mxcsr in the clobber list.
+void mxcsr() {
+  char buf[4096];
+  __asm fxrstor buf
+}
+// CHECK-LABEL: define void @mxcsr
+// CHECK: call void asm sideeffect inteldialect "fxrstor byte ptr $0", "=*m,~{dirflag},~{fpsr},~{flags}"
 
 typedef union _LARGE_INTEGER {
   struct {
