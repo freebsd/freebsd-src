@@ -126,6 +126,10 @@ PLIST(mux_m_c_p_a_c2_c3_clkm_c4) =
 PLIST(mux_m_c_p_clkm_mud_c2_c3) =
     {"pllM_out0", "pllC_out0", "pllP_out0", "clk_m",
      "pllM_UD", "pllC2_out0", "pllC3_out0"};
+PLIST(mux_m_c_p_clkm_mud_c2_c3_cud) =
+    {"pllM_out0", "pllC_out0", "pllP_out0", "clk_m",
+     "pllM_UD", "pllC2_out0", "pllC3_out0", "pllC_UD"};
+
 PLIST(mux_m_c2_c_c3_p_N_a) =
     {"pllM_out0", "pllC2_out0", "pllC_out0", "pllC3_out0",
      "pllP_out0", NULL, "pllA_out0"};
@@ -260,7 +264,7 @@ static struct pgate_def pgate_def[] = {
 	GATE(I2C2, "i2c2", "pc_i2c2", H(22)),
 	GATE(UARTC, "uartc", "pc_uartc", H(23)),
 	GATE(MIPI_CAL, "mipi_cal", "clk_m", H(24)),
-	GATE(EMC, "emc", "emc_mux", H(25)),
+	GATE(EMC, "emc", "pc_emc_2x", H(25)),
 	GATE(USB2, "usb2", "clk_m", H(26)),
 	GATE(USB3, "usb3", "clk_m", H(27)),
 	GATE(VDE, "vde", "pc_vde", H(29)),
@@ -356,7 +360,7 @@ static struct pgate_def pgate_def[] = {
 	/* GATE(CAM_MCLK, "CAM_MCLK", "clk_m", X(4)), */
 	/* GATE(CAM_MCLK2, "CAM_MCLK2", "clk_m", X(5)), */
 	GATE(I2C6, "i2c6", "pc_i2c6", X(6)),
-	/* GATE(VIM2_CLK, "vim2_clk", clk_m, X(11)), */
+	GATE(VIM2_CLK, "vim2_clk", "clk_m", X(11)),
 	/* GATE(EMC_DLL, "emc_dll", "pc_emc_dll", X(14)), */
 	GATE(HDMI_AUDIO, "hdmi_audio", "pc_hdmi_audio", X(16)),
 	GATE(CLK72MHZ, "clk72mhz", "pc_clk72mhz", X(17)),
@@ -373,17 +377,18 @@ static struct pgate_def pgate_def[] = {
 #define	DCF_HAVE_ENA		0x0200 /* Block with enable bit */
 #define	DCF_HAVE_DIV		0x0400 /* Block with divider */
 
-/* Mark block with additional bis / functionality. */
+/* Mark block with additional bits / functionality. */
 #define	DCF_IS_MASK		0x00FF
 #define	DCF_IS_UART		0x0001
 #define	DCF_IS_VI		0x0002
 #define	DCF_IS_HOST1X		0x0003
 #define	DCF_IS_XUSB_SS		0x0004
 #define	DCF_IS_EMC_DLL		0x0005
-#define	FDS_IS_SATA		0x0006
+#define	DCF_IS_SATA		0x0006
 #define	DCF_IS_VIC		0x0007
 #define	DCF_IS_AUDIO		0x0008
 #define	DCF_IS_SOR0		0x0009
+#define	DCF_IS_EMC		0x000A
 
 /* Basic pheripheral clock */
 #define	PER_CLK(_id, cn, pl, r, diw, fiw, f)				\
@@ -438,7 +443,7 @@ static struct periph_def periph_def[] = {
 	CLK_8_1(0, "pc_host1x", mux_p_c2_c_c3_m_N_clkm, CLK_SOURCE_HOST1X, DCF_IS_HOST1X),
 	CLK_8_1(0, "pc_hdmi", mux_p_m_d_a_c_d2_clkm, CLK_SOURCE_HDMI, 0),
 	CLK16_0(0, "pc_i2c2", mux_p_c2_c_c3_m_N_clkm, CLK_SOURCE_I2C2, 0),
-/* EMC  8 */
+	CLK_8_1(0, "pc_emc_2x", mux_m_c_p_clkm_mud_c2_c3_cud, CLK_SOURCE_EMC, DCF_IS_EMC),
 	CLK16_1(0, "pc_uartc", mux_p_c2_c_c3_m_N_clkm, CLK_SOURCE_UARTC, DCF_IS_UART),
 	CLK_8_1(0, "pc_vi_sensor", mux_m_c2_c_c3_p_N_a, CLK_SOURCE_VI_SENSOR, 0),
 	CLK_8_1(0, "pc_spi4", mux_p_c2_c_c3_m_N_clkm, CLK_SOURCE_SPI4, 0),
@@ -476,7 +481,7 @@ static struct periph_def periph_def[] = {
 /* SYS */
 	CLK_8_1(0, "pc_sor0", mux_p_m_d_a_c_d2_clkm,  CLK_SOURCE_SOR0, DCF_IS_SOR0),
 	CLK_8_1(0, "pc_sata_oob", mux_p_N_c_N_m_N_clkm, CLK_SOURCE_SATA_OOB, 0),
-	CLK_8_1(0, "pc_sata", mux_p_N_c_N_m_N_clkm, CLK_SOURCE_SATA, FDS_IS_SATA),
+	CLK_8_1(0, "pc_sata", mux_p_N_c_N_m_N_clkm, CLK_SOURCE_SATA, DCF_IS_SATA),
 	CLK_8_1(0, "pc_hda", mux_p_c2_c_c3_m_N_clkm, CLK_SOURCE_HDA, 0),
 	CLK_8_1(TEGRA124_CLK_XUSB_HOST_SRC,
 		   "pc_xusb_core_host", mux_clkm_p_c2_c_c3_refre, CLK_SOURCE_XUSB_CORE_HOST, 0),
