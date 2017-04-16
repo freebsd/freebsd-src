@@ -119,7 +119,8 @@ namespace clang {
     }
 
     void ReadCXXRecordDefinition(CXXRecordDecl *D, bool Update);
-    void ReadCXXDefinitionData(struct CXXRecordDecl::DefinitionData &Data);
+    void ReadCXXDefinitionData(struct CXXRecordDecl::DefinitionData &Data,
+                               const CXXRecordDecl *D);
     void MergeDefinitionData(CXXRecordDecl *D,
                              struct CXXRecordDecl::DefinitionData &&NewDD);
     void ReadObjCDefinitionData(struct ObjCInterfaceDecl::DefinitionData &Data);
@@ -240,6 +241,7 @@ namespace clang {
     /// \brief Determine whether this declaration has a pending body.
     bool hasPendingBody() const { return HasPendingBody; }
 
+    void ReadFunctionDefinition(FunctionDecl *FD);
     void Visit(Decl *D);
 
     void UpdateDecl(Decl *D);
@@ -292,6 +294,7 @@ namespace clang {
     void VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D);
     void VisitDeclaratorDecl(DeclaratorDecl *DD);
     void VisitFunctionDecl(FunctionDecl *FD);
+    void VisitCXXDeductionGuideDecl(CXXDeductionGuideDecl *GD);
     void VisitCXXMethodDecl(CXXMethodDecl *D);
     void VisitCXXConstructorDecl(CXXConstructorDecl *D);
     void VisitCXXDestructorDecl(CXXDestructorDecl *D);
@@ -421,6 +424,19 @@ uint64_t ASTDeclReader::GetCurrentCursorOffset() {
   return Loc.F->DeclsCursor.GetCurrentBitNo() + Loc.F->GlobalBitOffset;
 }
 
+void ASTDeclReader::ReadFunctionDefinition(FunctionDecl *FD) {
+  if (Record.readInt())
+    Reader.BodySource[FD] = Loc.F->Kind == ModuleKind::MK_MainFile;
+  if (auto *CD = dyn_cast<CXXConstructorDecl>(FD)) {
+    CD->NumCtorInitializers = Record.readInt();
+    if (CD->NumCtorInitializers)
+      CD->CtorInitializers = ReadGlobalOffset();
+  }
+  // Store the offset of the body so we can lazily load it later.
+  Reader.PendingBodies[FD] = GetCurrentCursorOffset();
+  HasPendingBody = true;
+}
+
 void ASTDeclReader::Visit(Decl *D) {
   DeclVisitor<ASTDeclReader, void>::Visit(D);
 
@@ -457,15 +473,8 @@ void ASTDeclReader::Visit(Decl *D) {
     // We only read it if FD doesn't already have a body (e.g., from another
     // module).
     // FIXME: Can we diagnose ODR violations somehow?
-    if (Record.readInt()) {
-      if (auto *CD = dyn_cast<CXXConstructorDecl>(FD)) {
-        CD->NumCtorInitializers = Record.readInt();
-        if (CD->NumCtorInitializers)
-          CD->CtorInitializers = ReadGlobalOffset();
-      }
-      Reader.PendingBodies[FD] = GetCurrentCursorOffset();
-      HasPendingBody = true;
-    }
+    if (Record.readInt())
+      ReadFunctionDefinition(FD);
   }
 }
 
@@ -592,6 +601,11 @@ ASTDeclReader::VisitTypedefNameDecl(TypedefNameDecl *TD) {
     TD->setModedTypeSourceInfo(TInfo, modedT);
   } else
     TD->setTypeSourceInfo(TInfo);
+  // Read and discard the declaration for which this is a typedef name for
+  // linkage, if it exists. We cannot rely on our type to pull in this decl,
+  // because it might have been merged with a type from another module and
+  // thus might not refer to our version of the declaration.
+  ReadDecl();
   return Redecl;
 }
 
@@ -738,6 +752,7 @@ void ASTDeclReader::VisitFunctionDecl(FunctionDecl *FD) {
   FD->SClass = (StorageClass)Record.readInt();
   FD->IsInline = Record.readInt();
   FD->IsInlineSpecified = Record.readInt();
+  FD->IsExplicitSpecified = Record.readInt();
   FD->IsVirtualAsWritten = Record.readInt();
   FD->IsPure = Record.readInt();
   FD->HasInheritedPrototype = Record.readInt();
@@ -1112,8 +1127,12 @@ void ASTDeclReader::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
       (ObjCPropertyDecl::PropertyAttributeKind)Record.readInt());
   D->setPropertyImplementation(
       (ObjCPropertyDecl::PropertyControl)Record.readInt());
-  D->setGetterName(Record.readDeclarationName().getObjCSelector());
-  D->setSetterName(Record.readDeclarationName().getObjCSelector());
+  DeclarationName GetterName = Record.readDeclarationName();
+  SourceLocation GetterLoc = ReadSourceLocation();
+  D->setGetterName(GetterName.getObjCSelector(), GetterLoc);
+  DeclarationName SetterName = Record.readDeclarationName();
+  SourceLocation SetterLoc = ReadSourceLocation();
+  D->setSetterName(SetterName.getObjCSelector(), SetterLoc);
   D->setGetterMethodDecl(ReadDeclAs<ObjCMethodDecl>());
   D->setSetterMethodDecl(ReadDeclAs<ObjCMethodDecl>());
   D->setPropertyIvarDecl(ReadDeclAs<ObjCIvarDecl>());
@@ -1126,7 +1145,6 @@ void ASTDeclReader::VisitObjCImplDecl(ObjCImplDecl *D) {
 
 void ASTDeclReader::VisitObjCCategoryImplDecl(ObjCCategoryImplDecl *D) {
   VisitObjCImplDecl(D);
-  D->setIdentifier(Record.getIdentifierInfo());
   D->CategoryNameLoc = ReadSourceLocation();
 }
 
@@ -1473,7 +1491,7 @@ void ASTDeclReader::VisitUnresolvedUsingTypenameDecl(
 }
 
 void ASTDeclReader::ReadCXXDefinitionData(
-                                   struct CXXRecordDecl::DefinitionData &Data) {
+    struct CXXRecordDecl::DefinitionData &Data, const CXXRecordDecl *D) {
   // Note: the caller has deserialized the IsLambda bit already.
   Data.UserDeclaredConstructor = Record.readInt();
   Data.UserDeclaredSpecialMembers = Record.readInt();
@@ -1512,10 +1530,19 @@ void ASTDeclReader::ReadCXXDefinitionData(
   Data.ComputedVisibleConversions = Record.readInt();
   Data.UserProvidedDefaultConstructor = Record.readInt();
   Data.DeclaredSpecialMembers = Record.readInt();
-  Data.ImplicitCopyConstructorHasConstParam = Record.readInt();
+  Data.ImplicitCopyConstructorCanHaveConstParamForVBase = Record.readInt();
+  Data.ImplicitCopyConstructorCanHaveConstParamForNonVBase = Record.readInt();
   Data.ImplicitCopyAssignmentHasConstParam = Record.readInt();
   Data.HasDeclaredCopyConstructorWithConstParam = Record.readInt();
   Data.HasDeclaredCopyAssignmentWithConstParam = Record.readInt();
+  Data.ODRHash = Record.readInt();
+  Data.HasODRHash = true;
+
+  if (Record.readInt()) {
+    Reader.BodySource[D] = Loc.F->Kind == ModuleKind::MK_MainFile
+                               ? ExternalASTSource::EK_Never
+                               : ExternalASTSource::EK_Always;
+  }
 
   Data.NumBases = Record.readInt();
   if (Data.NumBases)
@@ -1641,7 +1668,8 @@ void ASTDeclReader::MergeDefinitionData(
   // ComputedVisibleConversions is handled below.
   MATCH_FIELD(UserProvidedDefaultConstructor)
   OR_FIELD(DeclaredSpecialMembers)
-  MATCH_FIELD(ImplicitCopyConstructorHasConstParam)
+  MATCH_FIELD(ImplicitCopyConstructorCanHaveConstParamForVBase)
+  MATCH_FIELD(ImplicitCopyConstructorCanHaveConstParamForNonVBase)
   MATCH_FIELD(ImplicitCopyAssignmentHasConstParam)
   OR_FIELD(HasDeclaredCopyConstructorWithConstParam)
   OR_FIELD(HasDeclaredCopyAssignmentWithConstParam)
@@ -1669,6 +1697,10 @@ void ASTDeclReader::MergeDefinitionData(
     // when they occur within the body of a function template specialization).
   }
 
+  if (D->getODRHash() != MergeDD.ODRHash) {
+    DetectedOdrViolation = true;
+  }
+
   if (DetectedOdrViolation)
     Reader.PendingOdrMergeFailures[DD.Definition].push_back(MergeDD.Definition);
 }
@@ -1686,7 +1718,7 @@ void ASTDeclReader::ReadCXXRecordDefinition(CXXRecordDecl *D, bool Update) {
   else
     DD = new (C) struct CXXRecordDecl::DefinitionData(D);
 
-  ReadCXXDefinitionData(*DD);
+  ReadCXXDefinitionData(*DD, D);
 
   // We might already have a definition for this record. This can happen either
   // because we're reading an update record, or because we've already done some
@@ -1775,6 +1807,10 @@ ASTDeclReader::VisitCXXRecordDeclImpl(CXXRecordDecl *D) {
   return Redecl;
 }
 
+void ASTDeclReader::VisitCXXDeductionGuideDecl(CXXDeductionGuideDecl *D) {
+  VisitFunctionDecl(D);
+}
+
 void ASTDeclReader::VisitCXXMethodDecl(CXXMethodDecl *D) {
   VisitFunctionDecl(D);
 
@@ -1804,8 +1840,6 @@ void ASTDeclReader::VisitCXXConstructorDecl(CXXConstructorDecl *D) {
   }
 
   VisitCXXMethodDecl(D);
-
-  D->IsExplicitSpecified = Record.readInt();
 }
 
 void ASTDeclReader::VisitCXXDestructorDecl(CXXDestructorDecl *D) {
@@ -1821,7 +1855,6 @@ void ASTDeclReader::VisitCXXDestructorDecl(CXXDestructorDecl *D) {
 
 void ASTDeclReader::VisitCXXConversionDecl(CXXConversionDecl *D) {
   VisitCXXMethodDecl(D);
-  D->IsExplicitSpecified = Record.readInt();
 }
 
 void ASTDeclReader::VisitImportDecl(ImportDecl *D) {
@@ -1831,7 +1864,7 @@ void ASTDeclReader::VisitImportDecl(ImportDecl *D) {
   SourceLocation *StoredLocs = D->getTrailingObjects<SourceLocation>();
   for (unsigned I = 0, N = Record.back(); I != N; ++I)
     StoredLocs[I] = ReadSourceLocation();
-  (void)Record.readInt(); // The number of stored source locations.
+  Record.skipInts(1); // The number of stored source locations.
 }
 
 void ASTDeclReader::VisitAccessSpecDecl(AccessSpecDecl *D) {
@@ -1873,6 +1906,7 @@ DeclID ASTDeclReader::VisitTemplateDecl(TemplateDecl *D) {
   DeclID PatternID = ReadDeclID();
   NamedDecl *TemplatedDecl = cast_or_null<NamedDecl>(Reader.GetDecl(PatternID));
   TemplateParameterList *TemplateParams = Record.readTemplateParameterList();
+  // FIXME handle associated constraints
   D->init(TemplatedDecl, TemplateParams);
 
   return PatternID;
@@ -2471,12 +2505,11 @@ void ASTDeclReader::VisitOMPCapturedExprDecl(OMPCapturedExprDecl *D) {
 //===----------------------------------------------------------------------===//
 
 /// \brief Reads attributes from the current stream position.
-void ASTReader::ReadAttributes(ModuleFile &F, AttrVec &Attrs,
-                               const RecordData &Record, unsigned &Idx) {
-  for (unsigned i = 0, e = Record[Idx++]; i != e; ++i) {
+void ASTReader::ReadAttributes(ASTRecordReader &Record, AttrVec &Attrs) {
+  for (unsigned i = 0, e = Record.readInt(); i != e; ++i) {
     Attr *New = nullptr;
-    attr::Kind Kind = (attr::Kind)Record[Idx++];
-    SourceRange Range = ReadSourceRange(F, Record, Idx);
+    attr::Kind Kind = (attr::Kind)Record.readInt();
+    SourceRange Range = Record.readSourceRange();
 
 #include "clang/Serialization/AttrPCHRead.inc"
 
@@ -2531,7 +2564,11 @@ static bool isConsumerInterestedIn(ASTContext &Ctx, Decl *D, bool HasBody) {
            Var->isThisDeclarationADefinition() == VarDecl::Definition;
   if (FunctionDecl *Func = dyn_cast<FunctionDecl>(D))
     return Func->doesThisDeclarationHaveABody() || HasBody;
-  
+
+  if (auto *ES = D->getASTContext().getExternalSource())
+    if (ES->hasExternalDefinitions(D) == ExternalASTSource::EK_Never)
+      return true;
+
   return false;
 }
 
@@ -2648,6 +2685,45 @@ static bool isSameTemplateParameterList(const TemplateParameterList *X,
   return true;
 }
 
+/// Determine whether the attributes we can overload on are identical for A and
+/// B. Will ignore any overloadable attrs represented in the type of A and B.
+static bool hasSameOverloadableAttrs(const FunctionDecl *A,
+                                     const FunctionDecl *B) {
+  // Note that pass_object_size attributes are represented in the function's
+  // ExtParameterInfo, so we don't need to check them here.
+
+  SmallVector<const EnableIfAttr *, 4> AEnableIfs;
+  // Since this is an equality check, we can ignore that enable_if attrs show up
+  // in reverse order.
+  for (const auto *EIA : A->specific_attrs<EnableIfAttr>())
+    AEnableIfs.push_back(EIA);
+
+  SmallVector<const EnableIfAttr *, 4> BEnableIfs;
+  for (const auto *EIA : B->specific_attrs<EnableIfAttr>())
+    BEnableIfs.push_back(EIA);
+
+  // Two very common cases: either we have 0 enable_if attrs, or we have an
+  // unequal number of enable_if attrs.
+  if (AEnableIfs.empty() && BEnableIfs.empty())
+    return true;
+
+  if (AEnableIfs.size() != BEnableIfs.size())
+    return false;
+
+  llvm::FoldingSetNodeID Cand1ID, Cand2ID;
+  for (unsigned I = 0, E = AEnableIfs.size(); I != E; ++I) {
+    Cand1ID.clear();
+    Cand2ID.clear();
+
+    AEnableIfs[I]->getCond()->Profile(Cand1ID, A->getASTContext(), true);
+    BEnableIfs[I]->getCond()->Profile(Cand2ID, B->getASTContext(), true);
+    if (Cand1ID != Cand2ID)
+      return false;
+  }
+
+  return true;
+}
+
 /// \brief Determine whether the two declarations refer to the same entity.
 static bool isSameEntity(NamedDecl *X, NamedDecl *Y) {
   assert(X->getDeclName() == Y->getDeclName() && "Declaration name mismatch!");
@@ -2703,8 +2779,24 @@ static bool isSameEntity(NamedDecl *X, NamedDecl *Y) {
                         CtorY->getInheritedConstructor().getConstructor()))
         return false;
     }
-    return (FuncX->getLinkageInternal() == FuncY->getLinkageInternal()) &&
-      FuncX->getASTContext().hasSameType(FuncX->getType(), FuncY->getType());
+    ASTContext &C = FuncX->getASTContext();
+    if (!C.hasSameType(FuncX->getType(), FuncY->getType())) {
+      // We can get functions with different types on the redecl chain in C++17
+      // if they have differing exception specifications and at least one of
+      // the excpetion specs is unresolved.
+      // FIXME: Do we need to check for C++14 deduced return types here too?
+      auto *XFPT = FuncX->getType()->getAs<FunctionProtoType>();
+      auto *YFPT = FuncY->getType()->getAs<FunctionProtoType>();
+      if (C.getLangOpts().CPlusPlus1z && XFPT && YFPT &&
+          (isUnresolvedExceptionSpec(XFPT->getExceptionSpecType()) ||
+           isUnresolvedExceptionSpec(YFPT->getExceptionSpecType())) &&
+          C.hasSameFunctionTypeIgnoringExceptionSpec(FuncX->getType(),
+                                                     FuncY->getType()))
+        return true;
+      return false;
+    }
+    return FuncX->getLinkageInternal() == FuncY->getLinkageInternal() &&
+           hasSameOverloadableAttrs(FuncX, FuncY);
   }
 
   // Variables with the same type and linkage match.
@@ -3323,6 +3415,9 @@ Decl *ASTReader::ReadDeclRecord(DeclID ID) {
   case DECL_CXX_RECORD:
     D = CXXRecordDecl::CreateDeserialized(Context, ID);
     break;
+  case DECL_CXX_DEDUCTION_GUIDE:
+    D = CXXDeductionGuideDecl::CreateDeserialized(Context, ID);
+    break;
   case DECL_CXX_METHOD:
     D = CXXMethodDecl::CreateDeserialized(Context, ID);
     break;
@@ -3531,10 +3626,35 @@ Decl *ASTReader::ReadDeclRecord(DeclID ID) {
   // AST consumer might need to know about, queue it.
   // We don't pass it to the consumer immediately because we may be in recursive
   // loading, and some declarations may still be initializing.
-  if (isConsumerInterestedIn(Context, D, Reader.hasPendingBody()))
-    InterestingDecls.push_back(D);
+  PotentiallyInterestingDecls.push_back(
+      InterestingDecl(D, Reader.hasPendingBody()));
 
   return D;
+}
+
+void ASTReader::PassInterestingDeclsToConsumer() {
+  assert(Consumer);
+
+  if (PassingDeclsToConsumer)
+    return;
+
+  // Guard variable to avoid recursively redoing the process of passing
+  // decls to consumer.
+  SaveAndRestore<bool> GuardPassingDeclsToConsumer(PassingDeclsToConsumer,
+                                                   true);
+
+  // Ensure that we've loaded all potentially-interesting declarations
+  // that need to be eagerly loaded.
+  for (auto ID : EagerlyDeserializedDecls)
+    GetDecl(ID);
+  EagerlyDeserializedDecls.clear();
+
+  while (!PotentiallyInterestingDecls.empty()) {
+    InterestingDecl D = PotentiallyInterestingDecls.front();
+    PotentiallyInterestingDecls.pop_front();
+    if (isConsumerInterestedIn(Context, D.getDecl(), D.hasPendingBody()))
+      PassInterestingDeclToConsumer(D.getDecl());
+  }
 }
 
 void ASTReader::loadDeclUpdateRecords(serialization::DeclID ID, Decl *D) {
@@ -3547,6 +3667,9 @@ void ASTReader::loadDeclUpdateRecords(serialization::DeclID ID, Decl *D) {
     auto UpdateOffsets = std::move(UpdI->second);
     DeclUpdateOffsets.erase(UpdI);
 
+    // FIXME: This call to isConsumerInterestedIn is not safe because
+    // we could be deserializing declarations at the moment. We should
+    // delay calling this in the same way as done in D30793.
     bool WasInteresting = isConsumerInterestedIn(Context, D, false);
     for (auto &FileAndOffset : UpdateOffsets) {
       ModuleFile *F = FileAndOffset.first;
@@ -3568,7 +3691,8 @@ void ASTReader::loadDeclUpdateRecords(serialization::DeclID ID, Decl *D) {
       // we need to hand it off to the consumer.
       if (!WasInteresting &&
           isConsumerInterestedIn(Context, D, Reader.hasPendingBody())) {
-        InterestingDecls.push_back(D);
+        PotentiallyInterestingDecls.push_back(
+            InterestingDecl(D, Reader.hasPendingBody()));
         WasInteresting = true;
       }
     }
@@ -3858,14 +3982,7 @@ void ASTDeclReader::UpdateDecl(Decl *D) {
         });
       }
       FD->setInnerLocStart(ReadSourceLocation());
-      if (auto *CD = dyn_cast<CXXConstructorDecl>(FD)) {
-        CD->NumCtorInitializers = Record.readInt();
-        if (CD->NumCtorInitializers)
-          CD->CtorInitializers = ReadGlobalOffset();
-      }
-      // Store the offset of the body so we can lazily load it later.
-      Reader.PendingBodies[FD] = GetCurrentCursorOffset();
-      HasPendingBody = true;
+      ReadFunctionDefinition(FD);
       assert(Record.getIdx() == Record.size() && "lazy body must be last");
       break;
     }

@@ -280,7 +280,11 @@ public:
   bool isCPlusPlusOperatorKeyword() const { return IsCPPOperatorKeyword; }
 
   /// \brief Return true if this token is a keyword in the specified language.
-  bool isKeyword(const LangOptions &LangOpts);
+  bool isKeyword(const LangOptions &LangOpts) const;
+
+  /// \brief Return true if this token is a C++ keyword in the specified
+  /// language.
+  bool isCPlusPlusKeyword(const LangOptions &LangOpts) const;
 
   /// getFETokenInfo/setFETokenInfo - The language front-end is allowed to
   /// associate arbitrary metadata with this token.
@@ -818,6 +822,7 @@ public:
 #define OVERLOADED_OPERATOR(Name,Spelling,Token,Unary,Binary,MemberOnly) \
     CXXOperator##Name,
 #include "clang/Basic/OperatorKinds.def"
+    CXXDeductionGuide,
     CXXLiteralOperator,
     CXXUsingDirective,
     NUM_EXTRA_KINDS

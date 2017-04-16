@@ -98,7 +98,29 @@ public:
     if (MethodLoc.isInvalid())
       MethodLoc = D->getLocation();
 
-    if (!IndexCtx.handleDecl(D, MethodLoc, (unsigned)SymbolRole::Dynamic, Relations))
+    SourceLocation AttrLoc;
+
+    // check for (getter=/setter=)
+    if (AssociatedProp) {
+      bool isGetter = !D->param_size();
+      AttrLoc = isGetter ?
+        AssociatedProp->getGetterNameLoc():
+        AssociatedProp->getSetterNameLoc();
+    }
+
+    SymbolRoleSet Roles = (SymbolRoleSet)SymbolRole::Dynamic;
+    if (D->isImplicit()) {
+      if (AttrLoc.isValid()) {
+        MethodLoc = AttrLoc;
+      } else {
+        Roles |= (SymbolRoleSet)SymbolRole::Implicit;
+      }
+    } else if (AttrLoc.isValid()) {
+      IndexCtx.handleReference(D, AttrLoc, cast<NamedDecl>(D->getDeclContext()),
+                               D->getDeclContext(), 0);
+    }
+
+    if (!IndexCtx.handleDecl(D, MethodLoc, Roles, Relations))
       return false;
     IndexCtx.indexTypeSourceInfo(D->getReturnTypeSourceInfo(), D);
     bool hasIBActionAndFirst = D->hasAttr<IBActionAttr>();
@@ -136,6 +158,9 @@ public:
     handleDeclarator(D);
 
     if (const CXXConstructorDecl *Ctor = dyn_cast<CXXConstructorDecl>(D)) {
+      IndexCtx.handleReference(Ctor->getParent(), Ctor->getLocation(),
+                               Ctor->getParent(), Ctor->getDeclContext());
+
       // Constructor initializers.
       for (const auto *Init : Ctor->inits()) {
         if (Init->isWritten()) {
@@ -145,6 +170,12 @@ public:
                                      (unsigned)SymbolRole::Write);
           IndexCtx.indexBody(Init->getInit(), D, D);
         }
+      }
+    } else if (const CXXDestructorDecl *Dtor = dyn_cast<CXXDestructorDecl>(D)) {
+      if (auto TypeNameInfo = Dtor->getNameInfo().getNamedTypeInfo()) {
+        IndexCtx.handleReference(Dtor->getParent(),
+                                 TypeNameInfo->getTypeLoc().getLocStart(),
+                                 Dtor->getParent(), Dtor->getDeclContext());
       }
     }
 
@@ -178,14 +209,8 @@ public:
 
   bool VisitObjCIvarDecl(const ObjCIvarDecl *D) {
     if (D->getSynthesize()) {
-      // For synthesized ivars, use the location of the ObjC implementation,
-      // not the location of the property.
-      // Otherwise the header file containing the @interface will have different
-      // indexing contents based on whether the @implementation was present or
-      // not in the translation unit.
-      return IndexCtx.handleDecl(D,
-                                 cast<Decl>(D->getDeclContext())->getLocation(),
-                                 (unsigned)SymbolRole::Implicit);
+      // handled in VisitObjCPropertyImplDecl
+      return true;
     }
     if (!IndexCtx.handleDecl(D))
       return false;
@@ -206,8 +231,9 @@ public:
   }
 
   bool VisitTypedefNameDecl(const TypedefNameDecl *D) {
-    if (!IndexCtx.handleDecl(D))
-      return false;
+    if (!D->isTransparentTag())
+      if (!IndexCtx.handleDecl(D))
+        return false;
     IndexCtx.indexTypeSourceInfo(D->getTypeSourceInfo(), D);
     return true;
   }
@@ -228,14 +254,17 @@ public:
   }
 
   bool handleReferencedProtocols(const ObjCProtocolList &ProtList,
-                                 const ObjCContainerDecl *ContD) {
+                                 const ObjCContainerDecl *ContD,
+                                 SourceLocation SuperLoc) {
     ObjCInterfaceDecl::protocol_loc_iterator LI = ProtList.loc_begin();
     for (ObjCInterfaceDecl::protocol_iterator
          I = ProtList.begin(), E = ProtList.end(); I != E; ++I, ++LI) {
       SourceLocation Loc = *LI;
       ObjCProtocolDecl *PD = *I;
-      TRY_TO(IndexCtx.handleReference(PD, Loc, ContD, ContD,
-          SymbolRoleSet(),
+      SymbolRoleSet roles{};
+      if (Loc == SuperLoc)
+        roles |= (SymbolRoleSet)SymbolRole::Implicit;
+      TRY_TO(IndexCtx.handleReference(PD, Loc, ContD, ContD, roles,
           SymbolRelation{(unsigned)SymbolRole::RelationBaseOf, ContD}));
     }
     return true;
@@ -244,12 +273,26 @@ public:
   bool VisitObjCInterfaceDecl(const ObjCInterfaceDecl *D) {
     if (D->isThisDeclarationADefinition()) {
       TRY_TO(IndexCtx.handleDecl(D));
+      SourceLocation SuperLoc = D->getSuperClassLoc();
       if (auto *SuperD = D->getSuperClass()) {
-        TRY_TO(IndexCtx.handleReference(SuperD, D->getSuperClassLoc(), D, D,
-            SymbolRoleSet(),
+        bool hasSuperTypedef = false;
+        if (auto *TInfo = D->getSuperClassTInfo()) {
+          if (auto *TT = TInfo->getType()->getAs<TypedefType>()) {
+            if (auto *TD = TT->getDecl()) {
+              hasSuperTypedef = true;
+              TRY_TO(IndexCtx.handleReference(TD, SuperLoc, D, D,
+                                              SymbolRoleSet()));
+            }
+          }
+        }
+        SymbolRoleSet superRoles{};
+        if (hasSuperTypedef)
+          superRoles |= (SymbolRoleSet)SymbolRole::Implicit;
+        TRY_TO(IndexCtx.handleReference(SuperD, SuperLoc, D, D, superRoles,
             SymbolRelation{(unsigned)SymbolRole::RelationBaseOf, D}));
       }
-      TRY_TO(handleReferencedProtocols(D->getReferencedProtocols(), D));
+      TRY_TO(handleReferencedProtocols(D->getReferencedProtocols(), D,
+                                       SuperLoc));
       TRY_TO(IndexCtx.indexDeclContext(D));
     } else {
       return IndexCtx.handleReference(D, D->getLocation(), nullptr,
@@ -261,7 +304,8 @@ public:
   bool VisitObjCProtocolDecl(const ObjCProtocolDecl *D) {
     if (D->isThisDeclarationADefinition()) {
       TRY_TO(IndexCtx.handleDecl(D));
-      TRY_TO(handleReferencedProtocols(D->getReferencedProtocols(), D));
+      TRY_TO(handleReferencedProtocols(D->getReferencedProtocols(), D,
+                                       /*superLoc=*/SourceLocation()));
       TRY_TO(IndexCtx.indexDeclContext(D));
     } else {
       return IndexCtx.handleReference(D, D->getLocation(), nullptr,
@@ -281,12 +325,16 @@ public:
     if (!IndexCtx.handleDecl(D))
       return false;
 
-    // Index the ivars first to make sure the synthesized ivars are indexed
-    // before indexing the methods that can reference them.
-    for (const auto *IvarI : D->ivars())
-      IndexCtx.indexDecl(IvarI);
+    // Visit implicit @synthesize property implementations first as their
+    // location is reported at the name of the @implementation block. This
+    // serves no purpose other than to simplify the FileCheck-based tests.
+    for (const auto *I : D->property_impls()) {
+      if (I->getLocation().isInvalid())
+        IndexCtx.indexDecl(I);
+    }
     for (const auto *I : D->decls()) {
-      if (!isa<ObjCIvarDecl>(I))
+      if (!isa<ObjCPropertyImplDecl>(I) ||
+          cast<ObjCPropertyImplDecl>(I)->getLocation().isValid())
         IndexCtx.indexDecl(I);
     }
 
@@ -305,7 +353,8 @@ public:
     if (!CategoryLoc.isValid())
       CategoryLoc = D->getLocation();
     TRY_TO(IndexCtx.handleDecl(D, CategoryLoc));
-    TRY_TO(handleReferencedProtocols(D->getReferencedProtocols(), D));
+    TRY_TO(handleReferencedProtocols(D->getReferencedProtocols(), D,
+                                     /*superLoc=*/SourceLocation()));
     TRY_TO(IndexCtx.indexDeclContext(D));
     return true;
   }
@@ -355,32 +404,58 @@ public:
 
   bool VisitObjCPropertyImplDecl(const ObjCPropertyImplDecl *D) {
     ObjCPropertyDecl *PD = D->getPropertyDecl();
-    if (!IndexCtx.handleReference(PD, D->getLocation(),
-                             /*Parent=*/cast<NamedDecl>(D->getDeclContext()),
-                             D->getDeclContext(), SymbolRoleSet(), {},
-                             /*RefE=*/nullptr, D))
+    auto *Container = cast<ObjCImplDecl>(D->getDeclContext());
+    SourceLocation Loc = D->getLocation();
+    SymbolRoleSet Roles = 0;
+    SmallVector<SymbolRelation, 1> Relations;
+
+    if (ObjCIvarDecl *ID = D->getPropertyIvarDecl())
+      Relations.push_back({(SymbolRoleSet)SymbolRole::RelationAccessorOf, ID});
+    if (Loc.isInvalid()) {
+      Loc = Container->getLocation();
+      Roles |= (SymbolRoleSet)SymbolRole::Implicit;
+    }
+    if (!IndexCtx.handleDecl(D, Loc, Roles, Relations))
       return false;
 
     if (D->getPropertyImplementation() == ObjCPropertyImplDecl::Dynamic)
       return true;
-    assert(D->getPropertyImplementation() == ObjCPropertyImplDecl::Synthesize);
-    
-    if (ObjCIvarDecl *IvarD = D->getPropertyIvarDecl()) {
-      if (!IvarD->getSynthesize())
-        IndexCtx.handleReference(IvarD, D->getPropertyIvarDeclLoc(), nullptr,
-                                 D->getDeclContext(), SymbolRoleSet());
-    }
 
-    auto *ImplD = cast<ObjCImplDecl>(D->getDeclContext());
+    assert(D->getPropertyImplementation() == ObjCPropertyImplDecl::Synthesize);
     if (ObjCMethodDecl *MD = PD->getGetterMethodDecl()) {
       if (MD->isPropertyAccessor() &&
-          !hasUserDefined(MD, ImplD))
-        IndexCtx.handleDecl(MD, D->getLocation(), SymbolRoleSet(), {}, ImplD);
+          !hasUserDefined(MD, Container))
+        IndexCtx.handleDecl(MD, Loc, SymbolRoleSet(SymbolRole::Implicit), {},
+                            Container);
     }
     if (ObjCMethodDecl *MD = PD->getSetterMethodDecl()) {
       if (MD->isPropertyAccessor() &&
-          !hasUserDefined(MD, ImplD))
-        IndexCtx.handleDecl(MD, D->getLocation(), SymbolRoleSet(), {}, ImplD);
+          !hasUserDefined(MD, Container))
+        IndexCtx.handleDecl(MD, Loc, SymbolRoleSet(SymbolRole::Implicit), {},
+                            Container);
+    }
+    if (ObjCIvarDecl *IvarD = D->getPropertyIvarDecl()) {
+      if (IvarD->getSynthesize()) {
+        // For synthesized ivars, use the location of its name in the
+        // corresponding @synthesize. If there isn't one, use the containing
+        // @implementation's location, rather than the property's location,
+        // otherwise the header file containing the @interface will have different
+        // indexing contents based on whether the @implementation was present or
+        // not in the translation unit.
+        SymbolRoleSet IvarRoles = 0;
+        SourceLocation IvarLoc = D->getPropertyIvarDeclLoc();
+        if (D->getLocation().isInvalid()) {
+          IvarLoc = Container->getLocation();
+          IvarRoles = (SymbolRoleSet)SymbolRole::Implicit;
+        } else if (D->getLocation() == IvarLoc) {
+          IvarRoles = (SymbolRoleSet)SymbolRole::Implicit;
+        }
+        if(!IndexCtx.handleDecl(IvarD, IvarLoc, IvarRoles))
+          return false;
+      } else {
+        IndexCtx.handleReference(IvarD, D->getPropertyIvarDeclLoc(), nullptr,
+                                 D->getDeclContext(), SymbolRoleSet());
+      }
     }
     return true;
   }

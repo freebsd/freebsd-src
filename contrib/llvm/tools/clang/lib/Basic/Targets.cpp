@@ -545,6 +545,8 @@ protected:
     Builder.defineMacro("__ELF__");
     if (Opts.POSIXThreads)
       Builder.defineMacro("_REENTRANT");
+    if (this->HasFloat128)
+      Builder.defineMacro("__FLOAT128__");
   }
 public:
   OpenBSDTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
@@ -552,11 +554,11 @@ public:
     this->TLSSupported = false;
 
       switch (Triple.getArch()) {
-        default:
         case llvm::Triple::x86:
         case llvm::Triple::x86_64:
-        case llvm::Triple::arm:
-        case llvm::Triple::sparc:
+          this->HasFloat128 = true;
+          // FALLTHROUGH
+        default:
           this->MCountName = "__mcount";
           break;
         case llvm::Triple::mips64:
@@ -886,6 +888,7 @@ class PPCTargetInfo : public TargetInfo {
   std::string CPU;
 
   // Target cpu features.
+  bool HasAltivec;
   bool HasVSX;
   bool HasP8Vector;
   bool HasP8Crypto;
@@ -901,9 +904,10 @@ protected:
 
 public:
   PPCTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
-    : TargetInfo(Triple), HasVSX(false), HasP8Vector(false),
+    : TargetInfo(Triple), HasAltivec(false), HasVSX(false), HasP8Vector(false),
       HasP8Crypto(false), HasDirectMove(false), HasQPX(false), HasHTM(false),
       HasBPERMD(false), HasExtDiv(false), HasP9Vector(false) {
+    SuitableAlign = 128;
     SimdDefaultAlign = 128;
     LongDoubleWidth = LongDoubleAlign = 128;
     LongDoubleFormat = &llvm::APFloat::PPCDoubleDouble();
@@ -929,6 +933,13 @@ public:
     ArchDefineA2    = 1 << 14,
     ArchDefineA2q   = 1 << 15
   } ArchDefineTypes;
+
+  // Set the language option for altivec based on our value.
+  void adjust(LangOptions &Opts) override {
+    if (HasAltivec)
+      Opts.AltiVec = 1;
+    TargetInfo::adjust(Opts);
+  }
 
   // Note: GCC recognizes the following additional cpus:
   //  401, 403, 405, 405fp, 440fp, 464, 464fp, 476, 476fp, 505, 740, 801,
@@ -1164,7 +1175,9 @@ const Builtin::Info PPCTargetInfo::BuiltinInfo[] = {
 bool PPCTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                                          DiagnosticsEngine &Diags) {
   for (const auto &Feature : Features) {
-    if (Feature == "+vsx") {
+    if (Feature == "+altivec") {
+      HasAltivec = true;
+    } else if (Feature == "+vsx") {
       HasVSX = true;
     } else if (Feature == "+bpermd") {
       HasBPERMD = true;
@@ -1224,82 +1237,100 @@ void PPCTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (ABI == "elfv2")
     Builder.defineMacro("_CALL_ELF", "2");
 
+  // This typically is only for a new enough linker (bfd >= 2.16.2 or gold), but
+  // our suppport post-dates this and it should work on all 64-bit ppc linux
+  // platforms. It is guaranteed to work on all elfv2 platforms.
+  if (getTriple().getOS() == llvm::Triple::Linux && PointerWidth == 64)
+    Builder.defineMacro("_CALL_LINUX", "1");
+
   // Subtarget options.
   Builder.defineMacro("__NATURAL_ALIGNMENT__");
   Builder.defineMacro("__REGISTER_PREFIX__", "");
 
   // FIXME: Should be controlled by command line option.
-  if (LongDoubleWidth == 128)
+  if (LongDoubleWidth == 128) {
     Builder.defineMacro("__LONG_DOUBLE_128__");
-
-  if (Opts.AltiVec) {
-    Builder.defineMacro("__VEC__", "10206");
-    Builder.defineMacro("__ALTIVEC__");
+    Builder.defineMacro("__LONGDOUBLE128");
   }
 
+  // Define this for elfv2 (64-bit only) or 64-bit darwin.
+  if (ABI == "elfv2" ||
+      (getTriple().getOS() == llvm::Triple::Darwin && PointerWidth == 64))
+    Builder.defineMacro("__STRUCT_PARM_ALIGN__", "16");
+
   // CPU identification.
-  ArchDefineTypes defs = (ArchDefineTypes)llvm::StringSwitch<int>(CPU)
-    .Case("440",   ArchDefineName)
-    .Case("450",   ArchDefineName | ArchDefine440)
-    .Case("601",   ArchDefineName)
-    .Case("602",   ArchDefineName | ArchDefinePpcgr)
-    .Case("603",   ArchDefineName | ArchDefinePpcgr)
-    .Case("603e",  ArchDefineName | ArchDefine603 | ArchDefinePpcgr)
-    .Case("603ev", ArchDefineName | ArchDefine603 | ArchDefinePpcgr)
-    .Case("604",   ArchDefineName | ArchDefinePpcgr)
-    .Case("604e",  ArchDefineName | ArchDefine604 | ArchDefinePpcgr)
-    .Case("620",   ArchDefineName | ArchDefinePpcgr)
-    .Case("630",   ArchDefineName | ArchDefinePpcgr)
-    .Case("7400",  ArchDefineName | ArchDefinePpcgr)
-    .Case("7450",  ArchDefineName | ArchDefinePpcgr)
-    .Case("750",   ArchDefineName | ArchDefinePpcgr)
-    .Case("970",   ArchDefineName | ArchDefinePwr4 | ArchDefinePpcgr
-                     | ArchDefinePpcsq)
-    .Case("a2",    ArchDefineA2)
-    .Case("a2q",   ArchDefineName | ArchDefineA2 | ArchDefineA2q)
-    .Case("pwr3",  ArchDefinePpcgr)
-    .Case("pwr4",  ArchDefineName | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("pwr5",  ArchDefineName | ArchDefinePwr4 | ArchDefinePpcgr
-                     | ArchDefinePpcsq)
-    .Case("pwr5x", ArchDefineName | ArchDefinePwr5 | ArchDefinePwr4
-                     | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("pwr6",  ArchDefineName | ArchDefinePwr5x | ArchDefinePwr5
-                     | ArchDefinePwr4 | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("pwr6x", ArchDefineName | ArchDefinePwr6 | ArchDefinePwr5x
-                     | ArchDefinePwr5 | ArchDefinePwr4 | ArchDefinePpcgr
-                     | ArchDefinePpcsq)
-    .Case("pwr7",  ArchDefineName | ArchDefinePwr6x | ArchDefinePwr6
-                     | ArchDefinePwr5x | ArchDefinePwr5 | ArchDefinePwr4
-                     | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("pwr8",  ArchDefineName | ArchDefinePwr7 | ArchDefinePwr6x
-                     | ArchDefinePwr6 | ArchDefinePwr5x | ArchDefinePwr5
-                     | ArchDefinePwr4 | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("pwr9",  ArchDefineName | ArchDefinePwr8 | ArchDefinePwr7
-                     | ArchDefinePwr6x | ArchDefinePwr6 | ArchDefinePwr5x
-                     | ArchDefinePwr5 | ArchDefinePwr4 | ArchDefinePpcgr
-                     | ArchDefinePpcsq)
-    .Case("power3",  ArchDefinePpcgr)
-    .Case("power4",  ArchDefinePwr4 | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("power5",  ArchDefinePwr5 | ArchDefinePwr4 | ArchDefinePpcgr
-                       | ArchDefinePpcsq)
-    .Case("power5x", ArchDefinePwr5x | ArchDefinePwr5 | ArchDefinePwr4
-                       | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("power6",  ArchDefinePwr6 | ArchDefinePwr5x | ArchDefinePwr5
-                       | ArchDefinePwr4 | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("power6x", ArchDefinePwr6x | ArchDefinePwr6 | ArchDefinePwr5x
-                       | ArchDefinePwr5 | ArchDefinePwr4 | ArchDefinePpcgr
-                       | ArchDefinePpcsq)
-    .Case("power7",  ArchDefinePwr7 | ArchDefinePwr6x | ArchDefinePwr6
-                       | ArchDefinePwr5x | ArchDefinePwr5 | ArchDefinePwr4
-                       | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("power8",  ArchDefinePwr8 | ArchDefinePwr7 | ArchDefinePwr6x
-                       | ArchDefinePwr6 | ArchDefinePwr5x | ArchDefinePwr5
-                       | ArchDefinePwr4 | ArchDefinePpcgr | ArchDefinePpcsq)
-    .Case("power9",  ArchDefinePwr9 | ArchDefinePwr8 | ArchDefinePwr7
-                       | ArchDefinePwr6x | ArchDefinePwr6 | ArchDefinePwr5x
-                       | ArchDefinePwr5 | ArchDefinePwr4 | ArchDefinePpcgr
-                       | ArchDefinePpcsq)
-    .Default(ArchDefineNone);
+  ArchDefineTypes defs =
+      (ArchDefineTypes)llvm::StringSwitch<int>(CPU)
+          .Case("440", ArchDefineName)
+          .Case("450", ArchDefineName | ArchDefine440)
+          .Case("601", ArchDefineName)
+          .Case("602", ArchDefineName | ArchDefinePpcgr)
+          .Case("603", ArchDefineName | ArchDefinePpcgr)
+          .Case("603e", ArchDefineName | ArchDefine603 | ArchDefinePpcgr)
+          .Case("603ev", ArchDefineName | ArchDefine603 | ArchDefinePpcgr)
+          .Case("604", ArchDefineName | ArchDefinePpcgr)
+          .Case("604e", ArchDefineName | ArchDefine604 | ArchDefinePpcgr)
+          .Case("620", ArchDefineName | ArchDefinePpcgr)
+          .Case("630", ArchDefineName | ArchDefinePpcgr)
+          .Case("7400", ArchDefineName | ArchDefinePpcgr)
+          .Case("7450", ArchDefineName | ArchDefinePpcgr)
+          .Case("750", ArchDefineName | ArchDefinePpcgr)
+          .Case("970", ArchDefineName | ArchDefinePwr4 | ArchDefinePpcgr |
+                           ArchDefinePpcsq)
+          .Case("a2", ArchDefineA2)
+          .Case("a2q", ArchDefineName | ArchDefineA2 | ArchDefineA2q)
+          .Case("pwr3", ArchDefinePpcgr)
+          .Case("pwr4", ArchDefineName | ArchDefinePpcgr | ArchDefinePpcsq)
+          .Case("pwr5", ArchDefineName | ArchDefinePwr4 | ArchDefinePpcgr |
+                            ArchDefinePpcsq)
+          .Case("pwr5x", ArchDefineName | ArchDefinePwr5 | ArchDefinePwr4 |
+                             ArchDefinePpcgr | ArchDefinePpcsq)
+          .Case("pwr6", ArchDefineName | ArchDefinePwr5x | ArchDefinePwr5 |
+                            ArchDefinePwr4 | ArchDefinePpcgr | ArchDefinePpcsq)
+          .Case("pwr6x", ArchDefineName | ArchDefinePwr6 | ArchDefinePwr5x |
+                             ArchDefinePwr5 | ArchDefinePwr4 | ArchDefinePpcgr |
+                             ArchDefinePpcsq)
+          .Case("pwr7", ArchDefineName | ArchDefinePwr6x | ArchDefinePwr6 |
+                            ArchDefinePwr5x | ArchDefinePwr5 | ArchDefinePwr4 |
+                            ArchDefinePpcgr | ArchDefinePpcsq)
+          .Case("pwr8", ArchDefineName | ArchDefinePwr7 | ArchDefinePwr6x |
+                            ArchDefinePwr6 | ArchDefinePwr5x | ArchDefinePwr5 |
+                            ArchDefinePwr4 | ArchDefinePpcgr | ArchDefinePpcsq)
+          .Case("pwr9", ArchDefineName | ArchDefinePwr8 | ArchDefinePwr7 |
+                            ArchDefinePwr6x | ArchDefinePwr6 | ArchDefinePwr5x |
+                            ArchDefinePwr5 | ArchDefinePwr4 | ArchDefinePpcgr |
+                            ArchDefinePpcsq)
+          .Case("power3", ArchDefinePpcgr)
+          .Case("power4", ArchDefinePwr4 | ArchDefinePpcgr | ArchDefinePpcsq)
+          .Case("power5", ArchDefinePwr5 | ArchDefinePwr4 | ArchDefinePpcgr |
+                              ArchDefinePpcsq)
+          .Case("power5x", ArchDefinePwr5x | ArchDefinePwr5 | ArchDefinePwr4 |
+                               ArchDefinePpcgr | ArchDefinePpcsq)
+          .Case("power6", ArchDefinePwr6 | ArchDefinePwr5x | ArchDefinePwr5 |
+                              ArchDefinePwr4 | ArchDefinePpcgr |
+                              ArchDefinePpcsq)
+          .Case("power6x", ArchDefinePwr6x | ArchDefinePwr6 | ArchDefinePwr5x |
+                               ArchDefinePwr5 | ArchDefinePwr4 |
+                               ArchDefinePpcgr | ArchDefinePpcsq)
+          .Case("power7", ArchDefinePwr7 | ArchDefinePwr6x | ArchDefinePwr6 |
+                              ArchDefinePwr5x | ArchDefinePwr5 |
+                              ArchDefinePwr4 | ArchDefinePpcgr |
+                              ArchDefinePpcsq)
+          .Case("power8", ArchDefinePwr8 | ArchDefinePwr7 | ArchDefinePwr6x |
+                              ArchDefinePwr6 | ArchDefinePwr5x |
+                              ArchDefinePwr5 | ArchDefinePwr4 |
+                              ArchDefinePpcgr | ArchDefinePpcsq)
+          .Case("power9", ArchDefinePwr9 | ArchDefinePwr8 | ArchDefinePwr7 |
+                              ArchDefinePwr6x | ArchDefinePwr6 |
+                              ArchDefinePwr5x | ArchDefinePwr5 |
+                              ArchDefinePwr4 | ArchDefinePpcgr |
+                              ArchDefinePpcsq)
+          // powerpc64le automatically defaults to at least power8.
+          .Case("ppc64le", ArchDefinePwr8 | ArchDefinePwr7 | ArchDefinePwr6x |
+                               ArchDefinePwr6 | ArchDefinePwr5x |
+                               ArchDefinePwr5 | ArchDefinePwr4 |
+                               ArchDefinePpcgr | ArchDefinePpcsq)
+          .Default(ArchDefineNone);
 
   if (defs & ArchDefineName)
     Builder.defineMacro(Twine("_ARCH_", StringRef(CPU).upper()));
@@ -1343,6 +1374,10 @@ void PPCTargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro("__TOS_BGQ__");
   }
 
+  if (HasAltivec) {
+    Builder.defineMacro("__VEC__", "10206");
+    Builder.defineMacro("__ALTIVEC__");
+  }
   if (HasVSX)
     Builder.defineMacro("__VSX__");
   if (HasP8Vector)
@@ -1362,6 +1397,9 @@ void PPCTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (PointerWidth == 64)
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8");
 
+  // We have support for the bswap intrinsics so we can define this.
+  Builder.defineMacro("__HAVE_BSWAP__", "1");
+
   // FIXME: The following are not yet generated here by Clang, but are
   //        generated by GCC:
   //
@@ -1374,8 +1412,6 @@ void PPCTargetInfo::getTargetDefines(const LangOptions &Opts,
   //   __RSQRTEF__
   //   _SOFT_DOUBLE_
   //   __NO_LWSYNC__
-  //   __HAVE_BSWAP__
-  //   __LONGDOUBLE128
   //   __CMODEL_MEDIUM__
   //   __CMODEL_LARGE__
   //   _CALL_SYSV
@@ -1481,6 +1517,11 @@ bool PPCTargetInfo::initFeatureMap(
     .Case("pwr8", true)
     .Case("pwr7", true)
     .Default(false);
+  Features["htm"] = llvm::StringSwitch<bool>(CPU)
+    .Case("ppc64le", true)
+    .Case("pwr9", true)
+    .Case("pwr8", true)
+    .Default(false);
 
   if (!ppcUserFeaturesCheck(Diags, FeaturesVec))
     return false;
@@ -1490,44 +1531,47 @@ bool PPCTargetInfo::initFeatureMap(
 
 bool PPCTargetInfo::hasFeature(StringRef Feature) const {
   return llvm::StringSwitch<bool>(Feature)
-    .Case("powerpc", true)
-    .Case("vsx", HasVSX)
-    .Case("power8-vector", HasP8Vector)
-    .Case("crypto", HasP8Crypto)
-    .Case("direct-move", HasDirectMove)
-    .Case("qpx", HasQPX)
-    .Case("htm", HasHTM)
-    .Case("bpermd", HasBPERMD)
-    .Case("extdiv", HasExtDiv)
-    .Case("float128", HasFloat128)
-    .Case("power9-vector", HasP9Vector)
-    .Default(false);
+      .Case("powerpc", true)
+      .Case("altivec", HasAltivec)
+      .Case("vsx", HasVSX)
+      .Case("power8-vector", HasP8Vector)
+      .Case("crypto", HasP8Crypto)
+      .Case("direct-move", HasDirectMove)
+      .Case("qpx", HasQPX)
+      .Case("htm", HasHTM)
+      .Case("bpermd", HasBPERMD)
+      .Case("extdiv", HasExtDiv)
+      .Case("float128", HasFloat128)
+      .Case("power9-vector", HasP9Vector)
+      .Default(false);
 }
 
 void PPCTargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
                                       StringRef Name, bool Enabled) const {
-  // If we're enabling direct-move or power8-vector go ahead and enable vsx
-  // as well. Do the inverse if we're disabling vsx. We'll diagnose any user
-  // incompatible options.
   if (Enabled) {
-    if (Name == "direct-move" ||
-        Name == "power8-vector" ||
-        Name == "float128" ||
-        Name == "power9-vector") {
-      // power9-vector is really a superset of power8-vector so encode that.
-      Features[Name] = Features["vsx"] = true;
-      if (Name == "power9-vector")
-        Features["power8-vector"] = true;
-    } else {
-      Features[Name] = true;
-    }
+    // If we're enabling any of the vsx based features then enable vsx and
+    // altivec. We'll diagnose any problems later.
+    bool FeatureHasVSX = llvm::StringSwitch<bool>(Name)
+                             .Case("vsx", true)
+                             .Case("direct-move", true)
+                             .Case("power8-vector", true)
+                             .Case("power9-vector", true)
+                             .Case("float128", true)
+                             .Default(false);
+    if (FeatureHasVSX)
+      Features["vsx"] = Features["altivec"] = true;
+    if (Name == "power9-vector")
+      Features["power8-vector"] = true;
+    Features[Name] = true;
   } else {
-    if (Name == "vsx") {
-      Features[Name] = Features["direct-move"] = Features["power8-vector"] =
+    // If we're disabling altivec or vsx go ahead and disable all of the vsx
+    // features.
+    if ((Name == "altivec") || (Name == "vsx"))
+      Features["vsx"] = Features["direct-move"] = Features["power8-vector"] =
           Features["float128"] = Features["power9-vector"] = false;
-    } else {
-      Features[Name] = false;
-    }
+    if (Name == "power8-vector")
+      Features["power9-vector"] = false;
+    Features[Name] = false;
   }
 }
 
@@ -1718,7 +1762,6 @@ public:
     BoolWidth = BoolAlign = 32; //XXX support -mone-byte-bool?
     PtrDiffType = SignedInt; // for http://llvm.org/bugs/show_bug.cgi?id=15726
     LongLongAlign = 32;
-    SuitableAlign = 128;
     resetDataLayout("E-m:o-p:32:32-f64:32:64-n32");
   }
   BuiltinVaListKind getBuiltinVaListKind() const override {
@@ -1731,12 +1774,12 @@ public:
   DarwinPPC64TargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : DarwinTargetInfo<PPC64TargetInfo>(Triple, Opts) {
     HasAlignMac68kSupport = true;
-    SuitableAlign = 128;
     resetDataLayout("E-m:o-i64:64-n32:64");
   }
 };
 
 static const unsigned NVPTXAddrSpaceMap[] = {
+    0, // Default
     1, // opencl_global
     3, // opencl_local
     4, // opencl_constant
@@ -1990,14 +2033,25 @@ ArrayRef<const char *> NVPTXTargetInfo::getGCCRegNames() const {
   return llvm::makeArrayRef(GCCRegNames);
 }
 
-static const unsigned AMDGPUAddrSpaceMap[] = {
-  1,    // opencl_global
-  3,    // opencl_local
-  2,    // opencl_constant
-  4,    // opencl_generic
-  1,    // cuda_device
-  2,    // cuda_constant
-  3     // cuda_shared
+static const LangAS::Map AMDGPUPrivateIsZeroMap = {
+    4,  // Default
+    1,  // opencl_global
+    3,  // opencl_local
+    2,  // opencl_constant
+    4,  // opencl_generic
+    1,  // cuda_device
+    2,  // cuda_constant
+    3   // cuda_shared
+};
+static const LangAS::Map AMDGPUGenericIsZeroMap = {
+    0,  // Default
+    1,  // opencl_global
+    3,  // opencl_local
+    2,  // opencl_constant
+    0,  // opencl_generic
+    1,  // cuda_device
+    2,  // cuda_constant
+    3   // cuda_shared
 };
 
 // If you edit the description strings, make sure you update
@@ -2007,14 +2061,38 @@ static const char *const DataLayoutStringR600 =
   "e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128"
   "-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64";
 
-static const char *const DataLayoutStringSI =
+static const char *const DataLayoutStringSIPrivateIsZero =
   "e-p:32:32-p1:64:64-p2:64:64-p3:32:32-p4:64:64-p5:32:32"
   "-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128"
   "-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64";
 
+static const char *const DataLayoutStringSIGenericIsZero =
+  "e-p:64:64-p1:64:64-p2:64:64-p3:32:32-p4:32:32-p5:32:32"
+  "-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128"
+  "-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-A5";
+
 class AMDGPUTargetInfo final : public TargetInfo {
   static const Builtin::Info BuiltinInfo[];
   static const char * const GCCRegNames[];
+
+  struct AddrSpace {
+    unsigned Generic, Global, Local, Constant, Private;
+    AddrSpace(bool IsGenericZero_ = false){
+      if (IsGenericZero_) {
+        Generic   = 0;
+        Global    = 1;
+        Local     = 3;
+        Constant  = 2;
+        Private   = 5;
+      } else {
+        Generic   = 4;
+        Global    = 1;
+        Local     = 3;
+        Constant  = 2;
+        Private   = 0;
+      }
+    }
+  };
 
   /// \brief The GPU profiles supported by the AMDGPU target.
   enum GPUKind {
@@ -2029,18 +2107,27 @@ class AMDGPUTargetInfo final : public TargetInfo {
     GK_CAYMAN,
     GK_GFX6,
     GK_GFX7,
-    GK_GFX8
+    GK_GFX8,
+    GK_GFX9
   } GPU;
 
   bool hasFP64:1;
   bool hasFMAF:1;
   bool hasLDEXPF:1;
-  bool hasFullSpeedFP32Denorms:1;
+  const AddrSpace AS;
+
+  static bool hasFullSpeedFMAF32(StringRef GPUName) {
+    return parseAMDGCNName(GPUName) >= GK_GFX9;
+  }
 
   static bool isAMDGCN(const llvm::Triple &TT) {
     return TT.getArch() == llvm::Triple::amdgcn;
   }
 
+  static bool isGenericZero(const llvm::Triple &TT) {
+    return TT.getEnvironmentName() == "amdgiz" ||
+        TT.getEnvironmentName() == "amdgizcl";
+  }
 public:
   AMDGPUTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
     : TargetInfo(Triple) ,
@@ -2048,17 +2135,21 @@ public:
       hasFP64(false),
       hasFMAF(false),
       hasLDEXPF(false),
-      hasFullSpeedFP32Denorms(false){
+      AS(isGenericZero(Triple)){
     if (getTriple().getArch() == llvm::Triple::amdgcn) {
       hasFP64 = true;
       hasFMAF = true;
       hasLDEXPF = true;
     }
-
+    auto IsGenericZero = isGenericZero(Triple);
     resetDataLayout(getTriple().getArch() == llvm::Triple::amdgcn ?
-                    DataLayoutStringSI : DataLayoutStringR600);
+                    (IsGenericZero ? DataLayoutStringSIGenericIsZero :
+                        DataLayoutStringSIPrivateIsZero)
+                    : DataLayoutStringR600);
+    assert(DataLayout->getAllocaAddrSpace() == AS.Private);
 
-    AddrSpaceMap = &AMDGPUAddrSpaceMap;
+    AddrSpaceMap = IsGenericZero ? &AMDGPUGenericIsZeroMap :
+        &AMDGPUPrivateIsZeroMap;
     UseAddrSpaceMapMangling = true;
   }
 
@@ -2066,14 +2157,10 @@ public:
     if (GPU <= GK_CAYMAN)
       return 32;
 
-    switch(AddrSpace) {
-      default:
-        return 64;
-      case 0:
-      case 3:
-      case 5:
-        return 32;
+    if (AddrSpace == AS.Private || AddrSpace == AS.Local) {
+      return 32;
     }
+    return 64;
   }
 
   uint64_t getMaxPointerWidth() const override {
@@ -2113,15 +2200,16 @@ public:
     for (auto &I : TargetOpts.FeaturesAsWritten) {
       if (I == "+fp32-denormals" || I == "-fp32-denormals")
         hasFP32Denormals = true;
-      if (I == "+fp64-denormals" || I == "-fp64-denormals")
+      if (I == "+fp64-fp16-denormals" || I == "-fp64-fp16-denormals")
         hasFP64Denormals = true;
     }
     if (!hasFP32Denormals)
-      TargetOpts.Features.push_back((Twine(hasFullSpeedFP32Denorms &&
+      TargetOpts.Features.push_back(
+          (Twine(hasFullSpeedFMAF32(TargetOpts.CPU) &&
           !CGOpts.FlushDenorm ? '+' : '-') + Twine("fp32-denormals")).str());
-    // Always do not flush fp64 denorms.
+    // Always do not flush fp64 or fp16 denorms.
     if (!hasFP64Denormals && hasFP64)
-      TargetOpts.Features.push_back("+fp64-denormals");
+      TargetOpts.Features.push_back("+fp64-fp16-denormals");
   }
 
   ArrayRef<Builtin::Info> getTargetBuiltins() const override {
@@ -2206,6 +2294,8 @@ public:
       .Case("gfx803",    GK_GFX8)
       .Case("gfx804",    GK_GFX8)
       .Case("gfx810",    GK_GFX8)
+      .Case("gfx900",    GK_GFX9)
+      .Case("gfx901",    GK_GFX9)
       .Default(GK_NONE);
   }
 
@@ -2248,6 +2338,33 @@ public:
     return LangAS::opencl_constant;
   }
 
+  /// \returns Target specific vtbl ptr address space.
+  unsigned getVtblPtrAddressSpace() const override {
+    // \todo: We currently have address spaces defined in AMDGPU Backend. It
+    // would be nice if we could use it here instead of using bare numbers (same
+    // applies to getDWARFAddressSpace).
+    return 2; // constant.
+  }
+
+  /// \returns If a target requires an address within a target specific address
+  /// space \p AddressSpace to be converted in order to be used, then return the
+  /// corresponding target specific DWARF address space.
+  ///
+  /// \returns Otherwise return None and no conversion will be emitted in the
+  /// DWARF.
+  Optional<unsigned> getDWARFAddressSpace(
+      unsigned AddressSpace) const override {
+    const unsigned DWARF_Private = 1;
+    const unsigned DWARF_Local   = 2;
+    if (AddressSpace == AS.Private) {
+      return DWARF_Private;
+    } else if (AddressSpace == AS.Local) {
+      return DWARF_Local;
+    } else {
+      return None;
+    }
+  }
+
   CallingConvCheckResult checkCallingConvention(CallingConv CC) const override {
     switch (CC) {
       default:
@@ -2262,7 +2379,7 @@ public:
   // address space has value 0 but in private and local address space has
   // value ~0.
   uint64_t getNullPointerValue(unsigned AS) const override {
-    return AS != LangAS::opencl_local && AS != 0 ? 0 : ~0;
+    return AS == LangAS::opencl_local ? ~0 : 0;
   }
 };
 
@@ -2345,9 +2462,13 @@ bool AMDGPUTargetInfo::initFeatureMap(
     case GK_GFX7:
       break;
 
+    case GK_GFX9:
+      Features["gfx9-insts"] = true;
+      LLVM_FALLTHROUGH;
     case GK_GFX8:
       Features["s-memrealtime"] = true;
       Features["16-bit-insts"] = true;
+      Features["dpp"] = true;
       break;
 
     case GK_NONE:
@@ -2489,11 +2610,10 @@ class X86TargetInfo : public TargetInfo {
   bool HasXSAVEC = false;
   bool HasXSAVES = false;
   bool HasMWAITX = false;
+  bool HasCLZERO = false;
   bool HasPKU = false;
   bool HasCLFLUSHOPT = false;
-  bool HasPCOMMIT = false;
   bool HasCLWB = false;
-  bool HasUMIP = false;
   bool HasMOVBE = false;
   bool HasPREFETCHWT1 = false;
 
@@ -3067,8 +3187,7 @@ bool X86TargetInfo::initFeatureMap(
     setFeatureEnabledImpl(Features, "avx512ifma", true);
     setFeatureEnabledImpl(Features, "avx512vbmi", true);
     setFeatureEnabledImpl(Features, "sha", true);
-    setFeatureEnabledImpl(Features, "umip", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_SkylakeServer:
     setFeatureEnabledImpl(Features, "avx512f", true);
     setFeatureEnabledImpl(Features, "avx512cd", true);
@@ -3076,44 +3195,43 @@ bool X86TargetInfo::initFeatureMap(
     setFeatureEnabledImpl(Features, "avx512bw", true);
     setFeatureEnabledImpl(Features, "avx512vl", true);
     setFeatureEnabledImpl(Features, "pku", true);
-    setFeatureEnabledImpl(Features, "pcommit", true);
     setFeatureEnabledImpl(Features, "clwb", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_SkylakeClient:
     setFeatureEnabledImpl(Features, "xsavec", true);
     setFeatureEnabledImpl(Features, "xsaves", true);
     setFeatureEnabledImpl(Features, "mpx", true);
     setFeatureEnabledImpl(Features, "sgx", true);
     setFeatureEnabledImpl(Features, "clflushopt", true);
-    // FALLTHROUGH
+    setFeatureEnabledImpl(Features, "rtm", true);
+    LLVM_FALLTHROUGH;
   case CK_Broadwell:
     setFeatureEnabledImpl(Features, "rdseed", true);
     setFeatureEnabledImpl(Features, "adx", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_Haswell:
     setFeatureEnabledImpl(Features, "avx2", true);
     setFeatureEnabledImpl(Features, "lzcnt", true);
     setFeatureEnabledImpl(Features, "bmi", true);
     setFeatureEnabledImpl(Features, "bmi2", true);
-    setFeatureEnabledImpl(Features, "rtm", true);
     setFeatureEnabledImpl(Features, "fma", true);
     setFeatureEnabledImpl(Features, "movbe", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_IvyBridge:
     setFeatureEnabledImpl(Features, "rdrnd", true);
     setFeatureEnabledImpl(Features, "f16c", true);
     setFeatureEnabledImpl(Features, "fsgsbase", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_SandyBridge:
     setFeatureEnabledImpl(Features, "avx", true);
     setFeatureEnabledImpl(Features, "xsave", true);
     setFeatureEnabledImpl(Features, "xsaveopt", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_Westmere:
   case CK_Silvermont:
     setFeatureEnabledImpl(Features, "aes", true);
     setFeatureEnabledImpl(Features, "pclmul", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_Nehalem:
     setFeatureEnabledImpl(Features, "sse4.2", true);
     setFeatureEnabledImpl(Features, "fxsr", true);
@@ -3173,7 +3291,7 @@ bool X86TargetInfo::initFeatureMap(
     setFeatureEnabledImpl(Features, "sse4a", true);
     setFeatureEnabledImpl(Features, "lzcnt", true);
     setFeatureEnabledImpl(Features, "popcnt", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_K8SSE3:
   case CK_OpteronSSE3:
   case CK_Athlon64SSE3:
@@ -3188,7 +3306,7 @@ bool X86TargetInfo::initFeatureMap(
     setFeatureEnabledImpl(Features, "bmi", true);
     setFeatureEnabledImpl(Features, "f16c", true);
     setFeatureEnabledImpl(Features, "xsaveopt", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_BTVER1:
     setFeatureEnabledImpl(Features, "ssse3", true);
     setFeatureEnabledImpl(Features, "sse4a", true);
@@ -3205,6 +3323,7 @@ bool X86TargetInfo::initFeatureMap(
     setFeatureEnabledImpl(Features, "bmi", true);
     setFeatureEnabledImpl(Features, "bmi2", true);
     setFeatureEnabledImpl(Features, "clflushopt", true);
+    setFeatureEnabledImpl(Features, "clzero", true);
     setFeatureEnabledImpl(Features, "cx16", true);
     setFeatureEnabledImpl(Features, "f16c", true);
     setFeatureEnabledImpl(Features, "fma", true);
@@ -3229,17 +3348,17 @@ bool X86TargetInfo::initFeatureMap(
     setFeatureEnabledImpl(Features, "avx2", true);
     setFeatureEnabledImpl(Features, "bmi2", true);
     setFeatureEnabledImpl(Features, "mwaitx", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_BDVER3:
     setFeatureEnabledImpl(Features, "fsgsbase", true);
     setFeatureEnabledImpl(Features, "xsaveopt", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_BDVER2:
     setFeatureEnabledImpl(Features, "bmi", true);
     setFeatureEnabledImpl(Features, "fma", true);
     setFeatureEnabledImpl(Features, "f16c", true);
     setFeatureEnabledImpl(Features, "tbm", true);
-    // FALLTHROUGH
+    LLVM_FALLTHROUGH;
   case CK_BDVER1:
     // xop implies avx, sse4a and fma4.
     setFeatureEnabledImpl(Features, "xop", true);
@@ -3560,14 +3679,12 @@ bool X86TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasPKU = true;
     } else if (Feature == "+clflushopt") {
       HasCLFLUSHOPT = true;
-    } else if (Feature == "+pcommit") {
-      HasPCOMMIT = true;
     } else if (Feature == "+clwb") {
       HasCLWB = true;
-    } else if (Feature == "+umip") {
-      HasUMIP = true;
     } else if (Feature == "+prefetchwt1") {
       HasPREFETCHWT1 = true;
+    } else if (Feature == "+clzero") {
+      HasCLZERO = true;
     }
 
     X86SSEEnum Level = llvm::StringSwitch<X86SSEEnum>(Feature)
@@ -3885,6 +4002,18 @@ void X86TargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro("__PKU__");
   if (HasCX16)
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16");
+  if (HasCLFLUSHOPT)
+    Builder.defineMacro("__CLFLUSHOPT__");
+  if (HasCLWB)
+    Builder.defineMacro("__CLWB__");
+  if (HasMPX)
+    Builder.defineMacro("__MPX__");
+  if (HasSGX)
+    Builder.defineMacro("__SGX__");
+  if (HasPREFETCHWT1)
+    Builder.defineMacro("__PREFETCHWT1__");
+  if (HasCLZERO)
+    Builder.defineMacro("__CLZERO__");
 
   // Each case falls through to the previous one here.
   switch (SSELevel) {
@@ -3971,6 +4100,7 @@ bool X86TargetInfo::hasFeature(StringRef Feature) const {
       .Case("bmi2", HasBMI2)
       .Case("clflushopt", HasCLFLUSHOPT)
       .Case("clwb", HasCLWB)
+      .Case("clzero", HasCLZERO)
       .Case("cx16", HasCX16)
       .Case("f16c", HasF16C)
       .Case("fma", HasFMA)
@@ -3984,7 +4114,6 @@ bool X86TargetInfo::hasFeature(StringRef Feature) const {
       .Case("movbe", HasMOVBE)
       .Case("mpx", HasMPX)
       .Case("pclmul", HasPCLMUL)
-      .Case("pcommit", HasPCOMMIT)
       .Case("pku", HasPKU)
       .Case("popcnt", HasPOPCNT)
       .Case("prefetchwt1", HasPREFETCHWT1)
@@ -4002,7 +4131,6 @@ bool X86TargetInfo::hasFeature(StringRef Feature) const {
       .Case("sse4.2", SSELevel >= SSE42)
       .Case("sse4a", XOPLevel >= SSE4A)
       .Case("tbm", HasTBM)
-      .Case("umip", HasUMIP)
       .Case("x86", true)
       .Case("x86_32", getTriple().getArch() == llvm::Triple::x86)
       .Case("x86_64", getTriple().getArch() == llvm::Triple::x86_64)
@@ -5056,6 +5184,8 @@ class ARMTargetInfo : public TargetInfo {
       return "7M";
     case llvm::ARM::AK_ARMV7EM:
       return "7EM";
+    case llvm::ARM::AK_ARMV7VE:
+      return "7VE";
     case llvm::ARM::AK_ARMV8A:
       return "8A";
     case llvm::ARM::AK_ARMV8_1A:
@@ -5144,6 +5274,8 @@ public:
       default:
         if (Triple.getOS() == llvm::Triple::NetBSD)
           setABI("apcs-gnu");
+        else if (Triple.getOS() == llvm::Triple::OpenBSD)
+          setABI("aapcs-linux");
         else
           setABI("aapcs");
         break;
@@ -5925,7 +6057,8 @@ class AArch64TargetInfo : public TargetInfo {
 public:
   AArch64TargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : TargetInfo(Triple), ABI("aapcs") {
-    if (getTriple().getOS() == llvm::Triple::NetBSD) {
+    if (getTriple().getOS() == llvm::Triple::NetBSD ||
+        getTriple().getOS() == llvm::Triple::OpenBSD) {
       WCharType = SignedInt;
 
       // NetBSD apparently prefers consistency across ARM targets to consistency
@@ -5960,8 +6093,9 @@ public:
     // AArch64 targets default to using the ARM C++ ABI.
     TheCXXABI.set(TargetCXXABI::GenericAArch64);
 
-    if (Triple.getOS() == llvm::Triple::Linux ||
-        Triple.getOS() == llvm::Triple::UnknownOS)
+    if (Triple.getOS() == llvm::Triple::Linux)
+      this->MCountName = "\01_mcount";
+    else if (Triple.getOS() == llvm::Triple::UnknownOS)
       this->MCountName = Opts.EABIVersion == "gnu" ? "\01_mcount" : "mcount";
   }
 
@@ -6408,6 +6542,7 @@ public:
       .Case("hexagonv5", "5")
       .Case("hexagonv55", "55")
       .Case("hexagonv60", "60")
+      .Case("hexagonv62", "62")
       .Default(nullptr);
   }
 
@@ -6452,6 +6587,9 @@ void HexagonTargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro("__HEXAGON_ARCH__", "60");
     Builder.defineMacro("__QDSP6_V60__");
     Builder.defineMacro("__QDSP6_ARCH__", "60");
+  } else if (CPU == "hexagonv62") {
+    Builder.defineMacro("__HEXAGON_V62__");
+    Builder.defineMacro("__HEXAGON_ARCH__", "62");
   }
 
   if (hasFeature("hvx")) {
@@ -7037,6 +7175,15 @@ public:
     Builder.defineMacro("__zarch__");
     Builder.defineMacro("__LONG_DOUBLE_128__");
 
+    const std::string ISARev = llvm::StringSwitch<std::string>(CPU)
+                                   .Cases("arch8", "z10", "8")
+                                   .Cases("arch9", "z196", "9")
+                                   .Cases("arch10", "zEC12", "10")
+                                   .Cases("arch11", "z13", "11")
+                                   .Default("");
+    if (!ISARev.empty())
+      Builder.defineMacro("__ARCH__", ISARev);
+
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1");
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2");
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4");
@@ -7044,6 +7191,8 @@ public:
 
     if (HasTransactionalExecution)
       Builder.defineMacro("__HTM__");
+    if (HasVector)
+      Builder.defineMacro("__VX__");
     if (Opts.ZVector)
       Builder.defineMacro("__VEC__", "10301");
   }
@@ -7268,6 +7417,7 @@ ArrayRef<const char *> MSP430TargetInfo::getGCCRegNames() const {
 // publicly available in http://tce.cs.tut.fi
 
 static const unsigned TCEOpenCLAddrSpaceMap[] = {
+    0, // Default
     3, // opencl_global
     4, // opencl_local
     5, // opencl_constant
@@ -7434,6 +7584,8 @@ class MipsTargetInfo : public TargetInfo {
   bool IsMicromips;
   bool IsNan2008;
   bool IsSingleFloat;
+  bool IsNoABICalls;
+  bool CanUseBSDABICalls;
   enum MipsFloatABI {
     HardFloat, SoftFloat
   } FloatABI;
@@ -7449,8 +7601,9 @@ protected:
 public:
   MipsTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
       : TargetInfo(Triple), IsMips16(false), IsMicromips(false),
-        IsNan2008(false), IsSingleFloat(false), FloatABI(HardFloat),
-        DspRev(NoDSP), HasMSA(false), HasFP64(false) {
+        IsNan2008(false), IsSingleFloat(false), IsNoABICalls(false),
+        CanUseBSDABICalls(false), FloatABI(HardFloat), DspRev(NoDSP),
+        HasMSA(false), HasFP64(false) {
     TheCXXABI.set(TargetCXXABI::GenericMIPS);
 
     setABI((getTriple().getArch() == llvm::Triple::mips ||
@@ -7459,6 +7612,9 @@ public:
                : "n64");
 
     CPU = ABI == "o32" ? "mips32r2" : "mips64r2";
+
+    CanUseBSDABICalls = Triple.getOS() == llvm::Triple::FreeBSD ||
+                        Triple.getOS() == llvm::Triple::OpenBSD;
   }
 
   bool isNaN2008Default() const {
@@ -7535,7 +7691,11 @@ public:
 
   void setN64ABITypes() {
     setN32N64ABITypes();
-    Int64Type = SignedLong;
+    if (getTriple().getOS() == llvm::Triple::OpenBSD) {
+      Int64Type = SignedLongLong;
+    } else {
+      Int64Type = SignedLong;
+    }
     IntMaxType = Int64Type;
     LongWidth = LongAlign = 64;
     PointerWidth = PointerAlign = 64;
@@ -7638,6 +7798,12 @@ public:
       Builder.defineMacro("_MIPS_SIM", "_ABI64");
     } else
       llvm_unreachable("Invalid ABI.");
+
+    if (!IsNoABICalls) {
+      Builder.defineMacro("__mips_abicalls");
+      if (CanUseBSDABICalls)
+        Builder.defineMacro("__ABICALLS__");
+    }
 
     Builder.defineMacro("__REGISTER_PREFIX__", "");
 
@@ -7853,6 +8019,8 @@ public:
         IsNan2008 = true;
       else if (Feature == "-nan2008")
         IsNan2008 = false;
+      else if (Feature == "+noabicalls")
+        IsNoABICalls = true;
     }
 
     setDataLayout();
@@ -8216,6 +8384,7 @@ const Builtin::Info Le64TargetInfo::BuiltinInfo[] = {
 };
 
 static const unsigned SPIRAddrSpaceMap[] = {
+    0, // Default
     1, // opencl_global
     3, // opencl_local
     2, // opencl_constant
@@ -8435,6 +8604,254 @@ public:
   }
 };
 
+/// Information about a specific microcontroller.
+struct MCUInfo {
+  const char *Name;
+  const char *DefineName;
+};
+
+// This list should be kept up-to-date with AVRDevices.td in LLVM.
+static ArrayRef<MCUInfo> AVRMcus = {
+  { "at90s1200", "__AVR_AT90S1200__" },
+  { "attiny11", "__AVR_ATtiny11__" },
+  { "attiny12", "__AVR_ATtiny12__" },
+  { "attiny15", "__AVR_ATtiny15__" },
+  { "attiny28", "__AVR_ATtiny28__" },
+  { "at90s2313", "__AVR_AT90S2313__" },
+  { "at90s2323", "__AVR_AT90S2323__" },
+  { "at90s2333", "__AVR_AT90S2333__" },
+  { "at90s2343", "__AVR_AT90S2343__" },
+  { "attiny22", "__AVR_ATtiny22__" },
+  { "attiny26", "__AVR_ATtiny26__" },
+  { "at86rf401", "__AVR_AT86RF401__" },
+  { "at90s4414", "__AVR_AT90S4414__" },
+  { "at90s4433", "__AVR_AT90S4433__" },
+  { "at90s4434", "__AVR_AT90S4434__" },
+  { "at90s8515", "__AVR_AT90S8515__" },
+  { "at90c8534", "__AVR_AT90c8534__" },
+  { "at90s8535", "__AVR_AT90S8535__" },
+  { "ata5272", "__AVR_ATA5272__" },
+  { "attiny13", "__AVR_ATtiny13__" },
+  { "attiny13a", "__AVR_ATtiny13A__" },
+  { "attiny2313", "__AVR_ATtiny2313__" },
+  { "attiny2313a", "__AVR_ATtiny2313A__" },
+  { "attiny24", "__AVR_ATtiny24__" },
+  { "attiny24a", "__AVR_ATtiny24A__" },
+  { "attiny4313", "__AVR_ATtiny4313__" },
+  { "attiny44", "__AVR_ATtiny44__" },
+  { "attiny44a", "__AVR_ATtiny44A__" },
+  { "attiny84", "__AVR_ATtiny84__" },
+  { "attiny84a", "__AVR_ATtiny84A__" },
+  { "attiny25", "__AVR_ATtiny25__" },
+  { "attiny45", "__AVR_ATtiny45__" },
+  { "attiny85", "__AVR_ATtiny85__" },
+  { "attiny261", "__AVR_ATtiny261__" },
+  { "attiny261a", "__AVR_ATtiny261A__" },
+  { "attiny461", "__AVR_ATtiny461__" },
+  { "attiny461a", "__AVR_ATtiny461A__" },
+  { "attiny861", "__AVR_ATtiny861__" },
+  { "attiny861a", "__AVR_ATtiny861A__" },
+  { "attiny87", "__AVR_ATtiny87__" },
+  { "attiny43u", "__AVR_ATtiny43U__" },
+  { "attiny48", "__AVR_ATtiny48__" },
+  { "attiny88", "__AVR_ATtiny88__" },
+  { "attiny828", "__AVR_ATtiny828__" },
+  { "at43usb355", "__AVR_AT43USB355__" },
+  { "at76c711", "__AVR_AT76C711__" },
+  { "atmega103", "__AVR_ATmega103__" },
+  { "at43usb320", "__AVR_AT43USB320__" },
+  { "attiny167", "__AVR_ATtiny167__" },
+  { "at90usb82", "__AVR_AT90USB82__" },
+  { "at90usb162", "__AVR_AT90USB162__" },
+  { "ata5505", "__AVR_ATA5505__" },
+  { "atmega8u2", "__AVR_ATmega8U2__" },
+  { "atmega16u2", "__AVR_ATmega16U2__" },
+  { "atmega32u2", "__AVR_ATmega32U2__" },
+  { "attiny1634", "__AVR_ATtiny1634__" },
+  { "atmega8", "__AVR_ATmega8__" },
+  { "ata6289", "__AVR_ATA6289__" },
+  { "atmega8a", "__AVR_ATmega8A__" },
+  { "ata6285", "__AVR_ATA6285__" },
+  { "ata6286", "__AVR_ATA6286__" },
+  { "atmega48", "__AVR_ATmega48__" },
+  { "atmega48a", "__AVR_ATmega48A__" },
+  { "atmega48pa", "__AVR_ATmega48PA__" },
+  { "atmega48p", "__AVR_ATmega48P__" },
+  { "atmega88", "__AVR_ATmega88__" },
+  { "atmega88a", "__AVR_ATmega88A__" },
+  { "atmega88p", "__AVR_ATmega88P__" },
+  { "atmega88pa", "__AVR_ATmega88PA__" },
+  { "atmega8515", "__AVR_ATmega8515__" },
+  { "atmega8535", "__AVR_ATmega8535__" },
+  { "atmega8hva", "__AVR_ATmega8HVA__" },
+  { "at90pwm1", "__AVR_AT90PWM1__" },
+  { "at90pwm2", "__AVR_AT90PWM2__" },
+  { "at90pwm2b", "__AVR_AT90PWM2B__" },
+  { "at90pwm3", "__AVR_AT90PWM3__" },
+  { "at90pwm3b", "__AVR_AT90PWM3B__" },
+  { "at90pwm81", "__AVR_AT90PWM81__" },
+  { "ata5790", "__AVR_ATA5790__" },
+  { "ata5795", "__AVR_ATA5795__" },
+  { "atmega16", "__AVR_ATmega16__" },
+  { "atmega16a", "__AVR_ATmega16A__" },
+  { "atmega161", "__AVR_ATmega161__" },
+  { "atmega162", "__AVR_ATmega162__" },
+  { "atmega163", "__AVR_ATmega163__" },
+  { "atmega164a", "__AVR_ATmega164A__" },
+  { "atmega164p", "__AVR_ATmega164P__" },
+  { "atmega164pa", "__AVR_ATmega164PA__" },
+  { "atmega165", "__AVR_ATmega165__" },
+  { "atmega165a", "__AVR_ATmega165A__" },
+  { "atmega165p", "__AVR_ATmega165P__" },
+  { "atmega165pa", "__AVR_ATmega165PA__" },
+  { "atmega168", "__AVR_ATmega168__" },
+  { "atmega168a", "__AVR_ATmega168A__" },
+  { "atmega168p", "__AVR_ATmega168P__" },
+  { "atmega168pa", "__AVR_ATmega168PA__" },
+  { "atmega169", "__AVR_ATmega169__" },
+  { "atmega169a", "__AVR_ATmega169A__" },
+  { "atmega169p", "__AVR_ATmega169P__" },
+  { "atmega169pa", "__AVR_ATmega169PA__" },
+  { "atmega32", "__AVR_ATmega32__" },
+  { "atmega32a", "__AVR_ATmega32A__" },
+  { "atmega323", "__AVR_ATmega323__" },
+  { "atmega324a", "__AVR_ATmega324A__" },
+  { "atmega324p", "__AVR_ATmega324P__" },
+  { "atmega324pa", "__AVR_ATmega324PA__" },
+  { "atmega325", "__AVR_ATmega325__" },
+  { "atmega325a", "__AVR_ATmega325A__" },
+  { "atmega325p", "__AVR_ATmega325P__" },
+  { "atmega325pa", "__AVR_ATmega325PA__" },
+  { "atmega3250", "__AVR_ATmega3250__" },
+  { "atmega3250a", "__AVR_ATmega3250A__" },
+  { "atmega3250p", "__AVR_ATmega3250P__" },
+  { "atmega3250pa", "__AVR_ATmega3250PA__" },
+  { "atmega328", "__AVR_ATmega328__" },
+  { "atmega328p", "__AVR_ATmega328P__" },
+  { "atmega329", "__AVR_ATmega329__" },
+  { "atmega329a", "__AVR_ATmega329A__" },
+  { "atmega329p", "__AVR_ATmega329P__" },
+  { "atmega329pa", "__AVR_ATmega329PA__" },
+  { "atmega3290", "__AVR_ATmega3290__" },
+  { "atmega3290a", "__AVR_ATmega3290A__" },
+  { "atmega3290p", "__AVR_ATmega3290P__" },
+  { "atmega3290pa", "__AVR_ATmega3290PA__" },
+  { "atmega406", "__AVR_ATmega406__" },
+  { "atmega64", "__AVR_ATmega64__" },
+  { "atmega64a", "__AVR_ATmega64A__" },
+  { "atmega640", "__AVR_ATmega640__" },
+  { "atmega644", "__AVR_ATmega644__" },
+  { "atmega644a", "__AVR_ATmega644A__" },
+  { "atmega644p", "__AVR_ATmega644P__" },
+  { "atmega644pa", "__AVR_ATmega644PA__" },
+  { "atmega645", "__AVR_ATmega645__" },
+  { "atmega645a", "__AVR_ATmega645A__" },
+  { "atmega645p", "__AVR_ATmega645P__" },
+  { "atmega649", "__AVR_ATmega649__" },
+  { "atmega649a", "__AVR_ATmega649A__" },
+  { "atmega649p", "__AVR_ATmega649P__" },
+  { "atmega6450", "__AVR_ATmega6450__" },
+  { "atmega6450a", "__AVR_ATmega6450A__" },
+  { "atmega6450p", "__AVR_ATmega6450P__" },
+  { "atmega6490", "__AVR_ATmega6490__" },
+  { "atmega6490a", "__AVR_ATmega6490A__" },
+  { "atmega6490p", "__AVR_ATmega6490P__" },
+  { "atmega64rfr2", "__AVR_ATmega64RFR2__" },
+  { "atmega644rfr2", "__AVR_ATmega644RFR2__" },
+  { "atmega16hva", "__AVR_ATmega16HVA__" },
+  { "atmega16hva2", "__AVR_ATmega16HVA2__" },
+  { "atmega16hvb", "__AVR_ATmega16HVB__" },
+  { "atmega16hvbrevb", "__AVR_ATmega16HVBREVB__" },
+  { "atmega32hvb", "__AVR_ATmega32HVB__" },
+  { "atmega32hvbrevb", "__AVR_ATmega32HVBREVB__" },
+  { "atmega64hve", "__AVR_ATmega64HVE__" },
+  { "at90can32", "__AVR_AT90CAN32__" },
+  { "at90can64", "__AVR_AT90CAN64__" },
+  { "at90pwm161", "__AVR_AT90PWM161__" },
+  { "at90pwm216", "__AVR_AT90PWM216__" },
+  { "at90pwm316", "__AVR_AT90PWM316__" },
+  { "atmega32c1", "__AVR_ATmega32C1__" },
+  { "atmega64c1", "__AVR_ATmega64C1__" },
+  { "atmega16m1", "__AVR_ATmega16M1__" },
+  { "atmega32m1", "__AVR_ATmega32M1__" },
+  { "atmega64m1", "__AVR_ATmega64M1__" },
+  { "atmega16u4", "__AVR_ATmega16U4__" },
+  { "atmega32u4", "__AVR_ATmega32U4__" },
+  { "atmega32u6", "__AVR_ATmega32U6__" },
+  { "at90usb646", "__AVR_AT90USB646__" },
+  { "at90usb647", "__AVR_AT90USB647__" },
+  { "at90scr100", "__AVR_AT90SCR100__" },
+  { "at94k", "__AVR_AT94K__" },
+  { "m3000", "__AVR_AT000__" },
+  { "atmega128", "__AVR_ATmega128__" },
+  { "atmega128a", "__AVR_ATmega128A__" },
+  { "atmega1280", "__AVR_ATmega1280__" },
+  { "atmega1281", "__AVR_ATmega1281__" },
+  { "atmega1284", "__AVR_ATmega1284__" },
+  { "atmega1284p", "__AVR_ATmega1284P__" },
+  { "atmega128rfa1", "__AVR_ATmega128RFA1__" },
+  { "atmega128rfr2", "__AVR_ATmega128RFR2__" },
+  { "atmega1284rfr2", "__AVR_ATmega1284RFR2__" },
+  { "at90can128", "__AVR_AT90CAN128__" },
+  { "at90usb1286", "__AVR_AT90USB1286__" },
+  { "at90usb1287", "__AVR_AT90USB1287__" },
+  { "atmega2560", "__AVR_ATmega2560__" },
+  { "atmega2561", "__AVR_ATmega2561__" },
+  { "atmega256rfr2", "__AVR_ATmega256RFR2__" },
+  { "atmega2564rfr2", "__AVR_ATmega2564RFR2__" },
+  { "atxmega16a4", "__AVR_ATxmega16A4__" },
+  { "atxmega16a4u", "__AVR_ATxmega16a4U__" },
+  { "atxmega16c4", "__AVR_ATxmega16C4__" },
+  { "atxmega16d4", "__AVR_ATxmega16D4__" },
+  { "atxmega32a4", "__AVR_ATxmega32A4__" },
+  { "atxmega32a4u", "__AVR_ATxmega32A4U__" },
+  { "atxmega32c4", "__AVR_ATxmega32C4__" },
+  { "atxmega32d4", "__AVR_ATxmega32D4__" },
+  { "atxmega32e5", "__AVR_ATxmega32E5__" },
+  { "atxmega16e5", "__AVR_ATxmega16E5__" },
+  { "atxmega8e5", "__AVR_ATxmega8E5__" },
+  { "atxmega32x1", "__AVR_ATxmega32X1__" },
+  { "atxmega64a3", "__AVR_ATxmega64A3__" },
+  { "atxmega64a3u", "__AVR_ATxmega64A3U__" },
+  { "atxmega64a4u", "__AVR_ATxmega64A4U__" },
+  { "atxmega64b1", "__AVR_ATxmega64B1__" },
+  { "atxmega64b3", "__AVR_ATxmega64B3__" },
+  { "atxmega64c3", "__AVR_ATxmega64C3__" },
+  { "atxmega64d3", "__AVR_ATxmega64D3__" },
+  { "atxmega64d4", "__AVR_ATxmega64D4__" },
+  { "atxmega64a1", "__AVR_ATxmega64A1__" },
+  { "atxmega64a1u", "__AVR_ATxmega64A1U__" },
+  { "atxmega128a3", "__AVR_ATxmega128A3__" },
+  { "atxmega128a3u", "__AVR_ATxmega128A3U__" },
+  { "atxmega128b1", "__AVR_ATxmega128B1__" },
+  { "atxmega128b3", "__AVR_ATxmega128B3__" },
+  { "atxmega128c3", "__AVR_ATxmega128C3__" },
+  { "atxmega128d3", "__AVR_ATxmega128D3__" },
+  { "atxmega128d4", "__AVR_ATxmega128D4__" },
+  { "atxmega192a3", "__AVR_ATxmega192A3__" },
+  { "atxmega192a3u", "__AVR_ATxmega192A3U__" },
+  { "atxmega192c3", "__AVR_ATxmega192C3__" },
+  { "atxmega192d3", "__AVR_ATxmega192D3__" },
+  { "atxmega256a3", "__AVR_ATxmega256A3__" },
+  { "atxmega256a3u", "__AVR_ATxmega256A3U__" },
+  { "atxmega256a3b", "__AVR_ATxmega256A3B__" },
+  { "atxmega256a3bu", "__AVR_ATxmega256A3BU__" },
+  { "atxmega256c3", "__AVR_ATxmega256C3__" },
+  { "atxmega256d3", "__AVR_ATxmega256D3__" },
+  { "atxmega384c3", "__AVR_ATxmega384C3__" },
+  { "atxmega384d3", "__AVR_ATxmega384D3__" },
+  { "atxmega128a1", "__AVR_ATxmega128A1__" },
+  { "atxmega128a1u", "__AVR_ATxmega128A1U__" },
+  { "atxmega128a4u", "__AVR_ATxmega128a4U__" },
+  { "attiny4", "__AVR_ATtiny4__" },
+  { "attiny5", "__AVR_ATtiny5__" },
+  { "attiny9", "__AVR_ATtiny9__" },
+  { "attiny10", "__AVR_ATtiny10__" },
+  { "attiny20", "__AVR_ATtiny20__" },
+  { "attiny40", "__AVR_ATtiny40__" },
+  { "attiny102", "__AVR_ATtiny102__" },
+  { "attiny104", "__AVR_ATtiny104__" },
+};
 
 // AVR Target
 class AVRTargetInfo : public TargetInfo {
@@ -8476,7 +8893,17 @@ public:
 
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override {
+    Builder.defineMacro("AVR");
+    Builder.defineMacro("__AVR");
     Builder.defineMacro("__AVR__");
+
+    if (!this->CPU.empty()) {
+      auto It = std::find_if(AVRMcus.begin(), AVRMcus.end(),
+        [&](const MCUInfo &Info) { return Info.Name == this->CPU; });
+
+      if (It != AVRMcus.end())
+        Builder.defineMacro(It->DefineName);
+    }
   }
 
   ArrayRef<Builtin::Info> getTargetBuiltins() const override {
@@ -8517,6 +8944,57 @@ public:
 
   bool validateAsmConstraint(const char *&Name,
                              TargetInfo::ConstraintInfo &Info) const override {
+    // There aren't any multi-character AVR specific constraints.
+    if (StringRef(Name).size() > 1) return false;
+
+    switch (*Name) {
+      default: return false;
+      case 'a': // Simple upper registers
+      case 'b': // Base pointer registers pairs
+      case 'd': // Upper register
+      case 'l': // Lower registers
+      case 'e': // Pointer register pairs
+      case 'q': // Stack pointer register
+      case 'r': // Any register
+      case 'w': // Special upper register pairs
+      case 't': // Temporary register
+      case 'x': case 'X': // Pointer register pair X
+      case 'y': case 'Y': // Pointer register pair Y
+      case 'z': case 'Z': // Pointer register pair Z
+        Info.setAllowsRegister();
+        return true;
+      case 'I': // 6-bit positive integer constant
+        Info.setRequiresImmediate(0, 63);
+        return true;
+      case 'J': // 6-bit negative integer constant
+        Info.setRequiresImmediate(-63, 0);
+        return true;
+      case 'K': // Integer constant (Range: 2)
+        Info.setRequiresImmediate(2);
+        return true;
+      case 'L': // Integer constant (Range: 0)
+        Info.setRequiresImmediate(0);
+        return true;
+      case 'M': // 8-bit integer constant
+        Info.setRequiresImmediate(0, 0xff);
+        return true;
+      case 'N': // Integer constant (Range: -1)
+        Info.setRequiresImmediate(-1);
+        return true;
+      case 'O': // Integer constant (Range: 8, 16, 24)
+        Info.setRequiresImmediate({8, 16, 24});
+        return true;
+      case 'P': // Integer constant (Range: 1)
+        Info.setRequiresImmediate(1);
+        return true;
+      case 'R': // Integer constant (Range: -6 to 5)
+        Info.setRequiresImmediate(-6, 5);
+        return true;
+      case 'G': // Floating point constant
+      case 'Q': // A memory address based on Y or Z pointer with displacement.
+        return true;
+    }
+
     return false;
   }
 
@@ -8534,6 +9012,41 @@ public:
                ? (IsSigned ? SignedInt : UnsignedInt)
                : TargetInfo::getLeastIntTypeByWidth(BitWidth, IsSigned);
   }
+
+  bool setCPU(const std::string &Name) override {
+    bool IsFamily = llvm::StringSwitch<bool>(Name)
+      .Case("avr1", true)
+      .Case("avr2", true)
+      .Case("avr25", true)
+      .Case("avr3", true)
+      .Case("avr31", true)
+      .Case("avr35", true)
+      .Case("avr4", true)
+      .Case("avr5", true)
+      .Case("avr51", true)
+      .Case("avr6", true)
+      .Case("avrxmega1", true)
+      .Case("avrxmega2", true)
+      .Case("avrxmega3", true)
+      .Case("avrxmega4", true)
+      .Case("avrxmega5", true)
+      .Case("avrxmega6", true)
+      .Case("avrxmega7", true)
+      .Case("avrtiny", true)
+      .Default(false);
+
+    if (IsFamily) this->CPU = Name;
+
+    bool IsMCU = std::find_if(AVRMcus.begin(), AVRMcus.end(),
+      [&](const MCUInfo &Info) { return Info.Name == Name; }) != AVRMcus.end();
+
+    if (IsMCU) this->CPU = Name;
+
+    return IsFamily || IsMCU;
+  }
+
+protected:
+  std::string CPU;
 };
 
 } // end anonymous namespace
@@ -8574,6 +9087,8 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new LinuxTargetInfo<AArch64leTargetInfo>(Triple, Opts);
     case llvm::Triple::NetBSD:
       return new NetBSDTargetInfo<AArch64leTargetInfo>(Triple, Opts);
+    case llvm::Triple::OpenBSD:
+      return new OpenBSDTargetInfo<AArch64leTargetInfo>(Triple, Opts);
     default:
       return new AArch64leTargetInfo(Triple, Opts);
     }
@@ -8604,8 +9119,6 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new LinuxTargetInfo<ARMleTargetInfo>(Triple, Opts);
     case llvm::Triple::FreeBSD:
       return new FreeBSDTargetInfo<ARMleTargetInfo>(Triple, Opts);
-    case llvm::Triple::Fuchsia:
-      return new FuchsiaTargetInfo<ARMleTargetInfo>(Triple, Opts);
     case llvm::Triple::NetBSD:
       return new NetBSDTargetInfo<ARMleTargetInfo>(Triple, Opts);
     case llvm::Triple::OpenBSD:
@@ -8642,8 +9155,6 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new LinuxTargetInfo<ARMbeTargetInfo>(Triple, Opts);
     case llvm::Triple::FreeBSD:
       return new FreeBSDTargetInfo<ARMbeTargetInfo>(Triple, Opts);
-    case llvm::Triple::Fuchsia:
-      return new FuchsiaTargetInfo<ARMbeTargetInfo>(Triple, Opts);
     case llvm::Triple::NetBSD:
       return new NetBSDTargetInfo<ARMbeTargetInfo>(Triple, Opts);
     case llvm::Triple::OpenBSD:
@@ -8879,8 +9390,6 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new BitrigI386TargetInfo(Triple, Opts);
     case llvm::Triple::FreeBSD:
       return new FreeBSDTargetInfo<X86_32TargetInfo>(Triple, Opts);
-    case llvm::Triple::Fuchsia:
-      return new FuchsiaTargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::KFreeBSD:
       return new KFreeBSDTargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::Minix:
@@ -8976,11 +9485,19 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple,
     return new SPIR64TargetInfo(Triple, Opts);
   }
   case llvm::Triple::wasm32:
-    if (!(Triple == llvm::Triple("wasm32-unknown-unknown")))
+    if (Triple.getSubArch() != llvm::Triple::NoSubArch ||
+        Triple.getVendor() != llvm::Triple::UnknownVendor ||
+        Triple.getOS() != llvm::Triple::UnknownOS ||
+        Triple.getEnvironment() != llvm::Triple::UnknownEnvironment ||
+        !(Triple.isOSBinFormatELF() || Triple.isOSBinFormatWasm()))
       return nullptr;
     return new WebAssemblyOSTargetInfo<WebAssembly32TargetInfo>(Triple, Opts);
   case llvm::Triple::wasm64:
-    if (!(Triple == llvm::Triple("wasm64-unknown-unknown")))
+    if (Triple.getSubArch() != llvm::Triple::NoSubArch ||
+        Triple.getVendor() != llvm::Triple::UnknownVendor ||
+        Triple.getOS() != llvm::Triple::UnknownOS ||
+        Triple.getEnvironment() != llvm::Triple::UnknownEnvironment ||
+        !(Triple.isOSBinFormatELF() || Triple.isOSBinFormatWasm()))
       return nullptr;
     return new WebAssemblyOSTargetInfo<WebAssembly64TargetInfo>(Triple, Opts);
 

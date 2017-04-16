@@ -117,6 +117,57 @@ def note_module_odr_violation_different_definitions : Note<
 def err_module_odr_violation_different_instantiations : Error<
   "instantiation of %q0 is different in different modules">;
 
+def err_module_odr_violation_mismatch_decl : Error<
+  "%q0 has different definitions in different modules; first difference is "
+  "%select{definition in module '%2'|defined here}1 found "
+  "%select{end of class|public access specifier|private access specifier|"
+  "protected access specifier|static assert|field|method}3">;
+def note_module_odr_violation_mismatch_decl : Note<"but in '%0' found "
+  "%select{end of class|public access specifier|private access specifier|"
+  "protected access specifier|static assert|field|method}1">;
+
+def err_module_odr_violation_mismatch_decl_diff : Error<
+  "%q0 has different definitions in different modules; first difference is "
+  "%select{definition in module '%2'|defined here}1 found "
+  "%select{"
+  "static assert with condition|"
+  "static assert with message|"
+  "static assert with %select{|no }4message|"
+  "field %4|"
+  "field %4 with type %5|"
+  "%select{non-|}5bitfield %4|"
+  "bitfield %4 with one width expression|"
+  "%select{non-|}5mutable field %4|"
+  "field %4 with %select{no|an}5 initalizer|"
+  "field %4 with an initializer|"
+  "method %4|"
+  "method %4 is %select{not deleted|deleted}5|"
+  "method %4 is %select{|pure }5%select{not virtual|virtual}6|"
+  "method %4 is %select{not static|static}5|"
+  "method %4 is %select{not volatile|volatile}5|"
+  "method %4 is %select{not const|const}5|"
+  "method %4 is %select{not inline|inline}5}3">;
+
+def note_module_odr_violation_mismatch_decl_diff : Note<"but in '%0' found "
+  "%select{"
+  "static assert with different condition|"
+  "static assert with different message|"
+  "static assert with %select{|no }2message|"
+  "field %2|"
+  "field %2 with type %3|"
+  "%select{non-|}3bitfield %2|"
+  "bitfield %2 with different width expression|"
+  "%select{non-|}3mutable field %2|"
+  "field %2 with %select{no|an}3 initializer|"
+  "field %2 with a different initializer|"
+  "method %2|"
+  "method %2 is %select{not deleted|deleted}3|"
+  "method %2 is %select{|pure }3%select{not virtual|virtual}4|"
+  "method %2 is %select{not static|static}3|"
+  "method %2 is %select{not volatile|volatile}3|"
+  "method %2 is %select{not const|const}3|"
+  "method %2 is %select{not inline|inline}3}1">;
+
 def warn_module_uses_date_time : Warning<
   "%select{precompiled header|module}0 uses __DATE__ or __TIME__">,
   InGroup<DiagGroup<"pch-date-time">>;
@@ -124,6 +175,11 @@ def warn_module_uses_date_time : Warning<
 def warn_duplicate_module_file_extension : Warning<
   "duplicate module file extension block name '%0'">,
   InGroup<ModuleFileExtension>;
+
+def warn_module_system_bit_conflict : Warning<
+  "module file '%0' was validated as a system module and is now being imported "
+  "as a non-system module; any difference in diagnostic options will be ignored">,
+  InGroup<ModuleConflict>;
 
 } // let CategoryName
 } // let Component

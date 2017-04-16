@@ -464,6 +464,7 @@ void DeclPrinter::VisitRecordDecl(RecordDecl *D) {
 
 void DeclPrinter::VisitEnumConstantDecl(EnumConstantDecl *D) {
   Out << *D;
+  prettyPrintAttributes(D);
   if (Expr *Init = D->getInitExpr()) {
     Out << " = ";
     Init->printPretty(Out, nullptr, Policy, Indentation);
@@ -480,6 +481,7 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
 
   CXXConstructorDecl *CDecl = dyn_cast<CXXConstructorDecl>(D);
   CXXConversionDecl *ConversionDecl = dyn_cast<CXXConversionDecl>(D);
+  CXXDeductionGuideDecl *GuideDecl = dyn_cast<CXXDeductionGuideDecl>(D);
   if (!Policy.SuppressSpecifiers) {
     switch (D->getStorageClass()) {
     case SC_None: break;
@@ -495,13 +497,23 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
     if (D->isModulePrivate())    Out << "__module_private__ ";
     if (D->isConstexpr() && !D->isExplicitlyDefaulted()) Out << "constexpr ";
     if ((CDecl && CDecl->isExplicitSpecified()) ||
-        (ConversionDecl && ConversionDecl->isExplicit()))
+        (ConversionDecl && ConversionDecl->isExplicitSpecified()) ||
+        (GuideDecl && GuideDecl->isExplicitSpecified()))
       Out << "explicit ";
   }
 
   PrintingPolicy SubPolicy(Policy);
   SubPolicy.SuppressSpecifiers = false;
-  std::string Proto = D->getNameInfo().getAsString();
+  std::string Proto;
+  if (!Policy.SuppressScope) {
+    if (const NestedNameSpecifier *NS = D->getQualifier()) {
+      llvm::raw_string_ostream OS(Proto);
+      NS->print(OS, Policy);
+    }
+  }
+  Proto += D->getNameInfo().getAsString();
+  if (GuideDecl)
+    Proto = GuideDecl->getDeducedTemplate()->getDeclName().getAsString();
   if (const TemplateArgumentList *TArgs = D->getTemplateSpecializationArgs()) {
     llvm::raw_string_ostream POut(Proto);
     DeclPrinter TArgPrinter(POut, SubPolicy, Indentation);
@@ -651,7 +663,9 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
       }
     } else if (!ConversionDecl && !isa<CXXDestructorDecl>(D)) {
       if (FT && FT->hasTrailingReturn()) {
-        Out << "auto " << Proto << " -> ";
+        if (!GuideDecl)
+          Out << "auto ";
+        Out << Proto << " -> ";
         Proto.clear();
       }
       AFT->getReturnType().print(Out, Policy, Proto);
@@ -1043,7 +1057,10 @@ void DeclPrinter::VisitFunctionTemplateDecl(FunctionTemplateDecl *D) {
   prettyPrintPragmas(D->getTemplatedDecl());
   VisitRedeclarableTemplateDecl(D);
 
-  if (PrintInstantiation) {
+  // Never print "instantiations" for deduction guides (they don't really
+  // have them).
+  if (PrintInstantiation &&
+      !isa<CXXDeductionGuideDecl>(D->getTemplatedDecl())) {
     FunctionDecl *PrevDecl = D->getTemplatedDecl();
     const FunctionDecl *Def;
     if (PrevDecl->isDefined(Def) && Def != PrevDecl)

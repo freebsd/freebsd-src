@@ -1197,6 +1197,39 @@ static bool is32Or64BitBasicType(QualType Ty, ASTContext &Context) {
   return Size == 32 || Size == 64;
 }
 
+static bool addFieldSizes(ASTContext &Context, const RecordDecl *RD,
+                          uint64_t &Size) {
+  for (const auto *FD : RD->fields()) {
+    // Scalar arguments on the stack get 4 byte alignment on x86. If the
+    // argument is smaller than 32-bits, expanding the struct will create
+    // alignment padding.
+    if (!is32Or64BitBasicType(FD->getType(), Context))
+      return false;
+
+    // FIXME: Reject bit-fields wholesale; there are two problems, we don't know
+    // how to expand them yet, and the predicate for telling if a bitfield still
+    // counts as "basic" is more complicated than what we were doing previously.
+    if (FD->isBitField())
+      return false;
+
+    Size += Context.getTypeSize(FD->getType());
+  }
+  return true;
+}
+
+static bool addBaseAndFieldSizes(ASTContext &Context, const CXXRecordDecl *RD,
+                                 uint64_t &Size) {
+  // Don't do this if there are any non-empty bases.
+  for (const CXXBaseSpecifier &Base : RD->bases()) {
+    if (!addBaseAndFieldSizes(Context, Base.getType()->getAsCXXRecordDecl(),
+                              Size))
+      return false;
+  }
+  if (!addFieldSizes(Context, RD, Size))
+    return false;
+  return true;
+}
+
 /// Test whether an argument type which is to be passed indirectly (on the
 /// stack) would have the equivalent layout if it was expanded into separate
 /// arguments. If so, we prefer to do the latter to avoid inhibiting
@@ -1207,8 +1240,9 @@ bool X86_32ABIInfo::canExpandIndirectArgument(QualType Ty) const {
   if (!RT)
     return false;
   const RecordDecl *RD = RT->getDecl();
+  uint64_t Size = 0;
   if (const CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(RD)) {
-    if (!IsWin32StructABI ) {
+    if (!IsWin32StructABI) {
       // On non-Windows, we have to conservatively match our old bitcode
       // prototypes in order to be ABI-compatible at the bitcode level.
       if (!CXXRD->isCLike())
@@ -1217,30 +1251,12 @@ bool X86_32ABIInfo::canExpandIndirectArgument(QualType Ty) const {
       // Don't do this for dynamic classes.
       if (CXXRD->isDynamicClass())
         return false;
-      // Don't do this if there are any non-empty bases.
-      for (const CXXBaseSpecifier &Base : CXXRD->bases()) {
-        if (!isEmptyRecord(getContext(), Base.getType(), /*AllowArrays=*/true))
-          return false;
-      }
     }
-  }
-
-  uint64_t Size = 0;
-
-  for (const auto *FD : RD->fields()) {
-    // Scalar arguments on the stack get 4 byte alignment on x86. If the
-    // argument is smaller than 32-bits, expanding the struct will create
-    // alignment padding.
-    if (!is32Or64BitBasicType(FD->getType(), getContext()))
+    if (!addBaseAndFieldSizes(getContext(), CXXRD, Size))
       return false;
-
-    // FIXME: Reject bit-fields wholesale; there are two problems, we don't know
-    // how to expand them yet, and the predicate for telling if a bitfield still
-    // counts as "basic" is more complicated than what we were doing previously.
-    if (FD->isBitField())
+  } else {
+    if (!addFieldSizes(getContext(), RD, Size))
       return false;
-
-    Size += getContext().getTypeSize(FD->getType());
   }
 
   // We can do this if there was no alignment padding.
@@ -1885,10 +1901,10 @@ void X86_32TargetCodeGenInfo::setTargetAttributes(const Decl *D,
       // Now add the 'alignstack' attribute with a value of 16.
       llvm::AttrBuilder B;
       B.addStackAlignmentAttr(16);
-      Fn->addAttributes(llvm::AttributeSet::FunctionIndex,
-                      llvm::AttributeSet::get(CGM.getLLVMContext(),
-                                              llvm::AttributeSet::FunctionIndex,
-                                              B));
+      Fn->addAttributes(
+          llvm::AttributeList::FunctionIndex,
+          llvm::AttributeList::get(CGM.getLLVMContext(),
+                                   llvm::AttributeList::FunctionIndex, B));
     }
     if (FD->hasAttr<AnyX86InterruptAttr>()) {
       llvm::Function *Fn = cast<llvm::Function>(GV);
@@ -4819,7 +4835,7 @@ public:
       : TargetCodeGenInfo(new AArch64ABIInfo(CGT, Kind)) {}
 
   StringRef getARCRetainAutoreleasedReturnValueMarker() const override {
-    return "mov\tfp, fp\t\t; marker for objc_retainAutoreleaseReturnValue";
+    return "mov\tfp, fp\t\t# marker for objc_retainAutoreleaseReturnValue";
   }
 
   int getDwarfEHStackPointer(CodeGen::CodeGenModule &M) const override {
@@ -4901,7 +4917,7 @@ ABIArgInfo AArch64ABIInfo::classifyArgumentType(QualType Ty) const {
       return coerceToIntArray(Ty, getContext(), getVMContext());
     }
     unsigned Alignment = getContext().getTypeAlign(Ty);
-    Size = 64 * ((Size + 63) / 64); // round up to multiple of 8 bytes
+    Size = llvm::alignTo(Size, 64); // round up to multiple of 8 bytes
 
     // We use a pair of i64 for 16-byte aggregate with 8-byte alignment.
     // For aggregates with 16-byte alignment, we use i128.
@@ -4951,7 +4967,7 @@ ABIArgInfo AArch64ABIInfo::classifyReturnType(QualType RetTy) const {
       return coerceToIntArray(RetTy, getContext(), getVMContext());
     }
     unsigned Alignment = getContext().getTypeAlign(RetTy);
-    Size = 64 * ((Size + 63) / 64); // round up to multiple of 8 bytes
+    Size = llvm::alignTo(Size, 64); // round up to multiple of 8 bytes
 
     // We use a pair of i64 for 16-byte aggregate with 8-byte alignment.
     // For aggregates with 16-byte alignment, we use i128.
@@ -5433,10 +5449,10 @@ public:
     // the backend to perform a realignment as part of the function prologue.
     llvm::AttrBuilder B;
     B.addStackAlignmentAttr(8);
-    Fn->addAttributes(llvm::AttributeSet::FunctionIndex,
-                      llvm::AttributeSet::get(CGM.getLLVMContext(),
-                                              llvm::AttributeSet::FunctionIndex,
-                                              B));
+    Fn->addAttributes(
+        llvm::AttributeList::FunctionIndex,
+        llvm::AttributeList::get(CGM.getLLVMContext(),
+                                 llvm::AttributeList::FunctionIndex, B));
   }
 };
 
@@ -6884,6 +6900,31 @@ MIPSTargetCodeGenInfo::initDwarfEHRegSizeTable(CodeGen::CodeGenFunction &CGF,
 }
 
 //===----------------------------------------------------------------------===//
+// AVR ABI Implementation.
+//===----------------------------------------------------------------------===//
+
+namespace {
+class AVRTargetCodeGenInfo : public TargetCodeGenInfo {
+public:
+  AVRTargetCodeGenInfo(CodeGenTypes &CGT)
+    : TargetCodeGenInfo(new DefaultABIInfo(CGT)) { }
+
+  void setTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
+                           CodeGen::CodeGenModule &CGM) const override {
+    const auto *FD = dyn_cast_or_null<FunctionDecl>(D);
+    if (!FD) return;
+    auto *Fn = cast<llvm::Function>(GV);
+
+    if (FD->getAttr<AVRInterruptAttr>())
+      Fn->addFnAttr("interrupt");
+
+    if (FD->getAttr<AVRSignalAttr>())
+      Fn->addFnAttr("signal");
+  }
+};
+}
+
+//===----------------------------------------------------------------------===//
 // TCE ABI Implementation (see http://tce.cs.tut.fi). Uses mostly the defaults.
 // Currently subclassed only to implement custom OpenCL C function attribute
 // handling.
@@ -7261,9 +7302,14 @@ void AMDGPUTargetCodeGenInfo::setTargetAttributes(
 
   llvm::Function *F = cast<llvm::Function>(GV);
 
-  if (const auto *Attr = FD->getAttr<AMDGPUFlatWorkGroupSizeAttr>()) {
-    unsigned Min = Attr->getMin();
-    unsigned Max = Attr->getMax();
+  const auto *ReqdWGS = M.getLangOpts().OpenCL ?
+    FD->getAttr<ReqdWorkGroupSizeAttr>() : nullptr;
+  const auto *FlatWGS = FD->getAttr<AMDGPUFlatWorkGroupSizeAttr>();
+  if (ReqdWGS || FlatWGS) {
+    unsigned Min = FlatWGS ? FlatWGS->getMin() : 0;
+    unsigned Max = FlatWGS ? FlatWGS->getMax() : 0;
+    if (ReqdWGS && Min == 0 && Max == 0)
+      Min = Max = ReqdWGS->getXDim() * ReqdWGS->getYDim() * ReqdWGS->getZDim();
 
     if (Min != 0) {
       assert(Min <= Max && "Min must be less than or equal Max");
@@ -8385,6 +8431,9 @@ const TargetCodeGenInfo &CodeGenModule::getTargetCodeGenInfo() {
   case llvm::Triple::mips64:
   case llvm::Triple::mips64el:
     return SetCGInfo(new MIPSTargetCodeGenInfo(Types, false));
+
+  case llvm::Triple::avr:
+    return SetCGInfo(new AVRTargetCodeGenInfo(Types));
 
   case llvm::Triple::aarch64:
   case llvm::Triple::aarch64_be: {
