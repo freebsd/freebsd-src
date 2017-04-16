@@ -81,7 +81,7 @@ enum InputKind {
   IK_LLVM_IR
 };
 
-  
+
 /// \brief An input file for the front end.
 class FrontendInputFile {
   /// \brief The file name, or "-" to read from standard input.
@@ -109,6 +109,13 @@ public:
   bool isEmpty() const { return File.empty() && Buffer == nullptr; }
   bool isFile() const { return !isBuffer(); }
   bool isBuffer() const { return Buffer != nullptr; }
+  bool isPreprocessed() const {
+    return Kind == IK_PreprocessedC ||
+           Kind == IK_PreprocessedCXX ||
+           Kind == IK_PreprocessedObjC ||
+           Kind == IK_PreprocessedObjCXX ||
+           Kind == IK_PreprocessedCuda;
+  }
 
   StringRef getFile() const {
     assert(isFile());
@@ -150,6 +157,8 @@ public:
                                            ///< global module index if needed.
   unsigned ASTDumpDecls : 1;               ///< Whether we include declaration
                                            ///< dumps in AST dumps.
+  unsigned ASTDumpAll : 1;                 ///< Whether we deserialize all decls
+                                           ///< when forming AST dumps.
   unsigned ASTDumpLookups : 1;             ///< Whether we include lookup table
                                            ///< dumps in AST dumps.
   unsigned BuildingImplicitModule : 1;     ///< Whether we are performing an

@@ -64,6 +64,8 @@ void FormatTokenLexer::tryMergePreviousTokens() {
     return;
   if (tryMergeLessLess())
     return;
+  if (tryMergeNSStringLiteral())
+    return;
 
   if (Style.Language == FormatStyle::LK_JavaScript) {
     static const tok::TokenKind JSIdentity[] = {tok::equalequal, tok::equal};
@@ -82,6 +84,35 @@ void FormatTokenLexer::tryMergePreviousTokens() {
     if (tryMergeTokens(JSRightArrow, TT_JsFatArrow))
       return;
   }
+
+  if (Style.Language == FormatStyle::LK_Java) {
+    static const tok::TokenKind JavaRightLogicalShift[] = {tok::greater,
+                                                           tok::greater,
+                                                           tok::greater};
+    static const tok::TokenKind JavaRightLogicalShiftAssign[] = {tok::greater,
+                                                                 tok::greater,
+                                                                 tok::greaterequal};
+    if (tryMergeTokens(JavaRightLogicalShift, TT_BinaryOperator))
+      return;
+    if (tryMergeTokens(JavaRightLogicalShiftAssign, TT_BinaryOperator))
+      return;
+  }
+}
+
+bool FormatTokenLexer::tryMergeNSStringLiteral() {
+  if (Tokens.size() < 2)
+    return false;
+  auto &At = *(Tokens.end() - 2);
+  auto &String = *(Tokens.end() - 1);
+  if (!At->is(tok::at) || !String->is(tok::string_literal))
+    return false;
+  At->Tok.setKind(tok::string_literal);
+  At->TokenText = StringRef(At->TokenText.begin(),
+                            String->TokenText.end() - At->TokenText.begin());
+  At->ColumnWidth += String->ColumnWidth;
+  At->Type = TT_ObjCStringLiteral;
+  Tokens.erase(Tokens.end() - 1);
+  return true;
 }
 
 bool FormatTokenLexer::tryMergeLessLess() {
@@ -157,7 +188,9 @@ bool FormatTokenLexer::canPrecedeRegexLiteral(FormatToken *Prev) {
   // postfix unary operators. If the '++' is followed by a non-operand
   // introducing token, the slash here is the operand and not the start of a
   // regex.
-  if (Prev->isOneOf(tok::plusplus, tok::minusminus))
+  // `!` is an unary prefix operator, but also a post-fix operator that casts
+  // away nullability, so the same check applies.
+  if (Prev->isOneOf(tok::plusplus, tok::minusminus, tok::exclaim))
     return (Tokens.size() < 3 || precedesOperand(Tokens[Tokens.size() - 3]));
 
   // The previous token must introduce an operand location where regex
@@ -558,8 +591,7 @@ FormatToken *FormatTokenLexer::getNextToken() {
     Column = FormatTok->LastLineColumnWidth;
   }
 
-  if (Style.Language == FormatStyle::LK_Cpp ||
-      Style.Language == FormatStyle::LK_ObjC) {
+  if (Style.isCpp()) {
     if (!(Tokens.size() > 0 && Tokens.back()->Tok.getIdentifierInfo() &&
           Tokens.back()->Tok.getIdentifierInfo()->getPPKeywordID() ==
               tok::pp_define) &&

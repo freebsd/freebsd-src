@@ -83,7 +83,7 @@ public:
                                              const CFGBlock *DstF) = 0;
 
   /// Called by CoreEngine.  Used to processing branching behavior
-  /// at static initalizers.
+  /// at static initializers.
   virtual void processStaticInitializer(const DeclStmt *DS,
                                         NodeBuilderContext& BuilderCtx,
                                         ExplodedNode *Pred,
@@ -131,17 +131,19 @@ public:
                        const InvalidatedSymbols *invalidated,
                        ArrayRef<const MemRegion *> ExplicitRegions,
                        ArrayRef<const MemRegion *> Regions,
+                       const LocationContext *LCtx,
                        const CallEvent *Call) = 0;
 
 
   inline ProgramStateRef 
   processRegionChange(ProgramStateRef state,
-                      const MemRegion* MR) {
-    return processRegionChanges(state, nullptr, MR, MR, nullptr);
+                      const MemRegion* MR,
+                      const LocationContext *LCtx) {
+    return processRegionChanges(state, nullptr, MR, MR, LCtx, nullptr);
   }
 
   virtual ProgramStateRef
-  processPointerEscapedOnBind(ProgramStateRef State, SVal Loc, SVal Val) = 0;
+  processPointerEscapedOnBind(ProgramStateRef State, SVal Loc, SVal Val, const LocationContext *LCtx) = 0;
 
   virtual ProgramStateRef
   notifyCheckersOfPointerEscape(ProgramStateRef State,

@@ -50,6 +50,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::TemplateTypeParm:
   case Decl::UnresolvedUsingValue:
   case Decl::NonTypeTemplateParm:
+  case Decl::CXXDeductionGuide:
   case Decl::CXXMethod:
   case Decl::CXXConstructor:
   case Decl::CXXDestructor:
@@ -671,6 +672,27 @@ static void drillIntoBlockVariable(CodeGenFunction &CGF,
   lvalue.setAddress(CGF.emitBlockByrefAddress(lvalue.getAddress(), var));
 }
 
+void CodeGenFunction::EmitNullabilityCheck(LValue LHS, llvm::Value *RHS,
+                                           SourceLocation Loc) {
+  if (!SanOpts.has(SanitizerKind::NullabilityAssign))
+    return;
+
+  auto Nullability = LHS.getType()->getNullability(getContext());
+  if (!Nullability || *Nullability != NullabilityKind::NonNull)
+    return;
+
+  // Check if the right hand side of the assignment is nonnull, if the left
+  // hand side must be nonnull.
+  SanitizerScope SanScope(this);
+  llvm::Value *IsNotNull = Builder.CreateIsNotNull(RHS);
+  llvm::Constant *StaticData[] = {
+      EmitCheckSourceLocation(Loc), EmitCheckTypeDescriptor(LHS.getType()),
+      llvm::ConstantInt::get(Int8Ty, 0), // The LogAlignment info is unused.
+      llvm::ConstantInt::get(Int8Ty, TCK_NonnullAssign)};
+  EmitCheck({{IsNotNull, SanitizerKind::NullabilityAssign}},
+            SanitizerHandler::TypeMismatch, StaticData, RHS);
+}
+
 void CodeGenFunction::EmitScalarInit(const Expr *init, const ValueDecl *D,
                                      LValue lvalue, bool capturedByInit) {
   Qualifiers::ObjCLifetime lifetime = lvalue.getObjCLifetime();
@@ -678,6 +700,7 @@ void CodeGenFunction::EmitScalarInit(const Expr *init, const ValueDecl *D,
     llvm::Value *value = EmitScalarExpr(init);
     if (capturedByInit)
       drillIntoBlockVariable(*this, lvalue, cast<VarDecl>(D));
+    EmitNullabilityCheck(lvalue, value, init->getExprLoc());
     EmitStoreThroughLValue(RValue::get(value), lvalue, true);
     return;
   }
@@ -765,6 +788,8 @@ void CodeGenFunction::EmitScalarInit(const Expr *init, const ValueDecl *D,
   }
 
   if (capturedByInit) drillIntoBlockVariable(*this, lvalue, cast<VarDecl>(D));
+
+  EmitNullabilityCheck(lvalue, value, init->getExprLoc());
 
   // If the variable might have been accessed by its initializer, we
   // might have to initialize with a barrier.  We have to do this for
@@ -1022,11 +1047,21 @@ CodeGenFunction::EmitAutoVarAlloca(const VarDecl &D) {
       // Emit a lifetime intrinsic if meaningful. There's no point in doing this
       // if we don't have a valid insertion point (?).
       if (HaveInsertPoint() && !IsMSCatchParam) {
-        // goto or switch-case statements can break lifetime into several
-        // regions which need more efforts to handle them correctly. PR28267
-        // This is rare case, but it's better just omit intrinsics than have
-        // them incorrectly placed.
-        if (!Bypasses.IsBypassed(&D)) {
+        // If there's a jump into the lifetime of this variable, its lifetime
+        // gets broken up into several regions in IR, which requires more work
+        // to handle correctly. For now, just omit the intrinsics; this is a
+        // rare case, and it's better to just be conservatively correct.
+        // PR28267.
+        //
+        // We have to do this in all language modes if there's a jump past the
+        // declaration. We also have to do it in C if there's a jump to an
+        // earlier point in the current block because non-VLA lifetimes begin as
+        // soon as the containing block is entered, not when its variables
+        // actually come into scope; suppressing the lifetime annotations
+        // completely in this case is unnecessarily pessimistic, but again, this
+        // is rare.
+        if (!Bypasses.IsBypassed(&D) &&
+            !(!getLangOpts().CPlusPlus && hasLabelBeenSeenInCurrentScope())) {
           uint64_t size = CGM.getDataLayout().getTypeAllocSize(allocaTy);
           emission.SizeForLifetimeMarkers =
               EmitLifetimeStart(size, address.getPointer());
@@ -1082,6 +1117,12 @@ CodeGenFunction::EmitAutoVarAlloca(const VarDecl &D) {
 
   if (D.hasAttr<AnnotateAttr>())
     EmitVarAnnotations(&D, address.getPointer());
+
+  // Make sure we call @llvm.lifetime.end.
+  if (emission.useLifetimeMarkers())
+    EHStack.pushCleanup<CallLifetimeEnd>(NormalEHLifetimeMarker,
+                                         emission.getAllocatedAddress(),
+                                         emission.getSizeForLifetimeMarkers());
 
   return emission;
 }
@@ -1372,13 +1413,6 @@ void CodeGenFunction::EmitAutoVarCleanups(const AutoVarEmission &emission) {
   if (!HaveInsertPoint()) return;
 
   const VarDecl &D = *emission.Variable;
-
-  // Make sure we call @llvm.lifetime.end.  This needs to happen
-  // *last*, so the cleanup needs to be pushed *first*.
-  if (emission.useLifetimeMarkers())
-    EHStack.pushCleanup<CallLifetimeEnd>(NormalEHLifetimeMarker,
-                                         emission.getAllocatedAddress(),
-                                         emission.getSizeForLifetimeMarkers());
 
   // Check the type for a cleanup.
   if (QualType::DestructionKind dtorKind = D.getType().isDestructedType())
@@ -1691,17 +1725,19 @@ void CodeGenFunction::pushRegularPartialArrayCleanup(llvm::Value *arrayBegin,
 
 /// Lazily declare the @llvm.lifetime.start intrinsic.
 llvm::Constant *CodeGenModule::getLLVMLifetimeStartFn() {
-  if (LifetimeStartFn) return LifetimeStartFn;
+  if (LifetimeStartFn)
+    return LifetimeStartFn;
   LifetimeStartFn = llvm::Intrinsic::getDeclaration(&getModule(),
-                                            llvm::Intrinsic::lifetime_start);
+    llvm::Intrinsic::lifetime_start, Int8PtrTy);
   return LifetimeStartFn;
 }
 
 /// Lazily declare the @llvm.lifetime.end intrinsic.
 llvm::Constant *CodeGenModule::getLLVMLifetimeEndFn() {
-  if (LifetimeEndFn) return LifetimeEndFn;
+  if (LifetimeEndFn)
+    return LifetimeEndFn;
   LifetimeEndFn = llvm::Intrinsic::getDeclaration(&getModule(),
-                                              llvm::Intrinsic::lifetime_end);
+    llvm::Intrinsic::lifetime_end, Int8PtrTy);
   return LifetimeEndFn;
 }
 
@@ -1869,6 +1905,19 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, ParamValue Arg,
 
   if (D.hasAttr<AnnotateAttr>())
     EmitVarAnnotations(&D, DeclPtr.getPointer());
+
+  // We can only check return value nullability if all arguments to the
+  // function satisfy their nullability preconditions. This makes it necessary
+  // to emit null checks for args in the function body itself.
+  if (requiresReturnValueNullabilityCheck()) {
+    auto Nullability = Ty->getNullability(getContext());
+    if (Nullability && *Nullability == NullabilityKind::NonNull) {
+      SanitizerScope SanScope(this);
+      RetValNullabilityPrecondition =
+          Builder.CreateAnd(RetValNullabilityPrecondition,
+                            Builder.CreateIsNotNull(Arg.getAnyValue()));
+    }
+  }
 }
 
 void CodeGenModule::EmitOMPDeclareReduction(const OMPDeclareReductionDecl *D,
