@@ -7,19 +7,19 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file provides a way to combine bitcode files into one ELF
+// This file provides a way to combine bitcode files into one COFF
 // file by compiling them using LLVM.
 //
-// If LTO is in use, your input files are not in regular ELF files
+// If LTO is in use, your input files are not in regular COFF files
 // but instead LLVM bitcode files. In that case, the linker has to
 // convert bitcode files into the native format so that we can create
-// an ELF file that contains native code. This file provides that
+// a COFF file that contains native code. This file provides that
 // functionality.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLD_ELF_LTO_H
-#define LLD_ELF_LTO_H
+#ifndef LLD_COFF_LTO_H
+#define LLD_COFF_LTO_H
 
 #include "lld/Core/LLVM.h"
 #include "llvm/ADT/SmallString.h"
@@ -33,7 +33,7 @@ class LTO;
 }
 
 namespace lld {
-namespace elf {
+namespace coff {
 
 class BitcodeFile;
 class InputFile;
@@ -44,12 +44,11 @@ public:
   ~BitcodeCompiler();
 
   void add(BitcodeFile &F);
-  std::vector<InputFile *> compile();
+  std::vector<StringRef> compile();
 
 private:
   std::unique_ptr<llvm::lto::LTO> LTOObj;
   std::vector<SmallString<0>> Buff;
-  std::vector<std::unique_ptr<MemoryBuffer>> Files;
 };
 }
 }

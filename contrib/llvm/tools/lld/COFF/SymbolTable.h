@@ -11,6 +11,7 @@
 #define LLD_COFF_SYMBOL_TABLE_H
 
 #include "InputFiles.h"
+#include "LTO.h"
 #include "llvm/ADT/CachedHashString.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
@@ -69,13 +70,11 @@ public:
   void mangleMaybe(SymbolBody *B);
   StringRef findMangle(StringRef Name);
 
-  // Print a layout map to OS.
-  void printMap(llvm::raw_ostream &OS);
-
   // Build a set of COFF objects representing the combined contents of
   // BitcodeFiles and add them to the symbol table. Called after all files are
   // added and before the writer writes results to a file.
   void addCombinedLTOObjects();
+  std::vector<StringRef> compileBitcodeFiles();
 
   // The writer needs to handle DLL import libraries specially in
   // order to create the import descriptor table.
@@ -93,9 +92,12 @@ public:
   Symbol *addUndefined(StringRef Name, InputFile *F, bool IsWeakAlias);
   void addLazy(ArchiveFile *F, const Archive::Symbol Sym);
   Symbol *addAbsolute(StringRef N, COFFSymbolRef S);
-  Symbol *addRegular(ObjectFile *F, COFFSymbolRef S, SectionChunk *C);
-  Symbol *addBitcode(BitcodeFile *F, StringRef N, bool IsReplaceable);
-  Symbol *addCommon(ObjectFile *F, COFFSymbolRef S, CommonChunk *C);
+  Symbol *addRegular(InputFile *F, StringRef N, bool IsCOMDAT,
+                     const llvm::object::coff_symbol_generic *S = nullptr,
+                     SectionChunk *C = nullptr);
+  Symbol *addCommon(InputFile *F, StringRef N, uint64_t Size,
+                    const llvm::object::coff_symbol_generic *S = nullptr,
+                    CommonChunk *C = nullptr);
   Symbol *addImportData(StringRef N, ImportFile *F);
   Symbol *addImportThunk(StringRef Name, DefinedImportData *S,
                          uint16_t Machine);
@@ -113,12 +115,11 @@ private:
   StringRef findByPrefix(StringRef Prefix);
 
   void addCombinedLTOObject(ObjectFile *Obj);
-  std::vector<ObjectFile *> createLTOObjects(llvm::LTOCodeGenerator *CG);
 
   llvm::DenseMap<llvm::CachedHashStringRef, Symbol *> Symtab;
 
   std::vector<BitcodeFile *> BitcodeFiles;
-  std::vector<SmallString<0>> Objs;
+  std::unique_ptr<BitcodeCompiler> LTO;
 };
 
 extern SymbolTable *Symtab;
