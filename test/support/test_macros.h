@@ -13,6 +13,11 @@
 
 #include <ciso646> // Get STL specific macros like _LIBCPP_VERSION
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wvariadic-macros"
+#endif
+
 #define TEST_CONCAT1(X, Y) X##Y
 #define TEST_CONCAT(X, Y) TEST_CONCAT1(X, Y)
 
@@ -45,6 +50,17 @@
 #define TEST_HAS_BUILTIN_IDENTIFIER(X) !__is_identifier(X)
 #else
 #define TEST_HAS_BUILTIN_IDENTIFIER(X) 0
+#endif
+
+#if defined(__clang__)
+#define TEST_COMPILER_CLANG
+# if defined(__apple_build_version__)
+#   define TEST_COMPILER_APPLE_CLANG
+# endif
+#elif defined(_MSC_VER)
+# define TEST_COMPILER_C1XX
+#elif defined(__GNUC__)
+# define TEST_COMPILER_GCC
 #endif
 
 #if defined(__apple_build_version__)
@@ -90,6 +106,7 @@
 #define TEST_ALIGNAS(...) alignas(__VA_ARGS__)
 #define TEST_CONSTEXPR constexpr
 #define TEST_NOEXCEPT noexcept
+#define TEST_NOEXCEPT_FALSE noexcept(false)
 #define TEST_NOEXCEPT_COND(...) noexcept(__VA_ARGS__)
 # if TEST_STD_VER >= 14
 #   define TEST_CONSTEXPR_CXX14 constexpr
@@ -107,6 +124,7 @@
 #define TEST_CONSTEXPR
 #define TEST_CONSTEXPR_CXX14
 #define TEST_NOEXCEPT throw()
+#define TEST_NOEXCEPT_FALSE
 #define TEST_NOEXCEPT_COND(...)
 #define TEST_THROW_SPEC(...) throw(__VA_ARGS__)
 #endif
@@ -134,11 +152,16 @@
 #define TEST_NORETURN [[noreturn]]
 #endif
 
+#if TEST_STD_VER < 11
+#define ASSERT_NOEXCEPT(...)
+#define ASSERT_NOT_NOEXCEPT(...)
+#else
 #define ASSERT_NOEXCEPT(...) \
     static_assert(noexcept(__VA_ARGS__), "Operation must be noexcept")
 
 #define ASSERT_NOT_NOEXCEPT(...) \
     static_assert(!noexcept(__VA_ARGS__), "Operation must NOT be noexcept")
+#endif
 
 /* Macros for testing libc++ specific behavior and extensions */
 #if defined(_LIBCPP_VERSION)
@@ -163,7 +186,7 @@ struct is_same<T, T> { enum {value = 1}; };
 } // namespace test_macros_detail
 
 #define ASSERT_SAME_TYPE(...) \
-    static_assert(test_macros_detail::is_same<__VA_ARGS__>::value, \
+    static_assert((test_macros_detail::is_same<__VA_ARGS__>::value), \
                  "Types differ uexpectedly")
 
 #ifndef TEST_HAS_NO_EXCEPTIONS
@@ -175,6 +198,24 @@ struct is_same<T, T> { enum {value = 1}; };
 #include <stdlib.h>
 #define TEST_THROW(...) ::abort()
 #endif
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+template <class Tp>
+inline void DoNotOptimize(Tp const& value) {
+  asm volatile("" : : "g"(value) : "memory");
+}
+#else
+#include <intrin.h>
+template <class Tp>
+inline void DoNotOptimize(Tp const& value) {
+  const volatile void* volatile = __builtin_addressof(value);
+  _ReadWriteBarrier();
+}
+#endif
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
 #endif
 
 #endif // SUPPORT_TEST_MACROS_HPP

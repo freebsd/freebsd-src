@@ -453,9 +453,7 @@ swap(multimap<Key, T, Compare, Allocator>& x,
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-template <class _Key, class _CP, class _Compare,
-          bool = is_empty<_Compare>::value && !__libcpp_is_final<_Compare>::value
-         >
+template <class _Key, class _CP, class _Compare, bool _IsSmall>
 class __map_value_compare
     : private _Compare
 {
@@ -482,8 +480,8 @@ public:
     void swap(__map_value_compare&__y)
         _NOEXCEPT_(__is_nothrow_swappable<_Compare>::value)
     {
-        using _VSTD::swap;
-        swap(static_cast<const _Compare&>(*this), static_cast<const _Compare&>(__y));
+      using _VSTD::swap;
+      swap(static_cast<_Compare&>(*this), static_cast<_Compare&>(__y));
     }
 
 #if _LIBCPP_STD_VER > 11

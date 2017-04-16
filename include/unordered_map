@@ -379,9 +379,7 @@ template <class Key, class T, class Hash, class Pred, class Alloc>
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-template <class _Key, class _Cp, class _Hash,
-          bool = is_empty<_Hash>::value && !__libcpp_is_final<_Hash>::value
-         >
+template <class _Key, class _Cp, class _Hash, bool _IsEmpty>
 class __unordered_map_hasher
     : private _Hash
 {
@@ -406,7 +404,7 @@ public:
         _NOEXCEPT_(__is_nothrow_swappable<_Hash>::value)
     {
         using _VSTD::swap;
-        swap(static_cast<const _Hash&>(*this), static_cast<const _Hash&>(__y));
+        swap(static_cast<_Hash&>(*this), static_cast<_Hash&>(__y));
     }
 };
 
@@ -449,9 +447,7 @@ swap(__unordered_map_hasher<_Key, _Cp, _Hash, __b>& __x,
     __x.swap(__y);
 }
 
-template <class _Key, class _Cp, class _Pred,
-          bool = is_empty<_Pred>::value && !__libcpp_is_final<_Pred>::value
-         >
+template <class _Key, class _Cp, class _Pred, bool _IsEmpty>
 class __unordered_map_equal
     : private _Pred
 {
@@ -479,7 +475,7 @@ public:
         _NOEXCEPT_(__is_nothrow_swappable<_Pred>::value)
     {
         using _VSTD::swap;
-        swap(static_cast<const _Pred&>(*this), static_cast<const _Pred&>(__y));
+        swap(static_cast<_Pred&>(*this), static_cast<_Pred&>(__y));
     }
 };
 
