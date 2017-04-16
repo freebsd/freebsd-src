@@ -8,19 +8,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#if defined(_MSC_VER) && (_HAS_EXCEPTIONS == 0)
-// Workaround for MSVC standard library bug, which fails to include <thread>
-// when
-// exceptions are disabled.
-#include <eh.h>
-#endif
-
 #include <sstream>
 
 #include "gtest/gtest.h"
 
 #include "Plugins/ExpressionParser/Go/GoParser.h"
-#include "lldb/Core/Error.h"
+#include "lldb/Utility/Error.h"
 
 using namespace lldb_private;
 

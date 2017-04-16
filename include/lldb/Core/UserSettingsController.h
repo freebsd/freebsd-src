@@ -10,21 +10,32 @@
 #ifndef liblldb_UserSettingsController_h_
 #define liblldb_UserSettingsController_h_
 
-// C Includes
-// C++ Includes
+#include "lldb/Utility/Error.h"             // for Error
+#include "lldb/lldb-forward.h"              // for OptionValuePropertiesSP
+#include "lldb/lldb-private-enumerations.h" // for VarSetOperationType
 
-#include <string>
+#include "llvm/ADT/StringRef.h" // for StringRef
+
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
+#include <stddef.h> // for size_t
+#include <stdint.h> // for uint32_t
 
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Core/StreamString.h"
-#include "lldb/Core/StringList.h"
-#include "lldb/Interpreter/OptionValue.h"
-#include "lldb/lldb-private.h"
+namespace lldb_private {
+class CommandInterpreter;
+}
+namespace lldb_private {
+class ConstString;
+}
+namespace lldb_private {
+class ExecutionContext;
+}
+namespace lldb_private {
+class Property;
+}
+namespace lldb_private {
+class Stream;
+}
 
 namespace lldb_private {
 

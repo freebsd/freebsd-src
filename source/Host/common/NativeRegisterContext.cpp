@@ -9,8 +9,8 @@
 
 #include "lldb/Host/common/NativeRegisterContext.h"
 
-#include "lldb/Core/Log.h"
 #include "lldb/Core/RegisterValue.h"
+#include "lldb/Utility/Log.h"
 
 #include "lldb/Host/PosixApi.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
@@ -246,8 +246,18 @@ uint32_t NativeRegisterContext::SetHardwareBreakpoint(lldb::addr_t addr,
   return LLDB_INVALID_INDEX32;
 }
 
+Error NativeRegisterContext::ClearAllHardwareBreakpoints() {
+  return Error("not implemented");
+}
+
 bool NativeRegisterContext::ClearHardwareBreakpoint(uint32_t hw_idx) {
   return false;
+}
+
+Error NativeRegisterContext::GetHardwareBreakHitIndex(uint32_t &bp_index,
+                                                      lldb::addr_t trap_addr) {
+  bp_index = LLDB_INVALID_INDEX32;
+  return Error("not implemented");
 }
 
 uint32_t NativeRegisterContext::NumSupportedHardwareWatchpoints() { return 0; }

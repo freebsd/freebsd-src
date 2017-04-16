@@ -11,18 +11,12 @@
 #ifndef liblldb_ProcessFreeBSD_H_
 #define liblldb_ProcessFreeBSD_H_
 
-// C Includes
-
-// C++ Includes
+#include "Plugins/Process/POSIX/ProcessMessage.h"
+#include "lldb/Target/Process.h"
+#include "lldb/Target/ThreadList.h"
 #include <mutex>
 #include <queue>
 #include <set>
-
-// Other libraries and framework includes
-#include "ProcessFreeBSD.h"
-#include "ProcessMessage.h"
-#include "lldb/Target/Process.h"
-#include "lldb/Target/ThreadList.h"
 
 class ProcessMonitor;
 class FreeBSDThread;
@@ -171,7 +165,25 @@ public:
   virtual FreeBSDThread *CreateNewFreeBSDThread(lldb_private::Process &process,
                                                 lldb::tid_t tid);
 
+  static bool SingleStepBreakpointHit(
+      void *baton, lldb_private::StoppointCallbackContext *context,
+      lldb::user_id_t break_id, lldb::user_id_t break_loc_id);
+
+  lldb_private::Error SetupSoftwareSingleStepping(lldb::tid_t tid);
+
+  lldb_private::Error SetSoftwareSingleStepBreakpoint(lldb::tid_t tid,
+                                                      lldb::addr_t addr);
+
+  bool IsSoftwareStepBreakpoint(lldb::tid_t tid);
+
+  bool SupportHardwareSingleStepping() const;
+
+  typedef std::vector<lldb::tid_t> tid_collection;
+  tid_collection &GetStepTids() { return m_step_tids; }
+
 protected:
+  static const size_t MAX_TRAP_OPCODE_SIZE = 8;
+
   /// Target byte order.
   lldb::ByteOrder m_byte_order;
 
@@ -207,10 +219,10 @@ protected:
 
   friend class FreeBSDThread;
 
-  typedef std::vector<lldb::tid_t> tid_collection;
   tid_collection m_suspend_tids;
   tid_collection m_run_tids;
   tid_collection m_step_tids;
+  std::map<lldb::tid_t, lldb::break_id_t> m_threads_stepping_with_breakpoint;
 
   int m_resume_signo;
 };

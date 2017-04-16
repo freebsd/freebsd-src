@@ -13,15 +13,15 @@
 // Project includes
 #include "LibCxx.h"
 
-#include "lldb/Core/DataBufferHeap.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Stream.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
-#include "lldb/Host/Endian.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/Endian.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/Stream.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -406,7 +406,7 @@ lldb_private::formatters::LibcxxStdMapSyntheticFrontEnd::GetChildAtIndex(
     case 1: {
       auto child0_sp = potential_child_sp->GetChildAtIndex(0, true);
       if (child0_sp && child0_sp->GetName() == g___cc)
-        potential_child_sp = child0_sp;
+        potential_child_sp = child0_sp->Clone(ConstString(name.GetString()));
       break;
     }
     case 2: {
@@ -414,11 +414,10 @@ lldb_private::formatters::LibcxxStdMapSyntheticFrontEnd::GetChildAtIndex(
       auto child1_sp = potential_child_sp->GetChildAtIndex(1, true);
       if (child0_sp && child0_sp->GetName() == g___cc && child1_sp &&
           child1_sp->GetName() == g___nc)
-        potential_child_sp = child0_sp;
+        potential_child_sp = child0_sp->Clone(ConstString(name.GetString()));
       break;
     }
     }
-    potential_child_sp->SetName(ConstString(name.GetString()));
   }
   m_iterators[idx] = iterator;
   return potential_child_sp;

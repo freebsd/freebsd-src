@@ -16,8 +16,9 @@
 // Other libraries and framework includes
 // Project includes
 #include "Plugins/Platform/POSIX/PlatformPOSIX.h"
-#include "lldb/Host/FileSpec.h"
+#include "lldb/Utility/FileSpec.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/FileSystem.h"
 
 #include <string>
 #include <tuple>
@@ -31,10 +32,6 @@ public:
   //------------------------------------------------------------
   // lldb_private::Platform functions
   //------------------------------------------------------------
-  lldb_private::Error ResolveExecutable(
-      const lldb_private::ModuleSpec &module_spec, lldb::ModuleSP &module_sp,
-      const lldb_private::FileSpecList *module_search_paths_ptr) override;
-
   lldb_private::Error
   ResolveSymbolFile(lldb_private::Target &target,
                     const lldb_private::ModuleSpec &sym_spec,
@@ -55,15 +52,8 @@ public:
       lldb_private::Target &target,
       lldb_private::BreakpointSite *bp_site) override;
 
-  bool GetProcessInfo(lldb::pid_t pid,
-                      lldb_private::ProcessInstanceInfo &proc_info) override;
-
   lldb::BreakpointSP
   SetThreadCreationBreakpoint(lldb_private::Target &target) override;
-
-  uint32_t
-  FindProcesses(const lldb_private::ProcessInstanceInfoMatch &match_info,
-                lldb_private::ProcessInstanceInfoList &process_infos) override;
 
   bool ModuleIsExcludedForUnconstrainedSearches(
       lldb_private::Target &target, const lldb::ModuleSP &module_sp) override;
@@ -123,7 +113,7 @@ protected:
   };
 
   static lldb_private::FileSpec::EnumerateDirectoryResult
-  DirectoryEnumerator(void *baton, lldb_private::FileSpec::FileType file_type,
+  DirectoryEnumerator(void *baton, llvm::sys::fs::file_type file_type,
                       const lldb_private::FileSpec &spec);
 
   static lldb_private::FileSpec

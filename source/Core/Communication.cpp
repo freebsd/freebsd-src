@@ -7,21 +7,30 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-#include <cstring>
-
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/Communication.h"
+
 #include "lldb/Core/Connection.h"
 #include "lldb/Core/Event.h"
 #include "lldb/Core/Listener.h"
-#include "lldb/Core/Log.h"
-#include "lldb/Core/Timer.h"
-#include "lldb/Host/Host.h"
 #include "lldb/Host/HostThread.h"
 #include "lldb/Host/ThreadLauncher.h"
+#include "lldb/Utility/ConstString.h" // for ConstString
+#include "lldb/Utility/Error.h"       // for Error
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Logging.h" // for LogIfAnyCategoriesSet, LIBLLDB...
+
+#include "llvm/ADT/None.h"         // for None
+#include "llvm/ADT/Optional.h"     // for Optional
+#include "llvm/Support/Compiler.h" // for LLVM_FALLTHROUGH
+
+#include <algorithm> // for min
+#include <chrono>    // for duration, seconds
+#include <cstring>
+#include <memory> // for shared_ptr
+
+#include <errno.h>    // for EIO
+#include <inttypes.h> // for PRIu64
+#include <stdio.h>    // for snprintf
 
 using namespace lldb;
 using namespace lldb_private;
@@ -115,12 +124,11 @@ bool Communication::HasConnection() const {
 size_t Communication::Read(void *dst, size_t dst_len,
                            const Timeout<std::micro> &timeout,
                            ConnectionStatus &status, Error *error_ptr) {
-  lldb_private::LogIfAnyCategoriesSet(
-      LIBLLDB_LOG_COMMUNICATION,
-      "%p Communication::Read (dst = %p, dst_len = %" PRIu64
-      ", timeout = %u usec) connection = %p",
-      this, dst, (uint64_t)dst_len, timeout ? timeout->count() : -1,
-      m_connection_sp.get());
+  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_COMMUNICATION);
+  LLDB_LOG(
+      log,
+      "this = {0}, dst = {1}, dst_len = {2}, timeout = {3}, connection = {4}",
+      this, dst, dst_len, timeout, m_connection_sp.get());
 
   if (m_read_thread_enabled) {
     // We have a dedicated read thread that is getting data for us
@@ -322,10 +330,9 @@ lldb::thread_result_t Communication::ReadThread(lldb::thread_arg_t p) {
         comm->Disconnect();
         done = true;
       }
-      if (log)
-        error.LogIfError(
-            log, "%p Communication::ReadFromConnection () => status = %s", p,
-            Communication::ConnectionStatusAsCString(status));
+      if (error.Fail())
+        LLDB_LOG(log, "error: {0}, status = {1}", error,
+                 Communication::ConnectionStatusAsCString(status));
       break;
     case eConnectionStatusInterrupted: // Synchronization signal from
                                        // SynchronizeWithReadThread()
@@ -340,10 +347,9 @@ lldb::thread_result_t Communication::ReadThread(lldb::thread_arg_t p) {
       done = true;
       LLVM_FALLTHROUGH;
     case eConnectionStatusTimedOut: // Request timed out
-      if (log)
-        error.LogIfError(
-            log, "%p Communication::ReadFromConnection () => status = %s", p,
-            Communication::ConnectionStatusAsCString(status));
+      if (error.Fail())
+        LLDB_LOG(log, "error: {0}, status = {1}", error,
+                 Communication::ConnectionStatusAsCString(status));
       break;
     }
   }

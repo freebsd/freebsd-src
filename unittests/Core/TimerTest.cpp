@@ -7,16 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#if defined(_MSC_VER) && (_HAS_EXCEPTIONS == 0)
-// Workaround for MSVC standard library bug, which fails to include <thread>
-// when exceptions are disabled.
-#include <eh.h>
-#endif
-
 #include "lldb/Core/Timer.h"
 #include "gtest/gtest.h"
 
-#include "lldb/Core/StreamString.h"
+#include "lldb/Utility/StreamString.h"
 #include <thread>
 
 using namespace lldb_private;

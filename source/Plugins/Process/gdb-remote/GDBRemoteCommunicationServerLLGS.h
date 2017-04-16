@@ -117,7 +117,7 @@ protected:
   MainLoop::ReadHandleUP m_stdio_handle_up;
 
   lldb::StateType m_inferior_prev_state;
-  lldb::DataBufferSP m_active_auxv_buffer_sp;
+  std::unique_ptr<llvm::MemoryBuffer> m_active_auxv_buffer_up;
   std::mutex m_saved_registers_mutex;
   std::unordered_map<uint32_t, lldb::DataBufferSP> m_saved_registers_map;
   uint32_t m_next_saved_registers_id;
@@ -202,6 +202,8 @@ protected:
   PacketResult Handle_qWatchpointSupportInfo(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_qFileLoadAddress(StringExtractorGDBRemote &packet);
+
+  PacketResult Handle_QPassSignals(StringExtractorGDBRemote &packet);
 
   void SetCurrentThreadID(lldb::tid_t tid);
 

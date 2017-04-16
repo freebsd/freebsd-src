@@ -50,6 +50,7 @@ bool LookupSPICalls() {
   static bool s_has_spi;
 
   std::call_once(s_once_flag, [] {
+    dlopen ("/System/Library/PrivateFrameworks/LoggingSupport.framework/LoggingSupport", RTLD_NOW);
     s_os_activity_stream_for_pid = (os_activity_stream_for_pid_t)dlsym(
         RTLD_DEFAULT, "os_activity_stream_for_pid");
     s_os_activity_stream_resume = (os_activity_stream_resume_t)dlsym(
@@ -691,7 +692,7 @@ void DarwinLogCollector::CancelActivityStream() {
 
   DNBLogThreadedIf(LOG_DARWIN_LOG, "DarwinLogCollector::%s(): canceling "
                                    "activity stream %p",
-                   __FUNCTION__, m_activity_stream);
+                   __FUNCTION__, reinterpret_cast<void *>(m_activity_stream));
   (*s_os_activity_stream_cancel)(m_activity_stream);
   m_activity_stream = nullptr;
 }

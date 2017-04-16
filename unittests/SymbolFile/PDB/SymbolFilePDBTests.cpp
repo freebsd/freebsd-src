@@ -19,12 +19,12 @@
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
-#include "lldb/Host/FileSpec.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/LineTable.h"
 #include "lldb/Symbol/SymbolVendor.h"
+#include "lldb/Utility/FileSpec.h"
 
 #include "Plugins/ObjectFile/PECOFF/ObjectFilePECOFF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARF.h"
@@ -120,7 +120,7 @@ protected:
     return false;
   }
 
-  uint64_t GetGlobalConstantInteger(const llvm::pdb::IPDBSession &session,
+  uint64_t GetGlobalConstantInteger(llvm::pdb::IPDBSession &session,
                                     llvm::StringRef var) const {
     auto global = session.getGlobalScope();
     auto results =
@@ -371,7 +371,7 @@ TEST_F(SymbolFilePDBTests, TestSimpleClassTypes) {
   SymbolVendor *plugin = module->GetSymbolVendor();
   SymbolFilePDB *symfile =
       static_cast<SymbolFilePDB *>(plugin->GetSymbolFile());
-  const llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
+  llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
   SymbolContext sc;
   llvm::DenseSet<SymbolFile *> searched_files;
   TypeMap results;
@@ -394,7 +394,7 @@ TEST_F(SymbolFilePDBTests, TestNestedClassTypes) {
   SymbolVendor *plugin = module->GetSymbolVendor();
   SymbolFilePDB *symfile =
       static_cast<SymbolFilePDB *>(plugin->GetSymbolFile());
-  const llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
+  llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
   SymbolContext sc;
   llvm::DenseSet<SymbolFile *> searched_files;
   TypeMap results;
@@ -417,7 +417,7 @@ TEST_F(SymbolFilePDBTests, TestClassInNamespace) {
   SymbolVendor *plugin = module->GetSymbolVendor();
   SymbolFilePDB *symfile =
       static_cast<SymbolFilePDB *>(plugin->GetSymbolFile());
-  const llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
+  llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
   SymbolContext sc;
   llvm::DenseSet<SymbolFile *> searched_files;
   TypeMap results;
@@ -440,7 +440,7 @@ TEST_F(SymbolFilePDBTests, TestEnumTypes) {
   SymbolVendor *plugin = module->GetSymbolVendor();
   SymbolFilePDB *symfile =
       static_cast<SymbolFilePDB *>(plugin->GetSymbolFile());
-  const llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
+  llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
   SymbolContext sc;
   llvm::DenseSet<SymbolFile *> searched_files;
   const char *EnumsToCheck[] = {"Enum", "ShortEnum"};
@@ -487,7 +487,7 @@ TEST_F(SymbolFilePDBTests, TestTypedefs) {
   SymbolVendor *plugin = module->GetSymbolVendor();
   SymbolFilePDB *symfile =
       static_cast<SymbolFilePDB *>(plugin->GetSymbolFile());
-  const llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
+  llvm::pdb::IPDBSession &session = symfile->GetPDBSession();
   SymbolContext sc;
   llvm::DenseSet<SymbolFile *> searched_files;
   TypeMap results;

@@ -692,31 +692,30 @@ class Base(unittest2.TestCase):
         if not lldb.remote_platform or not configuration.lldb_platform_working_dir:
             return
 
-        remote_test_dir = lldbutil.join_remote_paths(
-            configuration.lldb_platform_working_dir,
-            self.getArchitecture(),
-            str(self.test_number),
-            self.mydir)
-        error = lldb.remote_platform.MakeDirectory(
-            remote_test_dir, 448)  # 448 = 0o700
-        if error.Success():
-            lldb.remote_platform.SetWorkingDirectory(remote_test_dir)
+        components = [str(self.test_number)] + self.mydir.split(os.path.sep)
+        remote_test_dir = configuration.lldb_platform_working_dir
+        for c in components:
+            remote_test_dir = lldbutil.join_remote_paths(remote_test_dir, c)
+            error = lldb.remote_platform.MakeDirectory(
+                remote_test_dir, 448)  # 448 = 0o700
+            if error.Fail():
+                raise Exception("making remote directory '%s': %s" % (
+                    remote_test_dir, error))
 
-            # This function removes all files from the current working directory while leaving
-            # the directories in place. The cleaup is required to reduce the disk space required
-            # by the test suit while leaving the directories untached is neccessary because
-            # sub-directories might belong to an other test
-            def clean_working_directory():
-                # TODO: Make it working on Windows when we need it for remote debugging support
-                # TODO: Replace the heuristic to remove the files with a logic what collects the
-                # list of files we have to remove during test runs.
-                shell_cmd = lldb.SBPlatformShellCommand(
-                    "rm %s/*" % remote_test_dir)
-                lldb.remote_platform.Run(shell_cmd)
-            self.addTearDownHook(clean_working_directory)
-        else:
-            print("error: making remote directory '%s': %s" % (
-                remote_test_dir, error))
+        lldb.remote_platform.SetWorkingDirectory(remote_test_dir)
+
+        # This function removes all files from the current working directory while leaving
+        # the directories in place. The cleaup is required to reduce the disk space required
+        # by the test suit while leaving the directories untached is neccessary because
+        # sub-directories might belong to an other test
+        def clean_working_directory():
+            # TODO: Make it working on Windows when we need it for remote debugging support
+            # TODO: Replace the heuristic to remove the files with a logic what collects the
+            # list of files we have to remove during test runs.
+            shell_cmd = lldb.SBPlatformShellCommand(
+                "rm %s/*" % remote_test_dir)
+            lldb.remote_platform.Run(shell_cmd)
+        self.addTearDownHook(clean_working_directory)
 
     def setUp(self):
         """Fixture for unittest test case setup.
@@ -1119,8 +1118,11 @@ class Base(unittest2.TestCase):
                     compiler = compiler[2:]
                 if os.path.altsep is not None:
                     compiler = compiler.replace(os.path.altsep, os.path.sep)
-                components.extend(
-                    [x for x in compiler.split(os.path.sep) if x != ""])
+                path_components = [x for x in compiler.split(os.path.sep) if x != ""]
+
+                # Add at most 4 path components to avoid generating very long
+                # filenames
+                components.extend(path_components[-4:])
             elif c == 'a':
                 components.append(self.getArchitecture())
             elif c == 'm':
@@ -1226,6 +1228,13 @@ class Base(unittest2.TestCase):
     # Config. methods supported through a plugin interface
     # (enables reading of the current test configuration)
     # ====================================================
+
+    def isMIPS(self):
+        """Returns true if the architecture is MIPS."""
+        arch = self.getArchitecture()
+        if re.match("mips", arch):
+            return True
+        return False
 
     def getArchitecture(self):
         """Returns the architecture in effect the test suite is running with."""
@@ -1704,7 +1713,7 @@ class LLDBTestCaseFactory(type):
 
                 supported_categories = [
                     x for x in categories if test_categories.is_supported_on_platform(
-                        x, target_platform, configuration.compilers)]
+                        x, target_platform, configuration.compiler)]
                 if "dsym" in supported_categories:
                     @decorators.add_test_categories(["dsym"])
                     @wraps(attrvalue)

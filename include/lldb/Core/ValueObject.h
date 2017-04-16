@@ -10,32 +10,67 @@
 #ifndef liblldb_ValueObject_h_
 #define liblldb_ValueObject_h_
 
-// C Includes
-// C++ Includes
+#include "lldb/Core/Value.h"
+#include "lldb/DataFormatters/DumpValueObjectOptions.h" // for DumpValueObj...
+#include "lldb/Symbol/CompilerType.h"
+#include "lldb/Symbol/Type.h" // for TypeImpl
+#include "lldb/Target/ExecutionContext.h"
+#include "lldb/Target/Process.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/SharedCluster.h"
+#include "lldb/Utility/UserID.h"
+#include "lldb/lldb-defines.h"              // for LLDB_INVALID...
+#include "lldb/lldb-enumerations.h"         // for DynamicValue...
+#include "lldb/lldb-forward.h"              // for ValueObjectSP
+#include "lldb/lldb-private-enumerations.h" // for AddressType
+#include "lldb/lldb-types.h"                // for addr_t, offs...
+
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h" // for StringRef
+
 #include <functional>
 #include <initializer_list>
 #include <map>
+#include <mutex>   // for recursive_mutex
+#include <string>  // for string
+#include <utility> // for pair
 #include <vector>
 
-// Other libraries and framework includes
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/SmallVector.h"
-
-// Project includes
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/DataExtractor.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Flags.h"
-#include "lldb/Core/UserID.h"
-#include "lldb/Core/Value.h"
-#include "lldb/Symbol/CompilerType.h"
-#include "lldb/Target/ExecutionContext.h"
-#include "lldb/Target/ExecutionContextScope.h"
-#include "lldb/Target/Process.h"
-#include "lldb/Target/StackID.h"
-#include "lldb/Utility/SharedCluster.h"
-#include "lldb/lldb-private.h"
-
+#include <stddef.h> // for size_t
+#include <stdint.h> // for uint32_t
+namespace lldb_private {
+class Declaration;
+}
+namespace lldb_private {
+class EvaluateExpressionOptions;
+}
+namespace lldb_private {
+class ExecutionContextScope;
+}
+namespace lldb_private {
+class Log;
+}
+namespace lldb_private {
+class Scalar;
+}
+namespace lldb_private {
+class Stream;
+}
+namespace lldb_private {
+class SymbolContextScope;
+}
+namespace lldb_private {
+class TypeFormatImpl;
+}
+namespace lldb_private {
+class TypeSummaryImpl;
+}
+namespace lldb_private {
+class TypeSummaryOptions;
+}
 namespace lldb_private {
 
 /// ValueObject:
@@ -552,6 +587,9 @@ public:
 
   lldb::ValueObjectSP GetSP() { return m_manager->GetSharedPointer(this); }
 
+  // Change the name of the current ValueObject. Should *not* be used from a
+  // synthetic child provider as it would change the name of the non synthetic
+  // child as well.
   void SetName(const ConstString &name);
 
   virtual lldb::addr_t GetAddressOf(bool scalar_is_load_address = true,
@@ -599,6 +637,12 @@ public:
   virtual lldb::ValueObjectSP CreateConstantValue(const ConstString &name);
 
   virtual lldb::ValueObjectSP Dereference(Error &error);
+
+  // Creates a copy of the ValueObject with a new name and setting the current
+  // ValueObject as its parent. It should be used when we want to change the
+  // name of a ValueObject without modifying the actual ValueObject itself
+  // (e.g. sythetic child provider).
+  virtual lldb::ValueObjectSP Clone(const ConstString &new_name);
 
   virtual lldb::ValueObjectSP AddressOf(Error &error);
 

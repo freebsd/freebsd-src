@@ -10,7 +10,7 @@
 #ifndef liblldb_PlatformDarwinKernel_h_
 #define liblldb_PlatformDarwinKernel_h_
 
-#include "lldb/Core/ConstString.h"
+#include "lldb/Utility/ConstString.h"
 
 #if defined(__APPLE__) // This Plugin uses the Mac-specific
                        // source/Host/macosx/cfcpp utilities
@@ -18,7 +18,9 @@
 // C Includes
 // C++ Includes
 // Other libraries and framework includes
-#include "lldb/Host/FileSpec.h"
+#include "lldb/Utility/FileSpec.h"
+
+#include "llvm/Support/FileSystem.h"
 
 // Project includes
 #include "PlatformDarwin.h"
@@ -105,26 +107,25 @@ protected:
   void AddSDKSubdirsToSearchPaths(const std::string &dir);
 
   static lldb_private::FileSpec::EnumerateDirectoryResult
-  FindKDKandSDKDirectoriesInDirectory(
-      void *baton, lldb_private::FileSpec::FileType file_type,
-      const lldb_private::FileSpec &file_spec);
+  FindKDKandSDKDirectoriesInDirectory(void *baton, llvm::sys::fs::file_type ft,
+                                      const lldb_private::FileSpec &file_spec);
 
   void SearchForKextsAndKernelsRecursively();
 
   static lldb_private::FileSpec::EnumerateDirectoryResult
   GetKernelsAndKextsInDirectoryWithRecursion(
-      void *baton, lldb_private::FileSpec::FileType file_type,
+      void *baton, llvm::sys::fs::file_type ft,
       const lldb_private::FileSpec &file_spec);
 
   static lldb_private::FileSpec::EnumerateDirectoryResult
   GetKernelsAndKextsInDirectoryNoRecursion(
-      void *baton, lldb_private::FileSpec::FileType file_type,
+      void *baton, llvm::sys::fs::file_type ft,
       const lldb_private::FileSpec &file_spec);
 
   static lldb_private::FileSpec::EnumerateDirectoryResult
-  GetKernelsAndKextsInDirectoryHelper(
-      void *baton, lldb_private::FileSpec::FileType file_type,
-      const lldb_private::FileSpec &file_spec, bool recurse);
+  GetKernelsAndKextsInDirectoryHelper(void *baton, llvm::sys::fs::file_type ft,
+                                      const lldb_private::FileSpec &file_spec,
+                                      bool recurse);
 
   static void AddKextToMap(PlatformDarwinKernel *thisp,
                            const lldb_private::FileSpec &file_spec);

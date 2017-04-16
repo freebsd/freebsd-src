@@ -56,24 +56,25 @@
 
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Communication.h"
-#include "lldb/Core/DataBufferHeap.h"
-#include "lldb/Core/DataExtractor.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/StreamFile.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Core/StructuredData.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
-#include "lldb/Host/Endian.h"
-#include "lldb/Host/FileSpec.h"
-#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/CleanUp.h"
+#include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Endian.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/Log.h"
 #include "lldb/Utility/NameMatches.h"
+#include "lldb/Utility/StreamString.h"
+
+#include "llvm/Support/FileSystem.h"
 
 #include "cfcpp/CFCBundle.h"
 #include "cfcpp/CFCMutableArray.h"
@@ -101,7 +102,7 @@ using namespace lldb_private;
 bool Host::GetBundleDirectory(const FileSpec &file,
                               FileSpec &bundle_directory) {
 #if defined(__APPLE__)
-  if (file.GetFileType() == FileSpec::eFileTypeDirectory) {
+  if (llvm::sys::fs::is_directory(file.GetPath())) {
     char path[PATH_MAX];
     if (file.GetPath(path, sizeof(path))) {
       CFCBundle bundle(path);
@@ -118,7 +119,7 @@ bool Host::GetBundleDirectory(const FileSpec &file,
 
 bool Host::ResolveExecutableInBundle(FileSpec &file) {
 #if defined(__APPLE__)
-  if (file.GetFileType() == FileSpec::eFileTypeDirectory) {
+  if (llvm::sys::fs::is_directory(file.GetPath())) {
     char path[PATH_MAX];
     if (file.GetPath(path, sizeof(path))) {
       CFCBundle bundle(path);
@@ -528,7 +529,7 @@ LaunchInNewTerminalWithAppleScript(const char *exe_path,
     WaitForProcessToSIGSTOP(pid, 5);
   }
 
-  FileSystem::Unlink(FileSpec{unix_socket_name, false});
+  llvm::sys::fs::remove(unix_socket_name);
   [applescript release];
   if (pid != LLDB_INVALID_PROCESS_ID)
     launch_info.SetProcessID(pid);
@@ -957,9 +958,7 @@ static Error getXPCAuthorization(ProcessLaunchInfo &launch_info) {
     if (createStatus != errAuthorizationSuccess) {
       error.SetError(1, eErrorTypeGeneric);
       error.SetErrorString("Can't create authorizationRef.");
-      if (log) {
-        error.PutToLog(log, "%s", error.AsCString());
-      }
+      LLDB_LOG(log, "error: {0}", error);
       return error;
     }
 
@@ -1012,9 +1011,7 @@ static Error getXPCAuthorization(ProcessLaunchInfo &launch_info) {
       error.SetError(2, eErrorTypeGeneric);
       error.SetErrorStringWithFormat(
           "Launching as root needs root authorization.");
-      if (log) {
-        error.PutToLog(log, "%s", error.AsCString());
-      }
+      LLDB_LOG(log, "error: {0}", error);
 
       if (authorizationRef) {
         AuthorizationFree(authorizationRef, kAuthorizationFlagDefaults);
@@ -1050,9 +1047,7 @@ static Error LaunchProcessXPC(const char *exe_path,
       error.SetError(3, eErrorTypeGeneric);
       error.SetErrorStringWithFormat("Launching root via XPC needs to "
                                      "externalize authorization reference.");
-      if (log) {
-        error.PutToLog(log, "%s", error.AsCString());
-      }
+      LLDB_LOG(log, "error: {0}", error);
       return error;
     }
     xpc_service = LaunchUsingXPCRightName;
@@ -1060,9 +1055,7 @@ static Error LaunchProcessXPC(const char *exe_path,
     error.SetError(4, eErrorTypeGeneric);
     error.SetErrorStringWithFormat(
         "Launching via XPC is only currently available for root.");
-    if (log) {
-      error.PutToLog(log, "%s", error.AsCString());
-    }
+    LLDB_LOG(log, "error: {0}", error);
     return error;
   }
 
@@ -1146,9 +1139,7 @@ static Error LaunchProcessXPC(const char *exe_path,
       error.SetErrorStringWithFormat(
           "Problems with launching via XPC. Error type : %i, code : %i",
           errorType, errorCode);
-      if (log) {
-        error.PutToLog(log, "%s", error.AsCString());
-      }
+      LLDB_LOG(log, "error: {0}", error);
 
       if (authorizationRef) {
         AuthorizationFree(authorizationRef, kAuthorizationFlagDefaults);
@@ -1160,9 +1151,7 @@ static Error LaunchProcessXPC(const char *exe_path,
     error.SetErrorStringWithFormat(
         "Problems with launching via XPC. XPC error : %s",
         xpc_dictionary_get_string(reply, XPC_ERROR_KEY_DESCRIPTION));
-    if (log) {
-      error.PutToLog(log, "%s", error.AsCString());
-    }
+    LLDB_LOG(log, "error: {0}", error);
   }
 
   return error;
@@ -1196,8 +1185,8 @@ Error Host::LaunchProcess(ProcessLaunchInfo &launch_info) {
   ModuleSpec exe_module_spec(launch_info.GetExecutableFile(),
                              launch_info.GetArchitecture());
 
-  FileSpec::FileType file_type = exe_module_spec.GetFileSpec().GetFileType();
-  if (file_type != FileSpec::eFileTypeRegular) {
+  if (!llvm::sys::fs::is_regular_file(
+          exe_module_spec.GetFileSpec().GetPath())) {
     lldb::ModuleSP exe_module_sp;
     error = host_platform_sp->ResolveExecutable(exe_module_spec, exe_module_sp,
                                                 NULL);
@@ -1457,8 +1446,4 @@ void Host::SystemLog(SystemLogType type, const char *format, va_list args) {
     // Log to ASL
     ::asl_vlog(NULL, g_aslmsg, asl_level, format, args);
   }
-}
-
-lldb::DataBufferSP Host::GetAuxvData(lldb_private::Process *process) {
-  return lldb::DataBufferSP();
 }

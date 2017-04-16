@@ -9,24 +9,17 @@
 
 #include "lldb/Core/Scalar.h"
 
-// C Includes
-// C++ Includes
-#include <cinttypes>
-#include <cmath>
-#include <cstdio>
+#include "lldb/Host/StringConvert.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Endian.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/lldb-types.h" // for offset_t
 
-// Other libraries and framework includes
 #include "llvm/ADT/SmallString.h"
 
-// Project includes
-#include "lldb/Core/DataExtractor.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Host/Endian.h"
-#include "lldb/Host/StringConvert.h"
-#include "lldb/Interpreter/Args.h"
-
-#include "Plugins/Process/Utility/InstructionUtils.h"
+#include <cinttypes>
+#include <cstdio>
 
 using namespace lldb;
 using namespace lldb_private;

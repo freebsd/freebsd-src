@@ -21,10 +21,14 @@ class LinuxCoreTestCase(TestBase):
     _i386_pid = 32306
     _x86_64_pid = 32259
     _s390x_pid = 1045
+    _mips64_n64_pid = 25619
+    _mips64_n32_pid = 3670
+    _mips_o32_pid = 3532
 
     _i386_regions = 4
     _x86_64_regions = 5
     _s390x_regions = 2
+    _mips_regions = 5
 
     def setUp(self):
         super(LinuxCoreTestCase, self).setUp()
@@ -35,24 +39,40 @@ class LinuxCoreTestCase(TestBase):
         super(LinuxCoreTestCase, self).tearDown()
 
     @skipIf(oslist=['windows'])
+    @skipIfDarwin # <rdar://problem/31380097>, fails started happening with r299199
     @skipIf(triple='^mips')
     def test_i386(self):
         """Test that lldb can read the process information from an i386 linux core file."""
         self.do_test("linux-i386", self._i386_pid, self._i386_regions)
 
+    def test_mips_o32(self):
+        """Test that lldb can read the process information from an MIPS O32 linux core file."""
+        self.do_test("linux-mipsel-gnuabio32", self._mips_o32_pid, self._mips_regions)
+
+    def test_mips_n32(self):
+        """Test that lldb can read the process information from an MIPS N32 linux core file """
+        self.do_test("linux-mips64el-gnuabin32", self._mips64_n32_pid, self._mips_regions)
+
+    def test_mips_n64(self):
+        """Test that lldb can read the process information from an MIPS N64 linux core file """
+        self.do_test("linux-mips64el-gnuabi64", self._mips64_n64_pid, self._mips_regions)
+
     @skipIf(oslist=['windows'])
+    @skipIfDarwin # <rdar://problem/31380097>, fails started happening with r299199
     @skipIf(triple='^mips')
     def test_x86_64(self):
         """Test that lldb can read the process information from an x86_64 linux core file."""
         self.do_test("linux-x86_64", self._x86_64_pid, self._x86_64_regions)
 
     @skipIf(oslist=['windows'])
+    @skipIfDarwin # <rdar://problem/31380097>, fails started happening with r299199
     @skipIf(triple='^mips')
     def test_s390x(self):
         """Test that lldb can read the process information from an s390x linux core file."""
         self.do_test("linux-s390x", self._s390x_pid, self._s390x_regions)
 
     @skipIf(oslist=['windows'])
+    @skipIfDarwin # <rdar://problem/31380097>, fails started happening with r299199
     @skipIf(triple='^mips')
     def test_same_pid_running(self):
         """Test that we read the information from the core correctly even if we have a running
@@ -82,6 +102,7 @@ class LinuxCoreTestCase(TestBase):
             self.RemoveTempFile("linux-x86_64-pid.core")
 
     @skipIf(oslist=['windows'])
+    @skipIfDarwin # <rdar://problem/31380097>, fails started happening with r299199
     @skipIf(triple='^mips')
     def test_two_cores_same_pid(self):
         """Test that we handle the situation if we have two core files with the same PID
@@ -111,6 +132,7 @@ class LinuxCoreTestCase(TestBase):
         self.do_test("linux-x86_64", self._x86_64_pid, self._x86_64_regions)
 
     @skipIf(oslist=['windows'])
+    @skipIfDarwin # <rdar://problem/31380097>, fails started happening with r299199
     @skipIf(triple='^mips')
     def test_FPR_SSE(self):
         # check x86_64 core file

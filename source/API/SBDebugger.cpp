@@ -1120,13 +1120,23 @@ SBTypeSynthetic SBDebugger::GetSyntheticForType(SBTypeNameSpecifier type_name) {
 }
 #endif // LLDB_DISABLE_PYTHON
 
+static llvm::ArrayRef<const char *> GetCategoryArray(const char **categories) {
+  if (categories == nullptr)
+    return {};
+  size_t len = 0;
+  while (categories[len] != nullptr)
+    ++len;
+  return llvm::makeArrayRef(categories, len);
+}
+
 bool SBDebugger::EnableLog(const char *channel, const char **categories) {
   if (m_opaque_sp) {
     uint32_t log_options =
         LLDB_LOG_OPTION_PREPEND_TIMESTAMP | LLDB_LOG_OPTION_PREPEND_THREAD_NAME;
-    StreamString errors;
-    return m_opaque_sp->EnableLog(channel, categories, nullptr, log_options,
-                                  errors);
+    std::string error;
+    llvm::raw_string_ostream error_stream(error);
+    return m_opaque_sp->EnableLog(channel, GetCategoryArray(categories), "",
+                                  log_options, error_stream);
   } else
     return false;
 }

@@ -11,19 +11,20 @@
 
 // Other libraries and framework includes
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/Threading.h"
 
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleList.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/Scalar.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Core/StreamFile.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/Value.h"
+#include "lldb/Utility/RegularExpression.h"
+#include "lldb/Utility/StreamString.h"
 
 #include "Plugins/ExpressionParser/Clang/ClangModulesDeclVendor.h"
 
@@ -70,6 +71,8 @@
 #include "LogChannelDWARF.h"
 #include "SymbolFileDWARFDebugMap.h"
 #include "SymbolFileDWARFDwo.h"
+
+#include "llvm/Support/FileSystem.h"
 
 #include <map>
 
@@ -190,7 +193,9 @@ static const char *resolveCompDir(const char *path_from_dwarf) {
   if (!is_symlink)
     return local_path;
 
-  if (!local_path_spec.IsSymbolicLink())
+  namespace fs = llvm::sys::fs;
+  if (fs::get_file_type(local_path_spec.GetPath(), false) !=
+      fs::file_type::symlink_file)
     return local_path;
 
   FileSpec resolved_local_path_spec;
@@ -222,7 +227,7 @@ void SymbolFileDWARF::DebuggerInitialize(Debugger &debugger) {
 
 void SymbolFileDWARF::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
-  LogChannelDWARF::Initialize();
+  LogChannelDWARF::Terminate();
 }
 
 lldb_private::ConstString SymbolFileDWARF::GetPluginNameStatic() {
@@ -553,8 +558,9 @@ uint32_t SymbolFileDWARF::CalculateAbilities() {
 const DWARFDataExtractor &
 SymbolFileDWARF::GetCachedSectionData(lldb::SectionType sect_type,
                                       DWARFDataSegment &data_segment) {
-  std::call_once(data_segment.m_flag, &SymbolFileDWARF::LoadSectionData, this,
-                 sect_type, std::ref(data_segment.m_data));
+  llvm::call_once(data_segment.m_flag, [this, sect_type, &data_segment] {
+    this->LoadSectionData(sect_type, std::ref(data_segment.m_data));
+  });
   return data_segment.m_data;
 }
 
@@ -1935,7 +1941,7 @@ void SymbolFileDWARF::Index() {
     std::vector<NameToDIE> namespace_index(num_compile_units);
 
     std::vector<bool> clear_cu_dies(num_compile_units, false);
-    auto parser_fn = [this, debug_info, &function_basename_index,
+    auto parser_fn = [debug_info, &function_basename_index,
                       &function_fullname_index, &function_method_index,
                       &function_selector_index, &objc_class_selectors_index,
                       &global_index, &type_index,
@@ -1951,7 +1957,7 @@ void SymbolFileDWARF::Index() {
       return cu_idx;
     };
 
-    auto extract_fn = [this, debug_info, num_compile_units](uint32_t cu_idx) {
+    auto extract_fn = [debug_info](uint32_t cu_idx) {
       DWARFCompileUnit *dwarf_cu = debug_info->GetCompileUnitAtIndex(cu_idx);
       if (dwarf_cu) {
         // dwarf_cu->ExtractDIEsIfNeeded(false) will return zero if the

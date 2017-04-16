@@ -9,22 +9,54 @@
 
 #include "lldb/Core/ModuleList.h"
 
-// C Includes
-// C++ Includes
-#include <cstdint>
-#include <mutex>
-
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Core/Log.h"
+#include "lldb/Core/ArchSpec.h"     // for ArchSpec
+#include "lldb/Core/FileSpecList.h" // for FileSpecList
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Host/FileSystem.h"
-#include "lldb/Host/Host.h"
 #include "lldb/Host/Symbols.h"
 #include "lldb/Symbol/ObjectFile.h"
-#include "lldb/Symbol/SymbolFile.h"
+#include "lldb/Symbol/SymbolContext.h" // for SymbolContextList, SymbolCon...
 #include "lldb/Symbol/VariableList.h"
+#include "lldb/Utility/ConstString.h" // for ConstString
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Logging.h" // for GetLogIfAnyCategoriesSet
+#include "lldb/Utility/UUID.h"    // for UUID, operator!=, operator==
+#include "lldb/lldb-defines.h"    // for LLDB_INVALID_INDEX32
+
+#if defined(LLVM_ON_WIN32)
+#include "lldb/Host/windows/PosixApi.h" // for PATH_MAX
+#endif
+
+#include "llvm/ADT/StringRef.h" // for StringRef
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Threading.h"
+#include "llvm/Support/raw_ostream.h" // for fs
+
+#include <chrono> // for operator!=, time_point
+#include <memory> // for shared_ptr
+#include <mutex>
+#include <string>  // for string
+#include <utility> // for distance
+
+namespace lldb_private {
+class Function;
+}
+namespace lldb_private {
+class RegularExpression;
+}
+namespace lldb_private {
+class Stream;
+}
+namespace lldb_private {
+class SymbolFile;
+}
+namespace lldb_private {
+class Target;
+}
+namespace lldb_private {
+class TypeList;
+}
 
 using namespace lldb;
 using namespace lldb_private;
@@ -644,8 +676,8 @@ size_t ModuleList::GetIndexForModule(const Module *module) const {
 
 static ModuleList &GetSharedModuleList() {
   static ModuleList *g_shared_module_list = nullptr;
-  static std::once_flag g_once_flag;
-  std::call_once(g_once_flag, []() {
+  static llvm::once_flag g_once_flag;
+  llvm::call_once(g_once_flag, []() {
     // NOTE: Intentionally leak the module list so a program doesn't have to
     // cleanup all modules and object files as it exits. This just wastes time
     // doing a bunch of cleanup that isn't required.
@@ -764,7 +796,8 @@ Error ModuleList::GetSharedModule(const ModuleSpec &module_spec,
       auto search_path_spec = module_search_paths_ptr->GetFileSpecAtIndex(idx);
       if (!search_path_spec.ResolvePath())
         continue;
-      if (!search_path_spec.Exists() || !search_path_spec.IsDirectory())
+      namespace fs = llvm::sys::fs;
+      if (!fs::is_directory(search_path_spec.GetPath()))
         continue;
       search_path_spec.AppendPathComponent(
           module_spec.GetFileSpec().GetFilename().AsCString());
