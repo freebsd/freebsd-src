@@ -24,6 +24,7 @@ ${PACKAGE}FILES+=	alias14.0
 ${PACKAGE}FILES+=	alias15.0 alias15.0.stdout
 ${PACKAGE}FILES+=	alias16.0
 ${PACKAGE}FILES+=	alias17.0
+${PACKAGE}FILES+=	alias18.0
 ${PACKAGE}FILES+=	and-pipe-not.0
 ${PACKAGE}FILES+=	case1.0
 ${PACKAGE}FILES+=	case2.0
