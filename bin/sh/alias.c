@@ -63,17 +63,8 @@ setalias(const char *name, const char *val)
 {
 	struct alias *ap, **app;
 
+	unalias(name);
 	app = hashalias(name);
-	for (ap = *app; ap; ap = ap->next) {
-		if (equal(name, ap->name)) {
-			INTOFF;
-			ckfree(ap->val);
-			ap->val	= savestr(val);
-			INTON;
-			return;
-		}
-	}
-	/* not found */
 	INTOFF;
 	ap = ckmalloc(sizeof (struct alias));
 	ap->name = savestr(name);
