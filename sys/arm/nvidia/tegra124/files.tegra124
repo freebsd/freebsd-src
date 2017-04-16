@@ -33,6 +33,7 @@ arm/nvidia/tegra_efuse.c		standard
 arm/nvidia/tegra_soctherm_if.m		standard
 arm/nvidia/tegra_soctherm.c		standard
 arm/nvidia/tegra_lic.c			standard
+arm/nvidia/tegra_mc.c			standard
 #arm/nvidia/tegra_hda.c			optional	snd_hda
 #arm/nvidia/drm2/hdmi.c			optional	drm2
 #arm/nvidia/drm2/tegra_drm_if.m		optional	drm2
