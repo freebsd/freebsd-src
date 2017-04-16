@@ -2195,6 +2195,10 @@ char *phrase;
 			for (i = 0, s = strtok(phrase, " \r\n\t"); s != NULL;
 			     s = strtok(NULL, " \r\n\t"), i++) {
 				fb = reallocarray(fb, i / 4 + 1, sizeof(*fb));
+				if (fb == NULL) {
+					perror("memory allocation error at __LINE__ in __FUNCTION__ in __FILE");
+					abort();
+				}
 				l = (u_32_t)strtol(s, NULL, 0);
 				switch (i & 3)
 				{
