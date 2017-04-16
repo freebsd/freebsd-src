@@ -17,7 +17,6 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/StreamFile.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObject.h"
@@ -25,7 +24,7 @@
 #include "lldb/DataFormatters/DataVisualization.h"
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
 #include "lldb/Host/Host.h"
-#include "lldb/Host/StringConvert.h"
+#include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -47,6 +46,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/LLDBAssert.h"
+#include "lldb/Utility/StreamString.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -192,14 +192,13 @@ protected:
       return false;
     }
 
-    const bool qualify_cxx_base_classes = false;
 
-    DumpValueObjectOptions::DeclPrintingHelper helper =
-        [&valobj_sp, qualify_cxx_base_classes](
-            ConstString type, ConstString var,
-            const DumpValueObjectOptions &opts, Stream &stream) -> bool {
+    DumpValueObjectOptions::DeclPrintingHelper helper = [&valobj_sp](
+        ConstString type, ConstString var, const DumpValueObjectOptions &opts,
+        Stream &stream) -> bool {
       const ValueObject::GetExpressionPathFormat format = ValueObject::
           GetExpressionPathFormat::eGetExpressionPathFormatHonorPointers;
+      const bool qualify_cxx_base_classes = false;
       valobj_sp->GetExpressionPath(stream, qualify_cxx_base_classes, format);
       stream.PutCString(" =");
       return true;

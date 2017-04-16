@@ -13,12 +13,12 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Core/Stream.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/DataFormatters/DataVisualization.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/Stream.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -457,7 +457,12 @@ bool ValueObjectPrinter::PrintObjectDescriptionIfNeeded(bool value_printed,
       else
         object_desc = GetDescriptionForDisplay();
       if (object_desc && *object_desc) {
-        m_stream->Printf("%s\n", object_desc);
+        // If the description already ends with a \n don't add another one.
+        size_t object_end = strlen(object_desc) - 1;
+        if (object_desc[object_end] == '\n')
+            m_stream->Printf("%s", object_desc);
+        else
+            m_stream->Printf("%s\n", object_desc);        
         return true;
       } else if (value_printed == false && summary_printed == false)
         return true;
@@ -468,32 +473,11 @@ bool ValueObjectPrinter::PrintObjectDescriptionIfNeeded(bool value_printed,
   return true;
 }
 
-bool DumpValueObjectOptions::PointerDepth::CanAllowExpansion(
-    bool is_root, TypeSummaryImpl *entry, ValueObject *valobj,
-    const std::string &summary) {
-  switch (m_mode) {
-  case Mode::Always:
-    return (m_count > 0);
-  case Mode::Never:
-    return false;
-  case Mode::Default:
-    if (is_root)
-      m_count = std::min<decltype(m_count)>(m_count, 1);
-    return m_count > 0;
-  case Mode::Formatters:
-    if (!entry || entry->DoesPrintChildren(valobj) || summary.empty())
-      return m_count > 0;
-    return false;
-  }
-  return false;
-}
-
 bool DumpValueObjectOptions::PointerDepth::CanAllowExpansion() const {
   switch (m_mode) {
   case Mode::Always:
   case Mode::Default:
-  case Mode::Formatters:
-    return (m_count > 0);
+    return m_count > 0;
   case Mode::Never:
     return false;
   }
@@ -546,8 +530,7 @@ bool ValueObjectPrinter::ShouldPrintChildren(
         return true;
       }
 
-      return curr_ptr_depth.CanAllowExpansion(false, entry, m_valobj,
-                                              m_summary);
+      return curr_ptr_depth.CanAllowExpansion();
     }
 
     return (!entry || entry->DoesPrintChildren(m_valobj) || m_summary.empty());

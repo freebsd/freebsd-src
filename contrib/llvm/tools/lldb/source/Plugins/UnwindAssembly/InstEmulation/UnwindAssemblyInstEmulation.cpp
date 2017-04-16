@@ -11,18 +11,19 @@
 
 #include "lldb/Core/Address.h"
 #include "lldb/Core/ArchSpec.h"
-#include "lldb/Core/DataBufferHeap.h"
-#include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Disassembler.h"
-#include "lldb/Core/Error.h"
+#include "lldb/Core/DumpDataExtractor.h"
 #include "lldb/Core/FormatEntity.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/StreamString.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -408,7 +409,8 @@ size_t UnwindAssemblyInstEmulation::WriteMemory(
     StreamString strm;
 
     strm.PutCString("UnwindAssemblyInstEmulation::WriteMemory   (");
-    data.Dump(&strm, 0, eFormatBytes, 1, dst_len, UINT32_MAX, addr, 0, 0);
+    DumpDataExtractor(data, &strm, 0, eFormatBytes, 1, dst_len, UINT32_MAX,
+                      addr, 0, 0);
     strm.PutCString(", context = ");
     context.Dump(strm, instruction);
     log->PutString(strm.GetString());

@@ -24,8 +24,8 @@
 #include "llvm/Pass.h"
 
 // Project includes
-#include "lldb/Core/Log.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Utility/Log.h"
 
 using namespace lldb_private;
 namespace {
@@ -182,8 +182,10 @@ bool fixupX86StructRetCalls(llvm::Module &module) {
     // we pass a pointer to this allocation as the StructRet param, and then
     // copy its
     // value into the lldb return value
+    const llvm::DataLayout &DL = module.getDataLayout();
     llvm::AllocaInst *return_value_alloc = new llvm::AllocaInst(
-        func->getReturnType(), "var_vector_return_alloc", call_inst);
+      func->getReturnType(), DL.getAllocaAddrSpace(), "var_vector_return_alloc",
+      call_inst);
     // use the new allocation as the new first argument
     new_call_args.emplace(new_call_args.begin(),
                           llvm::cast<llvm::Value>(return_value_alloc));
@@ -194,7 +196,8 @@ bool fixupX86StructRetCalls(llvm::Module &module) {
         llvm::Instruction::BitCast, func, new_func_ptr_type);
     // create an allocation for a new function pointer
     llvm::AllocaInst *new_func_ptr =
-        new llvm::AllocaInst(new_func_ptr_type, "new_func_ptr", call_inst);
+        new llvm::AllocaInst(new_func_ptr_type, DL.getAllocaAddrSpace(),
+                             "new_func_ptr", call_inst);
     // store the new_func_cast to the newly allocated space
     (new llvm::StoreInst(new_func_cast, new_func_ptr, call_inst))
         ->setName("new_func_ptr_load_cast");
@@ -248,7 +251,7 @@ bool fixupRSAllocationStructByValCalls(llvm::Module &module) {
     rs_functions.insert(call_inst->getCalledFunction());
 
     // get the function attributes
-    llvm::AttributeSet call_attribs = call_inst->getAttributes();
+    llvm::AttributeList call_attribs = call_inst->getAttributes();
 
     // iterate over the argument attributes
     for (size_t i = 1; i <= call_attribs.getNumSlots(); ++i) {
@@ -261,16 +264,12 @@ bool fixupRSAllocationStructByValCalls(llvm::Module &module) {
     }
   }
 
-  llvm::AttributeSet attr_byval =
-      llvm::AttributeSet::get(module.getContext(), 1u, llvm::Attribute::ByVal);
-
   // for all called function decls
   for (auto func : rs_functions) {
     // inspect all of the arguments in the call
-    llvm::SymbolTableList<llvm::Argument> &arg_list = func->getArgumentList();
-    for (auto &arg : arg_list) {
+    for (auto &arg : func->args()) {
       if (arg.hasByValAttr()) {
-        arg.removeAttr(attr_byval);
+        arg.removeAttr(llvm::Attribute::ByVal);
         changed = true;
       }
     }

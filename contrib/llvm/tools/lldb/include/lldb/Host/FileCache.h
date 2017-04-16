@@ -9,13 +9,14 @@
 #ifndef liblldb_Host_FileCache_h
 #define liblldb_Host_FileCache_h
 
+#include <map>
 #include <stdint.h>
 
 #include "lldb/lldb-forward.h"
 #include "lldb/lldb-types.h"
 
-#include "lldb/Core/Error.h"
-#include "lldb/Host/FileSpec.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/FileSpec.h"
 
 namespace lldb_private {
 class FileCache {

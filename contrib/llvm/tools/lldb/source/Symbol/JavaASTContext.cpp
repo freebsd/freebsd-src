@@ -10,10 +10,9 @@
 #include <sstream>
 
 #include "lldb/Core/ArchSpec.h"
-#include "lldb/Core/DataExtractor.h"
+#include "lldb/Core/DumpDataExtractor.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Expression/DWARFExpression.h"
@@ -22,6 +21,7 @@
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/Type.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/Stream.h"
 
 #include "Plugins/SymbolFile/DWARF/DWARFASTParserJava.h"
 
@@ -1004,10 +1004,10 @@ bool JavaASTContext::DumpTypeValue(
     size_t data_byte_size, uint32_t bitfield_bit_size,
     uint32_t bitfield_bit_offset, ExecutionContextScope *exe_scope) {
   if (IsScalarType(type)) {
-    return data.Dump(s, data_offset, format, data_byte_size,
-                     1, // count
-                     UINT32_MAX, LLDB_INVALID_ADDRESS, bitfield_bit_size,
-                     bitfield_bit_offset, exe_scope);
+    return DumpDataExtractor(data, s, data_offset, format, data_byte_size,
+                             1, // count
+                             UINT32_MAX, LLDB_INVALID_ADDRESS,
+                             bitfield_bit_size, bitfield_bit_offset, exe_scope);
   }
   return false;
 }

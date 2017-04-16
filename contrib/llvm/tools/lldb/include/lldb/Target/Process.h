@@ -30,7 +30,6 @@
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Broadcaster.h"
 #include "lldb/Core/Communication.h"
-#include "lldb/Core/Error.h"
 #include "lldb/Core/Event.h"
 #include "lldb/Core/Listener.h"
 #include "lldb/Core/LoadedModuleInfoList.h"
@@ -48,6 +47,8 @@
 #include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Target/QueueList.h"
 #include "lldb/Target/ThreadList.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/NameMatches.h"
 #include "lldb/lldb-private.h"
 
 #include "llvm/ADT/ArrayRef.h"
@@ -305,11 +306,11 @@ public:
 class ProcessInstanceInfoMatch {
 public:
   ProcessInstanceInfoMatch()
-      : m_match_info(), m_name_match_type(eNameMatchIgnore),
+      : m_match_info(), m_name_match_type(NameMatch::Ignore),
         m_match_all_users(false) {}
 
   ProcessInstanceInfoMatch(const char *process_name,
-                           NameMatchType process_name_match_type)
+                           NameMatch process_name_match_type)
       : m_match_info(), m_name_match_type(process_name_match_type),
         m_match_all_users(false) {
     m_match_info.GetExecutableFile().SetFile(process_name, false);
@@ -323,9 +324,9 @@ public:
 
   void SetMatchAllUsers(bool b) { m_match_all_users = b; }
 
-  NameMatchType GetNameMatchType() const { return m_name_match_type; }
+  NameMatch GetNameMatchType() const { return m_name_match_type; }
 
-  void SetNameMatchType(NameMatchType name_match_type) {
+  void SetNameMatchType(NameMatch name_match_type) {
     m_name_match_type = name_match_type;
   }
 
@@ -338,7 +339,7 @@ public:
 
 protected:
   ProcessInstanceInfo m_match_info;
-  NameMatchType m_name_match_type;
+  NameMatch m_name_match_type;
   bool m_match_all_users;
 };
 
@@ -504,6 +505,7 @@ class Process : public std::enable_shared_from_this<Process>,
                 public PluginInterface {
   friend class FunctionCaller; // For WaitForStateChangeEventsPrivate
   friend class Debugger; // For PopProcessIOHandler and ProcessIOHandlerIsActive
+  friend class DynamicLoader; // For LoadOperatingSystemPlugin
   friend class ProcessEventData;
   friend class StopInfo;
   friend class Target;
@@ -2605,7 +2607,7 @@ public:
   bool RunPreResumeActions();
 
   void ClearPreResumeActions();
-  
+
   void ClearPreResumeAction(PreResumeActionCallback callback, void *baton);
 
   ProcessRunLock &GetRunLock();
@@ -3142,6 +3144,8 @@ protected:
   }
 
   Error StopForDestroyOrDetach(lldb::EventSP &exit_event_sp);
+
+  virtual Error UpdateAutomaticSignalFiltering();
 
   bool StateChangedIsExternallyHijacked();
 

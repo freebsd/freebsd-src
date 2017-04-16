@@ -38,6 +38,8 @@
 #include "MICmnMIResultRecord.h"
 #include "MICmnMIValueConst.h"
 
+#include <algorithm>
+
 //++
 //------------------------------------------------------------------------------------
 // Details: CMICmdCmdVarCreate constructor.
@@ -182,7 +184,7 @@ bool CMICmdCmdVarCreate::Execute() {
     const bool bArgs = true;
     const bool bLocals = true;
     const bool bStatics = true;
-    const bool bInScopeOnly = false;
+    const bool bInScopeOnly = true;
     const lldb::SBValueList valueList =
         frame.GetVariables(bArgs, bLocals, bStatics, bInScopeOnly);
     value = valueList.GetFirstValueByName(rStrExpression.c_str());

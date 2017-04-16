@@ -10,29 +10,12 @@
 #ifndef utility_TaskPool_h_
 #define utility_TaskPool_h_
 
-#if defined(__cplusplus) && defined(_MSC_VER) && (_HAS_EXCEPTIONS == 0)
-// Compiling MSVC libraries with _HAS_EXCEPTIONS=0, eliminates most but not all
-// calls to __uncaught_exception.  Unfortunately, it does seem to eliminate
-// the delcaration of __uncaught_excpeiton.  Including <eh.h> ensures that it is
-// declared.  This may not be necessary after MSVC 12.
-#include <eh.h>
-#endif
-
-#if defined(_MSC_VER)
-// Due to another bug in MSVC 2013, including <future> will generate hundreds of
-// warnings in the Concurrency Runtime.  This can be removed when we switch to
-// MSVC 2015
-#pragma warning(push)
-#pragma warning(disable : 4062)
-#endif
-
-#include <cassert>
-#include <cstdint>
+#include <functional> // for bind, function
 #include <future>
 #include <list>
-#include <queue>
-#include <thread>
-#include <vector>
+#include <memory>      // for make_shared
+#include <mutex>       // for mutex, unique_lock, condition_variable
+#include <type_traits> // for forward, result_of, move
 
 // Global TaskPool class for running tasks in parallel on a set of worker thread
 // created the first
@@ -202,9 +185,5 @@ template <typename T> void TaskRunner<T>::WaitForAllTasks() {
   while (WaitForNextCompletedTask().valid())
     ;
 }
-
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
 
 #endif // #ifndef utility_TaskPool_h_

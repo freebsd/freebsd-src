@@ -17,15 +17,14 @@
 #include "RenderScriptScriptGroup.h"
 
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
-#include "lldb/Core/ConstString.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Log.h"
+#include "lldb/Core/DumpDataExtractor.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegularExpression.h"
+#include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/DumpValueObjectOptions.h"
 #include "lldb/Expression/UserExpression.h"
+#include "lldb/Host/OptionParser.h"
 #include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -41,6 +40,11 @@
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/DataBufferLLVM.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/RegularExpression.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -2535,7 +2539,7 @@ bool RenderScriptRuntime::LoadAllocation(Stream &strm, const uint32_t alloc_id,
   }
 
   // Read file into data buffer
-  DataBufferSP data_sp(file.ReadFileContents());
+  auto data_sp = DataBufferLLVM::CreateFromPath(file.GetPath());
 
   // Cast start of buffer to FileHeader and use pointer to read metadata
   void *file_buf = data_sp->GetBytes();
@@ -3073,7 +3077,7 @@ bool RSModuleDescriptor::ParseRSInfo() {
   const addr_t size = info_sym->GetByteSize();
   const FileSpec fs = m_module->GetFileSpec();
 
-  const DataBufferSP buffer = fs.ReadFileContents(addr, size);
+  auto buffer = DataBufferLLVM::CreateSliceFromPath(fs.GetPath(), size, addr);
   if (!buffer)
     return false;
 
@@ -3128,9 +3132,8 @@ bool RSModuleDescriptor::ParseRSInfo() {
     // in numeric fields at the moment
     uint64_t n_lines;
     if (val.getAsInteger(10, n_lines)) {
-      if (log)
-        log->Debug("Failed to parse non-numeric '.rs.info' section %s",
-                   line->str().c_str());
+      LLDB_LOGV(log, "Failed to parse non-numeric '.rs.info' section {0}",
+                line->str());
       continue;
     }
     if (info_lines.end() - (line + 1) < (ptrdiff_t)n_lines)
@@ -3410,8 +3413,9 @@ bool RenderScriptRuntime::DumpAllocation(Stream &strm, StackFrame *frame_ptr,
           // Print the results to our stream.
           expr_result->Dump(strm, expr_options);
         } else {
-          alloc_data.Dump(&strm, offset, format, data_size - padding, 1, 1,
-                          LLDB_INVALID_ADDRESS, 0, 0);
+          DumpDataExtractor(alloc_data, &strm, offset, format,
+                            data_size - padding, 1, 1, LLDB_INVALID_ADDRESS, 0,
+                            0);
         }
         offset += data_size;
       }

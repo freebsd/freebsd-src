@@ -15,10 +15,10 @@
 
 #include "lldb/lldb-private.h"
 
-#include "lldb/Core/Error.h"
 #include "lldb/Host/IOObject.h"
 #include "lldb/Host/Predicate.h"
 #include "lldb/Host/SocketAddress.h"
+#include "lldb/Utility/Error.h"
 
 #ifdef _WIN32
 #include "lldb/Host/windows/windows.h"
@@ -71,8 +71,7 @@ public:
   static Error TcpConnect(llvm::StringRef host_and_port,
                           bool child_processes_inherit, Socket *&socket);
   static Error UdpConnect(llvm::StringRef host_and_port,
-                          bool child_processes_inherit, Socket *&send_socket,
-                          Socket *&recv_socket);
+                          bool child_processes_inherit, Socket *&socket);
   static Error UnixDomainConnect(llvm::StringRef host_and_port,
                                  bool child_processes_inherit, Socket *&socket);
   static Error UnixDomainAccept(llvm::StringRef host_and_port,

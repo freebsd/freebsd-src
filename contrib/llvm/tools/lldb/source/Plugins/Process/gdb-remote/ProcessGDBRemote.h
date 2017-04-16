@@ -22,18 +22,18 @@
 // Project includes
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/Broadcaster.h"
-#include "lldb/Core/ConstString.h"
-#include "lldb/Core/Error.h"
 #include "lldb/Core/LoadedModuleInfoList.h"
 #include "lldb/Core/ModuleSpec.h"
-#include "lldb/Core/StreamString.h"
-#include "lldb/Core/StringList.h"
 #include "lldb/Core/StructuredData.h"
 #include "lldb/Core/ThreadSafeValue.h"
 #include "lldb/Host/HostThread.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Error.h"
+#include "lldb/Utility/StreamString.h"
 #include "lldb/Utility/StringExtractor.h"
+#include "lldb/Utility/StringList.h"
 #include "lldb/lldb-private-forward.h"
 
 #include "GDBRemoteCommunicationClient.h"
@@ -397,12 +397,15 @@ protected:
                                      lldb::addr_t base_addr,
                                      bool value_is_offset);
 
+  Error UpdateAutomaticSignalFiltering() override;
+
 private:
   //------------------------------------------------------------------
   // For ProcessGDBRemote only
   //------------------------------------------------------------------
   std::string m_partial_profile_data;
   std::map<uint64_t, uint32_t> m_thread_id_to_used_usec_map;
+  uint64_t m_last_signals_version = 0;
 
   static bool NewThreadNotifyBreakpointHit(void *baton,
                                            StoppointCallbackContext *context,
@@ -417,6 +420,7 @@ private:
   void HandleStopReply() override;
   void HandleAsyncStructuredDataPacket(llvm::StringRef data) override;
 
+  void SetThreadPc(const lldb::ThreadSP &thread_sp, uint64_t index);
   using ModuleCacheKey = std::pair<std::string, std::string>;
   // KeyInfo for the cached module spec DenseMap.
   // The invariant is that all real keys will have the file and architecture

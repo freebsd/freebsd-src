@@ -10,6 +10,10 @@
 #ifndef LLDB_lldb_private_enumerations_h_
 #define LLDB_lldb_private_enumerations_h_
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/FormatProviders.h"
+#include "llvm/Support/raw_ostream.h"
+
 namespace lldb_private {
 
 //----------------------------------------------------------------------
@@ -110,19 +114,6 @@ typedef enum LazyBool {
   eLazyBoolNo = 0,
   eLazyBoolYes = 1
 } LazyBool;
-
-//------------------------------------------------------------------
-/// Name matching
-//------------------------------------------------------------------
-typedef enum NameMatchType {
-  eNameMatchIgnore,
-  eNameMatchEquals,
-  eNameMatchContains,
-  eNameMatchStartsWith,
-  eNameMatchEndsWith,
-  eNameMatchRegularExpression
-
-} NameMatchType;
 
 //------------------------------------------------------------------
 /// Instruction types
@@ -256,5 +247,25 @@ enum class CompilerContextKind {
 };
 
 } // namespace lldb_private
+
+namespace llvm {
+template <> struct format_provider<lldb_private::Vote> {
+  static void format(const lldb_private::Vote &V, llvm::raw_ostream &Stream,
+                     StringRef Style) {
+    switch (V) {
+    case lldb_private::eVoteNo:
+      Stream << "no";
+      return;
+    case lldb_private::eVoteNoOpinion:
+      Stream << "no opinion";
+      return;
+    case lldb_private::eVoteYes:
+      Stream << "yes";
+      return;
+    }
+    Stream << "invalid";
+  }
+};
+}
 
 #endif // LLDB_lldb_private_enumerations_h_

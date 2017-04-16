@@ -19,17 +19,18 @@
 #include "lldb/Host/windows/windows.h"
 #else
 #include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <termios.h>
 #endif
 
 #include "llvm/Support/ConvertUTF.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Process.h" // for llvm::sys::Process::FileDescriptorHasColors()
 
-#include "lldb/Core/DataBufferHeap.h"
-#include "lldb/Core/Error.h"
-#include "lldb/Core/Log.h"
 #include "lldb/Host/Config.h"
-#include "lldb/Host/FileSpec.h"
-#include "lldb/Host/FileSystem.h"
+#include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/Log.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -247,14 +248,12 @@ Error File::Open(const char *path, uint32_t options, uint32_t permissions) {
 
 uint32_t File::GetPermissions(const FileSpec &file_spec, Error &error) {
   if (file_spec) {
-    struct stat file_stats;
-    int stat_result = FileSystem::Stat(file_spec.GetCString(), &file_stats);
-    if (stat_result == -1)
-      error.SetErrorToErrno();
-    else {
-      error.Clear();
-      return file_stats.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
-    }
+    error.Clear();
+    auto Perms = llvm::sys::fs::getPermissions(file_spec.GetPath());
+    if (Perms)
+      return *Perms;
+    error = Error(Perms.getError());
+    return 0;
   } else
     error.SetErrorString("empty file spec");
   return 0;
@@ -308,7 +307,7 @@ void File::Clear() {
 
 Error File::GetFileSpec(FileSpec &file_spec) const {
   Error error;
-#ifdef LLDB_CONFIG_FCNTL_GETPATH_SUPPORTED
+#ifdef F_GETPATH
   if (IsValid()) {
     char path[PATH_MAX];
     if (::fcntl(GetDescriptor(), F_GETPATH, path) == -1)

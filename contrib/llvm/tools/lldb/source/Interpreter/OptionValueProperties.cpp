@@ -13,13 +13,14 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Core/Flags.h"
-#include "lldb/Core/Stream.h"
-#include "lldb/Core/StringList.h"
+#include "lldb/Utility/Flags.h"
+
 #include "lldb/Core/UserSettingsController.h"
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Interpreter/OptionValues.h"
 #include "lldb/Interpreter/Property.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/Utility/StringList.h"
 
 using namespace lldb;
 using namespace lldb_private;
