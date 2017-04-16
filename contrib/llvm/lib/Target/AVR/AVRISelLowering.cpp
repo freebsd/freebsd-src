@@ -48,6 +48,8 @@ AVRTargetLowering::AVRTargetLowering(AVRTargetMachine &tm)
   setOperationAction(ISD::GlobalAddress, MVT::i16, Custom);
   setOperationAction(ISD::BlockAddress, MVT::i16, Custom);
 
+  setOperationAction(ISD::STACKSAVE, MVT::Other, Expand);
+  setOperationAction(ISD::STACKRESTORE, MVT::Other, Expand);
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i8, Expand);
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i16, Expand);
 
@@ -311,7 +313,7 @@ SDValue AVRTargetLowering::LowerDivRem(SDValue Op, SelectionDAG &DAG) const {
   unsigned Opcode = Op->getOpcode();
   assert((Opcode == ISD::SDIVREM || Opcode == ISD::UDIVREM) &&
          "Invalid opcode for Div/Rem lowering");
-  bool isSigned = (Opcode == ISD::SDIVREM);
+  bool IsSigned = (Opcode == ISD::SDIVREM);
   EVT VT = Op->getValueType(0);
   Type *Ty = VT.getTypeForEVT(*DAG.getContext());
 
@@ -320,16 +322,16 @@ SDValue AVRTargetLowering::LowerDivRem(SDValue Op, SelectionDAG &DAG) const {
   default:
     llvm_unreachable("Unexpected request for libcall!");
   case MVT::i8:
-    LC = isSigned ? RTLIB::SDIVREM_I8 : RTLIB::UDIVREM_I8;
+    LC = IsSigned ? RTLIB::SDIVREM_I8 : RTLIB::UDIVREM_I8;
     break;
   case MVT::i16:
-    LC = isSigned ? RTLIB::SDIVREM_I16 : RTLIB::UDIVREM_I16;
+    LC = IsSigned ? RTLIB::SDIVREM_I16 : RTLIB::UDIVREM_I16;
     break;
   case MVT::i32:
-    LC = isSigned ? RTLIB::SDIVREM_I32 : RTLIB::UDIVREM_I32;
+    LC = IsSigned ? RTLIB::SDIVREM_I32 : RTLIB::UDIVREM_I32;
     break;
   case MVT::i64:
-    LC = isSigned ? RTLIB::SDIVREM_I64 : RTLIB::UDIVREM_I64;
+    LC = IsSigned ? RTLIB::SDIVREM_I64 : RTLIB::UDIVREM_I64;
     break;
   }
 
@@ -340,8 +342,8 @@ SDValue AVRTargetLowering::LowerDivRem(SDValue Op, SelectionDAG &DAG) const {
   for (SDValue const &Value : Op->op_values()) {
     Entry.Node = Value;
     Entry.Ty = Value.getValueType().getTypeForEVT(*DAG.getContext());
-    Entry.isSExt = isSigned;
-    Entry.isZExt = !isSigned;
+    Entry.IsSExt = IsSigned;
+    Entry.IsZExt = !IsSigned;
     Args.push_back(Entry);
   }
 
@@ -354,10 +356,10 @@ SDValue AVRTargetLowering::LowerDivRem(SDValue Op, SelectionDAG &DAG) const {
   TargetLowering::CallLoweringInfo CLI(DAG);
   CLI.setDebugLoc(dl)
       .setChain(InChain)
-      .setCallee(getLibcallCallingConv(LC), RetTy, Callee, std::move(Args))
+      .setLibCallee(getLibcallCallingConv(LC), RetTy, Callee, std::move(Args))
       .setInRegister()
-      .setSExtResult(isSigned)
-      .setZExtResult(!isSigned);
+      .setSExtResult(IsSigned)
+      .setZExtResult(!IsSigned);
 
   std::pair<SDValue, SDValue> CallInfo = LowerCallTo(CLI);
   return CallInfo.first;
@@ -932,6 +934,12 @@ static void analyzeStandardArguments(TargetLowering::CallLoweringInfo *CLI,
   bool UsesStack = false;
   for (unsigned i = 0, pos = 0, e = Args.size(); i != e; ++i) {
     unsigned Size = Args[i];
+
+    // If we have a zero-sized argument, don't attempt to lower it.
+    // AVR-GCC does not support zero-sized arguments and so we need not
+    // worry about ABI compatibility.
+    if (Size == 0) continue;
+
     MVT LocVT = (IsCall) ? (*Outs)[pos].VT : (*Ins)[pos].VT;
 
     // If we have plenty of regs to pass the whole argument do it.
@@ -1373,7 +1381,7 @@ AVRTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   // Don't emit the ret/reti instruction when the naked attribute is present in
   // the function being compiled.
   if (MF.getFunction()->getAttributes().hasAttribute(
-          AttributeSet::FunctionIndex, Attribute::Naked)) {
+          AttributeList::FunctionIndex, Attribute::Naked)) {
     return Chain;
   }
 
@@ -1975,4 +1983,3 @@ unsigned AVRTargetLowering::getRegisterByName(const char *RegName,
 }
 
 } // end of namespace llvm
-

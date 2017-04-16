@@ -27,7 +27,7 @@ def FeatureNEON : SubtargetFeature<"neon", "HasNEON", "true",
   "Enable Advanced SIMD instructions", [FeatureFPARMv8]>;
 
 def FeatureCrypto : SubtargetFeature<"crypto", "HasCrypto", "true",
-  "Enable cryptographic instructions">;
+  "Enable cryptographic instructions", [FeatureNEON]>;
 
 def FeatureCRC : SubtargetFeature<"crc", "HasCRC", "true",
   "Enable ARMv8 CRC-32 checksum instructions">;
@@ -37,6 +37,9 @@ def FeatureRAS : SubtargetFeature<"ras", "HasRAS", "true",
 
 def FeatureLSE : SubtargetFeature<"lse", "HasLSE", "true",
   "Enable ARMv8.1 Large System Extension (LSE) atomic instructions">;
+
+def FeatureRDM : SubtargetFeature<"rdm", "HasRDM", "true",
+  "Enable ARMv8.1 Rounding Double Multiply Add/Subtract instructions">;
 
 def FeaturePerfMon : SubtargetFeature<"perfmon", "HasPerfMon", "true",
   "Enable ARMv8 PMUv3 Performance Monitors extension">;
@@ -100,6 +103,14 @@ def FeatureArithmeticCbzFusion : SubtargetFeature<
     "arith-cbz-fusion", "HasArithmeticCbzFusion", "true",
     "CPU fuses arithmetic + cbz/cbnz operations">;
 
+def FeatureFuseAES : SubtargetFeature<
+    "fuse-aes", "HasFuseAES", "true",
+    "CPU fuses AES crypto operations">;
+
+def FeatureFuseLiterals : SubtargetFeature<
+    "fuse-literals", "HasFuseLiterals", "true",
+    "CPU fuses literal generation operations">;
+
 def FeatureDisableLatencySchedHeuristic : SubtargetFeature<
     "disable-latency-sched-heuristic", "DisableLatencySchedHeuristic", "true",
     "Disable latency scheduling heuristic">;
@@ -108,12 +119,22 @@ def FeatureUseRSqrt : SubtargetFeature<
     "use-reciprocal-square-root", "UseRSqrt", "true",
     "Use the reciprocal square root approximation">;
 
+def FeatureNoNegativeImmediates : SubtargetFeature<"no-neg-immediates",
+                                        "NegativeImmediates", "false",
+                                        "Convert immediates and instructions "
+                                        "to their negated or complemented "
+                                        "equivalent when the immediate does "
+                                        "not fit in the encoding.">;
+
+def FeatureLSLFast : SubtargetFeature<
+    "lsl-fast", "HasLSLFast", "true",
+    "CPU has a fastpath logical shift of up to 3 places">;
 //===----------------------------------------------------------------------===//
 // Architectures.
 //
 
 def HasV8_1aOps : SubtargetFeature<"v8.1a", "HasV8_1aOps", "true",
-  "Support ARM v8.1a instructions", [FeatureCRC, FeatureLSE]>;
+  "Support ARM v8.1a instructions", [FeatureCRC, FeatureLSE, FeatureRDM]>;
 
 def HasV8_2aOps : SubtargetFeature<"v8.2a", "HasV8_2aOps", "true",
   "Support ARM v8.2a instructions", [HasV8_1aOps, FeatureRAS]>;
@@ -123,6 +144,7 @@ def HasV8_2aOps : SubtargetFeature<"v8.2a", "HasV8_2aOps", "true",
 //===----------------------------------------------------------------------===//
 
 include "AArch64RegisterInfo.td"
+include "AArch64RegisterBanks.td"
 include "AArch64CallingConvention.td"
 
 //===----------------------------------------------------------------------===//
@@ -149,7 +171,8 @@ include "AArch64SchedCyclone.td"
 include "AArch64SchedFalkor.td"
 include "AArch64SchedKryo.td"
 include "AArch64SchedM1.td"
-include "AArch64SchedVulcan.td"
+include "AArch64SchedThunderX.td"
+include "AArch64SchedThunderX2T99.td"
 
 def ProcA35     : SubtargetFeature<"a35", "ARMProcFamily", "CortexA35",
                                    "Cortex-A35 ARM processors", [
@@ -180,6 +203,8 @@ def ProcA57     : SubtargetFeature<"a57", "ARMProcFamily", "CortexA57",
                                    FeatureCrypto,
                                    FeatureCustomCheapAsMoveHandling,
                                    FeatureFPARMv8,
+                                   FeatureFuseAES,
+                                   FeatureFuseLiterals,
                                    FeatureNEON,
                                    FeaturePerfMon,
                                    FeaturePostRAScheduler,
@@ -226,6 +251,7 @@ def ProcExynosM1 : SubtargetFeature<"exynosm1", "ARMProcFamily", "ExynosM1",
                                      FeatureCrypto,
                                      FeatureCustomCheapAsMoveHandling,
                                      FeatureFPARMv8,
+                                     FeatureFuseAES,
                                      FeatureNEON,
                                      FeaturePerfMon,
                                      FeaturePostRAScheduler,
@@ -256,7 +282,8 @@ def ProcKryo    : SubtargetFeature<"kryo", "ARMProcFamily", "Kryo",
                                    FeaturePerfMon,
                                    FeaturePostRAScheduler,
                                    FeaturePredictableSelectIsExpensive,
-                                   FeatureZCZeroing
+                                   FeatureZCZeroing,
+                                   FeatureLSLFast
                                    ]>;
 
 def ProcFalkor  : SubtargetFeature<"falkor", "ARMProcFamily", "Falkor",
@@ -269,19 +296,66 @@ def ProcFalkor  : SubtargetFeature<"falkor", "ARMProcFamily", "Falkor",
                                    FeaturePerfMon,
                                    FeaturePostRAScheduler,
                                    FeaturePredictableSelectIsExpensive,
-                                   FeatureZCZeroing
+                                   FeatureRDM,
+                                   FeatureZCZeroing,
+                                   FeatureLSLFast
                                    ]>;
 
-def ProcVulcan  : SubtargetFeature<"vulcan", "ARMProcFamily", "Vulcan",
-                                   "Broadcom Vulcan processors", [
-                                   FeatureCRC,
-                                   FeatureCrypto,
-                                   FeatureFPARMv8,
-                                   FeatureArithmeticBccFusion,
-                                   FeatureNEON,
-                                   FeaturePostRAScheduler,
-                                   FeaturePredictableSelectIsExpensive,
-                                   HasV8_1aOps]>;
+def ProcThunderX2T99  : SubtargetFeature<"thunderx2t99", "ARMProcFamily",
+                                         "ThunderX2T99",
+                                         "Cavium ThunderX2 processors", [
+                                          FeatureCRC,
+                                          FeatureCrypto,
+                                          FeatureFPARMv8,
+                                          FeatureArithmeticBccFusion,
+                                          FeatureNEON,
+                                          FeaturePostRAScheduler,
+                                          FeaturePredictableSelectIsExpensive,
+                                          FeatureLSE,
+                                          HasV8_1aOps]>;
+
+def ProcThunderX : SubtargetFeature<"thunderx", "ARMProcFamily", "ThunderX",
+                                    "Cavium ThunderX processors", [
+                                    FeatureCRC,
+                                    FeatureCrypto,
+                                    FeatureFPARMv8,
+                                    FeaturePerfMon,
+                                    FeaturePostRAScheduler,
+                                    FeaturePredictableSelectIsExpensive,
+                                    FeatureNEON]>;
+
+def ProcThunderXT88 : SubtargetFeature<"thunderxt88", "ARMProcFamily",
+                                       "ThunderXT88",
+                                       "Cavium ThunderX processors", [
+                                       FeatureCRC,
+                                       FeatureCrypto,
+                                       FeatureFPARMv8,
+                                       FeaturePerfMon,
+                                       FeaturePostRAScheduler,
+                                       FeaturePredictableSelectIsExpensive,
+                                       FeatureNEON]>;
+
+def ProcThunderXT81 : SubtargetFeature<"thunderxt81", "ARMProcFamily",
+                                       "ThunderXT81",
+                                       "Cavium ThunderX processors", [
+                                       FeatureCRC,
+                                       FeatureCrypto,
+                                       FeatureFPARMv8,
+                                       FeaturePerfMon,
+                                       FeaturePostRAScheduler,
+                                       FeaturePredictableSelectIsExpensive,
+                                       FeatureNEON]>;
+
+def ProcThunderXT83 : SubtargetFeature<"thunderxt83", "ARMProcFamily",
+                                       "ThunderXT83",
+                                       "Cavium ThunderX processors", [
+                                       FeatureCRC,
+                                       FeatureCrypto,
+                                       FeatureFPARMv8,
+                                       FeaturePerfMon,
+                                       FeaturePostRAScheduler,
+                                       FeaturePredictableSelectIsExpensive,
+                                       FeatureNEON]>;
 
 def : ProcessorModel<"generic", NoSchedModel, [
                      FeatureCRC,
@@ -291,11 +365,11 @@ def : ProcessorModel<"generic", NoSchedModel, [
                      FeaturePostRAScheduler
                      ]>;
 
-// FIXME: Cortex-A35 is currently modelled as a Cortex-A53
+// FIXME: Cortex-A35 is currently modeled as a Cortex-A53.
 def : ProcessorModel<"cortex-a35", CortexA53Model, [ProcA35]>;
 def : ProcessorModel<"cortex-a53", CortexA53Model, [ProcA53]>;
 def : ProcessorModel<"cortex-a57", CortexA57Model, [ProcA57]>;
-// FIXME: Cortex-A72 and Cortex-A73 are currently modelled as an Cortex-A57.
+// FIXME: Cortex-A72 and Cortex-A73 are currently modeled as a Cortex-A57.
 def : ProcessorModel<"cortex-a72", CortexA57Model, [ProcA72]>;
 def : ProcessorModel<"cortex-a73", CortexA57Model, [ProcA73]>;
 def : ProcessorModel<"cyclone", CycloneModel, [ProcCyclone]>;
@@ -304,7 +378,13 @@ def : ProcessorModel<"exynos-m2", ExynosM1Model, [ProcExynosM2]>;
 def : ProcessorModel<"exynos-m3", ExynosM1Model, [ProcExynosM2]>;
 def : ProcessorModel<"falkor", FalkorModel, [ProcFalkor]>;
 def : ProcessorModel<"kryo", KryoModel, [ProcKryo]>;
-def : ProcessorModel<"vulcan", VulcanModel, [ProcVulcan]>;
+// Cavium ThunderX/ThunderX T8X  Processors
+def : ProcessorModel<"thunderx", ThunderXT8XModel,  [ProcThunderX]>;
+def : ProcessorModel<"thunderxt88", ThunderXT8XModel,  [ProcThunderXT88]>;
+def : ProcessorModel<"thunderxt81", ThunderXT8XModel,  [ProcThunderXT81]>;
+def : ProcessorModel<"thunderxt83", ThunderXT8XModel,  [ProcThunderXT83]>;
+// Cavium ThunderX2T9X  Processors. Formerly Broadcom Vulcan.
+def : ProcessorModel<"thunderx2t99", ThunderX2T99Model, [ProcThunderX2T99]>;
 
 //===----------------------------------------------------------------------===//
 // Assembly parser

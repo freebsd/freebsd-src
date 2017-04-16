@@ -90,9 +90,9 @@ void llvm::CloneFunctionInto(Function *NewFunc, const Function *OldFunc,
     assert(VMap.count(&I) && "No mapping from source argument specified!");
 #endif
 
-  // Copy all attributes other than those stored in the AttributeSet.  We need
-  // to remap the parameter indices of the AttributeSet.
-  AttributeSet NewAttrs = NewFunc->getAttributes();
+  // Copy all attributes other than those stored in the AttributeList.  We need
+  // to remap the parameter indices of the AttributeList.
+  AttributeList NewAttrs = NewFunc->getAttributes();
   NewFunc->copyAttributesFrom(OldFunc);
   NewFunc->setAttributes(NewAttrs);
 
@@ -103,22 +103,20 @@ void llvm::CloneFunctionInto(Function *NewFunc, const Function *OldFunc,
                  ModuleLevelChanges ? RF_None : RF_NoModuleLevelChanges,
                  TypeMapper, Materializer));
 
-  AttributeSet OldAttrs = OldFunc->getAttributes();
+  SmallVector<AttributeSet, 4> NewArgAttrs(NewFunc->arg_size());
+  AttributeList OldAttrs = OldFunc->getAttributes();
+
   // Clone any argument attributes that are present in the VMap.
-  for (const Argument &OldArg : OldFunc->args())
+  for (const Argument &OldArg : OldFunc->args()) {
     if (Argument *NewArg = dyn_cast<Argument>(VMap[&OldArg])) {
-      AttributeSet attrs =
-          OldAttrs.getParamAttributes(OldArg.getArgNo() + 1);
-      if (attrs.getNumSlots() > 0)
-        NewArg->addAttr(attrs);
+      NewArgAttrs[NewArg->getArgNo()] =
+          OldAttrs.getParamAttributes(OldArg.getArgNo());
     }
+  }
 
   NewFunc->setAttributes(
-      NewFunc->getAttributes()
-          .addAttributes(NewFunc->getContext(), AttributeSet::ReturnIndex,
-                         OldAttrs.getRetAttributes())
-          .addAttributes(NewFunc->getContext(), AttributeSet::FunctionIndex,
-                         OldAttrs.getFnAttributes()));
+      AttributeList::get(NewFunc->getContext(), OldAttrs.getFnAttributes(),
+                         OldAttrs.getRetAttributes(), NewArgAttrs));
 
   SmallVector<std::pair<unsigned, MDNode *>, 1> MDs;
   OldFunc->getAllMetadata(MDs);
@@ -353,7 +351,7 @@ void PruningFunctionCloner::CloneBlock(const BasicBlock *BB,
       Cond = dyn_cast_or_null<ConstantInt>(V);
     }
     if (Cond) {     // Constant fold to uncond branch!
-      SwitchInst::ConstCaseIt Case = SI->findCaseValue(Cond);
+      SwitchInst::ConstCaseHandle Case = *SI->findCaseValue(Cond);
       BasicBlock *Dest = const_cast<BasicBlock*>(Case.getCaseSuccessor());
       VMap[OldTI] = BranchInst::Create(Dest, NewBB);
       ToClone.push_back(Dest);
@@ -746,4 +744,41 @@ Loop *llvm::cloneLoopWithPreheader(BasicBlock *Before, BasicBlock *LoopDomBB,
                                 NewLoop->getHeader()->getIterator(), F->end());
 
   return NewLoop;
+}
+
+/// \brief Duplicate non-Phi instructions from the beginning of block up to
+/// StopAt instruction into a split block between BB and its predecessor.
+BasicBlock *
+llvm::DuplicateInstructionsInSplitBetween(BasicBlock *BB, BasicBlock *PredBB,
+                                          Instruction *StopAt,
+                                          ValueToValueMapTy &ValueMapping) {
+  // We are going to have to map operands from the original BB block to the new
+  // copy of the block 'NewBB'.  If there are PHI nodes in BB, evaluate them to
+  // account for entry from PredBB.
+  BasicBlock::iterator BI = BB->begin();
+  for (; PHINode *PN = dyn_cast<PHINode>(BI); ++BI)
+    ValueMapping[PN] = PN->getIncomingValueForBlock(PredBB);
+
+  BasicBlock *NewBB = SplitEdge(PredBB, BB);
+  NewBB->setName(PredBB->getName() + ".split");
+  Instruction *NewTerm = NewBB->getTerminator();
+
+  // Clone the non-phi instructions of BB into NewBB, keeping track of the
+  // mapping and using it to remap operands in the cloned instructions.
+  for (; StopAt != &*BI; ++BI) {
+    Instruction *New = BI->clone();
+    New->setName(BI->getName());
+    New->insertBefore(NewTerm);
+    ValueMapping[&*BI] = New;
+
+    // Remap operands to patch up intra-block references.
+    for (unsigned i = 0, e = New->getNumOperands(); i != e; ++i)
+      if (Instruction *Inst = dyn_cast<Instruction>(New->getOperand(i))) {
+        auto I = ValueMapping.find(Inst);
+        if (I != ValueMapping.end())
+          New->setOperand(i, I->second);
+      }
+  }
+
+  return NewBB;
 }

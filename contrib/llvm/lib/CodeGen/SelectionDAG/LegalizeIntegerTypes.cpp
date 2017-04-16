@@ -690,7 +690,7 @@ SDValue DAGTypeLegalizer::PromoteIntRes_TRUNCATE(SDNode *N) {
   case TargetLowering::TypePromoteInteger:
     Res = GetPromotedInteger(InOp);
     break;
-  case TargetLowering::TypeSplitVector:
+  case TargetLowering::TypeSplitVector: {
     EVT InVT = InOp.getValueType();
     assert(InVT.isVector() && "Cannot split scalar types");
     unsigned NumElts = InVT.getVectorNumElements();
@@ -708,6 +708,26 @@ SDValue DAGTypeLegalizer::PromoteIntRes_TRUNCATE(SDNode *N) {
     EOp2 = DAG.getNode(ISD::TRUNCATE, dl, HalfNVT, EOp2);
 
     return DAG.getNode(ISD::CONCAT_VECTORS, dl, NVT, EOp1, EOp2);
+  }
+  case TargetLowering::TypeWidenVector: {
+    SDValue WideInOp = GetWidenedVector(InOp);
+
+    // Truncate widened InOp.
+    unsigned NumElem = WideInOp.getValueType().getVectorNumElements();
+    EVT TruncVT = EVT::getVectorVT(*DAG.getContext(),
+                                   N->getValueType(0).getScalarType(), NumElem);
+    SDValue WideTrunc = DAG.getNode(ISD::TRUNCATE, dl, TruncVT, WideInOp);
+
+    // Zero extend so that the elements are of same type as those of NVT
+    EVT ExtVT = EVT::getVectorVT(*DAG.getContext(), NVT.getVectorElementType(),
+                                 NumElem);
+    SDValue WideExt = DAG.getNode(ISD::ZERO_EXTEND, dl, ExtVT, WideTrunc);
+
+    // Extract the low NVT subvector.
+    MVT IdxTy = TLI.getVectorIdxTy(DAG.getDataLayout());
+    SDValue ZeroIdx = DAG.getConstant(0, dl, IdxTy);
+    return DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, NVT, WideExt, ZeroIdx);
+  }
   }
 
   // Truncate to NVT instead of VT
@@ -1088,6 +1108,10 @@ SDValue DAGTypeLegalizer::PromoteIntOp_SELECT(SDNode *N, unsigned OpNo) {
   assert(OpNo == 0 && "Only know how to promote the condition!");
   SDValue Cond = N->getOperand(0);
   EVT OpTy = N->getOperand(1).getValueType();
+
+  if (N->getOpcode() == ISD::VSELECT)
+    if (SDValue Res = WidenVSELECTAndMask(N))
+      return Res;
 
   // Promote all the way up to the canonical SetCC type.
   EVT OpVT = N->getOpcode() == ISD::SELECT ? OpTy.getScalarType() : OpTy;
@@ -2586,24 +2610,25 @@ void DAGTypeLegalizer::ExpandIntRes_XMULO(SDNode *N,
     Type *ArgTy = ArgVT.getTypeForEVT(*DAG.getContext());
     Entry.Node = Op;
     Entry.Ty = ArgTy;
-    Entry.isSExt = true;
-    Entry.isZExt = false;
+    Entry.IsSExt = true;
+    Entry.IsZExt = false;
     Args.push_back(Entry);
   }
 
   // Also pass the address of the overflow check.
   Entry.Node = Temp;
   Entry.Ty = PtrTy->getPointerTo();
-  Entry.isSExt = true;
-  Entry.isZExt = false;
+  Entry.IsSExt = true;
+  Entry.IsZExt = false;
   Args.push_back(Entry);
 
   SDValue Func = DAG.getExternalSymbol(TLI.getLibcallName(LC), PtrVT);
 
   TargetLowering::CallLoweringInfo CLI(DAG);
-  CLI.setDebugLoc(dl).setChain(Chain)
-    .setCallee(TLI.getLibcallCallingConv(LC), RetTy, Func, std::move(Args))
-    .setSExtResult();
+  CLI.setDebugLoc(dl)
+      .setChain(Chain)
+      .setLibCallee(TLI.getLibcallCallingConv(LC), RetTy, Func, std::move(Args))
+      .setSExtResult();
 
   std::pair<SDValue, SDValue> CallInfo = TLI.LowerCallTo(CLI);
 

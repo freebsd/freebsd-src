@@ -172,7 +172,8 @@ CallInst *IRBuilderBase::CreateLifetimeStart(Value *Ptr, ConstantInt *Size) {
            "lifetime.start requires the size to be an i64");
   Value *Ops[] = { Size, Ptr };
   Module *M = BB->getParent()->getParent();
-  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_start);
+  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_start,
+                                           { Ptr->getType() });
   return createCallHelper(TheFn, Ops, this);
 }
 
@@ -187,7 +188,8 @@ CallInst *IRBuilderBase::CreateLifetimeEnd(Value *Ptr, ConstantInt *Size) {
            "lifetime.end requires the size to be an i64");
   Value *Ops[] = { Size, Ptr };
   Module *M = BB->getParent()->getParent();
-  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_end);
+  Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_end,
+                                           { Ptr->getType() });
   return createCallHelper(TheFn, Ops, this);
 }
 
@@ -481,4 +483,12 @@ CallInst *IRBuilderBase::CreateGCRelocate(Instruction *Statepoint,
                   getInt32(BaseOffset),
                   getInt32(DerivedOffset)};
  return createCallHelper(FnGCRelocate, Args, this, Name);
+}
+
+CallInst *IRBuilderBase::CreateBinaryIntrinsic(Intrinsic::ID ID,
+                                               Value *LHS, Value *RHS,
+                                               const Twine &Name) {
+  Module *M = BB->getParent()->getParent();
+  Function *Fn =  Intrinsic::getDeclaration(M, ID, { LHS->getType() });
+  return createCallHelper(Fn, { LHS, RHS }, this, Name);
 }

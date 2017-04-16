@@ -1,4 +1,4 @@
-//===-- DWARFFormValue.cpp ------------------------------------------------===//
+//===- DWARFFormValue.cpp -------------------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -9,16 +9,21 @@
 
 #include "SyntaxHighlighting.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/DebugInfo/DWARF/DWARFCompileUnit.h"
 #include "llvm/DebugInfo/DWARF/DWARFContext.h"
 #include "llvm/DebugInfo/DWARF/DWARFFormValue.h"
-#include "llvm/Support/Debug.h"
+#include "llvm/DebugInfo/DWARF/DWARFRelocMap.h"
+#include "llvm/DebugInfo/DWARF/DWARFUnit.h"
 #include "llvm/Support/Dwarf.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-#include <cassert>
+#include <cinttypes>
+#include <cstdint>
 #include <limits>
+
 using namespace llvm;
 using namespace dwarf;
 using namespace syntax;
@@ -66,13 +71,16 @@ class FormSizeHelper {
 
 public:
   FormSizeHelper(uint16_t V, uint8_t A, llvm::dwarf::DwarfFormat F)
-  : Version(V), AddrSize(A), Format(F) {}
+      : Version(V), AddrSize(A), Format(F) {}
+
   uint8_t getAddressByteSize() const { return AddrSize; }
+
   uint8_t getRefAddrByteSize() const {
     if (Version == 2)
       return AddrSize;
     return getDwarfOffsetByteSize();
   }
+
   uint8_t getDwarfOffsetByteSize() const {
     switch (Format) {
       case dwarf::DwarfFormat::DWARF32:
@@ -120,14 +128,21 @@ static Optional<uint8_t> getFixedByteSize(dwarf::Form Form, const T *U) {
     case DW_FORM_flag:
     case DW_FORM_data1:
     case DW_FORM_ref1:
+    case DW_FORM_strx1:
+    case DW_FORM_addrx1:
       return 1;
 
     case DW_FORM_data2:
     case DW_FORM_ref2:
+    case DW_FORM_strx2:
+    case DW_FORM_addrx2:
       return 2;
 
     case DW_FORM_data4:
     case DW_FORM_ref4:
+    case DW_FORM_ref_sup4:
+    case DW_FORM_strx4:
+    case DW_FORM_addrx4:
       return 4;
 
     case DW_FORM_strp:
@@ -136,7 +151,6 @@ static Optional<uint8_t> getFixedByteSize(dwarf::Form Form, const T *U) {
     case DW_FORM_line_strp:
     case DW_FORM_sec_offset:
     case DW_FORM_strp_sup:
-    case DW_FORM_ref_sup:
       if (U)
         return U->getDwarfOffsetByteSize();
       return None;
@@ -144,6 +158,7 @@ static Optional<uint8_t> getFixedByteSize(dwarf::Form Form, const T *U) {
     case DW_FORM_data8:
     case DW_FORM_ref8:
     case DW_FORM_ref_sig8:
+    case DW_FORM_ref_sup8:
       return 8;
 
     case DW_FORM_flag_present:
@@ -211,7 +226,14 @@ static bool skipFormValue(dwarf::Form Form, const DataExtractor &DebugInfoData,
       case DW_FORM_ref4:
       case DW_FORM_ref8:
       case DW_FORM_ref_sig8:
-      case DW_FORM_ref_sup:
+      case DW_FORM_ref_sup4:
+      case DW_FORM_ref_sup8:
+      case DW_FORM_strx1:
+      case DW_FORM_strx2:
+      case DW_FORM_strx4:
+      case DW_FORM_addrx1:
+      case DW_FORM_addrx2:
+      case DW_FORM_addrx4:
       case DW_FORM_sec_offset:
       case DW_FORM_strp:
       case DW_FORM_strp_sup:
@@ -339,14 +361,21 @@ bool DWARFFormValue::extractValue(const DataExtractor &data,
     case DW_FORM_data1:
     case DW_FORM_ref1:
     case DW_FORM_flag:
+    case DW_FORM_strx1:
+    case DW_FORM_addrx1:
       Value.uval = data.getU8(offset_ptr);
       break;
     case DW_FORM_data2:
     case DW_FORM_ref2:
+    case DW_FORM_strx2:
+    case DW_FORM_addrx2:
       Value.uval = data.getU16(offset_ptr);
       break;
     case DW_FORM_data4:
-    case DW_FORM_ref4: {
+    case DW_FORM_ref4:
+    case DW_FORM_ref_sup4:
+    case DW_FORM_strx4:
+    case DW_FORM_addrx4: {
       Value.uval = data.getU32(offset_ptr);
       if (!U)
         break;
@@ -357,6 +386,7 @@ bool DWARFFormValue::extractValue(const DataExtractor &data,
     }
     case DW_FORM_data8:
     case DW_FORM_ref8:
+    case DW_FORM_ref_sup8:
       Value.uval = data.getU64(offset_ptr);
       break;
     case DW_FORM_sdata:
@@ -378,8 +408,7 @@ bool DWARFFormValue::extractValue(const DataExtractor &data,
     case DW_FORM_GNU_ref_alt:
     case DW_FORM_GNU_strp_alt:
     case DW_FORM_line_strp:
-    case DW_FORM_strp_sup:
-    case DW_FORM_ref_sup: {
+    case DW_FORM_strp_sup: {
       if (!U)
         return false;
       RelocAddrMap::const_iterator AI = U->getRelocMap()->find(*offset_ptr);
@@ -400,7 +429,9 @@ bool DWARFFormValue::extractValue(const DataExtractor &data,
       Value.uval = data.getULEB128(offset_ptr);
       break;
     default:
-      return false;
+      // DWARFFormValue::skipValue() will have caught this and caused all
+      // DWARF DIEs to fail to be parsed, so this code is not be reachable.
+      llvm_unreachable("unsupported form");
     }
   } while (indirect);
 
@@ -495,21 +526,18 @@ DWARFFormValue::dump(raw_ostream &OS) const {
 
   case DW_FORM_sdata:     OS << Value.sval; break;
   case DW_FORM_udata:     OS << Value.uval; break;
-  case DW_FORM_strp: {
+  case DW_FORM_strp:
     OS << format(" .debug_str[0x%8.8x] = ", (uint32_t)uvalue);
     dumpString(OS);
     break;
-  }
-  case DW_FORM_GNU_str_index: {
+  case DW_FORM_GNU_str_index:
     OS << format(" indexed (%8.8x) string = ", (uint32_t)uvalue);
     dumpString(OS);
     break;
-  }
-  case DW_FORM_GNU_strp_alt: {
+  case DW_FORM_GNU_strp_alt:
     OS << format("alt indirect string, offset: 0x%" PRIx64 "", uvalue);
     dumpString(OS);
     break;
-  }
   case DW_FORM_ref_addr:
     OS << format("0x%016" PRIx64, uvalue);
     break;
@@ -674,4 +702,3 @@ Optional<uint64_t> DWARFFormValue::getAsReferenceUVal() const {
     return None;
   return Value.uval;
 }
-

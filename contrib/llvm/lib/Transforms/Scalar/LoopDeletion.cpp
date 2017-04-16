@@ -29,32 +29,31 @@ using namespace llvm;
 
 STATISTIC(NumDeleted, "Number of loops deleted");
 
-/// isLoopDead - Determined if a loop is dead.  This assumes that we've already
-/// checked for unique exit and exiting blocks, and that the code is in LCSSA
-/// form.
-bool LoopDeletionPass::isLoopDead(Loop *L, ScalarEvolution &SE,
-                                  SmallVectorImpl<BasicBlock *> &exitingBlocks,
-                                  SmallVectorImpl<BasicBlock *> &exitBlocks,
-                                  bool &Changed, BasicBlock *Preheader) {
-  BasicBlock *exitBlock = exitBlocks[0];
-
+/// Determines if a loop is dead.
+///
+/// This assumes that we've already checked for unique exit and exiting blocks,
+/// and that the code is in LCSSA form.
+static bool isLoopDead(Loop *L, ScalarEvolution &SE,
+                       SmallVectorImpl<BasicBlock *> &ExitingBlocks,
+                       BasicBlock *ExitBlock, bool &Changed,
+                       BasicBlock *Preheader) {
   // Make sure that all PHI entries coming from the loop are loop invariant.
   // Because the code is in LCSSA form, any values used outside of the loop
   // must pass through a PHI in the exit block, meaning that this check is
   // sufficient to guarantee that no loop-variant values are used outside
   // of the loop.
-  BasicBlock::iterator BI = exitBlock->begin();
+  BasicBlock::iterator BI = ExitBlock->begin();
   bool AllEntriesInvariant = true;
   bool AllOutgoingValuesSame = true;
   while (PHINode *P = dyn_cast<PHINode>(BI)) {
-    Value *incoming = P->getIncomingValueForBlock(exitingBlocks[0]);
+    Value *incoming = P->getIncomingValueForBlock(ExitingBlocks[0]);
 
     // Make sure all exiting blocks produce the same incoming value for the exit
     // block.  If there are different incoming values for different exiting
     // blocks, then it is impossible to statically determine which value should
     // be used.
     AllOutgoingValuesSame =
-        all_of(makeArrayRef(exitingBlocks).slice(1), [&](BasicBlock *BB) {
+        all_of(makeArrayRef(ExitingBlocks).slice(1), [&](BasicBlock *BB) {
           return incoming == P->getIncomingValueForBlock(BB);
         });
 
@@ -78,33 +77,37 @@ bool LoopDeletionPass::isLoopDead(Loop *L, ScalarEvolution &SE,
 
   // Make sure that no instructions in the block have potential side-effects.
   // This includes instructions that could write to memory, and loads that are
-  // marked volatile.  This could be made more aggressive by using aliasing
-  // information to identify readonly and readnone calls.
-  for (Loop::block_iterator LI = L->block_begin(), LE = L->block_end();
-       LI != LE; ++LI) {
-    for (Instruction &I : **LI) {
-      if (I.mayHaveSideEffects())
-        return false;
-    }
-  }
-
+  // marked volatile.
+  for (auto &I : L->blocks())
+    if (any_of(*I, [](Instruction &I) { return I.mayHaveSideEffects(); }))
+      return false;
   return true;
 }
 
-/// Remove dead loops, by which we mean loops that do not impact the observable
-/// behavior of the program other than finite running time.  Note we do ensure
-/// that this never remove a loop that might be infinite, as doing so could
-/// change the halting/non-halting nature of a program. NOTE: This entire
-/// process relies pretty heavily on LoopSimplify and LCSSA in order to make
-/// various safety checks work.
-bool LoopDeletionPass::runImpl(Loop *L, DominatorTree &DT, ScalarEvolution &SE,
-                               LoopInfo &loopInfo) {
+/// Remove a loop if it is dead.
+///
+/// A loop is considered dead if it does not impact the observable behavior of
+/// the program other than finite running time. This never removes a loop that
+/// might be infinite, as doing so could change the halting/non-halting nature
+/// of a program.
+///
+/// This entire process relies pretty heavily on LoopSimplify form and LCSSA in
+/// order to make various safety checks work.
+///
+/// \returns true if any changes were made. This may mutate the loop even if it
+/// is unable to delete it due to hoisting trivially loop invariant
+/// instructions out of the loop.
+///
+/// This also updates the relevant analysis information in \p DT, \p SE, and \p
+/// LI. It also updates the loop PM if an updater struct is provided.
+static bool deleteLoopIfDead(Loop *L, DominatorTree &DT, ScalarEvolution &SE,
+                             LoopInfo &LI, LPMUpdater *Updater = nullptr) {
   assert(L->isLCSSAForm(DT) && "Expected LCSSA!");
 
   // We can only remove the loop if there is a preheader that we can
   // branch from after removing it.
-  BasicBlock *preheader = L->getLoopPreheader();
-  if (!preheader)
+  BasicBlock *Preheader = L->getLoopPreheader();
+  if (!Preheader)
     return false;
 
   // If LoopSimplify form is not available, stay out of trouble.
@@ -116,22 +119,20 @@ bool LoopDeletionPass::runImpl(Loop *L, DominatorTree &DT, ScalarEvolution &SE,
   if (L->begin() != L->end())
     return false;
 
-  SmallVector<BasicBlock *, 4> exitingBlocks;
-  L->getExitingBlocks(exitingBlocks);
-
-  SmallVector<BasicBlock *, 4> exitBlocks;
-  L->getUniqueExitBlocks(exitBlocks);
+  SmallVector<BasicBlock *, 4> ExitingBlocks;
+  L->getExitingBlocks(ExitingBlocks);
 
   // We require that the loop only have a single exit block.  Otherwise, we'd
   // be in the situation of needing to be able to solve statically which exit
   // block will be branched to, or trying to preserve the branching logic in
   // a loop invariant manner.
-  if (exitBlocks.size() != 1)
+  BasicBlock *ExitBlock = L->getUniqueExitBlock();
+  if (!ExitBlock)
     return false;
 
   // Finally, we have to check that the loop really is dead.
   bool Changed = false;
-  if (!isLoopDead(L, SE, exitingBlocks, exitBlocks, Changed, preheader))
+  if (!isLoopDead(L, SE, ExitingBlocks, ExitBlock, Changed, Preheader))
     return Changed;
 
   // Don't remove loops for which we can't solve the trip count.
@@ -142,11 +143,13 @@ bool LoopDeletionPass::runImpl(Loop *L, DominatorTree &DT, ScalarEvolution &SE,
 
   // Now that we know the removal is safe, remove the loop by changing the
   // branch from the preheader to go to the single exit block.
-  BasicBlock *exitBlock = exitBlocks[0];
-
+  //
   // Because we're deleting a large chunk of code at once, the sequence in which
-  // we remove things is very important to avoid invalidation issues.  Don't
-  // mess with this unless you have good reason and know what you're doing.
+  // we remove things is very important to avoid invalidation issues.
+
+  // If we have an LPM updater, tell it about the loop being removed.
+  if (Updater)
+    Updater->markLoopAsDeleted(*L);
 
   // Tell ScalarEvolution that the loop is deleted. Do this before
   // deleting the loop so that ScalarEvolution can look at the loop
@@ -154,19 +157,19 @@ bool LoopDeletionPass::runImpl(Loop *L, DominatorTree &DT, ScalarEvolution &SE,
   SE.forgetLoop(L);
 
   // Connect the preheader directly to the exit block.
-  TerminatorInst *TI = preheader->getTerminator();
-  TI->replaceUsesOfWith(L->getHeader(), exitBlock);
+  TerminatorInst *TI = Preheader->getTerminator();
+  TI->replaceUsesOfWith(L->getHeader(), ExitBlock);
 
   // Rewrite phis in the exit block to get their inputs from
   // the preheader instead of the exiting block.
-  BasicBlock *exitingBlock = exitingBlocks[0];
-  BasicBlock::iterator BI = exitBlock->begin();
+  BasicBlock *ExitingBlock = ExitingBlocks[0];
+  BasicBlock::iterator BI = ExitBlock->begin();
   while (PHINode *P = dyn_cast<PHINode>(BI)) {
-    int j = P->getBasicBlockIndex(exitingBlock);
+    int j = P->getBasicBlockIndex(ExitingBlock);
     assert(j >= 0 && "Can't find exiting block in exit block's phi node!");
-    P->setIncomingBlock(j, preheader);
-    for (unsigned i = 1; i < exitingBlocks.size(); ++i)
-      P->removeIncomingValue(exitingBlocks[i]);
+    P->setIncomingBlock(j, Preheader);
+    for (unsigned i = 1; i < ExitingBlocks.size(); ++i)
+      P->removeIncomingValue(ExitingBlocks[i]);
     ++BI;
   }
 
@@ -175,11 +178,11 @@ bool LoopDeletionPass::runImpl(Loop *L, DominatorTree &DT, ScalarEvolution &SE,
   SmallVector<DomTreeNode*, 8> ChildNodes;
   for (Loop::block_iterator LI = L->block_begin(), LE = L->block_end();
        LI != LE; ++LI) {
-    // Move all of the block's children to be children of the preheader, which
+    // Move all of the block's children to be children of the Preheader, which
     // allows us to remove the domtree entry for the block.
     ChildNodes.insert(ChildNodes.begin(), DT[*LI]->begin(), DT[*LI]->end());
     for (DomTreeNode *ChildNode : ChildNodes) {
-      DT.changeImmediateDominator(ChildNode, DT[preheader]);
+      DT.changeImmediateDominator(ChildNode, DT[Preheader]);
     }
 
     ChildNodes.clear();
@@ -204,22 +207,19 @@ bool LoopDeletionPass::runImpl(Loop *L, DominatorTree &DT, ScalarEvolution &SE,
   SmallPtrSet<BasicBlock *, 8> blocks;
   blocks.insert(L->block_begin(), L->block_end());
   for (BasicBlock *BB : blocks)
-    loopInfo.removeBlock(BB);
+    LI.removeBlock(BB);
 
   // The last step is to update LoopInfo now that we've eliminated this loop.
-  loopInfo.markAsRemoved(L);
-  Changed = true;
-
+  LI.markAsRemoved(L);
   ++NumDeleted;
 
-  return Changed;
+  return true;
 }
 
 PreservedAnalyses LoopDeletionPass::run(Loop &L, LoopAnalysisManager &AM,
                                         LoopStandardAnalysisResults &AR,
-                                        LPMUpdater &) {
-  bool Changed = runImpl(&L, AR.DT, AR.SE, AR.LI);
-  if (!Changed)
+                                        LPMUpdater &Updater) {
+  if (!deleteLoopIfDead(&L, AR.DT, AR.SE, AR.LI, &Updater))
     return PreservedAnalyses::all();
 
   return getLoopPassPreservedAnalyses();
@@ -257,8 +257,7 @@ bool LoopDeletionLegacyPass::runOnLoop(Loop *L, LPPassManager &) {
 
   DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   ScalarEvolution &SE = getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-  LoopInfo &loopInfo = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+  LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
 
-  LoopDeletionPass Impl;
-  return Impl.runImpl(L, DT, SE, loopInfo);
+  return deleteLoopIfDead(L, DT, SE, LI);
 }

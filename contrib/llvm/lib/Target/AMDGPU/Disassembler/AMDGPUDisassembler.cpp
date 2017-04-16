@@ -22,6 +22,7 @@
 #include "AMDGPURegisterInfo.h"
 #include "SIDefines.h"
 #include "Utils/AMDGPUBaseInfo.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCFixedLenDisassembler.h"
@@ -97,9 +98,13 @@ static DecodeStatus decodeOperand_VSrc16(MCInst &Inst,
   return addOperand(Inst, DAsm->decodeOperand_VSrc16(Imm));
 }
 
-#define GET_SUBTARGETINFO_ENUM
-#include "AMDGPUGenSubtargetInfo.inc"
-#undef GET_SUBTARGETINFO_ENUM
+static DecodeStatus decodeOperand_VSrcV216(MCInst &Inst,
+                                         unsigned Imm,
+                                         uint64_t Addr,
+                                         const void *Decoder) {
+  auto DAsm = static_cast<const AMDGPUDisassembler*>(Decoder);
+  return addOperand(Inst, DAsm->decodeOperand_VSrcV216(Imm));
+}
 
 #include "AMDGPUGenDisassemblerTables.inc"
 
@@ -138,7 +143,8 @@ DecodeStatus AMDGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   CommentStream = &CS;
 
   // ToDo: AMDGPUDisassembler supports only VI ISA.
-  assert(AMDGPU::isVI(STI) && "Can disassemble only VI ISA.");
+  if (!STI.getFeatureBits()[AMDGPU::FeatureGCN3Encoding])
+    report_fatal_error("Disassembly not yet supported for subtarget");
 
   const unsigned MaxInstBytesNum = (std::min)((size_t)8, Bytes_.size());
   Bytes = Bytes_.slice(0, MaxInstBytesNum);
@@ -178,6 +184,17 @@ DecodeStatus AMDGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
 
     Res = tryDecodeInst(DecoderTableAMDGPU64, MI, QW, Address);
   } while (false);
+
+  if (Res && (MI.getOpcode() == AMDGPU::V_MAC_F32_e64_vi ||
+              MI.getOpcode() == AMDGPU::V_MAC_F32_e64_si ||
+              MI.getOpcode() == AMDGPU::V_MAC_F16_e64_vi)) {
+    // Insert dummy unused src2_modifiers.
+    int Src2ModIdx = AMDGPU::getNamedOperandIdx(MI.getOpcode(),
+                                                AMDGPU::OpName::src2_modifiers);
+    auto I = MI.begin();
+    std::advance(I, Src2ModIdx);
+    MI.insert(I, MCOperand::createImm(0));
+  }
 
   Size = Res ? (MaxInstBytesNum - Bytes.size()) : 0;
   return Res;
@@ -261,6 +278,10 @@ MCOperand AMDGPUDisassembler::decodeOperand_VS_64(unsigned Val) const {
 
 MCOperand AMDGPUDisassembler::decodeOperand_VSrc16(unsigned Val) const {
   return decodeSrcOp(OPW16, Val);
+}
+
+MCOperand AMDGPUDisassembler::decodeOperand_VSrcV216(unsigned Val) const {
+  return decodeSrcOp(OPWV216, Val);
 }
 
 MCOperand AMDGPUDisassembler::decodeOperand_VGPR_32(unsigned Val) const {
@@ -423,6 +444,7 @@ MCOperand AMDGPUDisassembler::decodeFPImmed(OpWidthTy Width, unsigned Imm) {
   case OPW64:
     return MCOperand::createImm(getInlineImmVal64(Imm));
   case OPW16:
+  case OPWV216:
     return MCOperand::createImm(getInlineImmVal16(Imm));
   default:
     llvm_unreachable("implement me");
@@ -436,6 +458,7 @@ unsigned AMDGPUDisassembler::getVgprClassId(const OpWidthTy Width) const {
   default: // fall
   case OPW32:
   case OPW16:
+  case OPWV216:
     return VGPR_32RegClassID;
   case OPW64: return VReg_64RegClassID;
   case OPW128: return VReg_128RegClassID;
@@ -449,6 +472,7 @@ unsigned AMDGPUDisassembler::getSgprClassId(const OpWidthTy Width) const {
   default: // fall
   case OPW32:
   case OPW16:
+  case OPWV216:
     return SGPR_32RegClassID;
   case OPW64: return SGPR_64RegClassID;
   case OPW128: return SGPR_128RegClassID;
@@ -462,6 +486,7 @@ unsigned AMDGPUDisassembler::getTtmpClassId(const OpWidthTy Width) const {
   default: // fall
   case OPW32:
   case OPW16:
+  case OPWV216:
     return TTMP_32RegClassID;
   case OPW64: return TTMP_64RegClassID;
   case OPW128: return TTMP_128RegClassID;
@@ -497,6 +522,7 @@ MCOperand AMDGPUDisassembler::decodeSrcOp(const OpWidthTy Width, unsigned Val) c
   switch (Width) {
   case OPW32:
   case OPW16:
+  case OPWV216:
     return decodeSpecialReg32(Val);
   case OPW64:
     return decodeSpecialReg64(Val);
@@ -522,6 +548,11 @@ MCOperand AMDGPUDisassembler::decodeSpecialReg32(unsigned Val) const {
   case 124: return createRegOperand(M0);
   case 126: return createRegOperand(EXEC_LO);
   case 127: return createRegOperand(EXEC_HI);
+  case 235: return createRegOperand(SRC_SHARED_BASE);
+  case 236: return createRegOperand(SRC_SHARED_LIMIT);
+  case 237: return createRegOperand(SRC_PRIVATE_BASE);
+  case 238: return createRegOperand(SRC_PRIVATE_LIMIT);
+    // TODO: SRC_POPS_EXITING_WAVE_ID
     // ToDo: no support for vccz register
   case 251: break;
     // ToDo: no support for execz register

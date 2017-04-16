@@ -1,4 +1,4 @@
-//===-- llvm/CodeGen/SelectionDAGNodes.h - SelectionDAG Nodes ---*- C++ -*-===//
+//===- llvm/CodeGen/SelectionDAGNodes.h - SelectionDAG Nodes ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -118,11 +118,11 @@ namespace ISD {
 class SDValue {
   friend struct DenseMapInfo<SDValue>;
 
-  SDNode *Node;       // The node defining the value we are using.
-  unsigned ResNo;     // Which return value of the node we are using.
+  SDNode *Node = nullptr; // The node defining the value we are using.
+  unsigned ResNo = 0;     // Which return value of the node we are using.
 
 public:
-  SDValue() : Node(nullptr), ResNo(0) {}
+  SDValue() = default;
   SDValue(SDNode *node, unsigned resno);
 
   /// get the index which selects a specific result in the SDNode
@@ -250,16 +250,16 @@ class SDUse {
   /// Val - The value being used.
   SDValue Val;
   /// User - The user of this value.
-  SDNode *User;
+  SDNode *User = nullptr;
   /// Prev, Next - Pointers to the uses list of the SDNode referred by
   /// this operand.
-  SDUse **Prev, *Next;
-
-  SDUse(const SDUse &U) = delete;
-  void operator=(const SDUse &U) = delete;
+  SDUse **Prev = nullptr;
+  SDUse *Next = nullptr;
 
 public:
-  SDUse() : User(nullptr), Prev(nullptr), Next(nullptr) {}
+  SDUse() = default;
+  SDUse(const SDUse &U) = delete;
+  SDUse &operator=(const SDUse &) = delete;
 
   /// Normally SDUse will just implicitly convert to an SDValue that it holds.
   operator const SDValue&() const { return Val; }
@@ -350,20 +350,15 @@ private:
   bool NoSignedZeros : 1;
   bool AllowReciprocal : 1;
   bool VectorReduction : 1;
+  bool AllowContract : 1;
 
 public:
   /// Default constructor turns off all optimization flags.
-  SDNodeFlags() {
-    NoUnsignedWrap = false;
-    NoSignedWrap = false;
-    Exact = false;
-    UnsafeAlgebra = false;
-    NoNaNs = false;
-    NoInfs = false;
-    NoSignedZeros = false;
-    AllowReciprocal = false;
-    VectorReduction = false;
-  }
+  SDNodeFlags()
+      : NoUnsignedWrap(false), NoSignedWrap(false), Exact(false),
+        UnsafeAlgebra(false), NoNaNs(false), NoInfs(false),
+        NoSignedZeros(false), AllowReciprocal(false), VectorReduction(false),
+        AllowContract(false) {}
 
   // These are mutators for each flag.
   void setNoUnsignedWrap(bool b) { NoUnsignedWrap = b; }
@@ -375,6 +370,7 @@ public:
   void setNoSignedZeros(bool b) { NoSignedZeros = b; }
   void setAllowReciprocal(bool b) { AllowReciprocal = b; }
   void setVectorReduction(bool b) { VectorReduction = b; }
+  void setAllowContract(bool b) { AllowContract = b; }
 
   // These are accessors for each flag.
   bool hasNoUnsignedWrap() const { return NoUnsignedWrap; }
@@ -386,6 +382,7 @@ public:
   bool hasNoSignedZeros() const { return NoSignedZeros; }
   bool hasAllowReciprocal() const { return AllowReciprocal; }
   bool hasVectorReduction() const { return VectorReduction; }
+  bool hasAllowContract() const { return AllowContract; }
 
   /// Clear any flags in this flag set that aren't also set in Flags.
   void intersectWith(const SDNodeFlags *Flags) {
@@ -397,6 +394,8 @@ public:
     NoInfs &= Flags->NoInfs;
     NoSignedZeros &= Flags->NoSignedZeros;
     AllowReciprocal &= Flags->AllowReciprocal;
+    VectorReduction &= Flags->VectorReduction;
+    AllowContract &= Flags->AllowContract;
   }
 };
 
@@ -446,6 +445,7 @@ protected:
 
   class LSBaseSDNodeBitfields {
     friend class LSBaseSDNode;
+
     uint16_t : NumMemSDNodeBits;
 
     uint16_t AddressingMode : 3; // enum ISD::MemIndexedMode
@@ -493,21 +493,26 @@ protected:
   static_assert(sizeof(StoreSDNodeBitfields) <= 2, "field too wide");
 
 private:
+  friend class SelectionDAG;
+  // TODO: unfriend HandleSDNode once we fix its operand handling.
+  friend class HandleSDNode;
+
   /// Unique id per SDNode in the DAG.
-  int NodeId;
+  int NodeId = -1;
 
   /// The values that are used by this operation.
-  SDUse *OperandList;
+  SDUse *OperandList = nullptr;
 
   /// The types of the values this node defines.  SDNode's may
   /// define multiple values simultaneously.
   const EVT *ValueList;
 
   /// List of uses for this SDNode.
-  SDUse *UseList;
+  SDUse *UseList = nullptr;
 
   /// The number of entries in the Operand/Value list.
-  unsigned short NumOperands, NumValues;
+  unsigned short NumOperands = 0;
+  unsigned short NumValues;
 
   // The ordering of the SDNodes. It roughly corresponds to the ordering of the
   // original LLVM instructions.
@@ -521,10 +526,6 @@ private:
 
   /// Return a pointer to the specified value type.
   static const EVT *getValueTypeList(EVT VT);
-
-  friend class SelectionDAG;
-  // TODO: unfriend HandleSDNode once we fix its operand handling.
-  friend class HandleSDNode;
 
 public:
   /// Unique and persistent id per SDNode in the DAG.
@@ -616,9 +617,9 @@ public:
   /// operands that use a specific SDNode.
   class use_iterator
     : public std::iterator<std::forward_iterator_tag, SDUse, ptrdiff_t> {
-    SDUse *Op;
-
     friend class SDNode;
+
+    SDUse *Op = nullptr;
 
     explicit use_iterator(SDUse *op) : Op(op) {}
 
@@ -628,8 +629,8 @@ public:
     typedef std::iterator<std::forward_iterator_tag,
                           SDUse, ptrdiff_t>::pointer pointer;
 
+    use_iterator() = default;
     use_iterator(const use_iterator &I) : Op(I.Op) {}
-    use_iterator() : Op(nullptr) {}
 
     bool operator==(const use_iterator &x) const {
       return Op == x.Op;
@@ -737,11 +738,15 @@ public:
     return false;
   }
 
+  /// Return true if all the users of N are contained in Nodes.
+  /// NOTE: Requires at least one match, but doesn't require them all.
+  static bool areOnlyUsersOf(ArrayRef<const SDNode *> Nodes, const SDNode *N);
+
   /// Return the number of values used by this operation.
   unsigned getNumOperands() const { return NumOperands; }
 
   /// Helper method returns the integer value of a ConstantSDNode operand.
-  uint64_t getConstantOperandVal(unsigned Num) const;
+  inline uint64_t getConstantOperandVal(unsigned Num) const;
 
   const SDValue &getOperand(unsigned Num) const {
     assert(Num < NumOperands && "Invalid child # of SDNode!");
@@ -896,9 +901,8 @@ protected:
   /// SDNodes are created without any operands, and never own the operand
   /// storage. To add operands, see SelectionDAG::createOperands.
   SDNode(unsigned Opc, unsigned Order, DebugLoc dl, SDVTList VTs)
-      : NodeType(Opc), NodeId(-1), OperandList(nullptr), ValueList(VTs.VTs),
-        UseList(nullptr), NumOperands(0), NumValues(VTs.NumVTs), IROrder(Order),
-        debugLoc(std::move(dl)) {
+      : NodeType(Opc), ValueList(VTs.VTs), NumValues(VTs.NumVTs),
+        IROrder(Order), debugLoc(std::move(dl)) {
     memset(&RawSDNodeBits, 0, sizeof(RawSDNodeBits));
     assert(debugLoc.hasTrivialDestructor() && "Expected trivial destructor");
     assert(NumValues == VTs.NumVTs &&
@@ -1366,9 +1370,9 @@ public:
 };
 
 class ConstantSDNode : public SDNode {
-  const ConstantInt *Value;
-
   friend class SelectionDAG;
+
+  const ConstantInt *Value;
 
   ConstantSDNode(bool isTarget, bool isOpaque, const ConstantInt *val,
                  const DebugLoc &DL, EVT VT)
@@ -1396,10 +1400,14 @@ public:
   }
 };
 
-class ConstantFPSDNode : public SDNode {
-  const ConstantFP *Value;
+uint64_t SDNode::getConstantOperandVal(unsigned Num) const {
+  return cast<ConstantSDNode>(getOperand(Num))->getZExtValue();
+}
 
+class ConstantFPSDNode : public SDNode {
   friend class SelectionDAG;
+
+  const ConstantFP *Value;
 
   ConstantFPSDNode(bool isTarget, const ConstantFP *val, const DebugLoc &DL,
                    EVT VT)
@@ -1471,10 +1479,12 @@ ConstantSDNode *isConstOrConstSplat(SDValue V);
 ConstantFPSDNode *isConstOrConstSplatFP(SDValue V);
 
 class GlobalAddressSDNode : public SDNode {
+  friend class SelectionDAG;
+
   const GlobalValue *TheGlobal;
   int64_t Offset;
   unsigned char TargetFlags;
-  friend class SelectionDAG;
+
   GlobalAddressSDNode(unsigned Opc, unsigned Order, const DebugLoc &DL,
                       const GlobalValue *GA, EVT VT, int64_t o,
                       unsigned char TargetFlags);
@@ -1495,9 +1505,9 @@ public:
 };
 
 class FrameIndexSDNode : public SDNode {
-  int FI;
-
   friend class SelectionDAG;
+
+  int FI;
 
   FrameIndexSDNode(int fi, EVT VT, bool isTarg)
     : SDNode(isTarg ? ISD::TargetFrameIndex : ISD::FrameIndex,
@@ -1514,10 +1524,10 @@ public:
 };
 
 class JumpTableSDNode : public SDNode {
+  friend class SelectionDAG;
+
   int JTI;
   unsigned char TargetFlags;
-
-  friend class SelectionDAG;
 
   JumpTableSDNode(int jti, EVT VT, bool isTarg, unsigned char TF)
     : SDNode(isTarg ? ISD::TargetJumpTable : ISD::JumpTable,
@@ -1535,6 +1545,8 @@ public:
 };
 
 class ConstantPoolSDNode : public SDNode {
+  friend class SelectionDAG;
+
   union {
     const Constant *ConstVal;
     MachineConstantPoolValue *MachineCPVal;
@@ -1542,8 +1554,6 @@ class ConstantPoolSDNode : public SDNode {
   int Offset;  // It's a MachineConstantPoolValue if top bit is set.
   unsigned Alignment;  // Minimum alignment requirement of CP (not log2 value).
   unsigned char TargetFlags;
-
-  friend class SelectionDAG;
 
   ConstantPoolSDNode(bool isTarget, const Constant *c, EVT VT, int o,
                      unsigned Align, unsigned char TF)
@@ -1598,11 +1608,11 @@ public:
 
 /// Completely target-dependent object reference.
 class TargetIndexSDNode : public SDNode {
+  friend class SelectionDAG;
+
   unsigned char TargetFlags;
   int Index;
   int64_t Offset;
-
-  friend class SelectionDAG;
 
 public:
   TargetIndexSDNode(int Idx, EVT VT, int64_t Ofs, unsigned char TF)
@@ -1619,9 +1629,9 @@ public:
 };
 
 class BasicBlockSDNode : public SDNode {
-  MachineBasicBlock *MBB;
-
   friend class SelectionDAG;
+
+  MachineBasicBlock *MBB;
 
   /// Debug info is meaningful and potentially useful here, but we create
   /// blocks out of order when they're jumped to, which makes it a bit
@@ -1640,10 +1650,10 @@ public:
 
 /// A "pseudo-class" with methods for operating on BUILD_VECTORs.
 class BuildVectorSDNode : public SDNode {
+public:
   // These are constructed as SDNodes and then cast to BuildVectorSDNodes.
   explicit BuildVectorSDNode() = delete;
 
-public:
   /// Check if this is a constant splat, and if so, find the
   /// smallest element size that splats the vector.  If MinSplatBits is
   /// nonzero, the element size must be at least that large.  Note that the
@@ -1700,9 +1710,9 @@ public:
 /// in the LLVM IR representation.
 ///
 class SrcValueSDNode : public SDNode {
-  const Value *V;
-
   friend class SelectionDAG;
+
+  const Value *V;
 
   /// Create a SrcValue for a general value.
   explicit SrcValueSDNode(const Value *v)
@@ -1718,9 +1728,9 @@ public:
 };
 
 class MDNodeSDNode : public SDNode {
-  const MDNode *MD;
-
   friend class SelectionDAG;
+
+  const MDNode *MD;
 
   explicit MDNodeSDNode(const MDNode *md)
   : SDNode(ISD::MDNODE_SDNODE, 0, DebugLoc(), getSDVTList(MVT::Other)), MD(md)
@@ -1735,9 +1745,9 @@ public:
 };
 
 class RegisterSDNode : public SDNode {
-  unsigned Reg;
-
   friend class SelectionDAG;
+
+  unsigned Reg;
 
   RegisterSDNode(unsigned reg, EVT VT)
     : SDNode(ISD::Register, 0, DebugLoc(), getSDVTList(VT)), Reg(reg) {}
@@ -1751,10 +1761,10 @@ public:
 };
 
 class RegisterMaskSDNode : public SDNode {
+  friend class SelectionDAG;
+
   // The memory for RegMask is not owned by the node.
   const uint32_t *RegMask;
-
-  friend class SelectionDAG;
 
   RegisterMaskSDNode(const uint32_t *mask)
     : SDNode(ISD::RegisterMask, 0, DebugLoc(), getSDVTList(MVT::Untyped)),
@@ -1769,11 +1779,11 @@ public:
 };
 
 class BlockAddressSDNode : public SDNode {
+  friend class SelectionDAG;
+
   const BlockAddress *BA;
   int64_t Offset;
   unsigned char TargetFlags;
-
-  friend class SelectionDAG;
 
   BlockAddressSDNode(unsigned NodeTy, EVT VT, const BlockAddress *ba,
                      int64_t o, unsigned char Flags)
@@ -1793,9 +1803,9 @@ public:
 };
 
 class EHLabelSDNode : public SDNode {
-  MCSymbol *Label;
-
   friend class SelectionDAG;
+
+  MCSymbol *Label;
 
   EHLabelSDNode(unsigned Order, const DebugLoc &dl, MCSymbol *L)
       : SDNode(ISD::EH_LABEL, Order, dl, getSDVTList(MVT::Other)), Label(L) {}
@@ -1809,10 +1819,10 @@ public:
 };
 
 class ExternalSymbolSDNode : public SDNode {
+  friend class SelectionDAG;
+
   const char *Symbol;
   unsigned char TargetFlags;
-
-  friend class SelectionDAG;
 
   ExternalSymbolSDNode(bool isTarget, const char *Sym, unsigned char TF, EVT VT)
     : SDNode(isTarget ? ISD::TargetExternalSymbol : ISD::ExternalSymbol,
@@ -1829,9 +1839,10 @@ public:
 };
 
 class MCSymbolSDNode : public SDNode {
+  friend class SelectionDAG;
+
   MCSymbol *Symbol;
 
-  friend class SelectionDAG;
   MCSymbolSDNode(MCSymbol *Symbol, EVT VT)
       : SDNode(ISD::MCSymbol, 0, DebugLoc(), getSDVTList(VT)), Symbol(Symbol) {}
 
@@ -1844,9 +1855,9 @@ public:
 };
 
 class CondCodeSDNode : public SDNode {
-  ISD::CondCode Condition;
-
   friend class SelectionDAG;
+
+  ISD::CondCode Condition;
 
   explicit CondCodeSDNode(ISD::CondCode Cond)
     : SDNode(ISD::CONDCODE, 0, DebugLoc(), getSDVTList(MVT::Other)),
@@ -1863,9 +1874,9 @@ public:
 /// This class is used to represent EVT's, which are used
 /// to parameterize some operations.
 class VTSDNode : public SDNode {
-  EVT ValueType;
-
   friend class SelectionDAG;
+
+  EVT ValueType;
 
   explicit VTSDNode(EVT VT)
     : SDNode(ISD::VALUETYPE, 0, DebugLoc(), getSDVTList(MVT::Other)),
@@ -1995,6 +2006,7 @@ public:
 class MaskedLoadSDNode : public MaskedLoadStoreSDNode {
 public:
   friend class SelectionDAG;
+
   MaskedLoadSDNode(unsigned Order, const DebugLoc &dl, SDVTList VTs,
                    ISD::LoadExtType ETy, bool IsExpanding, EVT MemVT,
                    MachineMemOperand *MMO)
@@ -2114,11 +2126,11 @@ private:
   friend class SelectionDAG;
 
   MachineSDNode(unsigned Opc, unsigned Order, const DebugLoc &DL, SDVTList VTs)
-      : SDNode(Opc, Order, DL, VTs), MemRefs(nullptr), MemRefsEnd(nullptr) {}
+      : SDNode(Opc, Order, DL, VTs) {}
 
   /// Memory reference descriptions for this instruction.
-  mmo_iterator MemRefs;
-  mmo_iterator MemRefsEnd;
+  mmo_iterator MemRefs = nullptr;
+  mmo_iterator MemRefsEnd = nullptr;
 
 public:
   mmo_iterator memoperands_begin() const { return MemRefs; }
@@ -2184,9 +2196,11 @@ template <> struct GraphTraits<SDNode*> {
   typedef SDNodeIterator ChildIteratorType;
 
   static NodeRef getEntryNode(SDNode *N) { return N; }
+
   static ChildIteratorType child_begin(NodeRef N) {
     return SDNodeIterator::begin(N);
   }
+
   static ChildIteratorType child_end(NodeRef N) {
     return SDNodeIterator::end(N);
   }

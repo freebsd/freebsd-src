@@ -45,6 +45,7 @@ public:
 
   // Instance variables filled by tablegen, do not use!
   const MCRegisterClass *MC;
+  const uint16_t SpillSize, SpillAlignment;
   const vt_iterator VTs;
   const uint32_t *SubClassMask;
   const uint16_t *SuperRegIndices;
@@ -94,10 +95,10 @@ public:
 
   /// Return the size of the register in bytes, which is also the size
   /// of a stack slot allocated to hold a spilled copy of this register.
-  unsigned getSize() const { return MC->getSize(); }
+  unsigned getSize() const { return SpillSize; }
 
   /// Return the minimum required alignment for a register of this class.
-  unsigned getAlignment() const { return MC->getAlignment(); }
+  unsigned getAlignment() const { return SpillAlignment; }
 
   /// Return the cost of copying a value between two registers in this class.
   /// A negative number means the register class is very expensive
@@ -426,7 +427,9 @@ public:
   /// this target. The register should be in the order of desired callee-save
   /// stack frame offset. The first register is closest to the incoming stack
   /// pointer if stack grows down, and vice versa.
-  ///
+  /// Notice: This function does not take into account disabled CSRs.
+  ///         In most cases you will want to use instead the function 
+  ///         getCalleeSavedRegs that is implemented in MachineRegisterInfo.
   virtual const MCPhysReg*
   getCalleeSavedRegs(const MachineFunction *MF) const = 0;
 
@@ -633,6 +636,9 @@ public:
   ///
   regclass_iterator regclass_begin() const { return RegClassBegin; }
   regclass_iterator regclass_end() const { return RegClassEnd; }
+  iterator_range<regclass_iterator> regclasses() const {
+    return make_range(regclass_begin(), regclass_end());
+  }
 
   unsigned getNumRegClasses() const {
     return (unsigned)(regclass_end()-regclass_begin());

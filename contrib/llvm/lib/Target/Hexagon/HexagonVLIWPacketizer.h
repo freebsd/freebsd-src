@@ -7,6 +7,9 @@
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
 
 namespace llvm {
+class HexagonInstrInfo;
+class HexagonRegisterInfo;
+
 class HexagonPacketizerList : public VLIWPacketizerList {
   // Vector of instructions assigned to the packet that has just been created.
   std::vector<MachineInstr*> OldPacketMIs;
@@ -109,6 +112,7 @@ protected:
   void reserveResourcesForConstExt();
   bool hasDeadDependence(const MachineInstr &I, const MachineInstr &J);
   bool hasControlDependence(const MachineInstr &I, const MachineInstr &J);
+  bool hasRegMaskDependence(const MachineInstr &I, const MachineInstr &J);
   bool hasV4SpecificDependence(const MachineInstr &I, const MachineInstr &J);
   bool producesStall(const MachineInstr &MI);
 };

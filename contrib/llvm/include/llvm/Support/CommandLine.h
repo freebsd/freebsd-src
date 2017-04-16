@@ -50,9 +50,12 @@ namespace cl {
 //===----------------------------------------------------------------------===//
 // ParseCommandLineOptions - Command line option processing entry point.
 //
+// Returns true on success. Otherwise, this will print the error message to
+// stderr and exit if \p Errs is not set (nullptr by default), or print the
+// error message to \p Errs and return false if \p Errs is provided.
 bool ParseCommandLineOptions(int argc, const char *const *argv,
                              StringRef Overview = "",
-                             bool IgnoreErrors = false);
+                             raw_ostream *Errs = nullptr);
 
 //===----------------------------------------------------------------------===//
 // ParseEnvironmentOptions - Environment variable option processing alternate
@@ -342,6 +345,9 @@ public:
   virtual void printOptionInfo(size_t GlobalWidth) const = 0;
 
   virtual void printOptionValue(size_t GlobalWidth, bool Force) const = 0;
+
+  static void printHelpStr(StringRef HelpStr, size_t Indent,
+                           size_t FirstLineIndentedBy);
 
   virtual void getExtraOptionNames(SmallVectorImpl<StringRef> &) {}
 

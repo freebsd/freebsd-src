@@ -133,6 +133,7 @@ struct SuspendCrossingInfo {
 };
 } // end anonymous namespace
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void SuspendCrossingInfo::dump(StringRef Label,
                                                 BitVector const &BV) const {
   dbgs() << Label << ":";
@@ -151,6 +152,7 @@ LLVM_DUMP_METHOD void SuspendCrossingInfo::dump() const {
   }
   dbgs() << "\n";
 }
+#endif
 
 SuspendCrossingInfo::SuspendCrossingInfo(Function &F, coro::Shape &Shape)
     : Mapping(F) {
@@ -420,15 +422,31 @@ static Instruction *insertSpills(SpillInfo &Spills, coro::Shape &Shape) {
           report_fatal_error("Coroutines cannot handle non static allocas yet");
       } else {
         // Otherwise, create a store instruction storing the value into the
-        // coroutine frame. For, argument, we will place the store instruction
-        // right after the coroutine frame pointer instruction, i.e. bitcase of
-        // coro.begin from i8* to %f.frame*. For all other values, the spill is
-        // placed immediately after the definition.
-        Builder.SetInsertPoint(
-            isa<Argument>(CurrentValue)
-                ? FramePtr->getNextNode()
-                : dyn_cast<Instruction>(E.def())->getNextNode());
+        // coroutine frame.
 
+        Instruction *InsertPt = nullptr;
+        if (isa<Argument>(CurrentValue)) {
+          // For arguments, we will place the store instruction right after
+          // the coroutine frame pointer instruction, i.e. bitcast of
+          // coro.begin from i8* to %f.frame*.
+          InsertPt = FramePtr->getNextNode();
+        } else if (auto *II = dyn_cast<InvokeInst>(CurrentValue)) {
+          // If we are spilling the result of the invoke instruction, split the
+          // normal edge and insert the spill in the new block.
+          auto NewBB = SplitEdge(II->getParent(), II->getNormalDest());
+          InsertPt = NewBB->getTerminator();
+        } else if (dyn_cast<PHINode>(CurrentValue)) {
+          // Skip the PHINodes and EH pads instructions.
+          InsertPt =
+              &*cast<Instruction>(E.def())->getParent()->getFirstInsertionPt();
+        } else {
+          // For all other values, the spill is placed immediately after
+          // the definition.
+          assert(!isa<TerminatorInst>(E.def()) && "unexpected terminator");
+          InsertPt = cast<Instruction>(E.def())->getNextNode();
+        }
+
+        Builder.SetInsertPoint(InsertPt);
         auto *G = Builder.CreateConstInBoundsGEP2_32(
             FrameTy, FramePtr, 0, Index,
             CurrentValue->getName() + Twine(".spill.addr"));
@@ -484,7 +502,7 @@ static void rewritePHIs(BasicBlock &BB) {
   // loop:
   //    %n.val = phi i32[%n, %entry], [%inc, %loop]
   //
-  // It will create:
+  // It will create:  
   //
   // loop.from.entry:
   //    %n.loop.pre = phi i32 [%n, %entry]
@@ -687,13 +705,12 @@ void coro::buildCoroutineFrame(Function &F, Shape &Shape) {
           Spills.emplace_back(&I, U);
 
   // Rewrite materializable instructions to be materialized at the use point.
-  std::sort(Spills.begin(), Spills.end());
   DEBUG(dump("Materializations", Spills));
   rewriteMaterializableInstructions(Builder, Spills);
 
   // Collect the spills for arguments and other not-materializable values.
   Spills.clear();
-  for (Argument &A : F.getArgumentList())
+  for (Argument &A : F.args())
     for (User *U : A.users())
       if (Checker.isDefinitionAcrossSuspend(A, U))
         Spills.emplace_back(&A, U);
@@ -719,7 +736,6 @@ void coro::buildCoroutineFrame(Function &F, Shape &Shape) {
         Spills.emplace_back(&I, U);
       }
   }
-  std::sort(Spills.begin(), Spills.end());
   DEBUG(dump("Spills", Spills));
   moveSpillUsesAfterCoroBegin(F, Spills, Shape.CoroBegin);
   Shape.FrameTy = buildFrameType(F, Shape, Spills);

@@ -14,16 +14,31 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
-#include "AMDGPUIntrinsicInfo.h"
 #include "AMDGPUSubtarget.h"
 #include "AMDGPUTargetMachine.h"
-
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/DivergenceAnalysis.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/InstVisitor.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/Casting.h"
+#include <cassert>
+#include <iterator>
 
 #define DEBUG_TYPE "amdgpu-codegenprepare"
 
@@ -34,17 +49,15 @@ namespace {
 class AMDGPUCodeGenPrepare : public FunctionPass,
                              public InstVisitor<AMDGPUCodeGenPrepare, bool> {
   const GCNTargetMachine *TM;
-  const SISubtarget *ST;
-  DivergenceAnalysis *DA;
-  Module *Mod;
-  bool HasUnsafeFPMath;
+  const SISubtarget *ST = nullptr;
+  DivergenceAnalysis *DA = nullptr;
+  Module *Mod = nullptr;
+  bool HasUnsafeFPMath = false;
 
   /// \brief Copies exact/nsw/nuw flags (if any) from binary operation \p I to
   /// binary operation \p V.
   ///
   /// \returns Binary operation \p V.
-  Value *copyFlags(const BinaryOperator &I, Value *V) const;
-
   /// \returns \p T's base element bit width.
   unsigned getBaseElementBitWidth(const Type *T) const;
 
@@ -113,13 +126,9 @@ class AMDGPUCodeGenPrepare : public FunctionPass,
 
 public:
   static char ID;
+
   AMDGPUCodeGenPrepare(const TargetMachine *TM = nullptr) :
-    FunctionPass(ID),
-    TM(static_cast<const GCNTargetMachine *>(TM)),
-    ST(nullptr),
-    DA(nullptr),
-    Mod(nullptr),
-    HasUnsafeFPMath(false) { }
+    FunctionPass(ID), TM(static_cast<const GCNTargetMachine *>(TM)) {}
 
   bool visitFDiv(BinaryOperator &I);
 
@@ -142,22 +151,7 @@ public:
  }
 };
 
-} // End anonymous namespace
-
-Value *AMDGPUCodeGenPrepare::copyFlags(
-    const BinaryOperator &I, Value *V) const {
-  BinaryOperator *BinOp = dyn_cast<BinaryOperator>(V);
-  if (!BinOp) // Possibly constant expression.
-    return V;
-
-  if (isa<OverflowingBinaryOperator>(BinOp)) {
-    BinOp->setHasNoSignedWrap(I.hasNoSignedWrap());
-    BinOp->setHasNoUnsignedWrap(I.hasNoUnsignedWrap());
-  } else if (isa<PossiblyExactOperator>(BinOp))
-    BinOp->setIsExact(I.isExact());
-
-  return V;
-}
+} // end anonymous namespace
 
 unsigned AMDGPUCodeGenPrepare::getBaseElementBitWidth(const Type *T) const {
   assert(needsPromotionToI32(T) && "T does not need promotion to i32");
@@ -186,12 +180,48 @@ bool AMDGPUCodeGenPrepare::isSigned(const SelectInst &I) const {
 }
 
 bool AMDGPUCodeGenPrepare::needsPromotionToI32(const Type *T) const {
-  if (T->isIntegerTy() && T->getIntegerBitWidth() > 1 &&
-      T->getIntegerBitWidth() <= 16)
+  const IntegerType *IntTy = dyn_cast<IntegerType>(T);
+  if (IntTy && IntTy->getBitWidth() > 1 && IntTy->getBitWidth() <= 16)
     return true;
-  if (!T->isVectorTy())
+
+  if (const VectorType *VT = dyn_cast<VectorType>(T)) {
+    // TODO: The set of packed operations is more limited, so may want to
+    // promote some anyway.
+    if (ST->hasVOP3PInsts())
+      return false;
+
+    return needsPromotionToI32(VT->getElementType());
+  }
+
+  return false;
+}
+
+// Return true if the op promoted to i32 should have nsw set.
+static bool promotedOpIsNSW(const Instruction &I) {
+  switch (I.getOpcode()) {
+  case Instruction::Shl:
+  case Instruction::Add:
+  case Instruction::Sub:
+    return true;
+  case Instruction::Mul:
+    return I.hasNoUnsignedWrap();
+  default:
     return false;
-  return needsPromotionToI32(cast<VectorType>(T)->getElementType());
+  }
+}
+
+// Return true if the op promoted to i32 should have nuw set.
+static bool promotedOpIsNUW(const Instruction &I) {
+  switch (I.getOpcode()) {
+  case Instruction::Shl:
+  case Instruction::Add:
+  case Instruction::Mul:
+    return true;
+  case Instruction::Sub:
+    return I.hasNoUnsignedWrap();
+  default:
+    return false;
+  }
 }
 
 bool AMDGPUCodeGenPrepare::promoteUniformOpToI32(BinaryOperator &I) const {
@@ -218,7 +248,19 @@ bool AMDGPUCodeGenPrepare::promoteUniformOpToI32(BinaryOperator &I) const {
     ExtOp0 = Builder.CreateZExt(I.getOperand(0), I32Ty);
     ExtOp1 = Builder.CreateZExt(I.getOperand(1), I32Ty);
   }
-  ExtRes = copyFlags(I, Builder.CreateBinOp(I.getOpcode(), ExtOp0, ExtOp1));
+
+  ExtRes = Builder.CreateBinOp(I.getOpcode(), ExtOp0, ExtOp1);
+  if (Instruction *Inst = dyn_cast<Instruction>(ExtRes)) {
+    if (promotedOpIsNSW(cast<Instruction>(I)))
+      Inst->setHasNoSignedWrap();
+
+    if (promotedOpIsNUW(cast<Instruction>(I)))
+      Inst->setHasNoUnsignedWrap();
+
+    if (const auto *ExactOp = dyn_cast<PossiblyExactOperator>(&I))
+      Inst->setIsExact(ExactOp->isExact());
+  }
+
   TruncRes = Builder.CreateTrunc(ExtRes, I.getType());
 
   I.replaceAllUsesWith(TruncRes);
@@ -346,9 +388,7 @@ bool AMDGPUCodeGenPrepare::visitFDiv(BinaryOperator &FDiv) {
   Builder.setFastMathFlags(FMF);
   Builder.SetCurrentDebugLocation(FDiv.getDebugLoc());
 
-  const AMDGPUIntrinsicInfo *II = TM->getIntrinsicInfo();
-  Function *Decl
-    = II->getDeclaration(Mod, AMDGPUIntrinsic::amdgcn_fdiv_fast, {});
+  Function *Decl = Intrinsic::getDeclaration(Mod, Intrinsic::amdgcn_fdiv_fast);
 
   Value *Num = FDiv.getOperand(0);
   Value *Den = FDiv.getOperand(1);

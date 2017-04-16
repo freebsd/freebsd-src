@@ -1,4 +1,4 @@
-//===- SampleProfReader.h - Read LLVM sample profile data -----------------===//
+//===- SampleProfReader.h - Read LLVM sample profile data -------*- C++ -*-===//
 //
 //                      The LLVM Compiler Infrastructure
 //
@@ -205,25 +205,33 @@
 //        FUNCTION BODY
 //          A FUNCTION BODY entry describing the inlined function.
 //===----------------------------------------------------------------------===//
+
 #ifndef LLVM_PROFILEDATA_SAMPLEPROFREADER_H
 #define LLVM_PROFILEDATA_SAMPLEPROFREADER_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/ProfileData/ProfileCommon.h"
+#include "llvm/IR/ProfileSummary.h"
 #include "llvm/ProfileData/SampleProf.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/GCOV.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <system_error>
+#include <vector>
 
 namespace llvm {
+
+class raw_ostream;
 
 namespace sampleprof {
 
@@ -259,7 +267,7 @@ public:
   SampleProfileReader(std::unique_ptr<MemoryBuffer> B, LLVMContext &C)
       : Profiles(0), Ctx(C), Buffer(std::move(B)) {}
 
-  virtual ~SampleProfileReader() {}
+  virtual ~SampleProfileReader() = default;
 
   /// \brief Read and validate the file header.
   virtual std::error_code readHeader() = 0;
@@ -275,7 +283,12 @@ public:
 
   /// \brief Return the samples collected for function \p F.
   FunctionSamples *getSamplesFor(const Function &F) {
-    return &Profiles[F.getName()];
+    // The function name may have been updated by adding suffix. In sample
+    // profile, the function names are all stripped, so we need to strip
+    // the function name suffix before matching with profile.
+    if (Profiles.count(F.getName().split('.').first))
+      return &Profiles[(F.getName().split('.').first)];
+    return nullptr;
   }
 
   /// \brief Return all the profiles.
@@ -442,8 +455,8 @@ protected:
   static const uint32_t GCOVTagAFDOFunction = 0xac000000;
 };
 
-} // End namespace sampleprof
+} // end namespace sampleprof
 
-} // End namespace llvm
+} // end namespace llvm
 
 #endif // LLVM_PROFILEDATA_SAMPLEPROFREADER_H

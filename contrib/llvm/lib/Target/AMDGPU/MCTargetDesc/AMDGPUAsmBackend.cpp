@@ -37,7 +37,7 @@ public:
                          bool &IsResolved) override;
 
   void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
-                  uint64_t Value, bool IsPCRel) const override;
+                  uint64_t Value, bool IsPCRel, MCContext &Ctx) const override;
   bool fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,
                             const MCRelaxableFragment *DF,
                             const MCAsmLayout &Layout) const override {
@@ -131,7 +131,7 @@ void AMDGPUAsmBackend::processFixupValue(const MCAssembler &Asm,
 
 void AMDGPUAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
                                   unsigned DataSize, uint64_t Value,
-                                  bool IsPCRel) const {
+                                  bool IsPCRel, MCContext &Ctx) const {
   if (!Value)
     return; // Doesn't change encoding.
 
@@ -164,7 +164,20 @@ const MCFixupKindInfo &AMDGPUAsmBackend::getFixupKindInfo(
 }
 
 bool AMDGPUAsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
-  OW->WriteZeros(Count);
+  // If the count is not 4-byte aligned, we must be writing data into the text
+  // section (otherwise we have unaligned instructions, and thus have far
+  // bigger problems), so just write zeros instead.
+  OW->WriteZeros(Count % 4);
+
+  // We are properly aligned, so write NOPs as requested.
+  Count /= 4;
+
+  // FIXME: R600 support.
+  // s_nop 0
+  const uint32_t Encoded_S_NOP_0 = 0xbf800000;
+
+  for (uint64_t I = 0; I != Count; ++I)
+    OW->write32(Encoded_S_NOP_0);
 
   return true;
 }

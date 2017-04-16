@@ -186,9 +186,10 @@ namespace opts {
   cl::opt<bool> MipsOptions("mips-options",
                             cl::desc("Display the MIPS .MIPS.options section"));
 
-  // -amdgpu-runtime-metadata
-  cl::opt<bool> AMDGPURuntimeMD("amdgpu-runtime-metadata",
-                                cl::desc("Display AMDGPU runtime metadata"));
+  // -amdgpu-code-object-metadata
+  cl::opt<bool> AMDGPUCodeObjectMetadata(
+      "amdgpu-code-object-metadata",
+      cl::desc("Display AMDGPU code object metadata"));
 
   // -coff-imports
   cl::opt<bool>
@@ -337,10 +338,12 @@ static bool isMipsArch(unsigned Arch) {
 }
 namespace {
 struct ReadObjTypeTableBuilder {
-  ReadObjTypeTableBuilder() : Allocator(), Builder(Allocator) {}
+  ReadObjTypeTableBuilder()
+      : Allocator(), IDTable(Allocator), TypeTable(Allocator) {}
 
   llvm::BumpPtrAllocator Allocator;
-  llvm::codeview::TypeTableBuilder Builder;
+  llvm::codeview::TypeTableBuilder IDTable;
+  llvm::codeview::TypeTableBuilder TypeTable;
 };
 }
 static ReadObjTypeTableBuilder CVTypes;
@@ -358,6 +361,8 @@ static std::error_code createDumper(const ObjectFile *Obj,
     return createELFDumper(Obj, Writer, Result);
   if (Obj->isMachO())
     return createMachODumper(Obj, Writer, Result);
+  if (Obj->isWasm())
+    return createWasmDumper(Obj, Writer, Result);
 
   return readobj_error::unsupported_obj_file_format;
 }
@@ -420,8 +425,8 @@ static void dumpObject(const ObjectFile *Obj) {
         Dumper->printMipsOptions();
     }
     if (Obj->getArch() == llvm::Triple::amdgcn)
-      if (opts::AMDGPURuntimeMD)
-        Dumper->printAMDGPURuntimeMD();
+      if (opts::AMDGPUCodeObjectMetadata)
+        Dumper->printAMDGPUCodeObjectMetadata();
     if (opts::SectionGroups)
       Dumper->printGroupSections();
     if (opts::HashHistogram)
@@ -443,7 +448,7 @@ static void dumpObject(const ObjectFile *Obj) {
     if (opts::CodeView)
       Dumper->printCodeViewDebugInfo();
     if (opts::CodeViewMergedTypes)
-      Dumper->mergeCodeViewTypes(CVTypes.Builder);
+      Dumper->mergeCodeViewTypes(CVTypes.IDTable, CVTypes.TypeTable);
   }
   if (Obj->isMachO()) {
     if (opts::MachODataInCode)
@@ -548,7 +553,7 @@ int main(int argc, const char *argv[]) {
 
   if (opts::CodeViewMergedTypes) {
     ScopedPrinter W(outs());
-    dumpCodeViewMergedTypes(W, CVTypes.Builder);
+    dumpCodeViewMergedTypes(W, CVTypes.IDTable, CVTypes.TypeTable);
   }
 
   return 0;

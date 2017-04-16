@@ -39,7 +39,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Dwarf.h"
-#include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/LEB128.h"
@@ -127,17 +126,17 @@ static const char *const DWARFGroupDescription = "DWARF Emission";
 static const char *const DbgTimerName = "writer";
 static const char *const DbgTimerDescription = "DWARF Debug Writer";
 
-void DebugLocDwarfExpression::EmitOp(uint8_t Op, const char *Comment) {
+void DebugLocDwarfExpression::emitOp(uint8_t Op, const char *Comment) {
   BS.EmitInt8(
       Op, Comment ? Twine(Comment) + " " + dwarf::OperationEncodingString(Op)
                   : dwarf::OperationEncodingString(Op));
 }
 
-void DebugLocDwarfExpression::EmitSigned(int64_t Value) {
+void DebugLocDwarfExpression::emitSigned(int64_t Value) {
   BS.EmitSLEB128(Value, Twine(Value));
 }
 
-void DebugLocDwarfExpression::EmitUnsigned(uint64_t Value) {
+void DebugLocDwarfExpression::emitUnsigned(uint64_t Value) {
   BS.EmitULEB128(Value, Twine(Value));
 }
 
@@ -200,6 +199,12 @@ const DIType *DbgVariable::getType() const {
 }
 
 ArrayRef<DbgVariable::FrameIndexExpr> DbgVariable::getFrameIndexExprs() const {
+  if (FrameIndexExprs.size() == 1)
+    return FrameIndexExprs;
+
+  assert(all_of(FrameIndexExprs,
+                [](const FrameIndexExpr &A) { return A.Expr->isFragment(); }) &&
+         "multiple FI expressions without DW_OP_LLVM_fragment");
   std::sort(FrameIndexExprs.begin(), FrameIndexExprs.end(),
             [](const FrameIndexExpr &A, const FrameIndexExpr &B) -> bool {
               return A.Expr->getFragmentInfo()->OffsetInBits <
@@ -418,7 +423,14 @@ DwarfDebug::constructDwarfCompileUnit(const DICompileUnit *DIUnit) {
     Asm->OutStreamer->getContext().setMCLineTableCompilationDir(
         NewCU.getUniqueID(), CompilationDir);
 
-  NewCU.addString(Die, dwarf::DW_AT_producer, DIUnit->getProducer());
+  StringRef Producer = DIUnit->getProducer();
+  StringRef Flags = DIUnit->getFlags();
+  if (!Flags.empty()) {
+    std::string ProducerWithFlags = Producer.str() + " " + Flags.str();
+    NewCU.addString(Die, dwarf::DW_AT_producer, ProducerWithFlags);
+  } else
+    NewCU.addString(Die, dwarf::DW_AT_producer, Producer);
+
   NewCU.addUInt(Die, dwarf::DW_AT_language, dwarf::DW_FORM_data2,
                 DIUnit->getSourceLanguage());
   NewCU.addString(Die, dwarf::DW_AT_name, FN);
@@ -544,7 +556,6 @@ void DwarfDebug::beginModule() {
       // The retained types array by design contains pointers to
       // MDNodes rather than DIRefs. Unique them here.
       if (DIType *RT = dyn_cast<DIType>(Ty))
-        if (!RT->isExternalTypeRef())
           // There is no point in force-emitting a forward declaration.
           CU.getOrCreateTypeDIE(RT);
     }
@@ -740,6 +751,7 @@ DbgVariable *DwarfDebug::getExistingAbstractVariable(InlinedVariable IV) {
 
 void DwarfDebug::createAbstractVariable(const DILocalVariable *Var,
                                         LexicalScope *Scope) {
+  assert(Scope && Scope->isAbstractScope());
   auto AbsDbgVariable = make_unique<DbgVariable>(Var, /* IA */ nullptr);
   InfoHolder.addScopeVariable(Scope, AbsDbgVariable.get());
   AbstractVariables[Var] = std::move(AbsDbgVariable);
@@ -1137,20 +1149,9 @@ static DebugLoc findPrologueEndLoc(const MachineFunction *MF) {
 
 // Gather pre-function debug information.  Assumes being called immediately
 // after the function entry point has been emitted.
-void DwarfDebug::beginFunction(const MachineFunction *MF) {
+void DwarfDebug::beginFunctionImpl(const MachineFunction *MF) {
   CurFn = MF;
 
-  // If there's no debug info for the function we're not going to do anything.
-  if (!MMI->hasDebugInfo())
-    return;
-
-  auto DI = MF->getFunction()->getSubprogram();
-  if (!DI)
-    return;
-
-  // Grab the lexical scopes for the function, if we don't have any of those
-  // then we're not going to be able to do anything.
-  DebugHandlerBase::beginFunction(MF);
   if (LScopes.empty())
     return;
 
@@ -1189,22 +1190,20 @@ void DwarfDebug::beginFunction(const MachineFunction *MF) {
   }
 }
 
+void DwarfDebug::skippedNonDebugFunction() {
+  // If we don't have a subprogram for this function then there will be a hole
+  // in the range information. Keep note of this by setting the previously used
+  // section to nullptr.
+  PrevCU = nullptr;
+  CurFn = nullptr;
+}
+
 // Gather and emit post-function debug information.
-void DwarfDebug::endFunction(const MachineFunction *MF) {
+void DwarfDebug::endFunctionImpl(const MachineFunction *MF) {
+  const DISubprogram *SP = MF->getFunction()->getSubprogram();
+
   assert(CurFn == MF &&
       "endFunction should be called with the same function as beginFunction");
-
-  const DISubprogram *SP = MF->getFunction()->getSubprogram();
-  if (!MMI->hasDebugInfo() || !SP ||
-      SP->getUnit()->getEmissionKind() == DICompileUnit::NoDebug) {
-    // If we don't have a subprogram for this function then there will be a hole
-    // in the range information. Keep note of this by setting the previously
-    // used section to nullptr.
-    PrevCU = nullptr;
-    CurFn = nullptr;
-    DebugHandlerBase::endFunction(MF);
-    return;
-  }
 
   // Set DwarfDwarfCompileUnitID in MCContext to default value.
   Asm->OutStreamer->getContext().setDwarfCompileUnitID(0);
@@ -1220,17 +1219,14 @@ void DwarfDebug::endFunction(const MachineFunction *MF) {
   TheCU.addRange(RangeSpan(Asm->getFunctionBegin(), Asm->getFunctionEnd()));
 
   // Under -gmlt, skip building the subprogram if there are no inlined
-  // subroutines inside it.
-  if (TheCU.getCUNode()->getEmissionKind() == DICompileUnit::LineTablesOnly &&
+  // subroutines inside it. But with -fdebug-info-for-profiling, the subprogram
+  // is still needed as we need its source location.
+  if (!TheCU.getCUNode()->getDebugInfoForProfiling() &&
+      TheCU.getCUNode()->getEmissionKind() == DICompileUnit::LineTablesOnly &&
       LScopes.getAbstractScopesList().empty() && !IsDarwin) {
     assert(InfoHolder.getScopeVariables().empty());
-    assert(DbgValues.empty());
-    // FIXME: This wouldn't be true in LTO with a -g (with inlining) CU followed
-    // by a -gmlt CU. Add a test and remove this assertion.
-    assert(AbstractVariables.empty());
     PrevLabel = nullptr;
     CurFn = nullptr;
-    DebugHandlerBase::endFunction(MF);
     return;
   }
 
@@ -1266,7 +1262,6 @@ void DwarfDebug::endFunction(const MachineFunction *MF) {
   InfoHolder.getScopeVariables().clear();
   PrevLabel = nullptr;
   CurFn = nullptr;
-  DebugHandlerBase::endFunction(MF);
 }
 
 // Register a source line with debug info. Returns the  unique label that was
@@ -1361,6 +1356,18 @@ void DwarfDebug::emitAccelTypes() {
 /// computeIndexValue - Compute the gdb index value for the DIE and CU.
 static dwarf::PubIndexEntryDescriptor computeIndexValue(DwarfUnit *CU,
                                                         const DIE *Die) {
+  // Entities that ended up only in a Type Unit reference the CU instead (since
+  // the pub entry has offsets within the CU there's no real offset that can be
+  // provided anyway). As it happens all such entities (namespaces and types,
+  // types only in C++ at that) are rendered as TYPE+EXTERNAL. If this turns out
+  // not to be true it would be necessary to persist this information from the
+  // point at which the entry is added to the index data structure - since by
+  // the time the index is built from that, the original type/namespace DIE in a
+  // type unit has already been destroyed so it can't be queried for properties
+  // like tag, etc.
+  if (Die->getTag() == dwarf::DW_TAG_compile_unit)
+    return dwarf::PubIndexEntryDescriptor(dwarf::GIEK_TYPE,
+                                          dwarf::GIEL_EXTERNAL);
   dwarf::GDBIndexEntryLinkage Linkage = dwarf::GIEL_STATIC;
 
   // We could have a specification DIE that has our most of our knowledge,
@@ -1498,27 +1505,37 @@ static void emitDebugLocValue(const AsmPrinter &AP, const DIBasicType *BT,
                               ByteStreamer &Streamer,
                               const DebugLocEntry::Value &Value,
                               DwarfExpression &DwarfExpr) {
-  DIExpressionCursor ExprCursor(Value.getExpression());
-  DwarfExpr.addFragmentOffset(Value.getExpression());
+  auto *DIExpr = Value.getExpression();
+  DIExpressionCursor ExprCursor(DIExpr);
+  DwarfExpr.addFragmentOffset(DIExpr);
   // Regular entry.
   if (Value.isInt()) {
     if (BT && (BT->getEncoding() == dwarf::DW_ATE_signed ||
                BT->getEncoding() == dwarf::DW_ATE_signed_char))
-      DwarfExpr.AddSignedConstant(Value.getInt());
+      DwarfExpr.addSignedConstant(Value.getInt());
     else
-      DwarfExpr.AddUnsignedConstant(Value.getInt());
+      DwarfExpr.addUnsignedConstant(Value.getInt());
   } else if (Value.isLocation()) {
-    MachineLocation Loc = Value.getLoc();
+    MachineLocation Location = Value.getLoc();
+
+    SmallVector<uint64_t, 8> Ops;
+    // FIXME: Should this condition be Location.isIndirect() instead?
+    if (Location.getOffset()) {
+      Ops.push_back(dwarf::DW_OP_plus);
+      Ops.push_back(Location.getOffset());
+      Ops.push_back(dwarf::DW_OP_deref);
+    }
+    Ops.append(DIExpr->elements_begin(), DIExpr->elements_end());
+    DIExpressionCursor Cursor(Ops);
     const TargetRegisterInfo &TRI = *AP.MF->getSubtarget().getRegisterInfo();
-    if (Loc.getOffset())
-      DwarfExpr.AddMachineRegIndirect(TRI, Loc.getReg(), Loc.getOffset());
-    else
-      DwarfExpr.AddMachineRegExpression(TRI, ExprCursor, Loc.getReg());
+    if (!DwarfExpr.addMachineRegExpression(TRI, Cursor, Location.getReg()))
+      return;
+    return DwarfExpr.addExpression(std::move(Cursor));
   } else if (Value.isConstantFP()) {
     APInt RawBytes = Value.getConstantFP()->getValueAPF().bitcastToAPInt();
-    DwarfExpr.AddUnsignedConstant(RawBytes);
+    DwarfExpr.addUnsignedConstant(RawBytes);
   }
-  DwarfExpr.AddExpression(std::move(ExprCursor));
+  DwarfExpr.addExpression(std::move(ExprCursor));
 }
 
 void DebugLocEntry::finalize(const AsmPrinter &AP,
@@ -1940,11 +1957,11 @@ uint64_t DwarfDebug::makeTypeSignature(StringRef Identifier) {
   MD5 Hash;
   Hash.update(Identifier);
   // ... take the least significant 8 bytes and return those. Our MD5
-  // implementation always returns its results in little endian, swap bytes
-  // appropriately.
+  // implementation always returns its results in little endian, so we actually
+  // need the "high" word.
   MD5::MD5Result Result;
   Hash.final(Result);
-  return support::endian::read64le(Result + 8);
+  return Result.high();
 }
 
 void DwarfDebug::addDwarfTypeUnitType(DwarfCompileUnit &CU,

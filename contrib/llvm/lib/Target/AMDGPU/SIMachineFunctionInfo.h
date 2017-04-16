@@ -16,12 +16,16 @@
 
 #include "AMDGPUMachineFunction.h"
 #include "SIRegisterInfo.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
+#include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <array>
+#include <cassert>
 #include <map>
+#include <utility>
 
 namespace llvm {
-
-class MachineRegisterInfo;
 
 class AMDGPUImagePseudoSourceValue : public PseudoSourceValue {
 public:
@@ -109,6 +113,8 @@ class SIMachineFunctionInfo final : public AMDGPUMachineFunction {
 
   // Graphics info.
   unsigned PSInputAddr;
+  unsigned PSInputEnable;
+
   bool ReturnsVoid;
 
   // A pair of default/requested minimum/maximum flat work group sizes.
@@ -130,8 +136,6 @@ class SIMachineFunctionInfo final : public AMDGPUMachineFunction {
 public:
   // FIXME: Make private
   unsigned LDSWaveSpillSize;
-  unsigned PSInputEna;
-  std::map<unsigned, unsigned> LaneVGPRs;
   unsigned ScratchOffsetReg;
   unsigned NumUserSGPRs;
   unsigned NumSystemSGPRs;
@@ -182,19 +186,39 @@ private:
 
 public:
   struct SpilledReg {
-    unsigned VGPR;
-    int Lane;
+    unsigned VGPR = AMDGPU::NoRegister;
+    int Lane = -1;
+
+    SpilledReg() = default;
     SpilledReg(unsigned R, int L) : VGPR (R), Lane (L) { }
-    SpilledReg() : VGPR(AMDGPU::NoRegister), Lane(-1) { }
+
     bool hasLane() { return Lane != -1;}
     bool hasReg() { return VGPR != AMDGPU::NoRegister;}
   };
 
-  // SIMachineFunctionInfo definition
+private:
+  // SGPR->VGPR spilling support.
+  typedef std::pair<unsigned, unsigned> SpillRegMask;
+
+  // Track VGPR + wave index for each subregister of the SGPR spilled to
+  // frameindex key.
+  DenseMap<int, std::vector<SpilledReg>> SGPRToVGPRSpills;
+  unsigned NumVGPRSpillLanes = 0;
+  SmallVector<unsigned, 2> SpillVGPRs;
+
+public:
 
   SIMachineFunctionInfo(const MachineFunction &MF);
-  SpilledReg getSpilledReg(MachineFunction *MF, unsigned FrameIndex,
-                           unsigned SubIdx);
+
+  ArrayRef<SpilledReg> getSGPRToVGPRSpills(int FrameIndex) const {
+    auto I = SGPRToVGPRSpills.find(FrameIndex);
+    return (I == SGPRToVGPRSpills.end()) ?
+      ArrayRef<SpilledReg>() : makeArrayRef(I->second);
+  }
+
+  bool allocateSGPRSpillToVGPR(MachineFunction &MF, int FI);
+  void removeSGPRToVGPRFrameIndices(MachineFrameInfo &MFI);
+
   bool hasCalculatedTID() const { return TIDReg != AMDGPU::NoRegister; };
   unsigned getTIDReg() const { return TIDReg; };
   void setTIDReg(unsigned Reg) { TIDReg = Reg; }
@@ -399,12 +423,20 @@ public:
     return PSInputAddr;
   }
 
+  unsigned getPSInputEnable() const {
+    return PSInputEnable;
+  }
+
   bool isPSInputAllocated(unsigned Index) const {
     return PSInputAddr & (1 << Index);
   }
 
   void markPSInputAllocated(unsigned Index) {
     PSInputAddr |= 1 << Index;
+  }
+
+  void markPSInputEnabled(unsigned Index) {
+    PSInputEnable |= 1 << Index;
   }
 
   bool returnsVoid() const {
@@ -512,6 +544,6 @@ public:
   }
 };
 
-} // End namespace llvm
+} // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_TARGET_AMDGPU_SIMACHINEFUNCTIONINFO_H

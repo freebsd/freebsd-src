@@ -291,17 +291,9 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
 
       if (MO.isDef()) {
         Defs.push_back(Reg);
-      } else {
+        continue;
+      } else if (MO.readsReg())
         ReadRegister(Reg);
-      }
-      // Treat undef use like defs for copy propagation but not for
-      // dead copy. We would need to do a liveness check to be sure the copy
-      // is dead for undef uses.
-      // The backends are allowed to do whatever they want with undef value
-      // and we cannot be sure this register will not be rewritten to break
-      // some false dependencies for the hardware for instance.
-      if (MO.isUndef())
-        Defs.push_back(Reg);
     }
 
     // The instruction has a register mask operand which means that it clobbers

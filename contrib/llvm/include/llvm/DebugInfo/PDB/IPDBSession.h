@@ -10,6 +10,7 @@
 #ifndef LLVM_DEBUGINFO_PDB_IPDBSESSION_H
 #define LLVM_DEBUGINFO_PDB_IPDBSESSION_H
 
+#include "PDBSymbol.h"
 #include "PDBTypes.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
@@ -33,15 +34,7 @@ public:
 
   template <typename T>
   std::unique_ptr<T> getConcreteSymbolById(uint32_t SymbolId) const {
-    auto Symbol(getSymbolById(SymbolId));
-    if (!Symbol)
-      return nullptr;
-
-    T *ConcreteSymbol = dyn_cast<T>(Symbol.get());
-    if (!ConcreteSymbol)
-      return nullptr;
-    (void)Symbol.release();
-    return std::unique_ptr<T>(ConcreteSymbol);
+    return unique_dyn_cast_or_null<T>(getSymbolById(SymbolId));
   }
 
   virtual std::unique_ptr<PDBSymbol>

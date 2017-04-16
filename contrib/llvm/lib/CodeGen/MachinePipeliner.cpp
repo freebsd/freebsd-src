@@ -552,7 +552,9 @@ public:
     os << "\n";
   }
 
-  void dump() const { print(dbgs()); }
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+  LLVM_DUMP_METHOD void dump() const { print(dbgs()); }
+#endif
 };
 
 /// This class repesents the scheduled code.  The main data structure is a
@@ -593,7 +595,7 @@ private:
   /// Virtual register information.
   MachineRegisterInfo &MRI;
 
-  DFAPacketizer *Resources;
+  std::unique_ptr<DFAPacketizer> Resources;
 
 public:
   SMSchedule(MachineFunction *mf)
@@ -602,13 +604,6 @@ public:
     FirstCycle = 0;
     LastCycle = 0;
     InitiationInterval = 0;
-  }
-
-  ~SMSchedule() {
-    ScheduledInstrs.clear();
-    InstrToCycle.clear();
-    RegToStageDiff.clear();
-    delete Resources;
   }
 
   void reset() {
@@ -738,7 +733,7 @@ bool MachinePipeliner::runOnMachineFunction(MachineFunction &mf) {
     return false;
 
   if (mf.getFunction()->getAttributes().hasAttribute(
-          AttributeSet::FunctionIndex, Attribute::OptimizeForSize) &&
+          AttributeList::FunctionIndex, Attribute::OptimizeForSize) &&
       !EnableSWPOptSize.getPosition())
     return false;
 
@@ -960,7 +955,7 @@ static void getPhiRegs(MachineInstr &Phi, MachineBasicBlock *Loop,
   for (unsigned i = 1, e = Phi.getNumOperands(); i != e; i += 2)
     if (Phi.getOperand(i + 1).getMBB() != Loop)
       InitVal = Phi.getOperand(i).getReg();
-    else if (Phi.getOperand(i + 1).getMBB() == Loop)
+    else
       LoopVal = Phi.getOperand(i).getReg();
 
   assert(InitVal != 0 && LoopVal != 0 && "Unexpected Phi structure.");
@@ -2514,7 +2509,7 @@ void SwingSchedulerDAG::generateExistingPhis(
     MachineBasicBlock *KernelBB, SMSchedule &Schedule, ValueMapTy *VRMap,
     InstrMapTy &InstrMap, unsigned LastStageNum, unsigned CurStageNum,
     bool IsLast) {
-  // Compute the stage number for the inital value of the Phi, which
+  // Compute the stage number for the initial value of the Phi, which
   // comes from the prolog. The prolog to use depends on to which kernel/
   // epilog that we're adding the Phi.
   unsigned PrologStage = 0;
@@ -3480,7 +3475,7 @@ bool SwingSchedulerDAG::isLoopCarriedOrder(SUnit *Source, const SDep &Dep,
   // increment value to determine if the accesses may be loop carried.
   if (OffsetS >= OffsetD)
     return OffsetS + AccessSizeS > DeltaS;
-  else if (OffsetS < OffsetD)
+  else
     return OffsetD + AccessSizeD > DeltaD;
 
   return true;
@@ -3980,5 +3975,7 @@ void SMSchedule::print(raw_ostream &os) const {
   }
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// Utility function used for debugging to print the schedule.
-void SMSchedule::dump() const { print(dbgs()); }
+LLVM_DUMP_METHOD void SMSchedule::dump() const { print(dbgs()); }
+#endif

@@ -35,14 +35,15 @@
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeStreamMerger.h"
 #include "llvm/DebugInfo/CodeView/TypeTableBuilder.h"
-#include "llvm/DebugInfo/MSF/ByteStream.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/ObjectFile.h"
+#include "llvm/Support/BinaryByteStream.h"
 #include "llvm/Support/COFF.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataExtractor.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/Win64EH.h"
@@ -55,7 +56,6 @@
 using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::codeview;
-using namespace llvm::msf;
 using namespace llvm::support;
 using namespace llvm::Win64EH;
 
@@ -79,7 +79,8 @@ public:
   void printCOFFBaseReloc() override;
   void printCOFFDebugDirectory() override;
   void printCodeViewDebugInfo() override;
-  void mergeCodeViewTypes(llvm::codeview::TypeTableBuilder &CVTypes) override;
+  void mergeCodeViewTypes(llvm::codeview::TypeTableBuilder &CVIDs,
+                          llvm::codeview::TypeTableBuilder &CVTypes) override;
   void printStackMap() const override;
 private:
   void printSymbol(const SymbolRef &Sym);
@@ -154,7 +155,7 @@ public:
     Sec = Obj->getCOFFSection(SR);
   }
 
-  uint32_t getRecordOffset(msf::StreamReader Reader) override {
+  uint32_t getRecordOffset(BinaryStreamReader Reader) override {
     ArrayRef<uint8_t> Data;
     if (auto EC = Reader.readLongestContiguousChunk(Data)) {
       llvm::consumeError(std::move(EC));
@@ -840,8 +841,8 @@ void COFFDumper::printCodeViewSymbolSection(StringRef SectionName,
     }
     case ModuleSubstreamKind::FrameData: {
       // First four bytes is a relocation against the function.
-      msf::ByteStream S(Contents);
-      msf::StreamReader SR(S);
+      BinaryByteStream S(Contents, llvm::support::little);
+      BinaryStreamReader SR(S);
       const uint32_t *CodePtr;
       error(SR.readObject(CodePtr));
       StringRef LinkageName;
@@ -965,9 +966,9 @@ void COFFDumper::printCodeViewSymbolsSubsection(StringRef Subsection,
 
   CVSymbolDumper CVSD(W, TypeDB, std::move(CODD),
                       opts::CodeViewSubsectionBytes);
-  ByteStream Stream(BinaryData);
+  BinaryByteStream Stream(BinaryData, llvm::support::little);
   CVSymbolArray Symbols;
-  StreamReader Reader(Stream);
+  BinaryStreamReader Reader(Stream);
   if (auto EC = Reader.readArray(Symbols, Reader.getLength())) {
     consumeError(std::move(EC));
     W.flush();
@@ -982,8 +983,8 @@ void COFFDumper::printCodeViewSymbolsSubsection(StringRef Subsection,
 }
 
 void COFFDumper::printCodeViewFileChecksums(StringRef Subsection) {
-  msf::ByteStream S(Subsection);
-  msf::StreamReader SR(S);
+  BinaryByteStream S(Subsection, llvm::support::little);
+  BinaryStreamReader SR(S);
   while (!SR.empty()) {
     DictScope S(W, "FileChecksum");
     const FileChecksum *FC;
@@ -1011,8 +1012,8 @@ void COFFDumper::printCodeViewFileChecksums(StringRef Subsection) {
 }
 
 void COFFDumper::printCodeViewInlineeLines(StringRef Subsection) {
-  msf::ByteStream S(Subsection);
-  msf::StreamReader SR(S);
+  BinaryByteStream S(Subsection, llvm::support::little);
+  BinaryStreamReader SR(S);
   uint32_t Signature;
   error(SR.readInteger(Signature));
   bool HasExtraFiles = Signature == unsigned(InlineeLinesSignature::ExtraFiles);
@@ -1064,7 +1065,8 @@ void COFFDumper::printFileNameForOffset(StringRef Label, uint32_t FileOffset) {
   W.printHex(Label, getFileNameForFileOffset(FileOffset), FileOffset);
 }
 
-void COFFDumper::mergeCodeViewTypes(TypeTableBuilder &CVTypes) {
+void COFFDumper::mergeCodeViewTypes(TypeTableBuilder &CVIDs,
+                                    TypeTableBuilder &CVTypes) {
   for (const SectionRef &S : Obj->sections()) {
     StringRef SectionName;
     error(S.getName(SectionName));
@@ -1077,17 +1079,17 @@ void COFFDumper::mergeCodeViewTypes(TypeTableBuilder &CVTypes) {
         error(object_error::parse_failed);
       ArrayRef<uint8_t> Bytes(reinterpret_cast<const uint8_t *>(Data.data()),
                               Data.size());
-      ByteStream Stream(Bytes);
+      BinaryByteStream Stream(Bytes, llvm::support::little);
       CVTypeArray Types;
-      StreamReader Reader(Stream);
+      BinaryStreamReader Reader(Stream);
       if (auto EC = Reader.readArray(Types, Reader.getLength())) {
         consumeError(std::move(EC));
         W.flush();
         error(object_error::parse_failed);
       }
 
-      if (!mergeTypeStreams(CVTypes, Types))
-        return error(object_error::parse_failed);
+      if (auto EC = mergeTypeStreams(CVIDs, CVTypes, nullptr, Types))
+        return error(std::move(EC));
     }
   }
 }
@@ -1435,12 +1437,18 @@ void COFFDumper::printCOFFImports() {
     StringRef Name;
     error(I.getName(Name));
     W.printString("Name", Name);
-    uint32_t Addr;
-    error(I.getImportLookupTableRVA(Addr));
-    W.printHex("ImportLookupTableRVA", Addr);
-    error(I.getImportAddressTableRVA(Addr));
-    W.printHex("ImportAddressTableRVA", Addr);
-    printImportedSymbols(I.imported_symbols());
+    uint32_t ILTAddr;
+    error(I.getImportLookupTableRVA(ILTAddr));
+    W.printHex("ImportLookupTableRVA", ILTAddr);
+    uint32_t IATAddr;
+    error(I.getImportAddressTableRVA(IATAddr));
+    W.printHex("ImportAddressTableRVA", IATAddr);
+    // The import lookup table can be missing with certain older linkers, so
+    // fall back to the import address table in that case.
+    if (ILTAddr)
+      printImportedSymbols(I.lookup_table_symbols());
+    else
+      printImportedSymbols(I.imported_symbols());
   }
 
   // Delay imports
@@ -1549,20 +1557,43 @@ void COFFDumper::printStackMap() const {
 }
 
 void llvm::dumpCodeViewMergedTypes(ScopedPrinter &Writer,
+                                   llvm::codeview::TypeTableBuilder &IDTable,
                                    llvm::codeview::TypeTableBuilder &CVTypes) {
   // Flatten it first, then run our dumper on it.
-  ListScope S(Writer, "MergedTypeStream");
-  SmallString<0> Buf;
+  SmallString<0> TypeBuf;
   CVTypes.ForEachRecord([&](TypeIndex TI, ArrayRef<uint8_t> Record) {
-    Buf.append(Record.begin(), Record.end());
+    TypeBuf.append(Record.begin(), Record.end());
   });
 
   TypeDatabase TypeDB;
-  CVTypeDumper CVTD(TypeDB);
-  TypeDumpVisitor TDV(TypeDB, &Writer, opts::CodeViewSubsectionBytes);
-  if (auto EC =
-          CVTD.dump({Buf.str().bytes_begin(), Buf.str().bytes_end()}, TDV)) {
-    Writer.flush();
-    error(llvm::errorToErrorCode(std::move(EC)));
+  {
+    ListScope S(Writer, "MergedTypeStream");
+    CVTypeDumper CVTD(TypeDB);
+    TypeDumpVisitor TDV(TypeDB, &Writer, opts::CodeViewSubsectionBytes);
+    if (auto EC = CVTD.dump(
+            {TypeBuf.str().bytes_begin(), TypeBuf.str().bytes_end()}, TDV)) {
+      Writer.flush();
+      error(std::move(EC));
+    }
+  }
+
+  // Flatten the id stream and print it next. The ID stream refers to names from
+  // the type stream.
+  SmallString<0> IDBuf;
+  IDTable.ForEachRecord([&](TypeIndex TI, ArrayRef<uint8_t> Record) {
+    IDBuf.append(Record.begin(), Record.end());
+  });
+
+  {
+    ListScope S(Writer, "MergedIDStream");
+    TypeDatabase IDDB;
+    CVTypeDumper CVTD(IDDB);
+    TypeDumpVisitor TDV(TypeDB, &Writer, opts::CodeViewSubsectionBytes);
+    TDV.setItemDB(IDDB);
+    if (auto EC = CVTD.dump(
+            {IDBuf.str().bytes_begin(), IDBuf.str().bytes_end()}, TDV)) {
+      Writer.flush();
+      error(std::move(EC));
+    }
   }
 }

@@ -142,6 +142,9 @@ class MipsSubtarget : public MipsGenSubtargetInfo {
   // UseTCCInDIV -- Enables the use of trapping in the assembler.
   bool UseTCCInDIV;
 
+  // Sym32 -- On Mips64 symbols are 32 bits.
+  bool HasSym32;
+
   // HasEVA -- supports EVA ASE.
   bool HasEVA;
 
@@ -229,7 +232,11 @@ public:
   unsigned getGPRSizeInBytes() const { return isGP64bit() ? 8 : 4; }
   bool isPTR64bit() const { return IsPTR64bit; }
   bool isPTR32bit() const { return !IsPTR64bit; }
+  bool hasSym32() const {
+    return (HasSym32 && isABI_N64()) || isABI_N32() || isABI_O32();
+  }
   bool isSingleFloat() const { return IsSingleFloat; }
+  bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }
   bool hasVFPU() const { return HasVFPU; }
   bool inMips16Mode() const { return InMips16Mode; }
   bool inMips16ModeDefault() const {
@@ -270,6 +277,8 @@ public:
   bool os16() const { return Os16; }
 
   bool isTargetNaCl() const { return TargetTriple.isOSNaCl(); }
+
+  bool isXRaySupported() const override { return true; }
 
   // for now constant islands are on for the whole compilation unit but we only
   // really use them if in addition we are in mips16 mode

@@ -71,8 +71,11 @@ void CriticalAntiDepBreaker::StartBlock(MachineBasicBlock *BB) {
   // callee-saved register that is not saved in the prolog.
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   BitVector Pristine = MFI.getPristineRegs(MF);
-  for (const MCPhysReg *I = TRI->getCalleeSavedRegs(&MF); *I; ++I) {
-    if (!IsReturnBlock && !Pristine.test(*I)) continue;
+  for (const MCPhysReg *I = MF.getRegInfo().getCalleeSavedRegs(); *I;
+       ++I) {
+    unsigned Reg = *I;
+    if (!IsReturnBlock && !(Pristine.test(Reg) || BB->isLiveIn(Reg)))
+      continue;
     for (MCRegAliasIterator AI(*I, TRI, true); AI.isValid(); ++AI) {
       unsigned Reg = *AI;
       Classes[Reg] = reinterpret_cast<TargetRegisterClass *>(-1);

@@ -136,6 +136,16 @@ static cl::opt<std::string> StartAfter("start-after",
 
 static cl::list<std::string> IncludeDirs("I", cl::desc("include search path"));
 
+static cl::opt<bool> PassRemarksWithHotness(
+    "pass-remarks-with-hotness",
+    cl::desc("With PGO, include profile count in optimization remarks"),
+    cl::Hidden);
+
+static cl::opt<std::string>
+    RemarksFilename("pass-remarks-output",
+                    cl::desc("YAML output filename for pass remarks"),
+                    cl::value_desc("filename"));
+
 namespace {
 static ManagedStatic<std::vector<std::string>> RunPassNames;
 
@@ -233,10 +243,27 @@ static void DiagnosticHandler(const DiagnosticInfo &DI, void *Context) {
   if (DI.getSeverity() == DS_Error)
     *HasError = true;
 
+  if (auto *Remark = dyn_cast<DiagnosticInfoOptimizationBase>(&DI))
+    if (!Remark->isEnabled())
+      return;
+
   DiagnosticPrinterRawOStream DP(errs());
   errs() << LLVMContext::getDiagnosticMessagePrefix(DI.getSeverity()) << ": ";
   DI.print(DP);
   errs() << "\n";
+}
+
+static void InlineAsmDiagHandler(const SMDiagnostic &SMD, void *Context,
+                                 unsigned LocCookie) {
+  bool *HasError = static_cast<bool *>(Context);
+  if (SMD.getKind() == SourceMgr::DK_Error)
+    *HasError = true;
+
+  SMD.print(nullptr, errs());
+
+  // For testing purposes, we print the LocCookie here.
+  if (LocCookie)
+    errs() << "note: !srcloc = " << LocCookie << "\n";
 }
 
 // main - Entry point for the llc compiler.
@@ -267,6 +294,8 @@ int main(int argc, char **argv) {
   initializeCountingFunctionInserterPass(*Registry);
   initializeUnreachableBlockElimLegacyPassPass(*Registry);
   initializeConstantHoistingLegacyPassPass(*Registry);
+  initializeScalarOpts(*Registry);
+  initializeVectorization(*Registry);
 
   // Register the target printer for --version.
   cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);
@@ -278,12 +307,32 @@ int main(int argc, char **argv) {
   // Set a diagnostic handler that doesn't exit on the first error
   bool HasError = false;
   Context.setDiagnosticHandler(DiagnosticHandler, &HasError);
+  Context.setInlineAsmDiagnosticHandler(InlineAsmDiagHandler, &HasError);
+
+  if (PassRemarksWithHotness)
+    Context.setDiagnosticHotnessRequested(true);
+
+  std::unique_ptr<tool_output_file> YamlFile;
+  if (RemarksFilename != "") {
+    std::error_code EC;
+    YamlFile = llvm::make_unique<tool_output_file>(RemarksFilename, EC,
+                                                   sys::fs::F_None);
+    if (EC) {
+      errs() << EC.message() << '\n';
+      return 1;
+    }
+    Context.setDiagnosticsOutputFile(
+        llvm::make_unique<yaml::Output>(YamlFile->os()));
+  }
 
   // Compile the module TimeCompilations times to give better compile time
   // metrics.
   for (unsigned I = TimeCompilations; I; --I)
     if (int RetVal = compileModule(argv, Context))
       return RetVal;
+
+  if (YamlFile)
+    YamlFile->keep();
   return 0;
 }
 

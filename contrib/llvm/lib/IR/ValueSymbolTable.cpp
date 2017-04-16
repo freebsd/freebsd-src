@@ -1,4 +1,4 @@
-//===-- ValueSymbolTable.cpp - Implement the ValueSymbolTable class -------===//
+//===- ValueSymbolTable.cpp - Implement the ValueSymbolTable class --------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,10 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/Value.h"
+#include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
@@ -99,13 +100,15 @@ ValueName *ValueSymbolTable::createValueName(StringRef Name, Value *V) {
   return makeUniqueName(V, UniqueName);
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 // dump - print out the symbol table
 //
 LLVM_DUMP_METHOD void ValueSymbolTable::dump() const {
-  //DEBUG(dbgs() << "ValueSymbolTable:\n");
+  //dbgs() << "ValueSymbolTable:\n";
   for (const auto &I : *this) {
-    //DEBUG(dbgs() << "  '" << I->getKeyData() << "' = ");
+    //dbgs() << "  '" << I->getKeyData() << "' = ";
     I.getValue()->dump();
-    //DEBUG(dbgs() << "\n");
+    //dbgs() << "\n";
   }
 }
+#endif
