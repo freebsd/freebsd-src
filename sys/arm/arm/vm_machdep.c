@@ -111,6 +111,14 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
 #endif
 #endif
+#ifdef VFP
+	/* Store actual state of VFP */
+	if (curthread == td1) {
+		critical_enter();
+		vfp_store(&td1->td_pcb->pcb_vfpstate, false);
+		critical_exit();
+	}
+#endif
 	td2->td_pcb = pcb2;
 
 	/* Clone td1's pcb */
