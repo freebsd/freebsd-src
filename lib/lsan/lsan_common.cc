@@ -32,19 +32,14 @@ namespace __lsan {
 // also to protect the global list of root regions.
 BlockingMutex global_mutex(LINKER_INITIALIZED);
 
-__attribute__((tls_model("initial-exec")))
-THREADLOCAL int disable_counter;
-bool DisabledInThisThread() { return disable_counter > 0; }
-void DisableInThisThread() { disable_counter++; }
-void EnableInThisThread() {
-  if (!disable_counter && common_flags()->detect_leaks) {
+Flags lsan_flags;
+
+void DisableCounterUnderflow() {
+  if (common_flags()->detect_leaks) {
     Report("Unmatched call to __lsan_enable().\n");
     Die();
   }
-  disable_counter--;
 }
-
-Flags lsan_flags;
 
 void Flags::SetDefaults() {
 #define LSAN_FLAG(Type, Name, DefaultValue, Description) Name = DefaultValue;
@@ -180,6 +175,23 @@ void ScanRangeForPointers(uptr begin, uptr end,
   }
 }
 
+// Scans a global range for pointers
+void ScanGlobalRange(uptr begin, uptr end, Frontier *frontier) {
+  uptr allocator_begin = 0, allocator_end = 0;
+  GetAllocatorGlobalRange(&allocator_begin, &allocator_end);
+  if (begin <= allocator_begin && allocator_begin < end) {
+    CHECK_LE(allocator_begin, allocator_end);
+    CHECK_LE(allocator_end, end);
+    if (begin < allocator_begin)
+      ScanRangeForPointers(begin, allocator_begin, frontier, "GLOBAL",
+                           kReachable);
+    if (allocator_end < end)
+      ScanRangeForPointers(allocator_end, end, frontier, "GLOBAL", kReachable);
+  } else {
+    ScanRangeForPointers(begin, end, frontier, "GLOBAL", kReachable);
+  }
+}
+
 void ForEachExtraStackRangeCb(uptr begin, uptr end, void* arg) {
   Frontier *frontier = reinterpret_cast<Frontier *>(arg);
   ScanRangeForPointers(begin, end, frontier, "FAKE STACK", kReachable);
@@ -206,11 +218,13 @@ static void ProcessThreads(SuspendedThreadsList const &suspended_threads,
       continue;
     }
     uptr sp;
-    bool have_registers =
-        (suspended_threads.GetRegistersAndSP(i, registers.data(), &sp) == 0);
-    if (!have_registers) {
-      Report("Unable to get registers from thread %d.\n");
-      // If unable to get SP, consider the entire stack to be reachable.
+    PtraceRegistersStatus have_registers =
+        suspended_threads.GetRegistersAndSP(i, registers.data(), &sp);
+    if (have_registers != REGISTERS_AVAILABLE) {
+      Report("Unable to get registers from thread %d.\n", os_id);
+      // If unable to get SP, consider the entire stack to be reachable unless
+      // GetRegistersAndSP failed with ESRCH.
+      if (have_registers == REGISTERS_UNAVAILABLE_FATAL) continue;
       sp = stack_begin;
     }
 
@@ -258,7 +272,7 @@ static void ProcessThreads(SuspendedThreadsList const &suspended_threads,
         if (tls_end > cache_end)
           ScanRangeForPointers(cache_end, tls_end, frontier, "TLS", kReachable);
       }
-      if (dtls) {
+      if (dtls && !DTLSInDestruction(dtls)) {
         for (uptr j = 0; j < dtls->dtv_size; ++j) {
           uptr dtls_beg = dtls->dtv[j].beg;
           uptr dtls_end = dtls_beg + dtls->dtv[j].size;
@@ -268,6 +282,10 @@ static void ProcessThreads(SuspendedThreadsList const &suspended_threads,
                                  kReachable);
           }
         }
+      } else {
+        // We are handling a thread with DTLS under destruction. Log about
+        // this and continue.
+        LOG_THREADS("Thread %d has DTLS under destruction.\n", os_id);
       }
     }
   }

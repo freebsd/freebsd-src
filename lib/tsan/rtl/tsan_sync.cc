@@ -42,10 +42,7 @@ void SyncVar::Reset(Processor *proc) {
   owner_tid = kInvalidTid;
   last_lock = 0;
   recursion = 0;
-  is_rw = 0;
-  is_recursive = 0;
-  is_broken = 0;
-  is_linker_init = 0;
+  atomic_store_relaxed(&flags, 0);
 
   if (proc == 0) {
     CHECK_EQ(clock.size(), 0);
@@ -64,6 +61,7 @@ void MetaMap::AllocBlock(ThreadState *thr, uptr pc, uptr p, uptr sz) {
   u32 idx = block_alloc_.Alloc(&thr->proc()->block_cache);
   MBlock *b = block_alloc_.Map(idx);
   b->siz = sz;
+  b->tag = 0;
   b->tid = thr->tid;
   b->stk = CurrentStackId(thr, pc);
   u32 *meta = MemToMeta(p);

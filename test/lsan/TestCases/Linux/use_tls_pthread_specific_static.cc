@@ -1,5 +1,5 @@
-// Test that dynamically allocated thread-specific storage is included in the root set.
-// RUN: LSAN_BASE="report_objects=1:use_stacks=0:use_registers=0"
+// Test that statically allocated thread-specific storage is included in the root set.
+// RUN: LSAN_BASE="detect_leaks=1:report_objects=1:use_stacks=0:use_registers=0"
 // RUN: %clangxx_lsan %s -o %t
 // RUN: LSAN_OPTIONS=$LSAN_BASE:"use_tls=0" not %run %t 2>&1 | FileCheck %s
 // RUN: LSAN_OPTIONS=$LSAN_BASE:"use_tls=1" %run %t 2>&1
@@ -15,18 +15,12 @@
 const unsigned PTHREAD_KEY_2NDLEVEL_SIZE = 32;
 
 int main() {
-  static const unsigned kDummyKeysCount = PTHREAD_KEY_2NDLEVEL_SIZE;
-  int res;
-  pthread_key_t dummy_keys[kDummyKeysCount];
-  for (unsigned i = 0; i < kDummyKeysCount; i++) {
-    res = pthread_key_create(&dummy_keys[i], NULL);
-    assert(res == 0);
-  }
   pthread_key_t key;
+  int res;
   res = pthread_key_create(&key, NULL);
-  assert(key >= PTHREAD_KEY_2NDLEVEL_SIZE);
   assert(res == 0);
-  void *p  = malloc(1337);
+  assert(key < PTHREAD_KEY_2NDLEVEL_SIZE);
+  void *p = malloc(1337);
   res = pthread_setspecific(key, p);
   assert(res == 0);
   print_address("Test alloc: ", 1, p);

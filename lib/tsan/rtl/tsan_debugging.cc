@@ -24,6 +24,7 @@ static const char *ReportTypeDescription(ReportType typ) {
   if (typ == ReportTypeVptrRace) return "data-race-vptr";
   if (typ == ReportTypeUseAfterFree) return "heap-use-after-free";
   if (typ == ReportTypeVptrUseAfterFree) return "heap-use-after-free-vptr";
+  if (typ == ReportTypeExternalRace) return "external-race";
   if (typ == ReportTypeThreadLeak) return "thread-leak";
   if (typ == ReportTypeMutexDestroyLocked) return "locked-mutex-destroy";
   if (typ == ReportTypeMutexDoubleLock) return "mutex-double-lock";
@@ -123,6 +124,16 @@ int __tsan_get_report_loc(void *report, uptr idx, const char **type,
   *fd = loc->fd;
   *suppressable = loc->suppressable;
   if (loc->stack) CopyTrace(loc->stack->frames, trace, trace_size);
+  return 1;
+}
+
+SANITIZER_INTERFACE_ATTRIBUTE
+int __tsan_get_report_loc_object_type(void *report, uptr idx,
+                                      const char **object_type) {
+  const ReportDesc *rep = (ReportDesc *)report;
+  CHECK_LT(idx, rep->locs.Size());
+  ReportLocation *loc = rep->locs[idx];
+  *object_type = GetObjectTypeFromTag(loc->external_tag);
   return 1;
 }
 

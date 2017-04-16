@@ -3,8 +3,8 @@ set(ASAN_LIT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ASAN_TESTSUITES)
 set(ASAN_DYNAMIC_TESTSUITES)
 
-# TODO(wwchrome): Re-enable Win64 asan tests when ready.
-# Disable tests for asan Win64 temporarily.
+# FIXME: Shadow memory for 64-bit asan easily exhausts swap on most machines.
+# Find a way to make these tests pass reliably, and re-enable them.
 if(OS_NAME MATCHES "Windows" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
   set(EXCLUDE_FROM_ALL TRUE)
 endif()
@@ -22,7 +22,7 @@ endmacro()
 set(ASAN_TEST_DEPS ${SANITIZER_COMMON_LIT_TEST_DEPS})
 if(NOT COMPILER_RT_STANDALONE_BUILD)
   list(APPEND ASAN_TEST_DEPS asan)
-  if(WIN32 AND COMPILER_RT_HAS_LLD_SOURCES)
+  if(WIN32 AND COMPILER_RT_HAS_LLD)
     list(APPEND ASAN_TEST_DEPS
       lld
     )
@@ -115,7 +115,8 @@ if(COMPILER_RT_ASAN_HAS_STATIC_RUNTIME)
   endif()
 endif()
 
-# TODO(wwchrome): Re-enable the tests for asan Win64 when ready.
+# Reset EXCLUDE_FROM_ALL to its initial value.
+# FIXME: Remove when we run Win64 asan tests.
 if(OS_NAME MATCHES "Windows" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
   set(EXCLUDE_FROM_ALL FALSE)
 endif()

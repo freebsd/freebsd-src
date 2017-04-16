@@ -1,3 +1,4 @@
+// RUN: %clang_builtins %s %librt -lm -o %t && %run %t
 //===-- mulxc3_test.c - Test __mulxc3 -------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
@@ -17,6 +18,8 @@
 #include <math.h>
 #include <complex.h>
 #include <stdio.h>
+
+// REQUIRES: c99-complex
 
 // Returns: the product of a + ib and c + id
 

@@ -171,7 +171,11 @@ class CoverageData {
   //   - not thread-safe;
   //   - does not support long traces;
   //   - not tuned for performance.
-  static const uptr kTrEventArrayMaxSize = FIRST_32_SECOND_64(1 << 22, 1 << 30);
+  // Windows doesn't do overcommit (committed virtual memory costs swap), so
+  // programs can't reliably map such large amounts of virtual memory.
+  // TODO(etienneb): Find a way to support coverage of larger executable
+static const uptr kTrEventArrayMaxSize =
+    (SANITIZER_WORDSIZE == 32 || SANITIZER_WINDOWS) ? 1 << 22 : 1 << 30;
   u32 *tr_event_array;
   uptr tr_event_array_size;
   u32 *tr_event_pointer;
@@ -415,8 +419,7 @@ void CoverageData::Add(uptr pc, u32 *guard) {
   uptr idx = -guard_value - 1;
   if (idx >= atomic_load(&pc_array_index, memory_order_acquire))
     return;  // May happen after fork when pc_array_index becomes 0.
-  CHECK_LT(idx * sizeof(uptr),
-           atomic_load(&pc_array_size, memory_order_acquire));
+  CHECK_LT(idx, atomic_load(&pc_array_size, memory_order_acquire));
   uptr counter = atomic_fetch_add(&coverage_counter, 1, memory_order_relaxed);
   pc_array[idx] = BundlePcAndCounter(pc, counter);
 }
@@ -940,7 +943,8 @@ SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov_with_check(u32 *guard) {
   atomic_uint32_t *atomic_guard = reinterpret_cast<atomic_uint32_t*>(guard);
   if (static_cast<s32>(
           __sanitizer::atomic_load(atomic_guard, memory_order_relaxed)) < 0)
-    __sanitizer_cov(guard);
+  coverage_data.Add(StackTrace::GetPreviousInstructionPc(GET_CALLER_PC()),
+                    guard);
 }
 SANITIZER_INTERFACE_ATTRIBUTE void
 __sanitizer_cov_indir_call16(uptr callee, uptr callee_cache16[]) {
@@ -954,9 +958,7 @@ SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov_init() {
 }
 SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov_dump() {
   coverage_data.DumpAll();
-#if SANITIZER_LINUX
   __sanitizer_dump_trace_pc_guard_coverage();
-#endif
 }
 SANITIZER_INTERFACE_ATTRIBUTE void
 __sanitizer_cov_module_init(s32 *guards, uptr npcs, u8 *counters,
@@ -1018,27 +1020,16 @@ SANITIZER_INTERFACE_ATTRIBUTE
 uptr __sanitizer_update_counter_bitset_and_clear_counters(u8 *bitset) {
   return coverage_data.Update8bitCounterBitsetAndClearCounters(bitset);
 }
+
 // Default empty implementations (weak). Users should redefine them.
-#if !SANITIZER_WINDOWS  // weak does not work on Windows.
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_cmp() {}
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_cmp1() {}
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_cmp2() {}
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_cmp4() {}
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_cmp8() {}
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_switch() {}
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_div4() {}
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_div8() {}
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_gep() {}
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-void __sanitizer_cov_trace_pc_indir() {}
-#endif  // !SANITIZER_WINDOWS
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_cmp, void) {}
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_cmp1, void) {}
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_cmp2, void) {}
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_cmp4, void) {}
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_cmp8, void) {}
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_switch, void) {}
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_div4, void) {}
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_div8, void) {}
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_gep, void) {}
+SANITIZER_INTERFACE_WEAK_DEF(void, __sanitizer_cov_trace_pc_indir, void) {}
 } // extern "C"

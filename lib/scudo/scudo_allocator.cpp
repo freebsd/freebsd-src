@@ -15,7 +15,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "scudo_allocator.h"
-#include "scudo_crc32.h"
 #include "scudo_utils.h"
 
 #include "sanitizer_common/sanitizer_allocator_interface.h"
@@ -73,15 +72,21 @@ static uptr Cookie;
 // at compilation or at runtime.
 static atomic_uint8_t HashAlgorithm = { CRC32Software };
 
-// Helper function that will compute the chunk checksum, being passed all the
-// the needed information as uptrs. It will opt for the hardware version of
-// the checksumming function if available.
-INLINE u32 hashUptrs(uptr Pointer, uptr *Array, uptr ArraySize, u8 HashType) {
-  u32 Crc;
-  Crc = computeCRC32(Cookie, Pointer, HashType);
-  for (uptr i = 0; i < ArraySize; i++)
-    Crc = computeCRC32(Crc, Array[i], HashType);
-  return Crc;
+SANITIZER_WEAK_ATTRIBUTE u32 computeHardwareCRC32(u32 Crc, uptr Data);
+
+INLINE u32 computeCRC32(u32 Crc, uptr Data, u8 HashType) {
+  // If SSE4.2 is defined here, it was enabled everywhere, as opposed to only
+  // for scudo_crc32.cpp. This means that other SSE instructions were likely
+  // emitted at other places, and as a result there is no reason to not use
+  // the hardware version of the CRC32.
+#if defined(__SSE4_2__) || defined(__ARM_FEATURE_CRC32)
+  return computeHardwareCRC32(Crc, Data);
+#else
+  if (computeHardwareCRC32 && HashType == CRC32Hardware)
+    return computeHardwareCRC32(Crc, Data);
+  else
+    return computeSoftwareCRC32(Crc, Data);
+#endif  // defined(__SSE4_2__)
 }
 
 struct ScudoChunk : UnpackedHeader {
@@ -108,11 +113,11 @@ struct ScudoChunk : UnpackedHeader {
     ZeroChecksumHeader.Checksum = 0;
     uptr HeaderHolder[sizeof(UnpackedHeader) / sizeof(uptr)];
     memcpy(&HeaderHolder, &ZeroChecksumHeader, sizeof(HeaderHolder));
-    u32 Hash = hashUptrs(reinterpret_cast<uptr>(this),
-                         HeaderHolder,
-                         ARRAY_SIZE(HeaderHolder),
-                         atomic_load_relaxed(&HashAlgorithm));
-    return static_cast<u16>(Hash);
+    u8 HashType = atomic_load_relaxed(&HashAlgorithm);
+    u32 Crc = computeCRC32(Cookie, reinterpret_cast<uptr>(this), HashType);
+    for (uptr i = 0; i < ARRAY_SIZE(HeaderHolder); i++)
+      Crc = computeCRC32(Crc, HeaderHolder[i], HashType);
+    return static_cast<u16>(Crc);
   }
 
   // Checks the validity of a chunk by verifying its checksum.
@@ -120,8 +125,7 @@ struct ScudoChunk : UnpackedHeader {
     UnpackedHeader NewUnpackedHeader;
     const AtomicPackedHeader *AtomicHeader =
         reinterpret_cast<const AtomicPackedHeader *>(this);
-    PackedHeader NewPackedHeader =
-        AtomicHeader->load(std::memory_order_relaxed);
+    PackedHeader NewPackedHeader = atomic_load_relaxed(AtomicHeader);
     NewUnpackedHeader = bit_cast<UnpackedHeader>(NewPackedHeader);
     return (NewUnpackedHeader.Checksum == computeChecksum(&NewUnpackedHeader));
   }
@@ -130,8 +134,7 @@ struct ScudoChunk : UnpackedHeader {
   void loadHeader(UnpackedHeader *NewUnpackedHeader) const {
     const AtomicPackedHeader *AtomicHeader =
         reinterpret_cast<const AtomicPackedHeader *>(this);
-    PackedHeader NewPackedHeader =
-        AtomicHeader->load(std::memory_order_relaxed);
+    PackedHeader NewPackedHeader = atomic_load_relaxed(AtomicHeader);
     *NewUnpackedHeader = bit_cast<UnpackedHeader>(NewPackedHeader);
     if (NewUnpackedHeader->Checksum != computeChecksum(NewUnpackedHeader)) {
       dieWithMessage("ERROR: corrupted chunk header at address %p\n", this);
@@ -144,7 +147,7 @@ struct ScudoChunk : UnpackedHeader {
     PackedHeader NewPackedHeader = bit_cast<PackedHeader>(*NewUnpackedHeader);
     AtomicPackedHeader *AtomicHeader =
         reinterpret_cast<AtomicPackedHeader *>(this);
-    AtomicHeader->store(NewPackedHeader, std::memory_order_relaxed);
+    atomic_store_relaxed(AtomicHeader, NewPackedHeader);
   }
 
   // Packs and stores the header, computing the checksum in the process. We
@@ -157,10 +160,10 @@ struct ScudoChunk : UnpackedHeader {
     PackedHeader OldPackedHeader = bit_cast<PackedHeader>(*OldUnpackedHeader);
     AtomicPackedHeader *AtomicHeader =
         reinterpret_cast<AtomicPackedHeader *>(this);
-    if (!AtomicHeader->compare_exchange_strong(OldPackedHeader,
-                                               NewPackedHeader,
-                                               std::memory_order_relaxed,
-                                               std::memory_order_relaxed)) {
+    if (!atomic_compare_exchange_strong(AtomicHeader,
+                                        &OldPackedHeader,
+                                        NewPackedHeader,
+                                        memory_order_relaxed)) {
       dieWithMessage("ERROR: race on chunk header at address %p\n", this);
     }
   }
@@ -351,6 +354,8 @@ struct Allocator {
 
   // Helper function that checks for a valid Scudo chunk.
   bool isValidPointer(const void *UserPtr) {
+    if (UNLIKELY(!ThreadInited))
+      initThread();
     uptr ChunkBeg = reinterpret_cast<uptr>(UserPtr);
     if (!IsAligned(ChunkBeg, MinAlignment)) {
       return false;
@@ -577,6 +582,14 @@ struct Allocator {
     AllocatorQuarantine.Drain(&ThreadQuarantineCache,
                               QuarantineCallback(&Cache));
   }
+
+  uptr getStats(AllocatorStat StatType) {
+    if (UNLIKELY(!ThreadInited))
+      initThread();
+    uptr stats[AllocatorStatCount];
+    BackendAllocator.GetStats(stats);
+    return stats[StatType];
+  }
 };
 
 static Allocator Instance(LINKER_INITIALIZED);
@@ -661,15 +674,11 @@ using namespace __scudo;
 // MallocExtension helper functions
 
 uptr __sanitizer_get_current_allocated_bytes() {
-  uptr stats[AllocatorStatCount];
-  getAllocator().GetStats(stats);
-  return stats[AllocatorStatAllocated];
+  return Instance.getStats(AllocatorStatAllocated);
 }
 
 uptr __sanitizer_get_heap_size() {
-  uptr stats[AllocatorStatCount];
-  getAllocator().GetStats(stats);
-  return stats[AllocatorStatMapped];
+  return Instance.getStats(AllocatorStatMapped);
 }
 
 uptr __sanitizer_get_free_bytes() {

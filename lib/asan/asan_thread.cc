@@ -239,7 +239,8 @@ void AsanThread::Init() {
 thread_return_t AsanThread::ThreadStart(
     uptr os_id, atomic_uintptr_t *signal_thread_is_registered) {
   Init();
-  asanThreadRegistry().StartThread(tid(), os_id, nullptr);
+  asanThreadRegistry().StartThread(tid(), os_id, /*workerthread*/ false,
+                                   nullptr);
   if (signal_thread_is_registered)
     atomic_store(signal_thread_is_registered, 1, memory_order_release);
 
@@ -299,24 +300,27 @@ bool AsanThread::GetStackFrameAccessByAddr(uptr addr,
     return true;
   }
   uptr aligned_addr = addr & ~(SANITIZER_WORDSIZE/8 - 1);  // align addr.
+  uptr mem_ptr = RoundDownTo(aligned_addr, SHADOW_GRANULARITY);
   u8 *shadow_ptr = (u8*)MemToShadow(aligned_addr);
   u8 *shadow_bottom = (u8*)MemToShadow(bottom);
 
   while (shadow_ptr >= shadow_bottom &&
          *shadow_ptr != kAsanStackLeftRedzoneMagic) {
     shadow_ptr--;
+    mem_ptr -= SHADOW_GRANULARITY;
   }
 
   while (shadow_ptr >= shadow_bottom &&
          *shadow_ptr == kAsanStackLeftRedzoneMagic) {
     shadow_ptr--;
+    mem_ptr -= SHADOW_GRANULARITY;
   }
 
   if (shadow_ptr < shadow_bottom) {
     return false;
   }
 
-  uptr* ptr = (uptr*)SHADOW_TO_MEM((uptr)(shadow_ptr + 1));
+  uptr* ptr = (uptr*)(mem_ptr + SHADOW_GRANULARITY);
   CHECK(ptr[0] == kCurrentStackFrameMagic);
   access->offset = addr - (uptr)ptr;
   access->frame_pc = ptr[2];

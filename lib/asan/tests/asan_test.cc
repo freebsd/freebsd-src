@@ -337,8 +337,9 @@ void *ManyThreadsWorker(void *a) {
   return 0;
 }
 
-#if !defined(__aarch64__)
+#if !defined(__aarch64__) && !defined(__powerpc64__)
 // FIXME: Infinite loop in AArch64 (PR24389).
+// FIXME: Also occasional hang on powerpc.  Maybe same problem as on AArch64?
 TEST(AddressSanitizer, ManyThreadsTest) {
   const size_t kNumThreads =
       (SANITIZER_WORDSIZE == 32 || ASAN_AVOID_EXPENSIVE_TESTS) ? 30 : 1000;
@@ -684,6 +685,7 @@ void *ThreadStackReuseFunc2(void *unused) {
   return 0;
 }
 
+#if !defined(__thumb__)
 TEST(AddressSanitizer, ThreadStackReuseTest) {
   pthread_t t;
   PTHREAD_CREATE(&t, 0, ThreadStackReuseFunc1, 0);
@@ -691,6 +693,7 @@ TEST(AddressSanitizer, ThreadStackReuseTest) {
   PTHREAD_CREATE(&t, 0, ThreadStackReuseFunc2, 0);
   PTHREAD_JOIN(t, 0);
 }
+#endif
 
 #if defined(__SSE2__)
 #include <emmintrin.h>
@@ -945,7 +948,7 @@ TEST(AddressSanitizer, ShadowGapTest) {
   char *addr = (char*)0x0000100000080000;
 # endif
 #endif
-  EXPECT_DEATH(*addr = 1, "AddressSanitizer: SEGV on unknown");
+  EXPECT_DEATH(*addr = 1, "AddressSanitizer: (SEGV|BUS) on unknown");
 }
 #endif  // ASAN_NEEDS_SEGV
 
@@ -1090,6 +1093,11 @@ TEST(AddressSanitizer, ThreadedStressStackReuseTest) {
   }
 }
 
+// pthread_exit tries to perform unwinding stuff that leads to dlopen'ing
+// libgcc_s.so. dlopen in its turn calls malloc to store "libgcc_s.so" string
+// that confuses LSan on Thumb because it fails to understand that this
+// allocation happens in dynamic linker and should be ignored.
+#if !defined(__thumb__)
 static void *PthreadExit(void *a) {
   pthread_exit(0);
   return 0;
@@ -1102,6 +1110,7 @@ TEST(AddressSanitizer, PthreadExitTest) {
     PTHREAD_JOIN(t, 0);
   }
 }
+#endif
 
 // FIXME: Why does clang-cl define __EXCEPTIONS?
 #if defined(__EXCEPTIONS) && !defined(_WIN32)
