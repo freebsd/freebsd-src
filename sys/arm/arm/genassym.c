@@ -92,11 +92,13 @@ ASSYM(M_DATA, offsetof(struct mbuf, m_data));
 ASSYM(M_NEXT, offsetof(struct mbuf, m_next));
 ASSYM(IP_SRC, offsetof(struct ip, ip_src));
 ASSYM(IP_DST, offsetof(struct ip, ip_dst));
+#if __ARM_ARCH < 6
 ASSYM(CF_CONTEXT_SWITCH, offsetof(struct cpu_functions, cf_context_switch));
 ASSYM(CF_DCACHE_WB_RANGE, offsetof(struct cpu_functions, cf_dcache_wb_range));
 ASSYM(CF_IDCACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_idcache_wbinv_all));
 ASSYM(CF_L2CACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_l2cache_wbinv_all));
 ASSYM(CF_TLB_FLUSHID_SE, offsetof(struct cpu_functions, cf_tlb_flushID_SE));
+#endif
 
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
