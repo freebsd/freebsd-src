@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core.builtin -verify -DCHECK_FOR_CRASH %s
-// RUN: %clang_cc1 -analyze -analyzer-checker=core -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core.builtin -verify -DCHECK_FOR_CRASH %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core -verify %s
 
 #ifdef CHECK_FOR_CRASH
 // expected-no-diagnostics
@@ -27,7 +27,7 @@ void foo() {
   // case with undefined values, too.
   c1.b.a = c2->b.a;
 #else
-  c1.b.a = c2->b.a; // expected-warning{{Function call argument is an uninitialized value}}
+  c1.b.a = c2->b.a; // expected-warning{{1st function call argument is an uninitialized value}}
 #endif
 }
 }

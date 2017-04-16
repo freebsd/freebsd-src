@@ -314,7 +314,7 @@ namespace NoReturn {
 }
 
 namespace UseBeforeComplete {
-  auto n = n; // expected-error {{variable 'n' declared with 'auto' type cannot appear in its own initializer}}
+  auto n = n; // expected-error {{variable 'n' declared with deduced type 'auto' cannot appear in its own initializer}}
   auto f(); // expected-note {{declared here}}
   void g() { &f; } // expected-error {{function 'f' with deduced return type cannot be used before it is defined}}
   auto sum(int i) {
@@ -383,6 +383,33 @@ namespace MemberTemplatesWithDeduction {
   int Ninst = test<N>();
   
 }
+}
+
+// We resolve a wording bug here: 'decltype(auto)' should not be modeled as a
+// decltype-specifier, just as a simple-type-specifier. All the extra places
+// where a decltype-specifier can appear make no sense for 'decltype(auto)'.
+namespace DecltypeAutoShouldNotBeADecltypeSpecifier {
+  namespace NNS {
+    int n;
+    decltype(auto) i();
+    decltype(n) j();
+    struct X {
+      friend decltype(auto) ::DecltypeAutoShouldNotBeADecltypeSpecifier::NNS::i();
+      friend decltype(n) ::DecltypeAutoShouldNotBeADecltypeSpecifier::NNS::j(); // expected-error {{not a class}}
+    };
+  }
+
+  namespace Dtor {
+    struct A {};
+    void f(A a) { a.~decltype(auto)(); } // expected-error {{'decltype(auto)' not allowed here}}
+  }
+
+  namespace BaseClass {
+    struct A : decltype(auto) {}; // expected-error {{'decltype(auto)' not allowed here}}
+    struct B {
+      B() : decltype(auto)() {} // expected-error {{'decltype(auto)' not allowed here}}
+    };
+  }
 }
 
 namespace CurrentInstantiation {

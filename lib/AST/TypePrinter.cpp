@@ -96,7 +96,7 @@ namespace {
 
     static bool canPrefixQualifiers(const Type *T, bool &NeedARCStrongQualifier);
     void spaceBeforePlaceHolder(raw_ostream &OS);
-    void printTypeSpec(const NamedDecl *D, raw_ostream &OS);
+    void printTypeSpec(NamedDecl *D, raw_ostream &OS);
 
     void printBefore(const Type *ty, Qualifiers qs, raw_ostream &OS);
     void printBefore(QualType T, raw_ostream &OS);
@@ -189,6 +189,7 @@ bool TypePrinter::canPrefixQualifiers(const Type *T,
     case Type::Elaborated:
     case Type::TemplateTypeParm:
     case Type::SubstTemplateTypeParmPack:
+    case Type::DeducedTemplateSpecialization:
     case Type::TemplateSpecialization:
     case Type::InjectedClassName:
     case Type::DependentName:
@@ -797,7 +798,14 @@ void TypePrinter::printFunctionNoProtoAfter(const FunctionNoProtoType *T,
   printAfter(T->getReturnType(), OS);
 }
 
-void TypePrinter::printTypeSpec(const NamedDecl *D, raw_ostream &OS) {
+void TypePrinter::printTypeSpec(NamedDecl *D, raw_ostream &OS) {
+
+  // Compute the full nested-name-specifier for this type.
+  // In C, this will always be empty except when the type
+  // being printed is anonymous within other Record.
+  if (!Policy.SuppressScope)
+    AppendScope(D->getDeclContext(), OS);
+
   IdentifierInfo *II = D->getIdentifier();
   OS << II->getName();
   spaceBeforePlaceHolder(OS);
@@ -884,6 +892,24 @@ void TypePrinter::printAutoBefore(const AutoType *T, raw_ostream &OS) {
 }
 void TypePrinter::printAutoAfter(const AutoType *T, raw_ostream &OS) { 
   // If the type has been deduced, do not print 'auto'.
+  if (!T->getDeducedType().isNull())
+    printAfter(T->getDeducedType(), OS);
+}
+
+void TypePrinter::printDeducedTemplateSpecializationBefore(
+    const DeducedTemplateSpecializationType *T, raw_ostream &OS) {
+  // If the type has been deduced, print the deduced type.
+  if (!T->getDeducedType().isNull()) {
+    printBefore(T->getDeducedType(), OS);
+  } else {
+    IncludeStrongLifetimeRAII Strong(Policy);
+    T->getTemplateName().print(OS, Policy);
+    spaceBeforePlaceHolder(OS);
+  }
+}
+void TypePrinter::printDeducedTemplateSpecializationAfter(
+    const DeducedTemplateSpecializationType *T, raw_ostream &OS) {
+  // If the type has been deduced, print the deduced type.
   if (!T->getDeducedType().isNull())
     printAfter(T->getDeducedType(), OS);
 }
@@ -1627,14 +1653,22 @@ void Qualifiers::print(raw_ostream &OS, const PrintingPolicy& Policy,
         OS << "__local";
         break;
       case LangAS::opencl_constant:
+      case LangAS::cuda_constant:
         OS << "__constant";
         break;
       case LangAS::opencl_generic:
         OS << "__generic";
         break;
+      case LangAS::cuda_device:
+        OS << "__device";
+        break;
+      case LangAS::cuda_shared:
+        OS << "__shared";
+        break;
       default:
+        assert(addrspace >= LangAS::Count);
         OS << "__attribute__((address_space(";
-        OS << addrspace;
+        OS << addrspace - LangAS::Count;
         OS << ")))";
     }
   }

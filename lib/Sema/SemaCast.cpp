@@ -120,12 +120,12 @@ namespace {
       Self.CheckCastAlign(SrcExpr.get(), DestType, OpRange);
     }
 
-    void checkObjCARCConversion(Sema::CheckedConversionKind CCK) {
-      assert(Self.getLangOpts().ObjCAutoRefCount);
+    void checkObjCConversion(Sema::CheckedConversionKind CCK) {
+      assert(Self.getLangOpts().allowsNonTrivialObjCLifetimeQualifiers());
 
       Expr *src = SrcExpr.get();
-      if (Self.CheckObjCARCConversion(OpRange, DestType, src, CCK) ==
-            Sema::ACR_unbridged)
+      if (Self.CheckObjCConversion(OpRange, DestType, src, CCK) ==
+          Sema::ACR_unbridged)
         IsARCUnbridgedCast = true;
       SrcExpr = src;
     }
@@ -871,8 +871,8 @@ void CastOperation::CheckReinterpretCast() {
     }
     SrcExpr = ExprError();
   } else if (tcr == TC_Success) {
-    if (Self.getLangOpts().ObjCAutoRefCount)
-      checkObjCARCConversion(Sema::CCK_OtherCast);
+    if (Self.getLangOpts().allowsNonTrivialObjCLifetimeQualifiers())
+      checkObjCConversion(Sema::CCK_OtherCast);
     DiagnoseReinterpretUpDownCast(Self, SrcExpr.get(), DestType, OpRange);
   }
 }
@@ -935,8 +935,8 @@ void CastOperation::CheckStaticCast() {
   } else if (tcr == TC_Success) {
     if (Kind == CK_BitCast)
       checkCastAlign();
-    if (Self.getLangOpts().ObjCAutoRefCount)
-      checkObjCARCConversion(Sema::CCK_OtherCast);
+    if (Self.getLangOpts().allowsNonTrivialObjCLifetimeQualifiers())
+      checkObjCConversion(Sema::CCK_OtherCast);
   } else if (Kind == CK_BitCast) {
     checkCastAlign();
   }
@@ -1763,13 +1763,12 @@ static void DiagnoseCallingConvCast(Sema &Self, const ExprResult &SrcExpr,
   if (!DRE)
     return;
   auto *FD = dyn_cast<FunctionDecl>(DRE->getDecl());
-  const FunctionDecl *Definition;
-  if (!FD || !FD->hasBody(Definition))
+  if (!FD)
     return;
 
   // Only warn if we are casting from the default convention to a non-default
   // convention. This can happen when the programmer forgot to apply the calling
-  // convention to the function definition and then inserted this cast to
+  // convention to the function declaration and then inserted this cast to
   // satisfy the type system.
   CallingConv DefaultCC = Self.getASTContext().getDefaultCallingConvention(
       FD->isVariadic(), FD->isCXXInstanceMember());
@@ -1792,7 +1791,7 @@ static void DiagnoseCallingConvCast(Sema &Self, const ExprResult &SrcExpr,
   // whose address was taken. Try to use the latest macro for the convention.
   // For example, users probably want to write "WINAPI" instead of "__stdcall"
   // to match the Windows header declarations.
-  SourceLocation NameLoc = Definition->getNameInfo().getLoc();
+  SourceLocation NameLoc = FD->getFirstDecl()->getNameInfo().getLoc();
   Preprocessor &PP = Self.getPreprocessor();
   SmallVector<TokenValue, 6> AttrTokens;
   SmallString<64> CCAttrText;
@@ -2273,8 +2272,9 @@ void CastOperation::CheckCXXCStyleCast(bool FunctionalStyle,
     }
   }
 
-  if (Self.getLangOpts().ObjCAutoRefCount && tcr == TC_Success)
-    checkObjCARCConversion(CCK);
+  if (Self.getLangOpts().allowsNonTrivialObjCLifetimeQualifiers() &&
+      tcr == TC_Success)
+    checkObjCConversion(CCK);
 
   if (tcr != TC_Success && msg != 0) {
     if (SrcExpr.get()->getType() == Self.Context.OverloadTy) {
@@ -2540,12 +2540,13 @@ void CastOperation::CheckCStyleCast() {
   }
 
   // ARC imposes extra restrictions on casts.
-  if (Self.getLangOpts().ObjCAutoRefCount) {
-    checkObjCARCConversion(Sema::CCK_CStyleCast);
+  if (Self.getLangOpts().allowsNonTrivialObjCLifetimeQualifiers()) {
+    checkObjCConversion(Sema::CCK_CStyleCast);
     if (SrcExpr.isInvalid())
       return;
-    
-    if (const PointerType *CastPtr = DestType->getAs<PointerType>()) {
+
+    const PointerType *CastPtr = DestType->getAs<PointerType>();
+    if (Self.getLangOpts().ObjCAutoRefCount && CastPtr) {
       if (const PointerType *ExprPtr = SrcType->getAs<PointerType>()) {
         Qualifiers CastQuals = CastPtr->getPointeeType().getQualifiers();
         Qualifiers ExprQuals = ExprPtr->getPointeeType().getQualifiers();
@@ -2628,11 +2629,12 @@ ExprResult Sema::BuildCStyleCastExpr(SourceLocation LPLoc,
 }
 
 ExprResult Sema::BuildCXXFunctionalCastExpr(TypeSourceInfo *CastTypeInfo,
+                                            QualType Type,
                                             SourceLocation LPLoc,
                                             Expr *CastExpr,
                                             SourceLocation RPLoc) {
   assert(LPLoc.isValid() && "List-initialization shouldn't get here.");
-  CastOperation Op(*this, CastTypeInfo->getType(), CastExpr);
+  CastOperation Op(*this, Type, CastExpr);
   Op.DestRange = CastTypeInfo->getTypeLoc().getSourceRange();
   Op.OpRange = SourceRange(Op.DestRange.getBegin(), CastExpr->getLocEnd());
 

@@ -40,17 +40,35 @@ public:
   
   bool shouldWalkTypesOfTypeLocs() const { return false; }
 
-  bool VisitTypedefTypeLoc(TypedefTypeLoc TL) {
-    return IndexCtx.handleReference(TL.getTypedefNameDecl(), TL.getNameLoc(),
-                                    Parent, ParentDC, SymbolRoleSet(),
-                                    Relations);
-  }
-
 #define TRY_TO(CALL_EXPR)                                                      \
   do {                                                                         \
     if (!CALL_EXPR)                                                            \
       return false;                                                            \
   } while (0)
+
+  bool VisitTypedefTypeLoc(TypedefTypeLoc TL) {
+    SourceLocation Loc = TL.getNameLoc();
+    TypedefNameDecl *ND = TL.getTypedefNameDecl();
+    if (ND->isTransparentTag()) {
+      TagDecl *Underlying = ND->getUnderlyingType()->getAsTagDecl();
+      return IndexCtx.handleReference(Underlying, Loc, Parent,
+                                      ParentDC, SymbolRoleSet(), Relations);
+    }
+    if (IsBase) {
+      TRY_TO(IndexCtx.handleReference(ND, Loc,
+                                      Parent, ParentDC, SymbolRoleSet()));
+      if (auto *CD = TL.getType()->getAsCXXRecordDecl()) {
+        TRY_TO(IndexCtx.handleReference(CD, Loc, Parent, ParentDC,
+                                        (unsigned)SymbolRole::Implicit,
+                                        Relations));
+      }
+    } else {
+      TRY_TO(IndexCtx.handleReference(ND, Loc,
+                                      Parent, ParentDC, SymbolRoleSet(),
+                                      Relations));
+    }
+    return true;
+  }
 
   bool traverseParamVarHelper(ParmVarDecl *D) {
     TRY_TO(TraverseNestedNameSpecifierLoc(D->getQualifierLoc()));
@@ -191,7 +209,7 @@ void IndexingContext::indexNestedNameSpecifierLoc(NestedNameSpecifierLoc NNS,
 }
 
 void IndexingContext::indexTagDecl(const TagDecl *D) {
-  if (!shouldIndexFunctionLocalSymbols() && isFunctionLocalDecl(D))
+  if (!shouldIndexFunctionLocalSymbols() && isFunctionLocalSymbol(D))
     return;
 
   if (handleDecl(D)) {

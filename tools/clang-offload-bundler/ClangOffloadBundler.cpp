@@ -412,7 +412,7 @@ class ObjectFileHandler final : public FileHandler {
   /// read from the buffers.
   unsigned NumberOfProcessedInputs = 0;
 
-  /// LLVM context used to to create the auxiliar modules.
+  /// LLVM context used to to create the auxiliary modules.
   LLVMContext VMContext;
 
   /// LLVM module used to create an object with all the bundle
@@ -514,7 +514,10 @@ public:
     // Dump the contents of the temporary file if that was requested.
     if (DumpTemporaryFiles) {
       errs() << ";\n; Object file bundler IR file.\n;\n";
-      AuxModule.get()->dump();
+      AuxModule.get()->print(errs(), nullptr,
+                             /*ShouldPreserveUseListOrder=*/false,
+                             /*IsForDebug=*/true);
+      errs() << '\n';
     }
 
     // Find clang in order to create the bundle binary.

@@ -19,6 +19,7 @@
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Frontend/Utils.h"
 #include "clang/Lex/HeaderSearch.h"
+#include "clang/Lex/LiteralSupport.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Parse/ParseAST.h"
@@ -187,6 +188,42 @@ FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
   return llvm::make_unique<MultiplexConsumer>(std::move(Consumers));
 }
 
+// For preprocessed files, if the first line is the linemarker and specifies
+// the original source file name, use that name as the input file name.
+static bool ReadOriginalFileName(CompilerInstance &CI, std::string &InputFile)
+{
+  bool Invalid = false;
+  auto &SourceMgr = CI.getSourceManager();
+  auto MainFileID = SourceMgr.getMainFileID();
+  const auto *MainFileBuf = SourceMgr.getBuffer(MainFileID, &Invalid);
+  if (Invalid)
+    return false;
+
+  std::unique_ptr<Lexer> RawLexer(
+      new Lexer(MainFileID, MainFileBuf, SourceMgr, CI.getLangOpts()));
+
+  // If the first line has the syntax of
+  //
+  // # NUM "FILENAME"
+  //
+  // we use FILENAME as the input file name.
+  Token T;
+  if (RawLexer->LexFromRawLexer(T) || T.getKind() != tok::hash)
+    return false;
+  if (RawLexer->LexFromRawLexer(T) || T.isAtStartOfLine() ||
+      T.getKind() != tok::numeric_constant)
+    return false;
+  RawLexer->LexFromRawLexer(T);
+  if (T.isAtStartOfLine() || T.getKind() != tok::string_literal)
+    return false;
+
+  StringLiteralParser Literal(T, CI.getPreprocessor());
+  if (Literal.hadError)
+    return false;
+  InputFile = Literal.GetString().str();
+  return true;
+}
+
 bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
                                      const FrontendInputFile &Input) {
   assert(!Instance && "Already processing a source file!");
@@ -225,6 +262,9 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.setFileManager(&AST->getFileManager());
     CI.setSourceManager(&AST->getSourceManager());
     CI.setPreprocessor(AST->getPreprocessorPtr());
+    Preprocessor &PP = CI.getPreprocessor();
+    PP.getBuiltinInfo().initializeBuiltins(PP.getIdentifierTable(),
+                                           PP.getLangOpts());
     CI.setASTContext(&AST->getASTContext());
 
     setCurrentInput(Input, std::move(AST));
@@ -335,6 +375,13 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     if (!isModelParsingAction())
       CI.createASTContext();
 
+    // For preprocessed files, check if the first line specifies the original
+    // source file name with a linemarker.
+    std::string OrigFile;
+    if (Input.isPreprocessed())
+      if (ReadOriginalFileName(CI, OrigFile))
+        InputFile = OrigFile;
+
     std::unique_ptr<ASTConsumer> Consumer =
         CreateWrappedASTConsumer(CI, InputFile);
     if (!Consumer)
@@ -352,8 +399,9 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
         goto failure;
       CI.setModuleManager(static_cast<ASTReader *>(FinalReader.get()));
       CI.getASTContext().setExternalSource(source);
-    } else if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
-      // Use PCH.
+    } else if (CI.getLangOpts().Modules ||
+               !CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
+      // Use PCM or PCH.
       assert(hasPCHSupport() && "This action does not have PCH support!");
       ASTDeserializationListener *DeserialListener =
           Consumer->GetASTDeserializationListener();
@@ -370,13 +418,24 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
             DeserialListener, DeleteDeserialListener);
         DeleteDeserialListener = true;
       }
-      CI.createPCHExternalASTSource(
-          CI.getPreprocessorOpts().ImplicitPCHInclude,
-          CI.getPreprocessorOpts().DisablePCHValidation,
+      if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
+        CI.createPCHExternalASTSource(
+            CI.getPreprocessorOpts().ImplicitPCHInclude,
+            CI.getPreprocessorOpts().DisablePCHValidation,
           CI.getPreprocessorOpts().AllowPCHWithCompilerErrors, DeserialListener,
-          DeleteDeserialListener);
-      if (!CI.getASTContext().getExternalSource())
-        goto failure;
+            DeleteDeserialListener);
+        if (!CI.getASTContext().getExternalSource())
+          goto failure;
+      }
+      // If modules are enabled, create the module manager before creating
+      // any builtins, so that all declarations know that they might be
+      // extended by an external source.
+      if (CI.getLangOpts().Modules || !CI.hasASTContext() ||
+          !CI.getASTContext().getExternalSource()) {
+        CI.createModuleManager();
+        CI.getModuleManager()->setDeserializationListener(DeserialListener,
+                                                        DeleteDeserialListener);
+      }
     }
 
     CI.setASTConsumer(std::move(Consumer));
@@ -386,15 +445,9 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
   // Initialize built-in info as long as we aren't using an external AST
   // source.
-  if (!CI.hasASTContext() || !CI.getASTContext().getExternalSource()) {
+  if (CI.getLangOpts().Modules || !CI.hasASTContext() ||
+      !CI.getASTContext().getExternalSource()) {
     Preprocessor &PP = CI.getPreprocessor();
-
-    // If modules are enabled, create the module manager before creating
-    // any builtins, so that all declarations know that they might be
-    // extended by an external source.
-    if (CI.getLangOpts().Modules)
-      CI.createModuleManager();
-
     PP.getBuiltinInfo().initializeBuiltins(PP.getIdentifierTable(),
                                            PP.getLangOpts());
   } else {
@@ -421,9 +474,9 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
   // If there is a layout overrides file, attach an external AST source that
   // provides the layouts from that file.
-  if (!CI.getFrontendOpts().OverrideRecordLayoutsFile.empty() && 
+  if (!CI.getFrontendOpts().OverrideRecordLayoutsFile.empty() &&
       CI.hasASTContext() && !CI.getASTContext().getExternalSource()) {
-    IntrusiveRefCntPtr<ExternalASTSource> 
+    IntrusiveRefCntPtr<ExternalASTSource>
       Override(new LayoutOverrideSource(
                      CI.getFrontendOpts().OverrideRecordLayoutsFile));
     CI.getASTContext().setExternalSource(Override);

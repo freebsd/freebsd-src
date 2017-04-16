@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,alpha.core -std=gnu99 -analyzer-store=region -analyzer-purge=none -verify %s -Wno-error=return-type
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,alpha.core -std=gnu99 -analyzer-store=region -verify %s -Wno-error=return-type
+// RUN: %clang_analyze_cc1 -triple i386-apple-darwin10 -analyzer-checker=core,deadcode,alpha.core -std=gnu99 -analyzer-store=region -analyzer-purge=none -verify %s -Wno-error=return-type
+// RUN: %clang_analyze_cc1 -triple i386-apple-darwin10 -analyzer-checker=core,deadcode,alpha.core -std=gnu99 -analyzer-store=region -verify %s -Wno-error=return-type
 
 typedef unsigned uintptr_t;
 
@@ -286,7 +286,7 @@ void pr4759_aux(int *p) __attribute__((nonnull));
 
 void pr4759() {
   int *p;
-  pr4759_aux(p); // expected-warning{{Function call argument is an uninitialized value}}
+  pr4759_aux(p); // expected-warning{{1st function call argument is an uninitialized value}}
 }
 
 // Relax function call arguments invalidation to be aware of const

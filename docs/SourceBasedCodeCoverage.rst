@@ -18,6 +18,7 @@ Clang ships two other code coverage implementations:
   various sanitizers. It can provide up to edge-level coverage.
 
 * gcov - A GCC-compatible coverage implementation which operates on DebugInfo.
+  This is enabled by ``-ftest-coverage`` or ``--coverage``.
 
 From this point onwards "code coverage" will refer to the source-based kind.
 
@@ -255,6 +256,8 @@ without using static initializers, do this manually:
   out a profile. This function returns 0 when it succeeds, and a non-zero value
   otherwise. Calling this function multiple times appends profile data to an
   existing on-disk raw profile.
+
+In C++ files, declare these as ``extern "C"``.
 
 Collecting coverage reports for the llvm project
 ================================================

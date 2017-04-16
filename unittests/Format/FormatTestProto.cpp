@@ -135,6 +135,16 @@ TEST_F(FormatTestProto, MessageFieldAttributes) {
                "    key: 'a'  //\n"
                "  }\n"
                "];");
+  verifyFormat("optional string test = 1 [default =\n"
+               "                              \"test\"\n"
+               "                              \"test\"];");
+  verifyFormat("optional Aaaaaaaa aaaaaaaa = 12 [\n"
+               "  (aaa) = aaaa,\n"
+               "  (bbbbbbbbbbbbbbbbbbbbbbbbbb) = {\n"
+               "    aaaaaaaaaaaaaaaaa: true,\n"
+               "    aaaaaaaaaaaaaaaa: true\n"
+               "  }\n"
+               "];");
 }
 
 TEST_F(FormatTestProto, DoesntWrapFileOptions) {

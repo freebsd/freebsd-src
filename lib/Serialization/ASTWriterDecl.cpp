@@ -86,6 +86,7 @@ namespace clang {
     void VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D);
     void VisitDeclaratorDecl(DeclaratorDecl *D);
     void VisitFunctionDecl(FunctionDecl *D);
+    void VisitCXXDeductionGuideDecl(CXXDeductionGuideDecl *D);
     void VisitCXXMethodDecl(CXXMethodDecl *D);
     void VisitCXXConstructorDecl(CXXConstructorDecl *D);
     void VisitCXXDestructorDecl(CXXDestructorDecl *D);
@@ -368,6 +369,7 @@ void ASTDeclWriter::VisitTypedefNameDecl(TypedefNameDecl *D) {
   Record.push_back(D->isModed());
   if (D->isModed())
     Record.AddTypeRef(D->getUnderlyingType());
+  Record.AddDeclRef(D->getAnonDeclWithTypedefName(false));
 }
 
 void ASTDeclWriter::VisitTypedefDecl(TypedefDecl *D) {
@@ -519,6 +521,7 @@ void ASTDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
   Record.push_back((int)D->SClass); // FIXME: stable encoding
   Record.push_back(D->IsInline);
   Record.push_back(D->IsInlineSpecified);
+  Record.push_back(D->IsExplicitSpecified);
   Record.push_back(D->IsVirtualAsWritten);
   Record.push_back(D->IsPure);
   Record.push_back(D->HasInheritedPrototype);
@@ -605,6 +608,11 @@ void ASTDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
   for (auto P : D->parameters())
     Record.AddDeclRef(P);
   Code = serialization::DECL_FUNCTION;
+}
+
+void ASTDeclWriter::VisitCXXDeductionGuideDecl(CXXDeductionGuideDecl *D) {
+  VisitFunctionDecl(D);
+  Code = serialization::DECL_CXX_DEDUCTION_GUIDE;
 }
 
 void ASTDeclWriter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
@@ -791,7 +799,9 @@ void ASTDeclWriter::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
   // FIXME: stable encoding
   Record.push_back((unsigned)D->getPropertyImplementation());
   Record.AddDeclarationName(D->getGetterName());
+  Record.AddSourceLocation(D->getGetterNameLoc());
   Record.AddDeclarationName(D->getSetterName());
+  Record.AddSourceLocation(D->getSetterNameLoc());
   Record.AddDeclRef(D->getGetterMethodDecl());
   Record.AddDeclRef(D->getSetterMethodDecl());
   Record.AddDeclRef(D->getPropertyIvarDecl());
@@ -806,7 +816,6 @@ void ASTDeclWriter::VisitObjCImplDecl(ObjCImplDecl *D) {
 
 void ASTDeclWriter::VisitObjCCategoryImplDecl(ObjCCategoryImplDecl *D) {
   VisitObjCImplDecl(D);
-  Record.AddIdentifierRef(D->getIdentifier());
   Record.AddSourceLocation(D->getCategoryNameLoc());
   Code = serialization::DECL_OBJC_CATEGORY_IMPL;
 }
@@ -1268,8 +1277,6 @@ void ASTDeclWriter::VisitCXXConstructorDecl(CXXConstructorDecl *D) {
 
   VisitCXXMethodDecl(D);
 
-  Record.push_back(D->IsExplicitSpecified);
-
   Code = D->isInheritingConstructor()
              ? serialization::DECL_CXX_INHERITED_CONSTRUCTOR
              : serialization::DECL_CXX_CONSTRUCTOR;
@@ -1285,7 +1292,6 @@ void ASTDeclWriter::VisitCXXDestructorDecl(CXXDestructorDecl *D) {
 
 void ASTDeclWriter::VisitCXXConversionDecl(CXXConversionDecl *D) {
   VisitCXXMethodDecl(D);
-  Record.push_back(D->IsExplicitSpecified);
   Code = serialization::DECL_CXX_CONVERSION;
 }
 
@@ -2023,6 +2029,7 @@ void ASTWriter::WriteDeclAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); // StorageClass
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Inline
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // InlineSpecified
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // ExplicitSpecified
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // VirtualAsWritten
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Pure
   Abv->Add(BitCodeAbbrevOp(0));                         // HasInheritedProto
@@ -2221,6 +2228,11 @@ void ASTRecordWriter::AddFunctionDefinition(const FunctionDecl *FD) {
   Writer->ClearSwitchCaseIDs();
 
   assert(FD->doesThisDeclarationHaveABody());
+  bool ModulesCodegen = Writer->Context->getLangOpts().ModulesCodegen &&
+                        Writer->WritingModule && !FD->isDependentContext();
+  Record->push_back(ModulesCodegen);
+  if (ModulesCodegen)
+    Writer->ModularCodegenDecls.push_back(Writer->GetDeclRef(FD));
   if (auto *CD = dyn_cast<CXXConstructorDecl>(FD)) {
     Record->push_back(CD->getNumCtorInitializers());
     if (CD->getNumCtorInitializers())

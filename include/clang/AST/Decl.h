@@ -838,7 +838,7 @@ protected:
 
     /// Describes the kind of default argument for this parameter. By default
     /// this is none. If this is normal, then the default argument is stored in
-    /// the \c VarDecl initalizer expression unless we were unble to parse
+    /// the \c VarDecl initializer expression unless we were unable to parse
     /// (even an invalid) expression for the default argument.
     unsigned DefaultArgKind : 2;
 
@@ -1605,9 +1605,14 @@ private:
 
   // FIXME: This can be packed into the bitfields in DeclContext.
   // NOTE: VC++ packs bitfields poorly if the types differ.
-  unsigned SClass : 2;
+  unsigned SClass : 3;
   unsigned IsInline : 1;
   unsigned IsInlineSpecified : 1;
+protected:
+  // This is shared by CXXConstructorDecl, CXXConversionDecl, and
+  // CXXDeductionGuideDecl.
+  unsigned IsExplicitSpecified : 1;
+private:
   unsigned IsVirtualAsWritten : 1;
   unsigned IsPure : 1;
   unsigned HasInheritedPrototype : 1;
@@ -1708,8 +1713,9 @@ protected:
                        StartLoc),
         DeclContext(DK), redeclarable_base(C), ParamInfo(nullptr), Body(),
         SClass(S), IsInline(isInlineSpecified),
-        IsInlineSpecified(isInlineSpecified), IsVirtualAsWritten(false),
-        IsPure(false), HasInheritedPrototype(false), HasWrittenPrototype(true),
+        IsInlineSpecified(isInlineSpecified), IsExplicitSpecified(false),
+        IsVirtualAsWritten(false), IsPure(false),
+        HasInheritedPrototype(false), HasWrittenPrototype(true),
         IsDeleted(false), IsTrivial(false), IsDefaulted(false),
         IsExplicitlyDefaulted(false), HasImplicitReturnZero(false),
         IsLateTemplateParsed(false), IsConstexpr(isConstexprSpecified),
@@ -2635,12 +2641,17 @@ class TypedefNameDecl : public TypeDecl, public Redeclarable<TypedefNameDecl> {
   typedef std::pair<TypeSourceInfo*, QualType> ModedTInfo;
   llvm::PointerUnion<TypeSourceInfo*, ModedTInfo*> MaybeModedTInfo;
 
+  // FIXME: This can be packed into the bitfields in Decl.
+  /// If 0, we have not computed IsTransparentTag.
+  /// Otherwise, IsTransparentTag is (CacheIsTransparentTag >> 1).
+  mutable unsigned CacheIsTransparentTag : 2;
+
 protected:
   TypedefNameDecl(Kind DK, ASTContext &C, DeclContext *DC,
                   SourceLocation StartLoc, SourceLocation IdLoc,
                   IdentifierInfo *Id, TypeSourceInfo *TInfo)
       : TypeDecl(DK, DC, IdLoc, Id, StartLoc), redeclarable_base(C),
-        MaybeModedTInfo(TInfo) {}
+        MaybeModedTInfo(TInfo), CacheIsTransparentTag(0) {}
 
   typedef Redeclarable<TypedefNameDecl> redeclarable_base;
   TypedefNameDecl *getNextRedeclarationImpl() override {
@@ -2693,11 +2704,22 @@ public:
   /// this typedef declaration.
   TagDecl *getAnonDeclWithTypedefName(bool AnyRedecl = false) const;
 
+  /// Determines if this typedef shares a name and spelling location with its
+  /// underlying tag type, as is the case with the NS_ENUM macro.
+  bool isTransparentTag() const {
+    if (CacheIsTransparentTag)
+      return CacheIsTransparentTag & 0x2;
+    return isTransparentTagSlow();
+  }
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) {
     return K >= firstTypedefName && K <= lastTypedefName;
   }
+
+private:
+  bool isTransparentTagSlow() const;
 };
 
 /// TypedefDecl - Represents the declaration of a typedef-name via the 'typedef'
@@ -3228,6 +3250,18 @@ public:
   bool isComplete() const {
     return isCompleteDefinition() || isFixed();
   }
+
+  /// Returns true if this enum is either annotated with
+  /// enum_extensibility(closed) or isn't annotated with enum_extensibility.
+  bool isClosed() const;
+
+  /// Returns true if this enum is annotated with flag_enum and isn't annotated
+  /// with enum_extensibility(open).
+  bool isClosedFlag() const;
+
+  /// Returns true if this enum is annotated with neither flag_enum nor
+  /// enum_extensibility(open).
+  bool isClosedNonFlag() const;
 
   /// \brief Retrieve the enum definition from which this enumeration could
   /// be instantiated, if it is an instantiation (rather than a non-template).

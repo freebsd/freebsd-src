@@ -50,9 +50,9 @@ instead of ``clang++`` if you're compiling/linking C code.
 You can enable only a subset of :ref:`checks <ubsan-checks>` offered by UBSan,
 and define the desired behavior for each kind of check:
 
-* print a verbose error report and continue execution (default);
-* print a verbose error report and exit the program;
-* execute a trap instruction (doesn't require UBSan run-time support).
+* ``-fsanitize=...``: print a verbose error report and continue execution (default);
+* ``-fno-sanitize-recover=...``: print a verbose error report and exit the program;
+* ``-fsanitize-trap=...``: execute a trap instruction (doesn't require UBSan run-time support).
 
 For example if you compile/link your program as:
 
@@ -92,6 +92,12 @@ Available checks are:
      parameter which is declared to never be null.
   -  ``-fsanitize=null``: Use of a null pointer or creation of a null
      reference.
+  -  ``-fsanitize=nullability-arg``: Passing null as a function parameter
+     which is annotated with ``_Nonnull``.
+  -  ``-fsanitize=nullability-assign``: Assigning null to an lvalue which
+     is annotated with ``_Nonnull``.
+  -  ``-fsanitize=nullability-return``: Returning null from a function with
+     a return type annotated with ``_Nonnull``.
   -  ``-fsanitize=object-size``: An attempt to potentially use bytes which
      the optimizer can determine are not part of the object being accessed.
      This will also detect some types of undefined behavior that may not
@@ -117,7 +123,9 @@ Available checks are:
   -  ``-fsanitize=unreachable``: If control flow reaches
      ``__builtin_unreachable``.
   -  ``-fsanitize=unsigned-integer-overflow``: Unsigned integer
-     overflows.
+     overflows. Note that unlike signed integer overflow, unsigned integer
+     is not undefined behavior. However, while it has well-defined semantics,
+     it is often unintentional, so UBSan offers to catch it.
   -  ``-fsanitize=vla-bound``: A variable-length array whose bound
      does not evaluate to a positive value.
   -  ``-fsanitize=vptr``: Use of an object whose vptr indicates that
@@ -128,11 +136,15 @@ Available checks are:
 
 You can also use the following check groups:
   -  ``-fsanitize=undefined``: All of the checks listed above other than
-     ``unsigned-integer-overflow``.
+     ``unsigned-integer-overflow`` and the ``nullability-*`` checks.
   -  ``-fsanitize=undefined-trap``: Deprecated alias of
      ``-fsanitize=undefined``.
   -  ``-fsanitize=integer``: Checks for undefined or suspicious integer
      behavior (e.g. unsigned integer overflow).
+  -  ``-fsanitize=nullability``: Enables ``nullability-arg``,
+     ``nullability-assign``, and ``nullability-return``. While violating
+     nullability does not have undefined behavior, it is often unintentional,
+     so UBSan offers to catch it.
 
 Stack traces and report symbolization
 =====================================
@@ -144,6 +156,8 @@ will need to:
 #. Run your program with environment variable
    ``UBSAN_OPTIONS=print_stacktrace=1``.
 #. Make sure ``llvm-symbolizer`` binary is in ``PATH``.
+
+Stacktrace printing for UBSan issues is currently not supported on Darwin.
 
 Issue Suppression
 =================

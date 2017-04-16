@@ -58,7 +58,6 @@ public:
     return false;
   }
 
-  static bool isFunctionLocalDecl(const Decl *D);
   static bool isTemplateImplicitInstantiation(const Decl *D);
 
   bool handleDecl(const Decl *D, SymbolRoleSet Roles = SymbolRoleSet(),
@@ -72,7 +71,7 @@ public:
   bool handleReference(const NamedDecl *D, SourceLocation Loc,
                        const NamedDecl *Parent,
                        const DeclContext *DC,
-                       SymbolRoleSet Roles,
+                       SymbolRoleSet Roles = SymbolRoleSet(),
                        ArrayRef<SymbolRelation> Relations = None,
                        const Expr *RefE = nullptr,
                        const Decl *RefD = nullptr);

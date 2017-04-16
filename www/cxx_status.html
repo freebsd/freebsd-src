@@ -25,7 +25,7 @@
 <!--*************************************************************************-->
 <h1>C++ Support in Clang</h1>
 <!--*************************************************************************-->
-<p>Last updated: $Date: 2017-01-13 17:52:17 +0100 (Fri, 13 Jan 2017) $</p>
+<p>Last updated: $Date: 2017-03-16 15:21:00 +0100 (Thu, 16 Mar 2017) $</p>
 
 <p>Clang fully implements all published ISO C++ standards (<a
 href="#cxx98">C++98 / C++03</a>, <a
@@ -612,7 +612,7 @@ as the draft C++1z standard evolves.
     <tr>
       <td>Make exception specifications part of the type system</td>
       <td><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/p0012r1.html">P0012R1</a></td>
-      <td class="svn" align="center">Clang 4</td>
+      <td class="full" align="center">Clang 4</td>
     </tr>
     <tr>
       <td><tt>__has_include</tt> in preprocessor conditionals</td>
@@ -648,7 +648,7 @@ as the draft C++1z standard evolves.
     <tr>
       <td><tt>constexpr</tt> lambda expressions</td>
       <td><a href="http://wg21.link/p0170r1">P0170R1</a></td>
-      <td class="none" align="center">No</td>
+      <td class="svn" align="center">SVN</td>
     </tr>
     <tr>
       <td>Differing <tt>begin</tt> and <tt>end</tt> types in range-based <tt>for</tt></td>
@@ -679,27 +679,30 @@ as the draft C++1z standard evolves.
     <tr>
       <td>Dynamic memory allocation for over-aligned data</td>
       <td><a href="http://wg21.link/p0035r4">P0035R4</a></td>
-      <td class="svn" align="center">Clang 4</td>
+      <td class="full" align="center">Clang 4</td>
     </tr>
     <tr>
-      <td>Template argument deduction for class templates</td>
+      <td rowspan="2">Template argument deduction for class templates</td>
       <td><a href="http://wg21.link/p0091r3">P0091R3</a></td>
-      <td class="none" align="center">No</td>
+      <td rowspan="2" class="svn" align="center">SVN</td>
     </tr>
+      <tr> <!-- from Issaquah -->
+        <td><a href="http://wg21.link/p0512r0">P0512R0</a></td>
+      </tr>
     <tr>
       <td>Non-type template parameters with <tt>auto</tt> type</td>
       <td><a href="http://wg21.link/p0127r2">P0127R2</a></td>
-      <td class="svn" align="center">Clang 4</td>
+      <td class="full" align="center">Clang 4</td>
     </tr>
     <tr>
       <td>Guaranteed copy elision</td>
       <td><a href="http://wg21.link/p0135r1">P0135R1</a></td>
-      <td class="svn" align="center">Clang 4</td>
+      <td class="full" align="center">Clang 4</td>
     </tr>
     <tr>
       <td rowspan=2>Stricter expression evaluation order</td>
       <td><a href="http://wg21.link/p0145r3">P0145R3</a></td>
-      <td class="svn" align="center" rowspan=2>Clang 4 <a href="#p0145">(10)</a></td>
+      <td class="full" align="center" rowspan=2>Clang 4 <a href="#p0145">(10)</a></td>
     </tr>
     <tr>
       <td><a href="http://wg21.link/p0400r0">P0400R0</a></td>
@@ -722,7 +725,7 @@ as the draft C++1z standard evolves.
     <tr>
       <td>Structured bindings</td>
       <td><a href="http://wg21.link/p0217r3">P0217R3</a></td>
-      <td class="svn" align="center">Clang 4</td>
+      <td class="full" align="center">Clang 4</td>
     </tr>
     <tr>
       <td>Separate variable and condition for <tt>if</tt> and <tt>switch</tt></td>
@@ -738,12 +741,12 @@ as the draft C++1z standard evolves.
     <tr>
       <td>Removing deprecated dynamic exception specifications</td>
       <td><a href="http://wg21.link/p0003r5">P0003R5</a></td>
-      <td class="svn" align="center">Clang 4</td>
+      <td class="full" align="center">Clang 4</td>
     </tr>
     <tr>
       <td>Pack expansions in <em>using-declarations</em></td>
       <td><a href="http://wg21.link/p0195r2">P0195R2</a></td>
-      <td class="svn" align="center">Clang 4</td>
+      <td class="full" align="center">Clang 4</td>
     </tr>
 </table>
 

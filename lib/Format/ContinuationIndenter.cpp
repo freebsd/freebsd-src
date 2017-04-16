@@ -20,7 +20,7 @@
 #include "clang/Format/Format.h"
 #include "llvm/Support/Debug.h"
 
-#define DEBUG_TYPE "format-formatter"
+#define DEBUG_TYPE "format-indenter"
 
 namespace clang {
 namespace format {
@@ -57,8 +57,10 @@ static bool startsNextParameter(const FormatToken &Current,
       Style.BreakConstructorInitializersBeforeComma)
     return true;
   return Previous.is(tok::comma) && !Current.isTrailingComment() &&
-         (Previous.isNot(TT_CtorInitializerComma) ||
-          !Style.BreakConstructorInitializersBeforeComma);
+         ((Previous.isNot(TT_CtorInitializerComma) ||
+          !Style.BreakConstructorInitializersBeforeComma) &&
+          (Previous.isNot(TT_InheritanceComma) ||
+          !Style.BreakBeforeInheritanceComma));
 }
 
 ContinuationIndenter::ContinuationIndenter(const FormatStyle &Style,
@@ -80,7 +82,7 @@ LineState ContinuationIndenter::getInitialState(unsigned FirstIndent,
   State.Column = FirstIndent;
   State.Line = Line;
   State.NextToken = Line->First;
-  State.Stack.push_back(ParenState(FirstIndent, Line->Level, FirstIndent,
+  State.Stack.push_back(ParenState(FirstIndent, FirstIndent,
                                    /*AvoidBinPacking=*/false,
                                    /*NoLineBreak=*/false));
   State.LineContainsContinuedForLoopSection = false;
@@ -135,6 +137,12 @@ bool ContinuationIndenter::canBreak(const LineState &State) {
       return false;
   }
 
+  // If binary operators are moved to the next line (including commas for some
+  // styles of constructor initializers), that's always ok.
+  if (!Current.isOneOf(TT_BinaryOperator, tok::comma) &&
+      State.Stack.back().NoLineBreakInOperand)
+    return false;
+
   return !State.Stack.back().NoLineBreak;
 }
 
@@ -150,7 +158,7 @@ bool ContinuationIndenter::mustBreak(const LineState &State) {
     return true;
   if ((startsNextParameter(Current, Style) || Previous.is(tok::semi) ||
        (Previous.is(TT_TemplateCloser) && Current.is(TT_StartOfName) &&
-        Style.Language == FormatStyle::LK_Cpp &&
+        Style.isCpp() &&
         // FIXME: This is a temporary workaround for the case where clang-format
         // sets BreakBeforeParameter to avoid bin packing and this creates a
         // completely unnecessary line break after a template type that isn't
@@ -189,6 +197,18 @@ bool ContinuationIndenter::mustBreak(const LineState &State) {
       State.Column + getLengthToNextOperator(Current) > Style.ColumnLimit &&
       (State.Column > NewLineColumn ||
        Current.NestingLevel < State.StartOfLineLevel))
+    return true;
+
+  if (startsSegmentOfBuilderTypeCall(Current) &&
+      (State.Stack.back().CallContinuation != 0 ||
+       State.Stack.back().BreakBeforeParameter) &&
+      // JavaScript is treated different here as there is a frequent pattern:
+      //   SomeFunction(function() {
+      //     ...
+      //   }.bind(...));
+      // FIXME: We should find a more generic solution to this problem.
+      !(State.Column <= NewLineColumn &&
+        Style.Language == FormatStyle::LK_JavaScript))
     return true;
 
   if (State.Column <= NewLineColumn)
@@ -253,11 +273,6 @@ bool ContinuationIndenter::mustBreak(const LineState &State) {
   if ((Current.is(TT_FunctionDeclarationName) ||
        (Current.is(tok::kw_operator) && !Previous.is(tok::coloncolon))) &&
       !Previous.is(tok::kw_template) && State.Stack.back().BreakBeforeParameter)
-    return true;
-
-  if (startsSegmentOfBuilderTypeCall(Current) &&
-      (State.Stack.back().CallContinuation != 0 ||
-       State.Stack.back().BreakBeforeParameter))
     return true;
 
   // The following could be precomputed as they do not depend on the state.
@@ -334,8 +349,13 @@ void ContinuationIndenter::addTokenOnCurrentLine(LineState &State, bool DryRun,
   unsigned Spaces = Current.SpacesRequiredBefore + ExtraSpaces;
 
   if (!DryRun)
-    Whitespaces.replaceWhitespace(Current, /*Newlines=*/0, /*IndentLevel=*/0,
-                                  Spaces, State.Column + Spaces);
+    Whitespaces.replaceWhitespace(Current, /*Newlines=*/0, Spaces,
+                                  State.Column + Spaces);
+
+  // If "BreakBeforeInheritanceComma" mode, don't break within the inheritance
+  // declaration unless there is multiple inheritance.
+  if (Style.BreakBeforeInheritanceComma && Current.is(TT_InheritanceColon))
+    State.Stack.back().NoLineBreak = true;
 
   if (Current.is(TT_SelectorName) &&
       !State.Stack.back().ObjCSelectorNameFound) {
@@ -370,6 +390,8 @@ void ContinuationIndenter::addTokenOnCurrentLine(LineState &State, bool DryRun,
       Current.FakeLParens.size() > 0 &&
       Current.FakeLParens.back() > prec::Unknown)
     State.Stack.back().NoLineBreak = true;
+  if (Previous.is(TT_TemplateString) && Previous.opensScope())
+    State.Stack.back().NoLineBreak = true;
 
   if (Style.AlignAfterOpenBracket != FormatStyle::BAS_DontAlign &&
       Previous.opensScope() && Previous.isNot(TT_ObjCMethodExpr) &&
@@ -385,7 +407,7 @@ void ContinuationIndenter::addTokenOnCurrentLine(LineState &State, bool DryRun,
     State.Stack.back().NoLineBreak = true;
   if (Current.isMemberAccess() && Previous.is(tok::r_paren) &&
       (Previous.MatchingParen &&
-       (Previous.TotalLength - Previous.MatchingParen->TotalLength > 10))) {
+       (Previous.TotalLength - Previous.MatchingParen->TotalLength > 10)))
     // If there is a function call with long parameters, break before trailing
     // calls. This prevents things like:
     //   EXPECT_CALL(SomeLongParameter).Times(
@@ -393,6 +415,31 @@ void ContinuationIndenter::addTokenOnCurrentLine(LineState &State, bool DryRun,
     // We don't want to do this for short parameters as they can just be
     // indexes.
     State.Stack.back().NoLineBreak = true;
+
+  // Don't allow the RHS of an operator to be split over multiple lines unless
+  // there is a line-break right after the operator.
+  // Exclude relational operators, as there, it is always more desirable to
+  // have the LHS 'left' of the RHS.
+  const FormatToken *P = Current.getPreviousNonComment();
+  if (!Current.is(tok::comment) && P &&
+      (P->isOneOf(TT_BinaryOperator, tok::comma) ||
+       (P->is(TT_ConditionalExpr) && P->is(tok::colon))) &&
+      !P->isOneOf(TT_OverloadedOperator, TT_CtorInitializerComma) &&
+      P->getPrecedence() != prec::Assignment &&
+      P->getPrecedence() != prec::Relational) {
+    bool BreakBeforeOperator =
+        P->MustBreakBefore || P->is(tok::lessless) ||
+        (P->is(TT_BinaryOperator) &&
+         Style.BreakBeforeBinaryOperators != FormatStyle::BOS_None) ||
+        (P->is(TT_ConditionalExpr) && Style.BreakBeforeTernaryOperators);
+    // Don't do this if there are only two operands. In these cases, there is
+    // always a nice vertical separation between them and the extra line break
+    // does not help.
+    bool HasTwoOperands =
+        P->OperatorIndex == 0 && !P->NextOperator && !P->is(TT_ConditionalExpr);
+    if ((!BreakBeforeOperator && !(HasTwoOperands && Style.AlignOperands)) ||
+        (!State.Stack.back().LastOperatorWrapped && BreakBeforeOperator))
+      State.Stack.back().NoLineBreakInOperand = true;
   }
 
   State.Column += Spaces;
@@ -540,9 +587,8 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
   if (!DryRun) {
     unsigned Newlines = std::max(
         1u, std::min(Current.NewlinesBefore, Style.MaxEmptyLinesToKeep + 1));
-    Whitespaces.replaceWhitespace(Current, Newlines,
-                                  State.Stack.back().IndentLevel, State.Column,
-                                  State.Column, State.Line->InPPDirective);
+    Whitespaces.replaceWhitespace(Current, Newlines, State.Column, State.Column,
+                                  State.Line->InPPDirective);
   }
 
   if (!Current.isTrailingComment())
@@ -559,9 +605,7 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
   // Any break on this level means that the parent level has been broken
   // and we need to avoid bin packing there.
   bool NestedBlockSpecialCase =
-      Style.Language != FormatStyle::LK_Cpp &&
-      Style.Language != FormatStyle::LK_ObjC &&
-      Current.is(tok::r_brace) && State.Stack.size() > 1 &&
+      !Style.isCpp() && Current.is(tok::r_brace) && State.Stack.size() > 1 &&
       State.Stack[State.Stack.size() - 2].NestedBlockInlined;
   if (!NestedBlockSpecialCase)
     for (unsigned i = 0, e = State.Stack.size() - 1; i != e; ++i)
@@ -580,7 +624,9 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
   // If we break after { or the [ of an array initializer, we should also break
   // before the corresponding } or ].
   if (PreviousNonComment &&
-      (PreviousNonComment->isOneOf(tok::l_brace, TT_ArrayInitializerLSquare)))
+      (PreviousNonComment->isOneOf(tok::l_brace, TT_ArrayInitializerLSquare) ||
+       (PreviousNonComment->is(TT_TemplateString) &&
+        PreviousNonComment->opensScope())))
     State.Stack.back().BreakBeforeClosingBrace = true;
 
   if (State.Stack.back().AvoidBinPacking) {
@@ -628,14 +674,16 @@ unsigned ContinuationIndenter::getNewLineColumn(const LineState &State) {
       return State.Stack[State.Stack.size() - 2].LastSpace;
     return State.FirstIndent;
   }
+  if (NextNonComment->is(TT_TemplateString) && NextNonComment->closesScope())
+    return State.Stack[State.Stack.size() - 2].LastSpace;
   if (Current.is(tok::identifier) && Current.Next &&
       Current.Next->is(TT_DictLiteral))
     return State.Stack.back().Indent;
-  if (NextNonComment->isStringLiteral() && State.StartOfStringLiteral != 0)
-    return State.StartOfStringLiteral;
   if (NextNonComment->is(TT_ObjCStringLiteral) &&
       State.StartOfStringLiteral != 0)
     return State.StartOfStringLiteral - 1;
+  if (NextNonComment->isStringLiteral() && State.StartOfStringLiteral != 0)
+    return State.StartOfStringLiteral;
   if (NextNonComment->is(tok::lessless) &&
       State.Stack.back().FirstLessLess != 0)
     return State.Stack.back().FirstLessLess;
@@ -696,10 +744,11 @@ unsigned ContinuationIndenter::getNewLineColumn(const LineState &State) {
   if (PreviousNonComment && PreviousNonComment->is(tok::colon) &&
       PreviousNonComment->isOneOf(TT_ObjCMethodExpr, TT_DictLiteral))
     return ContinuationIndent;
-  if (NextNonComment->is(TT_CtorInitializerColon))
-    return State.FirstIndent + Style.ConstructorInitializerIndentWidth;
   if (NextNonComment->is(TT_CtorInitializerComma))
     return State.Stack.back().Indent;
+  if (NextNonComment->isOneOf(TT_CtorInitializerColon, TT_InheritanceColon,
+                              TT_InheritanceComma))
+    return State.FirstIndent + Style.ConstructorInitializerIndentWidth;
   if (Previous.is(tok::r_paren) && !Current.isBinaryOperator() &&
       !Current.isOneOf(tok::colon, tok::comment))
     return ContinuationIndent;
@@ -716,6 +765,8 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
   assert(State.Stack.size());
   const FormatToken &Current = *State.NextToken;
 
+  if (Current.isOneOf(tok::comma, TT_BinaryOperator))
+    State.Stack.back().NoLineBreakInOperand = false;
   if (Current.is(TT_InheritanceColon))
     State.Stack.back().AvoidBinPacking = true;
   if (Current.is(tok::lessless) && Current.isNot(TT_OverloadedOperator)) {
@@ -724,8 +775,10 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
     else
       State.Stack.back().LastOperatorWrapped = Newline;
   }
-  if ((Current.is(TT_BinaryOperator) && Current.isNot(tok::lessless)) ||
-      Current.is(TT_ConditionalExpr))
+  if (Current.is(TT_BinaryOperator) && Current.isNot(tok::lessless))
+    State.Stack.back().LastOperatorWrapped = Newline;
+  if (Current.is(TT_ConditionalExpr) && Current.Previous &&
+      !Current.Previous->is(TT_ConditionalExpr))
     State.Stack.back().LastOperatorWrapped = Newline;
   if (Current.is(TT_ArraySubscriptLSquare) &&
       State.Stack.back().StartOfArraySubscripts == 0)
@@ -765,9 +818,14 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
       State.Stack.back().AvoidBinPacking = true;
     State.Stack.back().BreakBeforeParameter = false;
   }
+  if (Current.is(TT_InheritanceColon))
+    State.Stack.back().Indent =
+        State.FirstIndent + Style.ContinuationIndentWidth;
   if (Current.isOneOf(TT_BinaryOperator, TT_ConditionalExpr) && Newline)
     State.Stack.back().NestedBlockIndent =
         State.Column + Current.ColumnWidth + 1;
+  if (Current.isOneOf(TT_LambdaLSquare, TT_LambdaArrow))
+    State.Stack.back().LastSpace = State.Column;
 
   // Insert scopes created by fake parenthesis.
   const FormatToken *Previous = Current.getPreviousNonComment();
@@ -795,21 +853,30 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
   }
 
   moveStatePastFakeLParens(State, Newline);
-  moveStatePastScopeOpener(State, Newline);
   moveStatePastScopeCloser(State);
+  if (Current.is(TT_TemplateString) && Current.opensScope())
+    State.Stack.back().LastSpace =
+        (Current.IsMultiline ? Current.LastLineColumnWidth
+                             : State.Column + Current.ColumnWidth) -
+        strlen("${");
+  bool CanBreakProtrudingToken = !State.Stack.back().NoLineBreak &&
+                                 !State.Stack.back().NoLineBreakInOperand;
+  moveStatePastScopeOpener(State, Newline);
   moveStatePastFakeRParens(State);
 
-  if (Current.isStringLiteral() && State.StartOfStringLiteral == 0)
-    State.StartOfStringLiteral = State.Column;
   if (Current.is(TT_ObjCStringLiteral) && State.StartOfStringLiteral == 0)
     State.StartOfStringLiteral = State.Column + 1;
+  else if (Current.isStringLiteral() && State.StartOfStringLiteral == 0)
+    State.StartOfStringLiteral = State.Column;
   else if (!Current.isOneOf(tok::comment, tok::identifier, tok::hash) &&
            !Current.isStringLiteral())
     State.StartOfStringLiteral = 0;
 
   State.Column += Current.ColumnWidth;
   State.NextToken = State.NextToken->Next;
-  unsigned Penalty = breakProtrudingToken(Current, State, DryRun);
+  unsigned Penalty = 0;
+  if (CanBreakProtrudingToken)
+    Penalty = breakProtrudingToken(Current, State, DryRun);
   if (State.Column > getColumnLimit(State)) {
     unsigned ExcessCharacters = State.Column - getColumnLimit(State);
     Penalty += Style.PenaltyExcessCharacter * ExcessCharacters;
@@ -848,6 +915,9 @@ void ContinuationIndenter::moveStatePastFakeLParens(LineState &State,
        I != E; ++I) {
     ParenState NewParenState = State.Stack.back();
     NewParenState.ContainsLineBreak = false;
+    NewParenState.LastOperatorWrapped = true;
+    NewParenState.NoLineBreak =
+        NewParenState.NoLineBreak || State.Stack.back().NoLineBreakInOperand;
 
     // Indent from 'LastSpace' unless these are fake parentheses encapsulating
     // a builder type call after 'return' or, if the alignment after opening
@@ -861,24 +931,6 @@ void ContinuationIndenter::moveStatePastFakeLParens(LineState &State,
       NewParenState.Indent =
           std::max(std::max(State.Column, NewParenState.Indent),
                    State.Stack.back().LastSpace);
-
-    // Don't allow the RHS of an operator to be split over multiple lines unless
-    // there is a line-break right after the operator.
-    // Exclude relational operators, as there, it is always more desirable to
-    // have the LHS 'left' of the RHS.
-    if (Previous && Previous->getPrecedence() != prec::Assignment &&
-        Previous->isOneOf(TT_BinaryOperator, TT_ConditionalExpr, tok::comma) &&
-        Previous->getPrecedence() != prec::Relational) {
-      bool BreakBeforeOperator =
-          Previous->is(tok::lessless) ||
-          (Previous->is(TT_BinaryOperator) &&
-           Style.BreakBeforeBinaryOperators != FormatStyle::BOS_None) ||
-          (Previous->is(TT_ConditionalExpr) &&
-           Style.BreakBeforeTernaryOperators);
-      if ((!Newline && !BreakBeforeOperator) ||
-          (!State.Stack.back().LastOperatorWrapped && BreakBeforeOperator))
-        NewParenState.NoLineBreak = true;
-    }
 
     // Do not indent relative to the fake parentheses inserted for "." or "->".
     // This is a special case to make the following to statements consistent:
@@ -931,7 +983,6 @@ void ContinuationIndenter::moveStatePastScopeOpener(LineState &State,
   }
 
   unsigned NewIndent;
-  unsigned NewIndentLevel = State.Stack.back().IndentLevel;
   unsigned LastSpace = State.Stack.back().LastSpace;
   bool AvoidBinPacking;
   bool BreakBeforeParameter = false;
@@ -941,7 +992,6 @@ void ContinuationIndenter::moveStatePastScopeOpener(LineState &State,
     if (Current.opensBlockOrBlockTypeList(Style)) {
       NewIndent = State.Stack.back().NestedBlockIndent + Style.IndentWidth;
       NewIndent = std::min(State.Column + 2, NewIndent);
-      ++NewIndentLevel;
     } else {
       NewIndent = State.Stack.back().LastSpace + Style.ContinuationIndentWidth;
     }
@@ -966,10 +1016,21 @@ void ContinuationIndenter::moveStatePastScopeOpener(LineState &State,
     //                       int> v);
     // FIXME: We likely want to do this for more combinations of brackets.
     // Verify that it is wanted for ObjC, too.
-    if (Current.Tok.getKind() == tok::less &&
-        Current.ParentBracket == tok::l_paren) {
+    if (Current.is(tok::less) && Current.ParentBracket == tok::l_paren) {
       NewIndent = std::max(NewIndent, State.Stack.back().Indent);
       LastSpace = std::max(LastSpace, State.Stack.back().Indent);
+    }
+
+    // JavaScript template strings are special as we always want to indent
+    // nested expressions relative to the ${}. Otherwise, this can create quite
+    // a mess.
+    if (Current.is(TT_TemplateString)) {
+      unsigned Column = Current.IsMultiline
+                            ? Current.LastLineColumnWidth
+                            : State.Column + Current.ColumnWidth;
+      NewIndent = Column;
+      LastSpace = Column;
+      NestedBlockIndent = Column;
     }
 
     AvoidBinPacking =
@@ -1003,17 +1064,15 @@ void ContinuationIndenter::moveStatePastScopeOpener(LineState &State,
   // Generally inherit NoLineBreak from the current scope to nested scope.
   // However, don't do this for non-empty nested blocks, dict literals and
   // array literals as these follow different indentation rules.
-  const FormatToken *Previous = Current.getPreviousNonComment();
   bool NoLineBreak =
       Current.Children.empty() &&
       !Current.isOneOf(TT_DictLiteral, TT_ArrayInitializerLSquare) &&
       (State.Stack.back().NoLineBreak ||
+       State.Stack.back().NoLineBreakInOperand ||
        (Current.is(TT_TemplateOpener) &&
-        State.Stack.back().ContainsUnwrappedBuilder) ||
-       (Current.is(tok::l_brace) && !Newline && Previous &&
-        Previous->is(tok::comma)));
-  State.Stack.push_back(ParenState(NewIndent, NewIndentLevel, LastSpace,
-                                   AvoidBinPacking, NoLineBreak));
+        State.Stack.back().ContainsUnwrappedBuilder));
+  State.Stack.push_back(
+      ParenState(NewIndent, LastSpace, AvoidBinPacking, NoLineBreak));
   State.Stack.back().NestedBlockIndent = NestedBlockIndent;
   State.Stack.back().BreakBeforeParameter = BreakBeforeParameter;
   State.Stack.back().HasMultipleNestedBlocks = Current.BlockParameterCount > 1;
@@ -1027,7 +1086,7 @@ void ContinuationIndenter::moveStatePastScopeCloser(LineState &State) {
   // If we encounter a closing ), ], } or >, we can remove a level from our
   // stacks.
   if (State.Stack.size() > 1 &&
-      (Current.isOneOf(tok::r_paren, tok::r_square) ||
+      (Current.isOneOf(tok::r_paren, tok::r_square, TT_TemplateString) ||
        (Current.is(tok::r_brace) && State.NextToken != State.Line->First) ||
        State.NextToken->is(TT_TemplateCloser)))
     State.Stack.pop_back();
@@ -1047,10 +1106,9 @@ void ContinuationIndenter::moveStateToNewBlock(LineState &State) {
       NestedBlockIndent + (State.NextToken->is(TT_ObjCBlockLBrace)
                                ? Style.ObjCBlockIndentWidth
                                : Style.IndentWidth);
-  State.Stack.push_back(ParenState(
-      NewIndent, /*NewIndentLevel=*/State.Stack.back().IndentLevel + 1,
-      State.Stack.back().LastSpace, /*AvoidBinPacking=*/true,
-      /*NoLineBreak=*/false));
+  State.Stack.push_back(ParenState(NewIndent, State.Stack.back().LastSpace,
+                                   /*AvoidBinPacking=*/true,
+                                   /*NoLineBreak=*/false));
   State.Stack.back().NestedBlockIndent = NestedBlockIndent;
   State.Stack.back().BreakBeforeParameter = true;
 }
@@ -1117,44 +1175,42 @@ unsigned ContinuationIndenter::breakProtrudingToken(const FormatToken &Current,
     StringRef Text = Current.TokenText;
     StringRef Prefix;
     StringRef Postfix;
-    bool IsNSStringLiteral = false;
     // FIXME: Handle whitespace between '_T', '(', '"..."', and ')'.
     // FIXME: Store Prefix and Suffix (or PrefixLength and SuffixLength to
     // reduce the overhead) for each FormatToken, which is a string, so that we
     // don't run multiple checks here on the hot path.
-    if (Text.startswith("\"") && Current.Previous &&
-        Current.Previous->is(tok::at)) {
-      IsNSStringLiteral = true;
-      Prefix = "@\"";
-    }
     if ((Text.endswith(Postfix = "\"") &&
-         (IsNSStringLiteral || Text.startswith(Prefix = "\"") ||
+         (Text.startswith(Prefix = "@\"") || Text.startswith(Prefix = "\"") ||
           Text.startswith(Prefix = "u\"") || Text.startswith(Prefix = "U\"") ||
           Text.startswith(Prefix = "u8\"") ||
           Text.startswith(Prefix = "L\""))) ||
         (Text.startswith(Prefix = "_T(\"") && Text.endswith(Postfix = "\")"))) {
-      Token.reset(new BreakableStringLiteral(
-          Current, State.Line->Level, StartColumn, Prefix, Postfix,
-          State.Line->InPPDirective, Encoding, Style));
+      Token.reset(new BreakableStringLiteral(Current, StartColumn, Prefix,
+                                             Postfix, State.Line->InPPDirective,
+                                             Encoding, Style));
     } else {
       return 0;
     }
   } else if (Current.is(TT_BlockComment)) {
     if (!Current.isTrailingComment() || !Style.ReflowComments ||
-        CommentPragmasRegex.match(Current.TokenText.substr(2)))
+        // If a comment token switches formatting, like
+        // /* clang-format on */, we don't want to break it further,
+        // but we may still want to adjust its indentation.
+        switchesFormatting(Current))
       return addMultilineToken(Current, State);
     Token.reset(new BreakableBlockComment(
-        Current, State.Line->Level, StartColumn, Current.OriginalColumn,
-        !Current.Previous, State.Line->InPPDirective, Encoding, Style));
+        Current, StartColumn, Current.OriginalColumn, !Current.Previous,
+        State.Line->InPPDirective, Encoding, Style));
   } else if (Current.is(TT_LineComment) &&
              (Current.Previous == nullptr ||
               Current.Previous->isNot(TT_ImplicitStringLiteral))) {
     if (!Style.ReflowComments ||
-        CommentPragmasRegex.match(Current.TokenText.substr(2)))
+        CommentPragmasRegex.match(Current.TokenText.substr(2)) ||
+        switchesFormatting(Current))
       return 0;
-    Token.reset(new BreakableLineComment(Current, State.Line->Level,
-                                         StartColumn, /*InPPDirective=*/false,
-                                         Encoding, Style));
+    Token.reset(new BreakableLineCommentSection(
+        Current, StartColumn, Current.OriginalColumn, !Current.Previous,
+        /*InPPDirective=*/false, Encoding, Style));
     // We don't insert backslashes when breaking line comments.
     ColumnLimit = Style.ColumnLimit;
   } else {
@@ -1165,18 +1221,30 @@ unsigned ContinuationIndenter::breakProtrudingToken(const FormatToken &Current,
 
   unsigned RemainingSpace = ColumnLimit - Current.UnbreakableTailLength;
   bool BreakInserted = false;
+  // We use a conservative reflowing strategy. Reflow starts after a line is
+  // broken or the corresponding whitespace compressed. Reflow ends as soon as a
+  // line that doesn't get reflown with the previous line is reached.
+  bool ReflowInProgress = false;
   unsigned Penalty = 0;
   unsigned RemainingTokenColumns = 0;
   for (unsigned LineIndex = 0, EndIndex = Token->getLineCount();
        LineIndex != EndIndex; ++LineIndex) {
+    BreakableToken::Split SplitBefore(StringRef::npos, 0);
+    if (ReflowInProgress) {
+      SplitBefore = Token->getSplitBefore(LineIndex, RemainingTokenColumns,
+                                          RemainingSpace, CommentPragmasRegex);
+    }
+    ReflowInProgress = SplitBefore.first != StringRef::npos;
+    unsigned TailOffset =
+        ReflowInProgress ? (SplitBefore.first + SplitBefore.second) : 0;
     if (!DryRun)
-      Token->replaceWhitespaceBefore(LineIndex, Whitespaces);
-    unsigned TailOffset = 0;
-    RemainingTokenColumns =
-        Token->getLineLengthAfterSplit(LineIndex, TailOffset, StringRef::npos);
+      Token->replaceWhitespaceBefore(LineIndex, RemainingTokenColumns,
+                                     RemainingSpace, SplitBefore, Whitespaces);
+    RemainingTokenColumns = Token->getLineLengthAfterSplitBefore(
+        LineIndex, TailOffset, RemainingTokenColumns, ColumnLimit, SplitBefore);
     while (RemainingTokenColumns > RemainingSpace) {
-      BreakableToken::Split Split =
-          Token->getSplit(LineIndex, TailOffset, ColumnLimit);
+      BreakableToken::Split Split = Token->getSplit(
+          LineIndex, TailOffset, ColumnLimit, CommentPragmasRegex);
       if (Split.first == StringRef::npos) {
         // The last line's penalty is handled in addNextStateToQueue().
         if (LineIndex < EndIndex - 1)
@@ -1185,16 +1253,22 @@ unsigned ContinuationIndenter::breakProtrudingToken(const FormatToken &Current,
         break;
       }
       assert(Split.first != 0);
-      unsigned NewRemainingTokenColumns = Token->getLineLengthAfterSplit(
-          LineIndex, TailOffset + Split.first + Split.second, StringRef::npos);
 
-      // We can remove extra whitespace instead of breaking the line.
-      if (RemainingTokenColumns + 1 - Split.second <= RemainingSpace) {
-        RemainingTokenColumns = 0;
+      // Check if compressing the whitespace range will bring the line length
+      // under the limit. If that is the case, we perform whitespace compression
+      // instead of inserting a line break.
+      unsigned RemainingTokenColumnsAfterCompression =
+          Token->getLineLengthAfterCompression(RemainingTokenColumns, Split);
+      if (RemainingTokenColumnsAfterCompression <= RemainingSpace) {
+        RemainingTokenColumns = RemainingTokenColumnsAfterCompression;
+        ReflowInProgress = true;
         if (!DryRun)
-          Token->replaceWhitespace(LineIndex, TailOffset, Split, Whitespaces);
+          Token->compressWhitespace(LineIndex, TailOffset, Split, Whitespaces);
         break;
       }
+
+      unsigned NewRemainingTokenColumns = Token->getLineLengthAfterSplit(
+          LineIndex, TailOffset + Split.first + Split.second, StringRef::npos);
 
       // When breaking before a tab character, it may be moved by a few columns,
       // but will still be expanded to the next tab stop, so we don't save any
@@ -1213,6 +1287,7 @@ unsigned ContinuationIndenter::breakProtrudingToken(const FormatToken &Current,
       }
       TailOffset += Split.first + Split.second;
       RemainingTokenColumns = NewRemainingTokenColumns;
+      ReflowInProgress = true;
       BreakInserted = true;
     }
   }
@@ -1233,6 +1308,9 @@ unsigned ContinuationIndenter::breakProtrudingToken(const FormatToken &Current,
 
     State.Stack.back().LastSpace = StartColumn;
   }
+
+  Token->updateNextToken(State);
+
   return Penalty;
 }
 

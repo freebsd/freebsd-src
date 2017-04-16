@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -w -fblocks -analyze -analyzer-checker=osx.ObjCProperty %s -verify
+// RUN: %clang_analyze_cc1 -w -fblocks -analyzer-checker=osx.ObjCProperty %s -verify
 
 #include "Inputs/system-header-simulator-objc.h"
 
@@ -58,4 +58,11 @@
 // because we may miss a user-defined setter that works correctly.
 @interface IWithoutImpl : NSObject {}
 @property(copy) NSMutableString *mutableStr; // no-warning
+@end
+
+@protocol SomeProtocol
+// Don't warn on protocol properties because it is possible to
+// conform to them correctly; it is only synthesized setters that
+// that are definitely incorrect.
+@property (copy) NSMutableString *myProp; // no-crash // no-warning
 @end

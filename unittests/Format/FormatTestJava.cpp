@@ -225,6 +225,13 @@ TEST_F(FormatTestJava, EnumDeclarations) {
                "    }\n"
                "  };\n"
                "}");
+  verifyFormat("public enum VeryLongEnum {\n"
+               "  ENUM_WITH_MANY_PARAMETERS(\n"
+               "      \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"bbbbbbbbbbbbbbbb\", "
+               "\"cccccccccccccccccccccccc\"),\n"
+               "  SECOND_ENUM(\"a\", \"b\", \"c\");\n"
+               "  private VeryLongEnum(String a, String b, String c) {}\n"
+               "}\n");
 }
 
 TEST_F(FormatTestJava, ArrayInitializers) {
@@ -514,6 +521,18 @@ TEST_F(FormatTestJava, AlignsBlockComments) {
                    "   */\n"
                    "  void f() {}"));
 }
+
+TEST_F(FormatTestJava, RetainsLogicalShifts) {
+    verifyFormat("void f() {\n"
+                 "  int a = 1;\n"
+                 "  a >>>= 1;\n"
+                 "}");
+    verifyFormat("void f() {\n"
+                 "  int a = 1;\n"
+                 "  a = a >>> 1;\n"
+                 "}");
+}
+
 
 } // end namespace tooling
 } // end namespace clang

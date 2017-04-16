@@ -19,7 +19,6 @@ def substitute(text, tag, contents):
   return re.sub(pattern, '%s', text, flags=re.S) % replacement
 
 def doxygen2rst(text):
-  text = re.sub(r'([^/\*])\*', r'\1\\*', text)
   text = re.sub(r'<tt>\s*(.*?)\s*<\/tt>', r'``\1``', text)
   text = re.sub(r'\\c ([^ ,;\.]+)', r'``\1``', text)
   text = re.sub(r'\\\w+ ', '', text)
@@ -65,7 +64,7 @@ class NestedField:
     self.comment = comment.strip()
 
   def __str__(self):
-    return '* ``%s`` %s' % (self.name, doxygen2rst(self.comment))
+    return '\n* ``%s`` %s' % (self.name, doxygen2rst(self.comment))
 
 class Enum:
   def __init__(self, name, comment):

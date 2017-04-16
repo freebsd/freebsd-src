@@ -48,11 +48,17 @@ const OMPClauseWithPreInit *OMPClauseWithPreInit::get(const OMPClause *C) {
     return static_cast<const OMPReductionClause *>(C);
   case OMPC_linear:
     return static_cast<const OMPLinearClause *>(C);
+  case OMPC_if:
+    return static_cast<const OMPIfClause *>(C);
+  case OMPC_num_threads:
+    return static_cast<const OMPNumThreadsClause *>(C);
+  case OMPC_num_teams:
+    return static_cast<const OMPNumTeamsClause *>(C);
+  case OMPC_thread_limit:
+    return static_cast<const OMPThreadLimitClause *>(C);
   case OMPC_default:
   case OMPC_proc_bind:
-  case OMPC_if:
   case OMPC_final:
-  case OMPC_num_threads:
   case OMPC_safelen:
   case OMPC_simdlen:
   case OMPC_collapse:
@@ -77,8 +83,6 @@ const OMPClauseWithPreInit *OMPClauseWithPreInit::get(const OMPClause *C) {
   case OMPC_threads:
   case OMPC_simd:
   case OMPC_map:
-  case OMPC_num_teams:
-  case OMPC_thread_limit:
   case OMPC_priority:
   case OMPC_grainsize:
   case OMPC_nogroup:

@@ -49,6 +49,37 @@ static void checkForIBOutlets(const Decl *D, SymbolPropertySet &PropSet) {
   }
 }
 
+bool index::isFunctionLocalSymbol(const Decl *D) {
+  assert(D);
+
+  if (isa<ParmVarDecl>(D))
+    return true;
+
+  if (isa<TemplateTemplateParmDecl>(D))
+    return true;
+
+  if (isa<ObjCTypeParamDecl>(D))
+    return true;
+
+  if (!D->getParentFunctionOrMethod())
+    return false;
+
+  if (const NamedDecl *ND = dyn_cast<NamedDecl>(D)) {
+    switch (ND->getFormalLinkage()) {
+      case NoLinkage:
+      case VisibleNoLinkage:
+      case InternalLinkage:
+        return true;
+      case UniqueExternalLinkage:
+        llvm_unreachable("Not a sema linkage");
+      case ExternalLinkage:
+        return false;
+    }
+  }
+
+  return true;
+}
+
 SymbolInfo index::getSymbolInfo(const Decl *D) {
   assert(D);
   SymbolInfo Info;
@@ -56,6 +87,10 @@ SymbolInfo index::getSymbolInfo(const Decl *D) {
   Info.SubKind = SymbolSubKind::None;
   Info.Properties = SymbolPropertySet();
   Info.Lang = SymbolLanguage::C;
+
+  if (isFunctionLocalSymbol(D)) {
+    Info.Properties |= (unsigned)SymbolProperty::Local;
+  }
 
   if (const TagDecl *TD = dyn_cast<TagDecl>(D)) {
     switch (TD->getTagKind()) {
@@ -94,10 +129,13 @@ SymbolInfo index::getSymbolInfo(const Decl *D) {
 
   } else if (auto *VD = dyn_cast<VarDecl>(D)) {
     Info.Kind = SymbolKind::Variable;
-    if (isa<CXXRecordDecl>(D->getDeclContext())) {
+    if (isa<ParmVarDecl>(D)) {
+      Info.Kind = SymbolKind::Parameter;
+    } else if (isa<CXXRecordDecl>(D->getDeclContext())) {
       Info.Kind = SymbolKind::StaticProperty;
       Info.Lang = SymbolLanguage::CXX;
     }
+
     if (isa<VarTemplatePartialSpecializationDecl>(D)) {
       Info.Lang = SymbolLanguage::CXX;
       Info.Properties |= (unsigned)SymbolProperty::Generic;
@@ -147,10 +185,18 @@ SymbolInfo index::getSymbolInfo(const Decl *D) {
       Info.Lang = SymbolLanguage::ObjC;
       break;
     case Decl::ObjCCategory:
-    case Decl::ObjCCategoryImpl:
+    case Decl::ObjCCategoryImpl: {
       Info.Kind = SymbolKind::Extension;
       Info.Lang = SymbolLanguage::ObjC;
+      const ObjCInterfaceDecl *ClsD = nullptr;
+      if (auto *CatD = dyn_cast<ObjCCategoryDecl>(D))
+        ClsD = CatD->getClassInterface();
+      else
+        ClsD = cast<ObjCCategoryImplDecl>(D)->getClassInterface();
+      if (isUnitTestCase(ClsD))
+        Info.Properties |= (unsigned)SymbolProperty::UnitTest;
       break;
+    }
     case Decl::ObjCMethod:
       if (cast<ObjCMethodDecl>(D)->isInstanceMethod()) {
         const ObjCMethodDecl *MD = cast<ObjCMethodDecl>(D);
@@ -275,11 +321,12 @@ SymbolInfo index::getSymbolInfo(const Decl *D) {
   return Info;
 }
 
-void index::applyForEachSymbolRole(SymbolRoleSet Roles,
-                                   llvm::function_ref<void(SymbolRole)> Fn) {
+bool index::applyForEachSymbolRoleInterruptible(SymbolRoleSet Roles,
+                                   llvm::function_ref<bool(SymbolRole)> Fn) {
 #define APPLY_FOR_ROLE(Role) \
   if (Roles & (unsigned)SymbolRole::Role) \
-    Fn(SymbolRole::Role)
+    if (!Fn(SymbolRole::Role)) \
+      return false;
 
   APPLY_FOR_ROLE(Declaration);
   APPLY_FOR_ROLE(Definition);
@@ -301,6 +348,16 @@ void index::applyForEachSymbolRole(SymbolRoleSet Roles,
   APPLY_FOR_ROLE(RelationIBTypeOf);
 
 #undef APPLY_FOR_ROLE
+
+  return true;
+}
+
+void index::applyForEachSymbolRole(SymbolRoleSet Roles,
+                                   llvm::function_ref<void(SymbolRole)> Fn) {
+  applyForEachSymbolRoleInterruptible(Roles, [&](SymbolRole r) -> bool {
+    Fn(r);
+    return true;
+  });
 }
 
 void index::printSymbolRoles(SymbolRoleSet Roles, raw_ostream &OS) {
@@ -378,6 +435,7 @@ StringRef index::getSymbolKindString(SymbolKind K) {
   case SymbolKind::Constructor: return "constructor";
   case SymbolKind::Destructor: return "destructor";
   case SymbolKind::ConversionFunction: return "coversion-func";
+  case SymbolKind::Parameter: return "param";
   }
   llvm_unreachable("invalid symbol kind");
 }
@@ -415,6 +473,7 @@ void index::applyForEachSymbolProperty(SymbolPropertySet Props,
   APPLY_FOR_PROPERTY(IBAnnotated);
   APPLY_FOR_PROPERTY(IBOutletCollection);
   APPLY_FOR_PROPERTY(GKInspectable);
+  APPLY_FOR_PROPERTY(Local);
 
 #undef APPLY_FOR_PROPERTY
 }
@@ -434,6 +493,7 @@ void index::printSymbolProperties(SymbolPropertySet Props, raw_ostream &OS) {
     case SymbolProperty::IBAnnotated: OS << "IB"; break;
     case SymbolProperty::IBOutletCollection: OS << "IBColl"; break;
     case SymbolProperty::GKInspectable: OS << "GKI"; break;
+    case SymbolProperty::Local: OS << "local"; break;
     }
   });
 }
