@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (C) 2005-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2005-2017 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,13 +99,11 @@ void
 bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
-#ifdef _KERNEL
 	if (filter->func != bpf_jit_accept_all)
-		free(filter->func, M_BPFJIT);
+		bpf_jit_free(filter->func, filter->size);
+#ifdef _KERNEL
 	free(filter, M_BPFJIT);
 #else
-	if (filter->func != bpf_jit_accept_all)
-		munmap(filter->func, filter->size);
 	free(filter);
 #endif
 }
