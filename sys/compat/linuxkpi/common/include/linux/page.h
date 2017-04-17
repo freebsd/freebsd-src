@@ -34,6 +34,7 @@
 #include <linux/types.h>
 
 #include <sys/param.h>
+#include <sys/vmmeter.h>
 
 #include <machine/atomic.h>
 #include <vm/vm.h>

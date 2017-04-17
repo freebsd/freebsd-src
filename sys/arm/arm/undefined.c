@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
 #include <sys/ptrace.h>
+#include <sys/vmmeter.h>
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
