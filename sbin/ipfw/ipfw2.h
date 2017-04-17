@@ -284,6 +284,8 @@ enum tokens {
 	TOK_INTPREFIX,
 	TOK_EXTPREFIX,
 	TOK_PREFIXLEN,
+
+	TOK_TCPSETMSS,
 };
 
 /*
