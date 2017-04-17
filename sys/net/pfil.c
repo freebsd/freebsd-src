@@ -61,7 +61,6 @@ LIST_HEAD(pfilheadhead, pfil_head);
 VNET_DEFINE(struct pfilheadhead, pfil_head_list);
 #define	V_pfil_head_list	VNET(pfil_head_list)
 VNET_DEFINE(struct rmlock, pfil_lock);
-#define	V_pfil_lock	VNET(pfil_lock)
 
 #define	PFIL_LOCK_INIT_REAL(l, t)	\
 	rm_init_flags(l, "PFil " t " rmlock", RM_RECURSE)
