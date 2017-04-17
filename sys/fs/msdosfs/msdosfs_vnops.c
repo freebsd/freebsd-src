@@ -64,6 +64,7 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
