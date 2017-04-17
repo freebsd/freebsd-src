@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfdefinitions.h 3485 2016-08-18 13:38:52Z emaste $
+ * $Id: elfdefinitions.h 3515 2017-01-24 22:04:22Z emaste $
  */
 
 /*
@@ -153,6 +153,8 @@ _ELF_DEFINE_DT(DT_SUNW_FILTER,      0x6000000FUL,			\
 	"offset of string naming standard filtees")			\
 _ELF_DEFINE_DT(DT_SUNW_CAP,         0x60000010UL,			\
 	"address of hardware capabilities section")			\
+_ELF_DEFINE_DT(DT_SUNW_ASLR,        0x60000023UL,			\
+	"Address Space Layout Randomization flag")			\
 _ELF_DEFINE_DT(DT_HIOS,             0x6FFFF000UL,			\
 	"end of OS-specific types")					\
 _ELF_DEFINE_DT(DT_VALRNGLO,         0x6FFFFD00UL,			\
@@ -919,6 +921,12 @@ _ELF_DEFINE_PT(PT_GNU_STACK,	    0x6474E551UL,		\
 	"Stack flags")						\
 _ELF_DEFINE_PT(PT_GNU_RELRO,	    0x6474E552UL,		\
 	"Segment becomes read-only after relocation")		\
+_ELF_DEFINE_PT(PT_OPENBSD_RANDOMIZE,0x65A3DBE6UL,		\
+	"Segment filled with random data")			\
+_ELF_DEFINE_PT(PT_OPENBSD_WXNEEDED, 0x65A3DBE7UL,		\
+	"Program violates W^X")					\
+_ELF_DEFINE_PT(PT_OPENBSD_BOOTDATA, 0x65A41BE6UL,		\
+	"Boot data")						\
 _ELF_DEFINE_PT(PT_SUNWBSS,          0x6FFFFFFAUL,		\
 	"A Solaris .SUNW_bss section")				\
 _ELF_DEFINE_PT(PT_SUNWSTACK,        0x6FFFFFFBUL,		\
