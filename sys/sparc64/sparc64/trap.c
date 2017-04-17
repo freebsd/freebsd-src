@@ -267,7 +267,7 @@ trap(struct trapframe *tf)
 	    trap_msg[tf->tf_type & ~T_KERNEL],
 	    (TRAPF_USERMODE(tf) ? "user" : "kernel"), rdpr(pil));
 
-	PCPU_INC(cnt.v_trap);
+	VM_CNT_INC(v_trap);
 
 	if ((tf->tf_tstate & TSTATE_PRIV) == 0) {
 		KASSERT(td != NULL, ("trap: curthread NULL"));

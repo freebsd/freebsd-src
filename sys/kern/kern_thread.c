@@ -546,7 +546,7 @@ thread_exit(void)
 	td->td_incruntime += runtime;
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
-	PCPU_INC(cnt.v_swtch);
+	VM_CNT_INC(v_swtch);
 
 	/* Save our resource usage in our process. */
 	td->td_ru.ru_nvcsw++;

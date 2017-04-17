@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
@@ -55,7 +56,52 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <sys/sysctl.h>
 
-struct vmmeter vm_cnt;
+struct vmmeter vm_cnt = {
+	.v_swtch = EARLY_COUNTER,
+	.v_trap = EARLY_COUNTER,
+	.v_syscall = EARLY_COUNTER,
+	.v_intr = EARLY_COUNTER,
+	.v_soft = EARLY_COUNTER,
+	.v_vm_faults = EARLY_COUNTER,
+	.v_io_faults = EARLY_COUNTER,
+	.v_cow_faults = EARLY_COUNTER,
+	.v_cow_optim = EARLY_COUNTER,
+	.v_zfod = EARLY_COUNTER,
+	.v_ozfod = EARLY_COUNTER,
+	.v_swapin = EARLY_COUNTER,
+	.v_swapout = EARLY_COUNTER,
+	.v_swappgsin = EARLY_COUNTER,
+	.v_swappgsout = EARLY_COUNTER,
+	.v_vnodein = EARLY_COUNTER,
+	.v_vnodeout = EARLY_COUNTER,
+	.v_vnodepgsin = EARLY_COUNTER,
+	.v_vnodepgsout = EARLY_COUNTER,
+	.v_intrans = EARLY_COUNTER,
+	.v_reactivated = EARLY_COUNTER,
+	.v_pdwakeups = EARLY_COUNTER,
+	.v_pdpages = EARLY_COUNTER,
+	.v_pdshortfalls = EARLY_COUNTER,
+	.v_dfree = EARLY_COUNTER,
+	.v_pfree = EARLY_COUNTER,
+	.v_tfree = EARLY_COUNTER,
+	.v_forks = EARLY_COUNTER,
+	.v_vforks = EARLY_COUNTER,
+	.v_rforks = EARLY_COUNTER,
+	.v_kthreads = EARLY_COUNTER,
+	.v_forkpages = EARLY_COUNTER,
+	.v_vforkpages = EARLY_COUNTER,
+	.v_rforkpages = EARLY_COUNTER,
+	.v_kthreadpages = EARLY_COUNTER,
+};
+
+static void
+vmcounter_startup(void)
+{
+	counter_u64_t *cnt = (counter_u64_t *)&vm_cnt;
+
+	COUNTER_ARRAY_ALLOC(cnt, VM_METER_NCOUNTERS, M_WAITOK);
+}
+SYSINIT(counter, SI_SUB_CPU, SI_ORDER_FOURTH + 1, vmcounter_startup, NULL);
 
 SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
 	CTLFLAG_RW, &vm_cnt.v_free_min, 0, "Minimum low-free-pages threshold");
@@ -210,40 +256,6 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_opaque(oidp, &total, sizeof(total), req));
 }
 
-/*
- * vm_meter_cnt() -	accumulate statistics from all cpus and the global cnt
- *			structure.
- *
- *	The vmmeter structure is now per-cpu as well as global.  Those
- *	statistics which can be kept on a per-cpu basis (to avoid cache
- *	stalls between cpus) can be moved to the per-cpu vmmeter.  Remaining
- *	statistics, such as v_free_reserved, are left in the global
- *	structure.
- */
-u_int
-vm_meter_cnt(size_t offset)
-{
-	struct pcpu *pcpu;
-	u_int count;
-	int i;
-
-	count = *(u_int *)((char *)&vm_cnt + offset);
-	CPU_FOREACH(i) {
-		pcpu = pcpu_find(i);
-		count += *(u_int *)((char *)&pcpu->pc_cnt + offset);
-	}
-	return (count);
-}
-
-static int
-cnt_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	u_int count;
-
-	count = vm_meter_cnt((char *)arg1 - (char *)&vm_cnt);
-	return (SYSCTL_OUT(req, &count, sizeof(count)));
-}
-
 SYSCTL_PROC(_vm, VM_TOTAL, vmtotal, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0, sizeof(struct vmtotal), vmtotal, "S,vmtotal", 
     "System virtual memory statistics");
@@ -255,9 +267,7 @@ static SYSCTL_NODE(_vm_stats, OID_AUTO, vm, CTLFLAG_RW, 0,
 SYSCTL_NODE(_vm_stats, OID_AUTO, misc, CTLFLAG_RW, 0, "VM meter misc stats");
 
 #define	VM_STATS(parent, var, descr) \
-	SYSCTL_PROC(parent, OID_AUTO, var, \
-	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, &vm_cnt.var, 0,	\
-	    cnt_sysctl, "IU", descr)
+    SYSCTL_COUNTER_U64(parent, OID_AUTO, var, CTLFLAG_RD, &vm_cnt.var, descr)
 #define	VM_STATS_VM(var, descr)		VM_STATS(_vm_stats_vm, var, descr)
 #define	VM_STATS_SYS(var, descr)	VM_STATS(_vm_stats_sys, var, descr)
 
@@ -288,19 +298,6 @@ VM_STATS_VM(v_pdshortfalls, "Page reclamation shortfalls");
 VM_STATS_VM(v_dfree, "Pages freed by pagedaemon");
 VM_STATS_VM(v_pfree, "Pages freed by exiting processes");
 VM_STATS_VM(v_tfree, "Total pages freed");
-VM_STATS_VM(v_page_size, "Page size in bytes");
-VM_STATS_VM(v_page_count, "Total number of pages in system");
-VM_STATS_VM(v_free_reserved, "Pages reserved for deadlock");
-VM_STATS_VM(v_free_target, "Pages desired free");
-VM_STATS_VM(v_free_min, "Minimum low-free-pages threshold");
-VM_STATS_VM(v_free_count, "Free pages");
-VM_STATS_VM(v_wire_count, "Wired pages");
-VM_STATS_VM(v_active_count, "Active pages");
-VM_STATS_VM(v_inactive_target, "Desired inactive pages");
-VM_STATS_VM(v_inactive_count, "Inactive pages");
-VM_STATS_VM(v_laundry_count, "Pages eligible for laundering");
-VM_STATS_VM(v_pageout_free_min, "Min pages reserved for kernel");
-VM_STATS_VM(v_interrupt_free_min, "Reserved pages for interrupt code");
 VM_STATS_VM(v_forks, "Number of fork() calls");
 VM_STATS_VM(v_vforks, "Number of vfork() calls");
 VM_STATS_VM(v_rforks, "Number of rfork() calls");
@@ -309,6 +306,23 @@ VM_STATS_VM(v_forkpages, "VM pages affected by fork()");
 VM_STATS_VM(v_vforkpages, "VM pages affected by vfork()");
 VM_STATS_VM(v_rforkpages, "VM pages affected by rfork()");
 VM_STATS_VM(v_kthreadpages, "VM pages affected by fork() by kernel");
+
+#define	VM_STATS_UINT(var, descr)	\
+    SYSCTL_UINT(_vm_stats_vm, OID_AUTO, var, CTLFLAG_RD, &vm_cnt.var, 0, descr)
+VM_STATS_UINT(v_page_size, "Page size in bytes");
+VM_STATS_UINT(v_page_count, "Total number of pages in system");
+VM_STATS_UINT(v_free_reserved, "Pages reserved for deadlock");
+VM_STATS_UINT(v_free_target, "Pages desired free");
+VM_STATS_UINT(v_free_min, "Minimum low-free-pages threshold");
+VM_STATS_UINT(v_free_count, "Free pages");
+VM_STATS_UINT(v_wire_count, "Wired pages");
+VM_STATS_UINT(v_active_count, "Active pages");
+VM_STATS_UINT(v_inactive_target, "Desired inactive pages");
+VM_STATS_UINT(v_inactive_count, "Inactive pages");
+VM_STATS_UINT(v_laundry_count, "Pages eligible for laundering");
+VM_STATS_UINT(v_pageout_free_min, "Min pages reserved for kernel");
+VM_STATS_UINT(v_interrupt_free_min, "Reserved pages for interrupt code");
+VM_STATS_UINT(v_free_severe, "Severe page depletion point");
 
 #ifdef COMPAT_FREEBSD11
 /*

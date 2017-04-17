@@ -36,6 +36,10 @@
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
+extern struct pcpu __pcpu[];
+
+#define	EARLY_COUNTER	&__pcpu[0].pc_early_dummy_counter
+
 #define	counter_enter()	do {				\
 	if ((cpu_feature & CPUID_CX8) == 0)		\
 		critical_enter();			\
@@ -45,8 +49,6 @@
 	if ((cpu_feature & CPUID_CX8) == 0)		\
 		critical_exit();			\
 } while (0)
-
-extern struct pcpu __pcpu[MAXCPU];
 
 static inline void
 counter_64_inc_8b(uint64_t *p, int64_t inc)

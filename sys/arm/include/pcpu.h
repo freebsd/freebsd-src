@@ -57,10 +57,10 @@ struct vmspace;
 	void *pc_qmap_pte2p;						\
 	unsigned int pc_dbreg[32];					\
 	int pc_dbreg_cmd;						\
-	char __pad[27]
+	char __pad[155]
 #else
 #define PCPU_MD_FIELDS							\
-	char __pad[157]
+	char __pad[93]
 #endif
 
 #ifdef _KERNEL
