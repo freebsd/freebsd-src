@@ -30,6 +30,7 @@ SRCS+=		InstrInfoEmitter.cpp
 SRCS+=		IntrinsicEmitter.cpp
 SRCS+=		OptParserEmitter.cpp
 SRCS+=		PseudoLoweringEmitter.cpp
+SRCS+=		RegisterBankEmitter.cpp
 SRCS+=		RegisterInfoEmitter.cpp
 SRCS+=		SearchableTableEmitter.cpp
 SRCS+=		SubtargetEmitter.cpp
@@ -37,6 +38,7 @@ SRCS+=		SubtargetFeatureInfo.cpp
 SRCS+=		TableGen.cpp
 SRCS+=		Types.cpp
 SRCS+=		X86DisassemblerTables.cpp
+SRCS+=		X86EVEX2VEXTablesEmitter.cpp
 SRCS+=		X86ModRMFilters.cpp
 SRCS+=		X86RecognizableInstr.cpp
 

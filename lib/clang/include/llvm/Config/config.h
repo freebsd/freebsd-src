@@ -12,13 +12,17 @@
 #define BUG_REPORT_URL "https://bugs.freebsd.org/submit/"
 
 /* Define to 1 to enable backtraces, and to 0 otherwise. */
-#define ENABLE_BACKTRACES 1
+#define ENABLE_BACKTRACES 0
 
 /* Define to 1 to enable crash overrides, and to 0 otherwise. */
 #define ENABLE_CRASH_OVERRIDES 1
 
+#if __FreeBSD_version >= 1000052
 /* Define to 1 if you have the `backtrace' function. */
-/* #undef HAVE_BACKTRACE */
+#define HAVE_BACKTRACE TRUE
+
+#define BACKTRACE_HEADER <execinfo.h>
+#endif
 
 /* Define to 1 if you have the <CrashReporterClient.h> header file. */
 /* #undef HAVE_CRASHREPORTERCLIENT_H */
@@ -55,13 +59,14 @@
 /* Define if dlopen() is available on this platform. */
 #define HAVE_DLOPEN 1
 
+/* Define if dladdr() is available on this platform. */
+#define HAVE_DLADDR 1
+
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
 
 /* Define to 1 if you have the <execinfo.h> header file. */
-#if __FreeBSD_version >= 1000052
-#define HAVE_EXECINFO_H 1
-#endif
+/* #undef HAVE_EXECINFO_H */
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
@@ -383,9 +388,6 @@
 /* Define if this is Win32ish platform */
 /* #undef LLVM_ON_WIN32 */
 
-/* Installation prefix directory */
-#define LLVM_PREFIX "/usr"
-
 /* Define if we have the Intel JIT API runtime support library */
 #define LLVM_USE_INTEL_JITEVENTS 0
 
@@ -396,7 +398,7 @@
 /* #undef LLVM_VERSION_INFO */
 
 /* Major version of the LLVM API */
-#define LLVM_VERSION_MAJOR 4
+#define LLVM_VERSION_MAJOR 5
 
 /* Minor version of the LLVM API */
 #define LLVM_VERSION_MINOR 0
@@ -405,7 +407,7 @@
 #define LLVM_VERSION_PATCH 0
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "4.0.0"
+#define LLVM_VERSION_STRING "5.0.0svn"
 
 /* Define to the extension used for shared libraries, say, ".so". */
 #define LTDL_SHLIB_EXT ".so"
@@ -417,13 +419,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 4.0.0"
+#define PACKAGE_STRING "LLVM 5.0.0svn"
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.0.0"
+#define PACKAGE_VERSION "5.0.0svn"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
