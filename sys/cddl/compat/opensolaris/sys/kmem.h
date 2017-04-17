@@ -33,6 +33,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/vmem.h>
+#include <sys/vmmeter.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>

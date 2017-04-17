@@ -73,6 +73,7 @@
 #include <sys/buf.h>
 #include <sys/sched.h>
 #include <sys/acl.h>
+#include <sys/vmmeter.h>
 #include <vm/vm_param.h>
 
 /*
