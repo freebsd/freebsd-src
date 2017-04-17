@@ -211,6 +211,10 @@ struct property_value
 	 * false otherwise.
 	 */
 	bool try_to_merge(property_value &other);
+	/**
+	 * Returns the size (in bytes) of this property value.
+	 */
+	size_t size();
 	private:
 	/**
 	 * Returns whether the value is of the specified type.  If the type of
@@ -380,6 +384,10 @@ class property
 	 * applicable way that it can determine.
 	 */
 	void write_dts(FILE *file, int indent);
+	/**
+	 * Returns the byte offset of the specified property value.
+	 */
+	size_t offset_of_value(property_value &val);
 };
 
 /**
@@ -478,6 +486,10 @@ class node
 	     std::unordered_set<std::string> &&l,
 	     std::string &&a,
 	     define_map*);
+	/**
+	 * Creates a special node with the specified name and properties.
+	 */
+	node(const std::string &n, const std::vector<property_ptr> &p);
 	/**
 	 * Comparison function for properties, used when sorting the properties
 	 * vector.  Orders the properties based on their names.
@@ -579,6 +591,11 @@ class node
 	 */
 	static node_ptr parse_dtb(input_buffer &structs, input_buffer &strings);
 	/**
+	 * Construct a new special node from a name and set of properties.
+	 */
+	static node_ptr create_special_node(const std::string &name,
+			const std::vector<property_ptr> &props);
+	/**
 	 * Returns a property corresponding to the specified key, or 0 if this
 	 * node does not contain a property of that name.
 	 */
@@ -589,6 +606,13 @@ class node
 	inline void add_property(property_ptr &p)
 	{
 		props.push_back(p);
+	}
+	/**
+	 * Adds a new child to this node.
+	 */
+	inline void add_child(node_ptr &&n)
+	{
+		children.push_back(std::move(n));
 	}
 	/**
 	 * Merges a node into this one.  Any properties present in both are
@@ -626,7 +650,14 @@ class device_tree
 	 * Type used for node paths.  A node path is sequence of names and unit
 	 * addresses.
 	 */
-	typedef std::vector<std::pair<std::string,std::string> > node_path;
+	class node_path : public std::vector<std::pair<std::string,std::string>>
+	{
+		public:
+		/**
+		 * Converts this to a string representation.
+		 */
+		std::string to_string() const;
+	};
 	/**
 	 * Name that we should use for phandle nodes.
 	 */
@@ -681,11 +712,34 @@ class device_tree
 	 */
 	std::vector<property_value*> cross_references;
 	/**
+	 * The location of something requiring a fixup entry.
+	 */
+	struct fixup
+	{
+		/**
+		 * The path to the node.
+		 */
+		node_path path;
+		/**
+		 * The property containing the reference.
+		 */
+		property_ptr prop;
+		/**
+		 * The property value that contains the reference.
+		 */
+		property_value &val;
+	};
+	/**
 	 * A collection of property values that refer to phandles.  These will
 	 * be replaced by the value of the phandle property in their
 	 * destination.
 	 */
-	std::vector<property_value*> phandles;
+	std::vector<fixup> fixups;
+	/**
+	 * The locations of all of the values that are supposed to become phandle
+	 * references, but refer to things outside of this file.  
+	 */
+	std::vector<std::reference_wrapper<fixup>> unresolved_fixups;
 	/**
 	 * The names of nodes that target phandles.
 	 */
@@ -733,6 +787,10 @@ class device_tree
 	 */
 	uint32_t blob_padding;
 	/**
+	 * Is this tree a plugin?
+	 */
+	bool is_plugin;
+	/**
 	 * Visit all of the nodes recursively, and if they have labels then add
 	 * them to the node_paths and node_names vectors so that they can be
 	 * used in resolving cross references.  Also collects phandle
@@ -771,6 +829,11 @@ class device_tree
 	template<class writer>
 	void write(int fd);
 	public:
+	/**
+	 * Should we write the __symbols__ node (to allow overlays to be linked
+	 * against this blob)?
+	 */
+	bool write_symbols = false;
 	/**
 	 * Returns the node referenced by the property.  If this is a tree that
 	 * is in source form, then we have a string that we can use to index
