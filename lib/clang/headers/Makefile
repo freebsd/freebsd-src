@@ -41,6 +41,7 @@ INCS+=		avxintrin.h
 INCS+=		bmi2intrin.h
 INCS+=		bmiintrin.h
 INCS+=		clflushoptintrin.h
+INCS+=		clzerointrin.h
 INCS+=		cpuid.h
 INCS+=		emmintrin.h
 INCS+=		f16cintrin.h
