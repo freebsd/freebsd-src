@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/bpf_jitter.h>
 
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *);
-
 static u_int	bpf_jit_accept_all(u_char *, u_int, u_int);
 
 #ifdef _KERNEL
