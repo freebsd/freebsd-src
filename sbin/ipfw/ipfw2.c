@@ -1642,6 +1642,22 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			break;
 		}
 
+		case O_EXTERNAL_DATA: {
+			if (has_eaction == NULL)
+				break;
+			/*
+			 * Currently we support data formatting only for
+			 * external data with datalen u16. For unknown data
+			 * print its size in bytes.
+			 */
+			if (cmd->len == F_INSN_SIZE(ipfw_insn))
+				bprintf(bp, " %u", cmd->arg1);
+			else
+				bprintf(bp, " %ubytes",
+				    cmd->len * sizeof(uint32_t));
+			break;
+		}
+
 		case O_SETDSCP:
 		    {
 			const char *code;
