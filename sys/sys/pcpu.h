@@ -43,7 +43,6 @@
 #include <sys/_sx.h>
 #include <sys/queue.h>
 #include <sys/_rmlock.h>
-#include <sys/vmmeter.h>
 #include <sys/resource.h>
 #include <machine/pcpu.h>
 
@@ -158,7 +157,6 @@ struct pcpu {
 	u_int		pc_cpuid;		/* This cpu number */
 	STAILQ_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
-	struct vmmeter	pc_cnt;			/* VM stats counters */
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
 	struct device	*pc_device;
 	void		*pc_netisr;		/* netisr SWI cookie */
@@ -166,6 +164,7 @@ struct pcpu {
 	int		pc_domain;		/* Memory domain. */
 	struct rm_queue	pc_rm_queue;		/* rmlock list of trackers */
 	uintptr_t	pc_dynamic;		/* Dynamic per-cpu data area */
+	uint64_t	pc_early_dummy_counter;	/* Startup time counter(9) */
 
 	/*
 	 * Keep MD fields last, so that CPU-specific variations on a

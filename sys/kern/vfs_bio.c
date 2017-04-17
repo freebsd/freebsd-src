@@ -4769,8 +4769,8 @@ vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
 	pgsin += pgsin_a;
 	if (rahead != NULL)
 		*rahead = pgsin_a;
-	PCPU_INC(cnt.v_vnodein);
-	PCPU_ADD(cnt.v_vnodepgsin, pgsin);
+	VM_CNT_INC(v_vnodein);
+	VM_CNT_ADD(v_vnodepgsin, pgsin);
 
 	br_flags = (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS)
 	    != 0) ? GB_UNMAPPED : 0;

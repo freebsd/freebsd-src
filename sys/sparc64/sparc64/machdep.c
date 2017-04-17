@@ -126,6 +126,7 @@ long realmem;
 
 void *dpcpu0;
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
+struct pcpu dummy_pcpu[MAXCPU];
 struct trapframe frame0;
 
 vm_offset_t kstack0;

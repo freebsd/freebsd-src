@@ -123,6 +123,7 @@ static void intr_stray_level(struct trapframe *);
 static void intr_stray_vector(void *);
 static int intrcnt_setname(const char *, int);
 static void intrcnt_updatename(int, const char *, int);
+void counter_intr_inc(void);
 
 static void
 intrcnt_updatename(int vec, const char *name, int ispil)
@@ -449,6 +450,19 @@ intr_describe(int vec, void *ih, const char *descr)
 	intrcnt_updatename(vec, iv->iv_event->ie_fullname, 0);
 	sx_xunlock(&intr_table_lock);
 	return (error);
+}
+
+/*
+ * Do VM_CNT_INC(intr), being in the interrupt context already. This is
+ * called from assembly.
+ * To avoid counter_enter() and appropriate assertion, unwrap VM_CNT_INC()
+ * and hardcode the actual increment.
+ */
+void
+counter_intr_inc(void)
+{
+
+	*(uint64_t *)zpcpu_get(vm_cnt.v_intr) += 1;
 }
 
 #ifdef SMP

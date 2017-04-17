@@ -34,6 +34,8 @@
 #include <sys/proc.h>
 #endif
 
+#define	EARLY_COUNTER	&((struct pcpu *)pcpu_space)->pc_early_dummy_counter
+
 #define	counter_enter()	critical_enter()
 #define	counter_exit()	critical_exit()
 

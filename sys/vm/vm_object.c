@@ -777,7 +777,7 @@ vm_object_terminate(vm_object_t object)
 		p->object = NULL;
 		if (p->wire_count == 0) {
 			vm_page_free(p);
-			PCPU_INC(cnt.v_pfree);
+			VM_CNT_INC(v_pfree);
 		}
 		vm_page_unlock(p);
 	}

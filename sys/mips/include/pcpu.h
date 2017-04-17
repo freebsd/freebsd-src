@@ -68,11 +68,11 @@
 #ifdef	__mips_n64
 #define	PCPU_MD_MIPS64_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[(53 - (PCPU_NUM_EXC_CNTRS * 8))]
+	char		__pad[(245 - (PCPU_NUM_EXC_CNTRS * 8))]
 #else
 #define	PCPU_MD_MIPS32_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[(189 - (PCPU_NUM_EXC_CNTRS * 4))]
+	char		__pad[(125 - (PCPU_NUM_EXC_CNTRS * 4))]
 #endif
 
 #ifdef	__mips_n64

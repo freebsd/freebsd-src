@@ -1204,8 +1204,8 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	bp->b_pgbefore = rbehind != NULL ? *rbehind : 0;
 	bp->b_pgafter = rahead != NULL ? *rahead : 0;
 
-	PCPU_INC(cnt.v_swapin);
-	PCPU_ADD(cnt.v_swappgsin, count);
+	VM_CNT_INC(v_swapin);
+	VM_CNT_ADD(v_swappgsin, count);
 
 	/*
 	 * perform the I/O.  NOTE!!!  bp cannot be considered valid after
@@ -1229,7 +1229,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	VM_OBJECT_WLOCK(object);
 	while ((m[0]->oflags & VPO_SWAPINPROG) != 0) {
 		m[0]->oflags |= VPO_SWAPSLEEP;
-		PCPU_INC(cnt.v_intrans);
+		VM_CNT_INC(v_intrans);
 		if (VM_OBJECT_SLEEP(object, &object->paging_in_progress, PSWP,
 		    "swread", hz * 20)) {
 			printf(
@@ -1422,8 +1422,8 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		bp->b_dirtyoff = 0;
 		bp->b_dirtyend = bp->b_bcount;
 
-		PCPU_INC(cnt.v_swapout);
-		PCPU_ADD(cnt.v_swappgsout, bp->b_npages);
+		VM_CNT_INC(v_swapout);
+		VM_CNT_ADD(v_swappgsout, bp->b_npages);
 
 		/*
 		 * We unconditionally set rtvals[] to VM_PAGER_PEND so that we
