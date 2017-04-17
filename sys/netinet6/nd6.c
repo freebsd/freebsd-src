@@ -157,6 +157,7 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	struct sockaddr_dl gw;
 	struct ifnet *ifp;
 	int type;
+	int fibnum;
 
 	LLE_WLOCK_ASSERT(lle);
 
@@ -194,8 +195,9 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	rtinfo.rti_info[RTAX_DST] = (struct sockaddr *)&dst;
 	rtinfo.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&gw;
 	rtinfo.rti_addrs = RTA_DST | RTA_GATEWAY;
+	fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS : ifp->if_fib;
 	rt_missmsg_fib(type, &rtinfo, RTF_HOST | RTF_LLDATA | (
-	    type == RTM_ADD ? RTF_UP: 0), 0, RT_DEFAULT_FIB);
+	    type == RTM_ADD ? RTF_UP: 0), 0, fibnum);
 }
 
 /*
@@ -1200,7 +1202,7 @@ nd6_purge(struct ifnet *ifp)
 
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
 		/* Refresh default router list. */
-		defrouter_select();
+		defrouter_select_fib(ifp->if_fib);
 	}
 }
 
@@ -1253,7 +1255,7 @@ static int
 nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
 	struct nd_prefix *pr;
-	struct ifaddr *dstaddr;
+	struct ifaddr *ifa;
 	struct rt_addrinfo info;
 	struct sockaddr_in6 rt_key;
 	const struct sockaddr *dst6;
@@ -1287,9 +1289,6 @@ nd6_is_new_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 	bzero(&info, sizeof(info));
 	info.rti_info[RTAX_DST] = (struct sockaddr *)&rt_key;
 
-	/* Always use the default FIB here. XXME - why? */
-	fibnum = RT_DEFAULT_FIB;
-
 	/*
 	 * If the address matches one of our addresses,
 	 * it should be a neighbor.
@@ -1303,19 +1302,31 @@ restart:
 			continue;
 
 		if ((pr->ndpr_stateflags & NDPRF_ONLINK) == 0) {
-			/* Always use the default FIB here. */
 			dst6 = (const struct sockaddr *)&pr->ndpr_prefix;
 
-			genid = V_nd6_list_genid;
-			ND6_RUNLOCK();
+			/*
+			 * We only need to check all FIBs if add_addr_allfibs
+			 * is unset. If set, checking any FIB will suffice.
+			 */
+			fibnum = V_rt_add_addr_allfibs ? rt_numfibs - 1 : 0;
+			for (; fibnum < rt_numfibs; fibnum++) {
+				genid = V_nd6_list_genid;
+				ND6_RUNLOCK();
 
-			/* Restore length field before retrying lookup */
-			rt_key.sin6_len = sizeof(rt_key);
-			error = rib_lookup_info(fibnum, dst6, 0, 0, &info);
+				/*
+				 * Restore length field before
+				 * retrying lookup
+				 */
+				rt_key.sin6_len = sizeof(rt_key);
+				error = rib_lookup_info(fibnum, dst6, 0, 0,
+						        &info);
 
-			ND6_RLOCK();
-			if (genid != V_nd6_list_genid)
-				goto restart;
+				ND6_RLOCK();
+				if (genid != V_nd6_list_genid)
+					goto restart;
+				if (error == 0)
+					break;
+			}
 			if (error != 0)
 				continue;
 
@@ -1346,13 +1357,18 @@ restart:
 	 * If the address is assigned on the node of the other side of
 	 * a p2p interface, the address should be a neighbor.
 	 */
-	dstaddr = ifa_ifwithdstaddr((const struct sockaddr *)addr, RT_ALL_FIBS);
-	if (dstaddr != NULL) {
-		if (dstaddr->ifa_ifp == ifp) {
-			ifa_free(dstaddr);
-			return (1);
+	if (ifp->if_flags & IFF_POINTOPOINT) {
+		IF_ADDR_RLOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != addr->sin6_family)
+				continue;
+			if (ifa->ifa_dstaddr != NULL &&
+			    sa_equal(addr, ifa->ifa_dstaddr)) {
+				IF_ADDR_RUNLOCK(ifp);
+				return 1;
+			}
 		}
-		ifa_free(dstaddr);
+		IF_ADDR_RUNLOCK(ifp);
 	}
 
 	/*
@@ -1485,7 +1501,7 @@ nd6_free(struct llentry **lnp, int gc)
 			/*
 			 * We need to unlock to avoid a LOR with rt6_flush() with the
 			 * rnh and for the calls to pfxlist_onlink_check() and
-			 * defrouter_select() in the block further down for calls
+			 * defrouter_select_fib() in the block further down for calls
 			 * into nd6_lookup().  We still hold a ref.
 			 */
 			LLE_WUNLOCK(ln);
@@ -1500,7 +1516,7 @@ nd6_free(struct llentry **lnp, int gc)
 
 		if (dr) {
 			/*
-			 * Since defrouter_select() does not affect the
+			 * Since defrouter_select_fib() does not affect the
 			 * on-link determination and MIP6 needs the check
 			 * before the default router selection, we perform
 			 * the check now.
@@ -1510,7 +1526,7 @@ nd6_free(struct llentry **lnp, int gc)
 			/*
 			 * Refresh default router list.
 			 */
-			defrouter_select();
+			defrouter_select_fib(dr->ifp->if_fib);
 		}
 
 		/*
@@ -2104,11 +2120,11 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * Question: can we restrict the first condition to the "is_newentry"
 	 * case?
 	 * XXX: when we hear an RA from a new router with the link-layer
-	 * address option, defrouter_select() is called twice, since
+	 * address option, defrouter_select_fib() is called twice, since
 	 * defrtrlist_update called the function as well.  However, I believe
 	 * we can compromise the overhead, since it only happens the first
 	 * time.
-	 * XXX: although defrouter_select() should not have a bad effect
+	 * XXX: although defrouter_select_fib() should not have a bad effect
 	 * for those are not autoconfigured hosts, we explicitly avoid such
 	 * cases for safety.
 	 */
@@ -2117,7 +2133,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		/*
 		 * guaranteed recursion
 		 */
-		defrouter_select();
+		defrouter_select_fib(ifp->if_fib);
 	}
 }
 
