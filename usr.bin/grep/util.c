@@ -111,6 +111,7 @@ grep_tree(char **argv)
 	FTSENT *p;
 	int c, fts_flags;
 	bool ok;
+	const char *wd[] = { ".", NULL };
 
 	c = fts_flags = 0;
 
@@ -128,7 +129,9 @@ grep_tree(char **argv)
 
 	fts_flags |= FTS_NOSTAT | FTS_NOCHDIR;
 
-	if (!(fts = fts_open(argv, fts_flags, NULL)))
+	fts = fts_open((argv[0] == NULL) ?
+	    __DECONST(char * const *, wd) : argv, fts_flags, NULL);
+	if (fts == NULL)
 		err(2, "fts_open");
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
