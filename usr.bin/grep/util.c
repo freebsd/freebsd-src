@@ -352,9 +352,6 @@ procline(struct str *l, int nottext)
 			if (r == 0) {
 				lastmatches++;
 				lastmatch = pmatch;
-				/* Skip over zero-length matches */
-				if (pmatch.rm_so == pmatch.rm_eo)
-					continue;
 				if (m == 0)
 					c++;
 
@@ -532,6 +529,9 @@ printline(struct str *line, int sep, regmatch_t *matches, int m)
 	/* --color and -o */
 	if ((oflag || color) && m > 0) {
 		for (i = 0; i < m; i++) {
+			/* Don't output zero length matches */
+			if (matches[i].rm_so == matches[i].rm_eo)
+				continue;
 			if (!oflag)
 				fwrite(line->dat + a, matches[i].rm_so - a, 1,
 				    stdout);
