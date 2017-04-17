@@ -33,7 +33,7 @@
 #include <machine/atomic.h>
 
 extern struct pcpu __pcpu[];
- 
+
 #define	EARLY_COUNTER	&__pcpu[0].pc_early_dummy_counter
 
 #define	counter_enter()	do {} while (0)

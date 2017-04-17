@@ -434,7 +434,7 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    (uintmax_t)VM_CNT_FETCH(v_vnodepgsout),
 	    (uintmax_t)VM_CNT_FETCH(v_swappgsin),
 	    (uintmax_t)VM_CNT_FETCH(v_swappgsout),
-	    (uintmax_t)VM_CNT_FETCH(v_intr),   
+	    (uintmax_t)VM_CNT_FETCH(v_intr),
 	    (uintmax_t)VM_CNT_FETCH(v_swtch),
 	    (long long)boottime.tv_sec);
 	return (0);
