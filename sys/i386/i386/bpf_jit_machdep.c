@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (C) 2005-2016 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2005-2017 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/socket.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/socket.h>
+
 #include <net/if.h>
 #else
 #include <stdlib.h>
@@ -677,4 +678,15 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 #endif
 
 	return ((bpf_filter_func)(void *)stream.ibuf);
+}
+
+void
+bpf_jit_free(void *func, size_t size)
+{
+
+#ifdef _KERNEL
+	free(func, M_BPFJIT);
+#else
+	munmap(func, size);
+#endif
 }
