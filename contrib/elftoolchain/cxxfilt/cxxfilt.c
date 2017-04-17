@@ -35,7 +35,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: cxxfilt.c 3454 2016-05-07 17:11:05Z kaiwang27 $");
+ELFTC_VCSID("$Id: cxxfilt.c 3499 2016-11-25 16:06:29Z emaste $");
 
 #define	STRBUFSZ	8192
 
@@ -175,6 +175,7 @@ main(int argc, char **argv)
 	} else {
 		p = 0;
 		for (;;) {
+			setvbuf(stdout, NULL, _IOLBF, 0);
 			c = fgetc(stdin);
 			if (c == EOF || !(isalnum(c) || strchr(".$_", c))) {
 				if (p > 0) {

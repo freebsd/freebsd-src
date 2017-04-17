@@ -50,7 +50,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: elfdump.c 3482 2016-08-02 18:47:00Z emaste $");
+ELFTC_VCSID("$Id: elfdump.c 3497 2016-10-17 20:57:22Z emaste $");
 
 #if defined(ELFTC_NEED_ELF_NOTE_DEFINITION)
 #include "native-elf-format.h"
@@ -223,9 +223,9 @@ d_tags(uint64_t tag)
 	case 0x6ffffff0:	return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
 	case 0x70000000:	return "DT_IA_64_PLT_RESERVE";
-	case 0x7ffffffd:	return "DT_SUNW_AUXILIARY";
-	case 0x7ffffffe:	return "DT_SUNW_USED";
-	case 0x7fffffff:	return "DT_SUNW_FILTER";
+	case DT_AUXILIARY:	return "DT_AUXILIARY";
+	case DT_USED:		return "DT_USED";
+	case DT_FILTER:		return "DT_FILTER";
 	}
 
 	snprintf(unknown_buf, sizeof(unknown_buf),
