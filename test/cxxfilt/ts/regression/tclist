@@ -1,0 +1,34 @@
+# ticket 481, TLS wrappers
+"_ZTWL20PrettyStackTraceHead", "TLS wrapper function for PrettyStackTraceHead"
+
+# ticket 488, trailing E
+"_ZN1fILi4EEE", "f<4>"
+
+# ticket 489, handle Dv (__vector)
+"_Z22__gen_ocl_write_imagef11ocl_image2dDv2_iDv4_f", "__gen_ocl_write_imagef(ocl_image2d, int __vector(2), float __vector(4))"
+"_Z23__gen_ocl_write_imageui16ocl_image2darrayDv3_iDv4_j", "__gen_ocl_write_imageui(ocl_image2darray, int __vector(3), unsigned int __vector(4))"
+"_Z1fDv2_i", "f(int __vector(2))"
+
+# ticket 491, omit "void"
+"_Z1fv", "f()"
+"_Z1fPv", "f(void*)"
+"_Z1fiv", "f(int, void)"
+"_Z1fvi", "f(void, int)"
+
+# ticket 508, demangler failure
+"_ZN8TaskPool11AddTaskImplEONSt3__18functionIFvvEEE", "TaskPool::AddTaskImpl(std::__1::function<void ()>&&)"
+
+# ticket 530, assertion failure
+"_ZNSp16invalidOargumentC1ERKSs", "invalidOargument::invalidOargument(std::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)"
+
+# ticket 531, assertion failure
+"____new_strtold_internal", "____new_strtold_internal"
+
+# ticket 537, demangler fails on a symbol from GNU gold
+"_ZN4gold15relocate_relocsILi64ELb1ENS_22Default_classify_relocILi4ELi64ELb1EEEEEvPKNS_13Relocate_infoIXT_EXT0_EEEPKhmPNS_14Output_sectionEN6elfcpp9Elf_typesIXT_EE7Elf_OffEPhNSD_8Elf_AddrEmSF_m", "void gold::relocate_relocs<64, true, gold::Default_classify_reloc<4, 64, true> >(gold::Relocate_info<64, true> const*, unsigned char const*, unsigned long, gold::Output_section*, elfcpp::Elf_types<64>::Elf_Off, unsigned char*, elfcpp::Elf_types<64>::Elf_Addr, unsigned long, unsigned char*, unsigned long)"
+
+# ticket 538, demangler uses incorrect back-ref
+"_ZN1f1gEP1hNS0_1iE", "f::g(h*, h::i)"
+
+# ticket 539, demangler does not demangle lambdas
+"_ZZN9libunwind17LocalAddressSpace18findUnwindSectionsEjRNS_18UnwindInfoSectionsEENUlP12dl_phdr_infojPvE_8__invokeES4_jS5_", "libunwind::LocalAddressSpace::findUnwindSections(unsigned int, libunwind::UnwindInfoSections&)::{lambda(dl_phdr_info*, unsigned int, void*)#1}::__invoke(dl_phdr_info*, unsigned int, void*)"

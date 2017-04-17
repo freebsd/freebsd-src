@@ -30,7 +30,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_bfdtarget.c 3488 2016-08-24 18:15:57Z emaste $");
+ELFTC_VCSID("$Id: libelftc_bfdtarget.c 3516 2017-02-10 02:33:08Z emaste $");
 
 struct _Elftc_Bfd_Target _libelftc_targets[] = {
 
@@ -127,6 +127,15 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 	},
 
 	{
+		.bt_name      = "elf32-powerpc-freebsd",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2MSB,
+		.bt_elfclass  = ELFCLASS32,
+		.bt_machine   = EM_PPC,
+		.bt_osabi     = ELFOSABI_FREEBSD,
+	},
+
+	{
 		.bt_name      = "elf32-powerpcle",
 		.bt_type      = ETF_ELF,
 		.bt_byteorder = ELFDATA2LSB,
@@ -192,6 +201,22 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 		.bt_byteorder = ELFDATA2MSB,
 		.bt_elfclass  = ELFCLASS32,
 		.bt_machine   = EM_SPARC,
+	},
+
+	{
+		.bt_name      = "elf32-tradbigmips",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2MSB,
+		.bt_elfclass  = ELFCLASS32,
+		.bt_machine   = EM_MIPS,
+	},
+
+	{
+		.bt_name      = "elf32-tradlittlemips",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2LSB,
+		.bt_elfclass  = ELFCLASS32,
+		.bt_machine   = EM_MIPS,
 	},
 
 	{
@@ -274,6 +299,15 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 	},
 
 	{
+		.bt_name      = "elf64-powerpc-freebsd",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2MSB,
+		.bt_elfclass  = ELFCLASS64,
+		.bt_machine   = EM_PPC64,
+		.bt_osabi     = ELFOSABI_FREEBSD,
+	},
+
+	{
 		.bt_name      = "elf64-powerpcle",
 		.bt_type      = ETF_ELF,
 		.bt_byteorder = ELFDATA2LSB,
@@ -348,6 +382,22 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 		.bt_elfclass  = ELFCLASS64,
 		.bt_machine   = EM_SPARCV9,
 		.bt_osabi     = ELFOSABI_FREEBSD
+	},
+
+	{
+		.bt_name      = "elf64-tradbigmips",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2MSB,
+		.bt_elfclass  = ELFCLASS64,
+		.bt_machine   = EM_MIPS,
+	},
+
+	{
+		.bt_name      = "elf64-tradlittlemips",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2LSB,
+		.bt_elfclass  = ELFCLASS64,
+		.bt_machine   = EM_MIPS,
 	},
 
 	{

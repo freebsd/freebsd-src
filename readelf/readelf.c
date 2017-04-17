@@ -47,7 +47,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3484 2016-08-03 13:36:49Z emaste $");
+ELFTC_VCSID("$Id: readelf.c 3519 2017-04-09 23:15:58Z kaiwang27 $");
 
 /*
  * readelf(1) options.
@@ -644,6 +644,9 @@ phdr_type(unsigned int mach, unsigned int ptype)
 	case PT_GNU_EH_FRAME: return "GNU_EH_FRAME";
 	case PT_GNU_STACK: return "GNU_STACK";
 	case PT_GNU_RELRO: return "GNU_RELRO";
+	case PT_OPENBSD_RANDOMIZE: return "OPENBSD_RANDOMIZE";
+	case PT_OPENBSD_WXNEEDED: return "OPENBSD_WXNEEDED";
+	case PT_OPENBSD_BOOTDATA: return "OPENBSD_BOOTDATA";
 	default:
 		if (ptype >= PT_LOOS && ptype <= PT_HIOS)
 			snprintf(s_ptype, sizeof(s_ptype), "LOOS+%#x",
@@ -709,6 +712,7 @@ section_type(unsigned int mach, unsigned int stype)
 			case SHT_MIPS_EH_REGION: return "MIPS_EH_REGION";
 			case SHT_MIPS_XLATE_OLD: return "MIPS_XLATE_OLD";
 			case SHT_MIPS_PDR_EXCEPTION: return "MIPS_PDR_EXCEPTION";
+			case SHT_MIPS_ABIFLAGS: return "MIPS_ABIFLAGS";
 			default:
 				break;
 			}
@@ -934,6 +938,7 @@ dt_type(unsigned int mach, unsigned int dtype)
 	case DT_SUNW_RTLDINF: return "SUNW_RTLDINF";
 	case DT_SUNW_FILTER: return "SUNW_FILTER";
 	case DT_SUNW_CAP: return "SUNW_CAP";
+	case DT_SUNW_ASLR: return "SUNW_ASLR";
 	case DT_CHECKSUM: return "CHECKSUM";
 	case DT_PLTPADSZ: return "PLTPADSZ";
 	case DT_MOVEENT: return "MOVEENT";
@@ -2103,7 +2108,7 @@ dwarf_reg(unsigned int mach, unsigned int reg)
 static void
 dump_ehdr(struct readelf *re)
 {
-	size_t		 shnum, shstrndx;
+	size_t		 phnum, shnum, shstrndx;
 	int		 i;
 
 	printf("ELF Header:\n");
@@ -2165,7 +2170,13 @@ dump_ehdr(struct readelf *re)
 	    re->ehdr.e_phentsize);
 
 	/* e_phnum. */
-	printf("%-37s%u\n", "  Number of program headers:", re->ehdr.e_phnum);
+	printf("%-37s%u", "  Number of program headers:", re->ehdr.e_phnum);
+	if (re->ehdr.e_phnum == PN_XNUM) {
+		/* Extended program header numbering is in use. */
+		if (elf_getphnum(re->elf, &phnum))
+			printf(" (%zu)", phnum);
+	}
+	putchar('\n');
 
 	/* e_shentsize. */
 	printf("%-37s%u (bytes)\n", "  Size of section headers:",
@@ -4077,30 +4088,26 @@ static void
 dump_mips_specific_info(struct readelf *re)
 {
 	struct section *s;
-	int i, options_found;
+	int i;
 
-	options_found = 0;
 	s = NULL;
 	for (i = 0; (size_t) i < re->shnum; i++) {
 		s = &re->sl[i];
 		if (s->name != NULL && (!strcmp(s->name, ".MIPS.options") ||
 		    (s->type == SHT_MIPS_OPTIONS))) {
 			dump_mips_options(re, s);
-			options_found = 1;
 		}
 	}
 
 	/*
-	 * According to SGI mips64 spec, .reginfo should be ignored if
-	 * .MIPS.options section is present.
+	 * Dump .reginfo if present (although it will be ignored by an OS if a
+	 * .MIPS.options section is present, according to SGI mips64 spec).
 	 */
-	if (!options_found) {
-		for (i = 0; (size_t) i < re->shnum; i++) {
-			s = &re->sl[i];
-			if (s->name != NULL && (!strcmp(s->name, ".reginfo") ||
-			    (s->type == SHT_MIPS_REGINFO)))
-				dump_mips_reginfo(re, s);
-		}
+	for (i = 0; (size_t) i < re->shnum; i++) {
+		s = &re->sl[i];
+		if (s->name != NULL && (!strcmp(s->name, ".reginfo") ||
+		    (s->type == SHT_MIPS_REGINFO)))
+			dump_mips_reginfo(re, s);
 	}
 }
 
@@ -6196,9 +6203,7 @@ dump_dwarf_loclist(struct readelf *re)
 	Dwarf_Half tag, version, pointer_size, off_size;
 	Dwarf_Error de;
 	struct loc_at *la;
-	int i, j, ret;
-
-	printf("\nContents of section .debug_loc:\n");
+	int i, j, ret, has_content;
 
 	/* Search .debug_info section. */
 	while ((ret = dwarf_next_cu_header_b(re->dbg, NULL, &version, NULL,
@@ -6215,7 +6220,7 @@ dump_dwarf_loclist(struct readelf *re)
 		lowpc = 0;
 		if (tag == DW_TAG_compile_unit) {
 			if (dwarf_attrval_unsigned(die, DW_AT_low_pc,
-				&lowpc, &de) != DW_DLV_OK)
+			    &lowpc, &de) != DW_DLV_OK)
 				lowpc = 0;
 		}
 
@@ -6261,13 +6266,19 @@ dump_dwarf_loclist(struct readelf *re)
 	if (TAILQ_EMPTY(&lalist))
 		return;
 
-	printf("    Offset   Begin    End      Expression\n");
-
+	has_content = 0;
 	TAILQ_FOREACH(la, &lalist, la_next) {
-		if (dwarf_loclist_n(la->la_at, &llbuf, &lcnt, &de) !=
+		if ((ret = dwarf_loclist_n(la->la_at, &llbuf, &lcnt, &de)) !=
 		    DW_DLV_OK) {
-			warnx("dwarf_loclist_n failed: %s", dwarf_errmsg(de));
+			if (ret != DW_DLV_NO_ENTRY)
+				warnx("dwarf_loclist_n failed: %s",
+				    dwarf_errmsg(de));
 			continue;
+		}
+		if (!has_content) {
+			has_content = 1;
+			printf("\nContents of section .debug_loc:\n");
+			printf("    Offset   Begin    End      Expression\n");
 		}
 		set_cu_context(re, la->la_cu_psize, la->la_cu_osize,
 		    la->la_cu_ver);
@@ -6303,6 +6314,9 @@ dump_dwarf_loclist(struct readelf *re)
 		}
 		dwarf_dealloc(re->dbg, llbuf, DW_DLA_LIST);
 	}
+
+	if (!has_content)
+		printf("\nSection '.debug_loc' has no debugging data.\n");
 }
 
 /*
@@ -6535,13 +6549,14 @@ load_sections(struct readelf *re)
 		}
 		if ((name = elf_strptr(re->elf, shstrndx, sh.sh_name)) == NULL) {
 			(void) elf_errno();
-			name = "ERROR";
+			name = "<no-name>";
 		}
 		if ((ndx = elf_ndxscn(scn)) == SHN_UNDEF) {
-			if ((elferr = elf_errno()) != 0)
+			if ((elferr = elf_errno()) != 0) {
 				warnx("elf_ndxscn failed: %s",
 				    elf_errmsg(elferr));
-			continue;
+				continue;
+			}
 		}
 		if (ndx >= re->shnum) {
 			warnx("section index of '%s' out of range", name);
@@ -6649,8 +6664,9 @@ dump_elf(struct readelf *re)
 static void
 dump_dwarf(struct readelf *re)
 {
-	int error;
+	struct loc_at *la, *_la;
 	Dwarf_Error de;
+	int error;
 
 	if (dwarf_elf_init(re->elf, DW_DLC_READ, NULL, NULL, &re->dbg, &de)) {
 		if ((error = dwarf_errno(de)) != DW_DLE_DEBUG_INFO_NULL)
@@ -6685,6 +6701,11 @@ dump_dwarf(struct readelf *re)
 		dump_dwarf_str(re);
 	if (re->dop & DW_O)
 		dump_dwarf_loclist(re);
+
+	TAILQ_FOREACH_SAFE(la, &lalist, la_next, _la) {
+		TAILQ_REMOVE(&lalist, la, la_next);
+		free(la);
+	}
 
 	dwarf_finish(re->dbg, &de);
 }
