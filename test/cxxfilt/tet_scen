@@ -3,9 +3,15 @@
 all
         "Starting Test Suite"
 	^misc
+	^regression
         "Complete Test Suite"
 
 misc
-	"Starting noarg Test"
+	"Starting misc Test"
 	/ts/misc/tc
-	"Complete noarg Test"
+	"Complete misc Test"
+
+regression
+	"Starting regression Test"
+	/ts/regression/tc
+	"Complete regression Test"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dwarf.h 3052 2014-05-26 20:36:24Z kaiwang27 $
+ * $Id: dwarf.h 3494 2016-09-20 17:16:13Z emaste $
  */
 
 #ifndef	_DWARF_H_
@@ -208,6 +208,25 @@
 #define DW_AT_lo_user			0x2000
 #define DW_AT_hi_user			0x3fff
 
+/* SGI/MIPS extensions. */
+#define DW_AT_MIPS_fde				0x2001
+#define DW_AT_MIPS_loop_begin			0x2002
+#define DW_AT_MIPS_tail_loop_begin		0x2003
+#define DW_AT_MIPS_epilog_begin			0x2004
+#define DW_AT_MIPS_loop_unroll_factor		0x2005
+#define DW_AT_MIPS_software_pipeline_depth	0x2006
+#define DW_AT_MIPS_linkage_name			0x2007
+#define DW_AT_MIPS_stride			0x2008
+#define DW_AT_MIPS_abstract_name		0x2009
+#define DW_AT_MIPS_clone_origin			0x200a
+#define DW_AT_MIPS_has_inlines			0x200b
+#define DW_AT_MIPS_stride_byte			0x200c
+#define DW_AT_MIPS_stride_elem			0x200d
+#define DW_AT_MIPS_ptr_dopetype			0x200e
+#define DW_AT_MIPS_allocatable_dopetype		0x200f
+#define DW_AT_MIPS_assumed_shape_dopetype	0x2010
+#define DW_AT_MIPS_assumed_size			0x2011
+
 /* GNU extensions. */
 #define	DW_AT_sf_names				0x2101
 #define	DW_AT_src_info				0x2102
@@ -233,6 +252,21 @@
 #define	DW_AT_GNU_all_tail_call_sites		0x2116
 #define	DW_AT_GNU_all_call_sites		0x2117
 #define	DW_AT_GNU_all_source_call_sites		0x2118
+
+/* Apple extensions. */
+#define	DW_AT_APPLE_optimized			0x3fe1
+#define	DW_AT_APPLE_flags			0x3fe2
+#define	DW_AT_APPLE_isa				0x3fe3
+#define	DW_AT_APPLE_block			0x3fe4
+#define	DW_AT_APPLE_major_runtime_vers		0x3fe5
+#define	DW_AT_APPLE_runtime_class		0x3fe6
+#define	DW_AT_APPLE_omit_frame_ptr		0x3fe7
+#define	DW_AT_APPLE_property_name		0x3fe8
+#define	DW_AT_APPLE_property_getter		0x3fe9
+#define	DW_AT_APPLE_property_setter		0x3fea
+#define	DW_AT_APPLE_property_attribute		0x3feb
+#define	DW_AT_APPLE_objc_complete_type		0x3fec
+#define	DW_AT_APPLE_property			0x3fed
 
 #define DW_FORM_addr			0x01
 #define DW_FORM_block2			0x03
@@ -490,6 +524,7 @@
 #define DW_LANG_UPC		 	0x0012
 #define DW_LANG_D		 	0x0013
 #define DW_LANG_lo_user		 	0x8000
+#define DW_LANG_Mips_Assembler		0x8001
 #define DW_LANG_hi_user		 	0xffff
 
 #define DW_ID_case_sensitive	 	0x00

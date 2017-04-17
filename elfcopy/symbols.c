@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: symbols.c 3446 2016-05-03 01:31:17Z emaste $");
+ELFTC_VCSID("$Id: symbols.c 3520 2017-04-17 01:47:52Z kaiwang27 $");
 
 /* Symbol table buffer structure. */
 struct symbuf {
@@ -669,6 +669,8 @@ create_symtab(struct elfcopy *ecp)
 
 	sy = ecp->symtab;
 	st = ecp->strtab;
+
+	assert(sy != NULL && st != NULL);
 
 	/*
 	 * Set section index map for .symtab and .strtab. We need to set

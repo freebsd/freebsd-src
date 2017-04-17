@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_attrval.c 3159 2015-02-15 21:43:27Z emaste $");
+ELFTC_VCSID("$Id: dwarf_attrval.c 3509 2016-12-29 03:58:41Z emaste $");
 
 int
 dwarf_attrval_flag(Dwarf_Die die, Dwarf_Half attr, Dwarf_Bool *valp, Dwarf_Error *err)
@@ -145,6 +145,7 @@ dwarf_attrval_unsigned(Dwarf_Die die, Dwarf_Half attr, Dwarf_Unsigned *valp, Dwa
 	Dwarf_Die die1;
 	Dwarf_Unsigned val;
 	Dwarf_Debug dbg;
+	int first;
 
 	dbg = die != NULL ? die->die_dbg : NULL;
 
@@ -155,14 +156,16 @@ dwarf_attrval_unsigned(Dwarf_Die die, Dwarf_Half attr, Dwarf_Unsigned *valp, Dwa
 
 	*valp = 0;
 
-	if ((at = _dwarf_attr_find(die, attr)) == NULL && attr != DW_AT_type) {
-		DWARF_SET_ERROR(dbg, err, DW_DLE_NO_ENTRY);
-		return (DW_DLV_NO_ENTRY);
-	}
-
 	die1 = NULL;
-	if (at == NULL &&
-	    (at = _dwarf_attr_find(die, DW_AT_abstract_origin)) != NULL) {
+	for (;;) {
+		if ((at = _dwarf_attr_find(die, attr)) != NULL ||
+		    attr != DW_AT_type)
+			break;
+		if ((at = _dwarf_attr_find(die, DW_AT_abstract_origin)) ==
+		    NULL &&
+		    (at = _dwarf_attr_find(die, DW_AT_specification)) == NULL)
+			break;
+
 		switch (at->at_form) {
 		case DW_FORM_ref1:
 		case DW_FORM_ref2:
@@ -170,18 +173,25 @@ dwarf_attrval_unsigned(Dwarf_Die die, Dwarf_Half attr, Dwarf_Unsigned *valp, Dwa
 		case DW_FORM_ref8:
 		case DW_FORM_ref_udata:
 			val = at->u[0].u64;
-			if ((die1 = _dwarf_die_find(die, val)) == NULL ||
-			    (at = _dwarf_attr_find(die1, attr)) == NULL) {
-				if (die1 != NULL)
-					dwarf_dealloc(dbg, die1, DW_DLA_DIE);
+			first = (die1 == NULL);
+			die1 = _dwarf_die_find(die, val);
+			if (!first)
+				dwarf_dealloc(dbg, die, DW_DLA_DIE);
+			if (die1 == NULL) {
 				DWARF_SET_ERROR(dbg, err, DW_DLE_NO_ENTRY);
 				return (DW_DLV_NO_ENTRY);
 			}
+			die = die1;
 			break;
 		default:
 			DWARF_SET_ERROR(dbg, err, DW_DLE_ATTR_FORM_BAD);
 			return (DW_DLV_ERROR);
 		}
+	}
+
+	if (at == NULL) {
+		DWARF_SET_ERROR(dbg, err, DW_DLE_NO_ENTRY);
+		return (DW_DLV_NO_ENTRY);
 	}
 
 	switch (at->at_form) {
