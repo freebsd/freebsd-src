@@ -281,6 +281,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_EXTERNAL_ACTION,	/* arg1=id of external action handler */
 	O_EXTERNAL_INSTANCE,	/* arg1=id of eaction handler instance */
+	O_EXTERNAL_DATA,	/* variable length data */
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
