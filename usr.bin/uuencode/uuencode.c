@@ -160,7 +160,7 @@ base64_encode(void)
 		fprintf(output, "begin-base64 %o %s\n", mode, *av);
 	while ((n = fread(buf, 1, sizeof(buf), stdin))) {
 		++sequence;
-		rv = b64_ntop(buf, n, buf2, (sizeof(buf2) / sizeof(buf2[0])));
+		rv = b64_ntop(buf, n, buf2, nitems(buf2));
 		if (rv == -1)
 			errx(1, "b64_ntop: error encoding base64");
 		fprintf(output, "%s%s", buf2, (sequence % GROUPS) ? "" : "\n");

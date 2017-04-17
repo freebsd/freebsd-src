@@ -1259,8 +1259,8 @@ kernel_capsicate(void)
 	if (error != 0 && errno != ENOSYS)
 		log_err(1, "cap_rights_limit");
 
-	error = cap_ioctls_limit(ctl_fd, cmds,
-	    sizeof(cmds) / sizeof(cmds[0]));
+	error = cap_ioctls_limit(ctl_fd, cmds, nitems(cmds));
+
 	if (error != 0 && errno != ENOSYS)
 		log_err(1, "cap_ioctls_limit");
 

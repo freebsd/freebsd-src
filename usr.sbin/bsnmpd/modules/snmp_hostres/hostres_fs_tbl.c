@@ -143,7 +143,7 @@ static const struct {
 	{ "hpfs",	&OIDX_hrFSHPFS_c },
 	{ "smbfs",	&OIDX_hrFSOther_c },
 };
-#define	N_FS_TYPE_MAP	(sizeof(fs_type_map) / sizeof(fs_type_map[0]))
+#define	N_FS_TYPE_MAP	nitems(fs_type_map)
 
 /**
  * Create an entry into the FS table and an entry in the map (if needed).
