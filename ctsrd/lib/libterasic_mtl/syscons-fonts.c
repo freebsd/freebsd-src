@@ -49,7 +49,7 @@
 #define	DATASIZE(x)	((x).w * (x).h * 256 / 8)
 
 static char	*fontmap;
-const int	 font_width = 8;
+static const int font_width = 8;
 static int	 font_height;
 
 /*
