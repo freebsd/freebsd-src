@@ -221,7 +221,7 @@ procfile(const char *fn)
 			else
 				break;
 		}
-		if (ln.len > 0 && ln.dat[ln.len - 1] == '\n')
+		if (ln.len > 0 && ln.dat[ln.len - 1] == fileeol)
 			--ln.len;
 		ln.line_no++;
 
@@ -530,6 +530,6 @@ printline(struct str *line, int sep, regmatch_t *matches, int m)
 		}
 	} else {
 		fwrite(line->dat, line->len, 1, stdout);
-		putchar('\n');
+		putchar(fileeol);
 	}
 }
