@@ -97,16 +97,16 @@ namespace
 				}
 				if (found_size && found_address)
 				{
-					break;
+						break;
 				}
 			}
 			if (!found_address)
 			{
-				report_error("Missing #address-cells property");
+					report_error("Missing #address-cells property");
 			}
 			if (!found_size)
 			{
-				report_error("Missing #size-cells property");
+					report_error("Missing #size-cells property");
 			}
 			return found_address && found_size;
 		}
