@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd July 28, 2010
+.Dd April 17, 2017
 .Dt GREP 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Nm grep
 .Bk -words
-.Op Fl abcdDEFGHhIiJLlmnOopqRSsUVvwxZ
+.Op Fl abcdDEFGHhIiJLlmnOopqRSsUVvwxZz
 .Op Fl A Ar num
 .Op Fl B Ar num
 .Op Fl C Ns Op Ar num
@@ -378,7 +378,10 @@ expression are considered to be matching lines.
 Equivalent to
 .Fl i .
 Obsoleted.
-.It Fl Z , Fl z , Fl Fl decompress
+.It Fl z , Fl Fl null-data
+Treat input and output data as sequences of lines terminated by a
+zero-byte instead of a newline.
+.It Fl Z , Fl Fl decompress
 Force
 .Nm grep
 to behave as

@@ -116,6 +116,7 @@ extern bool	 dexclude, dinclude, fexclude, finclude, lbflag, nullflag;
 extern unsigned long long Aflag, Bflag;
 extern long long mcount;
 extern long long mlimit;
+extern char	 fileeol;
 extern char	*label;
 extern const char *color;
 extern int	 binbehave, devbehave, dirbehave, filebehave, grepbehave, linkbehave;
