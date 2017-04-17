@@ -348,7 +348,7 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
  * avoid a dependency on sys/pcpu.h in machine/atomic.h consumers.
  * An assertion in amd64/vm_machdep.c ensures that the value is correct.
  */
-#define	OFFSETOF_MONITORBUF	0x180
+#define	OFFSETOF_MONITORBUF	0x100
 
 #if defined(SMP)
 static __inline void

@@ -57,7 +57,7 @@ struct pvo_entry;
 	vm_offset_t	pc_qmap_addr;					\
 	struct pvo_entry *pc_qmap_pvo;					\
 	struct mtx	pc_qmap_lock;					\
-	/* char		__pad[0] */
+	char		__pad[128]
 
 #define PCPU_MD_AIM64_FIELDS						\
 	struct slb	pc_slb[64];					\
@@ -67,7 +67,7 @@ struct pvo_entry;
 	vm_offset_t	pc_qmap_addr;					\
 	struct pvo_entry *pc_qmap_pvo;					\
 	struct mtx	pc_qmap_lock;					\
-	char		__pad[1121 - sizeof(struct mtx)]
+	char		__pad[1345]
 
 #ifdef __powerpc64__
 #define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS
@@ -81,9 +81,9 @@ struct pvo_entry;
 #define	BOOKE_TLBSAVE_LEN	(BOOKE_TLB_SAVELEN * BOOKE_TLB_MAXNEST)
 
 #ifdef __powerpc64__
-#define	BOOKE_PCPU_PAD	773
+#define	BOOKE_PCPU_PAD	901
 #else
-#define	BOOKE_PCPU_PAD	173
+#define	BOOKE_PCPU_PAD	429
 #endif
 #define PCPU_MD_BOOKE_FIELDS						\
 	register_t	pc_booke_critsave[BOOKE_CRITSAVE_LEN];		\
