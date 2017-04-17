@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/rwlock.h>
 #include <sys/umtx.h>
+#include <sys/vmmeter.h>
 #include <sys/cpuset.h>
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>

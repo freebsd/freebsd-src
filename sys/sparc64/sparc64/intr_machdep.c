@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
+#include <sys/vmmeter.h>
 
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>

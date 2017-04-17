@@ -49,6 +49,7 @@
 #include <sys/sx.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+#include <sys/vmmeter.h>
 #include <machine/clock.h>
 #include <machine/intr_machdep.h>
 #include <machine/smp.h>

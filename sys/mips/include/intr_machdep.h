@@ -29,6 +29,7 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
+#include <sys/vmmeter.h>
 #include <machine/atomic.h>
 
 #if defined(CPU_RMI) || defined(CPU_NLM)

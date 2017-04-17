@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
 #include <sys/ucontext.h>
+#include <sys/vmmeter.h>
 
 #include <dev/ofw/openfirm.h>
 
