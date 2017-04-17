@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/i386/bpf_jit_machdep.h>
 
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *);
-
 /*
  * Emit routine to update the jump table.
  */
