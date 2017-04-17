@@ -102,7 +102,7 @@ struct stream_input_buffer : public dtc::input_buffer
 	stream_input_buffer();
 };
 
-mmap_input_buffer::mmap_input_buffer(int fd, std::string &&filename)
+mmap_input_buffer::mmap_input_buffer(int fd, string &&filename)
 	: input_buffer(0, 0), fn(filename)
 {
 	struct stat sb;
@@ -216,6 +216,7 @@ text_input_buffer::handle_include()
 		parse_error("Expected quoted filename");
 		return;
 	}
+	auto loc = location();
 	string file = parse_to('"');
 	consume('"');
 	if (!reallyInclude)
@@ -243,7 +244,7 @@ text_input_buffer::handle_include()
 	}
 	if (!include_buffer)
 	{
-		parse_error("Unable to locate input file");
+		loc.report_error("Unable to locate input file");
 		return;
 	}
 	input_stack.push(std::move(include_buffer));
@@ -1214,7 +1215,7 @@ input_buffer::buffer_for_file(const string &path, bool warn)
 		close(source);
 		return 0;
 	}
-	std::unique_ptr<input_buffer> b(new mmap_input_buffer(source, std::string(path)));
+	std::unique_ptr<input_buffer> b(new mmap_input_buffer(source, string(path)));
 	close(source);
 	return b;
 }

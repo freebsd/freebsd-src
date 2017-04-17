@@ -31,6 +31,7 @@
  */
 
 #include <string>
+#include <functional>
 #include <cstdio>
 #include <cstdlib>
 #include <ctype.h>
@@ -121,28 +122,28 @@ push_string(byte_buffer &buffer, const string &s, bool escapes)
 	}
 }
 
-std::string dirname(const string &s)
+namespace {
+string
+dirbasename(std::function<char*(char*)> fn, const string &s)
 {
 	if (s == string())
 	{
 		return string();
 	}
-	char *str = strdup(s.c_str());
-	string dn(::dirname(str));
-	free(str);
+	std::unique_ptr<char, decltype(free)*> str = {strdup(s.c_str()), free};
+	string dn(fn(str.get()));
 	return dn;
 }
+}
 
-std::string basename(const string &s)
+string dirname(const string &s)
 {
-	if (s == string())
-	{
-		return string();
-	}
-	char *str = strdup(s.c_str());
-	string bn(::basename(str));
-	free(str);
-	return bn;
+	return dirbasename(::dirname, s);
+}
+
+string basename(const string &s)
+{
+	return dirbasename(::basename, s);
 }
 } // namespace dtc
 
