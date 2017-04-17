@@ -394,7 +394,7 @@ acpi_print_madt(ACPI_SUBTABLE_HEADER *mp)
 	ACPI_MADT_LOCAL_X2APIC *x2apic;
 	ACPI_MADT_LOCAL_X2APIC_NMI *x2apic_nmi;
 
-	if (mp->Type < sizeof(apic_types) / sizeof(apic_types[0]))
+	if (mp->Type < nitems(apic_types))
 		printf("\tType=%s\n", apic_types[mp->Type]);
 	else
 		printf("\tType=%d (unknown)\n", mp->Type);
@@ -444,8 +444,7 @@ acpi_print_madt(ACPI_SUBTABLE_HEADER *mp)
 		break;
 	case ACPI_MADT_TYPE_INTERRUPT_SOURCE:
 		isrc = (ACPI_MADT_INTERRUPT_SOURCE *)mp;
-		if (isrc->Type < sizeof(platform_int_types) /
-		    sizeof(platform_int_types[0]))
+		if (isrc->Type < nitems(platform_int_types))
 			printf("\tType=%s\n", platform_int_types[isrc->Type]);
 		else
 			printf("\tType=%d (unknown)\n", isrc->Type);
@@ -1020,7 +1019,7 @@ acpi_print_srat(ACPI_SUBTABLE_HEADER *srat)
 	ACPI_SRAT_CPU_AFFINITY *cpu;
 	ACPI_SRAT_X2APIC_CPU_AFFINITY *x2apic;
 
-	if (srat->Type < sizeof(srat_types) / sizeof(srat_types[0]))
+	if (srat->Type < nitems(srat_types))
 		printf("\tType=%s\n", srat_types[srat->Type]);
 	else
 		printf("\tType=%d (unknown)\n", srat->Type);

@@ -288,17 +288,13 @@ retry_nlist:
 				namelist[X_SUM].n_name = "_cnt";
 				goto retry_nlist;
 			}
-			for (c = 0;
-			     c < (int)(sizeof(namelist)/sizeof(namelist[0]));
-			     c++)
+			for (c = 0; c < (int)(nitems(namelist)); c++)
 				if (namelist[c].n_type == 0)
 					bufsize += strlen(namelist[c].n_name) + 1;
 			bufsize += len + 1;
 			buf = bp = alloca(bufsize);
 
-			for (c = 0;
-			     c < (int)(sizeof(namelist)/sizeof(namelist[0]));
-			     c++)
+			for (c = 0; c < (int)(nitems(namelist)); c++)
 				if (namelist[c].n_type == 0) {
 					xo_error(" %s",
 					    namelist[c].n_name);
