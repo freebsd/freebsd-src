@@ -39,7 +39,7 @@
 	u_int	pc_acpi_id;	/* ACPI CPU id */		\
 	u_int	pc_midr;	/* stored MIDR value */	\
 	uint64_t pc_clock;						\
-	char __pad[113]
+	char __pad[241]
 
 #ifdef _KERNEL
 

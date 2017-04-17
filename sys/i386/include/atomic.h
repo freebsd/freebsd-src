@@ -45,7 +45,7 @@
  * avoid a dependency on sys/pcpu.h in machine/atomic.h consumers.
  * An assertion in i386/vm_machdep.c ensures that the value is correct.
  */
-#define	__OFFSETOF_MONITORBUF	0x180
+#define	__OFFSETOF_MONITORBUF	0x80
 
 static __inline void
 __mbk(void)

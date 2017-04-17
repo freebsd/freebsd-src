@@ -1156,7 +1156,7 @@ swi_sched(void *cookie, int flags)
 	ih->ih_need = 1;
 
 	if (!(flags & SWI_DELAY)) {
-		PCPU_INC(cnt.v_soft);
+		VM_CNT_INC(v_soft);
 #ifdef INTR_FILTER
 		error = intr_event_schedule_thread(ie, ie->ie_thread);
 #else
