@@ -211,6 +211,7 @@ userdisk_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	size_t		resid;
 	int		rc;
 
+	rw &= F_MASK;
 	if (rw == F_WRITE)
 		return (EROFS);
 	if (rw != F_READ)

@@ -819,7 +819,7 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 	if ((blk + nblks - 1) > blkio->Media->LastBlock)
 		return (EIO);
 
-	switch (rw) {
+	switch (rw & F_MASK) {
 	case F_READ:
 		status = blkio->ReadBlocks(blkio, blkio->Media->MediaId, blk,
 		    nblks * blkio->Media->BlockSize, buf);
