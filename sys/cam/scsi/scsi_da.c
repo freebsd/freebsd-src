@@ -4169,7 +4169,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 
-		biotrack(bp, __func__);
+		if (bp != NULL)
+			biotrack(bp, __func__);
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		if (LIST_EMPTY(&softc->pending_ccbs))
 			softc->flags |= DA_FLAG_WAS_OTAG;
