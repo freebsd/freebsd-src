@@ -321,6 +321,7 @@ SRCS_MIN+=	DebugInfo/CodeView/ModuleSubstreamVisitor.cpp
 SRCS_MIN+=	DebugInfo/CodeView/RecordSerialization.cpp
 SRCS_MIN+=	DebugInfo/CodeView/SymbolDumper.cpp
 SRCS_MIN+=	DebugInfo/CodeView/SymbolRecordMapping.cpp
+SRCS_EXT+=	DebugInfo/CodeView/SymbolSerializer.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeDatabase.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeDatabaseVisitor.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeDumpVisitor.cpp
@@ -354,6 +355,34 @@ SRCS_MIN+=	DebugInfo/MSF/MSFError.cpp
 SRCS_MIN+=	DebugInfo/MSF/MappedBlockStream.cpp
 SRCS_EXT+=	DebugInfo/PDB/GenericError.cpp
 SRCS_EXT+=	DebugInfo/PDB/IPDBSourceFile.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/DbiStream.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/DbiStreamBuilder.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/EnumTables.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/GSI.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/GlobalsStream.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/Hash.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/HashTable.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/InfoStream.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/InfoStreamBuilder.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/ModInfo.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/ModInfoBuilder.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/ModStream.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/NamedStreamMap.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/NativeCompilandSymbol.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/NativeEnumModules.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/NativeExeSymbol.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/NativeRawSymbol.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/NativeSession.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/PDBFile.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/PDBFileBuilder.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/PublicsStream.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/RawError.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/StringTable.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/StringTableBuilder.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/SymbolStream.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/TpiHashing.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/TpiStream.cpp
+SRCS_EXT+=	DebugInfo/PDB/Native/TpiStreamBuilder.cpp
 SRCS_EXT+=	DebugInfo/PDB/PDB.cpp
 SRCS_EXT+=	DebugInfo/PDB/PDBContext.cpp
 SRCS_EXT+=	DebugInfo/PDB/PDBExtras.cpp
@@ -391,28 +420,7 @@ SRCS_EXT+=	DebugInfo/PDB/PDBSymbolTypeVTable.cpp
 SRCS_EXT+=	DebugInfo/PDB/PDBSymbolTypeVTableShape.cpp
 SRCS_EXT+=	DebugInfo/PDB/PDBSymbolUnknown.cpp
 SRCS_EXT+=	DebugInfo/PDB/PDBSymbolUsingNamespace.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/DbiStream.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/DbiStreamBuilder.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/EnumTables.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/GSI.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/GlobalsStream.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/Hash.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/InfoStream.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/InfoStreamBuilder.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/ModInfo.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/ModStream.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/NameHashTable.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/NameMap.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/NameMapBuilder.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/PDBFile.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/PDBFileBuilder.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/PublicsStream.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/RawError.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/RawSession.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/SymbolStream.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/TpiHashing.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/TpiStream.cpp
-SRCS_EXT+=	DebugInfo/PDB/Raw/TpiStreamBuilder.cpp
+SRCS_EXT+=	DebugInfo/PDB/UDTLayout.cpp
 SRCS_EXT+=	DebugInfo/Symbolize/DIPrinter.cpp
 SRCS_MIW+=	DebugInfo/Symbolize/SymbolizableObjectFile.cpp
 SRCS_MIW+=	DebugInfo/Symbolize/Symbolize.cpp
@@ -431,6 +439,7 @@ SRCS_EXT+=	ExecutionEngine/Orc/OrcABISupport.cpp
 SRCS_EXT+=	ExecutionEngine/Orc/OrcCBindings.cpp
 SRCS_EXT+=	ExecutionEngine/Orc/OrcError.cpp
 SRCS_EXT+=	ExecutionEngine/Orc/OrcMCJITReplacement.cpp
+SRCS_EXT+=	ExecutionEngine/Orc/RPCUtils.cpp
 SRCS_XDB+=	ExecutionEngine/RuntimeDyld/JITSymbol.cpp
 SRCS_XDB+=	ExecutionEngine/RuntimeDyld/RTDyldMemoryManager.cpp
 SRCS_XDB+=	ExecutionEngine/RuntimeDyld/RuntimeDyld.cpp
@@ -1062,6 +1071,7 @@ SRCS_MIN+=	Transforms/Scalar/GuardWidening.cpp
 SRCS_MIN+=	Transforms/Scalar/IVUsersPrinter.cpp
 SRCS_MIN+=	Transforms/Scalar/IndVarSimplify.cpp
 SRCS_MIN+=	Transforms/Scalar/InductiveRangeCheckElimination.cpp
+SRCS_EXT+=	Transforms/Scalar/InferAddressSpaces.cpp
 SRCS_MIN+=	Transforms/Scalar/JumpThreading.cpp
 SRCS_MIN+=	Transforms/Scalar/LICM.cpp
 SRCS_MIN+=	Transforms/Scalar/LoadCombine.cpp
@@ -1164,6 +1174,7 @@ SRCS_MIN+=	Transforms/Vectorize/LoadStoreVectorizer.cpp
 SRCS_MIN+=	Transforms/Vectorize/LoopVectorize.cpp
 SRCS_MIN+=	Transforms/Vectorize/SLPVectorizer.cpp
 SRCS_EXT+=	Transforms/Vectorize/Vectorize.cpp
+SRCS_EXT+=	XRay/InstrumentationMap.cpp
 
 SRCS_ALL+=	${SRCS_MIN}
 .if !defined(TOOLS_PREFIX) || ${MK_LLD_IS_LD} != "no"
@@ -1194,25 +1205,25 @@ SRCS+=		${SRCS_ALL:O}
 
 llvm/IR/Attributes.gen: ${LLVM_SRCS}/include/llvm/IR/Attributes.td
 	${LLVM_TBLGEN} -gen-attrs \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
 	    ${LLVM_SRCS}/include/llvm/IR/Attributes.td
 TGHDRS+=	llvm/IR/Attributes.gen
 
 llvm/IR/Intrinsics.gen: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 	${LLVM_TBLGEN} -gen-intrinsic \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
 	    ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 TGHDRS+=	llvm/IR/Intrinsics.gen
 
 AttributesCompatFunc.inc: ${LLVM_SRCS}/lib/IR/AttributesCompatFunc.td
 	${LLVM_TBLGEN} -gen-attrs \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
 	    ${LLVM_SRCS}/lib/IR/AttributesCompatFunc.td
 TGHDRS+=	AttributesCompatFunc.inc
 
 Options.inc: ${LLVM_SRCS}/lib/LibDriver/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
 	    ${LLVM_SRCS}/lib/LibDriver/Options.td
 TGHDRS+=	Options.inc
 
@@ -1239,7 +1250,7 @@ TGHDRS+=	Options.inc
 ${arch:T}Gen${hdr:H}.inc: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
 	${LLVM_TBLGEN} ${hdr:T:C/,/ /g} \
 	    -I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target/${arch:H} \
-	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    -d ${.TARGET}.d -o ${.TARGET} \
 	    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
 . endfor
 .endfor
