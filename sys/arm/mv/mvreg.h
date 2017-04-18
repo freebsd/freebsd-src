@@ -447,4 +447,9 @@
 #define	CPU_RESET_ASSERT	0x1
 #endif
 
+#if defined(SOC_MV_ARMADA38X)
+#define	MV_MBUS_CTRL_BASE	(MV_BASE + 0x20420)
+#define	MV_MBUS_CTRL_REGS_LEN	0x10
+#endif
+
 #endif /* _MVREG_H_ */
