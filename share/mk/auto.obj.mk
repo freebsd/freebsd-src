@@ -42,6 +42,10 @@ MKOBJDIRS= auto
 # Use __objdir here so it is easier to tweak without impacting
 # the logic.
 .if !empty(MAKEOBJDIRPREFIX)
+.if ${.CURDIR:M${MAKEOBJDIRPREFIX}/*} != ""
+# we are already in obj tree!
+__objdir?= ${.CURDIR}
+.endif
 __objdir?= ${MAKEOBJDIRPREFIX}${.CURDIR}
 .endif
 __objdir?= ${MAKEOBJDIR:Uobj}
