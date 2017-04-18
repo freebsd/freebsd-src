@@ -75,6 +75,9 @@ device		cesa
 device		crypto
 device		cryptodev
 
+# L2 Cache
+device		pl310
+
 #FDT
 options 	FDT
 options 	FDT_DTB_STATIC
