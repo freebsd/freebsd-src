@@ -275,8 +275,13 @@ static int
 stor_ioctl(struct open_file *f, u_long cmd, void *data)
 {
 	struct disk_devdesc *dev;
+	int rc;
 
 	dev = (struct disk_devdesc *)f->f_devdata;
+	rc = disk_ioctl(dev, cmd, data);
+	if (rc != ENOTTY)
+		return (rc);
+
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
 		*(u_int *)data = SI(dev).bsize;
