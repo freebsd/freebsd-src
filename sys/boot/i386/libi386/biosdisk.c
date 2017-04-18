@@ -618,7 +618,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	DEBUG("short read %d", blks);
     }
 
-    switch(rw){
+    switch (rw & F_MASK) {
     case F_READ:
 	DEBUG("read %d from %lld to %p", blks, dblk, buf);
 
