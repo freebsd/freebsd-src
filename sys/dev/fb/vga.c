@@ -939,7 +939,7 @@ probe_adapters(void)
 #if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
     u_char *mp;
 #endif
-    int i;
+    int height, i, width;
 
     /* do this test only once */
     if (vga_init_done)
@@ -1134,15 +1134,34 @@ probe_adapters(void)
 		case COMP_DIFFERENT:
 		default:
 		    /*
-		     * Don't use the parameter table in BIOS. It doesn't
-		     * look familiar to us. Video mode switching is allowed
-		     * only if the new mode is the same as or based on
-		     * the initial mode. 
+		     * Don't use the parameter table in the BIOS, since
+		     * even the BIOS doesn't use it for the initial mode.
+		     * Restrict the tweaked modes to (in practice) 80x50
+		     * from 80x25 with 400 scan lines, since the only safe
+		     * tweak is changing the characters from 8x16 to 8x8.
 		     */
 		    video_mode_ptr = NULL;
 		    bzero(mode_map, sizeof(mode_map));
 		    mode_map[adp->va_initial_mode] = adpstate.regs;
 		    rows_offset = 1;
+
+		    width = height = -1;
+		    for (i = 0; i < nitems(bios_vmode); ++i) {
+			if (bios_vmode[i].vi_mode == adp->va_initial_mode) {
+			    width = bios_vmode[i].vi_width;
+			    height = bios_vmode[i].vi_height;
+			    break;
+			}
+		    }
+		    for (i = 0; i < nitems(bios_vmode); ++i) {
+			if (bios_vmode[i].vi_mode != adp->va_initial_mode &&
+			    map_mode_num(bios_vmode[i].vi_mode) ==
+			     adp->va_initial_mode &&
+			    (bios_vmode[i].vi_width != width ||
+			     bios_vmode[i].vi_height != 2 * height)) {
+			    bios_vmode[i].vi_mode = NA;
+			}
+		    }
 		    break;
 		}
 	    }
