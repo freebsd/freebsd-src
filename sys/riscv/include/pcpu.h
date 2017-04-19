@@ -46,7 +46,7 @@
 
 #define	PCPU_MD_FIELDS							\
 	uint32_t pc_pending_ipis;	/* IPIs pending to this CPU */	\
-	char __pad[125]
+	char __pad[61]
 
 #ifdef _KERNEL
 
