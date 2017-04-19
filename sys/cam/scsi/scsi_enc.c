@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
@@ -897,6 +898,7 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	struct ccb_getdev *cgd;
 	char *tname;
 	struct make_dev_args args;
+	struct sbuf sb;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -1026,7 +1028,12 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		tname = "SEMB SAF-TE Device";
 		break;
 	}
-	xpt_announce_periph(periph, tname);
+
+	sbuf_new(&sb, enc->announce_buf, ENC_ANNOUNCE_SZ, SBUF_FIXEDLEN);
+	xpt_announce_periph_sbuf(periph, &sb, tname);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
+
 	status = CAM_REQ_CMP;
 
 out:

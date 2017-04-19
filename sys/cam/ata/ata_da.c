@@ -256,6 +256,10 @@ struct ada_softc {
 	u_int	errors;
 	u_int	invalidations;
 #endif
+#define ADA_ANNOUNCETMP_SZ 80
+	char	announce_temp[ADA_ANNOUNCETMP_SZ];
+#define ADA_ANNOUNCE_SZ 400
+	char	announce_buffer[ADA_ANNOUNCE_SZ];
 };
 
 struct ada_quirk_entry {
@@ -1659,8 +1663,9 @@ adaregister(struct cam_periph *periph, void *arg)
 	struct ada_softc *softc;
 	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
-	char   announce_buf[80];
 	struct disk_params *dp;
+	struct sbuf sb;
+	char   *announce_buf;
 	caddr_t match;
 	u_int maxio;
 	int quirks;
@@ -1679,6 +1684,9 @@ adaregister(struct cam_periph *periph, void *arg)
 		    "Unable to allocate softc\n");
 		return(CAM_REQ_CMP_ERR);
 	}
+
+	announce_buf = softc->announce_temp;
+	bzero(announce_buf, ADA_ANNOUNCETMP_SZ);
 
 	if (cam_iosched_init(&softc->cam_iosched, periph) != 0) {
 		printf("adaregister: Unable to probe new device. "
@@ -1713,17 +1721,17 @@ adaregister(struct cam_periph *periph, void *arg)
 	 */
 	(void)cam_periph_hold(periph, PRIBIO);
 	cam_periph_unlock(periph);
-	snprintf(announce_buf, sizeof(announce_buf),
+	snprintf(announce_buf, ADA_ANNOUNCETMP_SZ,
 	    "kern.cam.ada.%d.quirks", periph->unit_number);
 	quirks = softc->quirks;
 	TUNABLE_INT_FETCH(announce_buf, &quirks);
 	softc->quirks = quirks;
 	softc->read_ahead = -1;
-	snprintf(announce_buf, sizeof(announce_buf),
+	snprintf(announce_buf, ADA_ANNOUNCETMP_SZ,
 	    "kern.cam.ada.%d.read_ahead", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->read_ahead);
 	softc->write_cache = -1;
-	snprintf(announce_buf, sizeof(announce_buf),
+	snprintf(announce_buf, ADA_ANNOUNCETMP_SZ,
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
 
@@ -1829,12 +1837,16 @@ adaregister(struct cam_periph *periph, void *arg)
 	cam_periph_lock(periph);
 
 	dp = &softc->params;
-	snprintf(announce_buf, sizeof(announce_buf),
+	snprintf(announce_buf, ADA_ANNOUNCETMP_SZ,
 	    "%juMB (%ju %u byte sectors)",
 	    ((uintmax_t)dp->secsize * dp->sectors) / (1024 * 1024),
 	    (uintmax_t)dp->sectors, dp->secsize);
-	xpt_announce_periph(periph, announce_buf);
-	xpt_announce_quirks(periph, softc->quirks, ADA_Q_BIT_STRING);
+
+	sbuf_new(&sb, softc->announce_buffer, ADA_ANNOUNCE_SZ, SBUF_FIXEDLEN);
+	xpt_announce_periph_sbuf(periph, &sb, announce_buf);
+	xpt_announce_quirks_sbuf(periph, &sb, softc->quirks, ADA_Q_BIT_STRING);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
 
 	/*
 	 * Create our sysctl variables, now that we know

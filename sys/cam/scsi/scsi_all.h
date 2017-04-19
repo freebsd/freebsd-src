@@ -3820,7 +3820,11 @@ char *		scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string,
 void		scsi_cdb_sbuf(u_int8_t *cdb_ptr, struct sbuf *sb);
 
 void		scsi_print_inquiry(struct scsi_inquiry_data *inq_data);
+void		scsi_print_inquiry_sbuf(struct sbuf *sb,
+				        struct scsi_inquiry_data *inq_data);
 void		scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data);
+void		scsi_print_inquiry_short_sbuf(struct sbuf *sb,
+					      struct scsi_inquiry_data *inq_data);
 
 u_int		scsi_calc_syncsrate(u_int period_factor);
 u_int		scsi_calc_syncparam(u_int period);
