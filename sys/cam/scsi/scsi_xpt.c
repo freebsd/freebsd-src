@@ -589,15 +589,22 @@ static void	 scsi_dev_async(u_int32_t async_code,
 				void *async_arg);
 static void	 scsi_action(union ccb *start_ccb);
 static void	 scsi_announce_periph(struct cam_periph *periph);
+static void	 scsi_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb);
 static void	 scsi_proto_announce(struct cam_ed *device);
+static void	 scsi_proto_announce_sbuf(struct cam_ed *device,
+					  struct sbuf *sb);
 static void	 scsi_proto_denounce(struct cam_ed *device);
+static void	 scsi_proto_denounce_sbuf(struct cam_ed *device,
+					  struct sbuf *sb);
 static void	 scsi_proto_debug_out(union ccb *ccb);
+static void	 _scsi_announce_periph(struct cam_periph *, u_int *, u_int *, struct ccb_trans_settings *);
 
 static struct xpt_xport_ops scsi_xport_ops = {
 	.alloc_device = scsi_alloc_device,
 	.action = scsi_action,
 	.async = scsi_dev_async,
 	.announce = scsi_announce_periph,
+	.announce_sbuf = scsi_announce_periph_sbuf,
 };
 #define SCSI_XPT_XPORT(x, X)			\
 static struct xpt_xport scsi_xport_ ## x = {	\
@@ -619,7 +626,9 @@ SCSI_XPT_XPORT(ppb, PPB);
 
 static struct xpt_proto_ops scsi_proto_ops = {
 	.announce = scsi_proto_announce,
+	.announce_sbuf = scsi_proto_announce_sbuf,
 	.denounce = scsi_proto_denounce,
+	.denounce_sbuf = scsi_proto_denounce_sbuf,
 	.debug_out = scsi_proto_debug_out,
 };
 static struct xpt_proto scsi_proto = {
@@ -3019,56 +3028,123 @@ scsi_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 }
 
 static void
-scsi_announce_periph(struct cam_periph *periph)
+_scsi_announce_periph(struct cam_periph *periph, u_int *speed, u_int *freq, struct ccb_trans_settings *cts)
 {
 	struct	ccb_pathinq cpi;
-	struct	ccb_trans_settings cts;
 	struct	cam_path *path = periph->path;
-	u_int	speed;
-	u_int	freq;
-	u_int	mb;
 
 	cam_periph_assert(periph, MA_OWNED);
 
-	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
-	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
-	cts.type = CTS_TYPE_CURRENT_SETTINGS;
-	xpt_action((union ccb*)&cts);
-	if (cam_ccb_status((union ccb *)&cts) != CAM_REQ_CMP)
+	xpt_setup_ccb(&cts->ccb_h, path, CAM_PRIORITY_NORMAL);
+	cts->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	cts->type = CTS_TYPE_CURRENT_SETTINGS;
+	xpt_action((union ccb*)cts);
+	if (cam_ccb_status((union ccb *)cts) != CAM_REQ_CMP)
 		return;
+	
 	/* Ask the SIM for its base transfer speed */
 	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
+
 	/* Report connection speed */ 
-	speed = cpi.base_transfer_speed;
-	freq = 0;
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SPI) {
+	*speed = cpi.base_transfer_speed;
+	*freq = 0;
+
+	if (cts->ccb_h.status == CAM_REQ_CMP && cts->transport == XPORT_SPI) {
 		struct	ccb_trans_settings_spi *spi =
-		    &cts.xport_specific.spi;
+		    &cts->xport_specific.spi;
 
 		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0
 		  && spi->sync_offset != 0) {
-			freq = scsi_calc_syncsrate(spi->sync_period);
-			speed = freq;
+			*freq = scsi_calc_syncsrate(spi->sync_period);
+			*speed = *freq;
 		}
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
-			speed *= (0x01 << spi->bus_width);
+			*speed *= (0x01 << spi->bus_width);
 	}
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_FC) {
+	if (cts->ccb_h.status == CAM_REQ_CMP && cts->transport == XPORT_FC) {
 		struct	ccb_trans_settings_fc *fc =
-		    &cts.xport_specific.fc;
+		    &cts->xport_specific.fc;
 
 		if (fc->valid & CTS_FC_VALID_SPEED)
-			speed = fc->bitrate;
+			*speed = fc->bitrate;
 	}
-	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SAS) {
+	if (cts->ccb_h.status == CAM_REQ_CMP && cts->transport == XPORT_SAS) {
 		struct	ccb_trans_settings_sas *sas =
-		    &cts.xport_specific.sas;
+		    &cts->xport_specific.sas;
 
 		if (sas->valid & CTS_SAS_VALID_SPEED)
-			speed = sas->bitrate;
+			*speed = sas->bitrate;
 	}
+}
+
+static void
+scsi_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
+{
+	struct	ccb_trans_settings cts;
+	u_int speed, freq, mb;
+
+	_scsi_announce_periph(periph, &speed, &freq, &cts);
+	if (cam_ccb_status((union ccb *)&cts) != CAM_REQ_CMP)
+		return;
+
+	mb = speed / 1000;
+	if (mb > 0)
+		sbuf_printf(sb, "%s%d: %d.%03dMB/s transfers",
+		       periph->periph_name, periph->unit_number,
+		       mb, speed % 1000);
+	else
+		sbuf_printf(sb, "%s%d: %dKB/s transfers", periph->periph_name,
+		       periph->unit_number, speed);
+	/* Report additional information about SPI connections */
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SPI) {
+		struct	ccb_trans_settings_spi *spi;
+
+		spi = &cts.xport_specific.spi;
+		if (freq != 0) {
+			sbuf_printf(sb, " (%d.%03dMHz%s, offset %d", freq / 1000,
+			       freq % 1000,
+			       (spi->ppr_options & MSG_EXT_PPR_DT_REQ) != 0
+			     ? " DT" : "",
+			       spi->sync_offset);
+		}
+		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0
+		 && spi->bus_width > 0) {
+			if (freq != 0) {
+				sbuf_printf(sb, ", ");
+			} else {
+				sbuf_printf(sb, " (");
+			}
+			sbuf_printf(sb, "%dbit)", 8 * (0x01 << spi->bus_width));
+		} else if (freq != 0) {
+			sbuf_printf(sb, ")");
+		}
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_FC) {
+		struct	ccb_trans_settings_fc *fc;
+
+		fc = &cts.xport_specific.fc;
+		if (fc->valid & CTS_FC_VALID_WWNN)
+			sbuf_printf(sb, " WWNN 0x%llx", (long long) fc->wwnn);
+		if (fc->valid & CTS_FC_VALID_WWPN)
+			sbuf_printf(sb, " WWPN 0x%llx", (long long) fc->wwpn);
+		if (fc->valid & CTS_FC_VALID_PORT)
+			sbuf_printf(sb, " PortID 0x%x", fc->port);
+	}
+	sbuf_printf(sb, "\n");
+}
+
+static void
+scsi_announce_periph(struct cam_periph *periph)
+{
+	struct	ccb_trans_settings cts;
+	u_int speed, freq, mb;
+
+	_scsi_announce_periph(periph, &speed, &freq, &cts);
+	if (cam_ccb_status((union ccb *)&cts) != CAM_REQ_CMP)
+		return;
+
 	mb = speed / 1000;
 	if (mb > 0)
 		printf("%s%d: %d.%03dMB/s transfers",
@@ -3116,9 +3192,21 @@ scsi_announce_periph(struct cam_periph *periph)
 }
 
 static void
+scsi_proto_announce_sbuf(struct cam_ed *device, struct sbuf *sb)
+{
+	scsi_print_inquiry_sbuf(sb, &device->inq_data);
+}
+
+static void
 scsi_proto_announce(struct cam_ed *device)
 {
 	scsi_print_inquiry(&device->inq_data);
+}
+
+static void
+scsi_proto_denounce_sbuf(struct cam_ed *device, struct sbuf *sb)
+{
+	scsi_print_inquiry_short_sbuf(sb, &device->inq_data);
 }
 
 static void

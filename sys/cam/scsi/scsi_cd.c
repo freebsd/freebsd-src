@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cdrio.h>
 #include <sys/dvdio.h>
 #include <sys/devicestat.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <geom/geom_disk.h>
@@ -158,6 +159,11 @@ struct cd_softc {
 	struct cd_tocdata	toc;
 	struct disk		*disk;
 	struct callout		mediapoll_c;
+
+#define CD_ANNOUNCETMP_SZ 120
+	char			announce_temp[CD_ANNOUNCETMP_SZ];
+#define CD_ANNOUNCE_SZ 400
+	char			announce_buf[CD_ANNOUNCE_SZ];
 };
 
 struct cd_page_sizes {
@@ -1046,28 +1052,12 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 	case CD_CCB_PROBE:
 	{
 		struct	   scsi_read_capacity_data *rdcap;
-		char	   announce_buf[120]; /*
-					       * Currently (9/30/97) the 
-					       * longest possible announce 
-					       * buffer is 108 bytes, for the 
-					       * first error case below.  
-					       * That is 39 bytes for the 
-					       * basic string, 16 bytes for the
-					       * biggest sense key (hardware 
-					       * error), 52 bytes for the
-					       * text of the largest sense 
-					       * qualifier valid for a CDROM,
-					       * (0x72, 0x03 or 0x04,
-					       * 0x03), and one byte for the
-					       * null terminating character.
-					       * To allow for longer strings, 
-					       * the announce buffer is 120
-					       * bytes.
-					       */
+		char	   *announce_buf;
 		struct	   cd_params *cdp;
 		int error;
 
 		cdp = &softc->params;
+		announce_buf = softc->announce_temp;
 
 		rdcap = (struct scsi_read_capacity_data *)csio->data_ptr;
 		
@@ -1081,7 +1071,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP ||
 		    (error = cderror(done_ccb, CAM_RETRY_SELTO,
 				SF_RETRY_UA | SF_NO_PRINT)) == 0) {
-			snprintf(announce_buf, sizeof(announce_buf),
+			snprintf(announce_buf, CD_ANNOUNCETMP_SZ,
 			    "%juMB (%ju %u byte sectors)",
 			    ((uintmax_t)cdp->disksize * cdp->blksize) /
 			     (1024 * 1024),
@@ -1186,22 +1176,29 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 					 */
 					cam_periph_invalidate(periph);
 
-					announce_buf[0] = '\0';
+					announce_buf = NULL;
 				} else {
 
 					/*
 					 * Invalidate this peripheral.
 					 */
 					cam_periph_invalidate(periph);
-					announce_buf[0] = '\0';
+					announce_buf = NULL;
 				}
 			}
 		}
 		free(rdcap, M_SCSICD);
-		if (announce_buf[0] != '\0') {
-			xpt_announce_periph(periph, announce_buf);
-			xpt_announce_quirks(periph, softc->quirks,
+		if (announce_buf != NULL) {
+			struct sbuf sb;
+
+			sbuf_new(&sb, softc->announce_buf, CD_ANNOUNCE_SZ,
+			    SBUF_FIXEDLEN);
+			xpt_announce_periph_sbuf(periph, &sb, announce_buf);
+			xpt_announce_quirks_sbuf(periph, &sb, softc->quirks,
 			    CD_Q_BIT_STRING);
+			sbuf_finish(&sb);
+			sbuf_putbuf(&sb);
+
 			/*
 			 * Create our sysctl variables, now that we know
 			 * we have successfully attached.
