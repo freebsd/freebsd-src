@@ -6,6 +6,4 @@ PROG=	sysctl
 WARNS?=	3
 MAN=	sysctl.8
 
-WANT_DUMP=	yes
-
 .include <bsd.prog.mk>

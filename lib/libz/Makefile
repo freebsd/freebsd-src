@@ -6,7 +6,6 @@ PACKAGE=lib${LIB}
 LIB=		z
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6
-WANT_DUMP=	yes
 MAN=		zlib.3 zopen.3
 
 ZLIBSRC=	${SRCTOP}/contrib/zlib

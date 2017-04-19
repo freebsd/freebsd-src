@@ -17,6 +17,5 @@ CFLAGS+=-I${MOUNT}
 .PATH:	${MOUNT}
 
 NO_SHARED?=	YES
-WANT_DUMP=	YES
 
 .include <bsd.prog.mk>
