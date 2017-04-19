@@ -1528,43 +1528,32 @@ vtterm_opened(struct terminal *tm, int opened)
 	VT_UNLOCK(vd);
 }
 
-static int
+static void
 vt_set_border(struct vt_window *vw, term_color_t c)
 {
 	struct vt_device *vd = vw->vw_device;
-
-	if (vd->vd_driver->vd_drawrect == NULL)
-		return (ENOTSUP);
+	term_rect_t *vda = &vw->vw_draw_area;
+	int x, y;
 
 	/* Top bar. */
-	if (vw->vw_draw_area.tr_begin.tp_row > 0)
-		vd->vd_driver->vd_drawrect(vd,
-		    0, 0,
-		    vd->vd_width - 1, vw->vw_draw_area.tr_begin.tp_row - 1,
-		    1, c);
+	for (y = 0; y < vda->tr_begin.tp_row; y++)
+		for (x = 0; x < vd->vd_width; x++)
+			vd->vd_driver->vd_setpixel(vd, x, y, c);
 
-	/* Left bar. */
-	if (vw->vw_draw_area.tr_begin.tp_col > 0)
-		vd->vd_driver->vd_drawrect(vd,
-		    0, 0,
-		    vw->vw_draw_area.tr_begin.tp_col - 1, vd->vd_height - 1,
-		    1, c);
+	for (y = vda->tr_begin.tp_row; y <= vda->tr_end.tp_row; y++) {
+		/* Left bar. */
+		for (x = 0; x < vda->tr_begin.tp_col; x++)
+			vd->vd_driver->vd_setpixel(vd, x, y, c);
 
-	/* Right bar. */
-	if (vw->vw_draw_area.tr_end.tp_col < vd->vd_width)
-		vd->vd_driver->vd_drawrect(vd,
-		    vw->vw_draw_area.tr_end.tp_col - 1, 0,
-		    vd->vd_width - 1, vd->vd_height - 1,
-		    1, c);
+		/* Right bar. */
+		for (x = vda->tr_end.tp_col + 1; x < vd->vd_width; x++)
+			vd->vd_driver->vd_setpixel(vd, x, y, c);
+	}
 
 	/* Bottom bar. */
-	if (vw->vw_draw_area.tr_end.tp_row < vd->vd_height)
-		vd->vd_driver->vd_drawrect(vd,
-		    0, vw->vw_draw_area.tr_end.tp_row - 1,
-		    vd->vd_width - 1, vd->vd_height - 1,
-		    1, c);
-
-	return (0);
+	for (y = vda->tr_end.tp_row + 1; y < vd->vd_height; y++)
+		for (x = 0; x < vd->vd_width; x++)
+			vd->vd_driver->vd_setpixel(vd, x, y, c);
 }
 
 static int
