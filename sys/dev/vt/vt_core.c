@@ -1149,6 +1149,34 @@ vt_mark_mouse_position_as_dirty(struct vt_device *vd)
 }
 #endif
 
+static void
+vt_set_border(struct vt_window *vw, term_color_t c)
+{
+	struct vt_device *vd = vw->vw_device;
+	term_rect_t *vda = &vw->vw_draw_area;
+	int x, y;
+
+	/* Top bar. */
+	for (y = 0; y < vda->tr_begin.tp_row; y++)
+		for (x = 0; x < vd->vd_width; x++)
+			vd->vd_driver->vd_setpixel(vd, x, y, c);
+
+	for (y = vda->tr_begin.tp_row; y <= vda->tr_end.tp_row; y++) {
+		/* Left bar. */
+		for (x = 0; x < vda->tr_begin.tp_col; x++)
+			vd->vd_driver->vd_setpixel(vd, x, y, c);
+
+		/* Right bar. */
+		for (x = vda->tr_end.tp_col + 1; x < vd->vd_width; x++)
+			vd->vd_driver->vd_setpixel(vd, x, y, c);
+	}
+
+	/* Bottom bar. */
+	for (y = vda->tr_end.tp_row + 1; y < vd->vd_height; y++)
+		for (x = 0; x < vd->vd_width; x++)
+			vd->vd_driver->vd_setpixel(vd, x, y, c);
+}
+
 static int
 vt_flush(struct vt_device *vd)
 {
@@ -1214,6 +1242,7 @@ vt_flush(struct vt_device *vd)
 	if (vd->vd_flags & VDF_INVALID) {
 		vd->vd_flags &= ~VDF_INVALID;
 
+		vt_set_border(vw, TC_BLACK);
 		vt_termrect(vd, vf, &tarea);
 		if (vt_draw_logo_cpus)
 			vtterm_draw_cpu_logos(vd);
@@ -1528,34 +1557,6 @@ vtterm_opened(struct terminal *tm, int opened)
 	VT_UNLOCK(vd);
 }
 
-static void
-vt_set_border(struct vt_window *vw, term_color_t c)
-{
-	struct vt_device *vd = vw->vw_device;
-	term_rect_t *vda = &vw->vw_draw_area;
-	int x, y;
-
-	/* Top bar. */
-	for (y = 0; y < vda->tr_begin.tp_row; y++)
-		for (x = 0; x < vd->vd_width; x++)
-			vd->vd_driver->vd_setpixel(vd, x, y, c);
-
-	for (y = vda->tr_begin.tp_row; y <= vda->tr_end.tp_row; y++) {
-		/* Left bar. */
-		for (x = 0; x < vda->tr_begin.tp_col; x++)
-			vd->vd_driver->vd_setpixel(vd, x, y, c);
-
-		/* Right bar. */
-		for (x = vda->tr_end.tp_col + 1; x < vd->vd_width; x++)
-			vd->vd_driver->vd_setpixel(vd, x, y, c);
-	}
-
-	/* Bottom bar. */
-	for (y = vda->tr_end.tp_row + 1; y < vd->vd_height; y++)
-		for (x = 0; x < vd->vd_width; x++)
-			vd->vd_driver->vd_setpixel(vd, x, y, c);
-}
-
 static int
 vt_change_font(struct vt_window *vw, struct vt_font *vf)
 {
@@ -1621,7 +1622,6 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw) {
-		vt_set_border(vw, TC_BLACK);
 		vd->vd_flags |= VDF_INVALID;
 		vt_resume_flush_timer(vw->vw_device, 0);
 	}
