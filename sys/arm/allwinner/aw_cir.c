@@ -419,7 +419,7 @@ aw_ir_attach(device_t dev)
 	}
 
 	/* De-assert reset */
-	if (hwreset_get_by_ofw_name(dev, 0, "apb", &rst_apb) == 0) {
+	if (hwreset_get_by_ofw_idx(dev, 0, 0, &rst_apb) == 0) {
 		err = hwreset_deassert(rst_apb);
 		if (err != 0) {
 			device_printf(dev, "cannot de-assert reset\n");
