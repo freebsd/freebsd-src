@@ -115,7 +115,6 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 	lc->lro_bad_csum = 0;
 	lc->lro_queued = 0;
 	lc->lro_flushed = 0;
-	lc->lro_cnt = 0;
 	lc->lro_mbuf_count = 0;
 	lc->lro_mbuf_max = lro_mbufs;
 	lc->lro_cnt = lro_entries;
