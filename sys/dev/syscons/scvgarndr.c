@@ -238,12 +238,6 @@ static uint16_t vga_palette15[16] = {
 	0x0000, 0x0016, 0x02c0, 0x02d6, 0x5800, 0x5816, 0x5940, 0x5ad6,
 	0x294a, 0x295f, 0x2bea, 0x2bff, 0x7d4a, 0x7d5f, 0x7fea, 0x7fff
 };
-
-#ifndef SC_NO_CUTPASTE
-static uint32_t mouse_buf32[256];
-static uint16_t mouse_buf16[256];
-static uint8_t  mouse_buf8[256];
-#endif
 #endif
 
 static void
@@ -1132,8 +1126,6 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	vm_offset_t p;
 	int line_width, pixel_size;
 	int xend, yend;
-	static int x_old = 0, xend_old = 0;
-	static int y_old = 0, yend_old = 0;
 	int i, j;
 	uint32_t *u32;
 	uint16_t *u16;
@@ -1163,39 +1155,12 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	if (on)
 		goto do_on;
 
-	/*
-	 * Repaint overlap with the border and nearby.  Unlike in the planar
-	 * case, we kept track of everything under the cursor so can restore
-	 * it all, but we don't completely trust the saved state to be still
-	 * relevant, so do nothing if it is obviously stale.
-	 */
-	if (x != x_old || y != y_old || xend != xend_old || yend != yend_old)
-		return;
+	/* Repaint overlap with the border (mess up the corner a little). */
+	p = scp->sc->adp->va_window + y * line_width + x * pixel_size;
+	for (i = 0; i < yend - y; i++, p += line_width)
+		for (j = xend - x - 1; j >= 0; j--)
+			DRAW_PIXEL(scp, p + j * pixel_size, scp->border);
 
-	p = scp->sc->adp->va_window + y_old * line_width + x_old * pixel_size;
-
-	for (i = 0; i < (yend_old - y_old); i++) {
-		for (j = (xend_old - x_old - 1); j >= 0; j--) {
-			switch (bpp) {
-			case 32:
-				u32 = (uint32_t*)(p + j * pixel_size);
-				writel(u32, mouse_buf32[i * 16 + j]);
-				break;
-			case 16:
-				/* FALLTHROUGH */
-			case 15:
-				u16 = (uint16_t*)(p + j * pixel_size);
-				writew(u16, mouse_buf16[i * 16 + j]);
-				break;
-			case 8:
-				u8 = (uint8_t*)(p + j * pixel_size);
-				writeb(u8, mouse_buf8[i * 16 + j]);
-				break;
-			}
-		}
-
-		p += line_width;
-	}
 	return;
 
 do_on:
@@ -1206,7 +1171,6 @@ do_on:
 			switch (bpp) {
 			case 32:
 				u32 = (uint32_t*)(p + j * pixel_size);
-				mouse_buf32[i * 16 + j] = *u32;
 				if (mdp->md_interior[i] & (1 << (15 - j)))
 					writel(u32, vga_palette32[15]);
 				else if (mdp->md_border[i] & (1 << (15 - j)))
@@ -1214,7 +1178,6 @@ do_on:
 				break;
 			case 16:
 				u16 = (uint16_t*)(p + j * pixel_size);
-				mouse_buf16[i * 16 + j] = *u16;
 				if (mdp->md_interior[i] & (1 << (15 - j)))
 					writew(u16, vga_palette16[15]);
 				else if (mdp->md_border[i] & (1 << (15 - j)))
@@ -1222,7 +1185,6 @@ do_on:
 				break;
 			case 15:
 				u16 = (uint16_t*)(p  + j * pixel_size);
-				mouse_buf16[i * 16 + j] = *u16;
 				if (mdp->md_interior[i] & (1 << (15 - j)))
 					writew(u16, vga_palette15[15]);
 				else if (mdp->md_border[i] & (1 << (15 - j)))
@@ -1230,7 +1192,6 @@ do_on:
 				break;
 			case 8:
 				u8 = (uint8_t*)(p + j * pixel_size);
-				mouse_buf8[i * 16 + j] = *u8;
 				if (mdp->md_interior[i] & (1 << (15 - j)))
 					writeb(u8, 15);
 				else if (mdp->md_border[i] & (1 << (15 - j)))
@@ -1241,11 +1202,6 @@ do_on:
 
 		p += line_width;
 	}
-
-	x_old = x;
-	y_old = y;
-	xend_old = xend;
-	yend_old = yend;
 }
 
 static void 
