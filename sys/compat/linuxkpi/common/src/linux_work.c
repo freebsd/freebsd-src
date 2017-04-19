@@ -57,6 +57,8 @@ struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_unbound_wq;
 struct workqueue_struct *system_power_efficient_wq;
 
+static int linux_default_wq_cpus = 4;
+
 static void linux_delayed_work_timer_fn(void *);
 
 /*
@@ -497,6 +499,12 @@ linux_create_workqueue_common(const char *name, int cpus)
 {
 	struct workqueue_struct *wq;
 
+	/*
+	 * If zero CPUs are specified use the default number of CPUs:
+	 */
+	if (cpus == 0)
+		cpus = linux_default_wq_cpus;
+
 	wq = kmalloc(sizeof(*wq), M_WAITOK | M_ZERO);
 	wq->taskqueue = taskqueue_create(name, M_WAITOK,
 	    taskqueue_thread_enqueue, &wq->taskqueue);
@@ -536,6 +544,9 @@ linux_work_init(void *arg)
 	/* avoid deadlock when there are too few threads */
 	if (max_wq_cpus < 4)
 		max_wq_cpus = 4;
+
+	/* set default number of CPUs */
+	linux_default_wq_cpus = max_wq_cpus;
 
 	linux_system_short_wq = alloc_workqueue("linuxkpi_short_wq", 0, max_wq_cpus);
 	linux_system_long_wq = alloc_workqueue("linuxkpi_long_wq", 0, max_wq_cpus);
