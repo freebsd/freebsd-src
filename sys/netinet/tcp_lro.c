@@ -175,17 +175,15 @@ tcp_lro_free(struct lro_ctrl *lc)
 	}
 
 	/* free hash table */
-	if (lc->lro_hash != NULL) {
-		free(lc->lro_hash, M_LRO);
-		lc->lro_hash = NULL;
-	}
+	free(lc->lro_hash, M_LRO);
+	lc->lro_hash = NULL;
 	lc->lro_hashsz = 0;
 
 	/* free mbuf array, if any */
 	for (x = 0; x != lc->lro_mbuf_count; x++)
 		m_freem(lc->lro_mbuf_data[x].mb);
 	lc->lro_mbuf_count = 0;
-	
+
 	/* free allocated memory, if any */
 	free(lc->lro_mbuf_data, M_LRO);
 	lc->lro_mbuf_data = NULL;
