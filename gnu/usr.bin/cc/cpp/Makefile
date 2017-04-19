@@ -3,7 +3,7 @@
 .include <src.opts.mk>
 
 # gengtype can't handling __uintptr_t
- WANT_CHERI=    none
+WANT_CHERI=    none
 
 .include "../Makefile.inc"
 .include "../Makefile.fe"

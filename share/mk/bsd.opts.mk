@@ -87,7 +87,7 @@ __DEFAULT_NO_OPTIONS+= \
 __DEFAULT_DEPENDENT_OPTIONS = \
     STAGING_MAN/STAGING \
     STAGING_PROG/STAGING \
-    
+
 .if defined(WITH_CHERI)
 .warning WITH_CHERI should not be set directly.
 .warning Use WITH_CHERI128 or WITH_CHERI256 instead.

@@ -58,7 +58,6 @@ MK_TESTS=	no
 #
 MODULE_DIR=	../modules
 .include "${.CURDIR}/${MODULE_DIR}/modules.inc"
-
 STATIC_MODULES=	${MODULES:C/.*/${MODULE_DIR}\/&\/lib&.a/}
 STATICOBJS+=	openpam_static_modules.o
 CLEANFILES+=	openpam_static.o \
