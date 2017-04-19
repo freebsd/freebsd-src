@@ -36,7 +36,7 @@
 #define	LINUX_KFREE_RCU_OFFSET_MAX	4096	/* exclusive */
 
 #define	RCU_INITIALIZER(v)			\
-	((typeof(*(v)) __force __rcu *)(v))
+	((__typeof(*(v)) *)(v))
 
 #define	RCU_INIT_POINTER(p, v) do {		\
 	(p) = (v);				\
@@ -74,10 +74,10 @@
 } while (0)
 
 #define	rcu_access_pointer(p)			\
-	((typeof(*p) __force __kernel *)(READ_ONCE(p)))
+	((__typeof(*p) *)(READ_ONCE(p)))
 
 #define	rcu_dereference_protected(p, c)		\
-	((typeof(*p) __force __kernel *)(p))
+	((__typeof(*p) *)(p))
 
 #define	rcu_dereference(p)			\
 	rcu_dereference_protected(p, 0)
