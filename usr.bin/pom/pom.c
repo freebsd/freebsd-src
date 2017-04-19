@@ -53,6 +53,11 @@ __FBSDID("$FreeBSD$");
  *
  */
 
+#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
+
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -81,12 +86,21 @@ static void	usage(char *progname);
 int
 main(int argc, char **argv)
 {
+	cap_rights_t rights;
 	time_t tt;
 	struct tm GMT, tmd;
 	double days, today, tomorrow;
 	int ch, cnt, pflag = 0;
 	char *odate = NULL, *otime = NULL;
 	char *progname = argv[0];
+
+	if (caph_limit_stdio() < 0)
+		err(1, "unable to limit capabitilities for stdio");
+	cap_rights_init(&rights, CAP_WRITE);
+
+	caph_cache_catpages();
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
 
 	while ((ch = getopt(argc, argv, "d:pt:")) != -1)
 		switch (ch) {
