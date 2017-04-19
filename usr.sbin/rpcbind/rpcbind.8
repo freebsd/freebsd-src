@@ -10,7 +10,7 @@
 .Nd universal addresses to RPC program number mapper
 .Sh SYNOPSIS
 .Nm
-.Op Fl 6adiLlsW
+.Op Fl 6adiLlswW
 .Op Fl h Ar bindip
 .Sh DESCRIPTION
 The
@@ -135,6 +135,22 @@ clients from using
 to connect to services from a privileged port.
 .It Fl W
 Enable libwrap (TCP wrappers) support.
+.It Fl w
+Enable the warmstart feature.
+.Pp
+The warmstart feature saves RPC registrations on termination.
+Any saved RPC registrations are restored on restart if
+.Fl w
+is specified.
+This feature helps avoid RPC service interruption when restarting
+.Nm .
+warmstart support must be compiled in to
+.Nm .
+Portmap registrations are stored in
+.Pa /tmp/portmap.file .
+.Nm
+registrations are stored in
+.Pa /tmp/rpcbind.file .
 .El
 .Sh NOTES
 All RPC servers must be restarted if
@@ -142,6 +158,12 @@ All RPC servers must be restarted if
 is restarted.
 .Sh FILES
 .Bl -tag -width /var/run/rpcbind.sock -compact
+.It Pa /tmp/portmap.file
+saved portmap registrations file.
+.It Pa /tmp/rpcbind.file
+saved
+.Nm
+registrations file.
 .It Pa /var/run/rpcbind.sock
 socket used for local connections.
 .El
