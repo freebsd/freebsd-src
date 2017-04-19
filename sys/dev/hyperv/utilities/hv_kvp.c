@@ -516,7 +516,7 @@ hv_kvp_convert_usermsg_to_hostmsg(struct hv_kvp_msg *umsg, struct hv_kvp_msg *hm
 		/* Use values by string */
 		host_exchg_data->value_type = HV_REG_SZ;
 
-		if ((hkey_len < 0) || (hvalue_len < 0))
+		if (hvalue_len < 0)
 			return (EINVAL);
 
 		return (0);
