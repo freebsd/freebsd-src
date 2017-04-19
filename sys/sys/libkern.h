@@ -178,6 +178,11 @@ crc32(const void *buf, size_t size)
 uint32_t
 calculate_crc32c(uint32_t crc32c, const unsigned char *buffer,
     unsigned int length);
+#ifdef _KERNEL
+#if defined(__amd64__) || defined(__i386__)
+uint32_t sse42_crc32c(uint32_t, const unsigned char *, unsigned);
+#endif
+#endif
 
 
 LIBKERN_INLINE void *memset(void *, int, size_t);

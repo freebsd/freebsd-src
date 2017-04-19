@@ -46,7 +46,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/libkern.h>
 #include <sys/systm.h>
+
+#if defined(__amd64__) || defined(__i386__)
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
+#endif
 
 const uint32_t crc32_tab[] = {
 	0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
@@ -749,6 +755,11 @@ calculate_crc32c(uint32_t crc32c,
     const unsigned char *buffer,
     unsigned int length)
 {
+#if defined(__amd64__) || defined(__i386__)
+	if ((cpu_feature2 & CPUID2_SSE42) != 0) {
+		return (sse42_crc32c(crc32c, buffer, length));
+	} else
+#endif
 	if (length < 4) {
 		return (singletable_crc32c(crc32c, buffer, length));
 	} else {
