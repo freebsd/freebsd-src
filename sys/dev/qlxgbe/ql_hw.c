@@ -440,6 +440,17 @@ ql_hw_add_sysctls(qla_host_t *ha)
                 OID_AUTO, "enable_9kb", CTLFLAG_RW, &ha->hw.enable_9kb,
                 ha->hw.enable_9kb, "Enable 9Kbyte Buffers when MTU = 9000");
 
+        ha->hw.enable_hw_lro = 1;
+
+        SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+                SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+                OID_AUTO, "enable_hw_lro", CTLFLAG_RW, &ha->hw.enable_hw_lro,
+                ha->hw.enable_hw_lro, "Enable Hardware LRO; Default is true \n"
+		"\t 1 : Hardware LRO if LRO is enabled\n"
+		"\t 0 : Software LRO if LRO is enabled\n"
+		"\t Any change requires ifconfig down/up to take effect\n"
+		"\t Note that LRO may be turned off/on via ifconfig\n");
+
 	ha->hw.mdump_active = 0;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -2255,6 +2266,83 @@ qla_config_rss_ind_table(qla_host_t *ha)
 	return (0);
 }
 
+static int
+qla_config_soft_lro(qla_host_t *ha)
+{
+        int i;
+        qla_hw_t *hw = &ha->hw;
+        struct lro_ctrl *lro;
+
+        for (i = 0; i < hw->num_sds_rings; i++) {
+                lro = &hw->sds[i].lro;
+
+		bzero(lro, sizeof(struct lro_ctrl));
+
+#if (__FreeBSD_version >= 1100101)
+                if (tcp_lro_init_args(lro, ha->ifp, 0, NUM_RX_DESCRIPTORS)) {
+                        device_printf(ha->pci_dev,
+				"%s: tcp_lro_init_args [%d] failed\n",
+                                __func__, i);
+                        return (-1);
+                }
+#else
+                if (tcp_lro_init(lro)) {
+                        device_printf(ha->pci_dev,
+				"%s: tcp_lro_init [%d] failed\n",
+                                __func__, i);
+                        return (-1);
+                }
+#endif /* #if (__FreeBSD_version >= 1100101) */
+
+                lro->ifp = ha->ifp;
+        }
+
+        QL_DPRINT2(ha, (ha->pci_dev, "%s: LRO initialized\n", __func__));
+        return (0);
+}
+
+static void
+qla_drain_soft_lro(qla_host_t *ha)
+{
+        int i;
+        qla_hw_t *hw = &ha->hw;
+        struct lro_ctrl *lro;
+
+       	for (i = 0; i < hw->num_sds_rings; i++) {
+               	lro = &hw->sds[i].lro;
+
+#if (__FreeBSD_version >= 1100101)
+		tcp_lro_flush_all(lro);
+#else
+                struct lro_entry *queued;
+
+		while ((!SLIST_EMPTY(&lro->lro_active))) {
+			queued = SLIST_FIRST(&lro->lro_active);
+			SLIST_REMOVE_HEAD(&lro->lro_active, next);
+			tcp_lro_flush(lro, queued);
+		}
+#endif /* #if (__FreeBSD_version >= 1100101) */
+	}
+
+	return;
+}
+
+static void
+qla_free_soft_lro(qla_host_t *ha)
+{
+        int i;
+        qla_hw_t *hw = &ha->hw;
+        struct lro_ctrl *lro;
+
+        for (i = 0; i < hw->num_sds_rings; i++) {
+               	lro = &hw->sds[i].lro;
+		tcp_lro_free(lro);
+	}
+
+	return;
+}
+
+
 /*
  * Name: ql_del_hw_if
  * Function: Destroys the hardware specific entities corresponding to an
@@ -2287,6 +2375,11 @@ ql_del_hw_if(qla_host_t *ha)
 		ha->hw.flags.init_intr_cnxt = 0;
 	}
 
+	if (ha->hw.enable_soft_lro) {
+		qla_drain_soft_lro(ha);
+		qla_free_soft_lro(ha);
+	}
+
 	return;
 }
 
@@ -2308,7 +2401,6 @@ qla_confirm_9kb_enable(qla_host_t *ha)
 
 	return;
 }
-
 
 /*
  * Name: ql_init_hw_if
@@ -2416,8 +2508,19 @@ ql_init_hw_if(qla_host_t *ha)
 	if (qla_link_event_req(ha, ha->hw.rcv_cntxt_id))
 		return (-1);
 
-	if (qla_config_fw_lro(ha, ha->hw.rcv_cntxt_id))
-		return (-1);
+	if (ha->ifp->if_capenable & IFCAP_LRO) {
+		if (ha->hw.enable_hw_lro) {
+			ha->hw.enable_soft_lro = 0;
+
+			if (qla_config_fw_lro(ha, ha->hw.rcv_cntxt_id))
+				return (-1);
+		} else {
+			ha->hw.enable_soft_lro = 1;
+
+			if (qla_config_soft_lro(ha))
+				return (-1);
+		}
+	}
 
         if (qla_init_nic_func(ha))
                 return (-1);
