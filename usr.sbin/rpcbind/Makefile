@@ -15,12 +15,12 @@ CFLAGS+= -DINET6
 .endif
 
 .if ${MK_TCP_WRAPPERS} != "no"
-CFLAGS+=	-DLIBWRAP
-LIBADD+=	wrap
+CFLAGS+= -DLIBWRAP
+LIBADD+= wrap
 .endif
 
 .if ${MK_TESTS} != "no"
-SUBDIR+=	tests
+SUBDIR+= tests
 .endif
 
 WARNS?=	1
