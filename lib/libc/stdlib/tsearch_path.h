@@ -86,7 +86,7 @@ path_took_left(struct path *p)
 {
 	bool result;
 
-	result = (vaddr_t)p->steps[0] & 0x1;
+	result = (uintptr_t)p->steps[0] & (uintptr_t)0x1;
 	p->steps[0] = (p->steps[0] >> 1) | (p->steps[1] << (STEPS_BIT - 1));
 	p->steps[1] >>= 1;
 	return (result);
