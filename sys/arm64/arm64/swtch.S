@@ -241,11 +241,6 @@ ENTRY(fork_trampoline)
 	mov	fp, #0	/* Stack traceback stops here. */
 	bl	_C_LABEL(fork_exit)
 
-	/* Restore sp and lr */
-	ldp	x0, x1, [sp]
-	msr	sp_el0, x0
-	mov	lr, x1
-
 	/* Restore the registers other than x0 and x1 */
 	ldp	x2, x3, [sp, #TF_X + 2 * 8]
 	ldp	x4, x5, [sp, #TF_X + 4 * 8]
@@ -261,13 +256,17 @@ ENTRY(fork_trampoline)
 	ldp	x24, x25, [sp, #TF_X + 24 * 8]
 	ldp	x26, x27, [sp, #TF_X + 26 * 8]
 	ldp	x28, x29, [sp, #TF_X + 28 * 8]
-	/* Skip x30 as it was restored above as lr */
 
 	/*
 	 * Disable interrupts to avoid
-	 * overwriting spsr_el1 by an IRQ exception.
+	 * overwriting spsr_el1 and sp_el0 by an IRQ exception.
 	 */
 	msr	daifset, #2
+
+	/* Restore sp and lr */
+	ldp	x0, x1, [sp]
+	msr	sp_el0, x0
+	mov	lr, x1
 
 	/* Restore elr and spsr */
 	ldp	x0, x1, [sp, #16]
