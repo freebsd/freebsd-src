@@ -86,7 +86,6 @@ static void	usage(char *progname);
 int
 main(int argc, char **argv)
 {
-	cap_rights_t rights;
 	time_t tt;
 	struct tm GMT, tmd;
 	double days, today, tomorrow;
@@ -96,7 +95,6 @@ main(int argc, char **argv)
 
 	if (caph_limit_stdio() < 0)
 		err(1, "unable to limit capabitilities for stdio");
-	cap_rights_init(&rights, CAP_WRITE);
 
 	caph_cache_catpages();
 	if (cap_enter() < 0 && errno != ENOSYS)
