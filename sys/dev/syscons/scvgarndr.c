@@ -1127,10 +1127,6 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	int line_width, pixel_size;
 	int xend, yend;
 	int i, j;
-	uint32_t *u32;
-	uint16_t *u16;
-	uint8_t  *u8;
-	int bpp;
 
 	mdp = (scp->font_size < 14) ? &mouse9x13 : &mouse10x16;
 
@@ -1143,11 +1139,6 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	if (!on && xend <= (scp->xoff + scp->xsize) * 8 &&
 	    yend <= (scp->yoff + scp->ysize) * scp->font_size)
 		return;
-
-	bpp = scp->sc->adp->va_info.vi_depth;
-
-	if ((bpp == 16) && (scp->sc->adp->va_info.vi_pixel_fsizes[1] == 5))
-		bpp = 15;
 
 	line_width = scp->sc->adp->va_line_width;
 	pixel_size = scp->sc->adp->va_info.vi_pixel_size;
@@ -1165,43 +1156,12 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 
 do_on:
 	p = scp->sc->adp->va_window + y * line_width + x * pixel_size;
-
-	for (i = 0; i < (yend - y); i++) {
-		for (j = (xend - x - 1); j >= 0; j--) {
-			switch (bpp) {
-			case 32:
-				u32 = (uint32_t*)(p + j * pixel_size);
-				if (mdp->md_interior[i] & (1 << (15 - j)))
-					writel(u32, vga_palette32[15]);
-				else if (mdp->md_border[i] & (1 << (15 - j)))
-					writel(u32, 0);
-				break;
-			case 16:
-				u16 = (uint16_t*)(p + j * pixel_size);
-				if (mdp->md_interior[i] & (1 << (15 - j)))
-					writew(u16, vga_palette16[15]);
-				else if (mdp->md_border[i] & (1 << (15 - j)))
-					writew(u16, 0);
-				break;
-			case 15:
-				u16 = (uint16_t*)(p  + j * pixel_size);
-				if (mdp->md_interior[i] & (1 << (15 - j)))
-					writew(u16, vga_palette15[15]);
-				else if (mdp->md_border[i] & (1 << (15 - j)))
-					writew(u16, 0);
-				break;
-			case 8:
-				u8 = (uint8_t*)(p + j * pixel_size);
-				if (mdp->md_interior[i] & (1 << (15 - j)))
-					writeb(u8, 15);
-				else if (mdp->md_border[i] & (1 << (15 - j)))
-					writeb(u8, 0);
-				break;
-			}
-		}
-
-		p += line_width;
-	}
+	for (i = 0; i < yend - y; i++, p += line_width)
+		for (j = xend - x - 1; j >= 0; j--)
+			if (mdp->md_interior[i] & (1 << (15 - j)))
+				DRAW_PIXEL(scp, p + j * pixel_size, 15);
+			else if (mdp->md_border[i] & (1 << (15 - j)))
+				DRAW_PIXEL(scp, p + j * pixel_size, 0);
 }
 
 static void 
