@@ -144,6 +144,7 @@ tcp_lro_init_args(struct lro_ctrl *lc, struct ifnet *ifp,
 
 	/* check for out of memory */
 	if (lc->lro_mbuf_data == NULL) {
+		free(lc->lro_hash, M_LRO);
 		memset(lc, 0, sizeof(*lc));
 		return (ENOMEM);
 	}
