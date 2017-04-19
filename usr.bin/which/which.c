@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 static void	 usage(void);
 static int	 print_matches(char *, char *);
-	
+
 static int 	 silent;
 static int 	 allpaths;
 
@@ -81,7 +81,7 @@ main(int argc, char **argv)
 
 	while (argc > 0) {
 		memcpy(path, p, pathlen);
-	
+
 		if (strlen(*argv) >= FILENAME_MAX ||
 		    print_matches(path, *argv) == -1)
 			status = EXIT_FAILURE;
