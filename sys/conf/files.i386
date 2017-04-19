@@ -564,6 +564,7 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+libkern/x86/crc32_sse42.c	standard
 i386/xbox/xbox.c		optional xbox
 i386/xbox/xboxfb.c		optional xboxfb
 dev/fb/boot_font.c		optional xboxfb
