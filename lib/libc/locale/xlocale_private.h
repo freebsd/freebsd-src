@@ -220,7 +220,7 @@ locale_t __get_locale(void);
  */
 static inline locale_t get_real_locale(locale_t locale)
 {
-	switch ((intptr_t)locale) {
+	switch ((size_t)locale) {
 		case 0: return (&__xlocale_C_locale);
 		case -1: return (&__xlocale_global_locale);
 		default: return (locale);
