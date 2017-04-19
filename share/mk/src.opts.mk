@@ -96,7 +96,6 @@ __DEFAULT_YES_OPTIONS = \
     FTP \
     GAMES \
     GCOV \
-    GNU \
     GNU_DIFF \
     GNU_GREP \
     GNU_GREP_COMPAT \
@@ -450,7 +449,6 @@ MK_${vv:H}:=	${MK_${vv:T}}
 .for var in \
     BLACKLIST \
     BZIP2 \
-    GNU \
     INET \
     INET6 \
     KERBEROS \
