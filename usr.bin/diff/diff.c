@@ -41,6 +41,7 @@ int	 lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
 int	 diff_format, diff_context, status, ignore_file_case;
 int	 tabsize = 8;
 char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
+char	*group_format = NULL;
 struct stat stb1, stb2;
 struct excludes *excludes_list;
 regex_t	 ignore_re;
@@ -54,6 +55,7 @@ enum {
 	OPT_NORMAL,
 	OPT_HORIZON_LINES,
 	OPT_SPEED_LARGE_FILES,
+	OPT_CHANGED_GROUP_FORMAT,
 };
 
 static struct option longopts[] = {
@@ -89,6 +91,7 @@ static struct option longopts[] = {
 	{ "speed-large-files",		no_argument,		NULL,	OPT_SPEED_LARGE_FILES},
 	{ "strip-trailing-cr",		no_argument,		NULL,	OPT_STRIPCR },
 	{ "tabsize",			optional_argument,	NULL,	OPT_TSIZE },
+	{ "changed-group-format",	required_argument,	NULL,	OPT_CHANGED_GROUP_FORMAT},
 	{ NULL,				0,			0,	'\0'}
 };
 
@@ -226,6 +229,10 @@ main(int argc, char **argv)
 			break;
 		case 'x':
 			push_excludes(optarg);
+			break;
+		case OPT_CHANGED_GROUP_FORMAT:
+			diff_format = D_GFORMAT;
+			group_format = optarg;
 			break;
 		case OPT_HORIZON_LINES:
 			break; /* XXX TODO for compatibility with GNU diff3 */
