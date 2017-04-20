@@ -290,10 +290,12 @@ uint64_t DWARFDie::getDeclLine() const {
 }
 
 void DWARFDie::getCallerFrame(uint32_t &CallFile, uint32_t &CallLine,
-                              uint32_t &CallColumn) const {
+                              uint32_t &CallColumn,
+                              uint32_t &CallDiscriminator) const {
   CallFile = toUnsigned(find(DW_AT_call_file), 0);
   CallLine = toUnsigned(find(DW_AT_call_line), 0);
   CallColumn = toUnsigned(find(DW_AT_call_column), 0);
+  CallDiscriminator = toUnsigned(find(DW_AT_GNU_discriminator), 0);
 }
 
 void DWARFDie::dump(raw_ostream &OS, unsigned RecurseDepth,
@@ -348,32 +350,6 @@ void DWARFDie::dump(raw_ostream &OS, unsigned RecurseDepth,
       OS.indent(Indent) << "NULL\n";
     }
   }
-}
-
-void DWARFDie::getInlinedChainForAddress(
-    const uint64_t Address, SmallVectorImpl<DWARFDie> &InlinedChain) const {
-  if (isNULL())
-    return;
-  DWARFDie DIE(*this);
-  while (DIE) {
-    // Append current DIE to inlined chain only if it has correct tag
-    // (e.g. it is not a lexical block).
-    if (DIE.isSubroutineDIE())
-      InlinedChain.push_back(DIE);
-
-    // Try to get child which also contains provided address.
-    DWARFDie Child = DIE.getFirstChild();
-    while (Child) {
-      if (Child.addressRangeContainsAddress(Address)) {
-        // Assume there is only one such child.
-        break;
-      }
-      Child = Child.getSibling();
-    }
-    DIE = Child;
-  }
-  // Reverse the obtained chain to make the root of inlined chain last.
-  std::reverse(InlinedChain.begin(), InlinedChain.end());
 }
 
 DWARFDie DWARFDie::getParent() const {

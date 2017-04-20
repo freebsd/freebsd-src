@@ -67,6 +67,9 @@ static cl::opt<ImplicitItModeTy> ImplicitItMode(
                clEnumValN(ImplicitItModeTy::ThumbOnly, "thumb",
                           "Warn in ARM, emit implicit ITs in Thumb")));
 
+static cl::opt<bool> AddBuildAttributes("arm-add-build-attributes",
+                                        cl::init(false));
+
 class ARMOperand;
 
 enum VectorLaneTy { NoLanes, AllLanes, IndexedLane };
@@ -539,6 +542,10 @@ public:
 
     // Initialize the set of available features.
     setAvailableFeatures(ComputeAvailableFeatures(STI.getFeatureBits()));
+
+    // Add build attributes based on the selected target.
+    if (AddBuildAttributes)
+      getTargetStreamer().emitTargetAttributes(STI);
 
     // Not in an ITBlock to start with.
     ITState.CurPosition = ~0U;
@@ -10189,8 +10196,8 @@ static const struct {
   { ARM::AEK_CRYPTO,  Feature_HasV8,
     {ARM::FeatureCrypto, ARM::FeatureNEON, ARM::FeatureFPARMv8} },
   { ARM::AEK_FP, Feature_HasV8, {ARM::FeatureFPARMv8} },
-  { (ARM::AEK_HWDIV | ARM::AEK_HWDIVARM), Feature_HasV7 | Feature_IsNotMClass,
-    {ARM::FeatureHWDiv, ARM::FeatureHWDivARM} },
+  { (ARM::AEK_HWDIVTHUMB | ARM::AEK_HWDIVARM), Feature_HasV7 | Feature_IsNotMClass,
+    {ARM::FeatureHWDivThumb, ARM::FeatureHWDivARM} },
   { ARM::AEK_MP, Feature_HasV7 | Feature_IsNotMClass, {ARM::FeatureMP} },
   { ARM::AEK_SIMD, Feature_HasV8, {ARM::FeatureNEON, ARM::FeatureFPARMv8} },
   { ARM::AEK_SEC, Feature_HasV6K, {ARM::FeatureTrustZone} },

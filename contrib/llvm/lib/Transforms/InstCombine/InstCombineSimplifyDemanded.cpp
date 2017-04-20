@@ -38,7 +38,7 @@ static bool ShrinkDemandedConstant(Instruction *I, unsigned OpNo,
 
   // If there are no bits set that aren't demanded, nothing to do.
   Demanded = Demanded.zextOrTrunc(C->getBitWidth());
-  if ((~Demanded & *C) == 0)
+  if (C->isSubsetOf(Demanded))
     return false;
 
   // This instruction is producing bits that are not demanded. Shrink the RHS.
@@ -117,27 +117,16 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
       KnownOne.getBitWidth() == BitWidth &&
       "Value *V, DemandedMask, KnownZero and KnownOne "
       "must have same BitWidth");
-  const APInt *C;
-  if (match(V, m_APInt(C))) {
-    // We know all of the bits for a scalar constant or a splat vector constant!
-    KnownOne = *C & DemandedMask;
-    KnownZero = ~KnownOne & DemandedMask;
-    return nullptr;
-  }
-  if (isa<ConstantPointerNull>(V)) {
-    // We know all of the bits for a constant!
-    KnownOne.clearAllBits();
-    KnownZero = DemandedMask;
+
+  if (isa<Constant>(V)) {
+    computeKnownBits(V, KnownZero, KnownOne, Depth, CxtI);
     return nullptr;
   }
 
   KnownZero.clearAllBits();
   KnownOne.clearAllBits();
-  if (DemandedMask == 0) {   // Not demanding any bits from V.
-    if (isa<UndefValue>(V))
-      return nullptr;
+  if (DemandedMask == 0)     // Not demanding any bits from V.
     return UndefValue::get(VTy);
-  }
 
   if (Depth == 6)        // Limit search depth.
     return nullptr;
@@ -187,16 +176,14 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
 
     // If the client is only demanding bits that we know, return the known
     // constant.
-    if ((DemandedMask & (IKnownZero|IKnownOne)) == DemandedMask)
+    if (DemandedMask.isSubsetOf(IKnownZero|IKnownOne))
       return Constant::getIntegerValue(VTy, IKnownOne);
 
     // If all of the demanded bits are known 1 on one side, return the other.
     // These bits cannot contribute to the result of the 'and'.
-    if ((DemandedMask & ~LHSKnownZero & RHSKnownOne) ==
-        (DemandedMask & ~LHSKnownZero))
+    if (DemandedMask.isSubsetOf(LHSKnownZero | RHSKnownOne))
       return I->getOperand(0);
-    if ((DemandedMask & ~RHSKnownZero & LHSKnownOne) ==
-        (DemandedMask & ~RHSKnownZero))
+    if (DemandedMask.isSubsetOf(RHSKnownZero | LHSKnownOne))
       return I->getOperand(1);
 
     // If the RHS is a constant, see if we can simplify it.
@@ -224,25 +211,14 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
 
     // If the client is only demanding bits that we know, return the known
     // constant.
-    if ((DemandedMask & (IKnownZero|IKnownOne)) == DemandedMask)
+    if (DemandedMask.isSubsetOf(IKnownZero|IKnownOne))
       return Constant::getIntegerValue(VTy, IKnownOne);
 
     // If all of the demanded bits are known zero on one side, return the other.
     // These bits cannot contribute to the result of the 'or'.
-    if ((DemandedMask & ~LHSKnownOne & RHSKnownZero) ==
-        (DemandedMask & ~LHSKnownOne))
+    if (DemandedMask.isSubsetOf(LHSKnownOne | RHSKnownZero))
       return I->getOperand(0);
-    if ((DemandedMask & ~RHSKnownOne & LHSKnownZero) ==
-        (DemandedMask & ~RHSKnownOne))
-      return I->getOperand(1);
-
-    // If all of the potentially set bits on one side are known to be set on
-    // the other side, just use the 'other' side.
-    if ((DemandedMask & (~RHSKnownZero) & LHSKnownOne) ==
-        (DemandedMask & (~RHSKnownZero)))
-      return I->getOperand(0);
-    if ((DemandedMask & (~LHSKnownZero) & RHSKnownOne) ==
-        (DemandedMask & (~LHSKnownZero)))
+    if (DemandedMask.isSubsetOf(RHSKnownOne | LHSKnownZero))
       return I->getOperand(1);
 
     // If the RHS is a constant, see if we can simplify it.
@@ -271,20 +247,20 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
 
     // If the client is only demanding bits that we know, return the known
     // constant.
-    if ((DemandedMask & (IKnownZero|IKnownOne)) == DemandedMask)
+    if (DemandedMask.isSubsetOf(IKnownZero|IKnownOne))
       return Constant::getIntegerValue(VTy, IKnownOne);
 
     // If all of the demanded bits are known zero on one side, return the other.
     // These bits cannot contribute to the result of the 'xor'.
-    if ((DemandedMask & RHSKnownZero) == DemandedMask)
+    if (DemandedMask.isSubsetOf(RHSKnownZero))
       return I->getOperand(0);
-    if ((DemandedMask & LHSKnownZero) == DemandedMask)
+    if (DemandedMask.isSubsetOf(LHSKnownZero))
       return I->getOperand(1);
 
     // If all of the demanded bits are known to be zero on one side or the
     // other, turn this into an *inclusive* or.
     //    e.g. (A & C1)^(B & C2) -> (A & C1)|(B & C2) iff C1&C2 == 0
-    if ((DemandedMask & ~RHSKnownZero & ~LHSKnownZero) == 0) {
+    if (DemandedMask.isSubsetOf(RHSKnownZero | LHSKnownZero)) {
       Instruction *Or =
         BinaryOperator::CreateOr(I->getOperand(0), I->getOperand(1),
                                  I->getName());
@@ -295,14 +271,12 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     // bits on that side are also known to be set on the other side, turn this
     // into an AND, as we know the bits will be cleared.
     //    e.g. (X | C1) ^ C2 --> (X | C1) & ~C2 iff (C1&C2) == C2
-    if ((DemandedMask & (RHSKnownZero|RHSKnownOne)) == DemandedMask) {
-      // all known
-      if ((RHSKnownOne & LHSKnownOne) == RHSKnownOne) {
-        Constant *AndC = Constant::getIntegerValue(VTy,
-                                                   ~RHSKnownOne & DemandedMask);
-        Instruction *And = BinaryOperator::CreateAnd(I->getOperand(0), AndC);
-        return InsertNewInstWith(And, *I);
-      }
+    if (DemandedMask.isSubsetOf(RHSKnownZero|RHSKnownOne) &&
+        RHSKnownOne.isSubsetOf(LHSKnownOne)) {
+      Constant *AndC = Constant::getIntegerValue(VTy,
+                                                 ~RHSKnownOne & DemandedMask);
+      Instruction *And = BinaryOperator::CreateAnd(I->getOperand(0), AndC);
+      return InsertNewInstWith(And, *I);
     }
 
     // If the RHS is a constant, see if we can simplify it.
@@ -529,9 +503,9 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
         KnownZero.setLowBits(ShiftAmt);
     }
     break;
-  case Instruction::LShr:
-    // For a logical shift right
-    if (ConstantInt *SA = dyn_cast<ConstantInt>(I->getOperand(1))) {
+  case Instruction::LShr: {
+    const APInt *SA;
+    if (match(I->getOperand(1), m_APInt(SA))) {
       uint64_t ShiftAmt = SA->getLimitedValue(BitWidth-1);
 
       // Unsigned shift right.
@@ -546,13 +520,14 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
                                Depth + 1))
         return I;
       assert(!(KnownZero & KnownOne) && "Bits known to be one AND zero?");
-      KnownZero = KnownZero.lshr(ShiftAmt);
-      KnownOne  = KnownOne.lshr(ShiftAmt);
+      KnownZero.lshrInPlace(ShiftAmt);
+      KnownOne.lshrInPlace(ShiftAmt);
       if (ShiftAmt)
         KnownZero.setHighBits(ShiftAmt);  // high bits known zero.
     }
     break;
-  case Instruction::AShr:
+  }
+  case Instruction::AShr: {
     // If this is an arithmetic shift right and only the low-bit is set, we can
     // always convert this into a logical shr, even if the shift amount is
     // variable.  The low bit of the shift cannot be an input sign bit unless
@@ -566,15 +541,16 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
 
     // If the sign bit is the only bit demanded by this ashr, then there is no
     // need to do it, the shift doesn't change the high bit.
-    if (DemandedMask.isSignBit())
+    if (DemandedMask.isSignMask())
       return I->getOperand(0);
 
-    if (ConstantInt *SA = dyn_cast<ConstantInt>(I->getOperand(1))) {
+    const APInt *SA;
+    if (match(I->getOperand(1), m_APInt(SA))) {
       uint32_t ShiftAmt = SA->getLimitedValue(BitWidth-1);
 
       // Signed shift right.
       APInt DemandedMaskIn(DemandedMask.shl(ShiftAmt));
-      // If any of the "high bits" are demanded, we should set the sign bit as
+      // If any of the high bits are demanded, we should set the sign bit as
       // demanded.
       if (DemandedMask.countLeadingZeros() <= ShiftAmt)
         DemandedMaskIn.setSignBit();
@@ -587,31 +563,32 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
       if (SimplifyDemandedBits(I, 0, DemandedMaskIn, KnownZero, KnownOne,
                                Depth + 1))
         return I;
+
       assert(!(KnownZero & KnownOne) && "Bits known to be one AND zero?");
       // Compute the new bits that are at the top now.
       APInt HighBits(APInt::getHighBitsSet(BitWidth, ShiftAmt));
-      KnownZero = KnownZero.lshr(ShiftAmt);
-      KnownOne  = KnownOne.lshr(ShiftAmt);
+      KnownZero.lshrInPlace(ShiftAmt);
+      KnownOne.lshrInPlace(ShiftAmt);
 
       // Handle the sign bits.
-      APInt SignBit(APInt::getSignBit(BitWidth));
+      APInt SignMask(APInt::getSignMask(BitWidth));
       // Adjust to where it is now in the mask.
-      SignBit = SignBit.lshr(ShiftAmt);
+      SignMask.lshrInPlace(ShiftAmt);
 
       // If the input sign bit is known to be zero, or if none of the top bits
       // are demanded, turn this into an unsigned shift right.
       if (BitWidth <= ShiftAmt || KnownZero[BitWidth-ShiftAmt-1] ||
           (HighBits & ~DemandedMask) == HighBits) {
-        // Perform the logical shift right.
-        BinaryOperator *NewVal = BinaryOperator::CreateLShr(I->getOperand(0),
-                                                            SA, I->getName());
-        NewVal->setIsExact(cast<BinaryOperator>(I)->isExact());
-        return InsertNewInstWith(NewVal, *I);
-      } else if ((KnownOne & SignBit) != 0) { // New bits are known one.
+        BinaryOperator *LShr = BinaryOperator::CreateLShr(I->getOperand(0),
+                                                          I->getOperand(1));
+        LShr->setIsExact(cast<BinaryOperator>(I)->isExact());
+        return InsertNewInstWith(LShr, *I);
+      } else if ((KnownOne & SignMask) != 0) { // New bits are known one.
         KnownOne |= HighBits;
       }
     }
     break;
+  }
   case Instruction::SRem:
     if (ConstantInt *Rem = dyn_cast<ConstantInt>(I->getOperand(1))) {
       // X % -1 demands all the bits because we don't want to introduce
@@ -624,7 +601,7 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
           return I->getOperand(0);
 
         APInt LowBits = RA - 1;
-        APInt Mask2 = LowBits | APInt::getSignBit(BitWidth);
+        APInt Mask2 = LowBits | APInt::getSignMask(BitWidth);
         if (SimplifyDemandedBits(I, 0, Mask2, LHSKnownZero, LHSKnownOne,
                                  Depth + 1))
           return I;
@@ -635,26 +612,26 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
 
         // If LHS is non-negative or has all low bits zero, then the upper bits
         // are all zero.
-        if (LHSKnownZero.isNegative() || ((LHSKnownZero & LowBits) == LowBits))
+        if (LHSKnownZero.isSignBitSet() || ((LHSKnownZero & LowBits) == LowBits))
           KnownZero |= ~LowBits;
 
         // If LHS is negative and not all low bits are zero, then the upper bits
         // are all one.
-        if (LHSKnownOne.isNegative() && ((LHSKnownOne & LowBits) != 0))
+        if (LHSKnownOne.isSignBitSet() && ((LHSKnownOne & LowBits) != 0))
           KnownOne |= ~LowBits;
 
         assert(!(KnownZero & KnownOne) && "Bits known to be one AND zero?");
+        break;
       }
     }
 
     // The sign bit is the LHS's sign bit, except when the result of the
     // remainder is zero.
-    if (DemandedMask.isNegative() && KnownZero.isNonNegative()) {
-      APInt LHSKnownZero(BitWidth, 0), LHSKnownOne(BitWidth, 0);
+    if (DemandedMask.isSignBitSet()) {
       computeKnownBits(I->getOperand(0), LHSKnownZero, LHSKnownOne, Depth + 1,
                        CxtI);
       // If it's known zero, our sign bit is also zero.
-      if (LHSKnownZero.isNegative())
+      if (LHSKnownZero.isSignBitSet())
         KnownZero.setSignBit();
     }
     break;
@@ -744,7 +721,7 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
 
   // If the client is only demanding bits that we know, return the known
   // constant.
-  if ((DemandedMask & (KnownZero|KnownOne)) == DemandedMask)
+  if (DemandedMask.isSubsetOf(KnownZero|KnownOne))
     return Constant::getIntegerValue(VTy, KnownOne);
   return nullptr;
 }
@@ -783,17 +760,15 @@ Value *InstCombiner::SimplifyMultipleUseDemandedBits(Instruction *I,
 
     // If the client is only demanding bits that we know, return the known
     // constant.
-    if ((DemandedMask & (IKnownZero|IKnownOne)) == DemandedMask)
+    if (DemandedMask.isSubsetOf(IKnownZero|IKnownOne))
       return Constant::getIntegerValue(ITy, IKnownOne);
 
     // If all of the demanded bits are known 1 on one side, return the other.
     // These bits cannot contribute to the result of the 'and' in this
     // context.
-    if ((DemandedMask & ~LHSKnownZero & RHSKnownOne) ==
-        (DemandedMask & ~LHSKnownZero))
+    if (DemandedMask.isSubsetOf(LHSKnownZero | RHSKnownOne))
       return I->getOperand(0);
-    if ((DemandedMask & ~RHSKnownZero & LHSKnownOne) ==
-        (DemandedMask & ~RHSKnownZero))
+    if (DemandedMask.isSubsetOf(RHSKnownZero | LHSKnownOne))
       return I->getOperand(1);
 
     KnownZero = std::move(IKnownZero);
@@ -817,26 +792,15 @@ Value *InstCombiner::SimplifyMultipleUseDemandedBits(Instruction *I,
 
     // If the client is only demanding bits that we know, return the known
     // constant.
-    if ((DemandedMask & (IKnownZero|IKnownOne)) == DemandedMask)
+    if (DemandedMask.isSubsetOf(IKnownZero|IKnownOne))
       return Constant::getIntegerValue(ITy, IKnownOne);
 
     // If all of the demanded bits are known zero on one side, return the
     // other.  These bits cannot contribute to the result of the 'or' in this
     // context.
-    if ((DemandedMask & ~LHSKnownOne & RHSKnownZero) ==
-        (DemandedMask & ~LHSKnownOne))
+    if (DemandedMask.isSubsetOf(LHSKnownOne | RHSKnownZero))
       return I->getOperand(0);
-    if ((DemandedMask & ~RHSKnownOne & LHSKnownZero) ==
-        (DemandedMask & ~RHSKnownOne))
-      return I->getOperand(1);
-
-    // If all of the potentially set bits on one side are known to be set on
-    // the other side, just use the 'other' side.
-    if ((DemandedMask & (~RHSKnownZero) & LHSKnownOne) ==
-        (DemandedMask & (~RHSKnownZero)))
-      return I->getOperand(0);
-    if ((DemandedMask & (~LHSKnownZero) & RHSKnownOne) ==
-        (DemandedMask & (~LHSKnownZero)))
+    if (DemandedMask.isSubsetOf(RHSKnownOne | LHSKnownZero))
       return I->getOperand(1);
 
     KnownZero = std::move(IKnownZero);
@@ -861,14 +825,14 @@ Value *InstCombiner::SimplifyMultipleUseDemandedBits(Instruction *I,
 
     // If the client is only demanding bits that we know, return the known
     // constant.
-    if ((DemandedMask & (IKnownZero|IKnownOne)) == DemandedMask)
+    if (DemandedMask.isSubsetOf(IKnownZero|IKnownOne))
       return Constant::getIntegerValue(ITy, IKnownOne);
 
     // If all of the demanded bits are known zero on one side, return the
     // other.
-    if ((DemandedMask & RHSKnownZero) == DemandedMask)
+    if (DemandedMask.isSubsetOf(RHSKnownZero))
       return I->getOperand(0);
-    if ((DemandedMask & LHSKnownZero) == DemandedMask)
+    if (DemandedMask.isSubsetOf(LHSKnownZero))
       return I->getOperand(1);
 
     // Output known-0 bits are known if clear or set in both the LHS & RHS.
@@ -883,7 +847,7 @@ Value *InstCombiner::SimplifyMultipleUseDemandedBits(Instruction *I,
 
     // If this user is only demanding bits that we know, return the known
     // constant.
-    if ((DemandedMask & (KnownZero|KnownOne)) == DemandedMask)
+    if (DemandedMask.isSubsetOf(KnownZero|KnownOne))
       return Constant::getIntegerValue(ITy, KnownOne);
 
     break;
@@ -1641,7 +1605,52 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       UndefElts.setHighBits(VWidth / 2);
       break;
     case Intrinsic::amdgcn_buffer_load:
-    case Intrinsic::amdgcn_buffer_load_format: {
+    case Intrinsic::amdgcn_buffer_load_format:
+    case Intrinsic::amdgcn_image_sample:
+    case Intrinsic::amdgcn_image_sample_cl:
+    case Intrinsic::amdgcn_image_sample_d:
+    case Intrinsic::amdgcn_image_sample_d_cl:
+    case Intrinsic::amdgcn_image_sample_l:
+    case Intrinsic::amdgcn_image_sample_b:
+    case Intrinsic::amdgcn_image_sample_b_cl:
+    case Intrinsic::amdgcn_image_sample_lz:
+    case Intrinsic::amdgcn_image_sample_cd:
+    case Intrinsic::amdgcn_image_sample_cd_cl:
+
+    case Intrinsic::amdgcn_image_sample_c:
+    case Intrinsic::amdgcn_image_sample_c_cl:
+    case Intrinsic::amdgcn_image_sample_c_d:
+    case Intrinsic::amdgcn_image_sample_c_d_cl:
+    case Intrinsic::amdgcn_image_sample_c_l:
+    case Intrinsic::amdgcn_image_sample_c_b:
+    case Intrinsic::amdgcn_image_sample_c_b_cl:
+    case Intrinsic::amdgcn_image_sample_c_lz:
+    case Intrinsic::amdgcn_image_sample_c_cd:
+    case Intrinsic::amdgcn_image_sample_c_cd_cl:
+
+    case Intrinsic::amdgcn_image_sample_o:
+    case Intrinsic::amdgcn_image_sample_cl_o:
+    case Intrinsic::amdgcn_image_sample_d_o:
+    case Intrinsic::amdgcn_image_sample_d_cl_o:
+    case Intrinsic::amdgcn_image_sample_l_o:
+    case Intrinsic::amdgcn_image_sample_b_o:
+    case Intrinsic::amdgcn_image_sample_b_cl_o:
+    case Intrinsic::amdgcn_image_sample_lz_o:
+    case Intrinsic::amdgcn_image_sample_cd_o:
+    case Intrinsic::amdgcn_image_sample_cd_cl_o:
+
+    case Intrinsic::amdgcn_image_sample_c_o:
+    case Intrinsic::amdgcn_image_sample_c_cl_o:
+    case Intrinsic::amdgcn_image_sample_c_d_o:
+    case Intrinsic::amdgcn_image_sample_c_d_cl_o:
+    case Intrinsic::amdgcn_image_sample_c_l_o:
+    case Intrinsic::amdgcn_image_sample_c_b_o:
+    case Intrinsic::amdgcn_image_sample_c_b_cl_o:
+    case Intrinsic::amdgcn_image_sample_c_lz_o:
+    case Intrinsic::amdgcn_image_sample_c_cd_o:
+    case Intrinsic::amdgcn_image_sample_c_cd_cl_o:
+
+    case Intrinsic::amdgcn_image_getlod: {
       if (VWidth == 1 || !DemandedElts.isMask())
         return nullptr;
 
@@ -1656,8 +1665,17 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       Type *NewTy = (NewNumElts == 1) ? EltTy :
         VectorType::get(EltTy, NewNumElts);
 
-      Function *NewIntrin = Intrinsic::getDeclaration(M, II->getIntrinsicID(),
-                                                      NewTy);
+      auto IID = II->getIntrinsicID();
+
+      bool IsBuffer = IID == Intrinsic::amdgcn_buffer_load ||
+                      IID == Intrinsic::amdgcn_buffer_load_format;
+
+      Function *NewIntrin = IsBuffer ?
+        Intrinsic::getDeclaration(M, IID, NewTy) :
+        // Samplers have 3 mangled types.
+        Intrinsic::getDeclaration(M, IID,
+                                  { NewTy, II->getArgOperand(0)->getType(),
+                                      II->getArgOperand(1)->getType()});
 
       SmallVector<Value *, 5> Args;
       for (unsigned I = 0, E = II->getNumArgOperands(); I != E; ++I)
@@ -1669,6 +1687,29 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       CallInst *NewCall = Builder->CreateCall(NewIntrin, Args);
       NewCall->takeName(II);
       NewCall->copyMetadata(*II);
+
+      if (!IsBuffer) {
+        ConstantInt *DMask = dyn_cast<ConstantInt>(NewCall->getArgOperand(3));
+        if (DMask) {
+          unsigned DMaskVal = DMask->getZExtValue() & 0xf;
+
+          unsigned PopCnt = 0;
+          unsigned NewDMask = 0;
+          for (unsigned I = 0; I < 4; ++I) {
+            const unsigned Bit = 1 << I;
+            if (!!(DMaskVal & Bit)) {
+              if (++PopCnt > NewNumElts)
+                break;
+
+              NewDMask |= Bit;
+            }
+          }
+
+          NewCall->setArgOperand(3, ConstantInt::get(DMask->getType(), NewDMask));
+        }
+      }
+
+
       if (NewNumElts == 1) {
         return Builder->CreateInsertElement(UndefValue::get(V->getType()),
                                             NewCall, static_cast<uint64_t>(0));

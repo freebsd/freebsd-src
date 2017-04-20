@@ -16,6 +16,7 @@
 #include "SyntheticSections.h"
 #include "Target.h"
 #include "Threads.h"
+#include "llvm/Support/Compression.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/MD5.h"
 #include "llvm/Support/MathExtras.h"
@@ -81,6 +82,33 @@ static bool compareByFilePosition(InputSection *A, InputSection *B) {
   if (AOut != BOut)
     return AOut->SectionIndex < BOut->SectionIndex;
   return LA->OutSecOff < LB->OutSecOff;
+}
+
+// Compress section contents if this section contains debug info.
+template <class ELFT> void OutputSection::maybeCompress() {
+  typedef typename ELFT::Chdr Elf_Chdr;
+
+  // Compress only DWARF debug sections.
+  if (!Config->CompressDebugSections || (Flags & SHF_ALLOC) ||
+      !Name.startswith(".debug_"))
+    return;
+
+  // Create a section header.
+  ZDebugHeader.resize(sizeof(Elf_Chdr));
+  auto *Hdr = reinterpret_cast<Elf_Chdr *>(ZDebugHeader.data());
+  Hdr->ch_type = ELFCOMPRESS_ZLIB;
+  Hdr->ch_size = Size;
+  Hdr->ch_addralign = Alignment;
+
+  // Write section contents to a temporary buffer and compress it.
+  std::vector<uint8_t> Buf(Size);
+  writeTo<ELFT>(Buf.data());
+  if (Error E = zlib::compress(toStringRef(Buf), CompressedData))
+    fatal("compress failed: " + llvm::toString(std::move(E)));
+
+  // Update section headers.
+  Size = sizeof(Elf_Chdr) + CompressedData.size();
+  Flags |= SHF_COMPRESSED;
 }
 
 template <class ELFT> void OutputSection::finalize() {
@@ -244,6 +272,15 @@ uint32_t OutputSection::getFiller() {
 
 template <class ELFT> void OutputSection::writeTo(uint8_t *Buf) {
   Loc = Buf;
+
+  // We may have already rendered compressed content when using
+  // -compress-debug-sections option. Write it together with header.
+  if (!CompressedData.empty()) {
+    memcpy(Buf, ZDebugHeader.data(), ZDebugHeader.size());
+    memcpy(Buf + ZDebugHeader.size(), CompressedData.data(),
+           CompressedData.size());
+    return;
+  }
 
   // Write leading padding.
   uint32_t Filler = getFiller();
@@ -421,6 +458,11 @@ template void OutputSection::finalize<ELF32LE>();
 template void OutputSection::finalize<ELF32BE>();
 template void OutputSection::finalize<ELF64LE>();
 template void OutputSection::finalize<ELF64BE>();
+
+template void OutputSection::maybeCompress<ELF32LE>();
+template void OutputSection::maybeCompress<ELF32BE>();
+template void OutputSection::maybeCompress<ELF64LE>();
+template void OutputSection::maybeCompress<ELF64BE>();
 
 template void OutputSection::writeTo<ELF32LE>(uint8_t *Buf);
 template void OutputSection::writeTo<ELF32BE>(uint8_t *Buf);

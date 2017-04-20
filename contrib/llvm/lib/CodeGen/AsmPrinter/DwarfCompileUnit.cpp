@@ -547,18 +547,19 @@ DIE *DwarfCompileUnit::constructVariableDIEImpl(const DbgVariable &DV,
   DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
   for (auto &Fragment : DV.getFrameIndexExprs()) {
     unsigned FrameReg = 0;
+    const DIExpression *Expr = Fragment.Expr;
     const TargetFrameLowering *TFI = Asm->MF->getSubtarget().getFrameLowering();
     int Offset = TFI->getFrameIndexReference(*Asm->MF, Fragment.FI, FrameReg);
-    DwarfExpr.addFragmentOffset(Fragment.Expr);
+    DwarfExpr.addFragmentOffset(Expr);
     SmallVector<uint64_t, 8> Ops;
     Ops.push_back(dwarf::DW_OP_plus);
     Ops.push_back(Offset);
-    Ops.push_back(dwarf::DW_OP_deref);
-    Ops.append(Fragment.Expr->elements_begin(), Fragment.Expr->elements_end());
-    DIExpressionCursor Expr(Ops);
+    Ops.append(Expr->elements_begin(), Expr->elements_end());
+    DIExpressionCursor Cursor(Ops);
+    DwarfExpr.setMemoryLocationKind();
     DwarfExpr.addMachineRegExpression(
-        *Asm->MF->getSubtarget().getRegisterInfo(), Expr, FrameReg);
-    DwarfExpr.addExpression(std::move(Expr));
+        *Asm->MF->getSubtarget().getRegisterInfo(), Cursor, FrameReg);
+    DwarfExpr.addExpression(std::move(Cursor));
   }
   addBlock(*VariableDie, dwarf::DW_AT_location, DwarfExpr.finalize());
 
@@ -779,12 +780,13 @@ void DwarfCompileUnit::addAddress(DIE &Die, dwarf::Attribute Attribute,
                                   const MachineLocation &Location) {
   DIELoc *Loc = new (DIEValueAllocator) DIELoc;
   DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
+  if (Location.isIndirect())
+    DwarfExpr.setMemoryLocationKind();
 
   SmallVector<uint64_t, 8> Ops;
-  if (Location.isIndirect()) {
+  if (Location.isIndirect() && Location.getOffset()) {
     Ops.push_back(dwarf::DW_OP_plus);
     Ops.push_back(Location.getOffset());
-    Ops.push_back(dwarf::DW_OP_deref);
   }
   DIExpressionCursor Cursor(Ops);
   const TargetRegisterInfo &TRI = *Asm->MF->getSubtarget().getRegisterInfo();
@@ -807,12 +809,13 @@ void DwarfCompileUnit::addComplexAddress(const DbgVariable &DV, DIE &Die,
   DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
   const DIExpression *DIExpr = DV.getSingleExpression();
   DwarfExpr.addFragmentOffset(DIExpr);
+  if (Location.isIndirect())
+    DwarfExpr.setMemoryLocationKind();
 
   SmallVector<uint64_t, 8> Ops;
-  if (Location.isIndirect()) {
+  if (Location.isIndirect() && Location.getOffset()) {
     Ops.push_back(dwarf::DW_OP_plus);
     Ops.push_back(Location.getOffset());
-    Ops.push_back(dwarf::DW_OP_deref);
   }
   Ops.append(DIExpr->elements_begin(), DIExpr->elements_end());
   DIExpressionCursor Cursor(Ops);
