@@ -227,7 +227,7 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 
 	TDBG_FUNC();
 
-	if (id < 0 || id >= ta->map_len || ta->map[id].type == PT_NONE)
+	if (id < 0 || id >= (long)ta->map_len || ta->map[id].type == PT_NONE)
 		return (TD_NOTHR);
 
 	ret = thr_pread_ptr(ta, ta->thread_list_addr, &pt);
@@ -1062,7 +1062,7 @@ static int
 pt_validate(const td_thrhandle_t *th)
 {
 
-	if (th->th_tid < 0 || th->th_tid >= th->th_ta->map_len ||
+	if (th->th_tid < 0 || th->th_tid >= (long)th->th_ta->map_len ||
 	    th->th_ta->map[th->th_tid].type == PT_NONE)
 		return (TD_NOTHR);
 	return (TD_OK);
