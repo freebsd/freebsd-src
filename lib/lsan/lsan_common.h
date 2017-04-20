@@ -118,6 +118,15 @@ typedef InternalMmapVector<uptr> Frontier;
 void InitializePlatformSpecificModules();
 void ProcessGlobalRegions(Frontier *frontier);
 void ProcessPlatformSpecificAllocations(Frontier *frontier);
+
+struct RootRegion {
+  uptr begin;
+  uptr size;
+};
+
+InternalMmapVector<RootRegion> const *GetRootRegions();
+void ScanRootRegion(Frontier *frontier, RootRegion const &region,
+                    uptr region_begin, uptr region_end, uptr prot);
 // Run stoptheworld while holding any platform-specific locks.
 void DoStopTheWorld(StopTheWorldCallback callback, void* argument);
 
@@ -193,10 +202,10 @@ bool WordIsPoisoned(uptr addr);
 // Wrappers for ThreadRegistry access.
 void LockThreadRegistry();
 void UnlockThreadRegistry();
-bool GetThreadRangesLocked(uptr os_id, uptr *stack_begin, uptr *stack_end,
+bool GetThreadRangesLocked(tid_t os_id, uptr *stack_begin, uptr *stack_end,
                            uptr *tls_begin, uptr *tls_end, uptr *cache_begin,
                            uptr *cache_end, DTLS **dtls);
-void ForEachExtraStackRange(uptr os_id, RangeIteratorCallback callback,
+void ForEachExtraStackRange(tid_t os_id, RangeIteratorCallback callback,
                             void *arg);
 // If called from the main thread, updates the main thread's TID in the thread
 // registry. We need this to handle processes that fork() without a subsequent
@@ -212,6 +221,10 @@ uptr PointsIntoChunk(void *p);
 uptr GetUserBegin(uptr chunk);
 // Helper for __lsan_ignore_object().
 IgnoreObjectResult IgnoreObjectLocked(const void *p);
+
+// Return the linker module, if valid for the platform.
+LoadedModule *GetLinker();
+
 // Wrapper for chunk metadata operations.
 class LsanMetadata {
  public:
