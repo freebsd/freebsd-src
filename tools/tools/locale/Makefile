@@ -35,6 +35,7 @@ COLLATION_SPECIAL?= \
 	sr_Cyrl_RS ISO8859-5 \
 	zh_Hans_CN GB2312 \
 	zh_Hans_CN eucCN \
+	zh_Hant_TW Big5 \
 	zh_Hans_CN GB18030 \
 	zh_Hans_CN GBK \
 	ja_JP eucJP \
@@ -131,7 +132,8 @@ BASE_LOCALES_OF_INTEREST?= \
 	th_TH lo_LA bo_IN my_MM pa_Guru_IN ka_GE chr_US \
 	km_KH shi_Tfng_MA ii_CN vai_Vaii_LR vi_VN
 
-ENCODINGS=	CP1251 \
+ENCODINGS=	Big5 \
+		CP1251 \
 		CP866 \
 		CP949 \
 		eucCN \
