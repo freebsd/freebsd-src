@@ -195,7 +195,7 @@ No output is produced if the files are identical.
 .Pp
 Output options (mutually exclusive):
 .Bl -tag -width Ds
-.It Fl C Ar number
+.It Fl C Ar number Fl -context Ar number
 Like
 .Fl c
 but produces a diff with
@@ -223,7 +223,7 @@ both files with
 .Sq !\ \& .
 Changes which lie within 3 lines of each other are grouped together on
 output.
-.It Fl D Ar string
+.It Fl D Ar string Fl -ifdef Ar string
 Creates a merged version of
 .Ar file1
 and
@@ -237,7 +237,7 @@ while defining
 .Ar string
 will yield
 .Ar file2 .
-.It Fl e
+.It Fl e -ed
 Produces output in a form suitable as input for the editor utility,
 .Xr ed 1 ,
 which can then be used to convert file1 into file2.
@@ -251,7 +251,7 @@ from their state in
 .Ar dir1
 to their state in
 .Ar dir2 .
-.It Fl f
+.It Fl f -forward-ed
 Identical output to that of the
 .Fl e
 flag, but in reverse order.
@@ -264,10 +264,10 @@ but in the opposite order and with a count of changed lines on each
 insert or delete command.
 This is the form used by
 .Xr rcsdiff 1 .
-.It Fl q
+.It Fl q -brief
 Just print a line when the files differ.
 Does not output a list of changes.
-.It Fl U Ar number
+.It Fl U Ar number Fl -unified Ar number
 Like
 .Fl u
 but produces a diff with
@@ -288,7 +288,7 @@ a single section.
 .Pp
 Comparison options:
 .Bl -tag -width Ds
-.It Fl a
+.It Fl a -text
 Treat all files as
 .Tn ASCII
 text.
@@ -303,11 +303,11 @@ to produce a diff.
 .It Fl b
 Causes trailing blanks (spaces and tabs) to be ignored, and other
 strings of blanks to compare equal.
-.It Fl d
+.It Fl d -minimal
 Try very hard to produce a diff as small as possible.
 This may consume a lot of processing power and memory when processing
 large files with many changes.
-.It Fl I Ar pattern
+.It Fl I Ar pattern Fl -ignore-matching-lines Ar pattern
 Ignores changes, insertions, and deletions whose lines match the
 extended regular expression
 .Ar pattern .
@@ -319,32 +319,32 @@ ignored.
 See
 .Xr re_format 7
 for more information on regular expression patterns.
-.It Fl i
+.It Fl i -ignore-case
 Ignores the case of letters.
 E.g.,
 .Dq A
 will compare equal to
 .Dq a .
-.It Fl l
+.It Fl l -paginate
 Pass the output through
 .Xr pr 1
 to paginate it.
-.It Fl L Ar label
+.It Fl L Ar label Fl -label Ar label
 Print
 .Ar label
 instead of the first (and second, if this option is specified twice)
 file name and time in the context or unified diff header.
-.It Fl p
+.It Fl p -show-c-function
 With unified and context diffs, show with each change
 the first 40 characters of the last line before the context beginning
 with a letter, an underscore or a dollar sign.
 For C source code following standard layout conventions, this will
 show the prototype of the function the change applies to.
-.It Fl T
+.It Fl T -initial-tab
 Print a tab rather than a space before the rest of the line for the
 normal, context or unified output formats.
 This makes the alignment of tabs in the line consistent.
-.It Fl t
+.It Fl t -expand-tabs
 Will expand tabs in output lines.
 Normal or
 .Fl c
@@ -352,9 +352,9 @@ output adds character(s) to the front of each line which may screw up
 the indentation of the original source lines and make the output listing
 difficult to interpret.
 This option will preserve the original source's indentation.
-.It Fl w
+.It Fl w -ignore-all-blanks
 Is similar to
-.Fl b
+.Fl b -ignore-space-change
 but causes whitespace (blanks and tabs) to be totally ignored.
 E.g.,
 .Dq if (\ \&a == b \&)
@@ -370,40 +370,52 @@ lines from FILE1
 .It %<
 lines from FILE2
 .El
+.It Fl -ignore-file-name-case
+ignore case when comparing file names
+.It Fl -no-ignore-file-name-case
+do not ignore case wen comparing file names (default)
+.It Fl -normal
+default diff output
+.It Fl -speed-large-files
+stub option for compatibility with GNU diff
+.It Fl -strip-trailing-cr
+strip carriage return on input files
+.It Fl tabsize Ar number
+Number of spaces representing a tab (default 8)
 .El
 .Pp
 Directory comparison options:
 .Bl -tag -width Ds
-.It Fl N
+.It Fl N -new-file
 If a file is found in only one directory, act as if it was found in the
 other directory too but was of zero size.
-.It Fl P
+.It Fl P -unidirectional-new-file
 If a file is found only in
 .Ar dir2 ,
 act as if it was found in
 .Ar dir1
 too but was of zero size.
-.It Fl r
+.It Fl r -recursive
 Causes application of
 .Nm
 recursively to common subdirectories encountered.
-.It Fl S Ar name
+.It Fl S Ar name Fl -starting-file Ar name
 Re-starts a directory
 .Nm
 in the middle, beginning with file
 .Ar name .
-.It Fl s
+.It Fl s -report-identical-files
 Causes
 .Nm
 to report files which are the same, which are otherwise not mentioned.
-.It Fl X Ar file
+.It Fl X Ar file Fl -exclude-from Ar file
 Exclude files and subdirectories from comparison whose basenames match
 lines in
 .Ar file .
 Multiple
 .Fl X
 options may be specified.
-.It Fl x Ar pattern
+.It Fl x Ar pattern Fl -exclude Ar pattern
 Exclude files and subdirectories from comparison whose basenames match
 .Ar pattern .
 Patterns are matched using shell-style globbing via
@@ -451,7 +463,7 @@ The default (without
 .Fl e ,
 .Fl c ,
 or
-.Fl n
+.Fl n -rcs
 .\" -C
 options)
 output contains lines of these forms, where
