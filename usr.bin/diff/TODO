@@ -5,14 +5,14 @@
   * make a libsdiff and use that directly to avoid duplicating the code
 
 to be implemented:
---suppress-common-lines: depends on -y
 --ignore-blank-lines
 --horizon-lines
 --ignore-tab-expansion
 --line-format
 
 Will probably be not implemented:
---GTYPE-group-format
+--GTYPE-group-format (partially implement - minimal)
 --LTYPE-line-format
---speed-large-file: (Do we need that? only a stub?)
 --help (We have a manpage already)
+--suppress-common-lines: depends on -y (won't be implemented, as it conflicts
+the way sdiff expects it and in any case we have sdiff for that feature)
