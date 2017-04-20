@@ -1,15 +1,15 @@
-// RUN: LSAN_BASE="detect_leaks=1:use_registers=0:use_stacks=0"
+// RUN: LSAN_BASE="use_registers=0:use_stacks=0"
 // RUN: %clangxx_lsan %s -o %t
 
 // RUN: rm -f %t.supp
 // RUN: touch %t.supp
-// RUN: LSAN_OPTIONS="$LSAN_BASE:suppressions='%t.supp'" not %run %t 2>&1 | FileCheck %s --check-prefix=NOSUPP
+// RUN: %env_lsan_opts="$LSAN_BASE:suppressions='%t.supp'" not %run %t 2>&1 | FileCheck %s --check-prefix=NOSUPP
 
 // RUN: echo "leak:*LSanTestLeakingFunc*" > %t.supp
-// RUN: LSAN_OPTIONS="$LSAN_BASE:suppressions='%t.supp'" not %run %t 2>&1 | FileCheck %s
+// RUN: %env_lsan_opts="$LSAN_BASE:suppressions='%t.supp'" not %run %t 2>&1 | FileCheck %s
 
 // RUN: echo "leak:%t" > %t.supp
-// RUN: LSAN_OPTIONS="$LSAN_BASE:suppressions='%t.supp':symbolize=false" %run %t
+// RUN: %env_lsan_opts="$LSAN_BASE:suppressions='%t.supp':symbolize=false" %run %t
 
 #include <stdio.h>
 #include <stdlib.h>
