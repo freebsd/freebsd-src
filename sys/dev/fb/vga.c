@@ -862,6 +862,9 @@ update_adapter_info(video_adapter_t *adp, video_info_t *info)
     /* XXX */
     adp->va_buffer = info->vi_buffer;
     adp->va_buffer_size = info->vi_buffer_size;
+    adp->va_flags &= ~V_ADP_CWIDTH9;
+    if (info->vi_flags & V_INFO_CWIDTH9)
+	adp->va_flags |= V_ADP_CWIDTH9;
     if (info->vi_mem_model == V_INFO_MM_VGAX) {
 	adp->va_line_width = info->vi_width/2;
     } else if (info->vi_flags & V_INFO_GRAPHICS) {
@@ -1220,6 +1223,29 @@ probe_adapters(void)
 	    }
 	}
     }
+
+#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
+    /*
+     * Attempt to determine the real character width for each mode.  9 wide
+     * is supposed to be standard for EGA mono mode and most VGA text modes,
+     * but some hardware doesn't support it, so dynamic configuration is
+     * needed.  Bit 0 in sequencer register 1 is supposed control the width
+     * (set = 8), but this is unreliable too.  Trust that 0 in the sequencer
+     * bit means 9 wide after verifying that 9 is consistent with some CRTC
+     * timing. The ratio (Horizontal Total) / (Horizontal Displayed) is
+     * about 1.2 in all standard 9-wide modes and should be about 9/8 larger
+     * again  in similar 8-wide modes; in practice it is usually about 1.4
+     * times larger.
+     */
+    for (i = 0; i < nitems(bios_vmode); ++i) {
+	if (bios_vmode[i].vi_mem_model == V_INFO_MM_TEXT &&
+	    bios_vmode[i].vi_width != 90) {
+	    mp = get_mode_param(map_mode_num(bios_vmode[i].vi_mode));
+	    if (mp != NULL && !(mp[5] & 1) && mp[10] <= mp[11] * 125 / 100)
+		bios_vmode[i].vi_flags |= V_INFO_CWIDTH9;
+	}
+    }
+#endif
 
     /* buffer address */
     vga_get_info(&biosadapter[V_ADP_PRIMARY],
