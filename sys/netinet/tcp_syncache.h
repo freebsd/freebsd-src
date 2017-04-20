@@ -99,6 +99,7 @@ struct syncache_head {
 	int		sch_nextc;
 	u_int		sch_length;
 	struct tcp_syncache *sch_sc;
+	time_t		sch_last_overflow;
 };
 
 #define	SYNCOOKIE_SECRET_SIZE	16
