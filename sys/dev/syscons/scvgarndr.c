@@ -173,8 +173,7 @@ static const struct mousedata mouse9x13 = { {
 	0x0c00, 0x0c00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000, },
 	9, 13,
 };
-#endif
-#if defined(SC_PIXEL_MODE)
+
 static const struct mousedata mouse10x16 = { {
 	0xc000, 0xa000, 0x9000, 0x8800, 0x8400, 0x8200, 0x8100, 0x8080,
 	0x8040, 0x83c0, 0x9200, 0xa900, 0xc900, 0x0480, 0x0480, 0x0300, }, {
@@ -412,6 +411,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 #ifndef SC_ALT_MOUSE_IMAGE
     if (ISMOUSEAVAIL(scp->sc->adp->va_flags)) {
 	const struct mousedata *mdp;
+	uint32_t border, interior;
 	u_char font_buf[128];
 	u_short cursor[32];
 	u_char c;
@@ -420,7 +420,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	int crtc_addr;
 	int i;
 
-	mdp = &mouse9x13;
+	mdp = (scp->font_size < 14) ? &mouse9x13 : &mouse10x16;
 
 	/* prepare mousepointer char's bitmaps */
 	pos = (y/scp->font_size - scp->yoff)*scp->xsize + x/8 - scp->xoff;
@@ -443,9 +443,23 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	xoffset = x%8;
 	yoffset = y%scp->font_size;
 	for (i = 0; i < 16; ++i) {
-		cursor[i + yoffset] =
-	    		(cursor[i + yoffset] & ~(mdp->md_border[i] >> xoffset))
-	    		| (mdp->md_interior[i] >> xoffset);
+		border = mdp->md_border[i] << 8; /* avoid right shifting out */
+		interior = mdp->md_interior[i] << 8;
+		border >>= xoffset;		/* normalize */
+		interior >>= xoffset;
+		if (scp->sc->adp->va_flags & V_ADP_CWIDTH9) {
+			/* skip gaps between characters */
+			border = (border & 0xff0000) |
+				 (border & 0x007f80) << 1 |
+				 (border & 0x00003f) << 2;
+			interior = (interior & 0xff0000) |
+				   (interior & 0x007f80) << 1 |
+				   (interior & 0x00003f) << 2;
+		}
+		border >>= 8;			/* back to normal position */
+		interior >>= 8;
+		cursor[i + yoffset] = (cursor[i + yoffset]  & ~border) |
+				      interior;
 	}
 	for (i = 0; i < scp->font_size; ++i) {
 		font_buf[i] = (cursor[i] & 0xff00) >> 8;
