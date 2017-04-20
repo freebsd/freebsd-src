@@ -229,13 +229,13 @@ wd_timeout_cb(void *arg)
 #ifdef DDB
 	if ((wd_pretimeout_act & WD_SOFT_DDB)) {
 		char kdb_why[80];
-		snprintf(kdb_why, sizeof(kdb_why), "watchdog %s timeout", type);
+		snprintf(kdb_why, sizeof(kdb_why), "watchdog %s-timeout", type);
 		kdb_backtrace();
 		kdb_enter(KDB_WHY_WATCHDOG, kdb_why);
 	}
 #endif
 	if ((wd_pretimeout_act & WD_SOFT_LOG))
-		log(LOG_EMERG, "watchdog %s-timeout, WD_SOFT_LOG", type);
+		log(LOG_EMERG, "watchdog %s-timeout, WD_SOFT_LOG\n", type);
 	if ((wd_pretimeout_act & WD_SOFT_PRINTF))
 		printf("watchdog %s-timeout, WD_SOFT_PRINTF\n", type);
 	if ((wd_pretimeout_act & WD_SOFT_PANIC))
@@ -292,8 +292,7 @@ wd_set_pretimeout(int newtimeout, int disableiftoolong)
 
 	/* We determined the value is sane, so reset the callout */
 	(void) callout_reset(&wd_pretimeo_handle,
-	    timeout_ticks,
-	    wd_timeout_cb, "pre-timeout");
+	    timeout_ticks, wd_timeout_cb, "pre");
 	wd_pretimeout = newtimeout;
 	return 0;
 }
