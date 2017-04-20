@@ -315,7 +315,8 @@ ofw_cpu_early_foreach(ofw_cpu_foreach_cb callback, boolean_t only_runnable)
 
 		/*
 		 * If we are filtering by runnable then limit to only
-		 * those that have been enabled.
+		 * those that have been enabled, or do provide a method
+		 * to enable them.
 		 */
 		if (only_runnable) {
 			status[0] = '\0';
