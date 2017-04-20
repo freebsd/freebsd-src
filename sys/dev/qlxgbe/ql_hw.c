@@ -183,9 +183,9 @@ qla_sysctl_stop_pegs(SYSCTL_HANDLER_ARGS)
 
 	if (ret == 1) {
 		ha = (qla_host_t *)arg1;
-		(void)QLA_LOCK(ha, __func__, 0);
+		QLA_LOCK(ha);
 		qla_stop_pegs(ha);	
-		QLA_UNLOCK(ha, __func__);
+		QLA_UNLOCK(ha);
 	}
 
 	return err;
