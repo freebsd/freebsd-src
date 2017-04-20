@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170420: remove GNU diff
+OLD_FILES+=usr/share/man/man7/diff.7.gz
 # 20170322: rename <x> to <x>_test to match the FreeBSD test suite name scheme
 OLD_FILES+=usr/tests/usr.bin/col/col
 OLD_FILES+=usr/tests/usr.bin/diff/diff
