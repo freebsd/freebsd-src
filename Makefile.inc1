@@ -2129,7 +2129,7 @@ native-xtools: .PHONY
     ${_clang} \
     sbin/md5 \
     sbin/sysctl \
-    gnu/usr.bin/diff \
+    usr.bin/diff \
     usr.bin/awk \
     usr.bin/basename \
     usr.bin/bmake \

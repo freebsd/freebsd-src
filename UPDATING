@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170420:
+	GNU diff has been replaced by a BSD licensed diff. Some features of GNU
+	diff has not been implemented, if those are needed a newer version of
+	GNU diff is available via the diffutils package under the gdiff name.
+
 20170413:
 	As of r316810 for ipfilter, keep frags is no longer assumed when
 	keep state is specified in a rule. r316810 aligns ipfilter with
