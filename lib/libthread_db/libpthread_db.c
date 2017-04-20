@@ -100,7 +100,7 @@ pt_map_thread(const td_thragent_t *const_ta, psaddr_t pt, enum pt_type type)
 			if (new == NULL)
 				return (-1);
 			memset(new + ta->map_len, '\0', ta->map_len *
-			    sizeof(struct pt_map));
+			    2 * sizeof(struct pt_map));
 			first = ta->map_len;
 			ta->map = new;
 			ta->map_len *= 2;
