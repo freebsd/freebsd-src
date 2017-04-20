@@ -1008,7 +1008,7 @@ output(char *file1, FILE *f1, char *file2, FILE *f2, int flags)
 	}
 	if (m == 0)
 		change(file1, f1, file2, f2, 1, 0, 1, len[1], &flags);
-	if (diff_format == D_IFDEF) {
+	if (diff_format == D_IFDEF || diff_format == D_GFORMAT) {
 		for (;;) {
 #define	c i0
 			if ((c = getc(f1)) == EOF)
@@ -1081,10 +1081,13 @@ change(char *file1, FILE *f1, char *file2, FILE *f2, int a, int b, int c, int d,
     int *pflags)
 {
 	static size_t max_context = 64;
-	int i;
+	long curpos;
+	int i, nc;
+	const char *walk;
 
 restart:
-	if (diff_format != D_IFDEF && a > b && c > d)
+	if ((diff_format != D_IFDEF || diff_format == D_GFORMAT) &&
+	    a > b && c > d)
 		return;
 	if (ignore_pats != NULL) {
 		char *line;
@@ -1181,12 +1184,38 @@ proceed:
 		}
 		break;
 	}
+	if (diff_format == D_GFORMAT) {
+		curpos = ftell(f1);
+		/* print through if append (a>b), else to (nb: 0 vs 1 orig) */
+		nc = ixold[a > b ? b : a - 1] - curpos;
+		for (i = 0; i < nc; i++)
+			diff_output("%c", getc(f1));
+		for (walk = group_format; *walk != '\0'; walk++) {
+			if (*walk == '%') {
+				walk++;
+				switch (*walk) {
+				case '<':
+					fetch(ixold, a, b, f1, '<', 1, *pflags);
+					break;
+				case '>':
+					fetch(ixnew, c, d, f2, '>', 0, *pflags);
+					break;
+				default:
+					diff_output("%%%c", *walk);
+					break;
+				}
+				continue;
+			}
+			diff_output("%c", *walk);
+		}
+	}
 	if (diff_format == D_NORMAL || diff_format == D_IFDEF) {
 		fetch(ixold, a, b, f1, '<', 1, *pflags);
 		if (a <= b && c <= d && diff_format == D_NORMAL)
 			diff_output("---\n");
 	}
-	i = fetch(ixnew, c, d, f2, diff_format == D_NORMAL ? '>' : '\0', 0, *pflags);
+	if (diff_format != D_GFORMAT)
+		i = fetch(ixnew, c, d, f2, diff_format == D_NORMAL ? '>' : '\0', 0, *pflags);
 	if (i != 0 && diff_format == D_EDIT) {
 		/*
 		 * A non-zero return value for D_EDIT indicates that the
@@ -1220,7 +1249,7 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 	 * When doing #ifdef's, copy down to current line
 	 * if this is the first file, so that stuff makes it to output.
 	 */
-	if (diff_format == D_IFDEF && oldfile) {
+	if ((diff_format == D_IFDEF) && oldfile) {
 		long curpos = ftell(lb);
 		/* print through if append (a>b), else to (nb: 0 vs 1 orig) */
 		nc = f[a > b ? b : a - 1] - curpos;
@@ -1244,7 +1273,8 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 	for (i = a; i <= b; i++) {
 		fseek(lb, f[i - 1], SEEK_SET);
 		nc = f[i] - f[i - 1];
-		if (diff_format != D_IFDEF && ch != '\0') {
+		if ((diff_format != D_IFDEF && diff_format != D_GFORMAT) &&
+		    ch != '\0') {
 			diff_output("%c", ch);
 			if (Tflag && (diff_format == D_NORMAL || diff_format == D_CONTEXT
 			    || diff_format == D_UNIFIED))

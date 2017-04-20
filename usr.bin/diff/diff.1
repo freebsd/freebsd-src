@@ -30,7 +30,7 @@
 .\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2017
+.Dd April 20, 2017
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Fl n | q | u
 .Oc
 .Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
 .Op Fl -ed
 .Op Fl -expand-tabs
 .Op Fl -forward-ed
@@ -70,6 +71,7 @@
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
 .Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
 .Op Fl -ed
 .Op Fl -expand-tabs
 .Op Fl -forward-ed
@@ -94,6 +96,7 @@
 .Op Fl abdiltw
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
 .Op Fl -ed
 .Op Fl -expand-tabs
 .Op Fl -forward-ed
@@ -119,6 +122,7 @@
 .Op Fl I Ar pattern | Fl -ignore-matching-lines Ar pattern
 .Op Fl L Ar label | Fl -label Ar label
 .Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
 .Op Fl -ed
 .Op Fl -expand-tabs
 .Op Fl -forward-ed
@@ -146,6 +150,7 @@
 .Fl n | q | u
 .Oc
 .Op Fl -brief
+.Op Fl -changed-group-format Ar GFMT
 .Op Fl -context
 .Op Fl -ed
 .Op Fl -expand-tabs
@@ -355,6 +360,16 @@ E.g.,
 .Dq if (\ \&a == b \&)
 will compare equal to
 .Dq if(a==b) .
+.It Fl -changed-group-format Ar GFMT
+Format input groups in the provided
+.Pp
+the format is a string with special keywords:
+.Bl -tag -width %<
+.It %<
+lines from FILE1
+.It %<
+lines from FILE2
+.El
 .El
 .Pp
 Directory comparison options:
