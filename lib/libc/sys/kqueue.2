@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2017
+.Dd April 18, 2017
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -332,6 +332,9 @@ For sockets, the low water mark and socket error handling is
 identical to the
 .Dv EVFILT_READ
 case.
+.It Dv EVFILT_EMPTY
+Takes a descriptor as the identifier, and returns whenever
+there is no remaining data in the write buffer.
 .It Dv EVFILT_AIO
 The sigevent portion of the AIO request is filled in, with
 .Va sigev_notify_kqueue

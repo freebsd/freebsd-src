@@ -667,7 +667,7 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 				goto unlock_return;
 			if (vm_page_busied(p))
 				continue;
-			PCPU_INC(cnt.v_pdpages);
+			VM_CNT_INC(v_pdpages);
 			vm_page_lock(p);
 			if (p->wire_count != 0 || p->hold_count != 0 ||
 			    !pmap_page_exists_quick(pmap, p)) {
@@ -1003,7 +1003,7 @@ scan:
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
-				PCPU_INC(cnt.v_reactivated);
+				VM_CNT_INC(v_reactivated);
 				vm_page_activate(m);
 
 				/*
@@ -1052,7 +1052,7 @@ scan:
 		if (m->dirty == 0) {
 free_page:
 			vm_page_free(m);
-			PCPU_INC(cnt.v_dfree);
+			VM_CNT_INC(v_dfree);
 		} else if ((object->flags & OBJ_DEAD) == 0) {
 			if (object->type != OBJT_SWAP &&
 			    object->type != OBJT_DEFAULT)
@@ -1187,7 +1187,7 @@ vm_pageout_laundry_worker(void *arg)
 		KASSERT(shortfall_cycle >= 0,
 		    ("negative cycle %d", shortfall_cycle));
 		launder = 0;
-		wakeups = VM_METER_PCPU_CNT(v_pdwakeups);
+		wakeups = VM_CNT_FETCH(v_pdwakeups);
 
 		/*
 		 * First determine whether we need to launder pages to meet a
@@ -1378,7 +1378,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		KASSERT(queue_locked, ("unlocked inactive queue"));
 		KASSERT(vm_page_inactive(m), ("Inactive queue %p", m));
 
-		PCPU_INC(cnt.v_pdpages);
+		VM_CNT_INC(v_pdpages);
 		next = TAILQ_NEXT(m, plinks.q);
 
 		/*
@@ -1476,7 +1476,7 @@ unlock_page:
 		}
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
-				PCPU_INC(cnt.v_reactivated);
+				VM_CNT_INC(v_reactivated);
 				vm_page_activate(m);
 
 				/*
@@ -1521,7 +1521,7 @@ unlock_page:
 		if (m->dirty == 0) {
 free_page:
 			vm_page_free(m);
-			PCPU_INC(cnt.v_dfree);
+			VM_CNT_INC(v_dfree);
 			--page_shortage;
 		} else if ((object->flags & OBJ_DEAD) == 0)
 			vm_page_launder(m);
@@ -1551,7 +1551,7 @@ drop_page:
 		if (pq->pq_cnt > 0 || atomic_load_acq_int(&swapdev_enabled)) {
 			if (page_shortage > 0) {
 				vm_laundry_request = VM_LAUNDRY_SHORTFALL;
-				PCPU_INC(cnt.v_pdshortfalls);
+				VM_CNT_INC(v_pdshortfalls);
 			} else if (vm_laundry_request != VM_LAUNDRY_SHORTFALL)
 				vm_laundry_request = VM_LAUNDRY_BACKGROUND;
 			wakeup(&vm_laundry_request);
@@ -1635,7 +1635,7 @@ drop_page:
 		 * The count for page daemon pages is updated after checking
 		 * the page for eligibility.
 		 */
-		PCPU_INC(cnt.v_pdpages);
+		VM_CNT_INC(v_pdpages);
 
 		/*
 		 * Check to see "how much" the page has been used.
@@ -2036,7 +2036,7 @@ vm_pageout_worker(void *arg)
 			if (mtx_sleep(&vm_pageout_wanted,
 			    &vm_page_queue_free_mtx, PDROP | PVM, "psleep",
 			    hz) == 0) {
-				PCPU_INC(cnt.v_pdwakeups);
+				VM_CNT_INC(v_pdwakeups);
 				pass = 1;
 			} else
 				pass = 0;

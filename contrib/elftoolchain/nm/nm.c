@@ -48,7 +48,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: nm.c 3472 2016-05-17 20:11:16Z emaste $");
+ELFTC_VCSID("$Id: nm.c 3504 2016-12-17 15:33:16Z kaiwang27 $");
 
 /* symbol information list */
 STAILQ_HEAD(sym_head, sym_entry);
@@ -1186,7 +1186,7 @@ read_elf(Elf *elf, const char *filename, Elf_Kind kind)
 	}
 	if (!elf_getshnum(elf, &shnum)) {
 		if ((e_err = elf_errno()) != 0)
-			warnx("%s: %s", OBJNAME, elf_errmsg(e_err));
+			warnx("%s: %s", OBJNAME, "File format not recognized");
 		else
 			warnx("%s: cannot get section number", OBJNAME);
 		rtn = 1;

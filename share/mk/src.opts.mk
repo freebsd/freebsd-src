@@ -41,7 +41,7 @@ __<src.opts.mk>__:
 # that haven't been converted over.
 #
 
-# These options are used by src the builds
+# These options are used by the src builds
 
 __DEFAULT_YES_OPTIONS = \
     ACCT \
@@ -96,8 +96,6 @@ __DEFAULT_YES_OPTIONS = \
     FTP \
     GAMES \
     GCOV \
-    GDB \
-    GNU \
     GNU_DIFF \
     GNU_GREP \
     GNU_GREP_COMPAT \
@@ -188,6 +186,7 @@ __DEFAULT_NO_OPTIONS = \
     OFED \
     OPENLDAP \
     REPRODUCIBLE_BUILD \
+    RPCBIND_WARMSTART_SUPPORT \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
     SVN \
@@ -262,6 +261,14 @@ __DEFAULT_NO_OPTIONS+=LLDB
 # LLVM lacks support for FreeBSD 64-bit atomic operations for ARMv4/ARMv5
 .if ${__T} == "arm" || ${__T} == "armeb"
 BROKEN_OPTIONS+=LLDB
+.endif
+# GDB in base is generally less functional than GDB in ports.  Ports GDB
+# does not yet contain kernel support for arm, and sparc64 kernel support
+# has not been tested.
+.if ${__T:Marm*} != "" || ${__T} == "sparc64"
+__DEFAULT_YES_OPTIONS+=GDB
+.else
+__DEFAULT_NO_OPTIONS+=GDB
 .endif
 # Only doing soft float API stuff on armv6
 .if ${__T} != "armv6"
@@ -443,7 +450,6 @@ MK_${vv:H}:=	${MK_${vv:T}}
 .for var in \
     BLACKLIST \
     BZIP2 \
-    GNU \
     INET \
     INET6 \
     KERBEROS \

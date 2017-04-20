@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -813,9 +814,10 @@ initarm(struct arm_boot_params *abp)
 
 	/*
 	 * Add one table for end of kernel map, one for stacks, msgbuf and
-	 * L1 and L2 tables map and one for vectors map.
+	 * L1 and L2 tables map,  one for vectors map and two for
+	 * l2 structures from pmap_bootstrap.
 	 */
-	l2size += 3;
+	l2size += 5;
 
 	/* Make it divisible by 4 */
 	l2size = (l2size + 3) & ~3;

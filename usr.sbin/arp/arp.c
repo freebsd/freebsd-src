@@ -404,7 +404,7 @@ set(int argc, char **argv)
 	 * the prefix route covering the local end of the
 	 * PPP link should be returned, on which ARP applies.
 	 */
-	rtm = rtmsg(RTM_GET, dst, &sdl_m);
+	rtm = rtmsg(RTM_GET, dst, NULL);
 	if (rtm == NULL) {
 		xo_warn("%s", host);
 		return (1);
@@ -466,7 +466,6 @@ delete(char *host)
 	struct sockaddr_in *addr, *dst;
 	struct rt_msghdr *rtm;
 	struct sockaddr_dl *sdl;
-	struct sockaddr_dl sdl_m;
 
 	dst = getaddr(host);
 	if (dst == NULL)
@@ -477,17 +476,8 @@ delete(char *host)
 	 */
 	flags &= ~RTF_ANNOUNCE;
 
-	/*
-	 * setup the data structure to notify the kernel
-	 * it is the ARP entry the RTM_GET is interested
-	 * in
-	 */
-	bzero(&sdl_m, sizeof(sdl_m));
-	sdl_m.sdl_len = sizeof(sdl_m);
-	sdl_m.sdl_family = AF_LINK;
-
 	for (;;) {	/* try twice */
-		rtm = rtmsg(RTM_GET, dst, &sdl_m);
+		rtm = rtmsg(RTM_GET, dst, NULL);
 		if (rtm == NULL) {
 			xo_warn("%s", host);
 			return (1);
@@ -511,7 +501,7 @@ delete(char *host)
 		}
 
 		/*
-		 * Regualar entry delete failed, now check if there
+		 * Regular entry delete failed, now check if there
 		 * is a proxy-arp entry to remove.
 		 */
 		if (flags & RTF_ANNOUNCE) {
@@ -815,7 +805,8 @@ doit:
 	}
 	do {
 		l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
-	} while (l > 0 && (rtm->rtm_seq != seq || rtm->rtm_pid != pid));
+	} while (l > 0 && (rtm->rtm_type != cmd || rtm->rtm_seq != seq ||
+	    rtm->rtm_pid != pid));
 	if (l < 0)
 		xo_warn("read from routing socket");
 	return (rtm);

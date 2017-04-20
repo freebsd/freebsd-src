@@ -63,17 +63,8 @@ setalias(const char *name, const char *val)
 {
 	struct alias *ap, **app;
 
+	unalias(name);
 	app = hashalias(name);
-	for (ap = *app; ap; ap = ap->next) {
-		if (equal(name, ap->name)) {
-			INTOFF;
-			ckfree(ap->val);
-			ap->val	= savestr(val);
-			INTON;
-			return;
-		}
-	}
-	/* not found */
 	INTOFF;
 	ap = ckmalloc(sizeof (struct alias));
 	ap->name = savestr(name);
@@ -83,6 +74,14 @@ setalias(const char *name, const char *val)
 	*app = ap;
 	aliases++;
 	INTON;
+}
+
+static void
+freealias(struct alias *ap)
+{
+	ckfree(ap->name);
+	ckfree(ap->val);
+	ckfree(ap);
 }
 
 static int
@@ -106,9 +105,7 @@ unalias(const char *name)
 			else {
 				INTOFF;
 				*app = ap->next;
-				ckfree(ap->name);
-				ckfree(ap->val);
-				ckfree(ap);
+				freealias(ap);
 				INTON;
 			}
 			aliases--;
@@ -122,19 +119,21 @@ unalias(const char *name)
 static void
 rmaliases(void)
 {
-	struct alias *ap, *tmp;
+	struct alias *ap, **app;
 	int i;
 
 	INTOFF;
 	for (i = 0; i < ATABSIZE; i++) {
-		ap = atab[i];
-		atab[i] = NULL;
-		while (ap) {
-			ckfree(ap->name);
-			ckfree(ap->val);
-			tmp = ap;
-			ap = ap->next;
-			ckfree(tmp);
+		app = &atab[i];
+		while (*app) {
+			ap = *app;
+			if (ap->flag & ALIASINUSE) {
+				*ap->name = '\0';
+				app = &(*app)->next;
+			} else {
+				*app = ap->next;
+				freealias(ap);
+			}
 		}
 	}
 	aliases = 0;

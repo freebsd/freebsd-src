@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
 #include <sys/watchdog.h>
+#include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_page.h>

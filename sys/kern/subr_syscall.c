@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/capsicum.h>
 #include <sys/ktr.h>
+#include <sys/vmmeter.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -57,7 +58,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	struct proc *p;
 	int error, traced;
 
-	PCPU_INC(cnt.v_syscall);
+	VM_CNT_INC(v_syscall);
 	p = td->td_proc;
 
 	td->td_pticks = 0;

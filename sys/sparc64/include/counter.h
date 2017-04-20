@@ -34,6 +34,9 @@
 #include <sys/proc.h>
 #endif
 
+extern struct pcpu dummy_pcpu[];
+#define	EARLY_COUNTER	&dummy_pcpu[0].pc_early_dummy_counter
+
 #define	counter_enter()	critical_enter()
 #define	counter_exit()	critical_exit()
 

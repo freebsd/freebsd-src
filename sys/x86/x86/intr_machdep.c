@@ -49,6 +49,7 @@
 #include <sys/sx.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+#include <sys/vmmeter.h>
 #include <machine/clock.h>
 #include <machine/intr_machdep.h>
 #include <machine/smp.h>
@@ -245,7 +246,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * processed too.
 	 */
 	(*isrc->is_count)++;
-	PCPU_INC(cnt.v_intr);
+	VM_CNT_INC(v_intr);
 
 	ie = isrc->is_event;
 

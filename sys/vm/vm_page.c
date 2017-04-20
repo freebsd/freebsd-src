@@ -2748,7 +2748,7 @@ vm_page_free_toq(vm_page_t m)
 	} else
 		KASSERT(m->queue == PQ_NONE,
 		    ("vm_page_free_toq: unmanaged page %p is queued", m));
-	PCPU_INC(cnt.v_tfree);
+	VM_CNT_INC(v_tfree);
 
 	if (vm_page_sbusied(m))
 		panic("vm_page_free: freeing busy page %p", m);

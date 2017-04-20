@@ -121,7 +121,7 @@ GLIBCXX_3.4 {
       std::__moneypunct_cache*;
       std::__numpunct_cache*;
       std::__timepunct_cache*;
-      __gnu_debug::_Error_formatter*
+      __gnu_debug::_Error_formatter*;
     };
 
     # Names not in an 'extern' block are mangled names.
@@ -604,34 +604,6 @@ GLIBCXX_3.4.4 {
 } GLIBCXX_3.4.3;
 
 GLIBCXX_3.4.5 {
-
-    # std::string
-    _ZNKSs11_M_disjunctEPKc;
-    _ZNKSs15_M_check_lengthE[jm][jm]PKc;
-    _ZNSs4_Rep26_M_set_length_and_sharableE*;
-    _ZNSs7_M_copyEPcPKc[jm];
-    _ZNSs7_M_moveEPcPKc[jm];
-    _ZNSs9_M_assignEPc[jm]c;
-
-    # std::wstring
-    _ZNKSbIwSt11char_traitsIwESaIwEE11_M_disjunctEPKw;
-    _ZNKSbIwSt11char_traitsIwESaIwEE15_M_check_lengthE[jm][jm]PKc;
-    _ZNSbIwSt11char_traitsIwESaIwEE4_Rep26_M_set_length_and_sharableE*;
-    _ZNSbIwSt11char_traitsIwESaIwEE7_M_copyEPwPKw[jm];
-    _ZNSbIwSt11char_traitsIwESaIwEE7_M_moveEPwPKw[jm];
-    _ZNSbIwSt11char_traitsIwESaIwEE9_M_assignEPw[jm]w;
-
-    _ZNKSt13basic_fstreamI[cw]St11char_traitsI[cw]EE7is_openEv;
-    _ZNKSt14basic_ifstreamI[cw]St11char_traitsI[cw]EE7is_openEv;
-    _ZNKSt14basic_ofstreamI[cw]St11char_traitsI[cw]EE7is_openEv;
-
-    _ZNSi6ignoreE[ilv];
-    _ZNSt13basic_istreamIwSt11char_traitsIwEE6ignoreE[ilv];
-
-    _ZNSt11char_traitsI[cw]E2eqERK[cw]S2_;
-
-    _ZNSt19istreambuf_iteratorI[cw]St11char_traitsI[cw]EEppEv;
-
 } GLIBCXX_3.4.4;
 
 GLIBCXX_3.4.6 {
@@ -642,8 +614,6 @@ GLIBCXX_3.4.6 {
     _ZNSt6locale5facet13_S_get_c_nameEv;
 
     _ZNSt15basic_stringbufI[cw]St11char_traitsI[cw]ESaI[cw]EE9showmanycEv;
-
-    _ZNKSt15basic_stringbufIwSt11char_traitsIwESaIwEE3strEv;
 
     _ZN9__gnu_cxx6__poolILb1EE13_M_initializeEv;
 

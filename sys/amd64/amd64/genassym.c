@@ -90,9 +90,6 @@ ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(TDP_CALLCHAIN, TDP_CALLCHAIN);
 ASSYM(TDP_KTHREAD, TDP_KTHREAD);
 
-ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
-ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
-ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(NPTEPG, NPTEPG);
 ASSYM(NPDEPG, NPDEPG);

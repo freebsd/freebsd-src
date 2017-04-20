@@ -117,7 +117,8 @@ extern int arc4rand_iniseed_state;
 /* Prototypes for non-quad routines. */
 struct malloc_type;
 uint32_t arc4random(void);
-void	 arc4rand(void *ptr, u_int len, int reseed);
+void	 arc4random_buf(void *, size_t);
+void	 arc4rand(void *, u_int, int);
 int	 bcmp(const void *, const void *, size_t);
 int	 timingsafe_bcmp(const void *, const void *, size_t);
 void	*bsearch(const void *, const void *, size_t,

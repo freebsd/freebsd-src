@@ -34,6 +34,7 @@ SUBDIR=	alias \
 	csplit \
 	ctlstat \
 	cut \
+	diff \
 	dirname \
 	du \
 	elf2aout \

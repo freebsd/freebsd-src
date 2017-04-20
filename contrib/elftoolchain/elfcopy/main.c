@@ -39,7 +39,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 3446 2016-05-03 01:31:17Z emaste $");
+ELFTC_VCSID("$Id: main.c 3520 2017-04-17 01:47:52Z kaiwang27 $");
 
 enum options
 {
@@ -285,6 +285,7 @@ create_elf(struct elfcopy *ecp)
 	size_t		 ishnum;
 
 	ecp->flags |= SYMTAB_INTACT;
+	ecp->flags &= ~SYMTAB_EXIST;
 
 	/* Create EHDR. */
 	if (gelf_getehdr(ecp->ein, &ieh) == NULL)
@@ -498,6 +499,10 @@ free_elf(struct elfcopy *ecp)
 			free(sec);
 		}
 	}
+
+	ecp->symtab = NULL;
+	ecp->strtab = NULL;
+	ecp->shstrtab = NULL;
 
 	if (ecp->secndx != NULL) {
 		free(ecp->secndx);

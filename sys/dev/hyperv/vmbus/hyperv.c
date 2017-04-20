@@ -34,8 +34,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/timetc.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/pmap.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
@@ -64,7 +70,7 @@ __FBSDID("$FreeBSD$");
 
 struct hypercall_ctx {
 	void			*hc_addr;
-	struct hyperv_dma	hc_dma;
+	vm_paddr_t		hc_paddr;
 };
 
 static u_int			hyperv_get_timecount(struct timecounter *);
@@ -255,8 +261,8 @@ SYSINIT(hyperv_initialize, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, hyperv_init,
 static void
 hypercall_memfree(void)
 {
-	hyperv_dmamem_free(&hypercall_context.hc_dma,
-	    hypercall_context.hc_addr);
+	kmem_free(kernel_arena, (vm_offset_t)hypercall_context.hc_addr,
+	    PAGE_SIZE);
 	hypercall_context.hc_addr = NULL;
 }
 
@@ -268,14 +274,15 @@ hypercall_create(void *arg __unused)
 	if (vm_guest != VM_GUEST_HV)
 		return;
 
-	hypercall_context.hc_addr = hyperv_dmamem_alloc(NULL, PAGE_SIZE, 0,
-	    PAGE_SIZE, &hypercall_context.hc_dma, BUS_DMA_WAITOK);
-	if (hypercall_context.hc_addr == NULL) {
-		printf("hyperv: Hypercall page allocation failed\n");
-		/* Can't perform any Hyper-V specific actions */
-		vm_guest = VM_GUEST_VM;
-		return;
-	}
+	/*
+	 * NOTE:
+	 * - busdma(9), i.e. hyperv_dmamem APIs, can _not_ be used due to
+	 *   the NX bit.
+	 * - Assume kmem_malloc() returns properly aligned memory.
+	 */
+	hypercall_context.hc_addr = (void *)kmem_malloc(kernel_arena, PAGE_SIZE,
+	    M_WAITOK);
+	hypercall_context.hc_paddr = vtophys(hypercall_context.hc_addr);
 
 	/* Get the 'reserved' bits, which requires preservation. */
 	hc_orig = rdmsr(MSR_HV_HYPERCALL);
@@ -285,7 +292,7 @@ hypercall_create(void *arg __unused)
 	 *
 	 * NOTE: 'reserved' bits MUST be preserved.
 	 */
-	hc = ((hypercall_context.hc_dma.hv_paddr >> PAGE_SHIFT) <<
+	hc = ((hypercall_context.hc_paddr >> PAGE_SHIFT) <<
 	    MSR_HV_HYPERCALL_PGSHIFT) |
 	    (hc_orig & MSR_HV_HYPERCALL_RSVD_MASK) |
 	    MSR_HV_HYPERCALL_ENABLE;

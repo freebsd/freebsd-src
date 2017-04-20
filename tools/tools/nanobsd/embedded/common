@@ -65,7 +65,7 @@
 # Long Term
 # o common tooling for creating images for odd-ball platforms
 # o support for boot loaders other than uboot in the image
-#   or via special insturctions
+#   or via special instructions
 # o No pony support. Sadly, you cannot have a pony.
 #
 
@@ -343,8 +343,8 @@ die( ) {
 # Automatically include the packaging port here so it is always first so it
 # builds the port and adds the package so we can add other packages.
 #XXX Doesn't work for cross build, so punting until I can integreate qemu-static
-#XXX or poudere, both of which require priv'd execution. Or qemu-system, which
-#XXX is super, super slow.
+#XXX or poudriere, both of which require priv'd execution. Or qemu-system,
+#XXX which is super, super slow.
 #add_port ports-mgmt/pkg
 #add_port security/sudo
 #add_port ftp/curl
@@ -480,6 +480,7 @@ dos_boot_part ( ) (
 )
 
 if [ -n "$NANO_BOOT_PKG" ]; then
+	local d=/usr/local/share/u-boot/${NANO_BOOT_PKG}
 	if [ ! -d ${d} ]; then
 		echo ${NANO_BOOT_PKG} not installed. Sadly, it must be.
 		exit 1
@@ -492,7 +493,7 @@ if [ -n "$NANO_BOOT_PKG" ]; then
 fi
 
 product_custom ( ) (
-	# not quie ready to tweak these in nopriv build
+	# not quite ready to tweak these in nopriv build
 	if [ -z ${NANO_NOPRIV_BUILD} ]; then
 		# Last second tweaks -- generally not needed
 		chown -R root:wheel ${NANO_WORLDDIR}/root

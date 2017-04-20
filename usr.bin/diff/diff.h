@@ -47,6 +47,7 @@
 #define	D_NREVERSE	5	/* Reverse ed script with numbered
 				   lines and no trailing . */
 #define	D_BRIEF		6	/* Say if the files differ */
+#define	D_GFORMAT	7	/* Diff with defined changed group format */
 
 /*
  * Output flags
@@ -87,6 +88,7 @@ extern int	lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
 extern int	diff_format, diff_context, status, ignore_file_case;
 extern int	tabsize;
 extern char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
+extern char	*group_format;
 extern struct	stat stb1, stb2;
 extern struct	excludes *excludes_list;
 extern regex_t	ignore_re;

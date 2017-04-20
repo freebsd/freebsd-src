@@ -338,6 +338,10 @@ struct da_softc {
 	u_int	timeouts;
 	u_int	invalidations;
 #endif
+#define DA_ANNOUNCETMP_SZ 80
+	char			announce_temp[DA_ANNOUNCETMP_SZ];
+#define DA_ANNOUNCE_SZ 400
+	char			announcebuf[DA_ANNOUNCE_SZ];
 };
 
 #define dadeleteflag(softc, delete_method, enable)			\
@@ -2496,17 +2500,15 @@ daregister(struct cam_periph *periph, void *arg)
 	/*
 	 * 6, 10, 12 and 16 are the currently permissible values.
 	 */
-	if (softc->minimum_cmd_size < 6)
-		softc->minimum_cmd_size = 6;
-	else if ((softc->minimum_cmd_size > 6)
-	      && (softc->minimum_cmd_size <= 10))
-		softc->minimum_cmd_size = 10;
-	else if ((softc->minimum_cmd_size > 10)
-	      && (softc->minimum_cmd_size <= 12))
-		softc->minimum_cmd_size = 12;
-	else if (softc->minimum_cmd_size > 12)
+	if (softc->minimum_cmd_size > 12)
 		softc->minimum_cmd_size = 16;
-
+	else if (softc->minimum_cmd_size > 10)
+		softc->minimum_cmd_size = 12;
+	else if (softc->minimum_cmd_size > 6)
+		softc->minimum_cmd_size = 10;
+	else
+		softc->minimum_cmd_size = 6;
+		
 	/* Predict whether device may support READ CAPACITY(16). */
 	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3 &&
 	    (softc->quirks & DA_Q_NO_RC16) == 0) {
@@ -4169,7 +4171,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 
-		biotrack(bp, __func__);
+		if (bp != NULL)
+			biotrack(bp, __func__);
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		if (LIST_EMPTY(&softc->pending_ccbs))
 			softc->flags |= DA_FLAG_WAS_OTAG;
@@ -4218,12 +4221,16 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	{
 		struct	   scsi_read_capacity_data *rdcap;
 		struct     scsi_read_capacity_data_long *rcaplong;
-		char	   announce_buf[80];
+		char	   *announce_buf;
 		int	   lbp;
 
 		lbp = 0;
 		rdcap = NULL;
 		rcaplong = NULL;
+		/* XXX TODO: can this be a malloc? */
+		announce_buf = softc->announce_temp;
+		bzero(announce_buf, DA_ANNOUNCETMP_SZ);
+
 		if (state == DA_CCB_PROBE_RC)
 			rdcap =(struct scsi_read_capacity_data *)csio->data_ptr;
 		else
@@ -4276,7 +4283,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				xpt_print(periph->path,
 				    "unsupportable block size %ju\n",
 				    (uintmax_t) block_size);
-				announce_buf[0] = '\0';
+				announce_buf = NULL;
 				cam_periph_invalidate(periph);
 			} else {
 				/*
@@ -4288,7 +4295,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					  rcaplong, sizeof(*rcaplong));
 				lbp = (lalba & SRC16_LBPME_A);
 				dp = &softc->params;
-				snprintf(announce_buf, sizeof(announce_buf),
+				snprintf(announce_buf, DA_ANNOUNCETMP_SZ,
 				    "%juMB (%ju %u byte sectors)",
 				    ((uintmax_t)dp->secsize * dp->sectors) /
 				     (1024 * 1024),
@@ -4296,8 +4303,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		} else {
 			int	error;
-
-			announce_buf[0] = '\0';
 
 			/*
 			 * Retry any UNIT ATTENTION type errors.  They
@@ -4382,11 +4387,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 							&sense_key_desc,
 							&asc_desc);
 					snprintf(announce_buf,
-					    sizeof(announce_buf),
-						"Attempt to query device "
-						"size failed: %s, %s",
-						sense_key_desc,
-						asc_desc);
+					    DA_ANNOUNCETMP_SZ,
+					    "Attempt to query device "
+					    "size failed: %s, %s",
+					    sense_key_desc, asc_desc);
 				} else { 
 					if (have_sense)
 						scsi_sense_print(
@@ -4400,6 +4404,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					xpt_print(periph->path, "fatal error, "
 					    "failed to attach to device\n");
 
+					announce_buf = NULL;
+
 					/*
 					 * Free up resources.
 					 */
@@ -4408,20 +4414,29 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 		free(csio->data_ptr, M_SCSIDA);
-		if (announce_buf[0] != '\0' &&
+		if (announce_buf != NULL &&
 		    ((softc->flags & DA_FLAG_ANNOUNCED) == 0)) {
+			struct sbuf sb;
+
+			sbuf_new(&sb, softc->announcebuf, DA_ANNOUNCE_SZ,
+			    SBUF_FIXEDLEN);
+			xpt_announce_periph_sbuf(periph, &sb, announce_buf);
+			xpt_announce_quirks_sbuf(periph, &sb, softc->quirks,
+			    DA_Q_BIT_STRING);
+			sbuf_finish(&sb);
+			sbuf_putbuf(&sb);
+
 			/*
 			 * Create our sysctl variables, now that we know
 			 * we have successfully attached.
 			 */
 			/* increase the refcount */
 			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
+
 				taskqueue_enqueue(taskqueue_thread,
 						  &softc->sysctl_task);
-				xpt_announce_periph(periph, announce_buf);
-				xpt_announce_quirks(periph, softc->quirks,
-				    DA_Q_BIT_STRING);
 			} else {
+				/* XXX This message is useless! */
 				xpt_print(periph->path, "fatal error, "
 				    "could not acquire reference count\n");
 			}

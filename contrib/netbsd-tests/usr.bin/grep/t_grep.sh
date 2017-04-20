@@ -377,6 +377,20 @@ egrep_empty_invalid_body()
 {
 	atf_check -s exit:1 egrep '{' /dev/null
 }
+
+atf_test_case zerolen
+zerolen_head()
+{
+	atf_set "descr" "Check for successful zero-length matches with ^$"
+}
+zerolen_body()
+{
+	printf "Eggs\n\nCheese" > test1
+
+	atf_check -o inline:"\n" grep -e "^$" test1
+
+	atf_check -o inline:"Eggs\nCheese\n" grep -v -e "^$" test1
+}
 # End FreeBSD
 
 atf_init_test_cases()
@@ -404,5 +418,6 @@ atf_init_test_cases()
 	atf_add_test_case f_file_empty
 	atf_add_test_case escmap
 	atf_add_test_case egrep_empty_invalid
+	atf_add_test_case zerolen
 # End FreeBSD
 }

@@ -4,6 +4,8 @@ atf_test_case simple
 atf_test_case unified
 atf_test_case header
 atf_test_case header_ns
+atf_test_case ifdef
+atf_test_case group_format
 
 simple_body()
 {
@@ -70,10 +72,28 @@ header_ns_body()
 		diff -u empty hello
 }
 
+ifdef_body()
+{
+	atf_check -o file:$(atf_get_srcdir)/ifdef.out -s eq:1 \
+		diff -D PLOP "$(atf_get_srcdir)/input_c1.in" \
+		"$(atf_get_srcdir)/input_c2.in"
+}
+
+group_format_body()
+{
+	atf_check -o file:$(atf_get_srcdir)/group-format.out -s eq:1 \
+		diff --changed-group-format='<<<<<<< (local)
+%<=======
+%>>>>>>>> (stock)
+' "$(atf_get_srcdir)/input_c1.in" "$(atf_get_srcdir)/input_c2.in"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
 	atf_add_test_case unified
 	atf_add_test_case header
 	atf_add_test_case header_ns
+	atf_add_test_case ifdef
+	atf_add_test_case group_format
 }

@@ -38,7 +38,7 @@
 .Nd device tree compiler
 .Sh SYNOPSIS
 .Nm
-.Op Fl fhsv
+.Op Fl @fhsv
 .Op Fl b Ar boot_cpu_id
 .Op Fl d Ar dependency_file
 .Op Fl E Ar [no-]checker_name
@@ -84,6 +84,8 @@ Enable or disable a specified checker.
 The argument is the name of the checker.
 The full list of checkers is given in
 .Sx CHECKERS .
+.It Fl @
+Emit a __symbols__ node to allow plugins to be loaded.
 .It Fl f
 Force the tool to attempt to generate the output, even if the input had errors.
 .It Fl h

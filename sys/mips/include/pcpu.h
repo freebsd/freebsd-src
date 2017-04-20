@@ -45,11 +45,11 @@
 #ifdef	__mips_n64
 #define	PCPU_MD_MIPS64_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[53]
+	char		__pad[245]
 #else
 #define	PCPU_MD_MIPS32_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[189]
+	char		__pad[125]
 #endif
 
 #ifdef	__mips_n64

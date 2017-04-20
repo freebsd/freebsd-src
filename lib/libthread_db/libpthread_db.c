@@ -74,7 +74,8 @@ pt_map_thread(const td_thragent_t *const_ta, psaddr_t pt, enum pt_type type)
 {
 	td_thragent_t *ta = __DECONST(td_thragent_t *, const_ta);
 	struct pt_map *new;
-	int i, first = -1;
+	int first = -1;
+	unsigned int i;
 
 	/* leave zero out */
 	for (i = 1; i < ta->map_len; ++i) {
@@ -94,12 +95,12 @@ pt_map_thread(const td_thragent_t *const_ta, psaddr_t pt, enum pt_type type)
 			ta->map_len = 20;
 			first = 1;
 		} else {
-			new = realloc(ta->map,
-			              sizeof(struct pt_map) * ta->map_len * 2);
+			new = reallocarray(ta->map, ta->map_len,
+			    2 * sizeof(struct pt_map));
 			if (new == NULL)
 				return (-1);
-			memset(new + ta->map_len, '\0', sizeof(struct pt_map) *
-			       ta->map_len);
+			memset(new + ta->map_len, '\0', ta->map_len *
+			    sizeof(struct pt_map));
 			first = ta->map_len;
 			ta->map = new;
 			ta->map_len *= 2;
@@ -1047,7 +1048,7 @@ pt_thr_sstep(const td_thrhandle_t *th, int step)
 static void
 pt_unmap_lwp(const td_thragent_t *ta, lwpid_t lwp)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ta->map_len; ++i) {
 		if (ta->map[i].type == PT_LWP && ta->map[i].lwp == lwp) {

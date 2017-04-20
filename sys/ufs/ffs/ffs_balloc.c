@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
+#include <sys/vmmeter.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

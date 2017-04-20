@@ -134,8 +134,8 @@
 #define		PREFETCH_CTRL_INSTR_PREFETCH	(1 << 29)
 #define		PREFETCH_CTRL_DL		(1 << 30)
 #define PL310_POWER_CTRL		0xF80
-#define		POWER_CTRL_ENABLE_GATING	(1 << 0)
-#define		POWER_CTRL_ENABLE_STANDBY	(1 << 1)
+#define		POWER_CTRL_ENABLE_GATING	(1 << 1)
+#define		POWER_CTRL_ENABLE_STANDBY	(1 << 0)
 
 struct intr_config_hook;
 

@@ -115,6 +115,7 @@ static int ps3disk_strategy(void *devdata, int flag, daddr_t dblk,
 	struct open_dev *od = (struct open_dev *) dev->d_disk.data;
 	int err;
 
+	flag &= F_MASK;
 	if (flag != F_READ) {
 		dev_printf(dev, "write operation is not supported!\n");
 		return EROFS;

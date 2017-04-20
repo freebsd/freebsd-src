@@ -168,6 +168,7 @@ elsif ($codeset eq "eucJP")     { $max_mb = 3 }
 elsif ($codeset eq "eucKR")     { $max_mb = 2 }
 elsif ($codeset eq "GBK")       { $max_mb = 2 }
 elsif ($codeset eq "GB2312")    { $max_mb = 2 }
+elsif ($codeset eq "Big5")      { $max_mb = 2 }
 else { $max_mb = 1 };
 print("<code_set_name> \"$codeset\"\n");
 print("<mb_cur_min> 1\n");
