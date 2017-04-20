@@ -77,7 +77,7 @@ struct td_thragent {
 	int		thread_off_sigmask;
 	int		thread_off_sigpend;
 	struct pt_map	*map;
-	int		map_len;
+	unsigned int	map_len;
 };
 
 void pt_md_init(void);
