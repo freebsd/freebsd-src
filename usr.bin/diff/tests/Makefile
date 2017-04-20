@@ -21,7 +21,8 @@ ${PACKAGE}FILES+=	\
 	unified_c9999.out \
 	unified_9999.out \
 	header.out \
-	header_ns.out
+	header_ns.out \
+	ifdef.out
 
 NETBSD_ATF_TESTS_SH+=	netbsd_diff_test
 
