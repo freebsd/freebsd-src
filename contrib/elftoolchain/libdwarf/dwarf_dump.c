@@ -27,7 +27,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_dump.c 3052 2014-05-26 20:36:24Z kaiwang27 $");
+ELFTC_VCSID("$Id: dwarf_dump.c 3494 2016-09-20 17:16:13Z emaste $");
 
 int
 dwarf_get_ACCESS_name(unsigned access, const char **s)
@@ -262,6 +262,40 @@ dwarf_get_AT_name(unsigned attr, const char **s)
 		*s = "DW_AT_body_begin"; break;
 	case DW_AT_body_end:
 		*s = "DW_AT_body_end"; break;
+	case DW_AT_MIPS_fde:
+		*s = "DW_AT_MIPS_fde"; break;
+	case DW_AT_MIPS_loop_begin:
+		*s = "DW_AT_MIPS_loop_begin"; break;
+	case DW_AT_MIPS_tail_loop_begin:
+		*s = "DW_AT_MIPS_tail_loop_begin"; break;
+	case DW_AT_MIPS_epilog_begin:
+		*s = "DW_AT_MIPS_epilog_begin"; break;
+	case DW_AT_MIPS_loop_unroll_factor:
+		*s = "DW_AT_MIPS_loop_unroll_factor"; break;
+	case DW_AT_MIPS_software_pipeline_depth:
+		*s = "DW_AT_MIPS_software_pipeline_depth"; break;
+	case DW_AT_MIPS_linkage_name:
+		*s = "DW_AT_MIPS_linkage_name"; break;
+	case DW_AT_MIPS_stride:
+		*s = "DW_AT_MIPS_stride"; break;
+	case DW_AT_MIPS_abstract_name:
+		*s = "DW_AT_MIPS_abstract_name"; break;
+	case DW_AT_MIPS_clone_origin:
+		*s = "DW_AT_MIPS_clone_origin"; break;
+	case DW_AT_MIPS_has_inlines:
+		*s = "DW_AT_MIPS_has_inlines"; break;
+	case DW_AT_MIPS_stride_byte:
+		*s = "DW_AT_MIPS_stride_byte"; break;
+	case DW_AT_MIPS_stride_elem:
+		*s = "DW_AT_MIPS_stride_elem"; break;
+	case DW_AT_MIPS_ptr_dopetype:
+		*s = "DW_AT_MIPS_ptr_dopetype"; break;
+	case DW_AT_MIPS_allocatable_dopetype:
+		*s = "DW_AT_MIPS_allocatable_dopetype"; break;
+	case DW_AT_MIPS_assumed_shape_dopetype:
+		*s = "DW_AT_MIPS_assumed_shape_dopetype"; break;
+	case DW_AT_MIPS_assumed_size:
+		*s = "DW_AT_MIPS_assumed_size"; break;
 	case DW_AT_GNU_vector:
 		*s = "DW_AT_GNU_vector"; break;
 	case DW_AT_GNU_guarded_by:
@@ -756,6 +790,8 @@ dwarf_get_LANG_name(unsigned lang, const char **s)
 		*s = "DW_LANG_D"; break;
 	case DW_LANG_lo_user:
 		*s = "DW_LANG_lo_user"; break;
+	case DW_LANG_Mips_Assembler:
+		*s = "DW_LANG_Mips_Assembler"; break;
 	case DW_LANG_hi_user:
 		*s = "DW_LANG_hi_user"; break;
 	default:

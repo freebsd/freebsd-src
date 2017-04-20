@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/timetc.h>
 #include <sys/ucontext.h>
+#include <sys/vmmeter.h>
 
 #include <dev/ofw/openfirm.h>
 
@@ -125,6 +126,7 @@ long realmem;
 
 void *dpcpu0;
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
+struct pcpu dummy_pcpu[MAXCPU];
 struct trapframe frame0;
 
 vm_offset_t kstack0;

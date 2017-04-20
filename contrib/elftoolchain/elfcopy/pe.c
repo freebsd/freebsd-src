@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: pe.c 3490 2016-08-31 00:12:22Z emaste $");
+ELFTC_VCSID("$Id: pe.c 3508 2016-12-27 06:19:39Z kaiwang27 $");
 
 /* Convert ELF object to Portable Executable (PE). */
 void

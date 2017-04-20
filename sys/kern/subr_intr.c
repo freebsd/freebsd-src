@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/vmmeter.h>
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
@@ -291,7 +292,7 @@ intr_irq_handler(struct trapframe *tf)
 
 	KASSERT(irq_root_filter != NULL, ("%s: no filter", __func__));
 
-	PCPU_INC(cnt.v_intr);
+	VM_CNT_INC(v_intr);
 	critical_enter();
 	td = curthread;
 	oldframe = td->td_intr_frame;

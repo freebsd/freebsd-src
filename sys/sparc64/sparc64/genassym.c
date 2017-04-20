@@ -134,7 +134,6 @@ ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_IRHEAD, offsetof(struct pcpu, pc_irhead));
 ASSYM(PC_IRTAIL, offsetof(struct pcpu, pc_irtail));
 ASSYM(PC_IRFREE, offsetof(struct pcpu, pc_irfree));
-ASSYM(PC_CNT, offsetof(struct pcpu, pc_cnt));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 
 ASSYM(PC_CACHE, offsetof(struct pcpu, pc_cache));

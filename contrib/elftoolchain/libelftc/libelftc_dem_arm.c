@@ -37,7 +37,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_dem_arm.c 3447 2016-05-03 13:32:23Z emaste $");
+ELFTC_VCSID("$Id: libelftc_dem_arm.c 3513 2016-12-29 07:04:22Z kaiwang27 $");
 
 /**
  * @file cpp_demangle_arm.c
@@ -68,6 +68,7 @@ struct demangle_data {
 };
 
 #define SIMPLE_HASH(x,y)	(64 * x + y)
+#define VEC_PUSH_STR(d,s)	vector_str_push((d), (s), strlen((s)))
 #define	CPP_DEMANGLE_ARM_TRY	128
 
 static void	dest_cstring(struct cstring *);
@@ -137,7 +138,7 @@ cpp_demangle_ARM(const char *org)
 	++d.p;
 
 	/* start argument types */
-	if (vector_str_push(&d.vec, "(", 1) == false)
+	if (VEC_PUSH_STR(&d.vec, "(") == false)
 		goto clean;
 
 	for (;;) {
@@ -169,21 +170,21 @@ cpp_demangle_ARM(const char *org)
 			goto clean;
 
 		if (d.ptr == true) {
-			if (vector_str_push(&d.vec, "*", 1) == false)
+			if (VEC_PUSH_STR(&d.vec, "*") == false)
 				goto clean;
 
 			d.ptr = false;
 		}
 
 		if (d.ref == true) {
-			if (vector_str_push(&d.vec, "&", 1) == false)
+			if (VEC_PUSH_STR(&d.vec, "&") == false)
 				goto clean;
 
 			d.ref = false;
 		}
 
 		if (d.cnst == true) {
-			if (vector_str_push(&d.vec, " const", 6) == false)
+			if (VEC_PUSH_STR(&d.vec, " const") == false)
 				goto clean;
 
 			d.cnst = false;
@@ -210,7 +211,7 @@ cpp_demangle_ARM(const char *org)
 
 		free(arg);
 
-		if (vector_str_push(&d.vec, ", ", 2) == false)
+		if (VEC_PUSH_STR(&d.vec, ", ") == false)
 			goto clean;
 
 		if (++try > CPP_DEMANGLE_ARM_TRY)
@@ -218,7 +219,7 @@ cpp_demangle_ARM(const char *org)
 	}
 
 	/* end argument types */
-	if (vector_str_push(&d.vec, ")", 1) == false)
+	if (VEC_PUSH_STR(&d.vec, ")") == false)
 		goto clean;
 
 flat:
@@ -323,11 +324,10 @@ push_CTDT(const char *s, size_t l, struct vector_str *v)
 		return (false);
 
 	assert(v->size > 1);
-	if (vector_str_push(v, v->container[v->size - 2],
-		strlen(v->container[v->size - 2])) == false)
+	if (VEC_PUSH_STR(v, v->container[v->size - 2]) == false)
 		return (false);
 
-	if (vector_str_push(v, "()", 2) == false)
+	if (VEC_PUSH_STR(v, "()") == false)
 		return (false);
 
 	return (true);
@@ -429,7 +429,7 @@ read_func(struct demangle_data *d)
 		if (read_class(d) == false)
 			return (false);
 
-		if (vector_str_push(&d->vec, "::", 2) == false)
+		if (VEC_PUSH_STR(&d->vec, "::") == false)
 			return (false);
 	}
 
@@ -486,7 +486,7 @@ read_func_name(struct demangle_data *d)
 			if (read_qual_name(d) == false)
 				goto clean;
 
-			if (vector_str_push(&d->vec, "::", 2) == false)
+			if (VEC_PUSH_STR(&d->vec, "::") == false)
 				goto clean;
 
 			if (vector_str_push(&d->vec, op_name, len) == false)
@@ -508,7 +508,7 @@ read_func_name(struct demangle_data *d)
 			if (read_class(d) == false)
 				goto clean;
 
-			if (vector_str_push(&d->vec, "::", 2) == false)
+			if (VEC_PUSH_STR(&d->vec, "::") == false)
 				goto clean;
 
 			if (vector_str_push(&d->vec, op_name, len) == false)
@@ -553,7 +553,7 @@ read_func_ptr(struct demangle_data *d)
 		}
 
 		if (fptr.ptr == true) {
-			if (vector_str_push(&fptr.vec, "*", 1) == false) {
+			if (VEC_PUSH_STR(&fptr.vec, "*") == false) {
 				dest_demangle_data(&fptr);
 
 				return (false);
@@ -563,7 +563,7 @@ read_func_ptr(struct demangle_data *d)
 		}
 
 		if (fptr.ref == true) {
-			if (vector_str_push(&fptr.vec, "&", 1) == false) {
+			if (VEC_PUSH_STR(&fptr.vec, "&") == false) {
 				dest_demangle_data(&fptr);
 
 				return (false);
@@ -573,7 +573,7 @@ read_func_ptr(struct demangle_data *d)
 		}
 
 		if (fptr.cnst == true) {
-			if (vector_str_push(&fptr.vec, " const", 6) == false) {
+			if (VEC_PUSH_STR(&fptr.vec, " const") == false) {
 				dest_demangle_data(&fptr);
 
 				return (false);
@@ -585,7 +585,7 @@ read_func_ptr(struct demangle_data *d)
 		if (*fptr.p == '_')
 			break;
 
-		if (vector_str_push(&fptr.vec, ", ", 2) == false) {
+		if (VEC_PUSH_STR(&fptr.vec, ", ") == false) {
 			dest_demangle_data(&fptr);
 
 			return (false);
@@ -636,7 +636,7 @@ read_func_ptr(struct demangle_data *d)
 
 	free(rtn_type);
 
-	if (vector_str_push(&d->vec, " (*)(", 5) == false) {
+	if (VEC_PUSH_STR(&d->vec, " (*)(") == false) {
 		free(arg_type);
 
 		return (false);
@@ -650,7 +650,7 @@ read_func_ptr(struct demangle_data *d)
 
 	free(arg_type);
 
-	return (vector_str_push(&d->vec, ")", 1));
+	return (VEC_PUSH_STR(&d->vec, ")"));
 }
 
 static bool
@@ -689,7 +689,7 @@ read_memptr(struct demangle_data *d)
 	if (vector_str_push(&d->vec, mptr_str, len) == false)
 		goto clean;
 
-	if (vector_str_push(&d->vec, "::*", 3) == false)
+	if (VEC_PUSH_STR(&d->vec, "::*") == false)
 		goto clean;
 
 	rtn = true;
@@ -712,108 +712,102 @@ read_op(struct demangle_data *d)
 	switch (SIMPLE_HASH(*(d->p), *(d->p+1))) {
 	case SIMPLE_HASH('m', 'l') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator*", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator*"));
 	case SIMPLE_HASH('d', 'v') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator/", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator/"));
 	case SIMPLE_HASH('m', 'd') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator%", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator%"));
 	case SIMPLE_HASH('p', 'l') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator+", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator+"));
 	case SIMPLE_HASH('m', 'i') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator-", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator-"));
 	case SIMPLE_HASH('l', 's') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator<<", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator<<"));
 	case SIMPLE_HASH('r', 's') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator>>", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator>>"));
 	case SIMPLE_HASH('e', 'q') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator==", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator=="));
 	case SIMPLE_HASH('n', 'e') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator!=", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator!="));
 	case SIMPLE_HASH('l', 't') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator<", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator<"));
 	case SIMPLE_HASH('g', 't') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator>", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator>"));
 	case SIMPLE_HASH('l', 'e') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator<=", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator<="));
 	case SIMPLE_HASH('g', 'e') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator>=", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator>="));
 	case SIMPLE_HASH('a', 'd') :
 		d->p += 2;
 		if (*d->p == 'v') {
 			++d->p;
-			return (vector_str_push(&d->vec, "operator/=",
-				10));
+			return (VEC_PUSH_STR(&d->vec, "operator/="));
 		} else
-			return (vector_str_push(&d->vec, "operator&", 9));
+			return (VEC_PUSH_STR(&d->vec, "operator&"));
 	case SIMPLE_HASH('o', 'r') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator|", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator|"));
 	case SIMPLE_HASH('e', 'r') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator^", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator^"));
 	case SIMPLE_HASH('a', 'a') :
 		d->p += 2;
 		if (*d->p == 'd') {
 			++d->p;
-			return (vector_str_push(&d->vec, "operator&=",
-				10));
+			return (VEC_PUSH_STR(&d->vec, "operator&="));
 		} else
-			return (vector_str_push(&d->vec, "operator&&",
-				10));
+			return (VEC_PUSH_STR(&d->vec, "operator&&"));
 	case SIMPLE_HASH('o', 'o') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator||", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator||"));
 	case SIMPLE_HASH('n', 't') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator!", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator!"));
 	case SIMPLE_HASH('c', 'o') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator~", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator~"));
 	case SIMPLE_HASH('p', 'p') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator++", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator++"));
 	case SIMPLE_HASH('m', 'm') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator--", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator--"));
 	case SIMPLE_HASH('a', 's') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator=", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator="));
 	case SIMPLE_HASH('r', 'f') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator->", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator->"));
 	case SIMPLE_HASH('a', 'p') :
 		/* apl */
 		if (*(d->p + 2) != 'l')
 			return (false);
 
 		d->p += 3;
-		return (vector_str_push(&d->vec, "operator+=", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator+="));
 	case SIMPLE_HASH('a', 'm') :
 		d->p += 2;
 		if (*d->p == 'i') {
 			++d->p;
-			return (vector_str_push(&d->vec, "operator-=",
-				10));
+			return (VEC_PUSH_STR(&d->vec, "operator-="));
 		} else if (*d->p == 'u') {
 			++d->p;
-			return (vector_str_push(&d->vec, "operator*=",
-				10));
+			return (VEC_PUSH_STR(&d->vec, "operator*="));
 		} else if (*d->p == 'd') {
 			++d->p;
-			return (vector_str_push(&d->vec, "operator%=",
-				10));
+			return (VEC_PUSH_STR(&d->vec, "operator%="));
 		}
 
 		return (false);
@@ -823,40 +817,40 @@ read_op(struct demangle_data *d)
 			return (false);
 
 		d->p += 3;
-		return (vector_str_push(&d->vec, "operator<<=", 11));
+		return (VEC_PUSH_STR(&d->vec, "operator<<="));
 	case SIMPLE_HASH('a', 'r') :
 		/* ars */
 		if (*(d->p + 2) != 's')
 			return (false);
 
 		d->p += 3;
-		return (vector_str_push(&d->vec, "operator>>=", 11));
+		return (VEC_PUSH_STR(&d->vec, "operator>>="));
 	case SIMPLE_HASH('a', 'o') :
 		/* aor */
 		if (*(d->p + 2) != 'r')
 			return (false);
 
 		d->p += 3;
-		return (vector_str_push(&d->vec, "operator|=", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator|="));
 	case SIMPLE_HASH('a', 'e') :
 		/* aer */
 		if (*(d->p + 2) != 'r')
 			return (false);
 
 		d->p += 3;
-		return (vector_str_push(&d->vec, "operator^=", 10));
+		return (VEC_PUSH_STR(&d->vec, "operator^="));
 	case SIMPLE_HASH('c', 'm') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator,", 9));
+		return (VEC_PUSH_STR(&d->vec, "operator,"));
 	case SIMPLE_HASH('r', 'm') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator->*", 11));
+		return (VEC_PUSH_STR(&d->vec, "operator->*"));
 	case SIMPLE_HASH('c', 'l') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "()", 2));
+		return (VEC_PUSH_STR(&d->vec, "()"));
 	case SIMPLE_HASH('v', 'c') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "[]", 2));
+		return (VEC_PUSH_STR(&d->vec, "[]"));
 	case SIMPLE_HASH('c', 't') :
 		d->p += 4;
 		d->type = ENCODE_OP_CT;
@@ -883,11 +877,10 @@ read_op(struct demangle_data *d)
 		return (false);
 	case SIMPLE_HASH('n', 'w') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator new()", 14));
+		return (VEC_PUSH_STR(&d->vec, "operator new()"));
 	case SIMPLE_HASH('d', 'l') :
 		d->p += 2;
-		return (vector_str_push(&d->vec, "operator delete()",
-			17));
+		return (VEC_PUSH_STR(&d->vec, "operator delete()"));
 	case SIMPLE_HASH('o', 'p') :
 		/* __op<TO_TYPE>__<FROM_TYPE> */
 		d->p += 2;
@@ -962,13 +955,13 @@ read_op_user(struct demangle_data *d)
 	if (vector_str_push(&d->vec, from_str, from_len) == false)
 		goto clean;
 
-	if (vector_str_push(&d->vec, "::operator ", 11) == false)
+	if (VEC_PUSH_STR(&d->vec, "::operator ") == false)
 		return (false);
 
 	if (vector_str_push(&d->vec, to_str, to_len) == false)
 		goto clean;
 
-	rtn = vector_str_push(&d->vec, "()", 2);
+	rtn = VEC_PUSH_STR(&d->vec, "()");
 clean:
 	free(to_str);
 	free(from_str);
@@ -1000,7 +993,7 @@ read_qual_name(struct demangle_data *d)
 		if (read_class(d) == false)
 			return (false);
 
-		if (vector_str_push(&d->vec, "::", 2) == false)
+		if (VEC_PUSH_STR(&d->vec, "::") == false)
 			return (false);
 	}
 
@@ -1029,12 +1022,10 @@ read_subst(struct demangle_data *d)
 
 	d->p = str;
 
-	if (vector_str_push(&d->vec, d->arg.container[idx - 1],
-		strlen(d->arg.container[idx - 1])) == false)
+	if (VEC_PUSH_STR(&d->vec, d->arg.container[idx - 1]) == false)
 		return (-1);
 
-	if (vector_str_push(&d->arg, d->arg.container[idx - 1],
-		strlen(d->arg.container[idx - 1])) == false)
+	if (VEC_PUSH_STR(&d->arg, d->arg.container[idx - 1]) == false)
 		return (-1);
 
 	if (*d->p == '\0')
@@ -1073,16 +1064,14 @@ read_subst_iter(struct demangle_data *d)
 	d->p = str;
 
 	for (i = 0; i < repeat ; ++i) {
-		if (vector_str_push(&d->vec, d->arg.container[idx - 1],
-			strlen(d->arg.container[idx - 1])) == false)
+		if (VEC_PUSH_STR(&d->vec, d->arg.container[idx - 1]) == false)
 			return (-1);
 
-		if (vector_str_push(&d->arg, d->arg.container[idx - 1],
-			strlen(d->arg.container[idx - 1])) == false)
+		if (VEC_PUSH_STR(&d->arg, d->arg.container[idx - 1]) == false)
 			return (-1);
 
 		if (i != repeat - 1 &&
-		    vector_str_push(&d->vec, ", ", 2) == false)
+		    VEC_PUSH_STR(&d->vec, ", ") == false)
 			return (-1);
 	}
 
@@ -1108,7 +1097,7 @@ read_type(struct demangle_data *d)
 		case 'U' :
 			++d->p;
 
-			if (vector_str_push(&d->vec, "unsigned ", 9) == false)
+			if (VEC_PUSH_STR(&d->vec, "unsigned ") == false)
 				return (false);
 
 			break;
@@ -1118,7 +1107,7 @@ read_type(struct demangle_data *d)
 			if (*d->p == 'P')
 				d->cnst = true;
 			else {
-				if (vector_str_push(&d->vec, "const ", 6) ==
+				if (VEC_PUSH_STR(&d->vec, "const ") ==
 				    false)
 					return (false);
 			}
@@ -1127,14 +1116,14 @@ read_type(struct demangle_data *d)
 		case 'V' :
 			++d->p;
 
-			if (vector_str_push(&d->vec, "volatile ", 9) == false)
+			if (VEC_PUSH_STR(&d->vec, "volatile ") == false)
 				return (false);
 
 			break;
 		case 'S' :
 			++d->p;
 
-			if (vector_str_push(&d->vec, "signed ", 7) == false)
+			if (VEC_PUSH_STR(&d->vec, "signed ") == false)
 				return (false);
 
 			break;
@@ -1185,39 +1174,39 @@ read_type(struct demangle_data *d)
 	case 'v' :
 		++d->p;
 
-		return (vector_str_push(&d->vec, "void", 4));
+		return (VEC_PUSH_STR(&d->vec, "void"));
 	case 'c' :
 		++d->p;
 
-		return (vector_str_push(&d->vec, "char", 4));
+		return (VEC_PUSH_STR(&d->vec, "char"));
 	case 's' :
 		++d->p;
 
-		return (vector_str_push(&d->vec, "short", 5));
+		return (VEC_PUSH_STR(&d->vec, "short"));
 	case 'i' :
 		++d->p;
 
-		return (vector_str_push(&d->vec, "int", 3));
+		return (VEC_PUSH_STR(&d->vec, "int"));
 	case 'l' :
 		++d->p;
 
-		return (vector_str_push(&d->vec, "long", 4));
+		return (VEC_PUSH_STR(&d->vec, "long"));
 	case 'f' :
 		++d->p;
 
-		return (vector_str_push(&d->vec, "float", 5));
+		return (VEC_PUSH_STR(&d->vec, "float"));
 	case 'd':
 		++d->p;
 
-		return (vector_str_push(&d->vec, "double", 6));
+		return (VEC_PUSH_STR(&d->vec, "double"));
 	case 'r':
 		++d->p;
 
-		return (vector_str_push(&d->vec, "long double", 11));
+		return (VEC_PUSH_STR(&d->vec, "long double"));
 	case 'e':
 		++d->p;
 
-		return (vector_str_push(&d->vec, "...", 3));
+		return (VEC_PUSH_STR(&d->vec, "..."));
 	default:
 		return (false);
 	};

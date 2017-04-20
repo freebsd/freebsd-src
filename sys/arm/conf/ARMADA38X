@@ -21,6 +21,8 @@ options 	ROOTDEVNAME=\"/dev/da0s1a\"
 options 	SCHED_ULE		# ULE scheduler
 options 	SMP
 
+options		VM_KMEM_SIZE_MAX=0x9CCD000
+
 # Pseudo devices
 device		random
 device		pty
@@ -72,6 +74,9 @@ device		twsi
 device		cesa
 device		crypto
 device		cryptodev
+
+# L2 Cache
+device		pl310
 
 #FDT
 options 	FDT

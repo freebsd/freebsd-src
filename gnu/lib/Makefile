@@ -7,13 +7,10 @@ SUBDIR.${MK_DIALOG}+=	libdialog
 SUBDIR.${MK_GCC}+=	libgcov libgomp
 SUBDIR.${MK_SSP}+=	libssp
 SUBDIR.${MK_TESTS}+=	tests
+SUBDIR.${MK_GDB}+=	libreadline
 
-.if ${MK_BINUTILS} != "no" && ${MK_GDB} != "no"
-SUBDIR+=	libreadline
-.endif
-
-.if ${MK_GNU_DIFF} != "no" || ${MK_GNU_GREP} != "no" || \
-    ${MK_GNU_GREP_COMPAT} != "no" || ${MK_GDB} != "no"
+.if ${MK_GNU_GREP} != "no" || ${MK_GNU_GREP_COMPAT} != "no" || \
+    ${MK_GDB} != "no"
 SUBDIR+=		libregex
 .endif
 

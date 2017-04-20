@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
 #include <sys/ptrace.h>
+#include <sys/vmmeter.h>
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
@@ -200,7 +201,7 @@ undefinedinstruction(struct trapframe *frame)
 	if (__predict_true(frame->tf_spsr & PSR_F) == 0)
 		enable_interrupts(PSR_F);
 
-	PCPU_INC(cnt.v_trap);
+	VM_CNT_INC(v_trap);
 
 	fault_pc = frame->tf_pc;
 

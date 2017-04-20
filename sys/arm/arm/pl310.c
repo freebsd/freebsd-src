@@ -272,7 +272,9 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 
 
 #ifdef PL310_ERRATA_727915
-	platform_pl310_write_debug(pl310_softc, 3);
+	if (pl310_softc->sc_rtl_revision >= CACHE_ID_RELEASE_r2p0 &&
+	    pl310_softc->sc_rtl_revision < CACHE_ID_RELEASE_r3p1)
+		platform_pl310_write_debug(pl310_softc, 3);
 #endif
 	while (size > 0) {
 #ifdef PL310_ERRATA_588369
@@ -293,7 +295,9 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 		size -= g_l2cache_line_size;
 	}
 #ifdef PL310_ERRATA_727915
-	platform_pl310_write_debug(pl310_softc, 0);
+	if (pl310_softc->sc_rtl_revision >= CACHE_ID_RELEASE_r2p0 &&
+	    pl310_softc->sc_rtl_revision < CACHE_ID_RELEASE_r3p1)
+		platform_pl310_write_debug(pl310_softc, 0);
 #endif
 
 	pl310_cache_sync();

@@ -65,6 +65,7 @@
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/extattr.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

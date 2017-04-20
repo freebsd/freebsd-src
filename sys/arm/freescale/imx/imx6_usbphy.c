@@ -68,6 +68,12 @@ struct usbphy_softc {
 	u_int		phy_num;
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx6q-usbphy",	true},
+	{"fsl,imx6ul-usbphy",	true},
+	{NULL,			false}
+};
+
 static int
 usbphy_detach(device_t dev)
 {
@@ -167,7 +173,7 @@ usbphy_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "fsl,imx6q-usbphy") == 0)
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale i.MX6 USB PHY");

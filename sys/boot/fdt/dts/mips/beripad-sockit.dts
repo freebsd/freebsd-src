@@ -83,30 +83,35 @@
 		reg = <0x0 0x10000000>; /* 256MB at 0x0 */
 	};
 
+	cpuintc: cpuintc@0 {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	beripic0: beripic@7f804000 {
+		compatible = "sri-cambridge,beri-pic";
+		interrupt-controller;
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		reg = <0x0 0x7f804000 0x0 0x400
+		       0x0 0x7f806000 0x0 0x10
+		       0x0 0x7f806080 0x0 0x10
+		       0x0 0x7f806100 0x0 0x10>;
+		interrupts = < 2 3 4 5 6 >;
+		hard-interrupt-sources = <64>;
+		soft-interrupt-sources = <64>;
+		interrupt-parent = <&cpuintc>;
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		#interrupt-cells = <1>;
 
-		/*
-		 * Declare mips,mips4k since BERI doesn't (yet) have a PIC, so
-		 * we use mips4k coprocessor 0 interrupt management directly.
-		 */
 		compatible = "simple-bus", "mips,mips4k";
-
-		beripic0: beripic@7f804000 {
-			compatible = "sri-cambridge,beri-pic";
-			interrupt-controller;
-			#address-cells = <0>;
-			#interrupt-cells = <1>;
-			reg = <0x0 0x7f804000 0x0 0x400
-			       0x0 0x7f806000 0x0 0x10
-			       0x0 0x7f806080 0x0 0x10
-			       0x0 0x7f806100 0x0 0x10>;
-			interrupts = <0 1 2 3 4>;
-			hard-interrupt-sources = <64>;
-			soft-interrupt-sources = <64>;
-		};
+		ranges;
 
 		pio0: pio@7f020000 {
 			compatible = "altr,pio";

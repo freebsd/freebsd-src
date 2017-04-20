@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD$");
 static int	 linesqueued;
 static int	 procline(struct str *l, int);
 
+static int	 lasta;
+static bool	 ctxover;
+
 bool
 file_matching(const char *fname)
 {
@@ -111,6 +114,7 @@ grep_tree(char **argv)
 	FTSENT *p;
 	int c, fts_flags;
 	bool ok;
+	const char *wd[] = { ".", NULL };
 
 	c = fts_flags = 0;
 
@@ -128,7 +132,9 @@ grep_tree(char **argv)
 
 	fts_flags |= FTS_NOSTAT | FTS_NOCHDIR;
 
-	if (!(fts = fts_open(argv, fts_flags, NULL)))
+	fts = fts_open((argv[0] == NULL) ?
+	    __DECONST(char * const *, wd) : argv, fts_flags, NULL);
+	if (fts == NULL)
 		err(2, "fts_open");
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
@@ -209,8 +215,10 @@ procfile(const char *fn)
 	strcpy(ln.file, fn);
 	ln.line_no = 0;
 	ln.len = 0;
+	ctxover = false;
 	linesqueued = 0;
 	tail = 0;
+	lasta = 0;
 	ln.off = -1;
 
 	for (c = 0;  c == 0 || !(lflag || qflag); ) {
@@ -221,7 +229,7 @@ procfile(const char *fn)
 			else
 				break;
 		}
-		if (ln.len > 0 && ln.dat[ln.len - 1] == '\n')
+		if (ln.len > 0 && ln.dat[ln.len - 1] == fileeol)
 			--ln.len;
 		ln.line_no++;
 
@@ -232,10 +240,24 @@ procfile(const char *fn)
 			free(f);
 			return (0);
 		}
-		/* Process the file line-by-line */
+
+		/* Process the file line-by-line, enqueue non-matching lines */
 		if ((t = procline(&ln, f->binary)) == 0 && Bflag > 0) {
-			enqueue(&ln);
-			linesqueued++;
+			/* Except don't enqueue lines that appear in -A ctx */
+			if (ln.line_no == 0 || lasta != ln.line_no) {
+				/* queue is maxed to Bflag number of lines */
+				enqueue(&ln);
+				linesqueued++;
+				ctxover = false;
+			} else {
+				/*
+				 * Indicate to procline() that we have ctx
+				 * overlap and make sure queue is empty.
+				 */
+				if (!ctxover)
+					clearqueue();
+				ctxover = true;
+			}
 		}
 		c += t;
 		if (mflag && mcount <= 0)
@@ -330,9 +352,6 @@ procline(struct str *l, int nottext)
 			if (r == 0) {
 				lastmatches++;
 				lastmatch = pmatch;
-				/* Skip over zero-length matches */
-				if (pmatch.rm_so == pmatch.rm_eo)
-					continue;
 				if (m == 0)
 					c++;
 
@@ -393,17 +412,19 @@ procline(struct str *l, int nottext)
 	/* Dealing with the context */
 	if ((tail || c) && !cflag && !qflag && !lflag && !Lflag) {
 		if (c) {
-			if (!first && !prev && !tail && Aflag)
+			if (!first && !prev && !tail && (Bflag || Aflag) &&
+			    !ctxover)
 				printf("--\n");
 			tail = Aflag;
 			if (Bflag > 0) {
-				if (!first && !prev)
-					printf("--\n");
 				printqueue();
+				ctxover = false;
 			}
 			linesqueued = 0;
 			printline(l, ':', matches, m);
 		} else {
+			/* Print -A lines following matches */
+			lasta = l->line_no;
 			printline(l, '-', matches, m);
 			tail--;
 		}
@@ -508,6 +529,9 @@ printline(struct str *line, int sep, regmatch_t *matches, int m)
 	/* --color and -o */
 	if ((oflag || color) && m > 0) {
 		for (i = 0; i < m; i++) {
+			/* Don't output zero length matches */
+			if (matches[i].rm_so == matches[i].rm_eo)
+				continue;
 			if (!oflag)
 				fwrite(line->dat + a, matches[i].rm_so - a, 1,
 				    stdout);
@@ -530,6 +554,6 @@ printline(struct str *line, int sep, regmatch_t *matches, int m)
 		}
 	} else {
 		fwrite(line->dat, line->len, 1, stdout);
-		putchar('\n');
+		putchar(fileeol);
 	}
 }

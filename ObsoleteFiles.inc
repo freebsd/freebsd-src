@@ -150,6 +150,8 @@ OLD_FILES+=usr/lib/clang/4.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/4.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/4.0.0/lib
 OLD_DIRS+=usr/lib/clang/4.0.0
+# 20170420: remove GNU diff
+OLD_FILES+=usr/share/man/man7/diff.7.gz
 # 20170322: rename <x> to <x>_test to match the FreeBSD test suite name scheme
 OLD_FILES+=usr/tests/usr.bin/col/col
 OLD_FILES+=usr/tests/usr.bin/diff/diff
@@ -175,14 +177,6 @@ OLD_FILES+=usr/tests/lib/libc/locale/io_test
 # 20170319: remove nls for non supported Big5* locales
 OLD_DIRS+=usr/share/nls/zh_HK.Big5HKSCS
 OLD_DIRS+=usr/share/nls/zh_TW.Big5
-# 20170319: Remove zh_TW.Big5
-OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_COLLATE
-OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_CTYPE
-OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_MESSAGES
-OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_MONETARY
-OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_NUMERIC
-OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_TIME
-OLD_DIRS+=usr/share/locale/zh_TW.Big5
 # 20170313: move .../sys/geom/eli/... to .../sys/geom/class/eli/...
 OLD_FILES+=usr/tests/sys/geom/eli/pbkdf2/pbkdf2
 OLD_FILES+=usr/tests/sys/geom/eli/pbkdf2/Kyuafile

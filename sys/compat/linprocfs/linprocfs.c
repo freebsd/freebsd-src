@@ -425,17 +425,17 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	}
 	sbuf_printf(sb,
 	    "disk 0 0 0 0\n"
-	    "page %u %u\n"
-	    "swap %u %u\n"
-	    "intr %u\n"
-	    "ctxt %u\n"
+	    "page %ju %ju\n"
+	    "swap %ju %ju\n"
+	    "intr %ju\n"
+	    "ctxt %ju\n"
 	    "btime %lld\n",
-	    vm_cnt.v_vnodepgsin,
-	    vm_cnt.v_vnodepgsout,
-	    vm_cnt.v_swappgsin,
-	    vm_cnt.v_swappgsout,
-	    vm_cnt.v_intr,
-	    vm_cnt.v_swtch,
+	    (uintmax_t)VM_CNT_FETCH(v_vnodepgsin),
+	    (uintmax_t)VM_CNT_FETCH(v_vnodepgsout),
+	    (uintmax_t)VM_CNT_FETCH(v_swappgsin),
+	    (uintmax_t)VM_CNT_FETCH(v_swappgsout),
+	    (uintmax_t)VM_CNT_FETCH(v_intr),
+	    (uintmax_t)VM_CNT_FETCH(v_swtch),
 	    (long long)boottime.tv_sec);
 	return (0);
 }

@@ -40,6 +40,10 @@ CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\"
 CFLAGS+=	-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\"
 CFLAGS+=	-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
 
+CFLAGS+=	-ffunction-sections
+CFLAGS+=	-fdata-sections
+LDFLAGS+=	-Wl,--gc-sections
+
 CXXFLAGS+=	-std=c++11
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti

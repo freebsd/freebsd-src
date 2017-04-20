@@ -799,8 +799,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 		relpbuf(bp, freecnt);
 		VM_OBJECT_WLOCK(object);
 		for (i = 0; i < count; i++) {
-			PCPU_INC(cnt.v_vnodein);
-			PCPU_INC(cnt.v_vnodepgsin);
+			VM_CNT_INC(v_vnodein);
+			VM_CNT_INC(v_vnodepgsin);
 			error = vnode_pager_input_old(object, m[i]);
 			if (error)
 				break;
@@ -819,8 +819,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	if (pagesperblock == 0) {
 		relpbuf(bp, freecnt);
 		for (i = 0; i < count; i++) {
-			PCPU_INC(cnt.v_vnodein);
-			PCPU_INC(cnt.v_vnodepgsin);
+			VM_CNT_INC(v_vnodein);
+			VM_CNT_INC(v_vnodepgsin);
 			error = vnode_pager_input_smlfs(object, m[i]);
 			if (error)
 				break;
@@ -1030,8 +1030,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	    (uintmax_t)blkno0, (uintmax_t)bp->b_blkno));
 
 	atomic_add_long(&runningbufspace, bp->b_runningbufspace);
-	PCPU_INC(cnt.v_vnodein);
-	PCPU_ADD(cnt.v_vnodepgsin, bp->b_npages);
+	VM_CNT_INC(v_vnodein);
+	VM_CNT_ADD(v_vnodepgsin, bp->b_npages);
 
 	if (iodone != NULL) { /* async */
 		bp->b_pgiodone = iodone;
@@ -1276,8 +1276,8 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	auio.uio_td = (struct thread *) 0;
 	error = VOP_WRITE(vp, &auio, vnode_pager_putpages_ioflags(flags),
 	    curthread->td_ucred);
-	PCPU_INC(cnt.v_vnodeout);
-	PCPU_ADD(cnt.v_vnodepgsout, ncount);
+	VM_CNT_INC(v_vnodeout);
+	VM_CNT_ADD(v_vnodepgsout, ncount);
 
 	ppscheck = 0;
 	if (error) {

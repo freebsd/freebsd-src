@@ -426,7 +426,7 @@ mi_switch(int flags, struct thread *newtd)
 	td->td_incruntime += runtime;
 	PCPU_SET(switchtime, new_switchtime);
 	td->td_generation++;	/* bump preempt-detect counter */
-	PCPU_INC(cnt.v_swtch);
+	VM_CNT_INC(v_swtch);
 	PCPU_SET(switchticks, ticks);
 	CTR4(KTR_PROC, "mi_switch: old thread %ld (td_sched %p, pid %ld, %s)",
 	    td->td_tid, td_get_sched(td), td->td_proc->p_pid, td->td_name);

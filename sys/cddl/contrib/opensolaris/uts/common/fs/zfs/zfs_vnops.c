@@ -73,6 +73,7 @@
 #include <sys/buf.h>
 #include <sys/sched.h>
 #include <sys/acl.h>
+#include <sys/vmmeter.h>
 #include <vm/vm_param.h>
 
 /*
@@ -4574,8 +4575,8 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int *rbehind,
 		return (zfs_vm_pagerret_bad);
 	}
 
-	PCPU_INC(cnt.v_vnodein);
-	PCPU_ADD(cnt.v_vnodepgsin, count);
+	VM_CNT_INC(v_vnodein);
+	VM_CNT_ADD(v_vnodepgsin, count);
 
 	lsize = PAGE_SIZE;
 	if (IDX_TO_OFF(mlast->pindex) + lsize > object->un_pager.vnp.vnp_size)
@@ -4757,8 +4758,8 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 			vm_page_undirty(ma[i]);
 		}
 		zfs_vmobject_wunlock(object);
-		PCPU_INC(cnt.v_vnodeout);
-		PCPU_ADD(cnt.v_vnodepgsout, ncount);
+		VM_CNT_INC(v_vnodeout);
+		VM_CNT_ADD(v_vnodepgsout, ncount);
 	}
 	dmu_tx_commit(tx);
 

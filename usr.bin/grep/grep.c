@@ -66,7 +66,7 @@ const char	*errstr[] = {
 /* 1*/	"(standard input)",
 /* 2*/	"cannot read bzip2 compressed file",
 /* 3*/	"unknown %s option",
-/* 4*/	"usage: %s [-abcDEFGHhIiJLlmnOoPqRSsUVvwxZ] [-A num] [-B num] [-C[num]]\n",
+/* 4*/	"usage: %s [-abcDEFGHhIiJLlmnOoPqRSsUVvwxZz] [-A num] [-B num] [-C[num]]\n",
 /* 5*/	"\t[-e pattern] [-f file] [--binary-files=value] [--color=when]\n",
 /* 6*/	"\t[--context[=num]] [--directories=action] [--label] [--line-buffered]\n",
 /* 7*/	"\t[--null] [pattern] [file ...]\n",
@@ -109,6 +109,7 @@ bool	 lflag;		/* -l: only show names of files with matches */
 bool	 mflag;		/* -m x: stop reading the files after x matches */
 long long mcount;	/* count for -m */
 long long mlimit;	/* requested value for -m */
+char	 fileeol;	/* indicator for eol */
 bool	 nflag;		/* -n: show line numbers in front of matching lines */
 bool	 oflag;		/* -o: print only matching part */
 bool	 qflag;		/* -q: quiet mode (don't output anything) */
@@ -165,7 +166,7 @@ usage(void)
 	exit(2);
 }
 
-static const char	*optstr = "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXy";
+static const char	*optstr = "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXyz";
 
 static const struct option long_options[] =
 {
@@ -215,6 +216,7 @@ static const struct option long_options[] =
 	{"word-regexp",		no_argument,		NULL, 'w'},
 	{"line-regexp",		no_argument,		NULL, 'x'},
 	{"xz",			no_argument,		NULL, 'X'},
+	{"null-data",		no_argument,		NULL, 'z'},
 	{"decompress",          no_argument,            NULL, 'Z'},
 	{NULL,			no_argument,		NULL, 0}
 };
@@ -384,6 +386,7 @@ main(int argc, char *argv[])
 	newarg = 1;
 	prevoptind = 1;
 	needpattern = 1;
+	fileeol = '\n';
 
 	eopts = getenv("GREP_OPTIONS");
 
@@ -605,6 +608,9 @@ main(int argc, char *argv[])
 		case 'X':
 			filebehave = FILE_XZ;
 			break;
+		case 'z':
+			fileeol = '\0';
+			break;
 		case 'Z':
 			filebehave = FILE_GZIP;
 			break;
@@ -732,7 +738,7 @@ main(int argc, char *argv[])
 	if ((aargc == 0 || aargc == 1) && !Hflag)
 		hflag = true;
 
-	if (aargc == 0)
+	if (aargc == 0 && dirbehave != DIR_RECURSE)
 		exit(!procfile("-"));
 
 	if (dirbehave == DIR_RECURSE)

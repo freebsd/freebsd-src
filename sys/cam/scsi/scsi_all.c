@@ -5169,7 +5169,7 @@ scsi_sense_print(struct ccb_scsiio *csio)
 
 	sbuf_finish(&sb);
 
-	printf("%s", sbuf_data(&sb));
+	sbuf_putbuf(&sb);
 }
 
 #else /* !_KERNEL */
@@ -5361,11 +5361,10 @@ scsi_get_ascq(struct scsi_sense_data *sense_data, u_int sense_len,
  * for this routine to function properly.
  */
 void
-scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
+scsi_print_inquiry_sbuf(struct sbuf *sb, struct scsi_inquiry_data *inq_data)
 {
 	u_int8_t type;
 	char *dtype, *qtype;
-	char vendor[16], product[48], revision[16], rstr[12];
 
 	type = SID_TYPE(inq_data);
 
@@ -5454,41 +5453,55 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 		break;
 	}
 
-	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
-		   sizeof(vendor));
-	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
-		   sizeof(product));
-	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
-		   sizeof(revision));
+	scsi_print_inquiry_short_sbuf(sb, inq_data);
+
+	sbuf_printf(sb, "%s %s ", SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed", dtype);
 
 	if (SID_ANSI_REV(inq_data) == SCSI_REV_0)
-		snprintf(rstr, sizeof(rstr), "SCSI");
+		sbuf_printf(sb, "SCSI ");
 	else if (SID_ANSI_REV(inq_data) <= SCSI_REV_SPC) {
-		snprintf(rstr, sizeof(rstr), "SCSI-%d",
-		    SID_ANSI_REV(inq_data));
+		sbuf_printf(sb, "SCSI-%d ", SID_ANSI_REV(inq_data));
 	} else {
-		snprintf(rstr, sizeof(rstr), "SPC-%d SCSI",
-		    SID_ANSI_REV(inq_data) - 2);
+		sbuf_printf(sb, "SPC-%d SCSI ", SID_ANSI_REV(inq_data) - 2);
 	}
-	printf("<%s %s %s> %s %s %s device%s\n",
-	       vendor, product, revision,
-	       SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed",
-	       dtype, rstr, qtype);
+	sbuf_printf(sb, "device%s\n", qtype);
+}
+
+void
+scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
+{
+	struct sbuf	sb;
+	char		buffer[120];
+
+	sbuf_new(&sb, buffer, 120, SBUF_FIXEDLEN);
+	scsi_print_inquiry_sbuf(&sb, inq_data);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
+}
+
+void
+scsi_print_inquiry_short_sbuf(struct sbuf *sb, struct scsi_inquiry_data *inq_data)
+{
+
+	sbuf_printf(sb, "<");
+	cam_strvis_sbuf(sb, inq_data->vendor, sizeof(inq_data->vendor), 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, inq_data->product, sizeof(inq_data->product), 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, inq_data->revision, sizeof(inq_data->revision), 0);
+	sbuf_printf(sb, "> ");
 }
 
 void
 scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data)
 {
-	char vendor[16], product[48], revision[16];
+	struct sbuf	sb;
+	char		buffer[84];
 
-	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
-		   sizeof(vendor));
-	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
-		   sizeof(product));
-	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
-		   sizeof(revision));
-
-	printf("<%s %s %s>", vendor, product, revision);
+	sbuf_new(&sb, buffer, 84, SBUF_FIXEDLEN);
+	scsi_print_inquiry_short_sbuf(&sb, inq_data);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
 }
 
 /*

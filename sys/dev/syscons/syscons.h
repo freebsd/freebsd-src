@@ -68,11 +68,11 @@
 #endif
 
 #ifndef SC_CURSOR_CHAR
-#define SC_CURSOR_CHAR	(0x07)
+#define SC_CURSOR_CHAR	7
 #endif
 
 #ifndef SC_MOUSE_CHAR
-#define SC_MOUSE_CHAR	(0xd0)
+#define SC_MOUSE_CHAR	8
 #endif
 
 #if SC_MOUSE_CHAR <= SC_CURSOR_CHAR && SC_CURSOR_CHAR < (SC_MOUSE_CHAR + 4)

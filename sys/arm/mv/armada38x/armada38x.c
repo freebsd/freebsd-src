@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 int armada38x_open_bootrom_win(void);
 int armada38x_scu_enable(void);
 int armada38x_win_set_iosync_barrier(void);
+int armada38x_mbus_optimization(void);
 
 uint32_t
 get_tclk(void)
@@ -110,6 +111,50 @@ armada38x_open_bootrom_win(void)
 	bus_space_barrier(fdtbus_bs_tag, vaddr_iowind, 0, MV_CPU_SUBSYS_REGS_LEN,
 	    BUS_SPACE_BARRIER_WRITE);
 	bus_space_unmap(fdtbus_bs_tag, vaddr_iowind, MV_CPU_SUBSYS_REGS_LEN);
+
+	return (rv);
+}
+
+int
+armada38x_mbus_optimization(void)
+{
+	bus_space_handle_t vaddr_iowind;
+	int rv;
+
+	rv = bus_space_map(fdtbus_bs_tag, (bus_addr_t)MV_MBUS_CTRL_BASE,
+	    MV_MBUS_CTRL_REGS_LEN, 0, &vaddr_iowind);
+	if (rv != 0)
+		return (rv);
+
+	/*
+	 * MBUS Units Priority Control Register - Prioritize XOR,
+	 * PCIe and GbEs (ID=4,6,3,7,8) DRAM access
+	 * GbE is High and others are Medium.
+	 */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, 0, 0x19180);
+
+	/*
+	 * Fabric Units Priority Control Register -
+	 * Prioritize CPUs requests.
+	 */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, 0x4, 0x3000A);
+
+	/*
+	 * MBUS Units Prefetch Control Register -
+	 * Pre-fetch enable for all IO masters.
+	 */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, 0x8, 0xFFFF);
+
+	/*
+	 * Fabric Units Prefetch Control Register -
+	 * Enable the CPUs Instruction and Data prefetch.
+	 */
+	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, 0xc, 0x303);
+
+	bus_space_barrier(fdtbus_bs_tag, vaddr_iowind, 0, MV_MBUS_CTRL_REGS_LEN,
+	    BUS_SPACE_BARRIER_WRITE);
+
+	bus_space_unmap(fdtbus_bs_tag, vaddr_iowind, MV_MBUS_CTRL_REGS_LEN);
 
 	return (rv);
 }

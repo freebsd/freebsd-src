@@ -1233,6 +1233,15 @@ read_rt(void)
 		if (m.r.rtm.rtm_type <= RTM_CHANGE)
 			strp += sprintf(strp," from pid %d",m.r.rtm.rtm_pid);
 
+		/*
+		 * Only messages that use the struct rt_msghdr format are
+		 * allowed beyond this point.
+		 */
+		if (m.r.rtm.rtm_type > RTM_RESOLVE) {
+			trace_act("ignore %s", str);
+			continue;
+		}
+		
 		rt_xaddrs(&info, m.r.addrs, &m.r.addrs[RTAX_MAX],
 			  m.r.rtm.rtm_addrs);
 

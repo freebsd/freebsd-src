@@ -55,6 +55,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
