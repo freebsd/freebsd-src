@@ -2500,17 +2500,15 @@ daregister(struct cam_periph *periph, void *arg)
 	/*
 	 * 6, 10, 12 and 16 are the currently permissible values.
 	 */
-	if (softc->minimum_cmd_size < 6)
-		softc->minimum_cmd_size = 6;
-	else if ((softc->minimum_cmd_size > 6)
-	      && (softc->minimum_cmd_size <= 10))
-		softc->minimum_cmd_size = 10;
-	else if ((softc->minimum_cmd_size > 10)
-	      && (softc->minimum_cmd_size <= 12))
-		softc->minimum_cmd_size = 12;
-	else if (softc->minimum_cmd_size > 12)
+	if (softc->minimum_cmd_size > 12)
 		softc->minimum_cmd_size = 16;
-
+	else if (softc->minimum_cmd_size > 10)
+		softc->minimum_cmd_size = 12;
+	else if (softc->minimum_cmd_size > 6)
+		softc->minimum_cmd_size = 10;
+	else
+		softc->minimum_cmd_size = 6;
+		
 	/* Predict whether device may support READ CAPACITY(16). */
 	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3 &&
 	    (softc->quirks & DA_Q_NO_RC16) == 0) {
