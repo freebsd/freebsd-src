@@ -84,8 +84,13 @@ public:
   uint32_t getFiller();
   template <class ELFT> void writeTo(uint8_t *Buf);
   template <class ELFT> void finalize();
+  template <class ELFT> void maybeCompress();
   void assignOffsets();
   std::vector<InputSection *> Sections;
+
+  // Used for implementation of --compress-debug-sections option.
+  std::vector<uint8_t> ZDebugHeader;
+  llvm::SmallVector<char, 1> CompressedData;
 
   // Location in the output buffer.
   uint8_t *Loc = nullptr;

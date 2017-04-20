@@ -72,6 +72,8 @@ public:
   }
   /// Determine whether there are any operations left in this expression.
   operator bool() const { return Start != End; }
+  DIExpression::expr_op_iterator begin() const { return Start; }
+  DIExpression::expr_op_iterator end() const { return End; }
 
   /// Retrieve the fragment information, if any.
   Optional<DIExpression::FragmentInfo> getFragmentInfo() const {
@@ -102,6 +104,9 @@ protected:
   unsigned SubRegisterSizeInBits = 0;
   unsigned SubRegisterOffsetInBits = 0;
 
+  /// The kind of location description being produced.
+  enum { Unknown = 0, Register, Memory, Implicit } LocationKind = Unknown;
+
   /// Push a DW_OP_piece / DW_OP_bit_piece for emitting later, if one is needed
   /// to represent a subregister.
   void setSubRegisterPiece(unsigned SizeInBits, unsigned OffsetInBits) {
@@ -122,7 +127,8 @@ protected:
   /// current function.
   virtual bool isFrameRegister(const TargetRegisterInfo &TRI, unsigned MachineReg) = 0;
 
-  /// Emit a DW_OP_reg operation.
+  /// Emit a DW_OP_reg operation. Note that this is only legal inside a DWARF
+  /// register location description.
   void addReg(int DwarfReg, const char *Comment = nullptr);
   /// Emit a DW_OP_breg operation.
   void addBReg(int DwarfReg, int Offset);
@@ -185,11 +191,18 @@ public:
   /// Emit an unsigned constant.
   void addUnsignedConstant(const APInt &Value);
 
+  /// Lock this down to become a memory location description.
+  void setMemoryLocationKind() {
+    assert(LocationKind == Unknown);
+    LocationKind = Memory;
+  }
+
   /// Emit a machine register location. As an optimization this may also consume
   /// the prefix of a DwarfExpression if a more efficient representation for
   /// combining the register location and the first operation exists.
   ///
-  /// \param FragmentOffsetInBits     If this is one fragment out of a fragmented
+  /// \param FragmentOffsetInBits     If this is one fragment out of a
+  /// fragmented
   ///                                 location, this is the offset of the
   ///                                 fragment inside the entire variable.
   /// \return                         false if no DWARF register exists

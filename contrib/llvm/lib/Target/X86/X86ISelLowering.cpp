@@ -2742,13 +2742,13 @@ static bool shouldGuaranteeTCO(CallingConv::ID CC, bool GuaranteedTailCallOpt) {
   return GuaranteedTailCallOpt && canGuaranteeTCO(CC);
 }
 
-bool X86TargetLowering::mayBeEmittedAsTailCall(CallInst *CI) const {
+bool X86TargetLowering::mayBeEmittedAsTailCall(const CallInst *CI) const {
   auto Attr =
       CI->getParent()->getParent()->getFnAttribute("disable-tail-calls");
   if (!CI->isTailCall() || Attr.getValueAsString() == "true")
     return false;
 
-  CallSite CS(CI);
+  ImmutableCallSite CS(CI);
   CallingConv::ID CalleeCC = CS.getCallingConv();
   if (!mayTailCallThisCC(CalleeCC))
     return false;
@@ -8327,13 +8327,13 @@ static APInt computeZeroableShuffleElements(ArrayRef<int> Mask,
         Zeroable.setBit(i);
       else if (ConstantSDNode *Cst = dyn_cast<ConstantSDNode>(Op)) {
         APInt Val = Cst->getAPIntValue();
-        Val = Val.lshr((M % Scale) * ScalarSizeInBits);
+        Val.lshrInPlace((M % Scale) * ScalarSizeInBits);
         Val = Val.getLoBits(ScalarSizeInBits);
         if (Val == 0)
           Zeroable.setBit(i);
       } else if (ConstantFPSDNode *Cst = dyn_cast<ConstantFPSDNode>(Op)) {
         APInt Val = Cst->getValueAPF().bitcastToAPInt();
-        Val = Val.lshr((M % Scale) * ScalarSizeInBits);
+        Val.lshrInPlace((M % Scale) * ScalarSizeInBits);
         Val = Val.getLoBits(ScalarSizeInBits);
         if (Val == 0)
           Zeroable.setBit(i);
@@ -16069,7 +16069,7 @@ static SDValue LowerFABSorFNEG(SDValue Op, SelectionDAG &DAG) {
   unsigned EltBits = EltVT.getSizeInBits();
   // For FABS, mask is 0x7f...; for FNEG, mask is 0x80...
   APInt MaskElt =
-    IsFABS ? APInt::getSignedMaxValue(EltBits) : APInt::getSignBit(EltBits);
+    IsFABS ? APInt::getSignedMaxValue(EltBits) : APInt::getSignMask(EltBits);
   const fltSemantics &Sem =
       EltVT == MVT::f64 ? APFloat::IEEEdouble() :
           (IsF128 ? APFloat::IEEEquad() : APFloat::IEEEsingle());
@@ -16132,9 +16132,9 @@ static SDValue LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) {
   // The mask constants are automatically splatted for vector types.
   unsigned EltSizeInBits = VT.getScalarSizeInBits();
   SDValue SignMask = DAG.getConstantFP(
-      APFloat(Sem, APInt::getSignBit(EltSizeInBits)), dl, LogicVT);
+      APFloat(Sem, APInt::getSignMask(EltSizeInBits)), dl, LogicVT);
   SDValue MagMask = DAG.getConstantFP(
-      APFloat(Sem, ~APInt::getSignBit(EltSizeInBits)), dl, LogicVT);
+      APFloat(Sem, ~APInt::getSignMask(EltSizeInBits)), dl, LogicVT);
 
   // First, clear all bits but the sign bit from the second operand (sign).
   if (IsFakeVector)
@@ -17344,10 +17344,10 @@ static SDValue LowerVSETCC(SDValue Op, const X86Subtarget &Subtarget,
   // bits of the inputs before performing those operations.
   if (FlipSigns) {
     MVT EltVT = VT.getVectorElementType();
-    SDValue SB = DAG.getConstant(APInt::getSignBit(EltVT.getSizeInBits()), dl,
+    SDValue SM = DAG.getConstant(APInt::getSignMask(EltVT.getSizeInBits()), dl,
                                  VT);
-    Op0 = DAG.getNode(ISD::XOR, dl, VT, Op0, SB);
-    Op1 = DAG.getNode(ISD::XOR, dl, VT, Op1, SB);
+    Op0 = DAG.getNode(ISD::XOR, dl, VT, Op0, SM);
+    Op1 = DAG.getNode(ISD::XOR, dl, VT, Op1, SM);
   }
 
   SDValue Result = DAG.getNode(Opc, dl, VT, Op0, Op1);
@@ -22111,11 +22111,11 @@ static SDValue LowerShift(SDValue Op, const X86Subtarget &Subtarget,
   }
 
   // i64 vector arithmetic shift can be emulated with the transform:
-  // M = lshr(SIGN_BIT, Amt)
+  // M = lshr(SIGN_MASK, Amt)
   // ashr(R, Amt) === sub(xor(lshr(R, Amt), M), M)
   if ((VT == MVT::v2i64 || (VT == MVT::v4i64 && Subtarget.hasInt256())) &&
       Op.getOpcode() == ISD::SRA) {
-    SDValue S = DAG.getConstant(APInt::getSignBit(64), dl, VT);
+    SDValue S = DAG.getConstant(APInt::getSignMask(64), dl, VT);
     SDValue M = DAG.getNode(ISD::SRL, dl, VT, S, Amt);
     R = DAG.getNode(ISD::SRL, dl, VT, R, Amt);
     R = DAG.getNode(ISD::XOR, dl, VT, R, M);
@@ -22647,7 +22647,7 @@ bool X86TargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
 // FIXME: On 32 bits x86, fild/movq might be faster than lock cmpxchg8b.
 TargetLowering::AtomicExpansionKind
 X86TargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
-  auto PTy = cast<PointerType>(LI->getPointerOperand()->getType());
+  auto PTy = cast<PointerType>(LI->getPointerOperandType());
   return needsCmpXchgNb(PTy->getElementType()) ? AtomicExpansionKind::CmpXChg
                                                : AtomicExpansionKind::None;
 }
@@ -26722,8 +26722,8 @@ void X86TargetLowering::computeKnownBitsForTargetNode(const SDValue Op,
         // Low bits are known zero.
         KnownZero.setLowBits(ShAmt);
       } else {
-        KnownZero = KnownZero.lshr(ShAmt);
-        KnownOne = KnownOne.lshr(ShAmt);
+        KnownZero.lshrInPlace(ShAmt);
+        KnownOne.lshrInPlace(ShAmt);
         // High bits are known zero.
         KnownZero.setHighBits(ShAmt);
       }
@@ -30152,7 +30152,7 @@ static SDValue combineSelect(SDNode *N, SelectionDAG &DAG,
           // x s< 0 ? x^C : 0 --> subus x, C
           if (CC == ISD::SETLT && Other->getOpcode() == ISD::XOR &&
               ISD::isBuildVectorAllZeros(CondRHS.getNode()) &&
-              OpRHSConst->getAPIntValue().isSignBit())
+              OpRHSConst->getAPIntValue().isSignMask())
             // Note that we have to rebuild the RHS constant here to ensure we
             // don't rely on particular values of undef lanes.
             return DAG.getNode(
@@ -30203,7 +30203,7 @@ static SDValue combineSelect(SDNode *N, SelectionDAG &DAG,
       return SDValue();
 
     assert(BitWidth >= 8 && BitWidth <= 64 && "Invalid mask size");
-    APInt DemandedMask(APInt::getSignBit(BitWidth));
+    APInt DemandedMask(APInt::getSignMask(BitWidth));
     APInt KnownZero, KnownOne;
     TargetLowering::TargetLoweringOpt TLO(DAG, DCI.isBeforeLegalize(),
                                           DCI.isBeforeLegalizeOps());
@@ -31269,7 +31269,7 @@ static SDValue combineVectorShiftImm(SDNode *N, SelectionDAG &DAG,
       else if (X86ISD::VSRAI == Opcode)
         Elt = Elt.ashr(ShiftImm);
       else
-        Elt = Elt.lshr(ShiftImm);
+        Elt.lshrInPlace(ShiftImm);
     }
     return getConstVector(EltBits, UndefElts, VT.getSimpleVT(), DAG, SDLoc(N));
   }
@@ -32234,8 +32234,8 @@ static SDValue detectAVGPattern(SDValue In, EVT VT, SelectionDAG &DAG,
     BuildVectorSDNode *BV = dyn_cast<BuildVectorSDNode>(V);
     if (!BV || !BV->isConstant())
       return false;
-    for (unsigned i = 0, e = V.getNumOperands(); i < e; i++) {
-      ConstantSDNode *C = dyn_cast<ConstantSDNode>(V.getOperand(i));
+    for (SDValue Op : V->ops()) {
+      ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op);
       if (!C)
         return false;
       uint64_t Val = C->getZExtValue();
@@ -33428,8 +33428,8 @@ static SDValue isFNEG(SDNode *N) {
   SDValue Op0 = peekThroughBitcasts(Op.getOperand(0));
 
   unsigned EltBits = Op1.getScalarValueSizeInBits();
-  auto isSignBitValue = [&](const ConstantFP *C) {
-    return C->getValueAPF().bitcastToAPInt() == APInt::getSignBit(EltBits);
+  auto isSignMask = [&](const ConstantFP *C) {
+    return C->getValueAPF().bitcastToAPInt() == APInt::getSignMask(EltBits);
   };
 
   // There is more than one way to represent the same constant on
@@ -33440,21 +33440,21 @@ static SDValue isFNEG(SDNode *N) {
   // We check all variants here.
   if (Op1.getOpcode() == X86ISD::VBROADCAST) {
     if (auto *C = getTargetConstantFromNode(Op1.getOperand(0)))
-      if (isSignBitValue(cast<ConstantFP>(C)))
+      if (isSignMask(cast<ConstantFP>(C)))
         return Op0;
 
   } else if (BuildVectorSDNode *BV = dyn_cast<BuildVectorSDNode>(Op1)) {
     if (ConstantFPSDNode *CN = BV->getConstantFPSplatNode())
-      if (isSignBitValue(CN->getConstantFPValue()))
+      if (isSignMask(CN->getConstantFPValue()))
         return Op0;
 
   } else if (auto *C = getTargetConstantFromNode(Op1)) {
     if (C->getType()->isVectorTy()) {
       if (auto *SplatV = C->getSplatValue())
-        if (isSignBitValue(cast<ConstantFP>(SplatV)))
+        if (isSignMask(cast<ConstantFP>(SplatV)))
           return Op0;
     } else if (auto *FPConst = dyn_cast<ConstantFP>(C))
-      if (isSignBitValue(FPConst))
+      if (isSignMask(FPConst))
         return Op0;
   }
   return SDValue();
@@ -34631,7 +34631,7 @@ static SDValue combineLoopMAddPattern(SDNode *N, SelectionDAG &DAG,
     return SDValue();
 
   ShrinkMode Mode;
-  if (!canReduceVMulWidth(MulOp.getNode(), DAG, Mode))
+  if (!canReduceVMulWidth(MulOp.getNode(), DAG, Mode) || Mode == MULU16)
     return SDValue();
 
   EVT VT = N->getValueType(0);

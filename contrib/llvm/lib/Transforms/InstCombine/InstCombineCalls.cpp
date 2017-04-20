@@ -839,7 +839,8 @@ static Value *simplifyX86extrq(IntrinsicInst &II, Value *Op0,
     // Length bits.
     if (CI0) {
       APInt Elt = CI0->getValue();
-      Elt = Elt.lshr(Index).zextOrTrunc(Length);
+      Elt.lshrInPlace(Index);
+      Elt = Elt.zextOrTrunc(Length);
       return LowConstantHighUndef(Elt.getZExtValue());
     }
 
@@ -1036,7 +1037,7 @@ static Value *simplifyX86vpermilvar(const IntrinsicInst &II,
     // The PD variants uses bit 1 to select per-lane element index, so
     // shift down to convert to generic shuffle mask index.
     if (IsPD)
-      Index = Index.lshr(1);
+      Index.lshrInPlace(1);
 
     // The _256 variants are a bit trickier since the mask bits always index
     // into the corresponding 128 half. In order to convert to a generic
@@ -4067,21 +4068,15 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
   }
 
   if (FT->getNumParams() < NumActualArgs && FT->isVarArg() &&
-      !CallerPAL.isEmpty())
+      !CallerPAL.isEmpty()) {
     // In this case we have more arguments than the new function type, but we
     // won't be dropping them.  Check that these extra arguments have attributes
     // that are compatible with being a vararg call argument.
-    for (unsigned i = CallerPAL.getNumSlots(); i; --i) {
-      unsigned Index = CallerPAL.getSlotIndex(i - 1);
-      if (Index <= FT->getNumParams())
-        break;
-
-      // Check if it has an attribute that's incompatible with varargs.
-      AttributeList PAttrs = CallerPAL.getSlotAttributes(i - 1);
-      if (PAttrs.hasAttribute(Index, Attribute::StructRet))
-        return false;
-    }
-
+    unsigned SRetIdx;
+    if (CallerPAL.hasAttrSomewhere(Attribute::StructRet, &SRetIdx) &&
+        SRetIdx > FT->getNumParams())
+      return false;
+  }
 
   // Okay, we decided that this is a safe thing to do: go ahead and start
   // inserting cast instructions as necessary.
