@@ -111,19 +111,6 @@ RENDERER(ega, 0, txtrndrsw, vga_set);
 RENDERER(vga, 0, txtrndrsw, vga_set);
 
 #ifdef SC_PIXEL_MODE
-static sc_rndr_sw_t egarndrsw = {
-	(vr_init_t *)vga_nop,
-	vga_pxlclear_planar,
-	vga_pxlborder_planar,
-	vga_egadraw,
-	vga_pxlcursor_shape,
-	vga_pxlcursor_planar,
-	vga_pxlblink_planar,
-	(vr_set_mouse_t *)vga_nop,
-	vga_pxlmouse_planar,
-};
-RENDERER(ega, PIXEL_MODE, egarndrsw, vga_set);
-
 static sc_rndr_sw_t vgarndrsw = {
 	vga_rndrinit,
 	(vr_clear_t *)vga_nop,
@@ -135,6 +122,7 @@ static sc_rndr_sw_t vgarndrsw = {
 	(vr_set_mouse_t *)vga_nop,
 	(vr_draw_mouse_t *)vga_nop,
 };
+RENDERER(ega, PIXEL_MODE, vgarndrsw, vga_set);
 RENDERER(vga, PIXEL_MODE, vgarndrsw, vga_set);
 #endif /* SC_PIXEL_MODE */
 
@@ -536,7 +524,10 @@ vga_rndrinit(scr_stat *scp)
 	if (scp->sc->adp->va_info.vi_mem_model == V_INFO_MM_PLANAR) {
 		scp->rndr->clear = vga_pxlclear_planar;
 		scp->rndr->draw_border = vga_pxlborder_planar;
-		scp->rndr->draw = vga_vgadraw_planar;
+		if (scp->sc->adp->va_type == KD_VGA)
+			scp->rndr->draw = vga_egadraw;
+		else
+			scp->rndr->draw = vga_vgadraw_planar;
 		scp->rndr->draw_cursor = vga_pxlcursor_planar;
 		scp->rndr->blink_cursor = vga_pxlblink_planar;
 		scp->rndr->draw_mouse = vga_pxlmouse_planar;
