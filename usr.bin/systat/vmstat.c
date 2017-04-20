@@ -70,35 +70,35 @@ static const char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 
 static struct Info {
 	long	time[CPUSTATES];
-	u_int v_swtch;		/* context switches */
-	u_int v_trap;		/* calls to trap */
-	u_int v_syscall;	/* calls to syscall() */
-	u_int v_intr;		/* device interrupts */
-	u_int v_soft;		/* software interrupts */
+	uint64_t v_swtch;	/* context switches */
+	uint64_t v_trap;	/* calls to trap */
+	uint64_t v_syscall;	/* calls to syscall() */
+	uint64_t v_intr;	/* device interrupts */
+	uint64_t v_soft;	/* software interrupts */
 	/*
 	 * Virtual memory activity.
 	 */
-	u_int v_vm_faults;	/* number of address memory faults */
-	u_int v_io_faults;	/* page faults requiring I/O */
-	u_int v_cow_faults;	/* number of copy-on-writes */
-	u_int v_zfod;		/* pages zero filled on demand */
-	u_int v_ozfod;		/* optimized zero fill pages */
-	u_int v_swapin;		/* swap pager pageins */
-	u_int v_swapout;	/* swap pager pageouts */
-	u_int v_swappgsin;	/* swap pager pages paged in */
-	u_int v_swappgsout;	/* swap pager pages paged out */
-	u_int v_vnodein;	/* vnode pager pageins */
-	u_int v_vnodeout;	/* vnode pager pageouts */
-	u_int v_vnodepgsin;	/* vnode_pager pages paged in */
-	u_int v_vnodepgsout;	/* vnode pager pages paged out */
-	u_int v_intrans;	/* intransit blocking page faults */
-	u_int v_reactivated;	/* number of pages reactivated by pagedaemon */
-	u_int v_pdwakeups;	/* number of times daemon has awaken from sleep */
-	u_int v_pdpages;	/* number of pages analyzed by daemon */
+	uint64_t v_vm_faults;	/* number of address memory faults */
+	uint64_t v_io_faults;	/* page faults requiring I/O */
+	uint64_t v_cow_faults;	/* number of copy-on-writes */
+	uint64_t v_zfod;	/* pages zero filled on demand */
+	uint64_t v_ozfod;	/* optimized zero fill pages */
+	uint64_t v_swapin;	/* swap pager pageins */
+	uint64_t v_swapout;	/* swap pager pageouts */
+	uint64_t v_swappgsin;	/* swap pager pages paged in */
+	uint64_t v_swappgsout;	/* swap pager pages paged out */
+	uint64_t v_vnodein;	/* vnode pager pageins */
+	uint64_t v_vnodeout;	/* vnode pager pageouts */
+	uint64_t v_vnodepgsin;	/* vnode_pager pages paged in */
+	uint64_t v_vnodepgsout;	/* vnode pager pages paged out */
+	uint64_t v_intrans;	/* intransit blocking page faults */
+	uint64_t v_reactivated;	/* number of pages reactivated by pagedaemon */
+	uint64_t v_pdwakeups;	/* number of times daemon has awaken from sleep */
+	uint64_t v_pdpages;	/* number of pages analyzed by daemon */
 
-	u_int v_dfree;		/* pages freed by daemon */
-	u_int v_pfree;		/* pages freed by exiting processes */
-	u_int v_tfree;		/* total pages freed */
+	uint64_t v_dfree;	/* pages freed by daemon */
+	uint64_t v_pfree;	/* pages freed by exiting processes */
+	uint64_t v_tfree;	/* total pages freed */
 	/*
 	 * Distribution of page usages.
 	 */
