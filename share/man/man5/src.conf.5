@@ -478,6 +478,13 @@ When set, it enforces these options:
 .It
 .Va WITHOUT_TESTS_SUPPORT
 .El
+.It Va WITH_CXX
+Set to build
+.Xr c++ 1
+and related libraries.
+.Pp
+This is a default setting on
+amd64/amd64, arm/arm, arm/armeb, arm/armv6, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, powerpc/powerpc, powerpc/powerpc64, powerpc/powerpcspe and sparc64/sparc64.
 .It Va WITHOUT_DEBUG_FILES
 Set to avoid building or installing standalone debug files for each
 executable binary and shared library.
@@ -759,6 +766,14 @@ You should consider installing the textproc/groff port to not break
 .Pp
 This is a default setting on
 riscv/riscv64 and riscv/riscv64sf.
+.It Va WITH_GROFF
+Set to build
+.Xr groff 1
+and
+.Xr vgrind 1 .
+.Pp
+This is a default setting on
+amd64/amd64, arm/arm, arm/armeb, arm/armv6, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, powerpc/powerpc, powerpc/powerpc64, powerpc/powerpcspe and sparc64/sparc64.
 .It Va WITHOUT_GSSAPI
 Set to not build libgssapi.
 .It Va WITHOUT_HAST
@@ -1241,10 +1256,17 @@ Set to not build
 .Xr ppp 8
 and related programs.
 .It Va WITHOUT_PROFILE
-Set to avoid compiling profiled libraries.
+Set to not build profiled libraries for use with
+.Xr gprof 8 .
 .Pp
 This is a default setting on
 riscv/riscv64 and riscv/riscv64sf.
+.It Va WITH_PROFILE
+Set to build profiled libraries for use with
+.Xr gprof 8 .
+.Pp
+This is a default setting on
+amd64/amd64, arm/arm, arm/armeb, arm/armv6, arm64/aarch64, i386/i386, mips/mipsel, mips/mips, mips/mips64el, mips/mips64, mips/mipsn32, mips/mipselhf, mips/mipshf, mips/mips64elhf, mips/mips64hf, powerpc/powerpc, powerpc/powerpc64, powerpc/powerpcspe and sparc64/sparc64.
 .It Va WITHOUT_QUOTAS
 Set to not build
 .Xr quota 1
@@ -1288,6 +1310,10 @@ Set to not build
 Set to not build
 .Xr routed 8
 utility.
+.It Va WITH_RPCBIND_WARMSTART_SUPPORT
+Set to build
+.Xr rpcbind 8
+with warmstart support.
 .It Va WITHOUT_SENDMAIL
 Set to not build
 .Xr sendmail 8
