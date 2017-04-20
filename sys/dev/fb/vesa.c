@@ -1359,6 +1359,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	vesa_adp->va_crtc_addr =
 		(vesa_adp->va_flags & V_ADP_COLOR) ? COLOR_CRTC : MONO_CRTC;
 
+	vesa_adp->va_flags &= ~V_ADP_CWIDTH9;
 	vesa_adp->va_line_width = info.vi_buffer_size / info.vi_height;
 	if ((info.vi_flags & V_INFO_GRAPHICS) != 0)
 		vesa_adp->va_line_width /= info.vi_planes;
