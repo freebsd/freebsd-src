@@ -1517,13 +1517,12 @@ static void emitDebugLocValue(const AsmPrinter &AP, const DIBasicType *BT,
       DwarfExpr.addUnsignedConstant(Value.getInt());
   } else if (Value.isLocation()) {
     MachineLocation Location = Value.getLoc();
-
+    if (Location.isIndirect())
+      DwarfExpr.setMemoryLocationKind();
     SmallVector<uint64_t, 8> Ops;
-    // FIXME: Should this condition be Location.isIndirect() instead?
-    if (Location.getOffset()) {
+    if (Location.isIndirect() && Location.getOffset()) {
       Ops.push_back(dwarf::DW_OP_plus);
       Ops.push_back(Location.getOffset());
-      Ops.push_back(dwarf::DW_OP_deref);
     }
     Ops.append(DIExpr->elements_begin(), DIExpr->elements_end());
     DIExpressionCursor Cursor(Ops);
@@ -1578,7 +1577,7 @@ void DwarfDebug::emitDebugLoc() {
   // Start the dwarf loc section.
   Asm->OutStreamer->SwitchSection(
       Asm->getObjFileLowering().getDwarfLocSection());
-  unsigned char Size = Asm->getDataLayout().getPointerSize();
+  unsigned char Size = Asm->MAI->getCodePointerSize();
   for (const auto &List : DebugLocs.getLists()) {
     Asm->OutStreamer->EmitLabel(List.Label);
     const DwarfCompileUnit *CU = List.CU;
@@ -1708,7 +1707,7 @@ void DwarfDebug::emitDebugARanges() {
   Asm->OutStreamer->SwitchSection(
       Asm->getObjFileLowering().getDwarfARangesSection());
 
-  unsigned PtrSize = Asm->getDataLayout().getPointerSize();
+  unsigned PtrSize = Asm->MAI->getCodePointerSize();
 
   // Build a list of CUs used.
   std::vector<DwarfCompileUnit *> CUs;
@@ -1791,7 +1790,7 @@ void DwarfDebug::emitDebugRanges() {
       Asm->getObjFileLowering().getDwarfRangesSection());
 
   // Size for our labels.
-  unsigned char Size = Asm->getDataLayout().getPointerSize();
+  unsigned char Size = Asm->MAI->getCodePointerSize();
 
   // Grab the specific ranges for the compile units in the module.
   for (const auto &I : CUMap) {

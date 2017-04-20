@@ -59,9 +59,6 @@
 /* Define to 1 if you have the <errno.h> header file. */
 #cmakedefine HAVE_ERRNO_H ${HAVE_ERRNO_H}
 
-/* Define to 1 if you have the <execinfo.h> header file. */
-#cmakedefine HAVE_EXECINFO_H ${HAVE_EXECINFO_H}
-
 /* Define to 1 if you have the <fcntl.h> header file. */
 #cmakedefine HAVE_FCNTL_H ${HAVE_FCNTL_H}
 
@@ -388,6 +385,9 @@
 
 /* LLVM version information */
 #cmakedefine LLVM_VERSION_INFO "${LLVM_VERSION_INFO}"
+
+/* Whether tools show host and target info when invoked with --version */
+#cmakedefine01 LLVM_VERSION_PRINTER_SHOW_HOST_TARGET_INFO
 
 /* Major version of the LLVM API */
 #define LLVM_VERSION_MAJOR ${LLVM_VERSION_MAJOR}
