@@ -49,7 +49,7 @@ int __wrap_aio_suspend(const struct aiocb *const iocbs[], int niocb,
      const struct timespec *timeout);
 int __wrap_close(int fd);
 int __wrap_clock_nanosleep(clockid_t clock_id, int flags,
-    const struct timespec *rqtp, struct timespec *rmtp)
+    const struct timespec *rqtp, struct timespec *rmtp);
 int __wrap_connect(int s, const struct sockaddr *name, __socklen_t namelen);
 int __wrap_fcntl(int fd, int cmd, intptr_t arg);
 int __wrap_fdatasync(int fd);
