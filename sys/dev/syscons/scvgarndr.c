@@ -525,9 +525,9 @@ vga_rndrinit(scr_stat *scp)
 		scp->rndr->clear = vga_pxlclear_planar;
 		scp->rndr->draw_border = vga_pxlborder_planar;
 		if (scp->sc->adp->va_type == KD_VGA)
-			scp->rndr->draw = vga_egadraw;
-		else
 			scp->rndr->draw = vga_vgadraw_planar;
+		else
+			scp->rndr->draw = vga_egadraw;
 		scp->rndr->draw_cursor = vga_pxlcursor_planar;
 		scp->rndr->blink_cursor = vga_pxlblink_planar;
 		scp->rndr->draw_mouse = vga_pxlmouse_planar;
@@ -828,11 +828,9 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 		/* set background color in EGA/VGA latch */
 		if (bg != col2) {
 			bg = col2;
-			outw(GDCIDX, 0x0005);	/* read mode 0, write mode 0 */
 			outw(GDCIDX, bg | 0x00); /* set/reset */
-			writeb(d, 0);
+			writeb(d, 0xff);
 			c = readb(d);		/* set bg color in the latch */
-			outw(GDCIDX, 0x0305);	/* read mode 0, write mode 3 */
 		}
 		/* foreground color */
 		outw(GDCIDX, col1 | 0x00);	/* set/reset */
