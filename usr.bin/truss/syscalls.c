@@ -1865,7 +1865,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		uint32_t rights;
 
 		if (sc->type & OUT) {
-			if (get_struct(pid, (void *)args[sc->offset], &rights,
+			if (get_struct(pid, args[sc->offset], &rights,
 			    sizeof(rights)) == -1) {
 				fprintf(fp, "0x%lx", args[sc->offset]);
 				break;
