@@ -1,3 +1,29 @@
+2017-04-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170420
+	  Merge with NetBSD make, pick up
+	  o main.c: only use -C arg "as is" if it contains no 
+	    relative component.
+
+2017-04-18  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170418
+	  Merge with NetBSD make, pick up
+	  o main.c: fix Main_SetObjdir() for relative paths (eg obj).
+
+2017-04-17  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (_MAKE_VERSION): 20170417
+	  Merge with NetBSD make, pick up
+	  o fixes a number of coverity complaints
+	    - check return value of fseek, fcntl
+	    - plug memory leak in Dir_FindFile, Var_LoopExpand,
+	      JobPrintCommand, ParseTraditionalInclude
+	    - use bmake_malloc() where NULL is not tollerated
+	    - use MAKE_ATTR_UNUSED rather that kludges like 
+	      return(unused ? 0 : 0)
+	    - use purge_cached_realpaths() rather than abuse cached_realpath()
+
 2017-04-13  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (_MAKE_VERSION): 20170413
