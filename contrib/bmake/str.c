@@ -382,8 +382,11 @@ Str_Match(const char *string, const char *pattern)
 			} else
 				nomatch = 0;
 			for (;;) {
-				if ((*pattern == ']') || (*pattern == 0))
-					return(nomatch);
+				if ((*pattern == ']') || (*pattern == 0)) {
+					if (nomatch)
+						break;
+					return(0);
+				}
 				if (*pattern == *string)
 					break;
 				if (pattern[1] == '-') {
@@ -400,7 +403,7 @@ Str_Match(const char *string, const char *pattern)
 				}
 				++pattern;
 			}
-			if (nomatch)
+			if (nomatch && (*pattern != ']') && (*pattern != 0))
 				return 0;
 			while ((*pattern != ']') && (*pattern != 0))
 				++pattern;
