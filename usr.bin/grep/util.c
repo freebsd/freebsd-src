@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
+#ifndef WITHOUT_FASTMATCH
 #include "fastmatch.h"
+#endif
 #include "grep.h"
 
 static int	 linesqueued;
@@ -317,10 +319,12 @@ procline(struct str *l, int nottext)
 		for (i = 0; i < patterns; i++) {
 			pmatch.rm_so = st;
 			pmatch.rm_eo = l->len;
+#ifndef WITHOUT_FASTMATCH
 			if (fg_pattern[i].pattern)
 				r = fastexec(&fg_pattern[i],
 				    l->dat, 1, &pmatch, leflags);
 			else
+#endif
 				r = regexec(&r_pattern[i], l->dat, 1,
 				    &pmatch, leflags);
 			r = (r == 0) ? 0 : REG_NOMATCH;
@@ -332,7 +336,11 @@ procline(struct str *l, int nottext)
 				    (size_t)pmatch.rm_eo != l->len)
 					r = REG_NOMATCH;
 			/* Check for whole word match */
+#ifndef WITHOUT_FASTMATCH
 			if (r == 0 && (wflag || fg_pattern[i].word)) {
+#else
+			if (r == 0 && wflag) {
+#endif
 				wchar_t wbegin, wend;
 
 				wbegin = wend = L' ';
