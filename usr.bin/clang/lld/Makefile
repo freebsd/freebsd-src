@@ -43,7 +43,6 @@ SRCS+=		ELF/Target.cpp
 SRCS+=		ELF/Thunks.cpp
 SRCS+=		ELF/Writer.cpp
 SRCS+=		lib/Config/Version.cpp
-SRCS+=		lib/Core/DefinedAtom.cpp
 SRCS+=		lib/Core/Error.cpp
 SRCS+=		lib/Core/File.cpp
 SRCS+=		lib/Core/LinkingContext.cpp
@@ -52,7 +51,6 @@ SRCS+=		lib/Core/Reproduce.cpp
 SRCS+=		lib/Core/Resolver.cpp
 SRCS+=		lib/Core/SymbolTable.cpp
 SRCS+=		lib/Core/TargetOptionsCommandFlags.cpp
-SRCS+=		lib/Core/Writer.cpp
 SRCS+=		tools/lld/lld.cpp
 
 .include "${SRCTOP}/lib/clang/llvm.build.mk"
