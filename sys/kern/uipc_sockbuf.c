@@ -794,8 +794,20 @@ sbappendaddr_locked_internal(struct sockbuf *sb, const struct sockaddr *asa,
 		return (0);
 	m->m_len = asa->sa_len;
 	bcopy(asa, mtod(m, caddr_t), asa->sa_len);
-	if (m0)
+	if (m0) {
 		m_clrprotoflags(m0);
+		m_tag_delete_chain(m0, NULL);
+		/*
+		 * Clear some persistent info from pkthdr.
+		 * We don't use m_demote(), because some netgraph consumers
+		 * expect M_PKTHDR presence.
+		 */
+		m0->m_pkthdr.rcvif = NULL;
+		m0->m_pkthdr.flowid = 0;
+		m0->m_pkthdr.csum_flags = 0;
+		m0->m_pkthdr.fibnum = 0;
+		m0->m_pkthdr.rsstype = 0;
+	}
 	if (ctrl_last)
 		ctrl_last->m_next = m0;	/* concatenate data to control */
 	else
