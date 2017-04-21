@@ -736,7 +736,7 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 	vm_offset_t d;
 	vm_offset_t e;
 	u_char *f;
-	u_short bg;
+	u_short bg, fg;
 	u_short col1, col2;
 	int line_width;
 	int i, j;
@@ -754,7 +754,7 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 		outw(GDCIDX, 0x0005);	/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */
 	outw(GDCIDX, 0x0f01);		/* set/reset enable */
-	bg = -1;
+	fg = bg = -1;
 	if (from + count > scp->xsize*scp->ysize)
 		count = scp->xsize*scp->ysize - from;
 	for (i = from; count-- > 0; ++i) {
@@ -769,6 +769,7 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 		/* set background color in EGA/VGA latch */
 		if (bg != col2) {
 			bg = col2;
+			fg = -1;
 			outw(GDCIDX, bg | 0x00); /* set/reset */
 			if (scp->sc->adp->va_type != KD_VGA)
 				outw(GDCIDX, 0xff08); /* bit mask */
@@ -776,7 +777,10 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 			c = readb(d);		/* set bg color in the latch */
 		}
 		/* foreground color */
-		outw(GDCIDX, col1 | 0x00);	/* set/reset */
+		if (fg != col1) {
+			fg = col1;
+			outw(GDCIDX, col1 | 0x00); /* set/reset */
+		}
 		e = d;
 		f = &(scp->font[sc_vtb_getc(&scp->vtb, i)*scp->font_size]);
 		for (j = 0; j < scp->font_size; ++j, ++f) {
