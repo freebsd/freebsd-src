@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.74 2016/02/18 18:29:14 christos Exp $	*/
+/*	$NetBSD: cond.c,v 1.75 2017/04/16 20:59:04 riastradh Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: cond.c,v 1.74 2016/02/18 18:29:14 christos Exp $";
+static char rcsid[] = "$NetBSD: cond.c,v 1.75 2017/04/16 20:59:04 riastradh Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cond.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: cond.c,v 1.74 2016/02/18 18:29:14 christos Exp $");
+__RCSID("$NetBSD: cond.c,v 1.75 2017/04/16 20:59:04 riastradh Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -91,6 +91,7 @@ __RCSID("$NetBSD: cond.c,v 1.74 2016/02/18 18:29:14 christos Exp $");
  *
  */
 
+#include    <assert.h>
 #include    <ctype.h>
 #include    <errno.h>    /* For strtoul() error checking */
 
@@ -1174,8 +1175,9 @@ Cond_EvalExpression(const struct If *info, char *line, Boolean *value, int eprin
 		break;
 	dflt_info = info;
     }
+    assert(info != NULL);
 
-    if_info = info != NULL ? info : ifs + 4;
+    if_info = info;
     condExpr = line;
     condPushBack = TOK_NONE;
 
