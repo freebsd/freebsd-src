@@ -71,7 +71,6 @@ static vr_clear_t		vga_pxlclear_direct;
 static vr_clear_t		vga_pxlclear_planar;
 static vr_draw_border_t		vga_pxlborder_direct;
 static vr_draw_border_t		vga_pxlborder_planar;
-static vr_draw_t		vga_egadraw;
 static vr_draw_t		vga_vgadraw_direct;
 static vr_draw_t		vga_vgadraw_planar;
 static vr_set_cursor_t		vga_pxlcursor_shape;
@@ -524,10 +523,7 @@ vga_rndrinit(scr_stat *scp)
 	if (scp->sc->adp->va_info.vi_mem_model == V_INFO_MM_PLANAR) {
 		scp->rndr->clear = vga_pxlclear_planar;
 		scp->rndr->draw_border = vga_pxlborder_planar;
-		if (scp->sc->adp->va_type == KD_VGA)
-			scp->rndr->draw = vga_vgadraw_planar;
-		else
-			scp->rndr->draw = vga_egadraw;
+		scp->rndr->draw = vga_vgadraw_planar;
 		scp->rndr->draw_cursor = vga_pxlcursor_planar;
 		scp->rndr->blink_cursor = vga_pxlblink_planar;
 		scp->rndr->draw_mouse = vga_pxlmouse_planar;
@@ -684,64 +680,6 @@ vga_pxlborder_planar(scr_stat *scp, int color)
 	outw(GDCIDX, 0x0001);		/* set/reset enable */
 }
 
-static void 
-vga_egadraw(scr_stat *scp, int from, int count, int flip)
-{
-	vm_offset_t d;
-	vm_offset_t e;
-	u_char *f;
-	u_short bg;
-	u_short col1, col2;
-	int line_width;
-	int i, j;
-	int a;
-	u_char c;
-
-	line_width = scp->sc->adp->va_line_width;
-
-	d = GET_PIXEL(scp, from, 1, line_width);
-
-	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
-	outw(GDCIDX, 0x0003);		/* data rotate/function select */
-	outw(GDCIDX, 0x0f01);		/* set/reset enable */
-	bg = -1;
-	if (from + count > scp->xsize*scp->ysize)
-		count = scp->xsize*scp->ysize - from;
-	for (i = from; count-- > 0; ++i) {
-		a = sc_vtb_geta(&scp->vtb, i);
-		if (flip) {
-			col1 = ((a & 0x7000) >> 4) | (a & 0x0800);
-			col2 = ((a & 0x8000) >> 4) | (a & 0x0700);
-		} else {
-			col1 = (a & 0x0f00);
-			col2 = (a & 0xf000) >> 4;
-		}
-		/* set background color in EGA/VGA latch */
-		if (bg != col2) {
-			bg = col2;
-			outw(GDCIDX, bg | 0x00);	/* set/reset */
-			outw(GDCIDX, 0xff08);		/* bit mask */
-			writeb(d, 0);
-			c = readb(d);	/* set bg color in the latch */
-		}
-		/* foreground color */
-		outw(GDCIDX, col1 | 0x00);		/* set/reset */
-		e = d;
-		f = &(scp->font[sc_vtb_getc(&scp->vtb, i)*scp->font_size]);
-		for (j = 0; j < scp->font_size; ++j, ++f) {
-			outw(GDCIDX, (*f << 8) | 0x08);	/* bit mask */
-	        	writeb(e, 0);
-			e += line_width;
-		}
-		++d;
-		if ((i % scp->xsize) == scp->xsize - 1)
-			d += scp->font_size * line_width - scp->xsize;
-	}
-	outw(GDCIDX, 0x0000);		/* set/reset */
-	outw(GDCIDX, 0x0001);		/* set/reset enable */
-	outw(GDCIDX, 0xff08);		/* bit mask */
-}
-
 static void
 vga_vgadraw_direct(scr_stat *scp, int from, int count, int flip)
 {
@@ -809,10 +747,13 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 
 	d = GET_PIXEL(scp, from, 1, line_width);
 
-	outw(GDCIDX, 0x0305);		/* read mode 0, write mode 3 */
+	if (scp->sc->adp->va_type == KD_VGA) {
+		outw(GDCIDX, 0x0305);	/* read mode 0, write mode 3 */
+		outw(GDCIDX, 0xff08);	/* bit mask */
+	} else
+		outw(GDCIDX, 0x0005);	/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */
 	outw(GDCIDX, 0x0f01);		/* set/reset enable */
-	outw(GDCIDX, 0xff08);		/* bit mask */
 	bg = -1;
 	if (from + count > scp->xsize*scp->ysize)
 		count = scp->xsize*scp->ysize - from;
@@ -829,6 +770,8 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 		if (bg != col2) {
 			bg = col2;
 			outw(GDCIDX, bg | 0x00); /* set/reset */
+			if (scp->sc->adp->va_type != KD_VGA)
+				outw(GDCIDX, 0xff08); /* bit mask */
 			writeb(d, 0xff);
 			c = readb(d);		/* set bg color in the latch */
 		}
@@ -837,14 +780,22 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 		e = d;
 		f = &(scp->font[sc_vtb_getc(&scp->vtb, i)*scp->font_size]);
 		for (j = 0; j < scp->font_size; ++j, ++f) {
-	        	writeb(e, *f);
+			if (scp->sc->adp->va_type == KD_VGA)
+				writeb(e, *f);	
+			else {
+				outw(GDCIDX, (*f << 8) | 0x08);	/* bit mask */
+				writeb(e, 0);	
+			}
 			e += line_width;
 		}
 		++d;
 		if ((i % scp->xsize) == scp->xsize - 1)
 			d += scp->font_size * line_width - scp->xsize;
 	}
-	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
+	if (scp->sc->adp->va_type == KD_VGA)
+		outw(GDCIDX, 0x0005);	/* read mode 0, write mode 0 */
+	else
+		outw(GDCIDX, 0xff08);	/* bit mask */
 	outw(GDCIDX, 0x0000);		/* set/reset */
 	outw(GDCIDX, 0x0001);		/* set/reset enable */
 }
