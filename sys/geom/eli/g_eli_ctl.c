@@ -618,7 +618,9 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	/* Check if iterations number should and can be changed. */
-	if (*valp != -1) {
+	if (*valp != -1 && md.md_iterations == -1) {
+		md.md_iterations = *valp;
+	} else if (*valp != -1 && *valp != md.md_iterations) {
 		if (bitcount32(md.md_keys) != 1) {
 			gctl_error(req, "To be able to use '-i' option, only "
 			    "one key can be defined.");
