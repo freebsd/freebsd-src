@@ -303,7 +303,11 @@ Number of iterations to use with PKCS#5v2 when processing User Key
 passphrase component.
 If this option is not specified,
 .Nm
-will find the number of iterations which is equal to 2 seconds of crypto work.
+will use the number of iterations that has been previously set in the
+.Nm
+metadata.
+If that has not been set, it will find the number of iterations
+which is equal to 2 seconds of crypto work.
 If 0 is given, PKCS#5v2 will not be used.
 PKCS#5v2 processing is performed once, after all parts of the passphrase
 component have been read.

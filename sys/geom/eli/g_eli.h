@@ -72,6 +72,7 @@
  *     G_ELI_FLAG_FIRST_KEY flag will be set for older versions).
  * 7 - Encryption keys are now generated from the Data Key and not from the
  *     IV Key (the G_ELI_FLAG_ENC_IVKEY flag will be set for older versions).
+ * 8 - Added passphrase flags so keys that have passphrases can be marked.
  */
 #define	G_ELI_VERSION_00	0
 #define	G_ELI_VERSION_01	1
@@ -81,7 +82,8 @@
 #define	G_ELI_VERSION_05	5
 #define	G_ELI_VERSION_06	6
 #define	G_ELI_VERSION_07	7
-#define	G_ELI_VERSION		G_ELI_VERSION_07
+#define	G_ELI_VERSION_08	8
+#define	G_ELI_VERSION		G_ELI_VERSION_08
 
 /* ON DISK FLAGS. */
 /* Use random, onetime keys. */
@@ -249,6 +251,7 @@ struct g_eli_metadata {
 	uint64_t	md_provsize;	/* Provider's size. */
 	uint32_t	md_sectorsize;	/* Sector size. */
 	uint8_t		md_keys;	/* Available keys. */
+	uint8_t		md_passphrases; /* Flags for passphrase set on key */
 	int32_t		md_iterations;	/* Number of iterations for PKCS#5v2. */
 	uint8_t		md_salt[G_ELI_SALTLEN]; /* Salt. */
 			/* Encrypted master key (IV-key, Data-key, HMAC). */
@@ -292,6 +295,25 @@ eli_metadata_encode_v1v2v3v4v5v6v7(struct g_eli_metadata *md, u_char **datap)
 	*datap = p;
 }
 static __inline void
+eli_metadata_encode_v8(struct g_eli_metadata *md, u_char **datap)
+{
+	u_char *p;
+
+	p = *datap;
+	le32enc(p, md->md_flags);	p += sizeof(md->md_flags);
+	le16enc(p, md->md_ealgo);	p += sizeof(md->md_ealgo);
+	le16enc(p, md->md_keylen);	p += sizeof(md->md_keylen);
+	le16enc(p, md->md_aalgo);	p += sizeof(md->md_aalgo);
+	le64enc(p, md->md_provsize);	p += sizeof(md->md_provsize);
+	le32enc(p, md->md_sectorsize);	p += sizeof(md->md_sectorsize);
+	*p = md->md_keys;	p += sizeof(md->md_keys);
+	*p = md->md_passphrases; p += sizeof(md->md_passphrases);
+	le32enc(p, md->md_iterations);	p += sizeof(md->md_iterations);
+	bcopy(md->md_salt, p, sizeof(md->md_salt)); p += sizeof(md->md_salt);
+	bcopy(md->md_mkeys, p, sizeof(md->md_mkeys)); p += sizeof(md->md_mkeys);
+	*datap = p;
+}
+static __inline void
 eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
 {
 	uint32_t hash[4];
@@ -315,6 +337,9 @@ eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
 	case G_ELI_VERSION_06:
 	case G_ELI_VERSION_07:
 		eli_metadata_encode_v1v2v3v4v5v6v7(md, &p);
+		break;
+	case G_ELI_VERSION_08:
+		eli_metadata_encode_v8(md, &p);
 		break;
 	default:
 #ifdef _KERNEL
@@ -353,6 +378,11 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 	bcopy(hash, md->md_hash, sizeof(md->md_hash));
 	if (bcmp(md->md_hash, p, 16) != 0)
 		return (EINVAL);
+	if (md->md_iterations >= 0)
+		/* Default to pre-v8 behavior: assume all keys have a passphrase */
+		md->md_passphrases = md->md_keys;
+	else
+		md->md_passphrases = 0;
 	return (0);
 }
 
@@ -380,8 +410,46 @@ eli_metadata_decode_v1v2v3v4v5v6v7(const u_char *data, struct g_eli_metadata *md
 	bcopy(hash, md->md_hash, sizeof(md->md_hash));
 	if (bcmp(md->md_hash, p, 16) != 0)
 		return (EINVAL);
+	if (md->md_version == G_ELI_VERSION_07) {
+		/* Auto update to version 8 */
+		md->md_version = G_ELI_VERSION_08;
+	}
+	if (md->md_iterations >= 0)
+		/* Default to pre-v8 behavior: assume all keys have a passphrase */
+		md->md_passphrases = md->md_keys;
+	else
+		md->md_passphrases = 0;
 	return (0);
 }
+
+static __inline int
+eli_metadata_decode_v8(const u_char *data, struct g_eli_metadata *md)
+{
+	uint32_t hash[4];
+	MD5_CTX ctx;
+	const u_char *p;
+
+	p = data + sizeof(md->md_magic) + sizeof(md->md_version);
+	md->md_flags = le32dec(p);	p += sizeof(md->md_flags);
+	md->md_ealgo = le16dec(p);	p += sizeof(md->md_ealgo);
+	md->md_keylen = le16dec(p);	p += sizeof(md->md_keylen);
+	md->md_aalgo = le16dec(p);	p += sizeof(md->md_aalgo);
+	md->md_provsize = le64dec(p);	p += sizeof(md->md_provsize);
+	md->md_sectorsize = le32dec(p);	p += sizeof(md->md_sectorsize);
+	md->md_keys = *p;	p += sizeof(md->md_keys);
+	md->md_passphrases = *p; p += sizeof(md->md_passphrases);
+	md->md_iterations = le32dec(p);	p += sizeof(md->md_iterations);
+	bcopy(p, md->md_salt, sizeof(md->md_salt)); p += sizeof(md->md_salt);
+	bcopy(p, md->md_mkeys, sizeof(md->md_mkeys)); p += sizeof(md->md_mkeys);
+	MD5Init(&ctx);
+	MD5Update(&ctx, data, p - data);
+	MD5Final((void *)hash, &ctx);
+	bcopy(hash, md->md_hash, sizeof(md->md_hash));
+	if (bcmp(md->md_hash, p, 16) != 0)
+		return (EINVAL);
+	return (0);
+}
+
 static __inline int
 eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 {
@@ -403,6 +471,9 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 	case G_ELI_VERSION_06:
 	case G_ELI_VERSION_07:
 		error = eli_metadata_decode_v1v2v3v4v5v6v7(data, md);
+		break;
+	case G_ELI_VERSION_08:
+		error = eli_metadata_decode_v8(data, md);
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -500,35 +571,36 @@ eli_metadata_dump(const struct g_eli_metadata *md)
 	char str[sizeof(md->md_mkeys) * 2 + 1];
 	u_int i;
 
-	printf("     magic: %s\n", md->md_magic);
-	printf("   version: %u\n", (u_int)md->md_version);
-	printf("     flags: 0x%x\n", (u_int)md->md_flags);
-	printf("     ealgo: %s\n", g_eli_algo2str(md->md_ealgo));
-	printf("    keylen: %u\n", (u_int)md->md_keylen);
+	printf("      magic: %s\n", md->md_magic);
+	printf("    version: %u\n", (u_int)md->md_version);
+	printf("      flags: 0x%x\n", (u_int)md->md_flags);
+	printf("      ealgo: %s\n", g_eli_algo2str(md->md_ealgo));
+	printf("     keylen: %u\n", (u_int)md->md_keylen);
 	if (md->md_flags & G_ELI_FLAG_AUTH)
-		printf("     aalgo: %s\n", g_eli_algo2str(md->md_aalgo));
-	printf("  provsize: %ju\n", (uintmax_t)md->md_provsize);
-	printf("sectorsize: %u\n", (u_int)md->md_sectorsize);
-	printf("      keys: 0x%02x\n", (u_int)md->md_keys);
-	printf("iterations: %u\n", (u_int)md->md_iterations);
+		printf("      aalgo: %s\n", g_eli_algo2str(md->md_aalgo));
+	printf("   provsize: %ju\n", (uintmax_t)md->md_provsize);
+	printf(" sectorsize: %u\n", (u_int)md->md_sectorsize);
+	printf("       keys: 0x%02x\n", (u_int)md->md_keys);
+	printf("passphrases: 0x%02x\n", (u_int)md->md_passphrases);
+	printf(" iterations: %d\n", md->md_iterations);
 	bzero(str, sizeof(str));
 	for (i = 0; i < sizeof(md->md_salt); i++) {
 		str[i * 2] = hex[md->md_salt[i] >> 4];
 		str[i * 2 + 1] = hex[md->md_salt[i] & 0x0f];
 	}
-	printf("      Salt: %s\n", str);
+	printf("       Salt: %s\n", str);
 	bzero(str, sizeof(str));
 	for (i = 0; i < sizeof(md->md_mkeys); i++) {
 		str[i * 2] = hex[md->md_mkeys[i] >> 4];
 		str[i * 2 + 1] = hex[md->md_mkeys[i] & 0x0f];
 	}
-	printf("Master Key: %s\n", str);
+	printf(" Master Key: %s\n", str);
 	bzero(str, sizeof(str));
 	for (i = 0; i < 16; i++) {
 		str[i * 2] = hex[md->md_hash[i] >> 4];
 		str[i * 2 + 1] = hex[md->md_hash[i] & 0x0f];
 	}
-	printf("  MD5 hash: %s\n", str);
+	printf("   MD5 hash: %s\n", str);
 }
 
 static __inline u_int

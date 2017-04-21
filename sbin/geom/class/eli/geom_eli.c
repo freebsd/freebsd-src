@@ -473,6 +473,7 @@ eli_genkey_passphrase(struct gctl_req *req, struct g_eli_metadata *md, bool new,
 	char passbuf[BUFSIZE];
 	bool nopassphrase;
 	int nfiles;
+	intmax_t val;
 
 	nopassphrase =
 	    gctl_get_int(req, new ? "nonewpassphrase" : "nopassphrase");
@@ -484,12 +485,35 @@ eli_genkey_passphrase(struct gctl_req *req, struct g_eli_metadata *md, bool new,
 			return (-1);
 		}
 		return (0);
-	}
-
-	if (!new && md->md_iterations == -1) {
+	} else if (new) {
+		/*
+		 * -i unspecified means "if md_iterations is already set, use it,
+		 * otherwise choose some sane value for me".
+		 */
+		val = gctl_get_intmax(req, "iterations");
+		if (val == -1) {
+			if (md->md_iterations == -1) {
+				if (verbose)
+					printf("Calculating number of iterations...\n");
+				md->md_iterations = pkcs5v2_calculate(2000000);
+				assert(md->md_iterations > 0);
+				if (verbose) {
+					printf("Done, using %d iterations.\n",
+							md->md_iterations);
+				}
+			}	else if (verbose) {
+				printf("Using metadata setting of %d iterations.\n",
+						md->md_iterations);
+			}
+		} else {
+			md->md_iterations = val;
+		}
+	} else if (md->md_passphrases == 0) {
 		gctl_error(req, "Missing -p flag.");
 		return (-1);
 	}
+	assert(md->md_iterations >= 0);
+
 	passbuf[0] = '\0';
 	nfiles = eli_genkey_files(req, new, "passfile", NULL, passbuf,
 	    sizeof(passbuf));
@@ -501,21 +525,7 @@ eli_genkey_passphrase(struct gctl_req *req, struct g_eli_metadata *md, bool new,
 			return (-1);
 		}
 	}
-	/*
-	 * Field md_iterations equal to -1 means "choose some sane
-	 * value for me".
-	 */
-	if (md->md_iterations == -1) {
-		assert(new);
-		if (verbose)
-			printf("Calculating number of iterations...\n");
-		md->md_iterations = pkcs5v2_calculate(2000000);
-		assert(md->md_iterations > 0);
-		if (verbose) {
-			printf("Done, using %d iterations.\n",
-			    md->md_iterations);
-		}
-	}
+
 	/*
 	 * If md_iterations is equal to 0, user doesn't want PKCS#5v2.
 	 */
@@ -674,6 +684,7 @@ eli_init(struct gctl_req *req)
 	off_t mediasize;
 	intmax_t val;
 	int error, nargs;
+	int nonewpassphrase;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 1) {
@@ -780,15 +791,13 @@ eli_init(struct gctl_req *req)
 	}
 	md.md_provsize = mediasize;
 
+	nonewpassphrase = gctl_get_int(req, "nonewpassphrase");
 	val = gctl_get_intmax(req, "iterations");
 	if (val != -1) {
-		int nonewpassphrase;
-
 		/*
 		 * Don't allow to set iterations when there will be no
 		 * passphrase.
 		 */
-		nonewpassphrase = gctl_get_int(req, "nonewpassphrase");
 		if (nonewpassphrase) {
 			gctl_error(req,
 			    "Options -i and -P are mutually exclusive.");
@@ -813,6 +822,8 @@ eli_init(struct gctl_req *req)
 	}
 
 	md.md_keys = 0x01;
+	if (!nonewpassphrase)
+		md.md_passphrases = 0x1;
 	arc4random_buf(md.md_salt, sizeof(md.md_salt));
 	arc4random_buf(md.md_mkeys, sizeof(md.md_mkeys));
 
@@ -1041,10 +1052,7 @@ eli_setkey_attached(struct gctl_req *req, struct g_eli_metadata *md)
 	int error;
 
 	val = gctl_get_intmax(req, "iterations");
-	/* Check if iterations number should be changed. */
-	if (val != -1)
-		md->md_iterations = val;
-	else
+	if (val == -1)
 		old = md->md_iterations;
 
 	/* Generate key for Master Key encryption. */
@@ -1068,6 +1076,15 @@ eli_setkey_attached(struct gctl_req *req, struct g_eli_metadata *md)
 }
 
 static void
+eli_reset_iterations(struct g_eli_metadata *md)
+{
+	/* Check if iterations can be removed. */
+	if (bitcount32(md->md_passphrases) == 0) {
+		md->md_iterations = -1;
+	}
+}
+
+static void
 eli_setkey_detached(struct gctl_req *req, const char *prov,
  struct g_eli_metadata *md)
 {
@@ -1076,6 +1093,7 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 	unsigned int nkey;
 	intmax_t val;
 	int error;
+	bool nonewpassphrase;
 
 	if (md->md_keys == 0) {
 		gctl_error(req, "No valid keys on %s.", prov);
@@ -1116,20 +1134,30 @@ eli_setkey_detached(struct gctl_req *req, const char *prov,
 		return;
 	}
 
-	val = gctl_get_intmax(req, "iterations");
-	/* Check if iterations number should and can be changed. */
-	if (val != -1) {
-		if (bitcount32(md->md_keys) != 1) {
-			gctl_error(req, "To be able to use '-i' option, only "
-			    "one key can be defined.");
-			return;
+	nonewpassphrase = gctl_get_int(req, "nonewpassphrase");
+	if (nonewpassphrase) {
+		md->md_passphrases &= ~(1 << nkey);
+		eli_reset_iterations(md);
+	} else {
+		val = gctl_get_intmax(req, "iterations");
+		/* Check if iterations number should and can be changed. */
+		if (val != -1) {
+			int count = bitcount32(md->md_passphrases);
+			if (count > 0 && val != md->md_iterations) {
+				if (count == 1) {
+					if ((md->md_passphrases & (1 << nkey)) == 0) {
+						gctl_error(req, "Only already defined key can be "
+								"changed when '-i' option is used.");
+						return;
+					}
+				} else {
+					gctl_error(req, "Changing iterations with the '-i' option is "
+							"not allowed when multiple passphrases are set");
+					return;
+				}
+			}
 		}
-		if (md->md_keys != (1 << nkey)) {
-			gctl_error(req, "Only already defined key can be "
-			    "changed when '-i' option is used.");
-			return;
-		}
-		md->md_iterations = val;
+		md->md_passphrases |= (1 << nkey);
 	}
 
 	mkeydst = md->md_mkeys + nkey * G_ELI_MKEYLEN;
@@ -1192,7 +1220,6 @@ eli_setkey(struct gctl_req *req)
 static void
 eli_delkey_attached(struct gctl_req *req, const char *prov __unused)
 {
-
 	gctl_issue(req);
 }
 
@@ -1209,9 +1236,11 @@ eli_delkey_detached(struct gctl_req *req, const char *prov)
 		return;
 
 	all = gctl_get_int(req, "all");
-	if (all)
+	if (all) {
 		arc4random_buf(md.md_mkeys, sizeof(md.md_mkeys));
-	else {
+		md.md_passphrases = 0;
+		eli_reset_iterations(&md);
+	} else {
 		force = gctl_get_int(req, "force");
 		val = gctl_get_intmax(req, "keyno");
 		if (val == -1) {
@@ -1227,6 +1256,8 @@ eli_delkey_detached(struct gctl_req *req, const char *prov)
 			gctl_error(req, "Master Key %u is not set.", nkey);
 			return;
 		}
+		md.md_passphrases &= ~(1 << nkey);
+		eli_reset_iterations(&md);
 		md.md_keys &= ~(1 << nkey);
 		if (md.md_keys == 0 && !force) {
 			gctl_error(req, "This is the last Master Key. Use '-f' "

@@ -188,7 +188,7 @@ geli_taste(int read_func(void *vdev, void *priv, off_t off, void *buf,
 		/* Swap device, skip it. */
 		return (1);
 	}
-	if (md.md_iterations < 0) {
+	if (md.md_passphrases == 0) {
 		/* XXX TODO: Support loading key files. */
 		/* Disk does not have a passphrase, skip it. */
 		return (1);
@@ -246,7 +246,7 @@ geli_attach(struct dsk *dskp, const char *passphrase, const u_char *mkeyp)
 		/*
 		 * Prepare Derived-Key from the user passphrase.
 		 */
-		if (geli_e->md.md_iterations < 0) {
+		if (geli_e->md.md_passphrases == 0) {
 			/* XXX TODO: Support loading key files. */
 			return (1);
 		} else if (geli_e->md.md_iterations == 0) {

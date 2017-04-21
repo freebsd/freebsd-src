@@ -556,6 +556,15 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
+eli_reset_iterations(struct g_eli_metadata *md)
+{
+	/* Check if iterations can be removed. */
+	if (bitcount32(md->md_passphrases) == 0) {
+		md->md_iterations = -1;
+	}
+}
+
+static void
 g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_eli_softc *sc;
@@ -566,6 +575,7 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	u_char *key, *mkeydst, *sector;
 	intmax_t *valp;
 	int keysize, nkey, error;
+	int *nonewpassphrase;
 
 	g_topology_assert();
 
@@ -612,24 +622,39 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	valp = gctl_get_paraml(req, "iterations", sizeof(*valp));
-	if (valp == NULL) {
-		gctl_error(req, "No '%s' argument.", "iterations");
+	nonewpassphrase = gctl_get_paraml(req, "nonewpassphrase", sizeof(*nonewpassphrase));
+	if (nonewpassphrase == NULL) {
+		gctl_error(req, "No '%s' argument.", "nonewpassphrase");
 		return;
 	}
-	/* Check if iterations number should and can be changed. */
-	if (*valp != -1) {
-		if (bitcount32(md.md_keys) != 1) {
-			gctl_error(req, "To be able to use '-i' option, only "
-			    "one key can be defined.");
+	if (*nonewpassphrase) {
+		md.md_passphrases &= ~(1 << nkey);
+		eli_reset_iterations(&md);
+	} else {
+		valp = gctl_get_paraml(req, "iterations", sizeof(*valp));
+		if (valp == NULL) {
+			gctl_error(req, "No '%s' argument.", "iterations");
 			return;
 		}
-		if (md.md_keys != (1 << nkey)) {
-			gctl_error(req, "Only already defined key can be "
-			    "changed when '-i' option is used.");
-			return;
+		/* Check if iterations number should and can be changed. */
+		if (*valp != -1) {
+			int count = bitcount32(md.md_passphrases);
+			if (count > 0 && *valp != md.md_iterations) {
+				if (count == 1) {
+					if ((md.md_passphrases & (1 << nkey)) == 0) {
+						gctl_error(req, "Only already defined key can be "
+								"changed when '-i' option is used.");
+						return;
+					}
+				} else {
+					gctl_error(req, "Changing iterations with the '-i' option is "
+							"not allowed when multiple passphrases are set");
+					return;
+				}
+			}
+			md.md_iterations = *valp;
 		}
-		md.md_iterations = *valp;
+		md.md_passphrases |= (1 << nkey);
 	}
 
 	mkeydst = md.md_mkeys + nkey * G_ELI_MKEYLEN;
@@ -713,6 +738,8 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 	if (*all) {
 		mkeydst = md.md_mkeys;
 		keysize = sizeof(md.md_mkeys);
+		md.md_passphrases = 0;
+		eli_reset_iterations(&md);
 	} else {
 		force = gctl_get_paraml(req, "force", sizeof(*force));
 		if (force == NULL) {
@@ -737,6 +764,8 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Master Key %u is not set.", nkey);
 			return;
 		}
+		md.md_passphrases &= ~(1 << nkey);
+		eli_reset_iterations(&md);
 		md.md_keys &= ~(1 << nkey);
 		if (md.md_keys == 0 && !*force) {
 			gctl_error(req, "This is the last Master Key. Use '-f' "
