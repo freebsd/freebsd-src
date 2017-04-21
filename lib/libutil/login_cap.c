@@ -86,7 +86,7 @@ allocarray(size_t sz)
 
     if (sz <= internal_arraysz)
 	p = internal_array;
-    else if ((p = realloc(internal_array, sz * sizeof(char*))) != NULL) {
+    else if ((p = reallocarray(internal_array, sz, sizeof(char*))) != NULL) {
 	internal_arraysz = sz;
 	internal_array = p;
     }

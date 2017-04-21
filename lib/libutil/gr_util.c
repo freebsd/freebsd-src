@@ -205,7 +205,7 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 			if (eof)
 				break;
 			while ((size_t)(q - p) >= size) {
-				if ((tmp = realloc(buf, size * 2)) == NULL) {
+				if ((tmp = reallocarray(buf, 2, size)) == NULL) {
 					warnx("group line too long");
 					goto err;
 				}
