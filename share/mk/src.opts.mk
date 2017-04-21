@@ -99,7 +99,6 @@ __DEFAULT_YES_OPTIONS = \
     GCOV \
     GNU_DIFF \
     GNU_GREP \
-    GNU_GREP_COMPAT \
     GPIO \
     GPL_DTC \
     GROFF \
@@ -181,6 +180,7 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     DTRACE_TESTS \
+    GNU_GREP_COMPAT \
     HESIOD \
     LIBSOFT \
     NAND \

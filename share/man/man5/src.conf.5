@@ -751,9 +751,10 @@ and
 .It Va WITHOUT_GNU_GREP
 Set to not build GNU
 .Xr grep 1 .
-.It Va WITHOUT_GNU_GREP_COMPAT
-Set this option to omit the gnu extensions to grep from being included in
-BSD grep.
+.It Va WITH_GNU_GREP_COMPAT
+Set this option to include GNU extensions in
+.Xr bsdgrep 1
+by linking against libgnuregex.
 .It Va WITHOUT_GPIO
 Set to not build
 .Xr gpioctl 8
