@@ -1355,7 +1355,8 @@ packages: .PHONY
 package-pkg: .PHONY
 	rm -rf /tmp/ports.${TARGET} || :
 	env ${WMAKEENV:Q} SRCDIR=${.CURDIR} PORTSDIR=${PORTSDIR} REVISION=${_REVISION} \
-		PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} WSTAGEDIR=${WSTAGEDIR} \
+		PKG_CMD=${PKG_CMD} PKG_VERSION=${PKG_VERSION} REPODIR=${REPODIR} \
+		WSTAGEDIR=${WSTAGEDIR} \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
@@ -1393,11 +1394,11 @@ create-world-packages:	_pkgbootstrap .PHONY
 			/^name/ { printf("===> Creating %s-", $$2); next } \
 			/^version/ { print $$2; next } \
 			' ${WSTAGEDIR}/$${pkgname}.ucl ; \
-		pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+		${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 			create -M ${WSTAGEDIR}/$${pkgname}.ucl \
 			-p ${WSTAGEDIR}/$${pkgname}.plist \
 			-r ${WSTAGEDIR} \
-			-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
+			-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
 	done
 
 create-kernel-packages:	_pkgbootstrap .PHONY
@@ -1421,11 +1422,11 @@ create-kernel-packages:	_pkgbootstrap .PHONY
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
-	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
-		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .endfor
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
@@ -1450,25 +1451,25 @@ create-kernel-packages:	_pkgbootstrap .PHONY
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
-	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
 		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
 		-r ${KSTAGEDIR}/kernel.${_kernel} \
-		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .endfor
 .endif
 .endfor
 .endif
 
 sign-packages:	_pkgbootstrap .PHONY
-	@[ -L "${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] && \
-		unlink ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
-	pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
-		-o ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
-		${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
+	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] && \
+		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
+	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
+		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
 		${PKGSIGNKEY} ; \
-	ln -s ${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
-		${REPODIR}/$$(pkg -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest
+	ln -s ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
+		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest
 
 #
 #
