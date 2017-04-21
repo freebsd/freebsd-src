@@ -22,6 +22,7 @@ SRCS+=		Support/Hashing.cpp
 SRCS+=		Support/Host.cpp
 SRCS+=		Support/IntEqClasses.cpp
 SRCS+=		Support/Locale.cpp
+SRCS+=		Support/LowLevelType.cpp
 SRCS+=		Support/MD5.cpp
 SRCS+=		Support/ManagedStatic.cpp
 SRCS+=		Support/MemoryBuffer.cpp

@@ -679,6 +679,12 @@ clang/Basic/AttrList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Basic/AttrList.inc
 
+clang/Basic/AttrSubMatchRulesList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-subject-match-rule-list \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
+TGHDRS+=	clang/Basic/AttrSubMatchRulesList.inc
+
 .for hdr in \
 	AST Analysis Comment Common Driver Frontend Lex Parse Sema Serialization
 clang/Basic/Diagnostic${hdr}Kinds.inc: \
@@ -722,6 +728,13 @@ clang/Parse/AttrParserStringSwitches.inc: \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Parse/AttrParserStringSwitches.inc
+
+clang/Parse/AttrSubMatchRulesParserStringSwitches.inc: \
+	${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-subject-match-rules-parser-string-switches \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
+TGHDRS+=	clang/Parse/AttrSubMatchRulesParserStringSwitches.inc
 
 clang/Sema/AttrParsedAttrImpl.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -gen-clang-attr-parsed-attr-impl \
