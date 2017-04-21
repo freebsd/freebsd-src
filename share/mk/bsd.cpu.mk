@@ -315,9 +315,12 @@ CFLAGS += -EB
 LDFLAGS += -EB
 . endif
 . if ${MACHINE_ARCH:Mmips64*} != ""
+# XXX: conflicts with -mabi=purecap
+.  if ${MK_CHERI} == "no"
 AFLAGS+= -mabi=64
 CFLAGS+= -mabi=64
 LDFLAGS+= -mabi=64
+.  endif
 . elif ${MACHINE_ARCH:Mmipsn32*} != ""
 AFLAGS+= -mabi=n32
 CFLAGS+= -mabi=n32
