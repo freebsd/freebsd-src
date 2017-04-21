@@ -2074,7 +2074,6 @@ __elfN(note_thrmisc)(void *arg, struct sbuf *sb, size_t *sizep)
 	*sizep = sizeof(thrmisc);
 }
 
-<<<<<<< HEAD
 #ifdef CPU_CHERI
 static void
 __elfN(note_capregs)(void *arg, struct sbuf *sb, size_t *sizep)
@@ -2093,7 +2092,7 @@ __elfN(note_capregs)(void *arg, struct sbuf *sb, size_t *sizep)
 	*sizep = sizeof(*capregs);
 }
 #endif
-=======
+
 static void
 __elfN(note_ptlwpinfo)(void *arg, struct sbuf *sb, size_t *sizep)
 {
@@ -2124,7 +2123,6 @@ __elfN(note_ptlwpinfo)(void *arg, struct sbuf *sb, size_t *sizep)
 	}
 	*sizep = size;
 }
->>>>>>> 2a8ac69f46dce1b868a245d11b5c085201f8fc20
 
 /*
  * Allow for MD specific notes, as well as any MD
