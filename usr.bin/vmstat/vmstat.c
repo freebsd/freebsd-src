@@ -413,12 +413,11 @@ retry_nlist:
 }
 
 static int
-mysysctl(const char *name, void *oldp, size_t *oldlenp,
-    void *newp, size_t newlen)
+mysysctl(const char *name, void *oldp, size_t *oldlenp)
 {
 	int error;
 
-	error = sysctlbyname(name, oldp, oldlenp, newp, newlen);
+	error = sysctlbyname(name, oldp, oldlenp, NULL, 0);
 	if (error != 0 && errno != ENOMEM)
 		xo_err(1, "sysctl(%s)", name);
 	return (error);
@@ -541,10 +540,12 @@ fill_vmmeter(struct __vmmeter *vmmp)
 		GET_COUNTER(v_kthreadpages);
 #undef GET_COUNTER
 	} else {
-		size_t size = sizeof(uint64_t);
+		size_t size;
 
-#define GET_VM_STATS(cat, name) \
-	mysysctl("vm.stats." #cat "." #name, &vmmp->name, &size, NULL, 0)
+#define GET_VM_STATS(cat, name)	do {					\
+	size = sizeof(vmmp->name);					\
+	mysysctl("vm.stats." #cat "." #name, &vmmp->name, &size);	\
+} while (0)
 		/* sys */
 		GET_VM_STATS(sys, v_swtch);
 		GET_VM_STATS(sys, v_trap);
@@ -609,7 +610,7 @@ fill_vmtotal(struct vmtotal *vmtp)
 		xo_errx(1, "not implemented");
 	} else {
 		size_t size = sizeof(*vmtp);
-		mysysctl("vm.vmtotal", vmtp, &size, NULL, 0);
+		mysysctl("vm.vmtotal", vmtp, &size);
 		if (size != sizeof(*vmtp))
 			xo_errx(1, "vm.total size mismatch");
 	}
@@ -633,14 +634,14 @@ getcpuinfo(u_long *maskp, int *maxidp)
 	mask = 0;
 	ncpus = 0;
 	size = sizeof(maxcpu);
-	mysysctl("kern.smp.maxcpus", &maxcpu, &size, NULL, 0);
+	mysysctl("kern.smp.maxcpus", &maxcpu, &size);
 	if (size != sizeof(maxcpu))
 		xo_errx(1, "sysctl kern.smp.maxcpus");
 	size = sizeof(long) * maxcpu * CPUSTATES;
 	times = malloc(size);
 	if (times == NULL)
 		xo_err(1, "malloc %zd bytes", size);
-	mysysctl("kern.cp_times", times, &size, NULL, 0);
+	mysysctl("kern.cp_times", times, &size);
 	maxid = (size / CPUSTATES / sizeof(long)) - 1;
 	for (i = 0; i <= maxid; i++) {
 		empty = 1;
@@ -731,7 +732,7 @@ dovmstat(unsigned int interval, int reps)
 		struct clockinfo clockrate;
 
 		size = sizeof(clockrate);
-		mysysctl("kern.clockrate", &clockrate, &size, NULL, 0);
+		mysysctl("kern.clockrate", &clockrate, &size);
 		if (size != sizeof(clockrate))
 			xo_errx(1, "clockrate size mismatch");
 		hz = clockrate.hz;
@@ -751,13 +752,13 @@ dovmstat(unsigned int interval, int reps)
 				xo_errx(1, "kvm_getcptime: %s", kvm_geterr(kd));
 		} else {
 			size = sizeof(cur.cp_time);
-			mysysctl("kern.cp_time", &cur.cp_time, &size, NULL, 0);
+			mysysctl("kern.cp_time", &cur.cp_time, &size);
 			if (size != sizeof(cur.cp_time))
 				xo_errx(1, "cp_time size mismatch");
 		}
 		if (Pflag) {
 			size = size_cp_times;
-			mysysctl("kern.cp_times", cur_cp_times, &size, NULL, 0);
+			mysysctl("kern.cp_times", cur_cp_times, &size);
 			if (size != size_cp_times)
 				xo_errx(1, "cp_times mismatch");
 		}
@@ -1110,7 +1111,7 @@ dosum(void)
 		kread(X_NCHSTATS, &lnchstats, sizeof(lnchstats));
 	} else {
 		size_t size = sizeof(lnchstats);
-		mysysctl("vfs.cache.nchstats", &lnchstats, &size, NULL, 0);
+		mysysctl("vfs.cache.nchstats", &lnchstats, &size);
 		if (size != sizeof(lnchstats))
 			xo_errx(1, "vfs.cache.nchstats size mismatch");
 	}
@@ -1300,8 +1301,7 @@ read_intrcnts(unsigned long **intrcnts)
 			*intrcnts = reallocf(*intrcnts, intrcntlen);
 			if (*intrcnts == NULL)
 				err(1, "reallocf()");
-			if (mysysctl("hw.intrcnt",
-			    *intrcnts, &intrcntlen, NULL, 0) == 0)
+			if (mysysctl("hw.intrcnt", *intrcnts, &intrcntlen) == 0)
 				break;
 		}
 	}
@@ -1369,8 +1369,7 @@ dointr(unsigned int interval, int reps)
 		for (intrnames = NULL, inamlen = 1024; ; inamlen *= 2) {
 			if ((intrnames = reallocf(intrnames, inamlen)) == NULL)
 				xo_err(1, "reallocf()");
-			if (mysysctl("hw.intrnames",
-			    intrnames, &inamlen, NULL, 0) == 0)
+			if (mysysctl("hw.intrnames", intrnames, &inamlen) == 0)
 				break;
 		}
 	}
