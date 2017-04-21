@@ -127,6 +127,13 @@
 	<entry><para>Update timezone database
 	    information</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-17:05.xen.asc">FreeBSD-EN-17:05.xen</link></entry>
+	<entry>23&nbsp;February&nbsp;2017</entry>
+	<entry><para>Xen migration enhancements</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
