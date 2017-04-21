@@ -76,8 +76,8 @@ gss_add_buffer_set_member(OM_uint32 * minor_status,
 	}
 
 	set = *buffer_set;
-	set->elements = realloc(set->elements,
-	    (set->count + 1) * sizeof(set->elements[0]));
+	set->elements = reallocarray(set->elements, set->count + 1,
+	    sizeof(set->elements[0]));
 	if (set->elements == NULL) {
 		*minor_status = ENOMEM;
 		return (GSS_S_FAILURE);
