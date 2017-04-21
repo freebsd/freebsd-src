@@ -25,13 +25,13 @@
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
-.\" Copyright (c) 2014 Nexenta Systems, Inc. All Rights Reserved.
+.\" Copyright (c) 2016 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
 .\" Copyright (c) 2014-2015, The FreeBSD Foundation, All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2016
+.Dd September 16, 2016
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -114,7 +114,7 @@
 .Op Fl t Ar type Ns Oo , Ns type Ns Oc Ns ...
 .Oo Fl s Ar property Oc Ns ...
 .Oo Fl S Ar property Oc Ns ...
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot | Ns Ar bookmark Ns ...
 .Nm
 .Cm set
 .Ar property Ns = Ns Ar value Oo Ar property Ns = Ns Ar value Oc Ns ...
@@ -2156,7 +2156,7 @@ section.
 .Op Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 .Op Fl s Ar source Ns Oo , Ns Ar source Oc Ns ...
 .Ar all | property Ns Oo , Ns Ar property Oc Ns ...
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns | Ns Ar bookmark Ns ...
 .Xc
 .Pp
 Displays properties for the given datasets. If no datasets are specified, then
