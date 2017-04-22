@@ -162,6 +162,12 @@
 # define SANITIZER_PPC64V2 0
 #endif
 
+#if defined(__arm__)
+# define SANITIZER_ARM 1
+#else
+# define SANITIZER_ARM 0
+#endif
+
 // By default we allow to use SizeClassAllocator64 on 64-bit platform.
 // But in some cases (e.g. AArch64's 39-bit address space) SizeClassAllocator64
 // does not work well and we need to fallback to SizeClassAllocator32.
@@ -252,5 +258,16 @@
 #if SANITIZER_GO == 0
 # define SANITIZER_GO 0
 #endif
+
+// On PowerPC and ARM Thumb, calling pthread_exit() causes LSan to detect leaks.
+// pthread_exit() performs unwinding that leads to dlopen'ing libgcc_s.so.
+// dlopen mallocs "libgcc_s.so" string which confuses LSan, it fails to realize
+// that this allocation happens in dynamic linker and should be ignored.
+#if SANITIZER_PPC || defined(__thumb__)
+# define SANITIZER_SUPPRESS_LEAK_ON_PTHREAD_EXIT 1
+#else
+# define SANITIZER_SUPPRESS_LEAK_ON_PTHREAD_EXIT 0
+#endif
+
 
 #endif // SANITIZER_PLATFORM_H

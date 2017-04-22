@@ -93,20 +93,22 @@ namespace __sanitizer {
 
 #include "sanitizer_syscall_generic.inc"
 
-// Direct syscalls, don't call libmalloc hooks.
+// Direct syscalls, don't call libmalloc hooks (but not available on 10.6).
 extern "C" void *__mmap(void *addr, size_t len, int prot, int flags, int fildes,
-                        off_t off);
-extern "C" int __munmap(void *, size_t);
+                        off_t off) SANITIZER_WEAK_ATTRIBUTE;
+extern "C" int __munmap(void *, size_t) SANITIZER_WEAK_ATTRIBUTE;
 
 // ---------------------- sanitizer_libc.h
 uptr internal_mmap(void *addr, size_t length, int prot, int flags,
                    int fd, u64 offset) {
   if (fd == -1) fd = VM_MAKE_TAG(VM_MEMORY_ANALYSIS_TOOL);
-  return (uptr)__mmap(addr, length, prot, flags, fd, offset);
+  if (&__mmap) return (uptr)__mmap(addr, length, prot, flags, fd, offset);
+  return (uptr)mmap(addr, length, prot, flags, fd, offset);
 }
 
 uptr internal_munmap(void *addr, uptr length) {
-  return __munmap(addr, length);
+  if (&__munmap) return __munmap(addr, length);
+  return munmap(addr, length);
 }
 
 int internal_mprotect(void *addr, uptr length, int prot) {
@@ -192,17 +194,19 @@ uptr internal_sigprocmask(int how, __sanitizer_sigset_t *set,
   return sigprocmask(how, set, oldset);
 }
 
-// Doesn't call pthread_atfork() handlers.
-extern "C" pid_t __fork(void);
+// Doesn't call pthread_atfork() handlers (but not available on 10.6).
+extern "C" pid_t __fork(void) SANITIZER_WEAK_ATTRIBUTE;
 
 int internal_fork() {
-  return __fork();
+  if (&__fork)
+    return __fork();
+  return fork();
 }
 
 int internal_forkpty(int *amaster) {
   int master, slave;
   if (openpty(&master, &slave, nullptr, nullptr, nullptr) == -1) return -1;
-  int pid = __fork();
+  int pid = internal_fork();
   if (pid == -1) {
     close(master);
     close(slave);
@@ -248,9 +252,8 @@ bool FileExists(const char *filename) {
   return S_ISREG(st.st_mode);
 }
 
-uptr GetTid() {
-  // FIXME: This can potentially get truncated on 32-bit, where uptr is 4 bytes.
-  uint64_t tid;
+tid_t GetTid() {
+  tid_t tid;
   pthread_threadid_np(nullptr, &tid);
   return tid;
 }
@@ -344,20 +347,16 @@ BlockingMutex::BlockingMutex() {
 void BlockingMutex::Lock() {
   CHECK(sizeof(OSSpinLock) <= sizeof(opaque_storage_));
   CHECK_EQ(OS_SPINLOCK_INIT, 0);
-  CHECK_NE(owner_, (uptr)pthread_self());
+  CHECK_EQ(owner_, 0);
   OSSpinLockLock((OSSpinLock*)&opaque_storage_);
-  CHECK(!owner_);
-  owner_ = (uptr)pthread_self();
 }
 
 void BlockingMutex::Unlock() {
-  CHECK(owner_ == (uptr)pthread_self());
-  owner_ = 0;
   OSSpinLockUnlock((OSSpinLock*)&opaque_storage_);
 }
 
 void BlockingMutex::CheckLocked() {
-  CHECK_EQ((uptr)pthread_self(), owner_);
+  CHECK_NE(*(OSSpinLock*)&opaque_storage_, 0);
 }
 
 u64 NanoTime() {
@@ -402,7 +401,11 @@ bool IsHandledDeadlySignal(int signum) {
     return true;
   if (common_flags()->handle_sigill && signum == SIGILL)
     return true;
-  return (signum == SIGSEGV || signum == SIGBUS) && common_flags()->handle_segv;
+  if (common_flags()->handle_sigfpe && signum == SIGFPE)
+    return true;
+  if (common_flags()->handle_segv && signum == SIGSEGV)
+    return true;
+  return common_flags()->handle_sigbus && signum == SIGBUS;
 }
 
 MacosVersion cached_macos_version = MACOS_VERSION_UNINITIALIZED;
@@ -882,6 +885,10 @@ void PrintModuleMap() {
            ModuleArchToString(modules[i].arch()), uuid_str);
   }
   Printf("End of module map.\n");
+}
+
+void CheckNoDeepBind(const char *filename, int flag) {
+  // Do nothing.
 }
 
 }  // namespace __sanitizer

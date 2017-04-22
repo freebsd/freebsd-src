@@ -410,6 +410,7 @@ struct ThreadState {
   bool is_dead;
   bool is_freeing;
   bool is_vptr_access;
+  uptr external_tag;
   const uptr stk_addr;
   const uptr stk_size;
   const uptr tls_addr;
@@ -545,6 +546,10 @@ struct Context {
 
 extern Context *ctx;  // The one and the only global runtime context.
 
+ALWAYS_INLINE Flags *flags() {
+  return &ctx->flags;
+}
+
 struct ScopedIgnoreInterceptors {
   ScopedIgnoreInterceptors() {
 #if !SANITIZER_GO
@@ -564,7 +569,7 @@ class ScopedReport {
   explicit ScopedReport(ReportType typ);
   ~ScopedReport();
 
-  void AddMemoryAccess(uptr addr, Shadow s, StackTrace stack,
+  void AddMemoryAccess(uptr addr, uptr external_tag, Shadow s, StackTrace stack,
                        const MutexSet *mset);
   void AddStack(StackTrace stack, bool suppressable = false);
   void AddThread(const ThreadContext *tctx, bool suppressable = false);
@@ -640,6 +645,8 @@ bool IsFiredSuppression(Context *ctx, ReportType type, StackTrace trace);
 bool IsExpectedReport(uptr addr, uptr size);
 void PrintMatchedBenignRaces();
 
+const char *GetObjectTypeFromTag(uptr tag);
+
 #if defined(TSAN_DEBUG_OUTPUT) && TSAN_DEBUG_OUTPUT >= 1
 # define DPrintf Printf
 #else
@@ -704,16 +711,16 @@ void MemoryResetRange(ThreadState *thr, uptr pc, uptr addr, uptr size);
 void MemoryRangeFreed(ThreadState *thr, uptr pc, uptr addr, uptr size);
 void MemoryRangeImitateWrite(ThreadState *thr, uptr pc, uptr addr, uptr size);
 
-void ThreadIgnoreBegin(ThreadState *thr, uptr pc);
+void ThreadIgnoreBegin(ThreadState *thr, uptr pc, bool save_stack = true);
 void ThreadIgnoreEnd(ThreadState *thr, uptr pc);
-void ThreadIgnoreSyncBegin(ThreadState *thr, uptr pc);
+void ThreadIgnoreSyncBegin(ThreadState *thr, uptr pc, bool save_stack = true);
 void ThreadIgnoreSyncEnd(ThreadState *thr, uptr pc);
 
 void FuncEntry(ThreadState *thr, uptr pc);
 void FuncExit(ThreadState *thr);
 
 int ThreadCreate(ThreadState *thr, uptr pc, uptr uid, bool detached);
-void ThreadStart(ThreadState *thr, int tid, uptr os_id);
+void ThreadStart(ThreadState *thr, int tid, tid_t os_id, bool workerthread);
 void ThreadFinish(ThreadState *thr);
 int ThreadTid(ThreadState *thr, uptr pc, uptr uid);
 void ThreadJoin(ThreadState *thr, uptr pc, int tid);
@@ -728,13 +735,16 @@ void ProcDestroy(Processor *proc);
 void ProcWire(Processor *proc, ThreadState *thr);
 void ProcUnwire(Processor *proc, ThreadState *thr);
 
-void MutexCreate(ThreadState *thr, uptr pc, uptr addr,
-                 bool rw, bool recursive, bool linker_init);
+// Note: the parameter is called flagz, because flags is already taken
+// by the global function that returns flags.
+void MutexCreate(ThreadState *thr, uptr pc, uptr addr, u32 flagz = 0);
 void MutexDestroy(ThreadState *thr, uptr pc, uptr addr);
-void MutexLock(ThreadState *thr, uptr pc, uptr addr, int rec = 1,
-               bool try_lock = false);
-int  MutexUnlock(ThreadState *thr, uptr pc, uptr addr, bool all = false);
-void MutexReadLock(ThreadState *thr, uptr pc, uptr addr, bool try_lock = false);
+void MutexPreLock(ThreadState *thr, uptr pc, uptr addr, u32 flagz = 0);
+void MutexPostLock(ThreadState *thr, uptr pc, uptr addr, u32 flagz = 0,
+    int rec = 1);
+int  MutexUnlock(ThreadState *thr, uptr pc, uptr addr, u32 flagz = 0);
+void MutexPreReadLock(ThreadState *thr, uptr pc, uptr addr, u32 flagz = 0);
+void MutexPostReadLock(ThreadState *thr, uptr pc, uptr addr, u32 flagz = 0);
 void MutexReadUnlock(ThreadState *thr, uptr pc, uptr addr);
 void MutexReadOrWriteUnlock(ThreadState *thr, uptr pc, uptr addr);
 void MutexRepair(ThreadState *thr, uptr pc, uptr addr);  // call on EOWNERDEAD

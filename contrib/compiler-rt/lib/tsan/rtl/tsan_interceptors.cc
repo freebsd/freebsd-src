@@ -18,6 +18,7 @@
 #include "sanitizer_common/sanitizer_linux.h"
 #include "sanitizer_common/sanitizer_platform_limits_posix.h"
 #include "sanitizer_common/sanitizer_placement_new.h"
+#include "sanitizer_common/sanitizer_posix.h"
 #include "sanitizer_common/sanitizer_stacktrace.h"
 #include "sanitizer_common/sanitizer_tls_get_addr.h"
 #include "interception/interception.h"
@@ -29,9 +30,6 @@
 #include "tsan_mman.h"
 #include "tsan_fd.h"
 
-#if SANITIZER_POSIX
-#include "sanitizer_common/sanitizer_posix.h"
-#endif
 
 using namespace __tsan;  // NOLINT
 
@@ -45,13 +43,6 @@ using namespace __tsan;  // NOLINT
 #define __errno_location __errno
 #define mallopt(a, b)
 #endif
-
-#if SANITIZER_LINUX || SANITIZER_FREEBSD
-#define PTHREAD_CREATE_DETACHED 1
-#elif SANITIZER_MAC
-#define PTHREAD_CREATE_DETACHED 2
-#endif
-
 
 #ifdef __mips__
 const int kSigCount = 129;
@@ -277,7 +268,7 @@ ScopedInterceptor::~ScopedInterceptor() {
 
 void ScopedInterceptor::EnableIgnores() {
   if (ignoring_) {
-    ThreadIgnoreBegin(thr_, pc_);
+    ThreadIgnoreBegin(thr_, pc_, false);
     if (in_ignored_lib_) {
       DCHECK(!thr_->in_ignored_lib);
       thr_->in_ignored_lib = true;
@@ -881,7 +872,7 @@ extern "C" void *__tsan_thread_start_func(void *arg) {
       internal_sched_yield();
     Processor *proc = ProcCreate();
     ProcWire(proc, thr);
-    ThreadStart(thr, tid, GetTid());
+    ThreadStart(thr, tid, GetTid(), /*workerthread*/ false);
     atomic_store(&p->tid, 0, memory_order_release);
   }
   void *res = callback(param);
@@ -928,8 +919,7 @@ TSAN_INTERCEPTOR(int, pthread_create,
     ThreadIgnoreEnd(thr, pc);
   }
   if (res == 0) {
-    int tid = ThreadCreate(thr, pc, *(uptr*)th,
-                           detached == PTHREAD_CREATE_DETACHED);
+    int tid = ThreadCreate(thr, pc, *(uptr*)th, IsStateDetached(detached));
     CHECK_NE(tid, 0);
     // Synchronization on p.tid serves two purposes:
     // 1. ThreadCreate must finish before the new thread starts.
@@ -1025,7 +1015,7 @@ static void cond_mutex_unlock(CondMutexUnlockCtx *arg) {
   ThreadSignalContext *ctx = SigCtx(arg->thr);
   CHECK_EQ(atomic_load(&ctx->in_blocking_func, memory_order_relaxed), 1);
   atomic_store(&ctx->in_blocking_func, 0, memory_order_relaxed);
-  MutexLock(arg->thr, arg->pc, (uptr)arg->m);
+  MutexPostLock(arg->thr, arg->pc, (uptr)arg->m, MutexFlagDoPreLockOnPostLock);
   // Undo BlockingCall ctor effects.
   arg->thr->ignore_interceptors--;
   arg->si->~ScopedInterceptor();
@@ -1054,7 +1044,7 @@ static int cond_wait(ThreadState *thr, uptr pc, ScopedInterceptor *si,
         fn, c, m, t, (void (*)(void *arg))cond_mutex_unlock, &arg);
   }
   if (res == errno_EOWNERDEAD) MutexRepair(thr, pc, (uptr)m);
-  MutexLock(thr, pc, (uptr)m);
+  MutexPostLock(thr, pc, (uptr)m, MutexFlagDoPreLockOnPostLock);
   return res;
 }
 
@@ -1114,14 +1104,15 @@ TSAN_INTERCEPTOR(int, pthread_mutex_init, void *m, void *a) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_init, m, a);
   int res = REAL(pthread_mutex_init)(m, a);
   if (res == 0) {
-    bool recursive = false;
+    u32 flagz = 0;
     if (a) {
       int type = 0;
       if (REAL(pthread_mutexattr_gettype)(a, &type) == 0)
-        recursive = (type == PTHREAD_MUTEX_RECURSIVE
-            || type == PTHREAD_MUTEX_RECURSIVE_NP);
+        if (type == PTHREAD_MUTEX_RECURSIVE ||
+            type == PTHREAD_MUTEX_RECURSIVE_NP)
+          flagz |= MutexFlagWriteReentrant;
     }
-    MutexCreate(thr, pc, (uptr)m, false, recursive, false);
+    MutexCreate(thr, pc, (uptr)m, flagz);
   }
   return res;
 }
@@ -1141,7 +1132,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_trylock, void *m) {
   if (res == EOWNERDEAD)
     MutexRepair(thr, pc, (uptr)m);
   if (res == 0 || res == EOWNERDEAD)
-    MutexLock(thr, pc, (uptr)m, /*rec=*/1, /*try_lock=*/true);
+    MutexPostLock(thr, pc, (uptr)m, MutexFlagTryLock);
   return res;
 }
 
@@ -1150,7 +1141,7 @@ TSAN_INTERCEPTOR(int, pthread_mutex_timedlock, void *m, void *abstime) {
   SCOPED_TSAN_INTERCEPTOR(pthread_mutex_timedlock, m, abstime);
   int res = REAL(pthread_mutex_timedlock)(m, abstime);
   if (res == 0) {
-    MutexLock(thr, pc, (uptr)m);
+    MutexPostLock(thr, pc, (uptr)m, MutexFlagTryLock);
   }
   return res;
 }
@@ -1161,7 +1152,7 @@ TSAN_INTERCEPTOR(int, pthread_spin_init, void *m, int pshared) {
   SCOPED_TSAN_INTERCEPTOR(pthread_spin_init, m, pshared);
   int res = REAL(pthread_spin_init)(m, pshared);
   if (res == 0) {
-    MutexCreate(thr, pc, (uptr)m, false, false, false);
+    MutexCreate(thr, pc, (uptr)m);
   }
   return res;
 }
@@ -1177,9 +1168,10 @@ TSAN_INTERCEPTOR(int, pthread_spin_destroy, void *m) {
 
 TSAN_INTERCEPTOR(int, pthread_spin_lock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_spin_lock, m);
+  MutexPreLock(thr, pc, (uptr)m);
   int res = REAL(pthread_spin_lock)(m);
   if (res == 0) {
-    MutexLock(thr, pc, (uptr)m);
+    MutexPostLock(thr, pc, (uptr)m);
   }
   return res;
 }
@@ -1188,7 +1180,7 @@ TSAN_INTERCEPTOR(int, pthread_spin_trylock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_spin_trylock, m);
   int res = REAL(pthread_spin_trylock)(m);
   if (res == 0) {
-    MutexLock(thr, pc, (uptr)m, /*rec=*/1, /*try_lock=*/true);
+    MutexPostLock(thr, pc, (uptr)m, MutexFlagTryLock);
   }
   return res;
 }
@@ -1205,7 +1197,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_init, void *m, void *a) {
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_init, m, a);
   int res = REAL(pthread_rwlock_init)(m, a);
   if (res == 0) {
-    MutexCreate(thr, pc, (uptr)m, true, false, false);
+    MutexCreate(thr, pc, (uptr)m);
   }
   return res;
 }
@@ -1221,9 +1213,10 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_destroy, void *m) {
 
 TSAN_INTERCEPTOR(int, pthread_rwlock_rdlock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_rdlock, m);
+  MutexPreReadLock(thr, pc, (uptr)m);
   int res = REAL(pthread_rwlock_rdlock)(m);
   if (res == 0) {
-    MutexReadLock(thr, pc, (uptr)m);
+    MutexPostReadLock(thr, pc, (uptr)m);
   }
   return res;
 }
@@ -1232,7 +1225,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_tryrdlock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_tryrdlock, m);
   int res = REAL(pthread_rwlock_tryrdlock)(m);
   if (res == 0) {
-    MutexReadLock(thr, pc, (uptr)m, /*try_lock=*/true);
+    MutexPostReadLock(thr, pc, (uptr)m, MutexFlagTryLock);
   }
   return res;
 }
@@ -1242,7 +1235,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_timedrdlock, void *m, void *abstime) {
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_timedrdlock, m, abstime);
   int res = REAL(pthread_rwlock_timedrdlock)(m, abstime);
   if (res == 0) {
-    MutexReadLock(thr, pc, (uptr)m);
+    MutexPostReadLock(thr, pc, (uptr)m);
   }
   return res;
 }
@@ -1250,9 +1243,10 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_timedrdlock, void *m, void *abstime) {
 
 TSAN_INTERCEPTOR(int, pthread_rwlock_wrlock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_wrlock, m);
+  MutexPreLock(thr, pc, (uptr)m);
   int res = REAL(pthread_rwlock_wrlock)(m);
   if (res == 0) {
-    MutexLock(thr, pc, (uptr)m);
+    MutexPostLock(thr, pc, (uptr)m);
   }
   return res;
 }
@@ -1261,7 +1255,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_trywrlock, void *m) {
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_trywrlock, m);
   int res = REAL(pthread_rwlock_trywrlock)(m);
   if (res == 0) {
-    MutexLock(thr, pc, (uptr)m, /*rec=*/1, /*try_lock=*/true);
+    MutexPostLock(thr, pc, (uptr)m, MutexFlagTryLock);
   }
   return res;
 }
@@ -1271,7 +1265,7 @@ TSAN_INTERCEPTOR(int, pthread_rwlock_timedwrlock, void *m, void *abstime) {
   SCOPED_TSAN_INTERCEPTOR(pthread_rwlock_timedwrlock, m, abstime);
   int res = REAL(pthread_rwlock_timedwrlock)(m, abstime);
   if (res == 0) {
-    MutexLock(thr, pc, (uptr)m);
+    MutexPostLock(thr, pc, (uptr)m, MutexFlagTryLock);
   }
   return res;
 }
@@ -1643,24 +1637,6 @@ TSAN_INTERCEPTOR(void*, tmpfile64, int fake) {
 #else
 #define TSAN_MAYBE_INTERCEPT_TMPFILE64
 #endif
-
-TSAN_INTERCEPTOR(uptr, fread, void *ptr, uptr size, uptr nmemb, void *f) {
-  // libc file streams can call user-supplied functions, see fopencookie.
-  {
-    SCOPED_TSAN_INTERCEPTOR(fread, ptr, size, nmemb, f);
-    MemoryAccessRange(thr, pc, (uptr)ptr, size * nmemb, true);
-  }
-  return REAL(fread)(ptr, size, nmemb, f);
-}
-
-TSAN_INTERCEPTOR(uptr, fwrite, const void *p, uptr size, uptr nmemb, void *f) {
-  // libc file streams can call user-supplied functions, see fopencookie.
-  {
-    SCOPED_TSAN_INTERCEPTOR(fwrite, p, size, nmemb, f);
-    MemoryAccessRange(thr, pc, (uptr)p, size * nmemb, false);
-  }
-  return REAL(fwrite)(p, size, nmemb, f);
-}
 
 static void FlushStreams() {
   // Flushing all the streams here may freeze the process if a child thread is
@@ -2251,8 +2227,12 @@ static void HandleRecvmsg(ThreadState *thr, uptr pc,
 #define COMMON_INTERCEPTOR_ON_EXIT(ctx) \
   OnExit(((TsanInterceptorContext *) ctx)->thr)
 
-#define COMMON_INTERCEPTOR_MUTEX_LOCK(ctx, m) \
-  MutexLock(((TsanInterceptorContext *)ctx)->thr, \
+#define COMMON_INTERCEPTOR_MUTEX_PRE_LOCK(ctx, m) \
+  MutexPreLock(((TsanInterceptorContext *)ctx)->thr, \
+            ((TsanInterceptorContext *)ctx)->pc, (uptr)m)
+
+#define COMMON_INTERCEPTOR_MUTEX_POST_LOCK(ctx, m) \
+  MutexPostLock(((TsanInterceptorContext *)ctx)->thr, \
             ((TsanInterceptorContext *)ctx)->pc, (uptr)m)
 
 #define COMMON_INTERCEPTOR_MUTEX_UNLOCK(ctx, m) \

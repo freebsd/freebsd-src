@@ -62,7 +62,7 @@ COMMON_FLAG(
 COMMON_FLAG(
     int, verbosity, 0,
     "Verbosity level (0 - silent, 1 - a bit of output, 2+ - more output).")
-COMMON_FLAG(bool, detect_leaks, true, "Enable memory leak detection.")
+COMMON_FLAG(bool, detect_leaks, !SANITIZER_MAC, "Enable memory leak detection.")
 COMMON_FLAG(
     bool, leak_check_at_exit, true,
     "Invoke leak checking in an atexit handler. Has no effect if "
@@ -79,7 +79,9 @@ COMMON_FLAG(int, print_module_map, 0,
             "exits, 2 = print after each report.")
 COMMON_FLAG(bool, check_printf, true, "Check printf arguments.")
 COMMON_FLAG(bool, handle_segv, true,
-            "If set, registers the tool's custom SIGSEGV/SIGBUS handler.")
+            "If set, registers the tool's custom SIGSEGV handler.")
+COMMON_FLAG(bool, handle_sigbus, true,
+            "If set, registers the tool's custom SIGBUS handler.")
 COMMON_FLAG(bool, handle_abort, false,
             "If set, registers the tool's custom SIGABRT handler.")
 COMMON_FLAG(bool, handle_sigill, false,
@@ -189,6 +191,9 @@ COMMON_FLAG(bool, intercept_strstr, true,
             "to find more errors.")
 COMMON_FLAG(bool, intercept_strspn, true,
             "If set, uses custom wrappers for strspn and strcspn function "
+            "to find more errors.")
+COMMON_FLAG(bool, intercept_strtok, true,
+            "If set, uses a custom wrapper for the strtok function "
             "to find more errors.")
 COMMON_FLAG(bool, intercept_strpbrk, true,
             "If set, uses custom wrappers for strpbrk function "
