@@ -471,6 +471,11 @@ nfscl_mtofh(struct nfsrv_descript *nd, struct nfsfh **nfhpp,
 		flag = fxdr_unsigned(int, *tl);
 	} else if (nd->nd_flag & ND_NFSV4) {
 		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		/* If the GetFH failed, clear flag. */
+		if (*++tl != 0) {
+			nd->nd_flag |= ND_NOMOREDATA;
+			flag = 0;
+		}
 	}
 	if (flag) {
 		error = nfsm_getfh(nd, nfhpp);
@@ -481,8 +486,12 @@ nfscl_mtofh(struct nfsrv_descript *nd, struct nfsfh **nfhpp,
 	/*
 	 * Now, get the attributes.
 	 */
-	if (nd->nd_flag & ND_NFSV4) {
+	if (flag != 0 && (nd->nd_flag & ND_NFSV4) != 0) {
 		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		if (*++tl != 0) {
+			nd->nd_flag |= ND_NOMOREDATA;
+			flag = 0;
+		}
 	} else if (nd->nd_flag & ND_NFSV3) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		if (flag) {
