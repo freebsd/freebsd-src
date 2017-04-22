@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -42,11 +43,11 @@ struct retval {
 	char *value;
 };
 
-struct retval *retval;
-int verbose;
+static struct retval *retval;
+static int verbose;
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stdout, "usage: %s [-v] param[:len][=value] ...\n",
 	    getprogname());
@@ -105,7 +106,8 @@ parse(char *arg, char **param, char **value, int *len)
 	return (0);
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	struct retval *rv;
 	struct gctl_req *req;
@@ -114,6 +116,7 @@ int main(int argc, char *argv[])
 	int c, len;
 
 	req = gctl_get_handle();
+	assert(req != NULL);
 	gctl_ro_param(req, "class", -1, "GPT");
 
 	while ((c = getopt(argc, argv, "v")) != -1) {
@@ -133,6 +136,7 @@ int main(int argc, char *argv[])
 		if (!parse(argv[optind++], &param, &value, &len)) {
 			if (len > 0) {
 				rv = malloc(sizeof(struct retval));
+				assert(rv != NULL);
 				rv->param = param;
 				rv->value = value;
 				rv->retval = retval;
