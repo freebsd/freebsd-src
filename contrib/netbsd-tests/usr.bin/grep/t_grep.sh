@@ -159,12 +159,6 @@ context_head()
 }
 context_body()
 {
-	# Begin FreeBSD
-	grep_type
-	if [ $? -eq $GREP_TYPE_BSD ]; then
-		atf_expect_fail "this test doesn't pass with BSD grep yet"
-	fi
-	# End FreeBSD
 	cp $(atf_get_srcdir)/d_context_*.* .
 
 	atf_check -o file:d_context_a.out grep -C2 bamboo d_context_a.in
@@ -226,12 +220,6 @@ context2_head()
 }
 context2_body()
 {
-	# Begin FreeBSD
-	grep_type
-	if [ $? -eq $GREP_TYPE_BSD ]; then
-		atf_expect_fail "this test doesn't pass with BSD grep yet"
-	fi
-	# End FreeBSD
 	printf "haddock\000cod\000plaice\000" > test1
 	printf "mackeral\000cod\000crab\000" > test2
 
