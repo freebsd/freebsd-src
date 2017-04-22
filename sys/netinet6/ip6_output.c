@@ -217,7 +217,7 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 
 int
 ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
-    int mtu, uint32_t id)
+    int fraglen , uint32_t id)
 {
 	struct mbuf *m, **mnext, *m_frgpart;
 	struct ip6_hdr *ip6, *mhip6;
@@ -226,13 +226,13 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 	int error;
 	int tlen = m0->m_pkthdr.len;
 
-	KASSERT(( mtu % 8 == 0), ("Fragment length must be a multiple of 8"));
+	KASSERT((fraglen % 8 == 0), ("Fragment length must be a multiple of 8"));
 
 	m = m0;
 	ip6 = mtod(m, struct ip6_hdr *);
 	mnext = &m->m_nextpkt;
 
-	for (off = hlen; off < tlen; off += mtu) {
+	for (off = hlen; off < tlen; off += fraglen) {
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (!m) {
 			IP6STAT_INC(ip6s_odropped);
@@ -251,18 +251,18 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 			return (error);
 		}
 		ip6f->ip6f_offlg = htons((u_short)((off - hlen) & ~7));
-		if (off + mtu >= tlen)
-			mtu = tlen - off;
+		if (off + fraglen >= tlen)
+			fraglen = tlen - off;
 		else
 			ip6f->ip6f_offlg |= IP6F_MORE_FRAG;
-		mhip6->ip6_plen = htons((u_short)(mtu + hlen +
+		mhip6->ip6_plen = htons((u_short)(fraglen + hlen +
 		    sizeof(*ip6f) - sizeof(struct ip6_hdr)));
-		if ((m_frgpart = m_copym(m0, off, mtu, M_NOWAIT)) == NULL) {
+		if ((m_frgpart = m_copym(m0, off, fraglen, M_NOWAIT)) == NULL) {
 			IP6STAT_INC(ip6s_odropped);
 			return (ENOBUFS);
 		}
 		m_cat(m, m_frgpart);
-		m->m_pkthdr.len = mtu + hlen + sizeof(*ip6f);
+		m->m_pkthdr.len = fraglen + hlen + sizeof(*ip6f);
 		m->m_pkthdr.fibnum = m0->m_pkthdr.fibnum;
 		m->m_pkthdr.rcvif = NULL;
 		ip6f->ip6f_reserved = 0;
