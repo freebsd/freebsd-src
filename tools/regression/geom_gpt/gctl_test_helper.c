@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <assert.h>
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -113,7 +114,7 @@ main(int argc, char *argv[])
 	struct gctl_req *req;
 	char *param, *value;
 	const char *s;
-	int c, len;
+	int c, len, parse_retval;
 
 	req = gctl_get_handle();
 	assert(req != NULL);
@@ -132,8 +133,9 @@ main(int argc, char *argv[])
 		}
 	}
 
-	while (optind < argc) {
-		if (!parse(argv[optind++], &param, &value, &len)) {
+	for (; optind < argc; optind++) {
+		parse_retval = parse(argv[optind], &param, &value, &len);
+		if (parse_retval == 0) {
 			if (len > 0) {
 				rv = malloc(sizeof(struct retval));
 				assert(rv != NULL);
@@ -144,7 +146,9 @@ main(int argc, char *argv[])
 				gctl_rw_param(req, param, len, value);
 			} else
 				gctl_ro_param(req, param, -1, value);
-		}
+		} else
+			warnc(parse_retval, "failed to parse argument (%s)",
+			    argv[optind]);
 	}
 
 	if (verbose)
