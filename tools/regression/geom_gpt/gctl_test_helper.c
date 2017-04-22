@@ -117,7 +117,7 @@ main(int argc, char *argv[])
 
 	req = gctl_get_handle();
 	assert(req != NULL);
-	gctl_ro_param(req, "class", -1, "GPT");
+	gctl_ro_param(req, "class", -1, "PART");
 
 	while ((c = getopt(argc, argv, "v")) != -1) {
 		switch (c) {
