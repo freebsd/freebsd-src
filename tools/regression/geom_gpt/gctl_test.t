@@ -29,8 +29,10 @@
 use strict;
 use warnings;
 
+use File::Basename;
+
 my $disk = "/tmp/disk-$$";
-my $mntpt = "/tmp/mount-$$";
+my $mntpt_prefix = "/tmp/mount-$$";
 
 my %steps = (
     "000" => "gctl",
@@ -137,7 +139,7 @@ if ($st != 0) {
 }
 chomp(my $cmd = `make '-V\${.OBJDIR}/\${PROG}'`);
 
-my $out = "/tmp/$cmd.out";
+my $out = basename($cmd) . ".out";
 
 # Make sure we have permission to use gctl...
 if (`$cmd` =~ "^FAIL Permission denied") {
@@ -192,14 +194,14 @@ foreach my $key (sort keys %steps) {
 	}
 	unlink $out;
     } elsif ($action =~ "^mount") {
-	    system("mkdir $mntpt-$args");
+	    system("mkdir $mntpt_prefix-$args");
 	    system("newfs $args");
-	    system("mount -t ufs /dev/$args $mntpt-$args");
+	    system("mount -t ufs /dev/$args $mntpt_prefix-$args");
 	    print "ok $nr \# mount($key)\n";
     } elsif ($action =~ "^umount") {
-	    system("umount $mntpt-$args");
-	    system("rmdir $mntpt-$args");
-	    print "ok $nr \# umount($key)\n";
+	system("umount $mntpt_prefix-$args");
+	system("rmdir $mntpt_prefix-$args");
+	print "ok $nr \# umount($key)\n";
     }
     $nr += 1;
 }
