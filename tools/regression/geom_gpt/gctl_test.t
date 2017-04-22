@@ -1,4 +1,4 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl
 #
 # Copyright (c) 2005, 2006 Marcel Moolenaar
 # All rights reserved.
@@ -25,6 +25,9 @@
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # $FreeBSD$
+
+use strict;
+use warnings;
 
 my $disk = "/tmp/disk-$$";
 my $mntpt = "/tmp/mount-$$";
@@ -138,12 +141,12 @@ my $out = "/tmp/$cmd.out";
 
 # Make sure we have permission to use gctl...
 if (`$cmd` =~ "^FAIL Permission denied") {
-    print "1..0 # SKIP not enough permission\n";
+    print "1..0 # SKIP insufficient permissions\n";
     unlink $cmd;
     exit 0;
 }
 
-$count = keys (%steps);
+my $count = keys (%steps);
 print "1..$count\n";
 
 my $nr = 1;
@@ -200,6 +203,4 @@ foreach my $key (sort keys %steps) {
     }
     $nr += 1;
 }
-
-unlink $cmd;
 exit 0;
