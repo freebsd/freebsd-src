@@ -130,7 +130,6 @@ size_t
 chacha20_encrypt(chacha20_ctx *ctx, const void *vpt, uint8_t *ct, size_t len)
 {
 	const uint8_t *pt = vpt;
-	uint64_t ctr;
 	uint32_t mix[16];
 	uint8_t ks[64];
 	unsigned int b, i;
@@ -157,8 +156,8 @@ chacha20_encrypt(chacha20_ctx *ctx, const void *vpt, uint8_t *ct, size_t len)
 			for (i = 0; i < 64 && i < len; ++i)
 				*ct++ = *pt++ ^ ks[i];
 		}
-		ctr = le64dec(ctx->state + 12);
-		le64enc(ctx->state + 12, ++ctr);
+		if (++ctx->state[12] == 0)
+			++ctx->state[13];
 	}
 	return (len);
 }
