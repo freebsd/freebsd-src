@@ -1365,9 +1365,6 @@ send:
 	 */
 #ifdef INET6
 	if (isipv6) {
-		struct route_in6 ro;
-
-		bzero(&ro, sizeof(ro));
 		/*
 		 * we separately set hoplimit for every segment, since the
 		 * user might want to change the value via setsockopt.
@@ -1399,13 +1396,13 @@ send:
 #endif
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
-		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
+		error = ip6_output(m, tp->t_inpcb->in6p_outputopts,
+		    &tp->t_inpcb->inp_route6,
 		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
 		    NULL, NULL, tp->t_inpcb);
 
-		if (error == EMSGSIZE && ro.ro_rt != NULL)
-			mtu = ro.ro_rt->rt_mtu;
-		RO_RTFREE(&ro);
+		if (error == EMSGSIZE && tp->t_inpcb->inp_route6.ro_rt != NULL)
+			mtu = tp->t_inpcb->inp_route6.ro_rt->rt_mtu;
 	}
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
