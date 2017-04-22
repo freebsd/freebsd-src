@@ -132,7 +132,7 @@ if (exists $ENV{'TEST_VERBOSE'}) {
 }
 
 # Compile the driver...
-my $st = system("cc -o $cmd -g $srcdir/test.c -lgeom");
+my $st = system("cc -o $cmd -g $srcdir/gctl_test_helper.c -lgeom");
 if ($st != 0) {
     print "1..0 # SKIP error compiling test.c\n";
     exit 0;
