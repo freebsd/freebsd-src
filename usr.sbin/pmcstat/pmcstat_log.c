@@ -535,8 +535,8 @@ pmcstat_image_add_symbols(struct pmcstat_image *image, Elf *e,
 	 * Allocate space for the new entries.
 	 */
 	firsttime = image->pi_symbols == NULL;
-	symptr = realloc(image->pi_symbols,
-	    sizeof(*symptr) * (image->pi_symcount + nfuncsyms));
+	symptr = reallocarray(image->pi_symbols,
+	    image->pi_symcount + nfuncsyms, sizeof(*symptr));
 	if (symptr == image->pi_symbols) /* realloc() failed. */
 		return;
 	image->pi_symbols = symptr;
@@ -587,8 +587,8 @@ pmcstat_image_add_symbols(struct pmcstat_image *image, Elf *e,
 	 * Return space to the system if there were duplicates.
 	 */
 	if (newsyms < nfuncsyms)
-		image->pi_symbols = realloc(image->pi_symbols,
-		    sizeof(*symptr) * image->pi_symcount);
+		image->pi_symbols = reallocarray(image->pi_symbols,
+		    image->pi_symcount, sizeof(*symptr));
 
 	/*
 	 * Keep the list of symbols sorted.
