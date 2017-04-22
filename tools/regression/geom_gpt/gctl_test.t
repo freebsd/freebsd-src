@@ -161,13 +161,15 @@ foreach my $key (sort keys %steps) {
     $res =~ s/%dev%/$dev/g;
 
     if ($action =~ "^gctl") {
+	my $errmsg = "";
 	system("$cmd $verbose $args | tee $out 2>&1");
-	$st = `tail -1 $out`;
-	if ($st =~ "^$res") {
-	    print "ok $nr \# gctl($key)\n";
-	} else {
-	    print "not ok $nr \# gctl($key) - $st\n";
+	chomp($st = `tail -1 $out`);
+	if ($st ne $res) {
+	    $errmsg = "\"$st\" (actual) != \"$res\" (expected)\n";
 	}
+	printf("%sok $nr \# gctl($key)%s\n",
+	    ($errmsg eq "" ? "" : "not "),
+	    ($errmsg eq "" ? "" : " - $errmsg"));
 	unlink $out;
     } elsif ($action =~ "^mdcfg") {
 	if ($args =~ "^create") {
@@ -194,10 +196,18 @@ foreach my $key (sort keys %steps) {
 	}
 	unlink $out;
     } elsif ($action =~ "^mount") {
-	    system("mkdir $mntpt_prefix-$args");
-	    system("newfs $args");
-	    system("mount -t ufs /dev/$args $mntpt_prefix-$args");
-	    print "ok $nr \# mount($key)\n";
+	my $errmsg = "";
+	mkdir("$mntpt_prefix-$args");
+	if (system("newfs /dev/$args") == 0) {
+	    if (system("mount /dev/$args $mntpt_prefix-$args") != 0) {
+		$errmsg = "mount failed";
+	    }
+	} else {
+	    $errmsg = "newfs failed";
+	}
+	printf("%sok $nr # mount($key)%s\n",
+	    ($errmsg eq "" ? "" : "not "),
+	    ($errmsg eq "" ? "" : " - $errmsg"));
     } elsif ($action =~ "^umount") {
 	system("umount $mntpt_prefix-$args");
 	system("rmdir $mntpt_prefix-$args");
