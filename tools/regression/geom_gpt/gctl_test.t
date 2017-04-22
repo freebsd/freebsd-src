@@ -26,11 +26,6 @@
 #
 # $FreeBSD$
 
-my $srcdir = `dirname $0`;
-chomp $srcdir;
-
-my $cmd = "/tmp/gctl-$$";
-my $out = "$cmd.out";
 my $disk = "/tmp/disk-$$";
 my $mntpt = "/tmp/mount-$$";
 
@@ -132,11 +127,14 @@ if (exists $ENV{'TEST_VERBOSE'}) {
 }
 
 # Compile the driver...
-my $st = system("cc -o $cmd -g $srcdir/gctl_test_helper.c -lgeom");
+my $st = system("make obj && make all");
 if ($st != 0) {
     print "1..0 # SKIP error compiling test.c\n";
     exit 0;
 }
+chomp(my $cmd = `make '-V\${.OBJDIR}/\${PROG}'`);
+
+my $out = "/tmp/$cmd.out";
 
 # Make sure we have permission to use gctl...
 if (`$cmd` =~ "^FAIL Permission denied") {
