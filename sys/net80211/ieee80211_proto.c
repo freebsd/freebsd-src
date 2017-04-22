@@ -1306,6 +1306,20 @@ ieee80211_wme_updateparams(struct ieee80211vap *vap)
 	}
 }
 
+void
+ieee80211_wme_vap_getparams(struct ieee80211vap *vap, struct chanAccParams *wp)
+{
+
+	memcpy(wp, &vap->iv_ic->ic_wme.wme_chanParams, sizeof(*wp));
+}
+
+void
+ieee80211_wme_ic_getparams(struct ieee80211com *ic, struct chanAccParams *wp)
+{
+
+	memcpy(wp, &ic->ic_wme.wme_chanParams, sizeof(*wp));
+}
+
 static void
 parent_updown(void *arg, int npending)
 {
