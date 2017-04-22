@@ -280,7 +280,8 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 				retries = nmp->nm_retry;
 		} else
 			retries = INT_MAX;
-		if (NFSHASNFSV4N(nmp)) {
+		/* cred == NULL for DS connects. */
+		if (NFSHASNFSV4N(nmp) && cred != NULL) {
 			/*
 			 * Make sure the nfscbd_pool doesn't get destroyed
 			 * while doing this.
@@ -1042,8 +1043,10 @@ tryagain:
 			/*
 			 * If this op's status is non-zero, mark
 			 * that there is no more data to process.
+			 * The exception is Setattr, which always has xdr
+			 * when it has failed.
 			 */
-			if (j)
+			if (j != 0 && i != NFSV4OP_SETATTR)
 				nd->nd_flag |= ND_NOMOREDATA;
 
 			/*

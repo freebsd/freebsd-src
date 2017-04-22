@@ -510,7 +510,7 @@ eli_metadata_dump(const struct g_eli_metadata *md)
 	printf("  provsize: %ju\n", (uintmax_t)md->md_provsize);
 	printf("sectorsize: %u\n", (u_int)md->md_sectorsize);
 	printf("      keys: 0x%02x\n", (u_int)md->md_keys);
-	printf("iterations: %u\n", (u_int)md->md_iterations);
+	printf("iterations: %d\n", (int)md->md_iterations);
 	bzero(str, sizeof(str));
 	for (i = 0; i < sizeof(md->md_salt); i++) {
 		str[i * 2] = hex[md->md_salt[i] >> 4];

@@ -31,3 +31,4 @@ LIST= One Two Three Four five six seven
 check-cclass:
 	@echo Upper=${LIST:M[A-Z]*}
 	@echo Lower=${LIST:M[^A-Z]*}
+	@echo nose=${LIST:M[^s]*[ex]}
