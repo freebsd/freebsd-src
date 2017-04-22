@@ -29,12 +29,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <errno.h>
-#include <libgeom.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libgeom.h>
 
 struct retval {
 	struct retval *retval;
