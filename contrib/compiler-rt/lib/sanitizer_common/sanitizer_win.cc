@@ -30,6 +30,7 @@
 #include "sanitizer_procmaps.h"
 #include "sanitizer_stacktrace.h"
 #include "sanitizer_symbolizer.h"
+#include "sanitizer_win_defs.h"
 
 // A macro to tell the compiler that this part of the code cannot be reached,
 // if the compiler supports this feature. Since we're using this in
@@ -79,7 +80,7 @@ uptr internal_getpid() {
 
 // In contrast to POSIX, on Windows GetCurrentThreadId()
 // returns a system-unique identifier.
-uptr GetTid() {
+tid_t GetTid() {
   return GetCurrentThreadId();
 }
 
@@ -552,7 +553,8 @@ void ListOfModules::init() {
     LoadedModule cur_module;
     cur_module.set(module_name, adjusted_base);
     // We add the whole module as one single address range.
-    cur_module.addAddressRange(base_address, end_address, /*executable*/ true);
+    cur_module.addAddressRange(base_address, end_address, /*executable*/ true,
+                               /*readable*/ true);
     modules_.push_back(cur_module);
   }
   UnmapOrDie(hmodules, modules_buffer_size);
@@ -835,6 +837,59 @@ bool IsHandledDeadlySignal(int signum) {
   return false;
 }
 
+// Check based on flags if we should handle this exception.
+bool IsHandledDeadlyException(DWORD exceptionCode) {
+  switch (exceptionCode) {
+    case EXCEPTION_ACCESS_VIOLATION:
+    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+    case EXCEPTION_STACK_OVERFLOW:
+    case EXCEPTION_DATATYPE_MISALIGNMENT:
+    case EXCEPTION_IN_PAGE_ERROR:
+      return common_flags()->handle_segv;
+    case EXCEPTION_ILLEGAL_INSTRUCTION:
+    case EXCEPTION_PRIV_INSTRUCTION:
+    case EXCEPTION_BREAKPOINT:
+      return common_flags()->handle_sigill;
+    case EXCEPTION_FLT_DENORMAL_OPERAND:
+    case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+    case EXCEPTION_FLT_INEXACT_RESULT:
+    case EXCEPTION_FLT_INVALID_OPERATION:
+    case EXCEPTION_FLT_OVERFLOW:
+    case EXCEPTION_FLT_STACK_CHECK:
+    case EXCEPTION_FLT_UNDERFLOW:
+    case EXCEPTION_INT_DIVIDE_BY_ZERO:
+    case EXCEPTION_INT_OVERFLOW:
+      return common_flags()->handle_sigfpe;
+  }
+  return false;
+}
+
+const char *DescribeSignalOrException(int signo) {
+  unsigned code = signo;
+  // Get the string description of the exception if this is a known deadly
+  // exception.
+  switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION: return "access-violation";
+    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED: return "array-bounds-exceeded";
+    case EXCEPTION_STACK_OVERFLOW: return "stack-overflow";
+    case EXCEPTION_DATATYPE_MISALIGNMENT: return "datatype-misalignment";
+    case EXCEPTION_IN_PAGE_ERROR: return "in-page-error";
+    case EXCEPTION_ILLEGAL_INSTRUCTION: return "illegal-instruction";
+    case EXCEPTION_PRIV_INSTRUCTION: return "priv-instruction";
+    case EXCEPTION_BREAKPOINT: return "breakpoint";
+    case EXCEPTION_FLT_DENORMAL_OPERAND: return "flt-denormal-operand";
+    case EXCEPTION_FLT_DIVIDE_BY_ZERO: return "flt-divide-by-zero";
+    case EXCEPTION_FLT_INEXACT_RESULT: return "flt-inexact-result";
+    case EXCEPTION_FLT_INVALID_OPERATION: return "flt-invalid-operation";
+    case EXCEPTION_FLT_OVERFLOW: return "flt-overflow";
+    case EXCEPTION_FLT_STACK_CHECK: return "flt-stack-check";
+    case EXCEPTION_FLT_UNDERFLOW: return "flt-underflow";
+    case EXCEPTION_INT_DIVIDE_BY_ZERO: return "int-divide-by-zero";
+    case EXCEPTION_INT_OVERFLOW: return "int-overflow";
+  }
+  return "unknown exception";
+}
+
 bool IsAccessibleMemoryRange(uptr beg, uptr size) {
   SYSTEM_INFO si;
   GetNativeSystemInfo(&si);
@@ -936,21 +991,10 @@ int WaitForProcess(pid_t pid) { return -1; }
 // FIXME implement on this platform.
 void GetMemoryProfile(fill_profile_f cb, uptr *stats, uptr stats_size) { }
 
+void CheckNoDeepBind(const char *filename, int flag) {
+  // Do nothing.
+}
 
 }  // namespace __sanitizer
-
-#if !SANITIZER_GO
-// Workaround to implement weak hooks on Windows. COFF doesn't directly support
-// weak symbols, but it does support /alternatename, which is similar. If the
-// user does not override the hook, we will use this default definition instead
-// of null.
-extern "C" void __sanitizer_print_memory_profile(int top_percent) {}
-
-#ifdef _WIN64
-#pragma comment(linker, "/alternatename:__sanitizer_print_memory_profile=__sanitizer_default_print_memory_profile") // NOLINT
-#else
-#pragma comment(linker, "/alternatename:___sanitizer_print_memory_profile=___sanitizer_default_print_memory_profile") // NOLINT
-#endif
-#endif
 
 #endif  // _WIN32

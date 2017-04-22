@@ -77,6 +77,20 @@ extern char **environ;  // provided by crt1
 #include <sys/signal.h>
 #endif
 
+#ifndef __GLIBC_PREREQ
+#define __GLIBC_PREREQ(x, y) 0
+#endif
+
+#if SANITIZER_LINUX && __GLIBC_PREREQ(2, 16)
+# define SANITIZER_USE_GETAUXVAL 1
+#else
+# define SANITIZER_USE_GETAUXVAL 0
+#endif
+
+#if SANITIZER_USE_GETAUXVAL
+#include <sys/auxv.h>
+#endif
+
 #if SANITIZER_LINUX
 // <linux/time.h>
 struct kernel_timeval {
@@ -370,7 +384,7 @@ bool FileExists(const char *filename) {
   return S_ISREG(st.st_mode);
 }
 
-uptr GetTid() {
+tid_t GetTid() {
 #if SANITIZER_FREEBSD
   return (uptr)pthread_self();
 #else
@@ -805,6 +819,8 @@ uptr GetPageSize() {
   return 4096;
 #elif SANITIZER_LINUX && (defined(__x86_64__) || defined(__i386__))
   return EXEC_PAGESIZE;
+#elif SANITIZER_USE_GETAUXVAL
+  return getauxval(AT_PAGESZ);
 #else
   return sysconf(_SC_PAGESIZE);  // EXEC_PAGESIZE may not be trustworthy.
 #endif
@@ -1097,36 +1113,50 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
 uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
                    int *parent_tidptr, void *newtls, int *child_tidptr) {
   long long res;
-/* Stack frame offsets.  */
-#if _CALL_ELF != 2
-#define FRAME_MIN_SIZE         112
-#define FRAME_TOC_SAVE         40
+// Stack frame structure.
+#if SANITIZER_PPC64V1
+//   Back chain == 0        (SP + 112)
+// Frame (112 bytes):
+//   Parameter save area    (SP + 48), 8 doublewords
+//   TOC save area          (SP + 40)
+//   Link editor doubleword (SP + 32)
+//   Compiler doubleword    (SP + 24)
+//   LR save area           (SP + 16)
+//   CR save area           (SP + 8)
+//   Back chain             (SP + 0)
+# define FRAME_SIZE 112
+# define FRAME_TOC_SAVE_OFFSET 40
+#elif SANITIZER_PPC64V2
+//   Back chain == 0        (SP + 32)
+// Frame (32 bytes):
+//   TOC save area          (SP + 24)
+//   LR save area           (SP + 16)
+//   CR save area           (SP + 8)
+//   Back chain             (SP + 0)
+# define FRAME_SIZE 32
+# define FRAME_TOC_SAVE_OFFSET 24
 #else
-#define FRAME_MIN_SIZE         32
-#define FRAME_TOC_SAVE         24
+# error "Unsupported PPC64 ABI"
 #endif
   if (!fn || !child_stack)
     return -EINVAL;
   CHECK_EQ(0, (uptr)child_stack % 16);
-  child_stack = (char *)child_stack - 2 * sizeof(unsigned long long);
-  ((unsigned long long *)child_stack)[0] = (uptr)fn;
-  ((unsigned long long *)child_stack)[1] = (uptr)arg;
 
   register int (*__fn)(void *) __asm__("r3") = fn;
   register void *__cstack      __asm__("r4") = child_stack;
   register int __flags         __asm__("r5") = flags;
-  register void * __arg        __asm__("r6") = arg;
-  register int * __ptidptr     __asm__("r7") = parent_tidptr;
-  register void * __newtls     __asm__("r8") = newtls;
-  register int * __ctidptr     __asm__("r9") = child_tidptr;
+  register void *__arg         __asm__("r6") = arg;
+  register int *__ptidptr      __asm__("r7") = parent_tidptr;
+  register void *__newtls      __asm__("r8") = newtls;
+  register int *__ctidptr      __asm__("r9") = child_tidptr;
 
  __asm__ __volatile__(
-           /* fn, arg, child_stack are saved acrVoss the syscall */
+           /* fn and arg are saved across the syscall */
            "mr 28, %5\n\t"
-           "mr 29, %6\n\t"
            "mr 27, %8\n\t"
 
            /* syscall
+             r0 == __NR_clone
              r3 == flags
              r4 == child_stack
              r5 == parent_tidptr
@@ -1144,15 +1174,21 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
            "crandc cr1*4+eq, cr1*4+eq, cr0*4+so\n\t"
            "bne-   cr1, 1f\n\t"
 
+           /* Set up stack frame */
+           "li    29, 0\n\t"
+           "stdu  29, -8(1)\n\t"
+           "stdu  1, -%12(1)\n\t"
            /* Do the function call */
            "std   2, %13(1)\n\t"
-#if _CALL_ELF != 2
+#if SANITIZER_PPC64V1
            "ld    0, 0(28)\n\t"
            "ld    2, 8(28)\n\t"
            "mtctr 0\n\t"
-#else
+#elif SANITIZER_PPC64V2
            "mr    12, 28\n\t"
            "mtctr 12\n\t"
+#else
+# error "Unsupported PPC64 ABI"
 #endif
            "mr    3, 27\n\t"
            "bctrl\n\t"
@@ -1166,13 +1202,151 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
            "1:\n\t"
            "mr %0, 3\n\t"
              : "=r" (res)
-             : "0" (-1), "i" (EINVAL),
-               "i" (__NR_clone), "i" (__NR_exit),
-               "r" (__fn), "r" (__cstack), "r" (__flags),
-               "r" (__arg), "r" (__ptidptr), "r" (__newtls),
-               "r" (__ctidptr), "i" (FRAME_MIN_SIZE), "i" (FRAME_TOC_SAVE)
-             : "cr0", "cr1", "memory", "ctr",
-               "r0", "r29", "r27", "r28");
+             : "0" (-1),
+               "i" (EINVAL),
+               "i" (__NR_clone),
+               "i" (__NR_exit),
+               "r" (__fn),
+               "r" (__cstack),
+               "r" (__flags),
+               "r" (__arg),
+               "r" (__ptidptr),
+               "r" (__newtls),
+               "r" (__ctidptr),
+               "i" (FRAME_SIZE),
+               "i" (FRAME_TOC_SAVE_OFFSET)
+             : "cr0", "cr1", "memory", "ctr", "r0", "r27", "r28", "r29");
+  return res;
+}
+#elif defined(__i386__) && SANITIZER_LINUX
+uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
+                    int *parent_tidptr, void *newtls, int *child_tidptr) {
+  int res;
+  if (!fn || !child_stack)
+    return -EINVAL;
+  CHECK_EQ(0, (uptr)child_stack % 16);
+  child_stack = (char *)child_stack - 7 * sizeof(unsigned int);
+  ((unsigned int *)child_stack)[0] = (uptr)flags;
+  ((unsigned int *)child_stack)[1] = (uptr)0;
+  ((unsigned int *)child_stack)[2] = (uptr)fn;
+  ((unsigned int *)child_stack)[3] = (uptr)arg;
+  __asm__ __volatile__(
+                       /* %eax = syscall(%eax = SYSCALL(clone),
+                        *                %ebx = flags,
+                        *                %ecx = child_stack,
+                        *                %edx = parent_tidptr,
+                        *                %esi  = new_tls,
+                        *                %edi = child_tidptr)
+                        */
+
+                        /* Obtain flags */
+                        "movl    (%%ecx), %%ebx\n"
+                        /* Do the system call */
+                        "pushl   %%ebx\n"
+                        "pushl   %%esi\n"
+                        "pushl   %%edi\n"
+                        /* Remember the flag value.  */
+                        "movl    %%ebx, (%%ecx)\n"
+                        "int     $0x80\n"
+                        "popl    %%edi\n"
+                        "popl    %%esi\n"
+                        "popl    %%ebx\n"
+
+                        /* if (%eax != 0)
+                         *   return;
+                         */
+
+                        "test    %%eax,%%eax\n"
+                        "jnz    1f\n"
+
+                        /* terminate the stack frame */
+                        "xorl   %%ebp,%%ebp\n"
+                        /* Call FN. */
+                        "call    *%%ebx\n"
+#ifdef PIC
+                        "call    here\n"
+                        "here:\n"
+                        "popl    %%ebx\n"
+                        "addl    $_GLOBAL_OFFSET_TABLE_+[.-here], %%ebx\n"
+#endif
+                        /* Call exit */
+                        "movl    %%eax, %%ebx\n"
+                        "movl    %2, %%eax\n"
+                        "int     $0x80\n"
+                        "1:\n"
+                       : "=a" (res)
+                       : "a"(SYSCALL(clone)), "i"(SYSCALL(exit)),
+                         "c"(child_stack),
+                         "d"(parent_tidptr),
+                         "S"(newtls),
+                         "D"(child_tidptr)
+                       : "memory");
+  return res;
+}
+#elif defined(__arm__) && SANITIZER_LINUX
+uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
+                    int *parent_tidptr, void *newtls, int *child_tidptr) {
+  unsigned int res;
+  if (!fn || !child_stack)
+    return -EINVAL;
+  child_stack = (char *)child_stack - 2 * sizeof(unsigned int);
+  ((unsigned int *)child_stack)[0] = (uptr)fn;
+  ((unsigned int *)child_stack)[1] = (uptr)arg;
+  register int r0 __asm__("r0") = flags;
+  register void *r1 __asm__("r1") = child_stack;
+  register int *r2 __asm__("r2") = parent_tidptr;
+  register void *r3 __asm__("r3") = newtls;
+  register int *r4 __asm__("r4") = child_tidptr;
+  register int r7 __asm__("r7") = __NR_clone;
+
+#if __ARM_ARCH > 4 || defined (__ARM_ARCH_4T__)
+# define ARCH_HAS_BX
+#endif
+#if __ARM_ARCH > 4
+# define ARCH_HAS_BLX
+#endif
+
+#ifdef ARCH_HAS_BX
+# ifdef ARCH_HAS_BLX
+#  define BLX(R) "blx "  #R "\n"
+# else
+#  define BLX(R) "mov lr, pc; bx " #R "\n"
+# endif
+#else
+# define BLX(R)  "mov lr, pc; mov pc," #R "\n"
+#endif
+
+  __asm__ __volatile__(
+                       /* %r0 = syscall(%r7 = SYSCALL(clone),
+                        *               %r0 = flags,
+                        *               %r1 = child_stack,
+                        *               %r2 = parent_tidptr,
+                        *               %r3  = new_tls,
+                        *               %r4 = child_tidptr)
+                        */
+
+                       /* Do the system call */
+                       "swi 0x0\n"
+
+                       /* if (%r0 != 0)
+                        *   return %r0;
+                        */
+                       "cmp r0, #0\n"
+                       "bne 1f\n"
+
+                       /* In the child, now. Call "fn(arg)". */
+                       "ldr r0, [sp, #4]\n"
+                       "ldr ip, [sp], #8\n"
+                       BLX(ip)
+                       /* Call _exit(%r0). */
+                       "mov r7, %7\n"
+                       "swi 0x0\n"
+                       "1:\n"
+                       "mov %0, r0\n"
+                       : "=r"(res)
+                       : "r"(r0), "r"(r1), "r"(r2), "r"(r3), "r"(r4), "r"(r7),
+                         "i"(__NR_exit)
+                       : "memory");
   return res;
 }
 #endif  // defined(__x86_64__) && SANITIZER_LINUX
@@ -1227,7 +1401,9 @@ bool IsHandledDeadlySignal(int signum) {
     return true;
   if (common_flags()->handle_sigfpe && signum == SIGFPE)
     return true;
-  return (signum == SIGSEGV || signum == SIGBUS) && common_flags()->handle_segv;
+  if (common_flags()->handle_segv && signum == SIGSEGV)
+    return true;
+  return common_flags()->handle_sigbus && signum == SIGBUS;
 }
 
 #if !SANITIZER_GO
@@ -1394,6 +1570,21 @@ void MaybeReexec() {
 }
 
 void PrintModuleMap() { }
+
+void CheckNoDeepBind(const char *filename, int flag) {
+#ifdef RTLD_DEEPBIND
+  if (flag & RTLD_DEEPBIND) {
+    Report(
+        "You are trying to dlopen a %s shared library with RTLD_DEEPBIND flag"
+        " which is incompatibe with sanitizer runtime "
+        "(see https://github.com/google/sanitizers/issues/611 for details"
+        "). If you want to run %s library under sanitizers please remove "
+        "RTLD_DEEPBIND from dlopen flags.\n",
+        filename, filename);
+    Die();
+  }
+#endif
+}
 
 uptr FindAvailableMemoryRange(uptr size, uptr alignment, uptr left_padding) {
   UNREACHABLE("FindAvailableMemoryRange is not available");

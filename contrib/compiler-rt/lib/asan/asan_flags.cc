@@ -61,7 +61,7 @@ void InitializeFlags() {
   {
     CommonFlags cf;
     cf.CopyFrom(*common_flags());
-    cf.detect_leaks = CAN_SANITIZE_LEAKS;
+    cf.detect_leaks = cf.detect_leaks && CAN_SANITIZE_LEAKS;
     cf.external_symbolizer_path = GetEnv("ASAN_SYMBOLIZER_PATH");
     cf.malloc_context_size = kDefaultMallocContextSize;
     cf.intercept_tls_get_addr = true;
@@ -94,6 +94,18 @@ void InitializeFlags() {
   __ubsan::RegisterUbsanFlags(&ubsan_parser, uf);
   RegisterCommonFlags(&ubsan_parser);
 #endif
+
+  if (SANITIZER_MAC) {
+    // Support macOS MallocScribble and MallocPreScribble:
+    // <https://developer.apple.com/library/content/documentation/Performance/
+    // Conceptual/ManagingMemory/Articles/MallocDebug.html>
+    if (GetEnv("MallocScribble")) {
+      f->max_free_fill_size = 0x1000;
+    }
+    if (GetEnv("MallocPreScribble")) {
+      f->malloc_fill_byte = 0xaa;
+    }
+  }
 
   // Override from ASan compile definition.
   const char *asan_compile_def = MaybeUseAsanDefaultOptionsCompileDefinition();
@@ -186,9 +198,6 @@ void InitializeFlags() {
 
 }  // namespace __asan
 
-#if !SANITIZER_SUPPORTS_WEAK_HOOKS
-extern "C" {
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-const char* __asan_default_options() { return ""; }
-}  // extern "C"
-#endif
+SANITIZER_INTERFACE_WEAK_DEF(const char*, __asan_default_options, void) {
+  return "";
+}

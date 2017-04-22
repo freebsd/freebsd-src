@@ -15,6 +15,7 @@ INCS+=		esan_interface.h
 INCS+=		linux_syscall_hooks.h
 INCS+=		lsan_interface.h
 INCS+=		msan_interface.h
+INCS+=		tsan_interface.h
 INCS+=		tsan_interface_atomic.h
 
 .include <bsd.prog.mk>
