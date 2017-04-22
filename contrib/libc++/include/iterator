@@ -615,6 +615,14 @@ prev(_BidiretionalIter __x,
     return __x;
 }
 
+
+template <class _Tp, class = void>
+struct __is_stashing_iterator : false_type {};
+
+template <class _Tp>
+struct __is_stashing_iterator<_Tp, typename __void_t<typename _Tp::__stashing_iterator_tag>::type>
+  : true_type {};
+
 template <class _Iter>
 class _LIBCPP_TEMPLATE_VIS reverse_iterator
     : public iterator<typename iterator_traits<_Iter>::iterator_category,
@@ -625,6 +633,11 @@ class _LIBCPP_TEMPLATE_VIS reverse_iterator
 {
 private:
     /*mutable*/ _Iter __t;  // no longer used as of LWG #2360, not removed due to ABI break
+
+    static_assert(!__is_stashing_iterator<_Iter>::value,
+      "The specified iterator type cannot be used with reverse_iterator; "
+      "Using stashing iterators with reverse_iterator causes undefined behavior");
+
 protected:
     _Iter current;
 public:
@@ -770,10 +783,10 @@ public:
     _LIBCPP_INLINE_VISIBILITY explicit back_insert_iterator(_Container& __x) : container(_VSTD::addressof(__x)) {}
     _LIBCPP_INLINE_VISIBILITY back_insert_iterator& operator=(const typename _Container::value_type& __value_)
         {container->push_back(__value_); return *this;}
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+#ifndef _LIBCPP_CXX03_LANG
     _LIBCPP_INLINE_VISIBILITY back_insert_iterator& operator=(typename _Container::value_type&& __value_)
         {container->push_back(_VSTD::move(__value_)); return *this;}
-#endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
+#endif  // _LIBCPP_CXX03_LANG
     _LIBCPP_INLINE_VISIBILITY back_insert_iterator& operator*()     {return *this;}
     _LIBCPP_INLINE_VISIBILITY back_insert_iterator& operator++()    {return *this;}
     _LIBCPP_INLINE_VISIBILITY back_insert_iterator  operator++(int) {return *this;}
@@ -803,10 +816,10 @@ public:
     _LIBCPP_INLINE_VISIBILITY explicit front_insert_iterator(_Container& __x) : container(_VSTD::addressof(__x)) {}
     _LIBCPP_INLINE_VISIBILITY front_insert_iterator& operator=(const typename _Container::value_type& __value_)
         {container->push_front(__value_); return *this;}
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+#ifndef _LIBCPP_CXX03_LANG
     _LIBCPP_INLINE_VISIBILITY front_insert_iterator& operator=(typename _Container::value_type&& __value_)
         {container->push_front(_VSTD::move(__value_)); return *this;}
-#endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
+#endif  // _LIBCPP_CXX03_LANG
     _LIBCPP_INLINE_VISIBILITY front_insert_iterator& operator*()     {return *this;}
     _LIBCPP_INLINE_VISIBILITY front_insert_iterator& operator++()    {return *this;}
     _LIBCPP_INLINE_VISIBILITY front_insert_iterator  operator++(int) {return *this;}
@@ -838,10 +851,10 @@ public:
         : container(_VSTD::addressof(__x)), iter(__i) {}
     _LIBCPP_INLINE_VISIBILITY insert_iterator& operator=(const typename _Container::value_type& __value_)
         {iter = container->insert(iter, __value_); ++iter; return *this;}
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+#ifndef _LIBCPP_CXX03_LANG
     _LIBCPP_INLINE_VISIBILITY insert_iterator& operator=(typename _Container::value_type&& __value_)
         {iter = container->insert(iter, _VSTD::move(__value_)); ++iter; return *this;}
-#endif  // _LIBCPP_HAS_NO_RVALUE_REFERENCES
+#endif  // _LIBCPP_CXX03_LANG
     _LIBCPP_INLINE_VISIBILITY insert_iterator& operator*()        {return *this;}
     _LIBCPP_INLINE_VISIBILITY insert_iterator& operator++()       {return *this;}
     _LIBCPP_INLINE_VISIBILITY insert_iterator& operator++(int)    {return *this;}
@@ -1047,7 +1060,7 @@ public:
     typedef typename iterator_traits<iterator_type>::value_type value_type;
     typedef typename iterator_traits<iterator_type>::difference_type difference_type;
     typedef iterator_type pointer;
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
+#ifndef _LIBCPP_CXX03_LANG
     typedef typename iterator_traits<iterator_type>::reference __reference;
     typedef typename conditional<
             is_reference<__reference>::value,

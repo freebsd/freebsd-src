@@ -148,7 +148,7 @@ template <class... Types>
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-#ifndef _LIBCPP_HAS_NO_VARIADICS
+#ifndef _LIBCPP_CXX03_LANG
 
 
 // __tuple_leaf
@@ -366,7 +366,7 @@ struct __all_default_constructible<__tuple_types<_Tp...>>
 template<class _Indx, class ..._Tp> struct __tuple_impl;
 
 template<size_t ..._Indx, class ..._Tp>
-struct __tuple_impl<__tuple_indices<_Indx...>, _Tp...>
+struct _LIBCPP_DECLSPEC_EMPTY_BASES __tuple_impl<__tuple_indices<_Indx...>, _Tp...>
     : public __tuple_leaf<_Indx, _Tp>...
 {
     _LIBCPP_INLINE_VISIBILITY
@@ -751,7 +751,7 @@ public:
                          _CheckArgsConstructor<
                             !_EnableImplicitReducedArityExtension
                             && sizeof...(_Up) < sizeof...(_Tp)
-                            && !_PackExpandsToThisTuple<_Up...>()
+                            && !_PackExpandsToThisTuple<_Up...>::value
                          >::template __enable_implicit<_Up...>(),
                          bool
                       >::type = false
@@ -1064,11 +1064,13 @@ template <class _Up>
 struct __ignore_t
 {
     template <class _Tp>
-        _LIBCPP_INLINE_VISIBILITY
-        const __ignore_t& operator=(_Tp&&) const {return *this;}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX11
+    const __ignore_t& operator=(_Tp&&) const {return *this;}
 };
 
-namespace { const __ignore_t<unsigned char> ignore = __ignore_t<unsigned char>(); }
+namespace {
+  constexpr __ignore_t<unsigned char> ignore = __ignore_t<unsigned char>();
+}
 
 template <class _Tp>
 struct __make_tuple_return_impl
@@ -1343,9 +1345,6 @@ template <class ..._Tp, class _Alloc>
 struct _LIBCPP_TEMPLATE_VIS uses_allocator<tuple<_Tp...>, _Alloc>
     : true_type {};
 
-#endif // _LIBCPP_HAS_NO_VARIADICS
-
-#ifndef _LIBCPP_CXX03_LANG
 template <class _T1, class _T2>
 template <class... _Args1, class... _Args2, size_t ..._I1, size_t ..._I2>
 inline _LIBCPP_INLINE_VISIBILITY
@@ -1356,7 +1355,6 @@ pair<_T1, _T2>::pair(piecewise_construct_t,
       second(_VSTD::forward<_Args2>(_VSTD::get<_I2>(__second_args))...)
 {
 }
-#endif // _LIBCPP_CXX03_LANG
 
 #if _LIBCPP_STD_VER > 14
 template <class _Tp>
@@ -1401,6 +1399,8 @@ _LIBCPP_NOEXCEPT_RETURN(
 #undef _LIBCPP_NOEXCEPT_RETURN
 
 #endif // _LIBCPP_STD_VER > 14
+
+#endif // !defined(_LIBCPP_CXX03_LANG)
 
 _LIBCPP_END_NAMESPACE_STD
 

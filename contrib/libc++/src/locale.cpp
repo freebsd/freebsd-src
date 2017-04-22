@@ -579,10 +579,8 @@ locale::global(const locale& loc)
     locale& g = __global();
     locale r = g;
     g = loc;
-#ifndef __CloudABI__
     if (g.name() != "*")
         setlocale(LC_ALL, g.name().c_str());
-#endif
     return r;
 }
 
@@ -1111,13 +1109,7 @@ ctype<char>::classic_table()  _NOEXCEPT
 #elif __sun__
     return __ctype_mask;
 #elif defined(_LIBCPP_MSVCRT) || defined(__MINGW32__)
-#if _VC_CRT_MAJOR_VERSION < 14
-    // This is assumed to be safe, which is a nonsense assumption because we're
-    // going to end up dereferencing it later...
-    return _ctype+1; // internal ctype mask table defined in msvcrt.dll
-#else
     return __pctype_func();
-#endif
 #elif defined(__EMSCRIPTEN__)
     return *__ctype_b_loc();
 #elif defined(_NEWLIB_VERSION)

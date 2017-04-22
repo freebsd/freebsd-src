@@ -24,6 +24,7 @@ SRCS+=		chrono.cpp
 SRCS+=		condition_variable.cpp
 SRCS+=		debug.cpp
 SRCS+=		exception.cpp
+SRCS+=		functional.cpp
 SRCS+=		future.cpp
 SRCS+=		hash.cpp
 SRCS+=		ios.cpp
