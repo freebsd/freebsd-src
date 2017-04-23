@@ -3792,7 +3792,6 @@ changed:
 			nlstate = reason = 0;
 		}
 		va_end(ap);
-		fc = ISP_FC_PC(isp, bus);
 
 		if (evt == ISPASYNC_CHANGE_PDB) {
 			msg = "Port Database Changed";
