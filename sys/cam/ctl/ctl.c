@@ -7047,7 +7047,7 @@ ctl_get_lba_status(struct ctl_scsiio *ctsio)
 	lbalen->len = total_len;
 	lbalen->flags = 0;
 	retval = lun->backend->config_read((union ctl_io *)ctsio);
-	return (CTL_RETVAL_COMPLETE);
+	return (retval);
 }
 
 int
