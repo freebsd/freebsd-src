@@ -42,8 +42,8 @@
 #include <libgeom.h>
 
 /************************************************************/
-static uint npages, pagesize, spp;
-static int statsfd = -1;
+static uint npages, spp;
+static int pagesize, statsfd = -1;
 static u_char *statp;
 
 void
