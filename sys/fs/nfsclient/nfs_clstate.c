@@ -500,10 +500,11 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 {
 	struct nfsclclient *clp;
 	struct nfsclowner *owp;
-	struct nfsclopen *op = NULL;
+	struct nfsclopen *op = NULL, *top;
 	struct nfscllockowner *lp;
 	struct nfscldeleg *dp;
 	struct nfsnode *np;
+	struct nfsmount *nmp;
 	u_int8_t own[NFSV4CL_LOCKNAMELEN];
 	int error, done;
 
@@ -521,8 +522,9 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 	if (vnode_vtype(vp) != VREG)
 		return (EISDIR);
 	np = VTONFS(vp);
+	nmp = VFSTONFS(vnode_mount(vp));
 	NFSLOCKCLSTATE();
-	clp = nfscl_findcl(VFSTONFS(vnode_mount(vp)));
+	clp = nfscl_findcl(nmp);
 	if (clp == NULL) {
 		NFSUNLOCKCLSTATE();
 		return (EACCES);
@@ -592,23 +594,33 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 	}
 	if (op == NULL) {
 		/* If not found, just look for any OpenOwner that will work. */
+		top = NULL;
 		done = 0;
 		owp = LIST_FIRST(&clp->nfsc_owner);
 		while (!done && owp != NULL) {
 			LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
 				if (op->nfso_fhlen == fhlen &&
-				    !NFSBCMP(op->nfso_fh, nfhp, fhlen) &&
-				    (mode & op->nfso_mode) == mode) {
-					done = 1;
-					break;
+				    !NFSBCMP(op->nfso_fh, nfhp, fhlen)) {
+					if (top == NULL && (op->nfso_mode &
+					    NFSV4OPEN_ACCESSWRITE) != 0 &&
+					    (mode & NFSV4OPEN_ACCESSREAD) != 0)
+						top = op;
+					if ((mode & op->nfso_mode) == mode) {
+						done = 1;
+						break;
+					}
 				}
 			}
 			if (!done)
 				owp = LIST_NEXT(owp, nfsow_list);
 		}
 		if (!done) {
-			NFSUNLOCKCLSTATE();
-			return (ENOENT);
+			NFSCL_DEBUG(2, "openmode top=%p\n", top);
+			if (top == NULL || NFSHASOPENMODE(nmp)) {
+				NFSUNLOCKCLSTATE();
+				return (ENOENT);
+			} else
+				op = top;
 		}
 		/*
 		 * For read aheads or write behinds, use the open cred.
