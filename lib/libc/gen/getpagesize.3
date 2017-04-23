@@ -28,7 +28,7 @@
 .\"     @(#)getpagesize.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd April 22, 2017
 .Dt GETPAGESIZE 3
 .Os
 .Sh NAME
@@ -51,6 +51,9 @@ management calls.
 The page size is a system
 page size and may not be the same as the underlying
 hardware page size.
+.Sh RETURN VALUES
+.Nm
+returns the number of bytes in a page on success, -1 on failure.
 .Sh SEE ALSO
 .Xr pagesize 1 ,
 .Xr sbrk 2
