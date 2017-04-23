@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 
+#include <dev/evdev/input.h>
 #include <dev/usb/usb_ioctl.h>
 
 #ifdef COMPAT_LINUX32
@@ -83,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_socket.h>
+#include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 
 #include <contrib/v4l/videodev.h>
@@ -110,6 +112,7 @@ static linux_ioctl_function_t linux_ioctl_v4l;
 static linux_ioctl_function_t linux_ioctl_v4l2;
 static linux_ioctl_function_t linux_ioctl_special;
 static linux_ioctl_function_t linux_ioctl_fbsd_usb;
+static linux_ioctl_function_t linux_ioctl_evdev;
 
 static struct linux_ioctl_handler cdrom_handler =
 { linux_ioctl_cdrom, LINUX_IOCTL_CDROM_MIN, LINUX_IOCTL_CDROM_MAX };
@@ -139,6 +142,8 @@ static struct linux_ioctl_handler video2_handler =
 { linux_ioctl_v4l2, LINUX_IOCTL_VIDEO2_MIN, LINUX_IOCTL_VIDEO2_MAX };
 static struct linux_ioctl_handler fbsd_usb =
 { linux_ioctl_fbsd_usb, FBSD_LUSB_MIN, FBSD_LUSB_MAX };
+static struct linux_ioctl_handler evdev_handler =
+{ linux_ioctl_evdev, LINUX_IOCTL_EVDEV_MIN, LINUX_IOCTL_EVDEV_MAX };
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, vfat_handler);
@@ -154,6 +159,7 @@ DATA_SET(linux_ioctl_handler_set, sg_handler);
 DATA_SET(linux_ioctl_handler_set, video_handler);
 DATA_SET(linux_ioctl_handler_set, video2_handler);
 DATA_SET(linux_ioctl_handler_set, fbsd_usb);
+DATA_SET(linux_ioctl_handler_set, evdev_handler);
 
 struct handler_element
 {
@@ -3618,6 +3624,65 @@ linux_ioctl_fbsd_usb(struct thread *td, struct linux_ioctl_args *args)
 	if (error != ENOIOCTL)
 		error = sys_ioctl(td, (struct ioctl_args *)args);
 	return (error);
+}
+
+/*
+ * Some evdev ioctls must be translated.
+ *  - EVIOCGMTSLOTS is a IOC_READ ioctl on Linux although it has input data
+ *    (must be IOC_INOUT on FreeBSD).
+ *  - On Linux, EVIOCGRAB, EVIOCREVOKE and EVIOCRMFF are defined as _IOW with
+ *    an int argument. You don't pass an int pointer to the ioctl(), however,
+ *    but just the int directly. On FreeBSD, they are defined as _IOWINT for
+ *    this to work.
+ */
+static int
+linux_ioctl_evdev(struct thread *td, struct linux_ioctl_args *args)
+{
+	cap_rights_t rights;
+	struct file *fp;
+	clockid_t clock;
+	int error;
+
+	args->cmd = SETDIR(args->cmd);
+
+	switch (args->cmd) {
+	case (EVIOCGRAB & ~IOC_DIRMASK) | IOC_IN:
+		args->cmd = EVIOCGRAB;
+		break;
+	case (EVIOCREVOKE & ~IOC_DIRMASK) | IOC_IN:
+		args->cmd = EVIOCREVOKE;
+		break;
+	case (EVIOCRMFF & ~IOC_DIRMASK) | IOC_IN:
+		args->cmd = EVIOCRMFF;
+		break;
+	case EVIOCSCLOCKID: {
+		error = copyin(PTRIN(args->arg), &clock, sizeof(clock));
+		if (error != 0)
+			return (error);
+		if (clock & ~(LINUX_IOCTL_EVDEV_CLK))
+			return (EINVAL);
+		error = linux_to_native_clockid(&clock, clock);
+		if (error != 0)
+			return (error);
+
+		error = fget(td, args->fd,
+		    cap_rights_init(&rights, CAP_IOCTL), &fp);
+		if (error != 0)
+			return (error);
+
+		error = fo_ioctl(fp, EVIOCSCLOCKID, &clock, td->td_ucred, td);
+		fdrop(fp, td);
+		return (error);
+	}
+	default:
+		break;
+	}
+
+	if (IOCBASECMD(args->cmd) ==
+	    ((EVIOCGMTSLOTS(0) & ~IOC_DIRMASK) | IOC_OUT))
+		args->cmd = (args->cmd & ~IOC_DIRMASK) | IOC_INOUT;
+
+	return (sys_ioctl(td, (struct ioctl_args *)args));
 }
 
 /*
