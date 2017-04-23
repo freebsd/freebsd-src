@@ -104,6 +104,10 @@ FBSD_1.4 {
 	explicit_bzero;
 };
 
+FBSD_1.5 {
+	memset_s;
+};
+
 FBSDprivate_1.0 {
 	__strtok_r;
 };
