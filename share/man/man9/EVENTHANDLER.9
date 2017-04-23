@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2014
+.Dd March 27, 2017
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -32,6 +32,7 @@
 .Sh SYNOPSIS
 .In sys/eventhandler.h
 .Fn EVENTHANDLER_DECLARE name type
+.Fn EVENTHANDLER_DEFINE name func arg priority
 .Fn EVENTHANDLER_INVOKE name ...
 .Ft eventhandler_tag
 .Fn EVENTHANDLER_REGISTER name func arg priority
@@ -60,28 +61,6 @@ mechanism provides a way for kernel subsystems to register interest in
 kernel events and have their callback functions invoked when these
 events occur.
 .Pp
-The normal way to use this subsystem is via the macro interface.
-The macros that can be used for working with event handlers and callback
-function lists are:
-.Bl -tag -width indent
-.It Fn EVENTHANDLER_DECLARE
-This macro declares an event handler named by argument
-.Fa name
-with callback functions of type
-.Fa type .
-.It Fn EVENTHANDLER_REGISTER
-This macro registers a callback function
-.Fa func
-with event handler
-.Fa name .
-When invoked, function
-.Fa func
-will be invoked with argument
-.Fa arg
-as its first parameter along with any additional parameters passed in
-via macro
-.Fn EVENTHANDLER_INVOKE
-(see below).
 Callback functions are invoked in order of priority.
 The relative priority of each callback among other callbacks
 associated with an event is given by argument
@@ -95,6 +74,44 @@ The symbol
 .Dv EVENTHANDLER_PRI_ANY
 may be used if the handler does not have a specific priority
 associated with it.
+.Pp
+The normal way to use this subsystem is via the macro interface.
+The macros that can be used for working with event handlers and callback
+function lists are:
+.Bl -tag -width indent
+.It Fn EVENTHANDLER_DECLARE
+This macro declares an event handler named by argument
+.Fa name
+with callback functions of type
+.Fa type .
+.It Fn EVENTHANDLER_DEFINE
+This macro uses
+.Xr SYSINIT 9
+to register a callback function
+.Fa func
+with event handler
+.Fa name .
+When invoked, function
+.Fa func
+will be invoked with argument
+.Fa arg
+as its first parameter along with any additional parameters passed in
+via macro
+.Fn EVENTHANDLER_INVOKE
+(see below).
+.It Fn EVENTHANDLER_REGISTER
+This macro registers a callback function
+.Fa func
+with event handler
+.Fa name .
+When invoked, function
+.Fa func
+will be invoked with argument
+.Fa arg
+as its first parameter along with any additional parameters passed in
+via macro
+.Fn EVENTHANDLER_INVOKE
+(see below).
 If registration is successful,
 .Fn EVENTHANDLER_REGISTER
 returns a cookie of type
