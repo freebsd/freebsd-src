@@ -4950,6 +4950,8 @@ DB_SHOW_COMMAND(lockedbufs, lockedbufs)
 		if (BUF_ISLOCKED(bp)) {
 			db_show_buffer((uintptr_t)bp, 1, 0, NULL);
 			db_printf("\n");
+			if (db_pager_quit)
+				break;
 		}
 	}
 }
