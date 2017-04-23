@@ -88,9 +88,9 @@ struct info {
 
 u_char *dnsname = "default.domain";
 u_char *defaultuser = "nobody";
-uid_t defaultuid = (uid_t)32767;
+uid_t defaultuid = 65534;
 u_char *defaultgroup = "nogroup";
-gid_t defaultgid = (gid_t)32767;
+gid_t defaultgid = 65533;
 int verbose = 0, im_a_slave = 0, nfsuserdcnt = -1, forcestart = 0;
 int defusertimeout = DEFUSERTIMEOUT, manage_gids = 0;
 pid_t slaves[MAXNFSUSERD];
