@@ -225,6 +225,7 @@ ntb_net_init(void *arg)
 	if_t ifp = sc->ifp;
 
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
+	if_setbaudrate(ifp, ntb_transport_link_speed(sc->queues[0].qp));
 	if_link_state_change(ifp, ntb_transport_link_query(sc->queues[0].qp) ?
 	    LINK_STATE_UP : LINK_STATE_DOWN);
 }
@@ -474,20 +475,10 @@ static void
 ntb_net_event_handler(void *data, enum ntb_link_event status)
 {
 	struct ntb_net_queue *q = data;
-	int new_state;
 
-	switch (status) {
-	case NTB_LINK_DOWN:
-		new_state = LINK_STATE_DOWN;
-		break;
-	case NTB_LINK_UP:
-		new_state = LINK_STATE_UP;
-		break;
-	default:
-		new_state = LINK_STATE_UNKNOWN;
-		break;
-	}
-	if_link_state_change(q->ifp, new_state);
+	if_setbaudrate(q->ifp, ntb_transport_link_speed(q->qp));
+	if_link_state_change(q->ifp, (status == NTB_LINK_UP) ? LINK_STATE_UP :
+	    LINK_STATE_DOWN);
 }
 
 /* Helper functions */

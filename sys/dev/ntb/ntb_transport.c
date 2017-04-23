@@ -202,6 +202,8 @@ struct ntb_transport_ctx {
 	unsigned		qp_count;
 	uint64_t		qp_bitmap;
 	volatile bool		link_is_up;
+	enum ntb_speed		link_speed;
+	enum ntb_width		link_width;
 	struct callout		link_work;
 	struct callout		link_watchdog;
 	struct task		link_cleanup;
@@ -1024,7 +1026,7 @@ ntb_transport_event_callback(void *data)
 {
 	struct ntb_transport_ctx *nt = data;
 
-	if (ntb_link_is_up(nt->dev, NULL, NULL)) {
+	if (ntb_link_is_up(nt->dev, &nt->link_speed, &nt->link_width)) {
 		ntb_printf(1, "HW link up\n");
 		callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
 	} else {
@@ -1105,7 +1107,7 @@ free_mws:
 	for (i = 0; i < nt->mw_count; i++)
 		ntb_free_mw(nt, i);
 out:
-	if (ntb_link_is_up(dev, NULL, NULL))
+	if (ntb_link_is_up(dev, &nt->link_speed, &nt->link_width))
 		callout_reset(&nt->link_work,
 		    NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_transport_link_work, nt);
 }
@@ -1377,6 +1379,43 @@ ntb_transport_link_query(struct ntb_transport_qp *qp)
 {
 
 	return (qp->link_is_up);
+}
+
+/**
+ * ntb_transport_link_speed - Query transport link speed
+ * @qp: NTB transport layer queue to be queried
+ *
+ * Query connection speed to the remote system of the NTB transport queue
+ *
+ * RETURNS: link speed in bits per second
+ */
+uint64_t
+ntb_transport_link_speed(struct ntb_transport_qp *qp)
+{
+	struct ntb_transport_ctx *nt = qp->transport;
+	uint64_t rate;
+
+	if (!nt->link_is_up)
+		return (0);
+	switch (nt->link_speed) {
+	case NTB_SPEED_GEN1:
+		rate = 2500000000 * 8 / 10;
+		break;
+	case NTB_SPEED_GEN2:
+		rate = 5000000000 * 8 / 10;
+		break;
+	case NTB_SPEED_GEN3:
+		rate = 8000000000 * 128 / 130;
+		break;
+	case NTB_SPEED_GEN4:
+		rate = 16000000000 * 128 / 130;
+		break;
+	default:
+		return (0);
+	}
+	if (nt->link_width <= 0)
+		return (0);
+	return (rate * nt->link_width);
 }
 
 static void
