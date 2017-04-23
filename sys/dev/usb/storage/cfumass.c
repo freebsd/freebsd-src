@@ -987,19 +987,21 @@ cfumass_done(union ctl_io *io)
 		return;
 	}
 
-	switch (io->scsiio.scsi_status) {
-	case SCSI_STATUS_OK:
+	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)
 		sc->sc_current_status = 0;
-		break;
-	default:
+	else
 		sc->sc_current_status = 1;
-		break;
-	}
+
+	/* XXX: How should we report BUSY, RESERVATION CONFLICT, etc? */
+	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SCSI_ERROR &&
+	    io->scsiio.scsi_status == SCSI_STATUS_CHECK_COND)
+		ctl_queue_sense(io);
+	else
+		ctl_free_io(io);
 
 	CFUMASS_LOCK(sc);
 	cfumass_transfer_start(sc, CFUMASS_T_STATUS);
 	CFUMASS_UNLOCK(sc);
-	ctl_free_io(io);
 
 	refcount_release(&sc->sc_queued);
 }
