@@ -1128,6 +1128,10 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 		hdr->ip6_nxt = IPPROTO_FRAGMENT;
 	}
 
+	/* The MTU must be a multiple of 8 bytes, or we risk doing the
+	 * fragmentation wrong. */
+	maxlen = maxlen & ~7;
+
 	/*
 	 * Maxlen may be less than 8 if there was only a single
 	 * fragment.  As it was fragmented before, add a fragment
