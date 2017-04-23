@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2017
+.Dd April 9, 2017
 .Dt SETKEY 8
 .Os
 .\"
@@ -290,12 +290,13 @@ The default value is
 .Li any .
 .\"
 .It Fl r Ar size
-Specify window size of bytes for replay prevention.
+Specify the bitmap size in octets of the anti-replay window.
 .Ar size
-must be decimal number in 32-bit word.
+is a 32-bit unsigned integer, and its value is one eighth of the
+anti-replay window size in packets.
 If
 .Ar size
-is zero or not specified, replay check does not take place.
+is zero or not specified, an anti-replay check does not take place.
 .\"
 .It Fl u Ar id
 Specify the identifier of the policy entry in SPD.
