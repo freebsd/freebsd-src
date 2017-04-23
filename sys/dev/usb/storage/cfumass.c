@@ -200,8 +200,7 @@ static device_resume_t		cfumass_resume;
 static usb_handle_request_t	cfumass_handle_request;
 
 static usb_callback_t		cfumass_t_command_callback;
-static usb_callback_t		cfumass_t_data_out_callback;
-static usb_callback_t		cfumass_t_data_in_callback;
+static usb_callback_t		cfumass_t_data_callback;
 static usb_callback_t		cfumass_t_status_callback;
 
 static device_method_t cfumass_methods[] = {
@@ -250,7 +249,7 @@ static struct usb_config cfumass_config[CFUMASS_T_MAX] = {
 		.bufsize = CFUMASS_BULK_SIZE,
 		.flags = {.proxy_buffer = 1, .short_xfer_ok = 1,
 		    .ext_buffer = 1},
-		.callback = &cfumass_t_data_out_callback,
+		.callback = &cfumass_t_data_callback,
 		.usb_mode = USB_MODE_DEVICE,
 	},
 
@@ -261,7 +260,7 @@ static struct usb_config cfumass_config[CFUMASS_T_MAX] = {
 		.bufsize = CFUMASS_BULK_SIZE,
 		.flags = {.proxy_buffer = 1, .short_xfer_ok = 1,
 		    .ext_buffer = 1},
-		.callback = &cfumass_t_data_in_callback,
+		.callback = &cfumass_t_data_callback,
 		.usb_mode = USB_MODE_DEVICE,
 	},
 
@@ -712,124 +711,66 @@ tr_setup:
 }
 
 static void
-cfumass_t_data_out_callback(struct usb_xfer *xfer, usb_error_t usb_error)
+cfumass_t_data_callback(struct usb_xfer *xfer, usb_error_t usb_error)
 {
-	struct cfumass_softc *sc;
-	union ctl_io *io;
-	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
-	int actlen, ctl_sg_count;
-
-	sc = usbd_xfer_softc(xfer);
-	io = sc->sc_ctl_io;
-
-	if (io->scsiio.kern_sg_entries > 0) {
-		ctl_sglist = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
-		ctl_sg_count = io->scsiio.kern_sg_entries;
-	} else {
-		ctl_sglist = &ctl_sg_entry;
-		ctl_sglist->addr = io->scsiio.kern_data_ptr;
-		ctl_sglist->len = io->scsiio.kern_data_len;
-		ctl_sg_count = 1;
-	}
+	struct cfumass_softc *sc = usbd_xfer_softc(xfer);
+	union ctl_io *io = sc->sc_ctl_io;
+	uint32_t max_bulk;
+	struct ctl_sg_entry sg_entry, *sglist;
+	int actlen, sumlen, sg_count;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		CFUMASS_DEBUG(sc, "USB_ST_TRANSFERRED");
 
-		usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
-		if (actlen != ctl_sglist[0].len) {
-			KASSERT(actlen <= ctl_sglist[0].len,
-			    ("actlen %d > ctl_sglist.len %zd",
-			    actlen, ctl_sglist[0].len));
-			CFUMASS_DEBUG(sc, "host transferred %d bytes"
-			    "instead of expected %zd bytes",
-			    actlen, ctl_sglist[0].len);
-		}
+		usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 		sc->sc_current_residue -= actlen;
+		io->scsiio.ext_data_filled += actlen;
 		io->scsiio.kern_data_resid -= actlen;
-		io->scsiio.be_move_done(io);
-		sc->sc_ctl_io = NULL;
-		break;
-
-	case USB_ST_SETUP:
-tr_setup:
-		CFUMASS_DEBUG(sc, "USB_ST_SETUP");
-
-		CFUMASS_DEBUG(sc, "requested size %d, CTL segment size %zd",
-		    sc->sc_current_transfer_length, ctl_sglist[0].len);
-
-		usbd_xfer_set_frame_data(xfer, 0, ctl_sglist[0].addr, ctl_sglist[0].len);
-		usbd_transfer_submit(xfer);
-		break;
-
-	default:
-		if (usb_error == USB_ERR_CANCELLED) {
-			CFUMASS_DEBUG(sc, "USB_ERR_CANCELLED");
+		if (actlen < sumlen ||
+		    sc->sc_current_residue == 0 ||
+		    io->scsiio.kern_data_resid == 0) {
+			sc->sc_ctl_io = NULL;
+			io->scsiio.be_move_done(io);
 			break;
 		}
-
-		CFUMASS_DEBUG(sc, "USB_ST_ERROR: %s",
-		    usbd_errstr(usb_error));
-
-		goto tr_setup;
-	}
-}
-
-static void
-cfumass_t_data_in_callback(struct usb_xfer *xfer, usb_error_t usb_error)
-{
-	struct cfumass_softc *sc;
-	union ctl_io *io;
-	uint32_t max_bulk;
-	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
-	int actlen, ctl_sg_count;
-
-	sc = usbd_xfer_softc(xfer);
-	io = sc->sc_ctl_io;
-
-	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_TRANSFERRED:
-		CFUMASS_DEBUG(sc, "USB_ST_TRANSFERRED");
-
-		usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
-		sc->sc_current_residue -= actlen;
-		io->scsiio.kern_data_resid -= actlen;
-		io->scsiio.be_move_done(io);
-		sc->sc_ctl_io = NULL;
-		break;
+		/* FALLTHROUGH */
 
 	case USB_ST_SETUP:
 tr_setup:
 		CFUMASS_DEBUG(sc, "USB_ST_SETUP");
 
 		if (io->scsiio.kern_sg_entries > 0) {
-			ctl_sglist = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
-			ctl_sg_count = io->scsiio.kern_sg_entries;
+			sglist = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
+			sg_count = io->scsiio.kern_sg_entries;
 		} else {
-			ctl_sglist = &ctl_sg_entry;
-			ctl_sglist->addr = io->scsiio.kern_data_ptr;
-			ctl_sglist->len = io->scsiio.kern_data_len;
-			ctl_sg_count = 1;
+			sglist = &sg_entry;
+			sglist->addr = io->scsiio.kern_data_ptr;
+			sglist->len = io->scsiio.kern_data_len;
+			sg_count = 1;
 		}
 
-		if (sc->sc_current_transfer_length > io->scsiio.kern_total_len) {
-			CFUMASS_DEBUG(sc, "initiator requested %d bytes, "
-			    "we will send %ju and stall",
-			    sc->sc_current_transfer_length,
-			    (uintmax_t)io->scsiio.kern_total_len);
+		sumlen = io->scsiio.ext_data_filled -
+		    io->scsiio.kern_rel_offset;
+		while (sumlen >= sglist->len && sg_count > 0) {
+			sumlen -= sglist->len;
+			sglist++;
+			sg_count--;
 		}
+		KASSERT(sg_count > 0, ("Run out of S/G list entries"));
 
 		max_bulk = usbd_xfer_max_len(xfer);
-		CFUMASS_DEBUG(sc, "max_bulk %d, requested size %d, "
-		    "CTL segment size %zd", max_bulk,
-		    sc->sc_current_transfer_length, ctl_sglist[0].len);
+		actlen = min(sglist->len - sumlen, max_bulk);
+		actlen = min(actlen, sc->sc_current_transfer_length -
+		    io->scsiio.ext_data_filled);
+		CFUMASS_DEBUG(sc, "requested %d, done %d, max_bulk %d, "
+		    "segment %zd => transfer %d",
+		    sc->sc_current_transfer_length, io->scsiio.ext_data_filled,
+		    max_bulk, sglist->len - sumlen, actlen);
 
-		if (max_bulk >= ctl_sglist[0].len)
-			max_bulk = ctl_sglist[0].len;
-
-		usbd_xfer_set_frame_data(xfer, 0, ctl_sglist[0].addr, max_bulk);
+		usbd_xfer_set_frame_data(xfer, 0,
+		    (uint8_t *)sglist->addr + sumlen, actlen);
 		usbd_transfer_submit(xfer);
-
 		break;
 
 	default:
@@ -837,9 +778,7 @@ tr_setup:
 			CFUMASS_DEBUG(sc, "USB_ERR_CANCELLED");
 			break;
 		}
-
 		CFUMASS_DEBUG(sc, "USB_ST_ERROR: %s", usbd_errstr(usb_error));
-
 		goto tr_setup;
 	}
 }
