@@ -1387,6 +1387,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		    krbnamelen + dirlen + srvkrbnamelen + 2,
 		    M_NEWNFSMNT, M_WAITOK | M_ZERO);
 		TAILQ_INIT(&nmp->nm_bufq);
+		TAILQ_INIT(&nmp->nm_sess);
 		if (clval == 0)
 			clval = (u_int64_t)nfsboottime.tv_sec;
 		nmp->nm_clval = clval++;
