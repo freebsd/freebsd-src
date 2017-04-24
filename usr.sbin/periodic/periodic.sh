@@ -76,6 +76,12 @@ fi
 shift
 arg=$1
 
+if [ -z "$PERIODIC_ANTICONGESTION_FILE" ] ; then
+	export PERIODIC_ANTICONGESTION_FILE=`mktemp ${TMPDIR:-/tmp}/periodic.anticongestion.XXXXXXXXXX`
+fi
+if tty > /dev/null 2>&1; then
+	export PERIODIC_IS_INTERACTIVE=1
+fi
 tmp_output=`mktemp ${TMPDIR:-/tmp}/periodic.XXXXXXXXXX`
 context="$PERIODIC"
 export PERIODIC="$arg${PERIODIC:+ }${PERIODIC}"
@@ -141,3 +147,4 @@ esac
 } | output_pipe $arg "$context"
 
 rm -f $tmp_output
+rm -f $PERIODIC_ANTICONGESTION_FILE
