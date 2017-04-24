@@ -151,7 +151,6 @@ struct port {
 	struct portal_group		*p_portal_group;
 	struct pport			*p_pport;
 	struct target			*p_target;
-	int				p_foreign;
 
 	uint32_t			p_ctl_port;
 };
@@ -371,6 +370,7 @@ struct port		*port_find(const struct conf *conf, const char *name);
 struct port		*port_find_in_pg(const struct portal_group *pg,
 			    const char *target);
 void			port_delete(struct port *port);
+int			port_is_dummy(struct port *port);
 
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);

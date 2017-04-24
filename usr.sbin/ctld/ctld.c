@@ -1237,7 +1237,6 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 	port->p_target = target;
 	TAILQ_INSERT_TAIL(&pg->pg_ports, port, p_pgs);
 	port->p_portal_group = pg;
-	port->p_foreign = pg->pg_foreign;
 	return (port);
 }
 
@@ -1308,6 +1307,19 @@ port_delete(struct port *port)
 	TAILQ_REMOVE(&port->p_conf->conf_ports, port, p_next);
 	free(port->p_name);
 	free(port);
+}
+
+int
+port_is_dummy(struct port *port)
+{
+
+	if (port->p_portal_group) {
+		if (port->p_portal_group->pg_foreign)
+			return (1);
+		if (TAILQ_EMPTY(&port->p_portal_group->pg_portals))
+			return (1);
+	}
+	return (0);
 }
 
 struct target *
@@ -1885,10 +1897,10 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * and missing in the new one.
 	 */
 	TAILQ_FOREACH_SAFE(oldport, &oldconf->conf_ports, p_next, tmpport) {
-		if (oldport->p_foreign)
+		if (port_is_dummy(oldport))
 			continue;
 		newport = port_find(newconf, oldport->p_name);
-		if (newport != NULL && !newport->p_foreign)
+		if (newport != NULL && !port_is_dummy(newport))
 			continue;
 		log_debugx("removing port \"%s\"", oldport->p_name);
 		error = kernel_port_remove(oldport);
@@ -2008,11 +2020,11 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * Now add new ports or modify existing ones.
 	 */
 	TAILQ_FOREACH(newport, &newconf->conf_ports, p_next) {
-		if (newport->p_foreign)
+		if (port_is_dummy(newport))
 			continue;
 		oldport = port_find(oldconf, newport->p_name);
 
-		if (oldport == NULL || oldport->p_foreign) {
+		if (oldport == NULL || port_is_dummy(oldport)) {
 			log_debugx("adding port \"%s\"", newport->p_name);
 			error = kernel_port_add(newport);
 		} else {
