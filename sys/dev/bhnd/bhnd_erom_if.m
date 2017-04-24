@@ -241,3 +241,16 @@ METHOD int lookup_core_addr {
 	bhnd_addr_t			*addr;
 	bhnd_size_t			*size;
 };
+
+/**
+ * Enumerate and print all EROM table entries.
+ * 
+ * @param	erom	The erom parser to be enumerated.
+ * 
+ * @retval 0		success
+ * @retval non-zero	If an error occurs reading the EROM table, a regular
+ *			unix error code will be returned.
+ */
+METHOD int dump {
+	bhnd_erom_t			*erom;
+};
