@@ -82,8 +82,7 @@ scandir(const char *dirname, struct dirent ***namelist,
 #endif
 {
 	struct dirent *d, *p, **names = NULL;
-	size_t numitems;
-	long arraysz;
+	size_t arraysz, numitems;
 	DIR *dirp;
 
 	if ((dirp = opendir(dirname)) == NULL)
