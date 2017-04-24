@@ -90,65 +90,65 @@ extern int nfsrv_lughashsize;
  * Define it here, since it is used by both the client and server.
  */
 struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* undef */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* undef */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* undef */
-	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Access */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Close */
-	{ 0, 2, 0, 1, LK_EXCLUSIVE, 1 },		/* Commit */
-	{ 1, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Create */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Delegpurge */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Delegreturn */
-	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Getattr */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* GetFH */
-	{ 2, 1, 1, 1, LK_EXCLUSIVE, 1 },		/* Link */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lock */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* LockT */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* LockU */
-	{ 1, 2, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookup */
-	{ 1, 2, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookupp */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* NVerify */
-	{ 1, 1, 0, 1, LK_EXCLUSIVE, 1 },		/* Open */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenAttr */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenConfirm */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenDowngrade */
-	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* PutFH */
-	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* PutPubFH */
-	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* PutRootFH */
-	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Read */
-	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Readdir */
-	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* ReadLink */
-	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Remove */
-	{ 2, 1, 1, 1, LK_EXCLUSIVE, 1 },		/* Rename */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Renew */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* RestoreFH */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* SaveFH */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* SecInfo */
-	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Setattr */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* SetClientID */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* SetClientIDConfirm */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Verify */
-	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Write */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* ReleaseLockOwner */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Backchannel Ctrl */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Bind Conn to Sess */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Exchange ID */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Create Session */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Destroy Session */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Free StateID */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Dir Deleg */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Device Info */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Device List */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Commit */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Get */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Return */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Secinfo No name */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Sequence */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Set SSV */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Test StateID */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Want Delegation */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Destroy ClientID */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Reclaim Complete */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* undef */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* undef */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* undef */
+	{ 0, 1, 0, 0, LK_SHARED, 1, 1 },		/* Access */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Close */
+	{ 0, 2, 0, 1, LK_EXCLUSIVE, 1, 1 },		/* Commit */
+	{ 1, 2, 1, 1, LK_EXCLUSIVE, 1, 1 },		/* Create */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Delegpurge */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Delegreturn */
+	{ 0, 1, 0, 0, LK_SHARED, 1, 1 },		/* Getattr */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* GetFH */
+	{ 2, 1, 1, 1, LK_EXCLUSIVE, 1, 1 },		/* Link */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Lock */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* LockT */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* LockU */
+	{ 1, 2, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Lookup */
+	{ 1, 2, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Lookupp */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* NVerify */
+	{ 1, 1, 0, 1, LK_EXCLUSIVE, 1, 0 },		/* Open */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* OpenAttr */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* OpenConfirm */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* OpenDowngrade */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* PutFH */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* PutPubFH */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* PutRootFH */
+	{ 0, 1, 0, 0, LK_SHARED, 1, 0 },		/* Read */
+	{ 0, 1, 0, 0, LK_SHARED, 1, 1 },		/* Readdir */
+	{ 0, 1, 0, 0, LK_SHARED, 1, 1 },		/* ReadLink */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1, 1 },		/* Remove */
+	{ 2, 1, 1, 1, LK_EXCLUSIVE, 1, 1 },		/* Rename */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Renew */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* RestoreFH */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* SaveFH */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* SecInfo */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1, 0 },		/* Setattr */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* SetClientID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* SetClientIDConfirm */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Verify */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1, 0 },		/* Write */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* ReleaseLockOwner */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Backchannel Ctrl */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Bind Conn to Sess */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0, 0 },		/* Exchange ID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0, 0 },		/* Create Session */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0, 0 },		/* Destroy Session */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Free StateID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Get Dir Deleg */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Get Device Info */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Get Device List */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Layout Commit */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Layout Get */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Layout Return */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Secinfo No name */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Sequence */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Set SSV */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Test StateID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Want Delegation */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0, 0 },		/* Destroy ClientID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Reclaim Complete */
 };
 #endif	/* !APPLEKEXT */
 
@@ -4134,22 +4134,35 @@ nfsv4_setsequence(struct nfsmount *nmp, struct nfsrv_descript *nd,
 
 	error = nfsv4_sequencelookup(nmp, sep, &slotpos, &maxslot, &slotseq,
 	    sessionid);
-	if (error != 0)
-		return;
-	KASSERT(maxslot >= 0, ("nfscl_setsequence neg maxslot"));
 
 	/* Build the Sequence arguments. */
 	NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID + 4 * NFSX_UNSIGNED);
+	nd->nd_sequence = tl;
 	bcopy(sessionid, tl, NFSX_V4SESSIONID);
 	tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 	nd->nd_slotseq = tl;
-	*tl++ = txdr_unsigned(slotseq);
-	*tl++ = txdr_unsigned(slotpos);
-	*tl++ = txdr_unsigned(maxslot);
-	if (dont_replycache == 0)
-		*tl = newnfs_true;
-	else
-		*tl = newnfs_false;
+	if (error == 0) {
+		*tl++ = txdr_unsigned(slotseq);
+		*tl++ = txdr_unsigned(slotpos);
+		*tl++ = txdr_unsigned(maxslot);
+		if (dont_replycache == 0)
+			*tl = newnfs_true;
+		else
+			*tl = newnfs_false;
+	} else {
+		/*
+		 * There are two errors and the rest of the session can
+		 * just be zeros.
+		 * NFSERR_BADSESSION: This bad session should just generate
+		 *    the same error again when the RPC is retried.
+		 * ESTALE: A forced dismount is in progress and will cause the
+		 *    RPC to fail later.
+		 */
+		*tl++ = 0;
+		*tl++ = 0;
+		*tl++ = 0;
+		*tl = 0;
+	}
 	nd->nd_flag |= ND_HASSEQUENCE;
 }
 
@@ -4165,6 +4178,13 @@ nfsv4_sequencelookup(struct nfsmount *nmp, struct nfsclsession *sep,
 	maxslot = -1;
 	mtx_lock(&sep->nfsess_mtx);
 	do {
+		if (nmp != NULL && sep->nfsess_defunct != 0) {
+			/* Just return the bad session. */
+			bcopy(sep->nfsess_sessionid, sessionid,
+			    NFSX_V4SESSIONID);
+			mtx_unlock(&sep->nfsess_mtx);
+			return (NFSERR_BADSESSION);
+		}
 		bitval = 1;
 		for (i = 0; i < sep->nfsess_foreslots; i++) {
 			if ((bitval & sep->nfsess_slots) == 0) {
