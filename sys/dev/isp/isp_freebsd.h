@@ -293,7 +293,6 @@ struct isposinfo {
 	struct isp_pcmd *	pcmd_pool;
 	struct isp_pcmd *	pcmd_free;
 
-	int			sixtyfourbit;	/* sixtyfour bit platform */
 	int			mbox_sleeping;
 	int			mbox_sleep_ok;
 	int			mboxbsy;
@@ -505,6 +504,13 @@ default:							\
         d->ds_base = DMA_LO32(e->ds_addr);	\
         d->ds_count = e->ds_len;		\
 }
+#if (BUS_SPACE_MAXADDR > UINT32_MAX)
+#define XS_NEED_DMA64_SEG(s, n)					\
+	(((bus_dma_segment_t *)s)[n].ds_addr +			\
+	    ((bus_dma_segment_t *)s)[n].ds_len > UINT32_MAX)
+#else
+#define XS_NEED_DMA64_SEG(s, n)	(0)
+#endif
 #define	XS_ISP(ccb)		cam_sim_softc(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id

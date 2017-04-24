@@ -1372,10 +1372,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 		} else {
 			ct2_entry_t *cto = (ct2_entry_t *) local;
 
-			if (isp->isp_osinfo.sixtyfourbit)
-				cto->ct_header.rqs_entry_type = RQSTYPE_CTIO3;
-			else
-				cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
+			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 			cto->ct_header.rqs_entry_count = 1;
 			cto->ct_header.rqs_seqno |= ATPD_SEQ_NOTIFY_CAM;
 			ATPD_SET_SEQNO(cto, atp);
@@ -1468,14 +1465,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					isp_prt(isp, ISP_LOGTDEBUG0, "%s: ests base %p vaddr %p ecmd_dma %jx addr %jx len %u", __func__, isp->isp_osinfo.ecmd_base, atp->ests,
 					    (uintmax_t) isp->isp_osinfo.ecmd_dma, (uintmax_t)addr, MIN_FCP_RESPONSE_SIZE + sense_length);
 					cto->rsp.m2.ct_datalen = MIN_FCP_RESPONSE_SIZE + sense_length;
-					if (cto->ct_header.rqs_entry_type == RQSTYPE_CTIO3) {
-						cto->rsp.m2.u.ct_fcp_rsp_iudata_64.ds_base = DMA_LO32(addr);
-						cto->rsp.m2.u.ct_fcp_rsp_iudata_64.ds_basehi = DMA_HI32(addr);
-						cto->rsp.m2.u.ct_fcp_rsp_iudata_64.ds_count = MIN_FCP_RESPONSE_SIZE + sense_length;
-					} else {
-						cto->rsp.m2.u.ct_fcp_rsp_iudata_32.ds_base = DMA_LO32(addr);
-						cto->rsp.m2.u.ct_fcp_rsp_iudata_32.ds_count = MIN_FCP_RESPONSE_SIZE + sense_length;
-					}
+					cto->rsp.m2.u.ct_fcp_rsp_iudata_32.ds_base = DMA_LO32(addr);
+					cto->rsp.m2.u.ct_fcp_rsp_iudata_32.ds_count = MIN_FCP_RESPONSE_SIZE + sense_length;
 				}
 				if (sense_length) {
 					isp_prt(isp, ISP_LOGTDEBUG0, "%s: CTIO2[0x%x] seq %u nc %d CDB0=%x sstatus=0x%x flags=0x%x resid=%d sense: %x %x/%x/%x", __func__,
@@ -3468,7 +3459,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = ISP_MAX_LUNS(isp) == 0 ?
 		    255 : ISP_MAX_LUNS(isp) - 1;
 		cpi->bus_id = cam_sim_bus(sim);
-		if (isp->isp_osinfo.sixtyfourbit)
+		if (sizeof (bus_size_t) > 4)
 			cpi->maxio = (ISP_NSEG64_MAX - 1) * PAGE_SIZE;
 		else
 			cpi->maxio = (ISP_NSEG_MAX - 1) * PAGE_SIZE;
