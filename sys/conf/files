@@ -1579,8 +1579,6 @@ dev/e1000/e1000_mbx.c		optional em \
 dev/e1000/e1000_osdep.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/et/if_et.c			optional et
-dev/en/if_en_pci.c		optional en pci
-dev/en/midway.c			optional en
 dev/ep/if_ep.c			optional ep
 dev/ep/if_ep_isa.c		optional ep isa
 dev/ep/if_ep_pccard.c		optional ep pccard
@@ -1636,7 +1634,6 @@ dev/extres/regulator/regnode_if.m	optional ext_resources regulator fdt
 dev/extres/regulator/regulator.c	optional ext_resources regulator fdt
 dev/extres/regulator/regulator_bus.c	optional ext_resources regulator fdt
 dev/extres/regulator/regulator_fixed.c	optional ext_resources regulator fdt
-dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional sc splash
@@ -1688,11 +1685,6 @@ dev/gpio/gpio_if.m		optional gpio
 dev/gpio/gpiobus_if.m		optional gpio
 dev/gpio/gpiopps.c		optional gpiopps
 dev/gpio/ofw_gpiobus.c		optional fdt gpio
-dev/hatm/if_hatm.c		optional hatm pci
-dev/hatm/if_hatm_intr.c		optional hatm pci
-dev/hatm/if_hatm_ioctl.c	optional hatm pci
-dev/hatm/if_hatm_rx.c		optional hatm pci
-dev/hatm/if_hatm_tx.c		optional hatm pci
 dev/hifn/hifn7751.c		optional hifn
 dev/hme/if_hme.c		optional hme
 dev/hme/if_hme_pci.c		optional hme pci
@@ -2374,13 +2366,6 @@ dev/ow/owll_if.m		optional ow
 dev/ow/own_if.m			optional ow
 dev/ow/ow_temp.c		optional ow_temp
 dev/ow/owc_gpiobus.c		optional owc gpio
-dev/patm/if_patm.c		optional patm pci
-dev/patm/if_patm_attach.c	optional patm pci
-dev/patm/if_patm_intr.c		optional patm pci
-dev/patm/if_patm_ioctl.c	optional patm pci
-dev/patm/if_patm_rtables.c	optional patm pci
-dev/patm/if_patm_rx.c		optional patm pci
-dev/patm/if_patm_tx.c		optional patm pci
 dev/pbio/pbio.c			optional pbio isa
 dev/pccard/card_if.m		standard
 dev/pccard/pccard.c		optional pccard
@@ -3202,9 +3187,6 @@ dev/videomode/videomode.c		optional videomode
 dev/videomode/edid.c			optional videomode
 dev/videomode/pickmode.c		optional videomode
 dev/videomode/vesagtf.c			optional videomode
-dev/utopia/idtphy.c		optional utopia
-dev/utopia/suni.c		optional utopia
-dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
 dev/viapm/viapm.c		optional viapm pci
 dev/virtio/virtio.c			optional	virtio
@@ -3884,7 +3866,6 @@ net/flowtable.c			optional flowtable inet | flowtable inet6
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
 net/if_arcsubr.c		optional arcnet
-net/if_atmsubr.c		optional atm
 net/if_bridge.c			optional bridge inet | if_bridge inet
 net/if_clone.c			standard
 net/if_dead.c			standard
@@ -3981,7 +3962,6 @@ net80211/ieee80211_xauth.c	optional wlan wlan_xauth
 net80211/ieee80211_alq.c	optional wlan ieee80211_alq
 netgraph/atm/ccatm/ng_ccatm.c	optional ngatm_ccatm \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
-netgraph/atm/ng_atm.c		optional ngatm_atm
 netgraph/atm/ngatmbase.c	optional ngatm_atmbase \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 netgraph/atm/sscfu/ng_sscfu.c	optional ngatm_sscfu \
@@ -4063,7 +4043,6 @@ netgraph/ng_vlan.c		optional netgraph_vlan
 netinet/accf_data.c		optional accept_filter_data inet
 netinet/accf_dns.c		optional accept_filter_dns inet
 netinet/accf_http.c		optional accept_filter_http inet
-netinet/if_atm.c		optional atm
 netinet/if_ether.c		optional inet ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
@@ -4188,9 +4167,6 @@ netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 	 ipsec inet6 tcp_signature | ipsec_support inet tcp_signature | \
 	 ipsec_support inet6 tcp_signature
-netnatm/natm.c			optional natm
-netnatm/natm_pcb.c		optional natm
-netnatm/natm_proto.c		optional natm
 netpfil/ipfw/dn_aqm_codel.c	optional inet dummynet
 netpfil/ipfw/dn_aqm_pie.c	optional inet dummynet
 netpfil/ipfw/dn_heap.c		optional inet dummynet

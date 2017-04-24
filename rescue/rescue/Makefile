@@ -101,10 +101,6 @@ CRUNCH_PROGS_sbin= badsect					\
 	restore rcorder route savecore		 		\
 	shutdown spppcontrol swapon sysctl tunefs umount
 
-.if ${MK_ATM} != "no"
-CRUNCH_PROGS_sbin+= atmconfig
-.endif
-
 .if ${MK_CCD} != "no"
 CRUNCH_PROGS_sbin+= ccdconfig
 .endif
