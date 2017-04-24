@@ -2481,6 +2481,11 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		    sva += L3_SIZE) {
 			l3 = pmap_load(l3p);
 			if (pmap_l3_valid(l3)) {
+				if ((l3 & ATTR_SW_MANAGED) &&
+				    pmap_page_dirty(l3)) {
+					vm_page_dirty(PHYS_TO_VM_PAGE(l3 &
+					    ~ATTR_MASK));
+				}
 				pmap_set(l3p, ATTR_AP(ATTR_AP_RO));
 				PTE_SYNC(l3p);
 				/* XXX: Use pmap_invalidate_range */
