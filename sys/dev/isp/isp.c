@@ -1012,7 +1012,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 
 	fwt = isp->isp_fwattr;
 	if (IS_24XX(isp)) {
-		buf = FCPARAM(isp, 0)->isp_scratch;
+		buf = FCPARAM(isp, 0)->isp_scanscratch;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN, "Attributes:");
 		if (fwt & ISP2400_FW_ATTR_CLASS2) {
 			fwt ^=ISP2400_FW_ATTR_CLASS2;
@@ -1101,7 +1101,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		}
 		isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
 	} else if (IS_FC(isp)) {
-		buf = FCPARAM(isp, 0)->isp_scratch;
+		buf = FCPARAM(isp, 0)->isp_scanscratch;
 		ISP_SNPRINTF(buf, ISP_FC_SCRLEN, "Attributes:");
 		if (fwt & ISP_FW_ATTR_TMODE) {
 			fwt ^=ISP_FW_ATTR_TMODE;
