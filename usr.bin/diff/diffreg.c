@@ -1082,7 +1082,7 @@ change(char *file1, FILE *f1, char *file2, FILE *f2, int a, int b, int c, int d,
 {
 	static size_t max_context = 64;
 	long curpos;
-	int i, nc;
+	int i, nc, f;
 	const char *walk;
 
 restart:
@@ -1214,10 +1214,10 @@ proceed:
 		if (a <= b && c <= d && diff_format == D_NORMAL)
 			diff_output("---\n");
 	}
-	i = 0;
+	f = 0;
 	if (diff_format != D_GFORMAT)
-		i = fetch(ixnew, c, d, f2, diff_format == D_NORMAL ? '>' : '\0', 0, *pflags);
-	if (i != 0 && diff_format == D_EDIT) {
+		f = fetch(ixnew, c, d, f2, diff_format == D_NORMAL ? '>' : '\0', 0, *pflags);
+	if (f != 0 && diff_format == D_EDIT) {
 		/*
 		 * A non-zero return value for D_EDIT indicates that the
 		 * last line printed was a bare dot (".") that has been
@@ -1226,10 +1226,10 @@ proceed:
 		 * back and restart where we left off.
 		 */
 		diff_output(".\n");
-		diff_output("%ds/.//\n", a + i - 1);
-		b = a + i - 1;
+		diff_output("%ds/.//\n", a + f - 1);
+		b = a + f - 1;
 		a = b + 1;
-		c += i;
+		c += f;
 		goto restart;
 	}
 	if ((diff_format == D_EDIT || diff_format == D_REVERSE) && c <= d)
