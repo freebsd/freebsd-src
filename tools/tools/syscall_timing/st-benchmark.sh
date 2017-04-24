@@ -31,7 +31,7 @@ echo "${0}: uname:"
 uname -a
 
 echo "${0}: invariants/witness:"
-sysctl -a | grep -E '(invariants|witness)'
+sysctl -a | grep -E '(invariants|witness)' || true
 
 run_st "cheri"
 run_st "hybrid"
