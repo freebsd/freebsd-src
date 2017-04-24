@@ -1207,7 +1207,7 @@ typedef struct {
 #define	ICB2400_VPINFO_OFF	0x80	/* offset from start of ICB */
 #define	ICB2400_VPINFO_PORT_OFF(chan)		\
     (ICB2400_VPINFO_OFF + 			\
-     sizeof (isp_icb_2400_vpinfo_t) + (chan * ICB2400_VPOPT_WRITE_SIZE))
+     sizeof (isp_icb_2400_vpinfo_t) + ((chan) * ICB2400_VPOPT_WRITE_SIZE))
 
 #define	ICB2400_VPGOPT_FCA		0x01	/* Assume Clean Address bit in FLOGI ACC set (works only in static configurations) */
 #define	ICB2400_VPGOPT_MID_DISABLE	0x02	/* when set, connection mode2 will work with NPIV-capable switched */
