@@ -25,6 +25,8 @@
  *
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -50,6 +52,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef VFP
 #include <machine/vfp.h>
+#endif
+
+#ifdef DEV_PSCI
+#include <dev/psci/psci.h>
 #endif
 
 /*
@@ -113,7 +119,11 @@ void
 cpu_reset(void)
 {
 
-	printf("cpu_reset");
+#ifdef DEV_PSCI
+	psci_reset();
+#endif
+
+	printf("cpu_reset failed");
 	while(1)
 		__asm volatile("wfi" ::: "memory");
 }
