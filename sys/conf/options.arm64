@@ -7,6 +7,8 @@ SOCDEV_VA			opt_global.h
 THUNDERX_PASS_1_1_ERRATA	opt_global.h
 VFP				opt_global.h
 
+DEV_PSCI			opt_platform.h
+
 # SoC Support
 SOC_ALLWINNER_A64		opt_soc.h
 SOC_BRCM_BCM2837		opt_soc.h
