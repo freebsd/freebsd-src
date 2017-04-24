@@ -2650,11 +2650,8 @@ bailout_error:
 static void
 ctl_be_block_lun_shutdown(void *be_lun)
 {
-	struct ctl_be_block_lun *lun;
-	struct ctl_be_block_softc *softc;
-
-	lun = (struct ctl_be_block_lun *)be_lun;
-	softc = lun->softc;
+	struct ctl_be_block_lun *lun = be_lun;
+	struct ctl_be_block_softc *softc = lun->softc;
 
 	mtx_lock(&softc->lock);
 	lun->flags |= CTL_BE_BLOCK_LUN_UNCONFIGURED;
