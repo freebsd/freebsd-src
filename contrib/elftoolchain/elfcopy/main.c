@@ -1285,8 +1285,9 @@ parse_symlist_file(struct elfcopy *ecp, const char *fn, unsigned int op)
 		err(EXIT_FAILURE, "can not open %s", fn);
 	if ((data = malloc(sb.st_size + 1)) == NULL)
 		err(EXIT_FAILURE, "malloc failed");
-	if (fread(data, 1, sb.st_size, fp) == 0 || ferror(fp))
-		err(EXIT_FAILURE, "fread failed");
+	if (sb.st_size > 0)
+		if (fread(data, sb.st_size, 1, fp) != 1)
+			err(EXIT_FAILURE, "fread failed");
 	fclose(fp);
 	data[sb.st_size] = '\0';
 
