@@ -614,7 +614,7 @@ in the file
 .Pa test.txt ,
 without creating a backup of the file:
 .Bd -literal -offset indent
-sed -i '' -e 's/foo/bar/' test.txt
+sed -i '' -e 's/foo/bar/g' test.txt
 .Ed
 .Sh SEE ALSO
 .Xr awk 1 ,
