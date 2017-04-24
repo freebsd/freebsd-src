@@ -731,7 +731,6 @@ isp_free_pcmd(ispsoftc_t *isp, union ccb *ccb)
 	if (ISP_PCMD(ccb)) {
 #ifdef	ISP_TARGET_MODE
 		PISP_PCMD(ccb)->datalen = 0;
-		PISP_PCMD(ccb)->crn = 0;
 #endif
 		PISP_PCMD(ccb)->next = isp->isp_osinfo.pcmd_free;
 		isp->isp_osinfo.pcmd_free = ISP_PCMD(ccb);
@@ -4207,7 +4206,6 @@ isp_fcp_next_crn(ispsoftc_t *isp, uint8_t *crnp, XS_T *cmd)
 	}
 	if (nxp->crnseed == 0)
 		nxp->crnseed = 1;
-	PISP_PCMD(cmd)->crn = nxp->crnseed;
 	*crnp = nxp->crnseed++;
 	return (0);
 }
