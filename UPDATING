@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170424:
+	The NATM framework including the en(4), fatm(4), hatm(4), and
+	patm(4) devices has been removed.  Consumers should plan a
+	migration before the end-of-life date for FreeBSD 11.
+
 20170420:
 	GNU diff has been replaced by a BSD licensed diff. Some features of GNU
 	diff has not been implemented, if those are needed a newer version of
