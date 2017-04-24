@@ -1256,7 +1256,6 @@ bhnd_nvram_sprom_read_var(struct bhnd_sprom_opcode_state *state,
 	/* Provide value wrapper */
 	return (bhnd_nvram_val_init(val, var->fmt, inp, ilen, var->type,
 	    BHND_NVRAM_VAL_BORROW_DATA));
-		return (error);
 }
 
 
