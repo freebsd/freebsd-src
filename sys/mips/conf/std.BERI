@@ -36,6 +36,7 @@ options 	CAPABILITIES
 options 	COMPAT_FREEBSD10
 options 	COMPAT_FREEBSD11
 
+options 	INTRNG
 options 	SCHED_ULE
 
 options 	FFS			#Berkeley Fast Filesystem

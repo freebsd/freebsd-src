@@ -42,7 +42,4 @@ mips/cheri/cheri_stack.c		optional cpu_cheri
 mips/cheri/cheri_syscall.c		optional cpu_cheri
 mips/cheri/cheri_test.c			optional cpu_cheri
 mips/cheri/cheriabi_machdep.c		optional cpu_cheri compat_cheriabi
-mips/beri/beri_simplebus.c		optional fdt
-mips/beri/fdt_ic_if.m			optional fdt
-mips/mips/intr_machdep.c		standard
 mips/mips/tick.c			standard

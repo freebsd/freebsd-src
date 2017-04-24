@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2017 Ruslan Bukin <br@bsdpad.com>
  * Copyright (c) 2012-2015 Robert N. M. Watson
  * Copyright (c) 2013 SRI International
  * All rights reserved.
@@ -39,10 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/hwfunc.h>
 #include <machine/smp.h>
 
-#include <mips/beri/beri.h>
+#include <mips/beri/beri_mp.h>
 
 #include <dev/fdt/fdt_common.h>
-#include "fdt_ic_if.h"
 
 struct spin_entry {
 	uint64_t entry_addr;
@@ -58,8 +58,11 @@ static device_t picmap[MAXCPU];
 int
 platform_processor_id(void)
 {
+	int cpu;
 
-	return (beri_get_cpu());
+	cpu = beri_get_cpu();
+
+	return (cpu);
 }
 
 void
@@ -78,7 +81,7 @@ platform_cpu_mask(cpuset_t *mask)
 	    nthreads));
 	KASSERT(ncores < 0xffff || nthreads < 0xffff,
 	    ("%s: cores x thread (%d x %d) would overflow", __func__, ncores,
-	     nthreads));
+	    nthreads));
 	ncpus = ncores * nthreads;
 	if (MAXCPU > 1 && ncpus > MAXCPU)
 		printf("%s: Hardware supports more CPUs (%d) than kernel (%d)\n",
@@ -94,7 +97,7 @@ platform_cpu_mask(cpuset_t *mask)
 		printf("%s: no children of \"/cpus\" found in FDT\n", __func__);
 		goto error;
 	}
-        CPU_ZERO(mask);
+	CPU_ZERO(mask);
 	do {
 		if (OF_getprop(cpu, "reg", &reg, sizeof(reg)) <= 0) {
 			printf("%s: cpu device with no reg property\n",
@@ -103,7 +106,7 @@ platform_cpu_mask(cpuset_t *mask)
 		}
 		if (reg > MAXCPU) {
 			printf("%s: cpu ID too large (%d > %d)\n", __func__,
-			     reg, MAXCPU);
+			    reg, MAXCPU);
 			continue;
 		}
 		cpu_of_nodes[reg] = cpu;
@@ -146,7 +149,7 @@ error:
 	 *
 	 * XXX: panic instead?
 	 */
-        CPU_ZERO(mask);
+	CPU_ZERO(mask);
 	CPU_SET(0, mask);
 }
 
@@ -158,14 +161,14 @@ platform_init_secondary(int cpuid)
 
 	ipi = platform_ipi_hardintr_num();
 
-	/* XXX: single core/pic */
-	ic = SLIST_FIRST(&fdt_ic_list_head)->dev;
-	FDT_IC_SETUP_IPI(ic, cpuid, ipi);
+	ic = devclass_get_device(devclass_find("beripic"), cpuid);
 	picmap[cpuid] = ic;
+	beripic_setup_ipi(ic, cpuid, ipi);
 
 	/* Unmask the interrupt */
-	if (cpuid != 0)
+	if (cpuid != 0) {
 		mips_wr_status(mips_rd_status() | (((1 << ipi) << 8) << 2));
+	}
 }
 
 
@@ -173,18 +176,19 @@ void
 platform_ipi_send(int cpuid)
 {
 
-	/* XXX: single core/pic */
 	mips_sync();	/* Ordering, liveness. */
-	FDT_IC_SEND_IPI(picmap[cpuid], cpuid);
+
+	beripic_send_ipi(picmap[cpuid], cpuid);
 }
 
 void
 platform_ipi_clear(void)
 {
-	int cpuid = platform_processor_id();
+	int cpuid;
 
-	/* XXX: single core/pic */
-	FDT_IC_CLEAR_IPI(picmap[cpuid], cpuid);
+	cpuid = platform_processor_id();
+
+	beripic_clear_ipi(picmap[cpuid], cpuid);
 }
 
 /*
@@ -201,7 +205,7 @@ int
 platform_ipi_softintr_num(void)
 {
 
-       return (-1);
+	return (-1);
 }
 
 /*
@@ -218,7 +222,6 @@ void
 platform_init_ap(int cpuid)
 {
 	uint32_t status;
-	register_t hwrena;
 	u_int clock_int_mask;
 
 	KASSERT(cpuid < MAXCPU, ("%s: invalid CPU id %d", __func__, cpuid));
@@ -231,11 +234,14 @@ platform_init_ap(int cpuid)
 #endif
 	mips_wr_status(status);
 
+#if 0
+	register_t hwrena;
 	/* Enable HDWRD instruction in userspace. Also enables statcounters. */
 	hwrena = mips_rd_hwrena();
 	hwrena |= (MIPS_HWRENA_CC | MIPS_HWRENA_CCRES | MIPS_HWRENA_CPUNUM |
 	    MIPS_HWRENA_BERI_STATCOUNTERS_MASK);
 	mips_wr_hwrena(hwrena);
+#endif
 
 	/*
 	 * Enable per-thread timer.
