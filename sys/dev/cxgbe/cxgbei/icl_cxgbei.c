@@ -1070,7 +1070,7 @@ icl_cxgbei_mod_load(void)
 	 */
 	prsv_zone = uma_zcreate("Pagepod reservations",
 	    sizeof(struct ppod_reservation), NULL, NULL, NULL, NULL,
-	    CACHE_LINE_SIZE, 0);
+	    UMA_ALIGN_CACHE, 0);
 
 	refcount_init(&icl_cxgbei_ncons, 0);
 
