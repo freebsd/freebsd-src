@@ -1214,6 +1214,7 @@ proceed:
 		if (a <= b && c <= d && diff_format == D_NORMAL)
 			diff_output("---\n");
 	}
+	i = 0;
 	if (diff_format != D_GFORMAT)
 		i = fetch(ixnew, c, d, f2, diff_format == D_NORMAL ? '>' : '\0', 0, *pflags);
 	if (i != 0 && diff_format == D_EDIT) {
