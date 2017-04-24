@@ -70,7 +70,6 @@ SUBDIR=adjkerntz \
 	tunefs \
 	umount
 
-SUBDIR.${MK_ATM}+=	atm
 SUBDIR.${MK_CCD}+=	ccdconfig
 SUBDIR.${MK_CXX}+=	devd
 SUBDIR.${MK_HAST}+=	hastctl
