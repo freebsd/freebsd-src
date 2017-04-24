@@ -52,6 +52,7 @@ SDT_PROBE_DECLARE(tcp, , , connect__request);
 SDT_PROBE_DECLARE(tcp, , , receive);
 SDT_PROBE_DECLARE(tcp, , , send);
 SDT_PROBE_DECLARE(tcp, , , state__change);
+SDT_PROBE_DECLARE(tcp, , , receive__autoresize);
 
 SDT_PROBE_DECLARE(udp, , , receive);
 SDT_PROBE_DECLARE(udp, , , send);
