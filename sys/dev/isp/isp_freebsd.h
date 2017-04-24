@@ -176,7 +176,6 @@ struct isp_pcmd {
 	struct ispsoftc *	isp;		/* containing isp */
 	struct callout		wdog;		/* watchdog timer */
 	uint32_t		datalen;	/* data length for this command (target mode only) */
-	uint8_t 		crn;		/* command reference number */
 };
 #define	ISP_PCMD(ccb)		(ccb)->ccb_h.spriv_ptr1
 #define	PISP_PCMD(ccb)		((struct isp_pcmd *)ISP_PCMD(ccb))
