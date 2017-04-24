@@ -5,7 +5,7 @@
 .PATH:	${SRCTOP}/contrib/ntp/sntp
 
 PROG=	sntp
-MK_MAN=	no
+MAN=
 SRCS= 	crypto.c kod_management.c log.c main.c networking.c \
 	sntp-opts.c sntp.c utilities.c
 
