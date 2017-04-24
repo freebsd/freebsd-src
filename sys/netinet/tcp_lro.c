@@ -959,10 +959,6 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 		return;
 	}
 
-	/* check if array is full */
-	if (__predict_false(lc->lro_mbuf_count == lc->lro_mbuf_max))
-		tcp_lro_flush_all(lc);
-
 	/* create sequence number */
 	lc->lro_mbuf_data[lc->lro_mbuf_count].seq =
 	    (((uint64_t)M_HASHTYPE_GET(mb)) << 56) |
@@ -970,7 +966,11 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 	    ((uint64_t)lc->lro_mbuf_count);
 
 	/* enter mbuf */
-	lc->lro_mbuf_data[lc->lro_mbuf_count++].mb = mb;
+	lc->lro_mbuf_data[lc->lro_mbuf_count].mb = mb;
+
+	/* flush if array is full */
+	if (__predict_false(++lc->lro_mbuf_count == lc->lro_mbuf_max))
+		tcp_lro_flush_all(lc);
 }
 
 /* end */
