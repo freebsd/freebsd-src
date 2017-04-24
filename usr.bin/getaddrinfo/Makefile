@@ -3,19 +3,15 @@
 .include <bsd.own.mk>
 
 PROG=	getaddrinfo
+SRCS=	getaddrinfo.c tables.h
 
-CFLAGS+=	-I${.CURDIR}/../../lib/libnetbsd
-LIBNETBSDDIR=	${.OBJDIR}/../../lib/libnetbsd
-LIBNETBSD=	${LIBNETBSDDIR}/libnetbsd.a
-DPADD+=		${LIBNETBSD}
-LDADD+=		${LIBNETBSD}
+CFLAGS+=	-I${SRCTOP}/lib/libnetbsd
 
-LIBADD+=	util
+LIBADD+=	netbsd util
 
-SYS_SOCKET_H?=	${.CURDIR}/../../sys/sys/socket.h
+SYS_SOCKET_H?=	${SRCTOP}/sys/sys/socket.h
 
-CFLAGS+=	-I.
-DPSRCS+=	tables.h
+CFLAGS+=	-I${.OBJDIR}
 CLEANFILES+=	tables.h
 tables.h: tables.awk ${SYS_SOCKET_H}
 	LC_ALL=C awk -f ${.ALLSRC} > ${.TARGET}
