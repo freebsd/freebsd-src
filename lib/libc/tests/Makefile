@@ -21,7 +21,7 @@ TESTS_SUBDIRS+=	sys
 TESTS_SUBDIRS+=	termios
 TESTS_SUBDIRS+=	ttyio
 
-.if !defined(LIBCHERI) && ${MK_CHERI_USE_LLD} == "no"
+.if !defined(LIBCHERI)
 SUBDIR=		tls_dso
 TESTS_SUBDIRS+=	tls
 SUBDIR_DEPEND_tls= tls_dso

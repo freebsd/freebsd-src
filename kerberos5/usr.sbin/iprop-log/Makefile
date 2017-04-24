@@ -1,12 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
-.if ${MK_CHERI_USE_LLD} == "no"
-# linker error
-WANT_CHERI=none
-.endif
-
 PROG=	iprop-log
 MAN=	iprop-log.8
 SRCS=	iprop-log.c iprop-commands.c iprop-commands.h kadm5_err.h

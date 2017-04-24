@@ -2,11 +2,6 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI_USE_LLD} == "no"
-# Linker error
-WANT_CHERI=none
-.endif
-
 LIBADD=	ssl crypto
 
 PROG=	dma

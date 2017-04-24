@@ -1,12 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
-.if ${MK_CHERI_USE_LLD} == "no"
-# linker error
-WANT_CHERI=none
-.endif
-
 MAN=
 
 .include "${.CURDIR:H}/Makefile.inc"

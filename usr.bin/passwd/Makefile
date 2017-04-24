@@ -3,11 +3,6 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI_USE_LLD} == "no"
-# relocation errors when linking
-WANT_CHERI=none
-.endif
-
 PROG	 = passwd
 BINOWN	 = root
 BINMODE	 = 4555

@@ -2,11 +2,6 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI_USE_LLD} == "no"
-# Linker error
-WANT_CHERI=none
-.endif
-
 PROG=	gssd
 MAN=	gssd.8
 SRCS=	gssd.c gssd.h gssd_svc.c gssd_xdr.c gssd_prot.c

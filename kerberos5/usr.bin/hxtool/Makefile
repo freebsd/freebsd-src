@@ -1,12 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
-.if ${MK_CHERI128} == "yes" && ${MK_CHERI_USE_LLD} == "no"
-# linker error
-WANT_CHERI=none
-.endif
-
 PROG=	hxtool
 MAN=
 CFLAGS+=	-I${KRB5DIR}/lib/hx509 \

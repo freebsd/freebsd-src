@@ -2,11 +2,6 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI128} == "yes" && ${MK_CHERI_USE_LLD} == "no"
-# Linker error
-WANT_CHERI=none
-.endif
-
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 _LIBARCHIVECONFDIR=	${SRCTOP}/lib/libarchive
 

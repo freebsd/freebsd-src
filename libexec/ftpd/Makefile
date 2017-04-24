@@ -3,11 +3,6 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI_USE_LLD} == "no"
-# linker error
-WANT_CHERI=none
-.endif
-
 PROG=	ftpd
 MAN=	ftpd.8 ftpchroot.5
 SRCS=	ftpd.c ftpcmd.y logwtmp.c popen.c

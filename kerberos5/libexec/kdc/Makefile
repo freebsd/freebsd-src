@@ -1,12 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
-.if ${MK_CHERI_USE_LLD} == "no"
-# linker error
-WANT_CHERI=none
-.endif
-
 PROG=	kdc
 MAN=	kdc.8
 

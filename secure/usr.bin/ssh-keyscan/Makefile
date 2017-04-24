@@ -2,11 +2,6 @@
 
 .include <src.opts.mk>
 
-.if ${MK_CHERI_USE_LLD} == "no"
-# linker error
-WANT_CHERI=none
-.endif
-
 PROG=	ssh-keyscan
 SRCS=	ssh-keyscan.c
 PACKAGE=	ssh

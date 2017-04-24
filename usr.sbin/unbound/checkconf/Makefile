@@ -1,12 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
-.if ${MK_CHERI_USE_LLD} == "no"
-# Linker error
-WANT_CHERI=none
-.endif
-
 # Vendor sources and generated files
 LDNSDIR= ${SRCTOP}/contrib/ldns
 UNBOUNDDIR= ${SRCTOP}/contrib/unbound
