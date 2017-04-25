@@ -50,7 +50,6 @@
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/ip_carp.h>
-#include <net/if_atm.h>
 #include <net/if_gre.h>
 #include <net/if_gif.h>
 #include <net/pfvar.h>
@@ -231,7 +230,6 @@ struct ifreq_c {
 #define	SIOCSETPFSYNC_C		_IOC_NEWTYPE(SIOCSETPFSYNC, struct ifreq_c)
 #define	SIOCSETVLAN_C		_IOC_NEWTYPE(SIOCSETVLAN, struct ifreq_c)
 #define	SIOCSIFGENERIC_C	_IOC_NEWTYPE(SIOCSIFGENERIC, struct ifreq_c)
-#define	SIOCATMGVCCS_C		_IOC_NEWTYPE(SIOCATMGVCCS, struct ifreq_c)
 
 /* XXX-BD: these confict */
 #define	SIOCGATHSTATS_C		_IOC_NEWTYPE(SIOCGATHSTATS, struct ifreq_c)
@@ -296,11 +294,6 @@ static const struct {
 	 * for CPU_CHERI.
 	 */
 	{ SIOCSIFGENERIC_C, sizeof(struct spppreq), CHERI_PERM_LOAD },
-	/*
-	 * XXX-BD: no easy way to know how much would be written.
-	 * disbled.
-	 */
-	{ SIOCATMGVCCS_C, SIZE_MAX, CHERI_PERM_STORE },
 	{ 0, SIZE_MAX }
 };
 

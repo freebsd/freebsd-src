@@ -340,8 +340,7 @@ cheriabi_ioctl_translate_in(u_long com, void *data, u_long *t_comp,
 	case SIOCIFCREATE2_C:
 	case SIOCSETPFSYNC_C:
 	case SIOCSETVLAN_C:
-	case SIOCSIFGENERIC_C:
-	case SIOCATMGVCCS_C: {
+	case SIOCSIFGENERIC_C: {
 		struct ifreq *ifr;
 		struct ifreq_c *ifr_c = data;
 		size_t reqsize;
@@ -834,7 +833,6 @@ ioctl_data_contains_pointers(u_long cmd)
 	case SIOCSETPFSYNC_C:
 	case SIOCSETVLAN_C:
 	case SIOCSIFGENERIC_C:
-	case SIOCATMGVCCS:
 
 	/* Other struct ifreq users.  Gratutious copy along with translation. */
 	case BIOCGETIF_C:

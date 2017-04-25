@@ -107,7 +107,6 @@ SUBDIR=	\
 	${_efirt} \
 	${_elink} \
 	${_em} \
-	${_en} \
 	${_ep} \
 	${_epic} \
 	esp \
@@ -116,7 +115,6 @@ SUBDIR=	\
 	${_ex} \
 	${_exca} \
 	ext2fs \
-	${_fatm} \
 	fdc \
 	fdescfs \
 	${_fe} \
@@ -130,7 +128,6 @@ SUBDIR=	\
 	${_glxiic} \
 	${_glxsb} \
 	gpio \
-	${_hatm} \
 	hifn \
 	hme \
 	${_hpt27xx} \
@@ -289,7 +286,6 @@ SUBDIR=	\
 	ow \
 	${_padlock} \
 	${_padlock_rng} \
-	${_patm} \
 	${_pccard} \
 	${_pcfclock} \
 	pcn \
@@ -380,7 +376,6 @@ SUBDIR=	\
 	uinput \
 	unionfs \
 	usb \
-	utopia \
 	${_vesa} \
 	${_virtio} \
 	vge \
@@ -505,9 +500,6 @@ _pfsync=	pfsync
 
 .if ${MK_SOURCELESS_UCODE} != "no"
 _bce=		bce
-.if ${MK_CHERI} == "no"
-_fatm=		fatm
-.endif
 _fxp=		fxp
 _ispfw=		ispfw
 _sf=		sf
@@ -534,10 +526,7 @@ SUBDIR+=	zfs
 .endif
 
 .if ${MK_CHERI} == "no"
-_en=		en
-_hatm=		hatm
 _oce=		oce
-_patm=		patm
 .endif
 
 .if (${MACHINE_CPUARCH} == "mips" && ${MACHINE_ARCH:Mmips64} == "")
