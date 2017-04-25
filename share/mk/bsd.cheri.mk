@@ -67,6 +67,11 @@ _CHERI_CC+=	-mxgot -fpic
 LIBDIR:=	/usr/libcheri
 ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}/worldcheri${SRCTOP}
 CFLAGS+=	${CHERI_OPTIMIZATION_FLAGS:U-O2} -ftls-model=local-exec
+.ifdef NO_WERROR
+# Implicit function declarations should always be an error in purecap mode as
+# we will probably generate wrong code for calling them
+CFLAGS+=-Werror=implicit-function-declaration
+.endif
 # Clang no longer defines __LP64__ for Cheri purecap ABI but there are a
 # lot of files that use it to check for not 32-bit
 # XXXAR: Remove this once we have checked all the #ifdef __LP64__ uses
