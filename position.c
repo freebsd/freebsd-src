@@ -36,8 +36,7 @@ extern int sc_width, sc_height;
  *	the line after the bottom line on the screen
  */
 	public POSITION
-position(where)
-	int where;
+position(int where)
 {
 	switch (where)
 	{
@@ -57,10 +56,9 @@ position(where)
  * Add a new file position to the bottom of the position table.
  */
 	public void
-add_forw_pos(pos)
-	POSITION pos;
+add_forw_pos(POSITION pos)
 {
-	register int i;
+	int i;
 
 	/*
 	 * Scroll the position table up.
@@ -74,10 +72,9 @@ add_forw_pos(pos)
  * Add a new file position to the top of the position table.
  */
 	public void
-add_back_pos(pos)
-	POSITION pos;
+add_back_pos(POSITION pos)
 {
-	register int i;
+	int i;
 
 	/*
 	 * Scroll the position table down.
@@ -91,9 +88,9 @@ add_back_pos(pos)
  * Initialize the position table, done whenever we clear the screen.
  */
 	public void
-pos_clear()
+pos_clear(void)
 {
-	register int i;
+	int i;
 
 	for (i = 0;  i < sc_height;  i++)
 		table[i] = NULL_POSITION;
@@ -103,7 +100,7 @@ pos_clear()
  * Allocate or reallocate the position table.
  */
 	public void
-pos_init()
+pos_init(void)
 {
 	struct scrpos scrpos;
 
@@ -132,10 +129,9 @@ pos_init()
  * Return the position table entry if found, -1 if not.
  */
 	public int
-onscreen(pos)
-	POSITION pos;
+onscreen(POSITION pos)
 {
-	register int i;
+	int i;
 
 	if (pos < table[0])
 		return (-1);
@@ -149,17 +145,15 @@ onscreen(pos)
  * See if the entire screen is empty.
  */
 	public int
-empty_screen()
+empty_screen(void)
 {
 	return (empty_lines(0, sc_height-1));
 }
 
 	public int
-empty_lines(s, e)
-	int s;
-	int e;
+empty_lines(int s, int e)
 {
-	register int i;
+	int i;
 
 	for (i = s;  i <= e;  i++)
 		if (table[i] != NULL_POSITION && table[i] != 0)
@@ -176,10 +170,9 @@ empty_lines(s, e)
  * the screen line to a number > 0.
  */
 	public void
-get_scrpos(scrpos)
-	struct scrpos *scrpos;
+get_scrpos(struct scrpos *scrpos)
 {
-	register int i;
+	int i;
 
 	/*
 	 * Find the first line on the screen which has something on it,
@@ -208,8 +201,7 @@ get_scrpos(scrpos)
  * relative to the bottom of the screen.
  */
 	public int
-adjsline(sline)
-	int sline;
+adjsline(int sline)
 {
 	/*
 	 * Negative screen line number means

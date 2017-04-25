@@ -23,8 +23,8 @@
 static struct loption *pendopt;
 public int plusoption = FALSE;
 
-static char *optstring();
-static int flip_triple();
+static char *optstring(char *s, char **p_str, char *printopt, char *validchars);
+static int flip_triple(int val, int lc);
 
 extern int screen_trashed;
 extern int less_is_more;
@@ -36,8 +36,7 @@ extern int opt_use_backslash;
  * Return a printable description of an option.
  */
 	static char *
-opt_desc(o)
-	struct loption *o;
+opt_desc(struct loption *o)
 {
 	static char buf[OPTNAME_MAX + 10];
 	if (o->oletter == OLETTER_NONE)
@@ -52,8 +51,7 @@ opt_desc(o)
  * For example, if the option letter is 'x', just return "-x".
  */
 	public char *
-propt(c)
-	int c;
+propt(int c)
 {
 	static char buf[8];
 
@@ -66,11 +64,10 @@ propt(c)
  * LESS environment variable) and process it.
  */
 	public void
-scan_option(s)
-	char *s;
+scan_option(char *s)
 {
-	register struct loption *o;
-	register int optc;
+	struct loption *o;
+	int optc;
 	char *optname;
 	char *printopt;
 	char *str;
@@ -299,13 +296,9 @@ scan_option(s)
  *	OPT_SET		set to the inverse of the default value
  */
 	public void
-toggle_option(o, lower, s, how_toggle)
-	struct loption *o;
-	int lower;
-	char *s;
-	int how_toggle;
+toggle_option(struct loption *o, int lower, char *s, int how_toggle)
 {
-	register int num;
+	int num;
 	int no_prompt;
 	int err;
 	PARG parg;
@@ -485,9 +478,7 @@ toggle_option(o, lower, s, how_toggle)
  * "Toggle" a triple-valued option.
  */
 	static int
-flip_triple(val, lc)
-	int val;
-	int lc;
+flip_triple(int val, int lc)
 {
 	if (lc)
 		return ((val == OPT_ON) ? OPT_OFF : OPT_ON);
@@ -499,8 +490,7 @@ flip_triple(val, lc)
  * Determine if an option takes a parameter.
  */
 	public int
-opt_has_param(o)
-	struct loption *o;
+opt_has_param(struct loption *o)
 {
 	if (o == NULL)
 		return (0);
@@ -514,8 +504,7 @@ opt_has_param(o)
  * Only string and number valued options have prompts.
  */
 	public char *
-opt_prompt(o)
-	struct loption *o;
+opt_prompt(struct loption *o)
 {
 	if (o == NULL || (o->otype & (STRING|NUMBER)) == 0)
 		return ("?");
@@ -530,7 +519,7 @@ opt_prompt(o)
  * the previous option.
  */
 	public int
-isoptpending()
+isoptpending(void)
 {
 	return (pendopt != NULL);
 }
@@ -539,8 +528,7 @@ isoptpending()
  * Print error message about missing string.
  */
 	static void
-nostring(printopt)
-	char *printopt;
+nostring(char *printopt)
 {
 	PARG parg;
 	parg.p_string = printopt;
@@ -551,7 +539,7 @@ nostring(printopt)
  * Print error message if a STRING type option is not followed by a string.
  */
 	public void
-nopendopt()
+nopendopt(void)
 {
 	nostring(opt_desc(pendopt));
 }
@@ -562,14 +550,10 @@ nopendopt()
  * Return a pointer to the remainder of the string, if any.
  */
 	static char *
-optstring(s, p_str, printopt, validchars)
-	char *s;
-	char **p_str;
-	char *printopt;
-	char *validchars;
+optstring(char *s, char **p_str, char *printopt, char *validchars)
 {
-	register char *p;
-	register char *out;
+	char *p;
+	char *out;
 
 	if (*s == '\0')
 	{
@@ -602,9 +586,7 @@ optstring(s, p_str, printopt, validchars)
 /*
  */
 	static int
-num_error(printopt, errp)
-	char *printopt;
-	int *errp;
+num_error(char *printopt, int *errp)
 {
 	PARG parg;
 
@@ -627,14 +609,11 @@ num_error(printopt, errp)
  * the char * to point after the translated number.
  */
 	public int
-getnum(sp, printopt, errp)
-	char **sp;
-	char *printopt;
-	int *errp;
+getnum(char **sp, char *printopt, int *errp)
 {
-	register char *s;
-	register int n;
-	register int neg;
+	char *s;
+	int n;
+	int neg;
 
 	s = skipsp(*sp);
 	neg = FALSE;
@@ -664,12 +643,9 @@ getnum(sp, printopt, errp)
  * That is, if "n" is returned, the fraction intended is n/NUM_FRAC_DENOM.
  */
 	public long
-getfraction(sp, printopt, errp)
-	char **sp;
-	char *printopt;
-	int *errp;
+getfraction(char **sp, char *printopt, int *errp)
 {
-	register char *s;
+	char *s;
 	long frac = 0;
 	int fraclen = 0;
 
@@ -699,7 +675,7 @@ getfraction(sp, printopt, errp)
  * Get the value of the -e flag.
  */
 	public int
-get_quit_at_eof()
+get_quit_at_eof(void)
 {
 	if (!less_is_more)
 		return quit_at_eof;

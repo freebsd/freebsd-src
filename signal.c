@@ -40,8 +40,7 @@ extern long jump_sline_fraction;
  */
 	/* ARGSUSED*/
 	static RETSIGTYPE
-u_interrupt(type)
-	int type;
+u_interrupt(int type)
 {
 	bell();
 #if OS2
@@ -68,8 +67,7 @@ u_interrupt(type)
  */
 	/* ARGSUSED*/
 	static RETSIGTYPE
-stop(type)
-	int type;
+stop(int type)
 {
 	LSIGNAL(SIGTSTP, stop);
 	sigs |= S_STOP;
@@ -84,8 +82,7 @@ stop(type)
  */
 	/* ARGSUSED*/
 	public RETSIGTYPE
-winch(type)
-	int type;
+winch(int type)
 {
 	LSIGNAL(SIGWINCH, winch);
 	sigs |= S_WINCH;
@@ -99,8 +96,7 @@ winch(type)
  */
 	/* ARGSUSED*/
 	public RETSIGTYPE
-winch(type)
-	int type;
+winch(int type)
 {
 	LSIGNAL(SIGWIND, winch);
 	sigs |= S_WINCH;
@@ -117,8 +113,7 @@ winch(type)
 #include "windows.h"
 
 	static BOOL WINAPI 
-wbreak_handler(dwCtrlType)
-	DWORD dwCtrlType;
+wbreak_handler(DWORD dwCtrlType)
 {
 	switch (dwCtrlType)
 	{
@@ -137,8 +132,7 @@ wbreak_handler(dwCtrlType)
  * Set up the signal handlers.
  */
 	public void
-init_signals(on)
-	int on;
+init_signals(int on)
 {
 	if (on)
 	{
@@ -190,9 +184,9 @@ init_signals(on)
  * A received signal cause a bit to be set in "sigs".
  */
 	public void
-psignals()
+psignals(void)
 {
-	register int tsignals;
+	int tsignals;
 
 	if ((tsignals = sigs) == 0)
 		return;

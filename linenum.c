@@ -73,9 +73,9 @@ extern int screen_trashed;
  * Initialize the line number structures.
  */
 	public void
-clr_linenum()
+clr_linenum(void)
 {
-	register struct linenum_info *p;
+	struct linenum_info *p;
 
 	/*
 	 * Put all the entries on the free list.
@@ -101,8 +101,7 @@ clr_linenum()
  * Calculate the gap for an entry.
  */
 	static void
-calcgap(p)
-	register struct linenum_info *p;
+calcgap(struct linenum_info *p)
 {
 	/*
 	 * Don't bother to compute a gap for the anchor.
@@ -121,15 +120,13 @@ calcgap(p)
  * FIRST character in the specified line.
  */
 	public void
-add_lnum(linenum, pos)
-	LINENUM linenum;
-	POSITION pos;
+add_lnum(LINENUM linenum, POSITION pos)
 {
-	register struct linenum_info *p;
-	register struct linenum_info *new;
-	register struct linenum_info *nextp;
-	register struct linenum_info *prevp;
-	register POSITION mingap;
+	struct linenum_info *p;
+	struct linenum_info *new;
+	struct linenum_info *nextp;
+	struct linenum_info *prevp;
+	POSITION mingap;
 
 	/*
 	 * Find the proper place in the list for the new one.
@@ -209,7 +206,7 @@ add_lnum(linenum, pos)
  * line number, print a message to tell the user what we're doing.
  */
 	static void
-longloopmessage()
+longloopmessage(void)
 {
 	ierror("Calculating line numbers", NULL_PARG);
 }
@@ -220,7 +217,7 @@ static time_type startime;
 #endif
 
 	static void
-longish()
+longish(void)
 {
 #if HAVE_TIME
 	if (loopcount >= 0 && ++loopcount > 100)
@@ -246,7 +243,7 @@ longish()
  * a lengthy line number calculation.
  */
 	static void
-abort_long()
+abort_long(void)
 {
 	if (linenums == OPT_ONPLUS)
 		/*
@@ -262,11 +259,10 @@ abort_long()
  * Return 0 if we can't figure it out.
  */
 	public LINENUM
-find_linenum(pos)
-	POSITION pos;
+find_linenum(POSITION pos)
 {
-	register struct linenum_info *p;
-	register LINENUM linenum;
+	struct linenum_info *p;
+	LINENUM linenum;
 	POSITION cpos;
 
 	if (!linenums)
@@ -377,10 +373,9 @@ find_linenum(pos)
  * Return NULL_POSITION if we can't figure it out.
  */
 	public POSITION
-find_pos(linenum)
-	LINENUM linenum;
+find_pos(LINENUM linenum)
 {
-	register struct linenum_info *p;
+	struct linenum_info *p;
 	POSITION cpos;
 	LINENUM clinenum;
 
@@ -450,8 +445,7 @@ find_pos(linenum)
  * the "current" line (e.g. TOP, BOTTOM, MIDDLE, etc).
  */
 	public LINENUM
-currline(where)
-	int where;
+currline(int where)
 {
 	POSITION pos;
 	POSITION len;

@@ -31,7 +31,7 @@ extern int utf_mode;
  * Open keyboard for input.
  */
 	public void
-open_getchr()
+open_getchr(void)
 {
 #if MSDOS_COMPILER==WIN32C
 	/* Need this to let child processes inherit our console handle */
@@ -85,7 +85,7 @@ open_getchr()
  * Close the keyboard.
  */
 	public void
-close_getchr()
+close_getchr(void)
 {
 #if MSDOS_COMPILER==WIN32C
 	SetConsoleMode((HANDLE)tty, console_mode);
@@ -97,7 +97,7 @@ close_getchr()
  * Get a character from the keyboard.
  */
 	public int
-getchr()
+getchr(void)
 {
 	char c;
 	int result;

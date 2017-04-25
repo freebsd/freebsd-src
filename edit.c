@@ -26,7 +26,7 @@ extern int sigs;
 extern IFILE curr_ifile;
 extern IFILE old_ifile;
 extern struct scrpos initial_scrpos;
-extern void constant *ml_examine;
+extern void * constant ml_examine;
 #if SPACES_IN_FILENAMES
 extern char openquote;
 extern char closequote;
@@ -55,9 +55,7 @@ static void *curr_altpipe;
  * back_textlist does the same, but runs thru the list backwards.
  */
 	public void
-init_textlist(tlist, str)
-	struct textlist *tlist;
-	char *str;
+init_textlist(struct textlist *tlist, char *str)
 {
 	char *s;
 #if SPACES_IN_FILENAMES
@@ -99,9 +97,7 @@ init_textlist(tlist, str)
 }
 
 	public char *
-forw_textlist(tlist, prev)
-	struct textlist *tlist;
-	char *prev;
+forw_textlist(struct textlist *tlist, char *prev)
 {
 	char *s;
 	
@@ -123,9 +119,7 @@ forw_textlist(tlist, prev)
 }
 
 	public char *
-back_textlist(tlist, prev)
-	struct textlist *tlist;
-	char *prev;
+back_textlist(struct textlist *tlist, char *prev)
 {
 	char *s;
 	
@@ -152,7 +146,7 @@ back_textlist(tlist, prev)
  * Close the current input file.
  */
 	static void
-close_file()
+close_file(void)
 {
 	struct scrpos scrpos;
 	
@@ -196,8 +190,7 @@ close_file()
  * Filename == NULL means just close the current file.
  */
 	public int
-edit(filename)
-	char *filename;
+edit(char *filename)
 {
 	if (filename == NULL)
 		return (edit_ifile(NULL_IFILE));
@@ -209,8 +202,7 @@ edit(filename)
  * ifile == NULL means just close the current file.
  */
 	public int
-edit_ifile(ifile)
-	IFILE ifile;
+edit_ifile(IFILE ifile)
 {
 	int f;
 	int answer;
@@ -460,8 +452,7 @@ edit_ifile(ifile)
  * Then edit the first one.
  */
 	public int
-edit_list(filelist)
-	char *filelist;
+edit_list(char *filelist)
 {
 	IFILE save_ifile;
 	char *good_filename;
@@ -518,7 +509,7 @@ edit_list(filelist)
  * Edit the first file in the command line (ifile) list.
  */
 	public int
-edit_first()
+edit_first(void)
 {
 	curr_ifile = NULL_IFILE;
 	return (edit_next(1));
@@ -528,7 +519,7 @@ edit_first()
  * Edit the last file in the command line (ifile) list.
  */
 	public int
-edit_last()
+edit_last(void)
 {
 	curr_ifile = NULL_IFILE;
 	return (edit_prev(1));
@@ -539,10 +530,7 @@ edit_last()
  * Edit the n-th next or previous file in the command line (ifile) list.
  */
 	static int
-edit_istep(h, n, dir)
-	IFILE h;
-	int n;
-	int dir;
+edit_istep(IFILE h, int n, int dir)
 {
 	IFILE next;
 
@@ -581,31 +569,25 @@ edit_istep(h, n, dir)
 }
 
 	static int
-edit_inext(h, n)
-	IFILE h;
-	int n;
+edit_inext(IFILE h, int n)
 {
 	return (edit_istep(h, n, +1));
 }
 
 	public int
-edit_next(n)
-	int n;
+edit_next(int n)
 {
 	return edit_istep(curr_ifile, n, +1);
 }
 
 	static int
-edit_iprev(h, n)
-	IFILE h;
-	int n;
+edit_iprev(IFILE h, int n)
 {
 	return (edit_istep(h, n, -1));
 }
 
 	public int
-edit_prev(n)
-	int n;
+edit_prev(int n)
 {
 	return edit_istep(curr_ifile, n, -1);
 }
@@ -614,8 +596,7 @@ edit_prev(n)
  * Edit a specific file in the command line (ifile) list.
  */
 	public int
-edit_index(n)
-	int n;
+edit_index(int n)
 {
 	IFILE h;
 
@@ -635,7 +616,7 @@ edit_index(n)
 }
 
 	public IFILE
-save_curr_ifile()
+save_curr_ifile(void)
 {
 	if (curr_ifile != NULL_IFILE)
 		hold_ifile(curr_ifile, 1);
@@ -643,8 +624,7 @@ save_curr_ifile()
 }
 
 	public void
-unsave_ifile(save_ifile)
-	IFILE save_ifile;
+unsave_ifile(IFILE save_ifile)
 {
 	if (save_ifile != NULL_IFILE)
 		hold_ifile(save_ifile, -1);
@@ -654,8 +634,7 @@ unsave_ifile(save_ifile)
  * Reedit the ifile which was previously open.
  */
 	public void
-reedit_ifile(save_ifile)
-	IFILE save_ifile;
+reedit_ifile(IFILE save_ifile)
 {
 	IFILE next;
 	IFILE prev;
@@ -688,7 +667,7 @@ reedit_ifile(save_ifile)
 }
 
 	public void
-reopen_curr_ifile()
+reopen_curr_ifile(void)
 {
 	IFILE save_ifile = save_curr_ifile();
 	close_file();
@@ -699,7 +678,7 @@ reopen_curr_ifile()
  * Edit standard input.
  */
 	public int
-edit_stdin()
+edit_stdin(void)
 {
 	if (isatty(fd0))
 	{
@@ -714,9 +693,9 @@ edit_stdin()
  * Used if standard output is not a tty.
  */
 	public void
-cat_file()
+cat_file(void)
 {
-	register int c;
+	int c;
 
 	while ((c = ch_forw_get()) != EOI)
 		putchr(c);
@@ -731,11 +710,10 @@ cat_file()
  * We take care not to blindly overwrite an existing file.
  */
 	public void
-use_logfile(filename)
-	char *filename;
+use_logfile(char *filename)
 {
-	register int exists;
-	register int answer;
+	int exists;
+	int answer;
 	PARG parg;
 
 	if (ch_getflags() & CH_CANSEEK)
