@@ -1429,7 +1429,7 @@ arm_gicv2m_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	mtx_lock(&sc->sc_mutex);
 
 	found = false;
-	for (irq = sc->sc_spi_start; irq < sc->sc_spi_end && !found; irq++) {
+	for (irq = sc->sc_spi_start; irq < sc->sc_spi_end; irq++) {
 		/* Start on an aligned interrupt */
 		if ((irq & (maxcount - 1)) != 0)
 			continue;
@@ -1438,7 +1438,7 @@ arm_gicv2m_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 		found = true;
 
 		/* Check this range is valid */
-		for (end_irq = irq; end_irq != irq + count - 1; end_irq++) {
+		for (end_irq = irq; end_irq != irq + count; end_irq++) {
 			/* No free interrupts */
 			if (end_irq == sc->sc_spi_end) {
 				found = false;
@@ -1455,6 +1455,8 @@ arm_gicv2m_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 				break;
 			}
 		}
+		if (found)
+			break;
 	}
 
 	/* Not enough interrupts were found */
