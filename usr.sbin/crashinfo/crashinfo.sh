@@ -35,6 +35,19 @@ usage()
 	exit 1
 }
 
+# Find a gdb binary to use and save the value in GDB.
+find_gdb()
+{
+	local binary
+
+	for binary in /usr/local/bin/gdb /usr/libexec/gdb /usr/bin/gdb; do
+		if [ -x ${binary} ]; then
+			GDB=${binary}
+			return
+		fi
+	done
+}
+
 # Run a single gdb command against a kernel file in batch mode.
 # The kernel file is specified as the first argument and the command
 # is given in the remaining arguments.
@@ -44,10 +57,10 @@ gdb_command()
 
 	k=$1 ; shift
 
-	if [ -x /usr/local/bin/gdb ]; then
-		/usr/local/bin/gdb -batch -ex "$@" $k
+	if [ ${GDB} = /usr/local/bin/gdb ]; then
+		${GDB} -batch -ex "$@" $k
 	else
-		echo -e "$@" | /usr/bin/gdb -x /dev/stdin -batch $k
+		echo -e "$@" | ${GDB} -x /dev/stdin -batch $k
 	fi
 }
 
@@ -140,6 +153,12 @@ INFO=$CRASHDIR/info.$DUMPNR
 FILE=$CRASHDIR/core.txt.$DUMPNR
 HOSTNAME=`hostname`
 
+find_gdb
+if [ -z "$GDB" ]; then
+	echo "Unable to find a kernel debugger."
+	exit 1
+fi
+
 if [ ! -e $VMCORE ]; then
 	echo "$VMCORE not found"
 	exit 1
@@ -189,11 +208,7 @@ file=`mktemp /tmp/crashinfo.XXXXXX`
 if [ $? -eq 0 ]; then
 	echo "bt" >> $file
 	echo "quit" >> $file
-	if [ -x /usr/local/bin/kgdb ]; then
-		/usr/local/bin/kgdb $KERNEL $VMCORE < $file
-	else
-		kgdb $KERNEL $VMCORE < $file
-	fi
+	${GDB%gdb}kgdb $KERNEL $VMCORE < $file
 	rm -f $file
 	echo
 fi
