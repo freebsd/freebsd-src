@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/signalvar.h>
+#include <sys/stdatomic.h>
 #include "un-namespace.h"
 
 #include "libc_private.h"
@@ -64,8 +65,15 @@ static _Unwind_Reason_Code thread_unwind_stop(int version,
 	struct _Unwind_Exception *exc_obj,
 	struct _Unwind_Context *context, void *stop_parameter);
 /* unwind library pointers */
-static _Unwind_Reason_Code (*uwl_forcedunwind)(struct _Unwind_Exception *,
+typedef _Unwind_Reason_Code (*uwl_forcedunwind_t)(struct _Unwind_Exception *,
 	_Unwind_Stop_Fn, void *);
+#ifdef __CHERI_PURE_CAPABILITY__
+static _Atomic(uwl_forcedunwind_t) uwl_forcedunwind;
+#else
+static uwl_forcedunwind_t uwl_forcedunwind;
+#endif
+static uwl_forcedunwind_t get_uwl_forcedunwind(void);
+
 static unsigned long (*uwl_getcfa)(struct _Unwind_Context *);
 
 static void
@@ -90,8 +98,17 @@ thread_uw_init(void)
 		    getcfa = dlsym(handle, "_Unwind_GetCFA");
 		    if (forcedunwind != NULL && getcfa != NULL) {
 			uwl_getcfa = getcfa;
+#ifndef __CHERI_PURE_CAPABILITY__
 			atomic_store_rel_ptr((volatile void *)&uwl_forcedunwind,
 				(uintptr_t)forcedunwind);
+#else
+			/*
+			 * XXXAR: Ideally we would use this for both cases but
+			 * GCC 4.2 doesn't support C11 atomics
+			 */
+			atomic_store_explicit(&uwl_forcedunwind, forcedunwind,
+			    memory_order_release);
+#endif
 		    } else {
 			dlclose(handle);
 		    }
@@ -101,11 +118,25 @@ thread_uw_init(void)
 	inited = 1;
 }
 
+static uwl_forcedunwind_t
+get_uwl_forcedunwind(void)
+{
+	uwl_forcedunwind_t func;
+
+#ifdef __CHERI_PURE_CAPABILITY__
+	func = atomic_load_explicit(&uwl_forcedunwind, memory_order_acquire);
+#else
+	func = (uwl_forcedunwind_t)atomic_load_acq_ptr(
+	    (volatile void *)&uwl_forcedunwind);
+#endif
+	return func;
+}
+
 _Unwind_Reason_Code
 _Unwind_ForcedUnwind(struct _Unwind_Exception *ex, _Unwind_Stop_Fn stop_func,
 	void *stop_arg)
 {
-	return (*uwl_forcedunwind)(ex, stop_func, stop_arg);
+	return (*get_uwl_forcedunwind())(ex, stop_func, stop_arg);
 }
 
 unsigned long
@@ -247,7 +278,7 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 
 #ifdef PIC
 	thread_uw_init();
-	if (uwl_forcedunwind != NULL) {
+	if (get_uwl_forcedunwind() != NULL) {
 #else
 	if (WEAK_SYMBOL_NONNULL(_Unwind_ForcedUnwind)) {
 #endif
