@@ -180,12 +180,12 @@
 .Ar bookmark
 .Nm
 .Cm send
-.Op Fl DnPpRveL
+.Op Fl DLPRcenpv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
 .Cm send
-.Op Fl eL
+.Op Fl Lce
 .Op Fl i Ar snapshot Ns | Ns bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
@@ -2535,7 +2535,7 @@ feature.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DnPpRveL
+.Op Fl DLPRcenpv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2580,7 +2580,7 @@ The incremental
 source may be specified as with the
 .Fl i
 option.
-.It Fl R
+.It Fl R, -replicate
 Generate a replication stream package, which will replicate the specified
 filesystem, and all descendent file systems, up to the named snapshot. When
 received, all properties, snapshots, descendent file systems, and clones are
@@ -2598,7 +2598,7 @@ is received. If the
 .Fl F
 flag is specified when this stream is received, snapshots and file systems that
 do not exist on the sending side are destroyed.
-.It Fl D
+.It Fl D, -dedup
 Generate a deduplicated stream. Blocks which would have been sent multiple
 times in the send stream will only be sent once.  The receiving system must
 also support this feature to receive a deduplicated stream.  This flag can
@@ -2607,7 +2607,7 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 ) .
-.It Fl L
+.It Fl L, -large-block
 Generate a stream which may contain blocks larger than 128KB.
 This flag
 has no effect if the
@@ -2623,7 +2623,7 @@ See
 for details on ZFS feature flags and the
 .Sy large_blocks
 feature.
-.It Fl e
+.It Fl e, -embed
 Generate a more compact stream by using WRITE_EMBEDDED records for blocks
 which are stored more compactly on disk by the
 .Sy embedded_data
@@ -2646,11 +2646,25 @@ See
 for details on ZFS feature flags and the
 .Sy embedded_data
 feature.
-.It Fl p
+.It Fl c, -compressed
+Generate a more compact stream by using compressed WRITE records for blocks
+which are compressed on disk and in memory (see the
+.Sy compression property for details).  If the
+.Sy lz4_compress
+feature is active on the sending system, then the receiving system must have that
+feature enabled as well. If the
+.Sy large_blocks
+feature is enabled on the sending system but the
+.Fl L
+option is not supplied in conjunction with
+.Fl c
+then the data will be decompressed before sending so it can be split
+into smaller block sizes.
+.It Fl p, -props
 Include the dataset's properties in the stream. This flag is implicit when
 .Fl R
 is specified. The receiving system must also support this feature.
-.It Fl n
+.It Fl n, -dryrun
 Do a dry-run ("No-op") send.  Do not generate any actual send data.  This is
 useful in conjunction with the
 .Fl v
@@ -2660,9 +2674,9 @@ flags to determine what data will be sent.
 In this case, the verbose output will be written to
 standard output (contrast with a non-dry-run, where the stream is written
 to standard output and the verbose output goes to standard error).
-.It Fl P
+.It Fl P, -parsable
 Print machine-parsable verbose information about the stream package generated.
-.It Fl v
+.It Fl v, -verbose
 Print verbose information about the stream package generated.
 This information includes a per-second report of how much data has been sent.
 .El
@@ -2673,7 +2687,7 @@ on future versions of
 .It Xo
 .Nm
 .Cm send
-.Op Fl eL
+.Op Fl Lce
 .Op Fl i Ar snapshot Ns | Ns Ar bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
@@ -2699,7 +2713,7 @@ specified as the last component of the name
 If the incremental target is a clone, the incremental source can
 be the origin snapshot, or an earlier snapshot in the origin's filesystem,
 or the origin's origin, etc.
-.It Fl L
+.It Fl L, -large-block
 Generate a stream which may contain blocks larger than 128KB.
 This flag
 has no effect if the
@@ -2715,7 +2729,22 @@ See
 for details on ZFS feature flags and the
 .Sy large_blocks
 feature.
-.It Fl e
+.It Fl c, -compressed
+Generate a more compact stream by using compressed WRITE records for blocks
+which are compressed on disk and in memory (see the
+.Sy compression
+property for details).  If the
+.Sy lz4_compress
+feature is active on the sending system, then the receiving system must have
+that feature enabled as well. If the
+.Sy large_blocks
+feature is enabled on the sending system but the
+.Fl L
+option is not supplied in conjunction with
+.Fl c
+then the data will be decompressed before sending so it can be split
+into smaller block sizes.
+.It Fl e, -embed
 Generate a more compact stream by using WRITE_EMBEDDED records for blocks
 which are stored more compactly on disk by the
 .Sy embedded_data
