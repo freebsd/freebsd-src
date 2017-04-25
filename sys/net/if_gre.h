@@ -69,7 +69,6 @@ struct gre_softc {
 	uint32_t		gre_oseq;
 	uint32_t		gre_key;
 	uint32_t		gre_options;
-	uint32_t		gre_mtu;
 	u_int			gre_fibnum;
 	u_int			gre_hlen;	/* header size */
 	union {
