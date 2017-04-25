@@ -205,8 +205,9 @@ static int attrmode = AT_NORMAL;
 extern int binattr;
 
 #if !MSDOS_COMPILER
-static char *cheaper();
-static void tmodes();
+static char *cheaper(char *t1, char *t2, char *def);
+static void tmodes(char *incap, char *outcap, char **instr, char **outstr,
+	char *def_instr, char *def_outstr, char **spp);
 #endif
 
 /*
@@ -253,8 +254,7 @@ extern char *tgoto();
  * It doesn't matter whether an input \n is mapped to \r, or vice versa.
  */
 	public void
-raw_mode(on)
-	int on;
+raw_mode(int on)
 {
 	static int curr_on = 0;
 
@@ -618,8 +618,7 @@ raw_mode(on)
 static int hardcopy;
 
 	static char *
-ltget_env(capname)
-	char *capname;
+ltget_env(char *capname)
 {
 	char name[16];
 	char *s;
@@ -647,8 +646,7 @@ ltget_env(capname)
 }
 
 	static int
-ltgetflag(capname)
-	char *capname;
+ltgetflag(char *capname)
 {
 	char *s;
 
@@ -660,8 +658,7 @@ ltgetflag(capname)
 }
 
 	static int
-ltgetnum(capname)
-	char *capname;
+ltgetnum(char *capname)
 {
 	char *s;
 
@@ -673,9 +670,7 @@ ltgetnum(capname)
 }
 
 	static char *
-ltgetstr(capname, pp)
-	char *capname;
-	char **pp;
+ltgetstr(char *capname, char **pp)
 {
 	char *s;
 
@@ -691,9 +686,9 @@ ltgetstr(capname, pp)
  * Get size of the output screen.
  */
 	public void
-scrsize()
+scrsize(void)
 {
-	register char *s;
+	char *s;
 	int sys_height;
 	int sys_width;
 #if !MSDOS_COMPILER
@@ -821,7 +816,7 @@ scrsize()
  * Figure out how many empty loops it takes to delay a millisecond.
  */
 	static void
-get_clock()
+get_clock(void)
 {
 	clock_t start;
 	
@@ -849,15 +844,14 @@ get_clock()
  * Delay for a specified number of milliseconds.
  */
 	static void
-dummy_func()
+dummy_func(void)
 {
 	static long delay_dummy = 0;
 	delay_dummy++;
 }
 
 	static void
-delay(msec)
-	int msec;
+delay(int msec)
 {
 	long i;
 	
@@ -879,8 +873,7 @@ delay(msec)
  * Return the characters actually input by a "special" key.
  */
 	public char *
-special_key_str(key)
-	int key;
+special_key_str(int key)
 {
 	static char tbuf[40];
 	char *s;
@@ -1052,7 +1045,7 @@ special_key_str(key)
  * Get terminal capabilities via termcap.
  */
 	public void
-get_term()
+get_term(void)
 {
 #if MSDOS_COMPILER
 	auto_wrap = 1;
@@ -1117,7 +1110,7 @@ get_term()
 #else /* !MSDOS_COMPILER */
 
 	char *sp;
-	register char *t1, *t2;
+	char *t1, *t2;
 	char *term;
 	char termbuf[TERMBUF_SIZE];
 
@@ -1349,16 +1342,14 @@ static int costcount;
 
 /*ARGSUSED*/
 	static int
-inc_costcount(c)
-	int c;
+inc_costcount(int c)
 {
 	costcount++;
 	return (c);
 }
 
 	static int
-cost(t)
-	char *t;
+cost(char *t)
 {
 	costcount = 0;
 	tputs(t, sc_height, inc_costcount);
@@ -1371,9 +1362,7 @@ cost(t)
  * cost (see cost() function).
  */
 	static char *
-cheaper(t1, t2, def)
-	char *t1, *t2;
-	char *def;
+cheaper(char *t1, char *t2, char *def)
 {
 	if (*t1 == '\0' && *t2 == '\0')
 	{
@@ -1390,14 +1379,8 @@ cheaper(t1, t2, def)
 }
 
 	static void
-tmodes(incap, outcap, instr, outstr, def_instr, def_outstr, spp)
-	char *incap;
-	char *outcap;
-	char **instr;
-	char **outstr;
-	char *def_instr;
-	char *def_outstr;
-	char **spp;
+tmodes(char *incap, char *outcap, char **instr, char **outstr, char *def_instr,
+    char *def_outstr, char **spp)
 {
 	*instr = ltgetstr(incap, spp);
 	if (*instr == NULL)
@@ -1446,7 +1429,7 @@ _settextposition(int row, int col)
  * Initialize the screen to the correct color at startup.
  */
 	static void
-initcolor()
+initcolor(void)
 {
 	SETCOLORS(nm_fg_color, nm_bg_color);
 #if 0
@@ -1479,7 +1462,7 @@ initcolor()
  * Termcap-like init with a private win32 console.
  */
 	static void
-win32_init_term()
+win32_init_term(void)
 {
 	CONSOLE_SCREEN_BUFFER_INFO scr;
 	COORD size;
@@ -1530,7 +1513,7 @@ win32_deinit_term()
  * Initialize terminal
  */
 	public void
-init()
+init(void)
 {
 #if !MSDOS_COMPILER
 	if (!no_init)
@@ -1566,7 +1549,7 @@ init()
  * Deinitialize terminal
  */
 	public void
-deinit()
+deinit(void)
 {
 	if (!init_done)
 		return;
@@ -1593,7 +1576,7 @@ deinit()
  * Home cursor (move to upper left corner of screen).
  */
 	public void
-home()
+home(void)
 {
 #if !MSDOS_COMPILER
 	tputs(sc_home, 1, putchr);
@@ -1608,7 +1591,7 @@ home()
  * Should scroll the display down.
  */
 	public void
-add_line()
+add_line(void)
 {
 #if !MSDOS_COMPILER
 	tputs(sc_addline, sc_height, putchr);
@@ -1666,8 +1649,7 @@ add_line()
  * into the scrollback buffer when we go down-one-line (in WIN32).
  */
 	public void
-remove_top(n)
-	int n;
+remove_top(int n)
 {
 #if MSDOS_COMPILER==WIN32C
 	SMALL_RECT rcSrc, rcClip;
@@ -1720,7 +1702,7 @@ remove_top(n)
  * Clear the screen.
  */
 	static void
-win32_clear()
+win32_clear(void)
 {
 	/*
 	 * This will clear only the currently visible rows of the NT
@@ -1751,8 +1733,7 @@ win32_clear()
  * window upward.
  */
 	public void
-win32_scroll_up(n)
-	int n;
+win32_scroll_up(int n)
 {
 	SMALL_RECT rcSrc, rcClip;
 	CHAR_INFO fillchar;
@@ -1817,7 +1798,7 @@ win32_scroll_up(n)
  * Move cursor to lower left corner of screen.
  */
 	public void
-lower_left()
+lower_left(void)
 {
 #if !MSDOS_COMPILER
 	tputs(sc_lower_left, 1, putchr);
@@ -1831,7 +1812,7 @@ lower_left()
  * Move cursor to left position of current line.
  */
 	public void
-line_left()
+line_left(void)
 {
 #if !MSDOS_COMPILER
 	tputs(sc_return, 1, putchr);
@@ -1863,7 +1844,7 @@ line_left()
  * (in lieu of SIGWINCH for WIN32).
  */
 	public void
-check_winch()
+check_winch(void)
 {
 #if MSDOS_COMPILER==WIN32C
 	CONSOLE_SCREEN_BUFFER_INFO scr;
@@ -1893,8 +1874,7 @@ check_winch()
  * Goto a specific line on the screen.
  */
 	public void
-goto_line(slinenum)
-	int slinenum;
+goto_line(int slinenum)
 {
 #if !MSDOS_COMPILER
 	tputs(tgoto(sc_move, 0, slinenum), 1, putchr);
@@ -1912,7 +1892,7 @@ goto_line(slinenum)
  * {{ Yuck!  There must be a better way to get a visual bell. }}
  */
 	static void
-create_flash()
+create_flash(void)
 {
 #if MSDOS_COMPILER==MSOFTC
 	struct videoconfig w;
@@ -1941,7 +1921,7 @@ create_flash()
 	}
 #else
 #if MSDOS_COMPILER==BORLANDC
-	register int n;
+	int n;
 
 	whitescreen = (unsigned short *) 
 		malloc(sc_width * sc_height * sizeof(short));
@@ -1951,7 +1931,7 @@ create_flash()
 		whitescreen[n] = 0x7020;
 #else
 #if MSDOS_COMPILER==WIN32C
-	register int n;
+	int n;
 
 	whitescreen = (WORD *)
 		malloc(sc_height * sc_width * sizeof(WORD));
@@ -1971,7 +1951,7 @@ create_flash()
  * Output the "visual bell", if there is one.
  */
 	public void
-vbell()
+vbell(void)
 {
 #if !MSDOS_COMPILER
 	if (*sc_visual_bell == '\0')
@@ -2035,7 +2015,7 @@ vbell()
  * Make a noise.
  */
 	static void
-beep()
+beep(void)
 {
 #if !MSDOS_COMPILER
 	putchr(CONTROL('G'));
@@ -2052,7 +2032,7 @@ beep()
  * Ring the terminal bell.
  */
 	public void
-bell()
+bell(void)
 {
 	if (quiet == VERY_QUIET)
 		vbell();
@@ -2064,7 +2044,7 @@ bell()
  * Clear the screen.
  */
 	public void
-clear()
+clear(void)
 {
 #if !MSDOS_COMPILER
 	tputs(sc_clear, sc_height, putchr);
@@ -2083,7 +2063,7 @@ clear()
  * {{ This must not move the cursor. }}
  */
 	public void
-clear_eol()
+clear_eol(void)
 {
 #if !MSDOS_COMPILER
 	tputs(sc_eol_clear, 1, putchr);
@@ -2142,7 +2122,7 @@ clear_eol()
  * Clear the screen if there's off-screen memory below the display.
  */
 	static void
-clear_eol_bot()
+clear_eol_bot(void)
 {
 #if MSDOS_COMPILER
 	clear_eol();
@@ -2159,7 +2139,7 @@ clear_eol_bot()
  * Leave the cursor at the beginning of the bottom line.
  */
 	public void
-clear_bot()
+clear_bot(void)
 {
 	/*
 	 * If we're in a non-normal attribute mode, temporarily exit
@@ -2184,8 +2164,7 @@ clear_bot()
 }
 
 	public void
-at_enter(attr)
-	int attr;
+at_enter(int attr)
 {
 	attr = apply_at_specials(attr);
 
@@ -2223,7 +2202,7 @@ at_enter(attr)
 }
 
 	public void
-at_exit()
+at_exit(void)
 {
 #if !MSDOS_COMPILER
 	/* Undo things in the reverse order we did them.  */
@@ -2244,8 +2223,7 @@ at_exit()
 }
 
 	public void
-at_switch(attr)
-	int attr;
+at_switch(int attr)
 {
 	int new_attrmode = apply_at_specials(attr);
 	int ignore_modes = AT_ANSI;
@@ -2258,9 +2236,7 @@ at_switch(attr)
 }
 
 	public int
-is_at_equiv(attr1, attr2)
-	int attr1;
-	int attr2;
+is_at_equiv(int attr1, int attr2)
 {
 	attr1 = apply_at_specials(attr1);
 	attr2 = apply_at_specials(attr2);
@@ -2269,8 +2245,7 @@ is_at_equiv(attr1, attr2)
 }
 
 	public int
-apply_at_specials(attr)
-	int attr;
+apply_at_specials(int attr)
 {
 	if (attr & AT_BINARY)
 		attr |= binattr;
@@ -2287,7 +2262,7 @@ apply_at_specials(attr)
  * and move the cursor left.
  */
 	public void
-backspace()
+backspace(void)
 {
 #if !MSDOS_COMPILER
 	/* 
@@ -2336,7 +2311,7 @@ backspace()
  * Output a plain backspace, without erasing the previous char.
  */
 	public void
-putbs()
+putbs(void)
 {
 #if !MSDOS_COMPILER
 	tputs(sc_backspace, 1, putchr);
@@ -2375,8 +2350,7 @@ putbs()
  * Determine whether an input character is waiting to be read.
  */
 	static int
-win32_kbhit(tty)
-	HANDLE tty;
+win32_kbhit(HANDLE tty)
 {
 	INPUT_RECORD ip;
 	DWORD read;
@@ -2440,8 +2414,7 @@ win32_kbhit(tty)
  * Read a character from the keyboard.
  */
 	public char
-WIN32getch(tty)
-	int tty;
+WIN32getch(int tty)
 {
 	int ascii;
 
@@ -2474,9 +2447,7 @@ WIN32getch(tty)
 /*
  */
 	public void
-WIN32setcolors(fg, bg)
-	int fg;
-	int bg;
+WIN32setcolors(int fg, int bg)
 {
 	SETCOLORS(fg, bg);
 }
@@ -2484,9 +2455,7 @@ WIN32setcolors(fg, bg)
 /*
  */
 	public void
-WIN32textout(text, len)
-	char *text;
-	int len;
+WIN32textout(char *text, int len)
 {
 #if MSDOS_COMPILER==WIN32C
 	DWORD written;

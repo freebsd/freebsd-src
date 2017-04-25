@@ -38,14 +38,14 @@ static char metachars[64] = "";
 static int num_metachars = 0;
 
 	static void
-pr_usage()
+pr_usage(void)
 {
 	fprintf(stderr,
 		"usage: lessecho [-ox] [-cx] [-pn] [-dn] [-mx] [-nn] [-ex] [-fn] [-a] file ...\n");
 }
 
 	static void
-pr_version()
+pr_version(void)
 {
 	char *p;
 	char buf[10];
@@ -61,18 +61,14 @@ pr_version()
 }
 
 	static void
-pr_error(s)
-	char *s;
+pr_error(char *s)
 {
 	fprintf(stderr, "%s\n", s);
 	exit(1);
 }
 
 	static long
-lstrtol(s, radix, pend)
-	char *s;
-	int radix;
-	char **pend;
+lstrtol(char *s, int radix, char **pend)
 {
 	int v;
 	int neg = 0;

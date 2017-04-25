@@ -82,7 +82,7 @@ struct ungot {
 };
 static struct ungot* ungot = NULL;
 
-static void multi_search();
+static void multi_search(char *pattern, int n, int silent);
 
 /*
  * Move the cursor to start of prompt line before executing a command.
@@ -90,7 +90,7 @@ static void multi_search();
  * updating the screen.
  */
 	static void
-cmd_exec()
+cmd_exec(void)
 {
 #if HILITE_SEARCH
 	clear_attn();
@@ -103,11 +103,7 @@ cmd_exec()
  * Set up the display to start a new multi-character command.
  */
 	static void
-start_mca(action, prompt, mlist, cmdflags)
-	int action;
-	constant char *prompt;
-	constant void *mlist;
-	int cmdflags;
+start_mca(int action, constant char *prompt, constant void *mlist, int cmdflags)
 {
 	mca = action;
 	clear_bot();
@@ -117,7 +113,7 @@ start_mca(action, prompt, mlist, cmdflags)
 }
 
 	public int
-in_mca()
+in_mca(void)
 {
 	return (mca != 0 && mca != A_PREFIX);
 }
@@ -126,7 +122,7 @@ in_mca()
  * Set up the display to start a new search command.
  */
 	static void
-mca_search()
+mca_search(void)
 {
 #if HILITE_SEARCH
 	if (search_type & SRCH_FILTER)
@@ -169,7 +165,7 @@ mca_search()
  * Set up the display to start a new toggle-option command.
  */
 	static void
-mca_opt_toggle()
+mca_opt_toggle(void)
 {
 	int no_prompt;
 	int flag;
@@ -204,9 +200,9 @@ mca_opt_toggle()
  * Execute a multicharacter command.
  */
 	static void
-exec_mca()
+exec_mca(void)
 {
-	register char *cbuf;
+	char *cbuf;
 
 	cmd_exec();
 	cbuf = get_cmdbuf();
@@ -294,8 +290,7 @@ exec_mca()
  * Is a character an erase or kill char?
  */
 	static int
-is_erase_char(c)
-	int c;
+is_erase_char(int c)
 {
 	return (c == erase_char || c == erase2_char || c == kill_char);
 }
@@ -304,8 +299,7 @@ is_erase_char(c)
  * Handle the first char of an option (after the initial dash).
  */
 	static int
-mca_opt_first_char(c)
-    int c;
+mca_opt_first_char(int c)
 {
 	int flag = (optflag & ~OPT_NO_PROMPT);
 	if (flag == OPT_NO_TOGGLE)
@@ -356,8 +350,7 @@ mca_opt_first_char(c)
  * accepting chars until user hits RETURN.
  */
 	static int
-mca_opt_nonfirst_char(c)
-	int c;
+mca_opt_nonfirst_char(int c)
 {
 	char *p;
 	char *oname;
@@ -406,8 +399,7 @@ mca_opt_nonfirst_char(c)
  * Handle a char of an option toggle command.
  */
 	static int
-mca_opt_char(c)
-	int c;
+mca_opt_char(int c)
 {
 	PARG parg;
 
@@ -472,8 +464,7 @@ mca_opt_char(c)
  * Handle a char of a search command.
  */
 	static int
-mca_search_char(c)
-	int c;
+mca_search_char(int c)
 {
 	int flag = 0;
 
@@ -525,8 +516,7 @@ mca_search_char(c)
  * Handle a character of a multi-character command.
  */
 	static int
-mca_char(c)
-	int c;
+mca_char(int c)
 {
 	int ret;
 
@@ -628,7 +618,7 @@ mca_char(c)
  * Discard any buffered file data.
  */
 	static void
-clear_buffers()
+clear_buffers(void)
 {
 	if (!(ch_getflags() & CH_CANSEEK))
 		return;
@@ -643,7 +633,7 @@ clear_buffers()
  * Make sure the screen is displayed.
  */
 	static void
-make_display()
+make_display(void)
 {
 	/*
 	 * If nothing is displayed yet, display starting from initial_scrpos.
@@ -683,9 +673,9 @@ make_display()
  * Display the appropriate prompt.
  */
 	static void
-prompt()
+prompt(void)
 {
-	register constant char *p;
+	constant char *p;
 
 	if (ungot != NULL && !ungot->ug_end_command)
 	{
@@ -760,7 +750,7 @@ prompt()
  * Display the less version message.
  */
 	public void
-dispversion()
+dispversion(void)
 {
 	PARG parg;
 
@@ -775,7 +765,7 @@ dispversion()
  * (characters previously given to ungetcc or ungetsc).
  */
 	public int
-getcc()
+getcc(void)
 {
 	if (ungot == NULL)
 	{
@@ -830,8 +820,7 @@ getcc()
  * The next getcc() will return this character.
  */
 	public void
-ungetcc(c)
-	int c;
+ungetcc(int c)
 {
 	struct ungot *ug = (struct ungot *) ecalloc(1, sizeof(struct ungot));
 
@@ -846,10 +835,9 @@ ungetcc(c)
  * The next sequence of getcc()'s will return this string.
  */
 	public void
-ungetsc(s)
-	char *s;
+ungetsc(char *s)
 {
-	register char *p;
+	char *p;
 
 	for (p = s + strlen(s) - 1;  p >= s;  p--)
 		ungetcc(*p);
@@ -861,12 +849,9 @@ ungetsc(s)
  * If SRCH_PAST_EOF is set, continue the search thru multiple files.
  */
 	static void
-multi_search(pattern, n, silent)
-	char *pattern;
-	int n;
-	int silent;
+multi_search(char *pattern, int n, int silent)
 {
-	register int nomore;
+	int nomore;
 	IFILE save_ifile;
 	int changed_file;
 
@@ -958,8 +943,7 @@ multi_search(pattern, n, silent)
  * Forward forever, or until a highlighted line appears.
  */
 	static int
-forw_loop(until_hilite)
-	int until_hilite;
+forw_loop(int until_hilite)
 {
 	POSITION curr_len;
 
@@ -999,11 +983,11 @@ forw_loop(until_hilite)
  * Accept and execute commands until a quit command.
  */
 	public void
-commands()
+commands(void)
 {
-	register int c;
-	register int action;
-	register char *cbuf;
+	int c;
+	int action;
+	char *cbuf;
 	int newaction;
 	int save_search_type;
 	char *extra;

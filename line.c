@@ -40,9 +40,9 @@ static POSITION pendpos;
 static char *end_ansi_chars;
 static char *mid_ansi_chars;
 
-static int attr_swidth();
-static int attr_ewidth();
-static int do_append();
+static int attr_swidth(int);
+static int attr_ewidth(int);
+static int do_append(LWCHAR, char *, POSITION);
 
 extern int sigs;
 extern int bs_mode;
@@ -70,7 +70,7 @@ static POSITION mbc_pos;
  * Initialize from environment variables.
  */
 	public void
-init_line()
+init_line(void)
 {
 	end_ansi_chars = lgetenv("LESSANSIENDCHARS");
 	if (end_ansi_chars == NULL || *end_ansi_chars == '\0')
@@ -89,7 +89,7 @@ init_line()
  * Expand the line buffer.
  */
 	static int
-expand_linebuf()
+expand_linebuf(void)
 {
 	/* Double the size of the line buffer. */
 	int new_size = size_linebuf * 2;
@@ -137,8 +137,7 @@ expand_linebuf()
  * Is a character ASCII?
  */
 	public int
-is_ascii_char(ch)
-	LWCHAR ch;
+is_ascii_char(LWCHAR ch)
 {
 	return (ch <= 0x7F);
 }
@@ -147,7 +146,7 @@ is_ascii_char(ch)
  * Rewind the line buffer.
  */
 	public void
-prewind()
+prewind(void)
 {
 	curr = 0;
 	column = 0;
@@ -166,11 +165,10 @@ prewind()
  * Insert the line number (of the given position) into the line buffer.
  */
 	public void
-plinenum(pos)
-	POSITION pos;
+plinenum(POSITION pos)
 {
-	register LINENUM linenum = 0;
-	register int i;
+	LINENUM linenum = 0;
+	int i;
 
 	if (linenums == OPT_ONPLUS)
 	{
@@ -237,8 +235,7 @@ plinenum(pos)
  * This means discarding N printable chars at the start of the buffer.
  */
 	static void
-pshift(shift)
-	int shift;
+pshift(int shift)
 {
 	LWCHAR prev_ch = 0;
 	unsigned char c;
@@ -355,7 +352,7 @@ pshift(shift)
  *
  */
 	public void
-pshift_all()
+pshift_all(void)
 {
 	pshift(column);
 }
@@ -365,8 +362,7 @@ pshift_all()
  * for a given character attribute.
  */
 	static int
-attr_swidth(a)
-	int a;
+attr_swidth(int a)
 {
 	int w = 0;
 
@@ -389,8 +385,7 @@ attr_swidth(a)
  * for a given character attribute.
  */
 	static int
-attr_ewidth(a)
-	int a;
+attr_ewidth(int a)
 {
 	int w = 0;
 
@@ -415,10 +410,7 @@ attr_ewidth(a)
  * attribute sequence to be inserted, so this must be taken into account.
  */
 	static int
-pwidth(ch, a, prev_ch)
-	LWCHAR ch;
-	int a;
-	LWCHAR prev_ch;
+pwidth(LWCHAR ch, int a, LWCHAR prev_ch)
 {
 	int w;
 
@@ -479,10 +471,10 @@ pwidth(ch, a, prev_ch)
  * Return 1 if one is found.
  */
 	static int
-backc()
+backc(void)
 {
 	LWCHAR prev_ch;
-	char *p = linebuf + curr;
+	constant char *p = linebuf + curr;
 	LWCHAR ch = step_char(&p, -1, linebuf + lmargin);
 	int width;
 
@@ -507,9 +499,9 @@ backc()
  * Are we currently within a recognized ANSI escape sequence?
  */
 	static int
-in_ansi_esc_seq()
+in_ansi_esc_seq(void)
 {
-	char *p;
+	constant char *p;
 
 	/*
 	 * Search backwards for either an ESC (which means we ARE in a seq);
@@ -530,8 +522,7 @@ in_ansi_esc_seq()
  * Is a character the end of an ANSI escape sequence?
  */
 	public int
-is_ansi_end(ch)
-	LWCHAR ch;
+is_ansi_end(LWCHAR ch)
 {
 	if (!is_ascii_char(ch))
 		return (0);
@@ -542,8 +533,7 @@ is_ansi_end(ch)
  *
  */
 	public int
-is_ansi_middle(ch)
-	LWCHAR ch;
+is_ansi_middle(LWCHAR ch)
 {
 	if (!is_ascii_char(ch))
 		return (0);
@@ -561,11 +551,7 @@ is_ansi_middle(ch)
 	} while (0)
 
 	static int
-store_char(ch, a, rep, pos)
-	LWCHAR ch;
-	int a;
-	char *rep;
-	POSITION pos;
+store_char(LWCHAR ch, int a, char *rep, POSITION pos)
 {
 	int w;
 	int replen;
@@ -599,7 +585,7 @@ store_char(ch, a, rep, pos)
 	{
 		if (!is_ansi_end(ch) && !is_ansi_middle(ch)) {
 			/* Remove whole unrecognized sequence.  */
-			char *p = &linebuf[curr];
+			constant char *p = &linebuf[curr];
 			LWCHAR bch;
 			do {
 				bch = step_char(&p, -1, linebuf);
@@ -617,7 +603,7 @@ store_char(ch, a, rep, pos)
 	}
 	else
 	{
-		char *p = &linebuf[curr];
+		constant char *p = &linebuf[curr];
 		LWCHAR prev_ch = step_char(&p, -1, linebuf);
 		w = pwidth(ch, a, prev_ch);
 	}
@@ -665,9 +651,7 @@ store_char(ch, a, rep, pos)
 	do { if (store_tab((a),(pos))) return (1); } while (0)
 
 	static int
-store_tab(attr, pos)
-	int attr;
-	POSITION pos;
+store_tab(int attr, POSITION pos)
 {
 	int to_tab = column + cshift - lmargin;
 	int i;
@@ -696,9 +680,7 @@ store_tab(attr, pos)
 	do { if (store_prchar((c), (pos))) return 1; } while (0)
 
 	static int
-store_prchar(c, pos)
-	LWCHAR c;
-	POSITION pos;
+store_prchar(LWCHAR c, POSITION pos)
 {
 	char *s;
 
@@ -722,8 +704,7 @@ store_prchar(c, pos)
 }
 
 	static int
-flush_mbc_buf(pos)
-	POSITION pos;
+flush_mbc_buf(POSITION pos)
 {
 	int i;
 
@@ -740,9 +721,7 @@ flush_mbc_buf(pos)
  * Returns 0 if ok, 1 if couldn't fit in buffer.
  */
 	public int
-pappend(c, pos)
-	unsigned char c;
-	POSITION pos;
+pappend(unsigned char c, POSITION pos)
 {
 	int r;
 
@@ -845,12 +824,9 @@ pappend(c, pos)
 }
 
 	static int
-do_append(ch, rep, pos)
-	LWCHAR ch;
-	char *rep;
-	POSITION pos;
+do_append(LWCHAR ch, char *rep, POSITION pos)
 {
-	register int a;
+	int a;
 	LWCHAR prev_ch;
 
 	a = AT_NORMAL;
@@ -985,7 +961,7 @@ do_append(ch, rep, pos)
  *
  */
 	public int
-pflushmbc()
+pflushmbc(void)
 {
 	int r = 0;
 
@@ -1002,9 +978,7 @@ pflushmbc()
  * Terminate the line in the line buffer.
  */
 	public void
-pdone(endline, forw)
-	int endline;
-	int forw;
+pdone(int endline, int forw)
 {
 	(void) pflushmbc();
 
@@ -1081,8 +1055,7 @@ pdone(endline, forw)
  *
  */
 	public void
-set_status_col(c)
-	char c;
+set_status_col(char c)
 {
 	linebuf[0] = c;
 	attr[0] = AT_NORMAL|AT_HILITE;
@@ -1094,9 +1067,7 @@ set_status_col(c)
  * and the character attribute in *ap.
  */
 	public int
-gline(i, ap)
-	register int i;
-	register int *ap;
+gline(int i, int *ap)
 {
 	if (is_null_line)
 	{
@@ -1126,7 +1097,7 @@ gline(i, ap)
  * Indicate that there is no current line.
  */
 	public void
-null_line()
+null_line(void)
 {
 	is_null_line = 1;
 	cshift = 0;
@@ -1138,13 +1109,10 @@ null_line()
  * {{ This is supposed to be more efficient than forw_line(). }}
  */
 	public POSITION
-forw_raw_line(curr_pos, linep, line_lenp)
-	POSITION curr_pos;
-	char **linep;
-	int *line_lenp;
+forw_raw_line(POSITION curr_pos, char **linep, int *line_lenp)
 {
-	register int n;
-	register int c;
+	int n;
+	int c;
 	POSITION new_pos;
 
 	if (curr_pos == NULL_POSITION || ch_seek(curr_pos) ||
@@ -1187,13 +1155,10 @@ forw_raw_line(curr_pos, linep, line_lenp)
  * {{ This is supposed to be more efficient than back_line(). }}
  */
 	public POSITION
-back_raw_line(curr_pos, linep, line_lenp)
-	POSITION curr_pos;
-	char **linep;
-	int *line_lenp;
+back_raw_line(POSITION curr_pos, char **linep, int *line_lenp)
 {
-	register int n;
-	register int c;
+	int n;
+	int c;
 	POSITION new_pos;
 
 	if (curr_pos == NULL_POSITION || curr_pos <= ch_zero() ||
