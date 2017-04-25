@@ -249,7 +249,6 @@ union descriptor {
 #define	LSYS5SIGR_SEL	1
 #define	L43BSDCALLS_SEL	2	/* notyet */
 #define	LUCODE_SEL	3
-#define	LSOL26CALLS_SEL	4	/* Solaris >= 2.6 system call gate */
 #define	LUDATA_SEL	5
 /* separate stack, es,fs,gs sels ? */
 /* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
