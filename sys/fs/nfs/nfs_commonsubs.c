@@ -148,7 +148,7 @@ struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Test StateID */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Want Delegation */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0, 0 },		/* Destroy ClientID */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Reclaim Complete */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Reclaim Complete */
 };
 #endif	/* !APPLEKEXT */
 
