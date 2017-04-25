@@ -156,9 +156,6 @@ CRUNCH_PROGS_sbin+= bsdlabel fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
-CRUNCH_SRCDIR_atm= ${SRCTOP}/sbin/atm/atm
-CRUNCH_SRCDIR_atmconfig= ${SRCTOP}/sbin/atm/atmconfig
-CRUNCH_SRCDIR_fore_dnld= ${SRCTOP}/sbin/atm/fore_dnld
 CRUNCH_SRCDIR_ilmid= ${SRCTOP}/sbin/atm/ilmid
 CRUNCH_SRCDIR_rtquery= ${SRCTOP}/sbin/routed/rtquery
 CRUNCH_SRCDIR_ipf= ${SRCTOP}/sbin/ipf/ipf
