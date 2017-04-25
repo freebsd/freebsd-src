@@ -1099,9 +1099,9 @@ open_interface(const char *device, netdissect_options *ndo, char *ebuf)
 			/*
 			 * Return an error for our caller to handle.
 			 */
-			pcap_close(pc);
 			snprintf(ebuf, PCAP_ERRBUF_SIZE, "%s: %s\n(%s)",
 			    device, pcap_statustostr(status), cp);
+			pcap_close(pc);
 			return (NULL);
 		} else if (status == PCAP_ERROR_PERM_DENIED && *cp != '\0')
 			error("%s: %s\n(%s)", device,
