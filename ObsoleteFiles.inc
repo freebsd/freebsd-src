@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170425: NATM configuration support removed
+OLD_FILES+=etc/rc.d/atm1
+OLD_FILES+=etc/rc.d/atm2
+OLD_FILES+=etc/rc.d/atm3
 # 20170424: NATM support removed
 OLD_FILES+=rescue/atmconfig
 OLD_FILES+=sbin/atmconfig

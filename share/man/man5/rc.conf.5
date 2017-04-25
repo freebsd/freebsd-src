@@ -2753,19 +2753,6 @@ variable is assumed to exist
 whose contents will later be passed to a
 .Dq Nm route Cm add Fl inet6
 operation.
-.It Va natm_static_routes
-.Pq Vt str
-The
-.Xr natmip 4
-equivalent of
-.Va static_routes .
-If not empty then for each whitespace separated
-.Ar element
-in the value, a
-.Va route_ Ns Aq Ar element
-variable is assumed to exist whose contents will later be passed to a
-.Dq Nm atmconfig Cm natm Cm add
-operation.
 .It Va gateway_enable
 .Pq Vt bool
 If set to
@@ -2946,136 +2933,6 @@ is mutually exclusive to
 .Va rtsol_flags ;
 .Va rtsold_enable
 takes precedence.
-.It Va atm_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to enable the configuration of ATM interfaces at system boot time.
-For all of the ATM variables described below, please refer to the
-.Xr atm 8
-manual page for further details on the available command parameters.
-Also refer to the files in
-.Pa /usr/share/examples/atm
-for more detailed configuration information.
-.It Va atm_load
-.Pq Vt str
-This is a list of physical ATM interface drivers to load.
-Typical values are
-.Dq Li hfa_pci
-and/or
-.Dq Li hea_pci .
-.It Va atm_netif_ Ns Aq Ar intf
-.Pq Vt str
-For the ATM physical interface
-.Ar intf ,
-this variable defines the name prefix and count for the ATM network
-interfaces to be created.
-The value will be passed as the parameters of an
-.Dq Nm atm Cm "set netif" Ar intf
-command.
-.It Va atm_sigmgr_ Ns Aq Ar intf
-.Pq Vt str
-For the ATM physical interface
-.Ar intf ,
-this variable defines the ATM signalling manager to be used.
-The value will be passed as the parameters of an
-.Dq Nm atm Cm attach Ar intf
-command.
-.It Va atm_prefix_ Ns Aq Ar intf
-.Pq Vt str
-For the ATM physical interface
-.Ar intf ,
-this variable defines the NSAP prefix for interfaces using a UNI signalling
-manager.
-If set to
-.Dq Li ILMI ,
-the prefix will automatically be set via the
-.Xr ilmid 8
-daemon.
-Otherwise, the value will be passed as the parameters of an
-.Dq Nm atm Cm "set prefix" Ar intf
-command.
-.It Va atm_macaddr_ Ns Aq Ar intf
-.Pq Vt str
-For the ATM physical interface
-.Ar intf ,
-this variable defines the MAC address for interfaces using a UNI signalling
-manager.
-If set to
-.Dq Li NO ,
-the hardware MAC address contained in the ATM interface card will be used.
-Otherwise, the value will be passed as the parameters of an
-.Dq Nm atm Cm "set mac" Ar intf
-command.
-.It Va atm_arpserver_ Ns Aq Ar netif
-.Pq Vt str
-For the ATM network interface
-.Ar netif ,
-this variable defines the ATM address for a host which is to provide ATMARP
-service.
-This variable is only applicable to interfaces using a UNI signalling
-manager.
-If set to
-.Dq Li local ,
-this host will become an ATMARP server.
-The value will be passed as the parameters of an
-.Dq Nm atm Cm "set arpserver" Ar netif
-command.
-.It Va atm_scsparp_ Ns Aq Ar netif
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-SCSP/ATMARP service for the network interface
-.Ar netif
-will be initiated using the
-.Xr scspd 8
-and
-.Xr atmarpd 8
-daemons.
-This variable is only applicable if
-.Va atm_arpserver_ Ns Aq Ar netif
-is set to
-.Dq Li local .
-.It Va atm_pvcs
-.Pq Vt str
-Set to the list of ATM PVCs to be added at system
-boot time.
-For each whitespace separated
-.Ar element
-in the value, an
-.Va atm_pvc_ Ns Aq Ar element
-variable is assumed to exist.
-The value of each of these variables
-will be passed as the parameters of an
-.Dq Nm atm Cm "add pvc"
-command.
-.It Va atm_arps
-.Pq Vt str
-Set to the list of permanent ATM ARP entries to be added
-at system boot time.
-For each whitespace separated
-.Ar element
-in the value, an
-.Va atm_arp_ Ns Aq Ar element
-variable is assumed to exist.
-The value of each of these variables
-will be passed as the parameters of an
-.Dq Nm atm Cm "add arp"
-command.
-.It Va natm_interfaces
-.Pq Vt str
-Set to the list of
-.Xr natm 4
-interfaces that will also be used for HARP through
-.Xr harp 4 .
-If this list is not empty all interfaces in the list will be brought up
-with
-.Xr ifconfig 8
-and
-.Xr harp 4
-will be loaded.
-For this to work the interface drivers must be either compiled into the
-kernel or must reside on the root partition.
 .It Va keybell
 .Pq Vt str
 The keyboard bell sound.
@@ -4592,7 +4449,6 @@ configuration file.
 .Xr accton 8 ,
 .Xr amd 8 ,
 .Xr apm 8 ,
-.Xr atm 8 ,
 .Xr bsdinstall 8 ,
 .Xr bthidd 8 ,
 .Xr chkprintcap 8 ,

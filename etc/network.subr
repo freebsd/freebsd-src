@@ -489,13 +489,6 @@ afexists()
 	inet|inet6)
 		check_kern_features ${_af}
 		;;
-	atm)
-		if [ -x /sbin/atmconfig ]; then
-			/sbin/atmconfig diag list > /dev/null 2>&1
-		else
-			return 1
-		fi
-		;;
 	link|ether)
 		return 0
 		;;
