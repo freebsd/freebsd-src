@@ -314,21 +314,15 @@ AFLAGS += -EB
 CFLAGS += -EB
 LDFLAGS += -EB
 . endif
+AFLAGS+= -mabi=${MIPS_ABI}
+CFLAGS+= -mabi=${MIPS_ABI}
+LDFLAGS+= -mabi=${MIPS_ABI}
 . if ${MACHINE_ARCH:Mmips64*} != ""
-# XXX: conflicts with -mabi=purecap
-.  if ${MK_CHERI} == "no"
-AFLAGS+= -mabi=64
-CFLAGS+= -mabi=64
-LDFLAGS+= -mabi=64
-.  endif
+MIPS_ABI?=	64
 . elif ${MACHINE_ARCH:Mmipsn32*} != ""
-AFLAGS+= -mabi=n32
-CFLAGS+= -mabi=n32
-LDFLAGS+= -mabi=n32
+MIPS_ABI?=	n32
 . else
-AFLAGS+= -mabi=32
-CFLAGS+= -mabi=32
-LDFLAGS+= -mabi=32
+MIPS_ABI?=	32
 . endif
 . if ${MACHINE_ARCH:Mmips*hf}
 CFLAGS += -mhard-float
