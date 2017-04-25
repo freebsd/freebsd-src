@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 #include <security/mac/mac_framework.h>
 
-#define	GREMTU			1500
+#define	GREMTU			1476
 static const char grename[] = "gre";
 static MALLOC_DEFINE(M_GRE, grename, "Generic Routing Encapsulation");
 static VNET_DEFINE(struct mtx, gre_mtx);
@@ -173,7 +173,7 @@ gre_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	GRE2IFP(sc)->if_softc = sc;
 	if_initname(GRE2IFP(sc), grename, unit);
 
-	GRE2IFP(sc)->if_mtu = sc->gre_mtu = GREMTU;
+	GRE2IFP(sc)->if_mtu = GREMTU;
 	GRE2IFP(sc)->if_flags = IFF_POINTOPOINT|IFF_MULTICAST;
 	GRE2IFP(sc)->if_output = gre_output;
 	GRE2IFP(sc)->if_ioctl = gre_ioctl;
@@ -231,7 +231,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 /* XXX: */
 		if (ifr->ifr_mtu < 576)
 			return (EINVAL);
-		break;
+		ifp->if_mtu = ifr->ifr_mtu;
+		return (0);
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 	case SIOCSIFFLAGS:
@@ -255,12 +256,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 	error = 0;
 	switch (cmd) {
-	case SIOCSIFMTU:
-		GRE_WLOCK(sc);
-		sc->gre_mtu = ifr->ifr_mtu;
-		gre_updatehdr(sc);
-		GRE_WUNLOCK(sc);
-		goto end;
 	case SIOCSIFPHYADDR:
 #ifdef INET6
 	case SIOCSIFPHYADDR_IN6:
@@ -549,7 +544,6 @@ gre_updatehdr(struct gre_softc *sc)
 	} else
 		sc->gre_oseq = 0;
 	gh->gre_flags = htons(flags);
-	GRE2IFP(sc)->if_mtu = sc->gre_mtu - sc->gre_hlen;
 }
 
 static void
