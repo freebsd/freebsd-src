@@ -601,6 +601,7 @@ struct nfsrv_descript {
 	uint8_t			nd_sessionid[NFSX_V4SESSIONID];	/* Session id */
 	uint32_t		nd_slotid;	/* Slotid for this RPC */
 	SVCXPRT			*nd_xprt;	/* Server RPC handle */
+	uint32_t		*nd_sequence;	/* Sequence Op. ptr */
 };
 
 #define	nd_princlen	nd_gssnamelen
@@ -636,6 +637,7 @@ struct nfsrv_descript {
 #define	ND_HASSEQUENCE		0x04000000
 #define	ND_CACHETHIS		0x08000000
 #define	ND_LASTOP		0x10000000
+#define	ND_LOOPBADSESS		0x20000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.
@@ -649,6 +651,7 @@ struct nfsv4_opflag {
 	int	modifyfs;
 	int	lktype;
 	int	needsseq;
+	int	loopbadsess;
 };
 
 /*
