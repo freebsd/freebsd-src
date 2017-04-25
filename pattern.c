@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -20,7 +20,11 @@ extern int caseless;
  * Compile a search pattern, for future use by match_pattern.
  */
 	static int
-compile_pattern2(char *pattern, int search_type, void **comp_pattern, int show_error)
+compile_pattern2(pattern, search_type, comp_pattern, show_error)
+	char *pattern;
+	int search_type;
+	void **comp_pattern;
+	int show_error;
 {
 	if (search_type & SRCH_NO_REGEX)
 		return (0);
@@ -123,7 +127,10 @@ compile_pattern2(char *pattern, int search_type, void **comp_pattern, int show_e
  * Like compile_pattern2, but convert the pattern to lowercase if necessary.
  */
 	public int
-compile_pattern(char *pattern, int search_type, void **comp_pattern)
+compile_pattern(pattern, search_type, comp_pattern)
+	char *pattern;
+	int search_type;
+	void **comp_pattern;
 {
 	char *cvt_pattern;
 	int result;
@@ -145,7 +152,8 @@ compile_pattern(char *pattern, int search_type, void **comp_pattern)
  * Forget that we have a compiled pattern.
  */
 	public void
-uncompile_pattern(void **pattern)
+uncompile_pattern(pattern)
+	void **pattern;
 {
 #if HAVE_GNU_REGEX
 	struct re_pattern_buffer **pcomp = (struct re_pattern_buffer **) pattern;
@@ -187,7 +195,8 @@ uncompile_pattern(void **pattern)
  * Can a pattern be successfully compiled?
  */
 	public int
-valid_pattern(char *pattern)
+valid_pattern(pattern)
+	char *pattern;
 {
 	void *comp_pattern;
 	int result;
@@ -204,7 +213,8 @@ valid_pattern(char *pattern)
  * Is a compiled pattern null?
  */
 	public int
-is_null_pattern(void *pattern)
+is_null_pattern(pattern)
+	void *pattern;
 {
 #if HAVE_GNU_REGEX
 	return (pattern == NULL);
@@ -234,11 +244,16 @@ is_null_pattern(void *pattern)
  * It supports no metacharacters like *, etc.
  */
 	static int
-match(char *pattern, int pattern_len, char *buf, int buf_len, char **pfound, char **pend)
+match(pattern, pattern_len, buf, buf_len, pfound, pend)
+	char *pattern;
+	int pattern_len;
+	char *buf;
+	int buf_len;
+	char **pfound, **pend;
 {
-	char *pp, *lp;
-	char *pattern_end = pattern + pattern_len;
-	char *buf_end = buf + buf_len;
+	register char *pp, *lp;
+	register char *pattern_end = pattern + pattern_len;
+	register char *buf_end = buf + buf_len;
 
 	for ( ;  buf < buf_end;  buf++)
 	{
@@ -270,7 +285,15 @@ match(char *pattern, int pattern_len, char *buf, int buf_len, char **pfound, cha
  * Set sp and ep to the start and end of the matched string.
  */
 	public int
-match_pattern(void *pattern, char *tpattern, char *line, int line_len, char **sp, char **ep, int notbol, int search_type)
+match_pattern(pattern, tpattern, line, line_len, sp, ep, notbol, search_type)
+	void *pattern;
+	char *tpattern;
+	char *line;
+	int line_len;
+	char **sp;
+	char **ep;
+	int notbol;
+	int search_type;
 {
 	int matched;
 #if HAVE_GNU_REGEX

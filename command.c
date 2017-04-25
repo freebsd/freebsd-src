@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -82,7 +82,7 @@ struct ungot {
 };
 static struct ungot* ungot = NULL;
 
-static void multi_search(char *pattern, int n, int silent);
+static void multi_search();
 
 /*
  * Move the cursor to start of prompt line before executing a command.
@@ -90,7 +90,7 @@ static void multi_search(char *pattern, int n, int silent);
  * updating the screen.
  */
 	static void
-cmd_exec(void)
+cmd_exec()
 {
 #if HILITE_SEARCH
 	clear_attn();
@@ -103,7 +103,11 @@ cmd_exec(void)
  * Set up the display to start a new multi-character command.
  */
 	static void
-start_mca(int action, constant char *prompt, constant void *mlist, int cmdflags)
+start_mca(action, prompt, mlist, cmdflags)
+	int action;
+	constant char *prompt;
+	constant void *mlist;
+	int cmdflags;
 {
 	mca = action;
 	clear_bot();
@@ -113,7 +117,7 @@ start_mca(int action, constant char *prompt, constant void *mlist, int cmdflags)
 }
 
 	public int
-in_mca(void)
+in_mca()
 {
 	return (mca != 0 && mca != A_PREFIX);
 }
@@ -122,7 +126,7 @@ in_mca(void)
  * Set up the display to start a new search command.
  */
 	static void
-mca_search(void)
+mca_search()
 {
 #if HILITE_SEARCH
 	if (search_type & SRCH_FILTER)
@@ -165,7 +169,7 @@ mca_search(void)
  * Set up the display to start a new toggle-option command.
  */
 	static void
-mca_opt_toggle(void)
+mca_opt_toggle()
 {
 	int no_prompt;
 	int flag;
@@ -200,9 +204,9 @@ mca_opt_toggle(void)
  * Execute a multicharacter command.
  */
 	static void
-exec_mca(void)
+exec_mca()
 {
-	char *cbuf;
+	register char *cbuf;
 
 	cmd_exec();
 	cbuf = get_cmdbuf();
@@ -290,7 +294,8 @@ exec_mca(void)
  * Is a character an erase or kill char?
  */
 	static int
-is_erase_char(int c)
+is_erase_char(c)
+	int c;
 {
 	return (c == erase_char || c == erase2_char || c == kill_char);
 }
@@ -299,7 +304,8 @@ is_erase_char(int c)
  * Handle the first char of an option (after the initial dash).
  */
 	static int
-mca_opt_first_char(int c)
+mca_opt_first_char(c)
+    int c;
 {
 	int flag = (optflag & ~OPT_NO_PROMPT);
 	if (flag == OPT_NO_TOGGLE)
@@ -350,7 +356,8 @@ mca_opt_first_char(int c)
  * accepting chars until user hits RETURN.
  */
 	static int
-mca_opt_nonfirst_char(int c)
+mca_opt_nonfirst_char(c)
+	int c;
 {
 	char *p;
 	char *oname;
@@ -399,7 +406,8 @@ mca_opt_nonfirst_char(int c)
  * Handle a char of an option toggle command.
  */
 	static int
-mca_opt_char(int c)
+mca_opt_char(c)
+	int c;
 {
 	PARG parg;
 
@@ -464,7 +472,8 @@ mca_opt_char(int c)
  * Handle a char of a search command.
  */
 	static int
-mca_search_char(int c)
+mca_search_char(c)
+	int c;
 {
 	int flag = 0;
 
@@ -516,7 +525,8 @@ mca_search_char(int c)
  * Handle a character of a multi-character command.
  */
 	static int
-mca_char(int c)
+mca_char(c)
+	int c;
 {
 	int ret;
 
@@ -618,7 +628,7 @@ mca_char(int c)
  * Discard any buffered file data.
  */
 	static void
-clear_buffers(void)
+clear_buffers()
 {
 	if (!(ch_getflags() & CH_CANSEEK))
 		return;
@@ -633,7 +643,7 @@ clear_buffers(void)
  * Make sure the screen is displayed.
  */
 	static void
-make_display(void)
+make_display()
 {
 	/*
 	 * If nothing is displayed yet, display starting from initial_scrpos.
@@ -673,9 +683,9 @@ make_display(void)
  * Display the appropriate prompt.
  */
 	static void
-prompt(void)
+prompt()
 {
-	constant char *p;
+	register constant char *p;
 
 	if (ungot != NULL && !ungot->ug_end_command)
 	{
@@ -750,7 +760,7 @@ prompt(void)
  * Display the less version message.
  */
 	public void
-dispversion(void)
+dispversion()
 {
 	PARG parg;
 
@@ -765,7 +775,7 @@ dispversion(void)
  * (characters previously given to ungetcc or ungetsc).
  */
 	public int
-getcc(void)
+getcc()
 {
 	if (ungot == NULL)
 	{
@@ -820,7 +830,8 @@ getcc(void)
  * The next getcc() will return this character.
  */
 	public void
-ungetcc(int c)
+ungetcc(c)
+	int c;
 {
 	struct ungot *ug = (struct ungot *) ecalloc(1, sizeof(struct ungot));
 
@@ -835,9 +846,10 @@ ungetcc(int c)
  * The next sequence of getcc()'s will return this string.
  */
 	public void
-ungetsc(char *s)
+ungetsc(s)
+	char *s;
 {
-	char *p;
+	register char *p;
 
 	for (p = s + strlen(s) - 1;  p >= s;  p--)
 		ungetcc(*p);
@@ -849,9 +861,12 @@ ungetsc(char *s)
  * If SRCH_PAST_EOF is set, continue the search thru multiple files.
  */
 	static void
-multi_search(char *pattern, int n, int silent)
+multi_search(pattern, n, silent)
+	char *pattern;
+	int n;
+	int silent;
 {
-	int nomore;
+	register int nomore;
 	IFILE save_ifile;
 	int changed_file;
 
@@ -943,7 +958,8 @@ multi_search(char *pattern, int n, int silent)
  * Forward forever, or until a highlighted line appears.
  */
 	static int
-forw_loop(int until_hilite)
+forw_loop(until_hilite)
+	int until_hilite;
 {
 	POSITION curr_len;
 
@@ -983,11 +999,11 @@ forw_loop(int until_hilite)
  * Accept and execute commands until a quit command.
  */
 	public void
-commands(void)
+commands()
 {
-	int c;
-	int action;
-	char *cbuf;
+	register int c;
+	register int action;
+	register char *cbuf;
 	int newaction;
 	int save_search_type;
 	char *extra;
@@ -1760,6 +1776,16 @@ commands(void)
 				number = (shift_count > 0) ?
 					shift_count : sc_width / 2;
 			hshift += number;
+			screen_trashed = 1;
+			break;
+
+		case A_LLSHIFT:
+			hshift = 0;
+			screen_trashed = 1;
+			break;
+
+		case A_RRSHIFT:
+			hshift = rrshift();
 			screen_trashed = 1;
 			break;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -104,6 +104,7 @@ struct cmdname cmdnames[] =
 	{ "display-flag",         A_DISP_OPTION },
 	{ "display-option",       A_DISP_OPTION },
 	{ "end",                  A_GOEND },
+	{ "end-scroll",           A_RRSHIFT },
 	{ "examine",              A_EXAMINE },
 	{ "filter",               A_FILTER },
 	{ "first-cmd",            A_FIRSTCMD },
@@ -130,6 +131,7 @@ struct cmdname cmdnames[] =
 	{ "next-file",            A_NEXT_FILE },
 	{ "next-tag",             A_NEXT_TAG },
 	{ "noaction",             A_NOACTION },
+	{ "no-scroll",            A_LLSHIFT },
 	{ "percent",              A_PERCENT },
 	{ "pipe",                 A_PIPE },
 	{ "prev-file",            A_PREV_FILE },
@@ -213,19 +215,19 @@ char *outfile = NULL ;
 int linenum;
 int errors;
 
-static void lk_error(char *s);
-
 extern char version[];
 
 	void
-usage(void)
+usage()
 {
 	fprintf(stderr, "usage: lesskey [-o output] [input]\n");
 	exit(1);
 }
 
 	char *
-mkpathname(char *dirname, char *filename)
+mkpathname(dirname, filename)
+	char *dirname;
+	char *filename;
 {
 	char *pathname;
 
@@ -240,7 +242,8 @@ mkpathname(char *dirname, char *filename)
  * Figure out the name of a default file (in the user's HOME directory).
  */
 	char *
-homefile(char *filename)
+homefile(filename)
+	char *filename;
 {
 	char *p;
 	char *pathname;
@@ -263,7 +266,9 @@ homefile(char *filename)
  * Parse command line arguments.
  */
 	void
-parse_args(int argc, char **argv)
+parse_args(argc, argv)
+	int argc;
+	char **argv;
 {
 	char *arg;
 
@@ -336,7 +341,7 @@ parse_args(int argc, char **argv)
  * Initialize data structures.
  */
 	void
-init_tables(void)
+init_tables()
 {
 	cmdtable.names = cmdnames;
 	cmdtable.pbuffer = cmdtable.buffer;
@@ -352,11 +357,13 @@ init_tables(void)
  * Parse one character of a string.
  */
 	char *
-tstr(char **pp, int xlate)
+tstr(pp, xlate)
+	char **pp;
+	int xlate;
 {
-	char *p;
-	char ch;
-	int i;
+	register char *p;
+	register char ch;
+	register int i;
 	static char buf[10];
 	static char tstr_control_k[] =
 		{ SK_SPECIAL_KEY, SK_CONTROL_K, 6, 1, 1, 1, '\0' };
@@ -416,7 +423,7 @@ tstr(char **pp, int xlate)
 				case 'e': ch = SK_END; break;
 				case 'x': ch = SK_DELETE; break;
 				default:
-					lk_error("illegal char after \\k");
+					error("illegal char after \\k");
 					*pp = p+1;
 					return ("");
 				}
@@ -466,7 +473,8 @@ tstr(char **pp, int xlate)
  * Skip leading spaces in a string.
  */
 	public char *
-skipsp(char *s)
+skipsp(s)
+	register char *s;
 {
 	while (*s == ' ' || *s == '\t')	
 		s++;
@@ -477,7 +485,8 @@ skipsp(char *s)
  * Skip non-space characters in a string.
  */
 	public char *
-skipnsp(char *s)
+skipnsp(s)
+	register char *s;
 {
 	while (*s != '\0' && *s != ' ' && *s != '\t')
 		s++;
@@ -489,9 +498,10 @@ skipnsp(char *s)
  * strip off the trailing newline & any trailing # comment.
  */
 	char *
-clean_line(char *s)
+clean_line(s)
+	char *s;
 {
-	int i;
+	register int i;
 
 	s = skipsp(s);
 	for (i = 0;  s[i] != '\n' && s[i] != '\r' && s[i] != '\0';  i++)
@@ -505,11 +515,12 @@ clean_line(char *s)
  * Add a byte to the output command table.
  */
 	void
-add_cmd_char(int c)
+add_cmd_char(c)
+	int c;
 {
 	if (currtable->pbuffer >= currtable->buffer + MAX_USERCMD)
 	{
-		lk_error("too many commands");
+		error("too many commands");
 		exit(1);
 	}
 	*(currtable->pbuffer)++ = c;
@@ -519,7 +530,8 @@ add_cmd_char(int c)
  * Add a string to the output command table.
  */
 	void
-add_cmd_str(char *s)
+add_cmd_str(s)
+	char *s;
 {
 	for ( ;  *s != '\0';  s++)
 		add_cmd_char(*s);
@@ -529,7 +541,8 @@ add_cmd_str(char *s)
  * See if we have a special "control" line.
  */
 	int
-control_line(char *s)
+control_line(s)
+	char *s;
 {
 #define	PREFIX(str,pat)	(strncmp(str,pat,strlen(pat)) == 0)
 
@@ -561,7 +574,10 @@ control_line(char *s)
  * Output some bytes.
  */
 	void
-fputbytes(FILE *fd, char *buf, int len)
+fputbytes(fd, buf, len)
+	FILE *fd;
+	char *buf;
+	int len;
 {
 	while (len-- > 0)
 	{
@@ -574,7 +590,9 @@ fputbytes(FILE *fd, char *buf, int len)
  * Output an integer, in special KRADIX form.
  */
 	void
-fputint(FILE *fd, unsigned int val)
+fputint(fd, val)
+	FILE *fd;
+	unsigned int val;
 {
 	char c;
 
@@ -594,19 +612,21 @@ fputint(FILE *fd, unsigned int val)
  * Find an action, given the name of the action.
  */
 	int
-findaction(char *actname)
+findaction(actname)
+	char *actname;
 {
 	int i;
 
 	for (i = 0;  currtable->names[i].cn_name != NULL;  i++)
 		if (strcmp(currtable->names[i].cn_name, actname) == 0)
 			return (currtable->names[i].cn_action);
-	lk_error("unknown action");
+	error("unknown action");
 	return (A_INVALID);
 }
 
-	static void
-lk_error(char *s)
+	void
+error(s)
+	char *s;
 {
 	fprintf(stderr, "line %d: %s\n", linenum, s);
 	errors++;
@@ -614,7 +634,8 @@ lk_error(char *s)
 
 
 	void
-parse_cmdline(char *p)
+parse_cmdline(p)
+	char *p;
 {
 	int cmdlen;
 	char *actname;
@@ -631,7 +652,7 @@ parse_cmdline(char *p)
 		s = tstr(&p, 1);
 		cmdlen += (int) strlen(s);
 		if (cmdlen > MAX_CMDLEN)
-			lk_error("command too long");
+			error("command too long");
 		else
 			add_cmd_str(s);
 	} while (*p != ' ' && *p != '\t' && *p != '\0');
@@ -648,7 +669,7 @@ parse_cmdline(char *p)
 	p = skipsp(p);
 	if (*p == '\0')
 	{
-		lk_error("missing action");
+		error("missing action");
 		return;
 	}
 	actname = p;
@@ -683,7 +704,8 @@ parse_cmdline(char *p)
 }
 
 	void
-parse_varline(char *p)
+parse_varline(p)
+	char *p;
 {
 	char *s;
 
@@ -700,7 +722,7 @@ parse_varline(char *p)
 	p = skipsp(p);
 	if (*p++ != '=')
 	{
-		lk_error("missing =");
+		error("missing =");
 		return;
 	}
 
@@ -719,7 +741,8 @@ parse_varline(char *p)
  * Parse a line from the lesskey file.
  */
 	void
-parse_line(char *line)
+parse_line(line)
+	char *line;
 {
 	char *p;
 
@@ -744,7 +767,9 @@ parse_line(char *line)
 }
 
 	int
-main(int argc, char *argv[])
+main(argc, argv)
+	int argc;
+	char *argv[];
 {
 	FILE *desc;
 	FILE *out;

@@ -11,6 +11,26 @@
 
 ======================================================================
 
+	Major changes between "less" versions 481 and 487
+
+* New commands ESC-{ and ESC-} to shift to start/end of displayed lines.
+
+* Make search highlights work correctly when changing caselessness with -i.
+
+* New option -Da in Windows version to enable SGR mode.
+
+* Fix "nothing to search" error when top or bottom line on screen is empty.
+
+* Fix bug when terminal has no "cm" termcap entry.
+
+* Fix incorrect display when entering double-width chars in search string.
+
+* Fix bug in Unicode handling that missed some double width characters.
+
+* Update Unicode database to 9.0.0.
+
+======================================================================
+
 	Major changes between "less" versions 458 and 481
 
 * Don't overwrite history file; just append to it.

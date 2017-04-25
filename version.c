@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -789,8 +789,22 @@ v477  5/19/15   Fix off-by-one in jump_forw_buffered;
                 don't add FAKE_* files to cmd history.
 v478  5/21/15   Fix nonportable pointer usage in hilite tree.
 v479  7/6/15    Allow %% escapes in LESSOPEN variable.
-v480  7/24/15	Fix bug in no-regex searches; support MSVC v1900.
-v481  8/20/15	Fix broken -g option.
+v480  7/24/15   Fix bug in no-regex searches; support MSVC v1900.
+v481  8/20/15   Fix broken -g option.
+-----------------------------------------------------------------
+v482  2/25/16   Update Unicode database to "2015-06-16, 20:24:00 GMT [KW]".
+v483  2/27/16   Regenerate hilite when change search caselessness.
+                (Thanks to Jason Hood)
+                Fix bug when terminal has no "cm". (Thanks to Noel Cragg)
+v484  9/20/16   Update to Unicode 9.0.0 database.
+v485  10/21/16  Fix "nothing to search" bug when top/bottom line is empty;
+                Display line numbers in bold. (thanks to Jason Hood);
+                Fix incorrect display when entering double-width chars in 
+		search string.
+v486  10/22/16  New commands ESC-{ and ESC-} to shift to start/end of 
+                displayed lines; new option -Da in Windows version to 
+		enable SGR mode (thanks to Jason Hood).
+v487  10/23/16  configure --help formatting.
 */
 
-char version[] = "481";
+char version[] = "487";

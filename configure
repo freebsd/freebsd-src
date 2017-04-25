@@ -1305,10 +1305,10 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-secure  Compile in secure mode
-  --with-no-float  Do not use floating point
-  --with-regex={auto,gnu,pcre,posix,regcmp,re_comp,regcomp,regcomp-local,none}  Select a regular expression library  auto
-  --with-editor=PROGRAM   use PROGRAM as the default editor vi
+  --with-secure           Compile in secure mode
+  --with-no-float         Do not use floating point
+  --with-regex=LIB        select regular expression library (LIB is one of auto,none,gnu,pcre,posix,regcmp,re_comp,regcomp,regcomp-local) [auto]
+  --with-editor=PROGRAM   use PROGRAM as the default editor [vi]
 
 Some influential environment variables:
   CC          C compiler command

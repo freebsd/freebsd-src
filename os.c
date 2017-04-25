@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -60,9 +60,12 @@ extern int sigs;
  * any pending iread().
  */
 	public int
-iread(int fd, char *buf, unsigned int len)
+iread(fd, buf, len)
+	int fd;
+	char *buf;
+	unsigned int len;
 {
-	int n;
+	register int n;
 
 start:
 #if MSDOS_COMPILER==WIN32C
@@ -173,7 +176,7 @@ start:
  * Interrupt a pending iread().
  */
 	public void
-intread(void)
+intread()
 {
 	LONG_JUMP(read_label, 1);
 }
@@ -183,7 +186,7 @@ intread(void)
  */
 #if HAVE_TIME
 	public time_type
-get_time(void)
+get_time()
 {
 	time_type t;
 
@@ -198,7 +201,8 @@ get_time(void)
  * Local version of strerror, if not available from the system.
  */
 	static char *
-strerror(int err)
+strerror(err)
+	int err;
 {
 #if HAVE_SYS_ERRLIST
 	static char buf[16];
@@ -219,10 +223,11 @@ strerror(int err)
  * errno_message: Return an error message based on the value of "errno".
  */
 	public char *
-errno_message(char *filename)
+errno_message(filename)
+	char *filename;
 {
-	char *p;
-	char *m;
+	register char *p;
+	register char *m;
 	int len;
 #if HAVE_ERRNO
 #if MUST_DEFINE_ERRNO
@@ -241,7 +246,8 @@ errno_message(char *filename)
 /* #define HAVE_FLOAT 0 */
 
 	static POSITION
-muldiv(POSITION val, POSITION num, POSITION den)
+muldiv(val, num, den)
+	POSITION val, num, den;
 {
 #if HAVE_FLOAT
 	double v = (((double) val) * num) / den;
@@ -264,7 +270,8 @@ muldiv(POSITION val, POSITION num, POSITION den)
  * {{ Assumes a POSITION is a long int. }}
  */
 	public int
-percentage(POSITION num, POSITION den)
+percentage(num, den)
+	POSITION num, den;
 {
 	return (int) muldiv(num,  (POSITION) 100, den);
 }
@@ -273,7 +280,10 @@ percentage(POSITION num, POSITION den)
  * Return the specified percentage of a POSITION.
  */
 	public POSITION
-percent_pos(POSITION pos, int percent, long fraction)
+percent_pos(pos, percent, fraction)
+	POSITION pos;
+	int percent;
+	long fraction;
 {
 	/* Change percent (parts per 100) to perden (parts per NUM_FRAC_DENOM). */
 	POSITION perden = (percent * (NUM_FRAC_DENOM / 100)) + (fraction / 100);
@@ -324,7 +334,9 @@ memcpy(dst, src, len)
  * This implements an ANSI-style intercept setup for Microware C 3.2
  */
 	public int 
-os9_signal(int type, RETSIGTYPE (*handler)())
+os9_signal(type, handler)
+	int type;
+	RETSIGTYPE (*handler)();
 {
 	intercept(handler);
 }
