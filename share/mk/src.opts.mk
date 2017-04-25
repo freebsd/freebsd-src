@@ -97,6 +97,7 @@ __DEFAULT_YES_OPTIONS = \
     FTP \
     GAMES \
     GCOV \
+    GDB \
     GNU_DIFF \
     GNU_GREP \
     GPIO \
@@ -267,9 +268,9 @@ BROKEN_OPTIONS+=LLDB
 # does not yet contain kernel support for arm, and sparc64 kernel support
 # has not been tested.
 .if ${__T:Marm*} != "" || ${__T} == "sparc64"
-__DEFAULT_YES_OPTIONS+=GDB
+__DEFAULT_NO_OPTIONS+=GDB_LIBEXEC
 .else
-__DEFAULT_NO_OPTIONS+=GDB
+__DEFAULT_YES_OPTIONS+=GDB_LIBEXEC
 .endif
 # Only doing soft float API stuff on armv6
 .if ${__T} != "armv6"
