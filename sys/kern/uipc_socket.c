@@ -1766,7 +1766,7 @@ dontblock:
 				 * requires MT_SONAME mbufs at the head of
 				 * each record.
 				 */
-				if (m && pr->pr_flags & PR_ATOMIC &&
+				if (pr->pr_flags & PR_ATOMIC &&
 				    ((flags & MSG_PEEK) == 0))
 					(void)sbdroprecord_locked(&so->so_rcv);
 				SOCKBUF_UNLOCK(&so->so_rcv);
