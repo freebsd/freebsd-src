@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -38,12 +38,14 @@ extern IFILE curr_ifile;
  * Like plain "system()", but handles resetting terminal modes, etc.
  */
 	public void
-lsystem(char *cmd, char *donemsg)
+lsystem(cmd, donemsg)
+	char *cmd;
+	char *donemsg;
 {
-	int inp;
+	register int inp;
 #if HAVE_SHELL
-	char *shell;
-	char *p;
+	register char *shell;
+	register char *p;
 #endif
 	IFILE save_ifile;
 #if MSDOS_COMPILER && MSDOS_COMPILER!=WIN32C
@@ -248,7 +250,9 @@ lsystem(char *cmd, char *donemsg)
  * the whole current screen is piped.
  */
 	public int
-pipe_mark(int c, char *cmd)
+pipe_mark(c, cmd)
+	int c;
+	char *cmd;
 {
 	POSITION mpos, tpos, bpos;
 
@@ -280,10 +284,13 @@ pipe_mark(int c, char *cmd)
  * Feed it the file contents between the positions spos and epos.
  */
 	public int
-pipe_data(char *cmd, POSITION spos, POSITION epos)
+pipe_data(cmd, spos, epos)
+	char *cmd;
+	POSITION spos;
+	POSITION epos;
 {
-	FILE *f;
-	int c;
+	register FILE *f;
+	register int c;
 	extern FILE *popen();
 
 	/*

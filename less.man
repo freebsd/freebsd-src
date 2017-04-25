@@ -100,20 +100,27 @@ LESS(1)                     General Commands Manual                    LESS(1)
               becomes the default for future  RIGHTARROW  and  LEFTARROW  com-
               mands.
 
+       ESC-} or ^RIGHTARROW
+              Scroll  horizontally  right  to show the end of the longest dis-
+              played line.
+
+       ESC-{ or ^LEFTARROW
+              Scroll horizontally left back to the first column.
+
        r or ^R or ^L
               Repaint the screen.
 
-       R      Repaint  the  screen,  discarding any buffered input.  Useful if
+       R      Repaint the screen, discarding any buffered  input.   Useful  if
               the file is changing while it is being viewed.
 
-       F      Scroll forward, and keep trying to read when the end of file  is
-              reached.   Normally  this  command would be used when already at
-              the end of the file.  It is a way to monitor the tail of a  file
-              which  is  growing  while  it is being viewed.  (The behavior is
+       F      Scroll  forward, and keep trying to read when the end of file is
+              reached.  Normally this command would be used  when  already  at
+              the  end of the file.  It is a way to monitor the tail of a file
+              which is growing while it is being  viewed.   (The  behavior  is
               similar to the "tail -f" command.)
 
-       ESC-F  Like F, but as soon as a line is found which  matches  the  last
-              search  pattern, the terminal bell is rung and forward scrolling
+       ESC-F  Like  F,  but  as soon as a line is found which matches the last
+              search pattern, the terminal bell is rung and forward  scrolling
               stops.
 
        g or < or ESC-<
@@ -121,12 +128,12 @@ LESS(1)                     General Commands Manual                    LESS(1)
               ing: this may be slow if N is large.)
 
        G or > or ESC->
-              Go  to  line N in the file, default the end of the file.  (Warn-
-              ing: this may be slow if N is large, or if N  is  not  specified
+              Go to line N in the file, default the end of the  file.   (Warn-
+              ing:  this  may  be slow if N is large, or if N is not specified
               and standard input, rather than a file, is being read.)
 
-       ESC-G  Same  as  G, except if no number N is specified and the input is
-              standard input,  goes  to  the  last  line  which  is  currently
+       ESC-G  Same as G, except if no number N is specified and the  input  is
+              standard  input,  goes  to  the  last  line  which  is currently
               buffered.
 
        p or % Go to a position N percent into the file.  N should be between 0
@@ -135,48 +142,48 @@ LESS(1)                     General Commands Manual                    LESS(1)
        P      Go to the line containing byte offset N in the file.
 
        {      If a left curly bracket appears in the top line displayed on the
-              screen,  the  {  command  will  go  to  the matching right curly
-              bracket.  The matching right curly bracket is positioned on  the
+              screen, the { command  will  go  to  the  matching  right  curly
+              bracket.   The matching right curly bracket is positioned on the
               bottom line of the screen.  If there is more than one left curly
-              bracket on the top line, a number N may be used to  specify  the
+              bracket  on  the top line, a number N may be used to specify the
               N-th bracket on the line.
 
        }      If a right curly bracket appears in the bottom line displayed on
-              the screen, the } command will go to  the  matching  left  curly
-              bracket.   The  matching left curly bracket is positioned on the
-              top line of the screen.  If there is more than one  right  curly
-              bracket  on  the top line, a number N may be used to specify the
+              the  screen,  the  }  command will go to the matching left curly
+              bracket.  The matching left curly bracket is positioned  on  the
+              top  line  of the screen.  If there is more than one right curly
+              bracket on the top line, a number N may be used to  specify  the
               N-th bracket on the line.
 
        (      Like {, but applies to parentheses rather than curly brackets.
 
        )      Like }, but applies to parentheses rather than curly brackets.
 
-       [      Like {, but applies to square brackets rather than curly  brack-
+       [      Like  {, but applies to square brackets rather than curly brack-
               ets.
 
-       ]      Like  }, but applies to square brackets rather than curly brack-
+       ]      Like }, but applies to square brackets rather than curly  brack-
               ets.
 
-       ESC-^F Followed by two characters, acts like {, but uses the two  char-
-              acters  as  open and close brackets, respectively.  For example,
-              "ESC ^F < >" could be used to go forward to the > which  matches
+       ESC-^F Followed  by two characters, acts like {, but uses the two char-
+              acters as open and close brackets, respectively.   For  example,
+              "ESC  ^F < >" could be used to go forward to the > which matches
               the < in the top displayed line.
 
-       ESC-^B Followed  by two characters, acts like }, but uses the two char-
-              acters as open and close brackets, respectively.   For  example,
+       ESC-^B Followed by two characters, acts like }, but uses the two  char-
+              acters  as  open and close brackets, respectively.  For example,
               "ESC ^B < >" could be used to go backward to the < which matches
               the > in the bottom displayed line.
 
-       m      Followed by any lowercase letter,  marks  the  current  position
+       m      Followed  by  any  lowercase  letter, marks the current position
               with that letter.
 
-       '      (Single  quote.)   Followed  by any lowercase letter, returns to
+       '      (Single quote.)  Followed by any lowercase  letter,  returns  to
               the position which was previously marked with that letter.  Fol-
-              lowed  by another single quote, returns to the position at which
+              lowed by another single quote, returns to the position at  which
               the last "large" movement command was executed.  Followed by a ^
-              or  $,  jumps  to the beginning or end of the file respectively.
-              Marks are preserved when a new file is examined, so the  '  com-
+              or $, jumps to the beginning or end of  the  file  respectively.
+              Marks  are  preserved when a new file is examined, so the ' com-
               mand can be used to switch between input files.
 
        ^X^X   Same as single quote.
@@ -184,39 +191,39 @@ LESS(1)                     General Commands Manual                    LESS(1)
        /pattern
               Search forward in the file for the N-th line containing the pat-
               tern.  N defaults to 1.  The pattern is a regular expression, as
-              recognized  by  the  regular expression library supplied by your
-              system.  The search starts at the first line displayed (but  see
+              recognized by the regular expression library  supplied  by  your
+              system.   The search starts at the first line displayed (but see
               the -a and -j options, which change this).
 
-              Certain  characters  are  special if entered at the beginning of
-              the pattern; they modify the type of search rather  than  become
+              Certain characters are special if entered at  the  beginning  of
+              the  pattern;  they modify the type of search rather than become
               part of the pattern:
 
               ^N or !
                      Search for lines which do NOT match the pattern.
 
               ^E or *
-                     Search  multiple  files.   That is, if the search reaches
-                     the END of the current file without finding a match,  the
-                     search  continues  in  the  next file in the command line
+                     Search multiple files.  That is, if  the  search  reaches
+                     the  END of the current file without finding a match, the
+                     search continues in the next file  in  the  command  line
                      list.
 
               ^F or @
-                     Begin the search at the first line of the FIRST  file  in
-                     the  command  line  list, regardless of what is currently
-                     displayed on the screen or the settings of the -a  or  -j
+                     Begin  the  search at the first line of the FIRST file in
+                     the command line list, regardless of  what  is  currently
+                     displayed  on  the screen or the settings of the -a or -j
                      options.
 
-              ^K     Highlight  any text which matches the pattern on the cur-
+              ^K     Highlight any text which matches the pattern on the  cur-
                      rent screen, but don't move to the first match (KEEP cur-
                      rent position).
 
-              ^R     Don't  interpret  regular expression metacharacters; that
+              ^R     Don't interpret regular expression  metacharacters;  that
                      is, do a simple textual comparison.
 
        ?pattern
-              Search backward in the file for the  N-th  line  containing  the
-              pattern.   The search starts at the last line displayed (but see
+              Search  backward  in  the  file for the N-th line containing the
+              pattern.  The search starts at the last line displayed (but  see
               the -a and -j options, which change this).
 
               Certain characters are special as in the / command:
@@ -225,15 +232,15 @@ LESS(1)                     General Commands Manual                    LESS(1)
                      Search for lines which do NOT match the pattern.
 
               ^E or *
-                     Search multiple files.  That is, if  the  search  reaches
-                     the  beginning  of  the  current  file  without finding a
-                     match, the search continues in the previous file  in  the
+                     Search  multiple  files.   That is, if the search reaches
+                     the beginning of  the  current  file  without  finding  a
+                     match,  the  search continues in the previous file in the
                      command line list.
 
               ^F or @
                      Begin the search at the last line of the last file in the
-                     command line list, regardless of what is  currently  dis-
-                     played  on  the  screen  or  the settings of the -a or -j
+                     command  line  list, regardless of what is currently dis-
+                     played on the screen or the settings  of  the  -a  or  -j
                      options.
 
               ^K     As in forward searches.
@@ -246,36 +253,36 @@ LESS(1)                     General Commands Manual                    LESS(1)
        ESC-?pattern
               Same as "?*".
 
-       n      Repeat previous search, for N-th line containing the  last  pat-
-              tern.   If the previous search was modified by ^N, the search is
-              made for the N-th line NOT containing the pattern.  If the  pre-
-              vious  search  was  modified  by ^E, the search continues in the
-              next (or previous) file if not satisfied in  the  current  file.
-              If  the  previous  search was modified by ^R, the search is done
-              without using regular expressions.  There is no  effect  if  the
+       n      Repeat  previous  search, for N-th line containing the last pat-
+              tern.  If the previous search was modified by ^N, the search  is
+              made  for the N-th line NOT containing the pattern.  If the pre-
+              vious search was modified by ^E, the  search  continues  in  the
+              next  (or  previous)  file if not satisfied in the current file.
+              If the previous search was modified by ^R, the  search  is  done
+              without  using  regular  expressions.  There is no effect if the
               previous search was modified by ^F or ^K.
 
        N      Repeat previous search, but in the reverse direction.
 
-       ESC-n  Repeat  previous  search,  but  crossing  file  boundaries.  The
+       ESC-n  Repeat previous  search,  but  crossing  file  boundaries.   The
               effect is as if the previous search were modified by *.
 
-       ESC-N  Repeat previous search, but in the reverse direction and  cross-
+       ESC-N  Repeat  previous search, but in the reverse direction and cross-
               ing file boundaries.
 
-       ESC-u  Undo  search  highlighting.   Turn  off  highlighting of strings
+       ESC-u  Undo search highlighting.   Turn  off  highlighting  of  strings
               matching the current search pattern.  If highlighting is already
-              off  because of a previous ESC-u command, turn highlighting back
-              on.  Any search command will also  turn  highlighting  back  on.
+              off because of a previous ESC-u command, turn highlighting  back
+              on.   Any  search  command  will also turn highlighting back on.
               (Highlighting can also be disabled by toggling the -G option; in
               that case search commands do not turn highlighting back on.)
 
        &pattern
-              Display only lines which match the pattern; lines which  do  not
-              match  the  pattern  are not displayed.  If pattern is empty (if
-              you type & immediately followed  by  ENTER),  any  filtering  is
-              turned  off, and all lines are displayed.  While filtering is in
-              effect, an ampersand  is  displayed  at  the  beginning  of  the
+              Display  only  lines which match the pattern; lines which do not
+              match the pattern are not displayed.  If pattern  is  empty  (if
+              you  type  &  immediately  followed  by ENTER), any filtering is
+              turned off, and all lines are displayed.  While filtering is  in
+              effect,  an  ampersand  is  displayed  at  the  beginning of the
               prompt, as a reminder that some lines in the file may be hidden.
 
               Certain characters are special as in the / command:
@@ -283,98 +290,98 @@ LESS(1)                     General Commands Manual                    LESS(1)
               ^N or !
                      Display only lines which do NOT match the pattern.
 
-              ^R     Don't  interpret  regular expression metacharacters; that
+              ^R     Don't interpret regular expression  metacharacters;  that
                      is, do a simple textual comparison.
 
        :e [filename]
-              Examine a new file.  If the filename is missing,  the  "current"
-              file  (see  the :n and :p commands below) from the list of files
-              in the command line is re-examined.  A percent sign (%)  in  the
-              filename  is  replaced by the name of the current file.  A pound
-              sign (#) is replaced by the  name  of  the  previously  examined
-              file.    However,  two  consecutive  percent  signs  are  simply
+              Examine  a  new file.  If the filename is missing, the "current"
+              file (see the :n and :p commands below) from the list  of  files
+              in  the  command line is re-examined.  A percent sign (%) in the
+              filename is replaced by the name of the current file.   A  pound
+              sign  (#)  is  replaced  by  the name of the previously examined
+              file.   However,  two  consecutive  percent  signs  are   simply
               replaced with a single percent sign.  This allows you to enter a
-              filename  that  contains a percent sign in the name.  Similarly,
-              two consecutive pound signs are replaced  with  a  single  pound
-              sign.   The  filename  is inserted into the command line list of
-              files so that it can be seen by subsequent :n and  :p  commands.
+              filename that contains a percent sign in the  name.   Similarly,
+              two  consecutive  pound  signs  are replaced with a single pound
+              sign.  The filename is inserted into the command  line  list  of
+              files  so  that it can be seen by subsequent :n and :p commands.
               If the filename consists of several files, they are all inserted
-              into the list of files and the first one is  examined.   If  the
+              into  the  list  of files and the first one is examined.  If the
               filename contains one or more spaces, the entire filename should
               be enclosed in double quotes (also see the -" option).
 
        ^X^V or E
-              Same as :e.  Warning: some systems use ^V as a special  literal-
-              ization  character.  On such systems, you may not be able to use
+              Same  as :e.  Warning: some systems use ^V as a special literal-
+              ization character.  On such systems, you may not be able to  use
               ^V.
 
-       :n     Examine the next file (from the list of files given in the  com-
-              mand  line).   If a number N is specified, the N-th next file is
+       :n     Examine  the next file (from the list of files given in the com-
+              mand line).  If a number N is specified, the N-th next  file  is
               examined.
 
        :p     Examine the previous file in the command line list.  If a number
               N is specified, the N-th previous file is examined.
 
-       :x     Examine  the first file in the command line list.  If a number N
+       :x     Examine the first file in the command line list.  If a number  N
               is specified, the N-th file in the list is examined.
 
        :d     Remove the current file from the list of files.
 
-       t      Go to the next tag, if there were more than one matches for  the
+       t      Go  to the next tag, if there were more than one matches for the
               current tag.  See the -t option for more details about tags.
 
-       T      Go  to the previous tag, if there were more than one matches for
+       T      Go to the previous tag, if there were more than one matches  for
               the current tag.
 
        = or ^G or :f
-              Prints some information about the file being  viewed,  including
-              its  name and the line number and byte offset of the bottom line
-              being displayed.  If possible, it also prints the length of  the
-              file,  the  number  of  lines in the file and the percent of the
+              Prints  some  information about the file being viewed, including
+              its name and the line number and byte offset of the bottom  line
+              being  displayed.  If possible, it also prints the length of the
+              file, the number of lines in the file and  the  percent  of  the
               file above the last displayed line.
 
-       -      Followed by one of the command line option letters (see  OPTIONS
-              below),  this will change the setting of that option and print a
-              message describing the new setting.   If  a  ^P  (CONTROL-P)  is
+       -      Followed  by one of the command line option letters (see OPTIONS
+              below), this will change the setting of that option and print  a
+              message  describing  the  new  setting.   If a ^P (CONTROL-P) is
               entered immediately after the dash, the setting of the option is
-              changed but no message is printed.  If the option letter  has  a
-              numeric  value (such as -b or -h), or a string value (such as -P
-              or -t), a new value may be entered after the option letter.   If
-              no  new  value is entered, a message describing the current set-
+              changed  but  no message is printed.  If the option letter has a
+              numeric value (such as -b or -h), or a string value (such as  -P
+              or  -t), a new value may be entered after the option letter.  If
+              no new value is entered, a message describing the  current  set-
               ting is printed and nothing is changed.
 
-       --     Like the - command, but takes a long option  name  (see  OPTIONS
+       --     Like  the  -  command, but takes a long option name (see OPTIONS
               below) rather than a single option letter.  You must press ENTER
-              or RETURN after typing the option name.  A ^P immediately  after
-              the  second dash suppresses printing of a message describing the
+              or  RETURN after typing the option name.  A ^P immediately after
+              the second dash suppresses printing of a message describing  the
               new setting, as in the - command.
 
-       -+     Followed by one of the command line  option  letters  this  will
-              reset  the  option  to  its  default setting and print a message
-              describing the new setting.  (The "-+[4mX[24m" command  does  the  same
-              thing  as  "-+[4mX[24m"  on  the command line.)  This does not work for
+       -+     Followed  by  one  of  the command line option letters this will
+              reset the option to its default  setting  and  print  a  message
+              describing  the  new  setting.  (The "-+[4mX[24m" command does the same
+              thing as "-+[4mX[24m" on the command line.)  This  does  not  work  for
               string-valued options.
 
-       --+    Like the -+ command, but takes a long option name rather than  a
+       --+    Like  the -+ command, but takes a long option name rather than a
               single option letter.
 
-       -!     Followed  by  one  of the command line option letters, this will
-              reset the option to the "opposite" of its  default  setting  and
-              print  a message describing the new setting.  This does not work
+       -!     Followed by one of the command line option  letters,  this  will
+              reset  the  option  to the "opposite" of its default setting and
+              print a message describing the new setting.  This does not  work
               for numeric or string-valued options.
 
-       --!    Like the -! command, but takes a long option name rather than  a
+       --!    Like  the -! command, but takes a long option name rather than a
               single option letter.
 
-       _      (Underscore.)   Followed  by one of the command line option let-
-              ters, this will print a message describing the  current  setting
+       _      (Underscore.)  Followed by one of the command line  option  let-
+              ters,  this  will print a message describing the current setting
               of that option.  The setting of the option is not changed.
 
        __     (Double underscore.)  Like the _ (underscore) command, but takes
               a long option name rather than a single option letter.  You must
               press ENTER or RETURN after typing the option name.
 
-       +cmd   Causes  the specified cmd to be executed each time a new file is
+       +cmd   Causes the specified cmd to be executed each time a new file  is
               examined.  For example, +G causes [4mless[24m to initially display each
               file starting at the end rather than the beginning.
 
@@ -383,49 +390,49 @@ LESS(1)                     General Commands Manual                    LESS(1)
        q or Q or :q or :Q or ZZ
               Exits [4mless.[0m
 
-       The  following four commands may or may not be valid, depending on your
+       The following four commands may or may not be valid, depending on  your
        particular installation.
 
-       v      Invokes an editor to edit the current file  being  viewed.   The
+       v      Invokes  an  editor  to edit the current file being viewed.  The
               editor is taken from the environment variable VISUAL if defined,
-              or EDITOR if VISUAL is not defined, or defaults to "vi" if  nei-
-              ther  VISUAL  nor EDITOR is defined.  See also the discussion of
+              or  EDITOR if VISUAL is not defined, or defaults to "vi" if nei-
+              ther VISUAL nor EDITOR is defined.  See also the  discussion  of
               LESSEDIT under the section on PROMPTS below.
 
        ! shell-command
-              Invokes a shell to run the shell-command given.  A percent  sign
-              (%)  in the command is replaced by the name of the current file.
+              Invokes  a shell to run the shell-command given.  A percent sign
+              (%) in the command is replaced by the name of the current  file.
               A pound sign (#) is replaced by the name of the previously exam-
-              ined  file.   "!!"  repeats the last shell command.  "!" with no
-              shell command simply invokes a  shell.   On  Unix  systems,  the
-              shell  is taken from the environment variable SHELL, or defaults
-              to "sh".  On MS-DOS and OS/2 systems, the shell  is  the  normal
+              ined file.  "!!" repeats the last shell command.   "!"  with  no
+              shell  command  simply  invokes  a  shell.  On Unix systems, the
+              shell is taken from the environment variable SHELL, or  defaults
+              to  "sh".   On  MS-DOS and OS/2 systems, the shell is the normal
               command processor.
 
        | <m> shell-command
-              <m>  represents  any  mark letter.  Pipes a section of the input
-              file to the given shell command.  The section of the file to  be
-              piped  is  between  the first line on the current screen and the
-              position marked by the letter.  <m> may also be ^ or $ to  indi-
+              <m> represents any mark letter.  Pipes a section  of  the  input
+              file  to the given shell command.  The section of the file to be
+              piped is between the first line on the current  screen  and  the
+              position  marked by the letter.  <m> may also be ^ or $ to indi-
               cate beginning or end of file respectively.  If <m> is . or new-
               line, the current screen is piped.
 
        s filename
-              Save the input to a file.  This only works if  the  input  is  a
+              Save  the  input  to  a file.  This only works if the input is a
               pipe, not an ordinary file.
 
 [1mOPTIONS[0m
-       Command  line options are described below.  Most options may be changed
+       Command line options are described below.  Most options may be  changed
        while [4mless[24m is running, via the "-" command.
 
-       Most options may be given in one of two forms: either a  dash  followed
-       by  a  single  letter, or two dashes followed by a long option name.  A
-       long option name may be abbreviated as  long  as  the  abbreviation  is
+       Most  options  may be given in one of two forms: either a dash followed
+       by a single letter, or two dashes followed by a long  option  name.   A
+       long  option  name  may  be  abbreviated as long as the abbreviation is
        unambiguous.  For example, --quit-at-eof may be abbreviated --quit, but
        not --qui, since both --quit-at-eof and --quiet begin with --qui.  Some
-       long  option names are in uppercase, such as --QUIT-AT-EOF, as distinct
-       from --quit-at-eof.  Such option names need only have their first  let-
-       ter  capitalized; the remainder of the name may be in either case.  For
+       long option names are in uppercase, such as --QUIT-AT-EOF, as  distinct
+       from  --quit-at-eof.  Such option names need only have their first let-
+       ter capitalized; the remainder of the name may be in either case.   For
        example, --Quit-at-eof is equivalent to --QUIT-AT-EOF.
 
        Options are also taken from the environment variable "LESS".  For exam-
@@ -438,76 +445,76 @@ LESS(1)                     General Commands Manual                    LESS(1)
 
        LESS="-options"; export LESS
 
-       On MS-DOS, you don't need the quotes, but you should replace  any  per-
+       On  MS-DOS,  you don't need the quotes, but you should replace any per-
        cent signs in the options string by double percent signs.
 
-       The  environment variable is parsed before the command line, so command
-       line options override the LESS  environment  variable.   If  an  option
-       appears  in  the LESS variable, it can be reset to its default value on
+       The environment variable is parsed before the command line, so  command
+       line  options  override  the  LESS  environment variable.  If an option
+       appears in the LESS variable, it can be reset to its default  value  on
        the command line by beginning the command line option with "-+".
 
-       Some options like -k or -D require a string to follow the  option  let-
-       ter.   The  string  for  that option is considered to end when a dollar
-       sign ($) is found.  For example, you can set two -D options  on  MS-DOS
+       Some  options  like -k or -D require a string to follow the option let-
+       ter.  The string for that option is considered to  end  when  a  dollar
+       sign  ($)  is found.  For example, you can set two -D options on MS-DOS
        like this:
 
        LESS="Dn9.1$Ds4.1"
 
-       If  the  --use-backslash  option appears earlier in the options, then a
-       dollar sign or backslash may be included literally in an option  string
+       If the --use-backslash option appears earlier in the  options,  then  a
+       dollar  sign or backslash may be included literally in an option string
        by preceding it with a backslash.  If the --use-backslash option is not
-       in effect, then backslashes are not treated specially, and there is  no
+       in  effect, then backslashes are not treated specially, and there is no
        way to include a dollar sign in the option string.
 
        -? or --help
-              This  option displays a summary of the commands accepted by [4mless[0m
-              (the same as the h  command).   (Depending  on  how  your  shell
-              interprets  the  question mark, it may be necessary to quote the
+              This option displays a summary of the commands accepted by  [4mless[0m
+              (the  same  as  the  h  command).   (Depending on how your shell
+              interprets the question mark, it may be necessary to  quote  the
               question mark, thus: "-\?".)
 
        -a or --search-skip-screen
-              By default, forward searches start at the top of  the  displayed
-              screen  and  backwards  searches start at the bottom of the dis-
-              played screen (except for repeated searches invoked by the n  or
-              N  commands,  which  start  after  or  before  the "target" line
+              By  default,  forward searches start at the top of the displayed
+              screen and backwards searches start at the bottom  of  the  dis-
+              played  screen (except for repeated searches invoked by the n or
+              N commands, which  start  after  or  before  the  "target"  line
               respectively; see the -j option for more about the target line).
-              The  -a  option  causes forward searches to instead start at the
-              bottom of the screen and backward searches to start at  the  top
+              The -a option causes forward searches to instead  start  at  the
+              bottom  of  the screen and backward searches to start at the top
               of the screen, thus skipping all lines displayed on the screen.
 
        -A or --SEARCH-SKIP-SCREEN
-              Causes  all forward searches (not just non-repeated searches) to
-              start just after the target line, and all backward  searches  to
-              start  just before the target line.  Thus, forward searches will
+              Causes all forward searches (not just non-repeated searches)  to
+              start  just  after the target line, and all backward searches to
+              start just before the target line.  Thus, forward searches  will
               skip part of the displayed screen (from the first line up to and
-              including  the  target line).  Similarly backwards searches will
+              including the target line).  Similarly backwards  searches  will
               skip the displayed screen from the last line up to and including
               the target line.  This was the default behavior in less versions
               prior to 441.
 
        -b[4mn[24m or --buffers=[4mn[0m
-              Specifies the amount of buffer space  [4mless[24m  will  use  for  each
-              file,  in  units  of kilobytes (1024 bytes).  By default 64 K of
-              buffer space is used for each file (unless the file is  a  pipe;
-              see  the  -B  option).   The  -b option specifies instead that [4mn[0m
+              Specifies  the  amount  of  buffer  space [4mless[24m will use for each
+              file, in units of kilobytes (1024 bytes).  By  default  64 K  of
+              buffer  space  is used for each file (unless the file is a pipe;
+              see the -B option).  The -b  option  specifies  instead  that  [4mn[0m
               kilobytes of buffer space should be used for each file.  If [4mn[24m is
-              -1,  buffer  space is unlimited; that is, the entire file can be
+              -1, buffer space is unlimited; that is, the entire file  can  be
               read into memory.
 
        -B or --auto-buffers
               By default, when data is read from a pipe, buffers are allocated
               automatically as needed.  If a large amount of data is read from
-              the pipe, this can cause a large amount of memory  to  be  allo-
+              the  pipe,  this  can cause a large amount of memory to be allo-
               cated.  The -B option disables this automatic allocation of buf-
               fers for pipes, so that only 64 K (or the amount of space speci-
               fied by the -b option) is used for the pipe.  Warning: use of -B
-              can result in erroneous display, since only  the  most  recently
-              viewed  part  of  the  piped data is kept in memory; any earlier
+              can  result  in  erroneous display, since only the most recently
+              viewed part of the piped data is kept  in  memory;  any  earlier
               data is lost.
 
        -c or --clear-screen
-              Causes full screen repaints to be  painted  from  the  top  line
-              down.   By  default,  full screen repaints are done by scrolling
+              Causes  full  screen  repaints  to  be painted from the top line
+              down.  By default, full screen repaints are  done  by  scrolling
               from the bottom of the screen.
 
        -C or --CLEAR-SCREEN
@@ -515,19 +522,20 @@ LESS(1)                     General Commands Manual                    LESS(1)
 
        -d or --dumb
               The -d option suppresses the error message normally displayed if
-              the  terminal is dumb; that is, lacks some important capability,
+              the terminal is dumb; that is, lacks some important  capability,
               such as the ability to clear the screen or scroll backward.  The
-              -d  option  does  not otherwise change the behavior of [4mless[24m on a
+              -d option does not otherwise change the behavior of  [4mless[24m  on  a
               dumb terminal.
 
        -D[1mx[4m[22mcolor[24m or --color=[1mx[4m[22mcolor[0m
               [MS-DOS only] Sets the color of the text displayed.  [1mx [22mis a sin-
-              gle  character  which  selects  the  type of text whose color is
-              being set: n=normal, s=standout, d=bold, u=underlined,  k=blink.
-              [4mcolor[24m  is  a  pair  of numbers separated by a period.  The first
-              number selects the foreground color and the second  selects  the
-              background  color of the text.  A single number [4mN[24m is the same as
-              [4mN.M[24m, where [4mM[24m is the normal background color.
+              gle character which selects the type  of  text  whose  color  is
+              being  set: n=normal, s=standout, d=bold, u=underlined, k=blink.
+              [4mcolor[24m is a pair of numbers separated by  a  period.   The  first
+              number  selects  the foreground color and the second selects the
+              background color of the text.  A single number [4mN[24m is the same  as
+              [4mN.M[24m, where [4mM[24m is the normal background color.  [1mx [22mmay also be [1ma [22mto
+              toggle strict ANSI sequence rendering (SGR mode).
 
 
        -e or --quit-at-eof
@@ -1609,7 +1617,7 @@ LESS(1)                     General Commands Manual                    LESS(1)
 
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 1984-2015  Mark Nudelman
+       Copyright (C) 1984-2016  Mark Nudelman
 
        less is part of the GNU project and is free software.  You  can  redis-
        tribute  it and/or modify it under the terms of either (1) the GNU Gen-
@@ -1637,4 +1645,4 @@ LESS(1)                     General Commands Manual                    LESS(1)
 
 
 
-                           Version 481: 31 Aug 2015                    LESS(1)
+                           Version 487: 25 Oct 2016                    LESS(1)

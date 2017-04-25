@@ -365,13 +365,13 @@ fi
 
 # Compile in secure mode?
 AC_ARG_WITH(secure,
-  [  --with-secure  Compile in secure mode],
+  [  --with-secure           Compile in secure mode],
   AC_DEFINE(SECURE_COMPILE, 1), AC_DEFINE(SECURE_COMPILE, 0))
 
 # Should we use floating point?
 AC_MSG_CHECKING(for floating point)
 AC_ARG_WITH(no-float,
-  [  --with-no-float  Do not use floating point],
+  [  --with-no-float         Do not use floating point],
   WANT_NO_FLOAT=1, WANT_NO_FLOAT=0)
 if test $WANT_NO_FLOAT = 0; then
   AC_TRY_LINK(, [double f1 = 12.5; double f2 = f1*f1/2.5;], 
@@ -388,7 +388,7 @@ supported_regex=""
 # Select a regular expression library.
 WANT_REGEX=auto
 AC_ARG_WITH(regex,
-  [  --with-regex={auto,gnu,pcre,posix,regcmp,re_comp,regcomp,regcomp-local,none}  Select a regular expression library  [auto]],
+  [  --with-regex=LIB        select regular expression library (LIB is one of auto,none,gnu,pcre,posix,regcmp,re_comp,regcomp,regcomp-local) [[auto]]],
   WANT_REGEX="$withval")
 
 if test $have_regex = no; then
@@ -484,7 +484,7 @@ fi
 AC_MSG_RESULT(regular expression library: $supported_regex)
 
 AC_ARG_WITH(editor,
-  [  --with-editor=PROGRAM   use PROGRAM as the default editor [vi]],
+  [  --with-editor=PROGRAM   use PROGRAM as the default editor [[vi]]],
   AC_DEFINE_UNQUOTED(EDIT_PGM, "$withval"), AC_DEFINE(EDIT_PGM, "vi"))
 
 AH_TOP([

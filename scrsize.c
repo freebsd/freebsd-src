@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -45,7 +45,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static int get_winsize(Display *dpy, Window window, int *p_width, int *p_height)
+static int get_winsize(dpy, window, p_width, p_height)
+	Display *dpy;
+	Window window;
+	int *p_width;
+	int *p_height;
 {
 	XWindowAttributes win_attributes;
 	XSizeHints hints;
@@ -75,7 +79,9 @@ static int get_winsize(Display *dpy, Window window, int *p_width, int *p_height)
 	return 0;
 }
 
-int main(int argc, char *argv[])
+int main(argc, argv)
+	int argc;
+	char *argv[];
 {
 	char *cp;
 	Display *dpy;

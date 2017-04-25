@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -40,7 +40,8 @@ extern long jump_sline_fraction;
  */
 	/* ARGSUSED*/
 	static RETSIGTYPE
-u_interrupt(int type)
+u_interrupt(type)
+	int type;
 {
 	bell();
 #if OS2
@@ -67,7 +68,8 @@ u_interrupt(int type)
  */
 	/* ARGSUSED*/
 	static RETSIGTYPE
-stop(int type)
+stop(type)
+	int type;
 {
 	LSIGNAL(SIGTSTP, stop);
 	sigs |= S_STOP;
@@ -82,7 +84,8 @@ stop(int type)
  */
 	/* ARGSUSED*/
 	public RETSIGTYPE
-winch(int type)
+winch(type)
+	int type;
 {
 	LSIGNAL(SIGWINCH, winch);
 	sigs |= S_WINCH;
@@ -96,7 +99,8 @@ winch(int type)
  */
 	/* ARGSUSED*/
 	public RETSIGTYPE
-winch(int type)
+winch(type)
+	int type;
 {
 	LSIGNAL(SIGWIND, winch);
 	sigs |= S_WINCH;
@@ -113,7 +117,8 @@ winch(int type)
 #include "windows.h"
 
 	static BOOL WINAPI 
-wbreak_handler(DWORD dwCtrlType)
+wbreak_handler(dwCtrlType)
+	DWORD dwCtrlType;
 {
 	switch (dwCtrlType)
 	{
@@ -132,7 +137,8 @@ wbreak_handler(DWORD dwCtrlType)
  * Set up the signal handlers.
  */
 	public void
-init_signals(int on)
+init_signals(on)
+	int on;
 {
 	if (on)
 	{
@@ -184,9 +190,9 @@ init_signals(int on)
  * A received signal cause a bit to be set in "sigs".
  */
 	public void
-psignals(void)
+psignals()
 {
-	int tsignals;
+	register int tsignals;
 
 	if ((tsignals = sigs) == 0)
 		return;

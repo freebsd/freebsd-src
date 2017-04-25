@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -291,9 +291,10 @@ main(argc, argv)
  * (that is, to a buffer allocated by calloc).
  */
 	public char *
-save(constant char *s)
+save(s)
+	char *s;
 {
-	char *p;
+	register char *p;
 
 	p = (char *) ecalloc(strlen(s)+1, sizeof(char));
 	strcpy(p, s);
@@ -305,9 +306,11 @@ save(constant char *s)
  * Like calloc(), but never returns an error (NULL).
  */
 	public VOID_POINTER
-ecalloc(int count, unsigned int size)
+ecalloc(count, size)
+	int count;
+	unsigned int size;
 {
-	VOID_POINTER p;
+	register VOID_POINTER p;
 
 	p = (VOID_POINTER) calloc(count, size);
 	if (p != NULL)
@@ -322,7 +325,8 @@ ecalloc(int count, unsigned int size)
  * Skip leading spaces in a string.
  */
 	public char *
-skipsp(char *s)
+skipsp(s)
+	register char *s;
 {
 	while (*s == ' ' || *s == '\t')	
 		s++;
@@ -335,11 +339,14 @@ skipsp(char *s)
  * character; the remainder of the first string may be either case.
  */
 	public int
-sprefix(char *ps, char *s, int uppercase)
+sprefix(ps, s, uppercase)
+	char *ps;
+	char *s;
+	int uppercase;
 {
-	int c;
-	int sc;
-	int len = 0;
+	register int c;
+	register int sc;
+	register int len = 0;
 
 	for ( ;  *s != '\0';  s++, ps++)
 	{
@@ -365,7 +372,8 @@ sprefix(char *ps, char *s, int uppercase)
  * Exit the program.
  */
 	public void
-quit(int status)
+quit(status)
+	int status;
 {
 	static int save_status;
 

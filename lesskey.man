@@ -117,7 +117,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             \n        forw-line
             e         forw-line
             j         forw-line
-            \kd  forw-line
+            \kd       forw-line
             ^E        forw-line
             ^N        forw-line
             k         back-line
@@ -132,15 +132,15 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             ^D        forw-scroll
             u         back-scroll
             ^U        back-scroll
-            \40  forw-screen
+            \40       forw-screen
             f         forw-screen
             ^F        forw-screen
             ^V        forw-screen
-            \kD  forw-screen
+            \kD       forw-screen
             b         back-screen
             ^B        back-screen
             \ev       back-screen
-            \kU  back-screen
+            \kU       back-screen
             z         forw-window
             w         back-window
             \e\40          forw-screen-force
@@ -152,7 +152,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             ^L        repaint
             \eu       undo-hilite
             g         goto-line
-            \kh  goto-line
+            \kh       goto-line
             <         goto-line
             \e<       goto-line
             p         percent
@@ -163,6 +163,8 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             \e)       right-scroll
             \kl       left-scroll
             \kr       right-scroll
+            \e{       no-scroll
+            \e}       end-scroll
             {         forw-bracket {}
             }         back-bracket {}
             (         forw-bracket ()
@@ -174,7 +176,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             G         goto-end
             \e>       goto-end
             >         goto-end
-            \ke  goto-end
+            \ke       goto-end
             \eG       goto-end-buffered
             =         status
             ^G        status
@@ -333,7 +335,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 1984-2015  Mark Nudelman
+       Copyright (C) 1984-2016  Mark Nudelman
 
        less  is  part of the GNU project and is free software.  You can redis-
        tribute it and/or modify it under the terms of either (1) the GNU  Gen-
@@ -357,4 +359,4 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
 
 
-                           Version 481: 31 Aug 2015                 LESSKEY(1)
+                           Version 487: 25 Oct 2016                 LESSKEY(1)

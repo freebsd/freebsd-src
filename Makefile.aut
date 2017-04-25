@@ -111,7 +111,7 @@ compose.uni: unicode/UnicodeData.txt
 ubin.uni: unicode/UnicodeData.txt
 	./mkutable -f2 Cc Cf Cs Co Zl Zp -- unicode/UnicodeData.txt > $@
 wide.uni: unicode/EastAsianWidth.txt
-	./mkutable -f1 W -- unicode/EastAsianWidth.txt > $@
+	./mkutable -f1 W F -- unicode/EastAsianWidth.txt > $@
 
 distfiles: ${DISTFILES}
 

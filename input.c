@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -42,11 +42,12 @@ extern int size_linebuf;
  * of the NEXT line.  The line obtained is the line starting at curr_pos.
  */
 	public POSITION
-forw_line(POSITION curr_pos)
+forw_line(curr_pos)
+	POSITION curr_pos;
 {
 	POSITION base_pos;
 	POSITION new_pos;
-	int c;
+	register int c;
 	int blankline;
 	int endline;
 	int backchars;
@@ -248,7 +249,8 @@ get_forw_line:
  * of the PREVIOUS line.  The line obtained is the one starting at new_pos.
  */
 	public POSITION
-back_line(POSITION curr_pos)
+back_line(curr_pos)
+	POSITION curr_pos;
 {
 	POSITION new_pos, begin_new_pos, base_pos;
 	int c;
@@ -427,7 +429,8 @@ get_back_line:
  * Set attnpos.
  */
 	public void
-set_attnpos(POSITION pos)
+set_attnpos(pos)
+	POSITION pos;
 {
 	int c;
 

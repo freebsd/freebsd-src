@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2016  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -38,14 +38,14 @@ static char metachars[64] = "";
 static int num_metachars = 0;
 
 	static void
-pr_usage(void)
+pr_usage()
 {
 	fprintf(stderr,
 		"usage: lessecho [-ox] [-cx] [-pn] [-dn] [-mx] [-nn] [-ex] [-fn] [-a] file ...\n");
 }
 
 	static void
-pr_version(void)
+pr_version()
 {
 	char *p;
 	char buf[10];
@@ -61,14 +61,18 @@ pr_version(void)
 }
 
 	static void
-pr_error(char *s)
+pr_error(s)
+	char *s;
 {
 	fprintf(stderr, "%s\n", s);
 	exit(1);
 }
 
 	static long
-lstrtol(char *s, int radix, char **pend)
+lstrtol(s, radix, pend)
+	char *s;
+	int radix;
+	char **pend;
 {
 	int v;
 	int neg = 0;
