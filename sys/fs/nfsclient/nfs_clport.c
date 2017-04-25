@@ -1125,7 +1125,7 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 {
 	struct proc *p;
 
-	if (error < 10000)
+	if (error < 10000 || error >= NFSERR_STALEWRITEVERF)
 		return (error);
 	if (td != NULL)
 		p = td->td_proc;
