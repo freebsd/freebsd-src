@@ -3408,7 +3408,8 @@ ipf_state_check(fin, passp)
 	 * If this packet is a fragment and the rule says to track fragments,
 	 * then create a new fragment cache entry.
 	 */
-	if ((fin->fin_flx & FI_FRAG) && FR_ISPASS(is->is_pass))
+	if (fin->fin_flx & FI_FRAG && FR_ISPASS(is->is_pass) &&
+	   is->is_pass & FR_KEEPFRAG)
 		(void) ipf_frag_new(softc, fin, is->is_pass);
 
 	/*
