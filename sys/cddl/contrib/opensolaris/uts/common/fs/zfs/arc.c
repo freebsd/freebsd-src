@@ -3978,7 +3978,7 @@ arc_available_memory(void)
 	 * Start aggressive reclamation if too little sequential KVA left.
 	 */
 	if (lowest > 0) {
-		n = (vmem_size(heap_arena, VMEM_MAXFREE) < zfs_max_recordsize) ?
+		n = (vmem_size(heap_arena, VMEM_MAXFREE) < SPA_MAXBLOCKSIZE) ?
 		    -((int64_t)vmem_size(heap_arena, VMEM_ALLOC) >> 4) :
 		    INT64_MAX;
 		if (n < lowest) {
