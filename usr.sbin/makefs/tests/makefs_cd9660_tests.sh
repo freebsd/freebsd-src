@@ -181,6 +181,8 @@ from_single_dir_cleanup()
 atf_test_case o_flag_allow_deep_trees cleanup
 o_flag_allow_deep_trees_body()
 {
+	check_cd9660_support
+
 	create_test_inputs
 
 	# Make sure the "more than 8 levels deep" requirement is met.
@@ -202,6 +204,8 @@ atf_test_case o_flag_allow_max_name cleanup
 o_flag_allow_max_name_body()
 {
 	atf_expect_fail "-o allow-max-name doesn't appear to be implemented on FreeBSD's copy of makefs [yet]"
+
+	check_cd9660_support
 
 	create_test_inputs
 
@@ -226,6 +230,8 @@ o_flag_isolevel_1_body()
 {
 	atf_expect_fail "this testcase needs work; the filenames generated seem incorrect/corrupt"
 
+	check_cd9660_support
+
 	create_test_inputs
 
 	atf_check -e empty -o empty -s exit:0 \
@@ -242,6 +248,8 @@ o_flag_isolevel_1_cleanup()
 atf_test_case o_flag_isolevel_2 cleanup
 o_flag_isolevel_2_body()
 {
+	check_cd9660_support
+
 	create_test_inputs
 
 	atf_check -e empty -o empty -s exit:0 \
@@ -258,6 +266,8 @@ o_flag_isolevel_2_cleanup()
 atf_test_case o_flag_isolevel_3 cleanup
 o_flag_isolevel_3_body()
 {
+	check_cd9660_support
+
 	create_test_inputs
 
 	# XXX: isolevel=3 isn't implemented yet. See FreeBSD bug # 203645
@@ -309,6 +319,8 @@ o_flag_publisher_body()
 atf_test_case o_flag_rockridge cleanup
 o_flag_rockridge_body()
 {
+	check_cd9660_support
+
 	create_test_dirs
 
 	# Make sure the "more than 8 levels deep" requirement is met.
@@ -346,6 +358,8 @@ o_flag_rockridge_dev_nodes_head()
 }
 o_flag_rockridge_dev_nodes_body()
 {
+	check_cd9660_support
+
 	create_test_dirs
 
 	(tar -cvf - -C /dev null && touch .tar_ok) | \
