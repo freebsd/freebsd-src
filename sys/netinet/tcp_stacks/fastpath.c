@@ -497,7 +497,6 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	/*
 	 * If the state is SYN_SENT:
-	 *	if seg contains an ACK, but not for our SYN, drop the input.
 	 *	if seg contains a RST, then drop the connection.
 	 *	if seg does not contain SYN, then drop it.
 	 * Otherwise this is an acceptable SYN segment
@@ -510,12 +509,6 @@ tcp_do_slowpath(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 *	continue processing rest of data/controls, beginning with URG
 	 */
 	case TCPS_SYN_SENT:
-		if ((thflags & TH_ACK) &&
-		    (SEQ_LEQ(th->th_ack, tp->iss) ||
-		     SEQ_GT(th->th_ack, tp->snd_max))) {
-			rstreason = BANDLIM_UNLIMITED;
-			goto dropwithreset;
-		}
 		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST)) {
 			TCP_PROBE5(connect__refused, NULL, tp, m, tp, th);
 			tp = tcp_drop(tp, ECONNREFUSED);
@@ -1775,6 +1768,20 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		m_freem(m);
 		return;
 	}
+	
+	/*
+	 * If a segment with the ACK-bit set arrives in the SYN-SENT state
+	 * check SEQ.ACK first.
+	 */
+	if ((tp->t_state == TCPS_SYN_SENT) && (thflags & TH_ACK) &&
+	    (SEQ_LEQ(th->th_ack, tp->iss) || SEQ_GT(th->th_ack, tp->snd_max))) {
+		tcp_dropwithreset(m, th, tp, tlen, BANDLIM_UNLIMITED);
+		if (ti_locked == TI_RLOCKED) {
+			INP_INFO_RUNLOCK(&V_tcbinfo);
+		}
+		INP_WUNLOCK(tp->t_inpcb);
+		return;
+	}
 
 	tp->sackhint.last_sack_ack = 0;
 
@@ -2237,6 +2244,20 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		return;
 	}
 
+	/*
+	 * If a segment with the ACK-bit set arrives in the SYN-SENT state
+	 * check SEQ.ACK first.
+	 */
+	if ((tp->t_state == TCPS_SYN_SENT) && (thflags & TH_ACK) &&
+	    (SEQ_LEQ(th->th_ack, tp->iss) || SEQ_GT(th->th_ack, tp->snd_max))) {
+		tcp_dropwithreset(m, th, tp, tlen, BANDLIM_UNLIMITED);
+		if (ti_locked == TI_RLOCKED) {
+			INP_INFO_RUNLOCK(&V_tcbinfo);
+		}
+		INP_WUNLOCK(tp->t_inpcb);
+		return;
+	}
+	
 	tp->sackhint.last_sack_ack = 0;
 
 	/*
