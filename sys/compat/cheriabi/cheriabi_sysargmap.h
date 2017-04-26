@@ -374,6 +374,9 @@ struct {
 	[CHERIABI_SYS_ffclock_getestimate] = {
 		.sam_ptrmask = 0x1
 	},
+	[CHERIABI_SYS_clock_nanosleep] = {
+		.sam_ptrmask = 0x4 | 0x8
+	},
 	[CHERIABI_SYS_clock_getcpuclockid2] = {
 		.sam_ptrmask = 0x4
 	},

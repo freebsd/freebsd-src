@@ -3596,6 +3596,49 @@ CHERIABI_SYS_ffclock_getestimate_fill_uap(struct thread *td,
 }
 
 static inline int
+CHERIABI_SYS_clock_nanosleep_fill_uap(struct thread *td,
+    struct clock_nanosleep_args *uap)
+{
+	struct chericap tmpcap;
+
+	/* [0] clockid_t clock_id */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_clock_nanosleep, 0);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->clock_id, CHERI_CR_CTEMP0);
+
+	/* [1] int flags */
+	cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_clock_nanosleep, 1);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
+	CHERI_CTOINT(uap->flags, CHERI_CR_CTEMP0);
+
+	/* [2] _In_ const struct timespec * rqtp */
+	{
+		int error;
+		register_t reqperms = (CHERI_PERM_LOAD);
+
+		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_clock_nanosleep, 2);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->rqtp),
+		    &tmpcap, sizeof(*uap->rqtp), reqperms, 0);
+		if (error != 0)
+			return (error);
+	}
+
+	/* [3] _Out_opt_ struct timespec * rmtp */
+	{
+		int error;
+		register_t reqperms = (CHERI_PERM_STORE);
+
+		cheriabi_fetch_syscall_arg(td, &tmpcap, CHERIABI_SYS_clock_nanosleep, 3);
+		error = cheriabi_cap_to_ptr(__DECONST(caddr_t *, &uap->rmtp),
+		    &tmpcap, sizeof(*uap->rmtp), reqperms, 1);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+static inline int
 CHERIABI_SYS_clock_getcpuclockid2_fill_uap(struct thread *td,
     struct clock_getcpuclockid2_args *uap)
 {

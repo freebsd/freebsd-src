@@ -162,6 +162,7 @@ static fill_uap_fp cheriabi_fill_uap_funcs[CHERIABI_SYS_MAXSYSCALL] = {
 	[CHERIABI_SYS_ffclock_getcounter] = (fill_uap_fp)CHERIABI_SYS_ffclock_getcounter_fill_uap,
 	[CHERIABI_SYS_ffclock_setestimate] = (fill_uap_fp)CHERIABI_SYS_ffclock_setestimate_fill_uap,
 	[CHERIABI_SYS_ffclock_getestimate] = (fill_uap_fp)CHERIABI_SYS_ffclock_getestimate_fill_uap,
+	[CHERIABI_SYS_clock_nanosleep] = (fill_uap_fp)CHERIABI_SYS_clock_nanosleep_fill_uap,
 	[CHERIABI_SYS_clock_getcpuclockid2] = (fill_uap_fp)CHERIABI_SYS_clock_getcpuclockid2_fill_uap,
 	[CHERIABI_SYS_ntp_gettime] = (fill_uap_fp)CHERIABI_SYS_ntp_gettime_fill_uap,
 	[CHERIABI_SYS_minherit] = (fill_uap_fp)CHERIABI_SYS_minherit_fill_uap,

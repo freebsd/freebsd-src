@@ -218,6 +218,7 @@
 #define	CHERIABI_SYS_ffclock_getcounter	241
 #define	CHERIABI_SYS_ffclock_setestimate	242
 #define	CHERIABI_SYS_ffclock_getestimate	243
+#define	CHERIABI_SYS_clock_nanosleep	244
 #define	CHERIABI_SYS_clock_getcpuclockid2	247
 #define	CHERIABI_SYS_ntp_gettime	248
 #define	CHERIABI_SYS_minherit	250

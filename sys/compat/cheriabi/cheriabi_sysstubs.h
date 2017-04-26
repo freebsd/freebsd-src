@@ -1482,6 +1482,16 @@ SYS_STUB(243, int, ffclock_getestimate,
     /* _localcheck */ {if (!(cheri_getperm(cest) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
 )
 
+SYS_STUB(244, int, clock_nanosleep,
+    /* _protoargs */ (clockid_t clock_id, int flags, const struct timespec * rqtp, struct timespec * rmtp),
+    /* _protoargs_chk */ (int *retp , __capability int *stub_errno, clockid_t clock_id, int flags, const struct timespec * __capability  rqtp, struct timespec * __capability  rmtp),
+    /* _protoargs_err */ (__capability int *stub_errno, clockid_t clock_id, int flags, const struct timespec * __capability  rqtp, struct timespec * __capability  rmtp),
+    /* _callargs */ (clock_id, flags, (const struct timespec *)rqtp, (struct timespec *)rmtp),
+    /* _callargs_chk */ (&ret, stub_errno, clock_id, flags, rqtp, rmtp),
+    /* _callargs_err */ (&errno, clock_id, flags, (const struct timespec *)rqtp, (struct timespec *)rmtp),
+    /* _localcheck */ {if (!(cheri_getperm(rqtp) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} if (!(cheri_getperm(rmtp) & CHERI_PERM_GLOBAL)) {errno = EPROT; return ((int)-1);} }
+)
+
 SYS_STUB(247, int, clock_getcpuclockid2,
     /* _protoargs */ (id_t id, int which, clockid_t * clock_id),
     /* _protoargs_chk */ (int *retp , __capability int *stub_errno, id_t id, int which, clockid_t * __capability  clock_id),
