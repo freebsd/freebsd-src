@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170426: Remove cy(4)
+OLD_FILES+=usr/share/man/man4/cy.4.gz
 # 20170425: NATM configuration support removed
 OLD_FILES+=etc/rc.d/atm1
 OLD_FILES+=etc/rc.d/atm2
