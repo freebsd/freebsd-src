@@ -81,7 +81,7 @@ static int gpart_autofill(struct gctl_req *);
 static int gpart_autofill_resize(struct gctl_req *);
 static void gpart_bootcode(struct gctl_req *, unsigned int);
 static void *gpart_bootfile_read(const char *, ssize_t *);
-static void gpart_issue(struct gctl_req *, unsigned int);
+static _Noreturn void gpart_issue(struct gctl_req *, unsigned int);
 static void gpart_show(struct gctl_req *, unsigned int);
 static void gpart_show_geom(struct ggeom *, const char *, int);
 static int gpart_show_hasopt(struct gctl_req *, const char *, const char *);
@@ -1270,6 +1270,7 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 		gpart_issue(req, fl);
 
 	geom_deletetree(&mesh);
+	free(partcode);
 }
 
 static void
@@ -1290,7 +1291,7 @@ gpart_print_error(const char *errstr)
 		warnx("%s", errmsg);
 }
 
-static void
+static _Noreturn void
 gpart_issue(struct gctl_req *req, unsigned int fl __unused)
 {
 	char buf[4096];
