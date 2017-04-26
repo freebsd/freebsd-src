@@ -17,6 +17,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/Support/KnownBits.h"
 
 using namespace llvm;
 using namespace PatternMatch;
@@ -794,6 +795,11 @@ unsigned FAddCombine::calcInstrNumber(const AddendVect &Opnds) {
     if (Opnd->isConstant())
       continue;
 
+    // The constant check above is really for a few special constant
+    // coefficients.
+    if (isa<UndefValue>(Opnd->getSymVal()))
+      continue;
+
     const FAddendCoef &CE = Opnd->getCoef();
     if (CE.isMinusOne() || CE.isMinusTwo())
       NegOpndNum++;
@@ -894,24 +900,22 @@ bool InstCombiner::WillNotOverflowSignedAdd(Value *LHS, Value *RHS,
     return true;
 
   unsigned BitWidth = LHS->getType()->getScalarSizeInBits();
-  APInt LHSKnownZero(BitWidth, 0);
-  APInt LHSKnownOne(BitWidth, 0);
-  computeKnownBits(LHS, LHSKnownZero, LHSKnownOne, 0, &CxtI);
+  KnownBits LHSKnown(BitWidth);
+  computeKnownBits(LHS, LHSKnown, 0, &CxtI);
 
-  APInt RHSKnownZero(BitWidth, 0);
-  APInt RHSKnownOne(BitWidth, 0);
-  computeKnownBits(RHS, RHSKnownZero, RHSKnownOne, 0, &CxtI);
+  KnownBits RHSKnown(BitWidth);
+  computeKnownBits(RHS, RHSKnown, 0, &CxtI);
 
   // Addition of two 2's complement numbers having opposite signs will never
   // overflow.
-  if ((LHSKnownOne[BitWidth - 1] && RHSKnownZero[BitWidth - 1]) ||
-      (LHSKnownZero[BitWidth - 1] && RHSKnownOne[BitWidth - 1]))
+  if ((LHSKnown.One[BitWidth - 1] && RHSKnown.Zero[BitWidth - 1]) ||
+      (LHSKnown.Zero[BitWidth - 1] && RHSKnown.One[BitWidth - 1]))
     return true;
 
   // Check if carry bit of addition will not cause overflow.
-  if (checkRippleForAdd(LHSKnownZero, RHSKnownZero))
+  if (checkRippleForAdd(LHSKnown.Zero, RHSKnown.Zero))
     return true;
-  if (checkRippleForAdd(RHSKnownZero, LHSKnownZero))
+  if (checkRippleForAdd(RHSKnown.Zero, LHSKnown.Zero))
     return true;
 
   return false;
@@ -931,18 +935,16 @@ bool InstCombiner::WillNotOverflowSignedSub(Value *LHS, Value *RHS,
     return true;
 
   unsigned BitWidth = LHS->getType()->getScalarSizeInBits();
-  APInt LHSKnownZero(BitWidth, 0);
-  APInt LHSKnownOne(BitWidth, 0);
-  computeKnownBits(LHS, LHSKnownZero, LHSKnownOne, 0, &CxtI);
+  KnownBits LHSKnown(BitWidth);
+  computeKnownBits(LHS, LHSKnown, 0, &CxtI);
 
-  APInt RHSKnownZero(BitWidth, 0);
-  APInt RHSKnownOne(BitWidth, 0);
-  computeKnownBits(RHS, RHSKnownZero, RHSKnownOne, 0, &CxtI);
+  KnownBits RHSKnown(BitWidth);
+  computeKnownBits(RHS, RHSKnown, 0, &CxtI);
 
   // Subtraction of two 2's complement numbers having identical signs will
   // never overflow.
-  if ((LHSKnownOne[BitWidth - 1] && RHSKnownOne[BitWidth - 1]) ||
-      (LHSKnownZero[BitWidth - 1] && RHSKnownZero[BitWidth - 1]))
+  if ((LHSKnown.One[BitWidth - 1] && RHSKnown.One[BitWidth - 1]) ||
+      (LHSKnown.Zero[BitWidth - 1] && RHSKnown.Zero[BitWidth - 1]))
     return true;
 
   // TODO: implement logic similar to checkRippleForAdd
@@ -1113,10 +1115,9 @@ Instruction *InstCombiner::visitAdd(BinaryOperator &I) {
       // a sub and fuse this add with it.
       if (LHS->hasOneUse() && (XorRHS->getValue()+1).isPowerOf2()) {
         IntegerType *IT = cast<IntegerType>(I.getType());
-        APInt LHSKnownOne(IT->getBitWidth(), 0);
-        APInt LHSKnownZero(IT->getBitWidth(), 0);
-        computeKnownBits(XorLHS, LHSKnownZero, LHSKnownOne, 0, &I);
-        if ((XorRHS->getValue() | LHSKnownZero).isAllOnesValue())
+        KnownBits LHSKnown(IT->getBitWidth());
+        computeKnownBits(XorLHS, LHSKnown, 0, &I);
+        if ((XorRHS->getValue() | LHSKnown.Zero).isAllOnesValue())
           return BinaryOperator::CreateSub(ConstantExpr::getAdd(XorRHS, CI),
                                            XorLHS);
       }
@@ -1385,39 +1386,58 @@ Instruction *InstCombiner::visitFAdd(BinaryOperator &I) {
   // integer add followed by a promotion.
   if (SIToFPInst *LHSConv = dyn_cast<SIToFPInst>(LHS)) {
     Value *LHSIntVal = LHSConv->getOperand(0);
+    Type *FPType = LHSConv->getType();
+
+    // TODO: This check is overly conservative. In many cases known bits
+    // analysis can tell us that the result of the addition has less significant
+    // bits than the integer type can hold.
+    auto IsValidPromotion = [](Type *FTy, Type *ITy) {
+      Type *FScalarTy = FTy->getScalarType();
+      Type *IScalarTy = ITy->getScalarType();
+
+      // Do we have enough bits in the significand to represent the result of
+      // the integer addition?
+      unsigned MaxRepresentableBits =
+          APFloat::semanticsPrecision(FScalarTy->getFltSemantics());
+      return IScalarTy->getIntegerBitWidth() <= MaxRepresentableBits;
+    };
 
     // (fadd double (sitofp x), fpcst) --> (sitofp (add int x, intcst))
     // ... if the constant fits in the integer value.  This is useful for things
     // like (double)(x & 1234) + 4.0 -> (double)((X & 1234)+4) which no longer
     // requires a constant pool load, and generally allows the add to be better
     // instcombined.
-    if (ConstantFP *CFP = dyn_cast<ConstantFP>(RHS)) {
-      Constant *CI =
-      ConstantExpr::getFPToSI(CFP, LHSIntVal->getType());
-      if (LHSConv->hasOneUse() &&
-          ConstantExpr::getSIToFP(CI, I.getType()) == CFP &&
-          WillNotOverflowSignedAdd(LHSIntVal, CI, I)) {
-        // Insert the new integer add.
-        Value *NewAdd = Builder->CreateNSWAdd(LHSIntVal,
-                                              CI, "addconv");
-        return new SIToFPInst(NewAdd, I.getType());
+    if (ConstantFP *CFP = dyn_cast<ConstantFP>(RHS))
+      if (IsValidPromotion(FPType, LHSIntVal->getType())) {
+        Constant *CI =
+          ConstantExpr::getFPToSI(CFP, LHSIntVal->getType());
+        if (LHSConv->hasOneUse() &&
+            ConstantExpr::getSIToFP(CI, I.getType()) == CFP &&
+            WillNotOverflowSignedAdd(LHSIntVal, CI, I)) {
+          // Insert the new integer add.
+          Value *NewAdd = Builder->CreateNSWAdd(LHSIntVal,
+                                                CI, "addconv");
+          return new SIToFPInst(NewAdd, I.getType());
+        }
       }
-    }
 
     // (fadd double (sitofp x), (sitofp y)) --> (sitofp (add int x, y))
     if (SIToFPInst *RHSConv = dyn_cast<SIToFPInst>(RHS)) {
       Value *RHSIntVal = RHSConv->getOperand(0);
-
-      // Only do this if x/y have the same type, if at least one of them has a
-      // single use (so we don't increase the number of int->fp conversions),
-      // and if the integer add will not overflow.
-      if (LHSIntVal->getType() == RHSIntVal->getType() &&
-          (LHSConv->hasOneUse() || RHSConv->hasOneUse()) &&
-          WillNotOverflowSignedAdd(LHSIntVal, RHSIntVal, I)) {
-        // Insert the new integer add.
-        Value *NewAdd = Builder->CreateNSWAdd(LHSIntVal,
-                                              RHSIntVal, "addconv");
-        return new SIToFPInst(NewAdd, I.getType());
+      // It's enough to check LHS types only because we require int types to
+      // be the same for this transform.
+      if (IsValidPromotion(FPType, LHSIntVal->getType())) {
+        // Only do this if x/y have the same type, if at least one of them has a
+        // single use (so we don't increase the number of int->fp conversions),
+        // and if the integer add will not overflow.
+        if (LHSIntVal->getType() == RHSIntVal->getType() &&
+            (LHSConv->hasOneUse() || RHSConv->hasOneUse()) &&
+            WillNotOverflowSignedAdd(LHSIntVal, RHSIntVal, I)) {
+          // Insert the new integer add.
+          Value *NewAdd = Builder->CreateNSWAdd(LHSIntVal,
+                                                RHSIntVal, "addconv");
+          return new SIToFPInst(NewAdd, I.getType());
+        }
       }
     }
   }
@@ -1617,10 +1637,9 @@ Instruction *InstCombiner::visitSub(BinaryOperator &I) {
     // Turn this into a xor if LHS is 2^n-1 and the remaining bits are known
     // zero.
     if (Op0C->isMask()) {
-      APInt RHSKnownZero(BitWidth, 0);
-      APInt RHSKnownOne(BitWidth, 0);
-      computeKnownBits(Op1, RHSKnownZero, RHSKnownOne, 0, &I);
-      if ((*Op0C | RHSKnownZero).isAllOnesValue())
+      KnownBits RHSKnown(BitWidth);
+      computeKnownBits(Op1, RHSKnown, 0, &I);
+      if ((*Op0C | RHSKnown.Zero).isAllOnesValue())
         return BinaryOperator::CreateXor(Op1, Op0);
     }
   }

@@ -152,15 +152,15 @@ private:
                               Function *F) const;
 
   void appendsFlatAddressExpressionToPostorderStack(
-    Value *V, std::vector<std::pair<Value *, bool>> *PostorderStack,
-    DenseSet<Value *> *Visited) const;
+    Value *V, std::vector<std::pair<Value *, bool>> &PostorderStack,
+    DenseSet<Value *> &Visited) const;
 
   bool rewriteIntrinsicOperands(IntrinsicInst *II,
                                 Value *OldV, Value *NewV) const;
   void collectRewritableIntrinsicOperands(
     IntrinsicInst *II,
-    std::vector<std::pair<Value *, bool>> *PostorderStack,
-    DenseSet<Value *> *Visited) const;
+    std::vector<std::pair<Value *, bool>> &PostorderStack,
+    DenseSet<Value *> &Visited) const;
 
   std::vector<Value *> collectFlatAddressExpressions(Function &F) const;
 
@@ -204,7 +204,6 @@ static bool isAddressExpression(const Value &V) {
 //
 // Precondition: V is an address expression.
 static SmallVector<Value *, 2> getPointerOperands(const Value &V) {
-  assert(isAddressExpression(V));
   const Operator &Op = cast<Operator>(V);
   switch (Op.getOpcode()) {
   case Instruction::PHI: {
@@ -254,8 +253,8 @@ bool InferAddressSpaces::rewriteIntrinsicOperands(IntrinsicInst *II,
 
 // TODO: Move logic to TTI?
 void InferAddressSpaces::collectRewritableIntrinsicOperands(
-    IntrinsicInst *II, std::vector<std::pair<Value *, bool>> *PostorderStack,
-    DenseSet<Value *> *Visited) const {
+    IntrinsicInst *II, std::vector<std::pair<Value *, bool>> &PostorderStack,
+    DenseSet<Value *> &Visited) const {
   switch (II->getIntrinsicID()) {
   case Intrinsic::objectsize:
   case Intrinsic::amdgcn_atomic_inc:
@@ -272,13 +271,13 @@ void InferAddressSpaces::collectRewritableIntrinsicOperands(
 // If V is an unvisited flat address expression, appends V to PostorderStack
 // and marks it as visited.
 void InferAddressSpaces::appendsFlatAddressExpressionToPostorderStack(
-    Value *V, std::vector<std::pair<Value *, bool>> *PostorderStack,
-    DenseSet<Value *> *Visited) const {
+    Value *V, std::vector<std::pair<Value *, bool>> &PostorderStack,
+    DenseSet<Value *> &Visited) const {
   assert(V->getType()->isPointerTy());
   if (isAddressExpression(*V) &&
       V->getType()->getPointerAddressSpace() == FlatAddrSpace) {
-    if (Visited->insert(V).second)
-      PostorderStack->push_back(std::make_pair(V, false));
+    if (Visited.insert(V).second)
+      PostorderStack.push_back(std::make_pair(V, false));
   }
 }
 
@@ -293,14 +292,18 @@ InferAddressSpaces::collectFlatAddressExpressions(Function &F) const {
   DenseSet<Value *> Visited;
 
   auto PushPtrOperand = [&](Value *Ptr) {
-    appendsFlatAddressExpressionToPostorderStack(Ptr, &PostorderStack,
-                                                 &Visited);
+    appendsFlatAddressExpressionToPostorderStack(Ptr, PostorderStack,
+                                                 Visited);
   };
 
-  // We only explore address expressions that are reachable from loads and
-  // stores for now because we aim at generating faster loads and stores.
+  // Look at operations that may be interesting accelerate by moving to a known
+  // address space. We aim at generating after loads and stores, but pure
+  // addressing calculations may also be faster.
   for (Instruction &I : instructions(F)) {
-    if (auto *LI = dyn_cast<LoadInst>(&I))
+    if (auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
+      if (!GEP->getType()->isVectorTy())
+        PushPtrOperand(GEP->getPointerOperand());
+    } else if (auto *LI = dyn_cast<LoadInst>(&I))
       PushPtrOperand(LI->getPointerOperand());
     else if (auto *SI = dyn_cast<StoreInst>(&I))
       PushPtrOperand(SI->getPointerOperand());
@@ -316,7 +319,7 @@ InferAddressSpaces::collectFlatAddressExpressions(Function &F) const {
       if (auto *MTI = dyn_cast<MemTransferInst>(MI))
         PushPtrOperand(MTI->getRawSource());
     } else if (auto *II = dyn_cast<IntrinsicInst>(&I))
-      collectRewritableIntrinsicOperands(II, &PostorderStack, &Visited);
+      collectRewritableIntrinsicOperands(II, PostorderStack, Visited);
     else if (ICmpInst *Cmp = dyn_cast<ICmpInst>(&I)) {
       // FIXME: Handle vectors of pointers
       if (Cmp->getOperand(0)->getType()->isPointerTy()) {
@@ -338,8 +341,8 @@ InferAddressSpaces::collectFlatAddressExpressions(Function &F) const {
     // Otherwise, adds its operands to the stack and explores them.
     PostorderStack.back().second = true;
     for (Value *PtrOperand : getPointerOperands(*PostorderStack.back().first)) {
-      appendsFlatAddressExpressionToPostorderStack(PtrOperand, &PostorderStack,
-                                                   &Visited);
+      appendsFlatAddressExpressionToPostorderStack(PtrOperand, PostorderStack,
+                                                   Visited);
     }
   }
   return Postorder;

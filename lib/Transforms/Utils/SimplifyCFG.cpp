@@ -60,6 +60,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -3055,6 +3056,15 @@ static bool mergeConditionalStores(BranchInst *PBI, BranchInst *QBI) {
   BasicBlock *QFB = QBI->getSuccessor(1);
   BasicBlock *PostBB = QFB->getSingleSuccessor();
 
+  // Make sure we have a good guess for PostBB. If QTB's only successor is
+  // QFB, then QFB is a better PostBB.
+  if (QTB->getSingleSuccessor() == QFB)
+    PostBB = QFB;
+
+  // If we couldn't find a good PostBB, stop.
+  if (!PostBB)
+    return false;
+
   bool InvertPCond = false, InvertQCond = false;
   // Canonicalize fallthroughs to the true branches.
   if (PFB == QBI->getParent()) {
@@ -3079,8 +3089,7 @@ static bool mergeConditionalStores(BranchInst *PBI, BranchInst *QBI) {
   auto HasOnePredAndOneSucc = [](BasicBlock *BB, BasicBlock *P, BasicBlock *S) {
     return BB->getSinglePredecessor() == P && BB->getSingleSuccessor() == S;
   };
-  if (!PostBB ||
-      !HasOnePredAndOneSucc(PFB, PBI->getParent(), QBI->getParent()) ||
+  if (!HasOnePredAndOneSucc(PFB, PBI->getParent(), QBI->getParent()) ||
       !HasOnePredAndOneSucc(QFB, QBI->getParent(), PostBB))
     return false;
   if ((PTB && !HasOnePredAndOneSucc(PTB, PBI->getParent(), QBI->getParent())) ||
@@ -3746,7 +3755,7 @@ bool SimplifyCFGOpt::SimplifyCommonResume(ResumeInst *RI) {
     if (!isa<DbgInfoIntrinsic>(I))
       return false;
 
-  SmallSet<BasicBlock *, 4> TrivialUnwindBlocks;
+  SmallSetVector<BasicBlock *, 4> TrivialUnwindBlocks;
   auto *PhiLPInst = cast<PHINode>(RI->getValue());
 
   // Check incoming blocks to see if any of them are trivial.
@@ -4359,8 +4368,8 @@ static bool EliminateDeadSwitchCases(SwitchInst *SI, AssumptionCache *AC,
                                      const DataLayout &DL) {
   Value *Cond = SI->getCondition();
   unsigned Bits = Cond->getType()->getIntegerBitWidth();
-  APInt KnownZero(Bits, 0), KnownOne(Bits, 0);
-  computeKnownBits(Cond, KnownZero, KnownOne, DL, 0, AC, SI);
+  KnownBits Known(Bits);
+  computeKnownBits(Cond, Known, DL, 0, AC, SI);
 
   // We can also eliminate cases by determining that their values are outside of
   // the limited range of the condition based on how many significant (non-sign)
@@ -4372,7 +4381,7 @@ static bool EliminateDeadSwitchCases(SwitchInst *SI, AssumptionCache *AC,
   SmallVector<ConstantInt *, 8> DeadCases;
   for (auto &Case : SI->cases()) {
     APInt CaseVal = Case.getCaseValue()->getValue();
-    if ((CaseVal & KnownZero) != 0 || (CaseVal & KnownOne) != KnownOne ||
+    if (Known.Zero.intersects(CaseVal) || !Known.One.isSubsetOf(CaseVal) ||
         (CaseVal.getMinSignedBits() > MaxSignificantBitsInCond)) {
       DeadCases.push_back(Case.getCaseValue());
       DEBUG(dbgs() << "SimplifyCFG: switch case " << CaseVal << " is dead.\n");
@@ -4386,7 +4395,7 @@ static bool EliminateDeadSwitchCases(SwitchInst *SI, AssumptionCache *AC,
   bool HasDefault =
       !isa<UnreachableInst>(SI->getDefaultDest()->getFirstNonPHIOrDbg());
   const unsigned NumUnknownBits =
-      Bits - (KnownZero | KnownOne).countPopulation();
+      Bits - (Known.Zero | Known.One).countPopulation();
   assert(NumUnknownBits <= Bits);
   if (HasDefault && DeadCases.empty() &&
       NumUnknownBits < 64 /* avoid overflow */ &&

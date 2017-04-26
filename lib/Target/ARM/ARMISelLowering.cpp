@@ -3358,8 +3358,12 @@ ARMTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG,
 
 static SDValue LowerATOMIC_FENCE(SDValue Op, SelectionDAG &DAG,
                                  const ARMSubtarget *Subtarget) {
-  // FIXME: handle "fence singlethread" more efficiently.
   SDLoc dl(Op);
+  ConstantSDNode *ScopeN = cast<ConstantSDNode>(Op.getOperand(2));
+  auto Scope = static_cast<SynchronizationScope>(ScopeN->getZExtValue());
+  if (Scope == SynchronizationScope::SingleThread)
+    return Op;
+
   if (!Subtarget->hasDataBarrier()) {
     // Some ARMv6 cpus can support data barriers with an mcr instruction.
     // Thumb1 and pre-v6 ARM mode use a libcall instead and should never get
@@ -9476,8 +9480,11 @@ AddCombineBUILD_VECTORToVPADDL(SDNode *N, SDValue N0, SDValue N1,
       return SDValue();
   }
 
-  // Don't generate vpaddl+vmovn; we'll match it to vpadd later.
-  if (Vec.getValueType().getVectorElementType() == VT.getVectorElementType())
+  // Don't generate vpaddl+vmovn; we'll match it to vpadd later. Also make sure
+  // we're using the entire input vector, otherwise there's a size/legality
+  // mismatch somewhere.
+  if (nextIndex != Vec.getValueType().getVectorNumElements() ||
+      Vec.getValueType().getVectorElementType() == VT.getVectorElementType())
     return SDValue();
 
   // Create VPADDL node.

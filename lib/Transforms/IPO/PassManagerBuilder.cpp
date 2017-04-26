@@ -282,6 +282,12 @@ void PassManagerBuilder::addPGOInstrPasses(legacy::PassManagerBase &MPM) {
   }
   if (!PGOInstrUse.empty())
     MPM.add(createPGOInstrumentationUseLegacyPass(PGOInstrUse));
+  // Indirect call promotion that promotes intra-module targets only.
+  // For ThinLTO this is done earlier due to interactions with globalopt
+  // for imported functions. We don't run this at -O0.
+  if (OptLevel > 0)
+    MPM.add(
+        createPGOIndirectCallPromotionLegacyPass(false, !PGOSampleUse.empty()));
 }
 void PassManagerBuilder::addFunctionSimplificationPasses(
     legacy::PassManagerBase &MPM) {
@@ -414,11 +420,14 @@ void PassManagerBuilder::populateModulePassManager(
     else if (!GlobalExtensions->empty() || !Extensions.empty())
       MPM.add(createBarrierNoopPass());
 
-    if (PrepareForThinLTO)
-      // Rename anon globals to be able to export them in the summary.
-      MPM.add(createNameAnonGlobalPass());
-
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
+
+    // Rename anon globals to be able to export them in the summary.
+    // This has to be done after we add the extensions to the pass manager
+    // as there could be passes (e.g. Adddress sanitizer) which introduce
+    // new unnamed globals.
+    if (PrepareForThinLTO)
+      MPM.add(createNameAnonGlobalPass());
     return;
   }
 
@@ -468,16 +477,10 @@ void PassManagerBuilder::populateModulePassManager(
   // For SamplePGO in ThinLTO compile phase, we do not want to do indirect
   // call promotion as it will change the CFG too much to make the 2nd
   // profile annotation in backend more difficult.
-  if (!PerformThinLTO && !PrepareForThinLTOUsingPGOSampleProfile) {
-    /// PGO instrumentation is added during the compile phase for ThinLTO, do
-    /// not run it a second time
+  // PGO instrumentation is added during the compile phase for ThinLTO, do
+  // not run it a second time
+  if (!PerformThinLTO && !PrepareForThinLTOUsingPGOSampleProfile)
     addPGOInstrPasses(MPM);
-    // Indirect call promotion that promotes intra-module targets only.
-    // For ThinLTO this is done earlier due to interactions with globalopt
-    // for imported functions.
-    MPM.add(
-        createPGOIndirectCallPromotionLegacyPass(false, !PGOSampleUse.empty()));
-  }
 
   if (EnableNonLTOGlobalsModRef)
     // We add a module alias analysis pass here. In part due to bugs in the
@@ -677,6 +680,11 @@ void PassManagerBuilder::populateModulePassManager(
   MPM.add(createLoopSinkPass());
   // Get rid of LCSSA nodes.
   MPM.add(createInstructionSimplifierPass());
+
+  // LoopSink (and other loop passes since the last simplifyCFG) might have
+  // resulted in single-entry-single-exit or empty blocks. Clean up the CFG.
+  MPM.add(createCFGSimplificationPass());
+
   addExtensionsToPM(EP_OptimizerLast, MPM);
 }
 

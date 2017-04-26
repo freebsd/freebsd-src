@@ -44,6 +44,7 @@
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SimplifyLibCalls.h"
@@ -1378,14 +1379,13 @@ static Instruction *foldCttzCtlz(IntrinsicInst &II, InstCombiner &IC) {
     return nullptr;
 
   unsigned BitWidth = IT->getBitWidth();
-  APInt KnownZero(BitWidth, 0);
-  APInt KnownOne(BitWidth, 0);
-  IC.computeKnownBits(Op0, KnownZero, KnownOne, 0, &II);
+  KnownBits Known(BitWidth);
+  IC.computeKnownBits(Op0, Known, 0, &II);
 
   // Create a mask for bits above (ctlz) or below (cttz) the first known one.
   bool IsTZ = II.getIntrinsicID() == Intrinsic::cttz;
-  unsigned NumMaskBits = IsTZ ? KnownOne.countTrailingZeros()
-                              : KnownOne.countLeadingZeros();
+  unsigned NumMaskBits = IsTZ ? Known.One.countTrailingZeros()
+                              : Known.One.countLeadingZeros();
   APInt Mask = IsTZ ? APInt::getLowBitsSet(BitWidth, NumMaskBits)
                     : APInt::getHighBitsSet(BitWidth, NumMaskBits);
 
@@ -1393,7 +1393,7 @@ static Instruction *foldCttzCtlz(IntrinsicInst &II, InstCombiner &IC) {
   // zero, this value is constant.
   // FIXME: This should be in InstSimplify because we're replacing an
   // instruction with a constant.
-  if ((Mask & KnownZero) == Mask) {
+  if (Mask.isSubsetOf(Known.Zero)) {
     auto *C = ConstantInt::get(IT, APInt(BitWidth, NumMaskBits));
     return IC.replaceInstUsesWith(II, C);
   }
@@ -1401,7 +1401,7 @@ static Instruction *foldCttzCtlz(IntrinsicInst &II, InstCombiner &IC) {
   // If the input to cttz/ctlz is known to be non-zero,
   // then change the 'ZeroIsUndef' parameter to 'true'
   // because we know the zero behavior can't affect the result.
-  if (KnownOne != 0 || isKnownNonZero(Op0, IC.getDataLayout())) {
+  if (Known.One != 0 || isKnownNonZero(Op0, IC.getDataLayout())) {
     if (!match(II.getArgOperand(1), m_One())) {
       II.setOperand(1, IC.Builder->getTrue());
       return &II;
@@ -3432,8 +3432,26 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     if (auto *CSrc0 = dyn_cast<Constant>(Src0)) {
       if (auto *CSrc1 = dyn_cast<Constant>(Src1)) {
         Constant *CCmp = ConstantExpr::getCompare(CCVal, CSrc0, CSrc1);
-        return replaceInstUsesWith(*II,
-                                   ConstantExpr::getSExt(CCmp, II->getType()));
+        if (CCmp->isNullValue()) {
+          return replaceInstUsesWith(
+              *II, ConstantExpr::getSExt(CCmp, II->getType()));
+        }
+
+        // The result of V_ICMP/V_FCMP assembly instructions (which this
+        // intrinsic exposes) is one bit per thread, masked with the EXEC
+        // register (which contains the bitmask of live threads). So a
+        // comparison that always returns true is the same as a read of the
+        // EXEC register.
+        Value *NewF = Intrinsic::getDeclaration(
+            II->getModule(), Intrinsic::read_register, II->getType());
+        Metadata *MDArgs[] = {MDString::get(II->getContext(), "exec")};
+        MDNode *MD = MDNode::get(II->getContext(), MDArgs);
+        Value *Args[] = {MetadataAsValue::get(II->getContext(), MD)};
+        CallInst *NewCall = Builder->CreateCall(NewF, Args);
+        NewCall->addAttribute(AttributeList::FunctionIndex,
+                              Attribute::Convergent);
+        NewCall->takeName(II);
+        return replaceInstUsesWith(*II, NewCall);
       }
 
       // Canonicalize constants to RHS.
@@ -3599,9 +3617,9 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
 
     // If there is a dominating assume with the same condition as this one,
     // then this one is redundant, and should be removed.
-    APInt KnownZero(1, 0), KnownOne(1, 0);
-    computeKnownBits(IIOperand, KnownZero, KnownOne, 0, II);
-    if (KnownOne.isAllOnesValue())
+    KnownBits Known(1);
+    computeKnownBits(IIOperand, Known, 0, II);
+    if (Known.One.isAllOnesValue())
       return eraseInstFromFunction(*II);
 
     // Update the cache of affected values for this assumption (we might be
