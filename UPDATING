@@ -16,6 +16,15 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20170413:
+	As of r316810 for ipfilter, keep frags is no longer assumed when
+	keep state is specified in a rule. r316810 aligns ipfilter with
+	documentation in man pages separating keep frags from keep state.
+	This allows keep state to specified without forcing keep frags
+	and allows keep frags to be specified independently of keep state.
+	To maintain previous behaviour, also specify keep frags with
+	keep state (as documented in ipf.conf.5).
+
 20170323:
 	The code that provides support for ZFS .zfs/ directory functionality
 	has been reimplemented.  It's not possible now to create a snapshot
