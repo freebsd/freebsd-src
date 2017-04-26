@@ -34,15 +34,32 @@ using LayoutPtr = std::unique_ptr<ClassLayout>;
 typedef bool (*CompareFunc)(const LayoutPtr &S1, const LayoutPtr &S2);
 
 static bool CompareNames(const LayoutPtr &S1, const LayoutPtr &S2) {
-  return S1->getUDTName() < S2->getUDTName();
+  return S1->getName() < S2->getName();
 }
 
 static bool CompareSizes(const LayoutPtr &S1, const LayoutPtr &S2) {
-  return S1->getClassSize() < S2->getClassSize();
+  return S1->getSize() < S2->getSize();
 }
 
 static bool ComparePadding(const LayoutPtr &S1, const LayoutPtr &S2) {
   return S1->deepPaddingSize() < S2->deepPaddingSize();
+}
+
+static bool ComparePaddingPct(const LayoutPtr &S1, const LayoutPtr &S2) {
+  double Pct1 = (double)S1->deepPaddingSize() / (double)S1->getSize();
+  double Pct2 = (double)S2->deepPaddingSize() / (double)S2->getSize();
+  return Pct1 < Pct2;
+}
+
+static bool ComparePaddingImmediate(const LayoutPtr &S1, const LayoutPtr &S2) {
+  return S1->immediatePadding() < S2->immediatePadding();
+}
+
+static bool ComparePaddingPctImmediate(const LayoutPtr &S1,
+                                       const LayoutPtr &S2) {
+  double Pct1 = (double)S1->immediatePadding() / (double)S1->getSize();
+  double Pct2 = (double)S2->immediatePadding() / (double)S2->getSize();
+  return Pct1 < Pct2;
 }
 
 static CompareFunc getComparisonFunc(opts::pretty::ClassSortMode Mode) {
@@ -53,6 +70,12 @@ static CompareFunc getComparisonFunc(opts::pretty::ClassSortMode Mode) {
     return CompareSizes;
   case opts::pretty::ClassSortMode::Padding:
     return ComparePadding;
+  case opts::pretty::ClassSortMode::PaddingPct:
+    return ComparePaddingPct;
+  case opts::pretty::ClassSortMode::PaddingImmediate:
+    return ComparePaddingImmediate;
+  case opts::pretty::ClassSortMode::PaddingPctImmediate:
+    return ComparePaddingPctImmediate;
   default:
     return nullptr;
   }
@@ -67,14 +90,18 @@ filterAndSortClassDefs(LinePrinter &Printer, Enumerator &E,
   Filtered.reserve(UnfilteredCount);
   CompareFunc Comp = getComparisonFunc(opts::pretty::ClassOrder);
 
+  if (UnfilteredCount > 10000) {
+    errs() << formatv("Filtering and sorting {0} types", UnfilteredCount);
+    errs().flush();
+  }
   uint32_t Examined = 0;
   uint32_t Discarded = 0;
   while (auto Class = E.getNext()) {
     ++Examined;
     if (Examined % 10000 == 0) {
-      outs() << formatv("Examined {0}/{1} items.  {2} items discarded\n",
+      errs() << formatv("Examined {0}/{1} items.  {2} items discarded\n",
                         Examined, UnfilteredCount, Discarded);
-      outs().flush();
+      errs().flush();
     }
 
     if (Class->getUnmodifiedTypeId() != 0) {
@@ -89,6 +116,10 @@ filterAndSortClassDefs(LinePrinter &Printer, Enumerator &E,
 
     auto Layout = llvm::make_unique<ClassLayout>(std::move(Class));
     if (Layout->deepPaddingSize() < opts::pretty::PaddingThreshold) {
+      ++Discarded;
+      continue;
+    }
+    if (Layout->immediatePadding() < opts::pretty::ImmediatePaddingThreshold) {
       ++Discarded;
       continue;
     }
@@ -163,6 +194,9 @@ void TypeDumper::start(const PDBSymbolExe &Exe) {
         dumpClassLayout(*Class);
     } else {
       while (auto Class = Classes->getNext()) {
+        if (Class->getUnmodifiedTypeId() != 0)
+          continue;
+
         if (Printer.IsTypeExcluded(Class->getName(), Class->getLength()))
           continue;
 
@@ -209,7 +243,7 @@ void TypeDumper::dumpClassLayout(const ClassLayout &Class) {
   if (opts::pretty::ClassFormat == opts::pretty::ClassDefinitionFormat::None) {
     Printer.NewLine();
     WithColor(Printer, PDB_ColorItem::Keyword).get() << "class ";
-    WithColor(Printer, PDB_ColorItem::Identifier).get() << Class.getUDTName();
+    WithColor(Printer, PDB_ColorItem::Identifier).get() << Class.getName();
   } else {
     ClassDefinitionDumper Dumper(Printer);
     Dumper.start(Class);

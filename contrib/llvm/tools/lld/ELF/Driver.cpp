@@ -184,8 +184,6 @@ void LinkerDriver::addFile(StringRef Path, bool WithLOption) {
       error("attempted static link of dynamic object " + Path);
       return;
     }
-    Files.push_back(createSharedFile(MBRef));
-
     // DSOs usually have DT_SONAME tags in their ELF headers, and the
     // sonames are used to identify DSOs. But if they are missing,
     // they are identified by filenames. We don't know whether the new
@@ -196,8 +194,8 @@ void LinkerDriver::addFile(StringRef Path, bool WithLOption) {
     // If a file was specified by -lfoo, the directory part is not
     // significant, as a user did not specify it. This behavior is
     // compatible with GNU.
-    Files.back()->DefaultSoName =
-        WithLOption ? sys::path::filename(Path) : Path;
+    Files.push_back(createSharedFile(
+        MBRef, WithLOption ? sys::path::filename(Path) : Path));
     return;
   default:
     if (InLib)
@@ -708,10 +706,6 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   if (!Config->Shared && !Config->AuxiliaryList.empty())
     error("-f may not be used without -shared");
 
-  for (auto *Arg : Args.filtered(OPT_dynamic_list))
-    if (Optional<MemoryBufferRef> Buffer = readFile(Arg->getValue()))
-      readDynamicList(*Buffer);
-
   if (auto *Arg = Args.getLastArg(OPT_symbol_ordering_file))
     if (Optional<MemoryBufferRef> Buffer = readFile(Arg->getValue()))
       Config->SymbolOrderingFile = getLines(*Buffer);
@@ -726,21 +720,31 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
             {S, /*IsExternCpp*/ false, /*HasWildcard*/ false});
   }
 
-  for (auto *Arg : Args.filtered(OPT_export_dynamic_symbol))
-    Config->VersionScriptGlobals.push_back(
-        {Arg->getValue(), /*IsExternCpp*/ false, /*HasWildcard*/ false});
+  bool HasExportDynamic =
+      getArg(Args, OPT_export_dynamic, OPT_no_export_dynamic, false);
 
-  // Dynamic lists are a simplified linker script that doesn't need the
-  // "global:" and implicitly ends with a "local:*". Set the variables needed to
-  // simulate that.
-  if (Args.hasArg(OPT_dynamic_list) || Args.hasArg(OPT_export_dynamic_symbol)) {
-    Config->ExportDynamic = true;
-    if (!Config->Shared)
-      Config->DefaultSymbolVersion = VER_NDX_LOCAL;
+  // Parses -dynamic-list and -export-dynamic-symbol. They make some
+  // symbols private. Note that -export-dynamic takes precedence over them
+  // as it says all symbols should be exported.
+  if (!HasExportDynamic) {
+    for (auto *Arg : Args.filtered(OPT_dynamic_list))
+      if (Optional<MemoryBufferRef> Buffer = readFile(Arg->getValue()))
+        readDynamicList(*Buffer);
+
+    for (auto *Arg : Args.filtered(OPT_export_dynamic_symbol))
+      Config->VersionScriptGlobals.push_back(
+          {Arg->getValue(), /*IsExternCpp*/ false, /*HasWildcard*/ false});
+
+    // Dynamic lists are a simplified linker script that doesn't need the
+    // "global:" and implicitly ends with a "local:*". Set the variables
+    // needed to simulate that.
+    if (Args.hasArg(OPT_dynamic_list) ||
+        Args.hasArg(OPT_export_dynamic_symbol)) {
+      Config->ExportDynamic = true;
+      if (!Config->Shared)
+        Config->DefaultSymbolVersion = VER_NDX_LOCAL;
+    }
   }
-
-  if (getArg(Args, OPT_export_dynamic, OPT_no_export_dynamic, false))
-    Config->DefaultSymbolVersion = VER_NDX_GLOBAL;
 
   if (auto *Arg = Args.getLastArg(OPT_version_script))
     if (Optional<MemoryBufferRef> Buffer = readFile(Arg->getValue()))
@@ -876,6 +880,21 @@ static uint64_t getImageBase(opt::InputArgList &Args) {
   return V;
 }
 
+// Parses --defsym=alias option.
+static std::vector<std::pair<StringRef, StringRef>>
+getDefsym(opt::InputArgList &Args) {
+  std::vector<std::pair<StringRef, StringRef>> Ret;
+  for (auto *Arg : Args.filtered(OPT_defsym)) {
+    StringRef From;
+    StringRef To;
+    std::tie(From, To) = StringRef(Arg->getValue()).split('=');
+    if (!isValidCIdentifier(To))
+      error("--defsym: symbol name expected, but got " + To);
+    Ret.push_back({From, To});
+  }
+  return Ret;
+}
+
 // Do actual linking. Note that when this function is called,
 // all linker scripts have already been parsed.
 template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
@@ -893,9 +912,11 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
   // Fail early if the output file or map file is not writable. If a user has a
   // long link, e.g. due to a large LTO link, they do not wish to run it and
   // find that it failed because there was a mistake in their command-line.
-  if (!isFileWritable(Config->OutputFile, "output file"))
-    return;
-  if (!isFileWritable(Config->MapFile, "map file"))
+  if (auto E = tryCreateFile(Config->OutputFile))
+    error("cannot open output file " + Config->OutputFile + ": " + E.message());
+  if (auto E = tryCreateFile(Config->MapFile))
+    error("cannot open map file " + Config->MapFile + ": " + E.message());
+  if (ErrorCount)
     return;
 
   // Use default entry point name if no name was given via the command
@@ -940,6 +961,10 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
 
   for (auto *Arg : Args.filtered(OPT_wrap))
     Symtab.wrap(Arg->getValue());
+
+  // Handle --defsym=sym=alias option.
+  for (std::pair<StringRef, StringRef> &Def : getDefsym(Args))
+    Symtab.alias(Def.first, Def.second);
 
   // Now that we have a complete list of input files.
   // Beyond this point, no new files are added.

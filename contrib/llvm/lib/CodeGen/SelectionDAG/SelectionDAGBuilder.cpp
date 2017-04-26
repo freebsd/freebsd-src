@@ -362,11 +362,11 @@ static SDValue getCopyFromPartsVector(SelectionDAG &DAG, const SDLoc &DL,
     return DAG.getUNDEF(ValueVT);
   }
 
-  if (ValueVT.getVectorNumElements() == 1 &&
-      ValueVT.getVectorElementType() != PartEVT)
-    Val = DAG.getAnyExtOrTrunc(Val, DL, ValueVT.getScalarType());
+  EVT ValueSVT = ValueVT.getVectorElementType();
+  if (ValueVT.getVectorNumElements() == 1 && ValueSVT != PartEVT)
+    Val = DAG.getAnyExtOrTrunc(Val, DL, ValueSVT);
 
-  return DAG.getNode(ISD::BUILD_VECTOR, DL, ValueVT, Val);
+  return DAG.getBuildVector(ValueVT, DL, Val);
 }
 
 static void getCopyToPartsVector(SelectionDAG &DAG, const SDLoc &dl,
@@ -537,7 +537,7 @@ static void getCopyToPartsVector(SelectionDAG &DAG, const SDLoc &DL,
            e = PartVT.getVectorNumElements(); i != e; ++i)
         Ops.push_back(DAG.getUNDEF(ElementVT));
 
-      Val = DAG.getNode(ISD::BUILD_VECTOR, DL, PartVT, Ops);
+      Val = DAG.getBuildVector(PartVT, DL, Ops);
 
       // FIXME: Use CONCAT for 2x -> 4x.
 
@@ -1088,8 +1088,7 @@ SDValue SelectionDAGBuilder::getValueImpl(const Value *V) {
 
       if (isa<ArrayType>(CDS->getType()))
         return DAG.getMergeValues(Ops, getCurSDLoc());
-      return NodeMap[V] = DAG.getNode(ISD::BUILD_VECTOR, getCurSDLoc(),
-                                      VT, Ops);
+      return NodeMap[V] = DAG.getBuildVector(VT, getCurSDLoc(), Ops);
     }
 
     if (C->getType()->isStructTy() || C->getType()->isArrayTy()) {
@@ -1141,7 +1140,7 @@ SDValue SelectionDAGBuilder::getValueImpl(const Value *V) {
     }
 
     // Create a BUILD_VECTOR node.
-    return NodeMap[V] = DAG.getNode(ISD::BUILD_VECTOR, getCurSDLoc(), VT, Ops);
+    return NodeMap[V] = DAG.getBuildVector(VT, getCurSDLoc(), Ops);
   }
 
   // If this is a static alloca, generate it as the frameindex instead of
@@ -3147,7 +3146,7 @@ void SelectionDAGBuilder::visitShuffleVector(const User &I) {
     Ops.push_back(Res);
   }
 
-  setValue(&I, DAG.getNode(ISD::BUILD_VECTOR, DL, VT, Ops));
+  setValue(&I, DAG.getBuildVector(VT, DL, Ops));
 }
 
 void SelectionDAGBuilder::visitInsertValue(const InsertValueInst &I) {
@@ -3969,9 +3968,9 @@ void SelectionDAGBuilder::visitFence(const FenceInst &I) {
   SDValue Ops[3];
   Ops[0] = getRoot();
   Ops[1] = DAG.getConstant((unsigned)I.getOrdering(), dl,
-                           TLI.getPointerTy(DAG.getDataLayout()));
+                           TLI.getFenceOperandTy(DAG.getDataLayout()));
   Ops[2] = DAG.getConstant(I.getSynchScope(), dl,
-                           TLI.getPointerTy(DAG.getDataLayout()));
+                           TLI.getFenceOperandTy(DAG.getDataLayout()));
   DAG.setRoot(DAG.getNode(ISD::ATOMIC_FENCE, dl, MVT::Other, Ops));
 }
 
@@ -4896,11 +4895,11 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
 
     Entry.Node = Src;
     Args.push_back(Entry);
-    
+
     Entry.Ty = I.getArgOperand(2)->getType();
     Entry.Node = NumElements;
     Args.push_back(Entry);
-    
+
     Entry.Ty = Type::getInt32Ty(*DAG.getContext());
     Entry.Node = ElementSize;
     Args.push_back(Entry);
@@ -5183,7 +5182,7 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
     SDValue ShOps[2];
     ShOps[0] = ShAmt;
     ShOps[1] = DAG.getConstant(0, sdl, MVT::i32);
-    ShAmt =  DAG.getNode(ISD::BUILD_VECTOR, sdl, ShAmtVT, ShOps);
+    ShAmt =  DAG.getBuildVector(ShAmtVT, sdl, ShOps);
     EVT DestVT = TLI.getValueType(DAG.getDataLayout(), I.getType());
     ShAmt = DAG.getNode(ISD::BITCAST, sdl, DestVT, ShAmt);
     Res = DAG.getNode(ISD::INTRINSIC_WO_CHAIN, sdl, DestVT,
@@ -5743,7 +5742,7 @@ void SelectionDAGBuilder::visitConstrainedFPIntrinsic(const CallInst &I,
   unsigned Opcode;
   switch (Intrinsic) {
   default: llvm_unreachable("Impossible intrinsic");  // Can't reach here.
-  case Intrinsic::experimental_constrained_fadd: 
+  case Intrinsic::experimental_constrained_fadd:
     Opcode = ISD::STRICT_FADD;
     break;
   case Intrinsic::experimental_constrained_fsub:
@@ -6653,12 +6652,12 @@ static void GetRegistersForValue(SelectionDAG &DAG, const TargetLowering &TLI,
 
   MachineFunction &MF = DAG.getMachineFunction();
   SmallVector<unsigned, 4> Regs;
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
 
   // If this is a constraint for a single physreg, or a constraint for a
   // register class, find it.
   std::pair<unsigned, const TargetRegisterClass *> PhysReg =
-      TLI.getRegForInlineAsmConstraint(MF.getSubtarget().getRegisterInfo(),
-                                       OpInfo.ConstraintCode,
+      TLI.getRegForInlineAsmConstraint(&TRI, OpInfo.ConstraintCode,
                                        OpInfo.ConstraintVT);
 
   unsigned NumRegs = 1;
@@ -6666,12 +6665,12 @@ static void GetRegistersForValue(SelectionDAG &DAG, const TargetLowering &TLI,
     // If this is a FP input in an integer register (or visa versa) insert a bit
     // cast of the input value.  More generally, handle any case where the input
     // value disagrees with the register class we plan to stick this in.
-    if (OpInfo.Type == InlineAsm::isInput &&
-        PhysReg.second && !PhysReg.second->hasType(OpInfo.ConstraintVT)) {
+    if (OpInfo.Type == InlineAsm::isInput && PhysReg.second &&
+        !TRI.isTypeLegalForClass(*PhysReg.second, OpInfo.ConstraintVT)) {
       // Try to convert to the first EVT that the reg class contains.  If the
       // types are identical size, use a bitcast to convert (e.g. two differing
       // vector types).
-      MVT RegVT = *PhysReg.second->vt_begin();
+      MVT RegVT = *TRI.legalclasstypes_begin(*PhysReg.second);
       if (RegVT.getSizeInBits() == OpInfo.CallOperand.getValueSizeInBits()) {
         OpInfo.CallOperand = DAG.getNode(ISD::BITCAST, DL,
                                          RegVT, OpInfo.CallOperand);
@@ -6699,12 +6698,12 @@ static void GetRegistersForValue(SelectionDAG &DAG, const TargetLowering &TLI,
   if (unsigned AssignedReg = PhysReg.first) {
     const TargetRegisterClass *RC = PhysReg.second;
     if (OpInfo.ConstraintVT == MVT::Other)
-      ValueVT = *RC->vt_begin();
+      ValueVT = *TRI.legalclasstypes_begin(*RC);
 
     // Get the actual register value type.  This is important, because the user
     // may have asked for (e.g.) the AX register in i32 type.  We need to
     // remember that AX is actually i16 to get the right extension.
-    RegVT = *RC->vt_begin();
+    RegVT = *TRI.legalclasstypes_begin(*RC);
 
     // This is a explicit reference to a physical register.
     Regs.push_back(AssignedReg);
@@ -6730,7 +6729,7 @@ static void GetRegistersForValue(SelectionDAG &DAG, const TargetLowering &TLI,
   // Otherwise, if this was a reference to an LLVM register class, create vregs
   // for this reference.
   if (const TargetRegisterClass *RC = PhysReg.second) {
-    RegVT = *RC->vt_begin();
+    RegVT = *TRI.legalclasstypes_begin(*RC);
     if (OpInfo.ConstraintVT == MVT::Other)
       ValueVT = RegVT;
 
