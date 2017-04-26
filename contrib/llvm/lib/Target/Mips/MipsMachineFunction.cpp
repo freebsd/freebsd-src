@@ -40,11 +40,7 @@ unsigned MipsFunctionInfo::getGlobalBaseReg() {
   const TargetRegisterClass *RC =
       STI.inMips16Mode()
           ? &Mips::CPU16RegsRegClass
-          : STI.inMicroMipsMode()
-                ? STI.hasMips64()
-                      ? &Mips::GPRMM16_64RegClass
-                      : &Mips::GPRMM16RegClass
-                : static_cast<const MipsTargetMachine &>(MF.getTarget())
+          : static_cast<const MipsTargetMachine &>(MF.getTarget())
                           .getABI()
                           .IsN64()
                       ? &Mips::GPR64RegClass
@@ -53,14 +49,15 @@ unsigned MipsFunctionInfo::getGlobalBaseReg() {
 }
 
 void MipsFunctionInfo::createEhDataRegsFI() {
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
   for (int I = 0; I < 4; ++I) {
-    const TargetRegisterClass *RC =
+    const TargetRegisterClass &RC =
         static_cast<const MipsTargetMachine &>(MF.getTarget()).getABI().IsN64()
-            ? &Mips::GPR64RegClass
-            : &Mips::GPR32RegClass;
+            ? Mips::GPR64RegClass
+            : Mips::GPR32RegClass;
 
-    EhDataRegFI[I] = MF.getFrameInfo().CreateStackObject(RC->getSize(),
-        RC->getAlignment(), false);
+    EhDataRegFI[I] = MF.getFrameInfo().CreateStackObject(TRI.getSpillSize(RC),
+        TRI.getSpillAlignment(RC), false);
   }
 }
 
@@ -69,11 +66,12 @@ void MipsFunctionInfo::createISRRegFI() {
   // The current implementation only supports Mips32r2+ not Mips64rX. Status
   // is always 32 bits, ErrorPC is 32 or 64 bits dependent on architecture,
   // however Mips32r2+ is the supported architecture.
-  const TargetRegisterClass *RC = &Mips::GPR32RegClass;
+  const TargetRegisterClass &RC = Mips::GPR32RegClass;
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
 
   for (int I = 0; I < 2; ++I)
     ISRDataRegFI[I] = MF.getFrameInfo().CreateStackObject(
-        RC->getSize(), RC->getAlignment(), false);
+        TRI.getSpillSize(RC), TRI.getSpillAlignment(RC), false);
 }
 
 bool MipsFunctionInfo::isEhDataRegFI(int FI) const {
@@ -93,9 +91,10 @@ MachinePointerInfo MipsFunctionInfo::callPtrInfo(const GlobalValue *GV) {
 }
 
 int MipsFunctionInfo::getMoveF64ViaSpillFI(const TargetRegisterClass *RC) {
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
   if (MoveF64ViaSpillFI == -1) {
     MoveF64ViaSpillFI = MF.getFrameInfo().CreateStackObject(
-        RC->getSize(), RC->getAlignment(), false);
+        TRI.getSpillSize(*RC), TRI.getSpillAlignment(*RC), false);
   }
   return MoveF64ViaSpillFI;
 }

@@ -30,6 +30,7 @@
 #include "llvm/IR/Value.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/KnownBits.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Vectorize.h"
@@ -65,7 +66,9 @@ public:
   bool run();
 
 private:
-  Value *getPointerOperand(Value *I);
+  Value *getPointerOperand(Value *I) const;
+
+  GetElementPtrInst *getSourceGEP(Value *Src) const;
 
   unsigned getPointerAddressSpace(Value *I);
 
@@ -215,7 +218,7 @@ bool Vectorizer::run() {
   return Changed;
 }
 
-Value *Vectorizer::getPointerOperand(Value *I) {
+Value *Vectorizer::getPointerOperand(Value *I) const {
   if (LoadInst *LI = dyn_cast<LoadInst>(I))
     return LI->getPointerOperand();
   if (StoreInst *SI = dyn_cast<StoreInst>(I))
@@ -229,6 +232,19 @@ unsigned Vectorizer::getPointerAddressSpace(Value *I) {
   if (StoreInst *S = dyn_cast<StoreInst>(I))
     return S->getPointerAddressSpace();
   return -1;
+}
+
+GetElementPtrInst *Vectorizer::getSourceGEP(Value *Src) const {
+  // First strip pointer bitcasts. Make sure pointee size is the same with
+  // and without casts.
+  // TODO: a stride set by the add instruction below can match the difference
+  // in pointee type size here. Currently it will not be vectorized.
+  Value *SrcPtr = getPointerOperand(Src);
+  Value *SrcBase = SrcPtr->stripPointerCasts();
+  if (DL.getTypeStoreSize(SrcPtr->getType()->getPointerElementType()) ==
+      DL.getTypeStoreSize(SrcBase->getType()->getPointerElementType()))
+    SrcPtr = SrcBase;
+  return dyn_cast<GetElementPtrInst>(SrcPtr);
 }
 
 // FIXME: Merge with llvm::isConsecutiveAccess
@@ -283,8 +299,8 @@ bool Vectorizer::isConsecutiveAccess(Value *A, Value *B) {
 
   // Look through GEPs after checking they're the same except for the last
   // index.
-  GetElementPtrInst *GEPA = dyn_cast<GetElementPtrInst>(getPointerOperand(A));
-  GetElementPtrInst *GEPB = dyn_cast<GetElementPtrInst>(getPointerOperand(B));
+  GetElementPtrInst *GEPA = getSourceGEP(A);
+  GetElementPtrInst *GEPB = getSourceGEP(B);
   if (!GEPA || !GEPB || GEPA->getNumOperands() != GEPB->getNumOperands())
     return false;
   unsigned FinalIndex = GEPA->getNumOperands() - 1;
@@ -328,11 +344,9 @@ bool Vectorizer::isConsecutiveAccess(Value *A, Value *B) {
   // If any bits are known to be zero other than the sign bit in OpA, we can
   // add 1 to it while guaranteeing no overflow of any sort.
   if (!Safe) {
-    APInt KnownZero(BitWidth, 0);
-    APInt KnownOne(BitWidth, 0);
-    computeKnownBits(OpA, KnownZero, KnownOne, DL, 0, nullptr, OpA, &DT);
-    KnownZero &= ~APInt::getHighBitsSet(BitWidth, 1);
-    if (KnownZero != 0)
+    KnownBits Known(BitWidth);
+    computeKnownBits(OpA, Known, DL, 0, nullptr, OpA, &DT);
+    if (Known.Zero.countTrailingZeros() < (BitWidth - 1))
       Safe = true;
   }
 

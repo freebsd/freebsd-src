@@ -13,7 +13,6 @@ SRCS+=		PdbYaml.cpp
 SRCS+=		PrettyBuiltinDumper.cpp
 SRCS+=		PrettyClassDefinitionDumper.cpp
 SRCS+=		PrettyClassLayoutGraphicalDumper.cpp
-SRCS+=		PrettyClassLayoutTextDumper.cpp
 SRCS+=		PrettyCompilandDumper.cpp
 SRCS+=		PrettyEnumDumper.cpp
 SRCS+=		PrettyExternalSymbolDumper.cpp

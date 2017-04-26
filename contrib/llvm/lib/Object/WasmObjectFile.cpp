@@ -11,6 +11,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/Error.h"
 #include "llvm/Object/ObjectFile.h"
@@ -22,7 +23,9 @@
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/Wasm.h"
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <system_error>
 
 using namespace llvm;
@@ -141,7 +144,7 @@ static Error readInitExpr(wasm::WasmInitExpr &Expr, const uint8_t *&Ptr) {
     Expr.Value.Float64 = readFloat64(Ptr);
     break;
   case wasm::WASM_OPCODE_GET_GLOBAL:
-    Expr.Value.Global = readUint32(Ptr);
+    Expr.Value.Global = readULEB128(Ptr);
     break;
   default:
     return make_error<GenericBinaryError>("Invalid opcode in init_expr",
@@ -180,7 +183,7 @@ static Error readSection(WasmSection &Section, const uint8_t *&Ptr,
 }
 
 WasmObjectFile::WasmObjectFile(MemoryBufferRef Buffer, Error &Err)
-    : ObjectFile(Binary::ID_Wasm, Buffer), StartFunction(-1) {
+    : ObjectFile(Binary::ID_Wasm, Buffer) {
   ErrorAsOutParameter ErrAsOutParam(&Err);
   Header.Magic = getData().substr(0, 4);
   if (Header.Magic != StringRef("\0asm", 4)) {
@@ -252,7 +255,7 @@ Error WasmObjectFile::parseNameSection(const uint8_t *Ptr, const uint8_t *End) {
       while (Count--) {
         /*uint32_t Index =*/readVaruint32(Ptr);
         StringRef Name = readString(Ptr);
-        if (Name.size())
+        if (!Name.empty())
           Symbols.emplace_back(Name,
                                WasmSymbol::SymbolType::DEBUG_FUNCTION_NAME);
       }
@@ -313,11 +316,12 @@ Error WasmObjectFile::parseRelocSection(StringRef Name, const uint8_t *Ptr,
     case wasm::R_WEBASSEMBLY_FUNCTION_INDEX_LEB:
     case wasm::R_WEBASSEMBLY_TABLE_INDEX_SLEB:
     case wasm::R_WEBASSEMBLY_TABLE_INDEX_I32:
+    case wasm::R_WEBASSEMBLY_TYPE_INDEX_LEB:
       break;
     case wasm::R_WEBASSEMBLY_GLOBAL_ADDR_LEB:
     case wasm::R_WEBASSEMBLY_GLOBAL_ADDR_SLEB:
     case wasm::R_WEBASSEMBLY_GLOBAL_ADDR_I32:
-      Reloc.Addend = readVaruint32(Ptr);
+      Reloc.Addend = readVarint32(Ptr);
       break;
     default:
       return make_error<GenericBinaryError>("Bad relocation type",
