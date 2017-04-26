@@ -3562,9 +3562,18 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				    tsep->nfsess_backslots);
 			}
 			NFSUNLOCKCLSTATE();
-			if (error == 0) {
+			if (error == 0 || error == NFSERR_REPLYFROMCACHE) {
 				gotseq_ok = 1;
 				if (rep != NULL) {
+					/*
+					 * Handle a reply for a retried
+					 * callback.  The reply will be
+					 * re-inserted in the session cache
+					 * by the nfsv4_seqsess_cacherep() call
+					 * after out:
+					 */
+					KASSERT(error == NFSERR_REPLYFROMCACHE,
+					    ("cbsequence: non-NULL rep"));
 					NFSCL_DEBUG(4, "Got cbretry\n");
 					m_freem(nd->nd_mreq);
 					nd->nd_mreq = rep;
