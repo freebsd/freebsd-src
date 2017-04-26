@@ -304,7 +304,7 @@ INTERCEPTOR(SIZE_T, strnlen, const char *s, SIZE_T maxlen) {
 INTERCEPTOR(char*, textdomain, const char *domainname) {
   void *ctx;
   COMMON_INTERCEPTOR_ENTER(ctx, textdomain, domainname);
-  COMMON_INTERCEPTOR_READ_STRING(ctx, domainname, 0);
+  if (domainname) COMMON_INTERCEPTOR_READ_STRING(ctx, domainname, 0);
   char *domain = REAL(textdomain)(domainname);
   if (domain) {
     COMMON_INTERCEPTOR_INITIALIZE_RANGE(domain, REAL(strlen)(domain) + 1);
@@ -3330,7 +3330,7 @@ INTERCEPTOR(char *, strerror, int errnum) {
 //  * GNU version returns message pointer, which points to either buf or some
 //    static storage.
 #if ((_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && !_GNU_SOURCE) || \
-    SANITIZER_MAC
+    SANITIZER_MAC || SANITIZER_ANDROID
 // POSIX version. Spec is not clear on whether buf is NULL-terminated.
 // At least on OSX, buf contents are valid even when the call fails.
 INTERCEPTOR(int, strerror_r, int errnum, char *buf, SIZE_T buflen) {
