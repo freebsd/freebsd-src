@@ -1934,7 +1934,8 @@ public:
 
   /// The parser has processed a module-declaration that begins the definition
   /// of a module interface or implementation.
-  DeclGroupPtrTy ActOnModuleDecl(SourceLocation ModuleLoc, ModuleDeclKind MDK,
+  DeclGroupPtrTy ActOnModuleDecl(SourceLocation StartLoc,
+                                 SourceLocation ModuleLoc, ModuleDeclKind MDK,
                                  ModuleIdPath Path);
 
   /// \brief The parser has processed a module import declaration.
@@ -8325,6 +8326,12 @@ private:
                                         bool StrictlyPositive = true);
   /// Returns OpenMP nesting level for current directive.
   unsigned getOpenMPNestingLevel() const;
+
+  /// Push new OpenMP function region for non-capturing function.
+  void pushOpenMPFunctionRegion();
+
+  /// Pop OpenMP function region for non-capturing function.
+  void popOpenMPFunctionRegion(const sema::FunctionScopeInfo *OldFSI);
 
   /// Checks if a type or a declaration is disabled due to the owning extension
   /// being disabled, and emits diagnostic messages if it is disabled.

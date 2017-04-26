@@ -24,10 +24,10 @@ protected:
     DEBUG(llvm::errs() << "---\n");
     DEBUG(llvm::errs() << Code << "\n\n");
     std::vector<tooling::Range> Ranges(1, tooling::Range(Offset, Length));
-    bool IncompleteFormat = false;
+    FormattingAttemptStatus Status;
     tooling::Replacements Replaces =
-        reformat(Style, Code, Ranges, "<stdin>", &IncompleteFormat);
-    EXPECT_FALSE(IncompleteFormat);
+        reformat(Style, Code, Ranges, "<stdin>", &Status);
+    EXPECT_TRUE(Status.FormatComplete);
     auto Result = applyAllReplacements(Code, Replaces);
     EXPECT_TRUE(static_cast<bool>(Result));
     DEBUG(llvm::errs() << "\n" << *Result << "\n\n");
@@ -316,6 +316,25 @@ TEST_F(FormatTestJS, MethodsInObjectLiterals) {
                "    doSomething(this.value + val);\n"
                "  }\n"
                "};");
+}
+
+TEST_F(FormatTestJS, GettersSettersVisibilityKeywords) {
+  // Don't break after "protected"
+  verifyFormat("class X {\n"
+               "  protected get getter():\n"
+               "      number {\n"
+               "    return 1;\n"
+               "  }\n"
+               "}",
+               getGoogleJSStyleWithColumns(12));
+  // Don't break after "get"
+  verifyFormat("class X {\n"
+               "  protected get someReallyLongGetterName():\n"
+               "      number {\n"
+               "    return 1;\n"
+               "  }\n"
+               "}",
+               getGoogleJSStyleWithColumns(40));
 }
 
 TEST_F(FormatTestJS, SpacesInContainerLiterals) {
@@ -1220,6 +1239,9 @@ TEST_F(FormatTestJS, MetadataAnnotations) {
                "}");
   verifyFormat("class X {}\n"
                "class Y {}");
+  verifyFormat("class X {\n"
+               "  @property() private isReply = false;\n"
+               "}\n");
 }
 
 TEST_F(FormatTestJS, TypeAliases) {
