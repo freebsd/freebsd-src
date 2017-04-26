@@ -21,6 +21,15 @@ from older version of current across the gcc/clang cutover is a bit fragile.
 	use any explicitly assigned loopback address available in the jail
 	instead of using the first assigned address of the jail.
 
+20170413:
+	As of r316810 for ipfilter, keep frags is no longer assumed when
+	keep state is specified in a rule. r316810 aligns ipfilter with
+	documentation in man pages separating keep frags from keep state.
+	This allows keep state to specified without forcing keep frags
+	and allows keep frags to be specified independently of keep state.
+	To maintain previous behaviour, also specify keep frags with
+	keep state (as documented in ipf.conf.5).
+
 20170402:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 4.0.0.
 	Please see the 20141231 entry below for information about prerequisites
