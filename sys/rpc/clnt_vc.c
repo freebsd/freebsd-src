@@ -790,7 +790,7 @@ clnt_vc_destroy(CLIENT *cl)
 		sx_xlock(&xprt->xp_lock);
 		mtx_lock(&ct->ct_lock);
 		xprt->xp_p2 = NULL;
-		xprt_unregister(xprt);
+		sx_xunlock(&xprt->xp_lock);
 	}
 
 	if (ct->ct_socket) {
@@ -800,10 +800,6 @@ clnt_vc_destroy(CLIENT *cl)
 	}
 
 	mtx_unlock(&ct->ct_lock);
-	if (xprt != NULL) {
-		sx_xunlock(&xprt->xp_lock);
-		SVC_RELEASE(xprt);
-	}
 
 	mtx_destroy(&ct->ct_lock);
 	if (so) {
