@@ -81,7 +81,7 @@ template <class ELFT> void SymbolTable<ELFT>::addFile(InputFile *File) {
   if (auto *F = dyn_cast<SharedFile<ELFT>>(File)) {
     // DSOs are uniquified not by filename but by soname.
     F->parseSoName();
-    if (ErrorCount || !SoNames.insert(F->getSoName()).second)
+    if (ErrorCount || !SoNames.insert(F->SoName).second)
       return;
     SharedFiles.push_back(F);
     F->parseRest();
@@ -166,6 +166,19 @@ template <class ELFT> void SymbolTable<ELFT>::wrap(StringRef Name) {
   // old symbol to instead refer to the new symbol.
   memcpy(Real->Body.buffer, Sym->Body.buffer, sizeof(Sym->Body));
   memcpy(Sym->Body.buffer, Wrap->Body.buffer, sizeof(Wrap->Body));
+}
+
+// Creates alias for symbol. Used to implement --defsym=ALIAS=SYM.
+template <class ELFT>
+void SymbolTable<ELFT>::alias(StringRef Alias, StringRef Name) {
+  SymbolBody *B = find(Name);
+  if (!B) {
+    error("-defsym: undefined symbol: " + Name);
+    return;
+  }
+  Symbol *Sym = B->symbol();
+  Symbol *AliasSym = addUndefined(Alias);
+  memcpy(AliasSym->Body.buffer, Sym->Body.buffer, sizeof(AliasSym->Body));
 }
 
 static uint8_t getMinVisibility(uint8_t VA, uint8_t VB) {
@@ -548,11 +561,20 @@ template <class ELFT> void SymbolTable<ELFT>::scanUndefinedFlags() {
 // shared libraries can find them.
 // Except this, we ignore undefined symbols in DSOs.
 template <class ELFT> void SymbolTable<ELFT>::scanShlibUndefined() {
-  for (SharedFile<ELFT> *File : SharedFiles)
-    for (StringRef U : File->getUndefinedSymbols())
-      if (SymbolBody *Sym = find(U))
-        if (Sym->isDefined())
-          Sym->symbol()->ExportDynamic = true;
+  for (SharedFile<ELFT> *File : SharedFiles) {
+    for (StringRef U : File->getUndefinedSymbols()) {
+      SymbolBody *Sym = find(U);
+      if (!Sym || !Sym->isDefined())
+        continue;
+      Sym->symbol()->ExportDynamic = true;
+
+      // If -dynamic-list is given, the default version is set to
+      // VER_NDX_LOCAL, which prevents a symbol to be exported via .dynsym.
+      // Set to VER_NDX_GLOBAL so the symbol will be handled as if it were
+      // specified by -dynamic-list.
+      Sym->symbol()->VersionId = VER_NDX_GLOBAL;
+    }
+  }
 }
 
 // Initialize DemangledSyms with a map from demangled symbols to symbol
