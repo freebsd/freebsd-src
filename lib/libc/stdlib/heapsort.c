@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if __has_feature(capabilities)
 typedef __uintcap_t big_primitive_type;
@@ -72,13 +73,13 @@ typedef DECLARE_BLOCK(int, heapsort_block, const void *, const void *);
  * when the other is not would violate the invariants of the array.
  */
 #define	SWAP(a, b, size) { \
-	if (size % sizeof(big_primitive_type) == 0 && \
-	    (size_t)a % sizeof(big_primitive_type) == 0) { \
-		size_t count = size / sizeof(big_primitive_type); \
+	if ((size) % sizeof(big_primitive_type) == 0 && \
+	    (size_t)(a) % sizeof(big_primitive_type) == 0) { \
+		size_t count = (size) / sizeof(big_primitive_type); \
 		big_primitive_type tmp; \
 		big_primitive_type *ap, *bp; \
-		ap = (big_primitive_type *)a; \
-		bp = (big_primitive_type *)b; \
+		ap = (big_primitive_type *)(a); \
+		bp = (big_primitive_type *)(b); \
 		do { \
 			tmp = *ap; \
 			*ap++ = *bp; \
@@ -88,8 +89,8 @@ typedef DECLARE_BLOCK(int, heapsort_block, const void *, const void *);
 		size_t count = size; \
 		char tmp; \
 		do { \
-			tmp = *a; \
-			*a++ = *b; \
+			tmp = *(a); \
+			*a++ = *(b); \
 			*b++ = tmp; \
 		} while (--count); \
 	} \
@@ -97,18 +98,18 @@ typedef DECLARE_BLOCK(int, heapsort_block, const void *, const void *);
 
 /* Copy one block of size size to another. */
 #define COPY(a, b, size) { \
-	if (size % sizeof(big_primitive_type) == 0 && \
-	    (size_t)a % sizeof(big_primitive_type) == 0) { \
+	if ((size) % sizeof(big_primitive_type) == 0 && \
+	    (size_t)(a) % sizeof(big_primitive_type) == 0) { \
 		size_t count = size / sizeof(big_primitive_type); \
-		big_primitive_type *tmp1 = (big_primitive_type *)a; \
-		big_primitive_type *tmp2 = (big_primitive_type *)b; \
+		big_primitive_type *tmp1 = (big_primitive_type *)(a); \
+		big_primitive_type *tmp2 = (big_primitive_type *)(b); \
 		do { \
 			*tmp1++ = *tmp2++; \
 		} while (--count); \
 	} else { \
 		size_t count = size; \
-		char *tmp1 = a; \
-		char *tmp2 = b; \
+		char *tmp1 = (a); \
+		char *tmp2 = (b); \
 		do { \
 			*tmp1++ = *tmp2++; \
 		} while (--count); \
