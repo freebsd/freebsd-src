@@ -277,23 +277,33 @@ int vm_get_guestmem_from_ctx(struct vmctx *ctx, char **guest_baseaddr,
 }
 
 int
-vm_get_vm_mem(struct vmctx *ctx, char **lowmem, char **highmem, char *guest_baseaddr,
-		size_t guest_lowmem_size, size_t guest_highmem_size)
+vm_get_vm_mem(struct vmctx *ctx, char **lowmem, char **highmem,
+	      char *guest_baseaddr, size_t guest_lowmem_size,
+	      size_t guest_highmem_size)
 {
 	char *mmap_vm_lowmem = MAP_FAILED, *mmap_vm_highmem = MAP_FAILED;
 	int error = 0;
 
-	mmap_vm_lowmem = mmap(guest_baseaddr, guest_lowmem_size, PROT_READ | PROT_WRITE,
-				MAP_SHARED , ctx->fd_checkpoint, 0);
+	/* This function maps guest memory, marked COW, to the calling process'
+	 * address space.
+	 */
+	mmap_vm_lowmem = mmap(NULL, guest_lowmem_size, PROT_READ | PROT_WRITE,
+			      MAP_SHARED, ctx->fd_checkpoint, 0);
 	if (mmap_vm_lowmem == MAP_FAILED) {
 		perror("Failed to mmap vm's lowmem segment");
 		error = -1;
 		goto done;
 	}
 
+#if 1
+	if (memcmp(mmap_vm_lowmem, ctx->baseaddr, ctx->lowmem)) {
+		fprintf(stderr, "%s: lowmem is different\n", __func__);
+	}
+#endif
+
 	if (guest_highmem_size > 0) {
-		mmap_vm_highmem = mmap(guest_baseaddr + 4 * GB, guest_highmem_size, PROT_READ | PROT_WRITE,
-				MAP_SHARED, ctx->fd_checkpoint, 4*GB);
+		mmap_vm_highmem = mmap(NULL, guest_highmem_size, PROT_READ | PROT_WRITE,
+				       MAP_SHARED, ctx->fd_checkpoint, 4*GB);
 		if (mmap_vm_highmem == MAP_FAILED) {
 			perror("Failed to mmap vm's highmem segment");
 			error = -1;
@@ -304,8 +314,10 @@ vm_get_vm_mem(struct vmctx *ctx, char **lowmem, char **highmem, char *guest_base
 	*lowmem = mmap_vm_lowmem;
 	*highmem = mmap_vm_highmem;
 
+	return (0);
+
 done:
-	if (mmap_vm_lowmem == MAP_FAILED)
+	if (mmap_vm_lowmem != MAP_FAILED)
 		munmap(mmap_vm_lowmem, guest_lowmem_size);
 
 	return (error);

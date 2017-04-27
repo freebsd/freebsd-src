@@ -1000,7 +1000,7 @@ static struct cdevsw vmmdevsw = {
 static inline int
 mark_entry_cow(struct vm_map *vmmap, struct vm_map_entry *entry, struct vm_object *obj)
 {
-	 if ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0 &&
+	if ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0 &&
 			(entry->protection & VM_PROT_WRITE) != 0) {
 		pmap_protect(vmmap->pmap,
 				entry->start,
@@ -1012,7 +1012,13 @@ mark_entry_cow(struct vm_map *vmmap, struct vm_map_entry *entry, struct vm_objec
 	vm_object_clear_flag(obj, OBJ_ONEMAPPING);
 	VM_OBJECT_WUNLOCK(obj);
 
-	entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
+	/* Not sure which one is appropiate here. The commented one seems to
+	 * break the virtio-net driver after checkpointing. Removing
+	 * MAP_ENTRY_NEEDS_COPY seems to solve the problem, but I don't think
+	 * it's complete like this.
+	 */
+	//entry->eflags |= (MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY);
+	entry->eflags |= (MAP_ENTRY_COW);
 
 	return (0);
 }
@@ -1122,12 +1128,13 @@ vmmdev_checkpoint_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t
 		if (sysmem) {
 			vm_object_reference(*objp);
 			*offset = segoff + (first - gpa);
+			make_vmobject_cow(*objp);
 		} else {
 			error = EINVAL;
 		}
 	}
 
-	make_vmobject_cow(*objp);
+	//make_vmobject_cow(*objp);
 
 	//vcpu_unlock_one(sc, VM_MAXCPU - 1);
 	vcpu_unlock_all(sc);
