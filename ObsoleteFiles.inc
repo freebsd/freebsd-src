@@ -42,8 +42,6 @@
 OLD_FILES+=etc/rc.d/atm1
 OLD_FILES+=etc/rc.d/atm2
 OLD_FILES+=etc/rc.d/atm3
-# 20170426: Remove cy(4)
-OLD_FILES+=usr/share/man/man4/cy.4.gz
 # 20170424: NATM support removed
 OLD_FILES+=rescue/atmconfig
 OLD_FILES+=sbin/atmconfig
