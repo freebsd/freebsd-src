@@ -218,8 +218,8 @@ struct thread {
 	struct rl_q_entry *td_rlqe;	/* (k) Associated range lock entry. */
 	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
 	lwpid_t		td_tid;		/* (b) Thread ID. */
-	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
-#define	td_siglist	td_sigqueue.sq_signals
+	uint64_t	padding1[4];
+	void		*padding2[4];
 	u_char		td_lend_user_pri; /* (t) Lend user pri. */
 
 /* Cleared during fork1() */
@@ -326,6 +326,8 @@ struct thread {
 	u_int		td_dbg_sc_narg;	/* (c) Syscall arg count to debugger.*/
 	void		*td_emuldata;	/* Emulator state data */
 	sbintime_t	td_sleeptimo;	/* (t) Sleep timeout. */
+	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
+#define	td_siglist	td_sigqueue.sq_signals
 };
 
 struct mtx *thread_lock_block(struct thread *);
