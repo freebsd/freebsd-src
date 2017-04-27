@@ -301,6 +301,12 @@ void		acpi_EnterDebugger(void);
 	device_printf(dev, x);					\
 } while (0)
 
+/* Values for the first status word returned by _OSC. */
+#define	ACPI_OSC_FAILURE	(1 << 1)
+#define	ACPI_OSC_BAD_UUID	(1 << 2)
+#define	ACPI_OSC_BAD_REVISION	(1 << 3)
+#define	ACPI_OSC_CAPS_MASKED	(1 << 4)
+
 /* Values for the device _STA (status) method. */
 #define ACPI_STA_PRESENT	(1 << 0)
 #define ACPI_STA_ENABLED	(1 << 1)
