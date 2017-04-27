@@ -39,6 +39,11 @@ check()
 	[ -s "${out_file}" ] && out_flag="-o file:${out_file}"
 
 	if [ "$xo_fmt" = "E" ]; then
+		# XXX-CHERI: this somewhat expensive check is required
+		# until we start building tests dynamically linked.
+		if ! ldd ${SRCDIR}/${tc} > /dev/null 2>&1; then
+			atf_skip "Statically linked test can't load encoders"
+		fi
 		LIBXO_OPTIONS="warn,encoder=test"
 	else
 		LIBXO_OPTIONS=":W${xo_fmt}"
