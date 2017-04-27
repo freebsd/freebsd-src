@@ -108,12 +108,12 @@ xprt_register(SVCXPRT *xprt)
 	rwlock_wrlock(&svc_fd_lock);
 	if (__svc_xports == NULL) {
 		__svc_xports = (SVCXPRT **)
-			mem_alloc(FD_SETSIZE * sizeof(SVCXPRT *));
+			mem_alloc((FD_SETSIZE + 1) * sizeof(SVCXPRT *));
 		if (__svc_xports == NULL) {
 			rwlock_unlock(&svc_fd_lock);
 			return;
 		}
-		memset(__svc_xports, '\0', FD_SETSIZE * sizeof(SVCXPRT *));
+		memset(__svc_xports, '\0', (FD_SETSIZE + 1) * sizeof(SVCXPRT *));
 	}
 	if (sock < FD_SETSIZE) {
 		__svc_xports[sock] = xprt;
