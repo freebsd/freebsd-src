@@ -313,32 +313,42 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc, uint32_t osc_ctl)
 		0x96, 0x57, 0x74, 0x41, 0xc0, 0x3d, 0xd7, 0x66
 	};
 
-	/* Status Field */
-	cap_set[PCI_OSC_STATUS] = 0;
+	/*
+	 * Don't invoke _OSC if a control is already granted.
+	 * However, always invoke _OSC during attach when 0 is passed.
+	 */
+	if (osc_ctl != 0 && (sc->ap_osc_ctl & osc_ctl) == osc_ctl)
+		return (0);
 
 	/* Support Field: Extended PCI Config Space, MSI */
 	cap_set[PCI_OSC_SUPPORT] = PCIM_OSC_SUPPORT_EXT_PCI_CONF |
 	    PCIM_OSC_SUPPORT_MSI;
 
 	/* Control Field */
-	sc->ap_osc_ctl |= osc_ctl;
-	cap_set[PCI_OSC_CTL] = sc->ap_osc_ctl;
+	cap_set[PCI_OSC_CTL] = sc->ap_osc_ctl | osc_ctl;
 
 	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
 	    nitems(cap_set), cap_set, cap_set, false);
 	if (ACPI_FAILURE(status)) {
-		if (status == AE_NOT_FOUND)
+		if (status == AE_NOT_FOUND) {
+			sc->ap_osc_ctl |= osc_ctl;
 			return (0);
+		}
 		device_printf(sc->ap_dev, "_OSC failed: %s\n",
 		    AcpiFormatException(status));
 		return (EIO);
 	}
 
-	if (cap_set[PCI_OSC_STATUS] == 0)
-		sc->ap_osc_ctl = cap_set[PCI_OSC_CTL];
-
-	if (cap_set[PCI_OSC_STATUS] != 0 ||
-	    (cap_set[PCI_OSC_CTL] & osc_ctl) != osc_ctl)
+	/*
+	 * _OSC may return an error in the status word, but will
+	 * update the control mask always.  _OSC should not revoke
+	 * previously-granted controls.
+	 */
+	if ((cap_set[PCI_OSC_CTL] & sc->ap_osc_ctl) != sc->ap_osc_ctl)
+		device_printf(sc->ap_dev, "_OSC revoked %#x\n",
+		    (cap_set[PCI_OSC_CTL] & sc->ap_osc_ctl) ^ sc->ap_osc_ctl);
+	sc->ap_osc_ctl = cap_set[PCI_OSC_CTL];
+	if ((sc->ap_osc_ctl & osc_ctl) != osc_ctl)
 		return (EIO);
 
 	return (0);
@@ -727,7 +737,7 @@ acpi_pcib_request_feature(device_t pcib, device_t dev, enum pci_feature feature)
 	uint32_t osc_ctl;
 	struct acpi_hpcib_softc *sc;
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc(pcib);
 
 	switch (feature) {
 	case PCI_FEATURE_HP:
