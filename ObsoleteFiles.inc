@@ -38,12 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20170426: Remove cy(4)
-OLD_FILES+=usr/share/man/man4/cy.4.gz
-# 20170425: NATM configuration support removed
+# 20170427: NATM configuration support removed
 OLD_FILES+=etc/rc.d/atm1
 OLD_FILES+=etc/rc.d/atm2
 OLD_FILES+=etc/rc.d/atm3
+# 20170426: Remove cy(4)
+OLD_FILES+=usr/share/man/man4/cy.4.gz
 # 20170424: NATM support removed
 OLD_FILES+=rescue/atmconfig
 OLD_FILES+=sbin/atmconfig
@@ -78,6 +78,7 @@ OLD_FILES+=usr/share/man/man4/ng_atm.4.gz
 OLD_FILES+=usr/share/man/man4/patm.4.gz
 OLD_FILES+=usr/share/man/man4/utopia.4.gz
 OLD_FILES+=usr/share/man/man8/atmconfig.8.gz
+OLD_FILES+=usr/share/man/man9/utopia.9.gz
 OLD_FILES+=usr/share/snmp/defs/atm_freebsd.def
 OLD_FILES+=usr/share/snmp/defs/atm_tree.def
 OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM-FREEBSD-MIB.txt
