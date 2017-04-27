@@ -119,7 +119,8 @@ xprt_register(SVCXPRT *xprt)
 		__svc_xports[sock] = xprt;
 		FD_SET(sock, &svc_fdset);
 		svc_maxfd = max(svc_maxfd, sock);
-	}
+	} else if (sock == FD_SETSIZE)
+		__svc_xports[sock] = xprt;
 	rwlock_unlock(&svc_fd_lock);
 }
 
