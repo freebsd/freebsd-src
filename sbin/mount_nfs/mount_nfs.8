@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2014
+.Dd April 13, 2017
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -207,6 +207,14 @@ The only minor version currently supported is 1.
 This option is only meaningful when used with the
 .Cm nfsv4
 option.
+.It Cm oneopenown
+Make a minor version 1 of the NFS Version 4 protocol mount use a single OpenOwner
+for all Opens.
+This may be useful for a server with a very low limit on OpenOwners, such as
+AmazonEFS.
+It can only be used with an NFSv4.1 mount.
+It may not work correctly when Delegations are being issued by a server,
+but note that the AmazonEFS server does not issued delegations at this time.
 .It Cm pnfs
 Enable support for parallel NFS (pNFS) for minor version 1 of the
 NFS Version 4 protocol.
