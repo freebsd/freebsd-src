@@ -228,10 +228,6 @@ struct sockaddr_l2cap_compat {
 	bdaddr_t	l2cap_bdaddr;	/* address */
 };
 
-#define BDADDR_BREDR 0
-#define BDADDR_LE_PUBLIC 1
-#define BDADDR_LE_RANDOM 2
-
 struct sockaddr_l2cap {
 	u_char		l2cap_len;	/* total length */
 	u_char		l2cap_family;	/* address family */
