@@ -929,6 +929,8 @@ int newnfs_realign(struct mbuf **, int);
 #define	NFSHASNOLAYOUTCOMMIT(n)	((n)->nm_state & NFSSTA_NOLAYOUTCOMMIT)
 #define	NFSHASSESSPERSIST(n)	((n)->nm_state & NFSSTA_SESSPERSIST)
 #define	NFSHASPNFS(n)		((n)->nm_state & NFSSTA_PNFS)
+#define	NFSHASONEOPENOWN(n)	(((n)->nm_flag & NFSMNT_ONEOPENOWN) != 0 &&	\
+				    (n)->nm_minorvers > 0)
 
 /*
  * Gets the stats field out of the mount structure.
