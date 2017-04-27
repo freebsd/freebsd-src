@@ -51,6 +51,9 @@ CFLAGS+= -I${.CURDIR}/../../lib/libipsec -I${.CURDIR}/../../sys/netipsec
 SRCS+=	y.tab.h
 y.tab.h: parse.y
 CFLAGS+= -DIPSEC_DEBUG -DYY_NO_UNPUT
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+= -DINET
+.endif
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif

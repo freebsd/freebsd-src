@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec.h>
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -69,6 +70,7 @@ static caddr_t pfkey_setsadbmsg(caddr_t, caddr_t, u_int, u_int,
 	u_int, u_int32_t, pid_t);
 static caddr_t pfkey_setsadbsa(caddr_t, caddr_t, u_int32_t, u_int,
 	u_int, u_int, u_int32_t);
+static caddr_t pfkey_setsadbxreplay(caddr_t, caddr_t, uint32_t);
 static caddr_t pfkey_setsadbaddr(caddr_t, caddr_t, u_int,
 	struct sockaddr *, u_int, u_int);
 static caddr_t pfkey_setsadbkey(caddr_t, caddr_t, u_int, caddr_t, u_int);
@@ -1196,6 +1198,13 @@ pfkey_send_x1(so, type, satype, mode, src, dst, spi, reqid, wsize,
 		+ sizeof(struct sadb_lifetime)
 		+ sizeof(struct sadb_lifetime);
 
+	if (wsize > UINT8_MAX) {
+		if (wsize > (UINT32_MAX - 32) >> 3) {
+			__ipsec_errcode = EIPSEC_INVAL_ARGUMENT;
+			return (-1);
+		}
+		len += sizeof(struct sadb_x_sa_replay);
+	}
 	if (e_type != SADB_EALG_NONE)
 		len += (sizeof(struct sadb_key) + PFKEY_ALIGN8(e_keylen));
 	if (a_type != SADB_AALG_NONE)
@@ -1222,6 +1231,13 @@ pfkey_send_x1(so, type, satype, mode, src, dst, spi, reqid, wsize,
 	if (!p) {
 		free(newmsg);
 		return -1;
+	}
+	if (wsize > UINT8_MAX) {
+		p = pfkey_setsadbxreplay(p, ep, wsize);
+		if (!p) {
+			free(newmsg);
+			return (-1);
+		}
 	}
 	p = pfkey_setsadbaddr(p, ep, SADB_EXT_ADDRESS_SRC, src, plen,
 	    IPSEC_ULPROTO_ANY);
@@ -1982,13 +1998,38 @@ pfkey_setsadbsa(buf, lim, spi, wsize, auth, enc, flags)
 	p->sadb_sa_len = PFKEY_UNIT64(len);
 	p->sadb_sa_exttype = SADB_EXT_SA;
 	p->sadb_sa_spi = spi;
-	p->sadb_sa_replay = wsize;
+	p->sadb_sa_replay = wsize > UINT8_MAX ? UINT8_MAX: wsize;
 	p->sadb_sa_state = SADB_SASTATE_LARVAL;
 	p->sadb_sa_auth = auth;
 	p->sadb_sa_encrypt = enc;
 	p->sadb_sa_flags = flags;
 
 	return(buf + len);
+}
+
+/*
+ * Set data into sadb_x_sa_replay.
+ * `buf' must has been allocated sufficiently.
+ */
+static caddr_t
+pfkey_setsadbxreplay(caddr_t buf, caddr_t lim, uint32_t wsize)
+{
+	struct sadb_x_sa_replay *p;
+	u_int len;
+
+	p = (struct sadb_x_sa_replay *)buf;
+	len = sizeof(struct sadb_x_sa_replay);
+
+	if (buf + len > lim)
+		return (NULL);
+
+	memset(p, 0, len);
+	p->sadb_x_sa_replay_len = PFKEY_UNIT64(len);
+	p->sadb_x_sa_replay_exttype = SADB_X_EXT_SA_REPLAY;
+	/* Convert wsize from bytes to number of packets. */
+	p->sadb_x_sa_replay_replay = wsize << 3;
+
+	return (buf + len);
 }
 
 /*
