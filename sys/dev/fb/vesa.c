@@ -1636,6 +1636,9 @@ vesa_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 		if (offset > adp->va_window_size - PAGE_SIZE)
 			return (-1);
 		*paddr = adp->va_info.vi_buffer + offset;
+#ifdef VM_MEMATTR_WRITE_COMBINING
+		*memattr = VM_MEMATTR_WRITE_COMBINING;
+#endif
 		return (0);
 	}
 	return ((*prevvidsw->mmap)(adp, offset, paddr, prot, memattr));
