@@ -65,6 +65,57 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_domain.h>
 #include <sys/eventhandler.h>
 
+/*
+ * Asserts below verify the stability of struct thread and struct proc
+ * layout, as exposed by KBI to modules.  On head, the KBI is allowed
+ * to drift, change to the structures must be accompanied by the
+ * assert update.
+ *
+ * On the stable branches after KBI freeze, conditions must not be
+ * violated.  Typically new fields are moved to the end of the
+ * structures.
+ */
+#ifdef __amd64__
+_Static_assert(offsetof(struct thread, td_flags) == 0xf4,
+    "struct thread KBI td_flags");
+_Static_assert(offsetof(struct thread, td_pflags) == 0xfc,
+    "struct thread KBI td_pflags");
+_Static_assert(offsetof(struct thread, td_frame) == 0x410,
+    "struct thread KBI td_frame");
+_Static_assert(offsetof(struct thread, td_emuldata) == 0x4b8,
+    "struct thread KBI td_emuldata");
+_Static_assert(offsetof(struct proc, p_flag) == 0xb0,
+    "struct proc KBI p_flag");
+_Static_assert(offsetof(struct proc, p_pid) == 0xbc,
+    "struct proc KBI p_pid");
+_Static_assert(offsetof(struct proc, p_filemon) == 0x3d0,
+    "struct proc KBI p_filemon");
+_Static_assert(offsetof(struct proc, p_comm) == 0x3e0,
+    "struct proc KBI p_comm");
+_Static_assert(offsetof(struct proc, p_emuldata) == 0x4b8,
+    "struct proc KBI p_emuldata");
+#endif
+#ifdef __i386__
+_Static_assert(offsetof(struct thread, td_flags) == 0x9c,
+    "struct thread KBI td_flags");
+_Static_assert(offsetof(struct thread, td_pflags) == 0xa4,
+    "struct thread KBI td_pflags");
+_Static_assert(offsetof(struct thread, td_frame) == 0x2c8,
+    "struct thread KBI td_frame");
+_Static_assert(offsetof(struct thread, td_emuldata) == 0x314,
+    "struct thread KBI td_emuldata");
+_Static_assert(offsetof(struct proc, p_flag) == 0x68,
+    "struct proc KBI p_flag");
+_Static_assert(offsetof(struct proc, p_pid) == 0x74,
+    "struct proc KBI p_pid");
+_Static_assert(offsetof(struct proc, p_filemon) == 0x27c,
+    "struct proc KBI p_filemon");
+_Static_assert(offsetof(struct proc, p_comm) == 0x288,
+    "struct proc KBI p_comm");
+_Static_assert(offsetof(struct proc, p_emuldata) == 0x314,
+    "struct proc KBI p_emuldata");
+#endif
+
 SDT_PROVIDER_DECLARE(proc);
 SDT_PROBE_DEFINE(proc, , , lwp__exit);
 
