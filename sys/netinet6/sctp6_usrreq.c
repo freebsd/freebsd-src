@@ -183,7 +183,7 @@ sctp6_notify(struct sctp_inpcb *inp,
     struct sctp_nets *net,
     uint8_t icmp6_type,
     uint8_t icmp6_code,
-    uint16_t next_mtu)
+    uint32_t next_mtu)
 {
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
@@ -237,11 +237,11 @@ sctp6_notify(struct sctp_inpcb *inp,
 			timer_stopped = 0;
 		}
 		/* Update the path MTU. */
+		if (net->port) {
+			next_mtu -= sizeof(struct udphdr);
+		}
 		if (net->mtu > next_mtu) {
 			net->mtu = next_mtu;
-			if (net->port) {
-				net->mtu -= sizeof(struct udphdr);
-			}
 		}
 		/* Update the association MTU */
 		if (stcb->asoc.smallest_mtu > next_mtu) {
@@ -383,7 +383,7 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 			sctp6_notify(inp, stcb, net,
 			    ip6cp->ip6c_icmp6->icmp6_type,
 			    ip6cp->ip6c_icmp6->icmp6_code,
-			    (uint16_t)ntohl(ip6cp->ip6c_icmp6->icmp6_mtu));
+			    ntohl(ip6cp->ip6c_icmp6->icmp6_mtu));
 		} else {
 			if ((stcb == NULL) && (inp != NULL)) {
 				/* reduce inp's ref-count */

@@ -25,8 +25,6 @@ opt_ratelimit.h:
 .endif
 opt_mrouting.h:
 	echo "#define MROUTING 1" > ${.TARGET}
-opt_natm.h:
-	echo "#define NATM 1" > ${.TARGET}
 opt_printf.h:
 	echo "#define PRINTF_BUFR_SIZE 128" > ${.TARGET}
 opt_scsi.h:
@@ -38,7 +36,7 @@ opt_wlan.h:
 KERN_OPTS.i386=NEW_PCIB DEV_PCI
 KERN_OPTS.amd64=NEW_PCIB DEV_PCI
 KERN_OPTS.powerpc=NEW_PCIB DEV_PCI
-KERN_OPTS=MROUTING NATM IEEE80211_DEBUG \
+KERN_OPTS=MROUTING IEEE80211_DEBUG \
 	IEEE80211_AMPDU_AGE IEEE80211_SUPPORT_MESH DEV_BPF \
 	${KERN_OPTS.${MACHINE}} ${KERN_OPTS_EXTRA}
 .if ${MK_INET_SUPPORT} != "no"

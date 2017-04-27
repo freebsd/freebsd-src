@@ -240,4 +240,19 @@ bhnd_erom_lookup_core_addr(bhnd_erom_t *erom, const struct bhnd_core_match *desc
 	    core, addr, size));
 };
 
+/**
+ * Enumerate and print all entries in @p erom.
+ * 
+ * @param	erom	The erom parser to be enumerated.
+ * 
+ * @retval 0		success
+ * @retval non-zero	If an error occurs parsing the EROM table, a regular
+ *			unix error code will be returned.
+ */
+static inline int
+bhnd_erom_dump(bhnd_erom_t *erom)
+{
+	return (BHND_EROM_DUMP(erom));
+}
+
 #endif /* _BHND_EROM_BHND_EROM_H_ */

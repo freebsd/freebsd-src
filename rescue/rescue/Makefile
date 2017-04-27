@@ -101,10 +101,6 @@ CRUNCH_PROGS_sbin= badsect					\
 	restore rcorder route savecore		 		\
 	shutdown spppcontrol swapon sysctl tunefs umount
 
-.if ${MK_ATM} != "no"
-CRUNCH_PROGS_sbin+= atmconfig
-.endif
-
 .if ${MK_CCD} != "no"
 CRUNCH_PROGS_sbin+= ccdconfig
 .endif
@@ -160,9 +156,6 @@ CRUNCH_PROGS_sbin+= bsdlabel fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
-CRUNCH_SRCDIR_atm= ${SRCTOP}/sbin/atm/atm
-CRUNCH_SRCDIR_atmconfig= ${SRCTOP}/sbin/atm/atmconfig
-CRUNCH_SRCDIR_fore_dnld= ${SRCTOP}/sbin/atm/fore_dnld
 CRUNCH_SRCDIR_ilmid= ${SRCTOP}/sbin/atm/ilmid
 CRUNCH_SRCDIR_rtquery= ${SRCTOP}/sbin/routed/rtquery
 CRUNCH_SRCDIR_ipf= ${SRCTOP}/sbin/ipf/ipf

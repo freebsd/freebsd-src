@@ -72,7 +72,6 @@ MLINKS+=	bsnmpagent.3	snmp_make_errresp.3
 MLINKS+=	bsnmpagent.3	snmp_op_t.3
 MLINKS+=	bsnmpagent.3	snmp_set.3
 MLINKS+=	bsnmpagent.3	snmp_trace.3
-MLINKS+=	bsnmpagent.3	tree.3
 MLINKS+=	bsnmpagent.3	tree_size.3
 
 MLINKS+=	bsnmpclient.3	snmp_add_binding.3

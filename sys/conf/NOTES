@@ -2212,42 +2212,7 @@ device		rtwnfw
 options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4KB
 options 	MSIZE=512	# mbuf size in bytes
 
-#
-# ATM related options (Cranor version)
-# (note: this driver cannot be used with the HARP ATM stack)
-#
-# The `en' device provides support for Efficient Networks (ENI)
-# ENI-155 PCI midway cards, and the Adaptec 155Mbps PCI ATM cards (ANA-59x0).
-#
-# The `hatm' device provides support for Fore/Marconi HE155 and HE622
-# ATM PCI cards.
-#
-# The `fatm' device provides support for Fore PCA200E ATM PCI cards.
-#
-# The `patm' device provides support for IDT77252 based cards like
-# ProSum's ProATM-155 and ProATM-25 and IDT's evaluation boards.
-#
-# atm device provides generic atm functions and is required for
-# atm devices.
-# NATM enables the netnatm protocol family that can be used to
-# bypass TCP/IP.
-#
-# utopia provides the access to the ATM PHY chips and is required for en,
-# hatm and fatm.
-#
-# the current driver supports only PVC operations (no atm-arp, no multicast).
-# for more details, please read the original documents at
-# http://www.ccrc.wustl.edu/pub/chuck/tech/bsdatm/bsdatm.html
-#
-device		atm
-device		en
-device		fatm			#Fore PCA200E
-device		hatm			#Fore/Marconi HE155/622
-device		patm			#IDT77252 cards (ProATM and IDT)
-device		utopia			#ATM PHY driver
-options 	NATM			#native ATM
-
-options 	LIBMBPOOL		#needed by patm, iatm
+options 	LIBMBPOOL
 
 #
 # Sound drivers

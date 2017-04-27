@@ -45,6 +45,7 @@ ${PACKAGE}FILES+=	cmdsubst20.0
 ${PACKAGE}FILES+=	cmdsubst21.0
 ${PACKAGE}FILES+=	cmdsubst22.0
 ${PACKAGE}FILES+=	cmdsubst23.0
+${PACKAGE}FILES+=	cmdsubst24.0
 ${PACKAGE}FILES+=	export1.0
 ${PACKAGE}FILES+=	export2.0
 ${PACKAGE}FILES+=	export3.0

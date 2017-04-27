@@ -58,7 +58,7 @@ void
 regfree(regex_t *preg)
 {
 	struct re_guts *g;
-	int i;
+	unsigned int i;
 
 	if (preg->re_magic != MAGIC1)	/* oops */
 		return;			/* nice to complain, but hard */

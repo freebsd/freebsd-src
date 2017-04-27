@@ -88,6 +88,8 @@ extern struct nfsstatsv1 nfsstatsv1;
 extern struct nfsreqhead nfsd_reqq;
 extern u_int32_t newnfs_false, newnfs_true;
 extern int nfscl_debuglevel;
+extern int nfscl_enablecallb;
+extern int nfs_numnfscbd;
 NFSREQSPINLOCK;
 NFSCLSTATEMUTEX;
 int nfscl_inited = 0;
@@ -118,7 +120,8 @@ static struct nfsclclient *nfscl_getclnt(u_int32_t);
 static struct nfsclclient *nfscl_getclntsess(uint8_t *);
 static struct nfscldeleg *nfscl_finddeleg(struct nfsclclient *, u_int8_t *,
     int);
-static void nfscl_retoncloselayout(struct nfsclclient *, uint8_t *, int);
+static void nfscl_retoncloselayout(vnode_t, struct nfsclclient *, uint8_t *,
+    int, struct nfsclrecalllayout **);
 static void nfscl_reldevinfo_locked(struct nfscldevinfo *);
 static struct nfscllayout *nfscl_findlayout(struct nfsclclient *, u_int8_t *,
     int);
@@ -497,10 +500,11 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 {
 	struct nfsclclient *clp;
 	struct nfsclowner *owp;
-	struct nfsclopen *op = NULL;
+	struct nfsclopen *op = NULL, *top;
 	struct nfscllockowner *lp;
 	struct nfscldeleg *dp;
 	struct nfsnode *np;
+	struct nfsmount *nmp;
 	u_int8_t own[NFSV4CL_LOCKNAMELEN];
 	int error, done;
 
@@ -518,8 +522,9 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 	if (vnode_vtype(vp) != VREG)
 		return (EISDIR);
 	np = VTONFS(vp);
+	nmp = VFSTONFS(vnode_mount(vp));
 	NFSLOCKCLSTATE();
-	clp = nfscl_findcl(VFSTONFS(vnode_mount(vp)));
+	clp = nfscl_findcl(nmp);
 	if (clp == NULL) {
 		NFSUNLOCKCLSTATE();
 		return (EACCES);
@@ -589,23 +594,33 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 	}
 	if (op == NULL) {
 		/* If not found, just look for any OpenOwner that will work. */
+		top = NULL;
 		done = 0;
 		owp = LIST_FIRST(&clp->nfsc_owner);
 		while (!done && owp != NULL) {
 			LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
 				if (op->nfso_fhlen == fhlen &&
-				    !NFSBCMP(op->nfso_fh, nfhp, fhlen) &&
-				    (mode & op->nfso_mode) == mode) {
-					done = 1;
-					break;
+				    !NFSBCMP(op->nfso_fh, nfhp, fhlen)) {
+					if (top == NULL && (op->nfso_mode &
+					    NFSV4OPEN_ACCESSWRITE) != 0 &&
+					    (mode & NFSV4OPEN_ACCESSREAD) != 0)
+						top = op;
+					if ((mode & op->nfso_mode) == mode) {
+						done = 1;
+						break;
+					}
 				}
 			}
 			if (!done)
 				owp = LIST_NEXT(owp, nfsow_list);
 		}
 		if (!done) {
-			NFSUNLOCKCLSTATE();
-			return (ENOENT);
+			NFSCL_DEBUG(2, "openmode top=%p\n", top);
+			if (top == NULL || NFSHASOPENMODE(nmp)) {
+				NFSUNLOCKCLSTATE();
+				return (ENOENT);
+			} else
+				op = top;
 		}
 		/*
 		 * For read aheads or write behinds, use the open cred.
@@ -3121,6 +3136,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	struct nfsclopen *op;
 	struct nfscldeleg *dp;
 	struct nfsfh *nfhp;
+	struct nfsclrecalllayout *recallp;
 	int error;
 
 	error = nfscl_getcl(vnode_mount(vp), NULL, NULL, 1, &clp);
@@ -3129,6 +3145,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	*clpp = clp;
 
 	nfhp = VTONFS(vp)->n_fhp;
+	recallp = malloc(sizeof(*recallp), M_NFSLAYRECALL, M_WAITOK);
 	NFSLOCKCLSTATE();
 	/*
 	 * First get rid of the local Open structures, which should be no
@@ -3148,7 +3165,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	}
 
 	/* Return any layouts marked return on close. */
-	nfscl_retoncloselayout(clp, nfhp->nfh_fh, nfhp->nfh_len);
+	nfscl_retoncloselayout(vp, clp, nfhp->nfh_fh, nfhp->nfh_len, &recallp);
 
 	/* Now process the opens against the server. */
 lookformore:
@@ -3171,6 +3188,11 @@ lookformore:
 		}
 	}
 	NFSUNLOCKCLSTATE();
+	/*
+	 * recallp has been set NULL by nfscl_retoncloselayout() if it was
+	 * used by the function, but calling free() with a NULL pointer is ok.
+	 */
+	free(recallp, M_NFSLAYRECALL);
 	return (0);
 }
 
@@ -3538,9 +3560,18 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				    tsep->nfsess_backslots);
 			}
 			NFSUNLOCKCLSTATE();
-			if (error == 0) {
+			if (error == 0 || error == NFSERR_REPLYFROMCACHE) {
 				gotseq_ok = 1;
 				if (rep != NULL) {
+					/*
+					 * Handle a reply for a retried
+					 * callback.  The reply will be
+					 * re-inserted in the session cache
+					 * by the nfsv4_seqsess_cacherep() call
+					 * after out:
+					 */
+					KASSERT(error == NFSERR_REPLYFROMCACHE,
+					    ("cbsequence: non-NULL rep"));
 					NFSCL_DEBUG(4, "Got cbretry\n");
 					m_freem(nd->nd_mreq);
 					nd->nd_mreq = rep;
@@ -4890,28 +4921,32 @@ nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen,
 }
 
 /*
- * Search for a layout by MDS file handle. If one is found that is marked
- * "return on close", delete it, since it should now be forgotten.
+ * Search for a layout by MDS file handle. If one is found, mark in to be
+ * recalled, if it already marked "return on close".
  */
 static void
-nfscl_retoncloselayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen)
+nfscl_retoncloselayout(vnode_t vp, struct nfsclclient *clp, uint8_t *fhp,
+    int fhlen, struct nfsclrecalllayout **recallpp)
 {
 	struct nfscllayout *lyp;
+	uint32_t iomode;
 
-tryagain:
+	if (vp->v_type != VREG || !NFSHASPNFS(VFSTONFS(vnode_mount(vp))) ||
+	    nfscl_enablecallb == 0 || nfs_numnfscbd == 0 ||
+	    (VTONFS(vp)->n_flag & NNOLAYOUT) != 0)
+		return;
 	lyp = nfscl_findlayout(clp, fhp, fhlen);
-	if (lyp != NULL && (lyp->nfsly_flags & NFSLY_RETONCLOSE) != 0) {
-		/*
-		 * Wait for outstanding I/O ops to be done.
-		 */
-		if (lyp->nfsly_lock.nfslock_usecnt != 0 ||
-		    lyp->nfsly_lock.nfslock_lock != 0) {
-			lyp->nfsly_lock.nfslock_lock |= NFSV4LOCK_WANTED;
-			(void)mtx_sleep(&lyp->nfsly_lock,
-			    NFSCLSTATEMUTEXPTR, PZERO, "nfslyc", 0);
-			goto tryagain;
-		}
-		nfscl_freelayout(lyp);
+	if (lyp != NULL && (lyp->nfsly_flags & (NFSLY_RETONCLOSE |
+	    NFSLY_RECALL)) == NFSLY_RETONCLOSE) {
+		iomode = 0;
+		if (!LIST_EMPTY(&lyp->nfsly_flayread))
+			iomode |= NFSLAYOUTIOMODE_READ;
+		if (!LIST_EMPTY(&lyp->nfsly_flayrw))
+			iomode |= NFSLAYOUTIOMODE_RW;
+		(void)nfscl_layoutrecall(NFSLAYOUTRETURN_FILE, lyp, iomode,
+		    0, UINT64_MAX, lyp->nfsly_stateid.seqid, *recallpp);
+		NFSCL_DEBUG(4, "retoncls recall iomode=%d\n", iomode);
+		*recallpp = NULL;
 	}
 }
 
@@ -5195,8 +5230,8 @@ nfscl_layoutreturn(struct nfsmount *nmp, struct nfscllayout *lyp,
 	nfsv4stateid_t stateid;
 
 	NFSBCOPY(lyp->nfsly_stateid.other, stateid.other, NFSX_STATEIDOTHER);
+	stateid.seqid = lyp->nfsly_stateid.seqid;
 	LIST_FOREACH(rp, &lyp->nfsly_recall, nfsrecly_list) {
-		stateid.seqid = rp->nfsrecly_stateseqid;
 		(void)nfsrpc_layoutreturn(nmp, lyp->nfsly_fh,
 		    lyp->nfsly_fhlen, 0, NFSLAYOUT_NFSV4_1_FILES,
 		    rp->nfsrecly_iomode, rp->nfsrecly_recalltype,

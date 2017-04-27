@@ -519,6 +519,65 @@ siba_erom_free_core_table(bhnd_erom_t *erom, struct bhnd_core_info *cores)
 	free(cores, M_BHND);
 }
 
+/* BHND_EROM_DUMP() */
+static int
+siba_erom_dump(bhnd_erom_t *erom)
+{
+	struct siba_erom	*sc;
+	int			 error;
+
+	sc = (struct siba_erom *)erom;
+
+	/* Enumerate all cores. */
+	for (u_int i = 0; i < sc->io.ncores; i++) {
+		uint32_t idhigh, idlow;
+		uint32_t nraddr;
+
+		idhigh = siba_eio_read_4(&sc->io, i,
+		    SB0_REG_ABS(SIBA_CFG0_IDHIGH));
+		idlow = siba_eio_read_4(&sc->io, i,
+		    SB0_REG_ABS(SIBA_CFG0_IDLOW));
+
+		printf("siba core %u:\n", i);
+		printf("\tvendor:\t0x%04x\n", SIBA_REG_GET(idhigh, IDH_VENDOR));
+		printf("\tdevice:\t0x%04x\n", SIBA_REG_GET(idhigh, IDH_DEVICE));
+		printf("\trev:\t0x%04x\n", SIBA_IDH_CORE_REV(idhigh));
+		printf("\tsbrev:\t0x%02x\n", SIBA_REG_GET(idlow, IDL_SBREV));
+
+		/* Enumerate the address match registers */
+		nraddr = SIBA_REG_GET(idlow, IDL_NRADDR);
+		printf("\tnraddr\t0x%04x\n", nraddr);
+
+		for (size_t addrspace = 0; addrspace < nraddr; addrspace++) {
+			uint32_t	am, am_addr, am_size;
+			u_int		am_offset;
+
+			/* Determine the register offset */
+			am_offset = siba_admatch_offset(addrspace);
+			if (am_offset == 0) {
+				printf("addrspace %zu unsupported",
+				    addrspace);
+				break;
+			}
+			
+			/* Read and parse the address match register */
+			am = siba_eio_read_4(&sc->io, i, am_offset);
+			error = siba_parse_admatch(am, &am_addr, &am_size);
+			if (error) {
+				printf("failed to decode address match "
+				    "register value 0x%x\n", am);
+				continue;
+			}
+
+			printf("\taddrspace %zu\n", addrspace);
+			printf("\t\taddr: 0x%08x\n", am_addr);
+			printf("\t\tsize: 0x%08x\n", am_size);
+		}
+	}
+
+	return (0);
+}
+
 static kobj_method_t siba_erom_methods[] = {
 	KOBJMETHOD(bhnd_erom_probe,		siba_erom_probe),
 	KOBJMETHOD(bhnd_erom_probe_static,	siba_erom_probe_static),
@@ -529,6 +588,7 @@ static kobj_method_t siba_erom_methods[] = {
 	KOBJMETHOD(bhnd_erom_free_core_table,	siba_erom_free_core_table),
 	KOBJMETHOD(bhnd_erom_lookup_core,	siba_erom_lookup_core),
 	KOBJMETHOD(bhnd_erom_lookup_core_addr,	siba_erom_lookup_core_addr),
+	KOBJMETHOD(bhnd_erom_dump,		siba_erom_dump),
 
 	KOBJMETHOD_END
 };

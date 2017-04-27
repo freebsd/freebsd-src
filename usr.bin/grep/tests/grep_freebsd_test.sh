@@ -25,11 +25,45 @@
 #
 # $FreeBSD$
 
+# What grep(1) are we working with?
+# - 0 : bsdgrep
+# - 1 : gnu grep 2.51 (base)
+# - 2 : gnu grep (ports)
+GREP_TYPE_BSD=0
+GREP_TYPE_GNU_FREEBSD=1
+GREP_TYPE_GNU=2
+GREP_TYPE_UNKNOWN=3
+
+grep_type()
+{
+	local grep_version=$(grep --version)
+
+	case "$grep_version" in
+	*"BSD grep"*)
+		return $GREP_TYPE_BSD
+		;;
+	*"GNU grep"*)
+		case "$grep_version" in
+		*2.5.1-FreeBSD*)
+			return $GREP_TYPE_GNU_FREEBSD
+			;;
+		*)
+			return $GREP_TYPE_GNU
+			;;
+		esac
+		;;
+	esac
+	atf_fail "unknown grep type: $grep_version"
+}
+
 atf_test_case grep_r_implied
 grep_r_implied_body()
 {
-	(cd "$(atf_get_srcdir)" && grep -r -e "test" < /dev/null) ||
-	    atf_skip "Implied working directory is not supported with your version of grep(1)"
+	grep_type
+	if [ $? -ne $GREP_TYPE_BSD ]; then
+		atf_skip "this test only works with bsdgrep(1)"
+	fi
+
 	(cd "$(atf_get_srcdir)" && grep -r --exclude="*.out" -e "test" .) > d_grep_r_implied.out
 
 	atf_check -s exit:0 -x \
