@@ -71,14 +71,16 @@ __FBSDID("$FreeBSD$");
 void *
 linux_page_address(struct page *page)
 {
+
+	if (page->object != kmem_object && page->object != kernel_object) {
 #ifdef LINUXKPI_HAVE_DMAP
-	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
+		return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
 #else
-	if (page->object != kmem_object && page->object != kernel_object)
 		return (NULL);
+#endif
+	}
 	return ((void *)(uintptr_t)(VM_MIN_KERNEL_ADDRESS +
 	    IDX_TO_OFF(page->pindex)));
-#endif
 }
 
 vm_page_t
