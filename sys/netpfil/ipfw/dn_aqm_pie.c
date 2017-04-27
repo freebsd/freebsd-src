@@ -755,7 +755,7 @@ aqm_pie_getconfig (struct dn_fsk *fs, struct dn_extra_parms * ep)
 {
 	struct dn_aqm_pie_parms *pcfg;
 	if (fs->aqmcfg) {
-		strcpy(ep->name, pie_desc.name);
+		strlcpy(ep->name, pie_desc.name, sizeof(ep->name));
 		pcfg = fs->aqmcfg;
 		ep->par[0] = pcfg->qdelay_ref / AQM_TIME_1US;
 		ep->par[1] = pcfg->tupdate / AQM_TIME_1US;
