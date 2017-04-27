@@ -622,6 +622,16 @@ hn_chim_free(struct hn_softc *sc, uint32_t chim_idx)
 }
 
 #if defined(INET6) || defined(INET)
+
+#define PULLUP_HDR(m, len)				\
+do {							\
+	if (__predict_false((m)->m_len < (len))) {	\
+		(m) = m_pullup((m), (len));		\
+		if ((m) == NULL)			\
+			return (NULL);			\
+	}						\
+} while (0)
+
 /*
  * NOTE: If this function failed, the m_head would be freed.
  */
@@ -633,15 +643,6 @@ hn_tso_fixup(struct mbuf *m_head)
 	int ehlen;
 
 	KASSERT(M_WRITABLE(m_head), ("TSO mbuf not writable"));
-
-#define PULLUP_HDR(m, len)				\
-do {							\
-	if (__predict_false((m)->m_len < (len))) {	\
-		(m) = m_pullup((m), (len));		\
-		if ((m) == NULL)			\
-			return (NULL);			\
-	}						\
-} while (0)
 
 	PULLUP_HDR(m_head, sizeof(*evl));
 	evl = mtod(m_head, struct ether_vlan_header *);
@@ -691,8 +692,65 @@ do {							\
 #endif
 	return (m_head);
 
-#undef PULLUP_HDR
 }
+
+/*
+ * NOTE: If this function failed, the m_head would be freed.
+ */
+static __inline struct mbuf *
+hn_check_tcpsyn(struct mbuf *m_head, int *tcpsyn)
+{
+	const struct ether_vlan_header *evl;
+	const struct tcphdr *th;
+	int ehlen;
+
+	*tcpsyn = 0;
+
+	PULLUP_HDR(m_head, sizeof(*evl));
+	evl = mtod(m_head, const struct ether_vlan_header *);
+	if (evl->evl_encap_proto == ntohs(ETHERTYPE_VLAN))
+		ehlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+	else
+		ehlen = ETHER_HDR_LEN;
+
+#ifdef INET
+	if (m_head->m_pkthdr.csum_flags & CSUM_IP_TCP) {
+		const struct ip *ip;
+		int iphlen;
+
+		PULLUP_HDR(m_head, ehlen + sizeof(*ip));
+		ip = mtodo(m_head, ehlen);
+		iphlen = ip->ip_hl << 2;
+
+		PULLUP_HDR(m_head, ehlen + iphlen + sizeof(*th));
+		th = mtodo(m_head, ehlen + iphlen);
+		if (th->th_flags & TH_SYN)
+			*tcpsyn = 1;
+	}
+#endif
+#if defined(INET6) && defined(INET)
+	else
+#endif
+#ifdef INET6
+	{
+		const struct ip6_hdr *ip6;
+
+		PULLUP_HDR(m_head, ehlen + sizeof(*ip6));
+		ip6 = mtodo(m_head, ehlen);
+		if (ip6->ip6_nxt != IPPROTO_TCP)
+			return (m_head);
+
+		PULLUP_HDR(m_head, ehlen + sizeof(*ip6) + sizeof(*th));
+		th = mtodo(m_head, ehlen + sizeof(*ip6));
+		if (th->th_flags & TH_SYN)
+			*tcpsyn = 1;
+	}
+#endif
+	return (m_head);
+}
+
+#undef PULLUP_HDR
+
 #endif	/* INET6 || INET */
 
 static int
@@ -4369,7 +4427,29 @@ hn_transmit(struct ifnet *ifp, struct mbuf *m)
 			idx = bid % sc->hn_tx_ring_inuse;
 		else
 #endif
-			idx = m->m_pkthdr.flowid % sc->hn_tx_ring_inuse;
+		{
+#if defined(INET6) || defined(INET)
+			int tcpsyn = 0;
+
+			if (m->m_pkthdr.len < 128 &&
+			    (m->m_pkthdr.csum_flags &
+			     (CSUM_IP_TCP | CSUM_IP6_TCP)) &&
+			    (m->m_pkthdr.csum_flags & CSUM_TSO) == 0) {
+				m = hn_check_tcpsyn(m, &tcpsyn);
+				if (__predict_false(m == NULL)) {
+					if_inc_counter(ifp,
+					    IFCOUNTER_OERRORS, 1);
+					return (EIO);
+				}
+			}
+#else
+			const int tcpsyn = 0;
+#endif
+			if (tcpsyn)
+				idx = 0;
+			else
+				idx = m->m_pkthdr.flowid % sc->hn_tx_ring_inuse;
+		}
 	}
 	txr = &sc->hn_tx_ring[idx];
 
