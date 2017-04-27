@@ -1425,6 +1425,9 @@ t6fw.fw			optional cxgbe					\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
+dev/cy/cy.c			optional cy
+dev/cy/cy_isa.c			optional cy isa
+dev/cy/cy_pci.c			optional cy pci
 dev/cyapa/cyapa.c		optional cyapa iicbus
 dev/dc/if_dc.c			optional dc pci
 dev/dc/dcphy.c			optional dc pci
