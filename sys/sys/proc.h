@@ -224,8 +224,8 @@ struct thread {
 	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
 	struct vm_domain_policy td_vm_dom_policy;	/* (c) current numa domain policy */
 	lwpid_t		td_tid;		/* (b) Thread ID. */
-	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
-#define	td_siglist	td_sigqueue.sq_signals
+	uint64_t	padding1[4];
+	void		*padding2[4];
 	u_char		td_lend_user_pri; /* (t) Lend user pri. */
 
 /* Cleared during fork1() */
@@ -341,6 +341,8 @@ struct thread {
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
 	sbintime_t	td_sleeptimo;	/* (t) Sleep timeout. */
+	sigqueue_t	td_sigqueue;	/* (c) Sigs arrived, not delivered. */
+#define	td_siglist	td_sigqueue.sq_signals
 };
 
 struct thread0_storage {
