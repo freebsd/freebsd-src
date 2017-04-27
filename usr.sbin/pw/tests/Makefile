@@ -22,6 +22,8 @@ ATF_TESTS_SH=	pw_etcdir_test \
 .for tp in ${ATF_TESTS_SH}
 TEST_METADATA.${tp}+=	required_user="root"
 .endfor
+# Often times out under emulation
+TEST_METADATA.pw_usernext_test+=	timeout="600"
 
 ${PACKAGE}FILES+=	group
 ${PACKAGE}FILES+=	helper_functions.shin
