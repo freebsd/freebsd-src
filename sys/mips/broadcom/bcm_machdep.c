@@ -343,6 +343,9 @@ bcm_init_platform_data(struct bcm_platform *bp)
 		return (error);
 	}
 
+	if (bootverbose)
+		bhnd_erom_dump(&bp->erom.obj);
+
 	/* Fetch chipcommon core info */
 	error = bcm_find_core(bp, bcm_chipc_cores, nitems(bcm_chipc_cores),
 	    &bp->cc_id, &bp->cc_addr);

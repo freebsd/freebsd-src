@@ -131,7 +131,7 @@ procargs(int argc, char **argv)
 void
 optschanged(void)
 {
-	setinteractive(iflag);
+	setinteractive();
 #ifndef NO_HISTORY
 	histedit();
 #endif

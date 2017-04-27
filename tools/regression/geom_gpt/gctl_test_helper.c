@@ -28,13 +28,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <assert.h>
+#include <err.h>
 #include <errno.h>
-#include <libgeom.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libgeom.h>
 
 struct retval {
 	struct retval *retval;
@@ -42,11 +44,11 @@ struct retval {
 	char *value;
 };
 
-struct retval *retval;
-int verbose;
+static struct retval *retval;
+static int verbose;
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stdout, "usage: %s [-v] param[:len][=value] ...\n",
 	    getprogname());
@@ -105,16 +107,18 @@ parse(char *arg, char **param, char **value, int *len)
 	return (0);
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	struct retval *rv;
 	struct gctl_req *req;
 	char *param, *value;
 	const char *s;
-	int c, len;
+	int c, len, parse_retval;
 
 	req = gctl_get_handle();
-	gctl_ro_param(req, "class", -1, "GPT");
+	assert(req != NULL);
+	gctl_ro_param(req, "class", -1, "PART");
 
 	while ((c = getopt(argc, argv, "v")) != -1) {
 		switch (c) {
@@ -129,10 +133,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	while (optind < argc) {
-		if (!parse(argv[optind++], &param, &value, &len)) {
+	for (; optind < argc; optind++) {
+		parse_retval = parse(argv[optind], &param, &value, &len);
+		if (parse_retval == 0) {
 			if (len > 0) {
 				rv = malloc(sizeof(struct retval));
+				assert(rv != NULL);
 				rv->param = param;
 				rv->value = value;
 				rv->retval = retval;
@@ -140,7 +146,9 @@ int main(int argc, char *argv[])
 				gctl_rw_param(req, param, len, value);
 			} else
 				gctl_ro_param(req, param, -1, value);
-		}
+		} else
+			warnc(parse_retval, "failed to parse argument (%s)",
+			    argv[optind]);
 	}
 
 	if (verbose)

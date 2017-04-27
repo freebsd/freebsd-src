@@ -703,6 +703,7 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_clear(&rights, CAP_IOCTL);
+	cap_rights_set(&rights, CAP_MMAP_RW);
 	if (cap_rights_limit(memfd, &rights) == -1 && errno != ENOSYS)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif

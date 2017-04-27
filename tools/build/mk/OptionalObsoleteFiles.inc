@@ -66,7 +66,6 @@ OLD_FILES+=usr/sbin/hlfsd
 OLD_FILES+=usr/sbin/mk-amd-map
 OLD_FILES+=usr/sbin/wire-test
 OLD_FILES+=usr/share/examples/etc/amd.map
-OLD_FILES+=usr/share/info/am-utils.info.gz
 OLD_FILES+=usr/share/man/man1/pawd.1.gz
 OLD_FILES+=usr/share/man/man5/amd.conf.5.gz
 OLD_FILES+=usr/share/man/man8/amd.8.gz
@@ -103,13 +102,7 @@ OLD_FILES+=usr/share/man/man8/atrun.8.gz
 .endif
 
 .if ${MK_ATM} == no
-OLD_FILES+=etc/rc.d/atm1
-OLD_FILES+=etc/rc.d/atm2
-OLD_FILES+=etc/rc.d/atm3
-OLD_FILES+=rescue/atmconfig
-OLD_FILES+=sbin/atmconfig
 OLD_FILES+=usr/bin/sscop
-OLD_FILES+=usr/include/bsnmp/snmp_atm.h
 OLD_FILES+=usr/include/netnatm/addr.h
 OLD_FILES+=usr/include/netnatm/api/atmapi.h
 OLD_FILES+=usr/include/netnatm/api/ccatm.h
@@ -137,30 +130,19 @@ OLD_FILES+=usr/lib/libngatm.a
 OLD_FILES+=usr/lib/libngatm.so
 OLD_LIBS+=usr/lib/libngatm.so.4
 OLD_FILES+=usr/lib/libngatm_p.a
-OLD_FILES+=usr/lib/snmp_atm.so
-OLD_LIBS+=usr/lib/snmp_atm.so.6
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libngatm.a
 OLD_FILES+=usr/lib32/libngatm.so
 OLD_LIBS+=usr/lib32/libngatm.so.4
 OLD_FILES+=usr/lib32/libngatm_p.a
 .endif
-OLD_FILES+=usr/share/doc/atm/atmconfig.help
-OLD_FILES+=usr/share/doc/atm/atmconfig_device.help
-OLD_DIRS+=usr/share/doc/atm
 OLD_FILES+=usr/share/man/man1/sscop.1.gz
 OLD_FILES+=usr/share/man/man3/libngatm.3.gz
-OLD_FILES+=usr/share/man/man3/snmp_atm.3.gz
 OLD_FILES+=usr/share/man/man3/uniaddr.3.gz
 OLD_FILES+=usr/share/man/man3/unifunc.3.gz
 OLD_FILES+=usr/share/man/man3/unimsg.3.gz
 OLD_FILES+=usr/share/man/man3/unisap.3.gz
 OLD_FILES+=usr/share/man/man3/unistruct.3.gz
-OLD_FILES+=usr/share/man/man8/atmconfig.8.gz
-OLD_FILES+=usr/share/snmp/defs/atm_freebsd.def
-OLD_FILES+=usr/share/snmp/defs/atm_tree.def
-OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM-FREEBSD-MIB.txt
-OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM.txt
 .endif
 
 .if ${MK_AUDIT} == no
@@ -732,7 +714,6 @@ OLD_FILES+=usr/bin/bsnmpwalk
 OLD_FILES+=usr/include/bsnmp/asn1.h
 OLD_FILES+=usr/include/bsnmp/bridge_snmp.h
 OLD_FILES+=usr/include/bsnmp/snmp.h
-OLD_FILES+=usr/include/bsnmp/snmp_atm.h
 OLD_FILES+=usr/include/bsnmp/snmp_mibII.h
 OLD_FILES+=usr/include/bsnmp/snmp_netgraph.h
 OLD_FILES+=usr/include/bsnmp/snmpagent.h
@@ -746,8 +727,6 @@ OLD_FILES+=usr/lib/libbsnmptools.a
 OLD_FILES+=usr/lib/libbsnmptools.so
 OLD_LIBS+=usr/lib/libbsnmptools.so.0
 OLD_FILES+=usr/lib/libbsnmptools_p.a
-OLD_FILES+=usr/lib/snmp_atm.so
-OLD_LIBS+=usr/lib/snmp_atm.so.6
 OLD_FILES+=usr/lib/snmp_bridge.so
 OLD_LIBS+=usr/lib/snmp_bridge.so.6
 OLD_FILES+=usr/lib/snmp_hast.so
@@ -871,7 +850,6 @@ OLD_FILES+=usr/share/man/man3/snmp_trace.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_value_copy.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_value_free.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_value_parse.3.gz
-OLD_FILES+=usr/share/man/man3/tree.3.gz
 OLD_FILES+=usr/share/man/man3/tree_size.3.gz
 # usr.sbin/bsnmpd/bsnmpd
 OLD_FILES+=usr/share/man/man3/FIND_OBJECT_INT.3.gz
@@ -931,7 +909,6 @@ OLD_FILES+=usr/share/man/man3/reqid_base.3.gz
 OLD_FILES+=usr/share/man/man3/reqid_istype.3.gz
 OLD_FILES+=usr/share/man/man3/reqid_next.3.gz
 OLD_FILES+=usr/share/man/man3/reqid_type.3.gz
-OLD_FILES+=usr/share/man/man3/snmp_atm.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_bridge.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_hast.3.gz
 OLD_FILES+=usr/share/man/man3/snmp_hostres.3.gz
@@ -987,8 +964,6 @@ OLD_FILES+=usr/share/man/man3/usm_flush_users.3.gz
 OLD_FILES+=usr/share/man/man3/usm_next_user.3.gz
 OLD_FILES+=usr/share/man/man3/usm_new_user.3.gz
 OLD_FILES+=usr/share/man/man3/usm_user.3.gz
-OLD_FILES+=usr/share/snmp/defs/atm_freebsd.def
-OLD_FILES+=usr/share/snmp/defs/atm_tree.def
 OLD_FILES+=usr/share/snmp/defs/bridge_tree.def
 OLD_FILES+=usr/share/snmp/defs/hast_tree.def
 OLD_FILES+=usr/share/snmp/defs/hostres_tree.def
@@ -2421,11 +2396,6 @@ OLD_LIBS+=usr/lib32/libgomp.so.1
 OLD_FILES+=usr/lib32/libgomp_p.a
 OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
-OLD_FILES+=usr/share/info/cpp.info.gz
-OLD_FILES+=usr/share/info/cppinternals.info.gz
-OLD_FILES+=usr/share/info/gcc.info.gz
-OLD_FILES+=usr/share/info/gccint.info.gz
-OLD_FILES+=usr/share/info/gperf.info.gz
 OLD_FILES+=usr/share/man/man1/g++.1.gz
 OLD_FILES+=usr/share/man/man1/gcc.1.gz
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
@@ -2439,17 +2409,19 @@ OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
 .endif
 
-.if ${MK_GDB} == no
+.if ${MK_GDB} == no || ${MK_GDB_LIBEXEC} == yes
 OLD_FILES+=usr/bin/gdb
 OLD_FILES+=usr/bin/gdbserver
 OLD_FILES+=usr/bin/gdbtui
 OLD_FILES+=usr/bin/kgdb
-OLD_FILES+=usr/share/info/gdb.info.gz
-OLD_FILES+=usr/share/info/gdbint.info.gz
-OLD_FILES+=usr/share/info/stabs.info.gz
 OLD_FILES+=usr/share/man/man1/gdb.1.gz
 OLD_FILES+=usr/share/man/man1/gdbserver.1.gz
 OLD_FILES+=usr/share/man/man1/kgdb.1.gz
+.endif
+
+.if ${MK_GDB} == no || ${MK_GDB_LIBEXEC} == no
+OLD_FILES+=usr/libexec/gdb
+OLD_FILES+=usr/libexec/kgdb
 .endif
 
 .if ${MK_GPIO} == no
@@ -2929,7 +2901,6 @@ OLD_FILES+=usr/share/groff_font/devutf8/R
 OLD_FILES+=usr/share/groff_font/devutf8/S
 OLD_DIRS+=usr/share/groff_font/devutf8
 OLD_DIRS+=usr/share/groff_font
-OLD_FILES+=usr/share/info/groff.info.gz
 OLD_FILES+=usr/share/man/man1/addftinfo.1.gz
 OLD_FILES+=usr/share/man/man1/afmtodit.1.gz
 OLD_FILES+=usr/share/man/man1/eqn.1.gz
@@ -3737,7 +3708,6 @@ OLD_FILES+=usr/libexec/kpasswdd
 OLD_FILES+=usr/sbin/kstash
 OLD_FILES+=usr/sbin/ktutil
 OLD_FILES+=usr/sbin/iprop-log
-OLD_FILES+=usr/share/info/heimdal.info.gz
 OLD_FILES+=usr/share/man/man1/kdestroy.1.gz
 OLD_FILES+=usr/share/man/man1/kf.1.gz
 OLD_FILES+=usr/share/man/man1/kinit.1.gz
@@ -9405,7 +9375,6 @@ OLD_FILES+=usr/share/man/man4/usb_quirk.4.gz
 OLD_FILES+=usr/share/man/man4/usb_template.4.gz
 OLD_FILES+=usr/share/man/man4/usfs.4.gz
 OLD_FILES+=usr/share/man/man4/uslcom.4.gz
-OLD_FILES+=usr/share/man/man4/utopia.4.gz
 OLD_FILES+=usr/share/man/man4/uvisor.4.gz
 OLD_FILES+=usr/share/man/man4/uvscom.4.gz
 OLD_FILES+=usr/share/man/man4/zyd.4.gz

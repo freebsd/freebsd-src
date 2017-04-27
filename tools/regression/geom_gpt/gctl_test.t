@@ -1,4 +1,4 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl
 #
 # Copyright (c) 2005, 2006 Marcel Moolenaar
 # All rights reserved.
@@ -26,13 +26,13 @@
 #
 # $FreeBSD$
 
-my $srcdir = `dirname $0`;
-chomp $srcdir;
+use strict;
+use warnings;
 
-my $cmd = "/tmp/gctl-$$";
-my $out = "$cmd.out";
+use File::Basename;
+
 my $disk = "/tmp/disk-$$";
-my $mntpt = "/tmp/mount-$$";
+my $mntpt_prefix = "/tmp/mount-$$";
 
 my %steps = (
     "000" => "gctl",
@@ -70,9 +70,9 @@ my %steps = (
     "054" => "conf",
     "060" => "gctl verb=add geom=%dev% type=516e7cb6-6ecf-11d6-8ff8-00022d09712b start=34 end=546 entry:8=1",
     "061" => "mount %dev%p1",
-    "062" => "gctl verb=remove geom=%dev% entry=1",
+    "062" => "gctl verb=delete geom=%dev% entry=1",
     "063" => "umount %dev%p1",
-    "064" => "gctl verb=remove geom=%dev% entry=1",
+    "064" => "gctl verb=delete geom=%dev% entry=1",
     "065" => "conf",
     "100" => "mdcfg destroy",
     "110" => "mdcfg create corrupted",
@@ -132,20 +132,23 @@ if (exists $ENV{'TEST_VERBOSE'}) {
 }
 
 # Compile the driver...
-my $st = system("cc -o $cmd -g $srcdir/test.c -lgeom");
+my $st = system("make obj && make all");
 if ($st != 0) {
     print "1..0 # SKIP error compiling test.c\n";
     exit 0;
 }
+chomp(my $cmd = `make '-V\${.OBJDIR}/\${PROG}'`);
+
+my $out = basename($cmd) . ".out";
 
 # Make sure we have permission to use gctl...
 if (`$cmd` =~ "^FAIL Permission denied") {
-    print "1..0 # SKIP not enough permission\n";
+    print "1..0 # SKIP insufficient permissions\n";
     unlink $cmd;
     exit 0;
 }
 
-$count = keys (%steps);
+my $count = keys (%steps);
 print "1..$count\n";
 
 my $nr = 1;
@@ -158,29 +161,43 @@ foreach my $key (sort keys %steps) {
     $res =~ s/%dev%/$dev/g;
 
     if ($action =~ "^gctl") {
+	my $errmsg = "";
 	system("$cmd $verbose $args | tee $out 2>&1");
-	$st = `tail -1 $out`;
-	if ($st =~ "^$res") {
-	    print "ok $nr \# gctl($key)\n";
-	} else {
-	    print "not ok $nr \# gctl($key) - $st\n";
+	chomp($st = `tail -1 $out`);
+	if ($st ne $res) {
+	    $errmsg = "\"$st\" (actual) != \"$res\" (expected)\n";
 	}
+	printf("%sok $nr \# gctl($key)%s\n",
+	    ($errmsg eq "" ? "" : "not "),
+	    ($errmsg eq "" ? "" : " - $errmsg"));
 	unlink $out;
     } elsif ($action =~ "^mdcfg") {
+	my $errmsg = "";
 	if ($args =~ "^create") {
-	    system("dd if=/dev/zero of=$disk count=1024 2>&1");
-	    if ($args =~ "corrupted") {
-		system("gpt create -p $disk");
+	    # NOTE: `count=1024` affects $key => {"025" "054", "065"}.
+	    if (system("dd if=/dev/zero of=$disk count=1024 2>&1") == 0) {
+		chomp($dev = `mdconfig -a -t vnode -f $disk`);
+		if ($? == 0) {
+		    if (system("gpart create -s GPT $dev") != 0) {
+			$errmsg = "gpart create failed";
+		    }
+		} else {
+		    $errmsg = "mdconfig -a failed";
+		}
+	    } else {
+		$errmsg = "dd failed";
 	    }
-	    $dev = `mdconfig -a -t vnode -f $disk`;
-	    chomp $dev;
 	} elsif ($args =~ "^destroy") {
 	    $dev =~ s/md/-u /g;
-	    system("mdconfig -d $dev");
+	    if (system("mdconfig -d $dev") != 0) {
+		$errmsg = "mdconfig -d failed";
+	    }
 	    unlink $disk;
 	    $dev = "n/a";
 	}
-	print "ok $nr \# mdcfg($key)\n";
+	printf("%sok $nr # mdcfg($key)%s\n",
+	    ($errmsg eq "" ? "" : "not "),
+	    ($errmsg eq "" ? "" : " - $errmsg"));
     } elsif ($action =~ "^conf") {
 	system("sysctl -b kern.geom.conftxt | grep -a $dev | sed -e s:$disk:DISK:g -e s:$dev:DEV:g | sort | md5 -p | tee $out 2>&1");
 	$st = `tail -1 $out`;
@@ -191,17 +208,23 @@ foreach my $key (sort keys %steps) {
 	}
 	unlink $out;
     } elsif ($action =~ "^mount") {
-	    system("mkdir $mntpt-$args");
-	    system("newfs $args");
-	    system("mount -t ufs /dev/$args $mntpt-$args");
-	    print "ok $nr \# mount($key)\n";
+	my $errmsg = "";
+	mkdir("$mntpt_prefix-$args");
+	if (system("newfs /dev/$args") == 0) {
+	    if (system("mount /dev/$args $mntpt_prefix-$args") != 0) {
+		$errmsg = "mount failed";
+	    }
+	} else {
+	    $errmsg = "newfs failed";
+	}
+	printf("%sok $nr # mount($key)%s\n",
+	    ($errmsg eq "" ? "" : "not "),
+	    ($errmsg eq "" ? "" : " - $errmsg"));
     } elsif ($action =~ "^umount") {
-	    system("umount $mntpt-$args");
-	    system("rmdir $mntpt-$args");
-	    print "ok $nr \# umount($key)\n";
+	system("umount $mntpt_prefix-$args");
+	system("rmdir $mntpt_prefix-$args");
+	print "ok $nr \# umount($key)\n";
     }
     $nr += 1;
 }
-
-unlink $cmd;
 exit 0;

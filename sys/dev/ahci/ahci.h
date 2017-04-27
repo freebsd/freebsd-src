@@ -519,6 +519,7 @@ struct ahci_controller {
 		void			*argument;
 	} interrupt[AHCI_MAX_PORTS];
 	void			(*ch_start)(struct ahci_channel *);
+	int			dma_coherent;	/* DMA is cache-coherent */
 };
 
 enum ahci_err_type {

@@ -8,6 +8,13 @@
 # created).  The WDSUP script is invoked for each wds vap that
 # gets created--to add the vap to a bridge.
 #
+# Notes!
+#
+# * If the main AP VAP is running with encryption, the plumbed up
+#   WDS VAP needs to have privacy enabled (wepmode mixed, for example)
+#   otherwise frames transmitted from the WDS AP to the WDS STA
+#   will not be encrypted.
+#
 # $FreeBSD$
 #
 PATH=.:$PATH

@@ -56,6 +56,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	Please see the 20141231 entry below for information about prerequisites
 	and upgrading, if you are not already using clang 3.5.0 or higher.
 
+20170424:
+	The NATM framework including the en(4), fatm(4), hatm(4), and
+	patm(4) devices has been removed.  Consumers should plan a
+	migration before the end-of-life date for FreeBSD 11.
+
 20170420:
 	GNU diff has been replaced by a BSD licensed diff. Some features of GNU
 	diff has not been implemented, if those are needed a newer version of
@@ -75,6 +80,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	instead of requiring that the aarch64-binutils port or package be
 	installed. To continue using aarch64-binutils, set
 	CROSS_BINUTILS_PREFIX=/usr/local/aarch64-freebsd/bin .
+
+20170405:
+	The UDP optimization in entry 20160818 that added the sysctl
+	net.inet.udp.require_l2_bcast has been reverted.  L2 broadcast
+	packets will no longer be treated as L3 broadcast packets.
 
 20170331:
 	Binds and sends to the loopback addresses, IPv6 and IPv4, will now

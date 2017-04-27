@@ -412,6 +412,13 @@ psci_shutdown(void *xsc, int howto)
 	/* System reset and off do not return. */
 }
 
+void
+psci_reset(void)
+{
+
+	psci_shutdown(NULL, 0);
+}
+
 #ifdef FDT
 /* Only support PSCI 0.1 on FDT */
 static int

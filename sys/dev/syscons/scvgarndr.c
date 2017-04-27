@@ -1009,23 +1009,34 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	yoff = y - rounddown(y, line_width);
 	ymax = imin(y + mdp->md_height, scp->ypixel);
 
-	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
-	outw(GDCIDX, 0x0001);		/* set/reset enable */
-	outw(GDCIDX, 0xff08);		/* bit mask */
-	outw(GDCIDX, 0x0803);		/* data rotate/function select (and) */
+	if (scp->sc->adp->va_type == KD_VGA) {
+		outw(GDCIDX, 0x0305);	/* read mode 0, write mode 3 */
+		outw(GDCIDX, 0xff08);	/* bit mask */
+	} else
+		outw(GDCIDX, 0x0005);	/* read mode 0, write mode 0 */
+	outw(GDCIDX, 0x0003);		/* data rotate/function select */
+	outw(GDCIDX, 0x0f01);		/* set/reset enable */
+
+	outw(GDCIDX, (0 << 8) | 0x00); /* set/reset */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
 	for (i = y, j = 0; i < ymax; ++i, ++j) {
-		m = ~(mdp->md_border[j] << 8 >> xoff);
+		m = mdp->md_border[j] << 8 >> xoff;
 		for (k = 0; k < 3; ++k) {
 			m1 = m >> (8 * (2 - k));
-			if (m1 != 0xff && x + 8 * k < scp->xpixel) {
+			if (m1 != 0 && x + 8 * k < scp->xpixel) {
 				readb(p + k);
-				writeb(p + k, m1);
- 			}
+				if (scp->sc->adp->va_type == KD_VGA)
+					writeb(p + k, m1);
+				else {
+					/* bit mask: */
+					outw(GDCIDX, (m1 << 8) | 0x08);
+					writeb(p + k, 0);
+				}
+			}
 		}
 		p += line_width;
 	}
-	outw(GDCIDX, 0x1003);		/* data rotate/function select (or) */
+	outw(GDCIDX, (15 << 8) | 0x00); /* set/reset */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
 	for (i = y, j = 0; i < ymax; ++i, ++j) {
 		m = mdp->md_interior[j] << 8 >> xoff;
@@ -1033,12 +1044,23 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 			m1 = m >> (8 * (2 - k));
 			if (m1 != 0 && x + 8 * k < scp->xpixel) {
 				readb(p + k);
-				writeb(p + k, m1);
+				if (scp->sc->adp->va_type == KD_VGA)
+					writeb(p + k, m1);
+				else {
+					/* bit mask: */
+					outw(GDCIDX, (m1 << 8) | 0x08);
+					writeb(p + k, 0);
+				}
 			}
 		}
 		p += line_width;
 	}
-	outw(GDCIDX, 0x0003);		/* data rotate/function select */
+	if (scp->sc->adp->va_type == KD_VGA)
+		outw(GDCIDX, 0x0005);	/* read mode 0, write mode 0 */
+	else
+		outw(GDCIDX, 0xff08);	/* bit mask */
+	outw(GDCIDX, 0x0000);		/* set/reset */
+	outw(GDCIDX, 0x0001);		/* set/reset enable */
 }
 
 static void

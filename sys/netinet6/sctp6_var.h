@@ -49,6 +49,6 @@ sctp6_output(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
 void sctp6_ctlinput(int, struct sockaddr *, void *);
 void 
 sctp6_notify(struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *,
-    uint8_t, uint8_t, uint16_t);
+    uint8_t, uint8_t, uint32_t);
 #endif
 #endif

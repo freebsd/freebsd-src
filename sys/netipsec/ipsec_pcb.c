@@ -172,10 +172,10 @@ ipsec_delete_pcbpolicy(struct inpcb *inp)
 	if (inp->inp_sp == NULL)
 		return (0);
 
-	if (inp->inp_sp->flags & INP_INBOUND_POLICY)
+	if (inp->inp_sp->sp_in != NULL)
 		key_freesp(&inp->inp_sp->sp_in);
 
-	if (inp->inp_sp->flags & INP_OUTBOUND_POLICY)
+	if (inp->inp_sp->sp_out != NULL)
 		key_freesp(&inp->inp_sp->sp_out);
 
 	free(inp->inp_sp, M_IPSEC_INPCB);
@@ -250,6 +250,8 @@ ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 		if (sp == NULL)
 			return (ENOBUFS);
 		ipsec_setspidx_inpcb(new, &sp->spidx, IPSEC_DIR_INBOUND);
+		if (new->inp_sp->sp_in != NULL)
+			key_freesp(&new->inp_sp->sp_in);
 		new->inp_sp->sp_in = sp;
 		new->inp_sp->flags |= INP_INBOUND_POLICY;
 	}
@@ -258,6 +260,8 @@ ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 		if (sp == NULL)
 			return (ENOBUFS);
 		ipsec_setspidx_inpcb(new, &sp->spidx, IPSEC_DIR_OUTBOUND);
+		if (new->inp_sp->sp_out != NULL)
+			key_freesp(&new->inp_sp->sp_out);
 		new->inp_sp->sp_out = sp;
 		new->inp_sp->flags |= INP_OUTBOUND_POLICY;
 	}

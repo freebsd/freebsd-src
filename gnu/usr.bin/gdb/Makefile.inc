@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 VERSION= "6.1.1 [FreeBSD]"
 VENDOR= marcel
 
@@ -52,6 +54,9 @@ GENSRCS+= nm.h tm.h
 .if defined(GDB_CROSS_DEBUGGER)
 CFLAGS+= -DCROSS_DEBUGGER -I${BMAKE_ROOT:H:H}
 GDB_SUFFIX= -${TARGET_ARCH}
+MAN=
+.elif ${MK_GDB_LIBEXEC} != "no"
+BINDIR?=	/usr/libexec
 MAN=
 .endif
 
