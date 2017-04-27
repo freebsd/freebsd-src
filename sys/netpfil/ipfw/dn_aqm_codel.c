@@ -416,7 +416,7 @@ aqm_codel_getconfig(struct dn_fsk *fs, struct dn_extra_parms * ep)
 	struct dn_aqm_codel_parms *ccfg;
 
 	if (fs->aqmcfg) {
-		strcpy(ep->name, codel_desc.name);
+		strlcpy(ep->name, codel_desc.name, sizeof(ep->name));
 		ccfg = fs->aqmcfg;
 		ep->par[0] = ccfg->target / AQM_TIME_1US;
 		ep->par[1] = ccfg->interval / AQM_TIME_1US;
