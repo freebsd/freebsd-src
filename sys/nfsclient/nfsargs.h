@@ -76,7 +76,7 @@ struct nfs_args {
 #define	NFSMNT_MAXGRPS		0x00000020  /* set maximum grouplist size */
 #define	NFSMNT_INT		0x00000040  /* allow interrupts on hard mount */
 #define	NFSMNT_NOCONN		0x00000080  /* Don't Connect the socket */
-/* 0x100 free, was NFSMNT_NQNFS */
+#define	NFSMNT_ONEOPENOWN	0x00000100  /* Use one OpenOwner for NFSv4.1 */
 #define	NFSMNT_NFSV3		0x00000200  /* Use NFS Version 3 protocol */
 #define	NFSMNT_KERB		0x00000400  /* Use RPCSEC_GSS/Krb5 */
 #define	NFSMNT_DUMBTIMR		0x00000800  /* Don't estimate rtt dynamically */
