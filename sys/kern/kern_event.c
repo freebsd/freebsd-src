@@ -825,6 +825,7 @@ done2:
 	return (error);
 }
 
+#ifdef KTRACE
 static size_t
 kev_iovlen(int n, u_int kgio)
 {
@@ -833,6 +834,7 @@ kev_iovlen(int n, u_int kgio)
 		return (kgio);
 	return (n * sizeof(struct kevent));
 }
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct kevent_args {
