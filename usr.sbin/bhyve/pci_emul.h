@@ -71,6 +71,13 @@ struct pci_devemu {
 	uint64_t  (*pe_barread)(struct vmctx *ctx, int vcpu,
 				struct pci_devinst *pi, int baridx,
 				uint64_t offset, int size);
+
+	/* Save/restore device state */
+	int	(*pe_snapshot)(struct vmctx *ctx, struct pci_devinst *pi,
+				void *buffer, size_t buf_size,
+				size_t *snapshot_size);
+	int	(*pe_restore)(struct vmctx *ctx, struct pci_devinst *pi,
+				void *buffer, size_t buf_size);
 };
 #define PCI_EMUL_SET(x)   DATA_SET(pci_devemu_set, x);
 
@@ -245,6 +252,10 @@ void	pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg);
 void	pci_write_dsdt(void);
 uint64_t pci_ecfg_base(void);
 int	pci_bus_configured(int bus);
+int	pci_snapshot(struct vmctx *ctx, const char *dev_name, void *buffer,
+		     size_t buf_size, size_t *snapshot_size);
+int	pci_restore(struct vmctx *ctx, const char *dev_name, void *buffer,
+		    size_t buf_size);
 
 static __inline void 
 pci_set_cfgdata8(struct pci_devinst *pi, int offset, uint8_t val)

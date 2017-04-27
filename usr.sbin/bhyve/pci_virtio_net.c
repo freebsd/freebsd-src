@@ -169,6 +169,10 @@ struct pci_vtnet_softc {
 };
 
 static void pci_vtnet_reset(void *);
+static void pci_vtnet_pause(void *);
+static void pci_vtnet_resume(void *);
+static int pci_vtnet_snapshot(void *, void *, size_t, size_t *);
+static int pci_vtnet_restore(void *, void *, size_t);
 /* static void pci_vtnet_notify(void *, struct vqueue_info *); */
 static int pci_vtnet_cfgread(void *, int, int, uint32_t *);
 static int pci_vtnet_cfgwrite(void *, int, int, uint32_t);
@@ -184,6 +188,10 @@ static struct virtio_consts vtnet_vi_consts = {
 	pci_vtnet_cfgwrite,	/* write PCI config */
 	pci_vtnet_neg_features,	/* apply negotiated features */
 	VTNET_S_HOSTCAPS,	/* our capabilities */
+	pci_vtnet_pause,	/* pause rx/tx threads */
+	pci_vtnet_resume,	/* resume rx/tx threads */
+	pci_vtnet_snapshot,	/* save device state */
+	pci_vtnet_restore,	/* restore device state */
 };
 
 /*
@@ -242,6 +250,110 @@ pci_vtnet_reset(void *vsc)
 	vi_reset_dev(&sc->vsc_vs);
 
 	sc->resetting = 0;
+}
+
+static void
+pci_vtnet_pause(void *vsc)
+{
+	struct pci_vtnet_softc *sc = vsc;
+
+	DPRINTF(("vtnet: device pause requested !\n"));
+
+	pthread_mutex_lock(&sc->tx_mtx);
+	pthread_mutex_lock(&sc->rx_mtx);
+	sc->resetting = 1;
+	pthread_mutex_unlock(&sc->rx_mtx);
+	pthread_mutex_unlock(&sc->tx_mtx);
+
+	/*
+	 * Wait for the transmit and receive threads to finish their
+	 * processing.
+	 */
+	pci_vtnet_txwait(sc);
+	pci_vtnet_rxwait(sc);
+}
+
+static void
+pci_vtnet_resume(void *vsc)
+{
+	struct pci_vtnet_softc *sc = vsc;
+
+	DPRINTF(("vtnet: device resume requested !\n"));
+
+	pthread_mutex_lock(&sc->tx_mtx);
+	pthread_mutex_lock(&sc->rx_mtx);
+	sc->resetting = 0;
+	pthread_mutex_unlock(&sc->rx_mtx);
+	pthread_mutex_unlock(&sc->tx_mtx);
+}
+
+static int
+pci_vtnet_snapshot(void *vsc, void *buffer, size_t buf_size, size_t *snap_size)
+{
+	struct pci_vtnet_softc *sc = vsc;
+	size_t snap_len = sizeof(sc->vsc_features)
+			+ sizeof(sc->vsc_config)
+			+ sizeof(sc->rx_vhdrlen)
+			+ sizeof(sc->rx_merge)
+			+ sizeof(sc->vsc_rx_ready);
+
+	DPRINTF(("vtnet: device snapshot requested !\n"));
+	*snap_size = 0;
+
+	/* Queues and consts should have been saved by the more generic
+	 * vi_pci_snapshot function. We need to save only our features and
+	 * config.
+	 */
+
+	if (snap_len > buf_size) {
+		fprintf(stderr, "%s: buffer too small\n", __func__);
+		return (-1);
+	}
+	memcpy(buffer, &sc->vsc_features, sizeof(sc->vsc_features));
+	buffer += sizeof(sc->vsc_features);
+	memcpy(buffer, &sc->vsc_config, sizeof(sc->vsc_config));
+	buffer += sizeof(sc->vsc_config);
+	memcpy(buffer, &sc->rx_vhdrlen, sizeof(sc->rx_vhdrlen));
+	buffer += sizeof(sc->rx_vhdrlen);
+	memcpy(buffer, &sc->rx_merge, sizeof(sc->rx_merge));
+	buffer += sizeof(sc->rx_merge);
+	memcpy(buffer, &sc->vsc_rx_ready, sizeof(sc->vsc_rx_ready));
+	buffer += sizeof(sc->vsc_rx_ready);
+
+	*snap_size = snap_len;
+
+	return (0);
+}
+
+static int
+pci_vtnet_restore(void *vsc, void *buffer, size_t buf_size)
+{
+	struct pci_vtnet_softc *sc = vsc;
+	size_t snap_len = sizeof(sc->vsc_features)
+			+ sizeof(sc->vsc_config)
+			+ sizeof(sc->rx_vhdrlen)
+			+ sizeof(sc->rx_merge)
+			+ sizeof(sc->vsc_rx_ready);
+
+	DPRINTF(("vtnet: device restore requested !\n"));
+
+	if (snap_len > buf_size) {
+		fprintf(stderr, "%s: buffer too small\n", __func__);
+		return (-1);
+	}
+
+	memcpy(&sc->vsc_features, buffer, sizeof(sc->vsc_features));
+	buffer += sizeof(sc->vsc_features);
+	memcpy(&sc->vsc_config, buffer, sizeof(sc->vsc_config));
+	buffer += sizeof(sc->vsc_config);
+	memcpy(&sc->rx_vhdrlen, buffer, sizeof(sc->rx_vhdrlen));
+	buffer += sizeof(sc->rx_vhdrlen);
+	memcpy(&sc->rx_merge, buffer, sizeof(sc->rx_merge));
+	buffer += sizeof(sc->rx_merge);
+	memcpy(&sc->vsc_rx_ready, buffer, sizeof(sc->vsc_rx_ready));
+	buffer += sizeof(sc->vsc_rx_ready);
+
+	return (snap_len);
 }
 
 /*
@@ -987,6 +1099,8 @@ struct pci_devemu pci_de_vnet = {
 	.pe_emu = 	"virtio-net",
 	.pe_init =	pci_vtnet_init,
 	.pe_barwrite =	vi_pci_write,
-	.pe_barread =	vi_pci_read
+	.pe_barread =	vi_pci_read,
+	.pe_snapshot =	vi_pci_snapshot,
+	.pe_restore =	vi_pci_restore,
 };
 PCI_EMUL_SET(pci_de_vnet);

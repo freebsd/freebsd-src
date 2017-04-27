@@ -359,6 +359,12 @@ struct virtio_consts {
 	void    (*vc_apply_features)(void *, uint64_t);
 				/* called to apply negotiated features */
 	uint64_t vc_hv_caps;		/* hypervisor-provided capabilities */
+	void	(*vc_pause)(void *);	/* called to pause device activity */
+	void	(*vc_resume)(void *);	/* called to resume device activity */
+	int	(*vc_snapshot)(void *, void *, size_t, size_t *);
+				/* called to save device state */
+	int	(*vc_restore)(void *, void *, size_t);
+				/* called to restore device state */
 };
 
 /*
@@ -465,4 +471,8 @@ uint64_t vi_pci_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 		     int baridx, uint64_t offset, int size);
 void	vi_pci_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 		     int baridx, uint64_t offset, int size, uint64_t value);
+int	vi_pci_snapshot(struct vmctx *ctx, struct pci_devinst *pi,
+			void *buffer, size_t buf_size, size_t *snapshot_size);
+int	vi_pci_restore(struct vmctx *ctx, struct pci_devinst *pi,
+		       void *buffer, size_t buf_size);
 #endif	/* _VIRTIO_H_ */

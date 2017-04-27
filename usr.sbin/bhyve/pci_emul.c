@@ -2105,11 +2105,221 @@ pci_emul_dior(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 	return (value);
 }
 
+/*
+ * Saves PCI device emulated state. Returns < 0 on error or 0 on success.
+ */
+static int
+pci_snapshot_pci_dev(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		     size_t buf_size, size_t *snapshot_size)
+{
+	size_t snap_size = 0;
+	int i;
+
+	/* Ensure there's room for PCI device data + MSI-X table entries. */
+	if (sizeof(*pi) + pi->pi_msix.table_count *
+	    sizeof(struct msix_table_entry) > buf_size) {
+		return (-1);
+	}
+
+	memcpy(buffer, pi, sizeof(*pi));
+	snap_size = sizeof(*pi);
+
+	/* Save MSI-X table data */
+	for (i = 0; i < pi->pi_msix.table_count; i++) {
+		memcpy(buffer + snap_size, &pi->pi_msix.table[i],
+		    sizeof(struct msix_table_entry));
+		snap_size += sizeof(struct msix_table_entry);
+	}
+
+	*snapshot_size = snap_size;
+	return (0);
+}
+
+/*
+ * Restores PCI device emulated state. Returns -1 on error or how much data from
+ * buffer it covered. It must match the amount of data saved in its pair
+ * function: pci_snapshot_pci_dev.
+ */
+static int
+pci_restore_pci_dev(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		    size_t buf_size)
+{
+	struct pci_devinst *old_pi;
+	int i;
+	size_t snap_size;
+
+	if (sizeof(*pi) + pi->pi_msix.table_count *
+	    sizeof(struct msix_table_entry) > buf_size) {
+		return (-1);
+	}
+
+	old_pi = (struct pci_devinst *)buffer;
+
+	pi->pi_msi = old_pi->pi_msi;
+
+	pi->pi_msix.enabled = old_pi->pi_msix.enabled;
+	pi->pi_msix.table_bar = old_pi->pi_msix.table_bar;
+	pi->pi_msix.pba_bar = old_pi->pi_msix.pba_bar;
+	pi->pi_msix.table_offset = old_pi->pi_msix.table_offset;
+	pi->pi_msix.table_count = old_pi->pi_msix.table_count;
+	pi->pi_msix.pba_offset = old_pi->pi_msix.pba_offset;
+	pi->pi_msix.pba_size = old_pi->pi_msix.pba_size;
+	pi->pi_msix.function_mask = old_pi->pi_msix.function_mask;
+	pi->pi_msix.pba_page_offset = old_pi->pi_msix.pba_page_offset;
+
+	memcpy(pi->pi_cfgdata, old_pi->pi_cfgdata, (PCI_REGMAX + 1) * sizeof(u_char));
+	memcpy(pi->pi_bar, old_pi->pi_bar, (PCI_BARMAX + 1) * sizeof(struct pcibar));
+
+	snap_size = sizeof(*pi);
+
+	/* Restore MSI-X table. */
+	for (i = 0; i < pi->pi_msix.table_count; i++) {
+		memcpy(&pi->pi_msix.table[i], buffer + snap_size,
+		    sizeof(struct msix_table_entry));
+		snap_size += sizeof(struct msix_table_entry);
+	}
+
+	return (snap_size);
+}
+
+int
+pci_snapshot(struct vmctx *ctx, const char *dev_name, void *buffer,
+	     size_t buf_size, size_t *snapshot_size)
+{
+	struct pci_devemu *pde;
+	struct businfo *bi;
+	struct slotinfo *si;
+	struct funcinfo *fi;
+	int bus, slot, func, ret;
+	size_t snap_size;
+
+	assert(dev_name != NULL);
+
+	for (bus = 0; bus < MAXBUSES; bus++) {
+		if ((bi = pci_businfo[bus]) == NULL)
+			continue;
+
+		for (slot = 0; slot < MAXSLOTS; slot++) {
+			si = &bi->slotinfo[slot];
+			for (func = 0; func < MAXFUNCS; func++) {
+				fi = &si->si_funcs[func];
+				if (fi->fi_name == NULL)
+					continue;
+				if (strcmp(dev_name, fi->fi_name))
+					continue;
+
+				pde = pci_emul_finddev(fi->fi_name);
+				assert(pde != NULL);
+
+				if (pde->pe_snapshot == NULL) {
+					fprintf(stderr, "%s: not implemented "
+						"yet for: %s\r\n", __func__,
+						dev_name);
+					return (-1);
+				}
+
+				ret = pci_snapshot_pci_dev(ctx, fi->fi_devi,
+					    buffer, buf_size, &snap_size);
+				if (ret < 0) {
+					fprintf(stderr, "%s: failed to "
+						"snapshot pci dev\r\n",
+						__func__);
+					return (-1);
+				}
+
+				assert(snap_size < buf_size);
+				*snapshot_size = snap_size;
+
+				ret = (*pde->pe_snapshot)(ctx, fi->fi_devi,
+					   buffer + snap_size,
+					   buf_size - snap_size,
+					   &snap_size);
+
+				*snapshot_size += snap_size;
+				return (ret);
+			}
+		}
+	}
+
+	fprintf(stderr, "%s: no such name: %s\n", __func__, dev_name);
+	return (-1);
+}
+
+int
+pci_restore(struct vmctx *ctx, const char *dev_name, void *buffer,
+	    size_t buf_size)
+{
+	struct pci_devemu *pde;
+	struct businfo *bi;
+	struct slotinfo *si;
+	struct funcinfo *fi;
+	int bus, slot, func, ret;
+
+	assert(dev_name != NULL);
+
+	for (bus = 0; bus < MAXBUSES; bus++) {
+		if ((bi = pci_businfo[bus]) == NULL)
+			continue;
+
+		for (slot = 0; slot < MAXSLOTS; slot++) {
+			si = &bi->slotinfo[slot];
+			for (func = 0; func < MAXFUNCS; func++) {
+				fi = &si->si_funcs[func];
+				if (fi->fi_name == NULL)
+					continue;
+				if (strcmp(dev_name, fi->fi_name))
+					continue;
+
+				pde = pci_emul_finddev(fi->fi_name);
+				assert(pde != NULL);
+
+				if (pde->pe_restore == NULL) {
+					fprintf(stderr, "%s: not implemented "
+						"yet for: %s\n", __func__,
+						dev_name);
+					return (-1);
+				}
+
+				ret = pci_restore_pci_dev(ctx, fi->fi_devi,
+					    buffer, buf_size);
+				if (ret < 0) {
+					fprintf(stderr, "%s: failed to "
+						"restore pci dev\r\n",
+						__func__);
+					return (-1);
+				}
+
+				return (*pde->pe_restore)(ctx, fi->fi_devi,
+					    buffer + ret, buf_size - ret);
+			}
+		}
+	}
+
+	fprintf(stderr, "%s: no such name: %s\n", __func__, dev_name);
+	return (-1);
+}
+
+int
+pci_emul_snapshot(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		  size_t buf_size, size_t *snapshot_size)
+{
+	return (0);
+}
+
+int
+pci_emul_restore(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
+		  size_t buf_size)
+{
+	return (0);
+}
+
 struct pci_devemu pci_dummy = {
 	.pe_emu = "dummy",
 	.pe_init = pci_emul_dinit,
 	.pe_barwrite = pci_emul_diow,
-	.pe_barread = pci_emul_dior
+	.pe_barread = pci_emul_dior,
+	.pe_snapshot = pci_emul_snapshot,
+	.pe_restore = pci_emul_restore,
 };
 PCI_EMUL_SET(pci_dummy);
 
