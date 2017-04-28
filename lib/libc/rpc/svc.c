@@ -158,7 +158,8 @@ __xprt_do_unregister(SVCXPRT *xprt, bool_t dolock)
 				if (__svc_xports[svc_maxfd])
 					break;
 		}
-	}
+	} else if ((sock == FD_SETSIZE) && (__svc_xports[sock] == xprt))
+		__svc_xports[sock] = NULL;
 	if (dolock)
 		rwlock_unlock(&svc_fd_lock);
 }
