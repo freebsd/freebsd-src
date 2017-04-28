@@ -133,7 +133,7 @@ ${PROG}: ${OUTPUTS} objs .NOMETA .PHONY
 
 objs: ${OUTMK} .META
 	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} \
-	    ${MAKE} -f ${OUTMK} BUILD_TOOLS_META=.NOMETA_CMP objs
+	    ${MAKE} -f ${OUTMK} BUILD_TOOLS_META=.NOMETA objs
 
 # <sigh> Someone should replace the bin/csh and bin/sh build-tools with
 # shell scripts so we can remove this nonsense.
