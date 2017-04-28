@@ -1161,18 +1161,18 @@ vt_set_border(struct vt_window *vw, term_color_t c)
 		for (x = 0; x < vd->vd_width; x++)
 			vd->vd_driver->vd_setpixel(vd, x, y, c);
 
-	for (y = vda->tr_begin.tp_row; y <= vda->tr_end.tp_row; y++) {
+	for (y = vda->tr_begin.tp_row; y < vda->tr_end.tp_row; y++) {
 		/* Left bar. */
 		for (x = 0; x < vda->tr_begin.tp_col; x++)
 			vd->vd_driver->vd_setpixel(vd, x, y, c);
 
 		/* Right bar. */
-		for (x = vda->tr_end.tp_col + 1; x < vd->vd_width; x++)
+		for (x = vda->tr_end.tp_col; x < vd->vd_width; x++)
 			vd->vd_driver->vd_setpixel(vd, x, y, c);
 	}
 
 	/* Bottom bar. */
-	for (y = vda->tr_end.tp_row + 1; y < vd->vd_height; y++)
+	for (y = vda->tr_end.tp_row; y < vd->vd_height; y++)
 		for (x = 0; x < vd->vd_width; x++)
 			vd->vd_driver->vd_setpixel(vd, x, y, c);
 }
