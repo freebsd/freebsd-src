@@ -111,7 +111,7 @@ with_a_child_head()
 
 with_a_child_body()
 {
-	out=$(sleep .1 & exec timeout .5 sh -c 'sleep 2; echo foo')
+	out=$(sleep .1 & exec timeout .5 sh -c 'sleep 10; echo foo')
 	status=$?
 	test "$out" = "" && test $status = 124 || \
 		atf_fail "out is not empty '$out'"
