@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2017
+.Dd April 27, 2017
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -188,6 +188,10 @@ PCI 16550 serial device.
 .It Li lpc
 LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports and a boot ROM.
 The LPC bridge emulation can only be configured on bus 0.
+.It Li fbuf
+Raw framebuffer device attached to VNC server.
+.It Li xhci
+XHCI USB controller.
 .El
 .It Op Ar conf
 This optional parameter describes the backend for device emulations.
@@ -298,6 +302,40 @@ resize at present.
 .It
 Emergency write is advertised, but no-op at present.
 .El
+.El
+.Pp
+Raw framebuffer device:
+.Pp
+.Oo wait Oc Ns Oo ,vga= Ns Ar <on|io|off> Oc Oo ,rfb= Ns Oo Ar IP: Oc Ns Ar port Oc Ns Oo ,w= Ns Ar w Oc Ns Oo ,h= Ns Ar h Oc
+.Bl -tag -width [vga=on|io|off]
+.It wait
+Wait for a VNC client connection before booting the virtual machine.
+The default is not to wait.
+.It vga= Ns Ar on|io|off
+Enable VGA emulation.
+The default is
+.Va io
+mode: VGA is enabled, but only I/O ports are available,
+no VGA memory is provided.
+.It rfb= Ns Oo Ar IP: Oc Ns Ar port
+Set the VNC server to listen at
+.Va IP:port .
+The default is to listen on localhost IPv4 address and default VNC port 5900.
+Listening on a IPv6 address is not supported.
+.It w= Ns Ar width
+Set framebuffer width to
+.Ar width .
+The default width is 1920.
+.It h= Ns Ar height
+Set framebuffer height to
+.Ar height .
+The default height is 1080.
+.El
+.Pp
+XHCI USB controller device:
+.Bl -tag
+.It Ar tablet
+Emulate USB tablet mouse.
 .El
 .El
 .It Fl S
