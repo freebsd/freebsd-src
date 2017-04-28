@@ -59,7 +59,11 @@ ATF_TC_BODY(russian_collation, tc)
 	    "Bad collation, expected: '%ls' got '%ls'", res, c);
 }
 
+#ifdef __mips__
+#define	NSTRINGS 500
+#else
 #define	NSTRINGS 2000
+#endif
 #define	MAXSTRLEN 20
 #define	MAXXFRMLEN (MAXSTRLEN * 20)
 
