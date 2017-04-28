@@ -39,7 +39,7 @@
 #include "obstack.h"
 
 #ifdef GREP
-extern char *xmalloc();
+extern char *xmalloc(size_t);
 # undef malloc
 # define malloc xmalloc
 #endif
