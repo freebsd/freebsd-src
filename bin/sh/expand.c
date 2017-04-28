@@ -462,6 +462,7 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	int quotes = flag & (EXP_GLOB | EXP_CASE);
 	size_t nnl;
 	const char *ifs;
+	int startloc;
 
 	INTOFF;
 	p = grabstackstr(dest);
@@ -469,6 +470,7 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	ungrabstackstr(p, dest);
 
 	p = in.buf;
+	startloc = dest - stackblock();
 	nnl = 0;
 	if (!quoted && flag & EXP_SPLIT)
 		ifs = ifsset() ? ifsval() : " \t\n";
@@ -490,31 +492,24 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 		lastc = *p++;
 		if (lastc == '\0')
 			continue;
-		if (lastc == '\n') {
-			nnl++;
-		} else {
-			if (nnl > 0) {
-				if (strchr(ifs, '\n') != NULL) {
-					NEXTWORD('\n', flag, dest, dst);
-					nnl = 0;
-				} else {
-					CHECKSTRSPACE(nnl + 2, dest);
-					while (nnl > 0) {
-						nnl--;
-						USTPUTC('\n', dest);
-					}
-				}
-			}
-			if (strchr(ifs, lastc) != NULL)
+		if (nnl > 0 && lastc != '\n') {
+			NEXTWORD('\n', flag, dest, dst);
+			nnl = 0;
+		}
+		if (strchr(ifs, lastc) != NULL) {
+			if (lastc == '\n')
+				nnl++;
+			else
 				NEXTWORD(lastc, flag, dest, dst);
-			else {
-				CHECKSTRSPACE(2, dest);
-				if (quotes && syntax[(int)lastc] == CCTL)
-					USTPUTC(CTLESC, dest);
-				USTPUTC(lastc, dest);
-			}
+		} else {
+			CHECKSTRSPACE(2, dest);
+			if (quotes && syntax[(int)lastc] == CCTL)
+				USTPUTC(CTLESC, dest);
+			USTPUTC(lastc, dest);
 		}
 	}
+	while (dest > stackblock() + startloc && STTOPC(dest) == '\n')
+		STUNPUTC(dest);
 
 	if (in.fd >= 0)
 		close(in.fd);
