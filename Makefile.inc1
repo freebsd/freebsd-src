@@ -76,6 +76,19 @@ MK_CLANG_BOOTSTRAP=	no
 MK_GCC_BOOTSTRAP=	no
 .endif
 
+MAKEOBJDIRPREFIX?=	/usr/obj
+.if ${MACHINE} == ${TARGET} && ${MACHINE_ARCH} == ${TARGET_ARCH} && !defined(CROSS_BUILD_TESTING)
+OBJTREE=	${MAKEOBJDIRPREFIX}
+.else
+OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
+.endif
+
+# Pull in compiler metadata from buildworld/toolchain if possible to avoid
+# running CC from bsd.compiler.mk.
+.if make(installworld) || make(install)
+.-include "${OBJTREE}${.CURDIR}/compiler-metadata.mk"
+.endif
+
 # Pull in COMPILER_TYPE and COMPILER_FREEBSD_VERSION early.
 .include <bsd.compiler.mk>
 .include "share/mk/src.opts.mk"
@@ -161,6 +174,20 @@ CROSSENV+=	COMPILER_VERSION=${X_COMPILER_VERSION} \
 		COMPILER_FREEBSD_VERSION=${X_COMPILER_FREEBSD_VERSION}
 .endif
 .endif
+# Store some compiler metadata for use in installworld where we don't
+# want to invoke CC at all.
+_COMPILER_METADATA_VARS=	COMPILER_VERSION \
+				COMPILER_TYPE \
+				COMPILER_FEATURES \
+				COMPILER_FREEBSD_VERSION
+compiler-metadata.mk: .PHONY .META
+	@: > ${.TARGET}
+	@echo ".info Using cached compiler metadata from build at $$(hostname) on $$(date)" \
+	    > ${.TARGET}
+.for v in ${_COMPILER_METADATA_VARS}
+	@echo "${v}=${${v}}" >> ${.TARGET}
+.endfor
+	@echo ".export ${_COMPILER_METADATA_VARS}" >> ${.TARGET}
 
 # Handle external binutils.
 .if defined(CROSS_TOOLCHAIN_PREFIX)
@@ -301,7 +328,6 @@ SVN=   ${_P}/${_S}
 .endif
 SVNFLAGS?=	-r HEAD
 
-MAKEOBJDIRPREFIX?=	/usr/obj
 .if !defined(OSRELDATE)
 .if exists(/usr/include/osreldate.h)
 OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
@@ -392,11 +418,6 @@ BUILD_ARCH!=	uname -p
 .if ${MACHINE_ARCH} != ${BUILD_ARCH}
 .error To cross-build, set TARGET_ARCH.
 .endif
-.endif
-.if ${MACHINE} == ${TARGET} && ${MACHINE_ARCH} == ${TARGET_ARCH} && !defined(CROSS_BUILD_TESTING)
-OBJTREE=	${MAKEOBJDIRPREFIX}
-.else
-OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
 BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
@@ -744,8 +765,15 @@ _cross-tools:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
+	@rm -f ${.OBJDIR}/compiler-metadata.mk
 	${_+_}cd ${.CURDIR}; ${XMAKE} cross-tools
 	${_+_}cd ${.CURDIR}; ${XMAKE} kernel-tools
+_compiler-metadata:
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 3.1: recording compiler metadata"
+	@echo "--------------------------------------------------------------"
+	${_+_}cd ${.CURDIR}; ${WMAKE} compiler-metadata.mk
 _includes:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -779,6 +807,7 @@ WMAKE_TGTS+=	_worldtmp _legacy
 WMAKE_TGTS+=	_bootstrap-tools
 .endif
 WMAKE_TGTS+=	_cleanobj _obj _build-tools _cross-tools
+WMAKE_TGTS+=	_compiler-metadata
 WMAKE_TGTS+=	_includes _libraries
 WMAKE_TGTS+=	everything
 .if defined(LIBCOMPAT) && empty(SUBDIR_OVERRIDE)
