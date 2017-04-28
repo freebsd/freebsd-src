@@ -39,6 +39,15 @@ check_diskinfo()
 	    -x "diskinfo /dev/$md | expand"
 }
 
+check_space()
+{
+	local req_space=$1
+	local avail_space=$(df -m . | tail -1 | awk '{print $4}')
+
+	[ "${req_space}" -lt "${avail_space}" ] || \
+	    atf_skip "Test requires ${req_space}m free disk space"
+}
+
 cleanup_common()
 {
 	if [ -f mdconfig.out ]; then
@@ -55,6 +64,8 @@ attach_vnode_non_explicit_type_body()
 {
 	local md
 	local size_in_mb=1024
+
+	check_space ${size_in_mb}
 
 	atf_check -s exit:0 -x "truncate -s ${size_in_mb}m xxx"
 	atf_check -s exit:0 -o save:mdconfig.out -x 'mdconfig -af xxx'
@@ -80,6 +91,8 @@ attach_vnode_implicit_a_f_body()
 	local md
 	local size_in_mb=1024
 
+	check_space ${size_in_mb}
+
 	atf_check -s exit:0 -x "truncate -s ${size_in_mb}m xxx"
 	atf_check -s exit:0 -o save:mdconfig.out -x 'mdconfig xxx'
 	md=$(cat mdconfig.out)
@@ -103,6 +116,8 @@ attach_vnode_explicit_type_body()
 {
 	local md
 	local size_in_mb=1024
+
+	check_space ${size_in_mb}
 
 	atf_check -s exit:0 -x "truncate -s ${size_in_mb}m xxx"
 	atf_check -s exit:0 -o save:mdconfig.out -x 'mdconfig -af xxx -t vnode'
@@ -129,6 +144,8 @@ attach_vnode_smaller_than_file_body()
 	local md
 	local size_in_mb=128
 
+	check_space 1024
+
 	atf_check -s exit:0 -x "truncate -s 1024m xxx"
 	atf_check -s exit:0 -o save:mdconfig.out \
 	    -x "mdconfig -af xxx -s ${size_in_mb}m"
@@ -154,6 +171,8 @@ attach_vnode_larger_than_file_body()
 	local md
 	local size_in_gb=128
 
+	check_space 1024
+
 	atf_check -s exit:0 -x "truncate -s 1024m xxx"
 	atf_check -s exit:0 -o save:mdconfig.out \
 	    -x "mdconfig -af xxx -s ${size_in_gb}g"
@@ -178,6 +197,8 @@ attach_vnode_sector_size_body()
 {
 	local md
 	local size_in_mb=1024
+
+	check_space ${size_in_mb}
 
 	atf_check -s exit:0 -x "truncate -s ${size_in_mb}m xxx"
 	atf_check -s exit:0 -o save:mdconfig.out \
