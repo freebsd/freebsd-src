@@ -365,8 +365,6 @@ pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	sc->fsc_pi = pi;
 
-	sc->rfb_port = 5900;
-
 	error = pci_fbuf_parse_opts(sc, opts);
 	if (error != 0)
 		goto done;
