@@ -592,7 +592,7 @@ int nfscl_maperr(NFSPROC_T *, int, uid_t, gid_t);
 void nfscl_init(void);
 
 /* nfs_clbio.c */
-int ncl_flush(vnode_t, int, struct ucred *, NFSPROC_T *, int, int);
+int ncl_flush(vnode_t, int, NFSPROC_T *, int, int);
 
 /* nfs_clnode.c */
 void ncl_invalcaches(vnode_t);
