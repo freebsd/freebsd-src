@@ -31,7 +31,9 @@ TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd10.3
 BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/}-unknown-freebsd10.3
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
-		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
+		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\" \
+		-ffunction-sections -fdata-sections
+LDFLAGS+=	-Wl,--gc-sections
 CXXFLAGS+=	-fno-exceptions -fno-rtti
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
