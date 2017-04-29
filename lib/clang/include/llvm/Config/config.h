@@ -12,7 +12,7 @@
 #define BUG_REPORT_URL "https://bugs.freebsd.org/submit/"
 
 /* Define to 1 to enable backtraces, and to 0 otherwise. */
-#define ENABLE_BACKTRACES 1
+#define ENABLE_BACKTRACES 0
 
 /* Define to 1 to enable crash overrides, and to 0 otherwise. */
 #define ENABLE_CRASH_OVERRIDES 1
