@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -170,8 +170,8 @@ prewind()
 plinenum(pos)
 	POSITION pos;
 {
-	register LINENUM linenum = 0;
-	register int i;
+	LINENUM linenum = 0;
+	int i;
 
 	if (linenums == OPT_ONPLUS)
 	{
@@ -851,7 +851,7 @@ do_append(ch, rep, pos)
 	char *rep;
 	POSITION pos;
 {
-	register int a;
+	int a;
 	LWCHAR prev_ch;
 
 	a = AT_NORMAL;
@@ -1096,8 +1096,8 @@ set_status_col(c)
  */
 	public int
 gline(i, ap)
-	register int i;
-	register int *ap;
+	int i;
+	int *ap;
 {
 	if (is_null_line)
 	{
@@ -1144,8 +1144,8 @@ forw_raw_line(curr_pos, linep, line_lenp)
 	char **linep;
 	int *line_lenp;
 {
-	register int n;
-	register int c;
+	int n;
+	int c;
 	POSITION new_pos;
 
 	if (curr_pos == NULL_POSITION || ch_seek(curr_pos) ||
@@ -1193,8 +1193,8 @@ back_raw_line(curr_pos, linep, line_lenp)
 	char **linep;
 	int *line_lenp;
 {
-	register int n;
-	register int c;
+	int n;
+	int c;
 	POSITION new_pos;
 
 	if (curr_pos == NULL_POSITION || curr_pos <= ch_zero() ||

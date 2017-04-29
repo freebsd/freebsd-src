@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -135,9 +135,9 @@ public int binattr = AT_STANDOUT;
 ichardef(s)
 	char *s;
 {
-	register char *cp;
-	register int n;
-	register char v;
+	char *cp;
+	int n;
+	char v;
 
 	n = 0;
 	v = 0;
@@ -190,11 +190,11 @@ ichardef(s)
  */
 	static int
 icharset(name, no_error)
-	register char *name;
+	char *name;
 	int no_error;
 {
-	register struct charset *p;
-	register struct cs_alias *a;
+	struct charset *p;
+	struct cs_alias *a;
 
 	if (name == NULL || *name == '\0')
 		return (0);
@@ -234,7 +234,7 @@ icharset(name, no_error)
 	static void
 ilocale()
 {
-	register int c;
+	int c;
 
 	for (c = 0;  c < (int) sizeof(chardef);  c++)
 	{
@@ -486,7 +486,7 @@ prutfchar(ch)
  */
 	public int
 utf_len(ch)
-	char ch;
+	unsigned char ch;
 {
 	if ((ch & 0x80) == 0)
 		return 1;
@@ -508,17 +508,18 @@ utf_len(ch)
  * Does the parameter point to the lead byte of a well-formed UTF-8 character?
  */
 	public int
-is_utf8_well_formed(s, slen)
-	unsigned char *s;
+is_utf8_well_formed(ss, slen)
+	char *ss;
 	int slen;
 {
 	int i;
 	int len;
+	unsigned char *s = (unsigned char *) ss;
 
 	if (IS_UTF8_INVALID(s[0]))
 		return (0);
 
-	len = utf_len((char) s[0]);
+	len = utf_len(s[0]);
 	if (len > slen)
 		return (0);
 	if (len == 1)
@@ -546,7 +547,7 @@ is_utf8_well_formed(s, slen)
  */
 	public int
 utf_bin_count(data, len)
-	unsigned char *data;
+	char *data;
 	int len;
 {
 	int bin_count = 0;
@@ -554,7 +555,7 @@ utf_bin_count(data, len)
 	{
 		if (is_utf8_well_formed(data, len))
 		{
-			int clen = utf_len(*data);
+			int clen = utf_len(*data & 0377);
 			data += clen;
 			len -= clen;
 		} else
@@ -564,7 +565,7 @@ utf_bin_count(data, len)
 			do {
 				++data;
 				--len;
-			} while (len > 0 && !IS_UTF8_LEAD(*data));
+			} while (len > 0 && !IS_UTF8_LEAD(*data & 0377));
 		}
 	}
 	return (bin_count);
@@ -575,7 +576,7 @@ utf_bin_count(data, len)
  */
 	public LWCHAR
 get_wchar(p)
-	char *p;
+	constant char *p;
 {
 	switch (utf_len(p[0]))
 	{
@@ -679,7 +680,7 @@ put_wchar(pp, ch)
 step_char(pp, dir, limit)
 	char **pp;
 	signed int dir;
-	char *limit;
+	constant char *limit;
 {
 	LWCHAR ch;
 	int len;
@@ -698,7 +699,7 @@ step_char(pp, dir, limit)
 		if (p + len > limit)
 		{
 			ch = 0;
-			p = limit;
+			p = (char *) limit;
 		} else
 		{
 			ch = get_wchar(p);

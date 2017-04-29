@@ -1617,7 +1617,7 @@ LESS(1)                     General Commands Manual                    LESS(1)
 
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 1984-2016  Mark Nudelman
+       Copyright (C) 1984-2017  Mark Nudelman
 
        less is part of the GNU project and is free software.  You  can  redis-
        tribute  it and/or modify it under the terms of either (1) the GNU Gen-
@@ -1645,4 +1645,4 @@ LESS(1)                     General Commands Manual                    LESS(1)
 
 
 
-                           Version 487: 25 Oct 2016                    LESS(1)
+                           Version 491: 07 Apr 2017                    LESS(1)

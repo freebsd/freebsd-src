@@ -11,6 +11,20 @@
 
 ======================================================================
 
+	Major changes between "less" versions 487 and 491
+
+* Don't output terminal init sequence if using -F and file fits on one screen.
+
+* Use ANSI prototypes in funcs.h declarations.
+
+* Fix some const mismatches.
+
+* Remove "register" in variable declarations.
+
+* Fix some memory leaks.
+
+======================================================================
+
 	Major changes between "less" versions 481 and 487
 
 * New commands ESC-{ and ESC-} to shift to start/end of displayed lines.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -800,11 +800,17 @@ v484  9/20/16   Update to Unicode 9.0.0 database.
 v485  10/21/16  Fix "nothing to search" bug when top/bottom line is empty;
                 Display line numbers in bold. (thanks to Jason Hood);
                 Fix incorrect display when entering double-width chars in 
-		search string.
+                search string.
 v486  10/22/16  New commands ESC-{ and ESC-} to shift to start/end of 
                 displayed lines; new option -Da in Windows version to 
-		enable SGR mode (thanks to Jason Hood).
+                enable SGR mode (thanks to Jason Hood).
 v487  10/23/16  configure --help formatting.
+-----------------------------------------------------------------
+v488  2/23/17   Fix memory leaks in search (thanks to John Brooks).
+v489  3/30/17   Make -F not do init/deinit if file fits on one screen
+                (thanks to Jindrich Novy).
+v490  4/5/17    Switch to ANSI prototypes in funcs.h; remove "register".
+v491  4/7/17    Fix signed char bug.
 */
 
-char version[] = "487";
+char version[] = "491";

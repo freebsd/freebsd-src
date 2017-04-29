@@ -32,7 +32,7 @@ DISTFILES = \
 	install.sh defines.h.in mkinstalldirs \
 	less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man \
 	less.hlp \
-	mkfuncs.awk mkhelp.c \
+	mkfuncs.pl mkhelp.c \
 	mkutable $(UNICODE_FILES) \
 	${DISTFILES_W}
 
@@ -61,7 +61,7 @@ ${srcdir}/configure: ${srcdir}/configure.ac \
 
 funcs.h: ${SRC:%=${srcdir}/%}
 	-mv -f ${srcdir}/funcs.h ${srcdir}/funcs.h.old
-	awk -f ${srcdir}/mkfuncs.awk ${SRC:%=${srcdir}/%} >${srcdir}/funcs.h
+	perl ${srcdir}/mkfuncs.pl ${SRC:%=${srcdir}/%} >${srcdir}/funcs.h
 	if cmp -s funcs.h funcs.h.old; then mv -f funcs.h.old funcs.h; fi
 
 lint:
