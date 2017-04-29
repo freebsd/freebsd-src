@@ -709,12 +709,12 @@ nfs_close(struct vop_close_args *ap)
 		     * traditional vnode locking implemented for Vnode Ops.
 		     */
 		    int cm = newnfs_commit_on_close ? 1 : 0;
-		    error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm, 0);
+		    error = ncl_flush(vp, MNT_WAIT, ap->a_td, cm, 0);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else if (NFS_ISV4(vp)) { 
 			if (nfscl_mustflush(vp) != 0) {
 				int cm = newnfs_commit_on_close ? 1 : 0;
-				error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td,
+				error = ncl_flush(vp, MNT_WAIT, ap->a_td,
 				    cm, 0);
 				/*
 				 * as above w.r.t races when clearing
@@ -2631,7 +2631,7 @@ nfs_fsync(struct vop_fsync_args *ap)
 		 */
 		return (0);
 	}
-	return (ncl_flush(ap->a_vp, ap->a_waitfor, NULL, ap->a_td, 1, 0));
+	return (ncl_flush(ap->a_vp, ap->a_waitfor, ap->a_td, 1, 0));
 }
 
 /*
@@ -2643,7 +2643,7 @@ nfs_fsync(struct vop_fsync_args *ap)
  * waiting for a buffer write to complete.
  */
 int
-ncl_flush(struct vnode *vp, int waitfor, struct ucred *cred, struct thread *td,
+ncl_flush(struct vnode *vp, int waitfor, struct thread *td,
     int commit, int called_from_renewthread)
 {
 	struct nfsnode *np = VTONFS(vp);
@@ -3024,7 +3024,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 		if (ap->a_op == F_UNLCK &&
 		    nfscl_checkwritelocked(vp, ap->a_fl, cred, td, ap->a_id,
 		    ap->a_flags))
-			(void) ncl_flush(vp, MNT_WAIT, cred, td, 1, 0);
+			(void) ncl_flush(vp, MNT_WAIT, td, 1, 0);
 
 		/*
 		 * Loop around doing the lock op, while a blocking lock
@@ -3404,7 +3404,7 @@ nfs_set_text(struct vop_set_text_args *ap)
 	}
 
 	/* Now, flush the buffer cache. */
-	ncl_flush(vp, MNT_WAIT, NULL, curthread, 0, 0);
+	ncl_flush(vp, MNT_WAIT, curthread, 0, 0);
 
 	/* And, finally, make sure that n_mtime is up to date. */
 	np = VTONFS(vp);
