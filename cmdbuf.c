@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -76,25 +76,25 @@ struct mlist
  */
 struct mlist mlist_search =  
 	{ &mlist_search,  &mlist_search,  &mlist_search,  NULL, 0 };
-public void * constant ml_search = (void *) &mlist_search;
+public void *ml_search = (void *) &mlist_search;
 
 struct mlist mlist_examine = 
 	{ &mlist_examine, &mlist_examine, &mlist_examine, NULL, 0 };
-public void * constant ml_examine = (void *) &mlist_examine;
+public void *ml_examine = (void *) &mlist_examine;
 
 #if SHELL_ESCAPE || PIPEC
 struct mlist mlist_shell =   
 	{ &mlist_shell,   &mlist_shell,   &mlist_shell,   NULL, 0 };
-public void * constant ml_shell = (void *) &mlist_shell;
+public void *ml_shell = (void *) &mlist_shell;
 #endif
 
 #else /* CMD_HISTORY */
 
 /* If CMD_HISTORY is off, these are just flags. */
-public void * constant ml_search = (void *)1;
-public void * constant ml_examine = (void *)2;
+public void *ml_search = (void *)1;
+public void *ml_examine = (void *)2;
 #if SHELL_ESCAPE || PIPEC
-public void * constant ml_shell = (void *)3;
+public void *ml_shell = (void *)3;
 #endif
 
 #endif /* CMD_HISTORY */
@@ -141,14 +141,14 @@ clear_cmd()
  */
 	public void
 cmd_putstr(s)
-	char *s;
+	constant char *s;
 {
 	LWCHAR prev_ch = 0;
 	LWCHAR ch;
-	char *endline = s + strlen(s);
+	constant char *endline = s + strlen(s);
 	while (*s != '\0')
 	{
-		char *ns = s;
+		char *ns = (char *) s;
 		int width;
 		ch = step_char(&ns, +1, endline);
 		while (s < ns)
@@ -262,7 +262,7 @@ cmd_step_left(pp, pwidth, bswidth)
  */
 	static void
 cmd_repaint(old_cp)
-	char *old_cp;
+	constant char *old_cp;
 {
 	/*
 	 * Repaint the line from the current position.
@@ -323,8 +323,8 @@ cmd_home()
 	static void
 cmd_lshift()
 {
-	char *s;
-	char *save_cp;
+	constant char *s;
+	constant char *save_cp;
 	int cols;
 
 	/*
@@ -342,7 +342,7 @@ cmd_lshift()
 	while (*s != '\0')
 	{
 		int width;
-		char *ns = s;
+		constant char *ns = s;
 		cmd_step_right(&ns, &width, NULL);
 		if (width > 0)
 			break;
@@ -361,8 +361,8 @@ cmd_lshift()
 	static void
 cmd_rshift()
 {
-	char *s;
-	char *save_cp;
+	constant char *s;
+	constant char *save_cp;
 	int cols;
 
 	/*
@@ -493,7 +493,7 @@ cmd_ichar(cs, clen)
 	static int
 cmd_erase()
 {
-	register char *s;
+	char *s;
 	int clen;
 
 	if (cp == cmdbuf)
@@ -661,7 +661,7 @@ set_mlist(mlist, cmdflags)
 cmd_updown(action)
 	int action;
 {
-	char *s;
+	constant char *s;
 	struct mlist *ml;
 	
 	if (curr_mlist == NULL)
@@ -723,7 +723,7 @@ cmd_updown(action)
 	public void
 cmd_addhist(mlist, cmd, modified)
 	struct mlist *mlist;
-	char *cmd;
+	constant char *cmd;
 	int modified;
 {
 #if CMD_HISTORY
@@ -940,7 +940,7 @@ delimit_word()
 	char *p;
 	int delim_quoted = 0;
 	int meta_quoted = 0;
-	char *esc = get_meta_escape();
+	constant char *esc = get_meta_escape();
 	int esclen = (int) strlen(esc);
 #endif
 	

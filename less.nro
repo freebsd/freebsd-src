@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 487: 25 Oct 2016"
+.TH LESS 1 "Version 491: 07 Apr 2017"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -1745,7 +1745,7 @@ The name of the editor (used for the v command).
 lesskey(1)
 
 .SH COPYRIGHT
-Copyright (C) 1984-2016  Mark Nudelman
+Copyright (C) 1984-2017  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it

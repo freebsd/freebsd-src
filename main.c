@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -53,10 +53,12 @@ extern int	jump_sline;
 static char consoleTitle[256];
 #endif
 
+public int  line_count;
 extern int	less_is_more;
 extern int	missing_cap;
 extern int	know_dumb;
 extern int	pr_type;
+extern int	quit_if_one_screen;
 
 
 /*
@@ -273,10 +275,25 @@ main(argc, argv)
 	{
 		if (edit_stdin())  /* Edit standard input */
 			quit(QUIT_ERROR);
+		if (quit_if_one_screen)
+			line_count = get_line_count();
 	} else 
 	{
 		if (edit_first())  /* Edit first valid file in cmd line */
 			quit(QUIT_ERROR);
+		/*
+		 * In case that we have only one file and -F, have to get a line
+		 * count fot init(). If the line count is less then a height of a term,
+		 * the content of the file is printed out and then less quits. Otherwise
+		 * -F can not be used
+		 */
+		if (quit_if_one_screen)
+		{
+			if (nifile() == 1)
+				line_count = get_line_count();
+			else /* In case more than one file, -F can not be used */
+				quit_if_one_screen = FALSE;
+		}
 	}
 
 	init();
@@ -292,9 +309,9 @@ main(argc, argv)
  */
 	public char *
 save(s)
-	char *s;
+	constant char *s;
 {
-	register char *p;
+	char *p;
 
 	p = (char *) ecalloc(strlen(s)+1, sizeof(char));
 	strcpy(p, s);
@@ -310,7 +327,7 @@ ecalloc(count, size)
 	int count;
 	unsigned int size;
 {
-	register VOID_POINTER p;
+	VOID_POINTER p;
 
 	p = (VOID_POINTER) calloc(count, size);
 	if (p != NULL)
@@ -326,7 +343,7 @@ ecalloc(count, size)
  */
 	public char *
 skipsp(s)
-	register char *s;
+	char *s;
 {
 	while (*s == ' ' || *s == '\t')	
 		s++;
@@ -344,9 +361,9 @@ sprefix(ps, s, uppercase)
 	char *s;
 	int uppercase;
 {
-	register int c;
-	register int sc;
-	register int len = 0;
+	int c;
+	int sc;
+	int len = 0;
 
 	for ( ;  *s != '\0';  s++, ps++)
 	{

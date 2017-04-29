@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -126,6 +126,11 @@
  * Pathname separator character.
  */
 #define	PATHNAME_SEP	"\\"
+
+/*
+ * HAVE_ANSI_PROTOS	is 1 if your compiler supports ANSI function prototypes.
+ */
+#define HAVE_ANSI_PROTOS	1
 
 /*
  * HAVE_SYS_TYPES_H is 1 if your system has <sys/types.h>.

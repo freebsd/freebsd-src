@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -42,10 +42,10 @@ extern char *curr_altfilename;
 extern char version[];
 extern struct scrpos initial_scrpos;
 extern IFILE curr_ifile;
-extern void constant *ml_search;
-extern void constant *ml_examine;
+extern void *ml_search;
+extern void *ml_examine;
 #if SHELL_ESCAPE || PIPEC
-extern void constant *ml_shell;
+extern void *ml_shell;
 #endif
 #if EDITOR
 extern char *editor;
@@ -106,7 +106,7 @@ cmd_exec()
 start_mca(action, prompt, mlist, cmdflags)
 	int action;
 	constant char *prompt;
-	constant void *mlist;
+	void *mlist;
 	int cmdflags;
 {
 	mca = action;
@@ -206,7 +206,7 @@ mca_opt_toggle()
 	static void
 exec_mca()
 {
-	register char *cbuf;
+	char *cbuf;
 
 	cmd_exec();
 	cbuf = get_cmdbuf();
@@ -685,7 +685,7 @@ make_display()
 	static void
 prompt()
 {
-	register constant char *p;
+	constant char *p;
 
 	if (ungot != NULL && !ungot->ug_end_command)
 	{
@@ -849,7 +849,7 @@ ungetcc(c)
 ungetsc(s)
 	char *s;
 {
-	register char *p;
+	char *p;
 
 	for (p = s + strlen(s) - 1;  p >= s;  p--)
 		ungetcc(*p);
@@ -866,7 +866,7 @@ multi_search(pattern, n, silent)
 	int n;
 	int silent;
 {
-	register int nomore;
+	int nomore;
 	IFILE save_ifile;
 	int changed_file;
 
@@ -1001,9 +1001,9 @@ forw_loop(until_hilite)
 	public void
 commands()
 {
-	register int c;
-	register int action;
-	register char *cbuf;
+	int c;
+	int action;
+	char *cbuf;
 	int newaction;
 	int save_search_type;
 	char *extra;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -264,7 +264,7 @@ dirfile(dirname, filename)
 homefile(filename)
 	char *filename;
 {
-	register char *pathname;
+	char *pathname;
 
 	/*
 	 * Try $HOME/filename.
@@ -314,9 +314,9 @@ homefile(filename)
 fexpand(s)
 	char *s;
 {
-	register char *fr, *to;
-	register int n;
-	register char *e;
+	char *fr, *to;
+	int n;
+	char *e;
 	IFILE ifile;
 
 #define	fchar_ifile(c) \
@@ -690,9 +690,9 @@ lglob(filename)
 	 * The globbing function returns a single name, and
 	 * is called multiple times to walk thru all names.
 	 */
-	register char *p;
-	register int len;
-	register int n;
+	char *p;
+	int len;
+	int n;
 	char *pathname;
 	char *qpathname;
 	DECL_GLOB_NAME(fnd,drive,dir,fname,ext,handle)
@@ -1018,7 +1018,7 @@ is_dir(filename)
 #else
 #ifdef _OSK
 {
-	register int f;
+	int f;
 
 	f = open(filename, S_IREAD | S_IFDIR);
 	if (f >= 0)
@@ -1040,7 +1040,7 @@ is_dir(filename)
 bad_file(filename)
 	char *filename;
 {
-	register char *m = NULL;
+	char *m = NULL;
 
 	filename = shell_unquote(filename);
 	if (!force_open && is_dir(filename))

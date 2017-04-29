@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -63,8 +63,6 @@ struct taglist {
 	struct tag *tl_first;
 	struct tag *tl_last;
 };
-#define TAG_END  ((struct tag *) &taglist)
-static struct taglist taglist = { TAG_END, TAG_END };
 struct tag {
 	struct tag *next, *prev; /* List links */
 	char *tag_file;		/* Source file containing the tag */
@@ -72,6 +70,8 @@ struct tag {
 	char *tag_pattern;	/* Pattern used to find the tag */
 	char tag_endline;	/* True if the pattern includes '$' */
 };
+#define TAG_END  ((struct tag *) &taglist)
+static struct taglist taglist = { TAG_END, TAG_END };
 static struct tag *curtag;
 
 #define TAG_INS(tp) \
@@ -90,7 +90,7 @@ static struct tag *curtag;
 	public void
 cleantags()
 {
-	register struct tag *tp;
+	struct tag *tp;
 
 	/*
 	 * Delete any existing tag list.
@@ -117,7 +117,7 @@ maketagent(name, file, linenum, pattern, endline)
 	char *pattern;
 	int endline;
 {
-	register struct tag *tp;
+	struct tag *tp;
 
 	tp = (struct tag *) ecalloc(sizeof(struct tag), 1);
 	tp->tag_file = (char *) ecalloc(strlen(file) + 1, sizeof(char));
@@ -170,7 +170,7 @@ gettagtype()
  */
 	public void
 findtag(tag)
-	register char *tag;
+	char *tag;
 {
 	int type = gettagtype();
 	enum tag_result result;
@@ -266,11 +266,11 @@ curr_tag()
  */
 	static enum tag_result
 findctag(tag)
-	register char *tag;
+	char *tag;
 {
 	char *p;
-	register FILE *f;
-	register int taglen;
+	FILE *f;
+	int taglen;
 	LINENUM taglinenum;
 	char *tagfile;
 	char *tagpattern;

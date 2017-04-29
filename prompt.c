@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -394,9 +394,9 @@ protochar(c, where, iseditproto)
  */
 	static constant char *
 skipcond(p)
-	register constant char *p;
+	constant char *p;
 {
-	register int iflevel;
+	int iflevel;
 
 	/*
 	 * We came in here after processing a ? or :,
@@ -479,8 +479,8 @@ pr_expand(proto, maxwidth)
 	constant char *proto;
 	int maxwidth;
 {
-	register constant char *p;
-	register int c;
+	constant char *p;
+	int c;
 	int where;
 
 	mp = message;

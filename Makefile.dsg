@@ -73,10 +73,6 @@ installcheck:
 TAGS:
 	etags *.c *.h
 
-newfuncs:
-	command.com /c if exist funcs.h del funcs.h
-	${AWK} -f mkfuncs.awk ${OBJ:.${O}=.c} > funcs.h
-
 clean:
 	command.com /c for %f in (*.${O} less lesskey lessecho *.exe) do if exist %f del %f
 

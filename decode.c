@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -237,9 +237,9 @@ expand_special_keys(table, len)
 	char *table;
 	int len;
 {
-	register char *fm;
-	register char *to;
-	register int a;
+	char *fm;
+	char *to;
+	int a;
 	char *repl;
 	int klen;
 
@@ -329,7 +329,7 @@ add_cmd_table(tlist, buf, len)
 	char *buf;
 	int len;
 {
-	register struct tablelist *t;
+	struct tablelist *t;
 
 	if (len == 0)
 		return (0);
@@ -397,9 +397,9 @@ cmd_search(cmd, table, endtable, sp)
 	char *endtable;
 	char **sp;
 {
-	register char *p;
-	register char *q;
-	register int a;
+	char *p;
+	char *q;
+	int a;
 
 	*sp = NULL;
 	for (p = table, q = cmd;  p < endtable;  p++, q++)
@@ -488,8 +488,8 @@ cmd_decode(tlist, cmd, sp)
 	char *cmd;
 	char **sp;
 {
-	register struct tablelist *t;
-	register int action = A_INVALID;
+	struct tablelist *t;
+	int action = A_INVALID;
 
 	/*
 	 * Search thru all the command tables.
@@ -599,8 +599,8 @@ new_lesskey(buf, len, sysvar)
 	int sysvar;
 {
 	char *p;
-	register int c;
-	register int n;
+	int c;
+	int n;
 
 	/*
 	 * New-style lesskey file.
@@ -651,10 +651,10 @@ lesskey(filename, sysvar)
 	char *filename;
 	int sysvar;
 {
-	register char *buf;
-	register POSITION len;
-	register long n;
-	register int f;
+	char *buf;
+	POSITION len;
+	long n;
+	int f;
 
 	if (secure)
 		return (1);

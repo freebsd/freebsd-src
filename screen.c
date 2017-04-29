@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2016  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -204,6 +204,7 @@ public int missing_cap = 0;	/* Some capability is missing */
 
 static int attrmode = AT_NORMAL;
 extern int binattr;
+extern int line_count;
 
 #if !MSDOS_COMPILER
 static char *cheaper();
@@ -233,6 +234,7 @@ extern int wscroll;
 extern int screen_trashed;
 extern int tty;
 extern int top_scroll;
+extern int quit_if_one_screen;
 extern int oldbot;
 #if HILITE_SEARCH
 extern int hilite_search;
@@ -694,7 +696,7 @@ ltgetstr(capname, pp)
 	public void
 scrsize()
 {
-	register char *s;
+	char *s;
 	int sys_height;
 	int sys_width;
 #if !MSDOS_COMPILER
@@ -1119,7 +1121,7 @@ get_term()
 #else /* !MSDOS_COMPILER */
 
 	char *sp;
-	register char *t1, *t2;
+	char *t1, *t2;
 	char *term;
 	char termbuf[TERMBUF_SIZE];
 
@@ -1538,7 +1540,9 @@ win32_deinit_term()
 init()
 {
 #if !MSDOS_COMPILER
-	if (!no_init)
+	if (quit_if_one_screen && line_count >= sc_height)
+		quit_if_one_screen = FALSE;
+	if (!no_init && !quit_if_one_screen)
 		tputs(sc_init, sc_height, putchr);
 	if (!no_keypad)
 		tputs(sc_s_keypad, sc_height, putchr);
@@ -1578,7 +1582,7 @@ deinit()
 #if !MSDOS_COMPILER
 	if (!no_keypad)
 		tputs(sc_e_keypad, sc_height, putchr);
-	if (!no_init)
+	if (!no_init && !quit_if_one_screen)
 		tputs(sc_deinit, sc_height, putchr);
 #else
 	/* Restore system colors. */
@@ -1946,7 +1950,7 @@ create_flash()
 	}
 #else
 #if MSDOS_COMPILER==BORLANDC
-	register int n;
+	int n;
 
 	whitescreen = (unsigned short *) 
 		malloc(sc_width * sc_height * sizeof(short));
@@ -1956,7 +1960,7 @@ create_flash()
 		whitescreen[n] = 0x7020;
 #else
 #if MSDOS_COMPILER==WIN32C
-	register int n;
+	int n;
 
 	whitescreen = (WORD *)
 		malloc(sc_height * sc_width * sizeof(WORD));
