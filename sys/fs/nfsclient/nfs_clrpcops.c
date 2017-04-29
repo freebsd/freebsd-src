@@ -5238,7 +5238,7 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 			stateid.other[1] = stateidp->other[1];
 			stateid.other[2] = stateidp->other[2];
 			error = nfsrpc_layoutget(nmp, nfhp->nfh_fh,
-			    nfhp->nfh_len, iomode, (uint64_t)0, INT64_MAX,
+			    nfhp->nfh_len, iomode, (uint64_t)0, UINT64_MAX,
 			    (uint64_t)0, layoutlen, &stateid, &retonclose,
 			    &flh, cred, p, NULL);
 		} else {
@@ -5248,7 +5248,7 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 			stateid.other[1] = lyp->nfsly_stateid.other[1];
 			stateid.other[2] = lyp->nfsly_stateid.other[2];
 			error = nfsrpc_layoutget(nmp, nfhp->nfh_fh,
-			    nfhp->nfh_len, iomode, off, INT64_MAX,
+			    nfhp->nfh_len, iomode, off, UINT64_MAX,
 			    (uint64_t)0, layoutlen, &stateid, &retonclose,
 			    &flh, cred, p, NULL);
 		}
