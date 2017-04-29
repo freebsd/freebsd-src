@@ -225,6 +225,11 @@ sctp_notify(struct sctp_inpcb *inp,
 		}
 		if (net->mtu > next_mtu) {
 			net->mtu = next_mtu;
+			if (net->port) {
+				sctp_hc_set_mtu(&net->ro._l_addr, inp->fibnum, next_mtu + sizeof(struct udphdr));
+			} else {
+				sctp_hc_set_mtu(&net->ro._l_addr, inp->fibnum, next_mtu);
+			}
 		}
 		/* Update the association MTU */
 		if (stcb->asoc.smallest_mtu > next_mtu) {
