@@ -338,7 +338,7 @@ int	 ferror_unlocked(FILE *);
 int	 fileno_unlocked(FILE *);
 #endif
 
-#if __POSIX_VISIBLE >= 200112
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 500
 int	 fseeko(FILE *, __off_t, int);
 __off_t	 ftello(FILE *);
 #endif
