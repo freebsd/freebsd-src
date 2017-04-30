@@ -2,7 +2,7 @@
 
 KMOD=	vmm
 
-SRCS=	opt_acpi.h opt_ddb.h device_if.h bus_if.h pci_if.h
+SRCS=	opt_acpi.h opt_ddb.h device_if.h bus_if.h pci_if.h pcib_if.h acpi_if.h
 SRCS+=	vmx_assym.h svm_assym.h
 DPSRCS=	vmx_genassym.c svm_genassym.c
 
@@ -51,7 +51,8 @@ SRCS+=	vmcb.c		\
 	svm.c		\
 	svm_support.S	\
 	npt.c		\
-	amdv.c		\
+	ivrs_drv.c	\
+	amdvi_hw.c	\
 	svm_msr.c
 
 CLEANFILES=	vmx_assym.h vmx_genassym.o svm_assym.h svm_genassym.o
