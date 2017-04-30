@@ -422,7 +422,7 @@ fdt_addrsize_cells(phandle_t node, int *addr_cells, int *size_cells)
 	 */
 	cell_size = sizeof(cell);
 	if (OF_getencprop(node, "#address-cells", &cell, cell_size) < cell_size)
-		*addr_cells = 2;
+		cell = 2;
 	*addr_cells = (int)cell;
 
 	if (OF_getencprop(node, "#size-cells", &cell, cell_size) < cell_size)
