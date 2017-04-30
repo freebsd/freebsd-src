@@ -749,7 +749,13 @@
  */
 #define LINUX_BTRFS_IOC_CLONE		0x9409 /* 0x40049409 */
 
-
+/*
+ * Linux evdev ioctl min and max
+ */
+#define LINUX_IOCTL_EVDEV_MIN		0x4500
+#define LINUX_IOCTL_EVDEV_MAX		0x45ff
+#define LINUX_IOCTL_EVDEV_CLK		LINUX_CLOCK_REALTIME |	\
+	    LINUX_CLOCK_MONOTONIC |LINUX_CLOCK_BOOTTIME
 /*
  * Pluggable ioctl handlers
  */
