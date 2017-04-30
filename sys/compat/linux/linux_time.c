@@ -207,8 +207,10 @@ linux_to_native_clockid(clockid_t *n, clockid_t l)
 	case LINUX_CLOCK_MONOTONIC_COARSE:
 		*n = CLOCK_MONOTONIC_FAST;
 		break;
-	case LINUX_CLOCK_MONOTONIC_RAW:
 	case LINUX_CLOCK_BOOTTIME:
+		*n = CLOCK_UPTIME;
+		break;
+	case LINUX_CLOCK_MONOTONIC_RAW:
 	case LINUX_CLOCK_REALTIME_ALARM:
 	case LINUX_CLOCK_BOOTTIME_ALARM:
 	case LINUX_CLOCK_SGI_CYCLE:
