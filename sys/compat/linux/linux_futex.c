@@ -952,6 +952,11 @@ retry1:
 		    args->uaddr, args->val, args->uaddr2, args->val3,
 		    args->timeout);
 
+		if (args->uaddr == args->uaddr2) {
+			LIN_SDT_PROBE1(futex, linux_sys_futex, return, EINVAL);
+			return (EINVAL);
+		}
+
 retry2:
 		error = futex_get(args->uaddr, NULL, &f, flags | FUTEX_DONTLOCK);
 		if (error) {
@@ -959,9 +964,7 @@ retry2:
 			return (error);
 		}
 
-		if (args->uaddr != args->uaddr2)
-			error = futex_get(args->uaddr2, NULL, &f2,
-			    flags | FUTEX_DONTLOCK);
+		error = futex_get(args->uaddr2, NULL, &f2, flags | FUTEX_DONTLOCK);
 		if (error) {
 			futex_put(f, NULL);
 
