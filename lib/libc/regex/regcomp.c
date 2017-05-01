@@ -654,7 +654,7 @@ p_simp_re(struct parse *p,
 		/* FALLTHROUGH */
 	default:
 		if (p->error != 0)
-			return(0);	/* Definitly not $... */
+			return(0);	/* Definitely not $... */
 		p->next--;
 		wc = WGETNEXT();
 		ordinary(p, wc);
