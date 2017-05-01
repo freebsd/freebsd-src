@@ -12,6 +12,7 @@ NETBSD_ATF_TESTS_C+=		access_test
 NETBSD_ATF_TESTS_C+=		bind_test
 NETBSD_ATF_TESTS_C+=		chroot_test
 NETBSD_ATF_TESTS_C+=		clock_gettime_test
+NETBSD_ATF_TESTS_C+=		clock_nanosleep_test
 NETBSD_ATF_TESTS_C+=		connect_test
 NETBSD_ATF_TESTS_C+=		dup_test
 NETBSD_ATF_TESTS_C+=		fsync_test
