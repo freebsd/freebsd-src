@@ -186,8 +186,6 @@ cd9660_allocate_cd9660node(void)
 	return temp;
 }
 
-int cd9660_defaults_set = 0;
-
 /**
 * Set default values for cd9660 extension to makefs
 */
@@ -233,8 +231,6 @@ cd9660_set_defaults(iso9660_disk *diskStructure)
 	memset(diskStructure->primaryDescriptor.bibliographic_file_id, 0x20,37);
 
 	strcpy(diskStructure->primaryDescriptor.system_id, "FreeBSD");
-
-	cd9660_defaults_set = 1;
 
 	/* Boot support: Initially disabled */
 	diskStructure->has_generic_bootimage = 0;
