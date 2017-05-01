@@ -72,6 +72,7 @@
 #define	LINUX_CPUCLOCK_PERTHREAD(clock)		\
 	(((clock) & (clockid_t) LINUX_CPUCLOCK_PERTHREAD_MASK) != 0)
 
+#define	LINUX_TIMER_ABSTIME			0x01
 
 #define	L_SIGEV_SIGNAL				0
 #define	L_SIGEV_NONE				1
@@ -120,5 +121,6 @@ int native_to_linux_itimerspec(struct l_itimerspec *,
 				     struct itimerspec *);
 int linux_to_native_itimerspec(struct itimerspec *,
 				     struct l_itimerspec *);
+int linux_to_native_timerflags(int *, int);
 
 #endif	/* _LINUX_TIMER_H */
