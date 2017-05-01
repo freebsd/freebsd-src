@@ -1,4 +1,4 @@
-# $Id: Makefile.am 917 2017-02-18 14:45:27Z des $
+# $OpenPAM: Makefile.am 938 2017-04-30 21:34:42Z des $
 
 ACLOCAL_AMFLAGS = -I m4
 

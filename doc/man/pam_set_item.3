@@ -1,6 +1,6 @@
 .\" Generated from pam_set_item.c by gendoc.pl
-.\" $Id: pam_set_item.c 918 2017-02-19 17:46:22Z des $
-.Dd February 19, 2017
+.\" $OpenPAM: pam_set_item.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt PAM_SET_ITEM 3
 .Os
 .Sh NAME
@@ -30,12 +30,12 @@ The
 .Fn pam_set_item
 function returns one of the following values:
 .Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_ITEM
+Unrecognized or restricted item.
 .It Bq Er PAM_BUF_ERR
 Memory buffer error.
-.It Bq Er PAM_SYMBOL_ERR
-Invalid symbol.
-.It Bq Er PAM_SYSTEM_ERR
-System error.
 .El
 .Sh SEE ALSO
 .Xr pam 3 ,

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_strlset.h 890 2016-01-11 16:22:09Z des $
+ * $OpenPAM: openpam_strlset.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef OPENPAM_STRLSET_H_INCLUDED
