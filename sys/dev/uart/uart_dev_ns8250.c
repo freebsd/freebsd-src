@@ -315,7 +315,7 @@ ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	/* Disable the FIFO (if present). */
 	val = 0;
 #ifdef CPU_XBURST
-	val = FCR_UART_ON;
+	val |= FCR_UART_ON;
 #endif
 	uart_setreg(bas, REG_FCR, val);
 	uart_barrier(bas);
@@ -346,9 +346,6 @@ ns8250_putc(struct uart_bas *bas, int c)
 		DELAY(4);
 	uart_setreg(bas, REG_DATA, c);
 	uart_barrier(bas);
-	limit = 250000;
-	while ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0 && --limit)
-		DELAY(4);
 }
 
 static int
@@ -999,8 +996,13 @@ ns8250_bus_transmit(struct uart_softc *sc)
 
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	while ((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0)
-		;
+	if (sc->sc_txdatasz > 1) {
+		if ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0)
+			ns8250_drain(bas, UART_DRAIN_TRANSMITTER);
+	} else {
+		while ((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0)
+			DELAY(4);
+	}
 	for (i = 0; i < sc->sc_txdatasz; i++) {
 		uart_setreg(bas, REG_DATA, sc->sc_txbuf[i]);
 		uart_barrier(bas);
