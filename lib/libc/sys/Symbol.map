@@ -399,6 +399,7 @@ FBSD_1.4 {
 };
 
 FBSD_1.5 {
+	 clock_nanosleep;
 	 fdatasync;
 };
 
@@ -511,6 +512,7 @@ FBSDprivate_1.0 {
 	__sys_clock_getres;
 	_clock_gettime;
 	__sys_clock_gettime;
+	__sys_clock_nanosleep;
 	_clock_settime;
 	__sys_clock_settime;
 	_close;

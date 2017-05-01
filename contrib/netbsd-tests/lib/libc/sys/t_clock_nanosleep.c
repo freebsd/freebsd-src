@@ -46,7 +46,11 @@ ATF_TC_BODY(clock_nanosleep_remain, tc)
 	rqtp.tv_sec = 0; rqtp.tv_nsec = 0;
 	rmtp.tv_sec = -1; rmtp.tv_nsec = -1;
 	ATF_REQUIRE(clock_nanosleep(CLOCK_REALTIME, 0, &rqtp, &rmtp) == 0);
+#ifdef __FreeBSD__
+	ATF_CHECK(rmtp.tv_sec == -1 && rmtp.tv_nsec == -1);
+#else
 	ATF_CHECK(rmtp.tv_sec == 0 && rmtp.tv_nsec == 0);
+#endif
 
 	ATF_REQUIRE(clock_gettime(CLOCK_REALTIME, &rqtp) == 0);
 	rmtp.tv_sec = -1; rmtp.tv_nsec = -1;

@@ -83,6 +83,8 @@ int	kern_clock_getres(struct thread *td, clockid_t clock_id,
 	    struct timespec *ts);
 int	kern_clock_gettime(struct thread *td, clockid_t clock_id,
 	    struct timespec *ats);
+int	kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
+	    const struct timespec *rqtp, struct timespec *rmtp);
 int	kern_clock_settime(struct thread *td, clockid_t clock_id,
 	    struct timespec *ats);
 int	kern_close(struct thread *td, int fd);
