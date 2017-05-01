@@ -32,7 +32,8 @@ ${.CURDIR}/cscope.files: .PHONY
 		find ${CSCOPEDIRS} -name "*.[chSsly]" -a -type f > ${.TARGET}
 
 cscope-clean:
-	rm -f cscope.files cscope.out cscope.in.out cscope.po.out
+	cd ${.CURDIR}; \
+	    rm -f cscope.files cscope.out cscope.in.out cscope.po.out
 
 #
 # Installs SCM hooks to update the cscope database every time the source tree
