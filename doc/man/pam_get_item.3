@@ -1,6 +1,6 @@
 .\" Generated from pam_get_item.c by gendoc.pl
-.\" $Id: pam_get_item.c 913 2017-01-21 15:11:12Z des $
-.Dd February 19, 2017
+.\" $OpenPAM: pam_get_item.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt PAM_GET_ITEM 3
 .Os
 .Sh NAME
@@ -74,8 +74,10 @@ The
 .Fn pam_get_item
 function returns one of the following values:
 .Bl -tag -width 18n
-.It Bq Er PAM_SYMBOL_ERR
-Invalid symbol.
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_ITEM
+Unrecognized or restricted item.
 .El
 .Sh SEE ALSO
 .Xr pam 3 ,
