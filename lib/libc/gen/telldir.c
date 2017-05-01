@@ -53,15 +53,22 @@ long
 telldir(dirp)
 	DIR *dirp;
 {
-	struct ddloc *lp;
+	struct ddloc *lp, *flp;
 	long idx;
 
 	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
+	flp = NULL;
 	LIST_FOREACH(lp, &dirp->dd_td->td_locq, loc_lqe) {
-		if (lp->loc_seek == dirp->dd_seek &&
-		    lp->loc_loc == dirp->dd_loc)
+		if (lp->loc_seek == dirp->dd_seek) {
+			if (flp == NULL)
+				flp = lp;
+			if (lp->loc_loc == dirp->dd_loc)
+				break;
+		} else if (flp != NULL) {
+			lp = NULL;
 			break;
+		}
 	}
 	if (lp == NULL) {
 		lp = malloc(sizeof(struct ddloc));
@@ -73,7 +80,10 @@ telldir(dirp)
 		lp->loc_index = dirp->dd_td->td_loccnt++;
 		lp->loc_seek = dirp->dd_seek;
 		lp->loc_loc = dirp->dd_loc;
-		LIST_INSERT_HEAD(&dirp->dd_td->td_locq, lp, loc_lqe);
+		if (flp != NULL)
+			LIST_INSERT_BEFORE(flp, lp, loc_lqe);
+		else
+			LIST_INSERT_HEAD(&dirp->dd_td->td_locq, lp, loc_lqe);
 	}
 	idx = lp->loc_index;
 	if (__isthreaded)
