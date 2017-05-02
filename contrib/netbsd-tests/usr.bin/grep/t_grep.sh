@@ -369,7 +369,7 @@ egrep_empty_invalid_head()
 }
 egrep_empty_invalid_body()
 {
-	atf_check -s exit:1 egrep '{' /dev/null
+	atf_check -e ignore -s not-exit:0 egrep '{' /dev/null
 }
 
 atf_test_case zerolen
