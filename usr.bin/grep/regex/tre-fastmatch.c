@@ -98,6 +98,18 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
     fg->pattern[siz] = '\0';						\
   }									\
 
+#define CONV_MBS_PAT(src, dest, destsz)					\
+  {									\
+    destsz = wcstombs(NULL, src, 0);					\
+    if (destsz == (size_t)-1)						\
+      return REG_BADPAT;						\
+    dest = malloc(destsz + 1);						\
+    if (dest == NULL)							\
+      return REG_ESPACE;						\
+    wcstombs(dest, src, destsz);					\
+    dest[destsz] = '\0';						\
+  }									\
+
 #define IS_OUT_OF_BOUNDS						\
   ((!fg->reversed							\
     ? ((type == STR_WIDE) ? ((j + fg->wlen) > len)			\
@@ -723,15 +735,29 @@ badpat:
 	}
 
       escaped = false;
-      for (unsigned int i = 0; i < fg->len; i++)
-	if (fg->pattern[i] == '\\')
-	  escaped = !escaped;
-	else if (fg->pattern[i] == '.' && fg->escmap && escaped)
+      char *_checkpat = NULL;
+      size_t _checklen = 0;
+      unsigned int escofs = 0;
+      /*
+       * Make a copy here of the original pattern, because fg->pattern has
+       * already been stripped of all escape sequences in the above processing.
+       * This is necessary if we wish to later treat fg->escmap as an actual,
+       * functional replacement of fg->wescmap.
+       */
+      CONV_MBS_PAT(pat, _checkpat, _checklen);
+      for (unsigned int i = 0; i < n; i++)
+	if (_checkpat[i] == '\\')
 	  {
-	    fg->escmap[i] = true;
+	    escaped = !escaped;
+	    if (escaped)
+	      ++escofs;
+	  }
+	else if (_checkpat[i] == '.' && fg->escmap != NULL && escaped)
+	  {
+	    fg->escmap[i - escofs] = true;
 	    escaped = false;
 	  }
-	else if (fg->pattern[i] == '.' && !escaped)
+	else if (_checkpat[i] == '.' && !escaped)
 	  {
 	    hasdot = i;
 	    if (firstdot == -1)
@@ -739,6 +765,7 @@ badpat:
 	  }
 	else
 	  escaped = false;
+      free(_checkpat);
     }
 #else
   SAVE_PATTERN(tmp, pos, fg->pattern, fg->len);
