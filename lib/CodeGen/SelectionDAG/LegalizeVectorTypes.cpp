@@ -529,10 +529,11 @@ SDValue DAGTypeLegalizer::ScalarizeVecOp_EXTRACT_VECTOR_ELT(SDNode *N) {
   EVT VT = N->getValueType(0);
   SDValue Res = GetScalarizedVector(N->getOperand(0));
   if (Res.getValueType() != VT)
-    Res = DAG.getNode(ISD::ANY_EXTEND, SDLoc(N), VT, Res);
+    Res = VT.isFloatingPoint()
+              ? DAG.getNode(ISD::FP_EXTEND, SDLoc(N), VT, Res)
+              : DAG.getNode(ISD::ANY_EXTEND, SDLoc(N), VT, Res);
   return Res;
 }
-
 
 /// If the input condition is a vector that needs to be scalarized, it must be
 /// <1 x i1>, so just convert to a normal ISD::SELECT
@@ -730,7 +731,7 @@ void DAGTypeLegalizer::SplitVecRes_BinOp(SDNode *N, SDValue &Lo,
   GetSplitVector(N->getOperand(1), RHSLo, RHSHi);
   SDLoc dl(N);
 
-  const SDNodeFlags *Flags = N->getFlags();
+  const SDNodeFlags Flags = N->getFlags();
   unsigned Opcode = N->getOpcode();
   Lo = DAG.getNode(Opcode, dl, LHSLo.getValueType(), LHSLo, RHSLo, Flags);
   Hi = DAG.getNode(Opcode, dl, LHSHi.getValueType(), LHSHi, RHSHi, Flags);
@@ -2219,7 +2220,7 @@ SDValue DAGTypeLegalizer::WidenVecRes_BinaryCanTrap(SDNode *N) {
   EVT WidenEltVT = WidenVT.getVectorElementType();
   EVT VT = WidenVT;
   unsigned NumElts =  VT.getVectorNumElements();
-  const SDNodeFlags *Flags = N->getFlags();
+  const SDNodeFlags Flags = N->getFlags();
   while (!TLI.isTypeLegal(VT) && NumElts != 1) {
     NumElts = NumElts / 2;
     VT = EVT::getVectorVT(*DAG.getContext(), WidenEltVT, NumElts);
@@ -2367,7 +2368,7 @@ SDValue DAGTypeLegalizer::WidenVecRes_Convert(SDNode *N) {
 
   unsigned Opcode = N->getOpcode();
   unsigned InVTNumElts = InVT.getVectorNumElements();
-  const SDNodeFlags *Flags = N->getFlags();
+  const SDNodeFlags Flags = N->getFlags();
   if (getTypeAction(InVT) == TargetLowering::TypeWidenVector) {
     InOp = GetWidenedVector(N->getOperand(0));
     InVT = InOp.getValueType();

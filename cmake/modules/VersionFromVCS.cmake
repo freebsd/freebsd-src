@@ -33,7 +33,8 @@ function(add_version_info_from_vcs VERS)
       execute_process(COMMAND ${git_executable} rev-parse --git-dir
         WORKING_DIRECTORY ${SOURCE_DIR}/cmake
         RESULT_VARIABLE git_result
-        OUTPUT_VARIABLE git_dir)
+        OUTPUT_VARIABLE git_dir
+        ERROR_QUIET)
       if(git_result EQUAL 0)
         # Try to get a ref-id
         string(STRIP "${git_dir}" git_dir)
@@ -45,7 +46,8 @@ function(add_version_info_from_vcs VERS)
             WORKING_DIRECTORY ${SOURCE_DIR}
             TIMEOUT 5
             RESULT_VARIABLE git_result
-            OUTPUT_VARIABLE git_output)
+            OUTPUT_VARIABLE git_output
+            ERROR_QUIET)
           if( git_result EQUAL 0 )
             string(REGEX MATCH "URL: ([^ \n]*)" svn_url ${git_output})
             if(svn_url)

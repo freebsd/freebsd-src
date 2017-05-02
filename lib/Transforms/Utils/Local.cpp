@@ -562,7 +562,7 @@ void llvm::RemovePredecessorAndSimplify(BasicBlock *BB, BasicBlock *Pred) {
   // that can be removed.
   BB->removePredecessor(Pred, true);
 
-  WeakVH PhiIt = &BB->front();
+  WeakTrackingVH PhiIt = &BB->front();
   while (PHINode *PN = dyn_cast<PHINode>(PhiIt)) {
     PhiIt = &*++BasicBlock::iterator(cast<Instruction>(PhiIt));
     Value *OldPhiIt = PhiIt;
@@ -1259,49 +1259,6 @@ void llvm::findDbgValues(SmallVectorImpl<DbgValueInst *> &DbgValues, Value *V) {
           DbgValues.push_back(DVI);
 }
 
-static void appendOffset(SmallVectorImpl<uint64_t> &Ops, int64_t Offset) {
-  if (Offset > 0) {
-    Ops.push_back(dwarf::DW_OP_plus);
-    Ops.push_back(Offset);
-  } else if (Offset < 0) {
-    Ops.push_back(dwarf::DW_OP_minus);
-    Ops.push_back(-Offset);
-  }
-}
-
-enum { WithStackValue = true };
-
-/// Prepend \p DIExpr with a deref and offset operation and optionally turn it
-/// into a stack value.
-static DIExpression *prependDIExpr(DIBuilder &Builder, DIExpression *DIExpr,
-                                   bool Deref, int64_t Offset = 0,
-                                   bool StackValue = false) {
-  if (!Deref && !Offset && !StackValue)
-    return DIExpr;
-
-  SmallVector<uint64_t, 8> Ops;
-  appendOffset(Ops, Offset);
-  if (Deref)
-    Ops.push_back(dwarf::DW_OP_deref);
-  if (DIExpr)
-    for (auto Op : DIExpr->expr_ops()) {
-      // A DW_OP_stack_value comes at the end, but before a DW_OP_LLVM_fragment.
-      if (StackValue) {
-        if (Op.getOp() == dwarf::DW_OP_stack_value)
-          StackValue = false;
-        else if (Op.getOp() == dwarf::DW_OP_LLVM_fragment) {
-          Ops.push_back(dwarf::DW_OP_stack_value);
-          StackValue = false;
-        }
-      }
-      Ops.push_back(Op.getOp());
-      for (unsigned I = 0; I < Op.getNumArgs(); ++I)
-        Ops.push_back(Op.getArg(I));
-    }
-  if (StackValue)
-    Ops.push_back(dwarf::DW_OP_stack_value);
-  return Builder.createExpression(Ops);
-}
 
 bool llvm::replaceDbgDeclare(Value *Address, Value *NewAddress,
                              Instruction *InsertBefore, DIBuilder &Builder,
@@ -1313,9 +1270,7 @@ bool llvm::replaceDbgDeclare(Value *Address, Value *NewAddress,
   auto *DIVar = DDI->getVariable();
   auto *DIExpr = DDI->getExpression();
   assert(DIVar && "Missing variable");
-
-  DIExpr = prependDIExpr(Builder, DIExpr, Deref, Offset);
-
+  DIExpr = DIExpression::prepend(DIExpr, Deref, Offset);
   // Insert llvm.dbg.declare immediately after the original alloca, and remove
   // old llvm.dbg.declare.
   Builder.insertDeclare(NewAddress, DIVar, DIExpr, Loc, InsertBefore);
@@ -1348,7 +1303,7 @@ static void replaceOneDbgValueForAlloca(DbgValueInst *DVI, Value *NewAddress,
   if (Offset) {
     SmallVector<uint64_t, 4> Ops;
     Ops.push_back(dwarf::DW_OP_deref);
-    appendOffset(Ops, Offset);
+    DIExpression::appendOffset(Ops, Offset);
     Ops.append(DIExpr->elements_begin() + 1, DIExpr->elements_end());
     DIExpr = Builder.createExpression(Ops);
   }
@@ -1398,8 +1353,9 @@ void llvm::salvageDebugInfo(Instruction &I) {
         auto *DIExpr = DVI->getExpression();
         DIBuilder DIB(M, /*AllowUnresolved*/ false);
         // GEP offsets are i32 and thus always fit into an int64_t.
-        DIExpr = prependDIExpr(DIB, DIExpr, NoDeref, Offset.getSExtValue(),
-                               WithStackValue);
+        DIExpr = DIExpression::prepend(DIExpr, DIExpression::NoDeref,
+                                       Offset.getSExtValue(),
+                                       DIExpression::WithStackValue);
         DVI->setOperand(0, MDWrap(I.getOperand(0)));
         DVI->setOperand(3, MetadataAsValue::get(I.getContext(), DIExpr));
         DEBUG(dbgs() << "SALVAGE: " << *DVI << '\n');
@@ -1411,7 +1367,7 @@ void llvm::salvageDebugInfo(Instruction &I) {
       // Rewrite the load into DW_OP_deref.
       auto *DIExpr = DVI->getExpression();
       DIBuilder DIB(M, /*AllowUnresolved*/ false);
-      DIExpr = prependDIExpr(DIB, DIExpr, WithDeref);
+      DIExpr = DIExpression::prepend(DIExpr, DIExpression::WithDeref);
       DVI->setOperand(0, MDWrap(I.getOperand(0)));
       DVI->setOperand(3, MetadataAsValue::get(I.getContext(), DIExpr));
       DEBUG(dbgs() << "SALVAGE:  " << *DVI << '\n');
@@ -1520,7 +1476,7 @@ BasicBlock *llvm::changeToInvokeAndSplitBasicBlock(CallInst *CI,
   II->setAttributes(CI->getAttributes());
 
   // Make sure that anything using the call now uses the invoke!  This also
-  // updates the CallGraph if present, because it uses a WeakVH.
+  // updates the CallGraph if present, because it uses a WeakTrackingVH.
   CI->replaceAllUsesWith(II);
 
   // Delete the original call

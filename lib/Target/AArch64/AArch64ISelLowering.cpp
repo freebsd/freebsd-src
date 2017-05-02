@@ -67,6 +67,7 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetCallingConv.h"
@@ -929,20 +930,19 @@ bool AArch64TargetLowering::targetShrinkDemandedConstant(
 }
 
 /// computeKnownBitsForTargetNode - Determine which of the bits specified in
-/// Mask are known to be either zero or one and return them in the
-/// KnownZero/KnownOne bitsets.
+/// Mask are known to be either zero or one and return them Known.
 void AArch64TargetLowering::computeKnownBitsForTargetNode(
-    const SDValue Op, APInt &KnownZero, APInt &KnownOne,
+    const SDValue Op, KnownBits &Known,
     const APInt &DemandedElts, const SelectionDAG &DAG, unsigned Depth) const {
   switch (Op.getOpcode()) {
   default:
     break;
   case AArch64ISD::CSEL: {
-    APInt KnownZero2, KnownOne2;
-    DAG.computeKnownBits(Op->getOperand(0), KnownZero, KnownOne, Depth + 1);
-    DAG.computeKnownBits(Op->getOperand(1), KnownZero2, KnownOne2, Depth + 1);
-    KnownZero &= KnownZero2;
-    KnownOne &= KnownOne2;
+    KnownBits Known2;
+    DAG.computeKnownBits(Op->getOperand(0), Known, Depth + 1);
+    DAG.computeKnownBits(Op->getOperand(1), Known2, Depth + 1);
+    Known.Zero &= Known2.Zero;
+    Known.One &= Known2.One;
     break;
   }
   case ISD::INTRINSIC_W_CHAIN: {
@@ -952,10 +952,10 @@ void AArch64TargetLowering::computeKnownBitsForTargetNode(
     default: return;
     case Intrinsic::aarch64_ldaxr:
     case Intrinsic::aarch64_ldxr: {
-      unsigned BitWidth = KnownOne.getBitWidth();
+      unsigned BitWidth = Known.getBitWidth();
       EVT VT = cast<MemIntrinsicSDNode>(Op)->getMemoryVT();
       unsigned MemBits = VT.getScalarSizeInBits();
-      KnownZero |= APInt::getHighBitsSet(BitWidth, BitWidth - MemBits);
+      Known.Zero |= APInt::getHighBitsSet(BitWidth, BitWidth - MemBits);
       return;
     }
     }
@@ -974,15 +974,15 @@ void AArch64TargetLowering::computeKnownBitsForTargetNode(
       // bits larger than the element datatype. 32-bit or larget doesn't need
       // this as those are legal types and will be handled by isel directly.
       MVT VT = Op.getOperand(1).getValueType().getSimpleVT();
-      unsigned BitWidth = KnownZero.getBitWidth();
+      unsigned BitWidth = Known.getBitWidth();
       if (VT == MVT::v8i8 || VT == MVT::v16i8) {
         assert(BitWidth >= 8 && "Unexpected width!");
         APInt Mask = APInt::getHighBitsSet(BitWidth, BitWidth - 8);
-        KnownZero |= Mask;
+        Known.Zero |= Mask;
       } else if (VT == MVT::v4i16 || VT == MVT::v8i16) {
         assert(BitWidth >= 16 && "Unexpected width!");
         APInt Mask = APInt::getHighBitsSet(BitWidth, BitWidth - 16);
-        KnownZero |= Mask;
+        Known.Zero |= Mask;
       }
       break;
     } break;
@@ -4847,9 +4847,9 @@ SDValue AArch64TargetLowering::getSqrtEstimate(SDValue Operand,
       // AArch64 reciprocal square root iteration instruction: 0.5 * (3 - M * N)
       for (int i = ExtraSteps; i > 0; --i) {
         SDValue Step = DAG.getNode(ISD::FMUL, DL, VT, Estimate, Estimate,
-                                   &Flags);
-        Step = DAG.getNode(AArch64ISD::FRSQRTS, DL, VT, Operand, Step, &Flags);
-        Estimate = DAG.getNode(ISD::FMUL, DL, VT, Estimate, Step, &Flags);
+                                   Flags);
+        Step = DAG.getNode(AArch64ISD::FRSQRTS, DL, VT, Operand, Step, Flags);
+        Estimate = DAG.getNode(ISD::FMUL, DL, VT, Estimate, Step, Flags);
       }
 
       if (!Reciprocal) {
@@ -4858,7 +4858,7 @@ SDValue AArch64TargetLowering::getSqrtEstimate(SDValue Operand,
         SDValue FPZero = DAG.getConstantFP(0.0, DL, VT);
         SDValue Eq = DAG.getSetCC(DL, CCVT, Operand, FPZero, ISD::SETEQ);
 
-        Estimate = DAG.getNode(ISD::FMUL, DL, VT, Operand, Estimate, &Flags);
+        Estimate = DAG.getNode(ISD::FMUL, DL, VT, Operand, Estimate, Flags);
         // Correct the result if the operand is 0.0.
         Estimate = DAG.getNode(VT.isVector() ? ISD::VSELECT : ISD::SELECT, DL,
                                VT, Eq, Operand, Estimate);
@@ -4887,8 +4887,8 @@ SDValue AArch64TargetLowering::getRecipEstimate(SDValue Operand,
       // AArch64 reciprocal iteration instruction: (2 - M * N)
       for (int i = ExtraSteps; i > 0; --i) {
         SDValue Step = DAG.getNode(AArch64ISD::FRECPS, DL, VT, Operand,
-                                   Estimate, &Flags);
-        Estimate = DAG.getNode(ISD::FMUL, DL, VT, Estimate, Step, &Flags);
+                                   Estimate, Flags);
+        Estimate = DAG.getNode(ISD::FMUL, DL, VT, Estimate, Step, Flags);
       }
 
       ExtraSteps = 0;
@@ -9461,11 +9461,11 @@ static bool performTBISimplification(SDValue Addr,
                                      TargetLowering::DAGCombinerInfo &DCI,
                                      SelectionDAG &DAG) {
   APInt DemandedMask = APInt::getLowBitsSet(64, 56);
-  APInt KnownZero, KnownOne;
+  KnownBits Known;
   TargetLowering::TargetLoweringOpt TLO(DAG, DCI.isBeforeLegalize(),
                                         DCI.isBeforeLegalizeOps());
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
-  if (TLI.SimplifyDemandedBits(Addr, DemandedMask, KnownZero, KnownOne, TLO)) {
+  if (TLI.SimplifyDemandedBits(Addr, DemandedMask, Known, TLO)) {
     DCI.CommitTargetLoweringOpt(TLO);
     return true;
   }
