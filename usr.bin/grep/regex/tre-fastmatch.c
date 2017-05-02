@@ -715,7 +715,7 @@ badpat:
       if (fg->wescmap != NULL)
 	{
 	  fg->escmap = calloc(fg->len, sizeof(bool));
-	  if (fg->escmap != NULL)
+	  if (fg->escmap == NULL)
 	    {
 	      tre_free_fast(fg);
 	      return REG_ESPACE;
