@@ -1560,6 +1560,51 @@ static enum CXChildVisitResult PrintTypeDeclaration(CXCursor cursor, CXCursor p,
 }
 
 /******************************************************************************/
+/* Target information testing.                                                */
+/******************************************************************************/
+
+static int print_target_info(int argc, const char **argv) {
+  CXIndex Idx;
+  CXTranslationUnit TU;
+  CXTargetInfo TargetInfo;
+  CXString Triple;
+  const char *FileName;
+  enum CXErrorCode Err;
+  int PointerWidth;
+
+  if (argc == 0) {
+    fprintf(stderr, "No filename specified\n");
+    return 1;
+  }
+
+  FileName = argv[1];
+
+  Idx = clang_createIndex(0, 1);
+  Err = clang_parseTranslationUnit2(Idx, FileName, argv, argc, NULL, 0,
+                                    getDefaultParsingOptions(), &TU);
+  if (Err != CXError_Success) {
+    fprintf(stderr, "Couldn't parse translation unit!\n");
+    describeLibclangFailure(Err);
+    clang_disposeIndex(Idx);
+    return 1;
+  }
+
+  TargetInfo = clang_getTranslationUnitTargetInfo(TU);
+
+  Triple = clang_TargetInfo_getTriple(TargetInfo);
+  printf("TargetTriple: %s\n", clang_getCString(Triple));
+  clang_disposeString(Triple);
+
+  PointerWidth = clang_TargetInfo_getPointerWidth(TargetInfo);
+  printf("PointerWidth: %d\n", PointerWidth);
+
+  clang_TargetInfo_dispose(TargetInfo);
+  clang_disposeTranslationUnit(TU);
+  clang_disposeIndex(Idx);
+  return 0;
+}
+
+/******************************************************************************/
 /* Loading ASTs/source.                                                       */
 /******************************************************************************/
 
@@ -2437,11 +2482,14 @@ static void inspect_print_cursor(CXCursor Cursor) {
            clang_Cursor_getObjCSelectorIndex(Cursor));
   if (clang_Cursor_isDynamicCall(Cursor))
     printf(" Dynamic-call");
-  if (Cursor.kind == CXCursor_ObjCMessageExpr) {
+  if (Cursor.kind == CXCursor_ObjCMessageExpr ||
+      Cursor.kind == CXCursor_MemberRefExpr) {
     CXType T = clang_Cursor_getReceiverType(Cursor);
-    CXString S = clang_getTypeKindSpelling(T.kind);
-    printf(" Receiver-type=%s", clang_getCString(S));
-    clang_disposeString(S);
+    if (T.kind != CXType_Invalid) {
+      CXString S = clang_getTypeKindSpelling(T.kind);
+      printf(" Receiver-type=%s", clang_getCString(S));
+      clang_disposeString(S);
+    }
   }
 
   {
@@ -4298,11 +4346,12 @@ static void print_usage(void) {
     "       c-index-test -test-print-type {<args>}*\n"
     "       c-index-test -test-print-type-size {<args>}*\n"
     "       c-index-test -test-print-bitwidth {<args>}*\n"
+    "       c-index-test -test-print-target-info {<args>}*\n"
     "       c-index-test -test-print-type-declaration {<args>}*\n"
     "       c-index-test -print-usr [<CursorKind> {<args>}]*\n"
-    "       c-index-test -print-usr-file <file>\n"
-    "       c-index-test -write-pch <file> <compiler arguments>\n");
+    "       c-index-test -print-usr-file <file>\n");
   fprintf(stderr,
+    "       c-index-test -write-pch <file> <compiler arguments>\n"
     "       c-index-test -compilation-db [lookup <filename>] database\n");
   fprintf(stderr,
     "       c-index-test -print-build-session-timestamp\n");
@@ -4408,6 +4457,8 @@ int cindextest_main(int argc, const char **argv) {
     return perform_test_load_tu(argv[2], "all", NULL, PrintMangledName, NULL);
   else if (argc > 2 && strcmp(argv[1], "-test-print-manglings") == 0)
     return perform_test_load_tu(argv[2], "all", NULL, PrintManglings, NULL);
+  else if (argc > 2 && strcmp(argv[1], "-test-print-target-info") == 0)
+    return print_target_info(argc - 2, argv + 2);
   else if (argc > 1 && strcmp(argv[1], "-print-usr") == 0) {
     if (argc > 2)
       return print_usrs(argv + 2, argv + argc);
