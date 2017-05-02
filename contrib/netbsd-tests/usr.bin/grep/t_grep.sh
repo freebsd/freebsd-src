@@ -93,6 +93,12 @@ word_regexps_body()
 {
 	atf_check -o file:"$(atf_get_srcdir)/d_word_regexps.out" \
 	    grep -w separated $(atf_get_srcdir)/d_input
+
+	# Begin FreeBSD
+	printf "xmatch pmatch\n" > test1
+
+	atf_check -o inline:"pmatch\n" grep -Eow "(match )?pmatch" test1
+	# End FreeBSD
 }
 
 atf_test_case begin_end
@@ -439,6 +445,23 @@ grep_sanity_body()
 
 	atf_check -o inline:"M\n" grep -o -e "M\{1\}" test2
 }
+
+atf_test_case wv_combo_break
+wv_combo_break_head()
+{
+	atf_set "descr" "Check for incorrectly matching lines with both -w and -v flags (PR 218467)"
+}
+wv_combo_break_body()
+{
+	printf "x xx\n" > test1
+	printf "xx x\n" > test2
+
+	atf_check -o file:test1 grep -w "x" test1
+	atf_check -o file:test2 grep -w "x" test2
+
+	atf_check -s exit:1 grep -v -w "x" test1
+	atf_check -s exit:1 grep -v -w "x" test2
+}
 # End FreeBSD
 
 atf_init_test_cases()
@@ -467,6 +490,7 @@ atf_init_test_cases()
 	atf_add_test_case escmap
 	atf_add_test_case egrep_empty_invalid
 	atf_add_test_case zerolen
+	atf_add_test_case wv_combo_break
 	atf_add_test_case fgrep_sanity
 	atf_add_test_case egrep_sanity
 	atf_add_test_case grep_sanity
