@@ -484,7 +484,7 @@ ixv_attach(device_t dev)
 	ixv_add_stats_sysctls(adapter);
 
 	if (adapter->feat_en & IXGBE_FEATURE_NETMAP)
-		ixgbe_netmap_attach(adapter);
+		ixv_netmap_attach(adapter);
 
 	INIT_DEBUGOUT("ixv_attach: end");
 

@@ -33,8 +33,8 @@
 /*$FreeBSD$*/
 
 
-#ifndef _IXGBE_NETMAP_H_
-#define _IXGBE_NETMAP_H_
+#ifndef _IXV_NETMAP_H_
+#define _IXV_NETMAP_H_
 
 #ifdef DEV_NETMAP
 
@@ -42,18 +42,18 @@
 #include <sys/selinfo.h>
 #include <dev/netmap/netmap_kern.h>
 
-extern int ix_crcstrip;
+extern int ixv_crcstrip;
 
 /*
  * ixgbe_netmap.c contains functions for netmap
  * support that extend the standard driver.  See additional
  * comments in ixgbe_netmap.c.
  */
-void ixgbe_netmap_attach(struct adapter *adapter);
+void ixv_netmap_attach(struct adapter *adapter);
 
 #else
-#define ixgbe_netmap_attach(a)
+#define ixv_netmap_attach(a)
 #define netmap_detach(a)
 #endif /* DEV_NETMAP */
 
-#endif /* _IXGBE_NETMAP_H_ */
+#endif /* _IXV_NETMAP_H_ */

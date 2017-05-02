@@ -83,23 +83,23 @@
 /*
  * device-specific sysctl variables:
  *
- * ix_crcstrip: 0: keep CRC in rx frames (default), 1: strip it.
+ * ixv_crcstrip: 0: keep CRC in rx frames (default), 1: strip it.
  *	During regular operations the CRC is stripped, but on some
  *	hardware reception of frames not multiple of 64 is slower,
  *	so using crcstrip=0 helps in benchmarks.
  *
- * ix_rx_miss, ix_rx_miss_bufs:
+ * ixv_rx_miss, ixv_rx_miss_bufs:
  *	count packets that might be missed due to lost interrupts.
  */
 SYSCTL_DECL(_dev_netmap);
-static int ix_rx_miss, ix_rx_miss_bufs;
-int ix_crcstrip;
-SYSCTL_INT(_dev_netmap, OID_AUTO, ix_crcstrip,
-    CTLFLAG_RW, &ix_crcstrip, 0, "strip CRC on rx frames");
-SYSCTL_INT(_dev_netmap, OID_AUTO, ix_rx_miss,
-    CTLFLAG_RW, &ix_rx_miss, 0, "potentially missed rx intr");
-SYSCTL_INT(_dev_netmap, OID_AUTO, ix_rx_miss_bufs,
-    CTLFLAG_RW, &ix_rx_miss_bufs, 0, "potentially missed rx intr bufs");
+static int ixv_rx_miss, ixv_rx_miss_bufs;
+int ixv_crcstrip;
+SYSCTL_INT(_dev_netmap, OID_AUTO, ixv_crcstrip,
+    CTLFLAG_RW, &ixv_crcstrip, 0, "strip CRC on rx frames");
+SYSCTL_INT(_dev_netmap, OID_AUTO, ixv_rx_miss,
+    CTLFLAG_RW, &ixv_rx_miss, 0, "potentially missed rx intr");
+SYSCTL_INT(_dev_netmap, OID_AUTO, ixv_rx_miss_bufs,
+    CTLFLAG_RW, &ixv_rx_miss_bufs, 0, "potentially missed rx intr bufs");
 
 
 static void
@@ -123,7 +123,7 @@ set_crcstrip(struct ixgbe_hw *hw, int onoff)
 	/* hw requirements ... */
 	rxc &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
 	rxc |= IXGBE_RDRXCTL_RSCACKC;
-	if (onoff && !ix_crcstrip) {
+	if (onoff && !ixv_crcstrip) {
 		/* keep the crc. Fast rx */
 		hl &= ~IXGBE_HLREG0_RXCRCSTRP;
 		rxc &= ~IXGBE_RDRXCTL_CRCSTRIP;
@@ -145,7 +145,7 @@ set_crcstrip(struct ixgbe_hw *hw, int onoff)
  * Only called on the first register or the last unregister.
  */
 static int
-ixgbe_netmap_reg(struct netmap_adapter *na, int onoff)
+ixv_netmap_reg(struct netmap_adapter *na, int onoff)
 {
 	struct ifnet *ifp = na->ifp;
 	struct adapter *adapter = ifp->if_softc;
@@ -182,7 +182,7 @@ ixgbe_netmap_reg(struct netmap_adapter *na, int onoff)
  * methods should be handled by the individual drivers.
  */
 static int
-ixgbe_netmap_txsync(struct netmap_kring *kring, int flags)
+ixv_netmap_txsync(struct netmap_kring *kring, int flags)
 {
 	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
@@ -368,7 +368,7 @@ ixgbe_netmap_txsync(struct netmap_kring *kring, int flags)
  * of whether or not we received an interrupt.
  */
 static int
-ixgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
+ixv_netmap_rxsync(struct netmap_kring *kring, int flags)
 {
 	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
@@ -407,7 +407,7 @@ ixgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	if (netmap_no_pendintr || force_update) {
-		int crclen = (ix_crcstrip) ? 0 : 4;
+		int crclen = (ixv_crcstrip) ? 0 : 4;
 		uint16_t slot_flags = kring->nkr_slot_flags;
 
 		nic_i = rxr->next_to_check; // or also k2n(kring->nr_hwtail)
@@ -429,8 +429,8 @@ ixgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 		if (n) { /* update the state variables */
 			if (netmap_no_pendintr && !force_update) {
 				/* diagnostics */
-				ix_rx_miss ++;
-				ix_rx_miss_bufs += n;
+				ixv_rx_miss ++;
+				ixv_rx_miss_bufs += n;
 			}
 			rxr->next_to_check = nic_i;
 			kring->nr_hwtail = nm_i;
@@ -499,7 +499,7 @@ ring_reset:
  * operate in standard mode.
  */
 void
-ixgbe_netmap_attach(struct adapter *adapter)
+ixv_netmap_attach(struct adapter *adapter)
 {
 	struct netmap_adapter na;
 
@@ -509,9 +509,9 @@ ixgbe_netmap_attach(struct adapter *adapter)
 	na.na_flags = NAF_BDG_MAYSLEEP;
 	na.num_tx_desc = adapter->num_tx_desc;
 	na.num_rx_desc = adapter->num_rx_desc;
-	na.nm_txsync = ixgbe_netmap_txsync;
-	na.nm_rxsync = ixgbe_netmap_rxsync;
-	na.nm_register = ixgbe_netmap_reg;
+	na.nm_txsync = ixv_netmap_txsync;
+	na.nm_rxsync = ixv_netmap_rxsync;
+	na.nm_register = ixv_netmap_reg;
 	na.num_tx_rings = na.num_rx_rings = adapter->num_queues;
 	netmap_attach(&na);
 }
