@@ -171,6 +171,12 @@ context_body()
 	atf_check -o file:d_context_b.out grep -A3 tilt d_context_a.in
 	atf_check -o file:d_context_c.out grep -B4 Whig d_context_a.in
 	atf_check -o file:d_context_d.out grep -C1 pig d_context_a.in d_context_b.in
+	atf_check -o file:d_context_e.out \
+	    grep -E -C1 '(banana|monkey)' d_context_e.in
+	atf_check -o file:d_context_f.out \
+	    grep -Ev -B2 '(banana|monkey|fruit)' d_context_e.in
+	atf_check -o file:d_context_g.out \
+	    grep -Ev -A1 '(banana|monkey|fruit)' d_context_e.in
 }
 
 atf_test_case file_exp
@@ -386,6 +392,32 @@ zerolen_body()
 	atf_check -o inline:"Eggs\nCheese\n" grep -v -e "^$" test1
 }
 
+atf_test_case wflag_emptypat
+wflag_emptypat_head()
+{
+	atf_set "descr" "Check for proper handling of -w with an empty pattern (PR 105221)"
+}
+wflag_emptypat_body()
+{
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
+		atf_expect_fail "this test does not pass with GNU grep in base"
+	fi
+
+	printf "" > test1
+	printf "\n" > test2
+	printf "qaz" > test3
+	printf " qaz\n" > test4
+
+	atf_check -s exit:1 -o empty grep -w -e "" test1
+
+	atf_check -o file:test2 grep -w -e "" test2
+
+	atf_check -s exit:1 -o empty grep -w -e "" test3
+
+	atf_check -o file:test4 grep -w -e "" test4
+}
+
 atf_test_case fgrep_sanity
 fgrep_sanity_head()
 {
@@ -490,6 +522,7 @@ atf_init_test_cases()
 	atf_add_test_case escmap
 	atf_add_test_case egrep_empty_invalid
 	atf_add_test_case zerolen
+	atf_add_test_case wflag_emptypat
 	atf_add_test_case wv_combo_break
 	atf_add_test_case fgrep_sanity
 	atf_add_test_case egrep_sanity
