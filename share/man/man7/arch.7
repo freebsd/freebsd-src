@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2017
+.Dd May 2, 2017
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -47,27 +47,27 @@ On all supported architectures,
 .It float Ta 4
 .It double Ta 8
 .El
-.Bl -column -offset indent "Sy Architecture" "Sy sizeof(void *)" "Sy sizeof(long double)"
-.It Sy Architecture Ta Sy sizeof(void *) Ta Sy sizeof(long double)
-.It amd64       Ta 8 Ta 16
-.It arm         Ta 4 Ta  8
-.It armeb       Ta 4 Ta  8
-.It armv6       Ta 4 Ta  8
-.It arm64       Ta 8 Ta 16
-.It i386        Ta 4 Ta 12
-.It mips        Ta 4 Ta  8
-.It mipsel      Ta 4 Ta  8
-.It mipselhf    Ta 4 Ta  8
-.It mipshf      Ta 4 Ta  8
-.It mipsn32     Ta 4 Ta  8
-.It mips64      Ta 8 Ta  8
-.It mips64el    Ta 8 Ta  8
-.It mips64elhf  Ta 8 Ta  8
-.It mips64hf    Ta 8 Ta  8
-.It powerpc     Ta 4 Ta  8
-.It powerpc64   Ta 8 Ta  8
-.It riscv       Ta 8 Ta 16
-.It sparc64     Ta 8 Ta 16
+.Bl -column -offset indent "Sy Architecture" "Sy sizeof(void *)" "Sy sizeof(long double)" "Sy sizeof(time_t)"
+.It Sy Architecture Ta Sy sizeof(void *) Ta Sy sizeof(long double) Ta Sy sizeof(time_t)
+.It amd64       Ta 8 Ta 16 Ta 8
+.It arm         Ta 4 Ta  8 Ta 8
+.It armeb       Ta 4 Ta  8 Ta 8
+.It armv6       Ta 4 Ta  8 Ta 8
+.It arm64       Ta 8 Ta 16 Ta 8
+.It i386        Ta 4 Ta 12 Ta 4
+.It mips        Ta 4 Ta  8 Ta 8
+.It mipsel      Ta 4 Ta  8 Ta 8
+.It mipselhf    Ta 4 Ta  8 Ta 8
+.It mipshf      Ta 4 Ta  8 Ta 8
+.It mipsn32     Ta 4 Ta  8 Ta 8
+.It mips64      Ta 8 Ta  8 Ta 8
+.It mips64el    Ta 8 Ta  8 Ta 8
+.It mips64elhf  Ta 8 Ta  8 Ta 8
+.It mips64hf    Ta 8 Ta  8 Ta 8
+.It powerpc     Ta 4 Ta  8 Ta 4
+.It powerpc64   Ta 8 Ta  8 Ta 8
+.It riscv       Ta 8 Ta 16 Ta 8
+.It sparc64     Ta 8 Ta 16 Ta 8
 .El
 .Ss Endianness and Char Signedness
 .Bl -column -offset indent "Sy Architecture" "Sy Endianness" "Sy char Signedness"
