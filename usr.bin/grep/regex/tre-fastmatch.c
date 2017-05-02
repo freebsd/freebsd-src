@@ -630,7 +630,7 @@ tre_compile_fast(fastmatch_t *fg, const tre_char_t *pat, size_t n,
 	    if (escaped)
 	      {
 		if (!_escmap)
-		  _escmap = malloc(n * sizeof(bool));
+		  _escmap = calloc(n, sizeof(bool));
 		if (!_escmap)
 		  {
 		    free(tmp);
@@ -714,8 +714,8 @@ badpat:
     {
       if (fg->wescmap != NULL)
 	{
-	  fg->escmap = malloc(fg->len * sizeof(bool));
-	  if (!fg->escmap)
+	  fg->escmap = calloc(fg->len, sizeof(bool));
+	  if (fg->escmap != NULL)
 	    {
 	      tre_free_fast(fg);
 	      return REG_ESPACE;
