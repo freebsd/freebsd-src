@@ -2225,7 +2225,9 @@ g_mirror_determine_state(struct g_mirror_disk *disk)
 	sc = disk->d_softc;
 	if (sc->sc_syncid == disk->d_sync.ds_syncid) {
 		if ((disk->d_flags &
-		    G_MIRROR_DISK_FLAG_SYNCHRONIZING) == 0) {
+		    G_MIRROR_DISK_FLAG_SYNCHRONIZING) == 0 &&
+		    (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) == 0 ||
+		     (disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) == 0)) {
 			/* Disk does not need synchronization. */
 			state = G_MIRROR_DISK_STATE_ACTIVE;
 		} else {
