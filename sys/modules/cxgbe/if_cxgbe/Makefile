@@ -21,6 +21,7 @@ SRCS+=	t4_l2t.c
 SRCS+=	t4_main.c
 SRCS+=	t4_mp_ring.c
 SRCS+=	t4_netmap.c
+SRCS+=	t4_sched.c
 SRCS+=	t4_sge.c
 SRCS+=	t4_tracer.c
 
