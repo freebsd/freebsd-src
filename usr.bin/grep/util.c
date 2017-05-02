@@ -305,6 +305,7 @@ procline(struct str *l, int nottext)
 	unsigned int i;
 	int c = 0, m = 0, r = 0, lastmatches = 0, leflags = eflags;
 	int startm = 0;
+	int retry;
 
 	/* Initialize to avoid a false positive warning from GCC. */
 	lastmatch.rm_so = lastmatch.rm_eo = 0;
@@ -313,6 +314,7 @@ procline(struct str *l, int nottext)
 	while (st <= l->len) {
 		lastmatches = 0;
 		startm = m;
+		retry = 0;
 		if (st > 0)
 			leflags |= REG_NOTBOL;
 		/* Loop to compare with all the patterns */
@@ -356,6 +358,17 @@ procline(struct str *l, int nottext)
 				else if (iswword(wbegin) ||
 				    iswword(wend))
 					r = REG_NOMATCH;
+				/*
+				 * If we're doing whole word matching and we
+				 * matched once, then we should try the pattern
+				 * again after advancing just past the start  of
+				 * the earliest match. This allows the pattern
+				 * to  match later on in the line and possibly
+				 * still match a whole word.
+				 */
+				if (r == REG_NOMATCH &&
+				    (retry == 0 || pmatch.rm_so + 1 < retry))
+					retry = pmatch.rm_so + 1;
 			}
 			if (r == 0) {
 				lastmatches++;
@@ -385,9 +398,14 @@ procline(struct str *l, int nottext)
 			}
 		}
 
-		if (vflag) {
-			c = !c;
-			break;
+		/*
+		 * Advance to just past the start of the earliest match, try
+		 * again just in case we still have a chance to match later in
+		 * the string.
+		 */
+		if (lastmatches == 0 && retry > 0) {
+			st = retry;
+			continue;
 		}
 
 		/* One pass if we are not recording matches */
@@ -409,6 +427,9 @@ procline(struct str *l, int nottext)
 		st = nst;
 	}
 
+
+	if (vflag)
+		c = !c;
 
 	/* Count the matches if we have a match limit */
 	if (mflag)
