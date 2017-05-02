@@ -672,6 +672,7 @@ lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr, lagg_llqtype llq_type)
 	if (llq == NULL)	/* XXX what to do */
 		return;
 
+	if_ref(ifp);
 	llq->llq_ifp = ifp;
 	llq->llq_type = llq_type;
 	bcopy(lladdr, llq->llq_lladdr, ETHER_ADDR_LEN);
@@ -720,6 +721,7 @@ lagg_port_setlladdr(void *arg, int pending)
 			EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		CURVNET_RESTORE();
 		head = SLIST_NEXT(llq, llq_entries);
+		if_rele(ifp);
 		free(llq, M_DEVBUF);
 	}
 }
@@ -794,6 +796,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	lp->lp_output = ifp->if_output;
 	ifp->if_output = lagg_port_output;
 
+	if_ref(ifp);
 	lp->lp_ifp = ifp;
 	lp->lp_softc = sc;
 
@@ -947,6 +950,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 			if (llq->llq_ifp == ifp) {
 				SLIST_REMOVE(&sc->sc_llq_head, llq, lagg_llq,
 				    llq_entries);
+				if_rele(llq->llq_ifp);
 				free(llq, M_DEVBUF);
 				break;	/* Only appears once */
 			}
@@ -956,6 +960,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	if (lp->lp_ifflags)
 		if_printf(ifp, "%s: lp_ifflags unclean\n", __func__);
 
+	if_rele(ifp);
 	free(lp, M_DEVBUF);
 
 	/* Update lagg capabilities */
@@ -1432,7 +1437,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCGLAGGPORT:
 		if (rp->rp_portname[0] == '\0' ||
-		    (tpif = ifunit(rp->rp_portname)) == NULL) {
+		    (tpif = ifunit_ref(rp->rp_portname)) == NULL) {
 			error = EINVAL;
 			break;
 		}
@@ -1442,18 +1447,20 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    lp->lp_softc != sc) {
 			error = ENOENT;
 			LAGG_RUNLOCK(sc, &tracker);
+			if_rele(tpif);
 			break;
 		}
 
 		lagg_port2req(lp, rp);
 		LAGG_RUNLOCK(sc, &tracker);
+		if_rele(tpif);
 		break;
 	case SIOCSLAGGPORT:
 		error = priv_check(td, PRIV_NET_LAGG);
 		if (error)
 			break;
 		if (rp->rp_portname[0] == '\0' ||
-		    (tpif = ifunit(rp->rp_portname)) == NULL) {
+		    (tpif = ifunit_ref(rp->rp_portname)) == NULL) {
 			error = EINVAL;
 			break;
 		}
@@ -1480,13 +1487,14 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		LAGG_WLOCK(sc);
 		error = lagg_port_create(sc, tpif);
 		LAGG_WUNLOCK(sc);
+		if_rele(tpif);
 		break;
 	case SIOCSLAGGDELPORT:
 		error = priv_check(td, PRIV_NET_LAGG);
 		if (error)
 			break;
 		if (rp->rp_portname[0] == '\0' ||
-		    (tpif = ifunit(rp->rp_portname)) == NULL) {
+		    (tpif = ifunit_ref(rp->rp_portname)) == NULL) {
 			error = EINVAL;
 			break;
 		}
@@ -1496,11 +1504,13 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    lp->lp_softc != sc) {
 			error = ENOENT;
 			LAGG_WUNLOCK(sc);
+			if_rele(tpif);
 			break;
 		}
 
 		error = lagg_port_destroy(lp, 1);
 		LAGG_WUNLOCK(sc);
+		if_rele(tpif);
 		break;
 	case SIOCSIFFLAGS:
 		/* Set flags on ports too */
