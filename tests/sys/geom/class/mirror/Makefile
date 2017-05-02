@@ -11,6 +11,8 @@ TAP_TESTS_SH+=	4_test
 TAP_TESTS_SH+=	5_test
 TAP_TESTS_SH+=	6_test
 TAP_TESTS_SH+=	7_test
+TAP_TESTS_SH+=	8_test
+TAP_TESTS_SH+=	9_test
 
 ${PACKAGE}FILES+=		conf.sh
 
