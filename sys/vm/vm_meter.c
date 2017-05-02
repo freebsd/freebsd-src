@@ -266,8 +266,27 @@ static SYSCTL_NODE(_vm_stats, OID_AUTO, vm, CTLFLAG_RW, 0,
 	"VM meter vm stats");
 SYSCTL_NODE(_vm_stats, OID_AUTO, misc, CTLFLAG_RW, 0, "VM meter misc stats");
 
+static int
+sysctl_handle_vmstat(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+#ifdef COMPAT_FREEBSD11
+	uint32_t val32;
+#endif
+
+	val = counter_u64_fetch(*(counter_u64_t *)arg1);
+#ifdef COMPAT_FREEBSD11
+	if (req->oldlen == sizeof(val32)) {
+		val32 = val;		/* truncate */
+		return (SYSCTL_OUT(req, &val32, sizeof(val32)));
+	}
+#endif
+	return (SYSCTL_OUT(req, &val, sizeof(val)));
+}
+
 #define	VM_STATS(parent, var, descr) \
-    SYSCTL_COUNTER_U64(parent, OID_AUTO, var, CTLFLAG_RD, &vm_cnt.var, descr)
+    SYSCTL_OID(parent, OID_AUTO, var, CTLTYPE_U64 | CTLFLAG_MPSAFE | \
+    CTLFLAG_RD, &vm_cnt.var, 0, sysctl_handle_vmstat, "QU", descr);
 #define	VM_STATS_VM(var, descr)		VM_STATS(_vm_stats_vm, var, descr)
 #define	VM_STATS_SYS(var, descr)	VM_STATS(_vm_stats_sys, var, descr)
 
