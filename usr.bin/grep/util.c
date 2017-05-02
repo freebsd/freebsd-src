@@ -54,11 +54,23 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "grep.h"
 
-static int	 linesqueued;
-static int	 procline(struct str *l, int);
+static bool	 first_match = true;
 
-static int	 lasta;
-static bool	 ctxover;
+/*
+ * Parsing context; used to hold things like matches made and
+ * other useful bits
+ */
+struct parsec {
+	regmatch_t matches[MAX_LINE_MATCHES];	/* Matches made */
+	struct str ln;				/* Current line */
+	size_t matchidx;			/* Latest used match index */
+	bool binary;				/* Binary file? */
+};
+
+
+static int procline(struct parsec *pc);
+static void printline(struct parsec *pc, int sep);
+static void printline_metadata(struct str *line, int sep);
 
 bool
 file_matching(const char *fname)
@@ -183,12 +195,18 @@ grep_tree(char **argv)
 int
 procfile(const char *fn)
 {
+	struct parsec pc;
 	struct file *f;
 	struct stat sb;
-	struct str ln;
+	struct str *ln;
 	mode_t s;
-	int c, t;
+	int c, last_outed, t, tail;
+	bool doctx, same_file;
 
+	doctx = false;
+	if ((!pc.binary || binbehave != BINFILE_BIN) && !cflag && !qflag &&
+	    !lflag && !Lflag && (Aflag != 0 || Bflag != 0))
+		doctx = true;
 	mcount = mlimit;
 
 	if (strcmp(fn, "-") == 0) {
@@ -213,57 +231,91 @@ procfile(const char *fn)
 		return (0);
 	}
 
-	ln.file = grep_malloc(strlen(fn) + 1);
-	strcpy(ln.file, fn);
-	ln.line_no = 0;
-	ln.len = 0;
-	ctxover = false;
-	linesqueued = 0;
+	/* Convenience */
+	ln = &pc.ln;
+	pc.ln.file = grep_malloc(strlen(fn) + 1);
+	strcpy(pc.ln.file, fn);
+	pc.ln.line_no = 0;
+	pc.ln.len = 0;
+	pc.ln.off = -1;
+	pc.binary = f->binary;
 	tail = 0;
-	lasta = 0;
-	ln.off = -1;
+	last_outed = 0;
+	same_file = false;
 
 	for (c = 0;  c == 0 || !(lflag || qflag); ) {
-		ln.off += ln.len + 1;
-		if ((ln.dat = grep_fgetln(f, &ln.len)) == NULL || ln.len == 0) {
-			if (ln.line_no == 0 && matchall)
-				exit(0);
+		/* Reset match count for every line processed */
+		pc.matchidx = 0;
+		pc.ln.off += pc.ln.len + 1;
+		if ((pc.ln.dat = grep_fgetln(f, &pc.ln.len)) == NULL ||
+		    pc.ln.len == 0) {
+			if (pc.ln.line_no == 0 && matchall)
+				/*
+				 * An empty file with an empty pattern and the
+				 * -w flag does not match
+				 */
+				exit(matchall && wflag ? 1 : 0);
 			else
 				break;
 		}
-		if (ln.len > 0 && ln.dat[ln.len - 1] == fileeol)
-			--ln.len;
-		ln.line_no++;
+
+		if (pc.ln.len > 0 && pc.ln.dat[pc.ln.len - 1] == fileeol)
+			--pc.ln.len;
+		pc.ln.line_no++;
 
 		/* Return if we need to skip a binary file */
-		if (f->binary && binbehave == BINFILE_SKIP) {
+		if (pc.binary && binbehave == BINFILE_SKIP) {
 			grep_close(f);
-			free(ln.file);
+			free(pc.ln.file);
 			free(f);
 			return (0);
 		}
 
-		/* Process the file line-by-line, enqueue non-matching lines */
-		if ((t = procline(&ln, f->binary)) == 0 && Bflag > 0) {
-			/* Except don't enqueue lines that appear in -A ctx */
-			if (ln.line_no == 0 || lasta != ln.line_no) {
-				/* queue is maxed to Bflag number of lines */
-				enqueue(&ln);
-				linesqueued++;
-				ctxover = false;
+		if ((t = procline(&pc)) == 0)
+			++c;
+
+		/* Deal with any -B context or context separators */
+		if (t == 0 && doctx) {
+			if (!first_match && (!same_file || last_outed > 0))
+				printf("--\n");
+			if (Bflag > 0)
+				printqueue();
+			tail = Aflag;
+		}
+		/* Print the matching line, but only if not quiet/binary */
+		if (t == 0 && !qflag && !pc.binary) {
+			printline(&pc, ':');
+			first_match = false;
+			same_file = true;
+			last_outed = 0;
+		}
+		if (t != 0 && doctx) {
+			/* Deal with any -A context */
+			if (tail > 0) {
+				printline(&pc, '-');
+				tail--;
+				if (Bflag > 0)
+					clearqueue();
 			} else {
 				/*
-				 * Indicate to procline() that we have ctx
-				 * overlap and make sure queue is empty.
+				 * Enqueue non-matching lines for -B context.
+				 * If we're not actually doing -B context or if
+				 * the enqueue resulted in a line being rotated
+				 * out, then go ahead and increment last_outed
+				 * to signify a gap between context/match.
 				 */
-				if (!ctxover)
-					clearqueue();
-				ctxover = true;
+				if (Bflag == 0 || (Bflag > 0 && enqueue(ln)))
+					++last_outed;
 			}
 		}
-		c += t;
-		if (mflag && mcount <= 0)
-			break;
+
+		/* Count the matches if we have a match limit */
+		if (t == 0 && mflag) {
+			--mcount;
+			if (mflag && mcount <= 0)
+				break;
+		}
+
 	}
 	if (Bflag > 0)
 		clearqueue();
@@ -271,7 +323,7 @@ procfile(const char *fn)
 
 	if (cflag) {
 		if (!hflag)
-			printf("%s:", ln.file);
+			printf("%s:", pc.ln.file);
 		printf("%u\n", c);
 	}
 	if (lflag && !qflag && c != 0)
@@ -282,7 +334,7 @@ procfile(const char *fn)
 	    binbehave == BINFILE_BIN && f->binary && !qflag)
 		printf(getstr(8), fn);
 
-	free(ln.file);
+	free(pc.ln.file);
 	free(f);
 	return (c);
 }
@@ -297,62 +349,72 @@ procfile(const char *fn)
  * appropriate output.
  */
 static int
-procline(struct str *l, int nottext)
+procline(struct parsec *pc)
 {
-	regmatch_t matches[MAX_LINE_MATCHES];
-	regmatch_t pmatch, lastmatch;
+	regmatch_t pmatch, lastmatch, chkmatch;
+	wchar_t wbegin, wend;
 	size_t st = 0, nst = 0;
 	unsigned int i;
-	int c = 0, m = 0, r = 0, lastmatches = 0, leflags = eflags;
-	int startm = 0;
+	int c = 0, r = 0, lastmatches = 0, leflags = eflags;
+	size_t startm = 0, matchidx;
 	int retry;
+
+	matchidx = pc->matchidx;
+
+	/* Special case: empty pattern with -w flag, check first character */
+	if (matchall && wflag) {
+		if (pc->ln.len == 0)
+			return (0);
+		wend = L' ';
+		if (sscanf(&pc->ln.dat[0], "%lc", &wend) != 1 || iswword(wend))
+			return (1);
+		else
+			return (0);
+	} else if (matchall)
+		return (0);
 
 	/* Initialize to avoid a false positive warning from GCC. */
 	lastmatch.rm_so = lastmatch.rm_eo = 0;
 
 	/* Loop to process the whole line */
-	while (st <= l->len) {
+	while (st <= pc->ln.len) {
 		lastmatches = 0;
-		startm = m;
+		startm = matchidx;
 		retry = 0;
 		if (st > 0)
 			leflags |= REG_NOTBOL;
 		/* Loop to compare with all the patterns */
 		for (i = 0; i < patterns; i++) {
 			pmatch.rm_so = st;
-			pmatch.rm_eo = l->len;
+			pmatch.rm_eo = pc->ln.len;
 #ifndef WITHOUT_FASTMATCH
 			if (fg_pattern[i].pattern)
 				r = fastexec(&fg_pattern[i],
-				    l->dat, 1, &pmatch, leflags);
+				    pc->ln.dat, 1, &pmatch, leflags);
 			else
 #endif
-				r = regexec(&r_pattern[i], l->dat, 1,
+				r = regexec(&r_pattern[i], pc->ln.dat, 1,
 				    &pmatch, leflags);
-			r = (r == 0) ? 0 : REG_NOMATCH;
-			if (r == REG_NOMATCH)
+			if (r != 0)
 				continue;
 			/* Check for full match */
-			if (r == 0 && xflag)
-				if (pmatch.rm_so != 0 ||
-				    (size_t)pmatch.rm_eo != l->len)
-					r = REG_NOMATCH;
+			if (xflag && (pmatch.rm_so != 0 ||
+			    (size_t)pmatch.rm_eo != pc->ln.len))
+				continue;
 			/* Check for whole word match */
 #ifndef WITHOUT_FASTMATCH
-			if (r == 0 && (wflag || fg_pattern[i].word)) {
+			if (wflag || fg_pattern[i].word) {
 #else
-			if (r == 0 && wflag) {
+			if (wflag) {
 #endif
-				wchar_t wbegin, wend;
-
 				wbegin = wend = L' ';
 				if (pmatch.rm_so != 0 &&
-				    sscanf(&l->dat[pmatch.rm_so - 1],
+				    sscanf(&pc->ln.dat[pmatch.rm_so - 1],
 				    "%lc", &wbegin) != 1)
 					r = REG_NOMATCH;
 				else if ((size_t)pmatch.rm_eo !=
-				    l->len &&
-				    sscanf(&l->dat[pmatch.rm_eo],
+				    pc->ln.len &&
+				    sscanf(&pc->ln.dat[pmatch.rm_eo],
 				    "%lc", &wend) != 1)
 					r = REG_NOMATCH;
 				else if (iswword(wbegin) ||
@@ -361,7 +423,7 @@ procline(struct str *l, int nottext)
 				/*
 				 * If we're doing whole word matching and we
 				 * matched once, then we should try the pattern
-				 * again after advancing just past the start  of
+				 * again after advancing just past the start of
 				 * the earliest match. This allows the pattern
 				 * to  match later on in the line and possibly
 				 * still match a whole word.
@@ -369,33 +431,40 @@ procline(struct str *l, int nottext)
 				if (r == REG_NOMATCH &&
 				    (retry == 0 || pmatch.rm_so + 1 < retry))
 					retry = pmatch.rm_so + 1;
+				if (r == REG_NOMATCH)
+					continue;
 			}
-			if (r == 0) {
-				lastmatches++;
-				lastmatch = pmatch;
-				if (m == 0)
-					c++;
 
-				if (m < MAX_LINE_MATCHES) {
-					/* Replace previous match if the new one is earlier and/or longer */
-					if (m > startm) {
-						if (pmatch.rm_so < matches[m-1].rm_so ||
-						    (pmatch.rm_so == matches[m-1].rm_so && (pmatch.rm_eo - pmatch.rm_so) > (matches[m-1].rm_eo - matches[m-1].rm_so))) {
-							matches[m-1] = pmatch;
-							nst = pmatch.rm_eo;
-						}
-					} else {
-						/* Advance as normal if not */
-						matches[m++] = pmatch;
-						nst = pmatch.rm_eo;
-					}
+			lastmatches++;
+			lastmatch = pmatch;
+
+			if (matchidx == 0)
+				c++;
+
+			/*
+			 * Replace previous match if the new one is earlier
+			 * and/or longer. This will lead to some amount of
+			 * extra work if -o/--color are specified, but it's
+			 * worth it from a correctness point of view.
+			 */
+			if (matchidx > startm) {
+				chkmatch = pc->matches[matchidx - 1];
+				if (pmatch.rm_so < chkmatch.rm_so ||
+				    (pmatch.rm_so == chkmatch.rm_so &&
+				    (pmatch.rm_eo - pmatch.rm_so) >
+				    (chkmatch.rm_eo - chkmatch.rm_so))) {
+					pc->matches[matchidx - 1] = pmatch;
+					nst = pmatch.rm_eo;
 				}
-
-				/* matches - skip further patterns */
-				if ((color == NULL && !oflag) ||
-				    qflag || lflag)
-					break;
+			} else {
+				/* Advance as normal if not */
+				pc->matches[matchidx++] = pmatch;
+				nst = pmatch.rm_eo;
 			}
+			/* avoid excessive matching - skip further patterns */
+			if ((color == NULL && !oflag) || qflag || lflag ||
+			    matchidx >= MAX_LINE_MATCHES)
+				break;
 		}
 
 		/*
@@ -414,7 +483,7 @@ procline(struct str *l, int nottext)
 
 		/* If we didn't have any matches or REG_NOSUB set */
 		if (lastmatches == 0 || (cflags & REG_NOSUB))
-			nst = l->len;
+			nst = pc->ln.len;
 
 		if (lastmatches == 0)
 			/* No matches */
@@ -427,45 +496,11 @@ procline(struct str *l, int nottext)
 		st = nst;
 	}
 
-
+	/* Reflect the new matchidx in the context */
+	pc->matchidx = matchidx;
 	if (vflag)
 		c = !c;
-
-	/* Count the matches if we have a match limit */
-	if (mflag)
-		mcount -= c;
-
-	if (c && binbehave == BINFILE_BIN && nottext)
-		return (c); /* Binary file */
-
-	/* Dealing with the context */
-	if ((tail || c) && !cflag && !qflag && !lflag && !Lflag) {
-		if (c) {
-			if (!first && !prev && !tail && (Bflag || Aflag) &&
-			    !ctxover)
-				printf("--\n");
-			tail = Aflag;
-			if (Bflag > 0) {
-				printqueue();
-				ctxover = false;
-			}
-			linesqueued = 0;
-			printline(l, ':', matches, m);
-		} else {
-			/* Print -A lines following matches */
-			lasta = l->line_no;
-			printline(l, '-', matches, m);
-			tail--;
-		}
-	}
-
-	if (c) {
-		prev = true;
-		first = false;
-	} else
-		prev = false;
-
-	return (c);
+	return (c ? 0 : 1);
 }
 
 /*
@@ -520,69 +555,89 @@ grep_strdup(const char *str)
 }
 
 /*
- * Prints a matching line according to the command line options.
+ * Print an entire line as-is, there are no inline matches to consider. This is
+ * used for printing context.
  */
-void
-printline(struct str *line, int sep, regmatch_t *matches, int m)
+void grep_printline(struct str *line, int sep) {
+	printline_metadata(line, sep);
+	fwrite(line->dat, line->len, 1, stdout);
+	putchar(fileeol);
+}
+
+static void
+printline_metadata(struct str *line, int sep)
 {
-	size_t a = 0;
-	int i, n = 0;
+	bool printsep;
 
-	/* If matchall, everything matches but don't actually print for -o */
-	if (oflag && matchall)
-		return;
-
+	printsep = false;
 	if (!hflag) {
 		if (!nullflag) {
 			fputs(line->file, stdout);
-			++n;
+			printsep = true;
 		} else {
 			printf("%s", line->file);
 			putchar(0);
 		}
 	}
 	if (nflag) {
-		if (n > 0)
+		if (printsep)
 			putchar(sep);
 		printf("%d", line->line_no);
-		++n;
+		printsep = true;
 	}
 	if (bflag) {
-		if (n > 0)
+		if (printsep)
 			putchar(sep);
 		printf("%lld", (long long)line->off);
-		++n;
+		printsep = true;
 	}
-	if (n)
+	if (printsep)
 		putchar(sep);
+}
+
+/*
+ * Prints a matching line according to the command line options.
+ */
+static void
+printline(struct parsec *pc, int sep)
+{
+	size_t a = 0;
+	size_t i, matchidx;
+	regmatch_t match;
+
+	/* If matchall, everything matches but don't actually print for -o */
+	if (oflag && matchall)
+		return;
+
+	matchidx = pc->matchidx;
+
 	/* --color and -o */
-	if ((oflag || color) && m > 0) {
-		for (i = 0; i < m; i++) {
+	if ((oflag || color) && matchidx > 0) {
+		printline_metadata(&pc->ln, sep);
+		for (i = 0; i < matchidx; i++) {
+			match = pc->matches[i];
 			/* Don't output zero length matches */
-			if (matches[i].rm_so == matches[i].rm_eo)
+			if (match.rm_so == match.rm_eo)
 				continue;
 			if (!oflag)
-				fwrite(line->dat + a, matches[i].rm_so - a, 1,
+				fwrite(pc->ln.dat + a, match.rm_so - a, 1,
 				    stdout);
-			if (color) 
+			if (color)
 				fprintf(stdout, "\33[%sm\33[K", color);
-
-				fwrite(line->dat + matches[i].rm_so, 
-				    matches[i].rm_eo - matches[i].rm_so, 1,
-				    stdout);
-			if (color) 
+			fwrite(pc->ln.dat + match.rm_so,
+			    match.rm_eo - match.rm_so, 1, stdout);
+			if (color)
 				fprintf(stdout, "\33[m\33[K");
-			a = matches[i].rm_eo;
+			a = match.rm_eo;
 			if (oflag)
 				putchar('\n');
 		}
 		if (!oflag) {
-			if (line->len - a > 0)
-				fwrite(line->dat + a, line->len - a, 1, stdout);
+			if (pc->ln.len - a > 0)
+				fwrite(pc->ln.dat + a, pc->ln.len - a, 1,
+				    stdout);
 			putchar('\n');
 		}
-	} else {
-		fwrite(line->dat, line->len, 1, stdout);
-		putchar(fileeol);
-	}
+	} else
+		grep_printline(&pc->ln, sep);
 }
