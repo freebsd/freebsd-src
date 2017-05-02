@@ -716,8 +716,13 @@ main(int argc, char *argv[])
 	case GREP_BASIC:
 		break;
 	case GREP_FIXED:
-		/* XXX: header mess, REG_LITERAL not defined in gnu/regex.h */
-		cflags |= 0020;
+#if defined(REG_NOSPEC)
+		cflags |= REG_NOSPEC;
+#elif defined(REG_LITERAL)
+		cflags |= REG_LITERAL;
+#else
+		errx(2, "literal expressions not supported at compile time");
+#endif
 		break;
 	case GREP_EXTENDED:
 		cflags |= REG_EXTENDED;
