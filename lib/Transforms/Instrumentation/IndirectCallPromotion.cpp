@@ -771,7 +771,7 @@ public:
       if (perform(MI)) {
         Changed = true;
         ++NumOfPGOMemOPOpt;
-        DEBUG(dbgs() << "MemOP calls: " << MI->getCalledFunction()->getName()
+        DEBUG(dbgs() << "MemOP call: " << MI->getCalledFunction()->getName()
                      << "is Transformed.\n");
       }
     }
@@ -863,13 +863,23 @@ bool MemOPSizeOpt::perform(MemIntrinsic *MI) {
     ActualCount = *BBEdgeCount;
   }
 
+  ArrayRef<InstrProfValueData> VDs(ValueDataArray.get(), NumVals);
+  DEBUG(dbgs() << "Read one memory intrinsic profile with count " << ActualCount
+               << "\n");
+  DEBUG(
+      for (auto &VD
+           : VDs) { dbgs() << "  (" << VD.Value << "," << VD.Count << ")\n"; });
+
   if (ActualCount < MemOPCountThreshold)
     return false;
+  // Skip if the total value profiled count is 0, in which case we can't
+  // scale up the counts properly (and there is no profitable transformation).
+  if (TotalCount == 0)
+    return false;
 
-  ArrayRef<InstrProfValueData> VDs(ValueDataArray.get(), NumVals);
   TotalCount = ActualCount;
   if (MemOPScaleCount)
-    DEBUG(dbgs() << "Scale counts: numberator = " << ActualCount
+    DEBUG(dbgs() << "Scale counts: numerator = " << ActualCount
                  << " denominator = " << SavedTotalCount << "\n");
 
   // Keeping track of the count of the default case:
@@ -915,14 +925,10 @@ bool MemOPSizeOpt::perform(MemIntrinsic *MI) {
     MaxCount = RemainCount;
 
   uint64_t SumForOpt = TotalCount - RemainCount;
-  DEBUG(dbgs() << "Read one memory intrinsic profile: " << SumForOpt << " vs "
-               << TotalCount << "\n");
-  DEBUG(
-      for (auto &VD
-           : VDs) { dbgs() << "  (" << VD.Value << "," << VD.Count << ")\n"; });
 
   DEBUG(dbgs() << "Optimize one memory intrinsic call to " << Version
-               << " Versions\n");
+               << " Versions (covering " << SumForOpt << " out of "
+               << TotalCount << ")\n");
 
   // mem_op(..., size)
   // ==>

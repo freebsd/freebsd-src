@@ -366,7 +366,7 @@ public:
   /// that 0 is not a positive value.
   ///
   /// \returns true if this APInt is positive.
-  bool isStrictlyPositive() const { return isNonNegative() && !!*this; }
+  bool isStrictlyPositive() const { return isNonNegative() && !isNullValue(); }
 
   /// \brief Determine if all bits are set
   ///
@@ -376,6 +376,12 @@ public:
       return VAL == WORD_MAX >> (APINT_BITS_PER_WORD - BitWidth);
     return countPopulationSlowCase() == BitWidth;
   }
+
+  /// \brief Determine if all bits are clear
+  ///
+  /// This checks to see if the value has all bits of the APInt are clear or
+  /// not.
+  bool isNullValue() const { return !*this; }
 
   /// \brief Determine if this is the largest unsigned value.
   ///
@@ -395,7 +401,7 @@ public:
   ///
   /// This checks to see if the value of this APInt is the minimum unsigned
   /// value for the APInt's bit width.
-  bool isMinValue() const { return !*this; }
+  bool isMinValue() const { return isNullValue(); }
 
   /// \brief Determine if this is the smallest signed value.
   ///
@@ -611,15 +617,7 @@ public:
   }
 
   /// \brief Return a value containing V broadcasted over NewLen bits.
-  static APInt getSplat(unsigned NewLen, const APInt &V) {
-    assert(NewLen >= V.getBitWidth() && "Can't splat to smaller bit width!");
-
-    APInt Val = V.zextOrSelf(NewLen);
-    for (unsigned I = V.getBitWidth(); I < NewLen; I <<= 1)
-      Val |= Val << I;
-
-    return Val;
-  }
+  static APInt getSplat(unsigned NewLen, const APInt &V);
 
   /// \brief Determine if two APInts have the same value, after zero-extending
   /// one of them (if needed!) to ensure that the bit-widths match.
@@ -687,7 +685,9 @@ public:
   ///
   /// \returns true if *this is zero, false otherwise.
   bool operator!() const {
-    return *this == 0;
+    if (isSingleWord())
+      return VAL == 0;
+    return countLeadingZerosSlowCase() == BitWidth;
   }
 
   /// @}
@@ -874,6 +874,13 @@ public:
     return *this;
   }
 
+  /// \brief Left-shift assignment function.
+  ///
+  /// Shifts *this left by shiftAmt and assigns the result to *this.
+  ///
+  /// \returns *this after shifting left by ShiftAmt
+  APInt &operator<<=(const APInt &ShiftAmt);
+
   /// @}
   /// \name Binary Operators
   /// @{
@@ -981,7 +988,11 @@ public:
   /// \brief Left-shift function.
   ///
   /// Left-shift this APInt by shiftAmt.
-  APInt shl(const APInt &shiftAmt) const;
+  APInt shl(const APInt &ShiftAmt) const {
+    APInt R(*this);
+    R <<= ShiftAmt;
+    return R;
+  }
 
   /// \brief Rotate left by rotateAmt.
   APInt rotl(const APInt &rotateAmt) const;
@@ -1333,7 +1344,14 @@ public:
   /// \brief Set a given bit to 1.
   ///
   /// Set the given bit to 1 whose position is given as "bitPosition".
-  void setBit(unsigned bitPosition);
+  void setBit(unsigned BitPosition) {
+    assert(BitPosition <= BitWidth && "BitPosition out of range");
+    WordType Mask = maskBit(BitPosition);
+    if (isSingleWord())
+      VAL |= Mask;
+    else
+      pVal[whichWord(BitPosition)] |= Mask;
+  }
 
   /// Set the sign bit to 1.
   void setSignBit() {
@@ -1344,13 +1362,9 @@ public:
   void setBits(unsigned loBit, unsigned hiBit) {
     assert(hiBit <= BitWidth && "hiBit out of range");
     assert(loBit <= BitWidth && "loBit out of range");
+    assert(loBit <= hiBit && "loBit greater than hiBit");
     if (loBit == hiBit)
       return;
-    if (loBit > hiBit) {
-      setLowBits(hiBit);
-      setHighBits(BitWidth - loBit);
-      return;
-    }
     if (loBit < APINT_BITS_PER_WORD && hiBit <= APINT_BITS_PER_WORD) {
       uint64_t mask = WORD_MAX >> (APINT_BITS_PER_WORD - (hiBit - loBit));
       mask <<= loBit;
@@ -1389,7 +1403,19 @@ public:
   /// \brief Set a given bit to 0.
   ///
   /// Set the given bit to 0 whose position is given as "bitPosition".
-  void clearBit(unsigned bitPosition);
+  void clearBit(unsigned BitPosition) {
+    assert(BitPosition <= BitWidth && "BitPosition out of range");
+    WordType Mask = ~maskBit(BitPosition);
+    if (isSingleWord())
+      VAL &= Mask;
+    else
+      pVal[whichWord(BitPosition)] &= Mask;
+  }
+
+  /// Set the sign bit to 0.
+  void clearSignBit() {
+    clearBit(BitWidth - 1);
+  }
 
   /// \brief Toggle every bit to its opposite value.
   void flipAllBits() {
@@ -1695,7 +1721,7 @@ public:
       return VAL - 1;
 
     // Handle the zero case.
-    if (!getBoolValue())
+    if (isNullValue())
       return UINT32_MAX;
 
     // The non-zero case is handled by computing:

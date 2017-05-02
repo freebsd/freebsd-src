@@ -14,10 +14,15 @@ macro(find_first_existing_vc_file out_var path)
   execute_process(COMMAND ${git_executable} rev-parse --git-dir
     WORKING_DIRECTORY ${path}/cmake
     RESULT_VARIABLE git_result
-    OUTPUT_VARIABLE git_dir)
+    OUTPUT_VARIABLE git_dir
+    ERROR_QUIET)
   if(git_result EQUAL 0)
     string(STRIP "${git_dir}" git_dir)
     set(${out_var} "${git_dir}/logs/HEAD")
+    # some branchless cases (e.g. 'repo') may not yet have .git/logs/HEAD
+    if (NOT EXISTS "${git_dir}/logs/HEAD")
+      file(WRITE "${git_dir}/logs/HEAD" "")
+    endif()
   else()
     find_first_existing_file(${out_var}
       "${path}/.svn/wc.db"   # SVN 1.7

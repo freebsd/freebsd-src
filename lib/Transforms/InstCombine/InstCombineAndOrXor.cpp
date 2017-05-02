@@ -1213,7 +1213,7 @@ static Instruction *foldAndToXor(BinaryOperator &I,
   // (~B | A) & (~A | B) --> ~(A ^ B)
   // (~B | A) & (B | ~A) --> ~(A ^ B)
   if (match(Op0, m_c_Or(m_Value(A), m_Not(m_Value(B)))) &&
-      match(Op1, m_c_Or(m_Not(m_Specific(A)), m_Value(B))))
+      match(Op1, m_c_Or(m_Not(m_Specific(A)), m_Specific(B))))
     return BinaryOperator::CreateNot(Builder.CreateXor(A, B));
 
   return nullptr;
@@ -1254,7 +1254,7 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
   if (Value *V = SimplifyVectorOp(I))
     return replaceInstUsesWith(I, V);
 
-  if (Value *V = SimplifyAndInst(Op0, Op1, DL, &TLI, &DT, &AC))
+  if (Value *V = SimplifyAndInst(Op0, Op1, SQ))
     return replaceInstUsesWith(I, V);
 
   // See if we can simplify any instructions used by the instruction whose sole
@@ -2039,7 +2039,7 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
   if (Value *V = SimplifyVectorOp(I))
     return replaceInstUsesWith(I, V);
 
-  if (Value *V = SimplifyOrInst(Op0, Op1, DL, &TLI, &DT, &AC))
+  if (Value *V = SimplifyOrInst(Op0, Op1, SQ))
     return replaceInstUsesWith(I, V);
 
   // See if we can simplify any instructions used by the instruction whose sole
@@ -2415,7 +2415,7 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
   if (Value *V = SimplifyVectorOp(I))
     return replaceInstUsesWith(I, V);
 
-  if (Value *V = SimplifyXorInst(Op0, Op1, DL, &TLI, &DT, &AC))
+  if (Value *V = SimplifyXorInst(Op0, Op1, SQ))
     return replaceInstUsesWith(I, V);
 
   if (Instruction *NewXor = foldXorToXor(I))
@@ -2433,25 +2433,32 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
   if (Value *V = SimplifyBSwap(I))
     return replaceInstUsesWith(I, V);
 
+  // Apply DeMorgan's Law for 'nand' / 'nor' logic with an inverted operand.
+  Value *X, *Y;
+
+  // We must eliminate the and/or (one-use) for these transforms to not increase
+  // the instruction count.
+  // ~(~X & Y) --> (X | ~Y)
+  // ~(Y & ~X) --> (X | ~Y)
+  if (match(&I, m_Not(m_OneUse(m_c_And(m_Not(m_Value(X)), m_Value(Y)))))) {
+    Value *NotY = Builder->CreateNot(Y, Y->getName() + ".not");
+    return BinaryOperator::CreateOr(X, NotY);
+  }
+  // ~(~X | Y) --> (X & ~Y)
+  // ~(Y | ~X) --> (X & ~Y)
+  if (match(&I, m_Not(m_OneUse(m_c_Or(m_Not(m_Value(X)), m_Value(Y)))))) {
+    Value *NotY = Builder->CreateNot(Y, Y->getName() + ".not");
+    return BinaryOperator::CreateAnd(X, NotY);
+  }
+
   // Is this a 'not' (~) fed by a binary operator?
   BinaryOperator *NotOp;
   if (match(&I, m_Not(m_BinOp(NotOp)))) {
     if (NotOp->getOpcode() == Instruction::And ||
         NotOp->getOpcode() == Instruction::Or) {
-      // ~(~X & Y) --> (X | ~Y) - De Morgan's Law
-      // ~(~X | Y) === (X & ~Y) - De Morgan's Law
-      if (dyn_castNotVal(NotOp->getOperand(1)))
-        NotOp->swapOperands();
-      if (Value *Op0NotVal = dyn_castNotVal(NotOp->getOperand(0))) {
-        Value *NotY = Builder->CreateNot(
-            NotOp->getOperand(1), NotOp->getOperand(1)->getName() + ".not");
-        if (NotOp->getOpcode() == Instruction::And)
-          return BinaryOperator::CreateOr(Op0NotVal, NotY);
-        return BinaryOperator::CreateAnd(Op0NotVal, NotY);
-      }
-
-      // ~(X & Y) --> (~X | ~Y) - De Morgan's Law
-      // ~(X | Y) === (~X & ~Y) - De Morgan's Law
+      // Apply DeMorgan's Law when inverts are free:
+      // ~(X & Y) --> (~X | ~Y)
+      // ~(X | Y) --> (~X & ~Y)
       if (IsFreeToInvert(NotOp->getOperand(0),
                          NotOp->getOperand(0)->hasOneUse()) &&
           IsFreeToInvert(NotOp->getOperand(1),

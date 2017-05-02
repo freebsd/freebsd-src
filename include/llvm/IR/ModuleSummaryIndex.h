@@ -644,13 +644,6 @@ public:
     return It->second.second;
   }
 
-  /// Add the given per-module index into this module index/summary,
-  /// assigning it the given module ID. Each module merged in should have
-  /// a unique ID, necessary for consistent renaming of promoted
-  /// static (local) variables.
-  void mergeFrom(std::unique_ptr<ModuleSummaryIndex> Other,
-                 uint64_t NextModuleId);
-
   /// Convenience method for creating a promoted global name
   /// for the given value name of a local, and its original module's ID.
   static std::string getGlobalNameForLocal(StringRef Name, ModuleHash ModHash) {
@@ -702,13 +695,6 @@ public:
       return nullptr;
     return &I->second;
   }
-
-  /// Remove entries in the GlobalValueMap that have empty summaries due to the
-  /// eager nature of map entry creation during VST parsing. These would
-  /// also be suppressed during combined index generation in mergeFrom(),
-  /// but if there was only one module or this was the first module we might
-  /// not invoke mergeFrom.
-  void removeEmptySummaryEntries();
 
   /// Collect for the given module the list of function it defines
   /// (GUID -> Summary).
