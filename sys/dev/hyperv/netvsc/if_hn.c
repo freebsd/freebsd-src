@@ -487,7 +487,7 @@ SYSCTL_INT(_hw_hn, OID_AUTO, tx_swq_depth, CTLFLAG_RDTUN,
 
 /* Enable sorted LRO, and the depth of the per-channel mbuf queue */
 #if __FreeBSD_version >= 1100095
-static u_int			hn_lro_mbufq_depth = 0;
+static u_int			hn_lro_mbufq_depth = 512;
 SYSCTL_UINT(_hw_hn, OID_AUTO, lro_mbufq_depth, CTLFLAG_RDTUN,
     &hn_lro_mbufq_depth, 0, "Depth of LRO mbuf queue");
 #endif
