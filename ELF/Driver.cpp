@@ -124,7 +124,7 @@ static std::tuple<ELFKind, uint16_t, uint8_t> parseEmulation(StringRef Emul) {
 // Returns slices of MB by parsing MB as an archive file.
 // Each slice consists of a member file in the archive.
 std::vector<MemoryBufferRef>
-LinkerDriver::getArchiveMembers(MemoryBufferRef MB) {
+static getArchiveMembers(MemoryBufferRef MB) {
   std::unique_ptr<Archive> File =
       check(Archive::create(MB),
             MB.getBufferIdentifier() + ": failed to parse archive");
@@ -241,6 +241,9 @@ static void checkOptions(opt::InputArgList &Args) {
 
   if (Config->Pie && Config->Shared)
     error("-shared and -pie may not be used together");
+
+  if (!Config->Shared && !Config->AuxiliaryList.empty())
+    error("-f may not be used without -shared");
 
   if (Config->Relocatable) {
     if (Config->Shared)
@@ -396,7 +399,7 @@ static std::vector<StringRef> getArgs(opt::InputArgList &Args, int Id) {
   return V;
 }
 
-static std::string getRPath(opt::InputArgList &Args) {
+static std::string getRpath(opt::InputArgList &Args) {
   std::vector<StringRef> V = getArgs(Args, OPT_rpath);
   return llvm::join(V.begin(), V.end(), ":");
 }
@@ -444,16 +447,14 @@ static UnresolvedPolicy getUnresolvedSymbolPolicy(opt::InputArgList &Args) {
 }
 
 static Target2Policy getTarget2(opt::InputArgList &Args) {
-  if (auto *Arg = Args.getLastArg(OPT_target2)) {
-    StringRef S = Arg->getValue();
-    if (S == "rel")
-      return Target2Policy::Rel;
-    if (S == "abs")
-      return Target2Policy::Abs;
-    if (S == "got-rel")
-      return Target2Policy::GotRel;
-    error("unknown --target2 option: " + S);
-  }
+  StringRef S = getString(Args, OPT_target2, "got-rel");
+  if (S == "rel")
+    return Target2Policy::Rel;
+  if (S == "abs")
+    return Target2Policy::Abs;
+  if (S == "got-rel")
+    return Target2Policy::GotRel;
+  error("unknown --target2 option: " + S);
   return Target2Policy::GotRel;
 }
 
@@ -550,6 +551,29 @@ static std::pair<bool, bool> getHashStyle(opt::InputArgList &Args) {
   return {true, true};
 }
 
+// Parse --build-id or --build-id=<style>. We handle "tree" as a
+// synonym for "sha1" because all our hash functions including
+// -build-id=sha1 are actually tree hashes for performance reasons.
+static std::pair<BuildIdKind, std::vector<uint8_t>>
+getBuildId(opt::InputArgList &Args) {
+  if (Args.hasArg(OPT_build_id))
+    return {BuildIdKind::Fast, {}};
+
+  StringRef S = getString(Args, OPT_build_id_eq, "none");
+  if (S == "md5")
+    return {BuildIdKind::Md5, {}};
+  if (S == "sha1" || S == "tree")
+    return {BuildIdKind::Sha1, {}};
+  if (S == "uuid")
+    return {BuildIdKind::Uuid, {}};
+  if (S.startswith("0x"))
+    return {BuildIdKind::Hexstring, parseHex(S.substr(2))};
+
+  if (S != "none")
+    error("unknown --build-id style: " + S);
+  return {BuildIdKind::None, {}};
+}
+
 static std::vector<StringRef> getLines(MemoryBufferRef MB) {
   SmallVector<StringRef, 0> Arr;
   MB.getBuffer().split(Arr, '\n');
@@ -564,14 +588,14 @@ static std::vector<StringRef> getLines(MemoryBufferRef MB) {
 }
 
 static bool getCompressDebugSections(opt::InputArgList &Args) {
-  if (auto *Arg = Args.getLastArg(OPT_compress_debug_sections)) {
-    StringRef S = Arg->getValue();
-    if (S == "zlib")
-      return zlib::isAvailable();
-    if (S != "none")
-      error("unknown --compress-debug-sections value: " + S);
-  }
-  return false;
+  StringRef S = getString(Args, OPT_compress_debug_sections, "none");
+  if (S == "none")
+    return false;
+  if (S != "zlib")
+    error("unknown --compress-debug-sections value: " + S);
+  if (!zlib::isAvailable())
+    error("--compress-debug-sections: zlib is not available");
+  return true;
 }
 
 // Initializes Config members by the command line options.
@@ -616,7 +640,7 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   Config->OutputFile = getString(Args, OPT_o);
   Config->Pie = getArg(Args, OPT_pie, OPT_nopie, false);
   Config->PrintGcSections = Args.hasArg(OPT_print_gc_sections);
-  Config->RPath = getRPath(Args);
+  Config->Rpath = getRpath(Args);
   Config->Relocatable = Args.hasArg(OPT_relocatable);
   Config->SaveTemps = Args.hasArg(OPT_save_temps);
   Config->SearchPaths = getArgs(Args, OPT_L);
@@ -679,32 +703,7 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
     Config->ZRelro = false;
 
   std::tie(Config->SysvHash, Config->GnuHash) = getHashStyle(Args);
-
-  // Parse --build-id or --build-id=<style>. We handle "tree" as a
-  // synonym for "sha1" because all of our hash functions including
-  // -build-id=sha1 are tree hashes for performance reasons.
-  if (Args.hasArg(OPT_build_id))
-    Config->BuildId = BuildIdKind::Fast;
-  if (auto *Arg = Args.getLastArg(OPT_build_id_eq)) {
-    StringRef S = Arg->getValue();
-    if (S == "md5") {
-      Config->BuildId = BuildIdKind::Md5;
-    } else if (S == "sha1" || S == "tree") {
-      Config->BuildId = BuildIdKind::Sha1;
-    } else if (S == "uuid") {
-      Config->BuildId = BuildIdKind::Uuid;
-    } else if (S == "none") {
-      Config->BuildId = BuildIdKind::None;
-    } else if (S.startswith("0x")) {
-      Config->BuildId = BuildIdKind::Hexstring;
-      Config->BuildIdVector = parseHex(S.substr(2));
-    } else {
-      error("unknown --build-id style: " + S);
-    }
-  }
-
-  if (!Config->Shared && !Config->AuxiliaryList.empty())
-    error("-f may not be used without -shared");
+  std::tie(Config->BuildId, Config->BuildIdVector) = getBuildId(Args);
 
   if (auto *Arg = Args.getLastArg(OPT_symbol_ordering_file))
     if (Optional<MemoryBufferRef> Buffer = readFile(Arg->getValue()))

@@ -101,7 +101,7 @@ StringRef elf::getOutputSectionName(StringRef Name) {
     for (StringRef V : {".rel.", ".rela."}) {
       if (Name.startswith(V)) {
         StringRef Inner = getOutputSectionName(Name.substr(V.size() - 1));
-        return Saver.save(Twine(V.drop_back()) + Inner);
+        return Saver.save(V.drop_back() + Inner);
       }
     }
   }
@@ -123,7 +123,7 @@ StringRef elf::getOutputSectionName(StringRef Name) {
   // ".zdebug_" is a prefix for ZLIB-compressed sections.
   // Because we decompressed input sections, we want to remove 'z'.
   if (Name.startswith(".zdebug_"))
-    return Saver.save(Twine(".") + Name.substr(2));
+    return Saver.save("." + Name.substr(2));
   return Name;
 }
 
@@ -254,6 +254,7 @@ template <class ELFT> void Writer<ELFT>::run() {
       fixSectionAlignments();
       Script->fabricateDefaultCommands(Config->MaxPageSize);
     }
+    Script->synchronize();
     Script->assignAddresses(Phdrs);
 
     // Remove empty PT_LOAD to avoid causing the dynamic linker to try to mmap a
@@ -1080,6 +1081,7 @@ static void removeUnusedSyntheticSections(std::vector<OutputSection *> &V) {
 
     SS->OutSec->Sections.erase(std::find(SS->OutSec->Sections.begin(),
                                          SS->OutSec->Sections.end(), SS));
+    SS->Live = false;
     // If there are no other sections in the output section, remove it from the
     // output.
     if (SS->OutSec->Sections.empty())
