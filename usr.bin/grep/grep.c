@@ -81,7 +81,13 @@ const char	*errstr[] = {
 int		 cflags = REG_NOSUB;
 int		 eflags = REG_STARTEND;
 
-/* Shortcut for matching all cases like empty regex */
+/* XXX TODO: Get rid of this flag.
+ * matchall is a gross hack that means that an empty pattern was passed to us.
+ * It is a necessary evil at the moment because our regex(3) implementation
+ * does not allow for empty patterns, as supported by POSIX's definition of
+ * grammar for BREs/EREs. When libregex becomes available, it would be wise
+ * to remove this and let regex(3) handle the dirty details of empty patterns.
+ */
 bool		 matchall;
 
 /* Searching patterns */
@@ -153,9 +159,6 @@ enum {
 static inline const char	*init_color(const char *);
 
 /* Housekeeping */
-bool	 first = true;	/* flag whether we are processing the first match */
-bool	 prev;		/* flag whether or not the previous line matched */
-int	 tail;		/* lines left to print */
 bool	 file_err;	/* file reading error */
 
 /*
@@ -729,20 +732,25 @@ main(int argc, char *argv[])
 #endif
 	r_pattern = grep_calloc(patterns, sizeof(*r_pattern));
 
-	/* Check if cheating is allowed (always is for fgrep). */
-	for (i = 0; i < patterns; ++i) {
+	/* Don't process any patterns if we have a blank one */
+	if (!matchall) {
+		/* Check if cheating is allowed (always is for fgrep). */
+		for (i = 0; i < patterns; ++i) {
 #ifndef WITHOUT_FASTMATCH
-		/* Attempt compilation with fastmatch regex and fallback to
-		   regex(3) if it fails. */
-		if (fastncomp(&fg_pattern[i], pattern[i].pat,
-		    pattern[i].len, cflags) == 0)
-			continue;
+			/*
+			 * Attempt compilation with fastmatch regex and
+			 * fallback to regex(3) if it fails.
+			 */
+			if (fastncomp(&fg_pattern[i], pattern[i].pat,
+			    pattern[i].len, cflags) == 0)
+				continue;
 #endif
-		c = regcomp(&r_pattern[i], pattern[i].pat, cflags);
-		if (c != 0) {
-			regerror(c, &r_pattern[i], re_error,
-			    RE_ERROR_BUF);
-			errx(2, "%s", re_error);
+			c = regcomp(&r_pattern[i], pattern[i].pat, cflags);
+			if (c != 0) {
+				regerror(c, &r_pattern[i], re_error,
+				    RE_ERROR_BUF);
+				errx(2, "%s", re_error);
+			}
 		}
 	}
 
