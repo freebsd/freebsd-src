@@ -433,10 +433,8 @@ lagg_register_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 		return;
 
 	LAGG_RLOCK(sc, &tracker);
-	if (!SLIST_EMPTY(&sc->sc_ports)) {
-		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-			EVENTHANDLER_INVOKE(vlan_config, lp->lp_ifp, vtag);
-	}
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+		EVENTHANDLER_INVOKE(vlan_config, lp->lp_ifp, vtag);
 	LAGG_RUNLOCK(sc, &tracker);
 }
 
@@ -455,10 +453,8 @@ lagg_unregister_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 		return;
 
 	LAGG_RLOCK(sc, &tracker);
-	if (!SLIST_EMPTY(&sc->sc_ports)) {
-		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-			EVENTHANDLER_INVOKE(vlan_unconfig, lp->lp_ifp, vtag);
-	}
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+		EVENTHANDLER_INVOKE(vlan_unconfig, lp->lp_ifp, vtag);
 	LAGG_RUNLOCK(sc, &tracker);
 }
 
