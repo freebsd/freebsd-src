@@ -2,6 +2,6 @@
 
 PROG=   proccontrol
 WARNS?=	6
-MK_MAN=no
+MAN=
 
 .include <bsd.prog.mk>
