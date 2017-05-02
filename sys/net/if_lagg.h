@@ -202,19 +202,6 @@ struct lagg_mc {
 	SLIST_ENTRY(lagg_mc)	mc_entries;
 };
 
-typedef enum {
-	LAGG_LLQTYPE_PHYS = 0,	/* Task related to physical (underlying) port */
-	LAGG_LLQTYPE_VIRT,	/* Task related to lagg interface itself */
-} lagg_llqtype;
-
-/* List of interfaces to have the MAC address modified */
-struct lagg_llq {
-	struct ifnet		*llq_ifp;
-	uint8_t			llq_lladdr[ETHER_ADDR_LEN];
-	lagg_llqtype		llq_type;
-	SLIST_ENTRY(lagg_llq)	llq_entries;
-};
-
 struct lagg_counters {
 	uint64_t	val[IFCOUNTERS];
 };
@@ -222,6 +209,7 @@ struct lagg_counters {
 struct lagg_softc {
 	struct ifnet			*sc_ifp;	/* virtual interface */
 	struct rmlock			sc_mtx;
+	struct sx			sc_sx;
 	int				sc_proto;	/* lagg protocol */
 	u_int				sc_count;	/* number of ports */
 	u_int				sc_active;	/* active port count */
@@ -232,13 +220,11 @@ struct lagg_softc {
 	void				*sc_psc;	/* protocol data */
 	uint32_t			sc_seq;		/* sequence counter */
 	uint32_t			sc_flags;
+	int				sc_destroying;	/* destroying lagg */
 
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
 
-	struct task			sc_lladdr_task;
-	SLIST_HEAD(__llqhd, lagg_llq)	sc_llq_head;	/* interfaces to program
-							   the lladdr on */
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
 	struct callout			sc_callout;
@@ -258,12 +244,10 @@ struct lagg_port {
 	uint32_t			lp_prio;	/* port priority */
 	uint32_t			lp_flags;	/* port flags */
 	int				lp_ifflags;	/* saved ifp flags */
+	int				lp_ifcapenable;	/* saved ifp capenable */
 	void				*lh_cookie;	/* if state hook */
 	void				*lp_psc;	/* protocol data */
 	int				lp_detaching;	/* ifnet is detaching */
-#define	LAGG_PORT_DETACH		0x01		/* detach lagg port */
-#define	LAGG_CLONE_DESTROY		0x02		/* destroy lagg clone */
-
 	SLIST_HEAD(__mclhd, lagg_mc)	lp_mc_head;	/* multicast addresses */
 
 	/* Redirected callbacks */
@@ -284,6 +268,16 @@ struct lagg_port {
 #define	LAGG_RLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_RLOCKED)
 #define	LAGG_WLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_WLOCKED)
 #define	LAGG_UNLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_UNLOCKED)
+
+#define	LAGG_SX_INIT(_sc)	sx_init(&(_sc)->sc_sx, "if_lagg sx")
+#define	LAGG_SX_DESTROY(_sc)	sx_destroy(&(_sc)->sc_sx)
+#define	LAGG_SLOCK(_sc)		sx_slock(&(_sc)->sc_sx)
+#define	LAGG_XLOCK(_sc)		sx_xlock(&(_sc)->sc_sx)
+#define	LAGG_SUNLOCK(_sc)	sx_sunlock(&(_sc)->sc_sx)
+#define	LAGG_XUNLOCK(_sc)	sx_xunlock(&(_sc)->sc_sx)
+#define	LAGG_SXLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_LOCKED)
+#define	LAGG_SLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_SLOCKED)
+#define	LAGG_XLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SA_XLOCKED)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );
