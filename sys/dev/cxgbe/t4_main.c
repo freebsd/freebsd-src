@@ -998,9 +998,6 @@ t4_attach(device_t dev)
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
 		sc->chan_map[pi->tx_chan] = i;
 
-		pi->tc = malloc(sizeof(struct tx_sched_class) *
-		    sc->chip_params->nsched_cls, M_CXGBE, M_ZERO | M_WAITOK);
-
 		if (port_top_speed(pi) >= 10) {
 			n10g++;
 		} else {
@@ -1088,6 +1085,7 @@ t4_attach(device_t dev)
 	    M_ZERO | M_WAITOK);
 
 	t4_init_l2t(sc, M_WAITOK);
+	t4_init_tx_sched(sc);
 
 	/*
 	 * Second pass over the ports.  This time we know the number of rx and
@@ -1312,6 +1310,9 @@ t4_detach_common(device_t dev)
 	for (i = 0; i < sc->intr_count; i++)
 		t4_free_irq(sc, &sc->irq[i]);
 
+	if ((sc->flags & (IS_VF | FW_OK)) == FW_OK)
+		t4_free_tx_sched(sc);
+
 	for (i = 0; i < MAX_NPORTS; i++) {
 		pi = sc->port[i];
 		if (pi) {
@@ -1321,7 +1322,6 @@ t4_detach_common(device_t dev)
 
 			mtx_destroy(&pi->pi_lock);
 			free(pi->vi, M_CXGBE);
-			free(pi->tc, M_CXGBE);
 			free(pi, M_CXGBE);
 		}
 	}
@@ -5338,9 +5338,9 @@ cxgbe_sysctls(struct port_info *pi)
 	 * dev.(cxgbe|cxl).X.tc.
 	 */
 	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "tc", CTLFLAG_RD, NULL,
-	    "Tx scheduler traffic classes");
+	    "Tx scheduler traffic classes (cl_rl)");
 	for (i = 0; i < sc->chip_params->nsched_cls; i++) {
-		struct tx_sched_class *tc = &pi->tc[i];
+		struct tx_cl_rl_params *tc = &pi->sched_params->cl_rl[i];
 
 		snprintf(name, sizeof(name), "%d", i);
 		children2 = SYSCTL_CHILDREN(SYSCTL_ADD_NODE(ctx,
@@ -7855,10 +7855,9 @@ static int
 sysctl_tc_params(SYSCTL_HANDLER_ARGS)
 {
 	struct adapter *sc = arg1;
-	struct tx_sched_class *tc;
-	struct t4_sched_class_params p;
+	struct tx_cl_rl_params tc;
 	struct sbuf *sb;
-	int i, rc, port_id, flags, mbps, gbps;
+	int i, rc, port_id, mbps, gbps;
 
 	rc = sysctl_wire_old_buffer(req, 0);
 	if (rc != 0)
@@ -7873,52 +7872,34 @@ sysctl_tc_params(SYSCTL_HANDLER_ARGS)
 	MPASS(sc->port[port_id] != NULL);
 	i = arg2 & 0xffff;
 	MPASS(i < sc->chip_params->nsched_cls);
-	tc = &sc->port[port_id]->tc[i];
 
-	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK | SLEEP_OK | INTR_OK,
-	    "t4tc_p");
-	if (rc)
-		goto done;
-	flags = tc->flags;
-	p = tc->params;
-	end_synchronized_op(sc, LOCK_HELD);
+	mtx_lock(&sc->tc_lock);
+	tc = sc->port[port_id]->sched_params->cl_rl[i];
+	mtx_unlock(&sc->tc_lock);
 
-	if ((flags & TX_SC_OK) == 0) {
-		sbuf_printf(sb, "none");
+	if (tc.flags & TX_CLRL_ERROR) {
+		sbuf_printf(sb, "error");
 		goto done;
 	}
 
-	if (p.level == SCHED_CLASS_LEVEL_CL_WRR) {
-		sbuf_printf(sb, "cl-wrr weight %u", p.weight);
-		goto done;
-	} else if (p.level == SCHED_CLASS_LEVEL_CL_RL)
-		sbuf_printf(sb, "cl-rl");
-	else if (p.level == SCHED_CLASS_LEVEL_CH_RL)
-		sbuf_printf(sb, "ch-rl");
-	else {
-		rc = ENXIO;
-		goto done;
-	}
-
-	if (p.ratemode == SCHED_CLASS_RATEMODE_REL) {
+	if (tc.ratemode == SCHED_CLASS_RATEMODE_REL) {
 		/* XXX: top speed or actual link speed? */
 		gbps = port_top_speed(sc->port[port_id]);
-		sbuf_printf(sb, " %u%% of %uGbps", p.maxrate, gbps);
-	}
-	else if (p.ratemode == SCHED_CLASS_RATEMODE_ABS) {
-		switch (p.rateunit) {
+		sbuf_printf(sb, " %u%% of %uGbps", tc.maxrate, gbps);
+	} else if (tc.ratemode == SCHED_CLASS_RATEMODE_ABS) {
+		switch (tc.rateunit) {
 		case SCHED_CLASS_RATEUNIT_BITS:
-			mbps = p.maxrate / 1000;
-			gbps = p.maxrate / 1000000;
-			if (p.maxrate == gbps * 1000000)
+			mbps = tc.maxrate / 1000;
+			gbps = tc.maxrate / 1000000;
+			if (tc.maxrate == gbps * 1000000)
 				sbuf_printf(sb, " %uGbps", gbps);
-			else if (p.maxrate == mbps * 1000)
+			else if (tc.maxrate == mbps * 1000)
 				sbuf_printf(sb, " %uMbps", mbps);
 			else
-				sbuf_printf(sb, " %uKbps", p.maxrate);
+				sbuf_printf(sb, " %uKbps", tc.maxrate);
 			break;
 		case SCHED_CLASS_RATEUNIT_PKTS:
-			sbuf_printf(sb, " %upps", p.maxrate);
+			sbuf_printf(sb, " %upps", tc.maxrate);
 			break;
 		default:
 			rc = ENXIO;
@@ -7926,7 +7907,7 @@ sysctl_tc_params(SYSCTL_HANDLER_ARGS)
 		}
 	}
 
-	switch (p.mode) {
+	switch (tc.mode) {
 	case SCHED_CLASS_MODE_CLASS:
 		sbuf_printf(sb, " aggregate");
 		break;
@@ -8825,225 +8806,6 @@ read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
 	    i2cd->offset, i2cd->len, &i2cd->data[0]);
 	end_synchronized_op(sc, 0);
 
-	return (rc);
-}
-
-static int
-in_range(int val, int lo, int hi)
-{
-
-	return (val < 0 || (val <= hi && val >= lo));
-}
-
-static int
-set_sched_class_config(struct adapter *sc, int minmax)
-{
-	int rc;
-
-	if (minmax < 0)
-		return (EINVAL);
-
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4sscc");
-	if (rc)
-		return (rc);
-	rc = -t4_sched_config(sc, FW_SCHED_TYPE_PKTSCHED, minmax, 1);
-	end_synchronized_op(sc, 0);
-
-	return (rc);
-}
-
-static int
-set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
-    int sleep_ok)
-{
-	int rc, top_speed, fw_level, fw_mode, fw_rateunit, fw_ratemode;
-	struct port_info *pi;
-	struct tx_sched_class *tc;
-
-	if (p->level == SCHED_CLASS_LEVEL_CL_RL)
-		fw_level = FW_SCHED_PARAMS_LEVEL_CL_RL;
-	else if (p->level == SCHED_CLASS_LEVEL_CL_WRR)
-		fw_level = FW_SCHED_PARAMS_LEVEL_CL_WRR;
-	else if (p->level == SCHED_CLASS_LEVEL_CH_RL)
-		fw_level = FW_SCHED_PARAMS_LEVEL_CH_RL;
-	else
-		return (EINVAL);
-
-	if (p->mode == SCHED_CLASS_MODE_CLASS)
-		fw_mode = FW_SCHED_PARAMS_MODE_CLASS;
-	else if (p->mode == SCHED_CLASS_MODE_FLOW)
-		fw_mode = FW_SCHED_PARAMS_MODE_FLOW;
-	else
-		return (EINVAL);
-
-	if (p->rateunit == SCHED_CLASS_RATEUNIT_BITS)
-		fw_rateunit = FW_SCHED_PARAMS_UNIT_BITRATE;
-	else if (p->rateunit == SCHED_CLASS_RATEUNIT_PKTS)
-		fw_rateunit = FW_SCHED_PARAMS_UNIT_PKTRATE;
-	else
-		return (EINVAL);
-
-	if (p->ratemode == SCHED_CLASS_RATEMODE_REL)
-		fw_ratemode = FW_SCHED_PARAMS_RATE_REL;
-	else if (p->ratemode == SCHED_CLASS_RATEMODE_ABS)
-		fw_ratemode = FW_SCHED_PARAMS_RATE_ABS;
-	else
-		return (EINVAL);
-
-	/* Vet our parameters ... */
-	if (!in_range(p->channel, 0, sc->chip_params->nchan - 1))
-		return (ERANGE);
-
-	pi = sc->port[sc->chan_map[p->channel]];
-	if (pi == NULL)
-		return (ENXIO);
-	MPASS(pi->tx_chan == p->channel);
-	top_speed = port_top_speed(pi) * 1000000; /* Gbps -> Kbps */
-
-	if (!in_range(p->cl, 0, sc->chip_params->nsched_cls) ||
-	    !in_range(p->minrate, 0, top_speed) ||
-	    !in_range(p->maxrate, 0, top_speed) ||
-	    !in_range(p->weight, 0, 100))
-		return (ERANGE);
-
-	/*
-	 * Translate any unset parameters into the firmware's
-	 * nomenclature and/or fail the call if the parameters
-	 * are required ...
-	 */
-	if (p->rateunit < 0 || p->ratemode < 0 || p->channel < 0 || p->cl < 0)
-		return (EINVAL);
-
-	if (p->minrate < 0)
-		p->minrate = 0;
-	if (p->maxrate < 0) {
-		if (p->level == SCHED_CLASS_LEVEL_CL_RL ||
-		    p->level == SCHED_CLASS_LEVEL_CH_RL)
-			return (EINVAL);
-		else
-			p->maxrate = 0;
-	}
-	if (p->weight < 0) {
-		if (p->level == SCHED_CLASS_LEVEL_CL_WRR)
-			return (EINVAL);
-		else
-			p->weight = 0;
-	}
-	if (p->pktsize < 0) {
-		if (p->level == SCHED_CLASS_LEVEL_CL_RL ||
-		    p->level == SCHED_CLASS_LEVEL_CH_RL)
-			return (EINVAL);
-		else
-			p->pktsize = 0;
-	}
-
-	rc = begin_synchronized_op(sc, NULL,
-	    sleep_ok ? (SLEEP_OK | INTR_OK) : HOLD_LOCK, "t4sscp");
-	if (rc)
-		return (rc);
-	tc = &pi->tc[p->cl];
-	tc->params = *p;
-	rc = -t4_sched_params(sc, FW_SCHED_TYPE_PKTSCHED, fw_level, fw_mode,
-	    fw_rateunit, fw_ratemode, p->channel, p->cl, p->minrate, p->maxrate,
-	    p->weight, p->pktsize, sleep_ok);
-	if (rc == 0)
-		tc->flags |= TX_SC_OK;
-	else {
-		/*
-		 * Unknown state at this point, see tc->params for what was
-		 * attempted.
-		 */
-		tc->flags &= ~TX_SC_OK;
-	}
-	end_synchronized_op(sc, sleep_ok ? 0 : LOCK_HELD);
-
-	return (rc);
-}
-
-int
-t4_set_sched_class(struct adapter *sc, struct t4_sched_params *p)
-{
-
-	if (p->type != SCHED_CLASS_TYPE_PACKET)
-		return (EINVAL);
-
-	if (p->subcmd == SCHED_CLASS_SUBCMD_CONFIG)
-		return (set_sched_class_config(sc, p->u.config.minmax));
-
-	if (p->subcmd == SCHED_CLASS_SUBCMD_PARAMS)
-		return (set_sched_class_params(sc, &p->u.params, 1));
-
-	return (EINVAL);
-}
-
-int
-t4_set_sched_queue(struct adapter *sc, struct t4_sched_queue *p)
-{
-	struct port_info *pi = NULL;
-	struct vi_info *vi;
-	struct sge_txq *txq;
-	uint32_t fw_mnem, fw_queue, fw_class;
-	int i, rc;
-
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setsq");
-	if (rc)
-		return (rc);
-
-	if (p->port >= sc->params.nports) {
-		rc = EINVAL;
-		goto done;
-	}
-
-	/* XXX: Only supported for the main VI. */
-	pi = sc->port[p->port];
-	vi = &pi->vi[0];
-	if (!(vi->flags & VI_INIT_DONE)) {
-		/* tx queues not set up yet */
-		rc = EAGAIN;
-		goto done;
-	}
-
-	if (!in_range(p->queue, 0, vi->ntxq - 1) ||
-	    !in_range(p->cl, 0, sc->chip_params->nsched_cls - 1)) {
-		rc = EINVAL;
-		goto done;
-	}
-
-	/*
-	 * Create a template for the FW_PARAMS_CMD mnemonic and value (TX
-	 * Scheduling Class in this case).
-	 */
-	fw_mnem = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH));
-	fw_class = p->cl < 0 ? 0xffffffff : p->cl;
-
-	/*
-	 * If op.queue is non-negative, then we're only changing the scheduling
-	 * on a single specified TX queue.
-	 */
-	if (p->queue >= 0) {
-		txq = &sc->sge.txq[vi->first_txq + p->queue];
-		fw_queue = (fw_mnem | V_FW_PARAMS_PARAM_YZ(txq->eq.cntxt_id));
-		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &fw_queue,
-		    &fw_class);
-		goto done;
-	}
-
-	/*
-	 * Change the scheduling on all the TX queues for the
-	 * interface.
-	 */
-	for_each_txq(vi, i, txq) {
-		fw_queue = (fw_mnem | V_FW_PARAMS_PARAM_YZ(txq->eq.cntxt_id));
-		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &fw_queue,
-		    &fw_class);
-		if (rc)
-			goto done;
-	}
-
-	rc = 0;
-done:
-	end_synchronized_op(sc, 0);
 	return (rc);
 }
 
