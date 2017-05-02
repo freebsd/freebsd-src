@@ -1068,6 +1068,12 @@ public:
   /// same special member, we should act as if it is not yet declared.
   llvm::SmallSet<SpecialMemberDecl, 4> SpecialMembersBeingDeclared;
 
+  /// The function definitions which were renamed as part of typo-correction
+  /// to match their respective declarations. We want to keep track of them
+  /// to ensure that we don't emit a "redefinition" error if we encounter a
+  /// correctly named definition after the renamed definition.
+  llvm::SmallPtrSet<const NamedDecl *, 4> TypoCorrectedFunctionDefinitions;
+
   void ReadMethodPool(Selector Sel);
   void updateOutOfDateSelector(Selector Sel);
 
@@ -3117,6 +3123,8 @@ public:
                     const PartialDiagnostic &PrevNote,
                     bool ErrorRecovery = true);
 
+  void MarkTypoCorrectedFunctionDefinition(const NamedDecl *F);
+
   void FindAssociatedClassesAndNamespaces(SourceLocation InstantiationLoc,
                                           ArrayRef<Expr *> Args,
                                    AssociatedNamespaceSet &AssociatedNamespaces,
@@ -3162,6 +3170,7 @@ public:
   bool CheckCallingConvAttr(const AttributeList &attr, CallingConv &CC,
                             const FunctionDecl *FD = nullptr);
   bool CheckNoReturnAttr(const AttributeList &attr);
+  bool CheckNoCallerSavedRegsAttr(const AttributeList &attr);
   bool checkStringLiteralArgumentAttr(const AttributeList &Attr,
                                       unsigned ArgNum, StringRef &Str,
                                       SourceLocation *ArgLocation = nullptr);
@@ -10151,7 +10160,6 @@ private:
   void CheckFloatComparison(SourceLocation Loc, Expr* LHS, Expr* RHS);
   void CheckImplicitConversions(Expr *E, SourceLocation CC = SourceLocation());
   void CheckBoolLikeConversion(Expr *E, SourceLocation CC);
-  void CheckForIntOverflow(Expr *E);
   void CheckUnsequencedOperations(Expr *E);
 
   /// \brief Perform semantic checks on a completed expression. This will either

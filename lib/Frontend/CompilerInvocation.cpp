@@ -81,7 +81,7 @@ using namespace llvm::opt;
 static unsigned getOptimizationLevel(ArgList &Args, InputKind IK,
                                      DiagnosticsEngine &Diags) {
   unsigned DefaultOpt = 0;
-  if (IK == IK_OpenCL && !Args.hasArg(OPT_cl_opt_disable))
+  if (IK.getLanguage() == InputKind::OpenCL && !Args.hasArg(OPT_cl_opt_disable))
     DefaultOpt = 2;
 
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
@@ -652,7 +652,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.EmitSummaryIndex = A && A->containsValue("thin");
   Opts.LTOUnit = Args.hasFlag(OPT_flto_unit, OPT_fno_lto_unit, false);
   if (Arg *A = Args.getLastArg(OPT_fthinlto_index_EQ)) {
-    if (IK != IK_LLVM_IR)
+    if (IK.getLanguage() != InputKind::LLVM_IR)
       Diags.Report(diag::err_drv_argument_only_allowed_with)
           << A->getAsString(Args) << "-x ir";
     Opts.ThinLTOIndexFile = Args.getLastArgValue(OPT_fthinlto_index_EQ);
@@ -1347,42 +1347,54 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
       << "ARC migration" << "ObjC migration";
   }
 
-  InputKind DashX = IK_None;
+  InputKind DashX(InputKind::Unknown);
   if (const Arg *A = Args.getLastArg(OPT_x)) {
-    DashX = llvm::StringSwitch<InputKind>(A->getValue())
-      .Case("c", IK_C)
-      .Case("cl", IK_OpenCL)
-      .Case("cuda", IK_CUDA)
-      .Case("c++", IK_CXX)
-      .Case("objective-c", IK_ObjC)
-      .Case("objective-c++", IK_ObjCXX)
-      .Case("cpp-output", IK_PreprocessedC)
-      .Case("assembler-with-cpp", IK_Asm)
-      .Case("c++-cpp-output", IK_PreprocessedCXX)
-      .Case("cuda-cpp-output", IK_PreprocessedCuda)
-      .Case("objective-c-cpp-output", IK_PreprocessedObjC)
-      .Case("objc-cpp-output", IK_PreprocessedObjC)
-      .Case("objective-c++-cpp-output", IK_PreprocessedObjCXX)
-      .Case("objc++-cpp-output", IK_PreprocessedObjCXX)
-      .Case("c-header", IK_C)
-      .Case("cl-header", IK_OpenCL)
-      .Case("objective-c-header", IK_ObjC)
-      .Case("c++-header", IK_CXX)
-      .Case("objective-c++-header", IK_ObjCXX)
-      .Cases("ast", "pcm", IK_AST)
-      .Case("ir", IK_LLVM_IR)
-      .Case("renderscript", IK_RenderScript)
-      .Default(IK_None);
-    if (DashX == IK_None)
+    StringRef XValue = A->getValue();
+
+    // Parse suffixes: '<lang>(-header|[-module-map][-cpp-output])'.
+    // FIXME: Supporting '<lang>-header-cpp-output' would be useful.
+    bool Preprocessed = XValue.consume_back("-cpp-output");
+    bool ModuleMap = XValue.consume_back("-module-map");
+    IsHeaderFile =
+        !Preprocessed && !ModuleMap && XValue.consume_back("-header");
+
+    // Principal languages.
+    DashX = llvm::StringSwitch<InputKind>(XValue)
+                .Case("c", InputKind::C)
+                .Case("cl", InputKind::OpenCL)
+                .Case("cuda", InputKind::CUDA)
+                .Case("c++", InputKind::CXX)
+                .Case("objective-c", InputKind::ObjC)
+                .Case("objective-c++", InputKind::ObjCXX)
+                .Case("renderscript", InputKind::RenderScript)
+                .Default(InputKind::Unknown);
+
+    // "objc[++]-cpp-output" is an acceptable synonym for
+    // "objective-c[++]-cpp-output".
+    if (DashX.isUnknown() && Preprocessed && !IsHeaderFile && !ModuleMap)
+      DashX = llvm::StringSwitch<InputKind>(XValue)
+                  .Case("objc", InputKind::ObjC)
+                  .Case("objc++", InputKind::ObjCXX)
+                  .Default(InputKind::Unknown);
+
+    // Some special cases cannot be combined with suffixes.
+    if (DashX.isUnknown() && !Preprocessed && !ModuleMap && !IsHeaderFile)
+      DashX = llvm::StringSwitch<InputKind>(XValue)
+                  .Case("cpp-output", InputKind(InputKind::C).getPreprocessed())
+                  .Case("assembler-with-cpp", InputKind::Asm)
+                  .Cases("ast", "pcm",
+                         InputKind(InputKind::Unknown, InputKind::Precompiled))
+                  .Case("ir", InputKind::LLVM_IR)
+                  .Default(InputKind::Unknown);
+
+    if (DashX.isUnknown())
       Diags.Report(diag::err_drv_invalid_value)
         << A->getAsString(Args) << A->getValue();
-    IsHeaderFile = llvm::StringSwitch<bool>(A->getValue())
-      .Case("c-header", true)
-      .Case("cl-header", true)
-      .Case("objective-c-header", true)
-      .Case("c++-header", true)
-      .Case("objective-c++-header", true)
-      .Default(false);
+
+    if (Preprocessed)
+      DashX = DashX.getPreprocessed();
+    if (ModuleMap)
+      DashX = DashX.withFormat(InputKind::ModuleMap);
   }
 
   // '-' is the default input if none is given.
@@ -1392,13 +1404,22 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
     Inputs.push_back("-");
   for (unsigned i = 0, e = Inputs.size(); i != e; ++i) {
     InputKind IK = DashX;
-    if (IK == IK_None) {
+    if (IK.isUnknown()) {
       IK = FrontendOptions::getInputKindForExtension(
         StringRef(Inputs[i]).rsplit('.').second);
+      // FIXME: Warn on this?
+      if (IK.isUnknown())
+        IK = InputKind::C;
       // FIXME: Remove this hack.
       if (i == 0)
         DashX = IK;
     }
+
+    // The -emit-module action implicitly takes a module map.
+    if (Opts.ProgramAction == frontend::GenerateModule &&
+        IK.getFormat() == InputKind::Source)
+      IK = IK.withFormat(InputKind::ModuleMap);
+
     Opts.Inputs.emplace_back(std::move(Inputs[i]), IK);
   }
 
@@ -1564,53 +1585,48 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
   // Set some properties which depend solely on the input kind; it would be nice
   // to move these to the language standard, and have the driver resolve the
   // input kind + language standard.
-  if (IK == IK_Asm) {
+  //
+  // FIXME: Perhaps a better model would be for a single source file to have
+  // multiple language standards (C / C++ std, ObjC std, OpenCL std, OpenMP std)
+  // simultaneously active?
+  if (IK.getLanguage() == InputKind::Asm) {
     Opts.AsmPreprocessor = 1;
-  } else if (IK == IK_ObjC ||
-             IK == IK_ObjCXX ||
-             IK == IK_PreprocessedObjC ||
-             IK == IK_PreprocessedObjCXX) {
+  } else if (IK.isObjectiveC()) {
     Opts.ObjC1 = Opts.ObjC2 = 1;
   }
 
   if (LangStd == LangStandard::lang_unspecified) {
     // Based on the base language, pick one.
-    switch (IK) {
-    case IK_None:
-    case IK_AST:
-    case IK_LLVM_IR:
+    switch (IK.getLanguage()) {
+    case InputKind::Unknown:
+    case InputKind::LLVM_IR:
       llvm_unreachable("Invalid input kind!");
-    case IK_OpenCL:
-      LangStd = LangStandard::lang_opencl;
+    case InputKind::OpenCL:
+      LangStd = LangStandard::lang_opencl10;
       break;
-    case IK_CUDA:
-    case IK_PreprocessedCuda:
+    case InputKind::CUDA:
       LangStd = LangStandard::lang_cuda;
       break;
-    case IK_Asm:
-    case IK_C:
-    case IK_PreprocessedC:
+    case InputKind::Asm:
+    case InputKind::C:
       // The PS4 uses C99 as the default C standard.
       if (T.isPS4())
         LangStd = LangStandard::lang_gnu99;
       else
         LangStd = LangStandard::lang_gnu11;
       break;
-    case IK_ObjC:
-    case IK_PreprocessedObjC:
+    case InputKind::ObjC:
       LangStd = LangStandard::lang_gnu11;
       break;
-    case IK_CXX:
-    case IK_PreprocessedCXX:
-    case IK_ObjCXX:
-    case IK_PreprocessedObjCXX:
+    case InputKind::CXX:
+    case InputKind::ObjCXX:
       // The PS4 uses C++11 as the default C++ standard.
       if (T.isPS4())
         LangStd = LangStandard::lang_gnucxx11;
       else
         LangStd = LangStandard::lang_gnucxx98;
       break;
-    case IK_RenderScript:
+    case InputKind::RenderScript:
       LangStd = LangStandard::lang_c99;
       break;
     }
@@ -1626,13 +1642,13 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
   Opts.CPlusPlus1z = Std.isCPlusPlus1z();
   Opts.Digraphs = Std.hasDigraphs();
   Opts.GNUMode = Std.isGNUMode();
-  Opts.GNUInline = Std.isC89();
+  Opts.GNUInline = !Opts.C99 && !Opts.CPlusPlus;
   Opts.HexFloats = Std.hasHexFloats();
   Opts.ImplicitInt = Std.hasImplicitInt();
 
   // Set OpenCL Version.
-  Opts.OpenCL = Std.isOpenCL() || IK == IK_OpenCL;
-  if (LangStd == LangStandard::lang_opencl)
+  Opts.OpenCL = Std.isOpenCL();
+  if (LangStd == LangStandard::lang_opencl10)
     Opts.OpenCLVersion = 100;
   else if (LangStd == LangStandard::lang_opencl11)
     Opts.OpenCLVersion = 110;
@@ -1655,13 +1671,12 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
     }
   }
 
-  Opts.CUDA = IK == IK_CUDA || IK == IK_PreprocessedCuda ||
-              LangStd == LangStandard::lang_cuda;
+  Opts.CUDA = IK.getLanguage() == InputKind::CUDA;
   if (Opts.CUDA)
     // Set default FP_CONTRACT to FAST.
     Opts.setDefaultFPContractMode(LangOptions::FPC_Fast);
 
-  Opts.RenderScript = IK == IK_RenderScript;
+  Opts.RenderScript = IK.getLanguage() == InputKind::RenderScript;
   if (Opts.RenderScript) {
     Opts.NativeHalfType = 1;
     Opts.NativeHalfArgsAndReturns = 1;
@@ -1705,58 +1720,65 @@ static Visibility parseVisibility(Arg *arg, ArgList &args,
 /// Check if input file kind and language standard are compatible.
 static bool IsInputCompatibleWithStandard(InputKind IK,
                                           const LangStandard &S) {
-  switch (IK) {
-  case IK_C:
-  case IK_ObjC:
-  case IK_PreprocessedC:
-  case IK_PreprocessedObjC:
-    if (S.isC89() || S.isC99())
-      return true;
-    break;
-  case IK_CXX:
-  case IK_ObjCXX:
-  case IK_PreprocessedCXX:
-  case IK_PreprocessedObjCXX:
-    if (S.isCPlusPlus())
-      return true;
-    break;
-  case IK_OpenCL:
-    if (S.isOpenCL())
-      return true;
-    break;
-  case IK_CUDA:
-  case IK_PreprocessedCuda:
-    if (S.isCPlusPlus())
-      return true;
-    break;
-  default:
-    // For other inputs, accept (and ignore) all -std= values.
+  switch (IK.getLanguage()) {
+  case InputKind::Unknown:
+  case InputKind::LLVM_IR:
+    llvm_unreachable("should not parse language flags for this input");
+
+  case InputKind::C:
+  case InputKind::ObjC:
+  case InputKind::RenderScript:
+    return S.getLanguage() == InputKind::C;
+
+  case InputKind::OpenCL:
+    return S.getLanguage() == InputKind::OpenCL;
+
+  case InputKind::CXX:
+  case InputKind::ObjCXX:
+    return S.getLanguage() == InputKind::CXX;
+
+  case InputKind::CUDA:
+    // FIXME: What -std= values should be permitted for CUDA compilations?
+    return S.getLanguage() == InputKind::CUDA ||
+           S.getLanguage() == InputKind::CXX;
+
+  case InputKind::Asm:
+    // Accept (and ignore) all -std= values.
+    // FIXME: The -std= value is not ignored; it affects the tokenization
+    // and preprocessing rules if we're preprocessing this asm input.
     return true;
   }
-  return false;
+
+  llvm_unreachable("unexpected input language");
 }
 
 /// Get language name for given input kind.
 static const StringRef GetInputKindName(InputKind IK) {
-  switch (IK) {
-  case IK_C:
-  case IK_ObjC:
-  case IK_PreprocessedC:
-  case IK_PreprocessedObjC:
-    return "C/ObjC";
-  case IK_CXX:
-  case IK_ObjCXX:
-  case IK_PreprocessedCXX:
-  case IK_PreprocessedObjCXX:
-    return "C++/ObjC++";
-  case IK_OpenCL:
+  switch (IK.getLanguage()) {
+  case InputKind::C:
+    return "C";
+  case InputKind::ObjC:
+    return "Objective-C";
+  case InputKind::CXX:
+    return "C++";
+  case InputKind::ObjCXX:
+    return "Objective-C++";
+  case InputKind::OpenCL:
     return "OpenCL";
-  case IK_CUDA:
-  case IK_PreprocessedCuda:
+  case InputKind::CUDA:
     return "CUDA";
-  default:
-    llvm_unreachable("Cannot decide on name for InputKind!");
+  case InputKind::RenderScript:
+    return "RenderScript";
+
+  case InputKind::Asm:
+    return "Asm";
+  case InputKind::LLVM_IR:
+    return "LLVM IR";
+
+  case InputKind::Unknown:
+    break;
   }
+  llvm_unreachable("unknown input language");
 }
 
 static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
@@ -1767,7 +1789,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   LangStandard::Kind LangStd = LangStandard::lang_unspecified;
   if (const Arg *A = Args.getLastArg(OPT_std_EQ)) {
     LangStd = llvm::StringSwitch<LangStandard::Kind>(A->getValue())
-#define LANGSTANDARD(id, name, desc, features) \
+#define LANGSTANDARD(id, name, lang, desc, features) \
       .Case(name, LangStandard::lang_##id)
 #define LANGSTANDARD_ALIAS(id, alias) \
       .Case(alias, LangStandard::lang_##id)
@@ -1783,8 +1805,20 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
         const LangStandard &Std = LangStandard::getLangStandardForKind(
           static_cast<LangStandard::Kind>(KindValue));
         if (IsInputCompatibleWithStandard(IK, Std)) {
-          Diags.Report(diag::note_drv_use_standard)
-            << Std.getName() << Std.getDescription();
+          auto Diag = Diags.Report(diag::note_drv_use_standard);
+          Diag << Std.getName() << Std.getDescription();
+          unsigned NumAliases = 0;
+#define LANGSTANDARD(id, name, lang, desc, features)
+#define LANGSTANDARD_ALIAS(id, alias) \
+          if (KindValue == LangStandard::lang_##id) ++NumAliases;
+#define LANGSTANDARD_ALIAS_DEPR(id, alias)
+#include "clang/Frontend/LangStandards.def"
+          Diag << NumAliases;
+#define LANGSTANDARD(id, name, lang, desc, features)
+#define LANGSTANDARD_ALIAS(id, alias) \
+          if (KindValue == LangStandard::lang_##id) Diag << alias;
+#define LANGSTANDARD_ALIAS_DEPR(id, alias)
+#include "clang/Frontend/LangStandards.def"
         }
       }
     } else {
@@ -1803,7 +1837,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   if (const Arg *A = Args.getLastArg(OPT_cl_std_EQ)) {
     LangStandard::Kind OpenCLLangStd
       = llvm::StringSwitch<LangStandard::Kind>(A->getValue())
-        .Cases("cl", "CL", LangStandard::lang_opencl)
+        .Cases("cl", "CL", LangStandard::lang_opencl10)
         .Cases("cl1.1", "CL1.1", LangStandard::lang_opencl11)
         .Cases("cl1.2", "CL1.2", LangStandard::lang_opencl12)
         .Cases("cl2.0", "CL2.0", LangStandard::lang_opencl20)
@@ -2533,7 +2567,8 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
                               Res.getTargetOpts());
   ParseHeaderSearchArgs(Res.getHeaderSearchOpts(), Args,
                         Res.getFileSystemOpts().WorkingDir);
-  if (DashX == IK_AST || DashX == IK_LLVM_IR) {
+  if (DashX.getFormat() == InputKind::Precompiled ||
+      DashX.getLanguage() == InputKind::LLVM_IR) {
     // ObjCAAutoRefCount and Sanitize LangOpts are used to setup the
     // PassManager in BackendUtil.cpp. They need to be initializd no matter
     // what the input type is.
@@ -2547,8 +2582,9 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
                         Diags, LangOpts.Sanitize);
   } else {
     // Other LangOpts are only initialzed when the input is not AST or LLVM IR.
+    // FIXME: Should we really be calling this for an InputKind::Asm input?
     ParseLangArgs(LangOpts, Args, DashX, Res.getTargetOpts(),
-      Res.getPreprocessorOpts(), Diags);
+                  Res.getPreprocessorOpts(), Diags);
     if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
       LangOpts.ObjCExceptions = 1;
   }
