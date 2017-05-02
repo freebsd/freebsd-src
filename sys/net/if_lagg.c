@@ -539,12 +539,15 @@ lagg_clone_destroy(struct ifnet *ifp)
 	EVENTHANDLER_DEREGISTER(vlan_unconfig, sc->vlan_detach);
 
 	/* Shutdown and remove lagg ports */
-	while ((lp = SLIST_FIRST(&sc->sc_ports)) != NULL)
+	while ((lp = SLIST_FIRST(&sc->sc_ports)) != NULL) {
+		lp->lp_detaching = LAGG_CLONE_DESTROY;
 		lagg_port_destroy(lp, 1);
+	}
 	/* Unhook the aggregation protocol */
 	lagg_proto_detach(sc);
 	LAGG_UNLOCK_ASSERT(sc);
 
+	taskqueue_drain(taskqueue_swi, &sc->sc_lladdr_task);
 	ifmedia_removeall(&sc->sc_media);
 	ether_ifdetach(ifp);
 	if_free(ifp);
@@ -553,7 +556,6 @@ lagg_clone_destroy(struct ifnet *ifp)
 	SLIST_REMOVE(&V_lagg_list, sc, lagg_softc, sc_entries);
 	LAGG_LIST_UNLOCK();
 
-	taskqueue_drain(taskqueue_swi, &sc->sc_lladdr_task);
 	LAGG_LOCK_DESTROY(sc);
 	free(sc, M_DEVBUF);
 }
@@ -891,7 +893,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	 * Remove multicast addresses and interface flags from this port and
 	 * reset the MAC address, skip if the interface is being detached.
 	 */
-	if (!lp->lp_detaching) {
+	if (lp->lp_detaching == 0) {
 		lagg_ether_cmdmulti(lp, 0);
 		lagg_setflags(lp, 0);
 		lagg_port_lladdr(lp, lp->lp_lladdr, LAGG_LLQTYPE_PHYS);
@@ -924,7 +926,8 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 			bcopy(lp0->lp_lladdr,
 			    lladdr, ETHER_ADDR_LEN);
 		}
-		lagg_lladdr(sc, lladdr);
+		if (lp->lp_detaching != LAGG_CLONE_DESTROY)
+			lagg_lladdr(sc, lladdr);
 
 		/* Mark lp0 as new primary */
 		sc->sc_primary = lp0;
@@ -939,7 +942,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	}
 
 	/* Remove any pending lladdr changes from the queue */
-	if (lp->lp_detaching) {
+	if (lp->lp_detaching != 0) {
 		SLIST_FOREACH(llq, &sc->sc_llq_head, llq_entries) {
 			if (llq->llq_ifp == ifp) {
 				SLIST_REMOVE(&sc->sc_llq_head, llq, lagg_llq,
@@ -1118,7 +1121,7 @@ lagg_port_ifdetach(void *arg __unused, struct ifnet *ifp)
 	sc = lp->lp_softc;
 
 	LAGG_WLOCK(sc);
-	lp->lp_detaching = 1;
+	lp->lp_detaching = LAGG_PORT_DETACH;
 	lagg_port_destroy(lp, 1);
 	LAGG_WUNLOCK(sc);
 }
@@ -1603,7 +1606,7 @@ lagg_ether_cmdmulti(struct lagg_port *lp, int set)
 	} else {
 		while ((mc = SLIST_FIRST(&lp->lp_mc_head)) != NULL) {
 			SLIST_REMOVE(&lp->lp_mc_head, mc, lagg_mc, mc_entries);
-			if (mc->mc_ifma && !lp->lp_detaching)
+			if (mc->mc_ifma && lp->lp_detaching == 0)
 				if_delmulti_ifma(mc->mc_ifma);
 			free(mc, M_DEVBUF);
 		}
