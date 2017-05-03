@@ -34,6 +34,7 @@
 
 #include <ctype.h>
 #include <time.h>
+#include <stdarg.h>
 #include <unistd.h>
 
 #include "screen.h"		/* interface to screen package */
@@ -1053,19 +1054,21 @@ int t;
     }
 }
 
-/*VARARGS2*/
+/*
+ * XXXAR: This was previously using missing prototypes to do completely
+ * broken forwarding of arguments to snprintf().
+ * Seems like it worked on x86 but it is a absolutely broken on CHERI...
+ */
 void
-new_message(type, msgfmt, a1, a2, a3)
-
-int type;
-char *msgfmt;
-caddr_t a1, a2, a3;
-
+new_message(int type, char* msgfmt, ...)
 {
     register int i;
+    va_list arglist;
 
     /* first, format the message */
-    (void) snprintf(next_msg, sizeof(next_msg), msgfmt, a1, a2, a3);
+    va_start(arglist, msgfmt);
+    (void) vsnprintf(next_msg, sizeof(next_msg), msgfmt, arglist);
+    va_end(arglist);
 
     if (msglen > 0)
     {

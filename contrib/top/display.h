@@ -5,6 +5,7 @@
 #define  MT_standout  1
 #define  MT_delayed   2
 
+#include <sys/cdefs.h>
 #include "machine.h"
 
 int		 display_updatecpus(struct statics *statics);
@@ -26,7 +27,7 @@ void	 i_procstates(int total, int *brkdn);
 void	 i_swap(int *stats);
 void	 i_timeofday(time_t *tod);
 void	 i_uptime(struct timeval *bt, time_t *tod);
-void	 new_message(int type, char *msgfmt, caddr_t a1, caddr_t a2, caddr_t a3);
+void	 new_message(int type, char *msgfmt, ...) __printflike(2, 3);
 int		 readline(char *buffer, int size, int numeric);
 char	*trim_header(char *text);
 void	 u_arc(int *stats);
