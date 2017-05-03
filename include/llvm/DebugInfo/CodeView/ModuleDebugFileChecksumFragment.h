@@ -21,6 +21,8 @@
 namespace llvm {
 namespace codeview {
 
+class StringTable;
+
 struct FileChecksumEntry {
   uint32_t FileNameOffset;    // Byte offset of filename in global stringtable.
   FileChecksumKind Kind;      // The type of checksum.
@@ -35,7 +37,7 @@ public:
   typedef void ContextType;
 
   static Error extract(BinaryStreamRef Stream, uint32_t &Len,
-                       codeview::FileChecksumEntry &Item, void *Ctx);
+                       codeview::FileChecksumEntry &Item);
 };
 }
 
@@ -55,8 +57,8 @@ public:
 
   Error initialize(BinaryStreamReader Reader);
 
-  Iterator begin() const { return Checksums.begin(); }
-  Iterator end() const { return Checksums.end(); }
+  Iterator begin() { return Checksums.begin(); }
+  Iterator end() { return Checksums.end(); }
 
   const FileChecksumArray &getArray() const { return Checksums; }
 
@@ -66,20 +68,22 @@ private:
 
 class ModuleDebugFileChecksumFragment final : public ModuleDebugFragment {
 public:
-  ModuleDebugFileChecksumFragment();
+  explicit ModuleDebugFileChecksumFragment(StringTable &Strings);
 
   static bool classof(const ModuleDebugFragment *S) {
     return S->kind() == ModuleDebugFragmentKind::FileChecksums;
   }
 
-  void addChecksum(uint32_t StringTableOffset, FileChecksumKind Kind,
+  void addChecksum(StringRef FileName, FileChecksumKind Kind,
                    ArrayRef<uint8_t> Bytes);
 
   uint32_t calculateSerializedLength() override;
   Error commit(BinaryStreamWriter &Writer) override;
-  uint32_t mapChecksumOffset(uint32_t StringTableOffset) const;
+  uint32_t mapChecksumOffset(StringRef FileName) const;
 
 private:
+  StringTable &Strings;
+
   DenseMap<uint32_t, uint32_t> OffsetMap;
   uint32_t SerializedSize = 0;
   llvm::BumpPtrAllocator Storage;

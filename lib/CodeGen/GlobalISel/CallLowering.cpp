@@ -37,7 +37,7 @@ bool CallLowering::lowerCall(
   for (auto &Arg : CS.args()) {
     ArgInfo OrigArg{ArgRegs[i], Arg->getType(), ISD::ArgFlagsTy{},
                     i < NumFixedArgs};
-    setArgFlags(OrigArg, i + 1, DL, CS);
+    setArgFlags(OrigArg, i + AttributeList::FirstArgIndex, DL, CS);
     OrigArgs.push_back(OrigArg);
     ++i;
   }
@@ -83,8 +83,8 @@ void CallLowering::setArgFlags(CallLowering::ArgInfo &Arg, unsigned OpIdx,
     // For ByVal, alignment should be passed from FE.  BE will guess if
     // this info is not there but there are cases it cannot get right.
     unsigned FrameAlign;
-    if (FuncInfo.getParamAlignment(OpIdx - 1))
-      FrameAlign = FuncInfo.getParamAlignment(OpIdx - 1);
+    if (FuncInfo.getParamAlignment(OpIdx - 2))
+      FrameAlign = FuncInfo.getParamAlignment(OpIdx - 2);
     else
       FrameAlign = getTLI()->getByValTypeAlignment(ElementTy, DL);
     Arg.Flags.setByValAlign(FrameAlign);

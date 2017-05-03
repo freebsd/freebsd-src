@@ -216,8 +216,8 @@ static Function *createClone(Function &F, Twine Suffix, coro::Shape &Shape,
   Function *NewF =
       Function::Create(FnTy, GlobalValue::LinkageTypes::InternalLinkage,
                        F.getName() + Suffix, M);
-  NewF->addAttribute(1, Attribute::NonNull);
-  NewF->addAttribute(1, Attribute::NoAlias);
+  NewF->addParamAttr(0, Attribute::NonNull);
+  NewF->addParamAttr(0, Attribute::NoAlias);
 
   ValueToValueMapTy VMap;
   // Replace all args with undefs. The buildCoroutineFrame algorithm already
@@ -245,9 +245,7 @@ static Function *createClone(Function &F, Twine Suffix, coro::Shape &Shape,
   // Remove old return attributes.
   NewF->removeAttributes(
       AttributeList::ReturnIndex,
-      AttributeList::get(
-          NewF->getContext(), AttributeList::ReturnIndex,
-          AttributeFuncs::typeIncompatible(NewF->getReturnType())));
+      AttributeFuncs::typeIncompatible(NewF->getReturnType()));
 
   // Make AllocaSpillBlock the new entry block.
   auto *SwitchBB = cast<BasicBlock>(VMap[ResumeEntry]);
