@@ -751,6 +751,8 @@ sysdecode_sockopt_name(int level, int optname)
 	if (level == IPPROTO_IP)
 		/* XXX: UNIX domain socket options use a level of 0 also. */
 		return (lookup_value(sockoptip, optname));
+	if (level == IPPROTO_IPV6)
+		return (lookup_value(sockoptipv6, optname));
 	if (level == IPPROTO_SCTP)
 		return (lookup_value(sockoptsctp, optname));
 	if (level == IPPROTO_TCP)
