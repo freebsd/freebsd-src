@@ -2820,9 +2820,6 @@ def warn_cconv_structors : Warning<
 def err_regparm_mismatch : Error<"function declared with regparm(%0) "
   "attribute was previously declared "
   "%plural{0:without the regparm|:with the regparm(%1)}1 attribute">;
-def err_returns_retained_mismatch : Error<
-  "function declared with the ns_returns_retained attribute "
-  "was previously declared without the ns_returns_retained attribute">;
 def err_function_attribute_mismatch : Error<
   "function declared with %0 attribute "
   "was previously declared without the %0 attribute">;
@@ -8048,7 +8045,7 @@ def err_64_bit_builtin_32_bit_tgt : Error<
   "this builtin is only available on 64-bit targets">;
 def err_ppc_builtin_only_on_pwr7 : Error<
   "this builtin is only valid on POWER7 or later CPUs">;
-def err_x86_builtin_32_bit_tgt : Error<
+def err_x86_builtin_64_only : Error<
   "this builtin is only available on x86-64 targets">;
 def err_x86_builtin_invalid_rounding : Error<
   "invalid rounding argument">;
