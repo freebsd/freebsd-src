@@ -43,6 +43,7 @@ char *copyright =
 #include <jail.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <time.h>
 #include <unistd.h>
 
 /* includes specific to top */
@@ -76,10 +77,10 @@ static int fmt_flags = 0;
 int pcpu_stats = No;
 
 /* signal handling routines */
-sigret_t leave();
-sigret_t tstop();
+sigret_t leave(void);
+sigret_t tstop(int i);
 #ifdef SIGWINCH
-sigret_t winch();
+sigret_t winch(int i);
 #endif
 
 volatile sig_atomic_t leaveflag;
@@ -87,7 +88,7 @@ volatile sig_atomic_t tstopflag;
 volatile sig_atomic_t winchflag;
 
 /* internal routines */
-void quit();
+void quit(int status);
 
 /* values which need to be accessed by signal handlers */
 static int max_topn;		/* maximum displayable processes */
@@ -97,29 +98,18 @@ struct process_select ps;
 char *myname = "top";
 jmp_buf jmp_int;
 
-/* routines that don't return int */
-
-char *username();
-char *ctime();
-char *kill_procs();
-char *renice_procs();
-
 #ifdef ORDER
 extern int (*compares[])();
 #else
-extern int proc_compare();
-extern int io_compare();
+extern int proc_compare(void *arg1, void *arg2);
+extern int io_compare(void *arg1, void *arg2);
 #endif
-time_t time();
 
 caddr_t get_process_info(struct system_info *si, struct process_select *sel,
     int (*compare)(const void *, const void *));
 
 /* different routines for displaying the user's identification */
 /* (values assigned to get_userid) */
-char *username();
-char *itoa7();
-
 /* pointers to display routines */
 void (*d_loadave)(int mpid, double *avenrun) = i_loadave;
 void (*d_procstates)(int total, int *brkdn) = i_procstates;
@@ -1186,7 +1176,7 @@ restart:
  */
 
 void
-reset_display()
+reset_display(void)
 
 {
     d_loadave    = i_loadave;
@@ -1205,7 +1195,7 @@ reset_display()
  *  signal handlers
  */
 
-sigret_t leave()	/* exit under normal conditions -- INT handler */
+sigret_t leave(void)	/* exit under normal conditions -- INT handler */
 
 {
     leaveflag = 1;

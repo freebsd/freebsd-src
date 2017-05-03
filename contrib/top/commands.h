@@ -17,5 +17,7 @@
 void	show_errors(void);
 int	error_count(void);
 void	show_help(void);
+char	*kill_procs(char *str);
+char	*renice_procs(char *str);
 
 #endif /* COMMANDS_H */
