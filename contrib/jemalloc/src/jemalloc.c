@@ -280,7 +280,8 @@ typedef struct {
 #else
 void *malloc_area;
 #define	BOUND_PTR(ptr, size)	\
-    (opt_cheri_setbounds ? cheri_csetbounds((ptr), (size)) : (ptr))
+    ((opt_cheri_setbounds && ptr != NULL) ? \
+    cheri_csetbounds((ptr), (size)) : (ptr))
 #endif
 
 /******************************************************************************/
