@@ -679,7 +679,7 @@ taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *gtask,
 		CPU_ZERO(&mask);
 		CPU_SET(qgroup->tqg_queue[qid].tgc_cpu, &mask);
 		mtx_unlock(&qgroup->tqg_lock);
-		intr_setaffinity(irq, &mask);
+		intr_setaffinity(irq, CPU_WHICH_IRQ, &mask);
 	} else
 		mtx_unlock(&qgroup->tqg_lock);
 }
@@ -698,7 +698,7 @@ taskqgroup_attach_deferred(struct taskqgroup *qgroup, struct grouptask *gtask)
 
 		CPU_ZERO(&mask);
 		CPU_SET(cpu, &mask);
-		intr_setaffinity(gtask->gt_irq, &mask);
+		intr_setaffinity(gtask->gt_irq, CPU_WHICH_IRQ, &mask);
 
 		mtx_lock(&qgroup->tqg_lock);
 	}
@@ -745,7 +745,7 @@ taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *gtask,
 	CPU_ZERO(&mask);
 	CPU_SET(cpu, &mask);
 	if (irq != -1 && tqg_smp_started)
-		intr_setaffinity(irq, &mask);
+		intr_setaffinity(irq, CPU_WHICH_IRQ, &mask);
 	return (0);
 }
 
@@ -779,7 +779,7 @@ taskqgroup_attach_cpu_deferred(struct taskqgroup *qgroup, struct grouptask *gtas
 	CPU_SET(cpu, &mask);
 
 	if (irq != -1)
-		intr_setaffinity(irq, &mask);
+		intr_setaffinity(irq, CPU_WHICH_IRQ, &mask);
 	return (0);
 }
 
