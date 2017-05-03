@@ -38,8 +38,11 @@
 #include <sys/_mutex.h>
 #include <sys/signal.h>
 
+#ifdef _KERNEL
 #ifdef COMPAT_CHERIABI
+#include <sys/malloc.h>
 #include <cheri/cheri.h>
+#endif
 #endif
 
 /*
@@ -303,6 +306,19 @@ static __inline void
 ksiginfo_copy(ksiginfo_t *src, ksiginfo_t *dst)
 {
 	(dst)->ksi_info = src->ksi_info;
+#ifdef COMPAT_CHERIABI
+	if (src->ksi_flags & KSI_CHERI) {
+		/*
+		 * XXX-BD: type should be struct sigval_c, but really it's
+		 * a capability in size so use that to avoid fruther
+		 * header polution.
+		 */
+		dst->ksi_info.si_value.sival_ptr =
+		    malloc(sizeof(struct chericap), M_TEMP, M_WAITOK);
+		cheri_capability_copy(dst->ksi_info.si_value.sival_ptr,
+		    src->ksi_info.si_value.sival_ptr);
+	}
+#endif
 	(dst)->ksi_flags = (src->ksi_flags & KSI_COPYMASK);
 }
 
