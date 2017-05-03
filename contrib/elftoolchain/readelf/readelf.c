@@ -2115,7 +2115,7 @@ dwarf_reg(unsigned int mach, unsigned int reg)
 static void
 dump_ehdr(struct readelf *re)
 {
-	size_t		 shnum, shstrndx;
+	size_t		 phnum, shnum, shstrndx;
 	int		 i;
 
 	printf("ELF Header:\n");
@@ -2177,7 +2177,13 @@ dump_ehdr(struct readelf *re)
 	    re->ehdr.e_phentsize);
 
 	/* e_phnum. */
-	printf("%-37s%u\n", "  Number of program headers:", re->ehdr.e_phnum);
+	printf("%-37s%u", "  Number of program headers:", re->ehdr.e_phnum);
+	if (re->ehdr.e_phnum == PN_XNUM) {
+		/* Extended program header numbering is in use. */
+		if (elf_getphnum(re->elf, &phnum))
+			printf(" (%zu)", phnum);
+	}
+	putchar('\n');
 
 	/* e_shentsize. */
 	printf("%-37s%u (bytes)\n", "  Size of section headers:",
