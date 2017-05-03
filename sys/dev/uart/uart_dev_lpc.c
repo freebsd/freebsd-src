@@ -889,7 +889,7 @@ lpc_ns8250_bus_transmit(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 	if (sc->sc_txdatasz > 1) {
 		if ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0)
-			ns8250_drain(bas, UART_DRAIN_TRANSMITTER);
+			lpc_ns8250_drain(bas, UART_DRAIN_TRANSMITTER);
 	} else {
 		while ((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0)
 			DELAY(4);
