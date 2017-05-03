@@ -628,6 +628,7 @@ mode_out(struct cpio *cpio)
 		    blocks == 1 ? "block" : "blocks");
 	}
 	archive_write_free(cpio->archive);
+	archive_entry_linkresolver_free(cpio->linkresolver);
 }
 
 static const char *
@@ -1194,12 +1195,15 @@ mode_pass(struct cpio *cpio, const char *destdir)
 	struct lafe_line_reader *lr;
 	const char *p;
 	int r;
+	size_t destdir_len;
 
 	/* Ensure target dir has a trailing '/' to simplify path surgery. */
-	cpio->destdir = malloc(strlen(destdir) + 8);
-	strcpy(cpio->destdir, destdir);
-	if (destdir[strlen(destdir) - 1] != '/')
-		strcat(cpio->destdir, "/");
+	destdir_len = strlen(destdir);
+	cpio->destdir = malloc(destdir_len + 8);
+	memcpy(cpio->destdir, destdir, destdir_len);
+	if (destdir_len == 0 || destdir[destdir_len - 1] != '/')
+		cpio->destdir[destdir_len++] = '/';
+	cpio->destdir[destdir_len++] = '\0';
 
 	cpio->archive = archive_write_disk_new();
 	if (cpio->archive == NULL)
@@ -1240,6 +1244,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 	}
 
 	archive_write_free(cpio->archive);
+	free(cpio->pass_destpath);
 }
 
 /*
