@@ -494,7 +494,7 @@ lz4_filter_read_data_block(struct archive_read_filter *self, const void **p)
 	if (read_buf == NULL)
 		goto truncated_error;
 	compressed_size = archive_le32dec(read_buf);
-	if ((compressed_size & ~(1 << 31)) > state->flags.block_maximum_size)
+	if ((compressed_size & 0x7fffffff) > state->flags.block_maximum_size)
 		goto malformed_error;
 	/* A compressed size == 0 means the end of stream blocks. */
 	if (compressed_size == 0) {
@@ -504,8 +504,8 @@ lz4_filter_read_data_block(struct archive_read_filter *self, const void **p)
 
 	checksum_size = state->flags.block_checksum;
 	/* Check if the block is uncompressed. */
-	if (compressed_size & (1 << 31)) {
-		compressed_size &= ~(1 << 31);
+	if (compressed_size & 0x80000000U) {
+		compressed_size &= 0x7fffffff;
 		uncompressed_size = compressed_size;
 	} else
 		uncompressed_size = 0;/* Unknown yet. */

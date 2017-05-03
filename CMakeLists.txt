@@ -1203,7 +1203,6 @@ CHECK_FUNCTION_EXISTS_GLIBC(chflags HAVE_CHFLAGS)
 CHECK_FUNCTION_EXISTS_GLIBC(chown HAVE_CHOWN)
 CHECK_FUNCTION_EXISTS_GLIBC(chroot HAVE_CHROOT)
 CHECK_FUNCTION_EXISTS_GLIBC(ctime_r HAVE_CTIME_R)
-CHECK_FUNCTION_EXISTS_GLIBC(dirfd HAVE_DIRFD)
 CHECK_FUNCTION_EXISTS_GLIBC(fchdir HAVE_FCHDIR)
 CHECK_FUNCTION_EXISTS_GLIBC(fchflags HAVE_FCHFLAGS)
 CHECK_FUNCTION_EXISTS_GLIBC(fchmod HAVE_FCHMOD)
@@ -1303,6 +1302,10 @@ CHECK_C_SOURCE_COMPILES(
   "#include <dirent.h>\nint main() {DIR *d = opendir(\".\"); struct dirent e,*r; return readdir_r(d,&e,&r);}"
   HAVE_READDIR_R)
 
+# dirfd can be either a function or a macro.
+CHECK_C_SOURCE_COMPILES(
+  "#include <dirent.h>\nint main() {DIR *d = opendir(\".\"); return dirfd(d);}"
+  HAVE_DIRFD)
 
 # Only detect readlinkat() if we also have AT_FDCWD in unistd.h.
 # NOTE: linux requires fcntl.h for AT_FDCWD.

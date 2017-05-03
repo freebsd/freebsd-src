@@ -881,7 +881,8 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 			len = a->read_data_remaining;
 			if (len > s)
 				len = s;
-			memcpy(dest, a->read_data_block, len);
+			if (len)
+				memcpy(dest, a->read_data_block, len);
 			s -= len;
 			a->read_data_block += len;
 			a->read_data_remaining -= len;

@@ -165,7 +165,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_cpio.c 20116
 struct links_entry {
         struct links_entry      *next;
         struct links_entry      *previous;
-        int                      links;
+        unsigned int             links;
         dev_t                    dev;
         int64_t                  ino;
         char                    *name;

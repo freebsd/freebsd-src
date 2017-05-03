@@ -605,7 +605,7 @@ AC_FUNC_VPRINTF
 # To avoid necessity for including windows.h or special forward declaration
 # workarounds, we use 'void *' for 'struct SECURITY_ATTRIBUTES *'
 AC_CHECK_STDCALL_FUNC([CreateHardLinkA],[const char *, const char *, void *])
-AC_CHECK_FUNCS([arc4random_buf chflags chown chroot ctime_r dirfd])
+AC_CHECK_FUNCS([arc4random_buf chflags chown chroot ctime_r])
 AC_CHECK_FUNCS([fchdir fchflags fchmod fchown fcntl fdopendir fork])
 AC_CHECK_FUNCS([fstat fstatat fstatfs fstatvfs ftruncate])
 AC_CHECK_FUNCS([futimens futimes futimesat])
@@ -647,6 +647,13 @@ AC_COMPILE_IFELSE(
                   [[DIR *dir; struct dirent e, *r;
 		    return(readdir_r(dir, &e, &r));]])],
  [AC_DEFINE(HAVE_READDIR_R,1,[Define to 1 if you have a POSIX compatible readdir_r])]
+)
+# dirfd can be either a function or a macro.
+AC_COMPILE_IFELSE(
+ [AC_LANG_PROGRAM([[#include <dirent.h>
+                    DIR *dir;]],
+                  [[return(dirfd(dir));]])],
+ [AC_DEFINE(HAVE_DIRFD,1,[Define to 1 if you have a dirfd function or macro])]
 )
 
 # FreeBSD's nl_langinfo supports an option to specify whether the

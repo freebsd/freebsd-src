@@ -3021,8 +3021,9 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 			    ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
 		}
-		memcpy(new_pending_files, heap->files,
-		    heap->allocated * sizeof(new_pending_files[0]));
+		if (heap->allocated)
+			memcpy(new_pending_files, heap->files,
+			    heap->allocated * sizeof(new_pending_files[0]));
 		if (heap->files != NULL)
 			free(heap->files);
 		heap->files = new_pending_files;
