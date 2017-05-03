@@ -334,6 +334,7 @@ wkoszek [label="Wojciech A. Koszek\nwkoszek@FreeBSD.org\n2006/02/21"]
 wma [label="Wojciech Macek\nwma@FreeBSD.org\n2016/01/18"]
 wollman [label="Garrett Wollman\nwollman@FreeBSD.org\n????/??/??"]
 wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
+wulf [label="Vladimir Kondratyev\nwulf@FreeBSD.org\n2017/04/27"]
 yongari [label="Pyun YongHyeon\nyongari@FreeBSD.org\n2004/08/01"]
 zbb [label="Zbigniew Bodek\nzbb@FreeBSD.org\n2013/09/02"]
 zec [label="Marko Zec\nzec@FreeBSD.org\n2008/06/22"]
@@ -385,6 +386,7 @@ avg -> smh
 bapt -> allanjude
 bapt -> araujo
 bapt -> bdrewery
+bapt -> wulf
 
 benno -> grehan
 
@@ -496,6 +498,7 @@ gnn -> jtl
 gnn -> karels
 
 gonzo -> jmcneill
+gonzo -> wulf
 
 grehan -> bryanv
 grehan -> rgrimes
