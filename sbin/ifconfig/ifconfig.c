@@ -1374,9 +1374,11 @@ ifmaybeload(const char *name)
 		}
 	}
 
-	/* not present, we should try to load it */
-	if (kldload(ifkind) < 0)
-		err(1, "kldload(%s)", ifkind);
+	/*
+	 * Try to load the module.  But ignore failures, because ifconfig can't
+	 * infer the names of all drivers (eg mlx4en(4)).
+	 */
+	(void) kldload(ifkind);
 }
 
 static struct cmd basic_cmds[] = {
