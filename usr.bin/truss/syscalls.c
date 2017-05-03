@@ -317,7 +317,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "sigwaitinfo", .ret_type = 1, .nargs = 2,
 	  .args = { { Sigset | IN, 0 }, { Ptr, 1 } } },
 	{ .name = "socket", .ret_type = 1, .nargs = 3,
-	  .args = { { Sockdomain, 0 }, { Socktype, 1 }, { Int, 2 } } },
+	  .args = { { Sockdomain, 0 }, { Socktype, 1 }, { Sockprotocol, 2 } } },
 	{ .name = "stat", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Stat | OUT, 1 } } },
 	{ .name = "statfs", .ret_type = 1, .nargs = 2,
@@ -1909,6 +1909,17 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 	case Socklent:
 		fprintf(fp, "%u", (socklen_t)args[sc->offset]);
 		break;
+	case Sockprotocol: {
+		int protocol;
+
+		protocol = args[sc->offset];
+		if (protocol == 0) {
+			fputs("0", fp);
+		} else {
+			print_integer_arg(sysdecode_ipproto, fp, protocol);
+		}
+		break;
+	}
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
