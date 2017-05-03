@@ -95,8 +95,8 @@ main(int argc, char *argv[])
 	fsinfo_t	 fsoptions;
 	fsnode		*root;
 	int	 	 ch, i, len;
-	char		*subtree;
-	char		*specfile;
+	const char	*subtree;
+	const char	*specfile;
 
 	setprogname(argv[0]);
 
