@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2015
+.Dd May 3, 2017
 .Dt CPUSET 2
 .Os
 .Sh NAME
@@ -101,6 +101,8 @@ argument may have the following values:
 .It Dv CPU_WHICH_JAIL Ta "id is jid (jail id)"
 .It Dv CPU_WHICH_CPUSET Ta "id is a cpusetid_t (cpuset id)"
 .It Dv CPU_WHICH_IRQ Ta "id is an irq number"
+.It Dv CPU_WHICH_INTRHANDLER Ta "id is an irq number for an interrupt handler"
+.It Dv CPU_WHICH_ITHREAD Ta "id is an irq number for an ithread"
 .It Dv CPU_WHICH_DOMAIN Ta "id is a NUMA domain"
 .El
 .Pp
