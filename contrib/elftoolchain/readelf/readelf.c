@@ -296,6 +296,7 @@ static void dump_elf(struct readelf *re);
 static void dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab);
 static void dump_dynamic(struct readelf *re);
 static void dump_liblist(struct readelf *re);
+static void dump_mips_abiflags(struct readelf *re, struct section *s);
 static void dump_mips_attributes(struct readelf *re, uint8_t *p, uint8_t *pe);
 static void dump_mips_odk_reginfo(struct readelf *re, uint8_t *p, size_t sz);
 static void dump_mips_options(struct readelf *re, struct section *s);
@@ -325,6 +326,7 @@ static const char *dwarf_regname(struct readelf *re, unsigned int num);
 static struct dumpop *find_dumpop(struct readelf *re, size_t si,
     const char *sn, int op, int t);
 static int get_ent_count(struct section *s, int *ent_count);
+static int get_mips_register_size(uint8_t flag);
 static char *get_regoff_str(struct readelf *re, Dwarf_Half reg,
     Dwarf_Addr off);
 static const char *get_string(struct readelf *re, int strtab, size_t off);
@@ -4105,6 +4107,10 @@ dump_mips_specific_info(struct readelf *re)
 		}
 	}
 
+	if (s->name != NULL && (!strcmp(s->name, ".MIPS.abiflags") ||
+	    (s->type == SHT_MIPS_ABIFLAGS)))
+		dump_mips_abiflags(re, s);
+
 	/*
 	 * Dump .reginfo if present (although it will be ignored by an OS if a
 	 * .MIPS.options section is present, according to SGI mips64 spec).
@@ -4117,6 +4123,82 @@ dump_mips_specific_info(struct readelf *re)
 	}
 }
 
+static void
+dump_mips_abiflags(struct readelf *re, struct section *s)
+{
+	Elf_Data *d;
+	uint8_t *p;
+	int elferr;
+	uint32_t isa_ext, ases, flags1, flags2;
+	uint16_t version;
+	uint8_t isa_level, isa_rev, gpr_size, cpr1_size, cpr2_size, fp_abi;
+
+	if ((d = elf_rawdata(s->scn, NULL)) == NULL) {
+		elferr = elf_errno();
+		if (elferr != 0)
+			warnx("elf_rawdata failed: %s",
+			    elf_errmsg(elferr));
+		return;
+	}
+	if (d->d_size != 24) {
+		warnx("invalid MIPS abiflags section size");
+		return;
+	}
+
+	p = d->d_buf;
+	version = re->dw_decode(&p, 2);
+	printf("MIPS ABI Flags Version: %u", version);
+	if (version != 0) {
+		printf(" (unknown)\n\n");
+		return;
+	}
+	printf("\n\n");
+
+	isa_level = re->dw_decode(&p, 1);
+	isa_rev = re->dw_decode(&p, 1);
+	gpr_size = re->dw_decode(&p, 1);
+	cpr1_size = re->dw_decode(&p, 1);
+	cpr2_size = re->dw_decode(&p, 1);
+	fp_abi = re->dw_decode(&p, 1);
+	isa_ext = re->dw_decode(&p, 4);
+	ases = re->dw_decode(&p, 4);
+	flags1 = re->dw_decode(&p, 4);
+	flags2 = re->dw_decode(&p, 4);
+
+	printf("ISA: ");
+	if (isa_rev <= 1)
+		printf("MIPS%u\n", isa_level);
+	else
+		printf("MIPS%ur%u\n", isa_level, isa_rev);
+	printf("GPR size: %d\n", get_mips_register_size(gpr_size));
+	printf("CPR1 size: %d\n", get_mips_register_size(cpr1_size));
+	printf("CPR2 size: %d\n", get_mips_register_size(cpr2_size));
+	printf("FP ABI: ");
+	switch (fp_abi) {
+	case 3:
+		printf("Soft float");
+		break;
+	default:
+		printf("%u", fp_abi);
+		break;
+	}
+	printf("\nISA Extension: %u\n", isa_ext);
+	printf("ASEs: %u\n", ases);
+	printf("FLAGS 1: %08x\n", flags1);
+	printf("FLAGS 2: %08x\n", flags2);
+}
+
+static int
+get_mips_register_size(uint8_t flag)
+{
+	switch (flag) {
+	case 0: return 0;
+	case 1: return 32;
+	case 2: return 64;
+	case 3: return 128;
+	default: return -1;
+	}
+}
 static void
 dump_mips_reginfo(struct readelf *re, struct section *s)
 {
