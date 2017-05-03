@@ -936,7 +936,8 @@ match(Char *name, Char *pat, Char *patend)
 				ok = 0;
 				if ((k = *name++) == EOS)
 					goto fail;
-				if ((negate_range = ((*pat & M_MASK) == M_NOT)) != 0)
+				negate_range = ((*pat & M_MASK) == M_NOT);
+				if (negate_range != 0)
 					++pat;
 				while (((c = *pat++) & M_MASK) != M_END)
 					if ((*pat & M_MASK) == M_RNG) {
