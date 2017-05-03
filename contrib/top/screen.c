@@ -494,12 +494,12 @@ go_home()
 
 /* This has to be defined as a subroutine for tputs (instead of a macro) */
 
-void
+int
 putstdout(ch)
 
 char ch;
 
 {
-    putchar(ch);
+    return putchar(ch);
 }
 
