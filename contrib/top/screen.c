@@ -58,8 +58,6 @@ char ch_erase;
 char ch_kill;
 char smart_terminal;
 char PC;
-char *tgetstr();
-char *tgoto();
 char termcap_buf[1024];
 char string_buffer[1024];
 char home[15];

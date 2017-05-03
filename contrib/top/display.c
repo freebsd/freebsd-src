@@ -89,9 +89,9 @@ static int cpustates_column;
 
 static enum { OFF, ON, ERASE } header_status = ON;
 
-static int string_count();
-static void summary_format();
-static void line_update();
+static int string_count(char **pp);
+static void summary_format(char *str, int *numbers, register char **names);
+static void line_update(char *old, char *new, int start, int line);
 
 int  x_lastpid =	10;
 int  y_lastpid =	0;
