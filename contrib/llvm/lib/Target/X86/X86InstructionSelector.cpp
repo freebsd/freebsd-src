@@ -48,7 +48,6 @@ public:
   X86InstructionSelector(const X86TargetMachine &TM, const X86Subtarget &STI,
                          const X86RegisterBankInfo &RBI);
 
-  void beginFunction(const MachineFunction &MF) override;
   bool select(MachineInstr &I) const override;
 
 private:
@@ -56,11 +55,9 @@ private:
   /// the patterns that don't require complex C++.
   bool selectImpl(MachineInstr &I) const;
 
-  // TODO: remove after selectImpl support pattern with a predicate.
+  // TODO: remove after suported by Tablegen-erated instruction selection.
   unsigned getFAddOp(LLT &Ty, const RegisterBank &RB) const;
   unsigned getFSubOp(LLT &Ty, const RegisterBank &RB) const;
-  unsigned getAddOp(LLT &Ty, const RegisterBank &RB) const;
-  unsigned getSubOp(LLT &Ty, const RegisterBank &RB) const;
   unsigned getLoadStoreOp(LLT &Ty, const RegisterBank &RB, unsigned Opc,
                           uint64_t Alignment) const;
 
@@ -80,12 +77,10 @@ private:
   const X86InstrInfo &TII;
   const X86RegisterInfo &TRI;
   const X86RegisterBankInfo &RBI;
-  bool OptForSize;
-  bool OptForMinSize;
 
-  PredicateBitset AvailableFeatures;
-  PredicateBitset computeAvailableFeatures(const MachineFunction *MF,
-                                           const X86Subtarget *Subtarget) const;
+#define GET_GLOBALISEL_PREDICATES_DECL
+#include "X86GenGlobalISel.inc"
+#undef GET_GLOBALISEL_PREDICATES_DECL
 
 #define GET_GLOBALISEL_TEMPORARIES_DECL
 #include "X86GenGlobalISel.inc"
@@ -102,8 +97,10 @@ X86InstructionSelector::X86InstructionSelector(const X86TargetMachine &TM,
                                                const X86Subtarget &STI,
                                                const X86RegisterBankInfo &RBI)
     : InstructionSelector(), TM(TM), STI(STI), TII(*STI.getInstrInfo()),
-      TRI(*STI.getRegisterInfo()), RBI(RBI), OptForSize(false),
-      OptForMinSize(false), AvailableFeatures()
+      TRI(*STI.getRegisterInfo()), RBI(RBI),
+#define GET_GLOBALISEL_PREDICATES_INIT
+#include "X86GenGlobalISel.inc"
+#undef GET_GLOBALISEL_PREDICATES_INIT
 #define GET_GLOBALISEL_TEMPORARIES_INIT
 #include "X86GenGlobalISel.inc"
 #undef GET_GLOBALISEL_TEMPORARIES_INIT
@@ -153,10 +150,9 @@ static bool selectCopy(MachineInstr &I, const TargetInstrInfo &TII,
 
   const RegisterBank &RegBank = *RBI.getRegBank(DstReg, MRI, TRI);
   const unsigned DstSize = MRI.getType(DstReg).getSizeInBits();
-  (void)DstSize;
   unsigned SrcReg = I.getOperand(1).getReg();
   const unsigned SrcSize = RBI.getSizeInBits(SrcReg, MRI, TRI);
-  (void)SrcSize;
+
   assert((!TargetRegisterInfo::isPhysicalRegister(SrcReg) || I.isCopy()) &&
          "No phys reg on generic operators");
   assert((DstSize == SrcSize ||
@@ -172,6 +168,18 @@ static bool selectCopy(MachineInstr &I, const TargetInstrInfo &TII,
   case X86::GPRRegBankID:
     assert((DstSize <= 64) && "GPRs cannot get more than 64-bit width values.");
     RC = getRegClassForTypeOnBank(MRI.getType(DstReg), RegBank);
+
+    // Change the physical register
+    if (SrcSize > DstSize && TargetRegisterInfo::isPhysicalRegister(SrcReg)) {
+      if (RC == &X86::GR32RegClass)
+        I.getOperand(1).setSubReg(X86::sub_32bit);
+      else if (RC == &X86::GR16RegClass)
+        I.getOperand(1).setSubReg(X86::sub_16bit);
+      else if (RC == &X86::GR8RegClass)
+        I.getOperand(1).setSubReg(X86::sub_8bit);
+
+      I.getOperand(1).substPhysReg(SrcReg, TRI);
+    }
     break;
   case X86::VECRRegBankID:
     RC = getRegClassForTypeOnBank(MRI.getType(DstReg), RegBank);
@@ -193,12 +201,6 @@ static bool selectCopy(MachineInstr &I, const TargetInstrInfo &TII,
   }
   I.setDesc(TII.get(X86::COPY));
   return true;
-}
-
-void X86InstructionSelector::beginFunction(const MachineFunction &MF) {
-  OptForSize = MF.getFunction()->optForSize();
-  OptForMinSize = MF.getFunction()->optForMinSize();
-  AvailableFeatures = computeAvailableFeatures(&MF, &STI);
 }
 
 bool X86InstructionSelector::select(MachineInstr &I) const {
@@ -223,8 +225,12 @@ bool X86InstructionSelector::select(MachineInstr &I) const {
   assert(I.getNumOperands() == I.getNumExplicitOperands() &&
          "Generic instruction has unexpected implicit operands\n");
 
-  // TODO: This should be implemented by tblgen, pattern with predicate not
-  // supported yet.
+  if (selectImpl(I))
+     return true;
+
+  DEBUG(dbgs() << " C++ instruction selection: "; I.print(dbgs()));
+
+  // TODO: This should be implemented by tblgen.
   if (selectBinaryOp(I, MRI, MF))
     return true;
   if (selectLoadStoreOp(I, MRI, MF))
@@ -236,7 +242,7 @@ bool X86InstructionSelector::select(MachineInstr &I) const {
   if (selectTrunc(I, MRI, MF))
     return true;
 
-  return selectImpl(I);
+  return false;
 }
 
 unsigned X86InstructionSelector::getFAddOp(LLT &Ty,
@@ -309,44 +315,6 @@ unsigned X86InstructionSelector::getFSubOp(LLT &Ty,
   return TargetOpcode::G_FSUB;
 }
 
-unsigned X86InstructionSelector::getAddOp(LLT &Ty,
-                                          const RegisterBank &RB) const {
-
-  if (X86::VECRRegBankID != RB.getID())
-    return TargetOpcode::G_ADD;
-
-  if (Ty == LLT::vector(4, 32)) {
-    if (STI.hasAVX512() && STI.hasVLX()) {
-      return X86::VPADDDZ128rr;
-    } else if (STI.hasAVX()) {
-      return X86::VPADDDrr;
-    } else if (STI.hasSSE2()) {
-      return X86::PADDDrr;
-    }
-  }
-
-  return TargetOpcode::G_ADD;
-}
-
-unsigned X86InstructionSelector::getSubOp(LLT &Ty,
-                                          const RegisterBank &RB) const {
-
-  if (X86::VECRRegBankID != RB.getID())
-    return TargetOpcode::G_SUB;
-
-  if (Ty == LLT::vector(4, 32)) {
-    if (STI.hasAVX512() && STI.hasVLX()) {
-      return X86::VPSUBDZ128rr;
-    } else if (STI.hasAVX()) {
-      return X86::VPSUBDrr;
-    } else if (STI.hasSSE2()) {
-      return X86::PSUBDrr;
-    }
-  }
-
-  return TargetOpcode::G_SUB;
-}
-
 bool X86InstructionSelector::selectBinaryOp(MachineInstr &I,
                                             MachineRegisterInfo &MRI,
                                             MachineFunction &MF) const {
@@ -363,12 +331,6 @@ bool X86InstructionSelector::selectBinaryOp(MachineInstr &I,
     break;
   case TargetOpcode::G_FSUB:
     NewOpc = getFSubOp(Ty, RB);
-    break;
-  case TargetOpcode::G_ADD:
-    NewOpc = getAddOp(Ty, RB);
-    break;
-  case TargetOpcode::G_SUB:
-    NewOpc = getSubOp(Ty, RB);
     break;
   default:
     break;
@@ -396,7 +358,7 @@ unsigned X86InstructionSelector::getLoadStoreOp(LLT &Ty, const RegisterBank &RB,
   } else if (Ty == LLT::scalar(16)) {
     if (X86::GPRRegBankID == RB.getID())
       return Isload ? X86::MOV16rm : X86::MOV16mr;
-  } else if (Ty == LLT::scalar(32)) {
+  } else if (Ty == LLT::scalar(32) || Ty == LLT::pointer(0, 32)) {
     if (X86::GPRRegBankID == RB.getID())
       return Isload ? X86::MOV32rm : X86::MOV32mr;
     if (X86::VECRRegBankID == RB.getID())
@@ -404,7 +366,7 @@ unsigned X86InstructionSelector::getLoadStoreOp(LLT &Ty, const RegisterBank &RB,
                                  : HasAVX ? X86::VMOVSSrm : X86::MOVSSrm)
                     : (HasAVX512 ? X86::VMOVSSZmr
                                  : HasAVX ? X86::VMOVSSmr : X86::MOVSSmr);
-  } else if (Ty == LLT::scalar(64)) {
+  } else if (Ty == LLT::scalar(64) || Ty == LLT::pointer(0, 64)) {
     if (X86::GPRRegBankID == RB.getID())
       return Isload ? X86::MOV64rm : X86::MOV64mr;
     if (X86::VECRRegBankID == RB.getID())

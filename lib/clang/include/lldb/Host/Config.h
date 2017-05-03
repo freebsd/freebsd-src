@@ -15,6 +15,10 @@
 
 /* #undef LLDB_DISABLE_POSIX */
 
-#define HAVE_SYS_EVENT_H 0
+#define HAVE_SYS_EVENT_H 1
+
+#define HAVE_PPOLL 1
+
+#define HAVE_SIGACTION 1
 
 #endif // #ifndef LLDB_HOST_CONFIG_H

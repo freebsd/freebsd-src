@@ -2607,10 +2607,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
         AttrBuilder B;
         B.addAttribute(Attribute::ReadOnly)
           .addAttribute(Attribute::ReadNone);
-        Func->removeAttributes(AttributeList::FunctionIndex,
-                               AttributeList::get(Func->getContext(),
-                                                  AttributeList::FunctionIndex,
-                                                  B));
+        Func->removeAttributes(AttributeList::FunctionIndex, B);
       }
 
       maybeMarkSanitizerLibraryCallNoBuiltin(Call, TLI);
@@ -2643,7 +2640,7 @@ struct MemorySanitizerVisitor : public InstVisitor<MemorySanitizerVisitor> {
                "ByVal argument is not a pointer!");
         Size = DL.getTypeAllocSize(A->getType()->getPointerElementType());
         if (ArgOffset + Size > kParamTLSSize) break;
-        unsigned ParamAlignment = CS.getParamAlignment(i + 1);
+        unsigned ParamAlignment = CS.getParamAlignment(i);
         unsigned Alignment = std::min(ParamAlignment, kShadowTLSAlignment);
         Store = IRB.CreateMemCpy(ArgShadowBase,
                                  getShadowPtr(A, Type::getInt8Ty(*MS.C), IRB),
@@ -3502,7 +3499,7 @@ struct VarArgPowerPC64Helper : public VarArgHelper {
         assert(A->getType()->isPointerTy());
         Type *RealTy = A->getType()->getPointerElementType();
         uint64_t ArgSize = DL.getTypeAllocSize(RealTy);
-        uint64_t ArgAlign = CS.getParamAlignment(ArgNo + 1);
+        uint64_t ArgAlign = CS.getParamAlignment(ArgNo);
         if (ArgAlign < 8)
           ArgAlign = 8;
         VAArgOffset = alignTo(VAArgOffset, ArgAlign);
@@ -3659,9 +3656,7 @@ bool MemorySanitizer::runOnFunction(Function &F) {
   AttrBuilder B;
   B.addAttribute(Attribute::ReadOnly)
     .addAttribute(Attribute::ReadNone);
-  F.removeAttributes(
-      AttributeList::FunctionIndex,
-      AttributeList::get(F.getContext(), AttributeList::FunctionIndex, B));
+  F.removeAttributes(AttributeList::FunctionIndex, B);
 
   return Visitor.runOnFunction();
 }

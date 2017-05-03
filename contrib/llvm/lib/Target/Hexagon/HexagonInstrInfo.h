@@ -399,6 +399,7 @@ public:
                              const MachineInstr &GB) const;
   int getCondOpcode(int Opc, bool sense) const;
   int getDotCurOp(const MachineInstr &MI) const;
+  int getNonDotCurOp(const MachineInstr &MI) const;
   int getDotNewOp(const MachineInstr &MI) const;
   int getDotNewPredJumpOp(const MachineInstr &MI,
                           const MachineBranchProbabilityInfo *MBPI) const;
@@ -424,7 +425,6 @@ public:
   unsigned getSize(const MachineInstr &MI) const;
   uint64_t getType(const MachineInstr &MI) const;
   unsigned getUnits(const MachineInstr &MI) const;
-  unsigned getValidSubTargets(const unsigned Opcode) const;
 
   /// getInstrTimingClassLatency - Compute the instruction latency of a given
   /// instruction using Timing Class information, if available.

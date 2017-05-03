@@ -1231,11 +1231,12 @@ void LoopUnswitch::UnswitchNontrivialCondition(Value *LIC, Constant *Val,
   LoopProcessWorklist.push_back(NewLoop);
   redoLoop = true;
 
-  // Keep a WeakVH holding onto LIC.  If the first call to RewriteLoopBody
+  // Keep a WeakTrackingVH holding onto LIC.  If the first call to
+  // RewriteLoopBody
   // deletes the instruction (for example by simplifying a PHI that feeds into
   // the condition that we're unswitching on), we don't rewrite the second
   // iteration.
-  WeakVH LICHandle(LIC);
+  WeakTrackingVH LICHandle(LIC);
 
   // Now we rewrite the original code to know that the condition is true and the
   // new code to know that the condition is false.
@@ -1262,7 +1263,7 @@ static void RemoveFromWorklist(Instruction *I,
 static void ReplaceUsesOfWith(Instruction *I, Value *V,
                               std::vector<Instruction*> &Worklist,
                               Loop *L, LPPassManager *LPM) {
-  DEBUG(dbgs() << "Replace with '" << *V << "': " << *I);
+  DEBUG(dbgs() << "Replace with '" << *V << "': " << *I << "\n");
 
   // Add uses to the worklist, which may be dead now.
   for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i)
@@ -1275,7 +1276,8 @@ static void ReplaceUsesOfWith(Instruction *I, Value *V,
   LPM->deleteSimpleAnalysisValue(I, L);
   RemoveFromWorklist(I, Worklist);
   I->replaceAllUsesWith(V);
-  I->eraseFromParent();
+  if (!I->mayHaveSideEffects())
+    I->eraseFromParent();
   ++NumSimplify;
 }
 
@@ -1431,7 +1433,7 @@ void LoopUnswitch::SimplifyCode(std::vector<Instruction*> &Worklist, Loop *L) {
 
     // Simple DCE.
     if (isInstructionTriviallyDead(I)) {
-      DEBUG(dbgs() << "Remove dead instruction '" << *I);
+      DEBUG(dbgs() << "Remove dead instruction '" << *I << "\n");
 
       // Add uses to the worklist, which may be dead now.
       for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i)

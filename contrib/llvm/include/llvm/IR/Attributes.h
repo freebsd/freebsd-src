@@ -285,7 +285,8 @@ class AttributeList {
 public:
   enum AttrIndex : unsigned {
     ReturnIndex = 0U,
-    FunctionIndex = ~0U
+    FunctionIndex = ~0U,
+    FirstArgIndex = 1,
   };
 
 private:
@@ -336,6 +337,13 @@ public:
   static AttributeList get(LLVMContext &C, unsigned Index,
                            const AttrBuilder &B);
 
+  /// Add an argument attribute to the list. Returns a new list because
+  /// attribute lists are immutable.
+  AttributeList addParamAttribute(LLVMContext &C, unsigned ArgNo,
+                                  Attribute::AttrKind Kind) const {
+    return addAttribute(C, ArgNo + FirstArgIndex, Kind);
+  }
+
   /// \brief Add an attribute to the attribute set at the given index. Because
   /// attribute sets are immutable, this returns a new set.
   AttributeList addAttribute(LLVMContext &C, unsigned Index,
@@ -353,9 +361,6 @@ public:
 
   /// \brief Add attributes to the attribute set at the given index. Because
   /// attribute sets are immutable, this returns a new set.
-  AttributeList addAttributes(LLVMContext &C, unsigned Index,
-                              AttributeList Attrs) const;
-
   AttributeList addAttributes(LLVMContext &C, unsigned Index,
                               const AttrBuilder &B) const;
 
@@ -375,13 +380,7 @@ public:
   /// attribute list. Because attribute lists are immutable, this returns the
   /// new list.
   AttributeList removeAttributes(LLVMContext &C, unsigned Index,
-                                 AttributeList Attrs) const;
-
-  /// \brief Remove the specified attributes at the specified index from this
-  /// attribute list. Because attribute lists are immutable, this returns the
-  /// new list.
-  AttributeList removeAttributes(LLVMContext &C, unsigned Index,
-                                 const AttrBuilder &Attrs) const;
+                                 const AttrBuilder &AttrsToRemove) const;
 
   /// \brief Remove all attributes at the specified index from this
   /// attribute list. Because attribute lists are immutable, this returns the
@@ -442,7 +441,7 @@ public:
   /// may be faster.
   bool hasFnAttribute(StringRef Kind) const;
 
-  /// \brief Equivalent to hasAttribute(ArgNo + 1, Kind).
+  /// \brief Equivalent to hasAttribute(ArgNo + FirstArgIndex, Kind).
   bool hasParamAttribute(unsigned ArgNo, Attribute::AttrKind Kind) const;
 
   /// \brief Return true if the specified attribute is set for at least one
@@ -457,8 +456,11 @@ public:
   /// \brief Return the attribute object that exists at the given index.
   Attribute getAttribute(unsigned Index, StringRef Kind) const;
 
+  /// \brief Return the alignment of the return value.
+  unsigned getRetAlignment() const;
+
   /// \brief Return the alignment for the specified function parameter.
-  unsigned getParamAlignment(unsigned Index) const;
+  unsigned getParamAlignment(unsigned ArgNo) const;
 
   /// \brief Get the stack alignment.
   unsigned getStackAlignment(unsigned Index) const;

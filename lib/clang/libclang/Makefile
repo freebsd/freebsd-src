@@ -45,6 +45,7 @@ SRCS_MIN+=	AST/ASTContext.cpp
 SRCS_MIN+=	AST/ASTDiagnostic.cpp
 SRCS_MIN+=	AST/ASTDumper.cpp
 SRCS_MIN+=	AST/ASTImporter.cpp
+SRCS_MIN+=	AST/ASTStructuralEquivalence.cpp
 SRCS_MIN+=	AST/ASTTypeTraits.cpp
 SRCS_MIN+=	AST/AttrImpl.cpp
 SRCS_MIN+=	AST/CXXInheritance.cpp

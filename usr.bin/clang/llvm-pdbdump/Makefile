@@ -5,6 +5,7 @@ MAN=
 
 SRCDIR=		tools/llvm-pdbdump
 SRCS+=		Analyze.cpp
+SRCS+=		C13DebugFragmentVisitor.cpp
 SRCS+=		CompactTypeDumpVisitor.cpp
 SRCS+=		Diff.cpp
 SRCS+=		LLVMOutputStyle.cpp

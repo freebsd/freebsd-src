@@ -395,7 +395,6 @@ namespace {
 class NewGVN {
   Function &F;
   DominatorTree *DT;
-  AssumptionCache *AC;
   const TargetLibraryInfo *TLI;
   AliasAnalysis *AA;
   MemorySSA *MSSA;
@@ -405,6 +404,7 @@ class NewGVN {
   BumpPtrAllocator ExpressionAllocator;
   ArrayRecycler<Value *> ArgRecycler;
   TarjanSCC SCCFinder;
+  const SimplifyQuery SQ;
 
   // Number of function arguments, used by ranking
   unsigned int NumFuncArgs;
@@ -504,8 +504,9 @@ public:
   NewGVN(Function &F, DominatorTree *DT, AssumptionCache *AC,
          TargetLibraryInfo *TLI, AliasAnalysis *AA, MemorySSA *MSSA,
          const DataLayout &DL)
-      : F(F), DT(DT), AC(AC), TLI(TLI), AA(AA), MSSA(MSSA), DL(DL),
-        PredInfo(make_unique<PredicateInfo>(F, *DT, *AC)) {}
+      : F(F), DT(DT), TLI(TLI), AA(AA), MSSA(MSSA), DL(DL),
+        PredInfo(make_unique<PredicateInfo>(F, *DT, *AC)), SQ(DL, TLI, DT, AC) {
+  }
   bool runGVN();
 
 private:
@@ -782,8 +783,7 @@ const Expression *NewGVN::createBinaryExpression(unsigned Opcode, Type *T,
   E->op_push_back(lookupOperandLeader(Arg1));
   E->op_push_back(lookupOperandLeader(Arg2));
 
-  Value *V = SimplifyBinOp(Opcode, E->getOperand(0), E->getOperand(1), DL, TLI,
-                           DT, AC);
+  Value *V = SimplifyBinOp(Opcode, E->getOperand(0), E->getOperand(1), SQ);
   if (const Expression *SimplifiedE = checkSimplificationResults(E, nullptr, V))
     return SimplifiedE;
   return E;
@@ -864,8 +864,8 @@ const Expression *NewGVN::createExpression(Instruction *I) {
            "Wrong types on cmp instruction");
     assert((E->getOperand(0)->getType() == I->getOperand(0)->getType() &&
             E->getOperand(1)->getType() == I->getOperand(1)->getType()));
-    Value *V = SimplifyCmpInst(Predicate, E->getOperand(0), E->getOperand(1),
-                               DL, TLI, DT, AC);
+    Value *V =
+        SimplifyCmpInst(Predicate, E->getOperand(0), E->getOperand(1), SQ);
     if (const Expression *SimplifiedE = checkSimplificationResults(E, I, V))
       return SimplifiedE;
   } else if (isa<SelectInst>(I)) {
@@ -874,23 +874,23 @@ const Expression *NewGVN::createExpression(Instruction *I) {
       assert(E->getOperand(1)->getType() == I->getOperand(1)->getType() &&
              E->getOperand(2)->getType() == I->getOperand(2)->getType());
       Value *V = SimplifySelectInst(E->getOperand(0), E->getOperand(1),
-                                    E->getOperand(2), DL, TLI, DT, AC);
+                                    E->getOperand(2), SQ);
       if (const Expression *SimplifiedE = checkSimplificationResults(E, I, V))
         return SimplifiedE;
     }
   } else if (I->isBinaryOp()) {
-    Value *V = SimplifyBinOp(E->getOpcode(), E->getOperand(0), E->getOperand(1),
-                             DL, TLI, DT, AC);
+    Value *V =
+        SimplifyBinOp(E->getOpcode(), E->getOperand(0), E->getOperand(1), SQ);
     if (const Expression *SimplifiedE = checkSimplificationResults(E, I, V))
       return SimplifiedE;
   } else if (auto *BI = dyn_cast<BitCastInst>(I)) {
-    Value *V = SimplifyInstruction(BI, DL, TLI, DT, AC);
+    Value *V =
+        SimplifyCastInst(BI->getOpcode(), BI->getOperand(0), BI->getType(), SQ);
     if (const Expression *SimplifiedE = checkSimplificationResults(E, I, V))
       return SimplifiedE;
   } else if (isa<GetElementPtrInst>(I)) {
-    Value *V = SimplifyGEPInst(E->getType(),
-                               ArrayRef<Value *>(E->op_begin(), E->op_end()),
-                               DL, TLI, DT, AC);
+    Value *V = SimplifyGEPInst(
+        E->getType(), ArrayRef<Value *>(E->op_begin(), E->op_end()), SQ);
     if (const Expression *SimplifiedE = checkSimplificationResults(E, I, V))
       return SimplifiedE;
   } else if (AllConstant) {
@@ -1440,18 +1440,15 @@ const Expression *NewGVN::performSymbolicPHIEvaluation(Instruction *I) {
   // True if one of the incoming phi edges is a backedge.
   bool HasBackedge = false;
   // All constant tracks the state of whether all the *original* phi operands
-  // were constant.
-  // This is really shorthand for "this phi cannot cycle due to forward
-  // propagation", as any
-  // change in value of the phi is guaranteed not to later change the value of
-  // the phi.
+  // were constant. This is really shorthand for "this phi cannot cycle due
+  // to forward propagation", as any change in value of the phi is guaranteed
+  // not to later change the value of the phi.
   // IE it can't be v = phi(undef, v+1)
   bool AllConstant = true;
   auto *E =
       cast<PHIExpression>(createPHIExpression(I, HasBackedge, AllConstant));
   // We match the semantics of SimplifyPhiNode from InstructionSimplify here.
-
-  // See if all arguaments are the same.
+  // See if all arguments are the same.
   // We track if any were undef because they need special handling.
   bool HasUndef = false;
   auto Filtered = make_filter_range(E->operands(), [&](const Value *Arg) {
@@ -1628,15 +1625,15 @@ const Expression *NewGVN::performSymbolicCmpEvaluation(Instruction *I) {
         if (PBranch->TrueEdge) {
           // If we know the previous predicate is true and we are in the true
           // edge then we may be implied true or false.
-          if (CmpInst::isImpliedTrueByMatchingCmp(OurPredicate,
-                                                  BranchPredicate)) {
+          if (CmpInst::isImpliedTrueByMatchingCmp(BranchPredicate,
+                                                  OurPredicate)) {
             addPredicateUsers(PI, I);
             return createConstantExpression(
                 ConstantInt::getTrue(CI->getType()));
           }
 
-          if (CmpInst::isImpliedFalseByMatchingCmp(OurPredicate,
-                                                   BranchPredicate)) {
+          if (CmpInst::isImpliedFalseByMatchingCmp(BranchPredicate,
+                                                   OurPredicate)) {
             addPredicateUsers(PI, I);
             return createConstantExpression(
                 ConstantInt::getFalse(CI->getType()));

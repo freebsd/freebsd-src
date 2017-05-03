@@ -255,6 +255,7 @@ void ASTTypeWriter::VisitFunctionType(const FunctionType *T) {
   // FIXME: need to stabilize encoding of calling convention...
   Record.push_back(C.getCC());
   Record.push_back(C.getProducesResult());
+  Record.push_back(C.getNoCallerSavedRegs());
 
   if (C.getHasRegParm() || C.getRegParm() || C.getProducesResult())
     AbbrevToUse = 0;
@@ -839,6 +840,7 @@ void ASTWriter::WriteTypeAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                         // RegParm
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 4)); // CC
   Abv->Add(BitCodeAbbrevOp(0));                         // ProducesResult
+  Abv->Add(BitCodeAbbrevOp(0));                         // NoCallerSavedRegs
   // FunctionProtoType
   Abv->Add(BitCodeAbbrevOp(0));                         // IsVariadic
   Abv->Add(BitCodeAbbrevOp(0));                         // HasTrailingReturn
@@ -2866,8 +2868,27 @@ void ASTWriter::WritePragmaDiagnosticMappings(const DiagnosticsEngine &Diag,
   unsigned CurrID = 0;
   RecordData Record;
 
+  auto EncodeDiagStateFlags =
+      [](const DiagnosticsEngine::DiagState *DS) -> unsigned {
+    unsigned Result = (unsigned)DS->ExtBehavior;
+    for (unsigned Val :
+         {(unsigned)DS->IgnoreAllWarnings, (unsigned)DS->EnableAllWarnings,
+          (unsigned)DS->WarningsAsErrors, (unsigned)DS->ErrorsAsFatal,
+          (unsigned)DS->SuppressSystemWarnings})
+      Result = (Result << 1) | Val;
+    return Result;
+  };
+
+  unsigned Flags = EncodeDiagStateFlags(Diag.DiagStatesByLoc.FirstDiagState);
+  Record.push_back(Flags);
+
   auto AddDiagState = [&](const DiagnosticsEngine::DiagState *State,
                           bool IncludeNonPragmaStates) {
+    // Ensure that the diagnostic state wasn't modified since it was created.
+    // We will not correctly round-trip this information otherwise.
+    assert(Flags == EncodeDiagStateFlags(State) &&
+           "diag state flags vary in single AST file");
+
     unsigned &DiagStateID = DiagStateIDMap[State];
     Record.push_back(DiagStateID);
   
@@ -2880,7 +2901,7 @@ void ASTWriter::WritePragmaDiagnosticMappings(const DiagnosticsEngine &Diag,
       for (const auto &I : *State) {
         if (I.second.isPragma() || IncludeNonPragmaStates) {
           Record.push_back(I.first);
-          Record.push_back(I.second.serializeBits());
+          Record.push_back(I.second.serialize());
         }
       }
       // Update the placeholder.
