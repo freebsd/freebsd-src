@@ -2771,10 +2771,11 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb)
 		pdb->portid = BITS2WORD_24XX(un.bill.pdb_portid_bits);
 		ISP_MEMCPY(pdb->portname, un.bill.pdb_portname, 8);
 		ISP_MEMCPY(pdb->nodename, un.bill.pdb_nodename, 8);
-		isp_prt(isp, ISP_LOGDEBUG1,
-		    "Chan %d handle 0x%x Port 0x%06x flags 0x%x curstate %x",
+		isp_prt(isp, ISP_LOGDEBUG0,
+		    "Chan %d handle 0x%x Port 0x%06x flags 0x%x curstate %x laststate %x",
 		    chan, id, pdb->portid, un.bill.pdb_flags,
-		    un.bill.pdb_curstate);
+		    un.bill.pdb_curstate, un.bill.pdb_laststate);
+
 		if (un.bill.pdb_curstate < PDB2400_STATE_PLOGI_DONE || un.bill.pdb_curstate > PDB2400_STATE_LOGGED_IN) {
 			mbs.param[0] = MBOX_NOT_LOGGED_IN;
 			return (mbs.param[0]);
