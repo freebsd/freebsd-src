@@ -492,7 +492,7 @@ evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
 		buffer->n_del_for_cb = 0;
 	}
 	for (cbent = LIST_FIRST(&buffer->callbacks);
-	     cbent != LIST_END(&buffer->callbacks);
+	     cbent != NULL;
 	     cbent = next) {
 		/* Get the 'next' pointer now in case this callback decides
 		 * to remove itself or something. */
