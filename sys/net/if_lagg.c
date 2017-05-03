@@ -1533,10 +1533,9 @@ lagg_setmulti(struct lagg_port *lp)
 static int
 lagg_clrmulti(struct lagg_port *lp)
 {
-	struct lagg_softc *sc = lp->lp_softc;
 	struct lagg_mc *mc;
 
-	LAGG_WLOCK_ASSERT(sc);
+	LAGG_WLOCK_ASSERT(lp->lp_softc);
 	while ((mc = SLIST_FIRST(&lp->lp_mc_head)) != NULL) {
 		SLIST_REMOVE(&lp->lp_mc_head, mc, lagg_mc, mc_entries);
 		if (mc->mc_ifma && lp->lp_detaching == 0)
