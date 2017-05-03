@@ -117,8 +117,10 @@ static vop_setattr_t	ext2_setattr;
 static vop_strategy_t	ext2_strategy;
 static vop_symlink_t	ext2_symlink;
 static vop_write_t	ext2_write;
+static vop_deleteextattr_t	ext2_deleteextattr;
 static vop_getextattr_t	ext2_getextattr;
 static vop_listextattr_t	ext2_listextattr;
+static vop_setextattr_t	ext2_setextattr;
 static vop_vptofh_t	ext2_vptofh;
 static vop_close_t	ext2fifo_close;
 static vop_kqfilter_t	ext2fifo_kqfilter;
@@ -157,8 +159,10 @@ struct vop_vector ext2_vnodeops = {
 	.vop_strategy =		ext2_strategy,
 	.vop_symlink =		ext2_symlink,
 	.vop_write =		ext2_write,
+	.vop_deleteextattr =	ext2_deleteextattr,
 	.vop_getextattr =	ext2_getextattr,
 	.vop_listextattr =	ext2_listextattr,
+	.vop_setextattr =	ext2_setextattr,
 	.vop_vptofh =		ext2_vptofh,
 };
 
@@ -1486,6 +1490,42 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 }
 
 /*
+ * Vnode operation to remove a named attribute.
+ */
+static int
+ext2_deleteextattr(struct vop_deleteextattr_args *ap)
+{
+	struct inode *ip;
+	struct m_ext2fs *fs;
+	int error;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
+		return (EOPNOTSUPP);
+
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VWRITE);
+	if (error)
+		return (error);
+
+	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
+		error = ext2_extattr_inode_delete(ip, ap->a_attrnamespace, ap->a_name);
+		if (error != ENOATTR)
+			return (error);
+	}
+
+	if (ip->i_facl)
+		error = ext2_extattr_block_delete(ip, ap->a_attrnamespace, ap->a_name);
+
+	return (error);
+}
+
+/*
  * Vnode operation to retrieve a named extended attribute.
  */
 static int
@@ -1515,7 +1555,7 @@ ext2_getextattr(struct vop_getextattr_args *ap)
 	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
 		error = ext2_extattr_inode_get(ip, ap->a_attrnamespace,
 		    ap->a_name, ap->a_uio, ap->a_size);
-		if (error)
+		if (error != ENOATTR)
 			return (error);
 	}
 
@@ -1556,13 +1596,54 @@ ext2_listextattr(struct vop_listextattr_args *ap)
 	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
 		error = ext2_extattr_inode_list(ip, ap->a_attrnamespace,
 		    ap->a_uio, ap->a_size);
-		if(error)
+		if (error)
 			return (error);
 	}
 
-	if(ip->i_facl)
+	if (ip->i_facl)
 		error = ext2_extattr_block_list(ip, ap->a_attrnamespace,
 		    ap->a_uio, ap->a_size);
+
+	return (error);
+}
+
+/*
+ * Vnode operation to set a named attribute.
+ */
+static int
+ext2_setextattr(struct vop_setextattr_args *ap)
+{
+	struct inode *ip;
+	struct m_ext2fs *fs;
+	int error;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_e2fs;
+
+	if (!EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_EXT_ATTR))
+		return (EOPNOTSUPP);
+
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VWRITE);
+	if (error)
+		return (error);
+
+	error = ext2_extattr_valid_attrname(ap->a_attrnamespace, ap->a_name);
+	if (error)
+		return (error);
+
+	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
+		error = ext2_extattr_inode_set(ip, ap->a_attrnamespace,
+		    ap->a_name, ap->a_uio);
+		if (error != ENOSPC)
+			return (error);
+	}
+
+	error = ext2_extattr_block_set(ip, ap->a_attrnamespace,
+	    ap->a_name, ap->a_uio);
 
 	return (error);
 }

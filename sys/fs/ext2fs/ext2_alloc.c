@@ -132,6 +132,25 @@ nospace:
 }
 
 /*
+ * Allocate EA's block for inode.
+ */
+daddr_t
+ext2_allocfacl(struct inode *ip)
+{
+	struct m_ext2fs *fs;
+	daddr_t facl;
+
+	fs = ip->i_e2fs;
+
+	EXT2_LOCK(ip->i_ump);
+	facl = ext2_alloccg(ip, ino_to_cg(fs, ip->i_number), 0, fs->e2fs_bsize);
+	if (0 == facl)
+		EXT2_UNLOCK(ip->i_ump);
+
+	return (facl);
+}
+
+/*
  * Reallocate a sequence of blocks into a contiguous sequence of blocks.
  *
  * The vnode and an array of buffer pointers for a range of sequential
