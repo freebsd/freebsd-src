@@ -575,8 +575,8 @@ mi_thread_handle_wrapper(arg)
 	**  You can safely ignore this warning as the result of this function
 	**  is not used anywhere.
 	*/
-
-	return (void *) mi_handle_session(arg);
+	(void)mi_handle_session(arg);
+	return NULL;
 }
 #endif /* _FFR_WORKERS_POOL */
 
