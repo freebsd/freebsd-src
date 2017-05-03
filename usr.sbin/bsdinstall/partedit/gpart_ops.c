@@ -99,14 +99,14 @@ newfs_command(const char *fstype, char *command, int use_default)
 		if (!use_default) {
 			int choice;
 			choice = dlg_checklist("UFS Options", "", 0, 0, 0,
-			    sizeof(items)/sizeof(items[0]), items, NULL,
+			    nitems(items), items, NULL,
 			    FLAG_CHECK, &i);
 			if (choice == 1) /* Cancel */
 				return;
 		}
 
 		strcpy(command, "newfs ");
-		for (i = 0; i < (int)(sizeof(items)/sizeof(items[0])); i++) {
+		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].state == 0)
 				continue;
 			if (strcmp(items[i].name, "UFS1") == 0)
@@ -137,7 +137,7 @@ newfs_command(const char *fstype, char *command, int use_default)
 		if (!use_default) {
 			int choice;
 			choice = dlg_checklist("ZFS Options", "", 0, 0, 0,
-			    sizeof(items)/sizeof(items[0]), items, NULL,
+			    nitems(items), items, NULL,
 			    FLAG_CHECK, &i);
 			if (choice == 1) /* Cancel */
 				return;
@@ -153,7 +153,7 @@ newfs_command(const char *fstype, char *command, int use_default)
 			sprintf(command, "%s -o cachefile=%s/zpool.cache ",
 			    command, zfsboot_path);
 		}
-		for (i = 0; i < (int)(sizeof(items)/sizeof(items[0])); i++) {
+		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].state == 0)
 				continue;
 			if (strcmp(items[i].name, "fletcher4") == 0)
@@ -179,14 +179,14 @@ newfs_command(const char *fstype, char *command, int use_default)
 		if (!use_default) {
 			int choice;
 			choice = dlg_checklist("FAT Options", "", 0, 0, 0,
-			    sizeof(items)/sizeof(items[0]), items, NULL,
+			    nitems(items), items, NULL,
 			    FLAG_RADIO, &i);
 			if (choice == 1) /* Cancel */
 				return;
 		}
 
 		strcpy(command, "newfs_msdos ");
-		for (i = 0; i < (int)(sizeof(items)/sizeof(items[0])); i++) {
+		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].state == 0)
 				continue;
 			if (strcmp(items[i].name, "FAT32") == 0)
@@ -227,7 +227,7 @@ parttypemenu:
 	dialog_vars.default_item = __DECONST(char *, def_scheme);
 	cancel = dlg_menu("Partition Scheme",
 	    "Select a partition scheme for this volume:", 0, 0, 0,
-	    sizeof(items) / sizeof(items[0]), items, &choice, NULL);
+	    nitems(items), items, &choice, NULL);
 	dialog_vars.default_item = NULL;
 
 	if (cancel)
@@ -662,7 +662,7 @@ endedit:
 	    "freebsd") == 0)
 		gpart_partition(pp->lg_name, "BSD");
 
-	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
+	for (i = 0; i < nitems(items); i++)
 		if (items[i].text_free)
 			free(items[i].text);
 }
@@ -1200,7 +1200,7 @@ addpartform:
 		set_default_part_metadata(newpartname, scheme,
 		    items[0].text, items[2].text, newfs);
 
-	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
+	for (i = 0; i < nitems(items); i++)
 		if (items[i].text_free)
 			free(items[i].text);
 
