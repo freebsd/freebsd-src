@@ -278,8 +278,9 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Readlinkres | OUT, 2 },
 		    { Sizet, 3 } } },
 	{ .name = "recvfrom", .ret_type = 1, .nargs = 6,
-	  .args = { { Int, 0 }, { BinString | OUT, 1 }, { Sizet, 2 }, { Hex, 3 },
-		    { Sockaddr | OUT, 4 }, { Ptr | OUT, 5 } } },
+	  .args = { { Int, 0 }, { BinString | OUT, 1 }, { Sizet, 2 },
+	            { Msgflags, 3 }, { Sockaddr | OUT, 4 },
+	            { Ptr | OUT, 5 } } },
 	{ .name = "rename", .ret_type = 1, .nargs = 2,
 	  .args = { { Name, 0 }, { Name, 1 } } },
 	{ .name = "renameat", .ret_type = 1, .nargs = 4,
@@ -292,8 +293,9 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Fd_set, 1 }, { Fd_set, 2 }, { Fd_set, 3 },
 		    { Timeval, 4 } } },
 	{ .name = "sendto", .ret_type = 1, .nargs = 6,
-	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 }, { Hex, 3 },
-		    { Sockaddr | IN, 4 }, { Socklent | IN, 5 } } },
+	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 },
+	            { Msgflags, 3 }, { Sockaddr | IN, 4 },
+	            { Socklent | IN, 5 } } },
 	{ .name = "setitimer", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Itimerval, 1 }, { Itimerval | OUT, 2 } } },
 	{ .name = "setrlimit", .ret_type = 1, .nargs = 2,
@@ -1944,6 +1946,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		}
 		break;
 	}
+	case Msgflags:
+		print_mask_arg(sysdecode_msg_flags, fp, args[sc->offset]);
+		break;
 
 	case CloudABIAdvice:
 		fputs(xlookup(cloudabi_advice, args[sc->offset]), fp);
