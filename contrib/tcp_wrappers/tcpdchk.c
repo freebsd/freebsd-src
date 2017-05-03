@@ -34,12 +34,9 @@ static char sccsid[] = "@(#) tcpdchk.c 1.8 97/02/12 02:13:25";
 #include <setjmp.h>
 #include <errno.h>
 #include <netdb.h>
+#include <stdlib.h>
 #include <string.h>
-
-extern int errno;
-extern void exit();
-extern int optind;
-extern char *optarg;
+#include <unistd.h>
 
 #ifndef INADDR_NONE
 #define INADDR_NONE     (-1)		/* XXX should be 0xffffffff */
@@ -71,15 +68,15 @@ extern jmp_buf tcpd_buf;
  /*
   * Local stuff.
   */
-static void usage();
-static void parse_table();
-static void print_list();
-static void check_daemon_list();
-static void check_client_list();
-static void check_daemon();
-static void check_user();
-static int check_host();
-static int reserved_name();
+static void usage(void);
+static void parse_table(char *table, struct request_info *request);
+static void print_list(char *title, char *list);
+static void check_daemon_list(char *list);
+static void check_client_list(char *list);
+static void check_daemon(char *pat);
+static void check_user(char *pat);
+static int check_host(char *pat);
+static int reserved_name(char *pat);
 
 #define PERMIT	1
 #define DENY	0
@@ -183,7 +180,7 @@ char  **argv;
 
 /* usage - explain */
 
-static void usage()
+static void usage(void)
 {
     fprintf(stderr, "usage: %s [-a] [-d] [-i inet_conf] [-v]\n", myname);
     fprintf(stderr, "	-a: report rules with implicit \"ALLOW\" at end\n");
