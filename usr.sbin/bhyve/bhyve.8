@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2017
+.Dd May 3, 2017
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -49,10 +49,13 @@ virtual machine.
 Parameters such as the number of virtual CPUs, amount of guest memory, and
 I/O connectivity can be specified with command-line parameters.
 .Pp
-The guest operating system must be loaded with
+If not using a boot ROM, the guest operating system must be loaded with
 .Xr bhyveload 8
 or a similar boot loader before running
-.Nm .
+.Nm ,
+otherwise, it is enough to run
+.Nm
+with a boot ROM of choice.
 .Pp
 .Nm
 runs until the guest operating system reboots or an unhandled hypervisor
@@ -191,7 +194,7 @@ The LPC bridge emulation can only be configured on bus 0.
 .It Li fbuf
 Raw framebuffer device attached to VNC server.
 .It Li xhci
-XHCI USB controller.
+eXtensible Host Controller Interface (xHCI) USB controller.
 .El
 .It Op Ar conf
 This optional parameter describes the backend for device emulations.
@@ -304,38 +307,75 @@ Emergency write is advertised, but no-op at present.
 .El
 .El
 .Pp
-Raw framebuffer device:
-.Pp
-.Oo wait Oc Ns Oo ,vga= Ns Ar <on|io|off> Oc Oo ,rfb= Ns Oo Ar IP: Oc Ns Ar port Oc Ns Oo ,w= Ns Ar w Oc Ns Oo ,h= Ns Ar h Oc
-.Bl -tag -width [vga=on|io|off]
-.It wait
-Wait for a VNC client connection before booting the virtual machine.
-The default is not to wait.
-.It vga= Ns Ar on|io|off
-Enable VGA emulation.
-The default is
-.Va io
-mode: VGA is enabled, but only I/O ports are available,
-no VGA memory is provided.
-.It rfb= Ns Oo Ar IP: Oc Ns Ar port
-Set the VNC server to listen at
-.Va IP:port .
+Framebuffer devices:
+.Bl -tag -width 10n
+.It Oo rfb= Ns Oo Ar IP: Oc Ns Ar port Oc Ns Oo ,w= Ns Ar width Oc Ns Oo ,h= Ns Ar height Oc Ns Oo ,vga= Ns Ar vgaconf Oc Ns Oo Ns ,wait Oc
+.Bl -tag -width 8n
+.It Ar IP:port
+An
+.Ar IP
+address and a
+.Ar port
+VNC should listen on.
 The default is to listen on localhost IPv4 address and default VNC port 5900.
-Listening on a IPv6 address is not supported.
-.It w= Ns Ar width
-Set framebuffer width to
-.Ar width .
-The default width is 1920.
-.It h= Ns Ar height
-Set framebuffer height to
-.Ar height .
-The default height is 1080.
+Listening on an IPv6 address is not supported.
+.It Ar width No and Ar height
+A display resolution, width and height, respectively.
+If not specified, a default resolution of 1024x768 pixels will be used.
+Minimal supported resolution is 640x480 pixels,
+and maximum is 1920x1200 pixels.
+.It Ar vgaconf
+Possible values for this option are
+.Dq io
+(default),
+.Dq on
+, and
+.Dq off .
+PCI graphics cards have a dual personality in that they are
+standard PCI devices with BAR addressing, but may also
+implicitly decode legacy VGA I/O space
+.Pq Ad 0x3c0-3df
+and memory space
+.Pq 64KB at Ad 0xA0000 .
+The default
+.Dq io
+option should be used for guests that attempt to issue BIOS
+calls which result in I/O port queries, and fail to boot if I/O decode is disabled.
+.Pp
+The
+.Dq on
+option should be used along with the CSM BIOS capability in UEFI
+to boot traditional BIOS guests that require the legacy VGA I/O and
+memory regions to be available.
+.Pp
+The
+.Dq off
+option should be used for the UEFI guests that assume that
+VGA adapter is present if they detect the I/O ports.
+An example of such a guest is
+.Ox
+in UEFI mode.
+.Pp
+Please refer to the
+.Nm
+.Fx
+wiki page
+.Pq Lk https://wiki.freebsd.org/bhyve
+for configuration notes of particular guests.
+.It wait
+Instruct
+.Nm
+to only boot upon the initiation of a VNC connection, simplifying the installation
+of operating systems that require immediate keyboard input.
+This can be removed for post-installation use.
+.El
 .El
 .Pp
-XHCI USB controller device:
-.Bl -tag
-.It Ar tablet
-Emulate USB tablet mouse.
+xHCI USB devices:
+.Bl -tag -width 10n
+.It Li tablet
+A USB tablet device which provides precise cursor synchronization
+when using VNC.
 .El
 .El
 .It Fl S
@@ -385,11 +425,12 @@ halted
 triple fault
 .El
 .Sh EXAMPLES
-The guest operating system must have been loaded with
+If not using a boot ROM, the guest operating system must have been loaded with
 .Xr bhyveload 8
 or a similar boot loader before
 .Xr bhyve 4
 can be run.
+Otherwise, the boot loader is not needed.
 .Pp
 To run a virtual machine with 1GB of memory, two virtual CPUs, a virtio
 block device backed by the
@@ -426,6 +467,21 @@ cd:/images/install.iso \\
   -s 3,virtio-net,tap0 \\
   -l com1,/dev/nmdm0A \\
   -A -H -P -m 8G
+.Ed
+.Pp
+Run a UEFI virtual machine with a display resolution of 800 by 600 pixels
+that can be accessed via VNC at: 0.0.0.0:5900.
+.Bd -literal -offset indent
+bhyve -c 2 -m 4G -w -H \\
+  -s 0,hostbridge \\
+  -s 3,ahci-cd,/path/to/uefi-OS-install.iso \\
+  -s 4,ahci-hd,disk.img \\
+  -s 5,virtio-net,tap0 \\
+  -s 29,fbuf,tcp=0.0.0.0:5900,w=800,h=600,wait \\
+  -s 30,xhci,tablet \\
+  -s 31,lpc -l com1,stdio \\
+  -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
+   uefivm
 .Ed
 .Sh SEE ALSO
 .Xr bhyve 4 ,
