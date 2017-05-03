@@ -1050,6 +1050,14 @@ void Verifier::visitDISubprogram(const DISubprogram &N) {
     // Subprogram declarations (part of the type hierarchy).
     AssertDI(!Unit, "subprogram declarations must not have a compile unit", &N);
   }
+
+  if (auto *RawThrownTypes = N.getRawThrownTypes()) {
+    auto *ThrownTypes = dyn_cast<MDTuple>(RawThrownTypes);
+    AssertDI(ThrownTypes, "invalid thrown types list", &N, RawThrownTypes);
+    for (Metadata *Op : ThrownTypes->operands())
+      AssertDI(Op && isa<DIType>(Op), "invalid thrown type", &N, ThrownTypes,
+               Op);
+  }
 }
 
 void Verifier::visitDILexicalBlockBase(const DILexicalBlockBase &N) {
@@ -1195,9 +1203,9 @@ void Verifier::visitComdat(const Comdat &C) {
 
 void Verifier::visitModuleIdents(const Module &M) {
   const NamedMDNode *Idents = M.getNamedMetadata("llvm.ident");
-  if (!Idents) 
+  if (!Idents)
     return;
-  
+
   // llvm.ident takes a list of metadata entry. Each entry has only one string.
   // Scan each llvm.ident entry and make sure that this requirement is met.
   for (const MDNode *N : Idents->operands()) {
@@ -1207,7 +1215,7 @@ void Verifier::visitModuleIdents(const Module &M) {
            ("invalid value for llvm.ident metadata entry operand"
             "(the operand should be a string)"),
            N->getOperand(0));
-  } 
+  }
 }
 
 void Verifier::visitModuleFlags(const Module &M) {
@@ -1344,6 +1352,7 @@ static bool isFuncOnlyAttr(Attribute::AttrKind Kind) {
   case Attribute::InaccessibleMemOnly:
   case Attribute::InaccessibleMemOrArgMemOnly:
   case Attribute::AllocSize:
+  case Attribute::Speculatable:
     return true;
   default:
     break;
@@ -1829,7 +1838,7 @@ void Verifier::verifyStatepoint(ImmutableCallSite CS) {
   Assert(ExpectedNumArgs <= (int)CS.arg_size(),
          "gc.statepoint too few arguments according to length fields", &CI);
 
-  // Check that the only uses of this gc.statepoint are gc.result or 
+  // Check that the only uses of this gc.statepoint are gc.result or
   // gc.relocate calls which are tied to this statepoint and thus part
   // of the same statepoint sequence
   for (const User *U : CI.users()) {
@@ -1975,6 +1984,7 @@ void Verifier::visitFunction(const Function &F) {
            "Calling convention requires void return type", &F);
     LLVM_FALLTHROUGH;
   case CallingConv::AMDGPU_VS:
+  case CallingConv::AMDGPU_HS:
   case CallingConv::AMDGPU_GS:
   case CallingConv::AMDGPU_PS:
   case CallingConv::AMDGPU_CS:
@@ -2602,6 +2612,15 @@ void Verifier::verifyCallSite(CallSite CS) {
   Assert(verifyAttributeCount(Attrs, CS.arg_size()),
          "Attribute after last parameter!", I);
 
+  if (Attrs.hasAttribute(AttributeList::FunctionIndex, Attribute::Speculatable)) {
+    // Don't allow speculatable on call sites, unless the underlying function
+    // declaration is also speculatable.
+    Function *Callee
+      = dyn_cast<Function>(CS.getCalledValue()->stripPointerCasts());
+    Assert(Callee && Callee->isSpeculatable(),
+           "speculatable attribute may not apply to call sites", I);
+  }
+
   // Verify call attributes.
   verifyFunctionAttrs(FTy, Attrs, I);
 
@@ -2754,7 +2773,7 @@ static AttrBuilder getParameterABIAttributes(int I, AttributeList Attrs) {
       Copy.addAttribute(AK);
   }
   if (Attrs.hasParamAttribute(I, Attribute::Alignment))
-    Copy.addAlignmentAttr(Attrs.getParamAlignment(I + 1));
+    Copy.addAlignmentAttr(Attrs.getParamAlignment(I));
   return Copy;
 }
 
@@ -3900,7 +3919,7 @@ void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
 
   // If the intrinsic takes MDNode arguments, verify that they are either global
   // or are local to *this* function.
-  for (Value *V : CS.args()) 
+  for (Value *V : CS.args())
     if (auto *MD = dyn_cast<MetadataAsValue>(V))
       visitMetadataAsValue(*MD, CS.getCaller());
 
@@ -3973,9 +3992,9 @@ void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
     auto IsValidAlignment = [&](uint64_t Alignment) {
       return isPowerOf2_64(Alignment) && ElementSizeVal.ule(Alignment);
     };
-    
-    uint64_t DstAlignment = CS.getParamAlignment(1),
-             SrcAlignment = CS.getParamAlignment(2);
+
+    uint64_t DstAlignment = CS.getParamAlignment(0),
+             SrcAlignment = CS.getParamAlignment(1);
 
     Assert(IsValidAlignment(DstAlignment),
            "incorrect alignment of the destination argument",
@@ -4212,7 +4231,7 @@ void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
   }
   case Intrinsic::masked_load: {
     Assert(CS.getType()->isVectorTy(), "masked_load: must return a vector", CS);
-    
+
     Value *Ptr = CS.getArgOperand(0);
     //Value *Alignment = CS.getArgOperand(1);
     Value *Mask = CS.getArgOperand(2);
@@ -4222,12 +4241,12 @@ void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
 
     // DataTy is the overloaded type
     Type *DataTy = cast<PointerType>(Ptr->getType())->getElementType();
-    Assert(DataTy == CS.getType(), 
+    Assert(DataTy == CS.getType(),
            "masked_load: return must match pointer type", CS);
     Assert(PassThru->getType() == DataTy,
            "masked_load: pass through and data type must match", CS);
     Assert(Mask->getType()->getVectorNumElements() ==
-           DataTy->getVectorNumElements(), 
+           DataTy->getVectorNumElements(),
            "masked_load: vector mask must be same length as data", CS);
     break;
   }
@@ -4241,10 +4260,10 @@ void Verifier::visitIntrinsicCallSite(Intrinsic::ID ID, CallSite CS) {
 
     // DataTy is the overloaded type
     Type *DataTy = cast<PointerType>(Ptr->getType())->getElementType();
-    Assert(DataTy == Val->getType(), 
+    Assert(DataTy == Val->getType(),
            "masked_store: storee must match pointer type", CS);
     Assert(Mask->getType()->getVectorNumElements() ==
-           DataTy->getVectorNumElements(), 
+           DataTy->getVectorNumElements(),
            "masked_store: vector mask must be same length as data", CS);
     break;
   }

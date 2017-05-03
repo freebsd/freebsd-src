@@ -25,7 +25,11 @@
 #include "llvm/DebugInfo/CodeView/CVTypeDumper.h"
 #include "llvm/DebugInfo/CodeView/CodeView.h"
 #include "llvm/DebugInfo/CodeView/Line.h"
+#include "llvm/DebugInfo/CodeView/ModuleDebugFileChecksumFragment.h"
+#include "llvm/DebugInfo/CodeView/ModuleDebugInlineeLinesFragment.h"
+#include "llvm/DebugInfo/CodeView/ModuleDebugLineFragment.h"
 #include "llvm/DebugInfo/CodeView/RecordSerialization.h"
+#include "llvm/DebugInfo/CodeView/StringTable.h"
 #include "llvm/DebugInfo/CodeView/SymbolDeserializer.h"
 #include "llvm/DebugInfo/CodeView/SymbolDumpDelegate.h"
 #include "llvm/DebugInfo/CodeView/SymbolDumper.h"
@@ -38,11 +42,12 @@
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/BinaryByteStream.h"
+#include "llvm/Support/BinaryStreamReader.h"
 #include "llvm/Support/COFF.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataExtractor.h"
-#include "llvm/Support/Format.h"
+#include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/SourceMgr.h"
@@ -78,6 +83,7 @@ public:
   void printCOFFDirectives() override;
   void printCOFFBaseReloc() override;
   void printCOFFDebugDirectory() override;
+  void printCOFFResources() override;
   void printCodeViewDebugInfo() override;
   void mergeCodeViewTypes(llvm::codeview::TypeTableBuilder &CVIDs,
                           llvm::codeview::TypeTableBuilder &CVTypes) override;
@@ -119,7 +125,7 @@ private:
                                   StringRef SectionContents, StringRef Block);
 
   /// Given a .debug$S section, find the string table and file checksum table.
-  void initializeFileAndStringTables(StringRef Data);
+  void initializeFileAndStringTables(BinaryStreamReader &Reader);
 
   void cacheRelocations();
 
@@ -140,8 +146,12 @@ private:
   const llvm::object::COFFObjectFile *Obj;
   bool RelocCached = false;
   RelocMapTy RelocMap;
-  StringRef CVFileChecksumTable;
-  StringRef CVStringTable;
+
+  BinaryByteStream ChecksumContents;
+  VarStreamArray<FileChecksumEntry> CVFileChecksumTable;
+
+  BinaryByteStream StringTableContents;
+  StringTableRef CVStringTable;
 
   ScopedPrinter &Writer;
   TypeDatabase TypeDB;
@@ -181,7 +191,7 @@ public:
     return CD.getFileNameForFileOffset(FileOffset);
   }
 
-  StringRef getStringTable() override { return CD.CVStringTable; }
+  StringTableRef getStringTable() override { return CD.CVStringTable; }
 
 private:
   COFFDumper &CD;
@@ -496,19 +506,19 @@ WeakExternalCharacteristics[] = {
 };
 
 static const EnumEntry<uint32_t> SubSectionTypes[] = {
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, Symbols),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, Lines),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, StringTable),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, FileChecksums),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, FrameData),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, InlineeLines),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, CrossScopeImports),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, CrossScopeExports),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, ILLines),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, FuncMDTokenMap),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, TypeMDTokenMap),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, MergedAssemblyInput),
-  LLVM_READOBJ_ENUM_CLASS_ENT(ModuleSubstreamKind, CoffSymbolRVA),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, Symbols),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, Lines),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, StringTable),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, FileChecksums),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, FrameData),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, InlineeLines),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, CrossScopeImports),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, CrossScopeExports),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, ILLines),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, FuncMDTokenMap),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, TypeMDTokenMap),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, MergedAssemblyInput),
+    LLVM_READOBJ_ENUM_CLASS_ENT(ModuleDebugFragmentKind, CoffSymbolRVA),
 };
 
 static const EnumEntry<uint32_t> FrameDataFlags[] = {
@@ -720,30 +730,35 @@ void COFFDumper::printCodeViewDebugInfo() {
   }
 }
 
-void COFFDumper::initializeFileAndStringTables(StringRef Data) {
-  while (!Data.empty() && (CVFileChecksumTable.data() == nullptr ||
-                           CVStringTable.data() == nullptr)) {
+void COFFDumper::initializeFileAndStringTables(BinaryStreamReader &Reader) {
+  while (Reader.bytesRemaining() > 0 &&
+         (!CVFileChecksumTable.valid() || !CVStringTable.valid())) {
     // The section consists of a number of subsection in the following format:
     // |SubSectionType|SubSectionSize|Contents...|
     uint32_t SubType, SubSectionSize;
-    error(consume(Data, SubType));
-    error(consume(Data, SubSectionSize));
-    if (SubSectionSize > Data.size())
-      return error(object_error::parse_failed);
-    switch (ModuleSubstreamKind(SubType)) {
-    case ModuleSubstreamKind::FileChecksums:
-      CVFileChecksumTable = Data.substr(0, SubSectionSize);
+    error(Reader.readInteger(SubType));
+    error(Reader.readInteger(SubSectionSize));
+
+    StringRef Contents;
+    error(Reader.readFixedString(Contents, SubSectionSize));
+
+    switch (ModuleDebugFragmentKind(SubType)) {
+    case ModuleDebugFragmentKind::FileChecksums: {
+      ChecksumContents = BinaryByteStream(Contents, support::little);
+      BinaryStreamReader CSR(ChecksumContents);
+      error(CSR.readArray(CVFileChecksumTable, CSR.getLength()));
       break;
-    case ModuleSubstreamKind::StringTable:
-      CVStringTable = Data.substr(0, SubSectionSize);
-      break;
+    }
+    case ModuleDebugFragmentKind::StringTable: {
+      StringTableContents = BinaryByteStream(Contents, support::little);
+      error(CVStringTable.initialize(StringTableContents));
+    } break;
     default:
       break;
     }
+
     uint32_t PaddedSize = alignTo(SubSectionSize, 4);
-    if (PaddedSize > Data.size())
-      error(object_error::parse_failed);
-    Data = Data.drop_front(PaddedSize);
+    error(Reader.skip(PaddedSize - SubSectionSize));
   }
 }
 
@@ -766,7 +781,9 @@ void COFFDumper::printCodeViewSymbolSection(StringRef SectionName,
   if (Magic != COFF::DEBUG_SECTION_MAGIC)
     return error(object_error::parse_failed);
 
-  initializeFileAndStringTables(Data);
+  BinaryByteStream FileAndStrings(Data, support::little);
+  BinaryStreamReader FSReader(FileAndStrings);
+  initializeFileAndStringTables(FSReader);
 
   // TODO: Convert this over to using ModuleSubstreamVisitor.
   while (!Data.empty()) {
@@ -800,20 +817,20 @@ void COFFDumper::printCodeViewSymbolSection(StringRef SectionName,
       printBinaryBlockWithRelocs("SubSectionContents", Section, SectionContents,
                                  Contents);
 
-    switch (ModuleSubstreamKind(SubType)) {
-    case ModuleSubstreamKind::Symbols:
+    switch (ModuleDebugFragmentKind(SubType)) {
+    case ModuleDebugFragmentKind::Symbols:
       printCodeViewSymbolsSubsection(Contents, Section, SectionContents);
       break;
 
-    case ModuleSubstreamKind::InlineeLines:
+    case ModuleDebugFragmentKind::InlineeLines:
       printCodeViewInlineeLines(Contents);
       break;
 
-    case ModuleSubstreamKind::FileChecksums:
+    case ModuleDebugFragmentKind::FileChecksums:
       printCodeViewFileChecksums(Contents);
       break;
 
-    case ModuleSubstreamKind::Lines: {
+    case ModuleDebugFragmentKind::Lines: {
       // Holds a PC to file:line table.  Some data to parse this subsection is
       // stored in the other subsections, so just check sanity and store the
       // pointers for deferred processing.
@@ -839,7 +856,7 @@ void COFFDumper::printCodeViewSymbolSection(StringRef SectionName,
       FunctionNames.push_back(LinkageName);
       break;
     }
-    case ModuleSubstreamKind::FrameData: {
+    case ModuleDebugFragmentKind::FrameData: {
       // First four bytes is a relocation against the function.
       BinaryByteStream S(Contents, llvm::support::little);
       BinaryStreamReader SR(S);
@@ -856,11 +873,7 @@ void COFFDumper::printCodeViewSymbolSection(StringRef SectionName,
         const FrameData *FD;
         error(SR.readObject(FD));
 
-        if (FD->FrameFunc >= CVStringTable.size())
-          error(object_error::parse_failed);
-
-        StringRef FrameFunc =
-            CVStringTable.drop_front(FD->FrameFunc).split('\0').first;
+        StringRef FrameFunc = error(CVStringTable.getString(FD->FrameFunc));
 
         DictScope S(W, "FrameData");
         W.printHex("RvaStart", FD->RvaStart);
@@ -890,45 +903,29 @@ void COFFDumper::printCodeViewSymbolSection(StringRef SectionName,
     ListScope S(W, "FunctionLineTable");
     W.printString("LinkageName", Name);
 
-    DataExtractor DE(FunctionLineTables[Name], true, 4);
-    uint32_t Offset = 6;  // Skip relocations.
-    uint16_t Flags = DE.getU16(&Offset);
-    W.printHex("Flags", Flags);
-    bool HasColumnInformation = Flags & codeview::LineFlags::HaveColumns;
-    uint32_t FunctionSize = DE.getU32(&Offset);
-    W.printHex("CodeSize", FunctionSize);
-    while (DE.isValidOffset(Offset)) {
-      // For each range of lines with the same filename, we have a segment
-      // in the line table.  The filename string is accessed using double
-      // indirection to the string table subsection using the index subsection.
-      uint32_t OffsetInIndex = DE.getU32(&Offset),
-               NumLines = DE.getU32(&Offset),
-               FullSegmentSize = DE.getU32(&Offset);
+    BinaryByteStream LineTableInfo(FunctionLineTables[Name], support::little);
+    BinaryStreamReader Reader(LineTableInfo);
 
-      uint32_t ColumnOffset = Offset + 8 * NumLines;
-      DataExtractor ColumnDE(DE.getData(), true, 4);
+    ModuleDebugLineFragmentRef LineInfo;
+    error(LineInfo.initialize(Reader));
 
-      if (FullSegmentSize !=
-          12 + 8 * NumLines + (HasColumnInformation ? 4 * NumLines : 0)) {
-        error(object_error::parse_failed);
-        return;
-      }
+    W.printHex("Flags", LineInfo.header()->Flags);
+    W.printHex("CodeSize", LineInfo.header()->CodeSize);
+    for (const auto &Entry : LineInfo) {
 
       ListScope S(W, "FilenameSegment");
-      printFileNameForOffset("Filename", OffsetInIndex);
-      for (unsigned LineIdx = 0;
-           LineIdx != NumLines && DE.isValidOffset(Offset); ++LineIdx) {
-        // Then go the (PC, LineNumber) pairs.  The line number is stored in the
-        // least significant 31 bits of the respective word in the table.
-        uint32_t PC = DE.getU32(&Offset), LineData = DE.getU32(&Offset);
-        if (PC >= FunctionSize) {
+      printFileNameForOffset("Filename", Entry.NameIndex);
+      uint32_t ColumnIndex = 0;
+      for (const auto &Line : Entry.LineNumbers) {
+        if (Line.Offset >= LineInfo.header()->CodeSize) {
           error(object_error::parse_failed);
           return;
         }
-        char Buffer[32];
-        format("+0x%X", PC).snprint(Buffer, 32);
-        ListScope PCScope(W, Buffer);
-        LineInfo LI(LineData);
+
+        std::string PC = formatv("+{0:X}", uint32_t(Line.Offset));
+        ListScope PCScope(W, PC);
+        codeview::LineInfo LI(Line.Flags);
+
         if (LI.isAlwaysStepInto())
           W.printString("StepInto", StringRef("Always"));
         else if (LI.isNeverStepInto())
@@ -937,19 +934,10 @@ void COFFDumper::printCodeViewSymbolSection(StringRef SectionName,
           W.printNumber("LineNumberStart", LI.getStartLine());
         W.printNumber("LineNumberEndDelta", LI.getLineDelta());
         W.printBoolean("IsStatement", LI.isStatement());
-        if (HasColumnInformation &&
-            ColumnDE.isValidOffsetForDataOfSize(ColumnOffset, 4)) {
-          uint16_t ColStart = ColumnDE.getU16(&ColumnOffset);
-          W.printNumber("ColStart", ColStart);
-          uint16_t ColEnd = ColumnDE.getU16(&ColumnOffset);
-          W.printNumber("ColEnd", ColEnd);
-        }
-      }
-      // Skip over the column data.
-      if (HasColumnInformation) {
-        for (unsigned LineIdx = 0;
-             LineIdx != NumLines && DE.isValidOffset(Offset); ++LineIdx) {
-          DE.getU32(&Offset);
+        if (LineInfo.hasColumnInfo()) {
+          W.printNumber("ColStart", Entry.Columns[ColumnIndex].StartColumn);
+          W.printNumber("ColEnd", Entry.Columns[ColumnIndex].EndColumn);
+          ++ColumnIndex;
         }
       }
     }
@@ -985,56 +973,39 @@ void COFFDumper::printCodeViewSymbolsSubsection(StringRef Subsection,
 void COFFDumper::printCodeViewFileChecksums(StringRef Subsection) {
   BinaryByteStream S(Subsection, llvm::support::little);
   BinaryStreamReader SR(S);
-  while (!SR.empty()) {
+  ModuleDebugFileChecksumFragmentRef Checksums;
+  error(Checksums.initialize(SR));
+
+  for (auto &FC : Checksums) {
     DictScope S(W, "FileChecksum");
-    const FileChecksum *FC;
-    error(SR.readObject(FC));
-    if (FC->FileNameOffset >= CVStringTable.size())
-      error(object_error::parse_failed);
-    StringRef Filename =
-        CVStringTable.drop_front(FC->FileNameOffset).split('\0').first;
-    W.printHex("Filename", Filename, FC->FileNameOffset);
-    W.printHex("ChecksumSize", FC->ChecksumSize);
-    W.printEnum("ChecksumKind", uint8_t(FC->ChecksumKind),
+
+    StringRef Filename = error(CVStringTable.getString(FC.FileNameOffset));
+    W.printHex("Filename", Filename, FC.FileNameOffset);
+    W.printHex("ChecksumSize", FC.Checksum.size());
+    W.printEnum("ChecksumKind", uint8_t(FC.Kind),
                 makeArrayRef(FileChecksumKindNames));
-    if (FC->ChecksumSize >= SR.bytesRemaining())
-      error(object_error::parse_failed);
-    ArrayRef<uint8_t> ChecksumBytes;
-    error(SR.readBytes(ChecksumBytes, FC->ChecksumSize));
-    W.printBinary("ChecksumBytes", ChecksumBytes);
-    unsigned PaddedSize = alignTo(FC->ChecksumSize + sizeof(FileChecksum), 4) -
-                          sizeof(FileChecksum);
-    PaddedSize -= ChecksumBytes.size();
-    if (PaddedSize > SR.bytesRemaining())
-      error(object_error::parse_failed);
-    error(SR.skip(PaddedSize));
+
+    W.printBinary("ChecksumBytes", FC.Checksum);
   }
 }
 
 void COFFDumper::printCodeViewInlineeLines(StringRef Subsection) {
   BinaryByteStream S(Subsection, llvm::support::little);
   BinaryStreamReader SR(S);
-  uint32_t Signature;
-  error(SR.readInteger(Signature));
-  bool HasExtraFiles = Signature == unsigned(InlineeLinesSignature::ExtraFiles);
+  ModuleDebugInlineeLineFragmentRef Lines;
+  error(Lines.initialize(SR));
 
-  while (!SR.empty()) {
-    const InlineeSourceLine *ISL;
-    error(SR.readObject(ISL));
+  for (auto &Line : Lines) {
     DictScope S(W, "InlineeSourceLine");
-    printTypeIndex("Inlinee", ISL->Inlinee);
-    printFileNameForOffset("FileID", ISL->FileID);
-    W.printNumber("SourceLineNum", ISL->SourceLineNum);
+    printTypeIndex("Inlinee", Line.Header->Inlinee);
+    printFileNameForOffset("FileID", Line.Header->FileID);
+    W.printNumber("SourceLineNum", Line.Header->SourceLineNum);
 
-    if (HasExtraFiles) {
-      uint32_t ExtraFileCount;
-      error(SR.readInteger(ExtraFileCount));
-      W.printNumber("ExtraFileCount", ExtraFileCount);
+    if (Lines.hasExtraFiles()) {
+      W.printNumber("ExtraFileCount", Line.ExtraFiles.size());
       ListScope ExtraFiles(W, "ExtraFiles");
-      for (unsigned I = 0; I < ExtraFileCount; ++I) {
-        uint32_t FileID;
-        error(SR.readInteger(FileID));
-        printFileNameForOffset("FileID", FileID);
+      for (const auto &FID : Line.ExtraFiles) {
+        printFileNameForOffset("FileID", FID);
       }
     }
   }
@@ -1042,23 +1013,16 @@ void COFFDumper::printCodeViewInlineeLines(StringRef Subsection) {
 
 StringRef COFFDumper::getFileNameForFileOffset(uint32_t FileOffset) {
   // The file checksum subsection should precede all references to it.
-  if (!CVFileChecksumTable.data() || !CVStringTable.data())
+  if (!CVFileChecksumTable.valid() || !CVStringTable.valid())
     error(object_error::parse_failed);
+
+  auto Iter = CVFileChecksumTable.at(FileOffset);
+
   // Check if the file checksum table offset is valid.
-  if (FileOffset >= CVFileChecksumTable.size())
+  if (Iter == CVFileChecksumTable.end())
     error(object_error::parse_failed);
 
-  // The string table offset comes first before the file checksum.
-  StringRef Data = CVFileChecksumTable.drop_front(FileOffset);
-  uint32_t StringOffset;
-  error(consume(Data, StringOffset));
-
-  // Check if the string table offset is valid.
-  if (StringOffset >= CVStringTable.size())
-    error(object_error::parse_failed);
-
-  // Return the null-terminated string.
-  return CVStringTable.drop_front(StringOffset).split('\0').first;
+  return error(CVStringTable.getString(Iter->FileNameOffset));
 }
 
 void COFFDumper::printFileNameForOffset(StringRef Label, uint32_t FileOffset) {
@@ -1524,6 +1488,30 @@ void COFFDumper::printCOFFBaseReloc() {
     DictScope Import(W, "Entry");
     W.printString("Type", getBaseRelocTypeName(Type));
     W.printHex("Address", RVA);
+  }
+}
+
+void COFFDumper::printCOFFResources() {
+  ListScope ResourcesD(W, "Resources");
+  for (const SectionRef &S : Obj->sections()) {
+    StringRef Name;
+    error(S.getName(Name));
+    if (!Name.startswith(".rsrc"))
+      continue;
+
+    StringRef Ref;
+    error(S.getContents(Ref));
+
+    if ((Name == ".rsrc") || (Name == ".rsrc$01")) {
+      auto Table =
+          reinterpret_cast<const coff_resource_dir_table *>(Ref.data());
+      char FormattedTime[20];
+      time_t TDS = time_t(Table->TimeDateStamp);
+      strftime(FormattedTime, sizeof(FormattedTime), "%Y-%m-%d %H:%M:%S",
+               gmtime(&TDS));
+      W.printHex("Time/Date Stamp", FormattedTime, Table->TimeDateStamp);
+    }
+    W.printBinaryBlock(Name.str() + " Data", Ref);
   }
 }
 

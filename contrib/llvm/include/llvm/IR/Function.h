@@ -204,6 +204,10 @@ public:
     addAttribute(AttributeList::FunctionIndex, Attr);
   }
 
+  void addParamAttr(unsigned ArgNo, Attribute::AttrKind Kind) {
+    addAttribute(ArgNo + AttributeList::FirstArgIndex, Kind);
+  }
+
   /// @brief Remove function attributes from this function.
   void removeFnAttr(Attribute::AttrKind Kind) {
     removeAttribute(AttributeList::FunctionIndex, Kind);
@@ -211,8 +215,12 @@ public:
 
   /// @brief Remove function attribute from this function.
   void removeFnAttr(StringRef Kind) {
-    setAttributes(AttributeSets.removeAttribute(
+    setAttributes(getAttributes().removeAttribute(
         getContext(), AttributeList::FunctionIndex, Kind));
+  }
+
+  void removeParamAttr(unsigned ArgNo, Attribute::AttrKind Kind) {
+    removeAttribute(ArgNo + AttributeList::FirstArgIndex, Kind);
   }
 
   /// \brief Set the entry count for this function.
@@ -279,7 +287,7 @@ public:
   void addAttribute(unsigned i, Attribute Attr);
 
   /// @brief adds the attributes to the list of attributes.
-  void addAttributes(unsigned i, AttributeList Attrs);
+  void addAttributes(unsigned i, const AttrBuilder &Attrs);
 
   /// @brief removes the attribute from the list of attributes.
   void removeAttribute(unsigned i, Attribute::AttrKind Kind);
@@ -288,7 +296,7 @@ public:
   void removeAttribute(unsigned i, StringRef Kind);
 
   /// @brief removes the attributes from the list of attributes.
-  void removeAttributes(unsigned i, AttributeList Attrs);
+  void removeAttributes(unsigned i, const AttrBuilder &Attrs);
 
   /// @brief check if an attributes is in the list of attributes.
   bool hasAttribute(unsigned i, Attribute::AttrKind Kind) const {
@@ -316,18 +324,20 @@ public:
   void addDereferenceableOrNullAttr(unsigned i, uint64_t Bytes);
 
   /// @brief Extract the alignment for a call or parameter (0=unknown).
-  unsigned getParamAlignment(unsigned i) const {
-    return AttributeSets.getParamAlignment(i);
+  unsigned getParamAlignment(unsigned ArgNo) const {
+    return AttributeSets.getParamAlignment(ArgNo);
   }
 
   /// @brief Extract the number of dereferenceable bytes for a call or
   /// parameter (0=unknown).
+  /// @param i AttributeList index, referring to a return value or argument.
   uint64_t getDereferenceableBytes(unsigned i) const {
     return AttributeSets.getDereferenceableBytes(i);
   }
 
   /// @brief Extract the number of dereferenceable_or_null bytes for a call or
   /// parameter (0=unknown).
+  /// @param i AttributeList index, referring to a return value or argument.
   uint64_t getDereferenceableOrNullBytes(unsigned i) const {
     return AttributeSets.getDereferenceableOrNullBytes(i);
   }
@@ -416,6 +426,14 @@ public:
     removeFnAttr(Attribute::Convergent);
   }
 
+  /// @brief Determine if the call has sideeffects.
+  bool isSpeculatable() const {
+    return hasFnAttribute(Attribute::Speculatable);
+  }
+  void setSpeculatable() {
+    addFnAttr(Attribute::Speculatable);
+  }
+
   /// Determine if the function is known not to recurse, directly or
   /// indirectly.
   bool doesNotRecurse() const {
@@ -440,44 +458,21 @@ public:
   }
 
   /// @brief Determine if the function returns a structure through first
-  /// pointer argument.
+  /// or second pointer argument.
   bool hasStructRetAttr() const {
-    return AttributeSets.hasAttribute(1, Attribute::StructRet) ||
-           AttributeSets.hasAttribute(2, Attribute::StructRet);
+    return AttributeSets.hasParamAttribute(0, Attribute::StructRet) ||
+           AttributeSets.hasParamAttribute(1, Attribute::StructRet);
   }
 
   /// @brief Determine if the parameter or return value is marked with NoAlias
   /// attribute.
   /// @param n The parameter to check. 1 is the first parameter, 0 is the return
-  bool doesNotAlias(unsigned n) const {
-    return AttributeSets.hasAttribute(n, Attribute::NoAlias);
+  bool returnDoesNotAlias() const {
+    return AttributeSets.hasAttribute(AttributeList::ReturnIndex,
+                                      Attribute::NoAlias);
   }
-  void setDoesNotAlias(unsigned n) {
-    addAttribute(n, Attribute::NoAlias);
-  }
-
-  /// @brief Determine if the parameter can be captured.
-  /// @param n The parameter to check. 1 is the first parameter, 0 is the return
-  bool doesNotCapture(unsigned n) const {
-    return AttributeSets.hasAttribute(n, Attribute::NoCapture);
-  }
-  void setDoesNotCapture(unsigned n) {
-    addAttribute(n, Attribute::NoCapture);
-  }
-
-  bool doesNotAccessMemory(unsigned n) const {
-    return AttributeSets.hasAttribute(n, Attribute::ReadNone);
-  }
-  void setDoesNotAccessMemory(unsigned n) {
-    addAttribute(n, Attribute::ReadNone);
-  }
-
-  bool onlyReadsMemory(unsigned n) const {
-    return doesNotAccessMemory(n) ||
-      AttributeSets.hasAttribute(n, Attribute::ReadOnly);
-  }
-  void setOnlyReadsMemory(unsigned n) {
-    addAttribute(n, Attribute::ReadOnly);
+  void setReturnDoesNotAlias() {
+    addAttribute(AttributeList::ReturnIndex, Attribute::NoAlias);
   }
 
   /// Optimize this function for minimum size (-Oz).

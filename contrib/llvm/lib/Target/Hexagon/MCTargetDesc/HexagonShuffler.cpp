@@ -14,17 +14,18 @@
 
 #define DEBUG_TYPE "hexagon-shuffle"
 
-#include <algorithm>
-#include <utility>
+#include "HexagonShuffler.h"
 #include "Hexagon.h"
 #include "MCTargetDesc/HexagonBaseInfo.h"
-#include "MCTargetDesc/HexagonMCTargetDesc.h"
 #include "MCTargetDesc/HexagonMCInstrInfo.h"
-#include "HexagonShuffler.h"
+#include "MCTargetDesc/HexagonMCTargetDesc.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <utility>
 
 using namespace llvm;
 
@@ -38,7 +39,7 @@ class HexagonBid {
   unsigned Bid;
 
 public:
-  HexagonBid() : Bid(0){}
+  HexagonBid() : Bid(0) {}
   HexagonBid(unsigned B) { Bid = B ? MAX / countPopulation(B) : 0; }
 
   // Check if the insn priority is overflowed.
@@ -87,7 +88,7 @@ unsigned HexagonResource::setWeight(unsigned s) {
   // Calculate relative weight of the insn for the given slot, weighing it the
   // heavier the more restrictive the insn is and the lowest the slots that the
   // insn may be executed in.
-  if (Key == 0 || Units == 0 || (SlotWeight*s >= 32))
+  if (Key == 0 || Units == 0 || (SlotWeight * s >= 32))
     return Weight = 0;
 
   unsigned Ctpop = countPopulation(Units);
@@ -106,14 +107,12 @@ void HexagonCVIResource::SetupTUL(TypeUnitsAndLanes *TUL, StringRef CPU) {
   (*TUL)[HexagonII::TypeCVI_VP_VS] = UnitsAndLanes(CVI_XLANE, 2);
   (*TUL)[HexagonII::TypeCVI_VS] = UnitsAndLanes(CVI_SHIFT, 1);
   (*TUL)[HexagonII::TypeCVI_VINLANESAT] =
-      (CPU == "hexagonv60" || CPU == "hexagonv61" || CPU == "hexagonv61v1") ?
-      UnitsAndLanes(CVI_SHIFT, 1) :
-      UnitsAndLanes(CVI_XLANE | CVI_SHIFT | CVI_MPY0 | CVI_MPY1, 1);
+      (CPU == "hexagonv60" || CPU == "hexagonv61" || CPU == "hexagonv61v1")
+          ? UnitsAndLanes(CVI_SHIFT, 1)
+          : UnitsAndLanes(CVI_XLANE | CVI_SHIFT | CVI_MPY0 | CVI_MPY1, 1);
   (*TUL)[HexagonII::TypeCVI_VM_LD] =
       UnitsAndLanes(CVI_XLANE | CVI_SHIFT | CVI_MPY0 | CVI_MPY1, 1);
   (*TUL)[HexagonII::TypeCVI_VM_TMP_LD] = UnitsAndLanes(CVI_NONE, 0);
-  (*TUL)[HexagonII::TypeCVI_VM_CUR_LD] =
-      UnitsAndLanes(CVI_XLANE | CVI_SHIFT | CVI_MPY0 | CVI_MPY1, 1);
   (*TUL)[HexagonII::TypeCVI_VM_VP_LDU] = UnitsAndLanes(CVI_XLANE, 1);
   (*TUL)[HexagonII::TypeCVI_VM_ST] =
       UnitsAndLanes(CVI_XLANE | CVI_SHIFT | CVI_MPY0 | CVI_MPY1, 1);
@@ -154,18 +153,19 @@ typedef SmallVector<struct CVIUnits, 8> HVXInstsT;
 static unsigned makeAllBits(unsigned startBit, unsigned Lanes)
 
 {
-  for (unsigned i = 1 ; i < Lanes ; ++i)
+  for (unsigned i = 1; i < Lanes; ++i)
     startBit = (startBit << 1) | startBit;
   return startBit;
 }
 
-static bool checkHVXPipes(const HVXInstsT& hvxInsts, unsigned startIdx, unsigned usedUnits)
+static bool checkHVXPipes(const HVXInstsT &hvxInsts, unsigned startIdx,
+                          unsigned usedUnits)
 
 {
   if (startIdx < hvxInsts.size()) {
     if (!hvxInsts[startIdx].Units)
       return checkHVXPipes(hvxInsts, startIdx + 1, usedUnits);
-    for (unsigned b = 0x1 ; b <= 0x8 ; b <<= 1) {
+    for (unsigned b = 0x1; b <= 0x8; b <<= 1) {
       if ((hvxInsts[startIdx].Units & b) == 0)
         continue;
       unsigned allBits = makeAllBits(b, hvxInsts[startIdx].Lanes);
@@ -179,9 +179,10 @@ static bool checkHVXPipes(const HVXInstsT& hvxInsts, unsigned startIdx, unsigned
   return true;
 }
 
-HexagonShuffler::HexagonShuffler(MCInstrInfo const &MCII,
+HexagonShuffler::HexagonShuffler(MCContext &Context, bool ReportErrors,
+                                 MCInstrInfo const &MCII,
                                  MCSubtargetInfo const &STI)
-    : MCII(MCII), STI(STI) {
+    : Context(Context), MCII(MCII), STI(STI), ReportErrors(ReportErrors) {
   reset();
   HexagonCVIResource::SetupTUL(&TUL, STI.getCPU());
 }
@@ -189,7 +190,6 @@ HexagonShuffler::HexagonShuffler(MCInstrInfo const &MCII,
 void HexagonShuffler::reset() {
   Packet.clear();
   BundleFlags = 0;
-  Error = SHUFFLE_SUCCESS;
 }
 
 void HexagonShuffler::append(MCInst const &ID, MCInst const *Extender,
@@ -202,91 +202,31 @@ void HexagonShuffler::append(MCInst const &ID, MCInst const *Extender,
 static struct {
   unsigned first;
   unsigned second;
-} jumpSlots[] = { {8, 4}, {8, 2}, {8, 1}, {4, 2}, {4, 1}, {2, 1} };
-#define MAX_JUMP_SLOTS (sizeof(jumpSlots)/sizeof(jumpSlots[0]))
-
-namespace {
-bool isDuplexAGroup(unsigned Opcode) {
-  switch (Opcode) {
-  case Hexagon::SA1_addi:
-  case Hexagon::SA1_addrx:
-  case Hexagon::SA1_addsp:
-  case Hexagon::SA1_and1:
-  case Hexagon::SA1_clrf:
-  case Hexagon::SA1_clrfnew:
-  case Hexagon::SA1_clrt:
-  case Hexagon::SA1_clrtnew:
-  case Hexagon::SA1_cmpeqi:
-  case Hexagon::SA1_combine0i:
-  case Hexagon::SA1_combine1i:
-  case Hexagon::SA1_combine2i:
-  case Hexagon::SA1_combine3i:
-  case Hexagon::SA1_combinerz:
-  case Hexagon::SA1_combinezr:
-  case Hexagon::SA1_dec:
-  case Hexagon::SA1_inc:
-  case Hexagon::SA1_seti:
-  case Hexagon::SA1_setin1:
-  case Hexagon::SA1_sxtb:
-  case Hexagon::SA1_sxth:
-  case Hexagon::SA1_tfr:
-  case Hexagon::SA1_zxtb:
-  case Hexagon::SA1_zxth:
-    return true;
-    break;
-  default:
-    return false;
-  }
-}
-
-unsigned countNeitherAnorX(MCInstrInfo const &MCII, MCInst const &ID) {
-  unsigned Result = 0;
-  unsigned Type = HexagonMCInstrInfo::getType(MCII, ID);
-  if (Type == HexagonII::TypeDUPLEX) {
-    unsigned subInst0Opcode = ID.getOperand(0).getInst()->getOpcode();
-    unsigned subInst1Opcode = ID.getOperand(1).getInst()->getOpcode();
-    Result += !isDuplexAGroup(subInst0Opcode);
-    Result += !isDuplexAGroup(subInst1Opcode);
-  } else
-    Result += Type != HexagonII::TypeALU32_2op &&
-              Type != HexagonII::TypeALU32_3op &&
-              Type != HexagonII::TypeALU32_ADDI &&
-              Type != HexagonII::TypeS_2op &&
-              Type != HexagonII::TypeS_3op &&
-              Type != HexagonII::TypeALU64 &&
-              (Type != HexagonII::TypeM ||
-               HexagonMCInstrInfo::isFloat(MCII, ID));
-  return Result;
-}
-}
+} jumpSlots[] = {{8, 4}, {8, 2}, {8, 1}, {4, 2}, {4, 1}, {2, 1}};
+#define MAX_JUMP_SLOTS (sizeof(jumpSlots) / sizeof(jumpSlots[0]))
 
 /// Check that the packet is legal and enforce relative insn order.
 bool HexagonShuffler::check() {
   // Descriptive slot masks.
   const unsigned slotSingleLoad = 0x1, slotSingleStore = 0x1, slotOne = 0x2,
-                 slotThree = 0x8, //slotFirstJump = 0x8,
+                 slotThree = 0x8, // slotFirstJump = 0x8,
                  slotFirstLoadStore = 0x2, slotLastLoadStore = 0x1;
   // Highest slots for branches and stores used to keep their original order.
-  //unsigned slotJump = slotFirstJump;
+  // unsigned slotJump = slotFirstJump;
   unsigned slotLoadStore = slotFirstLoadStore;
   // Number of branches, solo branches, indirect branches.
   unsigned jumps = 0, jump1 = 0;
   // Number of memory operations, loads, solo loads, stores, solo stores, single
   // stores.
   unsigned memory = 0, loads = 0, load0 = 0, stores = 0, store0 = 0, store1 = 0;
-  // Number of HVX loads, HVX stores.
-  unsigned CVIloads = 0, CVIstores = 0;
-  // Number of duplex insns, solo insns.
-  unsigned duplex = 0, solo = 0;
-  // Number of insns restricting other insns in the packet to A and X types,
-  // which is neither A or X types.
-  unsigned onlyAX = 0, neitherAnorX = 0;
+  // Number of duplex insns
+  unsigned duplex = 0;
   // Number of insns restricting other insns in slot #1 to A type.
   unsigned onlyAin1 = 0;
   // Number of insns restricting any insn in slot #1, except A2_nop.
   unsigned onlyNo1 = 0;
-  unsigned xtypeFloat = 0;
   unsigned pSlot3Cnt = 0;
+  unsigned nvstores = 0;
   unsigned memops = 0;
   unsigned deallocs = 0;
   iterator slot3ISJ = end();
@@ -297,13 +237,8 @@ bool HexagonShuffler::check() {
   for (iterator ISJ = begin(); ISJ != end(); ++ISJ) {
     MCInst const &ID = ISJ->getDesc();
 
-    if (HexagonMCInstrInfo::isSolo(MCII, ID))
-      solo++;
-    else if (HexagonMCInstrInfo::isSoloAX(MCII, ID))
-      onlyAX++;
-    else if (HexagonMCInstrInfo::isSoloAin1(MCII, ID))
-      onlyAin1++;
-    neitherAnorX += countNeitherAnorX(MCII, ID);
+    if (HexagonMCInstrInfo::isSoloAin1(MCII, ID))
+      ++onlyAin1;
     if (HexagonMCInstrInfo::prefersSlot3(MCII, ID)) {
       ++pSlot3Cnt;
       slot3ISJ = ISJ;
@@ -316,8 +251,6 @@ bool HexagonShuffler::check() {
     case HexagonII::TypeS_2op:
     case HexagonII::TypeS_3op:
     case HexagonII::TypeALU64:
-      if (HexagonMCInstrInfo::isFloat(MCII, ID))
-        ++xtypeFloat;
       break;
     case HexagonII::TypeJ:
       ++jumps;
@@ -327,14 +260,11 @@ bool HexagonShuffler::check() {
       ++onlyNo1;
     case HexagonII::TypeCVI_VM_LD:
     case HexagonII::TypeCVI_VM_TMP_LD:
-    case HexagonII::TypeCVI_VM_CUR_LD:
-      ++CVIloads;
     case HexagonII::TypeLD:
       ++loads;
       ++memory;
       if (ISJ->Core.getUnits() == slotSingleLoad ||
-          HexagonMCInstrInfo::getType(MCII, ID) ==
-              HexagonII::TypeCVI_VM_VP_LDU)
+          HexagonMCInstrInfo::getType(MCII, ID) == HexagonII::TypeCVI_VM_VP_LDU)
         ++load0;
       if (HexagonMCInstrInfo::getDesc(MCII, ID).isReturn()) {
         ++deallocs, ++jumps, ++jump1; // DEALLOC_RETURN is of type LD.
@@ -345,7 +275,6 @@ bool HexagonShuffler::check() {
       ++onlyNo1;
     case HexagonII::TypeCVI_VM_ST:
     case HexagonII::TypeCVI_VM_NEW_ST:
-      ++CVIstores;
     case HexagonII::TypeST:
       ++stores;
       ++memory;
@@ -368,18 +297,19 @@ bool HexagonShuffler::check() {
       }
       break;
     case HexagonII::TypeV2LDST:
-      if(HexagonMCInstrInfo::getDesc(MCII, ID).mayLoad()) {
+      if (HexagonMCInstrInfo::getDesc(MCII, ID).mayLoad()) {
         ++loads;
         ++memory;
         if (ISJ->Core.getUnits() == slotSingleLoad ||
-            HexagonMCInstrInfo::getType(MCII,ID) ==
+            HexagonMCInstrInfo::getType(MCII, ID) ==
                 HexagonII::TypeCVI_VM_VP_LDU)
           ++load0;
-      }
-      else {
+      } else {
         assert(HexagonMCInstrInfo::getDesc(MCII, ID).mayStore());
         ++memory;
         ++stores;
+        if (HexagonMCInstrInfo::isNewValue(MCII, ID))
+          ++nvstores;
       }
       break;
     case HexagonII::TypeCR:
@@ -406,30 +336,37 @@ bool HexagonShuffler::check() {
         ++jumps;
         foundBranches.push_back(ISJ);
       }
+      if (HexagonMCInstrInfo::getDesc(MCII, Inst0).isReturn()) {
+        ++deallocs, ++jumps, ++jump1; // DEALLOC_RETURN is of type LD.
+        foundBranches.push_back(ISJ);
+      }
+      if (HexagonMCInstrInfo::getDesc(MCII, Inst1).isReturn()) {
+        ++deallocs, ++jumps, ++jump1; // DEALLOC_RETURN is of type LD.
+        foundBranches.push_back(ISJ);
+      }
       break;
     }
     }
   }
 
   // Check if the packet is legal.
-  if ((load0 > 1 || store0 > 1 || CVIloads > 1 || CVIstores > 1) ||
-      (duplex > 1 || (duplex && memory)) || (solo && size() > 1) ||
-      (onlyAX && neitherAnorX > 1) || (onlyAX && xtypeFloat)) {
-    Error = SHUFFLE_ERROR_INVALID;
+  if ((load0 > 1 || store0 > 1) ||
+      (duplex > 1 || (duplex && memory))) {
+    reportError(llvm::Twine("invalid instruction packet"));
     return false;
   }
 
   if (jump1 && jumps > 1) {
     // Error if single branch with another branch.
-    Error = SHUFFLE_ERROR_BRANCHES;
+    reportError(llvm::Twine("too many branches in packet"));
     return false;
   }
-  if (memops && stores > 1) {
-    Error = SHUFFLE_ERROR_STORE_LOAD_CONFLICT;
+  if ((nvstores || memops) && stores > 1) {
+    reportError(llvm::Twine("slot 0 instruction does not allow slot 1 store"));
     return false;
   }
   if (deallocs && stores) {
-    Error = SHUFFLE_ERROR_STORE_LOAD_CONFLICT;
+    reportError(llvm::Twine("slot 0 instruction does not allow slot 1 store"));
     return false;
   }
 
@@ -441,7 +378,6 @@ bool HexagonShuffler::check() {
 
     if (!ISJ->Core.getUnits()) {
       // Error if insn may not be executed in any slot.
-      Error = SHUFFLE_ERROR_UNKNOWN;
       return false;
     }
 
@@ -472,7 +408,8 @@ bool HexagonShuffler::check() {
         else if (stores > 1) {
           if (slotLoadStore < slotLastLoadStore) {
             // Error if no more slots available for stores.
-            Error = SHUFFLE_ERROR_STORES;
+            reportError(
+                llvm::Twine("invalid instruction packet: too many stores"));
             return false;
           }
           // Pin the store to the highest slot available to it.
@@ -483,7 +420,7 @@ bool HexagonShuffler::check() {
       }
       if (store1 && stores > 1) {
         // Error if a single store with another store.
-        Error = SHUFFLE_ERROR_STORES;
+        reportError(llvm::Twine("invalid instruction packet: too many stores"));
         return false;
       }
     }
@@ -494,7 +431,7 @@ bool HexagonShuffler::check() {
 
     if (!ISJ->Core.getUnits()) {
       // Error if insn may not be executed in any slot.
-      Error = SHUFFLE_ERROR_NOSLOTS;
+      reportError(llvm::Twine("invalid instruction packet: out of slots"));
       return false;
     }
   }
@@ -503,12 +440,12 @@ bool HexagonShuffler::check() {
   bool validateSlots = true;
   if (jumps > 1) {
     if (foundBranches.size() > 2) {
-      Error = SHUFFLE_ERROR_BRANCHES;
+      reportError(llvm::Twine("too many branches in packet"));
       return false;
     }
 
     // try all possible choices
-    for (unsigned int i = 0 ; i < MAX_JUMP_SLOTS ; ++i) {
+    for (unsigned int i = 0; i < MAX_JUMP_SLOTS; ++i) {
       // validate first jump with this slot rule
       if (!(jumpSlots[i].first & foundBranches[0]->Core.getUnits()))
         continue;
@@ -535,18 +472,18 @@ bool HexagonShuffler::check() {
       if (!bFail) {
         validateSlots = false; // all good, no need to re-do auction
         break;
-      }
-      else
+      } else
         // restore original values
         Packet = PacketSave;
     }
     if (validateSlots == true) {
-      Error = SHUFFLE_ERROR_NOSLOTS;
+      reportError(llvm::Twine("invalid instruction packet: out of slots"));
       return false;
     }
   }
 
-  if (jumps <= 1 && bOnlySlot3 == false && pSlot3Cnt == 1 && slot3ISJ != end()) {
+  if (jumps <= 1 && bOnlySlot3 == false && pSlot3Cnt == 1 &&
+      slot3ISJ != end()) {
     validateSlots = true;
     // save off slot mask of instruction marked with A_PREFER_SLOT3
     // and then pin it to slot #3
@@ -582,7 +519,7 @@ bool HexagonShuffler::check() {
 
     for (iterator I = begin(); I != end(); ++I)
       if (!AuctionCore.bid(I->Core.getUnits())) {
-        Error = SHUFFLE_ERROR_SLOTS;
+        reportError(llvm::Twine("invalid instruction packet: slot error"));
         return false;
       }
   }
@@ -605,12 +542,11 @@ bool HexagonShuffler::check() {
     startIdx = usedUnits = 0x0;
     if (checkHVXPipes(hvxInsts, startIdx, usedUnits) == false) {
       // too many pipes used to be valid
-      Error = SHUFFLE_ERROR_SLOTS;
+      reportError(llvm::Twine("invalid instruction packet: slot error"));
       return false;
     }
   }
 
-  Error = SHUFFLE_SUCCESS;
   return true;
 }
 
@@ -618,12 +554,13 @@ bool HexagonShuffler::shuffle() {
   if (size() > HEXAGON_PACKET_SIZE) {
     // Ignore a packet with with more than what a packet can hold
     // or with compound or duplex insns for now.
-    Error = SHUFFLE_ERROR_INVALID;
+    reportError(llvm::Twine("invalid instruction packet"));
     return false;
   }
 
   // Check and prepare packet.
-  if (size() > 1 && check())
+  bool Ok = true;
+  if (size() > 1 && (Ok = check()))
     // Reorder the handles for each slot.
     for (unsigned nSlot = 0, emptySlots = 0; nSlot < HEXAGON_PACKET_SIZE;
          ++nSlot) {
@@ -659,5 +596,10 @@ bool HexagonShuffler::shuffle() {
           dbgs() << '\n');
   DEBUG(dbgs() << '\n');
 
-  return (!getError());
+  return Ok;
+}
+
+void HexagonShuffler::reportError(llvm::Twine const &Msg) {
+  if (ReportErrors)
+    Context.reportError(Loc, Msg);
 }

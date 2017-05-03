@@ -211,12 +211,11 @@ enum IIT_Info {
   IIT_SAME_VEC_WIDTH_ARG = 31,
   IIT_PTR_TO_ARG = 32,
   IIT_PTR_TO_ELT = 33,
-  IIT_VEC_OF_PTRS_TO_ELT = 34,
+  IIT_VEC_OF_ANYPTRS_TO_ELT = 34,
   IIT_I128 = 35,
   IIT_V512 = 36,
   IIT_V1024 = 37
 };
-
 
 static void EncodeFixedValueType(MVT::SimpleValueType VT,
                                  std::vector<unsigned char> &Sig) {
@@ -273,9 +272,16 @@ static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
     }
     else if (R->isSubClassOf("LLVMPointerTo"))
       Sig.push_back(IIT_PTR_TO_ARG);
-    else if (R->isSubClassOf("LLVMVectorOfPointersToElt"))
-      Sig.push_back(IIT_VEC_OF_PTRS_TO_ELT);
-    else if (R->isSubClassOf("LLVMPointerToElt"))
+    else if (R->isSubClassOf("LLVMVectorOfAnyPointersToElt")) {
+      Sig.push_back(IIT_VEC_OF_ANYPTRS_TO_ELT);
+      unsigned ArgNo = ArgCodes.size();
+      ArgCodes.push_back(3 /*vAny*/);
+      // Encode overloaded ArgNo
+      Sig.push_back(ArgNo);
+      // Encode LLVMMatchType<Number> ArgNo
+      Sig.push_back(Number);
+      return;
+    } else if (R->isSubClassOf("LLVMPointerToElt"))
       Sig.push_back(IIT_PTR_TO_ELT);
     else
       Sig.push_back(IIT_ARG);
@@ -476,6 +482,12 @@ struct AttributeComparator {
     if (L->isConvergent != R->isConvergent)
       return R->isConvergent;
 
+    if (L->isSpeculatable != R->isSpeculatable)
+      return R->isSpeculatable;
+
+    if (L->hasSideEffects != R->hasSideEffects)
+      return R->hasSideEffects;
+
     // Try to order by readonly/readnone attribute.
     CodeGenIntrinsic::ModRefBehavior LK = L->ModRef;
     CodeGenIntrinsic::ModRefBehavior RK = R->ModRef;
@@ -551,8 +563,9 @@ void IntrinsicEmitter::EmitAttributes(const CodeGenIntrinsicTable &Ints,
     if (ae) {
       while (ai != ae) {
         unsigned argNo = intrinsic.ArgumentAttributes[ai].first;
+        unsigned attrIdx = argNo + 1; // Must match AttributeList::FirstArgIndex
 
-        OS <<  "      const Attribute::AttrKind AttrParam" << argNo + 1 <<"[]= {";
+        OS << "      const Attribute::AttrKind AttrParam" << attrIdx << "[]= {";
         bool addComma = false;
 
         do {
@@ -593,14 +606,14 @@ void IntrinsicEmitter::EmitAttributes(const CodeGenIntrinsicTable &Ints,
         } while (ai != ae && intrinsic.ArgumentAttributes[ai].first == argNo);
         OS << "};\n";
         OS << "      AS[" << numAttrs++ << "] = AttributeList::get(C, "
-           << argNo + 1 << ", AttrParam" << argNo + 1 << ");\n";
+           << attrIdx << ", AttrParam" << attrIdx << ");\n";
       }
     }
 
     if (!intrinsic.canThrow ||
         intrinsic.ModRef != CodeGenIntrinsic::ReadWriteMem ||
         intrinsic.isNoReturn || intrinsic.isNoDuplicate ||
-        intrinsic.isConvergent) {
+        intrinsic.isConvergent || intrinsic.isSpeculatable) {
       OS << "      const Attribute::AttrKind Atts[] = {";
       bool addComma = false;
       if (!intrinsic.canThrow) {
@@ -623,6 +636,12 @@ void IntrinsicEmitter::EmitAttributes(const CodeGenIntrinsicTable &Ints,
         if (addComma)
           OS << ",";
         OS << "Attribute::Convergent";
+        addComma = true;
+      }
+      if (intrinsic.isSpeculatable) {
+        if (addComma)
+          OS << ",";
+        OS << "Attribute::Speculatable";
         addComma = true;
       }
 

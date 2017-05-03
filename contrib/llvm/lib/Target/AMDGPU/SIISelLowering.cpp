@@ -68,6 +68,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetCallingConv.h"
 #include "llvm/Target/TargetOptions.h"
@@ -1956,6 +1957,63 @@ MachineBasicBlock *SITargetLowering::EmitInstrWithCustomInserter(
     MI.eraseFromParent();
     return BB;
 
+  case AMDGPU::SI_INIT_EXEC:
+    // This should be before all vector instructions.
+    BuildMI(*BB, &*BB->begin(), MI.getDebugLoc(), TII->get(AMDGPU::S_MOV_B64),
+            AMDGPU::EXEC)
+        .addImm(MI.getOperand(0).getImm());
+    MI.eraseFromParent();
+    return BB;
+
+  case AMDGPU::SI_INIT_EXEC_FROM_INPUT: {
+    // Extract the thread count from an SGPR input and set EXEC accordingly.
+    // Since BFM can't shift by 64, handle that case with CMP + CMOV.
+    //
+    // S_BFE_U32 count, input, {shift, 7}
+    // S_BFM_B64 exec, count, 0
+    // S_CMP_EQ_U32 count, 64
+    // S_CMOV_B64 exec, -1
+    MachineInstr *FirstMI = &*BB->begin();
+    MachineRegisterInfo &MRI = MF->getRegInfo();
+    unsigned InputReg = MI.getOperand(0).getReg();
+    unsigned CountReg = MRI.createVirtualRegister(&AMDGPU::SGPR_32RegClass);
+    bool Found = false;
+
+    // Move the COPY of the input reg to the beginning, so that we can use it.
+    for (auto I = BB->begin(); I != &MI; I++) {
+      if (I->getOpcode() != TargetOpcode::COPY ||
+          I->getOperand(0).getReg() != InputReg)
+        continue;
+
+      if (I == FirstMI) {
+        FirstMI = &*++BB->begin();
+      } else {
+        I->removeFromParent();
+        BB->insert(FirstMI, &*I);
+      }
+      Found = true;
+      break;
+    }
+    assert(Found);
+
+    // This should be before all vector instructions.
+    BuildMI(*BB, FirstMI, DebugLoc(), TII->get(AMDGPU::S_BFE_U32), CountReg)
+        .addReg(InputReg)
+        .addImm((MI.getOperand(1).getImm() & 0x7f) | 0x70000);
+    BuildMI(*BB, FirstMI, DebugLoc(), TII->get(AMDGPU::S_BFM_B64),
+            AMDGPU::EXEC)
+        .addReg(CountReg)
+        .addImm(0);
+    BuildMI(*BB, FirstMI, DebugLoc(), TII->get(AMDGPU::S_CMP_EQ_U32))
+        .addReg(CountReg, RegState::Kill)
+        .addImm(64);
+    BuildMI(*BB, FirstMI, DebugLoc(), TII->get(AMDGPU::S_CMOV_B64),
+            AMDGPU::EXEC)
+        .addImm(-1);
+    MI.eraseFromParent();
+    return BB;
+  }
+
   case AMDGPU::GET_GROUPSTATICSIZE: {
     DebugLoc DL = MI.getDebugLoc();
     BuildMI(*BB, MI, DL, TII->get(AMDGPU::S_MOV_B32))
@@ -3223,6 +3281,14 @@ SDValue SITargetLowering::LowerINTRINSIC_VOID(SDValue Op,
     return DAG.getNode(NodeOp, DL, MVT::Other, Chain,
                        Op.getOperand(2), Glue);
   }
+  case Intrinsic::amdgcn_init_exec: {
+    return DAG.getNode(AMDGPUISD::INIT_EXEC, DL, MVT::Other, Chain,
+                       Op.getOperand(2));
+  }
+  case Intrinsic::amdgcn_init_exec_from_input: {
+    return DAG.getNode(AMDGPUISD::INIT_EXEC_FROM_INPUT, DL, MVT::Other, Chain,
+                       Op.getOperand(2), Op.getOperand(3));
+  }
   case AMDGPUIntrinsic::SI_tbuffer_store: {
     SDValue Ops[] = {
       Chain,
@@ -3455,15 +3521,15 @@ SDValue SITargetLowering::lowerFastUnsafeFDIV(SDValue Op,
     }
   }
 
-  const SDNodeFlags *Flags = Op->getFlags();
+  const SDNodeFlags Flags = Op->getFlags();
 
-  if (Unsafe || Flags->hasAllowReciprocal()) {
+  if (Unsafe || Flags.hasAllowReciprocal()) {
     // Turn into multiply by the reciprocal.
     // x / y -> x * (1.0 / y)
-    SDNodeFlags Flags;
-    Flags.setUnsafeAlgebra(true);
+    SDNodeFlags NewFlags;
+    NewFlags.setUnsafeAlgebra(true);
     SDValue Recip = DAG.getNode(AMDGPUISD::RCP, SL, VT, RHS);
-    return DAG.getNode(ISD::FMUL, SL, VT, LHS, Recip, &Flags);
+    return DAG.getNode(ISD::FMUL, SL, VT, LHS, Recip, NewFlags);
   }
 
   return SDValue();
@@ -4542,10 +4608,9 @@ unsigned SITargetLowering::getFusedOpcode(const SelectionDAG &DAG,
     return ISD::FMAD;
 
   const TargetOptions &Options = DAG.getTarget().Options;
-  if ((Options.AllowFPOpFusion == FPOpFusion::Fast ||
-       Options.UnsafeFPMath ||
-       (cast<BinaryWithFlagsSDNode>(N0)->Flags.hasUnsafeAlgebra() &&
-        cast<BinaryWithFlagsSDNode>(N1)->Flags.hasUnsafeAlgebra())) &&
+  if ((Options.AllowFPOpFusion == FPOpFusion::Fast || Options.UnsafeFPMath ||
+       (N0->getFlags().hasUnsafeAlgebra() &&
+        N1->getFlags().hasUnsafeAlgebra())) &&
       isFMAFasterThanFMulAndFAdd(VT)) {
     return ISD::FMA;
   }
@@ -4706,12 +4771,12 @@ SDValue SITargetLowering::performCvtF32UByteNCombine(SDNode *N,
 
   APInt Demanded = APInt::getBitsSet(32, 8 * Offset, 8 * Offset + 8);
 
-  APInt KnownZero, KnownOne;
+  KnownBits Known;
   TargetLowering::TargetLoweringOpt TLO(DAG, !DCI.isBeforeLegalize(),
                                         !DCI.isBeforeLegalizeOps());
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   if (TLI.ShrinkDemandedConstant(Src, Demanded, TLO) ||
-      TLI.SimplifyDemandedBits(Src, Demanded, KnownZero, KnownOne, TLO)) {
+      TLI.SimplifyDemandedBits(Src, Demanded, Known, TLO)) {
     DCI.CommitTargetLoweringOpt(TLO);
   }
 

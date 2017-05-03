@@ -54,6 +54,11 @@ static cl::opt<int>
                           cl::init(45),
                           cl::desc("Threshold for inlining cold callsites"));
 
+static cl::opt<bool>
+    EnableGenericSwitchCost("inline-generic-switch-cost", cl::Hidden,
+                            cl::init(false),
+                            cl::desc("Enable generic switch cost model"));
+
 // We introduce this threshold to help performance of instrumentation based
 // PGO before we actually hook up inliner with analysis passes such as BPI and
 // BFI.
@@ -998,11 +1003,72 @@ bool CallAnalyzer::visitSwitchInst(SwitchInst &SI) {
     if (isa<ConstantInt>(V))
       return true;
 
-  // Otherwise, we need to accumulate a cost proportional to the number of
-  // distinct successor blocks. This fan-out in the CFG cannot be represented
-  // for free even if we can represent the core switch as a jumptable that
-  // takes a single instruction.
-  //
+  if (EnableGenericSwitchCost) {
+    // Assume the most general case where the swith is lowered into
+    // either a jump table, bit test, or a balanced binary tree consisting of
+    // case clusters without merging adjacent clusters with the same
+    // destination. We do not consider the switches that are lowered with a mix
+    // of jump table/bit test/binary search tree. The cost of the switch is
+    // proportional to the size of the tree or the size of jump table range.
+
+    // Exit early for a large switch, assuming one case needs at least one
+    // instruction.
+    // FIXME: This is not true for a bit test, but ignore such case for now to
+    // save compile-time.
+    int64_t CostLowerBound =
+        std::min((int64_t)INT_MAX,
+                 (int64_t)SI.getNumCases() * InlineConstants::InstrCost + Cost);
+
+    if (CostLowerBound > Threshold) {
+      Cost = CostLowerBound;
+      return false;
+    }
+
+    unsigned JumpTableSize = 0;
+    unsigned NumCaseCluster =
+        TTI.getEstimatedNumberOfCaseClusters(SI, JumpTableSize);
+
+    // If suitable for a jump table, consider the cost for the table size and
+    // branch to destination.
+    if (JumpTableSize) {
+      int64_t JTCost = (int64_t)JumpTableSize * InlineConstants::InstrCost +
+                       4 * InlineConstants::InstrCost;
+      Cost = std::min((int64_t)INT_MAX, JTCost + Cost);
+      return false;
+    }
+
+    // Considering forming a binary search, we should find the number of nodes
+    // which is same as the number of comparisons when lowered. For a given
+    // number of clusters, n, we can define a recursive function, f(n), to find
+    // the number of nodes in the tree. The recursion is :
+    // f(n) = 1 + f(n/2) + f (n - n/2), when n > 3,
+    // and f(n) = n, when n <= 3.
+    // This will lead a binary tree where the leaf should be either f(2) or f(3)
+    // when n > 3.  So, the number of comparisons from leaves should be n, while
+    // the number of non-leaf should be :
+    //   2^(log2(n) - 1) - 1
+    //   = 2^log2(n) * 2^-1 - 1
+    //   = n / 2 - 1.
+    // Considering comparisons from leaf and non-leaf nodes, we can estimate the
+    // number of comparisons in a simple closed form :
+    //   n + n / 2 - 1 = n * 3 / 2 - 1
+    if (NumCaseCluster <= 3) {
+      // Suppose a comparison includes one compare and one conditional branch.
+      Cost += NumCaseCluster * 2 * InlineConstants::InstrCost;
+      return false;
+    }
+    int64_t ExpectedNumberOfCompare = 3 * (uint64_t)NumCaseCluster / 2 - 1;
+    uint64_t SwitchCost =
+        ExpectedNumberOfCompare * 2 * InlineConstants::InstrCost;
+    Cost = std::min((uint64_t)INT_MAX, SwitchCost + Cost);
+    return false;
+  }
+
+  // Use a simple switch cost model where we accumulate a cost proportional to
+  // the number of distinct successor blocks. This fan-out in the CFG cannot
+  // be represented for free even if we can represent the core switch as a
+  // jumptable that takes a single instruction.
+  ///
   // NB: We convert large switches which are just used to initialize large phi
   // nodes to lookup tables instead in simplify-cfg, so this shouldn't prevent
   // inlining those. It will prevent inlining in cases where the optimization
@@ -1217,36 +1283,10 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
   // the rest of the function body.
   Threshold += (SingleBBBonus + FiftyPercentVectorBonus);
 
-  // Give out bonuses per argument, as the instructions setting them up will
-  // be gone after inlining.
-  for (unsigned I = 0, E = CS.arg_size(); I != E; ++I) {
-    if (CS.isByValArgument(I)) {
-      // We approximate the number of loads and stores needed by dividing the
-      // size of the byval type by the target's pointer size.
-      PointerType *PTy = cast<PointerType>(CS.getArgument(I)->getType());
-      unsigned TypeSize = DL.getTypeSizeInBits(PTy->getElementType());
-      unsigned PointerSize = DL.getPointerSizeInBits();
-      // Ceiling division.
-      unsigned NumStores = (TypeSize + PointerSize - 1) / PointerSize;
+  // Give out bonuses for the callsite, as the instructions setting them up
+  // will be gone after inlining.
+  Cost -= getCallsiteCost(CS, DL);
 
-      // If it generates more than 8 stores it is likely to be expanded as an
-      // inline memcpy so we take that as an upper bound. Otherwise we assume
-      // one load and one store per word copied.
-      // FIXME: The maxStoresPerMemcpy setting from the target should be used
-      // here instead of a magic number of 8, but it's not available via
-      // DataLayout.
-      NumStores = std::min(NumStores, 8U);
-
-      Cost -= 2 * NumStores * InlineConstants::InstrCost;
-    } else {
-      // For non-byval arguments subtract off one instruction per call
-      // argument.
-      Cost -= InlineConstants::InstrCost;
-    }
-  }
-  // The call instruction also disappears after inlining.
-  Cost -= InlineConstants::InstrCost + InlineConstants::CallPenalty;
-  
   // If there is only one call of the function, and it has internal linkage,
   // the cost of inlining it drops dramatically.
   bool OnlyOneCallAndLocalLinkage =
@@ -1429,6 +1469,38 @@ static bool functionsHaveCompatibleAttributes(Function *Caller,
                                               TargetTransformInfo &TTI) {
   return TTI.areInlineCompatible(Caller, Callee) &&
          AttributeFuncs::areInlineCompatible(*Caller, *Callee);
+}
+
+int llvm::getCallsiteCost(CallSite CS, const DataLayout &DL) {
+  int Cost = 0;
+  for (unsigned I = 0, E = CS.arg_size(); I != E; ++I) {
+    if (CS.isByValArgument(I)) {
+      // We approximate the number of loads and stores needed by dividing the
+      // size of the byval type by the target's pointer size.
+      PointerType *PTy = cast<PointerType>(CS.getArgument(I)->getType());
+      unsigned TypeSize = DL.getTypeSizeInBits(PTy->getElementType());
+      unsigned PointerSize = DL.getPointerSizeInBits();
+      // Ceiling division.
+      unsigned NumStores = (TypeSize + PointerSize - 1) / PointerSize;
+
+      // If it generates more than 8 stores it is likely to be expanded as an
+      // inline memcpy so we take that as an upper bound. Otherwise we assume
+      // one load and one store per word copied.
+      // FIXME: The maxStoresPerMemcpy setting from the target should be used
+      // here instead of a magic number of 8, but it's not available via
+      // DataLayout.
+      NumStores = std::min(NumStores, 8U);
+
+      Cost += 2 * NumStores * InlineConstants::InstrCost;
+    } else {
+      // For non-byval arguments subtract off one instruction per call
+      // argument.
+      Cost += InlineConstants::InstrCost;
+    }
+  }
+  // The call instruction also disappears after inlining.
+  Cost += InlineConstants::InstrCost + InlineConstants::CallPenalty;
+  return Cost;
 }
 
 InlineCost llvm::getInlineCost(

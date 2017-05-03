@@ -10,12 +10,12 @@
 #ifndef LLVM_DEBUGINFO_PDB_RAW_PDBDBISTREAM_H
 #define LLVM_DEBUGINFO_PDB_RAW_PDBDBISTREAM_H
 
-#include "llvm/DebugInfo/CodeView/ModuleSubstream.h"
+#include "llvm/DebugInfo/CodeView/ModuleDebugFragment.h"
 #include "llvm/DebugInfo/MSF/MappedBlockStream.h"
-#include "llvm/DebugInfo/PDB/Native/ModInfo.h"
+#include "llvm/DebugInfo/PDB/Native/DbiModuleDescriptor.h"
+#include "llvm/DebugInfo/PDB/Native/PDBStringTable.h"
 #include "llvm/DebugInfo/PDB/Native/RawConstants.h"
 #include "llvm/DebugInfo/PDB/Native/RawTypes.h"
-#include "llvm/DebugInfo/PDB/Native/StringTable.h"
 #include "llvm/DebugInfo/PDB/PDBTypes.h"
 #include "llvm/Support/BinaryStreamArray.h"
 #include "llvm/Support/BinaryStreamArray.h"
@@ -91,7 +91,7 @@ private:
   std::unique_ptr<msf::MappedBlockStream> Stream;
 
   std::vector<ModuleInfoEx> ModuleInfos;
-  StringTable ECNames;
+  PDBStringTable ECNames;
 
   BinaryStreamRef ModInfoSubstream;
   BinaryStreamRef SecContrSubstream;

@@ -40,6 +40,9 @@ LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::PdbSourceFileChecksumEntry)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::PdbSourceLineEntry)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::PdbSourceColumnEntry)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::PdbSourceLineBlock)
+LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::PdbSourceLineInfo)
+LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::PdbInlineeSite)
+LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::PdbInlineeInfo)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::PdbSymbolRecord)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::PdbTpiRecord)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::pdb::yaml::StreamBlockList)
@@ -162,8 +165,7 @@ template <> struct ScalarEnumerationTraits<llvm::codeview::FileChecksumKind> {
 
 template <> struct ScalarBitSetTraits<llvm::codeview::LineFlags> {
   static void bitset(IO &io, llvm::codeview::LineFlags &Flags) {
-    io.bitSetCase(Flags, "HasColumnInfo",
-                  llvm::codeview::LineFlags::HaveColumns);
+    io.bitSetCase(Flags, "HasColumnInfo", llvm::codeview::LF_HaveColumns);
     io.enumFallback<Hex16>(Flags);
   }
 };
@@ -311,7 +313,7 @@ void MappingContextTraits<pdb::yaml::PdbSourceColumnEntry,
             pdb::yaml::SerializationContext &Context) {
   IO.mapRequired("StartColumn", Obj.StartColumn);
   IO.mapRequired("EndColumn", Obj.EndColumn);
-};
+}
 
 void MappingContextTraits<pdb::yaml::PdbSourceLineBlock,
                           pdb::yaml::SerializationContext>::
@@ -320,7 +322,7 @@ void MappingContextTraits<pdb::yaml::PdbSourceLineBlock,
   IO.mapRequired("FileName", Obj.FileName);
   IO.mapRequired("Lines", Obj.Lines, Context);
   IO.mapRequired("Columns", Obj.Columns, Context);
-};
+}
 
 void MappingContextTraits<pdb::yaml::PdbSourceFileChecksumEntry,
                           pdb::yaml::SerializationContext>::
@@ -329,26 +331,42 @@ void MappingContextTraits<pdb::yaml::PdbSourceFileChecksumEntry,
   IO.mapRequired("FileName", Obj.FileName);
   IO.mapRequired("Kind", Obj.Kind);
   IO.mapRequired("Checksum", Obj.ChecksumBytes);
-};
+}
 
 void MappingContextTraits<pdb::yaml::PdbSourceLineInfo,
                           pdb::yaml::SerializationContext>::
     mapping(IO &IO, PdbSourceLineInfo &Obj,
             pdb::yaml::SerializationContext &Context) {
   IO.mapRequired("CodeSize", Obj.CodeSize);
+
   IO.mapRequired("Flags", Obj.Flags);
   IO.mapRequired("RelocOffset", Obj.RelocOffset);
   IO.mapRequired("RelocSegment", Obj.RelocSegment);
-  IO.mapRequired("LineInfo", Obj.LineInfo, Context);
-};
+  IO.mapRequired("Blocks", Obj.Blocks, Context);
+}
 
 void MappingContextTraits<pdb::yaml::PdbSourceFileInfo,
                           pdb::yaml::SerializationContext>::
     mapping(IO &IO, PdbSourceFileInfo &Obj,
             pdb::yaml::SerializationContext &Context) {
-  IO.mapOptionalWithContext("Lines", Obj.Lines, Context);
   IO.mapOptionalWithContext("Checksums", Obj.FileChecksums, Context);
-};
+  IO.mapOptionalWithContext("Lines", Obj.LineFragments, Context);
+  IO.mapOptionalWithContext("InlineeLines", Obj.Inlinees, Context);
+}
+
+void MappingContextTraits<PdbInlineeSite, SerializationContext>::mapping(
+    IO &IO, PdbInlineeSite &Obj, SerializationContext &Context) {
+  IO.mapRequired("FileName", Obj.FileName);
+  IO.mapRequired("LineNum", Obj.SourceLineNum);
+  IO.mapRequired("Inlinee", Obj.Inlinee);
+  IO.mapOptional("ExtraFiles", Obj.ExtraFiles);
+}
+
+void MappingContextTraits<PdbInlineeInfo, SerializationContext>::mapping(
+    IO &IO, PdbInlineeInfo &Obj, SerializationContext &Context) {
+  IO.mapRequired("HasExtraFiles", Obj.HasExtraFiles);
+  IO.mapRequired("Sites", Obj.Sites, Context);
+}
 
 void MappingContextTraits<PdbTpiRecord, pdb::yaml::SerializationContext>::
     mapping(IO &IO, pdb::yaml::PdbTpiRecord &Obj,

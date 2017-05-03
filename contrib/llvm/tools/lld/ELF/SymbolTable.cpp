@@ -52,6 +52,9 @@ template <class ELFT> static bool isCompatible(InputFile *F) {
 
 // Add symbols in File to the symbol table.
 template <class ELFT> void SymbolTable<ELFT>::addFile(InputFile *File) {
+  if (!Config->FirstElf && isa<ELFFileBase<ELFT>>(File))
+    Config->FirstElf = File;
+
   if (!isCompatible<ELFT>(File))
     return;
 
@@ -276,9 +279,10 @@ Symbol *SymbolTable<ELFT>::addUndefined(StringRef Name, bool IsLocal,
     return S;
   }
   if (Binding != STB_WEAK) {
-    if (S->body()->isShared() || S->body()->isLazy())
+    SymbolBody *B = S->body();
+    if (B->isShared() || B->isLazy() || B->isUndefined())
       S->Binding = Binding;
-    if (auto *SS = dyn_cast<SharedSymbol>(S->body()))
+    if (auto *SS = dyn_cast<SharedSymbol>(B))
       cast<SharedFile<ELFT>>(SS->File)->IsUsed = true;
   }
   if (auto *L = dyn_cast<Lazy>(S->body())) {

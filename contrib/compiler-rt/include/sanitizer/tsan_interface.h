@@ -68,7 +68,8 @@ const unsigned __tsan_mutex_recursive_unlock = 1 << 7;
 void __tsan_mutex_create(void *addr, unsigned flags);
 
 // Annotate destruction of a mutex.
-// Supported flags: none.
+// Supported flags:
+//   - __tsan_mutex_linker_init
 void __tsan_mutex_destroy(void *addr, unsigned flags);
 
 // Annotate start of lock operation.
@@ -125,6 +126,7 @@ void __tsan_mutex_post_divert(void *addr, unsigned flags);
 //       which is later used in read/write annotations to denote the object type
 //   - __tsan_external_assign_tag can optionally mark a heap object with a tag
 void *__tsan_external_register_tag(const char *object_type);
+void __tsan_external_register_header(void *tag, const char *header);
 void __tsan_external_assign_tag(void *addr, void *tag);
 void __tsan_external_read(void *addr, void *caller_pc, void *tag);
 void __tsan_external_write(void *addr, void *caller_pc, void *tag);

@@ -17,8 +17,8 @@
 #include "llvm/DebugInfo/PDB/Native/DbiStreamBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/InfoStream.h"
 #include "llvm/DebugInfo/PDB/Native/InfoStreamBuilder.h"
+#include "llvm/DebugInfo/PDB/Native/PDBStringTableBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/RawError.h"
-#include "llvm/DebugInfo/PDB/Native/StringTableBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/TpiStream.h"
 #include "llvm/DebugInfo/PDB/Native/TpiStreamBuilder.h"
 #include "llvm/Support/BinaryStream.h"
@@ -67,7 +67,9 @@ TpiStreamBuilder &PDBFileBuilder::getIpiBuilder() {
   return *Ipi;
 }
 
-StringTableBuilder &PDBFileBuilder::getStringTableBuilder() { return Strings; }
+PDBStringTableBuilder &PDBFileBuilder::getStringTableBuilder() {
+  return Strings;
+}
 
 Error PDBFileBuilder::addNamedStream(StringRef Name, uint32_t Size) {
   auto ExpectedStream = Msf->addStream(Size);
@@ -78,9 +80,9 @@ Error PDBFileBuilder::addNamedStream(StringRef Name, uint32_t Size) {
 }
 
 Expected<msf::MSFLayout> PDBFileBuilder::finalizeMsfLayout() {
-  uint32_t StringTableSize = Strings.finalize();
+  uint32_t StringsLen = Strings.calculateSerializedSize();
 
-  if (auto EC = addNamedStream("/names", StringTableSize))
+  if (auto EC = addNamedStream("/names", StringsLen))
     return std::move(EC);
   if (auto EC = addNamedStream("/LinkInfo", 0))
     return std::move(EC);
@@ -105,6 +107,13 @@ Expected<msf::MSFLayout> PDBFileBuilder::finalizeMsfLayout() {
   }
 
   return Msf->build();
+}
+
+Expected<uint32_t> PDBFileBuilder::getNamedStreamIndex(StringRef Name) const {
+  uint32_t SN = 0;
+  if (!NamedStreams.get(Name, SN))
+    return llvm::make_error<pdb::RawError>(raw_error_code::no_stream);
+  return SN;
 }
 
 Error PDBFileBuilder::commit(StringRef Filename) {
@@ -144,12 +153,12 @@ Error PDBFileBuilder::commit(StringRef Filename) {
       return EC;
   }
 
-  uint32_t StringTableStreamNo = 0;
-  if (!NamedStreams.get("/names", StringTableStreamNo))
-    return llvm::make_error<pdb::RawError>(raw_error_code::no_stream);
+  auto ExpectedSN = getNamedStreamIndex("/names");
+  if (!ExpectedSN)
+    return ExpectedSN.takeError();
 
   auto NS = WritableMappedBlockStream::createIndexedStream(Layout, Buffer,
-                                                           StringTableStreamNo);
+                                                           *ExpectedSN);
   BinaryStreamWriter NSWriter(*NS);
   if (auto EC = Strings.commit(NSWriter))
     return EC;

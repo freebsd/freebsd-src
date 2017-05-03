@@ -28,24 +28,28 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Config/config.h"
+#include "llvm/DebugInfo/CodeView/ModuleDebugFileChecksumFragment.h"
+#include "llvm/DebugInfo/CodeView/ModuleDebugInlineeLinesFragment.h"
+#include "llvm/DebugInfo/CodeView/ModuleDebugLineFragment.h"
 #include "llvm/DebugInfo/MSF/MSFBuilder.h"
 #include "llvm/DebugInfo/PDB/GenericError.h"
 #include "llvm/DebugInfo/PDB/IPDBEnumChildren.h"
 #include "llvm/DebugInfo/PDB/IPDBRawSymbol.h"
 #include "llvm/DebugInfo/PDB/IPDBSession.h"
+#include "llvm/DebugInfo/PDB/Native/DbiModuleDescriptorBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/DbiStream.h"
 #include "llvm/DebugInfo/PDB/Native/DbiStreamBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/InfoStream.h"
 #include "llvm/DebugInfo/PDB/Native/InfoStreamBuilder.h"
-#include "llvm/DebugInfo/PDB/Native/ModInfoBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/NativeSession.h"
 #include "llvm/DebugInfo/PDB/Native/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Native/PDBFileBuilder.h"
+#include "llvm/DebugInfo/PDB/Native/PDBStringTableBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/RawConstants.h"
 #include "llvm/DebugInfo/PDB/Native/RawError.h"
-#include "llvm/DebugInfo/PDB/Native/StringTableBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/TpiStream.h"
 #include "llvm/DebugInfo/PDB/Native/TpiStreamBuilder.h"
 #include "llvm/DebugInfo/PDB/PDB.h"
@@ -261,9 +265,10 @@ cl::opt<std::string>
                       cl::cat(MsfOptions), cl::sub(RawSubcommand));
 llvm::Optional<BlockRange> DumpBlockRange;
 
-cl::list<uint32_t>
+cl::list<std::string>
     DumpStreamData("stream-data", cl::CommaSeparated, cl::ZeroOrMore,
-                   cl::desc("Dump binary data from specified streams."),
+                   cl::desc("Dump binary data from specified streams.  Format "
+                            "is SN[:Start][@Size]"),
                    cl::cat(MsfOptions), cl::sub(RawSubcommand));
 
 // TYPE OPTIONS
@@ -470,6 +475,8 @@ static void yamlToPdb(StringRef Path) {
   for (auto F : Info.Features)
     InfoBuilder.addFeature(F);
 
+  auto &Strings = Builder.getStringTableBuilder().getStrings();
+
   const auto &Dbi = YamlObj.DbiStream.getValueOr(DefaultDbiStream);
   auto &DbiBuilder = Builder.getDbiBuilder();
   DbiBuilder.setAge(Dbi.Age);
@@ -489,6 +496,66 @@ static void yamlToPdb(StringRef Path) {
       ModiBuilder.setObjFileName(MI.Obj);
       for (auto Symbol : ModiStream.Symbols)
         ModiBuilder.addSymbol(Symbol.Record);
+    }
+    if (MI.FileLineInfo.hasValue()) {
+      const auto &FLI = *MI.FileLineInfo;
+
+      // File Checksums must be emitted before line information, because line
+      // info records use offsets into the checksum buffer to reference a file's
+      // source file name.
+      auto Checksums =
+          llvm::make_unique<ModuleDebugFileChecksumFragment>(Strings);
+      auto &ChecksumRef = *Checksums;
+      if (!FLI.FileChecksums.empty()) {
+        for (auto &FC : FLI.FileChecksums)
+          Checksums->addChecksum(FC.FileName, FC.Kind, FC.ChecksumBytes.Bytes);
+      }
+      ModiBuilder.setC13FileChecksums(std::move(Checksums));
+
+      for (const auto &Fragment : FLI.LineFragments) {
+        auto Lines =
+            llvm::make_unique<ModuleDebugLineFragment>(ChecksumRef, Strings);
+        Lines->setCodeSize(Fragment.CodeSize);
+        Lines->setRelocationAddress(Fragment.RelocSegment,
+                                    Fragment.RelocOffset);
+        Lines->setFlags(Fragment.Flags);
+        for (const auto &LC : Fragment.Blocks) {
+          Lines->createBlock(LC.FileName);
+          if (Lines->hasColumnInfo()) {
+            for (const auto &Item : zip(LC.Lines, LC.Columns)) {
+              auto &L = std::get<0>(Item);
+              auto &C = std::get<1>(Item);
+              uint32_t LE = L.LineStart + L.EndDelta;
+              Lines->addLineAndColumnInfo(
+                  L.Offset, LineInfo(L.LineStart, LE, L.IsStatement),
+                  C.StartColumn, C.EndColumn);
+            }
+          } else {
+            for (const auto &L : LC.Lines) {
+              uint32_t LE = L.LineStart + L.EndDelta;
+              Lines->addLineInfo(L.Offset,
+                                 LineInfo(L.LineStart, LE, L.IsStatement));
+            }
+          }
+        }
+        ModiBuilder.addC13Fragment(std::move(Lines));
+      }
+
+      for (const auto &Inlinee : FLI.Inlinees) {
+        auto Inlinees = llvm::make_unique<ModuleDebugInlineeLineFragment>(
+            ChecksumRef, Inlinee.HasExtraFiles);
+        for (const auto &Site : Inlinee.Sites) {
+          Inlinees->addInlineSite(Site.Inlinee, Site.FileName,
+                                  Site.SourceLineNum);
+          if (!Inlinee.HasExtraFiles)
+            continue;
+
+          for (auto EF : Site.ExtraFiles) {
+            Inlinees->addExtraFile(EF);
+          }
+        }
+        ModiBuilder.addC13Fragment(std::move(Inlinees));
+      }
     }
   }
 

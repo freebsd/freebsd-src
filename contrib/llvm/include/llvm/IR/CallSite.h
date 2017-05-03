@@ -339,12 +339,20 @@ public:
     CALLSITE_DELEGATE_SETTER(addAttribute(i, Attr));
   }
 
+  void addParamAttr(unsigned ArgNo, Attribute::AttrKind Kind) {
+    CALLSITE_DELEGATE_SETTER(addParamAttr(ArgNo, Kind));
+  }
+
   void removeAttribute(unsigned i, Attribute::AttrKind Kind) {
     CALLSITE_DELEGATE_SETTER(removeAttribute(i, Kind));
   }
 
   void removeAttribute(unsigned i, StringRef Kind) {
     CALLSITE_DELEGATE_SETTER(removeAttribute(i, Kind));
+  }
+
+  void removeParamAttr(unsigned ArgNo, Attribute::AttrKind Kind) {
+    CALLSITE_DELEGATE_SETTER(removeParamAttr(ArgNo, Kind));
   }
 
   /// Return true if this function has the given attribute.
@@ -386,28 +394,31 @@ public:
     CALLSITE_DELEGATE_GETTER(dataOperandHasImpliedAttr(i, Kind));
   }
 
+  /// Extract the alignment of the return value.
+  unsigned getRetAlignment() const {
+    CALLSITE_DELEGATE_GETTER(getRetAlignment());
+  }
+
   /// Extract the alignment for a call or parameter (0=unknown).
-  uint16_t getParamAlignment(uint16_t i) const {
-    CALLSITE_DELEGATE_GETTER(getParamAlignment(i));
+  unsigned getParamAlignment(unsigned ArgNo) const {
+    CALLSITE_DELEGATE_GETTER(getParamAlignment(ArgNo));
   }
 
   /// Extract the number of dereferenceable bytes for a call or parameter
   /// (0=unknown).
-  uint64_t getDereferenceableBytes(uint16_t i) const {
+  uint64_t getDereferenceableBytes(unsigned i) const {
     CALLSITE_DELEGATE_GETTER(getDereferenceableBytes(i));
   }
 
   /// Extract the number of dereferenceable_or_null bytes for a call or
   /// parameter (0=unknown).
-  uint64_t getDereferenceableOrNullBytes(uint16_t i) const {
+  uint64_t getDereferenceableOrNullBytes(unsigned i) const {
     CALLSITE_DELEGATE_GETTER(getDereferenceableOrNullBytes(i));
   }
 
-  /// Determine if the parameter or return value is marked with NoAlias
-  /// attribute.
-  /// @param n The parameter to check. 1 is the first parameter, 0 is the return
-  bool doesNotAlias(unsigned n) const {
-    CALLSITE_DELEGATE_GETTER(doesNotAlias(n));
+  /// Determine if the return value is marked with NoAlias attribute.
+  bool returnDoesNotAlias() const {
+    CALLSITE_DELEGATE_GETTER(returnDoesNotAlias());
   }
 
   /// Return true if the call should not be treated as a call to a builtin.
@@ -599,7 +610,7 @@ public:
   bool isReturnNonNull() const {
     if (hasRetAttr(Attribute::NonNull))
       return true;
-    else if (getDereferenceableBytes(0) > 0 &&
+    else if (getDereferenceableBytes(AttributeList::ReturnIndex) > 0 &&
              getType()->getPointerAddressSpace() == 0)
       return true;
 

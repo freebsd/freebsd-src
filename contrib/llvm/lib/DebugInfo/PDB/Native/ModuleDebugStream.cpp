@@ -1,4 +1,4 @@
-//===- ModStream.cpp - PDB Module Info Stream Access ----------------------===//
+//===- ModuleDebugStream.cpp - PDB Module Info Stream Access --------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,10 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/DebugInfo/PDB/Native/ModStream.h"
+#include "llvm/DebugInfo/PDB/Native/ModuleDebugStream.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/DebugInfo/CodeView/SymbolRecord.h"
-#include "llvm/DebugInfo/PDB/Native/ModInfo.h"
+#include "llvm/DebugInfo/PDB/Native/DbiModuleDescriptor.h"
 #include "llvm/DebugInfo/PDB/Native/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Native/RawError.h"
 #include "llvm/DebugInfo/PDB/Native/RawTypes.h"
@@ -21,20 +21,22 @@
 #include <cstdint>
 
 using namespace llvm;
+using namespace llvm::codeview;
 using namespace llvm::msf;
 using namespace llvm::pdb;
 
-ModStream::ModStream(const ModInfo &Module,
-                     std::unique_ptr<MappedBlockStream> Stream)
+ModuleDebugStreamRef::ModuleDebugStreamRef(
+    const DbiModuleDescriptor &Module,
+    std::unique_ptr<MappedBlockStream> Stream)
     : Mod(Module), Stream(std::move(Stream)) {}
 
-ModStream::~ModStream() = default;
+ModuleDebugStreamRef::~ModuleDebugStreamRef() = default;
 
-Error ModStream::reload() {
+Error ModuleDebugStreamRef::reload() {
   BinaryStreamReader Reader(*Stream);
 
   uint32_t SymbolSize = Mod.getSymbolDebugInfoByteSize();
-  uint32_t C11Size = Mod.getLineInfoByteSize();
+  uint32_t C11Size = Mod.getC11LineInfoByteSize();
   uint32_t C13Size = Mod.getC13LineInfoByteSize();
 
   if (C11Size > 0 && C13Size > 0)
@@ -48,13 +50,14 @@ Error ModStream::reload() {
   if (auto EC = Reader.readArray(SymbolsSubstream, SymbolSize - 4))
     return EC;
 
-  if (auto EC = Reader.readStreamRef(LinesSubstream, C11Size))
+  if (auto EC = Reader.readStreamRef(C11LinesSubstream, C11Size))
     return EC;
   if (auto EC = Reader.readStreamRef(C13LinesSubstream, C13Size))
     return EC;
 
   BinaryStreamReader LineReader(C13LinesSubstream);
-  if (auto EC = LineReader.readArray(LineInfo, LineReader.bytesRemaining()))
+  if (auto EC =
+          LineReader.readArray(LinesAndChecksums, LineReader.bytesRemaining()))
     return EC;
 
   uint32_t GlobalRefsSize;
@@ -70,20 +73,17 @@ Error ModStream::reload() {
 }
 
 iterator_range<codeview::CVSymbolArray::Iterator>
-ModStream::symbols(bool *HadError) const {
-  // It's OK if the stream is empty.
-  if (SymbolsSubstream.getUnderlyingStream().getLength() == 0)
-    return make_range(SymbolsSubstream.end(), SymbolsSubstream.end());
+ModuleDebugStreamRef::symbols(bool *HadError) const {
   return make_range(SymbolsSubstream.begin(HadError), SymbolsSubstream.end());
 }
 
-iterator_range<codeview::ModuleSubstreamArray::Iterator>
-ModStream::lines(bool *HadError) const {
-  return make_range(LineInfo.begin(HadError), LineInfo.end());
+llvm::iterator_range<ModuleDebugStreamRef::LinesAndChecksumsIterator>
+ModuleDebugStreamRef::linesAndChecksums() const {
+  return make_range(LinesAndChecksums.begin(), LinesAndChecksums.end());
 }
 
-bool ModStream::hasLineInfo() const {
-  return C13LinesSubstream.getLength() > 0 || LinesSubstream.getLength() > 0;
+bool ModuleDebugStreamRef::hasLineInfo() const {
+  return C13LinesSubstream.getLength() > 0;
 }
 
-Error ModStream::commit() { return Error::success(); }
+Error ModuleDebugStreamRef::commit() { return Error::success(); }
