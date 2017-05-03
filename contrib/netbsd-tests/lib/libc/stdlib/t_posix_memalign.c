@@ -134,7 +134,7 @@ ATF_TC_BODY(aligned_alloc_basic, tc)
 			    "aligned_alloc: success when size was not an "
 			    "integer multiple of alignment");
 #endif
-			ATF_REQUIRE_EQ_MSG(((intptr_t)p) & (intptr_t)(align[i] - 1), 0,
+			ATF_REQUIRE_EQ_MSG(((vaddr_t)p) & (vaddr_t)(align[i] - 1), 0,
 			    "p = %p", p);
 			free(p);
 		}
