@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2017
+.Dd May 3, 2017
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -67,7 +67,8 @@ On all supported architectures,
 .It powerpc     Ta 4 Ta  8 Ta 4
 .It powerpcspe  Ta 4 Ta  8 Ta 4
 .It powerpc64   Ta 8 Ta  8 Ta 8
-.It riscv       Ta 8 Ta 16 Ta 8
+.It riscv64     Ta 8 Ta 16 Ta 8
+.It riscv64sf   Ta 8 Ta 16 Ta 8
 .It sparc64     Ta 8 Ta 16 Ta 8
 .El
 .Ss Endianness and Char Signedness
@@ -91,7 +92,8 @@ On all supported architectures,
 .It powerpc     Ta big    Ta unsigned
 .It powerpcspe  Ta big    Ta unsigned
 .It powerpc64   Ta big    Ta unsigned
-.It riscv       Ta little Ta   signed
+.It riscv64     Ta little Ta   signed
+.It riscv64sf   Ta little Ta   signed
 .It sparc64     Ta big    Ta   signed
 .El
 .Ss Page Size
@@ -115,7 +117,8 @@ On all supported architectures,
 .It powerpc     Ta 4K
 .It powerpcspe  Ta 4K
 .It powerpc64   Ta 4K
-.It riscv       Ta 4K
+.It riscv64     Ta 4K
+.It riscv64sf   Ta 4K
 .It sparc64     Ta 8K
 .El
 .Ss Floating Point
@@ -186,7 +189,8 @@ Architecture-specific macros:
 .It powerpc     Ta Dv __powerpc__
 .It powerpcspe  Ta Dv __powerpc__, Dv __SPE__
 .It powerpc64   Ta Dv __powerpc__, Dv __powerpc64__
-.It riscv       Ta Dv __riscv__, Dv __riscv64
+.It riscv64     Ta Dv __riscv__, Dv __riscv64
+.It riscv64sf   Ta Dv __riscv__, Dv __riscv64
 .It sparc64     Ta Dv __sparc64__
 .El
 .Sh SEE ALSO
