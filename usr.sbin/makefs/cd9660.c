@@ -1498,7 +1498,7 @@ cd9660_free_structure(cd9660node *root)
  * instead of having the TAILQ_ENTRY as part of the cd9660node,
  * just create a temporary structure
  */
-struct ptq_entry
+static struct ptq_entry
 {
 	TAILQ_ENTRY(ptq_entry) ptq;
 	cd9660node *node;
