@@ -15,6 +15,13 @@
 #   otherwise frames transmitted from the WDS AP to the WDS STA
 #   will not be encrypted.
 #
+# * Because wlanwds is running on the physical interface (for now),
+#   and NOT the parent VAP, it will create cloned interfaces using
+#   the MAC address of the physical interface.  So, until that
+#   whole setup is fixed, please only associate DWDS to the first
+#   VAP on a physical interface, which shares the MAC address of
+#   the physical NIC.
+#
 # $FreeBSD$
 #
 PATH=.:$PATH
