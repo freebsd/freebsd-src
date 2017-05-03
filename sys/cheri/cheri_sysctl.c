@@ -80,3 +80,9 @@ u_int	security_cheri_debugger_on_sigprot;
 SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sigprot, CTLFLAG_RW,
     &security_cheri_debugger_on_sigprot, 0,
     "Enter KDB when SIGPROT is delivered to an unsandboxed thread");
+
+u_int	security_cheri_improve_tags;
+SYSCTL_UINT(_security_cheri, OID_AUTO, improve_tags, CTLFLAG_RW,
+    &security_cheri_improve_tags, 0,
+    "Set tag bit when it's missing, completely destroying the entire "
+    "CHERI security model");
