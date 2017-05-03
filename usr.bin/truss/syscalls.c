@@ -174,6 +174,9 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 } } },
 	{ .name = "getsockname", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
+	{ .name = "getsockopt", .ret_type = 1, .nargs = 5,
+	  .args = { { Int, 0 }, { Sockoptlevel, 1 }, { Sockoptname, 2 },
+		    { Ptr | OUT, 3 }, { Ptr | OUT, 4 } } },
 	{ .name = "gettimeofday", .ret_type = 1, .nargs = 2,
 	  .args = { { Timeval | OUT, 0 }, { Ptr, 1 } } },
 	{ .name = "ioctl", .ret_type = 1, .nargs = 3,
@@ -295,6 +298,9 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Itimerval, 1 }, { Itimerval | OUT, 2 } } },
 	{ .name = "setrlimit", .ret_type = 1, .nargs = 2,
 	  .args = { { Resource, 0 }, { Rlimit | IN, 1 } } },
+	{ .name = "setsockopt", .ret_type = 1, .nargs = 5,
+	  .args = { { Int, 0 }, { Sockoptlevel, 1 }, { Sockoptname, 2 },
+		    { Ptr | IN, 3 }, { Socklent, 4 } } },
 	{ .name = "shutdown", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Shutdown, 1 } } },
 	{ .name = "sigaction", .ret_type = 1, .nargs = 3,
@@ -1917,6 +1923,24 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 			fputs("0", fp);
 		} else {
 			print_integer_arg(sysdecode_ipproto, fp, protocol);
+		}
+		break;
+	}
+	case Sockoptlevel:
+		print_integer_arg(sysdecode_sockopt_level, fp,
+		    args[sc->offset]);
+		break;
+	case Sockoptname: {
+		const char *temp;
+		int level, name;
+
+		level = args[sc->offset - 1];
+		name = args[sc->offset];
+		temp = sysdecode_sockopt_name(level, name);
+		if (temp) {
+			fputs(temp, fp);
+		} else {
+			fprintf(fp, "%d", name);
 		}
 		break;
 	}
