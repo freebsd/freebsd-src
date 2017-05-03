@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include "makefs.h"
 #include "buf.h"
 
-TAILQ_HEAD(buftailhead,buf) buftail;
+static TAILQ_HEAD(buftailhead,buf) buftail;
 
 int
 bread(struct vnode *vp, daddr_t blkno, int size, struct ucred *u1 __unused,
