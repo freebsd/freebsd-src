@@ -69,7 +69,7 @@ getpagesize()
 	mib[1] = HW_PAGESIZE;
 	size = sizeof value;
 	if (sysctl(mib, nitems(mib), &value, &size, NULL, 0) == -1)
-		return (-1);
+		return (PAGE_SIZE);
 
 	return (value);
 }
