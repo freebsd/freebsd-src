@@ -86,7 +86,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "access", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Accessmode, 1 } } },
 	{ .name = "bind", .ret_type = 1, .nargs = 3,
-	  .args = { { Int, 0 }, { Sockaddr | IN, 1 }, { Int, 2 } } },
+	  .args = { { Int, 0 }, { Sockaddr | IN, 1 }, { Socklent, 2 } } },
 	{ .name = "bindat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Int, 1 }, { Sockaddr | IN, 2 },
 		    { Int, 3 } } },
@@ -114,7 +114,7 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "close", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
 	{ .name = "connect", .ret_type = 1, .nargs = 3,
-	  .args = { { Int, 0 }, { Sockaddr | IN, 1 }, { Int, 2 } } },
+	  .args = { { Int, 0 }, { Sockaddr | IN, 1 }, { Socklent, 2 } } },
 	{ .name = "connectat", .ret_type = 1, .nargs = 4,
 	  .args = { { Atfd, 0 }, { Int, 1 }, { Sockaddr | IN, 2 },
 		    { Int, 3 } } },
@@ -290,7 +290,7 @@ static struct syscall decoded_syscalls[] = {
 		    { Timeval, 4 } } },
 	{ .name = "sendto", .ret_type = 1, .nargs = 6,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 }, { Hex, 3 },
-		    { Sockaddr | IN, 4 }, { Int | IN, 5 } } },
+		    { Sockaddr | IN, 4 }, { Socklent | IN, 5 } } },
 	{ .name = "setitimer", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Itimerval, 1 }, { Itimerval | OUT, 2 } } },
 	{ .name = "setrlimit", .ret_type = 1, .nargs = 2,
@@ -1905,6 +1905,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long *retval,
 		break;
 	case Madvice:
 		print_integer_arg(sysdecode_madvice, fp, args[sc->offset]);
+		break;
+	case Socklent:
+		fprintf(fp, "%u", (socklen_t)args[sc->offset]);
 		break;
 
 	case CloudABIAdvice:
