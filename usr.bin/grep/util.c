@@ -203,12 +203,6 @@ procfile(const char *fn)
 	int c, last_outed, t, tail;
 	bool doctx, same_file;
 
-	doctx = false;
-	if ((!pc.binary || binbehave != BINFILE_BIN) && !cflag && !qflag &&
-	    !lflag && !Lflag && (Aflag != 0 || Bflag != 0))
-		doctx = true;
-	mcount = mlimit;
-
 	if (strcmp(fn, "-") == 0) {
 		fn = label != NULL ? label : getstr(1);
 		f = grep_open(NULL);
@@ -242,6 +236,12 @@ procfile(const char *fn)
 	tail = 0;
 	last_outed = 0;
 	same_file = false;
+	doctx = false;
+	if ((!pc.binary || binbehave != BINFILE_BIN) && !cflag && !qflag &&
+	    !lflag && !Lflag && (Aflag != 0 || Bflag != 0))
+		doctx = true;
+	mcount = mlimit;
+
 
 	for (c = 0;  c == 0 || !(lflag || qflag); ) {
 		/* Reset match count for every line processed */
