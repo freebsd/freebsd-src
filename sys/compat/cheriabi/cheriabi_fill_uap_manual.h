@@ -575,24 +575,16 @@ CHERIABI_SYS__umtx_op_fill_uap(struct thread *td,
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &tmpcap, 0);
 		CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
 		if (!tag) {
-			CHERI_CTOINT(uap->uaddr1, CHERI_CR_CTEMP0);
 			/*
-			 * The actual test in umtx_copyin_umtx_time() is
-			 * very loose and makes little sense.  Allow 0 and
-			 * appropriate sizes until such a time as weirder
-			 * variants are found in the wild.
+			 * Follow the logic in umtx_copyin_umtx_time()
+			 * and assume we'll copy in a struct timespec if
+			 * the size is less than struct timespec.
 			 */
-			switch ((size_t)uap->uaddr1) {
-			case 0:
+			CHERI_CTOINT(uap->uaddr1, CHERI_CR_CTEMP0);
+			if ((size_t)uap->uaddr1 <= sizeof(struct timespec))
 				reqsize = sizeof(struct timespec);
-				break;
-			case sizeof(struct timespec):
-			case sizeof(struct _umtx_time):
+			else
 				reqsize = (size_t)uap->uaddr1;
-				break;
-			default:
-				return (EINVAL);
-			}
 		} else {
 			/* Reject pointers */
 			return (EPROT);
