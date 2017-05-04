@@ -224,7 +224,6 @@ node_new_map(struct node *parent, char *key, char *options, char *map,
 		n->n_options = options;
 	else
 		n->n_options = strdup("");
-	assert(map != NULL);
 	n->n_map = map;
 	assert(config_file != NULL);
 	n->n_config_file = config_file;
@@ -1123,10 +1122,6 @@ parse_master_yyin(struct node *root, const char *master)
 		ret = yylex();
 		if (ret == 0 || ret == NEWLINE) {
 			if (mountpoint != NULL) {
-				if (map == NULL) {
-					log_errx(1, "missing map name "
-					    "at %s, line %d", master, lineno);
-				}
 				//log_debugx("adding map for %s", mountpoint);
 				node_new_map(root, mountpoint, options, map,
 				    master, lineno);
