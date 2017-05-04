@@ -300,6 +300,8 @@ typedef struct elantechhw {
 	int			dpmmy;
 	int			ntracesx;
 	int			ntracesy;
+	int			dptracex;
+	int			dptracey;
 	int			issemimt;
 	int			isclickpad;
 	int			hascrc;
@@ -6280,8 +6282,17 @@ enable_elantech(struct psm_softc *sc, enum probearg arg)
 	static const int ic2hw[] =
 	/*IC: 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f */
 	    { 0, 0, 2, 0, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0 };
+	static const int fw_sizes[][3] = {
+		/* FW.vers  MaxX  MaxY */
+		{ 0x020030, 1152,  768 },
+		{ 0x020800, 1152,  768 },
+		{ 0x020b00, 1152,  768 },
+		{ 0x040215,  900,  500 },
+		{ 0x040216,  819,  405 },
+		{ 0x040219,  900,  500 },
+	};
 	elantechhw_t elanhw;
-	int icversion, hwversion, dptracex, dptracey, id, resp[3], dpix, dpiy;
+	int icversion, hwversion, xtr, i, id, resp[3], dpix, dpiy;
 	KBDC kbdc = sc->kbdc;
 
 	VLOG(3, (LOG_DEBUG, "elantech: BEGIN init\n"));
@@ -6332,8 +6343,8 @@ enable_elantech(struct psm_softc *sc, enum probearg arg)
 		return (FALSE);
 	}
 
-	elanhw.ntracesx = resp[1] - 1;
-	elanhw.ntracesy = resp[2] - 1;
+	elanhw.ntracesx = imax(resp[1], 3);
+	elanhw.ntracesy = imax(resp[2], 3);
 	elanhw.hastrackpoint = (resp[0] & 0x80) != 0;
 
 	/* Get the touchpad resolution */
@@ -6367,24 +6378,35 @@ enable_elantech(struct psm_softc *sc, enum probearg arg)
 	 * On HW v.3 touchpads it should be done after switching hardware
 	 * to real resolution mode (by setting bit 3 of reg10)
 	 */
+	elanhw.dptracex = elanhw.dptracey = 64;
+	for (i = 0; i < nitems(fw_sizes); i++) {
+		if (elanhw.fwversion == fw_sizes[i][0]) {
+			elanhw.sizex = fw_sizes[i][1];
+			elanhw.sizey = fw_sizes[i][2];
+			goto found;
+		}
+	}
 	if (elantech_cmd(kbdc, hwversion, ELANTECH_FW_ID, resp) != 0) {
 		printf("  Failed to read touchpad size\n");
 		elanhw.sizex = 10000; /* Arbitrary high values to     */
 		elanhw.sizey = 10000; /* prevent clipping in smoother */
 	} else if (hwversion == 2) {
-		dptracex = dptracey = 64;
 		if ((elanhw.fwversion >> 16) == 0x14 && (resp[1] & 0x10) &&
 		    !elantech_cmd(kbdc, hwversion, ELANTECH_SAMPLE, resp)) {
-			dptracex = resp[1] / 2;
-			dptracey = resp[2] / 2;
+			elanhw.dptracex = resp[1] / 2;
+			elanhw.dptracey = resp[2] / 2;
 		}
-		elanhw.sizex = (elanhw.ntracesx - 1) * dptracex;
-		elanhw.sizey = (elanhw.ntracesy - 1) * dptracey;
+		xtr = ((elanhw.fwversion >> 8) == 0x0208) ? 1 : 2;
+		elanhw.sizex = (elanhw.ntracesx - xtr) * elanhw.dptracex;
+		elanhw.sizey = (elanhw.ntracesy - xtr) * elanhw.dptracey;
 	} else {
 		elanhw.sizex = (resp[0] & 0x0f) << 8 | resp[1];
 		elanhw.sizey = (resp[0] & 0xf0) << 4 | resp[2];
+		xtr = (elanhw.sizex % (elanhw.ntracesx - 2) == 0) ? 2 : 1;
+		elanhw.dptracex = elanhw.sizex / (elanhw.ntracesx - xtr);
+		elanhw.dptracey = elanhw.sizey / (elanhw.ntracesy - xtr);
 	}
-
+found:
 	if (verbose >= 2) {
 		printf("  Model information:\n");
 		printf("   MaxX:       %d\n", elanhw.sizex);
@@ -6393,6 +6415,8 @@ enable_elantech(struct psm_softc *sc, enum probearg arg)
 		printf("   DpmmY:      %d\n", elanhw.dpmmy);
 		printf("   TracesX:    %d\n", elanhw.ntracesx);
 		printf("   TracesY:    %d\n", elanhw.ntracesy);
+		printf("   DptraceX:   %d\n", elanhw.dptracex);
+		printf("   DptraceY:   %d\n", elanhw.dptracey);
 		printf("   SemiMT:     %d\n", elanhw.issemimt);
 		printf("   Clickpad:   %d\n", elanhw.isclickpad);
 		printf("   Trackpoint: %d\n", elanhw.hastrackpoint);
