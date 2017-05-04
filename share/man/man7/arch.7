@@ -36,8 +36,9 @@
 Differences between CPU architectures and platforms supported by
 .Fx .
 .Pp
+If not explicitly mentioned, sizes are in bytes.
 .Ss Type sizes
-On all supported architectures,
+On all supported architectures:
 .Bl -column -offset -indent "long long" "Size"
 .It Sy Type Ta Sy Size
 .It short Ta 2
@@ -47,8 +48,10 @@ On all supported architectures,
 .It float Ta 4
 .It double Ta 8
 .El
-.Bl -column -offset indent "Sy Architecture" "Sy sizeof(void *)" "Sy sizeof(long double)" "Sy sizeof(time_t)"
-.It Sy Architecture Ta Sy sizeof(void *) Ta Sy sizeof(long double) Ta Sy sizeof(time_t)
+.Pp
+Machine-dependent type sizes:
+.Bl -column -offset indent "Sy Architecture" "Sy void *" "Sy long double" "Sy time_t"
+.It Sy Architecture Ta Sy void * Ta Sy long double Ta Sy time_t
 .It amd64       Ta 8 Ta 16 Ta 8
 .It arm         Ta 4 Ta  8 Ta 8
 .It armeb       Ta 4 Ta  8 Ta 8
@@ -71,6 +74,10 @@ On all supported architectures,
 .It riscv64sf   Ta 8 Ta 16 Ta 8
 .It sparc64     Ta 8 Ta 16 Ta 8
 .El
+.Pp
+.Sy time_t
+is 8 bytes on all supported architectures except i386 and 32-bit
+variants of powerpc.
 .Ss Endianness and Char Signedness
 .Bl -column -offset indent "Sy Architecture" "Sy Endianness" "Sy char Signedness"
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
