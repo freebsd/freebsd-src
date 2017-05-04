@@ -44,14 +44,18 @@ DEFINE_TEST(test_option_xz)
 		if (strstr(p, "compression not available") != NULL) {
 			skipping("This version of bsdcpio was compiled "
 			    "without xz support");
+			free(p);
 			return;
 		}
+		free(p);
 		failure("--xz option is broken");
 		assertEqualInt(r, 0);
 		return;
 	}
+	free(p);
 	/* Check that the archive file has an xz signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "\xFD\x37\x7A\x58\x5A\x00", 6);
+	free(p);
 }

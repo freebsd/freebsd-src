@@ -116,19 +116,11 @@ struct lzx_dec {
 		 * coding tree, which is a binary tree. But a use of a large
 		 * index table causes L1 cache read miss many times.
 		 */
-#define HTBL_BITS	10
 		int		 max_bits;
-		int		 shift_bits;
 		int		 tbl_bits;
 		int		 tree_used;
-		int		 tree_avail;
 		/* Direct access table. */
 		uint16_t	*tbl;
-		/* Binary tree table for extra bits over the direct access. */
-		struct htree_t {
-			uint16_t left;
-			uint16_t right;
-		}		*tree;
 	}			 at, lt, mt, pt;
 
 	int			 loop;
@@ -352,7 +344,6 @@ static int	lzx_huffman_init(struct huffman *, size_t, int);
 static void	lzx_huffman_free(struct huffman *);
 static int	lzx_make_huffman_table(struct huffman *);
 static inline int lzx_decode_huffman(struct huffman *, unsigned);
-static int	lzx_decode_huffman_tree(struct huffman *, unsigned, int);
 
 
 int
@@ -3127,7 +3118,6 @@ getdata:
 static int
 lzx_huffman_init(struct huffman *hf, size_t len_size, int tbl_bits)
 {
-	int bits;
 
 	if (hf->bitlen == NULL || hf->len_size != (int)len_size) {
 		free(hf->bitlen);
@@ -3138,20 +3128,10 @@ lzx_huffman_init(struct huffman *hf, size_t len_size, int tbl_bits)
 	} else
 		memset(hf->bitlen, 0, len_size *  sizeof(hf->bitlen[0]));
 	if (hf->tbl == NULL) {
-		if (tbl_bits < HTBL_BITS)
-			bits = tbl_bits;
-		else
-			bits = HTBL_BITS;
-		hf->tbl = malloc(((size_t)1 << bits) * sizeof(hf->tbl[0]));
+		hf->tbl = malloc(((size_t)1 << tbl_bits) * sizeof(hf->tbl[0]));
 		if (hf->tbl == NULL)
 			return (ARCHIVE_FATAL);
 		hf->tbl_bits = tbl_bits;
-	}
-	if (hf->tree == NULL && tbl_bits > HTBL_BITS) {
-		hf->tree_avail = 1 << (tbl_bits - HTBL_BITS + 4);
-		hf->tree = malloc(hf->tree_avail * sizeof(hf->tree[0]));
-		if (hf->tree == NULL)
-			return (ARCHIVE_FATAL);
 	}
 	return (ARCHIVE_OK);
 }
@@ -3161,7 +3141,6 @@ lzx_huffman_free(struct huffman *hf)
 {
 	free(hf->bitlen);
 	free(hf->tbl);
-	free(hf->tree);
 }
 
 /*
@@ -3174,7 +3153,7 @@ lzx_make_huffman_table(struct huffman *hf)
 	const unsigned char *bitlen;
 	int bitptn[17], weight[17];
 	int i, maxbits = 0, ptn, tbl_size, w;
-	int diffbits, len_avail;
+	int len_avail;
 
 	/*
 	 * Initialize bit patterns.
@@ -3205,28 +3184,11 @@ lzx_make_huffman_table(struct huffman *hf)
 			weight[i] >>= ebits;
 		}
 	}
-	if (maxbits > HTBL_BITS) {
-		int htbl_max;
-		uint16_t *p;
-
-		diffbits = maxbits - HTBL_BITS;
-		for (i = 1; i <= HTBL_BITS; i++) {
-			bitptn[i] >>= diffbits;
-			weight[i] >>= diffbits;
-		}
-		htbl_max = bitptn[HTBL_BITS] +
-		    weight[HTBL_BITS] * hf->freq[HTBL_BITS];
-		p = &(hf->tbl[htbl_max]);
-		while (p < &hf->tbl[1U<<HTBL_BITS])
-			*p++ = 0;
-	} else
-		diffbits = 0;
-	hf->shift_bits = diffbits;
 
 	/*
 	 * Make the table.
 	 */
-	tbl_size = 1 << HTBL_BITS;
+	tbl_size = 1 << hf->tbl_bits;
 	tbl = hf->tbl;
 	bitlen = hf->bitlen;
 	len_avail = hf->len_size;
@@ -3234,120 +3196,32 @@ lzx_make_huffman_table(struct huffman *hf)
 	for (i = 0; i < len_avail; i++) {
 		uint16_t *p;
 		int len, cnt;
-		uint16_t bit;
-		int extlen;
-		struct htree_t *ht;
 
 		if (bitlen[i] == 0)
 			continue;
 		/* Get a bit pattern */
 		len = bitlen[i];
+		if (len > tbl_size)
+			return (0);
 		ptn = bitptn[len];
 		cnt = weight[len];
-		if (len <= HTBL_BITS) {
-			/* Calculate next bit pattern */
-			if ((bitptn[len] = ptn + cnt) > tbl_size)
-				return (0);/* Invalid */
-			/* Update the table */
-			p = &(tbl[ptn]);
-			while (--cnt >= 0)
-				p[cnt] = (uint16_t)i;
-			continue;
-		}
-
-		/*
-		 * A bit length is too big to be housed to a direct table,
-		 * so we use a tree model for its extra bits.
-		 */
-		bitptn[len] = ptn + cnt;
-		bit = 1U << (diffbits -1);
-		extlen = len - HTBL_BITS;
-		
-		p = &(tbl[ptn >> diffbits]);
-		if (*p == 0) {
-			*p = len_avail + hf->tree_used;
-			ht = &(hf->tree[hf->tree_used++]);
-			if (hf->tree_used > hf->tree_avail)
-				return (0);/* Invalid */
-			ht->left = 0;
-			ht->right = 0;
-		} else {
-			if (*p < len_avail ||
-			    *p >= (len_avail + hf->tree_used))
-				return (0);/* Invalid */
-			ht = &(hf->tree[*p - len_avail]);
-		}
-		while (--extlen > 0) {
-			if (ptn & bit) {
-				if (ht->left < len_avail) {
-					ht->left = len_avail + hf->tree_used;
-					ht = &(hf->tree[hf->tree_used++]);
-					if (hf->tree_used > hf->tree_avail)
-						return (0);/* Invalid */
-					ht->left = 0;
-					ht->right = 0;
-				} else {
-					ht = &(hf->tree[ht->left - len_avail]);
-				}
-			} else {
-				if (ht->right < len_avail) {
-					ht->right = len_avail + hf->tree_used;
-					ht = &(hf->tree[hf->tree_used++]);
-					if (hf->tree_used > hf->tree_avail)
-						return (0);/* Invalid */
-					ht->left = 0;
-					ht->right = 0;
-				} else {
-					ht = &(hf->tree[ht->right - len_avail]);
-				}
-			}
-			bit >>= 1;
-		}
-		if (ptn & bit) {
-			if (ht->left != 0)
-				return (0);/* Invalid */
-			ht->left = (uint16_t)i;
-		} else {
-			if (ht->right != 0)
-				return (0);/* Invalid */
-			ht->right = (uint16_t)i;
-		}
+		/* Calculate next bit pattern */
+		if ((bitptn[len] = ptn + cnt) > tbl_size)
+			return (0);/* Invalid */
+		/* Update the table */
+		p = &(tbl[ptn]);
+		while (--cnt >= 0)
+			p[cnt] = (uint16_t)i;
 	}
 	return (1);
-}
-
-static int
-lzx_decode_huffman_tree(struct huffman *hf, unsigned rbits, int c)
-{
-	struct htree_t *ht;
-	int extlen;
-
-	ht = hf->tree;
-	extlen = hf->shift_bits;
-	while (c >= hf->len_size) {
-		c -= hf->len_size;
-		if (extlen-- <= 0 || c >= hf->tree_used)
-			return (0);
-		if (rbits & (1U << extlen))
-			c = ht[c].left;
-		else
-			c = ht[c].right;
-	}
-	return (c);
 }
 
 static inline int
 lzx_decode_huffman(struct huffman *hf, unsigned rbits)
 {
 	int c;
-	/*
-	 * At first search an index table for a bit pattern.
-	 * If it fails, search a huffman tree for.
-	 */
-	c = hf->tbl[rbits >> hf->shift_bits];
+	c = hf->tbl[rbits];
 	if (c < hf->len_size)
 		return (c);
-	/* This bit pattern needs to be found out at a huffman tree. */
-	return (lzx_decode_huffman_tree(hf, rbits, c));
+	return (0);
 }
-
