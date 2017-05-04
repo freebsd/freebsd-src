@@ -3772,27 +3772,30 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		nfingers = (pb->ipacket[0] & 0xc0) >> 6;
 		if (nfingers == 3 && (pb->ipacket[3] & 0x80))
 			nfingers = 4;
-		mask = (1 << nfingers) - 1;
 
-		fn = ELANTECH_FINGER_SET_XYP(pb);
+		if (nfingers == 0) {
+			mask = (1 << nfingers) - 1;	/* = 0x00 */
+			break;
+		}
+
+		/* Map 3-rd and 4-th fingers to first finger */
+		mask = (1 << 1) - 1;	/* = 0x01 */
+		f[0] = ELANTECH_FINGER_SET_XYP(pb);
 		if (sc->elanhw.haspressure) {
-			fn.w = ((pb->ipacket[0] & 0x30) >> 2) |
+			f[0].w = ((pb->ipacket[0] & 0x30) >> 2) |
 			    ((pb->ipacket[3] & 0x30) >> 4);
 		} else {
-			fn.p = PSM_FINGER_DEFAULT_P;
-			fn.w = PSM_FINGER_DEFAULT_W;
+			f[0].p = PSM_FINGER_DEFAULT_P;
+			f[0].w = PSM_FINGER_DEFAULT_W;
 		}
 
 		/*
 		 * HW v2 dont report exact finger positions when 3 or more
-		 * fingers are on touchpad. Use reported value as fingers
-		 * position as it is required for tap detection
+		 * fingers are on touchpad.
 		 */
 		if (nfingers > 2)
-			fn.flags = PSM_FINGER_FUZZY;
+			f[0].flags = PSM_FINGER_FUZZY;
 
-		for (id = 0; id < imin(nfingers, ELANTECH_MAX_FINGERS); id++)
-			f[id] = fn;
 		break;
 
 	case ELANTECH_PKT_V2_2FINGER:	/*HW V2. Two finger touch */
@@ -3838,8 +3841,12 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		 * -------------------------------------------
 		 */
 		nfingers = (pb->ipacket[0] & 0xc0) >> 6;
-		mask = (1 << nfingers) - 1;
-		id = nfingers - 1;
+		/* Map 3-rd finger to first finger */
+		id = nfingers > 2 ? 0 : nfingers - 1;
+		mask = (1 << (id + 1)) - 1;
+
+		if (nfingers == 0)
+			break;
 
 		fn = ELANTECH_FINGER_SET_XYP(pb);
 		fn.w = ((pb->ipacket[0] & 0x30) >> 2) |
@@ -3847,14 +3854,10 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 
 		/*
 		 * HW v3 dont report exact finger positions when 3 or more
-		 * fingers are on touchpad. Use reported value as fingers
-		 * position as it is required for tap detection
+		 * fingers are on touchpad.
 		 */
 		if (nfingers > 1)
 			fn.flags = PSM_FINGER_FUZZY;
-
-		for (id = 0; id < imin(nfingers, ELANTECH_MAX_FINGERS); id++)
-			f[id] = fn;
 
 		if (nfingers == 2) {
 			if (ELANTECH_PKT_IS_V3_HEAD(pb, sc->elanhw.hascrc)) {
@@ -3863,6 +3866,7 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			} else
 				f[0] = sc->elanaction.fingers[0];
 		}
+		f[id] = fn;
 		break;
 
 	case ELANTECH_PKT_V4_STATUS:	/* HW Version 4. Status packet */
