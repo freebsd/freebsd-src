@@ -30,25 +30,34 @@
 #define	_FS_EXT2FS_EXT2_EXTARTTR_H_
 
 /* Linux xattr name indexes */
-#define	EXT4_XATTR_INDEX_USER				1
+#define	EXT4_XATTR_INDEX_USER			1
 #define	EXT4_XATTR_INDEX_POSIX_ACL_ACCESS	2
 #define	EXT4_XATTR_INDEX_POSIX_ACL_DEFAULT	3
-#define	EXT4_XATTR_INDEX_TRUSTED			4
-#define	EXT4_XATTR_INDEX_LUSTRE				5
-#define	EXT4_XATTR_INDEX_SECURITY			6
-#define	EXT4_XATTR_INDEX_SYSTEM				7
-#define	EXT4_XATTR_INDEX_RICHACL			8
-#define	EXT4_XATTR_INDEX_ENCRYPTION			9
+#define	EXT4_XATTR_INDEX_TRUSTED		4
+#define	EXT4_XATTR_INDEX_LUSTRE			5
+#define	EXT4_XATTR_INDEX_SECURITY		6
+#define	EXT4_XATTR_INDEX_SYSTEM			7
+#define	EXT4_XATTR_INDEX_RICHACL		8
+#define	EXT4_XATTR_INDEX_ENCRYPTION		9
 
 /* Magic value in attribute blocks */
 #define EXTATTR_MAGIC 0xEA020000
+
+/* Max EA name length */
+#define EXT2_EXTATTR_NAMELEN_MAX		255
+
+/* EA hash constants */
+#define EXT2_EXTATTR_NAME_HASH_SHIFT		5
+#define EXT2_EXTATTR_VALUE_HASH_SHIFT		16
+#define EXT2_EXTATTR_BLOCK_HASH_SHIFT		16
+
 
 struct ext2fs_extattr_header {
 	int32_t	h_magic;	/* magic number for identification */
 	int32_t	h_refcount;	/* reference count */
 	int32_t	h_blocks;	/* number of disk blocks used */
 	int32_t	h_hash;		/* hash value of all attributes */
-	uint32_t	h_reserved[4];	/* zero right now */
+	uint32_t h_reserved[4];	/* zero right now */
 };
 
 struct ext2fs_extattr_dinode_header {
@@ -56,20 +65,14 @@ struct ext2fs_extattr_dinode_header {
 };
 
 struct ext2fs_extattr_entry {
-	uint8_t	e_name_len;			/* length of name */
+	uint8_t	e_name_len;		/* length of name */
 	uint8_t	e_name_index;		/* attribute name index */
 	uint16_t	e_value_offs;	/* offset in disk block of value */
 	uint32_t	e_value_block;	/* disk block attribute is stored on (n/i) */
 	uint32_t	e_value_size;	/* size of attribute value */
-	uint32_t	e_hash;			/* hash value of name and value */
-	char	e_name[0];			/* attribute name */
+	uint32_t	e_hash;		/* hash value of name and value */
+	char	e_name[0];		/* attribute name */
 };
-
-#define EXT2_IHDR(inode, raw_inode) \
-	((struct ext4_xattr_ibody_header *) \
-	    ((void *)raw_inode + \
-	    EXT4_GOOD_OLD_INODE_SIZE + \
-	    EXT4_I(inode)->i_extra_isize))
 
 #define EXT2_IFIRST(hdr) ((struct ext2fs_extattr_entry *)((hdr)+1))
 
@@ -85,10 +88,20 @@ struct ext2fs_extattr_entry {
 	(((name_len) + EXT2_EXTATTR_ROUND + \
 	    sizeof(struct ext2fs_extattr_entry)) & ~EXT2_EXTATTR_ROUND)
 
+#define EXT2_EXTATTR_SIZE(size) \
+    (((size) + EXT2_EXTATTR_ROUND) & ~EXT2_EXTATTR_ROUND)
+
 #define EXT2_EXTATTR_NEXT(entry) \
 	( (struct ext2fs_extattr_entry *)( \
 	    (char *)(entry) + EXT2_EXTATTR_LEN((entry)->e_name_len)) )
 
+int ext2_extattr_inode_delete(struct inode *ip, int attrnamespace,
+    const char *name);
+
+int ext2_extattr_block_delete(struct inode *ip, int attrnamespace,
+    const char *name);
+
+int ext2_extattr_free(struct inode *ip);
 int ext2_extattr_inode_list(struct inode *ip, int attrnamespace,
     struct uio *uio, size_t *size);
 
@@ -100,5 +113,13 @@ int ext2_extattr_inode_get(struct inode *ip, int attrnamespace,
 
 int ext2_extattr_block_get(struct inode *ip, int attrnamespace,
     const char *name, struct uio *uio, size_t *size);
+
+int ext2_extattr_inode_set(struct inode *ip, int attrnamespace,
+    const char *name, struct uio *uio);
+
+int ext2_extattr_block_set(struct inode *ip, int attrnamespace,
+    const char *name, struct uio *uio);
+
+int ext2_extattr_valid_attrname(int attrnamespace, const char *attrname);
 
 #endif	/* !_FS_EXT2FS_EXT2_EXTARTTR_H_ */

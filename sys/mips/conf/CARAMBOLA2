@@ -24,6 +24,8 @@ hints           "CARAMBOLA2.hints"
 # Board memory - 64MB
 options         AR71XX_REALMEM=(64*1024*1024)
 
+options	EARLY_PRINTF
+
 # i2c GPIO bus
 #device		gpioiic
 #device		iicbb

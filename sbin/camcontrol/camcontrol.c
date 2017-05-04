@@ -3131,12 +3131,107 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 		tstr++;
 	if (strncasecmp(tstr, "all", strlen("all")) == 0)
 		arglist |= CAM_ARG_BUS;
-	else {
+	else if (isdigit(*tstr)) {
 		rv = parse_btl(argv[optind], &bus, &target, &lun, &arglist);
 		if (rv != 1 && rv != 3) {
 			warnx(must, rescan? "rescan" : "reset");
 			return(1);
 		}
+	} else {
+		char name[30];
+		int unit;
+		int fd = -1;
+		union ccb ccb;
+
+		/*
+		 * Note that resetting or rescanning a device used to
+		 * require a bus or bus:target:lun.  This is because the
+		 * device in question may not exist and you're trying to
+		 * get the controller to rescan to find it.  It may also be
+		 * because the device is hung / unresponsive, and opening
+		 * an unresponsive device is not desireable.
+		 *
+		 * It can be more convenient to reference a device by
+		 * peripheral name and unit number, though, and it is
+		 * possible to get the bus:target:lun for devices that
+		 * currently exist in the EDT.  So this can work for
+		 * devices that we want to reset, or devices that exist
+		 * that we want to rescan, but not devices that do not
+		 * exist yet.
+		 *
+		 * So, we are careful here to look up the bus/target/lun
+		 * for the device the user wants to operate on, specified
+		 * by peripheral instance (e.g. da0, pass32) without
+		 * actually opening that device.  The process is similar to
+		 * what cam_lookup_pass() does, except that we don't
+		 * actually open the passthrough driver instance in the end.
+		 */
+
+		if (cam_get_device(tstr, name, sizeof(name), &unit) == -1) {
+			warnx("%s", cam_errbuf);
+			error = 1;
+			goto bailout;
+		}
+
+		if ((fd = open(XPT_DEVICE, O_RDWR)) == -1) {
+			warn("Unable to open %s", XPT_DEVICE);
+			error = 1;
+			goto bailout;
+		}
+
+		bzero(&ccb, sizeof(ccb));
+
+		/*
+		 * The function code isn't strictly necessary for the
+		 * GETPASSTHRU ioctl.
+		 */
+		ccb.ccb_h.func_code = XPT_GDEVLIST;
+
+		/*
+		 * These two are necessary for the GETPASSTHRU ioctl to
+		 * work.
+		 */
+		strlcpy(ccb.cgdl.periph_name, name,
+			sizeof(ccb.cgdl.periph_name));
+		ccb.cgdl.unit_number = unit;
+
+		/*
+		 * Attempt to get the passthrough device.  This ioctl will
+		 * fail if the device name is null, if the device doesn't
+		 * exist, or if the passthrough driver isn't in the kernel.
+		 */
+		if (ioctl(fd, CAMGETPASSTHRU, &ccb) == -1) {
+			warn("Unable to find bus:target:lun for device %s%d",
+			    name, unit);
+			error = 1;
+			close(fd);
+			goto bailout;
+		}
+		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			const struct cam_status_entry *entry;
+
+			entry = cam_fetch_status_entry(ccb.ccb_h.status);
+			warnx("Unable to find bus:target_lun for device %s%d, "
+			    "CAM status: %s (%#x)", name, unit,
+			    entry ? entry->status_text : "Unknown",
+			    ccb.ccb_h.status);
+			error = 1;
+			close(fd);
+			goto bailout;
+		}
+
+		/*
+		 * The kernel fills in the bus/target/lun.  We don't
+		 * need the passthrough device name and unit number since
+		 * we aren't going to open it.
+		 */
+		bus = ccb.ccb_h.path_id;
+		target = ccb.ccb_h.target_id;
+		lun = ccb.ccb_h.target_lun;
+
+		arglist |= CAM_ARG_BUS | CAM_ARG_TARGET | CAM_ARG_LUN;
+
+		close(fd);
 	}
 
 	if ((arglist & CAM_ARG_BUS)
@@ -3145,6 +3240,8 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 		error = scanlun_or_reset_dev(bus, target, lun, rescan);
 	else
 		error = rescan_or_reset_bus(bus, rescan);
+
+bailout:
 
 	return(error);
 }
@@ -8916,8 +9013,8 @@ usage(int printlong)
 "        camcontrol eject      [dev_id][generic args]\n"
 "        camcontrol reprobe    [dev_id][generic args]\n"
 #endif /* MINIMALISTIC */
-"        camcontrol rescan     <all | bus[:target:lun]>\n"
-"        camcontrol reset      <all | bus[:target:lun]>\n"
+"        camcontrol rescan     <all | bus[:target:lun] | dev_id>\n"
+"        camcontrol reset      <all | bus[:target:lun] | dev_id>\n"
 #ifndef MINIMALISTIC
 "        camcontrol defects    [dev_id][generic args] <-f format> [-P][-G]\n"
 "                              [-q][-s][-S offset][-X]\n"
@@ -8996,8 +9093,8 @@ usage(int printlong)
 "load        send a Start Unit command to the device with the load bit set\n"
 "eject       send a Stop Unit command to the device with the eject bit set\n"
 "reprobe     update capacity information of the given device\n"
-"rescan      rescan all buses, the given bus, or bus:target:lun\n"
-"reset       reset all buses, the given bus, or bus:target:lun\n"
+"rescan      rescan all buses, the given bus, bus:target:lun or device\n"
+"reset       reset all buses, the given bus, bus:target:lun or device\n"
 "defects     read the defect list of the specified device\n"
 "modepage    display or edit (-e) the given mode page\n"
 "cmd         send the given SCSI command, may need -i or -o as well\n"

@@ -735,13 +735,12 @@ cache_negative_remove(struct namecache *ncp, bool neg_locked)
 			list_locked = true;
 			mtx_lock(&neglist->nl_lock);
 		}
-	} else {
-		mtx_assert(&neglist->nl_lock, MA_OWNED);
-		mtx_assert(&ncneg_hot.nl_lock, MA_OWNED);
 	}
 	if (ncp->nc_flag & NCF_HOTNEGATIVE) {
+		mtx_assert(&ncneg_hot.nl_lock, MA_OWNED);
 		TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
 	} else {
+		mtx_assert(&neglist->nl_lock, MA_OWNED);
 		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
 	}
 	if (list_locked)
@@ -816,7 +815,6 @@ cache_negative_zap_one(void)
 	mtx_unlock(&ncneg_hot.nl_lock);
 	mtx_lock(dvlp);
 	rw_wlock(blp);
-	mtx_lock(&ncneg_hot.nl_lock);
 	mtx_lock(&neglist->nl_lock);
 	ncp2 = TAILQ_FIRST(&neglist->nl_list);
 	if (ncp != ncp2 || dvlp != VP2VNODELOCK(ncp2->nc_dvp) ||
@@ -830,7 +828,6 @@ cache_negative_zap_one(void)
 	cache_zap_locked(ncp, true);
 out_unlock_all:
 	mtx_unlock(&neglist->nl_lock);
-	mtx_unlock(&ncneg_hot.nl_lock);
 	rw_wunlock(blp);
 	mtx_unlock(dvlp);
 out:

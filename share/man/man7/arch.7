@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2017
+.Dd May 3, 2017
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -36,8 +36,9 @@
 Differences between CPU architectures and platforms supported by
 .Fx .
 .Pp
+If not explicitly mentioned, sizes are in bytes.
 .Ss Type sizes
-On all supported architectures,
+On all supported architectures:
 .Bl -column -offset -indent "long long" "Size"
 .It Sy Type Ta Sy Size
 .It short Ta 2
@@ -47,28 +48,36 @@ On all supported architectures,
 .It float Ta 4
 .It double Ta 8
 .El
-.Bl -column -offset indent "Sy Architecture" "Sy sizeof(void *)" "Sy sizeof(long double)"
-.It Sy Architecture Ta Sy sizeof(void *) Ta Sy sizeof(long double)
-.It amd64       Ta 8 Ta 16
-.It arm         Ta 4 Ta  8
-.It armeb       Ta 4 Ta  8
-.It armv6       Ta 4 Ta  8
-.It arm64       Ta 8 Ta 16
-.It i386        Ta 4 Ta 12
-.It mips        Ta 4 Ta  8
-.It mipsel      Ta 4 Ta  8
-.It mipselhf    Ta 4 Ta  8
-.It mipshf      Ta 4 Ta  8
-.It mipsn32     Ta 4 Ta  8
-.It mips64      Ta 8 Ta  8
-.It mips64el    Ta 8 Ta  8
-.It mips64elhf  Ta 8 Ta  8
-.It mips64hf    Ta 8 Ta  8
-.It powerpc     Ta 4 Ta  8
-.It powerpc64   Ta 8 Ta  8
-.It riscv       Ta 8 Ta 16
-.It sparc64     Ta 8 Ta 16
+.Pp
+Machine-dependent type sizes:
+.Bl -column -offset indent "Sy Architecture" "Sy void *" "Sy long double" "Sy time_t"
+.It Sy Architecture Ta Sy void * Ta Sy long double Ta Sy time_t
+.It amd64       Ta 8 Ta 16 Ta 8
+.It arm         Ta 4 Ta  8 Ta 8
+.It armeb       Ta 4 Ta  8 Ta 8
+.It armv6       Ta 4 Ta  8 Ta 8
+.It arm64       Ta 8 Ta 16 Ta 8
+.It i386        Ta 4 Ta 12 Ta 4
+.It mips        Ta 4 Ta  8 Ta 8
+.It mipsel      Ta 4 Ta  8 Ta 8
+.It mipselhf    Ta 4 Ta  8 Ta 8
+.It mipshf      Ta 4 Ta  8 Ta 8
+.It mipsn32     Ta 4 Ta  8 Ta 8
+.It mips64      Ta 8 Ta  8 Ta 8
+.It mips64el    Ta 8 Ta  8 Ta 8
+.It mips64elhf  Ta 8 Ta  8 Ta 8
+.It mips64hf    Ta 8 Ta  8 Ta 8
+.It powerpc     Ta 4 Ta  8 Ta 4
+.It powerpcspe  Ta 4 Ta  8 Ta 4
+.It powerpc64   Ta 8 Ta  8 Ta 8
+.It riscv64     Ta 8 Ta 16 Ta 8
+.It riscv64sf   Ta 8 Ta 16 Ta 8
+.It sparc64     Ta 8 Ta 16 Ta 8
 .El
+.Pp
+.Sy time_t
+is 8 bytes on all supported architectures except i386 and 32-bit
+variants of powerpc.
 .Ss Endianness and Char Signedness
 .Bl -column -offset indent "Sy Architecture" "Sy Endianness" "Sy char Signedness"
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness
@@ -88,8 +97,10 @@ On all supported architectures,
 .It mips64elhf  Ta little Ta   signed
 .It mips64hf    Ta big    Ta   signed
 .It powerpc     Ta big    Ta unsigned
+.It powerpcspe  Ta big    Ta unsigned
 .It powerpc64   Ta big    Ta unsigned
-.It riscv       Ta little Ta   signed
+.It riscv64     Ta little Ta   signed
+.It riscv64sf   Ta little Ta   signed
 .It sparc64     Ta big    Ta   signed
 .El
 .Ss Page Size
@@ -111,8 +122,10 @@ On all supported architectures,
 .It mips64elhf  Ta 4K
 .It mips64hf    Ta 4K
 .It powerpc     Ta 4K
+.It powerpcspe  Ta 4K
 .It powerpc64   Ta 4K
-.It riscv       Ta 4K
+.It riscv64     Ta 4K
+.It riscv64sf   Ta 4K
 .It sparc64     Ta 8K
 .El
 .Ss Floating Point
@@ -134,6 +147,7 @@ On all supported architectures,
 .It mips64elhf  Ta hard Ta identical to double
 .It mips64hf    Ta hard Ta identical to double
 .It powerpc     Ta hard Ta hard, double precision
+.It powerpcspe  Ta hard Ta hard, double precision
 .It powerpc64   Ta hard Ta hard, double precision
 .It riscv64     Ta hard Ta hard, double precision
 .It riscv64sf   Ta soft Ta soft, double precision
@@ -180,8 +194,10 @@ Architecture-specific macros:
 .It mips64elhf  Ta Dv __mips__, Dv __mips_n64
 .It mips64hf    Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_n64
 .It powerpc     Ta Dv __powerpc__
+.It powerpcspe  Ta Dv __powerpc__, Dv __SPE__
 .It powerpc64   Ta Dv __powerpc__, Dv __powerpc64__
-.It riscv       Ta Dv __riscv__, Dv __riscv64
+.It riscv64     Ta Dv __riscv__, Dv __riscv64
+.It riscv64sf   Ta Dv __riscv__, Dv __riscv64
 .It sparc64     Ta Dv __sparc64__
 .El
 .Sh SEE ALSO

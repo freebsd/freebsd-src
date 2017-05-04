@@ -47,8 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/thr.h>
 #include <sys/umtx.h>
 #include <netinet/in.h>
+#include <netinet/sctp.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <netinet/udplite.h>
 #include <nfsserver/nfs.h>
 #include <ufs/ufs/quota.h>
 #include <vm/vm.h>
@@ -750,10 +752,16 @@ sysdecode_sockopt_name(int level, int optname)
 	if (level == IPPROTO_IP)
 		/* XXX: UNIX domain socket options use a level of 0 also. */
 		return (lookup_value(sockoptip, optname));
+	if (level == IPPROTO_IPV6)
+		return (lookup_value(sockoptipv6, optname));
+	if (level == IPPROTO_SCTP)
+		return (lookup_value(sockoptsctp, optname));
 	if (level == IPPROTO_TCP)
 		return (lookup_value(sockopttcp, optname));
 	if (level == IPPROTO_UDP)
 		return (lookup_value(sockoptudp, optname));
+	if (level == IPPROTO_UDPLITE)
+		return (lookup_value(sockoptudplite, optname));
 	return (NULL);
 }
 
