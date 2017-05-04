@@ -80,13 +80,19 @@ DEFINE_TEST(test_write_format_pax)
 	/*
 	 * "file3" is sparse file and has hole size of which is
 	 * 1024000 bytes, and has 8 bytes data after the hole.
+	 *
+	 * Pad the filename to make it larger than the ustar limit.
+	 * It should still read back correctly.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_atime(ae, 2, 20);
 	archive_entry_set_birthtime(ae, 3, 30);
 	archive_entry_set_ctime(ae, 4, 40);
 	archive_entry_set_mtime(ae, 5, 50);
-	archive_entry_copy_pathname(ae, "file3");
+	archive_entry_copy_pathname(ae, "file3"
+	    "_123456789_123456789_123456789_123456789_123456789"
+	    "_123456789_123456789_123456789_123456789_123456789"
+	    "_123456789_123456789_123456789_123456789_123456789");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	archive_entry_set_size(ae, 1024008);
 	archive_entry_sparse_add_entry(ae, 1024000, 8);
@@ -171,7 +177,11 @@ DEFINE_TEST(test_write_format_pax)
 	assertEqualInt(40, archive_entry_ctime_nsec(ae));
 	assertEqualInt(5, archive_entry_mtime(ae));
 	assertEqualInt(50, archive_entry_mtime_nsec(ae));
-	assertEqualString("file3", archive_entry_pathname(ae));
+	assertEqualString("file3"
+	    "_123456789_123456789_123456789_123456789_123456789"
+	    "_123456789_123456789_123456789_123456789_123456789"
+	    "_123456789_123456789_123456789_123456789_123456789",
+	    archive_entry_pathname(ae));
 	assert((S_IFREG | 0755) == archive_entry_mode(ae));
 	assertEqualInt(1024008, archive_entry_size(ae));
 	assertEqualInt(1, archive_entry_sparse_reset(ae));

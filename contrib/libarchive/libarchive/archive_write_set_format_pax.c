@@ -1196,8 +1196,12 @@ archive_write_pax_header(struct archive_write *a,
 			    "GNU.sparse.major", 1);
 			add_pax_attr_int(&(pax->pax_header),
 			    "GNU.sparse.minor", 0);
+			/*
+			 * Make sure to store the original path, since
+			 * truncation to ustar limit happened already.
+			 */
 			add_pax_attr(&(pax->pax_header),
-			    "GNU.sparse.name", entry_name.s);
+			    "GNU.sparse.name", path);
 			add_pax_attr_int(&(pax->pax_header),
 			    "GNU.sparse.realsize",
 			    archive_entry_size(entry_main));
@@ -1650,13 +1654,14 @@ build_pax_attribute_name(char *dest, const char *src)
  * GNU PAX Format 1.0 requires the special name, which pattern is:
  * <dir>/GNUSparseFile.<pid>/<original file name>
  *
+ * Since reproducable archives are more important, use 0 as pid.
+ *
  * This function is used for only Sparse file, a file type of which
  * is regular file.
  */
 static char *
 build_gnu_sparse_name(char *dest, const char *src)
 {
-	char buff[64];
 	const char *p;
 
 	/* Handle the null filename case. */
@@ -1682,15 +1687,9 @@ build_gnu_sparse_name(char *dest, const char *src)
 		break;
 	}
 
-#if HAVE_GETPID && 0  /* Disable this as pax attribute name. */
-	sprintf(buff, "GNUSparseFile.%d", getpid());
-#else
-	/* If the platform can't fetch the pid, don't include it. */
-	strcpy(buff, "GNUSparseFile");
-#endif
 	/* General case: build a ustar-compatible name adding
 	 * "/GNUSparseFile/". */
-	build_ustar_entry_name(dest, src, p - src, buff);
+	build_ustar_entry_name(dest, src, p - src, "GNUSparseFile.0");
 
 	return (dest);
 }
