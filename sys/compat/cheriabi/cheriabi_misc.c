@@ -1162,19 +1162,6 @@ cheriabi_thr_new(struct thread *td, struct cheriabi_thr_new_args *uap)
 }
 
 int
-cheriabi_sigqueue(struct thread *td, struct cheriabi_sigqueue_args *uap)
-{
-	/*
-	 * XXX-BD: before we can implement this, we need to know how
-	 * we're going to handle uap->value.  At a minimum we need to
-	 * know which situations we'll send a capability and which if any
-	 * we'll send a virtual address.
-	 */
-
-	return (EINVAL);
-}
-
-int
 cheriabi_procctl(struct thread *td, struct cheriabi_procctl_args *uap)
 {
 

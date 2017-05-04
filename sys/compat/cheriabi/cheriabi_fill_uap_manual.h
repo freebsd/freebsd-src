@@ -713,14 +713,10 @@ CHERIABI_SYS_cheriabi_sigqueue_fill_uap(struct thread *td,
 
 	/* [2] _In_opt_ union sigval_c value */
 	/*
-	 * XXX-BD: what to do here?  value can be either a literal int or
-	 * a pointer.  I'm not even sure which register it will be in!
-	 *
-	 * Just give up for now.
+	 * This requires special handling which we'll do in
+	 * cheriabi_sys_sigqueue().  We don't use the uap argument at all.
 	 */
-	cheriabi_fetch_syscall_arg(td, &tmpcap,
-	    CHERIABI_SYS_cheriabi_sigqueue, 2);
-	return (EOPNOTSUPP);
+	uap->value = NULL;
 
 	return (0);
 }

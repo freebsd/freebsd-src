@@ -950,9 +950,6 @@
 455	AUE_THR_NEW	STD	{ int cheriabi_thr_new(	\
 				    _In_ struct thr_param_c *param, \
 				    int param_size); }
-; XXX-BD: sigqueue takes union of int and void * as the third argument.
-; It's not clear what to do with it.  Within a process we could deliver
-; a capability safely.  Outside, we definitely should not.
 456	AUE_NULL	STD|NOPARSE	{ int cheriabi_sigqueue(pid_t pid, \
 				    int signum, void *value); }
 457	AUE_MQ_OPEN	NOSTD|NOPROTO	{ int kmq_open( \
