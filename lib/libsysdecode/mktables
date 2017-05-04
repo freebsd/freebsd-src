@@ -134,6 +134,7 @@ gen_table "sockoptipv6"     "IPV6_[[:alnum:]_]+[[:space:]]+[0-9]+"         "neti
 gen_table "sockoptsctp"     "SCTP_[[:alnum:]_]+[[:space:]]+[0-9]+"         "netinet/sctp.h"
 gen_table "sockopttcp"      "TCP_[[:alnum:]_]+[[:space:]]+[0-9]+"          "netinet/tcp.h"      "TCP_MIN|TCP_MAX[^S]|TCP_MSS|TCP_[[:alnum:]_]+_MAX"
 gen_table "sockoptudp"      "UDP_[[:alnum:]]+[[:space:]]+[0-9]+"           "netinet/udp.h"      "UDP_ENCAP_"
+gen_table "sockoptudplite"  "UDPLITE_[[:alnum:]_]+[[:space:]]+[0-9]+"      "netinet/udplite.h"
 gen_table "socktype"        "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*"          "sys/socket.h"
 gen_table "thrcreateflags"  "THR_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/thr.h"
 gen_table "umtxop"          "UMTX_OP_[[:alnum:]_]+[[:space:]]+[0-9]+"      "sys/umtx.h"
