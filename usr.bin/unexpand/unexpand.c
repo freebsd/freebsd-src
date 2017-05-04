@@ -132,8 +132,8 @@ tabify(const char *curfile)
 				    tabstops[0];
 				continue;
 			} else {
-				for (n = 0; tabstops[n] - 1 < dcol &&
-				    n < nstops; n++)
+				for (n = 0; n < nstops &&
+				    tabstops[n] - 1 < dcol; n++)
 					;
 				if (n < nstops - 1 && tabstops[n] - 1 < limit) {
 					dcol = tabstops[n];
@@ -154,7 +154,7 @@ tabify(const char *curfile)
 				    tabstops[0];
 			}
 		} else {
-			for (n = 0; tabstops[n] - 1 < ocol && n < nstops; n++)
+			for (n = 0; n < nstops && tabstops[n] - 1 < ocol; n++)
 				;
 			while (ocol < dcol && n < nstops && ocol < limit) {
 				putwchar('\t');
