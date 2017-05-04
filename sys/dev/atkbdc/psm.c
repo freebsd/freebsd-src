@@ -6218,6 +6218,9 @@ elantech_init_synaptics(struct psm_softc *sc)
 		/* Disable finger detection pressure threshold */
 		sc->syninfo.min_pressure = 1;
 
+		/* Elans often report double & triple taps as single event */
+		sc->syninfo.tap_min_queue = 1;
+
 		/* Use full area of touchpad */
 		sc->syninfo.margin_top = 0;
 		sc->syninfo.margin_right = 0;
