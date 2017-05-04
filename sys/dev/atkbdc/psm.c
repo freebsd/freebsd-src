@@ -3065,8 +3065,9 @@ static int
 psmpalmdetect(struct psm_softc *sc, finger_t *f, int nfingers)
 {
 	if (!(
-	    ((sc->synhw.capMultiFinger ||
-	      sc->synhw.capAdvancedGestures) && nfingers > 1) ||
+	    ((sc->synhw.capMultiFinger || sc->synhw.capAdvancedGestures) &&
+	      !sc->synhw.capReportsV && nfingers > 1) ||
+	    (sc->synhw.capReportsV && nfingers > 2) ||
 	    (sc->synhw.capPalmDetect && f->w <= sc->syninfo.max_width) ||
 	    (!sc->synhw.capPalmDetect && f->p <= sc->syninfo.max_pressure) ||
 	    (sc->synhw.capPen && f->flags & PSM_FINGER_IS_PEN))) {
@@ -6188,7 +6189,10 @@ elantech_init_synaptics(struct psm_softc *sc)
 	sc->synhw.capPassthrough = sc->elanhw.hastrackpoint;
 	sc->synhw.capClickPad = sc->elanhw.isclickpad;
 	sc->synhw.capMultiFinger = 1;
-	sc->synhw.capAdvancedGestures = 1;
+	if (sc->elanhw.issemimt)
+		sc->synhw.capAdvancedGestures = 1;
+	else
+		sc->synhw.capReportsV = 1;
 	sc->synhw.capPalmDetect = 1;
 	sc->synhw.capPen = 0;
 	sc->synhw.capReportsMax = 1;
