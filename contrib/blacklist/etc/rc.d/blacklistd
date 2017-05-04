@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $NetBSD: blacklistd,v 1.1 2015/01/22 17:49:41 christos Exp $
+# $NetBSD: blacklistd,v 1.2 2016/10/17 22:47:16 christos Exp $
 #
 
 # PROVIDE: blacklistd
@@ -18,7 +18,7 @@ start_precmd="${name}_precmd"
 extra_commands="reload"
 
 _sockfile="/var/run/${name}.sockets"
-_sockname="blsock"
+_sockname="blacklistd.sock"
 
 blacklistd_precmd()
 {
