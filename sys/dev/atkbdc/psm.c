@@ -366,6 +366,7 @@ enum {
 typedef struct elantechaction {
 	finger_t		fingers[ELANTECH_MAX_FINGERS];
 	int			mask;
+	int			mask_v4wait;
 } elantechaction_t;
 
 /* driver control block */
@@ -3879,9 +3880,15 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		mask = pb->ipacket[1] & 0x1f;
 		nfingers = bitcount(mask);
 
+		if (sc->elanaction.mask_v4wait != 0)
+			VLOG(3, (LOG_DEBUG, "elantech: HW v4 status packet"
+			    " when not all previous head packets received\n"));
+
+		/* Bitmap of fingers to receive before gesture processing */
+		sc->elanaction.mask_v4wait = mask & ~sc->elanaction.mask;
+
 		/* Skip "new finger is on touchpad" packets */
-		if ((sc->elanaction.mask & mask) == sc->elanaction.mask &&
-		    (mask & ~sc->elanaction.mask)) {
+		if (sc->elanaction.mask_v4wait) {
 			sc->elanaction.mask = mask;
 			return (0);
 		}
@@ -3906,11 +3913,33 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		mask = sc->elanaction.mask;
 		nfingers = bitcount(mask);
 		id = ((pb->ipacket[3] & 0xe0) >> 5) - 1;
+		fn = ELANTECH_FINGER_SET_XYP(pb);
+		fn.w =(pb->ipacket[0] & 0xf0) >> 4;
 
-		if (id >= 0 && id < ELANTECH_MAX_FINGERS) {
-			f[id] = ELANTECH_FINGER_SET_XYP(pb);
-			f[id].w = (pb->ipacket[0] & 0xf0) >> 4;
+		if (id < 0)
+			return (0);
+
+		/* Packet is finger position update. Report it */
+		if (sc->elanaction.mask_v4wait == 0) {
+			if (id < ELANTECH_MAX_FINGERS)
+				f[id] = fn;
+			break;
 		}
+
+		/* Remove finger from waiting bitmap and store into context */
+		sc->elanaction.mask_v4wait &= ~(1 << id);
+		if (id < ELANTECH_MAX_FINGERS)
+			sc->elanaction.fingers[id] = fn;
+
+		/* Wait for other fingers if needed */
+		if (sc->elanaction.mask_v4wait != 0)
+			return (0);
+
+		/* All new fingers are received. Report them from context */
+		for (id = 0; id < ELANTECH_MAX_FINGERS; id++)
+			if (sc->elanaction.mask & (1 << id))
+				f[id] =  sc->elanaction.fingers[id];
+
 		break;
 
 	case ELANTECH_PKT_V4_MOTION:	/* HW Version 4. Motion packet */
