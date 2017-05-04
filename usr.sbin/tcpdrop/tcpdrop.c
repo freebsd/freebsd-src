@@ -321,7 +321,7 @@ tcpdropconn(const struct in_conninfo *inc)
 		    sizeof inc->inc6_faddr);
 		foreign = (struct sockaddr *)&sin6[TCPDROP_FOREIGN];
 	} else {
-		memset(&sin4[TCPDROP_LOCAL], 0, sizeof sin4[TCPDROP_LOCAL]);
+		memset(sin4, 0, sizeof sin4);
 
 		sin4[TCPDROP_LOCAL].sin_len = sizeof sin4[TCPDROP_LOCAL];
 		sin4[TCPDROP_LOCAL].sin_family = AF_INET;

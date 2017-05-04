@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 18, 2017
+.Dd April 29, 2017
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2518,7 +2518,7 @@ means
 Disable lacp strict compliance on the interface.
 .El
 .Pp
-The following parameters are specific to IP tunnel interfaces,
+The following parameters apply to IP tunnel interfaces,
 .Xr gif 4 :
 .Bl -tag -width indent
 .It Cm tunnel Ar src_addr dest_addr
@@ -2568,9 +2568,26 @@ Clear a flag
 .Cm send_rev_ethip_ver .
 .El
 .Pp
-The following parameters are specific to GRE tunnel interfaces,
+The following parameters apply to GRE tunnel interfaces,
 .Xr gre 4 :
 .Bl -tag -width indent
+.It Cm tunnel Ar src_addr dest_addr
+Configure the physical source and destination address for GRE tunnel
+interfaces.
+The arguments
+.Ar src_addr
+and
+.Ar dest_addr
+are interpreted as the outer source/destination for the encapsulating
+IPv4/IPv6 header.
+.It Fl tunnel
+Unconfigure the physical source and destination address for GRE tunnel
+interfaces previously configured with
+.Cm tunnel .
+.It Cm deletetunnel
+Another name for the
+.Fl tunnel
+parameter.
 .It Cm grekey Ar key
 Configure the GRE key to be used for outgoing packets.
 Note that

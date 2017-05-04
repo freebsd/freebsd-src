@@ -502,6 +502,10 @@ typedef struct {
 
 #define TOPO_IS_FABRIC(x)	((x) == TOPO_FL_PORT || (x) == TOPO_F_PORT)
 
+#define FCP_AL_DA_ALL		0xFF
+#define FCP_AL_PA(fcp) ((uint8_t)(fcp->isp_portid))
+#define FCP_IS_DEST_ALPD(fcp, alpd) (FCP_AL_PA((fcp)) == FCP_AL_DA_ALL || FCP_AL_PA((fcp)) == alpd)
+
 /*
  * Soft Structure per host adapter
  */

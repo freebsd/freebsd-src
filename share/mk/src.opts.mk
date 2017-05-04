@@ -339,16 +339,6 @@ MK_LDNS_UTILS:=	no
 MK_UNBOUND:= no
 .endif
 
-.if ${MK_LLD} == "no"
-MK_LLD_IS_LD:=	no
-.endif
-
-# LLD requires LLVM libraries, and we do not yet compare in-tree and host LLD
-# versions to avoid building it if they are identical.
-.if ${MK_LLD_IS_LD} != "no"
-MK_SYSTEM_COMPILER:=	no
-.endif
-
 .if ${MK_SOURCELESS} == "no"
 MK_SOURCELESS_HOST:=	no
 MK_SOURCELESS_UCODE:= no

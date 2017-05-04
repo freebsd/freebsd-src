@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistd.c,v 1.35 2016/09/26 19:43:43 christos Exp $	*/
+/*	$NetBSD: blacklistd.c,v 1.37 2017/02/18 00:26:16 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include "config.h"
 #endif
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistd.c,v 1.35 2016/09/26 19:43:43 christos Exp $");
+__RCSID("$NetBSD: blacklistd.c,v 1.37 2017/02/18 00:26:16 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -403,12 +403,14 @@ int
 main(int argc, char *argv[])
 {
 	int c, tout, flags, flush, restore, ret;
-	const char *spath, *blsock;
+	const char *spath, **blsock;
+	size_t nblsock, maxblsock;
 
 	setprogname(argv[0]);
 
 	spath = NULL;
-	blsock = _PATH_BLSOCK;
+	blsock = NULL;
+	maxblsock = nblsock = 0;
 	flush = 0;
 	restore = 0;
 	tout = 0;
@@ -440,7 +442,17 @@ main(int argc, char *argv[])
 			restore++;
 			break;
 		case 's':
-			blsock = optarg;
+			if (nblsock >= maxblsock) {
+				maxblsock += 10;
+				void *p = realloc(blsock,
+				    sizeof(*blsock) * maxblsock);
+				if (p == NULL)
+				    err(EXIT_FAILURE,
+					"Can't allocate memory for %zu sockets",
+					maxblsock);
+				blsock = p;
+			}
+			blsock[nblsock++] = optarg;
 			break;
 		case 't':
 			tout = atoi(optarg) * 1000;
@@ -487,9 +499,11 @@ main(int argc, char *argv[])
 	size_t nfd = 0;
 	size_t maxfd = 0;
 
-	if (spath == NULL)
-		addfd(&pfd, &bl, &nfd, &maxfd, blsock);
-	else {
+	for (size_t i = 0; i < nblsock; i++)
+		addfd(&pfd, &bl, &nfd, &maxfd, blsock[i]);
+	free(blsock);
+
+	if (spath) {
 		FILE *fp = fopen(spath, "r");
 		char *line;
 		if (fp == NULL)
@@ -499,6 +513,8 @@ main(int argc, char *argv[])
 			addfd(&pfd, &bl, &nfd, &maxfd, line);
 		fclose(fp);
 	}
+	if (nfd == 0)
+		addfd(&pfd, &bl, &nfd, &maxfd, _PATH_BLSOCK);
 
 	state = state_open(dbfile, flags, 0600);
 	if (state == NULL)

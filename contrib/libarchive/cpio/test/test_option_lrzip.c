@@ -44,9 +44,10 @@ DEFINE_TEST(test_option_lrzip)
 	    systemf("echo f | %s -o --lrzip >archive.out 2>archive.err",
 	    testprog));
 	p = slurpfile(&s, "archive.err");
-	p[s] = '\0';
+	free(p);
 	/* Check that the archive file has an lzma signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "LRZI\x00", 5);
+	free(p);
 }

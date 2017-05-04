@@ -282,12 +282,18 @@ set_timestamp(struct cam_device *device, char *format_string,
 		ts = (uint64_t) time_value;
 	} else {
 		bzero(&time_struct, sizeof(struct tm));
-		strptime(timestamp_string, format_string, &time_struct);
+		if (strptime(timestamp_string, format_string,
+		    &time_struct) == NULL) {
+			warnx("%s: strptime(3) failed", __func__);
+			error = 1;
+			goto bailout;
+		}
 		time_value = mktime(&time_struct);
 		ts = (uint64_t) time_value;
 	}
 	/* Convert time from seconds to milliseconds */
 	ts *= 1000;
+	bzero(&ts_p, sizeof(ts_p));
 	scsi_create_timestamp(ts_p.timestamp, ts);
 
 	scsi_set_timestamp(&ccb->csio,

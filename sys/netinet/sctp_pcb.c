@@ -3933,6 +3933,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	    stcb->asoc.vrf_id,
 	    stcb->sctp_ep->fibnum);
 
+	net->src_addr_selected = 0;
 	if (SCTP_ROUTE_HAS_VALID_IFN(&net->ro)) {
 		/* Get source address */
 		net->ro._s_addr = sctp_source_address_selection(stcb->sctp_ep,
@@ -3942,18 +3943,18 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		    0,
 		    stcb->asoc.vrf_id);
 		if (net->ro._s_addr != NULL) {
+			uint32_t imtu, rmtu, hcmtu;
+
 			net->src_addr_selected = 1;
 			/* Now get the interface MTU */
 			if (net->ro._s_addr->ifn_p != NULL) {
-				net->mtu = SCTP_GATHER_MTU_FROM_INTFC(net->ro._s_addr->ifn_p);
+				imtu = SCTP_GATHER_MTU_FROM_INTFC(net->ro._s_addr->ifn_p);
+			} else {
+				imtu = 0;
 			}
-		} else {
-			net->src_addr_selected = 0;
-		}
-		if (net->mtu > 0) {
-			uint32_t rmtu;
-
 			rmtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, net->ro.ro_rt);
+			hcmtu = sctp_hc_get_mtu(&net->ro._l_addr, stcb->sctp_ep->fibnum);
+			net->mtu = sctp_min_mtu(hcmtu, rmtu, imtu);
 			if (rmtu == 0) {
 				/*
 				 * Start things off to match mtu of
@@ -3961,17 +3962,8 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 				 */
 				SCTP_SET_MTU_OF_ROUTE(&net->ro._l_addr.sa,
 				    net->ro.ro_rt, net->mtu);
-			} else {
-				/*
-				 * we take the route mtu over the interface,
-				 * since the route may be leading out the
-				 * loopback, or a different interface.
-				 */
-				net->mtu = rmtu;
 			}
 		}
-	} else {
-		net->src_addr_selected = 0;
 	}
 	if (net->mtu == 0) {
 		switch (newaddr->sa_family) {

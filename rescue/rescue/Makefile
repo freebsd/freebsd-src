@@ -156,7 +156,6 @@ CRUNCH_PROGS_sbin+= bsdlabel fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
-CRUNCH_SRCDIR_ilmid= ${SRCTOP}/sbin/atm/ilmid
 CRUNCH_SRCDIR_rtquery= ${SRCTOP}/sbin/routed/rtquery
 CRUNCH_SRCDIR_ipf= ${SRCTOP}/sbin/ipf/ipf
 .if ${MK_ZFS} != "no"

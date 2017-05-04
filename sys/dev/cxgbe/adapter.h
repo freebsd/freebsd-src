@@ -231,15 +231,36 @@ struct vi_info {
 	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
 };
 
-enum {
-	/* tx_sched_class flags */
-	TX_SC_OK	= (1 << 0),	/* Set up in hardware, active. */
+struct tx_ch_rl_params {
+	enum fw_sched_params_rate ratemode;	/* %port (REL) or kbps (ABS) */
+	uint32_t maxrate;
 };
 
-struct tx_sched_class {
+enum {
+	TX_CLRL_REFRESH	= (1 << 0),	/* Need to update hardware state. */
+	TX_CLRL_ERROR	= (1 << 1),	/* Error, hardware state unknown. */
+};
+
+struct tx_cl_rl_params {
 	int refcount;
-	int flags;
-	struct t4_sched_class_params params;
+	u_int flags;
+	enum fw_sched_params_rate ratemode;	/* %port REL or ABS value */
+	enum fw_sched_params_unit rateunit;	/* kbps or pps (when ABS) */
+	enum fw_sched_params_mode mode;		/* aggr or per-flow */
+	uint32_t maxrate;
+	uint16_t pktsize;
+};
+
+/* Tx scheduler parameters for a channel/port */
+struct tx_sched_params {
+	/* Channel Rate Limiter */
+	struct tx_ch_rl_params ch_rl;
+
+	/* Class WRR */
+	/* XXX */
+
+	/* Class Rate Limiter */
+	struct tx_cl_rl_params cl_rl[];
 };
 
 struct port_info {
@@ -251,7 +272,7 @@ struct port_info {
 	int up_vis;
 	int uld_vis;
 
-	struct tx_sched_class *tc;	/* traffic classes for this channel */
+	struct tx_sched_params *sched_params;
 
 	struct mtx pi_lock;
 	char lockname[16];
@@ -825,6 +846,9 @@ struct adapter {
 
 	struct memwin memwin[NUM_MEMWIN];	/* memory windows */
 
+	struct mtx tc_lock;
+	struct task tc_task;
+
 	const char *last_op;
 	const void *last_op_thr;
 	int last_op_flags;
@@ -1106,8 +1130,6 @@ int t4_detach_common(device_t);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
 int t4_map_bars_0_and_4(struct adapter *);
 int t4_map_bar_2(struct adapter *);
-int t4_set_sched_class(struct adapter *, struct t4_sched_params *);
-int t4_set_sched_queue(struct adapter *, struct t4_sched_queue *);
 int t4_setup_intr_handlers(struct adapter *);
 void t4_sysctls(struct adapter *);
 int begin_synchronized_op(struct adapter *, struct vi_info *, int, char *);
@@ -1167,6 +1189,15 @@ int t4_get_tracer(struct adapter *, struct t4_tracer *);
 int t4_set_tracer(struct adapter *, struct t4_tracer *);
 int t4_trace_pkt(struct sge_iq *, const struct rss_header *, struct mbuf *);
 int t5_trace_pkt(struct sge_iq *, const struct rss_header *, struct mbuf *);
+
+/* t4_sched.c */
+int t4_set_sched_class(struct adapter *, struct t4_sched_params *);
+int t4_set_sched_queue(struct adapter *, struct t4_sched_queue *);
+int t4_init_tx_sched(struct adapter *);
+int t4_free_tx_sched(struct adapter *);
+void t4_update_tx_sched(struct adapter *);
+int t4_reserve_cl_rl_kbps(struct adapter *, int, u_int, int *);
+void t4_release_cl_rl_kbps(struct adapter *, int, int);
 
 static inline struct wrqe *
 alloc_wrqe(int wr_len, struct sge_wrq *wrq)

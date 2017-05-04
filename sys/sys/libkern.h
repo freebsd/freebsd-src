@@ -210,6 +210,9 @@ calculate_crc32c(uint32_t crc32c, const unsigned char *buffer,
 #if defined(__amd64__) || defined(__i386__)
 uint32_t sse42_crc32c(uint32_t, const unsigned char *, unsigned);
 #endif
+#if defined(__aarch64__)
+uint32_t armv8_crc32c(uint32_t, const unsigned char *, unsigned int);
+#endif
 #endif
 
 

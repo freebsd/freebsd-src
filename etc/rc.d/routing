@@ -281,7 +281,7 @@ static_inet6()
 	esac
 
 	ifconfig ${ipv6_default_interface} inet6 defaultif
-	sysctl net.inet6.ip6.use_defaultzone=1
+	${SYSCTL} net.inet6.ip6.use_defaultzone=1 > /dev/null
 }
 
 ropts_init()

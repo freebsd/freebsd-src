@@ -59,7 +59,7 @@ struct buf {
 	daddr_t		b_blkno;
 	daddr_t		b_lblkno;
 	int		b_fd;
-	struct fs *	b_fs;
+	void *		b_fs;
 
 	TAILQ_ENTRY(buf)	b_tailq;
 };

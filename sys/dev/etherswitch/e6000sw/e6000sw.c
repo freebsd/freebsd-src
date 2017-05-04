@@ -214,7 +214,6 @@ e6000sw_probe(device_t dev)
 	e6000sw_softc_t *sc;
 	const char *description;
 	unsigned int id;
-	uint16_t dev_addr;
 	phandle_t dsa_node, switch_node;
 
 	dsa_node = fdt_find_compatible(OF_finddevice("/"),
@@ -229,21 +228,11 @@ e6000sw_probe(device_t dev)
 	sc->dev = dev;
 	sc->node = switch_node;
 
-	/* Read ADDR[4:1]n using indirect access */
-	MDIO_WRITE(dev, REG_GLOBAL2, SCR_AND_MISC_REG,
-	    SCR_AND_MISC_PTR_CFG);
-	dev_addr = MDIO_READ(dev, REG_GLOBAL2, SCR_AND_MISC_REG) &
-	    SCR_AND_MISC_DATA_CFG_MASK;
-	if (dev_addr != 0) {
-		sc->multi_chip = true;
-		device_printf(dev, "multi-chip addresing mode\n");
-	} else {
-		device_printf(dev, "single-chip addressing mode\n");
-	}
-
 	if (OF_getencprop(sc->node, "reg", &sc->sw_addr,
 	    sizeof(sc->sw_addr)) < 0)
 		return (ENXIO);
+	if (sc->sw_addr != 0 && (sc->sw_addr % 2) == 0)
+		sc->multi_chip = true;
 
 	/* Lock is necessary due to assertions. */
 	sx_init(&sc->sx, "e6000sw");
@@ -367,6 +356,11 @@ e6000sw_attach(device_t dev)
 
 	err = 0;
 	sc = device_get_softc(dev);
+
+	if (sc->multi_chip)
+		device_printf(dev, "multi-chip addressing mode\n");
+	else
+		device_printf(dev, "single-chip addressing mode\n");
 
 	E6000SW_LOCK(sc);
 	e6000sw_setup(dev, sc);

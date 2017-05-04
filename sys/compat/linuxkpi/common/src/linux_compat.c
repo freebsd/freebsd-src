@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 
 #include <machine/stdarg.h>
 
@@ -74,8 +77,11 @@ __FBSDID("$FreeBSD$");
 #include <linux/list.h>
 #include <linux/compat.h>
 #include <linux/poll.h>
+#include <linux/smp.h>
 
-#include <vm/vm_pager.h>
+#if defined(__i386__) || defined(__amd64__)
+#include <asm/smp.h>
+#endif
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 
@@ -1617,6 +1623,31 @@ linux_irq_handler(void *ent)
 
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
+}
+
+#if defined(__i386__) || defined(__amd64__)
+static void
+wbinvd_cb(void *arg __unused)
+{
+
+	wbinvd();
+}
+
+int
+linux_wbinvd_on_all_cpus(void)
+{
+
+	return (linux_on_each_cpu(wbinvd_cb, NULL));
+}
+#endif
+
+int
+linux_on_each_cpu(void callback(void *), void *data)
+{
+
+	smp_rendezvous(smp_no_rendezvous_barrier, callback,
+	    smp_no_rendezvous_barrier, data);
+	return (0);
 }
 
 struct linux_cdev *

@@ -150,9 +150,7 @@ OLD_FILES+=usr/lib/clang/4.0.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/4.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/4.0.0/lib
 OLD_DIRS+=usr/lib/clang/4.0.0
-# 20170426: Remove cy(4)
-OLD_FILES+=usr/share/man/man4/cy.4.gz
-# 20170425: NATM configuration support removed
+# 20170427: NATM configuration support removed
 OLD_FILES+=etc/rc.d/atm1
 OLD_FILES+=etc/rc.d/atm2
 OLD_FILES+=etc/rc.d/atm3
@@ -190,6 +188,7 @@ OLD_FILES+=usr/share/man/man4/ng_atm.4.gz
 OLD_FILES+=usr/share/man/man4/patm.4.gz
 OLD_FILES+=usr/share/man/man4/utopia.4.gz
 OLD_FILES+=usr/share/man/man8/atmconfig.8.gz
+OLD_FILES+=usr/share/man/man9/utopia.9.gz
 OLD_FILES+=usr/share/snmp/defs/atm_freebsd.def
 OLD_FILES+=usr/share/snmp/defs/atm_tree.def
 OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM-FREEBSD-MIB.txt

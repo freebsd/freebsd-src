@@ -54,6 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #endif
 
+#if defined(__aarch64__)
+#include <machine/cpu.h>
+#endif
+
 const uint32_t crc32_tab[] = {
 	0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
 	0xe963a535, 0x9e6495a3,	0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
@@ -758,6 +762,18 @@ calculate_crc32c(uint32_t crc32c,
 #if defined(__amd64__) || defined(__i386__)
 	if ((cpu_feature2 & CPUID2_SSE42) != 0) {
 		return (sse42_crc32c(crc32c, buffer, length));
+	} else
+#endif
+#if defined(__aarch64__)
+	uint64_t reg;
+
+	/*
+	 * We only test for CRC32 support on the CPU with index 0 assuming that
+	 * this applies to all CPUs.
+	 */
+	reg = READ_SPECIALREG(id_aa64isar0_el1);
+	if (ID_AA64ISAR0_CRC32(reg) != ID_AA64ISAR0_CRC32_NONE) {
+		return (armv8_crc32c(crc32c, buffer, length));
 	} else
 #endif
 	if (length < 4) {

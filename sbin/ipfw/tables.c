@@ -54,6 +54,7 @@ static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
 
+static int table_destroy_one(ipfw_xtable_info *i, void *arg);
 static int table_flush_one(ipfw_xtable_info *i, void *arg);
 static int table_show_one(ipfw_xtable_info *i, void *arg);
 static int table_do_get_list(ipfw_xtable_info *i, ipfw_obj_header **poh);
@@ -132,7 +133,7 @@ lookup_host (char *host, struct in_addr *ipaddr)
  * This one handles all table-related commands
  * 	ipfw table NAME create ...
  * 	ipfw table NAME modify ...
- * 	ipfw table NAME destroy
+ * 	ipfw table {NAME | all} destroy
  * 	ipfw table NAME swap NAME
  * 	ipfw table NAME lock
  * 	ipfw table NAME unlock
@@ -200,6 +201,7 @@ ipfw_table_handler(int ac, char *av[])
 	case TOK_INFO:
 	case TOK_DETAIL:
 	case TOK_FLUSH:
+	case TOK_DESTROY:
 		break;
 	default:
 		if (is_all != 0)
@@ -223,13 +225,21 @@ ipfw_table_handler(int ac, char *av[])
 		table_modify(&oh, ac, av);
 		break;
 	case TOK_DESTROY:
-		if (table_destroy(&oh) == 0)
-			break;
-		if (errno != ESRCH)
-			err(EX_OSERR, "failed to destroy table %s", tablename);
-		/* ESRCH isn't fatal, warn if not quiet mode */
-		if (co.do_quiet == 0)
-			warn("failed to destroy table %s", tablename);
+		if (is_all == 0) {
+			if (table_destroy(&oh) == 0)
+				break;
+			if (errno != ESRCH)
+				err(EX_OSERR, "failed to destroy table %s",
+				    tablename);
+			/* ESRCH isn't fatal, warn if not quiet mode */
+			if (co.do_quiet == 0)
+				warn("failed to destroy table %s", tablename);
+		} else {
+			error = tables_foreach(table_destroy_one, &oh, 1);
+			if (error != 0)
+				err(EX_OSERR,
+				    "failed to destroy tables list");
+		}
 		break;
 	case TOK_FLUSH:
 		if (is_all == 0) {
@@ -564,6 +574,22 @@ table_destroy(ipfw_obj_header *oh)
 	if (do_set3(IP_FW_TABLE_XDESTROY, &oh->opheader, sizeof(*oh)) != 0)
 		return (-1);
 
+	return (0);
+}
+
+static int
+table_destroy_one(ipfw_xtable_info *i, void *arg)
+{
+	ipfw_obj_header *oh;
+
+	oh = (ipfw_obj_header *)arg;
+	table_fill_ntlv(&oh->ntlv, i->tablename, i->set, 1);
+	if (table_destroy(oh) != 0) {
+		if (co.do_quiet == 0)
+			warn("failed to destroy table(%s) in set %u",
+			    i->tablename, i->set);
+		return (-1);
+	}
 	return (0);
 }
 
@@ -1628,18 +1654,19 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 		}
 
 		if (sort != 0)
-			qsort(olh + 1, olh->count, olh->objsize, tablename_cmp);
+			qsort(olh + 1, olh->count, olh->objsize,
+			    tablename_cmp);
 
 		info = (ipfw_xtable_info *)(olh + 1);
 		for (i = 0; i < olh->count; i++) {
-			error = f(info, arg); /* Ignore errors for now */
-			info = (ipfw_xtable_info *)((caddr_t)info + olh->objsize);
+			if (co.use_set == 0 || info->set == co.use_set - 1)
+				error = f(info, arg);
+			info = (ipfw_xtable_info *)((caddr_t)info +
+			    olh->objsize);
 		}
-
 		free(olh);
 		break;
 	}
-
 	return (0);
 }
 
