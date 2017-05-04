@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <netinet/udplite.h>
 #include <nfsserver/nfs.h>
 #include <ufs/ufs/quota.h>
 #include <vm/vm.h>
@@ -759,6 +760,8 @@ sysdecode_sockopt_name(int level, int optname)
 		return (lookup_value(sockopttcp, optname));
 	if (level == IPPROTO_UDP)
 		return (lookup_value(sockoptudp, optname));
+	if (level == IPPROTO_UDPLITE)
+		return (lookup_value(sockoptudplite, optname));
 	return (NULL);
 }
 
