@@ -5093,7 +5093,7 @@ synaptics_sysctl_create_tree(struct psm_softc *sc, const char *name,
 	    "Enable two finger scrolling");
 
 	/* hw.psm.synaptics.min_pressure. */
-	sc->syninfo.min_pressure = 16;
+	sc->syninfo.min_pressure = 32;
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "min_pressure", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
