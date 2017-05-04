@@ -3017,13 +3017,15 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 
 	ms->button = touchpad_buttons;
 
+	psmgestures(sc, &f[0], nfingers, ms);
+	for (id = 0; id < PSM_FINGERS; id++)
+		psmsmoother(sc, &f[id], id, ms, x, y);
+
 	/* Palm detection doesn't terminate the current action. */
-	if (!psmpalmdetect(sc, &f[0], nfingers)) {
-		psmgestures(sc, &f[0], nfingers, ms);
-		for (id = 0; id < PSM_FINGERS; id++)
-			psmsmoother(sc, &f[id], id, ms, x, y);
-	} else {
-		VLOG(2, (LOG_DEBUG, "synaptics: palm detected! (%d)\n", f[0].w));
+	if (psmpalmdetect(sc, &f[0], nfingers)) {
+		*x = *y = *z = 0;
+		ms->button = ms->obutton;
+		return (0);
 	}
 
 	ms->button |= extended_buttons | guest_buttons;
@@ -3077,6 +3079,7 @@ psmpalmdetect(struct psm_softc *sc, finger_t *f, int nfingers)
 		 *    [min_pressure; max_pressure]
 		 *  - pen aren't supported but PSM_FINGER_IS_PEN is set
 		 */
+		VLOG(2, (LOG_DEBUG, "synaptics: palm detected! (%d)\n", f->w));
 		return (1);
 	}
 	return (0);
@@ -4035,20 +4038,14 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 
 	ms->button = touchpad_button | trackpoint_button;
 
-	/* Palm detection doesn't terminate the current action. */
-	if (!psmpalmdetect(sc, &f[0], nfingers)) {
-		/* Send finger 1 position to gesture processor */
-		if (PSM_FINGER_IS_SET(f[0]) || PSM_FINGER_IS_SET(f[1]) ||
-		    nfingers == 0)
-			psmgestures(sc, &f[0], imin(nfingers, 3), ms);
-		/* Send fingers positions to movement smoothers */
-		for (id = 0; id < PSM_FINGERS; id++)
-			if (PSM_FINGER_IS_SET(f[id]) || !(mask & (1 << id)))
-				psmsmoother(sc, &f[id], id, ms, x, y);
-	} else {
-		VLOG(2, (LOG_DEBUG, "elantech: palm detected! (%d)\n",
-		    f[0].w));
-	}
+	/* Send finger 1 position to gesture processor */
+	if (PSM_FINGER_IS_SET(f[0]) || PSM_FINGER_IS_SET(f[1]) ||
+	    nfingers == 0)
+		psmgestures(sc, &f[0], imin(nfingers, 3), ms);
+	/* Send fingers positions to movement smoothers */
+	for (id = 0; id < PSM_FINGERS; id++)
+		if (PSM_FINGER_IS_SET(f[id]) || !(mask & (1 << id)))
+			psmsmoother(sc, &f[id], id, ms, x, y);
 
 	/* Store current finger positions in action context */
 	for (id = 0; id < ELANTECH_MAX_FINGERS; id++) {
@@ -4058,6 +4055,13 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 			PSM_FINGER_RESET(sc->elanaction.fingers[id]);
 	}
 	sc->elanaction.mask = mask;
+
+	/* Palm detection doesn't terminate the current action. */
+	if (psmpalmdetect(sc, &f[0], nfingers)) {
+		*x = *y = *z = 0;
+		ms->button = ms->obutton;
+		return (0);
+	}
 
 	/* Use the extra buttons as a scrollwheel */
 	if (ms->button & MOUSE_BUTTON4DOWN)
