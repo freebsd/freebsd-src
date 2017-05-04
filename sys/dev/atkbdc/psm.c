@@ -81,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
-#include <sys/libkern.h>
 
 #include <sys/limits.h>
 #include <sys/mouse.h>
