@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2017
+.Dd May 4, 2017
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -35,9 +35,92 @@
 .Sh DESCRIPTION
 Differences between CPU architectures and platforms supported by
 .Fx .
-.Pp
+.Ss Introduction
 If not explicitly mentioned, sizes are in bytes.
+.Pp
+FreeBSD uses flat address space for program execution, where
+pointers have the same binary representation as
+.Vt unsigned long
+variables, and
+.Vt uintptr_t
+and
+.Vt size_t
+types are synonyms for
+.Vt unsigned long .
+.Pp
+In order to maximize compatibility with future pointer integrity mechanisms,
+manipulations of pointers as integers should be performed via
+.Vt uintptr_t
+or
+.Vt intptr_t
+and no other types.
+In particular,
+.Vt long
+and
+.Vt ptrdiff_t
+should be avoided.
+.Pp
+On some architectures, e.g.
+.Dv sparc64 ,
+.Dv powerpc
+and AIM variants of
+.Dv powerpc64 ,
+the kernel uses a separate address space.
+On other architectures, kernel and a user mode process share a
+single address space.
+The kernel is located at the highest addresses.
+.Pp
+On each architecture, the main user mode thread's stack starts near
+the highest user address and grows down.
 .Ss Type sizes
+All FreeBSD architectures use some variant of the ELF (see
+.Xr elf 5 )
+.Sy Application Binary Interface
+(ABI) for the machine processor.
+All supported ABIs can be divided into two groups:
+.Bl -tag -width "Dv ILP32"
+.It Dv ILP32
+.Vt int ,
+.Vt long ,
+.Vt void *
+types machine representations all have 4-byte size.
+.It Dv LP64
+.Vt int
+type machine representation uses 4 bytes,
+while
+.Vt long
+and
+.Vt void *
+are 8 bytes.
+.El
+Compilers define
+.Dv _LP64
+symbol when compiling for an
+.Dv LP64
+ABI.
+.Pp
+Some machines support more that one FreeBSD ABI.
+Typically these are 64-bit machines, where the
+.Dq native
+.Dv LP64
+execution environment is accompanied by the
+.Dq legacy
+.Dv ILP32
+environment, which was historical 32-bit predecessor for 64-bit evolution.
+Examples are:
+.Bl -column -offset indent "powerpc64" "Sy ILP32 counterpart"
+.It Sy LP64        Ta Sy ILP32 counterpart
+.It Dv amd64       Ta Dv i386
+.It Dv powerpc64   Ta Dv powerpc
+.It Dv mips64*     Ta Dv mips*
+.El
+.Dv arm64
+currently does not support execution of
+.Dv armv6
+binaries, even if the CPU implements
+.Dv AArch32
+execution state.
+.Pp
 On all supported architectures:
 .Bl -column -offset -indent "long long" "Size"
 .It Sy Type Ta Sy Size
@@ -48,6 +131,9 @@ On all supported architectures:
 .It float Ta 4
 .It double Ta 8
 .El
+Integers are represented as two-complement.
+Alignment of integer and pointer types is natural, that is,
+the address of the variable must be congruent to zero modulo type size.
 .Pp
 Machine-dependent type sizes:
 .Bl -column -offset indent "Sy Architecture" "Sy void *" "Sy long double" "Sy time_t"
