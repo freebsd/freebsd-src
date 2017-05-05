@@ -1639,18 +1639,12 @@ linux_irq_handler(void *ent)
 }
 
 #if defined(__i386__) || defined(__amd64__)
-static void
-wbinvd_cb(void *arg __unused)
-{
-
-	wbinvd();
-}
-
 int
 linux_wbinvd_on_all_cpus(void)
 {
 
-	return (linux_on_each_cpu(wbinvd_cb, NULL));
+	pmap_invalidate_cache();
+	return (0);
 }
 #endif
 
