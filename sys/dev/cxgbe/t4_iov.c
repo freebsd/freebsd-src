@@ -96,7 +96,7 @@ struct {
 	{0x6001, "Chelsio T6225-CR"},		/* 2 x 10/25G */
 	{0x6002, "Chelsio T6225-SO-CR"},	/* 2 x 10/25G, nomem */
 	{0x6003, "Chelsio T6425-CR"},		/* 4 x 10/25G */
-	{0x6004, "Chelsio T6425-CR"},		/* 4 x 10/25G, nomem */
+	{0x6004, "Chelsio T6425-SO-CR"},	/* 4 x 10/25G, nomem */
 	{0x6005, "Chelsio T6225-OCP-SO"},	/* 2 x 10/25G, nomem */
 	{0x6006, "Chelsio T62100-OCP-SO"},	/* 2 x 40/50/100G, nomem */
 	{0x6007, "Chelsio T62100-LP-CR"},	/* 2 x 40/50/100G */
