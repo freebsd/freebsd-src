@@ -400,12 +400,17 @@ vdev_geom_io(struct g_consumer *cp, int *cmds, void **datas, off_t *offsets,
 	kmem_free(bios, bios_size);
 }
 
+/* 
+ * Read the vdev config from a device.  Return the number of valid labels that
+ * were found.  The vdev config will be returned in config if and only if at
+ * least one valid label was found.
+ */
 static int
 vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 {
 	struct g_provider *pp;
 	vdev_phys_t *vdev_lists[VDEV_LABELS];
-	char *p, *buf;
+	char *buf;
 	size_t buflen;
 	uint64_t psize, state, txg;
 	off_t offsets[VDEV_LABELS];
@@ -413,7 +418,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 	off_t sizes[VDEV_LABELS];
 	int cmds[VDEV_LABELS];
 	int errors[VDEV_LABELS];
-	int l, len;
+	int l, nlabels;
 
 	g_topology_assert_not();
 
@@ -444,6 +449,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 	    VDEV_LABELS);
 
 	/* Parse the labels */
+	nlabels = 0;
 	for (l = 0; l < VDEV_LABELS; l++) {
 		if (errors[l] != 0)
 			continue;
@@ -469,14 +475,14 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 			continue;
 		}
 
-		break;
+		nlabels++;
 	}
 
 	/* Free the label storage */
 	for (l = 0; l < VDEV_LABELS; l++)
 		kmem_free(vdev_lists[l], size);
 
-	return (*config == NULL ? ENOENT : 0);
+	return (nlabels);
 }
 
 static void
@@ -559,7 +565,7 @@ vdev_geom_read_pool_label(const char *name,
 	struct g_consumer *zcp;
 	nvlist_t *vdev_cfg;
 	uint64_t pool_guid;
-	int error;
+	int error, nlabels;
 
 	DROP_GIANT();
 	g_topology_lock();
@@ -580,10 +586,10 @@ vdev_geom_read_pool_label(const char *name,
 				if (zcp == NULL)
 					continue;
 				g_topology_unlock();
-				error = vdev_geom_read_config(zcp, &vdev_cfg);
+				nlabels = vdev_geom_read_config(zcp, &vdev_cfg);
 				g_topology_lock();
 				vdev_geom_detach(zcp, B_TRUE);
-				if (error)
+				if (nlabels == 0)
 					continue;
 				ZFS_LOG(1, "successfully read vdev config");
 
@@ -599,9 +605,13 @@ vdev_geom_read_pool_label(const char *name,
 }
 
 enum match {
-	NO_MATCH,
-	TOP_MATCH,
-	FULL_MATCH
+	NO_MATCH = 0,		/* No matching labels found */
+	TOPGUID_MATCH = 1,	/* Labels match top guid, not vdev guid*/
+	ZERO_MATCH = 1,		/* Should never be returned */
+	ONE_MATCH = 2,		/* 1 label matching the vdev_guid */
+	TWO_MATCH = 3,		/* 2 label matching the vdev_guid */
+	THREE_MATCH = 4,	/* 3 label matching the vdev_guid */
+	FULL_MATCH = 5		/* all labels match the vdev_guid */
 };
 
 static enum match
@@ -610,6 +620,7 @@ vdev_attach_ok(vdev_t *vd, struct g_provider *pp)
 	nvlist_t *config;
 	uint64_t pool_guid, top_guid, vdev_guid;
 	struct g_consumer *cp;
+	int nlabels;
 
 	cp = vdev_geom_attach(pp, NULL);
 	if (cp == NULL) {
@@ -618,7 +629,8 @@ vdev_attach_ok(vdev_t *vd, struct g_provider *pp)
 		return (NO_MATCH);
 	}
 	g_topology_unlock();
-	if (vdev_geom_read_config(cp, &config) != 0) {
+	nlabels = vdev_geom_read_config(cp, &config);
+	if (nlabels == 0) {
 		g_topology_lock();
 		vdev_geom_detach(cp, B_TRUE);
 		ZFS_LOG(1, "Unable to read config from %s.", pp->name);
@@ -653,10 +665,10 @@ vdev_attach_ok(vdev_t *vd, struct g_provider *pp)
 	 */
 	if (vdev_guid == vd->vdev_guid) {
 		ZFS_LOG(1, "guids match for provider %s.", pp->name);
-		return (FULL_MATCH);
+		return (ZERO_MATCH + nlabels);
 	} else if (top_guid == vd->vdev_guid && vd == vd->vdev_top) {
 		ZFS_LOG(1, "top vdev guid match for provider %s.", pp->name);
-		return (TOP_MATCH);
+		return (TOPGUID_MATCH);
 	}
 	ZFS_LOG(1, "vdev guid mismatch for provider %s: %ju != %ju.",
 	    pp->name, (uintmax_t)vd->vdev_guid, (uintmax_t)vdev_guid);
@@ -668,13 +680,15 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 {
 	struct g_class *mp;
 	struct g_geom *gp;
-	struct g_provider *pp;
+	struct g_provider *pp, *best_pp;
 	struct g_consumer *cp;
-	enum match m;
+	enum match match, best_match;
 
 	g_topology_assert();
 
 	cp = NULL;
+	best_pp = NULL;
+	best_match = NO_MATCH;
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp == &zfs_vdev_class)
 			continue;
@@ -682,24 +696,23 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 			if (gp->flags & G_GEOM_WITHER)
 				continue;
 			LIST_FOREACH(pp, &gp->provider, provider) {
-				m = vdev_attach_ok(vd, pp);
-				if (m == NO_MATCH)
-					continue;
-				if (cp != NULL) {
-					if (m == FULL_MATCH)
-						vdev_geom_detach(cp, B_TRUE);
-					else
-						continue;
+				match = vdev_attach_ok(vd, pp);
+				if (match > best_match) {
+					best_match = match;
+					best_pp = pp;
 				}
-				cp = vdev_geom_attach(pp, vd);
-				if (cp == NULL) {
-					printf("ZFS WARNING: Unable to "
-					    "attach to %s.\n", pp->name);
-					continue;
-				}
-				if (m == FULL_MATCH)
-					return (cp);
+				if (match == FULL_MATCH)
+					goto out;
 			}
+		}
+	}
+
+out:
+	if (best_pp) {
+		cp = vdev_geom_attach(best_pp, vd);
+		if (cp == NULL) {
+			printf("ZFS WARNING: Unable to attach to %s.\n",
+			    best_pp->name);
 		}
 	}
 	return (cp);
