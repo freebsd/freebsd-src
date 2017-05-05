@@ -485,6 +485,16 @@ linux_cdev_handle_insert(void *handle, struct vm_area_struct *vmap)
 			return (NULL);
 		}
 	}
+	/*
+	 * The same VM object might be shared by multiple processes
+	 * and the mm_struct is usually freed when a process exits.
+	 *
+	 * The atomic reference below makes sure the mm_struct is
+	 * available as long as the vmap is in the linux_vma_head.
+	 */
+	if (atomic_inc_not_zero(&vmap->vm_mm->mm_users) == 0)
+		panic("linuxkpi: mm_users is zero\n");
+
 	TAILQ_INSERT_TAIL(&linux_vma_head, vmap, vm_entry);
 	rw_wunlock(&linux_vma_lock);
 	return (vmap);
@@ -499,6 +509,9 @@ linux_cdev_handle_remove(struct vm_area_struct *vmap)
 	rw_wlock(&linux_vma_lock);
 	TAILQ_REMOVE(&linux_vma_head, vmap, vm_entry);
 	rw_wunlock(&linux_vma_lock);
+
+	/* Drop reference on mm_struct */
+	mmput(vmap->vm_mm);
 	kfree(vmap);
 }
 
