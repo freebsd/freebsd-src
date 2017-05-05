@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# $Id: Makefile.am 917 2017-02-18 14:45:27Z des $
+# $OpenPAM: Makefile.am 938 2017-04-30 21:34:42Z des $
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -165,7 +165,7 @@ CSCOPE = cscope
 DIST_SUBDIRS = misc include lib bin modules doc t
 am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(srcdir)/mkpkgng.in INSTALL README TODO compile config.guess \
-	config.sub depcomp install-sh ltmain.sh missing
+	config.sub install-sh ltmain.sh missing
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
