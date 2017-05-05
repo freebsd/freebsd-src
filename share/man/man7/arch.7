@@ -37,6 +37,9 @@ Differences between CPU architectures and platforms supported by
 .Fx .
 .Ss Introduction
 If not explicitly mentioned, sizes are in bytes.
+The architecture details in this document apply to
+.Fx 10.0
+and later, unless otherwise noted.
 .Pp
 FreeBSD uses flat address space for program execution, where
 pointers have the same binary representation as
@@ -72,6 +75,42 @@ The kernel is located at the highest addresses.
 .Pp
 On each architecture, the main user mode thread's stack starts near
 the highest user address and grows down.
+.Pp
+.Fx
+architecture support varies by release.
+This table shows the first
+.Fx
+release to support each architecture, and, for discontinued
+architectures, the final release.
+.Pp
+.Bl -column -offset indent "Sy Architecture" "Sy Initial Release" "Sy Final Release"
+.It Sy Architecture Ta Sy Initial Release Ta Sy Final Release
+.It alpha       Ta 1.0   Ta 6.4
+.It amd64       Ta 5.1
+.It arm         Ta 6.0
+.It armeb       Ta 8.0
+.It armv6       Ta 10.0
+.It arm64       Ta 11.0
+.It ia64        Ta 5.0   Ta 10.x
+.It i386        Ta 1.0
+.It mips        Ta 8.0
+.It mipsel      Ta 9.0
+.It mipselhf    Ta 12.0
+.It mipshf      Ta 12.0
+.It mipsn32     Ta 9.0
+.It mips64      Ta 9.0
+.It mips64el    Ta 9.0
+.It mips64elhf  Ta 12.0
+.It mips64hf    Ta 12.0
+.It pc98        Ta 5.0   Ta 11.x
+.It powerpc     Ta 6.0
+.It powerpcspe  Ta 12.0
+.It powerpc64   Ta 6.0
+.It riscv64     Ta 12.0
+.It riscv64sf   Ta 12.0
+.It sparc64     Ta 5.0
+.El
+
 .Ss Type sizes
 All FreeBSD architectures use some variant of the ELF (see
 .Xr elf 5 )
@@ -220,7 +259,7 @@ variants of powerpc.
 .It amd64       Ta hard Ta hard, 80 bit
 .It arm         Ta soft Ta soft, double precision
 .It armeb       Ta soft Ta soft, double precision
-.It armv6       Ta hard Ta hard, double precision
+.It armv6       Ta hard(1) Ta hard, double precision
 .It arm64       Ta hard Ta soft, quad precision
 .It i386        Ta hard Ta hard, 80 bit
 .It mips        Ta soft Ta identical to double
@@ -239,6 +278,11 @@ variants of powerpc.
 .It riscv64sf   Ta soft Ta soft, double precision
 .It sparc64     Ta hard Ta hard, quad precision
 .El
+.Pp
+(1) Prior to
+.Fx 11.0 ,
+armv6 used the softfp ABI even though it supported only processors
+with a floating point unit.
 .Ss Predefined Macros
 The compiler provides a number of predefined macros.
 Some of these provide architecture-specific details and are explained below.
