@@ -201,7 +201,7 @@ procfile(const char *fn)
 	struct str *ln;
 	mode_t s;
 	int c, last_outed, t, tail;
-	bool doctx, same_file;
+	bool doctx, printmatch, same_file;
 
 	if (strcmp(fn, "-") == 0) {
 		fn = label != NULL ? label : getstr(1);
@@ -237,11 +237,13 @@ procfile(const char *fn)
 	last_outed = 0;
 	same_file = false;
 	doctx = false;
-	if ((!pc.binary || binbehave != BINFILE_BIN) && !cflag && !qflag &&
-	    !lflag && !Lflag && (Aflag != 0 || Bflag != 0))
+	printmatch = true;
+	if ((pc.binary && binbehave == BINFILE_BIN) || cflag || qflag ||
+	    lflag || Lflag)
+		printmatch = false;
+	if (printmatch && (Aflag != 0 || Bflag != 0))
 		doctx = true;
 	mcount = mlimit;
-
 
 	for (c = 0;  c == 0 || !(lflag || qflag); ) {
 		/* Reset match count for every line processed */
@@ -283,7 +285,7 @@ procfile(const char *fn)
 			tail = Aflag;
 		}
 		/* Print the matching line, but only if not quiet/binary */
-		if (t == 0 && !qflag && !pc.binary) {
+		if (t == 0 && printmatch) {
 			printline(&pc, ':');
 			first_match = false;
 			same_file = true;
