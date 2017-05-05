@@ -1,4 +1,4 @@
-.\" Copyright (c) 2016 The FreeBSD Foundation. All rights reserved.
+.\" Copyright (c) 2016-2017 The FreeBSD Foundation. All rights reserved.
 .\"
 .\" This documentation was created by Ed Maste under sponsorship of
 .\" The FreeBSD Foundation.
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2017
+.Dd May 5, 2017
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -41,15 +41,14 @@ The architecture details in this document apply to
 .Fx 10.0
 and later, unless otherwise noted.
 .Pp
-FreeBSD uses flat address space for program execution, where
-pointers have the same binary representation as
-.Vt unsigned long
-variables, and
-.Vt uintptr_t
+.Fx
+uses flat address space for program execution,
+where variables of types
+.Vt unsigned long ,
+.Vt uintptr_t ,
 and
 .Vt size_t
-types are synonyms for
-.Vt unsigned long .
+and the pointers all have the same representation.
 .Pp
 In order to maximize compatibility with future pointer integrity mechanisms,
 manipulations of pointers as integers should be performed via
@@ -110,9 +109,10 @@ architectures, the final release.
 .It riscv64sf   Ta 12.0
 .It sparc64     Ta 5.0
 .El
-
 .Ss Type sizes
-All FreeBSD architectures use some variant of the ELF (see
+All
+.Fx
+architectures use some variant of the ELF (see
 .Xr elf 5 )
 .Sy Application Binary Interface
 (ABI) for the machine processor.
@@ -132,13 +132,15 @@ and
 .Vt void *
 are 8 bytes.
 .El
-Compilers define
+Compilers define the
 .Dv _LP64
 symbol when compiling for an
 .Dv LP64
 ABI.
 .Pp
-Some machines support more that one FreeBSD ABI.
+Some machines support more that one
+.Fx
+ABI.
 Typically these are 64-bit machines, where the
 .Dq native
 .Dv LP64
@@ -147,7 +149,7 @@ execution environment is accompanied by the
 .Dv ILP32
 environment, which was historical 32-bit predecessor for 64-bit evolution.
 Examples are:
-.Bl -column -offset indent "powerpc64" "Sy ILP32 counterpart"
+.Bl -column -offset indent "Dv powerpc64" "Sy ILP32 counterpart"
 .It Sy LP64        Ta Sy ILP32 counterpart
 .It Dv amd64       Ta Dv i386
 .It Dv powerpc64   Ta Dv powerpc
@@ -172,7 +174,10 @@ On all supported architectures:
 .El
 Integers are represented as two-complement.
 Alignment of integer and pointer types is natural, that is,
-the address of the variable must be congruent to zero modulo type size.
+the address of the variable must be congruent to zero modulo the type size.
+Most ILP32 ABIs, except
+.Dv arm ,
+require only 4-byte alignment for 64-bit integers.
 .Pp
 Machine-dependent type sizes:
 .Bl -column -offset indent "Sy Architecture" "Sy void *" "Sy long double" "Sy time_t"
