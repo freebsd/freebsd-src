@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -176,10 +176,10 @@ static struct loption option[] =
 	},
 #if MSDOS_COMPILER
 	{ 'D', &D__optname,
-		STRING|REPAINT|NO_QUERY, 0, NULL, opt_D,
+		STRING|REPAINT, 0, NULL, opt_D,
 		{
 			"color desc: ", 
-			"Ddknsu0123456789.",
+			"Dadknsu0123456789.",
 			NULL
 		}
 	},
@@ -464,7 +464,7 @@ static struct loption option[] =
  * Initialize each option to its default value.
  */
 	public void
-init_option(void)
+init_option()
 {
 	struct loption *o;
 	char *p;
@@ -489,7 +489,8 @@ init_option(void)
  * Find an option in the option table, given its option letter.
  */
 	public struct loption *
-findopt(int c)
+findopt(c)
+	int c;
 {
 	struct loption *o;
 
@@ -507,7 +508,8 @@ findopt(int c)
  *
  */
 	static int
-is_optchar(char c)
+is_optchar(c)
+	char c;
 {
 	if (ASCII_IS_UPPER(c))
 		return 1;
@@ -525,7 +527,10 @@ is_optchar(char c)
  * p_oname if non-NULL is set to point to the full option name.
  */
 	public struct loption *
-findopt_name(char **p_optname, char **p_oname, int *p_err)
+findopt_name(p_optname, p_oname, p_err)
+	char **p_optname;
+	char **p_oname;
+	int *p_err;
 {
 	char *optname = *p_optname;
 	struct loption *o;
