@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ratelimit.h"
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -156,6 +157,7 @@ alloc_toepcb(struct vi_info *vi, int txqid, int rxqid, int flags)
 	refcount_init(&toep->refcount, 1);
 	toep->td = sc->tom_softc;
 	toep->vi = vi;
+	toep->tc_idx = -1;
 	toep->tx_total = tx_credits;
 	toep->tx_credits = tx_credits;
 	toep->ofld_txq = &sc->sge.ofld_txq[txqid];
@@ -312,6 +314,10 @@ release_offload_resources(struct toepcb *toep)
 	if (toep->ce)
 		release_lip(td, toep->ce);
 
+#ifdef RATELIMIT
+	if (toep->tc_idx != -1)
+		t4_release_cl_rl_kbps(sc, toep->vi->pi->port_id, toep->tc_idx);
+#endif
 	mtx_lock(&td->toep_list_lock);
 	TAILQ_REMOVE(&td->toep_list, toep, link);
 	mtx_unlock(&td->toep_list_lock);
