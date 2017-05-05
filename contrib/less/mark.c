@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -27,7 +27,7 @@ static struct mark marks[NMARKS];
  * Initialize the mark table to show no marks are set.
  */
 	public void
-init_mark(void)
+init_mark()
 {
 	int i;
 
@@ -39,7 +39,8 @@ init_mark(void)
  * See if a mark letter is valid (between a and z).
  */
 	static struct mark *
-getumark(int c)
+getumark(c)
+	int c;
 {
 	if (c >= 'a' && c <= 'z')
 		return (&marks[c-'a']);
@@ -57,7 +58,8 @@ getumark(int c)
  * or may be constructed on the fly for certain characters like ^, $.
  */
 	static struct mark *
-getmark(int c)
+getmark(c)
+	int c;
 {
 	struct mark *m;
 	static struct mark sm;
@@ -122,7 +124,8 @@ getmark(int c)
  * Is a mark letter is invalid?
  */
 	public int
-badmark(int c)
+badmark(c)
+	int c;
 {
 	return (getmark(c) == NULL);
 }
@@ -131,7 +134,8 @@ badmark(int c)
  * Set a user-defined mark.
  */
 	public void
-setmark(int c)
+setmark(c)
+	int c;
 {
 	struct mark *m;
 	struct scrpos scrpos;
@@ -148,7 +152,7 @@ setmark(int c)
  * Set lmark (the mark named by the apostrophe).
  */
 	public void
-lastmark(void)
+lastmark()
 {
 	struct scrpos scrpos;
 
@@ -165,7 +169,8 @@ lastmark(void)
  * Go to a mark.
  */
 	public void
-gomark(int c)
+gomark(c)
+	int c;
 {
 	struct mark *m;
 	struct scrpos scrpos;
@@ -212,7 +217,8 @@ gomark(int c)
  * because it's always the first non-blank line on the screen.
  */
 	public POSITION
-markpos(int c)
+markpos(c)
+	int c;
 {
 	struct mark *m;
 
@@ -232,7 +238,8 @@ markpos(int c)
  * Clear the marks associated with a specified ifile.
  */
 	public void
-unmark(IFILE ifile)
+unmark(ifile)
+	IFILE ifile;
 {
 	int i;
 

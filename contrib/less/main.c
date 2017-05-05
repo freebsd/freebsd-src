@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -54,11 +54,13 @@ extern int	jump_sline;
 static char consoleTitle[256];
 #endif
 
+public int  line_count;
 extern int	less_is_more;
 extern int	missing_cap;
 extern int	know_dumb;
 extern int	no_init;
 extern int	pr_type;
+extern int	quit_if_one_screen;
 
 
 /*
@@ -283,10 +285,25 @@ main(argc, argv)
 	{
 		if (edit_stdin())  /* Edit standard input */
 			quit(QUIT_ERROR);
+		if (quit_if_one_screen)
+			line_count = get_line_count();
 	} else 
 	{
 		if (edit_first())  /* Edit first valid file in cmd line */
 			quit(QUIT_ERROR);
+		/*
+		 * In case that we have only one file and -F, have to get a line
+		 * count fot init(). If the line count is less then a height of a term,
+		 * the content of the file is printed out and then less quits. Otherwise
+		 * -F can not be used
+		 */
+		if (quit_if_one_screen)
+		{
+			if (nifile() == 1)
+				line_count = get_line_count();
+			else /* In case more than one file, -F can not be used */
+				quit_if_one_screen = FALSE;
+		}
 	}
 
 	init();
@@ -301,7 +318,8 @@ main(argc, argv)
  * (that is, to a buffer allocated by calloc).
  */
 	public char *
-save(constant char *s)
+save(s)
+	constant char *s;
 {
 	char *p;
 
@@ -315,7 +333,9 @@ save(constant char *s)
  * Like calloc(), but never returns an error (NULL).
  */
 	public VOID_POINTER
-ecalloc(int count, unsigned int size)
+ecalloc(count, size)
+	int count;
+	unsigned int size;
 {
 	VOID_POINTER p;
 
@@ -332,7 +352,8 @@ ecalloc(int count, unsigned int size)
  * Skip leading spaces in a string.
  */
 	public char *
-skipsp(char *s)
+skipsp(s)
+	char *s;
 {
 	while (*s == ' ' || *s == '\t')	
 		s++;
@@ -345,7 +366,10 @@ skipsp(char *s)
  * character; the remainder of the first string may be either case.
  */
 	public int
-sprefix(char *ps, char *s, int uppercase)
+sprefix(ps, s, uppercase)
+	char *ps;
+	char *s;
+	int uppercase;
 {
 	int c;
 	int sc;
@@ -375,7 +399,8 @@ sprefix(char *ps, char *s, int uppercase)
  * Exit the program.
  */
 	public void
-quit(int status)
+quit(status)
+	int status;
 {
 	static int save_status;
 

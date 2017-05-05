@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 481: 31 Aug 2015"
+.TH LESS 1 "Version 491: 07 Apr 2017"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -101,6 +101,10 @@ Scroll horizontally left N characters, default half the screen width
 (see the \-# option).
 If a number N is specified, it becomes the default for future RIGHTARROW
 and LEFTARROW commands.
+.IP "ESC-} or ^RIGHTARROW"
+Scroll horizontally right to show the end of the longest displayed line.
+.IP "ESC-{ or ^LEFTARROW"
+Scroll horizontally left back to the first column.
 .IP "r or ^R or ^L"
 Repaint the screen.
 .IP R
@@ -547,6 +551,7 @@ The first number selects the foreground color and the second selects
 the background color of the text.
 A single number \fIN\fP is the same as \fIN.M\fP,
 where \fIM\fP is the normal background color.
+\fBx\fP may also be \fBa\fP to toggle strict ANSI sequence rendering (SGR mode).
 
 .IP "\-e or \-\-quit-at-eof"
 Causes
@@ -1740,7 +1745,7 @@ The name of the editor (used for the v command).
 lesskey(1)
 
 .SH COPYRIGHT
-Copyright (C) 1984-2015  Mark Nudelman
+Copyright (C) 1984-2017  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
