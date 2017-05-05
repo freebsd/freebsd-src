@@ -43,15 +43,27 @@ extern int _DYNAMIC;
 void *__elf_aux_vector;
 static pthread_once_t aux_vector_once = PTHREAD_ONCE_INIT;
 
+#ifdef __CHERI_PURE_CAPABILITY__
+extern Elf_Auxinfo *__auxargs;
+#endif
+
 static void
 init_aux_vector_once(void)
 {
+	// FIXME: We need a code path that works for PIC as well, if we want
+	// dynamic linking to work, but __auxargs isn't defined in PIC mode
+	// currently.
+#if defined(__CHERI_PURE_CAPABILITY__) && !defined(PIC)
+
+	__elf_aux_vector = __auxargs;
+#else
 	Elf_Addr *sp;
 
 	sp = (Elf_Addr *)environ;
 	while (*sp++ != 0)
 		;
 	__elf_aux_vector = (Elf_Auxinfo *)sp;
+#endif
 }
 
 void
