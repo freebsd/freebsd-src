@@ -337,6 +337,8 @@ struct sa_softc {
 	u_int32_t	maxio;
 	u_int32_t	cpi_maxio;
 	int		allow_io_split;
+	int		inject_eom;
+	int		set_pews_status;
 	u_int32_t	comp_algorithm;
 	u_int32_t	saved_comp_algorithm;
 	u_int32_t	media_blksize;
@@ -2323,6 +2325,9 @@ sasysctlinit(void *context, int pending)
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "cpi_maxio", CTLFLAG_RD, 
 	    &softc->cpi_maxio, 0, "Maximum Controller I/O size");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "inject_eom", CTLFLAG_RW, 
+	    &softc->inject_eom, 0, "Queue EOM for the next write/read");
 
 bailout:
 	/*
@@ -2588,8 +2593,27 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 		bp = bioq_first(&softc->bio_queue);
 		if (bp == NULL) {
 			xpt_release_ccb(start_ccb);
-		} else if ((softc->flags & SA_FLAG_ERR_PENDING) != 0) {
+		} else if (((softc->flags & SA_FLAG_ERR_PENDING) != 0)
+			|| (softc->inject_eom != 0)) {
 			struct bio *done_bp;
+
+			if (softc->inject_eom != 0) {
+				softc->flags |= SA_FLAG_EOM_PENDING;
+				softc->inject_eom = 0;
+				/*
+				 * If we're injecting EOM for writes, we
+				 * need to keep PEWS set for 3 queries
+				 * to cover 2 position requests from the
+				 * kernel via sagetpos(), and then allow
+				 * for one for the user to see the BPEW
+				 * flag (e.g. via mt status).  After that,
+				 * it will be cleared.
+				 */
+				if (bp->bio_cmd == BIO_WRITE)
+					softc->set_pews_status = 3;
+				else
+					softc->set_pews_status = 1;
+			}
 again:
 			softc->queue_count--;
 			bioq_remove(&softc->bio_queue, bp);
@@ -4842,9 +4866,12 @@ sagetpos(struct cam_periph *periph)
 		else
 			softc->eop = 0;
 
-		if (long_pos.flags & SA_RPOS_LONG_BPEW)
+		if ((long_pos.flags & SA_RPOS_LONG_BPEW)
+		 || (softc->set_pews_status != 0)) {
 			softc->bpew = 1;
-		else
+			if (softc->set_pews_status > 0)
+				softc->set_pews_status--;
+		} else
 			softc->bpew = 0;
 	} else if (error == EINVAL) {
 		/*
