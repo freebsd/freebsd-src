@@ -48,13 +48,13 @@ The architecture details in this document apply to
 and later, unless otherwise noted.
 .Pp
 .Fx
-uses flat address space for program execution,
-where variables of types
+uses a flat address space.
+Variables of types
 .Vt unsigned long ,
 .Vt uintptr_t ,
 and
 .Vt size_t
-and the pointers all have the same representation.
+and pointers all have the same representation.
 .Pp
 In order to maximize compatibility with future pointer integrity mechanisms,
 manipulations of pointers as integers should be performed via
@@ -178,7 +178,7 @@ On all supported architectures:
 .It float Ta 4
 .It double Ta 8
 .El
-Integers are represented as two-complement.
+Integers are represented in two's complement.
 Alignment of integer and pointer types is natural, that is,
 the address of the variable must be congruent to zero modulo the type size.
 Most ILP32 ABIs, except
