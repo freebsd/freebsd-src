@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 #-
 # Copyright (c) 2002-2003 Networks Associates Technology, Inc.
-# Copyright (c) 2004-2014 Dag-Erling Smørgrav
+# Copyright (c) 2004-2017 Dag-Erling Smørgrav
 # All rights reserved.
 #
 # This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -33,7 +33,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: gendoc.pl 910 2017-01-21 12:22:08Z des $
+# $OpenPAM: gendoc.pl 938 2017-04-30 21:34:42Z des $
 #
 
 use strict;
@@ -93,6 +93,10 @@ The OpenPAM library is maintained by
     PAM_TRY_AGAIN		=> "Try again",
     PAM_MODULE_UNKNOWN		=> "Unknown module type",
     PAM_DOMAIN_UNKNOWN		=> "Unknown authentication domain",
+    PAM_BAD_HANDLE		=> "Invalid PAM handle",
+    PAM_BAD_ITEM		=> "Unrecognized or restricted item",
+    PAM_BAD_FEATURE		=> "Unrecognized or restricted feature",
+    PAM_BAD_CONSTANT		=> "Bad constant",
 );
 
 sub parse_source($) {
@@ -114,7 +118,7 @@ sub parse_source($) {
     my $experimental;
     my $version;
     my %xref;
-    my @errors;
+    my %errors;
     my $author;
 
     if ($fn !~ m,\.c$,) {
@@ -130,7 +134,7 @@ sub parse_source($) {
     return undef
 	if ($source =~ m/^ \* NOPARSE\s*$/m);
 
-    if ($source =~ m/(\$Id:[^\$]+\$)/) {
+    if ($source =~ m/(\$OpenPAM:[^\$]+\$)/) {
 	$version = $1;
     }
 
@@ -168,8 +172,8 @@ sub parse_source($) {
 
     if ($type eq "int") {
 	foreach (split("\n", $source)) {
-	    next unless (m/^ \*\s+(!?PAM_[A-Z_]+|=[a-z_]+)\s*$/);
-	    push(@errors, $1);
+	    next unless (m/^ \*\t(!?PAM_[A-Z_]+|=[a-z_]+)\s*(.*?)\s*$/);
+	    $errors{$1} = $2;
 	}
 	++$xref{3}->{pam_strerror};
     }
@@ -335,7 +339,7 @@ sub parse_source($) {
 	'args'		=> $args,
 	'man'		=> $man,
 	'xref'		=> \%xref,
-	'errors'	=> \@errors,
+	'errors'	=> \%errors,
 	'author'	=> $author,
 	'customrv'	=> $customrv,
 	'deprecated'	=> $deprecated,
@@ -365,13 +369,13 @@ sub expand_errors($) {
     }
     $$func{recursed} = 1;
 
-    foreach (@{$$func{errors}}) {
+    foreach (keys %{$$func{errors}}) {
 	if (m/^(PAM_[A-Z_]+)$/) {
 	    if (!defined($PAMERR{$1})) {
 		warn("$$func{name}(): unrecognized error: $1\n");
 		next;
 	    }
-	    $errors{$1} = 1;
+	    $errors{$1} = $$func{errors}->{$_};
 	} elsif (m/^!(PAM_[A-Z_]+)$/) {
 	    # treat negations separately
 	} elsif (m/^=([a-z_]+)$/) {
@@ -385,20 +389,20 @@ sub expand_errors($) {
 		warn("$$func{name}(): reference to unknown $ref()\n");
 		next;
 	    }
-	    foreach (@{$FUNCTIONS{$ref}->{errors}}) {
-		$errors{$_} = 1;
+	    foreach (keys %{$FUNCTIONS{$ref}->{errors}}) {
+		$errors{$_} //= $FUNCTIONS{$ref}->{errors}->{$_};
 	    }
 	} else {
 	    warn("$$func{name}(): invalid error specification: $_\n");
 	}
     }
-    foreach (@{$$func{errors}}) {
+    foreach (keys %{$$func{errors}}) {
 	if (m/^!(PAM_[A-Z_]+)$/) {
 	    delete($errors{$1});
 	}
     }
     delete($$func{recursed});
-    $$func{errors} = [ sort(keys(%errors)) ];
+    $$func{errors} = \%errors;
 }
 
 sub dictionary_order($$) {
@@ -430,6 +434,7 @@ sub gendoc($) {
     my $func = shift;		# Ref to function hash
 
     local *FILE;
+    my %errors;
     my $mdoc;
     my $fn;
 
@@ -489,18 +494,21 @@ sub gendoc($) {
 	$mdoc .= ".Ef\n.Pp\n";
     }
     $mdoc .= "$$func{man}\n";
-    my @errors = @{$$func{errors}};
+    %errors = %{$$func{errors}};
     if ($$func{customrv}) {
 	# leave it
-    } elsif ($$func{type} eq "int" && @errors) {
+    } elsif ($$func{type} eq "int" && %errors) {
 	$mdoc .= ".Sh RETURN VALUES
 The
 .Fn $$func{name}
 function returns one of the following values:
 .Bl -tag -width 18n
 ";
-	foreach (@errors) {
-	    $mdoc .= ".It Bq Er $_\n$PAMERR{$_}.\n";
+	delete($errors{PAM_SUCCESS});
+	foreach ('PAM_SUCCESS', sort keys %errors) {
+	    $mdoc .= ".It Bq Er $_\n" .
+		($errors{$_} || $PAMERR{$_}) .
+		".\n";
 	}
 	$mdoc .= ".El\n";
     } elsif ($$func{type} eq "int") {

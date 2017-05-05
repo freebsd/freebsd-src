@@ -1,6 +1,6 @@
 .\" Generated from pam_end.c by gendoc.pl
-.\" $Id: pam_end.c 913 2017-01-21 15:11:12Z des $
-.Dd February 19, 2017
+.\" $OpenPAM: pam_end.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt PAM_END 3
 .Os
 .Sh NAME
@@ -25,7 +25,13 @@ last API call before the call to
 .Sh RETURN VALUES
 The
 .Fn pam_end
-function returns 0 on success and -1 on failure.
+function returns one of the following values:
+.Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_HANDLE
+Invalid PAM handle.
+.El
 .Sh SEE ALSO
 .Xr pam 3 ,
 .Xr pam_strerror 3

@@ -1,6 +1,6 @@
 .\" Generated from pam_putenv.c by gendoc.pl
-.\" $Id: pam_putenv.c 914 2017-01-21 15:15:29Z des $
-.Dd February 19, 2017
+.\" $OpenPAM: pam_putenv.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt PAM_PUTENV 3
 .Os
 .Sh NAME
@@ -25,6 +25,8 @@ The
 .Fn pam_putenv
 function returns one of the following values:
 .Bl -tag -width 18n
+.It Bq Er PAM_SUCCESS
+Success.
 .It Bq Er PAM_BUF_ERR
 Memory buffer error.
 .It Bq Er PAM_SYSTEM_ERR
