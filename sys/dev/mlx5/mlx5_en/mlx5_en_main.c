@@ -541,19 +541,33 @@ mlx5e_update_stats_work(struct work_struct *work)
 	s->tx_csum_offload = s->tx_packets - tx_offload_none;
 	s->rx_csum_good = s->rx_packets - s->rx_csum_none;
 
-	/* Update per port counters */
+	/* Get physical port counters */
 	mlx5e_update_pport_counters(priv);
 
 #if (__FreeBSD_version < 1100000)
 	/* no get_counters interface in fbsd 10 */
 	ifp->if_ipackets = s->rx_packets;
-	ifp->if_ierrors = s->rx_error_packets;
+	ifp->if_ierrors = s->rx_error_packets +
+	    priv->stats.pport.alignment_err +
+	    priv->stats.pport.check_seq_err +
+	    priv->stats.pport.crc_align_errors +
+	    priv->stats.pport.drop_events +
+	    priv->stats.pport.in_range_len_errors +
+	    priv->stats.pport.jabbers +
+	    priv->stats.pport.out_of_range_len +
+	    priv->stats.pport.oversize_pkts +
+	    priv->stats.pport.symbol_err +
+	    priv->stats.pport.too_long_errors +
+	    priv->stats.pport.undersize_pkts +
+	    priv->stats.pport.unsupported_op_rx;
 	ifp->if_iqdrops = s->rx_out_of_buffer;
 	ifp->if_opackets = s->tx_packets;
 	ifp->if_oerrors = s->tx_error_packets;
 	ifp->if_snd.ifq_drops = s->tx_queue_dropped;
 	ifp->if_ibytes = s->rx_bytes;
 	ifp->if_obytes = s->tx_bytes;
+	ifp->if_collisions =
+	    priv->stats.pport.collisions;
 #endif
 
 free_out:
@@ -2359,7 +2373,19 @@ mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 		retval = priv->stats.vport.rx_packets;
 		break;
 	case IFCOUNTER_IERRORS:
-		retval = priv->stats.vport.rx_error_packets;
+		retval = priv->stats.vport.rx_error_packets +
+		    priv->stats.pport.alignment_err +
+		    priv->stats.pport.check_seq_err +
+		    priv->stats.pport.crc_align_errors +
+		    priv->stats.pport.drop_events +
+		    priv->stats.pport.in_range_len_errors +
+		    priv->stats.pport.jabbers +
+		    priv->stats.pport.out_of_range_len +
+		    priv->stats.pport.oversize_pkts +
+		    priv->stats.pport.symbol_err +
+		    priv->stats.pport.too_long_errors +
+		    priv->stats.pport.undersize_pkts +
+		    priv->stats.pport.unsupported_op_rx;
 		break;
 	case IFCOUNTER_IQDROPS:
 		retval = priv->stats.vport.rx_out_of_buffer;
@@ -2384,6 +2410,9 @@ mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 		break;
 	case IFCOUNTER_OQDROPS:
 		retval = priv->stats.vport.tx_queue_dropped;
+		break;
+	case IFCOUNTER_COLLISIONS:
+		retval = priv->stats.pport.collisions;
 		break;
 	default:
 		retval = if_get_counter_default(ifp, cnt);
