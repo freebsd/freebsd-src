@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -47,9 +47,9 @@ extern char *every_first_cmd;
 extern IFILE curr_ifile;
 extern char version[];
 extern int jump_sline;
-extern int jump_sline_fraction;
+extern long jump_sline_fraction;
 extern int shift_count;
-extern int shift_count_fraction;
+extern long shift_count_fraction;
 extern int less_is_more;
 #if LOGFILE
 extern char *namelogfile;
@@ -67,6 +67,7 @@ extern int bo_fg_color, bo_bg_color;
 extern int ul_fg_color, ul_bg_color;
 extern int so_fg_color, so_bg_color;
 extern int bl_fg_color, bl_bg_color;
+extern int sgr_mode;
 #endif
 
 
@@ -75,7 +76,9 @@ extern int bl_fg_color, bl_bg_color;
  * Handler for -o option.
  */
 	public void
-opt_o(int type, char *s)
+opt_o(type, s)
+	int type;
+	char *s;
 {
 	PARG parg;
 
@@ -123,7 +126,9 @@ opt_o(int type, char *s)
  * Handler for -O option.
  */
 	public void
-opt__O(int type, char *s)
+opt__O(type, s)
+	int type;
+	char *s;
 {
 	force_logfile = TRUE;
 	opt_o(type, s);
@@ -134,7 +139,9 @@ opt__O(int type, char *s)
  * Handlers for -j option.
  */
 	public void
-opt_j(int type, char *s)
+opt_j(type, s)
+	int type;
+	char *s;
 {
 	PARG parg;
 	char buf[16];
@@ -173,7 +180,7 @@ opt_j(int type, char *s)
 		} else
 		{
 
-			sprintf(buf, ".%06d", jump_sline_fraction);
+			sprintf(buf, ".%06ld", jump_sline_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
@@ -186,7 +193,7 @@ opt_j(int type, char *s)
 }
 
 	public void
-calc_jump_sline(void)
+calc_jump_sline()
 {
 	if (jump_sline_fraction < 0)
 		return;
@@ -197,7 +204,9 @@ calc_jump_sline(void)
  * Handlers for -# option.
  */
 	public void
-opt_shift(int type, char *s)
+opt_shift(type, s)
+	int type;
+	char *s;
 {
 	PARG parg;
 	char buf[16];
@@ -236,7 +245,7 @@ opt_shift(int type, char *s)
 		} else
 		{
 
-			sprintf(buf, ".%06d", shift_count_fraction);
+			sprintf(buf, ".%06ld", shift_count_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
@@ -248,7 +257,7 @@ opt_shift(int type, char *s)
 	}
 }
 	public void
-calc_shift_count(void)
+calc_shift_count()
 {
 	if (shift_count_fraction < 0)
 		return;
@@ -257,7 +266,9 @@ calc_shift_count(void)
 
 #if USERFILE
 	public void
-opt_k(int type, char *s)
+opt_k(type, s)
+	int type;
+	char *s;
 {
 	PARG parg;
 
@@ -279,7 +290,9 @@ opt_k(int type, char *s)
  * Handler for -t option.
  */
 	public void
-opt_t(int type, char *s)
+opt_t(type, s)
+	int type;
+	char *s;
 {
 	IFILE save_ifile;
 	POSITION pos;
@@ -318,7 +331,9 @@ opt_t(int type, char *s)
  * Handler for -T option.
  */
 	public void
-opt__T(int type, char *s)
+opt__T(type, s)
+	int type;
+	char *s;
 {
 	PARG parg;
 
@@ -345,7 +360,9 @@ opt__T(int type, char *s)
  * Handler for -p option.
  */
 	public void
-opt_p(int type, char *s)
+opt_p(type, s)
+	int type;
+	char *s;
 {
 	switch (type)
 	{
@@ -379,7 +396,9 @@ opt_p(int type, char *s)
  * Handler for -P option.
  */
 	public void
-opt__P(int type, char *s)
+opt__P(type, s)
+	int type;
+	char *s;
 {
 	char **proto;
 	PARG parg;
@@ -416,7 +435,9 @@ opt__P(int type, char *s)
  */
 	/*ARGSUSED*/
 	public void
-opt_b(int type, char *s)
+opt_b(type, s)
+	int type;
+	char *s;
 {
 	switch (type)
 	{
@@ -437,7 +458,9 @@ opt_b(int type, char *s)
  */
 	/*ARGSUSED*/
 	public void
-opt_i(int type, char *s)
+opt_i(type, s)
+	int type;
+	char *s;
 {
 	switch (type)
 	{
@@ -455,7 +478,9 @@ opt_i(int type, char *s)
  */
 	/*ARGSUSED*/
 	public void
-opt__V(int type, char *s)
+opt__V(type, s)
+	int type;
+	char *s;
 {
 	switch (type)
 	{
@@ -493,7 +518,7 @@ opt__V(int type, char *s)
 		putstr("no ");
 #endif
 		putstr("regular expressions)\n");
-		putstr("Copyright (C) 1984-2015  Mark Nudelman\n\n");
+		putstr("Copyright (C) 1984-2017  Mark Nudelman\n\n");
 		putstr("less comes with NO WARRANTY, to the extent permitted by law.\n");
 		putstr("For information about the terms of redistribution,\n");
 		putstr("see the file named README in the less distribution.\n");
@@ -508,7 +533,10 @@ opt__V(int type, char *s)
  * Parse an MSDOS color descriptor.
  */
    	static void
-colordesc(char *s, int *fg_color, int *bg_color)
+colordesc(s, fg_color, bg_color)
+	char *s;
+	int *fg_color;
+	int *bg_color;
 {
 	int fg, bg;
 	int err;
@@ -542,8 +570,12 @@ colordesc(char *s, int *fg_color, int *bg_color)
  */
 	/*ARGSUSED*/
 	public void
-opt_D(int type, char *s)
+opt_D(type, s)
+	int type;
+	char *s;
 {
+	PARG p;
+
 	switch (type)
 	{
 	case INIT:
@@ -565,8 +597,11 @@ opt_D(int type, char *s)
 		case 's':
 			colordesc(s, &so_fg_color, &so_bg_color);
 			break;
+		case 'a':
+			sgr_mode = !sgr_mode;
+			break;
 		default:
-			error("-D must be followed by n, d, u, k or s", NULL_PARG);
+			error("-D must be followed by n, d, u, k, s or a", NULL_PARG);
 			break;
 		}
 		if (type == TOGGLE)
@@ -576,6 +611,8 @@ opt_D(int type, char *s)
 		}
 		break;
 	case QUERY:
+		p.p_string = (sgr_mode) ? "on" : "off";
+		error("SGR mode is %s", &p);
 		break;
 	}
 }
@@ -585,7 +622,9 @@ opt_D(int type, char *s)
  * Handler for the -x option.
  */
 	public void
-opt_x(int type, char *s)
+opt_x(type, s)
+	int type;
+	char *s;
 {
 	extern int tabstops[];
 	extern int ntabstops;
@@ -641,7 +680,9 @@ opt_x(int type, char *s)
  * Handler for the -" option.
  */
 	public void
-opt_quote(int type, char *s)
+opt_quote(type, s)
+	int type;
+	char *s;
 {
 	char buf[3];
 	PARG parg;
@@ -682,7 +723,9 @@ opt_quote(int type, char *s)
  */
 	/*ARGSUSED*/
 	public void
-opt_query(int type, char *s)
+opt_query(type, s)
+	int type;
+	char *s;
 {
 	switch (type)
 	{
@@ -699,7 +742,7 @@ opt_query(int type, char *s)
  * Get the "screen window" size.
  */
 	public int
-get_swindow(void)
+get_swindow()
 {
 	if (swindow > 0)
 		return (swindow);

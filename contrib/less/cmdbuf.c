@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -76,25 +76,25 @@ struct mlist
  */
 struct mlist mlist_search =  
 	{ &mlist_search,  &mlist_search,  &mlist_search,  NULL, 0 };
-public void * constant ml_search = (void *) &mlist_search;
+public void *ml_search = (void *) &mlist_search;
 
 struct mlist mlist_examine = 
 	{ &mlist_examine, &mlist_examine, &mlist_examine, NULL, 0 };
-public void * constant ml_examine = (void *) &mlist_examine;
+public void *ml_examine = (void *) &mlist_examine;
 
 #if SHELL_ESCAPE || PIPEC
 struct mlist mlist_shell =   
 	{ &mlist_shell,   &mlist_shell,   &mlist_shell,   NULL, 0 };
-public void * constant ml_shell = (void *) &mlist_shell;
+public void *ml_shell = (void *) &mlist_shell;
 #endif
 
 #else /* CMD_HISTORY */
 
 /* If CMD_HISTORY is off, these are just flags. */
-public void * constant ml_search = (void *)1;
-public void * constant ml_examine = (void *)2;
+public void *ml_search = (void *)1;
+public void *ml_examine = (void *)2;
 #if SHELL_ESCAPE || PIPEC
-public void * constant ml_shell = (void *)3;
+public void *ml_shell = (void *)3;
 #endif
 
 #endif /* CMD_HISTORY */
@@ -114,7 +114,7 @@ static int cmd_mbc_buf_index;
  * Reset command buffer (to empty).
  */
 	public void
-cmd_reset(void)
+cmd_reset()
 {
 	cp = cmdbuf;
 	*cp = '\0';
@@ -129,7 +129,7 @@ cmd_reset(void)
  * Clear command line.
  */
 	public void
-clear_cmd(void)
+clear_cmd()
 {
 	cmd_col = prompt_col = 0;
 	cmd_mbc_buf_len = 0;
@@ -140,28 +140,27 @@ clear_cmd(void)
  * Display a string, usually as a prompt for input into the command buffer.
  */
 	public void
-cmd_putstr(constant char *s)
+cmd_putstr(s)
+	constant char *s;
 {
 	LWCHAR prev_ch = 0;
 	LWCHAR ch;
 	constant char *endline = s + strlen(s);
 	while (*s != '\0')
 	{
-		constant char *ns = s;
+		char *ns = (char *) s;
+		int width;
 		ch = step_char(&ns, +1, endline);
 		while (s < ns)
 			putchr(*s++);
 		if (!utf_mode)
-		{
-			cmd_col++;
-			prompt_col++;
-		} else if (!is_composing_char(ch) &&
-		           !is_combining_char(prev_ch, ch))
-		{
-			int width = is_wide_char(ch) ? 2 : 1;
-			cmd_col += width;
-			prompt_col += width;
-		}
+			width = 1;
+		else if (is_composing_char(ch) || is_combining_char(prev_ch, ch))
+			width = 0;
+		else
+			width = is_wide_char(ch) ? 2 : 1;
+		cmd_col += width;
+		prompt_col += width;
 		prev_ch = ch;
 	}
 }
@@ -170,10 +169,10 @@ cmd_putstr(constant char *s)
  * How many characters are in the command buffer?
  */
 	public int
-len_cmdbuf(void)
+len_cmdbuf()
 {
-	constant char *s = cmdbuf;
-	constant char *endline = s + strlen(s);
+	char *s = cmdbuf;
+	char *endline = s + strlen(s);
 	int len = 0;
 
 	while (*s != '\0')
@@ -186,63 +185,44 @@ len_cmdbuf(void)
 
 /*
  * Common part of cmd_step_right() and cmd_step_left().
+ * {{ Returning pwidth and bswidth separately is a historical artifact
+ *    since they're always the same. Maybe clean this up someday. }}
  */
 	static char *
-cmd_step_common(constant char *p, LWCHAR ch, int len, int *pwidth, int *bswidth)
+cmd_step_common(p, ch, len, pwidth, bswidth)
+	char *p;
+	LWCHAR ch;
+	int len;
+	int *pwidth;
+	int *bswidth;
 {
 	char *pr;
+	int width;
 
 	if (len == 1)
 	{
 		pr = prchar((int) ch);
-		if (pwidth != NULL || bswidth != NULL)
-		{
-			int len = (int) strlen(pr);
-			if (pwidth != NULL)
-				*pwidth = len;
-			if (bswidth != NULL)
-				*bswidth = len;
-		}
+		width = (int) strlen(pr);
 	} else
 	{
 		pr = prutfchar(ch);
-		if (pwidth != NULL || bswidth != NULL)
+		if (is_composing_char(ch))
+			width = 0;
+		else if (is_ubin_char(ch))
+			width = (int) strlen(pr);
+		else
 		{
-			if (is_composing_char(ch))
-			{
-				if (pwidth != NULL)
-					*pwidth = 0;
-				if (bswidth != NULL)
-					*bswidth = 0;
-			} else if (is_ubin_char(ch))
-			{
-				int len = (int) strlen(pr);
-				if (pwidth != NULL)
-					*pwidth = len;
-				if (bswidth != NULL)
-					*bswidth = len;
-			} else
-			{
-				LWCHAR prev_ch = step_char(&p, -1, cmdbuf);
-				if (is_combining_char(prev_ch, ch))
-				{
-					if (pwidth != NULL)
-						*pwidth = 0;
-					if (bswidth != NULL)
-						*bswidth = 0;
-				} else
-				{
-					if (pwidth != NULL)
-						*pwidth	= is_wide_char(ch)
-							?	2
-							:	1;
-					if (bswidth != NULL)
-						*bswidth = 1;
-				}
-			}
+			LWCHAR prev_ch = step_char(&p, -1, cmdbuf);
+			if (is_combining_char(prev_ch, ch))
+				width = 0;
+			else
+				width = is_wide_char(ch) ? 2 : 1;
 		}
 	}
-
+	if (pwidth != NULL)
+		*pwidth	= width;
+	if (bswidth != NULL)
+		*bswidth = width;
 	return (pr);
 }
 
@@ -250,10 +230,13 @@ cmd_step_common(constant char *p, LWCHAR ch, int len, int *pwidth, int *bswidth)
  * Step a pointer one character right in the command buffer.
  */
 	static char *
-cmd_step_right(char **pp, int *pwidth, int *bswidth)
+cmd_step_right(pp, pwidth, bswidth)
+	char **pp;
+	int *pwidth;
+	int *bswidth;
 {
 	char *p = *pp;
-	LWCHAR ch = step_char((constant char **)pp, +1, p + strlen(p));
+	LWCHAR ch = step_char(pp, +1, p + strlen(p));
 
 	return cmd_step_common(p, ch, *pp - p, pwidth, bswidth);
 }
@@ -262,10 +245,13 @@ cmd_step_right(char **pp, int *pwidth, int *bswidth)
  * Step a pointer one character left in the command buffer.
  */
 	static char *
-cmd_step_left(char **pp, int *pwidth, int *bswidth)
+cmd_step_left(pp, pwidth, bswidth)
+	char **pp;
+	int *pwidth;
+	int *bswidth;
 {
 	char *p = *pp;
-	LWCHAR ch = step_char((constant char **)pp, -1, cmdbuf);
+	LWCHAR ch = step_char(pp, -1, cmdbuf);
 
 	return cmd_step_common(*pp, ch, p - *pp, pwidth, bswidth);
 }
@@ -275,7 +261,8 @@ cmd_step_left(char **pp, int *pwidth, int *bswidth)
  * Then position the cursor just after the char old_cp (a pointer into cmdbuf).
  */
 	static void
-cmd_repaint(char *old_cp)
+cmd_repaint(old_cp)
+	constant char *old_cp;
 {
 	/*
 	 * Repaint the line from the current position.
@@ -285,7 +272,7 @@ cmd_repaint(char *old_cp)
 	{
 		char *np = cp;
 		int width;
-		constant char *pr = cmd_step_right(&np, &width, NULL);
+		char *pr = cmd_step_right(&np, &width, NULL);
 		if (cmd_col + width >= sc_width)
 			break;
 		cp = np;
@@ -315,7 +302,7 @@ cmd_repaint(char *old_cp)
  * and set cp to the corresponding char in cmdbuf.
  */
 	static void
-cmd_home(void)
+cmd_home()
 {
 	while (cmd_col > prompt_col)
 	{
@@ -334,7 +321,7 @@ cmd_home(void)
  * Shift the cmdbuf display left a half-screen.
  */
 	static void
-cmd_lshift(void)
+cmd_lshift()
 {
 	char *s;
 	char *save_cp;
@@ -372,7 +359,7 @@ cmd_lshift(void)
  * Shift the cmdbuf display right a half-screen.
  */
 	static void
-cmd_rshift(void)
+cmd_rshift()
 {
 	char *s;
 	char *save_cp;
@@ -402,7 +389,7 @@ cmd_rshift(void)
  * Move cursor right one character.
  */
 	static int
-cmd_right(void)
+cmd_right()
 {
 	char *pr;
 	char *ncp;
@@ -437,7 +424,7 @@ cmd_right(void)
  * Move cursor left one character.
  */
 	static int
-cmd_left(void)
+cmd_left()
 {
 	char *ncp;
 	int width, bswidth;
@@ -467,7 +454,9 @@ cmd_left(void)
  * Insert a char into the command buffer, at the current position.
  */
 	static int
-cmd_ichar(char *cs, int clen)
+cmd_ichar(cs, clen)
+	char *cs;
+	int clen;
 {
 	char *s;
 	
@@ -502,7 +491,7 @@ cmd_ichar(char *cs, int clen)
  * Delete the char to the left of the cursor.
  */
 	static int
-cmd_erase(void)
+cmd_erase()
 {
 	char *s;
 	int clen;
@@ -551,7 +540,7 @@ cmd_erase(void)
  * Delete the char under the cursor.
  */
 	static int
-cmd_delete(void)
+cmd_delete()
 {
 	if (*cp == '\0')
 	{
@@ -570,7 +559,7 @@ cmd_delete(void)
  * Delete the "word" to the left of the cursor.
  */
 	static int
-cmd_werase(void)
+cmd_werase()
 {
 	if (cp > cmdbuf && cp[-1] == ' ')
 	{
@@ -596,7 +585,7 @@ cmd_werase(void)
  * Delete the "word" under the cursor.
  */
 	static int
-cmd_wdelete(void)
+cmd_wdelete()
 {
 	if (*cp == ' ')
 	{
@@ -622,7 +611,7 @@ cmd_wdelete(void)
  * Delete all chars in the command buffer.
  */
 	static int
-cmd_kill(void)
+cmd_kill()
 {
 	if (cmdbuf[0] == '\0')
 	{
@@ -648,7 +637,9 @@ cmd_kill(void)
  * Select an mlist structure to be the current command history.
  */
 	public void
-set_mlist(constant void *mlist, int cmdflags)
+set_mlist(mlist, cmdflags)
+	void *mlist;
+	int cmdflags;
 {
 #if CMD_HISTORY
 	curr_mlist = (struct mlist *) mlist;
@@ -667,9 +658,10 @@ set_mlist(constant void *mlist, int cmdflags)
  * cmdbuf's corresponding chars.
  */
 	static int
-cmd_updown(int action)
+cmd_updown(action)
+	int action;
 {
-	char *s;
+	constant char *s;
 	struct mlist *ml;
 	
 	if (curr_mlist == NULL)
@@ -729,7 +721,10 @@ cmd_updown(int action)
  * Add a string to an mlist.
  */
 	public void
-cmd_addhist(struct mlist *constant mlist, char *cmd, int modified)
+cmd_addhist(mlist, cmd, modified)
+	struct mlist *mlist;
+	constant char *cmd;
+	int modified;
 {
 #if CMD_HISTORY
 	struct mlist *ml;
@@ -772,7 +767,7 @@ cmd_addhist(struct mlist *constant mlist, char *cmd, int modified)
  * Add it to the currently selected history list.
  */
 	public void
-cmd_accept(void)
+cmd_accept()
 {
 #if CMD_HISTORY
 	/*
@@ -794,7 +789,8 @@ cmd_accept(void)
  *	CC_QUIT	The char requests the current command to be aborted.
  */
 	static int
-cmd_edit(int c)
+cmd_edit(c)
+	int c;
 {
 	int action;
 	int flags;
@@ -909,7 +905,8 @@ cmd_edit(int c)
  * Insert a string into the command buffer, at the current position.
  */
 	static int
-cmd_istr(char *str)
+cmd_istr(str)
+	char *str;
 {
 	char *s;
 	int action;
@@ -918,7 +915,7 @@ cmd_istr(char *str)
 	for (s = str;  *s != '\0';  )
 	{
 		char *os = s;
-		step_char((constant char **)&s, +1, endline);
+		step_char(&s, +1, endline);
 		action = cmd_ichar(os, s - os);
 		if (action != CC_OK)
 		{
@@ -936,14 +933,14 @@ cmd_istr(char *str)
  * cursor at the end of the word.
  */
 	static char *
-delimit_word(void)
+delimit_word()
 {
 	char *word;
 #if SPACES_IN_FILENAMES
 	char *p;
 	int delim_quoted = 0;
 	int meta_quoted = 0;
-	char *esc = get_meta_escape();
+	constant char *esc = get_meta_escape();
 	int esclen = (int) strlen(esc);
 #endif
 	
@@ -1023,7 +1020,7 @@ delimit_word(void)
  * which start with that word, and set tk_text to that list.
  */
 	static void
-init_compl(void)
+init_compl()
 {
 	char *word;
 	char c;
@@ -1086,7 +1083,9 @@ init_compl(void)
  * Return the next word in the current completion list.
  */
 	static char *
-next_compl(int action, char *prev)
+next_compl(action, prev)
+	int action;
+	char *prev;
 {
 	switch (action)
 	{
@@ -1106,7 +1105,8 @@ next_compl(int action, char *prev)
  * or a subsequent time (step thru the list).
  */
 	static int
-cmd_complete(int action)
+cmd_complete(action)
+	int action;
 {
 	char *s;
 
@@ -1203,7 +1203,8 @@ fail:
  *	CC_ERROR	The char could not be accepted due to an error.
  */
 	public int
-cmd_char(int c)
+cmd_char(c)
+	int c;
 {
 	int action;
 	int len;
@@ -1292,7 +1293,8 @@ cmd_char(int c)
  * Return the number currently in the command buffer.
  */
 	public LINENUM
-cmd_int(long *frac)
+cmd_int(frac)
+	long *frac;
 {
 	char *p;
 	LINENUM n = 0;
@@ -1313,7 +1315,7 @@ cmd_int(long *frac)
  * Return a pointer to the command buffer.
  */
 	public char *
-get_cmdbuf(void)
+get_cmdbuf()
 {
 	return (cmdbuf);
 }
@@ -1323,7 +1325,7 @@ get_cmdbuf(void)
  * Return the last (most recent) string in the current command history.
  */
 	public char *
-cmd_lastpattern(void)
+cmd_lastpattern()
 {
 	if (curr_mlist == NULL)
 		return (NULL);
@@ -1335,7 +1337,8 @@ cmd_lastpattern(void)
 /*
  */
 	static int
-mlist_size(struct mlist *ml)
+mlist_size(ml)
+	struct mlist *ml;
 {
 	int size = 0;
 	for (ml = ml->next;  ml->string != NULL;  ml = ml->next)
@@ -1347,7 +1350,7 @@ mlist_size(struct mlist *ml)
  * Get the name of the history file.
  */
 	static char *
-histfile_name(void)
+histfile_name()
 {
 	char *home;
 	char *name;
@@ -1387,8 +1390,11 @@ histfile_name(void)
  * Read a .lesshst file and call a callback for each line in the file.
  */
 	static void
-read_cmdhist2(void (*action)(void*,struct mlist*,char*), void *uparam,
-    int skip_search, int skip_shell)
+read_cmdhist2(action, uparam, skip_search, skip_shell)
+	void (*action)(void*,struct mlist*,char*);
+	void *uparam;
+	int skip_search;
+	int skip_shell;
 {
 	struct mlist *ml = NULL;
 	char line[CMDBUF_SIZE];
@@ -1448,8 +1454,11 @@ read_cmdhist2(void (*action)(void*,struct mlist*,char*), void *uparam,
 }
 
 	static void
-read_cmdhist(void (*action)(void*,struct mlist*,char*), void *uparam,
-    int skip_search, int skip_shell)
+read_cmdhist(action, uparam, skip_search, skip_shell)
+	void (*action)(void*,struct mlist*,char*);
+	void *uparam;
+	int skip_search;
+	int skip_shell;
 {
 	read_cmdhist2(action, uparam, skip_search, skip_shell);
 	(*action)(uparam, NULL, NULL); /* signal end of file */
@@ -1468,7 +1477,7 @@ addhist_init(void *uparam, struct mlist *ml, char *string)
  * Initialize history from a .lesshist file.
  */
 	public void
-init_cmdhist(void)
+init_cmdhist()
 {
 #if CMD_HISTORY
 	read_cmdhist(&addhist_init, NULL, 0, 0);
@@ -1480,7 +1489,9 @@ init_cmdhist(void)
  */
 #if CMD_HISTORY
 	static void
-write_mlist_header(struct mlist *ml, FILE *f)
+write_mlist_header(ml, f)
+	struct mlist *ml;
+	FILE *f;
 {
 	if (ml == &mlist_search)
 		fprintf(f, "%s\n", HISTFILE_SEARCH_SECTION);
@@ -1494,7 +1505,9 @@ write_mlist_header(struct mlist *ml, FILE *f)
  * Write all modified entries in an mlist to the history file.
  */
 	static void
-write_mlist(struct mlist *ml, FILE *f)
+write_mlist(ml, f)
+	struct mlist *ml;
+	FILE *f;
 {
 	for (ml = ml->next;  ml->string != NULL;  ml = ml->next)
 	{
@@ -1510,7 +1523,8 @@ write_mlist(struct mlist *ml, FILE *f)
  * Make a temp name in the same directory as filename.
  */
 	static char *
-make_tempname(char *filename)
+make_tempname(filename)
+	char *filename;
 {
 	char lastch;
 	char *tempname = ecalloc(1, strlen(filename)+1);
@@ -1573,7 +1587,8 @@ copy_hist(void *uparam, struct mlist *ml, char *string)
  * Make a file readable only by its owner.
  */
 	static void
-make_file_private(FILE *f)
+make_file_private(f)
+	FILE *f;
 {
 #if HAVE_FCHMOD
 	int do_chmod = 1;
@@ -1593,7 +1608,7 @@ make_file_private(FILE *f)
  * Does the history file need to be updated?
  */
 	static int
-histfile_modified(void)
+histfile_modified()
 {
 	if (mlist_search.modified)
 		return 1;
@@ -1608,7 +1623,7 @@ histfile_modified(void)
  * Update the .lesshst file.
  */
 	public void
-save_cmdhist(void)
+save_cmdhist()
 {
 #if CMD_HISTORY
 	char *histname;
