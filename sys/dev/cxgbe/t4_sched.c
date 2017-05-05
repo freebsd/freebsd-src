@@ -357,7 +357,6 @@ t4_init_tx_sched(struct adapter *sc)
 		    n * sizeof(*tc), M_CXGBE, M_ZERO | M_WAITOK);
 		tc = &pi->sched_params->cl_rl[0];
 		for (j = 0; j < n; j++, tc++) {
-			tc->flags = TX_CLRL_REFRESH;
 			tc->refcount = 0;
 			tc->ratemode = FW_SCHED_PARAMS_RATE_ABS;
 			tc->rateunit = FW_SCHED_PARAMS_UNIT_BITRATE;
@@ -365,8 +364,11 @@ t4_init_tx_sched(struct adapter *sc)
 			tc->maxrate = init_kbps[min(j, nitems(init_kbps) - 1)];
 			tc->pktsize = ETHERMTU;	/* XXX */
 
-			t4_sched_params_cl_rl_kbps(sc, pi->tx_chan, j, tc->mode,
-			    tc->maxrate, tc->pktsize, 1);
+			if (t4_sched_params_cl_rl_kbps(sc, pi->tx_chan, j,
+			    tc->mode, tc->maxrate, tc->pktsize, 1) == 0)
+				tc->flags = 0;
+			else
+				tc->flags = TX_CLRL_ERROR;
 		}
 	}
 
