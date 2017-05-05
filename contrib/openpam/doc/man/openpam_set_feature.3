@@ -1,6 +1,6 @@
 .\" Generated from openpam_set_feature.c by gendoc.pl
-.\" $Id: openpam_set_feature.c 648 2013-03-05 17:54:27Z des $
-.Dd February 19, 2017
+.\" $OpenPAM: openpam_set_feature.c 938 2017-04-30 21:34:42Z des $
+.Dd April 30, 2017
 .Dt OPENPAM_SET_FEATURE 3
 .Os
 .Sh NAME
@@ -32,8 +32,10 @@ The
 .Fn openpam_set_feature
 function returns one of the following values:
 .Bl -tag -width 18n
-.It Bq Er PAM_SYMBOL_ERR
-Invalid symbol.
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_BAD_FEATURE
+Unrecognized or restricted feature.
 .El
 .Sh SEE ALSO
 .Xr openpam_get_feature 3 ,

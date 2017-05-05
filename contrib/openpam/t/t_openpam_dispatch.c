@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Dag-Erling Smørgrav
+ * Copyright (c) 2015-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: t_openpam_dispatch.c 922 2017-02-19 19:28:30Z des $
+ * $OpenPAM: t_openpam_dispatch.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -54,7 +54,7 @@
 	    OPENPAM_UNUSED(void *arg))
 
 #define T(n)								\
-	t_add_test(&t_ ## n ## _func, NULL, t_ ## n ## _desc)
+	t_add_test(&t_ ## n ## _func, NULL, "%s", t_ ## n ## _desc)
 
 const char *pam_return_so;
 
@@ -73,7 +73,7 @@ T_FUNC(empty_policy, "empty policy")
 	t_fprintf(tf, "# empty policy\n");
 	pam_err = pam_start(tf->name, "test", &pamc, &pamh);
 	if (pam_err != PAM_SUCCESS) {
-		t_verbose("pam_start() returned %d\n", pam_err);
+		t_printv("pam_start() returned %d\n", pam_err);
 		return (0);
 	}
 	/*
@@ -82,22 +82,22 @@ T_FUNC(empty_policy, "empty policy")
 	 * instead.
 	 */
 	pam_err = pam_authenticate(pamh, 0);
-	t_verbose("pam_authenticate() returned %d\n", pam_err);
+	t_printv("pam_authenticate() returned %d\n", pam_err);
 	ret = (pam_err == PAM_SYSTEM_ERR);
 	pam_err = pam_setcred(pamh, 0);
-	t_verbose("pam_setcred() returned %d\n", pam_err);
+	t_printv("pam_setcred() returned %d\n", pam_err);
 	ret &= (pam_err == PAM_SYSTEM_ERR);
 	pam_err = pam_acct_mgmt(pamh, 0);
-	t_verbose("pam_acct_mgmt() returned %d\n", pam_err);
+	t_printv("pam_acct_mgmt() returned %d\n", pam_err);
 	ret &= (pam_err == PAM_SYSTEM_ERR);
 	pam_err = pam_chauthtok(pamh, 0);
-	t_verbose("pam_chauthtok() returned %d\n", pam_err);
+	t_printv("pam_chauthtok() returned %d\n", pam_err);
 	ret &= (pam_err == PAM_SYSTEM_ERR);
 	pam_err = pam_open_session(pamh, 0);
-	t_verbose("pam_open_session() returned %d\n", pam_err);
+	t_printv("pam_open_session() returned %d\n", pam_err);
 	ret &= (pam_err == PAM_SYSTEM_ERR);
 	pam_err = pam_close_session(pamh, 0);
-	t_verbose("pam_close_session() returned %d\n", pam_err);
+	t_printv("pam_close_session() returned %d\n", pam_err);
 	ret &= (pam_err == PAM_SYSTEM_ERR);
 	pam_end(pamh, pam_err);
 	t_fclose(tf);
@@ -150,7 +150,7 @@ T_FUNC(mod_return, "module return value")
 		}
 		pam_err = pam_start(tf->name, "test", &pamc, &pamh);
 		if (pam_err != PAM_SUCCESS) {
-			t_verbose("pam_start() returned %d\n", pam_err);
+			t_printv("pam_start() returned %d\n", pam_err);
 			t_fclose(tf);
 			continue;
 		}
@@ -174,10 +174,10 @@ T_FUNC(mod_return, "module return value")
 			pam_err = pam_chauthtok(pamh, tc->flags);
 			break;
 		}
-		t_verbose("%s returned %d\n",
+		t_printv("%s returned %d\n",
 		    pam_func_name[tc->primitive], pam_err);
 		pam_end(pamh, pam_err);
-		t_verbose("here\n");
+		t_printv("here\n");
 		t_fclose(tf);
 	}
 	return (1);
@@ -196,7 +196,7 @@ t_prepare(int argc, char *argv[])
 	(void)argv;
 
 	if ((pam_return_so = getenv("PAM_RETURN_SO")) == NULL) {
-		t_verbose("define PAM_RETURN_SO before running these tests\n");
+		t_printv("define PAM_RETURN_SO before running these tests\n");
 		return (0);
 	}
 
