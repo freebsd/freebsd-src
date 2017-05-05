@@ -494,6 +494,34 @@ wv_combo_break_body()
 	atf_check -s exit:1 grep -v -w "x" test1
 	atf_check -s exit:1 grep -v -w "x" test2
 }
+
+atf_test_case grep_nomatch_flags
+grep_nomatch_flags_head()
+{
+	atf_set "descr" "Check for no match (-c, -l, -L, -q) flags not producing line matches or context (PR 219077)"
+}
+
+grep_nomatch_flags_body()
+{
+	printf "A\nB\nC\n" > test1
+
+	atf_check -o inline:"1\n" grep -c -C 1 -e "B" test1
+	atf_check -o inline:"1\n" grep -c -B 1 -e "B" test1
+	atf_check -o inline:"1\n" grep -c -A 1 -e "B" test1
+	atf_check -o inline:"1\n" grep -c -C 1 -e "B" test1
+
+	atf_check -o inline:"test1\n" grep -l -e "B" test1
+	atf_check -o inline:"test1\n" grep -l -B 1 -e "B" test1
+	atf_check -o inline:"test1\n" grep -l -A 1 -e "B" test1
+	atf_check -o inline:"test1\n" grep -l -C 1 -e "B" test1
+
+	atf_check -s exit:1 -o inline:"test1\n" grep -L -e "D" test1
+
+	atf_check -o empty grep -q -e "B" test1
+	atf_check -o empty grep -q -B 1 -e "B" test1
+	atf_check -o empty grep -q -A 1 -e "B" test1
+	atf_check -o empty grep -q -C 1 -e "B" test1
+}
 # End FreeBSD
 
 atf_init_test_cases()
@@ -527,5 +555,6 @@ atf_init_test_cases()
 	atf_add_test_case fgrep_sanity
 	atf_add_test_case egrep_sanity
 	atf_add_test_case grep_sanity
+	atf_add_test_case grep_nomatch_flags
 # End FreeBSD
 }
