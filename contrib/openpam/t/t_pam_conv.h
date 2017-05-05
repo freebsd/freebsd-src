@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: t_pam_conv.h 863 2015-07-30 23:44:31Z des $
+ * $OpenPAM: t_pam_conv.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef T_PAM_CONV_H_INCLUDED

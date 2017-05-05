@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2015 Dag-Erling Smørgrav
+ * Copyright (c) 2014-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: t_openpam_ctype.c 922 2017-02-19 19:28:30Z des $
+ * $OpenPAM: t_openpam_ctype.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -75,7 +75,7 @@ static const char oc_pfcs[] = OC_PFCS;
 			crib[(int)oc_##set[i]] = 1;			\
 		for (i = ret = 0; i < sizeof crib; ++i) {		\
 			if (is_##set(i) != crib[i]) {			\
-				t_verbose("is_%s() incorrect "		\
+				t_printv("is_%s() incorrect "		\
 				    "for %#02x\n", #set, i);		\
 				++ret;					\
 			}						\
