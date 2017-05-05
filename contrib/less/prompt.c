@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2015  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -66,7 +66,7 @@ static char *mp;
  * Initialize the prompt prototype strings.
  */
 	public void
-init_prompt(void)
+init_prompt()
 {
 	prproto[0] = save(s_proto);
 	prproto[1] = save(less_is_more ? more_proto : m_proto);
@@ -80,7 +80,8 @@ init_prompt(void)
  * Append a string to the end of the message.
  */
 	static void
-ap_str(char *s)
+ap_str(s)
+	char *s;
 {
 	int len;
 
@@ -96,7 +97,8 @@ ap_str(char *s)
  * Append a character to the end of the message.
  */
 	static void
-ap_char(char c)
+ap_char(c)
+	char c;
 {
 	char buf[2];
 
@@ -109,7 +111,8 @@ ap_char(char c)
  * Append a POSITION (as a decimal integer) to the end of the message.
  */
 	static void
-ap_pos(POSITION pos)
+ap_pos(pos)
+	POSITION pos;
 {
 	char buf[INT_STRLEN_BOUND(pos) + 2];
 
@@ -121,7 +124,8 @@ ap_pos(POSITION pos)
  * Append a line number to the end of the message.
  */
  	static void
-ap_linenum(LINENUM linenum)
+ap_linenum(linenum)
+	LINENUM linenum;
 {
 	char buf[INT_STRLEN_BOUND(linenum) + 2];
 
@@ -133,7 +137,8 @@ ap_linenum(LINENUM linenum)
  * Append an integer to the end of the message.
  */
 	static void
-ap_int(int num)
+ap_int(num)
+	int num;
 {
 	char buf[INT_STRLEN_BOUND(num) + 2];
 
@@ -145,7 +150,7 @@ ap_int(int num)
  * Append a question mark to the end of the message.
  */
 	static void
-ap_quest(void)
+ap_quest()
 {
 	ap_str("?");
 }
@@ -154,7 +159,8 @@ ap_quest(void)
  * Return the "current" byte offset in the file.
  */
 	static POSITION
-curr_byte(int where)
+curr_byte(where)
+	int where;
 {
 	POSITION pos;
 
@@ -173,7 +179,9 @@ curr_byte(int where)
  * Here we decode that letter and return the appropriate boolean value.
  */
 	static int
-cond(char c, int where)
+cond(c, where)
+	char c;
+	int where;
 {
 	POSITION len;
 
@@ -235,7 +243,10 @@ cond(char c, int where)
  * usually by appending something to the message being built.
  */
 	static void
-protochar(int c, int where, int iseditproto)
+protochar(c, where, iseditproto)
+	int c;
+	int where;
+	int iseditproto;
 {
 	POSITION pos;
 	POSITION len;
@@ -382,7 +393,8 @@ protochar(int c, int where, int iseditproto)
  * We must keep track of nested IFs and skip them properly.
  */
 	static constant char *
-skipcond(constant char *p)
+skipcond(p)
+	constant char *p;
 {
 	int iflevel;
 
@@ -439,7 +451,9 @@ skipcond(constant char *p)
  * Decode a char that represents a position on the screen.
  */
 	static constant char *
-wherechar(char constant *p, int *wp)
+wherechar(p, wp)
+	char constant *p;
+	int *wp;
 {
 	switch (*p)
 	{
@@ -461,7 +475,9 @@ wherechar(char constant *p, int *wp)
  * Construct a message based on a prototype string.
  */
 	public char *
-pr_expand(constant char *proto, int maxwidth)
+pr_expand(proto, maxwidth)
+	constant char *proto;
+	int maxwidth;
 {
 	constant char *p;
 	int c;
@@ -535,7 +551,7 @@ pr_expand(constant char *proto, int maxwidth)
  * Return a message suitable for printing by the "=" command.
  */
 	public char *
-eq_message(void)
+eq_message()
 {
 	return (pr_expand(eqproto, 0));
 }
@@ -547,7 +563,7 @@ eq_message(void)
  * and the caller will prompt with a colon.
  */
 	public char *
-pr_string(void)
+pr_string()
 {
 	char *prompt;
 	int type;
@@ -564,7 +580,7 @@ pr_string(void)
  * Return a message suitable for printing while waiting in the F command.
  */
 	public char *
-wait_message(void)
+wait_message()
 {
 	return (pr_expand(wproto, sc_width-so_s_width-so_e_width-2));
 }
