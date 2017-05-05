@@ -1046,7 +1046,8 @@ cheriabi_sigaction(struct thread *td, struct cheriabi_sigaction_args *uap)
 		cheri_capability_copy(&cap, &sa_c.sa_u);
 	} else
 		sap = NULL;
-	error = kern_sigaction_cap(td, uap->sig, sap, &osa, 0, &cap);
+	error = kern_sigaction_cap(td, uap->sig, sap,
+	    uap->oact != NULL ? &osa : NULL, 0, &cap);
 	if (error == 0 && uap->oact != NULL) {
 		cheri_capability_copy(&sa_c.sa_u, &cap);
 		CP(osa, sa_c, sa_flags);
