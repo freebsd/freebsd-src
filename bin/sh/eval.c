@@ -1222,7 +1222,7 @@ bltincmd(int argc, char **argv)
 		return 127;
 	}
 	/*
-	 * Preserve exitstatus of a previous possible redirection
+	 * Preserve exitstatus of a previous possible command substitution
 	 * as POSIX mandates
 	 */
 	return exitstatus;
