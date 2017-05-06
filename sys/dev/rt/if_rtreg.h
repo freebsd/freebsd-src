@@ -48,6 +48,10 @@
 #define	    MDIO_PHY_DATA_MASK	0x0000ffff
 #define	    MDIO_PHY_DATA_SHIFT	0
 
+#define	MDIO_CFG	0x04
+#define	    MDIO_2880_100T_INIT	0x1001BC01
+#define	    MDIO_2880_GIGA_INIT	0x1F01DC01
+
 #define	FE_GLO_CFG	0x08 /*Frame Engine Global Configuration */
 #define	    EXT_VLAN_TYPE_MASK	0xffff0000
 #define	    EXT_VLAN_TYPE_SHIFT	16
