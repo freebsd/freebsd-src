@@ -472,8 +472,8 @@ cacheino(union dinode *dp, ino_t inumber)
 			inp->i_blks[NDADDR + i] = DIP(dp, di_ib[i]);
 	if (inplast == listmax) {
 		listmax += 100;
-		inpsort = (struct inoinfo **)realloc((char *)inpsort,
-		    (unsigned)listmax * sizeof(struct inoinfo *));
+		inpsort = (struct inoinfo **)reallocarray((char *)inpsort,
+		    listmax, sizeof(struct inoinfo *));
 		if (inpsort == NULL)
 			errx(EEXIT, "cannot increase directory list");
 	}
