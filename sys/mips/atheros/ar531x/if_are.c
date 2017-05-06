@@ -302,9 +302,9 @@ are_attach(device_t dev)
 	ifp->if_init = are_init;
 	sc->are_if_flags = ifp->if_flags;
 
-	/* XXX: add real size */
-	IFQ_SET_MAXLEN(&ifp->if_snd, 9);
-	ifp->if_snd.ifq_maxlen = 9;
+	/* ifqmaxlen is sysctl value in net/if.c */
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/* Tell the upper layer(s) we support long frames. */
@@ -686,19 +686,92 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 {
 	struct are_txdesc	*txd;
 	struct are_desc		*desc, *prev_desc;
+	struct mbuf		*m;
 	bus_dma_segment_t	txsegs[ARE_MAXFRAGS];
 	uint32_t		link_addr;
 	int			error, i, nsegs, prod, si, prev_prod;
 	int			txstat;
+	int			startcount;
+	int			padlen;
+
+	startcount = sc->are_cdata.are_tx_cnt;
 
 	ARE_LOCK_ASSERT(sc);
 
+	/*
+	 * Some VIA Rhine wants packet buffers to be longword
+	 * aligned, but very often our mbufs aren't. Rather than
+	 * waste time trying to decide when to copy and when not
+	 * to copy, just do it all the time.
+	 */
+	m = m_defrag(*m_head, M_NOWAIT);
+	if (m == NULL) {
+		device_printf(sc->are_dev, "are_encap m_defrag error\n");
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (ENOBUFS);
+	}
+	*m_head = m;
+
+	/*
+	 * The Rhine chip doesn't auto-pad, so we have to make
+	 * sure to pad short frames out to the minimum frame length
+	 * ourselves.
+	 */
+	if ((*m_head)->m_pkthdr.len < ARE_MIN_FRAMELEN) {
+		m = *m_head;
+		padlen = ARE_MIN_FRAMELEN - m->m_pkthdr.len;
+		if (M_WRITABLE(m) == 0) {
+			/* Get a writable copy. */
+			m = m_dup(*m_head, M_NOWAIT);
+			m_freem(*m_head);
+			if (m == NULL) {
+				device_printf(sc->are_dev, "are_encap m_dup error\n");
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+			*m_head = m;
+		}
+		if (m->m_next != NULL || M_TRAILINGSPACE(m) < padlen) {
+			m = m_defrag(m, M_NOWAIT);
+			if (m == NULL) {
+				device_printf(sc->are_dev, "are_encap m_defrag error\n");
+				m_freem(*m_head);
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+		}
+		/*
+		 * Manually pad short frames, and zero the pad space
+		 * to avoid leaking data.
+		 */
+		bzero(mtod(m, char *) + m->m_pkthdr.len, padlen);
+		m->m_pkthdr.len += padlen;
+		m->m_len = m->m_pkthdr.len;
+		*m_head = m;
+	}
+
 	prod = sc->are_cdata.are_tx_prod;
 	txd = &sc->are_cdata.are_txdesc[prod];
-	error = bus_dmamap_load_mbuf_sg(sc->are_cdata.are_tx_tag, txd->tx_dmamap,
-	    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(sc->are_cdata.are_tx_tag,
+	    txd->tx_dmamap, *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		panic("EFBIG");
+		device_printf(sc->are_dev, "are_encap EFBIG error\n");
+		m = m_defrag(*m_head, M_NOWAIT);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		*m_head = m;
+		error = bus_dmamap_load_mbuf_sg(sc->are_cdata.are_tx_tag,
+		    txd->tx_dmamap, *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (error);
+		}
+
 	} else if (error != 0)
 		return (error);
 	if (nsegs == 0) {
@@ -729,13 +802,12 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 	for (i = 0; i < nsegs; i++) {
 		desc = &sc->are_rdata.are_tx_ring[prod];
 		desc->are_stat = ADSTAT_OWN;
-		desc->are_devcs = ARE_DMASIZE(txsegs[i].ds_len) | ADCTL_CH;
-		if (i == 0)
-			desc->are_devcs |= ADCTL_Tx_FS;
+		desc->are_devcs = ARE_DMASIZE(txsegs[i].ds_len);
 		desc->are_addr = txsegs[i].ds_addr;
 		/* link with previous descriptor */
-		if (prev_desc)
-			prev_desc->are_link = ARE_TX_RING_ADDR(sc, prod);
+		/* end of descriptor */
+		if (prod == ARE_TX_RING_CNT - 1)
+			desc->are_devcs |= ADCTL_ER;
 
 		sc->are_cdata.are_tx_cnt++;
 		prev_desc = desc;
@@ -761,16 +833,16 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 	/* Start transmitting */
 	/* Check if new list is queued in NDPTR */
 	txstat = (CSR_READ_4(sc, CSR_STATUS) >> 20) & 7;
-	if (txstat == 0 || txstat == 6) {
-		/* Transmit Process Stat is stop or suspended */
-		CSR_WRITE_4(sc, CSR_TXPOLL, TXPOLL_TPD);
+	if (startcount == 0 && (txstat == 0 || txstat == 6)) {
+		desc = &sc->are_rdata.are_tx_ring[si];
+		desc->are_devcs |= ADCTL_Tx_FS;
 	}
 	else {
 		link_addr = ARE_TX_RING_ADDR(sc, si);
 		/* Get previous descriptor */
 		si = (si + ARE_TX_RING_CNT - 1) % ARE_TX_RING_CNT;
 		desc = &sc->are_rdata.are_tx_ring[si];
-		desc->are_link = link_addr;
+		desc->are_devcs &= ~(ADCTL_Tx_IC | ADCTL_Tx_LS);
 	}
 
 	return (0);
@@ -782,6 +854,7 @@ are_start_locked(struct ifnet *ifp)
 	struct are_softc		*sc;
 	struct mbuf		*m_head;
 	int			enq;
+	int			txstat;
 
 	sc = ifp->if_softc;
 
@@ -815,6 +888,14 @@ are_start_locked(struct ifnet *ifp)
 		 * to him.
 		 */
 		ETHER_BPF_MTAP(ifp, m_head);
+	}
+
+	if (enq > 0) { 
+		txstat = (CSR_READ_4(sc, CSR_STATUS) >> 20) & 7;
+		if (txstat == 0 || txstat == 6) {
+			/* Transmit Process Stat is stop or suspended */
+			CSR_WRITE_4(sc, CSR_TXPOLL, TXPOLL_TPD);
+		}
 	}
 }
 

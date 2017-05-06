@@ -44,6 +44,8 @@ struct are_desc {
 #define	ARE_TX_RING_CNT		128
 #define	ARE_TX_RING_SIZE		sizeof(struct are_desc) * ARE_TX_RING_CNT
 #define	ARE_RX_RING_SIZE		sizeof(struct are_desc) * ARE_RX_RING_CNT
+
+#define	ARE_MIN_FRAMELEN		60
 #define	ARE_RING_ALIGN		sizeof(struct are_desc)
 #define	ARE_RX_ALIGN		sizeof(uint32_t)
 #define	ARE_MAXFRAGS		8
