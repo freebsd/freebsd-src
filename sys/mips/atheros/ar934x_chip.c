@@ -315,6 +315,10 @@ ar934x_chip_reset_ethernet_switch(void)
 	DELAY(100);
 	ar71xx_device_start(AR934X_RESET_ETH_SWITCH);
 	DELAY(100);
+	ar71xx_device_stop(AR934X_RESET_ETH_SWITCH_ANALOG);
+	DELAY(100);
+	ar71xx_device_start(AR934X_RESET_ETH_SWITCH_ANALOG);
+	DELAY(100);
 }
 
 static void
