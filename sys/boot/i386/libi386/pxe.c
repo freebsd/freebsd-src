@@ -309,13 +309,9 @@ pxe_open(struct open_file *f, ...)
 			if (servip.s_addr == 0)
 				servip = rootip;
 
-			netproto = NET_NFS;
-			if (tftpip.s_addr != 0) {
-				netproto = NET_TFTP;
-				rootip.s_addr = tftpip.s_addr;
-			}
+			netproto = NET_TFTP;
 
-			if (netproto == NET_NFS && !rootpath[0])
+			if (!rootpath[0])
 				strcpy(rootpath, PXENFSROOTPATH);
 
 			for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
@@ -323,8 +319,10 @@ pxe_open(struct open_file *f, ...)
 					break;
 			if (i && i != FNAME_SIZE && rootpath[i] == ':') {
 				rootpath[i++] = '\0';
-				if (inet_addr(&rootpath[0]) != INADDR_NONE)
+				if (inet_addr(&rootpath[0]) != INADDR_NONE) {
+					netproto = NET_NFS;
 					rootip.s_addr = inet_addr(&rootpath[0]);
+				}
 				bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i]) + 1);
 				bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i]) + 1);
 			}
