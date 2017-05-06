@@ -748,7 +748,9 @@ bool ARMDAGToDAGISel::SelectLdStSOReg(SDValue N, SDValue &Base, SDValue &Offset,
     unsigned PowerOfTwo = 0;
     SDValue NewMulConst;
     if (canExtractShiftFromMul(Offset, 31, PowerOfTwo, NewMulConst)) {
+      HandleSDNode Handle(Offset);
       replaceDAGValue(Offset.getOperand(1), NewMulConst);
+      Offset = Handle.getValue();
       ShAmt = PowerOfTwo;
       ShOpcVal = ARM_AM::lsl;
     }
@@ -1428,7 +1430,9 @@ bool ARMDAGToDAGISel::SelectT2AddrModeSoReg(SDValue N,
     unsigned PowerOfTwo = 0;
     SDValue NewMulConst;
     if (canExtractShiftFromMul(OffReg, 3, PowerOfTwo, NewMulConst)) {
+      HandleSDNode Handle(OffReg);
       replaceDAGValue(OffReg.getOperand(1), NewMulConst);
+      OffReg = Handle.getValue();
       ShAmt = PowerOfTwo;
     }
   }
