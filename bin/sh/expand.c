@@ -222,9 +222,9 @@ stputs_split(const char *data, const char *syntax, int flag, char *p,
  * The result is left in the stack string.
  * When arglist is NULL, perform here document expansion.
  *
- * Caution: this function uses global state and is not reentrant.
- * However, a new invocation after an interrupted invocation is safe
- * and will reset the global state for the new call.
+ * When doing something that may cause this to be re-entered, make sure
+ * the stack string is empty via grabstackstr() and do not assume expdest
+ * remains valid.
  */
 void
 expandarg(union node *arg, struct arglist *arglist, int flag)
@@ -476,7 +476,7 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 		ifs = ifsset() ? ifsval() : " \t\n";
 	else
 		ifs = "";
-	/* Don't copy trailing newlines */
+	/* Remove trailing newlines */
 	for (;;) {
 		if (--in.nleft < 0) {
 			if (in.fd < 0)
@@ -821,7 +821,7 @@ evalvar(const char *p, struct nodelist **restrict argbackq, int flag,
 
 
 /*
- * Test whether a specialized variable is set.
+ * Test whether a special or positional parameter is set.
  */
 
 static int
@@ -918,7 +918,7 @@ reprocess(int startloc, int flag, int subtype, int quoted,
 }
 
 /*
- * Add the value of a specialized variable to the stack string.
+ * Add the value of a special or positional parameter to the stack string.
  */
 
 static void
