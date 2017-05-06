@@ -169,6 +169,7 @@ e6060sw_probe(device_t dev)
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
 
+	devid = 0;
 	for (i = 0; i < 2; ++i) {
 		data = MDIO_READREG(device_get_parent(dev), 
 		    CORE_REGISTER + i * 0x10, SWITCH_ID);
@@ -184,8 +185,6 @@ e6060sw_probe(device_t dev)
 			break;
 		}
 	}
-	if (i == 2)
-		return (ENXIO);
 
 	if (devid == E6060)
 		devname = "88E6060";
@@ -193,6 +192,9 @@ e6060sw_probe(device_t dev)
 		devname = "88E6063";
 	else if (devid == E6065)
 		devname = "88E6065";
+	else
+		return (ENXIO);
+
 	sprintf(desc, "Marvell %s MDIO switch driver at 0x%02x",
 	    devname, sc->smi_offset);
 	device_set_desc_copy(dev, desc);
