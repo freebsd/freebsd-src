@@ -106,16 +106,15 @@ int	rarp_getipaddress(int);
 /* Link functions: */
 ssize_t sendether(struct iodesc *d, void *pkt, size_t len,
 			u_char *dea, int etype);
-ssize_t readether(struct iodesc *d, void *pkt, size_t len,
-			time_t tleft, u_int16_t *etype);
+ssize_t readether(struct iodesc *, void **, void **, time_t, uint16_t *);
 
 ssize_t	sendudp(struct iodesc *, void *, size_t);
-ssize_t	readudp(struct iodesc *, void *, size_t, time_t);
+ssize_t	readudp(struct iodesc *, void **, void **, time_t);
 ssize_t	sendrecv(struct iodesc *,
-		      ssize_t (*)(struct iodesc *, void *, size_t),
+			ssize_t (*)(struct iodesc *, void *, size_t),
 			void *, size_t,
-		        ssize_t (*)(struct iodesc *, void *, size_t, time_t),
-			void *, size_t);
+			ssize_t (*)(struct iodesc *, void **, void **, time_t),
+			void **, void **);
 
 /* bootp/DHCP */
 void	bootp(int, int);
