@@ -97,7 +97,7 @@ struct rpc_reply {
 };
 
 /* Local forwards */
-static	ssize_t recvrpc(struct iodesc *, void *, size_t, time_t);
+static	ssize_t recvrpc(struct iodesc *, void **, void **, time_t);
 static	int rpc_getport(struct iodesc *, n_long, n_long);
 
 int rpc_xid;
@@ -109,14 +109,14 @@ int rpc_port = 0x400;	/* predecrement */
  */
 ssize_t
 rpc_call(struct iodesc *d, n_long prog, n_long vers, n_long proc,
-	void *sdata, size_t slen, void *rdata, size_t rlen)
+	void *sdata, size_t slen, void **rdata, void **pkt)
 {
-	ssize_t cc;
+	ssize_t cc, rsize;
 	struct auth_info *auth;
 	struct rpc_call *call;
 	struct rpc_reply *reply;
 	char *send_head, *send_tail;
-	char *recv_head, *recv_tail;
+	void *ptr;
 	n_long x;
 	int port;	/* host order */
 
@@ -145,7 +145,6 @@ rpc_call(struct iodesc *d, n_long prog, n_long vers, n_long proc,
 	auth->authtype = htonl(RPCAUTH_NULL);
 	auth->authlen = 0;
 
-#if 1
 	/* Auth credentials: always auth unix (as root) */
 	send_head -= sizeof(struct auth_unix);
 	bzero(send_head, sizeof(struct auth_unix));
@@ -153,13 +152,6 @@ rpc_call(struct iodesc *d, n_long prog, n_long vers, n_long proc,
 	auth = (struct auth_info *)send_head;
 	auth->authtype = htonl(RPCAUTH_UNIX);
 	auth->authlen = htonl(sizeof(struct auth_unix));
-#else
-	/* Auth credentials: always auth_null (XXX OK?) */
-	send_head -= sizeof(*auth);
-	auth = send_head;
-	auth->authtype = htonl(RPCAUTH_NULL);
-	auth->authlen = 0;
-#endif
 
 	/* RPC call structure. */
 	send_head -= sizeof(*call);
@@ -172,34 +164,28 @@ rpc_call(struct iodesc *d, n_long prog, n_long vers, n_long proc,
 	call->rp_vers = htonl(vers);
 	call->rp_proc = htonl(proc);
 
-	/* Make room for the rpc_reply header. */
-	recv_head = rdata;
-	recv_tail = (char *)rdata + rlen;
-	recv_head -= sizeof(*reply);
-
+	ptr = NULL;
 	cc = sendrecv(d,
 	    sendudp, send_head, send_tail - send_head,
-	    recvrpc, recv_head, recv_tail - recv_head);
+	    recvrpc, &ptr, (void **)&reply);
 
 #ifdef RPC_DEBUG
 	if (debug)
-		printf("callrpc: cc=%ld rlen=%lu\n", (long)cc, (u_long)rlen);
+		printf("callrpc: cc=%zd\n", cc);
 #endif
 	if (cc == -1)
 		return (-1);
 
 	if (cc <= sizeof(*reply)) {
 		errno = EBADRPC;
+		free(ptr);
 		return (-1);
 	}
-
-	recv_tail = recv_head + cc;
 
 	/*
 	 * Check the RPC reply status.
 	 * The xid, dir, astatus were already checked.
 	 */
-	reply = (struct rpc_reply *)recv_head;
 	auth = &reply->rp_u.rpu_rok.rok_auth;
 	x = ntohl(auth->authlen);
 	if (x != 0) {
@@ -208,17 +194,21 @@ rpc_call(struct iodesc *d, n_long prog, n_long vers, n_long proc,
 			printf("callrpc: reply auth != NULL\n");
 #endif
 		errno = EBADRPC;
-		return(-1);
+		free(ptr);
+		return (-1);
 	}
 	x = ntohl(reply->rp_u.rpu_rok.rok_status);
 	if (x != 0) {
 		printf("callrpc: error = %ld\n", (long)x);
 		errno = EBADRPC;
-		return(-1);
+		free(ptr);
+		return (-1);
 	}
-	recv_head += sizeof(*reply);
 
-	return (ssize_t)(recv_tail - recv_head);
+	rsize = cc - sizeof(*reply);
+	*rdata = (void *)((uintptr_t)reply + sizeof(*reply));
+	*pkt = ptr;
+	return (rsize);
 }
 
 /*
@@ -227,8 +217,9 @@ rpc_call(struct iodesc *d, n_long prog, n_long vers, n_long proc,
  * Remaining checks are done by callrpc
  */
 static ssize_t
-recvrpc(struct iodesc *d, void *pkt, size_t len, time_t tleft)
+recvrpc(struct iodesc *d, void **pkt, void **payload, time_t tleft)
 {
+	void *ptr;
 	struct rpc_reply *reply;
 	ssize_t	n;
 	int	x;
@@ -236,14 +227,15 @@ recvrpc(struct iodesc *d, void *pkt, size_t len, time_t tleft)
 	errno = 0;
 #ifdef RPC_DEBUG
 	if (debug)
-		printf("recvrpc: called len=%lu\n", (u_long)len);
+		printf("recvrpc: called\n");
 #endif
 
-	n = readudp(d, pkt, len, tleft);
-	if (n <= (4 * 4))
-		return -1;
-
-	reply = (struct rpc_reply *)pkt;
+	ptr = NULL;
+	n = readudp(d, &ptr, (void **)&reply, tleft);
+	if (n <= (4 * 4)) {
+		free(ptr);
+		return (-1);
+	}
 
 	x = ntohl(reply->rp_xid);
 	if (x != rpc_xid) {
@@ -251,7 +243,8 @@ recvrpc(struct iodesc *d, void *pkt, size_t len, time_t tleft)
 		if (debug)
 			printf("recvrpc: rp_xid %d != xid %d\n", x, rpc_xid);
 #endif
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 
 	x = ntohl(reply->rp_direction);
@@ -260,16 +253,20 @@ recvrpc(struct iodesc *d, void *pkt, size_t len, time_t tleft)
 		if (debug)
 			printf("recvrpc: rp_direction %d != REPLY\n", x);
 #endif
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 
 	x = ntohl(reply->rp_astatus);
 	if (x != RPC_MSGACCEPTED) {
 		errno = ntohl(reply->rp_u.rpu_errno);
 		printf("recvrpc: reject, astat=%d, errno=%d\n", x, errno);
-		return -1;
+		free(ptr);
+		return (-1);
 	}
 
+	*pkt = ptr;
+	*payload = reply;
 	/* Return data count (thus indicating success) */
 	return (n);
 }
@@ -387,11 +384,7 @@ rpc_getport(struct iodesc *d, n_long prog, n_long vers)
 		n_long	h[RPC_HEADER_WORDS];
 		struct args d;
 	} sdata;
-	struct {
-		n_long	h[RPC_HEADER_WORDS];
-		struct res d;
-		n_long  pad;
-	} rdata;
+	void *pkt;
 	ssize_t cc;
 	int port;
 
@@ -416,16 +409,18 @@ rpc_getport(struct iodesc *d, n_long prog, n_long vers)
 	args->vers = htonl(vers);
 	args->proto = htonl(IPPROTO_UDP);
 	args->port = 0;
-	res = &rdata.d;
+	pkt = NULL;
 
 	cc = rpc_call(d, PMAPPROG, PMAPVERS, PMAPPROC_GETPORT,
-		args, sizeof(*args), res, sizeof(*res));
+	    args, sizeof(*args), (void **)&res, &pkt);
 	if (cc < sizeof(*res)) {
 		printf("getport: %s", strerror(errno));
 		errno = EBADRPC;
+		free(pkt);
 		return (-1);
 	}
 	port = (int)ntohl(res->port);
+	free(pkt);
 
 	rpc_pmap_putcache(d->destip, prog, vers, port);
 
