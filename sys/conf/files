@@ -270,7 +270,6 @@ cheri/cheri_sysctl.c			optional cpu_cheri
 compat/cheriabi/cheriabi_ioctl.c	optional compat_cheriabi
 compat/cheriabi/cheriabi_mac.c		optional compat_cheriabi
 compat/cheriabi/cheriabi_misc.c		optional compat_cheriabi
-compat/cheriabi/cheriabi_sigqueue.c	optional compat_cheriabi
 compat/cheriabi/cheriabi_syscalls.c	optional compat_cheriabi
 compat/cheriabi/cheriabi_sysent.c	optional compat_cheriabi
 compat/cheriabi/cheriabi_util.c		optional compat_cheriabi
