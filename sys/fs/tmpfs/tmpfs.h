@@ -389,6 +389,9 @@ struct tmpfs_mount {
 	 * tmpfs_pool.c. */
 	uma_zone_t		tm_dirent_pool;
 	uma_zone_t		tm_node_pool;
+
+	/* Read-only status. */
+	int			tm_ronly;
 };
 #define TMPFS_LOCK(tm) mtx_lock(&(tm)->allnode_lock)
 #define TMPFS_UNLOCK(tm) mtx_unlock(&(tm)->allnode_lock)
