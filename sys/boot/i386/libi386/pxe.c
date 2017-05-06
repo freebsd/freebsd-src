@@ -30,11 +30,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
+#include <stddef.h>
 #include <string.h>
 #include <stdarg.h>
+#include <sys/param.h>
 
+#include <net/ethernet.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netinet/udp.h>
 
 #include <net.h>
@@ -53,17 +57,15 @@ __FBSDID("$FreeBSD$");
  * the PXE BIOS, and the data buffer is used to receive data from the PXE BIOS.
  */
 #define	PXE_BUFFER_SIZE		0x2000
-#define	PXE_TFTP_BUFFER_SIZE	512
 static char	scratch_buffer[PXE_BUFFER_SIZE];
 static char	data_buffer[PXE_BUFFER_SIZE];
 
 static pxenv_t *pxenv_p = NULL;	/* PXENV+ */
 static pxe_t *pxe_p = NULL;		/* !PXE */
-static BOOTPLAYER bootplayer;	/* PXE Cached information. */
 
+#ifdef PXE_DEBUG
 static int	pxe_debug = 0;
-static int	pxe_sock = -1;
-static int	pxe_opens = 0;
+#endif
 
 void		pxe_enable(void *pxeinfo);
 static void	(*pxe_call)(int func);
@@ -71,24 +73,16 @@ static void	pxenv_call(int func);
 static void	bangpxe_call(int func);
 
 static int	pxe_init(void);
-static int	pxe_strategy(void *devdata, int flag, daddr_t dblk,
-			    size_t size, char *buf, size_t *rsize);
-static int	pxe_open(struct open_file *f, ...);
-static int	pxe_close(struct open_file *f);
 static int	pxe_print(int verbose);
 static void	pxe_cleanup(void);
-static void	pxe_setnfshandle(char *rootpath);
 
 static void	pxe_perror(int error);
 static int	pxe_netif_match(struct netif *nif, void *machdep_hint);
 static int	pxe_netif_probe(struct netif *nif, void *machdep_hint);
 static void	pxe_netif_init(struct iodesc *desc, void *machdep_hint);
-static int	pxe_netif_get(struct iodesc *desc, void *pkt, size_t len,
-			    time_t timeout);
-static int	pxe_netif_put(struct iodesc *desc, void *pkt, size_t len);
+static ssize_t	pxe_netif_get(struct iodesc *, void **, time_t);
+static ssize_t	pxe_netif_put(struct iodesc *desc, void *pkt, size_t len);
 static void	pxe_netif_end(struct netif *nif);
-
-int nfs_getrootfh(struct iodesc*, char*, uint32_t*, u_char*);
 
 extern struct netif_stats	pxe_st[];
 extern u_int16_t		__bangpxeseg;
@@ -97,25 +91,24 @@ extern void			__bangpxeentry(void);
 extern u_int16_t		__pxenvseg;
 extern u_int16_t		__pxenvoff;
 extern void			__pxenventry(void);
-extern struct in_addr		servip;
 
 struct netif_dif pxe_ifs[] = {
 /*	dif_unit        dif_nsel        dif_stats       dif_private     */
 	{0,             1,              &pxe_st[0],     0}
 };
 
-struct netif_stats pxe_st[NENTS(pxe_ifs)];
+struct netif_stats pxe_st[nitems(pxe_ifs)];
 
 struct netif_driver pxenetif = {
-	"pxenet",
-	pxe_netif_match,
-	pxe_netif_probe,
-	pxe_netif_init,
-	pxe_netif_get,
-	pxe_netif_put,
-	pxe_netif_end,
-	pxe_ifs,
-	NENTS(pxe_ifs)
+	.netif_bname = "pxenet",
+	.netif_match = pxe_netif_match,
+	.netif_probe = pxe_netif_probe,
+	.netif_init = pxe_netif_init,
+	.netif_get = pxe_netif_get,
+	.netif_put = pxe_netif_put,
+	.netif_end = pxe_netif_end,
+	.netif_ifs = pxe_ifs,
+	.netif_nifs = nitems(pxe_ifs)
 };
 
 struct netif_driver *netif_drivers[] = {
@@ -124,15 +117,15 @@ struct netif_driver *netif_drivers[] = {
 };
 
 struct devsw pxedisk = {
-	"pxe",
-	DEVT_NET,
-	pxe_init,
-	pxe_strategy,
-	pxe_open,
-	pxe_close,
-	noioctl,
-	pxe_print,
-	pxe_cleanup
+	.dv_name = "net",
+	.dv_type = DEVT_NET,
+	.dv_init = pxe_init,
+	.dv_strategy = NULL,	/* Will be set in pxe_init */
+	.dv_open = NULL,	/* Will be set in pxe_init */
+	.dv_close = NULL,	/* Will be set in pxe_init */
+	.dv_ioctl = noioctl,
+	.dv_print = pxe_print,
+	.dv_cleanup = pxe_cleanup
 };
 
 /*
@@ -160,6 +153,7 @@ pxe_init(void)
 	int counter;
 	uint8_t checksum;
 	uint8_t *checkptr;
+	extern struct devsw netdev;
 
 	if (pxenv_p == NULL)
 		return (0);
@@ -215,7 +209,11 @@ pxe_init(void)
 			break;
 		}
 	}
-	
+
+	pxedisk.dv_open = netdev.dv_open;
+	pxedisk.dv_close = netdev.dv_close;
+	pxedisk.dv_strategy = netdev.dv_strategy;
+
 	printf("\nPXE version %d.%d, real mode entry point ",
 	    (uint8_t) (pxenv_p->Version >> 8),
 	    (uint8_t) (pxenv_p->Version & 0xFF));
@@ -236,190 +234,29 @@ pxe_init(void)
 		pxe_p = NULL;
 		return (0);
 	}
-	bcopy(PTOV((gci_p->Buffer.segment << 4) + gci_p->Buffer.offset),
-	    &bootplayer, gci_p->BufferSize);
+	free(bootp_response);
+	if ((bootp_response = malloc(gci_p->BufferSize)) != NULL) {
+		bootp_response_size = gci_p->BufferSize;
+		bcopy(PTOV((gci_p->Buffer.segment << 4) + gci_p->Buffer.offset),
+		    bootp_response, bootp_response_size);
+	}
 	return (1);
-}
-
-
-static int
-pxe_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
-    char *buf, size_t *rsize)
-{
-	return (EIO);
-}
-
-static int
-pxe_open(struct open_file *f, ...)
-{
-	va_list args;
-	char *devname;		/* Device part of file name (or NULL). */
-	char temp[FNAME_SIZE];
-	int error = 0;
-	int i;
-
-	va_start(args, f);
-	devname = va_arg(args, char*);
-	va_end(args);
-
-	/* On first open, do netif open, mount, etc. */
-	if (pxe_opens == 0) {
-		/* Find network interface. */
-		if (pxe_sock < 0) {
-			pxe_sock = netif_open(devname);
-			if (pxe_sock < 0) {
-				printf("pxe_open: netif_open() failed\n");
-				return (ENXIO);
-			}
-			if (pxe_debug)
-				printf("pxe_open: netif_open() succeeded\n");
-
-			if (socktodesc(pxe_sock) == NULL) {
-				printf("pxe_open: bad socket %d\n", pxe_sock);
-				return (ENXIO);
-			}
-
-		}
-		if (rootip.s_addr == 0) {
-			/*
-			 * Try to extract the RFC1048 data from PXE.
-			 * If fail do a bootp/dhcp request to find out where our
-			 * NFS/TFTP server is. Even if we dont get back
-			 * the proper information, fall back to the server
-			 * which brought us to life and a default rootpath.
-			 */
-
-			if (dhcp_try_rfc1048(bootplayer.vendor.d, BOOTP_DHCPVEND) < 0) {
-				if (pxe_debug)
-					printf("pxe_open: no RFC1048 data in PXE Cache\n");
-				bootp(pxe_sock, BOOTP_PXE);
-			} else if (pxe_debug) {
-				printf("pxe_open: loaded RFC1048 data from PXE Cache\n");
-			}
-
-#ifdef LOADER_TFTP_SUPPORT
-			bootp(pxe_sock, BOOTP_PXE);
-#endif
-			if (rootip.s_addr == 0)
-				rootip.s_addr = bootplayer.sip;
-			if (gateip.s_addr == 0)
-				gateip.s_addr = bootplayer.gip;
-			if (myip.s_addr == 0)
-				myip.s_addr = bootplayer.yip;
-			if (servip.s_addr == 0)
-				servip = rootip;
-
-			netproto = NET_TFTP;
-
-			if (!rootpath[0])
-				strcpy(rootpath, PXENFSROOTPATH);
-
-			for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
-				if (rootpath[i] == ':')
-					break;
-			if (i && i != FNAME_SIZE && rootpath[i] == ':') {
-				rootpath[i++] = '\0';
-				if (inet_addr(&rootpath[0]) != INADDR_NONE) {
-					netproto = NET_NFS;
-					rootip.s_addr = inet_addr(&rootpath[0]);
-				}
-				bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i]) + 1);
-				bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i]) + 1);
-			}
-			setenv("boot.netif.ip", inet_ntoa(myip), 1);
-			setenv("boot.netif.netmask", intoa(netmask), 1);
-			setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
-			setenv("boot.netif.server", inet_ntoa(rootip), 1);
-			if (bootplayer.Hardware == ETHER_TYPE) {
-				sprintf(temp, "%6D", bootplayer.CAddr, ":");
-				setenv("boot.netif.hwaddr", temp, 1);
-			}
-			if (intf_mtu != 0) {
-				char mtu[16];
-				snprintf(sizeof(mtu), mtu, "%u", intf_mtu);
-				setenv("boot.netif.mtu", mtu, 1);
-			}
-			printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));
-			printf("pxe_open: server path: %s\n", rootpath);
-			printf("pxe_open: gateway ip:  %s\n", inet_ntoa(gateip));
-			printf("pxe_open: my ip:       %s\n", inet_ntoa(myip));
-			printf("pxe_open: netmask:     %s\n", intoa(netmask));
-			printf("pxe_open: servip:      %s\n", inet_ntoa(servip));
-
-			if (netproto == NET_TFTP) {
-				setenv("boot.tftproot.server", inet_ntoa(rootip), 1);
-				setenv("boot.tftproot.path", rootpath, 1);
-			} else if (netproto == NET_NFS) {
-				setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
-				setenv("boot.nfsroot.path", rootpath, 1);
-			}
-			setenv("dhcp.host-name", hostname, 1);
-
-			setenv("pxeboot.ip", inet_ntoa(myip), 1);
-			if (bootplayer.Hardware == ETHER_TYPE) {
-				sprintf(temp, "%6D", bootplayer.CAddr, ":");
-				setenv("pxeboot.hwaddr", temp, 1);
-			}
-		}
-	}
-	pxe_opens++;
-	f->f_devdata = &pxe_sock;
-	return (error);
-}
-
-static int
-pxe_close(struct open_file *f)
-{
-
-#ifdef	PXE_DEBUG
-	if (pxe_debug)
-		printf("pxe_close: opens=%d\n", pxe_opens);
-#endif
-
-	/* On last close, do netif close, etc. */
-	f->f_devdata = NULL;
-	/* Extra close call? */
-	if (pxe_opens <= 0)
-		return (0);
-	pxe_opens--;
-	/* Not last close? */
-	if (pxe_opens > 0)
-		return (0);
-
-	if (netproto == NET_NFS) {
-		/* get an NFS filehandle for our root filesystem */
-		pxe_setnfshandle(rootpath);
-	}
-
-	if (pxe_sock >= 0) {
-
-#ifdef PXE_DEBUG
-	if (pxe_debug)
-		printf("pxe_close: calling netif_close()\n");
-#endif
-	netif_close(pxe_sock);
-	pxe_sock = -1;
-	}
-	return (0);
 }
 
 static int
 pxe_print(int verbose)
 {
-	char line[255];
 	if (pxe_call == NULL)
 		return (0);
 
 	printf("%s devices:", pxedisk.dv_name);
 	if (pager_output("\n") != 0)
 		return (1);
+	printf("    %s0:", pxedisk.dv_name);
 	if (verbose) {
-		snprintf(line, sizeof(line), "    pxe0:    %s:%s\n",
-		    inet_ntoa(rootip), rootpath);
-	} else {
-		snprintf(line, sizeof(line), "    pxe0:\n");
+		printf("    %s:%s", inet_ntoa(rootip), rootpath);
 	}
-	return (pager_output(line));
+	return (pager_output("\n"));
 }
 
 static void
@@ -456,66 +293,6 @@ void
 pxe_perror(int err)
 {
 	return;
-}
-
-/*
- * Reach inside the libstand NFS code and dig out an NFS handle
- * for the root filesystem.
- */
-#define	NFS_V3MAXFHSIZE		64
-
-struct nfs_iodesc {
-	struct iodesc *iodesc;
-	off_t off;
-	uint32_t fhsize;
-	u_char fh[NFS_V3MAXFHSIZE];
-	/* structure truncated */
-};
-extern struct nfs_iodesc nfs_root_node;
-extern int rpc_port;
-
-static void
-pxe_rpcmountcall()
-{
-	struct iodesc *d;
-	int error;
-
-	if (!(d = socktodesc(pxe_sock)))
-		return;
-	d->myport = htons(--rpc_port);
-	d->destip = rootip;
-	if ((error = nfs_getrootfh(d, rootpath, &nfs_root_node.fhsize,
-		nfs_root_node.fh)) != 0) {
-		printf("NFS MOUNT RPC error: %d\n", error);
-		nfs_root_node.fhsize = 0;
-	}
-	nfs_root_node.iodesc = d;
-}
-
-static void
-pxe_setnfshandle(char *rootpath)
-{
-	int i;
-	u_char *fh;
-	char buf[2 * NFS_V3MAXFHSIZE + 3], *cp;
-
-	/*
-	 * If NFS files were never opened, we need to do mount call
-	 * ourselves. Use nfs_root_node.iodesc as flag indicating
-	 * previous NFS usage.
-	 */
-	if (nfs_root_node.iodesc == NULL)
-		pxe_rpcmountcall();
-
-	fh = &nfs_root_node.fh[0];
-	buf[0] = 'X';
-	cp = &buf[1];
-	for (i = 0; i < nfs_root_node.fhsize; i++, cp += 2)
-		sprintf(cp, "%02x", fh[i]);
-	sprintf(cp, "X");
-	setenv("boot.nfsroot.nfshandle", buf, 1);
-	sprintf(buf, "%d", nfs_root_node.fhsize);
-	setenv("boot.nfsroot.nfshandlelen", buf, 1);
 }
 
 void
@@ -568,121 +345,196 @@ bangpxe_call(int func)
 static int
 pxe_netif_match(struct netif *nif, void *machdep_hint)
 {
-	return 1;
+	return (1);
 }
 
 static int
 pxe_netif_probe(struct netif *nif, void *machdep_hint)
 {
-	t_PXENV_UDP_OPEN *udpopen_p = (t_PXENV_UDP_OPEN *)scratch_buffer;
-
 	if (pxe_call == NULL)
-		return -1;
+		return (-1);
 
-	bzero(udpopen_p, sizeof(*udpopen_p));
-	udpopen_p->src_ip = bootplayer.yip;
-	pxe_call(PXENV_UDP_OPEN);
-
-	if (udpopen_p->status != 0) {
-		printf("pxe_netif_probe: failed %x\n", udpopen_p->status);
-		return -1;
-	}
-	return 0;
+	return (0);
 }
 
 static void
 pxe_netif_end(struct netif *nif)
 {
-	t_PXENV_UDP_CLOSE *udpclose_p = (t_PXENV_UDP_CLOSE *)scratch_buffer;
-	bzero(udpclose_p, sizeof(*udpclose_p));
+	t_PXENV_UNDI_CLOSE *undi_close_p;
 
-	pxe_call(PXENV_UDP_CLOSE);
-	if (udpclose_p->status != 0)
-		printf("pxe_end failed %x\n", udpclose_p->status);
+	undi_close_p = (t_PXENV_UNDI_CLOSE *)scratch_buffer;
+	bzero(undi_close_p, sizeof(*undi_close_p));
+	pxe_call(PXENV_UNDI_CLOSE);
+	if (undi_close_p->Status != 0)
+		printf("undi close failed: %x\n", undi_close_p->Status);
 }
 
 static void
 pxe_netif_init(struct iodesc *desc, void *machdep_hint)
 {
-	int i;
-	for (i = 0; i < 6; ++i)
-		desc->myea[i] = bootplayer.CAddr[i];
-	desc->xid = bootplayer.ident;
+	t_PXENV_UNDI_GET_INFORMATION *undi_info_p;
+	t_PXENV_UNDI_OPEN *undi_open_p;
+	uint8_t *mac;
+	int i, len;
+
+	undi_info_p = (t_PXENV_UNDI_GET_INFORMATION *)scratch_buffer;
+	bzero(undi_info_p, sizeof(*undi_info_p));
+	pxe_call(PXENV_UNDI_GET_INFORMATION);
+	if (undi_info_p->Status != 0) {
+		printf("undi get info failed: %x\n", undi_info_p->Status);
+		return;
+	}
+
+	/* Make sure the CurrentNodeAddress is valid. */
+	for (i = 0; i < undi_info_p->HwAddrLen; ++i) {
+		if (undi_info_p->CurrentNodeAddress[i] != 0)
+			break;
+	}
+	if (i < undi_info_p->HwAddrLen) {
+		for (i = 0; i < undi_info_p->HwAddrLen; ++i) {
+			if (undi_info_p->CurrentNodeAddress[i] != 0xff)
+				break;
+		}
+	}
+	if (i < undi_info_p->HwAddrLen)
+		mac = undi_info_p->CurrentNodeAddress;
+	else
+		mac = undi_info_p->PermNodeAddress;
+
+	len = min(sizeof (desc->myea), undi_info_p->HwAddrLen);
+	for (i = 0; i < len; ++i)
+		desc->myea[i] = mac[i];
+
+	if (bootp_response != NULL)
+		desc->xid = bootp_response->bp_xid;
+	else
+		desc->xid = 0;
+
+	undi_open_p = (t_PXENV_UNDI_OPEN *)scratch_buffer;
+	bzero(undi_open_p, sizeof(*undi_open_p));
+	undi_open_p->PktFilter = FLTR_DIRECTED | FLTR_BRDCST;
+	pxe_call(PXENV_UNDI_OPEN);
+	if (undi_open_p->Status != 0)
+		printf("undi open failed: %x\n", undi_open_p->Status);
 }
 
 static int
-pxe_netif_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
+pxe_netif_receive(void **pkt)
 {
-	return len;
+	t_PXENV_UNDI_ISR *isr = (t_PXENV_UNDI_ISR *)scratch_buffer;
+	char *buf, *ptr, *frame;
+	size_t size, rsize;
+
+	bzero(isr, sizeof(*isr));
+	isr->FuncFlag = PXENV_UNDI_ISR_IN_START;
+	pxe_call(PXENV_UNDI_ISR);
+	if (isr->Status != 0)
+		return (-1);
+
+	bzero(isr, sizeof(*isr));
+	isr->FuncFlag = PXENV_UNDI_ISR_IN_PROCESS;
+	pxe_call(PXENV_UNDI_ISR);
+	if (isr->Status != 0)
+		return (-1);
+
+	while (isr->FuncFlag == PXENV_UNDI_ISR_OUT_TRANSMIT) {
+		/*
+		 * Wait till transmit is done.
+		 */
+		bzero(isr, sizeof(*isr));
+		isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
+		pxe_call(PXENV_UNDI_ISR);
+		if (isr->Status != 0 ||
+		    isr->FuncFlag == PXENV_UNDI_ISR_OUT_DONE)
+			return (-1);
+	}
+
+	while (isr->FuncFlag != PXENV_UNDI_ISR_OUT_RECEIVE) {
+		if (isr->Status != 0 ||
+		    isr->FuncFlag == PXENV_UNDI_ISR_OUT_DONE) {
+			return (-1);
+		}
+		bzero(isr, sizeof(*isr));
+		isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
+		pxe_call(PXENV_UNDI_ISR);
+	}
+
+	size = isr->FrameLength;
+	buf = malloc(size + ETHER_ALIGN);
+	if (buf == NULL)
+		return (-1);
+	ptr = buf + ETHER_ALIGN;
+	rsize = 0;
+
+	while (rsize < size) {
+		frame = (char *)((uintptr_t)isr->Frame.segment << 4);
+		frame += isr->Frame.offset;
+		bcopy(PTOV(frame), ptr, isr->BufferLength);
+		ptr += isr->BufferLength;
+		rsize += isr->BufferLength;
+
+		bzero(isr, sizeof(*isr));
+		isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
+		pxe_call(PXENV_UNDI_ISR);
+		if (isr->Status != 0) {
+			free(buf);
+			return (-1);
+		}
+
+		/* Did we got another update? */
+		if (isr->FuncFlag == PXENV_UNDI_ISR_OUT_RECEIVE)
+			continue;
+		break;
+	}
+
+	*pkt = buf;
+	return (rsize);
 }
 
-static int
+static ssize_t
+pxe_netif_get(struct iodesc *desc, void **pkt, time_t timeout)
+{
+	time_t t;
+	void *ptr;
+	int ret = -1;
+
+	t = getsecs();
+	while ((getsecs() - t) < timeout) {
+		ret = pxe_netif_receive(&ptr);
+		if (ret != -1) {
+			*pkt = ptr;
+			break;
+		}
+	}
+	return (ret);
+}
+
+static ssize_t
 pxe_netif_put(struct iodesc *desc, void *pkt, size_t len)
 {
-	return len;
-}
+	t_PXENV_UNDI_TRANSMIT *trans_p;
+	t_PXENV_UNDI_TBD *tbd_p;
+	char *data;
 
-ssize_t
-sendudp(struct iodesc *h, void *pkt, size_t len)
-{
-	t_PXENV_UDP_WRITE *udpwrite_p = (t_PXENV_UDP_WRITE *)scratch_buffer;
-	bzero(udpwrite_p, sizeof(*udpwrite_p));
+	trans_p = (t_PXENV_UNDI_TRANSMIT *)scratch_buffer;
+	bzero(trans_p, sizeof(*trans_p));
+	tbd_p = (t_PXENV_UNDI_TBD *)(scratch_buffer + sizeof(*trans_p));
+	bzero(tbd_p, sizeof(*tbd_p));
 
-	udpwrite_p->ip             = h->destip.s_addr;
-	udpwrite_p->dst_port       = h->destport;
-	udpwrite_p->src_port       = h->myport;
-	udpwrite_p->buffer_size    = len;
-	udpwrite_p->buffer.segment = VTOPSEG(pkt);
-	udpwrite_p->buffer.offset  = VTOPOFF(pkt);
+	data = scratch_buffer + sizeof(*trans_p) + sizeof(*tbd_p);
 
-	if (netmask == 0 || SAMENET(myip, h->destip, netmask))
-		udpwrite_p->gw = 0;
-	else
-		udpwrite_p->gw = gateip.s_addr;
+	trans_p->TBD.segment = VTOPSEG(tbd_p);
+	trans_p->TBD.offset  = VTOPOFF(tbd_p);
 
-	pxe_call(PXENV_UDP_WRITE);
+	tbd_p->ImmedLength = len;
+	tbd_p->Xmit.segment = VTOPSEG(data);
+	tbd_p->Xmit.offset  = VTOPOFF(data);
+	bcopy(pkt, data, len);
 
-#if 0
-	/* XXX - I dont know why we need this. */
-	delay(1000);
-#endif
-	if (udpwrite_p->status != 0) {
-		/* XXX: This happens a lot. It shouldn't. */
-		if (udpwrite_p->status != 1)
-			printf("sendudp failed %x\n", udpwrite_p->status);
-		return -1;
+	pxe_call(PXENV_UNDI_TRANSMIT);
+	if (trans_p->Status != 0) {
+		return (-1);
 	}
-	return len;
-}
 
-ssize_t
-readudp(struct iodesc *h, void *pkt, size_t len, time_t timeout)
-{
-	t_PXENV_UDP_READ *udpread_p = (t_PXENV_UDP_READ *)scratch_buffer;
-	struct udphdr *uh = NULL;
-
-	uh = (struct udphdr *) pkt - 1;
-	bzero(udpread_p, sizeof(*udpread_p));
-
-	udpread_p->dest_ip        = h->myip.s_addr;
-	udpread_p->d_port         = h->myport;
-	udpread_p->buffer_size    = len;
-	udpread_p->buffer.segment = VTOPSEG(data_buffer);
-	udpread_p->buffer.offset  = VTOPOFF(data_buffer);
-
-	pxe_call(PXENV_UDP_READ);
-
-#if 0
-	/* XXX - I dont know why we need this. */
-	delay(1000);
-#endif
-	if (udpread_p->status != 0) {
-		/* XXX: This happens a lot. It shouldn't. */
-		if (udpread_p->status != 1)
-			printf("readudp failed %x\n", udpread_p->status);
-		return -1;
-	}
-	bcopy(data_buffer, pkt, udpread_p->buffer_size);
-	uh->uh_sport = udpread_p->s_port;
-	return udpread_p->buffer_size;
+	return (len);
 }

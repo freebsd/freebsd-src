@@ -147,6 +147,10 @@ struct cmu_vend {
 /* v_flags values */
 #define VF_SMASK	1	/* Subnet mask field contains valid data */
 
+/* cached bootp response/dhcp ack */
+extern struct bootp *bootp_response;
+extern size_t bootp_response_size;
+
 int	dhcp_try_rfc1048(u_char *cp, u_int len);
 
 #endif /* _BOOTP_H_ */

@@ -9,6 +9,7 @@ MAN=
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
 VERSION_FILE=	${.CURDIR}/../loader/version
+LOADER_NET_SUPPORT?=	yes
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
@@ -23,6 +24,10 @@ LIBFIREWIRE=	${.OBJDIR}/../libfirewire/libfirewire.a
 .if defined(LOADER_ZFS_SUPPORT)
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
 LIBZFSBOOT=	${.OBJDIR}/../../zfs/libzfsboot.a
+.endif
+
+.if defined(LOADER_NET_SUPPORT)
+CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 .endif
 
 # Enable PXE TFTP or NFS support, not both.
