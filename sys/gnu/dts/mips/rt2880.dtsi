@@ -5,7 +5,7 @@
 
 	cpus {
 		cpu@0 {
-			compatible = "mips,mips24KEc";
+			compatible = "mips,mips4KEc";
 		};
 	};
 
@@ -80,6 +80,9 @@
 			ralink,register-map = [ 00 04 08 0c
 						20 24 28 2c
 						30 34 ];
+
+			interrupt-parent = <&intc>;
+			interrupts = <7>;
 		};
 
 		gpio1: gpio@638 {
@@ -182,13 +185,13 @@
 			compatible = "ralink,rt2880-port", "mediatek,eth-port";
 			reg = <0>;
 		};
+	};
 
-		mdio-bus {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			status = "disabled";
-		};
+	mdio-bus {
+		compatible = "ralink,rt2880-mdio";
+		reg = <0x00400000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 
 	wmac: wmac@480000 {

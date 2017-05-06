@@ -146,7 +146,11 @@ mips_init(void)
 			    ctob(physmem) / (1024 * 1024));
 		}
 
-		if (ctob(physmem) < (448 * 1024 * 1024)) {
+		if (mtk_soc_get_socid() == MTK_SOC_RT2880) {
+			/* RT2880 memory start is 88000000 */
+			dump_avail[1] = phys_avail[1] = ctob(physmem)
+			    + 0x08000000;
+		} else if (ctob(physmem) < (448 * 1024 * 1024)) {
 			/*
 			 * Anything up to 448MB is assumed to be directly
 			 * mappable as low memory...
