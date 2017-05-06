@@ -148,16 +148,15 @@ bootp(sock, flag)
 		bp->bp_vend[8] = 9;
 		bcopy("PXEClient", &bp->bp_vend[9], 9);
 		bp->bp_vend[18] = TAG_PARAM_REQ;
-		bp->bp_vend[19] = 8;
+		bp->bp_vend[19] = 7;
 		bp->bp_vend[20] = TAG_ROOTPATH;
-		bp->bp_vend[21] = TAG_TFTP_SERVER;
-		bp->bp_vend[22] = TAG_HOSTNAME;
-		bp->bp_vend[23] = TAG_SWAPSERVER;
-		bp->bp_vend[24] = TAG_GATEWAY;
-		bp->bp_vend[25] = TAG_SUBNET_MASK;
-		bp->bp_vend[26] = TAG_INTF_MTU;
-		bp->bp_vend[27] = TAG_SERVERID;
-		bp->bp_vend[28] = TAG_END;
+		bp->bp_vend[21] = TAG_HOSTNAME;
+		bp->bp_vend[22] = TAG_SWAPSERVER;
+		bp->bp_vend[23] = TAG_GATEWAY;
+		bp->bp_vend[24] = TAG_SUBNET_MASK;
+		bp->bp_vend[25] = TAG_INTF_MTU;
+		bp->bp_vend[26] = TAG_SERVERID;
+		bp->bp_vend[27] = TAG_END;
 	} else
 		bp->bp_vend[7] = TAG_END;
 #else
@@ -437,10 +436,6 @@ vend_rfc1048(cp, len)
 		if (tag == TAG_SERVERID) {
 			bcopy(cp, &dhcp_serverip.s_addr,
 			      sizeof(dhcp_serverip.s_addr));
-		}
-		if (tag == TAG_TFTP_SERVER) {
-			bcopy(cp, &tftpip.s_addr,
-			      sizeof(tftpip.s_addr));
 		}
 #endif
 		cp += size;
