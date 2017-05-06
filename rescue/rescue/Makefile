@@ -194,6 +194,10 @@ CRUNCH_ALIAS_less= more
 CRUNCH_PROGS_usr.bin+= xz
 CRUNCH_ALIAS_xz= unxz lzma unlzma xzcat lzcat
 
+CRUNCH_PROGS_usr.bin+= zstd
+CRUNCH_ALIAS_zstd= unzstd zstdcat zstdmt
+CRUNCH_LIBS+=	-lprivatezstd
+
 CRUNCH_PROGS_usr.bin+= tar
 CRUNCH_LIBS+= -larchive
 .if ${MK_OPENSSL} != "no"
