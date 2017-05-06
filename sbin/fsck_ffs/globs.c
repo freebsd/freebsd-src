@@ -56,7 +56,8 @@ struct bufarea sblk;		/* file system superblock */
 struct bufarea *pdirbp;		/* current directory contents */
 struct bufarea *pbp;		/* current inode block */
 ino_t cursnapshot;
-long numdirs, dirhash, listmax, inplast;
+long  dirhash, inplast;
+unsigned long  numdirs, listmax;
 long countdirs;		/* number of directories we actually found */
 int	adjrefcnt[MIBSIZE];	/* MIB command to adjust inode reference cnt */
 int	adjblkcnt[MIBSIZE];	/* MIB command to adjust inode block count */
@@ -123,7 +124,7 @@ fsckinit(void)
 	pdirbp = NULL;
 	pbp = NULL;
 	cursnapshot = 0;
-	numdirs = dirhash = listmax = inplast = 0;
+	listmax = numdirs = dirhash = inplast = 0;
 	countdirs = 0;
 	bzero(adjrefcnt, sizeof(int) * MIBSIZE);
 	bzero(adjblkcnt, sizeof(int) * MIBSIZE);

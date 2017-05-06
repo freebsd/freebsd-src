@@ -268,8 +268,7 @@ setup(char *dev)
 		    (unsigned)bmapsize);
 		goto badsb;
 	}
-	inostathead = Calloc((unsigned)(sblock.fs_ncg),
-	    sizeof(struct inostatlist));
+	inostathead = Calloc(sblock.fs_ncg, sizeof(struct inostatlist));
 	if (inostathead == NULL) {
 		printf("cannot alloc %u bytes for inostathead\n",
 		    (unsigned)(sizeof(struct inostatlist) * (sblock.fs_ncg)));
@@ -279,10 +278,8 @@ setup(char *dev)
 	dirhash = numdirs;
 	inplast = 0;
 	listmax = numdirs + 10;
-	inpsort = (struct inoinfo **)Calloc((unsigned)listmax,
-	    sizeof(struct inoinfo *));
-	inphead = (struct inoinfo **)Calloc((unsigned)numdirs,
-	    sizeof(struct inoinfo *));
+	inpsort = (struct inoinfo **)Calloc(listmax, sizeof(struct inoinfo *));
+	inphead = (struct inoinfo **)Calloc(numdirs, sizeof(struct inoinfo *));
 	if (inpsort == NULL || inphead == NULL) {
 		printf("cannot alloc %ju bytes for inphead\n",
 		    (uintmax_t)numdirs * sizeof(struct inoinfo *));
