@@ -202,8 +202,9 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	char model[128];
 	uint64_t freq;
 	size_t size;
+	u_int cache_size[4];
 	int fqmhz, fqkhz;
-	int i;
+	int i, j;
 
 	/*
 	 * We default the flags to include all non-conflicting flags,
@@ -219,27 +220,20 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		"3dnowext", "3dnow"
 	};
 
+	static char *power_flags[] = {
+		"ts",           "fid",          "vid",
+		"ttp",          "tm",           "stc",
+		"100mhzsteps",  "hwpstate",     "",
+		"cpb",          "eff_freq_ro",  "proc_feedback",
+		"acc_power",
+	};
+
 	hw_model[0] = CTL_HW;
 	hw_model[1] = HW_MODEL;
 	model[0] = '\0';
 	size = sizeof(model);
 	if (kernel_sysctl(td, hw_model, 2, &model, &size, 0, 0, 0, 0) != 0)
 		strcpy(model, "unknown");
-	for (i = 0; i < mp_ncpus; ++i) {
-		sbuf_printf(sb,
-		    "processor\t: %d\n"
-		    "vendor_id\t: %.20s\n"
-		    "cpu family\t: %u\n"
-		    "model\t\t: %u\n"
-		    "model name\t: %s\n"
-		    "stepping\t: %u\n\n",
-		    i, cpu_vendor, CPUID_TO_FAMILY(cpu_id),
-		    CPUID_TO_MODEL(cpu_id), model, cpu_id & CPUID_STEPPING);
-		/* XXX per-cpu vendor / class / model / id? */
-	}
-
-	sbuf_cat(sb, "flags\t\t:");
-
 #ifdef __i386__
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
@@ -251,20 +245,70 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		break;
 	}
 #endif
-
-	for (i = 0; i < 32; i++)
-		if (cpu_feature & (1 << i))
-			sbuf_printf(sb, " %s", flags[i]);
-	sbuf_cat(sb, "\n");
-	freq = atomic_load_acq_64(&tsc_freq);
-	if (freq != 0) {
-		fqmhz = (freq + 4999) / 1000000;
-		fqkhz = ((freq + 4999) / 10000) % 100;
+	do_cpuid(0x80000006, cache_size);
+	for (i = 0; i < mp_ncpus; ++i) {
+		fqmhz = 0;
+		fqkhz = 0;
+		freq = atomic_load_acq_64(&tsc_freq);
+		if (freq != 0) {
+			fqmhz = (freq + 4999) / 1000000;
+			fqkhz = ((freq + 4999) / 10000) % 100;
+		}
 		sbuf_printf(sb,
+		    "processor\t: %d\n"
+		    "vendor_id\t: %.20s\n"
+		    "cpu family\t: %u\n"
+		    "model\t\t: %u\n"
+		    "model name\t: %s\n"
+		    "stepping\t: %u\n"
 		    "cpu MHz\t\t: %d.%02d\n"
-		    "bogomips\t: %d.%02d\n",
-		    fqmhz, fqkhz, fqmhz, fqkhz);
+		    "cache size\t: %d KB\n"
+		    "physical id\t: %d\n"
+		    "siblings\t: %d\n"
+		    "core id\t\t: %d\n"
+		    "cpu cores\t: %d\n"
+		    "apicid\t\t: %d\n"
+		    "initial apicid\t: %d\n"
+		    "fpu\t\t: %s\n"
+		    "fpu_exception\t: %s\n"
+		    "cpuid level\t: %d\n"
+		    "wp\t\t: %s\n",
+		    i, cpu_vendor, CPUID_TO_FAMILY(cpu_id),
+		    CPUID_TO_MODEL(cpu_id), model, cpu_id & CPUID_STEPPING,
+		    fqmhz, fqkhz,
+		    (cache_size[2] >> 16), 0, mp_ncpus, i, mp_ncpus,
+		    i, i, /*cpu_id & CPUID_LOCAL_APIC_ID ??*/
+		    (cpu_feature & CPUID_FPU) ? "yes" : "no", "yes",
+		    CPUID_TO_FAMILY(cpu_id), "yes");
+		sbuf_cat(sb, "flags\t\t:");
+		for (j = 0; j < nitems(flags); j++)
+			if (cpu_feature & (1 << j))
+				sbuf_printf(sb, " %s", flags[j]);
+		sbuf_cat(sb, "\n");
+		sbuf_printf(sb,
+		    "bugs\t\t: %s\n"
+		    "bogomips\t: %d.%02d\n"
+		    "clflush size\t: %d\n"
+		    "cache_alignment\t: %d\n"
+		    "address sizes\t: %d bits physical, %d bits virtual\n",
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
+		    (has_f00f_bug) ? "Intel F00F" : "",
+#else
+		    "",
+#endif
+		    fqmhz, fqkhz,
+		    cpu_clflush_line_size, cpu_clflush_line_size,
+		    cpu_maxphyaddr,
+		    (cpu_maxphyaddr > 32) ? 48 : 0);
+		sbuf_cat(sb, "power management: ");
+		for (j = 0; j < nitems(power_flags); j++)
+			if (amd_pminfo & (1 << j))
+				sbuf_printf(sb, " %s", power_flags[j]);
+		sbuf_cat(sb, "\n\n");
+
+		/* XXX per-cpu vendor / class / model / id? */
 	}
+	sbuf_cat(sb, "\n");
 
 	return (0);
 }
