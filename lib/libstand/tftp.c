@@ -73,8 +73,8 @@ static int	tftp_stat(struct open_file *f, struct stat *sb);
 static ssize_t sendrecv_tftp(struct tftp_handle *h,
     ssize_t (*sproc)(struct iodesc *, void *, size_t),
     void *sbuf, size_t ssize,
-    ssize_t (*rproc)(struct tftp_handle *h, void *, ssize_t, time_t, unsigned short *),
-    void *rbuf, size_t rsize, unsigned short *rtype);
+    ssize_t (*rproc)(struct tftp_handle *h, void **, void **, time_t, unsigned short *),
+    void **, void **, unsigned short *rtype);
 
 struct fs_ops tftp_fsops = {
 	"tftp",
@@ -114,11 +114,8 @@ struct tftp_handle {
 	char           *path;	/* saved for re-requests */
 	unsigned int	tftp_blksize;
 	unsigned long	tftp_tsize;
-	struct {
-		u_char header[HEADER_SIZE];
-		struct tftphdr t;
-		u_char space[TFTP_MAX_BLKSIZE];
-	} __packed __aligned(4) lastdata;
+	void		*pkt;
+	struct tftphdr	*tftp_hdr;
 };
 
 #define	TFTP_MAX_ERRCODE EOPTNEG
@@ -181,20 +178,23 @@ tftp_sendack(struct tftp_handle *h)
 }
 
 static ssize_t
-recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
+recvtftp(struct tftp_handle *h, void **pkt, void **payload, time_t tleft,
     unsigned short *rtype)
 {
 	struct iodesc *d = h->iodesc;
 	struct tftphdr *t;
+	void *ptr = NULL;
+	ssize_t len;
 
 	errno = 0;
 
-	len = readudp(d, pkt, len, tleft);
+	len = readudp(d, &ptr, (void **)&t, tleft);
 
-	if (len < 4)
+	if (len < 4) {
+		free(ptr);
 		return (-1);
+	}
 
-	t = (struct tftphdr *) pkt;
 	*rtype = ntohs(t->th_opcode);
 	switch (ntohs(t->th_opcode)) {
 	case DATA: {
@@ -204,6 +204,7 @@ recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
 			/*
 			 * Expected block?
 			 */
+			free(ptr);
 			return (-1);
 		}
 		if (d->xid == 1) {
@@ -211,11 +212,13 @@ recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
 			 * First data packet from new port.
 			 */
 			struct udphdr *uh;
-			uh = (struct udphdr *) pkt - 1;
+			uh = (struct udphdr *) t - 1;
 			d->destport = uh->uh_sport;
 		} /* else check uh_sport has not changed??? */
-		got = len - (t->th_data - (char *) t);
-		return got;
+		got = len - (t->th_data - (char *)t);
+		*pkt = ptr;
+		*payload = t;
+		return (got);
 	}
 	case ERROR:
 		if ((unsigned) ntohs(t->th_code) > TFTP_MAX_ERRCODE) {
@@ -227,6 +230,7 @@ recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
 #endif
 			errno = tftperrors[ntohs(t->th_code)];
 		}
+		free(ptr);
 		return (-1);
 	case OACK: {
 		struct udphdr *uh;
@@ -237,6 +241,7 @@ recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
 		 * Drop the pkt.
 		 */
 		if (d->xid != 1) {
+			free(ptr);
 			return (-1);
 		}
 
@@ -244,7 +249,7 @@ recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
 		 * Remember which port this OACK came from, because we need
 		 * to send the ACK or errors back to it.
 		 */
-		uh = (struct udphdr *) pkt - 1;
+		uh = (struct udphdr *) t - 1;
 		d->destport = uh->uh_sport;
 		
 		/* Parse options ACK-ed by the server. */
@@ -252,14 +257,18 @@ recvtftp(struct tftp_handle *h, void *pkt, ssize_t len, time_t tleft,
 		if (tftp_parse_oack(h, t->th_u.tu_stuff, tftp_oack_len) != 0) {
 			tftp_senderr(h, EOPTNEG, "Malformed OACK");
 			errno = EIO;
+			free(ptr);
 			return (-1);
 		}
+		*pkt = ptr;
+		*payload = t;
 		return (0);
 	}
 	default:
 #ifdef TFTP_DEBUG
 		printf("tftp type %d not handled\n", ntohs(t->th_opcode));
 #endif
+		free(ptr);
 		return (-1);
 	}
 }
@@ -276,6 +285,7 @@ tftp_makereq(struct tftp_handle *h)
 	char           *wtail;
 	int             l;
 	ssize_t         res;
+	void *pkt;
 	struct tftphdr *t;
 	char *tftp_blksize = NULL;
 	int blksize_l;
@@ -314,8 +324,6 @@ tftp_makereq(struct tftp_handle *h)
 	bcopy("0", wtail, 2);
 	wtail += 2;
 
-	t = &h->lastdata.t;
-
 	/* h->iodesc->myport = htons(--tftpport); */
 	h->iodesc->myport = htons(tftpport + (getsecs() & 0x3ff));
 	h->iodesc->destport = htons(IPPORT_TFTP);
@@ -325,8 +333,17 @@ tftp_makereq(struct tftp_handle *h)
 	h->islastblock = 0;
 	h->validsize = 0;
 
+	pkt = NULL;
 	res = sendrecv_tftp(h, &sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
-		       &recvtftp, t, sizeof(*t) + h->tftp_blksize, &rtype);
+		       &recvtftp, &pkt, (void **)&t, &rtype);
+	if (res == -1) {
+		free(pkt);
+		return (errno);
+	}
+
+	free(h->pkt);
+	h->pkt = pkt;
+	h->tftp_hdr = t;
 
 	if (rtype == OACK)
 		return (tftp_getnextblock(h));
@@ -362,6 +379,7 @@ tftp_getnextblock(struct tftp_handle *h)
 	} __packed __aligned(4) wbuf;
 	char           *wtail;
 	int             res;
+	void *pkt;
 	struct tftphdr *t;
 	unsigned short rtype = 0;
 	wbuf.t.th_opcode = htons((u_short) ACK);
@@ -369,16 +387,20 @@ tftp_getnextblock(struct tftp_handle *h)
 	wbuf.t.th_block = htons((u_short) h->currblock);
 	wtail += 2;
 
-	t = &h->lastdata.t;
-
 	h->iodesc->xid = h->currblock + 1;	/* expected block */
 
+	pkt = NULL;
 	res = sendrecv_tftp(h, &sendudp, &wbuf.t, wtail - (char *) &wbuf.t,
-		       &recvtftp, t, sizeof(*t) + h->tftp_blksize, &rtype);
+		       &recvtftp, &pkt, (void **)&t, &rtype);
 
-	if (res == -1)		/* 0 is OK! */
+	if (res == -1) {		/* 0 is OK! */
+		free(pkt);
 		return (errno);
+	}
 
+	free(h->pkt);
+	h->pkt = pkt;
+	h->tftp_hdr = t;
 	h->currblock++;
 	h->validsize = res;
 	if (res < h->tftp_blksize)
@@ -405,14 +427,8 @@ tftp_open(const char *path, struct open_file *f)
 	if (netproto != NET_TFTP)
 		return (EINVAL);
 
-	if (strcmp(f->f_dev->dv_name, "net") != 0) {
-#ifdef __i386__
-		if (strcmp(f->f_dev->dv_name, "pxe") != 0)
-			return (EINVAL);
-#else
+	if (f->f_dev->dv_type != DEVT_NET)
 		return (EINVAL);
-#endif
-	}
 
 	if (is_open)
 		return (EBUSY);
@@ -507,7 +523,7 @@ tftp_read(struct open_file *f, void *addr, size_t size,
 				return (EINVAL);
 			}
 			count = (size < inbuffer ? size : inbuffer);
-			bcopy(tftpfile->lastdata.t.th_data + offinblock,
+			bcopy(tftpfile->tftp_hdr->th_data + offinblock,
 			    addr, count);
 
 			addr = (char *)addr + count;
@@ -540,6 +556,7 @@ tftp_close(struct open_file *f)
 
 	if (tftpfile) {
 		free(tftpfile->path);
+		free(tftpfile->pkt);
 		free(tftpfile);
 	}
 	is_open = 0;
@@ -591,8 +608,9 @@ static ssize_t
 sendrecv_tftp(struct tftp_handle *h,
     ssize_t (*sproc)(struct iodesc *, void *, size_t),
     void *sbuf, size_t ssize,
-    ssize_t (*rproc)(struct tftp_handle *, void *, ssize_t, time_t, unsigned short *),
-    void *rbuf, size_t rsize, unsigned short *rtype)
+    ssize_t (*rproc)(struct tftp_handle *, void **, void **, time_t,
+    unsigned short *),
+    void **pkt, void **payload, unsigned short *rtype)
 {
 	struct iodesc *d = h->iodesc;
 	ssize_t cc;
@@ -624,7 +642,7 @@ sendrecv_tftp(struct tftp_handle *h,
 
 recvnext:
 		/* Try to get a packet and process it. */
-		cc = (*rproc)(h, rbuf, rsize, tleft, rtype);
+		cc = (*rproc)(h, pkt, payload, tleft, rtype);
 		/* Return on data, EOF or real error. */
 		if (cc != -1 || errno != 0)
 			return (cc);
