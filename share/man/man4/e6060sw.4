@@ -1,4 +1,5 @@
-.\" Copyright (c) 2015 Christian Brueffer
+.\"-
+.\" Copyright (c) 2017 Hiroki Mori
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,44 +26,45 @@
 .\" $FreeBSD$
 .\"
 .Dd April 5, 2017
-.Dt ETHERSWITCH 4
+.Dt E6060SW 4
 .Os
 .Sh NAME
-.Nm etherswitch
-.Nd "Ethernet switch framework"
+.Nm e6060sw
+.Nd driver for Marvell 88E6060 and 88E6065 fast ethernet switch chip
 .Sh SYNOPSIS
-To compile the framework into the kernel,
-place the following lines in the
-kernel configuration file:
-.Bd -ragged -offset indent
+.Cd "device mdio"
 .Cd "device etherswitch"
-.Cd "device miiproxy"
-.Cd "device iicbus"
-.Ed
+.Cd "device e6060sw"
+.Pp
+.Cd hint.e6060sw.0.at="mdio0"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides a framework for Ethernet switch devices.
-.Sh FILES
-.Bl -tag -width ".Pa /dev/etherswitch?" -compact
-.It Pa /dev/etherswitch?
-.Nm
-device nodes
-.El
+device driver provides a management interface to Marvell 88E6060 and 88E6065 fast ethernet switch chip.
+This driver use smi interface by ethernet interface.
+.Pp
+88E6060 support is only port vlan.
+88E6065 support is port and dot1q vlan.
+dot1q support group base tag/untag.
+.Sh EXAMPLES
+Configure dot1q vlan on 88E6065 by etherswitchcfg command.
+.Pp
+.Dl # etherswitchcfg config vlan_mode dot1q
+.Pp
+Configure vlangroup with dot1q tag on 88E6065.
+This example is port0 as vlan 2.
+.Pp
+.Dl # etherswitchcfg vlangroup2 vlan 2 members 0,5t port0 pvid 2
 .Sh SEE ALSO
-.Xr arswitch 4 ,
-.Xr iicbus 4 ,
-.Xr ip17x 4 ,
-.Xr rtl8366rb 4 ,
-.Xr e6060sw 4 ,
-.Xr adm6996fc 4 ,
-.Xr ksz8995ma 4 ,
-.Xr ukswitch 4 ,
+.Xr etherswitch 4 ,
 .Xr etherswitchcfg 8
 .Sh HISTORY
 The
 .Nm
-framework first appeared in
-.Fx 10.0 .
+device driver first appeared in
+.Fx 12.0 .
 .Sh AUTHORS
-.An Stefan Bethke
+The
+.Nm
+driver was written by
+.An Hiroki Mori
