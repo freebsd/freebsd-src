@@ -29,7 +29,7 @@ __<bsd.init.mk>__:
 .if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.LEVEL:U1} == 0 && \
     ${BUILD_AT_LEVEL0:Uyes:tl} == "no" && !make(clean*)
 _SKIP_BUILD=	not building at level 0
-.elseif !empty(.MAKEFLAGS:M-V${_V_DO_BUILD}) || \
+.elif !empty(.MAKEFLAGS:M-V${_V_DO_BUILD}) || \
     ${.TARGETS:M*install*} == ${.TARGETS} || \
     make(clean*) || make(obj) || make(analyze) || make(print-dir) || \
     make(destroy*)
