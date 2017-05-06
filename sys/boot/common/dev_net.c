@@ -312,8 +312,11 @@ net_getparams(int sock)
 		return (EIO);
 	}
 exit:
-	if ((rootaddr = net_parse_rootpath()) != INADDR_NONE)
+	netproto = NET_TFTP;
+	if ((rootaddr = net_parse_rootpath()) != INADDR_NONE) {
+		netproto = NET_NFS;
 		rootip.s_addr = rootaddr;
+	}
 
 #ifdef	NETIF_DEBUG
 	if (debug) {
@@ -364,13 +367,6 @@ net_parse_rootpath()
 {
 	int i;
 	n_long addr = INADDR_NONE;
-
-	netproto = NET_NFS;
-
-	if (tftpip.s_addr != 0) {
-		netproto = NET_TFTP;
-		addr = tftpip.s_addr;
-	}
 
 	for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
 		if (rootpath[i] == ':')
