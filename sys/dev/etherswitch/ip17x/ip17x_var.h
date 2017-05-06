@@ -53,6 +53,7 @@ struct ip17x_softc {
 	int		numports;	/* number of ports */
 	int		*portphy;
 	device_t	**miibus;
+	int		miipoll;
 	etherswitch_info_t	info;
 	ip17x_switch_type	sc_switchtype;
 	struct callout	callout_tick;
