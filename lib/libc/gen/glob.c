@@ -581,7 +581,8 @@ glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit,
 		case STAR:
 			pglob->gl_flags |= GLOB_MAGCHAR;
 			/* collapse adjacent stars to one,
-			 * to avoid exponential behavior
+			 * to ensure "**" at the end continues to match the
+			 * empty string
 			 */
 			if (bufnext == patbuf || bufnext[-1] != M_ALL)
 			    *bufnext++ = M_ALL;
