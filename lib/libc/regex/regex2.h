@@ -73,7 +73,7 @@
  * immediately *preceding* "execution" of that operator.
  */
 typedef unsigned long sop;	/* strip operator */
-typedef long sopno;
+typedef unsigned long sopno;
 #define	OPRMASK	0xf8000000L
 #define	OPDMASK	0x07ffffffL
 #define	OPSHIFT	((unsigned)27)
@@ -113,11 +113,11 @@ typedef struct {
 typedef struct {
 	unsigned char	bmp[NC / 8];
 	wctype_t	*types;
-	int		ntypes;
+	unsigned int	ntypes;
 	wint_t		*wides;
-	int		nwides;
+	unsigned int	nwides;
 	crange		*ranges;
-	int		nranges;
+	unsigned int	nranges;
 	int		invert;
 	int		icase;
 } cset;
@@ -125,7 +125,7 @@ typedef struct {
 static int
 CHIN1(cset *cs, wint_t ch)
 {
-	int i;
+	unsigned int i;
 
 	assert(ch >= 0);
 	if (ch < NC)
@@ -165,7 +165,7 @@ struct re_guts {
 	int magic;
 #		define	MAGIC2	((('R'^0200)<<8)|'E')
 	sop *strip;		/* malloced area for strip */
-	int ncsets;		/* number of csets in use */
+	unsigned int ncsets;	/* number of csets in use */
 	cset *sets;		/* -> cset [ncsets] */
 	int cflags;		/* copy of regcomp() cflags argument */
 	sopno nstates;		/* = number of sops */
