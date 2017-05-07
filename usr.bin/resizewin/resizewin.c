@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/time.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -87,8 +88,7 @@ main(__unused int argc, __unused char **argv)
 				gettimeofday(&now, NULL);
 				timersub(&now, &then, &now);
 				if (now.tv_sec >= 2) {
-					fprintf(stderr, "\n\n\nTimeout reading from terminal\n");
-					fprintf(stderr, "Read %d bytes, %s\n", cnt, data);
+					warnx("timeout reading from terminal");
 					err = 1;
 					goto out;
 				}
@@ -104,7 +104,7 @@ main(__unused int argc, __unused char **argv)
 
 		cnt++;
 		if (cnt == sizeof(data) - 2) {
-			fprintf(stderr, "Response too long\n");
+			warnx("response too long");
 			err = 1;
 			goto out;
 		}
@@ -113,7 +113,7 @@ main(__unused int argc, __unused char **argv)
 	/* Parse */
 	if (sscanf(data, "\033[%hu;%huR", &w.ws_row, &w.ws_col) != 2) {
 		err = 1;
-		fprintf(stderr, "Unable to parse response\n");
+		warnx("unable to parse response");
 		goto out;
 	}
 
