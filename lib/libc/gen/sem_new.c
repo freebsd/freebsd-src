@@ -41,6 +41,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -259,6 +260,7 @@ int
 _sem_close(sem_t *sem)
 {
 	struct sem_nameinfo *ni;
+	bool last;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
@@ -273,20 +275,16 @@ _sem_close(sem_t *sem)
 	_pthread_mutex_lock(&sem_llock);
 	LIST_FOREACH(ni, &sem_list, next) {
 		if (sem == ni->sem) {
-			if (--ni->open_count > 0) {
-				_pthread_mutex_unlock(&sem_llock);
-				return (0);
+			last = --ni->open_count == 0;
+			if (last)
+				LIST_REMOVE(ni, next);
+			_pthread_mutex_unlock(&sem_llock);
+			if (last) {
+				munmap(sem, sizeof(*sem));
+				free(ni);
 			}
-			break;
+			return (0);
 		}
-	}
-
-	if (ni != NULL) {
-		LIST_REMOVE(ni, next);
-		_pthread_mutex_unlock(&sem_llock);
-		munmap(sem, sizeof(*sem));
-		free(ni);
-		return (0);
 	}
 	_pthread_mutex_unlock(&sem_llock);
 	errno = EINVAL;
