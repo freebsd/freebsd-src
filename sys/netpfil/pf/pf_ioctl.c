@@ -3712,17 +3712,8 @@ dehook_pf(void)
 static void
 pf_load_vnet(void)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
-
-	VNET_LIST_RLOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		V_pf_pfil_hooked = 0;
-		TAILQ_INIT(&V_pf_tags);
-		TAILQ_INIT(&V_pf_qids);
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK();
+	TAILQ_INIT(&V_pf_tags);
+	TAILQ_INIT(&V_pf_qids);
 
 	pfattach_vnet();
 	V_pf_vnet_active = 1;
