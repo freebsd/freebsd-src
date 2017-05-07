@@ -335,6 +335,7 @@ void	devfs_free_cdp_inode(ino_t ino);
 #define		GID_BIN		7
 #define		GID_GAMES	13
 #define		GID_DIALER	68
+#define		GID_NOGROUP	65533
 #define		GID_NOBODY	65534
 
 typedef void (*dev_clone_fn)(void *arg, struct ucred *cred, char *name,
