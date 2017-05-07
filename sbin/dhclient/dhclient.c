@@ -108,7 +108,11 @@ struct pidfh *pidfile;
  */
 #define ASSERT_STATE(state_is, state_shouldbe) {}
 
-#define TIME_MAX 2147483647
+/*
+ * We need to check that the expiry, renewal and rebind times are not beyond
+ * the end of time (~2038 when a 32-bit time_t is being used).
+ */
+#define TIME_MAX        ((((time_t) 1 << (sizeof(time_t) * CHAR_BIT - 2)) - 1) * 2 + 1)
 
 int		log_priority;
 int		no_daemon;
@@ -766,15 +770,17 @@ dhcpack(struct packet *packet)
 	else
 		ip->client->new->expiry = default_lease_time;
 	/* A number that looks negative here is really just very large,
-	   because the lease expiry offset is unsigned. */
-	if (ip->client->new->expiry < 0)
-		ip->client->new->expiry = TIME_MAX;
+	   because the lease expiry offset is unsigned. Also make sure that
+           the addition of cur_time below does not overflow (a 32 bit) time_t. */
+	if (ip->client->new->expiry < 0 ||
+            ip->client->new->expiry > TIME_MAX - cur_time)
+		ip->client->new->expiry = TIME_MAX - cur_time;
 	/* XXX should be fixed by resetting the client state */
 	if (ip->client->new->expiry < 60)
 		ip->client->new->expiry = 60;
 
         /* Unless overridden in the config, take the server-provided renewal
-         * time if there is one; otherwise figure it out according to the spec.
+         * time if there is one. Otherwise figure it out according to the spec.
          * Also make sure the renewal time does not exceed the expiry time.
          */
         if (ip->client->config->default_actions[DHO_DHCP_RENEWAL_TIME] ==
@@ -786,7 +792,8 @@ dhcpack(struct packet *packet)
 		    ip->client->new->options[DHO_DHCP_RENEWAL_TIME].data);
 	else
 		ip->client->new->renewal = ip->client->new->expiry / 2;
-        if (ip->client->new->renewal > ip->client->new->expiry / 2)
+        if (ip->client->new->renewal < 0 ||
+            ip->client->new->renewal > ip->client->new->expiry / 2)
                 ip->client->new->renewal = ip->client->new->expiry / 2;
 
 	/* Same deal with the rebind time. */
@@ -798,20 +805,15 @@ dhcpack(struct packet *packet)
 		ip->client->new->rebind = getULong(
 		    ip->client->new->options[DHO_DHCP_REBINDING_TIME].data);
 	else
-		ip->client->new->rebind = ip->client->new->renewal * 7 / 4;
-        if (ip->client->new->rebind > ip->client->new->renewal * 7 / 4)
-                ip->client->new->rebind = ip->client->new->renewal * 7 / 4;
+		ip->client->new->rebind = ip->client->new->renewal / 4 * 7;
+	if (ip->client->new->rebind < 0 ||
+            ip->client->new->rebind > ip->client->new->renewal / 4 * 7)
+                ip->client->new->rebind = ip->client->new->renewal / 4 * 7;
 
-	ip->client->new->expiry += cur_time;
-	/* Lease lengths can never be negative. */
-	if (ip->client->new->expiry < cur_time)
-		ip->client->new->expiry = TIME_MAX;
-	ip->client->new->renewal += cur_time;
-	if (ip->client->new->renewal < cur_time)
-		ip->client->new->renewal = TIME_MAX;
-	ip->client->new->rebind += cur_time;
-	if (ip->client->new->rebind < cur_time)
-		ip->client->new->rebind = TIME_MAX;
+        /* Convert the time offsets into seconds-since-the-epoch */
+        ip->client->new->expiry += cur_time;
+        ip->client->new->renewal += cur_time;
+        ip->client->new->rebind += cur_time;
 
 	bind_lease(ip);
 }
