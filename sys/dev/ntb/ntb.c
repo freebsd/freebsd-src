@@ -168,7 +168,15 @@ ntb_link_event(device_t dev)
 	struct ntb_child **cpp = device_get_softc(dev);
 	struct ntb_child *nc;
 	struct rm_priotracker ctx_tracker;
+	enum ntb_speed speed;
+	enum ntb_width width;
 
+	if (NTB_LINK_IS_UP(dev, &speed, &width)) {
+		device_printf(dev, "Link is up (PCIe %d.x / x%d)\n",
+		    (int)speed, (int)width);
+	} else {
+		device_printf(dev, "Link is down\n");
+	}
 	for (nc = *cpp; nc != NULL; nc = nc->next) {
 		rm_rlock(&nc->ctx_lock, &ctx_tracker);
 		if (nc->ctx_ops != NULL && nc->ctx_ops->link_event != NULL)
