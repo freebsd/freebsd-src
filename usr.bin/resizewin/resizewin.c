@@ -52,11 +52,11 @@ main(__unused int argc, __unused char **argv)
 {
 	struct termios old, new;
 	struct winsize w;
-	int ret, fd, cnt, err;
+	int ret, fd, cnt, error;
 	char data[20];
 	struct timeval then, now;
 
-	err = 0;
+	error = 0;
 
 	if ((fd = open("/dev/tty", O_RDWR | O_NONBLOCK)) == -1)
 		exit(1);
@@ -72,7 +72,7 @@ main(__unused int argc, __unused char **argv)
 		exit(1);
 
 	if (write(fd, query, sizeof(query)) != sizeof(query)) {
-		err = 1;
+		error = 1;
 		goto out;
 	}
 
@@ -89,14 +89,14 @@ main(__unused int argc, __unused char **argv)
 				timersub(&now, &then, &now);
 				if (now.tv_sec >= 2) {
 					warnx("timeout reading from terminal");
-					err = 1;
+					error = 1;
 					goto out;
 				}
 
 				usleep(20000);
 				continue;
 			}
-			err = 1;
+			error = 1;
 			goto out;
 		}
 		if (data[cnt] == 'R')
@@ -105,25 +105,25 @@ main(__unused int argc, __unused char **argv)
 		cnt++;
 		if (cnt == sizeof(data) - 2) {
 			warnx("response too long");
-			err = 1;
+			error = 1;
 			goto out;
 		}
 	}
 
 	/* Parse */
 	if (sscanf(data, "\033[%hu;%huR", &w.ws_row, &w.ws_col) != 2) {
-		err = 1;
+		error = 1;
 		warnx("unable to parse response");
 		goto out;
 	}
 
 	/* Finally, what we want */
 	if (ioctl(fd, TIOCSWINSZ, &w) == -1)
-		err = 1;
+		error = 1;
  out:
 	/* Restore echo */
 	tcsetattr(fd, TCSANOW, &old);
 
 	close(fd);
-	exit(err);
+	exit(error);
 }
