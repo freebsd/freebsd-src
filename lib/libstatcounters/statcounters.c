@@ -187,6 +187,27 @@ DEFINE_GET_STAT_COUNTER(tagcachemaster_read_rsp,14,3);
 DEFINE_GET_STAT_COUNTER(tagcachemaster_read_rsp_flit,14,4);
 DEFINE_GET_STAT_COUNTER(tagcachemaster_write_rsp,14,5);
 
+// helper functions
+
+#define ARCHNAME_BUFF_SZ 32
+
+static void getarchname (char * restrict archname, const char * const dflt)
+{
+    FILE *fp;
+    char name[ARCHNAME_BUFF_SZ];
+    fp = popen("uname -m", "r");
+    if (fp != NULL && fgets(name, sizeof(name)-1, fp) !=NULL)
+    {
+        char * tmp = strdup(name);
+        char * ret = strsep(&tmp,"\n");
+        strncpy(archname,ret,ARCHNAME_BUFF_SZ);
+        free(tmp);
+    }
+    else
+        strncpy(archname,dflt,ARCHNAME_BUFF_SZ);
+    pclose(fp);
+}
+
 // libstatcounters API
 //////////////////////////////////////////////////////////////////////////////
 
@@ -325,13 +346,16 @@ void dump_statcounters (
             if (display_header) flg = CSV_HEADER;
             else flg = CSV_NOHEADER;
         }
-        statcounters_dump(b,getprogname(),fp,flg);
+        char tmp[ARCHNAME_BUFF_SZ];
+	getarchname(tmp,"unknown_arch");
+        statcounters_dump(b,getprogname(),tmp,fp,flg);
         fclose(fp);
     }
 }
 int statcounters_dump (
     const statcounters_bank_t * const b,
     const char * const progname,
+    const char * const archname,
     FILE * const fp,
     const statcounters_fmt_flag_t fmt_flg)
 {
@@ -341,6 +365,7 @@ int statcounters_dump (
     {
         case CSV_HEADER:
             fprintf(fp, "progname,");
+            fprintf(fp, "archname,");
             fprintf(fp, "cycles,");
             fprintf(fp, "instructions,");
             fprintf(fp, "itlb_miss,");
@@ -394,6 +419,7 @@ int statcounters_dump (
             fprintf(fp, "\n");
         case CSV_NOHEADER:
             fprintf(fp, "%s,",progname);
+            fprintf(fp, "%s,",archname);
             fprintf(fp, "%lu,",b->cycle);
             fprintf(fp, "%lu,",b->inst);
             fprintf(fp, "%lu,",b->itlb_miss);
@@ -448,7 +474,7 @@ int statcounters_dump (
             break;
         case HUMAN_READABLE:
         default:
-            fprintf(fp, "===== %s =====\n",progname);
+            fprintf(fp, "===== %s -- %s =====\n",progname, archname);
             fprintf(fp, "cycles:                       \t%lu\n",b->cycle);
             fprintf(fp, "instructions:                 \t%lu\n",b->inst);
             fprintf(fp, "itlb_miss:                    \t%lu\n",b->itlb_miss);
@@ -540,6 +566,9 @@ static void end_sample (void)
     // preparing call to dumping function
     FILE * fp = NULL;
     const char * const pname = getenv("STATCOUNTERS_PROGNAME");
+    char pname_arg[128];
+    const char * const aname = getenv("STATCOUNTERS_ARCHNAME");
+    char aname_arg[ARCHNAME_BUFF_SZ];
     const char * const fname = getenv("STATCOUNTERS_OUTPUT");
     const char * const fmt = getenv("STATCOUNTERS_FORMAT");
     bool display_header = true;
@@ -553,8 +582,11 @@ static void end_sample (void)
             if (display_header) fmt_flg = CSV_HEADER;
             else fmt_flg = CSV_NOHEADER;
         }
-	if (pname) statcounters_dump(&diff_cnt,pname,fp,fmt_flg);
-	else statcounters_dump(&diff_cnt,getprogname(),fp,fmt_flg);
+	if (pname) strncpy(pname_arg,pname,128);
+	else strncpy(pname_arg,getprogname(),128);
+	if (aname) strncpy(aname_arg,aname,32);
+	else getarchname(aname_arg,"unknown_arch");
+	statcounters_dump(&diff_cnt,pname_arg,aname_arg,fp,fmt_flg);
         fclose(fp);
     }
 }

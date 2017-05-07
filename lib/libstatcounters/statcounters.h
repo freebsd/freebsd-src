@@ -92,6 +92,7 @@ void dump_statcounters (
 int statcounters_dump (
     const statcounters_bank_t * const b,
     const char * const progname,
+    const char * const archname,
     FILE * const fp,
     const statcounters_fmt_flag_t fmt_flg);
 

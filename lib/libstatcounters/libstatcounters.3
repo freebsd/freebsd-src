@@ -43,6 +43,8 @@ to the linking flags to still enable the automatic sampling of statcounters befo
 , and output of the difference (this feature is directly available when linking non static). The behaviour of the automatic sampling is controlled by the
 .Nm STATCOUNTERS_PROGNAME
 ,
+.Nm STATCOUNTERS_ARCHNAME
+,
 .Nm STATCOUNTERS_OUTPUT
 and
 .Nm STATCOUNTERS_FORMAT
@@ -50,6 +52,9 @@ environment variables.
 .Pp
 .Nm STATCOUNTERS_PROGNAME
 .Nd Environment variable specifying the program name to output (usefull when appending entries to a csv output file)
+.Pp
+.Nm STATCOUNTERS_ARCHNAME
+.Nd Environment variable specifying the architecture name to output (usefull when appending entries to a csv output file)
 .Pp
 .Nm STATCOUNTERS_OUTPUT
 .Nd Environment variable specifying the file in which to output the statcounters'values
