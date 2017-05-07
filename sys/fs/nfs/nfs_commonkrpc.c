@@ -1043,8 +1043,10 @@ tryagain:
 			/*
 			 * If this op's status is non-zero, mark
 			 * that there is no more data to process.
+			 * The exception is Setattr, which always has xdr
+			 * when it has failed.
 			 */
-			if (j)
+			if (j != 0 && i != NFSV4OP_SETATTR)
 				nd->nd_flag |= ND_NOMOREDATA;
 
 			/*
