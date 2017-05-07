@@ -280,7 +280,8 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 				retries = nmp->nm_retry;
 		} else
 			retries = INT_MAX;
-		if (NFSHASNFSV4N(nmp)) {
+		/* cred == NULL for DS connects. */
+		if (NFSHASNFSV4N(nmp) && cred != NULL) {
 			/*
 			 * Make sure the nfscbd_pool doesn't get destroyed
 			 * while doing this.
