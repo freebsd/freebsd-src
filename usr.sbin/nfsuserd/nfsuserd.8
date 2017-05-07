@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2015
+.Dd April 21, 2017
 .Dt NFSUSERD 8
 .Os
 .Sh NAME
@@ -64,8 +64,8 @@ if that name is not a fully qualified host name, the canonical name as
 reported by
 .Xr getaddrinfo 3 .
 .It Fl usertimeout Ar minutes
-Overrides the default timeout for cache entries, in minutes. If the
-timeout is specified as 0, cache entries never time out. The longer the
+Overrides the default timeout for cache entries, in minutes.
+The longer the
 time out, the better the performance, but the longer it takes for replaced
 entries to be seen. If your user/group database management system almost
 never re-uses the same names or id numbers, a large timeout is recommended.
