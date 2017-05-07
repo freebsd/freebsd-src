@@ -101,12 +101,8 @@ sem_child_postfork(void)
 static void
 sem_module_init(void)
 {
-	pthread_mutexattr_t ma;
 
-	_pthread_mutexattr_init(&ma);
-	_pthread_mutexattr_settype(&ma,  PTHREAD_MUTEX_RECURSIVE);
-	_pthread_mutex_init(&sem_llock, &ma);
-	_pthread_mutexattr_destroy(&ma);
+	_pthread_mutex_init(&sem_llock, NULL);
 	_pthread_atfork(sem_prefork, sem_postfork, sem_child_postfork);
 }
 
