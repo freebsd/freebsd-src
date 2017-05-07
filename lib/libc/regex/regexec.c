@@ -225,9 +225,9 @@ regexec(const regex_t * __restrict preg,
 	eflags = GOODFLAGS(eflags);
 
 	if (MB_CUR_MAX > 1)
-		return(mmatcher(g, (char *)string, nmatch, pmatch, eflags));
+		return(mmatcher(g, string, nmatch, pmatch, eflags));
 	else if (g->nstates <= CHAR_BIT*sizeof(states1) && !(eflags&REG_LARGE))
-		return(smatcher(g, (char *)string, nmatch, pmatch, eflags));
+		return(smatcher(g, string, nmatch, pmatch, eflags));
 	else
-		return(lmatcher(g, (char *)string, nmatch, pmatch, eflags));
+		return(lmatcher(g, string, nmatch, pmatch, eflags));
 }
