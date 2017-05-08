@@ -143,7 +143,7 @@ static  void	*ffs_build_dinode2(struct ufs2_dinode *, dirbuf_t *, fsnode *,
 				 fsnode *, fsinfo_t *);
 
 
-
+int	sectorsize;		/* XXX: for buf.c::getblk() */
 	/* publicly visible functions */
 
 void
@@ -426,6 +426,8 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		printf("ffs_validate: dir %s; %lld bytes, %lld inodes\n",
 		    dir, (long long)fsopts->size, (long long)fsopts->inodes);
 	}
+	sectorsize = fsopts->sectorsize;	/* XXX - see earlier */
+
 		/* now check calculated sizes vs requested sizes */
 	if (fsopts->maxsize > 0 && fsopts->size > fsopts->maxsize) {
 		errx(1, "`%s' size of %lld is larger than the maxsize of %lld.",
