@@ -233,7 +233,7 @@ handleTlsRelocation(uint32_t Type, SymbolBody &Body, InputSectionBase &C,
   }
 
   // Local-Dynamic relocs can be relaxed to Local-Exec.
-  if (Target->isTlsLocalDynamicRel(Type) && !Config->Shared) {
+  if (isRelExprOneOf<R_ABS, R_TLSLD, R_TLSLD_PC>(Expr) && !Config->Shared) {
     C.Relocations.push_back(
         {R_RELAX_TLS_LD_TO_LE, Type, Offset, Addend, &Body});
     return 1;
@@ -282,7 +282,8 @@ handleTlsRelocation(uint32_t Type, SymbolBody &Body, InputSectionBase &C,
 
   // Initial-Exec relocs can be relaxed to Local-Exec if the symbol is locally
   // defined.
-  if (Target->isTlsInitialExecRel(Type) && !Config->Shared && !IsPreemptible) {
+  if (isRelExprOneOf<R_GOT, R_GOT_FROM_END, R_GOT_PC, R_GOT_PAGE_PC>(Expr) &&
+      !Config->Shared && !IsPreemptible) {
     C.Relocations.push_back(
         {R_RELAX_TLS_IE_TO_LE, Type, Offset, Addend, &Body});
     return 1;
@@ -694,17 +695,6 @@ static void reportUndefined(SymbolBody &Sym, InputSectionBase &S,
     warn(Msg);
   } else {
     error(Msg);
-
-    if (Config->ArchiveWithoutSymbolsSeen) {
-      message("At least one archive listed no symbols in its index."
-              " This can happen when creating archives with a version"
-              " of ar that does not understand the object files in"
-              " the archive. For example, if you are using LLVM"
-              " bitcode objects (such as created by -flto), you may"
-              " need to use llvm-ar or GNU ar with a plugin.");
-      // Reset to false so that we print the message only once.
-      Config->ArchiveWithoutSymbolsSeen = false;
-    }
   }
 }
 

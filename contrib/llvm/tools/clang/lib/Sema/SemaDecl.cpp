@@ -6070,12 +6070,24 @@ NamedDecl *Sema::ActOnVariableDeclarator(
       }
     }
 
-    // OpenCL v1.2 s6.9.b p4:
-    // The sampler type cannot be used with the __local and __global address
-    // space qualifiers.
-    if (R->isSamplerT() && (R.getAddressSpace() == LangAS::opencl_local ||
-      R.getAddressSpace() == LangAS::opencl_global)) {
-      Diag(D.getIdentifierLoc(), diag::err_wrong_sampler_addressspace);
+    if (R->isSamplerT()) {
+      // OpenCL v1.2 s6.9.b p4:
+      // The sampler type cannot be used with the __local and __global address
+      // space qualifiers.
+      if (R.getAddressSpace() == LangAS::opencl_local ||
+          R.getAddressSpace() == LangAS::opencl_global) {
+        Diag(D.getIdentifierLoc(), diag::err_wrong_sampler_addressspace);
+      }
+
+      // OpenCL v1.2 s6.12.14.1:
+      // A global sampler must be declared with either the constant address
+      // space qualifier or with the const qualifier.
+      if (DC->isTranslationUnit() &&
+          !(R.getAddressSpace() == LangAS::opencl_constant ||
+          R.isConstQualified())) {
+        Diag(D.getIdentifierLoc(), diag::err_opencl_nonconst_global_sampler);
+        D.setInvalidType();
+      }
     }
 
     // OpenCL v1.2 s6.9.r:
@@ -15902,7 +15914,7 @@ void Sema::ActOnModuleBegin(SourceLocation DirectiveLoc, Module *Mod) {
   VisibleModules.setVisible(Mod, DirectiveLoc);
 }
 
-void Sema::ActOnModuleEnd(SourceLocation EofLoc, Module *Mod) {
+void Sema::ActOnModuleEnd(SourceLocation EomLoc, Module *Mod) {
   if (getLangOpts().ModulesLocalVisibility) {
     VisibleModules = std::move(ModuleScopes.back().OuterVisibleModules);
     // Leaving a module hides namespace names, so our visible namespace cache
@@ -15914,12 +15926,19 @@ void Sema::ActOnModuleEnd(SourceLocation EofLoc, Module *Mod) {
          "left the wrong module scope");
   ModuleScopes.pop_back();
 
-  // We got to the end of processing a #include of a local module. Create an
+  // We got to the end of processing a local module. Create an
   // ImportDecl as we would for an imported module.
-  FileID File = getSourceManager().getFileID(EofLoc);
-  assert(File != getSourceManager().getMainFileID() &&
-         "end of submodule in main source file");
-  SourceLocation DirectiveLoc = getSourceManager().getIncludeLoc(File);
+  FileID File = getSourceManager().getFileID(EomLoc);
+  SourceLocation DirectiveLoc;
+  if (EomLoc == getSourceManager().getLocForEndOfFile(File)) {
+    // We reached the end of a #included module header. Use the #include loc.
+    assert(File != getSourceManager().getMainFileID() &&
+           "end of submodule in main source file");
+    DirectiveLoc = getSourceManager().getIncludeLoc(File);
+  } else {
+    // We reached an EOM pragma. Use the pragma location.
+    DirectiveLoc = EomLoc;
+  }
   BuildModuleInclude(DirectiveLoc, Mod);
 }
 

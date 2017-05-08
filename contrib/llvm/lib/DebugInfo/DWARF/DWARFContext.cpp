@@ -692,6 +692,10 @@ DWARFContext::getLineTableForUnit(DWARFUnit *U) {
   if (const DWARFLineTable *lt = Line->getLineTable(stmtOffset))
     return lt;
 
+  // Make sure the offset is good before we try to parse.
+  if (stmtOffset >= U->getLineSection().size())
+    return nullptr;  
+
   // We have to parse it first.
   DataExtractor lineData(U->getLineSection(), isLittleEndian(),
                          U->getAddressByteSize());
@@ -953,6 +957,26 @@ static bool isRelocScattered(const object::ObjectFile &Obj,
   return MachObj->isRelocationScattered(RelocInfo);
 }
 
+Error DWARFContextInMemory::maybeDecompress(const SectionRef &Sec,
+                                            StringRef Name, StringRef &Data) {
+  if (!Decompressor::isCompressed(Sec))
+    return Error::success();
+
+  Expected<Decompressor> Decompressor =
+      Decompressor::create(Name, Data, IsLittleEndian, AddressSize == 8);
+  if (!Decompressor)
+    return Decompressor.takeError();
+
+  SmallString<32> Out;
+  if (auto Err = Decompressor->decompress(Out))
+    return Err;
+
+  UncompressedSections.emplace_back(std::move(Out));
+  Data = UncompressedSections.back();
+
+  return Error::success();
+}
+
 DWARFContextInMemory::DWARFContextInMemory(const object::ObjectFile &Obj,
     const LoadedObjectInfo *L)
     : IsLittleEndian(Obj.isLittleEndian()),
@@ -976,16 +1000,11 @@ DWARFContextInMemory::DWARFContextInMemory(const object::ObjectFile &Obj,
     if (!L || !L->getLoadedSectionContents(*RelocatedSection,data))
       Section.getContents(data);
 
-    if (Decompressor::isCompressed(Section)) {
-      Expected<Decompressor> Decompressor =
-          Decompressor::create(name, data, IsLittleEndian, AddressSize == 8);
-      if (!Decompressor)
-        continue;
-      SmallString<32> Out;
-      if (auto Err = Decompressor->decompress(Out))
-        continue;
-      UncompressedSections.emplace_back(std::move(Out));
-      data = UncompressedSections.back();
+    if (auto Err = maybeDecompress(Section, name, data)) {
+      errs() << "error: failed to decompress '" + name + "', " +
+                    toString(std::move(Err))
+             << '\n';
+      continue;
     }
 
     // Compressed sections names in GNU style starts from ".z",

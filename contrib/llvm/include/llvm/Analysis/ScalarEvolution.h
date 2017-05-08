@@ -782,13 +782,13 @@ private:
 
   /// Set the memoized range for the given SCEV.
   const ConstantRange &setRange(const SCEV *S, RangeSignHint Hint,
-                                const ConstantRange &CR) {
+                                ConstantRange &&CR) {
     DenseMap<const SCEV *, ConstantRange> &Cache =
         Hint == HINT_RANGE_UNSIGNED ? UnsignedRanges : SignedRanges;
 
-    auto Pair = Cache.insert({S, CR});
+    auto Pair = Cache.try_emplace(S, std::move(CR));
     if (!Pair.second)
-      Pair.first->second = CR;
+      Pair.first->second = std::move(CR);
     return Pair.first->second;
   }
 
@@ -815,6 +815,10 @@ private:
 
   /// Helper function called from createNodeForPHI.
   const SCEV *createAddRecFromPHI(PHINode *PN);
+
+  /// A helper function for createAddRecFromPHI to handle simple cases.
+  const SCEV *createSimpleAffineAddRec(PHINode *PN, Value *BEValueV,
+                                            Value *StartValueV);
 
   /// Helper function called from createNodeForPHI.
   const SCEV *createNodeFromSelectLikePHI(PHINode *PN);
@@ -1565,7 +1569,7 @@ public:
   /// delinearization).
   void findArrayDimensions(SmallVectorImpl<const SCEV *> &Terms,
                            SmallVectorImpl<const SCEV *> &Sizes,
-                           const SCEV *ElementSize) const;
+                           const SCEV *ElementSize);
 
   void print(raw_ostream &OS) const;
   void verify() const;

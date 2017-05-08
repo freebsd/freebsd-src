@@ -64,8 +64,10 @@ class VarStreamArrayIterator
 public:
   VarStreamArrayIterator() = default;
   VarStreamArrayIterator(const ArrayType &Array, const WrappedCtx &Ctx,
-                         BinaryStreamRef Stream, bool *HadError = nullptr)
-      : IterRef(Stream), Ctx(&Ctx), Array(&Array), HadError(HadError) {
+                         BinaryStreamRef Stream, bool *HadError = nullptr,
+                         uint32_t Offset = 0)
+      : IterRef(Stream), Ctx(&Ctx), Array(&Array), AbsOffset(Offset),
+        HadError(HadError) {
     if (IterRef.getLength() == 0)
       moveToEnd();
     else {
@@ -115,6 +117,7 @@ public:
     for (unsigned I = 0; I < N; ++I) {
       // We are done with the current record, discard it so that we are
       // positioned at the next record.
+      AbsOffset += ThisLen;
       IterRef = IterRef.drop_front(ThisLen);
       if (IterRef.getLength() == 0) {
         // There is nothing after the current record, we must make this an end
@@ -135,6 +138,8 @@ public:
     return *this;
   }
 
+  uint32_t offset() const { return AbsOffset; }
+
 private:
   void moveToEnd() {
     Array = nullptr;
@@ -152,6 +157,7 @@ private:
   const WrappedCtx *Ctx{nullptr};
   const ArrayType *Array{nullptr};
   uint32_t ThisLen{0};
+  uint32_t AbsOffset{0};
   bool HasError{false};
   bool *HadError{nullptr};
 };
@@ -234,7 +240,7 @@ public:
   /// since the behavior is undefined if \p Offset does not refer to the
   /// beginning of a valid record.
   Iterator at(uint32_t Offset) const {
-    return Iterator(*this, Ctx, Stream.drop_front(Offset), nullptr);
+    return Iterator(*this, Ctx, Stream.drop_front(Offset), nullptr, Offset);
   }
 
   BinaryStreamRef getUnderlyingStream() const { return Stream; }
@@ -338,7 +344,7 @@ private:
 template <typename T>
 class FixedStreamArrayIterator
     : public iterator_facade_base<FixedStreamArrayIterator<T>,
-                                  std::random_access_iterator_tag, T> {
+                                  std::random_access_iterator_tag, const T> {
 
 public:
   FixedStreamArrayIterator(const FixedStreamArray<T> &Array, uint32_t Index)
@@ -352,6 +358,7 @@ public:
   }
 
   const T &operator*() const { return Array[Index]; }
+  const T &operator*() { return Array[Index]; }
 
   bool operator==(const FixedStreamArrayIterator<T> &R) const {
     assert(Array == R.Array);
