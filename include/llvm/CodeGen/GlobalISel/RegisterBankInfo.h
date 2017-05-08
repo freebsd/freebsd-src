@@ -264,7 +264,7 @@ public:
   /// Convenient type to represent the alternatives for mapping an
   /// instruction.
   /// \todo When we move to TableGen this should be an array ref.
-  typedef SmallVector<InstructionMapping, 4> InstructionMappings;
+  typedef SmallVector<const InstructionMapping *, 4> InstructionMappings;
 
   /// Helper class used to get/create the virtual registers that will be used
   /// to replace the MachineOperand when applying a mapping.
@@ -310,7 +310,7 @@ public:
     OperandsMapper(MachineInstr &MI, const InstructionMapping &InstrMapping,
                    MachineRegisterInfo &MRI);
 
-    /// Getters.
+    /// \name Getters.
     /// @{
     /// The MachineInstr being remapped.
     MachineInstr &getMI() const { return MI; }
@@ -378,15 +378,23 @@ protected:
 
   /// Keep dynamically allocated PartialMapping in a separate map.
   /// This shouldn't be needed when everything gets TableGen'ed.
-  mutable DenseMap<unsigned, std::unique_ptr<const PartialMapping>> MapOfPartialMappings;
+  mutable DenseMap<unsigned, std::unique_ptr<const PartialMapping>>
+      MapOfPartialMappings;
 
   /// Keep dynamically allocated ValueMapping in a separate map.
   /// This shouldn't be needed when everything gets TableGen'ed.
-  mutable DenseMap<unsigned, std::unique_ptr<const ValueMapping> > MapOfValueMappings;
+  mutable DenseMap<unsigned, std::unique_ptr<const ValueMapping>>
+      MapOfValueMappings;
 
   /// Keep dynamically allocated array of ValueMapping in a separate map.
   /// This shouldn't be needed when everything gets TableGen'ed.
-  mutable DenseMap<unsigned, std::unique_ptr<ValueMapping[]>> MapOfOperandsMappings;
+  mutable DenseMap<unsigned, std::unique_ptr<ValueMapping[]>>
+      MapOfOperandsMappings;
+
+  /// Keep dynamically allocated InstructionMapping in a separate map.
+  /// This shouldn't be needed when everything gets TableGen'ed.
+  mutable DenseMap<unsigned, std::unique_ptr<const InstructionMapping>>
+      MapOfInstructionMappings;
 
   /// Create a RegisterBankInfo that can accomodate up to \p NumRegBanks
   /// RegisterBank instances.
@@ -425,14 +433,14 @@ protected:
   ///   register, a register class, or a register bank.
   /// In other words, this method will likely fail to find a mapping for
   /// any generic opcode that has not been lowered by target specific code.
-  InstructionMapping getInstrMappingImpl(const MachineInstr &MI) const;
+  const InstructionMapping &getInstrMappingImpl(const MachineInstr &MI) const;
 
   /// Get the uniquely generated PartialMapping for the
   /// given arguments.
   const PartialMapping &getPartialMapping(unsigned StartIdx, unsigned Length,
                                           const RegisterBank &RegBank) const;
 
-  /// Methods to get a uniquely generated ValueMapping.
+  /// \name Methods to get a uniquely generated ValueMapping.
   /// @{
 
   /// The most common ValueMapping consists of a single PartialMapping.
@@ -445,7 +453,7 @@ protected:
                                       unsigned NumBreakDowns) const;
   /// @}
 
-  /// Methods to get a uniquely generated array of ValueMapping.
+  /// \name Methods to get a uniquely generated array of ValueMapping.
   /// @{
 
   /// Get the uniquely generated array of ValueMapping for the
@@ -476,6 +484,33 @@ protected:
   /// ValueMapping (ValueMapping::isValid == false).
   const ValueMapping *getOperandsMapping(
       std::initializer_list<const ValueMapping *> OpdsMapping) const;
+  /// @}
+
+  /// \name Methods to get a uniquely generated InstructionMapping.
+  /// @{
+
+private:
+  /// Method to get a uniquely generated InstructionMapping.
+  const InstructionMapping &
+  getInstructionMappingImpl(bool IsInvalid, unsigned ID = InvalidMappingID,
+                            unsigned Cost = 0,
+                            const ValueMapping *OperandsMapping = nullptr,
+                            unsigned NumOperands = 0) const;
+
+public:
+  /// Method to get a uniquely generated InstructionMapping.
+  const InstructionMapping &
+  getInstructionMapping(unsigned ID, unsigned Cost,
+                        const ValueMapping *OperandsMapping,
+                        unsigned NumOperands) const {
+    return getInstructionMappingImpl(/*IsInvalid*/ false, ID, Cost,
+                                     OperandsMapping, NumOperands);
+  }
+
+  /// Method to get a uniquely generated invalid InstructionMapping.
+  const InstructionMapping &getInvalidInstructionMapping() const {
+    return getInstructionMappingImpl(/*IsInvalid*/ true);
+  }
   /// @}
 
   /// Get the register bank for the \p OpIdx-th operand of \p MI form
@@ -603,7 +638,8 @@ public:
   ///
   /// \note If returnedVal does not verify MI, this would probably mean
   /// that the target does not support that instruction.
-  virtual InstructionMapping getInstrMapping(const MachineInstr &MI) const;
+  virtual const InstructionMapping &
+  getInstrMapping(const MachineInstr &MI) const;
 
   /// Get the alternative mappings for \p MI.
   /// Alternative in the sense different from getInstrMapping.

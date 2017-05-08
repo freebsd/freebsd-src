@@ -225,114 +225,17 @@ APInt& APInt::operator-=(uint64_t RHS) {
   return clearUnusedBits();
 }
 
-/// Multiplies an integer array, x, by a uint64_t integer and places the result
-/// into dest.
-/// @returns the carry out of the multiplication.
-/// @brief Multiply a multi-digit APInt by a single digit (64-bit) integer.
-static uint64_t mul_1(uint64_t dest[], uint64_t x[], unsigned len, uint64_t y) {
-  // Split y into high 32-bit part (hy)  and low 32-bit part (ly)
-  uint64_t ly = y & 0xffffffffULL, hy = y >> 32;
-  uint64_t carry = 0;
-
-  // For each digit of x.
-  for (unsigned i = 0; i < len; ++i) {
-    // Split x into high and low words
-    uint64_t lx = x[i] & 0xffffffffULL;
-    uint64_t hx = x[i] >> 32;
-    // hasCarry - A flag to indicate if there is a carry to the next digit.
-    // hasCarry == 0, no carry
-    // hasCarry == 1, has carry
-    // hasCarry == 2, no carry and the calculation result == 0.
-    uint8_t hasCarry = 0;
-    dest[i] = carry + lx * ly;
-    // Determine if the add above introduces carry.
-    hasCarry = (dest[i] < carry) ? 1 : 0;
-    carry = hx * ly + (dest[i] >> 32) + (hasCarry ? (1ULL << 32) : 0);
-    // The upper limit of carry can be (2^32 - 1)(2^32 - 1) +
-    // (2^32 - 1) + 2^32 = 2^64.
-    hasCarry = (!carry && hasCarry) ? 1 : (!carry ? 2 : 0);
-
-    carry += (lx * hy) & 0xffffffffULL;
-    dest[i] = (carry << 32) | (dest[i] & 0xffffffffULL);
-    carry = (((!carry && hasCarry != 2) || hasCarry == 1) ? (1ULL << 32) : 0) +
-            (carry >> 32) + ((lx * hy) >> 32) + hx * hy;
-  }
-  return carry;
-}
-
-/// Multiplies integer array x by integer array y and stores the result into
-/// the integer array dest. Note that dest's size must be >= xlen + ylen.
-/// @brief Generalized multiplication of integer arrays.
-static void mul(uint64_t dest[], uint64_t x[], unsigned xlen, uint64_t y[],
-                unsigned ylen) {
-  dest[xlen] = mul_1(dest, x, xlen, y[0]);
-  for (unsigned i = 1; i < ylen; ++i) {
-    uint64_t ly = y[i] & 0xffffffffULL, hy = y[i] >> 32;
-    uint64_t carry = 0, lx = 0, hx = 0;
-    for (unsigned j = 0; j < xlen; ++j) {
-      lx = x[j] & 0xffffffffULL;
-      hx = x[j] >> 32;
-      // hasCarry - A flag to indicate if has carry.
-      // hasCarry == 0, no carry
-      // hasCarry == 1, has carry
-      // hasCarry == 2, no carry and the calculation result == 0.
-      uint8_t hasCarry = 0;
-      uint64_t resul = carry + lx * ly;
-      hasCarry = (resul < carry) ? 1 : 0;
-      carry = (hasCarry ? (1ULL << 32) : 0) + hx * ly + (resul >> 32);
-      hasCarry = (!carry && hasCarry) ? 1 : (!carry ? 2 : 0);
-
-      carry += (lx * hy) & 0xffffffffULL;
-      resul = (carry << 32) | (resul & 0xffffffffULL);
-      dest[i+j] += resul;
-      carry = (((!carry && hasCarry != 2) || hasCarry == 1) ? (1ULL << 32) : 0)+
-              (carry >> 32) + (dest[i+j] < resul ? 1 : 0) +
-              ((lx * hy) >> 32) + hx * hy;
-    }
-    dest[i+xlen] = carry;
-  }
-}
-
-APInt& APInt::operator*=(const APInt& RHS) {
+APInt APInt::operator*(const APInt& RHS) const {
   assert(BitWidth == RHS.BitWidth && "Bit widths must be the same");
-  if (isSingleWord()) {
-    U.VAL *= RHS.U.VAL;
-    clearUnusedBits();
-    return *this;
-  }
+  if (isSingleWord())
+    return APInt(BitWidth, U.VAL * RHS.U.VAL);
 
-  // Get some bit facts about LHS and check for zero
-  unsigned lhsBits = getActiveBits();
-  unsigned lhsWords = !lhsBits ? 0 : whichWord(lhsBits - 1) + 1;
-  if (!lhsWords)
-    // 0 * X ===> 0
-    return *this;
+  APInt Result(getMemory(getNumWords()), getBitWidth());
 
-  // Get some bit facts about RHS and check for zero
-  unsigned rhsBits = RHS.getActiveBits();
-  unsigned rhsWords = !rhsBits ? 0 : whichWord(rhsBits - 1) + 1;
-  if (!rhsWords) {
-    // X * 0 ===> 0
-    clearAllBits();
-    return *this;
-  }
+  tcMultiply(Result.U.pVal, U.pVal, RHS.U.pVal, getNumWords());
 
-  // Allocate space for the result
-  unsigned destWords = rhsWords + lhsWords;
-  uint64_t *dest = getMemory(destWords);
-
-  // Perform the long multiply
-  mul(dest, U.pVal, lhsWords, RHS.U.pVal, rhsWords);
-
-  // Copy result back into *this
-  clearAllBits();
-  unsigned wordsToCopy = destWords >= getNumWords() ? getNumWords() : destWords;
-  memcpy(U.pVal, dest, wordsToCopy * APINT_WORD_SIZE);
-  clearUnusedBits();
-
-  // delete dest array and return
-  delete[] dest;
-  return *this;
+  Result.clearUnusedBits();
+  return Result;
 }
 
 void APInt::AndAssignSlowCase(const APInt& RHS) {
@@ -347,13 +250,20 @@ void APInt::XorAssignSlowCase(const APInt& RHS) {
   tcXor(U.pVal, RHS.U.pVal, getNumWords());
 }
 
-APInt APInt::operator*(const APInt& RHS) const {
+APInt& APInt::operator*=(const APInt& RHS) {
   assert(BitWidth == RHS.BitWidth && "Bit widths must be the same");
-  if (isSingleWord())
-    return APInt(BitWidth, U.VAL * RHS.U.VAL);
-  APInt Result(*this);
-  Result *= RHS;
-  return Result;
+  *this = *this * RHS;
+  return *this;
+}
+
+APInt& APInt::operator*=(uint64_t RHS) {
+  if (isSingleWord()) {
+    U.VAL *= RHS;
+  } else {
+    unsigned NumWords = getNumWords();
+    tcMultiplyPart(U.pVal, U.pVal, RHS, 0, NumWords, NumWords, false);
+  }
+  return clearUnusedBits();
 }
 
 bool APInt::EqualSlowCase(const APInt& RHS) const {
@@ -1932,10 +1842,6 @@ void APInt::fromString(unsigned numbits, StringRef str, uint8_t radix) {
   // Figure out if we can shift instead of multiply
   unsigned shift = (radix == 16 ? 4 : radix == 8 ? 3 : radix == 2 ? 1 : 0);
 
-  // Set up an APInt for the radix multiplier outside the loop so we don't
-  // constantly construct/destruct it.
-  APInt apradix(getBitWidth(), radix);
-
   // Enter digit traversal loop
   for (StringRef::iterator e = str.end(); p != e; ++p) {
     unsigned digit = getDigit(*p, radix);
@@ -1946,7 +1852,7 @@ void APInt::fromString(unsigned numbits, StringRef str, uint8_t radix) {
       if (shift)
         *this <<= shift;
       else
-        *this *= apradix;
+        *this *= radix;
     }
 
     // Add in the digit we just interpreted
@@ -2346,10 +2252,9 @@ int APInt::tcMultiplyPart(WordType *dst, const WordType *src,
   assert(dstParts <= srcParts + 1);
 
   /* N loops; minimum of dstParts and srcParts.  */
-  unsigned n = dstParts < srcParts ? dstParts: srcParts;
+  unsigned n = std::min(dstParts, srcParts);
 
-  unsigned i;
-  for (i = 0; i < n; i++) {
+  for (unsigned i = 0; i < n; i++) {
     WordType low, mid, high, srcPart;
 
       /* [ LOW, HIGH ] = MULTIPLIER * SRC[i] + DST[i] + CARRY.
@@ -2400,27 +2305,27 @@ int APInt::tcMultiplyPart(WordType *dst, const WordType *src,
     carry = high;
   }
 
-  if (i < dstParts) {
+  if (srcParts < dstParts) {
     /* Full multiplication, there is no overflow.  */
-    assert(i + 1 == dstParts);
-    dst[i] = carry;
-    return 0;
-  } else {
-    /* We overflowed if there is carry.  */
-    if (carry)
-      return 1;
-
-    /* We would overflow if any significant unwritten parts would be
-       non-zero.  This is true if any remaining src parts are non-zero
-       and the multiplier is non-zero.  */
-    if (multiplier)
-      for (; i < srcParts; i++)
-        if (src[i])
-          return 1;
-
-    /* We fitted in the narrow destination.  */
+    assert(srcParts + 1 == dstParts);
+    dst[srcParts] = carry;
     return 0;
   }
+
+  /* We overflowed if there is carry.  */
+  if (carry)
+    return 1;
+
+  /* We would overflow if any significant unwritten parts would be
+     non-zero.  This is true if any remaining src parts are non-zero
+     and the multiplier is non-zero.  */
+  if (multiplier)
+    for (unsigned i = dstParts; i < srcParts; i++)
+      if (src[i])
+        return 1;
+
+  /* We fitted in the narrow destination.  */
+  return 0;
 }
 
 /* DST = LHS * RHS, where DST has the same width as the operands and
@@ -2449,20 +2354,19 @@ unsigned APInt::tcFullMultiply(WordType *dst, const WordType *lhs,
                                const WordType *rhs, unsigned lhsParts,
                                unsigned rhsParts) {
   /* Put the narrower number on the LHS for less loops below.  */
-  if (lhsParts > rhsParts) {
+  if (lhsParts > rhsParts)
     return tcFullMultiply (dst, rhs, lhs, rhsParts, lhsParts);
-  } else {
-    assert(dst != lhs && dst != rhs);
 
-    tcSet(dst, 0, rhsParts);
+  assert(dst != lhs && dst != rhs);
 
-    for (unsigned i = 0; i < lhsParts; i++)
-      tcMultiplyPart(&dst[i], rhs, lhs[i], 0, rhsParts, rhsParts + 1, true);
+  tcSet(dst, 0, rhsParts);
 
-    unsigned n = lhsParts + rhsParts;
+  for (unsigned i = 0; i < lhsParts; i++)
+    tcMultiplyPart(&dst[i], rhs, lhs[i], 0, rhsParts, rhsParts + 1, true);
 
-    return n - (dst[n - 1] == 0);
-  }
+  unsigned n = lhsParts + rhsParts;
+
+  return n - (dst[n - 1] == 0);
 }
 
 /* If RHS is zero LHS and REMAINDER are left unchanged, return one.
