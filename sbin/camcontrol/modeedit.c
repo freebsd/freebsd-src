@@ -629,8 +629,21 @@ editlist_save(struct cam_device *device, int dbd, int pc, int page,
 
 	/* Recalculate headers & offsets. */
 	mh->data_length = 0;		/* Reserved for MODE SELECT command. */
-	mh->dev_spec = 0;		/* Clear device-specific parameters. */
 	mh->blk_desc_len = 0;		/* No block descriptors. */
+	/*
+	 * Tape drives include write protect (WP), Buffered Mode and Speed
+	 * settings in the device-specific parameter.  Clearing this
+	 * parameter on a mode select can have the effect of turning off
+	 * write protect or buffered mode, or changing the speed setting of
+	 * the tape drive.
+	 *
+	 * Disks report DPO/FUA support via the device specific parameter
+	 * for MODE SENSE, but the bit is reserved for MODE SELECT.  So we
+	 * clear this for disks (and other non-tape devices) to avoid
+	 * potential errors from the target device.
+	 */
+	if (device->pd_type != T_SEQUENTIAL)
+		mh->dev_spec = 0;
 	mph = MODE_PAGE_HEADER(mh);
 	mph->page_code &= ~SMPH_PS;	/* Reserved for MODE SELECT command. */
 
