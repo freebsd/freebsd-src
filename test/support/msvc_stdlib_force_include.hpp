@@ -26,6 +26,11 @@
     #error This header may not be used when targeting libc++
 #endif
 
+// Indicates that we are using the MSVC standard library.
+#ifndef _MSVC_STL_VER
+    #define _MSVC_STL_VER 42
+#endif
+
 struct AssertionDialogAvoider {
     AssertionDialogAvoider() {
         _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
@@ -40,8 +45,6 @@ const AssertionDialogAvoider assertion_dialog_avoider{};
 
 // MSVC frontend only configurations
 #if !defined(__clang__)
-    #define TEST_STD_VER 17
-
     // Simulate feature-test macros.
     #define __has_feature(X) _MSVC_HAS_FEATURE_ ## X
     #define _MSVC_HAS_FEATURE_cxx_exceptions    1
@@ -54,7 +57,6 @@ const AssertionDialogAvoider assertion_dialog_avoider{};
     #pragma warning(disable: 4180) // qualifier applied to function type has no meaning; ignored
     #pragma warning(disable: 4521) // multiple copy constructors specified
     #pragma warning(disable: 4702) // unreachable code
-    #pragma warning(disable: 6294) // Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed.
     #pragma warning(disable: 28251) // Inconsistent annotation for 'new': this instance has no annotations.
 #endif // !defined(__clang__)
 
@@ -74,5 +76,13 @@ const AssertionDialogAvoider assertion_dialog_avoider{};
 
 // Silence warnings about raw pointers and other unchecked iterators.
 #define _SCL_SECURE_NO_WARNINGS
+
+#include <ciso646>
+
+#if _HAS_CXX17
+    #define TEST_STD_VER 17
+#else // _HAS_CXX17
+    #define TEST_STD_VER 14
+#endif // _HAS_CXX17
 
 #endif // SUPPORT_MSVC_STDLIB_FORCE_INCLUDE_HPP
