@@ -120,8 +120,7 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     return nullptr;
   }
 
-  Known.Zero.clearAllBits();
-  Known.One.clearAllBits();
+  Known.resetAll();
   if (DemandedMask == 0)     // Not demanding any bits from V.
     return UndefValue::get(VTy);
 
@@ -329,13 +328,11 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
   case Instruction::Trunc: {
     unsigned truncBf = I->getOperand(0)->getType()->getScalarSizeInBits();
     DemandedMask = DemandedMask.zext(truncBf);
-    Known.Zero = Known.Zero.zext(truncBf);
-    Known.One = Known.One.zext(truncBf);
+    Known = Known.zext(truncBf);
     if (SimplifyDemandedBits(I, 0, DemandedMask, Known, Depth + 1))
       return I;
     DemandedMask = DemandedMask.trunc(BitWidth);
-    Known.Zero = Known.Zero.trunc(BitWidth);
-    Known.One = Known.One.trunc(BitWidth);
+    Known = Known.trunc(BitWidth);
     assert(!(Known.Zero & Known.One) && "Bits known to be one AND zero?");
     break;
   }
@@ -365,13 +362,11 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     unsigned SrcBitWidth =I->getOperand(0)->getType()->getScalarSizeInBits();
 
     DemandedMask = DemandedMask.trunc(SrcBitWidth);
-    Known.Zero = Known.Zero.trunc(SrcBitWidth);
-    Known.One = Known.One.trunc(SrcBitWidth);
+    Known = Known.trunc(SrcBitWidth);
     if (SimplifyDemandedBits(I, 0, DemandedMask, Known, Depth + 1))
       return I;
     DemandedMask = DemandedMask.zext(BitWidth);
-    Known.Zero = Known.Zero.zext(BitWidth);
-    Known.One = Known.One.zext(BitWidth);
+    Known = Known.zext(BitWidth);
     assert(!(Known.Zero & Known.One) && "Bits known to be one AND zero?");
     // The top bits are known to be zero.
     Known.Zero.setBitsFrom(SrcBitWidth);
@@ -391,13 +386,11 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
       InputDemandedBits.setBit(SrcBitWidth-1);
 
     InputDemandedBits = InputDemandedBits.trunc(SrcBitWidth);
-    Known.Zero = Known.Zero.trunc(SrcBitWidth);
-    Known.One = Known.One.trunc(SrcBitWidth);
+    Known = Known.trunc(SrcBitWidth);
     if (SimplifyDemandedBits(I, 0, InputDemandedBits, Known, Depth + 1))
       return I;
     InputDemandedBits = InputDemandedBits.zext(BitWidth);
-    Known.Zero = Known.Zero.zext(BitWidth);
-    Known.One = Known.One.zext(BitWidth);
+    Known = Known.zext(BitWidth);
     assert(!(Known.Zero & Known.One) && "Bits known to be one AND zero?");
 
     // If the sign bit of the input is known set or clear, then we know the

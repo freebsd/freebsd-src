@@ -202,7 +202,7 @@ void ARMTargetLowering::addTypeForNEON(MVT VT, MVT PromotedLdStVT,
 
   if (!VT.isFloatingPoint() &&
       VT != MVT::v2i64 && VT != MVT::v1i64)
-    for (unsigned Opcode : {ISD::SMIN, ISD::SMAX, ISD::UMIN, ISD::UMAX})
+    for (auto Opcode : {ISD::ABS, ISD::SMIN, ISD::SMAX, ISD::UMIN, ISD::UMAX})
       setOperationAction(Opcode, VT, Legal);
 }
 
@@ -822,6 +822,7 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::SRL_PARTS, MVT::i32, Custom);
   setOperationAction(ISD::SRL,       MVT::i64, Custom);
   setOperationAction(ISD::SRA,       MVT::i64, Custom);
+  setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::i64, Custom);
 
   setOperationAction(ISD::ADDC,      MVT::i32, Custom);
   setOperationAction(ISD::ADDE,      MVT::i32, Custom);
@@ -1344,6 +1345,10 @@ const char *ARMTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case ARMISD::SMLALTT:       return "ARMISD::SMLALTT";
   case ARMISD::SMULWB:        return "ARMISD::SMULWB";
   case ARMISD::SMULWT:        return "ARMISD::SMULWT";
+  case ARMISD::SMLALD:        return "ARMISD::SMLALD";
+  case ARMISD::SMLALDX:       return "ARMISD::SMLALDX";
+  case ARMISD::SMLSLD:        return "ARMISD::SMLSLD";
+  case ARMISD::SMLSLDX:       return "ARMISD::SMLSLDX";
   case ARMISD::BUILD_VECTOR:  return "ARMISD::BUILD_VECTOR";
   case ARMISD::BFI:           return "ARMISD::BFI";
   case ARMISD::VORRIMM:       return "ARMISD::VORRIMM";
@@ -3311,6 +3316,9 @@ ARMTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG,
     }
     return Result;
   }
+  case Intrinsic::arm_neon_vabs:
+    return DAG.getNode(ISD::ABS, SDLoc(Op), Op.getValueType(),
+                        Op.getOperand(1));
   case Intrinsic::arm_neon_vmulls:
   case Intrinsic::arm_neon_vmullu: {
     unsigned NewOpc = (IntNo == Intrinsic::arm_neon_vmulls)
@@ -7722,6 +7730,37 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   }
 }
 
+static void ReplaceLongIntrinsic(SDNode *N, SmallVectorImpl<SDValue> &Results,
+                                 SelectionDAG &DAG) {
+  unsigned IntNo = cast<ConstantSDNode>(N->getOperand(0))->getZExtValue();
+  unsigned Opc = 0;
+  if (IntNo == Intrinsic::arm_smlald)
+    Opc = ARMISD::SMLALD;
+  else if (IntNo == Intrinsic::arm_smlaldx)
+    Opc = ARMISD::SMLALDX;
+  else if (IntNo == Intrinsic::arm_smlsld)
+    Opc = ARMISD::SMLSLD;
+  else if (IntNo == Intrinsic::arm_smlsldx)
+    Opc = ARMISD::SMLSLDX;
+  else
+    return;
+
+  SDLoc dl(N);
+  SDValue Lo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32,
+                           N->getOperand(3),
+                           DAG.getConstant(0, dl, MVT::i32));
+  SDValue Hi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32,
+                           N->getOperand(3),
+                           DAG.getConstant(1, dl, MVT::i32));
+
+  SDValue LongMul = DAG.getNode(Opc, dl,
+                                DAG.getVTList(MVT::i32, MVT::i32),
+                                N->getOperand(1), N->getOperand(2),
+                                Lo, Hi);
+  Results.push_back(LongMul.getValue(0));
+  Results.push_back(LongMul.getValue(1));
+}
+
 /// ReplaceNodeResults - Replace the results of node with an illegal result
 /// type with new values built out of custom code.
 void ARMTargetLowering::ReplaceNodeResults(SDNode *N,
@@ -7763,6 +7802,8 @@ void ARMTargetLowering::ReplaceNodeResults(SDNode *N,
   case ISD::ATOMIC_CMP_SWAP:
     ReplaceCMP_SWAP_64Results(N, Results, DAG);
     return;
+  case ISD::INTRINSIC_WO_CHAIN:
+    return ReplaceLongIntrinsic(N, Results, DAG);
   }
   if (Res.getNode())
     Results.push_back(Res);
@@ -12602,7 +12643,7 @@ void ARMTargetLowering::computeKnownBitsForTargetNode(const SDValue Op,
                                                       const SelectionDAG &DAG,
                                                       unsigned Depth) const {
   unsigned BitWidth = Known.getBitWidth();
-  Known.Zero.clearAllBits(); Known.One.clearAllBits();
+  Known.resetAll();
   switch (Op.getOpcode()) {
   default: break;
   case ARMISD::ADDC:
@@ -12617,7 +12658,8 @@ void ARMTargetLowering::computeKnownBitsForTargetNode(const SDValue Op,
   case ARMISD::CMOV: {
     // Bits are known zero/one if known on the LHS and RHS.
     DAG.computeKnownBits(Op.getOperand(0), Known, Depth+1);
-    if (Known.Zero == 0 && Known.One == 0) return;
+    if (Known.isUnknown())
+      return;
 
     KnownBits KnownRHS;
     DAG.computeKnownBits(Op.getOperand(1), KnownRHS, Depth+1);
@@ -14014,4 +14056,9 @@ void ARMTargetLowering::insertCopiesSplitCSR(
               TII->get(TargetOpcode::COPY), *I)
           .addReg(NewVR);
   }
+}
+
+void ARMTargetLowering::finalizeLowering(MachineFunction &MF) const {
+  MF.getFrameInfo().computeMaxCallFrameSize(MF);
+  TargetLoweringBase::finalizeLowering(MF);
 }

@@ -51,6 +51,7 @@ SRCS+=		lib/Core/Reproduce.cpp
 SRCS+=		lib/Core/Resolver.cpp
 SRCS+=		lib/Core/SymbolTable.cpp
 SRCS+=		lib/Core/TargetOptionsCommandFlags.cpp
+SRCS+=		lib/Core/TaskGroup.cpp
 SRCS+=		tools/lld/lld.cpp
 
 .include "${SRCTOP}/lib/clang/llvm.build.mk"
