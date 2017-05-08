@@ -4731,18 +4731,20 @@ ctl_free_lun(struct ctl_lun *lun)
 	struct ctl_lun *nlun;
 	int i;
 
-	mtx_assert(&softc->ctl_lock, MA_OWNED);
+	KASSERT(TAILQ_EMPTY(&lun->ooa_queue),
+	    ("Freeing a LUN %p with outstanding I/O!\n", lun));
 
+	mtx_lock(&softc->ctl_lock);
 	STAILQ_REMOVE(&softc->lun_list, lun, ctl_lun, links);
-
 	ctl_clear_mask(softc->ctl_lun_mask, lun->lun);
-
 	softc->ctl_luns[lun->lun] = NULL;
-
-	if (!TAILQ_EMPTY(&lun->ooa_queue))
-		panic("Freeing a LUN %p with outstanding I/O!!\n", lun);
-
 	softc->num_luns--;
+	STAILQ_FOREACH(nlun, &softc->lun_list, links) {
+		mtx_lock(&nlun->lun_lock);
+		ctl_est_ua_all(nlun, -1, CTL_UA_LUN_CHANGE);
+		mtx_unlock(&nlun->lun_lock);
+	}
+	mtx_unlock(&softc->ctl_lock);
 
 	/*
 	 * Tell the backend to free resources, if this LUN has a backend.
@@ -4752,7 +4754,6 @@ ctl_free_lun(struct ctl_lun *lun)
 
 	lun->ie_reportcnt = UINT32_MAX;
 	callout_drain(&lun->ie_callout);
-
 	ctl_tpc_lun_shutdown(lun);
 	mtx_destroy(&lun->lun_lock);
 	free(lun->lun_devid, M_CTL);
@@ -4764,12 +4765,6 @@ ctl_free_lun(struct ctl_lun *lun)
 	free(lun->prevent, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
 		free(lun, M_CTL);
-
-	STAILQ_FOREACH(nlun, &softc->lun_list, links) {
-		mtx_lock(&nlun->lun_lock);
-		ctl_est_ua_all(nlun, -1, CTL_UA_LUN_CHANGE);
-		mtx_unlock(&nlun->lun_lock);
-	}
 
 	return (0);
 }
@@ -5027,9 +5022,7 @@ ctl_invalidate_lun(struct ctl_be_lun *be_lun)
 	 */
 	if (TAILQ_EMPTY(&lun->ooa_queue)) {
 		mtx_unlock(&lun->lun_lock);
-		mtx_lock(&softc->ctl_lock);
 		ctl_free_lun(lun);
-		mtx_unlock(&softc->ctl_lock);
 	} else
 		mtx_unlock(&lun->lun_lock);
 
@@ -13068,9 +13061,7 @@ ctl_process_done(union ctl_io *io)
 	if ((lun->flags & CTL_LUN_INVALID)
 	 && TAILQ_EMPTY(&lun->ooa_queue)) {
 		mtx_unlock(&lun->lun_lock);
-		mtx_lock(&softc->ctl_lock);
 		ctl_free_lun(lun);
-		mtx_unlock(&softc->ctl_lock);
 	} else
 		mtx_unlock(&lun->lun_lock);
 
