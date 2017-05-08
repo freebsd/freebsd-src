@@ -5399,10 +5399,13 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 	NFSCL_DEBUG(3, "DS connect=%d\n", error);
 
 	/* Now, do the exchangeid and create session. */
-	if (error == 0)
+	if (error == 0) {
 		error = nfsrpc_exchangeid(nmp, clp, nrp, NFSV4EXCH_USEPNFSDS,
 		    &dsp, nrp->nr_cred, p);
-	NFSCL_DEBUG(3, "DS exchangeid=%d\n", error);
+		NFSCL_DEBUG(3, "DS exchangeid=%d\n", error);
+		if (error != 0)
+			newnfs_disconnect(nrp);
+	}
 	if (error == 0) {
 		dsp->nfsclds_sockp = nrp;
 		NFSLOCKMNT(nmp);
@@ -5445,8 +5448,10 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 		TAILQ_INSERT_TAIL(&nmp->nm_sess, dsp, nfsclds_list);
 		NFSUNLOCKMNT(nmp);
 		*dspp = dsp;
-	} else if (dsp != NULL)
+	} else if (dsp != NULL) {
+		newnfs_disconnect(nrp);
 		nfscl_freenfsclds(dsp);
+	}
 	return (error);
 }
 
